@@ -3,6 +3,7 @@
 #include "Application.h"
 #include "../render/Renderer.h"
 #include "../render/BoardRenderer.h"
+#include "../render/Model.h"
 
 #ifdef _WIN32
 #define WIN32_LEAN_AND_MEAN
@@ -21,6 +22,7 @@
 SDL_Window* window = nullptr;
 SDL_GLContext glContext = nullptr;
 BoardRenderer* board = nullptr;
+Model* bulbasaurModel = nullptr;
 
 const unsigned int WIDTH = 1280;
 const unsigned int HEIGHT = 720;
@@ -73,6 +75,8 @@ void Application::init() {
         std::cerr << "Failed to initialize GLAD\n";
         exit(EXIT_FAILURE);
     }
+
+    glEnable(GL_DEPTH_TEST);
     
     std::cout << "[Init] GLAD initialized. OpenGL version: " << glGetString(GL_VERSION) << "\n";    
     SDL_GL_SetSwapInterval(1); // Enable V-Sync
@@ -84,6 +88,8 @@ void Application::init() {
     camera = new Camera3D(45.0f, (float)WIDTH / HEIGHT, 0.1f, 100.0f);
 
     board = new BoardRenderer(8, 8, 1.0f);
+
+    bulbasaurModel = new Model("assets/models/bulbasaur.glb");
 
     // Optionally, print a log indicating successful renderer initialization.
     std::cout << "[Init] Renderer initialized successfully.\n";
@@ -160,10 +166,12 @@ void Application::run() {
 
         // Clear the screen to a dark gray color
         glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
-        glClear(GL_COLOR_BUFFER_BIT);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
         // Draw the triangle
         board->draw(*camera);
+
+        bulbasaurModel->draw(*camera);
 
         SDL_GL_SwapWindow(window);
 
@@ -196,7 +204,8 @@ void Application::shutdown() {
     if (board) {
         board->shutdown();
         delete board;
-    }    
+    }
+    if (bulbasaurModel) delete bulbasaurModel;
     SDL_GL_DeleteContext(glContext);
     SDL_DestroyWindow(window);
     SDL_Quit();

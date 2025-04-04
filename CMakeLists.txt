@@ -21,6 +21,7 @@ add_executable(PokemonAutochess
     engine/render/Renderer.cpp
     engine/render/Camera3D.cpp
     engine/render/BoardRenderer.cpp
+    engine/render/Model.cpp
 )
 
 target_include_directories(PokemonAutochess PRIVATE 
