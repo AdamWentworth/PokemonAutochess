@@ -23,6 +23,10 @@ public:
     // New setter for dynamic grid placement:
     void setModelPosition(const glm::vec3& pos);
 
+    glm::vec3 getModelPosition() const {
+        return modelPosition;
+    }
+
 private:
     unsigned int VAO, VBO, EBO;
     unsigned int shaderProgram;

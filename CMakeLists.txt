@@ -22,10 +22,16 @@ add_executable(PokemonAutochess
     engine/render/Camera3D.cpp
     engine/render/BoardRenderer.cpp
     engine/render/Model.cpp
+    game/GameStateManager.cpp
+    game/StarterSelectionState.cpp
 )
+
+# Force console subsystem and entry point
+set_target_properties(PokemonAutochess PROPERTIES LINK_FLAGS "/SUBSYSTEM:CONSOLE /ENTRY:mainCRTStartup")
 
 target_include_directories(PokemonAutochess PRIVATE 
     engine
+    game
 )
 
 find_package(glad CONFIG REQUIRED)

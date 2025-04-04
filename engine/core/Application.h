@@ -4,6 +4,7 @@
 
 #include "../render/Renderer.h"
 #include "../render/Camera3D.h"
+#include "../../game/GameStateManager.h"
 
 class Application {
     public:
@@ -18,4 +19,5 @@ class Application {
     
         Renderer* renderer = nullptr;
         Camera3D* camera = nullptr;
+        GameStateManager* stateManager = nullptr;
     };
