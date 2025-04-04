@@ -95,8 +95,6 @@ unsigned int Renderer::createShaderProgram(const char* vertexPath, const char* f
     std::string vertSrc = loadShaderSource(vertexPath);
     std::string fragSrc = loadShaderSource(fragmentPath);
 
-    std::cout << "[Debug] Vertex Shader Source:\n" << vertSrc << "\n";
-
     unsigned int vertexShader = compileShader(vertSrc.c_str(), GL_VERTEX_SHADER);
     unsigned int fragmentShader = compileShader(fragSrc.c_str(), GL_FRAGMENT_SHADER);
 

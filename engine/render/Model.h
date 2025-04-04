@@ -2,10 +2,9 @@
 
 #pragma once
 
-#pragma once
-
 #include <string>
 #include <vector>
+#include <glm/vec3.hpp>
 #include "Camera3D.h"
 
 struct Submesh {
@@ -29,6 +28,10 @@ private:
     size_t indexCount;
 
     std::vector<Submesh> submeshes; // One submesh per primitive
+
+    // New members for scaling relative to board cell size:
+    float modelScaleFactor;  // Uniform scale factor computed from the bounding box.
+    glm::vec3 modelOffset;   // Translation offset to bring the model's base to (0,0,0).
 
     void loadGLTF(const std::string& filepath);
     unsigned int compileShader(const char* source, unsigned int type);

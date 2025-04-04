@@ -6,6 +6,7 @@
 #include <fstream>
 #include <sstream>
 #include <vector>
+#include <limits>
 #define TINYGLTF_IMPLEMENTATION
 #define STB_IMAGE_IMPLEMENTATION
 #define STB_IMAGE_WRITE_IMPLEMENTATION
@@ -156,6 +157,44 @@ void Model::loadGLTF(const std::string& filepath) {
         }
     }
 
+    // After merging all vertex data:
+    float minX = std::numeric_limits<float>::max();
+    float minY = std::numeric_limits<float>::max();
+    float minZ = std::numeric_limits<float>::max();
+    float maxX = -std::numeric_limits<float>::max();
+    float maxY = -std::numeric_limits<float>::max();
+    float maxZ = -std::numeric_limits<float>::max();
+
+    size_t numVertices = vertexData.size() / 5;
+    for (size_t i = 0; i < numVertices; i++) {
+        float x = vertexData[i * 5 + 0];
+        float y = vertexData[i * 5 + 1];
+        float z = vertexData[i * 5 + 2];
+        if (x < minX) minX = x;
+        if (y < minY) minY = y;
+        if (z < minZ) minZ = z;
+        if (x > maxX) maxX = x;
+        if (y > maxY) maxY = y;
+        if (z > maxZ) maxZ = z;
+    }
+
+    // Compute the model's height (you can choose height, width, or depth; here we use height).
+    float modelHeight = maxY - minY;
+
+    // Assume the board cell is 1.0 unit. If you want the model's height to be, say, 80% of a cell:
+    float desiredHeight = 0.8f;
+    modelScaleFactor = desiredHeight / (maxZ - minZ);
+
+    // To center the model so that its base (lowest Y value) sits at Y=0,
+    // compute the center in X and Z, and translate so that (centerX, minY, centerZ) goes to (0,0,0).
+    float centerX = (minX + maxX) / 2.0f;
+    float centerY = (minY + maxY) / 2.0f;
+    modelOffset = glm::vec3(
+        -modelScaleFactor * centerX,    // shift in x
+         modelScaleFactor * maxZ,         // shift in y to bring base (from original maxZ) to y=0
+        -modelScaleFactor * centerY     // shift in z
+    );
+
     std::cout << "[Model] Total Vertex Count: " << totalVertices << "\n";
     std::cout << "[Model] Total Index Count: " << indexData.size() << "\n";
 
@@ -180,14 +219,18 @@ void Model::loadGLTF(const std::string& filepath) {
 void Model::draw(const Camera3D& camera) {
     glUseProgram(shaderProgram);
 
-    // Adjust the rotation: using +90° around the X axis to correct orientation.
+    // Apply uniform scaling, the needed 90° rotation around X, and then translation.
+    glm::mat4 scale = glm::scale(glm::mat4(1.0f), glm::vec3(modelScaleFactor));
     glm::mat4 rotation = glm::rotate(glm::mat4(1.0f), glm::radians(90.0f), glm::vec3(1, 0, 0));
-    glm::mat4 modelMat = rotation;
+    glm::mat4 translation = glm::translate(glm::mat4(1.0f), modelOffset);
+
+    // Transformation order: scale -> rotation -> translation.
+    glm::mat4 modelMat = translation * rotation * scale;
+    
     glm::mat4 mvp = camera.getProjectionMatrix() * camera.getViewMatrix() * modelMat;
     glUniformMatrix4fv(mvpLocation, 1, GL_FALSE, &mvp[0][0]);
 
     glBindVertexArray(VAO);
-    // Draw each submesh with its own texture.
     for (const auto &sm : submeshes) {
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, sm.textureID);
