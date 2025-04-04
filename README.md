@@ -1,81 +1,96 @@
-# Pokemon Autochess
+# 🧩 Pokemon Autochess
 
-A custom-built C++ game engine and prototype for a **3D auto-battler** inspired by the mechanics of chess and the world of Pokémon.
+A **custom 3D game engine** and prototype auto-battler inspired by chess, real-time tactics, and the Pokémon universe.
+
+Built in **C++17** using modern rendering, math, and architecture techniques — from scratch.
+
+---
 
 ## 🛠️ Tech Stack
 
-This project is built from scratch using modern C++17 and focuses on real-time rendering and engine architecture fundamentals:
+This engine is hand-built with modern C++ and real-time rendering in mind:
 
-- **SDL2** — windowing, input, and OpenGL context creation
-- **OpenGL 3.3 Core** — cross-platform real-time 3D rendering
-- **GLAD** — OpenGL function loader
-- **GLSL** — shader language for GPU programs
-- **CMake + vcpkg** — dependency management & builds
-- **GLM** — math library for matrices, transforms, and cameras *(now integrated)*
-- *(soon)* **EnTT** — ECS for flexible game logic
-- *(future)* Lua, Bullet3, ImGui, ImGuizmo, etc.
+- **SDL2** – windowing, input, and OpenGL context creation
+- **OpenGL 3.3 Core** – GPU-based real-time rendering
+- **GLAD** – OpenGL function loader
+- **GLSL** – vertex/fragment shaders
+- **GLM** – matrix/vector math (camera, transforms)
+- **CMake** – cross-platform build system
+- **vcpkg** – dependency management
+
+### 🧩 Planned Integrations
+- **EnTT** – ECS architecture for game logic
+- **Assimp** – 3D model loading (FBX, OBJ, etc)
+- **Lua** – scripting support for units/AI
+- **ImGui** – debug tools and UI
+- **Bullet3** – physics (collisions, movement)
+
+---
 
 ## 🎮 Game Concept
 
-Players draft Pokémon to a battlefield and place them on a chessboard-like 3D grid. After setup, units auto-battle each other based on abilities and synergy. The player wins rounds by out-positioning and out-strategizing their opponent.
+> Think **Teamfight Tactics** meets Pokémon, in a stylized 3D grid world.
 
-### Visual Style
-- Isometric-ish top-down camera (like **TFT**)
-- Fixed or orbiting 3D camera
-- Stylized models with idle/battle animations
+- Players draft Pokémon and position them on a chessboard-like arena.
+- Combat is automatic, based on positioning, abilities, and synergies.
+- Strategy comes from placement, team composition, and ability timing.
 
-### Core Features (Planned)
-- 3D Grid-based battlefield
-- Perspective camera with zoom/pan
-- Unit synergy and evolution
-- Draft + bench system
-- Round-based combat system
+### 🔭 Visual Style
+- Fixed top-down / isometric camera (TFT-like)
+- Stylized models and animations
+- Vibrant battlefield with dynamic effects
 
-## 🎓 BCIT Game Dev Curriculum Alignment
+---
 
-This project aligns with BCIT’s **Bachelor of Applied Computer Science – Game Dev Option**:
+## ✨ Features Roadmap
 
-- Real-time graphics (OpenGL, GLSL, GLM)
-- ECS design (EnTT)
-- C++ engine architecture
-- Modular design using CMake + vcpkg
-- Optional scripting & AI systems in Lua
-- Scene management, entity systems, rendering pipelines
+| Feature                     | Status      |
+|----------------------------|-------------|
+| ✅ OpenGL + SDL2 bootstrap  | Complete    |
+| ✅ Shader pipeline + MVP    | Complete    |
+| ✅ 3D camera (perspective)  | Complete    |
+| ✅ Grid tile renderer       | Done        |
+| 🧪 Model loading (Assimp)   | In progress |
+| 🔜 ECS system (EnTT)        | Next        |
+| 🔜 Draft system             | Planned     |
+| 🔜 Unit AI + combat         | Planned     |
+| 🔜 UI, effects, polish      | Future      |
 
-## 🧪 Development Status
+---
 
-### ✅ Completed
-- Triangle rendering
-- GLAD + OpenGL + SDL2 setup
-- CMake + vcpkg integration
-- Shader system and renderer abstraction
-- GLM perspective camera support
+## 🎓 Educational Alignment
 
-### 🔨 In Progress
-- Board renderer (chess tiles)
-- Model loading (Assimp)
-- ECS for units and systems
+This project supports and extends topics from **BCIT’s Bachelor of Applied Computer Science – Game Development Option**:
+
+- ✅ Real-time rendering (OpenGL, GLSL, cameras)
+- ✅ Engine structure and modular C++
+- ✅ Systems architecture with ECS
+- 🔜 Scripting and AI (Lua)
+- 🔜 Physics, animation, and input systems
 
 ---
 
 ## 🚀 Getting Started
 
-### Requirements
-- CMake 3.21+
-- Visual Studio 2022 / g++ / clang
-- vcpkg (dependencies auto-managed)
+### Prerequisites
 
-### Build Instructions
+- **CMake** 3.21+
+- **Visual Studio 2022** / `clang++` / `g++`
+- **vcpkg** installed and configured
+
+### 📦 Build Instructions
 
 ```bash
-# One-time vcpkg setup
+# Clone and set up vcpkg (one-time)
 git clone https://github.com/microsoft/vcpkg.git
 ./vcpkg/bootstrap-vcpkg.bat
 ./vcpkg integrate install
 
-# Install dependencies
+# Install engine dependencies
 vcpkg install sdl2 glad glm
 
-# Build
+# Generate build files
 cmake -S . -B build -DCMAKE_TOOLCHAIN_FILE=[path-to-vcpkg]/scripts/buildsystems/vcpkg.cmake
+
+# Build the project
 cmake --build build

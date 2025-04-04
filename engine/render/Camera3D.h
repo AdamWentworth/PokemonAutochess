@@ -12,8 +12,12 @@ public:
     void setPosition(const glm::vec3& pos);
     void lookAt(const glm::vec3& target, const glm::vec3& up = glm::vec3(0, 1, 0));
 
+    void move(const glm::vec3& delta);       // NEW
+    void zoom(float delta);                  // NEW
+
     glm::mat4 getViewMatrix() const;
     glm::mat4 getProjectionMatrix() const;
+    glm::vec3 getDirection() const;
 
 private:
     glm::vec3 position;

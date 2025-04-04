@@ -96,20 +96,67 @@ void Application::run() {
     bool running = true;
     SDL_Event event;
 
+    bool dragging = false;
+    int lastMouseX = 0, lastMouseY = 0;
+
     while (running) {
-        // Process events
         while (SDL_PollEvent(&event)) {
             if (event.type == SDL_QUIT) {
                 std::cout << "[Event] Quit event received.\n";
                 running = false;
             }
+
             if (event.type == SDL_KEYDOWN && event.key.keysym.sym == SDLK_ESCAPE) {
                 std::cout << "[Event] Escape key pressed. Exiting.\n";
                 running = false;
             }
+
+            if (event.type == SDL_MOUSEWHEEL) {
+                camera->zoom(event.wheel.y * 0.5f);
+            }
+            if (event.type == SDL_MOUSEBUTTONDOWN && event.button.button == SDL_BUTTON_LEFT) {
+                dragging = true;
+                lastMouseX = event.button.x;
+                lastMouseY = event.button.y;
+            }
+            if (event.type == SDL_MOUSEBUTTONUP && event.button.button == SDL_BUTTON_LEFT) {
+                dragging = false;
+            }            
+            if (event.type == SDL_MOUSEMOTION && dragging) {
+                int dx = event.motion.x - lastMouseX;
+                int dy = event.motion.y - lastMouseY;
+                lastMouseX = event.motion.x;
+                lastMouseY = event.motion.y;
+            
+                float sensitivity = 0.015f;
+            
+                // Match arrow key behavior: move along world XZ plane
+                glm::vec3 dragMove(
+                    static_cast<float>(-dx) * sensitivity, // move left-right
+                    0.0f,
+                    static_cast<float>(-dy) * sensitivity   // move forward-back
+                );
+            
+                camera->move(dragMove);
+            }            
         }
 
         update();
+
+        const Uint8* keystates = SDL_GetKeyboardState(nullptr);
+        float cameraSpeed = 0.1f;
+
+        glm::vec3 moveDir(0.0f);
+
+        // WASD / Arrow key panning
+        if (keystates[SDL_SCANCODE_W] || keystates[SDL_SCANCODE_UP])    moveDir.z -= cameraSpeed;
+        if (keystates[SDL_SCANCODE_S] || keystates[SDL_SCANCODE_DOWN])  moveDir.z += cameraSpeed;
+        if (keystates[SDL_SCANCODE_A] || keystates[SDL_SCANCODE_LEFT])  moveDir.x -= cameraSpeed;
+        if (keystates[SDL_SCANCODE_D] || keystates[SDL_SCANCODE_RIGHT]) moveDir.x += cameraSpeed;
+
+        if (glm::length(moveDir) > 0.0f) {
+            camera->move(moveDir);
+        }
 
         // Clear the screen to a dark gray color
         glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
