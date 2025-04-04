@@ -1,12 +1,14 @@
 // Application.cpp
 
 #include "Application.h"
+#include "ResourceManager.h"
 #include "../render/Renderer.h"
 #include "../render/BoardRenderer.h"
 #include "../render/Model.h"
+#include "../../game/GameWorld.h"
 #include "../../game/GameStateManager.h" 
 #include "../../game/StarterSelectionState.h"
-
+#define NOMINMAX
 #ifdef _WIN32
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>       // Must come before GL
@@ -24,7 +26,6 @@
 SDL_Window* window = nullptr;
 SDL_GLContext glContext = nullptr;
 BoardRenderer* board = nullptr;
-Model* bulbasaurModel = nullptr;
 
 const unsigned int WIDTH = 1280;
 const unsigned int HEIGHT = 720;
@@ -89,11 +90,12 @@ void Application::init() {
 
     camera = new Camera3D(45.0f, static_cast<float>(WIDTH) / HEIGHT, 0.1f, 100.0f);
 
+    // Create the board
     board = new BoardRenderer(8, 8, 1.0f);
 
-    bulbasaurModel = new Model("assets/models/bulbasaur.glb");
-
-    std::cout << "[Init] Renderer initialized successfully.\n";
+    // Create our gameWorld and spawn one Bulbasaur for testing
+    gameWorld = new GameWorld();
+    gameWorld->spawnPokemon("bulbasaur", glm::vec3(0.0f, 0.0f, 0.0f));
 
     stateManager = new GameStateManager();
     stateManager->pushState(std::make_unique<StarterSelectionState>(stateManager));
@@ -107,10 +109,10 @@ void Application::run() {
     int frameCount = 0;
     bool running = true;
 
-    // 1) We differentiate whether the player is carrying the model (no mouse hold needed)
+    // We differentiate whether the player is carrying the model (no mouse hold needed)
     bool carryingModel = false;
 
-    // 2) For camera panning, we still do a click+drag approach
+    int carryingPokemonIndex = -1;
     bool panningCamera = false;
 
     // Keep track of last mouse position for panning
@@ -164,64 +166,67 @@ void Application::run() {
 
             // Only do picking or camera panning if not in StarterSelectionState
             if (!dynamic_cast<StarterSelectionState*>(stateManager->getCurrentState())) {
-
-                // =============== MOUSE BUTTON DOWN ===============
+                
                 if (event.type == SDL_MOUSEBUTTONDOWN && event.button.button == SDL_BUTTON_LEFT) {
                     
-                    // Convert to 3D position on plane y=0
+                    // Convert click to 3D
                     glm::vec3 clickPos3D = screenToWorld(event.button.x, event.button.y);
-                    float dist = glm::distance(clickPos3D, bulbasaurModel->getModelPosition());
 
-                    if (!carryingModel) {
-                        // Case A: currently not carrying the model
-                        if (dist <= pickRadius) {
-                            // User clicked near Bulbasaur => pick it up
-                            carryingModel = true;
-                            std::cout << "[Event] Clicked near Bulbasaur => Now carrying it.\n";
+                    if (carryingPokemonIndex < 0) {
+                        // Not carrying any Pokemon => see if we clicked near one
+                        
+                        // We'll do a simple loop over all pokemons in gameWorld
+                        float closestDist = std::numeric_limits<float>::max();
+                        int closestIndex = -1;
+
+                        auto& allPokemons = gameWorld->getPokemons();
+                        for (int i = 0; i < (int)allPokemons.size(); i++) {
+                            float dist = glm::distance(clickPos3D, allPokemons[i].position);
+                            if (dist < closestDist) {
+                                closestDist = dist;
+                                closestIndex = i;
+                            }
+                        }
+
+                        // If the closest is within pickRadius, pick it up
+                        if (closestIndex >= 0 && closestDist <= pickRadius) {
+                            carryingPokemonIndex = closestIndex;
+                            std::cout << "[Event] Picked up pokemon index " << closestIndex << "\n";
                         } else {
-                            // Clicked empty space => start panning
+                            // Start panning camera
                             panningCamera = true;
                             lastMouseX = event.button.x;
                             lastMouseY = event.button.y;
-                            std::cout << "[Event] Clicked empty board => Start camera panning.\n";
                         }
                     } else {
-                        // Case B: we ARE carrying the model, so any click places it
-                        carryingModel = false;
-                        std::cout << "[Event] Click => Placed the model.\n";
+                        // We are carrying a pokemon => place it
+                        std::cout << "[Event] Placed pokemon index " << carryingPokemonIndex << "\n";
+                        carryingPokemonIndex = -1;
                     }
                 }
-
-                // =============== MOUSE BUTTON UP ===============
                 else if (event.type == SDL_MOUSEBUTTONUP && event.button.button == SDL_BUTTON_LEFT) {
-                    // If we were panning, stop now
                     if (panningCamera) {
                         panningCamera = false;
                         std::cout << "[Event] Camera pan ended.\n";
                     }
                 }
-
-                // =============== MOUSE MOTION ===============
                 else if (event.type == SDL_MOUSEMOTION) {
-                    // If carrying model, let it follow the mouse
-                    if (carryingModel) {
+                    if (carryingPokemonIndex >= 0) {
+                        // Move that pokemon
                         glm::vec3 newPos = screenToWorld(event.motion.x, event.motion.y);
                         newPos.x = std::floor(newPos.x) + 0.5f;
                         newPos.z = std::floor(newPos.z) + 0.5f;
                         newPos.y = 0.0f;
-                        bulbasaurModel->setModelPosition(newPos);
+
+                        // Update the position in gameWorld
+                        gameWorld->getPokemons()[carryingPokemonIndex].position = newPos;
                     }
-                    // If panning, move camera according to mouse delta
                     else if (panningCamera) {
                         int dx = event.motion.x - lastMouseX;
                         int dy = event.motion.y - lastMouseY;
                         lastMouseX = event.motion.x;
                         lastMouseY = event.motion.y;
-
-                        // Adjust panSpeed to taste
                         float panSpeed = 0.02f;
-
-                        // Reverse the sign on 'dy' so dragging mouse up moves camera forward
                         camera->move(glm::vec3(-dx * panSpeed, 0.0f, -dy * panSpeed));
                     }
                 }
@@ -255,13 +260,14 @@ void Application::run() {
             camera->move(moveDir);
         }
 
-        // Rendering
+        // Render logic
         glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-        // Draw board + Bulbasaur
         board->draw(*camera);
-        bulbasaurModel->draw(*camera);
+        
+        // Draw all pokemons via gameWorld
+        gameWorld->drawAll(*camera);
 
         // Render any UI from the active state
         if (stateManager) {
@@ -294,7 +300,10 @@ void Application::shutdown() {
         board->shutdown();
         delete board;
     }
-    if (bulbasaurModel) delete bulbasaurModel;
+    // Now we also delete gameWorld
+    if (gameWorld) {
+        delete gameWorld;
+    }
     if (stateManager) {
         delete stateManager;
     }

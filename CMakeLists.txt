@@ -18,10 +18,12 @@ find_package(OpenGL REQUIRED)
 add_executable(PokemonAutochess
     main.cpp
     engine/core/Application.cpp
+    engine/core/ResourceManager.cpp
     engine/render/Renderer.cpp
     engine/render/Camera3D.cpp
     engine/render/BoardRenderer.cpp
     engine/render/Model.cpp
+    game/GameWorld.cpp
     game/GameStateManager.cpp
     game/StarterSelectionState.cpp
 )
