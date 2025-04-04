@@ -2,9 +2,10 @@
 #pragma once
 #include "GameState.h"
 #include <SDL2/SDL.h>
+#include <iostream>
 
-// Forward-declare GameStateManager (to store a pointer to it):
 class GameStateManager;
+class GameWorld; // forward-declare
 
 enum class StarterPokemon {
     None,
@@ -15,8 +16,8 @@ enum class StarterPokemon {
 
 class StarterSelectionState : public GameState {
 public:
-    // Ctor matches the .cpp signature: pass in a pointer to the manager
-    StarterSelectionState(GameStateManager* manager);
+    // Updated constructor to take gameWorld pointer
+    StarterSelectionState(GameStateManager* manager, GameWorld* world);
     ~StarterSelectionState();
 
     void onEnter() override;
@@ -27,13 +28,12 @@ public:
 
 private:
     StarterPokemon selectedStarter;
-
     SDL_Rect bulbasaurRect;
     SDL_Rect charmanderRect;
     SDL_Rect squirtleRect;
 
-    // We only store a pointer, so forward declaration is enough in the .h
     GameStateManager* stateManager;
+    GameWorld* gameWorld; // store the pointer here
 
     bool isPointInRect(int x, int y, const SDL_Rect& rect) {
         return (x >= rect.x && x <= rect.x + rect.w &&

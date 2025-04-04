@@ -93,12 +93,11 @@ void Application::init() {
     // Create the board
     board = new BoardRenderer(8, 8, 1.0f);
 
-    // Create our gameWorld and spawn one Bulbasaur for testing
+    // Create our gameWorld (no immediate spawn)
     gameWorld = new GameWorld();
-    gameWorld->spawnPokemon("bulbasaur", glm::vec3(0.0f, 0.0f, 0.0f));
 
     stateManager = new GameStateManager();
-    stateManager->pushState(std::make_unique<StarterSelectionState>(stateManager));
+    stateManager->pushState(std::make_unique<StarterSelectionState>(stateManager, gameWorld));
 
     std::cout << "[Init] Application initialized.\n";
 }
@@ -119,7 +118,7 @@ void Application::run() {
     int lastMouseX = 0;
     int lastMouseY = 0;
 
-    // Use a small radius to detect clicks on the Bulbasaur
+    // Use a small radius to detect clicks on the model
     float pickRadius = 0.7f;
 
     SDL_Event event;

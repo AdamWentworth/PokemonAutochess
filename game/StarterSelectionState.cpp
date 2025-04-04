@@ -1,7 +1,7 @@
 // StarterSelectionState.cpp
 #include "StarterSelectionState.h"
 #include "GameStateManager.h"  // We need the full definition to call popState()
-
+#include "GameWorld.h" 
 #include <glad/glad.h>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
@@ -113,8 +113,8 @@ void drawText(const std::string& text, float x, float y) {
 
 // -------------------- StarterSelectionState Methods --------------------
 
-StarterSelectionState::StarterSelectionState(GameStateManager* manager)
-    : stateManager(manager), selectedStarter(StarterPokemon::None)
+StarterSelectionState::StarterSelectionState(GameStateManager* manager, GameWorld* world)
+    : stateManager(manager), gameWorld(world), selectedStarter(StarterPokemon::None)
 {
     int cardWidth  = 200;
     int cardHeight = 300;
@@ -128,7 +128,7 @@ StarterSelectionState::StarterSelectionState(GameStateManager* manager)
     squirtleRect   = { startX + 2*(cardWidth+spacing), startY, cardWidth, cardHeight };
 }
 
-StarterSelectionState::~StarterSelectionState() { }
+StarterSelectionState::~StarterSelectionState() {}
 
 void StarterSelectionState::onEnter() {
     std::cout << "[StarterSelectionState] Entering starter selection.\n";
@@ -139,7 +139,6 @@ void StarterSelectionState::onExit() {
 }
 
 void StarterSelectionState::handleInput(SDL_Event& event) {
-    // Mouse-based selection
     if (event.type == SDL_MOUSEBUTTONDOWN && event.button.button == SDL_BUTTON_LEFT) {
         int mouseX = event.button.x;
         int mouseY = event.button.y;
@@ -147,34 +146,50 @@ void StarterSelectionState::handleInput(SDL_Event& event) {
         if (isPointInRect(mouseX, mouseY, bulbasaurRect)) {
             selectedStarter = StarterPokemon::Bulbasaur;
             std::cout << "Bulbasaur selected\n";
-        
-            // Immediately pop the starter selection, so we can drag Bulbasaur:
+
+            // (1) Spawn Bulbasaur
+            gameWorld->spawnPokemon("bulbasaur", glm::vec3(0.0f, 0.0f, 0.0f));
+
+            // (2) Immediately pop this state so user can drag the new Pokémon
             stateManager->popState();
         }
         else if (isPointInRect(mouseX, mouseY, charmanderRect)) {
-            std::cout << "Charmander selected - no model available yet!\n";
-            // If you want to block transition for unimplemented Pokemon, just do not pop the state
+            selectedStarter = StarterPokemon::Charmander;
+            std::cout << "Charmander selected\n";
+
+            // (1) Spawn Charmander
+            gameWorld->spawnPokemon("charmander", glm::vec3(0.0f, 0.0f, 0.0f));
+
+            // (2) Pop the state
+            stateManager->popState();
         }
         else if (isPointInRect(mouseX, mouseY, squirtleRect)) {
-            std::cout << "Squirtle selected - no model available yet!\n";
-            // Same as above; do not pop if there's no model
+            selectedStarter = StarterPokemon::Squirtle;
+            std::cout << "Squirtle selected\n";
+        
+            // 1) Spawn Squirtle at some position
+            gameWorld->spawnPokemon("squirtle", glm::vec3(0.0f, 0.0f, 0.0f));
+        
+            // 2) Pop the state
+            stateManager->popState();
         }        
     }
 
-    // Keyboard-based selection
+    // Keyboard-based selection for convenience (optional)
     if (event.type == SDL_KEYDOWN) {
-        switch (event.key.keysym.sym) {
-            case SDLK_1:
-                selectedStarter = StarterPokemon::Bulbasaur;
-                break;
-            case SDLK_2:
-                selectedStarter = StarterPokemon::Charmander;
-                break;
-            case SDLK_3:
-                selectedStarter = StarterPokemon::Squirtle;
-                break;
-            default:
-                break;
+        if (event.key.keysym.sym == SDLK_1) {
+            // spawn bulbasaur
+            gameWorld->spawnPokemon("bulbasaur", glm::vec3(0.0f));
+            stateManager->popState();
+        }
+        if (event.key.keysym.sym == SDLK_2) {
+            // spawn charmander
+            gameWorld->spawnPokemon("charmander", glm::vec3(0.0f));
+            stateManager->popState();
+        }
+        if (event.key.keysym.sym == SDLK_3) {
+            // spawn squirtle
+            std::cout << "No squirtle model yet!\n";
         }
     }
 }
