@@ -20,6 +20,9 @@ public:
 
     void draw(const Camera3D& camera);
 
+    // New setter for dynamic grid placement:
+    void setModelPosition(const glm::vec3& pos);
+
 private:
     unsigned int VAO, VBO, EBO;
     unsigned int shaderProgram;
@@ -32,6 +35,9 @@ private:
     // New members for scaling relative to board cell size:
     float modelScaleFactor;  // Uniform scale factor computed from the bounding box.
     glm::vec3 modelOffset;   // Translation offset to bring the model's base to (0,0,0).
+
+    // New member for dynamic grid placement:
+    glm::vec3 modelPosition = glm::vec3(0.0f);
 
     void loadGLTF(const std::string& filepath);
     unsigned int compileShader(const char* source, unsigned int type);

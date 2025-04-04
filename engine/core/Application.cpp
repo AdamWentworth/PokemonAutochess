@@ -16,8 +16,8 @@
 #include <iostream>
 #include <chrono>
 #include <thread>  // For sleep (if needed)
-
 #include <filesystem>
+#include <glm/gtc/matrix_transform.hpp> // For glm::unProject
 
 SDL_Window* window = nullptr;
 SDL_GLContext glContext = nullptr;
@@ -85,13 +85,12 @@ void Application::init() {
 
     renderer = new Renderer();
 
-    camera = new Camera3D(45.0f, (float)WIDTH / HEIGHT, 0.1f, 100.0f);
+    camera = new Camera3D(45.0f, static_cast<float>(WIDTH) / HEIGHT, 0.1f, 100.0f);
 
     board = new BoardRenderer(8, 8, 1.0f);
 
     bulbasaurModel = new Model("assets/models/bulbasaur.glb");
 
-    // Optionally, print a log indicating successful renderer initialization.
     std::cout << "[Init] Renderer initialized successfully.\n";
 }
 
@@ -102,8 +101,24 @@ void Application::run() {
     bool running = true;
     SDL_Event event;
 
-    bool dragging = false;
-    int lastMouseX = 0, lastMouseY = 0;
+    // New flag to track whether the model is selected for dragging
+    bool modelSelected = false;
+
+    // Lambda function to convert screen coordinates to a world position on the grid (y = 0)
+    auto screenToWorld = [&](int mouseX, int mouseY) -> glm::vec3 {
+        glm::vec4 viewport(0.0f, 0.0f, WIDTH, HEIGHT);
+        float winX = static_cast<float>(mouseX);
+        float winY = static_cast<float>(HEIGHT - mouseY); // Invert Y axis
+        glm::vec3 winCoordsNear(winX, winY, 0.0f);
+        glm::vec3 nearPoint = glm::unProject(winCoordsNear, camera->getViewMatrix(), camera->getProjectionMatrix(), viewport);
+        glm::vec3 winCoordsFar(winX, winY, 1.0f);
+        glm::vec3 farPoint = glm::unProject(winCoordsFar, camera->getViewMatrix(), camera->getProjectionMatrix(), viewport);
+        glm::vec3 dir = glm::normalize(farPoint - nearPoint);
+        // Find intersection with the plane y = 0
+        float t = -nearPoint.y / dir.y;
+        glm::vec3 worldPos = nearPoint + t * dir;
+        return worldPos;
+    };
 
     while (running) {
         while (SDL_PollEvent(&event)) {
@@ -120,31 +135,27 @@ void Application::run() {
             if (event.type == SDL_MOUSEWHEEL) {
                 camera->zoom(event.wheel.y * 0.5f);
             }
+            
+            // Left mouse button toggles model selection/placement
             if (event.type == SDL_MOUSEBUTTONDOWN && event.button.button == SDL_BUTTON_LEFT) {
-                dragging = true;
-                lastMouseX = event.button.x;
-                lastMouseY = event.button.y;
+                if (!modelSelected) {
+                    modelSelected = true;
+                    std::cout << "[Event] Model selected for dragging.\n";
+                } else {
+                    modelSelected = false;
+                    std::cout << "[Event] Model placement finalized.\n";
+                }
             }
-            if (event.type == SDL_MOUSEBUTTONUP && event.button.button == SDL_BUTTON_LEFT) {
-                dragging = false;
-            }            
-            if (event.type == SDL_MOUSEMOTION && dragging) {
-                int dx = event.motion.x - lastMouseX;
-                int dy = event.motion.y - lastMouseY;
-                lastMouseX = event.motion.x;
-                lastMouseY = event.motion.y;
             
-                float sensitivity = 0.015f;
-            
-                // Match arrow key behavior: move along world XZ plane
-                glm::vec3 dragMove(
-                    static_cast<float>(-dx) * sensitivity, // move left-right
-                    0.0f,
-                    static_cast<float>(-dy) * sensitivity   // move forward-back
-                );
-            
-                camera->move(dragMove);
-            }            
+            // When model is selected, update its position based on mouse motion
+            if (event.type == SDL_MOUSEMOTION && modelSelected) {
+                glm::vec3 newPosition = screenToWorld(event.motion.x, event.motion.y);
+                // Snap to grid cell center (assuming grid cell size is 1.0)
+                newPosition.x = std::floor(newPosition.x) + 0.5f;
+                newPosition.z = std::floor(newPosition.z) + 0.5f;
+                newPosition.y = 0.0f; // Keep the model on the grid plane
+                bulbasaurModel->setModelPosition(newPosition);
+            }
         }
 
         update();
@@ -154,7 +165,7 @@ void Application::run() {
 
         glm::vec3 moveDir(0.0f);
 
-        // WASD / Arrow key panning
+        // WASD / Arrow key panning for the camera
         if (keystates[SDL_SCANCODE_W] || keystates[SDL_SCANCODE_UP])    moveDir.z -= cameraSpeed;
         if (keystates[SDL_SCANCODE_S] || keystates[SDL_SCANCODE_DOWN])  moveDir.z += cameraSpeed;
         if (keystates[SDL_SCANCODE_A] || keystates[SDL_SCANCODE_LEFT])  moveDir.x -= cameraSpeed;
@@ -168,9 +179,8 @@ void Application::run() {
         glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-        // Draw the triangle
+        // Draw the grid and the model
         board->draw(*camera);
-
         bulbasaurModel->draw(*camera);
 
         SDL_GL_SwapWindow(window);

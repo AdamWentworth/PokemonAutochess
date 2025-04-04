@@ -222,7 +222,8 @@ void Model::draw(const Camera3D& camera) {
     // Apply uniform scaling, the needed 90° rotation around X, and then translation.
     glm::mat4 scale = glm::scale(glm::mat4(1.0f), glm::vec3(modelScaleFactor));
     glm::mat4 rotation = glm::rotate(glm::mat4(1.0f), glm::radians(90.0f), glm::vec3(1, 0, 0));
-    glm::mat4 translation = glm::translate(glm::mat4(1.0f), modelOffset);
+    // Now include both the static model offset and the dynamic grid placement:
+    glm::mat4 translation = glm::translate(glm::mat4(1.0f), modelOffset + modelPosition);
 
     // Transformation order: scale -> rotation -> translation.
     glm::mat4 modelMat = translation * rotation * scale;
@@ -236,6 +237,10 @@ void Model::draw(const Camera3D& camera) {
         glBindTexture(GL_TEXTURE_2D, sm.textureID);
         glDrawElements(GL_TRIANGLES, (GLsizei)sm.indexCount, GL_UNSIGNED_SHORT, (void*)(sm.indexOffset * sizeof(unsigned short)));
     }
+}
+
+void Model::setModelPosition(const glm::vec3& pos) {
+    modelPosition = pos;
 }
 
 unsigned int Model::compileShader(const char* source, unsigned int type) {

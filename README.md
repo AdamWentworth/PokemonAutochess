@@ -94,3 +94,50 @@ cmake -S . -B build -DCMAKE_TOOLCHAIN_FILE=[path-to-vcpkg]/scripts/buildsystems/
 
 # Build the project
 cmake --build build
+
+
+## 🌀 Gameplay Flow & Round System
+
+The game takes place in **Kanto**, combining elements of classic Pokémon progression with auto-battler mechanics similar to *Auto Chess* and *Teamfight Tactics*.
+
+### 🎬 Game Start: Starter Selection
+
+- Players begin in **Pallet Town** by choosing a starter: **Bulbasaur**, **Charmander**, or **Squirtle**.
+- This is a **free round** with no combat — a chance to set your initial direction.
+- The starter is your foundation, but early opportunities exist to pivot or evolve depending on unit offerings.
+
+### 🔄 Round Progression
+
+Rounds represent different Kanto locations or encounters. Each round offers a new challenge, unit choices, or key battles:
+
+| Round | Location / Theme       | Encounter Type       | Notes |
+|-------|------------------------|----------------------|-------|
+| 1     | Pallet Town            | Starter Selection    | Free round – pick your starter |
+| 2–3   | Route 1                | PvE: Wild Pokémon     | Early units, some synergy seeds |
+| 4     | Viridian City          | PvE + Shop            | Item drops + expanded shop pool |
+| 5     | Viridian Forest        | PvE: Swarm battle     | Status effects, type counters |
+| 6     | Route 22 (optional)    | PvE or PvP variant    | Chance to pivot, strong wilds |
+| 7     | Pewter City            | **Boss: Gym Leader** | Battle against **Brock** and his themed team |
+
+Future rounds will follow this pattern: **travel → encounter → evolve/upgrade → major battle**.
+
+### 🧠 Synergy System (Early Concept)
+
+Like TFT or Auto Chess, Pokémon will gain bonuses based on shared traits — but beyond types.
+
+#### Planned synergy categories:
+
+- **Type Synergy** – Traditional (e.g. Fire, Water, Grass). Grants team bonuses.
+- **Origin Synergy** – Based on where/how the Pokémon was acquired (starter, route, gym leader, etc).
+- **Evolution Chains** – Owning connected evolutions (e.g. Charmander + Charmeleon) provides bonuses.
+- **Role Synergy** – Broad tactical categories like:
+  - **Tanks** – High HP/defense
+  - **Speedsters** – Fast attack animations or movement
+  - **Status Masters** – Use paralysis, sleep, poison, etc.
+  - **Glass Cannons** – High burst damage, low durability
+
+These synergies influence unit stats, ability cooldowns, and team-wide effects.
+
+---
+
+More details will be added as we build out the round engine, combat loop, and draft/shop systems.
