@@ -216,21 +216,8 @@ void Model::loadGLTF(const std::string& filepath) {
     glEnableVertexAttribArray(1);
 }
 
-void Model::draw(const Camera3D& camera) {
-    glUseProgram(shaderProgram);
-
-    // Apply uniform scaling, the needed 90° rotation around X, and then translation.
-    glm::mat4 scale = glm::scale(glm::mat4(1.0f), glm::vec3(modelScaleFactor));
-    glm::mat4 rotation = glm::rotate(glm::mat4(1.0f), glm::radians(90.0f), glm::vec3(1, 0, 0));
-    // Now include both the static model offset and the dynamic grid placement:
-    glm::mat4 translation = glm::translate(glm::mat4(1.0f), modelOffset + modelPosition);
-
-    // Transformation order: scale -> rotation -> translation.
-    glm::mat4 modelMat = translation * rotation * scale;
-    
-    glm::mat4 mvp = camera.getProjectionMatrix() * camera.getViewMatrix() * modelMat;
-    glUniformMatrix4fv(mvpLocation, 1, GL_FALSE, &mvp[0][0]);
-
+void Model::drawInstance() {
+    // Bind the VAO and draw each submesh.
     glBindVertexArray(VAO);
     for (const auto &sm : submeshes) {
         glActiveTexture(GL_TEXTURE0);

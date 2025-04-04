@@ -52,12 +52,13 @@ void BoardRenderer::initGrid() {
         float z = -halfH + i * cellSize;
         gridVertices.insert(gridVertices.end(), {-halfW, y, z, halfW, y, z});
     }
-
+    
     for (int j = 0; j <= cols; ++j) {
         float x = -halfW + j * cellSize;
         float y = 0.0f;
         gridVertices.insert(gridVertices.end(), {x, y, -halfH, x, y, halfH});
     }
+    gridVertices.insert(gridVertices.end(), { -halfW, 0.01f, 0.0f,  halfW, 0.01f, 0.0f });
 }
 
 std::string BoardRenderer::loadShaderSource(const char* path) {

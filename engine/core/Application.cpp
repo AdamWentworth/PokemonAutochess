@@ -211,13 +211,22 @@ void Application::run() {
                 }
                 else if (event.type == SDL_MOUSEMOTION) {
                     if (carryingPokemonIndex >= 0) {
-                        // Move that pokemon
+                        // Assume board cell size is 1.0 and board dimensions are known.
+                        const float minX = -3.5f;
+                        const float maxX = 3.5f;
+                        const float minZ = 0.5f;
+                        const float maxZ = 3.5f;
+
                         glm::vec3 newPos = screenToWorld(event.motion.x, event.motion.y);
                         newPos.x = std::floor(newPos.x) + 0.5f;
                         newPos.z = std::floor(newPos.z) + 0.5f;
                         newPos.y = 0.0f;
 
-                        // Update the position in gameWorld
+                        // Clamp the new position to ensure it stays on the board and on the correct side.
+                        newPos.x = glm::clamp(newPos.x, minX, maxX);
+                        newPos.z = glm::clamp(newPos.z, minZ, maxZ);
+
+                        // Update the position for the carried Pokémon instance.
                         gameWorld->getPokemons()[carryingPokemonIndex].position = newPos;
                     }
                     else if (panningCamera) {

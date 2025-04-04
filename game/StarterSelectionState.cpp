@@ -143,12 +143,14 @@ void StarterSelectionState::handleInput(SDL_Event& event) {
         int mouseX = event.button.x;
         int mouseY = event.button.y;
 
+        glm::vec3 ourSideSpawnPos(0.0f, 0.0f, 3.5f);
+
         if (isPointInRect(mouseX, mouseY, bulbasaurRect)) {
             selectedStarter = StarterPokemon::Bulbasaur;
             std::cout << "Bulbasaur selected\n";
 
             // (1) Spawn Bulbasaur
-            gameWorld->spawnPokemon("bulbasaur", glm::vec3(0.0f, 0.0f, 0.0f));
+            gameWorld->spawnPokemon("bulbasaur", ourSideSpawnPos);
 
             // (2) Immediately pop this state so user can drag the new Pokémon
             stateManager->popState();
@@ -158,7 +160,7 @@ void StarterSelectionState::handleInput(SDL_Event& event) {
             std::cout << "Charmander selected\n";
 
             // (1) Spawn Charmander
-            gameWorld->spawnPokemon("charmander", glm::vec3(0.0f, 0.0f, 0.0f));
+            gameWorld->spawnPokemon("charmander", ourSideSpawnPos);
 
             // (2) Pop the state
             stateManager->popState();
@@ -168,7 +170,7 @@ void StarterSelectionState::handleInput(SDL_Event& event) {
             std::cout << "Squirtle selected\n";
         
             // 1) Spawn Squirtle at some position
-            gameWorld->spawnPokemon("squirtle", glm::vec3(0.0f, 0.0f, 0.0f));
+            gameWorld->spawnPokemon("squirtle", ourSideSpawnPos);
         
             // 2) Pop the state
             stateManager->popState();

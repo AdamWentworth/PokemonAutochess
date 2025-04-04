@@ -18,14 +18,20 @@ public:
     Model(const std::string& filepath);
     ~Model();
 
+    // Existing drawing method for static placement.
     void draw(const Camera3D& camera);
 
-    // New setter for dynamic grid placement:
+    // Setter for dynamic grid placement:
     void setModelPosition(const glm::vec3& pos);
+    glm::vec3 getModelPosition() const { return modelPosition; }
 
-    glm::vec3 getModelPosition() const {
-        return modelPosition;
-    }
+    // New getters needed for per-instance drawing.
+    float getScaleFactor() const { return modelScaleFactor; }
+    unsigned int getShaderProgram() const { return shaderProgram; }
+    int getMVPLocation() const { return mvpLocation; }
+
+    // New method: Draw the model using an externally computed MVP.
+    void drawInstance();
 
 private:
     unsigned int VAO, VBO, EBO;
