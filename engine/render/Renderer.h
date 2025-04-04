@@ -10,7 +10,6 @@ public:
     Renderer();
     ~Renderer();
 
-    void drawTriangle(Camera3D& camera);
     void shutdown();
 
 private:

@@ -42,20 +42,6 @@ Renderer::Renderer() {
 Renderer::~Renderer() {
 }
 
-void Renderer::drawTriangle(Camera3D& camera) {
-    glUseProgram(shaderProgram);
-
-    glm::mat4 model = glm::mat4(1.0f); // Identity
-    glm::mat4 view = camera.getViewMatrix();
-    glm::mat4 proj = camera.getProjectionMatrix();
-    glm::mat4 mvp = proj * view * model;
-
-    glUniformMatrix4fv(mvpLocation, 1, GL_FALSE, &mvp[0][0]);
-
-    glBindVertexArray(VAO);
-    glDrawArrays(GL_TRIANGLES, 0, 3);
-}
-
 void Renderer::shutdown() {
     glDeleteVertexArrays(1, &VAO);
     glDeleteBuffers(1, &VBO);
