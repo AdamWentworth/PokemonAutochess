@@ -6,6 +6,7 @@
 #include <vector>
 #include <glm/vec3.hpp>
 #include "Camera3D.h"
+#include "../utils/Shader.h"
 
 struct Submesh {
     size_t indexOffset; // Where in the index buffer this submesh starts
@@ -27,29 +28,32 @@ public:
 
     // New getters needed for per-instance drawing.
     float getScaleFactor() const { return modelScaleFactor; }
-    unsigned int getShaderProgram() const { return shaderProgram; }
     int getMVPLocation() const { return mvpLocation; }
 
     // New method: Draw the model using an externally computed MVP.
     void drawInstance();
+    void drawInstanceWithMVP(const glm::mat4& mvp);
 
 private:
     unsigned int VAO, VBO, EBO;
-    unsigned int shaderProgram;
-    unsigned int textureID;
+    // Removed shaderProgram; we use our Shader object now.
     int mvpLocation;
+    unsigned int textureID;
     size_t indexCount;
 
     std::vector<Submesh> submeshes; // One submesh per primitive
 
-    // New members for scaling relative to board cell size:
-    float modelScaleFactor;  // Uniform scale factor computed from the bounding box.
-    glm::vec3 modelOffset;   // Translation offset to bring the model's base to (0,0,0).
+    // Members for scaling relative to board cell size:
+    float modelScaleFactor;  // Computed from the bounding box.
+    glm::vec3 modelOffset;   // Offset to bring the model's base to (0,0,0).
 
-    // New member for dynamic grid placement:
+    // Member for dynamic grid placement:
     glm::vec3 modelPosition = glm::vec3(0.0f);
 
     void loadGLTF(const std::string& filepath);
     unsigned int compileShader(const char* source, unsigned int type);
     unsigned int createShaderProgram(const char* vertSrc, const char* fragSrc);
+
+    // NEW: Pointer to our Shader object for the model.
+    Shader* modelShader = nullptr;
 };

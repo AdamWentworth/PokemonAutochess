@@ -1,9 +1,9 @@
 // Renderer.h
 
+#pragma once
 #include <string>
 #include "Camera3D.h"
-
-#pragma once
+#include "../utils/Shader.h" // Include our custom Shader class
 
 class Renderer {
 public:
@@ -11,13 +11,11 @@ public:
     ~Renderer();
 
     void shutdown();
+    void render();
 
 private:
     unsigned int VAO, VBO;
-    unsigned int shaderProgram;
+    Shader* shader = nullptr;  // Use our Shader class
     int mvpLocation;
-
-    unsigned int compileShader(const char* source, unsigned int type);
-    unsigned int createShaderProgram(const char* vertexPath, const char* fragmentPath);
-    std::string loadShaderSource(const char* filePath);
 };
+

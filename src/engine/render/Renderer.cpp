@@ -5,6 +5,8 @@
 #include <fstream>
 #include <sstream>
 #include <iostream>
+#include <string>
+#include <glm/gtc/type_ptr.hpp>
 
 // Utility: check for OpenGL errors and log them.
 void checkGLError(const std::string& context) {
@@ -22,9 +24,10 @@ Renderer::Renderer() {
          0.5f, -0.5f, 0.0f,
     };
 
-    std::cout << "[Renderer] Creating shader program...\n";
-    shaderProgram = createShaderProgram("assets/shaders/engine/default.vert", "assets/shaders/engine/default.frag");
-    std::cout << "[Renderer] Shader program created with ID: " << shaderProgram << "\n";
+    std::cout << "[Renderer] Creating shader program using our Shader class...\n";
+    // Create the shader using our custom Shader class.
+    shader = new Shader("assets/shaders/engine/default.vert", "assets/shaders/engine/default.frag");
+    std::cout << "[Renderer] Shader program created with ID: " << shader->getID() << "\n";
     checkGLError("After shader program creation");
 
     glGenVertexArrays(1, &VAO);
@@ -37,79 +40,30 @@ Renderer::Renderer() {
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
     glEnableVertexAttribArray(0);
     checkGLError("After setting up vertex attributes");
+
+    // Get the uniform location for u_MVP from our shader.
+    mvpLocation = glGetUniformLocation(shader->getID(), "u_MVP");
+    if (mvpLocation == -1) {
+        std::cerr << "[Renderer] ERROR: u_MVP uniform not found in shader.\n";
+    }
+    std::cout << "[Renderer] u_MVP location = " << mvpLocation << "\n";
 }
 
 Renderer::~Renderer() {
 }
 
+void Renderer::render() {
+    shader->use();
+    // Set any required uniforms here (for example, the MVP matrix) if needed.
+    glBindVertexArray(VAO);
+    glDrawArrays(GL_TRIANGLES, 0, 3);
+}
+
 void Renderer::shutdown() {
     glDeleteVertexArrays(1, &VAO);
     glDeleteBuffers(1, &VBO);
-    glDeleteProgram(shaderProgram);
-}
-
-std::string Renderer::loadShaderSource(const char* filePath) {
-    std::ifstream file(filePath);
-    if (!file.is_open()) {
-        std::cerr << "[Renderer] Failed to open shader: " << filePath << "\n";
+    if (shader) {
+        delete shader;
+        shader = nullptr;
     }
-    std::stringstream ss;
-    ss << file.rdbuf();
-    std::string src = ss.str();
-    std::cout << "[Renderer] Loaded shader (" << filePath << ") with " << src.size() << " characters.\n";
-    return src;
-}
-
-unsigned int Renderer::compileShader(const char* source, unsigned int type) {
-    unsigned int shader = glCreateShader(type);
-    glShaderSource(shader, 1, &source, nullptr);
-    glCompileShader(shader);
-
-    int success;
-    glGetShaderiv(shader, GL_COMPILE_STATUS, &success);
-
-    char log[512];
-    glGetShaderInfoLog(shader, 512, nullptr, log);
-    if (log[0] != '\0') {
-        std::cout << "[Renderer] Shader Compile Log:\n" << log << std::endl;
-    }
-    checkGLError("After shader compilation");
-    return shader;
-}
-
-unsigned int Renderer::createShaderProgram(const char* vertexPath, const char* fragmentPath) {
-    std::string vertSrc = loadShaderSource(vertexPath);
-    std::string fragSrc = loadShaderSource(fragmentPath);
-
-    unsigned int vertexShader = compileShader(vertSrc.c_str(), GL_VERTEX_SHADER);
-    unsigned int fragmentShader = compileShader(fragSrc.c_str(), GL_FRAGMENT_SHADER);
-
-    unsigned int program = glCreateProgram();
-    glAttachShader(program, vertexShader);
-    glAttachShader(program, fragmentShader);
-    glLinkProgram(program);
-
-    // Check link status
-    int linkSuccess;
-    glGetProgramiv(program, GL_LINK_STATUS, &linkSuccess);
-    if (!linkSuccess) {
-        char linkLog[512];
-        glGetProgramInfoLog(program, 512, nullptr, linkLog);
-        std::cerr << "[Renderer] Shader Program Linking Error:\n" << linkLog << "\n";
-        exit(EXIT_FAILURE);
-    } else {
-        std::cout << "[Renderer] Shader program linked successfully.\n";
-    }
-    checkGLError("After linking shader program");
-
-    mvpLocation = glGetUniformLocation(program, "u_MVP");
-    if (mvpLocation == -1) {
-        std::cerr << "[Renderer] ERROR: u_MVP uniform not found in shader.\n";
-    }
-    std::cout << "[Renderer] u_MVP location = " << mvpLocation << "\n";
-
-    glDeleteShader(vertexShader);
-    glDeleteShader(fragmentShader);
-
-    return program;
 }

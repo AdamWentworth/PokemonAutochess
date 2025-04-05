@@ -11,9 +11,11 @@
 #define STB_IMAGE_IMPLEMENTATION
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #define TINYGLTF_NO_INCLUDE_JSON
+#include <glm/gtc/type_ptr.hpp>
 #include "../../../third_party/nlohmann/json.hpp"
 #include "../../../third_party/tinygltf/tiny_gltf.h"
 
+// We keep this helper for loading shader source; you may remove it later.
 static std::string loadShaderSource(const char* filePath) {
     std::ifstream file(filePath);
     if (!file.is_open()) {
@@ -28,12 +30,9 @@ static std::string loadShaderSource(const char* filePath) {
 Model::Model(const std::string& filepath) {
     loadGLTF(filepath);
 
-    // Load shader source from assets.
-    std::string vertSource = loadShaderSource("assets/shaders/model/model.vert");
-    std::string fragSource = loadShaderSource("assets/shaders/model/model.frag");
-
-    shaderProgram = createShaderProgram(vertSource.c_str(), fragSource.c_str());
-    mvpLocation = glGetUniformLocation(shaderProgram, "u_MVP");
+    // Instead of manual shader program creation, create a Shader object.
+    modelShader = new Shader("assets/shaders/model/model.vert", "assets/shaders/model/model.frag");
+    mvpLocation = glGetUniformLocation(modelShader->getID(), "u_MVP");
 }
 
 Model::~Model() {
@@ -41,7 +40,10 @@ Model::~Model() {
     glDeleteBuffers(1, &VBO);
     glDeleteBuffers(1, &EBO);
     glDeleteTextures(1, &textureID);
-    glDeleteProgram(shaderProgram);
+    if(modelShader) {
+        delete modelShader;
+        modelShader = nullptr;
+    }
 }
 
 void Model::loadGLTF(const std::string& filepath) {
@@ -49,7 +51,7 @@ void Model::loadGLTF(const std::string& filepath) {
     tinygltf::TinyGLTF loader;
     std::string err, warn;
 
-    bool ret = loader.LoadBinaryFromFile(&gltfModel, &err, &warn, filepath); // For .glb
+    bool ret = loader.LoadBinaryFromFile(&gltfModel, &err, &warn, filepath);
     if (!warn.empty()) std::cout << "[GLTF] Warning: " << warn << "\n";
     if (!err.empty()) std::cerr << "[GLTF] Error: " << err << "\n";
     if (!ret) {
@@ -59,12 +61,11 @@ void Model::loadGLTF(const std::string& filepath) {
 
     std::vector<float> vertexData;
     std::vector<unsigned short> indexData;
-    size_t totalVertices = 0; // For offsetting indices
+    size_t totalVertices = 0;
 
-    // Iterate over all meshes and primitives.
+    // Process each mesh and primitive.
     for (const auto &mesh : gltfModel.meshes) {
         for (const auto &primitive : mesh.primitives) {
-            // Check required attributes.
             if (primitive.attributes.find("POSITION") == primitive.attributes.end()) {
                 std::cerr << "[GLTF] Missing POSITION attribute in a primitive.\n";
                 continue;
@@ -87,10 +88,8 @@ void Model::loadGLTF(const std::string& filepath) {
             const float* posData = reinterpret_cast<const float*>(&buffer.data[posView.byteOffset]);
             const float* texData = reinterpret_cast<const float*>(&buffer.data[texView.byteOffset]);
 
-            // Record where this primitive's indices will start.
             size_t submeshIndexOffset = indexData.size();
 
-            // Append vertex data (3 floats for POSITION, 2 for TEXCOORD).
             for (size_t i = 0; i < vertexCount; ++i) {
                 vertexData.push_back(posData[i * 3 + 0]);
                 vertexData.push_back(posData[i * 3 + 1]);
@@ -99,17 +98,14 @@ void Model::loadGLTF(const std::string& filepath) {
                 vertexData.push_back(texData[i * 2 + 1]);
             }
 
-            // Append indices, offsetting by the current total vertex count.
             size_t primIndexCount = indexAccessor.count;
             const unsigned short* primIndices = reinterpret_cast<const unsigned short*>(&buffer.data[idxView.byteOffset]);
             for (size_t i = 0; i < primIndexCount; ++i) {
                 indexData.push_back(primIndices[i] + static_cast<unsigned short>(totalVertices));
             }
 
-            // Update total vertex count.
             totalVertices += vertexCount;
 
-            // Load the texture for this primitive.
             unsigned int primTextureID = 0;
             if (primitive.material >= 0 && primitive.material < gltfModel.materials.size()) {
                 const auto &material = gltfModel.materials[primitive.material];
@@ -129,7 +125,6 @@ void Model::loadGLTF(const std::string& filepath) {
                     }
                 }
             }
-            // If no texture was loaded, you might want to create a default white texture.
             if (primTextureID == 0) {
                 unsigned char whitePixel[4] = { 255, 255, 255, 255 };
                 glGenTextures(1, &primTextureID);
@@ -137,7 +132,6 @@ void Model::loadGLTF(const std::string& filepath) {
                 glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 1, 1, 0, GL_RGBA, GL_UNSIGNED_BYTE, whitePixel);
             }
 
-            // Store submesh info.
             Submesh sm;
             sm.indexOffset = submeshIndexOffset;
             sm.indexCount = primIndexCount;
@@ -146,14 +140,9 @@ void Model::loadGLTF(const std::string& filepath) {
         }
     }
 
-    // After merging all vertex data:
-    float minX = std::numeric_limits<float>::max();
-    float minY = std::numeric_limits<float>::max();
-    float minZ = std::numeric_limits<float>::max();
-    float maxX = -std::numeric_limits<float>::max();
-    float maxY = -std::numeric_limits<float>::max();
-    float maxZ = -std::numeric_limits<float>::max();
-
+    // Compute bounding box and scaling.
+    float minX = std::numeric_limits<float>::max(), minY = std::numeric_limits<float>::max(), minZ = std::numeric_limits<float>::max();
+    float maxX = -std::numeric_limits<float>::max(), maxY = -std::numeric_limits<float>::max(), maxZ = -std::numeric_limits<float>::max();
     size_t numVertices = vertexData.size() / 5;
     for (size_t i = 0; i < numVertices; i++) {
         float x = vertexData[i * 5 + 0];
@@ -167,27 +156,19 @@ void Model::loadGLTF(const std::string& filepath) {
         if (z > maxZ) maxZ = z;
     }
 
-    // Compute the model's height (you can choose height, width, or depth; here we use height).
-    float modelHeight = maxY - minY;
-
-    // Assume the board cell is 1.0 unit. If you want the model's height to be, say, 80% of a cell:
     float desiredHeight = 0.8f;
     modelScaleFactor = desiredHeight / (maxZ - minZ);
-
-    // To center the model so that its base (lowest Y value) sits at Y=0,
-    // compute the center in X and Z, and translate so that (centerX, minY, centerZ) goes to (0,0,0).
     float centerX = (minX + maxX) / 2.0f;
     float centerY = (minY + maxY) / 2.0f;
     modelOffset = glm::vec3(
-        -modelScaleFactor * centerX,    // shift in x
-         modelScaleFactor * maxZ,         // shift in y to bring base (from original maxZ) to y=0
-        -modelScaleFactor * centerY     // shift in z
+        -modelScaleFactor * centerX,
+         modelScaleFactor * maxZ,
+        -modelScaleFactor * centerY
     );
 
     std::cout << "[Model] Total Vertex Count: " << totalVertices << "\n";
     std::cout << "[Model] Total Index Count: " << indexData.size() << "\n";
 
-    // Generate OpenGL buffers.
     glGenVertexArrays(1, &VAO);
     glGenBuffers(1, &VBO);
     glGenBuffers(1, &EBO);
@@ -198,7 +179,6 @@ void Model::loadGLTF(const std::string& filepath) {
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, indexData.size() * sizeof(unsigned short), indexData.data(), GL_STATIC_DRAW);
 
-    // Define vertex layout: 3 floats for position, 2 for texture coordinates.
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)0);
     glEnableVertexAttribArray(0);
     glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(3 * sizeof(float)));
@@ -211,8 +191,21 @@ void Model::drawInstance() {
     for (const auto &sm : submeshes) {
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, sm.textureID);
-        glDrawElements(GL_TRIANGLES, (GLsizei)sm.indexCount, GL_UNSIGNED_SHORT, (void*)(sm.indexOffset * sizeof(unsigned short)));
+        glDrawElements(GL_TRIANGLES, static_cast<GLsizei>(sm.indexCount), GL_UNSIGNED_SHORT, (void*)(sm.indexOffset * sizeof(unsigned short)));
     }
+}
+
+void Model::drawInstanceWithMVP(const glm::mat4& mvp) {
+    if (modelShader) {
+        modelShader->use();
+        int loc = glGetUniformLocation(modelShader->getID(), "u_MVP");
+        if (loc == -1) {
+            std::cerr << "[Model] ERROR: u_MVP uniform not found in shader.\n";
+        }
+        glUniformMatrix4fv(loc, 1, GL_FALSE, glm::value_ptr(mvp));
+    }
+    // Draw the model (this binds VAO and draws submeshes)
+    drawInstance();
 }
 
 void Model::setModelPosition(const glm::vec3& pos) {

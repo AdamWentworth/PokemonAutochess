@@ -1,7 +1,6 @@
 // BoardRenderer.cpp
 
 #include "BoardRenderer.h"
-#include "../utils/Shader.h"
 #include <glad/glad.h>
 #include <fstream>
 #include <sstream>
