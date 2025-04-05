@@ -29,7 +29,7 @@ add_executable(PokemonAutochess
     src/engine/ui/Card.cpp
     src/game/GameWorld.cpp
     src/game/GameStateManager.cpp
-    src/game/StarterSelectionState.cpp
+    src/game/state/StarterSelectionState.cpp
 )
 
 # Force console subsystem and entry point

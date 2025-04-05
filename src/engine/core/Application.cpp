@@ -7,7 +7,7 @@
 #include "../render/Model.h"
 #include "../../game/GameWorld.h"
 #include "../../game/GameStateManager.h" 
-#include "../../game/StarterSelectionState.h"
+#include "../../game/state/StarterSelectionState.h"
 #include "Window.h" // Include our new Window header
 
 #define NOMINMAX
