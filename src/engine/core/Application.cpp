@@ -1,7 +1,7 @@
 // Application.cpp
 
 #include "Application.h"
-#include "ResourceManager.h"
+#include "../utils/ResourceManager.h"
 #include "../render/Renderer.h"
 #include "../render/BoardRenderer.h"
 #include "../render/Model.h"

@@ -1,6 +1,6 @@
 // GameWorld.cpp
 #include "GameWorld.h"
-#include "../engine/core/ResourceManager.h"
+#include "../engine/utils/ResourceManager.h"
 #include "../engine/render/Model.h"
 #include "../engine/render/Camera3D.h"
 #include <iostream>
