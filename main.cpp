@@ -1,7 +1,7 @@
 // main.cpp
 
 #define SDL_MAIN_HANDLED
-#include "engine/core/Application.h"
+#include "src/engine/core/Application.h"
 
 int main() {
     Application app;

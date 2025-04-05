@@ -11,39 +11,28 @@
 #define STB_IMAGE_IMPLEMENTATION
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #define TINYGLTF_NO_INCLUDE_JSON
-#include "../../third_party/nlohmann/json.hpp"
-#include "../../third_party/tinygltf/tiny_gltf.h"
+#include "../../../third_party/nlohmann/json.hpp"
+#include "../../../third_party/tinygltf/tiny_gltf.h"
+
+static std::string loadShaderSource(const char* filePath) {
+    std::ifstream file(filePath);
+    if (!file.is_open()) {
+        std::cerr << "[ShaderUtils] Failed to open shader file: " << filePath << "\n";
+        return "";
+    }
+    std::stringstream ss;
+    ss << file.rdbuf();
+    return ss.str();
+}
 
 Model::Model(const std::string& filepath) {
     loadGLTF(filepath);
 
-    const char* vertShader = R"(
-        #version 330 core
-        layout(location = 0) in vec3 aPos;
-        layout(location = 1) in vec2 aTex;
+    // Load shader source from assets.
+    std::string vertSource = loadShaderSource("assets/shaders/model/default.vert");
+    std::string fragSource = loadShaderSource("assets/shaders/model/default.frag");
 
-        uniform mat4 u_MVP;
-        out vec2 TexCoord;
-
-        void main() {
-            TexCoord = aTex;
-            gl_Position = u_MVP * vec4(aPos, 1.0);
-        }
-    )";
-
-    const char* fragShader = R"(
-        #version 330 core
-        in vec2 TexCoord;
-        out vec4 FragColor;
-
-        uniform sampler2D u_Texture;
-
-        void main() {
-            FragColor = texture(u_Texture, TexCoord);
-        }
-    )";
-
-    shaderProgram = createShaderProgram(vertShader, fragShader);
+    shaderProgram = createShaderProgram(vertSource.c_str(), fragSource.c_str());
     mvpLocation = glGetUniformLocation(shaderProgram, "u_MVP");
 }
 

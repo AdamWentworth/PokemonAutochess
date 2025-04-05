@@ -9,7 +9,7 @@
 BoardRenderer::BoardRenderer(int rows, int cols, float cellSize)
     : rows(rows), cols(cols), cellSize(cellSize) {
     initGrid();
-    shaderProgram = createShaderProgram("engine/render/grid.vert", "engine/render/grid.frag");
+    shaderProgram = createShaderProgram("assets/shaders/engine/grid.vert", "assets/shaders/engine/grid.frag");
     mvpLocation = glGetUniformLocation(shaderProgram, "u_MVP");
 
     glGenVertexArrays(1, &vao);

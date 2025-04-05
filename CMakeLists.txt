@@ -17,15 +17,15 @@ find_package(OpenGL REQUIRED)
 
 add_executable(PokemonAutochess
     main.cpp
-    engine/core/Application.cpp
-    engine/core/ResourceManager.cpp
-    engine/render/Renderer.cpp
-    engine/render/Camera3D.cpp
-    engine/render/BoardRenderer.cpp
-    engine/render/Model.cpp
-    game/GameWorld.cpp
-    game/GameStateManager.cpp
-    game/StarterSelectionState.cpp
+    src/engine/core/Application.cpp
+    src/engine/core/ResourceManager.cpp
+    src/engine/render/Renderer.cpp
+    src/engine/render/Camera3D.cpp
+    src/engine/render/BoardRenderer.cpp
+    src/engine/render/Model.cpp
+    src/game/GameWorld.cpp
+    src/game/GameStateManager.cpp
+    src/game/StarterSelectionState.cpp
 )
 
 # Force console subsystem and entry point
@@ -46,7 +46,7 @@ target_link_libraries(PokemonAutochess PRIVATE
     glm::glm
 )
 
-file(COPY engine/render/shader.vert DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/engine/render)
-file(COPY engine/render/shader.frag DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/engine/render)
-file(COPY engine/render/grid.vert DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/engine/render)
-file(COPY engine/render/grid.frag DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/engine/render)
+file(COPY assets/shaders/engine/shader.vert DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/engine/render)
+file(COPY assets/shaders/engine/shader.frag DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/engine/render)
+file(COPY assets/shaders/engine/grid.vert DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/engine/render)
+file(COPY assets/shaders/engine/grid.frag DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/engine/render)

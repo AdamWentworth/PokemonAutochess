@@ -23,7 +23,7 @@ Renderer::Renderer() {
     };
 
     std::cout << "[Renderer] Creating shader program...\n";
-    shaderProgram = createShaderProgram("engine/render/shader.vert", "engine/render/shader.frag");
+    shaderProgram = createShaderProgram("assets/shaders/engine/shader.vert", "assets/shaders/engine/shader.frag");
     std::cout << "[Renderer] Shader program created with ID: " << shaderProgram << "\n";
     checkGLError("After shader program creation");
 
