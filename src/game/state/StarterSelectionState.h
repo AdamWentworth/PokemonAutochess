@@ -1,6 +1,6 @@
 // StarterSelectionState.h
 #pragma once
-#include "GameState.h"
+#include "../GameState.h"
 #include <SDL2/SDL.h>
 #include <iostream>
 

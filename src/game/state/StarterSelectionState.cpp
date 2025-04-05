@@ -1,10 +1,10 @@
 // StarterSelectionState.cpp
 #include "StarterSelectionState.h"
-#include "GameStateManager.h"
-#include "GameWorld.h"
-#include "../engine/ui/Card.h"
-#include "../engine/utils/Shader.h"
-#include "../engine/ui/UIManager.h"
+#include "../GameStateManager.h"
+#include "../GameWorld.h"
+#include "../../engine/ui/Card.h"
+#include "../../engine/utils/Shader.h"
+#include "../../engine/ui/UIManager.h"
 #include <glad/glad.h>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
