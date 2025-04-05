@@ -25,6 +25,7 @@ add_executable(PokemonAutochess
     src/engine/render/Camera3D.cpp
     src/engine/render/BoardRenderer.cpp
     src/engine/render/Model.cpp
+    src/engine/ui/Card.cpp
     src/game/GameWorld.cpp
     src/game/GameStateManager.cpp
     src/game/StarterSelectionState.cpp
