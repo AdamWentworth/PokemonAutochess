@@ -8,6 +8,7 @@
 
 // Forward-declare GameWorld so we can store a pointer or instance:
 class GameWorld;
+class Window; // Forward declaration of our new Window class
 
 class Application {
 public:
@@ -23,7 +24,8 @@ private:
     Renderer* renderer = nullptr;
     Camera3D* camera = nullptr;
     GameStateManager* stateManager = nullptr;
-
-    // Instead of a single Model pointer, keep a GameWorld that can hold multiple
     GameWorld* gameWorld = nullptr;
+
+    // Use our new Window class
+    Window* window = nullptr;
 };
