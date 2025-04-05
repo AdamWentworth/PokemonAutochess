@@ -19,6 +19,7 @@ add_executable(PokemonAutochess
     main.cpp
     src/engine/core/Application.cpp
     src/engine/core/Window.cpp
+    src/engine/utils/Shader.cpp
     src/engine/utils/ResourceManager.cpp
     src/engine/render/Renderer.cpp
     src/engine/render/Camera3D.cpp
@@ -47,7 +48,11 @@ target_link_libraries(PokemonAutochess PRIVATE
     glm::glm
 )
 
-file(COPY assets/shaders/engine/shader.vert DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/engine/render)
-file(COPY assets/shaders/engine/shader.frag DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/engine/render)
+file(COPY assets/shaders/engine/default.vert DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/engine/render)
+file(COPY assets/shaders/engine/default.frag DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/engine/render)
 file(COPY assets/shaders/engine/grid.vert DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/engine/render)
 file(COPY assets/shaders/engine/grid.frag DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/engine/render)
+file(COPY assets/shaders/model/default.vert DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/engine/render)
+file(COPY assets/shaders/model/default.frag DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/engine/render)
+file(COPY assets/shaders/ui/ui_shader.vert DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/engine/render)
+file(COPY assets/shaders/ui/ui_shader.frag DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/engine/render)

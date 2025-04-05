@@ -3,6 +3,7 @@
 #pragma once
 
 #include "Camera3D.h"
+#include "../utils/Shader.h"
 #include <vector>
 #include <string>
 
@@ -19,6 +20,8 @@ private:
     std::string loadShaderSource(const char* path);
     unsigned int compileShader(const char* src, unsigned int type);
     unsigned int createShaderProgram(const char* vertPath, const char* fragPath);
+
+    Shader* gridShader = nullptr;
 
     unsigned int vao, vbo;
     unsigned int shaderProgram;

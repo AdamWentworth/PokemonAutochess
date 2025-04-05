@@ -1,16 +1,19 @@
 // BoardRenderer.cpp
 
 #include "BoardRenderer.h"
+#include "../utils/Shader.h"
 #include <glad/glad.h>
 #include <fstream>
 #include <sstream>
 #include <iostream>
 
 BoardRenderer::BoardRenderer(int rows, int cols, float cellSize)
-    : rows(rows), cols(cols), cellSize(cellSize) {
+    : rows(rows), cols(cols), cellSize(cellSize)
+{
     initGrid();
-    shaderProgram = createShaderProgram("assets/shaders/engine/grid.vert", "assets/shaders/engine/grid.frag");
-    mvpLocation = glGetUniformLocation(shaderProgram, "u_MVP");
+    // Create the shader using the new Shader module.
+    gridShader = new Shader("assets/shaders/engine/grid.vert", "assets/shaders/engine/grid.frag");
+    mvpLocation = glGetUniformLocation(gridShader->getID(), "u_MVP");
 
     glGenVertexArrays(1, &vao);
     glGenBuffers(1, &vbo);
@@ -28,11 +31,9 @@ BoardRenderer::~BoardRenderer() {
 }
 
 void BoardRenderer::draw(const Camera3D& camera) {
-    glUseProgram(shaderProgram);
-
+    gridShader->use();
     glm::mat4 mvp = camera.getProjectionMatrix() * camera.getViewMatrix() * glm::mat4(1.0f);
     glUniformMatrix4fv(mvpLocation, 1, GL_FALSE, &mvp[0][0]);
-
     glBindVertexArray(vao);
     glDrawArrays(GL_LINES, 0, (GLsizei)gridVertices.size() / 3);
 }
@@ -40,7 +41,11 @@ void BoardRenderer::draw(const Camera3D& camera) {
 void BoardRenderer::shutdown() {
     glDeleteBuffers(1, &vbo);
     glDeleteVertexArrays(1, &vao);
-    glDeleteProgram(shaderProgram);
+    // Let the Shader destructor handle program deletion.
+    if(gridShader) {
+        delete gridShader;
+        gridShader = nullptr;
+    }
 }
 
 void BoardRenderer::initGrid() {
