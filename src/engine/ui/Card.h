@@ -5,15 +5,17 @@
 #include <SDL2/SDL.h>
 #include <glm/glm.hpp>
 
+class Shader; // Forward declaration
+
 class Card {
 public:
-    // Constructor takes a rectangle and a color.
+    // Constructor: takes a rectangle and a color.
     Card(const SDL_Rect& rect, const glm::vec3& color);
     ~Card();
 
-    // Draw the card using a provided UI shader.
-    // Assumes the shader has uniforms "u_Model" and "u_Color".
-    void draw(class Shader* uiShader) const;
+    // Draw the card using the provided UI shader.
+    // The shader must define uniforms "u_Model" and "u_Color".
+    void draw(Shader* uiShader) const;
 
     // Check if a point (x, y) is inside the card.
     bool isPointInside(int x, int y) const;

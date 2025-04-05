@@ -1,24 +1,14 @@
 // StarterSelectionState.cpp
 #include "StarterSelectionState.h"
-#include "GameStateManager.h"  // Needed for popState()
+#include "GameStateManager.h"
 #include "GameWorld.h"
-#include "../engine/utils/Shader.h"  // Our custom Shader class
+#include "../engine/ui/Card.h"
+#include "../engine/utils/Shader.h"
+#include "../engine/ui/UIManager.h"
 #include <glad/glad.h>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 #include <iostream>
-
-// Include the Card component header.
-#include "../engine/ui/Card.h"
-
-// Helper function to get the UI shader as a Shader object.
-Shader* getUIShader() {
-    static Shader* uiShader = nullptr;
-    if (!uiShader) {
-        uiShader = new Shader("assets/shaders/ui/card.vert", "assets/shaders/ui/card.frag");
-    }
-    return uiShader;
-}
 
 StarterSelectionState::StarterSelectionState(GameStateManager* manager, GameWorld* world)
     : stateManager(manager), gameWorld(world), selectedStarter(StarterPokemon::None)
@@ -30,18 +20,14 @@ StarterSelectionState::StarterSelectionState(GameStateManager* manager, GameWorl
     int startX     = (1280 - totalWidth) / 2;
     int startY     = (720 - cardHeight) / 2;
 
-    // Create card components.
-    // We store these as member variables if needed; for simplicity, we'll create them on the fly here.
-    // Alternatively, you could add:
-    //   std::vector<Card> cards;
-    // in your StarterSelectionState class.
+    // Define card rectangles.
     bulbasaurRect  = { startX,                       startY, cardWidth, cardHeight };
     charmanderRect = { startX + cardWidth + spacing, startY, cardWidth, cardHeight };
     squirtleRect   = { startX + 2 * (cardWidth + spacing), startY, cardWidth, cardHeight };
 }
 
 StarterSelectionState::~StarterSelectionState() {
-    // If getUIShader() allocated a shader, you might delete it on state exit if it’s not used elsewhere.
+    // UIManager will handle its shader cleanup.
 }
 
 void StarterSelectionState::onEnter() {
@@ -53,13 +39,11 @@ void StarterSelectionState::onExit() {
 }
 
 void StarterSelectionState::handleInput(SDL_Event& event) {
-    // (Input handling remains the same.)
     if (event.type == SDL_MOUSEBUTTONDOWN && event.button.button == SDL_BUTTON_LEFT) {
         int mouseX = event.button.x;
         int mouseY = event.button.y;
         glm::vec3 ourSideSpawnPos(0.0f, 0.0f, 3.5f);
 
-        // Instead of checking against SDL_Rects directly, you could instantiate Card objects and call isPointInside().
         if (isPointInRect(mouseX, mouseY, bulbasaurRect)) {
             selectedStarter = StarterPokemon::Bulbasaur;
             std::cout << "Bulbasaur selected\n";
@@ -80,7 +64,6 @@ void StarterSelectionState::handleInput(SDL_Event& event) {
         }
     }
 
-    // Keyboard-based selection remains unchanged.
     if (event.type == SDL_KEYDOWN) {
         if (event.key.keysym.sym == SDLK_1) {
             gameWorld->spawnPokemon("bulbasaur", glm::vec3(0.0f));
@@ -97,23 +80,27 @@ void StarterSelectionState::handleInput(SDL_Event& event) {
 }
 
 void StarterSelectionState::update(float deltaTime) {
-    // UI updates or animations if needed.
+    // UI animations or updates can be handled here if needed.
 }
 
 void StarterSelectionState::render() {
-    // Set up an orthographic projection for UI rendering.
+    // Ensure UIManager is initialized.
+    UIManager::init();
+
+    // Set up an orthographic projection.
     glm::mat4 ortho = glm::ortho(0.0f, 1280.0f, 720.0f, 0.0f);
-    Shader* uiShader = getUIShader();
+    Shader* uiShader = UIManager::getCardShader();
     uiShader->use();
 
     GLint projLoc = glGetUniformLocation(uiShader->getID(), "u_Projection");
     glUniformMatrix4fv(projLoc, 1, GL_FALSE, glm::value_ptr(ortho));
 
-    // Instead of calling drawCard() directly, instantiate Card components and call their draw() method.
+    // Create Card components.
     Card bulbasaurCard(bulbasaurRect, glm::vec3(0.2f, 0.7f, 0.2f));
     Card charmanderCard(charmanderRect, glm::vec3(0.7f, 0.2f, 0.2f));
     Card squirtleCard(squirtleRect, glm::vec3(0.2f, 0.2f, 0.7f));
 
+    // Draw the cards.
     bulbasaurCard.draw(uiShader);
     charmanderCard.draw(uiShader);
     squirtleCard.draw(uiShader);

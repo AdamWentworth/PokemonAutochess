@@ -5,7 +5,7 @@
 #include <iostream>
 
 class GameStateManager;
-class GameWorld; // forward-declare
+class GameWorld; // Forward declaration
 
 enum class StarterPokemon {
     None,
@@ -16,7 +16,6 @@ enum class StarterPokemon {
 
 class StarterSelectionState : public GameState {
 public:
-    // Updated constructor to take gameWorld pointer
     StarterSelectionState(GameStateManager* manager, GameWorld* world);
     ~StarterSelectionState();
 
@@ -33,7 +32,7 @@ private:
     SDL_Rect squirtleRect;
 
     GameStateManager* stateManager;
-    GameWorld* gameWorld; // store the pointer here
+    GameWorld* gameWorld; // Stored pointer to the game world
 
     bool isPointInRect(int x, int y, const SDL_Rect& rect) {
         return (x >= rect.x && x <= rect.x + rect.w &&
