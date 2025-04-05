@@ -4,17 +4,18 @@
 
 #include <SDL2/SDL.h>
 #include <glm/glm.hpp>
+#include <string>
 
 class Shader; // Forward declaration
 
 class Card {
 public:
-    // Constructor: takes a rectangle and a color.
-    Card(const SDL_Rect& rect, const glm::vec3& color);
+    // Constructor now takes a rectangle and a file path for the image.
+    Card(const SDL_Rect& rect, const std::string& imagePath);
     ~Card();
 
     // Draw the card using the provided UI shader.
-    // The shader must define uniforms "u_Model" and "u_Color".
+    // The shader must define uniforms "u_Model" and "u_Texture".
     void draw(Shader* uiShader) const;
 
     // Check if a point (x, y) is inside the card.
@@ -23,10 +24,15 @@ public:
     // Accessors.
     void setRect(const SDL_Rect& r) { rect = r; }
     SDL_Rect getRect() const { return rect; }
-    void setColor(const glm::vec3& col) { color = col; }
-    glm::vec3 getColor() const { return color; }
+    void setImagePath(const std::string& path) { imagePath = path; }
+    std::string getImagePath() const { return imagePath; }
 
 private:
     SDL_Rect rect;
-    glm::vec3 color;
+    std::string imagePath;
+    unsigned int textureID;  // OpenGL texture handle.
+    int imgWidth, imgHeight, imgChannels; // Image dimensions
+
+    // Helper function to load the texture.
+    unsigned int loadTexture(const std::string& path);
 };

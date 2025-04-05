@@ -21,6 +21,7 @@ add_executable(PokemonAutochess
     src/engine/core/Window.cpp
     src/engine/utils/Shader.cpp
     src/engine/utils/ResourceManager.cpp
+    src/engine/utils/stb_image_impl.cpp
     src/engine/render/Renderer.cpp
     src/engine/render/Camera3D.cpp
     src/engine/render/BoardRenderer.cpp

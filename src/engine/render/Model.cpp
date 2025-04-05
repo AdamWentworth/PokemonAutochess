@@ -8,7 +8,6 @@
 #include <vector>
 #include <limits>
 #define TINYGLTF_IMPLEMENTATION
-#define STB_IMAGE_IMPLEMENTATION
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #define TINYGLTF_NO_INCLUDE_JSON
 #include <glm/gtc/type_ptr.hpp>

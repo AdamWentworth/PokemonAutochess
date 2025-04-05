@@ -96,11 +96,10 @@ void StarterSelectionState::render() {
     glUniformMatrix4fv(projLoc, 1, GL_FALSE, glm::value_ptr(ortho));
 
     // Create Card components.
-    Card bulbasaurCard(bulbasaurRect, glm::vec3(0.2f, 0.7f, 0.2f));
-    Card charmanderCard(charmanderRect, glm::vec3(0.7f, 0.2f, 0.2f));
-    Card squirtleCard(squirtleRect, glm::vec3(0.2f, 0.2f, 0.7f));
+    Card bulbasaurCard(bulbasaurRect, "assets/images/bulbasaur.png");
+    Card charmanderCard(charmanderRect, "assets/images/charmander.png");
+    Card squirtleCard(squirtleRect, "assets/images/squirtle.png");
 
-    // Draw the cards.
     bulbasaurCard.draw(uiShader);
     charmanderCard.draw(uiShader);
     squirtleCard.draw(uiShader);
