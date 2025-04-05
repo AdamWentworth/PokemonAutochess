@@ -29,8 +29,8 @@ Model::Model(const std::string& filepath) {
     loadGLTF(filepath);
 
     // Load shader source from assets.
-    std::string vertSource = loadShaderSource("assets/shaders/model/default.vert");
-    std::string fragSource = loadShaderSource("assets/shaders/model/default.frag");
+    std::string vertSource = loadShaderSource("assets/shaders/model/model.vert");
+    std::string fragSource = loadShaderSource("assets/shaders/model/model.frag");
 
     shaderProgram = createShaderProgram(vertSource.c_str(), fragSource.c_str());
     mvpLocation = glGetUniformLocation(shaderProgram, "u_MVP");
