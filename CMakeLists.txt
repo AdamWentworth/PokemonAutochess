@@ -54,5 +54,5 @@ file(COPY assets/shaders/engine/grid.vert DESTINATION ${CMAKE_CURRENT_BINARY_DIR
 file(COPY assets/shaders/engine/grid.frag DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/engine/render)
 file(COPY assets/shaders/model/model.vert DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/engine/render)
 file(COPY assets/shaders/model/model.frag DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/engine/render)
-file(COPY assets/shaders/ui/ui_shader.vert DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/engine/render)
-file(COPY assets/shaders/ui/ui_shader.frag DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/engine/render)
+file(COPY assets/shaders/ui/card.vert DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/engine/render)
+file(COPY assets/shaders/ui/card.frag DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/engine/render)

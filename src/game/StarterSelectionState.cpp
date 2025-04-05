@@ -53,7 +53,7 @@ GLuint createUIShaderProgram(const char* vertexPath, const char* fragmentPath) {
 GLuint getUIShader() {
     static GLuint uiShader = 0;
     if (uiShader == 0) {
-        uiShader = createUIShaderProgram("engine/render/ui_shader.vert", "engine/render/ui_shader.frag");
+        uiShader = createUIShaderProgram("engine/render/card.vert", "engine/render/card.frag");
     }
     return uiShader;
 }
