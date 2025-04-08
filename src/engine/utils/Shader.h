@@ -5,6 +5,7 @@
 
 #include <string>
 #include <glad/glad.h>
+#include <glm/glm.hpp>  // Ensure this is included
 
 class Shader {
 public:
@@ -16,7 +17,8 @@ public:
     
     // Uniform setters
     void setUniform(const std::string &name, float value) const;
-    // Additional setters for vectors, matrices, etc.
+    void setUniform(const std::string &name, const glm::mat4 &matrix) const;  // New overload
+    void setUniform(const std::string &name, const glm::vec3 &vec) const;     // New overload
     
 private:
     GLuint ID;

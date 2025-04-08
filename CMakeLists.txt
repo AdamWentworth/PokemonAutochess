@@ -20,6 +20,7 @@ endif()
 # ------------------------------------------------------------------------------
 
 find_package(SDL2 CONFIG REQUIRED)
+find_package(SDL2_ttf REQUIRED)
 find_package(OpenGL REQUIRED)
 find_package(glad CONFIG REQUIRED)
 find_package(glm CONFIG REQUIRED)
@@ -48,6 +49,7 @@ add_executable(PokemonAutochess
 
     src/engine/ui/UIManager.cpp
     src/engine/ui/Card.cpp
+    src/engine/ui/TextRenderer.cpp
 
     # Game
     src/game/GameWorld.cpp
@@ -89,6 +91,7 @@ target_include_directories(PokemonAutochess PRIVATE
 
 target_link_libraries(PokemonAutochess PRIVATE
     SDL2::SDL2
+    SDL2_ttf::SDL2_ttf
     OpenGL::GL
     glad::glad
     glm::glm
@@ -107,3 +110,5 @@ file(COPY assets/shaders/model/model.vert DESTINATION ${CMAKE_CURRENT_BINARY_DIR
 file(COPY assets/shaders/model/model.frag DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/engine/render)
 file(COPY assets/shaders/ui/card.vert DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/engine/render)
 file(COPY assets/shaders/ui/card.frag DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/engine/render)
+file(COPY assets/shaders/ui/text.vert DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/engine/render)
+file(COPY assets/shaders/ui/text.frag DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/engine/render)

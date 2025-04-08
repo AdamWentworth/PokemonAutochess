@@ -6,12 +6,15 @@
 #include "../../engine/ui/Card.h"
 #include "../../engine/ui/UIManager.h"
 #include "../../engine/utils/Shader.h"
+#include "../../engine/ui/TextRenderer.h"
 #include "../ui/CardFactory.h"
 
 #include <glad/glad.h>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 #include <iostream>
+
+static TextRenderer* textRenderer = nullptr;
 
 StarterSelectionState::StarterSelectionState(GameStateManager* manager, GameWorld* world)
     : stateManager(manager),
@@ -40,6 +43,11 @@ StarterSelectionState::~StarterSelectionState() {}
 void StarterSelectionState::onEnter() {
     std::cout << "[StarterSelectionState] Entering starter selection.\n";
     script.onEnter();
+
+    // Initialize the text renderer if it hasn't been created
+    if (!textRenderer) {
+        textRenderer = new TextRenderer("assets/fonts/GillSans.ttf", 48);
+    }
 }
 
 void StarterSelectionState::onExit() {
@@ -82,6 +90,12 @@ void StarterSelectionState::update(float deltaTime) {
 }
 
 void StarterSelectionState::render() {
+    // Render the instructional text above the cards.
+    // Adjust x=300, y=150 to position it properly (these values are an example).
+    textRenderer->renderText("CHOOSE YOUR STARTER", 300.0f, 150.0f,
+            glm::vec3(1.0f, 1.0f, 1.0f), 1.0f);
+
+    // Render the starter cards as before.
     cardSystem.render(1280, 720);
 }
 

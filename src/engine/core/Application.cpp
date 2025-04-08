@@ -25,6 +25,7 @@
 #include <iostream>
 #include <chrono>
 #include <filesystem>
+#include <SDL2/SDL_ttf.h>
 
 const unsigned int WIDTH = 1280;
 const unsigned int HEIGHT = 720;
@@ -40,12 +41,17 @@ Application::~Application() {
 }
 
 void Application::init() {
+    // Initialize SDL_ttf
+    if (TTF_Init() == -1) {
+        std::cerr << "[Application] TTF_Init error: " << TTF_GetError() << "\n";
+        // Optionally handle the error (exit or disable text rendering)
+    }
+    
     PokemonConfigLoader::getInstance().loadConfig("config/pokemon_config.json");
-
     std::cout << "[Init] Current working directory: " << std::filesystem::current_path() << "\n";
 
     window = new Window("Pokemon Autochess", WIDTH, HEIGHT);
-
+    
     if (!gladLoadGLLoader((GLADloadproc)SDL_GL_GetProcAddress)) {
         std::cerr << "Failed to initialize GLAD\n";
         exit(EXIT_FAILURE);
@@ -65,6 +71,7 @@ void Application::init() {
     SystemRegistry::getInstance().registerSystem(cameraSystem);
     SystemRegistry::getInstance().registerSystem(unitSystem);
 
+    // Push the starter selection state
     stateManager->pushState(std::make_unique<StarterSelectionState>(stateManager, gameWorld));
 
     auto roundSystem = std::make_shared<RoundSystem>();
@@ -135,7 +142,11 @@ void Application::shutdown() {
     if (stateManager) delete stateManager;
     if (window) delete window;
 
-    SystemRegistry::getInstance().clear(); // ✅ Optional cleanup of shared_ptr registry
+    SystemRegistry::getInstance().clear(); // Optional cleanup
+
+    // Shutdown SDL_ttf
+    TTF_Quit();
+    
     std::cout << "[Shutdown] Shutdown complete.\n";
 }
 

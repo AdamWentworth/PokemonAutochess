@@ -4,6 +4,7 @@
 #include <fstream>
 #include <sstream>
 #include <iostream>
+#include <glm/gtc/type_ptr.hpp>  // For glm::value_ptr
 
 Shader::Shader(const char* vertexPath, const char* fragmentPath) {
     std::string vertexCode = loadSource(vertexPath);
@@ -50,4 +51,14 @@ GLuint Shader::compileShader(GLenum type, const char* source) {
 
 void Shader::setUniform(const std::string &name, float value) const {
     glUniform1f(glGetUniformLocation(ID, name.c_str()), value);
+}
+
+// New overload: setting a mat4 uniform.
+void Shader::setUniform(const std::string &name, const glm::mat4 &matrix) const {
+    glUniformMatrix4fv(glGetUniformLocation(ID, name.c_str()), 1, GL_FALSE, glm::value_ptr(matrix));
+}
+
+// New overload: setting a vec3 uniform.
+void Shader::setUniform(const std::string &name, const glm::vec3 &vec) const {
+    glUniform3f(glGetUniformLocation(ID, name.c_str()), vec.x, vec.y, vec.z);
 }
