@@ -26,9 +26,13 @@ Card::Card(const SDL_Rect& rect, const std::string& imagePath)
 }
 
 Card::Card(Card&& other) noexcept
-    : rect(other.rect), imagePath(std::move(other.imagePath)),
-      textureID(other.textureID), imgWidth(other.imgWidth),
-      imgHeight(other.imgHeight), imgChannels(other.imgChannels)
+    : rect(other.rect), 
+      imagePath(std::move(other.imagePath)),
+      textureID(other.textureID), 
+      imgWidth(other.imgWidth),
+      imgHeight(other.imgHeight), 
+      imgChannels(other.imgChannels),
+      cardData(std::move(other.cardData))
 {
     other.textureID = 0;
 }
@@ -42,6 +46,7 @@ Card& Card::operator=(Card&& other) noexcept {
         imgWidth = other.imgWidth;
         imgHeight = other.imgHeight;
         imgChannels = other.imgChannels;
+        cardData = std::move(other.cardData);
         other.textureID = 0;
     }
     return *this;
@@ -109,7 +114,7 @@ void Card::draw(Shader* uiShader) const {
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
     // 🔶 Draw Pokémon image first (slightly smaller to fit inside the frame)
-    const float padding = 12.0f;
+    const float padding = 6.0f;
     float imgW = rect.w - 2 * padding;
     float imgH = rect.h - 2 * padding;
 

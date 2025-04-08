@@ -43,16 +43,16 @@ void CardSystem::render(int screenWidth, int screenHeight) {
     glUseProgram(0);
 }
 
-bool CardSystem::handleMouseClick(int mouseX, int mouseY) {
+std::optional<CardData> CardSystem::handleMouseClick(int mouseX, int mouseY) {
     for (auto& card : cards) {
         if (card.isPointInside(mouseX, mouseY)) {
             const auto& data = card.getData();
             SDL_Log("[Card Clicked] Pokemon: %s | Cost: %d | Type: %d",
                     data.pokemonName.c_str(), data.cost, static_cast<int>(data.type));
-            return true;
+            return data;
         }
     }
-    return false;
+    return std::nullopt;
 }
 
 void CardSystem::clearCards() {

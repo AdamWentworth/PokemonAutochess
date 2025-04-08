@@ -3,6 +3,7 @@
 #pragma once
 
 #include <vector>
+#include <optional>
 #include <SDL2/SDL.h>
 #include "../../engine/ui/Card.h"
 
@@ -17,10 +18,9 @@ public:
     void addCard(Card&& card);
     void update(float deltaTime);
     void render(int screenWidth, int screenHeight);
-    bool handleMouseClick(int mouseX, int mouseY);
+    std::optional<CardData> handleMouseClick(int mouseX, int mouseY);
     void clearCards();
 
-    // New helper to generate a horizontal row of cards
     void spawnCardRow(const std::vector<CardData>& cardDatas, int screenWidth, int yOffset);
 
 private:
