@@ -10,16 +10,19 @@ BoardRenderer::BoardRenderer(int rows, int cols, float cellSize)
     : rows(rows), cols(cols), cellSize(cellSize)
 {
     initGrid();
-    // Create the shader using the new Shader module.
+    initBench(); // NEW
     gridShader = new Shader("assets/shaders/engine/grid.vert", "assets/shaders/engine/grid.frag");
     mvpLocation = glGetUniformLocation(gridShader->getID(), "u_MVP");
 
     glGenVertexArrays(1, &vao);
     glGenBuffers(1, &vbo);
 
+    std::vector<float> allVertices = gridVertices;
+    allVertices.insert(allVertices.end(), benchVertices.begin(), benchVertices.end()); // NEW
+
     glBindVertexArray(vao);
     glBindBuffer(GL_ARRAY_BUFFER, vbo);
-    glBufferData(GL_ARRAY_BUFFER, gridVertices.size() * sizeof(float), gridVertices.data(), GL_STATIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, allVertices.size() * sizeof(float), allVertices.data(), GL_STATIC_DRAW);
 
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
     glEnableVertexAttribArray(0);
@@ -34,14 +37,24 @@ void BoardRenderer::draw(const Camera3D& camera) {
     glm::mat4 mvp = camera.getProjectionMatrix() * camera.getViewMatrix() * glm::mat4(1.0f);
     glUniformMatrix4fv(mvpLocation, 1, GL_FALSE, &mvp[0][0]);
     glBindVertexArray(vao);
-    glDrawArrays(GL_LINES, 0, (GLsizei)gridVertices.size() / 3);
+    glDrawArrays(GL_LINES, 0, (GLsizei)(gridVertices.size() / 3));
+}
+
+void BoardRenderer::drawBench(const Camera3D& camera) {
+    gridShader->use();
+    glm::mat4 mvp = camera.getProjectionMatrix() * camera.getViewMatrix() * glm::mat4(1.0f);
+    glUniformMatrix4fv(mvpLocation, 1, GL_FALSE, &mvp[0][0]);
+    glBindVertexArray(vao);
+
+    size_t benchOffset = gridVertices.size() / 3;
+    size_t benchCount = benchVertices.size() / 3;
+    glDrawArrays(GL_LINES, (GLsizei)benchOffset, (GLsizei)benchCount);
 }
 
 void BoardRenderer::shutdown() {
     glDeleteBuffers(1, &vbo);
     glDeleteVertexArrays(1, &vao);
-    // Let the Shader destructor handle program deletion.
-    if(gridShader) {
+    if (gridShader) {
         delete gridShader;
         gridShader = nullptr;
     }
@@ -56,13 +69,32 @@ void BoardRenderer::initGrid() {
         float z = -halfH + i * cellSize;
         gridVertices.insert(gridVertices.end(), {-halfW, y, z, halfW, y, z});
     }
-    
+
     for (int j = 0; j <= cols; ++j) {
         float x = -halfW + j * cellSize;
         float y = 0.0f;
         gridVertices.insert(gridVertices.end(), {x, y, -halfH, x, y, halfH});
     }
-    gridVertices.insert(gridVertices.end(), { -halfW, 0.01f, 0.0f,  halfW, 0.01f, 0.0f });
+
+    gridVertices.insert(gridVertices.end(), {-halfW, 0.01f, 0.0f, halfW, 0.01f, 0.0f});
+}
+
+void BoardRenderer::initBench() {
+    float benchY = 0.01f;  // Slightly above ground
+    float slotSize = cellSize; // Make bench use same cell size as board
+    float totalWidth = 8 * slotSize;
+    float startX = -totalWidth / 2.0f; // ✅ Centered
+    float startZ = (rows * cellSize) / 2.0f + 0.5f; // ✅ Just in front of the grid
+
+    for (int i = 0; i <= 8; ++i) {
+        float x = startX + i * slotSize;
+        benchVertices.insert(benchVertices.end(), {x, benchY, startZ, x, benchY, startZ + slotSize});
+    }
+
+    for (int j = 0; j <= 1; ++j) {
+        float z = startZ + j * slotSize;
+        benchVertices.insert(benchVertices.end(), {startX, benchY, z, startX + 8 * slotSize, benchY, z});
+    }
 }
 
 std::string BoardRenderer::loadShaderSource(const char* path) {
