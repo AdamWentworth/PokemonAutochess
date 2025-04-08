@@ -2,12 +2,12 @@
 
 #include "UnitInteractionSystem.h"
 #include <glm/gtc/matrix_transform.hpp>
+#include <glm/common.hpp>
 #include <iostream>
 #include <limits>
-#include <glm/common.hpp> // for glm::clamp
 
 UnitInteractionSystem::UnitInteractionSystem(Camera3D* cam, GameWorld* world, unsigned int w, unsigned int h)
-    : camera(cam), gameWorld(world), screenW(w), screenH(h)
+    : camera(cam), gameWorld(world), screenW(w), screenH(h), benchSystem(1.2f)
 {
     cellSize = 1.2f;
 }
@@ -27,14 +27,11 @@ glm::vec3 UnitInteractionSystem::screenToWorld(int mouseX, int mouseY) const {
 }
 
 bool UnitInteractionSystem::isInBenchZone(const glm::vec3& pos) const {
-    float benchZ = (8 * cellSize) / 2.0f + 0.5f;
-    float benchZEnd = benchZ + cellSize;
-    return pos.z >= benchZ && pos.z <= benchZEnd;
+    return benchSystem.isInBenchZone(pos);
 }
 
 bool UnitInteractionSystem::isInBoardZone(const glm::vec3& pos) const {
-    float halfBoard = (8 * cellSize) / 2.0f;
-    return pos.z >= -halfBoard && pos.z <= halfBoard;
+    return pos.z >= (cellSize * 0.5f) && pos.z <= (cellSize * 3.5f);
 }
 
 void UnitInteractionSystem::handleEvent(const SDL_Event& event) {
@@ -74,7 +71,8 @@ void UnitInteractionSystem::handleEvent(const SDL_Event& event) {
                 std::cout << "[UnitInteraction] Picked up index " << draggedIndex
                           << (draggingFromBench ? " from bench\n" : " from board\n");
             }
-        } else {
+        }
+        else {
             glm::vec3 rawDropPos = screenToWorld(event.button.x, event.button.y);
             rawDropPos.y = 0.0f;
 
@@ -82,22 +80,27 @@ void UnitInteractionSystem::handleEvent(const SDL_Event& event) {
             bool dropToBoard = isInBoardZone(rawDropPos);
 
             glm::vec3 snappedDrop = rawDropPos;
-            float boardHalf = (8 * cellSize) / 2.0f - cellSize * 0.5f;
-
             if (dropToBench) {
-                int slot = (int)std::round((rawDropPos.x + (4 * cellSize)) / cellSize);
-                slot = glm::clamp(slot, 0, 7);
-                float x = (slot - 4) * cellSize + cellSize * 0.5f;
-                float z = (8 * cellSize) / 2.0f + 0.5f + cellSize * 0.5f;
-                snappedDrop = glm::vec3(x, 0.0f, z);
-            } else if (dropToBoard) {
-                snappedDrop.x = std::floor(rawDropPos.x / cellSize) * cellSize + cellSize * 0.5f;
-                snappedDrop.z = std::floor(rawDropPos.z / cellSize) * cellSize + cellSize * 0.5f;
-                snappedDrop.y = 0.0f;
-
-                snappedDrop.x = glm::clamp(snappedDrop.x, -boardHalf, boardHalf);
-                snappedDrop.z = glm::clamp(snappedDrop.z, -boardHalf, boardHalf);
+                snappedDrop = benchSystem.getSnappedBenchPosition(rawDropPos);
             }
+            else if (dropToBoard) {
+                // Define the board origin so that the snapping aligns with the center of the grid slots.
+                float boardOriginX = -((8 * cellSize) / 2.0f) + cellSize * 0.5f;
+                float boardOriginZ = cellSize * 0.5f;  // first board row center
+                
+                // Compute column and row indices by comparing against the board origin.
+                int col = static_cast<int>(std::round((rawDropPos.x - boardOriginX) / cellSize));
+                int row = static_cast<int>(std::round((rawDropPos.z - boardOriginZ) / cellSize));
+                
+                // Clamp indices to valid board ranges (8 columns and 4 rows for the board).
+                col = glm::clamp(col, 0, 7);
+                row = glm::clamp(row, 0, 3);
+                
+                // Reconstruct the snapped drop position.
+                snappedDrop.x = boardOriginX + col * cellSize;
+                snappedDrop.z = boardOriginZ + row * cellSize;
+                snappedDrop.y = 0.0f;
+            }            
 
             if (dropToBench && !draggingFromBench) {
                 auto& pokemons = gameWorld->getPokemons();
@@ -106,7 +109,6 @@ void UnitInteractionSystem::handleEvent(const SDL_Event& event) {
 
                 unit.position = snappedDrop;
                 gameWorld->getBenchPokemons().push_back(unit);
-
                 std::cout << "[UnitInteraction] Moved unit to bench\n";
             }
             else if (dropToBoard && draggingFromBench) {
@@ -116,7 +118,6 @@ void UnitInteractionSystem::handleEvent(const SDL_Event& event) {
 
                 unit.position = snappedDrop;
                 gameWorld->getPokemons().push_back(unit);
-
                 std::cout << "[UnitInteraction] Moved unit to board\n";
             }
 
@@ -130,26 +131,28 @@ void UnitInteractionSystem::handleEvent(const SDL_Event& event) {
         glm::vec3 rawPos = screenToWorld(event.motion.x, event.motion.y);
         glm::vec3 snappedPos = rawPos;
 
-        float boardHalf = (8 * cellSize) / 2.0f - cellSize * 0.5f;
-
         if (isInBenchZone(rawPos)) {
-            int slot = (int)std::round((rawPos.x + (4 * cellSize)) / cellSize);
-            slot = glm::clamp(slot, 0, 7);
-            float x = (slot - 4) * cellSize + cellSize * 0.5f;
-            float z = (8 * cellSize) / 2.0f + 0.5f + cellSize * 0.5f;
-            snappedPos = glm::vec3(x, 0.0f, z);
+            snappedPos = benchSystem.getSnappedBenchPosition(rawPos);
         } else {
-            snappedPos.x = std::floor(rawPos.x / cellSize) * cellSize + cellSize * 0.5f;
-            snappedPos.z = std::floor(rawPos.z / cellSize) * cellSize + cellSize * 0.5f;
+            float boardOriginX = -((8 * cellSize) / 2.0f) + cellSize * 0.5f;
+            float boardOriginZ = cellSize * 0.5f;
+            
+            int col = static_cast<int>(std::round((rawPos.x - boardOriginX) / cellSize));
+            int row = static_cast<int>(std::round((rawPos.z - boardOriginZ) / cellSize));
+            
+            // Clamp to valid cell indices
+            col = glm::clamp(col, 0, 7);
+            row = glm::clamp(row, 0, 3);
+            
+            snappedPos.x = boardOriginX + col * cellSize;
+            snappedPos.z = boardOriginZ + row * cellSize;
             snappedPos.y = 0.0f;
-
-            snappedPos.x = glm::clamp(snappedPos.x, -boardHalf, boardHalf);
-            snappedPos.z = glm::clamp(snappedPos.z, -boardHalf, boardHalf);
-        }
+        }        
 
         if (draggingFromBench) {
             gameWorld->getBenchPokemons()[draggedIndex].position = snappedPos;
-        } else {
+        }
+        else {
             gameWorld->getPokemons()[draggedIndex].position = snappedPos;
         }
     }

@@ -5,6 +5,7 @@
 #include "../../engine/render/Camera3D.h"
 #include "../../game/GameWorld.h"
 #include "../../engine/core/IUpdatable.h"
+#include "BenchSystem.h"
 #include <SDL2/SDL.h>
 #include <glm/glm.hpp>
 
@@ -25,10 +26,12 @@ private:
 
     bool draggingUnit = false;
     int draggedIndex = -1;
-    bool draggingFromBench = false; // 🆕 Track origin list
+    bool draggingFromBench = false;
 
     float pickRadius = 0.7f;
     float cellSize = 1.2f;
     unsigned int screenW;
     unsigned int screenH;
+
+    BenchSystem benchSystem;
 };

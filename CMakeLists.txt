@@ -60,6 +60,7 @@ add_executable(PokemonAutochess
     src/game/systems/UnitInteractionSystem.cpp
     src/game/systems/RoundSystem.cpp
     src/game/systems/CardSystem.cpp
+    src/game/systems/BenchSystem.cpp
 
     src/game/ui/CardFactory.cpp
 
