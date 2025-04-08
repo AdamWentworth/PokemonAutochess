@@ -4,6 +4,7 @@
 #include <SDL2/SDL.h>
 #include "../../engine/ui/Card.h"
 #include <sol/sol.hpp>
+#include "../LuaScript.h"
 
 class GameStateManager;
 class GameWorld;
@@ -35,7 +36,7 @@ private:
     SDL_Rect charmanderRect;
     SDL_Rect squirtleRect;
 
-    sol::state lua;
+    LuaScript script;
 
     bool isPointInRect(int x, int y, const SDL_Rect& rect) const;
 };

@@ -48,8 +48,11 @@ add_executable(PokemonAutochess
     # Game
     src/game/GameWorld.cpp
     src/game/GameStateManager.cpp
-    src/game/state/StarterSelectionState.cpp
     src/game/LuaBindings.cpp
+    src/game/LuaScript.cpp
+    src/game/state/StarterSelectionState.cpp
+    src/game/systems/CameraSystem.cpp
+    src/game/systems/UnitInteractionSystem.cpp
 )
 
 # ------------------------------------------------------------------------------

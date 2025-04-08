@@ -2,7 +2,6 @@
 #include "StarterSelectionState.h"
 #include "../GameStateManager.h"
 #include "../GameWorld.h"
-#include "../LuaBindings.h"
 
 #include "../../engine/ui/Card.h"
 #include "../../engine/ui/UIManager.h"
@@ -14,11 +13,9 @@
 #include <iostream>
 
 StarterSelectionState::StarterSelectionState(GameStateManager* manager, GameWorld* world)
-    : stateManager(manager), gameWorld(world), selectedStarter(StarterPokemon::None)
+    : stateManager(manager), gameWorld(world), selectedStarter(StarterPokemon::None), script(world)
 {
-    lua.open_libraries(sol::lib::base);
-    registerLuaBindings(lua, world);
-    lua.script_file("scripts/states/starter_selection.lua");
+    script.loadScript("scripts/states/starter_selection.lua");
 
     int cardWidth  = 200;
     int cardHeight = 300;
@@ -32,16 +29,16 @@ StarterSelectionState::StarterSelectionState(GameStateManager* manager, GameWorl
     squirtleRect   = { startX + 2 * (cardWidth + spacing), startY, cardWidth, cardHeight };
 }
 
-StarterSelectionState::~StarterSelectionState() {
-    // No manual cleanup needed
-}
+StarterSelectionState::~StarterSelectionState() {}
 
 void StarterSelectionState::onEnter() {
     std::cout << "[StarterSelectionState] Entering starter selection.\n";
+    script.onEnter();
 }
 
 void StarterSelectionState::onExit() {
     std::cout << "[StarterSelectionState] Exiting starter selection.\n";
+    script.onExit();
 }
 
 void StarterSelectionState::handleInput(SDL_Event& event) {
@@ -50,37 +47,37 @@ void StarterSelectionState::handleInput(SDL_Event& event) {
         int mouseY = event.button.y;
 
         if (isPointInRect(mouseX, mouseY, bulbasaurRect)) {
-            lua["onCardClick"]("bulbasaur");
+            script.call("onCardClick", "bulbasaur");
             stateManager->popState();
         }
         else if (isPointInRect(mouseX, mouseY, charmanderRect)) {
-            lua["onCardClick"]("charmander");
+            script.call("onCardClick", "charmander");
             stateManager->popState();
         }
         else if (isPointInRect(mouseX, mouseY, squirtleRect)) {
-            lua["onCardClick"]("squirtle");
+            script.call("onCardClick", "squirtle");
             stateManager->popState();
         }
     }
 
     if (event.type == SDL_KEYDOWN) {
         if (event.key.keysym.sym == SDLK_1) {
-            lua["onCardClick"]("bulbasaur");
+            script.call("onCardClick", "bulbasaur");
             stateManager->popState();
         }
         if (event.key.keysym.sym == SDLK_2) {
-            lua["onCardClick"]("charmander");
+            script.call("onCardClick", "charmander");
             stateManager->popState();
         }
         if (event.key.keysym.sym == SDLK_3) {
-            lua["onCardClick"]("squirtle");
+            script.call("onCardClick", "squirtle");
             stateManager->popState();
         }
     }
 }
 
 void StarterSelectionState::update(float deltaTime) {
-    // Add UI animation updates here later
+    script.onUpdate(deltaTime);
 }
 
 void StarterSelectionState::render() {
