@@ -10,6 +10,7 @@
 #include "../../game/state/StarterSelectionState.h"
 #include "../../game/systems/CameraSystem.h"
 #include "../../game/systems/UnitInteractionSystem.h"
+#include "../../game/PokemonConfigLoader.h"
 #include "Window.h"
 
 #define NOMINMAX
@@ -38,6 +39,8 @@ Application::~Application() {
 }
 
 void Application::init() {
+    PokemonConfigLoader::getInstance().loadConfig("config/pokemon_config.json");
+
     std::cout << "[Init] Current working directory: " << std::filesystem::current_path() << "\n";
 
     window = new Window("Pokemon Autochess", WIDTH, HEIGHT);

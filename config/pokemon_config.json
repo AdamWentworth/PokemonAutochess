@@ -1,0 +1,18 @@
+{
+    "bulbasaur": {
+      "hp": 120,
+      "attack": 8,
+      "model": "bulbasaur.glb"
+    },
+    "charmander": {
+      "hp": 100,
+      "attack": 10,
+      "model": "charmander.glb"
+    },
+    "squirtle": {
+      "hp": 110,
+      "attack": 9,
+      "model": "squirtle.glb"
+    }
+  }
+  

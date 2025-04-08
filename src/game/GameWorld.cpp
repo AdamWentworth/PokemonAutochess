@@ -6,10 +6,17 @@
 #include <iostream>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
-#include <glad/glad.h> // Ensure OpenGL functions and symbols are defined
+#include <glad/glad.h>
+#include "PokemonConfigLoader.h"
 
 void GameWorld::spawnPokemon(const std::string& pokemonName, const glm::vec3& startPos, PokemonSide side) {
-    std::string path = "assets/models/" + pokemonName + ".glb";
+    const PokemonStats* stats = PokemonConfigLoader::getInstance().getStats(pokemonName);
+    if (!stats) {
+        std::cerr << "[GameWorld] No config found for Pokémon: " << pokemonName << "\n";
+        return;
+    }
+
+    std::string path = "assets/models/" + stats->model;
     Model* sharedModel = ResourceManager::getInstance().getModel(path);
 
     PokemonInstance inst;
@@ -19,11 +26,13 @@ void GameWorld::spawnPokemon(const std::string& pokemonName, const glm::vec3& st
     inst.rotation = glm::vec3(90.0f, (side == PokemonSide::Player ? 180.0f : 0.0f), 0.0f);
     inst.side = side;
 
+    inst.hp = stats->hp;
+    inst.attack = stats->attack;
+
     pokemons.push_back(inst);
 
     std::cout << "[GameWorld] Spawned " << pokemonName
-              << " at (" << startPos.x << ", " << startPos.y << ", " << startPos.z << ")"
-              << " on side " << (side == PokemonSide::Player ? "Player" : "Enemy") << "\n";
+              << " (HP: " << inst.hp << ", ATK: " << inst.attack << ")\n";
 }
 
 const PokemonInstance* GameWorld::getPokemonByName(const std::string& name) const {
