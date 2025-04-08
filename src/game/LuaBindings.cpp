@@ -2,14 +2,30 @@
 
 #include "LuaBindings.h"
 #include "GameWorld.h"
-#include "../engine/render/Model.h"
-#include "../engine/render/Camera3D.h"
-#include <glm/glm.hpp>
+#include "PokemonInstance.h"
 
 void registerLuaBindings(sol::state& lua, GameWorld* world) {
-    lua.set_function("spawnPokemon", [world](const std::string& name, float x, float y, float z) {
-        world->spawnPokemon(name, glm::vec3(x, y, z));
-    });
+    // Expose PokemonSide enum
+    lua.new_enum("PokemonSide",
+        "Player", PokemonSide::Player,
+        "Enemy", PokemonSide::Enemy
+    );
 
-    // You can register more game-related Lua functions here later.
+    // Expose PokemonInstance
+    lua.new_usertype<PokemonInstance>("PokemonInstance",
+        "name", &PokemonInstance::name,
+        "position", &PokemonInstance::position,
+        "rotation", &PokemonInstance::rotation,
+        "side", &PokemonInstance::side,
+        "hp", &PokemonInstance::hp,
+        "attack", &PokemonInstance::attack,
+        "alive", &PokemonInstance::alive
+    );
+
+    // Expose GameWorld interface
+    lua["spawnPokemon"] = [world](std::string name, float x, float y, float z) {
+        world->spawnPokemon(name, glm::vec3(x, y, z));
+    };
+
+    lua["pokemons"] = &world->getPokemons();  // direct reference to the vector
 }
