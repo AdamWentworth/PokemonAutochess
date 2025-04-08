@@ -6,42 +6,55 @@
 #include <glm/glm.hpp>
 #include <string>
 
-class Shader; // Forward declaration
+class Shader;
+
+enum class CardType {
+    Starter,
+    Shop,
+    Bench
+};
+
+struct CardData {
+    std::string pokemonName;
+    int cost = 0;
+    CardType type = CardType::Shop;
+};
 
 class Card {
 public:
-    // Constructor takes the card rectangle and image path.
     Card(const SDL_Rect& rect, const std::string& imagePath);
-
-    // Delete copy constructor and assignment operator to avoid accidental copies.
     Card(const Card&) = delete;
     Card& operator=(const Card&) = delete;
-
-    // Define move constructor and move assignment operator.
     Card(Card&& other) noexcept;
     Card& operator=(Card&& other) noexcept;
-
     ~Card();
 
-    // Draw the card using the provided UI shader.
-    // The shader must define uniforms "u_Model" and "u_Texture".
     void draw(Shader* uiShader) const;
-
-    // Check if a point (x, y) is inside the card.
     bool isPointInside(int x, int y) const;
 
-    // Accessors.
     void setRect(const SDL_Rect& r) { rect = r; }
     SDL_Rect getRect() const { return rect; }
+
     void setImagePath(const std::string& path) { imagePath = path; }
     std::string getImagePath() const { return imagePath; }
+
+    void setData(const CardData& data) { cardData = data; }
+    const CardData& getData() const { return cardData; }
+
+    static void setGlobalFramePath(const std::string& path);
 
 private:
     SDL_Rect rect;
     std::string imagePath;
-    unsigned int textureID;  // OpenGL texture handle.
-    int imgWidth, imgHeight, imgChannels; // Image dimensions
+    unsigned int textureID;
+    int imgWidth, imgHeight, imgChannels;
 
-    // Helper function to load the texture.
+    CardData cardData;
+
+    static std::string framePath;
+    static unsigned int frameTextureID;
+    static bool frameLoaded;
+
     unsigned int loadTexture(const std::string& path);
+    static void loadFrameTexture();
 };

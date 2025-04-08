@@ -1,47 +1,32 @@
 // CardSystem.cpp
 
 #include "CardSystem.h"
-
-// Include your UIManager (which sets up the card shader)
 #include "../../engine/ui/UIManager.h"
 
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
+#include <iostream>
 
-CardSystem::CardSystem() {
-    // Optionally call init() here or do nothing.
-    // It's often better to do minimal in constructors that rely on OpenGL states.
-}
+CardSystem::CardSystem() {}
 
-CardSystem::~CardSystem() {
-    // We don’t delete cardShader ourselves—UIManager owns it and
-    // we call UIManager::shutdown() once at the end of the application.
-}
+CardSystem::~CardSystem() {}
 
 void CardSystem::init() {
-    // Ensure the UIManager has been initialized (this is safe to call repeatedly).
     UIManager::init();
     cardShader = UIManager::getCardShader();
 }
 
 void CardSystem::addCard(Card&& card) {
-    // Move the card into the vector.
     cards.push_back(std::move(card));
 }
 
 void CardSystem::update(float deltaTime) {
-    // If your cards have any animations, you could update them here.
-    // For now, do nothing.
-    (void)deltaTime; // Silence unused param warning if not used
+    (void)deltaTime;
 }
 
 void CardSystem::render(int screenWidth, int screenHeight) {
-    if (!cardShader) {
-        // If this pointer is still null, we never called init().
-        return;
-    }
+    if (!cardShader) return;
 
-    // Use the orthographic matrix same as your StarterSelectionState was using
     glm::mat4 ortho = glm::ortho(
         0.0f, static_cast<float>(screenWidth),
         static_cast<float>(screenHeight), 0.0f
@@ -55,17 +40,15 @@ void CardSystem::render(int screenWidth, int screenHeight) {
         card.draw(cardShader);
     }
 
-    // You might reset or unbind here if you want:
     glUseProgram(0);
 }
 
 bool CardSystem::handleMouseClick(int mouseX, int mouseY) {
-    // Simple example: check each card for a hit
     for (auto& card : cards) {
         if (card.isPointInside(mouseX, mouseY)) {
-            // For now, just print. In your real code, you'd do something else
-            SDL_Log("Card clicked: %s", card.getImagePath().c_str());
-            // Return true if you want to indicate that you consumed the click
+            const auto& data = card.getData();
+            SDL_Log("[Card Clicked] Pokemon: %s | Cost: %d | Type: %d",
+                    data.pokemonName.c_str(), data.cost, static_cast<int>(data.type));
             return true;
         }
     }
@@ -76,3 +59,29 @@ void CardSystem::clearCards() {
     cards.clear();
 }
 
+void CardSystem::spawnCardRow(const std::vector<CardData>& cardDatas, int screenWidth, int yOffset) {
+    clearCards();
+
+    const int cardWidth = 128;
+    const int cardHeight = 128;
+    const int spacing = 16;
+
+    int totalWidth = static_cast<int>(cardDatas.size()) * (cardWidth + spacing) - spacing;
+    int startX = (screenWidth - totalWidth) / 2;
+
+    for (size_t i = 0; i < cardDatas.size(); ++i) {
+        const CardData& data = cardDatas[i];
+        std::string imagePath = "assets/images/" + data.pokemonName + ".png";
+
+        SDL_Rect rect = {
+            startX + static_cast<int>(i) * (cardWidth + spacing),
+            yOffset,
+            cardWidth,
+            cardHeight
+        };
+
+        Card card(rect, imagePath);
+        card.setData(data);
+        addCard(std::move(card));
+    }
+}

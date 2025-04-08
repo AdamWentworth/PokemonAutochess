@@ -21,8 +21,8 @@ StarterSelectionState::StarterSelectionState(GameStateManager* manager, GameWorl
     script.loadScript("scripts/states/starter_selection.lua");
 
     // We define card geometry so we know where each card is placed on the screen.
-    int cardWidth  = 200;
-    int cardHeight = 300;
+    int cardWidth  = 220;
+    int cardHeight = 150;
     int spacing    = 50;
     int totalWidth = 3 * cardWidth + 2 * spacing;
     int startX     = (1280 - totalWidth) / 2;

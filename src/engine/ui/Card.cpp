@@ -5,47 +5,48 @@
 #include <glad/glad.h>
 #include <glm/gtc/type_ptr.hpp>
 #include <iostream>
-#include <stb_image.h>  // Do NOT define STB_IMAGE_IMPLEMENTATION here!
+#include <stb_image.h>
 
-// Constructor: loads texture.
+std::string Card::framePath = "assets/ui/frame_gold.png";
+unsigned int Card::frameTextureID = 0;
+bool Card::frameLoaded = false;
+
 Card::Card(const SDL_Rect& rect, const std::string& imagePath)
     : rect(rect), imagePath(imagePath), textureID(0), imgWidth(0), imgHeight(0), imgChannels(0)
 {
-    // Disable flipping to display the image as is.
     stbi_set_flip_vertically_on_load(false);
     textureID = loadTexture(imagePath);
     if (textureID == 0) {
         std::cerr << "[Card] Failed to load texture: " << imagePath << "\n";
     }
+
+    if (!frameLoaded) {
+        loadFrameTexture();
+    }
 }
 
-// Move constructor: transfer ownership of textureID.
-Card::Card(Card&& other) noexcept 
+Card::Card(Card&& other) noexcept
     : rect(other.rect), imagePath(std::move(other.imagePath)),
-      textureID(other.textureID), imgWidth(other.imgWidth), imgHeight(other.imgHeight), imgChannels(other.imgChannels)
+      textureID(other.textureID), imgWidth(other.imgWidth),
+      imgHeight(other.imgHeight), imgChannels(other.imgChannels)
 {
-    other.textureID = 0;  // Prevent double deletion.
+    other.textureID = 0;
 }
 
-// Move assignment operator.
 Card& Card::operator=(Card&& other) noexcept {
     if (this != &other) {
-        // Delete our existing texture.
-        if (textureID != 0) {
-            glDeleteTextures(1, &textureID);
-        }
+        if (textureID != 0) glDeleteTextures(1, &textureID);
         rect = other.rect;
         imagePath = std::move(other.imagePath);
         textureID = other.textureID;
         imgWidth = other.imgWidth;
         imgHeight = other.imgHeight;
         imgChannels = other.imgChannels;
-        other.textureID = 0;  // Prevent double deletion.
+        other.textureID = 0;
     }
     return *this;
 }
 
-// Destructor: cleanup the texture.
 Card::~Card() {
     if (textureID != 0) {
         glDeleteTextures(1, &textureID);
@@ -57,7 +58,6 @@ unsigned int Card::loadTexture(const std::string& path) {
     glGenTextures(1, &texID);
     glBindTexture(GL_TEXTURE_2D, texID);
 
-    // Set texture wrapping/filtering options.
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
@@ -79,66 +79,24 @@ unsigned int Card::loadTexture(const std::string& path) {
 void Card::draw(Shader* uiShader) const {
     uiShader->use();
 
-    // Compute scale to preserve aspect ratio.
-    float cardW = static_cast<float>(rect.w);
-    float cardH = static_cast<float>(rect.h);
-    float cardAspect = cardW / cardH;
-    float imageAspect = static_cast<float>(imgWidth) / static_cast<float>(imgHeight);
-    
-    float scale = 1.0f;
-    if (imageAspect > cardAspect) {
-        // Fit to card width.
-        scale = cardW / static_cast<float>(imgWidth);
-    } else {
-        // Fit to card height.
-        scale = cardH / static_cast<float>(imgHeight);
-    }
-    
-    // Compute drawn image size.
-    float drawnW = static_cast<float>(imgWidth) * scale;
-    float drawnH = static_cast<float>(imgHeight) * scale;
-    
-    // Compute offsets to center image within card.
-    float offsetX = (cardW - drawnW) * 0.5f;
-    float offsetY = (cardH - drawnH) * 0.5f;
-    
-    // Build a model matrix:
-    // 1. Scale from normalized (0,1) to drawn image size.
-    glm::mat4 scaleMat = glm::scale(glm::mat4(1.0f), glm::vec3(drawnW, drawnH, 1.0f));
-    // 2. Translate so that the image is centered within the card.
-    glm::mat4 translateMat = glm::translate(glm::mat4(1.0f), glm::vec3(offsetX, offsetY, 0.0f));
-    // 3. Translate the card to its screen position.
-    glm::mat4 cardTranslate = glm::translate(glm::mat4(1.0f), glm::vec3(rect.x, rect.y, 0.0f));
-    glm::mat4 model = cardTranslate * translateMat * scaleMat;
-
-    GLint modelLoc = glGetUniformLocation(uiShader->getID(), "u_Model");
-    glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(model));
-
-    // Bind the texture.
-    glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, textureID);
-    GLint texLoc = glGetUniformLocation(uiShader->getID(), "u_Texture");
-    glUniform1i(texLoc, 0);
-
-    // Define geometry in normalized card space (0,0) to (1,1).
     float vertices[] = {
-        // Positions      // Tex Coords
-         0.0f, 0.0f,      0.0f, 0.0f,
-         1.0f, 0.0f,      1.0f, 0.0f,
-         1.0f, 1.0f,      1.0f, 1.0f,
-         0.0f, 1.0f,      0.0f, 1.0f
+        0.0f, 0.0f, 0.0f, 0.0f,
+        1.0f, 0.0f, 1.0f, 0.0f,
+        1.0f, 1.0f, 1.0f, 1.0f,
+        0.0f, 1.0f, 0.0f, 1.0f
     };
     unsigned int indices[] = { 0, 1, 2, 2, 3, 0 };
 
-    GLuint VAO_local, VBO_local, EBO_local;
-    glGenVertexArrays(1, &VAO_local);
-    glGenBuffers(1, &VBO_local);
-    glGenBuffers(1, &EBO_local);
+    GLuint VAO, VBO, EBO;
+    glGenVertexArrays(1, &VAO);
+    glGenBuffers(1, &VBO);
+    glGenBuffers(1, &EBO);
 
-    glBindVertexArray(VAO_local);
-    glBindBuffer(GL_ARRAY_BUFFER, VBO_local);
+    glBindVertexArray(VAO);
+    glBindBuffer(GL_ARRAY_BUFFER, VBO);
     glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO_local);
+
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
 
     glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)0);
@@ -146,19 +104,62 @@ void Card::draw(Shader* uiShader) const {
     glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)(2 * sizeof(float)));
     glEnableVertexAttribArray(1);
 
+    // 🔥 Enable transparency
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+    // 🔶 Draw Pokémon image first (slightly smaller to fit inside the frame)
+    const float padding = 12.0f;
+    float imgW = rect.w - 2 * padding;
+    float imgH = rect.h - 2 * padding;
+
+    glm::mat4 imgModel = glm::translate(glm::mat4(1.0f), glm::vec3(rect.x + padding, rect.y + padding, 0.0f));
+    imgModel = glm::scale(imgModel, glm::vec3(imgW, imgH, 1.0f));
+
+    glUniformMatrix4fv(glGetUniformLocation(uiShader->getID(), "u_Model"), 1, GL_FALSE, glm::value_ptr(imgModel));
+    glBindTexture(GL_TEXTURE_2D, textureID);
+    glUniform1i(glGetUniformLocation(uiShader->getID(), "u_Texture"), 0);
     glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
 
-    // Clean up.
-    glBindVertexArray(0);
-    glDeleteBuffers(1, &VBO_local);
-    glDeleteBuffers(1, &EBO_local);
-    glDeleteVertexArrays(1, &VAO_local);
+    // 🟡 Draw the frame second (overlaid on top)
+    glm::mat4 frameModel = glm::translate(glm::mat4(1.0f), glm::vec3(rect.x, rect.y, 0.0f));
+    frameModel = glm::scale(frameModel, glm::vec3(rect.w, rect.h, 1.0f));
 
-    // Unbind texture.
-    glBindTexture(GL_TEXTURE_2D, 0);
+    glUniformMatrix4fv(glGetUniformLocation(uiShader->getID(), "u_Model"), 1, GL_FALSE, glm::value_ptr(frameModel));
+    glBindTexture(GL_TEXTURE_2D, frameTextureID);
+    glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+
+    glDisable(GL_BLEND);
+
+    // 🧹 Cleanup
+    glBindVertexArray(0);
+    glDeleteBuffers(1, &VBO);
+    glDeleteBuffers(1, &EBO);
+    glDeleteVertexArrays(1, &VAO);
 }
 
 bool Card::isPointInside(int x, int y) const {
     return (x >= rect.x && x <= rect.x + rect.w &&
             y >= rect.y && y <= rect.y + rect.h);
+}
+
+void Card::loadFrameTexture() {
+    int w, h, c;
+    unsigned char* data = stbi_load(framePath.c_str(), &w, &h, &c, 0);
+    if (data) {
+        glGenTextures(1, &frameTextureID);
+        glBindTexture(GL_TEXTURE_2D, frameTextureID);
+        GLenum format = (c == 4) ? GL_RGBA : GL_RGB;
+        glTexImage2D(GL_TEXTURE_2D, 0, format, w, h, 0, format, GL_UNSIGNED_BYTE, data);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        frameLoaded = true;
+        stbi_image_free(data);
+    } else {
+        std::cerr << "[Card] Failed to load frame texture: " << framePath << "\n";
+    }
+}
+
+void Card::setGlobalFramePath(const std::string& path) {
+    framePath = path;
 }
