@@ -63,3 +63,11 @@ void UnitInteractionSystem::handleEvent(const SDL_Event& event) {
         gameWorld->getPokemons()[draggedIndex].position = newPos;
     }
 }
+
+void UnitInteractionSystem::update(float deltaTime) {
+    // For now, this might be empty, but later you could:
+    // - Show hovered unit
+    // - Trigger passive effects
+    // - Poll for interaction cooldowns, etc.
+    (void)deltaTime; // silence unused warning
+}

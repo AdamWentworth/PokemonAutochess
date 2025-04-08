@@ -75,3 +75,4 @@ bool CardSystem::handleMouseClick(int mouseX, int mouseY) {
 void CardSystem::clearCards() {
     cards.clear();
 }
+

@@ -2,9 +2,11 @@
 
 #pragma once
 
+#include "SystemRegistry.h"
 #include "../render/Renderer.h"
 #include "../render/Camera3D.h"
 #include "../../game/GameStateManager.h"
+#include <memory>
 
 class GameWorld;
 class Window;
@@ -28,6 +30,6 @@ private:
     GameWorld* gameWorld = nullptr;
     Window* window = nullptr;
 
-    CameraSystem* cameraSystem = nullptr;
-    UnitInteractionSystem* unitSystem = nullptr;
+    std::shared_ptr<CameraSystem> cameraSystem;
+    std::shared_ptr<UnitInteractionSystem> unitSystem;
 };

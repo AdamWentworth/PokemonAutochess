@@ -4,14 +4,16 @@
 
 #include "../../engine/render/Camera3D.h"
 #include "../../game/GameWorld.h"
+#include "../../engine/core/IUpdatable.h" // ✅ include IUpdatable
 #include <SDL2/SDL.h>
 #include <glm/glm.hpp>
 
-class UnitInteractionSystem {
+class UnitInteractionSystem : public IUpdatable { // ✅ Inherit
 public:
     UnitInteractionSystem(Camera3D* camera, GameWorld* world, unsigned int screenWidth, unsigned int screenHeight);
 
     void handleEvent(const SDL_Event& event);
+    void update(float deltaTime) override; // ✅ Implement the interface
 
 private:
     glm::vec3 screenToWorld(int mouseX, int mouseY) const;

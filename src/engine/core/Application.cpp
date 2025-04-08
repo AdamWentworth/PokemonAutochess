@@ -1,17 +1,17 @@
 // Application.cpp
 
 #include "Application.h"
-#include "../utils/ResourceManager.h"
+#include "Window.h"
 #include "../render/Renderer.h"
 #include "../render/BoardRenderer.h"
 #include "../render/Model.h"
+#include "../utils/ResourceManager.h"
 #include "../../game/GameWorld.h"
 #include "../../game/GameStateManager.h"
 #include "../../game/state/StarterSelectionState.h"
 #include "../../game/systems/CameraSystem.h"
 #include "../../game/systems/UnitInteractionSystem.h"
 #include "../../game/PokemonConfigLoader.h"
-#include "Window.h"
 
 #define NOMINMAX
 #ifdef _WIN32
@@ -57,8 +57,12 @@ void Application::init() {
     board = new BoardRenderer(8, 8, 1.0f);
     gameWorld = new GameWorld();
     stateManager = new GameStateManager();
-    cameraSystem = new CameraSystem(camera);
-    unitSystem = new UnitInteractionSystem(camera, gameWorld, WIDTH, HEIGHT);
+
+    cameraSystem = std::make_shared<CameraSystem>(camera);
+    unitSystem = std::make_shared<UnitInteractionSystem>(camera, gameWorld, WIDTH, HEIGHT);
+
+    SystemRegistry::getInstance().registerSystem(cameraSystem);
+    SystemRegistry::getInstance().registerSystem(unitSystem);
 
     stateManager->pushState(std::make_unique<StarterSelectionState>(stateManager, gameWorld));
 
@@ -92,10 +96,9 @@ void Application::run() {
         float deltaTime = std::chrono::duration<float>(now - lastTime).count();
         lastTime = now;
 
+        SystemRegistry::getInstance().updateAll(deltaTime); // ✅ All systems update here
         if (stateManager) stateManager->update(deltaTime);
         update();
-
-        cameraSystem->handleKeyboardMove(SDL_GetKeyboardState(nullptr));
 
         glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -123,11 +126,12 @@ void Application::shutdown() {
     std::cout << "[Shutdown] Shutting down...\n";
     if (renderer) { renderer->shutdown(); delete renderer; }
     if (camera) delete camera;
-    if (cameraSystem) delete cameraSystem;
-    if (unitSystem) delete unitSystem;
     if (board) { board->shutdown(); delete board; }
     if (gameWorld) delete gameWorld;
     if (stateManager) delete stateManager;
     if (window) delete window;
+
+    SystemRegistry::getInstance().clear(); // ✅ Optional cleanup of shared_ptr registry
     std::cout << "[Shutdown] Shutdown complete.\n";
 }
+

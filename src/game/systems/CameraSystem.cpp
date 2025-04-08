@@ -52,3 +52,8 @@ void CameraSystem::handleKeyboardMove(const Uint8* keystates) {
         camera->move(moveDir);
     }
 }
+
+void CameraSystem::update(float deltaTime) {
+    (void)deltaTime; // Not used yet
+    handleKeyboardMove(SDL_GetKeyboardState(nullptr));
+}
