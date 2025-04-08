@@ -7,6 +7,7 @@
 #include <iostream>
 #include <stb_image.h>  // Do NOT define STB_IMAGE_IMPLEMENTATION here!
 
+// Constructor: loads texture.
 Card::Card(const SDL_Rect& rect, const std::string& imagePath)
     : rect(rect), imagePath(imagePath), textureID(0), imgWidth(0), imgHeight(0), imgChannels(0)
 {
@@ -18,8 +19,37 @@ Card::Card(const SDL_Rect& rect, const std::string& imagePath)
     }
 }
 
+// Move constructor: transfer ownership of textureID.
+Card::Card(Card&& other) noexcept 
+    : rect(other.rect), imagePath(std::move(other.imagePath)),
+      textureID(other.textureID), imgWidth(other.imgWidth), imgHeight(other.imgHeight), imgChannels(other.imgChannels)
+{
+    other.textureID = 0;  // Prevent double deletion.
+}
+
+// Move assignment operator.
+Card& Card::operator=(Card&& other) noexcept {
+    if (this != &other) {
+        // Delete our existing texture.
+        if (textureID != 0) {
+            glDeleteTextures(1, &textureID);
+        }
+        rect = other.rect;
+        imagePath = std::move(other.imagePath);
+        textureID = other.textureID;
+        imgWidth = other.imgWidth;
+        imgHeight = other.imgHeight;
+        imgChannels = other.imgChannels;
+        other.textureID = 0;  // Prevent double deletion.
+    }
+    return *this;
+}
+
+// Destructor: cleanup the texture.
 Card::~Card() {
-    glDeleteTextures(1, &textureID);
+    if (textureID != 0) {
+        glDeleteTextures(1, &textureID);
+    }
 }
 
 unsigned int Card::loadTexture(const std::string& path) {

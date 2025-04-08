@@ -10,8 +10,17 @@ class Shader; // Forward declaration
 
 class Card {
 public:
-    // Constructor now takes a rectangle and a file path for the image.
+    // Constructor takes the card rectangle and image path.
     Card(const SDL_Rect& rect, const std::string& imagePath);
+
+    // Delete copy constructor and assignment operator to avoid accidental copies.
+    Card(const Card&) = delete;
+    Card& operator=(const Card&) = delete;
+
+    // Define move constructor and move assignment operator.
+    Card(Card&& other) noexcept;
+    Card& operator=(Card&& other) noexcept;
+
     ~Card();
 
     // Draw the card using the provided UI shader.

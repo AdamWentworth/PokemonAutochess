@@ -13,10 +13,14 @@
 #include <iostream>
 
 StarterSelectionState::StarterSelectionState(GameStateManager* manager, GameWorld* world)
-    : stateManager(manager), gameWorld(world), selectedStarter(StarterPokemon::None), script(world)
+    : stateManager(manager),
+      gameWorld(world),
+      selectedStarter(StarterPokemon::None),
+      script(world)
 {
     script.loadScript("scripts/states/starter_selection.lua");
 
+    // We define card geometry so we know where each card is placed on the screen.
     int cardWidth  = 200;
     int cardHeight = 300;
     int spacing    = 50;
@@ -27,9 +31,25 @@ StarterSelectionState::StarterSelectionState(GameStateManager* manager, GameWorl
     bulbasaurRect  = { startX,                       startY, cardWidth, cardHeight };
     charmanderRect = { startX + cardWidth + spacing, startY, cardWidth, cardHeight };
     squirtleRect   = { startX + 2 * (cardWidth + spacing), startY, cardWidth, cardHeight };
+
+    // Initialize the CardSystem (which will internally init UIManager too)
+    cardSystem.init();
+
+    // Create actual Card objects with positions & images.
+    Card bulbasaurCard(bulbasaurRect,  "assets/images/bulbasaur.png");
+    Card charmanderCard(charmanderRect, "assets/images/charmander.png");
+    Card squirtleCard(squirtleRect,      "assets/images/squirtle.png");
+
+    // Add them to the system by moving them into the CardSystem.
+    cardSystem.addCard(std::move(bulbasaurCard));
+    cardSystem.addCard(std::move(charmanderCard));
+    cardSystem.addCard(std::move(squirtleCard));
 }
 
-StarterSelectionState::~StarterSelectionState() {}
+StarterSelectionState::~StarterSelectionState() {
+    // Nothing special needed here. The cardSystem doesn’t own the shader
+    // so we don’t want to call UIManager::shutdown() too early.
+}
 
 void StarterSelectionState::onEnter() {
     std::cout << "[StarterSelectionState] Entering starter selection.\n";
@@ -46,6 +66,7 @@ void StarterSelectionState::handleInput(SDL_Event& event) {
         int mouseX = event.button.x;
         int mouseY = event.button.y;
 
+        // Old direct checks remain (if needed)
         if (isPointInRect(mouseX, mouseY, bulbasaurRect)) {
             script.call("onCardClick", "bulbasaur");
             stateManager->popState();
@@ -78,27 +99,12 @@ void StarterSelectionState::handleInput(SDL_Event& event) {
 
 void StarterSelectionState::update(float deltaTime) {
     script.onUpdate(deltaTime);
+    cardSystem.update(deltaTime);
 }
 
 void StarterSelectionState::render() {
-    UIManager::init();
-
-    glm::mat4 ortho = glm::ortho(0.0f, 1280.0f, 720.0f, 0.0f);
-    Shader* uiShader = UIManager::getCardShader();
-    uiShader->use();
-
-    GLint projLoc = glGetUniformLocation(uiShader->getID(), "u_Projection");
-    glUniformMatrix4fv(projLoc, 1, GL_FALSE, glm::value_ptr(ortho));
-
-    Card bulbasaurCard(bulbasaurRect, "assets/images/bulbasaur.png");
-    Card charmanderCard(charmanderRect, "assets/images/charmander.png");
-    Card squirtleCard(squirtleRect, "assets/images/squirtle.png");
-
-    bulbasaurCard.draw(uiShader);
-    charmanderCard.draw(uiShader);
-    squirtleCard.draw(uiShader);
-
-    glUseProgram(0);
+    // Render through the CardSystem.
+    cardSystem.render(1280, 720);
 }
 
 bool StarterSelectionState::isPointInRect(int x, int y, const SDL_Rect& rect) const {

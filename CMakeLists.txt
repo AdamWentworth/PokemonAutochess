@@ -35,15 +35,17 @@ add_executable(PokemonAutochess
     # Engine
     src/engine/core/Application.cpp
     src/engine/core/Window.cpp
+
     src/engine/utils/Shader.cpp
     src/engine/utils/ResourceManager.cpp
     src/engine/utils/stb_image_impl.cpp
+
     src/engine/render/Renderer.cpp
     src/engine/render/Camera3D.cpp
     src/engine/render/BoardRenderer.cpp
     src/engine/render/Model.cpp
+
     src/engine/ui/UIManager.cpp
-    src/engine/ui/CardSystem.cpp
     src/engine/ui/Card.cpp
 
     # Game
@@ -51,9 +53,12 @@ add_executable(PokemonAutochess
     src/game/GameStateManager.cpp
     src/game/LuaBindings.cpp
     src/game/LuaScript.cpp
-    src/game/state/StarterSelectionState.cpp
+
     src/game/systems/CameraSystem.cpp
     src/game/systems/UnitInteractionSystem.cpp
+    src/game/systems/CardSystem.cpp
+
+    src/game/state/StarterSelectionState.cpp
 )
 
 # ------------------------------------------------------------------------------
