@@ -43,6 +43,7 @@ add_executable(PokemonAutochess
     src/engine/render/BoardRenderer.cpp
     src/engine/render/Model.cpp
     src/engine/ui/UIManager.cpp
+    src/engine/ui/CardSystem.cpp
     src/engine/ui/Card.cpp
 
     # Game
