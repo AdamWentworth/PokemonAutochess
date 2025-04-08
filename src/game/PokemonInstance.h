@@ -2,7 +2,8 @@
 
 #pragma once
 #include <glm/glm.hpp>
-#include "../engine/render/Model.h"  // adjust the path if necessary
+#include <string>
+#include "../engine/render/Model.h"
 
 enum class PokemonSide {
     Player,
@@ -10,8 +11,15 @@ enum class PokemonSide {
 };
 
 struct PokemonInstance {
-    Model* model;          // shared model data from ResourceManager
-    glm::vec3 position;    // board position
-    glm::vec3 rotation;    // per-instance rotation (in degrees)
-    PokemonSide side;      // distinguishes player from enemy Pokémon
+    std::string name;
+
+    glm::vec3 position = {};
+    glm::vec3 rotation = {};
+
+    PokemonSide side = PokemonSide::Player;
+    Model* model = nullptr;
+
+    int hp = 100;
+    int attack = 10;
+    bool alive = true;
 };

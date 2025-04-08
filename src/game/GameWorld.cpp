@@ -9,14 +9,11 @@
 #include <glad/glad.h> // Ensure OpenGL functions and symbols are defined
 
 void GameWorld::spawnPokemon(const std::string& pokemonName, const glm::vec3& startPos, PokemonSide side) {
-    // Build the file path (e.g., "assets/models/bulbasaur.glb")
     std::string path = "assets/models/" + pokemonName + ".glb";
-    
-    // Get the shared model (or load it) from ResourceManager.
     Model* sharedModel = ResourceManager::getInstance().getModel(path);
 
-    // Create a new instance with per-instance data.
     PokemonInstance inst;
+    inst.name = pokemonName;
     inst.model = sharedModel;
     inst.position = startPos;
     inst.rotation = glm::vec3(90.0f, (side == PokemonSide::Player ? 180.0f : 0.0f), 0.0f);
@@ -24,9 +21,16 @@ void GameWorld::spawnPokemon(const std::string& pokemonName, const glm::vec3& st
 
     pokemons.push_back(inst);
 
-    std::cout << "[GameWorld] Spawned " << pokemonName << " at (" 
-              << startPos.x << ", " << startPos.y << ", " << startPos.z << ") on side " 
-              << (side == PokemonSide::Player ? "Player" : "Enemy") << "\n";
+    std::cout << "[GameWorld] Spawned " << pokemonName
+              << " at (" << startPos.x << ", " << startPos.y << ", " << startPos.z << ")"
+              << " on side " << (side == PokemonSide::Player ? "Player" : "Enemy") << "\n";
+}
+
+const PokemonInstance* GameWorld::getPokemonByName(const std::string& name) const {
+    for (const auto& p : pokemons) {
+        if (p.name == name) return &p;
+    }
+    return nullptr;
 }
 
 void GameWorld::drawAll(const Camera3D& camera) {
@@ -48,4 +52,8 @@ void GameWorld::drawAll(const Camera3D& camera) {
         // Use the new method to set the MVP and draw.
         instance.model->drawInstanceWithMVP(mvp);
     }
+}
+
+std::vector<PokemonInstance>& GameWorld::getPokemons() {
+    return pokemons;
 }
