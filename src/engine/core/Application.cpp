@@ -8,10 +8,11 @@
 #include "../utils/ResourceManager.h"
 #include "../../game/GameWorld.h"
 #include "../../game/GameStateManager.h"
-#include "../../game/state/StarterSelectionState.h"
+#include "../../game/PokemonConfigLoader.h"
 #include "../../game/systems/CameraSystem.h"
 #include "../../game/systems/UnitInteractionSystem.h"
-#include "../../game/PokemonConfigLoader.h"
+#include "../../game/systems/RoundSystem.h"
+#include "../../game/state/StarterSelectionState.h"
 
 #define NOMINMAX
 #ifdef _WIN32
@@ -65,6 +66,9 @@ void Application::init() {
     SystemRegistry::getInstance().registerSystem(unitSystem);
 
     stateManager->pushState(std::make_unique<StarterSelectionState>(stateManager, gameWorld));
+
+    auto roundSystem = std::make_shared<RoundSystem>();
+    SystemRegistry::getInstance().registerSystem(roundSystem);
 
     std::cout << "[Init] Application initialized.\n";
 }

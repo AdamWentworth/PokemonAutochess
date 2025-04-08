@@ -58,6 +58,7 @@ add_executable(PokemonAutochess
 
     src/game/systems/CameraSystem.cpp
     src/game/systems/UnitInteractionSystem.cpp
+    src/game/systems/RoundSystem.cpp
     src/game/systems/CardSystem.cpp
 
     src/game/state/StarterSelectionState.cpp
