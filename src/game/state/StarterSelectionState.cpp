@@ -2,9 +2,12 @@
 #include "StarterSelectionState.h"
 #include "../GameStateManager.h"
 #include "../GameWorld.h"
+#include "../LuaBindings.h"
+
 #include "../../engine/ui/Card.h"
-#include "../../engine/utils/Shader.h"
 #include "../../engine/ui/UIManager.h"
+#include "../../engine/utils/Shader.h"
+
 #include <glad/glad.h>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
@@ -13,6 +16,10 @@
 StarterSelectionState::StarterSelectionState(GameStateManager* manager, GameWorld* world)
     : stateManager(manager), gameWorld(world), selectedStarter(StarterPokemon::None)
 {
+    lua.open_libraries(sol::lib::base);
+    registerLuaBindings(lua, world);
+    lua.script_file("scripts/states/starter_selection.lua");
+
     int cardWidth  = 200;
     int cardHeight = 300;
     int spacing    = 50;
@@ -20,14 +27,13 @@ StarterSelectionState::StarterSelectionState(GameStateManager* manager, GameWorl
     int startX     = (1280 - totalWidth) / 2;
     int startY     = (720 - cardHeight) / 2;
 
-    // Define card rectangles.
     bulbasaurRect  = { startX,                       startY, cardWidth, cardHeight };
     charmanderRect = { startX + cardWidth + spacing, startY, cardWidth, cardHeight };
     squirtleRect   = { startX + 2 * (cardWidth + spacing), startY, cardWidth, cardHeight };
 }
 
 StarterSelectionState::~StarterSelectionState() {
-    // UIManager will handle its shader cleanup.
+    // No manual cleanup needed
 }
 
 void StarterSelectionState::onEnter() {
@@ -42,52 +48,44 @@ void StarterSelectionState::handleInput(SDL_Event& event) {
     if (event.type == SDL_MOUSEBUTTONDOWN && event.button.button == SDL_BUTTON_LEFT) {
         int mouseX = event.button.x;
         int mouseY = event.button.y;
-        glm::vec3 ourSideSpawnPos(0.0f, 0.0f, 3.5f);
 
         if (isPointInRect(mouseX, mouseY, bulbasaurRect)) {
-            selectedStarter = StarterPokemon::Bulbasaur;
-            std::cout << "Bulbasaur selected\n";
-            gameWorld->spawnPokemon("bulbasaur", ourSideSpawnPos);
+            lua["onCardClick"]("bulbasaur");
             stateManager->popState();
         }
         else if (isPointInRect(mouseX, mouseY, charmanderRect)) {
-            selectedStarter = StarterPokemon::Charmander;
-            std::cout << "Charmander selected\n";
-            gameWorld->spawnPokemon("charmander", ourSideSpawnPos);
+            lua["onCardClick"]("charmander");
             stateManager->popState();
         }
         else if (isPointInRect(mouseX, mouseY, squirtleRect)) {
-            selectedStarter = StarterPokemon::Squirtle;
-            std::cout << "Squirtle selected\n";
-            gameWorld->spawnPokemon("squirtle", ourSideSpawnPos);
+            lua["onCardClick"]("squirtle");
             stateManager->popState();
         }
     }
 
     if (event.type == SDL_KEYDOWN) {
         if (event.key.keysym.sym == SDLK_1) {
-            gameWorld->spawnPokemon("bulbasaur", glm::vec3(0.0f));
+            lua["onCardClick"]("bulbasaur");
             stateManager->popState();
         }
         if (event.key.keysym.sym == SDLK_2) {
-            gameWorld->spawnPokemon("charmander", glm::vec3(0.0f));
+            lua["onCardClick"]("charmander");
             stateManager->popState();
         }
         if (event.key.keysym.sym == SDLK_3) {
-            std::cout << "No squirtle model yet!\n";
+            lua["onCardClick"]("squirtle");
+            stateManager->popState();
         }
     }
 }
 
 void StarterSelectionState::update(float deltaTime) {
-    // UI animations or updates can be handled here if needed.
+    // Add UI animation updates here later
 }
 
 void StarterSelectionState::render() {
-    // Ensure UIManager is initialized.
     UIManager::init();
 
-    // Set up an orthographic projection.
     glm::mat4 ortho = glm::ortho(0.0f, 1280.0f, 720.0f, 0.0f);
     Shader* uiShader = UIManager::getCardShader();
     uiShader->use();
@@ -95,7 +93,6 @@ void StarterSelectionState::render() {
     GLint projLoc = glGetUniformLocation(uiShader->getID(), "u_Projection");
     glUniformMatrix4fv(projLoc, 1, GL_FALSE, glm::value_ptr(ortho));
 
-    // Create Card components.
     Card bulbasaurCard(bulbasaurRect, "assets/images/bulbasaur.png");
     Card charmanderCard(charmanderRect, "assets/images/charmander.png");
     Card squirtleCard(squirtleRect, "assets/images/squirtle.png");
@@ -105,4 +102,9 @@ void StarterSelectionState::render() {
     squirtleCard.draw(uiShader);
 
     glUseProgram(0);
+}
+
+bool StarterSelectionState::isPointInRect(int x, int y, const SDL_Rect& rect) const {
+    return (x >= rect.x && x <= rect.x + rect.w &&
+            y >= rect.y && y <= rect.y + rect.h);
 }

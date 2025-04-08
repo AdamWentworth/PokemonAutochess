@@ -2,10 +2,11 @@
 #pragma once
 #include "../GameState.h"
 #include <SDL2/SDL.h>
-#include <iostream>
+#include "../../engine/ui/Card.h"
+#include <sol/sol.hpp>
 
 class GameStateManager;
-class GameWorld; // Forward declaration
+class GameWorld;
 
 enum class StarterPokemon {
     None,
@@ -26,16 +27,15 @@ public:
     void render() override;
 
 private:
+    GameStateManager* stateManager;
+    GameWorld* gameWorld;
     StarterPokemon selectedStarter;
+
     SDL_Rect bulbasaurRect;
     SDL_Rect charmanderRect;
     SDL_Rect squirtleRect;
 
-    GameStateManager* stateManager;
-    GameWorld* gameWorld; // Stored pointer to the game world
+    sol::state lua;
 
-    bool isPointInRect(int x, int y, const SDL_Rect& rect) {
-        return (x >= rect.x && x <= rect.x + rect.w &&
-                y >= rect.y && y <= rect.y + rect.h);
-    }
+    bool isPointInRect(int x, int y, const SDL_Rect& rect) const;
 };
