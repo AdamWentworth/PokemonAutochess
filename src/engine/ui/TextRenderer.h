@@ -18,6 +18,10 @@ public:
     // Uses TTF metrics for spacing. 'color' is a glm::vec3 (1,1,1 = white).
     // 'scale' should generally be 1.0 to render at natural font size (defined in constructor).
     void renderText(const std::string& text, float x, float y, const glm::vec3& color, float scale);
+    
+    TTF_Font* getFont() const { return font; }
+
+    float measureTextWidth(const std::string& text, float scale = 1.0f) const;
 
 private:
     TTF_Font* font;

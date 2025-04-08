@@ -90,10 +90,16 @@ void StarterSelectionState::update(float deltaTime) {
 }
 
 void StarterSelectionState::render() {
-    // Render the instructional text above the cards.
-    // Adjust x=300, y=150 to position it properly (these values are an example).
-    textRenderer->renderText("CHOOSE YOUR STARTER", 300.0f, 150.0f,
-            glm::vec3(1.0f, 1.0f, 1.0f), 1.0f);
+    
+    const std::string message = "CHOOSE YOUR STARTER";
+    const float scale = 1.0f;
+    const int windowWidth = 1280;
+
+    float textWidth = textRenderer->measureTextWidth(message, scale);
+    float centeredX = std::round((windowWidth - textWidth) / 2.0f);
+    float textY = 150.0f;
+
+    textRenderer->renderText(message, centeredX, textY, glm::vec3(1.0f), scale);
 
     // Render the starter cards as before.
     cardSystem.render(1280, 720);

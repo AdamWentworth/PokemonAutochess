@@ -144,3 +144,17 @@ void TextRenderer::renderText(const std::string& text, float x, float y, const g
             posX += w * scale;
     }
 }
+
+float TextRenderer::measureTextWidth(const std::string& text, float scale) const {
+    if (!font) return 0.0f;
+
+    float width = 0.0f;
+    for (char c : text) {
+        if (!TTF_GlyphIsProvided(font, c)) continue;
+
+        int minx, maxx, miny, maxy, advance;
+        if (TTF_GlyphMetrics(font, c, &minx, &maxx, &miny, &maxy, &advance) == 0)
+            width += static_cast<float>(advance) * scale;
+    }
+    return width;
+}
