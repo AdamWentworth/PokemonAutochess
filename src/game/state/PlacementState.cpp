@@ -1,7 +1,7 @@
 // PlacementState.cpp
 
 #include "PlacementState.h"
-#include "CombatState.h"
+#include "Route1State.h"
 #include "../GameStateManager.h"
 #include "../GameWorld.h"
 #include "../../engine/ui/TextRenderer.h"
@@ -45,7 +45,7 @@ void PlacementState::update(float deltaTime) {
             moveStarterToBoard();
         }
         // Transition to combat state instead of quitting
-        stateManager->pushState(std::make_unique<CombatState>(stateManager, gameWorld));
+    stateManager->pushState(std::make_unique<Route1State>(stateManager, gameWorld));
     }
 }
 

@@ -18,6 +18,11 @@
       "hp": 80,
       "attack": 7,
       "model": "pidgey.glb"
+    },
+    "rattata": {
+      "hp": 60,
+      "attack": 8,
+      "model": "rattata.glb"
     }
   }
   

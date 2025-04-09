@@ -69,6 +69,8 @@ add_executable(PokemonAutochess
     src/game/state/StarterSelectionState.cpp
     src/game/state/PlacementState.cpp
     src/game/state/CombatState.cpp
+
+    src/game/state/Route1State.cpp
 )
 
 # ------------------------------------------------------------------------------

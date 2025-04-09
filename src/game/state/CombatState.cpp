@@ -1,29 +1,47 @@
-// CombatState.cpp
-
+// src/game/state/CombatState.cpp
 #include "CombatState.h"
-#include "../GameStateManager.h"
-#include "../GameWorld.h"
-#include "../../engine/ui/TextRenderer.h"
 #include <iostream>
 
-CombatState::CombatState(GameStateManager* manager, GameWorld* world)
-    : stateManager(manager), gameWorld(world),
-      textRenderer(std::make_unique<TextRenderer>("assets/fonts/GillSans.ttf", 48)) {}
+CombatState::CombatState(GameStateManager* manager, GameWorld* world, const std::string& scriptPath)
+    : stateManager(manager), gameWorld(world), script(world) {
+    textRenderer = std::make_unique<TextRenderer>("assets/fonts/GillSans.ttf", 48);
+    script.loadScript(scriptPath);
+}
+
+CombatState::~CombatState() = default;
 
 void CombatState::onEnter() {
-    std::cout << "[CombatState] Entering combat.\n";
+    sol::state& lua = script.getState();
     
-    // Spawn Pidgey on enemy side (opposite end of board)
-    const float enemyZ = -4.5f;  // Negative Z for enemy side
-    gameWorld->spawnPokemon("pidgey", glm::vec3(0.0f, 0.0f, enemyZ), PokemonSide::Enemy);
+    // Load combat message from Lua
+    sol::function getMessage = lua["getMessage"];
+    if (getMessage.valid()) {
+        combatMessage = getMessage();
+    } else {
+        combatMessage = "Default Combat Message";
+    }
+
+    // Load enemies from Lua
+    sol::function getEnemies = lua["getEnemies"];
+    if (getEnemies.valid()) {
+        sol::table enemies = getEnemies();
+        for (auto& entry : enemies) {
+            sol::table enemy = entry.second;
+            std::string name = enemy["name"];
+            float x = enemy["x"];
+            float y = enemy["y"];
+            float z = enemy["z"];
+            gameWorld->spawnPokemon(name, glm::vec3(x, y, z), PokemonSide::Enemy);
+        }
+    }
 }
 
 void CombatState::onExit() {
-    std::cout << "[CombatState] Exiting combat.\n";
+    // Cleanup if needed
 }
 
 void CombatState::handleInput(SDL_Event& event) {
-    // Handle input if needed
+    // Handle input if necessary
 }
 
 void CombatState::update(float deltaTime) {
@@ -31,14 +49,10 @@ void CombatState::update(float deltaTime) {
 }
 
 void CombatState::render() {
-    const std::string message = "Route 1";
     const float scale = 1.0f;
     const int windowWidth = 1280;
-
-    float textWidth = textRenderer->measureTextWidth(message, scale);
+    
+    float textWidth = textRenderer->measureTextWidth(combatMessage, scale);
     float centeredX = std::round((windowWidth - textWidth) / 2.0f);
-    textRenderer->renderText(message, centeredX, 50.0f, glm::vec3(1.0f), scale);
-}
-
-CombatState::~CombatState() {
+    textRenderer->renderText(combatMessage, centeredX, 50.0f, glm::vec3(1.0f), scale);
 }
