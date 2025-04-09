@@ -1,20 +1,20 @@
+-- scripts/states/route1.lua
+
 function getMessage()
-    return "Route 1 - Wild Pidgey Appeared!"
+    return "Route 1 - Wild Pokémon Appeared!"
 end
 
 function getEnemies()
     return {
-        { 
+        {
             name = "pidgey",
-            x = 0.0,
-            y = 0.0,
-            z = -4.5  -- Position in front of the player's board
+            gridCol = 2,
+            gridRow = 2
         },
-        { 
+        {
             name = "rattata",
-            x = 1.2,  -- Adjust positions as needed
-            y = 0.0,
-            z = -4.5
+            gridCol = 5,
+            gridRow = 2
         }
     }
 end

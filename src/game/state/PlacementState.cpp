@@ -14,7 +14,7 @@ PlacementState::PlacementState(GameStateManager* manager, GameWorld* world, cons
     : stateManager(manager),
       gameWorld(world),
       starterName(starterName),
-      timer(20.0f),
+      timer(5.0f),
       placementDone(false)
 {
     if (!textRenderer) {
@@ -25,7 +25,7 @@ PlacementState::PlacementState(GameStateManager* manager, GameWorld* world, cons
 PlacementState::~PlacementState() {}
 
 void PlacementState::onEnter() {
-    std::cout << "[PlacementState] Entering placement phase. Place your starter within 20 seconds.\n";
+    std::cout << "[PlacementState] Entering placement phase. Place your starter within 5 seconds.\n";
 }
 
 void PlacementState::onExit() {
