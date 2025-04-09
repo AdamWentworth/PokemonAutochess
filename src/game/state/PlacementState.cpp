@@ -1,6 +1,7 @@
 // PlacementState.cpp
 
 #include "PlacementState.h"
+#include "CombatState.h"
 #include "../GameStateManager.h"
 #include "../GameWorld.h"
 #include "../../engine/ui/TextRenderer.h"
@@ -43,10 +44,8 @@ void PlacementState::update(float deltaTime) {
         if (!isStarterOnBoard()) {
             moveStarterToBoard();
         }
-        // Quit the game
-        SDL_Event quitEvent;
-        quitEvent.type = SDL_QUIT;
-        SDL_PushEvent(&quitEvent);
+        // Transition to combat state instead of quitting
+        stateManager->pushState(std::make_unique<CombatState>(stateManager, gameWorld));
     }
 }
 

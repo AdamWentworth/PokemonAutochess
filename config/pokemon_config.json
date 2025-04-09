@@ -13,6 +13,11 @@
       "hp": 110,
       "attack": 9,
       "model": "squirtle.glb"
+    },
+    "pidgey": {
+      "hp": 80,
+      "attack": 7,
+      "model": "pidgey.glb"
     }
   }
   

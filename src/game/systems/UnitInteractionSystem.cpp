@@ -47,6 +47,10 @@ void UnitInteractionSystem::handleEvent(const SDL_Event& event) {
 
             auto& pokemons = gameWorld->getPokemons();
             for (int i = 0; i < (int)pokemons.size(); ++i) {
+                // Skip enemy units
+                if (pokemons[i].side != PokemonSide::Player) {
+                    continue;
+                }
                 float dist = glm::distance(clickPos, pokemons[i].position);
                 if (dist < closestDist) {
                     closestDist = dist;
@@ -57,6 +61,10 @@ void UnitInteractionSystem::handleEvent(const SDL_Event& event) {
 
             auto& bench = gameWorld->getBenchPokemons();
             for (int i = 0; i < (int)bench.size(); ++i) {
+                // Bench should only have player units, but check anyway
+                if (bench[i].side != PokemonSide::Player) {
+                    continue;
+                }
                 float dist = glm::distance(clickPos, bench[i].position);
                 if (dist < closestDist) {
                     closestDist = dist;
