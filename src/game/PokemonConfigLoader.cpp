@@ -23,6 +23,7 @@ bool PokemonConfigLoader::loadConfig(const std::string& filePath) {
         PokemonStats stats;
         stats.hp = data.value("hp", 100);
         stats.attack = data.value("attack", 10);
+        stats.movementSpeed = data.value("movementSpeed", 1.0f);
         stats.model = data.value("model", name + ".glb");
         statsMap[name] = stats;
     }

@@ -6,6 +6,9 @@ CombatState::CombatState(GameStateManager* manager, GameWorld* world, const std:
     : stateManager(manager), gameWorld(world), script(world) {
     textRenderer = std::make_unique<TextRenderer>("assets/fonts/GillSans.ttf", 48);
     script.loadScript(scriptPath);
+    
+    // Initialize MovementSystem with gameWorld and gridOccupancy
+    movementSystem = std::make_unique<MovementSystem>(gameWorld, gridOccupancy);
 }
 
 CombatState::~CombatState() = default;
@@ -64,7 +67,10 @@ void CombatState::handleInput(SDL_Event& event) {
 }
 
 void CombatState::update(float deltaTime) {
-    // Update logic if needed
+    // Update the MovementSystem during combat
+    if (movementSystem) {
+        movementSystem->update(deltaTime);
+    }
 }
 
 void CombatState::render() {

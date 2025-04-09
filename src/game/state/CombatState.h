@@ -1,10 +1,13 @@
 // src/game/state/CombatState.h
+// src/game/state/CombatState.h
 #pragma once
 #include "../GameState.h"
 #include "../GameWorld.h"
 #include "../LuaScript.h"
 #include "../../engine/ui/TextRenderer.h"
+#include "../systems/MovementSystem.h" // Add include
 #include <memory>
+#include <unordered_map> // Add include
 
 class GameStateManager;
 class GameWorld;
@@ -26,4 +29,8 @@ private:
     std::unique_ptr<TextRenderer> textRenderer;
     LuaScript script;
     std::string combatMessage;
+
+    // Add MovementSystem and grid occupancy
+    std::unique_ptr<MovementSystem> movementSystem;
+    std::unordered_map<uint32_t, bool> gridOccupancy;
 };

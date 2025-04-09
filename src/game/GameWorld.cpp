@@ -29,6 +29,7 @@ void GameWorld::spawnPokemon(const std::string& pokemonName, const glm::vec3& st
 
     inst.hp = stats->hp;
     inst.attack = stats->attack;
+    inst.movementSpeed = stats->movementSpeed;
 
     pokemons.push_back(inst);
 
@@ -54,6 +55,7 @@ void GameWorld::addToBench(const std::string& pokemonName) {
 
     inst.hp = stats->hp;
     inst.attack = stats->attack;
+    inst.movementSpeed = stats->movementSpeed;
 
     int slot = static_cast<int>(benchPokemons.size());
     float spacing = 1.2f;

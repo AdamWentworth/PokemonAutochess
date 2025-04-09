@@ -21,5 +21,6 @@ struct PokemonInstance {
 
     int hp = 100;
     int attack = 10;
+    float movementSpeed = 1.0f;
     bool alive = true;
 };

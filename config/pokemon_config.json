@@ -2,26 +2,31 @@
     "bulbasaur": {
       "hp": 120,
       "attack": 8,
+      "movementSpeed": 1.0,
       "model": "bulbasaur.glb"
     },
     "charmander": {
       "hp": 100,
       "attack": 10,
+      "movementSpeed": 1.2,
       "model": "charmander.glb"
     },
     "squirtle": {
       "hp": 110,
       "attack": 9,
+      "movementSpeed": 0.9,
       "model": "squirtle.glb"
     },
     "pidgey": {
       "hp": 80,
       "attack": 7,
+      "movementSpeed": 1.1,
       "model": "pidgey.glb"
     },
     "rattata": {
       "hp": 60,
       "attack": 8,
+      "movementSpeed": 1.2,
       "model": "rattata.glb"
     }
   }
