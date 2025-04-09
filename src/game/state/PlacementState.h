@@ -30,4 +30,7 @@ private:
 
     bool isStarterOnBoard() const;
     void moveStarterToBoard();
+    bool isValidGridPosition(const glm::vec3& position) const;
+    void moveStarterToValidGridPosition();
+    void placeOnValidGridPosition(PokemonInstance& starter);
 };

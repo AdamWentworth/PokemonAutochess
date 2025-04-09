@@ -41,11 +41,23 @@ void PlacementState::update(float deltaTime) {
 
     if (timer <= 0.0f && !placementDone) {
         placementDone = true;
-        if (!isStarterOnBoard()) {
-            moveStarterToBoard();
+
+        // Check if the starter is on the board in a valid position
+        bool valid = false;
+        auto& pokemons = gameWorld->getPokemons();
+        auto it = std::find_if(pokemons.begin(), pokemons.end(), [this](const PokemonInstance& p) {
+            return p.name == starterName;
+        });
+
+        if (it != pokemons.end()) {
+            valid = isValidGridPosition(it->position);
         }
-        // Transition to combat state instead of quitting
-    stateManager->pushState(std::make_unique<Route1State>(stateManager, gameWorld));
+
+        if (!valid) {
+            moveStarterToValidGridPosition();
+        }
+
+        stateManager->pushState(std::make_unique<Route1State>(stateManager, gameWorld));
     }
 }
 
@@ -91,4 +103,81 @@ void PlacementState::moveStarterToBoard() {
         gameWorld->getPokemons().push_back(starter);
         std::cout << "[PlacementState] Moved starter to board at (" << starter.position.x << ", " << starter.position.z << ")\n";
     }
+}
+
+bool PlacementState::isValidGridPosition(const glm::vec3& position) const {
+    const float cellSize = 1.2f;
+    const float epsilon = 0.01f; // Allow slight floating-point imprecision
+
+    // Calculate board origin (center of first cell)
+    float boardOriginX = -((8 * cellSize) / 2.0f) + cellSize * 0.5f;
+    float boardOriginZ = cellSize * 0.5f;
+
+    // Calculate expected column/row
+    int col = static_cast<int>(std::round((position.x - boardOriginX) / cellSize));
+    int row = static_cast<int>(std::round((position.z - boardOriginZ) / cellSize));
+
+    // Check if column/row are within valid ranges
+    if (col < 0 || col >= 8 || row < 0 || row >= 4) {
+        return false;
+    }
+
+    // Calculate exact center position for this column/row
+    float expectedX = boardOriginX + col * cellSize;
+    float expectedZ = boardOriginZ + row * cellSize;
+
+    // Check if position matches the cell center (with epsilon tolerance)
+    bool xValid = std::abs(position.x - expectedX) < epsilon;
+    bool zValid = std::abs(position.z - expectedZ) < epsilon;
+
+    return xValid && zValid;
+}
+
+void PlacementState::moveStarterToValidGridPosition() {
+    auto& pokemons = gameWorld->getPokemons();
+    auto& bench = gameWorld->getBenchPokemons();
+
+    // Check if the starter is on the bench
+    auto benchIt = std::find_if(bench.begin(), bench.end(), [this](const PokemonInstance& p) {
+        return p.name == starterName;
+    });
+
+    if (benchIt != bench.end()) {
+        // Move from bench to board
+        PokemonInstance starter = *benchIt;
+        bench.erase(benchIt);
+        placeOnValidGridPosition(starter);
+        pokemons.push_back(starter);
+        std::cout << "[PlacementState] Moved starter from bench to valid grid position.\n";
+    } else {
+        // Check if it's on the board but in an invalid position
+        auto boardIt = std::find_if(pokemons.begin(), pokemons.end(), [this](const PokemonInstance& p) {
+            return p.name == starterName;
+        });
+
+        if (boardIt != pokemons.end()) {
+            placeOnValidGridPosition(*boardIt);
+            std::cout << "[PlacementState] Adjusted starter position to valid grid cell.\n";
+        } else {
+            // Not found, add to board (unlikely case)
+            PokemonInstance starter;
+            starter.name = starterName;
+            placeOnValidGridPosition(starter);
+            pokemons.push_back(starter);
+            std::cout << "[PlacementState] Added missing starter to board.\n";
+        }
+    }
+}
+
+void PlacementState::placeOnValidGridPosition(PokemonInstance& starter) {
+    const float cellSize = 1.2f;
+    float boardOriginX = -((8 * cellSize) / 2.0f) + cellSize * 0.5f;
+    float boardOriginZ = cellSize * 0.5f;
+
+    int col = 3; // Center column (8 columns, index 3 is fourth column)
+    int row = 0; // First row
+    
+    starter.position.x = boardOriginX + col * cellSize;
+    starter.position.z = boardOriginZ + row * cellSize;
+    starter.position.y = 0.0f;
 }
