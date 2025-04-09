@@ -67,6 +67,7 @@ add_executable(PokemonAutochess
     src/game/ui/CardFactory.cpp
 
     src/game/state/StarterSelectionState.cpp
+    src/game/state/PlacementState.cpp
 )
 
 # ------------------------------------------------------------------------------

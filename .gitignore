@@ -5,6 +5,8 @@ build/
 *.o
 *.pdb
 
+all_contents.txt
+
 # Visual Studio Code
 .vscode/
 
