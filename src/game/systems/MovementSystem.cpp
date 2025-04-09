@@ -21,7 +21,7 @@ void MovementSystem::update(float deltaTime) {
         tempGrid[gridKey(currentGrid.x, currentGrid.y)] = true;
     }
 
-    // Second pass: Perform movement
+    // Second pass: Perform smooth movement
     for (auto& unit : pokemons) {
         if (!unit.alive) continue;
 
@@ -30,6 +30,7 @@ void MovementSystem::update(float deltaTime) {
 
         glm::ivec2 targetGrid = worldToGrid(findNearestEnemyPosition(unit));
         glm::ivec2 moveDir(0);
+        glm::vec3 targetPos;
 
         // Calculate direction toward target
         if (targetGrid.x != currentGrid.x) {
@@ -38,7 +39,7 @@ void MovementSystem::update(float deltaTime) {
             moveDir.y = (targetGrid.y > currentGrid.y) ? 1 : -1;
         }
 
-        glm::ivec2 newGrid = currentGrid;
+        glm::ivec2 desiredGrid = currentGrid;
         bool canMove = false;
 
         // Try horizontal movement
@@ -46,7 +47,7 @@ void MovementSystem::update(float deltaTime) {
             glm::ivec2 testGrid = currentGrid;
             testGrid.x += moveDir.x;
             if (isValidGridPosition(testGrid.x, testGrid.y) && !isCellOccupied(testGrid.x, testGrid.y, tempGrid)) {
-                newGrid = testGrid;
+                desiredGrid = testGrid;
                 canMove = true;
             }
         }
@@ -56,32 +57,34 @@ void MovementSystem::update(float deltaTime) {
             glm::ivec2 testGrid = currentGrid;
             testGrid.y += moveDir.y;
             if (isValidGridPosition(testGrid.x, testGrid.y) && !isCellOccupied(testGrid.x, testGrid.y, tempGrid)) {
-                newGrid = testGrid;
+                desiredGrid = testGrid;
                 canMove = true;
             }
         }
 
+        // Update grid reservations
         if (canMove) {
-            // Reserve new grid position
-            tempGrid[gridKey(newGrid.x, newGrid.y)] = true;
             tempGrid.erase(gridKey(currentGrid.x, currentGrid.y));
-
-            // Calculate movement parameters
-            glm::vec3 targetPos = gridToWorld(newGrid.x, newGrid.y);
-            float distanceToMove = unit.movementSpeed * CELL_SIZE * deltaTime;
-
-            // Smooth movement
-            glm::vec3 moveDirection = glm::normalize(targetPos - unit.position);
-            unit.position += moveDirection * distanceToMove;
-
-            // Snap to grid if close enough
-            if (glm::distance(unit.position, targetPos) < 0.1f) {
-                unit.position = targetPos;
-            }
-
-            // Update rotation
-            unit.rotation.y = glm::degrees(atan2f(moveDirection.x, moveDirection.z));
+            tempGrid[gridKey(desiredGrid.x, desiredGrid.y)] = true;
+            targetPos = gridToWorld(desiredGrid.x, desiredGrid.y);
+        } else {
+            targetPos = gridToWorld(currentGrid.x, currentGrid.y);
         }
+
+        // Smooth movement towards target position
+        glm::vec3 moveDirection = glm::normalize(targetPos - unit.position);
+        float distanceToMove = unit.movementSpeed * CELL_SIZE * deltaTime;
+        
+        // Move while maintaining grid alignment
+        if (glm::distance(unit.position, targetPos) > distanceToMove) {
+            unit.position += moveDirection * distanceToMove;
+        } else {
+            unit.position = targetPos;  // Snap when close
+        }
+
+        // Update rotation
+        glm::vec3 dir = glm::normalize(gridToWorld(targetGrid.x, targetGrid.y) - unit.position);
+        unit.rotation.y = glm::degrees(atan2f(dir.x, dir.z));
     }
 
     // Update global occupancy grid
