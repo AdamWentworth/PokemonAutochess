@@ -1,7 +1,7 @@
 -- scripts/states/route1.lua
 
 function getMessage()
-    return "Route 1 - Wild Pokémon Appeared!"
+    return "Route 1 - Wild Pokemon Appeared!"
 end
 
 function getEnemies()

@@ -8,7 +8,6 @@ set(CMAKE_CXX_STANDARD 17)
 # ------------------------------------------------------------------------------
 # ✅ VCPKG TOOLCHAIN (for cross-platform dependency management)
 # ------------------------------------------------------------------------------
-
 if(DEFINED ENV{VCPKG_ROOT})
     set(CMAKE_TOOLCHAIN_FILE "$ENV{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake" CACHE STRING "")
 else()
@@ -18,7 +17,6 @@ endif()
 # ------------------------------------------------------------------------------
 # ✅ REQUIRED PACKAGES
 # ------------------------------------------------------------------------------
-
 find_package(SDL2 CONFIG REQUIRED)
 find_package(SDL2_ttf REQUIRED)
 find_package(OpenGL REQUIRED)
@@ -27,75 +25,85 @@ find_package(glm CONFIG REQUIRED)
 find_package(lua CONFIG REQUIRED)
 
 # ------------------------------------------------------------------------------
-# ✅ SOURCE FILES
+# ✅ ENGINE LIBRARY
 # ------------------------------------------------------------------------------
-
-add_executable(PokemonAutochess
-    main.cpp
-
-    # Engine
+add_library(Engine STATIC
+    # Engine Core
     src/engine/core/Application.cpp
     src/engine/core/Window.cpp
     src/engine/core/SystemRegistry.cpp
-
+    
+    # Engine Utils
     src/engine/utils/Shader.cpp
     src/engine/utils/ResourceManager.cpp
     src/engine/utils/stb_image_impl.cpp
-
+    
+    # Engine Render
     src/engine/render/Renderer.cpp
     src/engine/render/Camera3D.cpp
     src/engine/render/BoardRenderer.cpp
     src/engine/render/Model.cpp
-
+    
+    # Engine UI
     src/engine/ui/UIManager.cpp
     src/engine/ui/Card.cpp
     src/engine/ui/TextRenderer.cpp
     src/engine/ui/HealthBarRenderer.cpp
+)
 
-    # Game
+target_include_directories(Engine PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/engine
+    ${CMAKE_CURRENT_SOURCE_DIR}/third_party/sol2
+)
+
+target_link_libraries(Engine PRIVATE
+    SDL2::SDL2
+    SDL2_ttf::SDL2_ttf
+    OpenGL::GL
+    glad::glad
+    glm::glm
+    lua
+)
+
+# ------------------------------------------------------------------------------
+# ✅ GAME EXECUTABLE
+# ------------------------------------------------------------------------------
+add_executable(PokemonAutochess
+    main.cpp
+
+    # Game Core
     src/game/GameWorld.cpp
     src/game/GameStateManager.cpp
     src/game/LuaBindings.cpp
     src/game/LuaScript.cpp
     src/game/PokemonConfigLoader.cpp
-
+    
+    # Game Systems
     src/game/systems/CameraSystem.cpp
     src/game/systems/UnitInteractionSystem.cpp
     src/game/systems/RoundSystem.cpp
     src/game/systems/CardSystem.cpp
     src/game/systems/BenchSystem.cpp
     src/game/systems/MovementSystem.cpp
-
+    
+    # Game UI
     src/game/ui/CardFactory.cpp
-
+    
+    # Game States
     src/game/state/StarterSelectionState.cpp
     src/game/state/PlacementState.cpp
     src/game/state/CombatState.cpp
-
     src/game/state/Route1State.cpp
 )
 
-# ------------------------------------------------------------------------------
-# ✅ WINDOWS ENTRY POINT SETTINGS
-# ------------------------------------------------------------------------------
-
-set_target_properties(PokemonAutochess PROPERTIES LINK_FLAGS "/SUBSYSTEM:CONSOLE /ENTRY:mainCRTStartup")
-
-# ------------------------------------------------------------------------------
-# ✅ INCLUDE DIRECTORIES
-# ------------------------------------------------------------------------------
-
-target_include_directories(PokemonAutochess PRIVATE 
-    engine
-    game
-    third_party/sol2
+target_include_directories(PokemonAutochess PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/engine
+    ${CMAKE_CURRENT_SOURCE_DIR}/game
+    ${CMAKE_CURRENT_SOURCE_DIR}/third_party/sol2
 )
 
-# ------------------------------------------------------------------------------
-# ✅ LINK LIBRARIES
-# ------------------------------------------------------------------------------
-
 target_link_libraries(PokemonAutochess PRIVATE
+    Engine
     SDL2::SDL2
     SDL2_ttf::SDL2_ttf
     OpenGL::GL
@@ -107,7 +115,6 @@ target_link_libraries(PokemonAutochess PRIVATE
 # ------------------------------------------------------------------------------
 # ✅ SHADER FILES (copied to binary dir for runtime loading)
 # ------------------------------------------------------------------------------
-
 file(COPY assets/shaders/engine/default.vert DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/engine/render)
 file(COPY assets/shaders/engine/default.frag DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/engine/render)
 file(COPY assets/shaders/engine/grid.vert DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/engine/render)
@@ -120,3 +127,8 @@ file(COPY assets/shaders/ui/text.vert DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/en
 file(COPY assets/shaders/ui/text.frag DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/engine/render)
 file(COPY assets/shaders/ui/healthbar.vert DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/engine/render)
 file(COPY assets/shaders/ui/healthbar.frag DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/engine/render)
+
+# ------------------------------------------------------------------------------
+# ✅ WINDOWS ENTRY POINT SETTINGS
+# ------------------------------------------------------------------------------
+set_target_properties(PokemonAutochess PROPERTIES LINK_FLAGS "/SUBSYSTEM:CONSOLE /ENTRY:mainCRTStartup")
