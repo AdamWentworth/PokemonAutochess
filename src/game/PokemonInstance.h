@@ -12,6 +12,7 @@ enum class PokemonSide {
 };
 
 struct PokemonInstance {
+    int id;
     std::string name;
     glm::vec3 position = {};
     glm::vec3 rotation = {};
@@ -24,4 +25,9 @@ struct PokemonInstance {
     int attack = 10;
     float movementSpeed = 1.0f;
     bool alive = true;
+
+    static int getNextUnitID() {
+        static int nextID = 0;
+        return nextID++;
+    }
 };

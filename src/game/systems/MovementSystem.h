@@ -22,6 +22,7 @@ public:
 private:
     GameWorld* gameWorld;
     std::unordered_map<uint32_t, bool>& gridOccupancy;
+    std::unordered_map<int, glm::vec3> unitTargetPositions; 
     const float CELL_SIZE = 1.2f;
     const int GRID_COLS = 8;
     const int GRID_ROWS = 8;

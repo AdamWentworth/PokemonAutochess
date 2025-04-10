@@ -22,6 +22,7 @@ void GameWorld::spawnPokemon(const std::string& pokemonName, const glm::vec3& st
 
     // Then assign it to the Pokémon instance:
     PokemonInstance inst;
+    inst.id = PokemonInstance::getNextUnitID(); 
     inst.name = pokemonName;
     inst.model = sharedModel;
     inst.position = startPos;
@@ -35,6 +36,7 @@ void GameWorld::spawnPokemon(const std::string& pokemonName, const glm::vec3& st
     pokemons.push_back(inst);
 
     std::cout << "[GameWorld] Spawned " << pokemonName
+              << " (ID: " << inst.id
               << " (HP: " << inst.hp << ", ATK: " << inst.attack << ")\n";
 }
 
@@ -49,6 +51,7 @@ void GameWorld::addToBench(const std::string& pokemonName) {
     auto sharedModel = ResourceManager::getInstance().getModel(path);
 
     PokemonInstance inst;
+    inst.id = PokemonInstance::getNextUnitID();
     inst.name = pokemonName;
     inst.model = sharedModel;
     inst.rotation = glm::vec3(90.0f, 180.0f, 0.0f);
@@ -67,6 +70,7 @@ void GameWorld::addToBench(const std::string& pokemonName) {
     benchPokemons.push_back(inst);
 
     std::cout << "[GameWorld] Benched " << pokemonName
+              << " (ID: " << inst.id
               << " at slot " << slot << "\n";
 }
 
