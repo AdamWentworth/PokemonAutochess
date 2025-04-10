@@ -7,7 +7,7 @@
 #include "../render/Camera3D.h"
 #include "../ui/HealthBarRenderer.h"
 #include "../../game/GameStateManager.h"
-#include <memory>
+#include "../render/BoardRenderer.h"  // <-- Added include
 
 class GameWorld;
 class Window;
@@ -31,6 +31,7 @@ private:
     std::unique_ptr<GameStateManager> stateManager;
     std::unique_ptr<GameWorld> gameWorld;
     std::unique_ptr<Window> window;
+    std::unique_ptr<BoardRenderer> board;   // <-- New member variable using unique_ptr
     HealthBarRenderer healthBarRenderer;
 
     std::shared_ptr<CameraSystem> cameraSystem;

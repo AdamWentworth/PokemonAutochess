@@ -30,7 +30,7 @@
 const unsigned int WIDTH = 1280;
 const unsigned int HEIGHT = 720;
 
-BoardRenderer* board = nullptr; // This global remains as before (or could be refactored further).
+// Removed global BoardRenderer* board declaration
 
 Application::Application() {
     init();
@@ -65,7 +65,10 @@ void Application::init() {
 
     renderer = std::make_unique<Renderer>();
     camera = std::make_unique<Camera3D>(45.0f, static_cast<float>(WIDTH) / HEIGHT, 0.1f, 100.0f);
-    board = new BoardRenderer(8, 8, 1.2f);  // board is still managed as a raw pointer
+    
+    // Allocate the BoardRenderer using a unique_ptr (improves lifetime management)
+    board = std::make_unique<BoardRenderer>(8, 8, 1.2f);
+
     gameWorld = std::make_unique<GameWorld>();
     stateManager = std::make_unique<GameStateManager>();
 
@@ -151,11 +154,10 @@ void Application::shutdown() {
         renderer.reset();
     }
 
-    // Board is still managed with a raw pointer. We call its shutdown manually and delete.
+    // Shutdown the board renderer and let unique_ptr automatically free memory.
     if (board) {
         board->shutdown();
-        delete board;
-        board = nullptr;
+        board.reset();
     }
 
     // Smart pointers are automatically cleaned up.
