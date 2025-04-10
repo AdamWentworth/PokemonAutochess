@@ -9,6 +9,7 @@
 #include <glm/gtc/type_ptr.hpp>
 #include <glad/glad.h>
 #include "PokemonConfigLoader.h"
+#include "ui/HealthBarData.h"
 
 void GameWorld::spawnPokemon(const std::string& pokemonName, const glm::vec3& startPos, PokemonSide side) {
     const PokemonStats* stats = PokemonConfigLoader::getInstance().getStats(pokemonName);
@@ -107,4 +108,31 @@ void GameWorld::drawAll(const Camera3D& camera, BoardRenderer& boardRenderer) {
 
     drawPokemonList(pokemons);
     drawPokemonList(benchPokemons);
+}
+
+std::vector<HealthBarData> GameWorld::getHealthBarData(const Camera3D& camera, int screenWidth, int screenHeight) const {
+    std::vector<HealthBarData> data;
+    
+    auto process = [&](const PokemonInstance& instance) {
+        const PokemonStats* stats = PokemonConfigLoader::getInstance().getStats(instance.name);
+        if (!stats) return;
+
+        glm::vec3 worldPos = instance.position + glm::vec3(0.0f, 1.0f, 0.0f);
+        glm::vec4 viewport(0.0f, 0.0f, screenWidth, screenHeight);
+        glm::vec3 screenPos = glm::project(worldPos, camera.getViewMatrix(), camera.getProjectionMatrix(), viewport);
+        
+        if (screenPos.z > 1.0f || screenPos.x < 0 || screenPos.x > screenWidth || screenPos.y < 0 || screenPos.y > screenHeight) 
+            return;
+
+        HealthBarData hb;
+        hb.screenPosition = glm::vec2(screenPos.x, screenHeight - screenPos.y);
+        hb.currentHP = instance.hp;
+        hb.maxHP = stats->hp;
+        data.push_back(hb);
+    };
+
+    for (auto& p : pokemons) process(p);
+    for (auto& b : benchPokemons) process(b);
+    
+    return data;
 }

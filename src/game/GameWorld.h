@@ -4,9 +4,10 @@
 #include <string>
 #include <glm/glm.hpp>
 #include "PokemonInstance.h"
+#include "ui/HealthBarData.h" 
 
 class Camera3D;
-class BoardRenderer; // NEW
+class BoardRenderer;
 
 class GameWorld {
 public:
@@ -18,6 +19,8 @@ public:
 
     void addToBench(const std::string& pokemonName);
     std::vector<PokemonInstance>& getBenchPokemons();
+
+    std::vector<HealthBarData> getHealthBarData(const Camera3D& camera, int screenWidth, int screenHeight) const;
 
 private:
     std::vector<PokemonInstance> pokemons;

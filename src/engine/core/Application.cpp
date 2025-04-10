@@ -59,6 +59,8 @@ void Application::init() {
 
     glEnable(GL_DEPTH_TEST);
 
+    healthBarRenderer.init();
+
     renderer = new Renderer();
     camera = new Camera3D(45.0f, static_cast<float>(WIDTH) / HEIGHT, 0.1f, 100.0f);
     board = new BoardRenderer(8, 8, 1.2f);
@@ -111,6 +113,7 @@ void Application::run() {
         if (stateManager) stateManager->update(deltaTime);
         update();
 
+        // Rendering
         glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
@@ -118,6 +121,10 @@ void Application::run() {
         gameWorld->drawAll(*camera, *board);
 
         if (stateManager) stateManager->render();
+
+        // Render health bars AFTER game objects but BEFORE buffer swap
+        auto healthBarData = gameWorld->getHealthBarData(*camera, WIDTH, HEIGHT);
+        healthBarRenderer.render(healthBarData);
 
         SDL_GL_SwapWindow(window->getSDLWindow());
 

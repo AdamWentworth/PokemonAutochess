@@ -50,6 +50,7 @@ add_executable(PokemonAutochess
     src/engine/ui/UIManager.cpp
     src/engine/ui/Card.cpp
     src/engine/ui/TextRenderer.cpp
+    src/engine/ui/HealthBarRenderer.cpp
 
     # Game
     src/game/GameWorld.cpp
@@ -117,3 +118,5 @@ file(COPY assets/shaders/ui/card.vert DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/en
 file(COPY assets/shaders/ui/card.frag DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/engine/render)
 file(COPY assets/shaders/ui/text.vert DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/engine/render)
 file(COPY assets/shaders/ui/text.frag DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/engine/render)
+file(COPY assets/shaders/ui/healthbar.vert DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/engine/render)
+file(COPY assets/shaders/ui/healthbar.frag DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/engine/render)
