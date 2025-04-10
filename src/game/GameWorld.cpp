@@ -9,7 +9,6 @@
 #include <glm/gtc/type_ptr.hpp>
 #include <glad/glad.h>
 #include "PokemonConfigLoader.h"
-#include "ui/HealthBarData.h"
 
 void GameWorld::spawnPokemon(const std::string& pokemonName, const glm::vec3& startPos, PokemonSide side) {
     const PokemonStats* stats = PokemonConfigLoader::getInstance().getStats(pokemonName);

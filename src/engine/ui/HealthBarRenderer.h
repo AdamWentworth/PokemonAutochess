@@ -2,7 +2,7 @@
 
 #pragma once
 #include <vector>
-#include "../../game/ui/HealthBarData.h"
+#include "HealthBarData.h"
 #include "../utils/Shader.h"
 
 class HealthBarRenderer {
