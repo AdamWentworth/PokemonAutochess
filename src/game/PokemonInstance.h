@@ -3,6 +3,7 @@
 #pragma once
 #include <glm/glm.hpp>
 #include <string>
+#include <memory>
 #include "../engine/render/Model.h"
 
 enum class PokemonSide {
@@ -12,13 +13,13 @@ enum class PokemonSide {
 
 struct PokemonInstance {
     std::string name;
-
     glm::vec3 position = {};
     glm::vec3 rotation = {};
-
     PokemonSide side = PokemonSide::Player;
-    Model* model = nullptr;
-
+    
+    // Changed from a raw pointer to a shared pointer.
+    std::shared_ptr<Model> model;
+    
     int hp = 100;
     int attack = 10;
     float movementSpeed = 1.0f;

@@ -9,15 +9,16 @@ ResourceManager& ResourceManager::getInstance() {
     return instance;
 }
 
-Model* ResourceManager::getModel(const std::string& modelPath) {
-    // Check if it's already in the cache
+std::shared_ptr<Model> ResourceManager::getModel(const std::string& modelPath) {
+    // Check if the model is already loaded.
     auto it = loadedModels.find(modelPath);
     if (it != loadedModels.end()) {
-        return it->second.get();
+        return it->second;
     }
 
-    // Otherwise, load it
     std::cout << "[ResourceManager] Loading model: " << modelPath << "\n";
-    loadedModels[modelPath] = std::make_unique<Model>(modelPath);
-    return loadedModels[modelPath].get();
+    // Load model and store in a shared_ptr.
+    auto modelPtr = std::make_shared<Model>(modelPath);
+    loadedModels[modelPath] = modelPtr;
+    return modelPtr;
 }

@@ -18,8 +18,9 @@ void GameWorld::spawnPokemon(const std::string& pokemonName, const glm::vec3& st
     }
 
     std::string path = "assets/models/" + stats->model;
-    Model* sharedModel = ResourceManager::getInstance().getModel(path);
+    auto sharedModel = ResourceManager::getInstance().getModel(path);
 
+    // Then assign it to the Pokémon instance:
     PokemonInstance inst;
     inst.name = pokemonName;
     inst.model = sharedModel;
@@ -45,7 +46,7 @@ void GameWorld::addToBench(const std::string& pokemonName) {
     }
 
     std::string path = "assets/models/" + stats->model;
-    Model* sharedModel = ResourceManager::getInstance().getModel(path);
+    auto sharedModel = ResourceManager::getInstance().getModel(path);
 
     PokemonInstance inst;
     inst.name = pokemonName;
