@@ -2,6 +2,8 @@
 
 #include "Application.h"
 #include "Window.h"
+#include "../events/Event.h"
+#include "../events/EventManager.h"
 #include "../render/Renderer.h"
 #include "../render/BoardRenderer.h"
 #include "../render/Model.h"
@@ -99,18 +101,47 @@ void Application::run() {
 
     while (running) {
         while (SDL_PollEvent(&event)) {
-            if (event.type == SDL_QUIT || (event.type == SDL_KEYDOWN && event.key.keysym.sym == SDLK_ESCAPE)) {
+            if (event.type == SDL_QUIT || 
+               (event.type == SDL_KEYDOWN && event.key.keysym.sym == SDLK_ESCAPE)) {
                 running = false;
             }
-
+        
+            // Handle zoom directly.
             cameraSystem->handleZoom(event);
-            cameraSystem->handleMousePan(event);
-
+        
+            // --- Dispatch SDL mouse events as custom events ---
+            switch (event.type) {
+                case SDL_MOUSEBUTTONDOWN:
+                {
+                    MouseButtonDownEvent mbe(event.button.x, event.button.y);
+                    std::cout << "[Application] Emitting MouseButtonDownEvent at (" 
+                              << event.button.x << ", " << event.button.y << ")\n";
+                    EventManager::getInstance().emit(mbe);
+                    break;
+                }
+                case SDL_MOUSEBUTTONUP:
+                {
+                    ::MouseButtonUpEvent mue(event.button.x, event.button.y);
+                    EventManager::getInstance().emit(mue);
+                    break;
+                }
+                case SDL_MOUSEMOTION:
+                {
+                    ::MouseMotionEvent mme(event.motion.x, event.motion.y);
+                    EventManager::getInstance().emit(mme);
+                    break;
+                }
+                default:
+                    break;
+            }
+            // --- End dispatching custom events ---
+        
             if (stateManager) stateManager->handleInput(event);
             if (!dynamic_cast<StarterSelectionState*>(stateManager->getCurrentState())) {
                 unitSystem->handleEvent(event);
             }
         }
+        
 
         auto now = std::chrono::high_resolution_clock::now();
         float deltaTime = std::chrono::duration<float>(now - lastTime).count();

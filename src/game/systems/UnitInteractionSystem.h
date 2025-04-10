@@ -11,10 +11,13 @@
 
 class UnitInteractionSystem : public IUpdatable {
 public:
-    UnitInteractionSystem(Camera3D* camera, GameWorld* world, unsigned int screenWidth, unsigned int screenHeight);
-
+    UnitInteractionSystem(Camera3D* camera, GameWorld* world, unsigned int screenW, unsigned int screenH);
     void handleEvent(const SDL_Event& event);
     void update(float deltaTime) override;
+
+    // New event handling methods.
+    void onMouseButtonDown(int x, int y);
+    void onMouseMotion(int x, int y);
 
 private:
     glm::vec3 screenToWorld(int mouseX, int mouseY) const;
