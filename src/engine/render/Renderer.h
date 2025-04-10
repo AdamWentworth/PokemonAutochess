@@ -3,7 +3,8 @@
 #pragma once
 #include <string>
 #include "Camera3D.h"
-#include "../utils/Shader.h" // Include our custom Shader class
+#include "../utils/Shader.h" // Ensure this is the complete definition of Shader
+#include <memory>  // For std::unique_ptr
 
 class Renderer {
 public:
@@ -15,7 +16,7 @@ public:
 
 private:
     unsigned int VAO, VBO;
-    Shader* shader = nullptr;  // Use our Shader class
+    std::unique_ptr<Shader> shader;  // Uses unique_ptr for automatic cleanup
     int mvpLocation;
 };
 

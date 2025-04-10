@@ -8,8 +8,8 @@
 #include <string>
 #include <glm/gtc/type_ptr.hpp>
 
-// Utility: check for OpenGL errors and log them.
-void checkGLError(const std::string& context) {
+// Helper function to check for OpenGL errors.
+static void checkGLError(const std::string& context) {
     GLenum err;
     while ((err = glGetError()) != GL_NO_ERROR) {
         std::cerr << "[OpenGL Error] " << context << ": " << err << "\n";
@@ -25,8 +25,8 @@ Renderer::Renderer() {
     };
 
     std::cout << "[Renderer] Creating shader program using our Shader class...\n";
-    // Create the shader using our custom Shader class.
-    shader = new Shader("assets/shaders/engine/default.vert", "assets/shaders/engine/default.frag");
+    // Create the shader using std::make_unique
+    shader = std::make_unique<Shader>("assets/shaders/engine/default.vert", "assets/shaders/engine/default.frag");
     std::cout << "[Renderer] Shader program created with ID: " << shader->getID() << "\n";
     checkGLError("After shader program creation");
 
@@ -50,11 +50,12 @@ Renderer::Renderer() {
 }
 
 Renderer::~Renderer() {
+    // unique_ptr automatically cleans up the shader.
 }
 
 void Renderer::render() {
     shader->use();
-    // Set any required uniforms here (for example, the MVP matrix) if needed.
+    // Set any required uniforms here.
     glBindVertexArray(VAO);
     glDrawArrays(GL_TRIANGLES, 0, 3);
 }
@@ -62,8 +63,5 @@ void Renderer::render() {
 void Renderer::shutdown() {
     glDeleteVertexArrays(1, &VAO);
     glDeleteBuffers(1, &VBO);
-    if (shader) {
-        delete shader;
-        shader = nullptr;
-    }
+    // No need to delete the shader manually.
 }
