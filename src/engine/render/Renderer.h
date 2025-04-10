@@ -3,7 +3,8 @@
 #pragma once
 #include <string>
 #include "Camera3D.h"
-#include "../utils/Shader.h" // Ensure this is the complete definition of Shader
+#include "../utils/Shader.h"
+#include "../utils/GLResource.h"  // New header with RAII wrappers
 #include <memory>  // For std::unique_ptr
 
 class Renderer {
@@ -15,8 +16,8 @@ public:
     void render();
 
 private:
-    unsigned int VAO, VBO;
-    std::unique_ptr<Shader> shader;  // Uses unique_ptr for automatic cleanup
+    VertexArray vao;
+    BufferObject vbo; // We'll initialize vbo with GL_ARRAY_BUFFER in the constructor initializer list
+    std::unique_ptr<Shader> shader;  // Managed automatically via unique_ptr
     int mvpLocation;
 };
-

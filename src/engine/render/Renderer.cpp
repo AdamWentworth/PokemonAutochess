@@ -16,7 +16,9 @@ static void checkGLError(const std::string& context) {
     }
 }
 
-Renderer::Renderer() {
+Renderer::Renderer() 
+    : vbo(GL_ARRAY_BUFFER)  // Initialize vbo with GL_ARRAY_BUFFER
+{
     std::cout << "[Renderer] Constructing Renderer...\n";
     float vertices[] = {
          0.0f,  0.5f, 0.0f,
@@ -30,13 +32,9 @@ Renderer::Renderer() {
     std::cout << "[Renderer] Shader program created with ID: " << shader->getID() << "\n";
     checkGLError("After shader program creation");
 
-    glGenVertexArrays(1, &VAO);
-    glGenBuffers(1, &VBO);
-    checkGLError("After generating VAO and VBO");
-
-    glBindVertexArray(VAO);
-    glBindBuffer(GL_ARRAY_BUFFER, VBO);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+    glBindVertexArray(vao.getID());
+    glBindBuffer(vbo.getTarget(), vbo.getID());
+    glBufferData(vbo.getTarget(), sizeof(vertices), vertices, GL_STATIC_DRAW);
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
     glEnableVertexAttribArray(0);
     checkGLError("After setting up vertex attributes");
@@ -50,18 +48,15 @@ Renderer::Renderer() {
 }
 
 Renderer::~Renderer() {
-    // unique_ptr automatically cleans up the shader.
+    // RAII objects (vao and vbo) automatically clean up when Renderer is destroyed.
 }
 
 void Renderer::render() {
     shader->use();
-    // Set any required uniforms here.
-    glBindVertexArray(VAO);
+    glBindVertexArray(vao.getID());
     glDrawArrays(GL_TRIANGLES, 0, 3);
 }
 
 void Renderer::shutdown() {
-    glDeleteVertexArrays(1, &VAO);
-    glDeleteBuffers(1, &VBO);
-    // No need to delete the shader manually.
+    // No need to explicitly delete vao and vbo; their destructors will handle it.
 }
