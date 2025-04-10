@@ -7,9 +7,52 @@
 #include <iostream>
 #include <stb_image.h>
 
+// Static members for the card frame texture remain unchanged.
 std::string Card::framePath = "assets/ui/frame_gold.png";
 unsigned int Card::frameTextureID = 0;
 bool Card::frameLoaded = false;
+
+// -----------------------------------------------------------------------------
+// NEW: Static buffers for Card drawing
+// -----------------------------------------------------------------------------
+namespace {
+    GLuint cardVAO = 0, cardVBO = 0, cardEBO = 0;
+    bool cardBuffersInitialized = false;
+
+    void initCardBuffers() {
+        if (!cardBuffersInitialized) {
+            float vertices[] = {
+                0.0f, 0.0f, 0.0f, 0.0f,
+                1.0f, 0.0f, 1.0f, 0.0f,
+                1.0f, 1.0f, 1.0f, 1.0f,
+                0.0f, 1.0f, 0.0f, 1.0f
+            };
+            unsigned int indices[] = { 0, 1, 2, 2, 3, 0 };
+
+            glGenVertexArrays(1, &cardVAO);
+            glGenBuffers(1, &cardVBO);
+            glGenBuffers(1, &cardEBO);
+
+            glBindVertexArray(cardVAO);
+            glBindBuffer(GL_ARRAY_BUFFER, cardVBO);
+            glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+
+            glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, cardEBO);
+            glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
+
+            // Set up vertex attributes.
+            glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)0);
+            glEnableVertexAttribArray(0);
+            glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)(2 * sizeof(float)));
+            glEnableVertexAttribArray(1);
+
+            glBindBuffer(GL_ARRAY_BUFFER, 0);
+            glBindVertexArray(0);
+
+            cardBuffersInitialized = true;
+        }
+    }
+}
 
 Card::Card(const SDL_Rect& rect, const std::string& imagePath)
     : rect(rect), imagePath(imagePath), textureID(0), imgWidth(0), imgHeight(0), imgChannels(0)
@@ -84,30 +127,8 @@ unsigned int Card::loadTexture(const std::string& path) {
 void Card::draw(Shader* uiShader) const {
     uiShader->use();
 
-    float vertices[] = {
-        0.0f, 0.0f, 0.0f, 0.0f,
-        1.0f, 0.0f, 1.0f, 0.0f,
-        1.0f, 1.0f, 1.0f, 1.0f,
-        0.0f, 1.0f, 0.0f, 1.0f
-    };
-    unsigned int indices[] = { 0, 1, 2, 2, 3, 0 };
-
-    GLuint VAO, VBO, EBO;
-    glGenVertexArrays(1, &VAO);
-    glGenBuffers(1, &VBO);
-    glGenBuffers(1, &EBO);
-
-    glBindVertexArray(VAO);
-    glBindBuffer(GL_ARRAY_BUFFER, VBO);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
-
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
-
-    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)0);
-    glEnableVertexAttribArray(0);
-    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)(2 * sizeof(float)));
-    glEnableVertexAttribArray(1);
+    // Ensure our static buffers are initialized.
+    initCardBuffers();
 
     // 🔥 Enable transparency
     glEnable(GL_BLEND);
@@ -124,6 +145,9 @@ void Card::draw(Shader* uiShader) const {
     glUniformMatrix4fv(glGetUniformLocation(uiShader->getID(), "u_Model"), 1, GL_FALSE, glm::value_ptr(imgModel));
     glBindTexture(GL_TEXTURE_2D, textureID);
     glUniform1i(glGetUniformLocation(uiShader->getID(), "u_Texture"), 0);
+    
+    // Use our shared VAO for drawing.
+    glBindVertexArray(cardVAO);
     glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
 
     // 🟡 Draw the frame second (overlaid on top)
@@ -136,11 +160,8 @@ void Card::draw(Shader* uiShader) const {
 
     glDisable(GL_BLEND);
 
-    // 🧹 Cleanup
+    // Unbind the VAO.
     glBindVertexArray(0);
-    glDeleteBuffers(1, &VBO);
-    glDeleteBuffers(1, &EBO);
-    glDeleteVertexArrays(1, &VAO);
 }
 
 bool Card::isPointInside(int x, int y) const {
