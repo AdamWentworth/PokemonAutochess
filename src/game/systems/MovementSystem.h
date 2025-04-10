@@ -6,6 +6,7 @@
 #include "../GameWorld.h"
 #include <unordered_map>
 #include <glm/glm.hpp>
+#include <vector>  // for std::vector
 
 class MovementSystem : public IUpdatable {
 public:
@@ -28,4 +29,10 @@ private:
     // Implementation details
     bool isCellOccupied(int col, int row, const std::unordered_map<uint32_t, bool>& grid) const;
     glm::vec3 findNearestEnemyPosition(const PokemonInstance& unit) const;
+
+    // Added declaration for the A* pathfinding helper
+    std::vector<glm::ivec2> findPathAStar(
+        const glm::ivec2& start,
+        const glm::ivec2& enemyCell,
+        const std::unordered_map<uint32_t, bool>& obstacles) const;
 };
