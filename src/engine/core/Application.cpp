@@ -30,7 +30,7 @@
 const unsigned int WIDTH = 1280;
 const unsigned int HEIGHT = 720;
 
-BoardRenderer* board = nullptr;
+BoardRenderer* board = nullptr; // This global remains as before (or could be refactored further).
 
 Application::Application() {
     init();
@@ -47,10 +47,12 @@ void Application::init() {
         // Optionally handle the error (exit or disable text rendering)
     }
     
+    // Load the Pokémon configuration.
     PokemonConfigLoader::getInstance().loadConfig("config/pokemon_config.json");
     std::cout << "[Init] Current working directory: " << std::filesystem::current_path() << "\n";
 
-    window = new Window("Pokemon Autochess", WIDTH, HEIGHT);
+    // Create engine subsystems using smart pointers.
+    window = std::make_unique<Window>("Pokemon Autochess", WIDTH, HEIGHT);
     
     if (!gladLoadGLLoader((GLADloadproc)SDL_GL_GetProcAddress)) {
         std::cerr << "Failed to initialize GLAD\n";
@@ -61,20 +63,21 @@ void Application::init() {
 
     healthBarRenderer.init();
 
-    renderer = new Renderer();
-    camera = new Camera3D(45.0f, static_cast<float>(WIDTH) / HEIGHT, 0.1f, 100.0f);
-    board = new BoardRenderer(8, 8, 1.2f);
-    gameWorld = new GameWorld();
-    stateManager = new GameStateManager();
+    renderer = std::make_unique<Renderer>();
+    camera = std::make_unique<Camera3D>(45.0f, static_cast<float>(WIDTH) / HEIGHT, 0.1f, 100.0f);
+    board = new BoardRenderer(8, 8, 1.2f);  // board is still managed as a raw pointer
+    gameWorld = std::make_unique<GameWorld>();
+    stateManager = std::make_unique<GameStateManager>();
 
-    cameraSystem = std::make_shared<CameraSystem>(camera);
-    unitSystem = std::make_shared<UnitInteractionSystem>(camera, gameWorld, WIDTH, HEIGHT);
+    // Use smart pointers for the systems.
+    cameraSystem = std::make_shared<CameraSystem>(camera.get());
+    unitSystem = std::make_shared<UnitInteractionSystem>(camera.get(), gameWorld.get(), WIDTH, HEIGHT);
 
     SystemRegistry::getInstance().registerSystem(cameraSystem);
     SystemRegistry::getInstance().registerSystem(unitSystem);
 
-    // Push the starter selection state
-    stateManager->pushState(std::make_unique<StarterSelectionState>(stateManager, gameWorld));
+    // Push the starter selection state.
+    stateManager->pushState(std::make_unique<StarterSelectionState>(stateManager.get(), gameWorld.get()));
 
     auto roundSystem = std::make_shared<RoundSystem>();
     SystemRegistry::getInstance().registerSystem(roundSystem);
@@ -109,7 +112,7 @@ void Application::run() {
         float deltaTime = std::chrono::duration<float>(now - lastTime).count();
         lastTime = now;
 
-        SystemRegistry::getInstance().updateAll(deltaTime); // ✅ All systems update here
+        SystemRegistry::getInstance().updateAll(deltaTime); // All systems update here
         if (stateManager) stateManager->update(deltaTime);
         update();
 
@@ -142,12 +145,24 @@ void Application::update() {
 
 void Application::shutdown() {
     std::cout << "[Shutdown] Shutting down...\n";
-    if (renderer) { renderer->shutdown(); delete renderer; }
-    if (camera) delete camera;
-    if (board) { board->shutdown(); delete board; }
-    if (gameWorld) delete gameWorld;
-    if (stateManager) delete stateManager;
-    if (window) delete window;
+    
+    if (renderer) {
+        renderer->shutdown();
+        renderer.reset();
+    }
+
+    // Board is still managed with a raw pointer. We call its shutdown manually and delete.
+    if (board) {
+        board->shutdown();
+        delete board;
+        board = nullptr;
+    }
+
+    // Smart pointers are automatically cleaned up.
+    stateManager.reset();
+    gameWorld.reset();
+    camera.reset();
+    window.reset();
 
     SystemRegistry::getInstance().clear(); // Optional cleanup
 
@@ -156,4 +171,3 @@ void Application::shutdown() {
     
     std::cout << "[Shutdown] Shutdown complete.\n";
 }
-

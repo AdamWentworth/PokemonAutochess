@@ -25,11 +25,12 @@ private:
     void update();
     void shutdown();
 
-    Renderer* renderer = nullptr;
-    Camera3D* camera = nullptr;
-    GameStateManager* stateManager = nullptr;
-    GameWorld* gameWorld = nullptr;
-    Window* window = nullptr;
+    // Changed raw pointers to smart pointers.
+    std::unique_ptr<Renderer> renderer;
+    std::unique_ptr<Camera3D> camera;
+    std::unique_ptr<GameStateManager> stateManager;
+    std::unique_ptr<GameWorld> gameWorld;
+    std::unique_ptr<Window> window;
     HealthBarRenderer healthBarRenderer;
 
     std::shared_ptr<CameraSystem> cameraSystem;
