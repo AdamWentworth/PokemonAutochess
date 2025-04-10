@@ -6,6 +6,7 @@
 #include "../render/BoardRenderer.h"
 #include "../render/Model.h"
 #include "../utils/ResourceManager.h"
+#include "../ui/UIManager.h"
 #include "../../game/GameWorld.h"
 #include "../../game/GameStateManager.h"
 #include "../../game/PokemonConfigLoader.h"
@@ -170,6 +171,8 @@ void Application::shutdown() {
 
     // Shutdown SDL_ttf
     TTF_Quit();
+
+    UIManager::shutdown(); 
     
     std::cout << "[Shutdown] Shutdown complete.\n";
 }
