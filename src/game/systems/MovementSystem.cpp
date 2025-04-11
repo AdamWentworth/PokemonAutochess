@@ -1,7 +1,8 @@
 // MovementSystem.cpp
 
 #include "MovementSystem.h"
-#include "movement/MovementPlanner.h"  // For using the MovementPlanner
+#include "movement/MovementPlanner.h"   // For planning moves
+#include "movement/MovementExecutor.h"  // For executing moves
 #include <algorithm>
 #include <limits>
 #include <vector>
@@ -58,51 +59,17 @@ glm::vec3 MovementSystem::findNearestEnemyPosition(const PokemonInstance& unit) 
 }
 
 void MovementSystem::update(float deltaTime) {
-    auto& pokemons = gameWorld->getPokemons();
-
-    // Instantiate the MovementPlanner to compute desired moves.
+    // 1. Use the MovementPlanner to generate desired moves.
     MovementPlanner planner(gameWorld, GRID_COLS, GRID_ROWS, CELL_SIZE);
     std::unordered_map<PokemonInstance*, glm::ivec2> plannedMoves = planner.planMoves();
 
-    std::unordered_map<uint32_t, bool> tempGrid;
+    // 2. Use the MovementExecutor to execute moves.
+    MovementExecutor executor(gameWorld, GRID_COLS, GRID_ROWS, CELL_SIZE);
+    std::unordered_map<uint32_t, bool> tempGrid = executor.executeMoves(plannedMoves, deltaTime);
 
-    // Update each unit based on its planned move.
-    for (auto& unit : pokemons) {
-        if (!unit.alive)
-            continue;
+    // 3. Update unit rotations to face the nearest enemy.
+    executor.updateUnitRotations();
 
-        if (plannedMoves.find(&unit) != plannedMoves.end()) {
-            // Retrieve the target cell and compute its world coordinate.
-            glm::ivec2 targetCell = plannedMoves[&unit];
-            uint32_t targetKey = gridKey(targetCell.x, targetCell.y);
-            glm::vec3 targetPos = gridToWorld(targetCell.x, targetCell.y);
-            unitTargetPositions[unit.id] = targetPos;
-
-            // Move the unit smoothly toward its target cell.
-            glm::vec3 direction = targetPos - unit.position;
-            float distanceToMove = unit.movementSpeed * CELL_SIZE * deltaTime;
-            if (glm::length(direction) > 0.01f) {
-                if (glm::length(direction) > distanceToMove) {
-                    glm::vec3 moveDir = glm::normalize(direction);
-                    unit.position += moveDir * distanceToMove;
-                } else {
-                    unit.position = targetPos;
-                    LOG("SnapMove: Unit " << unit.id << " snapped to center at " 
-                                           << targetPos.x << "," << targetPos.z);
-                }
-            }
-            tempGrid[targetKey] = true;
-        } else {
-            // If there's no planned move, keep the unit in its current cell.
-            glm::ivec2 currentGrid = worldToGrid(unit.position);
-            tempGrid[gridKey(currentGrid.x, currentGrid.y)] = true;
-        }
-
-        // Update the unit's rotation to face the nearest enemy.
-        glm::vec3 enemyPos = findNearestEnemyPosition(unit);
-        glm::vec3 lookDir = glm::normalize(enemyPos - unit.position);
-        unit.rotation.y = glm::degrees(atan2f(lookDir.x, lookDir.z));
-    }
-
+    // 4. Update the grid occupancy.
     gridOccupancy = tempGrid;
 }

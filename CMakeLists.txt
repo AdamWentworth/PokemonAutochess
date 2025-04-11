@@ -88,6 +88,7 @@ add_executable(PokemonAutochess
 
     src/game/systems/movement/AStarPathfinder.cpp
     src/game/systems/movement/MovementPlanner.cpp
+    src/game/systems/movement/MovementExecutor.cpp
     
     # Game UI
     src/game/ui/CardFactory.cpp
