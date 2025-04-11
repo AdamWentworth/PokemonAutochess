@@ -10,98 +10,20 @@
 
 #define LOG(x) std::cout << "[MovementSystem] " << x << std::endl;
 
-// Internal structure for A* nodes.
-struct Node {
-    glm::ivec2 cell;
-    float cost;      // Cost so far (g value)
-    float priority;  // f = g + h
-
-    bool operator>(const Node& other) const {
-        return priority > other.priority;
-    }
-};
-
 MovementSystem::MovementSystem(GameWorld* world, std::unordered_map<uint32_t, bool>& gridOccupancy)
-    : gameWorld(world), gridOccupancy(gridOccupancy)
+    : gameWorld(world)
+    , gridOccupancy(gridOccupancy)
+    , pathfinder(GRID_COLS, GRID_ROWS) // Initialize the pathfinder with grid size.
 {}
 
 bool isAdjacent(const glm::ivec2& cell, const glm::ivec2& enemyCell) {
     return std::max(std::abs(cell.x - enemyCell.x), std::abs(cell.y - enemyCell.y)) == 1;
 }
 
-std::vector<glm::ivec2> MovementSystem::findPathAStar(
-    const glm::ivec2& start,
-    const glm::ivec2& enemyCell,
-    const std::unordered_map<uint32_t, bool>& obstacles) const
-{
-    std::priority_queue<Node, std::vector<Node>, std::greater<Node>> openSet;
-    std::unordered_map<uint32_t, glm::ivec2> cameFrom;
-    std::unordered_map<uint32_t, float> costSoFar;
-
-    auto cellKey = [this](const glm::ivec2& cell) -> uint32_t {
-        return gridKey(cell.x, cell.y);
-    };
-
-    auto heuristic = [&enemyCell](const glm::ivec2& cell) -> float {
-        float dx = static_cast<float>(cell.x - enemyCell.x);
-        float dy = static_cast<float>(cell.y - enemyCell.y);
-        return std::sqrt(dx * dx + dy * dy);
-    };
-
-    // LOG("A*: Start from " << start.x << "," << start.y << " to near " << enemyCell.x << "," << enemyCell.y);
-
-    Node startNode { start, 0.0f, heuristic(start) };
-    openSet.push(startNode);
-    costSoFar[cellKey(start)] = 0.0f;
-
-    std::vector<glm::ivec2> directions = {
-        {-1, 0}, {1, 0}, {0, -1}, {0, 1},
-        {-1, -1}, {1, 1}, {-1, 1}, {1, -1}
-    };
-
-    while (!openSet.empty()) {
-        Node current = openSet.top();
-        openSet.pop();
-
-        if (isAdjacent(current.cell, enemyCell)) {
-            std::vector<glm::ivec2> path;
-            glm::ivec2 cur = current.cell;
-            path.push_back(cur);
-            while (cellKey(cur) != cellKey(start)) {
-                cur = cameFrom[cellKey(cur)];
-                path.push_back(cur);
-            }
-            std::reverse(path.begin(), path.end());
-
-            // LOG("A*: Path found with " << path.size() << " steps.");
-            return path;
-        }
-
-        for (const auto& dir : directions) {
-            glm::ivec2 next = current.cell + dir;
-            if (!isValidGridPosition(next.x, next.y)) continue;
-            if (obstacles.count(gridKey(next.x, next.y)) > 0) continue;
-
-            float moveCost = (std::abs(dir.x) + std::abs(dir.y) == 2) ? 1.414f : 1.0f;
-            float newCost = current.cost + moveCost;
-            uint32_t nextKey = cellKey(next);
-
-            if (costSoFar.find(nextKey) == costSoFar.end() || newCost < costSoFar[nextKey]) {
-                costSoFar[nextKey] = newCost;
-                float priority = newCost + heuristic(next);
-                openSet.push(Node{ next, newCost, priority });
-                cameFrom[nextKey] = current.cell;
-            }
-        }
-    }
-
-    LOG("A*: No path found from " << start.x << "," << start.y << " to enemy at " << enemyCell.x << "," << enemyCell.y);
-    return {};
-}
-
 void MovementSystem::update(float deltaTime) {
     auto& pokemons = gameWorld->getPokemons();
 
+    // Phase: Resolve overlapping units on the grid.
     {
         std::unordered_map<uint32_t, PokemonInstance*> gridOccupants;
         for (auto& unit : pokemons) {
@@ -141,7 +63,7 @@ void MovementSystem::update(float deltaTime) {
     std::unordered_map<uint32_t, std::vector<PokemonInstance*>> cellContenders;
     std::unordered_map<PokemonInstance*, glm::ivec2> desiredMoves;
 
-    // PHASE 1: Plan all desired moves first
+    // PHASE 1: Plan all desired moves first.
     for (auto& unit : pokemons) {
         if (!unit.alive) continue;
         glm::ivec2 currentGrid = worldToGrid(unit.position);
@@ -155,7 +77,8 @@ void MovementSystem::update(float deltaTime) {
             continue;
         }
 
-        std::vector<glm::ivec2> path = findPathAStar(currentGrid, enemyGrid, tempGrid);
+        // Use the modularized A* pathfinder here.
+        std::vector<glm::ivec2> path = pathfinder.findPath(currentGrid, enemyGrid, tempGrid);
         desiredMoves[&unit] = path.size() > 1 ? path[1] : currentGrid;
         
         if (desiredMoves[&unit] != currentGrid) {
@@ -213,7 +136,6 @@ void MovementSystem::update(float deltaTime) {
                     if (glm::length(direction) > distanceToMove) {
                         glm::vec3 moveDir = glm::normalize(direction);
                         unit.position += moveDir * distanceToMove;
-                        // LOG("Move: Unit " << unit.id << " moved to " << unit.position.x << "," << unit.position.z);
                     } else {
                         unit.position = targetPos;
                         LOG("SnapMove: Unit " << unit.id << " snapped to center at " << targetPos.x << "," << targetPos.z);
@@ -253,10 +175,6 @@ bool MovementSystem::isValidGridPosition(int col, int row) const {
 
 uint32_t MovementSystem::gridKey(int col, int row) const {
     return static_cast<uint32_t>(col) | (static_cast<uint32_t>(row) << 16);
-}
-
-bool MovementSystem::isCellOccupied(int col, int row, const std::unordered_map<uint32_t, bool>& grid) const {
-    return grid.count(gridKey(col, row)) > 0;
 }
 
 glm::vec3 MovementSystem::findNearestEnemyPosition(const PokemonInstance& unit) const {
