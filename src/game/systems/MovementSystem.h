@@ -7,9 +7,7 @@
 #include <unordered_map>
 #include <glm/glm.hpp>
 #include <vector>
-
-// Include the modularized A* pathfinder.
-#include "movement/AStarPathfinder.h"
+#include "movement/MovementPlanner.h"  // Include MovementPlanner for planning moves
 
 class MovementSystem : public IUpdatable {
 public:
@@ -25,14 +23,14 @@ public:
 private:
     GameWorld* gameWorld;
     std::unordered_map<uint32_t, bool>& gridOccupancy;
-    std::unordered_map<int, glm::vec3> unitTargetPositions; 
+    std::unordered_map<int, glm::vec3> unitTargetPositions;
+
+    // Grid configuration.
     const float CELL_SIZE = 1.2f;
     const int GRID_COLS = 8;
     const int GRID_ROWS = 8;
 
     // Utility function to locate the nearest enemy position.
     glm::vec3 findNearestEnemyPosition(const PokemonInstance& unit) const;
-
-    // The modularized A* pathfinder object.
-    AStarPathfinder pathfinder;
 };
+
