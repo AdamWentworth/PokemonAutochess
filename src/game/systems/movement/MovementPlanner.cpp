@@ -17,16 +17,16 @@ MovementPlanner::MovementPlanner(GameWorld* world, int gridCols, int gridRows, f
     , pathfinder(gridCols, gridRows) // Initialize A* pathfinder with grid dimensions.
 {}
 
-// Convert a world coordinate to a grid cell.
+// Converts a world coordinate to a grid cell.
 glm::ivec2 MovementPlanner::worldToGrid(const glm::vec3& pos) const {
     float boardOriginX = -(gridCols * cellSize) / 2 + cellSize / 2;
     float boardOriginZ = -(gridRows * cellSize) / 2 + cellSize / 2;
     int col = static_cast<int>(std::round((pos.x - boardOriginX) / cellSize));
     int row = static_cast<int>(std::round((pos.z - boardOriginZ) / cellSize));
-    return {col, row};
+    return { col, row };
 }
 
-// Convert a grid cell to a world coordinate.
+// Converts a grid cell to a world coordinate.
 glm::vec3 MovementPlanner::gridToWorld(int col, int row) const {
     float boardOriginX = -(gridCols * cellSize) / 2 + cellSize / 2;
     float boardOriginZ = -(gridRows * cellSize) / 2 + cellSize / 2;
@@ -57,12 +57,62 @@ glm::vec3 MovementPlanner::findNearestEnemyPosition(const PokemonInstance& unit)
     return closestPos;
 }
 
-// Local helper to check if two grid cells are adjacent (non-diagonally or diagonally).
-static bool isAdjacent(const glm::ivec2& cell, const glm::ivec2& enemyCell) {
+// Helper: Convert reservedCells mapping into an obstacles map for the pathfinder.
+std::unordered_map<uint32_t, bool> MovementPlanner::reservedCellsAsObstacles(
+    const std::unordered_map<uint32_t, PokemonInstance*>& reservedCells) const 
+{
+    std::unordered_map<uint32_t, bool> obstacles;
+    for (const auto& [cellKey, unit] : reservedCells) {
+        obstacles[cellKey] = true;
+    }
+    return obstacles;
+}
+
+// Helper: Check if two grid cells are adjacent (including diagonal neighbors).
+bool MovementPlanner::isAdjacent(const glm::ivec2& cell, const glm::ivec2& enemyCell) {
     return std::max(std::abs(cell.x - enemyCell.x), std::abs(cell.y - enemyCell.y)) == 1;
 }
 
-// planMoves encapsulates all planning logic: resolve overlaps, plan path, and resolve move conflicts.
+// Helper: Revised alternate move search that uses a spiral search but skips cells in triedMoves.
+glm::ivec2 MovementPlanner::findAlternateMove(PokemonInstance& unit,
+    const glm::ivec2& currentGrid, const glm::ivec2& enemyGrid,
+    const std::unordered_map<uint32_t, PokemonInstance*>& reservedCells,
+    const std::unordered_set<uint32_t>& triedMoves) const 
+{
+    int maxRadius = 3; // Maximum search radius (tweak as needed).
+    std::vector<glm::ivec2> candidates;
+
+    // Iterate through increasing radii.
+    for (int r = 1; r <= maxRadius; ++r) {
+        // Loop through the perimeter of the square with radius r.
+        for (int dx = -r; dx <= r; ++dx) {
+            for (int dy = -r; dy <= r; ++dy) {
+                // Only consider perimeter cells.
+                if (std::abs(dx) != r && std::abs(dy) != r)
+                    continue;
+                glm::ivec2 candidate = currentGrid + glm::ivec2(dx, dy);
+                if (!isValidGridPosition(candidate.x, candidate.y))
+                    continue;
+                uint32_t key = gridKey(candidate.x, candidate.y);
+                // Only consider candidates that are not reserved and not already tried.
+                if (reservedCells.find(key) == reservedCells.end() &&
+                    triedMoves.find(key) == triedMoves.end()) {
+                    candidates.push_back(candidate);
+                }
+            }
+        }
+        // If at least one candidate was found at this radius, return the first candidate.
+        if (!candidates.empty())
+            return candidates[0];
+    }
+    // Fallback to the current grid cell if no alternate found.
+    return currentGrid;
+}
+
+// planMoves performs the following steps:
+//  1. Phase 0 (Collision Handling): Resolve overlapping units by repositioning them.
+//  2. Phase 1 (Predictive Move Planning): Use a sorted order and reservation system (with A* pathfinding)
+//     to compute each unit's move. If the primary move is reserved, use an alternate move.
 std::unordered_map<PokemonInstance*, glm::ivec2> MovementPlanner::planMoves() {
     auto& pokemons = gameWorld->getPokemons();
     
@@ -74,15 +124,17 @@ std::unordered_map<PokemonInstance*, glm::ivec2> MovementPlanner::planMoves() {
         glm::ivec2 cell = worldToGrid(unit.position);
         if (!isValidGridPosition(cell.x, cell.y))
             continue;
-        uint32_t key = gridKey(cell.x, cell.y);
-        if (gridOccupants.find(key) == gridOccupants.end()) {
-            gridOccupants[key] = &unit;
+        uint32_t cellKey = gridKey(cell.x, cell.y);
+        if (gridOccupants.find(cellKey) == gridOccupants.end()) {
+            gridOccupants[cellKey] = &unit;
         } else {
+            // Overlap detected: find a free adjacent cell.
             bool found = false;
             glm::ivec2 newCell = cell;
             for (int dx = -1; dx <= 1 && !found; ++dx) {
                 for (int dy = -1; dy <= 1 && !found; ++dy) {
-                    if (dx == 0 && dy == 0) continue;
+                    if (dx == 0 && dy == 0)
+                        continue;
                     glm::ivec2 candidate = cell + glm::ivec2(dx, dy);
                     if (!isValidGridPosition(candidate.x, candidate.y))
                         continue;
@@ -94,76 +146,100 @@ std::unordered_map<PokemonInstance*, glm::ivec2> MovementPlanner::planMoves() {
                 }
             }
             if (found) {
-                LOG("Overlap: Unit " << unit.id << " moved from " << cell.x << "," << cell.y
-                    << " to " << newCell.x << "," << newCell.y);
+                LOG("Overlap: Unit " << unit.id << " moved from [" << cell.x << "," << cell.y
+                    << "] to [" << newCell.x << "," << newCell.y << "]");
                 unit.position = gridToWorld(newCell.x, newCell.y);
                 gridOccupants[gridKey(newCell.x, newCell.y)] = &unit;
             }
         }
     }
     
-    // --- PHASE 1: Plan Desired Moves ---
-    std::unordered_map<uint32_t, bool> tempGrid; // temporary occupancy map for A* (can be refined)
-    std::unordered_map<uint32_t, std::vector<PokemonInstance*>> cellContenders;
-    std::unordered_map<PokemonInstance*, glm::ivec2> desiredMoves;
+    // --- PHASE 1: Predictive Move Planning with Cycle Prevention ---
+    std::unordered_map<PokemonInstance*, glm::ivec2> finalMoves;
+    std::unordered_map<uint32_t, PokemonInstance*> reservedCells;
 
-    for (auto& unit : pokemons) {
-        if (!unit.alive)
-            continue;
-        glm::ivec2 currentGrid = worldToGrid(unit.position);
-        if (!isValidGridPosition(currentGrid.x, currentGrid.y))
-            continue;
+    // Optional: sort units by priority (e.g., closeness to enemy).
+    std::vector<PokemonInstance*> units;
+    for (auto &unit : pokemons) {
+        if (unit.alive)
+            units.push_back(&unit);
+    }
+    std::sort(units.begin(), units.end(), [this](PokemonInstance* a, PokemonInstance* b) {
+        glm::vec3 enemyA = findNearestEnemyPosition(*a);
+        glm::vec3 enemyB = findNearestEnemyPosition(*b);
+        float distA = glm::distance(a->position, enemyA);
+        float distB = glm::distance(b->position, enemyB);
+        return distA < distB;  // Prioritize unit closer to its enemy.
+    });
 
-        glm::vec3 enemyPos = findNearestEnemyPosition(unit);
+    for (PokemonInstance* unit : units) {
+        glm::ivec2 currentGrid = worldToGrid(unit->position);
+        glm::vec3 enemyPos = findNearestEnemyPosition(*unit);
         glm::ivec2 enemyGrid = worldToGrid(enemyPos);
+        uint32_t currentKey = gridKey(currentGrid.x, currentGrid.y);
 
-        // If already adjacent to enemy, the unit will hold its position.
+        // If adjacent to an enemy, hold position.
         if (isAdjacent(currentGrid, enemyGrid)) {
-            desiredMoves[&unit] = currentGrid;
+            if (reservedCells.find(currentKey) == reservedCells.end()) {
+                finalMoves[unit] = currentGrid;
+                reservedCells[currentKey] = unit;
+            } else {
+                // Use alternate move search if already reserved.
+                std::unordered_set<uint32_t> triedMoves;
+                const int MAX_ATTEMPTS = 3;
+                int attempts = 0;
+                glm::ivec2 candidate = currentGrid;
+                while (attempts < MAX_ATTEMPTS) {
+                    uint32_t candidateKey = gridKey(candidate.x, candidate.y);
+                    triedMoves.insert(candidateKey);
+                    if (reservedCells.find(candidateKey) == reservedCells.end())
+                        break;
+                    glm::ivec2 alt = findAlternateMove(*unit, currentGrid, enemyGrid, reservedCells, triedMoves);
+                    // If no new candidate is found, fallback to holding position.
+                    if (alt == candidate) {
+                        candidate = currentGrid;
+                        break;
+                    }
+                    candidate = alt;
+                    attempts++;
+                }
+                finalMoves[unit] = candidate;
+                reservedCells[gridKey(candidate.x, candidate.y)] = unit;
+            }
             continue;
         }
 
-        // Compute a path from the current cell toward the enemy position.
-        std::vector<glm::ivec2> path = pathfinder.findPath(currentGrid, enemyGrid, tempGrid);
-        desiredMoves[&unit] = (path.size() > 1 ? path[1] : currentGrid);
-        
-        // Record contenders for the targeted cell (for conflict resolution).
-        if (desiredMoves[&unit] != currentGrid) {
-            uint32_t nextCellKey = gridKey(desiredMoves[&unit].x, desiredMoves[&unit].y);
-            cellContenders[nextCellKey].push_back(&unit);
+        // Otherwise, compute primary move using A*.
+        std::vector<glm::ivec2> path = pathfinder.findPath(currentGrid, enemyGrid, reservedCellsAsObstacles(reservedCells));
+        glm::ivec2 primaryMove = (path.size() > 1 ? path[1] : currentGrid);
+        uint32_t primaryKey = gridKey(primaryMove.x, primaryMove.y);
+
+        if (reservedCells.find(primaryKey) == reservedCells.end()) {
+            finalMoves[unit] = primaryMove;
+            reservedCells[primaryKey] = unit;
+        } else {
+            // Try to find an alternate move while avoiding cycles.
+            std::unordered_set<uint32_t> triedMoves;
+            const int MAX_ATTEMPTS = 3;
+            int attempts = 0;
+            glm::ivec2 candidate = primaryMove;
+            while (attempts < MAX_ATTEMPTS) {
+                uint32_t candidateKey = gridKey(candidate.x, candidate.y);
+                triedMoves.insert(candidateKey);
+                if (reservedCells.find(candidateKey) == reservedCells.end())
+                    break;
+                glm::ivec2 alt = findAlternateMove(*unit, currentGrid, enemyGrid, reservedCells, triedMoves);
+                if (alt == candidate) { // No new candidate found.
+                    candidate = currentGrid; // Fallback to holding position.
+                    break;
+                }
+                candidate = alt;
+                attempts++;
+            }
+            finalMoves[unit] = candidate;
+            reservedCells[gridKey(candidate.x, candidate.y)] = unit;
         }
     }
-
-    // --- PHASE 2: Resolve Conflicts for the Same Target Cell ---
-    std::unordered_map<uint32_t, PokemonInstance*> cellWinners;
-    for (const auto& [cellKey, contenders] : cellContenders) {
-        if (contenders.size() > 1) {
-            LOG("Conflict: " << contenders.size() << " units want cell key " << cellKey);
-            PokemonInstance* winner = nullptr;
-            float bestScore = std::numeric_limits<float>::max();
-            for (PokemonInstance* unit : contenders) {
-                glm::vec3 enemyPos = findNearestEnemyPosition(*unit);
-                float distToEnemy = glm::distance(unit->position, enemyPos);
-                if (distToEnemy < bestScore) {
-                    bestScore = distToEnemy;
-                    winner = unit;
-                }
-            }
-            if (winner) {
-                LOG("ConflictWinner: Unit " << winner->id << " wins cell " << cellKey);
-                cellWinners[cellKey] = winner;
-                // Other contenders stay in place.
-                for (PokemonInstance* unit : contenders) {
-                    if (unit != winner) {
-                        LOG("ConflictLoser: Unit " << unit->id << " stays in place due to conflict at cell " << cellKey);
-                        desiredMoves[unit] = worldToGrid(unit->position);
-                    }
-                }
-            }
-        } else if (contenders.size() == 1) {
-            cellWinners[cellKey] = contenders[0];
-        }
-    }
-
-    return desiredMoves;
+    
+    return finalMoves;
 }
