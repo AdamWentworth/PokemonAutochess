@@ -25,6 +25,9 @@ private:
     void update();
     void shutdown();
 
+    /* ---------- Fixed-step timing ---------- */
+    static constexpr float TIME_STEP = 1.0f / 60.0f;
+
     // Changed raw pointers to smart pointers.
     std::unique_ptr<Renderer> renderer;
     std::unique_ptr<Camera3D> camera;

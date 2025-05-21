@@ -92,11 +92,13 @@ void Application::init() {
 }
 
 void Application::run() {
-    std::cout << "[Run] Entering main loop...\n";
-    auto lastTime = std::chrono::high_resolution_clock::now();
-    int frameCount = 0;
-    bool running = true;
+    std::cout << "[Run] Entering main loop (fixed 60 Hz)...\n";
 
+    using clock = std::chrono::high_resolution_clock;
+    auto previous   = clock::now();
+    double accumulator = 0.0;               // ❶ stores leftover time
+    int frameCount = 0;
+    bool running   = true;
     SDL_Event event;
 
     while (running) {
@@ -143,13 +145,20 @@ void Application::run() {
         }
         
 
-        auto now = std::chrono::high_resolution_clock::now();
-        float deltaTime = std::chrono::duration<float>(now - lastTime).count();
-        lastTime = now;
+        /* ----------- Fixed-step update section ----------- */
+        auto now       = clock::now();
+        double frameDt = std::chrono::duration<double>(now - previous).count();
+        // Prevent spiral-of-death if debugger halts etc.
+        frameDt = std::min(frameDt, 0.25);
+        previous = now;
+        accumulator += frameDt;
 
-        SystemRegistry::getInstance().updateAll(deltaTime); // All systems update here
-        if (stateManager) stateManager->update(deltaTime);
-        update();
+        while (accumulator >= TIME_STEP) {          // ❷ run zero, one, or many sim ticks
+            SystemRegistry::getInstance().updateAll(TIME_STEP);
+            if (stateManager) stateManager->update(TIME_STEP);
+            update();
+            accumulator -= TIME_STEP;
+        }
 
         // Rendering
         glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
@@ -166,10 +175,14 @@ void Application::run() {
 
         SDL_GL_SwapWindow(window->getSDLWindow());
 
+        /* FPS counter (optional real-time) */
         frameCount++;
-        if (deltaTime >= 1.0f) {
+        static double fpsTimer = 0.0;
+        fpsTimer += frameDt;
+        if (fpsTimer >= 1.0) {
             std::cout << "[FPS] " << frameCount << " frames/sec\n";
             frameCount = 0;
+            fpsTimer   = 0.0;
         }
     }
 }
