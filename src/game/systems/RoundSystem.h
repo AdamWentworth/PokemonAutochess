@@ -3,6 +3,8 @@
 #pragma once
 
 #include "../../engine/core/IUpdatable.h"
+#include "../../engine/events/EventManager.h"
+#include "../../engine/events/RoundEvents.h"
 #include <string>
 
 enum class RoundPhase {

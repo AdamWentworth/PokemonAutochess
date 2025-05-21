@@ -2,6 +2,7 @@
 
 #include "RoundSystem.h"
 #include <iostream>
+#include "../../engine/events/EventManager.h"
 
 RoundSystem::RoundSystem() {
     currentPhase = RoundPhase::Planning;
@@ -21,23 +22,39 @@ RoundPhase RoundSystem::getCurrentPhase() const {
 }
 
 void RoundSystem::advancePhase() {
+    auto phaseName = [](RoundPhase p) {
+        switch (p) {
+            case RoundPhase::Planning:    return "Planning";
+            case RoundPhase::Battle:      return "Battle";
+            case RoundPhase::Resolution:  return "Resolution";
+        }
+      return "Unknown";
+    };
+
+    RoundPhase previous = currentPhase;
+
     switch (currentPhase) {
         case RoundPhase::Planning:
             currentPhase = RoundPhase::Battle;
-            phaseTimer = battleDuration;
-            std::cout << "[RoundSystem] Transition to Battle Phase\n";
+            phaseTimer  = battleDuration;
             break;
 
         case RoundPhase::Battle:
             currentPhase = RoundPhase::Resolution;
-            phaseTimer = resolutionDuration;
-            std::cout << "[RoundSystem] Transition to Resolution Phase\n";
+            phaseTimer  = resolutionDuration;
             break;
 
         case RoundPhase::Resolution:
             currentPhase = RoundPhase::Planning;
-            phaseTimer = planningDuration;
-            std::cout << "[RoundSystem] New Round: Back to Planning Phase\n";
+            phaseTimer  = planningDuration;
             break;
     }
+
+    std::cout << "[RoundSystem] Transition " << phaseName(previous)
+              << " → " << phaseName(currentPhase) << "\n";
+
+   // ❸ Emit the change so listeners can react
+    RoundPhaseChangedEvent evt(phaseName(previous), phaseName(currentPhase));
+    EventManager::getInstance().emit(evt);
 }
+

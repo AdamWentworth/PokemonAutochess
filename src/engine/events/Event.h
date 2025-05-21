@@ -10,7 +10,7 @@ enum class EventType {
     MouseMoved,
     MouseButtonDown,
     MouseButtonUp,
-    // Add more event types here...
+    RoundPhaseChanged
 };
 
 // Base event class.
