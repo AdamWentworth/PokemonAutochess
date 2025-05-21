@@ -4,6 +4,7 @@
 
 #include "Camera3D.h"
 #include "../utils/Shader.h"
+#include <memory>
 #include <vector>
 #include <string>
 
@@ -23,7 +24,7 @@ private:
     unsigned int compileShader(const char* src, unsigned int type);
     unsigned int createShaderProgram(const char* vertPath, const char* fragPath);
 
-    Shader* gridShader = nullptr;
+    std::unique_ptr<Shader> gridShader;
 
     unsigned int vao, vbo;
     unsigned int shaderProgram;

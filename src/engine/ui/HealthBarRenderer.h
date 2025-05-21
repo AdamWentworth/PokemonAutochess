@@ -4,6 +4,7 @@
 #include <vector>
 #include "HealthBarData.h"
 #include "../utils/Shader.h"
+#include <memory>
 
 class HealthBarRenderer {
 public:
@@ -12,6 +13,6 @@ public:
     void render(const std::vector<HealthBarData>& healthBars);
 
 private:
-    Shader* shader = nullptr;
+    std::unique_ptr<Shader> shader;
     void renderQuad();
 };

@@ -6,7 +6,9 @@
 
 void HealthBarRenderer::init() {
     // Initialize shader after OpenGL is ready
-    shader = new Shader("assets/shaders/ui/healthbar.vert", "assets/shaders/ui/healthbar.frag");
+    shader = std::make_unique<Shader>(
+                "assets/shaders/ui/healthbar.vert",
+                "assets/shaders/ui/healthbar.frag");
 }
 
 void HealthBarRenderer::render(const std::vector<HealthBarData>& healthBars) {

@@ -19,6 +19,7 @@ This engine is hand-built with modern C++ and real-time rendering in mind:
 - **vcpkg** – dependency management
 
 ### 🧩 Planned Integrations
+
 - **EnTT** – ECS architecture for game logic
 - **Assimp** – 3D model loading (FBX, OBJ, etc)
 - **Lua** – scripting support for units/AI
@@ -36,6 +37,7 @@ This engine is hand-built with modern C++ and real-time rendering in mind:
 - Strategy comes from placement, team composition, and ability timing.
 
 ### 🔭 Visual Style
+
 - Fixed top-down / isometric camera (TFT-like)
 - Stylized models and animations
 - Vibrant battlefield with dynamic effects
@@ -72,29 +74,91 @@ This project supports and extends topics from **BCIT’s Bachelor of Applied Com
 
 ## 🚀 Getting Started
 
-### Prerequisites
+### ✅ Prerequisites
 
-- **CMake** 3.21+
-- **Visual Studio 2022** / `clang++` / `g++`
-- **vcpkg** installed and configured
+- **CMake** 3.21+ (tested with 4.0.2)
+- **Visual Studio 2022** with C++ development tools
+- **vcpkg** installed locally (not globally)
+- Environment variable `VCPKG_ROOT` pointing to your vcpkg directory
 
-### 📦 Build Instructions
+---
+
+### 📦 Initial Setup
 
 ```bash
-# Clone and set up vcpkg (one-time)
-git clone https://github.com/microsoft/vcpkg.git
-./vcpkg/bootstrap-vcpkg.bat
-./vcpkg integrate install
+# Clone the repository
+git clone https://github.com/your-username/PokemonAutochess.git
+cd PokemonAutochess
 
-# Install engine dependencies
-vcpkg install sdl2 glad glm
+# Clone vcpkg (alongside or in a known location)
+git clone https://github.com/microsoft/vcpkg.git C:/dev/vcpkg
+cd C:/dev/vcpkg
+./bootstrap-vcpkg.bat
+```
 
-# Generate build files
-cmake -S . -B build -DCMAKE_TOOLCHAIN_FILE=[path-to-vcpkg]/scripts/buildsystems/vcpkg.cmake
+---
 
-# Build the project
-cmake --build build
+### 📁 Set VCPKG_ROOT (once)
 
+Make sure CMake knows where vcpkg is located by setting `VCPKG_ROOT`.
+
+> After this, restart your terminal or VS Code to ensure it's picked up.
+
+---
+
+### 📦 Install Dependencies
+
+Install all required libraries using vcpkg:
+
+```bash
+# From the vcpkg directory
+./vcpkg install sdl2 sdl2-ttf glad glm lua
+```
+
+---
+
+### 🏗️ Build the Project
+
+```bash
+cd C:/Code/PokemonAutochess
+
+# Optional: clean previous cache
+rmdir /s /q build
+
+# Configure the project (MSVC + vcpkg toolchain)
+cmake -DCMAKE_TOOLCHAIN_FILE=%VCPKG_ROOT%/scripts/buildsystems/vcpkg.cmake -DVCPKG_TARGET_TRIPLET=x64-windows -G "Visual Studio 17 2022" -A x64 -S . -B build
+
+# Build it
+cmake --build build --config Debug
+```
+
+---
+
+### ▶️ Run the Game
+
+```bash
+.\build\Debug\PokemonAutochess.exe
+```
+
+Or open the solution file in Visual Studio and press **F5**:
+
+```bash
+build/PokemonAutochess.sln
+```
+
+---
+
+### ✅ Optional VS Code Integration
+
+To use VS Code to build and debug:
+
+1. Open Command Palette → `CMake: Select a Kit`
+2. Choose: **Visual Studio 17 2022 Release - x64**
+3. Run: `CMake: Configure` and then `CMake: Build`
+
+---
+
+You're now ready to build, run, and extend the game engine and prototype. Enjoy developing Pokémon Autochess! 🎮
 
 ## 🌀 Gameplay Flow & Round System
 
@@ -125,7 +189,7 @@ Future rounds will follow this pattern: **travel → encounter → evolve/upgrad
 
 Like TFT or Auto Chess, Pokémon will gain bonuses based on shared traits — but beyond types.
 
-#### Planned synergy categories:
+#### Planned synergy categories
 
 - **Type Synergy** – Traditional (e.g. Fire, Water, Grass). Grants team bonuses.
 - **Origin Synergy** – Based on where/how the Pokémon was acquired (starter, route, gym leader, etc).

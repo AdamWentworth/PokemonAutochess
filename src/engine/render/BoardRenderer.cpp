@@ -11,7 +11,9 @@ BoardRenderer::BoardRenderer(int rows, int cols, float cellSize)
 {
     initGrid();
     initBench(); // NEW
-    gridShader = new Shader("assets/shaders/engine/grid.vert", "assets/shaders/engine/grid.frag");
+    gridShader = std::make_unique<Shader>(
+                    "assets/shaders/engine/grid.vert",
+                    "assets/shaders/engine/grid.frag");
     mvpLocation = glGetUniformLocation(gridShader->getID(), "u_MVP");
 
     glGenVertexArrays(1, &vao);
@@ -54,10 +56,7 @@ void BoardRenderer::drawBench(const Camera3D& camera) {
 void BoardRenderer::shutdown() {
     glDeleteBuffers(1, &vbo);
     glDeleteVertexArrays(1, &vao);
-    if (gridShader) {
-        delete gridShader;
-        gridShader = nullptr;
-    }
+    gridShader.reset();
 }
 
 void BoardRenderer::initGrid() {
