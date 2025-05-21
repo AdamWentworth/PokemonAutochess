@@ -33,9 +33,6 @@ private:
     float cellSize;
     AStarPathfinder pathfinder;
 
-    // Finds the position of the nearest enemy for a given unit.
-    glm::vec3 findNearestEnemyPosition(const PokemonInstance& unit) const;
-
     // Helper to convert reserved cells mapping into an obstacles map for the pathfinder.
     std::unordered_map<uint32_t, bool> reservedCellsAsObstacles(
         const std::unordered_map<uint32_t, PokemonInstance*>& reservedCells) const;

@@ -12,7 +12,8 @@
 
 #define LOG(x) std::cout << "[MovementSystem] " << x << std::endl;
 
-MovementSystem::MovementSystem(GameWorld* world, std::unordered_map<uint32_t, bool>& gridOccupancy)
+MovementSystem::MovementSystem(GameWorld* world,
+                               std::unordered_map<uint32_t,bool>& gridOccupancy)
     : gameWorld(world)
     , gridOccupancy(gridOccupancy)
 {
@@ -40,22 +41,6 @@ bool MovementSystem::isValidGridPosition(int col, int row) const {
 
 uint32_t MovementSystem::gridKey(int col, int row) const {
     return static_cast<uint32_t>(col) | (static_cast<uint32_t>(row) << 16);
-}
-
-// Finds the nearest enemy position for a given unit.
-glm::vec3 MovementSystem::findNearestEnemyPosition(const PokemonInstance& unit) const {
-    float closestDist = std::numeric_limits<float>::max();
-    glm::vec3 closestPos = unit.position;
-    for (const auto& other : gameWorld->getPokemons()) {
-        if (!other.alive || other.side == unit.side)
-            continue;
-        float dist = glm::distance(unit.position, other.position);
-        if (dist < closestDist) {
-            closestDist = dist;
-            closestPos = other.position;
-        }
-    }
-    return closestPos;
 }
 
 void MovementSystem::update(float deltaTime) {

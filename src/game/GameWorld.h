@@ -22,6 +22,10 @@ public:
 
     std::vector<HealthBarData> getHealthBarData(const Camera3D& camera, int screenWidth, int screenHeight) const;
 
+    /* Utility: find the closest living enemy to a given unit.            */
+    /* Returns unit.position if none found.                               */
+    glm::vec3 getNearestEnemyPosition(const PokemonInstance& unit) const;
+
 private:
     std::vector<PokemonInstance> pokemons;
     std::vector<PokemonInstance> benchPokemons;

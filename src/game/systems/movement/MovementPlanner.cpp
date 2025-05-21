@@ -41,22 +41,6 @@ uint32_t MovementPlanner::gridKey(int col, int row) const {
     return static_cast<uint32_t>(col) | (static_cast<uint32_t>(row) << 16);
 }
 
-// Returns the position of the nearest enemy of a given unit.
-glm::vec3 MovementPlanner::findNearestEnemyPosition(const PokemonInstance& unit) const {
-    float closestDist = std::numeric_limits<float>::max();
-    glm::vec3 closestPos = unit.position;
-    for (const auto& other : gameWorld->getPokemons()) {
-        if (!other.alive || other.side == unit.side)
-            continue;
-        float dist = glm::distance(unit.position, other.position);
-        if (dist < closestDist) {
-            closestDist = dist;
-            closestPos = other.position;
-        }
-    }
-    return closestPos;
-}
-
 // Helper: Convert reservedCells mapping into an obstacles map for the pathfinder.
 std::unordered_map<uint32_t, bool> MovementPlanner::reservedCellsAsObstacles(
     const std::unordered_map<uint32_t, PokemonInstance*>& reservedCells) const 
@@ -165,8 +149,8 @@ std::unordered_map<PokemonInstance*, glm::ivec2> MovementPlanner::planMoves() {
             units.push_back(&unit);
     }
     std::sort(units.begin(), units.end(), [this](PokemonInstance* a, PokemonInstance* b) {
-        glm::vec3 enemyA = findNearestEnemyPosition(*a);
-        glm::vec3 enemyB = findNearestEnemyPosition(*b);
+        glm::vec3 enemyA = gameWorld->getNearestEnemyPosition(*a);
+        glm::vec3 enemyB = gameWorld->getNearestEnemyPosition(*b);
         float distA = glm::distance(a->position, enemyA);
         float distB = glm::distance(b->position, enemyB);
         return distA < distB;  // Prioritize unit closer to its enemy.
@@ -174,7 +158,7 @@ std::unordered_map<PokemonInstance*, glm::ivec2> MovementPlanner::planMoves() {
 
     for (PokemonInstance* unit : units) {
         glm::ivec2 currentGrid = worldToGrid(unit->position);
-        glm::vec3 enemyPos = findNearestEnemyPosition(*unit);
+        glm::vec3 enemyPos = gameWorld->getNearestEnemyPosition(*unit);
         glm::ivec2 enemyGrid = worldToGrid(enemyPos);
         uint32_t currentKey = gridKey(currentGrid.x, currentGrid.y);
 

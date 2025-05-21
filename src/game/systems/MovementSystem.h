@@ -30,7 +30,4 @@ private:
     const float CELL_SIZE = 1.2f;
     const int GRID_COLS = 8;
     const int GRID_ROWS = 8;
-
-    // Utility function to find nearest enemy position.
-    glm::vec3 findNearestEnemyPosition(const PokemonInstance& unit) const;
 };

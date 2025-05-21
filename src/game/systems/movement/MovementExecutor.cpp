@@ -89,19 +89,8 @@ void MovementExecutor::updateUnitRotations() {
         if (!unit.alive)
             continue;
 
-        // Find the nearest enemy position.
-        float closestDist = std::numeric_limits<float>::max();
-        glm::vec3 closestPos = unit.position;
-        for (const auto& other : gameWorld->getPokemons()) {
-            if (!other.alive || other.side == unit.side)
-                continue;
-            float dist = glm::distance(unit.position, other.position);
-            if (dist < closestDist) {
-                closestDist = dist;
-                closestPos = other.position;
-            }
-        }
-        glm::vec3 lookDir = glm::normalize(closestPos - unit.position);
-        unit.rotation.y = glm::degrees(atan2f(lookDir.x, lookDir.z));
+        glm::vec3 enemyPos = gameWorld->getNearestEnemyPosition(unit);
+        glm::vec3 lookDir  = glm::normalize(enemyPos - unit.position);
+        unit.rotation.y   = glm::degrees(atan2f(lookDir.x, lookDir.z));
     }
 }

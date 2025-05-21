@@ -140,3 +140,23 @@ std::vector<HealthBarData> GameWorld::getHealthBarData(const Camera3D& camera, i
     
     return data;
 }
+
+// ---------------------------------------------------------------------------
+glm::vec3 GameWorld::getNearestEnemyPosition(const PokemonInstance& unit) const
+{
+    float closestDist = std::numeric_limits<float>::max();
+    glm::vec3 closestPos = unit.position;
+
+    const auto& list = pokemons;           // both board and bench enemies matter?
+    for (const auto& other : list) {
+        if (!other.alive || other.side == unit.side)
+            continue;
+
+        float d = glm::distance(unit.position, other.position);
+        if (d < closestDist) {
+            closestDist = d;
+            closestPos  = other.position;
+        }
+    }
+    return closestPos;
+}
