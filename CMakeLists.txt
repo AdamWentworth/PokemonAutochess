@@ -35,6 +35,7 @@ add_library(Engine STATIC
     
     # Engine Utils
     src/engine/utils/Shader.cpp
+    src/engine/utils/ShaderLibrary.cpp
     src/engine/utils/ResourceManager.cpp
     src/engine/utils/stb_image_impl.cpp
     

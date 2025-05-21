@@ -3,10 +3,11 @@
 #include "HealthBarRenderer.h"
 #include <glad/glad.h>
 #include <glm/gtc/matrix_transform.hpp>
+#include "../utils/ShaderLibrary.h"
 
 void HealthBarRenderer::init() {
     // Initialize shader after OpenGL is ready
-    shader = std::make_unique<Shader>(
+    shader = ShaderLibrary::get(
                 "assets/shaders/ui/healthbar.vert",
                 "assets/shaders/ui/healthbar.frag");
 }

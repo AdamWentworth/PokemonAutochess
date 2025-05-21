@@ -5,15 +5,16 @@
 #include <fstream>
 #include <sstream>
 #include <iostream>
+#include "../utils/ShaderLibrary.h"
 
 BoardRenderer::BoardRenderer(int rows, int cols, float cellSize)
     : rows(rows), cols(cols), cellSize(cellSize)
 {
     initGrid();
     initBench(); // NEW
-    gridShader = std::make_unique<Shader>(
-                    "assets/shaders/engine/grid.vert",
-                    "assets/shaders/engine/grid.frag");
+    gridShader = ShaderLibrary::get(                     // ❶ use cache
+                   "assets/shaders/engine/grid.vert",
+                   "assets/shaders/engine/grid.frag");
     mvpLocation = glGetUniformLocation(gridShader->getID(), "u_MVP");
 
     glGenVertexArrays(1, &vao);

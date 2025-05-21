@@ -13,6 +13,6 @@ public:
     void render(const std::vector<HealthBarData>& healthBars);
 
 private:
-    std::unique_ptr<Shader> shader;
+    std::shared_ptr<Shader> shader; 
     void renderQuad();
 };

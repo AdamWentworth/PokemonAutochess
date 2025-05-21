@@ -24,7 +24,7 @@ private:
     unsigned int compileShader(const char* src, unsigned int type);
     unsigned int createShaderProgram(const char* vertPath, const char* fragPath);
 
-    std::unique_ptr<Shader> gridShader;
+    std::shared_ptr<Shader> gridShader;
 
     unsigned int vao, vbo;
     unsigned int shaderProgram;
