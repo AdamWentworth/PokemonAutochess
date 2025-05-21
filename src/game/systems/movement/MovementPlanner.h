@@ -9,6 +9,7 @@
 #include <vector>
 #include <glm/glm.hpp>
 #include "../../PokemonInstance.h"
+#include "../../GridOccupancy.h"
 
 // MovementPlanner encapsulates all planning logic for unit moves.
 class MovementPlanner {
@@ -34,7 +35,7 @@ private:
     AStarPathfinder pathfinder;
 
     // Helper to convert reserved cells mapping into an obstacles map for the pathfinder.
-    std::unordered_map<uint32_t, bool> reservedCellsAsObstacles(
+    GridOccupancy reservedCellsAsObstacles(
         const std::unordered_map<uint32_t, PokemonInstance*>& reservedCells) const;
 
     // Helper: Check if two grid cells are adjacent (including diagonally).

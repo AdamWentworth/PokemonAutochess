@@ -3,7 +3,7 @@
 #pragma once
 
 #include <vector>
-#include <unordered_map>
+#include "../../GridOccupancy.h"
 #include <glm/glm.hpp>
 
 // The AStarPathfinder class encapsulates the A* search algorithm.
@@ -19,7 +19,7 @@ public:
     std::vector<glm::ivec2> findPath(
         const glm::ivec2& start,
         const glm::ivec2& target,
-        const std::unordered_map<uint32_t, bool>& obstacles) const;
+        const GridOccupancy& obstacles) const;
 
 private:
     int gridCols;

@@ -42,11 +42,11 @@ bool MovementExecutor::isValidGridPosition(int col, int row) const {
 // Execute the planned moves for each unit.
 // For every unit with a planned move, we smoothly move it toward the target cell
 // and update occupancy. Units that have no move stay in place.
-std::unordered_map<uint32_t, bool> MovementExecutor::executeMoves(
+GridOccupancy MovementExecutor::executeMoves(
     const std::unordered_map<PokemonInstance*, glm::ivec2>& plannedMoves,
     float deltaTime)
 {
-    std::unordered_map<uint32_t, bool> tempGrid;
+    GridOccupancy tempGrid;
     auto& pokemons = gameWorld->getPokemons();
 
     for (auto& unit : pokemons) {
@@ -71,11 +71,12 @@ std::unordered_map<uint32_t, bool> MovementExecutor::executeMoves(
                                            << targetPos.x << "," << targetPos.z);
                 }
             }
-            tempGrid[targetKey] = true;
+            tempGrid.set(worldToGrid(targetPos).x,
+                         worldToGrid(targetPos).y);
         } else {
             // If no move is planned, mark the unit's current grid cell as occupied.
             glm::ivec2 currentGrid = worldToGrid(unit.position);
-            tempGrid[gridKey(currentGrid.x, currentGrid.y)] = true;
+            tempGrid.set(currentGrid.x, currentGrid.y);
         }
     }
     return tempGrid;

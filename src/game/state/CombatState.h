@@ -1,5 +1,5 @@
 // src/game/state/CombatState.h
-// src/game/state/CombatState.h
+
 #pragma once
 #include "../GameState.h"
 #include "../GameWorld.h"
@@ -8,6 +8,7 @@
 #include "../systems/MovementSystem.h" // Add include
 #include <memory>
 #include <unordered_map> // Add include
+#include "../GridOccupancy.h"
 
 class GameStateManager;
 class GameWorld;
@@ -32,5 +33,5 @@ private:
 
     // Add MovementSystem and grid occupancy
     std::unique_ptr<MovementSystem> movementSystem;
-    std::unordered_map<uint32_t, bool> gridOccupancy;
+    GridOccupancy gridOccupancy;
 };

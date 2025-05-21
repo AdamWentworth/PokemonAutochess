@@ -13,7 +13,7 @@
 #define LOG(x) std::cout << "[MovementSystem] " << x << std::endl;
 
 MovementSystem::MovementSystem(GameWorld* world,
-                               std::unordered_map<uint32_t,bool>& gridOccupancy)
+                               GridOccupancy& gridOccupancy)
     : gameWorld(world)
     , gridOccupancy(gridOccupancy)
 {
@@ -50,7 +50,7 @@ void MovementSystem::update(float deltaTime) {
 
     // 2. Use the MovementExecutor to execute moves.
     MovementExecutor executor(gameWorld, GRID_COLS, GRID_ROWS, CELL_SIZE);
-    std::unordered_map<uint32_t, bool> tempGrid = executor.executeMoves(plannedMoves, deltaTime);
+    GridOccupancy tempGrid          = executor.executeMoves(plannedMoves, deltaTime);
 
     // 3. Update unit rotations to face the nearest enemy.
     executor.updateUnitRotations();

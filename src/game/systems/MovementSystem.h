@@ -4,7 +4,6 @@
 
 #include "../../engine/core/IUpdatable.h"
 #include "../GameWorld.h"
-#include <unordered_map>
 #include <glm/glm.hpp>
 #include <vector>
 #include "movement/MovementPlanner.h"  // For planning moves
@@ -12,7 +11,7 @@
 // The MovementSystem coordinates the planning and execution of unit movement.
 class MovementSystem : public IUpdatable {
 public:
-    MovementSystem(GameWorld* world, std::unordered_map<uint32_t, bool>& gridOccupancy);
+    MovementSystem(GameWorld* world, GridOccupancy& gridOccupancy);
     void update(float deltaTime) override;
 
     // Public grid interface functions.
@@ -23,7 +22,7 @@ public:
 
 private:
     GameWorld* gameWorld;
-    std::unordered_map<uint32_t, bool>& gridOccupancy;
+    GridOccupancy& gridOccupancy;
     std::unordered_map<int, glm::vec3> unitTargetPositions;
 
     // Grid configuration.

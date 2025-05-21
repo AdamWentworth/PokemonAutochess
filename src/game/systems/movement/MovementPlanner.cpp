@@ -42,14 +42,13 @@ uint32_t MovementPlanner::gridKey(int col, int row) const {
 }
 
 // Helper: Convert reservedCells mapping into an obstacles map for the pathfinder.
-std::unordered_map<uint32_t, bool> MovementPlanner::reservedCellsAsObstacles(
-    const std::unordered_map<uint32_t, PokemonInstance*>& reservedCells) const 
+GridOccupancy MovementPlanner::reservedCellsAsObstacles(
+        const std::unordered_map<uint32_t, PokemonInstance*>& reserved) const
 {
-    std::unordered_map<uint32_t, bool> obstacles;
-    for (const auto& [cellKey, unit] : reservedCells) {
-        obstacles[cellKey] = true;
-    }
-    return obstacles;
+    GridOccupancy obst;
+    for (auto& kv : reserved)
+        obst.set(GridOccupancy::col(kv.first), GridOccupancy::row(kv.first));
+    return obst;
 }
 
 // Helper: Check if two grid cells are adjacent (including diagonal neighbors).
@@ -194,7 +193,9 @@ std::unordered_map<PokemonInstance*, glm::ivec2> MovementPlanner::planMoves() {
         }
 
         // Otherwise, compute primary move using A*.
-        std::vector<glm::ivec2> path = pathfinder.findPath(currentGrid, enemyGrid, reservedCellsAsObstacles(reservedCells));
+        std::vector<glm::ivec2> path = pathfinder.findPath(
+                        currentGrid, enemyGrid,
+                        reservedCellsAsObstacles(reservedCells));
         glm::ivec2 primaryMove = (path.size() > 1 ? path[1] : currentGrid);
         uint32_t primaryKey = gridKey(primaryMove.x, primaryMove.y);
 

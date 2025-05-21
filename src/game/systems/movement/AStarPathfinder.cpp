@@ -2,9 +2,11 @@
 
 #include "AStarPathfinder.h"
 #include <queue>
+#include <unordered_map>
 #include <cmath>
 #include <limits>
 #include <algorithm>
+#include "../../GridOccupancy.h"
 
 // Internal structure used by the A* search algorithm.
 struct Node {
@@ -36,7 +38,7 @@ uint32_t AStarPathfinder::gridKey(int col, int row) {
 std::vector<glm::ivec2> AStarPathfinder::findPath(
     const glm::ivec2& start,
     const glm::ivec2& target,
-    const std::unordered_map<uint32_t, bool>& obstacles) const
+    const GridOccupancy& obstacles) const
 {
     std::priority_queue<Node, std::vector<Node>, std::greater<Node>> openSet;
     std::unordered_map<uint32_t, glm::ivec2> cameFrom;
@@ -85,7 +87,7 @@ std::vector<glm::ivec2> AStarPathfinder::findPath(
             glm::ivec2 next = current.cell + dir;
             if (!isValidGridPosition(next))
                 continue;
-            if (obstacles.count(computeKey(next)) > 0)
+            if (obstacles.test(next.x, next.y))
                 continue;
 
             float moveCost = (std::abs(dir.x) + std::abs(dir.y) == 2) ? 1.414f : 1.0f;
