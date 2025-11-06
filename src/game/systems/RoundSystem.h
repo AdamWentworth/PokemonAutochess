@@ -3,9 +3,8 @@
 #pragma once
 
 #include "../../engine/core/IUpdatable.h"
-#include "../../engine/events/EventManager.h"
+#include "../LuaScript.h"
 #include "../../engine/events/RoundEvents.h"
-#include <string>
 
 enum class RoundPhase {
     Planning,
@@ -21,11 +20,12 @@ public:
     RoundPhase getCurrentPhase() const;
 
 private:
-    void advancePhase();
+    // The Lua script owns the timing/transition logic.
+    LuaScript script;
 
+    // Cached current phase (mirrors Lua state to keep C++ call sites unchanged)
     RoundPhase currentPhase = RoundPhase::Planning;
-    float phaseTimer = 0.0f;
-    float planningDuration = 30.0f;   // seconds
-    float battleDuration = 10.0f;
-    float resolutionDuration = 5.0f;
+
+    // Helper to map string -> enum coming back from Lua
+    static RoundPhase toPhaseEnum(const std::string& s);
 };

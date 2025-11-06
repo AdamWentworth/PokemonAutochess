@@ -4,6 +4,7 @@ build/
 *.obj
 *.o
 *.pdb
+.vs
 
 all_contents.txt
 

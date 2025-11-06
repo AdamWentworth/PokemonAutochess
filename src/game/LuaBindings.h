@@ -6,5 +6,5 @@
 
 class GameWorld;
 
+// Registers all C++↔Lua bindings used by gameplay scripts.
 void registerLuaBindings(sol::state& lua, GameWorld* world);
-
