@@ -16,6 +16,7 @@
 #include "../../game/systems/UnitInteractionSystem.h"
 #include "../../game/systems/RoundSystem.h"
 #include "../../game/state/StarterSelectionState.h"
+#include "../../game/GameConfig.h"   // NEW
 
 #define NOMINMAX
 #ifdef _WIN32
@@ -33,8 +34,6 @@
 const unsigned int WIDTH = 1280;
 const unsigned int HEIGHT = 720;
 
-// Removed global BoardRenderer* board declaration
-
 Application::Application() {
     init();
 }
@@ -44,17 +43,13 @@ Application::~Application() {
 }
 
 void Application::init() {
-    // Initialize SDL_ttf
     if (TTF_Init() == -1) {
         std::cerr << "[Application] TTF_Init error: " << TTF_GetError() << "\n";
-        // Optionally handle the error (exit or disable text rendering)
     }
     
-    // Load the Pokémon configuration.
     PokemonConfigLoader::getInstance().loadConfig("config/pokemon_config.json");
     std::cout << "[Init] Current working directory: " << std::filesystem::current_path() << "\n";
 
-    // Create engine subsystems using smart pointers.
     window = std::make_unique<Window>("Pokemon Autochess", WIDTH, HEIGHT);
     
     if (!gladLoadGLLoader((GLADloadproc)SDL_GL_GetProcAddress)) {
@@ -69,20 +64,19 @@ void Application::init() {
     renderer = std::make_unique<Renderer>();
     camera = std::make_unique<Camera3D>(45.0f, static_cast<float>(WIDTH) / HEIGHT, 0.1f, 100.0f);
     
-    // Allocate the BoardRenderer using a unique_ptr (improves lifetime management)
-    board = std::make_unique<BoardRenderer>(8, 8, 1.2f);
+    // Use Lua-driven board settings
+    const auto& cfg = GameConfig::get();
+    board = std::make_unique<BoardRenderer>(cfg.rows, cfg.cols, cfg.cellSize);
 
     gameWorld = std::make_unique<GameWorld>();
     stateManager = std::make_unique<GameStateManager>();
 
-    // Use smart pointers for the systems.
     cameraSystem = std::make_shared<CameraSystem>(camera.get());
     unitSystem = std::make_shared<UnitInteractionSystem>(camera.get(), gameWorld.get(), WIDTH, HEIGHT);
 
     SystemRegistry::getInstance().registerSystem(cameraSystem);
     SystemRegistry::getInstance().registerSystem(unitSystem);
 
-    // Push the starter selection state.
     stateManager->pushState(std::make_unique<StarterSelectionState>(stateManager.get(), gameWorld.get()));
 
     auto roundSystem = std::make_shared<RoundSystem>();
@@ -96,7 +90,7 @@ void Application::run() {
 
     using clock = std::chrono::high_resolution_clock;
     auto previous   = clock::now();
-    double accumulator = 0.0;               // ❶ stores leftover time
+    double accumulator = 0.0;
     int frameCount = 0;
     bool running   = true;
     SDL_Event event;
@@ -107,28 +101,22 @@ void Application::run() {
                (event.type == SDL_KEYDOWN && event.key.keysym.sym == SDLK_ESCAPE)) {
                 running = false;
             }
-        
-            // Handle zoom directly.
             cameraSystem->handleZoom(event);
-        
-            // --- Dispatch SDL mouse events as custom events ---
+
             switch (event.type) {
-                case SDL_MOUSEBUTTONDOWN:
-                {
+                case SDL_MOUSEBUTTONDOWN: {
                     MouseButtonDownEvent mbe(event.button.x, event.button.y);
                     std::cout << "[Application] Emitting MouseButtonDownEvent at (" 
                               << event.button.x << ", " << event.button.y << ")\n";
                     EventManager::getInstance().emit(mbe);
                     break;
                 }
-                case SDL_MOUSEBUTTONUP:
-                {
+                case SDL_MOUSEBUTTONUP: {
                     ::MouseButtonUpEvent mue(event.button.x, event.button.y);
                     EventManager::getInstance().emit(mue);
                     break;
                 }
-                case SDL_MOUSEMOTION:
-                {
+                case SDL_MOUSEMOTION: {
                     ::MouseMotionEvent mme(event.motion.x, event.motion.y);
                     EventManager::getInstance().emit(mme);
                     break;
@@ -136,31 +124,26 @@ void Application::run() {
                 default:
                     break;
             }
-            // --- End dispatching custom events ---
         
             if (stateManager) stateManager->handleInput(event);
             if (!dynamic_cast<StarterSelectionState*>(stateManager->getCurrentState())) {
                 unitSystem->handleEvent(event);
             }
         }
-        
 
-        /* ----------- Fixed-step update section ----------- */
         auto now       = clock::now();
         double frameDt = std::chrono::duration<double>(now - previous).count();
-        // Prevent spiral-of-death if debugger halts etc.
         frameDt = std::min(frameDt, 0.25);
         previous = now;
         accumulator += frameDt;
 
-        while (accumulator >= TIME_STEP) {          // ❷ run zero, one, or many sim ticks
+        while (accumulator >= TIME_STEP) {
             SystemRegistry::getInstance().updateAll(TIME_STEP);
             if (stateManager) stateManager->update(TIME_STEP);
             update();
             accumulator -= TIME_STEP;
         }
 
-        // Rendering
         glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
@@ -169,13 +152,11 @@ void Application::run() {
 
         if (stateManager) stateManager->render();
 
-        // Render health bars AFTER game objects but BEFORE buffer swap
         auto healthBarData = gameWorld->getHealthBarData(*camera, WIDTH, HEIGHT);
         healthBarRenderer.render(healthBarData);
 
         SDL_GL_SwapWindow(window->getSDLWindow());
 
-        /* FPS counter (optional real-time) */
         frameCount++;
         static double fpsTimer = 0.0;
         fpsTimer += frameDt;
@@ -187,9 +168,7 @@ void Application::run() {
     }
 }
 
-void Application::update() {
-    // Global updates if needed
-}
+void Application::update() {}
 
 void Application::shutdown() {
     std::cout << "[Shutdown] Shutting down...\n";
@@ -199,21 +178,18 @@ void Application::shutdown() {
         renderer.reset();
     }
 
-    // Shutdown the board renderer and let unique_ptr automatically free memory.
     if (board) {
         board->shutdown();
         board.reset();
     }
 
-    // Smart pointers are automatically cleaned up.
     stateManager.reset();
     gameWorld.reset();
     camera.reset();
     window.reset();
 
-    SystemRegistry::getInstance().clear(); // Optional cleanup
+    SystemRegistry::getInstance().clear();
 
-    // Shutdown SDL_ttf
     TTF_Quit();
 
     UIManager::shutdown(); 

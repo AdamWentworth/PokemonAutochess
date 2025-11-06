@@ -78,6 +78,7 @@ add_executable(PokemonAutochess
     src/game/LuaBindings.cpp
     src/game/LuaScript.cpp
     src/game/PokemonConfigLoader.cpp
+    src/game/GameConfig.cpp
     
     # Game Systems
     src/game/systems/CameraSystem.cpp
