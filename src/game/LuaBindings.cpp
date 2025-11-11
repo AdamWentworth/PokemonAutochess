@@ -93,7 +93,7 @@ void registerLuaBindings(sol::state& lua, GameWorld* world, GameStateManager* ma
         return arr;
     });
 
-    // Apply one grid move (snaps to center). Returns true on success.
+    // Apply one grid move (snap).
     lua.set_function("world_apply_move", [world](int unitId, int col, int row) {
         if (!world) return false;
         auto& list = world->getPokemons();
@@ -101,6 +101,26 @@ void registerLuaBindings(sol::state& lua, GameWorld* world, GameStateManager* ma
             [&](const PokemonInstance& p){ return p.id == unitId; });
         if (it == list.end() || !it->alive) return false;
         it->position = gridToWorld(col, row);
+        it->isMoving = false;
+        it->moveT = 1.0f;
+        it->committedDest = {-1,-1};
+        return true;
+    });
+
+    // NEW: Start a one-cell move with interpolation; movement progress is advanced in MovementSystem
+    lua.set_function("world_commit_move", [world](int unitId, int col, int row) {
+        if (!world) return false;
+        auto& list = world->getPokemons();
+        auto it = std::find_if(list.begin(), list.end(),
+            [&](const PokemonInstance& p){ return p.id == unitId; });
+        if (it == list.end() || !it->alive) return false;
+
+        const auto target = gridToWorld(col,row);
+        it->committedDest = {col,row};
+        it->moveFrom      = it->position;
+        it->moveTo        = target;
+        it->moveT         = 0.0f;
+        it->isMoving      = true;
         return true;
     });
 
@@ -128,7 +148,7 @@ void registerLuaBindings(sol::state& lua, GameWorld* world, GameStateManager* ma
         auto e = worldToGrid(enemyPos);
         int dx = std::abs(myCell.x - e.x);
         int dy = std::abs(myCell.y - e.y);
-        return std::max(dx, dy) == 1;
+        return std::max(dx, dy) == 1; // 8-neighborhood engagement
     });
 
     // Set yaw to face nearest enemy (degrees). Optionally pass explicit target col,row.

@@ -12,7 +12,6 @@ local dirs = {
 }
 
 local function chebyshev(a,b) return math.max(math.abs(a.col-b.col), math.abs(a.row-b.row)) end
-local function manhattan(a,b) return math.abs(a.col-b.col)+math.abs(a.row-b.row) end
 
 local function inside(col,row)
   return col>=0 and col<GRID_COLS and row>=0 and row<GRID_ROWS
@@ -68,7 +67,6 @@ local function a_star(start, target, blocked)
     for _,d in ipairs(dirs) do
       local nc,nr = cur.col + d[1], cur.row + d[2]
       if inside(nc,nr) and not blocked[key(nc,nr)] then
-        -- movement cost
         local diag = (d[1] ~= 0 and d[2] ~= 0)
         local step = diag and cost_diag or cost_straight
         local nk = key(nc,nr)
@@ -94,17 +92,24 @@ local function sort_priority(units)
   end)
 end
 
--- Build blocked set from reservations (planning-time reservations only)
-local function build_blocked(reserved)
+local function k(col,row) return (row<<16) | (col & 0xFFFF) end
+
+-- Build blocked set from current unit positions + current reservations
+local function build_blocked(reserved, units)
   local set = {}
-  for k,_ in pairs(reserved) do set[k] = true end
+  -- block current unit cells
+  for _,u in ipairs(units) do
+    set[k(u.col,u.row)] = true
+  end
+  -- block already-reserved cells this frame
+  for kk,_ in pairs(reserved) do
+    set[kk] = true
+  end
   return set
 end
 
-local function k(col,row) return (row<<16) | (col & 0xFFFF) end
-
 function movement_init()
-  -- nothing required; kept for symmetry
+  -- no-op
 end
 
 function movement_update(dt)
@@ -120,7 +125,9 @@ function movement_update(dt)
       local ec, er = world_nearest_enemy_cell(u.id)
       local dist = math.huge
       if ec ~= -1 then
-        dist = math.sqrt((u.col-ec)^2 + (u.row-er)^2)
+        local dx = (u.col-ec)
+        local dy = (u.row-er)
+        dist = math.sqrt(dx*dx + dy*dy)
       end
       table.insert(units, {
         id=u.id, side=u.side, col=u.col, row=u.row, speed=u.speed,
@@ -129,13 +136,11 @@ function movement_update(dt)
     end
   end
 
-  -- Randomization optional; we stick to deterministic priority:
   sort_priority(units)
 
   -- 1) Plan: compute desired target cell per unit
-  local desired = {}           -- id -> {col,row}
-  local reserved = {}          -- gridKey -> id (reservation)
-  local triedAlt = {}          -- id -> set(gridKey) to avoid repeat attempts
+  local desired   = {}  -- id -> {col,row}
+  local reserved  = {}  -- gridKey -> id
 
   for _,u in ipairs(units) do
     -- If engaged, hold position
@@ -143,55 +148,29 @@ function movement_update(dt)
       desired[u.id] = {col=u.col,row=u.row}
       reserved[k(u.col,u.row)] = u.id
     else
-      -- Build blocked set from current reservations
-      local blocked = build_blocked(reserved)
+      -- Block both current unit positions and already reserved cells
+      local blocked = build_blocked(reserved, units)
+
       -- A* toward adjacency
       local path = {}
       if u.enemyCol ~= -1 then
         path = a_star({col=u.col,row=u.row}, {col=u.enemyCol,row=u.enemyRow}, blocked)
       end
-      local primary = (path[2] and {col=path[2].col,row=path[2].row}) or {col=u.col,row=u.row}
 
-      -- Reserve if free; else seek alternate (no swaps, no slide-by)
+      local primary = (path[2] and {col=path[2].col,row=path[2].row}) or {col=u.col,row=u.row}
       local wantKey = k(primary.col, primary.row)
       if reserved[wantKey] == nil then
         desired[u.id] = primary
         reserved[wantKey] = u.id
       else
-        -- Alternate search: spiral radius, skip reserved and previously tried,
-        -- fallback to hold.
-        triedAlt[u.id] = triedAlt[u.id] or {}
-        triedAlt[u.id][wantKey] = true
-
-        local chosen = nil
-        local maxR = 3
-        for r=1,maxR do
-          for dx=-r,r do
-            for dy=-r,r do
-              if math.abs(dx)==r or math.abs(dy)==r then
-                local ac, ar = u.col+dx, u.row+dy
-                local ak = k(ac,ar)
-                if inside(ac,ar)
-                   and reserved[ak] == nil
-                   and not triedAlt[u.id][ak] then
-                  chosen = {col=ac,row=ar}
-                  break
-                end
-              end
-            end
-            if chosen then break end
-          end
-          if chosen then break end
-        end
-        if not chosen then chosen = {col=u.col,row=u.row} end
-        desired[u.id] = chosen
-        reserved[k(chosen.col,chosen.row)] = u.id
+        -- fallback: hold; alternates are allowed, but simple & deterministic for now
+        desired[u.id] = {col=u.col,row=u.row}
+        reserved[k(u.col,u.row)] = u.id
       end
     end
   end
 
-  -- 2) Conflict resolution (deterministic): if multiple desire same cell,
-  --    winner is closer-to-enemy, tie: higher speed, fallback lower id.
+  -- 2) Conflict resolution: same-cell competition
   local cell2ids = {}
   for id,pos in pairs(desired) do
     local kk = k(pos.col,pos.row)
@@ -204,35 +183,57 @@ function movement_update(dt)
     if #ids == 1 then
       winners[ids[1]] = true
     else
-      -- rank candidates by (dist-to-enemy, -speed, +id)
       table.sort(ids, function(a,b)
         local ua, ub
         for _,u in ipairs(units) do
           if u.id==a then ua=u elseif u.id==b then ub=u end
         end
-        -- Defensive: if not found, keep stable order
         if not ua or not ub then return a < b end
-        -- recompute their "distance to enemy" using snapshot
-        local da = ua.dist
-        local db = ub.dist
-        if da ~= db then return da < db end
+        if ua.dist ~= ub.dist then return ua.dist < ub.dist end
         if ua.speed ~= ub.speed then return ua.speed > ub.speed end
         return ua.id < ub.id
       end)
       winners[ids[1]] = true
-      -- losers remain stationary (do not animate)
+      -- losers stay put
     end
   end
 
-  -- 3) Apply winners only (interpolation is handled by engine’s visual update)
+  -- 2b) Prevent mutual swaps (A wants B's cell and B wants A's cell) -> cancel both
+  local wants, at = {}, {}
+  for _,u in ipairs(units) do
+    at[u.id] = {col=u.col,row=u.row}
+  end
+  for id,pos in pairs(desired) do
+    wants[id] = {col=pos.col,row=pos.row}
+  end
+  local function sameCell(a,b) return a.col==b.col and a.row==b.row end
+  for _,u in ipairs(units) do
+    local idA = u.id
+    local wa  = wants[idA]
+    if wa and winners[idA] then
+      for _,v in ipairs(units) do
+        local idB = v.id
+        if idB ~= idA and winners[idB] then
+          local wb = wants[idB]
+          if wb and sameCell(wa, at[idB]) and sameCell(wb, at[idA]) then
+            winners[idA] = nil
+            winners[idB] = nil
+          end
+        end
+      end
+    end
+  end
+
+  -- 3) Apply winners only (interpolate handled on the C++ side via world_commit_move)
   for _,u in ipairs(units) do
     local pos = desired[u.id]
     if pos and winners[u.id] then
-      world_apply_move(u.id, pos.col, pos.row)
+      -- Start a one-cell interpolated move; C++ advances it over time
+      world_commit_move(u.id, pos.col, pos.row)
     end
   end
 
-  -- 4) Orientation update (face nearest enemy or keep previous)
+  -- 4) Orientation update
   for _,u in ipairs(units) do
     world_face_enemy(u.id)
   end

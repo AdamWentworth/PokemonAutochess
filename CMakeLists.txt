@@ -70,7 +70,6 @@ target_link_libraries(Engine PRIVATE
 )
 
 # ---------------- Game (exe) ----------------
-# Only list files that actually exist. We’re moving states to Lua, so omit old C++ states.
 add_executable(PokemonAutochess
     main.cpp
 
@@ -88,11 +87,7 @@ add_executable(PokemonAutochess
     src/game/systems/RoundSystem.cpp
     src/game/systems/CardSystem.cpp
     src/game/systems/BenchSystem.cpp
-    src/game/systems/MovementSystem.cpp
-
-    src/game/systems/movement/AStarPathfinder.cpp
-    src/game/systems/movement/MovementPlanner.cpp
-    src/game/systems/movement/MovementExecutor.cpp
+    src/game/systems/MovementSystem.cpp  # <- Lua-driven movement + interpolation progress
 
     # Game UI
     src/game/ui/CardFactory.cpp
