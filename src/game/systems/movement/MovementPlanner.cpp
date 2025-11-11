@@ -9,6 +9,8 @@
 
 #define LOG(x) std::cout << "[MovementPlanner] " << x << std::endl;
 
+static inline bool validCell(const glm::ivec2& c) { return c.x >= 0 && c.y >= 0; }
+
 MovementPlanner::MovementPlanner(GameWorld* world, int gridCols, int gridRows, float cellSize)
     : gameWorld(world)
     , gridCols(gridCols)
@@ -95,7 +97,7 @@ glm::ivec2 MovementPlanner::findAlternateMove(PokemonInstance& unit,
 // planMoves performs the following steps:
 //  1. Phase 0 (Collision Handling): Resolve overlapping units by repositioning them.
 //  2. Phase 1 (Predictive Move Planning): Use a sorted order and reservation system (with A* pathfinding)
-//     to compute each unit's move. If the primary move is reserved, use an alternate move.
+//     to compute each unit's move. Units already moving are skipped and their destinations are pre-reserved.
 std::unordered_map<PokemonInstance*, glm::ivec2> MovementPlanner::planMoves() {
     auto& pokemons = gameWorld->getPokemons();
     
@@ -105,6 +107,7 @@ std::unordered_map<PokemonInstance*, glm::ivec2> MovementPlanner::planMoves() {
         if (!unit.alive)
             continue;
         glm::ivec2 cell = worldToGrid(unit.position);
+        unit.gridCell = cell; // keep gridCell in sync always
         if (!isValidGridPosition(cell.x, cell.y))
             continue;
         uint32_t cellKey = gridKey(cell.x, cell.y);
@@ -132,6 +135,7 @@ std::unordered_map<PokemonInstance*, glm::ivec2> MovementPlanner::planMoves() {
                 LOG("Overlap: Unit " << unit.id << " moved from [" << cell.x << "," << cell.y
                     << "] to [" << newCell.x << "," << newCell.y << "]");
                 unit.position = gridToWorld(newCell.x, newCell.y);
+                unit.gridCell = newCell;
                 gridOccupants[gridKey(newCell.x, newCell.y)] = &unit;
             }
         }
@@ -140,6 +144,16 @@ std::unordered_map<PokemonInstance*, glm::ivec2> MovementPlanner::planMoves() {
     // --- PHASE 1: Predictive Move Planning with Cycle Prevention ---
     std::unordered_map<PokemonInstance*, glm::ivec2> finalMoves;
     std::unordered_map<uint32_t, PokemonInstance*> reservedCells;
+
+    // Pre-pass: seed reservations for units already moving, and ensure gridCell is set.
+    for (PokemonInstance& u : pokemons) {
+        if (!u.alive) continue;
+        glm::ivec2 cg = worldToGrid(u.position);
+        u.gridCell = cg;
+        if (u.isMoving && validCell(u.committedDest)) {
+            reservedCells[gridKey(u.committedDest.x, u.committedDest.y)] = &u;
+        }
+    }
 
     // Optional: sort units by priority (e.g., closeness to enemy).
     std::vector<PokemonInstance*> units;
@@ -156,6 +170,16 @@ std::unordered_map<PokemonInstance*, glm::ivec2> MovementPlanner::planMoves() {
     });
 
     for (PokemonInstance* unit : units) {
+        // Skip planning for units already in flight; mirror their committed destination.
+        if (unit->isMoving) {
+            if (validCell(unit->committedDest)) {
+                finalMoves[unit] = unit->committedDest;
+            } else {
+                finalMoves[unit] = worldToGrid(unit->position);
+            }
+            continue;
+        }
+
         glm::ivec2 currentGrid = worldToGrid(unit->position);
         glm::vec3 enemyPos = gameWorld->getNearestEnemyPosition(*unit);
         glm::ivec2 enemyGrid = worldToGrid(enemyPos);

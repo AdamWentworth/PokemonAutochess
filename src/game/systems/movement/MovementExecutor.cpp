@@ -53,30 +53,94 @@ GridOccupancy MovementExecutor::executeMoves(
         if (!unit.alive)
             continue;
 
-        if (plannedMoves.find(&unit) != plannedMoves.end()) {
-            glm::ivec2 targetCell = plannedMoves.at(&unit);
-            uint32_t targetKey = gridKey(targetCell.x, targetCell.y);
-            glm::vec3 targetPos = gridToWorld(targetCell.x, targetCell.y);
+        // Ensure gridCell is up to date (in case someone set position externally)
+        glm::ivec2 curCell = worldToGrid(unit.position);
+        unit.gridCell = curCell;
 
-            // Smoothly update the unit's position toward its target.
-            glm::vec3 direction = targetPos - unit.position;
-            float distanceToMove = unit.movementSpeed * cellSize * deltaTime;
-            if (glm::length(direction) > 0.01f) {
-                if (glm::length(direction) > distanceToMove) {
-                    glm::vec3 moveDir = glm::normalize(direction);
-                    unit.position += moveDir * distanceToMove;
-                } else {
+        auto itPlan = plannedMoves.find(&unit);
+
+        // If we are already moving, keep moving toward the committed target.
+        if (unit.isMoving && itPlan != plannedMoves.end()) {
+            const glm::ivec2 destCell = unit.committedDest; // what we previously committed
+            glm::vec3 targetPos = gridToWorld(destCell.x, destCell.y);
+
+            // Move by speed in world units
+            glm::vec3 to = targetPos - unit.position;
+            float d = glm::length(to);
+            if (d > 1e-3f) {
+                glm::vec3 dir = to / d;
+                float step = unit.movementSpeed * cellSize * deltaTime;
+                if (step >= d) {
                     unit.position = targetPos;
-                    LOG("SnapMove: Unit " << unit.id << " snapped to center at " 
-                                           << targetPos.x << "," << targetPos.z);
+                    unit.isMoving = false;
+                    unit.moveT = 1.0f;
+                    unit.gridCell = destCell;
+                    unit.committedDest = glm::ivec2(-1, -1);
+                } else {
+                    unit.position += dir * step;
+                    // Progress is approximate: how much of one-cell distance we've traversed
+                    unit.moveT = std::clamp(unit.moveT + step / (cellSize + 1e-4f), 0.0f, 1.0f);
                 }
+            } else {
+                // Already at center, finalize
+                unit.position   = targetPos;
+                unit.isMoving   = false;
+                unit.moveT      = 1.0f;
+                unit.gridCell   = destCell;
+                unit.committedDest = glm::ivec2(-1, -1);
             }
-            tempGrid.set(worldToGrid(targetPos).x,
-                         worldToGrid(targetPos).y);
+
+            // While moving, mark the destination cell as occupied to prevent swaps/overlaps.
+            tempGrid.set(destCell.x, destCell.y);
+            continue;
+        }
+
+        // Not currently moving:
+        if (itPlan != plannedMoves.end()) {
+            const glm::ivec2 destCell = itPlan->second;
+
+            // If the plan says "stay" just occupy current cell.
+            if (destCell == curCell) {
+                tempGrid.set(curCell.x, curCell.y);
+            } else {
+                // Start a new committed one-cell move (DON'T snap).
+                unit.isMoving      = true;
+                unit.moveFrom      = unit.position;
+                unit.moveTo        = gridToWorld(destCell.x, destCell.y);
+                unit.moveT         = 0.0f;
+                unit.committedDest = destCell;
+
+                // Move a bit on this frame immediately (so it feels responsive)
+                glm::vec3 to = unit.moveTo - unit.position;
+                float d = glm::length(to);
+                if (d > 1e-3f) {
+                    glm::vec3 dir = to / d;
+                    float step = unit.movementSpeed * cellSize * deltaTime;
+                    if (step >= d) {
+                        unit.position = unit.moveTo;
+                        unit.isMoving = false;
+                        unit.moveT = 1.0f;
+                        unit.gridCell = destCell;
+                        unit.committedDest = glm::ivec2(-1, -1);
+                    } else {
+                        unit.position += dir * step;
+                        unit.moveT = std::clamp(step / (cellSize + 1e-4f), 0.0f, 1.0f);
+                    }
+                } else {
+                    unit.position   = unit.moveTo;
+                    unit.isMoving   = false;
+                    unit.moveT      = 1.0f;
+                    unit.gridCell   = destCell;
+                    unit.committedDest = glm::ivec2(-1, -1);
+                }
+
+                // Occupancy: reserve the destination while in transit
+                const glm::ivec2 occ = unit.isMoving ? destCell : unit.gridCell;
+                tempGrid.set(occ.x, occ.y);
+            }
         } else {
-            // If no move is planned, mark the unit's current grid cell as occupied.
-            glm::ivec2 currentGrid = worldToGrid(unit.position);
-            tempGrid.set(currentGrid.x, currentGrid.y);
+            // No plan: just occupy current grid.
+            tempGrid.set(curCell.x, curCell.y);
         }
     }
     return tempGrid;
