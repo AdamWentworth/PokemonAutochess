@@ -1,32 +1,31 @@
 // MovementSystem.h
-
 #pragma once
-
 #include "../../engine/core/IUpdatable.h"
 #include "../GameWorld.h"
-#include <glm/glm.hpp>
-#include <vector>
-#include "movement/MovementPlanner.h"  // For planning moves
+#include <sol/sol.hpp>
 
-// The MovementSystem coordinates the planning and execution of unit movement.
+// REMOVE this (causes IntelliSense grief):
+// #include "../../GridOccupancy.h"
+
+// Forward-declare instead:
+class GridOccupancy;
+
 class MovementSystem : public IUpdatable {
 public:
-    MovementSystem(GameWorld* world, GridOccupancy& gridOccupancy);
-    void update(float deltaTime) override;
+    explicit MovementSystem(GameWorld* world);
+    MovementSystem(GameWorld* world, const GridOccupancy& /*unused*/); // compat
 
-    // Public grid interface functions.
-    glm::ivec2 worldToGrid(const glm::vec3& pos) const;
-    uint32_t gridKey(int col, int row) const;
-    bool isValidGridPosition(int col, int row) const;
-    glm::vec3 gridToWorld(int col, int row) const;
+    void update(float deltaTime) override;
 
 private:
     GameWorld* gameWorld;
-    GridOccupancy& gridOccupancy;
-    std::unordered_map<int, glm::vec3> unitTargetPositions;
+    sol::state lua;
+    bool ok = false;
 
-    // Grid configuration.
-    const float CELL_SIZE = 1.2f;
-    const int GRID_COLS = 8;
-    const int GRID_ROWS = 8;
+    static constexpr float CELL_SIZE = 1.2f;
+    static constexpr int GRID_COLS = 8;
+    static constexpr int GRID_ROWS = 8;
+
+    void exposeConstants();
+    void loadScript();
 };

@@ -1,60 +1,73 @@
 // MovementSystem.cpp
-
 #include "MovementSystem.h"
-#include "movement/MovementPlanner.h"   // For planning moves
-#include "movement/MovementExecutor.h"  // For executing moves
-#include <algorithm>
-#include <limits>
-#include <vector>
-#include <queue>
-#include <cmath>
+#include "../LuaBindings.h"
 #include <iostream>
 
-#define LOG(x) std::cout << "[MovementSystem] " << x << std::endl;
+// Add this tiny forward-declaration so the signature compiles
+// without needing the full header here either.
+class GridOccupancy;
 
-MovementSystem::MovementSystem(GameWorld* world,
-                               GridOccupancy& gridOccupancy)
+MovementSystem::MovementSystem(GameWorld* world)
     : gameWorld(world)
-    , gridOccupancy(gridOccupancy)
 {
+    lua.open_libraries(sol::lib::base, sol::lib::math, sol::lib::table, sol::lib::string);
+    registerLuaBindings(lua, gameWorld, /*GameStateManager*/ nullptr);
+    exposeConstants();
+    loadScript();
 }
 
-// Converts a world coordinate to a grid cell.
-glm::ivec2 MovementSystem::worldToGrid(const glm::vec3& pos) const {
-    float boardOriginX = -(GRID_COLS * CELL_SIZE) / 2 + CELL_SIZE / 2;
-    float boardOriginZ = -(GRID_ROWS * CELL_SIZE) / 2 + CELL_SIZE / 2;
-    int col = static_cast<int>(std::round((pos.x - boardOriginX) / CELL_SIZE));
-    int row = static_cast<int>(std::round((pos.z - boardOriginZ) / CELL_SIZE));
-    return { col, row };
+MovementSystem::MovementSystem(GameWorld* world, const GridOccupancy& /*unused*/)
+    : MovementSystem(world) {}
+
+void MovementSystem::exposeConstants() {
+    // Make grid constants available to Lua scripts
+    lua["GRID_COLS"]  = GRID_COLS;
+    lua["GRID_ROWS"]  = GRID_ROWS;
+    lua["CELL_SIZE"]  = CELL_SIZE;
 }
 
-// Converts a grid cell to a world coordinate.
-glm::vec3 MovementSystem::gridToWorld(int col, int row) const {
-    float boardOriginX = -(GRID_COLS * CELL_SIZE) / 2 + CELL_SIZE / 2;
-    float boardOriginZ = -(GRID_ROWS * CELL_SIZE) / 2 + CELL_SIZE / 2;
-    return { boardOriginX + col * CELL_SIZE, 0.0f, boardOriginZ + row * CELL_SIZE };
-}
+void MovementSystem::loadScript() {
+    // Load and run the Lua movement system
+    sol::load_result chunk = lua.load_file("scripts/systems/movement.lua");
+    if (!chunk.valid()) {
+        sol::error e = chunk;
+        std::cerr << "[MovementSystem] Failed to load movement.lua: " << e.what() << "\n";
+        ok = false;
+        return;
+    }
 
-bool MovementSystem::isValidGridPosition(int col, int row) const {
-    return col >= 0 && col < GRID_COLS && row >= 0 && row < GRID_ROWS;
-}
+    sol::protected_function_result r = chunk();
+    if (!r.valid()) {
+        sol::error e = r;
+        std::cerr << "[MovementSystem] Failed to execute movement.lua: " << e.what() << "\n";
+        ok = false;
+        return;
+    }
 
-uint32_t MovementSystem::gridKey(int col, int row) const {
-    return static_cast<uint32_t>(col) | (static_cast<uint32_t>(row) << 16);
+    // Optional init function in Lua
+    sol::function init = lua["movement_init"];
+    if (init.valid()) {
+        sol::protected_function_result ir = init();
+        if (!ir.valid()) {
+            sol::error e = ir;
+            std::cerr << "[MovementSystem] movement_init() error: " << e.what() << "\n";
+            ok = false;
+            return;
+        }
+    }
+
+    ok = true;
 }
 
 void MovementSystem::update(float deltaTime) {
-    // 1. Use the MovementPlanner to generate desired moves.
-    MovementPlanner planner(gameWorld, GRID_COLS, GRID_ROWS, CELL_SIZE);
-    std::unordered_map<PokemonInstance*, glm::ivec2> plannedMoves = planner.planMoves();
-
-    // 2. Use the MovementExecutor to execute moves.
-    MovementExecutor executor(gameWorld, GRID_COLS, GRID_ROWS, CELL_SIZE);
-    GridOccupancy tempGrid          = executor.executeMoves(plannedMoves, deltaTime);
-
-    // 3. Update unit rotations to face the nearest enemy.
-    executor.updateUnitRotations();
-
-    // 4. Update the grid occupancy.
-    gridOccupancy = tempGrid;
+    if (!ok) return; // only run if script loaded
+    sol::function updateFn = lua["movement_update"];
+    if (updateFn.valid()) {
+        sol::protected_function_result ur = updateFn(deltaTime);
+        if (!ur.valid()) {
+            sol::error e = ur;
+            std::cerr << "[MovementSystem] movement_update(dt) error: " << e.what() << "\n";
+            ok = false; // prevent spamming on repeated errors
+        }
+    }
 }

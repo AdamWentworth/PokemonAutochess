@@ -1,6 +1,8 @@
 // src/game/state/CombatState.cpp
 #include "CombatState.h"
 #include "../GameConfig.h"
+#include "../GameWorld.h"
+#include "../systems/MovementSystem.h"
 #include <iostream>
 #include <sol/sol.hpp>
 
@@ -16,7 +18,7 @@ CombatState::CombatState(GameStateManager* manager, GameWorld* world, const std:
         std::cerr << "[CombatState] Failed to load combat script: " << scriptPath << "\n";
     }
 
-    movementSystem = std::make_unique<MovementSystem>(gameWorld, gridOccupancy);
+    movementSystem = std::make_unique<MovementSystem>(gameWorld);
 }
 
 CombatState::~CombatState() = default;

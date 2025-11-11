@@ -2,21 +2,16 @@
 
 #pragma once
 #include "../GameState.h"
-#include "../GameWorld.h"
 #include "../LuaScript.h"
 #include "../../engine/ui/TextRenderer.h"
-#include "../systems/MovementSystem.h" // Add include
 #include <memory>
-#include <unordered_map> // Add include
-#include "../GridOccupancy.h"
 
-class GameStateManager;
-class GameWorld;
+class MovementSystem;
 
 class CombatState : public GameState {
 public:
     CombatState(GameStateManager* manager, GameWorld* world, const std::string& scriptPath);
-    ~CombatState();
+    ~CombatState() override;
 
     void onEnter() override;
     void onExit() override;
@@ -27,11 +22,13 @@ public:
 private:
     GameStateManager* stateManager;
     GameWorld* gameWorld;
-    std::unique_ptr<TextRenderer> textRenderer;
     LuaScript script;
+
+    std::unique_ptr<TextRenderer> textRenderer;
+    std::unique_ptr<MovementSystem> movementSystem;
+
     std::string combatMessage;
 
-    // Add MovementSystem and grid occupancy
-    std::unique_ptr<MovementSystem> movementSystem;
-    GridOccupancy gridOccupancy;
+    // REMOVE this member if it exists:
+    // GridOccupancy gridOccupancy;
 };
