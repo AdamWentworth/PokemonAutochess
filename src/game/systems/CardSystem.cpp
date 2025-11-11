@@ -59,12 +59,13 @@ void CardSystem::clearCards() {
     cards.clear();
 }
 
+// 🔄 Match the stable build’s look: 220×150 cards, 50px spacing, centered row
 void CardSystem::spawnCardRow(const std::vector<CardData>& cardDatas, int screenWidth, int yOffset) {
     clearCards();
 
-    const int cardWidth = 128;
-    const int cardHeight = 128;
-    const int spacing = 16;
+    const int cardWidth = 220;
+    const int cardHeight = 150;
+    const int spacing = 50;
 
     int totalWidth = static_cast<int>(cardDatas.size()) * (cardWidth + spacing) - spacing;
     int startX = (screenWidth - totalWidth) / 2;

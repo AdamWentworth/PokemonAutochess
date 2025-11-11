@@ -3,6 +3,7 @@
 #include "game/ScriptedState.h"
 #include "game/GameStateManager.h"
 #include "game/GameConfig.h"
+#include "game/state/PlacementState.h"   // NEW: push old placement flow after click
 #include <SDL2/SDL.h>
 #include <sol/sol.hpp>
 #include <iostream>
@@ -14,7 +15,7 @@ ScriptedState::ScriptedState(GameStateManager* manager, GameWorld* world, const 
     : stateManager(manager)
     , gameWorld(world)
     , scriptPath(path)
-    , script(world, manager)
+    , script(world) // LuaScript(world)
 {
     if (!script.loadScript(scriptPath)) {
         std::cerr << "[ScriptedState] Failed to load script: " << scriptPath << "\n";
@@ -29,7 +30,7 @@ void ScriptedState::ensureStarterUI() {
     // Only build the UI if the script provides the expected functions.
     sol::state& L = script.getState();
     bool hasCards = L["get_starter_cards"].valid();
-    bool hasClick = L["on_card_click"].valid();
+    bool hasClick = L["on_card_click"].valid() || L["onCardClick"].valid(); // support both
     if (!(hasCards && hasClick)) {
         // Not a starter-style script; nothing to do.
         uiInitialized = true; // prevent re-check each frame
@@ -49,7 +50,6 @@ void ScriptedState::ensureStarterUI() {
         sol::table t = r;
         for (auto&& kv : t) {
             sol::table row = kv.second.as<sol::table>();
-
             CardData cd;
 
             // Use sol::optional to avoid MSVC ambiguity with get_or overloads
@@ -65,7 +65,11 @@ void ScriptedState::ensureStarterUI() {
 
             if (!cd.pokemonName.empty()) list.push_back(cd);
         }
-        cardSystem.spawnCardRow(list, UI_W, /*y*/ 480);
+
+        // 🔄 Match the old (stable) visual layout:
+        //   - Larger cards (handled inside CardSystem)
+        //   - Y offset around 300
+        cardSystem.spawnCardRow(list, UI_W, /*y*/ 300);
         std::cout << "[ScriptedState] Spawned " << list.size() << " starter cards\n";
     } else {
         std::cerr << "[ScriptedState] get_starter_cards() did not return a table\n";
@@ -95,9 +99,18 @@ void ScriptedState::handleInput(SDL_Event& event) {
     if (event.type == SDL_MOUSEBUTTONDOWN) {
         auto clicked = cardSystem.handleMouseClick(event.button.x, event.button.y);
         if (clicked) {
+            // Call either on_card_click or legacy onCardClick if present
             sol::function onClick = L["on_card_click"];
+            if (!onClick.valid()) onClick = L["onCardClick"];
             if (onClick.valid()) {
                 onClick(clicked->pokemonName);
+            }
+
+            // ✅ Restore stable flow: after a selection, go to PlacementState,
+            // which then advances to Route 1 / Combat just like before.
+            if (stateManager) {
+                stateManager->pushState(std::make_unique<PlacementState>(
+                    stateManager, gameWorld, clicked->pokemonName));
             }
         }
     }
@@ -118,7 +131,14 @@ void ScriptedState::handleInput(SDL_Event& event) {
                 if (r.valid() && r.get_type() == sol::type::string) {
                     std::string pokemon = r.get<std::string>();
                     sol::function onClick = L["on_card_click"];
+                    if (!onClick.valid()) onClick = L["onCardClick"];
                     if (onClick.valid()) onClick(pokemon);
+
+                    // Same as mouse flow
+                    if (stateManager) {
+                        stateManager->pushState(std::make_unique<PlacementState>(
+                            stateManager, gameWorld, pokemon));
+                    }
                 }
             }
         }
@@ -145,7 +165,8 @@ void ScriptedState::render() {
             std::string msg = r.get<std::string>();
             float w = titleText->measureTextWidth(msg, 1.0f);
             float x = (UI_W - w) * 0.5f;
-            titleText->renderText(msg, x, 120.0f, {1.0f, 1.0f, 0.0f}, 1.0f);
+            // 🔄 Match old placement for title (around 150 px)
+            titleText->renderText(msg, x, 150.0f, {1.0f, 1.0f, 0.0f}, 1.0f);
         }
     }
 
