@@ -3,12 +3,13 @@
 #include "../engine/utils/ResourceManager.h"
 #include "../engine/render/Model.h"
 #include "../engine/render/Camera3D.h"
-#include "../engine/render/BoardRenderer.h" // NEW include
+#include "../engine/render/BoardRenderer.h"
 #include <iostream>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 #include <glad/glad.h>
 #include "PokemonConfigLoader.h"
+#include "GameConfig.h"
 
 void GameWorld::spawnPokemon(const std::string& pokemonName, const glm::vec3& startPos, PokemonSide side) {
     const PokemonStats* stats = PokemonConfigLoader::getInstance().getStats(pokemonName);
@@ -20,7 +21,6 @@ void GameWorld::spawnPokemon(const std::string& pokemonName, const glm::vec3& st
     std::string path = "assets/models/" + stats->model;
     auto sharedModel = ResourceManager::getInstance().getModel(path);
 
-    // Then assign it to the Pokémon instance:
     PokemonInstance inst;
     inst.id = PokemonInstance::getNextUnitID(); 
     inst.name = pokemonName;
@@ -37,7 +37,18 @@ void GameWorld::spawnPokemon(const std::string& pokemonName, const glm::vec3& st
 
     std::cout << "[GameWorld] Spawned " << pokemonName
               << " (ID: " << inst.id
-              << " (HP: " << inst.hp << ", ATK: " << inst.attack << ")\n";
+              << ", HP: " << inst.hp << ", ATK: " << inst.attack << ")\n";
+}
+
+glm::vec3 GameWorld::gridToWorld(int col, int row) const {
+    const auto& cfg = GameConfig::get();
+    float boardOriginX = -((cfg.cols * cfg.cellSize) / 2.0f) + cfg.cellSize * 0.5f;
+    float boardOriginZ = -((cfg.rows * cfg.cellSize) / 2.0f) + cfg.cellSize * 0.5f;
+    return { boardOriginX + col * cfg.cellSize, 0.0f, boardOriginZ + row * cfg.cellSize };
+}
+
+void GameWorld::spawnPokemonAtGrid(const std::string& pokemonName, int col, int row, PokemonSide side) {
+    spawnPokemon(pokemonName, gridToWorld(col, row), side);
 }
 
 void GameWorld::addToBench(const std::string& pokemonName) {
@@ -64,14 +75,14 @@ void GameWorld::addToBench(const std::string& pokemonName) {
     int slot = static_cast<int>(benchPokemons.size());
     float spacing = 1.2f;
     float x = (slot - 4) * spacing + spacing / 2.0f;
-    float z = 4.5f; // In front of the board
+    float z = 4.5f; // legacy bench position
     inst.position = glm::vec3(x, 0.0f, z);
 
     benchPokemons.push_back(inst);
 
     std::cout << "[GameWorld] Benched " << pokemonName
               << " (ID: " << inst.id
-              << " at slot " << slot << "\n";
+              << " at slot " << slot << ")\n";
 }
 
 const PokemonInstance* GameWorld::getPokemonByName(const std::string& name) const {
@@ -81,16 +92,10 @@ const PokemonInstance* GameWorld::getPokemonByName(const std::string& name) cons
     return nullptr;
 }
 
-std::vector<PokemonInstance>& GameWorld::getPokemons() {
-    return pokemons;
-}
-
-std::vector<PokemonInstance>& GameWorld::getBenchPokemons() {
-    return benchPokemons;
-}
+std::vector<PokemonInstance>& GameWorld::getPokemons() { return pokemons; }
+std::vector<PokemonInstance>& GameWorld::getBenchPokemons() { return benchPokemons; }
 
 void GameWorld::drawAll(const Camera3D& camera, BoardRenderer& boardRenderer) {
-    // Draw main grid and bench
     boardRenderer.draw(camera);
     boardRenderer.drawBench(camera);
 
@@ -116,7 +121,7 @@ void GameWorld::drawAll(const Camera3D& camera, BoardRenderer& boardRenderer) {
 
 std::vector<HealthBarData> GameWorld::getHealthBarData(const Camera3D& camera, int screenWidth, int screenHeight) const {
     std::vector<HealthBarData> data;
-    
+
     auto process = [&](const PokemonInstance& instance) {
         const PokemonStats* stats = PokemonConfigLoader::getInstance().getStats(instance.name);
         if (!stats) return;
@@ -124,7 +129,7 @@ std::vector<HealthBarData> GameWorld::getHealthBarData(const Camera3D& camera, i
         glm::vec3 worldPos = instance.position + glm::vec3(0.0f, 1.0f, 0.0f);
         glm::vec4 viewport(0.0f, 0.0f, screenWidth, screenHeight);
         glm::vec3 screenPos = glm::project(worldPos, camera.getViewMatrix(), camera.getProjectionMatrix(), viewport);
-        
+
         if (screenPos.z > 1.0f || screenPos.x < 0 || screenPos.x > screenWidth || screenPos.y < 0 || screenPos.y > screenHeight) 
             return;
 
@@ -137,26 +142,19 @@ std::vector<HealthBarData> GameWorld::getHealthBarData(const Camera3D& camera, i
 
     for (auto& p : pokemons) process(p);
     for (auto& b : benchPokemons) process(b);
-    
+
     return data;
 }
 
-// ---------------------------------------------------------------------------
-glm::vec3 GameWorld::getNearestEnemyPosition(const PokemonInstance& unit) const
-{
+glm::vec3 GameWorld::getNearestEnemyPosition(const PokemonInstance& unit) const {
     float closestDist = std::numeric_limits<float>::max();
     glm::vec3 closestPos = unit.position;
 
-    const auto& list = pokemons;           // both board and bench enemies matter?
+    const auto& list = pokemons;
     for (const auto& other : list) {
-        if (!other.alive || other.side == unit.side)
-            continue;
-
+        if (!other.alive || other.side == unit.side) continue;
         float d = glm::distance(unit.position, other.position);
-        if (d < closestDist) {
-            closestDist = d;
-            closestPos  = other.position;
-        }
+        if (d < closestDist) { closestDist = d; closestPos = other.position; }
     }
     return closestPos;
 }

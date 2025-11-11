@@ -12,7 +12,9 @@ class BoardRenderer;
 class GameWorld {
 public:
     void spawnPokemon(const std::string& pokemonName, const glm::vec3& startPos, PokemonSide side = PokemonSide::Player);
-    void drawAll(const Camera3D& camera, BoardRenderer& boardRenderer); // UPDATED
+    void spawnPokemonAtGrid(const std::string& pokemonName, int col, int row, PokemonSide side = PokemonSide::Player);
+
+    void drawAll(const Camera3D& camera, BoardRenderer& boardRenderer);
 
     std::vector<PokemonInstance>& getPokemons();
     const PokemonInstance* getPokemonByName(const std::string& name) const;
@@ -22,11 +24,11 @@ public:
 
     std::vector<HealthBarData> getHealthBarData(const Camera3D& camera, int screenWidth, int screenHeight) const;
 
-    /* Utility: find the closest living enemy to a given unit.            */
-    /* Returns unit.position if none found.                               */
     glm::vec3 getNearestEnemyPosition(const PokemonInstance& unit) const;
 
 private:
     std::vector<PokemonInstance> pokemons;
     std::vector<PokemonInstance> benchPokemons;
+
+    glm::vec3 gridToWorld(int col, int row) const;
 };

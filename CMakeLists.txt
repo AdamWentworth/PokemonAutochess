@@ -1,22 +1,18 @@
-# CMakeLists.txt
-
 cmake_minimum_required(VERSION 3.10)
 project(PokemonAutochess)
 
 set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-# ------------------------------------------------------------------------------
-# ✅ VCPKG TOOLCHAIN (for cross-platform dependency management)
-# ------------------------------------------------------------------------------
+# vcpkg toolchain
 if(DEFINED ENV{VCPKG_ROOT})
     set(CMAKE_TOOLCHAIN_FILE "$ENV{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake" CACHE STRING "")
 else()
     set(CMAKE_TOOLCHAIN_FILE "C:/dev/vcpkg/scripts/buildsystems/vcpkg.cmake" CACHE STRING "")
 endif()
 
-# ------------------------------------------------------------------------------
-# ✅ REQUIRED PACKAGES
-# ------------------------------------------------------------------------------
+# Dependencies
 find_package(SDL2 CONFIG REQUIRED)
 find_package(SDL2_ttf REQUIRED)
 find_package(OpenGL REQUIRED)
@@ -24,27 +20,31 @@ find_package(glad CONFIG REQUIRED)
 find_package(glm CONFIG REQUIRED)
 find_package(lua CONFIG REQUIRED)
 
-# ------------------------------------------------------------------------------
-# ✅ ENGINE LIBRARY
-# ------------------------------------------------------------------------------
+# Header-only sol2 in third_party/sol2 (expected file: third_party/sol2/sol/sol.hpp)
+set(SOL2_INCLUDE_DIR "${CMAKE_SOURCE_DIR}/third_party/sol2")
+
+# Project include root (so we can #include "engine/..." and "game/...")
+set(PROJECT_SRC_ROOT "${CMAKE_SOURCE_DIR}/src")
+
+# ---------------- Engine (static lib) ----------------
 add_library(Engine STATIC
     # Engine Core
     src/engine/core/Application.cpp
     src/engine/core/Window.cpp
     src/engine/core/SystemRegistry.cpp
-    
+
     # Engine Utils
     src/engine/utils/Shader.cpp
     src/engine/utils/ShaderLibrary.cpp
     src/engine/utils/ResourceManager.cpp
     src/engine/utils/stb_image_impl.cpp
-    
+
     # Engine Render
     src/engine/render/Renderer.cpp
     src/engine/render/Camera3D.cpp
     src/engine/render/BoardRenderer.cpp
     src/engine/render/Model.cpp
-    
+
     # Engine UI
     src/engine/ui/UIManager.cpp
     src/engine/ui/Card.cpp
@@ -52,9 +52,12 @@ add_library(Engine STATIC
     src/engine/ui/HealthBarRenderer.cpp
 )
 
-target_include_directories(Engine PRIVATE
-    ${CMAKE_CURRENT_SOURCE_DIR}/engine
-    ${CMAKE_CURRENT_SOURCE_DIR}/third_party/sol2
+target_include_directories(Engine
+    PUBLIC
+        "${PROJECT_SRC_ROOT}"
+        "${SOL2_INCLUDE_DIR}"
+    PRIVATE
+        "${CMAKE_SOURCE_DIR}/third_party"
 )
 
 target_link_libraries(Engine PRIVATE
@@ -66,9 +69,8 @@ target_link_libraries(Engine PRIVATE
     lua
 )
 
-# ------------------------------------------------------------------------------
-# ✅ GAME EXECUTABLE
-# ------------------------------------------------------------------------------
+# ---------------- Game (exe) ----------------
+# Only list files that actually exist. We’re moving states to Lua, so omit old C++ states.
 add_executable(PokemonAutochess
     main.cpp
 
@@ -79,7 +81,7 @@ add_executable(PokemonAutochess
     src/game/LuaScript.cpp
     src/game/PokemonConfigLoader.cpp
     src/game/GameConfig.cpp
-    
+
     # Game Systems
     src/game/systems/CameraSystem.cpp
     src/game/systems/UnitInteractionSystem.cpp
@@ -91,21 +93,19 @@ add_executable(PokemonAutochess
     src/game/systems/movement/AStarPathfinder.cpp
     src/game/systems/movement/MovementPlanner.cpp
     src/game/systems/movement/MovementExecutor.cpp
-    
+
     # Game UI
     src/game/ui/CardFactory.cpp
-    
-    # Game States
-    src/game/state/StarterSelectionState.cpp
-    src/game/state/PlacementState.cpp
-    src/game/state/CombatState.cpp
-    src/game/state/Route1State.cpp
+
+    # Lua-first generic state wrapper
+    src/game/ScriptedState.cpp
 )
 
-target_include_directories(PokemonAutochess PRIVATE
-    ${CMAKE_CURRENT_SOURCE_DIR}/engine
-    ${CMAKE_CURRENT_SOURCE_DIR}/game
-    ${CMAKE_CURRENT_SOURCE_DIR}/third_party/sol2
+target_include_directories(PokemonAutochess
+    PRIVATE
+        "${PROJECT_SRC_ROOT}"
+        "${SOL2_INCLUDE_DIR}"
+        "${CMAKE_SOURCE_DIR}/third_party"
 )
 
 target_link_libraries(PokemonAutochess PRIVATE
@@ -118,23 +118,19 @@ target_link_libraries(PokemonAutochess PRIVATE
     lua
 )
 
-# ------------------------------------------------------------------------------
-# ✅ SHADER FILES (copied to binary dir for runtime loading)
-# ------------------------------------------------------------------------------
+# Copy shaders alongside the binary
 file(COPY assets/shaders/engine/default.vert DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/engine/render)
 file(COPY assets/shaders/engine/default.frag DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/engine/render)
-file(COPY assets/shaders/engine/grid.vert DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/engine/render)
-file(COPY assets/shaders/engine/grid.frag DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/engine/render)
-file(COPY assets/shaders/model/model.vert DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/engine/render)
-file(COPY assets/shaders/model/model.frag DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/engine/render)
-file(COPY assets/shaders/ui/card.vert DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/engine/render)
-file(COPY assets/shaders/ui/card.frag DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/engine/render)
-file(COPY assets/shaders/ui/text.vert DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/engine/render)
-file(COPY assets/shaders/ui/text.frag DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/engine/render)
-file(COPY assets/shaders/ui/healthbar.vert DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/engine/render)
-file(COPY assets/shaders/ui/healthbar.frag DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/engine/render)
+file(COPY assets/shaders/engine/grid.vert   DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/engine/render)
+file(COPY assets/shaders/engine/grid.frag   DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/engine/render)
+file(COPY assets/shaders/model/model.vert   DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/engine/render)
+file(COPY assets/shaders/model/model.frag   DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/engine/render)
+file(COPY assets/shaders/ui/card.vert       DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/engine/render)
+file(COPY assets/shaders/ui/card.frag       DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/engine/render)
+file(COPY assets/shaders/ui/text.vert       DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/engine/render)
+file(COPY assets/shaders/ui/text.frag       DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/engine/render)
+file(COPY assets/shaders/ui/healthbar.vert  DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/engine/render)
+file(COPY assets/shaders/ui/healthbar.frag  DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/engine/render)
 
-# ------------------------------------------------------------------------------
-# ✅ WINDOWS ENTRY POINT SETTINGS
-# ------------------------------------------------------------------------------
+# Windows entrypoint
 set_target_properties(PokemonAutochess PROPERTIES LINK_FLAGS "/SUBSYSTEM:CONSOLE /ENTRY:mainCRTStartup")

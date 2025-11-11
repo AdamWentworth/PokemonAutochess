@@ -1,8 +1,8 @@
 // RoundSystem.cpp
-
 #include "RoundSystem.h"
 #include <iostream>
 #include "../../engine/events/EventManager.h"
+#include <sol/sol.hpp>  // <- helps IntelliSense since we use sol::function here
 
 static const char* kRoundSystemScript = "scripts/systems/round_system.lua";
 static const char* kFnInit   = "rs_init";
@@ -26,7 +26,7 @@ RoundPhase RoundSystem::toPhaseEnum(const std::string& s) {
 }
 
 RoundSystem::RoundSystem()
-: script(nullptr)
+    : script(/*world*/ nullptr, /*manager*/ nullptr)  // <-- was script(nullptr)
 {
     if (!script.loadScript(kRoundSystemScript)) {
         std::cerr << "[RoundSystem] Failed to load " << kRoundSystemScript << "\n";

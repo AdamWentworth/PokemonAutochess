@@ -7,7 +7,7 @@
 #include "../render/Camera3D.h"
 #include "../ui/HealthBarRenderer.h"
 #include "../../game/GameStateManager.h"
-#include "../render/BoardRenderer.h"  // <-- Added include
+#include "../render/BoardRenderer.h"
 
 class GameWorld;
 class Window;
@@ -25,16 +25,14 @@ private:
     void update();
     void shutdown();
 
-    /* ---------- Fixed-step timing ---------- */
     static constexpr float TIME_STEP = 1.0f / 60.0f;
 
-    // Changed raw pointers to smart pointers.
     std::unique_ptr<Renderer> renderer;
     std::unique_ptr<Camera3D> camera;
     std::unique_ptr<GameStateManager> stateManager;
     std::unique_ptr<GameWorld> gameWorld;
     std::unique_ptr<Window> window;
-    std::unique_ptr<BoardRenderer> board;   // <-- New member variable using unique_ptr
+    std::unique_ptr<BoardRenderer> board;
     HealthBarRenderer healthBarRenderer;
 
     std::shared_ptr<CameraSystem> cameraSystem;
