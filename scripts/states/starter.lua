@@ -22,7 +22,4 @@ function on_card_click(pokemon)
     -- Place the chosen starter on the player's back rank, center-ish
     -- Board is 8x8. Put starter at col 3, row 6 (player side)
     spawn_on_grid(pokemon, 3, 6, "Player")
-
-    -- Go straight to Route 1 combat (Lua-driven)
-    push_state("scripts/states/route1.lua")
 end

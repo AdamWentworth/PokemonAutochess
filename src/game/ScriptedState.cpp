@@ -15,7 +15,7 @@ ScriptedState::ScriptedState(GameStateManager* manager, GameWorld* world, const 
     : stateManager(manager)
     , gameWorld(world)
     , scriptPath(path)
-    , script(world) // LuaScript(world)
+    , script(world, manager)
 {
     if (!script.loadScript(scriptPath)) {
         std::cerr << "[ScriptedState] Failed to load script: " << scriptPath << "\n";

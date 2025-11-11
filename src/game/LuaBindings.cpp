@@ -39,6 +39,10 @@ void registerLuaBindings(sol::state& lua, GameWorld* world, GameStateManager* ma
 
     // State management from Lua
     lua.set_function("push_state", [manager, world](const std::string& scriptPath) {
+        if (!manager) {
+            std::cerr << "[LuaBindings] push_state called but GameStateManager is null; ignoring.\n";
+            return;
+        }
         manager->pushState(std::make_unique<ScriptedState>(manager, world, scriptPath));
     });
     lua.set_function("pop_state", [manager]() {

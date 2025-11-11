@@ -97,6 +97,10 @@ add_executable(PokemonAutochess
     # Game UI
     src/game/ui/CardFactory.cpp
 
+    # States
+    src/game/state/PlacementState.cpp
+    src/game/state/CombatState.cpp
+
     # Lua-first generic state wrapper
     src/game/ScriptedState.cpp
 )
