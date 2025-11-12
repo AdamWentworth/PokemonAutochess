@@ -1,5 +1,4 @@
 // src/game/state/CombatState.h
-
 #pragma once
 #include "../GameState.h"
 #include "../LuaScript.h"
@@ -7,6 +6,7 @@
 #include <memory>
 
 class MovementSystem;
+class CombatSystem;
 
 class CombatState : public GameState {
 public:
@@ -26,9 +26,7 @@ private:
 
     std::unique_ptr<TextRenderer> textRenderer;
     std::unique_ptr<MovementSystem> movementSystem;
+    std::unique_ptr<CombatSystem>  combatSystem;
 
     std::string combatMessage;
-
-    // REMOVE this member if it exists:
-    // GridOccupancy gridOccupancy;
 };

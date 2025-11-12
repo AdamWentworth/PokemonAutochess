@@ -87,7 +87,8 @@ add_executable(PokemonAutochess
     src/game/systems/RoundSystem.cpp
     src/game/systems/CardSystem.cpp
     src/game/systems/BenchSystem.cpp
-    src/game/systems/MovementSystem.cpp  # <- Lua-driven movement + interpolation progress
+    src/game/systems/MovementSystem.cpp
+    src/game/systems/CombatSystem.cpp
 
     # Game UI
     src/game/ui/CardFactory.cpp

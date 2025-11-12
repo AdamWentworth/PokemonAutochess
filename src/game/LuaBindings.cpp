@@ -57,7 +57,7 @@ void registerLuaBindings(sol::state& lua, GameWorld* world, GameStateManager* ma
         }
     );
 
-    // ---- State mgmt (already used by ScriptedState) ----
+    // ---- State mgmt ----
     lua.set_function("push_state", [manager, world](const std::string& scriptPath) {
         if (!manager) return;
         manager->pushState(std::make_unique<ScriptedState>(manager, world, scriptPath));
@@ -65,16 +65,14 @@ void registerLuaBindings(sol::state& lua, GameWorld* world, GameStateManager* ma
     lua.set_function("pop_state", [manager]() { if (manager) manager->popState(); });
 
     // =================================================================
-    // World/Unit inspection & mutation for Lua movement logic
+    // World/Unit inspection & mutation for Lua systems
     // =================================================================
 
     // List units on board (bench excluded) with immutable snapshot data Lua needs.
     lua.set_function("world_list_units", [world, &lua]() {
         sol::state_view L(lua);
         sol::table arr = L.create_table();
-
         if (!world) return arr;
-
         int i = 1;
         for (auto& u : world->getPokemons()) {
             sol::table t = L.create_table();
@@ -93,6 +91,28 @@ void registerLuaBindings(sol::state& lua, GameWorld* world, GameStateManager* ma
         return arr;
     });
 
+    // Small snapshot for a single unit id.
+    lua.set_function("world_get_unit_snapshot", [world, &lua](int unitId) {
+        sol::state_view L(lua);
+        sol::table t = L.create_table();
+        if (!world) return t;
+        for (auto& u : world->getPokemons()) {
+            if (u.id == unitId) {
+                t["id"]    = u.id;
+                t["name"]  = u.name;
+                t["side"]  = (u.side == PokemonSide::Player) ? "Player" : "Enemy";
+                t["hp"]    = u.hp;
+                t["attack"]= u.attack;
+                t["alive"] = u.alive;
+                auto cell  = worldToGrid(u.position);
+                t["col"]   = cell.x;
+                t["row"]   = cell.y;
+                return t;
+            }
+        }
+        return t; // empty
+    });
+
     // Apply one grid move (snap).
     lua.set_function("world_apply_move", [world](int unitId, int col, int row) {
         if (!world) return false;
@@ -107,7 +127,7 @@ void registerLuaBindings(sol::state& lua, GameWorld* world, GameStateManager* ma
         return true;
     });
 
-    // NEW: Start a one-cell move with interpolation; movement progress is advanced in MovementSystem
+    // Start a one-cell move with interpolation
     lua.set_function("world_commit_move", [world](int unitId, int col, int row) {
         if (!world) return false;
         auto& list = world->getPokemons();
@@ -124,7 +144,7 @@ void registerLuaBindings(sol::state& lua, GameWorld* world, GameStateManager* ma
         return true;
     });
 
-    // Get nearest enemy grid cell for a unit id.
+    // Nearest enemy grid cell for a unit id.
     lua.set_function("world_nearest_enemy_cell", [world](int unitId) {
         if (!world) return std::make_pair(-1, -1);
         auto& list = world->getPokemons();
@@ -151,7 +171,50 @@ void registerLuaBindings(sol::state& lua, GameWorld* world, GameStateManager* ma
         return std::max(dx, dy) == 1; // 8-neighborhood engagement
     });
 
-    // Set yaw to face nearest enemy (degrees). Optionally pass explicit target col,row.
+    // Enumerate enemy ids in the 8 adjacent cells around 'unitId'.
+    lua.set_function("world_enemies_adjacent", [world, &lua](int unitId) {
+        sol::state_view L(lua);
+        sol::table arr = L.create_table();
+        if (!world) return arr;
+
+        // locate attacker + its cell
+        PokemonInstance* attacker = nullptr;
+        for (auto& u : world->getPokemons()) if (u.id == unitId) { attacker = &u; break; }
+        if (!attacker || !attacker->alive) return arr;
+
+        auto ac = worldToGrid(attacker->position);
+        int idx = 1;
+        for (auto& u : world->getPokemons()) {
+            if (!u.alive || u.side == attacker->side) continue;
+            auto ec = worldToGrid(u.position);
+            int dx = std::abs(ac.x - ec.x);
+            int dy = std::abs(ac.y - ec.y);
+            if (std::max(dx, dy) == 1) {
+                arr[idx++] = u.id;
+            }
+        }
+        return arr;
+    });
+
+    // Apply damage; if target dies, mark not alive.
+    lua.set_function("world_apply_damage", [world](int attackerId, int targetId, int amount) {
+        if (!world) return -1;
+        auto& list = world->getPokemons();
+        auto A = std::find_if(list.begin(), list.end(), [&](const PokemonInstance& p){ return p.id == attackerId; });
+        auto T = std::find_if(list.begin(), list.end(), [&](const PokemonInstance& p){ return p.id == targetId; });
+        if (A == list.end() || T == list.end()) return -1;
+        if (!A->alive || !T->alive) return T->hp;
+        T->hp = std::max(0, T->hp - std::max(0, amount));
+        if (T->hp == 0) {
+            T->alive = false;
+            // optional: snap movement state
+            T->isMoving = false;
+            T->committedDest = {-1,-1};
+        }
+        return T->hp;
+    });
+
+    // Face target (or nearest if none provided)
     lua.set_function("world_face_enemy", [world](int unitId, sol::optional<int> tgtCol, sol::optional<int> tgtRow) {
         if (!world) return;
         auto& list = world->getPokemons();

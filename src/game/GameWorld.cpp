@@ -101,6 +101,8 @@ void GameWorld::drawAll(const Camera3D& camera, BoardRenderer& boardRenderer) {
 
     auto drawPokemonList = [&](const std::vector<PokemonInstance>& list) {
         for (auto& instance : list) {
+            if (!instance.alive) continue; // <-- hide dead units
+
             float scaleFactor = instance.model->getScaleFactor();
             glm::mat4 scale = glm::scale(glm::mat4(1.0f), glm::vec3(scaleFactor));
             glm::mat4 rotationX = glm::rotate(glm::mat4(1.0f), glm::radians(instance.rotation.x), glm::vec3(1, 0, 0));
@@ -123,6 +125,8 @@ std::vector<HealthBarData> GameWorld::getHealthBarData(const Camera3D& camera, i
     std::vector<HealthBarData> data;
 
     auto process = [&](const PokemonInstance& instance) {
+        if (!instance.alive) return; // don't show bars for dead units
+
         const PokemonStats* stats = PokemonConfigLoader::getInstance().getStats(instance.name);
         if (!stats) return;
 

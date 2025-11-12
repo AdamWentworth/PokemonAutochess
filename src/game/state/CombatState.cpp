@@ -3,6 +3,7 @@
 #include "../GameConfig.h"
 #include "../GameWorld.h"
 #include "../systems/MovementSystem.h"
+#include "../systems/CombatSystem.h"
 #include <iostream>
 #include <sol/sol.hpp>
 
@@ -19,6 +20,7 @@ CombatState::CombatState(GameStateManager* manager, GameWorld* world, const std:
     }
 
     movementSystem = std::make_unique<MovementSystem>(gameWorld);
+    combatSystem   = std::make_unique<CombatSystem>(gameWorld);
 }
 
 CombatState::~CombatState() = default;
@@ -67,6 +69,7 @@ void CombatState::handleInput(SDL_Event& event) {
 void CombatState::update(float deltaTime) {
     script.onUpdate(deltaTime);
     if (movementSystem) movementSystem->update(deltaTime);
+    if (combatSystem)   combatSystem->update(deltaTime);
 }
 
 void CombatState::render() {
