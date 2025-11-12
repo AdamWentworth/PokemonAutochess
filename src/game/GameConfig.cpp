@@ -41,6 +41,12 @@ const GameConfigData& GameConfig::get() {
                             cfg.fontSize = ui.get_or("size", cfg.fontSize);
                         }
                     }
+                    // NEW: leveling
+                    sol::table leveling = t["leveling"];
+                    if (leveling.valid()) {
+                        cfg.baseLevel     = leveling.get_or("base_level", cfg.baseLevel);
+                        cfg.perLevelBoost = leveling.get_or("per_level_boost", cfg.perLevelBoost);
+                    }
                 }
             }
         }

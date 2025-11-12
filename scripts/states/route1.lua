@@ -6,8 +6,8 @@ end
 
 function get_enemies()
     return {
-        { name = "pidgey",  gridCol = 2, gridRow = 1 },
-        { name = "rattata", gridCol = 5, gridRow = 1 },
+        { name = "pidgey",  gridCol = 2, gridRow = 1, level = 2 },
+        { name = "rattata", gridCol = 5, gridRow = 1, level = 3 },
     }
 end
 

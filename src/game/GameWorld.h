@@ -4,15 +4,23 @@
 #include <string>
 #include <glm/glm.hpp>
 #include "PokemonInstance.h"
-#include "../engine/ui/HealthBarData.h" 
+#include "../engine/ui/HealthBarData.h"
 
 class Camera3D;
 class BoardRenderer;
 
 class GameWorld {
 public:
-    void spawnPokemon(const std::string& pokemonName, const glm::vec3& startPos, PokemonSide side = PokemonSide::Player);
-    void spawnPokemonAtGrid(const std::string& pokemonName, int col, int row, PokemonSide side = PokemonSide::Player);
+    // level: -1 means use GameConfig::get().baseLevel
+    void spawnPokemon(const std::string& pokemonName,
+                      const glm::vec3& startPos,
+                      PokemonSide side = PokemonSide::Player,
+                      int level = -1);
+
+    void spawnPokemonAtGrid(const std::string& pokemonName,
+                            int col, int row,
+                            PokemonSide side = PokemonSide::Player,
+                            int level = -1);
 
     void drawAll(const Camera3D& camera, BoardRenderer& boardRenderer);
 
@@ -31,4 +39,7 @@ private:
     std::vector<PokemonInstance> benchPokemons;
 
     glm::vec3 gridToWorld(int col, int row) const;
+
+    // NEW: helper to apply level scaling
+    void applyLevelScaling(PokemonInstance& inst, int level) const;
 };

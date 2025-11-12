@@ -45,8 +45,10 @@ void registerLuaBindings(sol::state& lua, GameWorld* world, GameStateManager* ma
     lua.set_function("spawnPokemon", [world](std::string name, float x, float y, float z) {
         if (world) world->spawnPokemon(name, {x, y, z});
     });
-    lua.set_function("spawn_on_grid", [world](std::string name, int col, int row, std::string side) {
-        if (world) world->spawnPokemonAtGrid(name, col, row, sideFromString(side));
+    lua.set_function("spawn_on_grid",
+    [world](std::string name, int col, int row, std::string side, sol::optional<int> level) {
+        int lvl = level.value_or(-1);
+        if (world) world->spawnPokemonAtGrid(name, col, row, sideFromString(side), lvl);
     });
 
     // ---- Round events (already used) ----

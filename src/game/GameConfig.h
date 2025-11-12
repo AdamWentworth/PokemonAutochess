@@ -11,6 +11,10 @@ struct GameConfigData {
 
     std::string fontPath = "assets/fonts/GillSans.ttf";
     int fontSize = 48;
+
+    // NEW: leveling model
+    int baseLevel = 1;
+    float perLevelBoost = 0.08f; // 8% default
 };
 
 class GameConfig {

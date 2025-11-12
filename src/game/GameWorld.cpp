@@ -10,8 +10,27 @@
 #include <glad/glad.h>
 #include "PokemonConfigLoader.h"
 #include "GameConfig.h"
+#include <cmath>
 
-void GameWorld::spawnPokemon(const std::string& pokemonName, const glm::vec3& startPos, PokemonSide side) {
+void GameWorld::applyLevelScaling(PokemonInstance& inst, int level) const {
+    const auto& cfg = GameConfig::get();
+    const int useLevel = (level <= 0) ? cfg.baseLevel : level;
+
+    inst.level = useLevel;
+
+    // multiplier = (1 + perLevelBoost)^(level - 1)
+    const float mult = std::pow(1.0f + cfg.perLevelBoost, static_cast<float>(useLevel - 1));
+
+    inst.maxHP         = static_cast<int>(std::round(static_cast<float>(inst.baseHp) * mult));
+    inst.hp            = inst.maxHP; // spawn at full health
+    inst.attack        = static_cast<int>(std::round(static_cast<float>(inst.baseAttack) * mult));
+    inst.movementSpeed = inst.baseMovementSpeed * mult;
+}
+
+void GameWorld::spawnPokemon(const std::string& pokemonName,
+                             const glm::vec3& startPos,
+                             PokemonSide side,
+                             int level) {
     const PokemonStats* stats = PokemonConfigLoader::getInstance().getStats(pokemonName);
     if (!stats) {
         std::cerr << "[GameWorld] No config found for Pokémon: " << pokemonName << "\n";
@@ -22,22 +41,29 @@ void GameWorld::spawnPokemon(const std::string& pokemonName, const glm::vec3& st
     auto sharedModel = ResourceManager::getInstance().getModel(path);
 
     PokemonInstance inst;
-    inst.id = PokemonInstance::getNextUnitID(); 
+    inst.id = PokemonInstance::getNextUnitID();
     inst.name = pokemonName;
     inst.model = sharedModel;
     inst.position = startPos;
     inst.rotation = glm::vec3(90.0f, (side == PokemonSide::Player ? 180.0f : 0.0f), 0.0f);
     inst.side = side;
 
-    inst.hp = stats->hp;
-    inst.attack = stats->attack;
-    inst.movementSpeed = stats->movementSpeed;
+    // Store base (unscaled) stats from config
+    inst.baseHp = stats->hp;
+    inst.baseAttack = stats->attack;
+    inst.baseMovementSpeed = stats->movementSpeed;
+
+    // Apply level scaling (sets level, hp/maxHP, attack, movementSpeed)
+    applyLevelScaling(inst, level);
 
     pokemons.push_back(inst);
 
     std::cout << "[GameWorld] Spawned " << pokemonName
               << " (ID: " << inst.id
-              << ", HP: " << inst.hp << ", ATK: " << inst.attack << ")\n";
+              << ", L" << inst.level
+              << ", HP: " << inst.hp << "/" << inst.maxHP
+              << ", ATK: " << inst.attack
+              << ", SPD: " << inst.movementSpeed << ")\n";
 }
 
 glm::vec3 GameWorld::gridToWorld(int col, int row) const {
@@ -47,8 +73,11 @@ glm::vec3 GameWorld::gridToWorld(int col, int row) const {
     return { boardOriginX + col * cfg.cellSize, 0.0f, boardOriginZ + row * cfg.cellSize };
 }
 
-void GameWorld::spawnPokemonAtGrid(const std::string& pokemonName, int col, int row, PokemonSide side) {
-    spawnPokemon(pokemonName, gridToWorld(col, row), side);
+void GameWorld::spawnPokemonAtGrid(const std::string& pokemonName,
+                                   int col, int row,
+                                   PokemonSide side,
+                                   int level) {
+    spawnPokemon(pokemonName, gridToWorld(col, row), side, level);
 }
 
 void GameWorld::addToBench(const std::string& pokemonName) {
@@ -68,9 +97,13 @@ void GameWorld::addToBench(const std::string& pokemonName) {
     inst.rotation = glm::vec3(90.0f, 180.0f, 0.0f);
     inst.side = PokemonSide::Player;
 
-    inst.hp = stats->hp;
-    inst.attack = stats->attack;
-    inst.movementSpeed = stats->movementSpeed;
+    // base stats
+    inst.baseHp = stats->hp;
+    inst.baseAttack = stats->attack;
+    inst.baseMovementSpeed = stats->movementSpeed;
+
+    // Apply default level scaling for bench (uses baseLevel)
+    applyLevelScaling(inst, /*level*/ -1);
 
     int slot = static_cast<int>(benchPokemons.size());
     float spacing = 1.2f;
@@ -82,7 +115,8 @@ void GameWorld::addToBench(const std::string& pokemonName) {
 
     std::cout << "[GameWorld] Benched " << pokemonName
               << " (ID: " << inst.id
-              << " at slot " << slot << ")\n";
+              << " L" << inst.level
+              << ", slot " << slot << ")\n";
 }
 
 const PokemonInstance* GameWorld::getPokemonByName(const std::string& name) const {
@@ -101,7 +135,7 @@ void GameWorld::drawAll(const Camera3D& camera, BoardRenderer& boardRenderer) {
 
     auto drawPokemonList = [&](const std::vector<PokemonInstance>& list) {
         for (auto& instance : list) {
-            if (!instance.alive) continue; // <-- hide dead units
+            if (!instance.alive) continue;
 
             float scaleFactor = instance.model->getScaleFactor();
             glm::mat4 scale = glm::scale(glm::mat4(1.0f), glm::vec3(scaleFactor));
@@ -125,22 +159,19 @@ std::vector<HealthBarData> GameWorld::getHealthBarData(const Camera3D& camera, i
     std::vector<HealthBarData> data;
 
     auto process = [&](const PokemonInstance& instance) {
-        if (!instance.alive) return; // don't show bars for dead units
-
-        const PokemonStats* stats = PokemonConfigLoader::getInstance().getStats(instance.name);
-        if (!stats) return;
+        if (!instance.alive) return;
 
         glm::vec3 worldPos = instance.position + glm::vec3(0.0f, 1.0f, 0.0f);
         glm::vec4 viewport(0.0f, 0.0f, screenWidth, screenHeight);
         glm::vec3 screenPos = glm::project(worldPos, camera.getViewMatrix(), camera.getProjectionMatrix(), viewport);
 
-        if (screenPos.z > 1.0f || screenPos.x < 0 || screenPos.x > screenWidth || screenPos.y < 0 || screenPos.y > screenHeight) 
+        if (screenPos.z > 1.0f || screenPos.x < 0 || screenPos.x > screenWidth || screenPos.y < 0 || screenPos.y > screenHeight)
             return;
 
         HealthBarData hb;
         hb.screenPosition = glm::vec2(screenPos.x, screenHeight - screenPos.y);
         hb.currentHP = instance.hp;
-        hb.maxHP = stats->hp;
+        hb.maxHP = instance.maxHP; // NEW: use scaled per-unit max
         data.push_back(hb);
     };
 

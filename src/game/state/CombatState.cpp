@@ -37,7 +37,7 @@ void CombatState::onEnter() {
         }
     }
 
-    // Enemies: route1.lua exposes get_enemies() (array of {name, gridCol, gridRow})
+    // Enemies: route1.lua exposes get_enemies() (array of {name, gridCol, gridRow, [level]})
     sol::function get_enemies = L["get_enemies"];
     if (get_enemies.valid()) {
         sol::protected_function_result r = get_enemies();
@@ -48,8 +48,10 @@ void CombatState::onEnter() {
                 auto nameOpt = e.get<sol::optional<std::string>>("name");
                 auto colOpt  = e.get<sol::optional<int>>("gridCol");
                 auto rowOpt  = e.get<sol::optional<int>>("gridRow");
+                auto lvlOpt  = e.get<sol::optional<int>>("level"); // NEW (optional)
                 if (nameOpt && colOpt && rowOpt) {
-                    gameWorld->spawnPokemonAtGrid(*nameOpt, *colOpt, *rowOpt, PokemonSide::Enemy);
+                    int level = lvlOpt.value_or(-1); // -1 -> use GameConfig baseLevel
+                    gameWorld->spawnPokemonAtGrid(*nameOpt, *colOpt, *rowOpt, PokemonSide::Enemy, level);
                 }
             }
         }
