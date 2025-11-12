@@ -16,6 +16,7 @@
 #include "../../game/systems/CameraSystem.h"
 #include "../../game/systems/UnitInteractionSystem.h"
 #include "../../game/systems/RoundSystem.h"
+#include "../../game/systems/ShopSystem.h"   // ← NEW
 #include "../../game/ScriptedState.h"
 #include "../../game/GameConfig.h"
 
@@ -71,9 +72,13 @@ void Application::init() {
     SystemRegistry::getInstance().registerSystem(cameraSystem);
     SystemRegistry::getInstance().registerSystem(unitSystem);
 
-    // Round phase still driven by Lua (scripts/systems/round_system.lua)
+    // Round phase driven by Lua
     auto roundSystem = std::make_shared<RoundSystem>();
     SystemRegistry::getInstance().registerSystem(roundSystem);
+
+    // NEW: Lua-driven Shop system (shows in Planning phase)
+    shopSystem = std::make_shared<ShopSystem>();
+    SystemRegistry::getInstance().registerSystem(shopSystem);
 
     // Boot into Lua-driven starter flow
     stateManager->pushState(std::make_unique<ScriptedState>(stateManager.get(), gameWorld.get(), "scripts/states/starter.lua"));
@@ -143,6 +148,9 @@ void Application::run() {
 
         auto healthBarData = gameWorld->getHealthBarData(*camera, WIDTH, HEIGHT);
         healthBarRenderer.render(healthBarData);
+
+        // NEW: shop UI render pass (2D overlay)
+        if (shopSystem) shopSystem->renderUI(WIDTH, HEIGHT);
 
         SDL_GL_SwapWindow(window->getSDLWindow());
 

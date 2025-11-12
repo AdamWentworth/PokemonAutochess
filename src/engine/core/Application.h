@@ -13,6 +13,7 @@ class GameWorld;
 class Window;
 class CameraSystem;
 class UnitInteractionSystem;
+class ShopSystem;              // ← NEW
 
 class Application {
 public:
@@ -37,4 +38,5 @@ private:
 
     std::shared_ptr<CameraSystem> cameraSystem;
     std::shared_ptr<UnitInteractionSystem> unitSystem;
+    std::shared_ptr<ShopSystem> shopSystem;   // ← NEW
 };

@@ -1,3 +1,5 @@
+#CMakeLists.txt
+
 cmake_minimum_required(VERSION 3.10)
 project(PokemonAutochess)
 
@@ -23,7 +25,7 @@ find_package(lua CONFIG REQUIRED)
 # Header-only sol2 in third_party/sol2 (expected file: third_party/sol2/sol/sol.hpp)
 set(SOL2_INCLUDE_DIR "${CMAKE_SOURCE_DIR}/third_party/sol2")
 
-# Project include root (so we can #include "engine/..." and "game/...")
+# Project include root
 set(PROJECT_SRC_ROOT "${CMAKE_SOURCE_DIR}/src")
 
 # ---------------- Engine (static lib) ----------------
@@ -89,6 +91,7 @@ add_executable(PokemonAutochess
     src/game/systems/BenchSystem.cpp
     src/game/systems/MovementSystem.cpp
     src/game/systems/CombatSystem.cpp
+    src/game/systems/ShopSystem.cpp        # ← NEW
 
     # Game UI
     src/game/ui/CardFactory.cpp
