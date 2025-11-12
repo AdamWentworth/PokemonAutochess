@@ -10,7 +10,8 @@
 #include <glm/glm.hpp>
 #include <iostream>
 #include <algorithm>
-#include <cmath> // for std::round
+#include <cmath> // round, atan2f
+#include "LogBus.h"
 
 // Helper
 static PokemonSide sideFromString(const std::string& s) {
@@ -41,7 +42,7 @@ void registerLuaBindings(sol::state& lua, GameWorld* world, GameStateManager* ma
         "Enemy",  PokemonSide::Enemy
     );
 
-    // ---- Engine-safe spawners (already used by menu/flow) ----
+    // ---- Engine-safe spawners ----
     lua.set_function("spawnPokemon", [world](std::string name, float x, float y, float z) {
         if (world) world->spawnPokemon(name, {x, y, z});
     });
@@ -51,7 +52,7 @@ void registerLuaBindings(sol::state& lua, GameWorld* world, GameStateManager* ma
         if (world) world->spawnPokemonAtGrid(name, col, row, sideFromString(side), lvl);
     });
 
-    // ---- Round events (already used) ----
+    // ---- Round events ----
     lua.set_function("emit_round_phase_changed",
         [](const std::string& prev, const std::string& next) {
             RoundPhaseChangedEvent evt(prev, next);
@@ -70,7 +71,7 @@ void registerLuaBindings(sol::state& lua, GameWorld* world, GameStateManager* ma
     // World/Unit inspection & mutation for Lua systems
     // =================================================================
 
-    // List units on board (bench excluded) with immutable snapshot data Lua needs.
+    // List units on board (bench excluded)
     lua.set_function("world_list_units", [world, &lua]() {
         sol::state_view L(lua);
         sol::table arr = L.create_table();
@@ -78,48 +79,48 @@ void registerLuaBindings(sol::state& lua, GameWorld* world, GameStateManager* ma
         int i = 1;
         for (auto& u : world->getPokemons()) {
             sol::table t = L.create_table();
-            t["id"]     = u.id;
-            t["name"]   = u.name;
-            t["side"]   = (u.side == PokemonSide::Player) ? "Player" : "Enemy";
-            t["hp"]     = u.hp;
-            t["attack"] = u.attack;
-            t["speed"]  = u.movementSpeed;
-            t["energy"]= u.energy;
+            t["id"]       = u.id;
+            t["name"]     = u.name;
+            t["side"]     = (u.side == PokemonSide::Player) ? "Player" : "Enemy";
+            t["hp"]       = u.hp;
+            t["attack"]   = u.attack;
+            t["speed"]    = u.movementSpeed;
+            t["energy"]   = u.energy;
             t["maxEnergy"]= u.maxEnergy;
-            auto cell   = worldToGrid(u.position);
-            t["col"]    = cell.x;
-            t["row"]    = cell.y;
-            t["alive"]  = u.alive;
-            arr[i++]    = t;
+            auto cell     = worldToGrid(u.position);
+            t["col"]      = cell.x;
+            t["row"]      = cell.y;
+            t["alive"]    = u.alive;
+            arr[i++]      = t;
         }
         return arr;
     });
 
-    // Small snapshot for a single unit id.
+    // Snapshot for a single unit id
     lua.set_function("world_get_unit_snapshot", [world, &lua](int unitId) {
         sol::state_view L(lua);
         sol::table t = L.create_table();
         if (!world) return t;
         for (auto& u : world->getPokemons()) {
             if (u.id == unitId) {
-                t["id"]    = u.id;
-                t["name"]  = u.name;
-                t["side"]  = (u.side == PokemonSide::Player) ? "Player" : "Enemy";
-                t["hp"]    = u.hp;
-                t["attack"]= u.attack;
-                t["alive"] = u.alive;
-                t["energy"]= u.energy;
-                t["maxEnergy"]= u.maxEnergy;
-                auto cell  = worldToGrid(u.position);
-                t["col"]   = cell.x;
-                t["row"]   = cell.y;
+                t["id"]        = u.id;
+                t["name"]      = u.name;
+                t["side"]      = (u.side == PokemonSide::Player) ? "Player" : "Enemy";
+                t["hp"]        = u.hp;
+                t["attack"]    = u.attack;
+                t["alive"]     = u.alive;
+                t["energy"]    = u.energy;
+                t["maxEnergy"] = u.maxEnergy;
+                auto cell      = worldToGrid(u.position);
+                t["col"]       = cell.x;
+                t["row"]       = cell.y;
                 return t;
             }
         }
         return t; // empty
     });
 
-    // Apply one grid move (snap).
+    // Apply one grid move (snap)
     lua.set_function("world_apply_move", [world](int unitId, int col, int row) {
         if (!world) return false;
         auto& list = world->getPokemons();
@@ -150,7 +151,7 @@ void registerLuaBindings(sol::state& lua, GameWorld* world, GameStateManager* ma
         return true;
     });
 
-    // Nearest enemy grid cell for a unit id.
+    // Nearest enemy grid cell for a unit id
     lua.set_function("world_nearest_enemy_cell", [world](int unitId) {
         if (!world) return std::make_pair(-1, -1);
         auto& list = world->getPokemons();
@@ -177,13 +178,12 @@ void registerLuaBindings(sol::state& lua, GameWorld* world, GameStateManager* ma
         return std::max(dx, dy) == 1; // 8-neighborhood engagement
     });
 
-    // Enumerate enemy ids in the 8 adjacent cells around 'unitId'.
+    // Enumerate enemy ids adjacent to 'unitId'
     lua.set_function("world_enemies_adjacent", [world, &lua](int unitId) {
         sol::state_view L(lua);
         sol::table arr = L.create_table();
         if (!world) return arr;
 
-        // locate attacker + its cell
         PokemonInstance* attacker = nullptr;
         for (auto& u : world->getPokemons()) if (u.id == unitId) { attacker = &u; break; }
         if (!attacker || !attacker->alive) return arr;
@@ -213,7 +213,6 @@ void registerLuaBindings(sol::state& lua, GameWorld* world, GameStateManager* ma
         T->hp = std::max(0, T->hp - std::max(0, amount));
         if (T->hp == 0) {
             T->alive = false;
-            // optional: snap movement state
             T->isMoving = false;
             T->committedDest = {-1,-1};
         }
@@ -235,10 +234,11 @@ void registerLuaBindings(sol::state& lua, GameWorld* world, GameStateManager* ma
             target = world->getNearestEnemyPosition(*it);
         }
         glm::vec3 lookDir = glm::normalize(target - it->position);
-        it->rotation.y = glm::degrees(atan2f(lookDir.x, lookDir.z));
+        // radians→degrees manually to avoid header dependence
+        it->rotation.y = std::atan2(lookDir.x, lookDir.z) * 180.0f / 3.14159265358979323846f;
     });
 
-    // Grid helpers to/from world (Lua uses grid exclusively)
+    // Grid helpers to/from world
     lua.set_function("grid_to_world", [](int col, int row) {
         auto p = gridToWorld(col, row);
         return std::make_tuple(p.x, p.y, p.z);
@@ -247,7 +247,8 @@ void registerLuaBindings(sol::state& lua, GameWorld* world, GameStateManager* ma
         auto c = worldToGrid(glm::vec3{x,y,z});
         return std::make_pair(c.x, c.y);
     });
-    // ----- Energy (charged attack) helpers -----
+
+    // ----- Energy helpers -----
     lua.set_function("world_get_energy", [world](int unitId) {
         if (!world) return 0;
         for (auto& u : world->getPokemons()) if (u.id == unitId) return u.energy;

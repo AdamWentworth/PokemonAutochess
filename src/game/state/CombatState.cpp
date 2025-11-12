@@ -4,8 +4,11 @@
 #include "../GameWorld.h"
 #include "../systems/MovementSystem.h"
 #include "../systems/CombatSystem.h"
-#include <iostream>
+
+#include "../../engine/ui/TextRenderer.h"   // ← needed
 #include <sol/sol.hpp>
+#include <cmath>                             // ← std::round
+#include <iostream>
 
 CombatState::CombatState(GameStateManager* manager, GameWorld* world, const std::string& scriptPath)
     : stateManager(manager)
@@ -28,7 +31,6 @@ CombatState::~CombatState() = default;
 void CombatState::onEnter() {
     sol::state& L = script.getState();
 
-    // Message: route1.lua exposes get_message()
     sol::function get_message = L["get_message"];
     if (get_message.valid()) {
         sol::protected_function_result r = get_message();
@@ -37,7 +39,6 @@ void CombatState::onEnter() {
         }
     }
 
-    // Enemies: route1.lua exposes get_enemies() (array of {name, gridCol, gridRow, [level]})
     sol::function get_enemies = L["get_enemies"];
     if (get_enemies.valid()) {
         sol::protected_function_result r = get_enemies();
@@ -48,9 +49,9 @@ void CombatState::onEnter() {
                 auto nameOpt = e.get<sol::optional<std::string>>("name");
                 auto colOpt  = e.get<sol::optional<int>>("gridCol");
                 auto rowOpt  = e.get<sol::optional<int>>("gridRow");
-                auto lvlOpt  = e.get<sol::optional<int>>("level"); // NEW (optional)
+                auto lvlOpt  = e.get<sol::optional<int>>("level");
                 if (nameOpt && colOpt && rowOpt) {
-                    int level = lvlOpt.value_or(-1); // -1 -> use GameConfig baseLevel
+                    int level = lvlOpt.value_or(-1);
                     gameWorld->spawnPokemonAtGrid(*nameOpt, *colOpt, *rowOpt, PokemonSide::Enemy, level);
                 }
             }
@@ -60,13 +61,9 @@ void CombatState::onEnter() {
     script.onEnter();
 }
 
-void CombatState::onExit() {
-    script.onExit();
-}
+void CombatState::onExit() { script.onExit(); }
 
-void CombatState::handleInput(SDL_Event& event) {
-    (void)event;
-}
+void CombatState::handleInput(SDL_Event& event) { (void)event; }
 
 void CombatState::update(float deltaTime) {
     script.onUpdate(deltaTime);

@@ -52,6 +52,7 @@ add_library(Engine STATIC
     src/engine/ui/Card.cpp
     src/engine/ui/TextRenderer.cpp
     src/engine/ui/HealthBarRenderer.cpp
+    src/engine/ui/BattleFeed.cpp
 )
 
 target_include_directories(Engine
@@ -82,6 +83,7 @@ add_executable(PokemonAutochess
     src/game/LuaScript.cpp
     src/game/PokemonConfigLoader.cpp
     src/game/GameConfig.cpp
+    src/game/LogBus.cpp
 
     # Game Systems
     src/game/systems/CameraSystem.cpp

@@ -8,6 +8,7 @@
 #include "../ui/HealthBarRenderer.h"
 #include "../../game/GameStateManager.h"
 #include "../render/BoardRenderer.h"
+#include "../ui/BattleFeed.h"
 
 class GameWorld;
 class Window;
@@ -39,4 +40,5 @@ private:
     std::shared_ptr<CameraSystem> cameraSystem;
     std::shared_ptr<UnitInteractionSystem> unitSystem;
     std::shared_ptr<ShopSystem> shopSystem;   // ← NEW
+    std::unique_ptr<BattleFeed> battleFeed;
 };
