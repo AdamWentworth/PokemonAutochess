@@ -1,24 +1,30 @@
 // CameraSystem.h
 
 #pragma once
-
 #include "../../engine/render/Camera3D.h"
-#include "../../engine/core/IUpdatable.h" // ✅ Add this include
+#include "../../engine/core/IUpdatable.h"
 #include <SDL2/SDL.h>
+#include <sol/sol.hpp>
 
-class CameraSystem : public IUpdatable { // ✅ Inherit from IUpdatable
+class CameraSystem : public IUpdatable {
 public:
-    CameraSystem(Camera3D* camera);
+    explicit CameraSystem(Camera3D* camera);
 
-    void handleMousePan(const SDL_Event& event);
-    void handleKeyboardMove(const Uint8* keystates);
+    void update(float deltaTime) override;
+
+    // Optional: call if your input loop forwards wheel events here
     void handleZoom(const SDL_Event& event);
 
-    void update(float deltaTime) override; // ✅ Implement IUpdatable interface
+    // Event relays (wire these via your EventManager or input layer)
+    void onMouseDown(int x, int y);
+    void onMouseUp(int x, int y);
+    void onMouseMove(int x, int y);
+    void onMouseWheel(int wheelY);
 
 private:
     Camera3D* camera;
-    bool isPanning = false;
-    int lastMouseX = 0;
-    int lastMouseY = 0;
+    sol::state lua;
+    bool ok = false;
+
+    void loadScript();
 };
