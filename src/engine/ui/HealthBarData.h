@@ -6,4 +6,6 @@ struct HealthBarData {
     glm::vec2 screenPosition;
     int currentHP;
     int maxHP;
+    int currentEnergy;
+    int maxEnergy;
 };

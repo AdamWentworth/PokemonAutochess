@@ -30,9 +30,11 @@ void HealthBarRenderer::render(const std::vector<HealthBarData>& healthBars) {
     shader->setUniform("u_Projection", projection);
 
     for (const auto& hb : healthBars) {
-        float width = 50.0f;
-        float height = 5.0f;
-        float yOffset = 20.0f;
+        const float width = 50.0f;
+        const float hpH   = 5.0f;
+        const float enH   = 4.0f;
+        const float yOffset = 20.0f;      // top of HP bar
+        const float gap     = 2.0f;       // space between HP and Energy bar
 
         glm::vec2 pos = hb.screenPosition;
         pos.x -= width/2.0f;
@@ -40,7 +42,7 @@ void HealthBarRenderer::render(const std::vector<HealthBarData>& healthBars) {
 
         // Background
         glm::mat4 modelBg = glm::translate(glm::mat4(1.0f), glm::vec3(pos, 0.0f));
-        modelBg = glm::scale(modelBg, glm::vec3(width, height, 1.0f));
+        modelBg = glm::scale(modelBg, glm::vec3(width, hpH, 1.0f));
         shader->setUniform("u_Model", modelBg);
         shader->setUniform("u_Color", glm::vec3(0.3f, 0.3f, 0.3f));
         renderQuad();
@@ -53,9 +55,27 @@ void HealthBarRenderer::render(const std::vector<HealthBarData>& healthBars) {
         else color = glm::vec3(0.0f, 1.0f, 0.0f);
 
         glm::mat4 modelFg = glm::translate(glm::mat4(1.0f), glm::vec3(pos, 0.0f));
-        modelFg = glm::scale(modelFg, glm::vec3(width*percent, height, 1.0f));
+        modelFg = glm::scale(modelFg, glm::vec3(width*percent, hpH, 1.0f));
         shader->setUniform("u_Model", modelFg);
         shader->setUniform("u_Color", color);
+        renderQuad();
+
+        // ----- Energy bar (blue) just below HP -----
+        float eFrac = (hb.maxEnergy > 0) ? (static_cast<float>(hb.currentEnergy) / hb.maxEnergy) : 0.0f;
+        glm::vec2 ePos = pos + glm::vec2(0.0f, hpH + gap);
+    
+        // Background (energy)
+        glm::mat4 eBg = glm::translate(glm::mat4(1.0f), glm::vec3(ePos, 0.0f));
+        eBg = glm::scale(eBg, glm::vec3(width, enH, 1.0f));
+        shader->setUniform("u_Model", eBg);
+        shader->setUniform("u_Color", glm::vec3(0.25f, 0.25f, 0.25f));
+        renderQuad();
+    
+        // Foreground (energy)
+        glm::mat4 eFg = glm::translate(glm::mat4(1.0f), glm::vec3(ePos, 0.0f));
+        eFg = glm::scale(eFg, glm::vec3(width*eFrac, enH, 1.0f));
+        shader->setUniform("u_Model", eFg);
+        shader->setUniform("u_Color", glm::vec3(0.20f, 0.55f, 1.0f)); // blue
         renderQuad();
     }
 

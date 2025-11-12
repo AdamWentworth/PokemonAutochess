@@ -84,6 +84,8 @@ void registerLuaBindings(sol::state& lua, GameWorld* world, GameStateManager* ma
             t["hp"]     = u.hp;
             t["attack"] = u.attack;
             t["speed"]  = u.movementSpeed;
+            t["energy"]= u.energy;
+            t["maxEnergy"]= u.maxEnergy;
             auto cell   = worldToGrid(u.position);
             t["col"]    = cell.x;
             t["row"]    = cell.y;
@@ -106,6 +108,8 @@ void registerLuaBindings(sol::state& lua, GameWorld* world, GameStateManager* ma
                 t["hp"]    = u.hp;
                 t["attack"]= u.attack;
                 t["alive"] = u.alive;
+                t["energy"]= u.energy;
+                t["maxEnergy"]= u.maxEnergy;
                 auto cell  = worldToGrid(u.position);
                 t["col"]   = cell.x;
                 t["row"]   = cell.y;
@@ -242,5 +246,36 @@ void registerLuaBindings(sol::state& lua, GameWorld* world, GameStateManager* ma
     lua.set_function("world_to_grid", [](float x, float y, float z) {
         auto c = worldToGrid(glm::vec3{x,y,z});
         return std::make_pair(c.x, c.y);
+    });
+    // ----- Energy (charged attack) helpers -----
+    lua.set_function("world_get_energy", [world](int unitId) {
+        if (!world) return 0;
+        for (auto& u : world->getPokemons()) if (u.id == unitId) return u.energy;
+        return 0;
+    });
+
+    lua.set_function("world_get_max_energy", [world](int unitId) {
+        if (!world) return 100;
+        for (auto& u : world->getPokemons()) if (u.id == unitId) return u.maxEnergy;
+        return 100;
+    });
+
+    lua.set_function("world_set_energy", [world](int unitId, int value) {
+        if (!world) return false;
+        for (auto& u : world->getPokemons()) if (u.id == unitId) {
+            u.energy = std::max(0, std::min(value, u.maxEnergy));
+            return true;
+        }
+        return false;
+    });
+
+    lua.set_function("world_add_energy", [world](int unitId, int delta) {
+        if (!world) return 0;
+        for (auto& u : world->getPokemons()) if (u.id == unitId) {
+            int m = u.maxEnergy;
+            u.energy = std::max(0, std::min(u.energy + delta, m));
+            return u.energy;
+        }
+        return 0;
     });
 }

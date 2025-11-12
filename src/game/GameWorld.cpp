@@ -172,6 +172,8 @@ std::vector<HealthBarData> GameWorld::getHealthBarData(const Camera3D& camera, i
         hb.screenPosition = glm::vec2(screenPos.x, screenHeight - screenPos.y);
         hb.currentHP = instance.hp;
         hb.maxHP = instance.maxHP; // NEW: use scaled per-unit max
+        hb.currentEnergy = instance.energy;
+        hb.maxEnergy     = instance.maxEnergy;
         data.push_back(hb);
     };
 

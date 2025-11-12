@@ -32,6 +32,9 @@ struct PokemonInstance {
     int attack = 10;          // scaled attack
     float movementSpeed = 1.0f; // scaled move speed
 
+    int energy = 0;
+    int maxEnergy = 100; 
+
     bool alive = true;
 
     // --- Movement runtime state (one-cell commit) ---
