@@ -1,19 +1,21 @@
 // UIManager.h
 
 #pragma once
-#include "../utils/Shader.h"
+#include <string>
+#include <SDL.h>
 
-class UIManager {
-public:
-    // Call this at application startup.
-    static void init();
+class Shader;
 
-    // Returns the UI shader used for drawing cards.
-    static Shader* getCardShader();
+namespace UIManager {
+    // Initialize any UI state
+    void init();
 
-    // Call this at application shutdown.
-    static void shutdown();
+    // Return the shader used for drawing cards (owned by UIManager)
+    Shader* getCardShader();
 
-private:
-    static Shader* cardShader;
-};
+    // Draw a card rect with optional image (stub)
+    void drawCard(const SDL_Rect& rect, const std::string& imagePath, Shader* shader);
+
+    // Tear down any UI resources created in init()
+    void shutdown();
+}
