@@ -1,35 +1,17 @@
 // PlacementState.cpp
 
 #include "PlacementState.h"
+// CHANGED: use CombatState and flow.lua instead of hardcoded Route1
 #include "CombatState.h"
 #include "../GameStateManager.h"
 #include "../GameWorld.h"
-#include "../PokemonInstance.h"          // ← needed
-#include "../LuaScript.h"                // ← needed
 #include "../../engine/ui/TextRenderer.h"
 #include "../GameConfig.h"
-
-#include <sol/sol.hpp>
 #include <iostream>
 #include <algorithm>
-#include <cmath>                         // ← std::round, std::abs
+#include <sol/sol.hpp>
 
 static TextRenderer* textRenderer = nullptr;
-
-static glm::vec3 gridToWorld(int col, int row) {
-    const auto& cfg = GameConfig::get();
-    float boardOriginX = -((cfg.cols * cfg.cellSize) / 2.0f) + cfg.cellSize * 0.5f;
-    float boardOriginZ = -((cfg.rows * cfg.cellSize) / 2.0f) + cfg.cellSize * 0.5f;
-    return { boardOriginX + col * cfg.cellSize, 0.0f, boardOriginZ + row * cfg.cellSize };
-}
-static glm::ivec2 worldToGrid(const glm::vec3& pos) {
-    const auto& cfg = GameConfig::get();
-    float boardOriginX = -((cfg.cols * cfg.cellSize) / 2.0f) + cfg.cellSize * 0.5f;
-    float boardOriginZ = -((cfg.rows * cfg.cellSize) / 2.0f) + cfg.cellSize * 0.5f;
-    int col = static_cast<int>(std::round((pos.x - boardOriginX) / cfg.cellSize));
-    int row = static_cast<int>(std::round((pos.z - boardOriginZ) / cfg.cellSize));
-    return { col, row };
-}
 
 PlacementState::PlacementState(GameStateManager* manager, GameWorld* world, const std::string& starterName)
     : stateManager(manager),
@@ -44,11 +26,7 @@ PlacementState::PlacementState(GameStateManager* manager, GameWorld* world, cons
     }
 }
 
-PlacementState::~PlacementState() {
-    // If you want TextRenderer to live across instances, keep it.
-    // If not, uncomment next lines to free it when this state is destroyed.
-    // if (textRenderer) { delete textRenderer; textRenderer = nullptr; }
-}
+PlacementState::~PlacementState() {}
 
 void PlacementState::onEnter() {
     std::cout << "[PlacementState] Entering placement phase. Place your starter within 5 seconds.\n";
@@ -82,10 +60,10 @@ void PlacementState::update(float deltaTime) {
             moveStarterToValidGridPosition();
         }
 
-        // Ask Lua which combat script to use next
+        // NEW: ask Lua which combat script to use next
         static std::unique_ptr<LuaScript> flow;
         if (!flow) {
-            flow = std::make_unique<LuaScript>(gameWorld, stateManager);
+            flow = std::make_unique<LuaScript>(gameWorld);
             flow->loadScript("scripts/states/flow.lua");
         }
         std::string routeScript = "scripts/states/route1.lua";
@@ -129,11 +107,14 @@ void PlacementState::moveStarterToBoard() {
         PokemonInstance starter = *it;
         bench.erase(it);
 
-        const auto& cfg = GameConfig::get();
-        int col = std::max(0, std::min(cfg.cols - 1, cfg.cols / 2));
-        int row = 0; // player front row
-        auto pos = gridToWorld(col, row);
-        starter.position = pos;
+        float cellSize = 1.2f;
+        float boardOriginX = -((8 * cellSize) / 2.0f) + cellSize * 0.5f;
+        float boardOriginZ = cellSize * 0.5f;
+        int col = 3;
+        
+        starter.position.x = boardOriginX + col * cellSize;
+        starter.position.z = boardOriginZ;
+        starter.position.y = 0.0f;
 
         gameWorld->getPokemons().push_back(starter);
         std::cout << "[PlacementState] Moved starter to board at (" << starter.position.x << ", " << starter.position.z << ")\n";
@@ -141,22 +122,24 @@ void PlacementState::moveStarterToBoard() {
 }
 
 bool PlacementState::isValidGridPosition(const glm::vec3& position) const {
-    const auto& cfg = GameConfig::get();
+    const float cellSize = 1.2f;
+    const float epsilon = 0.01f;
 
-    float boardOriginX = -((cfg.cols * cfg.cellSize) / 2.0f) + cfg.cellSize * 0.5f;
-    float boardOriginZ = -((cfg.rows * cfg.cellSize) / 2.0f) + cfg.cellSize * 0.5f;
+    float boardOriginX = -((8 * cellSize) / 2.0f) + cellSize * 0.5f;
+    float boardOriginZ = cellSize * 0.5f;
 
-    int col = static_cast<int>(std::round((position.x - boardOriginX) / cfg.cellSize));
-    int row = static_cast<int>(std::round((position.z - boardOriginZ) / cfg.cellSize));
+    int col = static_cast<int>(std::round((position.x - boardOriginX) / cellSize));
+    int row = static_cast<int>(std::round((position.z - boardOriginZ) / cellSize));
 
-    if (col < 0 || col >= cfg.cols || row < 0 || row >= (cfg.rows / 2)) {
+    if (col < 0 || col >= 8 || row < 0 || row >= 4) {
         return false;
     }
 
-    glm::vec3 expected = gridToWorld(col, row);
-    const float epsilon = 0.01f;
-    bool xValid = std::abs(position.x - expected.x) < epsilon;
-    bool zValid = std::abs(position.z - expected.z) < epsilon;
+    float expectedX = boardOriginX + col * cellSize;
+    float expectedZ = boardOriginZ + row * cellSize;
+
+    bool xValid = std::abs(position.x - expectedX) < epsilon;
+    bool zValid = std::abs(position.z - expectedZ) < epsilon;
 
     return xValid && zValid;
 }
@@ -194,8 +177,14 @@ void PlacementState::moveStarterToValidGridPosition() {
 }
 
 void PlacementState::placeOnValidGridPosition(PokemonInstance& starter) {
-    const auto& cfg = GameConfig::get();
-    int col = std::max(0, std::min(cfg.cols - 1, cfg.cols / 2));
-    int row = 0; // player side front row
-    starter.position = gridToWorld(col, row);
+    const float cellSize = 1.2f;
+    float boardOriginX = -((8 * cellSize) / 2.0f) + cellSize * 0.5f;
+    float boardOriginZ = cellSize * 0.5f;
+
+    int col = 3;
+    int row = 0;
+    
+    starter.position.x = boardOriginX + col * cellSize;
+    starter.position.z = boardOriginZ + row * cellSize;
+    starter.position.y = 0.0f;
 }

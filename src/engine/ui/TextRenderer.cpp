@@ -10,35 +10,33 @@
 #include "../utils/Shader.h"
 #include <cmath>
 
-// Constructor: load the font and the text shader.
 TextRenderer::TextRenderer(const std::string& fontPath, int fontSize) {
     font = TTF_OpenFont(fontPath.c_str(), fontSize);
     if (!font) {
         std::cerr << "[TextRenderer] Failed to load font: " << TTF_GetError() << "\n";
     }
-    // Load the text shader (create assets/shaders/ui/text.vert and text.frag as described below)
     textShader = new Shader("assets/shaders/ui/text.vert", "assets/shaders/ui/text.frag");
 }
 
 TextRenderer::~TextRenderer() {
     if (font) {
         TTF_CloseFont(font);
+        font = nullptr;
     }
     if (textShader) {
         delete textShader;
+        textShader = nullptr;
     }
 }
 
-// Helper: Convert an SDL_Surface to an OpenGL texture using nearest filtering.
 unsigned int TextRenderer::createTextureFromSurface(SDL_Surface* surface) {
-    // Convert surface to 32-bit RGBA format
     SDL_Surface* converted = SDL_ConvertSurfaceFormat(surface, SDL_PIXELFORMAT_RGBA32, 0);
     if (!converted) {
-        std::cerr << "Failed to convert surface: " << SDL_GetError() << "\n";
+        std::cerr << "[TextRenderer] Failed to convert surface: " << SDL_GetError() << "\n";
         return 0;
     }
 
-    unsigned int textureID;
+    unsigned int textureID = 0;
     glGenTextures(1, &textureID);
     glBindTexture(GL_TEXTURE_2D, textureID);
 
@@ -49,11 +47,11 @@ unsigned int TextRenderer::createTextureFromSurface(SDL_Surface* surface) {
 
     glTexImage2D(GL_TEXTURE_2D,
                  0,
-                 GL_RGBA,                      // Internal format
+                 GL_RGBA,
                  converted->w,
                  converted->h,
                  0,
-                 GL_RGBA,                      // Format matches converted surface
+                 GL_RGBA,
                  GL_UNSIGNED_BYTE,
                  converted->pixels);
 
@@ -63,18 +61,29 @@ unsigned int TextRenderer::createTextureFromSurface(SDL_Surface* surface) {
     return textureID;
 }
 
-void TextRenderer::renderText(const std::string& text, float x, float y, const glm::vec3& color, float scale) {
-    if (!font) return;
+void TextRenderer::renderText(const std::string& text,
+                              float x,
+                              float y,
+                              const glm::vec3& color,
+                              float scale,
+                              float alpha)
+{
+    if (!font || !textShader) return;
+
+    // Build projection from the CURRENT OpenGL viewport (correct on HiDPI, resizable windows, etc.)
+    int vp[4] = {0,0,0,0};
+    glGetIntegerv(GL_VIEWPORT, vp);
+    const float screenW = static_cast<float>(vp[2]);
+    const float screenH = static_cast<float>(vp[3]);
 
     float posX = x;
 
-    int windowWidth = 1280;
-    int windowHeight = 720;
-
-    glm::mat4 projection = glm::ortho(0.0f, (float)windowWidth, (float)windowHeight, 0.0f);
+    glm::mat4 projection = glm::ortho(0.0f, screenW, screenH, 0.0f);
     textShader->use();
     textShader->setUniform("u_Projection", projection);
     textShader->setUniform("u_TextColor", color);
+    // NEW: feed fading alpha to the fragment shader
+    textShader->setUniform("u_GlobalAlpha", alpha);
 
     for (char c : text) {
         if (!TTF_GlyphIsProvided(font, c)) continue;
@@ -88,24 +97,22 @@ void TextRenderer::renderText(const std::string& text, float x, float y, const g
         int h = glyphSurface->h;
         SDL_FreeSurface(glyphSurface);
 
-        // Define screen-space quad from posX/y to (posX + w, y + h)
-        float xpos = posX;
-        float ypos = y;
-
-        float quadW = w * scale;
-        float quadH = h * scale;
+        // Quad in screen space (origin at top-left)
+        const float quadW = w * scale;
+        const float quadH = h * scale;
+        const float xpos  = posX;
+        const float ypos  = y;
 
         float vertices[] = {
-            // pos         // tex
-            xpos,     ypos + quadH, 0.0f, 1.0f,
-            xpos,     ypos,         0.0f, 0.0f,
-            xpos + quadW, ypos,     1.0f, 0.0f,
+            // pos                 // tex
+            xpos,         ypos + quadH, 0.0f, 1.0f,
+            xpos,         ypos,         0.0f, 0.0f,
+            xpos + quadW, ypos,         1.0f, 0.0f,
             xpos + quadW, ypos + quadH, 1.0f, 1.0f
         };
-
         unsigned int indices[] = { 0, 1, 2, 2, 3, 0 };
 
-        GLuint VAO, VBO, EBO;
+        GLuint VAO=0, VBO=0, EBO=0;
         glGenVertexArrays(1, &VAO);
         glGenBuffers(1, &VBO);
         glGenBuffers(1, &EBO);
@@ -130,28 +137,28 @@ void TextRenderer::renderText(const std::string& text, float x, float y, const g
         glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
         glDisable(GL_BLEND);
 
+        // Cleanup per-glyph buffers (kept simple; this is UI text)
         glBindVertexArray(0);
         glDeleteBuffers(1, &VBO);
         glDeleteBuffers(1, &EBO);
         glDeleteVertexArrays(1, &VAO);
         glDeleteTextures(1, &textureID);
 
-        // Advance using font metrics
+        // Advance cursor using glyph metrics (kerning/advance)
         int minx, maxx, miny, maxy, advance;
-        if (TTF_GlyphMetrics(font, c, &minx, &maxx, &miny, &maxy, &advance) == 0)
+        if (TTF_GlyphMetrics(font, c, &minx, &maxx, &miny, &maxy, &advance) == 0) {
             posX += static_cast<float>(advance) * scale;
-        else
-            posX += w * scale;
+        } else {
+            posX += quadW; // fallback
+        }
     }
 }
 
 float TextRenderer::measureTextWidth(const std::string& text, float scale) const {
     if (!font) return 0.0f;
-
     float width = 0.0f;
     for (char c : text) {
         if (!TTF_GlyphIsProvided(font, c)) continue;
-
         int minx, maxx, miny, maxy, advance;
         if (TTF_GlyphMetrics(font, c, &minx, &maxx, &miny, &maxy, &advance) == 0)
             width += static_cast<float>(advance) * scale;

@@ -14,18 +14,24 @@ public:
     TextRenderer(const std::string& fontPath, int fontSize);
     ~TextRenderer();
 
-    // Render the given text glyph-by-glyph at position (x, y).
-    // Uses TTF metrics for spacing. 'color' is a glm::vec3 (1,1,1 = white).
-    // 'scale' should generally be 1.0 to render at natural font size (defined in constructor).
-    void renderText(const std::string& text, float x, float y, const glm::vec3& color, float scale);
-    
+    // Render text at screen-space (x, y) in pixels.
+    // 'color' is RGB (1,1,1 = white).
+    // 'scale' scales glyph quads relative to the font size (1.0 = natural size).
+    // 'alpha' (NEW, default 1.0) multiplies glyph opacity for fading.
+    void renderText(const std::string& text,
+                    float x,
+                    float y,
+                    const glm::vec3& color,
+                    float scale,
+                    float alpha = 1.0f);
+
     TTF_Font* getFont() const { return font; }
 
     float measureTextWidth(const std::string& text, float scale = 1.0f) const;
 
 private:
-    TTF_Font* font;
-    Shader* textShader;
+    TTF_Font* font = nullptr;
+    Shader* textShader = nullptr;
 
     // Helper: Converts an SDL_Surface to an OpenGL texture.
     unsigned int createTextureFromSurface(SDL_Surface* surface);

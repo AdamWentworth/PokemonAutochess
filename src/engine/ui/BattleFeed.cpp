@@ -4,6 +4,7 @@
 #include "TextRenderer.h"
 #include <algorithm>
 #include <glad/glad.h>
+#include <SDL2/SDL_ttf.h>   // NEW: for TTF_FontHeight()
 
 BattleFeed::BattleFeed(const std::string& fontPath, int fontSize) {
     text = std::make_unique<TextRenderer>(fontPath, fontSize);
@@ -27,49 +28,61 @@ void BattleFeed::update(float dt) {
 void BattleFeed::render(int screenW, int screenH) {
     if (!text || lines.empty()) return;
 
-    // Draw as 2D overlay: no depth; enable alpha blending
-    GLboolean depthWasEnabled = glIsEnabled(GL_DEPTH_TEST);
+    // 2D overlay: disable depth; enable alpha blending while drawing
+    const GLboolean depthWasEnabled = glIsEnabled(GL_DEPTH_TEST);
     if (depthWasEnabled) glDisable(GL_DEPTH_TEST);
 
-    GLboolean blendWasEnabled = glIsEnabled(GL_BLEND);
-    GLint oldBlendSrc = 0, oldBlendDst = 0;
-    if (!blendWasEnabled) {
-        glEnable(GL_BLEND);
-        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-    } else {
-        glGetIntegerv(GL_BLEND_SRC_ALPHA, &oldBlendSrc);
-        glGetIntegerv(GL_BLEND_DST_ALPHA, &oldBlendDst);
-        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    const GLboolean blendWasEnabled = glIsEnabled(GL_BLEND);
+    if (!blendWasEnabled) glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+    // Layout constants
+    const float padX = 16.f;
+    const float padY = 16.f;
+
+    // Use font height for consistent line spacing
+    int fh = 24;
+    if (TTF_Font* f = text->getFont()) {
+        fh = TTF_FontHeight(f);
+        if (fh <= 0) fh = 24;
     }
+    const float lineH = fh * baseScale;  // scaled pixel height per line
 
-    const float padX = 16.f, padY = 16.f;
-    float x = padX, y = screenH - padY; // start from bottom
+    float x = padX;
+    // Start exactly one line-height above the bottom padding
+    float y = screenH - padY - lineH;
 
-    for (int i = (int)lines.size() - 1; i >= 0; --i) {
+    for (int i = static_cast<int>(lines.size()) - 1; i >= 0; --i) {
         const auto& ln = lines[i];
+
+        // Compute fade alpha (last 25% of lifetime)
         float t = std::clamp(ln.age / ln.lifetime, 0.f, 1.f);
         float alpha = (t < 0.75f) ? 1.f : std::max(0.f, 1.f - (t - 0.75f) / 0.25f);
 
+        // Word wrap to fixed width (in pixels)
         auto wrapped = wrap(ln.text, wrapWidth, baseScale);
-        for (int w = (int)wrapped.size() - 1; w >= 0; --w) {
-            y -= 18.f; // line height (font dependent; tweak if needed)
+
+        // Draw the wrapped lines bottom-up so the last line sits on 'y'
+        for (int w = static_cast<int>(wrapped.size()) - 1; w >= 0; --w) {
+            // Render and then move up by one line
             text->renderText(
                 wrapped[w],
                 x, y,
-                glm::vec3(ln.color) * alpha,
-                baseScale
+                ln.color,
+                baseScale,
+                alpha /* NEW: true alpha fade */
             );
+            y -= lineH;
+            if (y < -lineH) break; // off-screen; stop
         }
+
+        // Add small gap between entries
         y -= lineGap;
-        if (y < 0) break;
+        if (y < -lineH) break;
     }
 
     // Restore GL state
-    if (!blendWasEnabled) {
-        glDisable(GL_BLEND);
-    } else {
-        glBlendFunc(oldBlendSrc, oldBlendDst);
-    }
+    if (!blendWasEnabled) glDisable(GL_BLEND);
     if (depthWasEnabled) glEnable(GL_DEPTH_TEST);
 }
 

@@ -5,6 +5,7 @@
 
 #include "../events/Event.h"
 #include "../events/EventManager.h"
+#include "../events/RoundEvents.h"      // ← ensure included
 
 #include "../render/Renderer.h"
 #include "../render/BoardRenderer.h"
@@ -91,8 +92,17 @@ void Application::init() {
 
     healthBarRenderer.init();
 
+    // --- Battle feed + LogBus hookup
     battleFeed = std::make_unique<BattleFeed>(cfg.fontPath, cfg.fontSize);
     LogBus::attach(battleFeed.get());
+
+    // 🔊 Log round phase transitions to the feed
+    EventManager::getInstance().subscribe(EventType::RoundPhaseChanged,
+        [](const Event& e){
+            const auto& ev = static_cast<const RoundPhaseChangedEvent&>(e);
+            LogBus::colored("Phase: " + ev.previousPhase + " → " + ev.nextPhase,
+                            {0.75f, 0.9f, 1.0f}, 3.0f);
+        });
 
     stateManager->pushState(std::make_unique<ScriptedState>(
         stateManager.get(), gameWorld.get(), "scripts/states/starter.lua"));
@@ -111,7 +121,6 @@ void Application::run() {
     SDL_Event event;
 
     while (running) {
-        // --- Input ---
         while (SDL_PollEvent(&event)) {
             if (event.type == SDL_QUIT ||
                (event.type == SDL_KEYDOWN && event.key.keysym.sym == SDLK_ESCAPE)) {
@@ -142,7 +151,6 @@ void Application::run() {
             if (stateManager) stateManager->handleInput(event);
         }
 
-        // --- Fixed update ---
         auto now = clock::now();
         double frameDt = std::chrono::duration<double>(now - previous).count();
         frameDt = std::min(frameDt, 0.25);
@@ -157,35 +165,29 @@ void Application::run() {
             if (battleFeed) battleFeed->update(TIME_STEP);
         }
 
-        // --- Render ---
         glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
         if (board && camera) {
             board->draw(*camera);
         }
-
         if (gameWorld && camera && board) {
             gameWorld->drawAll(*camera, *board);
         }
-
         if (stateManager) stateManager->render();
-
         if (gameWorld && camera) {
             auto healthBarData = gameWorld->getHealthBarData(*camera, WIDTH, HEIGHT);
             healthBarRenderer.render(healthBarData);
         }
-
         if (shopSystem) shopSystem->renderUI(WIDTH, HEIGHT);
 
-        // >>> Draw battle feed after all 3D/UI so it overlays everything
+        // Overlay BattleFeed last
         if (battleFeed) {
             battleFeed->render(WIDTH, HEIGHT);
         }
 
         SDL_GL_SwapWindow(window->getSDLWindow());
 
-        // --- FPS ---
         frameCount++;
         static double fpsTimer = 0.0;
         fpsTimer += frameDt;
