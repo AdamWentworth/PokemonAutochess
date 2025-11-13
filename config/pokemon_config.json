@@ -1,33 +1,237 @@
 {
-    "bulbasaur": {
-      "hp": 120,
-      "attack": 8,
-      "movementSpeed": 1.0,
-      "model": "bulbasaur.glb"
+  "bulbasaur": {
+    "attack": 8,
+    "hp": 120,
+    "loadoutByLevel": {
+      "1": {
+        "fast": "tackle"
+      },
+      "3": {
+        "fast": "vine_whip"
+      },
+      "5": {
+        "charged": "leech_seed",
+        "fast": "vine_whip"
+      },
+      "6": {
+        "charged": "leech_seed",
+        "fast": "razor_leaf"
+      },
+      "8": {
+        "charged": "seed_bomb",
+        "fast": "razor_leaf"
+      }
     },
-    "charmander": {
-      "hp": 100,
-      "attack": 10,
-      "movementSpeed": 1.2,
-      "model": "charmander.glb"
+    "model": "bulbasaur.glb",
+    "movementSpeed": 1.0,
+    "unlockTable": [
+      {
+        "charged": [],
+        "fast": [
+          "tackle"
+        ],
+        "level": 1
+      },
+      {
+        "fast": [
+          "vine_whip"
+        ],
+        "level": 3
+      },
+      {
+        "charged": [
+          "leech_seed"
+        ],
+        "level": 5
+      },
+      {
+        "fast": [
+          "razor_leaf"
+        ],
+        "level": 6
+      },
+      {
+        "charged": [
+          "seed_bomb"
+        ],
+        "level": 8
+      }
+    ]
+  },
+  "charmander": {
+    "attack": 10,
+    "hp": 100,
+    "loadoutByLevel": {
+      "1": {
+        "fast": "ember"
+      },
+      "4": {
+        "fast": "fire_fang"
+      },
+      "5": {
+        "charged": "flame_burst",
+        "fast": "fire_fang"
+      },
+      "8": {
+        "charged": "flamethrower",
+        "fast": "fire_fang"
+      }
     },
-    "squirtle": {
-      "hp": 110,
-      "attack": 9,
-      "movementSpeed": 0.9,
-      "model": "squirtle.glb"
+    "model": "charmander.glb",
+    "movementSpeed": 1.2,
+    "unlockTable": [
+      {
+        "charged": [],
+        "fast": [
+          "ember"
+        ],
+        "level": 1
+      },
+      {
+        "fast": [
+          "fire_fang"
+        ],
+        "level": 4
+      },
+      {
+        "charged": [
+          "flame_burst"
+        ],
+        "level": 5
+      },
+      {
+        "charged": [
+          "flamethrower"
+        ],
+        "level": 8
+      }
+    ]
+  },
+  "squirtle": {
+    "attack": 9,
+    "hp": 110,
+    "loadoutByLevel": {
+      "1": {
+        "fast": "bubble"
+      },
+      "3": {
+        "fast": "water_gun"
+      },
+      "5": {
+        "charged": "aqua_tail",
+        "fast": "water_gun"
+      },
+      "7": {
+        "charged": "water_pulse",
+        "fast": "water_gun"
+      }
     },
-    "pidgey": {
-      "hp": 80,
-      "attack": 7,
-      "movementSpeed": 1.1,
-      "model": "pidgey.glb"
+    "model": "squirtle.glb",
+    "movementSpeed": 0.9,
+    "unlockTable": [
+      {
+        "charged": [],
+        "fast": [
+          "bubble"
+        ],
+        "level": 1
+      },
+      {
+        "fast": [
+          "water_gun"
+        ],
+        "level": 3
+      },
+      {
+        "charged": [
+          "aqua_tail"
+        ],
+        "level": 5
+      },
+      {
+        "charged": [
+          "water_pulse"
+        ],
+        "level": 7
+      }
+    ]
+  },
+  "pidgey": {
+    "attack": 7,
+    "hp": 80,
+    "loadoutByLevel": {
+      "1": {
+        "fast": "gust"
+      },
+      "3": {
+        "fast": "wing_attack"
+      },
+      "5": {
+        "charged": "aerial_ace",
+        "fast": "wing_attack"
+      }
     },
-    "rattata": {
-      "hp": 60,
-      "attack": 8,
-      "movementSpeed": 1.2,
-      "model": "rattata.glb"
-    }
+    "model": "pidgey.glb",
+    "movementSpeed": 1.1,
+    "unlockTable": [
+      {
+        "charged": [],
+        "fast": [
+          "gust"
+        ],
+        "level": 1
+      },
+      {
+        "fast": [
+          "wing_attack"
+        ],
+        "level": 3
+      },
+      {
+        "charged": [
+          "aerial_ace"
+        ],
+        "level": 5
+      }
+    ]
+  },
+  "rattata": {
+    "attack": 8,
+    "hp": 60,
+    "loadoutByLevel": {
+      "1": {
+        "fast": "tackle"
+      },
+      "3": {
+        "fast": "quick_attack"
+      },
+      "5": {
+        "charged": "hyper_fang",
+        "fast": "quick_attack"
+      }
+    },
+    "model": "rattata.glb",
+    "movementSpeed": 1.2,
+    "unlockTable": [
+      {
+        "charged": [],
+        "fast": [
+          "tackle"
+        ],
+        "level": 1
+      },
+      {
+        "fast": [
+          "quick_attack"
+        ],
+        "level": 3
+      },
+      {
+        "charged": [
+          "hyper_fang"
+        ],
+        "level": 5
+      }
+    ]
   }
-  
+}

@@ -10,7 +10,9 @@
 #include <glad/glad.h>
 #include "PokemonConfigLoader.h"
 #include "GameConfig.h"
+#include "MovesConfigLoader.h"
 #include <cmath>
+#include <limits>
 
 void GameWorld::applyLevelScaling(PokemonInstance& inst, int level) const {
     const auto& cfg = GameConfig::get();
@@ -18,13 +20,44 @@ void GameWorld::applyLevelScaling(PokemonInstance& inst, int level) const {
 
     inst.level = useLevel;
 
-    // multiplier = (1 + perLevelBoost)^(level - 1)
     const float mult = std::pow(1.0f + cfg.perLevelBoost, static_cast<float>(useLevel - 1));
 
     inst.maxHP         = static_cast<int>(std::round(static_cast<float>(inst.baseHp) * mult));
-    inst.hp            = inst.maxHP; // spawn at full health
+    inst.hp            = inst.maxHP;
     inst.attack        = static_cast<int>(std::round(static_cast<float>(inst.baseAttack) * mult));
     inst.movementSpeed = inst.baseMovementSpeed * mult;
+}
+
+static const LoadoutEntry* pickLoadoutForLevel(const PokemonStats& ps, int level) {
+    const LoadoutEntry* best = nullptr;
+    for (const auto& [lvl, le] : ps.loadoutByLevel) {
+        if (lvl <= level) best = &le;
+        else break;
+    }
+    return best;
+}
+
+void GameWorld::applyLoadoutForLevel(PokemonInstance& inst) const {
+    const PokemonStats* ps = PokemonConfigLoader::getInstance().getStats(inst.name);
+    if (!ps) return;
+
+    const LoadoutEntry* le = pickLoadoutForLevel(*ps, inst.level);
+    if (le) {
+        inst.fastMove = le->fast;
+        inst.chargedMove = le->hasCharged ? le->charged : std::string();
+    } else {
+        inst.fastMove.clear();
+        inst.chargedMove.clear();
+    }
+
+    // Energy cap: if charged is present and found in moves table, use its energyCost; else default 100.
+    inst.maxEnergy = 100;
+    if (!inst.chargedMove.empty()) {
+        if (const auto* md = MovesConfigLoader::getInstance().getMove(inst.chargedMove)) {
+            if (md->energyCost > 0) inst.maxEnergy = md->energyCost;
+        }
+    }
+    inst.energy = 0;
 }
 
 void GameWorld::spawnPokemon(const std::string& pokemonName,
@@ -53,8 +86,11 @@ void GameWorld::spawnPokemon(const std::string& pokemonName,
     inst.baseAttack = stats->attack;
     inst.baseMovementSpeed = stats->movementSpeed;
 
-    // Apply level scaling (sets level, hp/maxHP, attack, movementSpeed)
+    // Level scaling
     applyLevelScaling(inst, level);
+
+    // Equip moves for this level
+    applyLoadoutForLevel(inst);
 
     pokemons.push_back(inst);
 
@@ -63,7 +99,11 @@ void GameWorld::spawnPokemon(const std::string& pokemonName,
               << ", L" << inst.level
               << ", HP: " << inst.hp << "/" << inst.maxHP
               << ", ATK: " << inst.attack
-              << ", SPD: " << inst.movementSpeed << ")\n";
+              << ", SPD: " << inst.movementSpeed
+              << ", FAST: " << (inst.fastMove.empty() ? "-" : inst.fastMove)
+              << ", CHARGED: " << (inst.chargedMove.empty() ? "-" : inst.chargedMove)
+              << ", Ecap: " << inst.maxEnergy
+              << ")\n";
 }
 
 glm::vec3 GameWorld::gridToWorld(int col, int row) const {
@@ -104,6 +144,7 @@ void GameWorld::addToBench(const std::string& pokemonName) {
 
     // Apply default level scaling for bench (uses baseLevel)
     applyLevelScaling(inst, /*level*/ -1);
+    applyLoadoutForLevel(inst);
 
     int slot = static_cast<int>(benchPokemons.size());
     float spacing = 1.2f;
@@ -116,7 +157,9 @@ void GameWorld::addToBench(const std::string& pokemonName) {
     std::cout << "[GameWorld] Benched " << pokemonName
               << " (ID: " << inst.id
               << " L" << inst.level
-              << ", slot " << slot << ")\n";
+              << ", FAST: " << (inst.fastMove.empty() ? "-" : inst.fastMove)
+              << ", CHARGED: " << (inst.chargedMove.empty() ? "-" : inst.chargedMove)
+              << ")\n";
 }
 
 const PokemonInstance* GameWorld::getPokemonByName(const std::string& name) const {
@@ -171,7 +214,7 @@ std::vector<HealthBarData> GameWorld::getHealthBarData(const Camera3D& camera, i
         HealthBarData hb;
         hb.screenPosition = glm::vec2(screenPos.x, screenHeight - screenPos.y);
         hb.currentHP = instance.hp;
-        hb.maxHP = instance.maxHP; // NEW: use scaled per-unit max
+        hb.maxHP = instance.maxHP;
         hb.currentEnergy = instance.energy;
         hb.maxEnergy     = instance.maxEnergy;
         data.push_back(hb);

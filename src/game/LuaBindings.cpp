@@ -7,10 +7,13 @@
 #include "../engine/events/EventManager.h"
 #include "../engine/events/RoundEvents.h"
 #include "GameConfig.h"
+#include "PokemonConfigLoader.h"
+#include "MovesConfigLoader.h"
 #include <glm/glm.hpp>
 #include <iostream>
 #include <algorithm>
 #include <cmath>
+#include <limits>
 #include "LogBus.h"
 
 // Helper
@@ -19,7 +22,7 @@ static PokemonSide sideFromString(const std::string& s) {
     return PokemonSide::Player;
 }
 
-// Grid helpers (mirror of GameWorld::gridToWorld)
+// Grid helpers
 static glm::vec3 gridToWorld(int col, int row) {
     const auto& cfg = GameConfig::get();
     float boardOriginX = -((cfg.cols * cfg.cellSize) / 2.0f) + cfg.cellSize * 0.5f;
@@ -43,11 +46,15 @@ void registerLuaBindings(sol::state& lua, GameWorld* world, GameStateManager* ma
     );
 
     // ---- Logging: Lua -> BattleFeed ----
-    // Usage from Lua: emit("Tag", "{\"json\":\"payload\"}") or emit("Just a message")
     lua.set_function("emit", [](const std::string& tag_or_msg, sol::optional<std::string> payload) {
         if (payload.has_value() && !payload->empty()) {
-            LogBus::info("[" + tag_or_msg + "] " + *payload);
+            // Structured (verbose) log -> terminal only
+            const std::string& tag = tag_or_msg;
+            const bool hasBrackets = !tag.empty() && tag.front()=='[' && tag.back()==']';
+            const std::string header = hasBrackets ? tag : ("[" + tag + "]");
+            LogBus::infoTerminalOnly(header + " " + *payload);
         } else {
+            // Human-readable line -> show in on-screen feed (and mirror to terminal)
             LogBus::info(tag_or_msg);
         }
     });
@@ -99,6 +106,8 @@ void registerLuaBindings(sol::state& lua, GameWorld* world, GameStateManager* ma
             t["col"]       = cell.x;
             t["row"]       = cell.y;
             t["alive"]     = u.alive;
+            t["fastMove"]  = u.fastMove;
+            t["chargedMove"] = u.chargedMove;
             arr[i++]       = t;
         }
         return arr;
@@ -118,6 +127,8 @@ void registerLuaBindings(sol::state& lua, GameWorld* world, GameStateManager* ma
                 t["alive"]     = u.alive;
                 t["energy"]    = u.energy;
                 t["maxEnergy"] = u.maxEnergy;
+                t["fastMove"]  = u.fastMove;
+                t["chargedMove"] = u.chargedMove;
                 auto cell      = worldToGrid(u.position);
                 t["col"]       = cell.x;
                 t["row"]       = cell.y;
@@ -127,6 +138,7 @@ void registerLuaBindings(sol::state& lua, GameWorld* world, GameStateManager* ma
         return t;
     });
 
+    // Movement & adjacency helpers (unchanged)
     lua.set_function("world_apply_move", [world](int unitId, int col, int row) {
         if (!world) return false;
         auto& list = world->getPokemons();
@@ -158,15 +170,35 @@ void registerLuaBindings(sol::state& lua, GameWorld* world, GameStateManager* ma
 
     lua.set_function("world_nearest_enemy_cell", [world](int unitId) {
         if (!world) return std::make_pair(-1, -1);
+
         auto& list = world->getPokemons();
-        auto it = std::find_if(list.begin(), list.end(),
+
+        // Find the querying unit
+        const auto it = std::find_if(list.begin(), list.end(),
             [&](const PokemonInstance& p){ return p.id == unitId; });
         if (it == list.end()) return std::make_pair(-1, -1);
-        glm::vec3 pos = world->getNearestEnemyPosition(*it);
-        auto cell = worldToGrid(pos);
-        return std::make_pair(cell.x, cell.y);
+
+        const auto myCell = worldToGrid(it->position);
+
+        int best = std::numeric_limits<int>::max();
+        glm::ivec2 bestCell(-1, -1);
+
+        for (const auto& u : list) {
+            if (!u.alive || u.side == it->side) continue;
+            const auto ec = worldToGrid(u.position);
+
+            // Chebyshev distance matches your 8-connected neighborhood
+            const int d = std::max(std::abs(myCell.x - ec.x), std::abs(myCell.y - ec.y));
+            if (d < best) {
+                best = d;
+                bestCell = ec;
+            }
+        }
+
+        return std::make_pair(bestCell.x, bestCell.y);
     });
 
+    // FIX: use integer distances to avoid int->float C4244 warnings
     lua.set_function("world_is_adjacent_to_enemy", [world](int unitId) {
         if (!world) return false;
         auto& list = world->getPokemons();
@@ -174,10 +206,17 @@ void registerLuaBindings(sol::state& lua, GameWorld* world, GameStateManager* ma
             [&](const PokemonInstance& p){ return p.id == unitId; });
         if (it == list.end()) return false;
         auto myCell = worldToGrid(it->position);
-        glm::vec3 enemyPos = world->getNearestEnemyPosition(*it);
-        auto e = worldToGrid(enemyPos);
-        int dx = std::abs(myCell.x - e.x);
-        int dy = std::abs(myCell.y - e.y);
+
+        int best = std::numeric_limits<int>::max();
+        glm::ivec2 bestCell(-999,-999);
+        for (auto& u : list) {
+            if (!u.alive || u.side == it->side) continue;
+            auto ec = worldToGrid(u.position);
+            const int d = std::max(std::abs(myCell.x - ec.x), std::abs(myCell.y - ec.y));
+            if (d < best) { best = d; bestCell = ec; }
+        }
+        const int dx = std::abs(myCell.x - bestCell.x);
+        const int dy = std::abs(myCell.y - bestCell.y);
         return std::max(dx, dy) == 1;
     });
 
@@ -195,8 +234,8 @@ void registerLuaBindings(sol::state& lua, GameWorld* world, GameStateManager* ma
         for (auto& u : world->getPokemons()) {
             if (!u.alive || u.side == attacker->side) continue;
             auto ec = worldToGrid(u.position);
-            int dx = std::abs(ac.x - ec.x);
-            int dy = std::abs(ac.y - ec.y);
+            const int dx = std::abs(ac.x - ec.x);
+            const int dy = std::abs(ac.y - ec.y);
             if (std::max(dx, dy) == 1) {
                 arr[idx++] = u.id;
             }
@@ -231,12 +270,20 @@ void registerLuaBindings(sol::state& lua, GameWorld* world, GameStateManager* ma
         if (tgtCol && tgtRow) {
             target = gridToWorld(*tgtCol, *tgtRow);
         } else {
-            target = world->getNearestEnemyPosition(*it);
+            float best = std::numeric_limits<float>::max();
+            glm::vec3 bestPos = it->position;
+            for (auto& u : list) {
+                if (!u.alive || u.side == it->side) continue;
+                float d = glm::distance(it->position, u.position);
+                if (d < best) { best = d; bestPos = u.position; }
+            }
+            target = bestPos;
         }
         glm::vec3 lookDir = glm::normalize(target - it->position);
         it->rotation.y = std::atan2(lookDir.x, lookDir.z) * 180.0f / 3.14159265358979323846f;
     });
 
+    // Grid converters
     lua.set_function("grid_to_world", [](int col, int row) {
         auto p = gridToWorld(col, row);
         return std::make_tuple(p.x, p.y, p.z);
@@ -273,5 +320,40 @@ void registerLuaBindings(sol::state& lua, GameWorld* world, GameStateManager* ma
             return u.energy;
         }
         return 0;
+    });
+
+    // ====== NEW: move accessors for Lua combat ======
+    lua.set_function("unit_fast_move", [world](int unitId) -> std::string {
+        if (!world) return "";
+        for (auto& u : world->getPokemons()) if (u.id == unitId) return u.fastMove;
+        return "";
+    });
+    lua.set_function("unit_charged_move", [world](int unitId) -> std::string {
+        if (!world) return "";
+        for (auto& u : world->getPokemons()) if (u.id == unitId) return u.chargedMove;
+        return "";
+    });
+    lua.set_function("move_get", [&lua](const std::string& name) {
+        sol::state_view L(lua);
+        sol::table t = L.create_table();
+        const auto* md = MovesConfigLoader::getInstance().getMove(name);
+        if (!md) return t;
+        t["name"]        = md->name;
+        t["type"]        = md->type;
+        t["kind"]        = md->kind;
+        t["cooldownSec"] = md->cooldownSec;
+        t["power"]       = md->power;
+        t["range"]       = md->range;
+        t["energyGain"]  = md->energyGain;
+        t["energyCost"]  = md->energyCost;
+        if (md->status.valid) {
+            sol::table s = L.create_table();
+            s["effect"]      = md->status.effect;
+            s["magnitude"]   = md->status.magnitude;
+            s["durationSec"] = md->status.durationSec;
+            s["target"]      = md->status.target;
+            t["status"] = s;
+        }
+        return t;
     });
 }

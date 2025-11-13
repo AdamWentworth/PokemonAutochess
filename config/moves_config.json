@@ -1,0 +1,194 @@
+{
+  "aerial_ace": {
+    "cooldownSec": 0.9,
+    "energyCost": 45,
+    "kind": "charged",
+    "power": 55,
+    "range": 6.0,
+    "type": "flying"
+  },
+  "aqua_tail": {
+    "cooldownSec": 0.8,
+    "energyCost": 40,
+    "kind": "charged",
+    "power": 50,
+    "range": 4.0,
+    "type": "water"
+  },
+  "bubble": {
+    "cooldownSec": 0.5,
+    "energyGain": 8,
+    "kind": "fast",
+    "power": 7,
+    "range": 2.0,
+    "type": "water"
+  },
+  "ember": {
+    "cooldownSec": 0.5,
+    "energyGain": 8,
+    "kind": "fast",
+    "power": 7,
+    "range": 2.0,
+    "type": "fire"
+  },
+  "fire_fang": {
+    "cooldownSec": 0.6,
+    "energyGain": 7,
+    "kind": "fast",
+    "power": 9,
+    "range": 1.8,
+    "type": "fire"
+  },
+  "flame_burst": {
+    "cooldownSec": 0.9,
+    "energyCost": 45,
+    "kind": "charged",
+    "power": 60,
+    "range": 6.0,
+    "status": {
+      "durationSec": 4,
+      "effect": "burn",
+      "magnitude": 0.1,
+      "target": "enemy"
+    },
+    "type": "fire"
+  },
+  "flamethrower": {
+    "cooldownSec": 1.0,
+    "energyCost": 55,
+    "kind": "charged",
+    "power": 70,
+    "range": 6.0,
+    "type": "fire"
+  },
+  "gust": {
+    "cooldownSec": 0.6,
+    "energyGain": 7,
+    "kind": "fast",
+    "power": 8,
+    "range": 3.0,
+    "type": "flying"
+  },
+  "hyper_fang": {
+    "cooldownSec": 0.9,
+    "energyCost": 45,
+    "kind": "charged",
+    "power": 60,
+    "range": 4.0,
+    "type": "normal"
+  },
+  "leech_seed": {
+    "cooldownSec": 0.8,
+    "energyCost": 35,
+    "kind": "charged",
+    "power": 14,
+    "range": 6.0,
+    "status": {
+      "durationSec": 6,
+      "effect": "dot_and_heal",
+      "magnitude": 0.02,
+      "target": "enemy"
+    },
+    "type": "grass"
+  },
+  "poison_sting": {
+    "cooldownSec": 0.5,
+    "energyGain": 9,
+    "kind": "fast",
+    "power": 5,
+    "range": 2.0,
+    "type": "poison"
+  },
+  "quick_attack": {
+    "cooldownSec": 0.5,
+    "energyGain": 9,
+    "kind": "fast",
+    "power": 6,
+    "range": 1.5,
+    "type": "normal"
+  },
+  "razor_leaf": {
+    "cooldownSec": 0.6,
+    "energyGain": 6,
+    "kind": "fast",
+    "power": 10,
+    "range": 2.2,
+    "type": "grass"
+  },
+  "seed_bomb": {
+    "cooldownSec": 0.9,
+    "energyCost": 45,
+    "kind": "charged",
+    "power": 55,
+    "range": 6.0,
+    "type": "grass"
+  },
+  "sludge": {
+    "cooldownSec": 1.0,
+    "energyCost": 50,
+    "kind": "charged",
+    "power": 65,
+    "range": 6.0,
+    "status": {
+      "durationSec": 4,
+      "effect": "poison",
+      "magnitude": 0.12,
+      "target": "enemy"
+    },
+    "type": "poison"
+  },
+  "string_shot": {
+    "cooldownSec": 0.5,
+    "energyGain": 10,
+    "kind": "fast",
+    "power": 3,
+    "range": 3.0,
+    "status": {
+      "durationSec": 2,
+      "effect": "slow",
+      "magnitude": 0.2,
+      "target": "enemy"
+    },
+    "type": "bug"
+  },
+  "tackle": {
+    "cooldownSec": 0.5,
+    "energyGain": 8,
+    "kind": "fast",
+    "power": 5,
+    "range": 1.5,
+    "type": "normal"
+  },
+  "vine_whip": {
+    "cooldownSec": 0.5,
+    "energyGain": 8,
+    "kind": "fast",
+    "power": 7,
+    "range": 2.0,
+    "type": "grass"
+  },
+  "water_gun": {
+    "cooldownSec": 0.5,
+    "energyGain": 8,
+    "kind": "fast",
+    "power": 8,
+    "range": 2.0,
+    "type": "water"
+  },
+  "water_pulse": {
+    "cooldownSec": 0.9,
+    "energyCost": 45,
+    "kind": "charged",
+    "power": 60,
+    "range": 6.0,
+    "type": "water"
+  },
+  "wing_attack": {
+    "cooldownSec": 0.5,
+    "energyGain": 8,
+    "kind": "fast",
+    "power": 7,
+    "range": 2.5,
+    "type": "flying"
+  }
+}

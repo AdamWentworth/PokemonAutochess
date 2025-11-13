@@ -40,6 +40,7 @@ private:
 
     glm::vec3 gridToWorld(int col, int row) const;
 
-    // NEW: helper to apply level scaling
+    // helpers
     void applyLevelScaling(PokemonInstance& inst, int level) const;
+    void applyLoadoutForLevel(PokemonInstance& inst) const;
 };

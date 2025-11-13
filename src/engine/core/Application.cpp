@@ -5,7 +5,7 @@
 
 #include "../events/Event.h"
 #include "../events/EventManager.h"
-#include "../events/RoundEvents.h"      // ← ensure included
+#include "../events/RoundEvents.h"
 
 #include "../render/Renderer.h"
 #include "../render/BoardRenderer.h"
@@ -27,6 +27,7 @@
 #include "../../game/ScriptedState.h"
 #include "../../game/GameConfig.h"
 #include "../../game/LogBus.h"
+#include "../../game/MovesConfigLoader.h"
 
 #define NOMINMAX
 #ifdef _WIN32
@@ -56,7 +57,9 @@ void Application::init() {
         std::cerr << "[Application] TTF_Init error: " << TTF_GetError() << "\n";
     }
 
+    // Load configs
     PokemonConfigLoader::getInstance().loadConfig("config/pokemon_config.json");
+    MovesConfigLoader::getInstance().loadConfig("config/moves_config.json");
 
     std::cout << "[Init] CWD: " << std::filesystem::current_path() << "\n";
 
@@ -92,11 +95,10 @@ void Application::init() {
 
     healthBarRenderer.init();
 
-    // --- Battle feed + LogBus hookup
+    // Battle feed + LogBus
     battleFeed = std::make_unique<BattleFeed>(cfg.fontPath, cfg.fontSize);
     LogBus::attach(battleFeed.get());
 
-    // 🔊 Log round phase transitions to the feed
     EventManager::getInstance().subscribe(EventType::RoundPhaseChanged,
         [](const Event& e){
             const auto& ev = static_cast<const RoundPhaseChangedEvent&>(e);
@@ -180,11 +182,7 @@ void Application::run() {
             healthBarRenderer.render(healthBarData);
         }
         if (shopSystem) shopSystem->renderUI(WIDTH, HEIGHT);
-
-        // Overlay BattleFeed last
-        if (battleFeed) {
-            battleFeed->render(WIDTH, HEIGHT);
-        }
+        if (battleFeed) battleFeed->render(WIDTH, HEIGHT);
 
         SDL_GL_SwapWindow(window->getSDLWindow());
 

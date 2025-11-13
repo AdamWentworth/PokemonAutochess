@@ -85,6 +85,9 @@ add_executable(PokemonAutochess
     src/game/GameConfig.cpp
     src/game/LogBus.cpp
 
+    # NEW: Moves config loader
+    src/game/MovesConfigLoader.cpp
+
     # Game Systems
     src/game/systems/CameraSystem.cpp
     src/game/systems/UnitInteractionSystem.cpp
@@ -93,7 +96,7 @@ add_executable(PokemonAutochess
     src/game/systems/BenchSystem.cpp
     src/game/systems/MovementSystem.cpp
     src/game/systems/CombatSystem.cpp
-    src/game/systems/ShopSystem.cpp        # ← NEW
+    src/game/systems/ShopSystem.cpp
 
     # Game UI
     src/game/ui/CardFactory.cpp

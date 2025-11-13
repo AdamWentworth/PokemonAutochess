@@ -1,5 +1,4 @@
 // Application.h
-
 #pragma once
 
 #include "SystemRegistry.h"
@@ -14,7 +13,7 @@ class GameWorld;
 class Window;
 class CameraSystem;
 class UnitInteractionSystem;
-class ShopSystem;              // ← NEW
+class ShopSystem;
 
 class Application {
 public:
@@ -39,6 +38,6 @@ private:
 
     std::shared_ptr<CameraSystem> cameraSystem;
     std::shared_ptr<UnitInteractionSystem> unitSystem;
-    std::shared_ptr<ShopSystem> shopSystem;   // ← NEW
+    std::shared_ptr<ShopSystem> shopSystem;
     std::unique_ptr<BattleFeed> battleFeed;
 };

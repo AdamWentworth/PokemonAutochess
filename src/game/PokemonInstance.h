@@ -1,5 +1,4 @@
 // PokemonInstance.h
-
 #pragma once
 #include <glm/glm.hpp>
 #include <string>
@@ -20,24 +19,27 @@ struct PokemonInstance {
 
     std::shared_ptr<Model> model;
 
-    // NEW: base (unscaled) stats from config
+    // Base (unscaled) stats from config
     int   baseHp = 100;
     int   baseAttack = 10;
     float baseMovementSpeed = 1.0f;
 
-    // NEW: runtime level and scaled stats
+    // Runtime level and scaled stats
     int level = 1;
     int maxHP = 100;          // scaled HP cap
     int hp = 100;             // current HP (<= maxHP)
     int attack = 10;          // scaled attack
     float movementSpeed = 1.0f; // scaled move speed
 
+    // Energy & moves
     int energy = 0;
     int maxEnergy = 100; 
+    std::string fastMove;       // equipped fast move
+    std::string chargedMove;    // equipped charged move (optional)
 
     bool alive = true;
 
-    // --- Movement runtime state (one-cell commit) ---
+    // Movement runtime state (one-cell commit)
     glm::ivec2 gridCell = glm::ivec2(-1, -1);
     bool isMoving = false;
     glm::vec3 moveFrom = {};
