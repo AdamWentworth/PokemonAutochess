@@ -1,18 +1,22 @@
-#CMakeLists.txt
+# CMakeLists.txt
 
 cmake_minimum_required(VERSION 3.10)
+
+# vcpkg toolchain MUST be set before project()
+if(DEFINED ENV{VCPKG_ROOT})
+    set(CMAKE_TOOLCHAIN_FILE "$ENV{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake" CACHE STRING "" FORCE)
+else()
+    set(CMAKE_TOOLCHAIN_FILE "C:/dev/vcpkg/scripts/buildsystems/vcpkg.cmake" CACHE STRING "" FORCE)
+endif()
+
 project(PokemonAutochess)
 
-set(CMAKE_CXX_STANDARD 17)
+# Force C++20 (Model.cpp requires it on MSVC)
+set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
-set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
 
-# vcpkg toolchain
-if(DEFINED ENV{VCPKG_ROOT})
-    set(CMAKE_TOOLCHAIN_FILE "$ENV{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake" CACHE STRING "")
-else()
-    set(CMAKE_TOOLCHAIN_FILE "C:/dev/vcpkg/scripts/buildsystems/vcpkg.cmake" CACHE STRING "")
-endif()
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 # Dependencies
 find_package(SDL2 CONFIG REQUIRED)
@@ -72,6 +76,13 @@ target_link_libraries(Engine PRIVATE
     lua
 )
 
+# Ensure MSVC actually uses C++20 mode (older CMake/MSVC combos can ignore CMAKE_CXX_STANDARD)
+if (MSVC)
+    target_compile_options(Engine PRIVATE /std:c++20 /permissive- /Zc:__cplusplus)
+else()
+    target_compile_options(Engine PRIVATE -std=c++20)
+endif()
+
 # ---------------- Game (exe) ----------------
 add_executable(PokemonAutochess
     main.cpp
@@ -125,6 +136,12 @@ target_link_libraries(PokemonAutochess PRIVATE
     glm::glm
     lua
 )
+
+if (MSVC)
+    target_compile_options(PokemonAutochess PRIVATE /std:c++20 /permissive- /Zc:__cplusplus)
+else()
+    target_compile_options(PokemonAutochess PRIVATE -std=c++20)
+endif()
 
 # Copy shaders alongside the binary
 file(COPY assets/shaders/engine/default.vert DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/engine/render)

@@ -1,4 +1,4 @@
-// GameWorld.cpp
+// src/game/GameWorld.cpp
 #include "GameWorld.h"
 #include "../engine/utils/ResourceManager.h"
 #include "../engine/render/Model.h"
@@ -50,7 +50,6 @@ void GameWorld::applyLoadoutForLevel(PokemonInstance& inst) const {
         inst.chargedMove.clear();
     }
 
-    // Energy cap: if charged is present and found in moves table, use its energyCost; else default 100.
     inst.maxEnergy = 100;
     if (!inst.chargedMove.empty()) {
         if (const auto* md = MovesConfigLoader::getInstance().getMove(inst.chargedMove)) {
@@ -78,19 +77,18 @@ void GameWorld::spawnPokemon(const std::string& pokemonName,
     inst.name = pokemonName;
     inst.model = sharedModel;
     inst.position = startPos;
-    inst.rotation = glm::vec3(90.0f, (side == PokemonSide::Player ? 180.0f : 0.0f), 0.0f);
+    inst.rotation = glm::vec3(0.0f, (side == PokemonSide::Player ? 180.0f : 0.0f), 0.0f);
     inst.side = side;
 
-    // Store base (unscaled) stats from config
     inst.baseHp = stats->hp;
     inst.baseAttack = stats->attack;
     inst.baseMovementSpeed = stats->movementSpeed;
 
-    // Level scaling
     applyLevelScaling(inst, level);
-
-    // Equip moves for this level
     applyLoadoutForLevel(inst);
+
+    // NEW: start anim timer at 0
+    inst.animTimeSec = 0.0f;
 
     pokemons.push_back(inst);
 
@@ -134,23 +132,23 @@ void GameWorld::addToBench(const std::string& pokemonName) {
     inst.id = PokemonInstance::getNextUnitID();
     inst.name = pokemonName;
     inst.model = sharedModel;
-    inst.rotation = glm::vec3(90.0f, 180.0f, 0.0f);
+    inst.rotation = glm::vec3(0.0f, 180.0f, 0.0f);
     inst.side = PokemonSide::Player;
 
-    // base stats
     inst.baseHp = stats->hp;
     inst.baseAttack = stats->attack;
     inst.baseMovementSpeed = stats->movementSpeed;
 
-    // Apply default level scaling for bench (uses baseLevel)
-    applyLevelScaling(inst, /*level*/ -1);
+    applyLevelScaling(inst, -1);
     applyLoadoutForLevel(inst);
 
     int slot = static_cast<int>(benchPokemons.size());
     float spacing = 1.2f;
     float x = (slot - 4) * spacing + spacing / 2.0f;
-    float z = 4.5f; // legacy bench position
+    float z = 4.5f;
     inst.position = glm::vec3(x, 0.0f, z);
+
+    inst.animTimeSec = 0.0f;
 
     benchPokemons.push_back(inst);
 
@@ -172,13 +170,39 @@ const PokemonInstance* GameWorld::getPokemonByName(const std::string& name) cons
 std::vector<PokemonInstance>& GameWorld::getPokemons() { return pokemons; }
 std::vector<PokemonInstance>& GameWorld::getBenchPokemons() { return benchPokemons; }
 
+// NEW: update per-instance animation clocks
+void GameWorld::update(float dt)
+{
+    // loop clip index 1 (2nd animation) if present; safe if missing
+    constexpr int kLoopAnimIndex = 1;
+
+    auto tickList = [&](std::vector<PokemonInstance>& list) {
+        for (auto& p : list) {
+            if (!p.alive || !p.model) continue;
+
+            float dur = p.model->getAnimationDurationSec(kLoopAnimIndex);
+            p.animTimeSec += dt;
+
+            // If duration known, wrap; else keep accumulating (drawAnimated will clamp safely)
+            if (dur > 0.0f && p.animTimeSec > dur) {
+                p.animTimeSec = std::fmod(p.animTimeSec, dur);
+            }
+        }
+    };
+
+    tickList(pokemons);
+    tickList(benchPokemons);
+}
+
 void GameWorld::drawAll(const Camera3D& camera, BoardRenderer& boardRenderer) {
     boardRenderer.draw(camera);
     boardRenderer.drawBench(camera);
 
+    constexpr int kLoopAnimIndex = 1;
+
     auto drawPokemonList = [&](const std::vector<PokemonInstance>& list) {
         for (auto& instance : list) {
-            if (!instance.alive) continue;
+            if (!instance.alive || !instance.model) continue;
 
             float scaleFactor = instance.model->getScaleFactor();
             glm::mat4 scale = glm::scale(glm::mat4(1.0f), glm::vec3(scaleFactor));
@@ -187,10 +211,10 @@ void GameWorld::drawAll(const Camera3D& camera, BoardRenderer& boardRenderer) {
             glm::mat4 rotationZ = glm::rotate(glm::mat4(1.0f), glm::radians(instance.rotation.z), glm::vec3(0, 0, 1));
             glm::mat4 translation = glm::translate(glm::mat4(1.0f), instance.position);
 
-            glm::mat4 modelMat = translation * rotationY * rotationX * rotationZ * scale;
-            glm::mat4 mvp = camera.getProjectionMatrix() * camera.getViewMatrix() * modelMat;
+            glm::mat4 instanceTransform = translation * rotationY * rotationX * rotationZ * scale;
 
-            instance.model->drawInstanceWithMVP(mvp);
+            // NEW: animated draw (falls back to static safely)
+            instance.model->drawAnimated(camera, instanceTransform, instance.animTimeSec, kLoopAnimIndex);
         }
     };
 

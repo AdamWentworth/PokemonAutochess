@@ -22,7 +22,7 @@
         "fast": "razor_leaf"
       }
     },
-    "model": "bulbasaur.glb",
+    "model": "0001_Bulbasaur.glb",
     "movementSpeed": 1.0,
     "unlockTable": [
       {
@@ -77,7 +77,7 @@
         "fast": "fire_fang"
       }
     },
-    "model": "charmander.glb",
+    "model": "0004_Charmander.glb",
     "movementSpeed": 1.2,
     "unlockTable": [
       {
@@ -126,7 +126,7 @@
         "fast": "water_gun"
       }
     },
-    "model": "squirtle.glb",
+    "model": "0007_Squirtle.glb",
     "movementSpeed": 0.9,
     "unlockTable": [
       {
@@ -171,7 +171,7 @@
         "fast": "wing_attack"
       }
     },
-    "model": "pidgey.glb",
+    "model": "0016_Pidgey.glb",
     "movementSpeed": 1.1,
     "unlockTable": [
       {
@@ -210,7 +210,7 @@
         "fast": "quick_attack"
       }
     },
-    "model": "rattata.glb",
+    "model": "0019_Rattata.glb",
     "movementSpeed": 1.2,
     "unlockTable": [
       {

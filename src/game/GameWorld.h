@@ -1,4 +1,4 @@
-// GameWorld.h
+// src/game/GameWorld.h
 #pragma once
 #include <vector>
 #include <string>
@@ -11,7 +11,6 @@ class BoardRenderer;
 
 class GameWorld {
 public:
-    // level: -1 means use GameConfig::get().baseLevel
     void spawnPokemon(const std::string& pokemonName,
                       const glm::vec3& startPos,
                       PokemonSide side = PokemonSide::Player,
@@ -21,6 +20,9 @@ public:
                             int col, int row,
                             PokemonSide side = PokemonSide::Player,
                             int level = -1);
+
+    // NEW: advance movement interpolation (if you add it later) + animation clocks
+    void update(float dt);
 
     void drawAll(const Camera3D& camera, BoardRenderer& boardRenderer);
 
@@ -40,7 +42,6 @@ private:
 
     glm::vec3 gridToWorld(int col, int row) const;
 
-    // helpers
     void applyLevelScaling(PokemonInstance& inst, int level) const;
     void applyLoadoutForLevel(PokemonInstance& inst) const;
 };

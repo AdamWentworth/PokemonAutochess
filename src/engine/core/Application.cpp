@@ -162,6 +162,10 @@ void Application::run() {
         while (accumulator >= TIME_STEP) {
             SystemRegistry::getInstance().updateAll(TIME_STEP);
             if (stateManager) stateManager->update(TIME_STEP);
+
+            // NEW: advance per-instance animation clocks
+            if (gameWorld) gameWorld->update(TIME_STEP);
+
             update();
             accumulator -= TIME_STEP;
             if (battleFeed) battleFeed->update(TIME_STEP);
