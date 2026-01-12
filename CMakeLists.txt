@@ -51,6 +51,7 @@ add_library(Engine STATIC
     src/engine/render/Renderer.cpp
     src/engine/render/Camera3D.cpp
     src/engine/render/BoardRenderer.cpp
+    src/engine/render/GLTFAccessors.cpp
     src/engine/render/Model.cpp
 
     # Engine UI
