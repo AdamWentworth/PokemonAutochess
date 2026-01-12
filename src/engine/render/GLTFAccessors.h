@@ -8,15 +8,16 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/type_precision.hpp>
 
-// IMPORTANT:
-// This header intentionally does NOT include tiny_gltf.h.
-// Model.cpp owns the one-and-only TINYGLTF_IMPLEMENTATION include site.
-// GLTFAccessors.cpp includes tiny_gltf.h normally (no implementation macros).
+// Robust option:
+// Include the real tinygltf header here so declarations always match across TUs.
+// IMPORTANT: Do NOT define TINYGLTF_IMPLEMENTATION in any header.
+// Model.cpp remains the one-and-only implementation site.
 
-namespace tinygltf {
-    class Model;
-    struct Accessor;
-}
+#include "../../../third_party/nlohmann/json.hpp"
+#ifndef TINYGLTF_NO_INCLUDE_JSON
+#define TINYGLTF_NO_INCLUDE_JSON
+#endif
+#include "../../../third_party/tinygltf/tiny_gltf.h"
 
 namespace pac::gltfaccessors {
 
@@ -34,7 +35,7 @@ void readAccessorVec4FloatLike(const tinygltf::Model& m,
                                const tinygltf::Accessor& a,
                                std::vector<glm::vec4>& out);
 
-// Convenience typed readers (mirror the prior lambdas in Model.cpp)
+// Convenience typed readers
 void readVec2Float(const tinygltf::Model& m,
                    int accessorIndex,
                    std::vector<glm::vec2>& out);

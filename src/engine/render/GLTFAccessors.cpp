@@ -1,14 +1,8 @@
 // GLTFAccessors.cpp
-
 #include "GLTFAccessors.h"
 
 #include <algorithm>
 #include <cstring>
-
-// Keep tinygltf setup consistent with Model.cpp, but WITHOUT implementation macros.
-#include "../../../third_party/nlohmann/json.hpp"
-#define TINYGLTF_NO_INCLUDE_JSON
-#include "../../../third_party/tinygltf/tiny_gltf.h"
 
 namespace pac::gltfaccessors {
 
@@ -214,6 +208,7 @@ void readWeights4Float(const tinygltf::Model& m,
         }
         return;
     }
+
     if (a.componentType == TINYGLTF_COMPONENT_TYPE_UNSIGNED_SHORT) {
         for (size_t i = 0; i < a.count; ++i) {
             const uint16_t* p = reinterpret_cast<const uint16_t*>(base + i * stride);
@@ -245,6 +240,7 @@ void readIndicesU32(const tinygltf::Model& m,
         }
         return;
     }
+
     if (a.componentType == TINYGLTF_COMPONENT_TYPE_UNSIGNED_INT) {
         for (size_t i = 0; i < a.count; ++i) {
             const uint32_t* p = reinterpret_cast<const uint32_t*>(base + i * stride);
@@ -252,6 +248,7 @@ void readIndicesU32(const tinygltf::Model& m,
         }
         return;
     }
+
     if (a.componentType == TINYGLTF_COMPONENT_TYPE_UNSIGNED_BYTE) {
         for (size_t i = 0; i < a.count; ++i) {
             const uint8_t* p = reinterpret_cast<const uint8_t*>(base + i * stride);
