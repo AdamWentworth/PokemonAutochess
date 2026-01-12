@@ -57,6 +57,9 @@ add_library(Engine STATIC
     src/engine/ui/TextRenderer.cpp
     src/engine/ui/HealthBarRenderer.cpp
     src/engine/ui/BattleFeed.cpp
+
+    # NEW: boot loading screen (Option B)
+    src/engine/ui/BootLoadingView.cpp
 )
 
 target_include_directories(Engine

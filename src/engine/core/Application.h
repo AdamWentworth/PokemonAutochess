@@ -9,6 +9,9 @@
 #include "../render/BoardRenderer.h"
 #include "../ui/BattleFeed.h"
 
+// NEW: loading screen (Option B)
+#include "../ui/BootLoadingView.h"
+
 class GameWorld;
 class Window;
 class CameraSystem;
@@ -28,7 +31,9 @@ private:
 
     void updateDrawableSizeAndViewport();   // NEW
     void updateMouseScale();                // NEW
-    void preloadCommonModels();             // NEW
+
+    void preloadCommonModels();             // UPDATED: Option A+B inside
+    bool pumpPreloadEvents();               // NEW: keep window responsive during preload
 
     static constexpr float TIME_STEP = 1.0f / 60.0f;
 
@@ -44,6 +49,9 @@ private:
     std::shared_ptr<UnitInteractionSystem> unitSystem;
     std::shared_ptr<ShopSystem> shopSystem;
     std::unique_ptr<BattleFeed> battleFeed;
+
+    // NEW: boot loading view (progress bar)
+    BootLoadingView bootLoadingView;
 
     // NEW: real render dimensions (framebuffer / drawable)
     int drawableW = 1280;

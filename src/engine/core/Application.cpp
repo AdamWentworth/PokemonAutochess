@@ -17,6 +17,9 @@
 #include "../ui/UIManager.h"
 #include "../ui/BattleFeed.h"
 
+// NEW: loading bar
+#include "../ui/BootLoadingView.h"
+
 #include "../../game/GameWorld.h"
 #include "../../game/GameStateManager.h"
 #include "../../game/PokemonConfigLoader.h"
@@ -44,6 +47,7 @@
 #include <filesystem>
 #include <algorithm>
 #include <cmath>
+#include <vector>
 
 namespace {
     constexpr unsigned int START_W  = 1280;
@@ -80,24 +84,91 @@ void Application::updateMouseScale() {
     }
 }
 
+// NEW: keep OS happy while loading (Option A)
+bool Application::pumpPreloadEvents() {
+    SDL_Event e;
+    while (SDL_PollEvent(&e)) {
+        if (e.type == SDL_QUIT) return false;
+        if (e.type == SDL_KEYDOWN && e.key.keysym.sym == SDLK_ESCAPE) return false;
+
+        if (e.type == SDL_WINDOWEVENT) {
+            if (e.window.event == SDL_WINDOWEVENT_SIZE_CHANGED ||
+                e.window.event == SDL_WINDOWEVENT_RESIZED) {
+                updateDrawableSizeAndViewport();
+                updateMouseScale();
+
+                if (camera && drawableW > 0 && drawableH > 0) {
+                    *camera = Camera3D(45.0f, float(drawableW) / float(drawableH), 0.1f, 100.0f);
+                }
+            }
+        }
+    }
+    return true;
+}
+
 void Application::preloadCommonModels() {
     // Preload models that you know you will use early to avoid hitching mid-combat.
     // IMPORTANT: must be called AFTER GL context + glad are ready.
-    auto preloadByName = [&](const std::string& name) {
+
+    if (!window) return;
+
+    auto addByName = [&](std::vector<std::string>& out, const std::string& name) {
         const PokemonStats* stats = PokemonConfigLoader::getInstance().getStats(name);
         if (!stats) return;
         const std::string path = "assets/models/" + stats->model;
-        ResourceManager::getInstance().getModel(path);
+        out.push_back(path);
     };
 
+    std::vector<std::string> modelsToPreload;
+    modelsToPreload.reserve(16);
+
     // starters
-    preloadByName("bulbasaur");
-    preloadByName("charmander");
-    preloadByName("squirtle");
+    addByName(modelsToPreload, "bulbasaur");
+    addByName(modelsToPreload, "charmander");
+    addByName(modelsToPreload, "squirtle");
 
     // route1 (from scripts/states/route1.lua)
-    preloadByName("pidgey");
-    preloadByName("rattata");
+    addByName(modelsToPreload, "pidgey");
+    addByName(modelsToPreload, "rattata");
+
+    if (modelsToPreload.empty()) return;
+
+    // Option A: show immediately that we're alive
+    window->setTitle("PokemonAutochess - Loading...");
+    updateDrawableSizeAndViewport();
+
+    // Option B: draw a real progress bar (no fonts)
+    bootLoadingView.render(0.0f, drawableW, drawableH);
+    window->swapBuffers();
+
+    if (!pumpPreloadEvents()) std::exit(0);
+
+    const int total = (int)modelsToPreload.size();
+    for (int i = 0; i < total; ++i) {
+        updateDrawableSizeAndViewport();
+
+        const std::string& path = modelsToPreload[i];
+
+        // Option A: title progress (works even if rendering is slow)
+        window->setTitle(
+            "PokemonAutochess - Loading " +
+            std::to_string(i + 1) + "/" + std::to_string(total) + "  " + path
+        );
+
+        // Keep window responsive
+        if (!pumpPreloadEvents()) std::exit(0);
+
+        // Expensive load
+        ResourceManager::getInstance().getModel(path);
+
+        // Option B: update bar and present a frame
+        float progress = float(i + 1) / float(total);
+        bootLoadingView.render(progress, drawableW, drawableH);
+        window->swapBuffers();
+    }
+
+    window->setTitle("Pokemon Autochess");
+    pumpPreloadEvents();
 }
 
 void Application::init() {
@@ -118,11 +189,21 @@ void Application::init() {
         std::exit(EXIT_FAILURE);
     }
 
-    // NEW: Ensure viewport matches drawable size from the start.
+    // Ensure viewport matches drawable size from the start.
     updateDrawableSizeAndViewport();
     updateMouseScale();
 
     glEnable(GL_DEPTH_TEST);
+
+    // NEW: create boot loading view now that GL is ready
+    bootLoadingView.init();
+
+    // Option A: set title early + show a frame
+    window->setTitle("PokemonAutochess - Loading...");
+    glClearColor(0.05f, 0.05f, 0.07f, 1.0f);
+    glClear(GL_COLOR_BUFFER_BIT);
+    window->swapBuffers();
+    pumpPreloadEvents();
 
     renderer = std::make_unique<Renderer>();
     camera   = std::make_unique<Camera3D>(45.0f, float(drawableW) / float(drawableH), 0.1f, 100.0f);
@@ -151,8 +232,7 @@ void Application::init() {
     battleFeed = std::make_unique<BattleFeed>(cfg.fontPath, cfg.fontSize);
     LogBus::attach(battleFeed.get());
 
-    // NEW: Console logging can stall badly on Windows in Debug.
-    // You can re-enable it if needed for debugging.
+    // Console logging can stall badly on Windows in Debug.
     LogBus::setEchoToStdout(false);
 
     EventManager::getInstance().subscribe(EventType::RoundPhaseChanged,
@@ -162,7 +242,7 @@ void Application::init() {
                             {0.75f, 0.9f, 1.0f}, 3.0f);
         });
 
-    // NEW: preload to remove mid-game hitches from synchronous loading
+    // UPDATED: preload uses Option A + Option B
     preloadCommonModels();
 
     stateManager->pushState(std::make_unique<ScriptedState>(
@@ -188,7 +268,7 @@ void Application::run() {
                 running = false;
             }
 
-            // NEW: resize handling
+            // resize handling
             if (event.type == SDL_WINDOWEVENT) {
                 if (event.window.event == SDL_WINDOWEVENT_SIZE_CHANGED ||
                     event.window.event == SDL_WINDOWEVENT_RESIZED) {
@@ -204,7 +284,7 @@ void Application::run() {
 
             if (cameraSystem) cameraSystem->handleZoom(event);
 
-            // NEW: scale mouse coords -> drawable coords before emitting
+            // scale mouse coords -> drawable coords before emitting
             switch (event.type) {
                 case SDL_MOUSEBUTTONDOWN: {
                     int mx = scaledMouseX(event.button.x, mouseScaleX);

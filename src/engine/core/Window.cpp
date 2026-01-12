@@ -53,3 +53,11 @@ Window::~Window() {
     if (window) SDL_DestroyWindow(window);
     SDL_Quit();
 }
+
+void Window::setTitle(const std::string& title) {
+    if (window) SDL_SetWindowTitle(window, title.c_str());
+}
+
+void Window::swapBuffers() {
+    if (window) SDL_GL_SwapWindow(window);
+}
