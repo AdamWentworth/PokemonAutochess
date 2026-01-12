@@ -11,6 +11,8 @@ endif()
 
 project(PokemonAutochess)
 
+option(PAC_VERBOSE_STARTUP "Enable verbose startup/model-load logging" OFF)
+
 # Force C++20 (Model.cpp requires it on MSVC)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -86,6 +88,11 @@ else()
     target_compile_options(Engine PRIVATE -std=c++20)
 endif()
 
+# Apply the option AFTER the target exists
+target_compile_definitions(Engine PRIVATE
+    PAC_VERBOSE_STARTUP=$<BOOL:${PAC_VERBOSE_STARTUP}>
+)
+
 # ---------------- Game (exe) ----------------
 add_executable(PokemonAutochess
     main.cpp
@@ -145,6 +152,11 @@ if (MSVC)
 else()
     target_compile_options(PokemonAutochess PRIVATE -std=c++20)
 endif()
+
+# Apply the option AFTER the target exists
+target_compile_definitions(PokemonAutochess PRIVATE
+    PAC_VERBOSE_STARTUP=$<BOOL:${PAC_VERBOSE_STARTUP}>
+)
 
 # Copy shaders alongside the binary
 file(COPY assets/shaders/engine/default.vert DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/engine/render)

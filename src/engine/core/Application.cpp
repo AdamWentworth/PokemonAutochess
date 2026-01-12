@@ -133,6 +133,10 @@ void Application::preloadCommonModels() {
 
     if (modelsToPreload.empty()) return;
 
+    // --- NEW: Disable vsync during preload so swapBuffers() doesn't block ---
+    const int prevSwap = SDL_GL_GetSwapInterval();   // -1,0,1 typically
+    SDL_GL_SetSwapInterval(0);
+
     // Option A: show immediately that we're alive
     window->setTitle("PokemonAutochess - Loading...");
     updateDrawableSizeAndViewport();
@@ -149,7 +153,7 @@ void Application::preloadCommonModels() {
 
         const std::string& path = modelsToPreload[i];
 
-        // Option A: title progress (works even if rendering is slow)
+        // Option A: title progress
         window->setTitle(
             "PokemonAutochess - Loading " +
             std::to_string(i + 1) + "/" + std::to_string(total) + "  " + path
@@ -161,7 +165,7 @@ void Application::preloadCommonModels() {
         // Expensive load
         ResourceManager::getInstance().getModel(path);
 
-        // Option B: update bar and present a frame
+        // Update bar and present a frame
         float progress = float(i + 1) / float(total);
         bootLoadingView.render(progress, drawableW, drawableH);
         window->swapBuffers();
@@ -169,6 +173,9 @@ void Application::preloadCommonModels() {
 
     window->setTitle("Pokemon Autochess");
     pumpPreloadEvents();
+
+    // --- NEW: Restore prior vsync mode for normal gameplay ---
+    SDL_GL_SetSwapInterval(prevSwap);
 }
 
 void Application::init() {

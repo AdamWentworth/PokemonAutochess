@@ -10,15 +10,16 @@ ResourceManager& ResourceManager::getInstance() {
 }
 
 std::shared_ptr<Model> ResourceManager::getModel(const std::string& modelPath) {
-    // Check if the model is already loaded.
     auto it = loadedModels.find(modelPath);
     if (it != loadedModels.end()) {
         return it->second;
     }
 
+#if defined(PAC_VERBOSE_STARTUP) && PAC_VERBOSE_STARTUP
     std::cout << "[ResourceManager] Loading model: " << modelPath << "\n";
-    // Load model and store in a shared_ptr.
+#endif
+
     auto modelPtr = std::make_shared<Model>(modelPath);
-    loadedModels[modelPath] = modelPtr;
+    loadedModels.emplace(modelPath, modelPtr);
     return modelPtr;
 }

@@ -1,5 +1,6 @@
 # Binaries and build
 build/
+cache
 *.exe
 *.obj
 *.o

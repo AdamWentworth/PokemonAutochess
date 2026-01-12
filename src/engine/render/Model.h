@@ -43,7 +43,7 @@ private:
     unsigned int VAO = 0, VBO = 0, EBO = 0;
     std::vector<Submesh> submeshes;
 
-    // NEW: shared shader program (no per-model compilation)
+    // shared shader program (no per-model compilation)
     std::shared_ptr<Shader> modelShader;
     int locMVP = -1;
     int locUseSkin = -1;
@@ -88,17 +88,28 @@ private:
 
     std::vector<NodeTRS>           nodesDefault;
     std::vector<std::vector<int>>  nodeChildren;
-    std::vector<int>              nodeMesh;
-    std::vector<int>              nodeSkin;
-    std::vector<int>              sceneRoots;
-    std::vector<SkinData>         skins;
-    std::vector<AnimationClip>    animations;
+    std::vector<int>               nodeMesh;
+    std::vector<int>               nodeSkin;
+    std::vector<int>               sceneRoots;
+    std::vector<SkinData>          skins;
+    std::vector<AnimationClip>     animations;
 
     struct Vertex {
         float px, py, pz;
         float u, v;
         uint16_t j0, j1, j2, j3;
         float w0, w1, w2, w3;
+    };
+
+    // CPU-side texture blob for caching (always RGBA8)
+    struct CPUTexture {
+        uint32_t width = 1;
+        uint32_t height = 1;
+        int wrapS = 0;   // GL enum stored as int
+        int wrapT = 0;   // GL enum stored as int
+        int minF  = 0;   // GL enum stored as int
+        int magF  = 0;   // GL enum stored as int
+        std::vector<uint8_t> rgba; // width*height*4
     };
 
     mutable std::unordered_set<int> warnedMissingAnimIndex;
@@ -114,4 +125,11 @@ private:
     void uploadSkinUniforms(const glm::mat4& meshGlobal,
                             int skinIndex,
                             const std::vector<glm::mat4>& nodeGlobals) const;
+
+    // ---- On-disk cache helpers (speed up subsequent startups) ----
+    bool tryLoadCache(const std::string& filepath);
+    void writeCache(const std::string& filepath,
+                    const std::vector<Vertex>& vertices,
+                    const std::vector<uint32_t>& indices,
+                    const std::vector<CPUTexture>& texturesCPU) const;
 };
