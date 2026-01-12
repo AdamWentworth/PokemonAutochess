@@ -101,7 +101,7 @@ local function log_hit(kind, attackerId, moveName, targetId, params)
     e_tgt_bef  = params.e_tgt_bef,
     e_tgt_aft  = params.e_tgt_aft
   }
-  emit_struct("[COMBAT]", fields)
+  -- emit_struct("[COMBAT]", fields)
 end
 
 local function use_charged_if_ready(id)

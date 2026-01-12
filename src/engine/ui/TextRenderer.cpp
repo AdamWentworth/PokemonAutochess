@@ -7,26 +7,73 @@
 #include <iostream>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
+
 #include "../utils/Shader.h"
-#include <cmath>
+#include "../utils/ShaderLibrary.h"
 
 TextRenderer::TextRenderer(const std::string& fontPath, int fontSize) {
     font = TTF_OpenFont(fontPath.c_str(), fontSize);
     if (!font) {
         std::cerr << "[TextRenderer] Failed to load font: " << TTF_GetError() << "\n";
     }
-    textShader = new Shader("assets/shaders/ui/text.vert", "assets/shaders/ui/text.frag");
+
+    // NEW: shared cached shader (prevents multiple program compiles)
+    textShader = ShaderLibrary::get("assets/shaders/ui/text.vert", "assets/shaders/ui/text.frag");
+
+    if (textShader) {
+        locProjection  = glGetUniformLocation(textShader->getID(), "u_Projection");
+        locTextColor   = glGetUniformLocation(textShader->getID(), "u_TextColor");
+        locGlobalAlpha = glGetUniformLocation(textShader->getID(), "u_GlobalAlpha");
+        locTexture     = glGetUniformLocation(textShader->getID(), "u_Texture");
+    }
+
+    // NEW: one VAO/VBO/EBO reused for all glyph draws
+    float vertices[16] = {
+        // x, y, u, v (placeholder)
+        0, 0, 0, 0,
+        0, 0, 0, 0,
+        0, 0, 0, 0,
+        0, 0, 0, 0
+    };
+    unsigned int indices[6] = { 0, 1, 2, 2, 3, 0 };
+
+    glGenVertexArrays(1, &VAO);
+    glGenBuffers(1, &VBO);
+    glGenBuffers(1, &EBO);
+
+    glBindVertexArray(VAO);
+
+    glBindBuffer(GL_ARRAY_BUFFER, VBO);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_DYNAMIC_DRAW);
+
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
+
+    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)0);
+    glEnableVertexAttribArray(0);
+
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)(2 * sizeof(float)));
+    glEnableVertexAttribArray(1);
+
+    glBindVertexArray(0);
 }
 
 TextRenderer::~TextRenderer() {
+    for (auto& kv : glyphs) {
+        if (kv.second.textureID) glDeleteTextures(1, &kv.second.textureID);
+    }
+    glyphs.clear();
+
+    if (EBO) glDeleteBuffers(1, &EBO);
+    if (VBO) glDeleteBuffers(1, &VBO);
+    if (VAO) glDeleteVertexArrays(1, &VAO);
+
     if (font) {
         TTF_CloseFont(font);
         font = nullptr;
     }
-    if (textShader) {
-        delete textShader;
-        textShader = nullptr;
-    }
+
+    textShader.reset();
 }
 
 unsigned int TextRenderer::createTextureFromSurface(SDL_Surface* surface) {
@@ -45,6 +92,8 @@ unsigned int TextRenderer::createTextureFromSurface(SDL_Surface* surface) {
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 
+    glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+
     glTexImage2D(GL_TEXTURE_2D,
                  0,
                  GL_RGBA,
@@ -61,6 +110,43 @@ unsigned int TextRenderer::createTextureFromSurface(SDL_Surface* surface) {
     return textureID;
 }
 
+TextRenderer::Glyph& TextRenderer::getOrCreateGlyph(unsigned char c) {
+    uint32_t key = (uint32_t)c;
+    auto it = glyphs.find(key);
+    if (it != glyphs.end()) return it->second;
+
+    Glyph g;
+
+    if (!font || !TTF_GlyphIsProvided(font, c)) {
+        glyphs[key] = g;
+        return glyphs[key];
+    }
+
+    SDL_Color white = {255, 255, 255, 255};
+    SDL_Surface* glyphSurface = TTF_RenderGlyph_Blended(font, c, white);
+    if (!glyphSurface) {
+        glyphs[key] = g;
+        return glyphs[key];
+    }
+
+    g.textureID = createTextureFromSurface(glyphSurface);
+    g.w = glyphSurface->w;
+    g.h = glyphSurface->h;
+
+    int minx, maxx, miny, maxy, advance;
+    if (TTF_GlyphMetrics(font, c, &minx, &maxx, &miny, &maxy, &advance) == 0) {
+        g.advance = advance;
+    } else {
+        g.advance = g.w;
+    }
+
+    g.valid = (g.textureID != 0);
+    SDL_FreeSurface(glyphSurface);
+
+    glyphs[key] = g;
+    return glyphs[key];
+}
+
 void TextRenderer::renderText(const std::string& text,
                               float x,
                               float y,
@@ -68,100 +154,72 @@ void TextRenderer::renderText(const std::string& text,
                               float scale,
                               float alpha)
 {
-    if (!font || !textShader) return;
+    if (!font || !textShader || text.empty()) return;
 
-    // Build projection from the CURRENT OpenGL viewport (correct on HiDPI, resizable windows, etc.)
     int vp[4] = {0,0,0,0};
     glGetIntegerv(GL_VIEWPORT, vp);
     const float screenW = static_cast<float>(vp[2]);
     const float screenH = static_cast<float>(vp[3]);
 
+    glm::mat4 projection = glm::ortho(0.0f, screenW, screenH, 0.0f);
+
+    textShader->use();
+    if (locProjection >= 0)  glUniformMatrix4fv(locProjection, 1, GL_FALSE, glm::value_ptr(projection));
+    if (locTextColor >= 0)   glUniform3f(locTextColor, color.x, color.y, color.z);
+    if (locGlobalAlpha >= 0) glUniform1f(locGlobalAlpha, alpha);
+    if (locTexture >= 0)     glUniform1i(locTexture, 0);
+
+    glActiveTexture(GL_TEXTURE0);
+    glBindVertexArray(VAO);
+
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
     float posX = x;
 
-    glm::mat4 projection = glm::ortho(0.0f, screenW, screenH, 0.0f);
-    textShader->use();
-    textShader->setUniform("u_Projection", projection);
-    textShader->setUniform("u_TextColor", color);
-    // NEW: feed fading alpha to the fragment shader
-    textShader->setUniform("u_GlobalAlpha", alpha);
+    for (unsigned char c : text) {
+        Glyph& g = getOrCreateGlyph(c);
+        if (!g.valid || g.w <= 0 || g.h <= 0) continue;
 
-    for (char c : text) {
-        if (!TTF_GlyphIsProvided(font, c)) continue;
+        const float quadW = (float)g.w * scale;
+        const float quadH = (float)g.h * scale;
 
-        SDL_Color sdlColor = {255, 255, 255, 255};
-        SDL_Surface* glyphSurface = TTF_RenderGlyph_Blended(font, c, sdlColor);
-        if (!glyphSurface) continue;
+        const float xpos = posX;
+        const float ypos = y;
 
-        unsigned int textureID = createTextureFromSurface(glyphSurface);
-        int w = glyphSurface->w;
-        int h = glyphSurface->h;
-        SDL_FreeSurface(glyphSurface);
-
-        // Quad in screen space (origin at top-left)
-        const float quadW = w * scale;
-        const float quadH = h * scale;
-        const float xpos  = posX;
-        const float ypos  = y;
-
-        float vertices[] = {
+        float vertices[16] = {
             // pos                 // tex
             xpos,         ypos + quadH, 0.0f, 1.0f,
             xpos,         ypos,         0.0f, 0.0f,
             xpos + quadW, ypos,         1.0f, 0.0f,
             xpos + quadW, ypos + quadH, 1.0f, 1.0f
         };
-        unsigned int indices[] = { 0, 1, 2, 2, 3, 0 };
 
-        GLuint VAO=0, VBO=0, EBO=0;
-        glGenVertexArrays(1, &VAO);
-        glGenBuffers(1, &VBO);
-        glGenBuffers(1, &EBO);
-
-        glBindVertexArray(VAO);
         glBindBuffer(GL_ARRAY_BUFFER, VBO);
-        glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
-        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
-        glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
+        glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(vertices), vertices);
 
-        glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)0);
-        glEnableVertexAttribArray(0);
-        glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)(2 * sizeof(float)));
-        glEnableVertexAttribArray(1);
-
-        glActiveTexture(GL_TEXTURE0);
-        glBindTexture(GL_TEXTURE_2D, textureID);
-        glUniform1i(glGetUniformLocation(textShader->getID(), "u_Texture"), 0);
-
-        glEnable(GL_BLEND);
-        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+        glBindTexture(GL_TEXTURE_2D, g.textureID);
         glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
-        glDisable(GL_BLEND);
 
-        // Cleanup per-glyph buffers (kept simple; this is UI text)
-        glBindVertexArray(0);
-        glDeleteBuffers(1, &VBO);
-        glDeleteBuffers(1, &EBO);
-        glDeleteVertexArrays(1, &VAO);
-        glDeleteTextures(1, &textureID);
-
-        // Advance cursor using glyph metrics (kerning/advance)
-        int minx, maxx, miny, maxy, advance;
-        if (TTF_GlyphMetrics(font, c, &minx, &maxx, &miny, &maxy, &advance) == 0) {
-            posX += static_cast<float>(advance) * scale;
-        } else {
-            posX += quadW; // fallback
-        }
+        posX += (float)g.advance * scale;
     }
+
+    glDisable(GL_BLEND);
+    glBindVertexArray(0);
+    glBindTexture(GL_TEXTURE_2D, 0);
 }
 
 float TextRenderer::measureTextWidth(const std::string& text, float scale) const {
     if (!font) return 0.0f;
     float width = 0.0f;
-    for (char c : text) {
+
+    for (unsigned char c : text) {
         if (!TTF_GlyphIsProvided(font, c)) continue;
+
         int minx, maxx, miny, maxy, advance;
-        if (TTF_GlyphMetrics(font, c, &minx, &maxx, &miny, &maxy, &advance) == 0)
-            width += static_cast<float>(advance) * scale;
+        if (TTF_GlyphMetrics(font, c, &minx, &maxx, &miny, &maxy, &advance) == 0) {
+            width += (float)advance * scale;
+        }
     }
     return width;
 }

@@ -1,3 +1,5 @@
+// Model.cpp
+
 #include "Model.h"
 
 #include <glad/glad.h>
@@ -11,6 +13,8 @@
 #include <glm/gtc/type_ptr.hpp>
 #include <glm/gtx/quaternion.hpp>
 #include <glm/gtc/matrix_transform.hpp>
+
+#include "../utils/ShaderLibrary.h"
 
 #include "../../../third_party/nlohmann/json.hpp"
 
@@ -123,43 +127,8 @@ void readAccessorVec4FloatLike(const tinygltf::Model& m,
     }
 }
 
-static GLenum toGLWrap(int w)
-{
-    switch (w) {
-        case TINYGLTF_TEXTURE_WRAP_REPEAT: return GL_REPEAT;
-        case TINYGLTF_TEXTURE_WRAP_CLAMP_TO_EDGE: return GL_CLAMP_TO_EDGE;
-        case TINYGLTF_TEXTURE_WRAP_MIRRORED_REPEAT: return GL_MIRRORED_REPEAT;
-        default: return GL_REPEAT;
-    }
-}
-
-static GLenum toGLMinFilter(int f)
-{
-    switch (f) {
-        case TINYGLTF_TEXTURE_FILTER_NEAREST: return GL_NEAREST;
-        case TINYGLTF_TEXTURE_FILTER_LINEAR: return GL_LINEAR;
-        case TINYGLTF_TEXTURE_FILTER_NEAREST_MIPMAP_NEAREST: return GL_NEAREST_MIPMAP_NEAREST;
-        case TINYGLTF_TEXTURE_FILTER_LINEAR_MIPMAP_NEAREST: return GL_LINEAR_MIPMAP_NEAREST;
-        case TINYGLTF_TEXTURE_FILTER_NEAREST_MIPMAP_LINEAR: return GL_NEAREST_MIPMAP_LINEAR;
-        case TINYGLTF_TEXTURE_FILTER_LINEAR_MIPMAP_LINEAR: return GL_LINEAR_MIPMAP_LINEAR;
-        default: return GL_LINEAR_MIPMAP_LINEAR;
-    }
-}
-
-static GLenum toGLMagFilter(int f)
-{
-    switch (f) {
-        case TINYGLTF_TEXTURE_FILTER_NEAREST: return GL_NEAREST;
-        case TINYGLTF_TEXTURE_FILTER_LINEAR: return GL_LINEAR;
-        default: return GL_LINEAR;
-    }
-}
-
 } // namespace
 
-// ------------------------------------------------------------
-// TRS to matrix
-// ------------------------------------------------------------
 glm::mat4 Model::trsToMat4(const NodeTRS& n)
 {
     if (n.hasMatrix) return n.matrix;
@@ -170,14 +139,13 @@ glm::mat4 Model::trsToMat4(const NodeTRS& n)
     return T * R * S;
 }
 
-// ------------------------------------------------------------
-// ctor/dtor
-// ------------------------------------------------------------
 Model::Model(const std::string& filepath)
 {
     loadGLTF(filepath);
 
-    modelShader = new Shader("assets/shaders/model/model.vert", "assets/shaders/model/model.frag");
+    // NEW: shared cached shader
+    modelShader = ShaderLibrary::get("assets/shaders/model/model.vert", "assets/shaders/model/model.frag");
+
     locMVP     = glGetUniformLocation(modelShader->getID(), "u_MVP");
     locUseSkin = glGetUniformLocation(modelShader->getID(), "u_UseSkin");
     locJoints0 = glGetUniformLocation(modelShader->getID(), "u_Joints[0]");
@@ -197,15 +165,9 @@ Model::~Model()
         if (sm.textureID) glDeleteTextures(1, &sm.textureID);
     }
 
-    if (modelShader) {
-        delete modelShader;
-        modelShader = nullptr;
-    }
+    modelShader.reset();
 }
 
-// ------------------------------------------------------------
-// Animation public info
-// ------------------------------------------------------------
 int Model::getAnimationCount() const
 {
     return static_cast<int>(animations.size());
@@ -217,10 +179,6 @@ float Model::getAnimationDurationSec(int animIndex) const
     return animations[animIndex].durationSec;
 }
 
-// ------------------------------------------------------------
-// Skin uniforms upload
-// jointMatrix = inverse(meshGlobal) * jointGlobal * inverseBind
-// ------------------------------------------------------------
 void Model::uploadSkinUniforms(const glm::mat4& meshGlobal,
                                int skinIndex,
                                const std::vector<glm::mat4>& nodeGlobals) const
@@ -261,9 +219,6 @@ void Model::uploadSkinUniforms(const glm::mat4& meshGlobal,
     glUniformMatrix4fv(locJoints0, (GLsizei)mats.size(), GL_FALSE, glm::value_ptr(mats[0]));
 }
 
-// ------------------------------------------------------------
-// Build pose matrices for a given clip/time.
-// ------------------------------------------------------------
 static float wrapTime(float t, float duration)
 {
     if (duration <= 0.0f) return 0.0f;
@@ -361,9 +316,6 @@ void Model::buildPoseMatrices(float timeSec,
     }
 }
 
-// ------------------------------------------------------------
-// Main draw with animation + skinning
-// ------------------------------------------------------------
 void Model::drawAnimated(const Camera3D& camera,
                          const glm::mat4& instanceTransform,
                          float animTimeSec,
@@ -412,7 +364,6 @@ void Model::drawAnimated(const Camera3D& camera,
         if (meshIdx < 0) continue;
 
         glm::mat4 meshGlobal = (nodeIdx < (int)globals.size()) ? globals[nodeIdx] : glm::mat4(1.0f);
-
         glm::mat4 modelMat = instanceTransform * meshGlobal;
         glm::mat4 mvp = camera.getProjectionMatrix() * camera.getViewMatrix() * modelMat;
 

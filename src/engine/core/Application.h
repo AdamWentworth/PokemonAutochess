@@ -26,6 +26,10 @@ private:
     void update();
     void shutdown();
 
+    void updateDrawableSizeAndViewport();   // NEW
+    void updateMouseScale();                // NEW
+    void preloadCommonModels();             // NEW
+
     static constexpr float TIME_STEP = 1.0f / 60.0f;
 
     std::unique_ptr<Renderer> renderer;
@@ -40,4 +44,16 @@ private:
     std::shared_ptr<UnitInteractionSystem> unitSystem;
     std::shared_ptr<ShopSystem> shopSystem;
     std::unique_ptr<BattleFeed> battleFeed;
+
+    // NEW: real render dimensions (framebuffer / drawable)
+    int drawableW = 1280;
+    int drawableH = 720;
+
+    // NEW: window dimensions (logical)
+    int windowW = 1280;
+    int windowH = 720;
+
+    // NEW: scale SDL mouse coords -> drawable coords
+    float mouseScaleX = 1.0f;
+    float mouseScaleY = 1.0f;
 };

@@ -10,13 +10,13 @@ class Window {
 public:
     Window(const std::string& title, int width, int height);
     ~Window();
-    
+
     SDL_Window* getSDLWindow() const { return window; }
     SDL_GLContext getContext() const { return context; }
-    
+
 private:
-    SDL_Window* window;
-    SDL_GLContext context;
+    SDL_Window* window = nullptr;
+    SDL_GLContext context = nullptr;
 };
 
 #endif // WINDOW_H
