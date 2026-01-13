@@ -1,13 +1,6 @@
 # CMakeLists.txt
 
-cmake_minimum_required(VERSION 3.10)
-
-# vcpkg toolchain MUST be set before project()
-if(DEFINED ENV{VCPKG_ROOT})
-    set(CMAKE_TOOLCHAIN_FILE "$ENV{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake" CACHE STRING "" FORCE)
-else()
-    set(CMAKE_TOOLCHAIN_FILE "C:/dev/vcpkg/scripts/buildsystems/vcpkg.cmake" CACHE STRING "" FORCE)
-endif()
+cmake_minimum_required(VERSION 4.2)
 
 project(PokemonAutochess)
 
