@@ -17,8 +17,8 @@
 #define TINYGLTF_NO_INCLUDE_JSON
 #endif
 
-// FIX: rely on CMake's third_party include dir, not a fragile relative path
-#include <tinygltf/tiny_gltf.h>
+// vcpkg tinygltf header is installed as <tiny_gltf.h>
+#include <tiny_gltf.h>
 
 namespace pac::gltfaccessors {
 

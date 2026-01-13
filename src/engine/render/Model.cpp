@@ -28,7 +28,7 @@
 
 #define TINYGLTF_IMPLEMENTATION
 #define TINYGLTF_NO_INCLUDE_JSON
-#include <tinygltf/tiny_gltf.h>
+#include <tiny_gltf.h>
 
 #ifndef PAC_VERBOSE_STARTUP
 #define PAC_VERBOSE_STARTUP 0
