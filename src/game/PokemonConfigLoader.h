@@ -4,7 +4,8 @@
 #include <string>
 #include <unordered_map>
 #include <map>
-#include <../../third_party/nlohmann/json.hpp>
+
+#include <nlohmann/json.hpp>
 
 struct LoadoutEntry {
     std::string fast;     // move name
@@ -18,7 +19,7 @@ struct PokemonStats {
     float movementSpeed = 1.0f;
     std::string model;
 
-    // NEW: loadoutByLevel[level] -> LoadoutEntry
+    // loadoutByLevel[level] -> LoadoutEntry
     std::map<int, LoadoutEntry> loadoutByLevel;
 };
 

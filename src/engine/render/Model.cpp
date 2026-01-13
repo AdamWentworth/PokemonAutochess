@@ -13,6 +13,7 @@
 #include <fstream>
 #include <sstream>
 #include <iomanip>
+#include <cstring>
 
 #include <glm/gtc/type_ptr.hpp>
 #include <glm/gtx/quaternion.hpp>
@@ -20,13 +21,16 @@
 
 #include "../utils/ShaderLibrary.h"
 
-#include "../../../third_party/nlohmann/json.hpp"
+#include <nlohmann/json.hpp>
+
+// Step 4: loader toggle plumbing (fastgltf parse + fallback; no rendering changes yet)
+#include "./FastGLTFLoader.h"
 
 // tinygltf implementation MUST live in exactly one .cpp
 #define TINYGLTF_IMPLEMENTATION
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #define TINYGLTF_NO_INCLUDE_JSON
-#include "../../../third_party/tinygltf/tiny_gltf.h"
+#include <tinygltf/tiny_gltf.h>
 
 #ifndef PAC_VERBOSE_STARTUP
 #define PAC_VERBOSE_STARTUP 0
@@ -443,6 +447,20 @@ void Model::loadGLTF(const std::string& filepath)
     // Fast path: cache hit
     if (tryLoadCache(filepath)) {
         return;
+    }
+
+    // ------------------------------------------------------------
+    // Step 4: Optional fastgltf parse attempt (NO behavior change yet).
+    // If it fails, we ignore and proceed with tinygltf.
+    // If it succeeds, we still proceed with tinygltf for now.
+    // ------------------------------------------------------------
+    if (pac::fastgltf_loader::shouldUseFastGLTF()) {
+        auto fg = pac::fastgltf_loader::tryLoad(filepath);
+        if (!fg.has_value()) {
+            std::cerr << "[Model] fastgltf failed; continuing with tinygltf for: " << filepath << "\n";
+        } else {
+            // Parsed OK. Not used yet.
+        }
     }
 
     tinygltf::Model gltf;

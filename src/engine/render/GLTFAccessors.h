@@ -8,16 +8,17 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/type_precision.hpp>
 
-// Robust option:
-// Include the real tinygltf header here so declarations always match across TUs.
-// IMPORTANT: Do NOT define TINYGLTF_IMPLEMENTATION in any header.
-// Model.cpp remains the one-and-only implementation site.
+#include <nlohmann/json.hpp>
 
-#include "../../../third_party/nlohmann/json.hpp"
+// IMPORTANT:
+// - Do NOT define TINYGLTF_IMPLEMENTATION in any header.
+// - Model.cpp remains the one-and-only implementation site.
 #ifndef TINYGLTF_NO_INCLUDE_JSON
 #define TINYGLTF_NO_INCLUDE_JSON
 #endif
-#include "../../../third_party/tinygltf/tiny_gltf.h"
+
+// FIX: rely on CMake's third_party include dir, not a fragile relative path
+#include <tinygltf/tiny_gltf.h>
 
 namespace pac::gltfaccessors {
 

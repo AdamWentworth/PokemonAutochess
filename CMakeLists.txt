@@ -2,6 +2,10 @@
 
 cmake_minimum_required(VERSION 4.2)
 
+# NOTE:
+# Do NOT set CMAKE_TOOLCHAIN_FILE here.
+# Toolchains must be provided at configure time (e.g., via CMakePresets.json or -DCMAKE_TOOLCHAIN_FILE=...).
+
 project(PokemonAutochess)
 
 option(PAC_VERBOSE_STARTUP "Enable verbose startup/model-load logging" OFF)
@@ -21,8 +25,14 @@ find_package(glad CONFIG REQUIRED)
 find_package(glm CONFIG REQUIRED)
 find_package(lua CONFIG REQUIRED)
 
-# Header-only sol2 in third_party/sol2 (expected file: third_party/sol2/sol/sol.hpp)
-set(SOL2_INCLUDE_DIR "${CMAKE_SOURCE_DIR}/third_party/sol2")
+# fastgltf (vcpkg). Target is typically fastgltf::fastgltf, and it pulls simdjson as a dependency in vcpkg.
+find_package(fastgltf CONFIG REQUIRED)
+
+# sol2 (header-only) - pulled from vcpkg/toolchain include paths
+find_path(SOL2_INCLUDE_DIR
+    NAMES sol/sol.hpp
+    REQUIRED
+)
 
 # Project include root
 set(PROJECT_SRC_ROOT "${CMAKE_SOURCE_DIR}/src")
@@ -46,6 +56,9 @@ add_library(Engine STATIC
     src/engine/render/BoardRenderer.cpp
     src/engine/render/GLTFAccessors.cpp
     src/engine/render/Model.cpp
+
+    # Step 1: fastgltf compile smoke test (no runtime behavior change)
+    src/engine/render/FastGltfSmokeTest.cpp
 
     # Engine UI
     src/engine/ui/UIManager.cpp
@@ -73,6 +86,7 @@ target_link_libraries(Engine PRIVATE
     glad::glad
     glm::glm
     lua
+    fastgltf::fastgltf
 )
 
 # Ensure MSVC actually uses C++20 mode (older CMake/MSVC combos can ignore CMAKE_CXX_STANDARD)

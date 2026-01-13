@@ -16,6 +16,8 @@
 #include <cstddef>   // offsetof
 #include <vector>
 #include <string>
+#include <cstdlib>   // std::getenv
+#include <cstring>   // std::strcmp
 
 #include <glad/glad.h>
 #include <glm/gtc/type_ptr.hpp>
@@ -58,6 +60,13 @@ static std::string hexHash64(uint64_t v) {
     return oss.str();
 }
 
+// Treat any non-empty value other than "0" as true.
+static bool envTruthy(const char* name) {
+    const char* v = std::getenv(name);
+    if (!v || !*v) return false;
+    return std::strcmp(v, "0") != 0;
+}
+
 // Cache format constants
 static constexpr uint64_t kModelCacheMagic = 0x4C444D434150554FULL; // "PACMDML" in little-endian-ish
 static constexpr uint32_t kModelCacheVersion = 1;
@@ -98,6 +107,18 @@ static fs::path cachePathForModel(const std::string& filepath) {
 inline bool Model::tryLoadCache(const std::string& filepath)
 {
     using namespace pac_model_cache_detail;
+
+    // Step 5: make cache play nicely with loader experimentation.
+    //
+    // - If PAC_USE_FASTGLTF is enabled, we must bypass cache so the loader path executes.
+    // - PAC_DISABLE_MODELCACHE is an explicit override to bypass cache regardless.
+    //
+    // This keeps "test fastgltf" runs deterministic without forcing you to delete cache files.
+    if (envTruthy("PAC_DISABLE_MODELCACHE")) return false;
+
+    // FastGLTFLoader.h is included by Model.cpp before this header (by design).
+    // When toggling fastgltf, bypass cache so we don't short-circuit loader selection.
+    if (pac::fastgltf_loader::shouldUseFastGLTF()) return false;
 
     try {
         const fs::path cpath = cachePathForModel(filepath);

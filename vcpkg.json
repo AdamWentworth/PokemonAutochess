@@ -7,7 +7,10 @@
     "sdl2-ttf",
     "glad",
     "glm",
-    "lua"
+    "lua",
+    "sol2",
+    "nlohmann-json",
+    "fastgltf"
   ],
   "overrides": [
     { "name": "lua", "version": "5.4.8#0" }

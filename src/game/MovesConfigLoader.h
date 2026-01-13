@@ -1,8 +1,10 @@
 // MovesConfigLoader.h
 #pragma once
+
 #include <string>
 #include <unordered_map>
-#include <../../third_party/nlohmann/json.hpp>
+
+#include <nlohmann/json.hpp>
 
 struct MoveStatus {
     std::string effect;
@@ -17,12 +19,12 @@ struct MoveData {
     std::string type;        // fire, water, etc
     std::string kind;        // "fast" or "charged"
     float cooldownSec = 0.5f;
-    int   power = 0;
+    int power = 0;
     float range = 1.5f;
 
     // Fast: energyGain; Charged: energyCost
-    int   energyGain = 0;
-    int   energyCost = 0;
+    int energyGain = 0;
+    int energyCost = 0;
 
     MoveStatus status;
 };
