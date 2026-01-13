@@ -26,9 +26,7 @@
 // Step 4: loader toggle plumbing (fastgltf parse + fallback; no rendering changes yet)
 #include "./FastGLTFLoader.h"
 
-// tinygltf implementation MUST live in exactly one .cpp
 #define TINYGLTF_IMPLEMENTATION
-#define STB_IMAGE_WRITE_IMPLEMENTATION
 #define TINYGLTF_NO_INCLUDE_JSON
 #include <tinygltf/tiny_gltf.h>
 

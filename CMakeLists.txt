@@ -28,11 +28,17 @@ find_package(lua CONFIG REQUIRED)
 # fastgltf (vcpkg). Target is typically fastgltf::fastgltf, and it pulls simdjson as a dependency in vcpkg.
 find_package(fastgltf CONFIG REQUIRED)
 
-# sol2 (header-only) - pulled from vcpkg/toolchain include paths
-find_path(SOL2_INCLUDE_DIR
-    NAMES sol/sol.hpp
-    REQUIRED
-)
+# sol2 (vcpkg)
+find_package(sol2 CONFIG REQUIRED)
+
+# vcpkg ports have historically exposed sol2 either as sol2::sol2 or sol2
+if (TARGET sol2::sol2)
+    set(PAC_SOL2_TARGET sol2::sol2)
+elseif (TARGET sol2)
+    set(PAC_SOL2_TARGET sol2)
+else()
+    message(FATAL_ERROR "sol2 package found, but no known CMake target (sol2::sol2 or sol2) is available.")
+endif()
 
 # Project include root
 set(PROJECT_SRC_ROOT "${CMAKE_SOURCE_DIR}/src")
@@ -49,6 +55,7 @@ add_library(Engine STATIC
     src/engine/utils/ShaderLibrary.cpp
     src/engine/utils/ResourceManager.cpp
     src/engine/utils/stb_image_impl.cpp
+    src/engine/utils/stb_image_write_impl.cpp
 
     # Engine Render
     src/engine/render/Renderer.cpp
@@ -74,8 +81,8 @@ add_library(Engine STATIC
 target_include_directories(Engine
     PUBLIC
         "${PROJECT_SRC_ROOT}"
-        "${SOL2_INCLUDE_DIR}"
     PRIVATE
+        # Keep for now: tinygltf include is still coming from third_party in this repo state.
         "${CMAKE_SOURCE_DIR}/third_party"
 )
 
@@ -87,6 +94,7 @@ target_link_libraries(Engine PRIVATE
     glm::glm
     lua
     fastgltf::fastgltf
+    ${PAC_SOL2_TARGET}
 )
 
 # Ensure MSVC actually uses C++20 mode (older CMake/MSVC combos can ignore CMAKE_CXX_STANDARD)
@@ -141,7 +149,7 @@ add_executable(PokemonAutochess
 target_include_directories(PokemonAutochess
     PRIVATE
         "${PROJECT_SRC_ROOT}"
-        "${SOL2_INCLUDE_DIR}"
+        # Keep for now (tinygltf still coming from third_party at this stage)
         "${CMAKE_SOURCE_DIR}/third_party"
 )
 
@@ -153,6 +161,7 @@ target_link_libraries(PokemonAutochess PRIVATE
     glad::glad
     glm::glm
     lua
+    ${PAC_SOL2_TARGET}
 )
 
 if (MSVC)
