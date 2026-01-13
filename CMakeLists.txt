@@ -22,19 +22,27 @@ find_package(OpenGL REQUIRED)
 find_package(glad CONFIG REQUIRED)
 find_package(glm CONFIG REQUIRED)
 find_package(lua CONFIG REQUIRED)
+
 find_package(nlohmann_json CONFIG REQUIRED)
 
-# fastgltf (vcpkg)
+# fastgltf (vcpkg). Target is typically fastgltf::fastgltf, and it pulls simdjson as a dependency in vcpkg.
 find_package(fastgltf CONFIG REQUIRED)
 
-# stb (vcpkg)
-find_package(Stb REQUIRED)
+# sol2 (vcpkg)
+find_package(sol2 CONFIG REQUIRED)
+if (TARGET sol2::sol2)
+    set(PAC_SOL2_TARGET sol2::sol2)
+elseif (TARGET sol2)
+    set(PAC_SOL2_TARGET sol2)
+else()
+    message(FATAL_ERROR "sol2 package found, but no known CMake target (sol2::sol2 or sol2) is available.")
+endif()
 
-# sol2 (vcpkg header-only)
-find_path(SOL2_INCLUDE_DIRS "sol/abort.hpp" REQUIRED)
-
-# tinygltf (vcpkg header-only)
-find_path(TINYGLTF_INCLUDE_DIRS "tiny_gltf.h" REQUIRED)
+# tinygltf (vcpkg): header-only; use include-path lookup (NOT find_package CONFIG).
+find_path(TINYGLTF_INCLUDE_DIRS "tiny_gltf.h")
+if (NOT TINYGLTF_INCLUDE_DIRS)
+    message(FATAL_ERROR "tinygltf headers not found (tiny_gltf.h). Is vcpkg dependency 'tinygltf' installed?")
+endif()
 
 # Project include root
 set(PROJECT_SRC_ROOT "${CMAKE_SOURCE_DIR}/src")
@@ -60,6 +68,9 @@ add_library(Engine STATIC
     src/engine/render/GLTFAccessors.cpp
     src/engine/render/Model.cpp
 
+    # NEW: tinygltf implementation TU (keep tinygltf macros out of Model.cpp)
+    src/engine/render/TinyGltfImpl.cpp
+
     # Step 1: fastgltf compile smoke test (no runtime behavior change)
     src/engine/render/FastGltfSmokeTest.cpp
 
@@ -70,17 +81,14 @@ add_library(Engine STATIC
     src/engine/ui/HealthBarRenderer.cpp
     src/engine/ui/BattleFeed.cpp
 
-    # boot loading screen
+    # NEW: boot loading screen (Option B)
     src/engine/ui/BootLoadingView.cpp
 )
 
 target_include_directories(Engine
     PUBLIC
         "${PROJECT_SRC_ROOT}"
-    PRIVATE
-        ${Stb_INCLUDE_DIR}
-        ${SOL2_INCLUDE_DIRS}
-        ${TINYGLTF_INCLUDE_DIRS}
+        "${TINYGLTF_INCLUDE_DIRS}"
 )
 
 target_link_libraries(Engine PRIVATE
@@ -92,6 +100,7 @@ target_link_libraries(Engine PRIVATE
     lua
     nlohmann_json::nlohmann_json
     fastgltf::fastgltf
+    ${PAC_SOL2_TARGET}
 )
 
 # Ensure MSVC actually uses C++20 mode (older CMake/MSVC combos can ignore CMAKE_CXX_STANDARD)
@@ -101,6 +110,7 @@ else()
     target_compile_options(Engine PRIVATE -std=c++20)
 endif()
 
+# Apply the option AFTER the target exists
 target_compile_definitions(Engine PRIVATE
     PAC_VERBOSE_STARTUP=$<BOOL:${PAC_VERBOSE_STARTUP}>
 )
@@ -118,7 +128,7 @@ add_executable(PokemonAutochess
     src/game/GameConfig.cpp
     src/game/LogBus.cpp
 
-    # Moves config loader
+    # NEW: Moves config loader
     src/game/MovesConfigLoader.cpp
 
     # Game Systems
@@ -145,7 +155,6 @@ add_executable(PokemonAutochess
 target_include_directories(PokemonAutochess
     PRIVATE
         "${PROJECT_SRC_ROOT}"
-        ${SOL2_INCLUDE_DIRS}
 )
 
 target_link_libraries(PokemonAutochess PRIVATE
@@ -156,6 +165,7 @@ target_link_libraries(PokemonAutochess PRIVATE
     glad::glad
     glm::glm
     lua
+    ${PAC_SOL2_TARGET}
 )
 
 if (MSVC)
@@ -164,6 +174,7 @@ else()
     target_compile_options(PokemonAutochess PRIVATE -std=c++20)
 endif()
 
+# Apply the option AFTER the target exists
 target_compile_definitions(PokemonAutochess PRIVATE
     PAC_VERBOSE_STARTUP=$<BOOL:${PAC_VERBOSE_STARTUP}>
 )

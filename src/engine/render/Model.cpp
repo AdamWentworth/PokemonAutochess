@@ -26,8 +26,6 @@
 // Step 4: loader toggle plumbing (fastgltf parse + fallback; no rendering changes yet)
 #include "./FastGLTFLoader.h"
 
-#define TINYGLTF_IMPLEMENTATION
-#define TINYGLTF_NO_INCLUDE_JSON
 #include <tiny_gltf.h>
 
 #ifndef PAC_VERBOSE_STARTUP
@@ -149,7 +147,7 @@ void readAccessorVec4FloatLike(const tinygltf::Model& m,
     }
 }
 
-}
+} // namespace
 
 bool isMipmapMinFilter(GLint minF) {
     return minF == GL_NEAREST_MIPMAP_NEAREST ||

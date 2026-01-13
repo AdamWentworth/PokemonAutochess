@@ -12,12 +12,10 @@
 
 // IMPORTANT:
 // - Do NOT define TINYGLTF_IMPLEMENTATION in any header.
-// - Model.cpp remains the one-and-only implementation site.
 #ifndef TINYGLTF_NO_INCLUDE_JSON
 #define TINYGLTF_NO_INCLUDE_JSON
 #endif
 
-// vcpkg tinygltf header is installed as <tiny_gltf.h>
 #include <tiny_gltf.h>
 
 namespace pac::gltfaccessors {
