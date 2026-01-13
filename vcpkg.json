@@ -1,0 +1,15 @@
+{
+  "name": "pokemon-autochess",
+  "version-string": "0.1.0",
+  "builtin-baseline": "b7ba15730cadac50ce5092223efc92972c0afc5b",
+  "dependencies": [
+    "sdl2",
+    "sdl2-ttf",
+    "glad",
+    "glm",
+    "lua"
+  ],
+  "overrides": [
+    { "name": "lua", "version": "5.4.8#0" }
+  ]
+}

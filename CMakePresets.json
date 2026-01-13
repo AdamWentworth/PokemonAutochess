@@ -1,0 +1,20 @@
+{
+  "version": 4,
+  "cmakeMinimumRequired": { "major": 4, "minor": 2, "patch": 0 },
+  "configurePresets": [
+    {
+      "name": "vs2026",
+      "displayName": "Visual Studio 18 2026 x64 (vcpkg)",
+      "generator": "Visual Studio 18 2026",
+      "binaryDir": "${sourceDir}/build",
+      "architecture": "x64",
+      "cacheVariables": {
+        "CMAKE_TOOLCHAIN_FILE": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake"
+      }
+    }
+  ],
+  "buildPresets": [
+    { "name": "debug", "configurePreset": "vs2026", "configuration": "Debug" },
+    { "name": "release", "configurePreset": "vs2026", "configuration": "Release" }
+  ]
+}

@@ -5,7 +5,7 @@
 #include <glad/glad.h>
 #include <glm/gtc/type_ptr.hpp>
 #include <iostream>
-#include <stb_image.h>
+#include <tinygltf/stb_image.h>
 
 // Static members for the card frame texture remain unchanged.
 std::string Card::framePath = "assets/ui/frame_gold.png";
