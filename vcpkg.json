@@ -11,8 +11,7 @@
     "sol2",
     "nlohmann-json",
     "fastgltf",
-    "stb",
-    "tinygltf"
+    "stb"
   ],
   "overrides": [
     { "name": "lua", "version": "5.4.8#0" }

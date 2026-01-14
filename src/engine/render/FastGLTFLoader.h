@@ -1,5 +1,4 @@
 // FastGLTFLoader.h
-
 #pragma once
 
 #include <fastgltf/core.hpp>
@@ -8,41 +7,37 @@
 #include <cctype>
 #include <cstdlib>
 #include <filesystem>
-#include <fstream>
-#include <iostream>
 #include <optional>
-#include <string>
+#include <string_view>
+#include <system_error>
 
 namespace pac::fastgltf_loader {
+
+namespace detail {
+
+inline bool iequals(std::string_view a, std::string_view b) {
+    if (a.size() != b.size()) return false;
+    for (size_t i = 0; i < a.size(); ++i) {
+        const unsigned char ac = static_cast<unsigned char>(a[i]);
+        const unsigned char bc = static_cast<unsigned char>(b[i]);
+        if (std::tolower(ac) != std::tolower(bc)) return false;
+    }
+    return true;
+}
 
 inline bool envFlagEnabled(const char* name) {
     if (name == nullptr) return false;
     const char* v = std::getenv(name);
     if (v == nullptr) return false;
 
-    std::string s(v);
-    for (char& c : s) c = (char)std::tolower((unsigned char)c);
-    return (s == "1" || s == "true" || s == "yes" || s == "on");
+    const std::string_view s(v);
+    // accept common truthy values
+    return s == "1" || iequals(s, "true") || iequals(s, "yes") || iequals(s, "on");
 }
 
-inline bool shouldUseFastGLTF() {
-    // Set: PAC_USE_FASTGLTF=1
-    return envFlagEnabled("PAC_USE_FASTGLTF");
-}
+} // namespace detail
 
-// NEW: hard disable fastgltf (always use tinygltf)
-inline bool shouldForceTinyGLTF() {
-    // Set: PAC_FORCE_TINYGLTF=1
-    return envFlagEnabled("PAC_FORCE_TINYGLTF");
-}
-
-// NEW: allow fastgltf even if skins/anims exist (for testing while porting)
-inline bool allowSkinnedOrAnimatedFastGLTF() {
-    // Set: PAC_FASTGLTF_ALLOW_SKINNED=1
-    return envFlagEnabled("PAC_FASTGLTF_ALLOW_SKINNED");
-}
-
-inline const char* errorName(fastgltf::Error e) {
+inline constexpr const char* errorName(fastgltf::Error e) {
     switch (e) {
         case fastgltf::Error::None: return "None";
         case fastgltf::Error::InvalidPath: return "InvalidPath";
@@ -62,7 +57,7 @@ inline const char* errorName(fastgltf::Error e) {
     }
 }
 
-constexpr fastgltf::Extensions kSupportedExtensionsMask =
+inline constexpr fastgltf::Extensions kSupportedExtensionsMask =
     fastgltf::Extensions::KHR_texture_transform |
     fastgltf::Extensions::KHR_texture_basisu |
     fastgltf::Extensions::MSFT_texture_dds |
@@ -91,24 +86,23 @@ struct LoadResult {
     std::filesystem::path baseDir;
 };
 
-inline std::optional<LoadResult> tryLoad(const std::string& filepath) {
+// Note: consider returning a richer error type instead of printing.
+// Keeping this header-only: return nullopt on failure and let caller log.
+inline std::optional<LoadResult> tryLoad(std::string_view filepath) {
     std::filesystem::path path(filepath);
+
     std::error_code ec;
-    auto absPath = std::filesystem::absolute(path, ec);
+    const auto absPath = std::filesystem::absolute(path, ec);
     const auto& usePath = ec ? path : absPath;
 
     auto data = fastgltf::GltfDataBuffer::FromPath(usePath);
     if (data.error() != fastgltf::Error::None) {
-        std::cerr << "[fastgltf] read failed: " << usePath.string()
-                  << " (Error=" << errorName(data.error()) << ")\n";
         return std::nullopt;
     }
 
     fastgltf::Parser parser(kSupportedExtensionsMask);
-    auto baseDir = usePath.parent_path();
+    const auto baseDir = usePath.parent_path();
 
-    // Load buffers + external images into CPU memory, decompose node matrices into TRS,
-    // and generate indices for primitives that omit them.
     constexpr fastgltf::Options kOptions =
         fastgltf::Options::LoadGLBBuffers |
         fastgltf::Options::LoadExternalBuffers |
@@ -118,13 +112,10 @@ inline std::optional<LoadResult> tryLoad(const std::string& filepath) {
 
     auto asset = parser.loadGltf(data.get(), baseDir, kOptions, fastgltf::Category::All);
     if (asset.error() != fastgltf::Error::None) {
-        std::cerr << "[fastgltf] parse failed: " << usePath.string()
-                  << " (Error=" << errorName(asset.error()) << ")\n";
         return std::nullopt;
     }
 
-    std::cout << "[fastgltf] Parsed OK: " << usePath.filename().string() << "\n";
-    return LoadResult{ std::move(asset.get()), baseDir };
+    return LoadResult{std::move(asset.get()), baseDir};
 }
 
 } // namespace pac::fastgltf_loader
