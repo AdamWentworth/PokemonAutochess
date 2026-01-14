@@ -17,6 +17,8 @@
 #include "Camera3D.h"
 #include "../utils/Shader.h"
 
+#include "ModelAnimationTypes.h"
+
 struct Submesh {
     size_t indexOffset = 0;
     size_t indexCount = 0;
@@ -31,14 +33,14 @@ public:
 
     int   getAnimationCount() const;
     float getAnimationDurationSec(int animIndex) const;
-    
+
     void drawAnimated(const Camera3D& camera,
         const glm::mat4& instanceTransform,
         float animTimeSec,
         int animIndex) const;
-        
+
         float getScaleFactor() const { return modelScaleFactor; }
-        
+
     // CPU-side texture blob for caching (always RGBA8)
     struct CPUTexture {
         uint32_t width = 1;
@@ -62,40 +64,14 @@ private:
 
     float modelScaleFactor = 1.0f;
 
-    struct NodeTRS {
-        glm::vec3 t{0.0f};
-        glm::quat r{1.0f, 0.0f, 0.0f, 0.0f};
-        glm::vec3 s{1.0f};
-        bool hasMatrix = false;
-        glm::mat4 matrix{1.0f};
-    };
-
-    struct SkinData {
-        std::vector<int> joints;
-        std::vector<glm::mat4> inverseBind;
-    };
-
-    enum class ChannelPath { Translation, Rotation, Scale };
-
-    struct AnimationSampler {
-        std::vector<float> inputs;
-        std::vector<glm::vec4> outputs;
-        std::string interpolation;
-        bool isVec4 = false;
-    };
-
-    struct AnimationChannel {
-        int samplerIndex = -1;
-        int targetNode = -1;
-        ChannelPath path = ChannelPath::Translation;
-    };
-
-    struct AnimationClip {
-        std::string name;
-        float durationSec = 0.0f;
-        std::vector<AnimationSampler> samplers;
-        std::vector<AnimationChannel> channels;
-    };
+    // Animation/scene types live in a separate header so animation code can be built
+    // as a normal .cpp without exposing Model's internals via nested private structs.
+    using NodeTRS          = pac_model_types::NodeTRS;
+    using SkinData         = pac_model_types::SkinData;
+    using ChannelPath      = pac_model_types::ChannelPath;
+    using AnimationSampler = pac_model_types::AnimationSampler;
+    using AnimationChannel = pac_model_types::AnimationChannel;
+    using AnimationClip    = pac_model_types::AnimationClip;
 
     std::vector<NodeTRS>           nodesDefault;
     std::vector<std::vector<int>>  nodeChildren;
@@ -111,7 +87,6 @@ private:
         uint16_t j0, j1, j2, j3;
         float w0, w1, w2, w3;
     };
-
 
     mutable std::unordered_set<int> warnedMissingAnimIndex;
 

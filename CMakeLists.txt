@@ -70,6 +70,7 @@ add_library(Engine STATIC
     src/engine/render/Camera3D.cpp
     src/engine/render/BoardRenderer.cpp
     src/engine/render/Model.cpp
+    src/engine/render/ModelAnimation.cpp
 
     # Engine UI
     src/engine/ui/UIManager.cpp
