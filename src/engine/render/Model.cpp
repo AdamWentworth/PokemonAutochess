@@ -1,5 +1,3 @@
-// Model.cpp
-
 #include "Model.h"
 
 #include <glad/glad.h>
@@ -25,6 +23,11 @@
 
 // Step 4: loader toggle plumbing (fastgltf parse + fallback; no rendering changes yet)
 #include "./FastGLTFLoader.h"
+
+#include <fastgltf/tools.hpp>
+#include <fastgltf/glm_element_traits.hpp>
+
+#include <stb_image.h>
 
 #include <tiny_gltf.h>
 
@@ -145,6 +148,241 @@ void readAccessorVec4FloatLike(const tinygltf::Model& m,
         v.w = readNorm(i,3);
         out[i] = v;
     }
+}
+
+}
+
+
+// ------------------------------------------------------------
+// fastgltf helpers (file-local)
+// ------------------------------------------------------------
+namespace {
+
+using CPUTexture = Model::CPUTexture;
+
+static GLint wrapToGL(fastgltf::Wrap w) {
+    switch (w) {
+        case fastgltf::Wrap::ClampToEdge:   return GL_CLAMP_TO_EDGE;
+        case fastgltf::Wrap::MirroredRepeat:return GL_MIRRORED_REPEAT;
+        case fastgltf::Wrap::Repeat:
+        default:                            return GL_REPEAT;
+    }
+}
+
+static GLint filterToGLMin(int f) {
+    // glTF minFilter numeric values:
+    // 9728 NEAREST, 9729 LINEAR, 9984 NEAREST_MIPMAP_NEAREST, 9985 LINEAR_MIPMAP_NEAREST,
+    // 9986 NEAREST_MIPMAP_LINEAR, 9987 LINEAR_MIPMAP_LINEAR
+    switch (f) {
+        case 9728: return GL_NEAREST;
+        case 9729: return GL_LINEAR;
+        case 9984: return GL_NEAREST_MIPMAP_NEAREST;
+        case 9985: return GL_LINEAR_MIPMAP_NEAREST;
+        case 9986: return GL_NEAREST_MIPMAP_LINEAR;
+        case 9987: return GL_LINEAR_MIPMAP_LINEAR;
+        default:   return GL_LINEAR_MIPMAP_LINEAR;
+    }
+}
+
+static GLint filterToGLMag(int f) {
+    // glTF magFilter numeric values:
+    // 9728 NEAREST, 9729 LINEAR
+    switch (f) {
+        case 9728: return GL_NEAREST;
+        case 9729: return GL_LINEAR;
+        default:   return GL_LINEAR;
+    }
+}
+
+// Returns raw (encoded) image bytes + a debug name.
+// Uses fastgltf::DataSource variants (URI, BufferView, Vector, Array, ByteView).
+struct EncodedImageBytes {
+    std::vector<std::uint8_t> bytes;
+    std::string debugName;
+};
+
+static std::optional<EncodedImageBytes> getEncodedImageBytes(const fastgltf::Asset& asset,
+                                                            const std::filesystem::path& baseDir,
+                                                            const fastgltf::Image& image) {
+    EncodedImageBytes out{};
+
+    const auto* uri = std::get_if<fastgltf::sources::URI>(&image.data);
+    if (uri != nullptr) {
+        std::filesystem::path p = baseDir / std::string(uri->uri.path().begin(), uri->uri.path().end());
+        out.debugName = p.string();
+
+        // Fast path: if the parser already loaded external images, it will likely be a sources::Vector.
+        // But handle URI defensively anyway.
+        std::ifstream f(p, std::ios::binary);
+        if (!f) return std::nullopt;
+        f.seekg(0, std::ios::end);
+        std::streamsize size = f.tellg();
+        f.seekg(0, std::ios::beg);
+        if (size <= 0) return std::nullopt;
+        out.bytes.resize((size_t)size);
+        if (!f.read(reinterpret_cast<char*>(out.bytes.data()), size)) return std::nullopt;
+        return out;
+    }
+
+    const auto* vec = std::get_if<fastgltf::sources::Vector>(&image.data);
+    if (vec != nullptr) {
+        out.debugName = image.name.empty()
+            ? std::string("VectorImage")
+            : std::string(image.name.begin(), image.name.end());
+
+        out.bytes.resize(vec->bytes.size());
+        if (!vec->bytes.empty()) {
+            std::memcpy(out.bytes.data(), vec->bytes.data(), vec->bytes.size());
+        }
+        return out;
+    }
+
+    const auto* arr = std::get_if<fastgltf::sources::Array>(&image.data);
+    if (arr != nullptr) {
+        out.debugName = image.name.empty()
+            ? std::string("ArrayImage")
+            : std::string(image.name.begin(), image.name.end());
+
+        out.bytes.resize(arr->bytes.size());
+        if (!arr->bytes.empty()) {
+            std::memcpy(out.bytes.data(), arr->bytes.data(), arr->bytes.size());
+        }
+        return out;
+    }
+
+    const auto* view = std::get_if<fastgltf::sources::ByteView>(&image.data);
+    if (view != nullptr) {
+        out.debugName = image.name.empty()
+            ? std::string("ByteViewImage")
+            : std::string(image.name.begin(), image.name.end());
+
+        out.bytes.resize(view->bytes.size());
+        if (!view->bytes.empty()) {
+            std::memcpy(out.bytes.data(), view->bytes.data(), view->bytes.size());
+        }
+        return out;
+    }
+
+    const auto* bv = std::get_if<fastgltf::sources::BufferView>(&image.data);
+    if (bv != nullptr) {
+        if (bv->bufferViewIndex >= asset.bufferViews.size()) return std::nullopt;
+        const auto& bufferView = asset.bufferViews[bv->bufferViewIndex];
+        if (bufferView.bufferIndex >= asset.buffers.size()) return std::nullopt;
+        const auto& buffer = asset.buffers[bufferView.bufferIndex];
+
+        // Buffers should be loaded into Vector if Options::LoadExternalBuffers or LoadGLBBuffers were set.
+        const auto* bufVec = std::get_if<fastgltf::sources::Vector>(&buffer.data);
+        if (bufVec == nullptr) return std::nullopt;
+
+        const size_t start = (size_t)bufferView.byteOffset;
+        const size_t size  = (size_t)bufferView.byteLength;
+        if (start + size > bufVec->bytes.size()) return std::nullopt;
+
+        out.debugName = image.name.empty()
+            ? std::string("BufferViewImage")
+            : std::string(image.name.begin(), image.name.end());
+
+        out.bytes.resize(size);
+        if (size > 0) {
+            std::memcpy(out.bytes.data(), bufVec->bytes.data() + start, size);
+        }
+        return out;
+    }
+
+    return std::nullopt;
+}
+
+static CPUTexture makeWhiteCPUTexture() {
+    CPUTexture t;
+    t.width = 1; t.height = 1;
+    t.wrapS = GL_REPEAT;
+    t.wrapT = GL_REPEAT;
+    t.minF  = GL_LINEAR;
+    t.magF  = GL_LINEAR;
+    t.rgba = {255,255,255,255};
+    return t;
+}
+
+// Decode glTF material baseColorTexture to CPU RGBA8 (fastgltf).
+static CPUTexture decodeBaseColorTextureFast(const fastgltf::Asset& asset,
+                                             const std::filesystem::path& baseDir,
+                                             int materialIndex) {
+    if (materialIndex < 0 || materialIndex >= (int)asset.materials.size()) {
+        return makeWhiteCPUTexture();
+    }
+
+    const auto& mat = asset.materials[(size_t)materialIndex];
+
+    if (!mat.pbrData.baseColorTexture.has_value()) {
+        return makeWhiteCPUTexture();
+    }
+
+    const auto& texInfo = mat.pbrData.baseColorTexture.value();
+    const size_t texIndex = texInfo.textureIndex;
+    if (texIndex >= asset.textures.size()) {
+        return makeWhiteCPUTexture();
+    }
+
+    const auto& tex = asset.textures[texIndex];
+
+    // Prefer modern/alt container formats if present.
+    fastgltf::Optional<std::size_t> imgIndexOpt = tex.webpImageIndex;
+    if (!imgIndexOpt.has_value()) imgIndexOpt = tex.basisuImageIndex;
+    if (!imgIndexOpt.has_value()) imgIndexOpt = tex.ddsImageIndex;
+    if (!imgIndexOpt.has_value()) imgIndexOpt = tex.imageIndex;
+
+    if (!imgIndexOpt.has_value()) {
+        return makeWhiteCPUTexture();
+    }
+
+    const size_t imgIndex = imgIndexOpt.value();
+    if (imgIndex >= asset.images.size()) {
+        return makeWhiteCPUTexture();
+    }
+
+    const auto& img = asset.images[imgIndex];
+    auto enc = getEncodedImageBytes(asset, baseDir, img);
+    if (!enc.has_value() || enc->bytes.empty()) {
+        return makeWhiteCPUTexture();
+    }
+
+    int w = 0, h = 0, comp = 0;
+    stbi_uc* decoded = stbi_load_from_memory(
+        enc->bytes.data(),
+        (int)enc->bytes.size(),
+        &w, &h, &comp, 4
+    );
+
+    if (decoded == nullptr || w <= 0 || h <= 0) {
+        if (decoded) stbi_image_free(decoded);
+        return makeWhiteCPUTexture();
+    }
+
+    CPUTexture out;
+    out.width  = (uint32_t)w;
+    out.height = (uint32_t)h;
+
+    // Default sampler values per glTF: wrap repeat, "auto filter".
+    out.wrapS = GL_REPEAT;
+    out.wrapT = GL_REPEAT;
+    out.minF  = GL_LINEAR_MIPMAP_LINEAR;
+    out.magF  = GL_LINEAR;
+
+    if (tex.samplerIndex.has_value() && tex.samplerIndex.value() < asset.samplers.size()) {
+        const auto& s = asset.samplers[tex.samplerIndex.value()];
+        out.wrapS = wrapToGL(s.wrapS);
+        out.wrapT = wrapToGL(s.wrapT);
+
+        if (s.minFilter.has_value()) out.minF = filterToGLMin((int)s.minFilter.value());
+        if (s.magFilter.has_value()) out.magF = filterToGLMag((int)s.magFilter.value());
+    }
+
+    const size_t pxCount = (size_t)w * (size_t)h;
+    out.rgba.resize(pxCount * 4);
+    std::memcpy(out.rgba.data(), decoded, pxCount * 4);
+    stbi_image_free(decoded);
+
+    return out;
 }
 
 } // namespace
@@ -444,18 +682,232 @@ void Model::loadGLTF(const std::string& filepath)
     if (tryLoadCache(filepath)) {
         return;
     }
-
     // ------------------------------------------------------------
-    // Step 4: Optional fastgltf parse attempt (NO behavior change yet).
-    // If it fails, we ignore and proceed with tinygltf.
-    // If it succeeds, we still proceed with tinygltf for now.
+    // FastGLTF path (real): if enabled and the asset is *static* (no skins/animations),
+    // load meshes + textures via fastgltf and skip tinygltf entirely.
+    //
+    // Current limitation of this step: if skins or animations exist, we fall back to tinygltf
+    // to preserve behavior (your skinning/animation code is currently tinygltf-based).
     // ------------------------------------------------------------
     if (pac::fastgltf_loader::shouldUseFastGLTF()) {
         auto fg = pac::fastgltf_loader::tryLoad(filepath);
-        if (!fg.has_value()) {
-            std::cerr << "[Model] fastgltf failed; continuing with tinygltf for: " << filepath << "\n";
+        if (fg.has_value()) {
+            const fastgltf::Asset& asset = fg->asset;
+            const bool hasSkins = !asset.skins.empty();
+            const bool hasAnims = !asset.animations.empty();
+
+            if (!hasSkins && !hasAnims) {
+                nodesDefault.clear();
+                nodeChildren.clear();
+                nodeMesh.clear();
+                nodeSkin.clear();
+                sceneRoots.clear();
+                skins.clear();
+                animations.clear();
+
+                std::vector<Vertex> vertices;
+                std::vector<uint32_t> indices;
+                vertices.reserve(20000);
+                indices.reserve(60000);
+
+                submeshes.clear();
+                std::vector<CPUTexture> texturesCPU;
+                texturesCPU.reserve(64);
+
+                float minX = std::numeric_limits<float>::max(), minY = std::numeric_limits<float>::max(), minZ = std::numeric_limits<float>::max();
+                float maxX = -minX, maxY = -minY, maxZ = -minZ;
+
+                for (size_t meshIdx = 0; meshIdx < asset.meshes.size(); ++meshIdx) {
+                    const auto& mesh = asset.meshes[meshIdx];
+
+                    for (size_t primIdx = 0; primIdx < mesh.primitives.size(); ++primIdx) {
+                        const auto& p = mesh.primitives[primIdx];
+                        if (p.type != fastgltf::PrimitiveType::Triangles) continue;
+
+                        auto itPos = p.findAttribute("POSITION");
+                        auto itUv  = p.findAttribute("TEXCOORD_0");
+                        if (itPos == p.attributes.end() || itUv == p.attributes.end()) {
+                            std::cerr << "[fastgltf] Missing POSITION or TEXCOORD_0 in primitive\n";
+                            continue;
+                        }
+
+                        const size_t posAcc = itPos->accessorIndex;
+                        const size_t uvAcc  = itUv->accessorIndex;
+
+                        std::vector<glm::vec3> pos;
+                        std::vector<glm::vec2> uv;
+
+                        pos.reserve(asset.accessors[posAcc].count);
+                        uv.reserve(asset.accessors[uvAcc].count);
+
+                        fastgltf::DefaultBufferDataAdapter adapter{}; // put this once near where you start reading accessors
+
+                        fastgltf::iterateAccessorWithIndex<glm::vec3>(asset, asset.accessors[posAcc],
+                            [&](glm::vec3 v, size_t) { pos.push_back(v); }, adapter);
+
+                        fastgltf::iterateAccessorWithIndex<glm::vec2>(asset, asset.accessors[uvAcc],
+                            [&](glm::vec2 v, size_t) { uv.push_back(v); }, adapter);
+
+                        if (pos.empty() || uv.empty() || pos.size() != uv.size()) {
+                            std::cerr << "[fastgltf] Invalid POSITION/TEXCOORD_0 sizes\n";
+                            continue;
+                        }
+
+                        std::vector<glm::u16vec4> joints;
+                        std::vector<glm::vec4> weights;
+
+                        auto itJ = p.findAttribute("JOINTS_0");
+                        auto itW = p.findAttribute("WEIGHTS_0");
+                        if (itJ != p.attributes.end() && itW != p.attributes.end()) {
+                            joints.reserve(asset.accessors[itJ->accessorIndex].count);
+                            weights.reserve(asset.accessors[itW->accessorIndex].count);
+
+                            fastgltf::iterateAccessorWithIndex<glm::u16vec4>(
+                                asset, asset.accessors[itJ->accessorIndex],
+                                [&](glm::u16vec4 v, size_t) { joints.push_back(v); }, adapter);
+
+                            fastgltf::iterateAccessorWithIndex<glm::vec4>(
+                                asset, asset.accessors[itW->accessorIndex],
+                                [&](glm::vec4 v, size_t) { weights.push_back(v); }, adapter);
+
+                            if (joints.size() != pos.size() || weights.size() != pos.size()) {
+                                joints.clear();
+                                weights.clear();
+                            }
+                        }
+
+                        std::vector<uint32_t> primIdxU32;
+                        if (p.indicesAccessor.has_value()) {
+                            const auto& idxAcc = asset.accessors[p.indicesAccessor.value()];
+                            primIdxU32.reserve(idxAcc.count);
+
+                            fastgltf::iterateAccessorWithIndex<std::uint32_t>(
+                                asset, idxAcc,
+                                [&](std::uint32_t v, size_t) { primIdxU32.push_back(v); }, adapter);
+                        }
+
+                        if (primIdxU32.empty()) {
+                            primIdxU32.resize(pos.size());
+                            for (size_t i = 0; i < pos.size(); ++i) primIdxU32[i] = (uint32_t)i;
+                        }
+
+                        const size_t baseVertex = vertices.size();
+                        const size_t subIndexOffset = indices.size();
+
+                        for (size_t i = 0; i < pos.size(); ++i) {
+                            Vertex v{};
+                            v.px = pos[i].x; v.py = pos[i].y; v.pz = pos[i].z;
+                            v.u  = uv[i].x;  v.v  = uv[i].y;
+
+                            v.j0 = v.j1 = v.j2 = v.j3 = 0;
+                            v.w0 = 1.0f; v.w1 = v.w2 = v.w3 = 0.0f;
+
+                            if (!joints.empty() && !weights.empty()) {
+                                auto j = joints[i];
+                                auto w = weights[i];
+
+                                float sum = w.x + w.y + w.z + w.w;
+                                if (sum <= 0.0001f) w = glm::vec4(1,0,0,0);
+                                else w /= sum;
+
+                                v.j0 = j.x; v.j1 = j.y; v.j2 = j.z; v.j3 = j.w;
+                                v.w0 = w.x; v.w1 = w.y; v.w2 = w.z; v.w3 = w.w;
+                            }
+
+                            vertices.push_back(v);
+
+                            minX = std::min(minX, v.px); minY = std::min(minY, v.py); minZ = std::min(minZ, v.pz);
+                            maxX = std::max(maxX, v.px); maxY = std::max(maxY, v.py); maxZ = std::max(maxZ, v.pz);
+                        }
+
+                        for (auto idx : primIdxU32) {
+                            indices.push_back((uint32_t)(baseVertex + idx));
+                        }
+
+                        // Texture: baseColor only (matches existing tinygltf behavior).
+                        int materialIndex = -1;
+                        if (p.materialIndex.has_value()) materialIndex = (int)p.materialIndex.value();
+
+                        CPUTexture cpuTex = decodeBaseColorTextureFast(asset, fg->baseDir, materialIndex);
+
+                        GLuint texId = 0;
+                        glGenTextures(1, &texId);
+                        glBindTexture(GL_TEXTURE_2D, texId);
+                        glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+
+                        const uint32_t w = (cpuTex.width  == 0 ? 1u : cpuTex.width);
+                        const uint32_t h = (cpuTex.height == 0 ? 1u : cpuTex.height);
+                        const void* pixels = cpuTex.rgba.empty() ? nullptr : cpuTex.rgba.data();
+
+                        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, (GLsizei)w, (GLsizei)h, 0,
+                                     GL_RGBA, GL_UNSIGNED_BYTE, pixels);
+
+                        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, (GLint)cpuTex.wrapS);
+                        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, (GLint)cpuTex.wrapT);
+                        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, (GLint)cpuTex.minF);
+                        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, (GLint)cpuTex.magF);
+
+                        if (isMipmapMinFilter((GLint)cpuTex.minF)) {
+                            glGenerateMipmap(GL_TEXTURE_2D);
+                        }
+
+                        Submesh sm;
+                        sm.indexOffset = subIndexOffset;
+                        sm.indexCount  = primIdxU32.size();
+                        sm.textureID   = texId;
+                        sm.meshIndex   = (int)meshIdx;
+                        submeshes.push_back(sm);
+
+                        texturesCPU.push_back(std::move(cpuTex));
+                    }
+                }
+
+                float desiredHeight = 0.8f;
+                float denom = (maxZ - minZ);
+                if (std::abs(denom) < 1e-6f) denom = 1.0f;
+                modelScaleFactor = desiredHeight / denom;
+
+                STARTUP_LOG(
+                    std::string("[Model] Loaded (fastgltf): ") + filepath +
+                    " vertices=" + std::to_string(vertices.size()) +
+                    " indices=" + std::to_string(indices.size()) +
+                    " submeshes=" + std::to_string(submeshes.size())
+                );
+
+                glGenVertexArrays(1, &VAO);
+                glGenBuffers(1, &VBO);
+                glGenBuffers(1, &EBO);
+
+                glBindVertexArray(VAO);
+
+                glBindBuffer(GL_ARRAY_BUFFER, VBO);
+                glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(Vertex), vertices.data(), GL_STATIC_DRAW);
+
+                glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
+                glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices.size() * sizeof(uint32_t), indices.data(), GL_STATIC_DRAW);
+
+                glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, px));
+                glEnableVertexAttribArray(0);
+
+                glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, u));
+                glEnableVertexAttribArray(1);
+
+                glVertexAttribIPointer(2, 4, GL_UNSIGNED_SHORT, sizeof(Vertex), (void*)offsetof(Vertex, j0));
+                glEnableVertexAttribArray(2);
+
+                glVertexAttribPointer(3, 4, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, w0));
+                glEnableVertexAttribArray(3);
+
+                glBindVertexArray(0);
+
+                writeCache(filepath, vertices, indices, texturesCPU);
+                return;
+            } else {
+                std::cerr << "[Model] fastgltf parsed, but asset has skins/animations; falling back to tinygltf: "
+                          << filepath << "\n";
+            }
         } else {
-            // Parsed OK. Not used yet.
+            std::cerr << "[Model] fastgltf failed; continuing with tinygltf for: " << filepath << "\n";
         }
     }
 
@@ -1036,3 +1488,5 @@ void Model::loadGLTF(const std::string& filepath)
     // Persist processed result for faster next startup
     writeCache(filepath, vertices, indices, texturesCPU);
 }
+
+

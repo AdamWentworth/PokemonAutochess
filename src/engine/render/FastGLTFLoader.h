@@ -8,6 +8,7 @@
 #include <cctype>
 #include <cstdlib>
 #include <filesystem>
+#include <fstream>
 #include <iostream>
 #include <optional>
 #include <string>
@@ -49,7 +50,6 @@ inline const char* errorName(fastgltf::Error e) {
     }
 }
 
-// “Enable everything fastgltf documents as supported extensions”.
 constexpr fastgltf::Extensions kSupportedExtensionsMask =
     fastgltf::Extensions::KHR_texture_transform |
     fastgltf::Extensions::KHR_texture_basisu |
@@ -93,16 +93,25 @@ inline std::optional<LoadResult> tryLoad(const std::string& filepath) {
     }
 
     fastgltf::Parser parser(kSupportedExtensionsMask);
-
     auto baseDir = usePath.parent_path();
-    auto asset = parser.loadGltf(data.get(), baseDir, fastgltf::Options::None);
+
+    // Load buffers + external images into CPU memory, decompose node matrices into TRS,
+    // and generate indices for primitives that omit them.
+    constexpr fastgltf::Options kOptions =
+        fastgltf::Options::LoadGLBBuffers |
+        fastgltf::Options::LoadExternalBuffers |
+        fastgltf::Options::LoadExternalImages |
+        fastgltf::Options::DecomposeNodeMatrices |
+        fastgltf::Options::GenerateMeshIndices;
+
+    auto asset = parser.loadGltf(data.get(), baseDir, kOptions, fastgltf::Category::All);
     if (asset.error() != fastgltf::Error::None) {
         std::cerr << "[fastgltf] parse failed: " << usePath.string()
                   << " (Error=" << errorName(asset.error()) << ")\n";
         return std::nullopt;
     }
 
-    std::cout << "[fastgltf] Parsed OK (toggle path): " << usePath.filename().string() << "\n";
+    std::cout << "[fastgltf] Parsed OK: " << usePath.filename().string() << "\n";
     return LoadResult{ std::move(asset.get()), baseDir };
 }
 

@@ -31,13 +31,24 @@ public:
 
     int   getAnimationCount() const;
     float getAnimationDurationSec(int animIndex) const;
-
+    
     void drawAnimated(const Camera3D& camera,
-                      const glm::mat4& instanceTransform,
-                      float animTimeSec,
-                      int animIndex) const;
-
-    float getScaleFactor() const { return modelScaleFactor; }
+        const glm::mat4& instanceTransform,
+        float animTimeSec,
+        int animIndex) const;
+        
+        float getScaleFactor() const { return modelScaleFactor; }
+        
+    // CPU-side texture blob for caching (always RGBA8)
+    struct CPUTexture {
+        uint32_t width = 1;
+        uint32_t height = 1;
+        int wrapS = 0;   // GL enum stored as int
+        int wrapT = 0;   // GL enum stored as int
+        int minF  = 0;   // GL enum stored as int
+        int magF  = 0;   // GL enum stored as int
+        std::vector<uint8_t> rgba; // width*height*4
+    };
 
 private:
     unsigned int VAO = 0, VBO = 0, EBO = 0;
@@ -101,16 +112,6 @@ private:
         float w0, w1, w2, w3;
     };
 
-    // CPU-side texture blob for caching (always RGBA8)
-    struct CPUTexture {
-        uint32_t width = 1;
-        uint32_t height = 1;
-        int wrapS = 0;   // GL enum stored as int
-        int wrapT = 0;   // GL enum stored as int
-        int minF  = 0;   // GL enum stored as int
-        int magF  = 0;   // GL enum stored as int
-        std::vector<uint8_t> rgba; // width*height*4
-    };
 
     mutable std::unordered_set<int> warnedMissingAnimIndex;
 
