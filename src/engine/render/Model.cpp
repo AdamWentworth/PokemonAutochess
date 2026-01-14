@@ -1,4 +1,6 @@
 #include "Model.h"
+#define PAC_DISALLOW_TINYGLTF 1
+
 
 #include <glad/glad.h>
 #include <iostream>
@@ -29,7 +31,11 @@
 
 #include <stb_image.h>
 
-#include <tiny_gltf.h>
+#if PAC_DISALLOW_TINYGLTF
+  #ifdef TINYGLTF_H_
+    #error "tinygltf header was included but PAC_DISALLOW_TINYGLTF=1"
+  #endif
+#endif
 
 #ifndef PAC_VERBOSE_STARTUP
 #define PAC_VERBOSE_STARTUP 0
@@ -47,8 +53,9 @@ bool isMipmapMinFilter(GLint minF);
 
 namespace fs = std::filesystem;
 
+#if !PAC_DISALLOW_TINYGLTF
 // ------------------------------------------------------------
-// Robust accessor helpers (file-local; header does not depend on tinygltf)
+// Robust accessor helpers (file-local; tinygltf-only)
 // ------------------------------------------------------------
 namespace {
 
@@ -151,7 +158,7 @@ void readAccessorVec4FloatLike(const tinygltf::Model& m,
 }
 
 }
-
+#endif
 
 // ------------------------------------------------------------
 // fastgltf helpers (file-local)
@@ -201,6 +208,124 @@ struct EncodedImageBytes {
     std::string debugName;
 };
 
+template <typename T, typename = void>
+struct fg_has_has_value : std::false_type {};
+template <typename T>
+struct fg_has_has_value<T, std::void_t<decltype(std::declval<const T&>().has_value())>> : std::true_type {};
+
+template <typename T, typename = void>
+struct fg_has_value : std::false_type {};
+template <typename T>
+struct fg_has_value<T, std::void_t<decltype(std::declval<const T&>().value())>> : std::true_type {};
+
+template <typename T, typename = void>
+struct fg_has_get : std::false_type {};
+template <typename T>
+struct fg_has_get<T, std::void_t<decltype(std::declval<const T&>().get())>> : std::true_type {};
+
+template <typename Opt>
+static bool fgOptHas(const Opt& o) {
+    if constexpr (fg_has_has_value<Opt>::value) {
+        return o.has_value();
+    } else {
+        return static_cast<bool>(o);
+    }
+}
+
+template <typename Opt>
+static std::size_t fgOptGet(const Opt& o) {
+    if constexpr (fg_has_get<Opt>::value) {
+        return static_cast<std::size_t>(o.get());
+    } else if constexpr (fg_has_value<Opt>::value) {
+        return static_cast<std::size_t>(o.value());
+    } else {
+        // last resort: try implicit conversion
+        return static_cast<std::size_t>(o);
+    }
+}
+
+static void fgReadScalarFloat(const fastgltf::Asset& asset,
+                              const fastgltf::Accessor& acc,
+                              std::vector<float>& out,
+                              fastgltf::DefaultBufferDataAdapter& adapter) {
+    out.clear();
+    out.reserve(acc.count);
+
+    fastgltf::iterateAccessorWithIndex<float>(
+        asset, acc,
+        [&](float v, size_t) { out.push_back(v); },
+        adapter
+    );
+}
+
+static void fgReadVec3AsVec4(const fastgltf::Asset& asset,
+                             const fastgltf::Accessor& acc,
+                             std::vector<glm::vec4>& out,
+                             fastgltf::DefaultBufferDataAdapter& adapter) {
+    out.clear();
+    out.reserve(acc.count);
+
+    fastgltf::iterateAccessorWithIndex<glm::vec3>(
+        asset, acc,
+        [&](glm::vec3 v, size_t) { out.emplace_back(v.x, v.y, v.z, 0.0f); },
+        adapter
+    );
+}
+
+static void fgReadVec4(const fastgltf::Asset& asset,
+                       const fastgltf::Accessor& acc,
+                       std::vector<glm::vec4>& out,
+                       fastgltf::DefaultBufferDataAdapter& adapter) {
+    out.clear();
+    out.reserve(acc.count);
+
+    fastgltf::iterateAccessorWithIndex<glm::vec4>(
+        asset, acc,
+        [&](glm::vec4 v, size_t) { out.push_back(v); },
+        adapter
+    );
+}
+
+static void fgReadMat4(const fastgltf::Asset& asset,
+                       const fastgltf::Accessor& acc,
+                       std::vector<glm::mat4>& out,
+                       fastgltf::DefaultBufferDataAdapter& adapter) {
+    out.clear();
+    out.reserve(acc.count);
+
+    fastgltf::iterateAccessorWithIndex<glm::mat4>(
+        asset, acc,
+        [&](glm::mat4 m, size_t) { out.push_back(m); },
+        adapter
+    );
+}
+
+static inline int b64Value(unsigned char c) {
+    if (c >= 'A' && c <= 'Z') return c - 'A';
+    if (c >= 'a' && c <= 'z') return c - 'a' + 26;
+    if (c >= '0' && c <= '9') return c - '0' + 52;
+    if (c == '+') return 62;
+    if (c == '/') return 63;
+    return -1;
+}
+
+static bool decodeBase64(std::string_view in, std::vector<std::uint8_t>& out) {
+    out.clear();
+    int val = 0, valb = -8;
+    for (unsigned char c : in) {
+        if (c == '=') break;
+        int v = b64Value(c);
+        if (v < 0) continue; // skip whitespace/invalid chars
+        val = (val << 6) + v;
+        valb += 6;
+        if (valb >= 0) {
+            out.push_back((std::uint8_t)((val >> valb) & 0xFF));
+            valb -= 8;
+        }
+    }
+    return !out.empty();
+}
+
 static std::optional<EncodedImageBytes> getEncodedImageBytes(const fastgltf::Asset& asset,
                                                             const std::filesystem::path& baseDir,
                                                             const fastgltf::Image& image) {
@@ -208,11 +333,33 @@ static std::optional<EncodedImageBytes> getEncodedImageBytes(const fastgltf::Ass
 
     const auto* uri = std::get_if<fastgltf::sources::URI>(&image.data);
     if (uri != nullptr) {
+        // Grab the full URI string (not just .path()) so we can detect data: URIs.
+        std::string u(uri->uri.string().begin(), uri->uri.string().end());
+        out.debugName = u;
+
+        // Handle data: URIs: data:<mime>;base64,<payload>
+        if (u.rfind("data:", 0) == 0) {
+            // Find comma that splits metadata and payload
+            const size_t comma = u.find(',');
+            if (comma == std::string::npos) return std::nullopt;
+
+            std::string_view meta(u.data(), comma);
+            std::string_view payload(u.data() + comma + 1, u.size() - (comma + 1));
+
+            const bool isBase64 = (meta.find(";base64") != std::string_view::npos);
+            if (!isBase64) {
+                // (could implement percent-decoding; most exporters use base64)
+                return std::nullopt;
+            }
+
+            if (!decodeBase64(payload, out.bytes)) return std::nullopt;
+            return out;
+        }
+
+        // Treat as a relative file path on disk
         std::filesystem::path p = baseDir / std::string(uri->uri.path().begin(), uri->uri.path().end());
         out.debugName = p.string();
 
-        // Fast path: if the parser already loaded external images, it will likely be a sources::Vector.
-        // But handle URI defensively anyway.
         std::ifstream f(p, std::ios::binary);
         if (!f) return std::nullopt;
         f.seekg(0, std::ios::end);
@@ -270,13 +417,25 @@ static std::optional<EncodedImageBytes> getEncodedImageBytes(const fastgltf::Ass
         if (bufferView.bufferIndex >= asset.buffers.size()) return std::nullopt;
         const auto& buffer = asset.buffers[bufferView.bufferIndex];
 
-        // Buffers should be loaded into Vector if Options::LoadExternalBuffers or LoadGLBBuffers were set.
-        const auto* bufVec = std::get_if<fastgltf::sources::Vector>(&buffer.data);
-        if (bufVec == nullptr) return std::nullopt;
+        const std::byte* bufPtr = nullptr;
+        size_t bufSize = 0;
+
+        if (const auto* bufVec = std::get_if<fastgltf::sources::Vector>(&buffer.data)) {
+            bufPtr = bufVec->bytes.data();
+            bufSize = bufVec->bytes.size();
+        } else if (const auto* bufArr = std::get_if<fastgltf::sources::Array>(&buffer.data)) {
+            bufPtr = bufArr->bytes.data();
+            bufSize = bufArr->bytes.size();
+        } else if (const auto* bufView = std::get_if<fastgltf::sources::ByteView>(&buffer.data)) {
+            bufPtr = bufView->bytes.data();
+            bufSize = bufView->bytes.size();
+        } else {
+            return std::nullopt;
+        }
 
         const size_t start = (size_t)bufferView.byteOffset;
         const size_t size  = (size_t)bufferView.byteLength;
-        if (start + size > bufVec->bytes.size()) return std::nullopt;
+        if (start + size > bufSize) return std::nullopt;
 
         out.debugName = image.name.empty()
             ? std::string("BufferViewImage")
@@ -284,7 +443,10 @@ static std::optional<EncodedImageBytes> getEncodedImageBytes(const fastgltf::Ass
 
         out.bytes.resize(size);
         if (size > 0) {
-            std::memcpy(out.bytes.data(), bufVec->bytes.data() + start, size);
+            // bufPtr is std::byte*, out.bytes wants uint8_t*, so cast for memcpy.
+            std::memcpy(out.bytes.data(),
+                        reinterpret_cast<const void*>(bufPtr + start),
+                        size);
         }
         return out;
     }
@@ -314,7 +476,23 @@ static CPUTexture decodeBaseColorTextureFast(const fastgltf::Asset& asset,
     const auto& mat = asset.materials[(size_t)materialIndex];
 
     if (!mat.pbrData.baseColorTexture.has_value()) {
-        return makeWhiteCPUTexture();
+        // Use baseColorFactor as a 1x1 texture so non-textured materials still show color.
+        CPUTexture t;
+        t.width = 1; t.height = 1;
+        t.wrapS = GL_REPEAT;
+        t.wrapT = GL_REPEAT;
+        t.minF  = GL_LINEAR;
+        t.magF  = GL_LINEAR;
+
+        // fastgltf pbrData typically stores baseColorFactor as float4 in [0..1]
+        auto f = mat.pbrData.baseColorFactor;
+        auto toU8 = [](float x)->uint8_t {
+            x = std::max(0.0f, std::min(1.0f, x));
+            return (uint8_t)std::lround(x * 255.0f);
+        };
+
+        t.rgba = { toU8(f[0]), toU8(f[1]), toU8(f[2]), toU8(f[3]) };
+        return t;
     }
 
     const auto& texInfo = mat.pbrData.baseColorTexture.value();
@@ -325,11 +503,17 @@ static CPUTexture decodeBaseColorTextureFast(const fastgltf::Asset& asset,
 
     const auto& tex = asset.textures[texIndex];
 
-    // Prefer modern/alt container formats if present.
-    fastgltf::Optional<std::size_t> imgIndexOpt = tex.webpImageIndex;
+    // Prefer the core glTF image first (usually PNG/JPG that stb_image can decode).
+    // Only fall back to other container formats if that's all we have.
+    fastgltf::Optional<std::size_t> imgIndexOpt = tex.imageIndex;
+
+    // stb_image can usually decode WebP, so allow that as a fallback.
+    if (!imgIndexOpt.has_value()) imgIndexOpt = tex.webpImageIndex;
+
+    // NOTE: basisu (KTX2) + dds require dedicated decoders; stb_image won't handle them.
+    // Keep them last so we don't accidentally pick an undecodable source.
     if (!imgIndexOpt.has_value()) imgIndexOpt = tex.basisuImageIndex;
     if (!imgIndexOpt.has_value()) imgIndexOpt = tex.ddsImageIndex;
-    if (!imgIndexOpt.has_value()) imgIndexOpt = tex.imageIndex;
 
     if (!imgIndexOpt.has_value()) {
         return makeWhiteCPUTexture();
@@ -354,6 +538,13 @@ static CPUTexture decodeBaseColorTextureFast(const fastgltf::Asset& asset,
     );
 
     if (decoded == nullptr || w <= 0 || h <= 0) {
+        if (pac::fastgltf_loader::envFlagEnabled("PAC_FASTGLTF_LOG_TEX_FAIL")) {
+            std::cerr << "[fastgltf][texfail] stbi_load_from_memory failed"
+                    << " img=" << (enc ? enc->debugName : "(null)")
+                    << " bytes=" << (enc ? enc->bytes.size() : 0)
+                    << " reason=" << (stbi_failure_reason() ? stbi_failure_reason() : "(null)")
+                    << "\n";
+        }
         if (decoded) stbi_image_free(decoded);
         return makeWhiteCPUTexture();
     }
@@ -663,6 +854,7 @@ void Model::drawAnimated(const Camera3D& camera,
 // ------------------------------------------------------------
 // Load glTF: geometry + nodes + skins + animations
 // ------------------------------------------------------------
+#if !PAC_DISALLOW_TINYGLTF
 static glm::quat nodeDefaultQuat(const tinygltf::Node& n)
 {
     if (n.rotation.size() == 4) {
@@ -675,13 +867,22 @@ static glm::quat nodeDefaultQuat(const tinygltf::Node& n)
     }
     return glm::quat(1.0f, 0.0f, 0.0f, 0.0f);
 }
+#endif
 
 void Model::loadGLTF(const std::string& filepath)
 {
-    // Fast path: cache hit
+        // Fast path: cache hit
     if (tryLoadCache(filepath)) {
+        std::cerr << "[gltf][CACHE] HIT (no parsing) for: " << filepath << "\n";
         return;
     }
+    std::cerr << "[gltf][CACHE] MISS (will parse) for: " << filepath << "\n";
+
+    const bool forceTiny = pac::fastgltf_loader::shouldForceTinyGLTF();
+    const bool wantFast  = pac::fastgltf_loader::shouldUseFastGLTF();
+
+    std::cerr << "[gltf] PAC_FORCE_TINYGLTF=" << (forceTiny ? "on" : "off")
+              << " PAC_USE_FASTGLTF=" << (wantFast ? "on" : "off") << "\n";
     // ------------------------------------------------------------
     // FastGLTF path (real): if enabled and the asset is *static* (no skins/animations),
     // load meshes + textures via fastgltf and skip tinygltf entirely.
@@ -689,14 +890,20 @@ void Model::loadGLTF(const std::string& filepath)
     // Current limitation of this step: if skins or animations exist, we fall back to tinygltf
     // to preserve behavior (your skinning/animation code is currently tinygltf-based).
     // ------------------------------------------------------------
-    if (pac::fastgltf_loader::shouldUseFastGLTF()) {
+    if (!forceTiny && wantFast) {
         auto fg = pac::fastgltf_loader::tryLoad(filepath);
         if (fg.has_value()) {
             const fastgltf::Asset& asset = fg->asset;
             const bool hasSkins = !asset.skins.empty();
             const bool hasAnims = !asset.animations.empty();
 
-            if (!hasSkins && !hasAnims) {
+            const bool allowSkinned = pac::fastgltf_loader::allowSkinnedOrAnimatedFastGLTF();
+            if ((!hasSkins && !hasAnims) || allowSkinned) {
+
+                if ((hasSkins || hasAnims) && allowSkinned) {
+                    std::cerr << "[gltf] fastgltf override enabled (skins/anims present)\n";
+                }
+
                 nodesDefault.clear();
                 nodeChildren.clear();
                 nodeMesh.clear();
@@ -704,6 +911,180 @@ void Model::loadGLTF(const std::string& filepath)
                 sceneRoots.clear();
                 skins.clear();
                 animations.clear();
+
+                fastgltf::DefaultBufferDataAdapter adapter{};
+
+                // ---- Nodes + scene roots ----
+                nodesDefault.resize(asset.nodes.size());
+                nodeChildren.resize(asset.nodes.size());
+                nodeMesh.assign(asset.nodes.size(), -1);
+                nodeSkin.assign(asset.nodes.size(), -1);
+
+                // Use default scene if present; else scene 0
+                if (!asset.scenes.empty()) {
+                    size_t sceneIndex = 0;
+                    if (asset.defaultScene.has_value()) sceneIndex = asset.defaultScene.value();
+                    if (sceneIndex >= asset.scenes.size()) sceneIndex = 0;
+
+                    sceneRoots.clear();
+                    for (auto n : asset.scenes[sceneIndex].nodeIndices) {
+                        sceneRoots.push_back((int)n);
+                    }
+                }
+
+                for (size_t i = 0; i < asset.nodes.size(); ++i) {
+                    const auto& n = asset.nodes[i];
+
+                    // children
+                    nodeChildren[i].clear();
+                    nodeChildren[i].reserve(n.children.size());
+                    for (auto c : n.children) nodeChildren[i].push_back((int)c);
+
+                    // mesh / skin
+                    if (n.meshIndex.has_value()) nodeMesh[i] = (int)n.meshIndex.value();
+                    if (n.skinIndex.has_value()) nodeSkin[i] = (int)n.skinIndex.value();
+
+                    // TRS (you enabled DecomposeNodeMatrices)
+                    NodeTRS trs;
+                    trs.hasMatrix = false;
+
+                    // fastgltf node transform is a variant
+                    if (const auto* t = std::get_if<fastgltf::TRS>(&n.transform)) {
+                        trs.t = glm::vec3(t->translation[0], t->translation[1], t->translation[2]);
+                        // TRS rotation is quaternion (x,y,z,w)
+                        trs.r = glm::normalize(glm::quat(t->rotation[3], t->rotation[0], t->rotation[1], t->rotation[2]));
+                        trs.s = glm::vec3(t->scale[0], t->scale[1], t->scale[2]);
+                    } else if (const auto* m = std::get_if<fastgltf::math::fmat4x4>(&n.transform)) {
+                        trs.hasMatrix = true;
+                        // fmat4x4 is column-major like glm
+                        trs.matrix = glm::make_mat4(m->data());
+                    }
+
+                    nodesDefault[i] = trs;
+                }
+
+                // ---- Skins ----
+                skins.clear();
+                skins.resize(asset.skins.size());
+
+                for (size_t si = 0; si < asset.skins.size(); ++si) {
+                    const auto& s = asset.skins[si];
+                    SkinData out;
+                    out.joints.reserve(s.joints.size());
+                    for (auto j : s.joints) out.joints.push_back((int)j);
+
+                    if (s.inverseBindMatrices.has_value()) {
+                        const size_t accIndex = s.inverseBindMatrices.value();
+                        if (accIndex < asset.accessors.size()) {
+                            const auto& acc = asset.accessors[accIndex];
+                            std::vector<glm::mat4> mats;
+                            fgReadMat4(asset, acc, mats, adapter);
+                            out.inverseBind = std::move(mats);
+                        }
+                    }
+
+                    if (out.inverseBind.size() != out.joints.size()) {
+                        out.inverseBind.assign(out.joints.size(), glm::mat4(1.0f));
+                    }
+
+                    skins[si] = std::move(out);
+                }
+
+                // ---- Animations ----
+                animations.clear();
+                animations.reserve(asset.animations.size());
+
+                for (const auto& anim : asset.animations) {
+                    AnimationClip clip;
+                    clip.name = std::string(anim.name.begin(), anim.name.end());
+                    clip.durationSec = 0.0f;
+
+                    clip.samplers.resize(anim.samplers.size());
+
+                    for (size_t si = 0; si < anim.samplers.size(); ++si) {
+                        const auto& s = anim.samplers[si];
+
+                        AnimationSampler samp;
+                        // Map interpolation (keep same strings your evaluator expects)
+                        switch (s.interpolation) {
+                            case fastgltf::AnimationInterpolation::Step:       samp.interpolation = "STEP"; break;
+                            case fastgltf::AnimationInterpolation::CubicSpline:samp.interpolation = "CUBICSPLINE"; break;
+                            case fastgltf::AnimationInterpolation::Linear:
+                            default:                                          samp.interpolation = "LINEAR"; break;
+                        }
+
+                        // inputs (times)
+                        if (s.inputAccessor < asset.accessors.size()) {
+                            fgReadScalarFloat(asset, asset.accessors[s.inputAccessor], samp.inputs, adapter);
+                            if (!samp.inputs.empty()) {
+                                clip.durationSec = std::max(clip.durationSec, samp.inputs.back());
+                            }
+                        }
+
+                        // outputs (values)
+                        if (s.outputAccessor < asset.accessors.size()) {
+                            const auto& outAcc = asset.accessors[s.outputAccessor];
+
+                            // We store everything as vec4 in your runtime.
+                            // Translation/Scale are vec3 -> vec4(x,y,z,0)
+                            // Rotation is vec4(x,y,z,w)
+                            std::vector<glm::vec4> raw;
+
+                            // Heuristic: determine output shape by accessor type.
+                            // fastgltf accessor has type: Scalar/Vec2/Vec3/Vec4/Mat4 etc.
+                            if (outAcc.type == fastgltf::AccessorType::Vec3) {
+                                fgReadVec3AsVec4(asset, outAcc, raw, adapter);
+                                samp.isVec4 = false;
+                            } else {
+                                fgReadVec4(asset, outAcc, raw, adapter);
+                                samp.isVec4 = true;
+                            }
+
+                            // Match your tinygltf behavior: if CUBICSPLINE, keep only the middle (value) for each key.
+                            if (samp.interpolation == "CUBICSPLINE" && !samp.inputs.empty()) {
+                                const size_t keys = samp.inputs.size();
+                                std::vector<glm::vec4> values;
+                                values.reserve(keys);
+                                for (size_t k = 0; k < keys; ++k) {
+                                    const size_t idx = k * 3 + 1;
+                                    if (idx < raw.size()) values.push_back(raw[idx]);
+                                }
+                                samp.outputs = std::move(values);
+                            } else {
+                                samp.outputs = std::move(raw);
+                            }
+                        }
+
+                        clip.samplers[si] = std::move(samp);
+                    }
+
+                    // channels
+                    clip.channels.reserve(anim.channels.size());
+                    for (const auto& ch : anim.channels) {
+                        // These can be OptionalWithFlagValue<size_t> on your fastgltf revision
+                        if (!fgOptHas(ch.nodeIndex))    continue;
+                        if (!fgOptHas(ch.samplerIndex)) continue;
+
+                        AnimationChannel c;
+                        c.targetNode   = (int)fgOptGet(ch.nodeIndex);
+                        c.samplerIndex = (int)fgOptGet(ch.samplerIndex);
+
+                        switch (ch.path) {
+                            case fastgltf::AnimationPath::Translation: c.path = ChannelPath::Translation; break;
+                            case fastgltf::AnimationPath::Rotation:    c.path = ChannelPath::Rotation;    break;
+                            case fastgltf::AnimationPath::Scale:       c.path = ChannelPath::Scale;       break;
+                            default: continue;
+                        }
+
+                        clip.channels.push_back(c);
+                    }
+
+                    animations.push_back(std::move(clip));
+                }
+                
+                std::cerr << "[gltf] fastgltf animations=" << animations.size()
+                << " skins=" << skins.size()
+                << " nodes=" << nodesDefault.size() << "\n";
 
                 std::vector<Vertex> vertices;
                 std::vector<uint32_t> indices;
@@ -826,7 +1207,9 @@ void Model::loadGLTF(const std::string& filepath)
 
                         // Texture: baseColor only (matches existing tinygltf behavior).
                         int materialIndex = -1;
-                        if (p.materialIndex.has_value()) materialIndex = (int)p.materialIndex.value();
+                        if (fgOptHas(p.materialIndex)) {
+                            materialIndex = (int)fgOptGet(p.materialIndex);
+                        }
 
                         CPUTexture cpuTex = decodeBaseColorTextureFast(asset, fg->baseDir, materialIndex);
 
@@ -901,20 +1284,24 @@ void Model::loadGLTF(const std::string& filepath)
                 glBindVertexArray(0);
 
                 writeCache(filepath, vertices, indices, texturesCPU);
+                std::cerr << "[gltf][FASTGLTF] COMPLETE (no tinygltf) for: " << filepath << "\n";
                 return;
             } else {
                 std::cerr << "[Model] fastgltf parsed, but asset has skins/animations; falling back to tinygltf: "
                           << filepath << "\n";
             }
         } else {
-            std::cerr << "[Model] fastgltf failed; continuing with tinygltf for: " << filepath << "\n";
+            std::cerr << "[gltf] fastgltf skipped (skins/anims present; override disabled)\n";
         }
     }
+
+    #if !PAC_DISALLOW_TINYGLTF
 
     tinygltf::Model gltf;
     tinygltf::TinyGLTF loader;
     std::string err, warn;
 
+    std::cerr << "[gltf][TINYGLTF] USING TINYGLTF for: " << filepath << "\n";
     bool ok = loader.LoadBinaryFromFile(&gltf, &err, &warn, filepath);
     if (!warn.empty()) std::cout << "[GLTF] Warning: " << warn << "\n";
     if (!err.empty())  std::cerr << "[GLTF] Error: " << err << "\n";
@@ -1487,6 +1874,11 @@ void Model::loadGLTF(const std::string& filepath)
 
     // Persist processed result for faster next startup
     writeCache(filepath, vertices, indices, texturesCPU);
+
+    #else
+    std::cerr << "[gltf][TINYGLTF] DISALLOWED - refusing fallback for: " << filepath << "\n";
+    return;
+    #endif
 }
 
 

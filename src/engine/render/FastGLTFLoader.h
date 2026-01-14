@@ -30,6 +30,18 @@ inline bool shouldUseFastGLTF() {
     return envFlagEnabled("PAC_USE_FASTGLTF");
 }
 
+// NEW: hard disable fastgltf (always use tinygltf)
+inline bool shouldForceTinyGLTF() {
+    // Set: PAC_FORCE_TINYGLTF=1
+    return envFlagEnabled("PAC_FORCE_TINYGLTF");
+}
+
+// NEW: allow fastgltf even if skins/anims exist (for testing while porting)
+inline bool allowSkinnedOrAnimatedFastGLTF() {
+    // Set: PAC_FASTGLTF_ALLOW_SKINNED=1
+    return envFlagEnabled("PAC_FASTGLTF_ALLOW_SKINNED");
+}
+
 inline const char* errorName(fastgltf::Error e) {
     switch (e) {
         case fastgltf::Error::None: return "None";

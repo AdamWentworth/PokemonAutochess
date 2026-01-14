@@ -8,6 +8,9 @@ project(PokemonAutochess)
 
 option(PAC_VERBOSE_STARTUP "Enable verbose startup/model-load logging" OFF)
 
+# NEW: If ON, tinygltf is not found, not included, and not compiled.
+option(PAC_DISALLOW_TINYGLTF "Disallow tinygltf entirely (no headers, no TU, no fallback)" ON)
+
 # Force C++20 (Model.cpp requires it on MSVC)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -22,7 +25,6 @@ find_package(OpenGL REQUIRED)
 find_package(glad CONFIG REQUIRED)
 find_package(glm CONFIG REQUIRED)
 find_package(lua CONFIG REQUIRED)
-
 find_package(nlohmann_json CONFIG REQUIRED)
 
 # fastgltf (vcpkg). Target is typically fastgltf::fastgltf, and it pulls simdjson as a dependency in vcpkg.
@@ -38,17 +40,23 @@ else()
     message(FATAL_ERROR "sol2 package found, but no known CMake target (sol2::sol2 or sol2) is available.")
 endif()
 
-# tinygltf (vcpkg): header-only; use include-path lookup (NOT find_package CONFIG).
-find_path(TINYGLTF_INCLUDE_DIRS "tiny_gltf.h")
-if (NOT TINYGLTF_INCLUDE_DIRS)
-    message(FATAL_ERROR "tinygltf headers not found (tiny_gltf.h). Is vcpkg dependency 'tinygltf' installed?")
-endif()
-
 # Project include root
 set(PROJECT_SRC_ROOT "${CMAKE_SOURCE_DIR}/src")
 
+# ---- tinygltf (optional, guarded) ----
+set(TINYGLTF_INCLUDE_DIRS "")
+if (NOT PAC_DISALLOW_TINYGLTF)
+    # tinygltf (vcpkg): header-only; use include-path lookup (NOT find_package CONFIG).
+    find_path(TINYGLTF_INCLUDE_DIRS "tiny_gltf.h")
+    if (NOT TINYGLTF_INCLUDE_DIRS)
+        message(FATAL_ERROR "tinygltf headers not found (tiny_gltf.h). Is vcpkg dependency 'tinygltf' installed?")
+    endif()
+endif()
+
 # ---------------- Engine (static lib) ----------------
-add_library(Engine STATIC
+
+# Build Engine sources list so we can conditionally add TinyGltfImpl.cpp
+set(ENGINE_SOURCES
     # Engine Core
     src/engine/core/Application.cpp
     src/engine/core/Window.cpp
@@ -68,9 +76,6 @@ add_library(Engine STATIC
     src/engine/render/GLTFAccessors.cpp
     src/engine/render/Model.cpp
 
-    # NEW: tinygltf implementation TU (keep tinygltf macros out of Model.cpp)
-    src/engine/render/TinyGltfImpl.cpp
-
     # Step 1: fastgltf compile smoke test (no runtime behavior change)
     src/engine/render/FastGltfSmokeTest.cpp
 
@@ -85,11 +90,22 @@ add_library(Engine STATIC
     src/engine/ui/BootLoadingView.cpp
 )
 
+# Only compile tinygltf implementation TU when tinygltf is allowed.
+if (NOT PAC_DISALLOW_TINYGLTF)
+    list(APPEND ENGINE_SOURCES src/engine/render/TinyGltfImpl.cpp)
+endif()
+
+add_library(Engine STATIC ${ENGINE_SOURCES})
+
 target_include_directories(Engine
     PUBLIC
         "${PROJECT_SRC_ROOT}"
-        "${TINYGLTF_INCLUDE_DIRS}"
 )
+
+# Only add tinygltf include path when allowed.
+if (NOT PAC_DISALLOW_TINYGLTF)
+    target_include_directories(Engine PUBLIC "${TINYGLTF_INCLUDE_DIRS}")
+endif()
 
 target_link_libraries(Engine PRIVATE
     SDL2::SDL2
@@ -110,9 +126,10 @@ else()
     target_compile_options(Engine PRIVATE -std=c++20)
 endif()
 
-# Apply the option AFTER the target exists
+# Apply compile defs AFTER the target exists
 target_compile_definitions(Engine PRIVATE
     PAC_VERBOSE_STARTUP=$<BOOL:${PAC_VERBOSE_STARTUP}>
+    PAC_DISALLOW_TINYGLTF=$<BOOL:${PAC_DISALLOW_TINYGLTF}>
 )
 
 # ---------------- Game (exe) ----------------
@@ -174,9 +191,9 @@ else()
     target_compile_options(PokemonAutochess PRIVATE -std=c++20)
 endif()
 
-# Apply the option AFTER the target exists
 target_compile_definitions(PokemonAutochess PRIVATE
     PAC_VERBOSE_STARTUP=$<BOOL:${PAC_VERBOSE_STARTUP}>
+    PAC_DISALLOW_TINYGLTF=$<BOOL:${PAC_DISALLOW_TINYGLTF}>
 )
 
 # Copy shaders alongside the binary
