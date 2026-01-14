@@ -1,11 +1,7 @@
-// src/engine/render/ModelCache.h
-#pragma once
-
-// NOTE: This header is intended to be included ONLY by src/engine/render/Model.cpp.
-// It contains the on-disk cache implementation for Model (read/write).
-// Keeping it as a single header avoids adding another compilation unit right now.
+// src/engine/render/ModelCache.cpp
 
 #include "Model.h"
+#include "ModelStartupLog.h"
 
 #include <filesystem>
 #include <fstream>
@@ -22,8 +18,7 @@
 #include <glad/glad.h>
 #include <glm/gtc/type_ptr.hpp>
 
-// Model.cpp defines STARTUP_LOG and also provides isMipmapMinFilter(GLint).
-// This header relies on both being available in the including translation unit.
+// Model.cpp provides this helper (keep definition there).
 extern bool isMipmapMinFilter(GLint minF);
 
 namespace pac_model_cache_detail {
@@ -104,7 +99,7 @@ static fs::path cachePathForModel(const std::string& filepath) {
 // ------------------------------------------------------------
 // Cache I/O (read)
 // ------------------------------------------------------------
-inline bool Model::tryLoadCache(const std::string& filepath)
+bool Model::tryLoadCache(const std::string& filepath)
 {
     using namespace pac_model_cache_detail;
 
@@ -167,106 +162,106 @@ inline bool Model::tryLoadCache(const std::string& filepath)
                 uint32_t cc = 0;
                 if (!readPod(in, cc)) return false;
                 nodeChildren[i].resize(cc);
-                for (uint32_t j = 0; j < cc; ++j) {
-                    int32_t v = -1;
-                    if (!readPod(in, v)) return false;
-                    nodeChildren[i][j] = v;
+                for (uint32_t k = 0; k < cc; ++k) {
+                    int32_t vv = 0;
+                    if (!readPod(in, vv)) return false;
+                    nodeChildren[i][k] = (int)vv;
                 }
             }
 
             for (uint32_t i = 0; i < hdr.nodeCount; ++i) {
                 int32_t v = -1;
                 if (!readPod(in, v)) return false;
-                nodeMesh[i] = v;
+                nodeMesh[i] = (int)v;
             }
+
             for (uint32_t i = 0; i < hdr.nodeCount; ++i) {
                 int32_t v = -1;
                 if (!readPod(in, v)) return false;
-                nodeSkin[i] = v;
+                nodeSkin[i] = (int)v;
             }
 
-            uint32_t rootCount = 0;
-            if (!readPod(in, rootCount)) return false;
-            sceneRoots.resize(rootCount);
-            for (uint32_t i = 0; i < rootCount; ++i) {
-                int32_t r = -1;
-                if (!readPod(in, r)) return false;
-                sceneRoots[i] = r;
+            // scene roots
+            {
+                uint32_t rc = 0;
+                if (!readPod(in, rc)) return false;
+                sceneRoots.resize(rc);
+                for (uint32_t i = 0; i < rc; ++i) {
+                    int32_t v = -1;
+                    if (!readPod(in, v)) return false;
+                    sceneRoots[i] = (int)v;
+                }
             }
 
             // Skins
             skins.resize(hdr.skinCount);
             for (uint32_t si = 0; si < hdr.skinCount; ++si) {
-                uint32_t jointCount = 0;
-                if (!readPod(in, jointCount)) return false;
+                uint32_t jc = 0;
+                if (!readPod(in, jc)) return false;
+                skins[si].joints.resize(jc);
+                skins[si].inverseBind.resize(jc);
 
-                SkinData sd;
-                sd.joints.resize(jointCount);
-                for (uint32_t j = 0; j < jointCount; ++j) {
-                    int32_t node = -1;
-                    if (!readPod(in, node)) return false;
-                    sd.joints[j] = node;
+                for (uint32_t j = 0; j < jc; ++j) {
+                    int32_t v = -1;
+                    if (!readPod(in, v)) return false;
+                    skins[si].joints[j] = (int)v;
                 }
-
-                sd.inverseBind.resize(jointCount, glm::mat4(1.0f));
-                for (uint32_t j = 0; j < jointCount; ++j) {
-                    glm::mat4 m(1.0f);
-                    if (!readPod(in, m)) return false;
-                    sd.inverseBind[j] = m;
+                for (uint32_t j = 0; j < jc; ++j) {
+                    if (!readPod(in, skins[si].inverseBind[j])) return false;
                 }
-
-                skins[si] = std::move(sd);
             }
 
             // Animations
             animations.resize(hdr.animCount);
             for (uint32_t ai = 0; ai < hdr.animCount; ++ai) {
-                AnimationClip clip;
+                AnimationClip clip{};
                 if (!readString(in, clip.name)) return false;
                 if (!readPod(in, clip.durationSec)) return false;
 
-                uint32_t samplerCount = 0;
-                if (!readPod(in, samplerCount)) return false;
-                clip.samplers.resize(samplerCount);
-
-                for (uint32_t s = 0; s < samplerCount; ++s) {
-                    AnimationSampler samp;
+                uint32_t sc = 0;
+                if (!readPod(in, sc)) return false;
+                clip.samplers.resize(sc);
+                for (uint32_t s = 0; s < sc; ++s) {
+                    AnimationSampler samp{};
                     if (!readString(in, samp.interpolation)) return false;
-                    uint8_t isv = 0;
-                    if (!readPod(in, isv)) return false;
-                    samp.isVec4 = (isv != 0);
+                    uint8_t iv = 0;
+                    if (!readPod(in, iv)) return false;
+                    samp.isVec4 = (iv != 0);
 
-                    uint32_t inCount = 0;
-                    if (!readPod(in, inCount)) return false;
-                    samp.inputs.resize(inCount);
-                    if (inCount > 0) {
-                        if (!in.read(reinterpret_cast<char*>(samp.inputs.data()), inCount * sizeof(float))) return false;
+                    uint32_t ic = 0;
+                    if (!readPod(in, ic)) return false;
+                    samp.inputs.resize(ic);
+                    for (uint32_t k = 0; k < ic; ++k) {
+                        if (!readPod(in, samp.inputs[k])) return false;
                     }
 
-                    uint32_t outCount = 0;
-                    if (!readPod(in, outCount)) return false;
-                    samp.outputs.resize(outCount);
-                    if (outCount > 0) {
-                        if (!in.read(reinterpret_cast<char*>(samp.outputs.data()), outCount * sizeof(glm::vec4))) return false;
+                    uint32_t oc = 0;
+                    if (!readPod(in, oc)) return false;
+                    samp.outputs.resize(oc);
+                    for (uint32_t k = 0; k < oc; ++k) {
+                        if (!readPod(in, samp.outputs[k])) return false;
                     }
 
                     clip.samplers[s] = std::move(samp);
                 }
 
-                uint32_t chanCount = 0;
-                if (!readPod(in, chanCount)) return false;
-                clip.channels.resize(chanCount);
-
-                for (uint32_t c = 0; c < chanCount; ++c) {
-                    AnimationChannel ch;
-                    int32_t si2 = -1, tn = -1;
+                uint32_t cc = 0;
+                if (!readPod(in, cc)) return false;
+                clip.channels.resize(cc);
+                for (uint32_t c = 0; c < cc; ++c) {
+                    int32_t si2 = -1;
+                    int32_t tn  = -1;
                     uint8_t path = 0;
                     if (!readPod(in, si2)) return false;
                     if (!readPod(in, tn)) return false;
                     if (!readPod(in, path)) return false;
-                    ch.samplerIndex = si2;
-                    ch.targetNode = tn;
-                    ch.path = (path == 1) ? ChannelPath::Rotation : (path == 2) ? ChannelPath::Scale : ChannelPath::Translation;
+
+                    AnimationChannel ch{};
+                    ch.samplerIndex = (int)si2;
+                    ch.targetNode   = (int)tn;
+                    ch.path = (path == 1u) ? ChannelPath::Rotation :
+                              (path == 2u) ? ChannelPath::Scale :
+                                             ChannelPath::Translation;
                     clip.channels[c] = ch;
                 }
 
@@ -278,19 +273,19 @@ inline bool Model::tryLoadCache(const std::string& filepath)
             std::vector<uint32_t> indices;
 
             vertices.resize(hdr.vertexCount);
-            if (hdr.vertexCount > 0) {
-                if (!in.read(reinterpret_cast<char*>(vertices.data()), hdr.vertexCount * sizeof(Vertex))) return false;
-            }
-
             indices.resize(hdr.indexCount);
+
+            if (hdr.vertexCount > 0) {
+                if (!in.read(reinterpret_cast<char*>(vertices.data()), vertices.size() * sizeof(Vertex))) return false;
+            }
             if (hdr.indexCount > 0) {
-                if (!in.read(reinterpret_cast<char*>(indices.data()), hdr.indexCount * sizeof(uint32_t))) return false;
+                if (!in.read(reinterpret_cast<char*>(indices.data()), indices.size() * sizeof(uint32_t))) return false;
             }
 
-            // Submeshes + textures
+            // Submeshes + textures (upload textures to GL here)
             submeshes.resize(hdr.submeshCount);
-            std::vector<CPUTexture> texCPU;
-            texCPU.resize(hdr.submeshCount);
+            std::vector<CPUTexture> texturesCPU;
+            texturesCPU.resize(hdr.submeshCount);
 
             for (uint32_t i = 0; i < hdr.submeshCount; ++i) {
                 uint64_t off = 0, cnt = 0;
@@ -299,30 +294,28 @@ inline bool Model::tryLoadCache(const std::string& filepath)
                 if (!readPod(in, cnt)) return false;
                 if (!readPod(in, meshIdx)) return false;
 
-                Submesh sm;
-                sm.indexOffset = (size_t)off;
-                sm.indexCount  = (size_t)cnt;
-                sm.meshIndex   = meshIdx;
-                sm.textureID   = 0;
-                submeshes[i] = sm;
+                submeshes[i].indexOffset = (size_t)off;
+                submeshes[i].indexCount  = (size_t)cnt;
+                submeshes[i].meshIndex   = (int)meshIdx;
 
-                CPUTexture t;
+                CPUTexture t{};
                 if (!readPod(in, t.width)) return false;
                 if (!readPod(in, t.height)) return false;
                 if (!readPod(in, t.wrapS)) return false;
                 if (!readPod(in, t.wrapT)) return false;
                 if (!readPod(in, t.minF)) return false;
                 if (!readPod(in, t.magF)) return false;
+
                 uint32_t bytes = 0;
                 if (!readPod(in, bytes)) return false;
                 t.rgba.resize(bytes);
                 if (bytes > 0) {
                     if (!in.read(reinterpret_cast<char*>(t.rgba.data()), bytes)) return false;
                 }
-                texCPU[i] = std::move(t);
+                texturesCPU[i] = std::move(t);
             }
 
-            // Upload GL buffers
+            // Upload VBO/EBO/VAO exactly like the slow path
             glGenVertexArrays(1, &VAO);
             glGenBuffers(1, &VBO);
             glGenBuffers(1, &EBO);
@@ -330,42 +323,37 @@ inline bool Model::tryLoadCache(const std::string& filepath)
             glBindVertexArray(VAO);
 
             glBindBuffer(GL_ARRAY_BUFFER, VBO);
-            glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(Vertex),
-                         vertices.empty() ? nullptr : vertices.data(),
-                         GL_STATIC_DRAW);
+            glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(Vertex), vertices.data(), GL_STATIC_DRAW);
 
             glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
-            glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices.size() * sizeof(uint32_t),
-                         indices.empty() ? nullptr : indices.data(),
-                         GL_STATIC_DRAW);
+            glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices.size() * sizeof(uint32_t), indices.data(), GL_STATIC_DRAW);
 
-            glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, px));
+            // attributes: pos (0), uv (1), joints (2), weights (3)
             glEnableVertexAttribArray(0);
+            glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, px));
 
-            glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, u));
             glEnableVertexAttribArray(1);
+            glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, u));
 
-            glVertexAttribIPointer(2, 4, GL_UNSIGNED_SHORT, sizeof(Vertex), (void*)offsetof(Vertex, j0));
             glEnableVertexAttribArray(2);
+            glVertexAttribIPointer(2, 4, GL_UNSIGNED_SHORT, sizeof(Vertex), (void*)offsetof(Vertex, j0));
 
-            glVertexAttribPointer(3, 4, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, w0));
             glEnableVertexAttribArray(3);
+            glVertexAttribPointer(3, 4, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, w0));
 
             glBindVertexArray(0);
 
             // Upload textures
-            for (uint32_t i = 0; i < hdr.submeshCount; ++i) {
-                const CPUTexture& t = texCPU[i];
+            for (size_t i = 0; i < submeshes.size(); ++i) {
+                const CPUTexture& t = texturesCPU[i];
+                const int w = (int)t.width;
+                const int h = (int)t.height;
+                const auto& rgba = t.rgba;
 
                 GLuint tex = 0;
                 glGenTextures(1, &tex);
                 glBindTexture(GL_TEXTURE_2D, tex);
-                glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
 
-                const uint32_t w = (t.width  == 0 ? 1u : t.width);
-                const uint32_t h = (t.height == 0 ? 1u : t.height);
-
-                const std::vector<uint8_t>& rgba = t.rgba;
                 const void* pixels = rgba.empty() ? nullptr : rgba.data();
 
                 glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, (GLsizei)w, (GLsizei)h,
@@ -396,10 +384,10 @@ inline bool Model::tryLoadCache(const std::string& filepath)
 // ------------------------------------------------------------
 // Cache I/O (write)
 // ------------------------------------------------------------
-inline void Model::writeCache(const std::string& filepath,
-                             const std::vector<Vertex>& vertices,
-                             const std::vector<uint32_t>& indices,
-                             const std::vector<CPUTexture>& texturesCPU) const
+void Model::writeCache(const std::string& filepath,
+                       const std::vector<Vertex>& vertices,
+                       const std::vector<uint32_t>& indices,
+                       const std::vector<CPUTexture>& texturesCPU) const
 {
     using namespace pac_model_cache_detail;
 
@@ -415,8 +403,8 @@ inline void Model::writeCache(const std::string& filepath,
 
         hdr.modelScaleFactor = modelScaleFactor;
 
-        hdr.vertexCount = (uint32_t)vertices.size();
-        hdr.indexCount  = (uint32_t)indices.size();
+        hdr.vertexCount  = (uint32_t)vertices.size();
+        hdr.indexCount   = (uint32_t)indices.size();
         hdr.submeshCount = (uint32_t)submeshes.size();
 
         hdr.nodeCount = (uint32_t)nodesDefault.size();
@@ -459,56 +447,57 @@ inline void Model::writeCache(const std::string& filepath,
             if (!writePod(out, vv)) return;
         }
 
-        uint32_t rootCount = (uint32_t)sceneRoots.size();
-        if (!writePod(out, rootCount)) return;
-        for (int r : sceneRoots) {
-            int32_t rr = (int32_t)r;
-            if (!writePod(out, rr)) return;
+        // scene roots
+        {
+            uint32_t rc = (uint32_t)sceneRoots.size();
+            if (!writePod(out, rc)) return;
+            for (int v : sceneRoots) {
+                int32_t vv = (int32_t)v;
+                if (!writePod(out, vv)) return;
+            }
         }
 
         // Skins
         for (const auto& s : skins) {
             uint32_t jc = (uint32_t)s.joints.size();
             if (!writePod(out, jc)) return;
-            for (int j : s.joints) {
-                int32_t jj = (int32_t)j;
-                if (!writePod(out, jj)) return;
+            for (int v : s.joints) {
+                int32_t vv = (int32_t)v;
+                if (!writePod(out, vv)) return;
             }
-            for (uint32_t i = 0; i < jc; ++i) {
-                const glm::mat4& m = (i < s.inverseBind.size()) ? s.inverseBind[i] : glm::mat4(1.0f);
+            for (const auto& m : s.inverseBind) {
                 if (!writePod(out, m)) return;
             }
         }
 
         // Animations
-        for (const auto& clip : animations) {
-            if (!writeString(out, clip.name)) return;
-            if (!writePod(out, clip.durationSec)) return;
+        for (const auto& a : animations) {
+            if (!writeString(out, a.name)) return;
+            if (!writePod(out, a.durationSec)) return;
 
-            uint32_t sc = (uint32_t)clip.samplers.size();
+            uint32_t sc = (uint32_t)a.samplers.size();
             if (!writePod(out, sc)) return;
+            for (const auto& s : a.samplers) {
+                if (!writeString(out, s.interpolation)) return;
+                uint8_t iv = s.isVec4 ? 1u : 0u;
+                if (!writePod(out, iv)) return;
 
-            for (const auto& samp : clip.samplers) {
-                if (!writeString(out, samp.interpolation)) return;
-                uint8_t isv = samp.isVec4 ? 1u : 0u;
-                if (!writePod(out, isv)) return;
-
-                uint32_t ic = (uint32_t)samp.inputs.size();
+                uint32_t ic = (uint32_t)s.inputs.size();
                 if (!writePod(out, ic)) return;
-                if (ic > 0) {
-                    if (!out.write(reinterpret_cast<const char*>(samp.inputs.data()), ic * sizeof(float))) return;
+                for (float v : s.inputs) {
+                    if (!writePod(out, v)) return;
                 }
 
-                uint32_t oc = (uint32_t)samp.outputs.size();
+                uint32_t oc = (uint32_t)s.outputs.size();
                 if (!writePod(out, oc)) return;
-                if (oc > 0) {
-                    if (!out.write(reinterpret_cast<const char*>(samp.outputs.data()), oc * sizeof(glm::vec4))) return;
+                for (const auto& v : s.outputs) {
+                    if (!writePod(out, v)) return;
                 }
             }
 
-            uint32_t cc = (uint32_t)clip.channels.size();
+            uint32_t cc = (uint32_t)a.channels.size();
             if (!writePod(out, cc)) return;
-            for (const auto& ch : clip.channels) {
+            for (const auto& ch : a.channels) {
                 int32_t si = (int32_t)ch.samplerIndex;
                 int32_t tn = (int32_t)ch.targetNode;
                 uint8_t path = (ch.path == ChannelPath::Rotation) ? 1u : (ch.path == ChannelPath::Scale) ? 2u : 0u;

@@ -18,6 +18,7 @@
 #include "../utils/Shader.h"
 
 #include "ModelAnimationTypes.h"
+#include "ModelMeshTypes.h"
 
 struct Submesh {
     size_t indexOffset = 0;
@@ -39,7 +40,7 @@ public:
         float animTimeSec,
         int animIndex) const;
 
-        float getScaleFactor() const { return modelScaleFactor; }
+    float getScaleFactor() const { return modelScaleFactor; }
 
     // CPU-side texture blob for caching (always RGBA8)
     struct CPUTexture {
@@ -56,7 +57,6 @@ private:
     unsigned int VAO = 0, VBO = 0, EBO = 0;
     std::vector<Submesh> submeshes;
 
-    // shared shader program (no per-model compilation)
     std::shared_ptr<Shader> modelShader;
     int locMVP = -1;
     int locUseSkin = -1;
@@ -64,14 +64,14 @@ private:
 
     float modelScaleFactor = 1.0f;
 
-    // Animation/scene types live in a separate header so animation code can be built
-    // as a normal .cpp without exposing Model's internals via nested private structs.
     using NodeTRS          = pac_model_types::NodeTRS;
     using SkinData         = pac_model_types::SkinData;
     using ChannelPath      = pac_model_types::ChannelPath;
     using AnimationSampler = pac_model_types::AnimationSampler;
     using AnimationChannel = pac_model_types::AnimationChannel;
     using AnimationClip    = pac_model_types::AnimationClip;
+
+    using Vertex           = pac_model_types::Vertex;
 
     std::vector<NodeTRS>           nodesDefault;
     std::vector<std::vector<int>>  nodeChildren;
@@ -80,13 +80,6 @@ private:
     std::vector<int>               sceneRoots;
     std::vector<SkinData>          skins;
     std::vector<AnimationClip>     animations;
-
-    struct Vertex {
-        float px, py, pz;
-        float u, v;
-        uint16_t j0, j1, j2, j3;
-        float w0, w1, w2, w3;
-    };
 
     mutable std::unordered_set<int> warnedMissingAnimIndex;
 
@@ -102,7 +95,7 @@ private:
                             int skinIndex,
                             const std::vector<glm::mat4>& nodeGlobals) const;
 
-    // ---- On-disk cache helpers (speed up subsequent startups) ----
+    // ---- On-disk cache helpers ----
     bool tryLoadCache(const std::string& filepath);
     void writeCache(const std::string& filepath,
                     const std::vector<Vertex>& vertices,

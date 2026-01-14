@@ -71,6 +71,7 @@ add_library(Engine STATIC
     src/engine/render/BoardRenderer.cpp
     src/engine/render/Model.cpp
     src/engine/render/ModelAnimation.cpp
+    src/engine/render/ModelCache.cpp
 
     # Engine UI
     src/engine/ui/UIManager.cpp

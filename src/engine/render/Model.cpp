@@ -1,6 +1,7 @@
 // src/engine/render/Model.cpp
 
 #include "Model.h"
+#include "ModelStartupLog.h"
 
 #include <glad/glad.h>
 #include <iostream>
@@ -31,20 +32,6 @@
 #include <fastgltf/glm_element_traits.hpp>
 
 #include <stb_image.h>
-
-#ifndef PAC_VERBOSE_STARTUP
-#define PAC_VERBOSE_STARTUP 0
-#endif
-
-#if PAC_VERBOSE_STARTUP
-    #define STARTUP_LOG(msg) do { std::cout << msg << "\n"; } while(0)
-#else
-    #define STARTUP_LOG(msg) do {} while(0)
-#endif
-
-bool isMipmapMinFilter(GLint minF);
-
-#include "ModelCache.h"
 
 namespace fs = std::filesystem;
 
@@ -175,9 +162,6 @@ float Model::getAnimationDurationSec(int animIndex) const
     return animations[animIndex].durationSec;
 }
 
-// ------------------------------------------------------------
-// Load glTF: cache wrapper + fastgltf loader
-// ------------------------------------------------------------
 void Model::loadGLTF(const std::string& filepath)
 {
     if (tryLoadCache(filepath)) {
@@ -186,6 +170,5 @@ void Model::loadGLTF(const std::string& filepath)
     }
     std::cerr << "[gltf][CACHE] MISS (will parse) for: " << filepath << "\n";
 
-    // Full loader lives here (step 1 modularization)
     #include "ModelFastGltfLoad.inl"
 }
