@@ -186,6 +186,17 @@ struct FG {
         return t;
     }
 
+    static CPUTexture makeBlackCPUTexture() {
+        CPUTexture t;
+        t.width = 1; t.height = 1;
+        t.wrapS = GL_REPEAT;
+        t.wrapT = GL_REPEAT;
+        t.minF  = GL_LINEAR;
+        t.magF  = GL_LINEAR;
+        t.rgba = {0,0,0,255};
+        return t;
+    }
+
     static CPUTexture decodeBaseColorTextureFast(const fastgltf::Asset& asset,
                                                  const std::filesystem::path& baseDir,
                                                  int materialIndex) {
@@ -244,6 +255,79 @@ struct FG {
         if (decoded == nullptr || w <= 0 || h <= 0) {
             if (decoded) stbi_image_free(decoded);
             return makeWhiteCPUTexture();
+        }
+
+        CPUTexture out;
+        out.width  = (uint32_t)w;
+        out.height = (uint32_t)h;
+
+        out.wrapS = GL_REPEAT;
+        out.wrapT = GL_REPEAT;
+        out.minF  = GL_LINEAR_MIPMAP_LINEAR;
+        out.magF  = GL_LINEAR;
+
+        if (tex.samplerIndex.has_value() && tex.samplerIndex.value() < asset.samplers.size()) {
+            const auto& s = asset.samplers[tex.samplerIndex.value()];
+            out.wrapS = wrapToGL(s.wrapS);
+            out.wrapT = wrapToGL(s.wrapT);
+            if (s.minFilter.has_value()) out.minF = filterToGLMin((int)s.minFilter.value());
+            if (s.magFilter.has_value()) out.magF = filterToGLMag((int)s.magFilter.value());
+        }
+
+        const size_t pxCount = (size_t)w * (size_t)h;
+        out.rgba.resize(pxCount * 4);
+        std::memcpy(out.rgba.data(), decoded, pxCount * 4);
+        stbi_image_free(decoded);
+
+        return out;
+    }
+
+    static CPUTexture decodeEmissiveTextureFast(const fastgltf::Asset& asset,
+                                                const std::filesystem::path& baseDir,
+                                                int materialIndex) {
+        if (materialIndex < 0 || materialIndex >= (int)asset.materials.size()) {
+            return makeBlackCPUTexture();
+        }
+
+        const auto& mat = asset.materials[(size_t)materialIndex];
+
+        // No emissive texture -> return a 1x1 black tex; factor will still be applied in shader.
+        if (!mat.emissiveTexture.has_value()) {
+            return makeBlackCPUTexture();
+        }
+
+        const auto& texInfo = mat.emissiveTexture.value();
+        const size_t texIndex = texInfo.textureIndex;
+        if (texIndex >= asset.textures.size()) {
+            return makeBlackCPUTexture();
+        }
+
+        const auto& tex = asset.textures[texIndex];
+
+        fastgltf::Optional<std::size_t> imgIndexOpt = tex.imageIndex;
+        if (!imgIndexOpt.has_value()) imgIndexOpt = tex.webpImageIndex;
+        if (!imgIndexOpt.has_value()) imgIndexOpt = tex.basisuImageIndex;
+        if (!imgIndexOpt.has_value()) imgIndexOpt = tex.ddsImageIndex;
+
+        if (!imgIndexOpt.has_value()) return makeBlackCPUTexture();
+
+        const size_t imgIndex = imgIndexOpt.value();
+        if (imgIndex >= asset.images.size()) return makeBlackCPUTexture();
+
+        const auto& img = asset.images[imgIndex];
+        auto enc = getEncodedImageBytes(asset, baseDir, img);
+        if (!enc.has_value() || enc->bytes.empty()) return makeBlackCPUTexture();
+
+        int w = 0, h = 0, comp = 0;
+        stbi_uc* decoded = stbi_load_from_memory(
+            enc->bytes.data(),
+            (int)enc->bytes.size(),
+            &w, &h, &comp, 4
+        );
+
+        if (decoded == nullptr || w <= 0 || h <= 0) {
+            if (decoded) stbi_image_free(decoded);
+            return makeBlackCPUTexture();
         }
 
         CPUTexture out;
@@ -500,8 +584,10 @@ struct FG {
     vertices.reserve(20000);
     indices.reserve(60000);
 
-    std::vector<FG::CPUTexture> texturesCPU;
-    texturesCPU.reserve(64);
+    std::vector<FG::CPUTexture> baseColorTexturesCPU;
+    std::vector<FG::CPUTexture> emissiveTexturesCPU;
+    baseColorTexturesCPU.reserve(64);
+    emissiveTexturesCPU.reserve(64);
 
     float minX = std::numeric_limits<float>::max(), minY = std::numeric_limits<float>::max(), minZ = std::numeric_limits<float>::max();
     float maxX = -minX, maxY = -minY, maxZ = -minZ;
@@ -626,37 +712,89 @@ struct FG {
                 materialIndex = (int)fgOptGet(p.materialIndex);
             }
 
-            FG::CPUTexture cpuTex = FG::decodeBaseColorTextureFast(asset, fg->baseDir, materialIndex);
+            // --- material decode (minimal glTF) ---
+            FG::CPUTexture baseCPU = FG::decodeBaseColorTextureFast(asset, fg->baseDir, materialIndex);
+            FG::CPUTexture emissiveCPU = FG::decodeEmissiveTextureFast(asset, fg->baseDir, materialIndex);
 
-            GLuint texId = 0;
-            glGenTextures(1, &texId);
-            glBindTexture(GL_TEXTURE_2D, texId);
+            glm::vec3 emissiveFactor(0.0f);
+            int alphaMode = 0;       // OPAQUE
+            float alphaCutoff = 0.5f;
+            bool doubleSided = false;
+
+            if (materialIndex >= 0 && materialIndex < (int)asset.materials.size()) {
+                const auto& mat = asset.materials[(size_t)materialIndex];
+
+                // emissiveFactor is always present in glTF (defaults to (0,0,0))
+                emissiveFactor = glm::vec3(mat.emissiveFactor[0], mat.emissiveFactor[1], mat.emissiveFactor[2]);
+
+                // alpha mode
+                switch (mat.alphaMode) {
+                    case fastgltf::AlphaMode::Mask:  alphaMode = 1; break;
+                    case fastgltf::AlphaMode::Blend: alphaMode = 2; break;
+                    default:                         alphaMode = 0; break; // Opaque
+                }
+                alphaCutoff = (float)mat.alphaCutoff;
+                doubleSided = mat.doubleSided;
+            }
+
+            // Upload baseColor texture
+            GLuint baseTexId = 0;
+            glGenTextures(1, &baseTexId);
+            glBindTexture(GL_TEXTURE_2D, baseTexId);
             glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
 
-            const uint32_t w = (cpuTex.width  == 0 ? 1u : cpuTex.width);
-            const uint32_t h = (cpuTex.height == 0 ? 1u : cpuTex.height);
-            const void* pixels = cpuTex.rgba.empty() ? nullptr : cpuTex.rgba.data();
+            const uint32_t bw = (baseCPU.width  == 0 ? 1u : baseCPU.width);
+            const uint32_t bh = (baseCPU.height == 0 ? 1u : baseCPU.height);
+            const void* bpixels = baseCPU.rgba.empty() ? nullptr : baseCPU.rgba.data();
 
-            glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, (GLsizei)w, (GLsizei)h, 0,
-                         GL_RGBA, GL_UNSIGNED_BYTE, pixels);
+            glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, (GLsizei)bw, (GLsizei)bh, 0,
+                         GL_RGBA, GL_UNSIGNED_BYTE, bpixels);
 
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, (GLint)cpuTex.wrapS);
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, (GLint)cpuTex.wrapT);
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, (GLint)cpuTex.minF);
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, (GLint)cpuTex.magF);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, (GLint)baseCPU.wrapS);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, (GLint)baseCPU.wrapT);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, (GLint)baseCPU.minF);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, (GLint)baseCPU.magF);
 
-            if (isMipmapMinFilter((GLint)cpuTex.minF)) {
+            if (isMipmapMinFilter((GLint)baseCPU.minF)) {
+                glGenerateMipmap(GL_TEXTURE_2D);
+            }
+
+            // Upload emissive texture
+            GLuint emissiveTexId = 0;
+            glGenTextures(1, &emissiveTexId);
+            glBindTexture(GL_TEXTURE_2D, emissiveTexId);
+            glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+
+            const uint32_t ew = (emissiveCPU.width  == 0 ? 1u : emissiveCPU.width);
+            const uint32_t eh = (emissiveCPU.height == 0 ? 1u : emissiveCPU.height);
+            const void* epixels = emissiveCPU.rgba.empty() ? nullptr : emissiveCPU.rgba.data();
+
+            glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, (GLsizei)ew, (GLsizei)eh, 0,
+                         GL_RGBA, GL_UNSIGNED_BYTE, epixels);
+
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, (GLint)emissiveCPU.wrapS);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, (GLint)emissiveCPU.wrapT);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, (GLint)emissiveCPU.minF);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, (GLint)emissiveCPU.magF);
+
+            if (isMipmapMinFilter((GLint)emissiveCPU.minF)) {
                 glGenerateMipmap(GL_TEXTURE_2D);
             }
 
             Submesh sm;
             sm.indexOffset = subIndexOffset;
             sm.indexCount  = primIdxU32.size();
-            sm.textureID   = texId;
+            sm.baseColorTexID = baseTexId;
+            sm.emissiveTexID  = emissiveTexId;
+            sm.emissiveFactor = emissiveFactor;
+            sm.alphaMode      = alphaMode;
+            sm.alphaCutoff    = alphaCutoff;
+            sm.doubleSided    = doubleSided;
             sm.meshIndex   = (int)meshIdx;
             submeshes.push_back(sm);
 
-            texturesCPU.push_back(std::move(cpuTex));
+            baseColorTexturesCPU.push_back(std::move(baseCPU));
+            emissiveTexturesCPU.push_back(std::move(emissiveCPU));
         }
     }
 
@@ -701,6 +839,6 @@ struct FG {
     glBindVertexArray(0);
 
     // ---- Cache write ----
-    writeCache(filepath, vertices, indices, texturesCPU);
+    writeCache(filepath, vertices, indices, baseColorTexturesCPU, emissiveTexturesCPU);
     std::cerr << "[gltf][FASTGLTF] COMPLETE for: " << filepath << "\n";
 }

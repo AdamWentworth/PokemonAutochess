@@ -2,47 +2,50 @@
 
 #include "Model.h"
 #include "ModelStartupLog.h"
+#include "../utils/ShaderLibrary.h"
 
-#include <glad/glad.h>
 #include <iostream>
-#include <vector>
-#include <limits>
-#include <algorithm>
-#include <cmath>
-#include <functional>
-#include <filesystem>
 #include <fstream>
-#include <sstream>
-#include <iomanip>
-#include <cstring>
+#include <filesystem>
+#include <algorithm>
 #include <type_traits>
 #include <utility>
 
-#include <glm/gtc/type_ptr.hpp>
-#include <glm/gtx/quaternion.hpp>
+#include <glad/glad.h>
 #include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtx/quaternion.hpp>
+#include <glm/gtc/type_ptr.hpp>
 
-#include "../utils/ShaderLibrary.h"
-
-#include <nlohmann/json.hpp>
-
-// fastgltf loader
-#include "./FastGLTFLoader.h"
+// FastGLTF loader
+#include "FastGLTFLoader.h"
 #include <fastgltf/tools.hpp>
 #include <fastgltf/glm_element_traits.hpp>
 
+#include <nlohmann/json.hpp>
+
+// stb_image (IMPLEMENTATION IS PROVIDED ELSEWHERE in your project)
 #include <stb_image.h>
 
 namespace fs = std::filesystem;
 
-bool isMipmapMinFilter(GLint minF) {
-    return minF == GL_NEAREST_MIPMAP_NEAREST ||
-           minF == GL_LINEAR_MIPMAP_NEAREST ||
-           minF == GL_NEAREST_MIPMAP_LINEAR ||
-           minF == GL_LINEAR_MIPMAP_LINEAR;
+// Helper used by cache and runtime: detect whether a GL min filter implies mipmaps.
+bool isMipmapMinFilter(GLint minF)
+{
+    switch (minF) {
+        case GL_NEAREST_MIPMAP_NEAREST:
+        case GL_NEAREST_MIPMAP_LINEAR:
+        case GL_LINEAR_MIPMAP_NEAREST:
+        case GL_LINEAR_MIPMAP_LINEAR:
+            return true;
+        default:
+            return false;
+    }
 }
 
 namespace {
+
+// ---- Optional-like helpers used by ModelFastGltfLoad.inl ----
+// These were present in your earlier code dump. 
 
 // detects o.has_value()
 template <typename T, typename = void>
@@ -110,13 +113,11 @@ std::size_t fgOptGet(const Opt& o) {
 
 } // namespace
 
-// ------------------------------------------------------------
-// TRS helper
-// ------------------------------------------------------------
 glm::mat4 Model::trsToMat4(const NodeTRS& n)
 {
-    if (n.hasMatrix) return n.matrix;
-
+    if (n.hasMatrix) {
+        return n.matrix;
+    }
     glm::mat4 T = glm::translate(glm::mat4(1.0f), n.t);
     glm::mat4 R = glm::toMat4(n.r);
     glm::mat4 S = glm::scale(glm::mat4(1.0f), n.s);
@@ -133,9 +134,17 @@ Model::Model(const std::string& filepath)
     locUseSkin = glGetUniformLocation(modelShader->getID(), "u_UseSkin");
     locJoints0 = glGetUniformLocation(modelShader->getID(), "u_Joints[0]");
 
-    if (locMVP < 0)     std::cerr << "[Model] WARNING: u_MVP not found\n";
-    if (locUseSkin < 0) std::cerr << "[Model] WARNING: u_UseSkin not found\n";
-    if (locJoints0 < 0) std::cerr << "[Model] WARNING: u_Joints[0] not found\n";
+    // material uniforms
+    locBaseColorTex   = glGetUniformLocation(modelShader->getID(), "u_BaseColorTex");
+    locEmissiveTex    = glGetUniformLocation(modelShader->getID(), "u_EmissiveTex");
+    locEmissiveFactor = glGetUniformLocation(modelShader->getID(), "u_EmissiveFactor");
+    locAlphaMode      = glGetUniformLocation(modelShader->getID(), "u_AlphaMode");
+    locAlphaCutoff    = glGetUniformLocation(modelShader->getID(), "u_AlphaCutoff");
+
+    // bind samplers to fixed texture units once
+    modelShader->use();
+    if (locBaseColorTex >= 0) glUniform1i(locBaseColorTex, 0);
+    if (locEmissiveTex  >= 0) glUniform1i(locEmissiveTex, 1);
 }
 
 Model::~Model()
@@ -145,7 +154,8 @@ Model::~Model()
     if (EBO) glDeleteBuffers(1, &EBO);
 
     for (auto& sm : submeshes) {
-        if (sm.textureID) glDeleteTextures(1, &sm.textureID);
+        if (sm.baseColorTexID) glDeleteTextures(1, &sm.baseColorTexID);
+        if (sm.emissiveTexID)  glDeleteTextures(1, &sm.emissiveTexID);
     }
 
     modelShader.reset();
@@ -159,16 +169,11 @@ int Model::getAnimationCount() const
 float Model::getAnimationDurationSec(int animIndex) const
 {
     if (animIndex < 0 || animIndex >= (int)animations.size()) return 0.0f;
-    return animations[animIndex].durationSec;
+    return animations[(size_t)animIndex].durationSec;
 }
 
+// IMPORTANT: the .inl is written to be included inside this function body.
 void Model::loadGLTF(const std::string& filepath)
 {
-    if (tryLoadCache(filepath)) {
-        std::cerr << "[gltf][CACHE] HIT (no parsing) for: " << filepath << "\n";
-        return;
-    }
-    std::cerr << "[gltf][CACHE] MISS (will parse) for: " << filepath << "\n";
-
-    #include "ModelFastGltfLoad.inl"
+#include "ModelFastGltfLoad.inl"
 }

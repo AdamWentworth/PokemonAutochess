@@ -64,7 +64,7 @@ static bool envTruthy(const char* name) {
 
 // Cache format constants
 static constexpr uint64_t kModelCacheMagic = 0x4C444D434150554FULL; // "PACMDML" in little-endian-ish
-static constexpr uint32_t kModelCacheVersion = 1;
+static constexpr uint32_t kModelCacheVersion = 2;
 
 #pragma pack(push, 1)
 struct CacheHeader {
@@ -284,8 +284,10 @@ bool Model::tryLoadCache(const std::string& filepath)
 
             // Submeshes + textures (upload textures to GL here)
             submeshes.resize(hdr.submeshCount);
-            std::vector<CPUTexture> texturesCPU;
-            texturesCPU.resize(hdr.submeshCount);
+            std::vector<CPUTexture> baseColorCPU;
+            std::vector<CPUTexture> emissiveCPU;
+            baseColorCPU.resize(hdr.submeshCount);
+            emissiveCPU.resize(hdr.submeshCount);
 
             for (uint32_t i = 0; i < hdr.submeshCount; ++i) {
                 uint64_t off = 0, cnt = 0;
@@ -294,25 +296,48 @@ bool Model::tryLoadCache(const std::string& filepath)
                 if (!readPod(in, cnt)) return false;
                 if (!readPod(in, meshIdx)) return false;
 
+                float ef[3] = {0.0f, 0.0f, 0.0f};
+                uint8_t alphaMode = 0;
+                float alphaCutoff = 0.5f;
+                uint8_t doubleSided = 0;
+                if (!readPod(in, ef[0])) return false;
+                if (!readPod(in, ef[1])) return false;
+                if (!readPod(in, ef[2])) return false;
+                if (!readPod(in, alphaMode)) return false;
+                if (!readPod(in, alphaCutoff)) return false;
+                if (!readPod(in, doubleSided)) return false;
+
                 submeshes[i].indexOffset = (size_t)off;
                 submeshes[i].indexCount  = (size_t)cnt;
                 submeshes[i].meshIndex   = (int)meshIdx;
+                submeshes[i].emissiveFactor = glm::vec3(ef[0], ef[1], ef[2]);
+                submeshes[i].alphaMode      = (int)alphaMode;
+                submeshes[i].alphaCutoff    = alphaCutoff;
+                submeshes[i].doubleSided    = (doubleSided != 0);
 
-                CPUTexture t{};
-                if (!readPod(in, t.width)) return false;
-                if (!readPod(in, t.height)) return false;
-                if (!readPod(in, t.wrapS)) return false;
-                if (!readPod(in, t.wrapT)) return false;
-                if (!readPod(in, t.minF)) return false;
-                if (!readPod(in, t.magF)) return false;
+                auto readCPUTexture = [&](CPUTexture& t)->bool {
+                    if (!readPod(in, t.width)) return false;
+                    if (!readPod(in, t.height)) return false;
+                    if (!readPod(in, t.wrapS)) return false;
+                    if (!readPod(in, t.wrapT)) return false;
+                    if (!readPod(in, t.minF)) return false;
+                    if (!readPod(in, t.magF)) return false;
+                    uint32_t bytes = 0;
+                    if (!readPod(in, bytes)) return false;
+                    t.rgba.resize(bytes);
+                    if (bytes > 0) {
+                        if (!in.read(reinterpret_cast<char*>(t.rgba.data()), bytes)) return false;
+                    }
+                    return true;
+                };
 
-                uint32_t bytes = 0;
-                if (!readPod(in, bytes)) return false;
-                t.rgba.resize(bytes);
-                if (bytes > 0) {
-                    if (!in.read(reinterpret_cast<char*>(t.rgba.data()), bytes)) return false;
-                }
-                texturesCPU[i] = std::move(t);
+                CPUTexture base{};
+                CPUTexture emissive{};
+                if (!readCPUTexture(base)) return false;
+                if (!readCPUTexture(emissive)) return false;
+
+                baseColorCPU[i] = std::move(base);
+                emissiveCPU[i]  = std::move(emissive);
             }
 
             // Upload VBO/EBO/VAO exactly like the slow path
@@ -344,17 +369,14 @@ bool Model::tryLoadCache(const std::string& filepath)
             glBindVertexArray(0);
 
             // Upload textures
-            for (size_t i = 0; i < submeshes.size(); ++i) {
-                const CPUTexture& t = texturesCPU[i];
-                const int w = (int)t.width;
-                const int h = (int)t.height;
-                const auto& rgba = t.rgba;
+            auto uploadCPUTexture = [&](const CPUTexture& t)->GLuint {
+                const int w = (int)(t.width  == 0 ? 1u : t.width);
+                const int h = (int)(t.height == 0 ? 1u : t.height);
+                const void* pixels = t.rgba.empty() ? nullptr : t.rgba.data();
 
                 GLuint tex = 0;
                 glGenTextures(1, &tex);
                 glBindTexture(GL_TEXTURE_2D, tex);
-
-                const void* pixels = rgba.empty() ? nullptr : rgba.data();
 
                 glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, (GLsizei)w, (GLsizei)h,
                              0, GL_RGBA, GL_UNSIGNED_BYTE, pixels);
@@ -367,8 +389,12 @@ bool Model::tryLoadCache(const std::string& filepath)
                 if (isMipmapMinFilter((GLint)t.minF)) {
                     glGenerateMipmap(GL_TEXTURE_2D);
                 }
+                return tex;
+            };
 
-                submeshes[i].textureID = tex;
+            for (size_t i = 0; i < submeshes.size(); ++i) {
+                submeshes[i].baseColorTexID = uploadCPUTexture(baseColorCPU[i]);
+                submeshes[i].emissiveTexID  = uploadCPUTexture(emissiveCPU[i]);
             }
 
             glBindTexture(GL_TEXTURE_2D, 0);
@@ -387,7 +413,8 @@ bool Model::tryLoadCache(const std::string& filepath)
 void Model::writeCache(const std::string& filepath,
                        const std::vector<Vertex>& vertices,
                        const std::vector<uint32_t>& indices,
-                       const std::vector<CPUTexture>& texturesCPU) const
+                       const std::vector<CPUTexture>& baseColorTexturesCPU,
+                       const std::vector<CPUTexture>& emissiveTexturesCPU) const
 {
     using namespace pac_model_cache_detail;
 
@@ -412,7 +439,8 @@ void Model::writeCache(const std::string& filepath,
         hdr.animCount = (uint32_t)animations.size();
 
         // Basic sanity: require matching texture entries
-        if (texturesCPU.size() != submeshes.size()) return;
+        if (baseColorTexturesCPU.size() != submeshes.size()) return;
+        if (emissiveTexturesCPU.size() != submeshes.size()) return;
 
         std::ofstream out(cpath, std::ios::binary | std::ios::trunc);
         if (!out.is_open()) return;
@@ -515,7 +543,7 @@ void Model::writeCache(const std::string& filepath,
             if (!out.write(reinterpret_cast<const char*>(indices.data()), indices.size() * sizeof(uint32_t))) return;
         }
 
-        // Submeshes + textures
+        // Submeshes + textures + minimal material params
         for (size_t i = 0; i < submeshes.size(); ++i) {
             const auto& sm = submeshes[i];
             uint64_t off = (uint64_t)sm.indexOffset;
@@ -525,18 +553,33 @@ void Model::writeCache(const std::string& filepath,
             if (!writePod(out, cnt)) return;
             if (!writePod(out, meshIdx)) return;
 
-            const CPUTexture& t = texturesCPU[i];
-            if (!writePod(out, t.width)) return;
-            if (!writePod(out, t.height)) return;
-            if (!writePod(out, t.wrapS)) return;
-            if (!writePod(out, t.wrapT)) return;
-            if (!writePod(out, t.minF)) return;
-            if (!writePod(out, t.magF)) return;
-            uint32_t bytes = (uint32_t)t.rgba.size();
-            if (!writePod(out, bytes)) return;
-            if (bytes > 0) {
-                if (!out.write(reinterpret_cast<const char*>(t.rgba.data()), bytes)) return;
-            }
+            // material params
+            if (!writePod(out, sm.emissiveFactor.x)) return;
+            if (!writePod(out, sm.emissiveFactor.y)) return;
+            if (!writePod(out, sm.emissiveFactor.z)) return;
+            uint8_t alphaMode = (uint8_t)sm.alphaMode;
+            uint8_t doubleSided = sm.doubleSided ? 1u : 0u;
+            if (!writePod(out, alphaMode)) return;
+            if (!writePod(out, sm.alphaCutoff)) return;
+            if (!writePod(out, doubleSided)) return;
+
+            auto writeCPUTexture = [&](const CPUTexture& t)->bool {
+                if (!writePod(out, t.width)) return false;
+                if (!writePod(out, t.height)) return false;
+                if (!writePod(out, t.wrapS)) return false;
+                if (!writePod(out, t.wrapT)) return false;
+                if (!writePod(out, t.minF)) return false;
+                if (!writePod(out, t.magF)) return false;
+                uint32_t bytes = (uint32_t)t.rgba.size();
+                if (!writePod(out, bytes)) return false;
+                if (bytes > 0) {
+                    if (!out.write(reinterpret_cast<const char*>(t.rgba.data()), bytes)) return false;
+                }
+                return true;
+            };
+
+            if (!writeCPUTexture(baseColorTexturesCPU[i])) return;
+            if (!writeCPUTexture(emissiveTexturesCPU[i])) return;
         }
 
         STARTUP_LOG(std::string("[Model] Cache wrote: ") + filepath + " -> " + cpath.string());

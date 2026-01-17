@@ -23,7 +23,12 @@
 struct Submesh {
     size_t indexOffset = 0;
     size_t indexCount = 0;
-    unsigned int textureID = 0;
+    unsigned int baseColorTexID = 0;
+    unsigned int emissiveTexID  = 0;
+    glm::vec3 emissiveFactor{0.0f};
+    int alphaMode = 0; // 0=OPAQUE, 1=MASK, 2=BLEND
+    float alphaCutoff = 0.5f;
+    bool doubleSided = false;
     int meshIndex = -1;
 };
 
@@ -61,6 +66,11 @@ private:
     int locMVP = -1;
     int locUseSkin = -1;
     int locJoints0 = -1;
+    int locBaseColorTex = -1;
+    int locEmissiveTex  = -1;
+    int locEmissiveFactor = -1;
+    int locAlphaMode = -1;
+    int locAlphaCutoff = -1;
 
     float modelScaleFactor = 1.0f;
 
@@ -100,5 +110,6 @@ private:
     void writeCache(const std::string& filepath,
                     const std::vector<Vertex>& vertices,
                     const std::vector<uint32_t>& indices,
-                    const std::vector<CPUTexture>& texturesCPU) const;
+                    const std::vector<CPUTexture>& baseColorTexturesCPU,
+                    const std::vector<CPUTexture>& emissiveTexturesCPU) const;
 };
