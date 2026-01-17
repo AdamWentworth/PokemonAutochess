@@ -842,3 +842,5 @@ struct FG {
     writeCache(filepath, vertices, indices, baseColorTexturesCPU, emissiveTexturesCPU);
     std::cerr << "[gltf][FASTGLTF] COMPLETE for: " << filepath << "\n";
 }
+
+

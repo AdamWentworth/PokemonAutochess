@@ -175,5 +175,11 @@ float Model::getAnimationDurationSec(int animIndex) const
 // IMPORTANT: the .inl is written to be included inside this function body.
 void Model::loadGLTF(const std::string& filepath)
 {
-#include "ModelFastGltfLoad.inl"
+    if (tryLoadCache(filepath)) {
+        std::cerr << "[gltf][CACHE] HIT (no parsing) for: " << filepath << "\n";
+        return;
+    }
+    std::cerr << "[gltf][CACHE] MISS (will parse) for: " << filepath << "\n";
+
+    #include "ModelFastGltfLoad.inl"
 }

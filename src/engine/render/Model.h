@@ -113,3 +113,5 @@ private:
                     const std::vector<CPUTexture>& baseColorTexturesCPU,
                     const std::vector<CPUTexture>& emissiveTexturesCPU) const;
 };
+
+
