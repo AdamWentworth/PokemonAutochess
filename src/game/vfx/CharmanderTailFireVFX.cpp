@@ -11,7 +11,7 @@ CharmanderTailFireVFX::CharmanderTailFireVFX() {
     c.emitRatePerSec   = 90.0f;
     c.spawnRadius      = 0.010f;
     c.tailTipNodeIndex = 45;
-    c.tailWorldYOffset = 0.175f;
+    c.tailWorldYOffset = 0.2f;
     c.backDir          = glm::vec3(0.0f, 0.0f, 1.0f);
 
     // Fire setup lives in TailFireVFX now (Batch you just applied):

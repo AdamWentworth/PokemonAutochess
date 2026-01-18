@@ -92,6 +92,10 @@ public:
         flipbookDirty = true;
     }
 
+        // Disable flipbook entirely (for procedural sprites/shaders)
+    void setUseFlipbook(bool enabled) { useFlipbook = enabled; }
+    bool getUseFlipbook() const { return useFlipbook; }
+
 private:
     struct GPUParticle {
         glm::vec3 pos;
@@ -128,6 +132,8 @@ private:
     int   flipbookFrames = 1;
     float flipbookFps = 0.0f;
     bool  flipbookDirty = true;
+
+    bool useFlipbook = true;
 
 private:
     void ensureFlipbookLoaded();

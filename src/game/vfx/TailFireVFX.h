@@ -28,8 +28,9 @@ public:
         glm::vec3 backDir = glm::vec3(0.0f, 0.0f, 1.0f);
 
         // ---------- Particle visuals / system ----------
-        std::string vertShaderPath = "assets/shaders/vfx/fire.vert";
-        std::string fragShaderPath = "assets/shaders/vfx/fire.frag";
+        std::string vertShaderPath = "assets/shaders/vfx/particle.vert";
+        // switch to procedural fragment shader
+        std::string fragShaderPath = "assets/shaders/vfx/fire/fire_tail.frag";
 
         std::string flipbookPath = "assets/textures/fire_flipbook_8x5.png";
         int flipbookCols = 8;
@@ -46,6 +47,9 @@ public:
 
         // ✅ restore original look scale
         float pointScale = 1200.0f;
+
+        // disable flipbook usage (no PNG dependency)
+        bool useFlipbook = false;
     };
 
 public:

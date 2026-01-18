@@ -51,12 +51,15 @@ void TailFireVFX::ensureConfigured() {
     // Shader
     particles.setShaderPaths(cfg.vertShaderPath, cfg.fragShaderPath);
 
-    // Flipbook
-    particles.setFlipbook(cfg.flipbookPath,
-                          cfg.flipbookCols,
-                          cfg.flipbookRows,
-                          cfg.flipbookFrames,
-                          cfg.flipbookFps);
+    // Flipbook (optional)
+    particles.setUseFlipbook(cfg.useFlipbook);
+    if (cfg.useFlipbook) {
+        particles.setFlipbook(cfg.flipbookPath,
+                              cfg.flipbookCols,
+                              cfg.flipbookRows,
+                              cfg.flipbookFrames,
+                              cfg.flipbookFps);
+    }
 
     // Render state
     ParticleSystem::RenderSettings rs;

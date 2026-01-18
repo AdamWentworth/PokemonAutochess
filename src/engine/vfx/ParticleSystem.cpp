@@ -90,7 +90,11 @@ void ParticleSystem::init() {
     if (initialized) return;
 
     ensureShaderLoaded();
-    ensureFlipbookLoaded();
+
+    // Only create/load flipbook texture if this system uses it.
+    if (useFlipbook) {
+        ensureFlipbookLoaded();
+    }
 
     glGenVertexArrays(1, &vao);
     glGenBuffers(1, &vbo);
@@ -98,7 +102,6 @@ void ParticleSystem::init() {
     glBindVertexArray(vao);
     glBindBuffer(GL_ARRAY_BUFFER, vbo);
 
-    // Stream buffer; size grows via glBufferData each frame in render()
     glBufferData(GL_ARRAY_BUFFER, 1024 * sizeof(GPUParticle), nullptr, GL_STREAM_DRAW);
 
     glEnableVertexAttribArray(0);
@@ -199,8 +202,11 @@ void ParticleSystem::render(const Camera3D& camera) {
     if (!shader || vao == 0) return;
     if (particles.empty()) return;
 
-    ensureFlipbookLoaded();
-    if (flipbookTex == 0) return;
+    // Only require flipbook texture when enabled
+    if (useFlipbook) {
+        ensureFlipbookLoaded();
+        if (flipbookTex == 0) return;
+    }
 
     // Build GPU buffer
     gpuBuffer.resize(particles.size());
@@ -249,13 +255,16 @@ void ParticleSystem::render(const Camera3D& camera) {
     shader->setUniform("u_Time", timeSec);
     shader->setUniform("u_PointScale", pointScale);
 
-    shader->setUniform("u_Flipbook", 0);
-    shader->setUniform("u_FlipbookGrid", glm::vec2((float)flipbookCols, (float)flipbookRows));
-    shader->setUniform("u_FrameCount", (float)flipbookFrames);
-    shader->setUniform("u_Fps", flipbookFps);
+    // Flipbook uniforms + bind only if enabled
+    if (useFlipbook) {
+        shader->setUniform("u_Flipbook", 0);
+        shader->setUniform("u_FlipbookGrid", glm::vec2((float)flipbookCols, (float)flipbookRows));
+        shader->setUniform("u_FrameCount", (float)flipbookFrames);
+        shader->setUniform("u_Fps", flipbookFps);
 
-    glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, flipbookTex);
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, flipbookTex);
+    }
 
     glBindVertexArray(vao);
     glBindBuffer(GL_ARRAY_BUFFER, vbo);
@@ -281,3 +290,4 @@ void ParticleSystem::render(const Camera3D& camera) {
 
     if (!wasProgPoint) glDisable(GL_PROGRAM_POINT_SIZE);
 }
+
