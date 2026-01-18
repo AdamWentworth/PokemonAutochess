@@ -66,33 +66,15 @@ static float wrapTime(float t, float duration)
     return x;
 }
 
-static size_t findKeyframe(const std::vector<float>& inputs, float t)
+static size_t findKeyframe(const std::vector<float>& times, float t)
 {
-    if (inputs.empty()) return 0;
-    if (t <= inputs.front()) return 0;
-    if (t >= inputs.back()) return inputs.size() - 1;
+    if (times.empty()) return 0;
+    if (t <= times.front()) return 0;
+    if (t >= times.back()) return times.size() - 1;
 
-    auto it = std::upper_bound(inputs.begin(), inputs.end(), t);
-    size_t idx = (size_t)std::distance(inputs.begin(), it);
-    if (idx == 0) return 0;
-    return idx - 1;
-}
-
-static float safeLerpT(float t, float t0, float t1)
-{
-    float dt = (t1 - t0);
-    if (dt <= 1e-6f) return 0.0f;
-    return (t - t0) / dt;
-}
-
-static glm::vec3 lerpVec3(const glm::vec3& a, const glm::vec3& b, float t)
-{
-    return a + (b - a) * t;
-}
-
-static glm::quat slerpQuat(const glm::quat& a, const glm::quat& b, float t)
-{
-    return glm::normalize(glm::slerp(a, b, t));
+    auto it = std::upper_bound(times.begin(), times.end(), t);
+    size_t idx = (it == times.begin()) ? 0 : (size_t)((it - times.begin()) - 1);
+    return idx;
 }
 
 void Model::buildPoseMatrices(float timeSec,
@@ -100,64 +82,71 @@ void Model::buildPoseMatrices(float timeSec,
                               std::vector<NodeTRS>& outLocal,
                               std::vector<glm::mat4>& outGlobal) const
 {
-    // start from default pose
     outLocal = nodesDefault;
+    outGlobal.assign(nodesDefault.size(), glm::mat4(1.0f));
 
-    // apply animation if valid
+    if (nodesDefault.empty()) return;
+
+    auto sampleVec4 = [&](const AnimationSampler& s, float t)->glm::vec4 {
+        if (s.inputs.empty() || s.outputs.empty()) return glm::vec4(0.0f);
+
+        size_t i = findKeyframe(s.inputs, t);
+        if (i >= s.inputs.size() - 1) {
+            return s.outputs[std::min(i, s.outputs.size() - 1)];
+        }
+
+        float t0 = s.inputs[i];
+        float t1 = s.inputs[i + 1];
+        float a = (t1 > t0) ? ((t - t0) / (t1 - t0)) : 0.0f;
+
+        glm::vec4 v0 = s.outputs[std::min(i, s.outputs.size() - 1)];
+        glm::vec4 v1 = s.outputs[std::min(i + 1, s.outputs.size() - 1)];
+
+        if (s.interpolation == "STEP") return v0;
+        return glm::mix(v0, v1, a);
+    };
+
+    auto sampleQuat = [&](const AnimationSampler& s, float t)->glm::quat {
+        glm::vec4 v = sampleVec4(s, t);
+        glm::quat q(v.w, v.x, v.y, v.z);
+        q = glm::normalize(q);
+        return q;
+    };
+
     if (animIndex >= 0 && animIndex < (int)animations.size()) {
-        const auto& clip = animations[(size_t)animIndex];
+        const auto& clip = animations[animIndex];
         float t = wrapTime(timeSec, clip.durationSec);
 
         for (const auto& ch : clip.channels) {
             if (ch.targetNode < 0 || ch.targetNode >= (int)outLocal.size()) continue;
             if (ch.samplerIndex < 0 || ch.samplerIndex >= (int)clip.samplers.size()) continue;
-
-            const auto& s = clip.samplers[(size_t)ch.samplerIndex];
-            if (s.inputs.empty() || s.outputs.empty()) continue;
-
-            size_t k0 = findKeyframe(s.inputs, t);
-            size_t k1 = std::min(k0 + 1, s.inputs.size() - 1);
-
-            float t0 = s.inputs[k0];
-            float t1 = s.inputs[k1];
-            float u = safeLerpT(t, t0, t1);
-
-            glm::vec4 v0 = s.outputs[std::min(k0, s.outputs.size() - 1)];
-            glm::vec4 v1 = s.outputs[std::min(k1, s.outputs.size() - 1)];
+            const auto& s = clip.samplers[ch.samplerIndex];
 
             if (ch.path == ChannelPath::Translation) {
-                glm::vec3 a(v0.x, v0.y, v0.z);
-                glm::vec3 b(v1.x, v1.y, v1.z);
-                outLocal[ch.targetNode].t = lerpVec3(a, b, u);
+                glm::vec4 v = sampleVec4(s, t);
+                outLocal[ch.targetNode].t = glm::vec3(v.x, v.y, v.z);
+                outLocal[ch.targetNode].hasMatrix = false;
             } else if (ch.path == ChannelPath::Scale) {
-                glm::vec3 a(v0.x, v0.y, v0.z);
-                glm::vec3 b(v1.x, v1.y, v1.z);
-                outLocal[ch.targetNode].s = lerpVec3(a, b, u);
+                glm::vec4 v = sampleVec4(s, t);
+                outLocal[ch.targetNode].s = glm::vec3(v.x, v.y, v.z);
+                outLocal[ch.targetNode].hasMatrix = false;
             } else if (ch.path == ChannelPath::Rotation) {
-                glm::quat qa(v0.w, v0.x, v0.y, v0.z);
-                glm::quat qb(v1.w, v1.x, v1.y, v1.z);
-                outLocal[ch.targetNode].r = slerpQuat(qa, qb, u);
+                outLocal[ch.targetNode].r = sampleQuat(s, t);
+                outLocal[ch.targetNode].hasMatrix = false;
             }
         }
     }
 
-    // globals via DFS
-    outGlobal.assign(outLocal.size(), glm::mat4(1.0f));
+    std::function<void(int, const glm::mat4&)> dfs = [&](int node, const glm::mat4& parent) {
+        if (node < 0 || node >= (int)outLocal.size()) return;
+        glm::mat4 localM = trsToMat4(outLocal[node]);
+        glm::mat4 global = parent * localM;
+        outGlobal[node] = global;
 
-    std::function<void(int, const glm::mat4&)> dfs =
-        [&](int node, const glm::mat4& parent) {
-            if (node < 0 || node >= (int)outLocal.size()) return;
-
-            glm::mat4 local = trsToMat4(outLocal[node]);
-            glm::mat4 global = parent * local;
-            outGlobal[node] = global;
-
-            if (node < (int)nodeChildren.size()) {
-                for (int c : nodeChildren[node]) {
-                    dfs(c, global);
-                }
-            }
-        };
+        if (node < (int)nodeChildren.size()) {
+            for (int c : nodeChildren[node]) dfs(c, global);
+        }
+    };
 
     if (sceneRoots.empty()) {
         dfs(0, glm::mat4(1.0f));
@@ -188,20 +177,20 @@ void Model::drawAnimated(const Camera3D& camera,
     glBindVertexArray(VAO);
 
     // --- Save GL state (critical: UI relies on these) ---
-    
-    GLboolean prevDepthTest = glIsEnabled(GL_DEPTH_TEST);
-    GLboolean prevBlend     = glIsEnabled(GL_BLEND);
-    GLboolean prevCull      = glIsEnabled(GL_CULL_FACE);
+    const GLboolean prevCullEnabled  = glIsEnabled(GL_CULL_FACE);
+    const GLboolean prevBlendEnabled = glIsEnabled(GL_BLEND);
 
-    GLint prevDepthMask = GL_TRUE;
-    glGetIntegerv(GL_DEPTH_WRITEMASK, &prevDepthMask);
+    GLboolean prevDepthWrite = GL_TRUE;
+    glGetBooleanv(GL_DEPTH_WRITEMASK, &prevDepthWrite);
 
-    GLint prevBlendSrcRGB = GL_ONE, prevBlendDstRGB = GL_ZERO;
-    GLint prevBlendSrcA   = GL_ONE, prevBlendDstA   = GL_ZERO;
-    glGetIntegerv(GL_BLEND_SRC_RGB,   &prevBlendSrcRGB);
-    glGetIntegerv(GL_BLEND_DST_RGB,   &prevBlendDstRGB);
-    glGetIntegerv(GL_BLEND_SRC_ALPHA, &prevBlendSrcA);
-    glGetIntegerv(GL_BLEND_DST_ALPHA, &prevBlendDstA);
+    GLint prevActiveTex = 0;
+    glGetIntegerv(GL_ACTIVE_TEXTURE, &prevActiveTex);
+
+    GLint prevSrcRGB = GL_ONE, prevDstRGB = GL_ZERO, prevSrcA = GL_ONE, prevDstA = GL_ZERO;
+    glGetIntegerv(GL_BLEND_SRC_RGB,   &prevSrcRGB);
+    glGetIntegerv(GL_BLEND_DST_RGB,   &prevDstRGB);
+    glGetIntegerv(GL_BLEND_SRC_ALPHA, &prevSrcA);
+    glGetIntegerv(GL_BLEND_DST_ALPHA, &prevDstA);
 
     GLint prevEqRGB = GL_FUNC_ADD, prevEqA = GL_FUNC_ADD;
     glGetIntegerv(GL_BLEND_EQUATION_RGB,   &prevEqRGB);
@@ -210,10 +199,6 @@ void Model::drawAnimated(const Camera3D& camera,
     // bind sampler units once (safe even if uniforms are optimized out)
     if (locBaseColorTex >= 0) glUniform1i(locBaseColorTex, 0);
     if (locEmissiveTex  >= 0) glUniform1i(locEmissiveTex,  1);
-
-    // tone mapping (set every draw in case some other renderer touched the same program)
-    if (locTonemapMode >= 0) glUniform1i(locTonemapMode, 1); // 1=ACES
-    if (locExposure    >= 0) glUniform1f(locExposure, 1.0f);
 
     auto setMaterial = [&](const Submesh& sm) {
         glActiveTexture(GL_TEXTURE0);
@@ -240,27 +225,27 @@ void Model::drawAnimated(const Camera3D& camera,
         }
     };
 
-    // We assume you want depth test on for models.
-    glEnable(GL_DEPTH_TEST);
+    bool hasNodeMesh = false;
 
-    auto drawMeshAtNode = [&](int node, const glm::mat4& meshGlobal) {
-        int meshIndex = -1;
-        int skinIndex = -1;
+    auto drawMeshAtNode = [&](int nodeIdx, const glm::mat4& nodeGlobal) {
+        if (nodeIdx < 0 || nodeIdx >= (int)nodeMesh.size()) return;
+        int meshIdx = nodeMesh[nodeIdx];
+        if (meshIdx < 0) return;
 
-        if (node >= 0 && node < (int)nodeMesh.size()) meshIndex = nodeMesh[node];
-        if (node >= 0 && node < (int)nodeSkin.size()) skinIndex = nodeSkin[node];
+        hasNodeMesh = true;
 
         glm::mat4 vp  = camera.getProjectionMatrix() * camera.getViewMatrix();
-        glm::mat4 mvp = vp * instanceTransform * meshGlobal;
+        glm::mat4 mvp = vp * instanceTransform * nodeGlobal;
         glUniformMatrix4fv(locMVP, 1, GL_FALSE, glm::value_ptr(mvp));
 
-        // upload skinning
-        uploadSkinUniforms(meshGlobal, skinIndex, globals);
+        uploadSkinUniforms(nodeGlobal,
+                           (nodeIdx < (int)nodeSkin.size() ? nodeSkin[nodeIdx] : -1),
+                           globals);
 
-        // Draw submeshes that match this meshIndex
+        // Two-pass inside the mesh: opaque/mask first, then blend.
         for (int pass = 0; pass < 2; ++pass) {
             for (const auto& sm : submeshes) {
-                if (sm.meshIndex != meshIndex) continue;
+                if (sm.meshIndex != meshIdx) continue;
 
                 const bool isBlend = (sm.alphaMode == 2);
                 if ((pass == 0 && isBlend) || (pass == 1 && !isBlend)) continue;
@@ -275,10 +260,7 @@ void Model::drawAnimated(const Camera3D& camera,
         }
     };
 
-    // determine if nodeMesh exists
-    bool hasNodeMesh = !nodeMesh.empty();
-
-    auto dfsDraw = [&](auto&& self, int node, const glm::mat4& parent) -> void {
+    std::function<void(int, const glm::mat4&)> dfsDraw = [&](int node, const glm::mat4& parent) {
         if (node < 0 || node >= (int)locals.size()) return;
 
         glm::mat4 localM  = trsToMat4(locals[node]);
@@ -287,14 +269,14 @@ void Model::drawAnimated(const Camera3D& camera,
         drawMeshAtNode(node, globalM);
 
         if (node < (int)nodeChildren.size()) {
-            for (int c : nodeChildren[node]) self(self, c, globalM);
+            for (int c : nodeChildren[node]) dfsDraw(c, globalM);
         }
     };
 
     if (sceneRoots.empty()) {
-        dfsDraw(dfsDraw, 0, glm::mat4(1.0f));
+        dfsDraw(0, glm::mat4(1.0f));
     } else {
-        for (int r : sceneRoots) dfsDraw(dfsDraw, r, glm::mat4(1.0f));
+        for (int r : sceneRoots) dfsDraw(r, glm::mat4(1.0f));
     }
 
     // fallback: if nodeMesh is empty, draw everything once with instanceTransform
@@ -320,25 +302,37 @@ void Model::drawAnimated(const Camera3D& camera,
         }
     }
 
-    // restore common state (avoid leaking blend/depth-write into other renderers)
-    glDepthMask(GL_TRUE);
-    glDisable(GL_BLEND);
-    glEnable(GL_CULL_FACE);
+    // --- Restore previous GL state (critical: UI relies on these) ---
+    glDepthMask(prevDepthWrite);
 
-    // Restore saved GL state (covers edge cases too)
-    if (prevDepthTest) glEnable(GL_DEPTH_TEST);
-    else glDisable(GL_DEPTH_TEST);
-
-    if (prevBlend) glEnable(GL_BLEND);
+    if (prevBlendEnabled) glEnable(GL_BLEND);
     else glDisable(GL_BLEND);
 
-    if (prevCull) glEnable(GL_CULL_FACE);
-    else glDisable(GL_CULL_FACE);
-
-    glDepthMask((GLboolean)prevDepthMask);
-
-    glBlendFuncSeparate(prevBlendSrcRGB, prevBlendDstRGB, prevBlendSrcA, prevBlendDstA);
+    glBlendFuncSeparate(prevSrcRGB, prevDstRGB, prevSrcA, prevDstA);
     glBlendEquationSeparate(prevEqRGB, prevEqA);
 
+    if (prevCullEnabled) glEnable(GL_CULL_FACE);
+    else glDisable(GL_CULL_FACE);
+
+    glActiveTexture((GLenum)prevActiveTex);
+
     glBindVertexArray(0);
+}
+
+// ✅ NEW: animated node global transform (MODEL SPACE)
+bool Model::getNodeGlobalTransformByIndex(float animTimeSec,
+                                         int animIndex,
+                                         int nodeIndex,
+                                         glm::mat4& outNodeGlobal) const
+{
+    if (nodeIndex < 0 || nodeIndex >= (int)nodesDefault.size()) return false;
+
+    std::vector<NodeTRS> locals;
+    std::vector<glm::mat4> globals;
+    buildPoseMatrices(animTimeSec, animIndex, locals, globals);
+
+    if (nodeIndex < 0 || nodeIndex >= (int)globals.size()) return false;
+
+    outNodeGlobal = globals[nodeIndex];
+    return true;
 }

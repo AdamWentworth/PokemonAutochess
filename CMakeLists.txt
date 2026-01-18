@@ -73,6 +73,9 @@ add_library(Engine STATIC
     src/engine/render/ModelAnimation.cpp
     src/engine/render/ModelCache.cpp
 
+    # Engine VFX (NEW)
+    src/engine/vfx/ParticleSystem.cpp
+
     # Engine UI
     src/engine/ui/UIManager.cpp
     src/engine/ui/Card.cpp
@@ -109,6 +112,9 @@ add_executable(PokemonAutochess
     src/game/GameConfig.cpp
     src/game/LogBus.cpp
     src/game/MovesConfigLoader.cpp
+
+    # Game VFX (NEW)
+    src/game/vfx/CharmanderTailFireVFX.cpp
 
     # Game Systems
     src/game/systems/CameraSystem.cpp
@@ -159,6 +165,10 @@ set(_shader_files
     assets/shaders/ui/text.frag
     assets/shaders/ui/healthbar.vert
     assets/shaders/ui/healthbar.frag
+
+    # VFX shaders (NEW)
+    assets/shaders/vfx/particle.vert
+    assets/shaders/vfx/particle.frag
 )
 
 foreach(_f IN LISTS _shader_files)

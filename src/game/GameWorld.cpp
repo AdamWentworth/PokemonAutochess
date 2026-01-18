@@ -1,18 +1,25 @@
 // src/game/GameWorld.cpp
 #include "GameWorld.h"
-#include "../engine/utils/ResourceManager.h"
-#include "../engine/render/Model.h"
-#include "../engine/render/Camera3D.h"
-#include "../engine/render/BoardRenderer.h"
+
+#include "./engine/utils/ResourceManager.h"
+#include "./engine/render/Model.h"
+#include "./engine/render/Camera3D.h"
+#include "./engine/render/BoardRenderer.h"
+
 #include <iostream>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 #include <glad/glad.h>
+
 #include "PokemonConfigLoader.h"
 #include "GameConfig.h"
 #include "MovesConfigLoader.h"
+
 #include <cmath>
 #include <limits>
+#include <algorithm>
+
+static constexpr int kLoopAnimIndex = 1;
 
 void GameWorld::applyLevelScaling(PokemonInstance& inst, int level) const {
     const auto& cfg = GameConfig::get();
@@ -30,16 +37,25 @@ void GameWorld::applyLevelScaling(PokemonInstance& inst, int level) const {
 
 static const LoadoutEntry* pickLoadoutForLevel(const PokemonStats& ps, int level) {
     const LoadoutEntry* best = nullptr;
+
+    // loadoutByLevel is a map<int, LoadoutEntry> sorted by key
     for (const auto& [lvl, le] : ps.loadoutByLevel) {
         if (lvl <= level) best = &le;
         else break;
     }
+
     return best;
 }
 
 void GameWorld::applyLoadoutForLevel(PokemonInstance& inst) const {
     const PokemonStats* ps = PokemonConfigLoader::getInstance().getStats(inst.name);
-    if (!ps) return;
+    if (!ps) {
+        inst.fastMove.clear();
+        inst.chargedMove.clear();
+        inst.maxEnergy = 100;
+        inst.energy = 0;
+        return;
+    }
 
     const LoadoutEntry* le = pickLoadoutForLevel(*ps, inst.level);
     if (le) {
@@ -50,6 +66,7 @@ void GameWorld::applyLoadoutForLevel(PokemonInstance& inst) const {
         inst.chargedMove.clear();
     }
 
+    // Energy cap: default 100, but if charged move has an energyCost use that
     inst.maxEnergy = 100;
     if (!inst.chargedMove.empty()) {
         if (const auto* md = MovesConfigLoader::getInstance().getMove(inst.chargedMove)) {
@@ -63,6 +80,7 @@ void GameWorld::spawnPokemon(const std::string& pokemonName,
                              const glm::vec3& startPos,
                              PokemonSide side,
                              int level) {
+
     const PokemonStats* stats = PokemonConfigLoader::getInstance().getStats(pokemonName);
     if (!stats) {
         std::cerr << "[GameWorld] No config found for Pokémon: " << pokemonName << "\n";
@@ -75,8 +93,11 @@ void GameWorld::spawnPokemon(const std::string& pokemonName,
     PokemonInstance inst;
     inst.id = PokemonInstance::getNextUnitID();
     inst.name = pokemonName;
-    inst.model = sharedModel;
     inst.position = startPos;
+    inst.model = sharedModel;
+
+    // ✅ FIX: restore expected facing direction
+    // Player = 180, Enemy = 0 (matches earlier behavior)
     inst.rotation = glm::vec3(0.0f, (side == PokemonSide::Player ? 180.0f : 0.0f), 0.0f);
     inst.side = side;
 
@@ -87,7 +108,6 @@ void GameWorld::spawnPokemon(const std::string& pokemonName,
     applyLevelScaling(inst, level);
     applyLoadoutForLevel(inst);
 
-    // NEW: start anim timer at 0
     inst.animTimeSec = 0.0f;
 
     pokemons.push_back(inst);
@@ -132,6 +152,8 @@ void GameWorld::addToBench(const std::string& pokemonName) {
     inst.id = PokemonInstance::getNextUnitID();
     inst.name = pokemonName;
     inst.model = sharedModel;
+
+    // Bench stays facing same as before
     inst.rotation = glm::vec3(0.0f, 180.0f, 0.0f);
     inst.side = PokemonSide::Player;
 
@@ -170,12 +192,8 @@ const PokemonInstance* GameWorld::getPokemonByName(const std::string& name) cons
 std::vector<PokemonInstance>& GameWorld::getPokemons() { return pokemons; }
 std::vector<PokemonInstance>& GameWorld::getBenchPokemons() { return benchPokemons; }
 
-// NEW: update per-instance animation clocks
 void GameWorld::update(float dt)
 {
-    // loop clip index 1 (2nd animation) if present; safe if missing
-    constexpr int kLoopAnimIndex = 1;
-
     auto tickList = [&](std::vector<PokemonInstance>& list) {
         for (auto& p : list) {
             if (!p.alive || !p.model) continue;
@@ -183,7 +201,6 @@ void GameWorld::update(float dt)
             float dur = p.model->getAnimationDurationSec(kLoopAnimIndex);
             p.animTimeSec += dt;
 
-            // If duration known, wrap; else keep accumulating (drawAnimated will clamp safely)
             if (dur > 0.0f && p.animTimeSec > dur) {
                 p.animTimeSec = std::fmod(p.animTimeSec, dur);
             }
@@ -192,19 +209,21 @@ void GameWorld::update(float dt)
 
     tickList(pokemons);
     tickList(benchPokemons);
+
+    // tail fire particle update
+    charmanderTailFireVfx.update(dt, pokemons, benchPokemons);
 }
 
 void GameWorld::drawAll(const Camera3D& camera, BoardRenderer& boardRenderer) {
     boardRenderer.draw(camera);
     boardRenderer.drawBench(camera);
 
-    constexpr int kLoopAnimIndex = 1;
-
     auto drawPokemonList = [&](const std::vector<PokemonInstance>& list) {
-        for (auto& instance : list) {
+        for (const auto& instance : list) {
             if (!instance.alive || !instance.model) continue;
 
             float scaleFactor = instance.model->getScaleFactor();
+
             glm::mat4 scale = glm::scale(glm::mat4(1.0f), glm::vec3(scaleFactor));
             glm::mat4 rotationX = glm::rotate(glm::mat4(1.0f), glm::radians(instance.rotation.x), glm::vec3(1, 0, 0));
             glm::mat4 rotationY = glm::rotate(glm::mat4(1.0f), glm::radians(instance.rotation.y), glm::vec3(0, 1, 0));
@@ -213,13 +232,15 @@ void GameWorld::drawAll(const Camera3D& camera, BoardRenderer& boardRenderer) {
 
             glm::mat4 instanceTransform = translation * rotationY * rotationX * rotationZ * scale;
 
-            // NEW: animated draw (falls back to static safely)
             instance.model->drawAnimated(camera, instanceTransform, instance.animTimeSec, kLoopAnimIndex);
         }
     };
 
     drawPokemonList(pokemons);
     drawPokemonList(benchPokemons);
+
+    // draw particles AFTER opaque models
+    charmanderTailFireVfx.render(camera);
 }
 
 std::vector<HealthBarData> GameWorld::getHealthBarData(const Camera3D& camera, int screenWidth, int screenHeight) const {
@@ -254,11 +275,14 @@ glm::vec3 GameWorld::getNearestEnemyPosition(const PokemonInstance& unit) const 
     float closestDist = std::numeric_limits<float>::max();
     glm::vec3 closestPos = unit.position;
 
-    const auto& list = pokemons;
-    for (const auto& other : list) {
+    for (const auto& other : pokemons) {
         if (!other.alive || other.side == unit.side) continue;
         float d = glm::distance(unit.position, other.position);
-        if (d < closestDist) { closestDist = d; closestPos = other.position; }
+        if (d < closestDist) {
+            closestDist = d;
+            closestPos = other.position;
+        }
     }
+
     return closestPos;
 }

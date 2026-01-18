@@ -1,10 +1,15 @@
 // src/game/GameWorld.h
 #pragma once
+
 #include <vector>
 #include <string>
 #include <glm/glm.hpp>
+
 #include "PokemonInstance.h"
-#include "../engine/ui/HealthBarData.h"
+#include "./engine/ui/HealthBarData.h"
+
+// NEW: Charmander tail fire particle VFX
+#include "vfx/CharmanderTailFireVFX.h"
 
 class Camera3D;
 class BoardRenderer;
@@ -21,7 +26,7 @@ public:
                             PokemonSide side = PokemonSide::Player,
                             int level = -1);
 
-    // NEW: advance movement interpolation (if you add it later) + animation clocks
+    // Advances animation clocks + VFX emitters
     void update(float dt);
 
     void drawAll(const Camera3D& camera, BoardRenderer& boardRenderer);
@@ -44,4 +49,8 @@ private:
 
     void applyLevelScaling(PokemonInstance& inst, int level) const;
     void applyLoadoutForLevel(PokemonInstance& inst) const;
+
+private:
+    // Tail fire particles (drawn after opaque models)
+    CharmanderTailFireVFX charmanderTailFireVfx;
 };

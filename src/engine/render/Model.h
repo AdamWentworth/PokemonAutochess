@@ -47,6 +47,14 @@ public:
 
     float getScaleFactor() const { return modelScaleFactor; }
 
+    // ✅ NEW: animated node global transform (MODEL SPACE)
+    // Use this to attach VFX to moving bones (tail flame, weapon trails, etc).
+    // Returns false if nodeIndex is invalid.
+    bool getNodeGlobalTransformByIndex(float animTimeSec,
+                                       int animIndex,
+                                       int nodeIndex,
+                                       glm::mat4& outNodeGlobal) const;
+
     // CPU-side texture blob for caching (always RGBA8)
     struct CPUTexture {
         uint32_t width = 1;
@@ -72,7 +80,7 @@ private:
     int locAlphaMode = -1;
     int locAlphaCutoff = -1;
 
-    // tonemap controls
+    // ✅ Added so Model.cpp can compile if it references these
     int locTonemapMode = -1;
     int locExposure    = -1;
 
