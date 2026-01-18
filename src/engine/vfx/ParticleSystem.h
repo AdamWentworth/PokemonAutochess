@@ -3,6 +3,7 @@
 
 #include <vector>
 #include <memory>
+#include <string>   // FIX: needed for std::string
 #include <glm/glm.hpp>
 
 class Shader;
@@ -38,6 +39,16 @@ public:
 
     void setPointScale(float s) { pointScale = s; }
 
+    // Flipbook config (call if you want to override defaults)
+    void setFlipbook(const std::string& texturePath, int cols, int rows, int frames, float fps) {
+        flipbookPath = texturePath;
+        flipbookCols = cols;
+        flipbookRows = rows;
+        flipbookFrames = frames;
+        flipbookFps = fps;
+        flipbookDirty = true; // reload on next init()
+    }
+
 private:
     struct GPUParticle {
         glm::vec3 pos;
@@ -58,7 +69,17 @@ private:
     std::vector<GPUParticle> gpuBuffer;
 
     float timeSec = 0.0f;
+    float pointScale = 220.0f;
 
-    // MUCH smaller than before
-    float pointScale = 40.0f;
+    // Flipbook texture
+    unsigned int flipbookTex = 0;
+    std::string flipbookPath = "assets/textures/fire_flipbook_8x5.png"; // change if needed
+    int   flipbookCols = 8;
+    int   flipbookRows = 5;
+    int   flipbookFrames = 40;
+    float flipbookFps = 30.0f;
+    bool  flipbookDirty = true;
+
+private:
+    void ensureFlipbookLoaded();
 };

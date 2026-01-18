@@ -3,6 +3,7 @@
 
 #include <vector>
 #include <unordered_map>
+#include <string>   // FIX: for std::string
 #include <glm/glm.hpp>
 #include "../PokemonInstance.h"
 #include "engine/vfx/ParticleSystem.h"
@@ -34,11 +35,11 @@ private:
 
     // Tunables
     float emitRatePerSec = 120.0f; // particles/sec per Charmander
-    float spawnRadius = 0.022f;    // slightly tighter origin
+    float spawnRadius = 0.010f;    // tighter origin helps look like one flame
 
     // Tail node (tail_06) for your current Charmander GLTF
     int tailTipNodeIndex = 45;
 
-    // ✅ Raised a bit (was -0.14f). Less negative = higher.
-    float tailWorldYOffset = -0.10f;
+    // Raise/lower relative to the tail tip node
+    float tailWorldYOffset = 0.02f;
 };

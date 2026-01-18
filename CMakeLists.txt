@@ -148,33 +148,21 @@ target_link_libraries(PokemonAutochess PRIVATE
 
 pac_apply_common_target_settings(PokemonAutochess)
 
-# ---------------- Assets (shaders) ----------------
-set(_shader_out_dir "${CMAKE_CURRENT_BINARY_DIR}/engine/render")
-file(MAKE_DIRECTORY "${_shader_out_dir}")
-
-set(_shader_files
-    assets/shaders/engine/default.vert
-    assets/shaders/engine/default.frag
-    assets/shaders/engine/grid.vert
-    assets/shaders/engine/grid.frag
-    assets/shaders/model/model.vert
-    assets/shaders/model/model.frag
-    assets/shaders/ui/card.vert
-    assets/shaders/ui/card.frag
-    assets/shaders/ui/text.vert
-    assets/shaders/ui/text.frag
-    assets/shaders/ui/healthbar.vert
-    assets/shaders/ui/healthbar.frag
-
-    # VFX shaders (NEW)
-    assets/shaders/vfx/particle.vert
-    assets/shaders/vfx/particle.frag
+# ---------------- Assets (runtime copy) ----------------
+# IMPORTANT:
+# The old approach copied shaders at CMake *configure time* only, so edits to shader files
+# would not show up unless you reconfigured CMake. :contentReference[oaicite:1]{index=1}
+#
+# This copies the entire assets/ folder into the build directory *every build* so the
+# executable can be run from the build folder and always see your latest shaders/textures.
+add_custom_target(PAC_CopyAssets ALL
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+            "${CMAKE_SOURCE_DIR}/assets"
+            "${CMAKE_CURRENT_BINARY_DIR}/assets"
+    COMMENT "Copying assets/ to build directory"
 )
 
-foreach(_f IN LISTS _shader_files)
-    # Copy at configure time; if you want it at build time, switch to add_custom_command.
-    file(COPY "${_f}" DESTINATION "${_shader_out_dir}")
-endforeach()
+add_dependencies(PokemonAutochess PAC_CopyAssets)
 
 # Windows entrypoint
 if (WIN32)

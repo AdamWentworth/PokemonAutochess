@@ -99,3 +99,11 @@ void Shader::setUniform(const std::string &name, const glm::mat4 &matrix) const 
 void Shader::setUniform(const std::string &name, const glm::vec3 &vec) const {
     glUniform3f(getUniformLocation(name), vec.x, vec.y, vec.z);
 }
+
+void Shader::setUniform(const std::string &name, int value) const {
+    glUniform1i(getUniformLocation(name), value);
+}
+
+void Shader::setUniform(const std::string &name, const glm::vec2 &vec) const {
+    glUniform2f(getUniformLocation(name), vec.x, vec.y);
+}

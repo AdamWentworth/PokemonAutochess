@@ -17,10 +17,11 @@ void main() {
 
     float invW = 1.0 / max(0.0001, clip.w);
 
-    // IMPORTANT:
-    // Clamp the sprite size so it cannot take over the screen.
+    // Convert "aSizePx" (your world-size scalar) into screen pixels.
     float px = aSizePx * u_PointScale * invW;
-    gl_PointSize = clamp(px, 2.0, 28.0);
+
+    // OLD was 28px max; that makes the flipbook look tiny.
+    gl_PointSize = clamp(px, 2.0, 128.0);
 
     vAge01 = aAge01;
     vSeed  = aSeed;

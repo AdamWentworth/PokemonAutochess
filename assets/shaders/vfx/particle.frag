@@ -8,76 +8,40 @@ out vec4 FragColor;
 
 uniform float u_Time;
 
-float smooth01(float a, float b, float x) {
-    return smoothstep(a, b, x);
-}
+// Flipbook
+uniform sampler2D u_Flipbook;
+uniform vec2  u_FlipbookGrid;   // (cols, rows)
+uniform float u_FrameCount;     // e.g. 40
+uniform float u_Fps;            // e.g. 30
 
-void main() {
-    // point coord -> [-1..1]
-    vec2 p = gl_PointCoord * 2.0 - 1.0;
-
-    // vertical 0..1 (0=bottom, 1=top)
-    float t = clamp((p.y + 1.0) * 0.5, 0.0, 1.0);
-
-    // small side wobble (anime-style flame motion)
-    float wobble = 0.10 * sin(u_Time * 10.0 + vSeed * 19.0 + t * 6.0);
-    p.x += wobble * (1.0 - t);
-
-    // ---- Anime teardrop profile ----
-    // thin base -> expand quickly -> tighten tip
-    float expand = smooth01(0.04, 0.28, t);                 // fast growth
-    float tighten = smooth01(0.65, 1.00, t);                // tight tip
-
-    // base radius starts tiny
-    float rBase = 0.06;
-    // belly gets big quickly
-    float rBelly = mix(rBase, 0.78, expand);
-    // tip tightens down
-    float radius = mix(rBelly, 0.18, tighten);
-
-    // extra pinch near very bottom (thin wick-like base)
-    radius *= mix(0.55, 1.0, smooth01(0.00, 0.20, t));
-
-    radius = max(radius, 0.03);
-
-    // normalized horizontal distance
-    float rx = abs(p.x) / radius;
-
-    // hard-ish silhouette with a soft edge (cartoon-ish)
-    float edge = 1.0 - smoothstep(0.88, 1.00, rx);
-
-    // clamp top/bottom so it doesn't fill the entire square
-    float yMask = smooth01(0.02, 0.08, t) * (1.0 - smooth01(0.98, 1.00, t));
-
-    float shape = edge * yMask;
-
+void main()
+{
     float age = clamp(vAge01, 0.0, 1.0);
 
-    // flicker
-    float flicker = 0.85 + 0.15 * sin(u_Time * 14.0 + vSeed * 23.0);
+    float f = floor(u_Time * u_Fps + vSeed * u_FrameCount);
+    float frame = mod(f, u_FrameCount);
 
-    // core intensity (brighter center)
-    float core = pow(clamp(edge, 0.0, 1.0), 1.6);
+    float cols = u_FlipbookGrid.x;
+    float rows = u_FlipbookGrid.y;
 
-    // ---- Color: more orange/red, less pure yellow ----
-    vec3 inner = vec3(1.00, 0.85, 0.35);  // warm yellow/orange
-    vec3 mid   = vec3(1.00, 0.45, 0.12);  // orange
-    vec3 outer = vec3(0.95, 0.14, 0.06);  // red
+    float col = mod(frame, cols);
+    float rowFromTop = floor(frame / cols);
 
-    // along height: bottom warmer/yellow, top redder
-    vec3 heightCol = mix(inner, mid, smooth01(0.15, 0.55, t));
-    heightCol = mix(heightCol, outer, smooth01(0.60, 1.00, t));
+    // Frame 0 is assumed to be in the TOP row of the atlas.
+    // OpenGL UV v=0 is bottom, so invert the row index.
+    float row = (rows - 1.0) - rowFromTop;
 
-    // over lifetime: gets redder as it fades
-    vec3 lifeCol = mix(heightCol, outer, pow(age, 0.8));
+    // FIX: flip the per-sprite Y so the flame in each cell is upright.
+    vec2 local = gl_PointCoord;
+    local.y = 1.0 - local.y;
 
-    // bring back a bright core (but not too yellow)
-    vec3 col = mix(lifeCol, inner, core * 0.45);
+    vec2 cellUV = (vec2(col, row) + local) / vec2(cols, rows);
+    vec4 tex = texture(u_Flipbook, cellUV);
 
-    // alpha falloff
-    float alpha = shape * (1.0 - age) * flicker;
+    tex.a *= (1.0 - age);
+    if (tex.a < 0.01) discard;
 
-    if (alpha < 0.01) discard;
+    tex.rgb = pow(clamp(tex.rgb, 0.0, 1.0), vec3(1.15));
 
-    FragColor = vec4(col, alpha);
+    FragColor = tex;
 }

@@ -1,17 +1,64 @@
 // src/engine/vfx/ParticleSystem.cpp
 #include "ParticleSystem.h"
 
-#include "../utils/ShaderLibrary.h"
-#include "../utils/Shader.h"
-#include "../render/Camera3D.h"
+#include "engine/utils/Shader.h"
+#include "engine/utils/ShaderLibrary.h"
+#include "engine/render/Camera3D.h"
 
-#include <glad/glad.h>
-#include <glm/gtc/matrix_transform.hpp>
 #include <algorithm>
 #include <cmath>
+#include <cstddef>
+
+#include <glad/glad.h>
+
+// IMPORTANT:
+// stb_image implementation is compiled in src/engine/utils/stb_image_impl.cpp.
+// Do NOT define STB_IMAGE_IMPLEMENTATION here.
+#include <stb_image.h>
+
+// Simple RGBA texture loader (no mipmaps)
+static unsigned int loadTextureRGBA(const std::string& path) {
+    int w = 0, h = 0, comp = 0;
+
+    // Your engine may already assume flipped textures; keep as-is if it looks correct.
+    stbi_set_flip_vertically_on_load(true);
+
+    unsigned char* data = stbi_load(path.c_str(), &w, &h, &comp, 4);
+    if (!data || w <= 0 || h <= 0) {
+        if (data) stbi_image_free(data);
+        return 0;
+    }
+
+    GLuint tex = 0;
+    glGenTextures(1, &tex);
+    glBindTexture(GL_TEXTURE_2D, tex);
+
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
+
+    stbi_image_free(data);
+    return tex;
+}
 
 ParticleSystem::~ParticleSystem() {
     shutdown();
+}
+
+void ParticleSystem::ensureFlipbookLoaded() {
+    if (!flipbookDirty && flipbookTex != 0) return;
+
+    if (flipbookTex) {
+        glDeleteTextures(1, &flipbookTex);
+        flipbookTex = 0;
+    }
+
+    flipbookTex = loadTextureRGBA(flipbookPath);
+    flipbookDirty = false;
 }
 
 void ParticleSystem::init() {
@@ -21,6 +68,8 @@ void ParticleSystem::init() {
         "assets/shaders/vfx/particle.vert",
         "assets/shaders/vfx/particle.frag"
     );
+
+    ensureFlipbookLoaded();
 
     glGenVertexArrays(1, &vao);
     glGenBuffers(1, &vbo);
@@ -50,6 +99,9 @@ void ParticleSystem::init() {
 
 void ParticleSystem::shutdown() {
     if (!initialized) return;
+
+    if (flipbookTex) glDeleteTextures(1, &flipbookTex);
+    flipbookTex = 0;
 
     if (vbo) glDeleteBuffers(1, &vbo);
     if (vao) glDeleteVertexArrays(1, &vao);
@@ -84,8 +136,8 @@ void ParticleSystem::update(float dt) {
             continue;
         }
 
-        // Fire rises
-        p.vel += glm::vec3(0.0f, 2.4f, 0.0f) * dt;
+        // Mild rise
+        p.vel += glm::vec3(0.0f, 1.2f, 0.0f) * dt;
 
         // Damping
         float damp = std::pow(0.07f, dt);
@@ -102,21 +154,18 @@ void ParticleSystem::render(const Camera3D& camera) {
     if (!shader || vao == 0) return;
     if (particles.empty()) return;
 
+    ensureFlipbookLoaded();
+    if (flipbookTex == 0) return;
+
     gpuBuffer.resize(particles.size());
     for (size_t i = 0; i < particles.size(); ++i) {
         const Particle& p = particles[i];
         float age01 = 1.0f - (p.lifeSec / std::max(0.0001f, p.maxLifeSec));
         age01 = std::clamp(age01, 0.0f, 1.0f);
 
-        gpuBuffer[i] = GPUParticle{
-            p.pos,
-            age01,
-            p.sizePx,
-            p.seed
-        };
+        gpuBuffer[i] = GPUParticle{ p.pos, age01, p.sizePx, p.seed };
     }
 
-    // Save GL state
     GLboolean wasBlend = glIsEnabled(GL_BLEND);
     GLboolean wasDepth = glIsEnabled(GL_DEPTH_TEST);
     GLboolean wasProgPoint = glIsEnabled(GL_PROGRAM_POINT_SIZE);
@@ -128,12 +177,13 @@ void ParticleSystem::render(const Camera3D& camera) {
     GLboolean prevDepthMask = GL_TRUE;
     glGetBooleanv(GL_DEPTH_WRITEMASK, &prevDepthMask);
 
-    // ✅ REQUIRED so vertex shader gl_PointSize is honored
     glEnable(GL_PROGRAM_POINT_SIZE);
 
-    // Additive blending
     glEnable(GL_BLEND);
-    glBlendFunc(GL_SRC_ALPHA, GL_ONE);
+
+    // FIX: additive blending makes bright flipbooks blow out to white.
+    // Use standard alpha blending for fire sprites.
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
     glEnable(GL_DEPTH_TEST);
     glDepthMask(GL_FALSE);
@@ -144,6 +194,14 @@ void ParticleSystem::render(const Camera3D& camera) {
     shader->setUniform("u_ViewProj", viewProj);
     shader->setUniform("u_Time", timeSec);
     shader->setUniform("u_PointScale", pointScale);
+
+    shader->setUniform("u_Flipbook", 0);
+    shader->setUniform("u_FlipbookGrid", glm::vec2((float)flipbookCols, (float)flipbookRows));
+    shader->setUniform("u_FrameCount", (float)flipbookFrames);
+    shader->setUniform("u_Fps", flipbookFps);
+
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, flipbookTex);
 
     glBindVertexArray(vao);
     glBindBuffer(GL_ARRAY_BUFFER, vbo);
@@ -157,7 +215,6 @@ void ParticleSystem::render(const Camera3D& camera) {
     glBindBuffer(GL_ARRAY_BUFFER, 0);
     glBindVertexArray(0);
 
-    // Restore state
     glDepthMask(prevDepthMask);
 
     if (!wasDepth) glDisable(GL_DEPTH_TEST);

@@ -48,6 +48,10 @@ void CharmanderTailFireVFX::update(float dt,
                                    const std::vector<PokemonInstance>& boardUnits,
                                    const std::vector<PokemonInstance>& benchUnits)
 {
+    // Make particles visually larger at typical camera distances.
+    // If it becomes too big after shader clamp increase, lower this first.
+    particles.setPointScale(1200.0f);
+
     particles.update(dt);
     emitForList(dt, boardUnits);
     emitForList(dt, benchUnits);
@@ -83,6 +87,8 @@ void CharmanderTailFireVFX::emitForList(float dt, const std::vector<PokemonInsta
         // push down/up to hug the tail tip visually
         tailWorld.y += tailWorldYOffset;
 
+        float scaleFactor = u.model ? u.model->getScaleFactor() : 1.0f;
+
         for (int i = 0; i < spawnCount; ++i) {
             float base = (float)u.id * 1000.0f + (float)i * 17.0f;
 
@@ -93,18 +99,23 @@ void CharmanderTailFireVFX::emitForList(float dt, const std::vector<PokemonInsta
             ParticleSystem::Particle p;
             p.pos = tailWorld + glm::vec3(rx, ry, rz);
 
-            float side = 0.26f;
+            // Keep a single cohesive flame (very small sideways drift)
+            float side = 0.03f;
             p.vel = glm::vec3(
                 hashSigned(base + 4.0f) * side,
-                0.55f + hash01(base + 5.0f) * 0.80f,
+                0.02f + hash01(base + 5.0f) * 0.06f,
                 hashSigned(base + 6.0f) * side
             );
 
-            p.maxLifeSec = 0.28f + hash01(base + 7.0f) * 0.24f;
+            // short life so it doesn't travel far from the tail tip
+            p.maxLifeSec = 0.10f + hash01(base + 7.0f) * 0.06f;
             p.lifeSec = p.maxLifeSec;
 
-            // ✅ Smaller again (was 3.5..7.0, then 2.0..4.0-ish)
-            p.sizePx = 2.0f + hash01(base + 8.0f) * 2.0f; // 2.0..4.0
+            // Bigger flame sprite:
+            // Old: 0.085 / 0.035. This was tiny and also got capped by shader at 28px.
+            float sizeBase = 0.22f * scaleFactor;
+            float sizeJit  = 0.10f * scaleFactor;
+            p.sizePx = sizeBase + hash01(base + 8.0f) * sizeJit;
 
             p.seed = hash01(base + 9.0f);
 
