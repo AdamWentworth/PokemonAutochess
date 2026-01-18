@@ -296,14 +296,14 @@ void Application::run() {
                 case SDL_MOUSEBUTTONDOWN: {
                     int mx = scaledMouseX(event.button.x, mouseScaleX);
                     int my = scaledMouseY(event.button.y, mouseScaleY);
-                    MouseButtonDownEvent mbe(mx, my);
+                    MouseButtonDownEvent mbe(mx, my, event.button.button);
                     EventManager::getInstance().emit(mbe);
                     break;
                 }
                 case SDL_MOUSEBUTTONUP: {
                     int mx = scaledMouseX(event.button.x, mouseScaleX);
                     int my = scaledMouseY(event.button.y, mouseScaleY);
-                    MouseButtonUpEvent mue(mx, my);
+                    MouseButtonUpEvent mue(mx, my, event.button.button);
                     EventManager::getInstance().emit(mue);
                     break;
                 }

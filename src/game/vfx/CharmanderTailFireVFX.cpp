@@ -48,9 +48,11 @@ void CharmanderTailFireVFX::update(float dt,
                                    const std::vector<PokemonInstance>& boardUnits,
                                    const std::vector<PokemonInstance>& benchUnits)
 {
-    // Make particles visually larger at typical camera distances.
-    // If it becomes too big after shader clamp increase, lower this first.
-    particles.setPointScale(1200.0f);
+    // Tune for your camera distance.
+    particles.setPointScale(1400.0f);
+
+    // Optional: if you use a different atlas, set it here.
+    // particles.setFlipbook("assets/textures/fire_flipbook_8x5.png", 8, 5, 40, 30.0f);
 
     particles.update(dt);
     emitForList(dt, boardUnits);
@@ -77,20 +79,26 @@ void CharmanderTailFireVFX::emitForList(float dt, const std::vector<PokemonInsta
         glm::mat4 tailNodeGlobal(1.0f);
         glm::vec3 tailWorld(0.0f);
 
-        if (u.model->getNodeGlobalTransformByIndex(u.animTimeSec, kLoopAnimIndex, tailTipNodeIndex, tailNodeGlobal)) {
+        const float animTimeSec = u.animTimeSec;
+
+        // IMPORTANT FIX:
+        // Use Model::getNodeGlobalTransformByIndex(...) (this exists in Model). :contentReference[oaicite:1]{index=1}
+        if (u.model->getNodeGlobalTransformByIndex(animTimeSec, kLoopAnimIndex, tailTipNodeIndex, tailNodeGlobal)) {
             tailWorld = glm::vec3(instM * tailNodeGlobal * glm::vec4(0, 0, 0, 1));
         } else {
             // fallback (static approximation)
             tailWorld = glm::vec3(instM * glm::vec4(0.0f, 0.78f, -0.38f, 1.0f));
         }
 
-        // push down/up to hug the tail tip visually
         tailWorld.y += tailWorldYOffset;
 
         float scaleFactor = u.model ? u.model->getScaleFactor() : 1.0f;
 
         for (int i = 0; i < spawnCount; ++i) {
-            float base = (float)u.id * 1000.0f + (float)i * 17.0f;
+            // include time so spawns don't "freeze" when spawnCount is stable
+            float base = (float)u.id * 1000.0f
+                       + (float)i * 17.0f
+                       + (float)std::floor(animTimeSec * 60.0f);
 
             float rx = hashSigned(base + 1.0f) * spawnRadius;
             float ry = hash01(base + 2.0f) * spawnRadius * 0.35f;
@@ -99,20 +107,19 @@ void CharmanderTailFireVFX::emitForList(float dt, const std::vector<PokemonInsta
             ParticleSystem::Particle p;
             p.pos = tailWorld + glm::vec3(rx, ry, rz);
 
-            // Keep a single cohesive flame (very small sideways drift)
+            // Cohesive flame: slight sideways drift + upward motion
             float side = 0.03f;
             p.vel = glm::vec3(
                 hashSigned(base + 4.0f) * side,
-                0.02f + hash01(base + 5.0f) * 0.06f,
+                0.02f + hash01(base + 5.0f) * 0.07f,
                 hashSigned(base + 6.0f) * side
             );
 
             // short life so it doesn't travel far from the tail tip
-            p.maxLifeSec = 0.10f + hash01(base + 7.0f) * 0.06f;
+            p.maxLifeSec = 0.10f + hash01(base + 7.0f) * 0.07f;
             p.lifeSec = p.maxLifeSec;
 
-            // Bigger flame sprite:
-            // Old: 0.085 / 0.035. This was tiny and also got capped by shader at 28px.
+            // Size scalar -> pixels via ParticleSystem pointScale
             float sizeBase = 0.22f * scaleFactor;
             float sizeJit  = 0.10f * scaleFactor;
             p.sizePx = sizeBase + hash01(base + 8.0f) * sizeJit;

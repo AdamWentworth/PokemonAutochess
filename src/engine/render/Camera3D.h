@@ -15,6 +15,11 @@ public:
     void move(const glm::vec3& delta);       // NEW
     void zoom(float delta);                  // NEW
 
+    // NEW: orbit camera position around its current target
+    // yawDeltaRad: rotate around world up (Y)
+    // pitchDeltaRad: rotate up/down
+    void orbit(float yawDeltaRad, float pitchDeltaRad);
+
     glm::mat4 getViewMatrix() const;
     glm::mat4 getProjectionMatrix() const;
     glm::vec3 getDirection() const;

@@ -17,12 +17,12 @@ void main() {
 
     float invW = 1.0 / max(0.0001, clip.w);
 
-    // Convert "aSizePx" (your world-size scalar) into screen pixels.
+    // Convert "aSizePx" (world-ish scalar) into screen pixels.
     float px = aSizePx * u_PointScale * invW;
 
-    // OLD was 28px max; that makes the flipbook look tiny.
-    gl_PointSize = clamp(px, 2.0, 128.0);
+    // Fire needs larger sprites to look volumetric.
+    gl_PointSize = clamp(px, 3.0, 160.0);
 
-    vAge01 = aAge01;
+    vAge01 = clamp(aAge01, 0.0, 1.0);
     vSeed  = aSeed;
 }

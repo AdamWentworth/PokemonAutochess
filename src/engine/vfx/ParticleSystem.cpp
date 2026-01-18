@@ -11,16 +11,14 @@
 
 #include <glad/glad.h>
 
-// IMPORTANT:
 // stb_image implementation is compiled in src/engine/utils/stb_image_impl.cpp.
-// Do NOT define STB_IMAGE_IMPLEMENTATION here.
 #include <stb_image.h>
 
 // Simple RGBA texture loader (no mipmaps)
 static unsigned int loadTextureRGBA(const std::string& path) {
     int w = 0, h = 0, comp = 0;
 
-    // Your engine may already assume flipped textures; keep as-is if it looks correct.
+    // Keep consistent with your current engine expectations.
     stbi_set_flip_vertically_on_load(true);
 
     unsigned char* data = stbi_load(path.c_str(), &w, &h, &comp, 4);
@@ -77,6 +75,7 @@ void ParticleSystem::init() {
     glBindVertexArray(vao);
     glBindBuffer(GL_ARRAY_BUFFER, vbo);
 
+    // Stream buffer; size grows via glBufferData each frame in render()
     glBufferData(GL_ARRAY_BUFFER, 1024 * sizeof(GPUParticle), nullptr, GL_STREAM_DRAW);
 
     glEnableVertexAttribArray(0);
@@ -136,10 +135,9 @@ void ParticleSystem::update(float dt) {
             continue;
         }
 
-        // Mild rise
+        // Fire feel: rise + damping
         p.vel += glm::vec3(0.0f, 1.2f, 0.0f) * dt;
 
-        // Damping
         float damp = std::pow(0.07f, dt);
         p.vel *= damp;
 
@@ -157,33 +155,42 @@ void ParticleSystem::render(const Camera3D& camera) {
     ensureFlipbookLoaded();
     if (flipbookTex == 0) return;
 
+    // Build GPU buffer
     gpuBuffer.resize(particles.size());
     for (size_t i = 0; i < particles.size(); ++i) {
         const Particle& p = particles[i];
+
         float age01 = 1.0f - (p.lifeSec / std::max(0.0001f, p.maxLifeSec));
         age01 = std::clamp(age01, 0.0f, 1.0f);
 
         gpuBuffer[i] = GPUParticle{ p.pos, age01, p.sizePx, p.seed };
     }
 
+    // Save GL state
     GLboolean wasBlend = glIsEnabled(GL_BLEND);
     GLboolean wasDepth = glIsEnabled(GL_DEPTH_TEST);
     GLboolean wasProgPoint = glIsEnabled(GL_PROGRAM_POINT_SIZE);
 
-    GLint prevBlendSrcRGB = 0, prevBlendDstRGB = 0;
+    GLint prevBlendSrcRGB = 0, prevBlendDstRGB = 0, prevBlendSrcA = 0, prevBlendDstA = 0;
     glGetIntegerv(GL_BLEND_SRC_RGB, &prevBlendSrcRGB);
     glGetIntegerv(GL_BLEND_DST_RGB, &prevBlendDstRGB);
+    glGetIntegerv(GL_BLEND_SRC_ALPHA, &prevBlendSrcA);
+    glGetIntegerv(GL_BLEND_DST_ALPHA, &prevBlendDstA);
+
+    GLint prevBlendEqRGB = 0, prevBlendEqA = 0;
+    glGetIntegerv(GL_BLEND_EQUATION_RGB, &prevBlendEqRGB);
+    glGetIntegerv(GL_BLEND_EQUATION_ALPHA, &prevBlendEqA);
 
     GLboolean prevDepthMask = GL_TRUE;
     glGetBooleanv(GL_DEPTH_WRITEMASK, &prevDepthMask);
 
+    // Fire rendering states
     glEnable(GL_PROGRAM_POINT_SIZE);
-
     glEnable(GL_BLEND);
 
-    // FIX: additive blending makes bright flipbooks blow out to white.
-    // Use standard alpha blending for fire sprites.
-    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    // Additive fire (bright core, no muddy dark edges)
+    glBlendEquationSeparate(GL_FUNC_ADD, GL_FUNC_ADD);
+    glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE, GL_ONE, GL_ONE);
 
     glEnable(GL_DEPTH_TEST);
     glDepthMask(GL_FALSE);
@@ -205,8 +212,9 @@ void ParticleSystem::render(const Camera3D& camera) {
 
     glBindVertexArray(vao);
     glBindBuffer(GL_ARRAY_BUFFER, vbo);
+
     glBufferData(GL_ARRAY_BUFFER,
-                 gpuBuffer.size() * sizeof(GPUParticle),
+                 (GLsizeiptr)(gpuBuffer.size() * sizeof(GPUParticle)),
                  gpuBuffer.data(),
                  GL_STREAM_DRAW);
 
@@ -215,11 +223,14 @@ void ParticleSystem::render(const Camera3D& camera) {
     glBindBuffer(GL_ARRAY_BUFFER, 0);
     glBindVertexArray(0);
 
+    // Restore GL state
     glDepthMask(prevDepthMask);
 
     if (!wasDepth) glDisable(GL_DEPTH_TEST);
+
     if (!wasBlend) glDisable(GL_BLEND);
-    glBlendFunc(prevBlendSrcRGB, prevBlendDstRGB);
+    glBlendEquationSeparate(prevBlendEqRGB, prevBlendEqA);
+    glBlendFuncSeparate(prevBlendSrcRGB, prevBlendDstRGB, prevBlendSrcA, prevBlendDstA);
 
     if (!wasProgPoint) glDisable(GL_PROGRAM_POINT_SIZE);
 }

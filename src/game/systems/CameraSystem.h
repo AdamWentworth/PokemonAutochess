@@ -1,8 +1,8 @@
 // CameraSystem.h
 
 #pragma once
-#include "../../engine/render/Camera3D.h"
-#include "../../engine/core/IUpdatable.h"
+#include "././engine/render/Camera3D.h"
+#include "././engine/core/IUpdatable.h"
 #include <SDL2/SDL.h>
 #include <sol/sol.hpp>
 
@@ -16,8 +16,8 @@ public:
     void handleZoom(const SDL_Event& event);
 
     // Event relays (wire these via your EventManager or input layer)
-    void onMouseDown(int x, int y);
-    void onMouseUp(int x, int y);
+    void onMouseDown(int x, int y, int button);
+    void onMouseUp  (int x, int y, int button);
     void onMouseMove(int x, int y);
     void onMouseWheel(int wheelY);
 

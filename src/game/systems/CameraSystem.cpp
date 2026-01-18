@@ -1,8 +1,8 @@
 // CameraSystem.cpp
 
 #include "CameraSystem.h"
-#include "../../engine/events/EventManager.h"
-#include "../../engine/events/Event.h"
+#include "././engine/events/EventManager.h"
+#include "././engine/events/Event.h"
 #include <iostream>
 
 static const char* kCameraLua = "scripts/systems/camera.lua";
@@ -20,6 +20,9 @@ CameraSystem::CameraSystem(Camera3D* cam)
     lua.set_function("cam_zoom", [this](float delta){
         camera->zoom(delta);
     });
+    lua.set_function("cam_orbit", [this](float yawDeltaRad, float pitchDeltaRad){
+        camera->orbit(yawDeltaRad, pitchDeltaRad);
+    });
 
     loadScript();
 
@@ -27,13 +30,13 @@ CameraSystem::CameraSystem(Camera3D* cam)
     EventManager::getInstance().subscribe(EventType::MouseButtonDown,
         [this](const Event& e){
             const auto& ev = static_cast<const MouseButtonDownEvent&>(e);
-            onMouseDown(ev.getX(), ev.getY());
+            onMouseDown(ev.getX(), ev.getY(), (int)ev.getButton());
         });
 
     EventManager::getInstance().subscribe(EventType::MouseButtonUp,
         [this](const Event& e){
             const auto& ev = static_cast<const MouseButtonUpEvent&>(e);
-            onMouseUp(ev.getX(), ev.getY());
+            onMouseUp(ev.getX(), ev.getY(), (int)ev.getButton());
         });
 
     EventManager::getInstance().subscribe(EventType::MouseMoved,
@@ -83,7 +86,22 @@ void CameraSystem::handleZoom(const SDL_Event& event) {
     if (event.type == SDL_MOUSEWHEEL) onMouseWheel(event.wheel.y);
 }
 
-void CameraSystem::onMouseDown(int x, int y) { if (ok) if (auto f = lua["camera_mouse_down"]; f.valid()) f(x,y); }
-void CameraSystem::onMouseUp  (int x, int y) { if (ok) if (auto f = lua["camera_mouse_up"  ]; f.valid()) f(x,y); }
-void CameraSystem::onMouseMove(int x, int y) { if (ok) if (auto f = lua["camera_mouse_move"]; f.valid()) f(x,y); }
-void CameraSystem::onMouseWheel(int wy)      { if (ok) if (auto f = lua["camera_mouse_wheel"]; f.valid()) f(wy); }
+void CameraSystem::onMouseDown(int x, int y, int button) {
+    if (!ok) return;
+    if (auto f = lua["camera_mouse_down"]; f.valid()) f(x, y, button);
+}
+
+void CameraSystem::onMouseUp(int x, int y, int button) {
+    if (!ok) return;
+    if (auto f = lua["camera_mouse_up"]; f.valid()) f(x, y, button);
+}
+
+void CameraSystem::onMouseMove(int x, int y) {
+    if (!ok) return;
+    if (auto f = lua["camera_mouse_move"]; f.valid()) f(x, y);
+}
+
+void CameraSystem::onMouseWheel(int wy) {
+    if (!ok) return;
+    if (auto f = lua["camera_mouse_wheel"]; f.valid()) f(wy);
+}

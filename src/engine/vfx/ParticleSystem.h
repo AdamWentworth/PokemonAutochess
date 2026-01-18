@@ -3,7 +3,7 @@
 
 #include <vector>
 #include <memory>
-#include <string>   // FIX: needed for std::string
+#include <string>
 #include <glm/glm.hpp>
 
 class Shader;
@@ -18,7 +18,10 @@ public:
         float lifeSec = 0.0f;
         float maxLifeSec = 0.0f;
 
+        // Interpreted as a "world-ish" size scalar that gets turned into pixels via u_PointScale.
         float sizePx = 24.0f;
+
+        // 0..1 random seed per particle
         float seed = 0.0f;
     };
 
@@ -46,7 +49,7 @@ public:
         flipbookRows = rows;
         flipbookFrames = frames;
         flipbookFps = fps;
-        flipbookDirty = true; // reload on next init()
+        flipbookDirty = true;
     }
 
 private:
@@ -73,7 +76,7 @@ private:
 
     // Flipbook texture
     unsigned int flipbookTex = 0;
-    std::string flipbookPath = "assets/textures/fire_flipbook_8x5.png"; // change if needed
+    std::string flipbookPath = "assets/textures/fire_flipbook_8x5.png";
     int   flipbookCols = 8;
     int   flipbookRows = 5;
     int   flipbookFrames = 40;
