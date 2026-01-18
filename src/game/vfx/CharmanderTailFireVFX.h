@@ -11,7 +11,6 @@
 
 class Camera3D;
 
-// Charmander-specific tail fire emitter using ParticleSystem.
 class CharmanderTailFireVFX {
 public:
     CharmanderTailFireVFX() = default;
@@ -31,16 +30,16 @@ private:
 private:
     ParticleSystem particles;
 
-    // per-unit accumulator so emission is stable regardless of FPS
     std::unordered_map<int, float> emitAccumulator;
+    std::unordered_map<int, uint32_t> spawnSerial;
 
-    // Tunables
-    float emitRatePerSec = 160.0f; // a bit denser for a cohesive flame
+    // CHANGED: less overdraw (was ~160)
+    float emitRatePerSec = 90.0f;
+
     float spawnRadius = 0.010f;
 
-    // Tail node (tail_06) for your current Charmander GLTF
     int tailTipNodeIndex = 45;
 
-    // Raise/lower relative to the tail tip node
-    float tailWorldYOffset = 0.02f;
+    // keep your tuned offset
+    float tailWorldYOffset = 0.2f;
 };
