@@ -141,10 +141,18 @@ Model::Model(const std::string& filepath)
     locAlphaMode      = glGetUniformLocation(modelShader->getID(), "u_AlphaMode");
     locAlphaCutoff    = glGetUniformLocation(modelShader->getID(), "u_AlphaCutoff");
 
+    // tone mapping uniforms
+    locTonemapMode   = glGetUniformLocation(modelShader->getID(), "u_TonemapMode");
+    locExposure      = glGetUniformLocation(modelShader->getID(), "u_Exposure");
+
     // bind samplers to fixed texture units once
     modelShader->use();
     if (locBaseColorTex >= 0) glUniform1i(locBaseColorTex, 0);
     if (locEmissiveTex  >= 0) glUniform1i(locEmissiveTex, 1);
+
+    // default: ACES filmic tone mapping to match common glTF viewers
+    if (locTonemapMode >= 0) glUniform1i(locTonemapMode, 1);
+    if (locExposure    >= 0) glUniform1f(locExposure, 1.0f);
 }
 
 Model::~Model()

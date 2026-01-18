@@ -64,7 +64,7 @@ static bool envTruthy(const char* name) {
 
 // Cache format constants
 static constexpr uint64_t kModelCacheMagic = 0x4C444D434150554FULL; // "PACMDML" in little-endian-ish
-static constexpr uint32_t kModelCacheVersion = 2;
+static constexpr uint32_t kModelCacheVersion = 3;
 
 #pragma pack(push, 1)
 struct CacheHeader {

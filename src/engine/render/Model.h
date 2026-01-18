@@ -72,6 +72,10 @@ private:
     int locAlphaMode = -1;
     int locAlphaCutoff = -1;
 
+    // tonemap controls
+    int locTonemapMode = -1;
+    int locExposure    = -1;
+
     float modelScaleFactor = 1.0f;
 
     using NodeTRS          = pac_model_types::NodeTRS;
@@ -113,5 +117,3 @@ private:
                     const std::vector<CPUTexture>& baseColorTexturesCPU,
                     const std::vector<CPUTexture>& emissiveTexturesCPU) const;
 };
-
-

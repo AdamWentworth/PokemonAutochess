@@ -727,6 +727,21 @@ struct FG {
                 // emissiveFactor is always present in glTF (defaults to (0,0,0))
                 emissiveFactor = glm::vec3(mat.emissiveFactor[0], mat.emissiveFactor[1], mat.emissiveFactor[2]);
 
+                // Apply KHR_materials_emissive_strength (this is what made the tail work)
+                emissiveFactor *= (float)mat.emissiveStrength;
+
+                // ----- TUNING -----
+                // Boost ONLY the tail fire, without affecting the rest of the model.
+                const std::string matName(mat.name.begin(), mat.name.end());
+                if (matName == "fire") {
+                    const float kTailFireBoost = 1.35f; // try 1.15 -> 1.75
+                    emissiveFactor *= kTailFireBoost;
+                }
+
+                // glTF extension: KHR_materials_emissive_strength (fastgltf exposes this directly)
+                // This is REQUIRED for many “fire/glow” materials to look correct under tonemapping.
+                emissiveFactor *= (float)mat.emissiveStrength;
+
                 // alpha mode
                 switch (mat.alphaMode) {
                     case fastgltf::AlphaMode::Mask:  alphaMode = 1; break;
