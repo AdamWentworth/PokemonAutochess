@@ -1,3 +1,5 @@
+# CMakeLists.txt
+
 cmake_minimum_required(VERSION 3.22)
 
 # Toolchain must be provided at configure time (presets or -DCMAKE_TOOLCHAIN_FILE=...)
@@ -114,6 +116,7 @@ add_executable(PokemonAutochess
     src/game/MovesConfigLoader.cpp
 
     # Game VFX (NEW)
+    src/game/vfx/TailFireVFX.cpp
     src/game/vfx/CharmanderTailFireVFX.cpp
 
     # Game Systems
@@ -151,7 +154,7 @@ pac_apply_common_target_settings(PokemonAutochess)
 # ---------------- Assets (runtime copy) ----------------
 # IMPORTANT:
 # The old approach copied shaders at CMake *configure time* only, so edits to shader files
-# would not show up unless you reconfigured CMake. :contentReference[oaicite:1]{index=1}
+# would not show up unless you reconfigured CMake.
 #
 # This copies the entire assets/ folder into the build directory *every build* so the
 # executable can be run from the build folder and always see your latest shaders/textures.

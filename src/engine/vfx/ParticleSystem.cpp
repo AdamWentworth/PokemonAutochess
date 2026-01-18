@@ -14,8 +14,28 @@
 // stb_image implementation is compiled in src/engine/utils/stb_image_impl.cpp.
 #include <stb_image.h>
 
-// Simple RGBA texture loader (no mipmaps)
-static unsigned int loadTextureRGBA(const std::string& path) {
+static unsigned int create1x1WhiteTextureRGBA() {
+    GLuint tex = 0;
+    glGenTextures(1, &tex);
+    glBindTexture(GL_TEXTURE_2D, tex);
+
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+    const unsigned char white[4] = { 255, 255, 255, 255 };
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, 1, 1, 0, GL_RGBA, GL_UNSIGNED_BYTE, white);
+
+    return tex;
+}
+
+// Simple RGBA texture loader (no mipmaps). If path is empty or load fails, returns 1x1 white.
+static unsigned int loadTextureRGBAOrWhite(const std::string& path) {
+    if (path.empty()) {
+        return create1x1WhiteTextureRGBA();
+    }
+
     int w = 0, h = 0, comp = 0;
 
     // Keep consistent with your current engine expectations.
@@ -24,7 +44,7 @@ static unsigned int loadTextureRGBA(const std::string& path) {
     unsigned char* data = stbi_load(path.c_str(), &w, &h, &comp, 4);
     if (!data || w <= 0 || h <= 0) {
         if (data) stbi_image_free(data);
-        return 0;
+        return create1x1WhiteTextureRGBA();
     }
 
     GLuint tex = 0;
@@ -55,18 +75,21 @@ void ParticleSystem::ensureFlipbookLoaded() {
         flipbookTex = 0;
     }
 
-    flipbookTex = loadTextureRGBA(flipbookPath);
+    flipbookTex = loadTextureRGBAOrWhite(flipbookPath);
     flipbookDirty = false;
+}
+
+void ParticleSystem::ensureShaderLoaded() {
+    if (!shaderDirty && shader) return;
+
+    shader = ShaderLibrary::get(shaderVertPath, shaderFragPath);
+    shaderDirty = false;
 }
 
 void ParticleSystem::init() {
     if (initialized) return;
 
-    shader = ShaderLibrary::get(
-        "assets/shaders/vfx/particle.vert",
-        "assets/shaders/vfx/particle.frag"
-    );
-
+    ensureShaderLoaded();
     ensureFlipbookLoaded();
 
     glGenVertexArrays(1, &vao);
@@ -125,6 +148,11 @@ void ParticleSystem::update(float dt) {
     dt = std::clamp(dt, 0.0f, 0.05f);
     timeSec += dt;
 
+    const glm::vec3 a = updateSettings.acceleration;
+
+    // Allow 1.0f (no damping). Prevent <=0.
+    const float dampBase = std::clamp(updateSettings.dampingBase, 0.0001f, 1.0f);
+
     for (size_t i = 0; i < particles.size();) {
         Particle& p = particles[i];
 
@@ -135,10 +163,10 @@ void ParticleSystem::update(float dt) {
             continue;
         }
 
-        // Fire feel: rise + damping
-        p.vel += glm::vec3(0.0f, 1.2f, 0.0f) * dt;
+        // Generic kinematics; effects decide settings.
+        p.vel += a * dt;
 
-        float damp = std::pow(0.07f, dt);
+        float damp = std::pow(dampBase, dt);
         p.vel *= damp;
 
         p.pos += p.vel * dt;
@@ -147,8 +175,27 @@ void ParticleSystem::update(float dt) {
     }
 }
 
+static void applyBlendMode(ParticleSystem::BlendMode mode) {
+    glEnable(GL_BLEND);
+    glBlendEquationSeparate(GL_FUNC_ADD, GL_FUNC_ADD);
+
+    switch (mode) {
+        case ParticleSystem::BlendMode::Alpha:
+            glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
+            break;
+        case ParticleSystem::BlendMode::Additive:
+            glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE, GL_ONE, GL_ONE);
+            break;
+        case ParticleSystem::BlendMode::Premultiplied:
+            glBlendFuncSeparate(GL_ONE, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
+            break;
+    }
+}
+
 void ParticleSystem::render(const Camera3D& camera) {
     if (!initialized) init();
+    ensureShaderLoaded();
+
     if (!shader || vao == 0) return;
     if (particles.empty()) return;
 
@@ -184,16 +231,16 @@ void ParticleSystem::render(const Camera3D& camera) {
     GLboolean prevDepthMask = GL_TRUE;
     glGetBooleanv(GL_DEPTH_WRITEMASK, &prevDepthMask);
 
-    // Fire rendering states
-    glEnable(GL_PROGRAM_POINT_SIZE);
-    glEnable(GL_BLEND);
+    // Apply render settings (effect-owned)
+    if (renderSettings.programPointSize) glEnable(GL_PROGRAM_POINT_SIZE);
+    else glDisable(GL_PROGRAM_POINT_SIZE);
 
-    // Additive fire (bright core, no muddy dark edges)
-    glBlendEquationSeparate(GL_FUNC_ADD, GL_FUNC_ADD);
-    glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE, GL_ONE, GL_ONE);
+    applyBlendMode(renderSettings.blend);
 
-    glEnable(GL_DEPTH_TEST);
-    glDepthMask(GL_FALSE);
+    if (renderSettings.depthTest) glEnable(GL_DEPTH_TEST);
+    else glDisable(GL_DEPTH_TEST);
+
+    glDepthMask(renderSettings.depthWrite ? GL_TRUE : GL_FALSE);
 
     shader->use();
 
@@ -227,8 +274,8 @@ void ParticleSystem::render(const Camera3D& camera) {
     glDepthMask(prevDepthMask);
 
     if (!wasDepth) glDisable(GL_DEPTH_TEST);
-
     if (!wasBlend) glDisable(GL_BLEND);
+
     glBlendEquationSeparate(prevBlendEqRGB, prevBlendEqA);
     glBlendFuncSeparate(prevBlendSrcRGB, prevBlendDstRGB, prevBlendSrcA, prevBlendDstA);
 

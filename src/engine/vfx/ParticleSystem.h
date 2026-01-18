@@ -25,6 +25,33 @@ public:
         float seed = 0.0f;
     };
 
+    enum class BlendMode {
+        Alpha,        // SrcAlpha, OneMinusSrcAlpha
+        Additive,     // SrcAlpha, One
+        Premultiplied // One, OneMinusSrcAlpha
+    };
+
+    struct RenderSettings {
+        // Generic default (NOT fire)
+        BlendMode blend = BlendMode::Alpha;
+        bool depthTest = true;
+        bool depthWrite = true;
+        bool programPointSize = true;
+
+        // Reserved for future (shader would need to clamp)
+        float pointSizeMin = 3.0f;
+        float pointSizeMax = 160.0f;
+    };
+
+    struct UpdateSettings {
+        // Generic default (NOT fire)
+        glm::vec3 acceleration = glm::vec3(0.0f);
+
+        // Exponential damping base in (0,1]. vel *= pow(dampingBase, dt)
+        // 1.0 = no damping.
+        float dampingBase = 1.0f;
+    };
+
 public:
     ParticleSystem() = default;
     ~ParticleSystem();
@@ -40,9 +67,22 @@ public:
 
     void emit(const Particle& p);
 
+    // ----- Configuration (effect-level) -----
     void setPointScale(float s) { pointScale = s; }
 
-    // Flipbook config (call if you want to override defaults)
+    void setShaderPaths(const std::string& vertPath, const std::string& fragPath) {
+        shaderVertPath = vertPath;
+        shaderFragPath = fragPath;
+        shaderDirty = true;
+    }
+
+    void setRenderSettings(const RenderSettings& rs) { renderSettings = rs; }
+    const RenderSettings& getRenderSettings() const { return renderSettings; }
+
+    void setUpdateSettings(const UpdateSettings& us) { updateSettings = us; }
+    const UpdateSettings& getUpdateSettings() const { return updateSettings; }
+
+    // Flipbook config (optional). If texturePath is empty, a 1x1 white texture is used.
     void setFlipbook(const std::string& texturePath, int cols, int rows, int frames, float fps) {
         flipbookPath = texturePath;
         flipbookCols = cols;
@@ -64,6 +104,9 @@ private:
     bool initialized = false;
 
     std::shared_ptr<Shader> shader;
+    std::string shaderVertPath = "assets/shaders/vfx/particle.vert";
+    std::string shaderFragPath = "assets/shaders/vfx/particle.frag";
+    bool shaderDirty = true;
 
     unsigned int vao = 0;
     unsigned int vbo = 0;
@@ -74,15 +117,19 @@ private:
     float timeSec = 0.0f;
     float pointScale = 220.0f;
 
-    // Flipbook texture
+    RenderSettings renderSettings{};
+    UpdateSettings updateSettings{};
+
+    // Flipbook texture (optional)
     unsigned int flipbookTex = 0;
-    std::string flipbookPath = "assets/textures/fire_flipbook_8x5.png";
-    int   flipbookCols = 8;
-    int   flipbookRows = 5;
-    int   flipbookFrames = 40;
-    float flipbookFps = 30.0f;
+    std::string flipbookPath = ""; // generic default: no file => 1x1 white tex
+    int   flipbookCols = 1;
+    int   flipbookRows = 1;
+    int   flipbookFrames = 1;
+    float flipbookFps = 0.0f;
     bool  flipbookDirty = true;
 
 private:
     void ensureFlipbookLoaded();
+    void ensureShaderLoaded();
 };

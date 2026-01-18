@@ -8,6 +8,7 @@
 #include <string>
 #include <vector>
 #include <unordered_set>
+#include <unordered_map>
 #include <cstdint>
 #include <memory>
 
@@ -15,7 +16,7 @@
 #include <glm/gtc/quaternion.hpp>
 
 #include "Camera3D.h"
-#include "../utils/Shader.h"
+#include "engine/utils/Shader.h"
 
 #include "ModelAnimationTypes.h"
 #include "ModelMeshTypes.h"
@@ -47,13 +48,22 @@ public:
 
     float getScaleFactor() const { return modelScaleFactor; }
 
-    // ✅ NEW: animated node global transform (MODEL SPACE)
-    // Use this to attach VFX to moving bones (tail flame, weapon trails, etc).
+    // Animated node global transform (MODEL SPACE)
     // Returns false if nodeIndex is invalid.
     bool getNodeGlobalTransformByIndex(float animTimeSec,
                                        int animIndex,
                                        int nodeIndex,
                                        glm::mat4& outNodeGlobal) const;
+
+    // NEW: exact-match lookup of node index by glTF node name.
+    // Returns false if not found (or names not loaded).
+    bool getNodeIndexByName(const std::string& nodeName, int& outNodeIndex) const;
+
+    // NEW: convenience wrapper (name -> index -> global transform)
+    bool getNodeGlobalTransformByName(float animTimeSec,
+                                      int animIndex,
+                                      const std::string& nodeName,
+                                      glm::mat4& outNodeGlobal) const;
 
     // CPU-side texture blob for caching (always RGBA8)
     struct CPUTexture {
@@ -80,7 +90,7 @@ private:
     int locAlphaMode = -1;
     int locAlphaCutoff = -1;
 
-    // ✅ Added so Model.cpp can compile if it references these
+    // Added so Model.cpp can compile if it references these
     int locTonemapMode = -1;
     int locExposure    = -1;
 
@@ -102,6 +112,14 @@ private:
     std::vector<int>               sceneRoots;
     std::vector<SkinData>          skins;
     std::vector<AnimationClip>     animations;
+
+    // NEW: glTF node names (parallel to nodesDefault).
+    // This will be filled in ModelFastGltfLoad.inl in the next batch.
+    std::vector<std::string>       nodeNames;
+
+    // NEW: optional acceleration for name lookup.
+    mutable bool nodeNameMapBuilt = false;
+    mutable std::unordered_map<std::string, int> nodeNameToIndex;
 
     mutable std::unordered_set<int> warnedMissingAnimIndex;
 
