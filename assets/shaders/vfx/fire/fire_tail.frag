@@ -76,35 +76,36 @@ void main() {
     vec2 uv = gl_PointCoord;
     uv.y = 1.0 - uv.y;
 
-    // Use an ELLIPTICAL mask (not circular) to avoid the "round coin" look.
-    // xScale > yScale => tighter width without increasing height much.
-    vec2 cc = (uv - 0.5) * 2.0;      // [-1..1]
-    float xScale = 1.45;
-    float yScale = 0.95;
-    float re = length(vec2(cc.x * xScale, cc.y * yScale));
-
-    // Base mask kills the square but stays less "perfect circle"
-    float radialMask = 1.0 - smoothstep(0.98, 1.10, re);
-
-    // Extra-tight mask used mainly for flipbook2 contribution (even narrower)
-    float tightMask = 1.0 - smoothstep(0.66, 0.90, re);
-
+    vec2 cc = (uv - 0.5) * 2.0; // [-1..1]
     float x = cc.x;
     float y = clamp(uv.y, 0.0, 1.0);
+
+    // Stronger base fade-in to kill "square bottom" look
+    float bottomFade = smoothstep(0.00, 0.11, y);
+
+    // --- Base/tight masks (UNCHANGED for fb2 / overall shape control) ---
+    float baseT = smoothstep(0.00, 0.22, y);
+    float xScaleBase = mix(2.55, 1.90, baseT);
+    float yScaleBase = mix(1.05, 0.75, baseT);
+    float reBase = length(vec2(cc.x * xScaleBase, cc.y * yScaleBase));
+    float radialMaskBase = 1.0 - smoothstep(0.98, 1.10, reBase);
+    float tightMask      = 1.0 - smoothstep(0.62, 0.88, reBase);
+
+    // --- Hybrid mask: loose so widened fb1/hybrid isn't clipped ---
+    float reLoose = length(cc * vec2(0.55, 0.85));
+    float radialMaskLoose = 1.0 - smoothstep(0.98, 1.20, reLoose);
 
     float fade = (1.0 - age);
     fade = pow(mix(fade, 1.0, 0.25), 0.75);
 
-    // wobble (small; fb2 even smaller)
     vec2 wobble = vec2(
         smoothFlicker(t * 0.9, vSeed + 0.17),
         smoothFlicker(t * 1.1, vSeed + 0.73)
     ) - 0.5;
 
-    vec2 local1 = uv + wobble * 0.010; // hybrid
-    vec2 local2 = uv + wobble * 0.002; // fb2 steadier/tighter
+    vec2 local1 = uv + wobble * 0.010;
+    vec2 local2 = uv + wobble * 0.002;
 
-    // Sample flipbooks
     vec4 fb1 = vec4(1.0);
     vec4 fb2 = vec4(1.0);
     int has1 = (u_UseFlipbook == 1) ? 1 : 0;
@@ -116,28 +117,29 @@ void main() {
         else fb2 = fb1;
     }
 
-    // Hybrid uses fb1+fb2, with fb2 emphasized
-    float fbMixW = 0.75;
-    vec4 fbMix = mix(fb1, fb2, fbMixW);
-    float fbA = clamp(fbMix.a, 0.0, 1.0);
-    float fbLum = clamp(dot(fbMix.rgb, vec3(0.3333)), 0.0, 1.0);
+    float fb1A   = clamp(fb1.a, 0.0, 1.0);
+    float fb1Lum = clamp(dot(fb1.rgb, vec3(0.3333)), 0.0, 1.0);
 
-    // --- Procedural fire shape (no extra "taller" scaling) ---
     float speed = mix(0.95, 1.10, hash11(vSeed * 19.31));
     float flow  = t * 1.55 * speed;
     float flowY = flow * mix(0.75, 1.55, y * y);
 
-    // Less width (narrower)
-    float width = mix(0.46, 0.085, pow(y, 1.85));
+    // Base width profile (kept from your previous file)
+    float width = mix(0.30, 0.055, pow(y, 2.35));
+
+    // AGGRESSIVE THICKENING FOR FB1/HYBRID:
+    // >1 makes it thicker (because x/width becomes smaller).
+    float fb1Thicken = 2.80;
+    float widthHybrid = width * fb1Thicken;
 
     float yy = (y * 2.0 - 1.0);
-    yy = yy * 1.26 + 0.29;
-    yy /= 1.18;
+    yy = yy * 1.45 + 0.38;
+    yy /= 1.12;
 
-    vec2 p = vec2(x / width, yy);
+    // Use the thicker width ONLY for the hybrid/procedural domain.
+    vec2 p = vec2(x / widthHybrid, yy);
     p *= 1.22;
 
-    // Less horizontal sway => tighter spiral
     float sway = fbm2D(vec2(x * 1.7, y * 3.8) + vec2(0.0, -flowY * 0.65) + vSeed * 7.0);
     p.x += (sway - 0.5) * 0.015 * (1.0 - y);
 
@@ -147,7 +149,7 @@ void main() {
     float n = fbm2D(advP * vec2(2.7, 4.5) + vSeed * 11.0);
     float d = d0 + (n - 0.5) * 0.18 * (1.0 - y);
 
-    float core = clamp(1.0 - smoothstep(0.00, 0.88, d), 0.0, 1.0);
+    float core  = clamp(1.0 - smoothstep(0.00, 0.88, d), 0.0, 1.0);
     float outer = clamp(1.0 - smoothstep(0.30, 1.05, d), 0.0, 1.0);
 
     float blobs = lickBlobs(x, y, advP, flowY, vSeed);
@@ -155,7 +157,7 @@ void main() {
 
     float procAlpha = body * (0.60 + 0.55 * blobs);
     procAlpha *= (0.92 + 0.15 * smoothFlicker(t * 1.2, vSeed));
-    procAlpha *= smoothstep(0.00, 0.06, y);
+    procAlpha *= bottomFade;
     procAlpha *= fade;
 
     procAlpha = 1.0 - exp(-procAlpha * 1.85);
@@ -204,20 +206,20 @@ void main() {
 
     procRgb *= (1.18 + 0.35 * outer);
 
-    // Hybrid: procedural + fbMix modulation
+    // --- Hybrid path (procedural + fb1 modulation) ---
     vec3 hybridRgb = procRgb;
     float hybridAlpha = procAlpha;
 
     if (has1 == 1) {
-        float aMod = mix(0.55, 1.65, fbA);
-        float lMod = mix(0.85, 1.25, fbLum);
+        float aMod = mix(0.55, 1.65, fb1A);
+        float lMod = mix(0.85, 1.25, fb1Lum);
 
         hybridAlpha = clamp(hybridAlpha * aMod, 0.0, 0.96);
         hybridRgb *= lMod;
-        hybridRgb *= mix(vec3(1.0), fbMix.rgb * 1.35, 0.30);
+        hybridRgb *= mix(vec3(1.0), fb1.rgb * 1.35, 0.30);
     }
 
-    // Flipbook2-driven: tighter, but DON'T make it taller; just narrow it.
+    // --- fb2 path (keep as-is tight) ---
     vec3 fb2Rgb = fb2.rgb;
     float fb2Alpha = pow(clamp(fb2.a, 0.0, 1.0), 0.66);
 
@@ -225,23 +227,27 @@ void main() {
     vec3 tint = mix(red, yellow, hot);
     fb2Rgb *= tint * 1.30;
 
-    // Narrow fb2 contribution hard
     fb2Alpha *= tightMask;
+    fb2Alpha *= bottomFade;
 
-    // 50/50 blend
-    vec3 rgb = mix(hybridRgb, fb2Rgb, 0.50);
-    float alpha = mix(hybridAlpha, fb2Alpha, 0.50);
+    // Apply masks separately:
+    float hybridMaskedA = hybridAlpha * radialMaskLoose * bottomFade;
+    float fb2MaskedA    = fb2Alpha    * radialMaskBase;
 
-    // shared post
-    alpha *= radialMask;
+    float mixW = 0.50;
+    vec3 rgb = mix(hybridRgb, fb2Rgb, mixW);
+    float alpha = mix(hybridMaskedA, fb2MaskedA, mixW);
+
     alpha *= fade;
 
-    // Brighter (but not as extreme as before)
-    float exposure = 1.65;
+    // Glow feel (premultiplied-friendly)
+    alpha = clamp(alpha + 0.10 * outer * fade, 0.0, 0.985);
+
+    float exposure = 2.60;
     rgb *= exposure;
 
-    float emissive = (0.60 * outer + 0.24 * core) * fade;
-    rgb *= (1.0 + 1.10 * emissive);
+    float emissive = (0.85 * outer + 0.45 * core) * fade;
+    rgb *= (1.0 + 2.10 * emissive);
 
     rgb = tonemapSoftLocal(rgb);
 

@@ -2,30 +2,40 @@
 #include "CharmanderTailFireVFX.h"
 
 CharmanderTailFireVFX::CharmanderTailFireVFX() {
-    // Apply to Charmander only (same approach as before)
+    // Apply to Charmander only
     tailFire.setNameFilterCaseInsensitive("charmander");
 
     TailFireVFX::Config c;
 
-    // Enable hybrid flipbook+procedural fire tail
+    // Hybrid flipbook + procedural
     c.useFlipbook = true;
 
-    // Keep your existing Charmander tuning (from earlier versions)
-    c.emitRatePerSec   = 90.0f;
-    c.spawnRadius      = 0.010f;
+    // Slower emission (torch/candle-like)
+    c.emitRatePerSec = 35.0f;
+
+    // Less wide / tighter spawn
+    c.spawnRadius = 0.0085f;
+
     c.tailTipNodeIndex = 45;
-    c.tailWorldYOffset = 0.2f;
+    c.tailWorldYOffset = 0.185f;
     c.backDir          = glm::vec3(0.0f, 0.0f, 1.0f);
 
-    // Fire setup lives in TailFireVFX now:
-    // shaders / flipbook / render settings / accel / damping / pointScale.
+    // Keep premultiplied (matches shader output)
+    c.blend = ParticleSystem::BlendMode::Premultiplied;
+
+    // Taller feel: more upward drift
+    c.acceleration = glm::vec3(0.0f, 1.9f, 0.0f);
+    c.dampingBase  = 0.07f;
+
+    // Slightly larger/brighter read
+    c.pointScale = 980.0f;
 
     tailFire.setConfig(c);
 }
 
 void CharmanderTailFireVFX::update(float dt,
-                                   const std::vector<PokemonInstance>& boardUnits,
-                                   const std::vector<PokemonInstance>& benchUnits)
+                                  const std::vector<PokemonInstance>& boardUnits,
+                                  const std::vector<PokemonInstance>& benchUnits)
 {
     tailFire.update(dt, boardUnits, benchUnits);
 }

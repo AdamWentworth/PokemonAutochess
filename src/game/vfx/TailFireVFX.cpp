@@ -129,7 +129,6 @@ void TailFireVFX::emitForList(float dt, const std::vector<PokemonInstance>& list
         if (u.model->getNodeGlobalTransformByIndex(u.animTimeSec, kLoopAnimIndex, cfg.tailTipNodeIndex, tailNodeGlobal)) {
             tailWorld = glm::vec3(instM * tailNodeGlobal * glm::vec4(0, 0, 0, 1));
         } else {
-            // Still a fallback; later make this per-pokemon config or remove once attachment is reliable.
             tailWorld = glm::vec3(instM * glm::vec4(0.0f, 0.78f, -0.38f, 1.0f));
         }
 
@@ -142,19 +141,22 @@ void TailFireVFX::emitForList(float dt, const std::vector<PokemonInstance>& list
         for (int i = 0; i < spawnCount; ++i) {
             float base = (float)u.id * 100000.0f + (float)(serial++);
 
-            float rx = hashSigned(base + 1.0f) * cfg.spawnRadius;
+            // Narrower spawn: squeeze X/Z so it reads less wide
+            float rx = hashSigned(base + 1.0f) * cfg.spawnRadius * 0.75f;
             float ry = hash01(base + 2.0f) * cfg.spawnRadius * 0.35f;
-            float rz = hashSigned(base + 3.0f) * cfg.spawnRadius;
+            float rz = hashSigned(base + 3.0f) * cfg.spawnRadius * 0.75f;
 
             ParticleSystem::Particle p;
             p.pos = tailWorld + glm::vec3(rx, ry, rz);
 
-            float up   = 0.03f + hash01(base + 5.0f) * 0.06f;
-            float back = 0.07f + hash01(base + 6.0f) * 0.05f;
+            // Taller: more upward velocity, slightly less backward push
+            float up   = 0.055f + hash01(base + 5.0f) * 0.095f;
+            float back = 0.050f + hash01(base + 6.0f) * 0.050f;
 
             p.vel = glm::vec3(0.0f, up, 0.0f) + cfg.backDir * back;
 
-            p.maxLifeSec = 0.10f + hash01(base + 7.0f) * 0.06f;
+            // Taller: live longer so the plume can extend upward
+            p.maxLifeSec = 0.14f + hash01(base + 7.0f) * 0.10f;
             p.lifeSec = p.maxLifeSec;
 
             float sizeBase = 0.22f * scaleFactor;
