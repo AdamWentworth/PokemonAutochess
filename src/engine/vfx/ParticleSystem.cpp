@@ -255,6 +255,12 @@ void ParticleSystem::render(const Camera3D& camera) {
     shader->setUniform("u_Time", timeSec);
     shader->setUniform("u_PointScale", pointScale);
 
+    // Tell shaders that support it whether flipbook sampling is valid (no warning spam)
+    {
+        GLint loc = glGetUniformLocation(shader->getID(), "u_UseFlipbook");
+        if (loc != -1) glUniform1i(loc, useFlipbook ? 1 : 0);
+    }
+
     // Flipbook uniforms + bind only if enabled
     if (useFlipbook) {
         shader->setUniform("u_Flipbook", 0);
@@ -290,4 +296,3 @@ void ParticleSystem::render(const Camera3D& camera) {
 
     if (!wasProgPoint) glDisable(GL_PROGRAM_POINT_SIZE);
 }
-

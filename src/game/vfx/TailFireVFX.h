@@ -17,7 +17,7 @@ class TailFireVFX {
 public:
     struct Config {
         // ---------- Emission tuning ----------
-        float emitRatePerSec = 90.0f;
+        float emitRatePerSec = 65.0f;
         float spawnRadius    = 0.010f;
 
         // ---------- Attachment ----------
@@ -38,7 +38,7 @@ public:
         int flipbookFrames = 40;
         float flipbookFps = 30.0f;
 
-        ParticleSystem::BlendMode blend = ParticleSystem::BlendMode::Additive;
+        ParticleSystem::BlendMode blend = ParticleSystem::BlendMode::Premultiplied;
         bool depthTest  = true;
         bool depthWrite = false;
 
@@ -46,7 +46,7 @@ public:
         float dampingBase = 0.07f;
 
         // ✅ restore original look scale
-        float pointScale = 1200.0f;
+        float pointScale = 900.0f;
 
         // disable flipbook usage (no PNG dependency)
         bool useFlipbook = false;

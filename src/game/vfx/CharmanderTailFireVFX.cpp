@@ -7,6 +7,9 @@ CharmanderTailFireVFX::CharmanderTailFireVFX() {
 
     TailFireVFX::Config c;
 
+    // Enable hybrid flipbook+procedural fire tail
+    c.useFlipbook = true;
+
     // Keep your existing Charmander tuning (from earlier versions)
     c.emitRatePerSec   = 90.0f;
     c.spawnRadius      = 0.010f;
@@ -14,10 +17,8 @@ CharmanderTailFireVFX::CharmanderTailFireVFX() {
     c.tailWorldYOffset = 0.2f;
     c.backDir          = glm::vec3(0.0f, 0.0f, 1.0f);
 
-    // Fire setup lives in TailFireVFX now (Batch you just applied):
+    // Fire setup lives in TailFireVFX now:
     // shaders / flipbook / render settings / accel / damping / pointScale.
-    // If you want Charmander different from defaults, override here:
-    // c.pointScale = 220.0f; (already default in TailFireVFX Config)
 
     tailFire.setConfig(c);
 }
