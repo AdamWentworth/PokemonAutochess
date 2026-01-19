@@ -1,3 +1,4 @@
+// --- FILE: src/game/vfx/TailFireVFX.h ---
 // src/game/vfx/TailFireVFX.h
 #pragma once
 
@@ -16,27 +17,30 @@ class Camera3D;
 class TailFireVFX {
 public:
     struct Config {
-        // ---------- Emission tuning ----------
         float emitRatePerSec = 65.0f;
         float spawnRadius    = 0.010f;
 
-        // ---------- Attachment ----------
         int   tailTipNodeIndex  = 45;
         float tailWorldYOffset  = 0.2f;
 
-        // ---------- Spawn motion ----------
         glm::vec3 backDir = glm::vec3(0.0f, 0.0f, 1.0f);
 
-        // ---------- Particle visuals / system ----------
         std::string vertShaderPath = "assets/shaders/vfx/particle.vert";
-        // switch to procedural fragment shader
         std::string fragShaderPath = "assets/shaders/vfx/fire/fire_tail.frag";
 
         std::string flipbookPath = "assets/textures/fire_flipbook_8x5.png";
-        int flipbookCols = 8;
-        int flipbookRows = 5;
-        int flipbookFrames = 40;
+        int   flipbookCols = 8;
+        int   flipbookRows = 5;
+        int   flipbookFrames = 40;
         float flipbookFps = 30.0f;
+
+        // Secondary atlas
+        std::string flipbook2Path = "assets/textures/fire_flipbook2_8x5.png";
+        int   flipbook2Cols = 8;
+        int   flipbook2Rows = 5;
+        int   flipbook2Frames = 40;
+        float flipbook2Fps = 30.0f;
+        bool  useFlipbook2 = true;
 
         ParticleSystem::BlendMode blend = ParticleSystem::BlendMode::Premultiplied;
         bool depthTest  = true;
@@ -45,11 +49,10 @@ public:
         glm::vec3 acceleration = glm::vec3(0.0f, 1.2f, 0.0f);
         float dampingBase = 0.07f;
 
-        // ✅ restore original look scale
         float pointScale = 900.0f;
 
-        // disable flipbook usage (no PNG dependency)
-        bool useFlipbook = false;
+        // IMPORTANT: enable flipbooks so the new atlas actually affects the result
+        bool useFlipbook = true;
     };
 
 public:

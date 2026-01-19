@@ -1,3 +1,4 @@
+// --- FILE: src/engine/vfx/ParticleSystem.h ---
 // src/engine/vfx/ParticleSystem.h
 #pragma once
 
@@ -92,7 +93,21 @@ public:
         flipbookDirty = true;
     }
 
-        // Disable flipbook entirely (for procedural sprites/shaders)
+    // Secondary flipbook atlas (optional). When set, shaders can blend between two atlases for extra variation.
+    // If texturePath is empty, the secondary atlas is disabled.
+    void setSecondaryFlipbook(const std::string& texturePath, int cols, int rows, int frames, float fps) {
+        flipbookPath2 = texturePath;
+        flipbookCols2 = cols;
+        flipbookRows2 = rows;
+        flipbookFrames2 = frames;
+        flipbookFps2 = fps;
+        useSecondaryFlipbook = !flipbookPath2.empty();
+        flipbookDirty2 = true;
+    }
+
+    bool getUseSecondaryFlipbook() const { return useSecondaryFlipbook; }
+
+    // Disable flipbook entirely (for procedural sprites/shaders)
     void setUseFlipbook(bool enabled) { useFlipbook = enabled; }
     bool getUseFlipbook() const { return useFlipbook; }
 
@@ -133,9 +148,20 @@ private:
     float flipbookFps = 0.0f;
     bool  flipbookDirty = true;
 
+    // Secondary flipbook texture (optional)
+    unsigned int flipbookTex2 = 0;
+    std::string  flipbookPath2 = "";
+    int   flipbookCols2 = 1;
+    int   flipbookRows2 = 1;
+    int   flipbookFrames2 = 1;
+    float flipbookFps2 = 0.0f;
+    bool  flipbookDirty2 = true;
+
     bool useFlipbook = true;
+    bool useSecondaryFlipbook = false;
 
 private:
     void ensureFlipbookLoaded();
+    void ensureSecondaryFlipbookLoaded();
     void ensureShaderLoaded();
 };

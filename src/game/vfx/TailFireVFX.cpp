@@ -1,3 +1,4 @@
+// --- FILE: src/game/vfx/TailFireVFX.cpp ---
 // src/game/vfx/TailFireVFX.cpp
 #include "TailFireVFX.h"
 
@@ -59,6 +60,20 @@ void TailFireVFX::ensureConfigured() {
                               cfg.flipbookRows,
                               cfg.flipbookFrames,
                               cfg.flipbookFps);
+
+        // Optional secondary atlas for extra per-particle variation
+        if (cfg.useFlipbook2) {
+            particles.setSecondaryFlipbook(cfg.flipbook2Path,
+                                          cfg.flipbook2Cols,
+                                          cfg.flipbook2Rows,
+                                          cfg.flipbook2Frames,
+                                          cfg.flipbook2Fps);
+        } else {
+            particles.setSecondaryFlipbook("", 1, 1, 1, 0.0f);
+        }
+    } else {
+        // Ensure both atlases are disabled when procedural-only
+        particles.setSecondaryFlipbook("", 1, 1, 1, 0.0f);
     }
 
     // Render state

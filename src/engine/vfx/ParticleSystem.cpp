@@ -1,3 +1,4 @@
+// --- FILE: src/engine/vfx/ParticleSystem.cpp ---
 // src/engine/vfx/ParticleSystem.cpp
 #include "ParticleSystem.h"
 
@@ -14,23 +15,24 @@
 // stb_image implementation is compiled in src/engine/utils/stb_image_impl.cpp.
 #include <stb_image.h>
 
-static unsigned int create1x1WhiteTextureRGBA() {
+static GLuint create1x1WhiteTextureRGBA() {
     GLuint tex = 0;
     glGenTextures(1, &tex);
     glBindTexture(GL_TEXTURE_2D, tex);
 
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
-    const unsigned char white[4] = { 255, 255, 255, 255 };
+    unsigned char white[4] = { 255, 255, 255, 255 };
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, 1, 1, 0, GL_RGBA, GL_UNSIGNED_BYTE, white);
 
     return tex;
 }
 
-// Simple RGBA texture loader (no mipmaps). If path is empty or load fails, returns 1x1 white.
+// If path is empty or load fails, returns 1x1 white.
 static unsigned int loadTextureRGBAOrWhite(const std::string& path) {
     if (path.empty()) {
         return create1x1WhiteTextureRGBA();
@@ -79,6 +81,19 @@ void ParticleSystem::ensureFlipbookLoaded() {
     flipbookDirty = false;
 }
 
+void ParticleSystem::ensureSecondaryFlipbookLoaded() {
+    if (!useSecondaryFlipbook) return;
+    if (!flipbookDirty2 && flipbookTex2 != 0) return;
+
+    if (flipbookTex2) {
+        glDeleteTextures(1, &flipbookTex2);
+        flipbookTex2 = 0;
+    }
+
+    flipbookTex2 = loadTextureRGBAOrWhite(flipbookPath2);
+    flipbookDirty2 = false;
+}
+
 void ParticleSystem::ensureShaderLoaded() {
     if (!shaderDirty && shader) return;
 
@@ -94,6 +109,10 @@ void ParticleSystem::init() {
     // Only create/load flipbook texture if this system uses it.
     if (useFlipbook) {
         ensureFlipbookLoaded();
+    }
+
+    if (useFlipbook && useSecondaryFlipbook) {
+        ensureSecondaryFlipbookLoaded();
     }
 
     glGenVertexArrays(1, &vao);
@@ -128,6 +147,9 @@ void ParticleSystem::shutdown() {
     if (flipbookTex) glDeleteTextures(1, &flipbookTex);
     flipbookTex = 0;
 
+    if (flipbookTex2) glDeleteTextures(1, &flipbookTex2);
+    flipbookTex2 = 0;
+
     if (vbo) glDeleteBuffers(1, &vbo);
     if (vao) glDeleteVertexArrays(1, &vao);
 
@@ -136,7 +158,6 @@ void ParticleSystem::shutdown() {
 
     particles.clear();
     gpuBuffer.clear();
-    shader.reset();
 
     initialized = false;
 }
@@ -151,40 +172,32 @@ void ParticleSystem::update(float dt) {
     dt = std::clamp(dt, 0.0f, 0.05f);
     timeSec += dt;
 
-    const glm::vec3 a = updateSettings.acceleration;
+    // Integrate + cull dead
+    for (auto& p : particles) {
+        p.vel += updateSettings.acceleration * dt;
 
-    // Allow 1.0f (no damping). Prevent <=0.
-    const float dampBase = std::clamp(updateSettings.dampingBase, 0.0001f, 1.0f);
-
-    for (size_t i = 0; i < particles.size();) {
-        Particle& p = particles[i];
-
-        p.lifeSec -= dt;
-        if (p.lifeSec <= 0.0f || p.maxLifeSec <= 0.0f) {
-            particles[i] = particles.back();
-            particles.pop_back();
-            continue;
-        }
-
-        // Generic kinematics; effects decide settings.
-        p.vel += a * dt;
-
-        float damp = std::pow(dampBase, dt);
+        // Exponential damping for framerate independence
+        float damp = std::pow(updateSettings.dampingBase, dt);
         p.vel *= damp;
 
         p.pos += p.vel * dt;
-
-        ++i;
+        p.lifeSec -= dt;
     }
+
+    particles.erase(
+        std::remove_if(particles.begin(), particles.end(),
+                       [](const Particle& p) { return p.lifeSec <= 0.0f; }),
+        particles.end()
+    );
 }
 
 static void applyBlendMode(ParticleSystem::BlendMode mode) {
     glEnable(GL_BLEND);
-    glBlendEquationSeparate(GL_FUNC_ADD, GL_FUNC_ADD);
 
     switch (mode) {
         case ParticleSystem::BlendMode::Alpha:
-            glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
+            glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA,
+                                GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
             break;
         case ParticleSystem::BlendMode::Additive:
             glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE, GL_ONE, GL_ONE);
@@ -206,6 +219,11 @@ void ParticleSystem::render(const Camera3D& camera) {
     if (useFlipbook) {
         ensureFlipbookLoaded();
         if (flipbookTex == 0) return;
+    }
+
+    if (useFlipbook && useSecondaryFlipbook) {
+        ensureSecondaryFlipbookLoaded();
+        // Secondary can fall back to white; do not early-out on missing tex2.
     }
 
     // Build GPU buffer
@@ -259,9 +277,7 @@ void ParticleSystem::render(const Camera3D& camera) {
     {
         GLint loc = glGetUniformLocation(shader->getID(), "u_UseFlipbook");
         if (loc != -1) glUniform1i(loc, useFlipbook ? 1 : 0);
-    }
-
-    // Flipbook uniforms + bind only if enabled
+    }    // Flipbook uniforms + bind only if enabled
     if (useFlipbook) {
         shader->setUniform("u_Flipbook", 0);
         shader->setUniform("u_FlipbookGrid", glm::vec2((float)flipbookCols, (float)flipbookRows));
@@ -270,6 +286,35 @@ void ParticleSystem::render(const Camera3D& camera) {
 
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, flipbookTex);
+
+        // Secondary atlas (optional) — only set if the shader declares the uniforms.
+        int has2 = (useSecondaryFlipbook && flipbookTex2 != 0) ? 1 : 0;
+        {
+            GLint locHas2 = glGetUniformLocation(shader->getID(), "u_HasFlipbook2");
+            if (locHas2 != -1) glUniform1i(locHas2, has2);
+        }
+
+        if (has2) {
+            GLint locSampler2 = glGetUniformLocation(shader->getID(), "u_Flipbook2");
+            if (locSampler2 != -1) {
+                glUniform1i(locSampler2, 1);
+
+                GLint locGrid2 = glGetUniformLocation(shader->getID(), "u_FlipbookGrid2");
+                if (locGrid2 != -1) glUniform2f(locGrid2, (float)flipbookCols2, (float)flipbookRows2);
+
+                GLint locFrames2 = glGetUniformLocation(shader->getID(), "u_FrameCount2");
+                if (locFrames2 != -1) glUniform1f(locFrames2, (float)flipbookFrames2);
+
+                GLint locFps2 = glGetUniformLocation(shader->getID(), "u_Fps2");
+                if (locFps2 != -1) glUniform1f(locFps2, flipbookFps2);
+
+                glActiveTexture(GL_TEXTURE1);
+                glBindTexture(GL_TEXTURE_2D, flipbookTex2);
+
+                // Restore active texture to 0 for safety.
+                glActiveTexture(GL_TEXTURE0);
+            }
+        }
     }
 
     glBindVertexArray(vao);
