@@ -5,6 +5,8 @@
 
 #include "engine/core/GameLoop.h"
 #include "engine/core/GameContext.h"
+#include "engine/input/InputEvent.h"
+
 #include "engine/core/SystemRegistry.h"
 #include "engine/ui/HealthBarRenderer.h"
 
@@ -33,7 +35,7 @@ public:
     ~GameApp() override;
 
     void init(GameContext& ctx) override;
-    void handleEvent(SDL_Event& event) override;
+    void handleEvent(const InputEvent& event) override;
 
     void fixedUpdate(float dt) override;
     void render(int drawableW, int drawableH) override;

@@ -2,6 +2,8 @@
 
 #include "GameApp.h"
 
+#include "game/input/SDLInputAdapter.h"
+
 #include "engine/events/Event.h"
 #include "engine/events/EventManager.h"
 #include "engine/events/RoundEvents.h"
@@ -24,6 +26,8 @@
 #include "game/ScriptedState.h"
 #include "game/GameConfig.h"
 #include "game/LogBus.h"
+
+#include <SDL2/SDL.h>
 
 #include <iostream>
 #include <vector>
@@ -85,9 +89,13 @@ void GameApp::init(GameContext& inCtx) {
     std::cout << "[Init] GameApp initialized.\n";
 }
 
-void GameApp::handleEvent(SDL_Event& event) {
-    if (cameraSystem) cameraSystem->handleZoom(event);
-    if (stateManager) stateManager->handleInput(event);
+void GameApp::handleEvent(const InputEvent& event) {
+    // Temporary: convert back to SDL_Event to feed existing systems.
+    SDL_Event SDL;
+    if (!SDLInputAdapter::toSDLEvent(event, SDL)) return;
+
+    if (cameraSystem) cameraSystem->handleZoom(SDL);
+    if (stateManager) stateManager->handleInput(SDL);
 }
 
 void GameApp::fixedUpdate(float dt) {

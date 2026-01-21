@@ -60,13 +60,6 @@ add_library(Engine STATIC
     src/engine/core/Window.cpp
     src/engine/core/SystemRegistry.cpp
 
-    # Engine Utils
-    src/engine/utils/Shader.cpp
-    src/engine/utils/ShaderLibrary.cpp
-    src/engine/utils/ResourceManager.cpp
-    src/engine/utils/stb_image_impl.cpp
-    src/engine/utils/stb_image_write_impl.cpp
-
     # Engine Render
     src/engine/render/Renderer.cpp
     src/engine/render/Camera3D.cpp
@@ -74,10 +67,7 @@ add_library(Engine STATIC
     src/engine/render/Model.cpp
     src/engine/render/ModelAnimation.cpp
     src/engine/render/ModelCache.cpp
-
-    # Engine VFX (NEW)
-    src/engine/vfx/ParticleSystem.cpp
-
+    
     # Engine UI
     src/engine/ui/UIManager.cpp
     src/engine/ui/Card.cpp
@@ -85,6 +75,16 @@ add_library(Engine STATIC
     src/engine/ui/HealthBarRenderer.cpp
     src/engine/ui/BattleFeed.cpp
     src/engine/ui/BootLoadingView.cpp
+    
+    # Engine Utils
+    src/engine/utils/Shader.cpp
+    src/engine/utils/ShaderLibrary.cpp
+    src/engine/utils/ResourceManager.cpp
+    src/engine/utils/stb_image_impl.cpp
+    src/engine/utils/stb_image_write_impl.cpp
+
+    # Engine VFX (NEW)
+    src/engine/vfx/ParticleSystem.cpp
 )
 
 target_link_libraries(Engine PRIVATE
@@ -116,6 +116,9 @@ add_executable(PokemonAutochess
     src/game/LogBus.cpp
     src/game/MovesConfigLoader.cpp
     src/game/AnimSetLoader.cpp
+
+    # Game Input
+    src/game/input/SDLInputAdapter.cpp
 
     # Game VFX (NEW)
     src/game/vfx/TailFireVFX.cpp
