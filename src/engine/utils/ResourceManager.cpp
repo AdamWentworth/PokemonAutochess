@@ -3,10 +3,10 @@
 #include "ResourceManager.h"
 
 // Keep your existing include style to match your current include paths:
-#include "../render/Model.h"
+#include "engine/render/Model.h"
 
 // NEW: optional fastgltf parsing/logging (does not change loader behavior)
-#include "../render/FastGltfValidator.h"
+#include "engine/render/FastGltfValidator.h"
 
 #include <iostream>
 

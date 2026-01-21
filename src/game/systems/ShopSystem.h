@@ -1,17 +1,17 @@
 // ShopSystem.h
 #pragma once
-#include "../../engine/core/IUpdatable.h"
+#include "engine/core/IUpdatable.h"
 #include <sol/sol.hpp>
 #include <SDL2/SDL.h>
 #include <string>
 #include <vector>
 #include <optional>
-#include "../ui/CardFactory.h"
+#include "game/ui/CardFactory.h"
 #include "CardSystem.h"
-#include "../../engine/events/Event.h"
-#include "../../engine/events/EventManager.h"
-#include "../../engine/ui/TextRenderer.h"
-#include "../../game/GameConfig.h"
+#include "engine/events/Event.h"
+#include "engine/events/EventManager.h"
+#include "engine/ui/TextRenderer.h"
+#include "game/GameConfig.h"
 
 struct ShopCard {
     std::string name;

@@ -1,6 +1,6 @@
 // CombatSystem.cpp
 #include "CombatSystem.h"
-#include "../LuaBindings.h"
+#include "game/LuaBindings.h"
 #include <iostream>
 
 CombatSystem::CombatSystem(GameWorld* world) : gameWorld(world) {

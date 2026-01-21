@@ -1,8 +1,8 @@
 // UnitInteractionSystem.cpp
 
 #include "UnitInteractionSystem.h"
-#include "../../engine/events/EventManager.h"
-#include "../../engine/events/Event.h"
+#include "engine/events/EventManager.h"
+#include "engine/events/Event.h"
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/common.hpp>
 #include <iostream>

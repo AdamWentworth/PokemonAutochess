@@ -3,7 +3,7 @@
 #pragma once
 
 #include "Camera3D.h"
-#include "../utils/Shader.h"
+#include "engine/utils/Shader.h"
 #include <memory>
 #include <vector>
 #include <string>

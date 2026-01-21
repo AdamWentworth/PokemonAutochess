@@ -2,8 +2,8 @@
 
 #pragma once
 
-#include "../GameState.h"
-#include "../GameWorld.h"
+#include "game/GameState.h"
+#include "game/GameWorld.h"
 #include <SDL2/SDL.h>
 #include <string>
 

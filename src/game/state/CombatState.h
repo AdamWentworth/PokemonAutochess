@@ -1,8 +1,8 @@
 // src/game/state/CombatState.h
 #pragma once
-#include "../GameState.h"
-#include "../LuaScript.h"
-#include "../../engine/ui/TextRenderer.h"
+#include "game/GameState.h"
+#include "game/LuaScript.h"
+#include "engine/ui/TextRenderer.h"
 #include <memory>
 
 class MovementSystem;

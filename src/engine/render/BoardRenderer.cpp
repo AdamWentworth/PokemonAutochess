@@ -5,7 +5,7 @@
 #include <fstream>
 #include <sstream>
 #include <iostream>
-#include "../utils/ShaderLibrary.h"
+#include "engine/utils/ShaderLibrary.h"
 
 BoardRenderer::BoardRenderer(int rows, int cols, float cellSize)
     : rows(rows), cols(cols), cellSize(cellSize)

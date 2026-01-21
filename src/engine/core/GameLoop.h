@@ -1,9 +1,9 @@
-// GameLoop.h
+// src/engine/core/GameLoop.h
 #pragma once
 
 #include <SDL2/SDL.h>
 
-class Application;
+struct GameContext;
 
 /*
     GameLoop:
@@ -15,7 +15,7 @@ class GameLoop {
 public:
     virtual ~GameLoop() = default;
 
-    virtual void init(Application& app) = 0;
+    virtual void init(GameContext& ctx) = 0;
     virtual void handleEvent(SDL_Event& event) = 0;
 
     virtual void fixedUpdate(float dt) = 0;

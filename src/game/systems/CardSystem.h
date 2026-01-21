@@ -4,7 +4,7 @@
 #include <optional>
 #include <string>
 #include <SDL2/SDL.h>
-#include "../../engine/ui/Card.h"   // Card + CardData used by the UI system
+#include "engine/ui/Card.h"   // Card + CardData used by the UI system
 
 class Shader;
 

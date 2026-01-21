@@ -1,6 +1,6 @@
 // LogBus.cpp
 #include "LogBus.h"
-#include "../engine/ui/BattleFeed.h"
+#include "engine/ui/BattleFeed.h"
 #include <iostream>                   // NEW
 static BattleFeed* g_feed = nullptr;
 static bool g_echo = true;

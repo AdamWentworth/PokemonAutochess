@@ -1,12 +1,12 @@
 // src/game/state/CombatState.cpp
 #include "CombatState.h"
-#include "../GameConfig.h"
-#include "../GameWorld.h"
-#include "../systems/MovementSystem.h"
-#include "../systems/CombatSystem.h"
+#include "game/GameConfig.h"
+#include "game/GameWorld.h"
+#include "game/systems/MovementSystem.h"
+#include "game/systems/CombatSystem.h"
 
-#include "../../engine/ui/TextRenderer.h"
-#include "../LogBus.h"
+#include "engine/ui/TextRenderer.h"
+#include "game/LogBus.h"
 #include <sol/sol.hpp>
 #include <cmath>
 #include <iostream>

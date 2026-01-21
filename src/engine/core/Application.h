@@ -1,18 +1,19 @@
-// Application.h
+// src/engine/core/Application.h
 #pragma once
 
 #include <memory>
 #include <string>
 
-#include "../render/Camera3D.h"
+#include "engine/render/Camera3D.h"
 
 // Forward decls (engine)
 class Window;
 class Renderer;
 class BootLoadingView;
 
-// Engine-facing interface for the app/game layer
+// Game-facing interface + context
 class GameLoop;
+struct GameContext;
 
 /*
     Application (Engine):
@@ -27,28 +28,26 @@ public:
 
     void run(GameLoop& game);
 
-    // Engine services the game may need (read-only accessors)
+    // Engine services (read-only)
     Window*   getWindow()   const { return window.get(); }
     Renderer* getRenderer() const { return renderer.get(); }
     Camera3D* getCamera()   const { return camera.get();  }
 
     int getDrawableW() const { return drawableW; }
     int getDrawableH() const { return drawableH; }
-    int getWindowW()   const { return windowW;   }
-    int getWindowH()   const { return windowH;   }
 
     float getMouseScaleX() const { return mouseScaleX; }
     float getMouseScaleY() const { return mouseScaleY; }
 
-    // Helpers the game can use (preload/loading)
+    // Engine helpers used by GameContext callbacks
     void setTitle(const std::string& title);
     void swapBuffers();
     bool pumpPreloadEvents();
     void renderBootLoading(float progress01);
 
 private:
-    void initApplication();
-    void shutdownApplication();
+    void initBase();
+    void shutdownBase();
     void updateDrawableSizeAndViewport();
     void updateMouseScale();
 

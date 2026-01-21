@@ -1,14 +1,14 @@
-// GameApp.h
+// src/game/GameApp.h
 #pragma once
 
 #include <memory>
 
-#include "../engine/core/GameLoop.h"
-#include "../engine/core/SystemRegistry.h"
-#include "../engine/ui/HealthBarRenderer.h"
+#include "engine/core/GameLoop.h"
+#include "engine/core/GameContext.h"
+#include "engine/core/SystemRegistry.h"
+#include "engine/ui/HealthBarRenderer.h"
 
 // Forward decls (engine)
-class Application;
 class Camera3D;
 class BoardRenderer;
 class BattleFeed;
@@ -32,7 +32,7 @@ public:
     GameApp();
     ~GameApp() override;
 
-    void init(Application& app) override;
+    void init(GameContext& ctx) override;
     void handleEvent(SDL_Event& event) override;
 
     void fixedUpdate(float dt) override;
@@ -41,9 +41,11 @@ public:
     void shutdown() override;
 
 private:
-    void preloadCommonModels(Application& app);
+    void preloadCommonModels(GameContext& ctx);
 
 private:
+    // Engine services (non-owning)
+    GameContext* ctx = nullptr;
     Camera3D* camera = nullptr;
 
     std::unique_ptr<GameStateManager> stateManager;

@@ -1,15 +1,16 @@
-// Application.cpp
+// src/engine/core/Application.cpp
 
 #include "Application.h"
 #include "Window.h"
 
 #include "GameLoop.h"
+#include "GameContext.h"
 
-#include "../events/Event.h"
-#include "../events/EventManager.h"
+#include "engine/events/Event.h"
+#include "engine/events/EventManager.h"
 
-#include "../render/Renderer.h"
-#include "../ui/BootLoadingView.h"
+#include "engine/render/Renderer.h"
+#include "engine/ui/BootLoadingView.h"
 
 #define NOMINMAX
 #ifdef _WIN32
@@ -35,14 +36,14 @@ namespace {
 }
 
 Application::Application() {
-    initApplication();
+    initBase();
 }
 
 Application::~Application() {
-    shutdownApplication();
+    shutdownBase();
 }
 
-void Application::initApplication() {
+void Application::initBase() {
     if (TTF_Init() == -1) {
         std::cerr << "[Application] TTF_Init error: " << TTF_GetError() << "\n";
     }
@@ -75,7 +76,7 @@ void Application::initApplication() {
     std::cout << "[Init] Application initialized.\n";
 }
 
-void Application::shutdownApplication() {
+void Application::shutdownBase() {
     std::cout << "[Shutdown] Application...\n";
 
     if (renderer) {
@@ -154,7 +155,21 @@ void Application::renderBootLoading(float progress01) {
 void Application::run(GameLoop& game) {
     std::cout << "[Run] Main loop @ 60 Hz...\n";
 
-    game.init(*this);
+    // Build the engine-facing context contract for the game layer.
+    GameContext ctx;
+    ctx.renderer = getRenderer();
+    ctx.camera   = getCamera();
+    ctx.drawableW = getDrawableW();
+    ctx.drawableH = getDrawableH();
+
+    // Provide minimal engine callbacks as lambdas.
+    ctx.setTitle = [this](const std::string& s) { this->setTitle(s); };
+    ctx.swapBuffers = [this]() { this->swapBuffers(); };
+
+    ctx.pumpPreloadEvents = [this]() { return this->pumpPreloadEvents(); };
+    ctx.renderBootLoading = [this](float p) { this->renderBootLoading(p); };
+
+    game.init(ctx);
 
     using clock = std::chrono::high_resolution_clock;
     auto previous = clock::now();
@@ -180,9 +195,14 @@ void Application::run(GameLoop& game) {
                     updateDrawableSizeAndViewport();
                     updateMouseScale();
 
+                    // keep camera aspect correct
                     if (camera) {
                         *camera = Camera3D(45.0f, float(drawableW) / float(drawableH), 0.1f, 100.0f);
                     }
+
+                    // keep context size in sync
+                    ctx.drawableW = drawableW;
+                    ctx.drawableH = drawableH;
                 }
             }
 

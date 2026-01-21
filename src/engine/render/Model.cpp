@@ -2,7 +2,7 @@
 // src/engine/render/Model.cpp
 #include "Model.h"
 #include "ModelStartupLog.h"
-#include "../utils/ShaderLibrary.h"
+#include "engine/utils/ShaderLibrary.h"
 
 #include <iostream>
 #include <fstream>

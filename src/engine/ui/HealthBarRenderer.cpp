@@ -3,7 +3,7 @@
 #include "HealthBarRenderer.h"
 #include <glad/glad.h>
 #include <glm/gtc/matrix_transform.hpp>
-#include "../utils/ShaderLibrary.h"
+#include "engine/utils/ShaderLibrary.h"
 
 void HealthBarRenderer::init() {
     // Initialize shader after OpenGL is ready

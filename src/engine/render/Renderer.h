@@ -3,8 +3,8 @@
 #pragma once
 #include <string>
 #include "Camera3D.h"
-#include "../utils/Shader.h"
-#include "../utils/GLResource.h"  // New header with RAII wrappers
+#include "engine/utils/Shader.h"
+#include "engine/utils/GLResource.h"  // New header with RAII wrappers
 #include <memory>  // For std::unique_ptr
 
 class Renderer {

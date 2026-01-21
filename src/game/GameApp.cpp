@@ -1,31 +1,29 @@
-// GameApp.cpp
+// src/game/GameApp.cpp
 
 #include "GameApp.h"
 
-#include "../engine/core/Application.h"
+#include "engine/events/Event.h"
+#include "engine/events/EventManager.h"
+#include "engine/events/RoundEvents.h"
 
-#include "../engine/events/Event.h"
-#include "../engine/events/EventManager.h"
-#include "../engine/events/RoundEvents.h"
+#include "engine/render/BoardRenderer.h"
+#include "engine/render/Camera3D.h"
+#include "engine/utils/ResourceManager.h"
 
-#include "../engine/render/BoardRenderer.h"
-#include "../engine/render/Camera3D.h"
-#include "../engine/utils/ResourceManager.h"
+#include "engine/ui/UIManager.h"
+#include "engine/ui/BattleFeed.h"
 
-#include "../engine/ui/UIManager.h"
-#include "../engine/ui/BattleFeed.h"
-
-#include "../game/GameWorld.h"
-#include "../game/GameStateManager.h"
-#include "../game/PokemonConfigLoader.h"
-#include "../game/MovesConfigLoader.h"
-#include "../game/systems/CameraSystem.h"
-#include "../game/systems/UnitInteractionSystem.h"
-#include "../game/systems/RoundSystem.h"
-#include "../game/systems/ShopSystem.h"
-#include "../game/ScriptedState.h"
-#include "../game/GameConfig.h"
-#include "../game/LogBus.h"
+#include "game/GameWorld.h"
+#include "game/GameStateManager.h"
+#include "game/PokemonConfigLoader.h"
+#include "game/MovesConfigLoader.h"
+#include "game/systems/CameraSystem.h"
+#include "game/systems/UnitInteractionSystem.h"
+#include "game/systems/RoundSystem.h"
+#include "game/systems/ShopSystem.h"
+#include "game/ScriptedState.h"
+#include "game/GameConfig.h"
+#include "game/LogBus.h"
 
 #include <iostream>
 #include <vector>
@@ -35,13 +33,15 @@
 GameApp::GameApp() = default;
 GameApp::~GameApp() = default;
 
-void GameApp::init(Application& app) {
+void GameApp::init(GameContext& inCtx) {
+    ctx = &inCtx;
+
     PokemonConfigLoader::getInstance().loadConfig("config/pokemon_config.json");
     MovesConfigLoader::getInstance().loadConfig("config/moves_config.json");
 
     std::cout << "[Init] CWD: " << std::filesystem::current_path() << "\n";
 
-    camera = app.getCamera();
+    camera = ctx->camera;
 
     const auto& cfg = GameConfig::get();
     board = std::make_unique<BoardRenderer>(cfg.rows, cfg.cols, cfg.cellSize);
@@ -51,7 +51,7 @@ void GameApp::init(Application& app) {
 
     cameraSystem = std::make_shared<CameraSystem>(camera);
     unitSystem   = std::make_shared<UnitInteractionSystem>(
-        camera, gameWorld.get(), app.getDrawableW(), app.getDrawableH()
+        camera, gameWorld.get(), ctx->drawableW, ctx->drawableH
     );
 
     SystemRegistry::getInstance().registerSystem(cameraSystem);
@@ -76,12 +76,12 @@ void GameApp::init(Application& app) {
                             {0.75f, 0.9f, 1.0f}, 3.0f);
         });
 
-    preloadCommonModels(app);
+    preloadCommonModels(*ctx);
 
     stateManager->pushState(std::make_unique<ScriptedState>(
         stateManager.get(), gameWorld.get(), "scripts/states/starter.lua"));
 
-    app.setTitle("Pokemon Autochess");
+    if (ctx->setTitle) ctx->setTitle("Pokemon Autochess");
     std::cout << "[Init] GameApp initialized.\n";
 }
 
@@ -140,7 +140,7 @@ void GameApp::shutdown() {
     std::cout << "[Shutdown] GameApp done.\n";
 }
 
-void GameApp::preloadCommonModels(Application& app) {
+void GameApp::preloadCommonModels(GameContext& c) {
     auto addByName = [&](std::vector<std::string>& out, const std::string& name) {
         const PokemonStats* stats = PokemonConfigLoader::getInstance().getStats(name);
         if (!stats) return;
@@ -161,29 +161,31 @@ void GameApp::preloadCommonModels(Application& app) {
     const int prevSwap = SDL_GL_GetSwapInterval();
     SDL_GL_SetSwapInterval(0);
 
-    app.setTitle("PokemonAutochess - Loading...");
-    app.renderBootLoading(0.0f);
+    if (c.setTitle) c.setTitle("PokemonAutochess - Loading...");
+    if (c.renderBootLoading) c.renderBootLoading(0.0f);
 
-    if (!app.pumpPreloadEvents()) std::exit(0);
+    if (c.pumpPreloadEvents && !c.pumpPreloadEvents()) std::exit(0);
 
     const int total = (int)modelsToPreload.size();
     for (int i = 0; i < total; ++i) {
         const std::string& path = modelsToPreload[i];
 
-        app.setTitle(
-            "PokemonAutochess - Loading " +
-            std::to_string(i + 1) + "/" + std::to_string(total) + "  " + path
-        );
+        if (c.setTitle) {
+            c.setTitle(
+                "PokemonAutochess - Loading " +
+                std::to_string(i + 1) + "/" + std::to_string(total) + "  " + path
+            );
+        }
 
-        if (!app.pumpPreloadEvents()) std::exit(0);
+        if (c.pumpPreloadEvents && !c.pumpPreloadEvents()) std::exit(0);
 
         ResourceManager::getInstance().getModel(path);
 
-        app.renderBootLoading(float(i + 1) / float(total));
+        if (c.renderBootLoading) c.renderBootLoading(float(i + 1) / float(total));
     }
 
-    app.setTitle("Pokemon Autochess");
-    app.pumpPreloadEvents();
+    if (c.setTitle) c.setTitle("Pokemon Autochess");
+    if (c.pumpPreloadEvents) c.pumpPreloadEvents();
 
     SDL_GL_SetSwapInterval(prevSwap);
 }

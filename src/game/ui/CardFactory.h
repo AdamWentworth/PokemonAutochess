@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "../../engine/ui/Card.h"
+#include "engine/ui/Card.h"
 #include <SDL2/SDL.h>
 #include <string>
 #include <vector>

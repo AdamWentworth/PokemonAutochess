@@ -1,11 +1,8 @@
 // MovementSystem.h
 #pragma once
-#include "../../engine/core/IUpdatable.h"
-#include "../GameWorld.h"
+#include "engine/core/IUpdatable.h"
+#include "game/GameWorld.h"
 #include <sol/sol.hpp>
-
-// REMOVE this (causes IntelliSense grief):
-// #include "../../GridOccupancy.h"
 
 // Forward-declare instead:
 class GridOccupancy;

@@ -3,10 +3,10 @@
 #include "PlacementState.h"
 // CHANGED: use CombatState and flow.lua instead of hardcoded Route1
 #include "CombatState.h"
-#include "../GameStateManager.h"
-#include "../GameWorld.h"
-#include "../../engine/ui/TextRenderer.h"
-#include "../GameConfig.h"
+#include "game/GameStateManager.h"
+#include "game/GameWorld.h"
+#include "engine/ui/TextRenderer.h"
+#include "game/GameConfig.h"
 #include <iostream>
 #include <algorithm>
 #include <sol/sol.hpp>

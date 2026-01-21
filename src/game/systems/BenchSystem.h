@@ -3,7 +3,7 @@
 #pragma once
 #include <glm/glm.hpp>
 #include <vector>
-#include "../PokemonInstance.h"
+#include "game/PokemonInstance.h"
 
 class BenchSystem {
 public:

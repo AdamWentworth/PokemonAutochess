@@ -1,8 +1,8 @@
 // CardSystem.cpp
 
 #include "CardSystem.h"
-#include "../../engine/ui/UIManager.h"
-#include "../../engine/utils/Shader.h"
+#include "engine/ui/UIManager.h"
+#include "engine/utils/Shader.h"
 
 #include <glad/glad.h>
 #include <glm/gtc/matrix_transform.hpp>

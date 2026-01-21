@@ -6,8 +6,8 @@
 #include <glad/glad.h>
 #include <glm/gtc/matrix_transform.hpp>
 
-#include "../utils/ShaderLibrary.h"
-#include "../utils/Shader.h"
+#include "engine/utils/ShaderLibrary.h"
+#include "engine/utils/Shader.h"
 
 void BootLoadingView::init() {
     // Reuse the simple solid-color UI shader you already ship

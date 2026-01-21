@@ -1,6 +1,6 @@
 // CombatSystem.h
 #pragma once
-#include "../../engine/core/IUpdatable.h"
+#include "engine/core/IUpdatable.h"
 #include <sol/sol.hpp>
 
 class GameWorld;

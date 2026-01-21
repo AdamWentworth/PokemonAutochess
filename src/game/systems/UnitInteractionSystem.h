@@ -2,9 +2,9 @@
 
 #pragma once
 
-#include "../../engine/render/Camera3D.h"
-#include "../../game/GameWorld.h"
-#include "../../engine/core/IUpdatable.h"
+#include "engine/render/Camera3D.h"
+#include "game/GameWorld.h"
+#include "engine/core/IUpdatable.h"
 #include "BenchSystem.h"
 #include <SDL2/SDL.h>
 #include <glm/glm.hpp>

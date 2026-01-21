@@ -8,8 +8,8 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
-#include "../utils/Shader.h"
-#include "../utils/ShaderLibrary.h"
+#include "engine/utils/Shader.h"
+#include "engine/utils/ShaderLibrary.h"
 
 TextRenderer::TextRenderer(const std::string& fontPath, int fontSize) {
     font = TTF_OpenFont(fontPath.c_str(), fontSize);

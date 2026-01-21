@@ -2,7 +2,7 @@
 
 #include "UIManager.h"
 #include <iostream>
-#include "../utils/Shader.h"
+#include "engine/utils/Shader.h"
 
 // File-local state (not exposed via header)
 namespace {

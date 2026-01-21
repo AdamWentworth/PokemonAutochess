@@ -2,9 +2,9 @@
 
 #pragma once
 
-#include "../../engine/core/IUpdatable.h"
-#include "../LuaScript.h"
-#include "../../engine/events/RoundEvents.h"
+#include "engine/core/IUpdatable.h"
+#include "game/LuaScript.h"
+#include "engine/events/RoundEvents.h"
 
 enum class RoundPhase {
     Planning,
