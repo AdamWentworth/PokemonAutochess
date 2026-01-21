@@ -4,28 +4,27 @@
 #include <memory>
 
 #include "engine/core/GameLoop.h"
-#include "engine/core/GameContext.h"
-#include "engine/input/InputEvent.h"
-
-#include "engine/core/SystemRegistry.h"
 #include "engine/ui/HealthBarRenderer.h"
 
 // Forward decls (engine)
+struct GameContext;
+struct InputEvent;
 class Camera3D;
 class BoardRenderer;
 class BattleFeed;
-class CameraSystem;
-class UnitInteractionSystem;
-class ShopSystem;
 
 // Forward decls (game)
 class GameWorld;
 class GameStateManager;
+class CameraSystem;
+class UnitInteractionSystem;
+class ShopSystem;
 
 /*
     GameApp (Game):
     - Owns game-specific initialization, world, state machine, systems, and game UI.
     - Implements GameLoop so the Engine can call it without including game headers.
+
     IMPORTANT (MSVC):
     - Constructor + destructor are out-of-line so std::unique_ptr can hold forward-declared types.
 */
@@ -46,8 +45,6 @@ private:
     void preloadCommonModels(GameContext& ctx);
 
 private:
-    // Engine services (non-owning)
-    GameContext* ctx = nullptr;
     Camera3D* camera = nullptr;
 
     std::unique_ptr<GameStateManager> stateManager;

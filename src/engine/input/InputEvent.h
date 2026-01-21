@@ -47,7 +47,6 @@ struct InputEvent {
     int drawableW = 0;
     int drawableH = 0;
 
-    // Convenience constructors
     static InputEvent QuitEvent() {
         InputEvent e; e.type = Type::Quit; return e;
     }

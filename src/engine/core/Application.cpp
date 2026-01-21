@@ -1,18 +1,18 @@
 // src/engine/core/Application.cpp
 
-#include "Application.h"
-#include "Window.h"
+#include "engine/core/Application.h"
+#include "engine/core/Window.h"
 
-#include "GameLoop.h"
-#include "GameContext.h"
+#include "engine/core/GameLoop.h"
+#include "engine/core/GameContext.h"
 
-#include "../input/InputEvent.h"
+#include "engine/input/InputEvent.h"
 
-#include "../events/Event.h"
-#include "../events/EventManager.h"
+#include "engine/events/Event.h"
+#include "engine/events/EventManager.h"
 
-#include "../render/Renderer.h"
-#include "../ui/BootLoadingView.h"
+#include "engine/render/Renderer.h"
+#include "engine/ui/BootLoadingView.h"
 
 #define NOMINMAX
 #ifdef _WIN32
@@ -36,6 +36,7 @@ namespace {
     static int scaledMouseX(int x, float s) { return (int)std::lround((float)x * s); }
     static int scaledMouseY(int y, float s) { return (int)std::lround((float)y * s); }
 
+    // Returns true if we produced an InputEvent for the game.
     static bool translateSdlToInputEvent(
         const SDL_Event& sdl,
         float mouseScaleX, float mouseScaleY,
@@ -44,28 +45,25 @@ namespace {
         InputEvent& out
     ) {
         switch (sdl.type) {
-            case SDL_QUIT: {
+            case SDL_QUIT:
                 out = InputEvent::QuitEvent();
                 return true;
-            }
 
-            case SDL_WINDOWEVENT: {
+            case SDL_WINDOWEVENT:
                 if (sdl.window.event == SDL_WINDOWEVENT_SIZE_CHANGED ||
                     sdl.window.event == SDL_WINDOWEVENT_RESIZED) {
                     out = InputEvent::ResizeEvent(windowW, windowH, drawableW, drawableH);
                     return true;
                 }
                 return false;
-            }
 
-            case SDL_KEYDOWN: {
-                out = InputEvent::KeyDownEvent(sdl.key.keysym.sym, sdl.key.repeat != 0);
+            case SDL_KEYDOWN:
+                out = InputEvent::KeyDownEvent((int)sdl.key.keysym.sym, sdl.key.repeat != 0);
                 return true;
-            }
-            case SDL_KEYUP: {
-                out = InputEvent::KeyUpEvent(sdl.key.keysym.sym);
+
+            case SDL_KEYUP:
+                out = InputEvent::KeyUpEvent((int)sdl.key.keysym.sym);
                 return true;
-            }
 
             case SDL_MOUSEMOTION: {
                 int mx = scaledMouseX(sdl.motion.x, mouseScaleX);
@@ -77,21 +75,20 @@ namespace {
             case SDL_MOUSEBUTTONDOWN: {
                 int mx = scaledMouseX(sdl.button.x, mouseScaleX);
                 int my = scaledMouseY(sdl.button.y, mouseScaleY);
-                out = InputEvent::MouseDownEvent(mx, my, sdl.button.button);
+                out = InputEvent::MouseDownEvent(mx, my, (int)sdl.button.button);
                 return true;
             }
 
             case SDL_MOUSEBUTTONUP: {
                 int mx = scaledMouseX(sdl.button.x, mouseScaleX);
                 int my = scaledMouseY(sdl.button.y, mouseScaleY);
-                out = InputEvent::MouseUpEvent(mx, my, sdl.button.button);
+                out = InputEvent::MouseUpEvent(mx, my, (int)sdl.button.button);
                 return true;
             }
 
-            case SDL_MOUSEWHEEL: {
-                out = InputEvent::MouseWheelEvent(sdl.wheel.x, sdl.wheel.y);
+            case SDL_MOUSEWHEEL:
+                out = InputEvent::MouseWheelEvent((int)sdl.wheel.x, (int)sdl.wheel.y);
                 return true;
-            }
 
             default:
                 return false;
@@ -100,14 +97,14 @@ namespace {
 }
 
 Application::Application() {
-    initBase();
+    initApplication();
 }
 
 Application::~Application() {
-    shutdownBase();
+    shutdownApplication();
 }
 
-void Application::initBase() {
+void Application::initApplication() {
     if (TTF_Init() == -1) {
         std::cerr << "[Application] TTF_Init error: " << TTF_GetError() << "\n";
     }
@@ -140,7 +137,7 @@ void Application::initBase() {
     std::cout << "[Init] Application initialized.\n";
 }
 
-void Application::shutdownBase() {
+void Application::shutdownApplication() {
     std::cout << "[Shutdown] Application...\n";
 
     if (renderer) {
@@ -219,17 +216,15 @@ void Application::renderBootLoading(float progress01) {
 void Application::run(GameLoop& game) {
     std::cout << "[Run] Main loop @ 60 Hz...\n";
 
-    // Build the engine-facing context contract for the game layer.
     GameContext ctx;
-    ctx.renderer = getRenderer();
-    ctx.camera   = getCamera();
-    ctx.drawableW = getDrawableW();
-    ctx.drawableH = getDrawableH();
+    ctx.renderer = renderer.get();
+    ctx.camera   = camera.get();
+    ctx.drawableW = drawableW;
+    ctx.drawableH = drawableH;
 
-    // Provide minimal engine callbacks as lambdas.
-    ctx.setTitle = [this](const std::string& s) { this->setTitle(s); };
+    // Bind engine helpers as callbacks (stable contract)
+    ctx.setTitle = [this](const std::string& t) { this->setTitle(t); };
     ctx.swapBuffers = [this]() { this->swapBuffers(); };
-
     ctx.pumpPreloadEvents = [this]() { return this->pumpPreloadEvents(); };
     ctx.renderBootLoading = [this](float p) { this->renderBootLoading(p); };
 
@@ -243,23 +238,23 @@ void Application::run(GameLoop& game) {
     static double fpsTimer = 0.0;
 
     bool running = true;
-    SDL_Event sdlEvent;
 
     while (running) {
+        SDL_Event sdlEvent;
+
         while (SDL_PollEvent(&sdlEvent)) {
             if (sdlEvent.type == SDL_QUIT ||
                 (sdlEvent.type == SDL_KEYDOWN && sdlEvent.key.keysym.sym == SDLK_ESCAPE)) {
                 running = false;
             }
 
-            // resize handling
+            // resize handling (engine-owned)
             if (sdlEvent.type == SDL_WINDOWEVENT) {
                 if (sdlEvent.window.event == SDL_WINDOWEVENT_SIZE_CHANGED ||
                     sdlEvent.window.event == SDL_WINDOWEVENT_RESIZED) {
                     updateDrawableSizeAndViewport();
                     updateMouseScale();
 
-                    // keep camera aspect correct
                     if (camera) {
                         *camera = Camera3D(45.0f, float(drawableW) / float(drawableH), 0.1f, 100.0f);
                     }
@@ -270,7 +265,7 @@ void Application::run(GameLoop& game) {
                 }
             }
 
-            // mouse events -> scale to drawable coords -> emit engine events
+            // Engine-level mouse events -> emit engine events (UI + picking)
             switch (sdlEvent.type) {
                 case SDL_MOUSEBUTTONDOWN: {
                     int mx = scaledMouseX(sdlEvent.button.x, mouseScaleX);

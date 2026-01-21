@@ -7,6 +7,7 @@
 int main() {
     Application app;
     GameApp game;
+
     app.run(game);
     return 0;
 }

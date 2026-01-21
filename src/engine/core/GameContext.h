@@ -28,6 +28,6 @@ struct GameContext {
     std::function<void()>                  swapBuffers;
 
     // Loading / long task helpers
-    std::function<bool()>  pumpPreloadEvents;
+    std::function<bool()>                  pumpPreloadEvents;
     std::function<void(float /*progress01*/)> renderBootLoading;
 };

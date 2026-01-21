@@ -46,8 +46,9 @@ public:
     void renderBootLoading(float progress01);
 
 private:
-    void initBase();
-    void shutdownBase();
+    void initApplication();
+    void shutdownApplication();
+
     void updateDrawableSizeAndViewport();
     void updateMouseScale();
 
