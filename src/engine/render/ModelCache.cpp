@@ -1,3 +1,4 @@
+
 // src/engine/render/ModelCache.cpp
 
 #include "Model.h"
@@ -346,7 +347,37 @@ bool Model::tryLoadCache(const std::string& filepath)
                 emissiveCPU[i]  = std::move(emissive);
             }
 
-            // Upload VBO/EBO/VAO exactly like the slow path
+            
+            const bool dbgThisModel = envTruthy("PAC_GLTF_DEBUG") ||
+                                      (filepath.find("0019_rattata") != std::string::npos) ||
+                                      (filepath.find("0019-Rattata") != std::string::npos) ||
+                                      (filepath.find("rattata") != std::string::npos) ||
+                                      (filepath.find("Rattata") != std::string::npos);
+
+            if (dbgThisModel) {
+                std::cerr << "[gltf][CACHE][DEBUG] Cache read complete for: " << filepath << "\n";
+                std::cerr << "[gltf][CACHE][DEBUG] submeshes=" << hdr.submeshCount
+                          << " vertices=" << hdr.vertexCount << " indices=" << hdr.indexCount << "\n";
+                for (uint32_t i = 0; i < hdr.submeshCount; ++i) {
+                    const auto& b = baseColorCPU[i];
+                    const auto& e = emissiveCPU[i];
+                    std::cerr << "[gltf][CACHE][TEX] submesh[" << i << "] base "
+                              << b.width << "x" << b.height << " bytes=" << b.rgba.size()
+                              << " wrapS=" << b.wrapS << " wrapT=" << b.wrapT
+                              << " minF=" << b.minF << " magF=" << b.magF << "\n";
+                    if (b.rgba.empty()) {
+                        std::cerr << "[gltf][CACHE][WARN] submesh[" << i << "] baseColor RGBA blob is EMPTY. Expect undefined texture contents.\n";
+                    }
+                    std::cerr << "[gltf][CACHE][TEX] submesh[" << i << "] emissive "
+                              << e.width << "x" << e.height << " bytes=" << e.rgba.size() << "\n";
+                    if (e.rgba.empty()) {
+                        std::cerr << "[gltf][CACHE][WARN] submesh[" << i << "] emissive RGBA blob is EMPTY.\n";
+                    }
+                }
+                std::cerr << "[gltf][CACHE][DEBUG] If you suspect stale/corrupt cache, run with PAC_DISABLE_MODELCACHE=1 once.\n";
+            }
+
+// Upload VBO/EBO/VAO exactly like the slow path
             glGenVertexArrays(1, &VAO);
             glGenBuffers(1, &VBO);
             glGenBuffers(1, &EBO);
@@ -593,3 +624,4 @@ void Model::writeCache(const std::string& filepath,
         // ignore cache write failures
     }
 }
+

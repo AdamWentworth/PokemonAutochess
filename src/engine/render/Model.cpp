@@ -1,3 +1,4 @@
+
 // src/engine/render/Model.cpp
 #include "Model.h"
 #include "ModelStartupLog.h"
@@ -9,6 +10,11 @@
 #include <algorithm>
 #include <type_traits>
 #include <utility>
+#include <cstdlib>
+#include <cstring>
+#include <cctype>
+#include <iomanip>
+#include <sstream>
 
 #include <glad/glad.h>
 #include <glm/gtc/matrix_transform.hpp>
@@ -24,6 +30,7 @@
 
 // stb_image (IMPLEMENTATION IS PROVIDED ELSEWHERE in your project)
 #include <stb_image.h>
+#include <stb_image_write.h>
 
 namespace fs = std::filesystem;
 
@@ -187,3 +194,4 @@ void Model::loadGLTF(const std::string& filepath)
 
     #include "ModelFastGltfLoad.inl"
 }
+

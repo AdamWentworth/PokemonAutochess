@@ -1,3 +1,4 @@
+
 // src/engine/render/ModelFastGltfLoad.inl
 //
 // Intentionally included inside Model::loadGLTF(...) in Model.cpp
@@ -197,54 +198,210 @@ struct FG {
         return t;
     }
 
-    static CPUTexture decodeBaseColorTextureFast(const fastgltf::Asset& asset,
-                                                 const std::filesystem::path& baseDir,
-                                                 int materialIndex) {
+    
+    enum class TextureKind { BaseColor, Emissive };
+
+    static bool envTruthy(const char* name) {
+        const char* v = std::getenv(name);
+        if (!v || !*v) return false;
+        return std::strcmp(v, "0") != 0;
+    }
+
+    static std::string toLower(std::string s) {
+        for (char& c : s) c = (char)std::tolower((unsigned char)c);
+        return s;
+    }
+
+    static bool ciContains(const std::string& s, const std::string& needle) {
+        return toLower(s).find(toLower(needle)) != std::string::npos;
+    }
+
+
+    static int requiredTexCoordForMaterial(const fastgltf::Asset& asset, int materialIndex) {
+        int need = 0;
+        if (materialIndex >= 0 && materialIndex < (int)asset.materials.size()) {
+            const auto& m = asset.materials[(size_t)materialIndex];
+            if (m.pbrData.baseColorTexture.has_value()) {
+                need = (std::max)(need, (int)m.pbrData.baseColorTexture->texCoordIndex);
+            }
+            if (m.emissiveTexture.has_value()) {
+                need = (std::max)(need, (int)m.emissiveTexture->texCoordIndex);
+            }
+        }
+        return need;
+    }
+
+    static const char* magicName(const std::vector<std::uint8_t>& bytes) {
+        if (bytes.size() >= 12) {
+            // PNG
+            static const unsigned char pngSig[8] = {0x89,'P','N','G',0x0D,0x0A,0x1A,0x0A};
+            if (std::memcmp(bytes.data(), pngSig, 8) == 0) return "PNG";
+            // JPEG
+            if (bytes[0] == 0xFF && bytes[1] == 0xD8) return "JPG";
+            // KTX2
+            static const unsigned char ktx2Sig[12] = {0xAB,'K','T','X',' ','2','0',0xBB,0x0D,0x0A,0x1A,0x0A};
+            if (std::memcmp(bytes.data(), ktx2Sig, 12) == 0) return "KTX2";
+            // DDS
+            if (bytes[0] == 'D' && bytes[1] == 'D' && bytes[2] == 'S' && bytes[3] == ' ') return "DDS";
+            // WEBP (RIFF....WEBP)
+            if (bytes[0]=='R' && bytes[1]=='I' && bytes[2]=='F' && bytes[3]=='F' &&
+                bytes[8]=='W' && bytes[9]=='E' && bytes[10]=='B' && bytes[11]=='P') return "WEBP";
+        }
+        return "UNKNOWN";
+    }
+
+    static void logTexDecode(const std::string& prefix, const std::string& msg) {
+        std::cerr << prefix << msg << "\n";
+    }
+
+    static std::string glEnumName(GLint e) {
+        switch (e) {
+            case GL_REPEAT: return "GL_REPEAT";
+            case GL_CLAMP_TO_EDGE: return "GL_CLAMP_TO_EDGE";
+            case GL_MIRRORED_REPEAT: return "GL_MIRRORED_REPEAT";
+            case GL_NEAREST: return "GL_NEAREST";
+            case GL_LINEAR: return "GL_LINEAR";
+            case GL_NEAREST_MIPMAP_NEAREST: return "GL_NEAREST_MIPMAP_NEAREST";
+            case GL_LINEAR_MIPMAP_NEAREST: return "GL_LINEAR_MIPMAP_NEAREST";
+            case GL_NEAREST_MIPMAP_LINEAR: return "GL_NEAREST_MIPMAP_LINEAR";
+            case GL_LINEAR_MIPMAP_LINEAR: return "GL_LINEAR_MIPMAP_LINEAR";
+            default: return "GL_ENUM(" + std::to_string((int)e) + ")";
+        }
+    }
+
+    static void dumpRGBAtoPNG(const std::filesystem::path& outPath, const CPUTexture& t) {
+        if (t.rgba.empty() || t.width == 0 || t.height == 0) return;
+        try {
+            std::filesystem::create_directories(outPath.parent_path());
+        } catch (...) {}
+        stbi_write_png(outPath.string().c_str(),
+                       (int)t.width, (int)t.height,
+                       4, t.rgba.data(), (int)t.width * 4);
+    }
+
+    static CPUTexture decodeTextureFast(const fastgltf::Asset& asset,
+                                        const std::filesystem::path& baseDir,
+                                        int materialIndex,
+                                        TextureKind kind,
+                                        bool dbg,
+                                        const std::string& modelPath,
+                                        int* outTexCoordIndex /*optional*/) {
+        if (outTexCoordIndex) *outTexCoordIndex = 0;
+
+        const std::string lowerPath = toLower(modelPath);
+        const bool forceDbg = dbg || envTruthy("PAC_GLTF_DEBUG_ALL");
+        const std::string prefix = "[gltf][TEX] ";
+
+        auto wantLog = [&]() {
+            if (forceDbg) return true;
+            // Auto-debug the rattata model without needing env vars.
+            return ciContains(lowerPath, "0019_rattata") || ciContains(lowerPath, "0019-rattata") || ciContains(lowerPath, "rattata");
+        };
+
+        auto white = makeWhiteCPUTexture();
+        auto black = makeBlackCPUTexture();
+
         if (materialIndex < 0 || materialIndex >= (int)asset.materials.size()) {
-            return makeWhiteCPUTexture();
+            return (kind == TextureKind::BaseColor) ? white : black;
         }
 
         const auto& mat = asset.materials[(size_t)materialIndex];
 
-        if (!mat.pbrData.baseColorTexture.has_value()) {
-            CPUTexture t;
-            t.width = 1; t.height = 1;
-            t.wrapS = GL_REPEAT;
-            t.wrapT = GL_REPEAT;
-            t.minF  = GL_LINEAR;
-            t.magF  = GL_LINEAR;
-
-            auto f = mat.pbrData.baseColorFactor;
-            auto toU8 = [](float x)->uint8_t {
-                x = (std::max)(0.0f, (std::min)(1.0f, x));
-                return (uint8_t)std::lround(x * 255.0f);
-            };
-            t.rgba = { toU8(f[0]), toU8(f[1]), toU8(f[2]), toU8(f[3]) };
-            return t;
+        // Pull the textureInfo (if any) WITHOUT copying (fastgltf::TextureInfo is move-only)
+        const fastgltf::TextureInfo* texInfoPtr = nullptr;
+        if (kind == TextureKind::BaseColor) {
+            if (mat.pbrData.baseColorTexture.has_value()) {
+                texInfoPtr = &mat.pbrData.baseColorTexture.value();
+            }
+        } else {
+            if (mat.emissiveTexture.has_value()) {
+                texInfoPtr = &mat.emissiveTexture.value();
+            }
         }
 
-        const auto& texInfo = mat.pbrData.baseColorTexture.value();
+
+        if (texInfoPtr == nullptr) {
+            // BaseColor: 1x1 factor tint, Emissive: 1x1 black
+            if (kind == TextureKind::BaseColor) {
+                CPUTexture t;
+                t.width = 1; t.height = 1;
+                t.wrapS = GL_REPEAT;
+                t.wrapT = GL_REPEAT;
+                t.minF  = GL_LINEAR;
+                t.magF  = GL_LINEAR;
+
+                auto f = mat.pbrData.baseColorFactor;
+                auto toU8 = [](float x)->uint8_t {
+                    x = (std::max)(0.0f, (std::min)(1.0f, x));
+                    return (uint8_t)std::lround(x * 255.0f);
+                };
+                t.rgba = { toU8(f[0]), toU8(f[1]), toU8(f[2]), toU8(f[3]) };
+
+                if (wantLog()) {
+                    logTexDecode(prefix, "mat[" + std::to_string(materialIndex) + "] '" +
+                        std::string(mat.name.begin(), mat.name.end()) +
+                        "' has NO baseColorTexture; using baseColorFactor RGBA8.");
+                }
+                return t;
+            }
+
+            if (wantLog()) {
+                logTexDecode(prefix, "mat[" + std::to_string(materialIndex) + "] '" +
+                    std::string(mat.name.begin(), mat.name.end()) +
+                    "' has NO emissiveTexture; using 1x1 black.");
+            }
+            return black;
+        }
+
+        const auto& texInfo = *texInfoPtr;
         const size_t texIndex = texInfo.textureIndex;
+        const int texCoord = (int)texInfo.texCoordIndex;
+        if (outTexCoordIndex) *outTexCoordIndex = texCoord;
+
         if (texIndex >= asset.textures.size()) {
-            return makeWhiteCPUTexture();
+            if (wantLog()) {
+                logTexDecode(prefix, "mat[" + std::to_string(materialIndex) + "] textureIndex out of range: " + std::to_string(texIndex));
+            }
+            return (kind == TextureKind::BaseColor) ? white : black;
         }
 
         const auto& tex = asset.textures[texIndex];
 
+        // fastgltf exposes multiple possible image indices (regular/webp/basisu/dds)
         fastgltf::Optional<std::size_t> imgIndexOpt = tex.imageIndex;
-        if (!imgIndexOpt.has_value()) imgIndexOpt = tex.webpImageIndex;
-        if (!imgIndexOpt.has_value()) imgIndexOpt = tex.basisuImageIndex;
-        if (!imgIndexOpt.has_value()) imgIndexOpt = tex.ddsImageIndex;
+        const char* imgSlot = "imageIndex";
+        if (!imgIndexOpt.has_value()) { imgIndexOpt = tex.webpImageIndex;   imgSlot = "webpImageIndex"; }
+        if (!imgIndexOpt.has_value()) { imgIndexOpt = tex.basisuImageIndex; imgSlot = "basisuImageIndex"; }
+        if (!imgIndexOpt.has_value()) { imgIndexOpt = tex.ddsImageIndex;    imgSlot = "ddsImageIndex"; }
 
-        if (!imgIndexOpt.has_value()) return makeWhiteCPUTexture();
+        if (!imgIndexOpt.has_value()) {
+            if (wantLog()) {
+                logTexDecode(prefix, "mat[" + std::to_string(materialIndex) + "] tex[" + std::to_string(texIndex) + "] has NO image index (all empty).");
+            }
+            return (kind == TextureKind::BaseColor) ? white : black;
+        }
 
         const size_t imgIndex = imgIndexOpt.value();
-        if (imgIndex >= asset.images.size()) return makeWhiteCPUTexture();
+        if (imgIndex >= asset.images.size()) {
+            if (wantLog()) {
+                logTexDecode(prefix, "mat[" + std::to_string(materialIndex) + "] imageIndex out of range: " + std::to_string(imgIndex));
+            }
+            return (kind == TextureKind::BaseColor) ? white : black;
+        }
 
         const auto& img = asset.images[imgIndex];
         auto enc = getEncodedImageBytes(asset, baseDir, img);
-        if (!enc.has_value() || enc->bytes.empty()) return makeWhiteCPUTexture();
 
+        if (!enc.has_value() || enc->bytes.empty()) {
+            if (wantLog()) {
+                logTexDecode(prefix, "mat[" + std::to_string(materialIndex) + "] tex[" + std::to_string(texIndex) +
+                    "] img[" + std::to_string(imgIndex) + "] (" + imgSlot + ") encoded bytes EMPTY (" +
+                    (enc.has_value() ? enc->debugName : std::string("no enc")) + ")");
+            }
+            return (kind == TextureKind::BaseColor) ? white : black;
+        }
+
+        // Try decode via stb_image
         int w = 0, h = 0, comp = 0;
         stbi_uc* decoded = stbi_load_from_memory(
             enc->bytes.data(),
@@ -252,15 +409,39 @@ struct FG {
             &w, &h, &comp, 4
         );
 
+        if (wantLog()) {
+            const std::string matName(mat.name.begin(), mat.name.end());
+            const char* fmt = magicName(enc->bytes);
+            std::string msg = "mat[" + std::to_string(materialIndex) + "] '" + matName + "' ";
+            msg += (kind == TextureKind::BaseColor) ? "BaseColor" : "Emissive";
+            msg += " tex[" + std::to_string(texIndex) + "] img[" + std::to_string(imgIndex) + "](" + imgSlot + ")";
+            msg += " texCoord=" + std::to_string(texCoord);
+            msg += " src='" + enc->debugName + "'";
+            msg += " encodedBytes=" + std::to_string(enc->bytes.size());
+            msg += " magic=" + std::string(fmt);
+            msg += " stbi=" + std::string(decoded ? "OK" : "FAIL");
+            if (decoded) {
+                msg += " w=" + std::to_string(w) + " h=" + std::to_string(h) + " comp=" + std::to_string(comp);
+            } else {
+                const char* reason = stbi_failure_reason();
+                msg += " reason='" + std::string(reason ? reason : "unknown") + "'";
+                if (std::string(fmt) == "KTX2" || std::string(fmt) == "DDS") {
+                    msg += " (likely unsupported compressed texture format)";
+                }
+            }
+            logTexDecode(prefix, msg);
+        }
+
         if (decoded == nullptr || w <= 0 || h <= 0) {
             if (decoded) stbi_image_free(decoded);
-            return makeWhiteCPUTexture();
+            return (kind == TextureKind::BaseColor) ? white : black;
         }
 
         CPUTexture out;
         out.width  = (uint32_t)w;
         out.height = (uint32_t)h;
 
+        // defaults
         out.wrapS = GL_REPEAT;
         out.wrapT = GL_REPEAT;
         out.minF  = GL_LINEAR_MIPMAP_LINEAR;
@@ -278,81 +459,39 @@ struct FG {
         out.rgba.resize(pxCount * 4);
         std::memcpy(out.rgba.data(), decoded, pxCount * 4);
         stbi_image_free(decoded);
+
+        // Optional texture dumps (only when explicitly enabled; can be large)
+        if (wantLog() && envTruthy("PAC_GLTF_DUMP_TEXTURES")) {
+            const std::string matName = std::string(mat.name.begin(), mat.name.end());
+            std::string kindStr = (kind == TextureKind::BaseColor) ? "base" : "emissive";
+            std::filesystem::path dumpDir = std::filesystem::path("debug") / "gltf_textures";
+            std::filesystem::path outP = dumpDir / (std::filesystem::path(modelPath).stem().string()
+                + "_mat" + std::to_string(materialIndex) + "_" + kindStr + ".png");
+            dumpRGBAtoPNG(outP, out);
+            logTexDecode(prefix, "dumped " + kindStr + " -> " + outP.string() +
+                " (" + std::to_string(out.width) + "x" + std::to_string(out.height) + ", wrapS=" +
+                glEnumName(out.wrapS) + ", wrapT=" + glEnumName(out.wrapT) + ")");
+        }
 
         return out;
     }
 
+    static CPUTexture decodeBaseColorTextureFast(const fastgltf::Asset& asset,
+                                                 const std::filesystem::path& baseDir,
+                                                 int materialIndex,
+                                                 bool dbg,
+                                                 const std::string& modelPath,
+                                                 int* outTexCoordIndex /*optional*/) {
+        return decodeTextureFast(asset, baseDir, materialIndex, TextureKind::BaseColor, dbg, modelPath, outTexCoordIndex);
+    }
+
     static CPUTexture decodeEmissiveTextureFast(const fastgltf::Asset& asset,
                                                 const std::filesystem::path& baseDir,
-                                                int materialIndex) {
-        if (materialIndex < 0 || materialIndex >= (int)asset.materials.size()) {
-            return makeBlackCPUTexture();
-        }
-
-        const auto& mat = asset.materials[(size_t)materialIndex];
-
-        // No emissive texture -> return a 1x1 black tex; factor will still be applied in shader.
-        if (!mat.emissiveTexture.has_value()) {
-            return makeBlackCPUTexture();
-        }
-
-        const auto& texInfo = mat.emissiveTexture.value();
-        const size_t texIndex = texInfo.textureIndex;
-        if (texIndex >= asset.textures.size()) {
-            return makeBlackCPUTexture();
-        }
-
-        const auto& tex = asset.textures[texIndex];
-
-        fastgltf::Optional<std::size_t> imgIndexOpt = tex.imageIndex;
-        if (!imgIndexOpt.has_value()) imgIndexOpt = tex.webpImageIndex;
-        if (!imgIndexOpt.has_value()) imgIndexOpt = tex.basisuImageIndex;
-        if (!imgIndexOpt.has_value()) imgIndexOpt = tex.ddsImageIndex;
-
-        if (!imgIndexOpt.has_value()) return makeBlackCPUTexture();
-
-        const size_t imgIndex = imgIndexOpt.value();
-        if (imgIndex >= asset.images.size()) return makeBlackCPUTexture();
-
-        const auto& img = asset.images[imgIndex];
-        auto enc = getEncodedImageBytes(asset, baseDir, img);
-        if (!enc.has_value() || enc->bytes.empty()) return makeBlackCPUTexture();
-
-        int w = 0, h = 0, comp = 0;
-        stbi_uc* decoded = stbi_load_from_memory(
-            enc->bytes.data(),
-            (int)enc->bytes.size(),
-            &w, &h, &comp, 4
-        );
-
-        if (decoded == nullptr || w <= 0 || h <= 0) {
-            if (decoded) stbi_image_free(decoded);
-            return makeBlackCPUTexture();
-        }
-
-        CPUTexture out;
-        out.width  = (uint32_t)w;
-        out.height = (uint32_t)h;
-
-        out.wrapS = GL_REPEAT;
-        out.wrapT = GL_REPEAT;
-        out.minF  = GL_LINEAR_MIPMAP_LINEAR;
-        out.magF  = GL_LINEAR;
-
-        if (tex.samplerIndex.has_value() && tex.samplerIndex.value() < asset.samplers.size()) {
-            const auto& s = asset.samplers[tex.samplerIndex.value()];
-            out.wrapS = wrapToGL(s.wrapS);
-            out.wrapT = wrapToGL(s.wrapT);
-            if (s.minFilter.has_value()) out.minF = filterToGLMin((int)s.minFilter.value());
-            if (s.magFilter.has_value()) out.magF = filterToGLMag((int)s.magFilter.value());
-        }
-
-        const size_t pxCount = (size_t)w * (size_t)h;
-        out.rgba.resize(pxCount * 4);
-        std::memcpy(out.rgba.data(), decoded, pxCount * 4);
-        stbi_image_free(decoded);
-
-        return out;
+                                                int materialIndex,
+                                                bool dbg,
+                                                const std::string& modelPath,
+                                                int* outTexCoordIndex /*optional*/) {
+        return decodeTextureFast(asset, baseDir, materialIndex, TextureKind::Emissive, dbg, modelPath, outTexCoordIndex);
     }
 
     static void readScalarFloat(const fastgltf::Asset& asset,
@@ -419,6 +558,12 @@ struct FG {
     }
 
     const fastgltf::Asset& asset = fg->asset;
+
+    const bool dbgThisModel = FG::envTruthy("PAC_GLTF_DEBUG") || FG::ciContains(filepath, "0019_rattata") || FG::ciContains(filepath, "rattata");
+    if (dbgThisModel) {
+        std::cerr << "[gltf][DEBUG] Extra logging ENABLED for: " << filepath << "\n";
+        std::cerr << "[gltf][DEBUG] Env toggles: PAC_GLTF_DUMP_TEXTURES=1 will write debug PNGs; PAC_GLTF_RESPECT_TEXCOORD=1 will respect material texCoord indices.\n";
+    }
 
     // Reset model state
     nodesDefault.clear();
@@ -601,8 +746,33 @@ struct FG {
             const auto& p = mesh.primitives[primIdx];
             if (p.type != fastgltf::PrimitiveType::Triangles) continue;
 
+
+            int materialIndex = -1;
+            if (fgOptHas(p.materialIndex)) {
+                materialIndex = (int)fgOptGet(p.materialIndex);
+            }
+
             auto itPos = p.findAttribute("POSITION");
-            auto itUv  = p.findAttribute("TEXCOORD_0");
+
+            // Determine which UV set this primitive *wants* based on its material texCoord indices.
+            int requiredTexCoord = 0;
+            if (FG::envTruthy("PAC_GLTF_RESPECT_TEXCOORD")) {
+                requiredTexCoord = FG::requiredTexCoordForMaterial(asset, materialIndex);
+            }
+
+            std::string uvAttr = "TEXCOORD_" + std::to_string(requiredTexCoord);
+            auto itUv = p.findAttribute(uvAttr);
+
+            // Fallback to TEXCOORD_0 if missing.
+            if (itUv == p.attributes.end()) {
+                if (dbgThisModel && requiredTexCoord != 0) {
+                    std::cerr << "[gltf][WARN] Primitive material wants " << uvAttr
+                              << " but it's missing; falling back to TEXCOORD_0.\n";
+                }
+                requiredTexCoord = 0;
+                itUv = p.findAttribute("TEXCOORD_0");
+            }
+
             if (itPos == p.attributes.end() || itUv == p.attributes.end()) {
                 std::cerr << "[fastgltf] Missing POSITION or TEXCOORD_0 in primitive\n";
                 continue;
@@ -628,9 +798,69 @@ struct FG {
                 adapter
             );
 
+
+
+            // --- Apply KHR_texture_transform (bake into UVs) if present ---
+            auto applyKHRTextureTransform = [&](const fastgltf::TextureInfo* ti) {
+                if (!ti) return;
+                if (!ti->transform) return;
+
+                const auto& tr = *ti->transform;
+
+                // fastgltf uses uvOffset/uvScale for KHR_texture_transform
+                glm::vec2 offset(tr.uvOffset[0], tr.uvOffset[1]);
+                glm::vec2 scale (tr.uvScale[0],  tr.uvScale[1]);
+                float rot = (float)tr.rotation;
+
+                float c = std::cos(rot);
+                float s = std::sin(rot);
+
+                for (auto& t : uv) {
+                    glm::vec2 p = t;
+                    p *= scale;
+                    p = glm::vec2(c * p.x - s * p.y,
+                                  s * p.x + c * p.y);
+                    p += offset;
+                    t = p;
+                }
+
+                if (dbgThisModel) {
+                    std::cerr << "[gltf][XFORM] Applied KHR_texture_transform: "
+                              << "offset=(" << offset.x << "," << offset.y << ") "
+                              << "scale=(" << scale.x << "," << scale.y << ") "
+                              << "rot=" << rot << "\n";
+                }
+            };
+
+            // Only bake transform for the baseColorTexture that matches the UV set we're using
+            const fastgltf::TextureInfo* baseTI = nullptr;
+            if (materialIndex >= 0 && materialIndex < (int)asset.materials.size()) {
+                const auto& mat = asset.materials[(size_t)materialIndex];
+                if (mat.pbrData.baseColorTexture.has_value()) {
+                    const auto& ti = mat.pbrData.baseColorTexture.value();
+                    if ((int)ti.texCoordIndex == requiredTexCoord) {
+                        baseTI = &ti;
+                    }
+                }
+            }
+            applyKHRTextureTransform(baseTI);
+
             if (pos.empty() || uv.empty() || pos.size() != uv.size()) {
                 std::cerr << "[fastgltf] Invalid POSITION/TEXCOORD_0 sizes\n";
                 continue;
+            }
+
+            if (dbgThisModel) {
+                glm::vec2 uvMin( 1e9f), uvMax(-1e9f);
+                for (const auto& t : uv) {
+                    uvMin.x = (std::min)(uvMin.x, t.x); uvMin.y = (std::min)(uvMin.y, t.y);
+                    uvMax.x = (std::max)(uvMax.x, t.x); uvMax.y = (std::max)(uvMax.y, t.y);
+                }
+                std::cerr << "[gltf][UV] mat=" << materialIndex
+                          << " texCoord=" << requiredTexCoord
+                          << " uvMin=(" << uvMin.x << "," << uvMin.y << ")"
+                          << " uvMax=(" << uvMax.x << "," << uvMax.y << ")"
+                          << " vertCount=" << uv.size() << "\n";
             }
 
             std::vector<glm::u16vec4> joints;
@@ -709,14 +939,17 @@ struct FG {
                 indices.push_back((uint32_t)(baseVertex + idx));
             }
 
-            int materialIndex = -1;
-            if (fgOptHas(p.materialIndex)) {
-                materialIndex = (int)fgOptGet(p.materialIndex);
-            }
-
             // --- material decode (minimal glTF) ---
-            FG::CPUTexture baseCPU = FG::decodeBaseColorTextureFast(asset, fg->baseDir, materialIndex);
-            FG::CPUTexture emissiveCPU = FG::decodeEmissiveTextureFast(asset, fg->baseDir, materialIndex);
+            int baseTexCoordUsed = 0;
+            int emissiveTexCoordUsed = 0;
+            FG::CPUTexture baseCPU = FG::decodeBaseColorTextureFast(asset, fg->baseDir, materialIndex, dbgThisModel, filepath, &baseTexCoordUsed);
+            FG::CPUTexture emissiveCPU = FG::decodeEmissiveTextureFast(asset, fg->baseDir, materialIndex, dbgThisModel, filepath, &emissiveTexCoordUsed);
+            if (dbgThisModel && !FG::envTruthy("PAC_GLTF_RESPECT_TEXCOORD") && (baseTexCoordUsed != 0 || emissiveTexCoordUsed != 0)) {
+                std::cerr << "[gltf][WARN] This material references texCoord != 0 (base=" << baseTexCoordUsed
+                          << ", emissive=" << emissiveTexCoordUsed << ").\n"
+                          << "             Your current mesh loader only uploads TEXCOORD_0.\n"
+                          << "             Try setting PAC_GLTF_RESPECT_TEXCOORD=1 to test a fix, or implement multi-UV support.\n";
+            }
 
             glm::vec3 emissiveFactor(0.0f);
             int alphaMode = 0;       // OPAQUE
@@ -761,6 +994,17 @@ struct FG {
 
             glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, (GLsizei)bw, (GLsizei)bh, 0,
                          GL_RGBA, GL_UNSIGNED_BYTE, bpixels);
+            if (dbgThisModel) {
+                GLenum err = glGetError();
+                if (err != GL_NO_ERROR) {
+                    std::cerr << "[gltf][GL] baseTex glTexImage2D error=0x" << std::hex << (unsigned)err << std::dec << "\n";
+                }
+                GLint wq = 0, hq = 0, ifmt = 0;
+                glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_WIDTH, &wq);
+                glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_HEIGHT, &hq);
+                glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_INTERNAL_FORMAT, &ifmt);
+                std::cerr << "[gltf][GL] baseTex uploaded size=" << wq << "x" << hq << " ifmt=" << ifmt << "\n";
+            }
 
             glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, (GLint)baseCPU.wrapS);
             glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, (GLint)baseCPU.wrapT);
@@ -783,6 +1027,17 @@ struct FG {
 
             glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, (GLsizei)ew, (GLsizei)eh, 0,
                          GL_RGBA, GL_UNSIGNED_BYTE, epixels);
+            if (dbgThisModel) {
+                GLenum err = glGetError();
+                if (err != GL_NO_ERROR) {
+                    std::cerr << "[gltf][GL] emissiveTex glTexImage2D error=0x" << std::hex << (unsigned)err << std::dec << "\n";
+                }
+                GLint wq = 0, hq = 0, ifmt = 0;
+                glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_WIDTH, &wq);
+                glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_HEIGHT, &hq);
+                glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_INTERNAL_FORMAT, &ifmt);
+                std::cerr << "[gltf][GL] emissiveTex uploaded size=" << wq << "x" << hq << " ifmt=" << ifmt << "\n";
+            }
 
             glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, (GLint)emissiveCPU.wrapS);
             glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, (GLint)emissiveCPU.wrapT);
@@ -854,3 +1109,4 @@ struct FG {
     writeCache(filepath, vertices, indices, baseColorTexturesCPU, emissiveTexturesCPU);
     std::cerr << "[gltf][FASTGLTF] COMPLETE for: " << filepath << "\n";
 }
+
