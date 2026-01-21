@@ -106,6 +106,7 @@ add_executable(PokemonAutochess
     main.cpp
 
     # Game Core
+    src/game/GameApp.cpp
     src/game/GameWorld.cpp
     src/game/GameStateManager.cpp
     src/game/LuaBindings.cpp

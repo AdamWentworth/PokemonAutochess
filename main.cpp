@@ -1,10 +1,12 @@
 // main.cpp
-
 #define SDL_MAIN_HANDLED
-#include "src/engine/core/Application.h"
+
+#include "engine/core/Application.h"
+#include "game/GameApp.h"
 
 int main() {
     Application app;
-    app.run();
+    GameApp game;
+    app.run(game);
     return 0;
 }
