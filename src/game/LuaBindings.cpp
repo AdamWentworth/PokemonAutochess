@@ -245,11 +245,26 @@ void registerLuaBindings(sol::state& lua, GameWorld* world, GameStateManager* ma
 
     lua.set_function("world_apply_damage", [world](int attackerId, int targetId, int amount) {
         if (!world) return -1;
+
         auto& list = world->getPokemons();
-        auto A = std::find_if(list.begin(), list.end(), [&](const PokemonInstance& p){ return p.id == attackerId; });
-        auto T = std::find_if(list.begin(), list.end(), [&](const PokemonInstance& p){ return p.id == targetId; });
+
+        auto A = std::find_if(list.begin(), list.end(),
+            [&](const PokemonInstance& p){ return p.id == attackerId; });
+
+        auto T = std::find_if(list.begin(), list.end(),
+            [&](const PokemonInstance& p){ return p.id == targetId; });
+
         if (A == list.end() || T == list.end()) return -1;
         if (!A->alive || !T->alive) return T->hp;
+
+        // NEW: trigger attack1 animation if this unit has a loaded attack duration
+        // (Bulbasaur gets this from its manifest).
+        if (A->attackDurationSec > 0.0f) {
+            A->attackTimerSec = A->attackDurationSec;
+            A->animTimeSec = 0.0f;
+            A->activeAnimIndex = A->animAttack1Index;
+        }
+
         T->hp = std::max(0, T->hp - std::max(0, amount));
         if (T->hp == 0) {
             T->alive = false;

@@ -1,12 +1,12 @@
 // src/engine/render/ModelFastGltfLoad.inl
 //
 // Intentionally included inside Model::loadGLTF(...) in Model.cpp
-// so it can use Model's private nested types (Vertex, NodeTRS, etc).
-//
-// IMPORTANT: This file is included inside a function body.
-// - No free-function definitions here.
-// - Local classes are allowed, but MSVC forbids *member templates* in local classes.
-//   So any templates (traits, etc.) must live at file-scope in Model.cpp.
+
+// ✅ Fix: always use correct animation types regardless of where this is included
+using pac_model_types::AnimationClip;
+using pac_model_types::AnimationSampler;
+using pac_model_types::AnimationChannel;
+using pac_model_types::ChannelPath;
 
 struct FG {
     using CPUTexture = Model::CPUTexture;
@@ -216,7 +216,7 @@ struct FG {
 
             auto f = mat.pbrData.baseColorFactor;
             auto toU8 = [](float x)->uint8_t {
-                x = std::max(0.0f, std::min(1.0f, x));
+                x = (std::max)(0.0f, (std::min)(1.0f, x));
                 return (uint8_t)std::lround(x * 255.0f);
             };
             t.rgba = { toU8(f[0]), toU8(f[1]), toU8(f[2]), toU8(f[3]) };
@@ -520,7 +520,9 @@ struct FG {
 
             if (s.inputAccessor < asset.accessors.size()) {
                 FG::readScalarFloat(asset, asset.accessors[s.inputAccessor], samp.inputs, adapter);
-                if (!samp.inputs.empty()) clip.durationSec = std::max(clip.durationSec, samp.inputs.back());
+                if (!samp.inputs.empty()) {
+                    clip.durationSec = (std::max)(clip.durationSec, samp.inputs.back());
+                }
             }
 
             if (s.outputAccessor < asset.accessors.size()) {
@@ -699,8 +701,8 @@ struct FG {
 
                 vertices.push_back(v);
 
-                minX = std::min(minX, v.px); minY = std::min(minY, v.py); minZ = std::min(minZ, v.pz);
-                maxX = std::max(maxX, v.px); maxY = std::max(maxY, v.py); maxZ = std::max(maxZ, v.pz);
+                minX = (std::min)(minX, v.px); minY = (std::min)(minY, v.py); minZ = (std::min)(minZ, v.pz);
+                maxX = (std::max)(maxX, v.px); maxY = (std::max)(maxY, v.py); maxZ = (std::max)(maxZ, v.pz);
             }
 
             for (auto idx : primIdxU32) {
@@ -727,20 +729,15 @@ struct FG {
                 // emissiveFactor is always present in glTF (defaults to (0,0,0))
                 emissiveFactor = glm::vec3(mat.emissiveFactor[0], mat.emissiveFactor[1], mat.emissiveFactor[2]);
 
-                // Apply KHR_materials_emissive_strength (this is what made the tail work)
+                // ✅ Apply emissive strength ONCE
                 emissiveFactor *= (float)mat.emissiveStrength;
 
-                // ----- TUNING -----
                 // Boost ONLY the tail fire, without affecting the rest of the model.
                 const std::string matName(mat.name.begin(), mat.name.end());
                 if (matName == "fire") {
-                    const float kTailFireBoost = 1.35f; // try 1.15 -> 1.75
+                    const float kTailFireBoost = 1.35f;
                     emissiveFactor *= kTailFireBoost;
                 }
-
-                // glTF extension: KHR_materials_emissive_strength (fastgltf exposes this directly)
-                // This is REQUIRED for many “fire/glow” materials to look correct under tonemapping.
-                emissiveFactor *= (float)mat.emissiveStrength;
 
                 // alpha mode
                 switch (mat.alphaMode) {
@@ -857,5 +854,3 @@ struct FG {
     writeCache(filepath, vertices, indices, baseColorTexturesCPU, emissiveTexturesCPU);
     std::cerr << "[gltf][FASTGLTF] COMPLETE for: " << filepath << "\n";
 }
-
-

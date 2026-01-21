@@ -1,0 +1,1549 @@
+{
+  "schema": "animset-v2",
+  "model_id": "0004_Charmander",
+  "model_num": 4,
+  "blend_file": "0004_Charmander.blend",
+  "fps": 24.0,
+  "clip_count": 50,
+  "clips": [
+    {
+      "gltf_name": "pm0004_00_00_00400_attack01.gfbanm",
+      "source": "action",
+      "action": "pm0004_00_00_00400_attack01.gfbanm",
+      "clip_id": 400,
+      "base": "attack01.",
+      "phase": "one_shot",
+      "is_loop": false,
+      "category": "attack",
+      "frame_start": 0.0,
+      "frame_end": 131.0,
+      "duration_frames": 131.0,
+      "duration_seconds": 5.458333333333333,
+      "clip_key": "action:id:400",
+      "model_num": 4,
+      "action_name": "pm0004_00_00_00400_attack01.gfbanm",
+      "action_frame_start": 0.0,
+      "action_frame_end": 131.0,
+      "action_duration_frames": 131.0,
+      "action_duration_seconds": 5.458333333333333
+    },
+    {
+      "gltf_name": "pm0004_00_00_00410_attack02.gfbanm",
+      "source": "action",
+      "action": "pm0004_00_00_00410_attack02.gfbanm",
+      "clip_id": 410,
+      "base": "attack02.",
+      "phase": "one_shot",
+      "is_loop": false,
+      "category": "attack",
+      "frame_start": 0.0,
+      "frame_end": 111.0,
+      "duration_frames": 111.0,
+      "duration_seconds": 4.625,
+      "clip_key": "action:id:410",
+      "model_num": 4,
+      "action_name": "pm0004_00_00_00410_attack02.gfbanm",
+      "action_frame_start": 0.0,
+      "action_frame_end": 111.0,
+      "action_duration_frames": 111.0,
+      "action_duration_seconds": 4.625
+    },
+    {
+      "gltf_name": "pm0004_00_00_00001_battlewait01_loop.gfbanm",
+      "source": "action",
+      "action": "pm0004_00_00_00001_battlewait01_loop.gfbanm",
+      "clip_id": 1,
+      "base": "battlewait01_loop.",
+      "phase": "one_shot",
+      "is_loop": false,
+      "category": "idle",
+      "frame_start": 0.0,
+      "frame_end": 91.0,
+      "duration_frames": 91.0,
+      "duration_seconds": 3.7916666666666665,
+      "clip_key": "action:id:1",
+      "model_num": 4,
+      "action_name": "pm0004_00_00_00001_battlewait01_loop.gfbanm",
+      "action_frame_start": 0.0,
+      "action_frame_end": 91.0,
+      "action_duration_frames": 91.0,
+      "action_duration_seconds": 3.7916666666666665
+    },
+    {
+      "gltf_name": "pm0004_00_00_00500_damage01.gfbanm",
+      "source": "action",
+      "action": "pm0004_00_00_00500_damage01.gfbanm",
+      "clip_id": 500,
+      "base": "damage01.",
+      "phase": "one_shot",
+      "is_loop": false,
+      "category": "hit",
+      "frame_start": 0.0,
+      "frame_end": 41.0,
+      "duration_frames": 41.0,
+      "duration_seconds": 1.7083333333333333,
+      "clip_key": "action:id:500",
+      "model_num": 4,
+      "action_name": "pm0004_00_00_00500_damage01.gfbanm",
+      "action_frame_start": 0.0,
+      "action_frame_end": 41.0,
+      "action_duration_frames": 41.0,
+      "action_duration_seconds": 1.7083333333333333
+    },
+    {
+      "gltf_name": "pm0004_00_00_00501_damage02.gfbanm",
+      "source": "action",
+      "action": "pm0004_00_00_00501_damage02.gfbanm",
+      "clip_id": 501,
+      "base": "damage02.",
+      "phase": "one_shot",
+      "is_loop": false,
+      "category": "hit",
+      "frame_start": 0.0,
+      "frame_end": 81.0,
+      "duration_frames": 81.0,
+      "duration_seconds": 3.375,
+      "clip_key": "action:id:501",
+      "model_num": 4,
+      "action_name": "pm0004_00_00_00501_damage02.gfbanm",
+      "action_frame_start": 0.0,
+      "action_frame_end": 81.0,
+      "action_duration_frames": 81.0,
+      "action_duration_seconds": 3.375
+    },
+    {
+      "gltf_name": "pm0004_00_00_00010_defaultidle01.gfbanm",
+      "source": "action",
+      "action": "pm0004_00_00_00010_defaultidle01.gfbanm",
+      "clip_id": 10,
+      "base": "defaultidle01.",
+      "phase": "one_shot",
+      "is_loop": false,
+      "category": "idle",
+      "frame_start": 0.0,
+      "frame_end": 121.0,
+      "duration_frames": 121.0,
+      "duration_seconds": 5.041666666666667,
+      "clip_key": "action:id:10",
+      "model_num": 4,
+      "action_name": "pm0004_00_00_00010_defaultidle01.gfbanm",
+      "action_frame_start": 0.0,
+      "action_frame_end": 121.0,
+      "action_duration_frames": 121.0,
+      "action_duration_seconds": 5.041666666666667
+    },
+    {
+      "gltf_name": "pm0004_00_00_00011_defaultidle02.gfbanm",
+      "source": "action",
+      "action": "pm0004_00_00_00011_defaultidle02.gfbanm",
+      "clip_id": 11,
+      "base": "defaultidle02.",
+      "phase": "one_shot",
+      "is_loop": false,
+      "category": "idle",
+      "frame_start": 0.0,
+      "frame_end": 121.0,
+      "duration_frames": 121.0,
+      "duration_seconds": 5.041666666666667,
+      "clip_key": "action:id:11",
+      "model_num": 4,
+      "action_name": "pm0004_00_00_00011_defaultidle02.gfbanm",
+      "action_frame_start": 0.0,
+      "action_frame_end": 121.0,
+      "action_duration_frames": 121.0,
+      "action_duration_seconds": 5.041666666666667
+    },
+    {
+      "gltf_name": "pm0004_00_00_00000_defaultwait01_loop.gfbanm",
+      "source": "action",
+      "action": "pm0004_00_00_00000_defaultwait01_loop.gfbanm",
+      "clip_id": 0,
+      "base": "defaultwait01_loop.",
+      "phase": "one_shot",
+      "is_loop": false,
+      "category": "idle",
+      "frame_start": 0.0,
+      "frame_end": 91.0,
+      "duration_frames": 91.0,
+      "duration_seconds": 3.7916666666666665,
+      "clip_key": "action:id:0",
+      "model_num": 4,
+      "action_name": "pm0004_00_00_00000_defaultwait01_loop.gfbanm",
+      "action_frame_start": 0.0,
+      "action_frame_end": 91.0,
+      "action_duration_frames": 91.0,
+      "action_duration_seconds": 3.7916666666666665
+    },
+    {
+      "gltf_name": "pm0004_00_00_00522_down01_end.gfbanm",
+      "source": "action",
+      "action": "pm0004_00_00_00522_down01_end.gfbanm",
+      "clip_id": 522,
+      "base": "down01_end.",
+      "phase": "one_shot",
+      "is_loop": false,
+      "category": "status",
+      "frame_start": 0.0,
+      "frame_end": 61.0,
+      "duration_frames": 61.0,
+      "duration_seconds": 2.5416666666666665,
+      "clip_key": "action:id:522",
+      "model_num": 4,
+      "action_name": "pm0004_00_00_00522_down01_end.gfbanm",
+      "action_frame_start": 0.0,
+      "action_frame_end": 61.0,
+      "action_duration_frames": 61.0,
+      "action_duration_seconds": 2.5416666666666665
+    },
+    {
+      "gltf_name": "pm0004_00_00_00521_down01_loop.gfbanm",
+      "source": "action",
+      "action": "pm0004_00_00_00521_down01_loop.gfbanm",
+      "clip_id": 521,
+      "base": "down01_loop.",
+      "phase": "one_shot",
+      "is_loop": false,
+      "category": "status",
+      "frame_start": 0.0,
+      "frame_end": 91.0,
+      "duration_frames": 91.0,
+      "duration_seconds": 3.7916666666666665,
+      "clip_key": "action:id:521",
+      "model_num": 4,
+      "action_name": "pm0004_00_00_00521_down01_loop.gfbanm",
+      "action_frame_start": 0.0,
+      "action_frame_end": 91.0,
+      "action_duration_frames": 91.0,
+      "action_duration_seconds": 3.7916666666666665
+    },
+    {
+      "gltf_name": "pm0004_00_00_00520_down01_start.gfbanm",
+      "source": "action",
+      "action": "pm0004_00_00_00520_down01_start.gfbanm",
+      "clip_id": 520,
+      "base": "down01_start.",
+      "phase": "one_shot",
+      "is_loop": false,
+      "category": "status",
+      "frame_start": 0.0,
+      "frame_end": 101.0,
+      "duration_frames": 101.0,
+      "duration_seconds": 4.208333333333333,
+      "clip_key": "action:id:520",
+      "model_num": 4,
+      "action_name": "pm0004_00_00_00520_down01_start.gfbanm",
+      "action_frame_start": 0.0,
+      "action_frame_end": 101.0,
+      "action_duration_frames": 101.0,
+      "action_duration_seconds": 4.208333333333333
+    },
+    {
+      "gltf_name": "pm0004_00_00_00292_eat01_end.gfbanm",
+      "source": "action",
+      "action": "pm0004_00_00_00292_eat01_end.gfbanm",
+      "clip_id": 292,
+      "base": "eat01_end.",
+      "phase": "one_shot",
+      "is_loop": false,
+      "category": "misc",
+      "frame_start": 0.0,
+      "frame_end": 29.0,
+      "duration_frames": 29.0,
+      "duration_seconds": 1.2083333333333333,
+      "clip_key": "action:id:292",
+      "model_num": 4,
+      "action_name": "pm0004_00_00_00292_eat01_end.gfbanm",
+      "action_frame_start": 0.0,
+      "action_frame_end": 29.0,
+      "action_duration_frames": 29.0,
+      "action_duration_seconds": 1.2083333333333333
+    },
+    {
+      "gltf_name": "pm0004_00_00_00291_eat01_loop.gfbanm",
+      "source": "action",
+      "action": "pm0004_00_00_00291_eat01_loop.gfbanm",
+      "clip_id": 291,
+      "base": "eat01_loop.",
+      "phase": "one_shot",
+      "is_loop": false,
+      "category": "misc",
+      "frame_start": 0.0,
+      "frame_end": 31.0,
+      "duration_frames": 31.0,
+      "duration_seconds": 1.2916666666666667,
+      "clip_key": "action:id:291",
+      "model_num": 4,
+      "action_name": "pm0004_00_00_00291_eat01_loop.gfbanm",
+      "action_frame_start": 0.0,
+      "action_frame_end": 31.0,
+      "action_duration_frames": 31.0,
+      "action_duration_seconds": 1.2916666666666667
+    },
+    {
+      "gltf_name": "pm0004_00_00_00290_eat01_start.gfbanm",
+      "source": "action",
+      "action": "pm0004_00_00_00290_eat01_start.gfbanm",
+      "clip_id": 290,
+      "base": "eat01_start.",
+      "phase": "one_shot",
+      "is_loop": false,
+      "category": "misc",
+      "frame_start": 0.0,
+      "frame_end": 11.0,
+      "duration_frames": 11.0,
+      "duration_seconds": 0.4583333333333333,
+      "clip_key": "action:id:290",
+      "model_num": 4,
+      "action_name": "pm0004_00_00_00290_eat01_start.gfbanm",
+      "action_frame_start": 0.0,
+      "action_frame_end": 11.0,
+      "action_duration_frames": 11.0,
+      "action_duration_seconds": 0.4583333333333333
+    },
+    {
+      "gltf_name": "pm0004_00_00_00295_eat02_end.gfbanm",
+      "source": "action",
+      "action": "pm0004_00_00_00295_eat02_end.gfbanm",
+      "clip_id": 295,
+      "base": "eat02_end.",
+      "phase": "one_shot",
+      "is_loop": false,
+      "category": "misc",
+      "frame_start": 0.0,
+      "frame_end": 71.0,
+      "duration_frames": 71.0,
+      "duration_seconds": 2.9583333333333335,
+      "clip_key": "action:id:295",
+      "model_num": 4,
+      "action_name": "pm0004_00_00_00295_eat02_end.gfbanm",
+      "action_frame_start": 0.0,
+      "action_frame_end": 71.0,
+      "action_duration_frames": 71.0,
+      "action_duration_seconds": 2.9583333333333335
+    },
+    {
+      "gltf_name": "pm0004_00_00_00294_eat02_loop.gfbanm",
+      "source": "action",
+      "action": "pm0004_00_00_00294_eat02_loop.gfbanm",
+      "clip_id": 294,
+      "base": "eat02_loop.",
+      "phase": "one_shot",
+      "is_loop": false,
+      "category": "misc",
+      "frame_start": 0.0,
+      "frame_end": 71.0,
+      "duration_frames": 71.0,
+      "duration_seconds": 2.9583333333333335,
+      "clip_key": "action:id:294",
+      "model_num": 4,
+      "action_name": "pm0004_00_00_00294_eat02_loop.gfbanm",
+      "action_frame_start": 0.0,
+      "action_frame_end": 71.0,
+      "action_duration_frames": 71.0,
+      "action_duration_seconds": 2.9583333333333335
+    },
+    {
+      "gltf_name": "pm0004_00_00_00293_eat02_start.gfbanm",
+      "source": "action",
+      "action": "pm0004_00_00_00293_eat02_start.gfbanm",
+      "clip_id": 293,
+      "base": "eat02_start.",
+      "phase": "one_shot",
+      "is_loop": false,
+      "category": "misc",
+      "frame_start": 0.0,
+      "frame_end": 61.0,
+      "duration_frames": 61.0,
+      "duration_seconds": 2.5416666666666665,
+      "clip_key": "action:id:293",
+      "model_num": 4,
+      "action_name": "pm0004_00_00_00293_eat02_start.gfbanm",
+      "action_frame_start": 0.0,
+      "action_frame_end": 61.0,
+      "action_duration_frames": 61.0,
+      "action_duration_seconds": 2.5416666666666665
+    },
+    {
+      "gltf_name": "pm0004_00_00_08000_eye01.gfbanm",
+      "source": "action",
+      "action": "pm0004_00_00_08000_eye01.gfbanm",
+      "clip_id": 8000,
+      "base": "eye01.",
+      "phase": "one_shot",
+      "is_loop": false,
+      "category": "misc",
+      "frame_start": 0.0,
+      "frame_end": 21.0,
+      "duration_frames": 21.0,
+      "duration_seconds": 0.875,
+      "clip_key": "action:id:8000",
+      "model_num": 4,
+      "action_name": "pm0004_00_00_08000_eye01.gfbanm",
+      "action_frame_start": 0.0,
+      "action_frame_end": 21.0,
+      "action_duration_frames": 21.0,
+      "action_duration_seconds": 0.875
+    },
+    {
+      "gltf_name": "pm0004_00_00_00550_glad01.gfbanm",
+      "source": "action",
+      "action": "pm0004_00_00_00550_glad01.gfbanm",
+      "clip_id": 550,
+      "base": "glad01.",
+      "phase": "one_shot",
+      "is_loop": false,
+      "category": "misc",
+      "frame_start": 0.0,
+      "frame_end": 101.0,
+      "duration_frames": 101.0,
+      "duration_seconds": 4.208333333333333,
+      "clip_key": "action:id:550",
+      "model_num": 4,
+      "action_name": "pm0004_00_00_00550_glad01.gfbanm",
+      "action_frame_start": 0.0,
+      "action_frame_end": 101.0,
+      "action_duration_frames": 101.0,
+      "action_duration_seconds": 4.208333333333333
+    },
+    {
+      "gltf_name": "pm0004_00_00_00563_hate01.gfbanm",
+      "source": "action",
+      "action": "pm0004_00_00_00563_hate01.gfbanm",
+      "clip_id": 563,
+      "base": "hate01.",
+      "phase": "one_shot",
+      "is_loop": false,
+      "category": "misc",
+      "frame_start": 0.0,
+      "frame_end": 121.0,
+      "duration_frames": 121.0,
+      "duration_seconds": 5.041666666666667,
+      "clip_key": "action:id:563",
+      "model_num": 4,
+      "action_name": "pm0004_00_00_00563_hate01.gfbanm",
+      "action_frame_start": 0.0,
+      "action_frame_end": 121.0,
+      "action_duration_frames": 121.0,
+      "action_duration_seconds": 5.041666666666667
+    },
+    {
+      "gltf_name": "pm0004_00_00_00153_jumpdown01_loop.gfbanm",
+      "source": "action",
+      "action": "pm0004_00_00_00153_jumpdown01_loop.gfbanm",
+      "clip_id": 153,
+      "base": "jumpdown01_loop.",
+      "phase": "one_shot",
+      "is_loop": false,
+      "category": "status",
+      "frame_start": 0.0,
+      "frame_end": 37.0,
+      "duration_frames": 37.0,
+      "duration_seconds": 1.5416666666666667,
+      "clip_key": "action:id:153",
+      "model_num": 4,
+      "action_name": "pm0004_00_00_00153_jumpdown01_loop.gfbanm",
+      "action_frame_start": 0.0,
+      "action_frame_end": 37.0,
+      "action_duration_frames": 37.0,
+      "action_duration_seconds": 1.5416666666666667
+    },
+    {
+      "gltf_name": "pm0004_00_00_00152_jumpdown01_start.gfbanm",
+      "source": "action",
+      "action": "pm0004_00_00_00152_jumpdown01_start.gfbanm",
+      "clip_id": 152,
+      "base": "jumpdown01_start.",
+      "phase": "one_shot",
+      "is_loop": false,
+      "category": "status",
+      "frame_start": 0.0,
+      "frame_end": 25.0,
+      "duration_frames": 25.0,
+      "duration_seconds": 1.0416666666666667,
+      "clip_key": "action:id:152",
+      "model_num": 4,
+      "action_name": "pm0004_00_00_00152_jumpdown01_start.gfbanm",
+      "action_frame_start": 0.0,
+      "action_frame_end": 25.0,
+      "action_duration_frames": 25.0,
+      "action_duration_seconds": 1.0416666666666667
+    },
+    {
+      "gltf_name": "pm0004_00_00_00151_jumpup01_loop.gfbanm",
+      "source": "action",
+      "action": "pm0004_00_00_00151_jumpup01_loop.gfbanm",
+      "clip_id": 151,
+      "base": "jumpup01_loop.",
+      "phase": "one_shot",
+      "is_loop": false,
+      "category": "misc",
+      "frame_start": 0.0,
+      "frame_end": 37.0,
+      "duration_frames": 37.0,
+      "duration_seconds": 1.5416666666666667,
+      "clip_key": "action:id:151",
+      "model_num": 4,
+      "action_name": "pm0004_00_00_00151_jumpup01_loop.gfbanm",
+      "action_frame_start": 0.0,
+      "action_frame_end": 37.0,
+      "action_duration_frames": 37.0,
+      "action_duration_seconds": 1.5416666666666667
+    },
+    {
+      "gltf_name": "pm0004_00_00_00150_jumpup01_start.gfbanm",
+      "source": "action",
+      "action": "pm0004_00_00_00150_jumpup01_start.gfbanm",
+      "clip_id": 150,
+      "base": "jumpup01_start.",
+      "phase": "one_shot",
+      "is_loop": false,
+      "category": "misc",
+      "frame_start": 0.0,
+      "frame_end": 7.0,
+      "duration_frames": 7.0,
+      "duration_seconds": 0.2916666666666667,
+      "clip_key": "action:id:150",
+      "model_num": 4,
+      "action_name": "pm0004_00_00_00150_jumpup01_start.gfbanm",
+      "action_frame_start": 0.0,
+      "action_frame_end": 7.0,
+      "action_duration_frames": 7.0,
+      "action_duration_seconds": 0.2916666666666667
+    },
+    {
+      "gltf_name": "pm0004_00_00_00155_land02.gfbanm",
+      "source": "action",
+      "action": "pm0004_00_00_00155_land02.gfbanm",
+      "clip_id": 155,
+      "base": "land02.",
+      "phase": "one_shot",
+      "is_loop": false,
+      "category": "misc",
+      "frame_start": 0.0,
+      "frame_end": 55.0,
+      "duration_frames": 55.0,
+      "duration_seconds": 2.2916666666666665,
+      "clip_key": "action:id:155",
+      "model_num": 4,
+      "action_name": "pm0004_00_00_00155_land02.gfbanm",
+      "action_frame_start": 0.0,
+      "action_frame_end": 55.0,
+      "action_duration_frames": 55.0,
+      "action_duration_seconds": 2.2916666666666665
+    },
+    {
+      "gltf_name": "pm0004_00_00_08201_loop01_loop.gfbanm",
+      "source": "action",
+      "action": "pm0004_00_00_08201_loop01_loop.gfbanm",
+      "clip_id": 8201,
+      "base": "loop01_loop.",
+      "phase": "one_shot",
+      "is_loop": false,
+      "category": "misc",
+      "frame_start": 0.0,
+      "frame_end": 121.0,
+      "duration_frames": 121.0,
+      "duration_seconds": 5.041666666666667,
+      "clip_key": "action:id:8201",
+      "model_num": 4,
+      "action_name": "pm0004_00_00_08201_loop01_loop.gfbanm",
+      "action_frame_start": 0.0,
+      "action_frame_end": 121.0,
+      "action_duration_frames": 121.0,
+      "action_duration_seconds": 5.041666666666667
+    },
+    {
+      "gltf_name": "pm0004_00_00_08100_mouth01.gfbanm",
+      "source": "action",
+      "action": "pm0004_00_00_08100_mouth01.gfbanm",
+      "clip_id": 8100,
+      "base": "mouth01.",
+      "phase": "one_shot",
+      "is_loop": false,
+      "category": "misc",
+      "frame_start": 0.0,
+      "frame_end": 21.0,
+      "duration_frames": 21.0,
+      "duration_seconds": 0.875,
+      "clip_key": "action:id:8100",
+      "model_num": 4,
+      "action_name": "pm0004_00_00_08100_mouth01.gfbanm",
+      "action_frame_start": 0.0,
+      "action_frame_end": 21.0,
+      "action_duration_frames": 21.0,
+      "action_duration_seconds": 0.875
+    },
+    {
+      "gltf_name": "pm0004_00_00_00560_notice01.gfbanm",
+      "source": "action",
+      "action": "pm0004_00_00_00560_notice01.gfbanm",
+      "clip_id": 560,
+      "base": "notice01.",
+      "phase": "one_shot",
+      "is_loop": false,
+      "category": "misc",
+      "frame_start": 0.0,
+      "frame_end": 87.0,
+      "duration_frames": 87.0,
+      "duration_seconds": 3.625,
+      "clip_key": "action:id:560",
+      "model_num": 4,
+      "action_name": "pm0004_00_00_00560_notice01.gfbanm",
+      "action_frame_start": 0.0,
+      "action_frame_end": 87.0,
+      "action_duration_frames": 87.0,
+      "action_duration_seconds": 3.625
+    },
+    {
+      "gltf_name": "pm0004_00_00_00450_rangeattack01.gfbanm",
+      "source": "action",
+      "action": "pm0004_00_00_00450_rangeattack01.gfbanm",
+      "clip_id": 450,
+      "base": "rangeattack01.",
+      "phase": "one_shot",
+      "is_loop": false,
+      "category": "attack",
+      "frame_start": 0.0,
+      "frame_end": 121.0,
+      "duration_frames": 121.0,
+      "duration_seconds": 5.041666666666667,
+      "clip_key": "action:id:450",
+      "model_num": 4,
+      "action_name": "pm0004_00_00_00450_rangeattack01.gfbanm",
+      "action_frame_start": 0.0,
+      "action_frame_end": 121.0,
+      "action_duration_frames": 121.0,
+      "action_duration_seconds": 5.041666666666667
+    },
+    {
+      "gltf_name": "pm0004_00_00_00462_rangeattack02_end.gfbanm",
+      "source": "action",
+      "action": "pm0004_00_00_00462_rangeattack02_end.gfbanm",
+      "clip_id": 462,
+      "base": "rangeattack02_end.",
+      "phase": "one_shot",
+      "is_loop": false,
+      "category": "attack",
+      "frame_start": 0.0,
+      "frame_end": 61.0,
+      "duration_frames": 61.0,
+      "duration_seconds": 2.5416666666666665,
+      "clip_key": "action:id:462",
+      "model_num": 4,
+      "action_name": "pm0004_00_00_00462_rangeattack02_end.gfbanm",
+      "action_frame_start": 0.0,
+      "action_frame_end": 61.0,
+      "action_duration_frames": 61.0,
+      "action_duration_seconds": 2.5416666666666665
+    },
+    {
+      "gltf_name": "pm0004_00_00_00461_rangeattack02_loop.gfbanm",
+      "source": "action",
+      "action": "pm0004_00_00_00461_rangeattack02_loop.gfbanm",
+      "clip_id": 461,
+      "base": "rangeattack02_loop.",
+      "phase": "one_shot",
+      "is_loop": false,
+      "category": "attack",
+      "frame_start": 0.0,
+      "frame_end": 39.0,
+      "duration_frames": 39.0,
+      "duration_seconds": 1.625,
+      "clip_key": "action:id:461",
+      "model_num": 4,
+      "action_name": "pm0004_00_00_00461_rangeattack02_loop.gfbanm",
+      "action_frame_start": 0.0,
+      "action_frame_end": 39.0,
+      "action_duration_frames": 39.0,
+      "action_duration_seconds": 1.625
+    },
+    {
+      "gltf_name": "pm0004_00_00_00460_rangeattack02_start.gfbanm",
+      "source": "action",
+      "action": "pm0004_00_00_00460_rangeattack02_start.gfbanm",
+      "clip_id": 460,
+      "base": "rangeattack02_start.",
+      "phase": "one_shot",
+      "is_loop": false,
+      "category": "attack",
+      "frame_start": 0.0,
+      "frame_end": 41.0,
+      "duration_frames": 41.0,
+      "duration_seconds": 1.7083333333333333,
+      "clip_key": "action:id:460",
+      "model_num": 4,
+      "action_name": "pm0004_00_00_00460_rangeattack02_start.gfbanm",
+      "action_frame_start": 0.0,
+      "action_frame_end": 41.0,
+      "action_duration_frames": 41.0,
+      "action_duration_seconds": 1.7083333333333333
+    },
+    {
+      "gltf_name": "pm0004_00_00_00320_refresh01.gfbanm",
+      "source": "action",
+      "action": "pm0004_00_00_00320_refresh01.gfbanm",
+      "clip_id": 320,
+      "base": "refresh01.",
+      "phase": "one_shot",
+      "is_loop": false,
+      "category": "misc",
+      "frame_start": 0.0,
+      "frame_end": 101.0,
+      "duration_frames": 101.0,
+      "duration_seconds": 4.208333333333333,
+      "clip_key": "action:id:320",
+      "model_num": 4,
+      "action_name": "pm0004_00_00_00320_refresh01.gfbanm",
+      "action_frame_start": 0.0,
+      "action_frame_end": 101.0,
+      "action_duration_frames": 101.0,
+      "action_duration_seconds": 4.208333333333333
+    },
+    {
+      "gltf_name": "pm0004_00_00_00272_rest01_end.gfbanm",
+      "source": "action",
+      "action": "pm0004_00_00_00272_rest01_end.gfbanm",
+      "clip_id": 272,
+      "base": "rest01_end.",
+      "phase": "one_shot",
+      "is_loop": false,
+      "category": "misc",
+      "frame_start": 0.0,
+      "frame_end": 41.0,
+      "duration_frames": 41.0,
+      "duration_seconds": 1.7083333333333333,
+      "clip_key": "action:id:272",
+      "model_num": 4,
+      "action_name": "pm0004_00_00_00272_rest01_end.gfbanm",
+      "action_frame_start": 0.0,
+      "action_frame_end": 41.0,
+      "action_duration_frames": 41.0,
+      "action_duration_seconds": 1.7083333333333333
+    },
+    {
+      "gltf_name": "pm0004_00_00_00271_rest01_loop.gfbanm",
+      "source": "action",
+      "action": "pm0004_00_00_00271_rest01_loop.gfbanm",
+      "clip_id": 271,
+      "base": "rest01_loop.",
+      "phase": "one_shot",
+      "is_loop": false,
+      "category": "misc",
+      "frame_start": 0.0,
+      "frame_end": 91.0,
+      "duration_frames": 91.0,
+      "duration_seconds": 3.7916666666666665,
+      "clip_key": "action:id:271",
+      "model_num": 4,
+      "action_name": "pm0004_00_00_00271_rest01_loop.gfbanm",
+      "action_frame_start": 0.0,
+      "action_frame_end": 91.0,
+      "action_duration_frames": 91.0,
+      "action_duration_seconds": 3.7916666666666665
+    },
+    {
+      "gltf_name": "pm0004_00_00_00270_rest01_start.gfbanm",
+      "source": "action",
+      "action": "pm0004_00_00_00270_rest01_start.gfbanm",
+      "clip_id": 270,
+      "base": "rest01_start.",
+      "phase": "one_shot",
+      "is_loop": false,
+      "category": "misc",
+      "frame_start": 0.0,
+      "frame_end": 41.0,
+      "duration_frames": 41.0,
+      "duration_seconds": 1.7083333333333333,
+      "clip_key": "action:id:270",
+      "model_num": 4,
+      "action_name": "pm0004_00_00_00270_rest01_start.gfbanm",
+      "action_frame_start": 0.0,
+      "action_frame_end": 41.0,
+      "action_duration_frames": 41.0,
+      "action_duration_seconds": 1.7083333333333333
+    },
+    {
+      "gltf_name": "pm0004_00_00_00300_roar01.gfbanm",
+      "source": "action",
+      "action": "pm0004_00_00_00300_roar01.gfbanm",
+      "clip_id": 300,
+      "base": "roar01.",
+      "phase": "one_shot",
+      "is_loop": false,
+      "category": "misc",
+      "frame_start": 0.0,
+      "frame_end": 141.0,
+      "duration_frames": 141.0,
+      "duration_seconds": 5.875,
+      "clip_key": "action:id:300",
+      "model_num": 4,
+      "action_name": "pm0004_00_00_00300_roar01.gfbanm",
+      "action_frame_start": 0.0,
+      "action_frame_end": 141.0,
+      "action_duration_frames": 141.0,
+      "action_duration_seconds": 5.875
+    },
+    {
+      "gltf_name": "pm0004_00_00_00100_run01_loop.gfbanm",
+      "source": "action",
+      "action": "pm0004_00_00_00100_run01_loop.gfbanm",
+      "clip_id": 100,
+      "base": "run01_loop.",
+      "phase": "one_shot",
+      "is_loop": false,
+      "category": "move",
+      "frame_start": 0.0,
+      "frame_end": 41.0,
+      "duration_frames": 41.0,
+      "duration_seconds": 1.7083333333333333,
+      "clip_key": "action:id:100",
+      "model_num": 4,
+      "action_name": "pm0004_00_00_00100_run01_loop.gfbanm",
+      "action_frame_start": 0.0,
+      "action_frame_end": 41.0,
+      "action_duration_frames": 41.0,
+      "action_duration_seconds": 1.7083333333333333
+    },
+    {
+      "gltf_name": "pm0004_00_00_00282_sleep01_end.gfbanm",
+      "source": "action",
+      "action": "pm0004_00_00_00282_sleep01_end.gfbanm",
+      "clip_id": 282,
+      "base": "sleep01_end.",
+      "phase": "one_shot",
+      "is_loop": false,
+      "category": "status",
+      "frame_start": 0.0,
+      "frame_end": 151.0,
+      "duration_frames": 151.0,
+      "duration_seconds": 6.291666666666667,
+      "clip_key": "action:id:282",
+      "model_num": 4,
+      "action_name": "pm0004_00_00_00282_sleep01_end.gfbanm",
+      "action_frame_start": 0.0,
+      "action_frame_end": 151.0,
+      "action_duration_frames": 151.0,
+      "action_duration_seconds": 6.291666666666667
+    },
+    {
+      "gltf_name": "pm0004_00_00_00281_sleep01_loop.gfbanm",
+      "source": "action",
+      "action": "pm0004_00_00_00281_sleep01_loop.gfbanm",
+      "clip_id": 281,
+      "base": "sleep01_loop.",
+      "phase": "one_shot",
+      "is_loop": false,
+      "category": "status",
+      "frame_start": 0.0,
+      "frame_end": 161.0,
+      "duration_frames": 161.0,
+      "duration_seconds": 6.708333333333333,
+      "clip_key": "action:id:281",
+      "model_num": 4,
+      "action_name": "pm0004_00_00_00281_sleep01_loop.gfbanm",
+      "action_frame_start": 0.0,
+      "action_frame_end": 161.0,
+      "action_duration_frames": 161.0,
+      "action_duration_seconds": 6.708333333333333
+    },
+    {
+      "gltf_name": "pm0004_00_00_00280_sleep01_start.gfbanm",
+      "source": "action",
+      "action": "pm0004_00_00_00280_sleep01_start.gfbanm",
+      "clip_id": 280,
+      "base": "sleep01_start.",
+      "phase": "one_shot",
+      "is_loop": false,
+      "category": "status",
+      "frame_start": 0.0,
+      "frame_end": 151.0,
+      "duration_frames": 151.0,
+      "duration_seconds": 6.291666666666667,
+      "clip_key": "action:id:280",
+      "model_num": 4,
+      "action_name": "pm0004_00_00_00280_sleep01_start.gfbanm",
+      "action_frame_start": 0.0,
+      "action_frame_end": 151.0,
+      "action_duration_frames": 151.0,
+      "action_duration_seconds": 6.291666666666667
+    },
+    {
+      "gltf_name": "pm0004_00_00_00146_stepout01.gfbanm",
+      "source": "action",
+      "action": "pm0004_00_00_00146_stepout01.gfbanm",
+      "clip_id": 146,
+      "base": "stepout01.",
+      "phase": "one_shot",
+      "is_loop": false,
+      "category": "misc",
+      "frame_start": 0.0,
+      "frame_end": 15.0,
+      "duration_frames": 15.0,
+      "duration_seconds": 0.625,
+      "clip_key": "action:id:146",
+      "model_num": 4,
+      "action_name": "pm0004_00_00_00146_stepout01.gfbanm",
+      "action_frame_start": 0.0,
+      "action_frame_end": 15.0,
+      "action_duration_frames": 15.0,
+      "action_duration_seconds": 0.625
+    },
+    {
+      "gltf_name": "pm0004_00_00_00147_stepout01_end.gfbanm",
+      "source": "action",
+      "action": "pm0004_00_00_00147_stepout01_end.gfbanm",
+      "clip_id": 147,
+      "base": "stepout01_end.",
+      "phase": "one_shot",
+      "is_loop": false,
+      "category": "misc",
+      "frame_start": 0.0,
+      "frame_end": 41.0,
+      "duration_frames": 41.0,
+      "duration_seconds": 1.7083333333333333,
+      "clip_key": "action:id:147",
+      "model_num": 4,
+      "action_name": "pm0004_00_00_00147_stepout01_end.gfbanm",
+      "action_frame_start": 0.0,
+      "action_frame_end": 41.0,
+      "action_duration_frames": 41.0,
+      "action_duration_seconds": 1.7083333333333333
+    },
+    {
+      "gltf_name": "pm0004_00_00_00145_stepout01_start.gfbanm",
+      "source": "action",
+      "action": "pm0004_00_00_00145_stepout01_start.gfbanm",
+      "clip_id": 145,
+      "base": "stepout01_start.",
+      "phase": "one_shot",
+      "is_loop": false,
+      "category": "misc",
+      "frame_start": 0.0,
+      "frame_end": 7.0,
+      "duration_frames": 7.0,
+      "duration_seconds": 0.2916666666666667,
+      "clip_key": "action:id:145",
+      "model_num": 4,
+      "action_name": "pm0004_00_00_00145_stepout01_start.gfbanm",
+      "action_frame_start": 0.0,
+      "action_frame_end": 7.0,
+      "action_duration_frames": 7.0,
+      "action_duration_seconds": 0.2916666666666667
+    },
+    {
+      "gltf_name": "pm0004_00_00_00512_stun01_end.gfbanm",
+      "source": "action",
+      "action": "pm0004_00_00_00512_stun01_end.gfbanm",
+      "clip_id": 512,
+      "base": "stun01_end.",
+      "phase": "one_shot",
+      "is_loop": false,
+      "category": "hit",
+      "frame_start": 0.0,
+      "frame_end": 61.0,
+      "duration_frames": 61.0,
+      "duration_seconds": 2.5416666666666665,
+      "clip_key": "action:id:512",
+      "model_num": 4,
+      "action_name": "pm0004_00_00_00512_stun01_end.gfbanm",
+      "action_frame_start": 0.0,
+      "action_frame_end": 61.0,
+      "action_duration_frames": 61.0,
+      "action_duration_seconds": 2.5416666666666665
+    },
+    {
+      "gltf_name": "pm0004_00_00_00511_stun01_loop.gfbanm",
+      "source": "action",
+      "action": "pm0004_00_00_00511_stun01_loop.gfbanm",
+      "clip_id": 511,
+      "base": "stun01_loop.",
+      "phase": "one_shot",
+      "is_loop": false,
+      "category": "hit",
+      "frame_start": 0.0,
+      "frame_end": 81.0,
+      "duration_frames": 81.0,
+      "duration_seconds": 3.375,
+      "clip_key": "action:id:511",
+      "model_num": 4,
+      "action_name": "pm0004_00_00_00511_stun01_loop.gfbanm",
+      "action_frame_start": 0.0,
+      "action_frame_end": 81.0,
+      "action_duration_frames": 81.0,
+      "action_duration_seconds": 3.375
+    },
+    {
+      "gltf_name": "pm0004_00_00_00510_stun01_start.gfbanm",
+      "source": "action",
+      "action": "pm0004_00_00_00510_stun01_start.gfbanm",
+      "clip_id": 510,
+      "base": "stun01_start.",
+      "phase": "one_shot",
+      "is_loop": false,
+      "category": "hit",
+      "frame_start": 0.0,
+      "frame_end": 41.0,
+      "duration_frames": 41.0,
+      "duration_seconds": 1.7083333333333333,
+      "clip_key": "action:id:510",
+      "model_num": 4,
+      "action_name": "pm0004_00_00_00510_stun01_start.gfbanm",
+      "action_frame_start": 0.0,
+      "action_frame_end": 41.0,
+      "action_duration_frames": 41.0,
+      "action_duration_seconds": 1.7083333333333333
+    },
+    {
+      "gltf_name": "pm0004_00_00_00024_turn_l090.gfbanm",
+      "source": "action",
+      "action": "pm0004_00_00_00024_turn_l090.gfbanm",
+      "clip_id": 24,
+      "base": "turn_l090.",
+      "phase": "one_shot",
+      "is_loop": false,
+      "category": "misc",
+      "frame_start": 0.0,
+      "frame_end": 61.0,
+      "duration_frames": 61.0,
+      "duration_seconds": 2.5416666666666665,
+      "clip_key": "action:id:24",
+      "model_num": 4,
+      "action_name": "pm0004_00_00_00024_turn_l090.gfbanm",
+      "action_frame_start": 0.0,
+      "action_frame_end": 61.0,
+      "action_duration_frames": 61.0,
+      "action_duration_seconds": 2.5416666666666665
+    },
+    {
+      "gltf_name": "pm0004_00_00_00021_turn_r090.gfbanm",
+      "source": "action",
+      "action": "pm0004_00_00_00021_turn_r090.gfbanm",
+      "clip_id": 21,
+      "base": "turn_r090.",
+      "phase": "one_shot",
+      "is_loop": false,
+      "category": "misc",
+      "frame_start": 0.0,
+      "frame_end": 61.0,
+      "duration_frames": 61.0,
+      "duration_seconds": 2.5416666666666665,
+      "clip_key": "action:id:21",
+      "model_num": 4,
+      "action_name": "pm0004_00_00_00021_turn_r090.gfbanm",
+      "action_frame_start": 0.0,
+      "action_frame_end": 61.0,
+      "action_duration_frames": 61.0,
+      "action_duration_seconds": 2.5416666666666665
+    },
+    {
+      "gltf_name": "pm0004_00_00_00030_walk01_loop.gfbanm",
+      "source": "action",
+      "action": "pm0004_00_00_00030_walk01_loop.gfbanm",
+      "clip_id": 30,
+      "base": "walk01_loop.",
+      "phase": "one_shot",
+      "is_loop": false,
+      "category": "move",
+      "frame_start": 0.0,
+      "frame_end": 61.0,
+      "duration_frames": 61.0,
+      "duration_seconds": 2.5416666666666665,
+      "clip_key": "action:id:30",
+      "model_num": 4,
+      "action_name": "pm0004_00_00_00030_walk01_loop.gfbanm",
+      "action_frame_start": 0.0,
+      "action_frame_end": 61.0,
+      "action_duration_frames": 61.0,
+      "action_duration_seconds": 2.5416666666666665
+    }
+  ],
+  "groups": {
+    "attack01.": {
+      "one_shot": 400
+    },
+    "attack02.": {
+      "one_shot": 410
+    },
+    "battlewait01_loop.": {
+      "one_shot": 1
+    },
+    "damage01.": {
+      "one_shot": 500
+    },
+    "damage02.": {
+      "one_shot": 501
+    },
+    "defaultidle01.": {
+      "one_shot": 10
+    },
+    "defaultidle02.": {
+      "one_shot": 11
+    },
+    "defaultwait01_loop.": {
+      "one_shot": 0
+    },
+    "down01_end.": {
+      "one_shot": 522
+    },
+    "down01_loop.": {
+      "one_shot": 521
+    },
+    "down01_start.": {
+      "one_shot": 520
+    },
+    "eat01_end.": {
+      "one_shot": 292
+    },
+    "eat01_loop.": {
+      "one_shot": 291
+    },
+    "eat01_start.": {
+      "one_shot": 290
+    },
+    "eat02_end.": {
+      "one_shot": 295
+    },
+    "eat02_loop.": {
+      "one_shot": 294
+    },
+    "eat02_start.": {
+      "one_shot": 293
+    },
+    "eye01.": {
+      "one_shot": 8000
+    },
+    "glad01.": {
+      "one_shot": 550
+    },
+    "hate01.": {
+      "one_shot": 563
+    },
+    "jumpdown01_loop.": {
+      "one_shot": 153
+    },
+    "jumpdown01_start.": {
+      "one_shot": 152
+    },
+    "jumpup01_loop.": {
+      "one_shot": 151
+    },
+    "jumpup01_start.": {
+      "one_shot": 150
+    },
+    "land02.": {
+      "one_shot": 155
+    },
+    "loop01_loop.": {
+      "one_shot": 8201
+    },
+    "mouth01.": {
+      "one_shot": 8100
+    },
+    "notice01.": {
+      "one_shot": 560
+    },
+    "rangeattack01.": {
+      "one_shot": 450
+    },
+    "rangeattack02_end.": {
+      "one_shot": 462
+    },
+    "rangeattack02_loop.": {
+      "one_shot": 461
+    },
+    "rangeattack02_start.": {
+      "one_shot": 460
+    },
+    "refresh01.": {
+      "one_shot": 320
+    },
+    "rest01_end.": {
+      "one_shot": 272
+    },
+    "rest01_loop.": {
+      "one_shot": 271
+    },
+    "rest01_start.": {
+      "one_shot": 270
+    },
+    "roar01.": {
+      "one_shot": 300
+    },
+    "run01_loop.": {
+      "one_shot": 100
+    },
+    "sleep01_end.": {
+      "one_shot": 282
+    },
+    "sleep01_loop.": {
+      "one_shot": 281
+    },
+    "sleep01_start.": {
+      "one_shot": 280
+    },
+    "stepout01.": {
+      "one_shot": 146
+    },
+    "stepout01_end.": {
+      "one_shot": 147
+    },
+    "stepout01_start.": {
+      "one_shot": 145
+    },
+    "stun01_end.": {
+      "one_shot": 512
+    },
+    "stun01_loop.": {
+      "one_shot": 511
+    },
+    "stun01_start.": {
+      "one_shot": 510
+    },
+    "turn_l090.": {
+      "one_shot": 24
+    },
+    "turn_r090.": {
+      "one_shot": 21
+    },
+    "walk01_loop.": {
+      "one_shot": 30
+    }
+  },
+  "by_id": {
+    "400": "pm0004_00_00_00400_attack01.gfbanm",
+    "410": "pm0004_00_00_00410_attack02.gfbanm",
+    "1": "pm0004_00_00_00001_battlewait01_loop.gfbanm",
+    "500": "pm0004_00_00_00500_damage01.gfbanm",
+    "501": "pm0004_00_00_00501_damage02.gfbanm",
+    "10": "pm0004_00_00_00010_defaultidle01.gfbanm",
+    "11": "pm0004_00_00_00011_defaultidle02.gfbanm",
+    "0": "pm0004_00_00_00000_defaultwait01_loop.gfbanm",
+    "522": "pm0004_00_00_00522_down01_end.gfbanm",
+    "521": "pm0004_00_00_00521_down01_loop.gfbanm",
+    "520": "pm0004_00_00_00520_down01_start.gfbanm",
+    "292": "pm0004_00_00_00292_eat01_end.gfbanm",
+    "291": "pm0004_00_00_00291_eat01_loop.gfbanm",
+    "290": "pm0004_00_00_00290_eat01_start.gfbanm",
+    "295": "pm0004_00_00_00295_eat02_end.gfbanm",
+    "294": "pm0004_00_00_00294_eat02_loop.gfbanm",
+    "293": "pm0004_00_00_00293_eat02_start.gfbanm",
+    "8000": "pm0004_00_00_08000_eye01.gfbanm",
+    "550": "pm0004_00_00_00550_glad01.gfbanm",
+    "563": "pm0004_00_00_00563_hate01.gfbanm",
+    "153": "pm0004_00_00_00153_jumpdown01_loop.gfbanm",
+    "152": "pm0004_00_00_00152_jumpdown01_start.gfbanm",
+    "151": "pm0004_00_00_00151_jumpup01_loop.gfbanm",
+    "150": "pm0004_00_00_00150_jumpup01_start.gfbanm",
+    "155": "pm0004_00_00_00155_land02.gfbanm",
+    "8201": "pm0004_00_00_08201_loop01_loop.gfbanm",
+    "8100": "pm0004_00_00_08100_mouth01.gfbanm",
+    "560": "pm0004_00_00_00560_notice01.gfbanm",
+    "450": "pm0004_00_00_00450_rangeattack01.gfbanm",
+    "462": "pm0004_00_00_00462_rangeattack02_end.gfbanm",
+    "461": "pm0004_00_00_00461_rangeattack02_loop.gfbanm",
+    "460": "pm0004_00_00_00460_rangeattack02_start.gfbanm",
+    "320": "pm0004_00_00_00320_refresh01.gfbanm",
+    "272": "pm0004_00_00_00272_rest01_end.gfbanm",
+    "271": "pm0004_00_00_00271_rest01_loop.gfbanm",
+    "270": "pm0004_00_00_00270_rest01_start.gfbanm",
+    "300": "pm0004_00_00_00300_roar01.gfbanm",
+    "100": "pm0004_00_00_00100_run01_loop.gfbanm",
+    "282": "pm0004_00_00_00282_sleep01_end.gfbanm",
+    "281": "pm0004_00_00_00281_sleep01_loop.gfbanm",
+    "280": "pm0004_00_00_00280_sleep01_start.gfbanm",
+    "146": "pm0004_00_00_00146_stepout01.gfbanm",
+    "147": "pm0004_00_00_00147_stepout01_end.gfbanm",
+    "145": "pm0004_00_00_00145_stepout01_start.gfbanm",
+    "512": "pm0004_00_00_00512_stun01_end.gfbanm",
+    "511": "pm0004_00_00_00511_stun01_loop.gfbanm",
+    "510": "pm0004_00_00_00510_stun01_start.gfbanm",
+    "24": "pm0004_00_00_00024_turn_l090.gfbanm",
+    "21": "pm0004_00_00_00021_turn_r090.gfbanm",
+    "30": "pm0004_00_00_00030_walk01_loop.gfbanm"
+  },
+  "categories": {
+    "attack": [
+      400,
+      410,
+      450,
+      462,
+      461,
+      460
+    ],
+    "idle": [
+      1,
+      10,
+      11,
+      0
+    ],
+    "hit": [
+      500,
+      501,
+      512,
+      511,
+      510
+    ],
+    "status": [
+      522,
+      521,
+      520,
+      153,
+      152,
+      282,
+      281,
+      280
+    ],
+    "misc": [
+      292,
+      291,
+      290,
+      295,
+      294,
+      293,
+      8000,
+      550,
+      563,
+      151,
+      150,
+      155,
+      8201,
+      8100,
+      560,
+      320,
+      272,
+      271,
+      270,
+      300,
+      146,
+      147,
+      145,
+      24,
+      21
+    ],
+    "move": [
+      100,
+      30
+    ]
+  },
+  "groups_v2": {
+    "attack01.": {
+      "one_shot": "action:id:400"
+    },
+    "attack02.": {
+      "one_shot": "action:id:410"
+    },
+    "battlewait01_loop.": {
+      "one_shot": "action:id:1"
+    },
+    "damage01.": {
+      "one_shot": "action:id:500"
+    },
+    "damage02.": {
+      "one_shot": "action:id:501"
+    },
+    "defaultidle01.": {
+      "one_shot": "action:id:10"
+    },
+    "defaultidle02.": {
+      "one_shot": "action:id:11"
+    },
+    "defaultwait01_loop.": {
+      "one_shot": "action:id:0"
+    },
+    "down01_end.": {
+      "one_shot": "action:id:522"
+    },
+    "down01_loop.": {
+      "one_shot": "action:id:521"
+    },
+    "down01_start.": {
+      "one_shot": "action:id:520"
+    },
+    "eat01_end.": {
+      "one_shot": "action:id:292"
+    },
+    "eat01_loop.": {
+      "one_shot": "action:id:291"
+    },
+    "eat01_start.": {
+      "one_shot": "action:id:290"
+    },
+    "eat02_end.": {
+      "one_shot": "action:id:295"
+    },
+    "eat02_loop.": {
+      "one_shot": "action:id:294"
+    },
+    "eat02_start.": {
+      "one_shot": "action:id:293"
+    },
+    "eye01.": {
+      "one_shot": "action:id:8000"
+    },
+    "glad01.": {
+      "one_shot": "action:id:550"
+    },
+    "hate01.": {
+      "one_shot": "action:id:563"
+    },
+    "jumpdown01_loop.": {
+      "one_shot": "action:id:153"
+    },
+    "jumpdown01_start.": {
+      "one_shot": "action:id:152"
+    },
+    "jumpup01_loop.": {
+      "one_shot": "action:id:151"
+    },
+    "jumpup01_start.": {
+      "one_shot": "action:id:150"
+    },
+    "land02.": {
+      "one_shot": "action:id:155"
+    },
+    "loop01_loop.": {
+      "one_shot": "action:id:8201"
+    },
+    "mouth01.": {
+      "one_shot": "action:id:8100"
+    },
+    "notice01.": {
+      "one_shot": "action:id:560"
+    },
+    "rangeattack01.": {
+      "one_shot": "action:id:450"
+    },
+    "rangeattack02_end.": {
+      "one_shot": "action:id:462"
+    },
+    "rangeattack02_loop.": {
+      "one_shot": "action:id:461"
+    },
+    "rangeattack02_start.": {
+      "one_shot": "action:id:460"
+    },
+    "refresh01.": {
+      "one_shot": "action:id:320"
+    },
+    "rest01_end.": {
+      "one_shot": "action:id:272"
+    },
+    "rest01_loop.": {
+      "one_shot": "action:id:271"
+    },
+    "rest01_start.": {
+      "one_shot": "action:id:270"
+    },
+    "roar01.": {
+      "one_shot": "action:id:300"
+    },
+    "run01_loop.": {
+      "one_shot": "action:id:100"
+    },
+    "sleep01_end.": {
+      "one_shot": "action:id:282"
+    },
+    "sleep01_loop.": {
+      "one_shot": "action:id:281"
+    },
+    "sleep01_start.": {
+      "one_shot": "action:id:280"
+    },
+    "stepout01.": {
+      "one_shot": "action:id:146"
+    },
+    "stepout01_end.": {
+      "one_shot": "action:id:147"
+    },
+    "stepout01_start.": {
+      "one_shot": "action:id:145"
+    },
+    "stun01_end.": {
+      "one_shot": "action:id:512"
+    },
+    "stun01_loop.": {
+      "one_shot": "action:id:511"
+    },
+    "stun01_start.": {
+      "one_shot": "action:id:510"
+    },
+    "turn_l090.": {
+      "one_shot": "action:id:24"
+    },
+    "turn_r090.": {
+      "one_shot": "action:id:21"
+    },
+    "walk01_loop.": {
+      "one_shot": "action:id:30"
+    }
+  },
+  "categories_v2": {
+    "attack": [
+      "action:id:400",
+      "action:id:410",
+      "action:id:450",
+      "action:id:462",
+      "action:id:461",
+      "action:id:460"
+    ],
+    "idle": [
+      "action:id:1",
+      "action:id:10",
+      "action:id:11",
+      "action:id:0"
+    ],
+    "hit": [
+      "action:id:500",
+      "action:id:501",
+      "action:id:512",
+      "action:id:511",
+      "action:id:510"
+    ],
+    "status": [
+      "action:id:522",
+      "action:id:521",
+      "action:id:520",
+      "action:id:153",
+      "action:id:152",
+      "action:id:282",
+      "action:id:281",
+      "action:id:280"
+    ],
+    "misc": [
+      "action:id:292",
+      "action:id:291",
+      "action:id:290",
+      "action:id:295",
+      "action:id:294",
+      "action:id:293",
+      "action:id:8000",
+      "action:id:550",
+      "action:id:563",
+      "action:id:151",
+      "action:id:150",
+      "action:id:155",
+      "action:id:8201",
+      "action:id:8100",
+      "action:id:560",
+      "action:id:320",
+      "action:id:272",
+      "action:id:271",
+      "action:id:270",
+      "action:id:300",
+      "action:id:146",
+      "action:id:147",
+      "action:id:145",
+      "action:id:24",
+      "action:id:21"
+    ],
+    "move": [
+      "action:id:100",
+      "action:id:30"
+    ]
+  },
+  "export_scope": {
+    "collection": null,
+    "armature_only": true,
+    "use_nla_strips_first": true
+  }
+}

@@ -52,8 +52,20 @@ struct PokemonInstance {
     float moveT = 1.0f;
     glm::ivec2 committedDest{-1, -1};
 
-    // NEW: per-instance animation time (seconds)
+    // per-instance animation time (seconds)
     float animTimeSec = 0.0f;
+
+    // animation role indices (resolved from manifest -> model animation index)
+    int animIdleIndex    = 1;
+    int animMoveIndex    = 1;
+    int animAttack1Index = 1;
+
+    // current animation being played
+    int activeAnimIndex = 1;
+
+    // attack one-shot control
+    float attackTimerSec    = 0.0f;
+    float attackDurationSec = 0.0f; // filled from manifest (Bulbasaur)
 
     static int getNextUnitID() {
         static int next = 1;

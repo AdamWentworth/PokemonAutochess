@@ -1,9 +1,6 @@
 // src/engine/render/ModelAnimation.cpp
 //
 // Animation + skinning draw path split out of Model.cpp.
-//
-// This is now a normal .cpp because ModelAnimationTypes.h moved the nested types
-// (NodeTRS / AnimationSampler / AnimationClip / etc.) out of Model's private section.
 
 #include "Model.h"
 
@@ -17,6 +14,10 @@
 
 #include <glm/gtc/type_ptr.hpp>
 #include <glm/gtx/quaternion.hpp>
+
+// ✅ Fix: use real enum + sampler type namespace
+using pac_model_types::AnimationSampler;
+using pac_model_types::ChannelPath;
 
 void Model::uploadSkinUniforms(const glm::mat4& meshGlobal,
                                int skinIndex,
@@ -92,15 +93,15 @@ void Model::buildPoseMatrices(float timeSec,
 
         size_t i = findKeyframe(s.inputs, t);
         if (i >= s.inputs.size() - 1) {
-            return s.outputs[std::min(i, s.outputs.size() - 1)];
+            return s.outputs[(std::min)(i, s.outputs.size() - 1)];
         }
 
         float t0 = s.inputs[i];
         float t1 = s.inputs[i + 1];
         float a = (t1 > t0) ? ((t - t0) / (t1 - t0)) : 0.0f;
 
-        glm::vec4 v0 = s.outputs[std::min(i, s.outputs.size() - 1)];
-        glm::vec4 v1 = s.outputs[std::min(i + 1, s.outputs.size() - 1)];
+        glm::vec4 v0 = s.outputs[(std::min)(i, s.outputs.size() - 1)];
+        glm::vec4 v1 = s.outputs[(std::min)(i + 1, s.outputs.size() - 1)];
 
         if (s.interpolation == "STEP") return v0;
         return glm::mix(v0, v1, a);

@@ -49,17 +49,14 @@ public:
     float getScaleFactor() const { return modelScaleFactor; }
 
     // Animated node global transform (MODEL SPACE)
-    // Returns false if nodeIndex is invalid.
     bool getNodeGlobalTransformByIndex(float animTimeSec,
                                        int animIndex,
                                        int nodeIndex,
                                        glm::mat4& outNodeGlobal) const;
 
-    // NEW: exact-match lookup of node index by glTF node name.
-    // Returns false if not found (or names not loaded).
+    // exact-match lookup of node index by glTF node name.
     bool getNodeIndexByName(const std::string& nodeName, int& outNodeIndex) const;
 
-    // NEW: convenience wrapper (name -> index -> global transform)
     bool getNodeGlobalTransformByName(float animTimeSec,
                                       int animIndex,
                                       const std::string& nodeName,
@@ -76,6 +73,10 @@ public:
         std::vector<uint8_t> rgba; // width*height*4
     };
 
+    // NEW: exact-match lookup of animation index by glTF animation name.
+    // Returns -1 if not found.
+    int findAnimationIndexByName(const std::string& name) const;
+
 private:
     unsigned int VAO = 0, VBO = 0, EBO = 0;
     std::vector<Submesh> submeshes;
@@ -90,7 +91,7 @@ private:
     int locAlphaMode = -1;
     int locAlphaCutoff = -1;
 
-    // Added so Model.cpp can compile if it references these
+    // tone mapping uniforms
     int locTonemapMode = -1;
     int locExposure    = -1;
 
@@ -98,11 +99,7 @@ private:
 
     using NodeTRS          = pac_model_types::NodeTRS;
     using SkinData         = pac_model_types::SkinData;
-    using ChannelPath      = pac_model_types::ChannelPath;
-    using AnimationSampler = pac_model_types::AnimationSampler;
-    using AnimationChannel = pac_model_types::AnimationChannel;
     using AnimationClip    = pac_model_types::AnimationClip;
-
     using Vertex           = pac_model_types::Vertex;
 
     std::vector<NodeTRS>           nodesDefault;
@@ -113,11 +110,9 @@ private:
     std::vector<SkinData>          skins;
     std::vector<AnimationClip>     animations;
 
-    // NEW: glTF node names (parallel to nodesDefault).
-    // This will be filled in ModelFastGltfLoad.inl in the next batch.
+    // glTF node names (parallel to nodesDefault).
     std::vector<std::string>       nodeNames;
 
-    // NEW: optional acceleration for name lookup.
     mutable bool nodeNameMapBuilt = false;
     mutable std::unordered_map<std::string, int> nodeNameToIndex;
 

@@ -8,7 +8,7 @@
 #include "PokemonInstance.h"
 #include "./engine/ui/HealthBarData.h"
 
-// NEW: Charmander tail fire particle VFX
+// Charmander tail fire particle VFX
 #include "vfx/CharmanderTailFireVFX.h"
 
 class Camera3D;
@@ -51,6 +51,9 @@ private:
     void applyLoadoutForLevel(PokemonInstance& inst) const;
 
 private:
+    // Shared loop clock: keeps idle/walk animations in sync across all units.
+    float sharedLoopAnimTimeSec = 0.0f;
+
     // Tail fire particles (drawn after opaque models)
     CharmanderTailFireVFX charmanderTailFireVfx;
 };

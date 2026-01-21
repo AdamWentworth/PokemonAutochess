@@ -21,6 +21,12 @@
 // Model.cpp provides this helper (keep definition there).
 extern bool isMipmapMinFilter(GLint minF);
 
+// ✅ Fix: use the real animation types (they live in pac_model_types)
+using pac_model_types::AnimationClip;
+using pac_model_types::AnimationSampler;
+using pac_model_types::AnimationChannel;
+using pac_model_types::ChannelPath;
+
 namespace pac_model_cache_detail {
 
 namespace fs = std::filesystem;
@@ -587,5 +593,3 @@ void Model::writeCache(const std::string& filepath,
         // ignore cache write failures
     }
 }
-
-

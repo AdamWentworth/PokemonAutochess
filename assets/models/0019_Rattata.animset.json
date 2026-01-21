@@ -1,0 +1,653 @@
+{
+  "schema": "animset-v2",
+  "model_id": "0019_Rattata",
+  "model_num": null,
+  "blend_file": "0019_Rattata.blend",
+  "fps": 25.0,
+  "clip_count": 21,
+  "clips": [
+    {
+      "gltf_name": "CA22C71E3399E849[FullHash=EB1008C142CD96D1].gfbanm",
+      "source": "action",
+      "action": "CA22C71E3399E849[FullHash=EB1008C142CD96D1].gfbanm",
+      "clip_id": null,
+      "base": "CA22C71E3399E849[FullHash=EB1008C142CD96D1].",
+      "phase": "one_shot",
+      "is_loop": false,
+      "category": "misc",
+      "frame_start": 0.0,
+      "frame_end": 29.0,
+      "duration_frames": 29.0,
+      "duration_seconds": 1.16,
+      "clip_key": "action:name:CA22C71E3399E849[FullHash=EB1008C142CD96D1].gfbanm",
+      "model_num": null,
+      "action_name": "CA22C71E3399E849[FullHash=EB1008C142CD96D1].gfbanm",
+      "action_frame_start": 0.0,
+      "action_frame_end": 29.0,
+      "action_duration_frames": 29.0,
+      "action_duration_seconds": 1.16
+    },
+    {
+      "gltf_name": "CC3C4E10C138BE84[FullHash=19541DE6D8A3B76C].gfbanm",
+      "source": "action",
+      "action": "CC3C4E10C138BE84[FullHash=19541DE6D8A3B76C].gfbanm",
+      "clip_id": null,
+      "base": "CC3C4E10C138BE84[FullHash=19541DE6D8A3B76C].",
+      "phase": "one_shot",
+      "is_loop": false,
+      "category": "misc",
+      "frame_start": 0.0,
+      "frame_end": 166.0,
+      "duration_frames": 166.0,
+      "duration_seconds": 6.64,
+      "clip_key": "action:name:CC3C4E10C138BE84[FullHash=19541DE6D8A3B76C].gfbanm",
+      "model_num": null,
+      "action_name": "CC3C4E10C138BE84[FullHash=19541DE6D8A3B76C].gfbanm",
+      "action_frame_start": 0.0,
+      "action_frame_end": 166.0,
+      "action_duration_frames": 166.0,
+      "action_duration_seconds": 6.64
+    },
+    {
+      "gltf_name": "pm0019_00_ba01_landA01.gfbanm",
+      "source": "action",
+      "action": "pm0019_00_ba01_landA01.gfbanm",
+      "clip_id": null,
+      "base": "pm0019_00_ba01_landA01.",
+      "phase": "one_shot",
+      "is_loop": false,
+      "category": "misc",
+      "frame_start": 0.0,
+      "frame_end": 16.0,
+      "duration_frames": 16.0,
+      "duration_seconds": 0.64,
+      "clip_key": "action:name:pm0019_00_ba01_landA01.gfbanm",
+      "model_num": null,
+      "action_name": "pm0019_00_ba01_landA01.gfbanm",
+      "action_frame_start": 0.0,
+      "action_frame_end": 16.0,
+      "action_duration_frames": 16.0,
+      "action_duration_seconds": 0.64
+    },
+    {
+      "gltf_name": "pm0019_00_ba01_landB01.gfbanm",
+      "source": "action",
+      "action": "pm0019_00_ba01_landB01.gfbanm",
+      "clip_id": null,
+      "base": "pm0019_00_ba01_landB01.",
+      "phase": "one_shot",
+      "is_loop": false,
+      "category": "misc",
+      "frame_start": 0.0,
+      "frame_end": 11.0,
+      "duration_frames": 11.0,
+      "duration_seconds": 0.44,
+      "clip_key": "action:name:pm0019_00_ba01_landB01.gfbanm",
+      "model_num": null,
+      "action_name": "pm0019_00_ba01_landB01.gfbanm",
+      "action_frame_start": 0.0,
+      "action_frame_end": 11.0,
+      "action_duration_frames": 11.0,
+      "action_duration_seconds": 0.44
+    },
+    {
+      "gltf_name": "pm0019_00_ba01_landC01.gfbanm",
+      "source": "action",
+      "action": "pm0019_00_ba01_landC01.gfbanm",
+      "clip_id": null,
+      "base": "pm0019_00_ba01_landC01.",
+      "phase": "one_shot",
+      "is_loop": false,
+      "category": "misc",
+      "frame_start": 0.0,
+      "frame_end": 29.0,
+      "duration_frames": 29.0,
+      "duration_seconds": 1.16,
+      "clip_key": "action:name:pm0019_00_ba01_landC01.gfbanm",
+      "model_num": null,
+      "action_name": "pm0019_00_ba01_landC01.gfbanm",
+      "action_frame_start": 0.0,
+      "action_frame_end": 29.0,
+      "action_duration_frames": 29.0,
+      "action_duration_seconds": 1.16
+    },
+    {
+      "gltf_name": "pm0019_00_ba10_waitA01.gfbanm",
+      "source": "action",
+      "action": "pm0019_00_ba10_waitA01.gfbanm",
+      "clip_id": null,
+      "base": "pm0019_00_ba10_waitA01.",
+      "phase": "one_shot",
+      "is_loop": false,
+      "category": "idle",
+      "frame_start": 0.0,
+      "frame_end": 27.0,
+      "duration_frames": 27.0,
+      "duration_seconds": 1.08,
+      "clip_key": "action:name:pm0019_00_ba10_waitA01.gfbanm",
+      "model_num": null,
+      "action_name": "pm0019_00_ba10_waitA01.gfbanm",
+      "action_frame_start": 0.0,
+      "action_frame_end": 27.0,
+      "action_duration_frames": 27.0,
+      "action_duration_seconds": 1.08
+    },
+    {
+      "gltf_name": "pm0019_00_ba20_buturi01.gfbanm",
+      "source": "action",
+      "action": "pm0019_00_ba20_buturi01.gfbanm",
+      "clip_id": null,
+      "base": "pm0019_00_ba20_buturi01.",
+      "phase": "one_shot",
+      "is_loop": false,
+      "category": "misc",
+      "frame_start": 0.0,
+      "frame_end": 58.0,
+      "duration_frames": 58.0,
+      "duration_seconds": 2.32,
+      "clip_key": "action:name:pm0019_00_ba20_buturi01.gfbanm",
+      "model_num": null,
+      "action_name": "pm0019_00_ba20_buturi01.gfbanm",
+      "action_frame_start": 0.0,
+      "action_frame_end": 58.0,
+      "action_duration_frames": 58.0,
+      "action_duration_seconds": 2.32
+    },
+    {
+      "gltf_name": "pm0019_00_ba21_tokusyu01.gfbanm",
+      "source": "action",
+      "action": "pm0019_00_ba21_tokusyu01.gfbanm",
+      "clip_id": null,
+      "base": "pm0019_00_ba21_tokusyu01.",
+      "phase": "one_shot",
+      "is_loop": false,
+      "category": "misc",
+      "frame_start": 0.0,
+      "frame_end": 73.0,
+      "duration_frames": 73.0,
+      "duration_seconds": 2.92,
+      "clip_key": "action:name:pm0019_00_ba21_tokusyu01.gfbanm",
+      "model_num": null,
+      "action_name": "pm0019_00_ba21_tokusyu01.gfbanm",
+      "action_frame_start": 0.0,
+      "action_frame_end": 73.0,
+      "action_duration_frames": 73.0,
+      "action_duration_seconds": 2.92
+    },
+    {
+      "gltf_name": "pm0019_00_ba30_damageS01.gfbanm",
+      "source": "action",
+      "action": "pm0019_00_ba30_damageS01.gfbanm",
+      "clip_id": null,
+      "base": "pm0019_00_ba30_damageS01.",
+      "phase": "one_shot",
+      "is_loop": false,
+      "category": "hit",
+      "frame_start": 0.0,
+      "frame_end": 21.0,
+      "duration_frames": 21.0,
+      "duration_seconds": 0.84,
+      "clip_key": "action:name:pm0019_00_ba30_damageS01.gfbanm",
+      "model_num": null,
+      "action_name": "pm0019_00_ba30_damageS01.gfbanm",
+      "action_frame_start": 0.0,
+      "action_frame_end": 21.0,
+      "action_duration_frames": 21.0,
+      "action_duration_seconds": 0.84
+    },
+    {
+      "gltf_name": "pm0019_00_ba41_down01.gfbanm",
+      "source": "action",
+      "action": "pm0019_00_ba41_down01.gfbanm",
+      "clip_id": null,
+      "base": "pm0019_00_ba41_down01.",
+      "phase": "one_shot",
+      "is_loop": false,
+      "category": "status",
+      "frame_start": 0.0,
+      "frame_end": 55.0,
+      "duration_frames": 55.0,
+      "duration_seconds": 2.2,
+      "clip_key": "action:name:pm0019_00_ba41_down01.gfbanm",
+      "model_num": null,
+      "action_name": "pm0019_00_ba41_down01.gfbanm",
+      "action_frame_start": 0.0,
+      "action_frame_end": 55.0,
+      "action_duration_frames": 55.0,
+      "action_duration_seconds": 2.2
+    },
+    {
+      "gltf_name": "pm0019_00_eye01.gfbanm",
+      "source": "action",
+      "action": "pm0019_00_eye01.gfbanm",
+      "clip_id": null,
+      "base": "pm0019_00_eye01.",
+      "phase": "one_shot",
+      "is_loop": false,
+      "category": "misc",
+      "frame_start": 0.0,
+      "frame_end": 81.0,
+      "duration_frames": 81.0,
+      "duration_seconds": 3.24,
+      "clip_key": "action:name:pm0019_00_eye01.gfbanm",
+      "model_num": null,
+      "action_name": "pm0019_00_eye01.gfbanm",
+      "action_frame_start": 0.0,
+      "action_frame_end": 81.0,
+      "action_duration_frames": 81.0,
+      "action_duration_seconds": 3.24
+    },
+    {
+      "gltf_name": "pm0019_00_fi01_wait01.gfbanm",
+      "source": "action",
+      "action": "pm0019_00_fi01_wait01.gfbanm",
+      "clip_id": null,
+      "base": "pm0019_00_fi01_wait01.",
+      "phase": "one_shot",
+      "is_loop": false,
+      "category": "idle",
+      "frame_start": 0.0,
+      "frame_end": 41.0,
+      "duration_frames": 41.0,
+      "duration_seconds": 1.64,
+      "clip_key": "action:name:pm0019_00_fi01_wait01.gfbanm",
+      "model_num": null,
+      "action_name": "pm0019_00_fi01_wait01.gfbanm",
+      "action_frame_start": 0.0,
+      "action_frame_end": 41.0,
+      "action_duration_frames": 41.0,
+      "action_duration_seconds": 1.64
+    },
+    {
+      "gltf_name": "pm0019_00_fi20_walk01.gfbanm",
+      "source": "action",
+      "action": "pm0019_00_fi20_walk01.gfbanm",
+      "clip_id": null,
+      "base": "pm0019_00_fi20_walk01.",
+      "phase": "one_shot",
+      "is_loop": false,
+      "category": "move",
+      "frame_start": 0.0,
+      "frame_end": 41.0,
+      "duration_frames": 41.0,
+      "duration_seconds": 1.64,
+      "clip_key": "action:name:pm0019_00_fi20_walk01.gfbanm",
+      "model_num": null,
+      "action_name": "pm0019_00_fi20_walk01.gfbanm",
+      "action_frame_start": 0.0,
+      "action_frame_end": 41.0,
+      "action_duration_frames": 41.0,
+      "action_duration_seconds": 1.64
+    },
+    {
+      "gltf_name": "pm0019_00_fi21_run01.gfbanm",
+      "source": "action",
+      "action": "pm0019_00_fi21_run01.gfbanm",
+      "clip_id": null,
+      "base": "pm0019_00_fi21_run01.",
+      "phase": "one_shot",
+      "is_loop": false,
+      "category": "move",
+      "frame_start": 0.0,
+      "frame_end": 21.0,
+      "duration_frames": 21.0,
+      "duration_seconds": 0.84,
+      "clip_key": "action:name:pm0019_00_fi21_run01.gfbanm",
+      "model_num": null,
+      "action_name": "pm0019_00_fi21_run01.gfbanm",
+      "action_frame_start": 0.0,
+      "action_frame_end": 21.0,
+      "action_duration_frames": 21.0,
+      "action_duration_seconds": 0.84
+    },
+    {
+      "gltf_name": "pm0019_00_kw01_wait01.gfbanm",
+      "source": "action",
+      "action": "pm0019_00_kw01_wait01.gfbanm",
+      "clip_id": null,
+      "base": "pm0019_00_kw01_wait01.",
+      "phase": "one_shot",
+      "is_loop": false,
+      "category": "idle",
+      "frame_start": 0.0,
+      "frame_end": 41.0,
+      "duration_frames": 41.0,
+      "duration_seconds": 1.64,
+      "clip_key": "action:name:pm0019_00_kw01_wait01.gfbanm",
+      "model_num": null,
+      "action_name": "pm0019_00_kw01_wait01.gfbanm",
+      "action_frame_start": 0.0,
+      "action_frame_end": 41.0,
+      "action_duration_frames": 41.0,
+      "action_duration_seconds": 1.64
+    },
+    {
+      "gltf_name": "pm0019_00_kw30_hate01.gfbanm",
+      "source": "action",
+      "action": "pm0019_00_kw30_hate01.gfbanm",
+      "clip_id": null,
+      "base": "pm0019_00_kw30_hate01.",
+      "phase": "one_shot",
+      "is_loop": false,
+      "category": "misc",
+      "frame_start": 0.0,
+      "frame_end": 53.0,
+      "duration_frames": 53.0,
+      "duration_seconds": 2.12,
+      "clip_key": "action:name:pm0019_00_kw30_hate01.gfbanm",
+      "model_num": null,
+      "action_name": "pm0019_00_kw30_hate01.gfbanm",
+      "action_frame_start": 0.0,
+      "action_frame_end": 53.0,
+      "action_duration_frames": 53.0,
+      "action_duration_seconds": 2.12
+    },
+    {
+      "gltf_name": "pm0019_00_kw32_happyB01.gfbanm",
+      "source": "action",
+      "action": "pm0019_00_kw32_happyB01.gfbanm",
+      "clip_id": null,
+      "base": "pm0019_00_kw32_happyB01.",
+      "phase": "one_shot",
+      "is_loop": false,
+      "category": "misc",
+      "frame_start": 0.0,
+      "frame_end": 56.0,
+      "duration_frames": 56.0,
+      "duration_seconds": 2.24,
+      "clip_key": "action:name:pm0019_00_kw32_happyB01.gfbanm",
+      "model_num": null,
+      "action_name": "pm0019_00_kw32_happyB01.gfbanm",
+      "action_frame_start": 0.0,
+      "action_frame_end": 56.0,
+      "action_duration_frames": 56.0,
+      "action_duration_seconds": 2.24
+    },
+    {
+      "gltf_name": "pm0019_00_kw50_eatA01.gfbanm",
+      "source": "action",
+      "action": "pm0019_00_kw50_eatA01.gfbanm",
+      "clip_id": null,
+      "base": "pm0019_00_kw50_eatA01.",
+      "phase": "one_shot",
+      "is_loop": false,
+      "category": "misc",
+      "frame_start": 0.0,
+      "frame_end": 6.0,
+      "duration_frames": 6.0,
+      "duration_seconds": 0.24,
+      "clip_key": "action:name:pm0019_00_kw50_eatA01.gfbanm",
+      "model_num": null,
+      "action_name": "pm0019_00_kw50_eatA01.gfbanm",
+      "action_frame_start": 0.0,
+      "action_frame_end": 6.0,
+      "action_duration_frames": 6.0,
+      "action_duration_seconds": 0.24
+    },
+    {
+      "gltf_name": "pm0019_00_kw50_eatB01.gfbanm",
+      "source": "action",
+      "action": "pm0019_00_kw50_eatB01.gfbanm",
+      "clip_id": null,
+      "base": "pm0019_00_kw50_eatB01.",
+      "phase": "one_shot",
+      "is_loop": false,
+      "category": "misc",
+      "frame_start": 0.0,
+      "frame_end": 11.0,
+      "duration_frames": 11.0,
+      "duration_seconds": 0.44,
+      "clip_key": "action:name:pm0019_00_kw50_eatB01.gfbanm",
+      "model_num": null,
+      "action_name": "pm0019_00_kw50_eatB01.gfbanm",
+      "action_frame_start": 0.0,
+      "action_frame_end": 11.0,
+      "action_duration_frames": 11.0,
+      "action_duration_seconds": 0.44
+    },
+    {
+      "gltf_name": "pm0019_00_kw50_eatC01.gfbanm",
+      "source": "action",
+      "action": "pm0019_00_kw50_eatC01.gfbanm",
+      "clip_id": null,
+      "base": "pm0019_00_kw50_eatC01.",
+      "phase": "one_shot",
+      "is_loop": false,
+      "category": "misc",
+      "frame_start": 0.0,
+      "frame_end": 16.0,
+      "duration_frames": 16.0,
+      "duration_seconds": 0.64,
+      "clip_key": "action:name:pm0019_00_kw50_eatC01.gfbanm",
+      "model_num": null,
+      "action_name": "pm0019_00_kw50_eatC01.gfbanm",
+      "action_frame_start": 0.0,
+      "action_frame_end": 16.0,
+      "action_duration_frames": 16.0,
+      "action_duration_seconds": 0.64
+    },
+    {
+      "gltf_name": "pm0019_00_mouth01.gfbanm",
+      "source": "action",
+      "action": "pm0019_00_mouth01.gfbanm",
+      "clip_id": null,
+      "base": "pm0019_00_mouth01.",
+      "phase": "one_shot",
+      "is_loop": false,
+      "category": "misc",
+      "frame_start": 0.0,
+      "frame_end": 81.0,
+      "duration_frames": 81.0,
+      "duration_seconds": 3.24,
+      "clip_key": "action:name:pm0019_00_mouth01.gfbanm",
+      "model_num": null,
+      "action_name": "pm0019_00_mouth01.gfbanm",
+      "action_frame_start": 0.0,
+      "action_frame_end": 81.0,
+      "action_duration_frames": 81.0,
+      "action_duration_seconds": 3.24
+    }
+  ],
+  "groups": {
+    "CA22C71E3399E849[FullHash=EB1008C142CD96D1].": {
+      "one_shot": "CA22C71E3399E849[FullHash=EB1008C142CD96D1].gfbanm"
+    },
+    "CC3C4E10C138BE84[FullHash=19541DE6D8A3B76C].": {
+      "one_shot": "CC3C4E10C138BE84[FullHash=19541DE6D8A3B76C].gfbanm"
+    },
+    "pm0019_00_ba01_landA01.": {
+      "one_shot": "pm0019_00_ba01_landA01.gfbanm"
+    },
+    "pm0019_00_ba01_landB01.": {
+      "one_shot": "pm0019_00_ba01_landB01.gfbanm"
+    },
+    "pm0019_00_ba01_landC01.": {
+      "one_shot": "pm0019_00_ba01_landC01.gfbanm"
+    },
+    "pm0019_00_ba10_waitA01.": {
+      "one_shot": "pm0019_00_ba10_waitA01.gfbanm"
+    },
+    "pm0019_00_ba20_buturi01.": {
+      "one_shot": "pm0019_00_ba20_buturi01.gfbanm"
+    },
+    "pm0019_00_ba21_tokusyu01.": {
+      "one_shot": "pm0019_00_ba21_tokusyu01.gfbanm"
+    },
+    "pm0019_00_ba30_damageS01.": {
+      "one_shot": "pm0019_00_ba30_damageS01.gfbanm"
+    },
+    "pm0019_00_ba41_down01.": {
+      "one_shot": "pm0019_00_ba41_down01.gfbanm"
+    },
+    "pm0019_00_eye01.": {
+      "one_shot": "pm0019_00_eye01.gfbanm"
+    },
+    "pm0019_00_fi01_wait01.": {
+      "one_shot": "pm0019_00_fi01_wait01.gfbanm"
+    },
+    "pm0019_00_fi20_walk01.": {
+      "one_shot": "pm0019_00_fi20_walk01.gfbanm"
+    },
+    "pm0019_00_fi21_run01.": {
+      "one_shot": "pm0019_00_fi21_run01.gfbanm"
+    },
+    "pm0019_00_kw01_wait01.": {
+      "one_shot": "pm0019_00_kw01_wait01.gfbanm"
+    },
+    "pm0019_00_kw30_hate01.": {
+      "one_shot": "pm0019_00_kw30_hate01.gfbanm"
+    },
+    "pm0019_00_kw32_happyB01.": {
+      "one_shot": "pm0019_00_kw32_happyB01.gfbanm"
+    },
+    "pm0019_00_kw50_eatA01.": {
+      "one_shot": "pm0019_00_kw50_eatA01.gfbanm"
+    },
+    "pm0019_00_kw50_eatB01.": {
+      "one_shot": "pm0019_00_kw50_eatB01.gfbanm"
+    },
+    "pm0019_00_kw50_eatC01.": {
+      "one_shot": "pm0019_00_kw50_eatC01.gfbanm"
+    },
+    "pm0019_00_mouth01.": {
+      "one_shot": "pm0019_00_mouth01.gfbanm"
+    }
+  },
+  "by_id": {},
+  "categories": {
+    "misc": [
+      "CA22C71E3399E849[FullHash=EB1008C142CD96D1].gfbanm",
+      "CC3C4E10C138BE84[FullHash=19541DE6D8A3B76C].gfbanm",
+      "pm0019_00_ba01_landA01.gfbanm",
+      "pm0019_00_ba01_landB01.gfbanm",
+      "pm0019_00_ba01_landC01.gfbanm",
+      "pm0019_00_ba20_buturi01.gfbanm",
+      "pm0019_00_ba21_tokusyu01.gfbanm",
+      "pm0019_00_eye01.gfbanm",
+      "pm0019_00_kw30_hate01.gfbanm",
+      "pm0019_00_kw32_happyB01.gfbanm",
+      "pm0019_00_kw50_eatA01.gfbanm",
+      "pm0019_00_kw50_eatB01.gfbanm",
+      "pm0019_00_kw50_eatC01.gfbanm",
+      "pm0019_00_mouth01.gfbanm"
+    ],
+    "idle": [
+      "pm0019_00_ba10_waitA01.gfbanm",
+      "pm0019_00_fi01_wait01.gfbanm",
+      "pm0019_00_kw01_wait01.gfbanm"
+    ],
+    "hit": [
+      "pm0019_00_ba30_damageS01.gfbanm"
+    ],
+    "status": [
+      "pm0019_00_ba41_down01.gfbanm"
+    ],
+    "move": [
+      "pm0019_00_fi20_walk01.gfbanm",
+      "pm0019_00_fi21_run01.gfbanm"
+    ]
+  },
+  "groups_v2": {
+    "CA22C71E3399E849[FullHash=EB1008C142CD96D1].": {
+      "one_shot": "action:name:CA22C71E3399E849[FullHash=EB1008C142CD96D1].gfbanm"
+    },
+    "CC3C4E10C138BE84[FullHash=19541DE6D8A3B76C].": {
+      "one_shot": "action:name:CC3C4E10C138BE84[FullHash=19541DE6D8A3B76C].gfbanm"
+    },
+    "pm0019_00_ba01_landA01.": {
+      "one_shot": "action:name:pm0019_00_ba01_landA01.gfbanm"
+    },
+    "pm0019_00_ba01_landB01.": {
+      "one_shot": "action:name:pm0019_00_ba01_landB01.gfbanm"
+    },
+    "pm0019_00_ba01_landC01.": {
+      "one_shot": "action:name:pm0019_00_ba01_landC01.gfbanm"
+    },
+    "pm0019_00_ba10_waitA01.": {
+      "one_shot": "action:name:pm0019_00_ba10_waitA01.gfbanm"
+    },
+    "pm0019_00_ba20_buturi01.": {
+      "one_shot": "action:name:pm0019_00_ba20_buturi01.gfbanm"
+    },
+    "pm0019_00_ba21_tokusyu01.": {
+      "one_shot": "action:name:pm0019_00_ba21_tokusyu01.gfbanm"
+    },
+    "pm0019_00_ba30_damageS01.": {
+      "one_shot": "action:name:pm0019_00_ba30_damageS01.gfbanm"
+    },
+    "pm0019_00_ba41_down01.": {
+      "one_shot": "action:name:pm0019_00_ba41_down01.gfbanm"
+    },
+    "pm0019_00_eye01.": {
+      "one_shot": "action:name:pm0019_00_eye01.gfbanm"
+    },
+    "pm0019_00_fi01_wait01.": {
+      "one_shot": "action:name:pm0019_00_fi01_wait01.gfbanm"
+    },
+    "pm0019_00_fi20_walk01.": {
+      "one_shot": "action:name:pm0019_00_fi20_walk01.gfbanm"
+    },
+    "pm0019_00_fi21_run01.": {
+      "one_shot": "action:name:pm0019_00_fi21_run01.gfbanm"
+    },
+    "pm0019_00_kw01_wait01.": {
+      "one_shot": "action:name:pm0019_00_kw01_wait01.gfbanm"
+    },
+    "pm0019_00_kw30_hate01.": {
+      "one_shot": "action:name:pm0019_00_kw30_hate01.gfbanm"
+    },
+    "pm0019_00_kw32_happyB01.": {
+      "one_shot": "action:name:pm0019_00_kw32_happyB01.gfbanm"
+    },
+    "pm0019_00_kw50_eatA01.": {
+      "one_shot": "action:name:pm0019_00_kw50_eatA01.gfbanm"
+    },
+    "pm0019_00_kw50_eatB01.": {
+      "one_shot": "action:name:pm0019_00_kw50_eatB01.gfbanm"
+    },
+    "pm0019_00_kw50_eatC01.": {
+      "one_shot": "action:name:pm0019_00_kw50_eatC01.gfbanm"
+    },
+    "pm0019_00_mouth01.": {
+      "one_shot": "action:name:pm0019_00_mouth01.gfbanm"
+    }
+  },
+  "categories_v2": {
+    "misc": [
+      "action:name:CA22C71E3399E849[FullHash=EB1008C142CD96D1].gfbanm",
+      "action:name:CC3C4E10C138BE84[FullHash=19541DE6D8A3B76C].gfbanm",
+      "action:name:pm0019_00_ba01_landA01.gfbanm",
+      "action:name:pm0019_00_ba01_landB01.gfbanm",
+      "action:name:pm0019_00_ba01_landC01.gfbanm",
+      "action:name:pm0019_00_ba20_buturi01.gfbanm",
+      "action:name:pm0019_00_ba21_tokusyu01.gfbanm",
+      "action:name:pm0019_00_eye01.gfbanm",
+      "action:name:pm0019_00_kw30_hate01.gfbanm",
+      "action:name:pm0019_00_kw32_happyB01.gfbanm",
+      "action:name:pm0019_00_kw50_eatA01.gfbanm",
+      "action:name:pm0019_00_kw50_eatB01.gfbanm",
+      "action:name:pm0019_00_kw50_eatC01.gfbanm",
+      "action:name:pm0019_00_mouth01.gfbanm"
+    ],
+    "idle": [
+      "action:name:pm0019_00_ba10_waitA01.gfbanm",
+      "action:name:pm0019_00_fi01_wait01.gfbanm",
+      "action:name:pm0019_00_kw01_wait01.gfbanm"
+    ],
+    "hit": [
+      "action:name:pm0019_00_ba30_damageS01.gfbanm"
+    ],
+    "status": [
+      "action:name:pm0019_00_ba41_down01.gfbanm"
+    ],
+    "move": [
+      "action:name:pm0019_00_fi20_walk01.gfbanm",
+      "action:name:pm0019_00_fi21_run01.gfbanm"
+    ]
+  },
+  "export_scope": {
+    "collection": null,
+    "armature_only": true,
+    "use_nla_strips_first": true
+  }
+}

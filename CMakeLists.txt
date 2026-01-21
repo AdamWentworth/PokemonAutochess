@@ -114,6 +114,7 @@ add_executable(PokemonAutochess
     src/game/GameConfig.cpp
     src/game/LogBus.cpp
     src/game/MovesConfigLoader.cpp
+    src/game/AnimSetLoader.cpp
 
     # Game VFX (NEW)
     src/game/vfx/TailFireVFX.cpp

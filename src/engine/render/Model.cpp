@@ -1,5 +1,4 @@
 // src/engine/render/Model.cpp
-
 #include "Model.h"
 #include "ModelStartupLog.h"
 #include "../utils/ShaderLibrary.h"
@@ -45,37 +44,31 @@ bool isMipmapMinFilter(GLint minF)
 namespace {
 
 // ---- Optional-like helpers used by ModelFastGltfLoad.inl ----
-// These were present in your earlier code dump. 
 
-// detects o.has_value()
 template <typename T, typename = void>
 struct fg_has_has_value : std::false_type {};
 template <typename T>
 struct fg_has_has_value<T, std::void_t<decltype(std::declval<const T&>().has_value())>>
     : std::true_type {};
 
-// detects o.value()  (function)
 template <typename T, typename = void>
 struct fg_has_value_fn : std::false_type {};
 template <typename T>
 struct fg_has_value_fn<T, std::void_t<decltype(std::declval<const T&>().value())>>
     : std::true_type {};
 
-// detects o.get() (function)
 template <typename T, typename = void>
 struct fg_has_get : std::false_type {};
 template <typename T>
 struct fg_has_get<T, std::void_t<decltype(std::declval<const T&>().get())>>
     : std::true_type {};
 
-// detects o.value (data member)
 template <typename T, typename = void>
 struct fg_has_value_member : std::false_type {};
 template <typename T>
 struct fg_has_value_member<T, std::void_t<decltype((std::declval<const T&>().value))>>
     : std::true_type {};
 
-// detects *o
 template <typename T, typename = void>
 struct fg_is_deref : std::false_type {};
 template <typename T>
@@ -85,7 +78,7 @@ struct fg_is_deref<T, std::void_t<decltype(*std::declval<const T&>())>>
 template <typename Opt>
 bool fgOptHas(const Opt& o) {
     if constexpr (std::is_integral_v<std::decay_t<Opt>> || std::is_enum_v<std::decay_t<Opt>>) {
-        return true; // plain value is always "present"
+        return true;
     } else if constexpr (fg_has_has_value<Opt>::value) {
         return o.has_value();
     } else {
@@ -95,7 +88,6 @@ bool fgOptHas(const Opt& o) {
 
 template <typename Opt>
 std::size_t fgOptGet(const Opt& o) {
-    // if it's already an integer (or enum), just return it
     if constexpr (std::is_integral_v<std::decay_t<Opt>> || std::is_enum_v<std::decay_t<Opt>>) {
         return static_cast<std::size_t>(o);
     } else if constexpr (fg_has_get<Opt>::value) {
@@ -115,9 +107,7 @@ std::size_t fgOptGet(const Opt& o) {
 
 glm::mat4 Model::trsToMat4(const NodeTRS& n)
 {
-    if (n.hasMatrix) {
-        return n.matrix;
-    }
+    if (n.hasMatrix) return n.matrix;
     glm::mat4 T = glm::translate(glm::mat4(1.0f), n.t);
     glm::mat4 R = glm::toMat4(n.r);
     glm::mat4 S = glm::scale(glm::mat4(1.0f), n.s);
@@ -142,15 +132,13 @@ Model::Model(const std::string& filepath)
     locAlphaCutoff    = glGetUniformLocation(modelShader->getID(), "u_AlphaCutoff");
 
     // tone mapping uniforms
-    locTonemapMode   = glGetUniformLocation(modelShader->getID(), "u_TonemapMode");
-    locExposure      = glGetUniformLocation(modelShader->getID(), "u_Exposure");
+    locTonemapMode = glGetUniformLocation(modelShader->getID(), "u_TonemapMode");
+    locExposure    = glGetUniformLocation(modelShader->getID(), "u_Exposure");
 
-    // bind samplers to fixed texture units once
     modelShader->use();
     if (locBaseColorTex >= 0) glUniform1i(locBaseColorTex, 0);
     if (locEmissiveTex  >= 0) glUniform1i(locEmissiveTex, 1);
 
-    // default: ACES filmic tone mapping to match common glTF viewers
     if (locTonemapMode >= 0) glUniform1i(locTonemapMode, 1);
     if (locExposure    >= 0) glUniform1f(locExposure, 1.0f);
 }
@@ -178,6 +166,14 @@ float Model::getAnimationDurationSec(int animIndex) const
 {
     if (animIndex < 0 || animIndex >= (int)animations.size()) return 0.0f;
     return animations[(size_t)animIndex].durationSec;
+}
+
+int Model::findAnimationIndexByName(const std::string& name) const
+{
+    for (int i = 0; i < getAnimationCount(); i++) {
+        if (animations[(size_t)i].name == name) return i;
+    }
+    return -1;
 }
 
 // IMPORTANT: the .inl is written to be included inside this function body.
