@@ -100,6 +100,7 @@ void GameApp::init(GameContext& ctx) {
 void GameApp::handleEvent(const InputEvent& event) {
     // Game-owned input handling. The engine only forwards InputEvent.
     if (cameraSystem) cameraSystem->handleInput(event);
+    if (unitSystem)   unitSystem->handleInput(event);
     if (stateManager) stateManager->handleInput(event);
 }
 
@@ -213,5 +214,3 @@ void GameApp::preloadCommonModels(GameContext& ctx) {
     if (ctx.setTitle) ctx.setTitle("Pokemon Autochess");
     if (ctx.pumpPreloadEvents) ctx.pumpPreloadEvents();
 }
-
-

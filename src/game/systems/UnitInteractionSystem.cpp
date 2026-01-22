@@ -1,8 +1,7 @@
 // UnitInteractionSystem.cpp
 
 #include "UnitInteractionSystem.h"
-#include "engine/events/EventManager.h"
-#include "engine/events/Event.h"
+#include "engine/input/InputEvent.h"
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/common.hpp>
 #include <iostream>
@@ -13,17 +12,10 @@ UnitInteractionSystem::UnitInteractionSystem(Camera3D* cam, GameWorld* world, un
 {
     cellSize = 1.2f;
 
-    // Subscribe to MouseButtonDownEvent.
-    EventManager::getInstance().subscribe(EventType::MouseButtonDown, 
-        [this](const Event& e){
-            const auto& mbe = static_cast<const MouseButtonDownEvent&>(e);
-            onMouseButtonDown(mbe.getX(), mbe.getY());
-        });
-    EventManager::getInstance().subscribe(EventType::MouseMoved, 
-        [this](const Event& e){
-            const auto& mme = static_cast<const MouseMotionEvent&>(e);
-            onMouseMotion(mme.getX(), mme.getY());
-        });
+    
+
+    // Input is now routed through GameApp via InputEvent (engine-owned).
+
 }
 
 // Convert screen coordinates to world coordinates.
@@ -139,9 +131,23 @@ void UnitInteractionSystem::onMouseMotion(int x, int y) {
     }
 }
 
+
+void UnitInteractionSystem::handleInput(const InputEvent& event) {
+    switch (event.type) {
+        case InputEvent::Type::MouseDown:
+            onMouseButtonDown(event.mouseX, event.mouseY);
+            break;
+        case InputEvent::Type::MouseMove:
+            onMouseMotion(event.mouseX, event.mouseY);
+            break;
+        default:
+            break;
+    }
+}
+
 // For backwards compatibility, you may leave handleEvent empty:
 void UnitInteractionSystem::handleEvent(const SDL_Event& event) {
-    // Now events are handled via the event system.
+    // Deprecated: input is handled via handleInput(InputEvent).
 }
 
 void UnitInteractionSystem::update(float deltaTime) {

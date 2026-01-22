@@ -5,6 +5,7 @@
 #include "engine/render/Camera3D.h"
 #include "game/GameWorld.h"
 #include "engine/core/IUpdatable.h"
+#include "engine/input/InputEvent.h"
 #include "BenchSystem.h"
 #include <SDL2/SDL.h>
 #include <glm/glm.hpp>
@@ -12,6 +13,7 @@
 class UnitInteractionSystem : public IUpdatable {
 public:
     UnitInteractionSystem(Camera3D* camera, GameWorld* world, unsigned int screenW, unsigned int screenH);
+    void handleInput(const InputEvent& event);
     void handleEvent(const SDL_Event& event);
     void update(float deltaTime) override;
 
