@@ -3,6 +3,7 @@
 #include "game/GameApp.h"
 
 #include "engine/core/GameContext.h"
+#include "engine/core/EngineServices.h"
 #include "engine/input/InputEvent.h"
 
 #include "engine/render/BoardRenderer.h"
@@ -225,8 +226,12 @@ void GameApp::preloadCommonModels(GameContext& ctx) {
 
         if (ctx.pumpPreloadEvents && !ctx.pumpPreloadEvents()) std::exit(0);
 
-        // expensive load
-        ResourceManager::getInstance().getModel(path);
+        // expensive load (prefer engine-owned service if provided)
+        if (ctx.services && ctx.services->resources) {
+            ctx.services->resources->getModel(path);
+        } else {
+            ResourceManager::getInstance().getModel(path);
+        }
 
         float progress = float(i + 1) / float(total);
         if (ctx.renderBootLoading) ctx.renderBootLoading(progress);

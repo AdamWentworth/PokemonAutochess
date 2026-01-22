@@ -7,6 +7,7 @@
 // Forward-declare engine services
 class Renderer;
 class Camera3D;
+struct EngineServices;
 
 /*
     GameContext:
@@ -19,6 +20,9 @@ struct GameContext {
     Renderer* renderer = nullptr;
     Camera3D* camera   = nullptr;
 
+
+    // Optional engine service bundle (owned by engine; may be null)
+    EngineServices* services = nullptr;
     // Current drawable size (framebuffer size)
     int drawableW = 1280;
     int drawableH = 720;
@@ -31,3 +35,4 @@ struct GameContext {
     std::function<bool()>                  pumpPreloadEvents;
     std::function<void(float /*progress01*/)> renderBootLoading;
 };
+

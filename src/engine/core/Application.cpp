@@ -5,11 +5,15 @@
 
 #include "engine/core/GameLoop.h"
 #include "engine/core/GameContext.h"
+#include "engine/core/EngineServices.h"
 
 #include "engine/input/InputEvent.h"
 
 #include "engine/render/Renderer.h"
 #include "engine/ui/BootLoadingView.h"
+
+#include "engine/utils/ResourceManager.h"
+#include "engine/core/SystemRegistry.h"
 
 #define NOMINMAX
 #ifdef _WIN32
@@ -213,9 +217,14 @@ void Application::renderBootLoading(float progress01) {
 void Application::run(GameLoop& game) {
     std::cout << "[Run] Main loop @ 60 Hz...\n";
 
+    EngineServices services;
+    services.systems = &SystemRegistry::getInstance();
+    services.resources = &ResourceManager::getInstance();
+
     GameContext ctx;
     ctx.renderer = renderer.get();
     ctx.camera   = camera.get();
+    ctx.services = &services;
     ctx.drawableW = drawableW;
     ctx.drawableH = drawableH;
 
@@ -307,3 +316,4 @@ void Application::run(GameLoop& game) {
 
     game.shutdown();
 }
+
