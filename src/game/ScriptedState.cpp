@@ -5,7 +5,6 @@
 #include "game/GameConfig.h"
 #include "game/state/PlacementState.h"   // NEW: push old placement flow after click
 #include "engine/input/InputEvent.h"
-#include <SDL2/SDL.h>
 #include <sol/sol.hpp>
 #include <iostream>
 
@@ -122,9 +121,9 @@ void ScriptedState::handleInput(const InputEvent& event) {
         if (keyMap.valid()) {
             std::string key;
             switch (event.key) {
-                case SDLK_1: key = "1"; break;
-                case SDLK_2: key = "2"; break;
-                case SDLK_3: key = "3"; break;
+                case '1': key = "1"; break;
+                case '2': key = "2"; break;
+                case '3': key = "3"; break;
                 default: break;
             }
             if (!key.empty()) {
@@ -174,6 +173,3 @@ void ScriptedState::render() {
     // Draw cards
     cardSystem.render(UI_W, UI_H);
 }
-
-
-

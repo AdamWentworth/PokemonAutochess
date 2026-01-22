@@ -26,16 +26,63 @@ struct InputEvent {
         MouseWheel
     };
 
+
+    // Engine-defined key identifiers (SDL-agnostic).
+    // Populate these in the platform layer (e.g., SDL translation) and use them in gameplay.
+    enum class Key : std::uint16_t {
+        Unknown = 0,
+
+        // Digits
+        Num0, Num1, Num2, Num3, Num4, Num5, Num6, Num7, Num8, Num9,
+
+        // Letters
+        A, B, C, D, E, F, G, H, I, J, K, L, M,
+        N, O, P, Q, R, S, T, U, V, W, X, Y, Z,
+
+        // Common controls
+        Escape,
+        Enter,
+        Space,
+        Tab,
+        Backspace,
+
+        // Arrows
+        Left,
+        Right,
+        Up,
+        Down,
+
+        // Modifiers
+        LShift,
+        RShift,
+        LCtrl,
+        RCtrl,
+        LAlt,
+        RAlt
+    };
+
+    // Engine-defined mouse buttons (SDL-agnostic).
+    enum class MouseButton : std::uint8_t {
+        Unknown = 0,
+        Left,
+        Middle,
+        Right,
+        X1,
+        X2
+    };
+
     Type type = Type::Unknown;
 
     // --- Keyboard ---
-    int key = 0;          // SDL_Keycode-compatible integer (for now)
+    Key keyId = Key::Unknown; // Engine key id (preferred)
+    int key = 0;              // Legacy: SDL_Keycode-compatible integer (deprecated)
     bool repeat = false;
 
     // --- Mouse ---
     int mouseX = 0;
     int mouseY = 0;
-    int mouseButton = 0;  // SDL_BUTTON_* compatible integer (for now)
+    MouseButton mouseButtonId = MouseButton::Unknown; // Engine mouse button id (preferred)
+    int mouseButton = 0;  // Legacy: SDL_BUTTON_* compatible integer (deprecated)
 
     // --- Wheel ---
     int wheelX = 0;
