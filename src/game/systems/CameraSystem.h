@@ -2,12 +2,12 @@
 
 #pragma once
 #include "././engine/render/Camera3D.h"
-#include "././engine/core/IUpdatable.h"
+#include "././engine/core/Updatable.h"
 #include <sol/sol.hpp>
 
 struct InputEvent;
 
-class CameraSystem : public IUpdatable {
+class CameraSystem : public Updatable {
 public:
     explicit CameraSystem(Camera3D* camera);
 

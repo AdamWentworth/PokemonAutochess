@@ -1,7 +1,7 @@
 // src/game/systems/ShopSystem.h
 #pragma once
 
-#include "engine/core/ISystem.h"
+#include "engine/core/Updatable.h"
 #include "engine/input/InputEvent.h"
 #include "game/systems/RoundSystem.h"
 #include "game/systems/CardSystem.h"
@@ -13,7 +13,7 @@
 // NOTE:
 // This is intentionally a minimal, compilation-safe ShopSystem.
 // It does not depend on PokemonConfigLoader or any unfinished shop-specific APIs.
-class ShopSystem : public ISystem {
+class ShopSystem : public Updatable {
 public:
     ShopSystem();
     ~ShopSystem() override = default;

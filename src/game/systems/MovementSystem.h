@@ -1,13 +1,13 @@
 // MovementSystem.h
 #pragma once
-#include "engine/core/IUpdatable.h"
+#include "engine/core/Updatable.h"
 #include "game/GameWorld.h"
 #include <sol/sol.hpp>
 
 // Forward-declare instead:
 class GridOccupancy;
 
-class MovementSystem : public IUpdatable {
+class MovementSystem : public Updatable {
 public:
     explicit MovementSystem(GameWorld* world);
     MovementSystem(GameWorld* world, const GridOccupancy& /*unused*/); // compat

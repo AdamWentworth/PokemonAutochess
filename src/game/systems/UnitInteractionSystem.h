@@ -3,13 +3,13 @@
 
 #include "engine/render/Camera3D.h"
 #include "game/GameWorld.h"
-#include "engine/core/IUpdatable.h"
+#include "engine/core/Updatable.h"
 #include "engine/input/InputEvent.h"
 #include "BenchSystem.h"
 
 #include <glm/glm.hpp>
 
-class UnitInteractionSystem : public IUpdatable {
+class UnitInteractionSystem : public Updatable {
 public:
     UnitInteractionSystem(Camera3D* camera, GameWorld* world, unsigned int screenW, unsigned int screenH);
 

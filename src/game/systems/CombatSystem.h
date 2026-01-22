@@ -1,11 +1,11 @@
 // CombatSystem.h
 #pragma once
-#include "engine/core/IUpdatable.h"
+#include "engine/core/Updatable.h"
 #include <sol/sol.hpp>
 
 class GameWorld;
 
-class CombatSystem : public IUpdatable {
+class CombatSystem : public Updatable {
 public:
     explicit CombatSystem(GameWorld* world);
     void update(float deltaTime) override;

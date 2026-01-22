@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "engine/core/IUpdatable.h"
+#include "engine/core/Updatable.h"
 #include "game/LuaScript.h"
 #include "engine/events/RoundEvents.h"
 
@@ -12,7 +12,7 @@ enum class RoundPhase {
     Resolution
 };
 
-class RoundSystem : public IUpdatable {
+class RoundSystem : public Updatable {
 public:
     RoundSystem();
 

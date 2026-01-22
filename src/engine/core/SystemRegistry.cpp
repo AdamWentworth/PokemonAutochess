@@ -7,7 +7,7 @@ SystemRegistry& SystemRegistry::getInstance() {
     return instance;
 }
 
-void SystemRegistry::registerSystem(std::shared_ptr<IUpdatable> system) {
+void SystemRegistry::registerSystem(std::shared_ptr<Updatable> system) {
     systems.push_back(system);
 }
 

@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "IUpdatable.h"
+#include "Updatable.h"
 #include <vector>
 #include <memory>
 
@@ -12,12 +12,12 @@ public:
 
     static SystemRegistry& getInstance();
 
-    void registerSystem(std::shared_ptr<IUpdatable> system);
+    void registerSystem(std::shared_ptr<Updatable> system);
     void updateAll(float deltaTime);
     void clear(); // Optional, for cleanup
 
 private:
-    std::vector<std::shared_ptr<IUpdatable>> systems;
+    std::vector<std::shared_ptr<Updatable>> systems;
 };
 
 
