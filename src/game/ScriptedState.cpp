@@ -3,7 +3,7 @@
 #include "game/ScriptedState.h"
 #include "game/GameStateManager.h"
 #include "game/GameConfig.h"
-#include "game/state/PlacementState.h"   // NEW: push old placement flow after click
+#include "game/state/PlacementState.h"
 #include "engine/input/InputEvent.h"
 #include <sol/sol.hpp>
 #include <iostream>
@@ -27,23 +27,21 @@ ScriptedState::~ScriptedState() = default;
 void ScriptedState::ensureStarterUI() {
     if (uiInitialized) return;
 
-    // Only build the UI if the script provides the expected functions.
-    sol::state& L = script.getState();
-    bool hasCards = L["get_starter_cards"].valid();
-    bool hasClick = L["on_card_click"].valid() || L["onCardClick"].valid(); // support both
+    // Script functions/vars live in the script environment now.
+    sol::table S = script.getScriptTable();
+
+    bool hasCards = S["get_starter_cards"].valid();
+    bool hasClick = S["on_card_click"].valid() || S["onCardClick"].valid();
     if (!(hasCards && hasClick)) {
-        // Not a starter-style script; nothing to do.
-        uiInitialized = true; // prevent re-check each frame
+        uiInitialized = true;
         return;
     }
 
-    // Init UI + font
     cardSystem.init();
     const auto& cfg = GameConfig::get();
     titleText = std::make_unique<TextRenderer>(cfg.fontPath, cfg.fontSize);
 
-    // Ask Lua for starter cards (array of { name, cost, type })
-    sol::protected_function f = L["get_starter_cards"];
+    sol::protected_function f = S["get_starter_cards"];
     sol::protected_function_result r = f();
     if (r.valid() && r.get_type() == sol::type::table) {
         std::vector<CardData> list;
@@ -52,7 +50,6 @@ void ScriptedState::ensureStarterUI() {
             sol::table row = kv.second.as<sol::table>();
             CardData cd;
 
-            // Use sol::optional to avoid MSVC ambiguity with get_or overloads
             auto nameOpt = row.get<sol::optional<std::string>>("name");
             cd.pokemonName = nameOpt.value_or(std::string());
 
@@ -66,9 +63,6 @@ void ScriptedState::ensureStarterUI() {
             if (!cd.pokemonName.empty()) list.push_back(cd);
         }
 
-        // 🔄 Match the old (stable) visual layout:
-        //   - Larger cards (handled inside CardSystem)
-        //   - Y offset around 300
         cardSystem.spawnCardRow(list, UI_W, /*y*/ 300);
         std::cout << "[ScriptedState] Spawned " << list.size() << " starter cards\n";
     } else {
@@ -88,26 +82,38 @@ void ScriptedState::onExit() {
 }
 
 void ScriptedState::handleInput(const InputEvent& event) {
-    // Forward to Lua (scripts that care about raw input can implement handleInput)
+    // Hot reload the script for fast iteration (press R).
+    if (event.type == InputEvent::Type::KeyDown &&
+        event.keyId == InputEvent::Key::R &&
+        !event.repeat)
+    {
+        const bool ok = script.reload();
+        std::cout << "[ScriptedState] Reload " << (ok ? "OK" : "FAILED") << "\n";
+
+        // Rebuild starter UI if this script uses it.
+        uiInitialized = false;
+        cardSystem.clearCards();
+        titleText.reset();
+        ensureStarterUI();
+        return; // avoid also sending this key into old script state
+    }
+
+    // If your scripts expect the event, you can add bindings later; keep current behavior.
     script.call("handleInput");
 
     if (!uiInitialized) return;
 
-    sol::state& L = script.getState();
+    sol::table S = script.getScriptTable();
 
-    // Mouse click → hit test cards → on_card_click(name)
     if (event.type == InputEvent::Type::MouseDown) {
         auto clicked = cardSystem.handleMouseClick(event.mouseX, event.mouseY);
         if (clicked) {
-            // Call either on_card_click or legacy onCardClick if present
-            sol::function onClick = L["on_card_click"];
-            if (!onClick.valid()) onClick = L["onCardClick"];
+            sol::function onClick = S["on_card_click"];
+            if (!onClick.valid()) onClick = S["onCardClick"];
             if (onClick.valid()) {
                 onClick(clicked->pokemonName);
             }
 
-            // ✅ Restore stable flow: after a selection, go to PlacementState,
-            // which then advances to Route 1 / Combat just like before.
             if (stateManager) {
                 stateManager->pushState(std::make_unique<PlacementState>(
                     stateManager, gameWorld, clicked->pokemonName));
@@ -115,9 +121,8 @@ void ScriptedState::handleInput(const InputEvent& event) {
         }
     }
 
-    // Keyboard shortcuts via optional handle_starter_key(key)
     if (event.type == InputEvent::Type::KeyDown) {
-        sol::function keyMap = L["handle_starter_key"];
+        sol::function keyMap = S["handle_starter_key"];
         if (keyMap.valid()) {
             std::string key;
             switch (event.keyId) {
@@ -130,11 +135,11 @@ void ScriptedState::handleInput(const InputEvent& event) {
                 sol::protected_function_result r = keyMap(key);
                 if (r.valid() && r.get_type() == sol::type::string) {
                     std::string pokemon = r.get<std::string>();
-                    sol::function onClick = L["on_card_click"];
-                    if (!onClick.valid()) onClick = L["onCardClick"];
+
+                    sol::function onClick = S["on_card_click"];
+                    if (!onClick.valid()) onClick = S["onCardClick"];
                     if (onClick.valid()) onClick(pokemon);
 
-                    // Same as mouse flow
                     if (stateManager) {
                         stateManager->pushState(std::make_unique<PlacementState>(
                             stateManager, gameWorld, pokemon));
@@ -150,26 +155,22 @@ void ScriptedState::update(float deltaTime) {
 }
 
 void ScriptedState::render() {
-    // Allow the Lua script to render if it wants.
     script.call("onRender");
 
     if (!uiInitialized) return;
 
-    sol::state& L = script.getState();
+    sol::table S = script.getScriptTable();
 
-    // Optional title text via get_message()
-    sol::function getMsg = L["get_message"];
+    sol::function getMsg = S["get_message"];
     if (getMsg.valid() && titleText) {
         sol::protected_function_result r = getMsg();
         if (r.valid() && r.get_type() == sol::type::string) {
             std::string msg = r.get<std::string>();
             float w = titleText->measureTextWidth(msg, 1.0f);
             float x = (UI_W - w) * 0.5f;
-            // 🔄 Match old placement for title (around 150 px)
             titleText->renderText(msg, x, 150.0f, {1.0f, 1.0f, 0.0f}, 1.0f);
         }
     }
 
-    // Draw cards
     cardSystem.render(UI_W, UI_H);
 }

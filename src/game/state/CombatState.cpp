@@ -1,4 +1,5 @@
 // src/game/state/CombatState.cpp
+
 #include "CombatState.h"
 #include "game/GameConfig.h"
 #include "game/GameWorld.h"
@@ -38,16 +39,17 @@ CombatState::CombatState(GameStateManager* manager, GameWorld* world, const std:
 CombatState::~CombatState() = default;
 
 void CombatState::onEnter() {
-    sol::state& L = script.getState();
+    // IMPORTANT: script-defined functions live in the script environment now.
+    sol::table S = script.getScriptTable();
 
-    if (sol::function get_message = L["get_message"]; get_message.valid()) {
+    if (sol::function get_message = S["get_message"]; get_message.valid()) {
         if (auto r = get_message(); r.valid() && r.get_type() == sol::type::string) {
             combatMessage = r.get<std::string>();
         }
     }
 
-    // Spawn enemies and emit plain encounter lines (no brackets/JSON)
-    if (sol::function get_enemies = L["get_enemies"]; get_enemies.valid()) {
+    // Spawn enemies
+    if (sol::function get_enemies = S["get_enemies"]; get_enemies.valid()) {
         sol::protected_function_result r = get_enemies();
         if (r.valid() && r.get_type() == sol::type::table) {
             sol::table enemies = r;
@@ -104,6 +106,3 @@ void CombatState::render() {
     float centeredX = std::round((windowWidth - textWidth) / 2.0f);
     textRenderer->renderText(msg, centeredX, 50.0f, glm::vec3(1.0f), scale);
 }
-
-
-

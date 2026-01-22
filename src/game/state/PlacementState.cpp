@@ -1,14 +1,16 @@
-// PlacementState.cpp
+// src/game/state/PlacementState.cpp
 
 #include "PlacementState.h"
-// CHANGED: use CombatState and flow.lua instead of hardcoded Route1
 #include "CombatState.h"
 #include "game/GameStateManager.h"
 #include "game/GameWorld.h"
 #include "engine/ui/TextRenderer.h"
 #include "game/GameConfig.h"
+
 #include <iostream>
 #include <algorithm>
+#include <cmath>        // std::abs, std::round
+#include <memory>
 #include <sol/sol.hpp>
 
 static TextRenderer* textRenderer = nullptr;
@@ -60,15 +62,18 @@ void PlacementState::update(float deltaTime) {
             moveStarterToValidGridPosition();
         }
 
-        // NEW: ask Lua which combat script to use next
+        // Ask Lua which combat script to use next
         static std::unique_ptr<LuaScript> flow;
         if (!flow) {
             flow = std::make_unique<LuaScript>(gameWorld);
             flow->loadScript("scripts/states/flow.lua");
         }
+
         std::string routeScript = "scripts/states/route1.lua";
-        sol::state& L = flow->getState();
-        sol::function next_route = L["next_route_after_placement"];
+
+        // IMPORTANT: flow script functions live in its environment now.
+        sol::table F = flow->getScriptTable();
+        sol::function next_route = F["next_route_after_placement"];
         if (next_route.valid()) {
             sol::object r = next_route(starterName);
             if (r.is<std::string>()) routeScript = r.as<std::string>();
@@ -111,13 +116,14 @@ void PlacementState::moveStarterToBoard() {
         float boardOriginX = -((8 * cellSize) / 2.0f) + cellSize * 0.5f;
         float boardOriginZ = cellSize * 0.5f;
         int col = 3;
-        
+
         starter.position.x = boardOriginX + col * cellSize;
         starter.position.z = boardOriginZ;
         starter.position.y = 0.0f;
 
         gameWorld->getPokemons().push_back(starter);
-        std::cout << "[PlacementState] Moved starter to board at (" << starter.position.x << ", " << starter.position.z << ")\n";
+        std::cout << "[PlacementState] Moved starter to board at ("
+                  << starter.position.x << ", " << starter.position.z << ")\n";
     }
 }
 
@@ -183,11 +189,8 @@ void PlacementState::placeOnValidGridPosition(PokemonInstance& starter) {
 
     int col = 3;
     int row = 0;
-    
+
     starter.position.x = boardOriginX + col * cellSize;
     starter.position.z = boardOriginZ + row * cellSize;
     starter.position.y = 0.0f;
 }
-
-
-
