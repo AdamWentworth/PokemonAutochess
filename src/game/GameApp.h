@@ -7,6 +7,8 @@
 #include "engine/core/SystemRegistry.h"
 #include "engine/ui/HealthBarRenderer.h"
 
+#include "game/systems/RoundSystem.h" // for RoundPhase
+
 // Forward decls (engine)
 struct GameContext;
 struct InputEvent;
@@ -60,6 +62,9 @@ private:
     std::shared_ptr<CameraSystem>          cameraSystem;
     std::shared_ptr<UnitInteractionSystem> unitSystem;
     std::shared_ptr<ShopSystem>            shopSystem;
+
+    // Keep a direct handle to RoundSystem so we can react to phase changes without a global event bus.
+    std::shared_ptr<RoundSystem> roundSystem;
+    RoundPhase lastRoundPhase = RoundPhase::Planning;
+    bool hasLastRoundPhase = false;
 };
-
-

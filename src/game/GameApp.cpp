@@ -3,12 +3,7 @@
 #include "game/GameApp.h"
 
 #include "engine/core/GameContext.h"
-#include "engine/core/SystemRegistry.h"
 #include "engine/input/InputEvent.h"
-
-#include "engine/events/Event.h"
-#include "engine/events/EventManager.h"
-#include "engine/events/RoundEvents.h"
 
 #include "engine/render/BoardRenderer.h"
 #include "engine/render/Camera3D.h"
@@ -29,13 +24,19 @@
 #include "game/GameConfig.h"
 #include "game/LogBus.h"
 
-#include <SDL2/SDL.h> // Only used internally as an adapter. Keep it out of GameLoop boundary.
-
 #include <iostream>
 #include <vector>
 #include <string>
 #include <filesystem>
-#include <cstring> // memset
+
+static const char* phaseName(RoundPhase p) {
+    switch (p) {
+        case RoundPhase::Planning: return "Planning";
+        case RoundPhase::Battle:   return "Battle";
+        case RoundPhase::Resolution:     return "Resolution";
+        default:                   return "Unknown";
+    }
+}
 
 GameApp::GameApp() = default;
 GameApp::~GameApp() = default;
@@ -64,11 +65,18 @@ void GameApp::init(GameContext& ctx) {
     systemRegistry.registerSystem(cameraSystem);
     systemRegistry.registerSystem(unitSystem);
 
-    auto roundSystem = std::make_shared<RoundSystem>();
+    roundSystem = std::make_shared<RoundSystem>();
     systemRegistry.registerSystem(roundSystem);
 
     shopSystem = std::make_shared<ShopSystem>();
     systemRegistry.registerSystem(shopSystem);
+
+    // Initialize phase-dependent UI once at startup (roll shop if we start in Planning).
+    if (roundSystem && shopSystem) {
+        lastRoundPhase = roundSystem->getCurrentPhase();
+        hasLastRoundPhase = true;
+        shopSystem->onRoundPhaseChanged(lastRoundPhase, lastRoundPhase);
+    }
 
     healthBarRenderer.init();
 
@@ -78,13 +86,6 @@ void GameApp::init(GameContext& ctx) {
 
     // Console logging can stall badly on Windows in Debug.
     LogBus::setEchoToStdout(false);
-
-    EventManager::getInstance().subscribe(EventType::RoundPhaseChanged,
-        [](const Event& e){
-            const auto& ev = static_cast<const RoundPhaseChangedEvent&>(e);
-            LogBus::colored("Phase: " + ev.previousPhase + " → " + ev.nextPhase,
-                            {0.75f, 0.9f, 1.0f}, 3.0f);
-        });
 
     // Preload (game-level decision, uses engine loading UI via ctx)
     preloadCommonModels(ctx);
@@ -101,12 +102,31 @@ void GameApp::handleEvent(const InputEvent& event) {
     // Game-owned input handling. The engine only forwards InputEvent.
     if (cameraSystem) cameraSystem->handleInput(event);
     if (unitSystem)   unitSystem->handleInput(event);
+    if (shopSystem)   shopSystem->handleInput(event);
     if (stateManager) stateManager->handleInput(event);
 }
 
-
 void GameApp::fixedUpdate(float dt) {
     systemRegistry.updateAll(dt);
+
+    // Detect and react to round phase changes without a global EventManager singleton.
+    if (roundSystem && shopSystem) {
+        const RoundPhase current = roundSystem->getCurrentPhase();
+        if (!hasLastRoundPhase) {
+            lastRoundPhase = current;
+            hasLastRoundPhase = true;
+        } else if (current != lastRoundPhase) {
+            shopSystem->onRoundPhaseChanged(lastRoundPhase, current);
+
+            LogBus::colored(
+                std::string("Phase: ") + phaseName(lastRoundPhase) + " → " + phaseName(current),
+                {0.75f, 0.9f, 1.0f},
+                3.0f
+            );
+
+            lastRoundPhase = current;
+        }
+    }
 
     if (stateManager) stateManager->update(dt);
     if (gameWorld)    gameWorld->update(dt);
@@ -135,7 +155,7 @@ void GameApp::render(int drawableW, int drawableH) {
 }
 
 void GameApp::shutdown() {
-    std::cout << "[Shutdown] Game...\n";
+    std::cout << "[Shutdown] Game.\n";
 
     // Game-owned GL resources
     if (board) {
@@ -150,6 +170,7 @@ void GameApp::shutdown() {
     shopSystem.reset();
     unitSystem.reset();
     cameraSystem.reset();
+    roundSystem.reset();
 
     stateManager.reset();
     gameWorld.reset();
@@ -184,7 +205,7 @@ void GameApp::preloadCommonModels(GameContext& ctx) {
 
     if (modelsToPreload.empty()) return;
 
-    if (ctx.setTitle) ctx.setTitle("PokemonAutochess - Loading...");
+    if (ctx.setTitle) ctx.setTitle("PokemonAutochess - Loading.");
 
     // draw initial bar
     if (ctx.renderBootLoading) ctx.renderBootLoading(0.0f);

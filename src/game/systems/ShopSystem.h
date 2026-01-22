@@ -1,53 +1,46 @@
-// ShopSystem.h
+// src/game/systems/ShopSystem.h
 #pragma once
-#include "engine/core/IUpdatable.h"
-#include <sol/sol.hpp>
-#include <SDL2/SDL.h>
-#include <string>
+
+#include "engine/core/ISystem.h"
+#include "engine/input/InputEvent.h"
+#include "game/systems/RoundSystem.h"
+#include "game/systems/CardSystem.h"
+
 #include <vector>
-#include <optional>
-#include "game/ui/CardFactory.h"
-#include "CardSystem.h"
-#include "engine/events/Event.h"
-#include "engine/events/EventManager.h"
-#include "engine/ui/TextRenderer.h"
-#include "game/GameConfig.h"
+#include <string>
+#include <random>
 
-struct ShopCard {
-    std::string name;
-    int cost = 3;
-    std::string type; // display only
-};
-
-class ShopSystem : public IUpdatable {
+// NOTE:
+// This is intentionally a minimal, compilation-safe ShopSystem.
+// It does not depend on PokemonConfigLoader or any unfinished shop-specific APIs.
+class ShopSystem : public ISystem {
 public:
     ShopSystem();
     ~ShopSystem() override = default;
 
     void update(float dt) override;
-    void renderUI(int screenW, int screenH);
+
+    // Called by GameApp after translating SDL -> InputEvent
+    void handleInput(const InputEvent& event);
+
+    // Called by GameApp when RoundSystem phase changes
+    void onRoundPhaseChanged(RoundPhase previous, RoundPhase next);
+
+    // Called by GameApp to draw the shop UI on top of the scene
+    void renderUI(int screenWidth, int screenHeight);
 
 private:
-    // Lua VM for shop only
-    sol::state lua;
-    bool ok = false;
-
-    // UI
-    CardSystem cardSystem;
-    std::unique_ptr<TextRenderer> title;
-    std::vector<CardData> currentCards;
-    bool visible = false;
-
-    // Fake single-player economy (you can later wire to real player data)
-    int playerId = 0;
-    int gold = 10;
-    int level = 3;
-
-    void loadScript();
-    void onRoundPhaseChanged(const std::string& prev, const std::string& next);
     void rollShop();
-    void handleMouseDown(int x, int y);
+    void setVisible(bool v);
 
-    // Helpers to expose into Lua
-    void bindHostFunctions();
+private:
+    bool isVisible = false;
+
+    CardSystem cardSystem;
+    std::vector<CardData> currentCards;
+
+    // Temporary pool until you wire in real unit definitions / odds
+    std::vector<std::string> fallbackPool;
+
+    std::mt19937 rng;
 };
