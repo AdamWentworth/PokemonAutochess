@@ -36,7 +36,7 @@ void PlacementState::onExit() {
     std::cout << "[PlacementState] Exiting placement phase.\n";
 }
 
-void PlacementState::handleInput(SDL_Event& event) {
+void PlacementState::handleInput(const InputEvent& event) {
     (void)event;
 }
 
@@ -188,3 +188,6 @@ void PlacementState::placeOnValidGridPosition(PokemonInstance& starter) {
     starter.position.z = boardOriginZ + row * cellSize;
     starter.position.y = 0.0f;
 }
+
+
+

@@ -20,7 +20,7 @@ GameState* GameStateManager::getCurrentState() {
     return stateStack.empty() ? nullptr : stateStack.top().get();
 }
 
-void GameStateManager::handleInput(SDL_Event& event) {
+void GameStateManager::handleInput(const InputEvent& event) {
     if (GameState* state = getCurrentState()) {
         state->handleInput(event);
     }
@@ -37,3 +37,5 @@ void GameStateManager::render() {
         state->render();
     }
 }
+
+

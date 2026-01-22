@@ -84,7 +84,7 @@ void CombatState::onExit() {
     script.onExit();
 }
 
-void CombatState::handleInput(SDL_Event& event) {
+void CombatState::handleInput(const InputEvent& event) {
     (void)event;
 }
 
@@ -104,3 +104,6 @@ void CombatState::render() {
     float centeredX = std::round((windowWidth - textWidth) / 2.0f);
     textRenderer->renderText(msg, centeredX, 50.0f, glm::vec3(1.0f), scale);
 }
+
+
+

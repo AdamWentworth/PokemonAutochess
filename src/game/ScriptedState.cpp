@@ -4,6 +4,7 @@
 #include "game/GameStateManager.h"
 #include "game/GameConfig.h"
 #include "game/state/PlacementState.h"   // NEW: push old placement flow after click
+#include "engine/input/InputEvent.h"
 #include <SDL2/SDL.h>
 #include <sol/sol.hpp>
 #include <iostream>
@@ -87,7 +88,7 @@ void ScriptedState::onExit() {
     script.onExit();
 }
 
-void ScriptedState::handleInput(SDL_Event& event) {
+void ScriptedState::handleInput(const InputEvent& event) {
     // Forward to Lua (scripts that care about raw input can implement handleInput)
     script.call("handleInput");
 
@@ -96,8 +97,8 @@ void ScriptedState::handleInput(SDL_Event& event) {
     sol::state& L = script.getState();
 
     // Mouse click → hit test cards → on_card_click(name)
-    if (event.type == SDL_MOUSEBUTTONDOWN) {
-        auto clicked = cardSystem.handleMouseClick(event.button.x, event.button.y);
+    if (event.type == InputEvent::Type::MouseDown) {
+        auto clicked = cardSystem.handleMouseClick(event.mouseX, event.mouseY);
         if (clicked) {
             // Call either on_card_click or legacy onCardClick if present
             sol::function onClick = L["on_card_click"];
@@ -116,11 +117,11 @@ void ScriptedState::handleInput(SDL_Event& event) {
     }
 
     // Keyboard shortcuts via optional handle_starter_key(key)
-    if (event.type == SDL_KEYDOWN) {
+    if (event.type == InputEvent::Type::KeyDown) {
         sol::function keyMap = L["handle_starter_key"];
         if (keyMap.valid()) {
             std::string key;
-            switch (event.key.keysym.sym) {
+            switch (event.key) {
                 case SDLK_1: key = "1"; break;
                 case SDLK_2: key = "2"; break;
                 case SDLK_3: key = "3"; break;
@@ -173,3 +174,6 @@ void ScriptedState::render() {
     // Draw cards
     cardSystem.render(UI_W, UI_H);
 }
+
+
+

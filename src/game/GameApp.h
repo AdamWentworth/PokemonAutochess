@@ -4,6 +4,7 @@
 #include <memory>
 
 #include "engine/core/GameLoop.h"
+#include "engine/core/SystemRegistry.h"
 #include "engine/ui/HealthBarRenderer.h"
 
 // Forward decls (engine)
@@ -54,7 +55,11 @@ private:
 
     HealthBarRenderer healthBarRenderer;
 
+    SystemRegistry systemRegistry;
+
     std::shared_ptr<CameraSystem>          cameraSystem;
     std::shared_ptr<UnitInteractionSystem> unitSystem;
     std::shared_ptr<ShopSystem>            shopSystem;
 };
+
+

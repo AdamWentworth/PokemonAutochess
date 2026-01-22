@@ -61,14 +61,14 @@ void GameApp::init(GameContext& ctx) {
         camera, gameWorld.get(), ctx.drawableW, ctx.drawableH
     );
 
-    SystemRegistry::getInstance().registerSystem(cameraSystem);
-    SystemRegistry::getInstance().registerSystem(unitSystem);
+    systemRegistry.registerSystem(cameraSystem);
+    systemRegistry.registerSystem(unitSystem);
 
     auto roundSystem = std::make_shared<RoundSystem>();
-    SystemRegistry::getInstance().registerSystem(roundSystem);
+    systemRegistry.registerSystem(roundSystem);
 
     shopSystem = std::make_shared<ShopSystem>();
-    SystemRegistry::getInstance().registerSystem(shopSystem);
+    systemRegistry.registerSystem(shopSystem);
 
     healthBarRenderer.init();
 
@@ -98,62 +98,14 @@ void GameApp::init(GameContext& ctx) {
 }
 
 void GameApp::handleEvent(const InputEvent& event) {
-    // Adapter: some existing code expects SDL_Event&
-    SDL_Event sdl;
-    std::memset(&sdl, 0, sizeof(sdl));
-
-    switch (event.type) {
-        case InputEvent::Type::MouseWheel:
-            sdl.type = SDL_MOUSEWHEEL;
-            sdl.wheel.x = event.wheelX;
-            sdl.wheel.y = event.wheelY;
-            break;
-
-        case InputEvent::Type::KeyDown:
-            sdl.type = SDL_KEYDOWN;
-            sdl.key.keysym.sym = (SDL_Keycode)event.key;
-            sdl.key.repeat = event.repeat ? 1 : 0;
-            break;
-
-        case InputEvent::Type::KeyUp:
-            sdl.type = SDL_KEYUP;
-            sdl.key.keysym.sym = (SDL_Keycode)event.key;
-            break;
-
-        case InputEvent::Type::MouseMove:
-            sdl.type = SDL_MOUSEMOTION;
-            sdl.motion.x = event.mouseX;
-            sdl.motion.y = event.mouseY;
-            break;
-
-        case InputEvent::Type::MouseDown:
-            sdl.type = SDL_MOUSEBUTTONDOWN;
-            sdl.button.x = event.mouseX;
-            sdl.button.y = event.mouseY;
-            sdl.button.button = (Uint8)event.mouseButton;
-            break;
-
-        case InputEvent::Type::MouseUp:
-            sdl.type = SDL_MOUSEBUTTONUP;
-            sdl.button.x = event.mouseX;
-            sdl.button.y = event.mouseY;
-            sdl.button.button = (Uint8)event.mouseButton;
-            break;
-
-        default:
-            // Quit/Resize/Unknown: ignore here for now
-            return;
-    }
-
-    // Camera zoom is a game-level feature
-    if (cameraSystem) cameraSystem->handleZoom(sdl);
-
-    // Let states handle raw input
-    if (stateManager) stateManager->handleInput(sdl);
+    // Game-owned input handling. The engine only forwards InputEvent.
+    if (cameraSystem) cameraSystem->handleInput(event);
+    if (stateManager) stateManager->handleInput(event);
 }
 
+
 void GameApp::fixedUpdate(float dt) {
-    SystemRegistry::getInstance().updateAll(dt);
+    systemRegistry.updateAll(dt);
 
     if (stateManager) stateManager->update(dt);
     if (gameWorld)    gameWorld->update(dt);
@@ -201,7 +153,7 @@ void GameApp::shutdown() {
     stateManager.reset();
     gameWorld.reset();
 
-    SystemRegistry::getInstance().clear();
+    systemRegistry.clear();
 
     std::cout << "[Shutdown] Game done.\n";
 }
@@ -261,3 +213,5 @@ void GameApp::preloadCommonModels(GameContext& ctx) {
     if (ctx.setTitle) ctx.setTitle("Pokemon Autochess");
     if (ctx.pumpPreloadEvents) ctx.pumpPreloadEvents();
 }
+
+

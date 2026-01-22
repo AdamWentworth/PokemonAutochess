@@ -8,6 +8,8 @@
 
 class SystemRegistry {
 public:
+    SystemRegistry() = default;
+
     static SystemRegistry& getInstance();
 
     void registerSystem(std::shared_ptr<IUpdatable> system);
@@ -17,3 +19,5 @@ public:
 private:
     std::vector<std::shared_ptr<IUpdatable>> systems;
 };
+
+

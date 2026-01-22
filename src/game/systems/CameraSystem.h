@@ -3,8 +3,9 @@
 #pragma once
 #include "././engine/render/Camera3D.h"
 #include "././engine/core/IUpdatable.h"
-#include <SDL2/SDL.h>
 #include <sol/sol.hpp>
+
+struct InputEvent;
 
 class CameraSystem : public IUpdatable {
 public:
@@ -13,7 +14,7 @@ public:
     void update(float deltaTime) override;
 
     // Optional: call if your input loop forwards wheel events here
-    void handleZoom(const SDL_Event& event);
+    void handleInput(const InputEvent& event);
 
     // Event relays (wire these via your EventManager or input layer)
     void onMouseDown(int x, int y, int button);
@@ -28,3 +29,5 @@ private:
 
     void loadScript();
 };
+
+

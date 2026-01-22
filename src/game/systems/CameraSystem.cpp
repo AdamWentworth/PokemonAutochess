@@ -1,8 +1,9 @@
 // CameraSystem.cpp
 
 #include "CameraSystem.h"
-#include "././engine/events/EventManager.h"
-#include "././engine/events/Event.h"
+#include "engine/events/EventManager.h"
+#include "engine/events/Event.h"
+#include "engine/input/InputEvent.h"
 #include <iostream>
 
 static const char* kCameraLua = "scripts/systems/camera.lua";
@@ -82,8 +83,10 @@ void CameraSystem::update(float dt) {
     }
 }
 
-void CameraSystem::handleZoom(const SDL_Event& event) {
-    if (event.type == SDL_MOUSEWHEEL) onMouseWheel(event.wheel.y);
+void CameraSystem::handleInput(const InputEvent& event) {
+    if (event.type == InputEvent::Type::MouseWheel) {
+        onMouseWheel(event.wheelY);
+    }
 }
 
 void CameraSystem::onMouseDown(int x, int y, int button) {
@@ -105,3 +108,6 @@ void CameraSystem::onMouseWheel(int wy) {
     if (!ok) return;
     if (auto f = lua["camera_mouse_wheel"]; f.valid()) f(wy);
 }
+
+
+

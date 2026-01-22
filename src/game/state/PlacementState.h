@@ -4,7 +4,6 @@
 
 #include "game/GameState.h"
 #include "game/GameWorld.h"
-#include <SDL2/SDL.h>
 #include <string>
 
 class GameStateManager;
@@ -17,7 +16,7 @@ public:
 
     void onEnter() override;
     void onExit() override;
-    void handleInput(SDL_Event& event) override;
+    void handleInput(const InputEvent& event) override;
     void update(float deltaTime) override;
     void render() override;
 
@@ -34,3 +33,4 @@ private:
     void moveStarterToValidGridPosition();
     void placeOnValidGridPosition(PokemonInstance& starter);
 };
+
