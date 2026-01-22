@@ -295,7 +295,7 @@ void Application::run(GameLoop& game) {
 
     EngineServices services;
     services.systems = &systemRegistry;
-    services.resources = &ResourceManager::getInstance();
+    services.resources = &resourceManager;
 
     GameContext ctx;
     ctx.renderer = renderer.get();

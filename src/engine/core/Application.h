@@ -5,6 +5,7 @@
 #include <string>
 
 #include "engine/render/Camera3D.h"
+#include "engine/utils/ResourceManager.h"
 #include "engine/core/SystemRegistry.h"
 
 // Forward decls (engine)
@@ -64,6 +65,9 @@ private:
 
     // Engine-owned registry (no singleton)
     SystemRegistry systemRegistry;
+
+    // Engine-owned resource cache (no singleton)
+    ResourceManager resourceManager;
 
     int drawableW = 1280;
     int drawableH = 720;

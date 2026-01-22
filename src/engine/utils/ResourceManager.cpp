@@ -10,10 +10,6 @@
 
 #include <iostream>
 
-ResourceManager& ResourceManager::getInstance() {
-    static ResourceManager instance;
-    return instance;
-}
 
 std::shared_ptr<Model> ResourceManager::getModel(const std::string& modelPath) {
     auto it = loadedModels.find(modelPath);
