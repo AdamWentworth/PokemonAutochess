@@ -8,8 +8,10 @@
 
 class SystemRegistry;
 class ResourceManager;
+class ShaderCache;
 
 struct EngineServices {
     SystemRegistry* systems  = nullptr;
     ResourceManager* resources = nullptr;
+    ShaderCache* shaders = nullptr;
 };

@@ -13,6 +13,7 @@
 #include "engine/ui/BootLoadingView.h"
 
 #include "engine/utils/ResourceManager.h"
+#include "engine/utils/ShaderLibrary.h"
 #include "engine/core/SystemRegistry.h"
 
 #define NOMINMAX
@@ -297,6 +298,8 @@ void Application::run(GameLoop& game) {
     services.systems = &systemRegistry;
     services.resources = &resourceManager;
 
+    services.shaders = &shaderCache;
+    ShaderLibrary::setCache(&shaderCache);
     GameContext ctx;
     ctx.renderer = renderer.get();
     ctx.camera   = camera.get();

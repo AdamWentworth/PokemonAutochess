@@ -5,8 +5,9 @@
 #include <string>
 
 #include "engine/render/Camera3D.h"
-#include "engine/utils/ResourceManager.h"
+#include "engine/utils/ShaderCache.h"
 #include "engine/core/SystemRegistry.h"
+#include "engine/utils/ResourceManager.h"
 
 // Forward decls (engine)
 class Window;
@@ -63,11 +64,10 @@ private:
 
     std::unique_ptr<BootLoadingView> bootLoadingView;
 
-    // Engine-owned registry (no singleton)
+    // Engine-owned services (no singletons)
     SystemRegistry systemRegistry;
-
-    // Engine-owned resource cache (no singleton)
     ResourceManager resourceManager;
+    ShaderCache shaderCache;
 
     int drawableW = 1280;
     int drawableH = 720;

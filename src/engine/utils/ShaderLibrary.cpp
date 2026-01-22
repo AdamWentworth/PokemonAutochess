@@ -1,23 +1,32 @@
 // ShaderLibrary.cpp
 
-#include "ShaderLibrary.h"
+#include "engine/utils/ShaderLibrary.h"
+#include "engine/utils/ShaderCache.h"
 
-std::unordered_map<std::string, std::shared_ptr<Shader>> ShaderLibrary::cache;
+ShaderCache* ShaderLibrary::s_cache = nullptr;
 
-std::string ShaderLibrary::makeKey(const std::string& v,const std::string& f){
-    return v + "::" + f;
+void ShaderLibrary::setCache(ShaderCache* cache) {
+    s_cache = cache;
 }
 
 std::shared_ptr<Shader> ShaderLibrary::get(const std::string& vert,
                                            const std::string& frag)
 {
-    std::string key = makeKey(vert, frag);
-    auto it = cache.find(key);
-    if (it != cache.end()) return it->second;
+    if (s_cache) {
+        return s_cache->get(vert, frag);
+    }
 
-    auto shader = std::make_shared<Shader>(vert.c_str(), frag.c_str());
-    cache[key]  = shader;
-    return shader;
+    // Safety fallback (should not happen once Application wires services):
+    static ShaderCache fallback;
+    return fallback.get(vert, frag);
 }
 
-void ShaderLibrary::clear() { cache.clear(); }
+void ShaderLibrary::clear() {
+    if (s_cache) {
+        s_cache->clear();
+        return;
+    }
+    // clear fallback
+    static ShaderCache fallback;
+    fallback.clear();
+}
