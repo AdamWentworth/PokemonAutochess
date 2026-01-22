@@ -1,5 +1,4 @@
-// UnitInteractionSystem.h
-
+// src/game/systems/UnitInteractionSystem.h
 #pragma once
 
 #include "engine/render/Camera3D.h"
@@ -7,17 +6,19 @@
 #include "engine/core/IUpdatable.h"
 #include "engine/input/InputEvent.h"
 #include "BenchSystem.h"
-#include <SDL2/SDL.h>
+
 #include <glm/glm.hpp>
 
 class UnitInteractionSystem : public IUpdatable {
 public:
     UnitInteractionSystem(Camera3D* camera, GameWorld* world, unsigned int screenW, unsigned int screenH);
+
+    // Engine-owned input boundary (SDL-free)
     void handleInput(const InputEvent& event);
-    void handleEvent(const SDL_Event& event);
+
     void update(float deltaTime) override;
 
-    // New event handling methods.
+    // Helpers for unit dragging interaction
     void onMouseButtonDown(int x, int y);
     void onMouseMotion(int x, int y);
 
@@ -26,8 +27,9 @@ private:
     bool isInBenchZone(const glm::vec3& pos) const;
     bool isInBoardZone(const glm::vec3& pos) const;
 
-    Camera3D* camera;
-    GameWorld* gameWorld;
+private:
+    Camera3D* camera = nullptr;
+    GameWorld* gameWorld = nullptr;
 
     bool draggingUnit = false;
     int draggedIndex = -1;
@@ -35,8 +37,9 @@ private:
 
     float pickRadius = 0.7f;
     float cellSize = 1.2f;
-    unsigned int screenW;
-    unsigned int screenH;
+
+    unsigned int screenW = 0;
+    unsigned int screenH = 0;
 
     BenchSystem benchSystem;
 };

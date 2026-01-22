@@ -8,9 +8,6 @@
 
 #include "engine/input/InputEvent.h"
 
-#include "engine/events/Event.h"
-#include "engine/events/EventManager.h"
-
 #include "engine/render/Renderer.h"
 #include "engine/ui/BootLoadingView.h"
 
@@ -266,30 +263,6 @@ void Application::run(GameLoop& game) {
             }
 
             // Engine-level mouse events -> emit engine events (UI + picking)
-            switch (sdlEvent.type) {
-                case SDL_MOUSEBUTTONDOWN: {
-                    int mx = scaledMouseX(sdlEvent.button.x, mouseScaleX);
-                    int my = scaledMouseY(sdlEvent.button.y, mouseScaleY);
-                    MouseButtonDownEvent mbe(mx, my, sdlEvent.button.button);
-                    EventManager::getInstance().emit(mbe);
-                    break;
-                }
-                case SDL_MOUSEBUTTONUP: {
-                    int mx = scaledMouseX(sdlEvent.button.x, mouseScaleX);
-                    int my = scaledMouseY(sdlEvent.button.y, mouseScaleY);
-                    MouseButtonUpEvent mue(mx, my, sdlEvent.button.button);
-                    EventManager::getInstance().emit(mue);
-                    break;
-                }
-                case SDL_MOUSEMOTION: {
-                    int mx = scaledMouseX(sdlEvent.motion.x, mouseScaleX);
-                    int my = scaledMouseY(sdlEvent.motion.y, mouseScaleY);
-                    MouseMotionEvent mme(mx, my);
-                    EventManager::getInstance().emit(mme);
-                    break;
-                }
-                default: break;
-            }
 
             // Convert SDL -> InputEvent and hand to game (SDL-free boundary)
             InputEvent e;

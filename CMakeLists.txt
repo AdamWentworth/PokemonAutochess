@@ -117,9 +117,6 @@ add_executable(PokemonAutochess
     src/game/MovesConfigLoader.cpp
     src/game/AnimSetLoader.cpp
 
-    # Game Input
-    src/game/input/SDLInputAdapter.cpp
-
     # Game VFX (NEW)
     src/game/vfx/TailFireVFX.cpp
     src/game/vfx/CharmanderTailFireVFX.cpp
