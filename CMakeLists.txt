@@ -67,7 +67,7 @@ add_library(Engine STATIC
     src/engine/render/Model.cpp
     src/engine/render/ModelAnimation.cpp
     src/engine/render/ModelCache.cpp
-    
+
     # Engine UI
     src/engine/ui/UIManager.cpp
     src/engine/ui/Card.cpp
@@ -75,7 +75,7 @@ add_library(Engine STATIC
     src/engine/ui/HealthBarRenderer.cpp
     src/engine/ui/BattleFeed.cpp
     src/engine/ui/BootLoadingView.cpp
-    
+
     # Engine Utils
     src/engine/utils/Shader.cpp
     src/engine/utils/ShaderLibrary.cpp
@@ -87,16 +87,21 @@ add_library(Engine STATIC
     src/engine/vfx/ParticleSystem.cpp
 )
 
-target_link_libraries(Engine PRIVATE
-    SDL2::SDL2
-    SDL2_ttf::SDL2_ttf
-    OpenGL::GL
-    glad::glad
-    glm::glm
-    lua
-    nlohmann_json::nlohmann_json
-    fastgltf::fastgltf
-    ${PAC_SOL2_TARGET}
+# IMPORTANT:
+# If the long-term goal is "engine owns SDL", then the executable should not link SDL directly.
+# SDL is made PUBLIC here so consumers (PokemonAutochess) get it transitively by linking Engine.
+target_link_libraries(Engine
+    PUBLIC
+        SDL2::SDL2
+        SDL2_ttf::SDL2_ttf
+    PRIVATE
+        OpenGL::GL
+        glad::glad
+        glm::glm
+        lua
+        nlohmann_json::nlohmann_json
+        fastgltf::fastgltf
+        ${PAC_SOL2_TARGET}
 )
 
 pac_apply_common_target_settings(Engine)
@@ -140,10 +145,10 @@ add_executable(PokemonAutochess
     src/game/ScriptedState.cpp
 )
 
+# SDL intentionally removed from the game target.
+# It will be linked transitively through Engine.
 target_link_libraries(PokemonAutochess PRIVATE
     Engine
-    SDL2::SDL2
-    SDL2_ttf::SDL2_ttf
     OpenGL::GL
     glad::glad
     glm::glm
