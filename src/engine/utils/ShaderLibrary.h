@@ -16,6 +16,7 @@ class ShaderLibrary {
 public:
     static void setCache(ShaderCache* cache);
 
+    // KEEP 2-arg signature (matches all existing call sites).
     static std::shared_ptr<Shader> get(const std::string& vert,
                                        const std::string& frag);
 

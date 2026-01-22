@@ -14,7 +14,6 @@ public:
     SDL_Window* getSDLWindow() const { return window; }
     SDL_GLContext getContext() const { return context; }
 
-    // NEW: helpers used during preload (Option A)
     void setTitle(const std::string& title);
     void swapBuffers();
 

@@ -5,6 +5,12 @@
 
 ShaderCache* ShaderLibrary::s_cache = nullptr;
 
+// Single fallback instance used by BOTH get() and clear().
+static ShaderCache& fallbackCache() {
+    static ShaderCache fallback;
+    return fallback;
+}
+
 void ShaderLibrary::setCache(ShaderCache* cache) {
     s_cache = cache;
 }
@@ -17,8 +23,7 @@ std::shared_ptr<Shader> ShaderLibrary::get(const std::string& vert,
     }
 
     // Safety fallback (should not happen once Application wires services):
-    static ShaderCache fallback;
-    return fallback.get(vert, frag);
+    return fallbackCache().get(vert, frag);
 }
 
 void ShaderLibrary::clear() {
@@ -26,7 +31,5 @@ void ShaderLibrary::clear() {
         s_cache->clear();
         return;
     }
-    // clear fallback
-    static ShaderCache fallback;
-    fallback.clear();
+    fallbackCache().clear();
 }

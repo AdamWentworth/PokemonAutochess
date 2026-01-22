@@ -113,8 +113,6 @@ namespace {
         }
     }
 
-
-    // Returns true if we produced an InputEvent for the game.
     static bool translateSdlToInputEvent(
         const SDL_Event& sdl,
         float mouseScaleX, float mouseScaleY,
@@ -183,15 +181,17 @@ Application::~Application() {
 }
 
 void Application::initApplication() {
-    if (TTF_Init() == -1) {
-        std::cerr << "[Application] TTF_Init error: " << TTF_GetError() << "\n";
-    }
-
+    // Window ctor performs SDL_Init + creates GL context.
     window = std::make_unique<Window>("Pokemon Autochess", (int)START_W, (int)START_H);
 
     if (!gladLoadGLLoader((GLADloadproc)SDL_GL_GetProcAddress)) {
         std::cerr << "Failed to initialize GLAD\n";
         std::exit(EXIT_FAILURE);
+    }
+
+    // TTF depends on SDL being initialized (now true because Window ctor did SDL_Init).
+    if (TTF_Init() == -1) {
+        std::cerr << "[Application] TTF_Init error: " << TTF_GetError() << "\n";
     }
 
     updateDrawableSizeAndViewport();
@@ -218,16 +218,34 @@ void Application::initApplication() {
 void Application::shutdownApplication() {
     std::cout << "[Shutdown] Application...\n";
 
+    // 1) Destroy anything that might issue GL calls while the context is still alive.
     if (renderer) {
         renderer->shutdown();
         renderer.reset();
     }
 
-    camera.reset();
+    // 2) Force-release GL-backed caches BEFORE destroying the window/context.
+    // Shader programs
+    ShaderLibrary::clear();
+    ShaderLibrary::setCache(nullptr);
+    shaderCache.clear();
+
+    // Models / textures / meshes managed by ResourceManager
+    resourceManager.clear();
+
+    // If systems can own GL resources, clear them while context exists.
+    systemRegistry.clear();
+
+    // Boot loading view contains VAO/VBO -> destroy while GL context exists
     bootLoadingView.reset();
+    camera.reset();
+
+    // 3) Destroy the GL context + window
     window.reset();
 
+    // 4) Tear down SDL subsystems last
     TTF_Quit();
+    SDL_Quit();
 
     std::cout << "[Shutdown] Application done.\n";
 }
@@ -300,6 +318,7 @@ void Application::run(GameLoop& game) {
 
     services.shaders = &shaderCache;
     ShaderLibrary::setCache(&shaderCache);
+
     GameContext ctx;
     ctx.renderer = renderer.get();
     ctx.camera   = camera.get();
@@ -333,26 +352,21 @@ void Application::run(GameLoop& game) {
                 running = false;
             }
 
-            // resize handling (engine-owned)
             if (sdlEvent.type == SDL_WINDOWEVENT) {
                 if (sdlEvent.window.event == SDL_WINDOWEVENT_SIZE_CHANGED ||
                     sdlEvent.window.event == SDL_WINDOWEVENT_RESIZED) {
                     updateDrawableSizeAndViewport();
                     updateMouseScale();
 
-                    if (camera) {
+                    if (camera && drawableW > 0 && drawableH > 0) {
                         *camera = Camera3D(45.0f, float(drawableW) / float(drawableH), 0.1f, 100.0f);
                     }
 
-                    // keep context size in sync
                     ctx.drawableW = drawableW;
                     ctx.drawableH = drawableH;
                 }
             }
 
-            // Engine-level mouse events -> emit engine events (UI + picking)
-
-            // Convert SDL -> InputEvent and hand to game (SDL-free boundary)
             InputEvent e;
             if (translateSdlToInputEvent(
                     sdlEvent,
@@ -382,7 +396,7 @@ void Application::run(GameLoop& game) {
 
         game.render(drawableW, drawableH);
 
-        SDL_GL_SwapWindow(window->getSDLWindow());
+        swapBuffers();
 
         frameCount++;
         fpsTimer += frameDt;
