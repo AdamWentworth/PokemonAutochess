@@ -2,8 +2,7 @@
 
 #pragma once
 #include <string>
-#include <SDL.h>
-
+#include "engine/ui/Rect.h"
 class Shader;
 
 namespace UIManager {
@@ -14,7 +13,7 @@ namespace UIManager {
     Shader* getCardShader();
 
     // Draw a card rect with optional image (stub)
-    void drawCard(const SDL_Rect& rect, const std::string& imagePath, Shader* shader);
+    void drawCard(const ui::Rect& rect, const std::string& imagePath, Shader* shader);
 
     // Tear down any UI resources created in init()
     void shutdown();

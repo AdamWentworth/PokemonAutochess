@@ -18,7 +18,7 @@ std::vector<Card> createCardRow(const std::vector<CardData>& dataList, int scree
         const CardData& data = dataList[i];
         std::string imagePath = "assets/images/" + data.pokemonName + ".png";
 
-        SDL_Rect rect = {
+        ui::Rect rect = {
             startX + static_cast<int>(i) * (cardWidth + spacing),
             yOffset,
             cardWidth,

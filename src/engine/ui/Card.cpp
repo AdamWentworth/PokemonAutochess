@@ -54,7 +54,7 @@ namespace {
     }
 }
 
-Card::Card(const SDL_Rect& rect, const std::string& imagePath)
+Card::Card(const ui::Rect& rect, const std::string& imagePath)
     : rect(rect), imagePath(imagePath), textureID(0), imgWidth(0), imgHeight(0), imgChannels(0)
 {
     stbi_set_flip_vertically_on_load(false);

@@ -57,8 +57,10 @@ std::optional<CardData> CardSystem::handleMouseClick(int mouseX, int mouseY) {
     for (auto& card : cards) {
         if (card.isPointInside(mouseX, mouseY)) {
             const auto& data = card.getData();
-            SDL_Log("[Card Clicked] Pokemon: %s | Cost: %d | Type: %d",
-                    data.pokemonName.c_str(), data.cost, static_cast<int>(data.type));
+            std::cout << "[Card Clicked] Pokemon: " << data.pokemonName
+                      << " | Cost: " << data.cost
+                      << " | Type: " << static_cast<int>(data.type)
+                      << "\n";
             return data;
         }
     }
@@ -84,7 +86,7 @@ void CardSystem::spawnCardRow(const std::vector<CardData>& cardDatas, int screen
         const CardData& data = cardDatas[i];
         std::string imagePath = "assets/images/" + data.pokemonName + ".png";
 
-        SDL_Rect rect = {
+        ui::Rect rect = {
             startX + static_cast<int>(i) * (cardWidth + spacing),
             yOffset,
             cardWidth,

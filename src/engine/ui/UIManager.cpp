@@ -20,7 +20,7 @@ Shader* UIManager::getCardShader() {
     return s_cardShader;
 }
 
-void UIManager::drawCard(const SDL_Rect& /*rect*/, const std::string& /*imagePath*/, Shader* /*shader*/) {
+void UIManager::drawCard(const ui::Rect& /*rect*/, const std::string& /*imagePath*/, Shader* /*shader*/) {
     // Stub: implement textured quad draw as needed
 }
 

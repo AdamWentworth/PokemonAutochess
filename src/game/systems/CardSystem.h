@@ -3,7 +3,7 @@
 #include <vector>
 #include <optional>
 #include <string>
-#include <SDL2/SDL.h>
+#include "engine/ui/Rect.h"
 #include "engine/ui/Card.h"   // Card + CardData used by the UI system
 
 class Shader;
