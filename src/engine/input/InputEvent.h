@@ -26,7 +26,6 @@ struct InputEvent {
         MouseWheel
     };
 
-
     // Engine-defined key identifiers (SDL-agnostic).
     // Populate these in the platform layer (e.g., SDL translation) and use them in gameplay.
     enum class Key : std::uint16_t {
@@ -74,15 +73,13 @@ struct InputEvent {
     Type type = Type::Unknown;
 
     // --- Keyboard ---
-    Key keyId = Key::Unknown; // Engine key id (preferred)
-    int key = 0;              // Legacy: SDL_Keycode-compatible integer (deprecated)
+    Key keyId = Key::Unknown;
     bool repeat = false;
 
     // --- Mouse ---
     int mouseX = 0;
     int mouseY = 0;
-    MouseButton mouseButtonId = MouseButton::Unknown; // Engine mouse button id (preferred)
-    int mouseButton = 0;  // Legacy: SDL_BUTTON_* compatible integer (deprecated)
+    MouseButton mouseButtonId = MouseButton::Unknown;
 
     // --- Wheel ---
     int wheelX = 0;
@@ -106,18 +103,18 @@ struct InputEvent {
         return e;
     }
 
-    static InputEvent KeyDownEvent(int keycode, bool isRepeat = false) {
+    static InputEvent KeyDownEvent(Key key, bool isRepeat = false) {
         InputEvent e;
         e.type = Type::KeyDown;
-        e.key = keycode;
+        e.keyId = key;
         e.repeat = isRepeat;
         return e;
     }
 
-    static InputEvent KeyUpEvent(int keycode) {
+    static InputEvent KeyUpEvent(Key key) {
         InputEvent e;
         e.type = Type::KeyUp;
-        e.key = keycode;
+        e.keyId = key;
         return e;
     }
 
@@ -128,19 +125,19 @@ struct InputEvent {
         return e;
     }
 
-    static InputEvent MouseDownEvent(int x, int y, int btn) {
+    static InputEvent MouseDownEvent(int x, int y, MouseButton btn) {
         InputEvent e;
         e.type = Type::MouseDown;
         e.mouseX = x; e.mouseY = y;
-        e.mouseButton = btn;
+        e.mouseButtonId = btn;
         return e;
     }
 
-    static InputEvent MouseUpEvent(int x, int y, int btn) {
+    static InputEvent MouseUpEvent(int x, int y, MouseButton btn) {
         InputEvent e;
         e.type = Type::MouseUp;
         e.mouseX = x; e.mouseY = y;
-        e.mouseButton = btn;
+        e.mouseButtonId = btn;
         return e;
     }
 

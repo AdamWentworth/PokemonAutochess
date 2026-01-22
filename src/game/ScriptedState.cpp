@@ -120,10 +120,10 @@ void ScriptedState::handleInput(const InputEvent& event) {
         sol::function keyMap = L["handle_starter_key"];
         if (keyMap.valid()) {
             std::string key;
-            switch (event.key) {
-                case '1': key = "1"; break;
-                case '2': key = "2"; break;
-                case '3': key = "3"; break;
+            switch (event.keyId) {
+                case InputEvent::Key::Num1: key = "1"; break;
+                case InputEvent::Key::Num2: key = "2"; break;
+                case InputEvent::Key::Num3: key = "3"; break;
                 default: break;
             }
             if (!key.empty()) {

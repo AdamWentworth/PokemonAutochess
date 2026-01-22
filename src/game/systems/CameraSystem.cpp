@@ -7,6 +7,19 @@
 
 static const char* kCameraLua = "scripts/systems/camera.lua";
 
+static int toButtonNumber(InputEvent::MouseButton b) {
+    // Keep numeric convention stable for Lua scripts (SDL-style 1..5),
+    // but without exposing SDL headers/types in gameplay.
+    switch (b) {
+        case InputEvent::MouseButton::Left:   return 1;
+        case InputEvent::MouseButton::Middle: return 2;
+        case InputEvent::MouseButton::Right:  return 3;
+        case InputEvent::MouseButton::X1:     return 4;
+        case InputEvent::MouseButton::X2:     return 5;
+        default: return 0;
+    }
+}
+
 CameraSystem::CameraSystem(Camera3D* cam)
     : camera(cam)
 {
@@ -75,10 +88,10 @@ void CameraSystem::handleInput(const InputEvent& event) {
     // This removes the hidden dependency on a global EventManager singleton.
     switch (event.type) {
         case InputEvent::Type::MouseDown:
-            onMouseDown(event.mouseX, event.mouseY, event.mouseButton);
+            onMouseDown(event.mouseX, event.mouseY, toButtonNumber(event.mouseButtonId));
             break;
         case InputEvent::Type::MouseUp:
-            onMouseUp(event.mouseX, event.mouseY, event.mouseButton);
+            onMouseUp(event.mouseX, event.mouseY, toButtonNumber(event.mouseButtonId));
             break;
         case InputEvent::Type::MouseMove:
             onMouseMove(event.mouseX, event.mouseY);

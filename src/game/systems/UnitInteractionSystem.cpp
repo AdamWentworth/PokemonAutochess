@@ -150,7 +150,7 @@ void UnitInteractionSystem::handleInput(const InputEvent& event) {
     switch (event.type) {
         case InputEvent::Type::MouseDown:
             // Only left-click starts pickup/drop in this system.
-            if (event.mouseButton == 1) {
+            if (event.mouseButtonId == InputEvent::MouseButton::Left) {
                 onMouseButtonDown(event.mouseX, event.mouseY);
             }
             break;
