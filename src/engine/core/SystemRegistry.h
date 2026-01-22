@@ -10,8 +10,6 @@ class SystemRegistry {
 public:
     SystemRegistry() = default;
 
-    static SystemRegistry& getInstance();
-
     void registerSystem(std::shared_ptr<Updatable> system);
     void updateAll(float deltaTime);
     void clear(); // Optional, for cleanup
@@ -19,5 +17,3 @@ public:
 private:
     std::vector<std::shared_ptr<Updatable>> systems;
 };
-
-

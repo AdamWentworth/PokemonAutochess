@@ -87,7 +87,11 @@ void GameWorld::spawnPokemon(const std::string& pokemonName,
     }
 
     std::string path = "assets/models/" + stats->model;
-    auto sharedModel = ResourceManager::getInstance().getModel(path);
+    if (!resources) {
+        std::cerr << "[GameWorld] Resource service not set; cannot load model: " << path << "\n";
+        return;
+    }
+    auto sharedModel = resources->getModel(path);
 
     PokemonInstance inst;
     inst.id = PokemonInstance::getNextUnitID();
@@ -151,7 +155,11 @@ void GameWorld::addToBench(const std::string& pokemonName)
     }
 
     std::string path = "assets/models/" + stats->model;
-    auto sharedModel = ResourceManager::getInstance().getModel(path);
+    if (!resources) {
+        std::cerr << "[GameWorld] Resource service not set; cannot load model: " << path << "\n";
+        return;
+    }
+    auto sharedModel = resources->getModel(path);
 
     PokemonInstance inst;
     inst.id = PokemonInstance::getNextUnitID();

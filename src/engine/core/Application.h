@@ -5,6 +5,7 @@
 #include <string>
 
 #include "engine/render/Camera3D.h"
+#include "engine/core/SystemRegistry.h"
 
 // Forward decls (engine)
 class Window;
@@ -60,6 +61,9 @@ private:
     std::unique_ptr<Camera3D> camera;
 
     std::unique_ptr<BootLoadingView> bootLoadingView;
+
+    // Engine-owned registry (no singleton)
+    SystemRegistry systemRegistry;
 
     int drawableW = 1280;
     int drawableH = 720;

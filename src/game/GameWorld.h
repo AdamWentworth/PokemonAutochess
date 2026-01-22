@@ -13,9 +13,12 @@
 
 class Camera3D;
 class BoardRenderer;
+class ResourceManager;
 
 class GameWorld {
 public:
+    void setResources(ResourceManager* rm) { resources = rm; }
+
     void spawnPokemon(const std::string& pokemonName,
                       const glm::vec3& startPos,
                       PokemonSide side = PokemonSide::Player,
@@ -42,6 +45,8 @@ public:
     glm::vec3 getNearestEnemyPosition(const PokemonInstance& unit) const;
 
 private:
+    ResourceManager* resources = nullptr; // engine-owned
+
     std::vector<PokemonInstance> pokemons;
     std::vector<PokemonInstance> benchPokemons;
 

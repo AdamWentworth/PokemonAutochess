@@ -135,11 +135,11 @@ namespace {
                 return false;
 
             case SDL_KEYDOWN:
-                out = InputEvent::KeyDownEvent((int)sdl.key.keysym.sym, sdl.key.repeat != 0);
+                out = InputEvent::KeyDownEvent(mapSdlKeyToEngineKey((int)sdl.key.keysym.sym), sdl.key.repeat != 0);
                 return true;
 
             case SDL_KEYUP:
-                out = InputEvent::KeyUpEvent((int)sdl.key.keysym.sym);
+                out = InputEvent::KeyUpEvent(mapSdlKeyToEngineKey((int)sdl.key.keysym.sym));
                 return true;
 
             case SDL_MOUSEMOTION: {
@@ -294,7 +294,7 @@ void Application::run(GameLoop& game) {
     std::cout << "[Run] Main loop @ 60 Hz...\n";
 
     EngineServices services;
-    services.systems = &SystemRegistry::getInstance();
+    services.systems = &systemRegistry;
     services.resources = &ResourceManager::getInstance();
 
     GameContext ctx;

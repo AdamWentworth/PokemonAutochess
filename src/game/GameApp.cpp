@@ -55,6 +55,8 @@ void GameApp::init(GameContext& ctx) {
     board = std::make_unique<BoardRenderer>(cfg.rows, cfg.cols, cfg.cellSize);
 
     gameWorld    = std::make_unique<GameWorld>();
+    // Thread engine-owned resource service into the world (no singleton access in gameplay).
+    if (ctx.services) gameWorld->setResources(ctx.services->resources);
     stateManager = std::make_unique<GameStateManager>();
 
     // Systems (game-specific)
@@ -226,11 +228,11 @@ void GameApp::preloadCommonModels(GameContext& ctx) {
 
         if (ctx.pumpPreloadEvents && !ctx.pumpPreloadEvents()) std::exit(0);
 
-        // expensive load (prefer engine-owned service if provided)
+        // expensive load (engine-owned service)
         if (ctx.services && ctx.services->resources) {
             ctx.services->resources->getModel(path);
         } else {
-            ResourceManager::getInstance().getModel(path);
+            std::cerr << "[Preload] No resource service available; skipping model preload for: " << path << "\n";
         }
 
         float progress = float(i + 1) / float(total);
