@@ -189,6 +189,9 @@ void Application::initApplication() {
         std::exit(EXIT_FAILURE);
     }
 
+    // Wire engine-owned shader cache BEFORE anything calls ShaderLibrary::get()
+    ShaderLibrary::setCache(&shaderCache);
+
     // TTF depends on SDL being initialized (now true because Window ctor did SDL_Init).
     if (TTF_Init() == -1) {
         std::cerr << "[Application] TTF_Init error: " << TTF_GetError() << "\n";
@@ -317,7 +320,6 @@ void Application::run(GameLoop& game) {
     services.resources = &resourceManager;
 
     services.shaders = &shaderCache;
-    ShaderLibrary::setCache(&shaderCache);
 
     GameContext ctx;
     ctx.renderer = renderer.get();
