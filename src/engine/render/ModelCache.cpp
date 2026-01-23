@@ -15,6 +15,7 @@
 #include <string>
 #include <cstdlib>   // std::getenv
 #include <cstring>   // std::strcmp
+#include <exception>
 
 #include <glad/glad.h>
 #include <glm/gtc/type_ptr.hpp>
@@ -439,10 +440,17 @@ bool Model::tryLoadCache(const std::string& filepath)
             STARTUP_LOG(std::string("[Model] Cache hit: ") + filepath + " -> " + cpath.string());
             return true;
         }
+    } catch (const std::exception& e) {
+        STARTUP_WARN(std::string("[Model][Cache] Exception while reading cache for: ")
+                     + filepath + " (" + e.what() + ")");
+        return false;
     } catch (...) {
+        STARTUP_WARN(std::string("[Model][Cache] Unknown exception while reading cache for: ")
+                     + filepath);
         return false;
     }
 }
+
 
 // ------------------------------------------------------------
 // Cache I/O (write)
@@ -455,15 +463,25 @@ void Model::writeCache(const std::string& filepath,
 {
     using namespace pac_model_cache_detail;
 
+    auto warn = [&](const char* why) {
+        STARTUP_WARN(std::string("[Model][Cache] Write skipped/failed: ")
+                     + why + " (src=" + filepath + ")");
+    };
+
     try {
-        if (!fs::exists(filepath)) return;
+        if (!fs::exists(filepath)) { warn("source file does not exist"); return; }
 
         fs::path cpath = cachePathForModel(filepath);
-        fs::create_directories(cpath.parent_path());
+
+        std::error_code ec;
+        fs::create_directories(cpath.parent_path(), ec);
+        if (ec) { warn("create_directories failed"); return; }
 
         CacheHeader hdr{};
-        hdr.srcFileSize = (uint64_t)fs::file_size(filepath);
-        hdr.srcWriteTime = (int64_t)fs::last_write_time(filepath).time_since_epoch().count();
+        hdr.srcFileSize = (uint64_t)fs::file_size(filepath, ec);
+        if (ec) { warn("file_size failed"); return; }
+        hdr.srcWriteTime = (int64_t)fs::last_write_time(filepath, ec).time_since_epoch().count();
+        if (ec) { warn("last_write_time failed"); return; }
 
         hdr.modelScaleFactor = modelScaleFactor;
 
@@ -476,11 +494,12 @@ void Model::writeCache(const std::string& filepath,
         hdr.animCount = (uint32_t)animations.size();
 
         // Basic sanity: require matching texture entries
-        if (baseColorTexturesCPU.size() != submeshes.size()) return;
-        if (emissiveTexturesCPU.size() != submeshes.size()) return;
+        if (baseColorTexturesCPU.size() != submeshes.size()) { warn("baseColorTexturesCPU size mismatch"); return; }
+        if (emissiveTexturesCPU.size() != submeshes.size()) { warn("emissiveTexturesCPU size mismatch"); return; }
 
         std::ofstream out(cpath, std::ios::binary | std::ios::trunc);
-        if (!out.is_open()) return;
+        if (!out.is_open()) { warn("failed to open cache file for write"); return; }
+
 
         if (!writePod(out, hdr)) return;
 
@@ -619,9 +638,13 @@ void Model::writeCache(const std::string& filepath,
             if (!writeCPUTexture(emissiveTexturesCPU[i])) return;
         }
 
-        STARTUP_LOG(std::string("[Model] Cache wrote: ") + filepath + " -> " + cpath.string());
+                STARTUP_LOG(std::string("[Model] Cache wrote: ") + filepath + " -> " + cpath.string());
+    } catch (const std::exception& e) {
+        STARTUP_WARN(std::string("[Model][Cache] Exception while writing cache for: ")
+                     + filepath + " (" + e.what() + ")");
     } catch (...) {
-        // ignore cache write failures
+        STARTUP_WARN(std::string("[Model][Cache] Unknown exception while writing cache for: ")
+                     + filepath);
     }
 }
 
