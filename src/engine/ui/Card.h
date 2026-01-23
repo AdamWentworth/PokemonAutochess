@@ -43,6 +43,10 @@ public:
 
     static void setGlobalFramePath(const std::string& path);
 
+    // NEW: cleanup for shared GL resources (static VAO/VBO/EBO + static frame texture)
+    // Call while GL context is alive (wired via UIManager::shutdown()).
+    static void shutdownSharedGL();
+
 private:
     ui::Rect rect;
     std::string imagePath;

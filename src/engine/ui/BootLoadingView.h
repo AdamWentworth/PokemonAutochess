@@ -8,8 +8,14 @@ class Shader;
 
 class BootLoadingView {
 public:
+    BootLoadingView() = default;
+    ~BootLoadingView();
+
     void init();
     void render(float progress01, int screenW, int screenH);
+
+    // Explicit cleanup (idempotent). Safe to call more than once.
+    void shutdown();
 
 private:
     std::shared_ptr<Shader> shader;

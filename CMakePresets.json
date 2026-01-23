@@ -1,20 +1,31 @@
 {
   "version": 4,
-  "cmakeMinimumRequired": { "major": 4, "minor": 2, "patch": 0 },
+  "cmakeMinimumRequired": { "major": 3, "minor": 22, "patch": 0 },
   "configurePresets": [
     {
-      "name": "vs2026",
-      "displayName": "Visual Studio 18 2026 x64 (vcpkg)",
-      "generator": "Visual Studio 18 2026",
+      "name": "vs2022",
+      "displayName": "Visual Studio 17 2022 x64 (vcpkg)",
+      "generator": "Visual Studio 17 2022",
       "binaryDir": "${sourceDir}/build",
       "architecture": "x64",
       "cacheVariables": {
         "CMAKE_TOOLCHAIN_FILE": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake"
       }
+    },
+    {
+      "name": "ninja",
+      "displayName": "Ninja (vcpkg)",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build-ninja",
+      "cacheVariables": {
+        "CMAKE_TOOLCHAIN_FILE": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
+        "CMAKE_BUILD_TYPE": "Debug"
+      }
     }
   ],
   "buildPresets": [
-    { "name": "debug", "configurePreset": "vs2026", "configuration": "Debug" },
-    { "name": "release", "configurePreset": "vs2026", "configuration": "Release" }
+    { "name": "debug", "configurePreset": "vs2022", "configuration": "Debug" },
+    { "name": "release", "configurePreset": "vs2022", "configuration": "Release" },
+    { "name": "ninja-debug", "configurePreset": "ninja" }
   ]
 }

@@ -13,45 +13,70 @@ unsigned int Card::frameTextureID = 0;
 bool Card::frameLoaded = false;
 
 // -----------------------------------------------------------------------------
-// NEW: Static buffers for Card drawing
+// Shared static GL objects for Card drawing
 // -----------------------------------------------------------------------------
 namespace {
     GLuint cardVAO = 0, cardVBO = 0, cardEBO = 0;
     bool cardBuffersInitialized = false;
 
     void initCardBuffers() {
-        if (!cardBuffersInitialized) {
-            float vertices[] = {
-                0.0f, 0.0f, 0.0f, 0.0f,
-                1.0f, 0.0f, 1.0f, 0.0f,
-                1.0f, 1.0f, 1.0f, 1.0f,
-                0.0f, 1.0f, 0.0f, 1.0f
-            };
-            unsigned int indices[] = { 0, 1, 2, 2, 3, 0 };
+        if (cardBuffersInitialized) return;
 
-            glGenVertexArrays(1, &cardVAO);
-            glGenBuffers(1, &cardVBO);
-            glGenBuffers(1, &cardEBO);
+        float vertices[] = {
+            // pos      // uv
+            0.0f, 0.0f, 0.0f, 0.0f,
+            1.0f, 0.0f, 1.0f, 0.0f,
+            1.0f, 1.0f, 1.0f, 1.0f,
+            0.0f, 1.0f, 0.0f, 1.0f
+        };
+        unsigned int indices[] = { 0, 1, 2, 2, 3, 0 };
 
-            glBindVertexArray(cardVAO);
-            glBindBuffer(GL_ARRAY_BUFFER, cardVBO);
-            glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+        glGenVertexArrays(1, &cardVAO);
+        glGenBuffers(1, &cardVBO);
+        glGenBuffers(1, &cardEBO);
 
-            glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, cardEBO);
-            glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
+        glBindVertexArray(cardVAO);
 
-            // Set up vertex attributes.
-            glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)0);
-            glEnableVertexAttribArray(0);
-            glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)(2 * sizeof(float)));
-            glEnableVertexAttribArray(1);
+        glBindBuffer(GL_ARRAY_BUFFER, cardVBO);
+        glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
 
-            glBindBuffer(GL_ARRAY_BUFFER, 0);
-            glBindVertexArray(0);
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, cardEBO);
+        glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
 
-            cardBuffersInitialized = true;
-        }
+        glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)0);
+        glEnableVertexAttribArray(0);
+
+        glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)(2 * sizeof(float)));
+        glEnableVertexAttribArray(1);
+
+        glBindVertexArray(0);
+
+        cardBuffersInitialized = true;
     }
+} // namespace
+
+// NEW: static cleanup entrypoint
+void Card::shutdownSharedGL() {
+    // NOTE: requires active GL context.
+    if (cardEBO != 0) {
+        glDeleteBuffers(1, &cardEBO);
+        cardEBO = 0;
+    }
+    if (cardVBO != 0) {
+        glDeleteBuffers(1, &cardVBO);
+        cardVBO = 0;
+    }
+    if (cardVAO != 0) {
+        glDeleteVertexArrays(1, &cardVAO);
+        cardVAO = 0;
+    }
+    cardBuffersInitialized = false;
+
+    if (frameTextureID != 0) {
+        glDeleteTextures(1, &frameTextureID);
+        frameTextureID = 0;
+    }
+    frameLoaded = false;
 }
 
 Card::Card(const ui::Rect& rect, const std::string& imagePath)
@@ -69,11 +94,11 @@ Card::Card(const ui::Rect& rect, const std::string& imagePath)
 }
 
 Card::Card(Card&& other) noexcept
-    : rect(other.rect), 
+    : rect(other.rect),
       imagePath(std::move(other.imagePath)),
-      textureID(other.textureID), 
+      textureID(other.textureID),
       imgWidth(other.imgWidth),
-      imgHeight(other.imgHeight), 
+      imgHeight(other.imgHeight),
       imgChannels(other.imgChannels),
       cardData(std::move(other.cardData))
 {
@@ -127,14 +152,11 @@ unsigned int Card::loadTexture(const std::string& path) {
 void Card::draw(Shader* uiShader) const {
     uiShader->use();
 
-    // Ensure our static buffers are initialized.
     initCardBuffers();
 
-    // 🔥 Enable transparency
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
-    // 🔶 Draw Pokémon image first (slightly smaller to fit inside the frame)
     const float padding = 6.0f;
     float imgW = rect.w - 2 * padding;
     float imgH = rect.h - 2 * padding;
@@ -145,12 +167,10 @@ void Card::draw(Shader* uiShader) const {
     glUniformMatrix4fv(glGetUniformLocation(uiShader->getID(), "u_Model"), 1, GL_FALSE, glm::value_ptr(imgModel));
     glBindTexture(GL_TEXTURE_2D, textureID);
     glUniform1i(glGetUniformLocation(uiShader->getID(), "u_Texture"), 0);
-    
-    // Use our shared VAO for drawing.
+
     glBindVertexArray(cardVAO);
     glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
 
-    // 🟡 Draw the frame second (overlaid on top)
     glm::mat4 frameModel = glm::translate(glm::mat4(1.0f), glm::vec3(rect.x, rect.y, 0.0f));
     frameModel = glm::scale(frameModel, glm::vec3(rect.w, rect.h, 1.0f));
 
@@ -159,8 +179,6 @@ void Card::draw(Shader* uiShader) const {
     glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
 
     glDisable(GL_BLEND);
-
-    // Unbind the VAO.
     glBindVertexArray(0);
 }
 
@@ -170,9 +188,17 @@ bool Card::isPointInside(int x, int y) const {
 }
 
 void Card::loadFrameTexture() {
+    if (frameLoaded) return;
+
     int w, h, c;
     unsigned char* data = stbi_load(framePath.c_str(), &w, &h, &c, 0);
     if (data) {
+        // If the frame path gets changed at runtime, avoid leaking old texture.
+        if (frameTextureID != 0) {
+            glDeleteTextures(1, &frameTextureID);
+            frameTextureID = 0;
+        }
+
         glGenTextures(1, &frameTextureID);
         glBindTexture(GL_TEXTURE_2D, frameTextureID);
         GLenum format = (c == 4) ? GL_RGBA : GL_RGB;
@@ -188,4 +214,6 @@ void Card::loadFrameTexture() {
 
 void Card::setGlobalFramePath(const std::string& path) {
     framePath = path;
+    // Force reload next time a Card is constructed / used
+    frameLoaded = false;
 }

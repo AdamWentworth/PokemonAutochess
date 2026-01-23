@@ -2,12 +2,30 @@
 
 #include "BootLoadingView.h"
 
-#include <algorithm>
-#include <glad/glad.h>
-#include <glm/gtc/matrix_transform.hpp>
-
 #include "engine/utils/ShaderLibrary.h"
 #include "engine/utils/Shader.h"
+
+#include <glad/glad.h>
+#include <glm/gtc/matrix_transform.hpp>
+#include <algorithm>
+
+BootLoadingView::~BootLoadingView() {
+    shutdown();
+}
+
+void BootLoadingView::shutdown() {
+    // Requires active GL context; call while context still exists.
+    if (vbo != 0) {
+        glDeleteBuffers(1, &vbo);
+        vbo = 0;
+    }
+    if (vao != 0) {
+        glDeleteVertexArrays(1, &vao);
+        vao = 0;
+    }
+
+    shader.reset();
+}
 
 void BootLoadingView::init() {
     // Reuse the simple solid-color UI shader you already ship
@@ -67,7 +85,6 @@ void BootLoadingView::render(float progress01, int screenW, int screenH) {
     const GLboolean depthWasEnabled = glIsEnabled(GL_DEPTH_TEST);
     if (depthWasEnabled) glDisable(GL_DEPTH_TEST);
 
-    // No transparency required, but harmless if enabled elsewhere
     const GLboolean blendWasEnabled = glIsEnabled(GL_BLEND);
     if (!blendWasEnabled) glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);

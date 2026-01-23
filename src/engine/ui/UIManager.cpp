@@ -2,7 +2,9 @@
 
 #include "UIManager.h"
 #include <iostream>
+
 #include "engine/utils/Shader.h"
+#include "engine/ui/Card.h" // NEW: for Card::shutdownSharedGL()
 
 // File-local state (not exposed via header)
 namespace {
@@ -25,6 +27,9 @@ void UIManager::drawCard(const ui::Rect& /*rect*/, const std::string& /*imagePat
 }
 
 void UIManager::shutdown() {
+    // NEW: cleanup shared Card GL resources while the GL context is still alive.
+    Card::shutdownSharedGL();
+
     if (s_cardShader) {
         delete s_cardShader;
         s_cardShader = nullptr;
