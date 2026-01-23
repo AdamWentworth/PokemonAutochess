@@ -8,8 +8,9 @@
 #include "PokemonInstance.h"
 #include "./engine/ui/HealthBarData.h"
 
-// Charmander tail fire particle VFX
-#include "vfx/CharmanderTailFireVFX.h"
+// Tail fire particle VFX (data-driven via cfg)
+#include "vfx/TailFireVFX.h"
+#include "vfx/TailFireVFXConfigDB.h"
 
 class Camera3D;
 class BoardRenderer;
@@ -60,5 +61,6 @@ private:
     float sharedLoopAnimTimeSec = 0.0f;
 
     // Tail fire particles (drawn after opaque models)
-    CharmanderTailFireVFX charmanderTailFireVfx;
+    TailFireVFX tailFireVfx;
+    bool tailFireVfxInitialized = false;
 };

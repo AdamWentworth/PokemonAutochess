@@ -262,8 +262,20 @@ void GameWorld::update(float dt)
     for (auto& p : pokemons) tickPokemonAnim(p);
     for (auto& p : benchPokemons) tickPokemonAnim(p);
 
-    // tail fire particle update
-    charmanderTailFireVfx.update(dt, pokemons, benchPokemons);
+    // Tail fire VFX: init once, then update every frame
+    if (!tailFireVfxInitialized) {
+        // Currently only configured for Charmander (via filter + cfg section).
+        tailFireVfx.setNameFilterCaseInsensitive("charmander");
+
+        TailFireVFX::Config c; // defaults
+        TailFireVFXConfigDB::get().ensureLoaded();          // assets/config/tail_fire_vfx.cfg
+        TailFireVFXConfigDB::get().applyIfAny("charmander", c);
+
+        tailFireVfx.setConfig(c);
+        tailFireVfxInitialized = true;
+    }
+
+    tailFireVfx.update(dt, pokemons, benchPokemons);
 }
 
 void GameWorld::drawAll(const Camera3D& camera, BoardRenderer& boardRenderer)
@@ -293,7 +305,7 @@ void GameWorld::drawAll(const Camera3D& camera, BoardRenderer& boardRenderer)
     drawPokemonList(benchPokemons);
 
     // draw particles AFTER opaque models
-    charmanderTailFireVfx.render(camera);
+    tailFireVfx.render(camera);
 }
 
 std::vector<HealthBarData> GameWorld::getHealthBarData(const Camera3D& camera, int screenWidth, int screenHeight) const

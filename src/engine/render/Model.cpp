@@ -195,3 +195,35 @@ void Model::loadGLTF(const std::string& filepath)
     #include "ModelFastGltfLoad.inl"
 }
 
+bool Model::getNodeIndexByName(const std::string& nodeName, int& outNodeIndex) const
+{
+    // NOTE: This requires nodeNameToIndex and nodeNameMapBuilt to be mutable in Model.h,
+    // because this method is const and builds a cache.
+
+    if (!nodeNameMapBuilt) {
+        nodeNameToIndex.clear();
+        nodeNameToIndex.reserve(nodeNames.size());
+
+        for (int i = 0; i < (int)nodeNames.size(); ++i) {
+            const std::string& n = nodeNames[(size_t)i];
+            if (!n.empty()) nodeNameToIndex.emplace(n, i);
+        }
+        nodeNameMapBuilt = true;
+    }
+
+    auto it = nodeNameToIndex.find(nodeName);
+    if (it == nodeNameToIndex.end()) return false;
+
+    outNodeIndex = it->second;
+    return true;
+}
+
+bool Model::getNodeGlobalTransformByName(float animTimeSec,
+                                        int animIndex,
+                                        const std::string& nodeName,
+                                        glm::mat4& outNodeGlobal) const
+{
+    int idx = -1;
+    if (!getNodeIndexByName(nodeName, idx)) return false;
+    return getNodeGlobalTransformByIndex(animTimeSec, animIndex, idx, outNodeGlobal);
+}

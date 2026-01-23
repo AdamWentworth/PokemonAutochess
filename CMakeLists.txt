@@ -125,7 +125,7 @@ add_executable(PokemonAutochess
 
     # Game VFX (NEW)
     src/game/vfx/TailFireVFX.cpp
-    src/game/vfx/CharmanderTailFireVFX.cpp
+    src/game/vfx/TailFireVFXConfigDB.cpp
 
     # Game Systems
     src/game/systems/CameraSystem.cpp

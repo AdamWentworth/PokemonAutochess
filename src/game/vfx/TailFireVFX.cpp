@@ -1,7 +1,6 @@
-// --- FILE: src/game/vfx/TailFireVFX.cpp ---
 // src/game/vfx/TailFireVFX.cpp
 #include "TailFireVFX.h"
-
+#include "TailFireVFXConfigDB.h"
 #include "engine/render/Model.h"
 
 #include <glm/gtc/matrix_transform.hpp>
@@ -26,11 +25,41 @@ static std::string toLowerAscii(std::string s) {
     return s;
 }
 
+void TailFireVFX::configureForSpecies(const std::string& speciesLower)
+{
+    setNameFilterCaseInsensitive(speciesLower);
+
+    TailFireVFX::Config c; // defaults
+    TailFireVFXConfigDB::get().ensureLoaded();
+    TailFireVFXConfigDB::get().applyIfAny(speciesLower, c);
+
+    setConfig(c);
+}
+
 void TailFireVFX::setNameFilterCaseInsensitive(const std::string& nameLowerOrAnyCase) {
     const std::string want = toLowerAscii(nameLowerOrAnyCase);
     setFilter([want](const PokemonInstance& inst) {
         return toLowerAscii(inst.name) == want;
     });
+}
+
+int TailFireVFX::resolveTailTipNodeIndex(const Model& model) const {
+    auto it = tailNodeIndexCache.find(&model);
+    if (it != tailNodeIndexCache.end()) return it->second;
+
+    int idx = -1;
+
+    if (!cfg.tailTipNodeName.empty()) {
+        if (model.getNodeIndexByName(cfg.tailTipNodeName, idx)) {
+            tailNodeIndexCache[&model] = idx;
+            return idx;
+        }
+        // If name missing/wrong, fall back to index below.
+    }
+
+    idx = cfg.tailTipNodeIndex;
+    tailNodeIndexCache[&model] = idx;
+    return idx;
 }
 
 glm::mat4 TailFireVFX::computeInstanceTransform(const PokemonInstance& instance) const {
@@ -49,10 +78,8 @@ glm::mat4 TailFireVFX::computeInstanceTransform(const PokemonInstance& instance)
 void TailFireVFX::ensureConfigured() {
     if (configured) return;
 
-    // Shader
     particles.setShaderPaths(cfg.vertShaderPath, cfg.fragShaderPath);
 
-    // Flipbook (optional)
     particles.setUseFlipbook(cfg.useFlipbook);
     if (cfg.useFlipbook) {
         particles.setFlipbook(cfg.flipbookPath,
@@ -61,22 +88,19 @@ void TailFireVFX::ensureConfigured() {
                               cfg.flipbookFrames,
                               cfg.flipbookFps);
 
-        // Optional secondary atlas for extra per-particle variation
         if (cfg.useFlipbook2) {
             particles.setSecondaryFlipbook(cfg.flipbook2Path,
-                                          cfg.flipbook2Cols,
-                                          cfg.flipbook2Rows,
-                                          cfg.flipbook2Frames,
-                                          cfg.flipbook2Fps);
+                                           cfg.flipbook2Cols,
+                                           cfg.flipbook2Rows,
+                                           cfg.flipbook2Frames,
+                                           cfg.flipbook2Fps);
         } else {
             particles.setSecondaryFlipbook("", 1, 1, 1, 0.0f);
         }
     } else {
-        // Ensure both atlases are disabled when procedural-only
         particles.setSecondaryFlipbook("", 1, 1, 1, 0.0f);
     }
 
-    // Render state
     ParticleSystem::RenderSettings rs;
     rs.blend = cfg.blend;
     rs.depthTest = cfg.depthTest;
@@ -84,13 +108,11 @@ void TailFireVFX::ensureConfigured() {
     rs.programPointSize = true;
     particles.setRenderSettings(rs);
 
-    // Simulation
     ParticleSystem::UpdateSettings us;
     us.acceleration = cfg.acceleration;
     us.dampingBase = cfg.dampingBase;
     particles.setUpdateSettings(us);
 
-    // Point scale
     particles.setPointScale(cfg.pointScale);
 
     configured = true;
@@ -126,7 +148,8 @@ void TailFireVFX::emitForList(float dt, const std::vector<PokemonInstance>& list
         glm::mat4 tailNodeGlobal(1.0f);
         glm::vec3 tailWorld(0.0f);
 
-        if (u.model->getNodeGlobalTransformByIndex(u.animTimeSec, kLoopAnimIndex, cfg.tailTipNodeIndex, tailNodeGlobal)) {
+        const int tailIdx = resolveTailTipNodeIndex(*u.model);
+        if (u.model->getNodeGlobalTransformByIndex(u.animTimeSec, kLoopAnimIndex, tailIdx, tailNodeGlobal)) {
             tailWorld = glm::vec3(instM * tailNodeGlobal * glm::vec4(0, 0, 0, 1));
         } else {
             tailWorld = glm::vec3(instM * glm::vec4(0.0f, 0.78f, -0.38f, 1.0f));
@@ -141,7 +164,6 @@ void TailFireVFX::emitForList(float dt, const std::vector<PokemonInstance>& list
         for (int i = 0; i < spawnCount; ++i) {
             float base = (float)u.id * 100000.0f + (float)(serial++);
 
-            // Narrower spawn: squeeze X/Z so it reads less wide
             float rx = hashSigned(base + 1.0f) * cfg.spawnRadius * 0.75f;
             float ry = hash01(base + 2.0f) * cfg.spawnRadius * 0.35f;
             float rz = hashSigned(base + 3.0f) * cfg.spawnRadius * 0.75f;
@@ -149,13 +171,11 @@ void TailFireVFX::emitForList(float dt, const std::vector<PokemonInstance>& list
             ParticleSystem::Particle p;
             p.pos = tailWorld + glm::vec3(rx, ry, rz);
 
-            // Taller: more upward velocity, slightly less backward push
             float up   = 0.055f + hash01(base + 5.0f) * 0.095f;
             float back = 0.050f + hash01(base + 6.0f) * 0.050f;
 
             p.vel = glm::vec3(0.0f, up, 0.0f) + cfg.backDir * back;
 
-            // Taller: live longer so the plume can extend upward
             p.maxLifeSec = 0.14f + hash01(base + 7.0f) * 0.10f;
             p.lifeSec = p.maxLifeSec;
 

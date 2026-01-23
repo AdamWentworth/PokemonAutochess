@@ -1,0 +1,25 @@
+// src/game/vfx/TailFireVFXConfigDB.h
+#pragma once
+
+#include <string>
+#include <unordered_map>
+#include "TailFireVFX.h"
+
+class TailFireVFXConfigDB {
+public:
+    static TailFireVFXConfigDB& get();
+
+    bool ensureLoaded(const std::string& path = "assets/config/tail_fire_vfx.cfg");
+    void applyIfAny(const std::string& speciesLower, TailFireVFX::Config& io) const;
+
+private:
+    TailFireVFXConfigDB() = default;
+
+    struct Entry {
+        bool has = false;
+        TailFireVFX::Config cfg;
+    };
+
+    bool loaded = false;
+    std::unordered_map<std::string, Entry> entries;
+};
