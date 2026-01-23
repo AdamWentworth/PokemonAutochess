@@ -9,7 +9,10 @@ class TailFireVFXConfigDB {
 public:
     static TailFireVFXConfigDB& get();
 
+    // Safe to call multiple times; loads once.
     bool ensureLoaded(const std::string& path = "assets/config/tail_fire_vfx.cfg");
+
+    // Applies overrides for a species key (use lowercase).
     void applyIfAny(const std::string& speciesLower, TailFireVFX::Config& io) const;
 
 private:

@@ -23,11 +23,22 @@ public:
         // Preferred: stable across GLB node reordering.
         std::string tailTipNodeName;
 
-        // Legacy fallback (keep for transition; consider removing later).
+        // Legacy fallback (keep for transition).
         int tailTipNodeIndex = 45;
 
         float tailWorldYOffset = 0.2f;
+
+        // Interpreted as a LOCAL direction in the tail node's frame.
+        // Example "0,0,1" means "forward" in the tail bone frame.
         glm::vec3 backDir = glm::vec3(0.0f, 0.0f, 1.0f);
+
+        // How much tail tip linear velocity gets inherited by particles.
+        // 0 = none, 1 = fully inherit.
+        float inheritVelocity = 0.9f;
+
+        // Exponential smoothing strength for the emission anchor (0 disables).
+        // Higher = follows more tightly; lower = smoother/laggier.
+        float followSmoothing = 0.0f;
 
         std::string vertShaderPath = "assets/shaders/vfx/particle.vert";
         std::string fragShaderPath = "assets/shaders/vfx/fire/fire_tail.frag";
@@ -59,17 +70,24 @@ public:
 public:
     TailFireVFX() = default;
 
-    // NEW: replaces CharmanderTailFireVFX.* (species filter + config load).
-    // speciesLower should match PokemonInstance::name case-insensitively.
-    void configureForSpecies(const std::string& speciesLower);
-
     void setFilter(std::function<bool(const PokemonInstance&)> f) { filter = std::move(f); }
     void setNameFilterCaseInsensitive(const std::string& nameLowerOrAnyCase);
 
     void setConfig(const Config& c) {
         cfg = c;
         configured = false;
+
+        // important if node name changes
         tailNodeIndexCache.clear();
+
+        // motion history depends on attachment points + config feel
+        prevTailWorld.clear();
+        smoothedTailWorld.clear();
+        prevAnimIndex.clear();
+
+        // NEW (wrap + filtering)
+        prevAnimTimeSec.clear();
+        filteredTailVel.clear();
     }
     const Config& getConfig() const { return cfg; }
 
@@ -87,6 +105,7 @@ private:
     void emitForList(float dt, const std::vector<PokemonInstance>& list);
     glm::mat4 computeInstanceTransform(const PokemonInstance& instance) const;
 
+    // Resolve name->index once per Model* (cached). Uses cfg.tailTipNodeIndex as fallback.
     int resolveTailTipNodeIndex(const Model& model) const;
 
 private:
@@ -96,6 +115,19 @@ private:
 
     std::unordered_map<int, float> emitAccumulator;
     std::unordered_map<int, uint32_t> spawnSerial;
+
+    // per-unit tail motion history
+    std::unordered_map<int, glm::vec3> prevTailWorld;
+    std::unordered_map<int, glm::vec3> smoothedTailWorld;
+
+    // detect animation switches to prevent bogus tail velocity spikes
+    std::unordered_map<int, int> prevAnimIndex;
+
+    // NEW: detect anim time wrap for looping clips
+    std::unordered_map<int, float> prevAnimTimeSec;
+
+    // NEW: low-pass filtered tail velocity to avoid micro-spikes
+    std::unordered_map<int, glm::vec3> filteredTailVel;
 
     Config cfg{};
     bool configured = false;

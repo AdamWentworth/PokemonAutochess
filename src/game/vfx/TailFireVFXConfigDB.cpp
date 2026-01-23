@@ -40,11 +40,13 @@ static bool parseBool(const std::string& v, bool& out) {
 }
 
 static bool parseFloat(const std::string& v, float& out) {
-    try { out = std::stof(trim(v)); return true; } catch (...) { return false; }
+    try { out = std::stof(trim(v)); return true; }
+    catch (...) { return false; }
 }
 
 static bool parseInt(const std::string& v, int& out) {
-    try { out = std::stoi(trim(v)); return true; } catch (...) { return false; }
+    try { out = std::stoi(trim(v)); return true; }
+    catch (...) { return false; }
 }
 
 static bool parseVec3(const std::string& v, glm::vec3& out) {
@@ -56,7 +58,9 @@ static bool parseVec3(const std::string& v, glm::vec3& out) {
     try {
         out = glm::vec3(std::stof(trim(a)), std::stof(trim(b)), std::stof(trim(c)));
         return true;
-    } catch (...) { return false; }
+    } catch (...) {
+        return false;
+    }
 }
 
 TailFireVFXConfigDB& TailFireVFXConfigDB::get() {
@@ -86,7 +90,7 @@ bool TailFireVFXConfigDB::ensureLoaded(const std::string& path) {
         if (line.front() == '[' && line.back() == ']') {
             currentSection = lower(trim(line.substr(1, line.size() - 2)));
             entries[currentSection].has = true;
-            entries[currentSection].cfg = TailFireVFX::Config{}; // defaults
+            entries[currentSection].cfg = TailFireVFX::Config{}; // start from defaults
             continue;
         }
 
@@ -107,10 +111,13 @@ bool TailFireVFXConfigDB::ensureLoaded(const std::string& path) {
         else if (key == "emitratepersec") parseFloat(val, cfg.emitRatePerSec);
         else if (key == "spawnradius") parseFloat(val, cfg.spawnRadius);
         else if (key == "backdir") parseVec3(val, cfg.backDir);
+        else if (key == "inheritvelocity") parseFloat(val, cfg.inheritVelocity);
+        else if (key == "followsmoothing") parseFloat(val, cfg.followSmoothing);
         else if (key == "acceleration") parseVec3(val, cfg.acceleration);
         else if (key == "dampingbase") parseFloat(val, cfg.dampingBase);
         else if (key == "pointscale") parseFloat(val, cfg.pointScale);
         else if (key == "useflipbook") parseBool(val, cfg.useFlipbook);
+        // Add more keys only if you actually need them.
     }
 
     return true;
