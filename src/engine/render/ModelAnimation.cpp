@@ -1,6 +1,10 @@
 // src/engine/render/ModelAnimation.cpp
 //
-// Animation + skinning draw path split out of Model.cpp.
+// Root motion OFF (horizontal):
+// - Ignore animated X/Z translation on selected "root motion carrier" nodes.
+// - Keep animated Y translation (vertical bob).
+// - Keep all rotations/scales, and all other node translations intact.
+// This prevents run/walk clips from moving the mesh ahead of instanceTransform (grid/world).
 
 #include "Model.h"
 
@@ -10,12 +14,12 @@
 #include <cmath>
 #include <functional>
 #include <iostream>
+#include <unordered_set>
 #include <vector>
 
 #include <glm/gtc/type_ptr.hpp>
 #include <glm/gtx/quaternion.hpp>
 
-// ✅ Fix: use real enum + sampler type namespace
 using pac_model_types::AnimationSampler;
 using pac_model_types::ChannelPath;
 
@@ -85,8 +89,54 @@ void Model::buildPoseMatrices(float timeSec,
 {
     outLocal = nodesDefault;
     outGlobal.assign(nodesDefault.size(), glm::mat4(1.0f));
-
     if (nodesDefault.empty()) return;
+
+    const int nodeCount = (int)nodesDefault.size();
+
+    // ---- Build parent pointers (best-effort) ----
+    std::vector<int> parent(nodeCount, -1);
+    for (int p = 0; p < nodeCount; ++p) {
+        if (p >= (int)nodeChildren.size()) continue;
+        for (int c : nodeChildren[p]) {
+            if (c < 0 || c >= nodeCount) continue;
+            if (parent[c] == -1) parent[c] = p;
+        }
+    }
+
+    // ---- Root-motion carrier set (horizontal only) ----
+    // We strip animated X/Z translation ONLY on these nodes:
+    // - nodes named origin/waist/hips (common PM rigs)
+    // - skeleton root joint per skin (joint with no parent among joints)
+    // This avoids breaking grid placement (we do NOT touch scene roots or mesh nodes generically).
+    std::unordered_set<int> rmNodes;
+
+    auto addNodeByExactName = [&](const char* name) {
+        for (int i = 0; i < (int)nodeNames.size(); ++i) {
+            if (nodeNames[(size_t)i] == name) {
+                if (i >= 0 && i < nodeCount) rmNodes.insert(i);
+                return;
+            }
+        }
+    };
+
+    addNodeByExactName("origin");
+    addNodeByExactName("waist");
+    addNodeByExactName("hips");
+
+    for (const auto& sk : skins) {
+        if (sk.joints.empty()) continue;
+        std::unordered_set<int> jointSet;
+        jointSet.reserve(sk.joints.size());
+        for (int j : sk.joints) jointSet.insert(j);
+
+        // Find joints that have no parent in the joint set => skeleton roots.
+        for (int j : sk.joints) {
+            int pj = (j >= 0 && j < nodeCount) ? parent[j] : -1;
+            if (pj == -1 || jointSet.find(pj) == jointSet.end()) {
+                rmNodes.insert(j);
+            }
+        }
+    }
 
     auto sampleVec4 = [&](const AnimationSampler& s, float t)->glm::vec4 {
         if (s.inputs.empty() || s.outputs.empty()) return glm::vec4(0.0f);
@@ -110,8 +160,7 @@ void Model::buildPoseMatrices(float timeSec,
     auto sampleQuat = [&](const AnimationSampler& s, float t)->glm::quat {
         glm::vec4 v = sampleVec4(s, t);
         glm::quat q(v.w, v.x, v.y, v.z);
-        q = glm::normalize(q);
-        return q;
+        return glm::normalize(q);
     };
 
     if (animIndex >= 0 && animIndex < (int)animations.size()) {
@@ -121,27 +170,58 @@ void Model::buildPoseMatrices(float timeSec,
         for (const auto& ch : clip.channels) {
             if (ch.targetNode < 0 || ch.targetNode >= (int)outLocal.size()) continue;
             if (ch.samplerIndex < 0 || ch.samplerIndex >= (int)clip.samplers.size()) continue;
+
             const auto& s = clip.samplers[ch.samplerIndex];
 
             if (ch.path == ChannelPath::Translation) {
                 glm::vec4 v = sampleVec4(s, t);
-                outLocal[ch.targetNode].t = glm::vec3(v.x, v.y, v.z);
+                glm::vec3 animT(v.x, v.y, v.z);
+
+                if (rmNodes.find(ch.targetNode) != rmNodes.end()) {
+                    // Freeze horizontal displacement (X/Z) to bind pose, but keep animated Y.
+                    const NodeTRS& bind = nodesDefault[ch.targetNode];
+
+                    // Bind translation source depends on whether node was authored as matrix or TRS.
+                    glm::vec3 bindT;
+                    if (bind.hasMatrix) {
+                        // GLM mat4 translation is column 3 (m[3].xyz)
+                        bindT = glm::vec3(bind.matrix[3]);
+                        // Preserve the bind matrix and only patch translation.
+                        outLocal[ch.targetNode] = bind;           // copies matrix + hasMatrix=true
+                        outLocal[ch.targetNode].matrix[3].x = bindT.x;
+                        outLocal[ch.targetNode].matrix[3].y = animT.y;  // keep vertical motion
+                        outLocal[ch.targetNode].matrix[3].z = bindT.z;
+                        outLocal[ch.targetNode].matrix[3].w = 1.0f;
+                        outLocal[ch.targetNode].hasMatrix = true;
+                    } else {
+                        bindT = bind.t;
+                        outLocal[ch.targetNode].t = glm::vec3(bindT.x, animT.y, bindT.z);
+                        outLocal[ch.targetNode].hasMatrix = false;
+                    }
+                    continue;
+                }
+
+                // Normal translation application
+                outLocal[ch.targetNode].t = animT;
                 outLocal[ch.targetNode].hasMatrix = false;
-            } else if (ch.path == ChannelPath::Scale) {
+            }
+
+            else if (ch.path == ChannelPath::Scale) {
                 glm::vec4 v = sampleVec4(s, t);
                 outLocal[ch.targetNode].s = glm::vec3(v.x, v.y, v.z);
                 outLocal[ch.targetNode].hasMatrix = false;
-            } else if (ch.path == ChannelPath::Rotation) {
+            }
+            else if (ch.path == ChannelPath::Rotation) {
                 outLocal[ch.targetNode].r = sampleQuat(s, t);
                 outLocal[ch.targetNode].hasMatrix = false;
             }
         }
     }
 
-    std::function<void(int, const glm::mat4&)> dfs = [&](int node, const glm::mat4& parent) {
+    std::function<void(int, const glm::mat4&)> dfs = [&](int node, const glm::mat4& parentM) {
         if (node < 0 || node >= (int)outLocal.size()) return;
         glm::mat4 localM = trsToMat4(outLocal[node]);
-        glm::mat4 global = parent * localM;
+        glm::mat4 global = parentM * localM;
         outGlobal[node] = global;
 
         if (node < (int)nodeChildren.size()) {
@@ -162,13 +242,6 @@ void Model::drawAnimated(const Camera3D& camera,
                          int animIndex) const
 {
     if (!modelShader || VAO == 0) return;
-
-    if (animIndex == 1 && (int)animations.size() <= 1) {
-        if (warnedMissingAnimIndex.insert(animIndex).second) {
-            std::cout << "[Model] NOTE: requested animation index 1, but model has "
-                      << animations.size() << " animation(s). Drawing static.\n";
-        }
-    }
 
     std::vector<NodeTRS> locals;
     std::vector<glm::mat4> globals;
@@ -197,7 +270,6 @@ void Model::drawAnimated(const Camera3D& camera,
     glGetIntegerv(GL_BLEND_EQUATION_RGB,   &prevEqRGB);
     glGetIntegerv(GL_BLEND_EQUATION_ALPHA, &prevEqA);
 
-    // bind sampler units once (safe even if uniforms are optimized out)
     if (locBaseColorTex >= 0) glUniform1i(locBaseColorTex, 0);
     if (locEmissiveTex  >= 0) glUniform1i(locEmissiveTex,  1);
 
@@ -215,8 +287,7 @@ void Model::drawAnimated(const Camera3D& camera,
         if (sm.doubleSided) glDisable(GL_CULL_FACE);
         else glEnable(GL_CULL_FACE);
 
-        // BLEND must enable blending AND disable depth writes.
-        if (sm.alphaMode == 2) { // BLEND
+        if (sm.alphaMode == 2) {
             glEnable(GL_BLEND);
             glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
             glDepthMask(GL_FALSE);
@@ -243,7 +314,6 @@ void Model::drawAnimated(const Camera3D& camera,
                            (nodeIdx < (int)nodeSkin.size() ? nodeSkin[nodeIdx] : -1),
                            globals);
 
-        // Two-pass inside the mesh: opaque/mask first, then blend.
         for (int pass = 0; pass < 2; ++pass) {
             for (const auto& sm : submeshes) {
                 if (sm.meshIndex != meshIdx) continue;
@@ -261,11 +331,11 @@ void Model::drawAnimated(const Camera3D& camera,
         }
     };
 
-    std::function<void(int, const glm::mat4&)> dfsDraw = [&](int node, const glm::mat4& parent) {
+    std::function<void(int, const glm::mat4&)> dfsDraw = [&](int node, const glm::mat4& parentM) {
         if (node < 0 || node >= (int)locals.size()) return;
 
         glm::mat4 localM  = trsToMat4(locals[node]);
-        glm::mat4 globalM = parent * localM;
+        glm::mat4 globalM = parentM * localM;
 
         drawMeshAtNode(node, globalM);
 
@@ -280,14 +350,12 @@ void Model::drawAnimated(const Camera3D& camera,
         for (int r : sceneRoots) dfsDraw(r, glm::mat4(1.0f));
     }
 
-    // fallback: if nodeMesh is empty, draw everything once with instanceTransform
     if (!hasNodeMesh) {
         glm::mat4 vp  = camera.getProjectionMatrix() * camera.getViewMatrix();
         glm::mat4 mvp = vp * instanceTransform;
         glUniformMatrix4fv(locMVP, 1, GL_FALSE, glm::value_ptr(mvp));
         glUniform1i(locUseSkin, 0);
 
-        // opaque/mask then blend
         for (int pass = 0; pass < 2; ++pass) {
             for (const auto& sm : submeshes) {
                 const bool isBlend = (sm.alphaMode == 2);
@@ -320,7 +388,6 @@ void Model::drawAnimated(const Camera3D& camera,
     glBindVertexArray(0);
 }
 
-// ✅ NEW: animated node global transform (MODEL SPACE)
 bool Model::getNodeGlobalTransformByIndex(float animTimeSec,
                                          int animIndex,
                                          int nodeIndex,
