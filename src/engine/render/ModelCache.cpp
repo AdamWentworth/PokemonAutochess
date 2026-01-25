@@ -72,7 +72,7 @@ static bool envTruthy(const char* name) {
 
 // Cache format constants
 static constexpr uint64_t kModelCacheMagic = 0x4C444D434150554FULL; // "PACMDML" in little-endian-ish
-static constexpr uint32_t kModelCacheVersion = 3;
+static constexpr uint32_t kModelCacheVersion = 1;
 
 #pragma pack(push, 1)
 struct CacheHeader {
@@ -404,6 +404,10 @@ bool Model::tryLoadCache(const std::string& filepath)
             glEnableVertexAttribArray(3);
             glVertexAttribPointer(3, 4, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, w0));
 
+            // ✅ COLOR_0 (vec4) must exist in cache path too
+            glEnableVertexAttribArray(4);
+            glVertexAttribPointer(4, 4, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, r));
+
             glBindVertexArray(0);
 
             // Upload textures
@@ -415,6 +419,7 @@ bool Model::tryLoadCache(const std::string& filepath)
                 GLuint tex = 0;
                 glGenTextures(1, &tex);
                 glBindTexture(GL_TEXTURE_2D, tex);
+                glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
 
                 glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, (GLsizei)w, (GLsizei)h,
                              0, GL_RGBA, GL_UNSIGNED_BYTE, pixels);

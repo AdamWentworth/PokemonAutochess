@@ -3,10 +3,9 @@
 
 layout(location = 0) in vec3 aPos;
 layout(location = 1) in vec2 aTex;
-
-// skinning attributes (always present in the VBO; defaults are safe)
-layout(location = 2) in uvec4 aJoints;  // uploaded as GL_UNSIGNED_SHORT via glVertexAttribIPointer
+layout(location = 2) in uvec4 aJoints;
 layout(location = 3) in vec4  aWeights;
+layout(location = 4) in vec4  aColor;
 
 uniform mat4 u_MVP;
 
@@ -20,10 +19,12 @@ uniform int u_UseSkin;
 uniform mat4 u_Joints[MAX_JOINTS];
 
 out vec2 TexCoord;
+out vec4 VertColor;
 
 void main()
 {
     TexCoord = aTex;
+    VertColor = aColor;
 
     vec4 localPos = vec4(aPos, 1.0);
 

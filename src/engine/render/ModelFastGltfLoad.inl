@@ -218,17 +218,17 @@ struct FG {
 
 
     static int requiredTexCoordForMaterial(const fastgltf::Asset& asset, int materialIndex) {
-        int need = 0;
-        if (materialIndex >= 0 && materialIndex < (int)asset.materials.size()) {
-            const auto& m = asset.materials[(size_t)materialIndex];
-            if (m.pbrData.baseColorTexture.has_value()) {
-                need = (std::max)(need, (int)m.pbrData.baseColorTexture->texCoordIndex);
-            }
-            if (m.emissiveTexture.has_value()) {
-                need = (std::max)(need, (int)m.emissiveTexture->texCoordIndex);
-            }
+        if (materialIndex < 0 || materialIndex >= (int)asset.materials.size()) return 0;
+
+        const auto& m = asset.materials[(size_t)materialIndex];
+
+        if (m.pbrData.baseColorTexture.has_value()) {
+            return (int)m.pbrData.baseColorTexture->texCoordIndex;
         }
-        return need;
+        if (m.emissiveTexture.has_value()) {
+            return (int)m.emissiveTexture->texCoordIndex;
+        }
+        return 0;
     }
 
     static const char* magicName(const std::vector<std::uint8_t>& bytes) {
@@ -458,6 +458,32 @@ struct FG {
         const size_t pxCount = (size_t)w * (size_t)h;
         out.rgba.resize(pxCount * 4);
         std::memcpy(out.rgba.data(), decoded, pxCount * 4);
+
+        // glTF spec: baseColor = texture * baseColorFactor
+        if (kind == TextureKind::BaseColor) {
+            auto f = mat.pbrData.baseColorFactor;
+
+            const float fr = f[0];
+            const float fg = f[1];
+            const float fb = f[2];
+            const float fa = f[3];
+
+            if (fr != 1.0f || fg != 1.0f || fb != 1.0f || fa != 1.0f) {
+                auto mulClampU8 = [](uint8_t v, float factor) -> uint8_t {
+                    float x = (float)v * factor;
+                    x = (std::max)(0.0f, (std::min)(255.0f, x));
+                    return (uint8_t)std::lround(x);
+                };
+
+                for (size_t i = 0; i + 3 < out.rgba.size(); i += 4) {
+                    out.rgba[i + 0] = mulClampU8(out.rgba[i + 0], fr);
+                    out.rgba[i + 1] = mulClampU8(out.rgba[i + 1], fg);
+                    out.rgba[i + 2] = mulClampU8(out.rgba[i + 2], fb);
+                    out.rgba[i + 3] = mulClampU8(out.rgba[i + 3], fa);
+                }
+            }
+        }
+
         stbi_image_free(decoded);
 
         // Optional texture dumps (only when explicitly enabled; can be large)
@@ -754,11 +780,12 @@ struct FG {
 
             auto itPos = p.findAttribute("POSITION");
 
-            // Determine which UV set this primitive *wants* based on its material texCoord indices.
-            int requiredTexCoord = 0;
-            if (FG::envTruthy("PAC_GLTF_RESPECT_TEXCOORD")) {
-                requiredTexCoord = FG::requiredTexCoordForMaterial(asset, materialIndex);
-            }
+            // Determine which UV set this primitive *wants* based on the material texCoord indices.
+            // Compatibility-safe behavior:
+            // - If material wants TEXCOORD_0 -> use it (same as before)
+            // - If material wants TEXCOORD_n -> try it, and fallback to TEXCOORD_0 if missing
+            // - PAC_GLTF_RESPECT_TEXCOORD can still force logging/diagnostics semantics, but isn't required anymore.
+            int requiredTexCoord = FG::requiredTexCoordForMaterial(asset, materialIndex);
 
             std::string uvAttr = "TEXCOORD_" + std::to_string(requiredTexCoord);
             auto itUv = p.findAttribute(uvAttr);
@@ -798,7 +825,37 @@ struct FG {
                 adapter
             );
 
+            // ---- COLOR_0 (vertex color) ----
+            std::vector<glm::vec4> color;
+            color.resize(pos.size(), glm::vec4(1.0f)); // default = white
 
+            auto itC = p.findAttribute("COLOR_0");
+            if (itC != p.attributes.end()) {
+                const size_t colAcc = itC->accessorIndex;
+                const auto& acc = asset.accessors[colAcc];
+
+                color.clear();
+                color.reserve(acc.count);
+
+                if (acc.type == fastgltf::AccessorType::Vec3) {
+                    fastgltf::iterateAccessorWithIndex<glm::vec3>(
+                        asset, acc,
+                        [&](glm::vec3 v, size_t) { color.emplace_back(v.x, v.y, v.z, 1.0f); },
+                        adapter
+                    );
+                } else {
+                    fastgltf::iterateAccessorWithIndex<glm::vec4>(
+                        asset, acc,
+                        [&](glm::vec4 v, size_t) { color.push_back(v); },
+                        adapter
+                    );
+                }
+
+                // Safety: if counts mismatch, ignore the attribute
+                if (color.size() != pos.size()) {
+                    color.assign(pos.size(), glm::vec4(1.0f));
+                }
+            }
 
             // --- Apply KHR_texture_transform (bake into UVs) if present ---
             auto applyKHRTextureTransform = [&](const fastgltf::TextureInfo* ti) {
@@ -917,6 +974,12 @@ struct FG {
                 v.j0 = v.j1 = v.j2 = v.j3 = 0;
                 v.w0 = 1.0f; v.w1 = v.w2 = v.w3 = 0.0f;
 
+                // Vertex color (linear)
+                v.r = color[i].r;
+                v.g = color[i].g;
+                v.b = color[i].b;
+                v.a = color[i].a;
+
                 if (!joints.empty() && !weights.empty()) {
                     auto j = joints[i];
                     auto w = weights[i];
@@ -944,11 +1007,10 @@ struct FG {
             int emissiveTexCoordUsed = 0;
             FG::CPUTexture baseCPU = FG::decodeBaseColorTextureFast(asset, fg->baseDir, materialIndex, dbgThisModel, filepath, &baseTexCoordUsed);
             FG::CPUTexture emissiveCPU = FG::decodeEmissiveTextureFast(asset, fg->baseDir, materialIndex, dbgThisModel, filepath, &emissiveTexCoordUsed);
-            if (dbgThisModel && !FG::envTruthy("PAC_GLTF_RESPECT_TEXCOORD") && (baseTexCoordUsed != 0 || emissiveTexCoordUsed != 0)) {
-                std::cerr << "[gltf][WARN] This material references texCoord != 0 (base=" << baseTexCoordUsed
-                          << ", emissive=" << emissiveTexCoordUsed << ").\n"
-                          << "             Your current mesh loader only uploads TEXCOORD_0.\n"
-                          << "             Try setting PAC_GLTF_RESPECT_TEXCOORD=1 to test a fix, or implement multi-UV support.\n";
+            if (dbgThisModel && (baseTexCoordUsed != requiredTexCoord || emissiveTexCoordUsed != requiredTexCoord)) {
+                std::cerr << "[gltf][INFO] Material texCoord(base=" << baseTexCoordUsed
+                        << ", emissive=" << emissiveTexCoordUsed
+                        << "), meshUV=" << requiredTexCoord << "\n";
             }
 
             glm::vec3 emissiveFactor(0.0f);
@@ -1102,6 +1164,10 @@ struct FG {
 
     glVertexAttribPointer(3, 4, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, w0));
     glEnableVertexAttribArray(3);
+
+    // COLOR_0 (vec4)
+    glVertexAttribPointer(4, 4, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, r));
+    glEnableVertexAttribArray(4);
 
     glBindVertexArray(0);
 

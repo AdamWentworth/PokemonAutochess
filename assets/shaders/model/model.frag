@@ -2,6 +2,7 @@
 #version 330 core
 
 in vec2 TexCoord;
+in vec4 VertColor;
 out vec4 FragColor;
 
 uniform sampler2D u_BaseColorTex;
@@ -50,7 +51,7 @@ void main()
     vec3 emiSrgb  = texture(u_EmissiveTex, TexCoord).rgb;
 
     // glTF baseColor/emissive textures are authored in sRGB
-    vec3 baseLin = srgbToLinear(baseSrgb.rgb);
+    vec3 baseLin = srgbToLinear(baseSrgb.rgb) * VertColor.rgb;
     vec3 emiLin  = srgbToLinear(emiSrgb) * u_EmissiveFactor;
 
     // Combine in linear HDR-ish space
@@ -62,7 +63,7 @@ void main()
     // Output in sRGB (since you're not using GL_FRAMEBUFFER_SRGB)
     vec3 outSrgb = linearToSrgb(mapped);
 
-    float outA = baseSrgb.a;
+    float outA = baseSrgb.a * VertColor.a;
 
     if (u_AlphaMode == 0) {
         outA = 1.0;
