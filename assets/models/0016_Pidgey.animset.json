@@ -1,0 +1,798 @@
+{
+  "schema": "animset-v2",
+  "model_id": "0016_Pidgey",
+  "model_num": null,
+  "blend_file": "0016_Pidgey.blend",
+  "fps": 25.0,
+  "clip_count": 26,
+  "clips": [
+    {
+      "gltf_name": "5A0A7A0064E5E4E9[FullHash=640478EF733C0C38].gfbanm",
+      "source": "action",
+      "action": "5A0A7A0064E5E4E9[FullHash=640478EF733C0C38].gfbanm",
+      "clip_id": null,
+      "base": "5A0A7A0064E5E4E9[FullHash=640478EF733C0C38].",
+      "phase": "one_shot",
+      "is_loop": false,
+      "category": "misc",
+      "frame_start": 0.0,
+      "frame_end": 166.0,
+      "duration_frames": 166.0,
+      "duration_seconds": 6.64,
+      "clip_key": "action:name:5A0A7A0064E5E4E9[FullHash=640478EF733C0C38].gfbanm",
+      "model_num": null,
+      "action_name": "5A0A7A0064E5E4E9[FullHash=640478EF733C0C38].gfbanm",
+      "action_frame_start": 0.0,
+      "action_frame_end": 166.0,
+      "action_duration_frames": 166.0,
+      "action_duration_seconds": 6.64
+    },
+    {
+      "gltf_name": "6C2ED5540528915A[FullHash=30AD8B28E2C64DF9].gfbanm",
+      "source": "action",
+      "action": "6C2ED5540528915A[FullHash=30AD8B28E2C64DF9].gfbanm",
+      "clip_id": null,
+      "base": "6C2ED5540528915A[FullHash=30AD8B28E2C64DF9].",
+      "phase": "one_shot",
+      "is_loop": false,
+      "category": "misc",
+      "frame_start": 0.0,
+      "frame_end": 151.0,
+      "duration_frames": 151.0,
+      "duration_seconds": 6.04,
+      "clip_key": "action:name:6C2ED5540528915A[FullHash=30AD8B28E2C64DF9].gfbanm",
+      "model_num": null,
+      "action_name": "6C2ED5540528915A[FullHash=30AD8B28E2C64DF9].gfbanm",
+      "action_frame_start": 0.0,
+      "action_frame_end": 151.0,
+      "action_duration_frames": 151.0,
+      "action_duration_seconds": 6.04
+    },
+    {
+      "gltf_name": "pm0016_00_ba01_landA01.gfbanm",
+      "source": "action",
+      "action": "pm0016_00_ba01_landA01.gfbanm",
+      "clip_id": null,
+      "base": "pm0016_00_ba01_landA01.",
+      "phase": "one_shot",
+      "is_loop": false,
+      "category": "misc",
+      "frame_start": 0.0,
+      "frame_end": 16.0,
+      "duration_frames": 16.0,
+      "duration_seconds": 0.64,
+      "clip_key": "action:name:pm0016_00_ba01_landA01.gfbanm",
+      "model_num": null,
+      "action_name": "pm0016_00_ba01_landA01.gfbanm",
+      "action_frame_start": 0.0,
+      "action_frame_end": 16.0,
+      "action_duration_frames": 16.0,
+      "action_duration_seconds": 0.64
+    },
+    {
+      "gltf_name": "pm0016_00_ba01_landB01.gfbanm",
+      "source": "action",
+      "action": "pm0016_00_ba01_landB01.gfbanm",
+      "clip_id": null,
+      "base": "pm0016_00_ba01_landB01.",
+      "phase": "one_shot",
+      "is_loop": false,
+      "category": "misc",
+      "frame_start": 0.0,
+      "frame_end": 21.0,
+      "duration_frames": 21.0,
+      "duration_seconds": 0.84,
+      "clip_key": "action:name:pm0016_00_ba01_landB01.gfbanm",
+      "model_num": null,
+      "action_name": "pm0016_00_ba01_landB01.gfbanm",
+      "action_frame_start": 0.0,
+      "action_frame_end": 21.0,
+      "action_duration_frames": 21.0,
+      "action_duration_seconds": 0.84
+    },
+    {
+      "gltf_name": "pm0016_00_ba01_landC01.gfbanm",
+      "source": "action",
+      "action": "pm0016_00_ba01_landC01.gfbanm",
+      "clip_id": null,
+      "base": "pm0016_00_ba01_landC01.",
+      "phase": "one_shot",
+      "is_loop": false,
+      "category": "misc",
+      "frame_start": 0.0,
+      "frame_end": 21.0,
+      "duration_frames": 21.0,
+      "duration_seconds": 0.84,
+      "clip_key": "action:name:pm0016_00_ba01_landC01.gfbanm",
+      "model_num": null,
+      "action_name": "pm0016_00_ba01_landC01.gfbanm",
+      "action_frame_start": 0.0,
+      "action_frame_end": 21.0,
+      "action_duration_frames": 21.0,
+      "action_duration_seconds": 0.84
+    },
+    {
+      "gltf_name": "pm0016_00_ba01_take_flight.gfbanm",
+      "source": "action",
+      "action": "pm0016_00_ba01_take_flight.gfbanm",
+      "clip_id": null,
+      "base": "pm0016_00_ba01_take_flight.",
+      "phase": "one_shot",
+      "is_loop": false,
+      "category": "misc",
+      "frame_start": 0.0,
+      "frame_end": 21.0,
+      "duration_frames": 21.0,
+      "duration_seconds": 0.84,
+      "clip_key": "action:name:pm0016_00_ba01_take_flight.gfbanm",
+      "model_num": null,
+      "action_name": "pm0016_00_ba01_take_flight.gfbanm",
+      "action_frame_start": 0.0,
+      "action_frame_end": 21.0,
+      "action_duration_frames": 21.0,
+      "action_duration_seconds": 0.84
+    },
+    {
+      "gltf_name": "pm0016_00_ba10_waitA01.gfbanm",
+      "source": "action",
+      "action": "pm0016_00_ba10_waitA01.gfbanm",
+      "clip_id": null,
+      "base": "pm0016_00_ba10_waitA01.",
+      "phase": "one_shot",
+      "is_loop": false,
+      "category": "idle",
+      "frame_start": 0.0,
+      "frame_end": 25.0,
+      "duration_frames": 25.0,
+      "duration_seconds": 1.0,
+      "clip_key": "action:name:pm0016_00_ba10_waitA01.gfbanm",
+      "model_num": null,
+      "action_name": "pm0016_00_ba10_waitA01.gfbanm",
+      "action_frame_start": 0.0,
+      "action_frame_end": 25.0,
+      "action_duration_frames": 25.0,
+      "action_duration_seconds": 1.0
+    },
+    {
+      "gltf_name": "pm0016_00_ba10_waitB01.gfbanm",
+      "source": "action",
+      "action": "pm0016_00_ba10_waitB01.gfbanm",
+      "clip_id": null,
+      "base": "pm0016_00_ba10_waitB01.",
+      "phase": "one_shot",
+      "is_loop": false,
+      "category": "idle",
+      "frame_start": 0.0,
+      "frame_end": 41.0,
+      "duration_frames": 41.0,
+      "duration_seconds": 1.64,
+      "clip_key": "action:name:pm0016_00_ba10_waitB01.gfbanm",
+      "model_num": null,
+      "action_name": "pm0016_00_ba10_waitB01.gfbanm",
+      "action_frame_start": 0.0,
+      "action_frame_end": 41.0,
+      "action_duration_frames": 41.0,
+      "action_duration_seconds": 1.64
+    },
+    {
+      "gltf_name": "pm0016_00_ba20_buturi01.gfbanm",
+      "source": "action",
+      "action": "pm0016_00_ba20_buturi01.gfbanm",
+      "clip_id": null,
+      "base": "pm0016_00_ba20_buturi01.",
+      "phase": "one_shot",
+      "is_loop": false,
+      "category": "misc",
+      "frame_start": 0.0,
+      "frame_end": 51.0,
+      "duration_frames": 51.0,
+      "duration_seconds": 2.04,
+      "clip_key": "action:name:pm0016_00_ba20_buturi01.gfbanm",
+      "model_num": null,
+      "action_name": "pm0016_00_ba20_buturi01.gfbanm",
+      "action_frame_start": 0.0,
+      "action_frame_end": 51.0,
+      "action_duration_frames": 51.0,
+      "action_duration_seconds": 2.04
+    },
+    {
+      "gltf_name": "pm0016_00_ba21_tokusyu01.gfbanm",
+      "source": "action",
+      "action": "pm0016_00_ba21_tokusyu01.gfbanm",
+      "clip_id": null,
+      "base": "pm0016_00_ba21_tokusyu01.",
+      "phase": "one_shot",
+      "is_loop": false,
+      "category": "misc",
+      "frame_start": 0.0,
+      "frame_end": 56.0,
+      "duration_frames": 56.0,
+      "duration_seconds": 2.24,
+      "clip_key": "action:name:pm0016_00_ba21_tokusyu01.gfbanm",
+      "model_num": null,
+      "action_name": "pm0016_00_ba21_tokusyu01.gfbanm",
+      "action_frame_start": 0.0,
+      "action_frame_end": 56.0,
+      "action_duration_frames": 56.0,
+      "action_duration_seconds": 2.24
+    },
+    {
+      "gltf_name": "pm0016_00_ba30_damageS01.gfbanm",
+      "source": "action",
+      "action": "pm0016_00_ba30_damageS01.gfbanm",
+      "clip_id": null,
+      "base": "pm0016_00_ba30_damageS01.",
+      "phase": "one_shot",
+      "is_loop": false,
+      "category": "hit",
+      "frame_start": 0.0,
+      "frame_end": 21.0,
+      "duration_frames": 21.0,
+      "duration_seconds": 0.84,
+      "clip_key": "action:name:pm0016_00_ba30_damageS01.gfbanm",
+      "model_num": null,
+      "action_name": "pm0016_00_ba30_damageS01.gfbanm",
+      "action_frame_start": 0.0,
+      "action_frame_end": 21.0,
+      "action_duration_frames": 21.0,
+      "action_duration_seconds": 0.84
+    },
+    {
+      "gltf_name": "pm0016_00_ba41_down01.gfbanm",
+      "source": "action",
+      "action": "pm0016_00_ba41_down01.gfbanm",
+      "clip_id": null,
+      "base": "pm0016_00_ba41_down01.",
+      "phase": "one_shot",
+      "is_loop": false,
+      "category": "status",
+      "frame_start": 0.0,
+      "frame_end": 51.0,
+      "duration_frames": 51.0,
+      "duration_seconds": 2.04,
+      "clip_key": "action:name:pm0016_00_ba41_down01.gfbanm",
+      "model_num": null,
+      "action_name": "pm0016_00_ba41_down01.gfbanm",
+      "action_frame_start": 0.0,
+      "action_frame_end": 51.0,
+      "action_duration_frames": 51.0,
+      "action_duration_seconds": 2.04
+    },
+    {
+      "gltf_name": "pm0016_00_eye01.gfbanm",
+      "source": "action",
+      "action": "pm0016_00_eye01.gfbanm",
+      "clip_id": null,
+      "base": "pm0016_00_eye01.",
+      "phase": "one_shot",
+      "is_loop": false,
+      "category": "misc",
+      "frame_start": 0.0,
+      "frame_end": 81.0,
+      "duration_frames": 81.0,
+      "duration_seconds": 3.24,
+      "clip_key": "action:name:pm0016_00_eye01.gfbanm",
+      "model_num": null,
+      "action_name": "pm0016_00_eye01.gfbanm",
+      "action_frame_start": 0.0,
+      "action_frame_end": 81.0,
+      "action_duration_frames": 81.0,
+      "action_duration_seconds": 3.24
+    },
+    {
+      "gltf_name": "pm0016_00_fi01_wait01.gfbanm",
+      "source": "action",
+      "action": "pm0016_00_fi01_wait01.gfbanm",
+      "clip_id": null,
+      "base": "pm0016_00_fi01_wait01.",
+      "phase": "one_shot",
+      "is_loop": false,
+      "category": "idle",
+      "frame_start": 0.0,
+      "frame_end": 33.0,
+      "duration_frames": 33.0,
+      "duration_seconds": 1.32,
+      "clip_key": "action:name:pm0016_00_fi01_wait01.gfbanm",
+      "model_num": null,
+      "action_name": "pm0016_00_fi01_wait01.gfbanm",
+      "action_frame_start": 0.0,
+      "action_frame_end": 33.0,
+      "action_duration_frames": 33.0,
+      "action_duration_seconds": 1.32
+    },
+    {
+      "gltf_name": "pm0016_00_fi20_walk01.gfbanm",
+      "source": "action",
+      "action": "pm0016_00_fi20_walk01.gfbanm",
+      "clip_id": null,
+      "base": "pm0016_00_fi20_walk01.",
+      "phase": "one_shot",
+      "is_loop": false,
+      "category": "move",
+      "frame_start": 0.0,
+      "frame_end": 33.0,
+      "duration_frames": 33.0,
+      "duration_seconds": 1.32,
+      "clip_key": "action:name:pm0016_00_fi20_walk01.gfbanm",
+      "model_num": null,
+      "action_name": "pm0016_00_fi20_walk01.gfbanm",
+      "action_frame_start": 0.0,
+      "action_frame_end": 33.0,
+      "action_duration_frames": 33.0,
+      "action_duration_seconds": 1.32
+    },
+    {
+      "gltf_name": "pm0016_00_fi21_run01.gfbanm",
+      "source": "action",
+      "action": "pm0016_00_fi21_run01.gfbanm",
+      "clip_id": null,
+      "base": "pm0016_00_fi21_run01.",
+      "phase": "one_shot",
+      "is_loop": false,
+      "category": "move",
+      "frame_start": 0.0,
+      "frame_end": 25.0,
+      "duration_frames": 25.0,
+      "duration_seconds": 1.0,
+      "clip_key": "action:name:pm0016_00_fi21_run01.gfbanm",
+      "model_num": null,
+      "action_name": "pm0016_00_fi21_run01.gfbanm",
+      "action_frame_start": 0.0,
+      "action_frame_end": 25.0,
+      "action_duration_frames": 25.0,
+      "action_duration_seconds": 1.0
+    },
+    {
+      "gltf_name": "pm0016_00_kw01_wait01.gfbanm",
+      "source": "action",
+      "action": "pm0016_00_kw01_wait01.gfbanm",
+      "clip_id": null,
+      "base": "pm0016_00_kw01_wait01.",
+      "phase": "one_shot",
+      "is_loop": false,
+      "category": "idle",
+      "frame_start": 0.0,
+      "frame_end": 37.0,
+      "duration_frames": 37.0,
+      "duration_seconds": 1.48,
+      "clip_key": "action:name:pm0016_00_kw01_wait01.gfbanm",
+      "model_num": null,
+      "action_name": "pm0016_00_kw01_wait01.gfbanm",
+      "action_frame_start": 0.0,
+      "action_frame_end": 37.0,
+      "action_duration_frames": 37.0,
+      "action_duration_seconds": 1.48
+    },
+    {
+      "gltf_name": "pm0016_00_kw20_drowseA01.gfbanm",
+      "source": "action",
+      "action": "pm0016_00_kw20_drowseA01.gfbanm",
+      "clip_id": null,
+      "base": "pm0016_00_kw20_drowseA01.",
+      "phase": "one_shot",
+      "is_loop": false,
+      "category": "misc",
+      "frame_start": 0.0,
+      "frame_end": 31.0,
+      "duration_frames": 31.0,
+      "duration_seconds": 1.24,
+      "clip_key": "action:name:pm0016_00_kw20_drowseA01.gfbanm",
+      "model_num": null,
+      "action_name": "pm0016_00_kw20_drowseA01.gfbanm",
+      "action_frame_start": 0.0,
+      "action_frame_end": 31.0,
+      "action_duration_frames": 31.0,
+      "action_duration_seconds": 1.24
+    },
+    {
+      "gltf_name": "pm0016_00_kw20_drowseB01.gfbanm",
+      "source": "action",
+      "action": "pm0016_00_kw20_drowseB01.gfbanm",
+      "clip_id": null,
+      "base": "pm0016_00_kw20_drowseB01.",
+      "phase": "one_shot",
+      "is_loop": false,
+      "category": "misc",
+      "frame_start": 0.0,
+      "frame_end": 61.0,
+      "duration_frames": 61.0,
+      "duration_seconds": 2.44,
+      "clip_key": "action:name:pm0016_00_kw20_drowseB01.gfbanm",
+      "model_num": null,
+      "action_name": "pm0016_00_kw20_drowseB01.gfbanm",
+      "action_frame_start": 0.0,
+      "action_frame_end": 61.0,
+      "action_duration_frames": 61.0,
+      "action_duration_seconds": 2.44
+    },
+    {
+      "gltf_name": "pm0016_00_kw20_drowseC01.gfbanm",
+      "source": "action",
+      "action": "pm0016_00_kw20_drowseC01.gfbanm",
+      "clip_id": null,
+      "base": "pm0016_00_kw20_drowseC01.",
+      "phase": "one_shot",
+      "is_loop": false,
+      "category": "misc",
+      "frame_start": 0.0,
+      "frame_end": 61.0,
+      "duration_frames": 61.0,
+      "duration_seconds": 2.44,
+      "clip_key": "action:name:pm0016_00_kw20_drowseC01.gfbanm",
+      "model_num": null,
+      "action_name": "pm0016_00_kw20_drowseC01.gfbanm",
+      "action_frame_start": 0.0,
+      "action_frame_end": 61.0,
+      "action_duration_frames": 61.0,
+      "action_duration_seconds": 2.44
+    },
+    {
+      "gltf_name": "pm0016_00_kw30_hate01.gfbanm",
+      "source": "action",
+      "action": "pm0016_00_kw30_hate01.gfbanm",
+      "clip_id": null,
+      "base": "pm0016_00_kw30_hate01.",
+      "phase": "one_shot",
+      "is_loop": false,
+      "category": "misc",
+      "frame_start": 0.0,
+      "frame_end": 51.0,
+      "duration_frames": 51.0,
+      "duration_seconds": 2.04,
+      "clip_key": "action:name:pm0016_00_kw30_hate01.gfbanm",
+      "model_num": null,
+      "action_name": "pm0016_00_kw30_hate01.gfbanm",
+      "action_frame_start": 0.0,
+      "action_frame_end": 51.0,
+      "action_duration_frames": 51.0,
+      "action_duration_seconds": 2.04
+    },
+    {
+      "gltf_name": "pm0016_00_kw32_happyB01.gfbanm",
+      "source": "action",
+      "action": "pm0016_00_kw32_happyB01.gfbanm",
+      "clip_id": null,
+      "base": "pm0016_00_kw32_happyB01.",
+      "phase": "one_shot",
+      "is_loop": false,
+      "category": "misc",
+      "frame_start": 0.0,
+      "frame_end": 66.0,
+      "duration_frames": 66.0,
+      "duration_seconds": 2.64,
+      "clip_key": "action:name:pm0016_00_kw32_happyB01.gfbanm",
+      "model_num": null,
+      "action_name": "pm0016_00_kw32_happyB01.gfbanm",
+      "action_frame_start": 0.0,
+      "action_frame_end": 66.0,
+      "action_duration_frames": 66.0,
+      "action_duration_seconds": 2.64
+    },
+    {
+      "gltf_name": "pm0016_00_kw50_eatA01.gfbanm",
+      "source": "action",
+      "action": "pm0016_00_kw50_eatA01.gfbanm",
+      "clip_id": null,
+      "base": "pm0016_00_kw50_eatA01.",
+      "phase": "one_shot",
+      "is_loop": false,
+      "category": "misc",
+      "frame_start": 0.0,
+      "frame_end": 6.0,
+      "duration_frames": 6.0,
+      "duration_seconds": 0.24,
+      "clip_key": "action:name:pm0016_00_kw50_eatA01.gfbanm",
+      "model_num": null,
+      "action_name": "pm0016_00_kw50_eatA01.gfbanm",
+      "action_frame_start": 0.0,
+      "action_frame_end": 6.0,
+      "action_duration_frames": 6.0,
+      "action_duration_seconds": 0.24
+    },
+    {
+      "gltf_name": "pm0016_00_kw50_eatB01.gfbanm",
+      "source": "action",
+      "action": "pm0016_00_kw50_eatB01.gfbanm",
+      "clip_id": null,
+      "base": "pm0016_00_kw50_eatB01.",
+      "phase": "one_shot",
+      "is_loop": false,
+      "category": "misc",
+      "frame_start": 0.0,
+      "frame_end": 11.0,
+      "duration_frames": 11.0,
+      "duration_seconds": 0.44,
+      "clip_key": "action:name:pm0016_00_kw50_eatB01.gfbanm",
+      "model_num": null,
+      "action_name": "pm0016_00_kw50_eatB01.gfbanm",
+      "action_frame_start": 0.0,
+      "action_frame_end": 11.0,
+      "action_duration_frames": 11.0,
+      "action_duration_seconds": 0.44
+    },
+    {
+      "gltf_name": "pm0016_00_kw50_eatC01.gfbanm",
+      "source": "action",
+      "action": "pm0016_00_kw50_eatC01.gfbanm",
+      "clip_id": null,
+      "base": "pm0016_00_kw50_eatC01.",
+      "phase": "one_shot",
+      "is_loop": false,
+      "category": "misc",
+      "frame_start": 0.0,
+      "frame_end": 26.0,
+      "duration_frames": 26.0,
+      "duration_seconds": 1.04,
+      "clip_key": "action:name:pm0016_00_kw50_eatC01.gfbanm",
+      "model_num": null,
+      "action_name": "pm0016_00_kw50_eatC01.gfbanm",
+      "action_frame_start": 0.0,
+      "action_frame_end": 26.0,
+      "action_duration_frames": 26.0,
+      "action_duration_seconds": 1.04
+    },
+    {
+      "gltf_name": "pm0016_00_mouth01.gfbanm",
+      "source": "action",
+      "action": "pm0016_00_mouth01.gfbanm",
+      "clip_id": null,
+      "base": "pm0016_00_mouth01.",
+      "phase": "one_shot",
+      "is_loop": false,
+      "category": "misc",
+      "frame_start": 0.0,
+      "frame_end": 81.0,
+      "duration_frames": 81.0,
+      "duration_seconds": 3.24,
+      "clip_key": "action:name:pm0016_00_mouth01.gfbanm",
+      "model_num": null,
+      "action_name": "pm0016_00_mouth01.gfbanm",
+      "action_frame_start": 0.0,
+      "action_frame_end": 81.0,
+      "action_duration_frames": 81.0,
+      "action_duration_seconds": 3.24
+    }
+  ],
+  "groups": {
+    "5A0A7A0064E5E4E9[FullHash=640478EF733C0C38].": {
+      "one_shot": "5A0A7A0064E5E4E9[FullHash=640478EF733C0C38].gfbanm"
+    },
+    "6C2ED5540528915A[FullHash=30AD8B28E2C64DF9].": {
+      "one_shot": "6C2ED5540528915A[FullHash=30AD8B28E2C64DF9].gfbanm"
+    },
+    "pm0016_00_ba01_landA01.": {
+      "one_shot": "pm0016_00_ba01_landA01.gfbanm"
+    },
+    "pm0016_00_ba01_landB01.": {
+      "one_shot": "pm0016_00_ba01_landB01.gfbanm"
+    },
+    "pm0016_00_ba01_landC01.": {
+      "one_shot": "pm0016_00_ba01_landC01.gfbanm"
+    },
+    "pm0016_00_ba01_take_flight.": {
+      "one_shot": "pm0016_00_ba01_take_flight.gfbanm"
+    },
+    "pm0016_00_ba10_waitA01.": {
+      "one_shot": "pm0016_00_ba10_waitA01.gfbanm"
+    },
+    "pm0016_00_ba10_waitB01.": {
+      "one_shot": "pm0016_00_ba10_waitB01.gfbanm"
+    },
+    "pm0016_00_ba20_buturi01.": {
+      "one_shot": "pm0016_00_ba20_buturi01.gfbanm"
+    },
+    "pm0016_00_ba21_tokusyu01.": {
+      "one_shot": "pm0016_00_ba21_tokusyu01.gfbanm"
+    },
+    "pm0016_00_ba30_damageS01.": {
+      "one_shot": "pm0016_00_ba30_damageS01.gfbanm"
+    },
+    "pm0016_00_ba41_down01.": {
+      "one_shot": "pm0016_00_ba41_down01.gfbanm"
+    },
+    "pm0016_00_eye01.": {
+      "one_shot": "pm0016_00_eye01.gfbanm"
+    },
+    "pm0016_00_fi01_wait01.": {
+      "one_shot": "pm0016_00_fi01_wait01.gfbanm"
+    },
+    "pm0016_00_fi20_walk01.": {
+      "one_shot": "pm0016_00_fi20_walk01.gfbanm"
+    },
+    "pm0016_00_fi21_run01.": {
+      "one_shot": "pm0016_00_fi21_run01.gfbanm"
+    },
+    "pm0016_00_kw01_wait01.": {
+      "one_shot": "pm0016_00_kw01_wait01.gfbanm"
+    },
+    "pm0016_00_kw20_drowseA01.": {
+      "one_shot": "pm0016_00_kw20_drowseA01.gfbanm"
+    },
+    "pm0016_00_kw20_drowseB01.": {
+      "one_shot": "pm0016_00_kw20_drowseB01.gfbanm"
+    },
+    "pm0016_00_kw20_drowseC01.": {
+      "one_shot": "pm0016_00_kw20_drowseC01.gfbanm"
+    },
+    "pm0016_00_kw30_hate01.": {
+      "one_shot": "pm0016_00_kw30_hate01.gfbanm"
+    },
+    "pm0016_00_kw32_happyB01.": {
+      "one_shot": "pm0016_00_kw32_happyB01.gfbanm"
+    },
+    "pm0016_00_kw50_eatA01.": {
+      "one_shot": "pm0016_00_kw50_eatA01.gfbanm"
+    },
+    "pm0016_00_kw50_eatB01.": {
+      "one_shot": "pm0016_00_kw50_eatB01.gfbanm"
+    },
+    "pm0016_00_kw50_eatC01.": {
+      "one_shot": "pm0016_00_kw50_eatC01.gfbanm"
+    },
+    "pm0016_00_mouth01.": {
+      "one_shot": "pm0016_00_mouth01.gfbanm"
+    }
+  },
+  "by_id": {},
+  "categories": {
+    "misc": [
+      "5A0A7A0064E5E4E9[FullHash=640478EF733C0C38].gfbanm",
+      "6C2ED5540528915A[FullHash=30AD8B28E2C64DF9].gfbanm",
+      "pm0016_00_ba01_landA01.gfbanm",
+      "pm0016_00_ba01_landB01.gfbanm",
+      "pm0016_00_ba01_landC01.gfbanm",
+      "pm0016_00_ba01_take_flight.gfbanm",
+      "pm0016_00_ba20_buturi01.gfbanm",
+      "pm0016_00_ba21_tokusyu01.gfbanm",
+      "pm0016_00_eye01.gfbanm",
+      "pm0016_00_kw20_drowseA01.gfbanm",
+      "pm0016_00_kw20_drowseB01.gfbanm",
+      "pm0016_00_kw20_drowseC01.gfbanm",
+      "pm0016_00_kw30_hate01.gfbanm",
+      "pm0016_00_kw32_happyB01.gfbanm",
+      "pm0016_00_kw50_eatA01.gfbanm",
+      "pm0016_00_kw50_eatB01.gfbanm",
+      "pm0016_00_kw50_eatC01.gfbanm",
+      "pm0016_00_mouth01.gfbanm"
+    ],
+    "idle": [
+      "pm0016_00_ba10_waitA01.gfbanm",
+      "pm0016_00_ba10_waitB01.gfbanm",
+      "pm0016_00_fi01_wait01.gfbanm",
+      "pm0016_00_kw01_wait01.gfbanm"
+    ],
+    "hit": [
+      "pm0016_00_ba30_damageS01.gfbanm"
+    ],
+    "status": [
+      "pm0016_00_ba41_down01.gfbanm"
+    ],
+    "move": [
+      "pm0016_00_fi20_walk01.gfbanm",
+      "pm0016_00_fi21_run01.gfbanm"
+    ]
+  },
+  "groups_v2": {
+    "5A0A7A0064E5E4E9[FullHash=640478EF733C0C38].": {
+      "one_shot": "action:name:5A0A7A0064E5E4E9[FullHash=640478EF733C0C38].gfbanm"
+    },
+    "6C2ED5540528915A[FullHash=30AD8B28E2C64DF9].": {
+      "one_shot": "action:name:6C2ED5540528915A[FullHash=30AD8B28E2C64DF9].gfbanm"
+    },
+    "pm0016_00_ba01_landA01.": {
+      "one_shot": "action:name:pm0016_00_ba01_landA01.gfbanm"
+    },
+    "pm0016_00_ba01_landB01.": {
+      "one_shot": "action:name:pm0016_00_ba01_landB01.gfbanm"
+    },
+    "pm0016_00_ba01_landC01.": {
+      "one_shot": "action:name:pm0016_00_ba01_landC01.gfbanm"
+    },
+    "pm0016_00_ba01_take_flight.": {
+      "one_shot": "action:name:pm0016_00_ba01_take_flight.gfbanm"
+    },
+    "pm0016_00_ba10_waitA01.": {
+      "one_shot": "action:name:pm0016_00_ba10_waitA01.gfbanm"
+    },
+    "pm0016_00_ba10_waitB01.": {
+      "one_shot": "action:name:pm0016_00_ba10_waitB01.gfbanm"
+    },
+    "pm0016_00_ba20_buturi01.": {
+      "one_shot": "action:name:pm0016_00_ba20_buturi01.gfbanm"
+    },
+    "pm0016_00_ba21_tokusyu01.": {
+      "one_shot": "action:name:pm0016_00_ba21_tokusyu01.gfbanm"
+    },
+    "pm0016_00_ba30_damageS01.": {
+      "one_shot": "action:name:pm0016_00_ba30_damageS01.gfbanm"
+    },
+    "pm0016_00_ba41_down01.": {
+      "one_shot": "action:name:pm0016_00_ba41_down01.gfbanm"
+    },
+    "pm0016_00_eye01.": {
+      "one_shot": "action:name:pm0016_00_eye01.gfbanm"
+    },
+    "pm0016_00_fi01_wait01.": {
+      "one_shot": "action:name:pm0016_00_fi01_wait01.gfbanm"
+    },
+    "pm0016_00_fi20_walk01.": {
+      "one_shot": "action:name:pm0016_00_fi20_walk01.gfbanm"
+    },
+    "pm0016_00_fi21_run01.": {
+      "one_shot": "action:name:pm0016_00_fi21_run01.gfbanm"
+    },
+    "pm0016_00_kw01_wait01.": {
+      "one_shot": "action:name:pm0016_00_kw01_wait01.gfbanm"
+    },
+    "pm0016_00_kw20_drowseA01.": {
+      "one_shot": "action:name:pm0016_00_kw20_drowseA01.gfbanm"
+    },
+    "pm0016_00_kw20_drowseB01.": {
+      "one_shot": "action:name:pm0016_00_kw20_drowseB01.gfbanm"
+    },
+    "pm0016_00_kw20_drowseC01.": {
+      "one_shot": "action:name:pm0016_00_kw20_drowseC01.gfbanm"
+    },
+    "pm0016_00_kw30_hate01.": {
+      "one_shot": "action:name:pm0016_00_kw30_hate01.gfbanm"
+    },
+    "pm0016_00_kw32_happyB01.": {
+      "one_shot": "action:name:pm0016_00_kw32_happyB01.gfbanm"
+    },
+    "pm0016_00_kw50_eatA01.": {
+      "one_shot": "action:name:pm0016_00_kw50_eatA01.gfbanm"
+    },
+    "pm0016_00_kw50_eatB01.": {
+      "one_shot": "action:name:pm0016_00_kw50_eatB01.gfbanm"
+    },
+    "pm0016_00_kw50_eatC01.": {
+      "one_shot": "action:name:pm0016_00_kw50_eatC01.gfbanm"
+    },
+    "pm0016_00_mouth01.": {
+      "one_shot": "action:name:pm0016_00_mouth01.gfbanm"
+    }
+  },
+  "categories_v2": {
+    "misc": [
+      "action:name:5A0A7A0064E5E4E9[FullHash=640478EF733C0C38].gfbanm",
+      "action:name:6C2ED5540528915A[FullHash=30AD8B28E2C64DF9].gfbanm",
+      "action:name:pm0016_00_ba01_landA01.gfbanm",
+      "action:name:pm0016_00_ba01_landB01.gfbanm",
+      "action:name:pm0016_00_ba01_landC01.gfbanm",
+      "action:name:pm0016_00_ba01_take_flight.gfbanm",
+      "action:name:pm0016_00_ba20_buturi01.gfbanm",
+      "action:name:pm0016_00_ba21_tokusyu01.gfbanm",
+      "action:name:pm0016_00_eye01.gfbanm",
+      "action:name:pm0016_00_kw20_drowseA01.gfbanm",
+      "action:name:pm0016_00_kw20_drowseB01.gfbanm",
+      "action:name:pm0016_00_kw20_drowseC01.gfbanm",
+      "action:name:pm0016_00_kw30_hate01.gfbanm",
+      "action:name:pm0016_00_kw32_happyB01.gfbanm",
+      "action:name:pm0016_00_kw50_eatA01.gfbanm",
+      "action:name:pm0016_00_kw50_eatB01.gfbanm",
+      "action:name:pm0016_00_kw50_eatC01.gfbanm",
+      "action:name:pm0016_00_mouth01.gfbanm"
+    ],
+    "idle": [
+      "action:name:pm0016_00_ba10_waitA01.gfbanm",
+      "action:name:pm0016_00_ba10_waitB01.gfbanm",
+      "action:name:pm0016_00_fi01_wait01.gfbanm",
+      "action:name:pm0016_00_kw01_wait01.gfbanm"
+    ],
+    "hit": [
+      "action:name:pm0016_00_ba30_damageS01.gfbanm"
+    ],
+    "status": [
+      "action:name:pm0016_00_ba41_down01.gfbanm"
+    ],
+    "move": [
+      "action:name:pm0016_00_fi20_walk01.gfbanm",
+      "action:name:pm0016_00_fi21_run01.gfbanm"
+    ]
+  },
+  "export_scope": {
+    "collection": null,
+    "armature_only": true,
+    "use_nla_strips_first": true
+  }
+}

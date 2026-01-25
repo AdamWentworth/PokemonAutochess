@@ -296,7 +296,7 @@ void applyAnimSetOverrides(PokemonInstance& inst, const std::string& modelPath)
     }
 
     const RolePick idlePick = resolveRoleClip(j, "idle",    "idle",   {"battlewait", "defaultwait", "idle", "wait"});
-    const RolePick movePick = resolveRoleClip(j, "move",    "move",   {"walk", "run", "dash", "move"});
+    const RolePick movePick = resolveRoleClip(j, "move",    "move",   {"run", "dash", "move"});
     const RolePick atkPick  = resolveRoleClip(j, "attack1", "attack", {"attack01", "attack1", "attack"});
 
     if (idlePick.valid && !idlePick.clipName.empty()) {
