@@ -21,6 +21,7 @@
 
 // ✅ NEW: animset v2/v3 parser (drop-in)
 #include "AnimSetLoader.h"
+#include "FlightLocomotion.h"
 
 void GameWorld::applyLevelScaling(PokemonInstance& inst, int level) const {
     const auto& cfg = GameConfig::get();
@@ -239,24 +240,13 @@ void GameWorld::update(float dt)
             // when done, return to locomotion
             if (p.attackTimerSec <= 0.0f) {
                 p.animTimeSec = 0.0f;
-                p.activeAnimIndex = (p.isMoving ? p.animMoveIndex : p.animIdleIndex);
+                p.activeAnimIndex = (p.isMoving ? p.animMoveIndex : (p.usesAirLocomotion ? p.animGroundIdleIndex : p.animIdleIndex));
             }
             return;
         }
 
-        // locomotion
-        int desired = p.isMoving ? p.animMoveIndex : p.animIdleIndex;
-        if (p.activeAnimIndex != desired) {
-            p.activeAnimIndex = desired;
-        }
-
-        // Keep all looping locomotion animations in sync.
-        float dur = p.model->getAnimationDurationSec(p.activeAnimIndex);
-        if (dur > 0.0f) {
-            p.animTimeSec = std::fmod(sharedLoopAnimTimeSec, dur);
-        } else {
-            p.animTimeSec = sharedLoopAnimTimeSec;
-        }
+        // locomotion (includes optional airborne takeoff/landing visuals)
+        FlightLocomotion::tick(p, dt, sharedLoopAnimTimeSec);
     };
 
     for (auto& p : pokemons) tickPokemonAnim(p);
@@ -293,7 +283,8 @@ void GameWorld::drawAll(const Camera3D& camera, BoardRenderer& boardRenderer)
             glm::mat4 rotationX = glm::rotate(glm::mat4(1.0f), glm::radians(instance.rotation.x), glm::vec3(1, 0, 0));
             glm::mat4 rotationY = glm::rotate(glm::mat4(1.0f), glm::radians(instance.rotation.y), glm::vec3(0, 1, 0));
             glm::mat4 rotationZ = glm::rotate(glm::mat4(1.0f), glm::radians(instance.rotation.z), glm::vec3(0, 0, 1));
-            glm::mat4 translation = glm::translate(glm::mat4(1.0f), instance.position);
+            glm::vec3 renderPos = instance.position + glm::vec3(0.0f, instance.visualYOffset, 0.0f);
+            glm::mat4 translation = glm::translate(glm::mat4(1.0f), renderPos);
 
             glm::mat4 instanceTransform = translation * rotationY * rotationX * rotationZ * scale;
 
@@ -315,7 +306,7 @@ std::vector<HealthBarData> GameWorld::getHealthBarData(const Camera3D& camera, i
     auto process = [&](const PokemonInstance& instance) {
         if (!instance.alive) return;
 
-        glm::vec3 worldPos = instance.position + glm::vec3(0.0f, 1.0f, 0.0f);
+        glm::vec3 worldPos = instance.position + glm::vec3(0.0f, 1.0f + instance.visualYOffset, 0.0f);
         glm::vec4 viewport(0.0f, 0.0f, screenWidth, screenHeight);
         glm::vec3 screenPos = glm::project(worldPos, camera.getViewMatrix(), camera.getProjectionMatrix(), viewport);
 
@@ -353,3 +344,5 @@ glm::vec3 GameWorld::getNearestEnemyPosition(const PokemonInstance& unit) const
 
     return closestPos;
 }
+
+

@@ -13,6 +13,17 @@ enum class PokemonSide {
     Enemy
 };
 
+
+// Visual-only flight / airborne presentation (for small fliers like Pidgey).
+// This is meant to improve transitions (ground idle -> takeoff -> flight -> land -> combat idle)
+// without changing gameplay timing.
+enum class AirLocomotionState {
+    Grounded,
+    TakingOff,
+    Airborne,
+    Landing
+};
+
 struct PokemonInstance {
     // identity
     int id = 0;
@@ -67,8 +78,43 @@ struct PokemonInstance {
     float attackTimerSec    = 0.0f;
     float attackDurationSec = 0.0f; // filled from manifest (Bulbasaur)
 
+
+    // --- Flight visuals (optional; visual-only) ---
+    // Enabled when an animset provides takeoff+land clips, or meta movementMode="airborne".
+    bool usesAirLocomotion = false;
+
+    // Optional animation indices for flight presentation.
+    int animGroundIdleIndex = 1; // defaults to animIdleIndex
+    int animAirIdleIndex    = 1; // defaults to animIdleIndex
+    int animTakeoffIndex    = -1;
+    int animLandIndex       = -1;
+
+    // Phase/timing
+    AirLocomotionState airState = AirLocomotionState::Grounded;
+    float airStateTimeSec = 0.0f;
+
+    // Visual offsets (applied at draw-time)
+    float flightHeight = 0.65f; // tuned for small birds like Pidgey
+    float visualYOffset = 0.0f;
+
+    // Optional tuning (seconds). If 0, clip duration (or a small fallback) is used.
+    float takeoffSec = 0.0f;
+    float landingSec = 0.0f;
+
+    // Visual playback multipliers for one-shots
+    float takeoffAnimSpeed = 1.35f;
+    float landAnimSpeed    = 1.60f;
+
+    // Internal state for movement-transition detection
+    bool wasMovingLastFrame = false;
+
+    // When an attack is triggered while airborne, we land first and then play attack1.
+    bool pendingAttackAfterLanding = false;
+    float queuedAttackDurationSec = 0.0f;
+
     static int getNextUnitID() {
         static int next = 1;
         return next++;
     }
 };
+
