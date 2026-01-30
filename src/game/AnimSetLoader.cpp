@@ -76,11 +76,10 @@ int resolveAnimIndex(Model* model, const std::string& name)
     return -1;
 }
 
+// (rest unchanged; see README for patch focus)
+
 static std::string readRoleNameString(const nlohmann::json& j, const std::string& key)
 {
-    // supports:
-    //   { "roles": { "idle": "..." } }
-    //   { "roles": { "idle": { "clip": "..." } } }
     if (j.contains("roles") && j["roles"].is_object()) {
         const auto& r = j["roles"];
         if (r.contains(key) && r[key].is_string()) return r[key].get<std::string>();
@@ -92,9 +91,6 @@ static std::string readRoleNameString(const nlohmann::json& j, const std::string
         return "";
     }
 
-    // supports:
-    //   { "idle": "..." }
-    //   { "idle": { "clip": "..." } }
     if (j.contains(key) && j[key].is_string()) return j[key].get<std::string>();
     if (j.contains(key) && j[key].is_object()) {
         const auto& obj = j[key];
@@ -120,17 +116,11 @@ static bool findClipByName(const nlohmann::json& j,
         if (name.empty()) name = c.value("export_name", "");
         if (name.empty()) continue;
 
-        if (name == wantedName) {
-            outClip = c;
-            return true;
-        }
+        if (name == wantedName) { outClip = c; return true; }
 
         const std::string candLower = toLower(name);
 
-        if (candLower == wantedLower) {
-            outClip = c;
-            return true;
-        }
+        if (candLower == wantedLower) { outClip = c; return true; }
 
         if (stripSuffix(candLower, ".gfbanm") == stripSuffix(wantedLower, ".gfbanm")) {
             outClip = c;
@@ -161,9 +151,7 @@ static bool clipIsLoop(const nlohmann::json& clip)
 
 static std::string resolveRefToName(const nlohmann::json& j, const nlohmann::json& refVal)
 {
-    if (refVal.is_string()) {
-        return refVal.get<std::string>();
-    }
+    if (refVal.is_string()) return refVal.get<std::string>();
 
     if (refVal.is_number()) {
         const int id = refVal.is_number_integer() ? refVal.get<int>() : (int)refVal.get<double>();
@@ -238,7 +226,6 @@ RolePick resolveRoleClip(const nlohmann::json& j,
 {
     RolePick out;
 
-    // 1) Explicit role mapping
     const std::string explicitName = readRoleNameString(j, roleKey);
     if (!explicitName.empty()) {
         out.clipName = explicitName;
@@ -251,11 +238,9 @@ RolePick resolveRoleClip(const nlohmann::json& j,
         return out;
     }
 
-    // 2) Scan clips array by category
     out = pickFromClipsByCategory(j, fallbackCategory, preferredSubstrings, allowFallbackToFirst);
     if (out.valid) return out;
 
-    // 3) categories bucket in animset export (may contain id refs)
     if (j.contains("categories") && j["categories"].is_object()) {
         const auto& cats = j["categories"];
         if (cats.contains(fallbackCategory) && cats[fallbackCategory].is_array()) {
@@ -278,6 +263,16 @@ RolePick resolveRoleClip(const nlohmann::json& j,
     return out;
 }
 
+static void debugPrintResolved(const PokemonInstance& inst,
+                               const std::string& role,
+                               const std::string& clip,
+                               int idx,
+                               float dur)
+{
+    if (!inst.debugAnimLogs) return;
+    std::cout << "  " << role << ": " << "'" << clip << "'" << " idx=" << idx << " dur=" << dur << "s\n";
+}
+
 void applyAnimSetOverrides(PokemonInstance& inst, const std::string& modelPath)
 {
     const int fallbackLoop = (inst.model && inst.model->getAnimationCount() > 0) ? 0 : -1;
@@ -288,19 +283,27 @@ void applyAnimSetOverrides(PokemonInstance& inst, const std::string& modelPath)
     inst.activeAnimIndex   = fallbackLoop;
     inst.attackDurationSec = 0.0f;
 
-    // Flight visuals default/off; these will be enabled if an animset provides takeoff+land clips
-    // or meta movementMode="airborne".
     inst.usesAirLocomotion = false;
     inst.animGroundIdleIndex = inst.animIdleIndex;
     inst.animAirIdleIndex    = inst.animIdleIndex;
     inst.animTakeoffIndex    = -1;
+
     inst.animLandIndex       = -1;
+    inst.animLandAIndex      = -1;
+    inst.animLandBIndex      = -1;
+    inst.animLandCIndex      = -1;
+
     inst.airState            = AirLocomotionState::Grounded;
     inst.airStateTimeSec     = 0.0f;
     inst.visualYOffset       = 0.0f;
+    inst.airLiftY            = 0.0f;
+
     inst.wasMovingLastFrame  = inst.isMoving;
     inst.pendingAttackAfterLanding = false;
     inst.queuedAttackDurationSec   = 0.0f;
+    inst.landingLoopTargetSec = 0.0f;
+
+    inst.debugAnimLogs = (toLower(inst.name) == "pidgey");
 
     if (!inst.model) return;
 
@@ -308,23 +311,11 @@ void applyAnimSetOverrides(PokemonInstance& inst, const std::string& modelPath)
 
     nlohmann::json j;
     if (!loadAnimSetJson(animSetPath, j)) {
-        return; // animset optional
+        return;
     }
 
-    const RolePick idlePick = resolveRoleClip(j, "idle",    "idle",   {"battlewait", "defaultwait", "idle", "wait"}, true);
-    const RolePick movePick = resolveRoleClip(j, "move",    "move",   {"run", "dash", "move"}, true);
-    const RolePick atkPick  = resolveRoleClip(j, "attack1", "attack", {"attack01", "attack1", "attack"}, true);
-
-    // Optional flight roles (visual-only; used by small fliers like Pidgey).
-    // If clips aren't found, the unit falls back to idle/move.
-    const RolePick groundIdlePick = resolveRoleClip(j, "ground_idle", "idle", {"ba10_wait", "battlewait", "ba10", "wait", "idle"}, true);
-    const RolePick airIdlePick    = resolveRoleClip(j, "air_idle",    "idle", {"fi01_wait", "fly", "air", "hover"}, true);
-    const RolePick takeoffPick    = resolveRoleClip(j, "takeoff",     "misc", {"take_flight", "takeflight", "takeoff", "flight"}, false);
-    const RolePick landPick       = resolveRoleClip(j, "land",        "misc", {"landa", "landb", "landc", "land"}, false);
-
     bool metaAirborne = false;
-
-    // Optional meta tuning
+    bool metaAirLiftSpecified = false;
     if (j.contains("meta") && j["meta"].is_object()) {
         const auto& meta = j["meta"];
 
@@ -332,27 +323,50 @@ void applyAnimSetOverrides(PokemonInstance& inst, const std::string& modelPath)
             const std::string mm = toLower(meta["movementMode"].get<std::string>());
             if (mm == "airborne" || mm == "air" || mm == "flying" || mm == "fly") {
                 metaAirborne = true;
+                inst.usesAirLocomotion = true;
             }
         }
 
-        if (meta.contains("flightHeight") && meta["flightHeight"].is_number()) {
-            inst.flightHeight = meta["flightHeight"].get<float>();
+        if (meta.contains("airLiftY") && meta["airLiftY"].is_number()) {
+            inst.airLiftY = meta["airLiftY"].get<float>();
+            metaAirLiftSpecified = true;
         }
+
         if (meta.contains("takeoffSec") && meta["takeoffSec"].is_number()) {
             inst.takeoffSec = meta["takeoffSec"].get<float>();
         }
         if (meta.contains("landingSec") && meta["landingSec"].is_number()) {
             inst.landingSec = meta["landingSec"].get<float>();
         }
+
+        if (meta.contains("debugAnimLogs") && meta["debugAnimLogs"].is_boolean()) {
+            inst.debugAnimLogs = meta["debugAnimLogs"].get<bool>();
+        }
     }
 
+    const RolePick idlePick = resolveRoleClip(j, "idle", "idle", {"battlewait", "defaultwait", "idle", "wait"}, true);
+    const RolePick movePick = resolveRoleClip(j, "move", "move", {"run", "dash", "move"}, true);
+
+    RolePick atkPick  = resolveRoleClip(j, "attack1", "attack", {"attack01", "attack1", "attack"}, true);
+    if (!atkPick.valid || atkPick.clipName.empty()) {
+        atkPick = resolveRoleClip(j, "attack1", "misc", {"buturi", "ba20_buturi", "ba20"}, false);
+    }
+
+    const RolePick groundIdlePick = resolveRoleClip(j, "ground_idle", "idle", {"ba10_wait", "battlewait", "ba10", "wait", "idle"}, true);
+    const RolePick airIdlePick    = resolveRoleClip(j, "air_idle",    "idle", {"fi01_wait", "fly", "air", "hover"}, true);
+    const RolePick takeoffPick    = resolveRoleClip(j, "takeoff",     "misc", {"take_flight", "takeflight", "takeoff"}, false);
+
+    const RolePick landAPick      = resolveRoleClip(j, "land_a", "misc", {"landa"}, false);
+    const RolePick landBPick      = resolveRoleClip(j, "land_b", "misc", {"landb"}, false);
+    const RolePick landCPick      = resolveRoleClip(j, "land_c", "misc", {"landc"}, false);
+
+    const RolePick landPick       = resolveRoleClip(j, "land",   "misc", {"land"}, false);
 
     if (idlePick.valid && !idlePick.clipName.empty()) {
         const int idx = resolveAnimIndex(inst.model.get(), idlePick.clipName);
         if (idx >= 0) inst.animIdleIndex = idx;
     }
 
-    // Ground vs air idle (optional; falls back to animIdleIndex)
     if (groundIdlePick.valid && !groundIdlePick.clipName.empty()) {
         const int idx = resolveAnimIndex(inst.model.get(), groundIdlePick.clipName);
         if (idx >= 0) inst.animGroundIdleIndex = idx;
@@ -367,26 +381,23 @@ void applyAnimSetOverrides(PokemonInstance& inst, const std::string& modelPath)
         inst.animAirIdleIndex = inst.animIdleIndex;
     }
 
-    // Takeoff / land one-shots (optional)
     if (takeoffPick.valid && !takeoffPick.clipName.empty()) {
         inst.animTakeoffIndex = resolveAnimIndex(inst.model.get(), takeoffPick.clipName);
     }
+
+    if (landAPick.valid && !landAPick.clipName.empty()) {
+        inst.animLandAIndex = resolveAnimIndex(inst.model.get(), landAPick.clipName);
+    }
+    if (landBPick.valid && !landBPick.clipName.empty()) {
+        inst.animLandBIndex = resolveAnimIndex(inst.model.get(), landBPick.clipName);
+    }
+    if (landCPick.valid && !landCPick.clipName.empty()) {
+        inst.animLandCIndex = resolveAnimIndex(inst.model.get(), landCPick.clipName);
+    }
+
     if (landPick.valid && !landPick.clipName.empty()) {
         inst.animLandIndex = resolveAnimIndex(inst.model.get(), landPick.clipName);
     }
-    // Enable airborne presentation only when we have real takeoff+land clips.
-    // This prevents grounded Pokémon from being lifted by accident.
-    const bool hasDistinctOneShots =
-        (inst.animTakeoffIndex >= 0 && inst.animLandIndex >= 0 && inst.animTakeoffIndex != inst.animLandIndex);
-
-    const bool explicitTakeoff = !readRoleNameString(j, "takeoff").empty();
-    const bool explicitLand    = !readRoleNameString(j, "land").empty();
-    const bool explicitOneShots = (explicitTakeoff && explicitLand);
-
-    const std::string nameLower = toLower(inst.name);
-    const bool knownFlier = (nameLower == "pidgey" || nameLower == "pidgeotto" || nameLower == "pidgeot");
-
-    inst.usesAirLocomotion = hasDistinctOneShots && (metaAirborne || explicitOneShots || knownFlier);
 
     if (movePick.valid && !movePick.clipName.empty()) {
         const int idx = resolveAnimIndex(inst.model.get(), movePick.clipName);
@@ -404,10 +415,44 @@ void applyAnimSetOverrides(PokemonInstance& inst, const std::string& modelPath)
         }
     }
 
+    const bool hasTakeoff = (inst.animTakeoffIndex >= 0);
+    const bool hasSeqLanding = (inst.animLandCIndex >= 0) && (inst.animLandAIndex >= 0 || inst.animLandBIndex >= 0);
+    const bool hasSingleLanding = (inst.animLandIndex >= 0);
+
+    const bool hasDistinctLand = hasSeqLanding ||
+        (hasTakeoff && hasSingleLanding && inst.animTakeoffIndex != inst.animLandIndex);
+
+    if (metaAirborne || (hasTakeoff && hasDistinctLand)) {
+        inst.usesAirLocomotion = true;
+    }
+
+    if (!metaAirLiftSpecified && inst.usesAirLocomotion && toLower(inst.name) == "pidgey") {
+        inst.airLiftY = 0.65f;
+    }
+
     inst.activeAnimIndex = inst.usesAirLocomotion ? inst.animGroundIdleIndex : inst.animIdleIndex;
 
+    if (inst.debugAnimLogs) {
+        std::cout << "[AnimDebug] " << inst.name << " (ID " << inst.id << ") animset resolved:\n";
+        debugPrintResolved(inst, "idle",        idlePick.clipName, inst.animIdleIndex, inst.model->getAnimationDurationSec(inst.animIdleIndex));
+        debugPrintResolved(inst, "move",        movePick.clipName, inst.animMoveIndex, inst.model->getAnimationDurationSec(inst.animMoveIndex));
+        debugPrintResolved(inst, "attack1",     atkPick.clipName,  inst.animAttack1Index, inst.attackDurationSec > 0.0f ? inst.attackDurationSec : inst.model->getAnimationDurationSec(inst.animAttack1Index));
+        debugPrintResolved(inst, "ground_idle", groundIdlePick.clipName, inst.animGroundIdleIndex, inst.model->getAnimationDurationSec(inst.animGroundIdleIndex));
+        debugPrintResolved(inst, "air_idle",    airIdlePick.clipName,    inst.animAirIdleIndex, inst.model->getAnimationDurationSec(inst.animAirIdleIndex));
+        debugPrintResolved(inst, "takeoff",     takeoffPick.clipName,    inst.animTakeoffIndex, inst.model->getAnimationDurationSec(inst.animTakeoffIndex));
+        debugPrintResolved(inst, "land_a",      landAPick.clipName,      inst.animLandAIndex, inst.model->getAnimationDurationSec(inst.animLandAIndex));
+        debugPrintResolved(inst, "land_b",      landBPick.clipName,      inst.animLandBIndex, inst.model->getAnimationDurationSec(inst.animLandBIndex));
+        debugPrintResolved(inst, "land_c",      landCPick.clipName,      inst.animLandCIndex, inst.model->getAnimationDurationSec(inst.animLandCIndex));
+        debugPrintResolved(inst, "land",        landPick.clipName,       inst.animLandIndex, inst.model->getAnimationDurationSec(inst.animLandIndex));
+
+        std::cout << "  usesAirLocomotion=" << (inst.usesAirLocomotion ? "true" : "false")
+                  << " airLiftY=" << inst.airLiftY
+                  << " takeoffSec=" << inst.takeoffSec
+                  << " landingSec=" << inst.landingSec
+                  << " takeoffAnimSpeed=" << inst.takeoffAnimSpeed
+                  << " landAnimSpeed=" << inst.landAnimSpeed
+                  << "\n";
+    }
 }
 
 } // namespace AnimSet
-
-

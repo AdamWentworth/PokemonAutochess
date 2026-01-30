@@ -1,4 +1,4 @@
-// LuaBindings.cpp
+// src/game/LuaBindings.cpp
 #include "LuaBindings.h"
 #include "GameWorld.h"
 #include "PokemonInstance.h"
@@ -37,6 +37,28 @@ static glm::ivec2 worldToGrid(const glm::vec3& pos) {
     int col = static_cast<int>(std::round((pos.x - boardOriginX) / cfg.cellSize));
     int row = static_cast<int>(std::round((pos.z - boardOriginZ) / cfg.cellSize));
     return { col, row };
+}
+
+// ============================================================================
+// IMPORTANT GAMEPLAY CHANGE (outgoing damage gating):
+//
+// - Receiving damage: unchanged (targets always lose HP when this function decides to apply it).
+// - Applying damage: ONLY occurs if the attacker is actually playing its attack animation
+//   (i.e., attackTimerSec > 0 and activeAnimIndex == animAttack1Index).
+//
+// This prevents "ghost" hits during takeoff/landing/other cosmetic animations.
+//
+// NOTE: This assumes your combat loop calls world_apply_damage at the time it *wants* to
+// deal damage. If the loop calls it continuously every tick while in range, this gating
+// will make it apply damage only once you start the attack animation (and only while it’s active),
+// but you should still make sure the combat logic has a cooldown / one-shot trigger.
+// ============================================================================
+
+static bool attackerIsInAttackAnimation(const PokemonInstance& A) {
+    if (!A.alive) return false;
+    if (A.attackTimerSec <= 0.0f) return false;
+    if (A.animAttack1Index < 0) return false;
+    return (A.activeAnimIndex == A.animAttack1Index);
 }
 
 void registerLuaBindings(sol::state& lua, GameWorld* world, GameStateManager* manager) {
@@ -244,38 +266,97 @@ void registerLuaBindings(sol::state& lua, GameWorld* world, GameStateManager* ma
         return arr;
     });
 
-    lua.set_function("world_apply_damage", [world](int attackerId, int targetId, int amount) {
+
+    // Can this unit currently *initiate* an attack?
+    // - non-fliers: true (if alive and not moving)
+    // - fliers using visual-only flight: only true when grounded (prevents "ghost" hits mid takeoff/landing)
+    lua.set_function("world_can_attack", [world](int unitId) {
+        if (!world) return false;
+        for (auto& u : world->getPokemons()) {
+            if (u.id != unitId) continue;
+            if (!u.alive) return false;
+            if (u.isMoving) return false;
+            if (u.usesAirLocomotion && FlightLocomotion::isAirborne(u)) return false;
+            return true;
+        }
+        return false;
+    });
+
+    lua.set_function("world_apply_damage", [world](int attackerId, int targetId, int amount, sol::optional<float> cadenceSec) {
         if (!world) return -1;
 
         auto& list = world->getPokemons();
 
         auto A = std::find_if(list.begin(), list.end(),
             [&](const PokemonInstance& p){ return p.id == attackerId; });
-
         auto T = std::find_if(list.begin(), list.end(),
             [&](const PokemonInstance& p){ return p.id == targetId; });
 
         if (A == list.end() || T == list.end()) return -1;
-        if (!A->alive || !T->alive) return T->hp;
 
-        // Trigger attack1 animation if this unit has a loaded attack duration.
-        // If the attacker is airborne (visual-only flight), land first and then play the attack.
-        if (A->attackDurationSec > 0.0f) {
-            if (A->usesAirLocomotion && FlightLocomotion::isAirborne(*A)) {
-                FlightLocomotion::queueAttackAfterLanding(*A, A->attackDurationSec);
-            } else {
-                A->attackTimerSec = A->attackDurationSec;
+        // If this attacker has an attack animation, enforce: 1 damage event == 1 animation cycle.
+        // cadenceSec (if provided) is interpreted as the attack cadence (seconds between hits).
+        if (A->attackDurationSec > 0.0f && A->animAttack1Index >= 0) {
+            bool airborne = false;
+            if (A->usesAirLocomotion) airborne = FlightLocomotion::isAirborne(*A);
+
+            float desiredWindowSec = cadenceSec.value_or(0.0f);
+            if (desiredWindowSec <= 0.0f) desiredWindowSec = A->attackDurationSec;
+            if (desiredWindowSec <= 0.0f && A->model) {
+                desiredWindowSec = A->model->getAnimationDurationSec(A->animAttack1Index);
+            }
+
+#ifdef PAC_DEBUG_ANIM
+            std::cout << "[AnimDebug] " << A->name << " (ID " << A->id << ") "
+                      << "attack requested airborne=" << (airborne ? "true" : "false")
+                      << " dmg=" << amount
+                      << " cadence=" << desiredWindowSec
+                      << " attackAnimIdx=" << A->animAttack1Index
+                      << " attackClipDur=" << (A->model ? A->model->getAnimationDurationSec(A->animAttack1Index) : 0.0f)
+                      << "\n";
+#endif
+
+            if (airborne) {
+                // Queue a single attack cycle that will start once we finish landing.
+                FlightLocomotion::queueAttackAfterLanding(*A, desiredWindowSec);
+                return T->hp;
+            }
+
+            bool startedThisCall = false;
+            if (A->attackTimerSec <= 0.0f || A->activeAnimIndex != A->animAttack1Index) {
+                const float clipDur = (A->model ? A->model->getAnimationDurationSec(A->animAttack1Index) : A->attackDurationSec);
+                const float windowSec = (desiredWindowSec > 0.0f ? desiredWindowSec : clipDur);
+
+                A->attackTimerSec = windowSec;
                 A->animTimeSec = 0.0f;
                 A->activeAnimIndex = A->animAttack1Index;
+                A->attackAnimSpeed = (windowSec > 0.0f && clipDur > 0.0f) ? (clipDur / windowSec) : 1.0f;
+
+                startedThisCall = true;
             }
+
+            // Only allow damage once per attack cycle.
+            if (!startedThisCall || amount <= 0) return T->hp;
+
+            if (!attackerIsInAttackAnimation(*A)) return T->hp;
         }
 
-        T->hp = std::max(0, T->hp - std::max(0, amount));
-        if (T->hp == 0) {
+        // Apply damage.
+        int dmg = std::max(0, amount);
+        T->hp = std::max(0, T->hp - dmg);
+
+        if (T->hp <= 0) {
+            T->hp = 0;
             T->alive = false;
+
+            // optional cleanup so dead units don't keep doing leftover animation state
             T->isMoving = false;
-            T->committedDest = {-1,-1};
+            T->attackTimerSec = 0.0f;
+            T->attackAnimSpeed = 1.0f;
+            T->pendingAttackAfterLanding = false;
+            T->queuedAttackDurationSec = 0.0f;
         }
+
         return T->hp;
     });
 
@@ -342,7 +423,7 @@ void registerLuaBindings(sol::state& lua, GameWorld* world, GameStateManager* ma
         return 0;
     });
 
-    // ====== NEW: move accessors for Lua combat ======
+    // ====== move accessors for Lua combat ======
     lua.set_function("unit_fast_move", [world](int unitId) -> std::string {
         if (!world) return "";
         for (auto& u : world->getPokemons()) if (u.id == unitId) return u.fastMove;
@@ -377,5 +458,3 @@ void registerLuaBindings(sol::state& lua, GameWorld* world, GameStateManager* ma
         return t;
     });
 }
-
-

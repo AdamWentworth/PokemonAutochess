@@ -7,6 +7,12 @@ local MISS_CHANCE = 0.10
 local CRIT_CHANCE = 0.125
 local CRIT_MULT   = 1.5
 
+-- Global attack-speed knobs:
+-- > 1.0 = slower attacks (longer cooldown between hits)
+-- < 1.0 = faster attacks
+local FAST_CD_MULT   = 2.0
+local CHARGED_CD_MULT = 2.0
+
 local function clamp(v, lo, hi) return math.max(lo, math.min(hi, v)) end
 local function reset_if_missing(id) if timers[id] == nil then timers[id] = 0.0 end end
 
@@ -40,6 +46,14 @@ end
 -- NEW: emit a single structured terminal line
 local function emit_struct(tag, fields)
   emit(tag, jobj(fields))
+end
+
+-- NEW: attack gating helper (prevents spending cooldown/energy while airborne/landing)
+local function can_attack_now(id)
+  if type(world_can_attack) == "function" then
+    return world_can_attack(id)
+  end
+  return true
 end
 
 local function get_name(unit_id)
@@ -113,6 +127,14 @@ local function use_charged_if_ready(id)
   local need = (m.energyCost or cap)
   if cur >= need then
     local tgt = find_adjacent_enemy(id)
+
+    -- If we cannot attack right now (e.g., Pidgey is airborne/landing),
+    -- request the attack (starts landing/queues animation) but do NOT spend energy.
+    if tgt and not can_attack_now(id) then
+      world_apply_damage(id, tgt, 0) -- 0 dmg: cosmetic request only
+      return false
+    end
+
     -- energy bookkeeping (before)
     local e_att_bef = cur
     local e_tgt_bef = (tgt and world_get_energy(tgt)) or 0
@@ -132,7 +154,10 @@ local function use_charged_if_ready(id)
         emit("A critical hit!")
       end
 
-      local rem = world_apply_damage(id, tgt, dmg)
+      local cd = math.max(0.05, (m.cooldownSec or 0.8))
+      cd = cd * CHARGED_CD_MULT
+
+      local rem = world_apply_damage(id, tgt, dmg, cd)
 
       local eff = effectiveness(id, tgt)
       maybe_emit_effectiveness(eff)
@@ -192,58 +217,66 @@ function combat_update(dt)
 
       -- Fast move
       if timers[u.id] <= 0.0 then
-        local fastName = unit_fast_move(u.id)
-        local m = move_get(fastName)
-        local cd = (m.cooldownSec or 0.5)
-        timers[u.id] = cd
-
         local tgt = find_adjacent_enemy(u.id)
         if tgt then
-          emit(string.format("%s used %s!", get_name(u.id), string.gsub(fastName, "_", " ")))
+          local fastName = unit_fast_move(u.id)
+          local m = move_get(fastName)
+          local cd = math.max(0.05, (m.cooldownSec or 0.5))
+          cd = cd * FAST_CD_MULT
 
-          local e_att_bef = world_get_energy(u.id)
-          local e_tgt_bef = world_get_energy(tgt)
-          local tSnap = world_get_unit_snapshot(tgt)
-          local hp_before = tSnap and tSnap.hp or 0
-
-          if rng() < MISS_CHANCE then
-            emit("It missed!")
-            world_add_energy(u.id, m.energyGain or 0)
-            local e_att_aft = world_get_energy(u.id)
-            local e_tgt_aft = world_get_energy(tgt)
-
-            log_hit("fast", u.id, fastName, tgt, {
-              miss=true, crit=false, dmg=0,
-              hp_before=hp_before, hp_after=hp_before,
-              e_att_bef=e_att_bef, e_att_aft=e_att_aft,
-              e_tgt_bef=e_tgt_bef, e_tgt_aft=e_tgt_aft
-            })
+          -- If we cannot attack right now (airborne/landing), request the attack
+          -- but do NOT start cooldown or grant/spend energy.
+          if not can_attack_now(u.id) then
+            world_apply_damage(u.id, tgt, 0, cd) -- cosmetic request only
           else
-            local dmg = m.power or 0
-            local crit = false
-            if rng() < CRIT_CHANCE then
-              dmg = math.floor(dmg * CRIT_MULT + 0.5)
-              crit = true
-              emit("A critical hit!")
+            timers[u.id] = cd
+            emit(string.format("%s used %s!", get_name(u.id), string.gsub(fastName, "_", " ")))
+
+            local e_att_bef = world_get_energy(u.id)
+            local e_tgt_bef = world_get_energy(tgt)
+            local tSnap = world_get_unit_snapshot(tgt)
+            local hp_before = tSnap and tSnap.hp or 0
+
+            if rng() < MISS_CHANCE then
+              emit("It missed!")
+              world_apply_damage(u.id, tgt, 0, cd)
+              world_add_energy(u.id, m.energyGain or 0)
+              local e_att_aft = world_get_energy(u.id)
+              local e_tgt_aft = world_get_energy(tgt)
+
+              log_hit("fast", u.id, fastName, tgt, {
+                miss=true, crit=false, dmg=0,
+                hp_before=hp_before, hp_after=hp_before,
+                e_att_bef=e_att_bef, e_att_aft=e_att_aft,
+                e_tgt_bef=e_tgt_bef, e_tgt_aft=e_tgt_aft
+              })
+            else
+              local dmg = m.power or 0
+              local crit = false
+              if rng() < CRIT_CHANCE then
+                dmg = math.floor(dmg * CRIT_MULT + 0.5)
+                crit = true
+                emit("A critical hit!")
+              end
+
+              local rem = world_apply_damage(u.id, tgt, dmg, cd)
+              world_add_energy(u.id, m.energyGain or 0)
+              world_add_energy(tgt, 8)
+
+              local eff = effectiveness(u.id, tgt); maybe_emit_effectiveness(eff)
+
+              local e_att_aft = world_get_energy(u.id)
+              local e_tgt_aft = world_get_energy(tgt)
+
+              log_hit("fast", u.id, fastName, tgt, {
+                miss=false, crit=crit, dmg=dmg,
+                hp_before=hp_before, hp_after=rem,
+                e_att_bef=e_att_bef, e_att_aft=e_att_aft,
+                e_tgt_bef=e_tgt_bef, e_tgt_aft=e_tgt_aft
+              })
+
+              if rem == 0 then emit(string.format("%s fainted!", get_name(tgt))) end
             end
-
-            local rem = world_apply_damage(u.id, tgt, dmg)
-            world_add_energy(u.id, m.energyGain or 0)
-            world_add_energy(tgt, 8)
-
-            local eff = effectiveness(u.id, tgt); maybe_emit_effectiveness(eff)
-
-            local e_att_aft = world_get_energy(u.id)
-            local e_tgt_aft = world_get_energy(tgt)
-
-            log_hit("fast", u.id, fastName, tgt, {
-              miss=false, crit=crit, dmg=dmg,
-              hp_before=hp_before, hp_after=rem,
-              e_att_bef=e_att_bef, e_att_aft=e_att_aft,
-              e_tgt_bef=e_tgt_bef, e_tgt_aft=e_tgt_aft
-            })
-
-            if rem == 0 then emit(string.format("%s fainted!", get_name(tgt))) end
           end
         end
       end

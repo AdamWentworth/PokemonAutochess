@@ -13,15 +13,25 @@ enum class PokemonSide {
     Enemy
 };
 
-
 // Visual-only flight / airborne presentation (for small fliers like Pidgey).
 // This is meant to improve transitions (ground idle -> takeoff -> flight -> land -> combat idle)
 // without changing gameplay timing.
+//
+// NOTE:
+// - We DO apply a draw-time world-space Y offset (PokemonInstance::visualYOffset) for smoother lift/land visuals.
+// - Animations can remain "grounded"; the offset comes from code, not the clip.
 enum class AirLocomotionState {
     Grounded,
     TakingOff,
     Airborne,
-    Landing
+
+    // Landing is a 3-part sequence:
+    //  - LandingStart  (A): transition from flight to descending
+    //  - LandingLoop   (B): looping descent (variable length)
+    //  - LandingFinish (C): finalize landing / touch down
+    LandingStart,
+    LandingLoop,
+    LandingFinish
 };
 
 struct PokemonInstance {
@@ -76,34 +86,60 @@ struct PokemonInstance {
 
     // attack one-shot control
     float attackTimerSec    = 0.0f;
-    float attackDurationSec = 0.0f; // filled from manifest (Bulbasaur)
+    float attackDurationSec = 0.0f; // filled from manifest / animset
 
 
     // --- Flight visuals (optional; visual-only) ---
-    // Enabled when an animset provides takeoff+land clips, or meta movementMode="airborne".
+    // Enabled when an animset provides takeoff+landing clips, or meta movementMode="airborne".
     bool usesAirLocomotion = false;
 
     // Optional animation indices for flight presentation.
     int animGroundIdleIndex = 1; // defaults to animIdleIndex
     int animAirIdleIndex    = 1; // defaults to animIdleIndex
     int animTakeoffIndex    = -1;
+
+    // Back-compat: single landing one-shot (older animsets).
     int animLandIndex       = -1;
+
+    // Preferred landing sequence (Pidgey):
+    // A = start descending, B = looping descent, C = finish landing.
+    int animLandAIndex      = -1;
+    int animLandBIndex      = -1;
+    int animLandCIndex      = -1;
 
     // Phase/timing
     AirLocomotionState airState = AirLocomotionState::Grounded;
-    float airStateTimeSec = 0.0f;
+    float airStateTimeSec = 0.0f; // "animation-time" accumulator (scaled by playback speed)
 
-    // Visual offsets (applied at draw-time)
-    float flightHeight = 0.65f; // tuned for small birds like Pidgey
+    // Visual offsets (applied at draw-time; world-space).
+    // FlightLocomotion drives this. 0 disables lift visuals.
     float visualYOffset = 0.0f;
 
+    // Target hover height (world units) when airborne.
+    // Recommended: set via animset meta "airLiftY". If 0, no code-driven lift is applied.
+    float airLiftY = 0.0f;
+
     // Optional tuning (seconds). If 0, clip duration (or a small fallback) is used.
+    // These are in "animation seconds" (i.e. clip-time), and are still affected by takeoff/land speed multipliers.
     float takeoffSec = 0.0f;
+
+    // Total landing sequence duration in clip-time (A + B + C). If 0, we default to A + one loop of B + C
+    // when A/B/C exist, otherwise fall back to single-land duration.
     float landingSec = 0.0f;
 
     // Visual playback multipliers for one-shots
-    float takeoffAnimSpeed = 1.35f;
-    float landAnimSpeed    = 1.60f;
+    float takeoffAnimSpeed = 1.65f;
+    float landAnimSpeed    = 1.90f;
+
+    // Runtime override computed at landing start so the full landing sequence (A->B->C)
+    // can take the same real-time as takeoff (even though it is multiple clips).
+    // If <= 0, FlightLocomotion uses landAnimSpeed.
+    float landAnimSpeedOverride = -1.0f;
+
+    // Optional: speed multiplier for the attack animation itself (visual-only).
+    float attackAnimSpeed  = 1.00f;
+// Landing-loop (B) target duration in clip-time (computed when landing begins).
+    float landingLoopTargetSec = 0.0f;
 
     // Internal state for movement-transition detection
     bool wasMovingLastFrame = false;
@@ -112,9 +148,11 @@ struct PokemonInstance {
     bool pendingAttackAfterLanding = false;
     float queuedAttackDurationSec = 0.0f;
 
+    // Debug logs for animation resolution + locomotion transitions (enabled for pidgey by default).
+    bool debugAnimLogs = false;
+
     static int getNextUnitID() {
         static int next = 1;
         return next++;
     }
 };
-

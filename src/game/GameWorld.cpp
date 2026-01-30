@@ -230,17 +230,21 @@ void GameWorld::update(float dt)
             p.attackTimerSec = std::max(0.0f, p.attackTimerSec - dt);
 
             // clamp at last frame (avoid looping)
+            const float speed = (p.attackAnimSpeed > 0.0f) ? p.attackAnimSpeed : 1.0f;
+
             float dur = p.model->getAnimationDurationSec(p.activeAnimIndex);
             if (dur > 0.0f) {
-                p.animTimeSec = std::min(p.animTimeSec + dt, dur - 0.0001f);
+                p.animTimeSec = std::min(p.animTimeSec + dt * speed, dur - 0.0001f);
             } else {
-                p.animTimeSec += dt;
+                p.animTimeSec += dt * speed;
             }
 
             // when done, return to locomotion
             if (p.attackTimerSec <= 0.0f) {
                 p.animTimeSec = 0.0f;
-                p.activeAnimIndex = (p.isMoving ? p.animMoveIndex : (p.usesAirLocomotion ? p.animGroundIdleIndex : p.animIdleIndex));
+                p.attackAnimSpeed = 1.0f; // reset
+                p.activeAnimIndex = (p.isMoving ? p.animMoveIndex
+                                                : (p.usesAirLocomotion ? p.animGroundIdleIndex : p.animIdleIndex));
             }
             return;
         }
