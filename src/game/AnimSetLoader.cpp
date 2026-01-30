@@ -304,7 +304,7 @@ void applyAnimSetOverrides(PokemonInstance& inst, const std::string& modelPath)
     inst.queuedAttackDurationSec   = 0.0f;
     inst.landingLoopTargetSec = 0.0f;
 
-    inst.debugAnimLogs = (toLower(inst.name) == "bulbasaur");
+    inst.debugAnimLogs = false;
 
     if (!inst.model) return;
 
@@ -343,9 +343,6 @@ void applyAnimSetOverrides(PokemonInstance& inst, const std::string& modelPath)
             inst.debugAnimLogs = meta["debugAnimLogs"].get<bool>();
         }
     }
-
-    const bool allowFlight = metaAirborne || FlyerConfigLoader::getInstance().isFlyer(inst.name);
-
     const RolePick idlePick = resolveRoleClip(j, "idle", "idle", {"battlewait", "defaultwait", "idle", "wait"}, true);
     const RolePick movePick = resolveRoleClip(j, "move", "move", {"run", "dash", "move"}, true);
 
@@ -423,7 +420,16 @@ void applyAnimSetOverrides(PokemonInstance& inst, const std::string& modelPath)
 
     const bool hasDistinctLand = hasSeqLanding ||
         (hasTakeoff && hasSingleLanding && inst.animTakeoffIndex != inst.animLandIndex);
-    if (allowFlight && (metaAirborne || (hasTakeoff && hasDistinctLand))) {
+
+    // Enable visual-only flight when:
+    //  - animset meta explicitly declares airborne, OR
+    //  - this species is listed as a flyer, OR
+    //  - the animset provides takeoff + a distinct landing sequence.
+    const bool allowFlight =
+        metaAirborne ||
+        FlyerConfigLoader::getInstance().isFlyer(inst.name) ||
+        (hasTakeoff && hasDistinctLand);
+    if (allowFlight) {
         inst.usesAirLocomotion = true;
     } else {
         inst.usesAirLocomotion = false;
@@ -467,3 +473,4 @@ void applyAnimSetOverrides(PokemonInstance& inst, const std::string& modelPath)
 }
 
 } // namespace AnimSet
+

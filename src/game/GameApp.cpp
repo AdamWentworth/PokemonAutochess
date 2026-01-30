@@ -18,6 +18,7 @@
 #include "game/PokemonConfigLoader.h"
 #include "game/MovesConfigLoader.h"
 #include "game/AttackAnimConfigLoader.h"
+#include "game/FlyerConfigLoader.h"
 #include "game/systems/CameraSystem.h"
 #include "game/systems/UnitInteractionSystem.h"
 #include "game/systems/RoundSystem.h"
@@ -49,6 +50,8 @@ void GameApp::init(GameContext& ctx) {
     MovesConfigLoader::getInstance().loadConfig("config/moves_config.json");
     // Attack animation clips for fast/charged moves (e.g. Bulbasaur vine_whip start/loop/end)
     AttackAnimConfigLoader::getInstance().loadConfig("config/attack_anim_config.json");
+    // Flyers list (used to enable visual-only flight locomotion on specific species)
+    FlyerConfigLoader::getInstance().loadConfig("config/flyers_config.json");
 
     std::cout << "[Init] CWD: " << std::filesystem::current_path() << "\n";
 
@@ -245,3 +248,5 @@ void GameApp::preloadCommonModels(GameContext& ctx) {
     if (ctx.setTitle) ctx.setTitle("Pokemon Autochess");
     if (ctx.pumpPreloadEvents) ctx.pumpPreloadEvents();
 }
+
+

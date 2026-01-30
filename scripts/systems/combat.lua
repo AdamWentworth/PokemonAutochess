@@ -169,9 +169,8 @@ local function use_charged_if_ready(id)
     cd = math.max(cd, MIN_CHARGED_REQUEST_SEC)
 
     -- If we cannot attack right now (airborne/landing), request the attack
-    -- BUT ALSO start a small request-cooldown so we don't spam "start" every frame.
+    -- as a cosmetic trigger (does not consume energy or start cooldown).
     if tgt and not can_attack_now(id) then
-      timers[id] = math.max(timers[id] or 0.0, cd)
       world_apply_damage(id, tgt, 0, cd, name, "charged") -- cosmetic request only
       return false
     end
@@ -281,9 +280,8 @@ function combat_update(dt)
           cd = math.max(cd, MIN_FAST_REQUEST_SEC)
 
           -- If we cannot attack right now (airborne/landing), request the attack
-          -- BUT ALSO start a small request-cooldown so we don't spam "start" every frame.
+          -- as a cosmetic trigger (does not consume energy or start cooldown).
           if not can_attack_now(u.id) then
-            timers[u.id] = cd
             world_apply_damage(u.id, tgt, 0, cd, fastName, "fast") -- cosmetic request only
           else
             timers[u.id] = cd
@@ -346,3 +344,5 @@ function combat_update(dt)
     if u.alive then world_face_enemy(u.id) end
   end
 end
+
+

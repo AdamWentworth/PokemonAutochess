@@ -90,7 +90,7 @@ struct PokemonInstance {
     float attackDurationSec = 0.0f; // filled from manifest / animset
 
     // Which clip to play during the current attack window (defaults to animAttack1Index).
-    int currentAttackAnimIndex = 1;
+    int currentAttackAnimIndex = -1;
 
     // Cache of animation indices resolved by clip name (avoids repeated linear searches).
     std::unordered_map<std::string, int> animIndexCache;
@@ -162,7 +162,7 @@ struct PokemonInstance {
     bool pendingAttackAfterLanding = false;
     float queuedAttackDurationSec = 0.0f;
 
-    // Debug logs for animation resolution + locomotion transitions (enabled for pidgey by default).
+    // Debug logs for animation resolution + locomotion transitions.
     bool debugAnimLogs = false;
 
     static int getNextUnitID() {
@@ -170,4 +170,6 @@ struct PokemonInstance {
         return next++;
     }
 };
+
+
 

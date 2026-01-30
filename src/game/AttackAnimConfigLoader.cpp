@@ -122,3 +122,5 @@ std::string AttackAnimConfigLoader::getClipName(const std::string& species,
     std::string out = lookup("*", p);
     return out;
 }
+
+

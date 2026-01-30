@@ -54,3 +54,5 @@ bool FlyerConfigLoader::isFlyer(const std::string& speciesName) const {
     if (speciesName.empty()) return false;
     return flyers.find(toLowerCopy(speciesName)) != flyers.end();
 }
+
+

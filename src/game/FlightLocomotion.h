@@ -250,6 +250,13 @@ static inline void queueAttackAfterLanding(PokemonInstance& p, float attackDurat
     }
 }
 
+
+// Back-compat overload (defaults to attack1)
+static inline void queueAttackAfterLanding(PokemonInstance& p, float attackDurationSec)
+{
+    queueAttackAfterLanding(p, attackDurationSec, -1);
+}
+
 static inline void startQueuedAttackIfAny(PokemonInstance& p)
 {
     if (!p.pendingAttackAfterLanding) return;
@@ -590,4 +597,6 @@ static inline void tick(PokemonInstance& p, float dt, float sharedLoopTimeSec)
 }
 
 } // namespace FlightLocomotion
+
+
 
