@@ -23,6 +23,7 @@ bool FlyerConfigLoader::loadConfig(const std::string& path) {
     if (!f) {
         std::cerr << "[FlyerConfigLoader] Could not open: " << path << "\n";
         flyers.clear();
+        airDefaults.clear();
         return false;
     }
 
@@ -32,21 +33,61 @@ bool FlyerConfigLoader::loadConfig(const std::string& path) {
     } catch (...) {
         std::cerr << "[FlyerConfigLoader] Failed to parse JSON: " << path << "\n";
         flyers.clear();
+        airDefaults.clear();
         return false;
     }
 
-    std::unordered_set<std::string> next;
+    std::unordered_set<std::string> nextFlyers;
+    std::unordered_map<std::string, AirLocomotionDefaults> nextDefaults;
 
     if (j.contains("flyers") && j["flyers"].is_array()) {
         for (const auto& v : j["flyers"]) {
             if (!v.is_string()) continue;
             const std::string name = toLowerCopy(v.get<std::string>());
-            if (!name.empty()) next.insert(name);
+            if (!name.empty()) nextFlyers.insert(name);
         }
     }
 
-    flyers.swap(next);
-    std::cout << "[FlyerConfigLoader] Loaded flyers: " << flyers.size() << "\n";
+    // Optional: per-species air-locomotion defaults.
+    // Schema:
+    // "airLocomotionDefaults": { "pidgey": { "airLiftY": 0.65, ... }, ... }
+    if (j.contains("airLocomotionDefaults") && j["airLocomotionDefaults"].is_object()) {
+        const auto& obj = j["airLocomotionDefaults"];
+        for (auto it = obj.begin(); it != obj.end(); ++it) {
+            const std::string species = toLowerCopy(it.key());
+            if (species.empty() || !it.value().is_object()) continue;
+
+            AirLocomotionDefaults d;
+            const auto& o = it.value();
+
+            if (o.contains("airLiftY") && o["airLiftY"].is_number()) {
+                d.airLiftY = o["airLiftY"].get<float>();
+            }
+            if (o.contains("takeoffSec") && o["takeoffSec"].is_number()) {
+                d.takeoffSec = o["takeoffSec"].get<float>();
+            }
+            if (o.contains("landingSec") && o["landingSec"].is_number()) {
+                d.landingSec = o["landingSec"].get<float>();
+            }
+            if (o.contains("takeoffAnimSpeed") && o["takeoffAnimSpeed"].is_number()) {
+                d.takeoffAnimSpeed = o["takeoffAnimSpeed"].get<float>();
+            }
+            if (o.contains("landAnimSpeed") && o["landAnimSpeed"].is_number()) {
+                d.landAnimSpeed = o["landAnimSpeed"].get<float>();
+            }
+            if (o.contains("debugAnimLogs") && o["debugAnimLogs"].is_boolean()) {
+                d.debugAnimLogs = o["debugAnimLogs"].get<bool>();
+            }
+
+            nextDefaults[species] = std::move(d);
+        }
+    }
+
+    flyers.swap(nextFlyers);
+    airDefaults.swap(nextDefaults);
+
+    std::cout << "[FlyerConfigLoader] Loaded flyers: " << flyers.size()
+              << " airLocomotionDefaults: " << airDefaults.size() << "\n";
     return true;
 }
 
@@ -55,4 +96,11 @@ bool FlyerConfigLoader::isFlyer(const std::string& speciesName) const {
     return flyers.find(toLowerCopy(speciesName)) != flyers.end();
 }
 
-
+const FlyerConfigLoader::AirLocomotionDefaults*
+FlyerConfigLoader::getAirLocomotionDefaults(const std::string& speciesName) const {
+    if (speciesName.empty()) return nullptr;
+    const std::string key = toLowerCopy(speciesName);
+    auto it = airDefaults.find(key);
+    if (it == airDefaults.end()) return nullptr;
+    return &it->second;
+}

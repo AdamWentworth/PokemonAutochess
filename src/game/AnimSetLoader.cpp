@@ -317,6 +317,7 @@ void applyAnimSetOverrides(PokemonInstance& inst, const std::string& modelPath)
 
     bool metaAirborne = false;
     bool metaAirLiftSpecified = false;
+    bool metaDebugSpecified = false;
     if (j.contains("meta") && j["meta"].is_object()) {
         const auto& meta = j["meta"];
 
@@ -341,6 +342,7 @@ void applyAnimSetOverrides(PokemonInstance& inst, const std::string& modelPath)
 
         if (meta.contains("debugAnimLogs") && meta["debugAnimLogs"].is_boolean()) {
             inst.debugAnimLogs = meta["debugAnimLogs"].get<bool>();
+            metaDebugSpecified = true;
         }
     }
     const RolePick idlePick = resolveRoleClip(j, "idle", "idle", {"battlewait", "defaultwait", "idle", "wait"}, true);
@@ -443,9 +445,31 @@ void applyAnimSetOverrides(PokemonInstance& inst, const std::string& modelPath)
         inst.landingSec = 0.0f;
     }
 
-    if (!metaAirLiftSpecified && inst.usesAirLocomotion && toLower(inst.name) == "pidgey") {
-        inst.airLiftY = 0.65f;
+    // Optional species defaults (config-driven) for air locomotion tuning.
+    // Animset meta remains the highest priority for the same fields.
+    if (inst.usesAirLocomotion) {
+        if (const auto* d = FlyerConfigLoader::getInstance().getAirLocomotionDefaults(inst.name)) {
+            if (!metaAirLiftSpecified && d->airLiftY.has_value()) {
+                inst.airLiftY = *d->airLiftY;
+            }
+            if (inst.takeoffSec <= 0.0f && d->takeoffSec.has_value()) {
+                inst.takeoffSec = *d->takeoffSec;
+            }
+            if (inst.landingSec <= 0.0f && d->landingSec.has_value()) {
+                inst.landingSec = *d->landingSec;
+            }
+            if (d->takeoffAnimSpeed.has_value()) {
+                inst.takeoffAnimSpeed = *d->takeoffAnimSpeed;
+            }
+            if (d->landAnimSpeed.has_value()) {
+                inst.landAnimSpeed = *d->landAnimSpeed;
+            }
+            if (!metaDebugSpecified && d->debugAnimLogs.has_value()) {
+                inst.debugAnimLogs = *d->debugAnimLogs;
+            }
+        }
     }
+
 
     inst.activeAnimIndex = inst.usesAirLocomotion ? inst.animGroundIdleIndex : inst.animIdleIndex;
 
@@ -473,4 +497,5 @@ void applyAnimSetOverrides(PokemonInstance& inst, const std::string& modelPath)
 }
 
 } // namespace AnimSet
+
 

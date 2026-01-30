@@ -1,7 +1,10 @@
 {
   "flyers": [
     "pidgey"
-  ]
+  ],
+  "airLocomotionDefaults": {
+    "pidgey": {
+      "airLiftY": 0.65
+    }
+  }
 }
-
-
