@@ -10,17 +10,22 @@ local CRIT_MULT   = 1.5
 -- Global attack-speed knobs:
 -- > 1.0 = slower attacks (longer cooldown between hits)
 -- < 1.0 = faster attacks
-local FAST_CD_MULT   = 2.0
+local FAST_CD_MULT    = 2.0
 local CHARGED_CD_MULT = 2.0
+
+-- Minimum time we will wait between *requests* for attack animations.
+-- This prevents spamming "start" every frame when the engine says you can't attack yet,
+-- and it gives vine-whip style clips time to be visible.
+local MIN_FAST_REQUEST_SEC    = 0.85  -- raise to ~1.7 if you want vine_whip start to fully play
+local MIN_CHARGED_REQUEST_SEC = 0.85
 
 local function clamp(v, lo, hi) return math.max(lo, math.min(hi, v)) end
 local function reset_if_missing(id) if timers[id] == nil then timers[id] = 0.0 end end
 
--- NEW: small JSON stringifier for primitives/flat tables
+-- small JSON stringifier for primitives/flat tables (debug)
 local function jstr(v)
   local t = type(v)
   if t == "string" then
-    -- escape backslash and quotes; keep it simple for debug
     v = v:gsub("\\","\\\\"):gsub("\"","\\\"")
     return "\"" .. v .. "\""
   elseif t == "boolean" or t == "number" then
@@ -28,7 +33,7 @@ local function jstr(v)
   elseif v == nil then
     return "null"
   else
-    return "\"" .. tostring(v) .. "\"" -- fallback
+    return "\"" .. tostring(v) .. "\""
   end
 end
 
@@ -43,12 +48,11 @@ local function jobj(tbl)
   return out .. "}"
 end
 
--- NEW: emit a single structured terminal line
 local function emit_struct(tag, fields)
   emit(tag, jobj(fields))
 end
 
--- NEW: attack gating helper (prevents spending cooldown/energy while airborne/landing)
+-- attack gating helper (prevents spending cooldown/energy while airborne/landing)
 local function can_attack_now(id)
   if type(world_can_attack) == "function" then
     return world_can_attack(id)
@@ -94,12 +98,11 @@ local function maybe_emit_effectiveness(tag)
   end
 end
 
--- NEW: shared per-hit structured log (fast or charged)
 local function log_hit(kind, attackerId, moveName, targetId, params)
   local a = world_get_unit_snapshot(attackerId) or {}
   local t = world_get_unit_snapshot(targetId) or {}
   local fields = {
-    kind       = kind,                         -- "fast" | "charged"
+    kind       = kind,
     att_id     = attackerId,
     att_name   = a.name or "Unknown",
     move       = moveName,
@@ -118,6 +121,39 @@ local function log_hit(kind, attackerId, moveName, targetId, params)
   -- emit_struct("[COMBAT]", fields)
 end
 
+-- Combat engagement tracking for animation state
+local engaged_state = {}
+
+local function wants_to_move(id)
+  if type(world_has_planned_move) == "function" then
+    return world_has_planned_move(id)
+  end
+  if type(world_is_moving) == "function" then
+    return world_is_moving(id)
+  end
+  return false
+end
+
+local function set_engaged(id, engaged)
+  local prev = engaged_state[id] == true
+  if prev == engaged then return end
+  engaged_state[id] = engaged
+
+  if type(world_set_in_combat) == "function" then
+    -- Engine side should:
+    --   false->true: play start, then switch to loop
+    --   true->false: play end (if moving is about to begin) and return to locomotion/idle
+    world_set_in_combat(id, engaged)
+  end
+
+  -- If we just left combat and we're about to move, optionally nudge an explicit end hook.
+  if prev and (not engaged) and wants_to_move(id) then
+    if type(world_request_combat_end) == "function" then
+      world_request_combat_end(id)
+    end
+  end
+end
+
 local function use_charged_if_ready(id)
   local name = unit_charged_move(id)
   if not name or name == "" then return false end
@@ -128,10 +164,15 @@ local function use_charged_if_ready(id)
   if cur >= need then
     local tgt = find_adjacent_enemy(id)
 
-    -- If we cannot attack right now (e.g., Pidgey is airborne/landing),
-    -- request the attack (starts landing/queues animation) but do NOT spend energy.
+    local cd = math.max(0.05, (m.cooldownSec or 0.8))
+    cd = cd * CHARGED_CD_MULT
+    cd = math.max(cd, MIN_CHARGED_REQUEST_SEC)
+
+    -- If we cannot attack right now (airborne/landing), request the attack
+    -- BUT ALSO start a small request-cooldown so we don't spam "start" every frame.
     if tgt and not can_attack_now(id) then
-      world_apply_damage(id, tgt, 0) -- 0 dmg: cosmetic request only
+      timers[id] = math.max(timers[id] or 0.0, cd)
+      world_apply_damage(id, tgt, 0, cd, name, "charged") -- cosmetic request only
       return false
     end
 
@@ -154,18 +195,14 @@ local function use_charged_if_ready(id)
         emit("A critical hit!")
       end
 
-      local cd = math.max(0.05, (m.cooldownSec or 0.8))
-      cd = cd * CHARGED_CD_MULT
-
-      local rem = world_apply_damage(id, tgt, dmg, cd)
+      local rem = world_apply_damage(id, tgt, dmg, cd, name, "charged")
 
       local eff = effectiveness(id, tgt)
       maybe_emit_effectiveness(eff)
 
       local e_att_aft = world_get_energy(id)
-      local e_tgt_aft = world_get_energy(tgt) -- defenders don’t gain energy from charged here
+      local e_tgt_aft = world_get_energy(tgt)
 
-      -- structured line
       log_hit("charged", id, name, tgt, {
         miss=false, crit=crit, dmg=dmg,
         hp_before=hp_before, hp_after=rem,
@@ -175,7 +212,6 @@ local function use_charged_if_ready(id)
 
       if rem == 0 then emit(string.format("%s fainted!", get_name(tgt))) end
     else
-      -- No target (still log the spend)
       log_hit("charged", id, name, -1, {
         miss=false, crit=false, dmg=0,
         hp_before=nil, hp_after=nil,
@@ -190,10 +226,16 @@ end
 
 function combat_init()
   timers = {}
+  engaged_state = {}
+
   local units = world_list_units() or {}
   for i = 1, #units do
     local u = units[i]
     world_set_energy(u.id, 0)
+    engaged_state[u.id] = false
+    if type(world_set_in_combat) == "function" then
+      world_set_in_combat(u.id, false)
+    end
   end
 end
 
@@ -203,12 +245,25 @@ function combat_update(dt)
   local units = world_list_units()
   if not units then return end
 
+  -- Update per-unit cooldown timers
   for i = 1, #units do
     local u = units[i]
     reset_if_missing(u.id)
     timers[u.id] = math.max(0.0, (timers[u.id] or 0.0) - dt)
   end
 
+  -- Update combat engagement state FIRST (animation driver)
+  for i = 1, #units do
+    local u = units[i]
+    if u.alive then
+      local adjacent = (type(world_is_adjacent_to_enemy) == "function") and world_is_adjacent_to_enemy(u.id) or false
+      set_engaged(u.id, adjacent)
+    else
+      set_engaged(u.id, false)
+    end
+  end
+
+  -- Combat resolution
   for i = 1, #units do
     local u = units[i]
     if u.alive and world_is_adjacent_to_enemy(u.id) then
@@ -223,11 +278,13 @@ function combat_update(dt)
           local m = move_get(fastName)
           local cd = math.max(0.05, (m.cooldownSec or 0.5))
           cd = cd * FAST_CD_MULT
+          cd = math.max(cd, MIN_FAST_REQUEST_SEC)
 
           -- If we cannot attack right now (airborne/landing), request the attack
-          -- but do NOT start cooldown or grant/spend energy.
+          -- BUT ALSO start a small request-cooldown so we don't spam "start" every frame.
           if not can_attack_now(u.id) then
-            world_apply_damage(u.id, tgt, 0, cd) -- cosmetic request only
+            timers[u.id] = cd
+            world_apply_damage(u.id, tgt, 0, cd, fastName, "fast") -- cosmetic request only
           else
             timers[u.id] = cd
             emit(string.format("%s used %s!", get_name(u.id), string.gsub(fastName, "_", " ")))
@@ -239,7 +296,7 @@ function combat_update(dt)
 
             if rng() < MISS_CHANCE then
               emit("It missed!")
-              world_apply_damage(u.id, tgt, 0, cd)
+              world_apply_damage(u.id, tgt, 0, cd, fastName, "fast")
               world_add_energy(u.id, m.energyGain or 0)
               local e_att_aft = world_get_energy(u.id)
               local e_tgt_aft = world_get_energy(tgt)
@@ -259,7 +316,7 @@ function combat_update(dt)
                 emit("A critical hit!")
               end
 
-              local rem = world_apply_damage(u.id, tgt, dmg, cd)
+              local rem = world_apply_damage(u.id, tgt, dmg, cd, fastName, "fast")
               world_add_energy(u.id, m.energyGain or 0)
               world_add_energy(tgt, 8)
 

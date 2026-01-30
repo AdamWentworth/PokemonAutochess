@@ -1,0 +1,16 @@
+{
+  "bulbasaur": {
+    "charged": {
+      "*": {
+        "one_shot": "pm0001_00_00_00450_rangeattack01.gfbanm"
+      }
+    },
+    "fast": {
+      "vine_whip": {
+        "start": "pm0001_00_00_00460_rangeattack02_start.gfbanm",
+        "loop": "pm0001_00_00_00461_rangeattack02_loop.gfbanm",
+        "end": "pm0001_00_00_00462_rangeattack02_end.gfbanm"
+      }
+    }
+  }
+}

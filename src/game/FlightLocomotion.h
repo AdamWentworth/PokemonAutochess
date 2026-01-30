@@ -234,7 +234,7 @@ static inline void beginLanding(PokemonInstance& p)
     }
 }
 
-static inline void queueAttackAfterLanding(PokemonInstance& p, float attackDurationSec)
+static inline void queueAttackAfterLanding(PokemonInstance& p, float attackDurationSec, int attackAnimIndex)
 {
     if (!p.usesAirLocomotion) return;
 
@@ -243,6 +243,7 @@ static inline void queueAttackAfterLanding(PokemonInstance& p, float attackDurat
     if (p.pendingAttackAfterLanding) return;
     p.pendingAttackAfterLanding = true;
     p.queuedAttackDurationSec = std::max(0.0f, attackDurationSec);
+    p.queuedAttackAnimIndex = attackAnimIndex;
 
     if (!p.isMoving && p.airState != AirLocomotionState::Grounded) {
         beginLanding(p);
@@ -262,12 +263,16 @@ static inline void startQueuedAttackIfAny(PokemonInstance& p)
 
     if (windowSec <= 0.0f) return;
 
-    const float clipDur = clipDurationSec(p, p.animAttack1Index);
+    const int animIdx = (p.queuedAttackAnimIndex >= 0) ? p.queuedAttackAnimIndex : p.animAttack1Index;
+    p.queuedAttackAnimIndex = -1;
+
+    const float clipDur = clipDurationSec(p, animIdx);
     p.attackAnimSpeed = (clipDur > 0.0f && windowSec > 0.0f) ? (clipDur / windowSec) : 1.0f;
 
     p.attackTimerSec = windowSec;
     p.animTimeSec = 0.0f;
-    p.activeAnimIndex = p.animAttack1Index;
+    p.currentAttackAnimIndex = animIdx;
+    p.activeAnimIndex = animIdx;
 
     if (isDebug(p)) {
         std::cout << "[AnimDebug] " << p.name << " (ID " << p.id << ") starting queued attack"
@@ -585,3 +590,4 @@ static inline void tick(PokemonInstance& p, float dt, float sharedLoopTimeSec)
 }
 
 } // namespace FlightLocomotion
+

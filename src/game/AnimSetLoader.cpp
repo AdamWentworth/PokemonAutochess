@@ -10,6 +10,7 @@
 // Keep includes compatible with your project include layout:
 #include "./engine/render/Model.h"
 #include "PokemonInstance.h"
+#include "FlyerConfigLoader.h"
 
 namespace AnimSet {
 
@@ -303,7 +304,7 @@ void applyAnimSetOverrides(PokemonInstance& inst, const std::string& modelPath)
     inst.queuedAttackDurationSec   = 0.0f;
     inst.landingLoopTargetSec = 0.0f;
 
-    inst.debugAnimLogs = (toLower(inst.name) == "pidgey");
+    inst.debugAnimLogs = (toLower(inst.name) == "bulbasaur");
 
     if (!inst.model) return;
 
@@ -323,7 +324,6 @@ void applyAnimSetOverrides(PokemonInstance& inst, const std::string& modelPath)
             const std::string mm = toLower(meta["movementMode"].get<std::string>());
             if (mm == "airborne" || mm == "air" || mm == "flying" || mm == "fly") {
                 metaAirborne = true;
-                inst.usesAirLocomotion = true;
             }
         }
 
@@ -343,6 +343,8 @@ void applyAnimSetOverrides(PokemonInstance& inst, const std::string& modelPath)
             inst.debugAnimLogs = meta["debugAnimLogs"].get<bool>();
         }
     }
+
+    const bool allowFlight = metaAirborne || FlyerConfigLoader::getInstance().isFlyer(inst.name);
 
     const RolePick idlePick = resolveRoleClip(j, "idle", "idle", {"battlewait", "defaultwait", "idle", "wait"}, true);
     const RolePick movePick = resolveRoleClip(j, "move", "move", {"run", "dash", "move"}, true);
@@ -421,9 +423,18 @@ void applyAnimSetOverrides(PokemonInstance& inst, const std::string& modelPath)
 
     const bool hasDistinctLand = hasSeqLanding ||
         (hasTakeoff && hasSingleLanding && inst.animTakeoffIndex != inst.animLandIndex);
-
-    if (metaAirborne || (hasTakeoff && hasDistinctLand)) {
+    if (allowFlight && (metaAirborne || (hasTakeoff && hasDistinctLand))) {
         inst.usesAirLocomotion = true;
+    } else {
+        inst.usesAirLocomotion = false;
+        inst.animTakeoffIndex = -1;
+        inst.animLandIndex = -1;
+        inst.animLandAIndex = -1;
+        inst.animLandBIndex = -1;
+        inst.animLandCIndex = -1;
+        inst.airLiftY = 0.0f;
+        inst.takeoffSec = 0.0f;
+        inst.landingSec = 0.0f;
     }
 
     if (!metaAirLiftSpecified && inst.usesAirLocomotion && toLower(inst.name) == "pidgey") {

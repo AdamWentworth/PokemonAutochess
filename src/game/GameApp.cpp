@@ -17,6 +17,7 @@
 #include "game/GameStateManager.h"
 #include "game/PokemonConfigLoader.h"
 #include "game/MovesConfigLoader.h"
+#include "game/AttackAnimConfigLoader.h"
 #include "game/systems/CameraSystem.h"
 #include "game/systems/UnitInteractionSystem.h"
 #include "game/systems/RoundSystem.h"
@@ -46,6 +47,8 @@ void GameApp::init(GameContext& ctx) {
     // Load configs (game-specific)
     PokemonConfigLoader::getInstance().loadConfig("config/pokemon_config.json");
     MovesConfigLoader::getInstance().loadConfig("config/moves_config.json");
+    // Attack animation clips for fast/charged moves (e.g. Bulbasaur vine_whip start/loop/end)
+    AttackAnimConfigLoader::getInstance().loadConfig("config/attack_anim_config.json");
 
     std::cout << "[Init] CWD: " << std::filesystem::current_path() << "\n";
 

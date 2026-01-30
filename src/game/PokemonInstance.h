@@ -3,6 +3,7 @@
 
 #include <string>
 #include <memory>
+#include <unordered_map>
 #include <glm/glm.hpp>
 #include <glm/gtc/quaternion.hpp>
 
@@ -88,6 +89,19 @@ struct PokemonInstance {
     float attackTimerSec    = 0.0f;
     float attackDurationSec = 0.0f; // filled from manifest / animset
 
+    // Which clip to play during the current attack window (defaults to animAttack1Index).
+    int currentAttackAnimIndex = 1;
+
+    // Cache of animation indices resolved by clip name (avoids repeated linear searches).
+    std::unordered_map<std::string, int> animIndexCache;
+
+    // Generic fast-move chaining (for start/loop/end style moves).
+    std::string chainedFastMove;     // lower-case move name
+    float fastChainTimerSec = 0.0f;  // if >0 and chainedFastMove matches, treat as "continuing"
+
+    // Airborne queued attack can request a specific anim index.
+    int queuedAttackAnimIndex = -1;
+
 
     // --- Flight visuals (optional; visual-only) ---
     // Enabled when an animset provides takeoff+landing clips, or meta movementMode="airborne".
@@ -138,7 +152,7 @@ struct PokemonInstance {
 
     // Optional: speed multiplier for the attack animation itself (visual-only).
     float attackAnimSpeed  = 1.00f;
-// Landing-loop (B) target duration in clip-time (computed when landing begins).
+    // Landing-loop (B) target duration in clip-time (computed when landing begins).
     float landingLoopTargetSec = 0.0f;
 
     // Internal state for movement-transition detection
@@ -156,3 +170,4 @@ struct PokemonInstance {
         return next++;
     }
 };
+

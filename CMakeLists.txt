@@ -121,7 +121,9 @@ add_executable(PokemonAutochess
     src/game/GameConfig.cpp
     src/game/LogBus.cpp
     src/game/MovesConfigLoader.cpp
+    src/game/AttackAnimConfigLoader.cpp
     src/game/AnimSetLoader.cpp
+    src/game/FlyerConfigLoader.cpp
 
     # Game VFX (NEW)
     src/game/vfx/TailFireVFX.cpp
@@ -181,3 +183,4 @@ if (WIN32)
         LINK_FLAGS "/SUBSYSTEM:CONSOLE /ENTRY:mainCRTStartup"
     )
 endif()
+

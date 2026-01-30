@@ -219,10 +219,14 @@ void GameWorld::update(float dt)
     auto tickPokemonAnim = [&](PokemonInstance& p) {
         if (!p.alive || !p.model) return;
 
+        p.fastChainTimerSec = std::max(0.0f, p.fastChainTimerSec - dt);
+
         // attack one-shot has priority (only used when attackTimerSec > 0)
         if (p.attackTimerSec > 0.0f) {
-            if (p.activeAnimIndex != p.animAttack1Index) {
-                p.activeAnimIndex = p.animAttack1Index;
+            const int atkIdx = (p.currentAttackAnimIndex >= 0) ? p.currentAttackAnimIndex : p.animAttack1Index;
+
+            if (p.activeAnimIndex != atkIdx) {
+                p.activeAnimIndex = atkIdx;
                 p.animTimeSec = 0.0f;
             }
 
@@ -243,6 +247,7 @@ void GameWorld::update(float dt)
             if (p.attackTimerSec <= 0.0f) {
                 p.animTimeSec = 0.0f;
                 p.attackAnimSpeed = 1.0f; // reset
+                p.currentAttackAnimIndex = p.animAttack1Index; // reset
                 p.activeAnimIndex = (p.isMoving ? p.animMoveIndex
                                                 : (p.usesAirLocomotion ? p.animGroundIdleIndex : p.animIdleIndex));
             }
@@ -348,5 +353,6 @@ glm::vec3 GameWorld::getNearestEnemyPosition(const PokemonInstance& unit) const
 
     return closestPos;
 }
+
 
 
