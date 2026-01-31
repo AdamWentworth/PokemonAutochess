@@ -1,5 +1,6 @@
 // AttackAnimConfigLoader.cpp
 #include "AttackAnimConfigLoader.h"
+#include "LogBus.h"
 
 #include <fstream>
 #include <iostream>
@@ -32,26 +33,51 @@ bool AttackAnimConfigLoader::loadConfig(const std::string& filePath) {
         return false;
     }
 
-    db_.clear();
+    return parseJsonIntoDb(j, /*clearFirst=*/true);
+}
 
-    if (!j.is_object()) {
-        std::cerr << "[AttackAnimConfigLoader] Root must be an object: " << filePath << "\n";
+bool AttackAnimConfigLoader::loadConfigMerge(const std::string& filePath) {
+    std::ifstream file(filePath);
+    if (!file.is_open()) {
+        // Overrides are optional; don't spam logs.
         return false;
     }
+
+    nlohmann::json j;
+    try {
+        file >> j;
+    } catch (...) {
+        std::cerr << "[AttackAnimConfigLoader] Failed to parse JSON: " << filePath << "\n";
+        return false;
+    }
+
+    return parseJsonIntoDb(j, /*clearFirst=*/false);
+}
+
+bool AttackAnimConfigLoader::parseJsonIntoDb(const nlohmann::json& j, bool clearFirst) {
+    if (clearFirst) {
+        db_.clear();
+        minReqSec_.clear();
+    }
+
+    if (!j.is_object()) {
+        std::cerr << "[AttackAnimConfigLoader] Root must be an object\n";
+        return false;
+    }
+
+    // Supported per-move tuning keys (lowercase).
+    // Kept underscore-prefixed to avoid collisions with phases like "start"/"loop"/"end".
+    const std::string kMinReq = "_minrequestsec";
 
     for (auto itSpecies = j.begin(); itSpecies != j.end(); ++itSpecies) {
         const std::string species = toLower(itSpecies.key());
         const auto& speciesObj = itSpecies.value();
         if (!speciesObj.is_object()) continue;
 
-        KindMap kindMap;
-
         for (auto itKind = speciesObj.begin(); itKind != speciesObj.end(); ++itKind) {
             const std::string kind = toLower(itKind.key()); // fast/charged
             const auto& kindObj = itKind.value();
             if (!kindObj.is_object()) continue;
-
-            MoveMap moveMap;
 
             for (auto itMove = kindObj.begin(); itMove != kindObj.end(); ++itMove) {
                 const std::string move = toLower(itMove.key()); // move name or "*"
@@ -59,21 +85,31 @@ bool AttackAnimConfigLoader::loadConfig(const std::string& filePath) {
                 if (!moveObj.is_object()) continue;
 
                 PhaseMap phaseMap;
-                for (auto itPhase = moveObj.begin(); itPhase != moveObj.end(); ++itPhase) {
-                    const std::string phase = toLower(itPhase.key());
-                    const auto& v = itPhase.value();
+
+                // Parse both phase->clip entries and optional underscore-prefixed tuning keys.
+                for (auto itEntry = moveObj.begin(); itEntry != moveObj.end(); ++itEntry) {
+                    const std::string keyLower = toLower(itEntry.key());
+                    const auto& v = itEntry.value();
+
                     if (v.is_string()) {
-                        phaseMap[phase] = v.get<std::string>();
+                        phaseMap[keyLower] = v.get<std::string>();
+                        continue;
+                    }
+
+                    if (keyLower == kMinReq && v.is_number()) {
+                        const float vv = v.get<float>();
+                        if (vv > 0.0f) {
+                            minReqSec_[species][kind][move] = vv;
+                        }
+                        continue;
                     }
                 }
 
-                if (!phaseMap.empty()) moveMap[move] = std::move(phaseMap);
+                if (!phaseMap.empty()) {
+                    db_[species][kind][move] = std::move(phaseMap);
+                }
             }
-
-            if (!moveMap.empty()) kindMap[kind] = std::move(moveMap);
         }
-
-        if (!kindMap.empty()) db_[species] = std::move(kindMap);
     }
 
     std::cout << "[AttackAnimConfigLoader] Loaded species: " << db_.size() << "\n";
@@ -89,6 +125,12 @@ std::string AttackAnimConfigLoader::getClipName(const std::string& species,
     const std::string k = toLower(kind);
     const std::string m = toLower(move);
     const std::string p = toLower(phase);
+
+    const bool traceVW = (s == "bulbasaur" && m == "vine_whip");
+    auto vwlog = [&](const std::string& msg){
+        if (traceVW) LogBus::infoTerminalOnly(std::string("[VW_ANIMCFG] ") + msg);
+    };
+
 
     auto itS = db_.find(s);
     if (itS == db_.end()) return "";
@@ -116,11 +158,50 @@ std::string AttackAnimConfigLoader::getClipName(const std::string& species,
     // Prefer exact move, then "*" wildcard.
     if (!m.empty()) {
         std::string out = lookup(m, p);
+        if (traceVW) vwlog(std::string("getClipName species=") + s + " kind=" + k + " move=" + m + " phase=" + p + " -> exact=" + (out.empty() ? std::string("<empty>") : out));
         if (!out.empty()) return out;
     }
 
     std::string out = lookup("*", p);
+    if (traceVW) vwlog(std::string("getClipName species=") + s + " kind=" + k + " move=" + m + " phase=" + p + " -> wildcard=" + (out.empty() ? std::string("<empty>") : out));
     return out;
 }
 
+float AttackAnimConfigLoader::getMinRequestSec(const std::string& species,
+                                               const std::string& kind,
+                                               const std::string& move) const
+{
+    const std::string s = toLower(species);
+    const std::string k = toLower(kind);
+    const std::string m = toLower(move);
+
+    const bool traceVW = (s == "bulbasaur" && m == "vine_whip");
+    auto vwlog = [&](const std::string& msg){
+        if (traceVW) LogBus::infoTerminalOnly(std::string("[VW_ANIMCFG] ") + msg);
+    };
+
+
+    auto itS = minReqSec_.find(s);
+    if (itS == minReqSec_.end()) return 0.0f;
+
+    auto itK = itS->second.find(k);
+    if (itK == itS->second.end()) return 0.0f;
+
+    const MoveFloatMap& mm = itK->second;
+
+    auto lookup = [&](const std::string& moveKey) -> float {
+        auto itM = mm.find(moveKey);
+        if (itM == mm.end()) return 0.0f;
+        return itM->second;
+    };
+
+    if (!m.empty()) {
+        float v = lookup(m);
+        if (v > 0.0f) return v;
+    }
+
+    const float out = lookup("*");
+    if (traceVW) vwlog(std::string("getMinRequestSec species=") + s + " kind=" + k + " move=" + m + " -> " + std::to_string(out));
+    return out;
+}
 

@@ -1,5 +1,7 @@
 // src/game/GameWorld.cpp
 #include "GameWorld.h"
+#include "LogBus.h"
+#include <unordered_map>
 
 #include "./engine/utils/ResourceManager.h"
 #include "./engine/render/Model.h"
@@ -233,18 +235,55 @@ void GameWorld::update(float dt)
             // run timer down
             p.attackTimerSec = std::max(0.0f, p.attackTimerSec - dt);
 
+
+            // Vine Whip trace: only for Bulbasaur while fast-chain indicates vine_whip.
+            const bool traceVW = (p.name == "bulbasaur" && p.chainedFastMove == "vine_whip");
+            if (traceVW) {
+                static std::unordered_map<int, float> prevAtkTimer;
+                static std::unordered_map<int, float> prevAnimTime;
+                const float prevT = prevAtkTimer[p.id];
+                const float prevA = prevAnimTime[p.id];
+                prevAtkTimer[p.id] = p.attackTimerSec;
+                prevAnimTime[p.id] = p.animTimeSec;
+
+                LogBus::infoTerminalOnly(std::string("[VW_TICK] ") +
+                    "id=" + std::to_string(p.id) +
+                    " dt=" + std::to_string(dt) +
+                    " atkTimer=" + std::to_string(p.attackTimerSec) +
+                    " animTime=" + std::to_string(p.animTimeSec) +
+                    " activeAnimIdx=" + std::to_string(p.activeAnimIndex) +
+                    " curAtkAnimIdx=" + std::to_string(p.currentAttackAnimIndex) +
+                    " speed=" + std::to_string(p.attackAnimSpeed) +
+                    " prevAtkTimer=" + std::to_string(prevT) +
+                    " prevAnimTime=" + std::to_string(prevA));
+            }
+
             // clamp at last frame (avoid looping)
             const float speed = (p.attackAnimSpeed > 0.0f) ? p.attackAnimSpeed : 1.0f;
 
             float dur = p.model->getAnimationDurationSec(p.activeAnimIndex);
             if (dur > 0.0f) {
                 p.animTimeSec = std::min(p.animTimeSec + dt * speed, dur - 0.0001f);
+
+                if (traceVW && (p.animTimeSec >= dur - 0.00011f)) {
+                    LogBus::infoTerminalOnly(std::string("[VW_TICK] clamped_end ") +
+                        "id=" + std::to_string(p.id) +
+                        " dur=" + std::to_string(dur) +
+                        " animTime=" + std::to_string(p.animTimeSec));
+                }
             } else {
                 p.animTimeSec += dt * speed;
             }
 
             // when done, return to locomotion
             if (p.attackTimerSec <= 0.0f) {
+
+                if (traceVW) {
+                    LogBus::infoTerminalOnly(std::string("[VW_TICK] attack_end ") +
+                        "id=" + std::to_string(p.id) +
+                        " finalAnimTime=" + std::to_string(p.animTimeSec) +
+                        " activeAnimIdx=" + std::to_string(p.activeAnimIndex));
+                }
                 p.animTimeSec = 0.0f;
                 p.attackAnimSpeed = 1.0f; // reset
                 p.currentAttackAnimIndex = p.animAttack1Index; // reset
@@ -353,8 +392,3 @@ glm::vec3 GameWorld::getNearestEnemyPosition(const PokemonInstance& unit) const
 
     return closestPos;
 }
-
-
-
-
-

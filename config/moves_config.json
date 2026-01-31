@@ -163,7 +163,7 @@
     "cooldownSec": 0.5,
     "energyGain": 8,
     "kind": "fast",
-    "power": 7,
+    "power": 8,
     "range": 2.0,
     "type": "grass"
   },

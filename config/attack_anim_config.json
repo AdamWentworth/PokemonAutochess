@@ -2,9 +2,8 @@
   "bulbasaur": {
     "fast": {
       "vine_whip": {
-        "start": "pm0001_00_00_00410_attack02.gfbanm__START",
+        "_minRequestSec": 2.6,
         "loop": "pm0001_00_00_00410_attack02.gfbanm",
-        "end": "pm0001_00_00_00410_attack02.gfbanm__END",
         "default": "pm0001_00_00_00410_attack02.gfbanm"
       }
     },
@@ -15,4 +14,3 @@
     }
   }
 }
-

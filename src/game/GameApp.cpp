@@ -248,5 +248,3 @@ void GameApp::preloadCommonModels(GameContext& ctx) {
     if (ctx.setTitle) ctx.setTitle("Pokemon Autochess");
     if (ctx.pumpPreloadEvents) ctx.pumpPreloadEvents();
 }
-
-

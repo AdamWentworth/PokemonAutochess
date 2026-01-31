@@ -66,7 +66,7 @@ static glm::ivec2 worldToGrid(const glm::vec3& pos) {
 //
 // - Receiving damage: unchanged (targets always lose HP when this function decides to apply it).
 // - Applying damage: ONLY occurs if the attacker is actually playing its attack animation
-//   (i.e., attackTimerSec > 0 and activeAnimIndex == animAttack1Index).
+//   (i.e., attackTimerSec > 0 and activeAnimIndex == currently-selected attack clip).
 //
 // This prevents "ghost" hits during takeoff/landing/other cosmetic animations.
 //
@@ -74,7 +74,14 @@ static glm::ivec2 worldToGrid(const glm::vec3& pos) {
 // deal damage. If the loop calls it continuously every tick while in range, this gating
 // will make it apply damage only once you start the attack animation (and only while it’s active),
 // but you should still make sure the combat logic has a cooldown / one-shot trigger.
+//
+// ADDITIONAL CHANGE (anim state correctness):
+// - Do NOT switch attack clips mid-cycle.
+// - Fast attacks: always use the configured loop clip (phase=loop). Start/end are ignored.
+// - Charged attacks: keep using the configured one_shot/default clip.
+// - Disable legacy fast-attack chaining state (chainedFastMove/fastChainTimerSec).
 // ============================================================================
+
 
 static bool attackerIsInAttackAnimation(const PokemonInstance& A) {
     if (!A.alive) return false;
@@ -207,30 +214,7 @@ void registerLuaBindings(sol::state& lua, GameWorld* world, GameStateManager* ma
         auto it = std::find_if(list.begin(), list.end(),
             [&](const PokemonInstance& p){ return p.id == unitId; });
         if (it == list.end() || !it->alive) return false;
-
-        // If this unit is in a chained fast-attack loop, optionally play the configured "end" clip
-        // as a short transition cue before moving.
-        if (it->fastChainTimerSec > 0.0f && !it->chainedFastMove.empty()) {
-            const std::string speciesLower = toLowerCopy(it->name);
-            const std::string clipEnd = AttackAnimConfigLoader::getInstance().getClipName(
-                speciesLower, "fast", it->chainedFastMove, "end");
-
-            const int endIdx = animIndexCached(*it, clipEnd);
-            if (endIdx >= 0 && it->model) {
-                const float clipDur = it->model->getAnimationDurationSec(endIdx);
-                const float window  = 0.25f; // short cue; don't stall movement timing
-
-                it->attackTimerSec = window;
-                it->attackAnimSpeed = (clipDur > 0.0f) ? (clipDur / window) : 1.0f;
-
-                it->currentAttackAnimIndex = endIdx;
-                it->activeAnimIndex = endIdx;
-                it->animTimeSec = 0.0f;
-            }
-
-            it->chainedFastMove.clear();
-            it->fastChainTimerSec = 0.0f;
-        }
+        // NOTE: Fast attacks no longer use __END transition cues when movement begins.
 
         const auto target = gridToWorld(col,row);
         it->committedDest = {col,row};
@@ -325,8 +309,26 @@ void registerLuaBindings(sol::state& lua, GameWorld* world, GameStateManager* ma
         for (auto& u : world->getPokemons()) {
             if (u.id != unitId) continue;
             if (!u.alive) return false;
-            if (u.isMoving) return false;
+            // IMPORTANT: do NOT gate attacks on isMoving.
+            // Some movement systems keep isMoving=true while "holding" in melee,
+            // which would suppress all attacks.
+            // We only block initiating attacks for visual-only airborne locomotion.
             if (u.usesAirLocomotion && FlightLocomotion::isAirborne(u)) return false;
+            return true;
+        }
+        return false;
+    });
+
+    // Can this unit *start a new attack animation cycle right now*?
+    // - blocks when an attack is already playing (attackTimerSec > 0)
+    // - blocks when visual-only flight locomotion is airborne
+    lua.set_function("world_attack_ready", [world](int unitId) {
+        if (!world) return false;
+        for (auto& u : world->getPokemons()) {
+            if (u.id != unitId) continue;
+            if (!u.alive) return false;
+            if (u.usesAirLocomotion && FlightLocomotion::isAirborne(u)) return false;
+            if (u.attackTimerSec > 0.0001f) return false;
             return true;
         }
         return false;
@@ -361,67 +363,116 @@ void registerLuaBindings(sol::state& lua, GameWorld* world, GameStateManager* ma
         }
         if (kindLower.empty()) kindLower = "fast";
 
+
+        const bool traceVW = (speciesLower == "bulbasaur" && moveLower == "vine_whip");
+        auto vwlog = [&](const std::string& msg) {
+            if (!traceVW) return;
+            LogBus::infoTerminalOnly(std::string("[VW_CPP] ") + msg);
+        };
+
+        if (traceVW) {
+            vwlog(std::string("enter attackerId=") + std::to_string(attackerId) +
+                  " targetId=" + std::to_string(targetId) +
+                  " kind=" + kindLower +
+                  " move=" + (moveLower.empty() ? std::string("-") : moveLower) +
+                  " amount=" + std::to_string(amount) +
+                  " cadenceSec_in=" + std::to_string(cadenceSec.value_or(-1.0f)) +
+                  " atkTimer=" + std::to_string(A->attackTimerSec) +
+                  " atkDur=" + std::to_string(A->attackDurationSec) +
+                  " activeAnimIdx=" + std::to_string(A->activeAnimIndex) +
+                  " curAtkAnimIdx=" + std::to_string(A->currentAttackAnimIndex) +
+                  " atkAnimSpeed=" + std::to_string(A->attackAnimSpeed) +
+                  " fastChainTimerSec=" + std::to_string(A->fastChainTimerSec) +
+                  " chainedFastMove=" + (A->chainedFastMove.empty() ? std::string("-") : A->chainedFastMove));
+        }
+
         // If this attacker has an attack animation, enforce: 1 damage event == 1 animation cycle.
         if (A->attackDurationSec > 0.0f && A->animAttack1Index >= 0) {
             bool airborne = false;
             if (A->usesAirLocomotion) airborne = FlightLocomotion::isAirborne(*A);
 
+            // Window = "how long this attack cycle should take" (cadence). We may speed up / slow down
+            // the clip to fit the requested window. This keeps Lua cooldowns and animation windows aligned.
             float desiredWindowSec = cadenceSec.value_or(0.0f);
             if (desiredWindowSec <= 0.0f) desiredWindowSec = A->attackDurationSec;
-            if (desiredWindowSec <= 0.0f && A->model) {
-                desiredWindowSec = A->model->getAnimationDurationSec(A->animAttack1Index);
-            }
 
             // Pick a clip from config (if any).
             const auto& animCfg = AttackAnimConfigLoader::getInstance();
 
+            // Per-move minimum request seconds (prevents unreasonably tiny windows).
+            const float minReqSec = animCfg.getMinRequestSec(speciesLower, kindLower, moveLower);
+            if (minReqSec > 0.0f) desiredWindowSec = std::max(desiredWindowSec, minReqSec);
+
+            if (traceVW) {
+                const float baseCad = cadenceSec.value_or(0.0f);
+                const float atk1Dur = (A->model && A->animAttack1Index >= 0) ? A->model->getAnimationDurationSec(A->animAttack1Index) : 0.0f;
+                vwlog(std::string("cadence baseCadenceArg=") + std::to_string(baseCad) +
+                      " attackDurationSec=" + std::to_string(A->attackDurationSec) +
+                      " clipDur_attack1=" + std::to_string(atk1Dur) +
+                      " minReqSec=" + std::to_string(minReqSec) +
+                      " desiredWindowSec=" + std::to_string(desiredWindowSec));
+            }
+
+            // amount<=0 requests are cosmetic queries from Lua (used when attacks are blocked).
+            // They must not start an animation window or block real damage later.
+            if (amount <= 0) {
+                if (traceVW) vwlog("cosmetic: amount<=0 -> ignore (no cycle)");
+                return T->hp;
+            }
+
+            // If we're already mid-cycle, do NOT start a new cycle or apply damage.
+            // Charged attacks are NOT allowed to preempt a running cycle; they should be
+            // queued/triggered by Lua on the next available attack (after this one ends).
+            const float kMidCycleEps = 0.0001f;
+            if (A->attackTimerSec > kMidCycleEps) {
+                if (traceVW) vwlog("lock: mid-cycle -> ignore request (no new cycle, no damage)");
+                return T->hp;
+            }
+
+            // Choose phase/clip for THIS cycle (do not switch mid-cycle).
             int desiredAnimIdx = A->animAttack1Index;
+            std::string phase = "default";
+            std::string clipUsed;
 
             if (!speciesLower.empty()) {
                 if (kindLower == "charged") {
-                    const std::string clip = animCfg.getClipName(speciesLower, "charged", moveLower, "one_shot");
-                    const int idx = animIndexCached(*A, clip);
+                    phase = "one_shot";
+                    clipUsed = animCfg.getClipName(speciesLower, "charged", moveLower, "one_shot");
+                    const int idx = animIndexCached(*A, clipUsed);
                     if (idx >= 0) desiredAnimIdx = idx;
                 } else if (kindLower == "fast" && !moveLower.empty()) {
-                    const std::string clipStart = animCfg.getClipName(speciesLower, "fast", moveLower, "start");
-                    const std::string clipLoop  = animCfg.getClipName(speciesLower, "fast", moveLower, "loop");
-                    const std::string clipEnd   = animCfg.getClipName(speciesLower, "fast", moveLower, "end");
-                    const std::string clipDef   = animCfg.getClipName(speciesLower, "fast", moveLower, "default");
+                    const std::string clipLoop = animCfg.getClipName(speciesLower, "fast", moveLower, "loop");
+                    const std::string clipDef  = animCfg.getClipName(speciesLower, "fast", moveLower, "default");
 
-                    const bool hasStart = !clipStart.empty();
-                    const bool hasLoop  = !clipLoop.empty();
-                    const bool hasEnd   = !clipEnd.empty();
+                    // New simplified policy:
+                    // - NO __START
+                    // - NO __END
+                    // - Always use the configured loop clip (fallback to default).
+                    phase = "loop";
+                    clipUsed = clipLoop;
+                    if (clipUsed.empty()) {
+                        phase = "default";
+                        clipUsed = clipDef;
+                    }
 
-                    const int hpBefore = T->hp;
-                    const int dmg      = std::max(0, amount);
-                    const bool willKill = (dmg > 0 && (hpBefore - dmg) <= 0);
-
-                    if (willKill && hasEnd) {
-                        const int idx = animIndexCached(*A, clipEnd);
-                        if (idx >= 0) desiredAnimIdx = idx;
-                        A->chainedFastMove.clear();
-                        A->fastChainTimerSec = 0.0f;
-                    } else if (A->fastChainTimerSec > 0.0f && A->chainedFastMove == moveLower && hasLoop) {
-                        const int idx = animIndexCached(*A, clipLoop);
-                        if (idx >= 0) desiredAnimIdx = idx;
-                    } else if (hasStart) {
-                        const int idx = animIndexCached(*A, clipStart);
-                        if (idx >= 0) desiredAnimIdx = idx;
-                    } else if (hasLoop) {
-                        const int idx = animIndexCached(*A, clipLoop);
-                        if (idx >= 0) desiredAnimIdx = idx;
-                    } else if (!clipDef.empty()) {
-                        const int idx = animIndexCached(*A, clipDef);
+                    if (!clipUsed.empty()) {
+                        const int idx = animIndexCached(*A, clipUsed);
                         if (idx >= 0) desiredAnimIdx = idx;
                     }
 
-                    // Extend/refresh chain window so repeated fast attacks can switch to "loop".
-                    if (dmg > 0) {
-                        A->chainedFastMove = moveLower;
-                        const float cd = std::max(0.05f, desiredWindowSec);
-                        A->fastChainTimerSec = std::max(A->fastChainTimerSec, cd * 1.25f);
-                    }
+                    // Disable legacy chain state (not used with loop-only behavior).
+                    A->chainedFastMove.clear();
+                    A->fastChainTimerSec = 0.0f;
+
                 }
+            }
+
+            if (traceVW) {
+                float clipDur = (A->model && desiredAnimIdx >= 0) ? A->model->getAnimationDurationSec(desiredAnimIdx) : 0.0f;
+                vwlog(std::string("resolved desiredAnimIdx=") + std::to_string(desiredAnimIdx) +
+                      " clipDur=" + std::to_string(clipDur) +
+                      " fastChainTimerSec=" + std::to_string(A->fastChainTimerSec) +
+                      " chainedFastMove=" + (A->chainedFastMove.empty() ? std::string("-") : A->chainedFastMove));
             }
 
 #ifdef PAC_DEBUG_ANIM
@@ -440,33 +491,26 @@ void registerLuaBindings(sol::state& lua, GameWorld* world, GameStateManager* ma
                 return T->hp;
             }
 
-            bool startedThisCall = false;
-            if (A->attackTimerSec <= 0.0f || A->activeAnimIndex != desiredAnimIdx) {
-                const float clipDur  = (A->model ? A->model->getAnimationDurationSec(desiredAnimIdx) : A->attackDurationSec);
-                const float windowSec = (desiredWindowSec > 0.0f ? desiredWindowSec : clipDur);
+            // Start this cycle.
+            const float clipDur  = (A->model ? A->model->getAnimationDurationSec(desiredAnimIdx) : A->attackDurationSec);
+            const float windowSec = std::max(0.05f, desiredWindowSec);
 
-                A->attackTimerSec = windowSec;
-                A->animTimeSec = 0.0f;
-                A->currentAttackAnimIndex = desiredAnimIdx;
-                A->activeAnimIndex = desiredAnimIdx;
-                A->attackAnimSpeed = (windowSec > 0.0f && clipDur > 0.0f) ? (clipDur / windowSec) : 1.0f;
+            A->attackTimerSec = windowSec;
+            A->animTimeSec = 0.0f;
+            A->currentAttackAnimIndex = desiredAnimIdx;
+            A->activeAnimIndex = desiredAnimIdx;
+            A->attackAnimSpeed = (windowSec > 0.0f && clipDur > 0.0f) ? (clipDur / windowSec) : 1.0f;
 
-                startedThisCall = true;
-            }
+            const bool startedThisCall = true;
 
-            std::string phase = "default";
-            std::string clipUsed;
-            if (kindLower == "charged") {
-                phase = "one_shot";
-                clipUsed = AttackAnimConfigLoader::getInstance().getClipName(speciesLower, "charged", moveLower, "one_shot");
-            } else if (kindLower == "fast") {
-                const int hpBefore = T->hp;
-                const int dmg      = std::max(0, amount);
-                const bool willKill = (dmg > 0 && (hpBefore - dmg) <= 0);
-
-                if (willKill) { phase = "end"; clipUsed = AttackAnimConfigLoader::getInstance().getClipName(speciesLower, "fast", moveLower, "end"); }
-                else if (A->fastChainTimerSec > 0.0f && A->chainedFastMove == moveLower) { phase = "loop"; clipUsed = AttackAnimConfigLoader::getInstance().getClipName(speciesLower, "fast", moveLower, "loop"); }
-                else { phase = "start"; clipUsed = AttackAnimConfigLoader::getInstance().getClipName(speciesLower, "fast", moveLower, "start"); }
+            if (traceVW) {
+                vwlog(std::string("attack_state startedThisCall=true") +
+                      " windowSec=" + std::to_string(windowSec) +
+                      " clipDur=" + std::to_string(clipDur) +
+                      " activeAnimIdx=" + std::to_string(A->activeAnimIndex) +
+                      " currentAttackAnimIndex=" + std::to_string(A->currentAttackAnimIndex) +
+                      " atkAnimSpeed=" + std::to_string(A->attackAnimSpeed) +
+                      " atkTimer=" + std::to_string(A->attackTimerSec));
             }
 
             if (A->debugAnimLogs) {
@@ -480,14 +524,21 @@ void registerLuaBindings(sol::state& lua, GameWorld* world, GameStateManager* ma
             }
 
             // Only allow damage once per attack cycle.
-            if (!startedThisCall || amount <= 0) return T->hp;
-
+            if (amount <= 0) return T->hp;
             if (!attackerIsInAttackAnimation(*A)) return T->hp;
         }
 
-        // Apply damage.
+// Apply damage.
         int dmg = std::max(0, amount);
+        if (traceVW) {
+            vwlog(std::string("damage_apply dmg=") + std::to_string(dmg) +
+                  " hp_before=" + std::to_string(T->hp));
+        }
         T->hp = std::max(0, T->hp - dmg);
+        if (traceVW) {
+            vwlog(std::string("damage_result hp_after=") + std::to_string(T->hp) +
+                  " targetAlive=" + std::string(T->hp > 0 ? "true" : "false"));
+        }
 
         if (T->hp <= 0) {
             T->hp = 0;
@@ -542,6 +593,31 @@ void registerLuaBindings(sol::state& lua, GameWorld* world, GameStateManager* ma
         auto c = worldToGrid(glm::vec3{x,y,z});
         return std::make_pair(c.x, c.y);
     });
+
+
+    // Optional: per-move tuning for minimum seconds between attack requests.
+    // Returns 0 when no override exists (scripts should fall back to their defaults).
+    lua.set_function("world_attack_min_request_sec",
+        [world](int attackerId, sol::optional<std::string> moveName, sol::optional<std::string> kind) -> float {
+            if (!world) return 0.0f;
+            auto& list = world->getPokemons();
+            auto A = std::find_if(list.begin(), list.end(),
+                [&](const PokemonInstance& p){ return p.id == attackerId; });
+            if (A == list.end()) return 0.0f;
+
+            const std::string speciesLower = toLowerCopy(A->name);
+            const std::string moveLower    = moveName ? toLowerCopy(*moveName) : "";
+            std::string kindLower          = kind ? toLowerCopy(*kind) : "";
+
+            if (kindLower.empty() && !moveLower.empty()) {
+                if (const MoveData* md = MovesConfigLoader::getInstance().getMove(moveLower)) {
+                    kindLower = toLowerCopy(md->kind);
+                }
+            }
+            if (kindLower.empty()) kindLower = "fast";
+
+            return AttackAnimConfigLoader::getInstance().getMinRequestSec(speciesLower, kindLower, moveLower);
+        });
 
     // ----- Energy helpers -----
     lua.set_function("world_get_energy", [world](int unitId) {
@@ -607,6 +683,3 @@ void registerLuaBindings(sol::state& lua, GameWorld* world, GameStateManager* ma
         return t;
     });
 }
-
-
-
