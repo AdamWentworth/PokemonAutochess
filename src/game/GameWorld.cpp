@@ -275,6 +275,37 @@ void GameWorld::update(float dt)
                 p.animTimeSec += dt * speed;
             }
 
+            // Apply pending damage at the configured hit time (clip-time seconds).
+            if (p.pendingDamageActive && !p.pendingDamageApplied && p.pendingDamageAmount > 0) {
+                if (p.animTimeSec >= p.pendingDamageHitTimeSec) {
+                    auto itTgt = std::find_if(pokemons.begin(), pokemons.end(),
+                        [&](const PokemonInstance& u){ return u.id == p.pendingDamageTargetId; });
+
+                    if (itTgt != pokemons.end() && itTgt->alive) {
+                        const int dmg = std::max(0, p.pendingDamageAmount);
+                        itTgt->hp = std::max(0, itTgt->hp - dmg);
+                        if (itTgt->hp <= 0) {
+                            itTgt->hp = 0;
+                            itTgt->alive = false;
+
+                            // optional cleanup so dead units don't keep doing leftover animation state
+                            itTgt->isMoving = false;
+                            itTgt->attackTimerSec = 0.0f;
+                            itTgt->attackAnimSpeed = 1.0f;
+                            itTgt->currentAttackAnimIndex = itTgt->animAttack1Index;
+                            itTgt->pendingAttackAfterLanding = false;
+                            itTgt->queuedAttackDurationSec = 0.0f;
+                            itTgt->queuedAttackAnimIndex = -1;
+                            itTgt->chainedFastMove.clear();
+                            itTgt->fastChainTimerSec = 0.0f;
+                            itTgt->animIndexCache.clear();
+                        }
+                    }
+
+                    p.pendingDamageApplied = true;
+                }
+            }
+
             // when done, return to locomotion
             if (p.attackTimerSec <= 0.0f) {
 

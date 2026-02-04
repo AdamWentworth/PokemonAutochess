@@ -77,6 +77,9 @@ struct PokemonInstance {
     // per-instance animation time (seconds)
     float animTimeSec = 0.0f;
 
+    // Animation sampling FPS (from .animset.json top-level \"fps\").
+    float animFps = 24.0f;
+
     // animation role indices (resolved from manifest -> model animation index)
     int animIdleIndex    = 1;
     int animMoveIndex    = 1;
@@ -88,6 +91,14 @@ struct PokemonInstance {
     // attack one-shot control
     float attackTimerSec    = 0.0f;
     float attackDurationSec = 0.0f; // filled from manifest / animset
+
+
+    // Pending damage scheduled to land at a specific point in the attack animation.
+    bool  pendingDamageActive     = false;
+    bool  pendingDamageApplied    = false;
+    int   pendingDamageTargetId   = -1;
+    int   pendingDamageAmount     = 0;
+    float pendingDamageHitTimeSec = 0.0f; // clip-time seconds (compared against animTimeSec)
 
     // Which clip to play during the current attack window (defaults to animAttack1Index).
     int currentAttackAnimIndex = -1;
@@ -170,6 +181,3 @@ struct PokemonInstance {
         return next++;
     }
 };
-
-
-

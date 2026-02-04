@@ -58,6 +58,7 @@ bool AttackAnimConfigLoader::parseJsonIntoDb(const nlohmann::json& j, bool clear
     if (clearFirst) {
         db_.clear();
         minReqSec_.clear();
+        hitFrame_.clear();
     }
 
     if (!j.is_object()) {
@@ -68,6 +69,7 @@ bool AttackAnimConfigLoader::parseJsonIntoDb(const nlohmann::json& j, bool clear
     // Supported per-move tuning keys (lowercase).
     // Kept underscore-prefixed to avoid collisions with phases like "start"/"loop"/"end".
     const std::string kMinReq = "_minrequestsec";
+    const std::string kHitFrame = "_hitframe";
 
     for (auto itSpecies = j.begin(); itSpecies != j.end(); ++itSpecies) {
         const std::string species = toLower(itSpecies.key());
@@ -100,6 +102,14 @@ bool AttackAnimConfigLoader::parseJsonIntoDb(const nlohmann::json& j, bool clear
                         const float vv = v.get<float>();
                         if (vv > 0.0f) {
                             minReqSec_[species][kind][move] = vv;
+                        }
+                        continue;
+                    }
+
+                    if (keyLower == kHitFrame && (v.is_number_integer() || v.is_number_float())) {
+                        const int hf = v.get<int>();
+                        if (hf > 0) {
+                            hitFrame_[species][kind][move] = hf;
                         }
                         continue;
                     }
@@ -205,3 +215,34 @@ float AttackAnimConfigLoader::getMinRequestSec(const std::string& species,
     return out;
 }
 
+
+
+int AttackAnimConfigLoader::getHitFrame(const std::string& species,
+                                      const std::string& kind,
+                                      const std::string& move) const
+{
+    const std::string s = toLower(species);
+    const std::string k = toLower(kind);
+    const std::string m = toLower(move);
+
+    auto itS = hitFrame_.find(s);
+    if (itS == hitFrame_.end()) return -1;
+
+    auto itK = itS->second.find(k);
+    if (itK == itS->second.end()) return -1;
+
+    const MoveIntMap& mm = itK->second;
+
+    auto lookup = [&](const std::string& moveKey) -> int {
+        auto itM = mm.find(moveKey);
+        if (itM == mm.end()) return -1;
+        return itM->second;
+    };
+
+    if (!m.empty()) {
+        int v = lookup(m);
+        if (v > 0) return v;
+    }
+
+    return lookup("*");
+}

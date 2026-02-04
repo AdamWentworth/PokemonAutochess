@@ -65,6 +65,13 @@ public:
                            const std::string& kind,
                            const std::string& move) const;
 
+
+    // Optional tuning: which animation frame should apply damage for this (species, kind, move).
+    // Returns -1 if no override is present.
+    int getHitFrame(const std::string& species,
+                    const std::string& kind,
+                    const std::string& move) const;
+
 private:
     AttackAnimConfigLoader() = default;
 
@@ -83,4 +90,10 @@ private:
 
     std::unordered_map<std::string, KindMap> db_;
     std::unordered_map<std::string, KindFloatMap> minReqSec_;
+
+
+    // species -> kind -> move -> hitFrame
+    using MoveIntMap  = std::unordered_map<std::string, int>;
+    using KindIntMap  = std::unordered_map<std::string, MoveIntMap>;
+    std::unordered_map<std::string, KindIntMap> hitFrame_;
 };

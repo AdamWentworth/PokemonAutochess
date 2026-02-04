@@ -501,6 +501,14 @@ void registerLuaBindings(sol::state& lua, GameWorld* world, GameStateManager* ma
             A->activeAnimIndex = desiredAnimIdx;
             A->attackAnimSpeed = (windowSec > 0.0f && clipDur > 0.0f) ? (clipDur / windowSec) : 1.0f;
 
+
+            // Reset any pending hit from a previous cycle.
+            A->pendingDamageActive = false;
+            A->pendingDamageApplied = false;
+            A->pendingDamageTargetId = -1;
+            A->pendingDamageAmount = 0;
+            A->pendingDamageHitTimeSec = 0.0f;
+
             const bool startedThisCall = true;
 
             if (traceVW) {
@@ -526,6 +534,34 @@ void registerLuaBindings(sol::state& lua, GameWorld* world, GameStateManager* ma
             // Only allow damage once per attack cycle.
             if (amount <= 0) return T->hp;
             if (!attackerIsInAttackAnimation(*A)) return T->hp;
+
+            // If this move has a configured hit frame, schedule damage to land during the animation.
+            const int hitFrame = animCfg.getHitFrame(speciesLower, kindLower, moveLower);
+            if (hitFrame > 0) {
+                // Only schedule once per cycle.
+                if (!A->pendingDamageActive) {
+                    const float fps = (A->animFps > 0.0f) ? A->animFps : 24.0f;
+                    float hitTimeSec = (float)hitFrame / fps;
+
+                    // Clamp to clip duration if known (hit time is in *clip* seconds).
+                    const float clipDurClamp = (A->model && A->currentAttackAnimIndex >= 0)
+                        ? A->model->getAnimationDurationSec(A->currentAttackAnimIndex)
+                        : 0.0f;
+                    if (clipDurClamp > 0.0f) {
+                        const float maxT = std::max(0.0f, clipDurClamp - 0.0001f);
+                        hitTimeSec = std::min(hitTimeSec, maxT);
+                    }
+
+                    A->pendingDamageActive     = true;
+                    A->pendingDamageApplied    = false;
+                    A->pendingDamageTargetId   = targetId;
+                    A->pendingDamageAmount     = std::max(0, amount);
+                    A->pendingDamageHitTimeSec = std::max(0.0f, hitTimeSec);
+                }
+
+                // Return predicted HP (Lua often uses this for UI / state), but don't apply yet.
+                return std::max(0, T->hp - std::max(0, amount));
+            }
         }
 
 // Apply damage.

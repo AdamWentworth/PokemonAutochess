@@ -284,6 +284,8 @@ void applyAnimSetOverrides(PokemonInstance& inst, const std::string& modelPath)
     inst.activeAnimIndex   = fallbackLoop;
     inst.attackDurationSec = 0.0f;
 
+    inst.animFps          = 24.0f;
+
     inst.usesAirLocomotion = false;
     inst.animGroundIdleIndex = inst.animIdleIndex;
     inst.animAirIdleIndex    = inst.animIdleIndex;
@@ -313,6 +315,11 @@ void applyAnimSetOverrides(PokemonInstance& inst, const std::string& modelPath)
     nlohmann::json j;
     if (!loadAnimSetJson(animSetPath, j)) {
         return;
+    }
+
+    if (j.contains("fps") && j["fps"].is_number()) {
+        inst.animFps = j["fps"].get<float>();
+        if (inst.animFps <= 0.0f) inst.animFps = 24.0f;
     }
 
     bool metaAirborne = false;
@@ -497,5 +504,3 @@ void applyAnimSetOverrides(PokemonInstance& inst, const std::string& modelPath)
 }
 
 } // namespace AnimSet
-
-
