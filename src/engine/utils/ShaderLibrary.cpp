@@ -1,10 +1,9 @@
-// ShaderLibrary.cpp
+// src/engine/utils/ShaderLibrary.cpp
 
 #include "engine/utils/ShaderLibrary.h"
 #include "engine/utils/ShaderCache.h"
 
 #include <atomic>
-#include <cstdlib>   // std::abort
 #include <iostream>  // std::cerr
 
 ShaderCache* ShaderLibrary::s_cache = nullptr;
@@ -16,15 +15,13 @@ static ShaderCache& fallbackCache() {
 }
 
 static void warnFallbackOnce() {
-#if PAC_ALLOW_SHADERLIB_FALLBACK
     static std::atomic<bool> warned{false};
     bool expected = false;
     if (warned.compare_exchange_strong(expected, true)) {
         std::cerr
             << "[ShaderLibrary][WARN] Using fallback ShaderCache because ShaderLibrary::setCache() "
-               "was not called. This should be wired during application init.\n";
+               "was not called. Wire the engine-owned ShaderCache during application init.\n";
     }
-#endif
 }
 
 void ShaderLibrary::setCache(ShaderCache* cache) {
@@ -38,17 +35,8 @@ std::shared_ptr<Shader> ShaderLibrary::get(const std::string& vert,
         return s_cache->get(vert, frag);
     }
 
-#if PAC_ALLOW_SHADERLIB_FALLBACK
     warnFallbackOnce();
     return fallbackCache().get(vert, frag);
-#else
-    // Fail fast in Release if services weren't wired correctly.
-    std::cerr
-        << "[ShaderLibrary][FATAL] ShaderLibrary::get() called before ShaderLibrary::setCache().\n"
-        << "  vert: " << vert << "\n"
-        << "  frag: " << frag << "\n";
-    std::abort();
-#endif
 }
 
 void ShaderLibrary::clear() {
@@ -57,11 +45,6 @@ void ShaderLibrary::clear() {
         return;
     }
 
-#if PAC_ALLOW_SHADERLIB_FALLBACK
     warnFallbackOnce();
     fallbackCache().clear();
-#else
-    // Safe no-op in Release if nothing was wired (avoid crashing during teardown order changes).
-    return;
-#endif
 }

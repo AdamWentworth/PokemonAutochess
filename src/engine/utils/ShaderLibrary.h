@@ -1,28 +1,17 @@
-// ShaderLibrary.h
-
+// src/engine/utils/ShaderLibrary.h
 #pragma once
+
 #include <memory>
 #include <string>
 
 class Shader;
 class ShaderCache;
 
-// Default behavior:
-// - Debug: allow fallback + warn once
-// - Release: disable fallback; fail fast if not initialized
-#ifndef PAC_ALLOW_SHADERLIB_FALLBACK
-    #if !defined(NDEBUG)
-        #define PAC_ALLOW_SHADERLIB_FALLBACK 1
-    #else
-        #define PAC_ALLOW_SHADERLIB_FALLBACK 0
-    #endif
-#endif
+// ShaderLibrary is a legacy shim over an engine-owned ShaderCache.
+// It should be wired during application init via setCache().
+// If it is used before wiring, it will fall back to a local cache and warn once.
+// (No build-type dependent aborts.)
 
-/*
-    Legacy shim:
-    - Keeps existing call sites working while we migrate toward EngineServices.shader cache.
-    - Delegates to an engine-owned ShaderCache.
-*/
 class ShaderLibrary {
 public:
     static void setCache(ShaderCache* cache);
