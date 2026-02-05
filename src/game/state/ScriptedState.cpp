@@ -5,8 +5,9 @@
 #include "game/GameConfig.h"
 #include "game/state/PlacementState.h"
 #include "engine/input/InputEvent.h"
+#include "game/logging/LogBus.h"
+
 #include <sol/sol.hpp>
-#include <iostream>
 
 static constexpr int UI_W = 1280;
 static constexpr int UI_H = 720;
@@ -18,7 +19,7 @@ ScriptedState::ScriptedState(GameStateManager* manager, GameWorld* world, const 
     , script(world, manager)
 {
     if (!script.loadScript(scriptPath)) {
-        std::cerr << "[ScriptedState] Failed to load script: " << scriptPath << "\n";
+        LogBus::error(std::string("[ScriptedState] Failed to load script: ") + scriptPath);
     }
 }
 
@@ -64,9 +65,9 @@ void ScriptedState::ensureStarterUI() {
         }
 
         cardSystem.spawnCardRow(list, UI_W, /*y*/ 300);
-        std::cout << "[ScriptedState] Spawned " << list.size() << " starter cards\n";
+        LogBus::infoTerminalOnly(std::string("[ScriptedState] Spawned ") + std::to_string(list.size()) + " starter cards");
     } else {
-        std::cerr << "[ScriptedState] get_starter_cards() did not return a table\n";
+        LogBus::warn("[ScriptedState] get_starter_cards() did not return a table");
     }
 
     uiInitialized = true;
@@ -88,7 +89,7 @@ void ScriptedState::handleInput(const InputEvent& event) {
         !event.repeat)
     {
         const bool ok = script.reload();
-        std::cout << "[ScriptedState] Reload " << (ok ? "OK" : "FAILED") << "\n";
+        LogBus::infoTerminalOnly(std::string("[ScriptedState] Reload ") + (ok ? "OK" : "FAILED"));
 
         // Rebuild starter UI if this script uses it.
         uiInitialized = false;

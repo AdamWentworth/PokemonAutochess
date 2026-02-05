@@ -5,14 +5,16 @@
 #include "game/GameState.h"
 #include "game/GameWorld.h"
 #include <string>
+#include <memory>
 
 class GameStateManager;
 class GameWorld;
+class TextRenderer;
 
 class PlacementState : public GameState {
 public:
     PlacementState(GameStateManager* manager, GameWorld* world, const std::string& starterName);
-    ~PlacementState();
+    ~PlacementState() override;
 
     void onEnter() override;
     void onExit() override;
@@ -21,11 +23,13 @@ public:
     void render() override;
 
 private:
-    GameStateManager* stateManager;
-    GameWorld* gameWorld;
+    GameStateManager* stateManager = nullptr;
+    GameWorld* gameWorld = nullptr;
     std::string starterName;
-    float timer;
-    bool placementDone;
+    float timer = 5.0f;
+    bool placementDone = false;
+
+    std::unique_ptr<TextRenderer> textRenderer;
 
     bool isStarterOnBoard() const;
     void moveStarterToBoard();
@@ -33,4 +37,3 @@ private:
     void moveStarterToValidGridPosition();
     void placeOnValidGridPosition(PokemonInstance& starter);
 };
-

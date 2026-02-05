@@ -6,36 +6,32 @@
 #include "game/GameWorld.h"
 #include "engine/ui/TextRenderer.h"
 #include "game/GameConfig.h"
+#include "game/logging/LogBus.h"
 
-#include <iostream>
 #include <algorithm>
 #include <cmath>        // std::abs, std::round
 #include <memory>
 #include <sol/sol.hpp>
 
-static TextRenderer* textRenderer = nullptr;
-
 PlacementState::PlacementState(GameStateManager* manager, GameWorld* world, const std::string& starterName)
-    : stateManager(manager),
-      gameWorld(world),
-      starterName(starterName),
-      timer(5.0f),
-      placementDone(false)
+    : stateManager(manager)
+    , gameWorld(world)
+    , starterName(starterName)
+    , timer(5.0f)
+    , placementDone(false)
 {
-    if (!textRenderer) {
-        const auto& cfg = GameConfig::get();
-        textRenderer = new TextRenderer(cfg.fontPath, cfg.fontSize);
-    }
+    const auto& cfg = GameConfig::get();
+    textRenderer = std::make_unique<TextRenderer>(cfg.fontPath, cfg.fontSize);
 }
 
-PlacementState::~PlacementState() {}
+PlacementState::~PlacementState() = default;
 
 void PlacementState::onEnter() {
-    std::cout << "[PlacementState] Entering placement phase. Place your starter within 5 seconds.\n";
+    LogBus::infoTerminalOnly("[PlacementState] Entering placement phase. Place your starter within 5 seconds.");
 }
 
 void PlacementState::onExit() {
-    std::cout << "[PlacementState] Exiting placement phase.\n";
+    LogBus::infoTerminalOnly("[PlacementState] Exiting placement phase.");
 }
 
 void PlacementState::handleInput(const InputEvent& event) {
@@ -71,7 +67,7 @@ void PlacementState::update(float deltaTime) {
 
         std::string routeScript = "scripts/states/route1.lua";
 
-        // IMPORTANT: flow script functions live in its environment now.
+        // IMPORTANT: flow script functions live in its environment.
         sol::table F = flow->getScriptTable();
         sol::function next_route = F["next_route_after_placement"];
         if (next_route.valid()) {
@@ -84,6 +80,8 @@ void PlacementState::update(float deltaTime) {
 }
 
 void PlacementState::render() {
+    if (!textRenderer) return;
+
     const std::string message = "Place your starter! Time left: " + std::to_string(static_cast<int>(timer));
     const float scale = 1.0f;
     const int windowWidth = 1280;
@@ -122,8 +120,10 @@ void PlacementState::moveStarterToBoard() {
         starter.position.y = 0.0f;
 
         gameWorld->getPokemons().push_back(starter);
-        std::cout << "[PlacementState] Moved starter to board at ("
-                  << starter.position.x << ", " << starter.position.z << ")\n";
+        LogBus::infoTerminalOnly(
+            std::string("[PlacementState] Moved starter to board at (") +
+            std::to_string(starter.position.x) + ", " + std::to_string(starter.position.z) + ")"
+        );
     }
 }
 
@@ -163,7 +163,7 @@ void PlacementState::moveStarterToValidGridPosition() {
         bench.erase(benchIt);
         placeOnValidGridPosition(starter);
         pokemons.push_back(starter);
-        std::cout << "[PlacementState] Moved starter from bench to valid grid position.\n";
+        LogBus::infoTerminalOnly("[PlacementState] Moved starter from bench to valid grid position.");
     } else {
         auto boardIt = std::find_if(pokemons.begin(), pokemons.end(), [this](const PokemonInstance& p) {
             return p.name == starterName;
@@ -171,13 +171,13 @@ void PlacementState::moveStarterToValidGridPosition() {
 
         if (boardIt != pokemons.end()) {
             placeOnValidGridPosition(*boardIt);
-            std::cout << "[PlacementState] Adjusted starter position to valid grid cell.\n";
+            LogBus::infoTerminalOnly("[PlacementState] Adjusted starter position to valid grid cell.");
         } else {
             PokemonInstance starter;
             starter.name = starterName;
             placeOnValidGridPosition(starter);
             pokemons.push_back(starter);
-            std::cout << "[PlacementState] Added missing starter to board.\n";
+            LogBus::infoTerminalOnly("[PlacementState] Added missing starter to board.");
         }
     }
 }
