@@ -1,8 +1,7 @@
-// RoundSystem.cpp
+// src/game/systems/RoundSystem.cpp
 #include "RoundSystem.h"
 #include <iostream>
-#include "engine/events/EventManager.h"
-#include <sol/sol.hpp>  // <- helps IntelliSense since we use sol::function here
+#include <sol/sol.hpp>
 
 static const char* kRoundSystemScript = "scripts/systems/round_system.lua";
 static const char* kFnInit   = "rs_init";

@@ -1,4 +1,4 @@
-// src/game/LuaBindings.cpp
+// src/game/scripting/LuaBindings.cpp
 #include <glm/glm.hpp>
 #include "engine/render/Model.h"
 #include <iostream>
@@ -8,9 +8,6 @@
 #include <limits>
 
 #include "LuaBindings.h"
-
-#include "engine/events/EventManager.h"
-#include "engine/events/RoundEvents.h"
 
 #include "game/GameWorld.h"
 #include "game/PokemonInstance.h"
@@ -133,10 +130,12 @@ void registerLuaBindings(sol::state& lua, GameWorld* world, GameStateManager* ma
     });
 
     // ---- Round events ----
+    // Deprecated: legacy shim kept so existing scripts don't crash.
+    // Round phase changes are handled directly in C++ (GameApp / RoundSystem).
     lua.set_function("emit_round_phase_changed",
         [](const std::string& prev, const std::string& next) {
-            RoundPhaseChangedEvent evt(prev, next);
-            EventManager::getInstance().emit(evt);
+            (void)prev; (void)next;
+            LogBus::warn("emit_round_phase_changed() is deprecated and currently a no-op");
         }
     );
 
