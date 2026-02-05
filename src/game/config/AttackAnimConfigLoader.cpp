@@ -2,12 +2,12 @@
 #include "AttackAnimConfigLoader.h"
 
 #include "game/logging/LogBus.h"
-#include "game/logging/DebugTrace.h"  // env-driven trace rules (PAC_TRACE_ALL / PAC_TRACE_COMBAT)
+#include "game/logging/DebugTrace.h"
+#include "game/config/JsonFile.h"
 
-#include <fstream>
-#include <iostream>
 #include <algorithm>
 #include <cctype>
+#include <string>
 
 AttackAnimConfigLoader& AttackAnimConfigLoader::getInstance() {
     static AttackAnimConfigLoader inst;
@@ -21,38 +21,19 @@ std::string AttackAnimConfigLoader::toLower(std::string s) {
 }
 
 bool AttackAnimConfigLoader::loadConfig(const std::string& filePath) {
-    std::ifstream file(filePath);
-    if (!file.is_open()) {
-        std::cerr << "[AttackAnimConfigLoader] Failed to open: " << filePath << "\n";
-        return false;
-    }
-
     nlohmann::json j;
-    try {
-        file >> j;
-    } catch (...) {
-        std::cerr << "[AttackAnimConfigLoader] Failed to parse JSON: " << filePath << "\n";
+    if (!ConfigIO::loadJsonFile(filePath, j, "AttackAnimConfigLoader")) {
         return false;
     }
-
     return parseJsonIntoDb(j, /*clearFirst=*/true);
 }
 
 bool AttackAnimConfigLoader::loadConfigMerge(const std::string& filePath) {
-    std::ifstream file(filePath);
-    if (!file.is_open()) {
-        // Overrides are optional; don't spam logs.
-        return false;
-    }
-
+    // Overrides are optional; do not spam logs if missing.
     nlohmann::json j;
-    try {
-        file >> j;
-    } catch (...) {
-        std::cerr << "[AttackAnimConfigLoader] Failed to parse JSON: " << filePath << "\n";
+    if (!ConfigIO::loadJsonFile(filePath, j, "AttackAnimConfigLoader", /*silentIfMissing=*/true)) {
         return false;
     }
-
     return parseJsonIntoDb(j, /*clearFirst=*/false);
 }
 
@@ -64,12 +45,10 @@ bool AttackAnimConfigLoader::parseJsonIntoDb(const nlohmann::json& j, bool clear
     }
 
     if (!j.is_object()) {
-        std::cerr << "[AttackAnimConfigLoader] Root must be an object\n";
+        LogBus::error("[AttackAnimConfigLoader] Root must be an object");
         return false;
     }
 
-    // Supported per-move tuning keys (lowercase).
-    // Kept underscore-prefixed to avoid collisions with phases like "start"/"loop"/"end".
     const std::string kMinReq = "_minrequestsec";
     const std::string kHitFrame = "_hitframe";
 
@@ -79,66 +58,59 @@ bool AttackAnimConfigLoader::parseJsonIntoDb(const nlohmann::json& j, bool clear
         if (!speciesObj.is_object()) continue;
 
         for (auto itKind = speciesObj.begin(); itKind != speciesObj.end(); ++itKind) {
-            const std::string kind = toLower(itKind.key()); // fast/charged
+            const std::string kind = toLower(itKind.key());
             const auto& kindObj = itKind.value();
             if (!kindObj.is_object()) continue;
 
             for (auto itMove = kindObj.begin(); itMove != kindObj.end(); ++itMove) {
-                const std::string move = toLower(itMove.key()); // move name or "*"
-                const auto& moveObj = itMove.value();
-                if (!moveObj.is_object()) continue;
+                const std::string move = toLower(itMove.key());
+                const auto& phasesObj = itMove.value();
+                if (!phasesObj.is_object()) continue;
 
-                PhaseMap phaseMap;
+                // Phase clips + optional tuning at the move level.
+                for (auto itPhase = phasesObj.begin(); itPhase != phasesObj.end(); ++itPhase) {
+                    const std::string phaseKeyLower = toLower(itPhase.key());
+                    const auto& phaseVal = itPhase.value();
 
-                // Parse both phase->clip entries and optional underscore-prefixed tuning keys.
-                for (auto itEntry = moveObj.begin(); itEntry != moveObj.end(); ++itEntry) {
-                    const std::string keyLower = toLower(itEntry.key());
-                    const auto& v = itEntry.value();
-
-                    if (v.is_string()) {
-                        phaseMap[keyLower] = v.get<std::string>();
+                    if (phaseKeyLower == kMinReq) {
+                        if (phaseVal.is_number()) {
+                            minReqSec_[species][kind][move] = phaseVal.get<float>();
+                        }
                         continue;
                     }
-
-                    if (keyLower == kMinReq && v.is_number()) {
-                        const float vv = v.get<float>();
-                        if (vv > 0.0f) {
-                            minReqSec_[species][kind][move] = vv;
+                    if (phaseKeyLower == kHitFrame) {
+                        if (phaseVal.is_number_integer()) {
+                            hitFrame_[species][kind][move] = phaseVal.get<int>();
                         }
                         continue;
                     }
 
-                    if (keyLower == kHitFrame && (v.is_number_integer() || v.is_number_float())) {
-                        const int hf = v.get<int>();
-                        if (hf > 0) {
-                            hitFrame_[species][kind][move] = hf;
-                        }
-                        continue;
-                    }
-                }
+                    if (!phaseVal.is_string()) continue;
 
-                if (!phaseMap.empty()) {
-                    db_[species][kind][move] = std::move(phaseMap);
+                    db_[species][kind][move][phaseKeyLower] = phaseVal.get<std::string>();
+
+                    if (DebugTrace::combat(species, move)) {
+                        LogBus::infoTerminalOnly(std::string("[AttackAnimDB] ") + species + ":" + kind + ":" + move +
+                                                " -> " + phaseKeyLower + " = " + db_[species][kind][move][phaseKeyLower]);
+                    }
                 }
             }
         }
     }
 
-    std::cout << "[AttackAnimConfigLoader] Loaded species: " << db_.size() << "\n";
     return true;
 }
 
 std::string AttackAnimConfigLoader::getClipName(const std::string& species,
-                                                const std::string& kind,
-                                                const std::string& move,
-                                                const std::string& phase) const
+                                               const std::string& kind,
+                                               const std::string& move,
+                                               const std::string& phase) const
 {
     const std::string s = toLower(species);
     const std::string k = toLower(kind);
     const std::string m = toLower(move);
     const std::string p = toLower(phase);
 
-    // Env-driven trace gating (matches DebugTrace.h token rules).
     const bool traceCombat = DebugTrace::combat(s, m);
     auto trlog = [&](const std::string& msg){
         if (traceCombat) LogBus::infoTerminalOnly(std::string("[TRACE_ANIMCFG] ") + msg);
@@ -160,14 +132,12 @@ std::string AttackAnimConfigLoader::getClipName(const std::string& species,
         auto itP = pm.find(phaseKey);
         if (itP != pm.end()) return itP->second;
 
-        // fallback to "default" phase if present
         itP = pm.find("default");
         if (itP != pm.end()) return itP->second;
 
         return "";
     };
 
-    // Prefer exact move, then "*" wildcard.
     if (!m.empty()) {
         std::string out = lookup(m, p);
         if (traceCombat) {
@@ -192,14 +162,13 @@ std::string AttackAnimConfigLoader::getClipName(const std::string& species,
 }
 
 float AttackAnimConfigLoader::getMinRequestSec(const std::string& species,
-                                               const std::string& kind,
-                                               const std::string& move) const
+                                              const std::string& kind,
+                                              const std::string& move) const
 {
     const std::string s = toLower(species);
     const std::string k = toLower(kind);
     const std::string m = toLower(move);
 
-    // Env-driven trace gating (matches DebugTrace.h token rules).
     const bool traceCombat = DebugTrace::combat(s, m);
     auto trlog = [&](const std::string& msg){
         if (traceCombat) LogBus::infoTerminalOnly(std::string("[TRACE_ANIMCFG] ") + msg);

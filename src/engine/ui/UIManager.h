@@ -2,23 +2,23 @@
 #pragma once
 
 #include <string>
-#include <mutex>
 #include "engine/ui/Rect.h"
 
 class Shader;
 
 namespace UIManager {
-    // Initialize any UI state (idempotent, thread-safe).
+    // Initialize UI resources (idempotent, thread-safe).
+    // Can be called again after shutdown().
     void init();
 
-    // Return the shader used for drawing cards (owned by UIManager).
-    // Pointer is valid after init() and until shutdown().
+    // Returns the shader used for drawing cards (owned by UIManager).
+    // Returns nullptr if init() hasn't been called or shutdown() has run.
     Shader* getCardShader();
 
     // Draw a card rect with optional image (stub).
     void drawCard(const ui::Rect& rect, const std::string& imagePath, Shader* shader);
 
-    // Tear down any UI resources created in init().
-    // Safe to call multiple times (no-op after first).
+    // Tear down UI resources created in init().
+    // Safe to call multiple times.
     void shutdown();
 }

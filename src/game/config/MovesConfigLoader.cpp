@@ -2,7 +2,7 @@
 #include "MovesConfigLoader.h"
 #include "game/logging/LogBus.h"
 
-#include <fstream>
+#include "game/config/JsonFile.h"
 
 MovesConfigLoader& MovesConfigLoader::getInstance() {
     static MovesConfigLoader inst;
@@ -10,18 +10,25 @@ MovesConfigLoader& MovesConfigLoader::getInstance() {
 }
 
 bool MovesConfigLoader::loadConfig(const std::string& filePath) {
-    std::ifstream file(filePath);
-    if (!file.is_open()) {
-        LogBus::error(std::string("[MovesConfigLoader] Failed to open: ") + filePath);
+    nlohmann::json j;
+    if (!ConfigIO::loadJsonFile(filePath, j, "MovesConfigLoader")) {
         return false;
     }
-    nlohmann::json j;
-    file >> j;
+
+    if (!j.is_object()) {
+        LogBus::error(std::string("[MovesConfigLoader] Root must be an object: ") + filePath);
+        return false;
+    }
 
     moves_.clear();
+
     for (auto it = j.begin(); it != j.end(); ++it) {
         const std::string name = it.key();
         const auto& m = it.value();
+        if (!m.is_object()) {
+            LogBus::warn(std::string("[MovesConfigLoader] Skipping non-object move '") + name + "'");
+            continue;
+        }
 
         MoveData md;
         md.name = name;
@@ -45,8 +52,7 @@ bool MovesConfigLoader::loadConfig(const std::string& filePath) {
         moves_[name] = std::move(md);
     }
 
-    LogBus::info(std::string("[MovesConfigLoader] Loaded ") +
-                 std::to_string(moves_.size()) + " moves");
+    LogBus::info(std::string("[MovesConfigLoader] Loaded ") + std::to_string(moves_.size()) + " moves");
     return true;
 }
 
