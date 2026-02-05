@@ -27,6 +27,7 @@
 #include <glad/glad.h>
 
 #include <iostream>
+#include <exception>
 #include <chrono>
 #include <algorithm>
 #include <cmath>
@@ -173,20 +174,25 @@ namespace {
 }
 
 Application::Application() {
-    initApplication();
+    initialized = initApplication();
 }
 
 Application::~Application() {
     shutdownApplication();
 }
 
-void Application::initApplication() {
+bool Application::initApplication() {
     // Window ctor performs SDL_Init + creates GL context.
-    window = std::make_unique<Window>("Pokemon Autochess", (int)START_W, (int)START_H);
+    try {
+        window = std::make_unique<Window>("Pokemon Autochess", (int)START_W, (int)START_H);
+    } catch (const std::exception& ex) {
+        std::cerr << "[Application] Window init failed: " << ex.what() << "\n";
+        return false;
+    }
 
     if (!gladLoadGLLoader((GLADloadproc)SDL_GL_GetProcAddress)) {
-        std::cerr << "Failed to initialize GLAD\n";
-        std::exit(EXIT_FAILURE);
+        std::cerr << "[Application] Failed to initialize GLAD\n";
+        return false;
     }
 
     // Wire engine-owned shader cache BEFORE anything calls ShaderLibrary::get()
@@ -216,6 +222,7 @@ void Application::initApplication() {
     camera   = std::make_unique<Camera3D>(45.0f, float(drawableW) / float(drawableH), 0.1f, 100.0f);
 
     std::cout << "[Init] Application initialized.\n";
+    return true;
 }
 
 void Application::shutdownApplication() {
@@ -228,18 +235,13 @@ void Application::shutdownApplication() {
     }
 
     // 2) Force-release GL-backed caches BEFORE destroying the window/context.
-    // Shader programs
     ShaderLibrary::clear();
     ShaderLibrary::setCache(nullptr);
     shaderCache.clear();
 
-    // Models / textures / meshes managed by ResourceManager
     resourceManager.clear();
-
-    // If systems can own GL resources, clear them while context exists.
     systemRegistry.clear();
 
-    // Boot loading view contains VAO/VBO -> destroy while GL context exists
     bootLoadingView.reset();
     camera.reset();
 
@@ -247,8 +249,10 @@ void Application::shutdownApplication() {
     window.reset();
 
     // 4) Tear down SDL subsystems last
-    TTF_Quit();
-    SDL_Quit();
+    if (SDL_WasInit(SDL_INIT_EVERYTHING) != 0) {
+        TTF_Quit();
+        SDL_Quit();
+    }
 
     std::cout << "[Shutdown] Application done.\n";
 }
@@ -295,7 +299,6 @@ bool Application::pumpPreloadEvents() {
                 updateDrawableSizeAndViewport();
                 updateMouseScale();
 
-                // keep camera aspect correct
                 if (camera && drawableW > 0 && drawableH > 0) {
                     *camera = Camera3D(45.0f, float(drawableW) / float(drawableH), 0.1f, 100.0f);
                 }
@@ -320,7 +323,6 @@ void Application::run(GameLoop& game) {
     EngineServices services;
     services.systems = &systemRegistry;
     services.resources = &resourceManager;
-
     services.shaders = &shaderCache;
 
     GameContext ctx;
@@ -330,7 +332,6 @@ void Application::run(GameLoop& game) {
     ctx.drawableW = drawableW;
     ctx.drawableH = drawableH;
 
-    // Bind engine helpers as callbacks (stable contract)
     ctx.setTitle = [this](const std::string& t) { this->setTitle(t); };
     ctx.swapBuffers = [this]() { this->swapBuffers(); };
     ctx.requestQuit = [&running]() { running = false; };
@@ -339,7 +340,6 @@ void Application::run(GameLoop& game) {
 
     game.init(ctx);
 
-    // If the game requested quit during init (e.g. user closed during preload), exit cleanly.
     if (!running) {
         game.shutdown();
         return;
@@ -351,7 +351,6 @@ void Application::run(GameLoop& game) {
 
     int frameCount = 0;
     static double fpsTimer = 0.0;
-
 
     while (running) {
         SDL_Event sdlEvent;

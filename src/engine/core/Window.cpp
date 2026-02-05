@@ -1,26 +1,28 @@
-// Window.cpp
+// src/engine/core/Window.cpp
 
 #include "engine/core/Window.h"
 
+#include <SDL2/SDL.h>
+
 #include <iostream>
-#include <cstdlib>
+#include <stdexcept>
+#include <string>
 
 Window::Window(const std::string& title, int width, int height) {
     if (SDL_Init(SDL_INIT_VIDEO) != 0) {
-        std::cerr << "SDL_Init failed: " << SDL_GetError() << "\n";
-        std::exit(EXIT_FAILURE);
+        const std::string msg = std::string("SDL_Init failed: ") + SDL_GetError();
+        std::cerr << msg << "\n";
+        throw std::runtime_error(msg);
     }
 
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 3);
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
 
-    // explicit defaults (consistency)
     SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
     SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
     SDL_GL_SetAttribute(SDL_GL_STENCIL_SIZE, 8);
 
-    // allow HiDPI + resizing (click scaling handled in Application)
     Uint32 flags = SDL_WINDOW_OPENGL | SDL_WINDOW_SHOWN | SDL_WINDOW_ALLOW_HIGHDPI | SDL_WINDOW_RESIZABLE;
 
     window = SDL_CreateWindow(
@@ -31,21 +33,23 @@ Window::Window(const std::string& title, int width, int height) {
     );
 
     if (!window) {
-        std::cerr << "Window creation failed: " << SDL_GetError() << "\n";
-        std::exit(EXIT_FAILURE);
+        const std::string msg = std::string("Window creation failed: ") + SDL_GetError();
+        std::cerr << msg << "\n";
+        SDL_Quit();
+        throw std::runtime_error(msg);
     }
 
     context = SDL_GL_CreateContext(window);
     if (!context) {
-        std::cerr << "OpenGL context creation failed: " << SDL_GetError() << "\n";
+        const std::string msg = std::string("OpenGL context creation failed: ") + SDL_GetError();
+        std::cerr << msg << "\n";
         SDL_DestroyWindow(window);
         window = nullptr;
-        std::exit(EXIT_FAILURE);
+        SDL_Quit();
+        throw std::runtime_error(msg);
     }
 
     SDL_GL_MakeCurrent(window, context);
-
-    // VSync; if you want raw FPS for profiling, set to 0 temporarily.
     SDL_GL_SetSwapInterval(1);
 }
 
