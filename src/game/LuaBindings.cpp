@@ -14,6 +14,7 @@
 #include "AttackAnimDebug.h"
 #include "AnimSetLoader.h"
 #include <glm/glm.hpp>
+#include "engine/render/Model.h"
 #include <iostream>
 #include <algorithm>
 #include <cctype>
