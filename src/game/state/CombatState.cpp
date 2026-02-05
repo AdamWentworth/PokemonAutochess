@@ -8,9 +8,9 @@
 
 #include "engine/ui/TextRenderer.h"
 #include "game/logging/LogBus.h"
+
 #include <sol/sol.hpp>
 #include <cmath>
-#include <iostream>
 #include <algorithm>
 
 static std::string Capitalize(const std::string& s) {
@@ -29,7 +29,7 @@ CombatState::CombatState(GameStateManager* manager, GameWorld* world, const std:
     textRenderer = std::make_unique<TextRenderer>(cfg.fontPath, cfg.fontSize);
 
     if (!script.loadScript(scriptPath)) {
-        std::cerr << "[CombatState] Failed to load combat script: " << scriptPath << "\n";
+        LogBus::error(std::string("[CombatState] Failed to load combat script: ") + scriptPath);
     }
 
     movementSystem = std::make_unique<MovementSystem>(gameWorld);

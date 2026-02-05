@@ -1,6 +1,6 @@
 // LuaScript.cpp
-
 #include "LuaScript.h"
+
 #include "game/GameWorld.h"
 #include "LuaBindings.h"
 
@@ -62,8 +62,7 @@ bool LuaScript::loadScript(const std::string& filePath) {
     sol::load_result chunk = lua.load_file(filePath);
     if (!chunk.valid()) {
         sol::error err = chunk;
-        std::cerr << "[LuaScript] Failed to load script '" << filePath
-                  << "': " << err.what() << "\n";
+        LogBus::error(std::string("[LuaScript] Failed to load script '") + filePath + "': " + err.what());
         return false;
     }
 
@@ -75,8 +74,7 @@ bool LuaScript::loadScript(const std::string& filePath) {
     sol::protected_function_result r = pf();
     if (!r.valid()) {
         sol::error err = r;
-        std::cerr << "[LuaScript] Failed to execute script '" << filePath
-                  << "': " << err.what() << "\n";
+        LogBus::error(std::string("[LuaScript] Failed to execute script '") + filePath + "': " + err.what());
         return false;
     }
 
@@ -85,7 +83,7 @@ bool LuaScript::loadScript(const std::string& filePath) {
 
 bool LuaScript::reload() {
     if (loadedPath.empty()) {
-        std::cerr << "[LuaScript] reload() called with no previously loaded script\n";
+        LogBus::warn("[LuaScript] reload() called with no previously loaded script");
         return false;
     }
     return loadScript(loadedPath);

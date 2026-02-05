@@ -1,10 +1,11 @@
 // LuaScript.h
-
 #pragma once
+
 #include <string>
 #include <utility>     // std::forward
-#include <iostream>    // std::cerr
 #include <sol/sol.hpp>
+
+#include "game/logging/LogBus.h"
 
 class GameWorld;
 class GameStateManager;
@@ -42,8 +43,7 @@ public:
         sol::protected_function_result r = func(std::forward<Args>(args)...);
         if (!r.valid()) {
             sol::error err = r;
-            std::cerr << "[LuaScript] Error in '" << functionName << "': "
-                      << err.what() << "\n";
+            LogBus::error(std::string("[LuaScript] Error in '") + functionName + "': " + err.what());
         }
     }
 
