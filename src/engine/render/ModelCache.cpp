@@ -1,4 +1,3 @@
-
 // src/engine/render/ModelCache.cpp
 
 #include "Model.h"
@@ -7,6 +6,7 @@
 #include <filesystem>
 #include <fstream>
 #include <sstream>
+#include <iostream>
 #include <iomanip>
 #include <functional>
 #include <cstdint>
@@ -652,4 +652,3 @@ void Model::writeCache(const std::string& filepath,
                      + filepath);
     }
 }
-

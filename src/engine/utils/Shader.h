@@ -9,7 +9,14 @@
 
 class Shader {
 public:
+    // Existing constructor (used across the codebase)
     Shader(const char* vertexPath, const char* fragmentPath);
+
+    // NEW: convenience overload for std::string paths.
+    // Delegates to the existing const char* constructor so behavior is unchanged.
+    Shader(const std::string& vertexPath, const std::string& fragmentPath)
+        : Shader(vertexPath.c_str(), fragmentPath.c_str()) {}
+
     ~Shader();
 
     void use() const;

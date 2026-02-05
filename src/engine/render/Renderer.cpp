@@ -1,10 +1,11 @@
-// Renderer.cpp
+// src/engine/core/Renderer.cpp
 
 #include "Renderer.h"
+#include "../core/Log.h"
+#include "../core/Paths.h"
 #include <glad/glad.h>
 #include <fstream>
 #include <sstream>
-#include <iostream>
 #include <string>
 #include <glm/gtc/type_ptr.hpp>
 
@@ -12,24 +13,24 @@
 static void checkGLError(const std::string& context) {
     GLenum err;
     while ((err = glGetError()) != GL_NO_ERROR) {
-        std::cerr << "[OpenGL Error] " << context << ": " << err << "\n";
+        engine::log::error(std::string("[OpenGL Error] ") + context + ": 0x" + engine::log::to_hex((unsigned)err));
     }
 }
 
 Renderer::Renderer() 
     : vbo(GL_ARRAY_BUFFER)  // Initialize vbo with GL_ARRAY_BUFFER
 {
-    std::cout << "[Renderer] Constructing Renderer...\n";
+    engine::log::info("[Renderer] Constructing Renderer...");
     float vertices[] = {
          0.0f,  0.5f, 0.0f,
         -0.5f, -0.5f, 0.0f,
          0.5f, -0.5f, 0.0f,
     };
 
-    std::cout << "[Renderer] Creating shader program using our Shader class...\n";
+    engine::log::info("[Renderer] Creating shader program using our Shader class...");
     // Create the shader using std::make_unique
-    shader = std::make_unique<Shader>("assets/shaders/engine/default.vert", "assets/shaders/engine/default.frag");
-    std::cout << "[Renderer] Shader program created with ID: " << shader->getID() << "\n";
+    shader = std::make_unique<Shader>(engine::paths::asset("shaders/engine/default.vert"), engine::paths::asset("shaders/engine/default.frag"));
+    engine::log::info(std::string("[Renderer] Shader program created with ID: ") + std::to_string(shader->getID()));
     checkGLError("After shader program creation");
 
     glBindVertexArray(vao.getID());
@@ -42,9 +43,9 @@ Renderer::Renderer()
     // Get the uniform location for u_MVP from our shader.
     mvpLocation = glGetUniformLocation(shader->getID(), "u_MVP");
     if (mvpLocation == -1) {
-        std::cerr << "[Renderer] ERROR: u_MVP uniform not found in shader.\n";
+        engine::log::error("[Renderer] ERROR: u_MVP uniform not found in shader.");
     }
-    std::cout << "[Renderer] u_MVP location = " << mvpLocation << "\n";
+    engine::log::info(std::string("[Renderer] u_MVP location = ") + std::to_string(mvpLocation));
 }
 
 Renderer::~Renderer() {
