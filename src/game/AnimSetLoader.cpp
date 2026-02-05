@@ -8,7 +8,7 @@
 #include <cctype>
 
 // Keep includes compatible with your project include layout:
-#include "./engine/render/Model.h"
+#include "engine/render/Model.h"
 #include "PokemonInstance.h"
 #include "FlyerConfigLoader.h"
 

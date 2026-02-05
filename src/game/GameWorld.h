@@ -6,7 +6,7 @@
 #include <glm/glm.hpp>
 
 #include "PokemonInstance.h"
-#include "./engine/ui/HealthBarData.h"
+#include "engine/ui/HealthBarData.h"
 
 // Tail fire particle VFX (data-driven via cfg)
 #include "vfx/TailFireVFX.h"
@@ -64,3 +64,4 @@ private:
     TailFireVFX tailFireVfx;
     bool tailFireVfxInitialized = false;
 };
+

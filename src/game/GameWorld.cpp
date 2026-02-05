@@ -3,16 +3,14 @@
 #include "LogBus.h"
 #include <unordered_map>
 
-#include "./engine/utils/ResourceManager.h"
-#include "./engine/render/Model.h"
-#include "./engine/render/Camera3D.h"
-#include "./engine/render/BoardRenderer.h"
+#include "engine/utils/ResourceManager.h"
+#include "engine/render/Model.h"
+#include "engine/render/Camera3D.h"
+#include "engine/render/BoardRenderer.h"
 
 #include <iostream>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
-#include <glad/glad.h>
-
 #include "PokemonConfigLoader.h"
 #include "GameConfig.h"
 #include "MovesConfigLoader.h"
