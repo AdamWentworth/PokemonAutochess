@@ -28,7 +28,7 @@ public:
     // on-screen feed toggle (default: on)
     void setFeedEnabled(bool enabled) { feed_enabled_ = enabled; }
 
-    // stdout only; never touches BattleFeed
+    // stdout only;
     void infoTerminalOnly(const std::string& s);
 
 private:
@@ -40,18 +40,16 @@ private:
     bool feed_enabled_ = true;
 };
 
-// Active logger selection.
-// During migration, the global LogBus::* functions delegate to the active logger.
-// If none is set, a process-wide default Logger is used.
+// ---- Compatibility functions (delegate to active logger) ----
+// This drop-in replacement keeps these functions but makes the active logger pointer atomic,
+// so you can swap loggers safely (e.g., during init/shutdown or state transitions).
 void setActive(Logger* logger);
 
-// Compatibility API (existing call sites).
 void attach(BattleFeed* feed);
 void info(const std::string& s);
 void warn(const std::string& s);
 void error(const std::string& s);
 void colored(const std::string& s, const glm::vec3& rgb, float lifetime = 3.f);
-
 void setEchoToStdout(bool enabled);
 void setFeedEnabled(bool enabled);
 void infoTerminalOnly(const std::string& s);

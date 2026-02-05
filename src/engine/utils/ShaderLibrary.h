@@ -8,10 +8,10 @@ class Shader;
 class ShaderCache;
 
 // ShaderLibrary is a legacy shim over an engine-owned ShaderCache.
-// It should be wired during application init via setCache().
-// If it is used before wiring, it will fall back to a local cache and warn once.
-// (No build-type dependent aborts.)
-
+// Wire it during application init via setCache().
+//
+// This drop-in replacement keeps the same API surface for call sites
+// but makes access thread-safe and deterministic (atomic cache pointer).
 class ShaderLibrary {
 public:
     static void setCache(ShaderCache* cache);
@@ -23,5 +23,7 @@ public:
     static void clear();
 
 private:
+    // Kept for compatibility with any existing references/symbol expectations.
+    // Internally, we also maintain an atomic pointer used for thread-safe access.
     static ShaderCache* s_cache;
 };

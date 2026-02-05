@@ -7,7 +7,8 @@
 
 namespace LogBus {
 
-static Logger* g_active = nullptr;
+// Atomic active logger pointer to avoid data races if logger is swapped while logging.
+static std::atomic<Logger*> g_active{nullptr};
 
 // Default instance (used only if no active logger is set).
 static Logger& defaultLogger() {
@@ -16,11 +17,12 @@ static Logger& defaultLogger() {
 }
 
 static Logger& active() {
-    return g_active ? *g_active : defaultLogger();
+    Logger* p = g_active.load(std::memory_order_acquire);
+    return p ? *p : defaultLogger();
 }
 
 void setActive(Logger* logger) {
-    g_active = logger;
+    g_active.store(logger, std::memory_order_release);
 }
 
 void Logger::push(const std::string& s, const glm::vec3& c, float life) {
