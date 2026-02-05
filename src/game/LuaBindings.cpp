@@ -2,7 +2,7 @@
 #include "LuaBindings.h"
 #include "GameWorld.h"
 #include "PokemonInstance.h"
-#include "FlightLocomotion.h"
+#include "animation/FlightLocomotion.h"
 #include "GameStateManager.h"
 #include "ScriptedState.h"
 #include "engine/events/EventManager.h"

@@ -22,7 +22,7 @@
 
 // ✅ NEW: animset v2/v3 parser (drop-in)
 #include "AnimSetLoader.h"
-#include "FlightLocomotion.h"
+#include "animation/FlightLocomotion.h"
 
 void GameWorld::applyLevelScaling(PokemonInstance& inst, int level) const {
     const auto& cfg = GameConfig::get();
