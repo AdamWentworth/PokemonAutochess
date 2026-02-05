@@ -94,10 +94,21 @@ struct CacheHeader {
 };
 #pragma pack(pop)
 
+static uint64_t fnv1a64(const std::string& s) {
+    // Stable hash across platforms/compilers for cache filenames.
+    // FNV-1a 64-bit
+    uint64_t h = 14695981039346656037ull;
+    for (unsigned char c : s) {
+        h ^= (uint64_t)c;
+        h *= 1099511628211ull;
+    }
+    return h;
+}
+
 static fs::path cachePathForModel(const std::string& filepath) {
     // Keep it local + simple: cache/models/<hash>.pacmdl
     // Hash includes full input path string (relative/absolute as provided).
-    uint64_t h = (uint64_t)std::hash<std::string>{}(filepath);
+    const uint64_t h = fnv1a64(filepath);
     fs::path dir = fs::path("cache") / "models";
     return dir / (hexHash64(h) + ".pacmdl");
 }

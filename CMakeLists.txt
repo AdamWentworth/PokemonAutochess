@@ -116,24 +116,24 @@ add_executable(PokemonAutochess
     src/game/GameWorld.cpp
     src/game/GameStateManager.cpp
     src/game/GameConfig.cpp
-    
+
     # Game Config
     src/game/config/PokemonConfigLoader.cpp
     src/game/config/MovesConfigLoader.cpp
     src/game/config/AttackAnimConfigLoader.cpp
     src/game/config/AnimSetLoader.cpp
     src/game/config/FlyerConfigLoader.cpp
-    
+
     # Game Animations
     src/game/animation/FlightLocomotion.cpp
 
     # Game Logging
     src/game/logging/LogBus.cpp
-    
+
     # Game Scripting
     src/game/scripting/LuaBindings.cpp
     src/game/scripting/LuaScript.cpp
-    
+
     # Game States
     src/game/state/ScriptedState.cpp
     src/game/state/PlacementState.cpp
@@ -148,7 +148,7 @@ add_executable(PokemonAutochess
     src/game/systems/MovementSystem.cpp
     src/game/systems/CombatSystem.cpp
     src/game/systems/ShopSystem.cpp
-    
+
     # Game UI
     src/game/ui/CardFactory.cpp
     src/game/ui/HealthBarQuery.cpp
@@ -172,19 +172,28 @@ target_link_libraries(PokemonAutochess PRIVATE
 pac_apply_common_target_settings(PokemonAutochess)
 
 # ---------------- Assets (runtime copy) ----------------
-# IMPORTANT:
-# The old approach copied shaders at CMake *configure time* only, so edits to shader files
-# would not show up unless you reconfigured CMake.
-#
-# This copies the entire assets/ folder into the build directory *every build* so the
-# executable can be run from the build folder and always see your latest shaders/textures.
-add_custom_target(PAC_CopyAssets ALL
-    COMMAND ${CMAKE_COMMAND} -E copy_directory
-            "${CMAKE_SOURCE_DIR}/assets"
-            "${CMAKE_CURRENT_BINARY_DIR}/assets"
-    COMMENT "Copying assets/ to build directory"
+# Copies assets/ into the build directory, but only re-runs when files under assets/ change.
+set(PAC_ASSETS_SRC "${CMAKE_SOURCE_DIR}/assets")
+set(PAC_ASSETS_DST "${CMAKE_CURRENT_BINARY_DIR}/assets")
+
+# Track individual files so the copy step is incremental.
+file(GLOB_RECURSE PAC_ASSET_FILES CONFIGURE_DEPENDS
+    "${PAC_ASSETS_SRC}/*"
 )
 
+set(PAC_ASSETS_STAMP "${PAC_ASSETS_DST}/.pac_assets.stamp")
+
+add_custom_command(
+    OUTPUT "${PAC_ASSETS_STAMP}"
+    COMMAND ${CMAKE_COMMAND} -E make_directory "${PAC_ASSETS_DST}"
+    COMMAND ${CMAKE_COMMAND} -E copy_directory "${PAC_ASSETS_SRC}" "${PAC_ASSETS_DST}"
+    COMMAND ${CMAKE_COMMAND} -E touch "${PAC_ASSETS_STAMP}"
+    DEPENDS ${PAC_ASSET_FILES}
+    COMMENT "Copying assets/ to build directory (incremental)"
+    VERBATIM
+)
+
+add_custom_target(PAC_CopyAssets DEPENDS "${PAC_ASSETS_STAMP}")
 add_dependencies(PokemonAutochess PAC_CopyAssets)
 
 # Windows entrypoint
