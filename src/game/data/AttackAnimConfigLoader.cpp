@@ -1,6 +1,6 @@
 // AttackAnimConfigLoader.cpp
 #include "AttackAnimConfigLoader.h"
-#include "game/LogBus.h"
+#include "game/logging/LogBus.h"
 
 #include <fstream>
 #include <iostream>

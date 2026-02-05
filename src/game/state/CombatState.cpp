@@ -7,7 +7,7 @@
 #include "game/systems/CombatSystem.h"
 
 #include "engine/ui/TextRenderer.h"
-#include "game/LogBus.h"
+#include "game/logging/LogBus.h"
 #include <sol/sol.hpp>
 #include <cmath>
 #include <iostream>

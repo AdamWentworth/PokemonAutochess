@@ -116,7 +116,6 @@ add_executable(PokemonAutochess
     src/game/GameWorld.cpp
     src/game/GameStateManager.cpp
     src/game/GameConfig.cpp
-    src/game/LogBus.cpp
     
     # Game Data
     src/game/data/PokemonConfigLoader.cpp
@@ -127,6 +126,9 @@ add_executable(PokemonAutochess
     
     # Game Animations
     src/game/animation/FlightLocomotion.cpp
+
+    # Game Logging
+    src/game/logging/LogBus.cpp
     
     # Game Scripting
     src/game/scripting/ScriptedState.cpp

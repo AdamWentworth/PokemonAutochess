@@ -1,6 +1,6 @@
 // src/game/GameWorld.cpp
 #include "GameWorld.h"
-#include "LogBus.h"
+#include "logging/LogBus.h"
 #include "ui/HealthBarQuery.h"
 #include <unordered_map>
 

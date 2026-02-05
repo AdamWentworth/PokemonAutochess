@@ -25,7 +25,7 @@
 #include "game/systems/ShopSystem.h"
 #include "game/scripting/ScriptedState.h"
 #include "game/GameConfig.h"
-#include "game/LogBus.h"
+#include "game/logging/LogBus.h"
 
 #include <iostream>
 #include <vector>

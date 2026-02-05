@@ -20,7 +20,7 @@
 #include <cctype>
 #include <cmath>
 #include <limits>
-#include "game/LogBus.h"
+#include "game/logging/LogBus.h"
 
 
 static std::string toLowerCopy(std::string s) {
