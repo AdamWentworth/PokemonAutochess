@@ -4,6 +4,7 @@
 
 #include "engine/core/GameContext.h"
 #include "engine/core/EngineServices.h"
+#include "engine/core/Paths.h"
 #include "engine/input/InputEvent.h"
 
 #include "engine/render/BoardRenderer.h"
@@ -48,15 +49,15 @@ GameApp::GameApp() = default;
 GameApp::~GameApp() = default;
 
 void GameApp::init(GameContext& ctx) {
-    // Load configs (game-specific)
-    PokemonConfigLoader::getInstance().loadConfig("config/pokemon_config.json");
-    MovesConfigLoader::getInstance().loadConfig("config/moves_config.json");
-    // Attack animation clips for fast/charged moves (e.g. Bulbasaur vine_whip start/loop/end)
-    AttackAnimConfigLoader::getInstance().loadConfig("config/attack_anim_config.json");
-    // Flyers list (used to enable visual-only flight locomotion on specific species)
-    FlyerConfigLoader::getInstance().loadConfig("config/flyers_config.json");
+    // Load configs (game-specific) from data root (PAC_DATA_ROOT), not CWD-sensitive literals.
+    PokemonConfigLoader::getInstance().loadConfig(engine::paths::data("config/pokemon_config.json"));
+    MovesConfigLoader::getInstance().loadConfig(engine::paths::data("config/moves_config.json"));
+    AttackAnimConfigLoader::getInstance().loadConfig(engine::paths::data("config/attack_anim_config.json"));
+    FlyerConfigLoader::getInstance().loadConfig(engine::paths::data("config/flyers_config.json"));
 
     std::cout << "[Init] CWD: " << std::filesystem::current_path() << "\n";
+    std::cout << "[Init] PAC_DATA_ROOT: " << engine::paths::dataRoot() << "\n";
+    std::cout << "[Init] PAC_ASSET_ROOT: " << engine::paths::assetRoot() << "\n";
 
     camera = ctx.camera;
 
@@ -64,11 +65,9 @@ void GameApp::init(GameContext& ctx) {
     board = std::make_unique<BoardRenderer>(cfg.rows, cfg.cols, cfg.cellSize);
 
     gameWorld    = std::make_unique<GameWorld>();
-    // Thread engine-owned resource service into the world (no singleton access in gameplay).
     if (ctx.services) gameWorld->setResources(ctx.services->resources);
     stateManager = std::make_unique<GameStateManager>();
 
-    // Systems (game-specific)
     cameraSystem = std::make_shared<CameraSystem>(camera);
     unitSystem   = std::make_shared<UnitInteractionSystem>(
         camera, gameWorld.get(), ctx.drawableW, ctx.drawableH
@@ -83,7 +82,6 @@ void GameApp::init(GameContext& ctx) {
     shopSystem = std::make_shared<ShopSystem>();
     systemRegistry.registerSystem(shopSystem);
 
-    // Initialize phase-dependent UI once at startup (roll shop if we start in Planning).
     if (roundSystem && shopSystem) {
         lastRoundPhase = roundSystem->getCurrentPhase();
         hasLastRoundPhase = true;
@@ -95,26 +93,22 @@ void GameApp::init(GameContext& ctx) {
     // Battle feed + logger (instance-based)
     battleFeed = std::make_unique<BattleFeed>(cfg.fontPath, cfg.fontSize);
     log.attach(battleFeed.get());
-
-    // Console logging can stall badly on Windows in Debug.
     log.setEchoToStdout(false);
-
-    // Make this logger the active LogBus backend for legacy calls.
     LogBus::setActive(&log);
 
-    // Preload (game-level decision, uses engine loading UI via ctx)
     preloadCommonModels(ctx);
 
     stateManager->pushState(std::make_unique<ScriptedState>(
-        stateManager.get(), gameWorld.get(), "scripts/states/starter.lua"));
+        stateManager.get(),
+        gameWorld.get(),
+        engine::paths::data("scripts/states/starter.lua")
+    ));
 
     if (ctx.setTitle) ctx.setTitle("Pokemon Autochess");
-
     std::cout << "[Init] Game initialized.\n";
 }
 
 void GameApp::handleEvent(const InputEvent& event) {
-    // Game-owned input handling. The engine only forwards InputEvent.
     if (cameraSystem) cameraSystem->handleInput(event);
     if (unitSystem)   unitSystem->handleInput(event);
     if (shopSystem)   shopSystem->handleInput(event);
@@ -124,7 +118,6 @@ void GameApp::handleEvent(const InputEvent& event) {
 void GameApp::fixedUpdate(float dt) {
     systemRegistry.updateAll(dt);
 
-    // Detect and react to round phase changes without a global EventManager singleton.
     if (roundSystem && shopSystem) {
         const RoundPhase current = roundSystem->getCurrentPhase();
         if (!hasLastRoundPhase) {
@@ -145,7 +138,6 @@ void GameApp::fixedUpdate(float dt) {
 
     if (stateManager) stateManager->update(dt);
     if (gameWorld)    gameWorld->update(dt);
-
     if (battleFeed)   battleFeed->update(dt);
 }
 
@@ -172,17 +164,14 @@ void GameApp::render(int drawableW, int drawableH) {
 void GameApp::shutdown() {
     std::cout << "[Shutdown] Game.\n";
 
-    // Stop routing global LogBus calls to this instance before teardown.
     LogBus::setActive(nullptr);
     log.attach(nullptr);
 
-    // Game-owned GL resources
     if (board) {
         board->shutdown();
         board.reset();
     }
 
-    // Engine global UI manager
     UIManager::shutdown();
 
     battleFeed.reset();

@@ -1,6 +1,9 @@
 // GameConfig.cpp
 
 #include "GameConfig.h"
+
+#include "engine/core/Paths.h"
+
 #include <sol/sol.hpp>
 #include <iostream>
 
@@ -8,13 +11,20 @@ const GameConfigData& GameConfig::get() {
     static GameConfigData cfg;
     static bool inited = false;
     if (!inited) {
+        // If the default font path is still the literal "assets/..." string,
+        // route it through the asset helper so PAC_ASSET_ROOT is respected.
+        if (cfg.fontPath == "assets/fonts/GillSans.ttf") {
+            cfg.fontPath = engine::paths::asset("fonts/GillSans.ttf");
+        }
+
         sol::state L;
         L.open_libraries(sol::lib::base, sol::lib::table, sol::lib::string);
 
-        sol::load_result chunk = L.load_file("scripts/config/game.lua");
+        const std::string gameLua = engine::paths::data("scripts/config/game.lua");
+        sol::load_result chunk = L.load_file(gameLua);
         if (!chunk.valid()) {
             sol::error e = chunk;
-            std::cerr << "[GameConfig] Failed to load game.lua: " << e.what() << "\n";
+            std::cerr << "[GameConfig] Failed to load " << gameLua << ": " << e.what() << "\n";
         } else {
             sol::protected_function_result r = chunk();
             if (!r.valid()) {
@@ -41,7 +51,7 @@ const GameConfigData& GameConfig::get() {
                             cfg.fontSize = ui.get_or("size", cfg.fontSize);
                         }
                     }
-                    // NEW: leveling
+                    // leveling
                     sol::table leveling = t["leveling"];
                     if (leveling.valid()) {
                         cfg.baseLevel     = leveling.get_or("base_level", cfg.baseLevel);
@@ -50,6 +60,7 @@ const GameConfigData& GameConfig::get() {
                 }
             }
         }
+
         inited = true;
     }
     return cfg;
