@@ -1,7 +1,7 @@
 // LuaScript.cpp
 
 #include "LuaScript.h"
-#include "GameWorld.h"
+#include "game/GameWorld.h"
 #include "LuaBindings.h"
 
 LuaScript::LuaScript(GameWorld* world, GameStateManager* manager)

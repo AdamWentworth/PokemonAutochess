@@ -4,7 +4,7 @@
 
 #include "game/GameState.h"
 #include "game/GameWorld.h"
-#include "game/LuaScript.h"
+#include "game/scripting/LuaScript.h"
 #include "game/systems/CardSystem.h"
 #include "engine/ui/TextRenderer.h"
 

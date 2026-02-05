@@ -23,7 +23,7 @@
 #include "game/systems/UnitInteractionSystem.h"
 #include "game/systems/RoundSystem.h"
 #include "game/systems/ShopSystem.h"
-#include "game/ScriptedState.h"
+#include "game/scripting/ScriptedState.h"
 #include "game/GameConfig.h"
 #include "game/LogBus.h"
 

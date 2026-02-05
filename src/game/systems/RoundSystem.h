@@ -3,7 +3,7 @@
 #pragma once
 
 #include "engine/core/Updatable.h"
-#include "game/LuaScript.h"
+#include "game/scripting/LuaScript.h"
 #include "engine/events/RoundEvents.h"
 
 enum class RoundPhase {

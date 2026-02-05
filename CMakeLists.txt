@@ -115,8 +115,6 @@ add_executable(PokemonAutochess
     src/game/GameApp.cpp
     src/game/GameWorld.cpp
     src/game/GameStateManager.cpp
-    src/game/LuaBindings.cpp
-    src/game/LuaScript.cpp
     src/game/PokemonConfigLoader.cpp
     src/game/GameConfig.cpp
     src/game/LogBus.cpp
@@ -124,12 +122,18 @@ add_executable(PokemonAutochess
     src/game/AttackAnimConfigLoader.cpp
     src/game/AnimSetLoader.cpp
     src/game/FlyerConfigLoader.cpp
-
+    
+    # Game Animations
     src/game/animation/FlightLocomotion.cpp
-
-    # Game VFX (NEW)
-    src/game/vfx/TailFireVFX.cpp
-    src/game/vfx/TailFireVFXConfigDB.cpp
+    
+    # Game Scripting
+    src/game/scripting/ScriptedState.cpp
+    src/game/scripting/LuaBindings.cpp
+    src/game/scripting/LuaScript.cpp
+    
+    # States
+    src/game/state/PlacementState.cpp
+    src/game/state/CombatState.cpp
 
     # Game Systems
     src/game/systems/CameraSystem.cpp
@@ -140,15 +144,14 @@ add_executable(PokemonAutochess
     src/game/systems/MovementSystem.cpp
     src/game/systems/CombatSystem.cpp
     src/game/systems/ShopSystem.cpp
-
+    
     # Game UI
     src/game/ui/CardFactory.cpp
     src/game/ui/HealthBarQuery.cpp
 
-    # States
-    src/game/state/PlacementState.cpp
-    src/game/state/CombatState.cpp
-    src/game/ScriptedState.cpp
+    # Game VFX
+    src/game/vfx/TailFireVFX.cpp
+    src/game/vfx/TailFireVFXConfigDB.cpp
 )
 
 # SDL intentionally removed from the game target.

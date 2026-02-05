@@ -1,7 +1,7 @@
 // src/game/state/CombatState.h
 #pragma once
 #include "game/GameState.h"
-#include "game/LuaScript.h"
+#include "game/scripting/LuaScript.h"
 #include "engine/ui/TextRenderer.h"
 #include <memory>
 

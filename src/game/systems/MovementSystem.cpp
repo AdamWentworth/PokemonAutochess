@@ -1,6 +1,6 @@
 // MovementSystem.cpp
 #include "MovementSystem.h"
-#include "game/LuaBindings.h"
+#include "game/scripting/LuaBindings.h"
 #include <iostream>
 #include <algorithm>
 #include <glm/glm.hpp>

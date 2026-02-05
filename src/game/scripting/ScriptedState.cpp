@@ -1,6 +1,6 @@
 // ScriptedState.cpp
 
-#include "game/ScriptedState.h"
+#include "game/scripting/ScriptedState.h"
 #include "game/GameStateManager.h"
 #include "game/GameConfig.h"
 #include "game/state/PlacementState.h"

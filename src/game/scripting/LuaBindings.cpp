@@ -1,18 +1,18 @@
 // src/game/LuaBindings.cpp
 #include "LuaBindings.h"
-#include "GameWorld.h"
-#include "PokemonInstance.h"
-#include "animation/FlightLocomotion.h"
-#include "GameStateManager.h"
+#include "game/GameWorld.h"
+#include "game/PokemonInstance.h"
+#include "game/animation/FlightLocomotion.h"
+#include "game/GameStateManager.h"
 #include "ScriptedState.h"
 #include "engine/events/EventManager.h"
 #include "engine/events/RoundEvents.h"
-#include "GameConfig.h"
-#include "PokemonConfigLoader.h"
-#include "MovesConfigLoader.h"
-#include "AttackAnimConfigLoader.h"
-#include "AttackAnimDebug.h"
-#include "AnimSetLoader.h"
+#include "game/GameConfig.h"
+#include "game/PokemonConfigLoader.h"
+#include "game/MovesConfigLoader.h"
+#include "game/AttackAnimConfigLoader.h"
+#include "game/AttackAnimDebug.h"
+#include "game/AnimSetLoader.h"
 #include <glm/glm.hpp>
 #include "engine/render/Model.h"
 #include <iostream>
@@ -20,7 +20,7 @@
 #include <cctype>
 #include <cmath>
 #include <limits>
-#include "LogBus.h"
+#include "game/LogBus.h"
 
 
 static std::string toLowerCopy(std::string s) {
