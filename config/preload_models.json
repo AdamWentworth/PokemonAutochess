@@ -1,0 +1,11 @@
+{
+  "model_root": "assets/models/",
+  "pokemon": [
+    "bulbasaur",
+    "charmander",
+    "squirtle",
+    "pidgey",
+    "rattata"
+  ],
+  "models": []
+}

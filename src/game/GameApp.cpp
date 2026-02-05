@@ -30,6 +30,7 @@
 #include "game/state/ScriptedState.h"
 
 #include "game/GameConfig.h"
+#include "game/GamePreload.h"
 
 #include <iostream>
 #include <vector>
@@ -195,67 +196,29 @@ void GameApp::shutdown() {
 }
 
 void GameApp::preloadCommonModels(GameContext& ctx) {
-    // Preload models that you know you will use early to avoid hitching mid-combat.
-    // IMPORTANT: must be called AFTER GL context + glad are ready.
-
-    auto addByName = [&](std::vector<std::string>& out, const std::string& name) {
-        const PokemonStats* stats = PokemonConfigLoader::getInstance().getStats(name);
-        if (!stats) return;
-        const std::string path = "assets/models/" + stats->model;
-        out.push_back(path);
-    };
+    // Data-driven preload list. Falls back to the previous hardcoded behavior if the file is missing/invalid.
+    const std::string preloadCfg = engine::paths::data("config/preload_models.json");
 
     std::vector<std::string> modelsToPreload;
-    modelsToPreload.reserve(16);
+    if (!game::preload::loadModelPathsFromConfig(preloadCfg, modelsToPreload)) {
+        // ---- Fallback (previous behavior) ----
+        auto addByName = [&](std::vector<std::string>& out, const std::string& name) {
+            const PokemonStats* stats = PokemonConfigLoader::getInstance().getStats(name);
+            if (!stats) return;
+            out.push_back("assets/models/" + stats->model);
+        };
 
-    // starters
-    addByName(modelsToPreload, "bulbasaur");
-    addByName(modelsToPreload, "charmander");
-    addByName(modelsToPreload, "squirtle");
+        modelsToPreload.reserve(16);
 
-    // route1 (from scripts/states/route1.lua)
-    addByName(modelsToPreload, "pidgey");
-    addByName(modelsToPreload, "rattata");
+        // starters
+        addByName(modelsToPreload, "bulbasaur");
+        addByName(modelsToPreload, "charmander");
+        addByName(modelsToPreload, "squirtle");
 
-    if (modelsToPreload.empty()) return;
-
-    if (ctx.setTitle) ctx.setTitle("PokemonAutochess - Loading.");
-
-    // draw initial bar
-    if (ctx.renderBootLoading) ctx.renderBootLoading(0.0f);
-
-    if (ctx.pumpPreloadEvents && !ctx.pumpPreloadEvents()) {
-        if (ctx.requestQuit) ctx.requestQuit();
-        return;
+        // route1 (from scripts/states/route1.lua)
+        addByName(modelsToPreload, "pidgey");
+        addByName(modelsToPreload, "rattata");
     }
 
-    const int total = (int)modelsToPreload.size();
-    for (int i = 0; i < total; ++i) {
-        const std::string& path = modelsToPreload[i];
-
-        if (ctx.setTitle) {
-            ctx.setTitle(
-                "PokemonAutochess - Loading " +
-                std::to_string(i + 1) + "/" + std::to_string(total) + "  " + path
-            );
-        }
-
-        if (ctx.pumpPreloadEvents && !ctx.pumpPreloadEvents()) {
-        if (ctx.requestQuit) ctx.requestQuit();
-        return;
-    }
-
-        // expensive load (engine-owned service)
-        if (ctx.services && ctx.services->resources) {
-            ctx.services->resources->getModel(path);
-        } else {
-            std::cerr << "[Preload] No resource service available; skipping model preload for: " << path << "\n";
-        }
-
-        float progress = float(i + 1) / float(total);
-        if (ctx.renderBootLoading) ctx.renderBootLoading(progress);
-    }
-
-    if (ctx.setTitle) ctx.setTitle("Pokemon Autochess");
-    if (ctx.pumpPreloadEvents) ctx.pumpPreloadEvents();
+    game::preload::preloadModels(ctx, modelsToPreload, "PokemonAutochess");
 }
