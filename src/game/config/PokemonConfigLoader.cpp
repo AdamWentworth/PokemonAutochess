@@ -1,7 +1,8 @@
 // PokemonConfigLoader.cpp
 #include "PokemonConfigLoader.h"
+#include "game/logging/LogBus.h"
+
 #include <fstream>
-#include <iostream>
 
 PokemonConfigLoader& PokemonConfigLoader::getInstance() {
     static PokemonConfigLoader instance;
@@ -11,7 +12,7 @@ PokemonConfigLoader& PokemonConfigLoader::getInstance() {
 bool PokemonConfigLoader::loadConfig(const std::string& filePath) {
     std::ifstream file(filePath);
     if (!file.is_open()) {
-        std::cerr << "[PokemonConfigLoader] Failed to open: " << filePath << "\n";
+        LogBus::error(std::string("[PokemonConfigLoader] Failed to open: ") + filePath);
         return false;
     }
 
@@ -49,7 +50,8 @@ bool PokemonConfigLoader::loadConfig(const std::string& filePath) {
         statsMap[name] = std::move(stats);
     }
 
-    std::cout << "[PokemonConfigLoader] Loaded stats for " << statsMap.size() << " Pokémon\n";
+    LogBus::info(std::string("[PokemonConfigLoader] Loaded stats for ") +
+                 std::to_string(statsMap.size()) + " Pokémon");
     return true;
 }
 

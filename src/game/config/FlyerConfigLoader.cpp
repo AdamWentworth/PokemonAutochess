@@ -1,15 +1,16 @@
-// src/game/FlyerConfigLoader.cpp
+// FlyerConfigLoader.cpp
 #include "FlyerConfigLoader.h"
+#include "game/logging/LogBus.h"
 
 #include <nlohmann/json.hpp>
 #include <fstream>
-#include <iostream>
+
 #include <algorithm>
 #include <cctype>
 
 static std::string toLowerCopy(std::string s) {
     std::transform(s.begin(), s.end(), s.begin(),
-                   [](unsigned char c){ return (char)std::tolower(c); });
+                   [](unsigned char c) { return (char)std::tolower(c); });
     return s;
 }
 
@@ -21,7 +22,7 @@ FlyerConfigLoader& FlyerConfigLoader::getInstance() {
 bool FlyerConfigLoader::loadConfig(const std::string& path) {
     std::ifstream f(path);
     if (!f) {
-        std::cerr << "[FlyerConfigLoader] Could not open: " << path << "\n";
+        LogBus::error(std::string("[FlyerConfigLoader] Could not open: ") + path);
         flyers.clear();
         airDefaults.clear();
         return false;
@@ -31,7 +32,7 @@ bool FlyerConfigLoader::loadConfig(const std::string& path) {
     try {
         f >> j;
     } catch (...) {
-        std::cerr << "[FlyerConfigLoader] Failed to parse JSON: " << path << "\n";
+        LogBus::error(std::string("[FlyerConfigLoader] Failed to parse JSON: ") + path);
         flyers.clear();
         airDefaults.clear();
         return false;
@@ -86,8 +87,8 @@ bool FlyerConfigLoader::loadConfig(const std::string& path) {
     flyers.swap(nextFlyers);
     airDefaults.swap(nextDefaults);
 
-    std::cout << "[FlyerConfigLoader] Loaded flyers: " << flyers.size()
-              << " airLocomotionDefaults: " << airDefaults.size() << "\n";
+    LogBus::info(std::string("[FlyerConfigLoader] Loaded flyers: ") + std::to_string(flyers.size()) +
+                 " airLocomotionDefaults: " + std::to_string(airDefaults.size()));
     return true;
 }
 

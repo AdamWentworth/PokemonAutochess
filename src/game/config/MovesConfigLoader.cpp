@@ -1,7 +1,8 @@
 // MovesConfigLoader.cpp
 #include "MovesConfigLoader.h"
+#include "game/logging/LogBus.h"
+
 #include <fstream>
-#include <iostream>
 
 MovesConfigLoader& MovesConfigLoader::getInstance() {
     static MovesConfigLoader inst;
@@ -11,7 +12,7 @@ MovesConfigLoader& MovesConfigLoader::getInstance() {
 bool MovesConfigLoader::loadConfig(const std::string& filePath) {
     std::ifstream file(filePath);
     if (!file.is_open()) {
-        std::cerr << "[MovesConfigLoader] Failed to open: " << filePath << "\n";
+        LogBus::error(std::string("[MovesConfigLoader] Failed to open: ") + filePath);
         return false;
     }
     nlohmann::json j;
@@ -43,7 +44,9 @@ bool MovesConfigLoader::loadConfig(const std::string& filePath) {
 
         moves_[name] = std::move(md);
     }
-    std::cout << "[MovesConfigLoader] Loaded " << moves_.size() << " moves\n";
+
+    LogBus::info(std::string("[MovesConfigLoader] Loaded ") +
+                 std::to_string(moves_.size()) + " moves");
     return true;
 }
 
