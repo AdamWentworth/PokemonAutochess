@@ -173,59 +173,55 @@ void registerLuaBindings(sol::state& lua, GameWorld* world, GameStateManager* ma
         sol::state_view L(lua);
         sol::table t = L.create_table();
         if (!world) return t;
-        for (auto& u : world->getPokemons()) {
-            if (u.id == unitId) {
-                t["id"]        = u.id;
-                t["name"]      = u.name;
-                t["side"]      = (u.side == PokemonSide::Player) ? "Player" : "Enemy";
-                t["hp"]        = u.hp;
-                t["attack"]    = u.attack;
-                t["alive"]     = u.alive;
-                t["energy"]    = u.energy;
-                t["maxEnergy"] = u.maxEnergy;
-                t["fastMove"]  = u.fastMove;
-                t["chargedMove"] = u.chargedMove;
-                auto cell      = worldToGrid(u.position);
-                t["col"]       = cell.x;
-                t["row"]       = cell.y;
-                return t;
-            }
-        }
+
+        auto* u = world->findUnitById(unitId);
+        if (!u) return t;
+
+        t["id"]        = u->id;
+        t["name"]      = u->name;
+        t["side"]      = (u->side == PokemonSide::Player) ? "Player" : "Enemy";
+        t["hp"]        = u->hp;
+        t["attack"]    = u->attack;
+        t["alive"]     = u->alive;
+        t["energy"]    = u->energy;
+        t["maxEnergy"] = u->maxEnergy;
+        t["fastMove"]  = u->fastMove;
+        t["chargedMove"] = u->chargedMove;
+        auto cell      = worldToGrid(u->position);
+        t["col"]       = cell.x;
+        t["row"]       = cell.y;
         return t;
     });
+// Movement & adjacency helpers (unchanged)
 
-    // Movement & adjacency helpers (unchanged)
     lua.set_function("world_apply_move", [world](int unitId, int col, int row) {
         if (!world) return false;
-        auto& list = world->getPokemons();
-        auto it = std::find_if(list.begin(), list.end(),
-            [&](const PokemonInstance& p){ return p.id == unitId; });
-        if (it == list.end() || !it->alive) return false;
-        it->position = gridToWorld(col, row);
-        it->isMoving = false;
-        it->moveT = 1.0f;
-        it->committedDest = {-1,-1};
+
+        auto* u = world->findUnitById(unitId);
+        if (!u || !u->alive) return false;
+
+        u->position = gridToWorld(col, row);
+        u->isMoving = false;
+        u->moveT = 1.0f;
+        u->committedDest = {-1,-1};
         return true;
     });
 
     lua.set_function("world_commit_move", [world](int unitId, int col, int row) {
         if (!world) return false;
-        auto& list = world->getPokemons();
-        auto it = std::find_if(list.begin(), list.end(),
-            [&](const PokemonInstance& p){ return p.id == unitId; });
-        if (it == list.end() || !it->alive) return false;
-        // NOTE: Fast attacks no longer use __END transition cues when movement begins.
 
-        const auto target = gridToWorld(col,row);
-        it->committedDest = {col,row};
-        it->moveFrom      = it->position;
-        it->moveTo        = target;
-        it->moveT         = 0.0f;
-        it->isMoving      = true;
+        auto* u = world->findUnitById(unitId);
+        if (!u || !u->alive) return false;
+
+        // NOTE: Fast attacks no longer use __END transition cues when movement begins.
+        u->committedDest = {col,row};
+        u->moveFrom      = u->position;
+        u->moveTo        = gridToWorld(col,row);
+        u->moveT         = 0.0f;
+        u->isMoving      = true;
         return true;
     });
-
-    lua.set_function("world_nearest_enemy_cell", [world](int unitId) {
+lua.set_function("world_nearest_enemy_cell", [world](int unitId) {
         if (!world) return std::make_pair(-1, -1);
 
         auto& list = world->getPokemons();
@@ -656,46 +652,49 @@ void registerLuaBindings(sol::state& lua, GameWorld* world, GameStateManager* ma
         });
 
     // ----- Energy helpers -----
+
     lua.set_function("world_get_energy", [world](int unitId) {
         if (!world) return 0;
-        for (auto& u : world->getPokemons()) if (u.id == unitId) return u.energy;
-        return 0;
-    });
-    lua.set_function("world_get_max_energy", [world](int unitId) {
-        if (!world) return 100;
-        for (auto& u : world->getPokemons()) if (u.id == unitId) return u.maxEnergy;
-        return 100;
-    });
-    lua.set_function("world_set_energy", [world](int unitId, int value) {
-        if (!world) return false;
-        for (auto& u : world->getPokemons()) if (u.id == unitId) {
-            u.energy = std::max(0, std::min(value, u.maxEnergy));
-            return true;
-        }
-        return false;
-    });
-    lua.set_function("world_add_energy", [world](int unitId, int delta) {
-        if (!world) return 0;
-        for (auto& u : world->getPokemons()) if (u.id == unitId) {
-            int m = u.maxEnergy;
-            u.energy = std::max(0, std::min(u.energy + delta, m));
-            return u.energy;
-        }
+        if (auto* u = world->findUnitById(unitId)) return u->energy;
         return 0;
     });
 
-    // ====== move accessors for Lua combat ======
+    lua.set_function("world_get_max_energy", [world](int unitId) {
+        if (!world) return 100;
+        if (auto* u = world->findUnitById(unitId)) return u->maxEnergy;
+        return 100;
+    });
+
+    lua.set_function("world_set_energy", [world](int unitId, int value) {
+        if (!world) return false;
+        auto* u = world->findUnitById(unitId);
+        if (!u) return false;
+        u->energy = std::max(0, std::min(value, u->maxEnergy));
+        return true;
+    });
+
+    lua.set_function("world_add_energy", [world](int unitId, int delta) {
+        if (!world) return 0;
+        auto* u = world->findUnitById(unitId);
+        if (!u) return 0;
+        int m = u->maxEnergy;
+        u->energy = std::max(0, std::min(u->energy + delta, m));
+        return u->energy;
+    });
+// ====== move accessors for Lua combat ======
+
     lua.set_function("unit_fast_move", [world](int unitId) -> std::string {
         if (!world) return "";
-        for (auto& u : world->getPokemons()) if (u.id == unitId) return u.fastMove;
+        if (auto* u = world->findUnitById(unitId)) return u->fastMove;
         return "";
     });
+
     lua.set_function("unit_charged_move", [world](int unitId) -> std::string {
         if (!world) return "";
-        for (auto& u : world->getPokemons()) if (u.id == unitId) return u.chargedMove;
+        if (auto* u = world->findUnitById(unitId)) return u->chargedMove;
         return "";
     });
-    lua.set_function("move_get", [&lua](const std::string& name) {
+lua.set_function("move_get", [&lua](const std::string& name) {
         sol::state_view L(lua);
         sol::table t = L.create_table();
         const auto* md = MovesConfigLoader::getInstance().getMove(name);

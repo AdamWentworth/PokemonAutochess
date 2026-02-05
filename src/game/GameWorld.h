@@ -38,6 +38,9 @@ public:
     std::vector<PokemonInstance>& getPokemons();
     const PokemonInstance* getPokemonByName(const std::string& name) const;
 
+
+    PokemonInstance* findUnitById(int unitId);
+    const PokemonInstance* findUnitById(int unitId) const;
     void addToBench(const std::string& pokemonName);
     std::vector<PokemonInstance>& getBenchPokemons();
 

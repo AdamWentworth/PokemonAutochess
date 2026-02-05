@@ -209,6 +209,27 @@ const PokemonInstance* GameWorld::getPokemonByName(const std::string& name) cons
     return nullptr;
 }
 
+
+
+PokemonInstance* GameWorld::findUnitById(int unitId) {
+    for (auto& p : pokemons) {
+        if (p.id == unitId) return &p;
+    }
+    for (auto& b : benchPokemons) {
+        if (b.id == unitId) return &b;
+    }
+    return nullptr;
+}
+
+const PokemonInstance* GameWorld::findUnitById(int unitId) const {
+    for (const auto& p : pokemons) {
+        if (p.id == unitId) return &p;
+    }
+    for (const auto& b : benchPokemons) {
+        if (b.id == unitId) return &b;
+    }
+    return nullptr;
+}
 std::vector<PokemonInstance>& GameWorld::getPokemons() { return pokemons; }
 std::vector<PokemonInstance>& GameWorld::getBenchPokemons() { return benchPokemons; }
 
