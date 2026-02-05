@@ -115,13 +115,15 @@ add_executable(PokemonAutochess
     src/game/GameApp.cpp
     src/game/GameWorld.cpp
     src/game/GameStateManager.cpp
-    src/game/PokemonConfigLoader.cpp
     src/game/GameConfig.cpp
     src/game/LogBus.cpp
-    src/game/MovesConfigLoader.cpp
-    src/game/AttackAnimConfigLoader.cpp
-    src/game/AnimSetLoader.cpp
-    src/game/FlyerConfigLoader.cpp
+    
+    # Game Data
+    src/game/data/PokemonConfigLoader.cpp
+    src/game/data/MovesConfigLoader.cpp
+    src/game/data/AttackAnimConfigLoader.cpp
+    src/game/data/AnimSetLoader.cpp
+    src/game/data/FlyerConfigLoader.cpp
     
     # Game Animations
     src/game/animation/FlightLocomotion.cpp

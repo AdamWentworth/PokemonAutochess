@@ -9,7 +9,7 @@
 
 // Keep includes compatible with your project include layout:
 #include "engine/render/Model.h"
-#include "PokemonInstance.h"
+#include "game/PokemonInstance.h"
 #include "FlyerConfigLoader.h"
 
 namespace AnimSet {

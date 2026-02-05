@@ -8,11 +8,11 @@
 #include "engine/events/EventManager.h"
 #include "engine/events/RoundEvents.h"
 #include "game/GameConfig.h"
-#include "game/PokemonConfigLoader.h"
-#include "game/MovesConfigLoader.h"
-#include "game/AttackAnimConfigLoader.h"
+#include "game/data/PokemonConfigLoader.h"
+#include "game/data/MovesConfigLoader.h"
+#include "game/data/AttackAnimConfigLoader.h"
 #include "game/AttackAnimDebug.h"
-#include "game/AnimSetLoader.h"
+#include "game/data/AnimSetLoader.h"
 #include <glm/glm.hpp>
 #include "engine/render/Model.h"
 #include <iostream>

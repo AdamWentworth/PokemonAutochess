@@ -12,16 +12,16 @@
 #include <iostream>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
-#include "PokemonConfigLoader.h"
+#include "data/PokemonConfigLoader.h"
 #include "GameConfig.h"
-#include "MovesConfigLoader.h"
+#include "data/MovesConfigLoader.h"
 
 #include <cmath>
 #include <limits>
 #include <algorithm>
 
 // ✅ NEW: animset v2/v3 parser (drop-in)
-#include "AnimSetLoader.h"
+#include "data/AnimSetLoader.h"
 #include "animation/FlightLocomotion.h"
 
 void GameWorld::applyLevelScaling(PokemonInstance& inst, int level) const {
