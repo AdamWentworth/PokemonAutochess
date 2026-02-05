@@ -219,7 +219,10 @@ void GameApp::preloadCommonModels(GameContext& ctx) {
     // draw initial bar
     if (ctx.renderBootLoading) ctx.renderBootLoading(0.0f);
 
-    if (ctx.pumpPreloadEvents && !ctx.pumpPreloadEvents()) std::exit(0);
+    if (ctx.pumpPreloadEvents && !ctx.pumpPreloadEvents()) {
+        if (ctx.requestQuit) ctx.requestQuit();
+        return;
+    }
 
     const int total = (int)modelsToPreload.size();
     for (int i = 0; i < total; ++i) {
@@ -232,7 +235,10 @@ void GameApp::preloadCommonModels(GameContext& ctx) {
             );
         }
 
-        if (ctx.pumpPreloadEvents && !ctx.pumpPreloadEvents()) std::exit(0);
+        if (ctx.pumpPreloadEvents && !ctx.pumpPreloadEvents()) {
+        if (ctx.requestQuit) ctx.requestQuit();
+        return;
+    }
 
         // expensive load (engine-owned service)
         if (ctx.services && ctx.services->resources) {

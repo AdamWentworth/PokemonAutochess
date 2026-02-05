@@ -31,8 +31,10 @@ struct GameContext {
     std::function<void(const std::string&)> setTitle;
     std::function<void()>                  swapBuffers;
 
+    // Request application shutdown (safe to call during init/preload)
+    std::function<void()>                  requestQuit;
+
     // Loading / long task helpers
     std::function<bool()>                  pumpPreloadEvents;
     std::function<void(float /*progress01*/)> renderBootLoading;
 };
-

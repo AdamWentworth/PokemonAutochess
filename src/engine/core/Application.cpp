@@ -315,6 +315,8 @@ void Application::renderBootLoading(float progress01) {
 void Application::run(GameLoop& game) {
     std::cout << "[Run] Main loop @ 60 Hz...\n";
 
+    bool running = true;
+
     EngineServices services;
     services.systems = &systemRegistry;
     services.resources = &resourceManager;
@@ -331,10 +333,17 @@ void Application::run(GameLoop& game) {
     // Bind engine helpers as callbacks (stable contract)
     ctx.setTitle = [this](const std::string& t) { this->setTitle(t); };
     ctx.swapBuffers = [this]() { this->swapBuffers(); };
+    ctx.requestQuit = [&running]() { running = false; };
     ctx.pumpPreloadEvents = [this]() { return this->pumpPreloadEvents(); };
     ctx.renderBootLoading = [this](float p) { this->renderBootLoading(p); };
 
     game.init(ctx);
+
+    // If the game requested quit during init (e.g. user closed during preload), exit cleanly.
+    if (!running) {
+        game.shutdown();
+        return;
+    }
 
     using clock = std::chrono::high_resolution_clock;
     auto previous = clock::now();
@@ -343,7 +352,6 @@ void Application::run(GameLoop& game) {
     int frameCount = 0;
     static double fpsTimer = 0.0;
 
-    bool running = true;
 
     while (running) {
         SDL_Event sdlEvent;
