@@ -1,26 +1,49 @@
 // LogBus.cpp
 #include "LogBus.h"
+
 #include "engine/ui/BattleFeed.h"
-#include <iostream>                   // NEW
-static BattleFeed* g_feed = nullptr;
-static bool g_echo = true;
-static bool g_feed_enabled = true; // NEW
+#include <iostream>
+#include <atomic>
 
-void LogBus::attach(BattleFeed* f){ g_feed = f; }
+namespace LogBus {
 
-static void push(const std::string& s, const glm::vec3& c, float life=3.f){
-  if (g_feed_enabled && g_feed) g_feed->push(s, c, life); // gate on-screen feed
-  if (g_echo) std::cout << s << "\n";
+static Logger* g_active = nullptr;
+
+// Default instance (used only if no active logger is set).
+static Logger& defaultLogger() {
+    static Logger inst;
+    return inst;
 }
 
-void LogBus::setEchoToStdout(bool enabled){ g_echo = enabled; }
-void LogBus::setFeedEnabled(bool enabled){ g_feed_enabled = enabled; } // NEW
-
-void LogBus::infoTerminalOnly(const std::string& s){                  // NEW
-  std::cout << s << "\n"; // stdout only, never touches BattleFeed
+static Logger& active() {
+    return g_active ? *g_active : defaultLogger();
 }
 
-void LogBus::info (const std::string& s){ push(s, {1,1,1}); }
-void LogBus::warn (const std::string& s){ push("[WARN] "  + s, {1,0.9f,0.2f}); }
-void LogBus::error(const std::string& s){ push("[ERROR] " + s, {1,0.3f,0.3f}); }
-void LogBus::colored(const std::string& s, const glm::vec3& rgb, float life){ push(s, rgb, life); }
+void setActive(Logger* logger) {
+    g_active = logger;
+}
+
+void Logger::push(const std::string& s, const glm::vec3& c, float life) {
+    if (feed_enabled_ && feed_) {
+        feed_->push(s, c, life);
+    }
+    if (echo_) {
+        std::cout << s << "\n";
+    }
+}
+
+void Logger::infoTerminalOnly(const std::string& s) {
+    std::cout << s << "\n";
+}
+
+// ---- Compatibility functions (delegate to active logger) ----
+void attach(BattleFeed* feed)                { active().attach(feed); }
+void info(const std::string& s)              { active().info(s); }
+void warn(const std::string& s)              { active().warn(s); }
+void error(const std::string& s)             { active().error(s); }
+void colored(const std::string& s, const glm::vec3& rgb, float lifetime) { active().colored(s, rgb, lifetime); }
+void setEchoToStdout(bool enabled)           { active().setEchoToStdout(enabled); }
+void setFeedEnabled(bool enabled)            { active().setFeedEnabled(enabled); }
+void infoTerminalOnly(const std::string& s)  { active().infoTerminalOnly(s); }
+
+} // namespace LogBus

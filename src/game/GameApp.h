@@ -8,6 +8,7 @@
 #include "engine/ui/HealthBarRenderer.h"
 
 #include "game/systems/RoundSystem.h" // for RoundPhase
+#include "game/logging/LogBus.h"      // for LogBus::Logger
 
 // Forward decls (engine)
 struct GameContext;
@@ -54,6 +55,9 @@ private:
     std::unique_ptr<GameWorld>        gameWorld;
     std::unique_ptr<BoardRenderer>    board;
     std::unique_ptr<BattleFeed>       battleFeed;
+
+    // Game-owned logger instance (no file-scope globals).
+    LogBus::Logger log;
 
     HealthBarRenderer healthBarRenderer;
 

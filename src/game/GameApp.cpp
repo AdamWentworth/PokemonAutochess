@@ -29,7 +29,6 @@
 #include "game/state/ScriptedState.h"
 
 #include "game/GameConfig.h"
-#include "game/logging/LogBus.h"
 
 #include <iostream>
 #include <vector>
@@ -93,12 +92,15 @@ void GameApp::init(GameContext& ctx) {
 
     healthBarRenderer.init();
 
-    // Battle feed + LogBus
+    // Battle feed + logger (instance-based)
     battleFeed = std::make_unique<BattleFeed>(cfg.fontPath, cfg.fontSize);
-    LogBus::attach(battleFeed.get());
+    log.attach(battleFeed.get());
 
     // Console logging can stall badly on Windows in Debug.
-    LogBus::setEchoToStdout(false);
+    log.setEchoToStdout(false);
+
+    // Make this logger the active LogBus backend for legacy calls.
+    LogBus::setActive(&log);
 
     // Preload (game-level decision, uses engine loading UI via ctx)
     preloadCommonModels(ctx);
@@ -132,7 +134,7 @@ void GameApp::fixedUpdate(float dt) {
             shopSystem->onRoundPhaseChanged(lastRoundPhase, current);
 
             LogBus::colored(
-                std::string("Phase: ") + phaseName(lastRoundPhase) + " → " + phaseName(current),
+                std::string("Phase: ") + phaseName(lastRoundPhase) + " \xE2\x86\x92 " + phaseName(current),
                 {0.75f, 0.9f, 1.0f},
                 3.0f
             );
@@ -169,6 +171,10 @@ void GameApp::render(int drawableW, int drawableH) {
 
 void GameApp::shutdown() {
     std::cout << "[Shutdown] Game.\n";
+
+    // Stop routing global LogBus calls to this instance before teardown.
+    LogBus::setActive(nullptr);
+    log.attach(nullptr);
 
     // Game-owned GL resources
     if (board) {
