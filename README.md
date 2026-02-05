@@ -205,3 +205,43 @@ These synergies influence unit stats, ability cooldowns, and team-wide effects.
 ---
 
 More details will be added as we build out the round engine, combat loop, and draft/shop systems.
+
+## Trace gating via environment variables
+
+This patch removes the hard-coded Bulbasaur/Vine Whip trace gating and switches to the same env-driven matching rules implemented in `src/game/logging/DebugTrace.h`.
+
+### Environment variables
+
+- `PAC_TRACE_ALL=1`  
+  Enables all combat traces.
+
+- `PAC_TRACE_COMBAT="unit:move,unit2:move2"`  
+  Comma/semicolon/whitespace-separated tokens.  
+  Each token is `unit:move` where either side may be `*` (wildcard).  
+  If a token has no `:`, it is treated as a unit-only match (`move="*"`).
+
+### Examples
+
+- `PAC_TRACE_COMBAT="bulbasaur:vine_whip"`
+- `PAC_TRACE_COMBAT="*:vine_whip"`
+- `PAC_TRACE_COMBAT="bulbasaur:*"`
+- `PAC_TRACE_COMBAT="*:*,pikachu:thunder_shock"`
+
+### Files included
+
+- `scripts/systems/combat.lua`  
+  Lua-side `emit()` debug prints gated by `PAC_TRACE_ALL` / `PAC_TRACE_COMBAT`.
+
+- `src/game/GameWorld.cpp`  
+  Animation tick / clamp logs gated by `DebugTrace::combat(unit, move)`.
+
+- `src/game/scripting/LuaBindings.cpp`  
+  `world_apply_damage` tracing gated by `DebugTrace::combat(unit, move)`.
+
+### Notes
+
+- Log prefixes were renamed from `[VW_*]` to `[TRACE_*]` so they aren’t misleading when tracing other units/moves.
+- These files assume `DebugTrace.h` remains at `src/game/logging/DebugTrace.h` and is included via:
+  - `"logging/DebugTrace.h"` in `GameWorld.cpp`
+  - `"game/logging/DebugTrace.h"` in `LuaBindings.cpp`  
+  (matching existing include conventions in those files).

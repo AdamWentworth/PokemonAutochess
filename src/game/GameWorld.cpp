@@ -23,6 +23,7 @@
 #include "config/AnimSetLoader.h"
 
 #include "logging/LogBus.h"
+#include "logging/DebugTrace.h"
 
 #include "ui/HealthBarQuery.h"
 
@@ -268,9 +269,9 @@ void GameWorld::update(float dt)
             p.attackTimerSec = std::max(0.0f, p.attackTimerSec - dt);
 
 
-            // Vine Whip trace: only for Bulbasaur while fast-chain indicates vine_whip.
-            const bool traceVW = (p.name == "bulbasaur" && p.chainedFastMove == "vine_whip");
-            if (traceVW) {
+            // Combat trace: enabled via env (PAC_TRACE_ALL / PAC_TRACE_COMBAT)
+            const bool traceCombat = DebugTrace::combat(p.name, p.chainedFastMove);
+            if (traceCombat) {
                 static std::unordered_map<int, float> prevAtkTimer;
                 static std::unordered_map<int, float> prevAnimTime;
                 const float prevT = prevAtkTimer[p.id];
@@ -278,7 +279,7 @@ void GameWorld::update(float dt)
                 prevAtkTimer[p.id] = p.attackTimerSec;
                 prevAnimTime[p.id] = p.animTimeSec;
 
-                LogBus::infoTerminalOnly(std::string("[VW_TICK] ") +
+                LogBus::infoTerminalOnly(std::string("[TRACE_COMBAT_TICK] ") + "unit=" + p.name + " move=" + (p.chainedFastMove.empty() ? std::string("-") : p.chainedFastMove) + " " +
                     "id=" + std::to_string(p.id) +
                     " dt=" + std::to_string(dt) +
                     " atkTimer=" + std::to_string(p.attackTimerSec) +
@@ -297,8 +298,8 @@ void GameWorld::update(float dt)
             if (dur > 0.0f) {
                 p.animTimeSec = std::min(p.animTimeSec + dt * speed, dur - 0.0001f);
 
-                if (traceVW && (p.animTimeSec >= dur - 0.00011f)) {
-                    LogBus::infoTerminalOnly(std::string("[VW_TICK] clamped_end ") +
+                if (traceCombat && (p.animTimeSec >= dur - 0.00011f)) {
+                    LogBus::infoTerminalOnly(std::string("[TRACE_COMBAT_TICK] clamped_end ") + "unit=" + p.name + " move=" + (p.chainedFastMove.empty() ? std::string("-") : p.chainedFastMove) + " " +
                         "id=" + std::to_string(p.id) +
                         " dur=" + std::to_string(dur) +
                         " animTime=" + std::to_string(p.animTimeSec));
@@ -341,8 +342,8 @@ void GameWorld::update(float dt)
             // when done, return to locomotion
             if (p.attackTimerSec <= 0.0f) {
 
-                if (traceVW) {
-                    LogBus::infoTerminalOnly(std::string("[VW_TICK] attack_end ") +
+                if (traceCombat) {
+                    LogBus::infoTerminalOnly(std::string("[TRACE_COMBAT_TICK] attack_end ") + "unit=" + p.name + " move=" + (p.chainedFastMove.empty() ? std::string("-") : p.chainedFastMove) + " " +
                         "id=" + std::to_string(p.id) +
                         " finalAnimTime=" + std::to_string(p.animTimeSec) +
                         " activeAnimIdx=" + std::to_string(p.activeAnimIndex));

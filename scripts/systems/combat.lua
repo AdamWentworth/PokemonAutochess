@@ -27,13 +27,89 @@ do
   end
 end
 
--- DEBUG: focused tracing for Bulbasaur -> vine_whip. Uses emit("[TAG]", payload) which prints to terminal only.
-local function is_vinewhip_debug(unit, moveName)
-  if not unit or not moveName then return false end
-  return (unit.name == "bulbasaur" and moveName == "vine_whip")
+-- DEBUG TRACE: combat tracing controlled by environment variables (matches src/game/logging/DebugTrace.h)
+--   PAC_TRACE_ALL=1            -> enable all traces
+--   PAC_TRACE_COMBAT="unit:move, ... " with "*" wildcards
+-- Examples:
+--   PAC_TRACE_COMBAT="bulbasaur:vine_whip"
+--   PAC_TRACE_COMBAT="*:vine_whip"
+--   PAC_TRACE_COMBAT="bulbasaur:*"
+local TRACE = { loaded = false, all = false, rules = {} }
+
+local function _tolower(s)
+  if s == nil then return "" end
+  return string.lower(tostring(s))
 end
 
-local function vwlog(tag, payload)
+local function _trace_load_once()
+  if TRACE.loaded then return end
+  TRACE.loaded = true
+
+  local all = (os and os.getenv) and os.getenv("PAC_TRACE_ALL") or nil
+  TRACE.all = (all ~= nil and all ~= "" and all ~= "0")
+
+  local env = (os and os.getenv) and os.getenv("PAC_TRACE_COMBAT") or nil
+  if env == nil or env == "" then return end
+
+  local function push_tok(tok)
+    tok = tostring(tok or "")
+    tok = tok:gsub("^%s+", ""):gsub("%s+$", "")
+    if tok == "" then return end
+
+    local unit = "*"
+    local move = "*"
+    local colon = tok:find(":")
+    if not colon then
+      unit = tok
+    else
+      unit = tok:sub(1, colon - 1)
+      move = tok:sub(colon + 1)
+      if unit == "" then unit = "*" end
+      if move == "" then move = "*" end
+    end
+
+    table.insert(TRACE.rules, { unit = _tolower(unit), move = _tolower(move) })
+  end
+
+  local cur = ""
+  for i = 1, #env do
+    local c = env:sub(i, i)
+    if c == "," or c == ";" or c:match("%s") then
+      if cur ~= "" then push_tok(cur); cur = "" end
+    else
+      cur = cur .. c
+    end
+  end
+  if cur ~= "" then push_tok(cur) end
+end
+
+local function _match_one(value, patLower)
+  if patLower == nil or patLower == "" or patLower == "*" then return true end
+  return _tolower(value) == patLower
+end
+
+local function trace_combat(unitOrName, moveName)
+  _trace_load_once()
+  if TRACE.all then return true end
+  if #TRACE.rules == 0 then return false end
+
+  local unitName = nil
+  if type(unitOrName) == "table" then
+    unitName = unitOrName.name
+  else
+    unitName = unitOrName
+  end
+
+  for i = 1, #TRACE.rules do
+    local r = TRACE.rules[i]
+    if _match_one(unitName, r.unit) and _match_one(moveName, r.move) then
+      return true
+    end
+  end
+  return false
+end
+
+local function trlog(tag, payload)
   emit(tag, payload)
 end
 
@@ -300,8 +376,8 @@ function combat_update(dt)
 
           local spd = unit_speed_factor(u.id)
 
-          if is_vinewhip_debug(u, fastName) then
-            vwlog("[VW_FAST/select]", string.format(
+          if trace_combat(u, fastName) then
+            trlog("[TRACE_FAST/select]", string.format(
               "attackerId=%d name=%s move=%s base_cd=%.3f energyGain=%s power=%s FAST_CD_MULT=%.3f SPEED_BASELINE=%.3f spdFactor=%.3f timerBefore=%.3f pendingCharged=%s",
               u.id, u.name, fastName,
               (m.cooldownSec or 0.0),
@@ -317,15 +393,15 @@ function combat_update(dt)
 
           -- Only start a new cycle when the engine is ready.
           if not can_start_attack_now(u.id) then
-            if is_vinewhip_debug(u, fastName) then
-              vwlog("[VW_FAST/can_start_attack_now]", "false -> skip (no cosmetic request)")
+            if trace_combat(u, fastName) then
+              trlog("[TRACE_FAST/can_start_attack_now]", "false -> skip (no cosmetic request)")
             end
             goto continue_unit
           end
 
           timers[u.id] = cd
-          if is_vinewhip_debug(u, fastName) then
-            vwlog("[VW_FAST/fire]", string.format("start_fast_attack cd=%.3f timerSet=%.3f targetId=%d", cd, timers[u.id], tgt))
+          if trace_combat(u, fastName) then
+            trlog("[TRACE_FAST/fire]", string.format("start_fast_attack cd=%.3f timerSet=%.3f targetId=%d", cd, timers[u.id], tgt))
           end
 
           emit(string.format("%s used %s!", get_name(u.id), string.gsub(fastName, "_", " ")))

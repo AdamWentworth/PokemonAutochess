@@ -1,6 +1,8 @@
 // AttackAnimConfigLoader.cpp
 #include "AttackAnimConfigLoader.h"
+
 #include "game/logging/LogBus.h"
+#include "game/logging/DebugTrace.h"  // env-driven trace rules (PAC_TRACE_ALL / PAC_TRACE_COMBAT)
 
 #include <fstream>
 #include <iostream>
@@ -136,11 +138,11 @@ std::string AttackAnimConfigLoader::getClipName(const std::string& species,
     const std::string m = toLower(move);
     const std::string p = toLower(phase);
 
-    const bool traceVW = (s == "bulbasaur" && m == "vine_whip");
-    auto vwlog = [&](const std::string& msg){
-        if (traceVW) LogBus::infoTerminalOnly(std::string("[VW_ANIMCFG] ") + msg);
+    // Env-driven trace gating (matches DebugTrace.h token rules).
+    const bool traceCombat = DebugTrace::combat(s, m);
+    auto trlog = [&](const std::string& msg){
+        if (traceCombat) LogBus::infoTerminalOnly(std::string("[TRACE_ANIMCFG] ") + msg);
     };
-
 
     auto itS = db_.find(s);
     if (itS == db_.end()) return "";
@@ -168,12 +170,24 @@ std::string AttackAnimConfigLoader::getClipName(const std::string& species,
     // Prefer exact move, then "*" wildcard.
     if (!m.empty()) {
         std::string out = lookup(m, p);
-        if (traceVW) vwlog(std::string("getClipName species=") + s + " kind=" + k + " move=" + m + " phase=" + p + " -> exact=" + (out.empty() ? std::string("<empty>") : out));
+        if (traceCombat) {
+            trlog(std::string("getClipName species=") + s +
+                  " kind=" + k +
+                  " move=" + m +
+                  " phase=" + p +
+                  " -> exact=" + (out.empty() ? std::string("<empty>") : out));
+        }
         if (!out.empty()) return out;
     }
 
     std::string out = lookup("*", p);
-    if (traceVW) vwlog(std::string("getClipName species=") + s + " kind=" + k + " move=" + m + " phase=" + p + " -> wildcard=" + (out.empty() ? std::string("<empty>") : out));
+    if (traceCombat) {
+        trlog(std::string("getClipName species=") + s +
+              " kind=" + k +
+              " move=" + m +
+              " phase=" + p +
+              " -> wildcard=" + (out.empty() ? std::string("<empty>") : out));
+    }
     return out;
 }
 
@@ -185,11 +199,11 @@ float AttackAnimConfigLoader::getMinRequestSec(const std::string& species,
     const std::string k = toLower(kind);
     const std::string m = toLower(move);
 
-    const bool traceVW = (s == "bulbasaur" && m == "vine_whip");
-    auto vwlog = [&](const std::string& msg){
-        if (traceVW) LogBus::infoTerminalOnly(std::string("[VW_ANIMCFG] ") + msg);
+    // Env-driven trace gating (matches DebugTrace.h token rules).
+    const bool traceCombat = DebugTrace::combat(s, m);
+    auto trlog = [&](const std::string& msg){
+        if (traceCombat) LogBus::infoTerminalOnly(std::string("[TRACE_ANIMCFG] ") + msg);
     };
-
 
     auto itS = minReqSec_.find(s);
     if (itS == minReqSec_.end()) return 0.0f;
@@ -211,15 +225,18 @@ float AttackAnimConfigLoader::getMinRequestSec(const std::string& species,
     }
 
     const float out = lookup("*");
-    if (traceVW) vwlog(std::string("getMinRequestSec species=") + s + " kind=" + k + " move=" + m + " -> " + std::to_string(out));
+    if (traceCombat) {
+        trlog(std::string("getMinRequestSec species=") + s +
+              " kind=" + k +
+              " move=" + m +
+              " -> " + std::to_string(out));
+    }
     return out;
 }
 
-
-
 int AttackAnimConfigLoader::getHitFrame(const std::string& species,
-                                      const std::string& kind,
-                                      const std::string& move) const
+                                       const std::string& kind,
+                                       const std::string& move) const
 {
     const std::string s = toLower(species);
     const std::string k = toLower(kind);

@@ -25,6 +25,7 @@
 #include "game/state/ScriptedState.h"
 
 #include "game/logging/LogBus.h"
+#include "game/logging/DebugTrace.h"
 
 static std::string toLowerCopy(std::string s) {
     std::transform(s.begin(), s.end(), s.begin(),
@@ -366,14 +367,15 @@ lua.set_function("world_nearest_enemy_cell", [world](int unitId) {
         if (kindLower.empty()) kindLower = "fast";
 
 
-        const bool traceVW = (speciesLower == "bulbasaur" && moveLower == "vine_whip");
-        auto vwlog = [&](const std::string& msg) {
-            if (!traceVW) return;
-            LogBus::infoTerminalOnly(std::string("[VW_CPP] ") + msg);
+        const bool traceCombat = DebugTrace::combat(speciesLower, moveLower);
+        auto trlog = [&](const std::string& msg) {
+            if (!traceCombat) return;
+            LogBus::infoTerminalOnly(std::string("[TRACE_COMBAT_CPP] ") +
+                                     "unit=" + speciesLower + " move=" + (moveLower.empty() ? std::string("-") : moveLower) + " " + msg);
         };
 
-        if (traceVW) {
-            vwlog(std::string("enter attackerId=") + std::to_string(attackerId) +
+        if (traceCombat) {
+            trlog(std::string("enter attackerId=") + std::to_string(attackerId) +
                   " targetId=" + std::to_string(targetId) +
                   " kind=" + kindLower +
                   " move=" + (moveLower.empty() ? std::string("-") : moveLower) +
@@ -405,10 +407,10 @@ lua.set_function("world_nearest_enemy_cell", [world](int unitId) {
             const float minReqSec = animCfg.getMinRequestSec(speciesLower, kindLower, moveLower);
             if (minReqSec > 0.0f) desiredWindowSec = std::max(desiredWindowSec, minReqSec);
 
-            if (traceVW) {
+            if (traceCombat) {
                 const float baseCad = cadenceSec.value_or(0.0f);
                 const float atk1Dur = (A->model && A->animAttack1Index >= 0) ? A->model->getAnimationDurationSec(A->animAttack1Index) : 0.0f;
-                vwlog(std::string("cadence baseCadenceArg=") + std::to_string(baseCad) +
+                trlog(std::string("cadence baseCadenceArg=") + std::to_string(baseCad) +
                       " attackDurationSec=" + std::to_string(A->attackDurationSec) +
                       " clipDur_attack1=" + std::to_string(atk1Dur) +
                       " minReqSec=" + std::to_string(minReqSec) +
@@ -418,7 +420,7 @@ lua.set_function("world_nearest_enemy_cell", [world](int unitId) {
             // amount<=0 requests are cosmetic queries from Lua (used when attacks are blocked).
             // They must not start an animation window or block real damage later.
             if (amount <= 0) {
-                if (traceVW) vwlog("cosmetic: amount<=0 -> ignore (no cycle)");
+                if (traceCombat) trlog("cosmetic: amount<=0 -> ignore (no cycle)");
                 return T->hp;
             }
 
@@ -427,7 +429,7 @@ lua.set_function("world_nearest_enemy_cell", [world](int unitId) {
             // queued/triggered by Lua on the next available attack (after this one ends).
             const float kMidCycleEps = 0.0001f;
             if (A->attackTimerSec > kMidCycleEps) {
-                if (traceVW) vwlog("lock: mid-cycle -> ignore request (no new cycle, no damage)");
+                if (traceCombat) trlog("lock: mid-cycle -> ignore request (no new cycle, no damage)");
                 return T->hp;
             }
 
@@ -469,9 +471,9 @@ lua.set_function("world_nearest_enemy_cell", [world](int unitId) {
                 }
             }
 
-            if (traceVW) {
+            if (traceCombat) {
                 float clipDur = (A->model && desiredAnimIdx >= 0) ? A->model->getAnimationDurationSec(desiredAnimIdx) : 0.0f;
-                vwlog(std::string("resolved desiredAnimIdx=") + std::to_string(desiredAnimIdx) +
+                trlog(std::string("resolved desiredAnimIdx=") + std::to_string(desiredAnimIdx) +
                       " clipDur=" + std::to_string(clipDur) +
                       " fastChainTimerSec=" + std::to_string(A->fastChainTimerSec) +
                       " chainedFastMove=" + (A->chainedFastMove.empty() ? std::string("-") : A->chainedFastMove));
@@ -513,8 +515,8 @@ lua.set_function("world_nearest_enemy_cell", [world](int unitId) {
 
             const bool startedThisCall = true;
 
-            if (traceVW) {
-                vwlog(std::string("attack_state startedThisCall=true") +
+            if (traceCombat) {
+                trlog(std::string("attack_state startedThisCall=true") +
                       " windowSec=" + std::to_string(windowSec) +
                       " clipDur=" + std::to_string(clipDur) +
                       " activeAnimIdx=" + std::to_string(A->activeAnimIndex) +
@@ -568,13 +570,13 @@ lua.set_function("world_nearest_enemy_cell", [world](int unitId) {
 
 // Apply damage.
         int dmg = std::max(0, amount);
-        if (traceVW) {
-            vwlog(std::string("damage_apply dmg=") + std::to_string(dmg) +
+        if (traceCombat) {
+            trlog(std::string("damage_apply dmg=") + std::to_string(dmg) +
                   " hp_before=" + std::to_string(T->hp));
         }
         T->hp = std::max(0, T->hp - dmg);
-        if (traceVW) {
-            vwlog(std::string("damage_result hp_after=") + std::to_string(T->hp) +
+        if (traceCombat) {
+            trlog(std::string("damage_result hp_after=") + std::to_string(T->hp) +
                   " targetAlive=" + std::string(T->hp > 0 ? "true" : "false"));
         }
 
