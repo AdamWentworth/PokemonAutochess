@@ -1,6 +1,7 @@
 // src/game/GameWorld.cpp
 #include "GameWorld.h"
 #include "LogBus.h"
+#include "ui/HealthBarQuery.h"
 #include <unordered_map>
 
 #include "engine/utils/ResourceManager.h"
@@ -378,31 +379,7 @@ void GameWorld::drawAll(const Camera3D& camera, BoardRenderer& boardRenderer)
 
 std::vector<HealthBarData> GameWorld::getHealthBarData(const Camera3D& camera, int screenWidth, int screenHeight) const
 {
-    std::vector<HealthBarData> data;
-
-    auto process = [&](const PokemonInstance& instance) {
-        if (!instance.alive) return;
-
-        glm::vec3 worldPos = instance.position + glm::vec3(0.0f, 1.0f + instance.visualYOffset, 0.0f);
-        glm::vec4 viewport(0.0f, 0.0f, screenWidth, screenHeight);
-        glm::vec3 screenPos = glm::project(worldPos, camera.getViewMatrix(), camera.getProjectionMatrix(), viewport);
-
-        if (screenPos.z > 1.0f || screenPos.x < 0 || screenPos.x > screenWidth || screenPos.y < 0 || screenPos.y > screenHeight)
-            return;
-
-        HealthBarData hb;
-        hb.screenPosition = glm::vec2(screenPos.x, screenHeight - screenPos.y);
-        hb.currentHP = instance.hp;
-        hb.maxHP = instance.maxHP;
-        hb.currentEnergy = instance.energy;
-        hb.maxEnergy     = instance.maxEnergy;
-        data.push_back(hb);
-    };
-
-    for (auto& p : pokemons) process(p);
-    for (auto& b : benchPokemons) process(b);
-
-    return data;
+    return BuildHealthBarData(pokemons, benchPokemons, camera, screenWidth, screenHeight);
 }
 
 glm::vec3 GameWorld::getNearestEnemyPosition(const PokemonInstance& unit) const
@@ -421,3 +398,4 @@ glm::vec3 GameWorld::getNearestEnemyPosition(const PokemonInstance& unit) const
 
     return closestPos;
 }
+

@@ -141,6 +141,7 @@ add_executable(PokemonAutochess
 
     # Game UI
     src/game/ui/CardFactory.cpp
+    src/game/ui/HealthBarQuery.cpp
 
     # States
     src/game/state/PlacementState.cpp
