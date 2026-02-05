@@ -9,6 +9,7 @@
 
 #include "game/systems/RoundSystem.h" // for RoundPhase
 #include "game/logging/LogBus.h"      // for LogBus::Logger
+#include "game/config/GameDataDb.h"
 
 // Forward decls (engine)
 struct GameContext;
@@ -55,6 +56,9 @@ private:
     std::unique_ptr<GameWorld>        gameWorld;
     std::unique_ptr<BoardRenderer>    board;
     std::unique_ptr<BattleFeed>       battleFeed;
+
+    // Threaded into GameWorld to avoid gameplay code calling config singletons.
+    GameDataDb dataDb;
 
     // Game-owned logger instance (no file-scope globals).
     LogBus::Logger log;

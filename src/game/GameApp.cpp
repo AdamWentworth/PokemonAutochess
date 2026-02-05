@@ -55,6 +55,11 @@ void GameApp::init(GameContext& ctx) {
     AttackAnimConfigLoader::getInstance().loadConfig(engine::paths::data("config/attack_anim_config.json"));
     FlyerConfigLoader::getInstance().loadConfig(engine::paths::data("config/flyers_config.json"));
 
+    dataDb.pokemon = &PokemonConfigLoader::getInstance();
+    dataDb.moves = &MovesConfigLoader::getInstance();
+    dataDb.attackAnims = &AttackAnimConfigLoader::getInstance();
+    dataDb.flyers = &FlyerConfigLoader::getInstance();
+
     std::cout << "[Init] CWD: " << std::filesystem::current_path() << "\n";
     std::cout << "[Init] PAC_DATA_ROOT: " << engine::paths::dataRoot() << "\n";
     std::cout << "[Init] PAC_ASSET_ROOT: " << engine::paths::assetRoot() << "\n";
@@ -66,6 +71,7 @@ void GameApp::init(GameContext& ctx) {
 
     gameWorld    = std::make_unique<GameWorld>();
     if (ctx.services) gameWorld->setResources(ctx.services->resources);
+    gameWorld->setData(&dataDb);
     stateManager = std::make_unique<GameStateManager>();
 
     cameraSystem = std::make_shared<CameraSystem>(camera);

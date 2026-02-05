@@ -15,10 +15,12 @@
 class Camera3D;
 class BoardRenderer;
 class ResourceManager;
+struct GameDataDb;
 
 class GameWorld {
 public:
     void setResources(ResourceManager* rm) { resources = rm; }
+    void setData(const GameDataDb* db) { data = db; }
 
     void spawnPokemon(const std::string& pokemonName,
                       const glm::vec3& startPos,
@@ -50,6 +52,7 @@ public:
 
 private:
     ResourceManager* resources = nullptr; // engine-owned
+    const GameDataDb* data = nullptr;     // game-owned, injected
 
     std::vector<PokemonInstance> pokemons;
     std::vector<PokemonInstance> benchPokemons;
@@ -67,4 +70,3 @@ private:
     TailFireVFX tailFireVfx;
     bool tailFireVfxInitialized = false;
 };
-

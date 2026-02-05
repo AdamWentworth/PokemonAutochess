@@ -17,6 +17,7 @@
 
 #include "animation/FlightLocomotion.h"
 
+#include "config/GameDataDb.h"
 #include "config/PokemonConfigLoader.h"
 #include "config/MovesConfigLoader.h"
 #include "config/AnimSetLoader.h"
@@ -51,7 +52,7 @@ static const LoadoutEntry* pickLoadoutForLevel(const PokemonStats& ps, int level
 }
 
 void GameWorld::applyLoadoutForLevel(PokemonInstance& inst) const {
-    const PokemonStats* ps = PokemonConfigLoader::getInstance().getStats(inst.name);
+    const PokemonStats* ps = data->pokemon->getStats(inst.name);
     if (!ps) {
         inst.fastMove.clear();
         inst.chargedMove.clear();
@@ -71,7 +72,7 @@ void GameWorld::applyLoadoutForLevel(PokemonInstance& inst) const {
 
     inst.maxEnergy = 100;
     if (!inst.chargedMove.empty()) {
-        if (const auto* md = MovesConfigLoader::getInstance().getMove(inst.chargedMove)) {
+        if (const auto* md = data->moves->getMove(inst.chargedMove)) {
             if (md->energyCost > 0) inst.maxEnergy = md->energyCost;
         }
     }
@@ -83,7 +84,12 @@ void GameWorld::spawnPokemon(const std::string& pokemonName,
                              PokemonSide side,
                              int level)
 {
-    const PokemonStats* stats = PokemonConfigLoader::getInstance().getStats(pokemonName);
+    if (!data || !data->pokemon) {
+        std::cerr << "[GameWorld] GameDataDb not set (pokemon). Call GameWorld::setData() during init.\n";
+        return;
+    }
+
+    const PokemonStats* stats = data->pokemon->getStats(pokemonName);
     if (!stats) {
         std::cerr << "[GameWorld] No config found for Pokémon: " << pokemonName << "\n";
         return;
@@ -151,7 +157,12 @@ void GameWorld::spawnPokemonAtGrid(const std::string& pokemonName,
 
 void GameWorld::addToBench(const std::string& pokemonName)
 {
-    const PokemonStats* stats = PokemonConfigLoader::getInstance().getStats(pokemonName);
+    if (!data || !data->pokemon) {
+        std::cerr << "[GameWorld] GameDataDb not set (pokemon). Call GameWorld::setData() during init.\n";
+        return;
+    }
+
+    const PokemonStats* stats = data->pokemon->getStats(pokemonName);
     if (!stats) {
         std::cerr << "[GameWorld] No config found for Pokémon: " << pokemonName << "\n";
         return;
@@ -420,4 +431,3 @@ glm::vec3 GameWorld::getNearestEnemyPosition(const PokemonInstance& unit) const
 
     return closestPos;
 }
-
