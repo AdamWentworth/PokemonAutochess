@@ -47,6 +47,7 @@ static inline bool str_starts_with(const std::string& s, const char* prefix) {
 #include "game/systems/ShopSystem.h"
 
 #include "game/state/ScriptedState.h"
+#include "game/GameServices.h"
 #include "game/GameConfig.h"
 
 #include "game/logging/LogBus.h"
@@ -193,6 +194,9 @@ struct GameRuntime {
     // Game-owned logger instance (no file-scope globals).
     LogBus::Logger log;
 
+    // v1: thread config/db/log into states without singletons.
+    std::unique_ptr<GameServices> services;
+
     HealthBarRenderer healthBarRenderer;
     SystemRegistry systemRegistry;
 
@@ -223,6 +227,7 @@ struct GameRuntime {
         camera = ctx.camera;
 
         const auto& cfg = GameConfig::get();
+        if (!services) services = std::make_unique<GameServices>(cfg, dataDb, log);
         board = std::make_unique<BoardRenderer>(cfg.rows, cfg.cols, cfg.cellSize);
 
         gameWorld = std::make_unique<GameWorld>();
@@ -262,6 +267,7 @@ struct GameRuntime {
         stateManager->pushState(std::make_unique<ScriptedState>(
             stateManager.get(),
             gameWorld.get(),
+            *services,
             engine::paths::data("scripts/states/starter.lua")
         ));
 

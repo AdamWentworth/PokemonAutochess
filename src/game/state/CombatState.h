@@ -1,16 +1,23 @@
-// src/game/state/CombatState.h
 #pragma once
+
 #include "game/GameState.h"
 #include "game/scripting/LuaScript.h"
-#include "engine/ui/TextRenderer.h"
+
 #include <memory>
+#include <string>
+
+class GameStateManager;
+class GameWorld;
+struct GameServices;
 
 class MovementSystem;
 class CombatSystem;
+class TextRenderer;
 
 class CombatState : public GameState {
 public:
     CombatState(GameStateManager* manager, GameWorld* world, const std::string& scriptPath);
+    CombatState(GameStateManager* manager, GameWorld* world, GameServices& services, const std::string& scriptPath);
     ~CombatState() override;
 
     void onEnter() override;
@@ -20,8 +27,10 @@ public:
     void render() override;
 
 private:
-    GameStateManager* stateManager;
-    GameWorld* gameWorld;
+    GameStateManager* stateManager = nullptr;
+    GameWorld* gameWorld = nullptr;
+    GameServices* services = nullptr;
+
     LuaScript script;
 
     std::unique_ptr<TextRenderer> textRenderer;
@@ -29,6 +38,6 @@ private:
     std::unique_ptr<CombatSystem>  combatSystem;
 
     std::string combatMessage;
+
+    const std::string& scriptPath() const;
 };
-
-

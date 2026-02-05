@@ -1,130 +1,145 @@
-// src/game/state/PlacementState.cpp
-
 #include "PlacementState.h"
+
 #include "CombatState.h"
+
 #include "game/GameStateManager.h"
 #include "game/GameWorld.h"
-#include "engine/ui/TextRenderer.h"
+#include "game/GameServices.h"
 #include "game/GameConfig.h"
-#include "game/logging/LogBus.h"
+
+#include "engine/ui/TextRenderer.h"
 
 #include <algorithm>
-#include <cmath>        // std::abs, std::round
+#include <cmath>
 #include <memory>
 #include <sol/sol.hpp>
 
-PlacementState::PlacementState(GameStateManager* manager, GameWorld* world, const std::string& starterName)
+namespace {
+constexpr int UI_W = 1280;
+
+// Helper: access config either from services or legacy singleton.
+const GameConfigData& cfgOrLegacy(const GameServices* services) {
+    if (services) return services->config;
+    return GameConfig::get(); // legacy fallback
+}
+} // namespace
+
+PlacementState::PlacementState(GameStateManager* manager, GameWorld* world, const std::string& name)
     : stateManager(manager)
     , gameWorld(world)
-    , starterName(starterName)
-    , timer(5.0f)
-    , placementDone(false)
-{
-    const auto& cfg = GameConfig::get();
-    textRenderer = std::make_unique<TextRenderer>(cfg.fontPath, cfg.fontSize);
-}
+    , services(nullptr)
+    , starterName(name)
+{}
+
+PlacementState::PlacementState(GameStateManager* manager, GameWorld* world, GameServices& svc, const std::string& name)
+    : stateManager(manager)
+    , gameWorld(world)
+    , services(&svc)
+    , starterName(name)
+{}
 
 PlacementState::~PlacementState() = default;
 
 void PlacementState::onEnter() {
-    LogBus::infoTerminalOnly("[PlacementState] Entering placement phase. Place your starter within 5 seconds.");
+    // no-op: player can drag unit; we only enforce validity + transition when timer expires
 }
 
 void PlacementState::onExit() {
-    LogBus::infoTerminalOnly("[PlacementState] Exiting placement phase.");
+    // no-op
 }
 
-void PlacementState::handleInput(const InputEvent& event) {
-    (void)event;
+void PlacementState::handleInput(const InputEvent&) {
+    // Dragging/selection handled elsewhere in this project; keep no-op here.
 }
 
-void PlacementState::update(float deltaTime) {
-    timer -= deltaTime;
+void PlacementState::update(float dt) {
+    if (!gameWorld || !stateManager) return;
 
-    if (timer <= 0.0f && !placementDone) {
-        placementDone = true;
+    timer -= dt;
 
-        bool valid = false;
-        auto& pokemons = gameWorld->getPokemons();
-        auto it = std::find_if(pokemons.begin(), pokemons.end(), [this](const PokemonInstance& p) {
-            return p.name == starterName;
-        });
+    if (timer > 0.0f || placementDone) return;
+    placementDone = true;
 
-        if (it != pokemons.end()) {
-            valid = isValidGridPosition(it->position);
-        }
+    bool valid = false;
+    auto& pokemons = gameWorld->getPokemons();
+    auto it = std::find_if(pokemons.begin(), pokemons.end(),
+        [&](const PokemonInstance& p) { return p.name == starterName; });
 
-        if (!valid) {
-            moveStarterToValidGridPosition();
-        }
+    if (it != pokemons.end()) {
+        valid = isValidGridPosition(it->position);
+    }
 
-        // Ask Lua which combat script to use next
-        static std::unique_ptr<LuaScript> flow;
-        if (!flow) {
-            flow = std::make_unique<LuaScript>(gameWorld);
-            flow->loadScript("scripts/states/flow.lua");
-        }
+    if (!valid) {
+        moveStarterToValidGridPosition();
+    }
 
-        std::string routeScript = "scripts/states/route1.lua";
+    // Ask Lua which combat script to use next
+    static std::unique_ptr<LuaScript> flow;
+    if (!flow) {
+        flow = std::make_unique<LuaScript>(gameWorld);
+        flow->loadScript("scripts/states/flow.lua");
+    }
 
-        // IMPORTANT: flow script functions live in its environment.
-        sol::table F = flow->getScriptTable();
-        sol::function next_route = F["next_route_after_placement"];
-        if (next_route.valid()) {
-            sol::object r = next_route(starterName);
-            if (r.is<std::string>()) routeScript = r.as<std::string>();
-        }
+    std::string routeScript = "scripts/states/route1.lua";
 
+    // IMPORTANT: flow script functions live in its environment now.
+    sol::table F = flow->getScriptTable();
+    sol::function next_route = F["next_route_after_placement"];
+    if (next_route.valid()) {
+        sol::object r = next_route(starterName);
+        if (r.is<std::string>()) routeScript = r.as<std::string>();
+    }
+
+    // NOTE: CombatState has both services and legacy ctors; use services if we have it.
+    if (services) {
+        stateManager->pushState(std::make_unique<CombatState>(stateManager, gameWorld, *services, routeScript));
+    } else {
         stateManager->pushState(std::make_unique<CombatState>(stateManager, gameWorld, routeScript));
     }
 }
 
 void PlacementState::render() {
-    if (!textRenderer) return;
+    if (!gameWorld) return;
 
-    const std::string message = "Place your starter! Time left: " + std::to_string(static_cast<int>(timer));
+    static std::unique_ptr<TextRenderer> text;
+    if (!text) {
+        const auto& c = cfgOrLegacy(services);
+        text = std::make_unique<TextRenderer>(c.fontPath, c.fontSize);
+    }
+
+    const std::string message =
+        "Place your starter! Time left: " + std::to_string(static_cast<int>(std::max(0.0f, timer)));
+
     const float scale = 1.0f;
-    const int windowWidth = 1280;
 
-    float textWidth = textRenderer->measureTextWidth(message, scale);
-    float centeredX = std::round((windowWidth - textWidth) / 2.0f);
-    float textY = 50.0f;
+    float textWidth = text->measureTextWidth(message, scale);
+    float centeredX = std::round((UI_W - textWidth) / 2.0f);
 
-    textRenderer->renderText(message, centeredX, textY, glm::vec3(1.0f), scale);
+    text->renderText(message, centeredX, 50.0f, glm::vec3(1.0f), scale);
 }
 
 bool PlacementState::isStarterOnBoard() const {
+    if (!gameWorld) return false;
     const auto& pokemons = gameWorld->getPokemons();
-    return std::any_of(pokemons.begin(), pokemons.end(), [this](const PokemonInstance& p) {
-        return p.name == starterName;
-    });
+    return std::any_of(pokemons.begin(), pokemons.end(),
+        [&](const PokemonInstance& p) { return p.name == starterName; });
 }
 
 void PlacementState::moveStarterToBoard() {
+    if (!gameWorld) return;
+
     auto& bench = gameWorld->getBenchPokemons();
-    auto it = std::find_if(bench.begin(), bench.end(), [this](const PokemonInstance& p) {
-        return p.name == starterName;
-    });
+    auto it = std::find_if(bench.begin(), bench.end(),
+        [&](const PokemonInstance& p) { return p.name == starterName; });
 
-    if (it != bench.end()) {
-        PokemonInstance starter = *it;
-        bench.erase(it);
+    if (it == bench.end()) return;
 
-        float cellSize = 1.2f;
-        float boardOriginX = -((8 * cellSize) / 2.0f) + cellSize * 0.5f;
-        float boardOriginZ = cellSize * 0.5f;
-        int col = 3;
+    PokemonInstance starter = *it;
+    bench.erase(it);
 
-        starter.position.x = boardOriginX + col * cellSize;
-        starter.position.z = boardOriginZ;
-        starter.position.y = 0.0f;
-
-        gameWorld->getPokemons().push_back(starter);
-        LogBus::infoTerminalOnly(
-            std::string("[PlacementState] Moved starter to board at (") +
-            std::to_string(starter.position.x) + ", " + std::to_string(starter.position.z) + ")"
-        );
-    }
+    // Default drop cell (col 3, row 0)
+    placeOnValidGridPosition(starter);
+    gameWorld->getPokemons().push_back(starter);
 }
 
 bool PlacementState::isValidGridPosition(const glm::vec3& position) const {
@@ -137,9 +152,8 @@ bool PlacementState::isValidGridPosition(const glm::vec3& position) const {
     int col = static_cast<int>(std::round((position.x - boardOriginX) / cellSize));
     int row = static_cast<int>(std::round((position.z - boardOriginZ) / cellSize));
 
-    if (col < 0 || col >= 8 || row < 0 || row >= 4) {
-        return false;
-    }
+    // Player board = top 4 rows in this prototype
+    if (col < 0 || col >= 8 || row < 0 || row >= 4) return false;
 
     float expectedX = boardOriginX + col * cellSize;
     float expectedZ = boardOriginZ + row * cellSize;
@@ -151,34 +165,32 @@ bool PlacementState::isValidGridPosition(const glm::vec3& position) const {
 }
 
 void PlacementState::moveStarterToValidGridPosition() {
+    if (!gameWorld) return;
+
     auto& pokemons = gameWorld->getPokemons();
     auto& bench = gameWorld->getBenchPokemons();
 
-    auto benchIt = std::find_if(bench.begin(), bench.end(), [this](const PokemonInstance& p) {
-        return p.name == starterName;
-    });
+    auto benchIt = std::find_if(bench.begin(), bench.end(),
+        [&](const PokemonInstance& p) { return p.name == starterName; });
 
     if (benchIt != bench.end()) {
         PokemonInstance starter = *benchIt;
         bench.erase(benchIt);
         placeOnValidGridPosition(starter);
         pokemons.push_back(starter);
-        LogBus::infoTerminalOnly("[PlacementState] Moved starter from bench to valid grid position.");
-    } else {
-        auto boardIt = std::find_if(pokemons.begin(), pokemons.end(), [this](const PokemonInstance& p) {
-            return p.name == starterName;
-        });
+        return;
+    }
 
-        if (boardIt != pokemons.end()) {
-            placeOnValidGridPosition(*boardIt);
-            LogBus::infoTerminalOnly("[PlacementState] Adjusted starter position to valid grid cell.");
-        } else {
-            PokemonInstance starter;
-            starter.name = starterName;
-            placeOnValidGridPosition(starter);
-            pokemons.push_back(starter);
-            LogBus::infoTerminalOnly("[PlacementState] Added missing starter to board.");
-        }
+    auto boardIt = std::find_if(pokemons.begin(), pokemons.end(),
+        [&](const PokemonInstance& p) { return p.name == starterName; });
+
+    if (boardIt != pokemons.end()) {
+        placeOnValidGridPosition(*boardIt);
+    } else {
+        PokemonInstance starter;
+        starter.name = starterName;
+        placeOnValidGridPosition(starter);
+        pokemons.push_back(starter);
     }
 }
 
