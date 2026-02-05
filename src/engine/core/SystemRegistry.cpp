@@ -3,15 +3,24 @@
 #include "SystemRegistry.h"
 
 void SystemRegistry::registerSystem(std::shared_ptr<Updatable> system) {
-    systems.push_back(system);
+    registerSystem(std::move(system), Phase::Update);
+}
+
+void SystemRegistry::registerSystem(std::shared_ptr<Updatable> system, Phase phase) {
+    const auto idx = static_cast<size_t>(phase);
+    if (idx >= systemsByPhase.size()) return;
+    systemsByPhase[idx].push_back(std::move(system));
 }
 
 void SystemRegistry::updateAll(float deltaTime) {
-    for (auto& system : systems) {
-        system->update(deltaTime);
+    // Deterministic ordering across phases.
+    for (size_t p = 0; p < systemsByPhase.size(); ++p) {
+        for (auto& system : systemsByPhase[p]) {
+            system->update(deltaTime);
+        }
     }
 }
 
 void SystemRegistry::clear() {
-    systems.clear();
+    for (auto& bucket : systemsByPhase) bucket.clear();
 }
