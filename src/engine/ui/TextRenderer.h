@@ -9,10 +9,11 @@
 #include <cstdint>
 
 class Shader;
+class ShaderCache;
 
 class TextRenderer {
 public:
-    TextRenderer(const std::string& fontPath, int fontSize);
+    TextRenderer(const std::string& fontPath, int fontSize, ShaderCache* shaderCache = nullptr);
     ~TextRenderer();
 
     void renderText(const std::string& text,

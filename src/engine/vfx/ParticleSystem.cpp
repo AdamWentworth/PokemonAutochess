@@ -1,9 +1,8 @@
-// --- FILE: src/engine/vfx/ParticleSystem.cpp ---
 // src/engine/vfx/ParticleSystem.cpp
 #include "ParticleSystem.h"
 
 #include "engine/utils/Shader.h"
-#include "engine/utils/ShaderLibrary.h"
+#include "engine/utils/ShaderCache.h"
 #include "engine/render/Camera3D.h"
 
 #include <algorithm>
@@ -60,8 +59,8 @@ static unsigned int loadTextureRGBAOrWhite(const std::string& path) {
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
-
     stbi_image_free(data);
+
     return tex;
 }
 
@@ -69,14 +68,19 @@ ParticleSystem::~ParticleSystem() {
     shutdown();
 }
 
+void ParticleSystem::deleteShaderCache(ShaderCache* p) {
+    delete p;
+}
+
+void ParticleSystem::setShaderCache(ShaderCache& cache) {
+    shaderCache = &cache;
+    shaderDirty = true;
+}
+
 void ParticleSystem::ensureFlipbookLoaded() {
     if (!flipbookDirty && flipbookTex != 0) return;
 
-    if (flipbookTex) {
-        glDeleteTextures(1, &flipbookTex);
-        flipbookTex = 0;
-    }
-
+    if (flipbookTex) glDeleteTextures(1, &flipbookTex);
     flipbookTex = loadTextureRGBAOrWhite(flipbookPath);
     flipbookDirty = false;
 }
@@ -85,11 +89,7 @@ void ParticleSystem::ensureSecondaryFlipbookLoaded() {
     if (!useSecondaryFlipbook) return;
     if (!flipbookDirty2 && flipbookTex2 != 0) return;
 
-    if (flipbookTex2) {
-        glDeleteTextures(1, &flipbookTex2);
-        flipbookTex2 = 0;
-    }
-
+    if (flipbookTex2) glDeleteTextures(1, &flipbookTex2);
     flipbookTex2 = loadTextureRGBAOrWhite(flipbookPath2);
     flipbookDirty2 = false;
 }
@@ -97,7 +97,13 @@ void ParticleSystem::ensureSecondaryFlipbookLoaded() {
 void ParticleSystem::ensureShaderLoaded() {
     if (!shaderDirty && shader) return;
 
-    shader = ShaderLibrary::get(shaderVertPath, shaderFragPath);
+    ShaderCache* cache = shaderCache;
+    if (!cache) {
+        if (!internalShaderCache) internalShaderCache.reset(new ShaderCache());
+        cache = internalShaderCache.get();
+    }
+
+    shader = cache->get(shaderVertPath, shaderFragPath);
     shaderDirty = false;
 }
 
@@ -106,14 +112,8 @@ void ParticleSystem::init() {
 
     ensureShaderLoaded();
 
-    // Only create/load flipbook texture if this system uses it.
-    if (useFlipbook) {
-        ensureFlipbookLoaded();
-    }
-
-    if (useFlipbook && useSecondaryFlipbook) {
-        ensureSecondaryFlipbookLoaded();
-    }
+    if (useFlipbook) ensureFlipbookLoaded();
+    if (useFlipbook && useSecondaryFlipbook) ensureSecondaryFlipbookLoaded();
 
     glGenVertexArrays(1, &vao);
     glGenBuffers(1, &vbo);
@@ -172,11 +172,9 @@ void ParticleSystem::update(float dt) {
     dt = std::clamp(dt, 0.0f, 0.05f);
     timeSec += dt;
 
-    // Integrate + cull dead
     for (auto& p : particles) {
         p.vel += updateSettings.acceleration * dt;
 
-        // Exponential damping for framerate independence
         float damp = std::pow(updateSettings.dampingBase, dt);
         p.vel *= damp;
 
@@ -196,8 +194,7 @@ static void applyBlendMode(ParticleSystem::BlendMode mode) {
 
     switch (mode) {
         case ParticleSystem::BlendMode::Alpha:
-            glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA,
-                                GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
+            glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
             break;
         case ParticleSystem::BlendMode::Additive:
             glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE, GL_ONE, GL_ONE);
@@ -215,7 +212,6 @@ void ParticleSystem::render(const Camera3D& camera) {
     if (!shader || vao == 0) return;
     if (particles.empty()) return;
 
-    // Only require flipbook texture when enabled
     if (useFlipbook) {
         ensureFlipbookLoaded();
         if (flipbookTex == 0) return;
@@ -223,10 +219,8 @@ void ParticleSystem::render(const Camera3D& camera) {
 
     if (useFlipbook && useSecondaryFlipbook) {
         ensureSecondaryFlipbookLoaded();
-        // Secondary can fall back to white; do not early-out on missing tex2.
     }
 
-    // Build GPU buffer
     gpuBuffer.resize(particles.size());
     for (size_t i = 0; i < particles.size(); ++i) {
         const Particle& p = particles[i];
@@ -255,39 +249,36 @@ void ParticleSystem::render(const Camera3D& camera) {
     GLboolean prevDepthMask = GL_TRUE;
     glGetBooleanv(GL_DEPTH_WRITEMASK, &prevDepthMask);
 
-    // Apply render settings (effect-owned)
-    if (renderSettings.programPointSize) glEnable(GL_PROGRAM_POINT_SIZE);
-    else glDisable(GL_PROGRAM_POINT_SIZE);
+    if (renderSettings.depthTest) glEnable(GL_DEPTH_TEST); else glDisable(GL_DEPTH_TEST);
+    glDepthMask(renderSettings.depthWrite ? GL_TRUE : GL_FALSE);
+
+    if (renderSettings.programPointSize) glEnable(GL_PROGRAM_POINT_SIZE); else glDisable(GL_PROGRAM_POINT_SIZE);
 
     applyBlendMode(renderSettings.blend);
 
-    if (renderSettings.depthTest) glEnable(GL_DEPTH_TEST);
-    else glDisable(GL_DEPTH_TEST);
-
-    glDepthMask(renderSettings.depthWrite ? GL_TRUE : GL_FALSE);
-
     shader->use();
 
-    glm::mat4 viewProj = camera.getProjectionMatrix() * camera.getViewMatrix();
-    shader->setUniform("u_ViewProj", viewProj);
+    // IMPORTANT: your particle vertex shader expects u_ViewProj, not u_View/u_Proj.
+    shader->setUniform("u_ViewProj", camera.getProjectionMatrix() * camera.getViewMatrix());
     shader->setUniform("u_Time", timeSec);
     shader->setUniform("u_PointScale", pointScale);
 
-    // Tell shaders that support it whether flipbook sampling is valid (no warning spam)
-    {
-        GLint loc = glGetUniformLocation(shader->getID(), "u_UseFlipbook");
-        if (loc != -1) glUniform1i(loc, useFlipbook ? 1 : 0);
-    }    // Flipbook uniforms + bind only if enabled
+    // Flipbook 1
     if (useFlipbook) {
-        shader->setUniform("u_Flipbook", 0);
+        shader->setUniform("u_UseFlipbook", 1);
         shader->setUniform("u_FlipbookGrid", glm::vec2((float)flipbookCols, (float)flipbookRows));
         shader->setUniform("u_FrameCount", (float)flipbookFrames);
         shader->setUniform("u_Fps", flipbookFps);
 
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, flipbookTex);
+        shader->setUniform("u_Flipbook", 0);
+    } else {
+        shader->setUniform("u_UseFlipbook", 0);
+    }
 
-        // Secondary atlas (optional) — only set if the shader declares the uniforms.
+    // Flipbook 2 (optional) — required by fire_tail.frag when enabled.
+    if (useFlipbook) {
         int has2 = (useSecondaryFlipbook && flipbookTex2 != 0) ? 1 : 0;
         {
             GLint locHas2 = glGetUniformLocation(shader->getID(), "u_HasFlipbook2");

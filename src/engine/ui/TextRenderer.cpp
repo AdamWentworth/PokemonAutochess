@@ -9,18 +9,18 @@
 #include <glm/gtc/type_ptr.hpp>
 
 #include "engine/utils/Shader.h"
-#include "engine/utils/ShaderLibrary.h"
+#include "engine/utils/ShaderCache.h"
 
-TextRenderer::TextRenderer(const std::string& fontPath, int fontSize) {
+TextRenderer::TextRenderer(const std::string& fontPath, int fontSize, ShaderCache* shaderCache) {
     font = TTF_OpenFont(fontPath.c_str(), fontSize);
     if (!font) {
         std::cerr << "[TextRenderer] Failed to load font: " << TTF_GetError() << "\n";
     }
 
     // NEW: shared cached shader (prevents multiple program compiles)
-    textShader = ShaderLibrary::get("assets/shaders/ui/text.vert", "assets/shaders/ui/text.frag");
-
-    if (textShader) {
+    textShader = shaderCache ? shaderCache->get("assets/shaders/ui/text.vert", "assets/shaders/ui/text.frag")
+                          : std::make_shared<Shader>("assets/shaders/ui/text.vert", "assets/shaders/ui/text.frag");
+if (textShader) {
         locProjection  = glGetUniformLocation(textShader->getID(), "u_Projection");
         locTextColor   = glGetUniformLocation(textShader->getID(), "u_TextColor");
         locGlobalAlpha = glGetUniformLocation(textShader->getID(), "u_GlobalAlpha");

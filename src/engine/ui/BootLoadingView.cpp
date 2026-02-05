@@ -2,8 +2,8 @@
 
 #include "BootLoadingView.h"
 
-#include "engine/utils/ShaderLibrary.h"
 #include "engine/utils/Shader.h"
+#include "engine/utils/ShaderCache.h"
 
 #include <glad/glad.h>
 #include <glm/gtc/matrix_transform.hpp>
@@ -28,8 +28,16 @@ void BootLoadingView::shutdown() {
 }
 
 void BootLoadingView::init() {
-    // Reuse the simple solid-color UI shader you already ship
-    shader = ShaderLibrary::get(
+    // Fallback: compile directly (no cache). Prefer init(shaders).
+    shader = std::make_shared<Shader>(
+        "assets/shaders/ui/healthbar.vert",
+        "assets/shaders/ui/healthbar.frag"
+    );
+    ensureQuad();
+}
+
+void BootLoadingView::init(ShaderCache& shaders) {
+    shader = shaders.get(
         "assets/shaders/ui/healthbar.vert",
         "assets/shaders/ui/healthbar.frag"
     );

@@ -1,15 +1,23 @@
 // HealthBarRenderer.cpp
 
 #include "HealthBarRenderer.h"
+#include "engine/utils/ShaderCache.h"
 #include <glad/glad.h>
 #include <glm/gtc/matrix_transform.hpp>
-#include "engine/utils/ShaderLibrary.h"
 
 void HealthBarRenderer::init() {
-    // Initialize shader after OpenGL is ready
-    shader = ShaderLibrary::get(
-                "assets/shaders/ui/healthbar.vert",
-                "assets/shaders/ui/healthbar.frag");
+    // Fallback: compile directly (no cache). Prefer init(shaders).
+    shader = std::make_shared<Shader>(
+        "assets/shaders/ui/healthbar.vert",
+        "assets/shaders/ui/healthbar.frag"
+    );
+}
+
+void HealthBarRenderer::init(ShaderCache& shaders) {
+    shader = shaders.get(
+        "assets/shaders/ui/healthbar.vert",
+        "assets/shaders/ui/healthbar.frag"
+    );
 }
 
 void HealthBarRenderer::render(const std::vector<HealthBarData>& healthBars) {

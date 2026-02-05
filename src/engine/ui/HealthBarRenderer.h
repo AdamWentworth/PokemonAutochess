@@ -6,10 +6,13 @@
 #include "engine/utils/Shader.h"
 #include <memory>
 
+class ShaderCache;
+
 class HealthBarRenderer {
 public:
     HealthBarRenderer() = default;  // No shader initialization here
-    void init();  // New initialization method
+    void init();
+    void init(ShaderCache& shaders);
     void render(const std::vector<HealthBarData>& healthBars);
 
 private:

@@ -1,4 +1,3 @@
-// --- FILE: src/engine/vfx/ParticleSystem.h ---
 // src/engine/vfx/ParticleSystem.h
 #pragma once
 
@@ -6,6 +5,8 @@
 #include <memory>
 #include <string>
 #include <glm/glm.hpp>
+
+#include "engine/utils/ShaderCache.h"
 
 class Shader;
 class Camera3D;
@@ -59,6 +60,9 @@ public:
 
     ParticleSystem(const ParticleSystem&) = delete;
     ParticleSystem& operator=(const ParticleSystem&) = delete;
+
+    // Permanent fix: allow engine-owned cache injection, but also safe fallback cache.
+    void setShaderCache(ShaderCache& cache);
 
     void init();
     void shutdown();
@@ -119,6 +123,9 @@ private:
         float seed;
     };
 
+    // Incomplete-type-safe deleter (defined in .cpp where ShaderCache is complete)
+    static void deleteShaderCache(ShaderCache* p);
+
 private:
     bool initialized = false;
 
@@ -126,6 +133,11 @@ private:
     std::string shaderVertPath = "assets/shaders/vfx/particle.vert";
     std::string shaderFragPath = "assets/shaders/vfx/particle.frag";
     bool shaderDirty = true;
+
+    ShaderCache* shaderCache = nullptr; // not owning
+
+    using ShaderCachePtr = std::unique_ptr<ShaderCache, void(*)(ShaderCache*)>;
+    ShaderCachePtr internalShaderCache{nullptr, &ParticleSystem::deleteShaderCache};
 
     unsigned int vao = 0;
     unsigned int vbo = 0;

@@ -5,6 +5,7 @@
 #include <glm/glm.hpp>
 
 class Shader;
+class ShaderCache;
 
 class BootLoadingView {
 public:
@@ -12,6 +13,7 @@ public:
     ~BootLoadingView();
 
     void init();
+    void init(ShaderCache& shaders);
     void render(float progress01, int screenW, int screenH);
 
     // Explicit cleanup (idempotent). Safe to call more than once.

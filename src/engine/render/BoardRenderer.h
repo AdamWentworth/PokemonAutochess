@@ -8,9 +8,11 @@
 #include <vector>
 #include <string>
 
+class ShaderCache;
+
 class BoardRenderer {
 public:
-    BoardRenderer(int rows = 8, int cols = 8, float cellSize = 1.0f);
+    BoardRenderer(int rows = 8, int cols = 8, float cellSize = 1.0f, ShaderCache* shaderCache = nullptr);
     ~BoardRenderer();
 
     void draw(const Camera3D& camera);         // Draw the main board
@@ -25,6 +27,8 @@ private:
     unsigned int createShaderProgram(const char* vertPath, const char* fragPath);
 
     std::shared_ptr<Shader> gridShader;
+
+    ShaderCache* shaderCache = nullptr;
 
     unsigned int vao, vbo;
     unsigned int shaderProgram;

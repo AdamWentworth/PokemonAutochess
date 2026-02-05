@@ -13,7 +13,6 @@
 #include "engine/ui/BootLoadingView.h"
 
 #include "engine/utils/ResourceManager.h"
-#include "engine/utils/ShaderLibrary.h"
 #include "engine/core/SystemRegistry.h"
 
 #define NOMINMAX
@@ -195,9 +194,7 @@ bool Application::initApplication() {
         return false;
     }
 
-    // Wire engine-owned shader cache BEFORE anything calls ShaderLibrary::get()
-    ShaderLibrary::setCache(&shaderCache);
-
+    // Wire engine-owned shader cache BEFORE anything calls shaderCache.get()
     // TTF depends on SDL being initialized (now true because Window ctor did SDL_Init).
     if (TTF_Init() == -1) {
         std::cerr << "[Application] TTF_Init error: " << TTF_GetError() << "\n";
@@ -209,7 +206,7 @@ bool Application::initApplication() {
     glEnable(GL_DEPTH_TEST);
 
     bootLoadingView = std::make_unique<BootLoadingView>();
-    bootLoadingView->init();
+    bootLoadingView->init(shaderCache);
 
     // show a first frame so the window looks alive
     setTitle("PokemonAutochess - Loading...");
@@ -235,9 +232,7 @@ void Application::shutdownApplication() {
     }
 
     // 2) Force-release GL-backed caches BEFORE destroying the window/context.
-    ShaderLibrary::clear();
-    ShaderLibrary::setCache(nullptr);
-    shaderCache.clear();
+        shaderCache.clear();
 
     resourceManager.clear();
     systemRegistry.clear();

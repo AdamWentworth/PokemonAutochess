@@ -18,6 +18,8 @@
 #include "Camera3D.h"
 #include "engine/utils/Shader.h"
 
+class ShaderCache;
+
 #include "ModelAnimationTypes.h"
 #include "ModelMeshTypes.h"
 
@@ -35,7 +37,7 @@ struct Submesh {
 
 class Model {
 public:
-    explicit Model(const std::string& filepath);
+    explicit Model(const std::string& filepath, ShaderCache* shaderCache = nullptr);
     ~Model();
 
     int   getAnimationCount() const;

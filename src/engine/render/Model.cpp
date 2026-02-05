@@ -1,8 +1,8 @@
-
 // src/engine/render/Model.cpp
 #include "Model.h"
 #include "ModelStartupLog.h"
-#include "engine/utils/ShaderLibrary.h"
+#include "engine/utils/ShaderCache.h"
+#include "engine/utils/Shader.h"
 
 #include <iostream>
 #include <fstream>
@@ -121,11 +121,12 @@ glm::mat4 Model::trsToMat4(const NodeTRS& n)
     return T * R * S;
 }
 
-Model::Model(const std::string& filepath)
+Model::Model(const std::string& filepath, ShaderCache* shaderCache)
 {
     loadGLTF(filepath);
 
-    modelShader = ShaderLibrary::get("assets/shaders/model/model.vert", "assets/shaders/model/model.frag");
+    modelShader = shaderCache ? shaderCache->get("assets/shaders/model/model.vert", "assets/shaders/model/model.frag")
+                           : std::make_shared<Shader>("assets/shaders/model/model.vert", "assets/shaders/model/model.frag");
 
     locMVP     = glGetUniformLocation(modelShader->getID(), "u_MVP");
     locUseSkin = glGetUniformLocation(modelShader->getID(), "u_UseSkin");

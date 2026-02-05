@@ -1,21 +1,25 @@
 // BoardRenderer.cpp
 
 #include "BoardRenderer.h"
+#include "engine/utils/ShaderCache.h"
+#include "engine/utils/Shader.h"
+#include "engine/utils/ShaderCache.h"
 #include <glad/glad.h>
 #include <fstream>
 #include <sstream>
 #include <iostream>
-#include "engine/utils/ShaderLibrary.h"
 
-BoardRenderer::BoardRenderer(int rows, int cols, float cellSize)
+BoardRenderer::BoardRenderer(int rows, int cols, float cellSize, ShaderCache* shaderCache)
     : rows(rows), cols(cols), cellSize(cellSize)
 {
+    this->shaderCache = shaderCache;
     initGrid();
     initBench(); // NEW
-    gridShader = ShaderLibrary::get(                     // ❶ use cache
+    gridShader = shaderCache ? shaderCache->get(
                    "assets/shaders/engine/grid.vert",
-                   "assets/shaders/engine/grid.frag");
-    mvpLocation = glGetUniformLocation(gridShader->getID(), "u_MVP");
+                   "assets/shaders/engine/grid.frag")
+                : std::make_shared<Shader>("assets/shaders/engine/grid.vert", "assets/shaders/engine/grid.frag");
+mvpLocation = glGetUniformLocation(gridShader->getID(), "u_MVP");
 
     glGenVertexArrays(1, &vao);
     glGenBuffers(1, &vbo);
