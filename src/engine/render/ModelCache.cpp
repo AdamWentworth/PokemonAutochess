@@ -95,19 +95,17 @@ struct CacheHeader {
 #pragma pack(pop)
 
 static uint64_t fnv1a64(const std::string& s) {
-    // Stable hash across platforms/compilers for cache filenames.
-    // FNV-1a 64-bit
+    // Stable hash across platforms/compilers for cache filenames (FNV-1a 64-bit).
     uint64_t h = 14695981039346656037ull;
     for (unsigned char c : s) {
-        h ^= (uint64_t)c;
+        h ^= static_cast<uint64_t>(c);
         h *= 1099511628211ull;
     }
     return h;
 }
 
 static fs::path cachePathForModel(const std::string& filepath) {
-    // Keep it local + simple: cache/models/<hash>.pacmdl
-    // Hash includes full input path string (relative/absolute as provided).
+    // cache/models/<hash>.pacmdl
     const uint64_t h = fnv1a64(filepath);
     fs::path dir = fs::path("cache") / "models";
     return dir / (hexHash64(h) + ".pacmdl");
@@ -517,93 +515,93 @@ void Model::writeCache(const std::string& filepath,
         if (!out.is_open()) { warn("failed to open cache file for write"); return; }
 
 
-        if (!writePod(out, hdr)) return;
+        if (!writePod(out, hdr)) { warn("writePod failed"); return; }
 
         // Nodes
         for (const auto& n : nodesDefault) {
-            if (!writePod(out, n.t)) return;
-            if (!writePod(out, n.r)) return;
-            if (!writePod(out, n.s)) return;
+            if (!writePod(out, n.t)) { warn("writePod failed"); return; }
+            if (!writePod(out, n.r)) { warn("writePod failed"); return; }
+            if (!writePod(out, n.s)) { warn("writePod failed"); return; }
             uint8_t hm = n.hasMatrix ? 1u : 0u;
-            if (!writePod(out, hm)) return;
-            if (!writePod(out, n.matrix)) return;
+            if (!writePod(out, hm)) { warn("writePod failed"); return; }
+            if (!writePod(out, n.matrix)) { warn("writePod failed"); return; }
         }
 
         for (const auto& ch : nodeChildren) {
             uint32_t cc = (uint32_t)ch.size();
-            if (!writePod(out, cc)) return;
+            if (!writePod(out, cc)) { warn("writePod failed"); return; }
             for (int v : ch) {
                 int32_t vv = (int32_t)v;
-                if (!writePod(out, vv)) return;
+                if (!writePod(out, vv)) { warn("writePod failed"); return; }
             }
         }
 
         for (int v : nodeMesh) {
             int32_t vv = (int32_t)v;
-            if (!writePod(out, vv)) return;
+            if (!writePod(out, vv)) { warn("writePod failed"); return; }
         }
         for (int v : nodeSkin) {
             int32_t vv = (int32_t)v;
-            if (!writePod(out, vv)) return;
+            if (!writePod(out, vv)) { warn("writePod failed"); return; }
         }
 
         // scene roots
         {
             uint32_t rc = (uint32_t)sceneRoots.size();
-            if (!writePod(out, rc)) return;
+            if (!writePod(out, rc)) { warn("writePod failed"); return; }
             for (int v : sceneRoots) {
                 int32_t vv = (int32_t)v;
-                if (!writePod(out, vv)) return;
+                if (!writePod(out, vv)) { warn("writePod failed"); return; }
             }
         }
 
         // Skins
         for (const auto& s : skins) {
             uint32_t jc = (uint32_t)s.joints.size();
-            if (!writePod(out, jc)) return;
+            if (!writePod(out, jc)) { warn("writePod failed"); return; }
             for (int v : s.joints) {
                 int32_t vv = (int32_t)v;
-                if (!writePod(out, vv)) return;
+                if (!writePod(out, vv)) { warn("writePod failed"); return; }
             }
             for (const auto& m : s.inverseBind) {
-                if (!writePod(out, m)) return;
+                if (!writePod(out, m)) { warn("writePod failed"); return; }
             }
         }
 
         // Animations
         for (const auto& a : animations) {
-            if (!writeString(out, a.name)) return;
-            if (!writePod(out, a.durationSec)) return;
+            if (!writeString(out, a.name)) { warn("writeString failed"); return; }
+            if (!writePod(out, a.durationSec)) { warn("writePod failed"); return; }
 
             uint32_t sc = (uint32_t)a.samplers.size();
-            if (!writePod(out, sc)) return;
+            if (!writePod(out, sc)) { warn("writePod failed"); return; }
             for (const auto& s : a.samplers) {
-                if (!writeString(out, s.interpolation)) return;
+                if (!writeString(out, s.interpolation)) { warn("writeString failed"); return; }
                 uint8_t iv = s.isVec4 ? 1u : 0u;
-                if (!writePod(out, iv)) return;
+                if (!writePod(out, iv)) { warn("writePod failed"); return; }
 
                 uint32_t ic = (uint32_t)s.inputs.size();
-                if (!writePod(out, ic)) return;
+                if (!writePod(out, ic)) { warn("writePod failed"); return; }
                 for (float v : s.inputs) {
-                    if (!writePod(out, v)) return;
+                    if (!writePod(out, v)) { warn("writePod failed"); return; }
                 }
 
                 uint32_t oc = (uint32_t)s.outputs.size();
-                if (!writePod(out, oc)) return;
+                if (!writePod(out, oc)) { warn("writePod failed"); return; }
                 for (const auto& v : s.outputs) {
-                    if (!writePod(out, v)) return;
+                    if (!writePod(out, v)) { warn("writePod failed"); return; }
                 }
             }
 
             uint32_t cc = (uint32_t)a.channels.size();
-            if (!writePod(out, cc)) return;
+            if (!writePod(out, cc)) { warn("writePod failed"); return; }
             for (const auto& ch : a.channels) {
                 int32_t si = (int32_t)ch.samplerIndex;
                 int32_t tn = (int32_t)ch.targetNode;
                 uint8_t path = (ch.path == ChannelPath::Rotation) ? 1u : (ch.path == ChannelPath::Scale) ? 2u : 0u;
-                if (!writePod(out, si)) return;
-                if (!writePod(out, tn)) return;
-                if (!writePod(out, path)) return;
+                if (!writePod(out, si)) { warn("writePod failed"); return; }
+                if (!writePod(out, tn)) { warn("writePod failed"); return; }
+                if (!writePod(out, path)) { warn("writePod failed"); return; }
             }
         }
 
@@ -621,19 +619,19 @@ void Model::writeCache(const std::string& filepath,
             uint64_t off = (uint64_t)sm.indexOffset;
             uint64_t cnt = (uint64_t)sm.indexCount;
             int32_t meshIdx = (int32_t)sm.meshIndex;
-            if (!writePod(out, off)) return;
-            if (!writePod(out, cnt)) return;
-            if (!writePod(out, meshIdx)) return;
+            if (!writePod(out, off)) { warn("writePod failed"); return; }
+            if (!writePod(out, cnt)) { warn("writePod failed"); return; }
+            if (!writePod(out, meshIdx)) { warn("writePod failed"); return; }
 
             // material params
-            if (!writePod(out, sm.emissiveFactor.x)) return;
-            if (!writePod(out, sm.emissiveFactor.y)) return;
-            if (!writePod(out, sm.emissiveFactor.z)) return;
+            if (!writePod(out, sm.emissiveFactor.x)) { warn("writePod failed"); return; }
+            if (!writePod(out, sm.emissiveFactor.y)) { warn("writePod failed"); return; }
+            if (!writePod(out, sm.emissiveFactor.z)) { warn("writePod failed"); return; }
             uint8_t alphaMode = (uint8_t)sm.alphaMode;
             uint8_t doubleSided = sm.doubleSided ? 1u : 0u;
-            if (!writePod(out, alphaMode)) return;
-            if (!writePod(out, sm.alphaCutoff)) return;
-            if (!writePod(out, doubleSided)) return;
+            if (!writePod(out, alphaMode)) { warn("writePod failed"); return; }
+            if (!writePod(out, sm.alphaCutoff)) { warn("writePod failed"); return; }
+            if (!writePod(out, doubleSided)) { warn("writePod failed"); return; }
 
             auto writeCPUTexture = [&](const CPUTexture& t)->bool {
                 if (!writePod(out, t.width)) return false;
