@@ -14,7 +14,6 @@ static inline bool str_starts_with(const std::string& s, const char* prefix) {
     return s.size() >= n && s.compare(0, n, prefix) == 0;
 }
 
-
 #include <nlohmann/json.hpp>
 
 #include "engine/core/GameContext.h"
@@ -63,13 +62,13 @@ inline const char* phaseName(RoundPhase p) {
     }
 }
 
-inline void addByPokemonName(std::vector<std::string>& out, const std::string& name) {
-    const PokemonStats* stats = PokemonConfigLoader::getInstance().getStats(name);
+inline void addByPokemonName(std::vector<std::string>& out, const std::string& name, const PokemonConfigLoader& pokemonCfg) {
+    const PokemonStats* stats = pokemonCfg.getStats(name);
     if (!stats) return;
     out.push_back(std::string("assets/models/") + stats->model);
 }
 
-inline std::vector<std::string> loadPreloadListFromJsonOrFallback() {
+inline std::vector<std::string> loadPreloadListFromJsonOrFallback(const PokemonConfigLoader& pokemonCfg) {
     // Config lives under PAC_DATA_ROOT/config by default (consistent with other configs).
     const std::filesystem::path cfgPath = engine::paths::data("config/preload_models.json");
 
@@ -78,11 +77,11 @@ inline std::vector<std::string> loadPreloadListFromJsonOrFallback() {
 
     // Fallback list (matches prior hardcoded behavior).
     const auto fallback = [&]() {
-        addByPokemonName(out, "bulbasaur");
-        addByPokemonName(out, "charmander");
-        addByPokemonName(out, "squirtle");
-        addByPokemonName(out, "pidgey");
-        addByPokemonName(out, "rattata");
+        addByPokemonName(out, "bulbasaur", pokemonCfg);
+        addByPokemonName(out, "charmander", pokemonCfg);
+        addByPokemonName(out, "squirtle", pokemonCfg);
+        addByPokemonName(out, "pidgey", pokemonCfg);
+        addByPokemonName(out, "rattata", pokemonCfg);
     };
 
     std::ifstream f(cfgPath);
@@ -100,7 +99,7 @@ inline std::vector<std::string> loadPreloadListFromJsonOrFallback() {
         if (j.contains("pokemon") && j["pokemon"].is_array()) {
             for (const auto& v : j["pokemon"]) {
                 if (!v.is_string()) continue;
-                addByPokemonName(out, v.get<std::string>());
+                addByPokemonName(out, v.get<std::string>(), pokemonCfg);
             }
         }
 
@@ -131,7 +130,8 @@ inline std::vector<std::string> loadPreloadListFromJsonOrFallback() {
 
 inline void preloadCommonModels(GameContext& ctx) {
     // IMPORTANT: must be called AFTER GL context + glad are ready.
-    std::vector<std::string> modelsToPreload = loadPreloadListFromJsonOrFallback();
+    std::vector<std::string> modelsToPreload =
+    loadPreloadListFromJsonOrFallback(PokemonConfigLoader::getInstance());
     if (modelsToPreload.empty()) return;
 
     if (ctx.setTitle) ctx.setTitle("PokemonAutochess - Loading.");

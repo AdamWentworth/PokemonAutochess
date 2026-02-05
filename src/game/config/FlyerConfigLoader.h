@@ -48,9 +48,11 @@ public:
     int getFlyerCount() const { return (int)flyers.size(); }
     int getDefaultsCount() const { return (int)airDefaults.size(); }
 
-private:
+public:
     FlyerConfigLoader() = default;
 
+private:
     std::unordered_set<std::string> flyers; // stored lowercase
     std::unordered_map<std::string, AirLocomotionDefaults> airDefaults; // key: lowercase species
 };
+

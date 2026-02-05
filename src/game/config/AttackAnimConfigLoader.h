@@ -72,9 +72,10 @@ public:
                     const std::string& kind,
                     const std::string& move) const;
 
-private:
+public:
     AttackAnimConfigLoader() = default;
 
+private:
     static std::string toLower(std::string s);
 
     bool parseJsonIntoDb(const nlohmann::json& j, bool clearFirst);

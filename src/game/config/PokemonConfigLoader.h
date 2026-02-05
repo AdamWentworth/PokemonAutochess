@@ -30,7 +30,9 @@ public:
 
     const PokemonStats* getStats(const std::string& name) const;
 
-private:
+public:
     PokemonConfigLoader() = default;
+
+private:
     std::unordered_map<std::string, PokemonStats> statsMap;
 };

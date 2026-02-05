@@ -36,7 +36,10 @@ public:
     bool loadConfig(const std::string& filePath);
     const MoveData* getMove(const std::string& name) const;
 
-private:
+public:
     MovesConfigLoader() = default;
+
+private:
     std::unordered_map<std::string, MoveData> moves_;
 };
+
