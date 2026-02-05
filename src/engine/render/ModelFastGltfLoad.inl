@@ -1,9 +1,11 @@
-
 // src/engine/render/ModelFastGltfLoad.inl
 //
 // Intentionally included inside Model::loadGLTF(...) in Model.cpp
 
 // ✅ Fix: always use correct animation types regardless of where this is included
+
+#include <sstream>
+#include <cctype>
 using pac_model_types::AnimationClip;
 using pac_model_types::AnimationSampler;
 using pac_model_types::AnimationChannel;
@@ -273,7 +275,11 @@ struct FG {
         if (t.rgba.empty() || t.width == 0 || t.height == 0) return;
         try {
             std::filesystem::create_directories(outPath.parent_path());
-        } catch (...) {}
+        } catch (const std::exception& e) {
+            if (envTruthy("PAC_GLTF_DEBUG_ALL") || envTruthy("PAC_GLTF_DUMP_TEXTURES")) {
+                std::cerr << "[gltf][TEX] create_directories failed: " << e.what() << "\n";
+            }
+        }
         stbi_write_png(outPath.string().c_str(),
                        (int)t.width, (int)t.height,
                        4, t.rgba.data(), (int)t.width * 4);
@@ -294,8 +300,37 @@ struct FG {
 
         auto wantLog = [&]() {
             if (forceDbg) return true;
-            // Auto-debug the rattata model without needing env vars.
-            return ciContains(lowerPath, "0019_rattata") || ciContains(lowerPath, "0019-rattata") || ciContains(lowerPath, "rattata");
+
+            // Optional targeted debugging: set PAC_GLTF_DEBUG_MATCH to a comma/semicolon/space-separated list
+            // of substrings to match against the model path (case-insensitive).
+            const auto envMatch = [&](const char* envVar) -> bool {
+                const char* v = std::getenv(envVar);
+                if (!v || !*v) return false;
+                std::string s(v);
+                for (char& c : s) {
+                    if (c == ';') c = ',';
+                }
+                std::stringstream ss(s);
+                std::string tok;
+                while (std::getline(ss, tok, ',')) {
+                    // also split on whitespace inside each token
+                    std::string cur;
+                    for (char ch : tok) {
+                        if (std::isspace((unsigned char)ch)) {
+                            if (!cur.empty()) {
+                                if (ciContains(lowerPath, cur)) return true;
+                                cur.clear();
+                            }
+                        } else {
+                            cur.push_back(ch);
+                        }
+                    }
+                    if (!cur.empty() && ciContains(lowerPath, cur)) return true;
+                }
+                return false;
+            };
+
+            return envMatch("PAC_GLTF_DEBUG_MATCH");
         };
 
         auto white = makeWhiteCPUTexture();
@@ -1175,4 +1210,3 @@ struct FG {
     writeCache(filepath, vertices, indices, baseColorTexturesCPU, emissiveTexturesCPU);
     std::cerr << "[gltf][FASTGLTF] COMPLETE for: " << filepath << "\n";
 }
-
