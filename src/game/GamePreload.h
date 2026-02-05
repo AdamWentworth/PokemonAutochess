@@ -3,6 +3,7 @@
 
 #include "engine/core/GameContext.h"
 #include "engine/core/EngineServices.h"
+#include "engine/core/Paths.h"
 #include "engine/utils/ResourceManager.h"
 
 #include "game/config/PokemonConfigLoader.h"
@@ -19,7 +20,7 @@
 namespace game::preload {
 
 // Returns true if we successfully read/parsed the config file and produced at least one path.
-inline bool loadModelPathsFromConfig(const std::string& configPath, std::vector<std::string>& outPaths) {
+inline bool loadModelPathsFromConfig(const std::string& configPath, const PokemonConfigLoader& pokemonCfg, std::vector<std::string>& outPaths) {
     outPaths.clear();
 
     std::ifstream in(configPath);
@@ -66,7 +67,7 @@ inline bool loadModelPathsFromConfig(const std::string& configPath, std::vector<
 
     // Expand pokemon names -> model paths using PokemonConfigLoader.
     for (const std::string& name : pokemonNames) {
-        const PokemonStats* stats = PokemonConfigLoader::getInstance().getStats(name);
+        const PokemonStats* stats = pokemonCfg.getStats(name);
         if (!stats) {
             std::cerr << "[Preload] Unknown pokemon in preload config: " << name << "\n";
             continue;
@@ -99,7 +100,6 @@ inline void preloadModels(GameContext& ctx, const std::vector<std::string>& mode
 
     if (ctx.setTitle) ctx.setTitle(appName + " - Loading.");
 
-    // Draw initial bar
     if (ctx.renderBootLoading) ctx.renderBootLoading(0.0f);
 
     if (ctx.pumpPreloadEvents && !ctx.pumpPreloadEvents()) {
@@ -136,6 +136,40 @@ inline void preloadModels(GameContext& ctx, const std::vector<std::string>& mode
 
     if (ctx.setTitle) ctx.setTitle("Pokemon Autochess");
     if (ctx.pumpPreloadEvents) ctx.pumpPreloadEvents();
+}
+
+// Compatibility overload (keeps existing call sites working).
+inline bool loadModelPathsFromConfig(const std::string& configPath, std::vector<std::string>& outPaths) {
+    return loadModelPathsFromConfig(configPath, PokemonConfigLoader::getInstance(), outPaths);
+}
+
+// High-level helper used by GameRuntime: read config (or fallback), then preload models with a progress UI.
+inline void preloadCommonModels(GameContext& ctx, const PokemonConfigLoader& pokemonCfg, const std::string& appName = "PokemonAutochess") {
+    std::vector<std::string> modelsToPreload;
+
+    const std::string cfgPath = engine::paths::data("config/preload_models.json");
+    const bool ok = loadModelPathsFromConfig(cfgPath, pokemonCfg, modelsToPreload);
+
+    if (!ok) {
+        // Fallback list (mirrors the original behavior).
+        auto addByPokemonName = [&](const char* name) {
+            const PokemonStats* stats = pokemonCfg.getStats(name);
+            if (!stats) return;
+            modelsToPreload.push_back(std::string("assets/models/") + stats->model);
+        };
+        addByPokemonName("bulbasaur");
+        addByPokemonName("charmander");
+        addByPokemonName("squirtle");
+        addByPokemonName("pidgey");
+        addByPokemonName("rattata");
+    }
+
+    preloadModels(ctx, modelsToPreload, appName);
+}
+
+// Convenience overload for legacy code that still uses the singleton loader.
+inline void preloadCommonModels(GameContext& ctx, const std::string& appName = "PokemonAutochess") {
+    preloadCommonModels(ctx, PokemonConfigLoader::getInstance(), appName);
 }
 
 } // namespace game::preload

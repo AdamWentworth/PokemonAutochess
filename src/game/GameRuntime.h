@@ -6,15 +6,6 @@
 #include <string>
 #include <memory>
 #include <filesystem>
-#include <fstream>
-
-// Compatibility helpers for projects not building with C++20/23.
-static inline bool str_starts_with(const std::string& s, const char* prefix) {
-    const size_t n = std::char_traits<char>::length(prefix);
-    return s.size() >= n && s.compare(0, n, prefix) == 0;
-}
-
-#include <nlohmann/json.hpp>
 
 #include "engine/core/GameContext.h"
 #include "engine/core/EngineServices.h"
@@ -33,6 +24,7 @@ static inline bool str_starts_with(const std::string& s, const char* prefix) {
 
 #include "game/GameWorld.h"
 #include "game/GameStateManager.h"
+#include "game/GamePreload.h"
 
 #include "game/config/PokemonConfigLoader.h"
 #include "game/config/MovesConfigLoader.h"
@@ -60,120 +52,6 @@ inline const char* phaseName(RoundPhase p) {
         case RoundPhase::Resolution:  return "Resolution";
         default:                      return "Unknown";
     }
-}
-
-inline void addByPokemonName(std::vector<std::string>& out, const std::string& name, const PokemonConfigLoader& pokemonCfg) {
-    const PokemonStats* stats = pokemonCfg.getStats(name);
-    if (!stats) return;
-    out.push_back(std::string("assets/models/") + stats->model);
-}
-
-inline std::vector<std::string> loadPreloadListFromJsonOrFallback(const PokemonConfigLoader& pokemonCfg) {
-    // Config lives under PAC_DATA_ROOT/config by default (consistent with other configs).
-    const std::filesystem::path cfgPath = engine::paths::data("config/preload_models.json");
-
-    std::vector<std::string> out;
-    out.reserve(32);
-
-    // Fallback list (matches prior hardcoded behavior).
-    const auto fallback = [&]() {
-        addByPokemonName(out, "bulbasaur", pokemonCfg);
-        addByPokemonName(out, "charmander", pokemonCfg);
-        addByPokemonName(out, "squirtle", pokemonCfg);
-        addByPokemonName(out, "pidgey", pokemonCfg);
-        addByPokemonName(out, "rattata", pokemonCfg);
-    };
-
-    std::ifstream f(cfgPath);
-    if (!f.good()) {
-        fallback();
-        return out;
-    }
-
-    try {
-        nlohmann::json j;
-        f >> j;
-
-        const std::string modelRoot = j.value("model_root", "assets/models/");
-
-        if (j.contains("pokemon") && j["pokemon"].is_array()) {
-            for (const auto& v : j["pokemon"]) {
-                if (!v.is_string()) continue;
-                addByPokemonName(out, v.get<std::string>(), pokemonCfg);
-            }
-        }
-
-        if (j.contains("models") && j["models"].is_array()) {
-            for (const auto& v : j["models"]) {
-                if (!v.is_string()) continue;
-                std::string path = v.get<std::string>();
-                // If user supplies bare filename, resolve relative to model_root.
-                if (!str_starts_with(path, "assets/") && !str_starts_with(path, "data/") && !(path.find(':') != std::string::npos)) {
-                    path = modelRoot + path;
-                }
-                out.push_back(path);
-            }
-        }
-
-        if (out.empty()) {
-            // Avoid silent "no preload" because of a bad file.
-            fallback();
-        }
-    } catch (const std::exception& e) {
-        std::cerr << "[Preload] Failed to parse preload_models.json: " << e.what() << "\n";
-        out.clear();
-        fallback();
-    }
-
-    return out;
-}
-
-inline void preloadCommonModels(GameContext& ctx) {
-    // IMPORTANT: must be called AFTER GL context + glad are ready.
-    std::vector<std::string> modelsToPreload =
-    loadPreloadListFromJsonOrFallback(PokemonConfigLoader::getInstance());
-    if (modelsToPreload.empty()) return;
-
-    if (ctx.setTitle) ctx.setTitle("PokemonAutochess - Loading.");
-
-    // draw initial bar
-    if (ctx.renderBootLoading) ctx.renderBootLoading(0.0f);
-
-    if (ctx.pumpPreloadEvents && !ctx.pumpPreloadEvents()) {
-        if (ctx.requestQuit) ctx.requestQuit();
-        return;
-    }
-
-    const int total = static_cast<int>(modelsToPreload.size());
-    for (int i = 0; i < total; ++i) {
-        const std::string& path = modelsToPreload[i];
-
-        if (ctx.setTitle) {
-            ctx.setTitle(
-                "PokemonAutochess - Loading " +
-                std::to_string(i + 1) + "/" + std::to_string(total) + "  " + path
-            );
-        }
-
-        if (ctx.pumpPreloadEvents && !ctx.pumpPreloadEvents()) {
-            if (ctx.requestQuit) ctx.requestQuit();
-            return;
-        }
-
-        // expensive load (engine-owned service)
-        if (ctx.services && ctx.services->resources) {
-            ctx.services->resources->getModel(path);
-        } else {
-            std::cerr << "[Preload] No resource service available; skipping model load.\n";
-        }
-
-        if (ctx.renderBootLoading) {
-            const float t = (total > 0) ? float(i + 1) / float(total) : 1.0f;
-            ctx.renderBootLoading(t);
-        }
-    }
-
-    if (ctx.setTitle) ctx.setTitle("PokemonAutochess - Loading done.");
 }
 
 } // namespace game_runtime_detail
@@ -262,7 +140,8 @@ struct GameRuntime {
         log.setEchoToStdout(false);
         LogBus::setActive(&log);
 
-        game_runtime_detail::preloadCommonModels(ctx);
+        // Preload common models (uses the same PokemonConfigLoader instance Lua/gameplay sees).
+        game::preload::preloadCommonModels(ctx, *dataDb.pokemon, "PokemonAutochess");
 
         stateManager->pushState(std::make_unique<ScriptedState>(
             stateManager.get(),
