@@ -1,28 +1,29 @@
 // src/game/GameWorld.cpp
-#include "GameWorld.h"
-#include "logging/LogBus.h"
-#include "ui/HealthBarQuery.h"
+#include <cmath>
+#include <limits>
+#include <algorithm>
 #include <unordered_map>
+#include <iostream>
+#include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/type_ptr.hpp>
+
+#include "GameWorld.h"
+#include "GameConfig.h"
 
 #include "engine/utils/ResourceManager.h"
 #include "engine/render/Model.h"
 #include "engine/render/Camera3D.h"
 #include "engine/render/BoardRenderer.h"
 
-#include <iostream>
-#include <glm/gtc/matrix_transform.hpp>
-#include <glm/gtc/type_ptr.hpp>
-#include "data/PokemonConfigLoader.h"
-#include "GameConfig.h"
-#include "data/MovesConfigLoader.h"
-
-#include <cmath>
-#include <limits>
-#include <algorithm>
-
-// ✅ NEW: animset v2/v3 parser (drop-in)
-#include "data/AnimSetLoader.h"
 #include "animation/FlightLocomotion.h"
+
+#include "config/PokemonConfigLoader.h"
+#include "config/MovesConfigLoader.h"
+#include "config/AnimSetLoader.h"
+
+#include "logging/LogBus.h"
+
+#include "ui/HealthBarQuery.h"
 
 void GameWorld::applyLevelScaling(PokemonInstance& inst, int level) const {
     const auto& cfg = GameConfig::get();

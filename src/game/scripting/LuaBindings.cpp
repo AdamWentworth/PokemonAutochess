@@ -1,18 +1,4 @@
 // src/game/LuaBindings.cpp
-#include "LuaBindings.h"
-#include "game/GameWorld.h"
-#include "game/PokemonInstance.h"
-#include "game/animation/FlightLocomotion.h"
-#include "game/GameStateManager.h"
-#include "ScriptedState.h"
-#include "engine/events/EventManager.h"
-#include "engine/events/RoundEvents.h"
-#include "game/GameConfig.h"
-#include "game/data/PokemonConfigLoader.h"
-#include "game/data/MovesConfigLoader.h"
-#include "game/data/AttackAnimConfigLoader.h"
-#include "game/AttackAnimDebug.h"
-#include "game/data/AnimSetLoader.h"
 #include <glm/glm.hpp>
 #include "engine/render/Model.h"
 #include <iostream>
@@ -20,8 +6,28 @@
 #include <cctype>
 #include <cmath>
 #include <limits>
-#include "game/logging/LogBus.h"
 
+#include "LuaBindings.h"
+
+#include "engine/events/EventManager.h"
+#include "engine/events/RoundEvents.h"
+
+#include "game/GameWorld.h"
+#include "game/PokemonInstance.h"
+#include "game/GameStateManager.h"
+#include "game/GameConfig.h"
+
+#include "game/animation/FlightLocomotion.h"
+#include "game/animation/AttackAnimDebug.h"
+
+#include "game/config/PokemonConfigLoader.h"
+#include "game/config/MovesConfigLoader.h"
+#include "game/config/AttackAnimConfigLoader.h"
+#include "game/config/AnimSetLoader.h"
+
+#include "game/state/ScriptedState.h"
+
+#include "game/logging/LogBus.h"
 
 static std::string toLowerCopy(std::string s) {
     std::transform(s.begin(), s.end(), s.begin(),

@@ -117,12 +117,12 @@ add_executable(PokemonAutochess
     src/game/GameStateManager.cpp
     src/game/GameConfig.cpp
     
-    # Game Data
-    src/game/data/PokemonConfigLoader.cpp
-    src/game/data/MovesConfigLoader.cpp
-    src/game/data/AttackAnimConfigLoader.cpp
-    src/game/data/AnimSetLoader.cpp
-    src/game/data/FlyerConfigLoader.cpp
+    # Game Config
+    src/game/config/PokemonConfigLoader.cpp
+    src/game/config/MovesConfigLoader.cpp
+    src/game/config/AttackAnimConfigLoader.cpp
+    src/game/config/AnimSetLoader.cpp
+    src/game/config/FlyerConfigLoader.cpp
     
     # Game Animations
     src/game/animation/FlightLocomotion.cpp
@@ -131,11 +131,11 @@ add_executable(PokemonAutochess
     src/game/logging/LogBus.cpp
     
     # Game Scripting
-    src/game/scripting/ScriptedState.cpp
     src/game/scripting/LuaBindings.cpp
     src/game/scripting/LuaScript.cpp
     
-    # States
+    # Game States
+    src/game/state/ScriptedState.cpp
     src/game/state/PlacementState.cpp
     src/game/state/CombatState.cpp
 

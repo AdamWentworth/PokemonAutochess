@@ -15,15 +15,19 @@
 
 #include "game/GameWorld.h"
 #include "game/GameStateManager.h"
-#include "game/data/PokemonConfigLoader.h"
-#include "game/data/MovesConfigLoader.h"
-#include "game/data/AttackAnimConfigLoader.h"
-#include "game/data/FlyerConfigLoader.h"
+
+#include "game/config/PokemonConfigLoader.h"
+#include "game/config/MovesConfigLoader.h"
+#include "game/config/AttackAnimConfigLoader.h"
+#include "game/config/FlyerConfigLoader.h"
+
 #include "game/systems/CameraSystem.h"
 #include "game/systems/UnitInteractionSystem.h"
 #include "game/systems/RoundSystem.h"
 #include "game/systems/ShopSystem.h"
-#include "game/scripting/ScriptedState.h"
+
+#include "game/state/ScriptedState.h"
+
 #include "game/GameConfig.h"
 #include "game/logging/LogBus.h"
 
