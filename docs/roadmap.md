@@ -8,12 +8,14 @@ This document is the single source of truth for the agreed target architecture a
 
 - ✅ Stage 0: rules documented (see `ARCHITECTURE.md`).
 - ✅ Stage 1: build split into `engine_core`, `engine_platform`, `engine_render` with `Engine` umbrella target; game + tests still run.
-- ✅ Stage 2 (initial): ECS starter exists in `engine_core` and is covered by `ecs_smoke` headless test.
+- ✅ Stage 2: ECS foundation exists in `engine_core` and is covered by headless tests:
+  - `ecs_smoke`
+  - `ecs_destroy_cleans_components`
 
-**Known gaps in current Stage 2 ECS starter (intentional for now):**
-- `World::destroy()` does not yet remove components across all stores.
+**Known gaps in current ECS (intentional for now):**
 - Storage is `unordered_map`-based (correctness-first, not performance-first).
-- No query/view API yet (systems iterate storage raw maps).
+- No query/view API yet (systems iterate raw maps or use `World::each` / `each2` helpers).
+- No structural-change policy yet (adding/removing components during iteration is undefined behavior by convention).
 
 ---
 
@@ -164,24 +166,32 @@ Convenience macros are fine **only if they still route through explicit referenc
 
 ## ECS Design Intent (Detailed)
 
-### Stage 2 ECS starter (today)
+### What exists now (Stage 2 / 2.1)
 - `Entity`: id + generation
 - `World`:
   - creates/destroys entities
   - stores type-erased component storages keyed by `type_index`
+  - `destroy()` removes components across all stores (2.1)
+  - convenience iteration helpers:
+    - `each<T>(fn)` passes `(Entity, T&)`
+    - `each2<A,B>(fn)` passes `(Entity, A&, B&)` for a simple join by id
 - `ComponentStorage<T>`:
   - correctness-first (`unordered_map<entity_id, T>`)
 - `Scheduler`:
   - ordered list of systems; `tick(world, dt)` calls each system in order
+- Tests:
+  - `ecs_smoke` validates tick ordering + mutation
+  - `ecs_destroy_cleans_components` validates cleanup across stores
 
-### Next ECS expansions (Stage 2.1 / Stage 2.2)
-- automatic component cleanup on `World::destroy(Entity)`
-- query/view API
-  - e.g., iterate entities that have `(A, B)` components
-- component lifetime rules and “structural changes” policy
-  - e.g., forbid adding/removing components while iterating, or defer via command buffer
-- performance upgrades (later, only after correctness + architecture)
-  - sparse sets, SoA storage, stable handles, archetypes (optional)
+### Next ECS expansions (Stage 2.2)
+- query/view API (explicit, safe iteration)
+  - iterate entities that have `(A, B)` without raw map access
+- structural-change policy (define what is allowed during iteration)
+  - forbid structural changes during iteration, or defer via a command buffer
+- performance upgrades (later; correctness + architecture first)
+  - sparse sets / SoA
+  - stable handles
+  - archetypes (optional)
 
 ### Determinism requirements
 - fixed timestep for simulation
@@ -285,20 +295,21 @@ Exit criteria:
 - game links engine libs and still runs
 - tests still pass
 
-### Stage 2 — ECS foundation in `engine_core` (done, initial)
+### Stage 2 — ECS foundation in `engine_core` (done)
 Actions:
 - add ECS starter:
   - `World`, `Entity`, component storage
   - `ISystem` + `Scheduler`
-- add headless ECS test (`ecs_smoke`)
+- add headless ECS tests:
+  - `ecs_smoke`
+  - `ecs_destroy_cleans_components`
 - wire `PAC_Tests` target in CMake
 
 Exit criteria:
-- headless test creates a world, registers a system, steps N ticks, asserts state
+- headless tests validate core ECS behaviors
 - game still runs unchanged
 
 **Stage 2 follow-ups (not done yet):**
-- component cleanup on destroy
 - query/view API
 - structural change rules
 
@@ -379,11 +390,9 @@ When continuing implementation, prioritize producing these artifacts in order:
    - next: `ITimeSource`, `IRandom`, `IAssetStore`
 
 3) **ECS expansion tasks**
-   - destroy cleanup across stores
-   - view/query API
+   - query/view API
    - structural-change policy (immediate vs deferred)
 
 4) **Phase model draft for update graph**
    - define phases and what is allowed in each phase
    - define how headless mode participates
-

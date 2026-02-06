@@ -33,6 +33,10 @@
 
 ## Current migration status
 - ✅ Stage 1: build graph split into `engine_core`, `engine_platform`, `engine_render`, with `Engine` umbrella target.
-- ✅ Stage 2: ECS starter exists in `engine_core` and is covered by a headless smoke test.
-- Known transitional exceptions:
-  - Components are not automatically removed on `World::destroy()` yet (intentional starter behavior).
+- ✅ Stage 2: ECS starter exists in `engine_core` and is covered by headless tests.
+  - `ecs_smoke` verifies scheduler ticking and component mutation.
+  - `ecs_destroy_cleans_components` verifies `World::destroy()` removes components across stores.
+
+## Known transitional exceptions (still allowed temporarily)
+- ECS storage is correctness-first (`unordered_map`) and lacks a real query/view API.
+- Structural-change rules are not defined yet (adding/removing components during iteration is currently "don't do that").

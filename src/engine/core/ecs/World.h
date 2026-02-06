@@ -7,13 +7,14 @@
 #include <memory>
 #include <typeindex>
 #include <unordered_map>
+#include <cstdint>
 
 namespace engine { struct CoreServices; }
 
 namespace engine::ecs {
 
 // World owns entity lifetimes and component storages.
-// This is a starter "good enough" design to begin migration + headless tests.
+// This is a starter design intended for correctness + headless tests first.
 class World {
 public:
     explicit World(engine::CoreServices* services = nullptr);
@@ -38,11 +39,47 @@ public:
         return static_cast<StoreHolder<T>*>(it->second.get())->store;
     }
 
+    // Convenience iteration: each component instance of T.
+    // Passes (Entity, T&) to fn.
+    template <class T, class Fn>
+    void each(Fn&& fn) {
+        auto& store = components<T>();
+        for (auto& kv : store.raw()) {
+            const std::uint32_t id = kv.first;
+            Entity e{ id, id < generations_.size() ? generations_[id] : std::uint8_t{0} };
+            fn(e, kv.second);
+        }
+    }
+
+    // Convenience iteration: join of two components (A,B) by entity id.
+    // Passes (Entity, A&, B&) to fn.
+    template <class A, class B, class Fn>
+    void each2(Fn&& fn) {
+        auto& a = components<A>().raw();
+        auto& bStore = components<B>();
+
+        for (auto& kv : a) {
+            const std::uint32_t id = kv.first;
+            Entity e{ id, id < generations_.size() ? generations_[id] : std::uint8_t{0} };
+            if (auto* b = bStore.get(Entity{id, 0}); b) {
+                fn(e, kv.second, *b);
+            }
+        }
+    }
+
 private:
-    struct IStoreHolder { virtual ~IStoreHolder() = default; };
+    struct IStoreHolder {
+        virtual ~IStoreHolder() = default;
+        virtual void removeEntity(std::uint32_t id) = 0;
+    };
 
     template <class T>
-    struct StoreHolder final : IStoreHolder { ComponentStorage<T> store; };
+    struct StoreHolder final : IStoreHolder {
+        ComponentStorage<T> store;
+        void removeEntity(std::uint32_t id) override { store.removeById(id); }
+    };
+
+    void removeAllComponentsFor(std::uint32_t id);
 
     engine::CoreServices* services_ = nullptr;
 

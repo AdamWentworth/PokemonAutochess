@@ -25,15 +25,21 @@ bool World::alive(Entity e) const {
     return generations_[e.id] == e.gen;
 }
 
+void World::removeAllComponentsFor(std::uint32_t id) {
+    for (auto& kv : stores_) {
+        kv.second->removeEntity(id);
+    }
+}
+
 void World::destroy(Entity e) {
     if (!alive(e)) return;
+
+    // Remove all components first (prevents leaks / stale component presence).
+    removeAllComponentsFor(e.id);
 
     // Invalidate entity (bump generation).
     generations_[e.id] = static_cast<std::uint8_t>(generations_[e.id] + 1);
     freeIds_.push_back(e.id);
-
-    // NOTE: We do NOT automatically remove components across all stores yet.
-    // Stage 2.1 will add "remove all components for entity" across stores.
 }
 
 } // namespace engine::ecs

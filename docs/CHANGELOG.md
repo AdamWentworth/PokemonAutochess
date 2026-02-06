@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+## 2026-02-06 — Stage 2.1 ECS destroy cleanup + iteration helpers
+- `engine_core` ECS: `World::destroy()` now removes components across all stores.
+- Added iteration helpers (`World::each`, `World::each2`) to support early systems/tests without exposing raw maps everywhere.
+- Added new headless test `ecs_destroy_cleans_components`.
+
 ## 2026-02-06 — Stage 2 ECS starter + tests target
 - Added ECS starter in `engine_core` (`World`, `Scheduler`, component storage).
 - Added `ecs_smoke` headless test and hooked tests into CMake (`PAC_Tests`).

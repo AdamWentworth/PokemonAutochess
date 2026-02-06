@@ -4,6 +4,7 @@
 #include "engine/core/ecs/Entity.h"
 #include <unordered_map>
 #include <utility>
+#include <cstdint>
 
 namespace engine::ecs {
 
@@ -17,9 +18,7 @@ public:
         return data_.try_emplace(e.id, T{std::forward<Args>(args)...}).first->second;
     }
 
-    bool has(Entity e) const {
-        return data_.find(e.id) != data_.end();
-    }
+    bool has(Entity e) const { return data_.find(e.id) != data_.end(); }
 
     T* get(Entity e) {
         auto it = data_.find(e.id);
@@ -31,9 +30,10 @@ public:
         return it == data_.end() ? nullptr : &it->second;
     }
 
-    void remove(Entity e) {
-        data_.erase(e.id);
-    }
+    void remove(Entity e) { data_.erase(e.id); }
+
+    // Used by World::destroy() to remove components without requiring a generation.
+    void removeById(std::uint32_t id) { data_.erase(id); }
 
     // Iteration for simple systems/tests.
     auto& raw() { return data_; }
