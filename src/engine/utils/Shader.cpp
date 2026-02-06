@@ -1,8 +1,10 @@
 // Shader.cpp
 
 #include "Shader.h"
+#include "engine/utils/Log.h"
 #include <fstream>
 #include <sstream>
+#include <string>
 #include <iostream>
 #include <glm/gtc/type_ptr.hpp>
 #include <unordered_set>
@@ -14,7 +16,7 @@
 static std::string readTextFile(const std::string& path) {
     std::ifstream file(path, std::ios::binary);
     if (!file.is_open()) {
-        std::cerr << "[Shader] Error opening shader file: " << path << "\n";
+        LOG_ERROR_T("SHADER", std::string("Error opening shader file: ") + path);
         return "";
     }
     std::stringstream ss;
@@ -125,11 +127,11 @@ Shader::Shader(const char* vertexPath, const char* fragmentPath) {
 
     GLuint vertexShader = compileShader(GL_VERTEX_SHADER, vertexCode.c_str());
     if (vertexShader == 0) {
-        std::cerr << "[Shader] Failed to compile vertex shader from: " << vertexPath << "\n";
+        LOG_ERROR_T("SHADER", std::string("Failed to compile vertex shader from: ") + vertexPath);
     }
     GLuint fragmentShader = compileShader(GL_FRAGMENT_SHADER, fragmentCode.c_str());
     if (fragmentShader == 0) {
-        std::cerr << "[Shader] Failed to compile fragment shader from: " << fragmentPath << "\n";
+        LOG_ERROR_T("SHADER", std::string("Failed to compile fragment shader from: ") + fragmentPath);
     }
 
     ID = glCreateProgram();
@@ -142,7 +144,7 @@ Shader::Shader(const char* vertexPath, const char* fragmentPath) {
     if (!success) {
         char infoLog[512];
         glGetProgramInfoLog(ID, 512, nullptr, infoLog);
-        std::cerr << "[Shader] Program linking error: " << infoLog << "\n";
+        LOG_ERROR_T("SHADER", std::string("Program linking error: ") + infoLog);
     }
 
     glDeleteShader(vertexShader);
@@ -175,8 +177,7 @@ GLuint Shader::compileShader(GLenum type, const char* source) {
     if (!success) {
         char infoLog[512];
         glGetShaderInfoLog(shader, 512, nullptr, infoLog);
-        std::cerr << "[Shader] " << (type == GL_VERTEX_SHADER ? "Vertex" : "Fragment")
-                  << " shader compilation error: " << infoLog << "\n";
+        LOG_ERROR_T("SHADER", std::string(type == GL_VERTEX_SHADER ? "Vertex" : "Fragment") + std::string(" shader compilation error: ") + infoLog);
         glDeleteShader(shader);
         return 0;
     }
@@ -191,7 +192,7 @@ GLint Shader::getUniformLocation(const std::string &name) const {
 
     GLint location = glGetUniformLocation(ID, name.c_str());
     if (location == -1)
-        std::cerr << "[Shader] Warning: Uniform '" << name << "' not found!\n";
+        LOG_WARN_T("SHADER", std::string("Uniform \'") + name + "\' not found.");
 
     uniformLocationCache[name] = location;
     return location;
@@ -216,3 +217,4 @@ void Shader::setUniform(const std::string &name, int value) const {
 void Shader::setUniform(const std::string &name, const glm::vec2 &vec) const {
     glUniform2f(getUniformLocation(name), vec.x, vec.y);
 }
+

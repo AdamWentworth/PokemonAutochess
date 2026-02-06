@@ -15,6 +15,7 @@
 
 #include "engine/utils/ResourceManager.h"
 #include "engine/core/SystemRegistry.h"
+#include "engine/utils/Log.h"
 
 #define NOMINMAX
 #ifdef _WIN32
@@ -186,19 +187,19 @@ bool Application::initApplication() {
     try {
         window = std::make_unique<Window>("Pokemon Autochess", (int)START_W, (int)START_H);
     } catch (const std::exception& ex) {
-        std::cerr << "[Application] Window init failed: " << ex.what() << "\n";
+        LOG_ERROR_T("APP", std::string("Window init failed: ") + ex.what());
         return false;
     }
 
     if (!gladLoadGLLoader((GLADloadproc)SDL_GL_GetProcAddress)) {
-        std::cerr << "[Application] Failed to initialize GLAD\n";
+        LOG_ERROR_T("APP", "Failed to initialize GLAD");
         return false;
     }
 
     // Wire engine-owned shader cache BEFORE anything calls shaderCache.get()
     // TTF depends on SDL being initialized (now true because Window ctor did SDL_Init).
     if (TTF_Init() == -1) {
-        std::cerr << "[Application] TTF_Init error: " << TTF_GetError() << "\n";
+        LOG_WARN_T("APP", std::string("TTF_Init error: ") + TTF_GetError());
     }
 
     updateDrawableSizeAndViewport();
@@ -219,12 +220,12 @@ bool Application::initApplication() {
     renderer = std::make_unique<Renderer>();
     camera   = std::make_unique<Camera3D>(45.0f, float(drawableW) / float(drawableH), 0.1f, 100.0f);
 
-    std::cout << "[Init] Application initialized.\n";
+    LOG_INFO_T("APP", "Application initialized.");
     return true;
 }
 
 void Application::shutdownApplication() {
-    std::cout << "[Shutdown] Application...\n";
+    LOG_INFO_T("APP", "Shutdown...");
 
     // 1) Destroy anything that might issue GL calls while the context is still alive.
     if (renderer) {
@@ -250,7 +251,7 @@ void Application::shutdownApplication() {
         SDL_Quit();
     }
 
-    std::cout << "[Shutdown] Application done.\n";
+    LOG_INFO_T("APP", "Shutdown done.");
 }
 
 void Application::updateDrawableSizeAndViewport() {
@@ -312,7 +313,7 @@ void Application::renderBootLoading(float progress01) {
 }
 
 void Application::run(GameLoop& game) {
-    std::cout << "[Run] Main loop @ 60 Hz...\n";
+    LOG_INFO_T("APP", "Main loop @ 60 Hz...");
 
     bool running = true;
     // Wire engine-owned services bundle (lifetime: Application)
@@ -409,7 +410,7 @@ void Application::run(GameLoop& game) {
         frameCount++;
         fpsTimer += frameDt;
         if (fpsTimer >= 1.0) {
-            std::cout << "[FPS] " << frameCount << "\n";
+            LOG_INFO_T("PERF", std::string("FPS: ") + std::to_string(frameCount));
             frameCount = 0;
             fpsTimer = 0.0;
         }

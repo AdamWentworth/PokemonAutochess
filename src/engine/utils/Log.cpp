@@ -46,12 +46,13 @@ std::string timestampUtc() {
 }
 
 bool shouldPrint(Level lvl) {
-    return static_cast<int>(lvl) >= static_cast<int>(g_minLevel.load());
+    return static_cast<int>(lvl) >= static_cast<int>(g_minLevel.load(std::memory_order_relaxed));
 }
+
 } // namespace
 
-void setMinLevel(Level lvl) { g_minLevel.store(lvl); }
-Level getMinLevel() { return g_minLevel.load(); }
+void setMinLevel(Level lvl) { g_minLevel.store(lvl, std::memory_order_relaxed); }
+Level getMinLevel() { return g_minLevel.load(std::memory_order_relaxed); }
 
 bool setLogFile(const std::string& path) {
     std::lock_guard<std::mutex> lock(g_mutex);
@@ -65,14 +66,15 @@ bool setLogFile(const std::string& path) {
     return true;
 }
 
-void write(Level lvl, const std::string& msg) {
+void write(Level lvl, std::string_view tag, std::string_view msg) {
     if (!shouldPrint(lvl)) return;
+
+    if (tag.empty()) tag = "LOG";
 
     std::lock_guard<std::mutex> lock(g_mutex);
     std::ostringstream line;
-    line << "[" << timestampUtc() << "][" << levelName(lvl) << "] " << msg << "\n";
+    line << "[" << timestampUtc() << "][" << levelName(lvl) << "][" << tag << "] " << msg << "\n";
 
-    // stderr for Warn/Error, stdout for Info/Debug.
     if (lvl == Level::Warn || lvl == Level::Error) {
         std::cerr << line.str();
     } else {
@@ -83,10 +85,6 @@ void write(Level lvl, const std::string& msg) {
         (*g_file) << line.str();
         g_file->flush();
     }
-}
-
-void write(Level lvl, const char* msg) {
-    write(lvl, std::string(msg ? msg : ""));
 }
 
 } // namespace engine::log

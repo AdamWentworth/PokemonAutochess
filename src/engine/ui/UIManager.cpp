@@ -2,12 +2,12 @@
 
 #include "engine/ui/UIManager.h"
 
-#include <iostream>
 #include <memory>
 #include <mutex>
 
 #include "engine/utils/Shader.h"
 #include "engine/ui/Card.h" // for Card::shutdownSharedGL()
+#include "engine/utils/Log.h"
 
 namespace {
     std::mutex s_mutex;
@@ -27,7 +27,7 @@ void UIManager::init() {
     );
 
     s_initialized = true;
-    std::cout << "[UIManager] Card shader initialized.\n";
+    LOG_INFO_T("UI", "Card shader initialized.");
 }
 
 Shader* UIManager::getCardShader() {
@@ -48,7 +48,8 @@ void UIManager::shutdown() {
 
     if (s_cardShader) {
         s_cardShader.reset();
-        std::cout << "[UIManager] Card shader destroyed.\n";
+        LOG_INFO_T("UI", "Card shader destroyed.");
     }
     s_initialized = false;
 }
+

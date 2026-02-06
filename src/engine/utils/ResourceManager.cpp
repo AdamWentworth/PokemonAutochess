@@ -7,8 +7,8 @@
 
 // NEW: optional fastgltf parsing/logging (does not change loader behavior)
 #include "engine/render/FastGltfValidator.h"
+#include "engine/utils/Log.h"
 
-#include <iostream>
 
 
 std::shared_ptr<Model> ResourceManager::getModel(const std::string& modelPath) {
@@ -18,7 +18,7 @@ std::shared_ptr<Model> ResourceManager::getModel(const std::string& modelPath) {
     }
 
 #if defined(PAC_VERBOSE_STARTUP) && PAC_VERBOSE_STARTUP
-    std::cout << "[ResourceManager] Loading model: " << modelPath << "\n";
+    LOG_INFO_T("RES", std::string("Loading model: ") + modelPath);
 #endif
 
     // Optional fastgltf “shadow parse” for compatibility checking.
@@ -29,3 +29,4 @@ std::shared_ptr<Model> ResourceManager::getModel(const std::string& modelPath) {
     loadedModels.emplace(modelPath, modelPtr);
     return modelPtr;
 }
+
