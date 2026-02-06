@@ -1,247 +1,210 @@
 # 🧩 Pokemon Autochess
 
-A **custom 3D game engine** and prototype auto-battler inspired by chess, real-time tactics, and the Pokémon universe.
+A **custom 3D engine + game prototype** for a Pokémon-inspired auto-battler (grid placement → scripted combat).
 
-Built in **C++17** using modern rendering, math, and architecture techniques — from scratch.
+- Engine + game code in modern **C++20**
+- Rendering via **OpenGL 3.x** + **SDL2**
+- Gameplay systems + combat/shop logic scripted in **Lua** (bound via **sol2**)
+
+> This repository is an educational/prototype project; it is not affiliated with Nintendo/Game Freak/The Pokémon Company.
+
+---
+
+## ✅ Current Status (What’s Implemented)
+
+- **Engine core**: application loop, windowing, input mapping, system registry
+- **Rendering**: camera, board/grid rendering, model loading + animation support, shader + resource caches
+- **UI**: text rendering, cards, health bars, battle feed, boot loading/progress view
+- **Gameplay runtime**: `GameRuntime` (thin) → `GameSession` (world/state/systems/UI wiring)
+- **Game states**: placement + combat states
+- **Gameplay systems**: round system, shop system, movement, combat, bench/cards, unit interaction
+- **VFX**: particle system + TailFire VFX modules
+- **Tests**: small executable with smoke tests
 
 ---
 
 ## 🛠️ Tech Stack
 
-This engine is hand-built with modern C++ and real-time rendering in mind:
+### Core
+- **C++20** (project-wide standard)
+- **CMake** (targets: `Engine`, `PAC_GameObjects`, `PokemonAutochess`, `PAC_Tests`)
+- **vcpkg manifest mode** via `vcpkg.json`
 
-- **SDL2** – windowing, input, and OpenGL context creation
-- **OpenGL 3.3 Core** – GPU-based real-time rendering
-- **GLAD** – OpenGL function loader
-- **GLSL** – vertex/fragment shaders
-- **GLM** – matrix/vector math (camera, transforms)
-- **CMake** – cross-platform build system
-- **vcpkg** – dependency management
+### Runtime + Rendering
+- **SDL2** + **SDL2_ttf** (windowing/input + font rendering)
+- **OpenGL** + **glad** (GL loader)
+- **GLM** (math)
 
-### 🧩 Planned Integrations
-
-- **EnTT** – ECS architecture for game logic
-- **Assimp** – 3D model loading (FBX, OBJ, etc)
-- **Lua** – scripting support for units/AI
-- **ImGui** – debug tools and UI
-- **Bullet3** – physics (collisions, movement)
+### Scripting + Data
+- **Lua** + **sol2** (Lua bindings)
+- **nlohmann-json** (config/data parsing)
+- **fastgltf** (glTF ingestion)
+- **stb** (image IO helpers)
 
 ---
 
-## 🎮 Game Concept
+## 📁 Repo Layout (High-Level)
 
-> Think **Teamfight Tactics** meets Pokémon, in a stylized 3D grid world.
-
-- Players draft Pokémon and position them on a chessboard-like arena.
-- Combat is automatic, based on positioning, abilities, and synergies.
-- Strategy comes from placement, team composition, and ability timing.
-
-### 🔭 Visual Style
-
-- Fixed top-down / isometric camera (TFT-like)
-- Stylized models and animations
-- Vibrant battlefield with dynamic effects
-
----
-
-## ✨ Features Roadmap
-
-| Feature                     | Status      |
-|----------------------------|-------------|
-| ✅ OpenGL + SDL2 bootstrap  | Complete    |
-| ✅ Shader pipeline + MVP    | Complete    |
-| ✅ 3D camera (perspective)  | Complete    |
-| ✅ Grid tile renderer       | Done        |
-| 🧪 Model loading (Assimp)   | In progress |
-| 🔜 ECS system (EnTT)        | Next        |
-| 🔜 Draft system             | Planned     |
-| 🔜 Unit AI + combat         | Planned     |
-| 🔜 UI, effects, polish      | Future      |
-
----
-
-## 🎓 Educational Alignment
-
-This project supports and extends topics from **BCIT’s Bachelor of Applied Computer Science – Game Development Option**:
-
-- ✅ Real-time rendering (OpenGL, GLSL, cameras)
-- ✅ Engine structure and modular C++
-- ✅ Systems architecture with ECS
-- 🔜 Scripting and AI (Lua)
-- 🔜 Physics, animation, and input systems
+- `src/engine/` — engine core, rendering, UI, utilities, VFX
+- `src/game/` — game app/world, state machine, systems, scripting bindings, configs
+- `scripts/` — Lua gameplay logic (combat, shop, etc.)
+- `assets/` — runtime assets copied into the build output on build
+- `tests/` — lightweight smoke tests (`PAC_Tests`)
 
 ---
 
 ## 🚀 Getting Started
 
-### ✅ Prerequisites
+### ✅ Build Requirements
 
-- **CMake** 3.21+ (tested with 4.0.2)
-- **Visual Studio 2022** with C++ development tools
-- **vcpkg** installed locally (not globally)
-- Environment variable `VCPKG_ROOT` pointing to your vcpkg directory
-
----
-
-### 📦 Initial Setup
-
-```bash
-# Clone the repository
-git clone https://github.com/your-username/PokemonAutochess.git
-cd PokemonAutochess
-
-# Clone vcpkg (alongside or in a known location)
-git clone https://github.com/microsoft/vcpkg.git C:/dev/vcpkg
-cd C:/dev/vcpkg
-./bootstrap-vcpkg.bat
-```
+**Recommended (Windows)**
+- Visual Studio 2026 (uses **Visual Studio 18 2026** generator preset)
+- CMake (supports presets; the repo includes `CMakePresets.json`)
+- vcpkg installed locally
+- `VCPKG_ROOT` environment variable set to your vcpkg directory
 
 ---
 
-### 📁 Set VCPKG_ROOT (once)
+### 🧰 Build (Using CMake Presets)
 
-Make sure CMake knows where vcpkg is located by setting `VCPKG_ROOT`.
+From the repo root:
 
-> After this, restart your terminal or VS Code to ensure it's picked up.
+    # Configure (uses CMakePresets.json)
+    cmake --preset vs2026
 
----
+    # Build Debug
+    cmake --build --preset debug
 
-### 📦 Install Dependencies
+    # Build Release
+    cmake --build --preset release
 
-Install all required libraries using vcpkg:
-
-```bash
-# From the vcpkg directory
-./vcpkg install sdl2 sdl2-ttf glad glm lua
-```
-
----
-
-### 🏗️ Build the Project
-
-```bash
-cd C:/Code/PokemonAutochess
-
-# Optional: clean previous cache
-rmdir /s /q build
-
-# Configure the project (MSVC + vcpkg toolchain)
-cmake -DCMAKE_TOOLCHAIN_FILE=%VCPKG_ROOT%/scripts/buildsystems/vcpkg.cmake -DVCPKG_TARGET_TRIPLET=x64-windows -G "Visual Studio 17 2022" -A x64 -S . -B build
-
-# Build it
-cmake --build build --config Debug
-```
+Notes:
+- Assets under `assets/` are copied into the build directory automatically as part of the build.
+- Dependencies are defined in `vcpkg.json` (manifest mode). If your vcpkg is configured correctly, CMake + the toolchain will resolve them.
 
 ---
 
-### ▶️ Run the Game
+### 🏗️ Build (Manual Configure Command)
 
-```bash
-.\build\Debug\PokemonAutochess.exe
-```
+If you prefer explicit flags instead of presets:
 
-Or open the solution file in Visual Studio and press **F5**:
+    cmake -S . -B build ^
+      -G "Visual Studio 18 2026" -A x64 ^
+      -DCMAKE_TOOLCHAIN_FILE=%VCPKG_ROOT%/scripts/buildsystems/vcpkg.cmake
 
-```bash
-build/PokemonAutochess.sln
-```
+    cmake --build build --config Debug
 
 ---
 
-### ✅ Optional VS Code Integration
+### ▶️ Run
 
-To use VS Code to build and debug:
+After building:
 
-1. Open Command Palette → `CMake: Select a Kit`
-2. Choose: **Visual Studio 17 2022 Release - x64**
-3. Run: `CMake: Configure` and then `CMake: Build`
+    # Windows example
+    .\build\Debug\PokemonAutochess.exe
 
----
-
-You're now ready to build, run, and extend the game engine and prototype. Enjoy developing Pokémon Autochess! 🎮
-
-## 🌀 Gameplay Flow & Round System
-
-The game takes place in **Kanto**, combining elements of classic Pokémon progression with auto-battler mechanics similar to *Auto Chess* and *Teamfight Tactics*.
-
-### 🎬 Game Start: Starter Selection
-
-- Players begin in **Pallet Town** by choosing a starter: **Bulbasaur**, **Charmander**, or **Squirtle**.
-- This is a **free round** with no combat — a chance to set your initial direction.
-- The starter is your foundation, but early opportunities exist to pivot or evolve depending on unit offerings.
-
-### 🔄 Round Progression
-
-Rounds represent different Kanto locations or encounters. Each round offers a new challenge, unit choices, or key battles:
-
-| Round | Location / Theme       | Encounter Type       | Notes |
-|-------|------------------------|----------------------|-------|
-| 1     | Pallet Town            | Starter Selection    | Free round – pick your starter |
-| 2–3   | Route 1                | PvE: Wild Pokémon     | Early units, some synergy seeds |
-| 4     | Viridian City          | PvE + Shop            | Item drops + expanded shop pool |
-| 5     | Viridian Forest        | PvE: Swarm battle     | Status effects, type counters |
-| 6     | Route 22 (optional)    | PvE or PvP variant    | Chance to pivot, strong wilds |
-| 7     | Pewter City            | **Boss: Gym Leader** | Battle against **Brock** and his themed team |
-
-Future rounds will follow this pattern: **travel → encounter → evolve/upgrade → major battle**.
-
-### 🧠 Synergy System (Early Concept)
-
-Like TFT or Auto Chess, Pokémon will gain bonuses based on shared traits — but beyond types.
-
-#### Planned synergy categories
-
-- **Type Synergy** – Traditional (e.g. Fire, Water, Grass). Grants team bonuses.
-- **Origin Synergy** – Based on where/how the Pokémon was acquired (starter, route, gym leader, etc).
-- **Evolution Chains** – Owning connected evolutions (e.g. Charmander + Charmeleon) provides bonuses.
-- **Role Synergy** – Broad tactical categories like:
-  - **Tanks** – High HP/defense
-  - **Speedsters** – Fast attack animations or movement
-  - **Status Masters** – Use paralysis, sleep, poison, etc.
-  - **Glass Cannons** – High burst damage, low durability
-
-These synergies influence unit stats, ability cooldowns, and team-wide effects.
+You can also open the generated solution in Visual Studio and run via **F5**.
 
 ---
 
-More details will be added as we build out the round engine, combat loop, and draft/shop systems.
+### 🧪 Tests
 
-## Trace gating via environment variables
+Build and run the test executable:
 
-This patch removes the hard-coded Bulbasaur/Vine Whip trace gating and switches to the same env-driven matching rules implemented in `src/game/logging/DebugTrace.h`.
+    cmake --build build --config Debug --target PAC_Tests
+    .\build\Debug\PAC_Tests.exe
 
-### Environment variables
+These are intended as **minimal smoke checks** (Lua bindings, event bus, config parsing, etc.).
 
-- `PAC_TRACE_ALL=1`  
-  Enables all combat traces.
+---
 
-- `PAC_TRACE_COMBAT="unit:move,unit2:move2"`  
-  Comma/semicolon/whitespace-separated tokens.  
-  Each token is `unit:move` where either side may be `*` (wildcard).  
-  If a token has no `:`, it is treated as a unit-only match (`move="*"`).
+## 🎮 Gameplay Prototype
 
-### Examples
+### 🔄 Flow (Current Shape)
+1. **Placement** phase (starter/unit placement on grid)
+2. **Combat** phase (movement + combat systems; combat logic driven by Lua script)
+3. **Round/Shop** systems integrate with the session loop (UI + events)
 
+### 🧠 Systems Present in Code
+- Round system
+- Shop system (Lua-driven roll/price hooks)
+- Movement + combat systems
+- Bench/cards systems and UI support (cards, battle feed, health bars)
+
+> The exact balancing/content is still prototype-level; expect changes.
+
+---
+
+## 🌀 Lua Scripting
+
+Lua is used for gameplay logic and is bound host-side via **sol2**.
+
+### 📜 Notable scripts
+- `scripts/systems/combat.lua`
+  - Contains combat timing + tuning hooks and debug tracing gates
+- `scripts/systems/shop.lua` (or equivalent shop script in `scripts/systems/`)
+  - Implements shop roll logic and emits events for UI/debug
+
+### 🎛️ Tuning
+Combat timing/speed values can be overridden by loading:
+- `scripts/config/combat_tuning.lua` (if present)
+
+---
+
+## 🎨 Assets & Model Pipeline
+
+- Runtime `assets/` directory is copied into the build output each build (incremental).
+- Models/animations are handled via:
+  - **glTF** ingestion (`fastgltf`)
+  - Per-model animation-set JSON (example: `assets/models/*.animset.json`)
+
+Expect this pipeline to evolve as additional models/animations are added.
+
+---
+
+## 🧭 Debugging & Combat Trace Gating
+
+Tracing is controlled by environment variables (matches the rules implemented in `src/game/logging/DebugTrace.h`):
+
+- `PAC_TRACE_ALL=1`
+  - Enables all combat traces.
+
+- `PAC_TRACE_COMBAT="unit:move,unit2:move2"`
+  - Comma/semicolon/whitespace-separated tokens.
+  - Token format: `unit:move` where either side may be `*` (wildcard).
+  - If a token has no `:`, it is treated as a unit-only match (`move="*"`).
+
+### ✅ Examples
 - `PAC_TRACE_COMBAT="bulbasaur:vine_whip"`
 - `PAC_TRACE_COMBAT="*:vine_whip"`
 - `PAC_TRACE_COMBAT="bulbasaur:*"`
 - `PAC_TRACE_COMBAT="*:*,pikachu:thunder_shock"`
 
-### Files included
+### 📌 Files using these gates
+- `scripts/systems/combat.lua` (Lua-side `emit()` debug prints)
+- `src/game/GameWorld.cpp` (animation tick/clamp logs)
+- `src/game/scripting/LuaBindings.cpp` (damage/apply tracing)
 
-- `scripts/systems/combat.lua`  
-  Lua-side `emit()` debug prints gated by `PAC_TRACE_ALL` / `PAC_TRACE_COMBAT`.
+---
 
-- `src/game/GameWorld.cpp`  
-  Animation tick / clamp logs gated by `DebugTrace::combat(unit, move)`.
+## ✨ Roadmap (Suggested)
 
-- `src/game/scripting/LuaBindings.cpp`  
-  `world_apply_damage` tracing gated by `DebugTrace::combat(unit, move)`.
+### 🔜 Near-term
+- Expand content/config coverage (more units/moves/rounds)
+- Stabilize the Lua ↔ C++ gameplay API surface
+- Improve model/animation streaming + caching
+- Increase test coverage for scripting + config ingestion
 
-### Notes
+### 🧩 Longer-term
+- More polished UI + effects pass
+- More complete auto-battler loop (economy, drafting, synergies)
 
-- Log prefixes were renamed from `[VW_*]` to `[TRACE_*]` so they aren’t misleading when tracing other units/moves.
-- These files assume `DebugTrace.h` remains at `src/game/logging/DebugTrace.h` and is included via:
-  - `"logging/DebugTrace.h"` in `GameWorld.cpp`
-  - `"game/logging/DebugTrace.h"` in `LuaBindings.cpp`  
-  (matching existing include conventions in those files).
+---
+
+## ⚙️ Build Flags / Options
+
+CMake option(s) present:
+- `PAC_VERBOSE_STARTUP` — enables verbose startup/model-load logging
+
+Example:
+    cmake --preset vs2026 -DPAC_VERBOSE_STARTUP=ON
