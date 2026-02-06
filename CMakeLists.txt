@@ -77,10 +77,10 @@ add_library(Engine STATIC
     src/engine/ui/BootLoadingView.cpp
 
     # Engine Utils
-    src/engine/utils/Log.cpp
     src/engine/utils/Shader.cpp
     src/engine/utils/ShaderCache.cpp
     src/engine/utils/ResourceManager.cpp
+    src/engine/utils/Log.cpp
     src/engine/utils/stb_image_impl.cpp
     src/engine/utils/stb_image_write_impl.cpp
 
@@ -108,10 +108,9 @@ target_link_libraries(Engine
 pac_apply_common_target_settings(Engine)
 
 # ---------------- Game (exe) ----------------
-add_executable(PokemonAutochess
-    main.cpp
-
-    # Game Core
+# ---------------- Game objects (shared by exe + tests) ----------------
+add_library(PAC_GameObjects OBJECT
+# Game Core
     src/game/GameApp.cpp
     src/game/GameWorld.cpp
     src/game/GameStateManager.cpp
@@ -132,6 +131,10 @@ add_executable(PokemonAutochess
 
     # Game Scripting
     src/game/scripting/LuaBindings.cpp
+    src/game/scripting/LuaBindings_Core.cpp
+    src/game/scripting/LuaBindings_World.cpp
+    src/game/scripting/LuaBindings_UnitMove.cpp
+    src/game/scripting/LuaBindings_Util.cpp
     src/game/scripting/LuaScript.cpp
 
     # Game States
@@ -158,6 +161,27 @@ add_executable(PokemonAutochess
     src/game/vfx/TailFireVFXConfigDB.cpp
 )
 
+pac_apply_common_target_settings(PAC_GameObjects)
+
+# Link deps to ensure include directories/toolchain integration apply to this target too (MSVC/vcpkg).
+target_link_libraries(PAC_GameObjects PRIVATE
+    Engine
+    OpenGL::GL
+    glad::glad
+    glm::glm
+    lua
+    nlohmann_json::nlohmann_json
+    fastgltf::fastgltf
+    ${PAC_SOL2_TARGET}
+    SDL2::SDL2
+    SDL2_ttf::SDL2_ttf
+)
+
+add_executable(PokemonAutochess
+    main.cpp
+    $<TARGET_OBJECTS:PAC_GameObjects>
+)
+
 # SDL intentionally removed from the game target.
 # It will be linked transitively through Engine.
 target_link_libraries(PokemonAutochess PRIVATE
@@ -170,6 +194,28 @@ target_link_libraries(PokemonAutochess PRIVATE
 )
 
 pac_apply_common_target_settings(PokemonAutochess)
+
+
+# ---------------- Tests (minimal smoke checks) ----------------
+add_executable(PAC_Tests
+    tests/TestLuaBindings.cpp
+    $<TARGET_OBJECTS:PAC_GameObjects>
+)
+
+target_link_libraries(PAC_Tests PRIVATE
+    Engine
+    OpenGL::GL
+    glad::glad
+    glm::glm
+    lua
+    nlohmann_json::nlohmann_json
+    fastgltf::fastgltf
+    ${PAC_SOL2_TARGET}
+    SDL2::SDL2
+    SDL2_ttf::SDL2_ttf
+)
+
+pac_apply_common_target_settings(PAC_Tests)
 
 # ---------------- Assets (runtime copy) ----------------
 # Copies assets/ into the build directory, but only re-runs when files under assets/ change.
