@@ -107,14 +107,18 @@ target_link_libraries(Engine
 
 pac_apply_common_target_settings(Engine)
 
-# ---------------- Game (exe) ----------------
 # ---------------- Game objects (shared by exe + tests) ----------------
-add_library(PAC_GameObjects OBJECT
-# Game Core
+# CHANGED: OBJECT -> STATIC (fixes missing-object/linker issues with MSBuild/VS)
+add_library(PAC_GameObjects STATIC
+    # Game Core
     src/game/GameApp.cpp
     src/game/GameWorld.cpp
     src/game/GameStateManager.cpp
     src/game/GameConfig.cpp
+    src/game/GamePreload.cpp
+    src/game/GameRuntime.cpp
+    src/game/GameBootstrap.cpp
+    src/game/GameSession.cpp
 
     # Game Config
     src/game/config/PokemonConfigLoader.cpp
@@ -177,14 +181,14 @@ target_link_libraries(PAC_GameObjects PRIVATE
     SDL2_ttf::SDL2_ttf
 )
 
+# ---------------- Game (exe) ----------------
+# CHANGED: remove $<TARGET_OBJECTS:...>, link the library instead
 add_executable(PokemonAutochess
     main.cpp
-    $<TARGET_OBJECTS:PAC_GameObjects>
 )
 
-# SDL intentionally removed from the game target.
-# It will be linked transitively through Engine.
 target_link_libraries(PokemonAutochess PRIVATE
+    PAC_GameObjects
     Engine
     OpenGL::GL
     glad::glad
@@ -195,17 +199,17 @@ target_link_libraries(PokemonAutochess PRIVATE
 
 pac_apply_common_target_settings(PokemonAutochess)
 
-
 # ---------------- Tests (minimal smoke checks) ----------------
+# CHANGED: remove $<TARGET_OBJECTS:...>, link the library instead
 add_executable(PAC_Tests
     tests/TestMain.cpp
     tests/TestLuaBindings.cpp
     tests/TestEventBus.cpp
     tests/TestGameConfig.cpp
-    $<TARGET_OBJECTS:PAC_GameObjects>
 )
 
 target_link_libraries(PAC_Tests PRIVATE
+    PAC_GameObjects
     Engine
     OpenGL::GL
     glad::glad
