@@ -5,17 +5,19 @@
 class GameContext;
 class InputEvent;
 
+struct GameDataDb;
+
 namespace game {
 
 /**
  * Holds the running game instance (world/state/systems/ui/logging).
  * Constructed by GameBootstrap; driven by GameRuntime.
  *
- * Design goal: this can later be constructed in tests with a fake/Headless GameContext.
+ * Design goal: can be constructed in tests with a fake/Headless GameContext.
  */
 class GameSession {
 public:
-    explicit GameSession(GameContext& ctx);
+    GameSession(GameContext& ctx, const GameDataDb& db);
     ~GameSession();
 
     GameSession(const GameSession&) = delete;

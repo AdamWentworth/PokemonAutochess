@@ -24,10 +24,6 @@
 #include "game/GameServices.h"
 #include "game/GameConfig.h"
 
-#include "game/config/PokemonConfigLoader.h"
-#include "game/config/MovesConfigLoader.h"
-#include "game/config/AttackAnimConfigLoader.h"
-#include "game/config/FlyerConfigLoader.h"
 #include "game/config/GameDataDb.h"
 
 #include "game/systems/CameraSystem.h"
@@ -61,7 +57,7 @@ struct GameSession::Impl {
     std::unique_ptr<BoardRenderer>    board;
     std::unique_ptr<BattleFeed>       battleFeed;
 
-    // Threaded into GameWorld to avoid gameplay code calling config singletons.
+    // Injected db (pointers only; lifetime managed by caller for now).
     GameDataDb dataDb;
 
     // Game-owned logger instance (no file-scope globals).
@@ -81,15 +77,9 @@ struct GameSession::Impl {
     RoundPhase lastRoundPhase = RoundPhase::Planning;
     bool hasLastRoundPhase = false;
 
-    explicit Impl(GameContext& ctx) { init(ctx); }
+    Impl(GameContext& ctx, const GameDataDb& db) : dataDb(db) { init(ctx); }
 
     void init(GameContext& ctx) {
-        // Wire db pointers to already-loaded singleton loaders (loaded by GameBootstrap).
-        dataDb.pokemon      = &PokemonConfigLoader::getInstance();
-        dataDb.moves        = &MovesConfigLoader::getInstance();
-        dataDb.attackAnims  = &AttackAnimConfigLoader::getInstance();
-        dataDb.flyers       = &FlyerConfigLoader::getInstance();
-
         camera = ctx.camera;
 
         const auto& cfg = GameConfig::get();
@@ -131,8 +121,12 @@ struct GameSession::Impl {
         log.setEchoToStdout(false);
         LogBus::setActive(&log);
 
-        // Preload common models (uses the same PokemonConfigLoader instance Lua/gameplay sees).
-        game::preload::preloadCommonModels(ctx, *dataDb.pokemon, "PokemonAutochess");
+        // Preload common models (uses the db's pokemon loader).
+        if (dataDb.pokemon) {
+            game::preload::preloadCommonModels(ctx, *dataDb.pokemon, "PokemonAutochess");
+        } else {
+            std::cout << "[Init] WARNING: GameDataDb.pokemon is null; skipping preloadCommonModels.\n";
+        }
 
         stateManager->pushState(std::make_unique<ScriptedState>(
             stateManager.get(),
@@ -221,8 +215,8 @@ struct GameSession::Impl {
     }
 };
 
-GameSession::GameSession(GameContext& ctx)
-    : impl_(std::make_unique<Impl>(ctx)) {}
+GameSession::GameSession(GameContext& ctx, const GameDataDb& db)
+    : impl_(std::make_unique<Impl>(ctx, db)) {}
 
 GameSession::~GameSession() = default;
 
