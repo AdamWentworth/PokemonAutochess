@@ -8,7 +8,6 @@ option(PAC_VERBOSE_STARTUP "Enable verbose startup/model-load logging" OFF)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
-
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 # ---------------- Dependencies ----------------
@@ -45,7 +44,6 @@ function(pac_apply_common_target_settings target_name)
             INTERFACE
                 PAC_VERBOSE_STARTUP=$<BOOL:${PAC_VERBOSE_STARTUP}>
         )
-        # Don't apply compile options to INTERFACE targets here (unnecessary).
     else()
         target_include_directories(${target_name}
             PRIVATE
@@ -64,29 +62,14 @@ function(pac_apply_common_target_settings target_name)
     endif()
 endfunction()
 
-# =====================================================================
-# STAGE 1 TRANSITION: split monolithic Engine into engine_* libraries
-#
-# Goal:
-# - engine_core contains no SDL/OpenGL dependencies (headless-capable)
-# - engine_platform contains SDL/window/input
-# - engine_render contains renderer + GL/graphics
-#
-# This is an additive refactor: file moves come later. For now, we
-# compile existing files into the appropriate targets by listing them
-# here. Later, when you physically move files, only these lists change.
-# =====================================================================
-
 # ---------------- engine_core (no SDL/GL) ----------------
 add_library(engine_core STATIC
     src/engine/core/SystemRegistry.cpp
-    # New core interfaces (additive)
     src/engine/core/StdoutLogger.cpp
     src/engine/core/EventBus.cpp
+    src/engine/core/ecs/World.cpp
 )
-
 target_sources(engine_core PRIVATE
-    # headers (for IDEs)
     src/engine/core/SystemRegistry.h
     src/engine/core/Updatable.h
     src/engine/core/ILogger.h
@@ -94,13 +77,14 @@ target_sources(engine_core PRIVATE
     src/engine/core/IEventBus.h
     src/engine/core/EventBus.h
     src/engine/core/Services.h
-)
+    src/engine/core/ecs/Entity.h
+    src/engine/core/ecs/ComponentStorage.h
+    src/engine/core/ecs/ISystem.h
+    src/engine/core/ecs/Scheduler.h
+    src/engine/core/ecs/World.h
 
-target_link_libraries(engine_core
-    PRIVATE
-        glm::glm
 )
-
+target_link_libraries(engine_core PRIVATE glm::glm)
 pac_apply_common_target_settings(engine_core)
 
 # ---------------- engine_platform (SDL, window/input) ----------------
@@ -108,15 +92,10 @@ add_library(engine_platform STATIC
     src/engine/core/Window.cpp
     src/engine/input/SdlKeyMap.cpp
 )
-
 target_link_libraries(engine_platform
-    PUBLIC
-        SDL2::SDL2
-        SDL2_ttf::SDL2_ttf
-    PRIVATE
-        glm::glm
+    PUBLIC SDL2::SDL2 SDL2_ttf::SDL2_ttf
+    PRIVATE glm::glm
 )
-
 pac_apply_common_target_settings(engine_platform)
 
 # ---------------- engine_render (OpenGL + renderer + resources) ----------------
@@ -144,7 +123,6 @@ add_library(engine_render STATIC
 
     src/engine/vfx/ParticleSystem.cpp
 )
-
 target_link_libraries(engine_render
     PRIVATE
         OpenGL::GL
@@ -155,18 +133,11 @@ target_link_libraries(engine_render
         fastgltf::fastgltf
         ${PAC_SOL2_TARGET}
 )
-
 pac_apply_common_target_settings(engine_render)
 
 # ---------------- Engine (compat umbrella target) ----------------
-# Keep the existing target name "Engine" so downstream targets don't change.
 add_library(Engine INTERFACE)
-target_link_libraries(Engine
-    INTERFACE
-        engine_core
-        engine_platform
-        engine_render
-)
+target_link_libraries(Engine INTERFACE engine_core engine_platform engine_render)
 pac_apply_common_target_settings(Engine)
 
 # ---------------- Game objects (shared by exe + tests) ----------------
@@ -194,6 +165,13 @@ add_library(PAC_GameObjects STATIC
     # Game Logging
     src/game/logging/LogBus.cpp
 
+    # Game UI
+    src/game/ui/HealthBarQuery.cpp
+
+    # Game VFX
+    src/game/vfx/TailFireVFX.cpp
+    src/game/vfx/TailFireVFXConfigDB.cpp
+
     # Game Scripting
     src/game/scripting/LuaBindings.cpp
     src/game/scripting/LuaBindings_Core.cpp
@@ -216,32 +194,46 @@ add_library(PAC_GameObjects STATIC
     src/game/systems/MovementSystem.cpp
     src/game/systems/CombatSystem.cpp
     src/game/systems/ShopSystem.cpp
-
-    # Game UI
-    src/game/ui/HealthBarQuery.cpp
-
-    # Game VFX
-    src/game/vfx/TailFireVFX.cpp
-    src/game/vfx/TailFireVFXConfigDB.cpp
 )
-
-target_link_libraries(PAC_GameObjects
-    PUBLIC
-        Engine
-        glm::glm
-        nlohmann_json::nlohmann_json
-)
-
+target_link_libraries(PAC_GameObjects PUBLIC Engine glm::glm nlohmann_json::nlohmann_json)
 pac_apply_common_target_settings(PAC_GameObjects)
 
 # ---------------- Executable ----------------
 add_executable(PokemonAutochess
-    main.cpp
+    src/main.cpp
+)
+target_link_libraries(PokemonAutochess PRIVATE PAC_GameObjects)
+pac_apply_common_target_settings(PokemonAutochess)
+
+# ---------------- Tests ----------------
+enable_testing()
+
+add_executable(PAC_Tests
+    tests/TestMain.cpp
+    tests/TestLuaBindings.cpp
+    tests/TestEventBus.cpp
+    tests/TestGameConfig.cpp
+    tests/TestECS.cpp
 )
 
-target_link_libraries(PokemonAutochess
+target_link_libraries(PAC_Tests
     PRIVATE
         PAC_GameObjects
+        engine_core
 )
 
-pac_apply_common_target_settings(PokemonAutochess)
+# Tests include both /src and /tests
+target_include_directories(PAC_Tests
+    PRIVATE
+        "${PROJECT_SRC_ROOT}"
+        "${CMAKE_SOURCE_DIR}/tests"
+)
+
+if (MSVC)
+    target_compile_options(PAC_Tests PRIVATE /std:c++20 /permissive- /Zc:__cplusplus)
+else()
+    target_compile_options(PAC_Tests PRIVATE -std=c++20)
+endif()
+
+add_test(NAME PAC_Tests COMMAND PAC_Tests)
+

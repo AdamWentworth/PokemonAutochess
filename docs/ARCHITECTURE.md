@@ -9,7 +9,7 @@
 2. **No mutable globals in runtime**
    - No `getInstance()`, no `setActive()`, no default singleton service state in `engine_core` or `game`.
    - Allowed: `constexpr`, pure functions, immutable tables.
-   - Tooling (`engine_tools`) can use process-lifetime objects.
+   - Tooling (`engine_tools`) may use process-lifetime objects.
 
 3. **Headless-capable core**
    - `engine_core` must not depend on SDL/OpenGL/GLAD/etc.
@@ -28,6 +28,11 @@
    - JSON remains the authoring format; cooker validates + packs.
 
 ## Composition root
-
 - The **game** owns the loop and constructs services.
 - A "convenience runner" may exist, but it must not be required by engine clients.
+
+## Current migration status
+- ✅ Stage 1: build graph split into `engine_core`, `engine_platform`, `engine_render`, with `Engine` umbrella target.
+- ✅ Stage 2: ECS starter exists in `engine_core` and is covered by a headless smoke test.
+- Known transitional exceptions:
+  - Components are not automatically removed on `World::destroy()` yet (intentional starter behavior).

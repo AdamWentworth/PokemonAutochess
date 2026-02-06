@@ -5,6 +5,7 @@
 bool test_lua_bindings_smoke(std::string& outFail);
 bool test_eventbus_basic(std::string& outFail);
 bool test_gameconfig_diagnostics(std::string& outFail);
+bool test_ecs_smoke(std::string& outFail);
 
 static int run(const char* name, bool (*fn)(std::string&), int& failCount) {
     std::string fail;
@@ -24,6 +25,7 @@ int main() {
     run("lua_bindings_smoke", &test_lua_bindings_smoke, fails);
     run("eventbus_basic", &test_eventbus_basic, fails);
     run("gameconfig_diagnostics", &test_gameconfig_diagnostics, fails);
+    run("ecs_smoke", &test_ecs_smoke, fails);
 
     if (fails == 0) {
         std::cout << "[PAC_Tests] All tests passed.\n";
