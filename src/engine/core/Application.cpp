@@ -9,13 +9,13 @@
 #include "engine/events/EventManager.h"
 
 #include "engine/input/InputEvent.h"
+#include "engine/input/SdlKeyMap.h"
 
 #include "engine/render/Renderer.h"
 #include "engine/ui/BootLoadingView.h"
 
 #include "engine/utils/ResourceManager.h"
 #include "engine/core/SystemRegistry.h"
-#include "engine/utils/Log.h"
 
 #define NOMINMAX
 #ifdef _WIN32
@@ -39,69 +39,6 @@ namespace {
 
     static int scaledMouseX(int x, float s) { return (int)std::lround((float)x * s); }
     static int scaledMouseY(int y, float s) { return (int)std::lround((float)y * s); }
-
-    static InputEvent::Key mapSdlKeyToEngineKey(int sdlKeycode) {
-        switch (sdlKeycode) {
-            case SDLK_0: return InputEvent::Key::Num0;
-            case SDLK_1: return InputEvent::Key::Num1;
-            case SDLK_2: return InputEvent::Key::Num2;
-            case SDLK_3: return InputEvent::Key::Num3;
-            case SDLK_4: return InputEvent::Key::Num4;
-            case SDLK_5: return InputEvent::Key::Num5;
-            case SDLK_6: return InputEvent::Key::Num6;
-            case SDLK_7: return InputEvent::Key::Num7;
-            case SDLK_8: return InputEvent::Key::Num8;
-            case SDLK_9: return InputEvent::Key::Num9;
-
-            case SDLK_a: return InputEvent::Key::A;
-            case SDLK_b: return InputEvent::Key::B;
-            case SDLK_c: return InputEvent::Key::C;
-            case SDLK_d: return InputEvent::Key::D;
-            case SDLK_e: return InputEvent::Key::E;
-            case SDLK_f: return InputEvent::Key::F;
-            case SDLK_g: return InputEvent::Key::G;
-            case SDLK_h: return InputEvent::Key::H;
-            case SDLK_i: return InputEvent::Key::I;
-            case SDLK_j: return InputEvent::Key::J;
-            case SDLK_k: return InputEvent::Key::K;
-            case SDLK_l: return InputEvent::Key::L;
-            case SDLK_m: return InputEvent::Key::M;
-            case SDLK_n: return InputEvent::Key::N;
-            case SDLK_o: return InputEvent::Key::O;
-            case SDLK_p: return InputEvent::Key::P;
-            case SDLK_q: return InputEvent::Key::Q;
-            case SDLK_r: return InputEvent::Key::R;
-            case SDLK_s: return InputEvent::Key::S;
-            case SDLK_t: return InputEvent::Key::T;
-            case SDLK_u: return InputEvent::Key::U;
-            case SDLK_v: return InputEvent::Key::V;
-            case SDLK_w: return InputEvent::Key::W;
-            case SDLK_x: return InputEvent::Key::X;
-            case SDLK_y: return InputEvent::Key::Y;
-            case SDLK_z: return InputEvent::Key::Z;
-
-            case SDLK_ESCAPE: return InputEvent::Key::Escape;
-            case SDLK_RETURN: return InputEvent::Key::Enter;
-            case SDLK_SPACE:  return InputEvent::Key::Space;
-            case SDLK_TAB:    return InputEvent::Key::Tab;
-            case SDLK_BACKSPACE: return InputEvent::Key::Backspace;
-
-            case SDLK_LEFT:  return InputEvent::Key::Left;
-            case SDLK_RIGHT: return InputEvent::Key::Right;
-            case SDLK_UP:    return InputEvent::Key::Up;
-            case SDLK_DOWN:  return InputEvent::Key::Down;
-
-            case SDLK_LSHIFT: return InputEvent::Key::LShift;
-            case SDLK_RSHIFT: return InputEvent::Key::RShift;
-            case SDLK_LCTRL:  return InputEvent::Key::LCtrl;
-            case SDLK_RCTRL:  return InputEvent::Key::RCtrl;
-            case SDLK_LALT:   return InputEvent::Key::LAlt;
-            case SDLK_RALT:   return InputEvent::Key::RAlt;
-
-            default:
-                return InputEvent::Key::Unknown;
-        }
-    }
 
     static InputEvent::MouseButton mapSdlMouseButtonToEngineButton(int sdlButton) {
         switch (sdlButton) {
@@ -136,11 +73,11 @@ namespace {
                 return false;
 
             case SDL_KEYDOWN:
-                out = InputEvent::KeyDownEvent(mapSdlKeyToEngineKey((int)sdl.key.keysym.sym), sdl.key.repeat != 0);
+                out = InputEvent::KeyDownEvent(engine::input::mapSdlKeyToEngineKey((int)sdl.key.keysym.sym), sdl.key.repeat != 0);
                 return true;
 
             case SDL_KEYUP:
-                out = InputEvent::KeyUpEvent(mapSdlKeyToEngineKey((int)sdl.key.keysym.sym));
+                out = InputEvent::KeyUpEvent(engine::input::mapSdlKeyToEngineKey((int)sdl.key.keysym.sym));
                 return true;
 
             case SDL_MOUSEMOTION: {
@@ -187,19 +124,19 @@ bool Application::initApplication() {
     try {
         window = std::make_unique<Window>("Pokemon Autochess", (int)START_W, (int)START_H);
     } catch (const std::exception& ex) {
-        LOG_ERROR_T("APP", std::string("Window init failed: ") + ex.what());
+        std::cerr << "[Application] Window init failed: " << ex.what() << "\n";
         return false;
     }
 
     if (!gladLoadGLLoader((GLADloadproc)SDL_GL_GetProcAddress)) {
-        LOG_ERROR_T("APP", "Failed to initialize GLAD");
+        std::cerr << "[Application] Failed to initialize GLAD\n";
         return false;
     }
 
     // Wire engine-owned shader cache BEFORE anything calls shaderCache.get()
     // TTF depends on SDL being initialized (now true because Window ctor did SDL_Init).
     if (TTF_Init() == -1) {
-        LOG_WARN_T("APP", std::string("TTF_Init error: ") + TTF_GetError());
+        std::cerr << "[Application] TTF_Init error: " << TTF_GetError() << "\n";
     }
 
     updateDrawableSizeAndViewport();
@@ -220,12 +157,12 @@ bool Application::initApplication() {
     renderer = std::make_unique<Renderer>();
     camera   = std::make_unique<Camera3D>(45.0f, float(drawableW) / float(drawableH), 0.1f, 100.0f);
 
-    LOG_INFO_T("APP", "Application initialized.");
+    std::cout << "[Init] Application initialized.\n";
     return true;
 }
 
 void Application::shutdownApplication() {
-    LOG_INFO_T("APP", "Shutdown...");
+    std::cout << "[Shutdown] Application...\n";
 
     // 1) Destroy anything that might issue GL calls while the context is still alive.
     if (renderer) {
@@ -251,7 +188,7 @@ void Application::shutdownApplication() {
         SDL_Quit();
     }
 
-    LOG_INFO_T("APP", "Shutdown done.");
+    std::cout << "[Shutdown] Application done.\n";
 }
 
 void Application::updateDrawableSizeAndViewport() {
@@ -313,7 +250,7 @@ void Application::renderBootLoading(float progress01) {
 }
 
 void Application::run(GameLoop& game) {
-    LOG_INFO_T("APP", "Main loop @ 60 Hz...");
+    std::cout << "[Run] Main loop @ 60 Hz...\n";
 
     bool running = true;
     // Wire engine-owned services bundle (lifetime: Application)
@@ -410,7 +347,7 @@ void Application::run(GameLoop& game) {
         frameCount++;
         fpsTimer += frameDt;
         if (fpsTimer >= 1.0) {
-            LOG_INFO_T("PERF", std::string("FPS: ") + std::to_string(frameCount));
+            std::cout << "[FPS] " << frameCount << "\n";
             frameCount = 0;
             fpsTimer = 0.0;
         }
@@ -418,3 +355,4 @@ void Application::run(GameLoop& game) {
 
     game.shutdown();
 }
+

@@ -1,23 +1,26 @@
-// Shader.cpp
-
+// src/engine/utils/Shader.cpp
 #include "Shader.h"
+
 #include "engine/utils/Log.h"
+
 #include <fstream>
 #include <sstream>
+#include <stdexcept>
 #include <string>
-#include <iostream>
-#include <glm/gtc/type_ptr.hpp>
 #include <unordered_set>
+
+#include <glm/gtc/type_ptr.hpp>
 
 // --------------------
 // Include expansion helpers (local to this .cpp)
 // --------------------
 
-static std::string readTextFile(const std::string& path) {
+static std::string readTextFileOrThrow(const std::string& path) {
     std::ifstream file(path, std::ios::binary);
     if (!file.is_open()) {
-        LOG_ERROR_T("SHADER", std::string("Error opening shader file: ") + path);
-        return "";
+        const std::string msg = std::string("Shader file open failed: ") + path;
+        LOG_ERROR_T("SHADER", msg);
+        throw std::runtime_error(msg);
     }
     std::stringstream ss;
     ss << file.rdbuf();
@@ -31,128 +34,126 @@ static std::string getDirectory(const std::string& path) {
 }
 
 static bool isProjectAbsolutePath(const std::string& inc) {
-    // Treat includes starting with "assets/" as "rooted from project run dir"
-    // Example: #include "assets/shaders/lib/noise2d.glsl"
+    // Treat includes starting with "assets/" as project-rooted (run dir).
     return inc.rfind("assets/", 0) == 0;
 }
 
 static bool isFilesystemAbsolutePath(const std::string& inc) {
-    // Very simple absolute-path check (POSIX + Windows drive letter)
+    // POSIX + Windows drive letter
     if (!inc.empty() && (inc[0] == '/' || inc[0] == '\\')) return true;
     if (inc.size() >= 3 && std::isalpha((unsigned char)inc[0]) && inc[1] == ':' &&
         (inc[2] == '\\' || inc[2] == '/')) return true;
     return false;
 }
 
-static bool parseInclude(const std::string& line, std::string& outPath) {
-    // Supports:
-    //   #include "path"
-    // Optional whitespace is allowed.
-    // Ignores angle-bracket includes.
-    size_t pos = line.find("#include");
-    if (pos == std::string::npos) return false;
-
-    size_t q1 = line.find('"', pos);
-    if (q1 == std::string::npos) return false;
-
-    size_t q2 = line.find('"', q1 + 1);
-    if (q2 == std::string::npos || q2 <= q1 + 1) return false;
-
-    outPath = line.substr(q1 + 1, q2 - (q1 + 1));
-    return true;
+static std::string resolveIncludePath(const std::string& includeName, const std::string& parentFilePath) {
+    if (isFilesystemAbsolutePath(includeName) || isProjectAbsolutePath(includeName)) {
+        return includeName;
+    }
+    return getDirectory(parentFilePath) + includeName;
 }
 
 static std::string expandIncludesRecursive(
-    const std::string& filePath,
-    std::unordered_set<std::string>& includedFiles,
-    bool isTopLevel
+    const std::string& source,
+    const std::string& parentFilePath,
+    std::unordered_set<std::string>& includeGuard
 ) {
-    // Prevent double-including the same file (acts like #pragma once).
-    if (includedFiles.count(filePath) > 0) {
-        return "";
-    }
-    includedFiles.insert(filePath);
-
-    std::string src = readTextFile(filePath);
-    if (src.empty()) return "";
-
-    const std::string baseDir = getDirectory(filePath);
-
-    std::stringstream in(src);
-    std::stringstream out;
-
+    std::stringstream input(source);
+    std::stringstream output;
     std::string line;
-    while (std::getline(in, line)) {
-        std::string inc;
-        if (parseInclude(line, inc)) {
-            std::string resolved;
 
-            if (isFilesystemAbsolutePath(inc) || isProjectAbsolutePath(inc)) {
-                // use as-is
-                resolved = inc;
-            } else {
-                // relative to the including file
-                resolved = baseDir + inc;
+    while (std::getline(input, line)) {
+        std::string trimmed = line;
+        // very light trim (left)
+        while (!trimmed.empty() && (trimmed[0] == ' ' || trimmed[0] == '\t')) trimmed.erase(trimmed.begin());
+
+        if (trimmed.rfind("#include", 0) == 0) {
+            auto firstQuote = trimmed.find('"');
+            auto lastQuote  = trimmed.find_last_of('"');
+            if (firstQuote == std::string::npos || lastQuote == std::string::npos || lastQuote <= firstQuote) {
+                const std::string msg = std::string("Malformed #include in ") + parentFilePath + ": " + line;
+                LOG_ERROR_T("SHADER", msg);
+                throw std::runtime_error(msg);
             }
+            const std::string includeName = trimmed.substr(firstQuote + 1, lastQuote - firstQuote - 1);
+            const std::string includePath = resolveIncludePath(includeName, parentFilePath);
 
-            out << expandIncludesRecursive(resolved, includedFiles, false);
-            continue;
-        }
-
-        // Only the top-level file should keep a #version line.
-        // Included helper files should NOT declare #version.
-        if (!isTopLevel) {
-            // trim leading spaces for the check
-            size_t firstNonSpace = line.find_first_not_of(" \t");
-            if (firstNonSpace != std::string::npos) {
-                if (line.compare(firstNonSpace, 8, "#version") == 0) {
-                    continue;
-                }
+            if (includeGuard.count(includePath)) {
+                // Prevent include cycles; skip duplicate.
+                continue;
             }
-        }
+            includeGuard.insert(includePath);
 
-        out << line << "\n";
+            const std::string includedText = readTextFileOrThrow(includePath);
+            output << "\n// --- begin include: " << includePath << " ---\n";
+            output << expandIncludesRecursive(includedText, includePath, includeGuard);
+            output << "\n// --- end include: " << includePath << " ---\n";
+        } else {
+            output << line << "\n";
+        }
     }
-
-    return out.str();
+    return output.str();
 }
 
 // --------------------
 // Shader implementation
 // --------------------
 
-Shader::Shader(const char* vertexPath, const char* fragmentPath) {
-    std::string vertexCode = loadSource(vertexPath);
-    std::string fragmentCode = loadSource(fragmentPath);
+Shader::Shader(const char* vertexPath, const char* fragmentPath)
+    : ID(0) {
 
-    GLuint vertexShader = compileShader(GL_VERTEX_SHADER, vertexCode.c_str());
-    if (vertexShader == 0) {
-        LOG_ERROR_T("SHADER", std::string("Failed to compile vertex shader from: ") + vertexPath);
+    const std::string vPath = vertexPath ? vertexPath : "";
+    const std::string fPath = fragmentPath ? fragmentPath : "";
+
+    if (vPath.empty() || fPath.empty()) {
+        const std::string msg = "Shader constructor received empty path(s).";
+        LOG_ERROR_T("SHADER", msg);
+        throw std::runtime_error(msg);
     }
-    GLuint fragmentShader = compileShader(GL_FRAGMENT_SHADER, fragmentCode.c_str());
-    if (fragmentShader == 0) {
-        LOG_ERROR_T("SHADER", std::string("Failed to compile fragment shader from: ") + fragmentPath);
-    }
+
+    std::unordered_set<std::string> guard;
+    const std::string vertexSourceRaw   = readTextFileOrThrow(vPath);
+    const std::string fragmentSourceRaw = readTextFileOrThrow(fPath);
+
+    const std::string vertexCode   = expandIncludesRecursive(vertexSourceRaw, vPath, guard);
+
+    // reset include guard for fragment so shared includes can still expand independently
+    guard.clear();
+    const std::string fragmentCode = expandIncludesRecursive(fragmentSourceRaw, fPath, guard);
+
+    GLuint vertex = compileShader(GL_VERTEX_SHADER, vertexCode.c_str());
+    GLuint fragment = compileShader(GL_FRAGMENT_SHADER, fragmentCode.c_str());
 
     ID = glCreateProgram();
-    glAttachShader(ID, vertexShader);
-    glAttachShader(ID, fragmentShader);
+    glAttachShader(ID, vertex);
+    glAttachShader(ID, fragment);
     glLinkProgram(ID);
 
-    GLint success;
+    GLint success = 0;
     glGetProgramiv(ID, GL_LINK_STATUS, &success);
     if (!success) {
-        char infoLog[512];
-        glGetProgramInfoLog(ID, 512, nullptr, infoLog);
-        LOG_ERROR_T("SHADER", std::string("Program linking error: ") + infoLog);
+        char infoLog[1024]{0};
+        glGetProgramInfoLog(ID, 1024, nullptr, infoLog);
+
+        glDeleteShader(vertex);
+        glDeleteShader(fragment);
+        glDeleteProgram(ID);
+        ID = 0;
+
+        const std::string msg = std::string("Program link failed (") + vPath + ", " + fPath + "): " + infoLog;
+        LOG_ERROR_T("SHADER", msg);
+        throw std::runtime_error(msg);
     }
 
-    glDeleteShader(vertexShader);
-    glDeleteShader(fragmentShader);
+    glDeleteShader(vertex);
+    glDeleteShader(fragment);
 }
 
 Shader::~Shader() {
-    glDeleteProgram(ID);
+    if (ID != 0) {
+        glDeleteProgram(ID);
+        ID = 0;
+    }
 }
 
 void Shader::use() const {
@@ -160,26 +161,33 @@ void Shader::use() const {
 }
 
 std::string Shader::loadSource(const char* filePath) {
-    // Backwards-compatible:
-    // - If no #include exists, output is identical to the old behavior.
-    // - If #include exists, we inline them.
-    std::unordered_set<std::string> includedFiles;
-    return expandIncludesRecursive(std::string(filePath), includedFiles, true);
+    // Kept for compatibility with existing code; now fail-fast.
+    return readTextFileOrThrow(filePath ? std::string(filePath) : std::string());
 }
 
 GLuint Shader::compileShader(GLenum type, const char* source) {
+    if (!source || source[0] == '\0') {
+        const std::string msg = "Shader compile called with empty source.";
+        LOG_ERROR_T("SHADER", msg);
+        throw std::runtime_error(msg);
+    }
+
     GLuint shader = glCreateShader(type);
     glShaderSource(shader, 1, &source, nullptr);
     glCompileShader(shader);
 
-    GLint success;
+    GLint success = 0;
     glGetShaderiv(shader, GL_COMPILE_STATUS, &success);
     if (!success) {
-        char infoLog[512];
-        glGetShaderInfoLog(shader, 512, nullptr, infoLog);
-        LOG_ERROR_T("SHADER", std::string(type == GL_VERTEX_SHADER ? "Vertex" : "Fragment") + std::string(" shader compilation error: ") + infoLog);
+        char infoLog[1024]{0};
+        glGetShaderInfoLog(shader, 1024, nullptr, infoLog);
         glDeleteShader(shader);
-        return 0;
+
+        const std::string msg =
+            std::string(type == GL_VERTEX_SHADER ? "Vertex" : "Fragment") +
+            std::string(" shader compilation failed: ") + infoLog;
+        LOG_ERROR_T("SHADER", msg);
+        throw std::runtime_error(msg);
     }
     return shader;
 }
@@ -191,8 +199,9 @@ GLint Shader::getUniformLocation(const std::string &name) const {
     }
 
     GLint location = glGetUniformLocation(ID, name.c_str());
-    if (location == -1)
-        LOG_WARN_T("SHADER", std::string("Uniform \'") + name + "\' not found.");
+    if (location == -1) {
+        LOG_WARN_T("SHADER", std::string("Uniform '") + name + "' not found.");
+    }
 
     uniformLocationCache[name] = location;
     return location;
@@ -217,4 +226,3 @@ void Shader::setUniform(const std::string &name, int value) const {
 void Shader::setUniform(const std::string &name, const glm::vec2 &vec) const {
     glUniform2f(getUniformLocation(name), vec.x, vec.y);
 }
-

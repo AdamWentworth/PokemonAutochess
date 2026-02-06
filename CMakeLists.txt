@@ -60,6 +60,8 @@ add_library(Engine STATIC
     src/engine/core/Window.cpp
     src/engine/core/SystemRegistry.cpp
 
+    src/engine/input/SdlKeyMap.cpp
+
     # Engine Render
     src/engine/render/Renderer.cpp
     src/engine/render/Camera3D.cpp
