@@ -1,6 +1,6 @@
 // tests/TestLuaBindings.cpp
 #include <sol/sol.hpp>
-#include <iostream>
+#include <string>
 
 #include "game/scripting/LuaBindings.h"
 
@@ -9,11 +9,11 @@ static bool has(sol::state& lua, const char* name) {
     return o.valid();
 }
 
-int main() {
+bool test_lua_bindings_smoke(std::string& outFail) {
     sol::state lua;
     lua.open_libraries(sol::lib::base, sol::lib::math, sol::lib::table, sol::lib::string, sol::lib::package);
 
-    // Smoke: should not crash even with null world/manager (bindings guard internally).
+    // Smoke: should not crash even with null world/manager (bindings should guard internally).
     registerLuaBindings(lua, nullptr, nullptr);
 
     const char* required[] = {
@@ -34,16 +34,12 @@ int main() {
         "move_get",
     };
 
-    bool ok = true;
     for (auto* fn : required) {
         if (!has(lua, fn)) {
-            std::cerr << "[PAC_Tests] Missing Lua binding: " << fn << "\n";
-            ok = false;
+            outFail = std::string("Missing Lua binding: ") + fn;
+            return false;
         }
     }
 
-    if (!ok) return 1;
-
-    std::cout << "[PAC_Tests] Lua binding smoke test passed.\n";
-    return 0;
+    return true;
 }

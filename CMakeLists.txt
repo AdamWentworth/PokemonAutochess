@@ -198,7 +198,10 @@ pac_apply_common_target_settings(PokemonAutochess)
 
 # ---------------- Tests (minimal smoke checks) ----------------
 add_executable(PAC_Tests
+    tests/TestMain.cpp
     tests/TestLuaBindings.cpp
+    tests/TestEventBus.cpp
+    tests/TestGameConfig.cpp
     $<TARGET_OBJECTS:PAC_GameObjects>
 )
 
