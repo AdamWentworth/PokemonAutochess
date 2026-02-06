@@ -31,7 +31,7 @@ void World::removeAllComponentsFor(std::uint32_t id) {
     }
 }
 
-void World::destroy(Entity e) {
+void World::destroyImmediate(Entity e) {
     if (!alive(e)) return;
 
     // Remove all components first (prevents leaks / stale component presence).
@@ -40,6 +40,14 @@ void World::destroy(Entity e) {
     // Invalidate entity (bump generation).
     generations_[e.id] = static_cast<std::uint8_t>(generations_[e.id] + 1);
     freeIds_.push_back(e.id);
+}
+
+void World::destroy(Entity e) {
+    if (iterationDepth_ > 0) {
+        defer([this, e]() { destroyImmediate(e); });
+        return;
+    }
+    destroyImmediate(e);
 }
 
 } // namespace engine::ecs

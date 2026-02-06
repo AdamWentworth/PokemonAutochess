@@ -8,6 +8,7 @@ bool test_gameconfig_diagnostics(std::string& outFail);
 bool test_ecs_smoke(std::string& outFail);
 bool test_ecs_destroy_cleans_components(std::string& outFail);
 bool test_ecs_for_each_join(std::string& outFail);
+bool test_ecs_structural_change_deferral(std::string& outFail);
 
 static int run(const char* name, bool (*fn)(std::string&), int& failCount) {
     std::string fail;
@@ -26,6 +27,7 @@ int main() {
     run("ecs_smoke", &test_ecs_smoke, fails);
     run("ecs_destroy_cleans_components", &test_ecs_destroy_cleans_components, fails);
     run("ecs_for_each_join", &test_ecs_for_each_join, fails);
+    run("ecs_structural_change_deferral", &test_ecs_structural_change_deferral, fails);
 
     if (fails == 0) { std::cout << "[PAC_Tests] All tests passed.\n"; return 0; }
     std::cerr << "[PAC_Tests] " << fails << " test(s) failed.\n";

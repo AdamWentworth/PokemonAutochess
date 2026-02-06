@@ -114,3 +114,44 @@ bool test_ecs_for_each_join(std::string& outFail) {
 
     return true;
 }
+
+bool test_ecs_structural_change_deferral(std::string& outFail) {
+    StdoutLogger log;
+    EventBus bus;
+    CoreServices svc;
+    svc.log = &log;
+    svc.events = &bus;
+
+    ecs::World world(&svc);
+
+    auto e1 = world.create();
+    auto e2 = world.create();
+    world.add<Counter>(e1, Counter{1});
+    world.add<Counter>(e2, Counter{2});
+
+    // Add Tag to e2 while iterating Counter.
+    world.for_each<Counter>([&](ecs::Entity e, Counter& /*c*/) {
+        if (e.id == e2.id) {
+            world.add<Tag>(e, Tag{42});
+        }
+    });
+
+    if (!world.has<Tag>(e2)) {
+        outFail = "Expected Tag to exist after deferred add at end of for_each";
+        return false;
+    }
+
+    // Remove Counter from e1 while iterating Counter.
+    world.each<Counter>([&](ecs::Entity e, Counter& /*c*/) {
+        if (e.id == e1.id) {
+            world.remove<Counter>(e);
+        }
+    });
+
+    if (world.has<Counter>(e1)) {
+        outFail = "Expected Counter to be removed after deferred remove at end of each";
+        return false;
+    }
+
+    return true;
+}
