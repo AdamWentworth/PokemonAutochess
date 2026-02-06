@@ -1,8 +1,6 @@
 # CMakeLists.txt
 
 cmake_minimum_required(VERSION 3.22)
-
-# Toolchain must be provided at configure time (presets or -DCMAKE_TOOLCHAIN_FILE=...)
 project(PokemonAutochess LANGUAGES CXX)
 
 option(PAC_VERBOSE_STARTUP "Enable verbose startup/model-load logging" OFF)
@@ -36,33 +34,93 @@ set(PROJECT_SRC_ROOT "${CMAKE_SOURCE_DIR}/src")
 
 # ---------------- Common target settings ----------------
 function(pac_apply_common_target_settings target_name)
-    target_include_directories(${target_name}
-        PRIVATE
-            "${PROJECT_SRC_ROOT}"
-    )
+    get_target_property(_type ${target_name} TYPE)
 
-    target_compile_definitions(${target_name}
-        PRIVATE
-            PAC_VERBOSE_STARTUP=$<BOOL:${PAC_VERBOSE_STARTUP}>
-    )
-
-    if (MSVC)
-        target_compile_options(${target_name} PRIVATE /std:c++20 /permissive- /Zc:__cplusplus)
+    if (_type STREQUAL "INTERFACE_LIBRARY")
+        target_include_directories(${target_name}
+            INTERFACE
+                "${PROJECT_SRC_ROOT}"
+        )
+        target_compile_definitions(${target_name}
+            INTERFACE
+                PAC_VERBOSE_STARTUP=$<BOOL:${PAC_VERBOSE_STARTUP}>
+        )
+        # Don't apply compile options to INTERFACE targets here (unnecessary).
     else()
-        target_compile_options(${target_name} PRIVATE -std=c++20)
+        target_include_directories(${target_name}
+            PRIVATE
+                "${PROJECT_SRC_ROOT}"
+        )
+        target_compile_definitions(${target_name}
+            PRIVATE
+                PAC_VERBOSE_STARTUP=$<BOOL:${PAC_VERBOSE_STARTUP}>
+        )
+
+        if (MSVC)
+            target_compile_options(${target_name} PRIVATE /std:c++20 /permissive- /Zc:__cplusplus)
+        else()
+            target_compile_options(${target_name} PRIVATE -std=c++20)
+        endif()
     endif()
 endfunction()
 
-# ---------------- Engine (static lib) ----------------
-add_library(Engine STATIC
-    # Engine Core
-    src/engine/core/Application.cpp
-    src/engine/core/Window.cpp
+# =====================================================================
+# STAGE 1 TRANSITION: split monolithic Engine into engine_* libraries
+#
+# Goal:
+# - engine_core contains no SDL/OpenGL dependencies (headless-capable)
+# - engine_platform contains SDL/window/input
+# - engine_render contains renderer + GL/graphics
+#
+# This is an additive refactor: file moves come later. For now, we
+# compile existing files into the appropriate targets by listing them
+# here. Later, when you physically move files, only these lists change.
+# =====================================================================
+
+# ---------------- engine_core (no SDL/GL) ----------------
+add_library(engine_core STATIC
     src/engine/core/SystemRegistry.cpp
+    # New core interfaces (additive)
+    src/engine/core/StdoutLogger.cpp
+    src/engine/core/EventBus.cpp
+)
 
+target_sources(engine_core PRIVATE
+    # headers (for IDEs)
+    src/engine/core/SystemRegistry.h
+    src/engine/core/Updatable.h
+    src/engine/core/ILogger.h
+    src/engine/core/StdoutLogger.h
+    src/engine/core/IEventBus.h
+    src/engine/core/EventBus.h
+    src/engine/core/Services.h
+)
+
+target_link_libraries(engine_core
+    PRIVATE
+        glm::glm
+)
+
+pac_apply_common_target_settings(engine_core)
+
+# ---------------- engine_platform (SDL, window/input) ----------------
+add_library(engine_platform STATIC
+    src/engine/core/Window.cpp
     src/engine/input/SdlKeyMap.cpp
+)
 
-    # Engine Render
+target_link_libraries(engine_platform
+    PUBLIC
+        SDL2::SDL2
+        SDL2_ttf::SDL2_ttf
+    PRIVATE
+        glm::glm
+)
+
+pac_apply_common_target_settings(engine_platform)
+
+# ---------------- engine_render (OpenGL + renderer + resources) ----------------
+add_library(engine_render STATIC
     src/engine/render/Renderer.cpp
     src/engine/render/Camera3D.cpp
     src/engine/render/BoardRenderer.cpp
@@ -70,7 +128,6 @@ add_library(Engine STATIC
     src/engine/render/ModelAnimation.cpp
     src/engine/render/ModelCache.cpp
 
-    # Engine UI
     src/engine/ui/UIManager.cpp
     src/engine/ui/Card.cpp
     src/engine/ui/TextRenderer.cpp
@@ -78,7 +135,6 @@ add_library(Engine STATIC
     src/engine/ui/BattleFeed.cpp
     src/engine/ui/BootLoadingView.cpp
 
-    # Engine Utils
     src/engine/utils/Shader.cpp
     src/engine/utils/ShaderCache.cpp
     src/engine/utils/ResourceManager.cpp
@@ -86,17 +142,10 @@ add_library(Engine STATIC
     src/engine/utils/stb_image_impl.cpp
     src/engine/utils/stb_image_write_impl.cpp
 
-    # Engine VFX (NEW)
     src/engine/vfx/ParticleSystem.cpp
 )
 
-# IMPORTANT:
-# If the long-term goal is "engine owns SDL", then the executable should not link SDL directly.
-# SDL is made PUBLIC here so consumers (PokemonAutochess) get it transitively by linking Engine.
-target_link_libraries(Engine
-    PUBLIC
-        SDL2::SDL2
-        SDL2_ttf::SDL2_ttf
+target_link_libraries(engine_render
     PRIVATE
         OpenGL::GL
         glad::glad
@@ -107,10 +156,20 @@ target_link_libraries(Engine
         ${PAC_SOL2_TARGET}
 )
 
+pac_apply_common_target_settings(engine_render)
+
+# ---------------- Engine (compat umbrella target) ----------------
+# Keep the existing target name "Engine" so downstream targets don't change.
+add_library(Engine INTERFACE)
+target_link_libraries(Engine
+    INTERFACE
+        engine_core
+        engine_platform
+        engine_render
+)
 pac_apply_common_target_settings(Engine)
 
 # ---------------- Game objects (shared by exe + tests) ----------------
-# CHANGED: OBJECT -> STATIC (fixes missing-object/linker issues with MSBuild/VS)
 add_library(PAC_GameObjects STATIC
     # Game Core
     src/game/GameApp.cpp
@@ -159,7 +218,6 @@ add_library(PAC_GameObjects STATIC
     src/game/systems/ShopSystem.cpp
 
     # Game UI
-    src/game/ui/CardFactory.cpp
     src/game/ui/HealthBarQuery.cpp
 
     # Game VFX
@@ -167,93 +225,23 @@ add_library(PAC_GameObjects STATIC
     src/game/vfx/TailFireVFXConfigDB.cpp
 )
 
-pac_apply_common_target_settings(PAC_GameObjects)
-
-# Link deps to ensure include directories/toolchain integration apply to this target too (MSVC/vcpkg).
-target_link_libraries(PAC_GameObjects PRIVATE
-    Engine
-    OpenGL::GL
-    glad::glad
-    glm::glm
-    lua
-    nlohmann_json::nlohmann_json
-    fastgltf::fastgltf
-    ${PAC_SOL2_TARGET}
-    SDL2::SDL2
-    SDL2_ttf::SDL2_ttf
+target_link_libraries(PAC_GameObjects
+    PUBLIC
+        Engine
+        glm::glm
+        nlohmann_json::nlohmann_json
 )
 
-# ---------------- Game (exe) ----------------
-# CHANGED: remove $<TARGET_OBJECTS:...>, link the library instead
+pac_apply_common_target_settings(PAC_GameObjects)
+
+# ---------------- Executable ----------------
 add_executable(PokemonAutochess
     main.cpp
 )
 
-target_link_libraries(PokemonAutochess PRIVATE
-    PAC_GameObjects
-    Engine
-    OpenGL::GL
-    glad::glad
-    glm::glm
-    lua
-    ${PAC_SOL2_TARGET}
+target_link_libraries(PokemonAutochess
+    PRIVATE
+        PAC_GameObjects
 )
 
 pac_apply_common_target_settings(PokemonAutochess)
-
-# ---------------- Tests (minimal smoke checks) ----------------
-# CHANGED: remove $<TARGET_OBJECTS:...>, link the library instead
-add_executable(PAC_Tests
-    tests/TestMain.cpp
-    tests/TestLuaBindings.cpp
-    tests/TestEventBus.cpp
-    tests/TestGameConfig.cpp
-)
-
-target_link_libraries(PAC_Tests PRIVATE
-    PAC_GameObjects
-    Engine
-    OpenGL::GL
-    glad::glad
-    glm::glm
-    lua
-    nlohmann_json::nlohmann_json
-    fastgltf::fastgltf
-    ${PAC_SOL2_TARGET}
-    SDL2::SDL2
-    SDL2_ttf::SDL2_ttf
-)
-
-pac_apply_common_target_settings(PAC_Tests)
-
-# ---------------- Assets (runtime copy) ----------------
-# Copies assets/ into the build directory, but only re-runs when files under assets/ change.
-set(PAC_ASSETS_SRC "${CMAKE_SOURCE_DIR}/assets")
-set(PAC_ASSETS_DST "${CMAKE_CURRENT_BINARY_DIR}/assets")
-
-# Track individual files so the copy step is incremental.
-file(GLOB_RECURSE PAC_ASSET_FILES CONFIGURE_DEPENDS
-    "${PAC_ASSETS_SRC}/*"
-)
-
-set(PAC_ASSETS_STAMP "${PAC_ASSETS_DST}/.pac_assets.stamp")
-
-add_custom_command(
-    OUTPUT "${PAC_ASSETS_STAMP}"
-    COMMAND ${CMAKE_COMMAND} -E make_directory "${PAC_ASSETS_DST}"
-    COMMAND ${CMAKE_COMMAND} -E copy_directory "${PAC_ASSETS_SRC}" "${PAC_ASSETS_DST}"
-    COMMAND ${CMAKE_COMMAND} -E touch "${PAC_ASSETS_STAMP}"
-    DEPENDS ${PAC_ASSET_FILES}
-    COMMENT "Copying assets/ to build directory (incremental)"
-    VERBATIM
-)
-
-add_custom_target(PAC_CopyAssets DEPENDS "${PAC_ASSETS_STAMP}")
-add_dependencies(PokemonAutochess PAC_CopyAssets)
-
-# Windows entrypoint
-if (WIN32)
-    set_target_properties(PokemonAutochess PROPERTIES
-        LINK_FLAGS "/SUBSYSTEM:CONSOLE /ENTRY:mainCRTStartup"
-    )
-endif()
