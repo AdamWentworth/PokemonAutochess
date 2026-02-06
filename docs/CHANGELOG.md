@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+## 2026-02-06 — Stage 2.2 ECS canonical query API (World::for_each)
+- Added header-only join/view helper (`ecs/View.h`).
+- Added `World::for_each<Cs...>()` as a canonical, correctness-first query API.
+- Added new headless test `ecs_for_each_join`.
+
 ## 2026-02-06 — Stage 2.1 ECS destroy cleanup + iteration helpers
 - `engine_core` ECS: `World::destroy()` now removes components across all stores.
 - Added iteration helpers (`World::each`, `World::each2`) to support early systems/tests without exposing raw maps everywhere.

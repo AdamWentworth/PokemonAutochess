@@ -3,6 +3,7 @@
 #pragma once
 #include "engine/core/ecs/Entity.h"
 #include "engine/core/ecs/ComponentStorage.h"
+#include "engine/core/ecs/View.h"
 #include <vector>
 #include <memory>
 #include <typeindex>
@@ -65,6 +66,19 @@ public:
                 fn(e, kv.second, *b);
             }
         }
+    }
+
+    // Canonical query API (starter): iterate entities that have all requested components.
+    // This replaces ad-hoc raw-map access patterns over time.
+    template <class... Cs, class Fn>
+    void for_each(Fn&& fn) {
+        detail::view_tuple<Cs...> tup{ std::tuple<detail::storage_ref<Cs>...>{ detail::storage_ref<Cs>{ &components<Cs>() }... } };
+        View<Cs...> v(tup);
+        v.each([&](Entity e, Cs&... comps) {
+            // Optional safety: skip dead entities if callers stored stale ids.
+            if (!alive(e)) return;
+            fn(e, comps...);
+        });
     }
 
 private:

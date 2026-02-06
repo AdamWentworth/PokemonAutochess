@@ -82,7 +82,7 @@ target_sources(engine_core PRIVATE
     src/engine/core/ecs/ISystem.h
     src/engine/core/ecs/Scheduler.h
     src/engine/core/ecs/World.h
-
+    src/engine/core/ecs/View.h
 )
 target_link_libraries(engine_core PRIVATE glm::glm)
 pac_apply_common_target_settings(engine_core)
