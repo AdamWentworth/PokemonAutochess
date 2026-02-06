@@ -2,6 +2,7 @@
 
 #include "Model.h"
 #include "ModelStartupLog.h"
+#include "engine/utils/Log.h"
 
 #include <filesystem>
 #include <fstream>
@@ -384,7 +385,7 @@ bool Model::tryLoadCache(const std::string& filepath)
                         std::cerr << "[gltf][CACHE][WARN] submesh[" << i << "] emissive RGBA blob is EMPTY.\n";
                     }
                 }
-                std::cerr << "[gltf][CACHE][DEBUG] If you suspect stale/corrupt cache, run with PAC_DISABLE_MODELCACHE=1 once.\n";
+                LOG_ERROR("[gltf][CACHE][DEBUG] If you suspect stale/corrupt cache, run with PAC_DISABLE_MODELCACHE=1 once.\n");
             }
 
 // Upload VBO/EBO/VAO exactly like the slow path

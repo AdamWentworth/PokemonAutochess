@@ -77,6 +77,7 @@ add_library(Engine STATIC
     src/engine/ui/BootLoadingView.cpp
 
     # Engine Utils
+    src/engine/utils/Log.cpp
     src/engine/utils/Shader.cpp
     src/engine/utils/ShaderCache.cpp
     src/engine/utils/ResourceManager.cpp
