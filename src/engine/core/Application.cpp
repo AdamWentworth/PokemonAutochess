@@ -6,6 +6,7 @@
 #include "engine/core/GameLoop.h"
 #include "engine/core/GameContext.h"
 #include "engine/core/EngineServices.h"
+#include "engine/events/EventManager.h"
 
 #include "engine/input/InputEvent.h"
 
@@ -314,11 +315,14 @@ void Application::run(GameLoop& game) {
     std::cout << "[Run] Main loop @ 60 Hz...\n";
 
     bool running = true;
-
-    EngineServices services;
+    // Wire engine-owned services bundle (lifetime: Application)
     services.systems = &systemRegistry;
     services.resources = &resourceManager;
     services.shaders = &shaderCache;
+    services.events = &eventBus;
+
+    // Route legacy singleton callers through the injected bus.
+    EventManager::setDefaultBus(&eventBus);
 
     GameContext ctx;
     ctx.renderer = renderer.get();

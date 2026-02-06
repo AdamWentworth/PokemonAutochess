@@ -4,14 +4,18 @@
 // Central place to thread engine-owned services into the game layer
 // without exposing global singletons in game code.
 //
-// Batch 1 scope: ResourceManager + SystemRegistry only (more later).
+// Batch 1 scope: ResourceManager + SystemRegistry + ShaderCache (+ Events).
 
 class SystemRegistry;
 class ResourceManager;
 class ShaderCache;
+class EventBus;
 
 struct EngineServices {
     SystemRegistry* systems  = nullptr;
     ResourceManager* resources = nullptr;
     ShaderCache* shaders = nullptr;
+
+    // Engine-owned event bus (preferred over EventManager singleton).
+    EventBus* events = nullptr;
 };

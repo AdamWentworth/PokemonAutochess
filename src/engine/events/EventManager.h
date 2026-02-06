@@ -1,44 +1,79 @@
-// EventManager.h
+// src/engine/events/EventManager.h
+//
+// Drop-in replacement (keeps legacy API):
+//   - EventManager::getInstance()
+//   - subscribe(EventType, Listener)
+//   - emit(const Event&)
+//
+// Adds:
+//   - subscribeToken(...), unsubscribe(...)
+//   - subscribeScoped(...): returns RAII Subscription
+//   - setDefaultBus(EventBus*): allow Application to inject the engine-owned bus
+//
+// Behavior:
+//   - If no bus is injected, EventManager falls back to an internal bus.
 
 #pragma once
+
 #include "Event.h"
+#include "EventBus.h"
+#include "Subscription.h"
+
 #include <functional>
-#include <unordered_map>
-#include <vector>
-#include <memory>
+#include <utility>
 
 class EventManager {
 public:
-    // Define a listener type that takes an Event reference.
     using Listener = std::function<void(const Event&)>;
+    using SubscriptionId = EventBus::SubscriptionId;
 
-    // Get the singleton instance.
     static EventManager& getInstance() {
         static EventManager instance;
         return instance;
     }
 
-    // Subscribe a listener to a given event type.
-    void subscribe(EventType type, const Listener& listener) {
-        listeners[type].push_back(listener);
+    // Application should call this once during startup to route legacy calls to the engine-owned bus.
+    static void setDefaultBus(EventBus* bus) {
+        getInstance().externalBus_ = bus;
     }
 
-    // Emit an event to all registered listeners for its type.
+    // Legacy API: subscribe without a handle.
+    void subscribe(EventType type, const Listener& listener) {
+        (void)bus().subscribe(type, listener);
+    }
+
+    // New API: get a token you can later unsubscribe with.
+    SubscriptionId subscribeToken(EventType type, Listener listener) {
+        return bus().subscribe(type, std::move(listener));
+    }
+
+    // New API: scoped subscription (auto-unsubscribe).
+    Subscription subscribeScoped(EventType type, Listener listener) {
+        const auto id = bus().subscribe(type, std::move(listener));
+        return Subscription(&bus(), type, id);
+    }
+
+    bool unsubscribe(EventType type, SubscriptionId id) {
+        return bus().unsubscribe(type, id);
+    }
+
     void emit(const Event& event) const {
-        auto it = listeners.find(event.getType());
-        if (it != listeners.end()) {
-            for (const auto& listener : it->second) {
-                listener(event);
-            }
-        }
+        bus().emit(event);
+    }
+
+    void clear() {
+        bus().clear();
     }
 
 private:
-    // Private constructor for singleton pattern.
     EventManager() = default;
     EventManager(const EventManager&) = delete;
     EventManager& operator=(const EventManager&) = delete;
 
-    // Map event type to list of listeners.
-    std::unordered_map<EventType, std::vector<Listener>> listeners;
+    EventBus& bus() const {
+        return externalBus_ ? *externalBus_ : internalBus_;
+    }
+
+    mutable EventBus internalBus_;
+    mutable EventBus* externalBus_ = nullptr; // not owning
 };

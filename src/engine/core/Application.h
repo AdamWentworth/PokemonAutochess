@@ -8,6 +8,8 @@
 #include "engine/utils/ShaderCache.h"
 #include "engine/core/SystemRegistry.h"
 #include "engine/utils/ResourceManager.h"
+#include "engine/core/EngineServices.h"
+#include "engine/events/EventBus.h"
 
 class Window;
 class Renderer;
@@ -59,6 +61,10 @@ private:
     SystemRegistry systemRegistry;
     ResourceManager resourceManager;
     ShaderCache shaderCache;
+
+    // Engine-owned event bus and service bundle (wired in Application::run).
+    EventBus eventBus;
+    EngineServices services;
 
     int drawableW = 1280;
     int drawableH = 720;
