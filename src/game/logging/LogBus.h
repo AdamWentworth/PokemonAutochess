@@ -1,4 +1,4 @@
-// LogBus.h
+// src/game/logging/LogBus.h
 #pragma once
 
 #include <string>
@@ -9,7 +9,7 @@ class BattleFeed;
 namespace LogBus {
 
 // Instance-based logger (preferred).
-// This replaces file-scope globals with explicit ownership (e.g., GameApp owns a Logger).
+// Composition root should own a Logger and wire it explicitly.
 class Logger {
 public:
     void attach(BattleFeed* feed) { feed_ = feed; }
@@ -28,7 +28,7 @@ public:
     // on-screen feed toggle (default: on)
     void setFeedEnabled(bool enabled) { feed_enabled_ = enabled; }
 
-    // stdout only;
+    // stdout only
     void infoTerminalOnly(const std::string& s);
 
 private:
@@ -40,9 +40,9 @@ private:
     bool feed_enabled_ = true;
 };
 
-// ---- Compatibility functions (delegate to active logger) ----
-// This drop-in replacement keeps these functions but makes the active logger pointer atomic,
-// so you can swap loggers safely (e.g., during init/shutdown or state transitions).
+// ---- Compatibility functions (legacy) ----
+// Stage 3 prep: the "active logger" fallback is thread-local to avoid shared-state collisions in tests.
+// Full Stage 3 removes these call paths from core gameplay.
 void setActive(Logger* logger);
 
 void attach(BattleFeed* feed);

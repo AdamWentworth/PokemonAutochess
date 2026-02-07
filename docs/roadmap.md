@@ -11,26 +11,21 @@ Last updated: 2026-02-06
 
 - ✅ Stage 0: architecture rules captured (`ARCHITECTURE.md`, `TARGET_ARCHITECTURE.md`).
 - ✅ Stage 1: build split into `engine_core`, `engine_platform`, `engine_render` (with `Engine` umbrella). Game + tests run.
-- ✅ Stage 2 (ECS foundation): ECS in `engine_core` is usable and covered by headless tests:
+- ✅ Stage 2 (in progress): ECS foundation in `engine_core` is usable and covered by headless tests:
   - `ecs_smoke`
   - `ecs_destroy_cleans_components`
   - `ecs_for_each_join`
-  - `ecs_structural_change_deferral`
 
 ### Current ECS capabilities
-
 - Entities: id + generation
 - Type-erased component stores keyed by `type_index`
 - Correctness-first storage (`unordered_map`)
 - Scheduler executes ordered systems
 - Canonical query API: `World::for_each<Cs...>(fn)` joins by id (driver = first component store)
 - Destroy cleanup: `World::destroy()` removes components across all stores
-- Structural-change policy (Stage 2.3):
-  - `World::add/remove/has/get`
-  - Structural changes are deferred while iterating (`each/each2/for_each`)
 
-### Current ECS gaps (non-blocking for Stage 2)
-
+### Current ECS gaps (still blocking “Stage 2 complete”)
+- Structural-change policy is not yet enforced (add/remove during iteration is unsafe unless we implement a rule).
 - Query performance/driver selection is naive (acceptable for now).
 - The public API still allows bypassing policy via direct store access (`components<T>()`), which is fine during migration but not end-state.
 
@@ -38,18 +33,17 @@ Last updated: 2026-02-06
 
 ## Next Step (Do this next)
 
-### Stage 3 — Remove globals (events + logging first)
+### Stage 2.3 — Structural-change policy (enforceable)
+Goal: make “add/remove components during iteration” defined and safe.
 
-Goal: eliminate shared mutable runtime state so tests and headless sims do not collide.
-
-Work items:
-- Replace singleton event manager usage with injected `IEventBus` (via composition root / services).
-- Replace global/active logger usage with injected `ILogger`.
-- Delete fallback/legacy service access patterns.
+Preferred implementation order:
+1) Add `World::add/remove/has/get` and use them in new code
+2) Introduce an iteration guard that defers structural changes until a safe point (end of outermost iteration)
+3) Add headless test proving deferral works (e.g., add a component during `for_each`, verify after)
 
 Exit criteria:
-- No `getInstance()`, no `setActive()`, no default/global bus in core gameplay.
-- Tests can run in parallel without shared state collisions.
+- A test proves the chosen policy works and stays stable.
+- Iteration helpers (`each/each2/for_each`) participate in the same policy.
 
 ---
 
@@ -66,12 +60,12 @@ Exit criteria:
 - game links engine libs and runs
 - tests still pass
 
-### Stage 2 — ECS foundation ✅
-Exit criteria:
+### Stage 2 — ECS foundation 🟡 (in progress)
+Remaining exit criteria (blocking):
 - structural-change policy enforced (Stage 2.3)
 - a clear “preferred API” for gameplay so raw map access stops spreading
 
-### Stage 3 — Remove globals (events + logging first) ⏭️ next
+### Stage 3 — Remove globals (events + logging first) ⏭️ next after Stage 2
 Work items:
 - inventory global/singleton usage in game + engine_core
 - replace with explicit service wiring (composition root)
@@ -96,3 +90,14 @@ Work items:
 Work items:
 - ITimeSource + IRandom injection
 - headless battle/content invariants tests
+
+---
+
+## Immediate Technical Outputs (to keep momentum)
+
+1) **Delete/replace list** for globals/singletons (prep for Stage 3)
+2) **Core service interfaces** to add next:
+   - `ITimeSource`, `IRandom`, `IAssetStore`
+3) **ECS policy enforcement** (Stage 2.3)
+4) **Draft phase model** for the update graph (Stage 4)
+

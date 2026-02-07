@@ -6,12 +6,16 @@
 //   - emit(const Event&)
 //
 // Adds:
-//   - subscribeToken(...), unsubscribe(...)
-//   - subscribeScoped(...): returns RAII Subscription
+//   - subscribeToken(.), unsubscribe(.)
+//   - subscribeScoped(.): returns RAII Subscription
 //   - setDefaultBus(EventBus*): allow Application to inject the engine-owned bus
 //
-// Behavior:
-//   - If no bus is injected, EventManager falls back to an internal bus.
+// Stage 3 prep (Remove globals):
+// - Legacy calls should be routed to an injected bus.
+// - To avoid shared-state collisions in parallel tests before full migration,
+//   the fallback bus (when not injected) is **thread_local** instead of process-global.
+//
+// NOTE: Stage 3 exit criteria still requires removing getInstance() usage from core gameplay.
 
 #pragma once
 
@@ -70,10 +74,15 @@ private:
     EventManager(const EventManager&) = delete;
     EventManager& operator=(const EventManager&) = delete;
 
-    EventBus& bus() const {
-        return externalBus_ ? *externalBus_ : internalBus_;
+    // Thread-local fallback bus: avoids cross-test / cross-sim shared state.
+    static EventBus& threadLocalFallback() {
+        static thread_local EventBus bus;
+        return bus;
     }
 
-    mutable EventBus internalBus_;
+    EventBus& bus() const {
+        return externalBus_ ? *externalBus_ : threadLocalFallback();
+    }
+
     mutable EventBus* externalBus_ = nullptr; // not owning
 };

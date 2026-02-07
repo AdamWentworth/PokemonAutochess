@@ -1,28 +1,26 @@
-// LogBus.cpp
+// src/game/logging/LogBus.cpp
 #include "LogBus.h"
 
 #include "engine/ui/BattleFeed.h"
 #include <iostream>
-#include <atomic>
 
 namespace LogBus {
 
-// Atomic active logger pointer to avoid data races if logger is swapped while logging.
-static std::atomic<Logger*> g_active{nullptr};
+// Stage 3 prep: thread-local active logger pointer, so parallel tests/sims don't collide.
+static thread_local Logger* t_active = nullptr;
 
-// Default instance (used only if no active logger is set).
+// Thread-local default instance (used only if no active logger is set in this thread).
 static Logger& defaultLogger() {
-    static Logger inst;
+    static thread_local Logger inst;
     return inst;
 }
 
 static Logger& active() {
-    Logger* p = g_active.load(std::memory_order_acquire);
-    return p ? *p : defaultLogger();
+    return t_active ? *t_active : defaultLogger();
 }
 
 void setActive(Logger* logger) {
-    g_active.store(logger, std::memory_order_release);
+    t_active = logger;
 }
 
 void Logger::push(const std::string& s, const glm::vec3& c, float life) {

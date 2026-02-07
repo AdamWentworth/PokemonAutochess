@@ -2,33 +2,29 @@
 
 ## Unreleased
 
-## 2026-02-06 — Stage 2.3 ECS structural-change policy (deferred ops)
+## 2026-02-06 — Stage 3 prep: thread-local legacy fallbacks + runtime CoreServices wiring
 
-- Added `World::add/remove/has/get` as the preferred gameplay-facing API.
-- Structural changes (add/remove/destroy) are deferred until the end of the outermost iteration.
-- Deferred ops are generation-checked at apply time to avoid touching recycled entity ids.
-- Added headless test `ecs_structural_change_deferral`.
+- EventManager legacy fallback bus is thread-local; Application routes legacy callers to engine-owned bus.
+- LogBus legacy active logger + default are thread-local to avoid cross-test shared state collisions.
+- Engine runtime now wires `engine::CoreServices` into `EngineServices` and routes core logging into the in-game feed during a session.
 
 ## 2026-02-06 — Stage 2.2 ECS canonical query API (World::for_each)
-
 - Added header-only join/view helper (`ecs/View.h`).
 - Added `World::for_each<Cs...>()` as a canonical, correctness-first query API.
 - Added new headless test `ecs_for_each_join`.
 
 ## 2026-02-06 — Stage 2.1 ECS destroy cleanup + iteration helpers
-
 - `engine_core` ECS: `World::destroy()` now removes components across all stores.
 - Added iteration helpers (`World::each`, `World::each2`) to support early systems/tests without exposing raw maps everywhere.
 - Added new headless test `ecs_destroy_cleans_components`.
 
 ## 2026-02-06 — Stage 2 ECS starter + tests target
-
 - Added ECS starter in `engine_core` (`World`, `Scheduler`, component storage).
 - Added `ecs_smoke` headless test and hooked tests into CMake (`PAC_Tests`).
 - Moved `main.cpp` under `src/` (updated build accordingly).
 
 ## 2026-02-06 — Stage 1 engine target split + core services
-
 - Split build into `engine_core`, `engine_platform`, `engine_render` with `Engine` umbrella target.
 - Added `ILogger`/`StdoutLogger`, `IEventBus`/`EventBus`, and `CoreServices` bundle in `engine_core`.
 - Added/updated docs (architecture + roadmap).
+
