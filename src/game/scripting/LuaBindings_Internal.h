@@ -17,8 +17,8 @@ std::string toLowerCopy(std::string s);
 int animIndexCached(class PokemonInstance& p, const std::string& clipName);
 PokemonSide sideFromString(const std::string& s);
 
-glm::vec3 gridToWorld(const GameConfigData* cfg, int col, int row);
-glm::ivec2 worldToGrid(const GameConfigData* cfg, const glm::vec3& pos);
+glm::vec3 gridToWorld(const GameConfigData& cfg, int col, int row);
+glm::ivec2 worldToGrid(const GameConfigData& cfg, const glm::vec3& pos);
 
 bool attackerIsInAttackAnimation(const class PokemonInstance& A);
 

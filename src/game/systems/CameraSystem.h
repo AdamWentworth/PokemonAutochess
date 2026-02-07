@@ -3,14 +3,14 @@
 #pragma once
 #include "././engine/render/Camera3D.h"
 #include "././engine/core/Updatable.h"
+#include "game/GameServices.h"
 #include <sol/sol.hpp>
 
 struct InputEvent;
-namespace engine { class IAssetStore; }
 
 class CameraSystem : public Updatable {
 public:
-    explicit CameraSystem(Camera3D* camera, engine::IAssetStore* assets = nullptr);
+    explicit CameraSystem(Camera3D* camera, GameServices& services);
 
     void update(float deltaTime) override;
 
@@ -25,7 +25,7 @@ public:
 
 private:
     Camera3D* camera;
-    engine::IAssetStore* assetStore = nullptr;
+    GameServices& services;
     sol::state lua;
     bool ok = false;
 

@@ -3,6 +3,7 @@
 #pragma once
 
 #include "engine/core/Updatable.h"
+#include "game/GameServices.h"
 #include "game/scripting/LuaScript.h"
 #include "engine/events/RoundEvents.h"
 
@@ -12,11 +13,10 @@ enum class RoundPhase {
     Resolution
 };
 
-namespace engine { class IAssetStore; }
 
 class RoundSystem : public Updatable {
 public:
-    explicit RoundSystem(engine::IAssetStore* assets = nullptr);
+    explicit RoundSystem(GameServices& services);
 
     void update(float deltaTime) override;
     RoundPhase getCurrentPhase() const;

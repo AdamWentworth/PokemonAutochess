@@ -2,12 +2,44 @@
 #include <string>
 #include <optional>
 
+#include "engine/core/IAssetStore.h"
+#include "engine/core/Random.h"
+#include "engine/core/TimeSources.h"
+#include "game/GameServices.h"
 #include "game/GameWorld.h"
+#include "game/config/GameDataDb.h"
+#include "game/logging/LogBus.h"
+#include "game/scripting/ScriptEventBus.h"
 #include "game/scripting/ScriptAPI.h"
 
+namespace {
+struct NullAssetStore : engine::IAssetStore {
+    bool readText(const std::string&, std::string& outText, std::string* outError = nullptr) const override {
+        outText.clear();
+        if (outError) *outError = "NullAssetStore";
+        return false;
+    }
+    bool readBytes(const std::string&, std::vector<std::uint8_t>& outBytes, std::string* outError = nullptr) const override {
+        outBytes.clear();
+        if (outError) *outError = "NullAssetStore";
+        return false;
+    }
+    bool exists(const std::string&) const override { return false; }
+};
+} // namespace
+
 bool test_battle_invariants(std::string& outFail) {
-    GameWorld world;
-    ScriptAPI api(&world, nullptr, nullptr, nullptr);
+    GameConfigData config;
+    GameDataDb db;
+    LogBus::Logger log;
+    ScriptEventBus events;
+    NullAssetStore assets;
+    engine::XorShift32 rng(1u);
+    engine::ManualTimeSource time;
+
+    GameServices services(config, db, log, events, assets, rng, time);
+    GameWorld world(config);
+    ScriptAPI api(&world, nullptr, services);
 
     PokemonInstance attacker;
     attacker.id = 1;

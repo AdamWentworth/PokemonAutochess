@@ -16,10 +16,6 @@
 namespace {
 constexpr int UI_W = 1280;
 
-LogBus::Logger* loggerOrNull(GameServices* services) {
-    return services ? &services->log : nullptr;
-}
-
 std::string Capitalize(std::string s) {
     if (s.empty()) return s;
     s[0] = static_cast<char>(std::toupper(static_cast<unsigned char>(s[0])));
@@ -27,51 +23,22 @@ std::string Capitalize(std::string s) {
 }
 } // namespace
 
-const GameConfigData& CombatState::cfg() const {
-    if (services) return services->config;
-    return fallbackConfig;
-}
-
-CombatState::CombatState(GameStateManager* manager, GameWorld* world, const std::string& path)
-    : stateManager(manager)
-    , gameWorld(world)
-    , services(nullptr)
-    , fallbackConfig(GameConfig::load(nullptr))
-    , script(world, manager, nullptr, nullptr, nullptr)
-    , combatMessage()
-{
-    const auto& c = cfg();
-    textRenderer = std::make_unique<TextRenderer>(c.fontPath, c.fontSize);
-
-    if (!script.loadScript(path)) {
-        game::log::error(loggerOrNull(services), std::string("[CombatState] Failed to load combat script: ") + path);
-    }
-
-    ScriptEventBus* events = services ? &services->events : nullptr;
-    engine::IAssetStore* assets = services ? &services->assets : nullptr;
-    movementSystem = std::make_unique<MovementSystem>(gameWorld, events, assets);
-    combatSystem   = std::make_unique<CombatSystem>(gameWorld, events, assets);
-}
-
 CombatState::CombatState(GameStateManager* manager, GameWorld* world, GameServices& svc, const std::string& path)
     : stateManager(manager)
     , gameWorld(world)
-    , services(&svc)
-    , fallbackConfig()
-    , script(world, manager, &svc.log, &svc.events, &svc.assets)
+    , services(svc)
+    , script(world, manager, svc)
     , combatMessage()
 {
-    const auto& c = cfg();
+    const auto& c = services.config;
     textRenderer = std::make_unique<TextRenderer>(c.fontPath, c.fontSize);
 
     if (!script.loadScript(path)) {
-        game::log::error(loggerOrNull(services), std::string("[CombatState] Failed to load combat script: ") + path);
+        game::log::error(&services.log, std::string("[CombatState] Failed to load combat script: ") + path);
     }
 
-    ScriptEventBus* events = services ? &services->events : nullptr;
-    engine::IAssetStore* assets = services ? &services->assets : nullptr;
-    movementSystem = std::make_unique<MovementSystem>(gameWorld, events, assets);
-    combatSystem   = std::make_unique<CombatSystem>(gameWorld, events, assets);
+    movementSystem = std::make_unique<MovementSystem>(gameWorld, services);
+    combatSystem   = std::make_unique<CombatSystem>(gameWorld, services);
 }
 
 CombatState::~CombatState() = default;
@@ -98,7 +65,7 @@ void CombatState::onEnter() {
                 if (nameOpt && colOpt && rowOpt) {
                     const int level = lvlOpt.value_or(-1);
                     gameWorld->spawnPokemonAtGrid(*nameOpt, *colOpt, *rowOpt, PokemonSide::Enemy, level);
-                    game::log::info(loggerOrNull(services), "A wild " + Capitalize(*nameOpt) + " appeared!");
+                    game::log::info(&services.log, "A wild " + Capitalize(*nameOpt) + " appeared!");
                 }
             }
         }
@@ -109,7 +76,7 @@ void CombatState::onEnter() {
     for (auto& u : gameWorld->getPokemons()) {
         if (!u.alive) continue;
         if (u.side == PokemonSide::Player) {
-            game::log::info(loggerOrNull(services), "Go! " + Capitalize(u.name) + "!");
+            game::log::info(&services.log, "Go! " + Capitalize(u.name) + "!");
         }
     }
 

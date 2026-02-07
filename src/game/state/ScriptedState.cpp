@@ -1,7 +1,6 @@
 #include "ScriptedState.h"
 
 #include "game/GameStateManager.h"
-#include "game/GameConfig.h"
 #include "game/GameServices.h"
 #include "game/state/PlacementState.h"
 #include "engine/input/InputEvent.h"
@@ -12,31 +11,12 @@
 static constexpr int UI_W = 1280;
 static constexpr int UI_H = 720;
 
-const GameConfigData& ScriptedState::cfg() const {
-    if (services) return services->config;
-    return fallbackConfig;
-}
-
 ScriptedState::ScriptedState(GameStateManager* manager, GameWorld* world, GameServices& svc, const std::string& path)
     : stateManager(manager)
     , gameWorld(world)
-    , services(&svc)
-    , fallbackConfig()
+    , services(svc)
     , scriptPath(path)
-    , script(world, manager, &svc.log, &svc.events, &svc.assets)
-{
-    if (!script.loadScript(scriptPath)) {
-        std::cerr << "[ScriptedState] Failed to load script: " << scriptPath << "\n";
-    }
-}
-
-ScriptedState::ScriptedState(GameStateManager* manager, GameWorld* world, const std::string& path)
-    : stateManager(manager)
-    , gameWorld(world)
-    , services(nullptr)
-    , fallbackConfig(GameConfig::load(nullptr))
-    , scriptPath(path)
-    , script(world, manager, nullptr, nullptr, nullptr)
+    , script(world, manager, svc)
 {
     if (!script.loadScript(scriptPath)) {
         std::cerr << "[ScriptedState] Failed to load script: " << scriptPath << "\n";
@@ -59,7 +39,7 @@ void ScriptedState::ensureStarterUI() {
     }
 
     cardSystem.init();
-    const auto& c = cfg();
+    const auto& c = services.config;
     titleText = std::make_unique<TextRenderer>(c.fontPath, c.fontSize);
 
     sol::protected_function f = S["get_starter_cards"];
@@ -138,13 +118,8 @@ void ScriptedState::handleInput(const InputEvent& event) {
             script.flushCommands();
 
                     if (stateManager) {
-                        if (services) {
-                            stateManager->pushState(std::make_unique<PlacementState>(
-                                stateManager, gameWorld, *services, clicked->pokemonName));
-                        } else {
-                            stateManager->pushState(std::make_unique<PlacementState>(
-                                stateManager, gameWorld, clicked->pokemonName));
-                        }
+                        stateManager->pushState(std::make_unique<PlacementState>(
+                            stateManager, gameWorld, services, clicked->pokemonName));
                     }
         }
     }
@@ -170,13 +145,8 @@ void ScriptedState::handleInput(const InputEvent& event) {
                     script.flushCommands();
 
                     if (stateManager) {
-                        if (services) {
-                            stateManager->pushState(std::make_unique<PlacementState>(
-                                stateManager, gameWorld, *services, pokemon));
-                        } else {
-                            stateManager->pushState(std::make_unique<PlacementState>(
-                                stateManager, gameWorld, pokemon));
-                        }
+                        stateManager->pushState(std::make_unique<PlacementState>(
+                            stateManager, gameWorld, services, pokemon));
                     }
                 }
             }

@@ -27,13 +27,11 @@
 
 #include "ui/HealthBarQuery.h"
 
-static const GameConfigData& fallbackConfig() {
-    static GameConfigData cfg;
-    return cfg;
-}
+GameWorld::GameWorld(const GameConfigData& cfg)
+    : config(cfg) {}
 
 void GameWorld::applyLevelScaling(PokemonInstance& inst, int level) const {
-    const auto& cfg = config ? *config : fallbackConfig();
+    const auto& cfg = config;
     const int useLevel = (level <= 0) ? cfg.baseLevel : level;
 
     inst.level = useLevel;
@@ -155,7 +153,7 @@ void GameWorld::spawnPokemon(const std::string& pokemonName,
 }
 
 glm::vec3 GameWorld::gridToWorld(int col, int row) const {
-    const auto& cfg = config ? *config : fallbackConfig();
+    const auto& cfg = config;
     float boardOriginX = -((cfg.cols * cfg.cellSize) / 2.0f) + cfg.cellSize * 0.5f;
     float boardOriginZ = -((cfg.rows * cfg.cellSize) / 2.0f) + cfg.cellSize * 0.5f;
     return { boardOriginX + col * cfg.cellSize, 0.0f, boardOriginZ + row * cfg.cellSize };

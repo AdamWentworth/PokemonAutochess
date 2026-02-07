@@ -40,18 +40,4 @@ private:
     bool feed_enabled_ = true;
 };
 
-// ---- Compatibility functions (legacy) ----
-// Stage 3 prep: the "active logger" fallback is thread-local to avoid shared-state collisions in tests.
-// Full Stage 3 removes these call paths from core gameplay.
-void setActive(Logger* logger);
-
-void attach(BattleFeed* feed);
-void info(const std::string& s);
-void warn(const std::string& s);
-void error(const std::string& s);
-void colored(const std::string& s, const glm::vec3& rgb, float lifetime = 3.f);
-void setEchoToStdout(bool enabled);
-void setFeedEnabled(bool enabled);
-void infoTerminalOnly(const std::string& s);
-
 } // namespace LogBus

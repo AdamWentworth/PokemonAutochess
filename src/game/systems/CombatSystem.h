@@ -1,26 +1,23 @@
 // CombatSystem.h
 #pragma once
 #include "engine/core/Updatable.h"
+#include "game/GameServices.h"
 #include <memory>
 #include <sol/sol.hpp>
 
 class GameWorld;
 class ScriptAPI;
-class ScriptEventBus;
-namespace engine { class IAssetStore; }
 
 class CombatSystem : public Updatable {
 public:
-    explicit CombatSystem(GameWorld* world,
-                          ScriptEventBus* events = nullptr,
-                          engine::IAssetStore* assets = nullptr);
+    explicit CombatSystem(GameWorld* world, GameServices& services);
     void update(float deltaTime) override;
 
 private:
     GameWorld* gameWorld;
+    GameServices& services;
     sol::state lua;
     std::unique_ptr<ScriptAPI> api;
-    engine::IAssetStore* assetStore = nullptr;
     bool ok = false;
 
     void loadScript();

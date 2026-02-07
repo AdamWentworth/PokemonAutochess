@@ -6,21 +6,18 @@
 #include <utility>     // std::forward
 #include <sol/sol.hpp>
 
+#include "game/GameServices.h"
 #include "game/logging/LoggerUtil.h"
 
 class GameWorld;
 class GameStateManager;
 class ScriptAPI;
-class ScriptEventBus;
-namespace engine { class IAssetStore; }
 
 class LuaScript {
 public:
     explicit LuaScript(GameWorld* world,
-                       GameStateManager* manager = nullptr,
-                       LogBus::Logger* logger = nullptr,
-                       ScriptEventBus* events = nullptr,
-                       engine::IAssetStore* assets = nullptr);
+                       GameStateManager* manager,
+                       GameServices& services);
     ~LuaScript();
 
     // Loads + executes the script into an isolated environment.
@@ -51,7 +48,7 @@ public:
         sol::protected_function_result r = func(std::forward<Args>(args)...);
         if (!r.valid()) {
             sol::error err = r;
-            game::log::error(logger_, std::string("[LuaScript] Error in '") + functionName + "': " + err.what());
+            game::log::error(&services_.log, std::string("[LuaScript] Error in '") + functionName + "': " + err.what());
         }
 
         flushCommands();
@@ -71,9 +68,7 @@ private:
 
     GameWorld* gameWorld = nullptr;
     GameStateManager* stateManager = nullptr;
-    LogBus::Logger* logger_ = nullptr;
-    ScriptEventBus* events_ = nullptr;
-    engine::IAssetStore* assetStore_ = nullptr;
+    GameServices& services_;
     std::unique_ptr<ScriptAPI> api_;
 
     std::string loadedPath;

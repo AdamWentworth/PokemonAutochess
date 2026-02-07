@@ -33,8 +33,8 @@
 void registerLuaBindings_World(sol::state& lua, ScriptAPI& api) {
     GameWorld* world = api.world();
     GameStateManager* manager = api.manager();
-    LogBus::Logger* logger = api.logger();
-    const GameConfigData* cfg = world ? world->getConfig() : nullptr;
+    LogBus::Logger* logger = &api.logger();
+    const GameConfigData* cfg = &api.config();
     lua.set_function("world_list_units", [world, &lua, cfg]() {
         sol::state_view L(lua);
         sol::table arr = L.create_table();
@@ -50,7 +50,7 @@ void registerLuaBindings_World(sol::state& lua, ScriptAPI& api) {
             t["speed"]     = u.movementSpeed;
             t["energy"]    = u.energy;
             t["maxEnergy"] = u.maxEnergy;
-            auto cell      = worldToGrid(cfg, u.position);
+            auto cell      = worldToGrid(*cfg, u.position);
             t["col"]       = cell.x;
             t["row"]       = cell.y;
             t["alive"]     = u.alive;
@@ -79,7 +79,7 @@ void registerLuaBindings_World(sol::state& lua, ScriptAPI& api) {
         t["maxEnergy"] = u->maxEnergy;
         t["fastMove"]  = u->fastMove;
         t["chargedMove"] = u->chargedMove;
-        auto cell      = worldToGrid(cfg, u->position);
+        auto cell      = worldToGrid(*cfg, u->position);
         t["col"]       = cell.x;
         t["row"]       = cell.y;
         return t;
@@ -103,14 +103,14 @@ void registerLuaBindings_World(sol::state& lua, ScriptAPI& api) {
             [&](const PokemonInstance& p){ return p.id == unitId; });
         if (it == list.end()) return std::make_pair(-1, -1);
 
-        const auto myCell = worldToGrid(cfg, it->position);
+        const auto myCell = worldToGrid(*cfg, it->position);
 
         int best = std::numeric_limits<int>::max();
         glm::ivec2 bestCell(-1, -1);
 
         for (const auto& u : list) {
             if (!u.alive || u.side == it->side) continue;
-            const auto ec = worldToGrid(cfg, u.position);
+            const auto ec = worldToGrid(*cfg, u.position);
 
             // Chebyshev distance matches your 8-connected neighborhood
             const int d = std::max(std::abs(myCell.x - ec.x), std::abs(myCell.y - ec.y));
@@ -130,13 +130,13 @@ void registerLuaBindings_World(sol::state& lua, ScriptAPI& api) {
         auto it = std::find_if(list.begin(), list.end(),
             [&](const PokemonInstance& p){ return p.id == unitId; });
         if (it == list.end()) return false;
-        auto myCell = worldToGrid(cfg, it->position);
+        auto myCell = worldToGrid(*cfg, it->position);
 
         int best = std::numeric_limits<int>::max();
         glm::ivec2 bestCell(-999,-999);
         for (auto& u : list) {
             if (!u.alive || u.side == it->side) continue;
-            auto ec = worldToGrid(cfg, u.position);
+            auto ec = worldToGrid(*cfg, u.position);
             const int d = std::max(std::abs(myCell.x - ec.x), std::abs(myCell.y - ec.y));
             if (d < best) { best = d; bestCell = ec; }
         }
@@ -154,11 +154,11 @@ void registerLuaBindings_World(sol::state& lua, ScriptAPI& api) {
         for (auto& u : world->getPokemons()) if (u.id == unitId) { attacker = &u; break; }
         if (!attacker || !attacker->alive) return arr;
 
-        auto ac = worldToGrid(cfg, attacker->position);
+        auto ac = worldToGrid(*cfg, attacker->position);
         int idx = 1;
         for (auto& u : world->getPokemons()) {
             if (!u.alive || u.side == attacker->side) continue;
-            auto ec = worldToGrid(cfg, u.position);
+            auto ec = worldToGrid(*cfg, u.position);
             const int dx = std::abs(ac.x - ec.x);
             const int dy = std::abs(ac.y - ec.y);
             if (std::max(dx, dy) == 1) {
@@ -227,11 +227,11 @@ void registerLuaBindings_World(sol::state& lua, ScriptAPI& api) {
 
     // Grid converters
     lua.set_function("grid_to_world", [cfg](int col, int row) {
-        auto p = gridToWorld(cfg, col, row);
+        auto p = gridToWorld(*cfg, col, row);
         return std::make_tuple(p.x, p.y, p.z);
     });
     lua.set_function("world_to_grid", [cfg](float x, float y, float z) {
-        auto c = worldToGrid(cfg, glm::vec3{x,y,z});
+        auto c = worldToGrid(*cfg, glm::vec3{x,y,z});
         return std::make_pair(c.x, c.y);
     });
 

@@ -50,12 +50,6 @@ struct GameSession::Impl {
     // Pointers (engine-owned)
     Camera3D* camera = nullptr;
 
-    // Owned state
-    std::unique_ptr<GameStateManager> stateManager;
-    std::unique_ptr<GameWorld>        gameWorld;
-    std::unique_ptr<BoardRenderer>    board;
-    std::unique_ptr<BattleFeed>       battleFeed;
-
     // Injected db (owned; loader instances).
     GameDataDb dataDb;
 
@@ -71,6 +65,12 @@ struct GameSession::Impl {
 
     // v1: thread config/db/log into states without singletons.
     std::unique_ptr<GameServices> services;
+
+    // Owned state
+    std::unique_ptr<GameStateManager> stateManager;
+    std::unique_ptr<GameWorld>        gameWorld;
+    std::unique_ptr<BoardRenderer>    board;
+    std::unique_ptr<BattleFeed>       battleFeed;
 
     HealthBarRenderer healthBarRenderer;
     SystemRegistry systemRegistry;
@@ -135,22 +135,21 @@ struct GameSession::Impl {
         }
 
         // World
-        gameWorld = std::make_unique<GameWorld>();
+        gameWorld = std::make_unique<GameWorld>(config);
         gameWorld->setLogger(&log);
         if (ctx.services) gameWorld->setResources(ctx.services->resources);
         gameWorld->setData(&dataDb);
-        gameWorld->setConfig(&config);
 
         // State stack
         stateManager = std::make_unique<GameStateManager>();
 
         // Systems
         if (camera) {
-            cameraSystem = std::make_shared<CameraSystem>(camera, assetStore.get());
+            cameraSystem = std::make_shared<CameraSystem>(camera, *services);
             unitSystem   = std::make_shared<UnitInteractionSystem>(camera, gameWorld.get(), ctx.drawableW, ctx.drawableH);
         }
-        roundSystem  = std::make_shared<RoundSystem>(assetStore.get());
-        shopSystem   = std::make_shared<ShopSystem>(&rng);
+        roundSystem  = std::make_shared<RoundSystem>(*services);
+        shopSystem   = std::make_shared<ShopSystem>(services->rng);
 
         if (cameraSystem) systemRegistry.registerSystem(cameraSystem);
         if (unitSystem)   systemRegistry.registerSystem(unitSystem);

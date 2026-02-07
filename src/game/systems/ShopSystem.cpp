@@ -5,14 +5,8 @@
 
 #include <iostream>
 
-ShopSystem::ShopSystem(engine::IRandom* rngIn) {
-    if (rngIn) {
-        rng = rngIn;
-    } else {
-        fallbackRng = std::make_unique<engine::XorShift32>();
-        rng = fallbackRng.get();
-    }
-
+ShopSystem::ShopSystem(engine::IRandom& rngIn)
+    : rng(rngIn) {
     // Minimal placeholder pool (replace with real odds/config later)
     fallbackPool = {"bulbasaur", "charmander", "squirtle", "pidgey", "rattata"};
 }
@@ -43,11 +37,11 @@ void ShopSystem::rollShop() {
     currentCards.clear();
     cardSystem.clearCards();
 
-    if (!rng || fallbackPool.empty()) return;
+    if (fallbackPool.empty()) return;
 
     constexpr int kSlots = 3;
     for (int i = 0; i < kSlots; ++i) {
-        const int idx = engine::random::rangeInclusive(*rng, 0, static_cast<int>(fallbackPool.size()) - 1);
+        const int idx = engine::random::rangeInclusive(rng, 0, static_cast<int>(fallbackPool.size()) - 1);
         CardData cd;
         cd.pokemonName = fallbackPool[static_cast<size_t>(idx)];
         cd.cost = 0;

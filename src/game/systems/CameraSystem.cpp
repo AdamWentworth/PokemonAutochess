@@ -3,6 +3,7 @@
 #include "CameraSystem.h"
 #include "engine/input/InputEvent.h"
 #include "engine/core/IAssetStore.h"
+#include "game/GameServices.h"
 #include "engine/core/Paths.h"
 
 #include <iostream>
@@ -23,12 +24,11 @@ std::string normalizeVirtualPath(std::string path) {
     return path;
 }
 
-bool loadLuaFromStore(sol::state& lua, const std::string& path, engine::IAssetStore* assets, std::string& outErr) {
-    if (!assets) return false;
+bool loadLuaFromStore(sol::state& lua, const std::string& path, engine::IAssetStore& assets, std::string& outErr) {
     std::string text;
     std::string err;
     const std::string virt = normalizeVirtualPath(path);
-    if (!assets->readText(virt, text, &err)) {
+    if (!assets.readText(virt, text, &err)) {
         outErr = err.empty() ? ("Failed to read " + virt) : err;
         return false;
     }
@@ -63,8 +63,8 @@ static int toButtonNumber(InputEvent::MouseButton b) {
     }
 }
 
-CameraSystem::CameraSystem(Camera3D* cam, engine::IAssetStore* assets)
-    : camera(cam), assetStore(assets)
+CameraSystem::CameraSystem(Camera3D* cam, GameServices& svc)
+    : camera(cam), services(svc)
 {
     // Initialize Lua VM
     lua.open_libraries(sol::lib::base, sol::lib::math, sol::lib::table, sol::lib::string);
@@ -85,24 +85,10 @@ CameraSystem::CameraSystem(Camera3D* cam, engine::IAssetStore* assets)
 
 void CameraSystem::loadScript() {
     std::string err;
-    if (assetStore && loadLuaFromStore(lua, kCameraLua, assetStore, err)) {
-        ok = true;
-    } else {
-        sol::load_result chunk = lua.load_file(kCameraLua);
-        if (!chunk.valid()) {
-            sol::error e = chunk;
-            std::cerr << "[CameraSystem] load error: " << e.what() << "\n";
-            ok = false;
-            return;
-        }
-
-        sol::protected_function_result r = chunk();
-        if (!r.valid()) {
-            sol::error e = r;
-            std::cerr << "[CameraSystem] exec error: " << e.what() << "\n";
-            ok = false;
-            return;
-        }
+    if (!loadLuaFromStore(lua, kCameraLua, services.assets, err)) {
+        std::cerr << "[CameraSystem] load error: " << err << "\n";
+        ok = false;
+        return;
     }
 
     if (sol::function init = lua["camera_init"]; init.valid()) {

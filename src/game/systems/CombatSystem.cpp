@@ -3,6 +3,7 @@
 #include "game/GameWorld.h"
 #include "game/scripting/LuaBindings.h"
 #include "game/scripting/ScriptAPI.h"
+#include "game/GameServices.h"
 #include "engine/core/IAssetStore.h"
 #include "engine/core/Paths.h"
 #include <iostream>
@@ -23,12 +24,11 @@ std::string normalizeVirtualPath(std::string path) {
     return path;
 }
 
-bool loadLuaFromStore(sol::state& lua, const std::string& path, engine::IAssetStore* assets, std::string& outErr) {
-    if (!assets) return false;
+bool loadLuaFromStore(sol::state& lua, const std::string& path, engine::IAssetStore& assets, std::string& outErr) {
     std::string text;
     std::string err;
     const std::string virt = normalizeVirtualPath(path);
-    if (!assets->readText(virt, text, &err)) {
+    if (!assets.readText(virt, text, &err)) {
         outErr = err.empty() ? ("Failed to read " + virt) : err;
         return false;
     }
@@ -50,32 +50,19 @@ bool loadLuaFromStore(sol::state& lua, const std::string& path, engine::IAssetSt
 
 static const char* kCombatLua = "scripts/systems/combat.lua";
 
-CombatSystem::CombatSystem(GameWorld* world, ScriptEventBus* events, engine::IAssetStore* assets)
-    : gameWorld(world), assetStore(assets) {
+CombatSystem::CombatSystem(GameWorld* world, GameServices& svc)
+    : gameWorld(world), services(svc) {
     lua.open_libraries(sol::lib::base, sol::lib::math, sol::lib::table, sol::lib::string);
-    LogBus::Logger* logger = gameWorld ? gameWorld->getLogger() : nullptr;
-    api = std::make_unique<ScriptAPI>(gameWorld, /*manager*/ nullptr, logger, events);
+    api = std::make_unique<ScriptAPI>(gameWorld, /*manager*/ nullptr, services);
     registerLuaBindings(lua, *api);
     loadScript();
 }
 
 void CombatSystem::loadScript() {
     std::string err;
-    if (assetStore && loadLuaFromStore(lua, kCombatLua, assetStore, err)) {
-        ok = true;
-    } else {
-        sol::load_result chunk = lua.load_file(kCombatLua);
-        if (!chunk.valid()) {
-            sol::error e = chunk;
-            std::cerr << "[CombatSystem] load error: " << e.what() << "\n";
-            ok = false; return;
-        }
-        sol::protected_function_result r = chunk();
-        if (!r.valid()) {
-            sol::error e = r;
-            std::cerr << "[CombatSystem] exec error: " << e.what() << "\n";
-            ok = false; return;
-        }
+    if (!loadLuaFromStore(lua, kCombatLua, services.assets, err)) {
+        std::cerr << "[CombatSystem] load error: " << err << "\n";
+        ok = false; return;
     }
     if (sol::function init = lua["combat_init"]; init.valid()) {
         auto ir = init();

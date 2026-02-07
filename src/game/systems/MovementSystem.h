@@ -1,33 +1,25 @@
 // MovementSystem.h
 #pragma once
 #include "engine/core/Updatable.h"
+#include "game/GameServices.h"
 #include "game/GameWorld.h"
 #include <memory>
 #include <sol/sol.hpp>
 
 // Forward-declare instead:
-class GridOccupancy;
 class ScriptAPI;
-class ScriptEventBus;
-namespace engine { class IAssetStore; }
 
 class MovementSystem : public Updatable {
 public:
-    explicit MovementSystem(GameWorld* world,
-                            ScriptEventBus* events = nullptr,
-                            engine::IAssetStore* assets = nullptr);
-    MovementSystem(GameWorld* world,
-                   const GridOccupancy& /*unused*/,
-                   ScriptEventBus* events = nullptr,
-                   engine::IAssetStore* assets = nullptr); // compat
+    explicit MovementSystem(GameWorld* world, GameServices& services);
 
     void update(float deltaTime) override;
 
 private:
     GameWorld* gameWorld;
+    GameServices& services;
     sol::state lua;
     std::unique_ptr<ScriptAPI> api;
-    engine::IAssetStore* assetStore = nullptr;
     bool ok = false;
 
     static constexpr float CELL_SIZE = 1.2f;

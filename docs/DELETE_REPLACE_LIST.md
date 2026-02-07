@@ -31,8 +31,8 @@ Files:
 - src/game/logging/LogBus.cpp
 
 Status:
-- No call sites in runtime code.
-- Compatibility functions and thread-local active logger still exist.
+- Compatibility functions removed.
+- No runtime call sites remain.
 
 Replacement:
 - Use LogBus::Logger instance passed via GameServices or CoreServices.
@@ -41,5 +41,4 @@ Replacement:
 
 ## Next Migration Slice
 
-- Delete LogBus compatibility functions and thread-local active logger.
-- Require explicit Logger references in runtime helpers.
+- None for LogBus (completed). Next focus: remove any remaining legacy adapters in runtime systems.

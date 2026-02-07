@@ -34,7 +34,7 @@
 void registerLuaBindings_Core(sol::state& lua, ScriptAPI& api) {
     GameWorld* world = api.world();
     GameStateManager* manager = api.manager();
-    LogBus::Logger* logger = api.logger();
+    LogBus::Logger* logger = &api.logger();
     // Basic enums
     lua.new_enum("PokemonSide",
         "Player", PokemonSide::Player,

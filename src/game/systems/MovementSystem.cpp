@@ -2,6 +2,7 @@
 #include "MovementSystem.h"
 #include "game/scripting/LuaBindings.h"
 #include "game/scripting/ScriptAPI.h"
+#include "game/GameServices.h"
 #include "engine/core/IAssetStore.h"
 #include "engine/core/Paths.h"
 #include <iostream>
@@ -26,12 +27,11 @@ std::string normalizeVirtualPath(std::string path) {
     return path;
 }
 
-bool loadLuaFromStore(sol::state& lua, const std::string& path, engine::IAssetStore* assets, std::string& outErr) {
-    if (!assets) return false;
+bool loadLuaFromStore(sol::state& lua, const std::string& path, engine::IAssetStore& assets, std::string& outErr) {
     std::string text;
     std::string err;
     const std::string virt = normalizeVirtualPath(path);
-    if (!assets->readText(virt, text, &err)) {
+    if (!assets.readText(virt, text, &err)) {
         outErr = err.empty() ? ("Failed to read " + virt) : err;
         return false;
     }
@@ -53,22 +53,15 @@ bool loadLuaFromStore(sol::state& lua, const std::string& path, engine::IAssetSt
 
 static const char* kMovementLua = "scripts/systems/movement.lua";
 
-MovementSystem::MovementSystem(GameWorld* world, ScriptEventBus* events, engine::IAssetStore* assets)
-    : gameWorld(world), assetStore(assets)
+MovementSystem::MovementSystem(GameWorld* world, GameServices& svc)
+    : gameWorld(world), services(svc)
 {
     lua.open_libraries(sol::lib::base, sol::lib::math, sol::lib::table, sol::lib::string);
-    LogBus::Logger* logger = gameWorld ? gameWorld->getLogger() : nullptr;
-    api = std::make_unique<ScriptAPI>(gameWorld, /*GameStateManager*/ nullptr, logger, events);
+    api = std::make_unique<ScriptAPI>(gameWorld, /*GameStateManager*/ nullptr, services);
     registerLuaBindings(lua, *api);
     exposeConstants();
     loadScript();
 }
-
-MovementSystem::MovementSystem(GameWorld* world,
-                               const GridOccupancy& /*unused*/,
-                               ScriptEventBus* events,
-                               engine::IAssetStore* assets)
-    : MovementSystem(world, events, assets) {}
 
 void MovementSystem::exposeConstants() {
     // Make grid constants available to Lua scripts
@@ -80,24 +73,10 @@ void MovementSystem::exposeConstants() {
 void MovementSystem::loadScript() {
     // Load and run the Lua movement system
     std::string err;
-    if (assetStore && loadLuaFromStore(lua, kMovementLua, assetStore, err)) {
-        ok = true;
-    } else {
-        sol::load_result chunk = lua.load_file(kMovementLua);
-        if (!chunk.valid()) {
-            sol::error e = chunk;
-            std::cerr << "[MovementSystem] Failed to load movement.lua: " << e.what() << "\n";
-            ok = false;
-            return;
-        }
-
-        sol::protected_function_result r = chunk();
-        if (!r.valid()) {
-            sol::error e = r;
-            std::cerr << "[MovementSystem] Failed to execute movement.lua: " << e.what() << "\n";
-            ok = false;
-            return;
-        }
+    if (!loadLuaFromStore(lua, kMovementLua, services.assets, err)) {
+        std::cerr << "[MovementSystem] Failed to load movement.lua: " << err << "\n";
+        ok = false;
+        return;
     }
 
     // Optional init function in Lua
@@ -132,7 +111,6 @@ void MovementSystem::update(float deltaTime) {
 
     // 2) Advance interpolation for units that have an active commit
     //    Distance per second is movementSpeed * CELL_SIZE (cells/sec * worldUnitsPerCell).
-    if (!gameWorld) return;
     auto& units = gameWorld->getPokemons();
 
     for (auto& u : units) {

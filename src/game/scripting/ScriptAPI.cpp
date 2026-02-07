@@ -10,6 +10,7 @@
 
 #include "game/GameWorld.h"
 #include "game/GameStateManager.h"
+#include "game/GameServices.h"
 #include "game/state/ScriptedState.h"
 #include "game/logging/LoggerUtil.h"
 
@@ -25,16 +26,15 @@
 
 #include "LuaBindings_Internal.h"
 
-ScriptAPI::ScriptAPI(GameWorld* world, GameStateManager* manager, LogBus::Logger* logger, ScriptEventBus* events)
-    : world_(world), manager_(manager), logger_(logger), events_(events) {}
+ScriptAPI::ScriptAPI(GameWorld* world, GameStateManager* manager, GameServices& services)
+    : world_(world), manager_(manager), services_(services) {}
 
-const GameConfigData* ScriptAPI::config() const {
-    return world_ ? world_->getConfig() : nullptr;
-}
+LogBus::Logger& ScriptAPI::logger() const { return services_.log; }
+ScriptEventBus& ScriptAPI::events() const { return services_.events; }
+const GameConfigData& ScriptAPI::config() const { return services_.config; }
 
 std::vector<ScriptEvent> ScriptAPI::drainEvents() {
-    if (!events_) return {};
-    return events_->drain();
+    return services_.events.drain();
 }
 
 void ScriptAPI::enqueue(Command cmd) {
@@ -151,19 +151,17 @@ int ScriptAPI::addEnergy(int unitId, int delta) {
 void ScriptAPI::applyCommand(const Command& cmd) {
     if (std::holds_alternative<EmitCommand>(cmd)) {
         const auto& c = std::get<EmitCommand>(cmd);
-        if (events_) {
-            if (c.hasPayload) {
-                events_->emit(c.tag, c.payload);
-            } else {
-                events_->emit("log", c.tag);
-            }
+        if (c.hasPayload) {
+            services_.events.emit(c.tag, c.payload);
+        } else {
+            services_.events.emit("log", c.tag);
         }
         if (c.hasPayload) {
             const bool hasBrackets = !c.tag.empty() && c.tag.front()=='[' && c.tag.back()==']';
             const std::string header = hasBrackets ? c.tag : ("[" + c.tag + "]");
-            game::log::infoTerminalOnly(logger_, header + " " + c.payload);
+            game::log::infoTerminalOnly(&services_.log, header + " " + c.payload);
         } else {
-            game::log::info(logger_, c.tag);
+            game::log::info(&services_.log, c.tag);
         }
         return;
     }
@@ -183,7 +181,7 @@ void ScriptAPI::applyCommand(const Command& cmd) {
     if (std::holds_alternative<PushStateCommand>(cmd)) {
         const auto& c = std::get<PushStateCommand>(cmd);
         if (manager_) {
-            manager_->pushState(std::make_unique<ScriptedState>(manager_, world_, c.scriptPath));
+            manager_->pushState(std::make_unique<ScriptedState>(manager_, world_, services_, c.scriptPath));
         }
         return;
     }
@@ -298,7 +296,7 @@ int ScriptAPI::applyDamage(int attackerId,
     const bool traceCombat = DebugTrace::combat(speciesLower, moveLower);
     auto trlog = [&](const std::string& msg) {
         if (!traceCombat) return;
-        game::log::infoTerminalOnly(logger_, std::string("[TRACE_COMBAT_CPP] ") +
+        game::log::infoTerminalOnly(&services_.log, std::string("[TRACE_COMBAT_CPP] ") +
                                  "unit=" + speciesLower + " move=" + (moveLower.empty() ? std::string("-") : moveLower) + " " + msg);
     };
 
@@ -328,7 +326,7 @@ int ScriptAPI::applyDamage(int attackerId,
         const auto* animCfg = data ? &data->attackAnims : nullptr;
 
         const float minReqSec = animCfg
-            ? animCfg->getMinRequestSec(speciesLower, kindLower, moveLower, logger_)
+            ? animCfg->getMinRequestSec(speciesLower, kindLower, moveLower, &services_.log)
             : 0.0f;
         if (minReqSec > 0.0f) desiredWindowSec = std::max(desiredWindowSec, minReqSec);
 
@@ -361,16 +359,16 @@ int ScriptAPI::applyDamage(int attackerId,
             if (kindLower == "charged") {
                 phase = "one_shot";
                 clipUsed = animCfg
-                    ? animCfg->getClipName(speciesLower, "charged", moveLower, "one_shot", logger_)
+                    ? animCfg->getClipName(speciesLower, "charged", moveLower, "one_shot", &services_.log)
                     : std::string();
                 const int idx = animIndexCached(*A, clipUsed);
                 if (idx >= 0) desiredAnimIdx = idx;
             } else if (kindLower == "fast" && !moveLower.empty()) {
                 const std::string clipLoop = animCfg
-                    ? animCfg->getClipName(speciesLower, "fast", moveLower, "loop", logger_)
+                    ? animCfg->getClipName(speciesLower, "fast", moveLower, "loop", &services_.log)
                     : std::string();
                 const std::string clipDef  = animCfg
-                    ? animCfg->getClipName(speciesLower, "fast", moveLower, "default", logger_)
+                    ? animCfg->getClipName(speciesLower, "fast", moveLower, "default", &services_.log)
                     : std::string();
 
                 phase = "loop";

@@ -17,7 +17,7 @@ namespace engine { class IRandom; }
 // It does not depend on PokemonConfigLoader or any unfinished shop-specific APIs.
 class ShopSystem : public Updatable {
 public:
-    explicit ShopSystem(engine::IRandom* rng = nullptr);
+    explicit ShopSystem(engine::IRandom& rng);
     ~ShopSystem() override = default;
 
     void update(float dt) override;
@@ -44,6 +44,5 @@ private:
     // Temporary pool until you wire in real unit definitions / odds
     std::vector<std::string> fallbackPool;
 
-    engine::IRandom* rng = nullptr;
-    std::unique_ptr<engine::IRandom> fallbackRng;
+    engine::IRandom& rng;
 };

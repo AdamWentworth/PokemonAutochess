@@ -4,6 +4,7 @@
 #include "engine/core/IAssetStore.h"
 #include "engine/core/Paths.h"
 #include "game/GameWorld.h"
+#include "game/GameServices.h"
 #include "game/scripting/ScriptAPI.h"
 #include "LuaBindings.h"
 
@@ -27,10 +28,8 @@ std::string normalizeVirtualPath(std::string path) {
 
 LuaScript::LuaScript(GameWorld* world,
                      GameStateManager* manager,
-                     LogBus::Logger* logger,
-                     ScriptEventBus* events,
-                     engine::IAssetStore* assets)
-    : gameWorld(world), stateManager(manager), logger_(logger), events_(events), assetStore_(assets) {
+                     GameServices& services)
+    : gameWorld(world), stateManager(manager), services_(services) {
 
     lua.open_libraries(
         sol::lib::base,
@@ -40,7 +39,7 @@ LuaScript::LuaScript(GameWorld* world,
         sol::lib::package
     );
 
-    api_ = std::make_unique<ScriptAPI>(gameWorld, stateManager, logger_, events_);
+    api_ = std::make_unique<ScriptAPI>(gameWorld, stateManager, services_);
     registerBindings();
     resetEnvironment();
     configurePackagePath();
@@ -49,7 +48,7 @@ LuaScript::~LuaScript() = default;
 
 void LuaScript::registerBindings() {
     if (!api_) {
-        api_ = std::make_unique<ScriptAPI>(gameWorld, stateManager, logger_, events_);
+        api_ = std::make_unique<ScriptAPI>(gameWorld, stateManager, services_);
     }
     registerLuaBindings(lua, *api_);
 }
@@ -89,25 +88,20 @@ bool LuaScript::loadScript(const std::string& filePath) {
     resetEnvironment();
     configurePackagePath();
 
-    sol::load_result chunk;
-    if (assetStore_) {
-        std::string text;
-        std::string err;
-        const std::string virt = normalizeVirtualPath(filePath);
-        if (assetStore_->readText(virt, text, &err)) {
-            chunk = lua.load(text);
-        } else {
-            if (!err.empty()) {
-                game::log::warn(logger_, std::string("[LuaScript] Asset store read failed: ") + virt + " (" + err + ")");
-            }
-            chunk = lua.load_file(filePath);
-        }
-    } else {
-        chunk = lua.load_file(filePath);
+    std::string text;
+    std::string err;
+    const std::string virt = normalizeVirtualPath(filePath);
+    if (!services_.assets.readText(virt, text, &err)) {
+        const std::string msg = err.empty()
+            ? ("[LuaScript] Asset store read failed: " + virt)
+            : ("[LuaScript] Asset store read failed: " + virt + " (" + err + ")");
+        game::log::warn(&services_.log, msg);
+        return false;
     }
+    sol::load_result chunk = lua.load(text);
     if (!chunk.valid()) {
         sol::error err = chunk;
-        game::log::error(logger_, std::string("[LuaScript] Failed to load script '") + filePath + "': " + err.what());
+        game::log::error(&services_.log, std::string("[LuaScript] Failed to load script '") + filePath + "': " + err.what());
         return false;
     }
 
@@ -119,7 +113,7 @@ bool LuaScript::loadScript(const std::string& filePath) {
     sol::protected_function_result r = pf();
     if (!r.valid()) {
         sol::error err = r;
-        game::log::error(logger_, std::string("[LuaScript] Failed to execute script '") + filePath + "': " + err.what());
+        game::log::error(&services_.log, std::string("[LuaScript] Failed to execute script '") + filePath + "': " + err.what());
         return false;
     }
 
@@ -128,7 +122,7 @@ bool LuaScript::loadScript(const std::string& filePath) {
 
 bool LuaScript::reload() {
     if (loadedPath.empty()) {
-        game::log::warn(logger_, "[LuaScript] reload() called with no previously loaded script");
+        game::log::warn(&services_.log, "[LuaScript] reload() called with no previously loaded script");
         return false;
     }
     return loadScript(loadedPath);

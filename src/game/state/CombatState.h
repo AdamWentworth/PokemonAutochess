@@ -1,7 +1,7 @@
 #pragma once
 
 #include "game/GameState.h"
-#include "game/GameConfig.h"
+#include "game/GameServices.h"
 #include "game/scripting/LuaScript.h"
 
 #include <memory>
@@ -9,7 +9,6 @@
 
 class GameStateManager;
 class GameWorld;
-struct GameServices;
 
 class MovementSystem;
 class CombatSystem;
@@ -17,7 +16,6 @@ class TextRenderer;
 
 class CombatState : public GameState {
 public:
-    CombatState(GameStateManager* manager, GameWorld* world, const std::string& scriptPath);
     CombatState(GameStateManager* manager, GameWorld* world, GameServices& services, const std::string& scriptPath);
     ~CombatState() override;
 
@@ -28,12 +26,9 @@ public:
     void render() override;
 
 private:
-    const GameConfigData& cfg() const;
-
     GameStateManager* stateManager = nullptr;
     GameWorld* gameWorld = nullptr;
-    GameServices* services = nullptr;
-    GameConfigData fallbackConfig;
+    GameServices& services;
 
     LuaScript script;
 

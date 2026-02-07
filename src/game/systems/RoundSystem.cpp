@@ -1,5 +1,6 @@
 // src/game/systems/RoundSystem.cpp
 #include "RoundSystem.h"
+#include "game/GameServices.h"
 #include <iostream>
 #include <sol/sol.hpp>
 
@@ -24,8 +25,8 @@ RoundPhase RoundSystem::toPhaseEnum(const std::string& s) {
     return RoundPhase::Planning;
 }
 
-RoundSystem::RoundSystem(engine::IAssetStore* assets)
-    : script(/*world*/ nullptr, /*manager*/ nullptr, /*logger*/ nullptr, /*events*/ nullptr, assets)
+RoundSystem::RoundSystem(GameServices& services)
+    : script(/*world*/ nullptr, /*manager*/ nullptr, services)
 {
     if (!script.loadScript(kRoundSystemScript)) {
         std::cerr << "[RoundSystem] Failed to load " << kRoundSystemScript << "\n";

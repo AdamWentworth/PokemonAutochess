@@ -5,13 +5,12 @@
 
 #include "game/GameState.h"
 #include "game/GameWorld.h"
-#include "game/GameConfig.h"        // GameConfigData
+#include "game/GameServices.h"
 #include "game/scripting/LuaScript.h"
 #include "game/systems/CardSystem.h"
 #include "engine/ui/TextRenderer.h"
 
 class GameStateManager;
-struct GameServices;
 
 // A thin C++ wrapper that forwards state lifecycle to a Lua script.
 // Additionally, if the Lua script exposes starter UI helpers
@@ -19,12 +18,7 @@ struct GameServices;
 // this state will build and drive a simple card UI for selection.
 class ScriptedState : public GameState {
 public:
-    // Preferred: explicitly pass services (avoids global config access in this state).
     ScriptedState(GameStateManager* manager, GameWorld* world, GameServices& services, const std::string& scriptPath);
-
-    // Back-compat: older call sites that don't have services yet.
-    // Keeps the project compiling while you migrate call sites.
-    ScriptedState(GameStateManager* manager, GameWorld* world, const std::string& scriptPath);
 
     ~ScriptedState() override;
 
@@ -35,15 +29,12 @@ public:
     void render() override;
 
 private:
-    const GameConfigData& cfg() const;
-
     void ensureStarterUI();
 
 private:
     GameStateManager* stateManager = nullptr;
     GameWorld* gameWorld = nullptr;
-    GameServices* services = nullptr;
-    GameConfigData fallbackConfig;
+    GameServices& services;
 
     std::string scriptPath;
     LuaScript script;

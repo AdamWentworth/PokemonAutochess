@@ -29,14 +29,14 @@ Done:
 - ScriptAPI with command queue and ScriptEventBus
 - Asset cooker and packed/dev asset stores
 - Determinism tests and headless battle invariants tests
+- Runtime states/systems require GameServices (no legacy constructors)
+- LogBus compatibility globals removed
 
 Partial:
 - Single update graph exists in game, but SystemRegistry remains duplicated
-- No-globals migration is incomplete due to LogBus compatibility functions
 - Script firewall exists, but Lua bindings still reach GameWorld and use render headers
 
 Not done:
-- Remove optional services and legacy constructors in runtime
 - Replace hard-coded UI constants with a UI/Viewport service
 - Gameplay adoption of ECS for authoritative state and systems
 - Move SDL/GL loop code out of engine_core path and treat Application as optional runner

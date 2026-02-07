@@ -53,19 +53,12 @@ PokemonSide sideFromString(const std::string& s) {
 }
 
 // Grid helpers
-static const GameConfigData& fallbackConfig() {
-    static GameConfigData cfg;
-    return cfg;
-}
-
-glm::vec3 gridToWorld(const GameConfigData* cfg, int col, int row) {
-    const auto& c = cfg ? *cfg : fallbackConfig();
+glm::vec3 gridToWorld(const GameConfigData& c, int col, int row) {
     float boardOriginX = -((c.cols * c.cellSize) / 2.0f) + c.cellSize * 0.5f;
     float boardOriginZ = -((c.rows * c.cellSize) / 2.0f) + c.cellSize * 0.5f;
     return { boardOriginX + col * c.cellSize, 0.0f, boardOriginZ + row * c.cellSize };
 }
-glm::ivec2 worldToGrid(const GameConfigData* cfg, const glm::vec3& pos) {
-    const auto& c = cfg ? *cfg : fallbackConfig();
+glm::ivec2 worldToGrid(const GameConfigData& c, const glm::vec3& pos) {
     float boardOriginX = -((c.cols * c.cellSize) / 2.0f) + c.cellSize * 0.5f;
     float boardOriginZ = -((c.rows * c.cellSize) / 2.0f) + c.cellSize * 0.5f;
     int col = static_cast<int>(std::round((pos.x - boardOriginX) / c.cellSize));

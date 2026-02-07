@@ -18,24 +18,10 @@ constexpr int UI_W = 1280;
 
 } // namespace
 
-const GameConfigData& PlacementState::cfg() const {
-    if (services) return services->config;
-    return fallbackConfig;
-}
-
-PlacementState::PlacementState(GameStateManager* manager, GameWorld* world, const std::string& name)
-    : stateManager(manager)
-    , gameWorld(world)
-    , services(nullptr)
-    , fallbackConfig(GameConfig::load(nullptr))
-    , starterName(name)
-{}
-
 PlacementState::PlacementState(GameStateManager* manager, GameWorld* world, GameServices& svc, const std::string& name)
     : stateManager(manager)
     , gameWorld(world)
-    , services(&svc)
-    , fallbackConfig()
+    , services(svc)
     , starterName(name)
 {}
 
@@ -77,12 +63,9 @@ void PlacementState::update(float dt) {
     // Ask Lua which combat script to use next
     static std::unique_ptr<LuaScript> flow;
     if (!flow) {
-        LogBus::Logger* log = services ? &services->log : nullptr;
         flow = std::make_unique<LuaScript>(gameWorld,
                                            nullptr,
-                                           log,
-                                           services ? &services->events : nullptr,
-                                           services ? &services->assets : nullptr);
+                                           services);
         flow->loadScript("scripts/states/flow.lua");
     }
 
@@ -97,12 +80,7 @@ void PlacementState::update(float dt) {
     }
     if (flow) flow->flushCommands();
 
-    // NOTE: CombatState has both services and legacy ctors; use services if we have it.
-    if (services) {
-        stateManager->pushState(std::make_unique<CombatState>(stateManager, gameWorld, *services, routeScript));
-    } else {
-        stateManager->pushState(std::make_unique<CombatState>(stateManager, gameWorld, routeScript));
-    }
+    stateManager->pushState(std::make_unique<CombatState>(stateManager, gameWorld, services, routeScript));
 }
 
 void PlacementState::render() {
@@ -110,7 +88,7 @@ void PlacementState::render() {
 
     static std::unique_ptr<TextRenderer> text;
     if (!text) {
-        const auto& c = cfg();
+        const auto& c = services.config;
         text = std::make_unique<TextRenderer>(c.fontPath, c.fontSize);
     }
 

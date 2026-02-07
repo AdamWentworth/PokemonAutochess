@@ -21,13 +21,14 @@ namespace LogBus { class Logger; }
 
 class GameWorld {
 public:
+    explicit GameWorld(const GameConfigData& cfg);
+
     void setResources(ResourceManager* rm) { resources = rm; }
     void setData(const GameDataDb* db) { data = db; }
     void setLogger(LogBus::Logger* logger) { log = logger; }
     LogBus::Logger* getLogger() const { return log; }
     const GameDataDb* getData() const { return data; }
-    void setConfig(const GameConfigData* cfg) { config = cfg; }
-    const GameConfigData* getConfig() const { return config; }
+    const GameConfigData& getConfig() const { return config; }
 
     void spawnPokemon(const std::string& pokemonName,
                       const glm::vec3& startPos,
@@ -61,7 +62,7 @@ private:
     ResourceManager* resources = nullptr; // engine-owned
     const GameDataDb* data = nullptr;     // game-owned, injected
     LogBus::Logger* log = nullptr;        // optional game-owned logger
-    const GameConfigData* config = nullptr; // optional game-owned config
+    const GameConfigData& config;
 
     std::vector<PokemonInstance> pokemons;
     std::vector<PokemonInstance> benchPokemons;

@@ -6,12 +6,12 @@
 #include <variant>
 #include <vector>
 
+#include "game/GameServices.h"
 #include "game/PokemonInstance.h"
 #include "game/scripting/ScriptEventBus.h"
 
 class GameWorld;
 class GameStateManager;
-struct GameConfigData;
 namespace LogBus { class Logger; }
 
 // ScriptAPI: explicit, stable surface for Lua to interact with gameplay.
@@ -20,14 +20,13 @@ class ScriptAPI {
 public:
     ScriptAPI(GameWorld* world,
               GameStateManager* manager,
-              LogBus::Logger* logger,
-              ScriptEventBus* events = nullptr);
+              GameServices& services);
 
     GameWorld* world() const { return world_; }
     GameStateManager* manager() const { return manager_; }
-    LogBus::Logger* logger() const { return logger_; }
-    ScriptEventBus* events() const { return events_; }
-    const GameConfigData* config() const;
+    LogBus::Logger& logger() const;
+    ScriptEventBus& events() const;
+    const GameConfigData& config() const;
 
     // Drain and clear queued script events.
     std::vector<ScriptEvent> drainEvents();
@@ -121,7 +120,6 @@ private:
 
     GameWorld* world_ = nullptr;
     GameStateManager* manager_ = nullptr;
-    LogBus::Logger* logger_ = nullptr;
-    ScriptEventBus* events_ = nullptr;
+    GameServices& services_;
     std::vector<Command> queue_;
 };
