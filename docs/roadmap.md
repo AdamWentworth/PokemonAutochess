@@ -20,6 +20,7 @@ Last updated: 2026-02-07
 - ✅ Stage 3.2: config loader singletons removed (GameDataDb ownership).
 - ✅ Stage 3.3: GameConfig global cache removed (explicit config ownership).
 - ✅ Stage 3.4: EventManager singleton removed (engine events).
+- ✅ Stage 4: one update graph (explicit ordering + headless-safe).
 
 ### Current ECS capabilities
 - Entities: id + generation
@@ -40,17 +41,17 @@ Last updated: 2026-02-07
 
 ## Next Step (Do this next)
 
-### Stage 4 — One update graph
-Goal: unify phases and ordering in one place; support headless mode with renderer/platform omitted.
+### Stage 5 — Scripting firewall
+Goal: narrow Lua access to a stable ScriptAPI and command buffer.
 
 Preferred implementation order:
-1) Define the authoritative phase list and system ordering in one location.
-2) Move system registration/order into an explicit update graph config.
-3) Ensure headless mode runs without renderer/platform services.
+1) Define ScriptAPI surface (queries + commands) and version it.
+2) Route Lua calls into a command buffer (no direct gameplay mutation).
+3) Emit events from gameplay into a stable event schema for scripts/UI.
 
 Exit criteria:
-- Single source of truth for update ordering.
-- Headless mode runs with renderer/platform omitted.
+- Lua only sees ScriptAPI (no direct engine/game internals).
+- Commands/events are serialized and testable headlessly.
 
 ---
 

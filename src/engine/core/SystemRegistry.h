@@ -25,6 +25,7 @@ public:
 
     // Runs phases in deterministic order: PreUpdate -> Update -> PostUpdate.
     void updateAll(float deltaTime);
+    void updatePhase(Phase phase, float deltaTime);
 
     void clear();
 

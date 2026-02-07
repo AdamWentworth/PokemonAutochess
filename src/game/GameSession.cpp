@@ -24,6 +24,7 @@
 #include "game/GamePreload.h"
 #include "game/GameServices.h"
 #include "game/GameConfig.h"
+#include "game/GameUpdateGraph.h"
 
 #include "game/config/GameDataDb.h"
 
@@ -34,17 +35,6 @@
 
 #include "game/state/ScriptedState.h"
 #include "game/logging/LogBus.h"
-
-namespace game_session_detail {
-static const char* phaseName(RoundPhase p) {
-    switch (p) {
-        case RoundPhase::Planning:   return "Planning";
-        case RoundPhase::Battle:     return "Battle";
-        case RoundPhase::Resolution: return "Resolution";
-        default:                     return "Unknown";
-    }
-}
-} // namespace game_session_detail
 
 namespace game {
 
@@ -72,25 +62,29 @@ struct GameSession::Impl {
 
     HealthBarRenderer healthBarRenderer;
     SystemRegistry systemRegistry;
+    GameUpdateGraph updateGraph;
+
+    bool renderEnabled = false;
 
     std::shared_ptr<CameraSystem>           cameraSystem;
     std::shared_ptr<UnitInteractionSystem>  unitSystem;
     std::shared_ptr<ShopSystem>             shopSystem;
     std::shared_ptr<RoundSystem>            roundSystem;
 
-    RoundPhase lastRoundPhase = RoundPhase::Planning;
-    bool hasLastRoundPhase = false;
 
     Impl(GameContext& ctx, GameDataDb db) : dataDb(std::move(db)) { init(ctx); }
 
     void init(GameContext& ctx) {
         camera = ctx.camera;
+        renderEnabled = (ctx.renderer != nullptr) && (ctx.camera != nullptr);
 
         config = GameConfig::load(&log);
         services = std::make_unique<GameServices>(config, dataDb, log);
 
         // Board visuals
-        board = std::make_unique<BoardRenderer>(config.rows, config.cols, config.cellSize);
+        if (renderEnabled) {
+            board = std::make_unique<BoardRenderer>(config.rows, config.cols, config.cellSize);
+        }
 
         // World
         gameWorld = std::make_unique<GameWorld>();
@@ -103,31 +97,47 @@ struct GameSession::Impl {
         stateManager = std::make_unique<GameStateManager>();
 
         // Systems
-        cameraSystem = std::make_shared<CameraSystem>(camera);
-        unitSystem   = std::make_shared<UnitInteractionSystem>(camera, gameWorld.get(), ctx.drawableW, ctx.drawableH);
+        if (camera) {
+            cameraSystem = std::make_shared<CameraSystem>(camera);
+            unitSystem   = std::make_shared<UnitInteractionSystem>(camera, gameWorld.get(), ctx.drawableW, ctx.drawableH);
+        }
         roundSystem  = std::make_shared<RoundSystem>();
         shopSystem   = std::make_shared<ShopSystem>();
 
-        systemRegistry.registerSystem(cameraSystem);
-        systemRegistry.registerSystem(unitSystem);
-        systemRegistry.registerSystem(roundSystem);
-        systemRegistry.registerSystem(shopSystem);
+        if (cameraSystem) systemRegistry.registerSystem(cameraSystem);
+        if (unitSystem)   systemRegistry.registerSystem(unitSystem);
+        if (roundSystem)  systemRegistry.registerSystem(roundSystem);
+        if (shopSystem)   systemRegistry.registerSystem(shopSystem);
 
-        if (roundSystem && shopSystem) {
-            lastRoundPhase = roundSystem->getCurrentPhase();
-            hasLastRoundPhase = true;
-            shopSystem->onRoundPhaseChanged(lastRoundPhase, lastRoundPhase);
+        if (renderEnabled) {
+            if (ctx.services && ctx.services->shaders) {
+                healthBarRenderer.init(*ctx.services->shaders);
+            } else {
+                healthBarRenderer.init();
+            }
+
+            // Battle feed + logger (instance-based)
+            battleFeed = std::make_unique<BattleFeed>(config.fontPath, config.fontSize);
+            log.attach(battleFeed.get());
+            log.setEchoToStdout(false);
         }
 
-        healthBarRenderer.init();
-
-        // Battle feed + logger (instance-based)
-        battleFeed = std::make_unique<BattleFeed>(config.fontPath, config.fontSize);
-        log.attach(battleFeed.get());
-        log.setEchoToStdout(false);
+        updateGraph.configure({
+            &systemRegistry,
+            roundSystem.get(),
+            shopSystem.get(),
+            stateManager.get(),
+            gameWorld.get(),
+            battleFeed.get(),
+            &log
+        });
 
         // Preload common models (uses the db's pokemon loader).
-        game::preload::preloadCommonModels(ctx, dataDb.pokemon, "PokemonAutochess");
+        if (renderEnabled) {
+            game::preload::preloadCommonModels(ctx, dataDb.pokemon, "PokemonAutochess");
+        } else {
+            std::cout << "[Init] Headless mode (renderer/camera missing): skipping model preload.\n";
+        }
 
         stateManager->pushState(std::make_unique<ScriptedState>(
             stateManager.get(),
@@ -148,33 +158,11 @@ struct GameSession::Impl {
     }
 
     void fixedUpdate(float dt) {
-        systemRegistry.updateAll(dt);
-
-        if (roundSystem && shopSystem) {
-            const RoundPhase current = roundSystem->getCurrentPhase();
-            if (!hasLastRoundPhase) {
-                lastRoundPhase = current;
-                hasLastRoundPhase = true;
-            } else if (current != lastRoundPhase) {
-                shopSystem->onRoundPhaseChanged(lastRoundPhase, current);
-
-                log.colored(
-                    std::string("Phase: ") + game_session_detail::phaseName(lastRoundPhase) +
-                        " \xE2\x86\x92 " + game_session_detail::phaseName(current),
-                    {0.75f, 0.9f, 1.0f},
-                    3.0f
-                );
-
-                lastRoundPhase = current;
-            }
-        }
-
-        if (stateManager) stateManager->update(dt);
-        if (gameWorld)    gameWorld->update(dt);
-        if (battleFeed)   battleFeed->update(dt);
+        updateGraph.tick(dt);
     }
 
     void render(int drawableW, int drawableH) {
+        if (!renderEnabled) return;
         if (board && camera) board->draw(*camera);
         if (gameWorld && camera && board) gameWorld->drawAll(*camera, *board);
         if (stateManager) stateManager->render();
@@ -198,7 +186,9 @@ struct GameSession::Impl {
             board.reset();
         }
 
-        UIManager::shutdown();
+        if (renderEnabled) {
+            UIManager::shutdown();
+        }
 
         battleFeed.reset();
         shopSystem.reset();

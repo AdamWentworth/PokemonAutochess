@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+## 2026-02-07 — Stage 4 update graph (explicit ordering + headless-safe)
+- Added a GameUpdateGraph to centralize update ordering and phase transitions.
+- SystemRegistry now supports per-phase updates; session uses explicit phases.
+- GameSession guards render-only components so headless runs skip renderer-dependent init.
+
 ## 2026-02-07 — Stage 3.4 EventManager singleton removal (engine events)
 - Removed the legacy EventManager wrapper and routed engine events through EngineServices only.
 - Application no longer configures a global event bus singleton.

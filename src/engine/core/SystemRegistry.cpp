@@ -15,9 +15,15 @@ void SystemRegistry::registerSystem(std::shared_ptr<Updatable> system, Phase pha
 void SystemRegistry::updateAll(float deltaTime) {
     // Deterministic ordering across phases.
     for (size_t p = 0; p < systemsByPhase.size(); ++p) {
-        for (auto& system : systemsByPhase[p]) {
-            system->update(deltaTime);
-        }
+        updatePhase(static_cast<Phase>(p), deltaTime);
+    }
+}
+
+void SystemRegistry::updatePhase(Phase phase, float deltaTime) {
+    const auto idx = static_cast<size_t>(phase);
+    if (idx >= systemsByPhase.size()) return;
+    for (auto& system : systemsByPhase[idx]) {
+        system->update(deltaTime);
     }
 }
 

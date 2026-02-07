@@ -151,6 +151,7 @@ add_library(PAC_GameObjects STATIC
     src/game/GameRuntime.cpp
     src/game/GameBootstrap.cpp
     src/game/GameSession.cpp
+    src/game/GameUpdateGraph.cpp
 
     # Game Config
     src/game/config/PokemonConfigLoader.cpp
