@@ -27,6 +27,7 @@
 #include "game/GameUpdateGraph.h"
 
 #include "game/config/GameDataDb.h"
+#include "game/assets/DevAssetStore.h"
 
 #include "game/systems/CameraSystem.h"
 #include "game/systems/UnitInteractionSystem.h"
@@ -55,6 +56,7 @@ struct GameSession::Impl {
     // Game-owned logger instance (no file-scope globals).
     LogBus::Logger log;
     ScriptEventBus scriptEvents;
+    assets::DevAssetStore assetStore;
 
     // Owned config (loaded once per session).
     GameConfigData config;
@@ -80,8 +82,9 @@ struct GameSession::Impl {
         camera = ctx.camera;
         renderEnabled = (ctx.renderer != nullptr) && (ctx.camera != nullptr);
 
+        assetStore.setRoot(engine::paths::dataRoot());
         config = GameConfig::load(&log);
-        services = std::make_unique<GameServices>(config, dataDb, log, scriptEvents);
+        services = std::make_unique<GameServices>(config, dataDb, log, scriptEvents, assetStore);
 
         // Board visuals
         if (renderEnabled) {

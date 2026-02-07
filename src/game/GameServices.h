@@ -12,13 +12,23 @@ struct GameDataDb;
 
 namespace LogBus { struct Logger; }
 class ScriptEventBus;
+namespace engine { class IAssetStore; }
 
 struct GameServices {
     const GameConfigData& config;
     GameDataDb& dataDb;
     LogBus::Logger& log;
     ScriptEventBus& events;
+    engine::IAssetStore& assets;
 
-    GameServices(const GameConfigData& cfg, GameDataDb& db, LogBus::Logger& logger, ScriptEventBus& eventBus)
-        : config(cfg), dataDb(db), log(logger), events(eventBus) {}
+    GameServices(const GameConfigData& cfg,
+                 GameDataDb& db,
+                 LogBus::Logger& logger,
+                 ScriptEventBus& eventBus,
+                 engine::IAssetStore& assetStore)
+        : config(cfg)
+        , dataDb(db)
+        , log(logger)
+        , events(eventBus)
+        , assets(assetStore) {}
 };

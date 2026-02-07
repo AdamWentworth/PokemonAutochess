@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+## 2026-02-07 — Stage 6.1 asset store scaffolding
+- Added engine::IAssetStore interface for decoupled asset access.
+- Implemented DevAssetStore (filesystem-backed) and a placeholder PackedAssetStore.
+- GameSession now wires an asset store into GameServices for future config/content loading.
+
 ## 2026-02-07 — Stage 5.2 scripting event schema
 - Added ScriptEventBus with a stable event schema for script/UI integration.
 - ScriptAPI now emits log/tagged events into the bus; Lua can drain events via bindings.

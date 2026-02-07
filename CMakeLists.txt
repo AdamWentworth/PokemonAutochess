@@ -173,6 +173,10 @@ add_library(PAC_GameObjects STATIC
     src/game/vfx/TailFireVFX.cpp
     src/game/vfx/TailFireVFXConfigDB.cpp
 
+    # Game Assets
+    src/game/assets/DevAssetStore.cpp
+    src/game/assets/PackedAssetStore.cpp
+
     # Game Scripting
     src/game/scripting/LuaBindings.cpp
     src/game/scripting/LuaBindings_Core.cpp
