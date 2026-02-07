@@ -5,10 +5,10 @@
 #include "game/scripting/ScriptAPI.h"
 #include <iostream>
 
-CombatSystem::CombatSystem(GameWorld* world) : gameWorld(world) {
+CombatSystem::CombatSystem(GameWorld* world, ScriptEventBus* events) : gameWorld(world) {
     lua.open_libraries(sol::lib::base, sol::lib::math, sol::lib::table, sol::lib::string);
     LogBus::Logger* logger = gameWorld ? gameWorld->getLogger() : nullptr;
-    api = std::make_unique<ScriptAPI>(gameWorld, /*manager*/ nullptr, logger);
+    api = std::make_unique<ScriptAPI>(gameWorld, /*manager*/ nullptr, logger, events);
     registerLuaBindings(lua, *api);
     loadScript();
 }

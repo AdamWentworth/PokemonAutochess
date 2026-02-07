@@ -181,6 +181,7 @@ add_library(PAC_GameObjects STATIC
     src/game/scripting/LuaBindings_Util.cpp
     src/game/scripting/LuaScript.cpp
     src/game/scripting/ScriptAPI.cpp
+    src/game/scripting/ScriptEventBus.cpp
 
     # Game States
     src/game/state/ScriptedState.cpp

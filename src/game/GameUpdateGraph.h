@@ -9,6 +9,7 @@ class GameWorld;
 class BattleFeed;
 class ShopSystem;
 namespace LogBus { class Logger; }
+class ScriptEventBus;
 
 namespace game {
 
@@ -24,6 +25,7 @@ public:
         GameWorld* world = nullptr;
         BattleFeed* battleFeed = nullptr;
         LogBus::Logger* log = nullptr;
+        ScriptEventBus* events = nullptr;
     };
 
     void configure(Inputs inputs);

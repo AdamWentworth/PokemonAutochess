@@ -25,11 +25,16 @@
 
 #include "LuaBindings_Internal.h"
 
-ScriptAPI::ScriptAPI(GameWorld* world, GameStateManager* manager, LogBus::Logger* logger)
-    : world_(world), manager_(manager), logger_(logger) {}
+ScriptAPI::ScriptAPI(GameWorld* world, GameStateManager* manager, LogBus::Logger* logger, ScriptEventBus* events)
+    : world_(world), manager_(manager), logger_(logger), events_(events) {}
 
 const GameConfigData* ScriptAPI::config() const {
     return world_ ? world_->getConfig() : nullptr;
+}
+
+std::vector<ScriptEvent> ScriptAPI::drainEvents() {
+    if (!events_) return {};
+    return events_->drain();
 }
 
 void ScriptAPI::enqueue(Command cmd) {
@@ -146,6 +151,13 @@ int ScriptAPI::addEnergy(int unitId, int delta) {
 void ScriptAPI::applyCommand(const Command& cmd) {
     if (std::holds_alternative<EmitCommand>(cmd)) {
         const auto& c = std::get<EmitCommand>(cmd);
+        if (events_) {
+            if (c.hasPayload) {
+                events_->emit(c.tag, c.payload);
+            } else {
+                events_->emit("log", c.tag);
+            }
+        }
         if (c.hasPayload) {
             const bool hasBrackets = !c.tag.empty() && c.tag.front()=='[' && c.tag.back()==']';
             const std::string header = hasBrackets ? c.tag : ("[" + c.tag + "]");

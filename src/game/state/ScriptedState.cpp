@@ -23,7 +23,7 @@ ScriptedState::ScriptedState(GameStateManager* manager, GameWorld* world, GameSe
     , services(&svc)
     , fallbackConfig()
     , scriptPath(path)
-    , script(world, manager, &svc.log)
+    , script(world, manager, &svc.log, &svc.events)
 {
     if (!script.loadScript(scriptPath)) {
         std::cerr << "[ScriptedState] Failed to load script: " << scriptPath << "\n";
@@ -36,7 +36,7 @@ ScriptedState::ScriptedState(GameStateManager* manager, GameWorld* world, const 
     , services(nullptr)
     , fallbackConfig(GameConfig::load(nullptr))
     , scriptPath(path)
-    , script(world, manager, nullptr)
+    , script(world, manager, nullptr, nullptr)
 {
     if (!script.loadScript(scriptPath)) {
         std::cerr << "[ScriptedState] Failed to load script: " << scriptPath << "\n";

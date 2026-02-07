@@ -35,6 +35,7 @@
 
 #include "game/state/ScriptedState.h"
 #include "game/logging/LogBus.h"
+#include "game/scripting/ScriptEventBus.h"
 
 namespace game {
 
@@ -53,6 +54,7 @@ struct GameSession::Impl {
 
     // Game-owned logger instance (no file-scope globals).
     LogBus::Logger log;
+    ScriptEventBus scriptEvents;
 
     // Owned config (loaded once per session).
     GameConfigData config;
@@ -79,7 +81,7 @@ struct GameSession::Impl {
         renderEnabled = (ctx.renderer != nullptr) && (ctx.camera != nullptr);
 
         config = GameConfig::load(&log);
-        services = std::make_unique<GameServices>(config, dataDb, log);
+        services = std::make_unique<GameServices>(config, dataDb, log, scriptEvents);
 
         // Board visuals
         if (renderEnabled) {
@@ -129,7 +131,8 @@ struct GameSession::Impl {
             stateManager.get(),
             gameWorld.get(),
             battleFeed.get(),
-            &log
+            &log,
+            &scriptEvents
         });
 
         // Preload common models (uses the db's pokemon loader).

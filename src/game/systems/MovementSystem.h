@@ -8,11 +8,12 @@
 // Forward-declare instead:
 class GridOccupancy;
 class ScriptAPI;
+class ScriptEventBus;
 
 class MovementSystem : public Updatable {
 public:
-    explicit MovementSystem(GameWorld* world);
-    MovementSystem(GameWorld* world, const GridOccupancy& /*unused*/); // compat
+    explicit MovementSystem(GameWorld* world, ScriptEventBus* events = nullptr);
+    MovementSystem(GameWorld* world, const GridOccupancy& /*unused*/, ScriptEventBus* events = nullptr); // compat
 
     void update(float deltaTime) override;
 

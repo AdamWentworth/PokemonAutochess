@@ -11,10 +11,11 @@
 class GameWorld;
 class GameStateManager;
 class ScriptAPI;
+class ScriptEventBus;
 
 class LuaScript {
 public:
-    explicit LuaScript(GameWorld* world, GameStateManager* manager = nullptr, LogBus::Logger* logger = nullptr);
+    explicit LuaScript(GameWorld* world, GameStateManager* manager = nullptr, LogBus::Logger* logger = nullptr, ScriptEventBus* events = nullptr);
     ~LuaScript();
 
     // Loads + executes the script into an isolated environment.
@@ -66,6 +67,7 @@ private:
     GameWorld* gameWorld = nullptr;
     GameStateManager* stateManager = nullptr;
     LogBus::Logger* logger_ = nullptr;
+    ScriptEventBus* events_ = nullptr;
     std::unique_ptr<ScriptAPI> api_;
 
     std::string loadedPath;

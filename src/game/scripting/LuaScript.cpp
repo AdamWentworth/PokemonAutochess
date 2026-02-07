@@ -5,8 +5,8 @@
 #include "game/scripting/ScriptAPI.h"
 #include "LuaBindings.h"
 
-LuaScript::LuaScript(GameWorld* world, GameStateManager* manager, LogBus::Logger* logger)
-    : gameWorld(world), stateManager(manager), logger_(logger) {
+LuaScript::LuaScript(GameWorld* world, GameStateManager* manager, LogBus::Logger* logger, ScriptEventBus* events)
+    : gameWorld(world), stateManager(manager), logger_(logger), events_(events) {
 
     lua.open_libraries(
         sol::lib::base,
@@ -16,7 +16,7 @@ LuaScript::LuaScript(GameWorld* world, GameStateManager* manager, LogBus::Logger
         sol::lib::package
     );
 
-    api_ = std::make_unique<ScriptAPI>(gameWorld, stateManager, logger_);
+    api_ = std::make_unique<ScriptAPI>(gameWorld, stateManager, logger_, events_);
     registerBindings();
     resetEnvironment();
     configurePackagePath();
@@ -25,7 +25,7 @@ LuaScript::~LuaScript() = default;
 
 void LuaScript::registerBindings() {
     if (!api_) {
-        api_ = std::make_unique<ScriptAPI>(gameWorld, stateManager, logger_);
+        api_ = std::make_unique<ScriptAPI>(gameWorld, stateManager, logger_, events_);
     }
     registerLuaBindings(lua, *api_);
 }

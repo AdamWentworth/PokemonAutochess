@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+## 2026-02-07 — Stage 5.2 scripting event schema
+- Added ScriptEventBus with a stable event schema for script/UI integration.
+- ScriptAPI now emits log/tagged events into the bus; Lua can drain events via bindings.
+- Round phase transitions publish a structured round_phase_changed event.
+
 ## 2026-02-07 — Stage 5.1 ScriptAPI + command queue
 - Added ScriptAPI (stable Lua surface) with a queued command buffer and explicit flush boundaries.
 - Lua bindings now route gameplay mutations through ScriptAPI; applyDamage remains immediate for animation gating.

@@ -37,7 +37,7 @@ CombatState::CombatState(GameStateManager* manager, GameWorld* world, const std:
     , gameWorld(world)
     , services(nullptr)
     , fallbackConfig(GameConfig::load(nullptr))
-    , script(world, manager, nullptr)
+    , script(world, manager, nullptr, nullptr)
     , combatMessage()
 {
     const auto& c = cfg();
@@ -47,8 +47,9 @@ CombatState::CombatState(GameStateManager* manager, GameWorld* world, const std:
         game::log::error(loggerOrNull(services), std::string("[CombatState] Failed to load combat script: ") + path);
     }
 
-    movementSystem = std::make_unique<MovementSystem>(gameWorld);
-    combatSystem   = std::make_unique<CombatSystem>(gameWorld);
+    ScriptEventBus* events = services ? &services->events : nullptr;
+    movementSystem = std::make_unique<MovementSystem>(gameWorld, events);
+    combatSystem   = std::make_unique<CombatSystem>(gameWorld, events);
 }
 
 CombatState::CombatState(GameStateManager* manager, GameWorld* world, GameServices& svc, const std::string& path)
@@ -56,7 +57,7 @@ CombatState::CombatState(GameStateManager* manager, GameWorld* world, GameServic
     , gameWorld(world)
     , services(&svc)
     , fallbackConfig()
-    , script(world, manager, &svc.log)
+    , script(world, manager, &svc.log, &svc.events)
     , combatMessage()
 {
     const auto& c = cfg();
@@ -66,8 +67,9 @@ CombatState::CombatState(GameStateManager* manager, GameWorld* world, GameServic
         game::log::error(loggerOrNull(services), std::string("[CombatState] Failed to load combat script: ") + path);
     }
 
-    movementSystem = std::make_unique<MovementSystem>(gameWorld);
-    combatSystem   = std::make_unique<CombatSystem>(gameWorld);
+    ScriptEventBus* events = services ? &services->events : nullptr;
+    movementSystem = std::make_unique<MovementSystem>(gameWorld, events);
+    combatSystem   = std::make_unique<CombatSystem>(gameWorld, events);
 }
 
 CombatState::~CombatState() = default;

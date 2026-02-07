@@ -6,10 +6,11 @@
 
 class GameWorld;
 class ScriptAPI;
+class ScriptEventBus;
 
 class CombatSystem : public Updatable {
 public:
-    explicit CombatSystem(GameWorld* world);
+    explicit CombatSystem(GameWorld* world, ScriptEventBus* events = nullptr);
     void update(float deltaTime) override;
 
 private:

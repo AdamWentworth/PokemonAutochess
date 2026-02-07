@@ -78,7 +78,7 @@ void PlacementState::update(float dt) {
     static std::unique_ptr<LuaScript> flow;
     if (!flow) {
         LogBus::Logger* log = services ? &services->log : nullptr;
-        flow = std::make_unique<LuaScript>(gameWorld, nullptr, log);
+        flow = std::make_unique<LuaScript>(gameWorld, nullptr, log, services ? &services->events : nullptr);
         flow->loadScript("scripts/states/flow.lua");
     }
 

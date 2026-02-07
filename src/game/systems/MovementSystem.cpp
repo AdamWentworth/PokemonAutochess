@@ -9,19 +9,19 @@
 
 class GridOccupancy;
 
-MovementSystem::MovementSystem(GameWorld* world)
+MovementSystem::MovementSystem(GameWorld* world, ScriptEventBus* events)
     : gameWorld(world)
 {
     lua.open_libraries(sol::lib::base, sol::lib::math, sol::lib::table, sol::lib::string);
     LogBus::Logger* logger = gameWorld ? gameWorld->getLogger() : nullptr;
-    api = std::make_unique<ScriptAPI>(gameWorld, /*GameStateManager*/ nullptr, logger);
+    api = std::make_unique<ScriptAPI>(gameWorld, /*GameStateManager*/ nullptr, logger, events);
     registerLuaBindings(lua, *api);
     exposeConstants();
     loadScript();
 }
 
-MovementSystem::MovementSystem(GameWorld* world, const GridOccupancy& /*unused*/)
-    : MovementSystem(world) {}
+MovementSystem::MovementSystem(GameWorld* world, const GridOccupancy& /*unused*/, ScriptEventBus* events)
+    : MovementSystem(world, events) {}
 
 void MovementSystem::exposeConstants() {
     // Make grid constants available to Lua scripts

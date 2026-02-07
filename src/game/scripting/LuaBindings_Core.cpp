@@ -14,6 +14,7 @@
 #include "game/GameStateManager.h"
 #include "game/GameConfig.h"
 #include "game/scripting/ScriptAPI.h"
+#include "game/scripting/ScriptEventBus.h"
 
 #include "game/animation/FlightLocomotion.h"
 #include "game/animation/AttackAnimDebug.h"
@@ -64,6 +65,21 @@ void registerLuaBindings_Core(sol::state& lua, ScriptAPI& api) {
             game::log::warn(logger, "emit_round_phase_changed() is deprecated and currently a no-op");
         }
     );
+
+    // ---- Script event stream ----
+    lua.set_function("events_drain", [&api, &lua]() {
+        sol::state_view L(lua);
+        sol::table arr = L.create_table();
+        auto events = api.drainEvents();
+        int i = 1;
+        for (const auto& e : events) {
+            sol::table t = L.create_table();
+            t["type"] = e.type;
+            if (e.hasPayload) t["payload"] = e.payload;
+            arr[i++] = t;
+        }
+        return arr;
+    });
 
     // ---- State mgmt ----
     lua.set_function("push_state", [&api](const std::string& scriptPath) {

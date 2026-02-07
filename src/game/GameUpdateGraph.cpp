@@ -11,6 +11,7 @@
 #include "game/GameWorld.h"
 #include "game/systems/ShopSystem.h"
 #include "game/logging/LogBus.h"
+#include "game/scripting/ScriptEventBus.h"
 
 namespace {
 const char* phaseName(RoundPhase p) {
@@ -74,6 +75,11 @@ void GameUpdateGraph::handleRoundPhaseTransitions() {
         );
     }
 
+    if (inputs_.events) {
+        const std::string payload = std::string("{\"prev\":\"") + phaseName(lastRoundPhase) +
+            "\",\"next\":\"" + phaseName(current) + "\"}";
+        inputs_.events->emit("round_phase_changed", payload);
+    }
     lastRoundPhase = current;
 }
 

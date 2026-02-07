@@ -11,12 +11,14 @@
 struct GameDataDb;
 
 namespace LogBus { struct Logger; }
+class ScriptEventBus;
 
 struct GameServices {
     const GameConfigData& config;
     GameDataDb& dataDb;
     LogBus::Logger& log;
+    ScriptEventBus& events;
 
-    GameServices(const GameConfigData& cfg, GameDataDb& db, LogBus::Logger& logger)
-        : config(cfg), dataDb(db), log(logger) {}
+    GameServices(const GameConfigData& cfg, GameDataDb& db, LogBus::Logger& logger, ScriptEventBus& eventBus)
+        : config(cfg), dataDb(db), log(logger), events(eventBus) {}
 };

@@ -7,6 +7,7 @@
 #include <vector>
 
 #include "game/PokemonInstance.h"
+#include "game/scripting/ScriptEventBus.h"
 
 class GameWorld;
 class GameStateManager;
@@ -17,12 +18,19 @@ namespace LogBus { class Logger; }
 // Commands are queued and applied at a controlled boundary (flush()).
 class ScriptAPI {
 public:
-    ScriptAPI(GameWorld* world, GameStateManager* manager, LogBus::Logger* logger);
+    ScriptAPI(GameWorld* world,
+              GameStateManager* manager,
+              LogBus::Logger* logger,
+              ScriptEventBus* events = nullptr);
 
     GameWorld* world() const { return world_; }
     GameStateManager* manager() const { return manager_; }
     LogBus::Logger* logger() const { return logger_; }
+    ScriptEventBus* events() const { return events_; }
     const GameConfigData* config() const;
+
+    // Drain and clear queued script events.
+    std::vector<ScriptEvent> drainEvents();
 
     // Command queue: apply queued commands in order.
     void flush();
@@ -114,5 +122,6 @@ private:
     GameWorld* world_ = nullptr;
     GameStateManager* manager_ = nullptr;
     LogBus::Logger* logger_ = nullptr;
+    ScriptEventBus* events_ = nullptr;
     std::vector<Command> queue_;
 };
