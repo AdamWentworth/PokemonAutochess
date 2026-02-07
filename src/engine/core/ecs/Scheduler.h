@@ -2,25 +2,54 @@
 
 #pragma once
 #include "engine/core/ecs/ISystem.h"
-#include <vector>
+#include <array>
+#include <cstddef>
 #include <memory>
+#include <vector>
 
 namespace engine::ecs {
 
-// Minimal scheduler: ordered list of systems.
-// Game will own which systems exist + ordering; engine provides the mechanism.
+// Minimal phased scheduler: ordered list of systems per phase.
+// Game owns which systems exist + ordering; engine provides the mechanism.
 class Scheduler {
 public:
-    void add(std::unique_ptr<ISystem> sys) { systems_.push_back(std::move(sys)); }
+    enum class Phase : int {
+        PreUpdate = 0,
+        Update    = 1,
+        PostUpdate= 2,
+        Count     = 3,
+    };
 
-    void tick(World& world, float dt) {
-        for (auto& s : systems_) s->update(world, dt);
+    void add(std::unique_ptr<ISystem> sys) { add(std::move(sys), Phase::Update); }
+
+    void add(std::unique_ptr<ISystem> sys, Phase phase) {
+        systemsByPhase_[static_cast<std::size_t>(phase)].push_back(std::move(sys));
     }
 
-    std::size_t size() const { return systems_.size(); }
+    void tick(World& world, float dt) {
+        tickPhase(Phase::PreUpdate, world, dt);
+        tickPhase(Phase::Update, world, dt);
+        tickPhase(Phase::PostUpdate, world, dt);
+    }
+
+    void tickPhase(Phase phase, World& world, float dt) {
+        auto& bucket = systemsByPhase_[static_cast<std::size_t>(phase)];
+        for (auto& s : bucket) s->update(world, dt);
+    }
+
+    std::size_t size() const {
+        std::size_t total = 0;
+        for (const auto& bucket : systemsByPhase_) total += bucket.size();
+        return total;
+    }
+
+    void clear() {
+        for (auto& bucket : systemsByPhase_) bucket.clear();
+    }
 
 private:
-    std::vector<std::unique_ptr<ISystem>> systems_;
+    static constexpr std::size_t kPhaseCount = static_cast<std::size_t>(Phase::Count);
+    std::array<std::vector<std::unique_ptr<ISystem>>, kPhaseCount> systemsByPhase_;
 };
 
 } // namespace engine::ecs

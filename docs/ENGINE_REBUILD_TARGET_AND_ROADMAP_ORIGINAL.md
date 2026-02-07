@@ -32,7 +32,6 @@ Last updated: 2026-02-07
 
 ## Current Gaps vs Target
 
-- SystemRegistry exists in both GameRunner and GameSession; ECS Scheduler is not the single update graph.
 - ScriptAPI still exposes GameWorld/GameStateManager; Lua bindings include render headers.
 - UI width/height constants are hard-coded in gameplay states.
 

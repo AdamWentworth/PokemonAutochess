@@ -4,11 +4,9 @@
 
 #include <string>
 
-#include "engine/core/SystemRegistry.h"
-#include "engine/ui/BattleFeed.h"
+#include "engine/core/ecs/Scheduler.h"
+#include "engine/core/ecs/World.h"
 
-#include "game/GameStateManager.h"
-#include "game/GameWorld.h"
 #include "game/systems/ShopSystem.h"
 #include "game/logging/LogBus.h"
 #include "game/scripting/ScriptEventBus.h"
@@ -39,17 +37,16 @@ void GameUpdateGraph::configure(Inputs inputs) {
 }
 
 void GameUpdateGraph::tick(float dt) {
-    if (inputs_.systems) {
-        inputs_.systems->updatePhase(SystemRegistry::Phase::PreUpdate, dt);
-        inputs_.systems->updatePhase(SystemRegistry::Phase::Update, dt);
-        inputs_.systems->updatePhase(SystemRegistry::Phase::PostUpdate, dt);
+    if (inputs_.scheduler && inputs_.world) {
+        inputs_.scheduler->tickPhase(engine::ecs::Scheduler::Phase::PreUpdate, *inputs_.world, dt);
+        inputs_.scheduler->tickPhase(engine::ecs::Scheduler::Phase::Update, *inputs_.world, dt);
     }
 
     handleRoundPhaseTransitions();
 
-    if (inputs_.stateManager) inputs_.stateManager->update(dt);
-    if (inputs_.world) inputs_.world->update(dt);
-    if (inputs_.battleFeed) inputs_.battleFeed->update(dt);
+    if (inputs_.scheduler && inputs_.world) {
+        inputs_.scheduler->tickPhase(engine::ecs::Scheduler::Phase::PostUpdate, *inputs_.world, dt);
+    }
 }
 
 void GameUpdateGraph::handleRoundPhaseTransitions() {

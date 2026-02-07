@@ -14,7 +14,6 @@
 #include "engine/ui/BootLoadingView.h"
 
 #include "engine/utils/ResourceManager.h"
-#include "engine/core/SystemRegistry.h"
 
 #define NOMINMAX
 #ifdef _WIN32
@@ -173,8 +172,6 @@ void Application::shutdownApplication() {
         shaderCache.clear();
 
     resourceManager.clear();
-    systemRegistry.clear();
-
     bootLoadingView.reset();
     camera.reset();
 
@@ -253,7 +250,6 @@ void Application::run(GameLoop& game) {
 
     bool running = true;
     // Wire engine-owned services bundle (lifetime: Application)
-    services.systems = &systemRegistry;
     services.resources = &resourceManager;
     services.shaders = &shaderCache;
     services.events = &eventBus;

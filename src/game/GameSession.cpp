@@ -21,7 +21,8 @@
 #include "engine/ui/BattleFeed.h"
 #include "engine/ui/HealthBarRenderer.h"
 
-#include "engine/core/SystemRegistry.h"
+#include "engine/core/ecs/Scheduler.h"
+#include "engine/core/ecs/World.h"
 
 #include "game/GameWorld.h"
 #include "game/GameStateManager.h"
@@ -38,6 +39,7 @@
 #include "game/systems/UnitInteractionSystem.h"
 #include "game/systems/RoundSystem.h"
 #include "game/systems/ShopSystem.h"
+#include "game/systems/LegacySystemAdapters.h"
 
 #include "game/state/ScriptedState.h"
 #include "game/logging/LogBus.h"
@@ -73,7 +75,8 @@ struct GameSession::Impl {
     std::unique_ptr<BattleFeed>       battleFeed;
 
     HealthBarRenderer healthBarRenderer;
-    SystemRegistry systemRegistry;
+    engine::ecs::World ecsWorld;
+    engine::ecs::Scheduler scheduler;
     GameUpdateGraph updateGraph;
 
     bool renderEnabled = false;
@@ -151,10 +154,12 @@ struct GameSession::Impl {
         roundSystem  = std::make_shared<RoundSystem>(*services);
         shopSystem   = std::make_shared<ShopSystem>(services->rng);
 
-        if (cameraSystem) systemRegistry.registerSystem(cameraSystem);
-        if (unitSystem)   systemRegistry.registerSystem(unitSystem);
-        if (roundSystem)  systemRegistry.registerSystem(roundSystem);
-        if (shopSystem)   systemRegistry.registerSystem(shopSystem);
+        using Phase = engine::ecs::Scheduler::Phase;
+
+        if (cameraSystem) scheduler.add(std::make_unique<game::UpdatableSystemAdapter>(cameraSystem.get()), Phase::Update);
+        if (unitSystem)   scheduler.add(std::make_unique<game::UpdatableSystemAdapter>(unitSystem.get()), Phase::Update);
+        if (roundSystem)  scheduler.add(std::make_unique<game::UpdatableSystemAdapter>(roundSystem.get()), Phase::Update);
+        if (shopSystem)   scheduler.add(std::make_unique<game::UpdatableSystemAdapter>(shopSystem.get()), Phase::Update);
 
         if (renderEnabled) {
             if (ctx.services && ctx.services->shaders) {
@@ -169,13 +174,27 @@ struct GameSession::Impl {
             log.setEchoToStdout(false);
         }
 
+        if (auto* stateMgr = stateManager.get()) {
+            scheduler.add(std::make_unique<game::CallbackSystemAdapter>(
+                [stateMgr](float dt) { stateMgr->update(dt); }
+            ), Phase::PostUpdate);
+        }
+        if (auto* worldPtr = gameWorld.get()) {
+            scheduler.add(std::make_unique<game::CallbackSystemAdapter>(
+                [worldPtr](float dt) { worldPtr->update(dt); }
+            ), Phase::PostUpdate);
+        }
+        if (auto* feed = battleFeed.get()) {
+            scheduler.add(std::make_unique<game::CallbackSystemAdapter>(
+                [feed](float dt) { feed->update(dt); }
+            ), Phase::PostUpdate);
+        }
+
         updateGraph.configure({
-            &systemRegistry,
+            &scheduler,
+            &ecsWorld,
             roundSystem.get(),
             shopSystem.get(),
-            stateManager.get(),
-            gameWorld.get(),
-            battleFeed.get(),
             &log,
             &scriptEvents
         });
@@ -248,7 +267,7 @@ struct GameSession::Impl {
         stateManager.reset();
         gameWorld.reset();
 
-        systemRegistry.clear();
+        scheduler.clear();
 
         std::cout << "[Shutdown] Game done.\n";
     }

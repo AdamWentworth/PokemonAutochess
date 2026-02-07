@@ -6,7 +6,6 @@
 
 #include "engine/render/Camera3D.h"
 #include "engine/utils/ShaderCache.h"
-#include "engine/core/SystemRegistry.h"
 #include "engine/utils/ResourceManager.h"
 #include "engine/core/EngineServices.h"
 #include "engine/events/EventBus.h"
@@ -58,7 +57,6 @@ private:
 
     bool initialized = false;
 
-    SystemRegistry systemRegistry;
     ResourceManager resourceManager;
     ShaderCache shaderCache;
 

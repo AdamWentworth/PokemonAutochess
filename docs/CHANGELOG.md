@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+## 2026-02-07 - Stage 11 single scheduler update graph
+- Replaced SystemRegistry usage with ECS Scheduler phases in runtime.
+- GameUpdateGraph now drives scheduler phases; state/world/UI updates run via adapters.
+- Removed SystemRegistry from EngineServices and runtime hosts.
+
 ## 2026-02-07 - Stage 10 loop ownership cleanup
 - Moved Window to engine_platform and Application to engine_runtime.
 - Added a game-owned loop (GameRunner) and made it the default entrypoint.

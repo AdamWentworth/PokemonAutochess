@@ -3,13 +3,10 @@
 
 #include "game/systems/RoundSystem.h"
 
-class SystemRegistry;
-class GameStateManager;
-class GameWorld;
-class BattleFeed;
 class ShopSystem;
 namespace LogBus { class Logger; }
 class ScriptEventBus;
+namespace engine::ecs { class Scheduler; class World; }
 
 namespace game {
 
@@ -18,12 +15,10 @@ namespace game {
 class GameUpdateGraph {
 public:
     struct Inputs {
-        SystemRegistry* systems = nullptr;
+        engine::ecs::Scheduler* scheduler = nullptr;
+        engine::ecs::World* world = nullptr;
         RoundSystem* roundSystem = nullptr;
         ShopSystem* shopSystem = nullptr;
-        GameStateManager* stateManager = nullptr;
-        GameWorld* world = nullptr;
-        BattleFeed* battleFeed = nullptr;
         LogBus::Logger* log = nullptr;
         ScriptEventBus* events = nullptr;
     };

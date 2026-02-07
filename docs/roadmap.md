@@ -32,9 +32,9 @@ Done:
 - Runtime states/systems require GameServices (no legacy constructors)
 - LogBus compatibility globals removed
 - Game-owned loop default; Application/Window moved to runtime/platform
+- ECS Scheduler drives update graph; SystemRegistry removed from runtime
 
 Partial:
-- Single update graph exists in game, but SystemRegistry remains duplicated
 - Script firewall exists, but Lua bindings still reach GameWorld and use render headers
 
 Not done:

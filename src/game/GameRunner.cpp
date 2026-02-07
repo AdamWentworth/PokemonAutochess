@@ -7,7 +7,6 @@
 #include "engine/core/EngineServices.h"
 #include "engine/core/GameContext.h"
 #include "engine/core/GameLoop.h"
-#include "engine/core/SystemRegistry.h"
 #include "engine/events/EventBus.h"
 #include "engine/input/InputEvent.h"
 #include "engine/input/SdlKeyMap.h"
@@ -137,7 +136,6 @@ namespace {
 
         std::unique_ptr<BootLoadingView> bootLoadingView;
 
-        SystemRegistry systemRegistry;
         ResourceManager resourceManager;
         ShaderCache shaderCache;
         EventBus eventBus;
@@ -205,8 +203,6 @@ namespace {
         shaderCache.clear();
 
         resourceManager.clear();
-        systemRegistry.clear();
-
         bootLoadingView.reset();
         camera.reset();
 
@@ -288,7 +284,6 @@ namespace {
         std::cout << "[Run] Main loop @ 60 Hz...\n";
 
         bool running = true;
-        services.systems = &systemRegistry;
         services.resources = &resourceManager;
         services.shaders = &shaderCache;
         services.events = &eventBus;
