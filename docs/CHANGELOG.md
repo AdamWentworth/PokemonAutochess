@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+## 2026-02-07 -- Stage 7.2 battle invariants tests
+- Added headless battle invariants test for damage and death-state cleanup.
+
 ## 2026-02-07 -- Stage 7.1 determinism scaffolding
 - Added IRandom and ITimeSource interfaces with default implementations.
 - GameSession wires deterministic RNG/time services; ShopSystem rolls via injected RNG.

@@ -239,6 +239,7 @@ add_executable(PAC_Tests
     tests/TestECS.cpp
     tests/TestDeterminism.cpp
     tests/TestContentValidation.cpp
+    tests/TestBattleInvariants.cpp
 )
 
 target_link_libraries(PAC_Tests

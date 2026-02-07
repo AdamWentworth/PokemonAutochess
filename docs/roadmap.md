@@ -25,7 +25,8 @@ Last updated: 2026-02-07
 - DONE Stage 5.2: Script event schema + gameplay event emitters.
 - DONE Stage 6.1: Asset store abstraction + dev store scaffold.
 - DONE Stage 6.2: Asset pipeline (cooker + validation + packed runtime).
-- IN PROGRESS Stage 7.1: determinism scaffolding (IRandom/ITimeSource + headless tests).
+- DONE Stage 7.1: determinism scaffolding (IRandom/ITimeSource + headless tests).
+- DONE Stage 7.2: headless battle invariants tests.
 
 ### Current ECS capabilities
 - Entities: id + generation
@@ -46,12 +47,11 @@ Last updated: 2026-02-07
 
 ## Next Step (Do this next)
 
-### Stage 7.2 -- Determinism hardening (battle invariants)
-Goal: add battle invariants and wire deterministic time/random into gameplay systems.
+### Stage 8 -- TBD (post-rebuild polish)
+Goal: identify next production hardening tasks (profiling, UX, tooling).
 
 Exit criteria:
-- Headless battle invariants tests pass.
-- Random/time sources drive gameplay systems with seedable runs.
+- Agreed scope and staged plan.
 
 ---
 
@@ -96,7 +96,7 @@ Work items:
 Work items:
 - DONE: ITimeSource + IRandom injection (core interfaces + GameServices wiring)
 - DONE: headless content invariants tests
-- TODO: headless battle invariants tests
+- DONE: headless battle invariants tests
 
 ---
 

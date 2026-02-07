@@ -12,6 +12,7 @@ bool test_ecs_structural_change_deferral(std::string& outFail);
 bool test_rng_determinism(std::string& outFail);
 bool test_manual_time_source(std::string& outFail);
 bool test_content_invariants(std::string& outFail);
+bool test_battle_invariants(std::string& outFail);
 
 static int run(const char* name, bool (*fn)(std::string&), int& failCount) {
     std::string fail;
@@ -34,6 +35,7 @@ int main() {
     run("rng_determinism", &test_rng_determinism, fails);
     run("manual_time_source", &test_manual_time_source, fails);
     run("content_invariants", &test_content_invariants, fails);
+    run("battle_invariants", &test_battle_invariants, fails);
 
     if (fails == 0) { std::cout << "[PAC_Tests] All tests passed.\n"; return 0; }
     std::cerr << "[PAC_Tests] " << fails << " test(s) failed.\n";
