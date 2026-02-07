@@ -17,6 +17,7 @@ Last updated: 2026-02-07
   - `ecs_for_each_join`
   - `ecs_structural_change_deferral`
 - ✅ Stage 3.1: logging migration (no LogBus call sites in `src/game` runtime).
+- ✅ Stage 3.2: config loader singletons removed (GameDataDb ownership).
 
 ### Current ECS capabilities
 - Entities: id + generation
@@ -37,17 +38,16 @@ Last updated: 2026-02-07
 
 ## Next Step (Do this next)
 
-### Stage 3.2 — Config loader singleton removal (GameDataDb ownership)
-Goal: remove config loader singletons and thread loader instances explicitly.
+### Stage 3.3 — GameConfig global cache removal (explicit config ownership)
+Goal: remove `GameConfig::get()` usage and thread `GameConfigData` explicitly.
 
 Preferred implementation order:
-1) Instantiate loaders in GameBootstrap/GameSession and store in `GameDataDb`.
-2) Update call sites (Lua bindings, preload, anim set) to use `GameDataDb` references.
-3) Remove `getInstance()` from loader classes.
+1) Load config once in GameBootstrap or GameSession.
+2) Store `GameConfigData` in `GameServices` (or GameContext) and pass by reference.
+3) Delete the `GameConfig::get()` global cache once call sites are migrated.
 
 Exit criteria:
-- No `getInstance()` calls for config loaders.
-- Loader instances are owned and passed explicitly (via `GameDataDb` or services).
+- No `GameConfig::get()` call sites in `src/game` runtime.
 
 ---
 

@@ -9,11 +9,6 @@
 #include <cctype>
 #include <string>
 
-AttackAnimConfigLoader& AttackAnimConfigLoader::getInstance() {
-    static AttackAnimConfigLoader inst;
-    return inst;
-}
-
 std::string AttackAnimConfigLoader::toLower(std::string s) {
     std::transform(s.begin(), s.end(), s.begin(),
                    [](unsigned char c){ return (char)std::tolower(c); });

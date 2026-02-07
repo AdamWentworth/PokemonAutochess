@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+## 2026-02-07 — Stage 3.2 config loader singleton removal (GameDataDb ownership)
+- GameDataDb now owns config loader instances (Pokemon/Moves/AttackAnim/Flyer) and bootstrap loads them.
+- Removed config loader `getInstance()` usage in preload helpers, Lua bindings, and anim set resolution.
+- Lua bindings and anim set logic now read config data through the injected GameDataDb.
+
 ## 2026-02-07 — Stage 3.1 logging migration (remove LogBus globals)
 - Replaced LogBus global call sites with explicit logger injection across gameplay/runtime code.
 - Lua scripting binds now log through an injected logger (no global LogBus usage).

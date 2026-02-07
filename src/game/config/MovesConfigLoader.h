@@ -33,8 +33,6 @@ struct MoveData {
 
 class MovesConfigLoader {
 public:
-    static MovesConfigLoader& getInstance();
-
     bool loadConfig(const std::string& filePath, LogBus::Logger* logger = nullptr);
     const MoveData* getMove(const std::string& name) const;
 

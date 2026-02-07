@@ -5,11 +5,6 @@
 
 #include <string>
 
-PokemonConfigLoader& PokemonConfigLoader::getInstance() {
-    static PokemonConfigLoader instance;
-    return instance;
-}
-
 bool PokemonConfigLoader::loadConfig(const std::string& filePath, LogBus::Logger* logger) {
     nlohmann::json jsonData;
     if (!ConfigIO::loadJsonFile(filePath, jsonData, "PokemonConfigLoader", /*silentIfMissing=*/false, logger)) {

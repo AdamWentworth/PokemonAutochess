@@ -3,6 +3,7 @@
 // Heavy includes live here (not in headers).
 #include <iostream>
 #include <string>
+#include <utility>
 
 #include "engine/core/GameContext.h"
 #include "engine/core/EngineServices.h"
@@ -57,7 +58,7 @@ struct GameSession::Impl {
     std::unique_ptr<BoardRenderer>    board;
     std::unique_ptr<BattleFeed>       battleFeed;
 
-    // Injected db (pointers only; lifetime managed by caller for now).
+    // Injected db (owned; loader instances).
     GameDataDb dataDb;
 
     // Game-owned logger instance (no file-scope globals).
@@ -77,7 +78,7 @@ struct GameSession::Impl {
     RoundPhase lastRoundPhase = RoundPhase::Planning;
     bool hasLastRoundPhase = false;
 
-    Impl(GameContext& ctx, const GameDataDb& db) : dataDb(db) { init(ctx); }
+    Impl(GameContext& ctx, GameDataDb db) : dataDb(std::move(db)) { init(ctx); }
 
     void init(GameContext& ctx) {
         camera = ctx.camera;
@@ -122,11 +123,7 @@ struct GameSession::Impl {
         log.setEchoToStdout(false);
 
         // Preload common models (uses the db's pokemon loader).
-        if (dataDb.pokemon) {
-            game::preload::preloadCommonModels(ctx, *dataDb.pokemon, "PokemonAutochess");
-        } else {
-            std::cout << "[Init] WARNING: GameDataDb.pokemon is null; skipping preloadCommonModels.\n";
-        }
+        game::preload::preloadCommonModels(ctx, dataDb.pokemon, "PokemonAutochess");
 
         stateManager->pushState(std::make_unique<ScriptedState>(
             stateManager.get(),
@@ -214,8 +211,8 @@ struct GameSession::Impl {
     }
 };
 
-GameSession::GameSession(GameContext& ctx, const GameDataDb& db)
-    : impl_(std::make_unique<Impl>(ctx, db)) {}
+GameSession::GameSession(GameContext& ctx, GameDataDb db)
+    : impl_(std::make_unique<Impl>(ctx, std::move(db))) {}
 
 GameSession::~GameSession() = default;
 

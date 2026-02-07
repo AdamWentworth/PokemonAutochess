@@ -27,7 +27,6 @@ struct PokemonStats {
 
 class PokemonConfigLoader {
 public:
-    static PokemonConfigLoader& getInstance();
     bool loadConfig(const std::string& filePath, LogBus::Logger* logger = nullptr);
 
     const PokemonStats* getStats(const std::string& name) const;

@@ -43,8 +43,6 @@ namespace LogBus { class Logger; }
 //  - getMinRequestSec uses exact move then "*" wildcard, matching getClipName
 class AttackAnimConfigLoader {
 public:
-    static AttackAnimConfigLoader& getInstance();
-
     // Replaces current database on success.
     bool loadConfig(const std::string& filePath, LogBus::Logger* logger = nullptr);
 

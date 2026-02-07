@@ -14,11 +14,6 @@ static std::string toLowerCopy(std::string s) {
     return s;
 }
 
-FlyerConfigLoader& FlyerConfigLoader::getInstance() {
-    static FlyerConfigLoader inst;
-    return inst;
-}
-
 bool FlyerConfigLoader::loadConfig(const std::string& path, LogBus::Logger* logger) {
     std::ifstream f(path);
     if (!f) {

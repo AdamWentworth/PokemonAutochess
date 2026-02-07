@@ -24,6 +24,7 @@ public:
     void setData(const GameDataDb* db) { data = db; }
     void setLogger(LogBus::Logger* logger) { log = logger; }
     LogBus::Logger* getLogger() const { return log; }
+    const GameDataDb* getData() const { return data; }
 
     void spawnPokemon(const std::string& pokemonName,
                       const glm::vec3& startPos,

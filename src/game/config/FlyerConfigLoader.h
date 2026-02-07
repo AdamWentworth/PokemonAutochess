@@ -35,8 +35,6 @@ public:
         std::optional<bool>  debugAnimLogs;     // enables logs for this species (optional)
     };
 
-    static FlyerConfigLoader& getInstance();
-
     // Safe to call multiple times; replaces the current data on success.
     bool loadConfig(const std::string& path, LogBus::Logger* logger = nullptr);
 

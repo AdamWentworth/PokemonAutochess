@@ -17,7 +17,7 @@
 #include "game/animation/FlightLocomotion.h"
 #include "game/animation/AttackAnimDebug.h"
 
-#include "game/config/PokemonConfigLoader.h"
+#include "game/config/GameDataDb.h"
 #include "game/config/MovesConfigLoader.h"
 #include "game/config/AttackAnimConfigLoader.h"
 #include "game/config/AnimSetLoader.h"
@@ -226,6 +226,7 @@ lua.set_function("world_nearest_enemy_cell", [world](int unitId) {
                 sol::optional<std::string> kind) {
         if (!world) return -1;
 
+        const auto* data = world->getData();
         auto& list = world->getPokemons();
 
         auto A = std::find_if(list.begin(), list.end(),
@@ -240,8 +241,10 @@ lua.set_function("world_nearest_enemy_cell", [world](int unitId) {
         std::string kindLower          = kind ? toLowerCopy(*kind) : "";
 
         if (kindLower.empty() && !moveLower.empty()) {
-            if (const MoveData* md = MovesConfigLoader::getInstance().getMove(moveLower)) {
-                kindLower = toLowerCopy(md->kind);
+            if (data) {
+                if (const MoveData* md = data->moves.getMove(moveLower)) {
+                    kindLower = toLowerCopy(md->kind);
+                }
             }
         }
         if (kindLower.empty()) kindLower = "fast";
@@ -281,10 +284,12 @@ lua.set_function("world_nearest_enemy_cell", [world](int unitId) {
             if (desiredWindowSec <= 0.0f) desiredWindowSec = A->attackDurationSec;
 
             // Pick a clip from config (if any).
-            const auto& animCfg = AttackAnimConfigLoader::getInstance();
+            const auto* animCfg = data ? &data->attackAnims : nullptr;
 
             // Per-move minimum request seconds (prevents unreasonably tiny windows).
-            const float minReqSec = animCfg.getMinRequestSec(speciesLower, kindLower, moveLower, logger);
+            const float minReqSec = animCfg
+                ? animCfg->getMinRequestSec(speciesLower, kindLower, moveLower, logger)
+                : 0.0f;
             if (minReqSec > 0.0f) desiredWindowSec = std::max(desiredWindowSec, minReqSec);
 
             if (traceCombat) {
@@ -321,12 +326,18 @@ lua.set_function("world_nearest_enemy_cell", [world](int unitId) {
             if (!speciesLower.empty()) {
                 if (kindLower == "charged") {
                     phase = "one_shot";
-                    clipUsed = animCfg.getClipName(speciesLower, "charged", moveLower, "one_shot", logger);
+                    clipUsed = animCfg
+                        ? animCfg->getClipName(speciesLower, "charged", moveLower, "one_shot", logger)
+                        : std::string();
                     const int idx = animIndexCached(*A, clipUsed);
                     if (idx >= 0) desiredAnimIdx = idx;
                 } else if (kindLower == "fast" && !moveLower.empty()) {
-                    const std::string clipLoop = animCfg.getClipName(speciesLower, "fast", moveLower, "loop", logger);
-                    const std::string clipDef  = animCfg.getClipName(speciesLower, "fast", moveLower, "default", logger);
+                    const std::string clipLoop = animCfg
+                        ? animCfg->getClipName(speciesLower, "fast", moveLower, "loop", logger)
+                        : std::string();
+                    const std::string clipDef  = animCfg
+                        ? animCfg->getClipName(speciesLower, "fast", moveLower, "default", logger)
+                        : std::string();
 
                     // New simplified policy:
                     // - NO __START
@@ -420,7 +431,7 @@ lua.set_function("world_nearest_enemy_cell", [world](int unitId) {
             if (!attackerIsInAttackAnimation(*A)) return T->hp;
 
             // If this move has a configured hit frame, schedule damage to land during the animation.
-            const int hitFrame = animCfg.getHitFrame(speciesLower, kindLower, moveLower);
+            const int hitFrame = animCfg ? animCfg->getHitFrame(speciesLower, kindLower, moveLower) : -1;
             if (hitFrame > 0) {
                 // Only schedule once per cycle.
                 if (!A->pendingDamageActive) {
@@ -529,14 +540,19 @@ lua.set_function("world_nearest_enemy_cell", [world](int unitId) {
             const std::string moveLower    = moveName ? toLowerCopy(*moveName) : "";
             std::string kindLower          = kind ? toLowerCopy(*kind) : "";
 
+            const auto* data = world->getData();
             if (kindLower.empty() && !moveLower.empty()) {
-                if (const MoveData* md = MovesConfigLoader::getInstance().getMove(moveLower)) {
-                    kindLower = toLowerCopy(md->kind);
+                if (data) {
+                    if (const MoveData* md = data->moves.getMove(moveLower)) {
+                        kindLower = toLowerCopy(md->kind);
+                    }
                 }
             }
             if (kindLower.empty()) kindLower = "fast";
 
-            return AttackAnimConfigLoader::getInstance().getMinRequestSec(speciesLower, kindLower, moveLower, logger);
+            return data
+                ? data->attackAnims.getMinRequestSec(speciesLower, kindLower, moveLower, logger)
+                : 0.0f;
         });
 
     // ----- Energy helpers -----

@@ -53,7 +53,15 @@ static const LoadoutEntry* pickLoadoutForLevel(const PokemonStats& ps, int level
 }
 
 void GameWorld::applyLoadoutForLevel(PokemonInstance& inst) const {
-    const PokemonStats* ps = data->pokemon->getStats(inst.name);
+    if (!data) {
+        inst.fastMove.clear();
+        inst.chargedMove.clear();
+        inst.maxEnergy = 100;
+        inst.energy = 0;
+        return;
+    }
+
+    const PokemonStats* ps = data->pokemon.getStats(inst.name);
     if (!ps) {
         inst.fastMove.clear();
         inst.chargedMove.clear();
@@ -73,7 +81,7 @@ void GameWorld::applyLoadoutForLevel(PokemonInstance& inst) const {
 
     inst.maxEnergy = 100;
     if (!inst.chargedMove.empty()) {
-        if (const auto* md = data->moves->getMove(inst.chargedMove)) {
+        if (const auto* md = data->moves.getMove(inst.chargedMove)) {
             if (md->energyCost > 0) inst.maxEnergy = md->energyCost;
         }
     }
@@ -85,12 +93,12 @@ void GameWorld::spawnPokemon(const std::string& pokemonName,
                              PokemonSide side,
                              int level)
 {
-    if (!data || !data->pokemon) {
-        std::cerr << "[GameWorld] GameDataDb not set (pokemon). Call GameWorld::setData() during init.\n";
+    if (!data) {
+        std::cerr << "[GameWorld] GameDataDb not set. Call GameWorld::setData() during init.\n";
         return;
     }
 
-    const PokemonStats* stats = data->pokemon->getStats(pokemonName);
+    const PokemonStats* stats = data->pokemon.getStats(pokemonName);
     if (!stats) {
         std::cerr << "[GameWorld] No config found for Pokémon: " << pokemonName << "\n";
         return;
@@ -122,7 +130,7 @@ void GameWorld::spawnPokemon(const std::string& pokemonName,
     inst.animTimeSec = 0.0f;
 
     // ✅ NEW: animset-v2/v3 roles/groups/categories support (optional file)
-    AnimSet::applyAnimSetOverrides(inst, path);
+    AnimSet::applyAnimSetOverrides(inst, path, data ? &data->flyers : nullptr);
 
     // Start looped animations in sync across all units
     inst.animTimeSec = sharedLoopAnimTimeSec;
@@ -158,12 +166,12 @@ void GameWorld::spawnPokemonAtGrid(const std::string& pokemonName,
 
 void GameWorld::addToBench(const std::string& pokemonName)
 {
-    if (!data || !data->pokemon) {
-        std::cerr << "[GameWorld] GameDataDb not set (pokemon). Call GameWorld::setData() during init.\n";
+    if (!data) {
+        std::cerr << "[GameWorld] GameDataDb not set. Call GameWorld::setData() during init.\n";
         return;
     }
 
-    const PokemonStats* stats = data->pokemon->getStats(pokemonName);
+    const PokemonStats* stats = data->pokemon.getStats(pokemonName);
     if (!stats) {
         std::cerr << "[GameWorld] No config found for Pokémon: " << pokemonName << "\n";
         return;
@@ -200,7 +208,7 @@ void GameWorld::addToBench(const std::string& pokemonName)
     inst.animTimeSec = 0.0f;
 
     // ✅ NEW: animset-v2/v3 roles/groups/categories support (optional file)
-    AnimSet::applyAnimSetOverrides(inst, path);
+    AnimSet::applyAnimSetOverrides(inst, path, data ? &data->flyers : nullptr);
 
     // Start looped animations in sync across all units
     inst.animTimeSec = sharedLoopAnimTimeSec;

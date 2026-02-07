@@ -7,6 +7,7 @@
 
 class Model;
 struct PokemonInstance;
+class FlyerConfigLoader;
 
 namespace AnimSet {
 
@@ -52,7 +53,9 @@ int resolveAnimIndex(Model* model, const std::string& name);
 //   - "debugAnimLogs": bool         (enable/disable runtime logs; default true for pidgey)
 //
 // NOTE: airLiftY is purely visual; it does not affect gameplay collision/logic.
-void applyAnimSetOverrides(PokemonInstance& inst, const std::string& modelPath);
+void applyAnimSetOverrides(PokemonInstance& inst,
+                           const std::string& modelPath,
+                           const FlyerConfigLoader* flyers = nullptr);
 
 // Lower-level helper (useful for debugging/tools)
 bool loadAnimSetJson(const std::string& animSetPath, nlohmann::json& outJson);

@@ -274,7 +274,9 @@ static void debugPrintResolved(const PokemonInstance& inst,
     std::cout << "  " << role << ": " << "'" << clip << "'" << " idx=" << idx << " dur=" << dur << "s\n";
 }
 
-void applyAnimSetOverrides(PokemonInstance& inst, const std::string& modelPath)
+void applyAnimSetOverrides(PokemonInstance& inst,
+                           const std::string& modelPath,
+                           const FlyerConfigLoader* flyers)
 {
     const int fallbackLoop = (inst.model && inst.model->getAnimationCount() > 0) ? 0 : -1;
 
@@ -436,7 +438,7 @@ void applyAnimSetOverrides(PokemonInstance& inst, const std::string& modelPath)
     //  - the animset provides takeoff + a distinct landing sequence.
     const bool allowFlight =
         metaAirborne ||
-        FlyerConfigLoader::getInstance().isFlyer(inst.name) ||
+        (flyers && flyers->isFlyer(inst.name)) ||
         (hasTakeoff && hasDistinctLand);
     if (allowFlight) {
         inst.usesAirLocomotion = true;
@@ -454,8 +456,8 @@ void applyAnimSetOverrides(PokemonInstance& inst, const std::string& modelPath)
 
     // Optional species defaults (config-driven) for air locomotion tuning.
     // Animset meta remains the highest priority for the same fields.
-    if (inst.usesAirLocomotion) {
-        if (const auto* d = FlyerConfigLoader::getInstance().getAirLocomotionDefaults(inst.name)) {
+    if (inst.usesAirLocomotion && flyers) {
+        if (const auto* d = flyers->getAirLocomotionDefaults(inst.name)) {
             if (!metaAirLiftSpecified && d->airLiftY.has_value()) {
                 inst.airLiftY = *d->airLiftY;
             }

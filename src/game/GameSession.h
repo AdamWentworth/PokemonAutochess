@@ -17,7 +17,7 @@ namespace game {
  */
 class GameSession {
 public:
-    GameSession(GameContext& ctx, const GameDataDb& db);
+    GameSession(GameContext& ctx, GameDataDb db);
     ~GameSession();
 
     GameSession(const GameSession&) = delete;

@@ -95,10 +95,6 @@ bool loadModelPathsFromConfig(const std::string& configPath,
     return !outPaths.empty();
 }
 
-bool loadModelPathsFromConfig(const std::string& configPath, std::vector<std::string>& outPaths) {
-    return loadModelPathsFromConfig(configPath, PokemonConfigLoader::getInstance(), outPaths);
-}
-
 void preloadModels(GameContext& ctx,
                    const std::vector<std::string>& modelsToPreload,
                    const std::string& appName) {
@@ -167,10 +163,6 @@ void preloadCommonModels(GameContext& ctx,
     }
 
     preloadModels(ctx, modelsToPreload, appName);
-}
-
-void preloadCommonModels(GameContext& ctx, const std::string& appName) {
-    preloadCommonModels(ctx, PokemonConfigLoader::getInstance(), appName);
 }
 
 } // namespace game::preload

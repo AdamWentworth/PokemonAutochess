@@ -17,9 +17,7 @@
 #include "game/animation/FlightLocomotion.h"
 #include "game/animation/AttackAnimDebug.h"
 
-#include "game/config/PokemonConfigLoader.h"
-#include "game/config/MovesConfigLoader.h"
-#include "game/config/AttackAnimConfigLoader.h"
+#include "game/config/GameDataDb.h"
 #include "game/config/AnimSetLoader.h"
 
 #include "game/state/ScriptedState.h"
@@ -42,10 +40,12 @@ lua.set_function("unit_fast_move", [world](int unitId) -> std::string {
         if (auto* u = world->findUnitById(unitId)) return u->chargedMove;
         return "";
     });
-lua.set_function("move_get", [&lua](const std::string& name) {
+lua.set_function("move_get", [world, &lua](const std::string& name) {
         sol::state_view L(lua);
         sol::table t = L.create_table();
-        const auto* md = MovesConfigLoader::getInstance().getMove(name);
+        const auto* data = world ? world->getData() : nullptr;
+        if (!data) return t;
+        const auto* md = data->moves.getMove(name);
         if (!md) return t;
         t["name"]        = md->name;
         t["type"]        = md->type;

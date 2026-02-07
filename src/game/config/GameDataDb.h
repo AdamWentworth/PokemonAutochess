@@ -3,15 +3,16 @@
 
 // Central place to bundle game data/config services.
 // Goal: reduce direct singleton access from gameplay code by threading this through GameApp -> GameWorld.
+// Ownership: GameSession owns the loaders and passes const access to gameplay.
 
-class PokemonConfigLoader;
-class MovesConfigLoader;
-class AttackAnimConfigLoader;
-class FlyerConfigLoader;
+#include "PokemonConfigLoader.h"
+#include "MovesConfigLoader.h"
+#include "AttackAnimConfigLoader.h"
+#include "FlyerConfigLoader.h"
 
 struct GameDataDb {
-    const PokemonConfigLoader*   pokemon = nullptr;
-    const MovesConfigLoader*     moves = nullptr;
-    const AttackAnimConfigLoader* attackAnims = nullptr;
-    const FlyerConfigLoader*     flyers = nullptr;
+    PokemonConfigLoader   pokemon;
+    MovesConfigLoader     moves;
+    AttackAnimConfigLoader attackAnims;
+    FlyerConfigLoader     flyers;
 };
