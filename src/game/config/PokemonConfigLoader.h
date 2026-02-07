@@ -8,6 +8,7 @@
 #include <nlohmann/json.hpp>
 
 namespace LogBus { class Logger; }
+namespace engine { class IAssetStore; }
 
 struct LoadoutEntry {
     std::string fast;     // move name
@@ -27,7 +28,9 @@ struct PokemonStats {
 
 class PokemonConfigLoader {
 public:
-    bool loadConfig(const std::string& filePath, LogBus::Logger* logger = nullptr);
+    bool loadConfig(const std::string& filePath,
+                    LogBus::Logger* logger = nullptr,
+                    const engine::IAssetStore* store = nullptr);
 
     const PokemonStats* getStats(const std::string& name) const;
 

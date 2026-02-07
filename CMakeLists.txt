@@ -77,6 +77,7 @@ target_sources(engine_core PRIVATE
     src/engine/core/IEventBus.h
     src/engine/core/EventBus.h
     src/engine/core/Services.h
+    src/engine/core/AssetPackFormat.h
     src/engine/core/ecs/Entity.h
     src/engine/core/ecs/ComponentStorage.h
     src/engine/core/ecs/ISystem.h
@@ -213,6 +214,16 @@ add_executable(PokemonAutochess
 target_link_libraries(PokemonAutochess PRIVATE PAC_GameObjects)
 pac_apply_common_target_settings(PokemonAutochess)
 
+# ---------------- Tools ----------------
+add_executable(PAC_DataCooker
+    tools/PAC_DataCooker.cpp
+)
+target_link_libraries(PAC_DataCooker
+    PRIVATE
+        nlohmann_json::nlohmann_json
+)
+pac_apply_common_target_settings(PAC_DataCooker)
+
 # ---------------- Tests ----------------
 enable_testing()
 
@@ -255,5 +266,6 @@ add_custom_target(PAC_All
         PAC_GameObjects
         PokemonAutochess
         PAC_Tests
+        PAC_DataCooker
 )
 

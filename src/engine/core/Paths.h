@@ -43,6 +43,14 @@ inline std::string dataRoot() {
     return ".";
 }
 
+// Optional packed data bundle (scripts/config). Empty if not set.
+inline std::string dataPack() {
+    if (const char* v = std::getenv("PAC_DATA_PACK")) {
+        if (*v) return std::string(v);
+    }
+    return "";
+}
+
 // Join data root with a relative path (uses forward slashes).
 inline std::string data(std::string_view rel) {
     std::string root = dataRoot();

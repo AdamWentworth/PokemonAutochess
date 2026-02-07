@@ -27,10 +27,12 @@ struct GameConfigData {
 };
 
 namespace LogBus { class Logger; }
+namespace engine { class IAssetStore; }
 
 class GameConfig {
 public:
     // Loads from scripts/config/game.lua (no caching).
     // Behavior: returns defaults on failure, but records diagnostics.
-    static GameConfigData load(LogBus::Logger* logger = nullptr);
+    static GameConfigData load(LogBus::Logger* logger = nullptr,
+                               const engine::IAssetStore* store = nullptr);
 };

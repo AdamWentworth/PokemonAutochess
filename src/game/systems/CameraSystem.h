@@ -6,10 +6,11 @@
 #include <sol/sol.hpp>
 
 struct InputEvent;
+namespace engine { class IAssetStore; }
 
 class CameraSystem : public Updatable {
 public:
-    explicit CameraSystem(Camera3D* camera);
+    explicit CameraSystem(Camera3D* camera, engine::IAssetStore* assets = nullptr);
 
     void update(float deltaTime) override;
 
@@ -24,6 +25,7 @@ public:
 
 private:
     Camera3D* camera;
+    engine::IAssetStore* assetStore = nullptr;
     sol::state lua;
     bool ok = false;
 

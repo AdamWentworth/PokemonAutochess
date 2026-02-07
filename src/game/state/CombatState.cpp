@@ -37,7 +37,7 @@ CombatState::CombatState(GameStateManager* manager, GameWorld* world, const std:
     , gameWorld(world)
     , services(nullptr)
     , fallbackConfig(GameConfig::load(nullptr))
-    , script(world, manager, nullptr, nullptr)
+    , script(world, manager, nullptr, nullptr, nullptr)
     , combatMessage()
 {
     const auto& c = cfg();
@@ -48,8 +48,9 @@ CombatState::CombatState(GameStateManager* manager, GameWorld* world, const std:
     }
 
     ScriptEventBus* events = services ? &services->events : nullptr;
-    movementSystem = std::make_unique<MovementSystem>(gameWorld, events);
-    combatSystem   = std::make_unique<CombatSystem>(gameWorld, events);
+    engine::IAssetStore* assets = services ? &services->assets : nullptr;
+    movementSystem = std::make_unique<MovementSystem>(gameWorld, events, assets);
+    combatSystem   = std::make_unique<CombatSystem>(gameWorld, events, assets);
 }
 
 CombatState::CombatState(GameStateManager* manager, GameWorld* world, GameServices& svc, const std::string& path)
@@ -57,7 +58,7 @@ CombatState::CombatState(GameStateManager* manager, GameWorld* world, GameServic
     , gameWorld(world)
     , services(&svc)
     , fallbackConfig()
-    , script(world, manager, &svc.log, &svc.events)
+    , script(world, manager, &svc.log, &svc.events, &svc.assets)
     , combatMessage()
 {
     const auto& c = cfg();
@@ -68,8 +69,9 @@ CombatState::CombatState(GameStateManager* manager, GameWorld* world, GameServic
     }
 
     ScriptEventBus* events = services ? &services->events : nullptr;
-    movementSystem = std::make_unique<MovementSystem>(gameWorld, events);
-    combatSystem   = std::make_unique<CombatSystem>(gameWorld, events);
+    engine::IAssetStore* assets = services ? &services->assets : nullptr;
+    movementSystem = std::make_unique<MovementSystem>(gameWorld, events, assets);
+    combatSystem   = std::make_unique<CombatSystem>(gameWorld, events, assets);
 }
 
 CombatState::~CombatState() = default;

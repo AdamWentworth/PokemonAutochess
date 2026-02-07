@@ -5,9 +5,11 @@
 
 #include <string>
 
-bool PokemonConfigLoader::loadConfig(const std::string& filePath, LogBus::Logger* logger) {
+bool PokemonConfigLoader::loadConfig(const std::string& filePath,
+                                     LogBus::Logger* logger,
+                                     const engine::IAssetStore* store) {
     nlohmann::json jsonData;
-    if (!ConfigIO::loadJsonFile(filePath, jsonData, "PokemonConfigLoader", /*silentIfMissing=*/false, logger)) {
+    if (!ConfigIO::loadJsonFile(filePath, jsonData, "PokemonConfigLoader", /*silentIfMissing=*/false, logger, store)) {
         return false;
     }
 

@@ -1,9 +1,9 @@
 // FlyerConfigLoader.cpp
 #include "FlyerConfigLoader.h"
 #include "game/logging/LoggerUtil.h"
+#include "game/config/JsonFile.h"
 
 #include <nlohmann/json.hpp>
-#include <fstream>
 
 #include <algorithm>
 #include <cctype>
@@ -14,20 +14,11 @@ static std::string toLowerCopy(std::string s) {
     return s;
 }
 
-bool FlyerConfigLoader::loadConfig(const std::string& path, LogBus::Logger* logger) {
-    std::ifstream f(path);
-    if (!f) {
-        game::log::error(logger, std::string("[FlyerConfigLoader] Could not open: ") + path);
-        flyers.clear();
-        airDefaults.clear();
-        return false;
-    }
-
+bool FlyerConfigLoader::loadConfig(const std::string& path,
+                                   LogBus::Logger* logger,
+                                   const engine::IAssetStore* store) {
     nlohmann::json j;
-    try {
-        f >> j;
-    } catch (...) {
-        game::log::error(logger, std::string("[FlyerConfigLoader] Failed to parse JSON: ") + path);
+    if (!ConfigIO::loadJsonFile(path, j, "FlyerConfigLoader", /*silentIfMissing=*/false, logger, store)) {
         flyers.clear();
         airDefaults.clear();
         return false;

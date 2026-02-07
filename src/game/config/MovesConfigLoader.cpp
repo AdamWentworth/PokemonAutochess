@@ -4,9 +4,11 @@
 
 #include "game/config/JsonFile.h"
 
-bool MovesConfigLoader::loadConfig(const std::string& filePath, LogBus::Logger* logger) {
+bool MovesConfigLoader::loadConfig(const std::string& filePath,
+                                   LogBus::Logger* logger,
+                                   const engine::IAssetStore* store) {
     nlohmann::json j;
-    if (!ConfigIO::loadJsonFile(filePath, j, "MovesConfigLoader", /*silentIfMissing=*/false, logger)) {
+    if (!ConfigIO::loadJsonFile(filePath, j, "MovesConfigLoader", /*silentIfMissing=*/false, logger, store)) {
         return false;
     }
 

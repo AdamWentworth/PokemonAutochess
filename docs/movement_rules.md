@@ -1,4 +1,4 @@
-# 📜 movement_rules.md
+# ?? movement_rules.md
 
 ---
 
@@ -108,7 +108,7 @@ pathfinding_failsafe:
 
 ---
 
-## 🔹 1. Grid-Based Pathfinding
+## ?? 1. Grid-Based Pathfinding
 
 - Units move on a 2D grid of fixed-size cells.
 - A* pathfinding is used to reach the nearest enemy.
@@ -116,7 +116,7 @@ pathfinding_failsafe:
 
 ---
 
-## 🔹 2. Simultaneous Movement Planning
+## ?? 2. Simultaneous Movement Planning
 
 - All units plan their move for the current frame simultaneously.
 - Future positions of other units are not known, only current positions.
@@ -125,7 +125,7 @@ pathfinding_failsafe:
 
 ---
 
-## 🔹 3. Conflict Resolution
+## ?? 3. Conflict Resolution
 
 - If multiple units target the same cell:
   - **Winner** is the unit closer to its enemy.
@@ -134,21 +134,21 @@ pathfinding_failsafe:
   - Remain stationary.
   - Re-evaluate their path on the next frame.
 - Retrying the same cell is allowed only if:
-  - It’s still the optimal route.
+  - It?s still the optimal route.
   - No other valid paths exist.
 
 ---
 
-## 🔹 4. Swapping Support
+## ?? 4. Swapping Support
 
 - Swapping between units is **always disallowed**.
-- Mutual swaps (A↔B) are prevented entirely — neither may move.
+- Mutual swaps (A?B) are prevented entirely ? neither may move.
 - No sliding past or positional flipping.
 - All swap scenarios result in full re-evaluation and alternate routing.
 
 ---
 
-## 🔹 5. Grid Occupancy
+## ?? 5. Grid Occupancy
 
 A cell is considered occupied if:
 - A unit is currently in the cell.
@@ -161,7 +161,7 @@ Units:
 
 ---
 
-## 🔹 6. Movement Application
+## ?? 6. Movement Application
 
 After conflict resolution:
 - Only units that secured their destination may move.
@@ -173,9 +173,9 @@ After conflict resolution:
 
 ---
 
-## 🔹 7. Adjacent Engagement
+## ?? 7. Adjacent Engagement
 
-- Units adjacent to an enemy do not pathfind — they are considered **engaged**.
+- Units adjacent to an enemy do not pathfind ? they are considered **engaged**.
 - While engaged:
   - Movement is disabled.
   - Units may attack or reorient.
@@ -183,17 +183,17 @@ After conflict resolution:
 
 ---
 
-## 🔹 8. Unit Orientation
+## ?? 8. Unit Orientation
 
 - Units face:
   - Their engaged enemy (if adjacent),
   - The nearest visible enemy (if no engagement),
   - Or retain previous facing (if no targets).
-- Orientation is updated after movement — may be smoothed visually.
+- Orientation is updated after movement ? may be smoothed visually.
 
 ---
 
-## 🔹 9. Deadlock & Overlap Resolution
+## ?? 9. Deadlock & Overlap Resolution
 
 > **System override (not part of standard movement)**
 
@@ -207,7 +207,7 @@ After conflict resolution:
 
 ---
 
-## 🔹 10. Failsafe Pathfinding
+## ?? 10. Failsafe Pathfinding
 
 - If pathfinding fails (no reachable enemy due to blocks/congestion):
   - Unit stays still this frame.
@@ -218,17 +218,17 @@ After conflict resolution:
 
 ---
 
-## 🧠 Optional Enhancements (Experimental / Future)
+## ?? Optional Enhancements (Experimental / Future)
 
-### ✔️ Priority Movement System
+### ?? Priority Movement System
 - Units with higher speed resolve conflicts first.
 - Helps fast units navigate congested areas better.
 
-### ✔️ Multi-frame Movement Lock
-- After a successful move, the unit "locks" its new cell for 1–2 frames.
+### ?? Multi-frame Movement Lock
+- After a successful move, the unit "locks" its new cell for 1?2 frames.
 - Prevents tight clustering and unrealistic chain-following.
 
-### ✔️ Staggered Conflict Resolution
+### ?? Staggered Conflict Resolution
 - Conflict resolution can be staggered by:
   - Unit ID,
   - Faction,

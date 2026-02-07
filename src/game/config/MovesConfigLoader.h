@@ -7,6 +7,7 @@
 #include <nlohmann/json.hpp>
 
 namespace LogBus { class Logger; }
+namespace engine { class IAssetStore; }
 
 struct MoveStatus {
     std::string effect;
@@ -33,7 +34,9 @@ struct MoveData {
 
 class MovesConfigLoader {
 public:
-    bool loadConfig(const std::string& filePath, LogBus::Logger* logger = nullptr);
+    bool loadConfig(const std::string& filePath,
+                    LogBus::Logger* logger = nullptr,
+                    const engine::IAssetStore* store = nullptr);
     const MoveData* getMove(const std::string& name) const;
 
 public:

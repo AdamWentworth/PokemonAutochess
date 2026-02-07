@@ -24,8 +24,8 @@ RoundPhase RoundSystem::toPhaseEnum(const std::string& s) {
     return RoundPhase::Planning;
 }
 
-RoundSystem::RoundSystem()
-    : script(/*world*/ nullptr, /*manager*/ nullptr)  // <-- was script(nullptr)
+RoundSystem::RoundSystem(engine::IAssetStore* assets)
+    : script(/*world*/ nullptr, /*manager*/ nullptr, /*logger*/ nullptr, /*events*/ nullptr, assets)
 {
     if (!script.loadScript(kRoundSystemScript)) {
         std::cerr << "[RoundSystem] Failed to load " << kRoundSystemScript << "\n";

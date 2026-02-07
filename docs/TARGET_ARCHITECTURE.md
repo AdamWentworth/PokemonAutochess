@@ -42,7 +42,7 @@ Day-to-day progress tracking lives in `ROADMAP.md`.
 ### 1) Strict layering
 - Dependency direction is **only**: `game -> engine_*`
 - `engine_*` must never include or depend on game headers/types.
-- If `engine_*` needs to talk “up” to a client, it must do so through **interfaces** defined in `engine_core`.
+- If `engine_*` needs to talk ?up? to a client, it must do so through **interfaces** defined in `engine_core`.
 
 ### 2) Headless-capable core
 - `engine_core` must not depend on:
@@ -50,7 +50,7 @@ Day-to-day progress tracking lives in `ROADMAP.md`.
 - Core simulation must run headless (tests, tools, server mode).
 
 ### 3) No mutable globals in runtime
-- No `getInstance()`, no `setActive()`, no default singleton “current” service in:
+- No `getInstance()`, no `setActive()`, no default singleton ?current? service in:
   - `engine_core`
   - `game` runtime
 - Allowed:
@@ -58,12 +58,12 @@ Day-to-day progress tracking lives in `ROADMAP.md`.
   - pure/stateless utilities
   - immutable tables
   - process-lifetime objects in tooling (`engine_tools`) only
-  - *temporary adapters* during migration (must be deleted before “done”)
+  - *temporary adapters* during migration (must be deleted before ?done?)
 
 ### 4) Lua boundary (stable ScriptAPI)
 - Lua interacts through a stable, narrow **ScriptAPI**:
   - commands/events, not raw pointers/references to internal objects
-- Lua must not keep “live” references to engine/game objects.
+- Lua must not keep ?live? references to engine/game objects.
 
 ### 5) Assets pipeline
 - Runtime reads cooked packages via `IAssetStore`.
@@ -114,7 +114,7 @@ Responsibilities:
 
 ### `engine_tools` (offline)
 Responsibilities:
-- content cooking (JSON → runtime package)
+- content cooking (JSON ? runtime package)
 - schema validation + diagnostics
 - reference resolution
 - build pipeline helpers (CLI tools)

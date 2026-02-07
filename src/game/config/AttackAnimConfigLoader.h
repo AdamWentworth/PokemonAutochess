@@ -7,6 +7,7 @@
 #include <nlohmann/json.hpp>
 
 namespace LogBus { class Logger; }
+namespace engine { class IAssetStore; }
 
 // Loads per-species move -> animation clip mappings, plus optional per-move tuning.
 // Intended usage: gameplay asks for clip name (species, kind, move, phase) and optional
@@ -44,11 +45,15 @@ namespace LogBus { class Logger; }
 class AttackAnimConfigLoader {
 public:
     // Replaces current database on success.
-    bool loadConfig(const std::string& filePath, LogBus::Logger* logger = nullptr);
+    bool loadConfig(const std::string& filePath,
+                    LogBus::Logger* logger = nullptr,
+                    const engine::IAssetStore* store = nullptr);
 
     // Merges/overrides entries on success (does NOT clear the existing database).
     // Useful for small "only-this-species" override files.
-    bool loadConfigMerge(const std::string& filePath, LogBus::Logger* logger = nullptr);
+    bool loadConfigMerge(const std::string& filePath,
+                         LogBus::Logger* logger = nullptr,
+                         const engine::IAssetStore* store = nullptr);
 
     // Returns empty string if not found.
     // kind: "fast" or "charged" (lower/upper accepted)

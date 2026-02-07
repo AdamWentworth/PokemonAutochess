@@ -12,10 +12,15 @@ class GameWorld;
 class GameStateManager;
 class ScriptAPI;
 class ScriptEventBus;
+namespace engine { class IAssetStore; }
 
 class LuaScript {
 public:
-    explicit LuaScript(GameWorld* world, GameStateManager* manager = nullptr, LogBus::Logger* logger = nullptr, ScriptEventBus* events = nullptr);
+    explicit LuaScript(GameWorld* world,
+                       GameStateManager* manager = nullptr,
+                       LogBus::Logger* logger = nullptr,
+                       ScriptEventBus* events = nullptr,
+                       engine::IAssetStore* assets = nullptr);
     ~LuaScript();
 
     // Loads + executes the script into an isolated environment.
@@ -68,6 +73,7 @@ private:
     GameStateManager* stateManager = nullptr;
     LogBus::Logger* logger_ = nullptr;
     ScriptEventBus* events_ = nullptr;
+    engine::IAssetStore* assetStore_ = nullptr;
     std::unique_ptr<ScriptAPI> api_;
 
     std::string loadedPath;

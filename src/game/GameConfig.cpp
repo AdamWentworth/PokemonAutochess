@@ -3,8 +3,10 @@
 #include "GameConfig.h"
 
 #include "engine/core/Paths.h"
+#include "engine/core/IAssetStore.h"
 #include "game/logging/LoggerUtil.h"
 
+#include <algorithm>
 #include <sol/sol.hpp>
 
 namespace {
@@ -15,9 +17,23 @@ void applyFontPathDefaults(GameConfigData& cfg) {
         cfg.fontPath = engine::paths::asset("fonts/GillSans.ttf");
     }
 }
+
+std::string normalizeVirtualPath(std::string path) {
+    std::string root = engine::paths::dataRoot();
+    std::replace(root.begin(), root.end(), '\\', '/');
+    std::replace(path.begin(), path.end(), '\\', '/');
+    if (!root.empty() && (root.back() == '/' || root.back() == '\\')) root.pop_back();
+    if (!root.empty() && path.rfind(root + "/", 0) == 0) {
+        path = path.substr(root.size() + 1);
+    }
+    while (!path.empty() && (path.front() == '/' || path.front() == '\\')) {
+        path.erase(path.begin());
+    }
+    return path;
+}
 }
 
-GameConfigData GameConfig::load(LogBus::Logger* logger) {
+GameConfigData GameConfig::load(LogBus::Logger* logger, const engine::IAssetStore* store) {
     GameConfigData cfg;
     cfg.loadSource = engine::paths::data("scripts/config/game.lua");
     applyFontPathDefaults(cfg);
@@ -25,7 +41,22 @@ GameConfigData GameConfig::load(LogBus::Logger* logger) {
     sol::state L;
     L.open_libraries(sol::lib::base, sol::lib::table, sol::lib::string);
 
-    sol::load_result chunk = L.load_file(cfg.loadSource);
+    sol::load_result chunk;
+    if (store) {
+        std::string text;
+        std::string err;
+        const std::string virt = normalizeVirtualPath(cfg.loadSource);
+        if (store->readText(virt, text, &err)) {
+            chunk = L.load(text);
+        } else {
+            if (!err.empty()) {
+                game::log::warn(logger, std::string("[GameConfig] Asset store read failed: ") + virt + " (" + err + ")");
+            }
+            chunk = L.load_file(cfg.loadSource);
+        }
+    } else {
+        chunk = L.load_file(cfg.loadSource);
+    }
     if (!chunk.valid()) {
         sol::error e = chunk;
         cfg.loadOk = false;

@@ -28,6 +28,7 @@
 
 #include "game/config/GameDataDb.h"
 #include "game/assets/DevAssetStore.h"
+#include "game/assets/PackedAssetStore.h"
 
 #include "game/systems/CameraSystem.h"
 #include "game/systems/UnitInteractionSystem.h"
@@ -56,7 +57,7 @@ struct GameSession::Impl {
     // Game-owned logger instance (no file-scope globals).
     LogBus::Logger log;
     ScriptEventBus scriptEvents;
-    assets::DevAssetStore assetStore;
+    std::unique_ptr<engine::IAssetStore> assetStore;
 
     // Owned config (loaded once per session).
     GameConfigData config;
@@ -82,9 +83,25 @@ struct GameSession::Impl {
         camera = ctx.camera;
         renderEnabled = (ctx.renderer != nullptr) && (ctx.camera != nullptr);
 
-        assetStore.setRoot(engine::paths::dataRoot());
-        config = GameConfig::load(&log);
-        services = std::make_unique<GameServices>(config, dataDb, log, scriptEvents, assetStore);
+        const std::string packPath = engine::paths::dataPack();
+        if (!packPath.empty()) {
+            auto pack = std::make_unique<assets::PackedAssetStore>();
+            std::string err;
+            if (pack->open(packPath, &err)) {
+                assetStore = std::move(pack);
+                game::log::info(&log, std::string("[Init] Using packed data bundle: ") + packPath);
+            } else {
+                game::log::warn(&log, std::string("[Init] Failed to open pack: ") + packPath +
+                    (err.empty() ? "" : (" (" + err + ")")));
+            }
+        }
+        if (!assetStore) {
+            auto dev = std::make_unique<assets::DevAssetStore>(engine::paths::dataRoot());
+            assetStore = std::move(dev);
+        }
+
+        config = GameConfig::load(&log, assetStore.get());
+        services = std::make_unique<GameServices>(config, dataDb, log, scriptEvents, *assetStore);
 
         // Board visuals
         if (renderEnabled) {
@@ -103,10 +120,10 @@ struct GameSession::Impl {
 
         // Systems
         if (camera) {
-            cameraSystem = std::make_shared<CameraSystem>(camera);
+            cameraSystem = std::make_shared<CameraSystem>(camera, assetStore.get());
             unitSystem   = std::make_shared<UnitInteractionSystem>(camera, gameWorld.get(), ctx.drawableW, ctx.drawableH);
         }
-        roundSystem  = std::make_shared<RoundSystem>();
+        roundSystem  = std::make_shared<RoundSystem>(assetStore.get());
         shopSystem   = std::make_shared<ShopSystem>();
 
         if (cameraSystem) systemRegistry.registerSystem(cameraSystem);

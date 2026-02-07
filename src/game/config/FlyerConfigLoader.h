@@ -7,6 +7,7 @@
 #include <optional>
 
 namespace LogBus { class Logger; }
+namespace engine { class IAssetStore; }
 
 // Loads a list of species names that should use FlightLocomotion,
 // plus OPTIONAL per-species defaults for the visual-only air locomotion tuning.
@@ -36,7 +37,9 @@ public:
     };
 
     // Safe to call multiple times; replaces the current data on success.
-    bool loadConfig(const std::string& path, LogBus::Logger* logger = nullptr);
+    bool loadConfig(const std::string& path,
+                    LogBus::Logger* logger = nullptr,
+                    const engine::IAssetStore* store = nullptr);
 
     // Case-insensitive check.
     bool isFlyer(const std::string& speciesName) const;

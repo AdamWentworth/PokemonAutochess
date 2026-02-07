@@ -12,9 +12,11 @@ enum class RoundPhase {
     Resolution
 };
 
+namespace engine { class IAssetStore; }
+
 class RoundSystem : public Updatable {
 public:
-    RoundSystem();
+    explicit RoundSystem(engine::IAssetStore* assets = nullptr);
 
     void update(float deltaTime) override;
     RoundPhase getCurrentPhase() const;

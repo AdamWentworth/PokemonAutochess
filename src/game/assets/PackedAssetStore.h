@@ -1,7 +1,10 @@
 ﻿// src/game/assets/PackedAssetStore.h
 #pragma once
 
+#include <cstdint>
+#include <fstream>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 #include "engine/core/IAssetStore.h"
@@ -28,8 +31,17 @@ public:
     bool exists(const std::string& virtualPath) const override;
 
 private:
+    struct Entry {
+        std::uint64_t offset = 0;
+        std::uint64_t size = 0;
+    };
+
+    std::string normalizePath(const std::string& virtualPath) const;
+
     bool opened_ = false;
     std::string packagePath_;
+    mutable std::ifstream file_;
+    std::unordered_map<std::string, Entry> entries_;
 };
 
 } // namespace game::assets

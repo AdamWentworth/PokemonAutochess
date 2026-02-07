@@ -9,11 +9,17 @@
 class GridOccupancy;
 class ScriptAPI;
 class ScriptEventBus;
+namespace engine { class IAssetStore; }
 
 class MovementSystem : public Updatable {
 public:
-    explicit MovementSystem(GameWorld* world, ScriptEventBus* events = nullptr);
-    MovementSystem(GameWorld* world, const GridOccupancy& /*unused*/, ScriptEventBus* events = nullptr); // compat
+    explicit MovementSystem(GameWorld* world,
+                            ScriptEventBus* events = nullptr,
+                            engine::IAssetStore* assets = nullptr);
+    MovementSystem(GameWorld* world,
+                   const GridOccupancy& /*unused*/,
+                   ScriptEventBus* events = nullptr,
+                   engine::IAssetStore* assets = nullptr); // compat
 
     void update(float deltaTime) override;
 
@@ -21,6 +27,7 @@ private:
     GameWorld* gameWorld;
     sol::state lua;
     std::unique_ptr<ScriptAPI> api;
+    engine::IAssetStore* assetStore = nullptr;
     bool ok = false;
 
     static constexpr float CELL_SIZE = 1.2f;

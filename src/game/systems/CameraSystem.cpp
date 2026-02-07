@@ -2,8 +2,51 @@
 
 #include "CameraSystem.h"
 #include "engine/input/InputEvent.h"
+#include "engine/core/IAssetStore.h"
+#include "engine/core/Paths.h"
 
 #include <iostream>
+#include <algorithm>
+
+namespace {
+std::string normalizeVirtualPath(std::string path) {
+    std::string root = engine::paths::dataRoot();
+    std::replace(root.begin(), root.end(), '\\', '/');
+    std::replace(path.begin(), path.end(), '\\', '/');
+    if (!root.empty() && (root.back() == '/' || root.back() == '\\')) root.pop_back();
+    if (!root.empty() && path.rfind(root + "/", 0) == 0) {
+        path = path.substr(root.size() + 1);
+    }
+    while (!path.empty() && (path.front() == '/' || path.front() == '\\')) {
+        path.erase(path.begin());
+    }
+    return path;
+}
+
+bool loadLuaFromStore(sol::state& lua, const std::string& path, engine::IAssetStore* assets, std::string& outErr) {
+    if (!assets) return false;
+    std::string text;
+    std::string err;
+    const std::string virt = normalizeVirtualPath(path);
+    if (!assets->readText(virt, text, &err)) {
+        outErr = err.empty() ? ("Failed to read " + virt) : err;
+        return false;
+    }
+    sol::load_result chunk = lua.load(text);
+    if (!chunk.valid()) {
+        sol::error e = chunk;
+        outErr = e.what();
+        return false;
+    }
+    sol::protected_function_result r = chunk();
+    if (!r.valid()) {
+        sol::error e = r;
+        outErr = e.what();
+        return false;
+    }
+    return true;
+}
+} // namespace
 
 static const char* kCameraLua = "scripts/systems/camera.lua";
 
@@ -20,8 +63,8 @@ static int toButtonNumber(InputEvent::MouseButton b) {
     }
 }
 
-CameraSystem::CameraSystem(Camera3D* cam)
-    : camera(cam)
+CameraSystem::CameraSystem(Camera3D* cam, engine::IAssetStore* assets)
+    : camera(cam), assetStore(assets)
 {
     // Initialize Lua VM
     lua.open_libraries(sol::lib::base, sol::lib::math, sol::lib::table, sol::lib::string);
@@ -41,20 +84,25 @@ CameraSystem::CameraSystem(Camera3D* cam)
 }
 
 void CameraSystem::loadScript() {
-    sol::load_result chunk = lua.load_file(kCameraLua);
-    if (!chunk.valid()) {
-        sol::error err = chunk;
-        std::cerr << "[CameraSystem] load error: " << err.what() << "\n";
-        ok = false;
-        return;
-    }
+    std::string err;
+    if (assetStore && loadLuaFromStore(lua, kCameraLua, assetStore, err)) {
+        ok = true;
+    } else {
+        sol::load_result chunk = lua.load_file(kCameraLua);
+        if (!chunk.valid()) {
+            sol::error e = chunk;
+            std::cerr << "[CameraSystem] load error: " << e.what() << "\n";
+            ok = false;
+            return;
+        }
 
-    sol::protected_function_result r = chunk();
-    if (!r.valid()) {
-        sol::error err = r;
-        std::cerr << "[CameraSystem] exec error: " << err.what() << "\n";
-        ok = false;
-        return;
+        sol::protected_function_result r = chunk();
+        if (!r.valid()) {
+            sol::error e = r;
+            std::cerr << "[CameraSystem] exec error: " << e.what() << "\n";
+            ok = false;
+            return;
+        }
     }
 
     if (sol::function init = lua["camera_init"]; init.valid()) {

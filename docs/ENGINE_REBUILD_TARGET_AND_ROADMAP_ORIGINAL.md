@@ -105,7 +105,7 @@ Allowed:
 - Testing becomes brittle and order-dependent (shared state across tests).
 - Reuse suffers: engine becomes implicitly coupled to global config/state.
 
-### How to keep “centralized logging” without a global logger
+### How to keep ?centralized logging? without a global logger
 - Define `ILogger` in `engine_core`.
 - Pass an `ILogger&` via:
   - a `Services` struct owned by the composition root, and/or
@@ -160,14 +160,14 @@ Runtime uses `IAssetStore` only:
 - `PackedAssetStore` for release
 - optional `DevAssetStore` for development (reads JSON directly and can hot reload)
 
-This keeps runtime simple and stable while still allowing easy iteration on Pokémon data.
+This keeps runtime simple and stable while still allowing easy iteration on Pok?mon data.
 
 ---
 
 ## Rebuild Strategy
 
 ### Branch strategy (selected)
-- Create a “hard break” branch for the rebuild.
+- Create a ?hard break? branch for the rebuild.
 - If the branch becomes irrecoverably broken, return to stable main and do an incremental refactor branch.
 
 ---
@@ -176,7 +176,7 @@ This keeps runtime simple and stable while still allowing easy iteration on Pok�
 
 Order matters. Each stage has exit criteria.
 
-### Stage 0 — Lock target rules
+### Stage 0 ? Lock target rules
 Actions:
 - Add `ARCHITECTURE.md` capturing:
   - module list
@@ -187,12 +187,12 @@ Actions:
 - Add build discipline (CMake targets, include visibility).
 
 Exit criteria:
-- Everyone can answer “where does this file go?” consistently.
+- Everyone can answer ?where does this file go?? consistently.
 - The dependency rule is enforceable in the build graph.
 
 ---
 
-### Stage 1 — Create clean module boundaries (CMake + folders)
+### Stage 1 ? Create clean module boundaries (CMake + folders)
 Actions:
 - Create targets: `engine_core`, `engine_platform`, `engine_render`, `engine_tools`, `game`.
 - Move code into correct modules.
@@ -204,7 +204,7 @@ Exit criteria:
 
 ---
 
-### Stage 2 — ECS foundation in `engine_core`
+### Stage 2 ? ECS foundation in `engine_core`
 Actions:
 - Implement or port ECS:
   - `World`, `Entity`, component storage, queries
@@ -222,7 +222,7 @@ Exit criteria:
 
 ---
 
-### Stage 3 — Remove globals (events + logging first)
+### Stage 3 ? Remove globals (events + logging first)
 Actions:
 - Replace singleton event manager with injected `IEventBus`.
 - Replace global active logger with injected `ILogger`.
@@ -234,7 +234,7 @@ Exit criteria:
 
 ---
 
-### Stage 4 — One update graph
+### Stage 4 ? One update graph
 Actions:
 - Remove duplicate registries/schedulers.
 - Game defines system ordering; engine provides scheduler implementation.
@@ -251,7 +251,7 @@ Exit criteria:
 
 ---
 
-### Stage 5 — Scripting firewall
+### Stage 5 ? Scripting firewall
 Actions:
 - Implement `ScriptAPI` interface, command buffer, and stable event schema.
 - Bind only `ScriptAPI` to Lua.
@@ -263,7 +263,7 @@ Exit criteria:
 
 ---
 
-### Stage 6 — Asset pipeline
+### Stage 6 ? Asset pipeline
 Actions:
 - Implement cooker + schema validation.
 - Implement `PackedAssetStore`.
@@ -275,7 +275,7 @@ Exit criteria:
 
 ---
 
-### Stage 7 — Testing + determinism hardening
+### Stage 7 ? Testing + determinism hardening
 Actions:
 - Add headless tests for:
   - ECS scheduling invariants
@@ -295,7 +295,7 @@ Once you start executing this plan, the next concrete artifacts to produce are:
 - folder tree + target graph (CMake)
 - interface definitions:
   - `ILogger`, `IEventBus`, `IAssetStore`, `IRandom`, `ITimeSource`
-- “delete/replace list”:
+- ?delete/replace list?:
   - all singletons/globals to remove
   - all duplicate registries/schedulers to unify
   - scripting bindings to replace with `ScriptAPI`

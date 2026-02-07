@@ -1,4 +1,4 @@
-# Repo health targets (6→7)
+# Repo health targets (6?7)
 
 This repo will be treated as "7/10" when these move measurably:
 

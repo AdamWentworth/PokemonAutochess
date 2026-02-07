@@ -15,18 +15,22 @@ std::string AttackAnimConfigLoader::toLower(std::string s) {
     return s;
 }
 
-bool AttackAnimConfigLoader::loadConfig(const std::string& filePath, LogBus::Logger* logger) {
+bool AttackAnimConfigLoader::loadConfig(const std::string& filePath,
+                                        LogBus::Logger* logger,
+                                        const engine::IAssetStore* store) {
     nlohmann::json j;
-    if (!ConfigIO::loadJsonFile(filePath, j, "AttackAnimConfigLoader", /*silentIfMissing=*/false, logger)) {
+    if (!ConfigIO::loadJsonFile(filePath, j, "AttackAnimConfigLoader", /*silentIfMissing=*/false, logger, store)) {
         return false;
     }
     return parseJsonIntoDb(j, /*clearFirst=*/true, logger);
 }
 
-bool AttackAnimConfigLoader::loadConfigMerge(const std::string& filePath, LogBus::Logger* logger) {
+bool AttackAnimConfigLoader::loadConfigMerge(const std::string& filePath,
+                                             LogBus::Logger* logger,
+                                             const engine::IAssetStore* store) {
     // Overrides are optional; do not spam logs if missing.
     nlohmann::json j;
-    if (!ConfigIO::loadJsonFile(filePath, j, "AttackAnimConfigLoader", /*silentIfMissing=*/true, logger)) {
+    if (!ConfigIO::loadJsonFile(filePath, j, "AttackAnimConfigLoader", /*silentIfMissing=*/true, logger, store)) {
         return false;
     }
     return parseJsonIntoDb(j, /*clearFirst=*/false, logger);
