@@ -19,6 +19,7 @@ Last updated: 2026-02-07
 - ✅ Stage 3.1: logging migration (no LogBus call sites in `src/game` runtime).
 - ✅ Stage 3.2: config loader singletons removed (GameDataDb ownership).
 - ✅ Stage 3.3: GameConfig global cache removed (explicit config ownership).
+- ✅ Stage 3.4: EventManager singleton removed (engine events).
 
 ### Current ECS capabilities
 - Entities: id + generation
@@ -39,16 +40,17 @@ Last updated: 2026-02-07
 
 ## Next Step (Do this next)
 
-### Stage 3.4 — EventManager singleton removal (engine events)
-Goal: delete the legacy EventManager wrapper and route all usage through Engine/Core services.
+### Stage 4 — One update graph
+Goal: unify phases and ordering in one place; support headless mode with renderer/platform omitted.
 
 Preferred implementation order:
-1) Remove any remaining EventManager::getInstance call sites (if any appear).
-2) Delete EventManager wrapper once no callers remain.
-3) Ensure EngineServices/CoreServices are passed where needed.
+1) Define the authoritative phase list and system ordering in one location.
+2) Move system registration/order into an explicit update graph config.
+3) Ensure headless mode runs without renderer/platform services.
 
 Exit criteria:
-- No EventManager wrapper (no getInstance in engine events).
+- Single source of truth for update ordering.
+- Headless mode runs with renderer/platform omitted.
 
 ---
 

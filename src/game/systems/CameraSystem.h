@@ -16,7 +16,7 @@ public:
     // Optional: call if your input loop forwards wheel events here
     void handleInput(const InputEvent& event);
 
-    // Event relays (wire these via your EventManager or input layer)
+    // Event relays (wire these via your input layer)
     void onMouseDown(int x, int y, int button);
     void onMouseUp  (int x, int y, int button);
     void onMouseMove(int x, int y);

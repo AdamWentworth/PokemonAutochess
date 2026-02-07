@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+## 2026-02-07 — Stage 3.4 EventManager singleton removal (engine events)
+- Removed the legacy EventManager wrapper and routed engine events through EngineServices only.
+- Application no longer configures a global event bus singleton.
+
 ## 2026-02-07 — Stage 3.3 GameConfig global cache removal (explicit ownership)
 - GameConfig now loads on demand (no static cache); session owns config data.
 - GameWorld/Lua bindings read board sizing from injected config rather than GameConfig::get.

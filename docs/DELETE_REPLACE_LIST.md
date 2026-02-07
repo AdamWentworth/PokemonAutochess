@@ -5,24 +5,24 @@ Last updated: 2026-02-07
 Purpose: Make Stage 3 (remove globals) actionable by listing remaining singleton/global call sites and their intended replacements.
 
 ## Current Count
-- `getInstance()` call sites: 4 (from `python tools/health/count_singletons.py`)
+- `getInstance()` call sites: 0 (from `python tools/health/count_singletons.py`)
 
 ## getInstance() Call Sites
 | Count | File |
 | --- | --- |
-| 4 | `src/engine/events/EventManager.h` |
+| 0 | (none) |
 
 ## Inventory
 
 ### EventManager singleton
 Files:
-`src/engine/events/EventManager.h`
+None (removed).
 
 Current status:
-Legacy wrapper only; no active call sites in `src/` as of 2026-02-07.
+Legacy wrapper deleted; engine uses injected EventBus via EngineServices/CoreServices.
 
 Replacement:
-Use `engine::CoreServices.events` or `EngineServices.events` and delete `EventManager` once all call sites are removed.
+Use `engine::CoreServices.events` or `EngineServices.events`.
 
 ### LogBus active logger fallback
 Files:
@@ -73,4 +73,4 @@ Status:
 Completed (GameConfig now loads on demand; no `GameConfig::get()` call sites remain).
 
 ## Next Migration Slice
-- EventManager singleton: remove legacy wrapper once all call sites are gone.
+- Stage 4 update graph: unify phases/order and support headless mode without renderer/platform.

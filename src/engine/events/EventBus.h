@@ -12,7 +12,7 @@
 #include <vector>
 
 // Thread-safe event bus with token-based unsubscription.
-// Designed to back EventManager (legacy API) and EngineServices injection.
+// Use via EngineServices/CoreServices (no legacy EventManager wrapper).
 
 struct EventTypeHash {
     std::size_t operator()(EventType t) const noexcept {

@@ -16,6 +16,6 @@ struct EngineServices {
     ResourceManager* resources = nullptr;
     ShaderCache* shaders = nullptr;
 
-    // Engine-owned event bus (preferred over EventManager singleton).
+    // Engine-owned event bus (no singleton wrapper).
     EventBus* events = nullptr;
 };

@@ -6,7 +6,6 @@
 #include "engine/core/GameLoop.h"
 #include "engine/core/GameContext.h"
 #include "engine/core/EngineServices.h"
-#include "engine/events/EventManager.h"
 
 #include "engine/input/InputEvent.h"
 #include "engine/input/SdlKeyMap.h"
@@ -258,9 +257,6 @@ void Application::run(GameLoop& game) {
     services.resources = &resourceManager;
     services.shaders = &shaderCache;
     services.events = &eventBus;
-
-    // Route legacy singleton callers through the injected bus.
-    EventManager::setDefaultBus(&eventBus);
 
     GameContext ctx;
     ctx.renderer = renderer.get();

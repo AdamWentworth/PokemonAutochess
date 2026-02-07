@@ -84,8 +84,7 @@ void CameraSystem::update(float dt) {
 }
 
 void CameraSystem::handleInput(const InputEvent& event) {
-    // Centralized InputEvent -> Lua routing.
-    // This removes the hidden dependency on a global EventManager singleton.
+    // Centralized InputEvent -> Lua routing (explicit input wiring).
     switch (event.type) {
         case InputEvent::Type::MouseDown:
             onMouseDown(event.mouseX, event.mouseY, toButtonNumber(event.mouseButtonId));
