@@ -2,10 +2,12 @@
 #pragma once
 #include "engine/core/Updatable.h"
 #include "game/GameWorld.h"
+#include <memory>
 #include <sol/sol.hpp>
 
 // Forward-declare instead:
 class GridOccupancy;
+class ScriptAPI;
 
 class MovementSystem : public Updatable {
 public:
@@ -17,6 +19,7 @@ public:
 private:
     GameWorld* gameWorld;
     sol::state lua;
+    std::unique_ptr<ScriptAPI> api;
     bool ok = false;
 
     static constexpr float CELL_SIZE = 1.2f;

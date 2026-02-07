@@ -3,9 +3,7 @@
 #pragma once
 #include <sol/sol.hpp>
 
-class GameWorld;
-class GameStateManager;
-namespace LogBus { class Logger; }
+class ScriptAPI;
 
 // Registers all C++↔Lua bindings used by gameplay scripts.
-void registerLuaBindings(sol::state& lua, GameWorld* world, GameStateManager* manager, LogBus::Logger* logger);
+void registerLuaBindings(sol::state& lua, ScriptAPI& api);

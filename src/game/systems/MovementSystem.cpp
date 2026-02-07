@@ -1,6 +1,7 @@
 // MovementSystem.cpp
 #include "MovementSystem.h"
 #include "game/scripting/LuaBindings.h"
+#include "game/scripting/ScriptAPI.h"
 #include <iostream>
 #include <algorithm>
 #include <glm/glm.hpp>
@@ -13,7 +14,8 @@ MovementSystem::MovementSystem(GameWorld* world)
 {
     lua.open_libraries(sol::lib::base, sol::lib::math, sol::lib::table, sol::lib::string);
     LogBus::Logger* logger = gameWorld ? gameWorld->getLogger() : nullptr;
-    registerLuaBindings(lua, gameWorld, /*GameStateManager*/ nullptr, logger);
+    api = std::make_unique<ScriptAPI>(gameWorld, /*GameStateManager*/ nullptr, logger);
+    registerLuaBindings(lua, *api);
     exposeConstants();
     loadScript();
 }
@@ -74,6 +76,7 @@ void MovementSystem::update(float deltaTime) {
             return;
         }
     }
+    if (api) api->flush();
 
     // 2) Advance interpolation for units that have an active commit
     //    Distance per second is movementSpeed * CELL_SIZE (cells/sec * worldUnitsPerCell).

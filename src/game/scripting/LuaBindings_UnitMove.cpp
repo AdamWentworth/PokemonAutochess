@@ -13,6 +13,7 @@
 #include "game/PokemonInstance.h"
 #include "game/GameStateManager.h"
 #include "game/GameConfig.h"
+#include "game/scripting/ScriptAPI.h"
 
 #include "game/animation/FlightLocomotion.h"
 #include "game/animation/AttackAnimDebug.h"
@@ -27,8 +28,9 @@
 
 #include "LuaBindings_Internal.h"
 
-void registerLuaBindings_UnitMove(sol::state& lua, GameWorld* world, GameStateManager* manager, LogBus::Logger* logger) {
-    (void)logger;
+void registerLuaBindings_UnitMove(sol::state& lua, ScriptAPI& api) {
+    GameWorld* world = api.world();
+    (void)api;
 lua.set_function("unit_fast_move", [world](int unitId) -> std::string {
         if (!world) return "";
         if (auto* u = world->findUnitById(unitId)) return u->fastMove;

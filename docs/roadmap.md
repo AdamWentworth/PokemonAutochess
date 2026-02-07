@@ -21,6 +21,7 @@ Last updated: 2026-02-07
 - ✅ Stage 3.3: GameConfig global cache removed (explicit config ownership).
 - ✅ Stage 3.4: EventManager singleton removed (engine events).
 - ✅ Stage 4: one update graph (explicit ordering + headless-safe).
+- ✅ Stage 5.1: ScriptAPI surface + command queue (Lua binds only to ScriptAPI).
 
 ### Current ECS capabilities
 - Entities: id + generation
@@ -41,18 +42,17 @@ Last updated: 2026-02-07
 
 ## Next Step (Do this next)
 
-### Stage 5 — Scripting firewall
-Goal: narrow Lua access to a stable ScriptAPI and command buffer.
+### Stage 5.2 — Scripting firewall (event schema)
+Goal: finalize the scripting firewall by defining a stable event schema for scripts/UI.
 
 Preferred implementation order:
-1) Define ScriptAPI surface (queries + commands) and version it.
-2) Route Lua calls into a command buffer (no direct gameplay mutation).
-3) Emit events from gameplay into a stable event schema for scripts/UI.
+1) Define ScriptAPI surface (queries + commands) and version it. (done)
+2) Route Lua calls into a command buffer (no direct gameplay mutation). (done)
+3) Emit events from gameplay into a stable event schema for scripts/UI. (next)
 
 Exit criteria:
 - Lua only sees ScriptAPI (no direct engine/game internals).
 - Commands/events are serialized and testable headlessly.
-
 ---
 
 ## Stage Checklist (High level)

@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+## 2026-02-07 — Stage 5.1 ScriptAPI + command queue
+- Added ScriptAPI (stable Lua surface) with a queued command buffer and explicit flush boundaries.
+- Lua bindings now route gameplay mutations through ScriptAPI; applyDamage remains immediate for animation gating.
+- ScriptedState/Combat/Placement/Movement systems flush ScriptAPI commands after Lua calls; RoundSystem now does as well.
+
 ## 2026-02-07 — Stage 4 update graph (explicit ordering + headless-safe)
 - Added a GameUpdateGraph to centralize update ordering and phase transitions.
 - SystemRegistry now supports per-phase updates; session uses explicit phases.

@@ -3,6 +3,7 @@
 #include <string>
 
 #include "game/scripting/LuaBindings.h"
+#include "game/scripting/ScriptAPI.h"
 
 static bool has(sol::state& lua, const char* name) {
     sol::object o = lua[name];
@@ -14,7 +15,8 @@ bool test_lua_bindings_smoke(std::string& outFail) {
     lua.open_libraries(sol::lib::base, sol::lib::math, sol::lib::table, sol::lib::string, sol::lib::package);
 
     // Smoke: should not crash even with null world/manager (bindings should guard internally).
-    registerLuaBindings(lua, nullptr, nullptr, nullptr);
+    ScriptAPI api(nullptr, nullptr, nullptr);
+    registerLuaBindings(lua, api);
 
     const char* required[] = {
         "emit",

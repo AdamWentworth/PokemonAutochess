@@ -2,8 +2,8 @@
 #include "LuaBindings.h"
 #include "LuaBindings_Internal.h"
 
-void registerLuaBindings(sol::state& lua, GameWorld* world, GameStateManager* manager, LogBus::Logger* logger) {
-    registerLuaBindings_Core(lua, world, manager, logger);
-    registerLuaBindings_World(lua, world, manager, logger);
-    registerLuaBindings_UnitMove(lua, world, manager, logger);
+void registerLuaBindings(sol::state& lua, ScriptAPI& api) {
+    registerLuaBindings_Core(lua, api);
+    registerLuaBindings_World(lua, api);
+    registerLuaBindings_UnitMove(lua, api);
 }

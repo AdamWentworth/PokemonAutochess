@@ -91,6 +91,7 @@ void ScriptedState::ensureStarterUI() {
     }
 
     uiInitialized = true;
+    script.flushCommands();
 }
 
 void ScriptedState::onEnter() {
@@ -134,6 +135,7 @@ void ScriptedState::handleInput(const InputEvent& event) {
             if (onClick.valid()) {
                 onClick(clicked->pokemonName);
             }
+            script.flushCommands();
 
                     if (stateManager) {
                         if (services) {
@@ -149,8 +151,8 @@ void ScriptedState::handleInput(const InputEvent& event) {
 
     if (event.type == InputEvent::Type::KeyDown) {
         sol::function keyMap = S["handle_starter_key"];
-        if (keyMap.valid()) {
-            std::string key;
+            if (keyMap.valid()) {
+                std::string key;
             switch (event.keyId) {
                 case InputEvent::Key::Num1: key = "1"; break;
                 case InputEvent::Key::Num2: key = "2"; break;
@@ -165,6 +167,7 @@ void ScriptedState::handleInput(const InputEvent& event) {
                     sol::function onClick = S["on_card_click"];
                     if (!onClick.valid()) onClick = S["onCardClick"];
                     if (onClick.valid()) onClick(pokemon);
+                    script.flushCommands();
 
                     if (stateManager) {
                         if (services) {

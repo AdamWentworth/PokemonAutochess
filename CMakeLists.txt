@@ -180,6 +180,7 @@ add_library(PAC_GameObjects STATIC
     src/game/scripting/LuaBindings_UnitMove.cpp
     src/game/scripting/LuaBindings_Util.cpp
     src/game/scripting/LuaScript.cpp
+    src/game/scripting/ScriptAPI.cpp
 
     # Game States
     src/game/state/ScriptedState.cpp

@@ -4,10 +4,8 @@
 #include <string>
 #include <glm/glm.hpp>
 
-class GameWorld;
-class GameStateManager;
+class ScriptAPI;
 namespace sol { class state; }
-namespace LogBus { class Logger; }
 struct GameConfigData;
 
 // PokemonSide is declared in game/PokemonInstance.h as a scoped enum (enum class).
@@ -25,6 +23,6 @@ glm::ivec2 worldToGrid(const GameConfigData* cfg, const glm::vec3& pos);
 bool attackerIsInAttackAnimation(const class PokemonInstance& A);
 
 // ---- module registrars (defined in separate .cpp files) ----
-void registerLuaBindings_Core(sol::state& lua, GameWorld* world, GameStateManager* manager, LogBus::Logger* logger);
-void registerLuaBindings_World(sol::state& lua, GameWorld* world, GameStateManager* manager, LogBus::Logger* logger);
-void registerLuaBindings_UnitMove(sol::state& lua, GameWorld* world, GameStateManager* manager, LogBus::Logger* logger);
+void registerLuaBindings_Core(sol::state& lua, ScriptAPI& api);
+void registerLuaBindings_World(sol::state& lua, ScriptAPI& api);
+void registerLuaBindings_UnitMove(sol::state& lua, ScriptAPI& api);

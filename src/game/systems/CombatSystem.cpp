@@ -2,12 +2,14 @@
 #include "CombatSystem.h"
 #include "game/GameWorld.h"
 #include "game/scripting/LuaBindings.h"
+#include "game/scripting/ScriptAPI.h"
 #include <iostream>
 
 CombatSystem::CombatSystem(GameWorld* world) : gameWorld(world) {
     lua.open_libraries(sol::lib::base, sol::lib::math, sol::lib::table, sol::lib::string);
     LogBus::Logger* logger = gameWorld ? gameWorld->getLogger() : nullptr;
-    registerLuaBindings(lua, gameWorld, /*manager*/ nullptr, logger);
+    api = std::make_unique<ScriptAPI>(gameWorld, /*manager*/ nullptr, logger);
+    registerLuaBindings(lua, *api);
     loadScript();
 }
 
@@ -45,4 +47,5 @@ void CombatSystem::update(float deltaTime) {
             ok = false;
         }
     }
+    if (api) api->flush();
 }

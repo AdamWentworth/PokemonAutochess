@@ -91,6 +91,7 @@ void PlacementState::update(float dt) {
         sol::object r = next_route(starterName);
         if (r.is<std::string>()) routeScript = r.as<std::string>();
     }
+    if (flow) flow->flushCommands();
 
     // NOTE: CombatState has both services and legacy ctors; use services if we have it.
     if (services) {

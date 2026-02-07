@@ -1,6 +1,7 @@
 // LuaScript.h
 #pragma once
 
+#include <memory>
 #include <string>
 #include <utility>     // std::forward
 #include <sol/sol.hpp>
@@ -9,11 +10,12 @@
 
 class GameWorld;
 class GameStateManager;
+class ScriptAPI;
 
 class LuaScript {
 public:
     explicit LuaScript(GameWorld* world, GameStateManager* manager = nullptr, LogBus::Logger* logger = nullptr);
-    ~LuaScript() = default;
+    ~LuaScript();
 
     // Loads + executes the script into an isolated environment.
     // Stores file path for later reload().
@@ -45,12 +47,15 @@ public:
             sol::error err = r;
             game::log::error(logger_, std::string("[LuaScript] Error in '") + functionName + "': " + err.what());
         }
+
+        flushCommands();
     }
 
     sol::state& getState();
 
     // Access the script environment table (where script-defined functions live).
     sol::table getScriptTable();
+    void flushCommands();
 
 private:
     sol::state lua;
@@ -61,6 +66,7 @@ private:
     GameWorld* gameWorld = nullptr;
     GameStateManager* stateManager = nullptr;
     LogBus::Logger* logger_ = nullptr;
+    std::unique_ptr<ScriptAPI> api_;
 
     std::string loadedPath;
 

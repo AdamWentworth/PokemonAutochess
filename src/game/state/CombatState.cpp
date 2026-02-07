@@ -99,6 +99,7 @@ void CombatState::onEnter() {
             }
         }
     }
+    script.flushCommands();
 
     // Player send-out lines (optional flavor)
     for (auto& u : gameWorld->getPokemons()) {

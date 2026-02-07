@@ -36,6 +36,7 @@ RoundSystem::RoundSystem()
     // Initialize in Lua (if present)
     sol::function fInit = script.getState()[kFnInit];
     if (fInit.valid()) fInit();
+    script.flushCommands();
 
     // Read initial phase safely
     sol::function fPhase = script.getState()[kFnPhase];
@@ -56,6 +57,7 @@ RoundSystem::RoundSystem()
 void RoundSystem::update(float deltaTime) {
     sol::function fUpdate = script.getState()[kFnUpdate];
     if (fUpdate.valid()) fUpdate(deltaTime);
+    script.flushCommands();
 
     sol::function fPhase = script.getState()[kFnPhase];
     if (fPhase.valid()) {
