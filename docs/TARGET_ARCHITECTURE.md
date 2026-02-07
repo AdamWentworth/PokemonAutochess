@@ -19,7 +19,7 @@ Day-to-day progress tracking lives in `ROADMAP.md`.
   - composition root (construct services + wire dependencies)
   - selecting which engine services are used (renderer optional, platform optional in headless)
 - The engine provides libraries and services, not a mandated loop model.
-- Optional: provide a convenience runner as a *separate* helper (not required by engine clients).
+- Optional: provide a convenience runner as a separate helper (not required by engine clients) and keep it outside `engine_core`.
 
 ### Who owns the scheduler / update graph?
 **Engine provides the mechanism; game provides the configuration** (selected)
@@ -60,12 +60,16 @@ Day-to-day progress tracking lives in `ROADMAP.md`.
   - process-lifetime objects in tooling (`engine_tools`) only
   - *temporary adapters* during migration (must be deleted before ?done?)
 
-### 4) Lua boundary (stable ScriptAPI)
+### 4) Required runtime dependencies
+- Gameplay states/systems require dependencies via references.
+- No fallback constructors or local config loads in runtime.
+
+### 5) Lua boundary (stable ScriptAPI)
 - Lua interacts through a stable, narrow **ScriptAPI**:
   - commands/events, not raw pointers/references to internal objects
 - Lua must not keep ?live? references to engine/game objects.
 
-### 5) Assets pipeline
+### 6) Assets pipeline
 - Runtime reads cooked packages via `IAssetStore`.
 - JSON remains the authoring format; a cooker validates and packs.
 

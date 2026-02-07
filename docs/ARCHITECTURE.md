@@ -30,6 +30,11 @@ Current progress tracking is in `ROADMAP.md`.
    - Runtime reads cooked packages via `IAssetStore`.
    - JSON remains the authoring format; cooker validates + packs.
 
+7. **No optional service dependencies in runtime**
+   - Gameplay states/systems require dependencies via references (no nullable service pointers).
+   - No fallback constructors or local config loads in runtime.
+
 ## Composition root
 - The **game** owns the loop and constructs services.
 - A "convenience runner" may exist, but it must not be required by engine clients.
+- Any convenience runner must live outside `engine_core` and may depend on platform/render.

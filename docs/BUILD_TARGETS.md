@@ -1,4 +1,4 @@
-﻿# Build Targets — Data Packaging
+# Build Targets — Data Packaging
 
 This repo ships a small data cooker for release packaging. These targets help keep the workflow explicit and reproducible.
 
@@ -17,3 +17,6 @@ This repo ships a small data cooker for release packaging. These targets help ke
 1. Run `PAC_ValidateData` in CI to fail fast on bad content.
 2. Run `PAC_PackData` for release builds to generate the packaged data bundle.
 3. Ship the bundle alongside the game and set `PAC_DATA_PACK=content_pak/content.pak` in the release launch config.
+## Release checklist
+
+See docs/RELEASE_CHECKLIST.md for the full release flow.

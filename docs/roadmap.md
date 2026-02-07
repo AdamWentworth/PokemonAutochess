@@ -1,110 +1,135 @@
-﻿# Roadmap (Living)
+# Roadmap (Iteration 2)
 
-This document is the living tracker: what is done, what is next, and what exit criteria still block forward progress.
-The target end-state and stable constraints live in `TARGET_ARCHITECTURE.md`.
+This is the active tracker for maintainability hardening after the initial rebuild.
+Stable target rules live in ARCHITECTURE.md and TARGET_ARCHITECTURE.md.
 
 Last updated: 2026-02-07
 
 ---
 
-## Current Status Snapshot
+## Stable Decisions
 
-- DONE Stage 0: architecture rules captured (`ARCHITECTURE.md`, `TARGET_ARCHITECTURE.md`).
-- DONE Stage 1: build split into `engine_core`, `engine_platform`, `engine_render` (with `Engine` umbrella). Game + tests run.
-- DONE Stage 2: ECS foundation in `engine_core` is usable and covered by headless tests:
-  - `ecs_smoke`
-  - `ecs_destroy_cleans_components`
-  - `ecs_for_each_join`
-  - `ecs_structural_change_deferral`
-- DONE Stage 3.1: logging migration (no LogBus call sites in `src/game` runtime).
-- DONE Stage 3.2: config loader singletons removed (GameDataDb ownership).
-- DONE Stage 3.3: GameConfig global cache removed (explicit config ownership).
-- DONE Stage 3.4: EventManager singleton removed (engine events).
-- DONE Stage 4: one update graph (explicit ordering + headless-safe).
-- DONE Stage 5.1: ScriptAPI surface + command queue (Lua binds only to ScriptAPI).
-- DONE Stage 5.2: Script event schema + gameplay event emitters.
-- DONE Stage 6.1: Asset store abstraction + dev store scaffold.
-- DONE Stage 6.2: Asset pipeline (cooker + validation + packed runtime).
-- DONE Stage 7.1: determinism scaffolding (IRandom/ITimeSource + headless tests).
-- DONE Stage 7.2: headless battle invariants tests.
-- DONE Stage 8.1: data pack helper targets (PAC_ValidateData and PAC_PackData).
-
-### Current ECS capabilities
-- Entities: id + generation
-- Type-erased component stores keyed by `type_index`
-- Correctness-first storage (`unordered_map`)
-- Scheduler executes ordered systems
-- Canonical query API: `World::for_each<Cs...>(fn)` joins by id (driver = first component store)
-- Destroy cleanup: `World::destroy()` removes components across all stores
-- Structural-change deferral policy for add/remove/destroy during iteration (deferred until outermost iteration completes)
-- Preferred API: `World::add/remove/has/get` (use in new gameplay code)
-
-### Current ECS notes (non-blocking)
-- Preferred API adoption: reduce new usage of `components<T>()` outside ECS internals/tests.
-- Query performance/driver selection is naive (acceptable for now).
-- The public API still allows bypassing policy via direct store access (`components<T>()`), which is fine during migration but not end-state.
+- Engine-first
+- Game-owned loop
+- Strict layering
+- ECS foundation
+- Headless core
+- No mutable globals in runtime
+- Narrow ScriptAPI boundary
+- Cooked assets plus JSON source
 
 ---
 
-## Next Step (Do this next)
+## Current State Snapshot
 
-### Stage 8.2 — Release build checklist
-Goal: document a minimal release flow (pack data, set env, ship artifacts).
+Done:
+- Module split into engine_core, engine_platform, engine_render (CMake)
+- ECS foundation in engine_core with tests
+- IEventBus, ILogger, IRandom, ITimeSource, IAssetStore in place
+- ScriptAPI with command queue and ScriptEventBus
+- Asset cooker and packed/dev asset stores
+- Determinism tests and headless battle invariants tests
 
-Exit criteria:
-- Release checklist documented in README or docs.
+Partial:
+- Single update graph exists in game, but SystemRegistry remains duplicated
+- No-globals migration is incomplete due to LogBus compatibility functions
+- Script firewall exists, but Lua bindings still reach GameWorld and use render headers
 
----
-
-## Stage Checklist (High level)
-
-### Stage 0 — Lock target rules
-Exit criteria:
-- dependency rule enforceable in build graph
-- "where does this file go?" has a consistent answer
-
-### Stage 1 — Module boundaries
-Exit criteria:
-- `engine_core` builds without SDL/GL
-- game links engine libs and runs
-- tests still pass
-
-### Stage 2 — ECS foundation
-Exit criteria: met (structural-change policy + preferred API adoption in gameplay).
-
-### Stage 3 — Remove globals (events + logging first)
-Work items:
-- inventory global/singleton usage in game + engine_core
-- replace with explicit service wiring (composition root)
-- remove fallback global access paths
-
-### Stage 4 — One update graph
-Work items:
-- unify phases and ordering in one place
-- support headless mode with renderer/platform omitted
-
-### Stage 5 — Scripting firewall
-Work items:
-- ScriptAPI + command buffer + stable event schema
-- bind only ScriptAPI to Lua
-
-### Stage 6 — Asset pipeline
-Work items:
-- cooker + validation
-- PackedAssetStore (+ optional DevAssetStore)
-
-### Stage 7 — Determinism hardening
-Work items:
-- DONE: ITimeSource + IRandom injection (core interfaces + GameServices wiring)
-- DONE: headless content invariants tests
-- DONE: headless battle invariants tests
+Not done:
+- Remove optional services and legacy constructors in runtime
+- Replace hard-coded UI constants with a UI/Viewport service
+- Gameplay adoption of ECS for authoritative state and systems
+- Move SDL/GL loop code out of engine_core path and treat Application as optional runner
 
 ---
 
-## Immediate Technical Outputs (to keep momentum)
+## Iteration 2 Plan (ordered)
 
-1) **Delete/replace list** for globals/singletons (prep for Stage 3) — `DELETE_REPLACE_LIST.md`
-2) **Core service interfaces** to add next:
-   - `ITimeSource`, `IRandom`, `IAssetStore`
-3) **ECS policy enforcement** (Stage 2.3)
-4) **Draft phase model** for the update graph (Stage 4)
+### Stage 9 - Dependency hygiene and legacy removal
+
+Actions:
+- Make GameServices required for runtime states and systems.
+- Remove fallback constructors and services == nullptr branches.
+- Remove local config loads used as fallbacks in runtime.
+- Remove LogBus compatibility functions and thread-local active logger.
+
+Exit criteria:
+- No runtime code compiles without explicit services.
+- No fallback GameConfig::load(nullptr) in runtime.
+- LogBus exposes only the instance Logger API.
+
+---
+
+### Stage 10 - Loop ownership and module placement cleanup
+
+Actions:
+- Move Application and Window (SDL/GL) out of engine_core tree.
+- Ensure main entrypoint can run a game-owned loop without Application.
+- Keep Application as an optional convenience runner in engine_platform or engine_runtime.
+
+Exit criteria:
+- engine_core tree has no SDL/GL includes.
+- Game can run headless without Application.
+
+---
+
+### Stage 11 - Single scheduler and update graph
+
+Actions:
+- Make ECS Scheduler the only system update mechanism.
+- Add an adapter system for existing Updatable systems or convert them.
+- Remove SystemRegistry from game and engine runtime.
+- Rework GameUpdateGraph to drive ECS phases.
+
+Exit criteria:
+- SystemRegistry is unused in game runtime.
+- Exactly one scheduler defines update ordering.
+
+---
+
+### Stage 12 - ECS adoption in gameplay
+
+Actions:
+- Move core gameplay data into ECS components.
+- Convert Movement, Combat, Round, and Shop logic into ECS systems.
+- Reduce GameWorld to a thin facade or remove it.
+
+Exit criteria:
+- Gameplay systems operate on ECS data.
+- GameWorld no longer owns authoritative gameplay state.
+
+---
+
+### Stage 13 - Script firewall completion
+
+Actions:
+- Remove ScriptAPI accessors that expose GameWorld or GameStateManager.
+- Bind Lua only to ScriptAPI methods that return value types.
+- Remove engine render headers from Lua bindings.
+
+Exit criteria:
+- Lua bindings compile without GameWorld or render includes.
+- Scripts cannot access internal pointers.
+
+---
+
+### Stage 14 - UI and viewport context
+
+Actions:
+- Introduce UIContext or Viewport service from GameContext or GameServices.
+- Replace UI_W, UI_H, and 1280/720 literals in gameplay.
+
+Exit criteria:
+- No hard-coded UI dimensions in runtime code.
+
+---
+
+### Stage 15 - Enforcement and cleanup
+
+Actions:
+- Add build checks for layering and forbidden includes.
+- Remove temporary adapters left from migration.
+
+Exit criteria:
+- Architecture rules are enforceable by build tooling.
+- No legacy adapters remain in runtime.
