@@ -30,8 +30,7 @@ Files:
 `src/game/logging/LogBus.cpp`
 
 Call sites (non-exhaustive):
-`src/game/GameSession.cpp`
-`src/game/GameWorld.cpp`
+None (as of 2026-02-07).
 `src/game/config/*.cpp`
 `src/game/state/*.cpp`
 `src/game/scripting/*.cpp`
@@ -70,5 +69,8 @@ Call sites (non-exhaustive):
 Replacement:
 Load config once in `GameBootstrap` and store in `GameServices` or `GameContext`, then remove the static cache when all call sites are migrated.
 
+Status:
+Completed (GameConfig now loads on demand; no `GameConfig::get()` call sites remain).
+
 ## Next Migration Slice
-- GameConfig global cache: load once and pass `GameConfigData` explicitly (remove `GameConfig::get()` usage).
+- EventManager singleton: remove legacy wrapper once all call sites are gone.

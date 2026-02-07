@@ -18,6 +18,7 @@ Last updated: 2026-02-07
   - `ecs_structural_change_deferral`
 - ✅ Stage 3.1: logging migration (no LogBus call sites in `src/game` runtime).
 - ✅ Stage 3.2: config loader singletons removed (GameDataDb ownership).
+- ✅ Stage 3.3: GameConfig global cache removed (explicit config ownership).
 
 ### Current ECS capabilities
 - Entities: id + generation
@@ -38,16 +39,16 @@ Last updated: 2026-02-07
 
 ## Next Step (Do this next)
 
-### Stage 3.3 — GameConfig global cache removal (explicit config ownership)
-Goal: remove `GameConfig::get()` usage and thread `GameConfigData` explicitly.
+### Stage 3.4 — EventManager singleton removal (engine events)
+Goal: delete the legacy EventManager wrapper and route all usage through Engine/Core services.
 
 Preferred implementation order:
-1) Load config once in GameBootstrap or GameSession.
-2) Store `GameConfigData` in `GameServices` (or GameContext) and pass by reference.
-3) Delete the `GameConfig::get()` global cache once call sites are migrated.
+1) Remove any remaining EventManager::getInstance call sites (if any appear).
+2) Delete EventManager wrapper once no callers remain.
+3) Ensure EngineServices/CoreServices are passed where needed.
 
 Exit criteria:
-- No `GameConfig::get()` call sites in `src/game` runtime.
+- No EventManager wrapper (no getInstance in engine events).
 
 ---
 

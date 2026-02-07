@@ -1,6 +1,7 @@
 #pragma once
 
 #include "game/GameState.h"
+#include "game/GameConfig.h"
 #include "game/scripting/LuaScript.h"
 
 #include <memory>
@@ -27,9 +28,12 @@ public:
     void render() override;
 
 private:
+    const GameConfigData& cfg() const;
+
     GameStateManager* stateManager = nullptr;
     GameWorld* gameWorld = nullptr;
     GameServices* services = nullptr;
+    GameConfigData fallbackConfig;
 
     LuaScript script;
 

@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+## 2026-02-07 — Stage 3.3 GameConfig global cache removal (explicit ownership)
+- GameConfig now loads on demand (no static cache); session owns config data.
+- GameWorld/Lua bindings read board sizing from injected config rather than GameConfig::get.
+- States with legacy constructors load a local config instead of using globals.
+
 ## 2026-02-07 — Stage 3.2 config loader singleton removal (GameDataDb ownership)
 - GameDataDb now owns config loader instances (Pokemon/Moves/AttackAnim/Flyer) and bootstrap loads them.
 - Removed config loader `getInstance()` usage in preload helpers, Lua bindings, and anim set resolution.

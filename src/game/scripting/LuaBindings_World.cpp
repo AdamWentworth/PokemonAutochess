@@ -30,7 +30,8 @@
 #include "LuaBindings_Internal.h"
 
 void registerLuaBindings_World(sol::state& lua, GameWorld* world, GameStateManager* manager, LogBus::Logger* logger) {
-lua.set_function("world_list_units", [world, &lua]() {
+    const GameConfigData* cfg = world ? world->getConfig() : nullptr;
+    lua.set_function("world_list_units", [world, &lua, cfg]() {
         sol::state_view L(lua);
         sol::table arr = L.create_table();
         if (!world) return arr;
@@ -45,7 +46,7 @@ lua.set_function("world_list_units", [world, &lua]() {
             t["speed"]     = u.movementSpeed;
             t["energy"]    = u.energy;
             t["maxEnergy"] = u.maxEnergy;
-            auto cell      = worldToGrid(u.position);
+            auto cell      = worldToGrid(cfg, u.position);
             t["col"]       = cell.x;
             t["row"]       = cell.y;
             t["alive"]     = u.alive;
@@ -56,7 +57,7 @@ lua.set_function("world_list_units", [world, &lua]() {
         return arr;
     });
 
-    lua.set_function("world_get_unit_snapshot", [world, &lua](int unitId) {
+    lua.set_function("world_get_unit_snapshot", [world, &lua, cfg](int unitId) {
         sol::state_view L(lua);
         sol::table t = L.create_table();
         if (!world) return t;
@@ -74,27 +75,27 @@ lua.set_function("world_list_units", [world, &lua]() {
         t["maxEnergy"] = u->maxEnergy;
         t["fastMove"]  = u->fastMove;
         t["chargedMove"] = u->chargedMove;
-        auto cell      = worldToGrid(u->position);
+        auto cell      = worldToGrid(cfg, u->position);
         t["col"]       = cell.x;
         t["row"]       = cell.y;
         return t;
     });
-// Movement & adjacency helpers (unchanged)
+    // Movement & adjacency helpers (unchanged)
 
-    lua.set_function("world_apply_move", [world](int unitId, int col, int row) {
+    lua.set_function("world_apply_move", [world, cfg](int unitId, int col, int row) {
         if (!world) return false;
 
         auto* u = world->findUnitById(unitId);
         if (!u || !u->alive) return false;
 
-        u->position = gridToWorld(col, row);
+        u->position = gridToWorld(cfg, col, row);
         u->isMoving = false;
         u->moveT = 1.0f;
         u->committedDest = {-1,-1};
         return true;
     });
 
-    lua.set_function("world_commit_move", [world](int unitId, int col, int row) {
+    lua.set_function("world_commit_move", [world, cfg](int unitId, int col, int row) {
         if (!world) return false;
 
         auto* u = world->findUnitById(unitId);
@@ -103,12 +104,12 @@ lua.set_function("world_list_units", [world, &lua]() {
         // NOTE: Fast attacks no longer use __END transition cues when movement begins.
         u->committedDest = {col,row};
         u->moveFrom      = u->position;
-        u->moveTo        = gridToWorld(col,row);
+        u->moveTo        = gridToWorld(cfg, col,row);
         u->moveT         = 0.0f;
         u->isMoving      = true;
         return true;
     });
-lua.set_function("world_nearest_enemy_cell", [world](int unitId) {
+    lua.set_function("world_nearest_enemy_cell", [world, cfg](int unitId) {
         if (!world) return std::make_pair(-1, -1);
 
         auto& list = world->getPokemons();
@@ -118,14 +119,14 @@ lua.set_function("world_nearest_enemy_cell", [world](int unitId) {
             [&](const PokemonInstance& p){ return p.id == unitId; });
         if (it == list.end()) return std::make_pair(-1, -1);
 
-        const auto myCell = worldToGrid(it->position);
+        const auto myCell = worldToGrid(cfg, it->position);
 
         int best = std::numeric_limits<int>::max();
         glm::ivec2 bestCell(-1, -1);
 
         for (const auto& u : list) {
             if (!u.alive || u.side == it->side) continue;
-            const auto ec = worldToGrid(u.position);
+            const auto ec = worldToGrid(cfg, u.position);
 
             // Chebyshev distance matches your 8-connected neighborhood
             const int d = std::max(std::abs(myCell.x - ec.x), std::abs(myCell.y - ec.y));
@@ -139,19 +140,19 @@ lua.set_function("world_nearest_enemy_cell", [world](int unitId) {
     });
 
     // FIX: use integer distances to avoid int->float C4244 warnings
-    lua.set_function("world_is_adjacent_to_enemy", [world](int unitId) {
+    lua.set_function("world_is_adjacent_to_enemy", [world, cfg](int unitId) {
         if (!world) return false;
         auto& list = world->getPokemons();
         auto it = std::find_if(list.begin(), list.end(),
             [&](const PokemonInstance& p){ return p.id == unitId; });
         if (it == list.end()) return false;
-        auto myCell = worldToGrid(it->position);
+        auto myCell = worldToGrid(cfg, it->position);
 
         int best = std::numeric_limits<int>::max();
         glm::ivec2 bestCell(-999,-999);
         for (auto& u : list) {
             if (!u.alive || u.side == it->side) continue;
-            auto ec = worldToGrid(u.position);
+            auto ec = worldToGrid(cfg, u.position);
             const int d = std::max(std::abs(myCell.x - ec.x), std::abs(myCell.y - ec.y));
             if (d < best) { best = d; bestCell = ec; }
         }
@@ -160,7 +161,7 @@ lua.set_function("world_nearest_enemy_cell", [world](int unitId) {
         return std::max(dx, dy) == 1;
     });
 
-    lua.set_function("world_enemies_adjacent", [world, &lua](int unitId) {
+    lua.set_function("world_enemies_adjacent", [world, &lua, cfg](int unitId) {
         sol::state_view L(lua);
         sol::table arr = L.create_table();
         if (!world) return arr;
@@ -169,11 +170,11 @@ lua.set_function("world_nearest_enemy_cell", [world](int unitId) {
         for (auto& u : world->getPokemons()) if (u.id == unitId) { attacker = &u; break; }
         if (!attacker || !attacker->alive) return arr;
 
-        auto ac = worldToGrid(attacker->position);
+        auto ac = worldToGrid(cfg, attacker->position);
         int idx = 1;
         for (auto& u : world->getPokemons()) {
             if (!u.alive || u.side == attacker->side) continue;
-            auto ec = worldToGrid(u.position);
+            auto ec = worldToGrid(cfg, u.position);
             const int dx = std::abs(ac.x - ec.x);
             const int dy = std::abs(ac.y - ec.y);
             if (std::max(dx, dy) == 1) {
@@ -491,7 +492,7 @@ lua.set_function("world_nearest_enemy_cell", [world](int unitId) {
         return T->hp;
     });
 
-    lua.set_function("world_face_enemy", [world](int unitId, sol::optional<int> tgtCol, sol::optional<int> tgtRow) {
+    lua.set_function("world_face_enemy", [world, cfg](int unitId, sol::optional<int> tgtCol, sol::optional<int> tgtRow) {
         if (!world) return;
         auto& list = world->getPokemons();
         auto it = std::find_if(list.begin(), list.end(),
@@ -500,7 +501,7 @@ lua.set_function("world_nearest_enemy_cell", [world](int unitId) {
 
         glm::vec3 target;
         if (tgtCol && tgtRow) {
-            target = gridToWorld(*tgtCol, *tgtRow);
+            target = gridToWorld(cfg, *tgtCol, *tgtRow);
         } else {
             float best = std::numeric_limits<float>::max();
             glm::vec3 bestPos = it->position;
@@ -516,12 +517,12 @@ lua.set_function("world_nearest_enemy_cell", [world](int unitId) {
     });
 
     // Grid converters
-    lua.set_function("grid_to_world", [](int col, int row) {
-        auto p = gridToWorld(col, row);
+    lua.set_function("grid_to_world", [cfg](int col, int row) {
+        auto p = gridToWorld(cfg, col, row);
         return std::make_tuple(p.x, p.y, p.z);
     });
-    lua.set_function("world_to_grid", [](float x, float y, float z) {
-        auto c = worldToGrid(glm::vec3{x,y,z});
+    lua.set_function("world_to_grid", [cfg](float x, float y, float z) {
+        auto c = worldToGrid(cfg, glm::vec3{x,y,z});
         return std::make_pair(c.x, c.y);
     });
 

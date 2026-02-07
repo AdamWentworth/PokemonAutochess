@@ -2,7 +2,6 @@
 
 #include "game/GameWorld.h"
 #include "game/GameServices.h"
-#include "game/GameConfig.h"
 #include "game/logging/LoggerUtil.h"
 
 #include "game/systems/MovementSystem.h"
@@ -17,11 +16,6 @@
 namespace {
 constexpr int UI_W = 1280;
 
-const GameConfigData& cfgOrLegacy(const GameServices* services) {
-    if (services) return services->config;
-    return GameConfig::get(); // legacy fallback
-}
-
 LogBus::Logger* loggerOrNull(GameServices* services) {
     return services ? &services->log : nullptr;
 }
@@ -33,14 +27,20 @@ std::string Capitalize(std::string s) {
 }
 } // namespace
 
+const GameConfigData& CombatState::cfg() const {
+    if (services) return services->config;
+    return fallbackConfig;
+}
+
 CombatState::CombatState(GameStateManager* manager, GameWorld* world, const std::string& path)
     : stateManager(manager)
     , gameWorld(world)
     , services(nullptr)
+    , fallbackConfig(GameConfig::load(nullptr))
     , script(world, manager, nullptr)
     , combatMessage()
 {
-    const auto& c = cfgOrLegacy(services);
+    const auto& c = cfg();
     textRenderer = std::make_unique<TextRenderer>(c.fontPath, c.fontSize);
 
     if (!script.loadScript(path)) {
@@ -55,10 +55,11 @@ CombatState::CombatState(GameStateManager* manager, GameWorld* world, GameServic
     : stateManager(manager)
     , gameWorld(world)
     , services(&svc)
+    , fallbackConfig()
     , script(world, manager, &svc.log)
     , combatMessage()
 {
-    const auto& c = cfgOrLegacy(services);
+    const auto& c = cfg();
     textRenderer = std::make_unique<TextRenderer>(c.fontPath, c.fontSize);
 
     if (!script.loadScript(path)) {

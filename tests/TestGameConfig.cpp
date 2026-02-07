@@ -7,7 +7,7 @@
 // NOTE: Some repo revisions do not populate GameConfigData::loadSource.
 // This test does NOT fail on empty loadSource; it only enforces core diagnostics invariants.
 bool test_gameconfig_diagnostics(std::string& outErr) {
-    const GameConfigData& cfg = GameConfig::get();
+    GameConfigData cfg = GameConfig::load(nullptr);
 
     // Invariant: loadOk implies loadError empty; !loadOk implies loadError non-empty.
     if (cfg.loadOk) {

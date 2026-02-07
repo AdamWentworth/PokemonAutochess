@@ -5,7 +5,6 @@
 #include "game/GameStateManager.h"
 #include "game/GameWorld.h"
 #include "game/GameServices.h"
-#include "game/GameConfig.h"
 
 #include "engine/ui/TextRenderer.h"
 
@@ -17,17 +16,18 @@
 namespace {
 constexpr int UI_W = 1280;
 
-// Helper: access config either from services or legacy singleton.
-const GameConfigData& cfgOrLegacy(const GameServices* services) {
-    if (services) return services->config;
-    return GameConfig::get(); // legacy fallback
-}
 } // namespace
+
+const GameConfigData& PlacementState::cfg() const {
+    if (services) return services->config;
+    return fallbackConfig;
+}
 
 PlacementState::PlacementState(GameStateManager* manager, GameWorld* world, const std::string& name)
     : stateManager(manager)
     , gameWorld(world)
     , services(nullptr)
+    , fallbackConfig(GameConfig::load(nullptr))
     , starterName(name)
 {}
 
@@ -35,6 +35,7 @@ PlacementState::PlacementState(GameStateManager* manager, GameWorld* world, Game
     : stateManager(manager)
     , gameWorld(world)
     , services(&svc)
+    , fallbackConfig()
     , starterName(name)
 {}
 
@@ -104,7 +105,7 @@ void PlacementState::render() {
 
     static std::unique_ptr<TextRenderer> text;
     if (!text) {
-        const auto& c = cfgOrLegacy(services);
+        const auto& c = cfg();
         text = std::make_unique<TextRenderer>(c.fontPath, c.fontSize);
     }
 

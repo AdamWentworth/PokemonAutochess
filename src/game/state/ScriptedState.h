@@ -19,7 +19,7 @@ struct GameServices;
 // this state will build and drive a simple card UI for selection.
 class ScriptedState : public GameState {
 public:
-    // Preferred: explicitly pass services (removes GameConfig::get() usage in this state).
+    // Preferred: explicitly pass services (avoids global config access in this state).
     ScriptedState(GameStateManager* manager, GameWorld* world, GameServices& services, const std::string& scriptPath);
 
     // Back-compat: older call sites that don't have services yet.
@@ -43,6 +43,7 @@ private:
     GameStateManager* stateManager = nullptr;
     GameWorld* gameWorld = nullptr;
     GameServices* services = nullptr;
+    GameConfigData fallbackConfig;
 
     std::string scriptPath;
     LuaScript script;

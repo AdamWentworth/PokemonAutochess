@@ -8,6 +8,7 @@ class GameWorld;
 class GameStateManager;
 namespace sol { class state; }
 namespace LogBus { class Logger; }
+struct GameConfigData;
 
 // PokemonSide is declared in game/PokemonInstance.h as a scoped enum (enum class).
 // Forward declare it with the same kind.
@@ -18,8 +19,8 @@ std::string toLowerCopy(std::string s);
 int animIndexCached(class PokemonInstance& p, const std::string& clipName);
 PokemonSide sideFromString(const std::string& s);
 
-glm::vec3 gridToWorld(int col, int row);
-glm::ivec2 worldToGrid(const glm::vec3& pos);
+glm::vec3 gridToWorld(const GameConfigData* cfg, int col, int row);
+glm::ivec2 worldToGrid(const GameConfigData* cfg, const glm::vec3& pos);
 
 bool attackerIsInAttackAnimation(const class PokemonInstance& A);
 

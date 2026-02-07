@@ -26,18 +26,11 @@ struct GameConfigData {
     std::string loadError;             // human-readable error (empty if ok)
 };
 
+namespace LogBus { class Logger; }
+
 class GameConfig {
 public:
-    // Loads once from scripts/config/game.lua and caches.
-    // Behavior: still returns defaults on failure, but records diagnostics.
-    static const GameConfigData& get();
-
-    // New: observability helpers.
-    static bool loadedOk() { return get().loadOk; }
-    static const std::string& error() { return get().loadError; }
-    static const std::string& source() { return get().loadSource; }
-
-    // New: force a reload (useful in dev tools / tests).
-    // If you don't need it, ignore it.
-    static void reload();
+    // Loads from scripts/config/game.lua (no caching).
+    // Behavior: returns defaults on failure, but records diagnostics.
+    static GameConfigData load(LogBus::Logger* logger = nullptr);
 };

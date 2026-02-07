@@ -64,6 +64,9 @@ struct GameSession::Impl {
     // Game-owned logger instance (no file-scope globals).
     LogBus::Logger log;
 
+    // Owned config (loaded once per session).
+    GameConfigData config;
+
     // v1: thread config/db/log into states without singletons.
     std::unique_ptr<GameServices> services;
 
@@ -83,17 +86,18 @@ struct GameSession::Impl {
     void init(GameContext& ctx) {
         camera = ctx.camera;
 
-        const auto& cfg = GameConfig::get();
-        services = std::make_unique<GameServices>(cfg, dataDb, log);
+        config = GameConfig::load(&log);
+        services = std::make_unique<GameServices>(config, dataDb, log);
 
         // Board visuals
-        board = std::make_unique<BoardRenderer>(cfg.rows, cfg.cols, cfg.cellSize);
+        board = std::make_unique<BoardRenderer>(config.rows, config.cols, config.cellSize);
 
         // World
         gameWorld = std::make_unique<GameWorld>();
         gameWorld->setLogger(&log);
         if (ctx.services) gameWorld->setResources(ctx.services->resources);
         gameWorld->setData(&dataDb);
+        gameWorld->setConfig(&config);
 
         // State stack
         stateManager = std::make_unique<GameStateManager>();
@@ -118,7 +122,7 @@ struct GameSession::Impl {
         healthBarRenderer.init();
 
         // Battle feed + logger (instance-based)
-        battleFeed = std::make_unique<BattleFeed>(cfg.fontPath, cfg.fontSize);
+        battleFeed = std::make_unique<BattleFeed>(config.fontPath, config.fontSize);
         log.attach(battleFeed.get());
         log.setEchoToStdout(false);
 

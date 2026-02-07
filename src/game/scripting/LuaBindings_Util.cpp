@@ -53,18 +53,23 @@ PokemonSide sideFromString(const std::string& s) {
 }
 
 // Grid helpers
-glm::vec3 gridToWorld(int col, int row) {
-    const auto& cfg = GameConfig::get();
-    float boardOriginX = -((cfg.cols * cfg.cellSize) / 2.0f) + cfg.cellSize * 0.5f;
-    float boardOriginZ = -((cfg.rows * cfg.cellSize) / 2.0f) + cfg.cellSize * 0.5f;
-    return { boardOriginX + col * cfg.cellSize, 0.0f, boardOriginZ + row * cfg.cellSize };
+static const GameConfigData& fallbackConfig() {
+    static GameConfigData cfg;
+    return cfg;
 }
-glm::ivec2 worldToGrid(const glm::vec3& pos) {
-    const auto& cfg = GameConfig::get();
-    float boardOriginX = -((cfg.cols * cfg.cellSize) / 2.0f) + cfg.cellSize * 0.5f;
-    float boardOriginZ = -((cfg.rows * cfg.cellSize) / 2.0f) + cfg.cellSize * 0.5f;
-    int col = static_cast<int>(std::round((pos.x - boardOriginX) / cfg.cellSize));
-    int row = static_cast<int>(std::round((pos.z - boardOriginZ) / cfg.cellSize));
+
+glm::vec3 gridToWorld(const GameConfigData* cfg, int col, int row) {
+    const auto& c = cfg ? *cfg : fallbackConfig();
+    float boardOriginX = -((c.cols * c.cellSize) / 2.0f) + c.cellSize * 0.5f;
+    float boardOriginZ = -((c.rows * c.cellSize) / 2.0f) + c.cellSize * 0.5f;
+    return { boardOriginX + col * c.cellSize, 0.0f, boardOriginZ + row * c.cellSize };
+}
+glm::ivec2 worldToGrid(const GameConfigData* cfg, const glm::vec3& pos) {
+    const auto& c = cfg ? *cfg : fallbackConfig();
+    float boardOriginX = -((c.cols * c.cellSize) / 2.0f) + c.cellSize * 0.5f;
+    float boardOriginZ = -((c.rows * c.cellSize) / 2.0f) + c.cellSize * 0.5f;
+    int col = static_cast<int>(std::round((pos.x - boardOriginX) / c.cellSize));
+    int row = static_cast<int>(std::round((pos.z - boardOriginZ) / c.cellSize));
     return { col, row };
 }
 

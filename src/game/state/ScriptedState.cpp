@@ -14,13 +14,14 @@ static constexpr int UI_H = 720;
 
 const GameConfigData& ScriptedState::cfg() const {
     if (services) return services->config;
-    return GameConfig::get(); // back-compat fallback only
+    return fallbackConfig;
 }
 
 ScriptedState::ScriptedState(GameStateManager* manager, GameWorld* world, GameServices& svc, const std::string& path)
     : stateManager(manager)
     , gameWorld(world)
     , services(&svc)
+    , fallbackConfig()
     , scriptPath(path)
     , script(world, manager, &svc.log)
 {
@@ -33,6 +34,7 @@ ScriptedState::ScriptedState(GameStateManager* manager, GameWorld* world, const 
     : stateManager(manager)
     , gameWorld(world)
     , services(nullptr)
+    , fallbackConfig(GameConfig::load(nullptr))
     , scriptPath(path)
     , script(world, manager, nullptr)
 {

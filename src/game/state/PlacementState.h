@@ -1,6 +1,7 @@
 #pragma once
 
 #include "game/GameState.h"
+#include "game/GameConfig.h"
 #include <string>
 
 #include <glm/glm.hpp>
@@ -25,9 +26,12 @@ public:
     void render() override;
 
 private:
+    const GameConfigData& cfg() const;
+
     GameStateManager* stateManager = nullptr;
     GameWorld* gameWorld = nullptr;
     GameServices* services = nullptr;
+    GameConfigData fallbackConfig;
 
     std::string starterName;
     float timer = 5.0f;
