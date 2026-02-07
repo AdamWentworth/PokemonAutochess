@@ -276,3 +276,16 @@ add_custom_target(PAC_All
         PAC_DataCooker
 )
 
+# ---------------- Data pack helper targets ----------------
+add_custom_target(PAC_ValidateData
+    COMMAND $<TARGET_FILE:PAC_DataCooker> --validate-only
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+    DEPENDS PAC_DataCooker
+)
+
+add_custom_target(PAC_PackData
+    COMMAND $<TARGET_FILE:PAC_DataCooker> --out content_pak/content.pak
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+    DEPENDS PAC_DataCooker
+)
+

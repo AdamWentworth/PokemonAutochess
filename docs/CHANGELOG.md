@@ -1,6 +1,10 @@
-# Changelog
+﻿# Changelog
 
 ## Unreleased
+
+## 2026-02-07 — Stage 8.1 data pack helper targets
+- Added CMake targets PAC_ValidateData and PAC_PackData to run the data cooker.
+
 
 ## 2026-02-07 -- Stage 7.2 battle invariants tests
 - Added headless battle invariants test for damage and death-state cleanup.

@@ -1,4 +1,4 @@
-# Roadmap (Living)
+﻿# Roadmap (Living)
 
 This document is the living tracker: what is done, what is next, and what exit criteria still block forward progress.
 The target end-state and stable constraints live in `TARGET_ARCHITECTURE.md`.
@@ -27,6 +27,7 @@ Last updated: 2026-02-07
 - DONE Stage 6.2: Asset pipeline (cooker + validation + packed runtime).
 - DONE Stage 7.1: determinism scaffolding (IRandom/ITimeSource + headless tests).
 - DONE Stage 7.2: headless battle invariants tests.
+- DONE Stage 8.1: data pack helper targets (PAC_ValidateData and PAC_PackData).
 
 ### Current ECS capabilities
 - Entities: id + generation
@@ -47,52 +48,52 @@ Last updated: 2026-02-07
 
 ## Next Step (Do this next)
 
-### Stage 8 -- TBD (post-rebuild polish)
-Goal: identify next production hardening tasks (profiling, UX, tooling).
+### Stage 8.2 — Release build checklist
+Goal: document a minimal release flow (pack data, set env, ship artifacts).
 
 Exit criteria:
-- Agreed scope and staged plan.
+- Release checklist documented in README or docs.
 
 ---
 
 ## Stage Checklist (High level)
 
-### Stage 0 -- Lock target rules
+### Stage 0 — Lock target rules
 Exit criteria:
 - dependency rule enforceable in build graph
 - "where does this file go?" has a consistent answer
 
-### Stage 1 -- Module boundaries
+### Stage 1 — Module boundaries
 Exit criteria:
 - `engine_core` builds without SDL/GL
 - game links engine libs and runs
 - tests still pass
 
-### Stage 2 -- ECS foundation
+### Stage 2 — ECS foundation
 Exit criteria: met (structural-change policy + preferred API adoption in gameplay).
 
-### Stage 3 -- Remove globals (events + logging first)
+### Stage 3 — Remove globals (events + logging first)
 Work items:
 - inventory global/singleton usage in game + engine_core
 - replace with explicit service wiring (composition root)
 - remove fallback global access paths
 
-### Stage 4 -- One update graph
+### Stage 4 — One update graph
 Work items:
 - unify phases and ordering in one place
 - support headless mode with renderer/platform omitted
 
-### Stage 5 -- Scripting firewall
+### Stage 5 — Scripting firewall
 Work items:
 - ScriptAPI + command buffer + stable event schema
 - bind only ScriptAPI to Lua
 
-### Stage 6 -- Asset pipeline
+### Stage 6 — Asset pipeline
 Work items:
 - cooker + validation
 - PackedAssetStore (+ optional DevAssetStore)
 
-### Stage 7 -- Determinism hardening
+### Stage 7 — Determinism hardening
 Work items:
 - DONE: ITimeSource + IRandom injection (core interfaces + GameServices wiring)
 - DONE: headless content invariants tests
@@ -102,7 +103,7 @@ Work items:
 
 ## Immediate Technical Outputs (to keep momentum)
 
-1) **Delete/replace list** for globals/singletons (prep for Stage 3) -- `DELETE_REPLACE_LIST.md`
+1) **Delete/replace list** for globals/singletons (prep for Stage 3) — `DELETE_REPLACE_LIST.md`
 2) **Core service interfaces** to add next:
    - `ITimeSource`, `IRandom`, `IAssetStore`
 3) **ECS policy enforcement** (Stage 2.3)
