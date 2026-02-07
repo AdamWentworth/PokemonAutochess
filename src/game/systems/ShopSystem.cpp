@@ -11,7 +11,7 @@ ShopSystem::ShopSystem(engine::IRandom& rngIn)
     fallbackPool = {"bulbasaur", "charmander", "squirtle", "pidgey", "rattata"};
 }
 
-void ShopSystem::update(float dt) {
+void ShopSystem::update(engine::ecs::World& /*world*/, float dt) {
     (void)dt;
     // No-op; ShopSystem is event/phase-driven right now.
 }

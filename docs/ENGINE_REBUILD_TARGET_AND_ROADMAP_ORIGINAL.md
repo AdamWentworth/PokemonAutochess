@@ -32,7 +32,7 @@ Last updated: 2026-02-07
 
 ## Current Gaps vs Target
 
-- ECS adoption is still partial (only RoundPhase is stored in ECS; most gameplay still lives in GameWorld/legacy systems).
+- ECS adoption is still partial (RoundPhase stored in ECS; RoundSystem/ShopSystem are ECS systems, but most gameplay still lives in GameWorld/legacy systems).
 - ScriptAPI still exposes GameWorld/GameStateManager; Lua bindings include render headers.
 - UI width/height constants are hard-coded in gameplay states.
 

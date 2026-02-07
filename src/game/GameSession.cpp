@@ -90,7 +90,7 @@ struct GameSession::Impl {
 
     std::shared_ptr<CameraSystem>           cameraSystem;
     std::shared_ptr<UnitInteractionSystem>  unitSystem;
-    std::shared_ptr<ShopSystem>             shopSystem;
+    ShopSystem*                             shopSystem = nullptr;
 
 
     Impl(GameContext& ctx, GameDataDb db)
@@ -165,13 +165,13 @@ struct GameSession::Impl {
             cameraSystem = std::make_shared<CameraSystem>(camera, *services);
             unitSystem   = std::make_shared<UnitInteractionSystem>(camera, gameWorld.get(), ctx.drawableW, ctx.drawableH);
         }
-        shopSystem   = std::make_shared<ShopSystem>(services->rng);
-
         using Phase = engine::ecs::Scheduler::Phase;
 
         if (cameraSystem) scheduler.add(std::make_unique<game::UpdatableSystemAdapter>(cameraSystem.get()), Phase::Update);
         if (unitSystem)   scheduler.add(std::make_unique<game::UpdatableSystemAdapter>(unitSystem.get()), Phase::Update);
-        if (shopSystem)   scheduler.add(std::make_unique<game::UpdatableSystemAdapter>(shopSystem.get()), Phase::Update);
+        auto shopSystemImpl = std::make_unique<ShopSystem>(services->rng);
+        shopSystem = shopSystemImpl.get();
+        scheduler.add(std::move(shopSystemImpl), Phase::Update);
 
         auto roundSystem = std::make_unique<RoundSystem>(*services, roundPhaseEntity);
         ecsWorld.add<game::RoundState>(roundPhaseEntity, game::RoundState{ roundSystem->getCurrentPhase() });
@@ -210,7 +210,7 @@ struct GameSession::Impl {
             &scheduler,
             &ecsWorld,
             roundPhaseEntity,
-            shopSystem.get(),
+            shopSystem,
             &log,
             &scriptEvents
         });
@@ -275,7 +275,7 @@ struct GameSession::Impl {
         }
 
         battleFeed.reset();
-        shopSystem.reset();
+        shopSystem = nullptr;
         unitSystem.reset();
         cameraSystem.reset();
 

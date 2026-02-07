@@ -1,7 +1,7 @@
 // src/game/systems/ShopSystem.h
 #pragma once
 
-#include "engine/core/Updatable.h"
+#include "engine/core/ecs/ISystem.h"
 #include "engine/input/InputEvent.h"
 #include "game/systems/RoundPhase.h"
 #include "game/systems/CardSystem.h"
@@ -15,12 +15,12 @@ namespace engine { class IRandom; }
 // NOTE:
 // This is intentionally a minimal, compilation-safe ShopSystem.
 // It does not depend on PokemonConfigLoader or any unfinished shop-specific APIs.
-class ShopSystem : public Updatable {
+class ShopSystem final : public engine::ecs::ISystem {
 public:
     explicit ShopSystem(engine::IRandom& rng);
     ~ShopSystem() override = default;
 
-    void update(float dt) override;
+    void update(engine::ecs::World& world, float dt) override;
 
     // Called by GameApp after translating SDL -> InputEvent
     void handleInput(const InputEvent& event);
