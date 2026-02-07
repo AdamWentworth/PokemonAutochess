@@ -11,7 +11,9 @@
 #include "engine/core/EngineServices.h"
 #include "engine/core/Paths.h"
 #include "engine/core/Random.h"
+#include "engine/core/Services.h"
 #include "engine/core/TimeSources.h"
+#include "engine/core/ecs/Entity.h"
 #include "engine/input/InputEvent.h"
 
 #include "engine/render/BoardRenderer.h"
@@ -34,6 +36,7 @@
 #include "game/config/GameDataDb.h"
 #include "game/assets/DevAssetStore.h"
 #include "game/assets/PackedAssetStore.h"
+#include "game/ecs/RoundState.h"
 
 #include "game/systems/CameraSystem.h"
 #include "game/systems/UnitInteractionSystem.h"
@@ -68,6 +71,11 @@ struct GameSession::Impl {
     // v1: thread config/db/log into states without singletons.
     std::unique_ptr<GameServices> services;
 
+    // ECS runtime core services + world.
+    engine::CoreServices coreServices;
+    engine::ecs::World ecsWorld;
+    engine::ecs::Entity roundPhaseEntity{};
+
     // Owned state
     std::unique_ptr<GameStateManager> stateManager;
     std::unique_ptr<GameWorld>        gameWorld;
@@ -75,7 +83,6 @@ struct GameSession::Impl {
     std::unique_ptr<BattleFeed>       battleFeed;
 
     HealthBarRenderer healthBarRenderer;
-    engine::ecs::World ecsWorld;
     engine::ecs::Scheduler scheduler;
     GameUpdateGraph updateGraph;
 
@@ -84,10 +91,13 @@ struct GameSession::Impl {
     std::shared_ptr<CameraSystem>           cameraSystem;
     std::shared_ptr<UnitInteractionSystem>  unitSystem;
     std::shared_ptr<ShopSystem>             shopSystem;
-    std::shared_ptr<RoundSystem>            roundSystem;
 
 
-    Impl(GameContext& ctx, GameDataDb db) : dataDb(std::move(db)) { init(ctx); }
+    Impl(GameContext& ctx, GameDataDb db)
+        : dataDb(std::move(db))
+        , ecsWorld(&coreServices) {
+        init(ctx);
+    }
 
     void init(GameContext& ctx) {
         camera = ctx.camera;
@@ -131,6 +141,10 @@ struct GameSession::Impl {
 
         config = GameConfig::load(&log, assetStore.get());
         services = std::make_unique<GameServices>(config, dataDb, log, scriptEvents, *assetStore, rng, timeSource);
+        coreServices.rng = &services->rng;
+        coreServices.time = &services->time;
+
+        roundPhaseEntity = ecsWorld.create();
 
         // Board visuals
         if (renderEnabled) {
@@ -151,15 +165,17 @@ struct GameSession::Impl {
             cameraSystem = std::make_shared<CameraSystem>(camera, *services);
             unitSystem   = std::make_shared<UnitInteractionSystem>(camera, gameWorld.get(), ctx.drawableW, ctx.drawableH);
         }
-        roundSystem  = std::make_shared<RoundSystem>(*services);
         shopSystem   = std::make_shared<ShopSystem>(services->rng);
 
         using Phase = engine::ecs::Scheduler::Phase;
 
         if (cameraSystem) scheduler.add(std::make_unique<game::UpdatableSystemAdapter>(cameraSystem.get()), Phase::Update);
         if (unitSystem)   scheduler.add(std::make_unique<game::UpdatableSystemAdapter>(unitSystem.get()), Phase::Update);
-        if (roundSystem)  scheduler.add(std::make_unique<game::UpdatableSystemAdapter>(roundSystem.get()), Phase::Update);
         if (shopSystem)   scheduler.add(std::make_unique<game::UpdatableSystemAdapter>(shopSystem.get()), Phase::Update);
+
+        auto roundSystem = std::make_unique<RoundSystem>(*services, roundPhaseEntity);
+        ecsWorld.add<game::RoundState>(roundPhaseEntity, game::RoundState{ roundSystem->getCurrentPhase() });
+        scheduler.add(std::move(roundSystem), Phase::Update);
 
         if (renderEnabled) {
             if (ctx.services && ctx.services->shaders) {
@@ -193,7 +209,7 @@ struct GameSession::Impl {
         updateGraph.configure({
             &scheduler,
             &ecsWorld,
-            roundSystem.get(),
+            roundPhaseEntity,
             shopSystem.get(),
             &log,
             &scriptEvents
@@ -262,7 +278,6 @@ struct GameSession::Impl {
         shopSystem.reset();
         unitSystem.reset();
         cameraSystem.reset();
-        roundSystem.reset();
 
         stateManager.reset();
         gameWorld.reset();

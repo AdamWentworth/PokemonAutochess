@@ -1,6 +1,9 @@
 // src/game/systems/RoundSystem.cpp
 #include "RoundSystem.h"
 #include "game/GameServices.h"
+#include "game/ecs/RoundState.h"
+#include "engine/core/ecs/World.h"
+
 #include <iostream>
 #include <sol/sol.hpp>
 
@@ -25,8 +28,9 @@ RoundPhase RoundSystem::toPhaseEnum(const std::string& s) {
     return RoundPhase::Planning;
 }
 
-RoundSystem::RoundSystem(GameServices& services)
+RoundSystem::RoundSystem(GameServices& services, engine::ecs::Entity phaseEntity_)
     : script(/*world*/ nullptr, /*manager*/ nullptr, services)
+    , phaseEntity(phaseEntity_)
 {
     if (!script.loadScript(kRoundSystemScript)) {
         std::cerr << "[RoundSystem] Failed to load " << kRoundSystemScript << "\n";
@@ -55,7 +59,7 @@ RoundSystem::RoundSystem(GameServices& services)
     std::cout << "[RoundSystem] Starting in " << phaseName(currentPhase) << " Phase\n";
 }
 
-void RoundSystem::update(float deltaTime) {
+void RoundSystem::update(engine::ecs::World& world, float deltaTime) {
     sol::function fUpdate = script.getState()[kFnUpdate];
     if (fUpdate.valid()) fUpdate(deltaTime);
     script.flushCommands();
@@ -65,6 +69,14 @@ void RoundSystem::update(float deltaTime) {
         sol::protected_function_result r = fPhase();
         if (r.valid()) {
             currentPhase = toPhaseEnum(r.get<std::string>());
+        }
+    }
+
+    if (world.alive(phaseEntity)) {
+        if (auto* state = world.get<game::RoundState>(phaseEntity)) {
+            state->phase = currentPhase;
+        } else {
+            world.add<game::RoundState>(phaseEntity, game::RoundState{ currentPhase });
         }
     }
 }

@@ -2,23 +2,18 @@
 
 #pragma once
 
-#include "engine/core/Updatable.h"
+#include "engine/core/ecs/ISystem.h"
+#include "engine/core/ecs/Entity.h"
 #include "game/GameServices.h"
 #include "game/scripting/LuaScript.h"
-#include "engine/events/RoundEvents.h"
-
-enum class RoundPhase {
-    Planning,
-    Battle,
-    Resolution
-};
+#include "game/systems/RoundPhase.h"
 
 
-class RoundSystem : public Updatable {
+class RoundSystem final : public engine::ecs::ISystem {
 public:
-    explicit RoundSystem(GameServices& services);
+    RoundSystem(GameServices& services, engine::ecs::Entity phaseEntity);
 
-    void update(float deltaTime) override;
+    void update(engine::ecs::World& world, float deltaTime) override;
     RoundPhase getCurrentPhase() const;
 
 private:
@@ -30,4 +25,6 @@ private:
 
     // Helper to map string -> enum coming back from Lua
     static RoundPhase toPhaseEnum(const std::string& s);
+
+    engine::ecs::Entity phaseEntity;
 };

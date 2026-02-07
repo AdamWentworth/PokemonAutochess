@@ -36,6 +36,7 @@ Done:
 
 Partial:
 - Script firewall exists, but Lua bindings still reach GameWorld and use render headers
+- ECS adoption started (RoundPhase stored in ECS; RoundSystem runs as ECS system)
 
 Not done:
 - Replace hard-coded UI constants with a UI/Viewport service

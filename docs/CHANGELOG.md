@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+## 2026-02-07 - Stage 12 ECS gameplay adoption (round phase)
+- Added RoundPhase/RoundState components and stored phase in ECS world.
+- RoundSystem now runs as an ECS system; GameUpdateGraph reads phase from ECS.
+
 ## 2026-02-07 - Stage 11 single scheduler update graph
 - Replaced SystemRegistry usage with ECS Scheduler phases in runtime.
 - GameUpdateGraph now drives scheduler phases; state/world/UI updates run via adapters.

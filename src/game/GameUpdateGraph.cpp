@@ -6,6 +6,7 @@
 
 #include "engine/core/ecs/Scheduler.h"
 #include "engine/core/ecs/World.h"
+#include "game/ecs/RoundState.h"
 
 #include "game/systems/ShopSystem.h"
 #include "game/logging/LogBus.h"
@@ -27,11 +28,13 @@ namespace game {
 void GameUpdateGraph::configure(Inputs inputs) {
     inputs_ = inputs;
     hasLastRoundPhase = false;
-    if (inputs_.roundSystem) {
-        lastRoundPhase = inputs_.roundSystem->getCurrentPhase();
-        hasLastRoundPhase = true;
-        if (inputs_.shopSystem) {
-            inputs_.shopSystem->onRoundPhaseChanged(lastRoundPhase, lastRoundPhase);
+    if (inputs_.world && inputs_.world->alive(inputs_.roundPhaseEntity)) {
+        if (auto* state = inputs_.world->get<game::RoundState>(inputs_.roundPhaseEntity)) {
+            lastRoundPhase = state->phase;
+            hasLastRoundPhase = true;
+            if (inputs_.shopSystem) {
+                inputs_.shopSystem->onRoundPhaseChanged(lastRoundPhase, lastRoundPhase);
+            }
         }
     }
 }
@@ -50,9 +53,12 @@ void GameUpdateGraph::tick(float dt) {
 }
 
 void GameUpdateGraph::handleRoundPhaseTransitions() {
-    if (!inputs_.roundSystem || !inputs_.shopSystem) return;
+    if (!inputs_.world || !inputs_.shopSystem) return;
+    if (!inputs_.world->alive(inputs_.roundPhaseEntity)) return;
+    auto* state = inputs_.world->get<game::RoundState>(inputs_.roundPhaseEntity);
+    if (!state) return;
 
-    const RoundPhase current = inputs_.roundSystem->getCurrentPhase();
+    const RoundPhase current = state->phase;
     if (!hasLastRoundPhase) {
         lastRoundPhase = current;
         hasLastRoundPhase = true;

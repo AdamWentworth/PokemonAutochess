@@ -1,7 +1,8 @@
 // src/game/GameUpdateGraph.h
 #pragma once
 
-#include "game/systems/RoundSystem.h"
+#include "game/systems/RoundPhase.h"
+#include "engine/core/ecs/Entity.h"
 
 class ShopSystem;
 namespace LogBus { class Logger; }
@@ -17,7 +18,7 @@ public:
     struct Inputs {
         engine::ecs::Scheduler* scheduler = nullptr;
         engine::ecs::World* world = nullptr;
-        RoundSystem* roundSystem = nullptr;
+        engine::ecs::Entity roundPhaseEntity{};
         ShopSystem* shopSystem = nullptr;
         LogBus::Logger* log = nullptr;
         ScriptEventBus* events = nullptr;
