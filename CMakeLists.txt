@@ -78,6 +78,10 @@ target_sources(engine_core PRIVATE
     src/engine/core/EventBus.h
     src/engine/core/Services.h
     src/engine/core/AssetPackFormat.h
+    src/engine/core/IRandom.h
+    src/engine/core/Random.h
+    src/engine/core/ITimeSource.h
+    src/engine/core/TimeSources.h
     src/engine/core/ecs/Entity.h
     src/engine/core/ecs/ComponentStorage.h
     src/engine/core/ecs/ISystem.h
@@ -233,6 +237,8 @@ add_executable(PAC_Tests
     tests/TestEventBus.cpp
     tests/TestGameConfig.cpp
     tests/TestECS.cpp
+    tests/TestDeterminism.cpp
+    tests/TestContentValidation.cpp
 )
 
 target_link_libraries(PAC_Tests

@@ -9,6 +9,9 @@ bool test_ecs_smoke(std::string& outFail);
 bool test_ecs_destroy_cleans_components(std::string& outFail);
 bool test_ecs_for_each_join(std::string& outFail);
 bool test_ecs_structural_change_deferral(std::string& outFail);
+bool test_rng_determinism(std::string& outFail);
+bool test_manual_time_source(std::string& outFail);
+bool test_content_invariants(std::string& outFail);
 
 static int run(const char* name, bool (*fn)(std::string&), int& failCount) {
     std::string fail;
@@ -28,6 +31,9 @@ int main() {
     run("ecs_destroy_cleans_components", &test_ecs_destroy_cleans_components, fails);
     run("ecs_for_each_join", &test_ecs_for_each_join, fails);
     run("ecs_structural_change_deferral", &test_ecs_structural_change_deferral, fails);
+    run("rng_determinism", &test_rng_determinism, fails);
+    run("manual_time_source", &test_manual_time_source, fails);
+    run("content_invariants", &test_content_invariants, fails);
 
     if (fails == 0) { std::cout << "[PAC_Tests] All tests passed.\n"; return 0; }
     std::cerr << "[PAC_Tests] " << fails << " test(s) failed.\n";

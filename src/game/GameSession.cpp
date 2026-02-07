@@ -4,10 +4,14 @@
 #include <iostream>
 #include <string>
 #include <utility>
+#include <cstdlib>
+#include <random>
 
 #include "engine/core/GameContext.h"
 #include "engine/core/EngineServices.h"
 #include "engine/core/Paths.h"
+#include "engine/core/Random.h"
+#include "engine/core/TimeSources.h"
 #include "engine/input/InputEvent.h"
 
 #include "engine/render/BoardRenderer.h"
@@ -37,6 +41,7 @@
 
 #include "game/state/ScriptedState.h"
 #include "game/logging/LogBus.h"
+#include "game/logging/LoggerUtil.h"
 #include "game/scripting/ScriptEventBus.h"
 
 namespace game {
@@ -58,6 +63,8 @@ struct GameSession::Impl {
     LogBus::Logger log;
     ScriptEventBus scriptEvents;
     std::unique_ptr<engine::IAssetStore> assetStore;
+    engine::XorShift32 rng;
+    engine::ManualTimeSource timeSource;
 
     // Owned config (loaded once per session).
     GameConfigData config;
@@ -100,8 +107,27 @@ struct GameSession::Impl {
             assetStore = std::move(dev);
         }
 
+        {
+            std::uint32_t seed = 0;
+            bool hasSeed = false;
+            if (const char* v = std::getenv("PAC_RANDOM_SEED")) {
+                try {
+                    seed = static_cast<std::uint32_t>(std::stoul(v));
+                    hasSeed = true;
+                } catch (...) {
+                    game::log::warn(&log, std::string("[Init] Invalid PAC_RANDOM_SEED value: ") + v);
+                }
+            }
+            if (!hasSeed) {
+                std::random_device rd;
+                seed = (static_cast<std::uint32_t>(rd()) << 16) ^ static_cast<std::uint32_t>(rd());
+            }
+            rng.reseed(seed);
+            game::log::info(&log, std::string("[Init] RNG seed: ") + std::to_string(seed));
+        }
+
         config = GameConfig::load(&log, assetStore.get());
-        services = std::make_unique<GameServices>(config, dataDb, log, scriptEvents, *assetStore);
+        services = std::make_unique<GameServices>(config, dataDb, log, scriptEvents, *assetStore, rng, timeSource);
 
         // Board visuals
         if (renderEnabled) {
@@ -124,7 +150,7 @@ struct GameSession::Impl {
             unitSystem   = std::make_shared<UnitInteractionSystem>(camera, gameWorld.get(), ctx.drawableW, ctx.drawableH);
         }
         roundSystem  = std::make_shared<RoundSystem>(assetStore.get());
-        shopSystem   = std::make_shared<ShopSystem>();
+        shopSystem   = std::make_shared<ShopSystem>(&rng);
 
         if (cameraSystem) systemRegistry.registerSystem(cameraSystem);
         if (unitSystem)   systemRegistry.registerSystem(unitSystem);
@@ -181,6 +207,7 @@ struct GameSession::Impl {
     }
 
     void fixedUpdate(float dt) {
+        timeSource.advance(dt);
         updateGraph.tick(dt);
     }
 

@@ -33,6 +33,7 @@ public:
                     const engine::IAssetStore* store = nullptr);
 
     const PokemonStats* getStats(const std::string& name) const;
+    const std::unordered_map<std::string, PokemonStats>& all() const { return statsMap; }
 
 public:
     PokemonConfigLoader() = default;

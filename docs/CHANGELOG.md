@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+## 2026-02-07 -- Stage 7.1 determinism scaffolding
+- Added IRandom and ITimeSource interfaces with default implementations.
+- GameSession wires deterministic RNG/time services; ShopSystem rolls via injected RNG.
+- Added headless tests for RNG/time and content invariants.
+
+
 ## 2026-02-07  Stage 6.1 asset store scaffolding
 - Added engine::IAssetStore interface for decoupled asset access.
 - Implemented DevAssetStore (filesystem-backed) and a placeholder PackedAssetStore.

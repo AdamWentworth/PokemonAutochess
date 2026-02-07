@@ -1,10 +1,17 @@
 // ShopSystem.cpp
 #include "game/systems/ShopSystem.h"
 
+#include "engine/core/Random.h"
+
 #include <iostream>
 
-ShopSystem::ShopSystem() {
-    rng.seed(std::random_device{}());
+ShopSystem::ShopSystem(engine::IRandom* rngIn) {
+    if (rngIn) {
+        rng = rngIn;
+    } else {
+        fallbackRng = std::make_unique<engine::XorShift32>();
+        rng = fallbackRng.get();
+    }
 
     // Minimal placeholder pool (replace with real odds/config later)
     fallbackPool = {"bulbasaur", "charmander", "squirtle", "pidgey", "rattata"};
@@ -32,9 +39,21 @@ void ShopSystem::onRoundPhaseChanged(RoundPhase previous, RoundPhase next) {
 }
 
 void ShopSystem::rollShop() {
-    // TEMP: disabled until card UI is ready
+    // TEMP: keep the shop UI disabled, but still generate a deterministic roll.
     currentCards.clear();
     cardSystem.clearCards();
+
+    if (!rng || fallbackPool.empty()) return;
+
+    constexpr int kSlots = 3;
+    for (int i = 0; i < kSlots; ++i) {
+        const int idx = engine::random::rangeInclusive(*rng, 0, static_cast<int>(fallbackPool.size()) - 1);
+        CardData cd;
+        cd.pokemonName = fallbackPool[static_cast<size_t>(idx)];
+        cd.cost = 0;
+        cd.type = CardType::Shop;
+        currentCards.push_back(cd);
+    }
 }
 
 void ShopSystem::handleInput(const InputEvent& event) {

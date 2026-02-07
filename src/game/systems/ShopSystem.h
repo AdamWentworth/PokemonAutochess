@@ -8,14 +8,16 @@
 
 #include <vector>
 #include <string>
-#include <random>
+#include <memory>
+
+namespace engine { class IRandom; }
 
 // NOTE:
 // This is intentionally a minimal, compilation-safe ShopSystem.
 // It does not depend on PokemonConfigLoader or any unfinished shop-specific APIs.
 class ShopSystem : public Updatable {
 public:
-    ShopSystem();
+    explicit ShopSystem(engine::IRandom* rng = nullptr);
     ~ShopSystem() override = default;
 
     void update(float dt) override;
@@ -42,5 +44,6 @@ private:
     // Temporary pool until you wire in real unit definitions / odds
     std::vector<std::string> fallbackPool;
 
-    std::mt19937 rng;
+    engine::IRandom* rng = nullptr;
+    std::unique_ptr<engine::IRandom> fallbackRng;
 };
