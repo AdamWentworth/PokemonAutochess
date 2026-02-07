@@ -4,8 +4,8 @@
 #include "game/GameWorld.h"
 #include "LuaBindings.h"
 
-LuaScript::LuaScript(GameWorld* world, GameStateManager* manager)
-    : gameWorld(world), stateManager(manager) {
+LuaScript::LuaScript(GameWorld* world, GameStateManager* manager, LogBus::Logger* logger)
+    : gameWorld(world), stateManager(manager), logger_(logger) {
 
     lua.open_libraries(
         sol::lib::base,
@@ -21,7 +21,7 @@ LuaScript::LuaScript(GameWorld* world, GameStateManager* manager)
 }
 
 void LuaScript::registerBindings() {
-    registerLuaBindings(lua, gameWorld, stateManager);
+    registerLuaBindings(lua, gameWorld, stateManager, logger_);
 }
 
 void LuaScript::resetEnvironment() {
@@ -62,7 +62,7 @@ bool LuaScript::loadScript(const std::string& filePath) {
     sol::load_result chunk = lua.load_file(filePath);
     if (!chunk.valid()) {
         sol::error err = chunk;
-        LogBus::error(std::string("[LuaScript] Failed to load script '") + filePath + "': " + err.what());
+        game::log::error(logger_, std::string("[LuaScript] Failed to load script '") + filePath + "': " + err.what());
         return false;
     }
 
@@ -74,7 +74,7 @@ bool LuaScript::loadScript(const std::string& filePath) {
     sol::protected_function_result r = pf();
     if (!r.valid()) {
         sol::error err = r;
-        LogBus::error(std::string("[LuaScript] Failed to execute script '") + filePath + "': " + err.what());
+        game::log::error(logger_, std::string("[LuaScript] Failed to execute script '") + filePath + "': " + err.what());
         return false;
     }
 
@@ -83,7 +83,7 @@ bool LuaScript::loadScript(const std::string& filePath) {
 
 bool LuaScript::reload() {
     if (loadedPath.empty()) {
-        LogBus::warn("[LuaScript] reload() called with no previously loaded script");
+        game::log::warn(logger_, "[LuaScript] reload() called with no previously loaded script");
         return false;
     }
     return loadScript(loadedPath);

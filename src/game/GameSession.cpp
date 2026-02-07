@@ -90,6 +90,7 @@ struct GameSession::Impl {
 
         // World
         gameWorld = std::make_unique<GameWorld>();
+        gameWorld->setLogger(&log);
         if (ctx.services) gameWorld->setResources(ctx.services->resources);
         gameWorld->setData(&dataDb);
 
@@ -119,7 +120,6 @@ struct GameSession::Impl {
         battleFeed = std::make_unique<BattleFeed>(cfg.fontPath, cfg.fontSize);
         log.attach(battleFeed.get());
         log.setEchoToStdout(false);
-        LogBus::setActive(&log);
 
         // Preload common models (uses the db's pokemon loader).
         if (dataDb.pokemon) {
@@ -157,7 +157,7 @@ struct GameSession::Impl {
             } else if (current != lastRoundPhase) {
                 shopSystem->onRoundPhaseChanged(lastRoundPhase, current);
 
-                LogBus::colored(
+                log.colored(
                     std::string("Phase: ") + game_session_detail::phaseName(lastRoundPhase) +
                         " \xE2\x86\x92 " + game_session_detail::phaseName(current),
                     {0.75f, 0.9f, 1.0f},
@@ -190,7 +190,6 @@ struct GameSession::Impl {
     void shutdown() {
         std::cout << "[Shutdown] Game.\n";
 
-        LogBus::setActive(nullptr);
         log.attach(nullptr);
 
         if (board) {

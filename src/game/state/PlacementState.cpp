@@ -76,7 +76,8 @@ void PlacementState::update(float dt) {
     // Ask Lua which combat script to use next
     static std::unique_ptr<LuaScript> flow;
     if (!flow) {
-        flow = std::make_unique<LuaScript>(gameWorld);
+        LogBus::Logger* log = services ? &services->log : nullptr;
+        flow = std::make_unique<LuaScript>(gameWorld, nullptr, log);
         flow->loadScript("scripts/states/flow.lua");
     }
 

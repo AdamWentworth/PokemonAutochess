@@ -29,7 +29,8 @@
 
 #include "LuaBindings_Internal.h"
 
-void registerLuaBindings_UnitMove(sol::state& lua, GameWorld* world, GameStateManager* manager) {
+void registerLuaBindings_UnitMove(sol::state& lua, GameWorld* world, GameStateManager* manager, LogBus::Logger* logger) {
+    (void)logger;
 lua.set_function("unit_fast_move", [world](int unitId) -> std::string {
         if (!world) return "";
         if (auto* u = world->findUnitById(unitId)) return u->fastMove;

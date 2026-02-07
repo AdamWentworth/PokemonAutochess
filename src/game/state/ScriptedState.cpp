@@ -22,7 +22,7 @@ ScriptedState::ScriptedState(GameStateManager* manager, GameWorld* world, GameSe
     , gameWorld(world)
     , services(&svc)
     , scriptPath(path)
-    , script(world, manager)
+    , script(world, manager, &svc.log)
 {
     if (!script.loadScript(scriptPath)) {
         std::cerr << "[ScriptedState] Failed to load script: " << scriptPath << "\n";
@@ -34,7 +34,7 @@ ScriptedState::ScriptedState(GameStateManager* manager, GameWorld* world, const 
     , gameWorld(world)
     , services(nullptr)
     , scriptPath(path)
-    , script(world, manager)
+    , script(world, manager, nullptr)
 {
     if (!script.loadScript(scriptPath)) {
         std::cerr << "[ScriptedState] Failed to load script: " << scriptPath << "\n";
@@ -133,10 +133,15 @@ void ScriptedState::handleInput(const InputEvent& event) {
                 onClick(clicked->pokemonName);
             }
 
-            if (stateManager) {
-                stateManager->pushState(std::make_unique<PlacementState>(
-                    stateManager, gameWorld, clicked->pokemonName));
-            }
+                    if (stateManager) {
+                        if (services) {
+                            stateManager->pushState(std::make_unique<PlacementState>(
+                                stateManager, gameWorld, *services, clicked->pokemonName));
+                        } else {
+                            stateManager->pushState(std::make_unique<PlacementState>(
+                                stateManager, gameWorld, clicked->pokemonName));
+                        }
+                    }
         }
     }
 
@@ -160,8 +165,13 @@ void ScriptedState::handleInput(const InputEvent& event) {
                     if (onClick.valid()) onClick(pokemon);
 
                     if (stateManager) {
-                        stateManager->pushState(std::make_unique<PlacementState>(
-                            stateManager, gameWorld, pokemon));
+                        if (services) {
+                            stateManager->pushState(std::make_unique<PlacementState>(
+                                stateManager, gameWorld, *services, pokemon));
+                        } else {
+                            stateManager->pushState(std::make_unique<PlacementState>(
+                                stateManager, gameWorld, pokemon));
+                        }
                     }
                 }
             }

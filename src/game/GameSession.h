@@ -2,8 +2,8 @@
 
 #include <memory>
 
-class GameContext;
-class InputEvent;
+struct GameContext;
+struct InputEvent;
 
 struct GameDataDb;
 

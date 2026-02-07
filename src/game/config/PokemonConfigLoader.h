@@ -7,6 +7,8 @@
 
 #include <nlohmann/json.hpp>
 
+namespace LogBus { class Logger; }
+
 struct LoadoutEntry {
     std::string fast;     // move name
     std::string charged;  // move name (optional)
@@ -26,7 +28,7 @@ struct PokemonStats {
 class PokemonConfigLoader {
 public:
     static PokemonConfigLoader& getInstance();
-    bool loadConfig(const std::string& filePath);
+    bool loadConfig(const std::string& filePath, LogBus::Logger* logger = nullptr);
 
     const PokemonStats* getStats(const std::string& name) const;
 

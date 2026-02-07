@@ -1,11 +1,13 @@
 // CombatSystem.cpp
 #include "CombatSystem.h"
+#include "game/GameWorld.h"
 #include "game/scripting/LuaBindings.h"
 #include <iostream>
 
 CombatSystem::CombatSystem(GameWorld* world) : gameWorld(world) {
     lua.open_libraries(sol::lib::base, sol::lib::math, sol::lib::table, sol::lib::string);
-    registerLuaBindings(lua, gameWorld, /*manager*/ nullptr);
+    LogBus::Logger* logger = gameWorld ? gameWorld->getLogger() : nullptr;
+    registerLuaBindings(lua, gameWorld, /*manager*/ nullptr, logger);
     loadScript();
 }
 

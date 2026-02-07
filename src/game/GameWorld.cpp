@@ -22,7 +22,7 @@
 #include "config/MovesConfigLoader.h"
 #include "config/AnimSetLoader.h"
 
-#include "logging/LogBus.h"
+#include "logging/LoggerUtil.h"
 #include "logging/DebugTrace.h"
 
 #include "ui/HealthBarQuery.h"
@@ -279,7 +279,7 @@ void GameWorld::update(float dt)
                 prevAtkTimer[p.id] = p.attackTimerSec;
                 prevAnimTime[p.id] = p.animTimeSec;
 
-                LogBus::infoTerminalOnly(std::string("[TRACE_COMBAT_TICK] ") + "unit=" + p.name + " move=" + (p.chainedFastMove.empty() ? std::string("-") : p.chainedFastMove) + " " +
+                game::log::infoTerminalOnly(log, std::string("[TRACE_COMBAT_TICK] ") + "unit=" + p.name + " move=" + (p.chainedFastMove.empty() ? std::string("-") : p.chainedFastMove) + " " +
                     "id=" + std::to_string(p.id) +
                     " dt=" + std::to_string(dt) +
                     " atkTimer=" + std::to_string(p.attackTimerSec) +
@@ -299,7 +299,7 @@ void GameWorld::update(float dt)
                 p.animTimeSec = std::min(p.animTimeSec + dt * speed, dur - 0.0001f);
 
                 if (traceCombat && (p.animTimeSec >= dur - 0.00011f)) {
-                    LogBus::infoTerminalOnly(std::string("[TRACE_COMBAT_TICK] clamped_end ") + "unit=" + p.name + " move=" + (p.chainedFastMove.empty() ? std::string("-") : p.chainedFastMove) + " " +
+                    game::log::infoTerminalOnly(log, std::string("[TRACE_COMBAT_TICK] clamped_end ") + "unit=" + p.name + " move=" + (p.chainedFastMove.empty() ? std::string("-") : p.chainedFastMove) + " " +
                         "id=" + std::to_string(p.id) +
                         " dur=" + std::to_string(dur) +
                         " animTime=" + std::to_string(p.animTimeSec));
@@ -343,7 +343,7 @@ void GameWorld::update(float dt)
             if (p.attackTimerSec <= 0.0f) {
 
                 if (traceCombat) {
-                    LogBus::infoTerminalOnly(std::string("[TRACE_COMBAT_TICK] attack_end ") + "unit=" + p.name + " move=" + (p.chainedFastMove.empty() ? std::string("-") : p.chainedFastMove) + " " +
+                    game::log::infoTerminalOnly(log, std::string("[TRACE_COMBAT_TICK] attack_end ") + "unit=" + p.name + " move=" + (p.chainedFastMove.empty() ? std::string("-") : p.chainedFastMove) + " " +
                         "id=" + std::to_string(p.id) +
                         " finalAnimTime=" + std::to_string(p.animTimeSec) +
                         " activeAnimIdx=" + std::to_string(p.activeAnimIndex));

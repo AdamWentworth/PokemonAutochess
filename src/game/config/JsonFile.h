@@ -6,7 +6,7 @@
 
 #include <nlohmann/json.hpp>
 
-#include "game/logging/LogBus.h"
+#include "game/logging/LoggerUtil.h"
 
 namespace ConfigIO {
 
@@ -16,11 +16,12 @@ namespace ConfigIO {
 inline bool loadJsonFile(const std::string& filePath,
                          nlohmann::json& out,
                          const char* tag,
-                         bool silentIfMissing = false) {
+                         bool silentIfMissing = false,
+                         LogBus::Logger* logger = nullptr) {
     std::ifstream file(filePath);
     if (!file.is_open()) {
         if (!silentIfMissing) {
-            LogBus::error(std::string("[") + tag + "] Failed to open: " + filePath);
+            game::log::error(logger, std::string("[") + tag + "] Failed to open: " + filePath);
         }
         return false;
     }
@@ -28,10 +29,10 @@ inline bool loadJsonFile(const std::string& filePath,
     try {
         file >> out;
     } catch (const std::exception& e) {
-        LogBus::error(std::string("[") + tag + "] Failed to parse JSON: " + filePath + " (" + e.what() + ")");
+        game::log::error(logger, std::string("[") + tag + "] Failed to parse JSON: " + filePath + " (" + e.what() + ")");
         return false;
     } catch (...) {
-        LogBus::error(std::string("[") + tag + "] Failed to parse JSON: " + filePath + " (unknown exception)");
+        game::log::error(logger, std::string("[") + tag + "] Failed to parse JSON: " + filePath + " (unknown exception)");
         return false;
     }
 

@@ -201,6 +201,7 @@ pac_apply_common_target_settings(PAC_GameObjects)
 # ---------------- Executable ----------------
 add_executable(PokemonAutochess
     src/main.cpp
+    src/engine/core/Application.cpp
 )
 target_link_libraries(PokemonAutochess PRIVATE PAC_GameObjects)
 pac_apply_common_target_settings(PokemonAutochess)
@@ -236,4 +237,16 @@ else()
 endif()
 
 add_test(NAME PAC_Tests COMMAND PAC_Tests)
+
+# ---------------- Convenience aggregate target ----------------
+# Build everything with one target (engine libs + game + tests).
+add_custom_target(PAC_All
+    DEPENDS
+        engine_core
+        engine_platform
+        engine_render
+        PAC_GameObjects
+        PokemonAutochess
+        PAC_Tests
+)
 

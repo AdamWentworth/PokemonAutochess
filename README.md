@@ -96,6 +96,23 @@ If you prefer explicit flags instead of presets:
 
 ---
 
+### 🎯 Build Targets (What Each Command Builds)
+
+By default, `cmake --build build --config Debug` builds **everything** in the default target (Visual Studio uses `ALL_BUILD`).
+If you want a specific piece, use the named targets below.
+
+| Target | What It Builds | Command |
+| --- | --- | --- |
+| `engine_core` | Headless engine core library | `cmake --build build --config Debug --target engine_core` |
+| `engine_platform` | SDL/window/input layer | `cmake --build build --config Debug --target engine_platform` |
+| `engine_render` | Rendering + UI + resources | `cmake --build build --config Debug --target engine_render` |
+| `PAC_GameObjects` | Game runtime library (shared by exe + tests) | `cmake --build build --config Debug --target PAC_GameObjects` |
+| `PokemonAutochess` | The game executable | `cmake --build build --config Debug --target PokemonAutochess` |
+| `PAC_Tests` | The tests executable | `cmake --build build --config Debug --target PAC_Tests` |
+| `PAC_All` | Convenience aggregate (engine + game + tests) | `cmake --build build --config Debug --target PAC_All` |
+
+---
+
 ### ▶️ Run
 
 After building:

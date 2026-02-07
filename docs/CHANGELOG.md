@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+## 2026-02-07 — Stage 3.1 logging migration (remove LogBus globals)
+- Replaced LogBus global call sites with explicit logger injection across gameplay/runtime code.
+- Lua scripting binds now log through an injected logger (no global LogBus usage).
+- Config loaders accept an optional logger and no longer depend on LogBus globals.
+- GameSession/GameWorld use the instance logger directly for runtime messages.
+
+
+## 2026-02-07 — Stage 3 prep: singleton inventory + roadmap refresh
+- Added `DELETE_REPLACE_LIST.md` to track remaining globals/singletons and their replacements.
+- Updated roadmap to reflect Stage 2.3 structural-change deferral and set Stage 3.1 logging migration as next step.
+- ECS tests now use `World::add` for new component creation (preferred API).
+
 ## 2026-02-06 — Stage 3 prep: thread-local legacy fallbacks + runtime CoreServices wiring
 
 - EventManager legacy fallback bus is thread-local; Application routes legacy callers to engine-owned bus.
@@ -27,4 +39,3 @@
 - Split build into `engine_core`, `engine_platform`, `engine_render` with `Engine` umbrella target.
 - Added `ILogger`/`StdoutLogger`, `IEventBus`/`EventBus`, and `CoreServices` bundle in `engine_core`.
 - Added/updated docs (architecture + roadmap).
-

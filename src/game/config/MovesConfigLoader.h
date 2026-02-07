@@ -6,6 +6,8 @@
 
 #include <nlohmann/json.hpp>
 
+namespace LogBus { class Logger; }
+
 struct MoveStatus {
     std::string effect;
     float magnitude = 0.0f;
@@ -33,7 +35,7 @@ class MovesConfigLoader {
 public:
     static MovesConfigLoader& getInstance();
 
-    bool loadConfig(const std::string& filePath);
+    bool loadConfig(const std::string& filePath, LogBus::Logger* logger = nullptr);
     const MoveData* getMove(const std::string& name) const;
 
 public:

@@ -39,14 +39,14 @@ bool test_ecs_smoke(std::string& outFail) {
     sched.add(std::make_unique<CounterSystem>());
 
     auto e = world.create();
-    world.components<Counter>().emplace(e, Counter{0});
+    world.add<Counter>(e, Counter{0});
 
     for (int i = 0; i < 10; ++i) {
         sched.tick(world, 1.0f / 60.0f);
     }
 
-    auto* c = world.components<Counter>().get(e);
-    if (!c) { outFail = "Counter component missing after emplace()"; return false; }
+    auto* c = world.get<Counter>(e);
+    if (!c) { outFail = "Counter component missing after add()"; return false; }
     if (c->value != 10) { outFail = "Counter value expected 10, got " + std::to_string(c->value); return false; }
     return true;
 }
@@ -61,8 +61,8 @@ bool test_ecs_destroy_cleans_components(std::string& outFail) {
     ecs::World world(&svc);
 
     auto e = world.create();
-    world.components<Counter>().emplace(e, Counter{123});
-    world.components<Tag>().emplace(e, Tag{7});
+    world.add<Counter>(e, Counter{123});
+    world.add<Tag>(e, Tag{7});
 
     world.destroy(e);
 
@@ -82,16 +82,16 @@ bool test_ecs_for_each_join(std::string& outFail) {
 
     // e1 has both Counter+Tag
     auto e1 = world.create();
-    world.components<Counter>().emplace(e1, Counter{1});
-    world.components<Tag>().emplace(e1, Tag{10});
+    world.add<Counter>(e1, Counter{1});
+    world.add<Tag>(e1, Tag{10});
 
     // e2 has only Counter
     auto e2 = world.create();
-    world.components<Counter>().emplace(e2, Counter{2});
+    world.add<Counter>(e2, Counter{2});
 
     // e3 has only Tag
     auto e3 = world.create();
-    world.components<Tag>().emplace(e3, Tag{30});
+    world.add<Tag>(e3, Tag{30});
 
     std::vector<std::uint32_t> seen;
     int sum = 0;

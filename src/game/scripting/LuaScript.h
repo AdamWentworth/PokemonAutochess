@@ -5,14 +5,14 @@
 #include <utility>     // std::forward
 #include <sol/sol.hpp>
 
-#include "game/logging/LogBus.h"
+#include "game/logging/LoggerUtil.h"
 
 class GameWorld;
 class GameStateManager;
 
 class LuaScript {
 public:
-    explicit LuaScript(GameWorld* world, GameStateManager* manager = nullptr);
+    explicit LuaScript(GameWorld* world, GameStateManager* manager = nullptr, LogBus::Logger* logger = nullptr);
     ~LuaScript() = default;
 
     // Loads + executes the script into an isolated environment.
@@ -43,7 +43,7 @@ public:
         sol::protected_function_result r = func(std::forward<Args>(args)...);
         if (!r.valid()) {
             sol::error err = r;
-            LogBus::error(std::string("[LuaScript] Error in '") + functionName + "': " + err.what());
+            game::log::error(logger_, std::string("[LuaScript] Error in '") + functionName + "': " + err.what());
         }
     }
 
@@ -60,6 +60,7 @@ private:
 
     GameWorld* gameWorld = nullptr;
     GameStateManager* stateManager = nullptr;
+    LogBus::Logger* logger_ = nullptr;
 
     std::string loadedPath;
 

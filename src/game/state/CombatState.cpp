@@ -3,7 +3,7 @@
 #include "game/GameWorld.h"
 #include "game/GameServices.h"
 #include "game/GameConfig.h"
-#include "game/logging/LogBus.h"
+#include "game/logging/LoggerUtil.h"
 
 #include "game/systems/MovementSystem.h"
 #include "game/systems/CombatSystem.h"
@@ -22,6 +22,10 @@ const GameConfigData& cfgOrLegacy(const GameServices* services) {
     return GameConfig::get(); // legacy fallback
 }
 
+LogBus::Logger* loggerOrNull(GameServices* services) {
+    return services ? &services->log : nullptr;
+}
+
 std::string Capitalize(std::string s) {
     if (s.empty()) return s;
     s[0] = static_cast<char>(std::toupper(static_cast<unsigned char>(s[0])));
@@ -33,14 +37,14 @@ CombatState::CombatState(GameStateManager* manager, GameWorld* world, const std:
     : stateManager(manager)
     , gameWorld(world)
     , services(nullptr)
-    , script(world, manager)
+    , script(world, manager, nullptr)
     , combatMessage()
 {
     const auto& c = cfgOrLegacy(services);
     textRenderer = std::make_unique<TextRenderer>(c.fontPath, c.fontSize);
 
     if (!script.loadScript(path)) {
-        LogBus::error(std::string("[CombatState] Failed to load combat script: ") + path);
+        game::log::error(loggerOrNull(services), std::string("[CombatState] Failed to load combat script: ") + path);
     }
 
     movementSystem = std::make_unique<MovementSystem>(gameWorld);
@@ -51,14 +55,14 @@ CombatState::CombatState(GameStateManager* manager, GameWorld* world, GameServic
     : stateManager(manager)
     , gameWorld(world)
     , services(&svc)
-    , script(world, manager)
+    , script(world, manager, &svc.log)
     , combatMessage()
 {
     const auto& c = cfgOrLegacy(services);
     textRenderer = std::make_unique<TextRenderer>(c.fontPath, c.fontSize);
 
     if (!script.loadScript(path)) {
-        LogBus::error(std::string("[CombatState] Failed to load combat script: ") + path);
+        game::log::error(loggerOrNull(services), std::string("[CombatState] Failed to load combat script: ") + path);
     }
 
     movementSystem = std::make_unique<MovementSystem>(gameWorld);
@@ -89,7 +93,7 @@ void CombatState::onEnter() {
                 if (nameOpt && colOpt && rowOpt) {
                     const int level = lvlOpt.value_or(-1);
                     gameWorld->spawnPokemonAtGrid(*nameOpt, *colOpt, *rowOpt, PokemonSide::Enemy, level);
-                    LogBus::info("A wild " + Capitalize(*nameOpt) + " appeared!");
+                    game::log::info(loggerOrNull(services), "A wild " + Capitalize(*nameOpt) + " appeared!");
                 }
             }
         }
@@ -99,7 +103,7 @@ void CombatState::onEnter() {
     for (auto& u : gameWorld->getPokemons()) {
         if (!u.alive) continue;
         if (u.side == PokemonSide::Player) {
-            LogBus::info("Go! " + Capitalize(u.name) + "!");
+            game::log::info(loggerOrNull(services), "Go! " + Capitalize(u.name) + "!");
         }
     }
 

@@ -1,6 +1,6 @@
 // PokemonConfigLoader.cpp
 #include "PokemonConfigLoader.h"
-#include "game/logging/LogBus.h"
+#include "game/logging/LoggerUtil.h"
 #include "game/config/JsonFile.h"
 
 #include <string>
@@ -10,14 +10,14 @@ PokemonConfigLoader& PokemonConfigLoader::getInstance() {
     return instance;
 }
 
-bool PokemonConfigLoader::loadConfig(const std::string& filePath) {
+bool PokemonConfigLoader::loadConfig(const std::string& filePath, LogBus::Logger* logger) {
     nlohmann::json jsonData;
-    if (!ConfigIO::loadJsonFile(filePath, jsonData, "PokemonConfigLoader")) {
+    if (!ConfigIO::loadJsonFile(filePath, jsonData, "PokemonConfigLoader", /*silentIfMissing=*/false, logger)) {
         return false;
     }
 
     if (!jsonData.is_object()) {
-        LogBus::error(std::string("[PokemonConfigLoader] Root must be an object: ") + filePath);
+        game::log::error(logger, std::string("[PokemonConfigLoader] Root must be an object: ") + filePath);
         return false;
     }
 
@@ -25,7 +25,7 @@ bool PokemonConfigLoader::loadConfig(const std::string& filePath) {
 
     for (const auto& [name, data] : jsonData.items()) {
         if (!data.is_object()) {
-            LogBus::warn(std::string("[PokemonConfigLoader] Skipping non-object entry: ") + name);
+            game::log::warn(logger, std::string("[PokemonConfigLoader] Skipping non-object entry: ") + name);
             continue;
         }
 
@@ -45,7 +45,7 @@ bool PokemonConfigLoader::loadConfig(const std::string& filePath) {
                 try {
                     lvl = std::stoi(levelKey);
                 } catch (...) {
-                    LogBus::warn(std::string("[PokemonConfigLoader] Invalid level key '") + levelKey +
+                    game::log::warn(logger, std::string("[PokemonConfigLoader] Invalid level key '") + levelKey +
                                  "' for species '" + name + "'; skipping.");
                     continue;
                 }
@@ -60,7 +60,7 @@ bool PokemonConfigLoader::loadConfig(const std::string& filePath) {
                         le.hasCharged = !le.charged.empty();
                     }
                 } else {
-                    LogBus::warn(std::string("[PokemonConfigLoader] loadoutByLevel[") + levelKey +
+                    game::log::warn(logger, std::string("[PokemonConfigLoader] loadoutByLevel[") + levelKey +
                                  "] must be an object for species '" + name + "'.");
                 }
 
@@ -71,7 +71,7 @@ bool PokemonConfigLoader::loadConfig(const std::string& filePath) {
         statsMap[name] = std::move(stats);
     }
 
-    LogBus::info(std::string("[PokemonConfigLoader] Loaded ") + std::to_string(statsMap.size()) + " species");
+    game::log::info(logger, std::string("[PokemonConfigLoader] Loaded ") + std::to_string(statsMap.size()) + " species");
     return true;
 }
 

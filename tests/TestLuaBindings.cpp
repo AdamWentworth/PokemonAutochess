@@ -14,7 +14,7 @@ bool test_lua_bindings_smoke(std::string& outFail) {
     lua.open_libraries(sol::lib::base, sol::lib::math, sol::lib::table, sol::lib::string, sol::lib::package);
 
     // Smoke: should not crash even with null world/manager (bindings should guard internally).
-    registerLuaBindings(lua, nullptr, nullptr);
+    registerLuaBindings(lua, nullptr, nullptr, nullptr);
 
     const char* required[] = {
         "emit",

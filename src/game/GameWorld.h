@@ -16,11 +16,14 @@ class Camera3D;
 class BoardRenderer;
 class ResourceManager;
 struct GameDataDb;
+namespace LogBus { class Logger; }
 
 class GameWorld {
 public:
     void setResources(ResourceManager* rm) { resources = rm; }
     void setData(const GameDataDb* db) { data = db; }
+    void setLogger(LogBus::Logger* logger) { log = logger; }
+    LogBus::Logger* getLogger() const { return log; }
 
     void spawnPokemon(const std::string& pokemonName,
                       const glm::vec3& startPos,
@@ -53,6 +56,7 @@ public:
 private:
     ResourceManager* resources = nullptr; // engine-owned
     const GameDataDb* data = nullptr;     // game-owned, injected
+    LogBus::Logger* log = nullptr;        // optional game-owned logger
 
     std::vector<PokemonInstance> pokemons;
     std::vector<PokemonInstance> benchPokemons;

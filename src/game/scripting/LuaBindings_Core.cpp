@@ -24,12 +24,12 @@
 
 #include "game/state/ScriptedState.h"
 
-#include "game/logging/LogBus.h"
+#include "game/logging/LoggerUtil.h"
 #include "game/logging/DebugTrace.h"
 
 #include "LuaBindings_Internal.h"
 
-void registerLuaBindings_Core(sol::state& lua, GameWorld* world, GameStateManager* manager) {
+void registerLuaBindings_Core(sol::state& lua, GameWorld* world, GameStateManager* manager, LogBus::Logger* logger) {
     // Basic enums
     lua.new_enum("PokemonSide",
         "Player", PokemonSide::Player,
@@ -37,16 +37,16 @@ void registerLuaBindings_Core(sol::state& lua, GameWorld* world, GameStateManage
     );
 
     // ---- Logging: Lua -> BattleFeed ----
-    lua.set_function("emit", [](const std::string& tag_or_msg, sol::optional<std::string> payload) {
+    lua.set_function("emit", [logger](const std::string& tag_or_msg, sol::optional<std::string> payload) {
         if (payload.has_value() && !payload->empty()) {
             // Structured (verbose) log -> terminal only
             const std::string& tag = tag_or_msg;
             const bool hasBrackets = !tag.empty() && tag.front()=='[' && tag.back()==']';
             const std::string header = hasBrackets ? tag : ("[" + tag + "]");
-            LogBus::infoTerminalOnly(header + " " + *payload);
+            game::log::infoTerminalOnly(logger, header + " " + *payload);
         } else {
             // Human-readable line -> show in on-screen feed (and mirror to terminal)
-            LogBus::info(tag_or_msg);
+            game::log::info(logger, tag_or_msg);
         }
     });
 
@@ -64,9 +64,9 @@ void registerLuaBindings_Core(sol::state& lua, GameWorld* world, GameStateManage
     // Deprecated: legacy shim kept so existing scripts don't crash.
     // Round phase changes are handled directly in C++ (GameApp / RoundSystem).
     lua.set_function("emit_round_phase_changed",
-        [](const std::string& prev, const std::string& next) {
+        [logger](const std::string& prev, const std::string& next) {
             (void)prev; (void)next;
-            LogBus::warn("emit_round_phase_changed() is deprecated and currently a no-op");
+            game::log::warn(logger, "emit_round_phase_changed() is deprecated and currently a no-op");
         }
     );
 

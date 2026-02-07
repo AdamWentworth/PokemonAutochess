@@ -8,6 +8,7 @@
 
 #include "game/GameSession.h"
 #include "game/config/GameDataDb.h"
+#include "game/logging/LogBus.h"
 
 #include "game/config/PokemonConfigLoader.h"
 #include "game/config/MovesConfigLoader.h"
@@ -18,10 +19,11 @@ namespace game {
 
 std::unique_ptr<GameSession> GameBootstrap::create(GameContext& ctx) {
     // Load configs (game-specific) from data root (PAC_DATA_ROOT), not CWD-sensitive literals.
-    PokemonConfigLoader::getInstance().loadConfig(engine::paths::data("config/pokemon_config.json"));
-    MovesConfigLoader::getInstance().loadConfig(engine::paths::data("config/moves_config.json"));
-    AttackAnimConfigLoader::getInstance().loadConfig(engine::paths::data("config/attack_anim_config.json"));
-    FlyerConfigLoader::getInstance().loadConfig(engine::paths::data("config/flyers_config.json"));
+    LogBus::Logger bootstrapLog;
+    PokemonConfigLoader::getInstance().loadConfig(engine::paths::data("config/pokemon_config.json"), &bootstrapLog);
+    MovesConfigLoader::getInstance().loadConfig(engine::paths::data("config/moves_config.json"), &bootstrapLog);
+    AttackAnimConfigLoader::getInstance().loadConfig(engine::paths::data("config/attack_anim_config.json"), &bootstrapLog);
+    FlyerConfigLoader::getInstance().loadConfig(engine::paths::data("config/flyers_config.json"), &bootstrapLog);
 
     GameDataDb db;
     db.pokemon     = &PokemonConfigLoader::getInstance();

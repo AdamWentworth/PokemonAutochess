@@ -24,12 +24,12 @@
 
 #include "game/state/ScriptedState.h"
 
-#include "game/logging/LogBus.h"
+#include "game/logging/LoggerUtil.h"
 #include "game/logging/DebugTrace.h"
 
 #include "LuaBindings_Internal.h"
 
-void registerLuaBindings_World(sol::state& lua, GameWorld* world, GameStateManager* manager) {
+void registerLuaBindings_World(sol::state& lua, GameWorld* world, GameStateManager* manager, LogBus::Logger* logger) {
 lua.set_function("world_list_units", [world, &lua]() {
         sol::state_view L(lua);
         sol::table arr = L.create_table();
@@ -218,7 +218,7 @@ lua.set_function("world_nearest_enemy_cell", [world](int unitId) {
     });
 
     lua.set_function("world_apply_damage",
-        [world](int attackerId,
+        [world, logger](int attackerId,
                 int targetId,
                 int amount,
                 sol::optional<float> cadenceSec,
@@ -250,7 +250,7 @@ lua.set_function("world_nearest_enemy_cell", [world](int unitId) {
         const bool traceCombat = DebugTrace::combat(speciesLower, moveLower);
         auto trlog = [&](const std::string& msg) {
             if (!traceCombat) return;
-            LogBus::infoTerminalOnly(std::string("[TRACE_COMBAT_CPP] ") +
+            game::log::infoTerminalOnly(logger, std::string("[TRACE_COMBAT_CPP] ") +
                                      "unit=" + speciesLower + " move=" + (moveLower.empty() ? std::string("-") : moveLower) + " " + msg);
         };
 
@@ -284,7 +284,7 @@ lua.set_function("world_nearest_enemy_cell", [world](int unitId) {
             const auto& animCfg = AttackAnimConfigLoader::getInstance();
 
             // Per-move minimum request seconds (prevents unreasonably tiny windows).
-            const float minReqSec = animCfg.getMinRequestSec(speciesLower, kindLower, moveLower);
+            const float minReqSec = animCfg.getMinRequestSec(speciesLower, kindLower, moveLower, logger);
             if (minReqSec > 0.0f) desiredWindowSec = std::max(desiredWindowSec, minReqSec);
 
             if (traceCombat) {
@@ -321,12 +321,12 @@ lua.set_function("world_nearest_enemy_cell", [world](int unitId) {
             if (!speciesLower.empty()) {
                 if (kindLower == "charged") {
                     phase = "one_shot";
-                    clipUsed = animCfg.getClipName(speciesLower, "charged", moveLower, "one_shot");
+                    clipUsed = animCfg.getClipName(speciesLower, "charged", moveLower, "one_shot", logger);
                     const int idx = animIndexCached(*A, clipUsed);
                     if (idx >= 0) desiredAnimIdx = idx;
                 } else if (kindLower == "fast" && !moveLower.empty()) {
-                    const std::string clipLoop = animCfg.getClipName(speciesLower, "fast", moveLower, "loop");
-                    const std::string clipDef  = animCfg.getClipName(speciesLower, "fast", moveLower, "default");
+                    const std::string clipLoop = animCfg.getClipName(speciesLower, "fast", moveLower, "loop", logger);
+                    const std::string clipDef  = animCfg.getClipName(speciesLower, "fast", moveLower, "default", logger);
 
                     // New simplified policy:
                     // - NO __START
@@ -518,7 +518,7 @@ lua.set_function("world_nearest_enemy_cell", [world](int unitId) {
     // Optional: per-move tuning for minimum seconds between attack requests.
     // Returns 0 when no override exists (scripts should fall back to their defaults).
     lua.set_function("world_attack_min_request_sec",
-        [world](int attackerId, sol::optional<std::string> moveName, sol::optional<std::string> kind) -> float {
+        [world, logger](int attackerId, sol::optional<std::string> moveName, sol::optional<std::string> kind) -> float {
             if (!world) return 0.0f;
             auto& list = world->getPokemons();
             auto A = std::find_if(list.begin(), list.end(),
@@ -536,7 +536,7 @@ lua.set_function("world_nearest_enemy_cell", [world](int unitId) {
             }
             if (kindLower.empty()) kindLower = "fast";
 
-            return AttackAnimConfigLoader::getInstance().getMinRequestSec(speciesLower, kindLower, moveLower);
+            return AttackAnimConfigLoader::getInstance().getMinRequestSec(speciesLower, kindLower, moveLower, logger);
         });
 
     // ----- Energy helpers -----

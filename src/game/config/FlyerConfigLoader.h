@@ -6,6 +6,8 @@
 #include <unordered_map>
 #include <optional>
 
+namespace LogBus { class Logger; }
+
 // Loads a list of species names that should use FlightLocomotion,
 // plus OPTIONAL per-species defaults for the visual-only air locomotion tuning.
 //
@@ -36,7 +38,7 @@ public:
     static FlyerConfigLoader& getInstance();
 
     // Safe to call multiple times; replaces the current data on success.
-    bool loadConfig(const std::string& path);
+    bool loadConfig(const std::string& path, LogBus::Logger* logger = nullptr);
 
     // Case-insensitive check.
     bool isFlyer(const std::string& speciesName) const;

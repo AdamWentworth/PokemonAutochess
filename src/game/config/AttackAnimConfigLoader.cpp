@@ -1,7 +1,7 @@
 // AttackAnimConfigLoader.cpp
 #include "AttackAnimConfigLoader.h"
 
-#include "game/logging/LogBus.h"
+#include "game/logging/LoggerUtil.h"
 #include "game/logging/DebugTrace.h"
 #include "game/config/JsonFile.h"
 
@@ -20,24 +20,24 @@ std::string AttackAnimConfigLoader::toLower(std::string s) {
     return s;
 }
 
-bool AttackAnimConfigLoader::loadConfig(const std::string& filePath) {
+bool AttackAnimConfigLoader::loadConfig(const std::string& filePath, LogBus::Logger* logger) {
     nlohmann::json j;
-    if (!ConfigIO::loadJsonFile(filePath, j, "AttackAnimConfigLoader")) {
+    if (!ConfigIO::loadJsonFile(filePath, j, "AttackAnimConfigLoader", /*silentIfMissing=*/false, logger)) {
         return false;
     }
-    return parseJsonIntoDb(j, /*clearFirst=*/true);
+    return parseJsonIntoDb(j, /*clearFirst=*/true, logger);
 }
 
-bool AttackAnimConfigLoader::loadConfigMerge(const std::string& filePath) {
+bool AttackAnimConfigLoader::loadConfigMerge(const std::string& filePath, LogBus::Logger* logger) {
     // Overrides are optional; do not spam logs if missing.
     nlohmann::json j;
-    if (!ConfigIO::loadJsonFile(filePath, j, "AttackAnimConfigLoader", /*silentIfMissing=*/true)) {
+    if (!ConfigIO::loadJsonFile(filePath, j, "AttackAnimConfigLoader", /*silentIfMissing=*/true, logger)) {
         return false;
     }
-    return parseJsonIntoDb(j, /*clearFirst=*/false);
+    return parseJsonIntoDb(j, /*clearFirst=*/false, logger);
 }
 
-bool AttackAnimConfigLoader::parseJsonIntoDb(const nlohmann::json& j, bool clearFirst) {
+bool AttackAnimConfigLoader::parseJsonIntoDb(const nlohmann::json& j, bool clearFirst, LogBus::Logger* logger) {
     if (clearFirst) {
         db_.clear();
         minReqSec_.clear();
@@ -45,7 +45,7 @@ bool AttackAnimConfigLoader::parseJsonIntoDb(const nlohmann::json& j, bool clear
     }
 
     if (!j.is_object()) {
-        LogBus::error("[AttackAnimConfigLoader] Root must be an object");
+        game::log::error(logger, "[AttackAnimConfigLoader] Root must be an object");
         return false;
     }
 
@@ -90,8 +90,8 @@ bool AttackAnimConfigLoader::parseJsonIntoDb(const nlohmann::json& j, bool clear
                     db_[species][kind][move][phaseKeyLower] = phaseVal.get<std::string>();
 
                     if (DebugTrace::combat(species, move)) {
-                        LogBus::infoTerminalOnly(std::string("[AttackAnimDB] ") + species + ":" + kind + ":" + move +
-                                                " -> " + phaseKeyLower + " = " + db_[species][kind][move][phaseKeyLower]);
+                        game::log::infoTerminalOnly(logger, std::string("[AttackAnimDB] ") + species + ":" + kind + ":" + move +
+                            " -> " + phaseKeyLower + " = " + db_[species][kind][move][phaseKeyLower]);
                     }
                 }
             }
@@ -104,7 +104,8 @@ bool AttackAnimConfigLoader::parseJsonIntoDb(const nlohmann::json& j, bool clear
 std::string AttackAnimConfigLoader::getClipName(const std::string& species,
                                                const std::string& kind,
                                                const std::string& move,
-                                               const std::string& phase) const
+                                               const std::string& phase,
+                                               LogBus::Logger* logger) const
 {
     const std::string s = toLower(species);
     const std::string k = toLower(kind);
@@ -113,7 +114,7 @@ std::string AttackAnimConfigLoader::getClipName(const std::string& species,
 
     const bool traceCombat = DebugTrace::combat(s, m);
     auto trlog = [&](const std::string& msg){
-        if (traceCombat) LogBus::infoTerminalOnly(std::string("[TRACE_ANIMCFG] ") + msg);
+        if (traceCombat) game::log::infoTerminalOnly(logger, std::string("[TRACE_ANIMCFG] ") + msg);
     };
 
     auto itS = db_.find(s);
@@ -163,7 +164,8 @@ std::string AttackAnimConfigLoader::getClipName(const std::string& species,
 
 float AttackAnimConfigLoader::getMinRequestSec(const std::string& species,
                                               const std::string& kind,
-                                              const std::string& move) const
+                                              const std::string& move,
+                                              LogBus::Logger* logger) const
 {
     const std::string s = toLower(species);
     const std::string k = toLower(kind);
@@ -171,7 +173,7 @@ float AttackAnimConfigLoader::getMinRequestSec(const std::string& species,
 
     const bool traceCombat = DebugTrace::combat(s, m);
     auto trlog = [&](const std::string& msg){
-        if (traceCombat) LogBus::infoTerminalOnly(std::string("[TRACE_ANIMCFG] ") + msg);
+        if (traceCombat) game::log::infoTerminalOnly(logger, std::string("[TRACE_ANIMCFG] ") + msg);
     };
 
     auto itS = minReqSec_.find(s);

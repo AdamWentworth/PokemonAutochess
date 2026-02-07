@@ -6,6 +6,8 @@
 
 #include <nlohmann/json.hpp>
 
+namespace LogBus { class Logger; }
+
 // Loads per-species move -> animation clip mappings, plus optional per-move tuning.
 // Intended usage: gameplay asks for clip name (species, kind, move, phase) and optional
 // minimum request/cooldown seconds for that move.
@@ -44,11 +46,11 @@ public:
     static AttackAnimConfigLoader& getInstance();
 
     // Replaces current database on success.
-    bool loadConfig(const std::string& filePath);
+    bool loadConfig(const std::string& filePath, LogBus::Logger* logger = nullptr);
 
     // Merges/overrides entries on success (does NOT clear the existing database).
     // Useful for small "only-this-species" override files.
-    bool loadConfigMerge(const std::string& filePath);
+    bool loadConfigMerge(const std::string& filePath, LogBus::Logger* logger = nullptr);
 
     // Returns empty string if not found.
     // kind: "fast" or "charged" (lower/upper accepted)
@@ -57,13 +59,15 @@ public:
     std::string getClipName(const std::string& species,
                             const std::string& kind,
                             const std::string& move,
-                            const std::string& phase) const;
+                            const std::string& phase,
+                            LogBus::Logger* logger = nullptr) const;
 
     // Optional tuning: minimum seconds to wait between requests for this (species, kind, move).
     // Returns 0.0f if no override is present.
     float getMinRequestSec(const std::string& species,
                            const std::string& kind,
-                           const std::string& move) const;
+                           const std::string& move,
+                           LogBus::Logger* logger = nullptr) const;
 
 
     // Optional tuning: which animation frame should apply damage for this (species, kind, move).
@@ -78,7 +82,7 @@ public:
 private:
     static std::string toLower(std::string s);
 
-    bool parseJsonIntoDb(const nlohmann::json& j, bool clearFirst);
+    bool parseJsonIntoDb(const nlohmann::json& j, bool clearFirst, LogBus::Logger* logger);
 
     // species -> kind -> move -> phase -> clipName
     using PhaseMap = std::unordered_map<std::string, std::string>;

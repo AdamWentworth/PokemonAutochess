@@ -3,7 +3,7 @@
 This document is the **living** tracker: what is done, what is next, and what “exit criteria” still block forward progress.
 The target end-state and stable constraints live in `TARGET_ARCHITECTURE.md`.
 
-Last updated: 2026-02-06
+Last updated: 2026-02-07
 
 ---
 
@@ -11,10 +11,12 @@ Last updated: 2026-02-06
 
 - ✅ Stage 0: architecture rules captured (`ARCHITECTURE.md`, `TARGET_ARCHITECTURE.md`).
 - ✅ Stage 1: build split into `engine_core`, `engine_platform`, `engine_render` (with `Engine` umbrella). Game + tests run.
-- ✅ Stage 2 (in progress): ECS foundation in `engine_core` is usable and covered by headless tests:
+- ✅ Stage 2: ECS foundation in `engine_core` is usable and covered by headless tests:
   - `ecs_smoke`
   - `ecs_destroy_cleans_components`
   - `ecs_for_each_join`
+  - `ecs_structural_change_deferral`
+- ✅ Stage 3.1: logging migration (no LogBus call sites in `src/game` runtime).
 
 ### Current ECS capabilities
 - Entities: id + generation
@@ -23,9 +25,11 @@ Last updated: 2026-02-06
 - Scheduler executes ordered systems
 - Canonical query API: `World::for_each<Cs...>(fn)` joins by id (driver = first component store)
 - Destroy cleanup: `World::destroy()` removes components across all stores
+- Structural-change deferral policy for add/remove/destroy during iteration (deferred until outermost iteration completes)
+- Preferred API: `World::add/remove/has/get` (use in new gameplay code)
 
-### Current ECS gaps (still blocking “Stage 2 complete”)
-- Structural-change policy is not yet enforced (add/remove during iteration is unsafe unless we implement a rule).
+### Current ECS notes (non-blocking)
+- Preferred API adoption: reduce new usage of `components<T>()` outside ECS internals/tests.
 - Query performance/driver selection is naive (acceptable for now).
 - The public API still allows bypassing policy via direct store access (`components<T>()`), which is fine during migration but not end-state.
 
@@ -33,17 +37,17 @@ Last updated: 2026-02-06
 
 ## Next Step (Do this next)
 
-### Stage 2.3 — Structural-change policy (enforceable)
-Goal: make “add/remove components during iteration” defined and safe.
+### Stage 3.2 — Config loader singleton removal (GameDataDb ownership)
+Goal: remove config loader singletons and thread loader instances explicitly.
 
 Preferred implementation order:
-1) Add `World::add/remove/has/get` and use them in new code
-2) Introduce an iteration guard that defers structural changes until a safe point (end of outermost iteration)
-3) Add headless test proving deferral works (e.g., add a component during `for_each`, verify after)
+1) Instantiate loaders in GameBootstrap/GameSession and store in `GameDataDb`.
+2) Update call sites (Lua bindings, preload, anim set) to use `GameDataDb` references.
+3) Remove `getInstance()` from loader classes.
 
 Exit criteria:
-- A test proves the chosen policy works and stays stable.
-- Iteration helpers (`each/each2/for_each`) participate in the same policy.
+- No `getInstance()` calls for config loaders.
+- Loader instances are owned and passed explicitly (via `GameDataDb` or services).
 
 ---
 
@@ -60,12 +64,9 @@ Exit criteria:
 - game links engine libs and runs
 - tests still pass
 
-### Stage 2 — ECS foundation 🟡 (in progress)
-Remaining exit criteria (blocking):
-- structural-change policy enforced (Stage 2.3)
-- a clear “preferred API” for gameplay so raw map access stops spreading
-
-### Stage 3 — Remove globals (events + logging first) ⏭️ next after Stage 2
+### Stage 2 — ECS foundation ✅
+Exit criteria: met (structural-change policy + preferred API adoption in gameplay).
+### Stage 3 — Remove globals (events + logging first) 🟡 (in progress)
 Work items:
 - inventory global/singleton usage in game + engine_core
 - replace with explicit service wiring (composition root)
@@ -95,9 +96,8 @@ Work items:
 
 ## Immediate Technical Outputs (to keep momentum)
 
-1) **Delete/replace list** for globals/singletons (prep for Stage 3)
+1) **Delete/replace list** for globals/singletons (prep for Stage 3) ✅ (`DELETE_REPLACE_LIST.md`)
 2) **Core service interfaces** to add next:
    - `ITimeSource`, `IRandom`, `IAssetStore`
-3) **ECS policy enforcement** (Stage 2.3)
+3) **ECS policy enforcement** (Stage 2.3) ✅
 4) **Draft phase model** for the update graph (Stage 4)
-
