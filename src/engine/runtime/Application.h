@@ -1,4 +1,4 @@
-// src/engine/core/Application.h
+// src/engine/runtime/Application.h
 #pragma once
 
 #include <memory>

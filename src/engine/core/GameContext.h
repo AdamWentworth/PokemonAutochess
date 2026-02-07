@@ -12,7 +12,7 @@ struct EngineServices;
 /*
     GameContext:
     - The *stable* engine-facing API exposed to the game layer.
-    - Keeps the game from depending on Application directly.
+    - Keeps the game from depending on a specific host loop directly.
     - Add fields here deliberately (treat as public engine/game contract).
 */
 struct GameContext {

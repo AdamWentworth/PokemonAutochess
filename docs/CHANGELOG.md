@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+## 2026-02-07 - Stage 10 loop ownership cleanup
+- Moved Window to engine_platform and Application to engine_runtime.
+- Added a game-owned loop (GameRunner) and made it the default entrypoint.
+- Added engine_runtime to the aggregate build target.
+
+## 2026-02-07 - Stage 9 dependency hygiene and legacy removal
+- Required GameServices in runtime states/systems; removed fallback constructors.
+- Removed runtime fallback config loads and LogBus compatibility globals.
+
 ## 2026-02-07 — Stage 8.2 release build checklist
 - Documented release build steps for packaging data bundles.
 

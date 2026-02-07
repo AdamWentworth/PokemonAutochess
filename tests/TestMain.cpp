@@ -1,6 +1,7 @@
 // tests/TestMain.cpp
 #include <iostream>
 #include <string>
+#include <vector>
 
 bool test_lua_bindings_smoke(std::string& outFail);
 bool test_eventbus_basic(std::string& outFail);
@@ -14,6 +15,11 @@ bool test_manual_time_source(std::string& outFail);
 bool test_content_invariants(std::string& outFail);
 bool test_battle_invariants(std::string& outFail);
 
+struct TestCase {
+    const char* name;
+    bool (*fn)(std::string&);
+};
+
 static int run(const char* name, bool (*fn)(std::string&), int& failCount) {
     std::string fail;
     const bool ok = fn(fail);
@@ -22,20 +28,67 @@ static int run(const char* name, bool (*fn)(std::string&), int& failCount) {
     return 0;
 }
 
-int main() {
-    int fails = 0;
+static bool shouldRun(const std::vector<std::string>& filters, const char* name) {
+    if (filters.empty()) return true;
+    for (const auto& f : filters) {
+        if (f == name) return true;
+    }
+    return false;
+}
 
-    run("lua_bindings_smoke", &test_lua_bindings_smoke, fails);
-    run("eventbus_basic", &test_eventbus_basic, fails);
-    run("gameconfig_diagnostics", &test_gameconfig_diagnostics, fails);
-    run("ecs_smoke", &test_ecs_smoke, fails);
-    run("ecs_destroy_cleans_components", &test_ecs_destroy_cleans_components, fails);
-    run("ecs_for_each_join", &test_ecs_for_each_join, fails);
-    run("ecs_structural_change_deferral", &test_ecs_structural_change_deferral, fails);
-    run("rng_determinism", &test_rng_determinism, fails);
-    run("manual_time_source", &test_manual_time_source, fails);
-    run("content_invariants", &test_content_invariants, fails);
-    run("battle_invariants", &test_battle_invariants, fails);
+int main(int argc, char** argv) {
+    std::vector<std::string> filters;
+    bool listOnly = false;
+
+    for (int i = 1; i < argc; ++i) {
+        const std::string arg = argv[i];
+        if (arg == "--list") {
+            listOnly = true;
+            continue;
+        }
+        if (arg.rfind("--filter=", 0) == 0) {
+            filters.push_back(arg.substr(9));
+            continue;
+        }
+        if (arg == "--filter" && i + 1 < argc) {
+            filters.push_back(argv[++i]);
+            continue;
+        }
+        filters.push_back(arg);
+    }
+
+    const TestCase tests[] = {
+        {"lua_bindings_smoke", &test_lua_bindings_smoke},
+        {"eventbus_basic", &test_eventbus_basic},
+        {"gameconfig_diagnostics", &test_gameconfig_diagnostics},
+        {"ecs_smoke", &test_ecs_smoke},
+        {"ecs_destroy_cleans_components", &test_ecs_destroy_cleans_components},
+        {"ecs_for_each_join", &test_ecs_for_each_join},
+        {"ecs_structural_change_deferral", &test_ecs_structural_change_deferral},
+        {"rng_determinism", &test_rng_determinism},
+        {"manual_time_source", &test_manual_time_source},
+        {"content_invariants", &test_content_invariants},
+        {"battle_invariants", &test_battle_invariants},
+    };
+
+    if (listOnly) {
+        for (const auto& t : tests) std::cout << t.name << "\n";
+        return 0;
+    }
+
+    int fails = 0;
+    int ran = 0;
+
+    for (const auto& t : tests) {
+        if (!shouldRun(filters, t.name)) continue;
+        ++ran;
+        run(t.name, t.fn, fails);
+    }
+
+    if (!filters.empty() && ran == 0) {
+        std::cerr << "[PAC_Tests] No matching tests.\n";
+        return 2;
+    }
 
     if (fails == 0) { std::cout << "[PAC_Tests] All tests passed.\n"; return 0; }
     std::cerr << "[PAC_Tests] " << fails << " test(s) failed.\n";

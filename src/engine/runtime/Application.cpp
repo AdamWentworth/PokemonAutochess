@@ -1,7 +1,7 @@
-// src/engine/core/Application.cpp
+// src/engine/runtime/Application.cpp
 
-#include "engine/core/Application.h"
-#include "engine/core/Window.h"
+#include "engine/runtime/Application.h"
+#include "engine/platform/Window.h"
 
 #include "engine/core/GameLoop.h"
 #include "engine/core/GameContext.h"

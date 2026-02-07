@@ -1,6 +1,6 @@
-// src/engine/core/Window.cpp
+// src/engine/platform/Window.cpp
 
-#include "engine/core/Window.h"
+#include "engine/platform/Window.h"
 
 #include <SDL2/SDL.h>
 
@@ -64,7 +64,7 @@ Window::~Window() {
     }
 
     // IMPORTANT: do NOT call SDL_Quit() here.
-    // Application controls shutdown ordering.
+    // Caller controls shutdown ordering.
 }
 
 void Window::setTitle(const std::string& title) {

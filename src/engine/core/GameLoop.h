@@ -7,7 +7,7 @@ struct InputEvent;
 /*
     GameLoop:
     - Engine-facing interface for the game/app layer.
-    - Application drives the game via these callbacks.
+    - The host loop drives the game via these callbacks.
     - SDL types are NOT used here.
 */
 class GameLoop {

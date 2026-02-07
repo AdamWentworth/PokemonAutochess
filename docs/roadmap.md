@@ -31,6 +31,7 @@ Done:
 - Determinism tests and headless battle invariants tests
 - Runtime states/systems require GameServices (no legacy constructors)
 - LogBus compatibility globals removed
+- Game-owned loop default; Application/Window moved to runtime/platform
 
 Partial:
 - Single update graph exists in game, but SystemRegistry remains duplicated
@@ -39,7 +40,6 @@ Partial:
 Not done:
 - Replace hard-coded UI constants with a UI/Viewport service
 - Gameplay adoption of ECS for authoritative state and systems
-- Move SDL/GL loop code out of engine_core path and treat Application as optional runner
 
 ---
 

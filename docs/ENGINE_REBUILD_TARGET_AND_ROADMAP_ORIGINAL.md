@@ -24,6 +24,7 @@ Last updated: 2026-02-07
 - engine_core is headless, contains ECS, IEventBus, ILogger, IRandom, ITimeSource, IAssetStore, and shared utilities.
 - engine_platform contains SDL/window/input/filesystem and platform timing sources.
 - engine_render contains graphics backends and render utilities.
+- engine_runtime contains the optional Application host loop (SDL/GL convenience runner).
 - engine_tools contains offline content cooking and validation.
 - game owns the loop, wiring, system ordering, gameplay systems, scripts, and content.
 
@@ -31,12 +32,9 @@ Last updated: 2026-02-07
 
 ## Current Gaps vs Target
 
-- Runtime still accepts optional services and fallback constructors in states and systems.
-- SystemRegistry exists in both Application and GameSession; ECS Scheduler is not the single update graph.
-- Application and Window live under engine/core path even though they depend on SDL/GL.
+- SystemRegistry exists in both GameRunner and GameSession; ECS Scheduler is not the single update graph.
 - ScriptAPI still exposes GameWorld/GameStateManager; Lua bindings include render headers.
 - UI width/height constants are hard-coded in gameplay states.
-- LogBus compatibility functions remain even though there are no call sites.
 
 ---
 

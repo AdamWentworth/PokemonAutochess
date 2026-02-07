@@ -4,6 +4,9 @@ cmake_minimum_required(VERSION 3.22)
 project(PokemonAutochess LANGUAGES CXX)
 
 option(PAC_VERBOSE_STARTUP "Enable verbose startup/model-load logging" OFF)
+option(PAC_BUILD_TOOLS "Build developer tools (data cooker)" ON)
+
+include(CTest)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -94,7 +97,7 @@ pac_apply_common_target_settings(engine_core)
 
 # ---------------- engine_platform (SDL, window/input) ----------------
 add_library(engine_platform STATIC
-    src/engine/core/Window.cpp
+    src/engine/platform/Window.cpp
     src/engine/input/SdlKeyMap.cpp
 )
 target_link_libraries(engine_platform
@@ -145,10 +148,18 @@ add_library(Engine INTERFACE)
 target_link_libraries(Engine INTERFACE engine_core engine_platform engine_render)
 pac_apply_common_target_settings(Engine)
 
+# ---------------- engine_runtime (optional SDL/GL loop host) ----------------
+add_library(engine_runtime STATIC
+    src/engine/runtime/Application.cpp
+)
+target_link_libraries(engine_runtime PRIVATE engine_core engine_platform engine_render)
+pac_apply_common_target_settings(engine_runtime)
+
 # ---------------- Game objects (shared by exe + tests) ----------------
 add_library(PAC_GameObjects STATIC
     # Game Core
     src/game/GameApp.cpp
+    src/game/GameRunner.cpp
     src/game/GameWorld.cpp
     src/game/GameStateManager.cpp
     src/game/GameConfig.cpp
@@ -213,79 +224,118 @@ pac_apply_common_target_settings(PAC_GameObjects)
 # ---------------- Executable ----------------
 add_executable(PokemonAutochess
     src/main.cpp
-    src/engine/core/Application.cpp
 )
 target_link_libraries(PokemonAutochess PRIVATE PAC_GameObjects)
 pac_apply_common_target_settings(PokemonAutochess)
 
 # ---------------- Tools ----------------
-add_executable(PAC_DataCooker
-    tools/PAC_DataCooker.cpp
-)
-target_link_libraries(PAC_DataCooker
-    PRIVATE
-        nlohmann_json::nlohmann_json
-)
-pac_apply_common_target_settings(PAC_DataCooker)
-
-# ---------------- Tests ----------------
-enable_testing()
-
-add_executable(PAC_Tests
-    tests/TestMain.cpp
-    tests/TestLuaBindings.cpp
-    tests/TestEventBus.cpp
-    tests/TestGameConfig.cpp
-    tests/TestECS.cpp
-    tests/TestDeterminism.cpp
-    tests/TestContentValidation.cpp
-    tests/TestBattleInvariants.cpp
-)
-
-target_link_libraries(PAC_Tests
-    PRIVATE
-        PAC_GameObjects
-        engine_core
-)
-
-# Tests include both /src and /tests
-target_include_directories(PAC_Tests
-    PRIVATE
-        "${PROJECT_SRC_ROOT}"
-        "${CMAKE_SOURCE_DIR}/tests"
-)
-
-if (MSVC)
-    target_compile_options(PAC_Tests PRIVATE /std:c++20 /permissive- /Zc:__cplusplus)
-else()
-    target_compile_options(PAC_Tests PRIVATE -std=c++20)
+if (PAC_BUILD_TOOLS)
+    add_executable(PAC_DataCooker
+        tools/PAC_DataCooker.cpp
+    )
+    target_link_libraries(PAC_DataCooker
+        PRIVATE
+            nlohmann_json::nlohmann_json
+    )
+    pac_apply_common_target_settings(PAC_DataCooker)
 endif()
 
-add_test(NAME PAC_Tests COMMAND PAC_Tests)
+# ---------------- Tests ----------------
+if (BUILD_TESTING)
+    add_executable(PAC_Tests
+        tests/TestMain.cpp
+        tests/TestLuaBindings.cpp
+        tests/TestEventBus.cpp
+        tests/TestGameConfig.cpp
+        tests/TestECS.cpp
+        tests/TestDeterminism.cpp
+        tests/TestContentValidation.cpp
+        tests/TestBattleInvariants.cpp
+    )
+
+    target_link_libraries(PAC_Tests
+        PRIVATE
+            PAC_GameObjects
+            engine_core
+    )
+
+    # Tests include both /src and /tests
+    target_include_directories(PAC_Tests
+        PRIVATE
+            "${PROJECT_SRC_ROOT}"
+            "${CMAKE_SOURCE_DIR}/tests"
+    )
+
+    if (MSVC)
+        target_compile_options(PAC_Tests PRIVATE /std:c++20 /permissive- /Zc:__cplusplus)
+    else()
+        target_compile_options(PAC_Tests PRIVATE -std=c++20)
+    endif()
+
+    # Register individual tests for CTest output granularity.
+    set(PAC_TEST_NAMES
+        lua_bindings_smoke
+        eventbus_basic
+        gameconfig_diagnostics
+        ecs_smoke
+        ecs_destroy_cleans_components
+        ecs_for_each_join
+        ecs_structural_change_deferral
+        rng_determinism
+        manual_time_source
+        content_invariants
+        battle_invariants
+    )
+
+    foreach(test_name IN LISTS PAC_TEST_NAMES)
+        add_test(NAME PAC_Tests.${test_name} COMMAND PAC_Tests --filter ${test_name})
+    endforeach()
+
+    # Ensure tests run with repo root as working directory so relative config/script paths resolve.
+    set(PAC_ALL_TESTS)
+    foreach(test_name IN LISTS PAC_TEST_NAMES)
+        list(APPEND PAC_ALL_TESTS PAC_Tests.${test_name})
+    endforeach()
+
+    set_tests_properties(${PAC_ALL_TESTS} PROPERTIES
+        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+        ENVIRONMENT "PAC_DATA_ROOT=${CMAKE_SOURCE_DIR};PAC_ASSET_ROOT=${CMAKE_SOURCE_DIR}/assets"
+    )
+endif()
 
 # ---------------- Convenience aggregate target ----------------
-# Build everything with one target (engine libs + game + tests).
+# Build everything with one target (engine libs + game + optional tests/tools).
+set(PAC_ALL_TARGETS
+    engine_core
+    engine_platform
+    engine_render
+    engine_runtime
+    PAC_GameObjects
+    PokemonAutochess
+)
+if (BUILD_TESTING)
+    list(APPEND PAC_ALL_TARGETS PAC_Tests)
+endif()
+if (PAC_BUILD_TOOLS)
+    list(APPEND PAC_ALL_TARGETS PAC_DataCooker)
+endif()
 add_custom_target(PAC_All
     DEPENDS
-        engine_core
-        engine_platform
-        engine_render
-        PAC_GameObjects
-        PokemonAutochess
-        PAC_Tests
-        PAC_DataCooker
+        ${PAC_ALL_TARGETS}
 )
 
 # ---------------- Data pack helper targets ----------------
-add_custom_target(PAC_ValidateData
-    COMMAND $<TARGET_FILE:PAC_DataCooker> --validate-only
-    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-    DEPENDS PAC_DataCooker
-)
+if (PAC_BUILD_TOOLS)
+    add_custom_target(PAC_ValidateData
+        COMMAND $<TARGET_FILE:PAC_DataCooker> --validate-only
+        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+        DEPENDS PAC_DataCooker
+    )
 
-add_custom_target(PAC_PackData
-    COMMAND $<TARGET_FILE:PAC_DataCooker> --out content_pak/content.pak
-    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-    DEPENDS PAC_DataCooker
-)
+    add_custom_target(PAC_PackData
+        COMMAND $<TARGET_FILE:PAC_DataCooker> --out content_pak/content.pak
+        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+        DEPENDS PAC_DataCooker
+    )
+endif()
 
