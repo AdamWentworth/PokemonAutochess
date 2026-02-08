@@ -251,6 +251,8 @@ if (BUILD_TESTING)
         tests/TestDeterminism.cpp
         tests/TestContentValidation.cpp
         tests/TestBattleInvariants.cpp
+        tests/TestMovementSystem.cpp
+        tests/TestModelParse.cpp
     )
 
     target_link_libraries(PAC_Tests
@@ -285,6 +287,8 @@ if (BUILD_TESTING)
         manual_time_source
         content_invariants
         battle_invariants
+        movement_invariants
+        model_parse_smoke
     )
 
     foreach(test_name IN LISTS PAC_TEST_NAMES)

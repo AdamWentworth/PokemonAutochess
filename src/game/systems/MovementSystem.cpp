@@ -63,6 +63,8 @@ MovementSystem::MovementSystem(GameWorld* world, GameServices& svc)
     loadScript();
 }
 
+MovementSystem::~MovementSystem() = default;
+
 void MovementSystem::exposeConstants() {
     // Make grid constants available to Lua scripts
     lua["GRID_COLS"]  = GRID_COLS;

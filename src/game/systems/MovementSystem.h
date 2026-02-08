@@ -12,6 +12,7 @@ class ScriptAPI;
 class MovementSystem : public Updatable {
 public:
     explicit MovementSystem(GameWorld* world, GameServices& services);
+    ~MovementSystem();
 
     void update(float deltaTime) override;
 

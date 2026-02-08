@@ -1,0 +1,21 @@
+# CI
+
+CI is Windows-first and mirrors the local flow: configure, build, test, validate data.
+
+## What Runs
+- Configure with the vcpkg toolchain.
+- Build Debug.
+- Run CTest.
+- Run `PAC_ValidateData`.
+
+## Why It Exists
+- Catch regressions before they land.
+- Keep a clean signal for portfolio reviewers.
+
+## Local Equivalent
+```powershell
+cmake -S . -B build -DCMAKE_TOOLCHAIN_FILE=%VCPKG_ROOT%/scripts/buildsystems/vcpkg.cmake -DPAC_BUILD_TOOLS=ON -DBUILD_TESTING=ON
+cmake --build build --config Debug
+ctest --test-dir build -C Debug --output-on-failure
+cmake --build build --config Debug --target PAC_ValidateData
+```
