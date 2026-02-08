@@ -6,6 +6,8 @@
 #include "game/GameServices.h"
 #include "engine/core/IAssetStore.h"
 #include "engine/core/Paths.h"
+#include "engine/core/ecs/World.h"
+#include "game/ecs/CombatActive.h"
 #include <iostream>
 #include <algorithm>
 
@@ -50,8 +52,8 @@ bool loadLuaFromStore(sol::state& lua, const std::string& path, engine::IAssetSt
 
 static const char* kCombatLua = "scripts/systems/combat.lua";
 
-CombatSystem::CombatSystem(GameWorld* world, GameServices& svc)
-    : gameWorld(world), services(svc) {
+CombatSystem::CombatSystem(GameWorld* world, GameServices& svc, engine::ecs::Entity combatEntity_)
+    : gameWorld(world), services(svc), combatEntity(combatEntity_) {
     lua.open_libraries(sol::lib::base, sol::lib::math, sol::lib::table, sol::lib::string);
     api = std::make_unique<ScriptAPI>(gameWorld, /*manager*/ nullptr, services);
     registerLuaBindings(lua, *api);
@@ -77,8 +79,11 @@ void CombatSystem::loadScript() {
     ok = true;
 }
 
-void CombatSystem::update(float deltaTime) {
+void CombatSystem::update(engine::ecs::World& ecsWorld, float deltaTime) {
     if (!ok) return;
+    if (!ecsWorld.alive(combatEntity)) return;
+    auto* combat = ecsWorld.get<game::CombatActive>(combatEntity);
+    if (!combat || !combat->active) return;
     if (sol::function update = lua["combat_update"]; update.valid()) {
         sol::protected_function_result ur = update(deltaTime);
         if (!ur.valid()) {

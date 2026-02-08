@@ -1,6 +1,7 @@
 // MovementSystem.h
 #pragma once
-#include "engine/core/Updatable.h"
+#include "engine/core/ecs/ISystem.h"
+#include "engine/core/ecs/Entity.h"
 #include "game/GameServices.h"
 #include "game/GameWorld.h"
 #include <memory>
@@ -9,16 +10,17 @@
 // Forward-declare instead:
 class ScriptAPI;
 
-class MovementSystem : public Updatable {
+class MovementSystem : public engine::ecs::ISystem {
 public:
-    explicit MovementSystem(GameWorld* world, GameServices& services);
+    explicit MovementSystem(GameWorld* world, GameServices& services, engine::ecs::Entity combatEntity);
     ~MovementSystem();
 
-    void update(float deltaTime) override;
+    void update(engine::ecs::World& world, float deltaTime) override;
 
 private:
     GameWorld* gameWorld;
     GameServices& services;
+    engine::ecs::Entity combatEntity;
     sol::state lua;
     std::unique_ptr<ScriptAPI> api;
     bool ok = false;

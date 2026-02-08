@@ -4,8 +4,8 @@
 #include "game/GameServices.h"
 #include "game/logging/LoggerUtil.h"
 
-#include "game/systems/MovementSystem.h"
-#include "game/systems/CombatSystem.h"
+#include "game/ecs/CombatActive.h"
+#include "engine/core/ecs/World.h"
 
 #include "engine/ui/TextRenderer.h"
 
@@ -34,13 +34,19 @@ CombatState::CombatState(GameStateManager* manager, GameWorld* world, GameServic
         game::log::error(&services.log, std::string("[CombatState] Failed to load combat script: ") + path);
     }
 
-    movementSystem = std::make_unique<MovementSystem>(gameWorld, services);
-    combatSystem   = std::make_unique<CombatSystem>(gameWorld, services);
 }
 
 CombatState::~CombatState() = default;
 
 void CombatState::onEnter() {
+    if (services.ecsWorld && services.ecsWorld->alive(services.combatStateEntity)) {
+        if (auto* state = services.ecsWorld->get<game::CombatActive>(services.combatStateEntity)) {
+            state->active = true;
+        } else {
+            services.ecsWorld->add<game::CombatActive>(services.combatStateEntity, game::CombatActive{true});
+        }
+    }
+
     sol::table S = script.getScriptTable();
 
     if (sol::function get_message = S["get_message"]; get_message.valid()) {
@@ -80,14 +86,19 @@ void CombatState::onEnter() {
     script.onEnter();
 }
 
-void CombatState::onExit() { script.onExit(); }
+void CombatState::onExit() {
+    if (services.ecsWorld && services.ecsWorld->alive(services.combatStateEntity)) {
+        if (auto* state = services.ecsWorld->get<game::CombatActive>(services.combatStateEntity)) {
+            state->active = false;
+        }
+    }
+    script.onExit();
+}
 
 void CombatState::handleInput(const InputEvent&) {}
 
 void CombatState::update(float dt) {
     script.onUpdate(dt);
-    if (movementSystem) movementSystem->update(dt);
-    if (combatSystem)   combatSystem->update(dt);
 }
 
 void CombatState::render() {

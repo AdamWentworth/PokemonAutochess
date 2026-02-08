@@ -37,10 +37,13 @@
 #include "game/assets/DevAssetStore.h"
 #include "game/assets/PackedAssetStore.h"
 #include "game/ecs/RoundState.h"
+#include "game/ecs/CombatActive.h"
 
 #include "game/systems/CameraSystem.h"
 #include "game/systems/UnitInteractionSystem.h"
 #include "game/systems/RoundSystem.h"
+#include "game/systems/MovementSystem.h"
+#include "game/systems/CombatSystem.h"
 #include "game/systems/ShopSystem.h"
 #include "game/systems/LegacySystemAdapters.h"
 
@@ -139,12 +142,14 @@ struct GameSession::Impl {
             game::log::info(&log, std::string("[Init] RNG seed: ") + std::to_string(seed));
         }
 
+        roundPhaseEntity = ecsWorld.create();
+        ecsWorld.add<game::CombatActive>(roundPhaseEntity, game::CombatActive{false});
+
         config = GameConfig::load(&log, assetStore.get());
-        services = std::make_unique<GameServices>(config, dataDb, log, scriptEvents, *assetStore, rng, timeSource);
+        services = std::make_unique<GameServices>(config, dataDb, log, scriptEvents, *assetStore, rng, timeSource,
+                                                  &ecsWorld, roundPhaseEntity);
         coreServices.rng = &services->rng;
         coreServices.time = &services->time;
-
-        roundPhaseEntity = ecsWorld.create();
 
         // Board visuals
         if (renderEnabled) {
@@ -177,6 +182,7 @@ struct GameSession::Impl {
         ecsWorld.add<game::RoundState>(roundPhaseEntity, game::RoundState{ roundSystem->getCurrentPhase() });
         scheduler.add(std::move(roundSystem), Phase::Update);
 
+
         if (renderEnabled) {
             if (ctx.services && ctx.services->shaders) {
                 healthBarRenderer.init(*ctx.services->shaders);
@@ -194,6 +200,13 @@ struct GameSession::Impl {
             scheduler.add(std::make_unique<game::CallbackSystemAdapter>(
                 [stateMgr](float dt) { stateMgr->update(dt); }
             ), Phase::PostUpdate);
+        }
+        if (auto* worldPtr = gameWorld.get()) {
+            auto movementSystem = std::make_unique<MovementSystem>(worldPtr, *services, roundPhaseEntity);
+            scheduler.add(std::move(movementSystem), Phase::PostUpdate);
+
+            auto combatSystem = std::make_unique<CombatSystem>(worldPtr, *services, roundPhaseEntity);
+            scheduler.add(std::move(combatSystem), Phase::PostUpdate);
         }
         if (auto* worldPtr = gameWorld.get()) {
             scheduler.add(std::make_unique<game::CallbackSystemAdapter>(

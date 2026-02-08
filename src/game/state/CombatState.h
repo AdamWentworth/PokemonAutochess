@@ -10,8 +10,6 @@
 class GameStateManager;
 class GameWorld;
 
-class MovementSystem;
-class CombatSystem;
 class TextRenderer;
 
 class CombatState : public GameState {
@@ -33,9 +31,6 @@ private:
     LuaScript script;
 
     std::unique_ptr<TextRenderer> textRenderer;
-    std::unique_ptr<MovementSystem> movementSystem;
-    std::unique_ptr<CombatSystem>  combatSystem;
-
     std::string combatMessage;
 
     const std::string& scriptPath() const;

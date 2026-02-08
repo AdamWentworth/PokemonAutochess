@@ -7,11 +7,14 @@
 #include "engine/core/Paths.h"
 #include "engine/core/Random.h"
 #include "engine/core/TimeSources.h"
+#include "engine/core/Services.h"
+#include "engine/core/ecs/World.h"
 
 #include "game/GameConfig.h"
 #include "game/GameServices.h"
 #include "game/GameWorld.h"
 #include "game/PokemonInstance.h"
+#include "game/ecs/CombatActive.h"
 #include "game/assets/DevAssetStore.h"
 #include "game/config/GameDataDb.h"
 #include "game/logging/LogBus.h"
@@ -71,14 +74,22 @@ bool test_movement_invariants(std::string& outFail) {
     units.push_back(makeUnit(cfg, "unit_b", PokemonSide::Player, 1, 3));
     units.push_back(makeUnit(cfg, "unit_c", PokemonSide::Enemy, 6, 6));
 
-    MovementSystem movement(&world, services);
+    engine::CoreServices core;
+    core.rng = &services.rng;
+    core.time = &services.time;
+
+    engine::ecs::World ecsWorld(&core);
+    engine::ecs::Entity combatEntity = ecsWorld.create();
+    ecsWorld.add<game::CombatActive>(combatEntity, game::CombatActive{true});
+
+    MovementSystem movement(&world, services, combatEntity);
 
     std::unordered_map<int, glm::ivec2> originalCells;
     for (const auto& u : units) {
         originalCells[u.id] = worldToGrid(cfg, u.position);
     }
 
-    movement.update(0.01f);
+    movement.update(ecsWorld, 0.01f);
 
     std::unordered_set<int64_t> committed;
     int movingCount = 0;

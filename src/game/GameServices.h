@@ -6,6 +6,7 @@
 // This is intentionally small and non-owning (stores references).
 
 #include "game/GameConfig.h"
+#include "engine/core/ecs/Entity.h"
 
 // Forward decls (keep headers light)
 struct GameDataDb;
@@ -13,6 +14,7 @@ struct GameDataDb;
 namespace LogBus { struct Logger; }
 class ScriptEventBus;
 namespace engine { class IAssetStore; class IRandom; class ITimeSource; }
+namespace engine::ecs { class World; }
 
 struct GameServices {
     const GameConfigData& config;
@@ -22,6 +24,8 @@ struct GameServices {
     engine::IAssetStore& assets;
     engine::IRandom& rng;
     engine::ITimeSource& time;
+    engine::ecs::World* ecsWorld = nullptr;
+    engine::ecs::Entity combatStateEntity{};
 
     GameServices(const GameConfigData& cfg,
                  GameDataDb& db,
@@ -29,12 +33,16 @@ struct GameServices {
                  ScriptEventBus& eventBus,
                  engine::IAssetStore& assetStore,
                  engine::IRandom& random,
-                 engine::ITimeSource& timeSource)
+                 engine::ITimeSource& timeSource,
+                 engine::ecs::World* ecsWorldPtr = nullptr,
+                 engine::ecs::Entity combatEntity = {})
         : config(cfg)
         , dataDb(db)
         , log(logger)
         , events(eventBus)
         , assets(assetStore)
         , rng(random)
-        , time(timeSource) {}
+        , time(timeSource)
+        , ecsWorld(ecsWorldPtr)
+        , combatStateEntity(combatEntity) {}
 };

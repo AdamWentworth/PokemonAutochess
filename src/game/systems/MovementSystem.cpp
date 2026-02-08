@@ -5,6 +5,8 @@
 #include "game/GameServices.h"
 #include "engine/core/IAssetStore.h"
 #include "engine/core/Paths.h"
+#include "engine/core/ecs/World.h"
+#include "game/ecs/CombatActive.h"
 #include <iostream>
 #include <algorithm>
 #include <glm/glm.hpp>
@@ -53,8 +55,8 @@ bool loadLuaFromStore(sol::state& lua, const std::string& path, engine::IAssetSt
 
 static const char* kMovementLua = "scripts/systems/movement.lua";
 
-MovementSystem::MovementSystem(GameWorld* world, GameServices& svc)
-    : gameWorld(world), services(svc)
+MovementSystem::MovementSystem(GameWorld* world, GameServices& svc, engine::ecs::Entity combatEntity_)
+    : gameWorld(world), services(svc), combatEntity(combatEntity_)
 {
     lua.open_libraries(sol::lib::base, sol::lib::math, sol::lib::table, sol::lib::string);
     api = std::make_unique<ScriptAPI>(gameWorld, /*GameStateManager*/ nullptr, services);
@@ -96,8 +98,11 @@ void MovementSystem::loadScript() {
     ok = true;
 }
 
-void MovementSystem::update(float deltaTime) {
+void MovementSystem::update(engine::ecs::World& ecsWorld, float deltaTime) {
     if (!ok) return;
+    if (!ecsWorld.alive(combatEntity)) return;
+    auto* combat = ecsWorld.get<game::CombatActive>(combatEntity);
+    if (!combat || !combat->active) return;
 
     // 1) Let Lua compute winners and start committed one-cell moves.
     if (sol::function updateFn = lua["movement_update"]; updateFn.valid()) {

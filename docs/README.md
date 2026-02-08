@@ -16,6 +16,6 @@ These are **internal notes** for quality, architecture, and testing. They are no
 - If something becomes outdated, delete or rewrite it instead of letting it drift.
 
 ## Current Focus (Next 3)
-- ECS adoption for movement/combat/round systems.
 - UI sizing via a shared viewport service.
 - Render a real model in the GL smoke test.
+- Content validation in every dev loop.

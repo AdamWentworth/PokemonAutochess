@@ -4,11 +4,14 @@
 #include "engine/core/Paths.h"
 #include "engine/core/Random.h"
 #include "engine/core/TimeSources.h"
+#include "engine/core/Services.h"
+#include "engine/core/ecs/World.h"
 
 #include "game/GameConfig.h"
 #include "game/GameServices.h"
 #include "game/GameWorld.h"
 #include "game/PokemonInstance.h"
+#include "game/ecs/CombatActive.h"
 #include "game/assets/DevAssetStore.h"
 #include "game/config/GameDataDb.h"
 #include "game/config/MovesConfigLoader.h"
@@ -75,12 +78,20 @@ bool test_combat_slice_headless(std::string& outFail) {
     const int hpA0 = units[0].hp;
     const int hpB0 = units[1].hp;
 
-    CombatSystem combat(&world, services);
+    engine::CoreServices core;
+    core.rng = &services.rng;
+    core.time = &services.time;
+
+    engine::ecs::World ecsWorld(&core);
+    engine::ecs::Entity combatEntity = ecsWorld.create();
+    ecsWorld.add<game::CombatActive>(combatEntity, game::CombatActive{true});
+
+    CombatSystem combat(&world, services, combatEntity);
 
     constexpr float dt = 0.25f;
     constexpr int steps = 80; // 20 seconds total
     for (int i = 0; i < steps; ++i) {
-        combat.update(dt);
+        combat.update(ecsWorld, dt);
     }
 
     const int hpA1 = units[0].hp;
