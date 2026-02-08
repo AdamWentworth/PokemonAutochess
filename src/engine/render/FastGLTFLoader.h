@@ -104,7 +104,6 @@ inline std::optional<LoadResult> tryLoad(std::string_view filepath) {
     const auto baseDir = usePath.parent_path();
 
     constexpr fastgltf::Options kOptions =
-        fastgltf::Options::LoadGLBBuffers |
         fastgltf::Options::LoadExternalBuffers |
         fastgltf::Options::LoadExternalImages |
         fastgltf::Options::DecomposeNodeMatrices |

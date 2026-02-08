@@ -106,9 +106,6 @@ void ScriptedState::handleInput(const InputEvent& event) {
     if (!uiInitialized) return;
 
     sol::table S = script.getScriptTable();
-    const auto* viewport = services.viewport;
-    const int uiW = viewport ? viewport->width : 1280;
-    const int uiH = viewport ? viewport->height : 720;
 
     if (event.type == InputEvent::Type::MouseDown) {
         auto clicked = cardSystem.handleMouseClick(event.mouseX, event.mouseY);

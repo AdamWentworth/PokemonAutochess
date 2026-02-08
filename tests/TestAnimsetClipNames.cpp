@@ -60,7 +60,6 @@ bool parseAnimationNames(const std::filesystem::path& modelPath,
 
     fastgltf::Parser parser(pac::fastgltf_loader::kSupportedExtensionsMask);
     constexpr fastgltf::Options kOptions =
-        fastgltf::Options::LoadGLBBuffers |
         fastgltf::Options::LoadExternalBuffers |
         fastgltf::Options::LoadExternalImages |
         fastgltf::Options::DecomposeNodeMatrices |

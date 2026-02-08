@@ -20,7 +20,6 @@ bool parseModel(const std::filesystem::path& path, std::string& outFail) {
 
     fastgltf::Parser parser(pac::fastgltf_loader::kSupportedExtensionsMask);
     constexpr fastgltf::Options kOptions =
-        fastgltf::Options::LoadGLBBuffers |
         fastgltf::Options::LoadExternalBuffers |
         fastgltf::Options::LoadExternalImages |
         fastgltf::Options::DecomposeNodeMatrices |
