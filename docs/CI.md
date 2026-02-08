@@ -22,6 +22,11 @@ ctest --test-dir build -C Debug --output-on-failure
 cmake --build build --config Debug --target PAC_ValidateData
 ```
 
+One-command local check
+```powershell
+.\tools\full_check.ps1
+```
+
 Format check (changed files only)
 ```powershell
 .\tools\format_check.ps1
