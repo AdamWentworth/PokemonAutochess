@@ -11,6 +11,16 @@ function get_enemies()
     }
 end
 
+-- Intro encounter tuning: make starters win comfortably.
+function get_combat_balance()
+    return {
+        playerDamageMult = 1.40,
+        enemyDamageMult = 0.80,
+        playerDamageTakenMult = 0.85,
+        enemyDamageTakenMult = 1.00
+    }
+end
+
 -- You can also add on_enter/on_update/on_exit hooks if needed:
 -- function on_enter() end
 -- function on_update(dt) end

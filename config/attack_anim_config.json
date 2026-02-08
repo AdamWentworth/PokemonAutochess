@@ -2,7 +2,7 @@
   "bulbasaur": {
     "fast": {
       "vine_whip": {
-        "_minRequestSec": 2.6,
+        "_minRequestSec": 1.2,
         "loop": "pm0001_00_00_00410_attack02.gfbanm",
         "default": "pm0001_00_00_00410_attack02.gfbanm",
         "_hitFrame": 42

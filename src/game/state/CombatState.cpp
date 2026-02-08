@@ -38,6 +38,10 @@ CombatState::CombatState(GameStateManager* manager, GameWorld* world, GameServic
 CombatState::~CombatState() = default;
 
 void CombatState::onEnter() {
+    if (gameWorld) {
+        gameWorld->resetCombatBalance();
+    }
+
     if (services.ecsWorld && services.ecsWorld->alive(services.combatStateEntity)) {
         if (auto* state = services.ecsWorld->get<game::CombatActive>(services.combatStateEntity)) {
             state->active = true;
@@ -74,6 +78,21 @@ void CombatState::onEnter() {
     }
     script.flushCommands();
 
+    if (sol::function get_balance = S["get_combat_balance"]; get_balance.valid()) {
+        sol::protected_function_result r = get_balance();
+        if (r.valid() && r.get_type() == sol::type::table) {
+            sol::table t = r;
+            GameWorld::CombatBalance b;
+
+            if (auto v = t.get<sol::optional<float>>("playerDamageMult"); v) b.playerDamageMult = *v;
+            if (auto v = t.get<sol::optional<float>>("enemyDamageMult"); v) b.enemyDamageMult = *v;
+            if (auto v = t.get<sol::optional<float>>("playerDamageTakenMult"); v) b.playerDamageTakenMult = *v;
+            if (auto v = t.get<sol::optional<float>>("enemyDamageTakenMult"); v) b.enemyDamageTakenMult = *v;
+
+            if (gameWorld) gameWorld->setCombatBalance(b);
+        }
+    }
+
     // Player send-out lines (optional flavor)
     for (auto& u : gameWorld->getPokemons()) {
         if (!u.alive) continue;
@@ -90,6 +109,9 @@ void CombatState::onExit() {
         if (auto* state = services.ecsWorld->get<game::CombatActive>(services.combatStateEntity)) {
             state->active = false;
         }
+    }
+    if (gameWorld) {
+        gameWorld->resetCombatBalance();
     }
     script.onExit();
 }

@@ -15,6 +15,13 @@
 #include "vfx/GrassImpactVFX.h"
 // Leech seed projectile VFX
 #include "vfx/LeechSeedProjectileVFX.h"
+// Leech seed sap + heal VFX
+#include "vfx/LeechSeedSapVFX.h"
+#include "vfx/HealPlusVFX.h"
+// Leech seed drain dots
+#include "vfx/LeechSeedDrainVFX.h"
+// Leech seed config
+#include "config/LeechSeedConfigDB.h"
 
 class Camera3D;
 class BoardRenderer;
@@ -25,6 +32,13 @@ namespace LogBus { class Logger; }
 
 class GameWorld {
 public:
+    struct CombatBalance {
+        float playerDamageMult = 1.0f;
+        float enemyDamageMult = 1.0f;
+        float playerDamageTakenMult = 1.0f;
+        float enemyDamageTakenMult = 1.0f;
+    };
+
     explicit GameWorld(const GameConfigData& cfg);
 
     void setResources(ResourceManager* rm) { resources = rm; }
@@ -62,8 +76,15 @@ public:
 
     glm::vec3 getNearestEnemyPosition(const PokemonInstance& unit) const;
 
+    void setCombatBalance(const CombatBalance& b) { combatBalance = b; }
+    const CombatBalance& getCombatBalance() const { return combatBalance; }
+    void resetCombatBalance() { combatBalance = CombatBalance{}; }
+
     // Impact VFX for grass-type attacks
     void emitGrassImpactAt(const PokemonInstance& target);
+
+    // Apply leech seed status on hit
+    void applyLeechSeed(int attackerId, int targetId);
 
 private:
     ResourceManager* resources = nullptr; // engine-owned
@@ -73,6 +94,8 @@ private:
 
     std::vector<PokemonInstance> pokemons;
     std::vector<PokemonInstance> benchPokemons;
+
+    CombatBalance combatBalance{};
 
     glm::vec3 gridToWorld(int col, int row) const;
 
@@ -94,4 +117,28 @@ private:
     // Leech seed projectiles (drawn after opaque models)
     LeechSeedProjectileVFX leechSeedVfx;
     bool leechSeedVfxInitialized = false;
+
+    // Leech seed sap/heal VFX
+    LeechSeedSapVFX leechSeedSapVfx;
+    bool leechSeedSapVfxInitialized = false;
+
+    HealPlusVFX healPlusVfx;
+    bool healPlusVfxInitialized = false;
+
+    LeechSeedDrainVFX leechSeedDrainVfx;
+    bool leechSeedDrainVfxInitialized = false;
+
+    // Leech seed config
+    bool leechSeedConfigLoaded = false;
+    LeechSeedConfig leechSeedConfig{};
+
+    struct PendingLeechHeal {
+        int sourceId = -1;
+        int amount = 0;
+        float timeLeftSec = 0.0f;
+    };
+    std::vector<PendingLeechHeal> pendingLeechHeals;
+
+    void updateLeechSeedStatus(float dt);
+    void ensureLeechSeedConfigLoaded();
 };

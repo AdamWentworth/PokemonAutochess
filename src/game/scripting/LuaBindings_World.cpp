@@ -156,6 +156,10 @@ void registerLuaBindings_World(sol::state& lua, ScriptAPI& api) {
         return api.getUnitSpeed(unitId);
     });
 
+    lua.set_function("world_get_damage_multiplier", [&api](int attackerId, int targetId) {
+        return api.getDamageMultiplier(attackerId, targetId);
+    });
+
     lua.set_function("world_has_planned_move", [&api](int unitId) {
         return api.hasPlannedMove(unitId);
     });

@@ -6,9 +6,12 @@ return {
         ui = { path = "assets/fonts/GillSans.ttf", size = 48 }
     },
     -- NEW: simple global leveling model
-    -- All stats scale by (1 + per_level_boost)^(level - 1)
+    -- Stats scale by (1 + per_level_*_boost)^(level - 1)
     leveling = {
         base_level = 1,          -- default level used when not specified
-        per_level_boost = 0.08   -- 8% per level to HP, Attack, Move Speed
+        per_level_boost = 0.08,  -- fallback when per-stat boost is not set
+        per_level_hp_boost = 0.18,
+        per_level_attack_boost = 0.20,
+        per_level_speed_boost = 0.06
     }
 }

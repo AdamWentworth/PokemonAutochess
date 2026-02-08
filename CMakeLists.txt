@@ -176,6 +176,7 @@ add_library(PAC_GameObjects STATIC
     src/game/config/AttackAnimConfigLoader.cpp
     src/game/config/AnimSetLoader.cpp
     src/game/config/FlyerConfigLoader.cpp
+    src/game/config/LeechSeedConfigDB.cpp
 
     # Game Animations
     src/game/animation/FlightLocomotion.cpp
@@ -191,6 +192,9 @@ add_library(PAC_GameObjects STATIC
     src/game/vfx/TailFireVFXConfigDB.cpp
     src/game/vfx/GrassImpactVFX.cpp
     src/game/vfx/LeechSeedProjectileVFX.cpp
+    src/game/vfx/LeechSeedSapVFX.cpp
+    src/game/vfx/HealPlusVFX.cpp
+    src/game/vfx/LeechSeedDrainVFX.cpp
 
     # Game Assets
     src/game/assets/DevAssetStore.cpp

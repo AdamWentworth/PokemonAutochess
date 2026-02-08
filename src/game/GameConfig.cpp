@@ -107,6 +107,15 @@ GameConfigData GameConfig::load(LogBus::Logger* logger, const engine::IAssetStor
     if (leveling.valid()) {
         cfg.baseLevel     = leveling.get_or("base_level", cfg.baseLevel);
         cfg.perLevelBoost = leveling.get_or("per_level_boost", cfg.perLevelBoost);
+
+        // Optional per-stat overrides (fall back to perLevelBoost if unspecified).
+        sol::optional<float> hpBoost = leveling["per_level_hp_boost"];
+        sol::optional<float> atkBoost = leveling["per_level_attack_boost"];
+        sol::optional<float> spdBoost = leveling["per_level_speed_boost"];
+
+        cfg.perLevelHpBoost = hpBoost ? *hpBoost : cfg.perLevelBoost;
+        cfg.perLevelAttackBoost = atkBoost ? *atkBoost : cfg.perLevelBoost;
+        cfg.perLevelSpeedBoost = spdBoost ? *spdBoost : cfg.perLevelBoost;
     }
 
     applyFontPathDefaults(cfg);

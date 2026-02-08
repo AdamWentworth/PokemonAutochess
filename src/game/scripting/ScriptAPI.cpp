@@ -230,6 +230,23 @@ float ScriptAPI::getUnitSpeed(int unitId) const {
     return 0.0f;
 }
 
+float ScriptAPI::getDamageMultiplier(int attackerId, int targetId) const {
+    if (!world_) return 1.0f;
+    auto* A = world_->findUnitById(attackerId);
+    auto* T = world_->findUnitById(targetId);
+    if (!A || !T) return 1.0f;
+
+    const auto& b = world_->getCombatBalance();
+
+    const float attMult = (A->side == PokemonSide::Player) ? b.playerDamageMult : b.enemyDamageMult;
+    const float takenMult = (T->side == PokemonSide::Player) ? b.playerDamageTakenMult : b.enemyDamageTakenMult;
+
+    const float safeAtt = std::max(0.0f, attMult);
+    const float safeTaken = std::max(0.0f, takenMult);
+    const float out = safeAtt * safeTaken;
+    return (out > 0.0f) ? out : 0.0f;
+}
+
 std::string ScriptAPI::getUnitFastMove(int unitId) const {
     if (!world_) return {};
     if (auto* u = world_->findUnitById(unitId)) return u->fastMove;
@@ -684,6 +701,12 @@ int ScriptAPI::applyDamage(int attackerId,
         A->pendingProjectileTargetId = -1;
         A->pendingProjectileSpawnTimeSec = 0.0f;
         A->pendingProjectileTravelSec = 0.0f;
+        A->pendingImpactActive = false;
+        A->pendingImpactApplied = false;
+        A->pendingImpactTargetId = -1;
+        A->pendingImpactTimeSec = 0.0f;
+        A->pendingImpactIsGrass = false;
+        A->pendingImpactIsLeechSeed = false;
 
         const bool startedThisCall = true;
 
@@ -730,13 +753,13 @@ int ScriptAPI::applyDamage(int attackerId,
                 }
             }
 
-            if (!A->pendingDamageActive) {
-                A->pendingDamageActive     = true;
-                A->pendingDamageApplied    = false;
-                A->pendingDamageTargetId   = targetId;
-                A->pendingDamageAmount     = std::max(0, amount);
-                A->pendingDamageHitTimeSec = std::max(0.0f, spawnTimeClip + travelClip);
-                A->pendingDamageIsGrass    = isGrassImpact;
+            if (!A->pendingImpactActive) {
+                A->pendingImpactActive = true;
+                A->pendingImpactApplied = false;
+                A->pendingImpactTargetId = targetId;
+                A->pendingImpactTimeSec = std::max(0.0f, spawnTimeClip + travelClip);
+                A->pendingImpactIsGrass = isGrassImpact;
+                A->pendingImpactIsLeechSeed = true;
 
                 A->pendingProjectileActive = true;
                 A->pendingProjectileSpawned = false;
@@ -745,7 +768,8 @@ int ScriptAPI::applyDamage(int attackerId,
                 A->pendingProjectileTravelSec = std::max(0.01f, travelReal);
             }
 
-            return std::max(0, T->hp - std::max(0, amount));
+            // Leech Seed does not deal damage on impact.
+            return T->hp;
         }
 
         const int hitFrame = animCfg ? animCfg->getHitFrame(speciesLower, kindLower, moveLower) : -1;

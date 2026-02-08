@@ -19,6 +19,9 @@ struct GameConfigData {
     // leveling
     int baseLevel = 1;
     float perLevelBoost = 0.08f; // 8% default
+    float perLevelHpBoost = 0.08f;
+    float perLevelAttackBoost = 0.08f;
+    float perLevelSpeedBoost = 0.08f;
 
     // ---- New: load diagnostics (non-breaking additions) ----
     bool loadOk = true;                // false if config failed to load/execute/parse

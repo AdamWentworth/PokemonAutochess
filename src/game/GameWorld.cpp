@@ -36,12 +36,14 @@ void GameWorld::applyLevelScaling(PokemonInstance& inst, int level) const {
 
     inst.level = useLevel;
 
-    const float mult = std::pow(1.0f + cfg.perLevelBoost, static_cast<float>(useLevel - 1));
+    const float hpMult  = std::pow(1.0f + cfg.perLevelHpBoost, static_cast<float>(useLevel - 1));
+    const float atkMult = std::pow(1.0f + cfg.perLevelAttackBoost, static_cast<float>(useLevel - 1));
+    const float spdMult = std::pow(1.0f + cfg.perLevelSpeedBoost, static_cast<float>(useLevel - 1));
 
-    inst.maxHP         = static_cast<int>(std::round(static_cast<float>(inst.baseHp) * mult));
+    inst.maxHP         = static_cast<int>(std::round(static_cast<float>(inst.baseHp) * hpMult));
     inst.hp            = inst.maxHP;
-    inst.attack        = static_cast<int>(std::round(static_cast<float>(inst.baseAttack) * mult));
-    inst.movementSpeed = inst.baseMovementSpeed * mult;
+    inst.attack        = static_cast<int>(std::round(static_cast<float>(inst.baseAttack) * atkMult));
+    inst.movementSpeed = inst.baseMovementSpeed * spdMult;
 }
 
 static const LoadoutEntry* pickLoadoutForLevel(const PokemonStats& ps, int level) {
@@ -333,6 +335,30 @@ void GameWorld::update(float dt)
                 }
             }
 
+            // Apply pending impact (for leech seed and non-damage impacts).
+            if (p.pendingImpactActive && !p.pendingImpactApplied) {
+                if (p.animTimeSec >= p.pendingImpactTimeSec) {
+                    auto itTgt = std::find_if(pokemons.begin(), pokemons.end(),
+                        [&](const PokemonInstance& u){ return u.id == p.pendingImpactTargetId; });
+
+                    if (itTgt != pokemons.end() && itTgt->alive) {
+                        if (p.pendingImpactIsGrass) {
+                            emitGrassImpactAt(*itTgt);
+                        }
+                        if (p.pendingImpactIsLeechSeed) {
+                            applyLeechSeed(p.id, itTgt->id);
+                        }
+                    }
+
+                    p.pendingImpactApplied = true;
+                    p.pendingImpactActive = false;
+                    p.pendingImpactTargetId = -1;
+                    p.pendingImpactTimeSec = 0.0f;
+                    p.pendingImpactIsGrass = false;
+                    p.pendingImpactIsLeechSeed = false;
+                }
+            }
+
             // Apply pending damage at the configured hit time (clip-time seconds).
             if (p.pendingDamageActive && !p.pendingDamageApplied && p.pendingDamageAmount > 0) {
                 if (p.animTimeSec >= p.pendingDamageHitTimeSec) {
@@ -393,6 +419,13 @@ void GameWorld::update(float dt)
                 p.pendingProjectileTargetId = -1;
                 p.pendingProjectileSpawnTimeSec = 0.0f;
                 p.pendingProjectileTravelSec = 0.0f;
+
+                p.pendingImpactActive = false;
+                p.pendingImpactApplied = false;
+                p.pendingImpactTargetId = -1;
+                p.pendingImpactTimeSec = 0.0f;
+                p.pendingImpactIsGrass = false;
+                p.pendingImpactIsLeechSeed = false;
             }
             return;
         }
@@ -434,6 +467,30 @@ void GameWorld::update(float dt)
     }
 
     leechSeedVfx.update(dt);
+
+    if (!leechSeedSapVfxInitialized) {
+        LeechSeedSapVFX::Config c; // defaults
+        leechSeedSapVfx.setConfig(c);
+        leechSeedSapVfxInitialized = true;
+    }
+
+    if (!healPlusVfxInitialized) {
+        HealPlusVFX::Config c; // defaults
+        healPlusVfx.setConfig(c);
+        healPlusVfxInitialized = true;
+    }
+
+    if (!leechSeedDrainVfxInitialized) {
+        LeechSeedDrainVFX::Config c; // defaults
+        leechSeedDrainVfx.setConfig(c);
+        leechSeedDrainVfxInitialized = true;
+    }
+
+    updateLeechSeedStatus(dt);
+
+    leechSeedSapVfx.update(dt);
+    healPlusVfx.update(dt);
+    leechSeedDrainVfx.update(dt);
 }
 
 void GameWorld::drawAll(const Camera3D& camera, BoardRenderer& boardRenderer)
@@ -467,6 +524,9 @@ void GameWorld::drawAll(const Camera3D& camera, BoardRenderer& boardRenderer)
     tailFireVfx.render(camera);
     grassImpactVfx.render(camera);
     leechSeedVfx.render(camera);
+    leechSeedSapVfx.render(camera);
+    healPlusVfx.render(camera);
+    leechSeedDrainVfx.render(camera);
 }
 
 std::vector<HealthBarData> GameWorld::getHealthBarData(const Camera3D& camera, int screenWidth, int screenHeight) const
@@ -501,4 +561,139 @@ void GameWorld::emitGrassImpactAt(const PokemonInstance& target)
 
     const glm::vec3 base = target.position + glm::vec3(0.0f, target.visualYOffset, 0.0f);
     grassImpactVfx.emitAt(base);
+}
+
+void GameWorld::ensureLeechSeedConfigLoaded()
+{
+    if (leechSeedConfigLoaded) return;
+    leechSeedConfigLoaded = true;
+
+    LeechSeedConfigDB::get().ensureLoaded();
+    leechSeedConfig = LeechSeedConfigDB::get().getConfig();
+}
+
+void GameWorld::applyLeechSeed(int attackerId, int targetId)
+{
+    ensureLeechSeedConfigLoaded();
+
+    if (leechSeedConfig.durationSec <= 0.0f) return;
+
+    auto* attacker = findUnitById(attackerId);
+    auto* target = findUnitById(targetId);
+    if (!attacker || !target) return;
+    if (!attacker->alive || !target->alive) return;
+
+    target->leechSeeded = true;
+    target->leechSeedSourceId = attackerId;
+    target->leechSeedTimeLeftSec = leechSeedConfig.durationSec;
+    target->leechSeedTickTimerSec = std::max(0.01f, leechSeedConfig.tickIntervalSec);
+}
+
+void GameWorld::updateLeechSeedStatus(float dt)
+{
+    ensureLeechSeedConfigLoaded();
+
+    if (leechSeedConfig.durationSec <= 0.0f) return;
+
+    dt = std::clamp(dt, 0.0f, 0.1f);
+
+    const float drainSpeed = 3.0f;     // world units per second
+    const float minTravel = 0.20f;
+    const float maxTravel = 0.60f;
+
+    for (auto& target : pokemons) {
+        if (!target.leechSeeded) continue;
+
+        if (!target.alive) {
+            target.leechSeeded = false;
+            continue;
+        }
+
+        auto* source = findUnitById(target.leechSeedSourceId);
+        if (!source || !source->alive) {
+            target.leechSeeded = false;
+            continue;
+        }
+
+        target.leechSeedTimeLeftSec = std::max(0.0f, target.leechSeedTimeLeftSec - dt);
+        target.leechSeedTickTimerSec -= dt;
+
+        while (target.leechSeedTickTimerSec <= 0.0f) {
+            const float pct = std::max(0.0f, leechSeedConfig.sapPercent);
+            int sap = (int)std::round((float)target.maxHP * pct);
+            sap = std::max(leechSeedConfig.minSap, sap);
+            if (sap <= 0) break;
+
+            // Apply sap damage
+            target.hp = std::max(0, target.hp - sap);
+            if (target.hp <= 0) {
+                target.hp = 0;
+                target.alive = false;
+
+                target.isMoving = false;
+                target.attackTimerSec = 0.0f;
+                target.attackAnimSpeed = 1.0f;
+                target.currentAttackAnimIndex = target.animAttack1Index;
+                target.pendingAttackAfterLanding = false;
+                target.queuedAttackDurationSec = 0.0f;
+                target.queuedAttackAnimIndex = -1;
+                target.chainedFastMove.clear();
+                target.fastChainTimerSec = 0.0f;
+                target.animIndexCache.clear();
+
+                target.leechSeeded = false;
+            }
+
+            // VFX: leaves on target + drain dots to source
+            {
+                const glm::vec3 tpos = target.position + glm::vec3(0.0f, target.visualYOffset, 0.0f);
+                const float tScale = (target.model ? target.model->getScaleFactor() : 1.0f);
+                leechSeedSapVfx.emitAt(tpos, tScale);
+
+                const glm::vec3 spos = source->position + glm::vec3(0.0f, source->visualYOffset, 0.0f);
+
+                const float dist = glm::distance(tpos, spos);
+                float travelSec = dist / std::max(0.1f, drainSpeed);
+                travelSec = std::clamp(travelSec, minTravel, maxTravel);
+
+                leechSeedDrainVfx.emitBetween(tpos, spos, travelSec);
+
+                const float healMult = std::max(0.0f, leechSeedConfig.healMultiplier);
+                int heal = (int)std::round((float)sap * healMult);
+                if (heal > 0) {
+                    pendingLeechHeals.push_back({ source->id, heal, travelSec });
+                }
+            }
+
+            target.leechSeedTickTimerSec += std::max(0.01f, leechSeedConfig.tickIntervalSec);
+
+            if (!target.alive) break;
+        }
+
+        if (target.leechSeedTimeLeftSec <= 0.0f) {
+            target.leechSeeded = false;
+        }
+    }
+
+    // Apply pending heals when drain dots should arrive.
+    if (!pendingLeechHeals.empty()) {
+        for (auto& h : pendingLeechHeals) {
+            h.timeLeftSec -= dt;
+        }
+
+        pendingLeechHeals.erase(
+            std::remove_if(pendingLeechHeals.begin(), pendingLeechHeals.end(),
+                [&](const PendingLeechHeal& h) {
+                    if (h.timeLeftSec > 0.0f) return false;
+                    auto* source = findUnitById(h.sourceId);
+                    if (source && source->alive && h.amount > 0) {
+                        source->hp = std::min(source->maxHP, source->hp + h.amount);
+                        const glm::vec3 spos = source->position + glm::vec3(0.0f, source->visualYOffset, 0.0f);
+                        healPlusVfx.emitAt(spos);
+                    }
+                    return true;
+                }),
+            pendingLeechHeals.end()
+        );
+    }
 }

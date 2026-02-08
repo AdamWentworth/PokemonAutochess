@@ -108,6 +108,20 @@ struct PokemonInstance {
     float pendingProjectileSpawnTimeSec = 0.0f; // clip-time seconds
     float pendingProjectileTravelSec = 0.0f;    // real-time seconds
 
+    // Pending impact event (for leech seed, non-damage impacts, etc.)
+    bool  pendingImpactActive = false;
+    bool  pendingImpactApplied = false;
+    int   pendingImpactTargetId = -1;
+    float pendingImpactTimeSec = 0.0f; // clip-time seconds
+    bool  pendingImpactIsGrass = false;
+    bool  pendingImpactIsLeechSeed = false;
+
+    // Leech seed status (sapping over time)
+    bool  leechSeeded = false;
+    int   leechSeedSourceId = -1;
+    float leechSeedTimeLeftSec = 0.0f;
+    float leechSeedTickTimerSec = 0.0f;
+
     // Which clip to play during the current attack window (defaults to animAttack1Index).
     int currentAttackAnimIndex = -1;
 

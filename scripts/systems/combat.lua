@@ -17,7 +17,11 @@ local TUNING = {
   MIN_CHARGED_REQUEST_SEC = 0.85,
   SPEED_BASELINE = 1.0,
   SPEED_MIN = 0.35,
-  SPEED_MAX = 3.0
+  SPEED_MAX = 3.0,
+  -- Damage tuning
+  DAMAGE_POWER_MULT = 1.0,
+  DAMAGE_ATK_SCALE = 0.50, -- bonus damage per point of Attack
+  DAMAGE_MIN = 1
 }
 
 do
@@ -120,7 +124,7 @@ local MIN_CHARGED_REQUEST_SEC = TUNING.MIN_CHARGED_REQUEST_SEC
 
 -- Optional per-move animation/cadence multiplier (1.25 = 25% faster)
 local MOVE_SPEED_MULT = {
-  vine_whip = 1.25,
+  vine_whip = 1.60,
 }
 
 local function move_speed_mult(move_name)
@@ -153,6 +157,41 @@ local function unit_speed_factor(unit_id)
   if denom == 0 then denom = 1.0 end
   local f = s / denom
   return clamp(f, TUNING.SPEED_MIN, TUNING.SPEED_MAX)
+end
+
+local function unit_attack_stat(unit_id)
+  local s = nil
+
+  if type(world_get_unit_snapshot) == "function" then
+    local u = world_get_unit_snapshot(unit_id)
+    if u and type(u.attack) == "number" then s = u.attack end
+  end
+
+  if type(s) ~= "number" then s = 0 end
+  return s
+end
+
+local function compute_damage(attacker_id, target_id, power)
+  local base = tonumber(power) or 0
+  if base <= 0 then return 0 end
+
+  local atk = unit_attack_stat(attacker_id)
+  local mult = TUNING.DAMAGE_POWER_MULT or 1.0
+  local bonus = atk * (TUNING.DAMAGE_ATK_SCALE or 0.0)
+
+  local dmg = (base * mult) + bonus
+
+  if type(world_get_damage_multiplier) == "function" then
+    local m = world_get_damage_multiplier(attacker_id, target_id)
+    if type(m) == "number" and m > 0.0 then
+      dmg = dmg * m
+    end
+  end
+
+  dmg = math.floor(dmg + 0.5)
+  local minDmg = TUNING.DAMAGE_MIN or 0
+  if dmg < minDmg then dmg = minDmg end
+  return dmg
 end
 
 -- Query engine-side per-move override if available.
@@ -294,7 +333,7 @@ local function fire_charged(id, tgt)
   local tSnap = world_get_unit_snapshot(tgt)
   local hp_before = tSnap and tSnap.hp or 0
 
-  local dmg = m.power or 0
+  local dmg = compute_damage(id, tgt, m.power)
   if rng() < CRIT_CHANCE then
     dmg = math.floor(dmg * CRIT_MULT + 0.5)
     emit("A critical hit!")
@@ -410,7 +449,7 @@ function combat_update(dt)
             emit("It missed!")
             world_apply_damage(u.id, tgt, 0, cd, fastName, "fast")
           else
-            local dmg = m.power or 0
+            local dmg = compute_damage(u.id, tgt, m.power)
             if rng() < CRIT_CHANCE then
               dmg = math.floor(dmg * CRIT_MULT + 0.5)
               emit("A critical hit!")

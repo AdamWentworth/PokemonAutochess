@@ -77,6 +77,7 @@ public:
     int getEnergy(int unitId) const;
     int getMaxEnergy(int unitId) const;
     float getUnitSpeed(int unitId) const;
+    float getDamageMultiplier(int attackerId, int targetId) const;
     std::string getUnitFastMove(int unitId) const;
     std::string getUnitChargedMove(int unitId) const;
     std::optional<MoveSnapshot> getMove(const std::string& name) const;
