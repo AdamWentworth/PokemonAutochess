@@ -22,14 +22,14 @@ Focus on catching real regressions while keeping tests fast and headless.
 - Animset role names validated against GLB animation names (CPU-only).
 - Animset clip names validated against GLB animation names (CPU-only).
 - Headless combat slice test (Lua combat system + damage applied).
-- Render pipeline smoke test (shader file + include checks; optional GL compile + draw via `PAC_TEST_GL=1`).
+- Render pipeline smoke test (shader include checks; optional GL compile + board + real model draw via `PAC_TEST_GL=1`).
 - Layering enforcement check (engine cannot include game headers).
 
 ## Coverage Gaps (High Risk)
 None listed.
 
 ## Next Tests to Add (Priority)
-1. Optional render test that draws a real model (textures + animation).
+1. Optional render test that advances animation time across a few frames.
 
 ## Manual Smoke Checklist (Release Builds)
 1. Launch the game and reach the board.

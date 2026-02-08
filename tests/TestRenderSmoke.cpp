@@ -11,10 +11,12 @@
 
 #include <SDL2/SDL.h>
 #include <glad/glad.h>
+#include <glm/gtc/matrix_transform.hpp>
 
 #include "engine/core/Paths.h"
 #include "engine/render/BoardRenderer.h"
 #include "engine/render/Camera3D.h"
+#include "engine/render/Model.h"
 #include "engine/utils/ShaderCache.h"
 
 namespace {
@@ -49,6 +51,13 @@ std::string resolveIncludePath(const std::string& includeName, const std::string
         return includeName;
     }
     return getDirectory(parentFilePath) + includeName;
+}
+
+std::string resolveSmokeModelPath() {
+    const char* env = std::getenv("PAC_TEST_MODEL");
+    std::string rel = (env && *env) ? std::string(env) : "models/0016_Pidgey.glb";
+    if (isFilesystemAbsolute(rel) || isProjectAbsolute(rel)) return rel;
+    return engine::paths::asset(rel);
 }
 
 bool readText(const std::string& path, std::string& out) {
@@ -185,6 +194,15 @@ bool drawMinimalFrame(ShaderCache& cache, std::string& outFail) {
     camera.lookAt(glm::vec3(0.0f));
 
     BoardRenderer board(8, 8, 1.2f, &cache);
+    const std::string modelPath = resolveSmokeModelPath();
+    if (!std::filesystem::exists(modelPath)) {
+        outFail = "Model not found for GL smoke test: " + modelPath;
+        return false;
+    }
+    Model model(modelPath, &cache);
+    const int animIndex = (model.getAnimationCount() > 0) ? 0 : -1;
+    const float scaleFactor = model.getScaleFactor();
+    const glm::mat4 instanceTransform = glm::scale(glm::mat4(1.0f), glm::vec3(scaleFactor));
 
     glViewport(0, 0, 64, 64);
     glEnable(GL_DEPTH_TEST);
@@ -193,6 +211,7 @@ bool drawMinimalFrame(ShaderCache& cache, std::string& outFail) {
 
     board.draw(camera);
     board.drawBench(camera);
+    model.drawAnimated(camera, instanceTransform, 0.0f, animIndex);
 
     glFinish();
     const GLenum err = glGetError();
