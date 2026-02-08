@@ -16,6 +16,6 @@ These are **internal notes** for quality, architecture, and testing. They are no
 - If something becomes outdated, delete or rewrite it instead of letting it drift.
 
 ## Current Focus (Next 3)
-- Content validation in every dev loop.
 - ECS adoption for remaining gameplay systems (shop/bench/camera/interaction).
 - UI scale tuning across resolutions.
+- Simple release bundle checklist or script.

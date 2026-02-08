@@ -20,33 +20,34 @@
 #include "engine/utils/ShaderCache.h"
 
 namespace {
-bool envFlagEnabled(const char* name) {
+bool envFlagEnabled(const char *name) {
     if (!name) return false;
-    const char* v = std::getenv(name);
+    const char *v = std::getenv(name);
     if (!v) return false;
     std::string s(v);
-    for (char& c : s) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+    for (char &c : s)
+        c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
     return (s == "1" || s == "true" || s == "yes" || s == "on");
 }
 
-bool isFilesystemAbsolute(const std::string& path) {
+bool isFilesystemAbsolute(const std::string &path) {
     if (!path.empty() && (path[0] == '/' || path[0] == '\\')) return true;
     if (path.size() >= 3 && std::isalpha(static_cast<unsigned char>(path[0])) && path[1] == ':' &&
         (path[2] == '\\' || path[2] == '/')) return true;
     return false;
 }
 
-bool isProjectAbsolute(const std::string& path) {
+bool isProjectAbsolute(const std::string &path) {
     return path.rfind("assets/", 0) == 0;
 }
 
-std::string getDirectory(const std::string& path) {
+std::string getDirectory(const std::string &path) {
     const std::size_t slash = path.find_last_of("/\\");
     if (slash == std::string::npos) return "";
     return path.substr(0, slash + 1);
 }
 
-std::string resolveIncludePath(const std::string& includeName, const std::string& parentFilePath) {
+std::string resolveIncludePath(const std::string &includeName, const std::string &parentFilePath) {
     if (isFilesystemAbsolute(includeName) || isProjectAbsolute(includeName)) {
         return includeName;
     }
@@ -54,13 +55,13 @@ std::string resolveIncludePath(const std::string& includeName, const std::string
 }
 
 std::string resolveSmokeModelPath() {
-    const char* env = std::getenv("PAC_TEST_MODEL");
+    const char *env = std::getenv("PAC_TEST_MODEL");
     std::string rel = (env && *env) ? std::string(env) : "models/0016_Pidgey.glb";
     if (isFilesystemAbsolute(rel) || isProjectAbsolute(rel)) return rel;
     return engine::paths::asset(rel);
 }
 
-bool readText(const std::string& path, std::string& out) {
+bool readText(const std::string &path, std::string &out) {
     std::ifstream file(path, std::ios::binary);
     if (!file.is_open()) return false;
     std::ostringstream ss;
@@ -69,9 +70,9 @@ bool readText(const std::string& path, std::string& out) {
     return true;
 }
 
-bool scanIncludesRecursive(const std::string& path,
-                           std::unordered_set<std::string>& visited,
-                           std::string& outFail) {
+bool scanIncludesRecursive(const std::string &path,
+                           std::unordered_set<std::string> &visited,
+                           std::string &outFail) {
     if (visited.count(path)) return true;
     visited.insert(path);
 
@@ -85,7 +86,8 @@ bool scanIncludesRecursive(const std::string& path,
     std::string line;
     while (std::getline(in, line)) {
         std::string trimmed = line;
-        while (!trimmed.empty() && (trimmed[0] == ' ' || trimmed[0] == '\t')) trimmed.erase(trimmed.begin());
+        while (!trimmed.empty() && (trimmed[0] == ' ' || trimmed[0] == '\t'))
+            trimmed.erase(trimmed.begin());
         if (trimmed.rfind("#include", 0) == 0) {
             const std::size_t q1 = trimmed.find('"');
             const std::size_t q2 = trimmed.find_last_of('"');
@@ -105,14 +107,14 @@ bool scanIncludesRecursive(const std::string& path,
     return true;
 }
 
-bool checkShaderTree(const std::string& rootDir, std::string& outFail) {
+bool checkShaderTree(const std::string &rootDir, std::string &outFail) {
     if (!std::filesystem::exists(rootDir)) {
         outFail = "Shader root not found: " + rootDir;
         return false;
     }
 
     std::vector<std::string> files;
-    for (const auto& entry : std::filesystem::recursive_directory_iterator(rootDir)) {
+    for (const auto &entry : std::filesystem::recursive_directory_iterator(rootDir)) {
         if (!entry.is_regular_file()) continue;
         const auto ext = entry.path().extension().string();
         if (ext == ".vert" || ext == ".frag" || ext == ".glsl") {
@@ -125,7 +127,7 @@ bool checkShaderTree(const std::string& rootDir, std::string& outFail) {
         return false;
     }
 
-    for (const auto& file : files) {
+    for (const auto &file : files) {
         std::unordered_set<std::string> visited;
         if (!scanIncludesRecursive(file, visited, outFail)) return false;
     }
@@ -141,7 +143,7 @@ struct SDLInitGuard {
 };
 
 struct SDLGLGuard {
-    SDL_Window* window = nullptr;
+    SDL_Window *window = nullptr;
     SDL_GLContext context = nullptr;
     ~SDLGLGuard() {
         if (context) SDL_GL_DeleteContext(context);
@@ -149,7 +151,7 @@ struct SDLGLGuard {
     }
 };
 
-bool initGLContext(SDLInitGuard& sdl, SDLGLGuard& gl, std::string& outFail) {
+bool initGLContext(SDLInitGuard &sdl, SDLGLGuard &gl, std::string &outFail) {
     if (SDL_Init(SDL_INIT_VIDEO) != 0) {
         outFail = std::string("SDL_Init failed: ") + SDL_GetError();
         return false;
@@ -167,8 +169,7 @@ bool initGLContext(SDLInitGuard& sdl, SDLGLGuard& gl, std::string& outFail) {
         "PAC_RenderSmoke",
         SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
         64, 64,
-        SDL_WINDOW_OPENGL | SDL_WINDOW_HIDDEN
-    );
+        SDL_WINDOW_OPENGL | SDL_WINDOW_HIDDEN);
     if (!gl.window) {
         outFail = std::string("SDL_CreateWindow failed: ") + SDL_GetError();
         return false;
@@ -189,7 +190,7 @@ bool initGLContext(SDLInitGuard& sdl, SDLGLGuard& gl, std::string& outFail) {
     return true;
 }
 
-bool drawMinimalFrame(ShaderCache& cache, std::string& outFail) {
+bool drawMinimalFrame(ShaderCache &cache, std::string &outFail) {
     Camera3D camera(45.0f, 1.0f, 0.1f, 100.0f);
     camera.lookAt(glm::vec3(0.0f));
 
@@ -231,7 +232,7 @@ bool drawMinimalFrame(ShaderCache& cache, std::string& outFail) {
     return true;
 }
 
-bool runGLSmokeIfEnabled(std::string& outFail) {
+bool runGLSmokeIfEnabled(std::string &outFail) {
     if (!envFlagEnabled("PAC_TEST_GL")) {
         return true; // Skip GL checks unless explicitly enabled.
     }
@@ -251,7 +252,7 @@ bool runGLSmokeIfEnabled(std::string& outFail) {
         cache.get(uiVert, uiFrag);
 
         if (!drawMinimalFrame(cache, outFail)) return false;
-    } catch (const std::exception& e) {
+    } catch (const std::exception &e) {
         outFail = std::string("GL smoke failed: ") + e.what();
         return false;
     }
@@ -260,7 +261,7 @@ bool runGLSmokeIfEnabled(std::string& outFail) {
 }
 } // namespace
 
-bool test_render_pipeline_smoke(std::string& outFail) {
+bool test_render_pipeline_smoke(std::string &outFail) {
     const std::string shaderRoot = engine::paths::asset("shaders");
     if (!checkShaderTree(shaderRoot, outFail)) return false;
     if (!runGLSmokeIfEnabled(outFail)) return false;

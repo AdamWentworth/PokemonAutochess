@@ -14,6 +14,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - name: Cache vcpkg binaries
         uses: actions/cache@v4
         with:
@@ -23,6 +25,12 @@ jobs:
         run: |
           git clone https://github.com/microsoft/vcpkg "${{ env.VCPKG_ROOT }}"
           & "${{ env.VCPKG_ROOT }}\\bootstrap-vcpkg.bat"
+      - name: Install clang-format
+        run: choco install llvm --no-progress -y
+      - name: Format check
+        env:
+          FORMAT_BASE_REF: origin/master
+        run: powershell -ExecutionPolicy Bypass -File tools/format_check.ps1
       - name: Configure
         run: cmake -S . -B build -DCMAKE_TOOLCHAIN_FILE="${{ env.VCPKG_ROOT }}/scripts/buildsystems/vcpkg.cmake" -DPAC_BUILD_TOOLS=ON -DBUILD_TESTING=ON
       - name: Build
