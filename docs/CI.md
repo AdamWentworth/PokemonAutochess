@@ -7,6 +7,7 @@ CI is Windows-first and mirrors the local flow: configure, build, test, validate
 - Build Debug.
 - Run CTest.
 - Run `PAC_ValidateData`.
+- Use a vcpkg binary cache for faster rebuilds.
 
 ## Why It Exists
 - Catch regressions before they land.

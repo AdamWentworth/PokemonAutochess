@@ -1,4 +1,4 @@
-# 🧩 Pokemon Autochess
+﻿# 🧩 Pokemon Autochess
 
 A **custom 3D engine + game prototype** for a Pokemon-inspired auto-battler (grid placement -> scripted combat).
 
@@ -10,13 +10,13 @@ This repo is **engine-first**. The engine is built to be reusable for future gam
 
 ## ✅ Current Status
 - Engine core: application loop, windowing, input mapping, system registry
-- Rendering: camera, board/grid rendering, model loading + animation support, shader + resource caches
+- Rendering: camera, board/grid rendering, model loading + animation, shader + resource caches
 - UI: text rendering, cards, health bars, battle feed, boot loading/progress view
 - Gameplay runtime: `GameRuntime` -> `GameSession` (world/state/systems/UI wiring)
 - Game states: placement + combat
 - Gameplay systems: round, shop, movement, combat, bench/cards, unit interaction
 - VFX: particle system + TailFire VFX modules
-- Tests: headless smoke tests and invariants
+- Tests: headless smoke tests, invariants, and optional GL smoke draw
 - Data pipeline: JSON configs + cooker + packaged content bundle
 
 ---
@@ -68,6 +68,10 @@ cmake -S . -B build `
 cmake --build build --config Debug
 ```
 
+Notes
+- Assets under `assets/` are used at runtime and expected to be present.
+- Dependencies are defined in `vcpkg.json` (manifest mode).
+
 ---
 
 ## 🏗️ Build Targets
@@ -98,10 +102,25 @@ cmake --build build --config Debug --target PAC_Tests
 .\build\Debug\PAC_Tests.exe
 ```
 
-You can also run via CTest
+Run tests via CTest
 
 ```powershell
 ctest --test-dir build -C Debug --output-on-failure
+```
+
+Optional GL smoke test (real model draw)
+
+```powershell
+$env:PAC_TEST_GL=1
+ctest --test-dir build -C Debug --output-on-failure -R render_pipeline_smoke
+```
+
+Optional override for the model used in GL smoke
+
+```powershell
+$env:PAC_TEST_GL=1
+$env:PAC_TEST_MODEL="models/0004_Charmander.glb"
+ctest --test-dir build -C Debug --output-on-failure -R render_pipeline_smoke
 ```
 
 CI runs build + tests + data validation on Windows.
@@ -123,14 +142,86 @@ Ship these artifacts
 
 ---
 
-## 🎯 Design Goals
-- Reusable engine modules with strict layering
-- Game-owned loop and composition root
-- Headless simulation for tests and tooling
-- Data-driven gameplay via JSON + cooker
+## 🎮 Gameplay Prototype
+Flow (current shape)
+1. Placement phase (starter/unit placement on grid)
+2. Combat phase (movement + combat systems; combat logic driven by Lua)
+3. Round/shop systems integrate with the session loop (UI + events)
+
+Systems present in code
+- Round system
+- Shop system (Lua-driven roll/price hooks)
+- Movement + combat systems
+- Bench/cards systems and UI support (cards, battle feed, health bars)
+
+The exact balancing/content is prototype-level and expected to change.
 
 ---
 
-## 🧭 Notes
+## 🌀 Lua Scripting
+Lua is used for gameplay logic and is bound host-side via **sol2**.
+
+Notable scripts
+- `scripts/systems/combat.lua` for combat timing and tuning hooks
+- `scripts/systems/shop.lua` for shop roll logic and UI/debug events
+- `scripts/states/` for state flow and phase transitions
+
+Tuning
+- `scripts/config/combat_tuning.lua` can override combat timing and speed
+
+---
+
+## 🎨 Assets & Model Pipeline
+- Runtime assets live under `assets/`.
+- Models and animations are ingested via **glTF** (`fastgltf`).
+- Per-model animation sets are defined in `assets/models/*.animset.json`.
+
+Expect this pipeline to evolve as additional models and animations are added.
+
+---
+
+## 🧭 Debugging & Combat Trace Gating
+Tracing is controlled by environment variables (see `src/game/logging/DebugTrace.h`).
+
+- `PAC_TRACE_ALL=1` enables all combat traces.
+- `PAC_TRACE_COMBAT="unit:move,unit2:move2"` enables selective traces.
+- Token format is `unit:move` and either side may be `*`.
+- A token without `:` is treated as `unit:*`.
+
+Examples
+- `PAC_TRACE_COMBAT="bulbasaur:vine_whip"`
+- `PAC_TRACE_COMBAT="*:vine_whip"`
+- `PAC_TRACE_COMBAT="bulbasaur:*"`
+- `PAC_TRACE_COMBAT="*:*,pikachu:thunder_shock"`
+
+---
+
+## ✨ Roadmap (Suggested)
+Near-term
+- Expand content and config coverage (more units, moves, rounds)
+- Stabilize the Lua <-> C++ gameplay API surface
+- Improve model/animation streaming and caching
+- Increase test coverage for scripting and config ingestion
+
+Longer-term
+- More polished UI and effects pass
+- More complete auto-battler loop (economy, drafting, synergies)
+
+---
+
+## ⚙️ Build Flags / Options
+CMake options
+- `PAC_VERBOSE_STARTUP` enables verbose startup/model-load logging
+- `PAC_BUILD_TOOLS` toggles developer tools like the data cooker
+
+Example
+
+```powershell
+cmake --preset vs2026 -DPAC_VERBOSE_STARTUP=ON
+```
+
+---
+
+## 🧾 Notes
 - Windows-first development today; Ubuntu support is a possible future goal.
 - See `docs/` for internal quality notes and test plans.
