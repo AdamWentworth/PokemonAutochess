@@ -15,6 +15,7 @@ namespace LogBus { struct Logger; }
 class ScriptEventBus;
 namespace engine { class IAssetStore; class IRandom; class ITimeSource; }
 namespace engine::ecs { class World; }
+namespace game::ui { struct UIViewport; }
 
 struct GameServices {
     const GameConfigData& config;
@@ -26,6 +27,7 @@ struct GameServices {
     engine::ITimeSource& time;
     engine::ecs::World* ecsWorld = nullptr;
     engine::ecs::Entity combatStateEntity{};
+    game::ui::UIViewport* viewport = nullptr;
 
     GameServices(const GameConfigData& cfg,
                  GameDataDb& db,
@@ -35,7 +37,8 @@ struct GameServices {
                  engine::IRandom& random,
                  engine::ITimeSource& timeSource,
                  engine::ecs::World* ecsWorldPtr = nullptr,
-                 engine::ecs::Entity combatEntity = {})
+                 engine::ecs::Entity combatEntity = {},
+                 game::ui::UIViewport* viewportPtr = nullptr)
         : config(cfg)
         , dataDb(db)
         , log(logger)
@@ -44,5 +47,6 @@ struct GameServices {
         , rng(random)
         , time(timeSource)
         , ecsWorld(ecsWorldPtr)
-        , combatStateEntity(combatEntity) {}
+        , combatStateEntity(combatEntity)
+        , viewport(viewportPtr) {}
 };

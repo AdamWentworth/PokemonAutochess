@@ -3,13 +3,11 @@
 #include "game/GameStateManager.h"
 #include "game/GameServices.h"
 #include "game/state/PlacementState.h"
+#include "game/ui/UIViewport.h"
 #include "engine/input/InputEvent.h"
 
 #include <sol/sol.hpp>
 #include <iostream>
-
-static constexpr int UI_W = 1280;
-static constexpr int UI_H = 720;
 
 ScriptedState::ScriptedState(GameStateManager* manager, GameWorld* world, GameServices& svc, const std::string& path)
     : stateManager(manager)
@@ -64,7 +62,9 @@ void ScriptedState::ensureStarterUI() {
             if (!cd.pokemonName.empty()) list.push_back(cd);
         }
 
-        cardSystem.spawnCardRow(list, UI_W, /*y*/ 300);
+        const auto* viewport = services.viewport;
+        const int uiW = viewport ? viewport->width : 1280;
+        cardSystem.spawnCardRow(list, uiW, /*y*/ 300);
         std::cout << "[ScriptedState] Spawned " << list.size() << " starter cards\n";
     } else {
         std::cerr << "[ScriptedState] get_starter_cards() did not return a table\n";
@@ -106,6 +106,9 @@ void ScriptedState::handleInput(const InputEvent& event) {
     if (!uiInitialized) return;
 
     sol::table S = script.getScriptTable();
+    const auto* viewport = services.viewport;
+    const int uiW = viewport ? viewport->width : 1280;
+    const int uiH = viewport ? viewport->height : 720;
 
     if (event.type == InputEvent::Type::MouseDown) {
         auto clicked = cardSystem.handleMouseClick(event.mouseX, event.mouseY);
@@ -164,6 +167,9 @@ void ScriptedState::render() {
     if (!uiInitialized) return;
 
     sol::table S = script.getScriptTable();
+    const auto* viewport = services.viewport;
+    const int uiW = viewport ? viewport->width : 1280;
+    const int uiH = viewport ? viewport->height : 720;
 
     sol::function getMsg = S["get_message"];
     if (getMsg.valid() && titleText) {
@@ -171,10 +177,10 @@ void ScriptedState::render() {
         if (r.valid() && r.get_type() == sol::type::string) {
             std::string msg = r.get<std::string>();
             float w = titleText->measureTextWidth(msg, 1.0f);
-            float x = (UI_W - w) * 0.5f;
+            float x = (static_cast<float>(uiW) - w) * 0.5f;
             titleText->renderText(msg, x, 150.0f, {1.0f, 1.0f, 0.0f}, 1.0f);
         }
     }
 
-    cardSystem.render(UI_W, UI_H);
+    cardSystem.render(uiW, uiH);
 }

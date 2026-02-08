@@ -3,6 +3,7 @@
 #include "game/GameWorld.h"
 #include "game/GameServices.h"
 #include "game/logging/LoggerUtil.h"
+#include "game/ui/UIViewport.h"
 
 #include "game/ecs/CombatActive.h"
 #include "engine/core/ecs/World.h"
@@ -14,8 +15,6 @@
 #include <sol/sol.hpp>
 
 namespace {
-constexpr int UI_W = 1280;
-
 std::string Capitalize(std::string s) {
     if (s.empty()) return s;
     s[0] = static_cast<char>(std::toupper(static_cast<unsigned char>(s[0])));
@@ -111,8 +110,11 @@ void CombatState::render() {
     const float scale = 1.0f;
     const std::string msg = combatMessage.empty() ? std::string("Combat") : combatMessage;
 
+    const auto* viewport = services.viewport;
+    const float uiWidth = static_cast<float>(viewport ? viewport->width : 1280);
     float textWidth = textRenderer->measureTextWidth(msg, scale);
-    float centeredX = std::round((UI_W - textWidth) / 2.0f);
+    float centeredX = viewport ? viewport->centerX(textWidth)
+                               : std::round((uiWidth - textWidth) * 0.5f);
 
     textRenderer->renderText(msg, centeredX, 50.0f, glm::vec3(1.0f), scale);
 }

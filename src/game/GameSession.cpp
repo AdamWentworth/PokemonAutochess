@@ -32,6 +32,7 @@
 #include "game/GameServices.h"
 #include "game/GameConfig.h"
 #include "game/GameUpdateGraph.h"
+#include "game/ui/UIViewport.h"
 
 #include "game/config/GameDataDb.h"
 #include "game/assets/DevAssetStore.h"
@@ -73,6 +74,7 @@ struct GameSession::Impl {
 
     // v1: thread config/db/log into states without singletons.
     std::unique_ptr<GameServices> services;
+    ui::UIViewport viewport;
 
     // ECS runtime core services + world.
     engine::CoreServices coreServices;
@@ -105,6 +107,7 @@ struct GameSession::Impl {
     void init(GameContext& ctx) {
         camera = ctx.camera;
         renderEnabled = (ctx.renderer != nullptr) && (ctx.camera != nullptr);
+        viewport.set(ctx.drawableW, ctx.drawableH);
 
         const std::string packPath = engine::paths::dataPack();
         if (!packPath.empty()) {
@@ -147,7 +150,7 @@ struct GameSession::Impl {
 
         config = GameConfig::load(&log, assetStore.get());
         services = std::make_unique<GameServices>(config, dataDb, log, scriptEvents, *assetStore, rng, timeSource,
-                                                  &ecsWorld, roundPhaseEntity);
+                                                  &ecsWorld, roundPhaseEntity, &viewport);
         coreServices.rng = &services->rng;
         coreServices.time = &services->time;
 
@@ -259,6 +262,7 @@ struct GameSession::Impl {
     }
 
     void render(int drawableW, int drawableH) {
+        viewport.set(drawableW, drawableH);
         if (!renderEnabled) return;
         if (board && camera) board->draw(*camera);
         if (gameWorld && camera && board) gameWorld->drawAll(*camera, *board);

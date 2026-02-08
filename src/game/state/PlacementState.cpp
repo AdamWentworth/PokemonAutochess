@@ -5,6 +5,7 @@
 #include "game/GameStateManager.h"
 #include "game/GameWorld.h"
 #include "game/GameServices.h"
+#include "game/ui/UIViewport.h"
 
 #include "engine/ui/TextRenderer.h"
 
@@ -12,11 +13,6 @@
 #include <cmath>
 #include <memory>
 #include <sol/sol.hpp>
-
-namespace {
-constexpr int UI_W = 1280;
-
-} // namespace
 
 PlacementState::PlacementState(GameStateManager* manager, GameWorld* world, GameServices& svc, const std::string& name)
     : stateManager(manager)
@@ -97,8 +93,11 @@ void PlacementState::render() {
 
     const float scale = 1.0f;
 
+    const auto* viewport = services.viewport;
+    const float uiWidth = static_cast<float>(viewport ? viewport->width : 1280);
     float textWidth = text->measureTextWidth(message, scale);
-    float centeredX = std::round((UI_W - textWidth) / 2.0f);
+    float centeredX = viewport ? viewport->centerX(textWidth)
+                               : std::round((uiWidth - textWidth) * 0.5f);
 
     text->renderText(message, centeredX, 50.0f, glm::vec3(1.0f), scale);
 }
