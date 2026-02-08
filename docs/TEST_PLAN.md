@@ -20,14 +20,15 @@ Focus on catching real regressions while keeping tests fast and headless.
 - Headless placement -> combat state flow.
 - Animset role resolution test (CPU-only, JSON-driven).
 - Animset role names validated against GLB animation names (CPU-only).
+- Animset clip names validated against GLB animation names (CPU-only).
 - Headless combat slice test (Lua combat system + damage applied).
 - Render pipeline smoke test (shader file + include checks; optional GL compile + draw via `PAC_TEST_GL=1`).
 
 ## Coverage Gaps (High Risk)
-- Full animset clip coverage beyond core roles.
+None listed.
 
 ## Next Tests to Add (Priority)
-1. Full animset clip validation against GLB animation names.
+1. Layering enforcement check (forbidden engine/game includes).
 
 ## Manual Smoke Checklist (Release Builds)
 1. Launch the game and reach the board.
