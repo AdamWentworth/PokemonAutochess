@@ -1,11 +1,111 @@
-// src/engine/render/ModelFastGltfLoad.inl
-//
-// Intentionally included inside Model::loadGLTF(...) in Model.cpp
+﻿// src/engine/render/ModelFastGltfLoader.cpp
+// Extracted from ModelFastGltfLoad.inl to keep Model.cpp small and testable.
 
-// ✅ Fix: always use correct animation types regardless of where this is included
+#include "Model.h"
+#include "ModelStartupLog.h"
+#include "FastGLTFLoader.h"
 
-#include <sstream>
+#include <fastgltf/tools.hpp>
+#include <fastgltf/glm_element_traits.hpp>
+
+#include <nlohmann/json.hpp>
+
+#include <stb_image.h>
+#include <stb_image_write.h>
+
+#include <glad/glad.h>
+#include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtx/quaternion.hpp>
+#include <glm/gtc/type_ptr.hpp>
+
+#include <algorithm>
 #include <cctype>
+#include <cstddef>
+#include <cmath>
+#include <cstdint>
+#include <cstdlib>
+#include <cstring>
+#include <filesystem>
+#include <fstream>
+#include <iomanip>
+#include <iostream>
+#include <optional>
+#include <sstream>
+#include <string>
+#include <string_view>
+#include <type_traits>
+#include <utility>
+#include <variant>
+#include <vector>
+
+extern bool isMipmapMinFilter(GLint minF);
+
+namespace {
+template <typename T, typename = void>
+struct fg_has_has_value : std::false_type {};
+
+template <typename T>
+struct fg_has_has_value<T, std::void_t<decltype(std::declval<const T&>().has_value())>>
+    : std::true_type {};
+
+template <typename T, typename = void>
+struct fg_has_value_fn : std::false_type {};
+
+template <typename T>
+struct fg_has_value_fn<T, std::void_t<decltype(std::declval<const T&>().value())>>
+    : std::true_type {};
+
+template <typename T, typename = void>
+struct fg_has_get : std::false_type {};
+
+template <typename T>
+struct fg_has_get<T, std::void_t<decltype(std::declval<const T&>().get())>>
+    : std::true_type {};
+
+template <typename T, typename = void>
+struct fg_has_value_member : std::false_type {};
+
+template <typename T>
+struct fg_has_value_member<T, std::void_t<decltype((std::declval<const T&>().value))>>
+    : std::true_type {};
+
+template <typename T, typename = void>
+struct fg_is_deref : std::false_type {};
+
+template <typename T>
+struct fg_is_deref<T, std::void_t<decltype(*std::declval<const T&>())>>
+    : std::true_type {};
+
+template <typename Opt>
+bool fgOptHas(const Opt& o) {
+    if constexpr (std::is_integral_v<std::decay_t<Opt>> || std::is_enum_v<std::decay_t<Opt>>) {
+        return true;
+    } else if constexpr (fg_has_has_value<Opt>::value) {
+        return o.has_value();
+    } else {
+        return static_cast<bool>(o);
+    }
+}
+
+template <typename Opt>
+std::size_t fgOptGet(const Opt& o) {
+    if constexpr (std::is_integral_v<std::decay_t<Opt>> || std::is_enum_v<std::decay_t<Opt>>) {
+        return static_cast<std::size_t>(o);
+    } else if constexpr (fg_has_get<Opt>::value) {
+        return static_cast<std::size_t>(o.get());
+    } else if constexpr (fg_has_value_fn<Opt>::value) {
+        return static_cast<std::size_t>(o.value());
+    } else if constexpr (fg_has_value_member<Opt>::value) {
+        return static_cast<std::size_t>(o.value);
+    } else if constexpr (fg_is_deref<Opt>::value) {
+        return static_cast<std::size_t>(*o);
+    } else {
+        static_assert(!sizeof(Opt), "fgOptGet: unsupported optional type");
+    }
+}
+} // namespace
+
+void Model::loadGLTFFast(const std::string& filepath) {
 using pac_model_types::AnimationClip;
 using pac_model_types::AnimationSampler;
 using pac_model_types::AnimationChannel;
@@ -611,7 +711,6 @@ struct FG {
 // ------------------------------------------------------------
 // FastGLTF load (full path)
 // ------------------------------------------------------------
-{
     auto fg = pac::fastgltf_loader::tryLoad(filepath);
     if (!fg.has_value()) {
         std::cerr << "[gltf][FASTGLTF] FAILED to parse: " << filepath << "\n";
@@ -1059,7 +1158,7 @@ struct FG {
                 // emissiveFactor is always present in glTF (defaults to (0,0,0))
                 emissiveFactor = glm::vec3(mat.emissiveFactor[0], mat.emissiveFactor[1], mat.emissiveFactor[2]);
 
-                // ✅ Apply emissive strength ONCE
+                // âœ… Apply emissive strength ONCE
                 emissiveFactor *= (float)mat.emissiveStrength;
 
                 // Boost ONLY the tail fire, without affecting the rest of the model.

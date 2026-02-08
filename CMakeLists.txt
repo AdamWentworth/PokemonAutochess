@@ -114,6 +114,7 @@ add_library(engine_render STATIC
     src/engine/render/Model.cpp
     src/engine/render/ModelAnimation.cpp
     src/engine/render/ModelCache.cpp
+    src/engine/render/ModelFastGltfLoader.cpp
 
     src/engine/ui/UIManager.cpp
     src/engine/ui/Card.cpp
@@ -254,6 +255,7 @@ if (BUILD_TESTING)
         tests/TestEndToEnd.cpp
         tests/TestMovementSystem.cpp
         tests/TestModelParse.cpp
+        tests/TestGltfAsset.cpp
         tests/TestScriptApiContract.cpp
         tests/TestRoundFlow.cpp
         tests/TestAnimsetRoles.cpp
@@ -302,6 +304,7 @@ if (BUILD_TESTING)
         end_to_end_headless
         movement_invariants
         model_parse_smoke
+        gltf_asset_smoke
         script_api_contract
         round_flow_headless
         animset_roles_smoke

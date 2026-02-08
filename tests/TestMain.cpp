@@ -17,6 +17,7 @@ bool test_battle_invariants(std::string& outFail);
 bool test_end_to_end_headless(std::string& outFail);
 bool test_movement_invariants(std::string& outFail);
 bool test_model_parse_smoke(std::string& outFail);
+bool test_gltf_asset_smoke(std::string& outFail);
 bool test_script_api_contract(std::string& outFail);
 bool test_round_flow_headless(std::string& outFail);
 bool test_animset_roles_smoke(std::string& outFail);
@@ -84,6 +85,7 @@ int main(int argc, char** argv) {
         {"end_to_end_headless", &test_end_to_end_headless},
         {"movement_invariants", &test_movement_invariants},
         {"model_parse_smoke", &test_model_parse_smoke},
+        {"gltf_asset_smoke", &test_gltf_asset_smoke},
         {"script_api_contract", &test_script_api_contract},
         {"round_flow_headless", &test_round_flow_headless},
         {"animset_roles_smoke", &test_animset_roles_smoke},

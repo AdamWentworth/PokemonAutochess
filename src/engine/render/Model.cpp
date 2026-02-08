@@ -5,34 +5,13 @@
 #include "engine/utils/Shader.h"
 
 #include <iostream>
-#include <fstream>
-#include <filesystem>
 #include <algorithm>
-#include <type_traits>
 #include <utility>
-#include <cstdlib>
-#include <cstring>
-#include <cctype>
-#include <iomanip>
-#include <sstream>
 
 #include <glad/glad.h>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtx/quaternion.hpp>
 #include <glm/gtc/type_ptr.hpp>
-
-// FastGLTF loader
-#include "FastGLTFLoader.h"
-#include <fastgltf/tools.hpp>
-#include <fastgltf/glm_element_traits.hpp>
-
-#include <nlohmann/json.hpp>
-
-// stb_image (IMPLEMENTATION IS PROVIDED ELSEWHERE in your project)
-#include <stb_image.h>
-#include <stb_image_write.h>
-
-namespace fs = std::filesystem;
 
 // Helper used by cache and runtime: detect whether a GL min filter implies mipmaps.
 bool isMipmapMinFilter(GLint minF)
@@ -47,70 +26,6 @@ bool isMipmapMinFilter(GLint minF)
             return false;
     }
 }
-
-namespace {
-
-// ---- Optional-like helpers used by ModelFastGltfLoad.inl ----
-
-template <typename T, typename = void>
-struct fg_has_has_value : std::false_type {};
-template <typename T>
-struct fg_has_has_value<T, std::void_t<decltype(std::declval<const T&>().has_value())>>
-    : std::true_type {};
-
-template <typename T, typename = void>
-struct fg_has_value_fn : std::false_type {};
-template <typename T>
-struct fg_has_value_fn<T, std::void_t<decltype(std::declval<const T&>().value())>>
-    : std::true_type {};
-
-template <typename T, typename = void>
-struct fg_has_get : std::false_type {};
-template <typename T>
-struct fg_has_get<T, std::void_t<decltype(std::declval<const T&>().get())>>
-    : std::true_type {};
-
-template <typename T, typename = void>
-struct fg_has_value_member : std::false_type {};
-template <typename T>
-struct fg_has_value_member<T, std::void_t<decltype((std::declval<const T&>().value))>>
-    : std::true_type {};
-
-template <typename T, typename = void>
-struct fg_is_deref : std::false_type {};
-template <typename T>
-struct fg_is_deref<T, std::void_t<decltype(*std::declval<const T&>())>>
-    : std::true_type {};
-
-template <typename Opt>
-bool fgOptHas(const Opt& o) {
-    if constexpr (std::is_integral_v<std::decay_t<Opt>> || std::is_enum_v<std::decay_t<Opt>>) {
-        return true;
-    } else if constexpr (fg_has_has_value<Opt>::value) {
-        return o.has_value();
-    } else {
-        return static_cast<bool>(o);
-    }
-}
-
-template <typename Opt>
-std::size_t fgOptGet(const Opt& o) {
-    if constexpr (std::is_integral_v<std::decay_t<Opt>> || std::is_enum_v<std::decay_t<Opt>>) {
-        return static_cast<std::size_t>(o);
-    } else if constexpr (fg_has_get<Opt>::value) {
-        return static_cast<std::size_t>(o.get());
-    } else if constexpr (fg_has_value_fn<Opt>::value) {
-        return static_cast<std::size_t>(o.value());
-    } else if constexpr (fg_has_value_member<Opt>::value) {
-        return static_cast<std::size_t>(o.value);
-    } else if constexpr (fg_is_deref<Opt>::value) {
-        return static_cast<std::size_t>(*o);
-    } else {
-        static_assert(!sizeof(Opt), "fgOptGet: unsupported optional type");
-    }
-}
-
-} // namespace
 
 glm::mat4 Model::trsToMat4(const NodeTRS& n)
 {
@@ -192,8 +107,7 @@ void Model::loadGLTF(const std::string& filepath)
         return;
     }
     std::cerr << "[gltf][CACHE] MISS (will parse) for: " << filepath << "\n";
-
-    #include "ModelFastGltfLoad.inl"
+    loadGLTFFast(filepath);
 }
 
 bool Model::getNodeIndexByName(const std::string& nodeName, int& outNodeIndex) const

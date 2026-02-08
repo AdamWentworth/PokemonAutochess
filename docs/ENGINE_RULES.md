@@ -9,3 +9,4 @@ These rules protect engine reuse and keep the project maintainable.
 - One authoritative update graph (scheduler).
 - Lua interacts through a narrow ScriptAPI, not raw pointers.
 - Runtime reads cooked content through an asset store.
+- Large subsystems live in their own .cpp (avoid mega .inl includes).

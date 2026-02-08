@@ -15,6 +15,7 @@ Focus on catching real regressions while keeping tests fast and headless.
 - Content validation and battle invariants.
 - Movement invariants (headless movement planning).
 - Model parse smoke test (fastgltf, CPU-only).
+- GLTF asset structure smoke test (nodes/meshes/animations present).
 - Script API contract test (bindings + basic behavior).
 - Headless round flow test (Lua round system + update graph).
 - Headless placement -> combat state flow.

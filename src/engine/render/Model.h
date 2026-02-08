@@ -139,4 +139,5 @@ private:
                     const std::vector<uint32_t>& indices,
                     const std::vector<CPUTexture>& baseColorTexturesCPU,
                     const std::vector<CPUTexture>& emissiveTexturesCPU) const;
+    void loadGLTFFast(const std::string& filepath);
 };
