@@ -325,12 +325,15 @@ void GameWorld::update(float dt)
                     auto itTgt = std::find_if(pokemons.begin(), pokemons.end(),
                         [&](const PokemonInstance& u){ return u.id == p.pendingDamageTargetId; });
 
-                    if (itTgt != pokemons.end() && itTgt->alive) {
-                        const int dmg = std::max(0, p.pendingDamageAmount);
-                        itTgt->hp = std::max(0, itTgt->hp - dmg);
-                        if (itTgt->hp <= 0) {
-                            itTgt->hp = 0;
-                            itTgt->alive = false;
+                        if (itTgt != pokemons.end() && itTgt->alive) {
+                            const int dmg = std::max(0, p.pendingDamageAmount);
+                            itTgt->hp = std::max(0, itTgt->hp - dmg);
+                            if (dmg > 0 && p.pendingDamageIsGrass) {
+                                emitGrassImpactAt(*itTgt);
+                            }
+                            if (itTgt->hp <= 0) {
+                                itTgt->hp = 0;
+                                itTgt->alive = false;
 
                             // optional cleanup so dead units don't keep doing leftover animation state
                             itTgt->isMoving = false;
@@ -344,9 +347,10 @@ void GameWorld::update(float dt)
                             itTgt->fastChainTimerSec = 0.0f;
                             itTgt->animIndexCache.clear();
                         }
-                    }
+                        }
 
                     p.pendingDamageApplied = true;
+                    p.pendingDamageIsGrass = false;
                 }
             }
 
@@ -389,6 +393,14 @@ void GameWorld::update(float dt)
     }
 
     tailFireVfx.update(dt, pokemons, benchPokemons);
+
+    if (!grassImpactVfxInitialized) {
+        GrassImpactVFX::Config c; // defaults
+        grassImpactVfx.setConfig(c);
+        grassImpactVfxInitialized = true;
+    }
+
+    grassImpactVfx.update(dt);
 }
 
 void GameWorld::drawAll(const Camera3D& camera, BoardRenderer& boardRenderer)
@@ -420,6 +432,7 @@ void GameWorld::drawAll(const Camera3D& camera, BoardRenderer& boardRenderer)
 
     // draw particles AFTER opaque models
     tailFireVfx.render(camera);
+    grassImpactVfx.render(camera);
 }
 
 std::vector<HealthBarData> GameWorld::getHealthBarData(const Camera3D& camera, int screenWidth, int screenHeight) const
@@ -442,4 +455,16 @@ glm::vec3 GameWorld::getNearestEnemyPosition(const PokemonInstance& unit) const
     }
 
     return closestPos;
+}
+
+void GameWorld::emitGrassImpactAt(const PokemonInstance& target)
+{
+    if (!grassImpactVfxInitialized) {
+        GrassImpactVFX::Config c; // defaults
+        grassImpactVfx.setConfig(c);
+        grassImpactVfxInitialized = true;
+    }
+
+    const glm::vec3 base = target.position + glm::vec3(0.0f, target.visualYOffset, 0.0f);
+    grassImpactVfx.emitAt(base);
 }

@@ -99,6 +99,7 @@ struct PokemonInstance {
     int   pendingDamageTargetId   = -1;
     int   pendingDamageAmount     = 0;
     float pendingDamageHitTimeSec = 0.0f; // clip-time seconds (compared against animTimeSec)
+    bool  pendingDamageIsGrass    = false;
 
     // Which clip to play during the current attack window (defaults to animAttack1Index).
     int currentAttackAnimIndex = -1;

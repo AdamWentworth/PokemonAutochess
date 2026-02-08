@@ -189,6 +189,7 @@ add_library(PAC_GameObjects STATIC
     # Game VFX
     src/game/vfx/TailFireVFX.cpp
     src/game/vfx/TailFireVFXConfigDB.cpp
+    src/game/vfx/GrassImpactVFX.cpp
 
     # Game Assets
     src/game/assets/DevAssetStore.cpp

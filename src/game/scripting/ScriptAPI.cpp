@@ -516,14 +516,18 @@ int ScriptAPI::applyDamage(int attackerId,
     const std::string moveLower    = moveName ? toLowerCopy(*moveName) : "";
     std::string kindLower          = kind ? toLowerCopy(*kind) : "";
 
-    if (kindLower.empty() && !moveLower.empty()) {
-        if (data) {
-            if (const MoveData* md = data->moves.getMove(moveLower)) {
-                kindLower = toLowerCopy(md->kind);
-            }
-        }
+    const MoveData* md = nullptr;
+    if (!moveLower.empty() && data) {
+        md = data->moves.getMove(moveLower);
+    }
+
+    if (kindLower.empty() && md) {
+        kindLower = toLowerCopy(md->kind);
     }
     if (kindLower.empty()) kindLower = "fast";
+
+    const std::string moveTypeLower = md ? toLowerCopy(md->type) : std::string();
+    const bool isGrassMove = (moveTypeLower == "grass");
 
     const bool traceCombat = DebugTrace::combat(speciesLower, moveLower);
     auto trlog = [&](const std::string& msg) {
@@ -657,6 +661,7 @@ int ScriptAPI::applyDamage(int attackerId,
         A->pendingDamageTargetId = -1;
         A->pendingDamageAmount = 0;
         A->pendingDamageHitTimeSec = 0.0f;
+        A->pendingDamageIsGrass = false;
 
         const bool startedThisCall = true;
 
@@ -702,6 +707,7 @@ int ScriptAPI::applyDamage(int attackerId,
                 A->pendingDamageTargetId   = targetId;
                 A->pendingDamageAmount     = std::max(0, amount);
                 A->pendingDamageHitTimeSec = std::max(0.0f, hitTimeSec);
+                A->pendingDamageIsGrass    = isGrassMove;
             }
 
             return std::max(0, T->hp - std::max(0, amount));
@@ -714,6 +720,9 @@ int ScriptAPI::applyDamage(int attackerId,
               " hp_before=" + std::to_string(T->hp));
     }
     T->hp = std::max(0, T->hp - dmg);
+    if (dmg > 0 && isGrassMove) {
+        world_->emitGrassImpactAt(*T);
+    }
     if (traceCombat) {
         trlog(std::string("damage_result hp_after=") + std::to_string(T->hp) +
               " targetAlive=" + std::string(T->hp > 0 ? "true" : "false"));

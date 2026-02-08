@@ -11,6 +11,8 @@
 // Tail fire particle VFX (data-driven via cfg)
 #include "vfx/TailFireVFX.h"
 #include "vfx/TailFireVFXConfigDB.h"
+// Grass impact VFX (shared by grass-type moves)
+#include "vfx/GrassImpactVFX.h"
 
 class Camera3D;
 class BoardRenderer;
@@ -58,6 +60,9 @@ public:
 
     glm::vec3 getNearestEnemyPosition(const PokemonInstance& unit) const;
 
+    // Impact VFX for grass-type attacks
+    void emitGrassImpactAt(const PokemonInstance& target);
+
 private:
     ResourceManager* resources = nullptr; // engine-owned
     const GameDataDb* data = nullptr;     // game-owned, injected
@@ -79,4 +84,8 @@ private:
     // Tail fire particles (drawn after opaque models)
     TailFireVFX tailFireVfx;
     bool tailFireVfxInitialized = false;
+
+    // Grass impact particles (drawn after opaque models)
+    GrassImpactVFX grassImpactVfx;
+    bool grassImpactVfxInitialized = false;
 };
