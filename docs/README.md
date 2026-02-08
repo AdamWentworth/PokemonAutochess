@@ -18,4 +18,4 @@ These are **internal notes** for quality, architecture, and testing. They are no
 ## Current Focus (Next 3)
 - ECS adoption for movement/combat/round systems.
 - UI sizing via a shared viewport service.
-- Layering enforcement (guard against engine/game cross-dependencies).
+- Render a real model in the GL smoke test.

@@ -261,6 +261,7 @@ if (BUILD_TESTING)
         tests/TestAnimsetGlbNames.cpp
         tests/TestPlacementToCombat.cpp
         tests/TestAnimsetClipNames.cpp
+        tests/TestLayering.cpp
     )
 
     target_link_libraries(PAC_Tests
@@ -307,6 +308,7 @@ if (BUILD_TESTING)
         animset_glb_name_smoke
         placement_to_combat_headless
         animset_clip_name_smoke
+        layering_engine_no_game_includes
     )
 
     foreach(test_name IN LISTS PAC_TEST_NAMES)

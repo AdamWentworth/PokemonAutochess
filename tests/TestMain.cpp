@@ -24,6 +24,7 @@ bool test_render_pipeline_smoke(std::string& outFail);
 bool test_animset_glb_name_smoke(std::string& outFail);
 bool test_placement_to_combat_headless(std::string& outFail);
 bool test_animset_clip_name_smoke(std::string& outFail);
+bool test_layering_engine_no_game_includes(std::string& outFail);
 
 struct TestCase {
     const char* name;
@@ -89,6 +90,7 @@ int main(int argc, char** argv) {
         {"animset_glb_name_smoke", &test_animset_glb_name_smoke},
         {"placement_to_combat_headless", &test_placement_to_combat_headless},
         {"animset_clip_name_smoke", &test_animset_clip_name_smoke},
+        {"layering_engine_no_game_includes", &test_layering_engine_no_game_includes},
     };
 
     if (listOnly) {
