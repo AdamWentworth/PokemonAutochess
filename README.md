@@ -39,7 +39,8 @@ This repo is **engine-first**. The engine is built to be reusable for future gam
 - `scripts/` Lua gameplay logic
 - `assets/` runtime assets
 - `tests/` headless tests and invariants
-- `tools/` offline tools (data cooker)
+- `tools/` offline tools (data cooker, build scripts, installer)
+- `tools/` build/release scripts
 - `docs/` internal plans and quality notes
 
 ---
@@ -134,10 +135,24 @@ cmake --build build --config Release --target PAC_ValidateData
 cmake --build build --config Release --target PAC_PackData
 ```
 
+Or bundle everything with one command
+```powershell
+.\tools\release_bundle.ps1
+```
+
+Installer script (Inno Setup)
+- `tools/PokemonAutochessInstaller.iss`
+Build installer (headless)
+```powershell
+.\tools\build_installer.ps1 -Bundle
+```
+
 Ship these artifacts
 - `PokemonAutochess.exe`
 - `content_pak/content.pak`
 - `assets/`
+- `config/`
+- `scripts/`
 - Required runtime DLLs from your build environment
 
 ---

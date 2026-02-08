@@ -1,6 +1,9 @@
 # Binaries and build
 build/
 build-ninja
+dist/
+dist/installer/
+content_pak/
 cache
 *.exe
 *.obj

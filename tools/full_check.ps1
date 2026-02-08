@@ -1,9 +1,9 @@
-$ErrorActionPreference = "Stop"
-
 param(
     [string]$BuildDir = "build",
     [string]$Config = "Debug"
 )
+
+$ErrorActionPreference = "Stop"
 
 $toolchain = $null
 if ($env:VCPKG_ROOT) {

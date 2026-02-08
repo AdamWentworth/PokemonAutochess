@@ -40,12 +40,16 @@ RoundSystem::RoundSystem(GameServices& services, engine::ecs::Entity phaseEntity
 
     // Initialize in Lua (if present) from script environment (preferred).
     sol::table S = script.getScriptTable();
-    sol::function fInit = S.valid() ? sol::function(S[kFnInit]) : sol::function(script.getState()[kFnInit]);
+    sol::function fInit;
+    if (S.valid()) fInit = S.get<sol::function>(kFnInit);
+    if (!fInit.valid()) fInit = script.getState().get<sol::function>(kFnInit);
     if (fInit.valid()) fInit();
     script.flushCommands();
 
     // Read initial phase safely
-    sol::function fPhase = S.valid() ? sol::function(S[kFnPhase]) : sol::function(script.getState()[kFnPhase]);
+    sol::function fPhase;
+    if (S.valid()) fPhase = S.get<sol::function>(kFnPhase);
+    if (!fPhase.valid()) fPhase = script.getState().get<sol::function>(kFnPhase);
     if (fPhase.valid()) {
         sol::protected_function_result r = fPhase();
         if (r.valid()) {
@@ -62,11 +66,15 @@ RoundSystem::RoundSystem(GameServices& services, engine::ecs::Entity phaseEntity
 
 void RoundSystem::update(engine::ecs::World& world, float deltaTime) {
     sol::table S = script.getScriptTable();
-    sol::function fUpdate = S.valid() ? sol::function(S[kFnUpdate]) : sol::function(script.getState()[kFnUpdate]);
+    sol::function fUpdate;
+    if (S.valid()) fUpdate = S.get<sol::function>(kFnUpdate);
+    if (!fUpdate.valid()) fUpdate = script.getState().get<sol::function>(kFnUpdate);
     if (fUpdate.valid()) fUpdate(deltaTime);
     script.flushCommands();
 
-    sol::function fPhase = S.valid() ? sol::function(S[kFnPhase]) : sol::function(script.getState()[kFnPhase]);
+    sol::function fPhase;
+    if (S.valid()) fPhase = S.get<sol::function>(kFnPhase);
+    if (!fPhase.valid()) fPhase = script.getState().get<sol::function>(kFnPhase);
     if (fPhase.valid()) {
         sol::protected_function_result r = fPhase();
         if (r.valid()) {
