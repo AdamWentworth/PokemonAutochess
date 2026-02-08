@@ -14,3 +14,8 @@ These are **internal notes** for quality, architecture, and testing. They are no
 ## Update Policy
 - Keep these docs small and current.
 - If something becomes outdated, delete or rewrite it instead of letting it drift.
+
+## Current Focus (Next 3)
+- ECS adoption for movement/combat/round systems.
+- Full animset clip validation against GLB animation names.
+- Narrow ScriptAPI surface so Lua only sees value types.

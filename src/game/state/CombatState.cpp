@@ -30,9 +30,6 @@ CombatState::CombatState(GameStateManager* manager, GameWorld* world, GameServic
     , script(world, manager, svc)
     , combatMessage()
 {
-    const auto& c = services.config;
-    textRenderer = std::make_unique<TextRenderer>(c.fontPath, c.fontSize);
-
     if (!script.loadScript(path)) {
         game::log::error(&services.log, std::string("[CombatState] Failed to load combat script: ") + path);
     }
@@ -94,6 +91,10 @@ void CombatState::update(float dt) {
 }
 
 void CombatState::render() {
+    if (!textRenderer) {
+        const auto& c = services.config;
+        textRenderer = std::make_unique<TextRenderer>(c.fontPath, c.fontSize);
+    }
     if (!textRenderer) return;
 
     const float scale = 1.0f;

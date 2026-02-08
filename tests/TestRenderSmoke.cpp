@@ -13,6 +13,8 @@
 #include <glad/glad.h>
 
 #include "engine/core/Paths.h"
+#include "engine/render/BoardRenderer.h"
+#include "engine/render/Camera3D.h"
 #include "engine/utils/ShaderCache.h"
 
 namespace {
@@ -122,15 +124,28 @@ bool checkShaderTree(const std::string& rootDir, std::string& outFail) {
     return true;
 }
 
-bool compileShadersIfEnabled(std::string& outFail) {
-    if (!envFlagEnabled("PAC_TEST_GL")) {
-        return true; // Skip GL compile unless explicitly enabled.
+struct SDLInitGuard {
+    bool active = false;
+    ~SDLInitGuard() {
+        if (active) SDL_Quit();
     }
+};
 
+struct SDLGLGuard {
+    SDL_Window* window = nullptr;
+    SDL_GLContext context = nullptr;
+    ~SDLGLGuard() {
+        if (context) SDL_GL_DeleteContext(context);
+        if (window) SDL_DestroyWindow(window);
+    }
+};
+
+bool initGLContext(SDLInitGuard& sdl, SDLGLGuard& gl, std::string& outFail) {
     if (SDL_Init(SDL_INIT_VIDEO) != 0) {
         outFail = std::string("SDL_Init failed: ") + SDL_GetError();
         return false;
     }
+    sdl.active = true;
 
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 3);
@@ -139,34 +154,66 @@ bool compileShadersIfEnabled(std::string& outFail) {
     SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
     SDL_GL_SetAttribute(SDL_GL_STENCIL_SIZE, 8);
 
-    SDL_Window* window = SDL_CreateWindow(
+    gl.window = SDL_CreateWindow(
         "PAC_RenderSmoke",
         SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
         64, 64,
         SDL_WINDOW_OPENGL | SDL_WINDOW_HIDDEN
     );
-    if (!window) {
+    if (!gl.window) {
         outFail = std::string("SDL_CreateWindow failed: ") + SDL_GetError();
-        SDL_Quit();
         return false;
     }
 
-    SDL_GLContext ctx = SDL_GL_CreateContext(window);
-    if (!ctx) {
+    gl.context = SDL_GL_CreateContext(gl.window);
+    if (!gl.context) {
         outFail = std::string("SDL_GL_CreateContext failed: ") + SDL_GetError();
-        SDL_DestroyWindow(window);
-        SDL_Quit();
         return false;
     }
 
-    SDL_GL_MakeCurrent(window, ctx);
+    SDL_GL_MakeCurrent(gl.window, gl.context);
     if (!gladLoadGLLoader((GLADloadproc)SDL_GL_GetProcAddress)) {
         outFail = "gladLoadGLLoader failed.";
-        SDL_GL_DeleteContext(ctx);
-        SDL_DestroyWindow(window);
-        SDL_Quit();
         return false;
     }
+
+    return true;
+}
+
+bool drawMinimalFrame(ShaderCache& cache, std::string& outFail) {
+    Camera3D camera(45.0f, 1.0f, 0.1f, 100.0f);
+    camera.lookAt(glm::vec3(0.0f));
+
+    BoardRenderer board(8, 8, 1.2f, &cache);
+
+    glViewport(0, 0, 64, 64);
+    glEnable(GL_DEPTH_TEST);
+    glClearColor(0.05f, 0.05f, 0.08f, 1.0f);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+    board.draw(camera);
+    board.drawBench(camera);
+
+    glFinish();
+    const GLenum err = glGetError();
+    if (err != GL_NO_ERROR) {
+        std::ostringstream ss;
+        ss << "OpenGL error after draw: 0x" << std::hex << err;
+        outFail = ss.str();
+        return false;
+    }
+
+    return true;
+}
+
+bool runGLSmokeIfEnabled(std::string& outFail) {
+    if (!envFlagEnabled("PAC_TEST_GL")) {
+        return true; // Skip GL checks unless explicitly enabled.
+    }
+
+    SDLInitGuard sdl;
+    SDLGLGuard gl;
+    if (!initGLContext(sdl, gl, outFail)) return false;
 
     const std::string modelVert = engine::paths::asset("shaders/model/model.vert");
     const std::string modelFrag = engine::paths::asset("shaders/model/model.frag");
@@ -177,17 +224,13 @@ bool compileShadersIfEnabled(std::string& outFail) {
         ShaderCache cache;
         cache.get(modelVert, modelFrag);
         cache.get(uiVert, uiFrag);
+
+        if (!drawMinimalFrame(cache, outFail)) return false;
     } catch (const std::exception& e) {
-        outFail = std::string("Shader compile failed: ") + e.what();
-        SDL_GL_DeleteContext(ctx);
-        SDL_DestroyWindow(window);
-        SDL_Quit();
+        outFail = std::string("GL smoke failed: ") + e.what();
         return false;
     }
 
-    SDL_GL_DeleteContext(ctx);
-    SDL_DestroyWindow(window);
-    SDL_Quit();
     return true;
 }
 } // namespace
@@ -195,6 +238,6 @@ bool compileShadersIfEnabled(std::string& outFail) {
 bool test_render_pipeline_smoke(std::string& outFail) {
     const std::string shaderRoot = engine::paths::asset("shaders");
     if (!checkShaderTree(shaderRoot, outFail)) return false;
-    if (!compileShadersIfEnabled(outFail)) return false;
+    if (!runGLSmokeIfEnabled(outFail)) return false;
     return true;
 }
