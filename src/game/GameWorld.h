@@ -13,6 +13,8 @@
 #include "vfx/TailFireVFXConfigDB.h"
 // Grass impact VFX (shared by grass-type moves)
 #include "vfx/GrassImpactVFX.h"
+// Leech seed projectile VFX
+#include "vfx/LeechSeedProjectileVFX.h"
 
 class Camera3D;
 class BoardRenderer;
@@ -88,4 +90,8 @@ private:
     // Grass impact particles (drawn after opaque models)
     GrassImpactVFX grassImpactVfx;
     bool grassImpactVfxInitialized = false;
+
+    // Leech seed projectiles (drawn after opaque models)
+    LeechSeedProjectileVFX leechSeedVfx;
+    bool leechSeedVfxInitialized = false;
 };

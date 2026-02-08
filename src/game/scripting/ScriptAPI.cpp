@@ -6,6 +6,8 @@
 #include <cmath>
 #include <limits>
 
+#include <glm/glm.hpp>
+
 #include "engine/render/Model.h"
 
 #include "game/GameWorld.h"
@@ -25,6 +27,19 @@
 #include "game/logging/DebugTrace.h"
 
 #include "LuaBindings_Internal.h"
+
+namespace {
+constexpr float kLeechSeedSpawnFrame = 41.0f;
+constexpr float kLeechSeedSpeed = 5.0f;          // world units per second
+constexpr float kLeechSeedMinTravelSec = 0.12f;
+constexpr float kLeechSeedMaxTravelSec = 0.55f;
+
+float computeLeechSeedTravelSec(float distance) {
+    if (distance <= 0.0f) return kLeechSeedMinTravelSec;
+    float t = distance / kLeechSeedSpeed;
+    return std::clamp(t, kLeechSeedMinTravelSec, kLeechSeedMaxTravelSec);
+}
+} // namespace
 
 ScriptAPI::ScriptAPI(GameWorld* world, GameStateManager* manager, GameServices& services)
     : world_(world), manager_(manager), services_(services) {}
@@ -528,6 +543,8 @@ int ScriptAPI::applyDamage(int attackerId,
 
     const std::string moveTypeLower = md ? toLowerCopy(md->type) : std::string();
     const bool isGrassMove = (moveTypeLower == "grass");
+    const bool isLeechSeed = (moveLower == "leech_seed");
+    const bool isGrassImpact = (isGrassMove || isLeechSeed);
 
     const bool traceCombat = DebugTrace::combat(speciesLower, moveLower);
     auto trlog = [&](const std::string& msg) {
@@ -662,6 +679,11 @@ int ScriptAPI::applyDamage(int attackerId,
         A->pendingDamageAmount = 0;
         A->pendingDamageHitTimeSec = 0.0f;
         A->pendingDamageIsGrass = false;
+        A->pendingProjectileActive = false;
+        A->pendingProjectileSpawned = false;
+        A->pendingProjectileTargetId = -1;
+        A->pendingProjectileSpawnTimeSec = 0.0f;
+        A->pendingProjectileTravelSec = 0.0f;
 
         const bool startedThisCall = true;
 
@@ -688,6 +710,44 @@ int ScriptAPI::applyDamage(int attackerId,
         if (amount <= 0) return T->hp;
         if (!attackerIsInAttackAnimation(*A)) return T->hp;
 
+        if (isLeechSeed) {
+            const float fps = (A->animFps > 0.0f) ? A->animFps : 24.0f;
+            float spawnTimeClip = kLeechSeedSpawnFrame / fps;
+
+            const glm::vec3 aPos = A->position + glm::vec3(0.0f, A->visualYOffset, 0.0f);
+            const glm::vec3 tPos = T->position + glm::vec3(0.0f, T->visualYOffset, 0.0f);
+            const float dist = glm::distance(aPos, tPos);
+
+            float travelReal = computeLeechSeedTravelSec(dist);
+            float travelClip = travelReal * A->attackAnimSpeed;
+
+            if (clipDur > 0.0f) {
+                const float maxHit = std::max(0.0f, clipDur - 0.0001f);
+                if (spawnTimeClip > maxHit) spawnTimeClip = maxHit;
+                if (spawnTimeClip + travelClip > maxHit) {
+                    travelClip = std::max(0.0f, maxHit - spawnTimeClip);
+                    travelReal = (A->attackAnimSpeed > 0.0f) ? (travelClip / A->attackAnimSpeed) : travelReal;
+                }
+            }
+
+            if (!A->pendingDamageActive) {
+                A->pendingDamageActive     = true;
+                A->pendingDamageApplied    = false;
+                A->pendingDamageTargetId   = targetId;
+                A->pendingDamageAmount     = std::max(0, amount);
+                A->pendingDamageHitTimeSec = std::max(0.0f, spawnTimeClip + travelClip);
+                A->pendingDamageIsGrass    = isGrassImpact;
+
+                A->pendingProjectileActive = true;
+                A->pendingProjectileSpawned = false;
+                A->pendingProjectileTargetId = targetId;
+                A->pendingProjectileSpawnTimeSec = std::max(0.0f, spawnTimeClip);
+                A->pendingProjectileTravelSec = std::max(0.01f, travelReal);
+            }
+
+            return std::max(0, T->hp - std::max(0, amount));
+        }
+
         const int hitFrame = animCfg ? animCfg->getHitFrame(speciesLower, kindLower, moveLower) : -1;
         if (hitFrame > 0) {
             if (!A->pendingDamageActive) {
@@ -707,7 +767,7 @@ int ScriptAPI::applyDamage(int attackerId,
                 A->pendingDamageTargetId   = targetId;
                 A->pendingDamageAmount     = std::max(0, amount);
                 A->pendingDamageHitTimeSec = std::max(0.0f, hitTimeSec);
-                A->pendingDamageIsGrass    = isGrassMove;
+                A->pendingDamageIsGrass    = isGrassImpact;
             }
 
             return std::max(0, T->hp - std::max(0, amount));
@@ -720,7 +780,7 @@ int ScriptAPI::applyDamage(int attackerId,
               " hp_before=" + std::to_string(T->hp));
     }
     T->hp = std::max(0, T->hp - dmg);
-    if (dmg > 0 && isGrassMove) {
+    if (dmg > 0 && isGrassImpact) {
         world_->emitGrassImpactAt(*T);
     }
     if (traceCombat) {

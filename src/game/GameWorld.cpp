@@ -319,6 +319,20 @@ void GameWorld::update(float dt)
                 p.animTimeSec += dt * speed;
             }
 
+            // Spawn pending leech seed projectile at the configured spawn time.
+            if (p.pendingProjectileActive && !p.pendingProjectileSpawned) {
+                if (p.animTimeSec >= p.pendingProjectileSpawnTimeSec) {
+                    auto itTgt = std::find_if(pokemons.begin(), pokemons.end(),
+                        [&](const PokemonInstance& u){ return u.id == p.pendingProjectileTargetId; });
+
+                    if (itTgt != pokemons.end() && itTgt->alive) {
+                        leechSeedVfx.emit(p, *itTgt, p.pendingProjectileTravelSec);
+                    }
+
+                    p.pendingProjectileSpawned = true;
+                }
+            }
+
             // Apply pending damage at the configured hit time (clip-time seconds).
             if (p.pendingDamageActive && !p.pendingDamageApplied && p.pendingDamageAmount > 0) {
                 if (p.animTimeSec >= p.pendingDamageHitTimeSec) {
@@ -347,10 +361,15 @@ void GameWorld::update(float dt)
                             itTgt->fastChainTimerSec = 0.0f;
                             itTgt->animIndexCache.clear();
                         }
-                        }
+                    }
 
                     p.pendingDamageApplied = true;
                     p.pendingDamageIsGrass = false;
+                    p.pendingProjectileActive = false;
+                    p.pendingProjectileSpawned = false;
+                    p.pendingProjectileTargetId = -1;
+                    p.pendingProjectileSpawnTimeSec = 0.0f;
+                    p.pendingProjectileTravelSec = 0.0f;
                 }
             }
 
@@ -368,6 +387,12 @@ void GameWorld::update(float dt)
                 p.currentAttackAnimIndex = p.animAttack1Index; // reset
                 p.activeAnimIndex = (p.isMoving ? p.animMoveIndex
                                                 : (p.usesAirLocomotion ? p.animGroundIdleIndex : p.animIdleIndex));
+
+                p.pendingProjectileActive = false;
+                p.pendingProjectileSpawned = false;
+                p.pendingProjectileTargetId = -1;
+                p.pendingProjectileSpawnTimeSec = 0.0f;
+                p.pendingProjectileTravelSec = 0.0f;
             }
             return;
         }
@@ -401,6 +426,14 @@ void GameWorld::update(float dt)
     }
 
     grassImpactVfx.update(dt);
+
+    if (!leechSeedVfxInitialized) {
+        LeechSeedProjectileVFX::Config c; // defaults
+        leechSeedVfx.setConfig(c);
+        leechSeedVfxInitialized = true;
+    }
+
+    leechSeedVfx.update(dt);
 }
 
 void GameWorld::drawAll(const Camera3D& camera, BoardRenderer& boardRenderer)
@@ -433,6 +466,7 @@ void GameWorld::drawAll(const Camera3D& camera, BoardRenderer& boardRenderer)
     // draw particles AFTER opaque models
     tailFireVfx.render(camera);
     grassImpactVfx.render(camera);
+    leechSeedVfx.render(camera);
 }
 
 std::vector<HealthBarData> GameWorld::getHealthBarData(const Camera3D& camera, int screenWidth, int screenHeight) const

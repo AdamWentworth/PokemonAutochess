@@ -173,7 +173,7 @@ void ParticleSystem::update(float dt) {
     timeSec += dt;
 
     for (auto& p : particles) {
-        p.vel += updateSettings.acceleration * dt;
+        p.vel += (updateSettings.acceleration + p.accel) * dt;
 
         float damp = std::pow(updateSettings.dampingBase, dt);
         p.vel *= damp;

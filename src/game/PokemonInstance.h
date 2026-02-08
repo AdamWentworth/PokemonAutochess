@@ -101,6 +101,13 @@ struct PokemonInstance {
     float pendingDamageHitTimeSec = 0.0f; // clip-time seconds (compared against animTimeSec)
     bool  pendingDamageIsGrass    = false;
 
+    // Pending projectile (leech seed) spawned during attack animation.
+    bool  pendingProjectileActive = false;
+    bool  pendingProjectileSpawned = false;
+    int   pendingProjectileTargetId = -1;
+    float pendingProjectileSpawnTimeSec = 0.0f; // clip-time seconds
+    float pendingProjectileTravelSec = 0.0f;    // real-time seconds
+
     // Which clip to play during the current attack window (defaults to animAttack1Index).
     int currentAttackAnimIndex = -1;
 

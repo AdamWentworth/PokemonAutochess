@@ -16,6 +16,7 @@ public:
     struct Particle {
         glm::vec3 pos{0.0f};
         glm::vec3 vel{0.0f};
+        glm::vec3 accel{0.0f};
 
         float lifeSec = 0.0f;
         float maxLifeSec = 0.0f;
