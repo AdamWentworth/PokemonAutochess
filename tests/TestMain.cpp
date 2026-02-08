@@ -19,6 +19,8 @@ bool test_model_parse_smoke(std::string& outFail);
 bool test_script_api_contract(std::string& outFail);
 bool test_round_flow_headless(std::string& outFail);
 bool test_animset_roles_smoke(std::string& outFail);
+bool test_combat_slice_headless(std::string& outFail);
+bool test_render_pipeline_smoke(std::string& outFail);
 
 struct TestCase {
     const char* name;
@@ -79,6 +81,8 @@ int main(int argc, char** argv) {
         {"script_api_contract", &test_script_api_contract},
         {"round_flow_headless", &test_round_flow_headless},
         {"animset_roles_smoke", &test_animset_roles_smoke},
+        {"combat_slice_headless", &test_combat_slice_headless},
+        {"render_pipeline_smoke", &test_render_pipeline_smoke},
     };
 
     if (listOnly) {

@@ -256,12 +256,16 @@ if (BUILD_TESTING)
         tests/TestScriptApiContract.cpp
         tests/TestRoundFlow.cpp
         tests/TestAnimsetRoles.cpp
+        tests/TestCombatSlice.cpp
+        tests/TestRenderSmoke.cpp
     )
 
     target_link_libraries(PAC_Tests
         PRIVATE
             PAC_GameObjects
             engine_core
+            glad::glad
+            OpenGL::GL
     )
 
     # Tests include both /src and /tests
@@ -295,6 +299,8 @@ if (BUILD_TESTING)
         script_api_contract
         round_flow_headless
         animset_roles_smoke
+        combat_slice_headless
+        render_pipeline_smoke
     )
 
     foreach(test_name IN LISTS PAC_TEST_NAMES)

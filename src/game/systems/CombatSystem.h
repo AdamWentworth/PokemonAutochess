@@ -11,6 +11,7 @@ class ScriptAPI;
 class CombatSystem : public Updatable {
 public:
     explicit CombatSystem(GameWorld* world, GameServices& services);
+    ~CombatSystem();
     void update(float deltaTime) override;
 
 private:

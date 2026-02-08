@@ -1,18 +1,18 @@
-# ?? Pokemon Autochess
+# 🧩 Pokemon Autochess
 
-A **custom 3D engine + game prototype** for a Pok�mon-inspired auto-battler (grid placement ? scripted combat).
+A **custom 3D engine + game prototype** for a Pokemon-inspired auto-battler (grid placement -> scripted combat).
 
 This repo is **engine-first**. The engine is built to be reusable for future games; the current game is one client.
 
-> This repository is an educational/prototype project; it is not affiliated with Nintendo/Game Freak/The Pok�mon Company.
+> This repository is an educational/prototype project; it is not affiliated with Nintendo/Game Freak/The Pokemon Company.
 
 ---
 
-## ? Current Status
+## ✅ Current Status
 - Engine core: application loop, windowing, input mapping, system registry
 - Rendering: camera, board/grid rendering, model loading + animation support, shader + resource caches
 - UI: text rendering, cards, health bars, battle feed, boot loading/progress view
-- Gameplay runtime: `GameRuntime` ? `GameSession` (world/state/systems/UI wiring)
+- Gameplay runtime: `GameRuntime` -> `GameSession` (world/state/systems/UI wiring)
 - Game states: placement + combat
 - Gameplay systems: round, shop, movement, combat, bench/cards, unit interaction
 - VFX: particle system + TailFire VFX modules
@@ -21,7 +21,7 @@ This repo is **engine-first**. The engine is built to be reusable for future gam
 
 ---
 
-## ??? Tech Stack
+## 🛠️ Tech Stack
 | Area | Tech |
 | --- | --- |
 | Language | C++20 |
@@ -33,7 +33,7 @@ This repo is **engine-first**. The engine is built to be reusable for future gam
 
 ---
 
-## ?? Repo Layout
+## 📁 Repo Layout
 - `src/engine/` engine core, rendering, UI, utilities, VFX
 - `src/game/` game runtime, state machine, systems, scripting bindings
 - `scripts/` Lua gameplay logic
@@ -44,7 +44,7 @@ This repo is **engine-first**. The engine is built to be reusable for future gam
 
 ---
 
-## ?? Getting Started (Windows)
+## 🚀 Getting Started (Windows)
 Requirements
 - Visual Studio 2026 or newer
 - CMake 3.22+ (presets currently expect 4.2)
@@ -61,16 +61,16 @@ cmake --build --preset release
 Manual configure
 
 ```powershell
-cmake -S . -B build ^
-  -G "Visual Studio 18 2026" -A x64 ^
-  -DCMAKE_TOOLCHAIN_FILE=%VCPKG_ROOT%/scripts/buildsystems/vcpkg.cmake
+cmake -S . -B build `
+  -G "Visual Studio 18 2026" -A x64 `
+  -DCMAKE_TOOLCHAIN_FILE=$env:VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake
 
 cmake --build build --config Debug
 ```
 
 ---
 
-## ?? Build Targets
+## 🏗️ Build Targets
 | Target | What It Builds | Command |
 | --- | --- | --- |
 | `engine_core` | Headless engine core library | `cmake --build build --config Debug --target engine_core` |
@@ -83,14 +83,14 @@ cmake --build build --config Debug
 
 ---
 
-## ?? Run
+## ▶️ Run
 ```powershell
 .\build\Debug\PokemonAutochess.exe
 ```
 
 ---
 
-## ?? Tests
+## 🧪 Tests
 Build and run the test executable
 
 ```powershell
@@ -108,7 +108,7 @@ CI runs build + tests + data validation on Windows.
 
 ---
 
-## ?? Data Pack (Release)
+## 📦 Data Pack (Release)
 ```powershell
 cmake --build build --config Release --target PokemonAutochess
 cmake --build build --config Release --target PAC_ValidateData
@@ -123,7 +123,7 @@ Ship these artifacts
 
 ---
 
-## ?? Design Goals
+## 🎯 Design Goals
 - Reusable engine modules with strict layering
 - Game-owned loop and composition root
 - Headless simulation for tests and tooling
@@ -131,6 +131,6 @@ Ship these artifacts
 
 ---
 
-## ?? Notes
+## 🧭 Notes
 - Windows-first development today; Ubuntu support is a possible future goal.
 - See `docs/` for internal quality notes and test plans.

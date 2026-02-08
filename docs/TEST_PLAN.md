@@ -18,16 +18,18 @@ Focus on catching real regressions while keeping tests fast and headless.
 - Script API contract test (bindings + basic behavior).
 - Headless round flow test (Lua round system + update graph).
 - Animset role resolution test (CPU-only, JSON-driven).
+- Headless combat slice test (Lua combat system + damage applied).
+- Render pipeline smoke test (shader file + include checks; optional GL compile via `PAC_TEST_GL=1`).
 
 ## Coverage Gaps (High Risk)
-- Render pipeline setup (GL context, shader compile, draw).
-- Animation setup correctness (animset ↔ glTF name mismatches).
+- Render pipeline draw call coverage (GL context + draw validation).
+- Animation setup correctness (animset clip names vs GLB animation names).
 - End-to-end phase flow (placement to combat).
-- Script API contract drift.
 
 ## Next Tests to Add (Priority)
-1. End-to-end headless scenario that runs a short combat slice with units spawned.
-2. Render pipeline smoke test (minimal GL setup + shader compile).
+1. End-to-end headless scenario that runs a short round through placement -> combat.
+2. Animation name validation against GLB animation names (CPU-only).
+3. Optional GL draw test (one frame with a minimal scene).
 
 ## Manual Smoke Checklist (Release Builds)
 1. Launch the game and reach the board.

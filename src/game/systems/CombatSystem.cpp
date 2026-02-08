@@ -58,6 +58,8 @@ CombatSystem::CombatSystem(GameWorld* world, GameServices& svc)
     loadScript();
 }
 
+CombatSystem::~CombatSystem() = default;
+
 void CombatSystem::loadScript() {
     std::string err;
     if (!loadLuaFromStore(lua, kCombatLua, services.assets, err)) {
