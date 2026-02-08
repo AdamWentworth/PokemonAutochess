@@ -21,10 +21,10 @@ jobs:
           key: vcpkg-${{ runner.os }}-${{ hashFiles('vcpkg.json') }}
       - name: Install vcpkg
         run: |
-          git clone https://github.com/microsoft/vcpkg $env:VCPKG_ROOT
-          & "$env:VCPKG_ROOT\\bootstrap-vcpkg.bat"
+          git clone https://github.com/microsoft/vcpkg "${{ env.VCPKG_ROOT }}"
+          & "${{ env.VCPKG_ROOT }}\\bootstrap-vcpkg.bat"
       - name: Configure
-        run: cmake -S . -B build -DCMAKE_TOOLCHAIN_FILE=$env:VCPKG_ROOT\\scripts\\buildsystems\\vcpkg.cmake -DPAC_BUILD_TOOLS=ON -DBUILD_TESTING=ON
+        run: cmake -S . -B build -DCMAKE_TOOLCHAIN_FILE="${{ env.VCPKG_ROOT }}/scripts/buildsystems/vcpkg.cmake" -DPAC_BUILD_TOOLS=ON -DBUILD_TESTING=ON
       - name: Build
         run: cmake --build build --config Debug
       - name: Test
