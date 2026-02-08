@@ -18,4 +18,4 @@ These are **internal notes** for quality, architecture, and testing. They are no
 ## Current Focus (Next 3)
 - ECS adoption for movement/combat/round systems.
 - Full animset clip validation against GLB animation names.
-- Narrow ScriptAPI surface so Lua only sees value types.
+- Layering enforcement (guard against engine/game cross-dependencies).

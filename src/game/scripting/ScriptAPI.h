@@ -5,6 +5,7 @@
 #include <string>
 #include <variant>
 #include <vector>
+#include <utility>
 
 #include "game/GameServices.h"
 #include "game/PokemonInstance.h"
@@ -22,11 +23,65 @@ public:
               GameStateManager* manager,
               GameServices& services);
 
-    GameWorld* world() const { return world_; }
-    GameStateManager* manager() const { return manager_; }
     LogBus::Logger& logger() const;
     ScriptEventBus& events() const;
     const GameConfigData& config() const;
+
+    struct UnitSnapshot {
+        int id = -1;
+        std::string name;
+        PokemonSide side = PokemonSide::Player;
+        int hp = 0;
+        int attack = 0;
+        float speed = 0.0f;
+        int energy = 0;
+        int maxEnergy = 0;
+        int col = 0;
+        int row = 0;
+        bool alive = false;
+        std::string fastMove;
+        std::string chargedMove;
+    };
+
+    struct MoveStatusSnapshot {
+        std::string effect;
+        float magnitude = 0.0f;
+        float durationSec = 0.0f;
+        std::string target;
+        bool valid = false;
+    };
+
+    struct MoveSnapshot {
+        std::string name;
+        std::string type;
+        std::string kind;
+        float cooldownSec = 0.0f;
+        int power = 0;
+        float range = 0.0f;
+        int energyGain = 0;
+        int energyCost = 0;
+        MoveStatusSnapshot status;
+    };
+
+    // ---- Query surface (value types only) ----
+    std::vector<UnitSnapshot> listUnits() const;
+    std::optional<UnitSnapshot> getUnitSnapshot(int unitId) const;
+    std::pair<int, int> nearestEnemyCell(int unitId) const;
+    bool isAdjacentToEnemy(int unitId) const;
+    std::vector<int> enemiesAdjacent(int unitId) const;
+    bool canAttack(int unitId) const;
+    bool attackReady(int unitId) const;
+    float attackMinRequestSec(int attackerId,
+                              const std::optional<std::string>& moveName,
+                              const std::optional<std::string>& kind) const;
+    int getEnergy(int unitId) const;
+    int getMaxEnergy(int unitId) const;
+    float getUnitSpeed(int unitId) const;
+    std::string getUnitFastMove(int unitId) const;
+    std::string getUnitChargedMove(int unitId) const;
+    std::optional<MoveSnapshot> getMove(const std::string& name) const;
+    bool hasPlannedMove(int unitId) const;
+    bool isMoving(int unitId) const;
 
     // Drain and clear queued script events.
     std::vector<ScriptEvent> drainEvents();
