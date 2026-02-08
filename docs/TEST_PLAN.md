@@ -29,7 +29,7 @@ Focus on catching real regressions while keeping tests fast and headless.
 None listed.
 
 ## Next Tests to Add (Priority)
-1. Optional render test that advances animation time across a few frames.
+None listed.
 
 ## Manual Smoke Checklist (Release Builds)
 1. Launch the game and reach the board.

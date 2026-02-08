@@ -207,19 +207,25 @@ bool drawMinimalFrame(ShaderCache& cache, std::string& outFail) {
     glViewport(0, 0, 64, 64);
     glEnable(GL_DEPTH_TEST);
     glClearColor(0.05f, 0.05f, 0.08f, 1.0f);
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-    board.draw(camera);
-    board.drawBench(camera);
-    model.drawAnimated(camera, instanceTransform, 0.0f, animIndex);
+    const int frameCount = 3;
+    const float dt = 1.0f / 30.0f;
+    for (int i = 0; i < frameCount; ++i) {
+        const float t = (animIndex >= 0) ? (dt * static_cast<float>(i)) : 0.0f;
 
-    glFinish();
-    const GLenum err = glGetError();
-    if (err != GL_NO_ERROR) {
-        std::ostringstream ss;
-        ss << "OpenGL error after draw: 0x" << std::hex << err;
-        outFail = ss.str();
-        return false;
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        board.draw(camera);
+        board.drawBench(camera);
+        model.drawAnimated(camera, instanceTransform, t, animIndex);
+
+        glFinish();
+        const GLenum err = glGetError();
+        if (err != GL_NO_ERROR) {
+            std::ostringstream ss;
+            ss << "OpenGL error after draw: 0x" << std::hex << err;
+            outFail = ss.str();
+            return false;
+        }
     }
 
     return true;
