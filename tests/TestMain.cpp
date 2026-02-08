@@ -14,6 +14,7 @@ bool test_rng_determinism(std::string& outFail);
 bool test_manual_time_source(std::string& outFail);
 bool test_content_invariants(std::string& outFail);
 bool test_battle_invariants(std::string& outFail);
+bool test_end_to_end_headless(std::string& outFail);
 bool test_movement_invariants(std::string& outFail);
 bool test_model_parse_smoke(std::string& outFail);
 bool test_script_api_contract(std::string& outFail);
@@ -80,6 +81,7 @@ int main(int argc, char** argv) {
         {"manual_time_source", &test_manual_time_source},
         {"content_invariants", &test_content_invariants},
         {"battle_invariants", &test_battle_invariants},
+        {"end_to_end_headless", &test_end_to_end_headless},
         {"movement_invariants", &test_movement_invariants},
         {"model_parse_smoke", &test_model_parse_smoke},
         {"script_api_contract", &test_script_api_contract},

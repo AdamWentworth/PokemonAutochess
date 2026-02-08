@@ -39,8 +39,7 @@ This repo is **engine-first**. The engine is built to be reusable for future gam
 - `scripts/` Lua gameplay logic
 - `assets/` runtime assets
 - `tests/` headless tests and invariants
-- `tools/` offline tools (data cooker, build scripts, installer)
-- `tools/` build/release scripts
+- `tools/` offline tools, build scripts, and installer
 - `docs/` internal plans and quality notes
 
 ---
@@ -146,6 +145,23 @@ Build installer (headless)
 ```powershell
 .\tools\build_installer.ps1 -Bundle
 ```
+
+One-command release + installer (clean Windows clone)
+Requirements
+- Visual Studio 2026 or newer
+- CMake 3.22+ (presets currently expect 4.2)
+- vcpkg installed and `VCPKG_ROOT` set
+- Inno Setup 6 (provides `ISCC.exe`)
+
+```powershell
+# From the repo root (after a fresh clone)
+$env:VCPKG_ROOT="C:\\path\\to\\vcpkg"
+.\tools\build_installer.ps1 -Bundle
+```
+
+Notes
+- The installer is written to `dist/installer/PokemonAutochessSetup.exe`.
+- If `ISCC.exe` is not on PATH, pass `-ISCCPath "C:\\Path\\To\\ISCC.exe"`.
 
 Ship these artifacts
 - `PokemonAutochess.exe`

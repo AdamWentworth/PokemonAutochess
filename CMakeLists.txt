@@ -251,6 +251,7 @@ if (BUILD_TESTING)
         tests/TestDeterminism.cpp
         tests/TestContentValidation.cpp
         tests/TestBattleInvariants.cpp
+        tests/TestEndToEnd.cpp
         tests/TestMovementSystem.cpp
         tests/TestModelParse.cpp
         tests/TestScriptApiContract.cpp
@@ -298,6 +299,7 @@ if (BUILD_TESTING)
         manual_time_source
         content_invariants
         battle_invariants
+        end_to_end_headless
         movement_invariants
         model_parse_smoke
         script_api_contract

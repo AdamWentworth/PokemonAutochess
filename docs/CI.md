@@ -9,6 +9,7 @@ CI is Windows-first and mirrors the local flow: configure, build, test, validate
 - Run `PAC_ValidateData`.
 - Use a vcpkg binary cache for faster rebuilds.
 - Run a clang-format check on changed C++ files.
+- Release installer build is not part of CI (run locally with `tools/build_installer.ps1 -Bundle`).
 
 ## Why It Exists
 - Catch regressions before they land.

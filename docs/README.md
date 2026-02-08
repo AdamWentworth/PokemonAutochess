@@ -15,7 +15,15 @@ These are **internal notes** for quality, architecture, and testing. They are no
 - Keep these docs small and current.
 - If something becomes outdated, delete or rewrite it instead of letting it drift.
 
+## Release Flow
+Validated locally by running `tools/build_installer.ps1 -Bundle` in a clean clone.
+Prereqs
+- Visual Studio 2026 or newer
+- CMake 3.22+
+- vcpkg with `VCPKG_ROOT` set
+- Inno Setup 6
+
 ## Current Focus (Next 3)
 - ECS adoption for remaining gameplay systems (shop/bench/camera/interaction).
 - UI scale tuning across resolutions.
-- Simple release bundle checklist or script.
+- Packaged build smoke checklist automation (optional).
