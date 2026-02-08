@@ -15,6 +15,9 @@ Focus on catching real regressions while keeping tests fast and headless.
 - Content validation and battle invariants.
 - Movement invariants (headless movement planning).
 - Model parse smoke test (fastgltf, CPU-only).
+- Script API contract test (bindings + basic behavior).
+- Headless round flow test (Lua round system + update graph).
+- Animset role resolution test (CPU-only, JSON-driven).
 
 ## Coverage Gaps (High Risk)
 - Render pipeline setup (GL context, shader compile, draw).
@@ -23,9 +26,8 @@ Focus on catching real regressions while keeping tests fast and headless.
 - Script API contract drift.
 
 ## Next Tests to Add (Priority)
-1. Script API contract test that verifies stable inputs and outputs.
-2. End-to-end headless scenario that runs a short round and asserts final state.
-3. Animation name validation against animset roles (CPU-only).
+1. End-to-end headless scenario that runs a short combat slice with units spawned.
+2. Render pipeline smoke test (minimal GL setup + shader compile).
 
 ## Manual Smoke Checklist (Release Builds)
 1. Launch the game and reach the board.

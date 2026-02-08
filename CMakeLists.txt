@@ -253,6 +253,9 @@ if (BUILD_TESTING)
         tests/TestBattleInvariants.cpp
         tests/TestMovementSystem.cpp
         tests/TestModelParse.cpp
+        tests/TestScriptApiContract.cpp
+        tests/TestRoundFlow.cpp
+        tests/TestAnimsetRoles.cpp
     )
 
     target_link_libraries(PAC_Tests
@@ -289,6 +292,9 @@ if (BUILD_TESTING)
         battle_invariants
         movement_invariants
         model_parse_smoke
+        script_api_contract
+        round_flow_headless
+        animset_roles_smoke
     )
 
     foreach(test_name IN LISTS PAC_TEST_NAMES)
