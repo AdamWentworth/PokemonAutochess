@@ -28,6 +28,7 @@ struct GameConfigData {
     int xpLevelBase = 10;
     float xpLevelGrowth = 1.35f;
     int xpMaxLevel = 0; // 0 = no cap
+    float xpYieldMult = 1.0f;
 
     // ---- New: load diagnostics (non-breaking additions) ----
     bool loadOk = true;                // false if config failed to load/execute/parse

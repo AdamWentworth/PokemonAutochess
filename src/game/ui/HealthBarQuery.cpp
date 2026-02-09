@@ -3,16 +3,28 @@
 
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp> // glm::project
+#include <algorithm>
+#include <cmath>
 
 #include "engine/render/Camera3D.h"
 #include "game/PokemonInstance.h"
+#include "game/GameConfig.h"
+
+static int xpToNextLevel(const GameConfigData& cfg, int level) {
+    if (cfg.xpLevelBase <= 0) return 0;
+    const int useLevel = std::max(1, level);
+    const float growth = (cfg.xpLevelGrowth > 0.0f) ? cfg.xpLevelGrowth : 1.0f;
+    const float raw = static_cast<float>(cfg.xpLevelBase) * std::pow(growth, static_cast<float>(useLevel - 1));
+    return std::max(1, static_cast<int>(std::round(raw)));
+}
 
 std::vector<HealthBarData> BuildHealthBarData(
     const std::vector<PokemonInstance>& boardUnits,
     const std::vector<PokemonInstance>& benchUnits,
     const Camera3D& camera,
     int screenWidth,
-    int screenHeight
+    int screenHeight,
+    const GameConfigData& config
 ) {
     std::vector<HealthBarData> data;
     data.reserve(boardUnits.size() + benchUnits.size());
@@ -41,6 +53,9 @@ std::vector<HealthBarData> BuildHealthBarData(
         hb.maxHP = instance.maxHP;
         hb.currentEnergy = instance.energy;
         hb.maxEnergy     = instance.maxEnergy;
+        hb.showXP        = (instance.side == PokemonSide::Player);
+        hb.currentXP     = instance.xp;
+        hb.maxXP         = hb.showXP ? xpToNextLevel(config, instance.level) : 0;
         data.push_back(hb);
     };
 

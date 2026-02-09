@@ -28,17 +28,18 @@ bool PokemonConfigLoader::loadConfig(const std::string& filePath,
             continue;
         }
 
-        auto toLowerCopy = [](std::string s) {
-            std::transform(s.begin(), s.end(), s.begin(),
-                           [](unsigned char c){ return static_cast<char>(std::tolower(c)); });
-            return s;
-        };
+    auto toLowerCopy = [](std::string s) {
+        std::transform(s.begin(), s.end(), s.begin(),
+                       [](unsigned char c){ return static_cast<char>(std::tolower(c)); });
+        return s;
+    };
 
         PokemonStats stats;
         stats.hp            = data.value("hp", 100);
         stats.attack        = data.value("attack", 10);
         stats.movementSpeed = data.value("movementSpeed", 1.0f);
         stats.model         = data.value("model", name + ".glb");
+        stats.baseExp       = data.value("baseExp", stats.baseExp);
 
         if (data.contains("types")) {
             const auto& t = data["types"];
@@ -86,15 +87,62 @@ bool PokemonConfigLoader::loadConfig(const std::string& filePath,
             }
         }
 
-        statsMap[name] = std::move(stats);
+        statsMap[toLowerCopy(name)] = std::move(stats);
     }
 
     game::log::info(logger, std::string("[PokemonConfigLoader] Loaded ") + std::to_string(statsMap.size()) + " species");
     return true;
 }
 
+bool PokemonConfigLoader::applyBaseExpConfig(const std::string& filePath,
+                                             LogBus::Logger* logger,
+                                             const engine::IAssetStore* store) {
+    nlohmann::json jsonData;
+    if (!ConfigIO::loadJsonFile(filePath, jsonData, "PokemonBaseExp", /*silentIfMissing=*/true, logger, store)) {
+        return false;
+    }
+
+    if (!jsonData.is_object()) {
+        game::log::warn(logger, std::string("[PokemonBaseExp] Root must be an object: ") + filePath);
+        return false;
+    }
+
+    auto toLowerCopy = [](std::string s) {
+        std::transform(s.begin(), s.end(), s.begin(),
+                       [](unsigned char c){ return static_cast<char>(std::tolower(c)); });
+        return s;
+    };
+
+    baseExpMap.clear();
+    for (const auto& [name, data] : jsonData.items()) {
+        if (!data.is_number_integer()) continue;
+        const int val = data.get<int>();
+        const std::string key = toLowerCopy(name);
+        baseExpMap[key] = val;
+        auto it = statsMap.find(key);
+        if (it != statsMap.end()) {
+            it->second.baseExp = val;
+        }
+    }
+
+    game::log::info(logger, std::string("[PokemonBaseExp] Loaded ") + std::to_string(baseExpMap.size()) + " entries");
+    return true;
+}
+
 const PokemonStats* PokemonConfigLoader::getStats(const std::string& name) const {
-    auto it = statsMap.find(name);
+    std::string key = name;
+    std::transform(key.begin(), key.end(), key.begin(),
+                   [](unsigned char c){ return static_cast<char>(std::tolower(c)); });
+    auto it = statsMap.find(key);
     if (it != statsMap.end()) return &it->second;
     return nullptr;
+}
+
+int PokemonConfigLoader::getBaseExp(const std::string& name) const {
+    std::string key = name;
+    std::transform(key.begin(), key.end(), key.begin(),
+                   [](unsigned char c){ return static_cast<char>(std::tolower(c)); });
+    auto it = baseExpMap.find(key);
+    if (it != baseExpMap.end()) return it->second;
+    return 0;
 }

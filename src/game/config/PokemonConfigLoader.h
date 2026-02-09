@@ -23,6 +23,7 @@ struct PokemonStats {
     float movementSpeed = 1.0f;
     std::string model;
     std::vector<std::string> types;
+    int baseExp = 50;
 
     // loadoutByLevel[level] -> LoadoutEntry
     std::map<int, LoadoutEntry> loadoutByLevel;
@@ -33,13 +34,18 @@ public:
     bool loadConfig(const std::string& filePath,
                     LogBus::Logger* logger = nullptr,
                     const engine::IAssetStore* store = nullptr);
+    bool applyBaseExpConfig(const std::string& filePath,
+                            LogBus::Logger* logger = nullptr,
+                            const engine::IAssetStore* store = nullptr);
 
     const PokemonStats* getStats(const std::string& name) const;
     const std::unordered_map<std::string, PokemonStats>& all() const { return statsMap; }
+    int getBaseExp(const std::string& name) const;
 
 public:
     PokemonConfigLoader() = default;
 
 private:
     std::unordered_map<std::string, PokemonStats> statsMap;
+    std::unordered_map<std::string, int> baseExpMap;
 };

@@ -18,6 +18,7 @@ return {
         per_faint = 10,
         level_base = 10,
         level_growth = 1.35,
-        max_level = 0 -- 0 = no cap
+        max_level = 0, -- 0 = no cap
+        yield_mult = 1.0
     }
 }

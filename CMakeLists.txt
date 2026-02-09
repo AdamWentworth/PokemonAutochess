@@ -191,6 +191,7 @@ add_library(PAC_GameObjects STATIC
     src/game/vfx/TailFireVFX.cpp
     src/game/vfx/TailFireVFXConfigDB.cpp
     src/game/vfx/GrassImpactVFX.cpp
+    src/game/vfx/TackleImpactVFX.cpp
     src/game/vfx/LeechSeedProjectileVFX.cpp
     src/game/vfx/HealPlusVFX.cpp
     src/game/vfx/LeechSeedDrainVFX.cpp

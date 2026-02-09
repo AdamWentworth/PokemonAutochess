@@ -8,4 +8,7 @@ struct HealthBarData {
     int maxHP;
     int currentEnergy;
     int maxEnergy;
+    int currentXP;
+    int maxXP;
+    bool showXP;
 };

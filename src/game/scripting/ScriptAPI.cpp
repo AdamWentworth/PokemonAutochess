@@ -584,6 +584,7 @@ int ScriptAPI::applyDamage(int attackerId,
     const std::string moveTypeLower = md ? toLowerCopy(md->type) : std::string();
     const bool isGrassMove = (moveTypeLower == "grass");
     const bool isLeechSeed = (moveLower == "leech_seed");
+    const bool isTackle = (moveLower == "tackle");
     const bool isGrassImpact = (isGrassMove || isLeechSeed);
 
     const bool traceCombat = DebugTrace::combat(speciesLower, moveLower);
@@ -719,6 +720,7 @@ int ScriptAPI::applyDamage(int attackerId,
         A->pendingDamageAmount = 0;
         A->pendingDamageHitTimeSec = 0.0f;
         A->pendingDamageIsGrass = false;
+        A->pendingDamageIsTackle = false;
         A->pendingProjectileActive = false;
         A->pendingProjectileSpawned = false;
         A->pendingProjectileTargetId = -1;
@@ -815,6 +817,7 @@ int ScriptAPI::applyDamage(int attackerId,
                 A->pendingDamageAmount     = std::max(0, amount);
                 A->pendingDamageHitTimeSec = std::max(0.0f, hitTimeSec);
                 A->pendingDamageIsGrass    = isGrassImpact;
+                A->pendingDamageIsTackle   = isTackle;
             }
 
             return std::max(0, T->hp - std::max(0, amount));
@@ -829,6 +832,9 @@ int ScriptAPI::applyDamage(int attackerId,
     T->hp = std::max(0, T->hp - dmg);
     if (dmg > 0 && isGrassImpact) {
         world_->emitGrassImpactAt(*T);
+    }
+    if (dmg > 0 && isTackle) {
+        world_->emitTackleImpactAt(*T);
     }
     if (traceCombat) {
         trlog(std::string("damage_result hp_after=") + std::to_string(T->hp) +

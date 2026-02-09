@@ -116,6 +116,16 @@ int GameWorld::xpToNextLevel(int level) const {
     return std::max(1, static_cast<int>(std::round(raw)));
 }
 
+int GameWorld::xpFromFaint(const PokemonInstance& dead) const {
+    if (dead.baseExp > 0 && dead.level > 0) {
+        const float mult = (config.xpYieldMult > 0.0f) ? config.xpYieldMult : 1.0f;
+        const float raw = (static_cast<float>(dead.baseExp) * static_cast<float>(dead.level) * mult) / 7.0f;
+        const int xp = static_cast<int>(std::floor(raw));
+        return std::max(1, xp);
+    }
+    return std::max(0, config.xpPerFaint);
+}
+
 void GameWorld::addXp(PokemonInstance& unit, int amount) {
     if (amount <= 0) return;
     unit.xp = std::max(0, unit.xp + amount);
@@ -136,19 +146,21 @@ void GameWorld::addXp(PokemonInstance& unit, int amount) {
 }
 
 void GameWorld::awardXpForFaint(const PokemonInstance& dead) {
-    const int perFaint = std::max(0, config.xpPerFaint);
+    const int perFaint = xpFromFaint(dead);
     if (perFaint <= 0) return;
+
+    if (dead.side != PokemonSide::Enemy) return;
 
     bool anyOppAlive = false;
     for (const auto& u : pokemons) {
         if (!u.alive) continue;
-        if (u.side != dead.side) { anyOppAlive = true; break; }
+        if (u.side == PokemonSide::Player) { anyOppAlive = true; break; }
     }
     if (!anyOppAlive) return;
 
     for (auto& u : pokemons) {
         if (!u.alive) continue;
-        if (u.side == dead.side) continue;
+        if (u.side != PokemonSide::Player) continue;
         addXp(u, perFaint);
     }
 }
@@ -214,6 +226,7 @@ void GameWorld::spawnPokemon(const std::string& pokemonName,
     inst.baseAttack = stats->attack;
     inst.baseMovementSpeed = stats->movementSpeed;
     inst.types = stats->types;
+    inst.baseExp = stats->baseExp;
 
     applyLevelScaling(inst, level, false);
     applyLoadoutForLevel(inst, false);
@@ -287,6 +300,7 @@ void GameWorld::addToBench(const std::string& pokemonName)
     inst.baseAttack = stats->attack;
     inst.baseMovementSpeed = stats->movementSpeed;
     inst.types = stats->types;
+    inst.baseExp = stats->baseExp;
 
     applyLevelScaling(inst, -1, false);
     applyLoadoutForLevel(inst, false);
@@ -458,6 +472,9 @@ void GameWorld::update(float dt)
                             if (dmg > 0 && p.pendingDamageIsGrass) {
                                 emitGrassImpactAt(*itTgt);
                             }
+                            if (dmg > 0 && p.pendingDamageIsTackle) {
+                                emitTackleImpactAt(*itTgt);
+                            }
                             if (itTgt->hp <= 0) {
                                 handleUnitFaint(*itTgt);
                             }
@@ -465,6 +482,7 @@ void GameWorld::update(float dt)
 
                     p.pendingDamageApplied = true;
                     p.pendingDamageIsGrass = false;
+                    p.pendingDamageIsTackle = false;
                     p.pendingProjectileActive = false;
                     p.pendingProjectileSpawned = false;
                     p.pendingProjectileTargetId = -1;
@@ -500,6 +518,14 @@ void GameWorld::update(float dt)
                 p.pendingImpactTimeSec = 0.0f;
                 p.pendingImpactIsGrass = false;
                 p.pendingImpactIsLeechSeed = false;
+
+                p.pendingDamageActive = false;
+                p.pendingDamageApplied = false;
+                p.pendingDamageTargetId = -1;
+                p.pendingDamageAmount = 0;
+                p.pendingDamageHitTimeSec = 0.0f;
+                p.pendingDamageIsGrass = false;
+                p.pendingDamageIsTackle = false;
             }
             return;
         }
@@ -532,7 +558,14 @@ void GameWorld::update(float dt)
         grassImpactVfxInitialized = true;
     }
 
+    if (!tackleImpactVfxInitialized) {
+        TackleImpactVFX::Config c; // defaults
+        tackleImpactVfx.setConfig(c);
+        tackleImpactVfxInitialized = true;
+    }
+
     grassImpactVfx.update(dt);
+    tackleImpactVfx.update(dt);
 
     if (!leechSeedVfxInitialized) {
         LeechSeedProjectileVFX::Config c; // defaults
@@ -590,6 +623,7 @@ void GameWorld::drawAll(const Camera3D& camera, BoardRenderer& boardRenderer)
     // draw particles AFTER opaque models
     tailFireVfx.render(camera);
     grassImpactVfx.render(camera);
+    tackleImpactVfx.render(camera);
     leechSeedVfx.render(camera);
     healPlusVfx.render(camera);
     leechSeedDrainVfx.render(camera);
@@ -597,7 +631,7 @@ void GameWorld::drawAll(const Camera3D& camera, BoardRenderer& boardRenderer)
 
 std::vector<HealthBarData> GameWorld::getHealthBarData(const Camera3D& camera, int screenWidth, int screenHeight) const
 {
-    return BuildHealthBarData(pokemons, benchPokemons, camera, screenWidth, screenHeight);
+    return BuildHealthBarData(pokemons, benchPokemons, camera, screenWidth, screenHeight, config);
 }
 
 glm::vec3 GameWorld::getNearestEnemyPosition(const PokemonInstance& unit) const
@@ -627,6 +661,18 @@ void GameWorld::emitGrassImpactAt(const PokemonInstance& target)
 
     const glm::vec3 base = target.position + glm::vec3(0.0f, target.visualYOffset, 0.0f);
     grassImpactVfx.emitAt(base);
+}
+
+void GameWorld::emitTackleImpactAt(const PokemonInstance& target)
+{
+    if (!tackleImpactVfxInitialized) {
+        TackleImpactVFX::Config c; // defaults
+        tackleImpactVfx.setConfig(c);
+        tackleImpactVfxInitialized = true;
+    }
+
+    const glm::vec3 base = target.position + glm::vec3(0.0f, target.visualYOffset, 0.0f);
+    tackleImpactVfx.emitAt(base);
 }
 
 void GameWorld::ensureLeechSeedConfigLoaded()

@@ -4,6 +4,7 @@
 #include "engine/utils/ShaderCache.h"
 #include <glad/glad.h>
 #include <glm/gtc/matrix_transform.hpp>
+#include <algorithm>
 
 void HealthBarRenderer::init() {
     // Fallback: compile directly (no cache). Prefer init(shaders).
@@ -41,8 +42,10 @@ void HealthBarRenderer::render(const std::vector<HealthBarData>& healthBars) {
         const float width = 50.0f;
         const float hpH   = 5.0f;
         const float enH   = 4.0f;
+        const float xpH   = 3.0f;
         const float yOffset = 20.0f;      // top of HP bar
         const float gap     = 2.0f;       // space between HP and Energy bar
+        const float xpGap   = 2.0f;       // space between Energy and XP bar
 
         glm::vec2 pos = hb.screenPosition;
         pos.x -= width/2.0f;
@@ -83,8 +86,26 @@ void HealthBarRenderer::render(const std::vector<HealthBarData>& healthBars) {
         glm::mat4 eFg = glm::translate(glm::mat4(1.0f), glm::vec3(ePos, 0.0f));
         eFg = glm::scale(eFg, glm::vec3(width*eFrac, enH, 1.0f));
         shader->setUniform("u_Model", eFg);
-        shader->setUniform("u_Color", glm::vec3(0.20f, 0.55f, 1.0f)); // blue
+        shader->setUniform("u_Color", glm::vec3(0.95f, 0.65f, 0.20f)); // orange/yellow
         renderQuad();
+
+        // ----- XP bar (player only) -----
+        if (hb.showXP && hb.maxXP > 0) {
+            float xFrac = std::clamp(static_cast<float>(hb.currentXP) / hb.maxXP, 0.0f, 1.0f);
+            glm::vec2 xPos = pos + glm::vec2(0.0f, hpH + gap + enH + xpGap);
+
+            glm::mat4 xBg = glm::translate(glm::mat4(1.0f), glm::vec3(xPos, 0.0f));
+            xBg = glm::scale(xBg, glm::vec3(width, xpH, 1.0f));
+            shader->setUniform("u_Model", xBg);
+            shader->setUniform("u_Color", glm::vec3(0.20f, 0.20f, 0.20f));
+            renderQuad();
+
+            glm::mat4 xFg = glm::translate(glm::mat4(1.0f), glm::vec3(xPos, 0.0f));
+            xFg = glm::scale(xFg, glm::vec3(width * xFrac, xpH, 1.0f));
+            shader->setUniform("u_Model", xFg);
+            shader->setUniform("u_Color", glm::vec3(0.20f, 0.55f, 1.0f)); // blue
+            renderQuad();
+        }
     }
 
     glDisable(GL_BLEND);

@@ -56,6 +56,7 @@ struct PokemonInstance {
     int   baseAttack = 10;
     float baseMovementSpeed = 1.0f;
     std::vector<std::string> types;
+    int   baseExp = 0;
 
     int   hp = 100;
     int   maxHP = 100;
@@ -103,6 +104,7 @@ struct PokemonInstance {
     int   pendingDamageAmount     = 0;
     float pendingDamageHitTimeSec = 0.0f; // clip-time seconds (compared against animTimeSec)
     bool  pendingDamageIsGrass    = false;
+    bool  pendingDamageIsTackle   = false;
 
     // Pending projectile (leech seed) spawned during attack animation.
     bool  pendingProjectileActive = false;

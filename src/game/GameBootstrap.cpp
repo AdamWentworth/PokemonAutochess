@@ -38,6 +38,7 @@ std::unique_ptr<GameSession> GameBootstrap::create(GameContext& ctx) {
 
     GameDataDb db;
     db.pokemon.loadConfig("config/pokemon_config.json", &bootstrapLog, dataStore.get());
+    db.pokemon.applyBaseExpConfig("config/pokemon_base_exp.json", &bootstrapLog, dataStore.get());
     db.moves.loadConfig("config/moves_config.json", &bootstrapLog, dataStore.get());
     db.attackAnims.loadConfig("config/attack_anim_config.json", &bootstrapLog, dataStore.get());
     db.flyers.loadConfig("config/flyers_config.json", &bootstrapLog, dataStore.get());

@@ -13,6 +13,8 @@
 #include "vfx/TailFireVFXConfigDB.h"
 // Grass impact VFX (shared by grass-type moves)
 #include "vfx/GrassImpactVFX.h"
+// Tackle impact VFX
+#include "vfx/TackleImpactVFX.h"
 // Leech seed projectile VFX
 #include "vfx/LeechSeedProjectileVFX.h"
 // Leech seed heal VFX
@@ -81,6 +83,8 @@ public:
 
     // Impact VFX for grass-type attacks
     void emitGrassImpactAt(const PokemonInstance& target);
+    // Impact VFX for tackle
+    void emitTackleImpactAt(const PokemonInstance& target);
 
     // Apply leech seed status on hit
     void applyLeechSeed(int attackerId, int targetId);
@@ -105,6 +109,7 @@ private:
     void awardXpForFaint(const PokemonInstance& dead);
     void addXp(PokemonInstance& unit, int amount);
     int xpToNextLevel(int level) const;
+    int xpFromFaint(const PokemonInstance& dead) const;
 
 private:
     // Shared loop clock: keeps idle/walk animations in sync across all units.
@@ -117,6 +122,10 @@ private:
     // Grass impact particles (drawn after opaque models)
     GrassImpactVFX grassImpactVfx;
     bool grassImpactVfxInitialized = false;
+
+    // Tackle impact particles (drawn after opaque models)
+    TackleImpactVFX tackleImpactVfx;
+    bool tackleImpactVfxInitialized = false;
 
     // Leech seed projectiles (drawn after opaque models)
     LeechSeedProjectileVFX leechSeedVfx;
