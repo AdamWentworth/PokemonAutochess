@@ -11,15 +11,15 @@
         "fast": "tackle"
       },
       "3": {
-        "fast": "vine_whip"
+        "fast": "tackle"
       },
       "5": {
         "charged": "leech_seed",
-        "fast": "vine_whip"
+        "fast": "tackle"
       },
       "6": {
         "charged": "leech_seed",
-        "fast": "razor_leaf"
+        "fast": "vine_whip"
       },
       "8": {
         "charged": "seed_bomb",
@@ -38,7 +38,7 @@
       },
       {
         "fast": [
-          "vine_whip"
+          "tackle"
         ],
         "level": 3
       },
@@ -50,13 +50,16 @@
       },
       {
         "fast": [
-          "razor_leaf"
+          "vine_whip"
         ],
         "level": 6
       },
       {
         "charged": [
           "seed_bomb"
+        ],
+        "fast": [
+          "razor_leaf"
         ],
         "level": 8
       }

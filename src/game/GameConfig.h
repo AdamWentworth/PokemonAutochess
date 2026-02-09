@@ -23,6 +23,12 @@ struct GameConfigData {
     float perLevelAttackBoost = 0.08f;
     float perLevelSpeedBoost = 0.08f;
 
+    // experience
+    int xpPerFaint = 10;
+    int xpLevelBase = 10;
+    float xpLevelGrowth = 1.35f;
+    int xpMaxLevel = 0; // 0 = no cap
+
     // ---- New: load diagnostics (non-breaking additions) ----
     bool loadOk = true;                // false if config failed to load/execute/parse
     std::string loadSource;            // resolved path attempted

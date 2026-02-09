@@ -68,6 +68,7 @@ struct PokemonInstance {
 
     int energy = 0;
     int maxEnergy = 100;
+    int xp = 0;
 
     // movement interpolation (used by your Lua bindings)
     bool isMoving = false;

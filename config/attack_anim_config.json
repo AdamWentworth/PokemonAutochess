@@ -1,6 +1,11 @@
 {
   "bulbasaur": {
     "fast": {
+      "tackle": {
+        "loop": "pm0001_00_00_00400_attack01.gfbanm",
+        "default": "pm0001_00_00_00400_attack01.gfbanm",
+        "_hitFrame": 40
+      },
       "vine_whip": {
         "_minRequestSec": 1.2,
         "loop": "pm0001_00_00_00410_attack02.gfbanm",

@@ -118,6 +118,14 @@ GameConfigData GameConfig::load(LogBus::Logger* logger, const engine::IAssetStor
         cfg.perLevelSpeedBoost = spdBoost ? *spdBoost : cfg.perLevelBoost;
     }
 
+    sol::table xp = t["xp"];
+    if (xp.valid()) {
+        cfg.xpPerFaint    = xp.get_or("per_faint", cfg.xpPerFaint);
+        cfg.xpLevelBase   = xp.get_or("level_base", cfg.xpLevelBase);
+        cfg.xpLevelGrowth = xp.get_or("level_growth", cfg.xpLevelGrowth);
+        cfg.xpMaxLevel    = xp.get_or("max_level", cfg.xpMaxLevel);
+    }
+
     applyFontPathDefaults(cfg);
 
     cfg.loadOk = true;

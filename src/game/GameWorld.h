@@ -84,6 +84,8 @@ public:
 
     // Apply leech seed status on hit
     void applyLeechSeed(int attackerId, int targetId);
+    // Finalize a faint (cleanup + XP award). Safe to call once.
+    void handleUnitFaint(PokemonInstance& target);
 
 private:
     ResourceManager* resources = nullptr; // engine-owned
@@ -98,8 +100,11 @@ private:
 
     glm::vec3 gridToWorld(int col, int row) const;
 
-    void applyLevelScaling(PokemonInstance& inst, int level) const;
-    void applyLoadoutForLevel(PokemonInstance& inst) const;
+    void applyLevelScaling(PokemonInstance& inst, int level, bool preserveHp) const;
+    void applyLoadoutForLevel(PokemonInstance& inst, bool preserveEnergy) const;
+    void awardXpForFaint(const PokemonInstance& dead);
+    void addXp(PokemonInstance& unit, int amount);
+    int xpToNextLevel(int level) const;
 
 private:
     // Shared loop clock: keeps idle/walk animations in sync across all units.

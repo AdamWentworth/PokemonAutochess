@@ -30,18 +30,27 @@
 GameWorld::GameWorld(const GameConfigData& cfg)
     : config(cfg) {}
 
-void GameWorld::applyLevelScaling(PokemonInstance& inst, int level) const {
+void GameWorld::applyLevelScaling(PokemonInstance& inst, int level, bool preserveHp) const {
     const auto& cfg = config;
     const int useLevel = (level <= 0) ? cfg.baseLevel : level;
 
     inst.level = useLevel;
+
+    float hpRatio = 1.0f;
+    if (preserveHp && inst.maxHP > 0) {
+        hpRatio = std::clamp(static_cast<float>(inst.hp) / static_cast<float>(inst.maxHP), 0.0f, 1.0f);
+    }
 
     const float hpMult  = std::pow(1.0f + cfg.perLevelHpBoost, static_cast<float>(useLevel - 1));
     const float atkMult = std::pow(1.0f + cfg.perLevelAttackBoost, static_cast<float>(useLevel - 1));
     const float spdMult = std::pow(1.0f + cfg.perLevelSpeedBoost, static_cast<float>(useLevel - 1));
 
     inst.maxHP         = static_cast<int>(std::round(static_cast<float>(inst.baseHp) * hpMult));
-    inst.hp            = inst.maxHP;
+    if (preserveHp) {
+        inst.hp = std::clamp(static_cast<int>(std::round(static_cast<float>(inst.maxHP) * hpRatio)), 1, inst.maxHP);
+    } else {
+        inst.hp = inst.maxHP;
+    }
     inst.attack        = static_cast<int>(std::round(static_cast<float>(inst.baseAttack) * atkMult));
     inst.movementSpeed = inst.baseMovementSpeed * spdMult;
 }
@@ -57,12 +66,12 @@ static const LoadoutEntry* pickLoadoutForLevel(const PokemonStats& ps, int level
     return best;
 }
 
-void GameWorld::applyLoadoutForLevel(PokemonInstance& inst) const {
+void GameWorld::applyLoadoutForLevel(PokemonInstance& inst, bool preserveEnergy) const {
     if (!data) {
         inst.fastMove.clear();
         inst.chargedMove.clear();
         inst.maxEnergy = 100;
-        inst.energy = 0;
+        if (!preserveEnergy) inst.energy = 0;
         return;
     }
 
@@ -71,7 +80,7 @@ void GameWorld::applyLoadoutForLevel(PokemonInstance& inst) const {
         inst.fastMove.clear();
         inst.chargedMove.clear();
         inst.maxEnergy = 100;
-        inst.energy = 0;
+        if (!preserveEnergy) inst.energy = 0;
         return;
     }
 
@@ -90,7 +99,83 @@ void GameWorld::applyLoadoutForLevel(PokemonInstance& inst) const {
             if (md->energyCost > 0) inst.maxEnergy = md->energyCost;
         }
     }
-    inst.energy = 0;
+    if (preserveEnergy) {
+        inst.energy = std::min(inst.energy, inst.maxEnergy);
+    } else {
+        inst.energy = 0;
+    }
+}
+
+int GameWorld::xpToNextLevel(int level) const {
+    const auto& cfg = config;
+    if (cfg.xpLevelBase <= 0) return std::numeric_limits<int>::max();
+
+    const int useLevel = std::max(1, level);
+    const float growth = (cfg.xpLevelGrowth > 0.0f) ? cfg.xpLevelGrowth : 1.0f;
+    const float raw = static_cast<float>(cfg.xpLevelBase) * std::pow(growth, static_cast<float>(useLevel - 1));
+    return std::max(1, static_cast<int>(std::round(raw)));
+}
+
+void GameWorld::addXp(PokemonInstance& unit, int amount) {
+    if (amount <= 0) return;
+    unit.xp = std::max(0, unit.xp + amount);
+
+    const int maxLevel = config.xpMaxLevel;
+    while (unit.xp >= xpToNextLevel(unit.level)) {
+        if (maxLevel > 0 && unit.level >= maxLevel) {
+            unit.xp = std::min(unit.xp, xpToNextLevel(unit.level));
+            break;
+        }
+
+        unit.xp -= xpToNextLevel(unit.level);
+
+        const int nextLevel = unit.level + 1;
+        applyLevelScaling(unit, nextLevel, /*preserveHp=*/true);
+        applyLoadoutForLevel(unit, /*preserveEnergy=*/true);
+    }
+}
+
+void GameWorld::awardXpForFaint(const PokemonInstance& dead) {
+    const int perFaint = std::max(0, config.xpPerFaint);
+    if (perFaint <= 0) return;
+
+    bool anyOppAlive = false;
+    for (const auto& u : pokemons) {
+        if (!u.alive) continue;
+        if (u.side != dead.side) { anyOppAlive = true; break; }
+    }
+    if (!anyOppAlive) return;
+
+    for (auto& u : pokemons) {
+        if (!u.alive) continue;
+        if (u.side == dead.side) continue;
+        addXp(u, perFaint);
+    }
+}
+
+void GameWorld::handleUnitFaint(PokemonInstance& target) {
+    if (!target.alive) return;
+
+    target.hp = 0;
+    target.alive = false;
+
+    target.isMoving = false;
+    target.attackTimerSec = 0.0f;
+    target.attackAnimSpeed = 1.0f;
+    target.currentAttackAnimIndex = target.animAttack1Index;
+    target.pendingAttackAfterLanding = false;
+    target.queuedAttackDurationSec = 0.0f;
+    target.queuedAttackAnimIndex = -1;
+    target.chainedFastMove.clear();
+    target.fastChainTimerSec = 0.0f;
+    target.animIndexCache.clear();
+
+    target.leechSeeded = false;
+    target.leechSeedSourceId = -1;
+    target.leechSeedTimeLeftSec = 0.0f;
+    target.leechSeedTickTimerSec = 0.0f;
+
+    awardXpForFaint(target);
 }
 
 void GameWorld::spawnPokemon(const std::string& pokemonName,
@@ -130,8 +215,8 @@ void GameWorld::spawnPokemon(const std::string& pokemonName,
     inst.baseMovementSpeed = stats->movementSpeed;
     inst.types = stats->types;
 
-    applyLevelScaling(inst, level);
-    applyLoadoutForLevel(inst);
+    applyLevelScaling(inst, level, false);
+    applyLoadoutForLevel(inst, false);
 
     inst.animTimeSec = 0.0f;
 
@@ -203,8 +288,8 @@ void GameWorld::addToBench(const std::string& pokemonName)
     inst.baseMovementSpeed = stats->movementSpeed;
     inst.types = stats->types;
 
-    applyLevelScaling(inst, -1);
-    applyLoadoutForLevel(inst);
+    applyLevelScaling(inst, -1, false);
+    applyLoadoutForLevel(inst, false);
 
     int slot = static_cast<int>(benchPokemons.size());
     float spacing = 1.2f;
@@ -374,21 +459,8 @@ void GameWorld::update(float dt)
                                 emitGrassImpactAt(*itTgt);
                             }
                             if (itTgt->hp <= 0) {
-                                itTgt->hp = 0;
-                                itTgt->alive = false;
-
-                            // optional cleanup so dead units don't keep doing leftover animation state
-                            itTgt->isMoving = false;
-                            itTgt->attackTimerSec = 0.0f;
-                            itTgt->attackAnimSpeed = 1.0f;
-                            itTgt->currentAttackAnimIndex = itTgt->animAttack1Index;
-                            itTgt->pendingAttackAfterLanding = false;
-                            itTgt->queuedAttackDurationSec = 0.0f;
-                            itTgt->queuedAttackAnimIndex = -1;
-                            itTgt->chainedFastMove.clear();
-                            itTgt->fastChainTimerSec = 0.0f;
-                            itTgt->animIndexCache.clear();
-                        }
+                                handleUnitFaint(*itTgt);
+                            }
                     }
 
                     p.pendingDamageApplied = true;
@@ -621,21 +693,7 @@ void GameWorld::updateLeechSeedStatus(float dt)
             // Apply sap damage
             target.hp = std::max(0, target.hp - sap);
             if (target.hp <= 0) {
-                target.hp = 0;
-                target.alive = false;
-
-                target.isMoving = false;
-                target.attackTimerSec = 0.0f;
-                target.attackAnimSpeed = 1.0f;
-                target.currentAttackAnimIndex = target.animAttack1Index;
-                target.pendingAttackAfterLanding = false;
-                target.queuedAttackDurationSec = 0.0f;
-                target.queuedAttackAnimIndex = -1;
-                target.chainedFastMove.clear();
-                target.fastChainTimerSec = 0.0f;
-                target.animIndexCache.clear();
-
-                target.leechSeeded = false;
+                handleUnitFaint(target);
             }
 
             // VFX: drain dots to source

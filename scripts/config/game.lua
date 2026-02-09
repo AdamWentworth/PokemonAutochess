@@ -13,5 +13,11 @@ return {
         per_level_hp_boost = 0.22,
         per_level_attack_boost = 0.24,
         per_level_speed_boost = 0.07
+    },
+    xp = {
+        per_faint = 10,
+        level_base = 10,
+        level_growth = 1.35,
+        max_level = 0 -- 0 = no cap
     }
 }

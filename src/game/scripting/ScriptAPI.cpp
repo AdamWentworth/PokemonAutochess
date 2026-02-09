@@ -836,19 +836,7 @@ int ScriptAPI::applyDamage(int attackerId,
     }
 
     if (T->hp <= 0) {
-        T->hp = 0;
-        T->alive = false;
-
-        T->isMoving = false;
-        T->attackTimerSec = 0.0f;
-        T->attackAnimSpeed = 1.0f;
-        T->currentAttackAnimIndex = T->animAttack1Index;
-        T->pendingAttackAfterLanding = false;
-        T->queuedAttackDurationSec = 0.0f;
-        T->queuedAttackAnimIndex = -1;
-        T->chainedFastMove.clear();
-        T->fastChainTimerSec = 0.0f;
-        T->animIndexCache.clear();
+        world_->handleUnitFaint(*T);
     }
 
     return T->hp;
