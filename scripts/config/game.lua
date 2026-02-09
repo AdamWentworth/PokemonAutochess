@@ -39,7 +39,7 @@ return {
         hp_factor_min = 0.40,
         hp_factor_max = 1.00,
         faint_bonus = 1.25,
-        ball_scale = 3,
-        ball_scale_start = 6.0
+        ball_scale = 5,
+        ball_scale_start = 15.0
     }
 }
