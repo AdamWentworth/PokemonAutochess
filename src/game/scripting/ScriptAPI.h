@@ -27,6 +27,14 @@ public:
     ScriptEventBus& events() const;
     const GameConfigData& config() const;
 
+    int getMoney() const;
+    void addMoney(int amount);
+    bool spendMoney(int amount);
+    int getItemCount(const std::string& item) const;
+    void addItem(const std::string& item, int amount = 1);
+    bool consumeItem(const std::string& item, int amount = 1);
+    float getPokemonCatchRate(const std::string& name) const;
+
     struct UnitSnapshot {
         int id = -1;
         std::string name;

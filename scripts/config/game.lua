@@ -24,5 +24,8 @@ return {
     faint = {
         fade_sec = 0.35,
         block_tile = false
+    },
+    economy = {
+        starting_cash = 3000
     }
 }

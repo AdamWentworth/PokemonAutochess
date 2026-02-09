@@ -96,15 +96,22 @@ void HealthBarRenderer::render(const std::vector<HealthBarData>& healthBars) {
     shader->setUniform("u_Projection", projection);
 
     for (const auto& hb : healthBars) {
-        const float width = 50.0f;
-        const float hpH   = 5.0f;
-        const float enH   = 4.0f;
-        const float yOffset = 20.0f;      // top of HP bar
-        const float gap     = 2.0f;       // space between HP and Energy bar
+        const float cellPx = (hb.cellPx > 0.0f) ? hb.cellPx : 50.0f;
+        const float width = cellPx * 0.45f;
+        const float hpH   = cellPx * 0.07f;
+        const float enH   = cellPx * 0.06f;
+        const float yOffset = cellPx * 0.35f;      // top of HP bar
+        const float gap     = cellPx * 0.03f;      // space between HP and Energy bar
+
+        const float ringOuter = cellPx * 0.155f;
+        const float ringInner = cellPx * 0.135f;
+        const float ringGap = cellPx * 0.035f;
+        const float ringPad = ringOuter + ringGap;
+        const float leftExtent = ringOuter + ringPad;
 
         glm::vec2 pos = hb.screenPosition;
-        pos.x -= width/2.0f;
-        pos.y -= yOffset;
+        pos.x = pos.x - (width - leftExtent) * 0.5f;
+        pos.y = pos.y - yOffset;
 
         // Background
         glm::mat4 modelBg = glm::translate(glm::mat4(1.0f), glm::vec3(pos, 0.0f));
@@ -144,10 +151,7 @@ void HealthBarRenderer::render(const std::vector<HealthBarData>& healthBars) {
 
         // ----- Level text + XP ring (player only), placed left of bars -----
         const float barH = hpH + gap + enH;
-        const float ringOuter = 12.0f;
-        const float ringInner = 9.0f;
-        const float ringPad = 6.0f;
-        glm::vec2 levelCenter = glm::vec2(pos.x - (ringOuter + ringPad), pos.y + barH * 0.5f - 1.5f);
+        glm::vec2 levelCenter = glm::vec2(pos.x - ringPad, pos.y + barH * 0.5f - cellPx * 0.02f);
 
         if (hb.showXP && hb.maxXP > 0) {
             float xFrac = std::clamp(static_cast<float>(hb.currentXP) / hb.maxXP, 0.0f, 1.0f);
@@ -159,11 +163,12 @@ void HealthBarRenderer::render(const std::vector<HealthBarData>& healthBars) {
 
         if (levelText) {
             const std::string lvl = std::to_string(std::max(1, hb.level));
-            const float w = levelText->measureTextWidth(lvl, 1.0f);
-            const float h = static_cast<float>(levelFontSize);
+            const float textScale = (ringInner * 1.35f) / std::max(1.0f, static_cast<float>(levelFontSize));
+            const float w = levelText->measureTextWidth(lvl, textScale);
+            const float h = static_cast<float>(levelFontSize) * textScale;
             const float tx = levelCenter.x - w * 0.5f;
-            const float ty = levelCenter.y - h * 0.5f + 2.5f;
-            levelText->renderText(lvl, tx, ty, glm::vec3(1.0f, 1.0f, 1.0f), 1.0f);
+            const float ty = levelCenter.y - h * 0.5f + cellPx * 0.03f;
+            levelText->renderText(lvl, tx, ty, glm::vec3(1.0f, 1.0f, 1.0f), textScale);
             // TextRenderer switches shader/blend state; restore for subsequent bars.
             shader->use();
             shader->setUniform("u_Projection", projection);

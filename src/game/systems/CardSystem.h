@@ -5,6 +5,7 @@
 #include <string>
 #include "engine/ui/Rect.h"
 #include "engine/ui/Card.h"   // Card + CardData used by the UI system
+#include "engine/ui/TextRenderer.h"
 
 class Shader;
 
@@ -14,6 +15,7 @@ public:
     ~CardSystem();
 
     void init();
+    void initOverlayText(const std::string& fontPath, int fontSize);
     void addCard(Card&& card);
     void update(float deltaTime);
     void render(int screenWidth, int screenHeight);
@@ -31,4 +33,6 @@ public:
 private:
     std::vector<Card> cards;
     Shader* cardShader = nullptr;
+    std::unique_ptr<TextRenderer> overlayText;
+    float overlayScale = 1.0f;
 };

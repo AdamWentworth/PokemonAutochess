@@ -40,6 +40,7 @@ bool PokemonConfigLoader::loadConfig(const std::string& filePath,
         stats.movementSpeed = data.value("movementSpeed", 1.0f);
         stats.model         = data.value("model", name + ".glb");
         stats.baseExp       = data.value("baseExp", stats.baseExp);
+        stats.catchRate     = data.value("catchRate", stats.catchRate);
 
         if (data.contains("types")) {
             const auto& t = data["types"];

@@ -83,6 +83,13 @@ public:
     const CombatBalance& getCombatBalance() const { return combatBalance; }
     void resetCombatBalance() { combatBalance = CombatBalance{}; }
 
+    int getMoney() const { return money; }
+    void addMoney(int amount);
+    bool spendMoney(int amount);
+    int getItemCount(const std::string& item) const;
+    void addItem(const std::string& item, int amount = 1);
+    bool consumeItem(const std::string& item, int amount = 1);
+
     // Impact VFX for grass-type attacks
     void emitGrassImpactAt(const PokemonInstance& target);
     // Impact VFX for tackle
@@ -111,6 +118,8 @@ private:
     CombatBalance combatBalance{};
     bool boardInteractionLocked = false;
     std::unordered_map<int, glm::vec3> battleStartPositions;
+    int money = 0;
+    std::unordered_map<std::string, int> items;
 
     glm::vec3 gridToWorld(int col, int row) const;
 

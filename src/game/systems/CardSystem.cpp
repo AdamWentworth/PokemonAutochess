@@ -18,6 +18,11 @@ void CardSystem::init() {
     cardShader = UIManager::getCardShader();
 }
 
+void CardSystem::initOverlayText(const std::string& fontPath, int fontSize) {
+    overlayText = std::make_unique<TextRenderer>(fontPath, fontSize);
+    overlayScale = 1.0f;
+}
+
 void CardSystem::addCard(Card&& card) {
     cards.push_back(std::move(card));
 }
@@ -51,6 +56,20 @@ void CardSystem::render(int screenWidth, int screenHeight) {
 
     // Restore previous depth state
     if (wasDepthTestEnabled) glEnable(GL_DEPTH_TEST);
+
+    if (overlayText) {
+        for (const auto& card : cards) {
+            const CardData& d = card.getData();
+            const ui::Rect rect = card.getRect();
+            const float pad = 6.0f;
+            if (d.level > 0) {
+                const std::string lvl = "Lv" + std::to_string(d.level);
+                overlayText->renderText(lvl, rect.x + pad, rect.y + pad, glm::vec3(1.0f, 1.0f, 1.0f), overlayScale);
+            } else if (!d.label.empty()) {
+                overlayText->renderText(d.label, rect.x + pad, rect.y + pad, glm::vec3(1.0f, 1.0f, 1.0f), overlayScale);
+            }
+        }
+    }
 }
 
 std::optional<CardData> CardSystem::handleMouseClick(int mouseX, int mouseY) {
@@ -89,7 +108,10 @@ void CardSystem::spawnCardRowLayout(const std::vector<CardData>& cardDatas,
 
     for (size_t i = 0; i < cardDatas.size(); ++i) {
         const CardData& data = cardDatas[i];
-        std::string imagePath = "assets/images/" + data.pokemonName + ".png";
+        std::string imagePath = data.imagePath;
+        if (imagePath.empty()) {
+            imagePath = "assets/images/" + data.pokemonName + ".png";
+        }
 
         ui::Rect rect = {
             startX + static_cast<int>(i) * (cardWidth + spacing),

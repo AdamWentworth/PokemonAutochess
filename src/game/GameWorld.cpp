@@ -29,7 +29,9 @@
 #include "ui/HealthBarQuery.h"
 
 GameWorld::GameWorld(const GameConfigData& cfg)
-    : config(cfg) {}
+    : config(cfg) {
+    money = std::max(0, config.startingCash);
+}
 
 void GameWorld::applyLevelScaling(PokemonInstance& inst, int level, bool preserveHp) const {
     const auto& cfg = config;
@@ -227,6 +229,37 @@ void GameWorld::healPlayerUnitsToFull() {
     healList(benchPokemons);
 }
 
+void GameWorld::addMoney(int amount) {
+    if (amount <= 0) return;
+    money = std::max(0, money + amount);
+}
+
+bool GameWorld::spendMoney(int amount) {
+    if (amount <= 0) return true;
+    if (money < amount) return false;
+    money -= amount;
+    return true;
+}
+
+int GameWorld::getItemCount(const std::string& item) const {
+    auto it = items.find(item);
+    if (it == items.end()) return 0;
+    return std::max(0, it->second);
+}
+
+void GameWorld::addItem(const std::string& item, int amount) {
+    if (item.empty() || amount <= 0) return;
+    items[item] = std::max(0, items[item] + amount);
+}
+
+bool GameWorld::consumeItem(const std::string& item, int amount) {
+    if (item.empty() || amount <= 0) return true;
+    auto it = items.find(item);
+    if (it == items.end() || it->second < amount) return false;
+    it->second -= amount;
+    return true;
+}
+
 void GameWorld::capturePlayerPositionsForBattle() {
     battleStartPositions.clear();
     auto capture = [&](const std::vector<PokemonInstance>& list) {
@@ -246,6 +279,7 @@ void GameWorld::restorePlayerPositionsAfterBattle() {
             auto it = battleStartPositions.find(u.id);
             if (it == battleStartPositions.end()) continue;
             u.position = it->second;
+            u.rotation.y = 180.0f;
             u.isMoving = false;
             u.moveT = 1.0f;
             u.committedDest = {-1, -1};

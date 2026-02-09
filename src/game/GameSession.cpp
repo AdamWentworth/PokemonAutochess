@@ -271,12 +271,11 @@ struct GameSession::Impl {
         if (!renderEnabled) return;
         if (board && camera) board->draw(*camera);
         if (gameWorld && camera && board) gameWorld->drawAll(*camera, *board);
-        if (stateManager) stateManager->render();
-
         if (gameWorld && camera) {
             auto healthBarData = gameWorld->getHealthBarData(*camera, drawableW, drawableH);
             healthBarRenderer.render(healthBarData);
         }
+        if (stateManager) stateManager->render();
 
         if (shopSystem) shopSystem->renderUI(drawableW, drawableH);
         if (battleFeed) battleFeed->render(drawableW, drawableH);

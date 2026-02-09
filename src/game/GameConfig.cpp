@@ -133,6 +133,11 @@ GameConfigData GameConfig::load(LogBus::Logger* logger, const engine::IAssetStor
         cfg.faintBlockTiles = faint.get_or("block_tile", cfg.faintBlockTiles);
     }
 
+    sol::table economy = t["economy"];
+    if (economy.valid()) {
+        cfg.startingCash = economy.get_or("starting_cash", cfg.startingCash);
+    }
+
     applyFontPathDefaults(cfg);
 
     cfg.loadOk = true;

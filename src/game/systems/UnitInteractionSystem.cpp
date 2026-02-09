@@ -42,7 +42,7 @@ bool UnitInteractionSystem::isInBenchZone(const glm::vec3& pos) const {
 }
 
 bool UnitInteractionSystem::isInBoardZone(const glm::vec3& pos) const {
-    return pos.z >= (cellSize * 0.5f) && pos.z <= (cellSize * 3.5f);
+    return pos.z >= (cellSize * 0.5f) && pos.z <= (cellSize * 4.0f);
 }
 
 bool UnitInteractionSystem::isSameCell(const glm::vec3& a, const glm::vec3& b, float eps) const {

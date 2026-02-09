@@ -91,6 +91,29 @@ void registerLuaBindings_Core(sol::state& lua, ScriptAPI& api) {
     });
     lua.set_function("pop_state", [&api]() { api.popState(); });
 
+    // ---- Economy + items ----
+    lua.set_function("get_money", [&api]() {
+        return api.getMoney();
+    });
+    lua.set_function("add_money", [&api](int amount) {
+        api.addMoney(amount);
+    });
+    lua.set_function("spend_money", [&api](int amount) {
+        return api.spendMoney(amount);
+    });
+    lua.set_function("get_item_count", [&api](const std::string& item) {
+        return api.getItemCount(item);
+    });
+    lua.set_function("add_item", [&api](const std::string& item, sol::optional<int> amount) {
+        api.addItem(item, amount.value_or(1));
+    });
+    lua.set_function("consume_item", [&api](const std::string& item, sol::optional<int> amount) {
+        return api.consumeItem(item, amount.value_or(1));
+    });
+    lua.set_function("get_pokemon_catch_rate", [&api](const std::string& name) {
+        return api.getPokemonCatchRate(name);
+    });
+
     // =================================================================
     // World/Unit inspection & mutation for Lua systems
     // =================================================================

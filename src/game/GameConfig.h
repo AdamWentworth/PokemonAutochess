@@ -30,6 +30,9 @@ struct GameConfigData {
     int xpMaxLevel = 0; // 0 = no cap
     float xpYieldMult = 1.0f;
 
+    // economy
+    int startingCash = 3000;
+
     // fainting visuals + tile blocking
     float faintFadeSec = 0.35f;
     bool  faintBlockTiles = false;

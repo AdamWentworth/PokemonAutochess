@@ -5,6 +5,7 @@
 #include <glm/gtc/matrix_transform.hpp> // glm::project
 #include <algorithm>
 #include <cmath>
+#include <limits>
 
 #include "engine/render/Camera3D.h"
 #include "game/PokemonInstance.h"
@@ -41,6 +42,12 @@ std::vector<HealthBarData> BuildHealthBarData(
             camera.getProjectionMatrix(),
             viewport
         );
+        const glm::vec3 screenPosX = glm::project(
+            worldPos + glm::vec3(config.cellSize, 0.0f, 0.0f),
+            camera.getViewMatrix(),
+            camera.getProjectionMatrix(),
+            viewport
+        );
 
         // screenPos.z is in [0,1] when in front of camera after projection.
         if (screenPos.z > 1.0f) return;
@@ -58,6 +65,9 @@ std::vector<HealthBarData> BuildHealthBarData(
         hb.level         = std::max(1, instance.level);
         hb.currentXP     = instance.xp;
         hb.maxXP         = hb.showXP ? xpToNextLevel(config, instance.level) : 0;
+        float cellPx = glm::length(glm::vec2(screenPosX.x - screenPos.x, screenPosX.y - screenPos.y));
+        if (!std::isfinite(cellPx) || cellPx <= 0.001f) cellPx = 50.0f;
+        hb.cellPx = cellPx;
         data.push_back(hb);
     };
 

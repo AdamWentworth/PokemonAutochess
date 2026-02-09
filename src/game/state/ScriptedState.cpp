@@ -27,38 +27,54 @@ void ScriptedState::rebuildCardRow() {
     sol::table S = script.getScriptTable();
     sol::protected_function f;
 
+    auto buildList = [&](sol::protected_function fn, std::vector<CardData>& out) {
+        out.clear();
+        if (!fn.valid()) return false;
+
+        sol::protected_function_result r = fn();
+        if (!(r.valid() && r.get_type() == sol::type::table)) {
+            std::cerr << "[ScriptedState] card list function did not return a table\n";
+            return false;
+        }
+
+        sol::table t = r;
+        for (auto&& kv : t) {
+            sol::table row = kv.second.as<sol::table>();
+            CardData cd;
+
+            auto nameOpt = row.get<sol::optional<std::string>>("name");
+            cd.pokemonName = nameOpt.value_or(std::string());
+
+            auto costOpt = row.get<sol::optional<int>>("cost");
+            cd.cost = costOpt.value_or(0);
+
+            auto levelOpt = row.get<sol::optional<int>>("level");
+            cd.level = levelOpt.value_or(0);
+
+            auto labelOpt = row.get<sol::optional<std::string>>("label");
+            cd.label = labelOpt.value_or(std::string());
+
+            auto imageOpt = row.get<sol::optional<std::string>>("image");
+            cd.imagePath = imageOpt.value_or(std::string());
+
+            auto typeOpt = row.get<sol::optional<std::string>>("type");
+            std::string ty = typeOpt.value_or(std::string("Shop"));
+            if (ty == "Starter") cd.type = CardType::Starter;
+            else if (ty == "Item") cd.type = CardType::Item;
+            else cd.type = CardType::Shop;
+
+            if (!cd.pokemonName.empty() || !cd.label.empty()) out.push_back(cd);
+        }
+        return true;
+    };
+
+    std::vector<CardData> list;
     if (cardMode == CardMode::Shop) {
         f = S["get_shop_cards"];
     } else if (cardMode == CardMode::Starter) {
         f = S["get_starter_cards"];
     }
-
-    if (!f.valid()) return;
-
-    sol::protected_function_result r = f();
-    if (!(r.valid() && r.get_type() == sol::type::table)) {
-        std::cerr << "[ScriptedState] card list function did not return a table\n";
-        return;
-    }
-
-    std::vector<CardData> list;
-    sol::table t = r;
-    for (auto&& kv : t) {
-        sol::table row = kv.second.as<sol::table>();
-        CardData cd;
-
-        auto nameOpt = row.get<sol::optional<std::string>>("name");
-        cd.pokemonName = nameOpt.value_or(std::string());
-
-        auto costOpt = row.get<sol::optional<int>>("cost");
-        cd.cost = costOpt.value_or(0);
-
-        auto typeOpt = row.get<sol::optional<std::string>>("type");
-        std::string ty = typeOpt.value_or(std::string("Shop"));
-        cd.type = (ty == "Starter") ? CardType::Starter : CardType::Shop;
-
-        if (!cd.pokemonName.empty()) list.push_back(cd);
-    }
+    if (!buildList(f, list)) return;
 
     const auto* viewport = services.viewport;
     const int uiW = viewport ? viewport->width : 1280;
@@ -70,6 +86,17 @@ void ScriptedState::rebuildCardRow() {
         const int margin = 40;
         const int y = std::max(0, uiH - cardH - margin);
         cardSystem.spawnCardRowLayout(list, uiW, y, cardW, cardH, spacing);
+        if (hasShopItems) {
+            sol::protected_function itemFn = S["get_shop_items"];
+            std::vector<CardData> items;
+            if (buildList(itemFn, items)) {
+                const int itemW = 120;
+                const int itemH = 80;
+                const int itemSpacing = 16;
+                const int itemY = std::max(0, y - itemH - 12);
+                itemCardSystem.spawnCardRowLayout(items, uiW, itemY, itemW, itemH, itemSpacing);
+            }
+        }
     } else {
         cardSystem.spawnCardRow(list, uiW, /*y*/ 300);
     }
@@ -91,6 +118,7 @@ void ScriptedState::ensureCardUI() {
     bool hasShopClick = S["on_shop_card_click"].valid() || S["on_card_click"].valid() || S["onCardClick"].valid();
     bool hasStarterCards = S["get_starter_cards"].valid();
     bool hasStarterClick = S["on_card_click"].valid() || S["onCardClick"].valid();
+    hasShopItems = S["get_shop_items"].valid() && S["on_shop_item_click"].valid();
 
     if (hasShopCards && hasShopClick) {
         cardMode = CardMode::Shop;
@@ -104,6 +132,11 @@ void ScriptedState::ensureCardUI() {
 
     cardSystem.init();
     const auto& c = services.config;
+    cardSystem.initOverlayText(c.fontPath, std::max(14, c.fontSize / 3));
+    if (hasShopItems) {
+        itemCardSystem.init();
+        itemCardSystem.initOverlayText(c.fontPath, std::max(14, c.fontSize / 3));
+    }
     titleText = std::make_unique<TextRenderer>(c.fontPath, c.fontSize);
 
     rebuildCardRow();
@@ -154,7 +187,7 @@ void ScriptedState::handleInput(const InputEvent& event) {
                 if (!onClick.valid()) onClick = S["on_card_click"];
                 if (!onClick.valid()) onClick = S["onCardClick"];
                 if (onClick.valid()) {
-                    onClick(clicked->pokemonName);
+                    onClick(clicked->pokemonName, clicked->level);
                 }
                 script.flushCommands();
                 rebuildCardRow();
@@ -170,6 +203,17 @@ void ScriptedState::handleInput(const InputEvent& event) {
                     stateManager->pushState(std::make_unique<PlacementState>(
                         stateManager, gameWorld, services, clicked->pokemonName));
                 }
+            }
+        }
+        if (cardMode == CardMode::Shop && hasShopItems) {
+            auto itemClicked = itemCardSystem.handleMouseClick(event.mouseX, event.mouseY);
+            if (itemClicked) {
+                sol::function onItemClick = S["on_shop_item_click"];
+                if (onItemClick.valid()) {
+                    onItemClick(itemClicked->pokemonName, itemClicked->cost);
+                }
+                script.flushCommands();
+                rebuildCardRow();
             }
         }
     }
@@ -232,4 +276,7 @@ void ScriptedState::render() {
     }
 
     cardSystem.render(uiW, uiH);
+    if (cardMode == CardMode::Shop && hasShopItems) {
+        itemCardSystem.render(uiW, uiH);
+    }
 }

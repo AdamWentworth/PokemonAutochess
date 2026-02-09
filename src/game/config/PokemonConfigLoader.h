@@ -24,6 +24,7 @@ struct PokemonStats {
     std::string model;
     std::vector<std::string> types;
     int baseExp = 50;
+    float catchRate = 0.5f;
 
     // loadoutByLevel[level] -> LoadoutEntry
     std::map<int, LoadoutEntry> loadoutByLevel;

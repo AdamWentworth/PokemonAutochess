@@ -49,6 +49,42 @@ LogBus::Logger& ScriptAPI::logger() const { return services_.log; }
 ScriptEventBus& ScriptAPI::events() const { return services_.events; }
 const GameConfigData& ScriptAPI::config() const { return services_.config; }
 
+int ScriptAPI::getMoney() const {
+    return world_ ? world_->getMoney() : 0;
+}
+
+void ScriptAPI::addMoney(int amount) {
+    if (!world_) return;
+    world_->addMoney(amount);
+}
+
+bool ScriptAPI::spendMoney(int amount) {
+    if (!world_) return false;
+    return world_->spendMoney(amount);
+}
+
+int ScriptAPI::getItemCount(const std::string& item) const {
+    if (!world_) return 0;
+    return world_->getItemCount(item);
+}
+
+void ScriptAPI::addItem(const std::string& item, int amount) {
+    if (!world_) return;
+    world_->addItem(item, amount);
+}
+
+bool ScriptAPI::consumeItem(const std::string& item, int amount) {
+    if (!world_) return false;
+    return world_->consumeItem(item, amount);
+}
+
+float ScriptAPI::getPokemonCatchRate(const std::string& name) const {
+    const std::string key = toLowerCopy(name);
+    const PokemonStats* ps = services_.dataDb.pokemon.getStats(key);
+    if (!ps) return 0.0f;
+    return std::clamp(ps->catchRate, 0.0f, 1.0f);
+}
+
 std::vector<ScriptAPI::UnitSnapshot> ScriptAPI::listUnits() const {
     std::vector<UnitSnapshot> out;
     if (!world_) return out;
@@ -513,6 +549,17 @@ void ScriptAPI::applyCommand(const Command& cmd) {
         if (!world_) return;
         auto* u = world_->findUnitById(c.unitId);
         if (!u || !u->alive) return;
+        const glm::ivec2 target{c.col, c.row};
+        for (const auto& other : world_->getPokemons()) {
+            if (!other.alive) continue;
+            if (other.id == u->id) continue;
+
+            const auto oc = worldToGrid(config(), other.position);
+            if (oc == target) return;
+            if (other.committedDest.x >= 0 && other.committedDest.y >= 0) {
+                if (other.committedDest == target) return;
+            }
+        }
         u->committedDest = {c.col, c.row};
         u->moveFrom = u->position;
         u->moveTo = gridToWorld(config(), c.col, c.row);

@@ -11,12 +11,16 @@ class Shader;
 enum class CardType {
     Starter,
     Shop,
-    Bench
+    Bench,
+    Item
 };
 
 struct CardData {
     std::string pokemonName;
     int cost = 0;
+    int level = 0;
+    std::string label;
+    std::string imagePath;
     CardType type = CardType::Shop;
 };
 

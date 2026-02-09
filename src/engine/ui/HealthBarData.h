@@ -13,4 +13,5 @@ struct HealthBarData {
     bool showXP;
     bool isEnemy = false;
     int level = 1;
+    float cellPx = 0.0f;
 };
