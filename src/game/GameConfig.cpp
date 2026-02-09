@@ -127,6 +127,12 @@ GameConfigData GameConfig::load(LogBus::Logger* logger, const engine::IAssetStor
         cfg.xpYieldMult   = xp.get_or("yield_mult", cfg.xpYieldMult);
     }
 
+    sol::table faint = t["faint"];
+    if (faint.valid()) {
+        cfg.faintFadeSec = faint.get_or("fade_sec", cfg.faintFadeSec);
+        cfg.faintBlockTiles = faint.get_or("block_tile", cfg.faintBlockTiles);
+    }
+
     applyFontPathDefaults(cfg);
 
     cfg.loadOk = true;

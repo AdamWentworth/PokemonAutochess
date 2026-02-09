@@ -84,7 +84,7 @@ public:
     // Impact VFX for grass-type attacks
     void emitGrassImpactAt(const PokemonInstance& target);
     // Impact VFX for tackle
-    void emitTackleImpactAt(const PokemonInstance& target);
+    void emitTackleImpactAt(const PokemonInstance& target, const PokemonInstance* attacker = nullptr);
 
     // Apply leech seed status on hit
     void applyLeechSeed(int attackerId, int targetId);
@@ -110,6 +110,8 @@ private:
     void addXp(PokemonInstance& unit, int amount);
     int xpToNextLevel(int level) const;
     int xpFromFaint(const PokemonInstance& dead) const;
+    void beginFaint(PokemonInstance& target);
+    void updateFaint(PokemonInstance& target, float dt);
 
 private:
     // Shared loop clock: keeps idle/walk animations in sync across all units.

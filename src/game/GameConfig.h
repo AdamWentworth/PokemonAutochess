@@ -30,6 +30,10 @@ struct GameConfigData {
     int xpMaxLevel = 0; // 0 = no cap
     float xpYieldMult = 1.0f;
 
+    // fainting visuals + tile blocking
+    float faintFadeSec = 0.35f;
+    bool  faintBlockTiles = false;
+
     // ---- New: load diagnostics (non-breaking additions) ----
     bool loadOk = true;                // false if config failed to load/execute/parse
     std::string loadSource;            // resolved path attempted

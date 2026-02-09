@@ -67,6 +67,8 @@ std::vector<ScriptAPI::UnitSnapshot> ScriptAPI::listUnits() const {
         s.col = cell.x;
         s.row = cell.y;
         s.alive = u.alive;
+        s.fainting = u.fainting;
+        s.blocksTile = u.alive || (u.fainting && config().faintBlockTiles);
         s.fastMove = u.fastMove;
         s.chargedMove = u.chargedMove;
         s.types = u.types;
@@ -93,6 +95,8 @@ std::optional<ScriptAPI::UnitSnapshot> ScriptAPI::getUnitSnapshot(int unitId) co
     s.col = cell.x;
     s.row = cell.y;
     s.alive = u->alive;
+    s.fainting = u->fainting;
+    s.blocksTile = u->alive || (u->fainting && config().faintBlockTiles);
     s.fastMove = u->fastMove;
     s.chargedMove = u->chargedMove;
     s.types = u->types;
@@ -834,7 +838,7 @@ int ScriptAPI::applyDamage(int attackerId,
         world_->emitGrassImpactAt(*T);
     }
     if (dmg > 0 && isTackle) {
-        world_->emitTackleImpactAt(*T);
+        world_->emitTackleImpactAt(*T, &(*A));
     }
     if (traceCombat) {
         trlog(std::string("damage_result hp_after=") + std::to_string(T->hp) +

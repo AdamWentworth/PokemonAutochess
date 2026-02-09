@@ -95,10 +95,10 @@ end
 local function k(col,row) return (row<<16) | (col & 0xFFFF) end
 
 -- Build blocked set from current unit positions + current reservations
-local function build_blocked(reserved, units)
+local function build_blocked(reserved, blockers)
   local set = {}
   -- block current unit cells
-  for _,u in ipairs(units) do
+  for _,u in ipairs(blockers) do
     set[k(u.col,u.row)] = true
   end
   -- block already-reserved cells this frame
@@ -119,8 +119,14 @@ function movement_update(dt)
 
   -- Prepare enriched list (ignore dead)
   local units = {}
+  local blockers = {}
   for i=1,#units_tbl do
     local u = units_tbl[i]
+    local blocks = u.blocksTile
+    if blocks == nil then blocks = u.alive end
+    if blocks then
+      table.insert(blockers, { col = u.col, row = u.row })
+    end
     if u.alive then
       local ec, er = world_nearest_enemy_cell(u.id)
       local dist = math.huge
@@ -149,7 +155,7 @@ function movement_update(dt)
       reserved[k(u.col,u.row)] = u.id
     else
       -- Block both current unit positions and already reserved cells
-      local blocked = build_blocked(reserved, units)
+      local blocked = build_blocked(reserved, blockers)
 
       -- A* toward adjacency
       local path = {}

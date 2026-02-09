@@ -13,35 +13,62 @@ class Camera3D;
 class TackleImpactVFX {
 public:
     struct Config {
-        int minParticles = 4;
-        int maxParticles = 7;
+        // Burst (comic "smack" shape)
+        int burstMinParticles = 1;
+        int burstMaxParticles = 1;
 
-        float spawnRadius = 0.08f;
-        float impactYOffset = 0.30f;
+        float burstSpawnRadius = 0.06f;
+        float burstImpactYOffset = 0.26f;
+        float impactEdgeOffset = 1.0f;
 
-        float minSpeed = 0.4f;
-        float maxSpeed = 1.1f;
+        float burstMinSpeed = 0.05f;
+        float burstMaxSpeed = 0.35f;
 
-        float minLifeSec = 0.20f;
-        float maxLifeSec = 0.45f;
+        float burstMinLifeSec = 0.10f;
+        float burstMaxLifeSec = 0.22f;
 
-        float minSize = 0.10f;
-        float maxSize = 0.22f;
+        float burstMinSize = 0.55f;
+        float burstMaxSize = 0.95f;
 
-        float minUpward = 0.20f;
-        float maxUpward = 0.70f;
+        float burstMinUpward = 0.05f;
+        float burstMaxUpward = 0.65f;
+
+        bool  enableSecondary = true;
+        float secondarySizeScale = 0.80f;
+        float secondaryLifeScale = 0.90f;
+        float secondarySpeedScale = 0.85f;
 
         std::string vertShaderPath = "assets/shaders/vfx/particle.vert";
-        std::string fragShaderPath = "assets/shaders/vfx/splat_impact.frag";
+        std::string burstFragShaderPath = "assets/shaders/vfx/splat_impact.frag";
+        std::string sparkFragShaderPath = "assets/shaders/vfx/impact_spark.frag";
 
-        ParticleSystem::BlendMode blend = ParticleSystem::BlendMode::Alpha;
-        bool depthTest  = true;
-        bool depthWrite = false;
+        ParticleSystem::BlendMode burstBlend = ParticleSystem::BlendMode::Additive;
+        bool burstDepthTest  = true;
+        bool burstDepthWrite = false;
 
-        glm::vec3 acceleration = glm::vec3(0.0f, -2.0f, 0.0f);
-        float dampingBase = 0.40f;
+        glm::vec3 burstAcceleration = glm::vec3(0.0f, -0.8f, 0.0f);
+        float burstDampingBase = 0.55f;
 
-        float pointScale = 420.0f;
+        float burstPointScale = 620.0f;
+
+        // Sparks (small, fast dots)
+        int   sparkMinParticles = 8;
+        int   sparkMaxParticles = 14;
+        float sparkSpawnRadius = 0.03f;
+        float sparkMinSpeed = 1.4f;
+        float sparkMaxSpeed = 3.4f;
+        float sparkMinLifeSec = 0.07f;
+        float sparkMaxLifeSec = 0.14f;
+        float sparkMinSize = 0.040f;
+        float sparkMaxSize = 0.090f;
+        float sparkMinUpward = 0.05f;
+        float sparkMaxUpward = 0.90f;
+        glm::vec3 sparkAcceleration = glm::vec3(0.0f, -7.2f, 0.0f);
+        float sparkDampingBase = 0.22f;
+        float sparkPointScale = 460.0f;
+        ParticleSystem::BlendMode sparkBlend = ParticleSystem::BlendMode::Additive;
+        bool sparkDepthTest  = true;
+        bool sparkDepthWrite = false;
     };
 
 public:
@@ -51,6 +78,8 @@ public:
         cfg = c;
         configured = false;
     }
+
+    const Config& getConfig() const { return cfg; }
 
     void update(float dt);
     void render(const Camera3D& camera);
@@ -63,7 +92,8 @@ private:
     float randRange(float a, float b);
 
 private:
-    ParticleSystem particles;
+    ParticleSystem burstParticles;
+    ParticleSystem sparkParticles;
     Config cfg{};
     bool configured = false;
 

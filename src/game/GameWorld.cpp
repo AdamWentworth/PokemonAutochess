@@ -165,6 +165,28 @@ void GameWorld::awardXpForFaint(const PokemonInstance& dead) {
     }
 }
 
+void GameWorld::beginFaint(PokemonInstance& target) {
+    if (target.fainting) return;
+
+    target.fainting = true;
+    target.faintTimerSec = 0.0f;
+    target.fadeOutSec = std::max(0.0f, config.faintFadeSec);
+    target.fadeOutTimerSec = target.fadeOutSec;
+    target.visualScale = 1.0f;
+
+    if (target.animFaintIndex >= 0) {
+        target.activeAnimIndex = target.animFaintIndex;
+        target.currentAttackAnimIndex = target.animFaintIndex;
+        target.animTimeSec = 0.0f;
+        target.attackAnimSpeed = 1.0f;
+        if (target.faintAnimDurationSec <= 0.0f && target.model) {
+            target.faintAnimDurationSec = target.model->getAnimationDurationSec(target.animFaintIndex);
+        }
+    } else {
+        target.faintAnimDurationSec = 0.0f;
+    }
+}
+
 void GameWorld::handleUnitFaint(PokemonInstance& target) {
     if (!target.alive) return;
 
@@ -187,7 +209,43 @@ void GameWorld::handleUnitFaint(PokemonInstance& target) {
     target.leechSeedTimeLeftSec = 0.0f;
     target.leechSeedTickTimerSec = 0.0f;
 
+    beginFaint(target);
     awardXpForFaint(target);
+}
+
+void GameWorld::updateFaint(PokemonInstance& target, float dt) {
+    if (!target.fainting || !target.model) return;
+
+    target.faintTimerSec += dt;
+
+    const float dur = std::max(0.0f, target.faintAnimDurationSec);
+    if (target.animFaintIndex >= 0) {
+        const float clipDur = target.model->getAnimationDurationSec(target.animFaintIndex);
+        const float clampDur = (clipDur > 0.0f) ? clipDur : dur;
+        if (clampDur > 0.0f) {
+            target.animTimeSec = std::min(target.animTimeSec + dt, clampDur - 0.0001f);
+        } else {
+            target.animTimeSec += dt;
+        }
+    }
+
+    const bool animDone = (dur <= 0.0f) || (target.faintTimerSec >= dur);
+    if (!animDone) return;
+
+    if (target.fadeOutSec <= 0.0f) {
+        target.visualScale = 0.0f;
+        target.fainting = false;
+        return;
+    }
+
+    target.fadeOutTimerSec = std::max(0.0f, target.fadeOutTimerSec - dt);
+    const float t = 1.0f - (target.fadeOutTimerSec / target.fadeOutSec);
+    target.visualScale = std::clamp(1.0f - t, 0.0f, 1.0f);
+
+    if (target.fadeOutTimerSec <= 0.0f) {
+        target.visualScale = 0.0f;
+        target.fainting = false;
+    }
 }
 
 void GameWorld::spawnPokemon(const std::string& pokemonName,
@@ -366,7 +424,12 @@ void GameWorld::update(float dt)
     sharedLoopAnimTimeSec += dt;
 
     auto tickPokemonAnim = [&](PokemonInstance& p) {
-        if (!p.alive || !p.model) return;
+        if (!p.model) return;
+        if (p.fainting) {
+            updateFaint(p, dt);
+            return;
+        }
+        if (!p.alive) return;
 
         p.fastChainTimerSec = std::max(0.0f, p.fastChainTimerSec - dt);
 
@@ -473,7 +536,7 @@ void GameWorld::update(float dt)
                                 emitGrassImpactAt(*itTgt);
                             }
                             if (dmg > 0 && p.pendingDamageIsTackle) {
-                                emitTackleImpactAt(*itTgt);
+                                emitTackleImpactAt(*itTgt, &p);
                             }
                             if (itTgt->hp <= 0) {
                                 handleUnitFaint(*itTgt);
@@ -600,9 +663,10 @@ void GameWorld::drawAll(const Camera3D& camera, BoardRenderer& boardRenderer)
 
     auto drawPokemonList = [&](const std::vector<PokemonInstance>& list) {
         for (const auto& instance : list) {
-            if (!instance.alive || !instance.model) continue;
+            if (!instance.model) continue;
+            if (!instance.alive && !instance.fainting) continue;
 
-            float scaleFactor = instance.model->getScaleFactor();
+            float scaleFactor = instance.model->getScaleFactor() * std::max(0.0f, instance.visualScale);
 
             glm::mat4 scale = glm::scale(glm::mat4(1.0f), glm::vec3(scaleFactor));
             glm::mat4 rotationX = glm::rotate(glm::mat4(1.0f), glm::radians(instance.rotation.x), glm::vec3(1, 0, 0));
@@ -663,7 +727,7 @@ void GameWorld::emitGrassImpactAt(const PokemonInstance& target)
     grassImpactVfx.emitAt(base);
 }
 
-void GameWorld::emitTackleImpactAt(const PokemonInstance& target)
+void GameWorld::emitTackleImpactAt(const PokemonInstance& target, const PokemonInstance* attacker)
 {
     if (!tackleImpactVfxInitialized) {
         TackleImpactVFX::Config c; // defaults
@@ -671,7 +735,22 @@ void GameWorld::emitTackleImpactAt(const PokemonInstance& target)
         tackleImpactVfxInitialized = true;
     }
 
-    const glm::vec3 base = target.position + glm::vec3(0.0f, target.visualYOffset, 0.0f);
+    glm::vec3 base = target.position + glm::vec3(0.0f, target.visualYOffset, 0.0f);
+
+    if (attacker && target.model && target.model->hasBounds()) {
+        glm::vec3 from = attacker->position + glm::vec3(0.0f, attacker->visualYOffset, 0.0f);
+        glm::vec3 dir = from - base;
+        dir.y = 0.0f;
+        const float len = glm::length(dir);
+        if (len > 0.0001f) {
+            dir /= len;
+            const float scale = target.model->getScaleFactor();
+            const float radius = target.model->getBoundsRadiusHorizontal();
+            const float edge = radius * scale * tackleImpactVfx.getConfig().impactEdgeOffset;
+            base += dir * edge;
+        }
+    }
+
     tackleImpactVfx.emitAt(base);
 }
 

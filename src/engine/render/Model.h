@@ -50,6 +50,13 @@ public:
 
     float getScaleFactor() const { return modelScaleFactor; }
 
+    // Approximate bounds (model space)
+    bool hasBounds() const { return boundsValid; }
+    glm::vec3 getBoundsMin() const { return boundsMin; }
+    glm::vec3 getBoundsMax() const { return boundsMax; }
+    float getBoundsRadius() const { return boundsRadius; }
+    float getBoundsRadiusHorizontal() const { return boundsRadiusHorizontal; }
+
     // Animated node global transform (MODEL SPACE)
     bool getNodeGlobalTransformByIndex(float animTimeSec,
                                        int animIndex,
@@ -98,6 +105,13 @@ private:
     int locExposure    = -1;
 
     float modelScaleFactor = 1.0f;
+
+    // Model-space bounds computed from vertex positions.
+    glm::vec3 boundsMin{0.0f};
+    glm::vec3 boundsMax{0.0f};
+    float boundsRadius = 0.0f;
+    float boundsRadiusHorizontal = 0.0f;
+    bool boundsValid = false;
 
     using NodeTRS          = pac_model_types::NodeTRS;
     using SkinData         = pac_model_types::SkinData;

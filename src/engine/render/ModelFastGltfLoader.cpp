@@ -1261,6 +1261,31 @@ struct FG {
         }
     }
 
+    // ---- Bounds (model space) ----
+    if (!vertices.empty()) {
+        boundsMin = glm::vec3(minX, minY, minZ);
+        boundsMax = glm::vec3(maxX, maxY, maxZ);
+        boundsValid = true;
+
+        const glm::vec3 ext = boundsMax - boundsMin;
+        boundsRadius = 0.5f * glm::length(ext);
+
+        // Pick the largest extent as "up", compute radius in the other two axes.
+        int upAxis = 0;
+        if (ext.y >= ext.x && ext.y >= ext.z) upAxis = 1;
+        else if (ext.z >= ext.x && ext.z >= ext.y) upAxis = 2;
+
+        float ex = ext.x, ey = ext.y, ez = ext.z;
+        if (upAxis == 0) boundsRadiusHorizontal = 0.5f * std::sqrt(ey * ey + ez * ez);
+        else if (upAxis == 1) boundsRadiusHorizontal = 0.5f * std::sqrt(ex * ex + ez * ez);
+        else boundsRadiusHorizontal = 0.5f * std::sqrt(ex * ex + ey * ey);
+    } else {
+        boundsMin = boundsMax = glm::vec3(0.0f);
+        boundsRadius = 0.0f;
+        boundsRadiusHorizontal = 0.0f;
+        boundsValid = false;
+    }
+
     // ---- Scale factor ----
     float desiredHeight = 0.8f;
     float denom = (maxZ - minZ);

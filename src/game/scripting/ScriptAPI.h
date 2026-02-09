@@ -39,6 +39,8 @@ public:
         int col = 0;
         int row = 0;
         bool alive = false;
+        bool fainting = false;
+        bool blocksTile = false;
         std::string fastMove;
         std::string chargedMove;
         std::vector<std::string> types;

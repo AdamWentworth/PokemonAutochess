@@ -285,6 +285,13 @@ void applyAnimSetOverrides(PokemonInstance& inst,
     inst.animAttack1Index  = fallbackLoop;
     inst.activeAnimIndex   = fallbackLoop;
     inst.attackDurationSec = 0.0f;
+    inst.animFaintIndex    = -1;
+    inst.faintAnimDurationSec = 0.0f;
+    inst.fainting          = false;
+    inst.faintTimerSec     = 0.0f;
+    inst.fadeOutSec        = 0.0f;
+    inst.fadeOutTimerSec   = 0.0f;
+    inst.visualScale       = 1.0f;
 
     inst.animFps          = 24.0f;
 
@@ -372,6 +379,11 @@ void applyAnimSetOverrides(PokemonInstance& inst,
 
     const RolePick landPick       = resolveRoleClip(j, "land",   "misc", {"land"}, false);
 
+    RolePick faintPick = resolveRoleClip(j, "faint", "status", {"down01_start", "down_start", "down01", "down"}, true);
+    if (!faintPick.valid) {
+        faintPick = resolveRoleClip(j, "down", "status", {"down01_start", "down_start", "down01", "down"}, true);
+    }
+
     if (idlePick.valid && !idlePick.clipName.empty()) {
         const int idx = resolveAnimIndex(inst.model.get(), idlePick.clipName);
         if (idx >= 0) inst.animIdleIndex = idx;
@@ -421,6 +433,17 @@ void applyAnimSetOverrides(PokemonInstance& inst,
             inst.attackDurationSec = atkPick.durationSec;
             if (inst.attackDurationSec <= 0.0f) {
                 inst.attackDurationSec = inst.model->getAnimationDurationSec(idx);
+            }
+        }
+    }
+
+    if (faintPick.valid && !faintPick.clipName.empty()) {
+        const int idx = resolveAnimIndex(inst.model.get(), faintPick.clipName);
+        if (idx >= 0) {
+            inst.animFaintIndex = idx;
+            inst.faintAnimDurationSec = faintPick.durationSec;
+            if (inst.faintAnimDurationSec <= 0.0f) {
+                inst.faintAnimDurationSec = inst.model->getAnimationDurationSec(idx);
             }
         }
     }

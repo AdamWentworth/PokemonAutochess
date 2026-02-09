@@ -12,6 +12,7 @@
 #include <functional>
 #include <cstdint>
 #include <cstddef>   // offsetof
+#include <limits>
 #include <vector>
 #include <string>
 #include <cstdlib>   // std::getenv
@@ -298,6 +299,39 @@ bool Model::tryLoadCache(const std::string& filepath)
             }
             if (hdr.indexCount > 0) {
                 if (!in.read(reinterpret_cast<char*>(indices.data()), indices.size() * sizeof(uint32_t))) return false;
+            }
+
+            // ---- Bounds (model space) ----
+            if (!vertices.empty()) {
+                float minX = std::numeric_limits<float>::max();
+                float minY = std::numeric_limits<float>::max();
+                float minZ = std::numeric_limits<float>::max();
+                float maxX = -minX, maxY = -minY, maxZ = -minZ;
+                for (const auto& v : vertices) {
+                    minX = (std::min)(minX, v.px); minY = (std::min)(minY, v.py); minZ = (std::min)(minZ, v.pz);
+                    maxX = (std::max)(maxX, v.px); maxY = (std::max)(maxY, v.py); maxZ = (std::max)(maxZ, v.pz);
+                }
+
+                boundsMin = glm::vec3(minX, minY, minZ);
+                boundsMax = glm::vec3(maxX, maxY, maxZ);
+                boundsValid = true;
+
+                const glm::vec3 ext = boundsMax - boundsMin;
+                boundsRadius = 0.5f * glm::length(ext);
+
+                int upAxis = 0;
+                if (ext.y >= ext.x && ext.y >= ext.z) upAxis = 1;
+                else if (ext.z >= ext.x && ext.z >= ext.y) upAxis = 2;
+
+                float ex = ext.x, ey = ext.y, ez = ext.z;
+                if (upAxis == 0) boundsRadiusHorizontal = 0.5f * std::sqrt(ey * ey + ez * ez);
+                else if (upAxis == 1) boundsRadiusHorizontal = 0.5f * std::sqrt(ex * ex + ez * ez);
+                else boundsRadiusHorizontal = 0.5f * std::sqrt(ex * ex + ey * ey);
+            } else {
+                boundsMin = boundsMax = glm::vec3(0.0f);
+                boundsRadius = 0.0f;
+                boundsRadiusHorizontal = 0.0f;
+                boundsValid = false;
             }
 
             // Submeshes + textures (upload textures to GL here)

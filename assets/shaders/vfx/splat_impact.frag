@@ -15,24 +15,38 @@ void main() {
     float r = length(uv);
     float ang = atan(uv.y, uv.x);
 
-    // Irregular edge "splat" shape
-    float wobble = 0.12 * sin(ang * 5.0 + vSeed * 6.2831853);
-    wobble += 0.06 * sin(ang * 11.0 + vSeed * 2.3);
-    float edge = 0.95 + wobble;
+    // Quick pop-in with subtle expansion
+    float grow = mix(0.55, 1.00, smoothstep(0.0, 0.30, age));
+    float r2 = r / grow;
 
-    float splat = smoothstep(edge, edge - 0.20, r);
-    float core = smoothstep(0.55, 0.0, r);
-    float shape = max(splat, core * 0.85);
+    float spikeCount = 10.0 + floor(hash1(vSeed * 31.7) * 4.0); // 10..13
+    float phase = vSeed * 6.2831853;
+    float spike = abs(sin(ang * spikeCount + phase));
+    spike = pow(spike, 0.75);
 
-    float fadeIn = smoothstep(0.0, 0.10, age);
-    float fadeOut = 1.0 - smoothstep(0.55, 1.0, age);
-    float alpha = shape * fadeIn * fadeOut;
+    // Radial streaks (muzzle-flash like)
+    float streak = smoothstep(0.65, 0.0, r2) * spike;
+    float core = smoothstep(0.75, 0.0, r2);
+
+    // Shock ring
+    float ringRadius = 0.70;
+    float ringWidth = 0.06;
+    float ring = smoothstep(ringRadius, ringRadius - 0.02, r2) -
+                 smoothstep(ringRadius - ringWidth, ringRadius - ringWidth - 0.02, r2);
+
+    float fadeIn = smoothstep(0.0, 0.06, age);
+    float fadeOut = 1.0 - smoothstep(0.35, 1.0, age);
+    float alpha = (core * 0.9 + streak * 0.9 + ring * 0.75) * fadeIn * fadeOut;
     if (alpha < 0.01) discard;
 
-    vec3 dark = vec3(0.40, 0.34, 0.28);
-    vec3 light = vec3(0.90, 0.82, 0.72);
-    float var = mix(0.85, 1.15, hash1(vSeed * 17.1));
-    vec3 color = mix(dark, light, core) * var;
+    // Warm white with faint red tint
+    vec3 hot = vec3(1.00, 0.96, 0.92);
+    vec3 warm = vec3(0.98, 0.78, 0.70);
+    float tint = clamp(r2 * 0.9, 0.0, 1.0);
+    vec3 color = mix(hot, warm, tint);
+
+    color *= 0.85; // less bright overall
+    alpha *= 0.80;
 
     FragColor = vec4(color, alpha);
 }

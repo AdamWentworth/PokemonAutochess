@@ -20,5 +20,9 @@ return {
         level_growth = 1.35,
         max_level = 0, -- 0 = no cap
         yield_mult = 1.0
+    },
+    faint = {
+        fade_sec = 0.35,
+        block_tile = false
     }
 }

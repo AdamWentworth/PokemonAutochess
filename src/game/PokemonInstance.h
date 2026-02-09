@@ -71,6 +71,15 @@ struct PokemonInstance {
     int maxEnergy = 100;
     int xp = 0;
 
+    // Fainting / removal visuals
+    bool  fainting = false;
+    float faintTimerSec = 0.0f;
+    float faintAnimDurationSec = 0.0f;
+    int   animFaintIndex = -1;
+    float fadeOutSec = 0.0f;
+    float fadeOutTimerSec = 0.0f;
+    float visualScale = 1.0f;
+
     // movement interpolation (used by your Lua bindings)
     bool isMoving = false;
     glm::vec3 moveFrom{0.0f};
