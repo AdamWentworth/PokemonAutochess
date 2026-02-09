@@ -16,6 +16,12 @@ struct EngineServices;
     - Add fields here deliberately (treat as public engine/game contract).
 */
 struct GameContext {
+    struct VideoMode {
+        int width = 1280;
+        int height = 720;
+        bool fullscreen = false;
+    };
+
     // Core render services (owned by engine)
     Renderer* renderer = nullptr;
     Camera3D* camera   = nullptr;
@@ -37,4 +43,8 @@ struct GameContext {
     // Loading / long task helpers
     std::function<bool()>                  pumpPreloadEvents;
     std::function<void(float /*progress01*/)> renderBootLoading;
+
+    // Runtime video controls (optional)
+    std::function<bool(int /*width*/, int /*height*/, bool /*fullscreen*/)> applyVideoMode;
+    std::function<VideoMode()> queryVideoMode;
 };

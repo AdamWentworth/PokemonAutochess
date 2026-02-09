@@ -155,6 +155,17 @@ struct GameSession::Impl {
         config = GameConfig::load(&log, assetStore.get());
         services = std::make_unique<GameServices>(config, dataDb, log, scriptEvents, *assetStore, rng, timeSource,
                                                   &ecsWorld, roundPhaseEntity, &viewport, renderEnabled);
+        services->applyVideoMode = ctx.applyVideoMode;
+        if (ctx.queryVideoMode) {
+            services->queryVideoMode = [q = ctx.queryVideoMode]() {
+                auto vm = q();
+                GameServices::VideoMode out;
+                out.width = vm.width;
+                out.height = vm.height;
+                out.fullscreen = vm.fullscreen;
+                return out;
+            };
+        }
         coreServices.rng = &services->rng;
         coreServices.time = &services->time;
 
@@ -267,7 +278,7 @@ struct GameSession::Impl {
             stateManager.get(),
             gameWorld.get(),
             *services,
-            engine::paths::data("scripts/states/starter.lua")
+            engine::paths::data("scripts/states/main_menu.lua")
         ));
 
         if (ctx.setTitle) ctx.setTitle("Pokemon Autochess");
@@ -275,6 +286,15 @@ struct GameSession::Impl {
     }
 
     void handleEvent(const InputEvent& event) {
+        if (event.type == InputEvent::Type::Resize) {
+            viewport.set(event.drawableW, event.drawableH);
+            if (unitSystem) {
+                unitSystem->setScreenSize(
+                    static_cast<unsigned int>(std::max(1, event.drawableW)),
+                    static_cast<unsigned int>(std::max(1, event.drawableH)));
+            }
+        }
+
         if (event.type == InputEvent::Type::MouseWheel) {
             itemInventoryUI.handleScroll(event.wheelY, viewport.height);
         }
@@ -301,23 +321,51 @@ struct GameSession::Impl {
 
     void render(int drawableW, int drawableH) {
         viewport.set(drawableW, drawableH);
-        if (!renderEnabled) return;
-        if (board && camera) board->draw(*camera);
-        if (gameWorld && camera && board) gameWorld->drawAll(*camera, *board);
-        if (gameWorld && camera) {
-            auto healthBarData = gameWorld->getHealthBarData(*camera, drawableW, drawableH);
-            healthBarRenderer.render(healthBarData);
+        if (unitSystem) {
+            unitSystem->setScreenSize(
+                static_cast<unsigned int>(std::max(1, drawableW)),
+                static_cast<unsigned int>(std::max(1, drawableH)));
+        }
+        bool renderWorld = true;
+        if (stateManager) {
+            if (auto* state = stateManager->getCurrentState()) {
+                renderWorld = state->shouldRenderWorld();
+            }
+        }
+        if (!renderEnabled) {
+            if (stateManager) stateManager->render();
+            return;
+        }
+        if (renderWorld) {
+            if (board && camera) board->draw(*camera);
+            if (gameWorld && camera && board) gameWorld->drawAll(*camera, *board);
+            if (gameWorld && camera) {
+                auto healthBarData = gameWorld->getHealthBarData(*camera, drawableW, drawableH);
+                healthBarRenderer.render(healthBarData);
+            }
         }
         if (stateManager) stateManager->render();
 
-        if (gameWorld) {
-            itemInventoryUI.updateFromWorld(*gameWorld, drawableW, drawableH);
-        }
-        itemInventoryUI.render(drawableW, drawableH);
+        if (renderWorld) {
+            if (gameWorld) {
+                itemInventoryUI.updateFromWorld(*gameWorld, drawableW, drawableH);
+            }
+            itemInventoryUI.render(drawableW, drawableH);
 
-        if (shopSystem) shopSystem->renderUI(drawableW, drawableH);
-        if (battleFeed) battleFeed->render(drawableW, drawableH);
-        if (catchFeed) catchFeed->render(drawableW, drawableH);
+            if (shopSystem) shopSystem->renderUI(drawableW, drawableH);
+            if (battleFeed) {
+                const float wrap = std::max(220.0f, std::min(640.0f, static_cast<float>(drawableW) * 0.42f));
+                battleFeed->setWrapWidth(wrap);
+                battleFeed->setPadding(16.0f, 16.0f);
+            }
+            if (catchFeed) {
+                const float wrap = std::max(180.0f, std::min(420.0f, static_cast<float>(drawableW) * 0.30f));
+                catchFeed->setWrapWidth(wrap);
+                catchFeed->setPadding(16.0f, 16.0f);
+            }
+            if (battleFeed) battleFeed->render(drawableW, drawableH);
+            if (catchFeed) catchFeed->render(drawableW, drawableH);
+        }
     }
 
     void shutdown() {

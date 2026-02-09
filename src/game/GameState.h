@@ -12,6 +12,7 @@ public:
     virtual void handleInput(const InputEvent& event) = 0;
     virtual void update(float deltaTime) = 0;
     virtual void render() = 0;
+    virtual bool shouldRenderWorld() const { return true; }
 };
 
 

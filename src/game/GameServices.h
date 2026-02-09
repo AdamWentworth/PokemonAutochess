@@ -7,6 +7,8 @@
 
 #include "game/GameConfig.h"
 #include "engine/core/ecs/Entity.h"
+#include <functional>
+#include <string>
 
 // Forward decls (keep headers light)
 struct GameDataDb;
@@ -18,6 +20,12 @@ namespace engine::ecs { class World; }
 namespace game::ui { struct UIViewport; }
 
 struct GameServices {
+    struct VideoMode {
+        int width = 1280;
+        int height = 720;
+        bool fullscreen = false;
+    };
+
     const GameConfigData& config;
     GameDataDb& dataDb;
     LogBus::Logger& log;
@@ -29,6 +37,9 @@ struct GameServices {
     engine::ecs::Entity combatStateEntity{};
     game::ui::UIViewport* viewport = nullptr;
     bool renderEnabled = false;
+    std::string gameMode = "classic";
+    std::function<bool(int, int, bool)> applyVideoMode;
+    std::function<VideoMode()> queryVideoMode;
 
     GameServices(const GameConfigData& cfg,
                  GameDataDb& db,

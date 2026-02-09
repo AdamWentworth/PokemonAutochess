@@ -34,6 +34,10 @@ public:
     void addItem(const std::string& item, int amount = 1);
     bool consumeItem(const std::string& item, int amount = 1);
     float getPokemonCatchRate(const std::string& name) const;
+    std::string getGameMode() const;
+    void setGameMode(const std::string& mode);
+    bool setVideoMode(int width, int height, bool fullscreen);
+    GameServices::VideoMode getVideoMode() const;
 
     struct UnitSnapshot {
         int id = -1;

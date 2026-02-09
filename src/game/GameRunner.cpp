@@ -123,6 +123,8 @@ namespace {
         void updateDrawableSizeAndViewport();
         void updateMouseScale();
         void updateCameraAspect();
+        bool applyVideoMode(int width, int height, bool fullscreenWanted);
+        GameContext::VideoMode queryVideoMode() const;
 
         void setTitle(const std::string& title);
         void swapBuffers();
@@ -148,6 +150,7 @@ namespace {
 
         int windowW = (int)START_W;
         int windowH = (int)START_H;
+        bool fullscreen = false;
 
         float mouseScaleX = 1.0f;
         float mouseScaleY = 1.0f;
@@ -172,6 +175,8 @@ namespace {
 
         updateDrawableSizeAndViewport();
         updateMouseScale();
+        const Uint32 flags = SDL_GetWindowFlags(window->getSDLWindow());
+        fullscreen = (flags & SDL_WINDOW_FULLSCREEN) != 0 || (flags & SDL_WINDOW_FULLSCREEN_DESKTOP) != 0;
 
         glEnable(GL_DEPTH_TEST);
 
@@ -241,8 +246,57 @@ namespace {
 
     void GameRunner::updateCameraAspect() {
         if (camera && drawableW > 0 && drawableH > 0) {
-            *camera = Camera3D(45.0f, float(drawableW) / float(drawableH), 0.1f, 100.0f);
+            camera->setAspectRatio(float(drawableW) / float(drawableH));
         }
+    }
+
+    bool GameRunner::applyVideoMode(int width, int height, bool fullscreenWanted) {
+        if (!window || !window->getSDLWindow()) return false;
+        SDL_Window* sdlWindow = window->getSDLWindow();
+
+        width = std::max(640, width);
+        height = std::max(360, height);
+
+        if (fullscreenWanted) {
+            SDL_DisplayMode mode{};
+            mode.w = width;
+            mode.h = height;
+            mode.format = SDL_PIXELFORMAT_UNKNOWN;
+            mode.refresh_rate = 0;
+            mode.driverdata = nullptr;
+            if (SDL_SetWindowDisplayMode(sdlWindow, &mode) != 0) {
+                std::cerr << "[Video] SDL_SetWindowDisplayMode failed: " << SDL_GetError() << "\n";
+            }
+            if (SDL_SetWindowFullscreen(sdlWindow, SDL_WINDOW_FULLSCREEN) != 0) {
+                std::cerr << "[Video] SDL_WINDOW_FULLSCREEN failed, trying desktop: " << SDL_GetError() << "\n";
+                if (SDL_SetWindowFullscreen(sdlWindow, SDL_WINDOW_FULLSCREEN_DESKTOP) != 0) {
+                    std::cerr << "[Video] SDL_WINDOW_FULLSCREEN_DESKTOP failed: " << SDL_GetError() << "\n";
+                    return false;
+                }
+            }
+            fullscreen = true;
+        } else {
+            if (SDL_SetWindowFullscreen(sdlWindow, 0) != 0) {
+                std::cerr << "[Video] Exiting fullscreen failed: " << SDL_GetError() << "\n";
+                return false;
+            }
+            SDL_SetWindowSize(sdlWindow, width, height);
+            SDL_SetWindowPosition(sdlWindow, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED);
+            fullscreen = false;
+        }
+
+        updateDrawableSizeAndViewport();
+        updateMouseScale();
+        updateCameraAspect();
+        return true;
+    }
+
+    GameContext::VideoMode GameRunner::queryVideoMode() const {
+        GameContext::VideoMode mode;
+        mode.width = std::max(1, drawableW);
+        mode.height = std::max(1, drawableH);
+        mode.fullscreen = fullscreen;
+        return mode;
     }
 
     void GameRunner::setTitle(const std::string& title) {
@@ -300,6 +354,13 @@ namespace {
         ctx.requestQuit = [&running]() { running = false; };
         ctx.pumpPreloadEvents = [this]() { return this->pumpPreloadEvents(); };
         ctx.renderBootLoading = [this](float p) { this->renderBootLoading(p); };
+        ctx.applyVideoMode = [this, &ctx](int width, int height, bool isFullscreen) {
+            const bool ok = this->applyVideoMode(width, height, isFullscreen);
+            ctx.drawableW = drawableW;
+            ctx.drawableH = drawableH;
+            return ok;
+        };
+        ctx.queryVideoMode = [this]() { return this->queryVideoMode(); };
 
         game.init(ctx);
 

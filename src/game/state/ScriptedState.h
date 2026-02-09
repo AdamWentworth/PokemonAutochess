@@ -2,6 +2,7 @@
 
 #include <memory>
 #include <string>
+#include <vector>
 
 #include "game/GameState.h"
 #include "game/GameWorld.h"
@@ -27,10 +28,12 @@ public:
     void handleInput(const InputEvent& event) override;
     void update(float deltaTime) override;
     void render() override;
+    bool shouldRenderWorld() const override { return renderWorld; }
 
 private:
     void ensureCardUI();
     void rebuildCardRow();
+    void rebuildTextMenu();
 
 private:
     GameStateManager* stateManager = nullptr;
@@ -44,7 +47,19 @@ private:
     CardSystem itemCardSystem;
     std::unique_ptr<TextRenderer> titleText;
     bool uiInitialized = false;
-    enum class CardMode { None, Starter, Shop };
+    enum class CardMode { None, Starter, Shop, TextMenu };
     CardMode cardMode = CardMode::None;
     bool hasShopItems = false;
+    bool hasTextMenu = false;
+    bool renderWorld = true;
+
+    struct TextMenuEntry {
+        std::string id;
+        std::string label;
+        float x = 0.0f;
+        float y = 0.0f;
+        float w = 0.0f;
+        float h = 0.0f;
+    };
+    std::vector<TextMenuEntry> textMenuEntries;
 };

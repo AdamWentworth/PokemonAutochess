@@ -48,6 +48,11 @@ bool UnitInteractionSystem::isInBoardZone(const glm::vec3& pos) const {
     return pos.z >= (cellSize * 0.5f) && pos.z <= (cellSize * 4.0f);
 }
 
+void UnitInteractionSystem::setScreenSize(unsigned int width, unsigned int height) {
+    screenW = (width > 0) ? width : 1;
+    screenH = (height > 0) ? height : 1;
+}
+
 bool UnitInteractionSystem::isSameCell(const glm::vec3& a, const glm::vec3& b, float eps) const {
     return (std::abs(a.x - b.x) <= eps) && (std::abs(a.z - b.z) <= eps);
 }

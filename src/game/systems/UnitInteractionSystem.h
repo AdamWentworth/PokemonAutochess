@@ -12,6 +12,7 @@
 class UnitInteractionSystem : public Updatable {
 public:
     UnitInteractionSystem(Camera3D* camera, GameWorld* world, unsigned int screenW, unsigned int screenH);
+    void setScreenSize(unsigned int width, unsigned int height);
 
     // Engine-owned input boundary (SDL-free)
     void handleInput(const InputEvent& event);

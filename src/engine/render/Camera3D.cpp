@@ -74,3 +74,9 @@ glm::mat4 Camera3D::getProjectionMatrix() const {
 glm::vec3 Camera3D::getDirection() const {
     return glm::normalize(target - position);
 }
+
+void Camera3D::setAspectRatio(float aspect) {
+    if (aspect > 0.0f) {
+        aspectRatio = aspect;
+    }
+}

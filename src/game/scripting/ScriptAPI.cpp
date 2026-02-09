@@ -89,6 +89,29 @@ float ScriptAPI::getPokemonCatchRate(const std::string& name) const {
     return std::clamp(ps->catchRate, 0.0f, 1.0f);
 }
 
+std::string ScriptAPI::getGameMode() const {
+    return services_.gameMode;
+}
+
+void ScriptAPI::setGameMode(const std::string& mode) {
+    const std::string key = toLowerCopy(mode);
+    if (key == "classic" || key == "adventure") {
+        services_.gameMode = key;
+    }
+}
+
+bool ScriptAPI::setVideoMode(int width, int height, bool fullscreen) {
+    if (!services_.applyVideoMode) return false;
+    const int safeW = std::max(640, width);
+    const int safeH = std::max(360, height);
+    return services_.applyVideoMode(safeW, safeH, fullscreen);
+}
+
+GameServices::VideoMode ScriptAPI::getVideoMode() const {
+    if (services_.queryVideoMode) return services_.queryVideoMode();
+    return {};
+}
+
 std::vector<ScriptAPI::UnitSnapshot> ScriptAPI::listUnits() const {
     std::vector<UnitSnapshot> out;
     if (!world_) return out;

@@ -122,6 +122,38 @@ void ScriptedState::rebuildCardRow() {
     std::cout << "[ScriptedState] Spawned " << list.size() << " cards\n";
 }
 
+void ScriptedState::rebuildTextMenu() {
+    textMenuEntries.clear();
+
+    sol::table S = script.getScriptTable();
+    sol::protected_function f = S["get_text_menu_entries"];
+    if (!f.valid()) return;
+
+    sol::protected_function_result r = f();
+    if (!(r.valid() && r.get_type() == sol::type::table)) {
+        std::cerr << "[ScriptedState] text menu function did not return a table\n";
+        return;
+    }
+
+    sol::table t = r;
+    for (auto&& kv : t) {
+        if (kv.second.get_type() != sol::type::table) continue;
+        sol::table row = kv.second.as<sol::table>();
+
+        TextMenuEntry entry;
+        auto idOpt = row.get<sol::optional<std::string>>("id");
+        auto nameOpt = row.get<sol::optional<std::string>>("name");
+        auto labelOpt = row.get<sol::optional<std::string>>("label");
+
+        entry.id = idOpt.value_or(nameOpt.value_or(std::string()));
+        entry.label = labelOpt.value_or(entry.id);
+        if (entry.id.empty()) entry.id = entry.label;
+        if (entry.id.empty() || entry.label.empty()) continue;
+
+        textMenuEntries.push_back(std::move(entry));
+    }
+}
+
 void ScriptedState::ensureCardUI() {
     if (uiInitialized) return;
     if (!services.renderEnabled) {
@@ -133,13 +165,22 @@ void ScriptedState::ensureCardUI() {
     // Script functions/vars live in the script environment now.
     sol::table S = script.getScriptTable();
 
+    bool hasTextMenuEntries = S["get_text_menu_entries"].valid();
+    bool hasTextMenuClick = S["on_text_menu_click"].valid() || S["on_menu_click"].valid();
     bool hasShopCards = S["get_shop_cards"].valid();
     bool hasShopClick = S["on_shop_card_click"].valid() || S["on_card_click"].valid() || S["onCardClick"].valid();
     bool hasStarterCards = S["get_starter_cards"].valid();
     bool hasStarterClick = S["on_card_click"].valid() || S["onCardClick"].valid();
     hasShopItems = S["get_shop_items"].valid() && S["on_shop_item_click"].valid();
+    hasTextMenu = hasTextMenuEntries && hasTextMenuClick;
+    renderWorld = true;
+    if (auto hideWorld = S.get<sol::optional<bool>>("hide_world")) {
+        renderWorld = !(*hideWorld);
+    }
 
-    if (hasShopCards && hasShopClick) {
+    if (hasTextMenu) {
+        cardMode = CardMode::TextMenu;
+    } else if (hasShopCards && hasShopClick) {
         cardMode = CardMode::Shop;
     } else if (hasStarterCards && hasStarterClick) {
         cardMode = CardMode::Starter;
@@ -149,16 +190,25 @@ void ScriptedState::ensureCardUI() {
         return;
     }
 
-    cardSystem.init();
     const auto& c = services.config;
-    cardSystem.initOverlayText(c.fontPath, std::max(14, c.fontSize / 3));
-    if (hasShopItems) {
-        itemCardSystem.init();
-        itemCardSystem.initOverlayText(c.fontPath, std::max(14, c.fontSize / 3));
+    if (cardMode != CardMode::TextMenu) {
+        cardSystem.init();
+        cardSystem.initOverlayText(c.fontPath, std::max(14, c.fontSize / 3));
+        if (hasShopItems) {
+            itemCardSystem.init();
+            itemCardSystem.initOverlayText(c.fontPath, std::max(14, c.fontSize / 3));
+        }
+    } else {
+        cardSystem.clearCards();
+        itemCardSystem.clearCards();
     }
     titleText = std::make_unique<TextRenderer>(c.fontPath, c.fontSize);
 
-    rebuildCardRow();
+    if (cardMode == CardMode::TextMenu) {
+        rebuildTextMenu();
+    } else {
+        rebuildCardRow();
+    }
 
     uiInitialized = true;
     script.flushCommands();
@@ -185,8 +235,11 @@ void ScriptedState::handleInput(const InputEvent& event) {
         // Rebuild starter UI if this script uses it.
         uiInitialized = false;
         cardSystem.clearCards();
+        itemCardSystem.clearCards();
+        textMenuEntries.clear();
         titleText.reset();
         cardMode = CardMode::None;
+        renderWorld = true;
         ensureCardUI();
         return; // avoid also sending this key into old script state
     }
@@ -199,6 +252,25 @@ void ScriptedState::handleInput(const InputEvent& event) {
     sol::table S = script.getScriptTable();
 
     if (event.type == InputEvent::Type::MouseDown) {
+        if (cardMode == CardMode::TextMenu) {
+            for (const auto& entry : textMenuEntries) {
+                const bool insideX = static_cast<float>(event.mouseX) >= entry.x &&
+                                     static_cast<float>(event.mouseX) <= (entry.x + entry.w);
+                const bool insideY = static_cast<float>(event.mouseY) >= entry.y &&
+                                     static_cast<float>(event.mouseY) <= (entry.y + entry.h);
+                if (!(insideX && insideY)) continue;
+
+                sol::function onMenuClick = S["on_text_menu_click"];
+                if (!onMenuClick.valid()) onMenuClick = S["on_menu_click"];
+                if (onMenuClick.valid()) {
+                    onMenuClick(entry.id);
+                }
+                script.flushCommands();
+                rebuildTextMenu();
+                return;
+            }
+        }
+
         auto clicked = cardSystem.handleMouseClick(event.mouseX, event.mouseY);
         if (clicked) {
             if (cardMode == CardMode::Shop) {
@@ -290,8 +362,30 @@ void ScriptedState::render() {
             std::string msg = r.get<std::string>();
             float w = titleText->measureTextWidth(msg, 1.0f);
             float x = (static_cast<float>(uiW) - w) * 0.5f;
-            titleText->renderText(msg, x, 150.0f, {1.0f, 1.0f, 0.0f}, 1.0f);
+            const glm::vec3 msgColor = (cardMode == CardMode::TextMenu)
+                ? glm::vec3(1.0f, 1.0f, 1.0f)
+                : glm::vec3(1.0f, 1.0f, 0.0f);
+            titleText->renderText(msg, x, 150.0f, msgColor, 1.0f);
         }
+    }
+
+    if (cardMode == CardMode::TextMenu && titleText) {
+        const float menuScale = 1.0f;
+        const float textH = static_cast<float>(services.config.fontSize) * menuScale;
+        const float startY = 220.0f;
+        const float spacing = textH + 16.0f;
+
+        for (size_t i = 0; i < textMenuEntries.size(); ++i) {
+            auto& entry = textMenuEntries[i];
+            entry.w = titleText->measureTextWidth(entry.label, menuScale);
+            entry.h = textH;
+            entry.x = (static_cast<float>(uiW) - entry.w) * 0.5f;
+            entry.y = startY + static_cast<float>(i) * spacing;
+
+            titleText->renderText(entry.label, entry.x, entry.y,
+                                  {1.0f, 1.0f, 1.0f}, menuScale);
+        }
+        return;
     }
 
     cardSystem.render(uiW, uiH);

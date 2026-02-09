@@ -116,6 +116,24 @@ void registerLuaBindings_Core(sol::state& lua, ScriptAPI& api) {
     lua.set_function("get_pokemon_catch_rate", [&api](const std::string& name) {
         return api.getPokemonCatchRate(name);
     });
+    lua.set_function("get_game_mode", [&api]() {
+        return api.getGameMode();
+    });
+    lua.set_function("set_game_mode", [&api](const std::string& mode) {
+        api.setGameMode(mode);
+    });
+    lua.set_function("set_video_mode", [&api](int width, int height, bool fullscreen) {
+        return api.setVideoMode(width, height, fullscreen);
+    });
+    lua.set_function("get_video_mode", [&api, &lua]() {
+        auto vm = api.getVideoMode();
+        sol::state_view L(lua);
+        sol::table t = L.create_table();
+        t["width"] = vm.width;
+        t["height"] = vm.height;
+        t["fullscreen"] = vm.fullscreen;
+        return t;
+    });
 
     // =================================================================
     // World/Unit inspection & mutation for Lua systems
