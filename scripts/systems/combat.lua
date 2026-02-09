@@ -332,7 +332,14 @@ local function find_adjacent_enemy(id)
   return nil
 end
 
-local function effectiveness(user_id, target_id)
+local function effectiveness(move_name, move_type, target_id)
+  if move_name == "leech_seed" then return "neutral" end
+  if not move_type or move_type == "" then return "neutral" end
+  local prod = type_chart_product(move_type, unit_types(target_id))
+  local tier = type_tier_from_product(prod)
+  if tier == "best" or tier == "great" then return "super" end
+  if tier == "bad" or tier == "terrible" then return "not_very" end
+  if tier == "worst" then return "immune" end
   return "neutral"
 end
 
@@ -426,7 +433,7 @@ local function fire_charged(id, tgt)
   end
 
   local rem = world_apply_damage(id, tgt, dmg, cd, name, "charged")
-  local eff = effectiveness(id, tgt)
+  local eff = effectiveness(name, m.type, tgt)
   maybe_emit_effectiveness(eff)
   if rem == 0 then emit(string.format("%s fainted!", get_name(tgt))) end
 
@@ -549,7 +556,7 @@ function combat_update(dt)
             local rem = world_apply_damage(u.id, tgt, dmg, cd, fastName, "fast")
             local onHit = compute_energy_gain(TUNING.ENERGY_GAIN_ON_HIT, TUNING.ENERGY_GAIN_ON_HIT_MULT)
             if onHit > 0 then world_add_energy(tgt, onHit) end
-            local eff = effectiveness(u.id, tgt); maybe_emit_effectiveness(eff)
+            local eff = effectiveness(fastName, m.type, tgt); maybe_emit_effectiveness(eff)
             if rem == 0 then emit(string.format("%s fainted!", get_name(tgt))) end
           end
 

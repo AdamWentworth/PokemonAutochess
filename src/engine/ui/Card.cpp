@@ -165,6 +165,8 @@ void Card::draw(Shader* uiShader) const {
     imgModel = glm::scale(imgModel, glm::vec3(imgW, imgH, 1.0f));
 
     glUniformMatrix4fv(glGetUniformLocation(uiShader->getID(), "u_Model"), 1, GL_FALSE, glm::value_ptr(imgModel));
+    uiShader->setUniform("u_UVMin", cardData.uvMin);
+    uiShader->setUniform("u_UVMax", cardData.uvMax);
     glBindTexture(GL_TEXTURE_2D, textureID);
     glUniform1i(glGetUniformLocation(uiShader->getID(), "u_Texture"), 0);
 
@@ -175,6 +177,8 @@ void Card::draw(Shader* uiShader) const {
     frameModel = glm::scale(frameModel, glm::vec3(rect.w, rect.h, 1.0f));
 
     glUniformMatrix4fv(glGetUniformLocation(uiShader->getID(), "u_Model"), 1, GL_FALSE, glm::value_ptr(frameModel));
+    uiShader->setUniform("u_UVMin", glm::vec2(0.0f, 0.0f));
+    uiShader->setUniform("u_UVMax", glm::vec2(1.0f, 1.0f));
     glBindTexture(GL_TEXTURE_2D, frameTextureID);
     glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
 

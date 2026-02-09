@@ -21,6 +21,8 @@ struct CardData {
     int level = 0;
     std::string label;
     std::string imagePath;
+    glm::vec2 uvMin{0.0f, 0.0f};
+    glm::vec2 uvMax{1.0f, 1.0f};
     CardType type = CardType::Shop;
 };
 

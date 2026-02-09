@@ -35,4 +35,5 @@ private:
     Shader* cardShader = nullptr;
     std::unique_ptr<TextRenderer> overlayText;
     float overlayScale = 1.0f;
+    int overlayFontSize = 0;
 };

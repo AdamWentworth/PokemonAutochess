@@ -36,10 +36,6 @@ void BattleFeed::render(int screenW, int screenH) {
     if (!blendWasEnabled) glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
-    // Layout constants
-    const float padX = 16.f;
-    const float padY = 16.f;
-
     // Use font height for consistent line spacing
     int fh = 24;
     if (TTF_Font* f = text->getFont()) {
@@ -48,7 +44,7 @@ void BattleFeed::render(int screenW, int screenH) {
     }
     const float lineH = fh * baseScale;  // scaled pixel height per line
 
-    float x = padX;
+    float x = alignRight ? (screenW - padX) : padX;
     // Start exactly one line-height above the bottom padding
     float y = screenH - padY - lineH;
 
@@ -64,10 +60,15 @@ void BattleFeed::render(int screenW, int screenH) {
 
         // Draw the wrapped lines bottom-up so the last line sits on 'y'
         for (int w = static_cast<int>(wrapped.size()) - 1; w >= 0; --w) {
+            float drawX = x;
+            if (alignRight) {
+                const float lineW = text->measureTextWidth(wrapped[w], baseScale);
+                drawX = x - lineW;
+            }
             // Render and then move up by one line
             text->renderText(
                 wrapped[w],
-                x, y,
+                drawX, y,
                 ln.color,
                 baseScale,
                 alpha /* NEW: true alpha fade */

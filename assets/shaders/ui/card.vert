@@ -9,8 +9,10 @@ out vec2 v_TexCoord;
 
 uniform mat4 u_Projection;
 uniform mat4 u_Model;
+uniform vec2 u_UVMin;
+uniform vec2 u_UVMax;
 
 void main() {
-    v_TexCoord = aTexCoord;
+    v_TexCoord = mix(u_UVMin, u_UVMax, aTexCoord);
     gl_Position = u_Projection * u_Model * vec4(aPos, 0.0, 1.0);
 }

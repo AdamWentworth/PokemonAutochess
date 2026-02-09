@@ -87,6 +87,7 @@ struct GameSession::Impl {
     std::unique_ptr<GameWorld>        gameWorld;
     std::unique_ptr<BoardRenderer>    board;
     std::unique_ptr<BattleFeed>       battleFeed;
+    std::unique_ptr<BattleFeed>       catchFeed;
 
     HealthBarRenderer healthBarRenderer;
     engine::ecs::Scheduler scheduler;
@@ -202,6 +203,15 @@ struct GameSession::Impl {
             battleFeed = std::make_unique<BattleFeed>(config.fontPath, config.fontSize);
             log.attach(battleFeed.get());
             log.setEchoToStdout(true);
+
+            // Catch feed (right side)
+            catchFeed = std::make_unique<BattleFeed>(config.fontPath, config.fontSize);
+            catchFeed->setAlignRight(true);
+            catchFeed->setWrapWidth(320.f);
+            catchFeed->setMaxLines(6);
+            catchFeed->setBaseScale(0.6f);
+            catchFeed->setPadding(16.f, 16.f);
+            log.attachCatchFeed(catchFeed.get());
         }
 
         if (auto* stateMgr = stateManager.get()) {
@@ -222,6 +232,11 @@ struct GameSession::Impl {
             ), Phase::PostUpdate);
         }
         if (auto* feed = battleFeed.get()) {
+            scheduler.add(std::make_unique<game::CallbackSystemAdapter>(
+                [feed](float dt) { feed->update(dt); }
+            ), Phase::PostUpdate);
+        }
+        if (auto* feed = catchFeed.get()) {
             scheduler.add(std::make_unique<game::CallbackSystemAdapter>(
                 [feed](float dt) { feed->update(dt); }
             ), Phase::PostUpdate);
@@ -279,12 +294,14 @@ struct GameSession::Impl {
 
         if (shopSystem) shopSystem->renderUI(drawableW, drawableH);
         if (battleFeed) battleFeed->render(drawableW, drawableH);
+        if (catchFeed) catchFeed->render(drawableW, drawableH);
     }
 
     void shutdown() {
         std::cout << "[Shutdown] Game.\n";
 
         log.attach(nullptr);
+        log.attachCatchFeed(nullptr);
 
         if (board) {
             board->shutdown();
@@ -296,6 +313,7 @@ struct GameSession::Impl {
         }
 
         battleFeed.reset();
+        catchFeed.reset();
         shopSystem = nullptr;
         unitSystem.reset();
         cameraSystem.reset();

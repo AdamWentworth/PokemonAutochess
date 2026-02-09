@@ -384,6 +384,11 @@ void ScriptAPI::spawnOnGrid(const std::string& name, int col, int row, PokemonSi
     enqueue(cmd);
 }
 
+void ScriptAPI::emitCatch(const std::string& msg) {
+    if (msg.empty()) return;
+    services_.log.catchInfo(msg);
+}
+
 void ScriptAPI::pushState(const std::string& scriptPath) {
     PushStateCommand cmd;
     cmd.scriptPath = scriptPath;

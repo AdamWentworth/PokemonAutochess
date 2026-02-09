@@ -21,6 +21,7 @@ void CardSystem::init() {
 void CardSystem::initOverlayText(const std::string& fontPath, int fontSize) {
     overlayText = std::make_unique<TextRenderer>(fontPath, fontSize);
     overlayScale = 1.0f;
+    overlayFontSize = fontSize;
 }
 
 void CardSystem::addCard(Card&& card) {
@@ -64,9 +65,21 @@ void CardSystem::render(int screenWidth, int screenHeight) {
             const float pad = 6.0f;
             if (d.level > 0) {
                 const std::string lvl = "Lv" + std::to_string(d.level);
-                overlayText->renderText(lvl, rect.x + pad, rect.y + pad, glm::vec3(1.0f, 1.0f, 1.0f), overlayScale);
-            } else if (!d.label.empty()) {
-                overlayText->renderText(d.label, rect.x + pad, rect.y + pad, glm::vec3(1.0f, 1.0f, 1.0f), overlayScale);
+                const float shadowOffset = 1.5f;
+                overlayText->renderText(lvl, rect.x + pad + shadowOffset, rect.y + pad + shadowOffset,
+                                        glm::vec3(0.0f, 0.0f, 0.0f), overlayScale, 0.75f);
+                overlayText->renderText(lvl, rect.x + pad, rect.y + pad,
+                                        glm::vec3(1.0f, 1.0f, 1.0f), overlayScale);
+            }
+            if (!d.label.empty()) {
+                const float labelScale = overlayScale * 0.8f;
+                const float textH = static_cast<float>(overlayFontSize) * labelScale;
+                const float labelW = overlayText->measureTextWidth(d.label, labelScale);
+                const float x = rect.x + (rect.w - labelW) * 0.5f;
+                const float yBelow = rect.y + rect.h + pad;
+                const float yAbove = rect.y - textH - pad;
+                const float y = (yBelow + textH <= screenHeight) ? yBelow : std::max(0.0f, yAbove);
+                overlayText->renderText(d.label, x, y, glm::vec3(1.0f, 1.0f, 1.0f), labelScale);
             }
         }
     }

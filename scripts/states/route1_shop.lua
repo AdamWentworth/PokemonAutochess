@@ -8,14 +8,17 @@ local commons = { "pidgey", "rattata" }
 local starters = { "bulbasaur", "charmander", "squirtle" }
 
 local item_catalog = {
-    { id = "pokeball", label = "Pokeball", cost = 200 },
-    { id = "potion", label = "Potion", cost = 300 },
-    { id = "antidote", label = "Antidote", cost = 100 },
-    { id = "paralyze_heal", label = "Paralyze Heal", cost = 200 },
-    { id = "burn_heal", label = "Burn Heal", cost = 300 }
+    { id = "pokeball", label = "Pokeball", cost = 200, row = 1, col = 4 },
+    { id = "potion", label = "Potion", cost = 300, row = 2, col = 4 },
+    { id = "burn_heal", label = "Burn Heal", cost = 300, row = 2, col = 6 },
+    { id = "antidote", label = "Antidote", cost = 100, row = 2, col = 5 },
+    { id = "paralyze_heal", label = "Paralyze Heal", cost = 200, row = 2, col = 9 }
 }
 
-local item_image = "assets/images/item_placeholder.png"
+-- Place the provided item atlas here (same grid as the reference image).
+local item_image = "assets/images/items_atlas.png"
+local ITEM_ATLAS_COLS = 13
+local ITEM_ATLAS_ROWS = 14
 
 local ball_types = {
     { id = "pokeball", mult = 1.0 }
@@ -24,6 +27,15 @@ local ball_types = {
 local cards = {}
 local seeded = false
 
+local function pretty_name(name)
+    local s = tostring(name or "")
+    s = s:gsub("_", " ")
+    s = s:gsub("(%a)([%w']*)", function(a, b)
+        return string.upper(a) .. string.lower(b)
+    end)
+    return s
+end
+
 local function pick_weighted()
     if math.random() < 0.5 then
         return commons[math.random(#commons)]
@@ -31,10 +43,21 @@ local function pick_weighted()
     return starters[math.random(#starters)]
 end
 
+local function atlas_uv(row, col)
+    local c = math.max(1, col or 1)
+    local r = math.max(1, row or 1)
+    local u0 = (c - 1) / ITEM_ATLAS_COLS
+    local u1 = c / ITEM_ATLAS_COLS
+    -- v=0 is top of texture (no vertical flip), so count rows from top.
+    local v0 = (r - 1) / ITEM_ATLAS_ROWS
+    local v1 = r / ITEM_ATLAS_ROWS
+    return { u0, v0, u1, v1 }
+end
+
 local function make_card()
     local name = pick_weighted()
     local level = math.random(2, 5)
-    return { name = name, cost = 0, level = level, type = "Shop" }
+    return { name = name, cost = 0, level = level, label = pretty_name(name), type = "Shop" }
 end
 
 local function fill_cards(count)
@@ -61,6 +84,12 @@ local function catch_chance(base_rate, level, ball_mult)
     if chance < 0.05 then chance = 0.05 end
     if chance > 0.95 then chance = 0.95 end
     return chance
+end
+
+local function emit_shakes(count)
+    if count >= 1 then emit_catch("The ball shook once!") end
+    if count >= 2 then emit_catch("The ball shook twice!") end
+    if count >= 3 then emit_catch("The ball shook three times!") end
 end
 
 function on_enter()
@@ -98,6 +127,7 @@ function get_shop_items()
             cost = it.cost,
             label = it.label .. " $" .. tostring(it.cost),
             image = item_image,
+            uv = atlas_uv(it.row, it.col),
             type = "Item"
         })
     end
@@ -147,15 +177,28 @@ function on_shop_card_click(pokemon, level)
 
     local base_rate = get_pokemon_catch_rate(pokemon)
     local chance = catch_chance(base_rate, card_level, ball.mult)
-    if math.random() <= chance then
+    emit_catch(string.format("Threw %s at %s (Lv%d)", ball.id, pretty_name(pokemon), card_level))
+
+    local shake_p = math.pow(chance, 1.0 / 3.0)
+    local shakes = 0
+    for i = 1, 3 do
+        if math.random() <= shake_p then
+            shakes = shakes + 1
+        else
+            break
+        end
+    end
+    emit_shakes(shakes)
+
+    if shakes >= 3 then
         spawn_on_bench(pokemon, card_level)
-        emit("Shop", "Caught " .. pokemon .. " (Lv" .. tostring(card_level) .. ")")
+        emit_catch("Gotcha! " .. pretty_name(pokemon) .. " was caught!")
         if selected_index then
             local c = make_card()
             if c then cards[selected_index] = c end
         end
     else
-        emit("Shop", pokemon .. " broke free!")
+        emit_catch(pretty_name(pokemon) .. " broke free!")
     end
 end
 

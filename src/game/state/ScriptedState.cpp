@@ -57,6 +57,19 @@ void ScriptedState::rebuildCardRow() {
             auto imageOpt = row.get<sol::optional<std::string>>("image");
             cd.imagePath = imageOpt.value_or(std::string());
 
+            auto uvOpt = row.get<sol::optional<sol::table>>("uv");
+            if (uvOpt) {
+                sol::table uv = *uvOpt;
+                auto u0 = uv.get<sol::optional<float>>(1);
+                auto v0 = uv.get<sol::optional<float>>(2);
+                auto u1 = uv.get<sol::optional<float>>(3);
+                auto v1 = uv.get<sol::optional<float>>(4);
+                if (u0 && v0 && u1 && v1) {
+                    cd.uvMin = { *u0, *v0 };
+                    cd.uvMax = { *u1, *v1 };
+                }
+            }
+
             auto typeOpt = row.get<sol::optional<std::string>>("type");
             std::string ty = typeOpt.value_or(std::string("Shop"));
             if (ty == "Starter") cd.type = CardType::Starter;
@@ -90,10 +103,11 @@ void ScriptedState::rebuildCardRow() {
             sol::protected_function itemFn = S["get_shop_items"];
             std::vector<CardData> items;
             if (buildList(itemFn, items)) {
-                const int itemW = 120;
-                const int itemH = 80;
-                const int itemSpacing = 16;
-                const int itemY = std::max(0, y - itemH - 12);
+                const int itemW = 96;
+                const int itemH = 96;
+                const int itemSpacing = 14;
+                const int itemMargin = 32;
+                const int itemY = std::max(0, itemMargin);
                 itemCardSystem.spawnCardRowLayout(items, uiW, itemY, itemW, itemH, itemSpacing);
             }
         }

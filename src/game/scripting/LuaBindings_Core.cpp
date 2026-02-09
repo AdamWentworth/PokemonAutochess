@@ -43,6 +43,9 @@ void registerLuaBindings_Core(sol::state& lua, ScriptAPI& api) {
     lua.set_function("emit", [&api](const std::string& tag_or_msg, sol::optional<std::string> payload) {
         api.emit(tag_or_msg, payload ? std::optional<std::string>(*payload) : std::nullopt);
     });
+    lua.set_function("emit_catch", [&api](const std::string& msg) {
+        api.emitCatch(msg);
+    });
 
     // ---- Engine-safe spawners ----
     lua.set_function("spawnPokemon", [&api](std::string name, float x, float y, float z) {
