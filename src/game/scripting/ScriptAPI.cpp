@@ -69,6 +69,7 @@ std::vector<ScriptAPI::UnitSnapshot> ScriptAPI::listUnits() const {
         s.alive = u.alive;
         s.fastMove = u.fastMove;
         s.chargedMove = u.chargedMove;
+        s.types = u.types;
         out.push_back(std::move(s));
     }
     return out;
@@ -94,6 +95,7 @@ std::optional<ScriptAPI::UnitSnapshot> ScriptAPI::getUnitSnapshot(int unitId) co
     s.alive = u->alive;
     s.fastMove = u->fastMove;
     s.chargedMove = u->chargedMove;
+    s.types = u->types;
     return s;
 }
 

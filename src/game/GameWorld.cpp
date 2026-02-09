@@ -128,6 +128,7 @@ void GameWorld::spawnPokemon(const std::string& pokemonName,
     inst.baseHp = stats->hp;
     inst.baseAttack = stats->attack;
     inst.baseMovementSpeed = stats->movementSpeed;
+    inst.types = stats->types;
 
     applyLevelScaling(inst, level);
     applyLoadoutForLevel(inst);
@@ -200,6 +201,7 @@ void GameWorld::addToBench(const std::string& pokemonName)
     inst.baseHp = stats->hp;
     inst.baseAttack = stats->attack;
     inst.baseMovementSpeed = stats->movementSpeed;
+    inst.types = stats->types;
 
     applyLevelScaling(inst, -1);
     applyLoadoutForLevel(inst);

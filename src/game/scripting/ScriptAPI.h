@@ -41,6 +41,7 @@ public:
         bool alive = false;
         std::string fastMove;
         std::string chargedMove;
+        std::vector<std::string> types;
     };
 
     struct MoveStatusSnapshot {

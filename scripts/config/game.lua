@@ -10,8 +10,8 @@ return {
     leveling = {
         base_level = 1,          -- default level used when not specified
         per_level_boost = 0.08,  -- fallback when per-stat boost is not set
-        per_level_hp_boost = 0.18,
-        per_level_attack_boost = 0.20,
-        per_level_speed_boost = 0.06
+        per_level_hp_boost = 0.22,
+        per_level_attack_boost = 0.24,
+        per_level_speed_boost = 0.07
     }
 }

@@ -7,6 +7,12 @@ return {
   DAMAGE_ATK_SCALE = 0.50,
   DAMAGE_MIN = 1,
 
+  -- Base attack cadence (higher = slower)
+  FAST_CD_MULT = 2.25,
+  CHARGED_CD_MULT = 2.25,
+  MIN_FAST_REQUEST_SEC = 1.00,
+  MIN_CHARGED_REQUEST_SEC = 1.00,
+
   -- Energy gain tuning:
   -- gain = round(base_gain * ENERGY_GAIN_MULT)
   ENERGY_GAIN_MULT = 0.75,

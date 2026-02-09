@@ -4,6 +4,7 @@
 #include <string>
 #include <unordered_map>
 #include <map>
+#include <vector>
 
 #include <nlohmann/json.hpp>
 
@@ -21,6 +22,7 @@ struct PokemonStats {
     int attack = 10;
     float movementSpeed = 1.0f;
     std::string model;
+    std::vector<std::string> types;
 
     // loadoutByLevel[level] -> LoadoutEntry
     std::map<int, LoadoutEntry> loadoutByLevel;

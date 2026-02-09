@@ -28,10 +28,27 @@ local TUNING = {
   ENERGY_GAIN_ON_HIT_MULT = 1.0
 }
 
+-- Type effectiveness (data-driven)
+local TYPE = {
+  multipliers = {
+    charged = { best = 4.0, great = 2.0, neutral = 1.0, bad = 0.5, terrible = 0.25, worst = 0.0 },
+    fast = { best = 2.56, great = 1.6, neutral = 1.0, bad = 0.625, terrible = 0.391, worst = 0.244 }
+  },
+  chart = {}
+}
+
 do
   local ok, t = pcall(dofile, "scripts/config/combat_tuning.lua")
   if ok and type(t) == "table" then
     for k,v in pairs(t) do TUNING[k] = v end
+  end
+end
+
+do
+  local ok, t = pcall(dofile, "scripts/config/type_chart.lua")
+  if ok and type(t) == "table" then
+    if type(t.multipliers) == "table" then TYPE.multipliers = t.multipliers end
+    if type(t.chart) == "table" then TYPE.chart = t.chart end
   end
 end
 
@@ -175,6 +192,52 @@ local function unit_attack_stat(unit_id)
   return s
 end
 
+local function unit_types(unit_id)
+  if type(world_get_unit_snapshot) ~= "function" then return nil end
+  local u = world_get_unit_snapshot(unit_id)
+  if u and type(u.types) == "table" then return u.types end
+  return nil
+end
+
+local function type_chart_product(move_type, target_types)
+  if not move_type or move_type == "" then return 1.0 end
+  local chart = TYPE.chart[move_type]
+  if type(chart) ~= "table" then return 1.0 end
+  if type(target_types) ~= "table" then return 1.0 end
+
+  local prod = 1.0
+  for _,defType in ipairs(target_types) do
+    local m = chart[defType]
+    if type(m) == "number" then
+      if m <= 0.0 then return 0.0 end
+      prod = prod * m
+    end
+  end
+  return prod
+end
+
+local function type_tier_from_product(prod)
+  if prod <= 0.0 then return "worst" end
+  if prod >= 4.0 then return "best" end
+  if prod >= 2.0 then return "great" end
+  if prod <= 0.25 then return "terrible" end
+  if prod <= 0.5 then return "bad" end
+  return "neutral"
+end
+
+local function type_multiplier(move_name, move_type, kind, target_id)
+  if move_name == "leech_seed" then return 1.0 end
+  if not move_type or move_type == "" then return 1.0 end
+  local prod = type_chart_product(move_type, unit_types(target_id))
+  local tier = type_tier_from_product(prod)
+  local bucket = (kind == "charged") and TYPE.multipliers.charged or TYPE.multipliers.fast
+  local mult = (type(bucket) == "table") and bucket[tier] or nil
+  if type(mult) ~= "number" then
+    mult = (type(bucket) == "table") and bucket.neutral or 1.0
+  end
+  return mult
+end
+
 local function compute_damage(attacker_id, target_id, power)
   local base = tonumber(power) or 0
   if base <= 0 then return 0 end
@@ -196,6 +259,14 @@ local function compute_damage(attacker_id, target_id, power)
   local minDmg = TUNING.DAMAGE_MIN or 0
   if dmg < minDmg then dmg = minDmg end
   return dmg
+end
+
+local function apply_type_multiplier(move_name, move_type, kind, target_id, dmg)
+  if dmg <= 0 then return 0 end
+  local mult = type_multiplier(move_name, move_type, kind, target_id)
+  local out = math.floor((dmg * mult) + 0.5)
+  if out < 0 then out = 0 end
+  return out
 end
 
 local function compute_energy_gain(base, mult)
@@ -348,6 +419,7 @@ local function fire_charged(id, tgt)
   local hp_before = tSnap and tSnap.hp or 0
 
   local dmg = compute_damage(id, tgt, m.power)
+  dmg = apply_type_multiplier(name, m.type, "charged", tgt, dmg)
   if rng() < CRIT_CHANCE then
     dmg = math.floor(dmg * CRIT_MULT + 0.5)
     emit("A critical hit!")
@@ -469,6 +541,7 @@ function combat_update(dt)
             world_apply_damage(u.id, tgt, 0, cd, fastName, "fast")
           else
             local dmg = compute_damage(u.id, tgt, m.power)
+            dmg = apply_type_multiplier(fastName, m.type, "fast", tgt, dmg)
             if rng() < CRIT_CHANCE then
               dmg = math.floor(dmg * CRIT_MULT + 0.5)
               emit("A critical hit!")

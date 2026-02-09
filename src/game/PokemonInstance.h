@@ -4,6 +4,7 @@
 #include <string>
 #include <memory>
 #include <unordered_map>
+#include <vector>
 #include <glm/glm.hpp>
 #include <glm/gtc/quaternion.hpp>
 
@@ -54,6 +55,7 @@ struct PokemonInstance {
     int   baseHp = 100;
     int   baseAttack = 10;
     float baseMovementSpeed = 1.0f;
+    std::vector<std::string> types;
 
     int   hp = 100;
     int   maxHP = 100;

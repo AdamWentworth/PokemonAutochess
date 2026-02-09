@@ -33,6 +33,10 @@ void registerLuaBindings_World(sol::state& lua, ScriptAPI& api) {
             t["alive"]     = u.alive;
             t["fastMove"]  = u.fastMove;
             t["chargedMove"] = u.chargedMove;
+            sol::table types = L.create_table();
+            int ti = 1;
+            for (const auto& ty : u.types) types[ti++] = ty;
+            t["types"] = types;
             arr[i++]       = t;
         }
         return arr;
@@ -56,6 +60,10 @@ void registerLuaBindings_World(sol::state& lua, ScriptAPI& api) {
         t["chargedMove"] = snap->chargedMove;
         t["col"]       = snap->col;
         t["row"]       = snap->row;
+        sol::table types = L.create_table();
+        int ti = 1;
+        for (const auto& ty : snap->types) types[ti++] = ty;
+        t["types"] = types;
         return t;
     });
 

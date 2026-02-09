@@ -3,6 +3,8 @@
 #include "game/logging/LoggerUtil.h"
 #include "game/config/JsonFile.h"
 
+#include <algorithm>
+#include <cctype>
 #include <string>
 
 bool PokemonConfigLoader::loadConfig(const std::string& filePath,
@@ -26,11 +28,30 @@ bool PokemonConfigLoader::loadConfig(const std::string& filePath,
             continue;
         }
 
+        auto toLowerCopy = [](std::string s) {
+            std::transform(s.begin(), s.end(), s.begin(),
+                           [](unsigned char c){ return static_cast<char>(std::tolower(c)); });
+            return s;
+        };
+
         PokemonStats stats;
         stats.hp            = data.value("hp", 100);
         stats.attack        = data.value("attack", 10);
         stats.movementSpeed = data.value("movementSpeed", 1.0f);
         stats.model         = data.value("model", name + ".glb");
+
+        if (data.contains("types")) {
+            const auto& t = data["types"];
+            if (t.is_string()) {
+                stats.types.push_back(toLowerCopy(t.get<std::string>()));
+            } else if (t.is_array()) {
+                for (const auto& entry : t) {
+                    if (entry.is_string()) {
+                        stats.types.push_back(toLowerCopy(entry.get<std::string>()));
+                    }
+                }
+            }
+        }
 
         if (data.contains("loadoutByLevel") && data["loadoutByLevel"].is_object()) {
             const auto& lob = data["loadoutByLevel"];
