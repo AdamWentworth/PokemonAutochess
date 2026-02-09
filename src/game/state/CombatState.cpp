@@ -40,6 +40,8 @@ CombatState::~CombatState() = default;
 void CombatState::onEnter() {
     if (gameWorld) {
         gameWorld->resetCombatBalance();
+        gameWorld->capturePlayerPositionsForBattle();
+        gameWorld->setBoardInteractionLocked(true);
 
         // Cleanup: remove any dead units and all previous enemies before spawning new wave.
         auto& list = gameWorld->getPokemons();
@@ -121,6 +123,8 @@ void CombatState::onExit() {
         }
     }
     if (gameWorld) {
+        gameWorld->restorePlayerPositionsAfterBattle();
+        gameWorld->setBoardInteractionLocked(false);
         gameWorld->healPlayerUnitsToFull();
         gameWorld->resetCombatBalance();
     }

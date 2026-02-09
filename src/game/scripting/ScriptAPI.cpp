@@ -364,9 +364,10 @@ void ScriptAPI::popState() {
     enqueue(PopStateCommand{});
 }
 
-void ScriptAPI::addToBench(const std::string& name) {
+void ScriptAPI::addToBench(const std::string& name, int level) {
     AddToBenchCommand cmd;
     cmd.name = name;
+    cmd.level = level;
     enqueue(cmd);
 }
 
@@ -491,7 +492,7 @@ void ScriptAPI::applyCommand(const Command& cmd) {
 
     if (std::holds_alternative<AddToBenchCommand>(cmd)) {
         const auto& c = std::get<AddToBenchCommand>(cmd);
-        if (world_) world_->addToBench(c.name);
+        if (world_) world_->addToBench(c.name, c.level);
         return;
     }
 

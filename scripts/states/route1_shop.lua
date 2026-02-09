@@ -4,36 +4,21 @@ local SHOP_DURATION = 30.0
 local time_left = SHOP_DURATION
 local transitioned = false
 
-local pool = {
-    "bulbasaur",
-    "charmander",
-    "squirtle",
-    "pidgey",
-    "rattata"
-}
+local commons = { "pidgey", "rattata" }
+local starters = { "bulbasaur", "charmander", "squirtle" }
 
 local cards = {}
 local seeded = false
 
-local function contains(list, name)
-    for i = 1, #list do
-        if list[i].name == name then return true end
+local function pick_weighted()
+    if math.random() < 0.5 then
+        return commons[math.random(#commons)]
     end
-    return false
-end
-
-local function pick_unique()
-    if #pool == 0 then return nil end
-    for _ = 1, 12 do
-        local name = pool[math.random(#pool)]
-        if not contains(cards, name) then return name end
-    end
-    return pool[math.random(#pool)]
+    return starters[math.random(#starters)]
 end
 
 local function make_card()
-    local name = pick_unique()
-    if not name then return nil end
+    local name = pick_weighted()
     return { name = name, cost = 1, type = "Shop" }
 end
 
@@ -69,7 +54,8 @@ end
 
 function on_shop_card_click(pokemon)
     if not pokemon or pokemon == "" then return end
-    spawn_on_bench(pokemon)
+    local level = math.random(2, 5)
+    spawn_on_bench(pokemon, level)
 
     for i = 1, #cards do
         if cards[i].name == pokemon then

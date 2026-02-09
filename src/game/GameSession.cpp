@@ -6,6 +6,7 @@
 #include <utility>
 #include <cstdlib>
 #include <random>
+#include <algorithm>
 
 #include "engine/core/GameContext.h"
 #include "engine/core/EngineServices.h"
@@ -193,6 +194,9 @@ struct GameSession::Impl {
             } else {
                 healthBarRenderer.init();
             }
+            const int levelFontSize = std::max(12, config.fontSize / 3);
+            healthBarRenderer.setFont(config.fontPath, levelFontSize,
+                                      ctx.services ? ctx.services->shaders : nullptr);
 
             // Battle feed + logger (instance-based)
             battleFeed = std::make_unique<BattleFeed>(config.fontPath, config.fontSize);

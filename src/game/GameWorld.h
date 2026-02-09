@@ -4,6 +4,7 @@
 #include <vector>
 #include <string>
 #include <glm/glm.hpp>
+#include <unordered_map>
 
 #include "PokemonInstance.h"
 #include "engine/ui/HealthBarData.h"
@@ -71,7 +72,7 @@ public:
 
     PokemonInstance* findUnitById(int unitId);
     const PokemonInstance* findUnitById(int unitId) const;
-    void addToBench(const std::string& pokemonName);
+    void addToBench(const std::string& pokemonName, int level = -1);
     std::vector<PokemonInstance>& getBenchPokemons();
 
     std::vector<HealthBarData> getHealthBarData(const Camera3D& camera, int screenWidth, int screenHeight) const;
@@ -92,6 +93,10 @@ public:
     // Finalize a faint (cleanup + XP award). Safe to call once.
     void handleUnitFaint(PokemonInstance& target);
     void healPlayerUnitsToFull();
+    void capturePlayerPositionsForBattle();
+    void restorePlayerPositionsAfterBattle();
+    void setBoardInteractionLocked(bool locked) { boardInteractionLocked = locked; }
+    bool isBoardInteractionLocked() const { return boardInteractionLocked; }
 
 private:
     ResourceManager* resources = nullptr; // engine-owned
@@ -104,6 +109,8 @@ private:
     std::vector<PokemonInstance> benchPokemons;
 
     CombatBalance combatBalance{};
+    bool boardInteractionLocked = false;
+    std::unordered_map<int, glm::vec3> battleStartPositions;
 
     glm::vec3 gridToWorld(int col, int row) const;
 

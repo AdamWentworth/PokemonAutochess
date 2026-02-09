@@ -100,7 +100,7 @@ public:
     void pushState(const std::string& scriptPath);
     void pushCombatState(const std::string& scriptPath);
     void popState();
-    void addToBench(const std::string& name);
+    void addToBench(const std::string& name, int level);
     bool applyMove(int unitId, int col, int row);
     bool commitMove(int unitId, int col, int row);
     void faceEnemy(int unitId, const std::optional<int>& tgtCol, const std::optional<int>& tgtRow);
@@ -144,6 +144,7 @@ private:
     struct PopStateCommand {};
     struct AddToBenchCommand {
         std::string name;
+        int level = -1;
     };
     struct ApplyMoveCommand {
         int unitId = -1;

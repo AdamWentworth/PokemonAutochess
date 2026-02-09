@@ -5,6 +5,7 @@
 #include <glad/glad.h>
 #include <glm/gtc/matrix_transform.hpp>
 #include <algorithm>
+#include <cmath>
 
 void HealthBarRenderer::init() {
     // Fallback: compile directly (no cache). Prefer init(shaders).
@@ -19,6 +20,62 @@ void HealthBarRenderer::init(ShaderCache& shaders) {
         "assets/shaders/ui/healthbar.vert",
         "assets/shaders/ui/healthbar.frag"
     );
+}
+
+void HealthBarRenderer::setFont(const std::string& fontPath, int fontSize, ShaderCache* shaders) {
+    levelFontSize = std::max(8, fontSize);
+    levelText = std::make_unique<TextRenderer>(fontPath, levelFontSize, shaders);
+}
+
+void HealthBarRenderer::ensureRingGeometry() {
+    if (ringVAO != 0) return;
+
+    glGenVertexArrays(1, &ringVAO);
+    glGenBuffers(1, &ringVBO);
+
+    glBindVertexArray(ringVAO);
+    glBindBuffer(GL_ARRAY_BUFFER, ringVBO);
+    glBufferData(GL_ARRAY_BUFFER, 0, nullptr, GL_DYNAMIC_DRAW);
+    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(float), (void*)0);
+    glEnableVertexAttribArray(0);
+    glBindVertexArray(0);
+}
+
+void HealthBarRenderer::renderRingArc(const glm::vec2& center,
+                                      float innerR,
+                                      float outerR,
+                                      float startRad,
+                                      float endRad,
+                                      const glm::vec3& color) {
+    if (!shader) return;
+    ensureRingGeometry();
+
+    const float arc = endRad - startRad;
+    if (std::abs(arc) < 0.0001f) return;
+
+    const float full = 6.2831853f;
+    int segments = std::max(6, static_cast<int>(std::ceil(std::abs(arc) / full * 32.0f)));
+
+    std::vector<glm::vec2> verts;
+    verts.reserve((segments + 1) * 2);
+
+    for (int i = 0; i <= segments; ++i) {
+        float t = static_cast<float>(i) / static_cast<float>(segments);
+        float a = startRad + arc * t;
+        float cs = std::cos(a);
+        float sn = std::sin(a);
+        verts.emplace_back(center.x + cs * outerR, center.y + sn * outerR);
+        verts.emplace_back(center.x + cs * innerR, center.y + sn * innerR);
+    }
+
+    shader->setUniform("u_Model", glm::mat4(1.0f));
+    shader->setUniform("u_Color", color);
+
+    glBindVertexArray(ringVAO);
+    glBindBuffer(GL_ARRAY_BUFFER, ringVBO);
+    glBufferData(GL_ARRAY_BUFFER, verts.size() * sizeof(glm::vec2), verts.data(), GL_STREAM_DRAW);
+    glDrawArrays(GL_TRIANGLE_STRIP, 0, static_cast<GLsizei>(verts.size()));
+    glBindVertexArray(0);
 }
 
 void HealthBarRenderer::render(const std::vector<HealthBarData>& healthBars) {
@@ -42,10 +99,8 @@ void HealthBarRenderer::render(const std::vector<HealthBarData>& healthBars) {
         const float width = 50.0f;
         const float hpH   = 5.0f;
         const float enH   = 4.0f;
-        const float xpH   = 3.0f;
         const float yOffset = 20.0f;      // top of HP bar
         const float gap     = 2.0f;       // space between HP and Energy bar
-        const float xpGap   = 2.0f;       // space between Energy and XP bar
 
         glm::vec2 pos = hb.screenPosition;
         pos.x -= width/2.0f;
@@ -60,14 +115,8 @@ void HealthBarRenderer::render(const std::vector<HealthBarData>& healthBars) {
 
         // Foreground
         float percent = static_cast<float>(hb.currentHP)/hb.maxHP;
-        glm::vec3 color;
-        if (hb.isEnemy) {
-            color = glm::vec3(1.0f, 1.0f, 0.0f);
-        } else {
-            if (percent <= 0.2f) color = glm::vec3(1.0f, 0.0f, 0.0f);
-            else if (percent <= 0.5f) color = glm::vec3(1.0f, 1.0f, 0.0f);
-            else color = glm::vec3(0.0f, 1.0f, 0.0f);
-        }
+        glm::vec3 color = hb.isEnemy ? glm::vec3(1.0f, 0.0f, 0.0f)
+                                     : glm::vec3(0.0f, 1.0f, 0.0f);
 
         glm::mat4 modelFg = glm::translate(glm::mat4(1.0f), glm::vec3(pos, 0.0f));
         modelFg = glm::scale(modelFg, glm::vec3(width*percent, hpH, 1.0f));
@@ -90,25 +139,36 @@ void HealthBarRenderer::render(const std::vector<HealthBarData>& healthBars) {
         glm::mat4 eFg = glm::translate(glm::mat4(1.0f), glm::vec3(ePos, 0.0f));
         eFg = glm::scale(eFg, glm::vec3(width*eFrac, enH, 1.0f));
         shader->setUniform("u_Model", eFg);
-        shader->setUniform("u_Color", glm::vec3(0.95f, 0.15f, 0.15f)); // red
+        shader->setUniform("u_Color", glm::vec3(0.95f, 0.65f, 0.20f)); // yellow/orange
         renderQuad();
 
-        // ----- XP bar (player only) -----
+        // ----- Level text + XP ring (player only), placed left of bars -----
+        const float barH = hpH + gap + enH;
+        const float ringOuter = 12.0f;
+        const float ringInner = 9.0f;
+        const float ringPad = 6.0f;
+        glm::vec2 levelCenter = glm::vec2(pos.x - (ringOuter + ringPad), pos.y + barH * 0.5f - 1.5f);
+
         if (hb.showXP && hb.maxXP > 0) {
             float xFrac = std::clamp(static_cast<float>(hb.currentXP) / hb.maxXP, 0.0f, 1.0f);
-            glm::vec2 xPos = pos + glm::vec2(0.0f, hpH + gap + enH + xpGap);
+            const float start = -1.5707963f; // 12 o'clock
+            const float end = start + xFrac * 6.2831853f;
+            renderRingArc(levelCenter, ringInner, ringOuter, start, start + 6.2831853f, glm::vec3(0.20f, 0.20f, 0.20f));
+            renderRingArc(levelCenter, ringInner, ringOuter, start, end, glm::vec3(0.20f, 0.55f, 1.0f));
+        }
 
-            glm::mat4 xBg = glm::translate(glm::mat4(1.0f), glm::vec3(xPos, 0.0f));
-            xBg = glm::scale(xBg, glm::vec3(width, xpH, 1.0f));
-            shader->setUniform("u_Model", xBg);
-            shader->setUniform("u_Color", glm::vec3(0.20f, 0.20f, 0.20f));
-            renderQuad();
-
-            glm::mat4 xFg = glm::translate(glm::mat4(1.0f), glm::vec3(xPos, 0.0f));
-            xFg = glm::scale(xFg, glm::vec3(width * xFrac, xpH, 1.0f));
-            shader->setUniform("u_Model", xFg);
-            shader->setUniform("u_Color", glm::vec3(0.20f, 0.55f, 1.0f)); // blue
-            renderQuad();
+        if (levelText) {
+            const std::string lvl = std::to_string(std::max(1, hb.level));
+            const float w = levelText->measureTextWidth(lvl, 1.0f);
+            const float h = static_cast<float>(levelFontSize);
+            const float tx = levelCenter.x - w * 0.5f;
+            const float ty = levelCenter.y - h * 0.5f + 2.5f;
+            levelText->renderText(lvl, tx, ty, glm::vec3(1.0f, 1.0f, 1.0f), 1.0f);
+            // TextRenderer switches shader/blend state; restore for subsequent bars.
+            shader->use();
+            shader->setUniform("u_Projection", projection);
+            glEnable(GL_BLEND);
+            glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
         }
     }
 

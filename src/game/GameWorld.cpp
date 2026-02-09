@@ -227,6 +227,37 @@ void GameWorld::healPlayerUnitsToFull() {
     healList(benchPokemons);
 }
 
+void GameWorld::capturePlayerPositionsForBattle() {
+    battleStartPositions.clear();
+    auto capture = [&](const std::vector<PokemonInstance>& list) {
+        for (const auto& u : list) {
+            if (u.side != PokemonSide::Player) continue;
+            battleStartPositions[u.id] = u.position;
+        }
+    };
+    capture(pokemons);
+    capture(benchPokemons);
+}
+
+void GameWorld::restorePlayerPositionsAfterBattle() {
+    auto restore = [&](std::vector<PokemonInstance>& list) {
+        for (auto& u : list) {
+            if (u.side != PokemonSide::Player) continue;
+            auto it = battleStartPositions.find(u.id);
+            if (it == battleStartPositions.end()) continue;
+            u.position = it->second;
+            u.isMoving = false;
+            u.moveT = 1.0f;
+            u.committedDest = {-1, -1};
+            u.moveFrom = u.position;
+            u.moveTo = u.position;
+        }
+    };
+    restore(pokemons);
+    restore(benchPokemons);
+    battleStartPositions.clear();
+}
+
 void GameWorld::updateFaint(PokemonInstance& target, float dt) {
     if (!target.fainting || !target.model) return;
 
@@ -342,7 +373,7 @@ void GameWorld::spawnPokemonAtGrid(const std::string& pokemonName,
     spawnPokemon(pokemonName, gridToWorld(col, row), side, level);
 }
 
-void GameWorld::addToBench(const std::string& pokemonName)
+void GameWorld::addToBench(const std::string& pokemonName, int level)
 {
     if (!data) {
         std::cerr << "[GameWorld] GameDataDb not set. Call GameWorld::setData() during init.\n";
@@ -378,7 +409,7 @@ void GameWorld::addToBench(const std::string& pokemonName)
     inst.types = stats->types;
     inst.baseExp = stats->baseExp;
 
-    applyLevelScaling(inst, -1, false);
+    applyLevelScaling(inst, level, false);
     applyLoadoutForLevel(inst, false);
 
     int slot = static_cast<int>(benchPokemons.size());
