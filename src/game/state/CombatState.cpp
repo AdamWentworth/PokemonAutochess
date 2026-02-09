@@ -121,6 +121,7 @@ void CombatState::onExit() {
         }
     }
     if (gameWorld) {
+        gameWorld->healPlayerUnitsToFull();
         gameWorld->resetCombatBalance();
     }
     script.onExit();

@@ -61,9 +61,13 @@ void HealthBarRenderer::render(const std::vector<HealthBarData>& healthBars) {
         // Foreground
         float percent = static_cast<float>(hb.currentHP)/hb.maxHP;
         glm::vec3 color;
-        if (percent <= 0.2f) color = glm::vec3(1.0f, 0.0f, 0.0f);
-        else if (percent <= 0.5f) color = glm::vec3(1.0f, 1.0f, 0.0f);
-        else color = glm::vec3(0.0f, 1.0f, 0.0f);
+        if (hb.isEnemy) {
+            color = glm::vec3(1.0f, 1.0f, 0.0f);
+        } else {
+            if (percent <= 0.2f) color = glm::vec3(1.0f, 0.0f, 0.0f);
+            else if (percent <= 0.5f) color = glm::vec3(1.0f, 1.0f, 0.0f);
+            else color = glm::vec3(0.0f, 1.0f, 0.0f);
+        }
 
         glm::mat4 modelFg = glm::translate(glm::mat4(1.0f), glm::vec3(pos, 0.0f));
         modelFg = glm::scale(modelFg, glm::vec3(width*percent, hpH, 1.0f));
@@ -86,7 +90,7 @@ void HealthBarRenderer::render(const std::vector<HealthBarData>& healthBars) {
         glm::mat4 eFg = glm::translate(glm::mat4(1.0f), glm::vec3(ePos, 0.0f));
         eFg = glm::scale(eFg, glm::vec3(width*eFrac, enH, 1.0f));
         shader->setUniform("u_Model", eFg);
-        shader->setUniform("u_Color", glm::vec3(0.95f, 0.65f, 0.20f)); // orange/yellow
+        shader->setUniform("u_Color", glm::vec3(0.95f, 0.15f, 0.15f)); // red
         renderQuad();
 
         // ----- XP bar (player only) -----

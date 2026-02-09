@@ -62,7 +62,17 @@ void ScriptedState::rebuildCardRow() {
 
     const auto* viewport = services.viewport;
     const int uiW = viewport ? viewport->width : 1280;
-    cardSystem.spawnCardRow(list, uiW, /*y*/ 300);
+    const int uiH = viewport ? viewport->height : 720;
+    if (cardMode == CardMode::Shop) {
+        const int cardW = 160;
+        const int cardH = 110;
+        const int spacing = 20;
+        const int margin = 40;
+        const int y = std::max(0, uiH - cardH - margin);
+        cardSystem.spawnCardRowLayout(list, uiW, y, cardW, cardH, spacing);
+    } else {
+        cardSystem.spawnCardRow(list, uiW, /*y*/ 300);
+    }
     std::cout << "[ScriptedState] Spawned " << list.size() << " cards\n";
 }
 

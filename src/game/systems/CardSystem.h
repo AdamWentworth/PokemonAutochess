@@ -23,6 +23,8 @@ public:
 
     // Lay out a centered row of cards across the screen at the given Y.
     void spawnCardRow(const std::vector<CardData>& cardDatas, int screenWidth, int yOffset);
+    void spawnCardRowLayout(const std::vector<CardData>& cardDatas, int screenWidth, int yOffset,
+                            int cardWidth, int cardHeight, int spacing);
 
     void clearCards();
 

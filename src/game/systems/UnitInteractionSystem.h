@@ -26,6 +26,9 @@ private:
     glm::vec3 screenToWorld(int mouseX, int mouseY) const;
     bool isInBenchZone(const glm::vec3& pos) const;
     bool isInBoardZone(const glm::vec3& pos) const;
+    bool isBoardCellOccupied(const glm::vec3& pos, int ignoreIndex) const;
+    bool isBenchSlotOccupied(const glm::vec3& pos, int ignoreIndex) const;
+    bool isSameCell(const glm::vec3& a, const glm::vec3& b, float eps = 0.01f) const;
 
 private:
     Camera3D* camera = nullptr;
@@ -34,6 +37,7 @@ private:
     bool draggingUnit = false;
     int draggedIndex = -1;
     bool draggingFromBench = false;
+    glm::vec3 dragStartPos{};
 
     float pickRadius = 0.7f;
     float cellSize = 1.2f;

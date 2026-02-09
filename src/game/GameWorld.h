@@ -91,6 +91,7 @@ public:
     void applyLeechSeed(int attackerId, int targetId);
     // Finalize a faint (cleanup + XP award). Safe to call once.
     void handleUnitFaint(PokemonInstance& target);
+    void healPlayerUnitsToFull();
 
 private:
     ResourceManager* resources = nullptr; // engine-owned

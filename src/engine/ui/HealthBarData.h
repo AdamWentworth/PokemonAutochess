@@ -11,4 +11,5 @@ struct HealthBarData {
     int currentXP;
     int maxXP;
     bool showXP;
+    bool isEnemy = false;
 };

@@ -54,6 +54,7 @@ std::vector<HealthBarData> BuildHealthBarData(
         hb.currentEnergy = instance.energy;
         hb.maxEnergy     = instance.maxEnergy;
         hb.showXP        = (instance.side == PokemonSide::Player);
+        hb.isEnemy       = (instance.side == PokemonSide::Enemy);
         hb.currentXP     = instance.xp;
         hb.maxXP         = hb.showXP ? xpToNextLevel(config, instance.level) : 0;
         data.push_back(hb);

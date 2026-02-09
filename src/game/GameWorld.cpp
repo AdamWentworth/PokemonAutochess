@@ -214,6 +214,19 @@ void GameWorld::handleUnitFaint(PokemonInstance& target) {
     awardXpForFaint(target);
 }
 
+void GameWorld::healPlayerUnitsToFull() {
+    auto healList = [&](std::vector<PokemonInstance>& list) {
+        for (auto& u : list) {
+            if (!u.alive) continue;
+            if (u.side != PokemonSide::Player) continue;
+            u.hp = u.maxHP;
+        }
+    };
+
+    healList(pokemons);
+    healList(benchPokemons);
+}
+
 void GameWorld::updateFaint(PokemonInstance& target, float dt) {
     if (!target.fainting || !target.model) return;
 
@@ -369,9 +382,16 @@ void GameWorld::addToBench(const std::string& pokemonName)
     applyLoadoutForLevel(inst, false);
 
     int slot = static_cast<int>(benchPokemons.size());
-    float spacing = 1.2f;
-    float x = (slot - 4) * spacing + spacing / 2.0f;
-    float z = 4.5f;
+    const float slotSize = config.cellSize;
+    const int benchSlots = std::max(1, config.benchSlots);
+    slot = std::min(slot, benchSlots - 1);
+
+    const float totalWidth = benchSlots * slotSize;
+    const float startX = -totalWidth * 0.5f;
+    const float startZ = (config.rows * config.cellSize) * 0.5f + 0.5f;
+
+    const float x = startX + slotSize * 0.5f + slot * slotSize;
+    const float z = startZ + slotSize * 0.5f;
     inst.position = glm::vec3(x, 0.0f, z);
 
     inst.animTimeSec = 0.0f;

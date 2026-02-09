@@ -1,6 +1,6 @@
 -- scripts/states/route1_shop.lua
 
-local SHOP_DURATION = 60.0
+local SHOP_DURATION = 30.0
 local time_left = SHOP_DURATION
 local transitioned = false
 
@@ -55,7 +55,7 @@ function on_enter()
     time_left = SHOP_DURATION
     transitioned = false
     if #cards == 0 then
-        fill_cards(3)
+        fill_cards(5)
     end
 end
 
