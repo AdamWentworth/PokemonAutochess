@@ -126,6 +126,29 @@ void ScriptAPI::requestQuit() {
     }
 }
 
+ScriptAPI::ClassicIncomeResult ScriptAPI::awardClassicRoundIncome(bool playerWon) {
+    ClassicIncomeResult out{};
+    if (!world_) return out;
+    if (services_.gameMode != "classic") return out;
+
+    const auto r = world_->awardClassicRoundIncome(playerWon);
+    out.baseIncome = r.baseIncome;
+    out.interestIncome = r.interestIncome;
+    out.streakIncome = r.streakIncome;
+    out.totalIncome = r.totalIncome;
+    out.winStreak = r.winStreak;
+    out.lossStreak = r.lossStreak;
+    out.roundIndex = r.roundIndex;
+    out.won = r.won;
+    return out;
+}
+
+void ScriptAPI::startNewGame(const std::string& mode) {
+    StartNewGameCommand cmd;
+    cmd.mode = mode;
+    enqueue(cmd);
+}
+
 std::vector<ScriptAPI::UnitSnapshot> ScriptAPI::listUnits() const {
     std::vector<UnitSnapshot> out;
     if (!world_) return out;
@@ -676,6 +699,29 @@ void ScriptAPI::applyCommand(const Command& cmd) {
         if (!u) return;
         int m = u->maxEnergy;
         u->energy = std::max(0, std::min(u->energy + c.delta, m));
+        return;
+    }
+
+    if (std::holds_alternative<StartNewGameCommand>(cmd)) {
+        const auto& c = std::get<StartNewGameCommand>(cmd);
+        const std::string mode = toLowerCopy(c.mode);
+        if (mode == "classic" || mode == "adventure") {
+            services_.gameMode = mode;
+        }
+        services_.hasStartedGame = true;
+
+        if (world_) {
+            int startingMoney = services_.config.startingCash;
+            if (services_.gameMode == "classic") {
+                startingMoney = services_.config.classicStartingGold;
+            }
+            world_->resetForNewGame(startingMoney);
+        }
+
+        if (manager_) {
+            manager_->clearAndPushState(std::make_unique<ScriptedState>(
+                manager_, world_, services_, "scripts/states/starter.lua"));
+        }
         return;
     }
 }

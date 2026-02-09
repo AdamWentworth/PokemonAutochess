@@ -41,6 +41,18 @@ public:
     bool setVideoMode(int width, int height, bool fullscreen);
     GameServices::VideoMode getVideoMode() const;
     void requestQuit();
+    void startNewGame(const std::string& mode);
+    struct ClassicIncomeResult {
+        int baseIncome = 0;
+        int interestIncome = 0;
+        int streakIncome = 0;
+        int totalIncome = 0;
+        int winStreak = 0;
+        int lossStreak = 0;
+        int roundIndex = 0;
+        bool won = false;
+    };
+    ClassicIncomeResult awardClassicRoundIncome(bool playerWon);
 
     struct UnitSnapshot {
         int id = -1;
@@ -191,6 +203,9 @@ private:
         int unitId = -1;
         int delta = 0;
     };
+    struct StartNewGameCommand {
+        std::string mode;
+    };
 
     using Command = std::variant<
         EmitCommand,
@@ -205,7 +220,8 @@ private:
         FaceEnemyCommand,
         FaceTargetCommand,
         SetEnergyCommand,
-        AddEnergyCommand
+        AddEnergyCommand,
+        StartNewGameCommand
     >;
 
     void enqueue(Command cmd);

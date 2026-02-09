@@ -27,6 +27,9 @@ bool test_animset_glb_name_smoke(std::string& outFail);
 bool test_placement_to_combat_headless(std::string& outFail);
 bool test_animset_clip_name_smoke(std::string& outFail);
 bool test_layering_engine_no_game_includes(std::string& outFail);
+bool test_state_manager_input_deferral(std::string& outFail);
+bool test_mode_split_flow(std::string& outFail);
+bool test_mode_split_menu_entries(std::string& outFail);
 
 struct TestCase {
     const char* name;
@@ -95,6 +98,9 @@ int main(int argc, char** argv) {
         {"placement_to_combat_headless", &test_placement_to_combat_headless},
         {"animset_clip_name_smoke", &test_animset_clip_name_smoke},
         {"layering_engine_no_game_includes", &test_layering_engine_no_game_includes},
+        {"state_manager_input_deferral", &test_state_manager_input_deferral},
+        {"mode_split_flow", &test_mode_split_flow},
+        {"mode_split_menu_entries", &test_mode_split_menu_entries},
     };
 
     if (listOnly) {

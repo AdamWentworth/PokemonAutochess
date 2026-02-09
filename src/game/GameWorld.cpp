@@ -240,6 +240,67 @@ void GameWorld::healPlayerUnitsToFull() {
     healList(benchPokemons);
 }
 
+void GameWorld::resetForNewGame(int startingMoney) {
+    pokemons.clear();
+    benchPokemons.clear();
+    battleStartPositions.clear();
+    captureAttempts.clear();
+    pendingLeechHeals.clear();
+
+    selectedItemId.clear();
+    items.clear();
+    const int resetMoney = (startingMoney >= 0) ? startingMoney : config.startingCash;
+    money = std::max(0, resetMoney);
+
+    classicWinStreak = 0;
+    classicLossStreak = 0;
+    classicRoundsCompleted = 0;
+
+    boardInteractionLocked = false;
+    resetCombatBalance();
+
+    sharedLoopAnimTimeSec = 0.0f;
+}
+
+GameWorld::ClassicRoundIncomeResult GameWorld::awardClassicRoundIncome(bool playerWon) {
+    ClassicRoundIncomeResult result{};
+    result.won = playerWon;
+
+    if (playerWon) {
+        classicWinStreak = std::max(0, classicWinStreak + 1);
+        classicLossStreak = 0;
+    } else {
+        classicLossStreak = std::max(0, classicLossStreak + 1);
+        classicWinStreak = 0;
+    }
+
+    const int activeStreak = std::max(classicWinStreak, classicLossStreak);
+
+    result.baseIncome = std::max(0, config.classicBaseIncome);
+    const int per10 = std::max(0, config.classicInterestPer10);
+    const int interestCap = std::max(0, config.classicInterestCap);
+    const int interest = (std::max(0, money) / 10) * per10;
+    result.interestIncome = std::min(interestCap, interest);
+    if (activeStreak >= 6) {
+        result.streakIncome = std::max(0, config.classicStreakBonus6Plus);
+    } else if (activeStreak >= 4) {
+        result.streakIncome = std::max(0, config.classicStreakBonus4To5);
+    } else if (activeStreak >= 2) {
+        result.streakIncome = std::max(0, config.classicStreakBonus2To3);
+    } else {
+        result.streakIncome = 0;
+    }
+
+    result.totalIncome = std::max(0, result.baseIncome + result.interestIncome + result.streakIncome);
+    addMoney(result.totalIncome);
+
+    classicRoundsCompleted += 1;
+    result.roundIndex = classicRoundsCompleted;
+    result.winStreak = classicWinStreak;
+    result.lossStreak = classicLossStreak;
+    return result;
+}
+
 void GameWorld::addMoney(int amount) {
     if (amount <= 0) return;
     money = std::max(0, money + amount);

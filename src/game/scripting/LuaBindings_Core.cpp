@@ -143,6 +143,23 @@ void registerLuaBindings_Core(sol::state& lua, ScriptAPI& api) {
     lua.set_function("request_quit", [&api]() {
         api.requestQuit();
     });
+    lua.set_function("start_new_game", [&api](const std::string& mode) {
+        api.startNewGame(mode);
+    });
+    lua.set_function("classic_award_round_income", [&api, &lua](bool won) {
+        const auto r = api.awardClassicRoundIncome(won);
+        sol::state_view L(lua);
+        sol::table t = L.create_table();
+        t["base"] = r.baseIncome;
+        t["interest"] = r.interestIncome;
+        t["streak"] = r.streakIncome;
+        t["total"] = r.totalIncome;
+        t["win_streak"] = r.winStreak;
+        t["loss_streak"] = r.lossStreak;
+        t["round"] = r.roundIndex;
+        t["won"] = r.won;
+        return t;
+    });
 
     // =================================================================
     // World/Unit inspection & mutation for Lua systems

@@ -74,6 +74,8 @@ bool test_script_api_contract(std::string& outFail) {
     }
 
     GameServices services(cfg, db, log, events, assets, rng, time);
+    bool quitRequested = false;
+    services.requestQuit = [&quitRequested]() { quitRequested = true; };
     GameWorld world(cfg);
     world.setData(&db);
     world.setLogger(&log);
@@ -187,6 +189,89 @@ bool test_script_api_contract(std::string& outFail) {
     const std::string evtPayload = e["payload"].get_or(std::string());
     if (!expect(evtType == "test_event", "events_drain type mismatch.", outFail)) return false;
     if (!expect(evtPayload == "payload", "events_drain payload mismatch.", outFail)) return false;
+
+    // Core mode/start/quit bindings.
+    sol::function getStartedFn = lua["get_has_started_game"];
+    sol::function setStartedFn = lua["set_has_started_game"];
+    sol::function requestQuitFn = lua["request_quit"];
+    sol::function startNewGameFn = lua["start_new_game"];
+    sol::function classicIncomeFn = lua["classic_award_round_income"];
+    if (!expect(getStartedFn.valid(), "get_has_started_game binding missing.", outFail)) return false;
+    if (!expect(setStartedFn.valid(), "set_has_started_game binding missing.", outFail)) return false;
+    if (!expect(requestQuitFn.valid(), "request_quit binding missing.", outFail)) return false;
+    if (!expect(startNewGameFn.valid(), "start_new_game binding missing.", outFail)) return false;
+    if (!expect(classicIncomeFn.valid(), "classic_award_round_income binding missing.", outFail)) return false;
+    {
+        sol::protected_function_result r = getStartedFn();
+        if (!expect(r.valid(), "get_has_started_game call failed.", outFail)) return false;
+        const bool startedNow = r.get<bool>();
+        if (!expect(startedNow == false, "get_has_started_game initial value mismatch.", outFail)) return false;
+    }
+    setStartedFn(true);
+    {
+        sol::protected_function_result r = getStartedFn();
+        if (!expect(r.valid(), "get_has_started_game call failed after set.", outFail)) return false;
+        const bool startedNow = r.get<bool>();
+        if (!expect(startedNow == true, "set_has_started_game did not persist value.", outFail)) return false;
+    }
+    requestQuitFn();
+    if (!expect(quitRequested, "request_quit callback did not run.", outFail)) return false;
+
+    // Capturing units should stay tile-blocking and visible to scripts as captureInProgress.
+    const int idB = units[1].id;
+    units[1].captureInProgress = true;
+    sol::function snapFn = lua["world_get_unit_snapshot"];
+    if (!expect(snapFn.valid(), "world_get_unit_snapshot binding missing.", outFail)) return false;
+    sol::table captured = snapFn(idB);
+    if (!expect(captured.valid(), "world_get_unit_snapshot returned invalid table for capture test.", outFail)) return false;
+    const bool capFlag = captured["captureInProgress"].get_or(false);
+    const bool capBlocks = captured["blocksTile"].get_or(false);
+    const bool capAlive = captured["alive"].get_or(true);
+    if (!expect(capFlag, "captureInProgress flag missing in unit snapshot.", outFail)) return false;
+    if (!expect(capBlocks, "captureInProgress unit should still block tiles.", outFail)) return false;
+    if (!expect(!capAlive, "captureInProgress unit should not be marked alive for combat targeting.", outFail)) return false;
+
+    // New game command should reset world state and switch mode.
+    world.addMoney(777);
+    world.addToBench("bulbasaur", 5);
+    startNewGameFn("adventure");
+    api.flush();
+    if (!expect(services.gameMode == "adventure", "start_new_game did not switch mode.", outFail)) return false;
+    if (!expect(services.hasStartedGame, "start_new_game should mark game started.", outFail)) return false;
+    if (!expect(world.getPokemons().empty(), "start_new_game did not clear board units.", outFail)) return false;
+    if (!expect(world.getBenchPokemons().empty(), "start_new_game did not clear bench units.", outFail)) return false;
+    if (!expect(world.getMoney() == cfg.startingCash, "start_new_game did not reset money.", outFail)) return false;
+
+    // Starting classic mode should use classic starting gold.
+    startNewGameFn("classic");
+    api.flush();
+    if (!expect(services.gameMode == "classic", "start_new_game classic did not switch mode.", outFail)) return false;
+    if (!expect(world.getMoney() == cfg.classicStartingGold, "classic mode did not use classic starting gold.", outFail)) return false;
+
+    // Classic round income: base + capped interest + streak scaling.
+    world.spendMoney(world.getMoney());
+    world.addMoney(50); // ensures max interest path with default config
+    {
+        sol::table income = classicIncomeFn(true);
+        if (!expect(income.valid(), "classic_award_round_income did not return table.", outFail)) return false;
+        const int base = income["base"].get_or(-1);
+        const int interest = income["interest"].get_or(-1);
+        const int streak = income["streak"].get_or(-1);
+        const int total = income["total"].get_or(-1);
+        const int winStreak = income["win_streak"].get_or(-1);
+        if (!expect(base == cfg.classicBaseIncome, "classic income base mismatch.", outFail)) return false;
+        if (!expect(interest == cfg.classicInterestCap, "classic income interest mismatch.", outFail)) return false;
+        if (!expect(streak == 0, "classic income streak bonus should be 0 on first win.", outFail)) return false;
+        if (!expect(total == (base + interest + streak), "classic income total mismatch.", outFail)) return false;
+        if (!expect(winStreak == 1, "classic win streak should be 1 after first win.", outFail)) return false;
+    }
+    {
+        sol::table income = classicIncomeFn(true);
+        const int streak = income["streak"].get_or(-1);
+        const int winStreak = income["win_streak"].get_or(-1);
+        if (!expect(streak == cfg.classicStreakBonus2To3, "classic streak bonus mismatch at streak 2.", outFail)) return false;
+        if (!expect(winStreak == 2, "classic win streak should be 2 after second win.", outFail)) return false;
+    }
 
     return true;
 }

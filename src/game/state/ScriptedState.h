@@ -34,6 +34,10 @@ private:
     void ensureCardUI();
     void rebuildCardRow();
     void rebuildTextMenu();
+    void ensureCurrencyHudResources();
+    void releaseCurrencyHudResources();
+    void drawCurrencyHud(int uiW, int uiH);
+    unsigned int loadCurrencyTexture(const std::string& path) const;
 
 private:
     GameStateManager* stateManager = nullptr;
@@ -53,6 +57,16 @@ private:
     bool hasTextMenu = false;
     bool renderWorld = true;
 
+    std::unique_ptr<TextRenderer> currencyText;
+    std::string currencyIconPath;
+    unsigned int currencyIconTexture = 0;
+    unsigned int currencyVAO = 0;
+    unsigned int currencyVBO = 0;
+    unsigned int currencyEBO = 0;
+    int shopCardsY = 0;
+    int shopCardsH = 0;
+    bool shopCardsValid = false;
+
     struct TextMenuEntry {
         std::string id;
         std::string label;
@@ -62,4 +76,9 @@ private:
         float h = 0.0f;
     };
     std::vector<TextMenuEntry> textMenuEntries;
+    bool hasShopReadyButton = false;
+    float shopReadyX = 0.0f;
+    float shopReadyY = 0.0f;
+    float shopReadyW = 0.0f;
+    float shopReadyH = 0.0f;
 };

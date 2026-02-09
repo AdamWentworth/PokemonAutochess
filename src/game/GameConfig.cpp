@@ -136,6 +136,17 @@ GameConfigData GameConfig::load(LogBus::Logger* logger, const engine::IAssetStor
     sol::table economy = t["economy"];
     if (economy.valid()) {
         cfg.startingCash = economy.get_or("starting_cash", cfg.startingCash);
+
+        sol::table classic = economy["classic"];
+        if (classic.valid()) {
+            cfg.classicStartingGold = classic.get_or("starting_gold", cfg.classicStartingGold);
+            cfg.classicBaseIncome = classic.get_or("base_income", cfg.classicBaseIncome);
+            cfg.classicInterestPer10 = classic.get_or("interest_per_10", cfg.classicInterestPer10);
+            cfg.classicInterestCap = classic.get_or("interest_cap", cfg.classicInterestCap);
+            cfg.classicStreakBonus2To3 = classic.get_or("streak_2_3", cfg.classicStreakBonus2To3);
+            cfg.classicStreakBonus4To5 = classic.get_or("streak_4_5", cfg.classicStreakBonus4To5);
+            cfg.classicStreakBonus6Plus = classic.get_or("streak_6_plus", cfg.classicStreakBonus6Plus);
+        }
     }
 
     sol::table items = t["items"];

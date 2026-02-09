@@ -26,7 +26,16 @@ return {
         block_tile = false
     },
     economy = {
-        starting_cash = 3000
+        starting_cash = 3000,
+        classic = {
+            starting_gold = 1,
+            base_income = 5,
+            interest_per_10 = 1,
+            interest_cap = 5,
+            streak_2_3 = 1,
+            streak_4_5 = 2,
+            streak_6_plus = 3
+        }
     },
     items = {
         potion_heal_pct = 0.30,

@@ -43,6 +43,17 @@ public:
         float enemyDamageTakenMult = 1.0f;
     };
 
+    struct ClassicRoundIncomeResult {
+        int baseIncome = 0;
+        int interestIncome = 0;
+        int streakIncome = 0;
+        int totalIncome = 0;
+        int winStreak = 0;
+        int lossStreak = 0;
+        int roundIndex = 0;
+        bool won = false;
+    };
+
     explicit GameWorld(const GameConfigData& cfg);
 
     void setResources(ResourceManager* rm) { resources = rm; }
@@ -111,6 +122,8 @@ public:
     // Finalize a faint (cleanup + XP award). Safe to call once.
     void handleUnitFaint(PokemonInstance& target);
     void healPlayerUnitsToFull();
+    void resetForNewGame(int startingMoney = -1);
+    ClassicRoundIncomeResult awardClassicRoundIncome(bool playerWon);
     void capturePlayerPositionsForBattle();
     void restorePlayerPositionsAfterBattle();
     void setBoardInteractionLocked(bool locked) { boardInteractionLocked = locked; }
@@ -212,6 +225,10 @@ private:
     void ensureLeechSeedConfigLoaded();
     void updateCaptureAttempts(float dt);
     void ensurePokeballModel();
+
+    int classicWinStreak = 0;
+    int classicLossStreak = 0;
+    int classicRoundsCompleted = 0;
 
     std::shared_ptr<Model> pokeballModel;
     bool pokeballModelLoaded = false;

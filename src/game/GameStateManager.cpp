@@ -29,6 +29,24 @@ void GameStateManager::popState() {
     }
 }
 
+void GameStateManager::clearAndPushState(std::unique_ptr<GameState> state) {
+    if (!state) return;
+    if (inUpdate) {
+        PendingOp op;
+        op.type = PendingType::ClearAndPush;
+        op.state = std::move(state);
+        pendingOps.push_back(std::move(op));
+        return;
+    }
+
+    while (!stateStack.empty()) {
+        stateStack.top()->onExit();
+        stateStack.pop();
+    }
+    state->onEnter();
+    stateStack.push(std::move(state));
+}
+
 GameState* GameStateManager::getCurrentState() {
     return stateStack.empty() ? nullptr : stateStack.top().get();
 }
@@ -67,6 +85,15 @@ void GameStateManager::flushPending() {
                 stateStack.pop();
             }
         } else if (op.type == PendingType::Push) {
+            if (op.state) {
+                op.state->onEnter();
+                stateStack.push(std::move(op.state));
+            }
+        } else if (op.type == PendingType::ClearAndPush) {
+            while (!stateStack.empty()) {
+                stateStack.top()->onExit();
+                stateStack.pop();
+            }
             if (op.state) {
                 op.state->onEnter();
                 stateStack.push(std::move(op.state));

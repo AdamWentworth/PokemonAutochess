@@ -272,6 +272,8 @@ if (BUILD_TESTING)
         tests/TestPlacementToCombat.cpp
         tests/TestAnimsetClipNames.cpp
         tests/TestLayering.cpp
+        tests/TestStateManager.cpp
+        tests/TestModeSplit.cpp
     )
 
     target_link_libraries(PAC_Tests
@@ -321,6 +323,9 @@ if (BUILD_TESTING)
         placement_to_combat_headless
         animset_clip_name_smoke
         layering_engine_no_game_includes
+        state_manager_input_deferral
+        mode_split_flow
+        mode_split_menu_entries
     )
 
     foreach(test_name IN LISTS PAC_TEST_NAMES)

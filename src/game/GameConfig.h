@@ -32,6 +32,13 @@ struct GameConfigData {
 
     // economy
     int startingCash = 3000;
+    int classicStartingGold = 1;
+    int classicBaseIncome = 5;
+    int classicInterestPer10 = 1;
+    int classicInterestCap = 5;
+    int classicStreakBonus2To3 = 1;
+    int classicStreakBonus4To5 = 2;
+    int classicStreakBonus6Plus = 3;
 
     // items (tuning)
     float potionHealPct = 0.30f; // % of max HP

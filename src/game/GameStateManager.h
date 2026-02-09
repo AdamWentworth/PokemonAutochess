@@ -11,6 +11,7 @@ class GameStateManager {
 public:
     void pushState(std::unique_ptr<GameState> state);
     void popState();
+    void clearAndPushState(std::unique_ptr<GameState> state);
     GameState* getCurrentState();
     void handleInput(const InputEvent& event);
     void update(float deltaTime);
@@ -20,7 +21,7 @@ private:
     std::stack<std::unique_ptr<GameState>> stateStack;
     bool inUpdate = false;
 
-    enum class PendingType { Push, Pop };
+    enum class PendingType { Push, Pop, ClearAndPush };
     struct PendingOp {
         PendingType type = PendingType::Pop;
         std::unique_ptr<GameState> state;
