@@ -15,8 +15,7 @@
 #include "vfx/GrassImpactVFX.h"
 // Leech seed projectile VFX
 #include "vfx/LeechSeedProjectileVFX.h"
-// Leech seed sap + heal VFX
-#include "vfx/LeechSeedSapVFX.h"
+// Leech seed heal VFX
 #include "vfx/HealPlusVFX.h"
 // Leech seed drain dots
 #include "vfx/LeechSeedDrainVFX.h"
@@ -118,10 +117,7 @@ private:
     LeechSeedProjectileVFX leechSeedVfx;
     bool leechSeedVfxInitialized = false;
 
-    // Leech seed sap/heal VFX
-    LeechSeedSapVFX leechSeedSapVfx;
-    bool leechSeedSapVfxInitialized = false;
-
+    // Leech seed heal VFX
     HealPlusVFX healPlusVfx;
     bool healPlusVfxInitialized = false;
 

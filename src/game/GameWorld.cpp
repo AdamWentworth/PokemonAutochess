@@ -468,12 +468,6 @@ void GameWorld::update(float dt)
 
     leechSeedVfx.update(dt);
 
-    if (!leechSeedSapVfxInitialized) {
-        LeechSeedSapVFX::Config c; // defaults
-        leechSeedSapVfx.setConfig(c);
-        leechSeedSapVfxInitialized = true;
-    }
-
     if (!healPlusVfxInitialized) {
         HealPlusVFX::Config c; // defaults
         healPlusVfx.setConfig(c);
@@ -488,7 +482,6 @@ void GameWorld::update(float dt)
 
     updateLeechSeedStatus(dt);
 
-    leechSeedSapVfx.update(dt);
     healPlusVfx.update(dt);
     leechSeedDrainVfx.update(dt);
 }
@@ -524,7 +517,6 @@ void GameWorld::drawAll(const Camera3D& camera, BoardRenderer& boardRenderer)
     tailFireVfx.render(camera);
     grassImpactVfx.render(camera);
     leechSeedVfx.render(camera);
-    leechSeedSapVfx.render(camera);
     healPlusVfx.render(camera);
     leechSeedDrainVfx.render(camera);
 }
