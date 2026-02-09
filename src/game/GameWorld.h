@@ -45,6 +45,7 @@ public:
     void setResources(ResourceManager* rm) { resources = rm; }
     void setData(const GameDataDb* db) { data = db; }
     void setLogger(LogBus::Logger* logger) { log = logger; }
+    void setRenderEnabled(bool enabled) { renderEnabled = enabled; }
     LogBus::Logger* getLogger() const { return log; }
     const GameDataDb* getData() const { return data; }
     const GameConfigData& getConfig() const { return config; }
@@ -96,6 +97,7 @@ private:
     const GameDataDb* data = nullptr;     // game-owned, injected
     LogBus::Logger* log = nullptr;        // optional game-owned logger
     const GameConfigData& config;
+    bool renderEnabled = false;
 
     std::vector<PokemonInstance> pokemons;
     std::vector<PokemonInstance> benchPokemons;

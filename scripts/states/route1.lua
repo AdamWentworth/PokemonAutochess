@@ -21,7 +21,30 @@ function get_combat_balance()
     }
 end
 
--- You can also add on_enter/on_update/on_exit hooks if needed:
--- function on_enter() end
--- function on_update(dt) end
--- function on_exit() end
+local transitioned = false
+
+function on_update(dt)
+    if transitioned then return end
+
+    local units = world_list_units() or {}
+    local anyEnemyAlive = false
+    local anyPlayerAlive = false
+
+    for i = 1, #units do
+        local u = units[i]
+        if u.alive then
+            if u.side == "Enemy" then
+                anyEnemyAlive = true
+            elseif u.side == "Player" then
+                anyPlayerAlive = true
+            end
+        end
+    end
+
+    if anyPlayerAlive and (not anyEnemyAlive) then
+        transitioned = true
+        emit("Route 1 cleared!")
+        pop_state()
+        push_state("scripts/states/route1_shop.lua")
+    end
+end

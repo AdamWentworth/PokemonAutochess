@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <unordered_map>
 #include <iostream>
+#include <memory>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
@@ -265,11 +266,13 @@ void GameWorld::spawnPokemon(const std::string& pokemonName,
     }
 
     std::string path = "assets/models/" + stats->model;
+    std::shared_ptr<Model> sharedModel;
     if (!resources) {
         std::cerr << "[GameWorld] Resource service not set; cannot load model: " << path << "\n";
-        return;
+        if (renderEnabled) return;
+    } else {
+        sharedModel = resources->getModel(path);
     }
-    auto sharedModel = resources->getModel(path);
 
     PokemonInstance inst;
     inst.id = PokemonInstance::getNextUnitID();
@@ -340,11 +343,13 @@ void GameWorld::addToBench(const std::string& pokemonName)
     }
 
     std::string path = "assets/models/" + stats->model;
+    std::shared_ptr<Model> sharedModel;
     if (!resources) {
         std::cerr << "[GameWorld] Resource service not set; cannot load model: " << path << "\n";
-        return;
+        if (renderEnabled) return;
+    } else {
+        sharedModel = resources->getModel(path);
     }
-    auto sharedModel = resources->getModel(path);
 
     PokemonInstance inst;
     inst.id = PokemonInstance::getNextUnitID();
@@ -492,7 +497,9 @@ void GameWorld::update(float dt)
                         [&](const PokemonInstance& u){ return u.id == p.pendingProjectileTargetId; });
 
                     if (itTgt != pokemons.end() && itTgt->alive) {
-                        leechSeedVfx.emit(p, *itTgt, p.pendingProjectileTravelSec);
+                        if (renderEnabled) {
+                            leechSeedVfx.emit(p, *itTgt, p.pendingProjectileTravelSec);
+                        }
                     }
 
                     p.pendingProjectileSpawned = true;
@@ -600,6 +607,11 @@ void GameWorld::update(float dt)
     for (auto& p : pokemons) tickPokemonAnim(p);
     for (auto& p : benchPokemons) tickPokemonAnim(p);
 
+    // Gameplay effects (XP / leech seed) should always update.
+    updateLeechSeedStatus(dt);
+
+    if (!renderEnabled) return;
+
     // Tail fire VFX: init once, then update every frame
     if (!tailFireVfxInitialized) {
         // Currently only configured for Charmander (via filter + cfg section).
@@ -649,8 +661,6 @@ void GameWorld::update(float dt)
         leechSeedDrainVfx.setConfig(c);
         leechSeedDrainVfxInitialized = true;
     }
-
-    updateLeechSeedStatus(dt);
 
     healPlusVfx.update(dt);
     leechSeedDrainVfx.update(dt);
@@ -717,6 +727,7 @@ glm::vec3 GameWorld::getNearestEnemyPosition(const PokemonInstance& unit) const
 
 void GameWorld::emitGrassImpactAt(const PokemonInstance& target)
 {
+    if (!renderEnabled) return;
     if (!grassImpactVfxInitialized) {
         GrassImpactVFX::Config c; // defaults
         grassImpactVfx.setConfig(c);
@@ -729,6 +740,7 @@ void GameWorld::emitGrassImpactAt(const PokemonInstance& target)
 
 void GameWorld::emitTackleImpactAt(const PokemonInstance& target, const PokemonInstance* attacker)
 {
+    if (!renderEnabled) return;
     if (!tackleImpactVfxInitialized) {
         TackleImpactVFX::Config c; // defaults
         tackleImpactVfx.setConfig(c);
@@ -830,7 +842,9 @@ void GameWorld::updateLeechSeedStatus(float dt)
                 float travelSec = dist / std::max(0.1f, drainSpeed);
                 travelSec = std::clamp(travelSec, minTravel, maxTravel);
 
-                leechSeedDrainVfx.emitBetween(tpos, spos, travelSec);
+                if (renderEnabled) {
+                    leechSeedDrainVfx.emitBetween(tpos, spos, travelSec);
+                }
 
                 const float healMult = std::max(0.0f, leechSeedConfig.healMultiplier);
                 int heal = (int)std::round((float)sap * healMult);
@@ -862,8 +876,10 @@ void GameWorld::updateLeechSeedStatus(float dt)
                     auto* source = findUnitById(h.sourceId);
                     if (source && source->alive && h.amount > 0) {
                         source->hp = std::min(source->maxHP, source->hp + h.amount);
-                        const glm::vec3 spos = source->position + glm::vec3(0.0f, source->visualYOffset, 0.0f);
-                        healPlusVfx.emitAt(spos);
+                        if (renderEnabled) {
+                            const glm::vec3 spos = source->position + glm::vec3(0.0f, source->visualYOffset, 0.0f);
+                            healPlusVfx.emitAt(spos);
+                        }
                     }
                     return true;
                 }),

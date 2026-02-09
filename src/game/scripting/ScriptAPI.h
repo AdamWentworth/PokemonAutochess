@@ -98,7 +98,9 @@ public:
     void spawnPokemon(const std::string& name, float x, float y, float z);
     void spawnOnGrid(const std::string& name, int col, int row, PokemonSide side, int level);
     void pushState(const std::string& scriptPath);
+    void pushCombatState(const std::string& scriptPath);
     void popState();
+    void addToBench(const std::string& name);
     bool applyMove(int unitId, int col, int row);
     bool commitMove(int unitId, int col, int row);
     void faceEnemy(int unitId, const std::optional<int>& tgtCol, const std::optional<int>& tgtRow);
@@ -136,7 +138,13 @@ private:
     struct PushStateCommand {
         std::string scriptPath;
     };
+    struct PushCombatStateCommand {
+        std::string scriptPath;
+    };
     struct PopStateCommand {};
+    struct AddToBenchCommand {
+        std::string name;
+    };
     struct ApplyMoveCommand {
         int unitId = -1;
         int col = 0;
@@ -171,7 +179,9 @@ private:
         SpawnCommand,
         SpawnOnGridCommand,
         PushStateCommand,
+        PushCombatStateCommand,
         PopStateCommand,
+        AddToBenchCommand,
         ApplyMoveCommand,
         CommitMoveCommand,
         FaceEnemyCommand,

@@ -33,6 +33,15 @@ bool test_placement_to_combat_headless(std::string& outFail) {
     GameServices services(cfg, db, log, events, assets, rng, time);
     GameWorld world(cfg);
     world.setLogger(&log);
+    world.setData(&db);
+    world.setRenderEnabled(false);
+
+    const std::string pokemonPath = engine::paths::data("config/pokemon_config.json");
+    if (!db.pokemon.loadConfig(pokemonPath, &log, &assets)) {
+        outFail = "Failed to load pokemon config: " + pokemonPath;
+        return false;
+    }
+    db.pokemon.applyBaseExpConfig(engine::paths::data("config/pokemon_base_exp.json"), &log, &assets);
 
     GameStateManager manager;
     const std::string starterName = "bulbasaur";

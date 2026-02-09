@@ -40,6 +40,16 @@ CombatState::~CombatState() = default;
 void CombatState::onEnter() {
     if (gameWorld) {
         gameWorld->resetCombatBalance();
+
+        // Cleanup: remove any dead units and all previous enemies before spawning new wave.
+        auto& list = gameWorld->getPokemons();
+        list.erase(
+            std::remove_if(list.begin(), list.end(),
+                [](const PokemonInstance& u) {
+                    return (!u.alive) || (u.side == PokemonSide::Enemy);
+                }),
+            list.end()
+        );
     }
 
     if (services.ecsWorld && services.ecsWorld->alive(services.combatStateEntity)) {

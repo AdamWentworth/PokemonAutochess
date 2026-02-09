@@ -48,6 +48,9 @@ void registerLuaBindings_Core(sol::state& lua, ScriptAPI& api) {
     lua.set_function("spawnPokemon", [&api](std::string name, float x, float y, float z) {
         api.spawnPokemon(name, x, y, z);
     });
+    lua.set_function("spawn_on_bench", [&api](std::string name) {
+        api.addToBench(name);
+    });
     lua.set_function("spawn_on_grid",
     [&api](std::string name, int col, int row, std::string side, sol::optional<int> level) {
         int lvl = level.value_or(-1);
@@ -82,6 +85,9 @@ void registerLuaBindings_Core(sol::state& lua, ScriptAPI& api) {
     // ---- State mgmt ----
     lua.set_function("push_state", [&api](const std::string& scriptPath) {
         api.pushState(scriptPath);
+    });
+    lua.set_function("push_combat_state", [&api](const std::string& scriptPath) {
+        api.pushCombatState(scriptPath);
     });
     lua.set_function("pop_state", [&api]() { api.popState(); });
 

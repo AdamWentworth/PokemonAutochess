@@ -150,7 +150,7 @@ struct GameSession::Impl {
 
         config = GameConfig::load(&log, assetStore.get());
         services = std::make_unique<GameServices>(config, dataDb, log, scriptEvents, *assetStore, rng, timeSource,
-                                                  &ecsWorld, roundPhaseEntity, &viewport);
+                                                  &ecsWorld, roundPhaseEntity, &viewport, renderEnabled);
         coreServices.rng = &services->rng;
         coreServices.time = &services->time;
 
@@ -161,6 +161,7 @@ struct GameSession::Impl {
 
         // World
         gameWorld = std::make_unique<GameWorld>(config);
+        gameWorld->setRenderEnabled(renderEnabled);
         gameWorld->setLogger(&log);
         if (ctx.services) gameWorld->setResources(ctx.services->resources);
         gameWorld->setData(&dataDb);
@@ -196,7 +197,7 @@ struct GameSession::Impl {
             // Battle feed + logger (instance-based)
             battleFeed = std::make_unique<BattleFeed>(config.fontPath, config.fontSize);
             log.attach(battleFeed.get());
-            log.setEchoToStdout(false);
+            log.setEchoToStdout(true);
         }
 
         if (auto* stateMgr = stateManager.get()) {

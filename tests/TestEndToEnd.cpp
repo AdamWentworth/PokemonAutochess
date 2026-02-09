@@ -87,6 +87,12 @@ bool test_end_to_end_headless(std::string& outFail) {
         outFail = "Failed to load attack anim config: " + attackPath;
         return false;
     }
+    const std::string pokemonPath = engine::paths::data("config/pokemon_config.json");
+    if (!db.pokemon.loadConfig(pokemonPath, &log, &assets)) {
+        outFail = "Failed to load pokemon config: " + pokemonPath;
+        return false;
+    }
+    db.pokemon.applyBaseExpConfig(engine::paths::data("config/pokemon_base_exp.json"), &log, &assets);
 
     engine::CoreServices core;
     core.rng = &rng;
@@ -104,6 +110,7 @@ bool test_end_to_end_headless(std::string& outFail) {
     GameWorld world(cfg);
     world.setLogger(&log);
     world.setData(&db);
+    world.setRenderEnabled(false);
 
     GameStateManager manager;
 

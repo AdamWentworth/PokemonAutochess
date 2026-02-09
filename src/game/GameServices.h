@@ -28,6 +28,7 @@ struct GameServices {
     engine::ecs::World* ecsWorld = nullptr;
     engine::ecs::Entity combatStateEntity{};
     game::ui::UIViewport* viewport = nullptr;
+    bool renderEnabled = false;
 
     GameServices(const GameConfigData& cfg,
                  GameDataDb& db,
@@ -38,7 +39,8 @@ struct GameServices {
                  engine::ITimeSource& timeSource,
                  engine::ecs::World* ecsWorldPtr = nullptr,
                  engine::ecs::Entity combatEntity = {},
-                 game::ui::UIViewport* viewportPtr = nullptr)
+                 game::ui::UIViewport* viewportPtr = nullptr,
+                 bool renderEnabled_ = false)
         : config(cfg)
         , dataDb(db)
         , log(logger)
@@ -48,5 +50,6 @@ struct GameServices {
         , time(timeSource)
         , ecsWorld(ecsWorldPtr)
         , combatStateEntity(combatEntity)
-        , viewport(viewportPtr) {}
+        , viewport(viewportPtr)
+        , renderEnabled(renderEnabled_) {}
 };

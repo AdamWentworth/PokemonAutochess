@@ -14,6 +14,7 @@
 #include "game/GameStateManager.h"
 #include "game/GameServices.h"
 #include "game/state/ScriptedState.h"
+#include "game/state/CombatState.h"
 #include "game/logging/LoggerUtil.h"
 
 #include "game/animation/FlightLocomotion.h"
@@ -353,8 +354,20 @@ void ScriptAPI::pushState(const std::string& scriptPath) {
     enqueue(cmd);
 }
 
+void ScriptAPI::pushCombatState(const std::string& scriptPath) {
+    PushCombatStateCommand cmd;
+    cmd.scriptPath = scriptPath;
+    enqueue(cmd);
+}
+
 void ScriptAPI::popState() {
     enqueue(PopStateCommand{});
+}
+
+void ScriptAPI::addToBench(const std::string& name) {
+    AddToBenchCommand cmd;
+    cmd.name = name;
+    enqueue(cmd);
 }
 
 bool ScriptAPI::applyMove(int unitId, int col, int row) {
@@ -463,8 +476,22 @@ void ScriptAPI::applyCommand(const Command& cmd) {
         return;
     }
 
+    if (std::holds_alternative<PushCombatStateCommand>(cmd)) {
+        const auto& c = std::get<PushCombatStateCommand>(cmd);
+        if (manager_) {
+            manager_->pushState(std::make_unique<CombatState>(manager_, world_, services_, c.scriptPath));
+        }
+        return;
+    }
+
     if (std::holds_alternative<PopStateCommand>(cmd)) {
         if (manager_) manager_->popState();
+        return;
+    }
+
+    if (std::holds_alternative<AddToBenchCommand>(cmd)) {
+        const auto& c = std::get<AddToBenchCommand>(cmd);
+        if (world_) world_->addToBench(c.name);
         return;
     }
 

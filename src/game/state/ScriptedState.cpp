@@ -23,15 +23,71 @@ ScriptedState::ScriptedState(GameStateManager* manager, GameWorld* world, GameSe
 
 ScriptedState::~ScriptedState() = default;
 
-void ScriptedState::ensureStarterUI() {
+void ScriptedState::rebuildCardRow() {
+    sol::table S = script.getScriptTable();
+    sol::protected_function f;
+
+    if (cardMode == CardMode::Shop) {
+        f = S["get_shop_cards"];
+    } else if (cardMode == CardMode::Starter) {
+        f = S["get_starter_cards"];
+    }
+
+    if (!f.valid()) return;
+
+    sol::protected_function_result r = f();
+    if (!(r.valid() && r.get_type() == sol::type::table)) {
+        std::cerr << "[ScriptedState] card list function did not return a table\n";
+        return;
+    }
+
+    std::vector<CardData> list;
+    sol::table t = r;
+    for (auto&& kv : t) {
+        sol::table row = kv.second.as<sol::table>();
+        CardData cd;
+
+        auto nameOpt = row.get<sol::optional<std::string>>("name");
+        cd.pokemonName = nameOpt.value_or(std::string());
+
+        auto costOpt = row.get<sol::optional<int>>("cost");
+        cd.cost = costOpt.value_or(0);
+
+        auto typeOpt = row.get<sol::optional<std::string>>("type");
+        std::string ty = typeOpt.value_or(std::string("Shop"));
+        cd.type = (ty == "Starter") ? CardType::Starter : CardType::Shop;
+
+        if (!cd.pokemonName.empty()) list.push_back(cd);
+    }
+
+    const auto* viewport = services.viewport;
+    const int uiW = viewport ? viewport->width : 1280;
+    cardSystem.spawnCardRow(list, uiW, /*y*/ 300);
+    std::cout << "[ScriptedState] Spawned " << list.size() << " cards\n";
+}
+
+void ScriptedState::ensureCardUI() {
     if (uiInitialized) return;
+    if (!services.renderEnabled) {
+        cardMode = CardMode::None;
+        uiInitialized = true;
+        return;
+    }
 
     // Script functions/vars live in the script environment now.
     sol::table S = script.getScriptTable();
 
-    bool hasCards = S["get_starter_cards"].valid();
-    bool hasClick = S["on_card_click"].valid() || S["onCardClick"].valid();
-    if (!(hasCards && hasClick)) {
+    bool hasShopCards = S["get_shop_cards"].valid();
+    bool hasShopClick = S["on_shop_card_click"].valid() || S["on_card_click"].valid() || S["onCardClick"].valid();
+    bool hasStarterCards = S["get_starter_cards"].valid();
+    bool hasStarterClick = S["on_card_click"].valid() || S["onCardClick"].valid();
+
+    if (hasShopCards && hasShopClick) {
+        cardMode = CardMode::Shop;
+    } else if (hasStarterCards && hasStarterClick) {
+        cardMode = CardMode::Starter;
+    } else {
+        cardMode = CardMode::None;
         uiInitialized = true;
         return;
     }
@@ -40,35 +96,7 @@ void ScriptedState::ensureStarterUI() {
     const auto& c = services.config;
     titleText = std::make_unique<TextRenderer>(c.fontPath, c.fontSize);
 
-    sol::protected_function f = S["get_starter_cards"];
-    sol::protected_function_result r = f();
-    if (r.valid() && r.get_type() == sol::type::table) {
-        std::vector<CardData> list;
-        sol::table t = r;
-        for (auto&& kv : t) {
-            sol::table row = kv.second.as<sol::table>();
-            CardData cd;
-
-            auto nameOpt = row.get<sol::optional<std::string>>("name");
-            cd.pokemonName = nameOpt.value_or(std::string());
-
-            auto costOpt = row.get<sol::optional<int>>("cost");
-            cd.cost = costOpt.value_or(0);
-
-            auto typeOpt = row.get<sol::optional<std::string>>("type");
-            std::string ty = typeOpt.value_or(std::string("Shop"));
-            cd.type = (ty == "Starter") ? CardType::Starter : CardType::Shop;
-
-            if (!cd.pokemonName.empty()) list.push_back(cd);
-        }
-
-        const auto* viewport = services.viewport;
-        const int uiW = viewport ? viewport->width : 1280;
-        cardSystem.spawnCardRow(list, uiW, /*y*/ 300);
-        std::cout << "[ScriptedState] Spawned " << list.size() << " starter cards\n";
-    } else {
-        std::cerr << "[ScriptedState] get_starter_cards() did not return a table\n";
-    }
+    rebuildCardRow();
 
     uiInitialized = true;
     script.flushCommands();
@@ -76,7 +104,7 @@ void ScriptedState::ensureStarterUI() {
 
 void ScriptedState::onEnter() {
     script.onEnter();
-    ensureStarterUI();
+    ensureCardUI();
 }
 
 void ScriptedState::onExit() {
@@ -96,7 +124,8 @@ void ScriptedState::handleInput(const InputEvent& event) {
         uiInitialized = false;
         cardSystem.clearCards();
         titleText.reset();
-        ensureStarterUI();
+        cardMode = CardMode::None;
+        ensureCardUI();
         return; // avoid also sending this key into old script state
     }
 
@@ -110,43 +139,56 @@ void ScriptedState::handleInput(const InputEvent& event) {
     if (event.type == InputEvent::Type::MouseDown) {
         auto clicked = cardSystem.handleMouseClick(event.mouseX, event.mouseY);
         if (clicked) {
-            sol::function onClick = S["on_card_click"];
-            if (!onClick.valid()) onClick = S["onCardClick"];
-            if (onClick.valid()) {
-                onClick(clicked->pokemonName);
-            }
-            script.flushCommands();
+            if (cardMode == CardMode::Shop) {
+                sol::function onClick = S["on_shop_card_click"];
+                if (!onClick.valid()) onClick = S["on_card_click"];
+                if (!onClick.valid()) onClick = S["onCardClick"];
+                if (onClick.valid()) {
+                    onClick(clicked->pokemonName);
+                }
+                script.flushCommands();
+                rebuildCardRow();
+            } else if (cardMode == CardMode::Starter) {
+                sol::function onClick = S["on_card_click"];
+                if (!onClick.valid()) onClick = S["onCardClick"];
+                if (onClick.valid()) {
+                    onClick(clicked->pokemonName);
+                }
+                script.flushCommands();
 
-                    if (stateManager) {
-                        stateManager->pushState(std::make_unique<PlacementState>(
-                            stateManager, gameWorld, services, clicked->pokemonName));
-                    }
+                if (stateManager) {
+                    stateManager->pushState(std::make_unique<PlacementState>(
+                        stateManager, gameWorld, services, clicked->pokemonName));
+                }
+            }
         }
     }
 
     if (event.type == InputEvent::Type::KeyDown) {
-        sol::function keyMap = S["handle_starter_key"];
+        if (cardMode == CardMode::Starter) {
+            sol::function keyMap = S["handle_starter_key"];
             if (keyMap.valid()) {
                 std::string key;
-            switch (event.keyId) {
-                case InputEvent::Key::Num1: key = "1"; break;
-                case InputEvent::Key::Num2: key = "2"; break;
-                case InputEvent::Key::Num3: key = "3"; break;
-                default: break;
-            }
-            if (!key.empty()) {
-                sol::protected_function_result r = keyMap(key);
-                if (r.valid() && r.get_type() == sol::type::string) {
-                    std::string pokemon = r.get<std::string>();
+                switch (event.keyId) {
+                    case InputEvent::Key::Num1: key = "1"; break;
+                    case InputEvent::Key::Num2: key = "2"; break;
+                    case InputEvent::Key::Num3: key = "3"; break;
+                    default: break;
+                }
+                if (!key.empty()) {
+                    sol::protected_function_result r = keyMap(key);
+                    if (r.valid() && r.get_type() == sol::type::string) {
+                        std::string pokemon = r.get<std::string>();
 
-                    sol::function onClick = S["on_card_click"];
-                    if (!onClick.valid()) onClick = S["onCardClick"];
-                    if (onClick.valid()) onClick(pokemon);
-                    script.flushCommands();
+                        sol::function onClick = S["on_card_click"];
+                        if (!onClick.valid()) onClick = S["onCardClick"];
+                        if (onClick.valid()) onClick(pokemon);
+                        script.flushCommands();
 
-                    if (stateManager) {
-                        stateManager->pushState(std::make_unique<PlacementState>(
-                            stateManager, gameWorld, services, pokemon));
+                        if (stateManager) {
+                            stateManager->pushState(std::make_unique<PlacementState>(
+                                stateManager, gameWorld, services, pokemon));
+                        }
                     }
                 }
             }

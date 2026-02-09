@@ -29,7 +29,8 @@ public:
     void render() override;
 
 private:
-    void ensureStarterUI();
+    void ensureCardUI();
+    void rebuildCardRow();
 
 private:
     GameStateManager* stateManager = nullptr;
@@ -42,4 +43,6 @@ private:
     CardSystem cardSystem;
     std::unique_ptr<TextRenderer> titleText;
     bool uiInitialized = false;
+    enum class CardMode { None, Starter, Shop };
+    CardMode cardMode = CardMode::None;
 };
