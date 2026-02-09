@@ -122,6 +122,12 @@ void registerLuaBindings_Core(sol::state& lua, ScriptAPI& api) {
     lua.set_function("set_game_mode", [&api](const std::string& mode) {
         api.setGameMode(mode);
     });
+    lua.set_function("get_has_started_game", [&api]() {
+        return api.getHasStartedGame();
+    });
+    lua.set_function("set_has_started_game", [&api](bool started) {
+        api.setHasStartedGame(started);
+    });
     lua.set_function("set_video_mode", [&api](int width, int height, bool fullscreen) {
         return api.setVideoMode(width, height, fullscreen);
     });
@@ -133,6 +139,9 @@ void registerLuaBindings_Core(sol::state& lua, ScriptAPI& api) {
         t["height"] = vm.height;
         t["fullscreen"] = vm.fullscreen;
         return t;
+    });
+    lua.set_function("request_quit", [&api]() {
+        api.requestQuit();
     });
 
     // =================================================================

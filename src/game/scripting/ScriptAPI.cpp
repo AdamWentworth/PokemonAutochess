@@ -100,6 +100,14 @@ void ScriptAPI::setGameMode(const std::string& mode) {
     }
 }
 
+bool ScriptAPI::getHasStartedGame() const {
+    return services_.hasStartedGame;
+}
+
+void ScriptAPI::setHasStartedGame(bool started) {
+    services_.hasStartedGame = started;
+}
+
 bool ScriptAPI::setVideoMode(int width, int height, bool fullscreen) {
     if (!services_.applyVideoMode) return false;
     const int safeW = std::max(640, width);
@@ -110,6 +118,12 @@ bool ScriptAPI::setVideoMode(int width, int height, bool fullscreen) {
 GameServices::VideoMode ScriptAPI::getVideoMode() const {
     if (services_.queryVideoMode) return services_.queryVideoMode();
     return {};
+}
+
+void ScriptAPI::requestQuit() {
+    if (services_.requestQuit) {
+        services_.requestQuit();
+    }
 }
 
 std::vector<ScriptAPI::UnitSnapshot> ScriptAPI::listUnits() const {
@@ -134,6 +148,7 @@ std::vector<ScriptAPI::UnitSnapshot> ScriptAPI::listUnits() const {
         s.alive = active;
         s.fainting = u.fainting;
         s.blocksTile = active || u.captureInProgress || (u.fainting && config().faintBlockTiles);
+        s.captureInProgress = u.captureInProgress;
         s.fastMove = u.fastMove;
         s.chargedMove = u.chargedMove;
         s.types = u.types;
@@ -163,6 +178,7 @@ std::optional<ScriptAPI::UnitSnapshot> ScriptAPI::getUnitSnapshot(int unitId) co
     s.alive = active;
     s.fainting = u->fainting;
     s.blocksTile = active || u->captureInProgress || (u->fainting && config().faintBlockTiles);
+    s.captureInProgress = u->captureInProgress;
     s.fastMove = u->fastMove;
     s.chargedMove = u->chargedMove;
     s.types = u->types;

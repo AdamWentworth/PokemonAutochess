@@ -64,7 +64,7 @@ local function apply_video_mode(width, height, want_fullscreen)
 end
 
 function on_enter()
-    started = false
+    started = get_has_started_game()
     screen = "main"
     sync_from_engine()
 end
@@ -100,7 +100,8 @@ function get_text_menu_entries()
     table.insert(entries, { id = "mode_classic", label = mode_label("Classic", "classic") })
     table.insert(entries, { id = "mode_adventure", label = mode_label("Adventure", "adventure") })
     table.insert(entries, { id = "open_video", label = "Video Settings" })
-    table.insert(entries, { id = "start_game", label = "Start" })
+    table.insert(entries, { id = "start_game", label = started and "Resume" or "Start" })
+    table.insert(entries, { id = "quit_game", label = "Quit" })
     return entries
 end
 
@@ -144,9 +145,17 @@ function on_text_menu_click(entry_id)
         return
     end
     if entry_id == "start_game" then
-        if started then return end
-        started = true
-        push_state("scripts/states/starter.lua")
+        if started then
+            pop_state()
+        else
+            started = true
+            set_has_started_game(true)
+            push_state("scripts/states/starter.lua")
+        end
+        return
+    end
+    if entry_id == "quit_game" then
+        request_quit()
         return
     end
 end

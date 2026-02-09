@@ -380,8 +380,7 @@ namespace {
             SDL_Event sdlEvent;
 
             while (SDL_PollEvent(&sdlEvent)) {
-                if (sdlEvent.type == SDL_QUIT ||
-                    (sdlEvent.type == SDL_KEYDOWN && sdlEvent.key.keysym.sym == SDLK_ESCAPE)) {
+                if (sdlEvent.type == SDL_QUIT) {
                     running = false;
                 }
 

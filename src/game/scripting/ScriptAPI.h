@@ -36,8 +36,11 @@ public:
     float getPokemonCatchRate(const std::string& name) const;
     std::string getGameMode() const;
     void setGameMode(const std::string& mode);
+    bool getHasStartedGame() const;
+    void setHasStartedGame(bool started);
     bool setVideoMode(int width, int height, bool fullscreen);
     GameServices::VideoMode getVideoMode() const;
+    void requestQuit();
 
     struct UnitSnapshot {
         int id = -1;
@@ -53,6 +56,7 @@ public:
         bool alive = false;
         bool fainting = false;
         bool blocksTile = false;
+        bool captureInProgress = false;
         std::string fastMove;
         std::string chargedMove;
         std::vector<std::string> types;

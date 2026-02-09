@@ -34,9 +34,12 @@ GameState* GameStateManager::getCurrentState() {
 }
 
 void GameStateManager::handleInput(const InputEvent& event) {
+    inUpdate = true;
     if (GameState* state = getCurrentState()) {
         state->handleInput(event);
     }
+    inUpdate = false;
+    flushPending();
 }
 
 void GameStateManager::update(float deltaTime) {

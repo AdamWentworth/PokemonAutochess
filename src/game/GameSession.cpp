@@ -156,6 +156,7 @@ struct GameSession::Impl {
         services = std::make_unique<GameServices>(config, dataDb, log, scriptEvents, *assetStore, rng, timeSource,
                                                   &ecsWorld, roundPhaseEntity, &viewport, renderEnabled);
         services->applyVideoMode = ctx.applyVideoMode;
+        services->requestQuit = ctx.requestQuit;
         if (ctx.queryVideoMode) {
             services->queryVideoMode = [q = ctx.queryVideoMode]() {
                 auto vm = q();
@@ -295,10 +296,31 @@ struct GameSession::Impl {
             }
         }
 
-        if (event.type == InputEvent::Type::MouseWheel) {
+        bool renderWorldForInput = true;
+        if (stateManager) {
+            if (auto* state = stateManager->getCurrentState()) {
+                renderWorldForInput = state->shouldRenderWorld();
+            }
+        }
+
+        if (event.type == InputEvent::Type::KeyDown &&
+            event.keyId == InputEvent::Key::Escape &&
+            !event.repeat) {
+            if (renderWorldForInput && stateManager) {
+                stateManager->pushState(std::make_unique<ScriptedState>(
+                    stateManager.get(),
+                    gameWorld.get(),
+                    *services,
+                    engine::paths::data("scripts/states/main_menu.lua")
+                ));
+                return;
+            }
+        }
+
+        if (renderWorldForInput && event.type == InputEvent::Type::MouseWheel) {
             itemInventoryUI.handleScroll(event.wheelY, viewport.height);
         }
-        if (event.type == InputEvent::Type::MouseDown &&
+        if (renderWorldForInput && event.type == InputEvent::Type::MouseDown &&
             event.mouseButtonId == InputEvent::MouseButton::Left) {
             if (auto clicked = itemInventoryUI.handleMouseClick(event.mouseX, event.mouseY)) {
                 if (gameWorld) {
@@ -308,9 +330,9 @@ struct GameSession::Impl {
                 return; // consume click (avoid dragging/other UI)
             }
         }
-        if (cameraSystem) cameraSystem->handleInput(event);
-        if (unitSystem)   unitSystem->handleInput(event);
-        if (shopSystem)   shopSystem->handleInput(event);
+        if (renderWorldForInput && cameraSystem) cameraSystem->handleInput(event);
+        if (renderWorldForInput && unitSystem)   unitSystem->handleInput(event);
+        if (renderWorldForInput && shopSystem)   shopSystem->handleInput(event);
         if (stateManager) stateManager->handleInput(event);
     }
 

@@ -38,8 +38,10 @@ struct GameServices {
     game::ui::UIViewport* viewport = nullptr;
     bool renderEnabled = false;
     std::string gameMode = "classic";
+    bool hasStartedGame = false;
     std::function<bool(int, int, bool)> applyVideoMode;
     std::function<VideoMode()> queryVideoMode;
+    std::function<void()> requestQuit;
 
     GameServices(const GameConfigData& cfg,
                  GameDataDb& db,

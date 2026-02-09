@@ -32,10 +32,12 @@ function on_update(dt)
 
     for i = 1, #units do
         local u = units[i]
-        if u.alive then
-            if u.side == "Enemy" then
+        if u.side == "Enemy" then
+            if u.alive or u.captureInProgress then
                 anyEnemyAlive = true
-            elseif u.side == "Player" then
+            end
+        elseif u.side == "Player" then
+            if u.alive then
                 anyPlayerAlive = true
             end
         end
