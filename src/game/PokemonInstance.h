@@ -80,6 +80,11 @@ struct PokemonInstance {
     float fadeOutTimerSec = 0.0f;
     float visualScale = 1.0f;
 
+    // Capture attempt in progress (temporarily removed from combat, tile still reserved)
+    bool  captureInProgress = false;
+    float captureScale = 1.0f;
+    float captureTintStrength = 0.0f;
+
     // movement interpolation (used by your Lua bindings)
     bool isMoving = false;
     glm::vec3 moveFrom{0.0f};

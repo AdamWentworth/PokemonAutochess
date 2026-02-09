@@ -46,7 +46,9 @@ public:
     void drawAnimated(const Camera3D& camera,
         const glm::mat4& instanceTransform,
         float animTimeSec,
-        int animIndex) const;
+        int animIndex,
+        const glm::vec3& tintColor = glm::vec3(1.0f),
+        float tintStrength = 0.0f) const;
 
     float getScaleFactor() const { return modelScaleFactor; }
 
@@ -99,6 +101,10 @@ private:
     int locEmissiveFactor = -1;
     int locAlphaMode = -1;
     int locAlphaCutoff = -1;
+
+    // Optional per-instance tint
+    int locTintColor = -1;
+    int locTintStrength = -1;
 
     // tone mapping uniforms
     int locTonemapMode = -1;

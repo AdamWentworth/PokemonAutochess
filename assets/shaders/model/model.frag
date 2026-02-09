@@ -8,6 +8,8 @@ out vec4 FragColor;
 uniform sampler2D u_BaseColorTex;
 uniform sampler2D u_EmissiveTex;
 uniform vec3  u_EmissiveFactor;
+uniform vec3  u_TintColor;
+uniform float u_TintStrength;
 
 // 0=OPAQUE, 1=MASK, 2=BLEND (glTF)
 uniform int   u_AlphaMode;
@@ -62,6 +64,7 @@ void main()
 
     // Output in sRGB (since you're not using GL_FRAMEBUFFER_SRGB)
     vec3 outSrgb = linearToSrgb(mapped);
+    outSrgb = mix(outSrgb, u_TintColor, clamp(u_TintStrength, 0.0, 1.0));
 
     float outA = baseSrgb.a * VertColor.a;
 

@@ -239,7 +239,9 @@ void Model::buildPoseMatrices(float timeSec,
 void Model::drawAnimated(const Camera3D& camera,
                          const glm::mat4& instanceTransform,
                          float animTimeSec,
-                         int animIndex) const
+                         int animIndex,
+                         const glm::vec3& tintColor,
+                         float tintStrength) const
 {
     if (!modelShader || VAO == 0) return;
 
@@ -249,6 +251,9 @@ void Model::drawAnimated(const Camera3D& camera,
 
     modelShader->use();
     glBindVertexArray(VAO);
+
+    if (locTintColor >= 0) glUniform3fv(locTintColor, 1, glm::value_ptr(tintColor));
+    if (locTintStrength >= 0) glUniform1f(locTintStrength, tintStrength);
 
     // --- Save GL state (critical: UI relies on these) ---
     const GLboolean prevCullEnabled  = glIsEnabled(GL_CULL_FACE);

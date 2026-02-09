@@ -8,6 +8,7 @@
 
 #include "PokemonInstance.h"
 #include "engine/ui/HealthBarData.h"
+#include "engine/core/IRandom.h"
 
 // Tail fire particle VFX (data-driven via cfg)
 #include "vfx/TailFireVFX.h"
@@ -28,6 +29,7 @@
 class Camera3D;
 class BoardRenderer;
 class ResourceManager;
+class Model;
 struct GameDataDb;
 struct GameConfigData;
 namespace LogBus { class Logger; }
@@ -47,6 +49,7 @@ public:
     void setData(const GameDataDb* db) { data = db; }
     void setLogger(LogBus::Logger* logger) { log = logger; }
     void setRenderEnabled(bool enabled) { renderEnabled = enabled; }
+    void setRng(engine::IRandom* rngIn) { rng = rngIn; }
     LogBus::Logger* getLogger() const { return log; }
     const GameDataDb* getData() const { return data; }
     const GameConfigData& getConfig() const { return config; }
@@ -89,6 +92,14 @@ public:
     int getItemCount(const std::string& item) const;
     void addItem(const std::string& item, int amount = 1);
     bool consumeItem(const std::string& item, int amount = 1);
+    std::vector<std::pair<std::string, int>> listItems() const;
+
+    void setSelectedItem(const std::string& itemId);
+    const std::string& getSelectedItem() const { return selectedItemId; }
+    void clearSelectedItem();
+
+    bool tryUseHealingItem(const std::string& itemId, int targetId);
+    bool startCaptureAttempt(int targetId, float ballMult, const glm::vec3* throwOrigin = nullptr);
 
     // Impact VFX for grass-type attacks
     void emitGrassImpactAt(const PokemonInstance& target);
@@ -111,6 +122,7 @@ private:
     LogBus::Logger* log = nullptr;        // optional game-owned logger
     const GameConfigData& config;
     bool renderEnabled = false;
+    engine::IRandom* rng = nullptr;
 
     std::vector<PokemonInstance> pokemons;
     std::vector<PokemonInstance> benchPokemons;
@@ -120,6 +132,32 @@ private:
     std::unordered_map<int, glm::vec3> battleStartPositions;
     int money = 0;
     std::unordered_map<std::string, int> items;
+    std::string selectedItemId;
+
+    struct CaptureAttempt {
+        int targetId = -1;
+        bool success = false;
+        int shakes = 0;
+        int shakesEmitted = 0;
+        float phaseTime = 0.0f;
+        float throwDur = 0.35f;
+        float absorbDur = 0.35f;
+        float shakeDur = 0.75f;
+        float resolveDur = 0.35f;
+        float timeLeftSec = 0.0f;
+        std::string name;
+        int level = 1;
+        glm::vec3 startPos{0.0f};
+        glm::vec3 targetPos{0.0f};
+        glm::vec3 ballPos{0.0f};
+        float ballScale = 1.0f;
+        float ballBaseScale = 1.0f;
+        float ballStartScale = 1.0f;
+        float ballImpactScale = 1.0f;
+        float ballYawDeg = 0.0f;
+        enum class Phase { Throw, Absorb, Shake, Resolve } phase = Phase::Throw;
+    };
+    std::vector<CaptureAttempt> captureAttempts;
 
     glm::vec3 gridToWorld(int col, int row) const;
 
@@ -172,4 +210,9 @@ private:
 
     void updateLeechSeedStatus(float dt);
     void ensureLeechSeedConfigLoaded();
+    void updateCaptureAttempts(float dt);
+    void ensurePokeballModel();
+
+    std::shared_ptr<Model> pokeballModel;
+    bool pokeballModelLoaded = false;
 };

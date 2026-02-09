@@ -53,6 +53,8 @@ Model::Model(const std::string& filepath, ShaderCache* shaderCache)
     locEmissiveFactor = glGetUniformLocation(modelShader->getID(), "u_EmissiveFactor");
     locAlphaMode      = glGetUniformLocation(modelShader->getID(), "u_AlphaMode");
     locAlphaCutoff    = glGetUniformLocation(modelShader->getID(), "u_AlphaCutoff");
+    locTintColor      = glGetUniformLocation(modelShader->getID(), "u_TintColor");
+    locTintStrength   = glGetUniformLocation(modelShader->getID(), "u_TintStrength");
 
     // tone mapping uniforms
     locTonemapMode = glGetUniformLocation(modelShader->getID(), "u_TonemapMode");

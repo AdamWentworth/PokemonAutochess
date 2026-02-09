@@ -138,6 +138,24 @@ GameConfigData GameConfig::load(LogBus::Logger* logger, const engine::IAssetStor
         cfg.startingCash = economy.get_or("starting_cash", cfg.startingCash);
     }
 
+    sol::table items = t["items"];
+    if (items.valid()) {
+        cfg.potionHealPct = items.get_or("potion_heal_pct", cfg.potionHealPct);
+        cfg.potionHealFlat = items.get_or("potion_heal_flat", cfg.potionHealFlat);
+    }
+
+    sol::table capture = t["capture"];
+    if (capture.valid()) {
+        cfg.captureAttemptSec = capture.get_or("attempt_sec", cfg.captureAttemptSec);
+        cfg.captureMinChance = capture.get_or("min_chance", cfg.captureMinChance);
+        cfg.captureMaxChance = capture.get_or("max_chance", cfg.captureMaxChance);
+        cfg.captureHpFactorMin = capture.get_or("hp_factor_min", cfg.captureHpFactorMin);
+        cfg.captureHpFactorMax = capture.get_or("hp_factor_max", cfg.captureHpFactorMax);
+        cfg.captureFaintBonus = capture.get_or("faint_bonus", cfg.captureFaintBonus);
+        cfg.captureBallScale = capture.get_or("ball_scale", cfg.captureBallScale);
+        cfg.captureBallScaleStart = capture.get_or("ball_scale_start", cfg.captureBallScaleStart);
+    }
+
     applyFontPathDefaults(cfg);
 
     cfg.loadOk = true;

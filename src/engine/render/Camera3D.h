@@ -23,6 +23,7 @@ public:
     glm::mat4 getViewMatrix() const;
     glm::mat4 getProjectionMatrix() const;
     glm::vec3 getDirection() const;
+    glm::vec3 getPosition() const { return position; }
 
 private:
     glm::vec3 position;

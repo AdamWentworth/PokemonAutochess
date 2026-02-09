@@ -33,6 +33,20 @@ struct GameConfigData {
     // economy
     int startingCash = 3000;
 
+    // items (tuning)
+    float potionHealPct = 0.30f; // % of max HP
+    int   potionHealFlat = 0;
+
+    // capture tuning
+    float captureAttemptSec = 0.75f;
+    float captureMinChance = 0.05f;
+    float captureMaxChance = 0.95f;
+    float captureHpFactorMin = 0.40f; // high HP
+    float captureHpFactorMax = 1.00f; // low HP
+    float captureFaintBonus = 1.25f;
+    float captureBallScale = 1.6f;
+    float captureBallScaleStart = 3.0f;
+
     // fainting visuals + tile blocking
     float faintFadeSec = 0.35f;
     bool  faintBlockTiles = false;

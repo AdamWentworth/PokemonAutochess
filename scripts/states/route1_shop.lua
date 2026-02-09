@@ -4,9 +4,6 @@ local SHOP_DURATION = 30.0
 local time_left = SHOP_DURATION
 local transitioned = false
 
-local commons = { "pidgey", "rattata" }
-local starters = { "bulbasaur", "charmander", "squirtle" }
-
 local item_catalog = {
     { id = "pokeball", label = "Pokeball", cost = 200, row = 1, col = 4 },
     { id = "potion", label = "Potion", cost = 300, row = 2, col = 4 },
@@ -19,29 +16,10 @@ local item_catalog = {
 local item_image = "assets/images/items_atlas.png"
 local ITEM_ATLAS_COLS = 13
 local ITEM_ATLAS_ROWS = 14
-
-local ball_types = {
-    { id = "pokeball", mult = 1.0 }
-}
-
-local cards = {}
-local seeded = false
-
-local function pretty_name(name)
-    local s = tostring(name or "")
-    s = s:gsub("_", " ")
-    s = s:gsub("(%a)([%w']*)", function(a, b)
-        return string.upper(a) .. string.lower(b)
-    end)
-    return s
-end
-
-local function pick_weighted()
-    if math.random() < 0.5 then
-        return commons[math.random(#commons)]
-    end
-    return starters[math.random(#starters)]
-end
+local ITEM_ATLAS_PAD_U_FRAC = 0.08 -- crop a bit from left
+local ITEM_ATLAS_PAD_V_FRAC = 0.08 -- crop a bit from top
+local ITEM_ATLAS_PAD_U_FRAC_RIGHT = 0.06 -- crop a bit from right
+local ITEM_ATLAS_PAD_V_FRAC_BOTTOM = 0.06 -- crop a bit from bottom
 
 local function atlas_uv(row, col)
     local c = math.max(1, col or 1)
@@ -51,59 +29,16 @@ local function atlas_uv(row, col)
     -- v=0 is top of texture (no vertical flip), so count rows from top.
     local v0 = (r - 1) / ITEM_ATLAS_ROWS
     local v1 = r / ITEM_ATLAS_ROWS
+    u0 = u0 + (ITEM_ATLAS_PAD_U_FRAC / ITEM_ATLAS_COLS)
+    v0 = v0 + (ITEM_ATLAS_PAD_V_FRAC / ITEM_ATLAS_ROWS)
+    u1 = u1 - (ITEM_ATLAS_PAD_U_FRAC_RIGHT / ITEM_ATLAS_COLS)
+    v1 = v1 - (ITEM_ATLAS_PAD_V_FRAC_BOTTOM / ITEM_ATLAS_ROWS)
     return { u0, v0, u1, v1 }
 end
 
-local function make_card()
-    local name = pick_weighted()
-    local level = math.random(2, 5)
-    return { name = name, cost = 0, level = level, label = pretty_name(name), type = "Shop" }
-end
-
-local function fill_cards(count)
-    cards = {}
-    for i = 1, count do
-        local c = make_card()
-        if c then table.insert(cards, c) end
-    end
-end
-
-local function get_best_ball()
-    for _, b in ipairs(ball_types) do
-        if get_item_count(b.id) > 0 then
-            return b
-        end
-    end
-    return nil
-end
-
-local function catch_chance(base_rate, level, ball_mult)
-    local lvl = math.max(1, level or 1)
-    local lvl_factor = 1.0 / (1.0 + (lvl - 1) * 0.15)
-    local chance = (base_rate or 0.0) * (ball_mult or 1.0) * lvl_factor
-    if chance < 0.05 then chance = 0.05 end
-    if chance > 0.95 then chance = 0.95 end
-    return chance
-end
-
-local function emit_shakes(count)
-    if count >= 1 then emit_catch("The ball shook once!") end
-    if count >= 2 then emit_catch("The ball shook twice!") end
-    if count >= 3 then emit_catch("The ball shook three times!") end
-end
-
 function on_enter()
-    if not seeded then
-        if os and os.time then
-            math.randomseed(os.time())
-        end
-        seeded = true
-    end
     time_left = SHOP_DURATION
     transitioned = false
-    if #cards == 0 then
-        fill_cards(5)
-    end
 end
 
 function get_message()
@@ -116,13 +51,9 @@ function get_message()
 end
 
 function get_shop_cards()
-    return cards
-end
-
-function get_shop_items()
-    local items = {}
+    local cards = {}
     for _, it in ipairs(item_catalog) do
-        table.insert(items, {
+        table.insert(cards, {
             name = it.id,
             cost = it.cost,
             label = it.label .. " $" .. tostring(it.cost),
@@ -131,10 +62,10 @@ function get_shop_items()
             type = "Item"
         })
     end
-    return items
+    return cards
 end
 
-function on_shop_item_click(item_id)
+function on_shop_card_click(item_id)
     if not item_id or item_id == "" then return end
     for _, it in ipairs(item_catalog) do
         if it.id == item_id then
@@ -146,59 +77,6 @@ function on_shop_item_click(item_id)
             end
             return
         end
-    end
-end
-
-function on_shop_card_click(pokemon, level)
-    if not pokemon or pokemon == "" then return end
-    local selected_index = nil
-    for i = 1, #cards do
-        if cards[i].name == pokemon and (not level or cards[i].level == level) then
-            selected_index = i
-            break
-        end
-    end
-
-    local card_level = level
-    if selected_index and cards[selected_index] then
-        card_level = cards[selected_index].level
-    end
-    card_level = card_level or math.random(2, 5)
-
-    local ball = get_best_ball()
-    if not ball then
-        emit("Shop", "You need a Pokeball to catch this.")
-        return
-    end
-    if not consume_item(ball.id, 1) then
-        emit("Shop", "Out of Pokeballs.")
-        return
-    end
-
-    local base_rate = get_pokemon_catch_rate(pokemon)
-    local chance = catch_chance(base_rate, card_level, ball.mult)
-    emit_catch(string.format("Threw %s at %s (Lv%d)", ball.id, pretty_name(pokemon), card_level))
-
-    local shake_p = math.pow(chance, 1.0 / 3.0)
-    local shakes = 0
-    for i = 1, 3 do
-        if math.random() <= shake_p then
-            shakes = shakes + 1
-        else
-            break
-        end
-    end
-    emit_shakes(shakes)
-
-    if shakes >= 3 then
-        spawn_on_bench(pokemon, card_level)
-        emit_catch("Gotcha! " .. pretty_name(pokemon) .. " was caught!")
-        if selected_index then
-            local c = make_card()
-            if c then cards[selected_index] = c end
-        end
-    else
-        emit_catch(pretty_name(pokemon) .. " broke free!")
     end
 end
 

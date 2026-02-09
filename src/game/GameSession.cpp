@@ -34,6 +34,7 @@
 #include "game/GameConfig.h"
 #include "game/GameUpdateGraph.h"
 #include "game/ui/UIViewport.h"
+#include "game/ui/ItemInventoryUI.h"
 
 #include "game/config/GameDataDb.h"
 #include "game/assets/DevAssetStore.h"
@@ -88,6 +89,7 @@ struct GameSession::Impl {
     std::unique_ptr<BoardRenderer>    board;
     std::unique_ptr<BattleFeed>       battleFeed;
     std::unique_ptr<BattleFeed>       catchFeed;
+    ItemInventoryUI                  itemInventoryUI;
 
     HealthBarRenderer healthBarRenderer;
     engine::ecs::Scheduler scheduler;
@@ -165,6 +167,7 @@ struct GameSession::Impl {
         gameWorld = std::make_unique<GameWorld>(config);
         gameWorld->setRenderEnabled(renderEnabled);
         gameWorld->setLogger(&log);
+        gameWorld->setRng(&services->rng);
         if (ctx.services) gameWorld->setResources(ctx.services->resources);
         gameWorld->setData(&dataDb);
 
@@ -212,6 +215,8 @@ struct GameSession::Impl {
             catchFeed->setBaseScale(0.6f);
             catchFeed->setPadding(16.f, 16.f);
             log.attachCatchFeed(catchFeed.get());
+
+            itemInventoryUI.init(config.fontPath, config.fontSize);
         }
 
         if (auto* stateMgr = stateManager.get()) {
@@ -270,6 +275,19 @@ struct GameSession::Impl {
     }
 
     void handleEvent(const InputEvent& event) {
+        if (event.type == InputEvent::Type::MouseWheel) {
+            itemInventoryUI.handleScroll(event.wheelY, viewport.height);
+        }
+        if (event.type == InputEvent::Type::MouseDown &&
+            event.mouseButtonId == InputEvent::MouseButton::Left) {
+            if (auto clicked = itemInventoryUI.handleMouseClick(event.mouseX, event.mouseY)) {
+                if (gameWorld) {
+                    gameWorld->setSelectedItem(*clicked);
+                    log.catchInfo("Selected " + *clicked + ". Click a target.");
+                }
+                return; // consume click (avoid dragging/other UI)
+            }
+        }
         if (cameraSystem) cameraSystem->handleInput(event);
         if (unitSystem)   unitSystem->handleInput(event);
         if (shopSystem)   shopSystem->handleInput(event);
@@ -291,6 +309,11 @@ struct GameSession::Impl {
             healthBarRenderer.render(healthBarData);
         }
         if (stateManager) stateManager->render();
+
+        if (gameWorld) {
+            itemInventoryUI.updateFromWorld(*gameWorld, drawableW, drawableH);
+        }
+        itemInventoryUI.render(drawableW, drawableH);
 
         if (shopSystem) shopSystem->renderUI(drawableW, drawableH);
         if (battleFeed) battleFeed->render(drawableW, drawableH);

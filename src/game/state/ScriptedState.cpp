@@ -93,9 +93,14 @@ void ScriptedState::rebuildCardRow() {
     const int uiW = viewport ? viewport->width : 1280;
     const int uiH = viewport ? viewport->height : 720;
     if (cardMode == CardMode::Shop) {
-        const int cardW = 160;
-        const int cardH = 110;
-        const int spacing = 20;
+        bool allItems = !list.empty();
+        for (const auto& cd : list) {
+            if (cd.type != CardType::Item) { allItems = false; break; }
+        }
+
+        const int cardW = allItems ? 96 : 160;
+        const int cardH = allItems ? 96 : 110;
+        const int spacing = allItems ? 28 : 20;
         const int margin = 40;
         const int y = std::max(0, uiH - cardH - margin);
         cardSystem.spawnCardRowLayout(list, uiW, y, cardW, cardH, spacing);

@@ -186,6 +186,7 @@ add_library(PAC_GameObjects STATIC
 
     # Game UI
     src/game/ui/HealthBarQuery.cpp
+    src/game/ui/ItemInventoryUI.cpp
 
     # Game VFX
     src/game/vfx/TailFireVFX.cpp

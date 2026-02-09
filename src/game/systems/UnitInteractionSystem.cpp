@@ -1,8 +1,11 @@
 // src/game/systems/UnitInteractionSystem.cpp
 #include "UnitInteractionSystem.h"
 
+#include "game/GameConfig.h"
+
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/common.hpp>
+#include <algorithm>
 #include <cmath>
 #include <iostream>
 #include <limits>
@@ -54,7 +57,10 @@ bool UnitInteractionSystem::isBoardCellOccupied(const glm::vec3& pos, int ignore
     const auto& board = gameWorld->getPokemons();
     for (int i = 0; i < static_cast<int>(board.size()); ++i) {
         if (i == ignoreIndex) continue;
-        if (!board[i].alive) continue;
+        const bool blocks = board[i].alive ||
+                            board[i].captureInProgress ||
+                            (board[i].fainting && gameWorld->getConfig().faintBlockTiles);
+        if (!blocks) continue;
         if (isSameCell(board[i].position, pos)) return true;
     }
     return false;
@@ -74,6 +80,73 @@ bool UnitInteractionSystem::isBenchSlotOccupied(const glm::vec3& pos, int ignore
 void UnitInteractionSystem::onMouseButtonDown(int x, int y) {
     glm::vec3 worldPos = screenToWorld(x, y);
     worldPos.y = 0.0f;
+
+    // Item use handling (combat only)
+    if (gameWorld) {
+        const std::string selected = gameWorld->getSelectedItem();
+        if (!selected.empty()) {
+            const bool inCombat = gameWorld->isBoardInteractionLocked();
+            if (!inCombat) {
+                gameWorld->clearSelectedItem();
+                return;
+            }
+
+            // Find closest target on board
+            PokemonInstance* closest = nullptr;
+            float best = std::numeric_limits<float>::max();
+
+            auto& board = gameWorld->getPokemons();
+            for (auto& u : board) {
+                if (u.captureInProgress) continue;
+
+                const bool isPokeball = (selected == "pokeball");
+                if (isPokeball) {
+                    if (u.side != PokemonSide::Enemy) continue;
+                    if (!u.alive && !u.fainting) continue;
+                } else {
+                    if (u.side != PokemonSide::Player) continue;
+                    if (!u.alive) continue;
+                }
+
+                float d = glm::distance(worldPos, u.position);
+                if (d < best) {
+                    best = d;
+                    closest = &u;
+                }
+            }
+
+            if (closest && best <= pickRadius) {
+                if (selected == "pokeball") {
+                    if (gameWorld->getItemCount(selected) > 0) {
+                        glm::vec3 throwOrigin = closest->position + glm::vec3(0.0f, 0.0f, -gameWorld->getConfig().cellSize * 3.0f);
+                        if (camera) {
+                            const glm::vec3 dir = glm::normalize(camera->getDirection());
+                            glm::vec3 right = glm::cross(dir, glm::vec3(0.0f, 1.0f, 0.0f));
+                            if (glm::length(right) < 0.001f) {
+                                right = glm::vec3(1.0f, 0.0f, 0.0f);
+                            } else {
+                                right = glm::normalize(right);
+                            }
+
+                            const float forward = std::max(0.5f, gameWorld->getConfig().cellSize * 2.5f);
+                            const float side = std::max(0.2f, gameWorld->getConfig().cellSize * 0.7f);
+                            throwOrigin = camera->getPosition()
+                                + dir * forward
+                                + right * side;
+                        }
+                        if (gameWorld->startCaptureAttempt(closest->id, 1.0f, &throwOrigin)) {
+                            gameWorld->consumeItem(selected, 1);
+                        }
+                    }
+                } else {
+                    gameWorld->tryUseHealingItem(selected, closest->id);
+                }
+            }
+
+            gameWorld->clearSelectedItem();
+            return;
+        }
+    }
 
     if (!draggingUnit) {
         // PICKUP
