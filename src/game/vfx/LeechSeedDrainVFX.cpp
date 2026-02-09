@@ -53,9 +53,7 @@ void LeechSeedDrainVFX::emitBetween(const glm::vec3& startPos,
                                     float travelSec) {
     ensureConfigured();
 
-    const float T = std::max(0.05f, travelSec);
-    const glm::vec3 delta = endPos - startPos;
-    const glm::vec3 vel = delta * (1.0f / T);
+    const float T = std::max(0.10f, travelSec);
 
     int minP = std::max(0, cfg.minParticles);
     int maxP = std::max(minP, cfg.maxParticles);
@@ -68,10 +66,15 @@ void LeechSeedDrainVFX::emitBetween(const glm::vec3& startPos,
         float h = randRange(0.05f, 0.55f);
 
         glm::vec3 offset(std::cos(ang) * r, h, std::sin(ang) * r);
+        const glm::vec3 origin = startPos + offset;
+        const glm::vec3 delta = endPos - origin;
+        const glm::vec3 vel = delta * (2.0f / T);
+        const glm::vec3 accel = delta * (-2.0f / (T * T));
 
         ParticleSystem::Particle p;
-        p.pos = startPos + offset;
+        p.pos = origin;
         p.vel = vel;
+        p.accel = accel;
         p.maxLifeSec = T;
         p.lifeSec = T;
         p.sizePx = randRange(cfg.minSize, cfg.maxSize);

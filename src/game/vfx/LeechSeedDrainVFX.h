@@ -16,13 +16,13 @@ public:
         int minParticles = 6;
         int maxParticles = 10;
 
-        float minSize = 0.07f;
-        float maxSize = 0.12f;
+        float minSize = 0.18f;
+        float maxSize = 0.30f;
 
         float minLifeSec = 0.25f;
         float maxLifeSec = 0.45f;
 
-        float pointScale = 520.0f;
+        float pointScale = 720.0f;
 
         std::string vertShaderPath = "assets/shaders/vfx/particle.vert";
         std::string fragShaderPath = "assets/shaders/vfx/leech_drain_dot.frag";

@@ -21,7 +21,11 @@ local TUNING = {
   -- Damage tuning
   DAMAGE_POWER_MULT = 1.0,
   DAMAGE_ATK_SCALE = 0.50, -- bonus damage per point of Attack
-  DAMAGE_MIN = 1
+  DAMAGE_MIN = 1,
+  -- Energy tuning
+  ENERGY_GAIN_MULT = 0.75,
+  ENERGY_GAIN_ON_HIT = 6,
+  ENERGY_GAIN_ON_HIT_MULT = 1.0
 }
 
 do
@@ -194,6 +198,15 @@ local function compute_damage(attacker_id, target_id, power)
   return dmg
 end
 
+local function compute_energy_gain(base, mult)
+  local b = tonumber(base) or 0
+  if b <= 0 then return 0 end
+  local m = tonumber(mult) or 1.0
+  local v = math.floor((b * m) + 0.5)
+  if v < 0 then v = 0 end
+  return v
+end
+
 -- Query engine-side per-move override if available.
 local function min_request_sec(attacker_id, move_name, kind, base)
   local v = base
@@ -261,6 +274,7 @@ end
 
 -- Combat engagement tracking for animation state
 local engaged_state = {}
+local focused_target = {}
 
 local function wants_to_move(id)
   if type(world_has_planned_move) == "function" then
@@ -353,6 +367,7 @@ function combat_init()
   timers = {}
   engaged_state = {}
   charged_pending = {}
+  focused_target = {}
 
   local units = world_list_units() or {}
   for i = 1, #units do
@@ -360,6 +375,7 @@ function combat_init()
     world_set_energy(u.id, 0)
     engaged_state[u.id] = false
     charged_pending[u.id] = false
+    focused_target[u.id] = nil
     if type(world_set_in_combat) == "function" then
       world_set_in_combat(u.id, false)
     end
@@ -386,8 +402,10 @@ function combat_update(dt)
     if u.alive then
       local adjacent = (type(world_is_adjacent_to_enemy) == "function") and world_is_adjacent_to_enemy(u.id) or false
       set_engaged(u.id, adjacent)
+      if not adjacent then focused_target[u.id] = nil end
     else
       set_engaged(u.id, false)
+      focused_target[u.id] = nil
     end
   end
 
@@ -397,6 +415,7 @@ function combat_update(dt)
     if u.alive and world_is_adjacent_to_enemy(u.id) then
       local tgt = find_adjacent_enemy(u.id)
       if tgt then
+        focused_target[u.id] = tgt
         -- Update pending-charged flag as soon as gauge fills.
         mark_charged_pending_if_ready(u.id)
 
@@ -455,12 +474,14 @@ function combat_update(dt)
               emit("A critical hit!")
             end
             local rem = world_apply_damage(u.id, tgt, dmg, cd, fastName, "fast")
-            world_add_energy(tgt, 8)
+            local onHit = compute_energy_gain(TUNING.ENERGY_GAIN_ON_HIT, TUNING.ENERGY_GAIN_ON_HIT_MULT)
+            if onHit > 0 then world_add_energy(tgt, onHit) end
             local eff = effectiveness(u.id, tgt); maybe_emit_effectiveness(eff)
             if rem == 0 then emit(string.format("%s fainted!", get_name(tgt))) end
           end
 
-          world_add_energy(u.id, m.energyGain or 0)
+          local gain = compute_energy_gain(m.energyGain or 0, TUNING.ENERGY_GAIN_MULT)
+          if gain > 0 then world_add_energy(u.id, gain) end
         end
       end
     end
@@ -470,6 +491,13 @@ function combat_update(dt)
   -- Passive face nearest enemy
   for i = 1, #units do
     local u = units[i]
-    if u.alive then world_face_enemy(u.id) end
+    if u.alive then
+      local tgt = focused_target[u.id]
+      if tgt and type(world_face_target) == "function" then
+        world_face_target(u.id, tgt)
+      else
+        world_face_enemy(u.id)
+      end
+    end
   end
 end

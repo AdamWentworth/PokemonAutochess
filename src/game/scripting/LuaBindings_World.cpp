@@ -115,6 +115,10 @@ void registerLuaBindings_World(sol::state& lua, ScriptAPI& api) {
                       tgtRow ? std::optional<int>(*tgtRow) : std::nullopt);
     });
 
+    lua.set_function("world_face_target", [&api](int unitId, int targetId) {
+        api.faceTarget(unitId, targetId);
+    });
+
     // Grid converters
     lua.set_function("grid_to_world", [cfg](int col, int row) {
         auto p = gridToWorld(*cfg, col, row);

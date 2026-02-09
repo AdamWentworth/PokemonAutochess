@@ -388,6 +388,13 @@ void ScriptAPI::faceEnemy(int unitId, const std::optional<int>& tgtCol, const st
     enqueue(cmd);
 }
 
+void ScriptAPI::faceTarget(int unitId, int targetId) {
+    FaceTargetCommand cmd;
+    cmd.unitId = unitId;
+    cmd.targetId = targetId;
+    enqueue(cmd);
+}
+
 bool ScriptAPI::setEnergy(int unitId, int value) {
     if (!world_) return false;
     if (!world_->findUnitById(unitId)) return false;
@@ -503,6 +510,20 @@ void ScriptAPI::applyCommand(const Command& cmd) {
         }
         glm::vec3 lookDir = glm::normalize(target - it->position);
         it->rotation.y = std::atan2(lookDir.x, lookDir.z) * 180.0f / 3.14159265358979323846f;
+        return;
+    }
+
+    if (std::holds_alternative<FaceTargetCommand>(cmd)) {
+        const auto& c = std::get<FaceTargetCommand>(cmd);
+        if (!world_) return;
+        if (c.unitId < 0 || c.targetId < 0) return;
+
+        auto* u = world_->findUnitById(c.unitId);
+        auto* t = world_->findUnitById(c.targetId);
+        if (!u || !t) return;
+
+        glm::vec3 lookDir = glm::normalize(t->position - u->position);
+        u->rotation.y = std::atan2(lookDir.x, lookDir.z) * 180.0f / 3.14159265358979323846f;
         return;
     }
 

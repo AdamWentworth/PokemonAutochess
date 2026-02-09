@@ -644,12 +644,9 @@ void GameWorld::updateLeechSeedStatus(float dt)
                 target.leechSeeded = false;
             }
 
-            // VFX: leaves on target + drain dots to source
+            // VFX: drain dots to source
             {
                 const glm::vec3 tpos = target.position + glm::vec3(0.0f, target.visualYOffset, 0.0f);
-                const float tScale = (target.model ? target.model->getScaleFactor() : 1.0f);
-                leechSeedSapVfx.emitAt(tpos, tScale);
-
                 const glm::vec3 spos = source->position + glm::vec3(0.0f, source->visualYOffset, 0.0f);
 
                 const float dist = glm::distance(tpos, spos);

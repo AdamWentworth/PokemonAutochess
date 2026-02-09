@@ -16,22 +16,22 @@ public:
         int minParticles = 5;
         int maxParticles = 8;
 
-        float capsuleRadius = 0.28f;
-        float capsuleHeight = 0.60f;    // full height
-        float centerYOffset = 0.30f;    // world-space offset from base to capsule center
-        float surfaceJitter = 0.02f;
+        float capsuleRadius = 0.40f;
+        float capsuleHeight = 0.90f;    // full height
+        float centerYOffset = 0.35f;    // world-space offset from base to capsule center
+        float surfaceJitter = 0.05f;
 
         float minLifeSec = 1.0f;
         float maxLifeSec = 1.0f;
 
-        float minSize = 0.18f;
-        float maxSize = 0.28f;
+        float minSize = 0.24f;
+        float maxSize = 0.36f;
 
         float minSpeed = 0.006f;
         float maxSpeed = 0.025f;
 
         std::string vertShaderPath = "assets/shaders/vfx/particle.vert";
-        std::string fragShaderPath = "assets/shaders/vfx/leech_root.frag";
+        std::string fragShaderPath = "assets/shaders/vfx/leech_drain_dot.frag";
 
         ParticleSystem::BlendMode blend = ParticleSystem::BlendMode::Alpha;
         bool depthTest  = true;
@@ -40,7 +40,7 @@ public:
         glm::vec3 acceleration = glm::vec3(0.0f);
         float dampingBase = 0.80f;
 
-        float pointScale = 520.0f;
+        float pointScale = 580.0f;
     };
 
 public:

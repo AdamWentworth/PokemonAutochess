@@ -99,6 +99,7 @@ public:
     bool applyMove(int unitId, int col, int row);
     bool commitMove(int unitId, int col, int row);
     void faceEnemy(int unitId, const std::optional<int>& tgtCol, const std::optional<int>& tgtRow);
+    void faceTarget(int unitId, int targetId);
     bool setEnergy(int unitId, int value);
     int addEnergy(int unitId, int delta);
 
@@ -149,6 +150,10 @@ private:
         int col = 0;
         int row = 0;
     };
+    struct FaceTargetCommand {
+        int unitId = -1;
+        int targetId = -1;
+    };
     struct SetEnergyCommand {
         int unitId = -1;
         int value = 0;
@@ -167,6 +172,7 @@ private:
         ApplyMoveCommand,
         CommitMoveCommand,
         FaceEnemyCommand,
+        FaceTargetCommand,
         SetEnergyCommand,
         AddEnergyCommand
     >;

@@ -16,57 +16,49 @@ mat2 rot(float a) {
     return mat2(c, -s, s, c);
 }
 
-float leafShape(vec2 p) {
-    // Tapered leaf silhouette
-    float t = clamp((p.y + 1.0) * 0.5, 0.0, 1.0);
-    float width = mix(0.95, 0.30, t);
-    float yScale = mix(0.80, 1.20, t);
-    float d = length(vec2(p.x / width, p.y * yScale));
-    float leaf = smoothstep(1.0, 0.82, d);
-    float baseTrim = smoothstep(-1.0, -0.72, p.y);
-    return leaf * baseTrim;
-}
-
 void main() {
     float age = clamp(vAge01, 0.0, 1.0);
 
     vec2 uv = gl_PointCoord * 2.0 - 1.0;
-    float spin = (vSeed * 6.2831853) + (u_Time * 0.15 + vSeed * 4.9) * 0.10;
+    float spin = (vSeed * 6.2831853) + (u_Time * 0.35 + vSeed * 5.3) * 0.12;
     uv = rot(spin) * uv;
 
-    // Cluster of leaves (3-5) with variation for a more organic look
-    float cluster = 0.0;
-    float baseRot = vSeed * 6.2831853;
+    float squash = mix(0.88, 1.12, hash1(vSeed * 3.7));
+    uv.y *= squash;
 
-    vec2 p0 = rot(baseRot + 0.0) * (uv * vec2(1.0, 1.15));
-    vec2 p1 = rot(baseRot + 2.0943951) * (uv * vec2(0.95, 1.05));
-    vec2 p2 = rot(baseRot + 4.1887902) * (uv * vec2(1.05, 0.95));
+    // Leaf silhouette (match grass impact, but softer)
+    vec2 p = uv;
+    p.y = p.y * 1.15 + 0.05;
+    float t = clamp((p.y + 1.0) * 0.5, 0.0, 1.0);
 
-    cluster = max(cluster, leafShape(p0));
-    cluster = max(cluster, leafShape(p1));
-    cluster = max(cluster, leafShape(p2));
+    float width = mix(0.95, 0.25, t);
+    width = max(width, 0.2);
+    float d = length(vec2(p.x / width, p.y));
 
-    // Smaller offset leaves for variation
-    vec2 off = vec2(0.18, -0.10);
-    cluster = max(cluster, leafShape(p0 + off * 0.7) * 0.85);
-    cluster = max(cluster, leafShape(p1 - off * 0.6) * 0.80);
+    float leaf = smoothstep(1.0, 0.82, d);
+    float stemMask = smoothstep(-1.0, -0.6, p.y);
+    leaf *= stemMask;
 
-    float fadeIn = smoothstep(0.0, 0.18, age);
-    float fadeOut = 1.0 - smoothstep(0.70, 1.0, age);
+    // Soft glow halo around the leaf
+    float glow = smoothstep(1.25, 0.90, d);
+    glow = max(0.0, glow - leaf * 0.65);
 
-    float alpha = cluster * fadeIn * fadeOut;
+    float fadeIn = smoothstep(0.0, 0.16, age);
+    float fadeOut = 1.0 - smoothstep(0.78, 1.0, age);
+    float pulse = 0.85 + 0.15 * sin(u_Time * 2.1 + vSeed * 6.2831853);
+
+    float alpha = (leaf + glow * 0.45) * fadeIn * fadeOut;
     if (alpha < 0.01) discard;
 
-    vec3 dark = vec3(0.07, 0.28, 0.10);
-    vec3 mid  = vec3(0.16, 0.46, 0.16);
-    vec3 light = vec3(0.36, 0.72, 0.30);
+    vec3 dark = vec3(0.10, 0.40, 0.16);
+    vec3 light = vec3(0.45, 0.92, 0.42);
+    vec3 glowCol = vec3(0.62, 1.00, 0.55);
 
-    float t = clamp((uv.y + 1.0) * 0.5, 0.0, 1.0);
-    vec3 color = mix(dark, mid, t);
-    color = mix(color, light, cluster * 0.45);
+    vec3 color = mix(dark, light, t);
+    color = mix(color, glowCol, glow * 0.7);
 
-    float var = mix(0.85, 1.1, hash1(vSeed * 17.3));
-    color *= var;
+    float var = mix(0.88, 1.12, hash1(vSeed * 17.3));
+    color *= var * pulse;
 
     FragColor = vec4(color, alpha);
 }
