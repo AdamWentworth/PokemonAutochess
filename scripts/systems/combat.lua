@@ -1,5 +1,7 @@
 local timers = {}
 local rng = function() return math.random() end
+local attack_stage = {}
+local defense_stage = {}
 
 local MISS_CHANCE = 0.10
 local CRIT_CHANCE = 0.125
@@ -15,6 +17,8 @@ local TUNING = {
   CHARGED_CD_MULT = 2.0,
   MIN_FAST_REQUEST_SEC = 0.85,
   MIN_CHARGED_REQUEST_SEC = 0.85,
+  -- Global scale on speed-stat-derived attack cadence only (<1.0 = slower attacks).
+  ATTACK_SPEED_SCALE = 1.0,
   SPEED_BASELINE = 1.0,
   SPEED_MIN = 0.35,
   SPEED_MAX = 3.0,
@@ -25,7 +29,10 @@ local TUNING = {
   -- Energy tuning
   ENERGY_GAIN_MULT = 0.75,
   ENERGY_GAIN_ON_HIT = 6,
-  ENERGY_GAIN_ON_HIT_MULT = 1.0
+  ENERGY_GAIN_ON_HIT_MULT = 1.0,
+  -- Pokemon-like stage system for non-damaging debuffs
+  STAT_STAGE_MIN = -6,
+  STAT_STAGE_MAX = 6
 }
 
 -- Type effectiveness (data-driven)
@@ -155,8 +162,9 @@ local function move_speed_mult(move_name)
   return 1.0
 end
 
--- Shared "speed" stat used for both movement and attack cadence.
-local function unit_speed_factor(unit_id)
+-- Attack cadence is derived from unit speed stat, but can be globally scaled
+-- without changing movement behavior.
+local function unit_attack_speed_factor(unit_id)
   local s = nil
 
   if type(world_get_unit_speed) == "function" then
@@ -177,6 +185,9 @@ local function unit_speed_factor(unit_id)
   local denom = (TUNING.SPEED_BASELINE or 1.0)
   if denom == 0 then denom = 1.0 end
   local f = s / denom
+  local scale = tonumber(TUNING.ATTACK_SPEED_SCALE) or 1.0
+  if scale <= 0.0 then scale = 1.0 end
+  f = f * scale
   return clamp(f, TUNING.SPEED_MIN, TUNING.SPEED_MAX)
 end
 
@@ -197,6 +208,25 @@ local function unit_types(unit_id)
   local u = world_get_unit_snapshot(unit_id)
   if u and type(u.types) == "table" then return u.types end
   return nil
+end
+
+local function stat_stage_multiplier(stage)
+  local s = math.floor(tonumber(stage) or 0)
+  s = clamp(s, TUNING.STAT_STAGE_MIN or -6, TUNING.STAT_STAGE_MAX or 6)
+  if s >= 0 then
+    return (2.0 + s) / 2.0
+  end
+  return 2.0 / (2.0 - s)
+end
+
+local function attacker_damage_stage_mult(unit_id)
+  return stat_stage_multiplier(attack_stage[unit_id] or 0)
+end
+
+local function target_damage_taken_stage_mult(unit_id)
+  local defenseMult = stat_stage_multiplier(defense_stage[unit_id] or 0)
+  if defenseMult <= 0.0 then return 1.0 end
+  return 1.0 / defenseMult
 end
 
 local function type_chart_product(move_type, target_types)
@@ -255,6 +285,8 @@ local function compute_damage(attacker_id, target_id, power)
     end
   end
 
+  dmg = dmg * attacker_damage_stage_mult(attacker_id)
+
   dmg = math.floor(dmg + 0.5)
   local minDmg = TUNING.DAMAGE_MIN or 0
   if dmg < minDmg then dmg = minDmg end
@@ -265,6 +297,7 @@ local function apply_type_multiplier(move_name, move_type, kind, target_id, dmg)
   if dmg <= 0 then return 0 end
   local mult = type_multiplier(move_name, move_type, kind, target_id)
   local out = math.floor((dmg * mult) + 0.5)
+  out = math.floor((out * target_damage_taken_stage_mult(target_id)) + 0.5)
   if out < 0 then out = 0 end
   return out
 end
@@ -315,6 +348,43 @@ local function get_name(unit_id)
   return "Unknown"
 end
 
+local function adjacent_enemy_targets(attacker_id)
+  local out = {}
+  if type(world_enemies_adjacent) ~= "function" then return out end
+  local enemies = world_enemies_adjacent(attacker_id)
+  if type(enemies) ~= "table" then return out end
+  for _, enemyId in ipairs(enemies) do
+    local e = world_get_unit_snapshot(enemyId)
+    if e and e.alive and (not e.captureInProgress) then
+      out[#out + 1] = enemyId
+    end
+  end
+  return out
+end
+
+local function apply_stage_drop(effect, target_id, stageCount)
+  local drop = math.max(1, math.floor(tonumber(stageCount) or 1))
+  local minStage = TUNING.STAT_STAGE_MIN or -6
+  local maxStage = TUNING.STAT_STAGE_MAX or 6
+
+  if effect == "attack_down" then
+    local cur = attack_stage[target_id] or 0
+    local nxt = clamp(cur - drop, minStage, maxStage)
+    if nxt == cur then return false end
+    attack_stage[target_id] = nxt
+    emit(string.format("%s's Attack fell!", get_name(target_id)))
+    return true
+  elseif effect == "defense_down" then
+    local cur = defense_stage[target_id] or 0
+    local nxt = clamp(cur - drop, minStage, maxStage)
+    if nxt == cur then return false end
+    defense_stage[target_id] = nxt
+    emit(string.format("%s's Defense fell!", get_name(target_id)))
+    return true
+  end
+  return false
+end
+
 local function find_adjacent_enemy(id)
   local enemies = world_enemies_adjacent(id)
   if enemies and #enemies > 0 then
@@ -353,6 +423,7 @@ end
 -- Combat engagement tracking for animation state
 local engaged_state = {}
 local focused_target = {}
+local locked_target = {}
 
 local function wants_to_move(id)
   if type(world_has_planned_move) == "function" then
@@ -378,6 +449,23 @@ local function set_engaged(id, engaged)
       world_request_combat_end(id)
     end
   end
+end
+
+local function target_exists_for_lock(target_id)
+  if not target_id then return false end
+  if type(world_get_unit_snapshot) ~= "function" then return false end
+  local t = world_get_unit_snapshot(target_id)
+  if type(t) ~= "table" or type(t.id) ~= "number" then return false end
+  return t.alive or t.fainting or t.captureInProgress
+end
+
+local function is_attack_cycle_active(id)
+  local t = timers[id] or 0.0
+  if t > 0.0001 then return true end
+  if type(world_attack_ready) == "function" then
+    return not world_attack_ready(id)
+  end
+  return false
 end
 
 -- NEW: charged does not preempt. When gauge becomes full, mark "charged_pending";
@@ -414,13 +502,45 @@ local function fire_charged(id, tgt)
   if not tgt then return false end
   if not can_start_attack_now(id) then return false end
 
-  local spd = unit_speed_factor(id)
+  local spd = unit_attack_speed_factor(id)
   local cd = math.max(0.05, (m.cooldownSec or 0.8))
   cd = (cd * CHARGED_CD_MULT) / spd
   cd = math.max(cd, min_request_sec(id, name, "charged", MIN_CHARGED_REQUEST_SEC) / spd)
 
   world_set_energy(id, cur - need)
   emit(string.format("%s used %s!", get_name(id), string.gsub(name, "_", " ")))
+
+  local status = m and m.status or nil
+  local statusEffect = (status and status.valid and status.effect) and tostring(status.effect) or ""
+  if statusEffect == "attack_down" or statusEffect == "defense_down" then
+    local targets = adjacent_enemy_targets(id)
+    if #targets == 0 and tgt then targets = { tgt } end
+
+    -- Trigger the charged attack animation/VFX even for zero-damage debuff moves.
+    local anchorTarget = tgt
+    if (not anchorTarget) and #targets > 0 then
+      anchorTarget = targets[1]
+    end
+    if anchorTarget then
+      world_apply_damage(id, anchorTarget, 0, cd, name, "charged")
+    end
+
+    local affected = 0
+    local stageCount = (status and status.magnitude) or 1
+    for _, enemyId in ipairs(targets) do
+      if apply_stage_drop(statusEffect, enemyId, stageCount) then
+        affected = affected + 1
+      end
+    end
+    if affected <= 0 then
+      emit("But it failed!")
+    end
+
+    timers[id] = cd
+    charged_pending[id] = false
+    locked_target[id] = tgt
+    return true
+  end
 
   local tSnap = world_get_unit_snapshot(tgt)
   local hp_before = tSnap and tSnap.hp or 0
@@ -439,6 +559,7 @@ local function fire_charged(id, tgt)
 
   timers[id] = cd
   charged_pending[id] = false
+  locked_target[id] = tgt
   return true
 end
 
@@ -447,6 +568,9 @@ function combat_init()
   engaged_state = {}
   charged_pending = {}
   focused_target = {}
+  locked_target = {}
+  attack_stage = {}
+  defense_stage = {}
 
   local units = world_list_units() or {}
   for i = 1, #units do
@@ -455,6 +579,7 @@ function combat_init()
     engaged_state[u.id] = false
     charged_pending[u.id] = false
     focused_target[u.id] = nil
+    locked_target[u.id] = nil
     if type(world_set_in_combat) == "function" then
       world_set_in_combat(u.id, false)
     end
@@ -473,6 +598,14 @@ function combat_update(dt)
     reset_if_missing(u.id)
     timers[u.id] = math.max(0.0, (timers[u.id] or 0.0) - dt)
     if charged_pending[u.id] == nil then charged_pending[u.id] = false end
+    if not is_attack_cycle_active(u.id) then
+      locked_target[u.id] = nil
+    end
+    if not u.alive then
+      attack_stage[u.id] = nil
+      defense_stage[u.id] = nil
+      locked_target[u.id] = nil
+    end
   end
 
   -- Update combat engagement state FIRST (animation driver)
@@ -480,21 +613,40 @@ function combat_update(dt)
     local u = units[i]
     if u.alive then
       local adjacent = (type(world_is_adjacent_to_enemy) == "function") and world_is_adjacent_to_enemy(u.id) or false
-      set_engaged(u.id, adjacent)
-      if not adjacent then focused_target[u.id] = nil end
+      local engaged = adjacent or is_attack_cycle_active(u.id)
+      set_engaged(u.id, engaged)
+      if not engaged then
+        focused_target[u.id] = nil
+        locked_target[u.id] = nil
+      end
     else
       set_engaged(u.id, false)
       focused_target[u.id] = nil
+      locked_target[u.id] = nil
     end
   end
 
   -- Combat resolution
   for i = 1, #units do
     local u = units[i]
-    if u.alive and world_is_adjacent_to_enemy(u.id) then
-      local tgt = find_adjacent_enemy(u.id)
+    local adjacent = u.alive and world_is_adjacent_to_enemy(u.id)
+    local cycleLocked = is_attack_cycle_active(u.id)
+    if u.alive and (adjacent or cycleLocked) then
+      local tgt = nil
+      if cycleLocked then
+        tgt = locked_target[u.id]
+      elseif adjacent then
+        tgt = find_adjacent_enemy(u.id)
+      end
+
       if tgt then
         focused_target[u.id] = tgt
+      elseif not cycleLocked then
+        focused_target[u.id] = nil
+      end
+
+      local targetValid = target_exists_for_lock(tgt)
+      if adjacent and (not cycleLocked) and targetValid then
         -- Update pending-charged flag as soon as gauge fills.
         mark_charged_pending_if_ready(u.id)
 
@@ -511,7 +663,7 @@ function combat_update(dt)
           local fastName = unit_fast_move(u.id)
           local m = move_get(fastName)
 
-          local spd = unit_speed_factor(u.id)
+          local spd = unit_attack_speed_factor(u.id)
 
           if trace_combat(u, fastName) then
             trlog("[TRACE_FAST/select]", string.format(
@@ -537,6 +689,7 @@ function combat_update(dt)
           end
 
           timers[u.id] = cd
+          locked_target[u.id] = tgt
           if trace_combat(u, fastName) then
             trlog("[TRACE_FAST/fire]", string.format("start_fast_attack cd=%.3f timerSet=%.3f targetId=%d", cd, timers[u.id], tgt))
           end
@@ -573,8 +726,11 @@ function combat_update(dt)
     local u = units[i]
     if u.alive then
       local tgt = focused_target[u.id]
-      if tgt and type(world_face_target) == "function" then
+      local cycleLocked = is_attack_cycle_active(u.id)
+      if tgt and type(world_face_target) == "function" and target_exists_for_lock(tgt) then
         world_face_target(u.id, tgt)
+      elseif cycleLocked then
+        -- Keep current orientation while attack animation/cycle resolves.
       else
         world_face_enemy(u.id)
       end

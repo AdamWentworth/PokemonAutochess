@@ -15,6 +15,23 @@
 #include <cmath>
 #include <iostream>
 
+namespace {
+std::vector<GameWorld::ClassicShopCard> buildClassicCardsFromUi(const std::vector<CardData>& cards) {
+    std::vector<GameWorld::ClassicShopCard> out;
+    out.reserve(cards.size());
+    for (const auto& c : cards) {
+        if (c.pokemonName.empty()) continue;
+        if (c.type == CardType::Item) continue;
+        GameWorld::ClassicShopCard card;
+        card.name = c.pokemonName;
+        card.level = std::max(1, c.level);
+        card.cost = std::max(0, c.cost);
+        out.push_back(std::move(card));
+    }
+    return out;
+}
+} // namespace
+
 ScriptedState::ScriptedState(GameStateManager* manager, GameWorld* world, GameServices& svc, const std::string& path)
     : stateManager(manager)
     , gameWorld(world)
@@ -42,6 +59,9 @@ void ScriptedState::rebuildCardRow() {
     std::string parseError;
     if (!game::scripting::parseCardList(f, list, &parseError)) {
         std::cerr << "[ScriptedState] failed to parse card list: " << parseError << "\n";
+        if (cardMode == CardMode::Shop && gameWorld && services.gameMode == "classic") {
+            gameWorld->clearClassicShopCards();
+        }
         return;
     }
 
@@ -49,6 +69,13 @@ void ScriptedState::rebuildCardRow() {
     const int uiW = viewport ? viewport->width : 1280;
     const int uiH = viewport ? viewport->height : 720;
     if (cardMode == CardMode::Shop) {
+        if (gameWorld) {
+            if (services.gameMode == "classic") {
+                gameWorld->setClassicShopCards(buildClassicCardsFromUi(list));
+            } else {
+                gameWorld->clearClassicShopCards();
+            }
+        }
         if (shopUi) {
             shopUi->setCards(list, uiW, uiH);
         }
@@ -445,9 +472,9 @@ void ScriptedState::render() {
     }
 
     const bool showSellOverlay = (cardMode == CardMode::Shop) &&
+                                 (services.gameMode == "classic") &&
                                  gameWorld &&
-                                 gameWorld->isUnitDragActive() &&
-                                 !hasShopItems;
+                                 gameWorld->isUnitDragActive();
 
     if (cardMode == CardMode::Shop) {
         if (hasShopItems && !showSellOverlay) {
@@ -471,8 +498,8 @@ void ScriptedState::drawShopHud(int uiW, int uiH) {
     in.moneyScale = 1.35f;
     in.rerollScale = 0.90f;
     in.rerollLabel = "[Reroll 2g]";
-    in.showSellOverlay = gameWorld &&
-                         gameWorld->isUnitDragActive() &&
-                         !hasShopItems;
+    in.showSellOverlay = (services.gameMode == "classic") &&
+                         gameWorld &&
+                         gameWorld->isUnitDragActive();
     shopUi->render(in);
 }

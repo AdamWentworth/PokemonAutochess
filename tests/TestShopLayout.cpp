@@ -136,12 +136,13 @@ bool test_shop_layout_invariants(std::string& outFail) {
         in.iconSize = 30.0f;
         in.iconGap = 8.0f;
         const ClassicHudLayout layout = computeClassicHudLayout(in);
+        const float expectedTopY = 643.0f + in.topRowOffsetY;
 
-        if (!almostEq(layout.x0, 172.0f) || !almostEq(layout.y0, 640.0f)) {
+        if (!almostEq(layout.x0, 172.0f) || !almostEq(layout.y0, expectedTopY)) {
             outFail = "Classic HUD anchor placement changed unexpectedly.";
             return false;
         }
-        if (!almostEq(layout.textX, 210.0f) || !almostEq(layout.textY, 640.0f)) {
+        if (!almostEq(layout.textX, 210.0f) || !almostEq(layout.textY, expectedTopY)) {
             outFail = "Classic HUD text anchor changed unexpectedly.";
             return false;
         }

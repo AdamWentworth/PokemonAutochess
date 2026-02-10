@@ -23,6 +23,12 @@
 #include "vfx/HealPlusVFX.h"
 // Leech seed drain dots
 #include "vfx/LeechSeedDrainVFX.h"
+// Growl wave VFX
+#include "vfx/GrowlWaveVFX.h"
+// Claw swipe VFX (scratch/metal claw)
+#include "vfx/ClawSwipeVFX.h"
+// Aqua swoosh/bubble/water-gun impact VFX
+#include "vfx/AquaSwooshVFX.h"
 // Leech seed config
 #include "config/LeechSeedConfigDB.h"
 
@@ -127,6 +133,10 @@ public:
     void emitGrassImpactAt(const PokemonInstance& target);
     // Impact VFX for tackle
     void emitTackleImpactAt(const PokemonInstance& target, const PokemonInstance* attacker = nullptr);
+    // Move-specific impact VFX routing
+    void emitMoveImpactByName(const std::string& moveName,
+                              const PokemonInstance& target,
+                              const PokemonInstance* attacker = nullptr);
 
     // Apply leech seed status on hit
     void applyLeechSeed(int attackerId, int targetId);
@@ -237,6 +247,15 @@ private:
 
     LeechSeedDrainVFX leechSeedDrainVfx;
     bool leechSeedDrainVfxInitialized = false;
+
+    GrowlWaveVFX growlWaveVfx;
+    bool growlWaveVfxInitialized = false;
+
+    ClawSwipeVFX clawSwipeVfx;
+    bool clawSwipeVfxInitialized = false;
+
+    AquaSwooshVFX aquaSwooshVfx;
+    bool aquaSwooshVfxInitialized = false;
 
     // Leech seed config
     bool leechSeedConfigLoaded = false;

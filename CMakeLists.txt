@@ -200,6 +200,9 @@ add_library(PAC_GameObjects STATIC
     src/game/vfx/LeechSeedProjectileVFX.cpp
     src/game/vfx/HealPlusVFX.cpp
     src/game/vfx/LeechSeedDrainVFX.cpp
+    src/game/vfx/GrowlWaveVFX.cpp
+    src/game/vfx/ClawSwipeVFX.cpp
+    src/game/vfx/AquaSwooshVFX.cpp
 
     # Game Assets
     src/game/assets/DevAssetStore.cpp

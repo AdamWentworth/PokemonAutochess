@@ -16,6 +16,7 @@
 #include <algorithm>
 #include <cctype>
 #include <cmath>
+#include <vector>
 #include <sol/sol.hpp>
 
 namespace {
@@ -26,6 +27,27 @@ std::string Capitalize(std::string s) {
 }
 
 } // namespace
+
+namespace {
+constexpr float kCombatStartCountdownSec = 3.0f;
+constexpr float kCombatEndHoldSec = 3.0f;
+constexpr float kHeaderY = 58.0f;
+
+std::vector<GameWorld::ClassicShopCard> buildClassicCardsFromUi(const std::vector<CardData>& cards) {
+    std::vector<GameWorld::ClassicShopCard> out;
+    out.reserve(cards.size());
+    for (const auto& c : cards) {
+        if (c.pokemonName.empty()) continue;
+        if (c.type == CardType::Item) continue;
+        GameWorld::ClassicShopCard card;
+        card.name = c.pokemonName;
+        card.level = std::max(1, c.level);
+        card.cost = std::max(0, c.cost);
+        out.push_back(std::move(card));
+    }
+    return out;
+}
+}
 
 void CombatState::ensureShopUi() {
     sol::table S = script.getScriptTable();
@@ -60,7 +82,18 @@ void CombatState::rebuildShopCards() {
             game::log::warn(&services.log, std::string("[CombatState] failed to parse shop cards: ") + parseError);
         }
         if (shopUi) shopUi->clear();
+        if (gameWorld && services.gameMode == "classic") {
+            gameWorld->clearClassicShopCards();
+        }
         return;
+    }
+
+    if (gameWorld) {
+        if (services.gameMode == "classic") {
+            gameWorld->setClassicShopCards(buildClassicCardsFromUi(cards));
+        } else {
+            gameWorld->clearClassicShopCards();
+        }
     }
 
     const auto* viewport = services.viewport;
@@ -102,7 +135,35 @@ CombatState::CombatState(GameStateManager* manager, GameWorld* world, GameServic
 
 CombatState::~CombatState() = default;
 
+void CombatState::setCombatActiveFlag(bool active) {
+    if (!services.ecsWorld || !services.ecsWorld->alive(services.combatStateEntity)) return;
+    if (auto* state = services.ecsWorld->get<game::CombatActive>(services.combatStateEntity)) {
+        state->active = active;
+    } else {
+        services.ecsWorld->add<game::CombatActive>(services.combatStateEntity, game::CombatActive{active});
+    }
+}
+
+bool CombatState::shouldDelayPostCombat() const {
+    if (!gameWorld) return false;
+    bool anyEnemyAlive = false;
+    bool anyPlayerAlive = false;
+    for (const auto& u : gameWorld->getPokemons()) {
+        if (u.side == PokemonSide::Enemy) {
+            if (u.alive || u.captureInProgress) anyEnemyAlive = true;
+        } else if (u.side == PokemonSide::Player) {
+            if (u.alive) anyPlayerAlive = true;
+        }
+    }
+    return anyPlayerAlive && !anyEnemyAlive;
+}
+
 void CombatState::onEnter() {
+    combatStarted = false;
+    postCombatHoldActive = false;
+    preCombatCountdownSec = kCombatStartCountdownSec;
+    postCombatCountdownSec = 0.0f;
+
     if (gameWorld) {
         gameWorld->resetCombatBalance();
         gameWorld->capturePlayerPositionsForBattle();
@@ -119,13 +180,7 @@ void CombatState::onEnter() {
         );
     }
 
-    if (services.ecsWorld && services.ecsWorld->alive(services.combatStateEntity)) {
-        if (auto* state = services.ecsWorld->get<game::CombatActive>(services.combatStateEntity)) {
-            state->active = true;
-        } else {
-            services.ecsWorld->add<game::CombatActive>(services.combatStateEntity, game::CombatActive{true});
-        }
-    }
+    setCombatActiveFlag(false);
 
     sol::table S = script.getScriptTable();
 
@@ -181,11 +236,7 @@ void CombatState::onEnter() {
 }
 
 void CombatState::onExit() {
-    if (services.ecsWorld && services.ecsWorld->alive(services.combatStateEntity)) {
-        if (auto* state = services.ecsWorld->get<game::CombatActive>(services.combatStateEntity)) {
-            state->active = false;
-        }
-    }
+    setCombatActiveFlag(false);
     if (gameWorld) {
         gameWorld->restorePlayerPositionsAfterBattle();
         gameWorld->setBoardInteractionLocked(false);
@@ -235,6 +286,33 @@ void CombatState::handleInput(const InputEvent& event) {
 }
 
 void CombatState::update(float dt) {
+    if (!combatStarted) {
+        preCombatCountdownSec = std::max(0.0f, preCombatCountdownSec - std::max(0.0f, dt));
+        if (preCombatCountdownSec <= 0.0f) {
+            combatStarted = true;
+            setCombatActiveFlag(true);
+        }
+        return;
+    }
+
+    if (shouldDelayPostCombat()) {
+        if (!postCombatHoldActive) {
+            postCombatHoldActive = true;
+            postCombatCountdownSec = kCombatEndHoldSec;
+            setCombatActiveFlag(false);
+        }
+        postCombatCountdownSec = std::max(0.0f, postCombatCountdownSec - std::max(0.0f, dt));
+        if (postCombatCountdownSec > 0.0f) {
+            return;
+        }
+    } else {
+        if (postCombatHoldActive) {
+            postCombatHoldActive = false;
+            postCombatCountdownSec = 0.0f;
+            setCombatActiveFlag(true);
+        }
+    }
+
     script.onUpdate(dt);
 }
 
@@ -246,7 +324,17 @@ void CombatState::render() {
     if (!textRenderer) return;
 
     const float scale = 1.0f;
-    const std::string msg = combatMessage.empty() ? std::string("Combat") : combatMessage;
+    std::string msg = combatMessage.empty() ? std::string("Combat") : combatMessage;
+    glm::vec3 msgColor(1.0f, 1.0f, 1.0f);
+    if (!combatStarted) {
+        const int sec = std::max(1, static_cast<int>(std::ceil(preCombatCountdownSec)));
+        msg = "Battle starts in: " + std::to_string(sec);
+        msgColor = glm::vec3(1.0f, 1.0f, 0.0f);
+    } else if (postCombatHoldActive && postCombatCountdownSec > 0.0f) {
+        const int sec = std::max(1, static_cast<int>(std::ceil(postCombatCountdownSec)));
+        msg = "Round ending in: " + std::to_string(sec);
+        msgColor = glm::vec3(1.0f, 1.0f, 0.0f);
+    }
 
     const auto* viewport = services.viewport;
     const float uiWidth = static_cast<float>(viewport ? viewport->width : 1280);
@@ -254,14 +342,14 @@ void CombatState::render() {
     float centeredX = viewport ? viewport->centerX(textWidth)
                                : std::round((uiWidth - textWidth) * 0.5f);
 
-    textRenderer->renderText(msg, centeredX, 22.0f, glm::vec3(1.0f), scale);
+    textRenderer->renderText(msg, centeredX, kHeaderY, msgColor, scale);
 
     if (shopUiEnabled) {
         const int uiW = viewport ? viewport->width : 1280;
         const int uiH = viewport ? viewport->height : 720;
-        const bool showSellOverlay = gameWorld &&
-                                     gameWorld->isUnitDragActive() &&
-                                     !gameWorld->getClassicShopCards().empty();
+        const bool showSellOverlay = (services.gameMode == "classic") &&
+                                     gameWorld &&
+                                     gameWorld->isUnitDragActive();
         drawShopHud(uiW, uiH, showSellOverlay);
     }
 }

@@ -12,20 +12,17 @@
       "1": {
         "fast": "tackle"
       },
-      "3": {
+      "4": {
+        "charged": "growl",
         "fast": "tackle"
       },
-      "5": {
+      "7": {
         "charged": "leech_seed",
         "fast": "tackle"
       },
-      "6": {
+      "10": {
         "charged": "leech_seed",
         "fast": "vine_whip"
-      },
-      "8": {
-        "charged": "seed_bomb",
-        "fast": "razor_leaf"
       }
     },
     "model": "0001_Bulbasaur.glb",
@@ -39,31 +36,22 @@
         "level": 1
       },
       {
-        "fast": [
-          "tackle"
+        "charged": [
+          "growl"
         ],
-        "level": 3
+        "level": 4
       },
       {
         "charged": [
           "leech_seed"
         ],
-        "level": 5
+        "level": 7
       },
       {
         "fast": [
           "vine_whip"
         ],
-        "level": 6
-      },
-      {
-        "charged": [
-          "seed_bomb"
-        ],
-        "fast": [
-          "razor_leaf"
-        ],
-        "level": 8
+        "level": 10
       }
     ]
   },
@@ -77,18 +65,19 @@
     "shopBaseCost": 3,
     "loadoutByLevel": {
       "1": {
-        "fast": "ember"
+        "fast": "scratch"
       },
       "4": {
-        "fast": "fire_fang"
+        "charged": "growl",
+        "fast": "scratch"
       },
-      "5": {
-        "charged": "flame_burst",
-        "fast": "fire_fang"
+      "7": {
+        "charged": "ember",
+        "fast": "scratch"
       },
-      "8": {
-        "charged": "flamethrower",
-        "fast": "fire_fang"
+      "13": {
+        "charged": "ember",
+        "fast": "metal_claw"
       }
     },
     "model": "0004_Charmander.glb",
@@ -97,27 +86,27 @@
       {
         "charged": [],
         "fast": [
-          "ember"
+          "scratch"
         ],
         "level": 1
       },
       {
-        "fast": [
-          "fire_fang"
+        "charged": [
+          "growl"
         ],
         "level": 4
       },
       {
         "charged": [
-          "flame_burst"
+          "ember"
         ],
-        "level": 5
+        "level": 7
       },
       {
-        "charged": [
-          "flamethrower"
+        "fast": [
+          "metal_claw"
         ],
-        "level": 8
+        "level": 13
       }
     ]
   },
@@ -131,18 +120,19 @@
     "shopBaseCost": 3,
     "loadoutByLevel": {
       "1": {
-        "fast": "bubble"
+        "fast": "tackle"
       },
-      "3": {
-        "fast": "water_gun"
-      },
-      "5": {
-        "charged": "aqua_tail",
-        "fast": "water_gun"
+      "4": {
+        "charged": "tail_whip",
+        "fast": "tackle"
       },
       "7": {
-        "charged": "water_pulse",
-        "fast": "water_gun"
+        "charged": "bubble",
+        "fast": "tackle"
+      },
+      "10": {
+        "charged": "water_gun",
+        "fast": "tackle"
       }
     },
     "model": "0007_Squirtle.glb",
@@ -151,27 +141,27 @@
       {
         "charged": [],
         "fast": [
-          "bubble"
+          "tackle"
         ],
         "level": 1
       },
       {
-        "fast": [
-          "water_gun"
+        "charged": [
+          "tail_whip"
         ],
-        "level": 3
+        "level": 4
       },
       {
         "charged": [
-          "aqua_tail"
-        ],
-        "level": 5
-      },
-      {
-        "charged": [
-          "water_pulse"
+          "bubble"
         ],
         "level": 7
+      },
+      {
+        "charged": [
+          "water_gun"
+        ],
+        "level": 10
       }
     ]
   },
@@ -186,14 +176,19 @@
     "shopBaseCost": 2,
     "loadoutByLevel": {
       "1": {
-        "fast": "gust"
-      },
-      "3": {
-        "fast": "wing_attack"
+        "fast": "tackle"
       },
       "5": {
-        "charged": "aerial_ace",
-        "fast": "wing_attack"
+        "charged": "sand_attack",
+        "fast": "tackle"
+      },
+      "9": {
+        "charged": "gust",
+        "fast": "tackle"
+      },
+      "13": {
+        "charged": "gust",
+        "fast": "quick_attack"
       }
     },
     "model": "0016_Pidgey.glb",
@@ -202,21 +197,27 @@
       {
         "charged": [],
         "fast": [
-          "gust"
+          "tackle"
         ],
         "level": 1
       },
       {
-        "fast": [
-          "wing_attack"
+        "charged": [
+          "sand_attack"
         ],
-        "level": 3
+        "level": 5
       },
       {
         "charged": [
-          "aerial_ace"
+          "gust"
         ],
-        "level": 5
+        "level": 9
+      },
+      {
+        "fast": [
+          "quick_attack"
+        ],
+        "level": 13
       }
     ]
   },
@@ -232,10 +233,15 @@
       "1": {
         "fast": "tackle"
       },
-      "3": {
+      "5": {
+        "charged": "tail_whip",
+        "fast": "tackle"
+      },
+      "7": {
+        "charged": "tail_whip",
         "fast": "quick_attack"
       },
-      "5": {
+      "13": {
         "charged": "hyper_fang",
         "fast": "quick_attack"
       }
@@ -251,16 +257,22 @@
         "level": 1
       },
       {
+        "charged": [
+          "tail_whip"
+        ],
+        "level": 5
+      },
+      {
         "fast": [
           "quick_attack"
         ],
-        "level": 3
+        "level": 7
       },
       {
         "charged": [
           "hyper_fang"
         ],
-        "level": 5
+        "level": 13
       }
     ]
   }

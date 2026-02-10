@@ -117,6 +117,7 @@ struct PokemonInstance {
     int   pendingDamageTargetId   = -1;
     int   pendingDamageAmount     = 0;
     float pendingDamageHitTimeSec = 0.0f; // clip-time seconds (compared against animTimeSec)
+    std::string pendingDamageMoveName;
     bool  pendingDamageIsGrass    = false;
     bool  pendingDamageIsTackle   = false;
 

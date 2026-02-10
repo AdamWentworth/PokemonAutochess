@@ -854,11 +854,6 @@ int ScriptAPI::applyDamage(int attackerId,
                   " desiredWindowSec=" + std::to_string(desiredWindowSec));
         }
 
-        if (amount <= 0) {
-            if (traceCombat) trlog("cosmetic: amount<=0 -> ignore (no cycle)");
-            return T->hp;
-        }
-
         const float kMidCycleEps = 0.0001f;
         if (A->attackTimerSec > kMidCycleEps) {
             if (traceCombat) trlog("lock: mid-cycle -> ignore request (no new cycle, no damage)");
@@ -875,6 +870,18 @@ int ScriptAPI::applyDamage(int attackerId,
                 clipUsed = animCfg
                     ? animCfg->getClipName(speciesLower, "charged", moveLower, "one_shot", &services_.log)
                     : std::string();
+                if (clipUsed.empty()) {
+                    phase = "start";
+                    clipUsed = animCfg
+                        ? animCfg->getClipName(speciesLower, "charged", moveLower, "start", &services_.log)
+                        : std::string();
+                }
+                if (clipUsed.empty()) {
+                    phase = "default";
+                    clipUsed = animCfg
+                        ? animCfg->getClipName(speciesLower, "charged", moveLower, "default", &services_.log)
+                        : std::string();
+                }
                 const int idx = animIndexCached(*A, clipUsed);
                 if (idx >= 0) desiredAnimIdx = idx;
             } else if (kindLower == "fast" && !moveLower.empty()) {
@@ -939,6 +946,7 @@ int ScriptAPI::applyDamage(int attackerId,
         A->pendingDamageTargetId = -1;
         A->pendingDamageAmount = 0;
         A->pendingDamageHitTimeSec = 0.0f;
+        A->pendingDamageMoveName.clear();
         A->pendingDamageIsGrass = false;
         A->pendingDamageIsTackle = false;
         A->pendingProjectileActive = false;
@@ -975,7 +983,6 @@ int ScriptAPI::applyDamage(int attackerId,
                                         willKillDbg, A->fastChainTimerSec);
         }
 
-        if (amount <= 0) return T->hp;
         if (!attackerIsInAttackAnimation(*A)) return T->hp;
 
         if (isLeechSeed) {
@@ -1036,11 +1043,18 @@ int ScriptAPI::applyDamage(int attackerId,
                 A->pendingDamageTargetId   = targetId;
                 A->pendingDamageAmount     = std::max(0, amount);
                 A->pendingDamageHitTimeSec = std::max(0.0f, hitTimeSec);
+                A->pendingDamageMoveName   = moveLower;
                 A->pendingDamageIsGrass    = isGrassImpact;
                 A->pendingDamageIsTackle   = isTackle;
             }
 
+            if (amount <= 0) return T->hp;
             return std::max(0, T->hp - std::max(0, amount));
+        }
+
+        if (amount <= 0) {
+            world_->emitMoveImpactByName(moveLower, *T, &(*A));
+            return T->hp;
         }
     }
 
@@ -1050,11 +1064,15 @@ int ScriptAPI::applyDamage(int attackerId,
               " hp_before=" + std::to_string(T->hp));
     }
     T->hp = std::max(0, T->hp - dmg);
-    if (dmg > 0 && isGrassImpact) {
-        world_->emitGrassImpactAt(*T);
-    }
-    if (dmg > 0 && isTackle) {
-        world_->emitTackleImpactAt(*T, &(*A));
+    if (!moveLower.empty()) {
+        world_->emitMoveImpactByName(moveLower, *T, &(*A));
+    } else {
+        if (dmg > 0 && isGrassImpact) {
+            world_->emitGrassImpactAt(*T);
+        }
+        if (dmg > 0 && isTackle) {
+            world_->emitTackleImpactAt(*T, &(*A));
+        }
     }
     if (traceCombat) {
         trlog(std::string("damage_result hp_after=") + std::to_string(T->hp) +

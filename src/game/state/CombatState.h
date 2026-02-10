@@ -30,6 +30,8 @@ private:
     void ensureShopUi();
     void rebuildShopCards();
     void drawShopHud(int uiW, int uiH, bool showSellOverlay);
+    void setCombatActiveFlag(bool active);
+    bool shouldDelayPostCombat() const;
 
     GameStateManager* stateManager = nullptr;
     GameWorld* gameWorld = nullptr;
@@ -44,6 +46,11 @@ private:
     bool shopUiEnabled = false;
     bool shopUiInitialized = false;
     bool hasShopRerollButton = false;
+
+    bool combatStarted = false;
+    bool postCombatHoldActive = false;
+    float preCombatCountdownSec = 0.0f;
+    float postCombatCountdownSec = 0.0f;
 
     const std::string& scriptPath() const;
 };

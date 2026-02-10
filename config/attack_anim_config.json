@@ -14,8 +14,67 @@
       }
     },
     "charged": {
+      "growl": {
+        "one_shot": "pm0001_00_00_00450_rangeattack01.gfbanm",
+        "_hitFrame": 34
+      },
+      "leech_seed": {
+        "one_shot": "pm0001_00_00_00450_rangeattack01.gfbanm",
+        "_hitFrame": 41
+      },
       "*": {
-        "one_shot": "pm0001_00_00_00450_rangeattack01.gfbanm"
+        "one_shot": "pm0001_00_00_00450_rangeattack01.gfbanm",
+        "_hitFrame": 34
+      }
+    }
+  },
+  "charmander": {
+    "fast": {
+      "scratch": {
+        "loop": "pm0004_00_00_00400_attack01.gfbanm",
+        "default": "pm0004_00_00_00400_attack01.gfbanm",
+        "_hitFrame": 26
+      },
+      "metal_claw": {
+        "loop": "pm0004_00_00_00400_attack01.gfbanm",
+        "default": "pm0004_00_00_00400_attack01.gfbanm",
+        "_hitFrame": 26
+      }
+    },
+    "charged": {
+      "growl": {
+        "one_shot": "pm0004_00_00_00300_roar01.gfbanm",
+        "_hitFrame": 24
+      },
+      "ember": {
+        "one_shot": "pm0004_00_00_00300_roar01.gfbanm",
+        "_hitFrame": 24
+      }
+    }
+  },
+  "squirtle": {
+    "fast": {
+      "tackle": {
+        "loop": "pm0007_00_00_00400_attack01.gfbanm",
+        "default": "pm0007_00_00_00400_attack01.gfbanm",
+        "_hitFrame": 40
+      }
+    },
+    "charged": {
+      "tail_whip": {
+        "one_shot": "pm0007_00_00_00410_attack02.gfbanm",
+        "_hitFrame": 26
+      },
+      "bubble": {
+        "one_shot": "pm0007_00_00_00450_rangeattack01.gfbanm",
+        "_hitFrame": 34
+      },
+      "water_gun": {
+        "one_shot": "pm0007_00_00_00460_rangeattack02_start.gfbanm",
+        "start": "pm0007_00_00_00460_rangeattack02_start.gfbanm",
+        "loop": "pm0007_00_00_00461_rangeattack02_loop.gfbanm",
+        "end": "pm0007_00_00_00462_rangeattack02_end.gfbanm",
+        "_hitFrame": 24
       }
     }
   }

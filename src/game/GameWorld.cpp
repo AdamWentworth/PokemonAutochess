@@ -17,6 +17,12 @@ std::string Capitalize(std::string s) {
     s[0] = static_cast<char>(std::toupper(static_cast<unsigned char>(s[0])));
     return s;
 }
+
+std::string Lower(std::string s) {
+    std::transform(s.begin(), s.end(), s.begin(),
+                   [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+    return s;
+}
 } // namespace
 
 #include "GameWorld.h"
@@ -338,6 +344,12 @@ void GameWorld::handleUnitFaint(PokemonInstance& target) {
     target.queuedAttackAnimIndex = -1;
     target.chainedFastMove.clear();
     target.fastChainTimerSec = 0.0f;
+    target.pendingDamageActive = false;
+    target.pendingDamageApplied = false;
+    target.pendingDamageTargetId = -1;
+    target.pendingDamageAmount = 0;
+    target.pendingDamageHitTimeSec = 0.0f;
+    target.pendingDamageMoveName.clear();
     target.animIndexCache.clear();
 
     target.leechSeeded = false;
@@ -369,6 +381,7 @@ void GameWorld::healPlayerUnitsToFull() {
             u.attackTimerSec = 0.0f;
             u.pendingDamageActive = false;
             u.pendingDamageApplied = false;
+            u.pendingDamageMoveName.clear();
             u.pendingProjectileActive = false;
             u.pendingProjectileSpawned = false;
             u.pendingImpactActive = false;
@@ -996,7 +1009,7 @@ void GameWorld::update(float dt)
             }
 
             // Apply pending damage at the configured hit time (clip-time seconds).
-            if (p.pendingDamageActive && !p.pendingDamageApplied && p.pendingDamageAmount > 0) {
+            if (p.pendingDamageActive && !p.pendingDamageApplied) {
                 if (p.animTimeSec >= p.pendingDamageHitTimeSec) {
                     auto itTgt = std::find_if(pokemons.begin(), pokemons.end(),
                         [&](const PokemonInstance& u){ return u.id == p.pendingDamageTargetId; });
@@ -1004,11 +1017,15 @@ void GameWorld::update(float dt)
                         if (itTgt != pokemons.end() && itTgt->alive && !itTgt->captureInProgress) {
                             const int dmg = std::max(0, p.pendingDamageAmount);
                             itTgt->hp = std::max(0, itTgt->hp - dmg);
-                            if (dmg > 0 && p.pendingDamageIsGrass) {
-                                emitGrassImpactAt(*itTgt);
-                            }
-                            if (dmg > 0 && p.pendingDamageIsTackle) {
-                                emitTackleImpactAt(*itTgt, &p);
+                            if (!p.pendingDamageMoveName.empty()) {
+                                emitMoveImpactByName(p.pendingDamageMoveName, *itTgt, &p);
+                            } else {
+                                if (dmg > 0 && p.pendingDamageIsGrass) {
+                                    emitGrassImpactAt(*itTgt);
+                                }
+                                if (dmg > 0 && p.pendingDamageIsTackle) {
+                                    emitTackleImpactAt(*itTgt, &p);
+                                }
                             }
                             if (itTgt->hp <= 0) {
                                 handleUnitFaint(*itTgt);
@@ -1016,6 +1033,7 @@ void GameWorld::update(float dt)
                     }
 
                     p.pendingDamageApplied = true;
+                    p.pendingDamageMoveName.clear();
                     p.pendingDamageIsGrass = false;
                     p.pendingDamageIsTackle = false;
                     p.pendingProjectileActive = false;
@@ -1059,6 +1077,7 @@ void GameWorld::update(float dt)
                 p.pendingDamageTargetId = -1;
                 p.pendingDamageAmount = 0;
                 p.pendingDamageHitTimeSec = 0.0f;
+                p.pendingDamageMoveName.clear();
                 p.pendingDamageIsGrass = false;
                 p.pendingDamageIsTackle = false;
             }
@@ -1128,8 +1147,29 @@ void GameWorld::update(float dt)
         leechSeedDrainVfxInitialized = true;
     }
 
+    if (!growlWaveVfxInitialized) {
+        GrowlWaveVFX::Config c; // defaults
+        growlWaveVfx.setConfig(c);
+        growlWaveVfxInitialized = true;
+    }
+
+    if (!clawSwipeVfxInitialized) {
+        ClawSwipeVFX::Config c; // defaults
+        clawSwipeVfx.setConfig(c);
+        clawSwipeVfxInitialized = true;
+    }
+
+    if (!aquaSwooshVfxInitialized) {
+        AquaSwooshVFX::Config c; // defaults
+        aquaSwooshVfx.setConfig(c);
+        aquaSwooshVfxInitialized = true;
+    }
+
     healPlusVfx.update(dt);
     leechSeedDrainVfx.update(dt);
+    growlWaveVfx.update(dt);
+    clawSwipeVfx.update(dt);
+    aquaSwooshVfx.update(dt);
 }
 
 void GameWorld::updateCaptureAttempts(float dt) {
@@ -1329,6 +1369,9 @@ void GameWorld::drawAll(const Camera3D& camera, BoardRenderer& boardRenderer)
     leechSeedVfx.render(camera);
     healPlusVfx.render(camera);
     leechSeedDrainVfx.render(camera);
+    growlWaveVfx.render(camera);
+    clawSwipeVfx.render(camera);
+    aquaSwooshVfx.render(camera);
 }
 
 std::vector<HealthBarData> GameWorld::getHealthBarData(const Camera3D& camera, int screenWidth, int screenHeight) const
@@ -1392,6 +1435,79 @@ void GameWorld::emitTackleImpactAt(const PokemonInstance& target, const PokemonI
     }
 
     tackleImpactVfx.emitAt(base);
+}
+
+void GameWorld::emitMoveImpactByName(const std::string& moveName,
+                                     const PokemonInstance& target,
+                                     const PokemonInstance* attacker)
+{
+    if (!renderEnabled) return;
+
+    const std::string move = Lower(moveName);
+    if (move.empty()) return;
+
+    if (move == "tackle") {
+        emitTackleImpactAt(target, attacker);
+        return;
+    }
+
+    if (move == "vine_whip" || move == "leech_seed") {
+        emitGrassImpactAt(target);
+        return;
+    }
+
+    auto makeForward = [&]() -> glm::vec3 {
+        if (attacker) {
+            glm::vec3 d = target.position - attacker->position;
+            d.y = 0.0f;
+            const float len = glm::length(d);
+            if (len > 0.0001f) return d / len;
+        }
+        return glm::vec3(0.0f, 0.0f, 1.0f);
+    };
+
+    if (move == "growl") {
+        if (!growlWaveVfxInitialized) {
+            GrowlWaveVFX::Config c;
+            growlWaveVfx.setConfig(c);
+            growlWaveVfxInitialized = true;
+        }
+        const glm::vec3 origin = attacker
+            ? (attacker->position + glm::vec3(0.0f, attacker->visualYOffset, 0.0f))
+            : (target.position + glm::vec3(0.0f, target.visualYOffset, 0.0f));
+        growlWaveVfx.emitFrom(origin, makeForward());
+        return;
+    }
+
+    if (move == "scratch" || move == "metal_claw") {
+        if (!clawSwipeVfxInitialized) {
+            ClawSwipeVFX::Config c;
+            clawSwipeVfx.setConfig(c);
+            clawSwipeVfxInitialized = true;
+        }
+        const bool metallic = (move == "metal_claw");
+        const glm::vec3 base = target.position + glm::vec3(0.0f, target.visualYOffset, 0.0f);
+        clawSwipeVfx.emitAt(base, makeForward(), metallic);
+        return;
+    }
+
+    if (move == "tail_whip" || move == "bubble" || move == "water_gun") {
+        if (!aquaSwooshVfxInitialized) {
+            AquaSwooshVFX::Config c;
+            aquaSwooshVfx.setConfig(c);
+            aquaSwooshVfxInitialized = true;
+        }
+        AquaSwooshVFX::Style style = AquaSwooshVFX::Style::TailWhip;
+        if (move == "bubble") style = AquaSwooshVFX::Style::Bubble;
+        if (move == "water_gun") style = AquaSwooshVFX::Style::WaterGun;
+
+        const glm::vec3 base =
+            ((move == "tail_whip") && attacker)
+            ? (attacker->position + glm::vec3(0.0f, attacker->visualYOffset, 0.0f))
+            : (target.position + glm::vec3(0.0f, target.visualYOffset, 0.0f));
+        aquaSwooshVfx.emitAt(base, makeForward(), style);
+        return;
+    }
 }
 
 void GameWorld::ensureLeechSeedConfigLoaded()

@@ -16,19 +16,19 @@
     "type": "water"
   },
   "bubble": {
-    "cooldownSec": 0.5,
-    "energyGain": 8,
-    "kind": "fast",
-    "power": 7,
-    "range": 2.0,
+    "cooldownSec": 0.8,
+    "energyCost": 35,
+    "kind": "charged",
+    "power": 44,
+    "range": 4.0,
     "type": "water"
   },
   "ember": {
-    "cooldownSec": 0.5,
-    "energyGain": 8,
-    "kind": "fast",
-    "power": 7,
-    "range": 2.0,
+    "cooldownSec": 0.85,
+    "energyCost": 35,
+    "kind": "charged",
+    "power": 48,
+    "range": 4.5,
     "type": "fire"
   },
   "fire_fang": {
@@ -61,12 +61,26 @@
     "range": 6.0,
     "type": "fire"
   },
+  "growl": {
+    "cooldownSec": 0.8,
+    "energyCost": 30,
+    "kind": "charged",
+    "power": 0,
+    "range": 5.0,
+    "status": {
+      "durationSec": 0,
+      "effect": "attack_down",
+      "magnitude": 1.0,
+      "target": "adjacent_enemies"
+    },
+    "type": "normal"
+  },
   "gust": {
-    "cooldownSec": 0.6,
-    "energyGain": 7,
-    "kind": "fast",
-    "power": 8,
-    "range": 3.0,
+    "cooldownSec": 0.85,
+    "energyCost": 35,
+    "kind": "charged",
+    "power": 45,
+    "range": 5.0,
     "type": "flying"
   },
   "hyper_fang": {
@@ -91,6 +105,14 @@
     },
     "type": "grass"
   },
+  "metal_claw": {
+    "cooldownSec": 0.5,
+    "energyGain": 8,
+    "kind": "fast",
+    "power": 11,
+    "range": 1.8,
+    "type": "steel"
+  },
   "poison_sting": {
     "cooldownSec": 0.5,
     "energyGain": 9,
@@ -114,6 +136,22 @@
     "power": 10,
     "range": 2.2,
     "type": "grass"
+  },
+  "sand_attack": {
+    "cooldownSec": 0.85,
+    "energyCost": 35,
+    "kind": "charged",
+    "power": 10,
+    "range": 4.5,
+    "type": "ground"
+  },
+  "scratch": {
+    "cooldownSec": 0.5,
+    "energyGain": 8,
+    "kind": "fast",
+    "power": 6,
+    "range": 1.5,
+    "type": "normal"
   },
   "seed_bomb": {
     "cooldownSec": 0.9,
@@ -159,6 +197,20 @@
     "range": 1.5,
     "type": "normal"
   },
+  "tail_whip": {
+    "cooldownSec": 0.8,
+    "energyCost": 30,
+    "kind": "charged",
+    "power": 0,
+    "range": 3.0,
+    "status": {
+      "durationSec": 0,
+      "effect": "defense_down",
+      "magnitude": 1.0,
+      "target": "adjacent_enemies"
+    },
+    "type": "normal"
+  },
   "vine_whip": {
     "cooldownSec": 0.5,
     "energyGain": 8,
@@ -168,11 +220,11 @@
     "type": "grass"
   },
   "water_gun": {
-    "cooldownSec": 0.5,
-    "energyGain": 8,
-    "kind": "fast",
-    "power": 8,
-    "range": 2.0,
+    "cooldownSec": 0.85,
+    "energyCost": 40,
+    "kind": "charged",
+    "power": 52,
+    "range": 4.5,
     "type": "water"
   },
   "water_pulse": {

@@ -12,6 +12,8 @@ return {
   CHARGED_CD_MULT = 2.25,
   MIN_FAST_REQUEST_SEC = 1.00,
   MIN_CHARGED_REQUEST_SEC = 1.00,
+  -- Keep speed-stat ordering, but slow everyone down globally.
+  ATTACK_SPEED_SCALE = 0.65,
 
   -- Energy gain tuning:
   -- gain = round(base_gain * ENERGY_GAIN_MULT)
