@@ -38,6 +38,10 @@ void ShopUiFacade::clear() {
     cardsX_ = 0;
     cardsY_ = 0;
     cardsH_ = 0;
+    sellZoneX_ = 0;
+    sellZoneY_ = 0;
+    sellZoneW_ = 0;
+    sellZoneH_ = 0;
     rerollX_ = 0.0f;
     rerollY_ = 0.0f;
     rerollW_ = 0.0f;
@@ -52,6 +56,10 @@ void ShopUiFacade::setCards(const std::vector<CardData>& cards, int uiW, int uiH
         cardsX_ = 0;
         cardsY_ = 0;
         cardsH_ = 0;
+        sellZoneX_ = 0;
+        sellZoneY_ = 0;
+        sellZoneW_ = 0;
+        sellZoneH_ = 0;
         return;
     }
 
@@ -65,9 +73,15 @@ void ShopUiFacade::setCards(const std::vector<CardData>& cards, int uiW, int uiH
 
     const ShopRowLayout layout = computeShopRowLayout(uiW, uiH, allItems);
     const ShopRowPlacement place = computeShopRowPlacement(uiW, uiH, static_cast<int>(cards_.size()), layout);
+    const SellDropZoneLayout sellZone = computeSellDropZoneLayout(
+        uiW, uiH, static_cast<int>(cards_.size()), allItems);
     cardsX_ = place.startX;
     cardsY_ = place.y;
     cardsH_ = layout.cardH;
+    sellZoneX_ = sellZone.x;
+    sellZoneY_ = sellZone.y;
+    sellZoneW_ = sellZone.w;
+    sellZoneH_ = sellZone.h;
     cardSystem_.spawnCardRowLayout(cards_, uiW, cardsY_, layout.cardW, layout.cardH, layout.spacing);
 }
 
@@ -104,15 +118,24 @@ void ShopUiFacade::render(const ShopUiRenderInput& in) {
     rerollH_ = 0.0f;
     if (!initialized_ || !hasCards_) return;
 
-    if (in.showSellOverlay && overlayText_) {
-        const std::string sellLabel = "[ DROP HERE TO SELL ]";
-        constexpr float kSellScale = 1.0f;
-        const float labelW = overlayText_->measureTextWidth(sellLabel, kSellScale);
-        const float x = std::round((static_cast<float>(in.uiW) - labelW) * 0.5f);
-        const float y = std::round(static_cast<float>(cardsY_) + static_cast<float>(cardsH_) * 0.5f);
-        overlayText_->renderText(sellLabel, x, y, glm::vec3(1.0f, 0.35f, 0.35f), kSellScale);
-    } else {
-        cardSystem_.render(in.uiW, in.uiH);
+    cardSystem_.render(in.uiW, in.uiH);
+
+    if (in.showSellOverlay && overlayText_ && sellZoneW_ > 0 && sellZoneH_ > 0) {
+        const std::string line1 = "[ SELL ]";
+        const std::string line2 = "Drop unit here";
+        constexpr float kTitleScale = 1.0f;
+        constexpr float kHintScale = 0.78f;
+
+        const float xCenter = static_cast<float>(sellZoneX_) + static_cast<float>(sellZoneW_) * 0.5f;
+        const float yTop = static_cast<float>(sellZoneY_) + static_cast<float>(sellZoneH_) * 0.18f;
+        const float yHint = static_cast<float>(sellZoneY_) + static_cast<float>(sellZoneH_) * 0.55f;
+
+        const float w1 = overlayText_->measureTextWidth(line1, kTitleScale);
+        const float w2 = overlayText_->measureTextWidth(line2, kHintScale);
+        overlayText_->renderText(line1, std::round(xCenter - (w1 * 0.5f)), std::round(yTop),
+                                 glm::vec3(1.0f, 0.33f, 0.33f), kTitleScale);
+        overlayText_->renderText(line2, std::round(xCenter - (w2 * 0.5f)), std::round(yHint),
+                                 glm::vec3(1.0f, 0.78f, 0.78f), kHintScale);
     }
 
     if (!hud_) return;

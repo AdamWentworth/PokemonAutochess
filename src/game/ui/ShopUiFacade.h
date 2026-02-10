@@ -45,6 +45,10 @@ public:
     int cardsX() const { return cardsX_; }
     int cardsY() const { return cardsY_; }
     int cardsH() const { return cardsH_; }
+    int sellZoneX() const { return sellZoneX_; }
+    int sellZoneY() const { return sellZoneY_; }
+    int sellZoneW() const { return sellZoneW_; }
+    int sellZoneH() const { return sellZoneH_; }
 
 private:
     bool isRerollHit(int mouseX, int mouseY) const;
@@ -59,6 +63,10 @@ private:
     int cardsX_ = 0;
     int cardsY_ = 0;
     int cardsH_ = 0;
+    int sellZoneX_ = 0;
+    int sellZoneY_ = 0;
+    int sellZoneW_ = 0;
+    int sellZoneH_ = 0;
 
     float rerollX_ = 0.0f;
     float rerollY_ = 0.0f;

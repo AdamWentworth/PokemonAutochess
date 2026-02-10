@@ -10,9 +10,11 @@ static bool almostEq(float a, float b, float eps = 0.001f) {
 bool test_shop_layout_invariants(std::string& outFail) {
     using game::ui::ClassicHudLayout;
     using game::ui::ClassicHudLayoutInput;
+    using game::ui::SellDropZoneLayout;
     using game::ui::ShopRowLayout;
     using game::ui::ShopRowPlacement;
     using game::ui::computeClassicHudLayout;
+    using game::ui::computeSellDropZoneLayout;
     using game::ui::computeShopRowLayout;
     using game::ui::computeShopRowPlacement;
 
@@ -103,6 +105,22 @@ bool test_shop_layout_invariants(std::string& outFail) {
     }
 
     {
+        const SellDropZoneLayout sell = computeSellDropZoneLayout(1280, 720, 5, false);
+        if (sell.x != 135 || sell.y != 609 || sell.w != 125 || sell.h != 94) {
+            outFail = "Sell zone placement changed unexpectedly for base shop layout.";
+            return false;
+        }
+    }
+
+    {
+        const SellDropZoneLayout sell = computeSellDropZoneLayout(1280, 720, 8, false);
+        if (sell.x != 17) {
+            outFail = "Sell zone should clamp to left edge when shop row is very wide.";
+            return false;
+        }
+    }
+
+    {
         ClassicHudLayoutInput in;
         in.uiW = 1280;
         in.uiH = 720;
@@ -119,11 +137,11 @@ bool test_shop_layout_invariants(std::string& outFail) {
         in.iconGap = 8.0f;
         const ClassicHudLayout layout = computeClassicHudLayout(in);
 
-        if (!almostEq(layout.x0, 172.0f) || !almostEq(layout.y0, 643.0f)) {
+        if (!almostEq(layout.x0, 172.0f) || !almostEq(layout.y0, 640.0f)) {
             outFail = "Classic HUD anchor placement changed unexpectedly.";
             return false;
         }
-        if (!almostEq(layout.textX, 210.0f) || !almostEq(layout.textY, 643.0f)) {
+        if (!almostEq(layout.textX, 210.0f) || !almostEq(layout.textY, 640.0f)) {
             outFail = "Classic HUD text anchor changed unexpectedly.";
             return false;
         }

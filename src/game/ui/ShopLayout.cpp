@@ -34,6 +34,29 @@ ShopRowPlacement computeShopRowPlacement(int uiW, int uiH, int cardCount, const 
     return out;
 }
 
+SellDropZoneLayout computeSellDropZoneLayout(int uiW, int uiH, int cardCount, bool allItems) {
+    SellDropZoneLayout out;
+    if (cardCount <= 0 || uiW <= 0 || uiH <= 0) return out;
+
+    const ShopRowLayout row = computeShopRowLayout(uiW, uiH, allItems);
+    const ShopRowPlacement place = computeShopRowPlacement(uiW, uiH, cardCount, row);
+
+    const float zoneW = std::clamp(static_cast<float>(row.cardW) * 0.92f, 76.0f, 150.0f);
+    const float zoneH = std::clamp(static_cast<float>(row.cardH), 56.0f, 128.0f);
+    const float gap = std::clamp(static_cast<float>(row.spacing) * 0.85f, 8.0f, 18.0f);
+
+    const float minX = static_cast<float>(row.edgeMargin);
+    const float maxX = std::max(minX, static_cast<float>(uiW) - zoneW - static_cast<float>(row.edgeMargin));
+    const float rawX = static_cast<float>(place.startX) - gap - zoneW;
+    const float rawY = static_cast<float>(place.y);
+
+    out.x = static_cast<int>(std::round(std::clamp(rawX, minX, maxX)));
+    out.y = static_cast<int>(std::round(std::clamp(rawY, 0.0f, static_cast<float>(uiH))));
+    out.w = static_cast<int>(std::round(zoneW));
+    out.h = static_cast<int>(std::round(zoneH));
+    return out;
+}
+
 ClassicHudLayout computeClassicHudLayout(const ClassicHudLayoutInput& in) {
     ClassicHudLayout out;
 
@@ -57,11 +80,11 @@ ClassicHudLayout computeClassicHudLayout(const ClassicHudLayoutInput& in) {
         : (cardBottom - topRowH);
 
     out.x0 = x0;
-    out.y0 = y0;
+    out.y0 = y0 + in.topRowOffsetY;
     out.textX = x0 + iconWidth;
-    out.textY = y0;
+    out.textY = y0 + in.topRowOffsetY;
     out.iconX = x0;
-    out.iconY = y0;
+    out.iconY = y0 + in.topRowOffsetY;
     out.iconSize = in.iconVisible ? in.iconSize : 0.0f;
     out.rerollX = x0;
     out.rerollY = cardBottom - rerollH;

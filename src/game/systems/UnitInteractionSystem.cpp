@@ -3,6 +3,7 @@
 
 #include "game/GameConfig.h"
 #include "game/logging/LogBus.h"
+#include "game/ui/ShopLayout.h"
 
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/common.hpp>
@@ -113,24 +114,84 @@ bool UnitInteractionSystem::isInBenchZone(const glm::vec3& pos) const {
     return benchSystem.isInBenchZone(pos);
 }
 
+bool UnitInteractionSystem::isNearBenchZone(const glm::vec3& pos) const {
+    const int slots = std::max(1, benchSystem.getMaxSlots());
+    const glm::vec3 left = benchSystem.getSlotPosition(0);
+    const glm::vec3 right = benchSystem.getSlotPosition(slots - 1);
+
+    const float xMin = std::min(left.x, right.x) - (cellSize * 0.75f);
+    const float xMax = std::max(left.x, right.x) + (cellSize * 0.75f);
+    const float benchZ = left.z;
+    const float zMin = benchZ - (cellSize * 1.15f);
+    const float zMax = benchZ + (cellSize * 1.15f);
+    return (pos.x >= xMin && pos.x <= xMax && pos.z >= zMin && pos.z <= zMax);
+}
+
+bool UnitInteractionSystem::isNearBenchZoneScreen(int mouseX, int mouseY) const {
+    if (!camera) return false;
+    if (screenW == 0 || screenH == 0) return false;
+
+    const glm::mat4 view = camera->getViewMatrix();
+    const glm::mat4 proj = camera->getProjectionMatrix();
+    const glm::vec4 viewport(0.0f, 0.0f, static_cast<float>(screenW), static_cast<float>(screenH));
+
+    float minX = std::numeric_limits<float>::max();
+    float maxX = std::numeric_limits<float>::lowest();
+    float minY = std::numeric_limits<float>::max();
+    float maxY = std::numeric_limits<float>::lowest();
+    bool any = false;
+
+    const int slots = std::max(1, benchSystem.getMaxSlots());
+    for (int i = 0; i < slots; ++i) {
+        const glm::vec3 world = benchSystem.getSlotPosition(i);
+        const glm::vec3 projected = glm::project(world, view, proj, viewport);
+        if (projected.z < 0.0f || projected.z > 1.0f) continue;
+
+        const float sx = projected.x;
+        const float sy = static_cast<float>(screenH) - projected.y;
+        minX = std::min(minX, sx);
+        maxX = std::max(maxX, sx);
+        minY = std::min(minY, sy);
+        maxY = std::max(maxY, sy);
+        any = true;
+    }
+
+    if (!any) return false;
+
+    // Generous padding so visual bench hover still counts despite perspective skew.
+    const float padX = std::clamp(static_cast<float>(screenW) * 0.025f, 24.0f, 72.0f);
+    const float padY = std::clamp(static_cast<float>(screenH) * 0.030f, 24.0f, 72.0f);
+    minX -= padX;
+    maxX += padX;
+    minY -= padY;
+    maxY += padY;
+
+    const float mx = static_cast<float>(mouseX);
+    const float my = static_cast<float>(mouseY);
+    return (mx >= minX && mx <= maxX && my >= minY && my <= maxY);
+}
+
 bool UnitInteractionSystem::isInBoardZone(const glm::vec3& pos) const {
     return pos.z >= (cellSize * 0.5f) && pos.z <= (cellSize * 4.0f);
 }
 
 bool UnitInteractionSystem::isInSellDropZoneScreen(int mouseX, int mouseY) const {
-    const float w = static_cast<float>(std::max(1u, screenW));
-    const float h = static_cast<float>(std::max(1u, screenH));
+    if (!gameWorld) return false;
+    const auto& shopCards = gameWorld->getClassicShopCards();
+    if (shopCards.empty()) return false;
 
-    const float zoneW = w * 0.70f;
-    const float zoneH = glm::clamp(h * 0.28f, 120.0f, 300.0f);
-    const float x0 = (w - zoneW) * 0.5f;
-    const float y0 = h - zoneH;
-    const float x1 = x0 + zoneW;
-    const float y1 = h;
+    const auto sellZone = game::ui::computeSellDropZoneLayout(
+        static_cast<int>(std::max(1u, screenW)),
+        static_cast<int>(std::max(1u, screenH)),
+        static_cast<int>(shopCards.size()),
+        /*allItems=*/false);
+    if (sellZone.w <= 0 || sellZone.h <= 0) return false;
 
-    const float mx = static_cast<float>(mouseX);
-    const float my = static_cast<float>(mouseY);
-    return (mx >= x0 && mx <= x1 && my >= y0 && my <= y1);
+    const int x0 = sellZone.x;
+    const int y0 = sellZone.y;
+    const int x1 = sellZone.x + sellZone.w;
+    const int y1 = sellZone.y + sellZone.h;
+    return (mouseX >= x0 && mouseX <= x1 && mouseY >= y0 && mouseY <= y1);
 }
 
 void UnitInteractionSystem::setScreenSize(unsigned int width, unsigned int height) {
@@ -283,40 +344,25 @@ void UnitInteractionSystem::onMouseButtonDown(int x, int y) {
         // DROP
         const bool boardLocked = gameWorld ? gameWorld->isBoardInteractionLocked() : false;
         const bool canSell = gameWorld && !gameWorld->getClassicShopCards().empty();
-        const bool toSell = canSell && isInSellDropZoneScreen(x, y);
         bool toBench = isInBenchZone(worldPos);
+        const bool nearBench = isNearBenchZone(worldPos);
+        const bool nearBenchScreen = isNearBenchZoneScreen(x, y);
+        const bool benchIntent = toBench || nearBench || nearBenchScreen;
+        const bool toSell = canSell && !benchIntent && isInSellDropZoneScreen(x, y);
         bool toBoard = isInBoardZone(worldPos);
         bool completeDrop = false;
 
-        if (toSell) {
-            auto sellUnit = [&](const PokemonInstance& unit) {
-                const int sellValue = gameWorld->getSellValueForSpecies(unit.name);
-                gameWorld->addMoney(sellValue);
-                if (auto* logger = gameWorld->getLogger()) {
-                    logger->economyInfo("Earned +" + std::to_string(sellValue) + "g. Gold: " +
-                                        std::to_string(gameWorld->getMoney()) + "g.");
-                }
-                std::cout << "[UnitInteraction] Sold " << unit.name << " for " << sellValue << "g\n";
-            };
-
-            if (draggingFromBench) {
-                auto& bench = gameWorld->getBenchPokemons();
-                if (draggedIndex >= 0 && draggedIndex < static_cast<int>(bench.size())) {
-                    PokemonInstance unit = bench[draggedIndex];
-                    bench.erase(bench.begin() + draggedIndex);
-                    sellUnit(unit);
-                    completeDrop = true;
-                }
-            } else if (!boardLocked) {
-                auto& board = gameWorld->getPokemons();
-                if (draggedIndex >= 0 && draggedIndex < static_cast<int>(board.size())) {
-                    PokemonInstance unit = board[draggedIndex];
-                    board.erase(board.begin() + draggedIndex);
-                    sellUnit(unit);
-                    completeDrop = true;
-                }
+        auto sellUnit = [&](const PokemonInstance& unit) {
+            const int sellValue = gameWorld->getSellValueForSpecies(unit.name);
+            gameWorld->addMoney(sellValue);
+            if (auto* logger = gameWorld->getLogger()) {
+                logger->economyInfo("Earned +" + std::to_string(sellValue) + "g. Gold: " +
+                                    std::to_string(gameWorld->getMoney()) + "g.");
             }
-        } else if (draggingFromBench) {
+            std::cout << "[UnitInteraction] Sold " << unit.name << " for " << sellValue << "g\n";
+        };
+
+        if (draggingFromBench) {
             if (toBoard && !boardLocked) {
                 glm::vec3 snap{};
                 if (findNearestAvailableBoardCell(worldPos, -1, snap)) {
@@ -329,15 +375,24 @@ void UnitInteractionSystem::onMouseButtonDown(int x, int y) {
                     completeDrop = true;
                 }
             }
-            if (!completeDrop && toBench) {
+            if (!completeDrop && benchIntent) {
                 glm::vec3 snap{};
                 if (findNearestAvailableBenchSlot(worldPos, draggedIndex, snap)) {
                     gameWorld->getBenchPokemons()[draggedIndex].position = snap;
                     completeDrop = true;
                 }
             }
+            if (!completeDrop && toSell) {
+                auto& bench = gameWorld->getBenchPokemons();
+                if (draggedIndex >= 0 && draggedIndex < static_cast<int>(bench.size())) {
+                    PokemonInstance unit = bench[draggedIndex];
+                    bench.erase(bench.begin() + draggedIndex);
+                    sellUnit(unit);
+                    completeDrop = true;
+                }
+            }
         } else {
-            if (toBench && !boardLocked) {
+            if (benchIntent && !boardLocked) {
                 glm::vec3 snap{};
                 if (findNearestAvailableBenchSlot(worldPos, -1, snap)) {
                     auto& board = gameWorld->getPokemons();
@@ -353,6 +408,15 @@ void UnitInteractionSystem::onMouseButtonDown(int x, int y) {
                 glm::vec3 snap{};
                 if (findNearestAvailableBoardCell(worldPos, draggedIndex, snap)) {
                     gameWorld->getPokemons()[draggedIndex].position = snap;
+                    completeDrop = true;
+                }
+            }
+            if (!completeDrop && toSell && !boardLocked) {
+                auto& board = gameWorld->getPokemons();
+                if (draggedIndex >= 0 && draggedIndex < static_cast<int>(board.size())) {
+                    PokemonInstance unit = board[draggedIndex];
+                    board.erase(board.begin() + draggedIndex);
+                    sellUnit(unit);
                     completeDrop = true;
                 }
             }

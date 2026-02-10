@@ -15,6 +15,13 @@ struct ShopRowPlacement {
     int totalWidth = 0;
 };
 
+struct SellDropZoneLayout {
+    int x = 0;
+    int y = 0;
+    int w = 0;
+    int h = 0;
+};
+
 struct ClassicHudLayoutInput {
     int uiW = 1280;
     int uiH = 720;
@@ -34,6 +41,7 @@ struct ClassicHudLayoutInput {
     float edgePadMax = 28.0f;
     float adjacentGap = 10.0f;
     float stackGap = 12.0f;
+    float topRowOffsetY = -15.0f;
 };
 
 struct ClassicHudLayout {
@@ -52,6 +60,7 @@ struct ClassicHudLayout {
 
 ShopRowLayout computeShopRowLayout(int uiW, int uiH, bool allItems);
 ShopRowPlacement computeShopRowPlacement(int uiW, int uiH, int cardCount, const ShopRowLayout& layout);
+SellDropZoneLayout computeSellDropZoneLayout(int uiW, int uiH, int cardCount, bool allItems);
 ClassicHudLayout computeClassicHudLayout(const ClassicHudLayoutInput& in);
 
 } // namespace game::ui
