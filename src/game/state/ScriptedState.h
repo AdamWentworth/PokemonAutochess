@@ -64,6 +64,7 @@ private:
     unsigned int currencyVAO = 0;
     unsigned int currencyVBO = 0;
     unsigned int currencyEBO = 0;
+    int shopCardsX = 0;
     int shopCardsY = 0;
     int shopCardsH = 0;
     bool shopCardsValid = false;

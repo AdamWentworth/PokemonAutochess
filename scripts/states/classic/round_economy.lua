@@ -3,23 +3,7 @@
 local function classic_emit_income(result)
     local gold_now = get_money()
     local total = result.total or 0
-    local interest = result.interest or 0
-    local streak = result.streak or 0
-
-    local extras = {}
-    if interest > 0 then
-        table.insert(extras, "interest +" .. tostring(interest) .. "g")
-    end
-    if streak > 0 then
-        table.insert(extras, "streak +" .. tostring(streak) .. "g")
-    end
-
-    local suffix = ""
-    if #extras > 0 then
-        suffix = " (" .. table.concat(extras, ", ") .. ")"
-    end
-
-    emit_gold(string.format("Earned +%dg%s. Gold: %dg.", total, suffix, gold_now))
+    emit_gold(string.format("Earned +%dg. Gold: %dg.", total, gold_now))
 end
 
 function classic_try_finish_round(next_shop_script)

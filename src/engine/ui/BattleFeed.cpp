@@ -52,8 +52,8 @@ void BattleFeed::render(int screenW, int screenH) {
     const float lineH = fh * scale;  // scaled pixel height per line
 
     float x = alignRight ? (screenW - padX) : padX;
-    // Start exactly one line-height above the bottom padding
-    float y = screenH - padY - lineH;
+    // Start either from explicit baseline or one line-height above bottom padding.
+    float y = hasBaselineYOverride ? baselineYOverride : (screenH - padY - lineH);
 
     for (int i = static_cast<int>(lines.size()) - 1; i >= 0; --i) {
         const auto& ln = lines[i];

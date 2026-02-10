@@ -9,10 +9,17 @@
 #include "engine/core/ecs/World.h"
 #include "engine/input/InputEvent.h"
 
+#include "engine/ui/UIManager.h"
 #include "engine/ui/TextRenderer.h"
+#include "engine/utils/Shader.h"
+
+#include <glad/glad.h>
+#include <glm/gtc/matrix_transform.hpp>
+#include <stb_image.h>
 
 #include <algorithm>
 #include <cmath>
+#include <iostream>
 #include <sol/sol.hpp>
 
 namespace {
@@ -20,6 +27,33 @@ std::string Capitalize(std::string s) {
     if (s.empty()) return s;
     s[0] = static_cast<char>(std::toupper(static_cast<unsigned char>(s[0])));
     return s;
+}
+
+struct ShopRowLayout {
+    int cardW = 136;
+    int cardH = 94;
+    int spacing = 14;
+    int edgeMargin = 18;
+};
+
+ShopRowLayout computeShopRowLayout(int uiW, int uiH, bool allItems) {
+    const float scale = std::clamp(
+        std::min(static_cast<float>(uiW) / 1280.0f,
+                 static_cast<float>(uiH) / 720.0f),
+        0.60f, 1.80f);
+
+    const int baseW = allItems ? 88 : 136;
+    const int baseH = allItems ? 88 : 94;
+    const int baseSpacing = allItems ? 12 : 14;
+
+    ShopRowLayout out;
+    out.cardW = std::max(56, static_cast<int>(std::round(static_cast<float>(baseW) * scale)));
+    out.cardH = std::max(56, static_cast<int>(std::round(static_cast<float>(baseH) * scale)));
+    out.spacing = std::max(6, static_cast<int>(std::round(static_cast<float>(baseSpacing) * scale)));
+    out.edgeMargin = std::clamp(
+        static_cast<int>(std::round(std::min(uiW, uiH) * 0.024f)),
+        10, 36);
+    return out;
 }
 } // namespace
 
@@ -79,11 +113,13 @@ void CombatState::ensureShopUi() {
 
     if (!shopUiEnabled) {
         shopCardSystem.clearCards();
+        shopCardsX = 0;
         shopCardsValid = false;
         shopRerollX = 0.0f;
         shopRerollY = 0.0f;
         shopRerollW = 0.0f;
         shopRerollH = 0.0f;
+        releaseCurrencyHudResources();
         return;
     }
 
@@ -94,7 +130,94 @@ void CombatState::ensureShopUi() {
         shopUiInitialized = true;
     }
 
+    ensureCurrencyHudResources();
     rebuildShopCards();
+}
+
+void CombatState::ensureCurrencyHudResources() {
+    if (!services.renderEnabled) return;
+
+    const std::string desiredIconPath = (services.gameMode == "adventure")
+        ? "assets/images/pokedollar.png"
+        : "assets/images/pokegold.png";
+    if (desiredIconPath != currencyIconPath) {
+        if (currencyIconTexture != 0) {
+            glDeleteTextures(1, &currencyIconTexture);
+            currencyIconTexture = 0;
+        }
+        currencyIconPath = desiredIconPath;
+        currencyIconTexture = loadCurrencyTexture(currencyIconPath);
+    }
+
+    if (currencyVAO != 0) return;
+
+    const float vertices[] = {
+        // pos      // uv
+        0.0f, 0.0f, 0.0f, 0.0f,
+        1.0f, 0.0f, 1.0f, 0.0f,
+        1.0f, 1.0f, 1.0f, 1.0f,
+        0.0f, 1.0f, 0.0f, 1.0f
+    };
+    const unsigned int indices[] = { 0, 1, 2, 2, 3, 0 };
+
+    glGenVertexArrays(1, &currencyVAO);
+    glGenBuffers(1, &currencyVBO);
+    glGenBuffers(1, &currencyEBO);
+
+    glBindVertexArray(currencyVAO);
+    glBindBuffer(GL_ARRAY_BUFFER, currencyVBO);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, currencyEBO);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
+
+    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)0);
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)(2 * sizeof(float)));
+    glEnableVertexAttribArray(1);
+    glBindVertexArray(0);
+}
+
+void CombatState::releaseCurrencyHudResources() {
+    if (currencyEBO != 0) {
+        glDeleteBuffers(1, &currencyEBO);
+        currencyEBO = 0;
+    }
+    if (currencyVBO != 0) {
+        glDeleteBuffers(1, &currencyVBO);
+        currencyVBO = 0;
+    }
+    if (currencyVAO != 0) {
+        glDeleteVertexArrays(1, &currencyVAO);
+        currencyVAO = 0;
+    }
+    if (currencyIconTexture != 0) {
+        glDeleteTextures(1, &currencyIconTexture);
+        currencyIconTexture = 0;
+    }
+    currencyIconPath.clear();
+}
+
+unsigned int CombatState::loadCurrencyTexture(const std::string& path) const {
+    int w = 0, h = 0, channels = 0;
+    stbi_set_flip_vertically_on_load(false);
+    unsigned char* data = stbi_load(path.c_str(), &w, &h, &channels, 4);
+    if (!data) {
+        std::cerr << "[CombatState] Failed to load currency icon: " << path << "\n";
+        return 0;
+    }
+
+    unsigned int tex = 0;
+    glGenTextures(1, &tex);
+    glBindTexture(GL_TEXTURE_2D, tex);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
+    glGenerateMipmap(GL_TEXTURE_2D);
+    glBindTexture(GL_TEXTURE_2D, 0);
+    stbi_image_free(data);
+    return tex;
 }
 
 void CombatState::rebuildShopCards() {
@@ -112,12 +235,23 @@ void CombatState::rebuildShopCards() {
     const auto* viewport = services.viewport;
     const int uiW = viewport ? viewport->width : 1280;
     const int uiH = viewport ? viewport->height : 720;
-    const int cardW = 144;
-    const int cardH = 99;
-    const int spacing = 16;
-    const int margin = 40;
-    const int y = std::max(0, uiH - cardH - margin);
+    bool allItems = !cards.empty();
+    for (const auto& cd : cards) {
+        if (cd.type != CardType::Item) {
+            allItems = false;
+            break;
+        }
+    }
+    const ShopRowLayout layout = computeShopRowLayout(uiW, uiH, allItems);
+    const int cardW = layout.cardW;
+    const int cardH = layout.cardH;
+    const int spacing = layout.spacing;
+    const int y = std::max(0, uiH - cardH - layout.edgeMargin);
+    const int count = static_cast<int>(cards.size());
+    const int totalWidth = (count > 0) ? (count * cardW + (count - 1) * spacing) : 0;
+    const int startX = (uiW - totalWidth) / 2;
 
+    shopCardsX = startX;
     shopCardsY = y;
     shopCardsH = cardH;
     shopCardsValid = !cards.empty();
@@ -131,29 +265,79 @@ void CombatState::drawShopHud(int uiW, int uiH) {
     const int money = gameWorld ? gameWorld->getMoney() : 0;
     const std::string moneyText = std::to_string(std::max(0, money));
     const float moneyScale = 1.35f;
+    const float moneyH = shopHudText->measureTextHeight(moneyText, moneyScale);
     const float moneyW = shopHudText->measureTextWidth(moneyText, moneyScale);
 
     const bool showReroll = hasShopRerollButton;
     const std::string rerollLabel = "[Reroll 2g]";
     const float rerollScale = 0.92f;
+    const float rerollH = shopHudText->measureTextHeight(rerollLabel, rerollScale);
     const float rerollW = showReroll ? shopHudText->measureTextWidth(rerollLabel, rerollScale) : 0.0f;
-    const float gap = showReroll ? 18.0f : 0.0f;
+    const float iconSize = (services.gameMode == "adventure") ? 34.0f : 30.0f;
+    const float iconGap = (currencyIconTexture != 0) ? 8.0f : 0.0f;
+    const float edgePad = std::clamp(
+        std::round(static_cast<float>(std::min(uiW, uiH)) * 0.02f),
+        12.0f, 28.0f);
+    const float topRowWidth = moneyW + ((currencyIconTexture != 0) ? (iconSize + iconGap) : 0.0f);
+    const float blockWidth = std::max(topRowWidth, showReroll ? rerollW : 0.0f);
+    const float adjacentGap = 10.0f;
+    const float maxX = std::max(edgePad, static_cast<float>(uiW) - blockWidth - edgePad);
+    const float desiredX = static_cast<float>(shopCardsX) - blockWidth - adjacentGap;
+    const float x0 = std::clamp(desiredX, edgePad, maxX);
+    const float topRowH = std::max(moneyH, iconSize);
+    const float stackGap = showReroll ? 12.0f : 0.0f;
+    const float cardBottom = static_cast<float>(shopCardsY + shopCardsH);
+    const float y0 = showReroll
+        ? (cardBottom - rerollH - stackGap - topRowH)
+        : (cardBottom - topRowH);
 
-    const float totalW = moneyW + gap + rerollW;
-    const float x0 = std::round((static_cast<float>(uiW) - totalW) * 0.5f);
-    const float y0 = std::max(6.0f, static_cast<float>(shopCardsY) - 46.0f);
+    if (currencyIconTexture != 0 && currencyVAO != 0) {
+        Shader* shader = UIManager::getCardShader();
+        if (shader) {
+            const GLboolean depthWasEnabled = glIsEnabled(GL_DEPTH_TEST);
+            if (depthWasEnabled) glDisable(GL_DEPTH_TEST);
+            const GLboolean blendWasEnabled = glIsEnabled(GL_BLEND);
+            if (!blendWasEnabled) glEnable(GL_BLEND);
+            glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+            const glm::mat4 projection = glm::ortho(
+                0.0f, static_cast<float>(uiW),
+                static_cast<float>(uiH), 0.0f);
+            glm::mat4 model = glm::translate(glm::mat4(1.0f), glm::vec3(x0, y0, 0.0f));
+            model = glm::scale(model, glm::vec3(iconSize, iconSize, 1.0f));
+
+            shader->use();
+            shader->setUniform("u_Projection", projection);
+            shader->setUniform("u_Model", model);
+            shader->setUniform("u_UVMin", glm::vec2(0.0f, 0.0f));
+            shader->setUniform("u_UVMax", glm::vec2(1.0f, 1.0f));
+            shader->setUniform("u_Texture", 0);
+            glActiveTexture(GL_TEXTURE0);
+            glBindTexture(GL_TEXTURE_2D, currencyIconTexture);
+            glBindVertexArray(currencyVAO);
+            glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+            glBindVertexArray(0);
+            glBindTexture(GL_TEXTURE_2D, 0);
+            glUseProgram(0);
+
+            if (!blendWasEnabled) glDisable(GL_BLEND);
+            if (depthWasEnabled) glEnable(GL_DEPTH_TEST);
+        }
+    }
 
     const glm::vec3 goldColor(1.0f, 0.92f, 0.10f);
+    const float textX = x0 + ((currencyIconTexture != 0) ? (iconSize + iconGap) : 0.0f);
+    const float textY = y0;
     // Keep combat gold bright yellow (no dark shadow pass).
-    shopHudText->renderText(moneyText, x0, y0, goldColor, moneyScale);
-    shopHudText->renderText(moneyText, x0 + 0.75f, y0, goldColor, moneyScale);
-    shopHudText->renderText(moneyText, x0, y0 + 0.75f, goldColor, moneyScale);
+    shopHudText->renderText(moneyText, textX, textY, goldColor, moneyScale);
+    shopHudText->renderText(moneyText, textX + 0.75f, textY, goldColor, moneyScale);
+    shopHudText->renderText(moneyText, textX, textY + 0.75f, goldColor, moneyScale);
 
     if (showReroll) {
-        shopRerollX = x0 + moneyW + gap;
-        shopRerollY = y0 + 4.0f;
+        shopRerollX = x0;
+        shopRerollY = cardBottom - rerollH;
         shopRerollW = rerollW;
-        shopRerollH = static_cast<float>(services.config.fontSize) * rerollScale;
+        shopRerollH = rerollH;
         shopHudText->renderText(rerollLabel, shopRerollX, shopRerollY, glm::vec3(1.0f, 1.0f, 1.0f), rerollScale);
     } else {
         shopRerollX = 0.0f;
@@ -176,7 +360,9 @@ CombatState::CombatState(GameStateManager* manager, GameWorld* world, GameServic
 
 }
 
-CombatState::~CombatState() = default;
+CombatState::~CombatState() {
+    releaseCurrencyHudResources();
+}
 
 void CombatState::onEnter() {
     if (gameWorld) {
@@ -271,6 +457,7 @@ void CombatState::onExit() {
         gameWorld->resetCombatBalance();
     }
     shopCardSystem.clearCards();
+    shopCardsX = 0;
     shopCardsValid = false;
     shopUiEnabled = false;
     hasShopRerollButton = false;
@@ -278,10 +465,17 @@ void CombatState::onExit() {
     shopRerollY = 0.0f;
     shopRerollW = 0.0f;
     shopRerollH = 0.0f;
+    releaseCurrencyHudResources();
     script.onExit();
 }
 
 void CombatState::handleInput(const InputEvent& event) {
+    if (event.type == InputEvent::Type::Resize) {
+        if (shopUiEnabled) {
+            rebuildShopCards();
+        }
+    }
+
     script.call("handleInput");
     if (event.type == InputEvent::Type::MouseDown && gameWorld) {
         if (gameWorld->consumeUiClickBlocked()) return;

@@ -17,6 +17,35 @@
 #include <cmath>
 #include <iostream>
 
+namespace {
+struct ShopRowLayout {
+    int cardW = 136;
+    int cardH = 94;
+    int spacing = 14;
+    int edgeMargin = 18;
+};
+
+ShopRowLayout computeShopRowLayout(int uiW, int uiH, bool allItems) {
+    const float scale = std::clamp(
+        std::min(static_cast<float>(uiW) / 1280.0f,
+                 static_cast<float>(uiH) / 720.0f),
+        0.60f, 1.80f);
+
+    const int baseW = allItems ? 88 : 136;
+    const int baseH = allItems ? 88 : 94;
+    const int baseSpacing = allItems ? 12 : 14;
+
+    ShopRowLayout out;
+    out.cardW = std::max(56, static_cast<int>(std::round(static_cast<float>(baseW) * scale)));
+    out.cardH = std::max(56, static_cast<int>(std::round(static_cast<float>(baseH) * scale)));
+    out.spacing = std::max(6, static_cast<int>(std::round(static_cast<float>(baseSpacing) * scale)));
+    out.edgeMargin = std::clamp(
+        static_cast<int>(std::round(std::min(uiW, uiH) * 0.024f)),
+        10, 36);
+    return out;
+}
+} // namespace
+
 ScriptedState::ScriptedState(GameStateManager* manager, GameWorld* world, GameServices& svc, const std::string& path)
     : stateManager(manager)
     , gameWorld(world)
@@ -107,12 +136,15 @@ void ScriptedState::rebuildCardRow() {
         for (const auto& cd : list) {
             if (cd.type != CardType::Item) { allItems = false; break; }
         }
-
-        const int cardW = allItems ? 96 : 144;
-        const int cardH = allItems ? 96 : 99;
-        const int spacing = allItems ? 28 : 16;
-        const int margin = 40;
-        const int y = std::max(0, uiH - cardH - margin);
+        const ShopRowLayout layout = computeShopRowLayout(uiW, uiH, allItems);
+        const int cardW = layout.cardW;
+        const int cardH = layout.cardH;
+        const int spacing = layout.spacing;
+        const int y = std::max(0, uiH - cardH - layout.edgeMargin);
+        const int count = static_cast<int>(list.size());
+        const int totalWidth = (count > 0) ? (count * cardW + (count - 1) * spacing) : 0;
+        const int startX = (uiW - totalWidth) / 2;
+        shopCardsX = startX;
         shopCardsY = y;
         shopCardsH = cardH;
         shopCardsValid = !list.empty();
@@ -121,15 +153,16 @@ void ScriptedState::rebuildCardRow() {
             sol::protected_function itemFn = S["get_shop_items"];
             std::vector<CardData> items;
             if (buildList(itemFn, items)) {
-                const int itemW = 96;
-                const int itemH = 96;
-                const int itemSpacing = 14;
-                const int itemMargin = 32;
-                const int itemY = std::max(0, itemMargin);
+                const ShopRowLayout itemLayout = computeShopRowLayout(uiW, uiH, /*allItems=*/true);
+                const int itemW = itemLayout.cardW;
+                const int itemH = itemLayout.cardH;
+                const int itemSpacing = itemLayout.spacing;
+                const int itemY = std::max(0, itemLayout.edgeMargin);
                 itemCardSystem.spawnCardRowLayout(items, uiW, itemY, itemW, itemH, itemSpacing);
             }
         }
     } else {
+        shopCardsX = 0;
         shopCardsValid = false;
         cardSystem.spawnCardRow(list, uiW, /*y*/ 300);
     }
@@ -289,6 +322,16 @@ void ScriptedState::onExit() {
 }
 
 void ScriptedState::handleInput(const InputEvent& event) {
+    if (event.type == InputEvent::Type::Resize) {
+        if (uiInitialized) {
+            if (cardMode == CardMode::TextMenu) {
+                rebuildTextMenu();
+            } else {
+                rebuildCardRow();
+            }
+        }
+    }
+
     // Hot reload the script for fast iteration (press R).
     if (event.type == InputEvent::Type::KeyDown &&
         event.keyId == InputEvent::Key::R &&
@@ -654,19 +697,30 @@ void ScriptedState::drawCurrencyHud(int uiW, int uiH) {
     const int money = gameWorld ? gameWorld->getMoney() : 0;
     const std::string moneyText = std::to_string(std::max(0, money));
     const float textScale = 1.35f;
+    const float textHeight = currencyText->measureTextHeight(moneyText, textScale);
     const float textWidth = currencyText->measureTextWidth(moneyText, textScale);
     const bool showReroll = (cardMode == CardMode::Shop) && hasShopRerollButton;
     const std::string rerollLabel = "[Reroll 2g]";
     const float rerollScale = 0.90f;
     const float rerollWidth = showReroll ? currencyText->measureTextWidth(rerollLabel, rerollScale) : 0.0f;
-    const float rerollGap = showReroll ? 16.0f : 0.0f;
+    const float rerollHeight = currencyText->measureTextHeight(rerollLabel, rerollScale);
     const float iconSize = (services.gameMode == "adventure") ? 34.0f : 30.0f;
     const float gap = (currencyIconTexture != 0) ? 8.0f : 0.0f;
-    const float totalWidth = textWidth +
-                             ((currencyIconTexture != 0) ? (iconSize + gap) : 0.0f) +
-                             rerollGap + rerollWidth;
-    const float x0 = std::round((static_cast<float>(uiW) - totalWidth) * 0.5f);
-    const float y0 = std::max(6.0f, static_cast<float>(shopCardsY) - iconSize - 10.0f);
+    const float edgePad = std::clamp(
+        std::round(static_cast<float>(std::min(uiW, uiH)) * 0.02f),
+        12.0f, 28.0f);
+    const float topRowWidth = textWidth + ((currencyIconTexture != 0) ? (iconSize + gap) : 0.0f);
+    const float blockWidth = std::max(topRowWidth, showReroll ? rerollWidth : 0.0f);
+    const float adjacentGap = 10.0f;
+    const float maxX = std::max(edgePad, static_cast<float>(uiW) - blockWidth - edgePad);
+    const float desiredX = static_cast<float>(shopCardsX) - blockWidth - adjacentGap;
+    const float x0 = std::clamp(desiredX, edgePad, maxX);
+    const float topRowHeight = std::max(iconSize, textHeight);
+    const float stackGap = showReroll ? 12.0f : 0.0f;
+    const float cardBottom = static_cast<float>(shopCardsY + shopCardsH);
+    const float y0 = showReroll
+        ? (cardBottom - rerollHeight - stackGap - topRowHeight)
+        : (cardBottom - topRowHeight);
 
     if (currencyIconTexture != 0 && currencyVAO != 0) {
         Shader* shader = UIManager::getCardShader();
@@ -703,17 +757,17 @@ void ScriptedState::drawCurrencyHud(int uiW, int uiH) {
     }
 
     const float textX = x0 + ((currencyIconTexture != 0) ? (iconSize + gap) : 0.0f);
-    const float textY = y0 + 1.0f;
+    const float textY = y0;
     const glm::vec3 goldColor(1.0f, 0.92f, 0.10f);
     currencyText->renderText(moneyText, textX, textY, goldColor, textScale);
     currencyText->renderText(moneyText, textX + 0.75f, textY, goldColor, textScale);
     currencyText->renderText(moneyText, textX, textY + 0.75f, goldColor, textScale);
 
     if (showReroll) {
-        shopRerollX = textX + textWidth + rerollGap;
-        shopRerollY = y0 + 3.0f;
+        shopRerollX = x0;
+        shopRerollY = cardBottom - rerollHeight;
         shopRerollW = rerollWidth;
-        shopRerollH = static_cast<float>(services.config.fontSize) * rerollScale;
+        shopRerollH = rerollHeight;
         currencyText->renderText(rerollLabel, shopRerollX, shopRerollY, glm::vec3(1.0f), rerollScale);
     } else {
         shopRerollX = 0.0f;

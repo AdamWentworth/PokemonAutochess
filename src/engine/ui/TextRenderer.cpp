@@ -223,3 +223,25 @@ float TextRenderer::measureTextWidth(const std::string& text, float scale) const
     }
     return width;
 }
+
+float TextRenderer::measureTextHeight(float scale) const {
+    if (!font) return 0.0f;
+    return static_cast<float>(TTF_FontHeight(font)) * scale;
+}
+
+float TextRenderer::measureTextHeight(const std::string& text, float scale) const {
+    if (!font) return 0.0f;
+    if (text.empty()) return measureTextHeight(scale);
+
+    float maxH = 0.0f;
+    for (unsigned char c : text) {
+        if (!TTF_GlyphIsProvided(font, c)) continue;
+        int minx = 0, maxx = 0, miny = 0, maxy = 0, advance = 0;
+        if (TTF_GlyphMetrics(font, c, &minx, &maxx, &miny, &maxy, &advance) == 0) {
+            const float h = static_cast<float>(maxy - miny) * scale;
+            if (h > maxH) maxH = h;
+        }
+    }
+    if (maxH <= 0.0f) return measureTextHeight(scale);
+    return maxH;
+}

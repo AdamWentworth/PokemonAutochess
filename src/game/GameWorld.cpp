@@ -130,6 +130,116 @@ int GameWorld::xpToNextLevel(int level) const {
     return std::max(1, static_cast<int>(std::round(raw)));
 }
 
+int GameWorld::totalXpFromLevelProgress(const PokemonInstance& unit) const {
+    int total = 0;
+    const int lvl = std::max(1, unit.level);
+    for (int l = 1; l < lvl; ++l) {
+        total += xpToNextLevel(l);
+    }
+    total += std::max(0, unit.xp);
+    return std::max(0, total);
+}
+
+void GameWorld::levelProgressFromTotalXp(int totalXp, int& outLevel, int& outXp) const {
+    int remaining = std::max(0, totalXp);
+    int lvl = 1;
+    const int maxLevel = config.xpMaxLevel;
+
+    while (true) {
+        if (maxLevel > 0 && lvl >= maxLevel) {
+            outLevel = maxLevel;
+            outXp = std::min(remaining, xpToNextLevel(maxLevel));
+            return;
+        }
+        const int need = xpToNextLevel(lvl);
+        if (remaining < need) {
+            outLevel = lvl;
+            outXp = remaining;
+            return;
+        }
+        remaining -= need;
+        ++lvl;
+    }
+}
+
+bool GameWorld::mergeOneTripleForPlayer() {
+    struct UnitRef {
+        int id = -1;
+        bool onBoard = false;
+        int totalXp = 0;
+    };
+
+    std::unordered_map<std::string, std::vector<UnitRef>> bySpecies;
+    bySpecies.reserve(pokemons.size() + benchPokemons.size());
+
+    for (const auto& u : pokemons) {
+        if (u.side != PokemonSide::Player) continue;
+        if (!u.alive) continue;
+        if (u.captureInProgress) continue;
+        bySpecies[u.name].push_back(UnitRef{u.id, true, totalXpFromLevelProgress(u)});
+    }
+    for (const auto& u : benchPokemons) {
+        if (u.side != PokemonSide::Player) continue;
+        if (!u.alive) continue;
+        if (u.captureInProgress) continue;
+        bySpecies[u.name].push_back(UnitRef{u.id, false, totalXpFromLevelProgress(u)});
+    }
+
+    std::string species;
+    std::vector<UnitRef> refs;
+    for (auto& kv : bySpecies) {
+        if (kv.second.size() < 3) continue;
+        std::sort(kv.second.begin(), kv.second.end(), [](const UnitRef& a, const UnitRef& b) {
+            if (a.totalXp != b.totalXp) return a.totalXp > b.totalXp;
+            if (a.onBoard != b.onBoard) return a.onBoard;
+            return a.id < b.id;
+        });
+        species = kv.first;
+        refs = {kv.second[0], kv.second[1], kv.second[2]};
+        break;
+    }
+
+    if (refs.size() < 3) return false;
+
+    const int keeperId = refs[0].id;
+    const int removeA = refs[1].id;
+    const int removeB = refs[2].id;
+    const int combinedTotalXp = refs[0].totalXp + refs[1].totalXp + refs[2].totalXp;
+
+    auto eraseById = [&](std::vector<PokemonInstance>& list, int id) {
+        list.erase(std::remove_if(list.begin(), list.end(),
+                                  [&](const PokemonInstance& u) { return u.id == id; }),
+                   list.end());
+    };
+
+    eraseById(pokemons, removeA);
+    eraseById(pokemons, removeB);
+    eraseById(benchPokemons, removeA);
+    eraseById(benchPokemons, removeB);
+    battleStartPositions.erase(removeA);
+    battleStartPositions.erase(removeB);
+
+    PokemonInstance* keeper = findUnitById(keeperId);
+    if (!keeper) return false;
+
+    int newLevel = 1;
+    int newXp = 0;
+    levelProgressFromTotalXp(combinedTotalXp, newLevel, newXp);
+    keeper->xp = std::max(0, newXp);
+    applyLevelScaling(*keeper, newLevel, /*preserveHp=*/true);
+    applyLoadoutForLevel(*keeper, /*preserveEnergy=*/true);
+
+    if (log) {
+        game::log::info(log, "Merged 3x " + Capitalize(species) + " -> Lv" + std::to_string(keeper->level));
+    }
+    return true;
+}
+
+void GameWorld::mergeTriplesForPlayer() {
+    // Re-run until no 3-of-a-kind groups remain.
+    while (mergeOneTripleForPlayer()) {}
+}
+
 int GameWorld::xpFromFaint(const PokemonInstance& dead) const {
     if (dead.baseExp > 0 && dead.level > 0) {
         const float mult = (config.xpYieldMult > 0.0f) ? config.xpYieldMult : 1.0f;
@@ -645,6 +755,9 @@ void GameWorld::spawnPokemon(const std::string& pokemonName,
     inst.animTimeSec = sharedLoopAnimTimeSec;
 
     pokemons.push_back(inst);
+    if (side == PokemonSide::Player) {
+        mergeTriplesForPlayer();
+    }
 
     std::cout << "[GameWorld] Spawned " << pokemonName
               << " (ID: " << inst.id
@@ -734,6 +847,7 @@ void GameWorld::addToBench(const std::string& pokemonName, int level)
     inst.animTimeSec = sharedLoopAnimTimeSec;
 
     benchPokemons.push_back(inst);
+    mergeTriplesForPlayer();
 
     std::cout << "[GameWorld] Benched " << pokemonName
               << " (ID: " << inst.id

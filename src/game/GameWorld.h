@@ -94,6 +94,7 @@ public:
     const PokemonInstance* findUnitById(int unitId) const;
     void addToBench(const std::string& pokemonName, int level = -1);
     std::vector<PokemonInstance>& getBenchPokemons();
+    void mergeTriplesForPlayer();
 
     std::vector<HealthBarData> getHealthBarData(const Camera3D& camera, int screenWidth, int screenHeight) const;
 
@@ -203,6 +204,9 @@ private:
     void awardXpForFaint(const PokemonInstance& dead);
     void addXp(PokemonInstance& unit, int amount);
     int xpToNextLevel(int level) const;
+    int totalXpFromLevelProgress(const PokemonInstance& unit) const;
+    void levelProgressFromTotalXp(int totalXp, int& outLevel, int& outXp) const;
+    bool mergeOneTripleForPlayer();
     int xpFromFaint(const PokemonInstance& dead) const;
     void beginFaint(PokemonInstance& target);
     void updateFaint(PokemonInstance& target, float dt);

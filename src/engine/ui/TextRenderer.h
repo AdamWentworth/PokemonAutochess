@@ -26,6 +26,8 @@ public:
     TTF_Font* getFont() const { return font; }
 
     float measureTextWidth(const std::string& text, float scale = 1.0f) const;
+    float measureTextHeight(float scale = 1.0f) const;
+    float measureTextHeight(const std::string& text, float scale = 1.0f) const;
 
 private:
     struct Glyph {

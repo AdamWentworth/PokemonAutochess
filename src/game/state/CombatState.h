@@ -30,6 +30,9 @@ private:
     void ensureShopUi();
     void rebuildShopCards();
     void drawShopHud(int uiW, int uiH);
+    void ensureCurrencyHudResources();
+    void releaseCurrencyHudResources();
+    unsigned int loadCurrencyTexture(const std::string& path) const;
 
     GameStateManager* stateManager = nullptr;
     GameWorld* gameWorld = nullptr;
@@ -45,6 +48,7 @@ private:
     bool shopUiEnabled = false;
     bool shopUiInitialized = false;
     bool hasShopRerollButton = false;
+    int shopCardsX = 0;
     int shopCardsY = 0;
     int shopCardsH = 0;
     bool shopCardsValid = false;
@@ -52,6 +56,11 @@ private:
     float shopRerollY = 0.0f;
     float shopRerollW = 0.0f;
     float shopRerollH = 0.0f;
+    std::string currencyIconPath;
+    unsigned int currencyIconTexture = 0;
+    unsigned int currencyVAO = 0;
+    unsigned int currencyVBO = 0;
+    unsigned int currencyEBO = 0;
 
     const std::string& scriptPath() const;
 };

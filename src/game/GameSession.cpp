@@ -218,6 +218,7 @@ struct GameSession::Impl {
             // Battle feed + logger (instance-based)
             battleFeed = std::make_unique<BattleFeed>(config.fontPath, config.fontSize);
             battleFeed->setAlignRight(true);
+            battleFeed->setBaseScale(0.40f);
             log.attach(battleFeed.get());
             log.setEchoToStdout(true);
 
@@ -226,7 +227,7 @@ struct GameSession::Impl {
             catchFeed->setAlignRight(false);
             catchFeed->setWrapWidth(320.f);
             catchFeed->setMaxLines(5);
-            catchFeed->setBaseScale(0.46f);
+            catchFeed->setBaseScale(0.38f);
             catchFeed->setPadding(16.f, 16.f);
             log.attachCatchFeed(catchFeed.get());
 
@@ -235,7 +236,7 @@ struct GameSession::Impl {
             economyFeed->setAlignRight(false);
             economyFeed->setWrapWidth(320.f);
             economyFeed->setMaxLines(4);
-            economyFeed->setBaseScale(0.44f);
+            economyFeed->setBaseScale(0.36f);
             economyFeed->setPadding(16.f, 16.f);
             log.attachEconomyFeed(economyFeed.get());
 
@@ -393,27 +394,50 @@ struct GameSession::Impl {
             if (shopSystem) shopSystem->renderUI(drawableW, drawableH);
             const float cornerX = std::round(std::max(10.0f, static_cast<float>(drawableW) * 0.012f));
             const float cornerY = std::round(std::max(10.0f, static_cast<float>(drawableH) * 0.020f));
+            const float minDim = static_cast<float>(std::min(drawableW, drawableH));
+            const bool classicMode = services && services->gameMode == "classic";
+            const auto computeClassicShopTopY = [&]() -> float {
+                const float scale = std::clamp(
+                    std::min(static_cast<float>(drawableW) / 1280.0f,
+                             static_cast<float>(drawableH) / 720.0f),
+                    0.60f, 1.80f);
+                const int cardH = std::max(56, static_cast<int>(std::round(94.0f * scale)));
+                const int edgeMargin = std::clamp(
+                    static_cast<int>(std::round(minDim * 0.024f)),
+                    10, 36);
+                const int y = std::max(0, drawableH - cardH - edgeMargin);
+                return static_cast<float>(y);
+            };
+            const float classicShopTopY = computeClassicShopTopY();
 
             if (battleFeed) {
                 const float wrap = std::max(240.0f, std::min(640.0f, static_cast<float>(drawableW) * 0.42f));
                 battleFeed->setWrapWidth(wrap);
-                battleFeed->setBaseScale(0.46f);
-                battleFeed->setPadding(cornerX, cornerY);
+                battleFeed->setBaseScale(0.40f);
+                const float battleLift = std::max(18.0f, minDim * 0.03f);
+                battleFeed->setPadding(cornerX, cornerY + battleLift);
+                battleFeed->clearBaselineYOverride();
             }
             if (catchFeed) {
                 const float wrap = std::max(200.0f, std::min(420.0f, static_cast<float>(drawableW) * 0.30f));
                 catchFeed->setWrapWidth(wrap);
-                catchFeed->setBaseScale(0.44f);
+                catchFeed->setBaseScale(0.38f);
                 catchFeed->setPadding(cornerX, cornerY);
+                catchFeed->clearBaselineYOverride();
             }
             if (economyFeed) {
                 const float wrap = std::max(220.0f, std::min(380.0f, static_cast<float>(drawableW) * 0.28f));
                 economyFeed->setWrapWidth(wrap);
-                economyFeed->setBaseScale(0.42f);
+                economyFeed->setBaseScale(0.36f);
                 economyFeed->setPadding(cornerX, cornerY);
+                economyFeed->clearBaselineYOverride();
+                if (classicMode) {
+                    const float clearance = std::max(22.0f, minDim * 0.03f);
+                    economyFeed->setBaselineYOverride(std::max(8.0f, classicShopTopY - clearance));
+                }
             }
             if (battleFeed) battleFeed->render(drawableW, drawableH);
-            if (services && services->gameMode == "classic") {
+            if (classicMode) {
                 if (economyFeed) economyFeed->render(drawableW, drawableH);
             } else {
                 if (catchFeed) catchFeed->render(drawableW, drawableH);

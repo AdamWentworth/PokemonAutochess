@@ -29,6 +29,8 @@ public:
     void setBaseScale(float scale) { baseScale = std::max(0.1f, scale); }
     void setPadding(float x, float y) { padX = x; padY = y; }
     void setAlignRight(bool align) { alignRight = align; }
+    void setBaselineYOverride(float y) { baselineYOverride = y; hasBaselineYOverride = true; }
+    void clearBaselineYOverride() { hasBaselineYOverride = false; }
 
 private:
     std::unique_ptr<TextRenderer> text;
@@ -40,6 +42,8 @@ private:
     float padX      = 16.f;
     float padY      = 16.f;
     bool  alignRight = false;
+    bool  hasBaselineYOverride = false;
+    float baselineYOverride = 0.f;
 
     // Not const: relies on TextRenderer metrics which may not be const-safe everywhere
     std::vector<std::string> wrap(const std::string& s, float maxWidth, float scale);
