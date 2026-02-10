@@ -1,0 +1,51 @@
+{
+  "billboard_additive_cone_line": {
+    "renderer": "billboard",
+    "blendPreset": "additive",
+    "spawn": {
+      "mode": "burst",
+      "count": 1
+    },
+    "motion": {
+      "acceleration": [0.0, 0.0, 0.0],
+      "drag": 0.90
+    },
+    "curves": {
+      "sizeOverLife": [
+        [0.00, 0.35],
+        [0.30, 0.72],
+        [1.00, 1.10]
+      ],
+      "alphaOverLife": [
+        [0.00, 0.00],
+        [0.08, 1.00],
+        [0.78, 1.00],
+        [1.00, 0.00]
+      ]
+    }
+  },
+  "billboard_additive_glint_small": {
+    "renderer": "billboard",
+    "blendPreset": "additive",
+    "spawn": {
+      "mode": "burst",
+      "count": 4
+    },
+    "motion": {
+      "acceleration": [0.0, -0.4, 0.0],
+      "drag": 0.35
+    },
+    "curves": {
+      "sizeOverLife": [
+        [0.00, 0.22],
+        [1.00, 0.05]
+      ],
+      "alphaOverLife": [
+        [0.00, 0.0],
+        [0.10, 1.0],
+        [1.00, 0.0]
+      ]
+    }
+  }
+}
+

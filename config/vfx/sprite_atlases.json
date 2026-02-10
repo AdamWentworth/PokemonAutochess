@@ -1,0 +1,30 @@
+{
+  "growl_cone_line": {
+    "path": "assets/vfx/textures/moves/growl/growl_cone_line.png",
+    "cols": 1,
+    "rows": 1,
+    "frames": 1,
+    "fps": 0.0
+  },
+  "growl_ring_soft": {
+    "path": "assets/vfx/textures/moves/growl/growl_ring_soft.png",
+    "cols": 1,
+    "rows": 1,
+    "frames": 1,
+    "fps": 0.0
+  },
+  "common_soft_glow_01": {
+    "path": "assets/vfx/textures/common/soft_glow_01.png",
+    "cols": 1,
+    "rows": 1,
+    "frames": 1,
+    "fps": 0.0
+  },
+  "common_star_glint_01": {
+    "path": "assets/vfx/textures/common/star_glint_01.png",
+    "cols": 1,
+    "rows": 1,
+    "frames": 1,
+    "fps": 0.0
+  }
+}

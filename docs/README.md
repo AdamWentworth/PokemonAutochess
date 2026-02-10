@@ -10,6 +10,7 @@ These are **internal notes** for quality, architecture, and testing. They are no
 | `TEST_PLAN.md` | Test coverage goals and next additions. |
 | `TECH_DEBT.md` | Known tech debt and smells to keep in mind. |
 | `CI.md` | What CI runs and how to mirror it locally. |
+| `VFX_PIPELINE.md` | Data-driven VFX authoring direction and folder contracts. |
 
 ## Update Policy
 - Keep these docs small and current.

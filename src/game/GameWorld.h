@@ -279,4 +279,7 @@ private:
 
     std::shared_ptr<Model> pokeballModel;
     bool pokeballModelLoaded = false;
+
+    glm::mat4 lastViewMatrix = glm::mat4(1.0f);
+    bool hasLastViewMatrix = false;
 };

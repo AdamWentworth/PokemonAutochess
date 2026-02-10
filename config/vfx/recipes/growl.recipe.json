@@ -1,0 +1,34 @@
+{
+  "id": "growl_cone_v1",
+  "version": 1,
+  "durationSec": 0.45,
+  "notes": "Single cone, tight near mouth and wider toward enemy direction. Fuzzy linear streaks only.",
+  "emitters": [
+    {
+      "id": "growl_main_cone",
+      "preset": "billboard_additive_cone_line",
+      "atlas": "growl_cone_line",
+      "windowSec": [0.0, 0.12],
+      "spawn": {
+        "mode": "burst",
+        "count": 1
+      },
+      "anchor": {
+        "space": "attacker_forward",
+        "offset": [0.0, 0.40, 0.18]
+      },
+      "shape": {
+        "type": "cone",
+        "halfAngleDeg": 22.0,
+        "length": 3.8,
+        "startRadius": 0.015,
+        "endRadius": 0.34
+      },
+      "lifetimeSec": [0.34, 0.50],
+      "size": [0.54, 0.74],
+      "tint": [0.92, 0.28, 0.16, 1.0],
+      "blendPreset": "additive"
+    }
+  ]
+}
+

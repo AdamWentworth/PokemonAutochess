@@ -7,6 +7,7 @@
 #include <memory>
 #include <cstdlib>
 #include <cctype>
+#include <array>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 #include "engine/core/Random.h"
@@ -44,6 +45,58 @@ std::string Lower(std::string s) {
 #include "logging/DebugTrace.h"
 
 #include "ui/HealthBarQuery.h"
+
+namespace {
+glm::vec3 SafeForwardXZ(const glm::vec3& v) {
+    glm::vec3 f(v.x, 0.0f, v.z);
+    const float len = glm::length(f);
+    if (len <= 0.0001f) return glm::vec3(0.0f, 0.0f, 1.0f);
+    return f / len;
+}
+
+glm::mat4 BuildModelInstanceTransform(const PokemonInstance& instance) {
+    const float scaleFactor = (instance.model ? instance.model->getScaleFactor() : 1.0f) *
+                              std::max(0.0f, instance.visualScale) *
+                              std::max(0.0f, instance.captureScale);
+
+    const glm::mat4 scale = glm::scale(glm::mat4(1.0f), glm::vec3(scaleFactor));
+    const glm::mat4 rotationX = glm::rotate(glm::mat4(1.0f), glm::radians(instance.rotation.x), glm::vec3(1, 0, 0));
+    const glm::mat4 rotationY = glm::rotate(glm::mat4(1.0f), glm::radians(instance.rotation.y), glm::vec3(0, 1, 0));
+    const glm::mat4 rotationZ = glm::rotate(glm::mat4(1.0f), glm::radians(instance.rotation.z), glm::vec3(0, 0, 1));
+    const glm::vec3 renderPos = instance.position + glm::vec3(0.0f, instance.visualYOffset, 0.0f);
+    const glm::mat4 translation = glm::translate(glm::mat4(1.0f), renderPos);
+
+    return translation * rotationY * rotationX * rotationZ * scale;
+}
+
+template <size_t N>
+bool TryResolveAnimatedNodeWorld(const PokemonInstance& unit,
+                                 const std::array<const char*, N>& nodeNames,
+                                 glm::vec3& outWorldPos) {
+    if (!unit.model) return false;
+
+    const glm::mat4 instanceM = BuildModelInstanceTransform(unit);
+    const int activeAnim = (unit.activeAnimIndex >= 0) ? unit.activeAnimIndex : unit.animIdleIndex;
+    const int idleAnim = unit.animIdleIndex;
+
+    auto tryAnim = [&](int animIndex) -> bool {
+        if (animIndex < 0) return false;
+        for (const char* nodeName : nodeNames) {
+            if (!nodeName || !nodeName[0]) continue;
+            glm::mat4 nodeGlobal(1.0f);
+            if (!unit.model->getNodeGlobalTransformByName(unit.animTimeSec, animIndex, nodeName, nodeGlobal)) continue;
+            const glm::mat4 nodeWorld = instanceM * nodeGlobal;
+            outWorldPos = glm::vec3(nodeWorld[3]);
+            return true;
+        }
+        return false;
+    };
+
+    if (tryAnim(activeAnim)) return true;
+    if (idleAnim != activeAnim && tryAnim(idleAnim)) return true;
+    return false;
+}
+} // namespace
 
 GameWorld::GameWorld(const GameConfigData& cfg)
     : config(cfg) {
@@ -1149,6 +1202,9 @@ void GameWorld::update(float dt)
 
     if (!growlWaveVfxInitialized) {
         GrowlWaveVFX::Config c; // defaults
+        // We now resolve the origin from head/jaw nodes, so keep built-in offsets minimal.
+        c.spawnForwardOffset = 0.0f;
+        c.spawnHeightOffset = 0.0f;
         growlWaveVfx.setConfig(c);
         growlWaveVfxInitialized = true;
     }
@@ -1320,6 +1376,9 @@ void GameWorld::ensurePokeballModel() {
 
 void GameWorld::drawAll(const Camera3D& camera, BoardRenderer& boardRenderer)
 {
+    lastViewMatrix = camera.getViewMatrix();
+    hasLastViewMatrix = true;
+
     boardRenderer.draw(camera);
     boardRenderer.drawBench(camera);
 
@@ -1469,13 +1528,85 @@ void GameWorld::emitMoveImpactByName(const std::string& moveName,
     if (move == "growl") {
         if (!growlWaveVfxInitialized) {
             GrowlWaveVFX::Config c;
+            c.spawnForwardOffset = 0.0f;
+            c.spawnHeightOffset = 0.0f;
             growlWaveVfx.setConfig(c);
             growlWaveVfxInitialized = true;
         }
-        const glm::vec3 origin = attacker
+
+        const glm::vec3 forward = makeForward();
+        glm::vec3 origin = attacker
             ? (attacker->position + glm::vec3(0.0f, attacker->visualYOffset, 0.0f))
             : (target.position + glm::vec3(0.0f, target.visualYOffset, 0.0f));
-        growlWaveVfx.emitFrom(origin, makeForward());
+
+        if (attacker) {
+            const glm::vec3 fwdXZ = SafeForwardXZ(forward);
+            const glm::vec3 renderPos = attacker->position + glm::vec3(0.0f, attacker->visualYOffset, 0.0f);
+            const float worldScale = (attacker->model ? attacker->model->getScaleFactor() : 1.0f) *
+                                     std::max(0.0f, attacker->visualScale) *
+                                     std::max(0.0f, attacker->captureScale);
+
+            // Stable fallback near mouth/head area in world-space.
+            glm::vec3 fallbackOrigin = renderPos + glm::vec3(0.0f, 0.14f, 0.0f);
+            fallbackOrigin += fwdXZ * 0.10f;
+
+            static constexpr std::array<const char*, 12> kGrowlNodeCandidates = {
+                "EffMouth01", "effmouth01",
+                "mouth", "Mouth",
+                "head", "Head",
+                "jaw", "Jaw",
+                "Nose", "nose",
+                "neck", "Neck"
+            };
+
+            glm::vec3 mouthWorld(0.0f);
+            bool resolvedFromNode = false;
+            if (TryResolveAnimatedNodeWorld(*attacker, kGrowlNodeCandidates, mouthWorld)) {
+                origin = mouthWorld;
+                resolvedFromNode = true;
+            } else {
+                origin = fallbackOrigin;
+            }
+
+            // Safety checks: reject pathological node transforms that place the origin
+            // underground or behind the caster (seen on some rigs/clips).
+            if (resolvedFromNode) {
+                const glm::vec3 planarDelta = glm::vec3(origin.x - renderPos.x, 0.0f, origin.z - renderPos.z);
+                const float planarDist2 = glm::dot(planarDelta, planarDelta);
+                const float maxPlanar = std::max(0.30f, config.cellSize * 0.9f);
+                const bool tooLow = origin.y < (renderPos.y + 0.04f);
+                const bool tooFar = planarDist2 > (maxPlanar * maxPlanar);
+                const bool behind = glm::dot(planarDelta, fwdXZ) < -0.05f;
+                if (tooLow || tooFar || behind) {
+                    origin = fallbackOrigin;
+                }
+            }
+
+            const std::string species = Lower(attacker->name);
+            float speciesGrowlYOffset = 0.0f;
+            float speciesForwardBonus = 0.0f;
+            if (species == "bulbasaur") {
+                // Bulbasaur mouth sits slightly lower than generic anchors.
+                speciesGrowlYOffset = -0.01f;
+                speciesForwardBonus = 0.03f;
+            }
+
+            float forwardPush = 0.08f + speciesForwardBonus;
+            if (attacker->model && attacker->model->hasBounds()) {
+                const float r = attacker->model->getBoundsRadiusHorizontal() * worldScale;
+                forwardPush = std::clamp(r * 0.38f + speciesForwardBonus, 0.08f, 0.18f);
+            }
+
+            origin += glm::vec3(0.0f, speciesGrowlYOffset, 0.0f);
+            origin += fwdXZ * forwardPush;
+
+            // Final vertical guardrail against extreme node-space values.
+            const float minGrowlY = renderPos.y + 0.06f;
+            const float maxGrowlY = renderPos.y + std::max(0.28f, config.cellSize * 0.42f);
+            origin.y = std::clamp(origin.y, minGrowlY, maxGrowlY);
+        }
+
+        growlWaveVfx.emitFrom(origin, forward, hasLastViewMatrix ? &lastViewMatrix : nullptr);
         return;
     }
 
