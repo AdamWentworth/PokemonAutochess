@@ -1,6 +1,7 @@
 -- scripts/states/classic/route1_shop.lua
 
 local SHOP_DURATION = 30.0
+local REROLL_COST = 2
 local time_left = SHOP_DURATION
 local transitioned = false
 
@@ -10,6 +11,7 @@ local cost_cfg = dofile("scripts/config/classic_shop_costs.lua")
 
 local cards = {}
 local seeded = false
+local showed_formula = false
 
 local function pretty_name(name)
     local s = tostring(name or "")
@@ -40,14 +42,16 @@ local function get_card_cost(name, level)
             local by_tier = bracket.by_tier or {}
             local cost = by_tier[tier]
             if cost ~= nil then
-                return math.max(0, cost)
+                local adjusted = math.max(0, cost + (cfg.global_add or 0))
+                return adjusted
             end
             if bracket.default ~= nil then
-                return math.max(0, bracket.default)
+                local adjusted = math.max(0, bracket.default + (cfg.global_add or 0))
+                return adjusted
             end
         end
     end
-    return math.max(0, cfg.default_cost or 1)
+    return math.max(0, (cfg.default_cost or 1) + (cfg.global_add or 0))
 end
 
 local function make_card()
@@ -70,6 +74,12 @@ local function refill_cards(count)
     end
 end
 
+local function persist_cards()
+    if classic_shop_set_cards then
+        classic_shop_set_cards(cards)
+    end
+end
+
 function on_enter()
     if not seeded then
         if os and os.time then
@@ -80,6 +90,11 @@ function on_enter()
     time_left = SHOP_DURATION
     transitioned = false
     refill_cards(5)
+    persist_cards()
+    if not showed_formula then
+        emit_gold("+1g per 10 saved (up to +5g).")
+        showed_formula = true
+    end
 end
 
 function get_message()
@@ -111,16 +126,20 @@ function on_shop_card_click(pokemon, level)
 
     if not spend_money(card_cost) then
         emit("Shop", "Not enough gold to buy " .. pretty_name(pokemon) .. " (" .. tostring(card_cost) .. "g)")
+        emit_gold("Spend failed: " .. pretty_name(pokemon) .. " costs " .. tostring(card_cost) .. "g")
         return
     end
 
     spawn_on_bench(pokemon, card_level)
     emit("Shop", "Bought " .. pretty_name(pokemon) .. " Lv" .. tostring(card_level) ..
         " for " .. tostring(card_cost) .. "g")
+    emit_gold("Spent -" .. tostring(card_cost) .. "g: " .. pretty_name(pokemon) ..
+        " Lv" .. tostring(card_level) .. ".")
 
     if selected_index then
         cards[selected_index] = make_card()
     end
+    persist_cards()
 end
 
 function on_update(dt)
@@ -128,6 +147,7 @@ function on_update(dt)
     time_left = time_left - (dt or 0.016)
     if time_left <= 0.0 then
         transitioned = true
+        persist_cards()
         pop_state()
         push_combat_state("scripts/states/classic/route1_5.lua")
     end
@@ -137,4 +157,18 @@ function on_shop_ready_click()
     if transitioned then return end
     time_left = 0.0
     emit("Shop", "Ready. Starting next round...")
+end
+
+function on_shop_reroll_click()
+    if transitioned then return end
+    if not spend_money(REROLL_COST) then
+        emit("Shop", "Not enough gold to reroll (" .. tostring(REROLL_COST) .. "g)")
+        emit_gold("Spend failed: reroll costs " .. tostring(REROLL_COST) .. "g.")
+        return
+    end
+
+    refill_cards(5)
+    emit("Shop", "Shop rerolled for " .. tostring(REROLL_COST) .. "g")
+    emit_gold("Spent -" .. tostring(REROLL_COST) .. "g: shop reroll.")
+    persist_cards()
 end

@@ -150,6 +150,7 @@ bool test_end_to_end_headless(std::string& outFail) {
     manager.pushState(std::make_unique<PlacementState>(&manager, &world, services, starterName));
 
     bool sawCombatState = false;
+    bool sawCombatActiveEnabled = false;
     bool sawBattle = false;
     bool sawResolution = false;
     bool sawDamage = false;
@@ -174,6 +175,9 @@ bool test_end_to_end_headless(std::string& outFail) {
         if (roundState) {
             if (roundState->phase == RoundPhase::Battle) sawBattle = true;
             if (roundState->phase == RoundPhase::Resolution) sawResolution = true;
+        }
+        if (auto* combatActive = ecsWorld.get<game::CombatActive>(phaseEntity)) {
+            if (combatActive->active) sawCombatActiveEnabled = true;
         }
 
         if (sawCombatState && !capturedBaseline) {
@@ -201,9 +205,8 @@ bool test_end_to_end_headless(std::string& outFail) {
         return false;
     }
 
-    auto* combatActive = ecsWorld.get<game::CombatActive>(phaseEntity);
-    if (!combatActive || !combatActive->active) {
-        outFail = "CombatActive was not enabled in CombatState.";
+    if (!sawCombatActiveEnabled) {
+        outFail = "CombatActive was never enabled during end-to-end run.";
         return false;
     }
 

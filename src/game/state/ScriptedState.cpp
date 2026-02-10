@@ -14,6 +14,7 @@
 
 #include <sol/sol.hpp>
 #include <algorithm>
+#include <cmath>
 #include <iostream>
 
 ScriptedState::ScriptedState(GameStateManager* manager, GameWorld* world, GameServices& svc, const std::string& path)
@@ -107,9 +108,9 @@ void ScriptedState::rebuildCardRow() {
             if (cd.type != CardType::Item) { allItems = false; break; }
         }
 
-        const int cardW = allItems ? 96 : 160;
-        const int cardH = allItems ? 96 : 110;
-        const int spacing = allItems ? 28 : 20;
+        const int cardW = allItems ? 96 : 144;
+        const int cardH = allItems ? 96 : 99;
+        const int spacing = allItems ? 28 : 16;
         const int margin = 40;
         const int y = std::max(0, uiH - cardH - margin);
         shopCardsY = y;
@@ -163,6 +164,44 @@ void ScriptedState::rebuildTextMenu() {
         if (entry.id.empty()) entry.id = entry.label;
         if (entry.id.empty() || entry.label.empty()) continue;
 
+        if (auto v = row.get<sol::optional<float>>("scale")) {
+            entry.scale = std::max(0.1f, *v);
+        }
+        if (auto v = row.get<sol::optional<bool>>("enabled")) {
+            entry.enabled = *v;
+        }
+        if (auto v = row.get<sol::optional<bool>>("bold")) {
+            entry.bold = *v;
+        }
+        if (auto v = row.get<sol::optional<bool>>("underline")) {
+            entry.underline = *v;
+        }
+        if (auto v = row.get<sol::optional<float>>("x_frac")) {
+            entry.hasCustomX = true;
+            entry.xFrac = std::clamp(*v, 0.0f, 1.0f);
+        }
+        if (auto v = row.get<sol::optional<float>>("y_frac")) {
+            entry.hasCustomY = true;
+            entry.yFrac = std::clamp(*v, 0.0f, 1.0f);
+        }
+        if (auto v = row.get<sol::optional<std::string>>("anchor")) {
+            entry.anchorCenter = (*v != "left");
+        }
+
+        auto colorOpt = row.get<sol::optional<sol::table>>("color");
+        if (colorOpt) {
+            const sol::table color = *colorOpt;
+            auto r = color.get<sol::optional<float>>(1);
+            auto g = color.get<sol::optional<float>>(2);
+            auto b = color.get<sol::optional<float>>(3);
+            if (r && g && b) {
+                entry.hasColor = true;
+                entry.colorR = std::clamp(*r, 0.0f, 1.0f);
+                entry.colorG = std::clamp(*g, 0.0f, 1.0f);
+                entry.colorB = std::clamp(*b, 0.0f, 1.0f);
+            }
+        }
+
         textMenuEntries.push_back(std::move(entry));
     }
 }
@@ -173,6 +212,7 @@ void ScriptedState::ensureCardUI() {
         cardMode = CardMode::None;
         shopCardsValid = false;
         hasShopReadyButton = false;
+        hasShopRerollButton = false;
         uiInitialized = true;
         return;
     }
@@ -188,6 +228,7 @@ void ScriptedState::ensureCardUI() {
     bool hasStarterClick = S["on_card_click"].valid() || S["onCardClick"].valid();
     hasShopItems = S["get_shop_items"].valid() && S["on_shop_item_click"].valid();
     hasShopReadyButton = S["on_shop_ready_click"].valid();
+    hasShopRerollButton = S["on_shop_reroll_click"].valid();
     hasTextMenu = hasTextMenuEntries && hasTextMenuClick;
     renderWorld = true;
     if (auto hideWorld = S.get<sol::optional<bool>>("hide_world")) {
@@ -203,6 +244,7 @@ void ScriptedState::ensureCardUI() {
     } else {
         cardMode = CardMode::None;
         hasShopReadyButton = false;
+        hasShopRerollButton = false;
         uiInitialized = true;
         return;
     }
@@ -210,10 +252,10 @@ void ScriptedState::ensureCardUI() {
     const auto& c = services.config;
     if (cardMode != CardMode::TextMenu) {
         cardSystem.init();
-        cardSystem.initOverlayText(c.fontPath, std::max(14, c.fontSize / 3));
+        cardSystem.initOverlayText(c.fontPath, std::max(16, c.fontSize / 2));
         if (hasShopItems) {
             itemCardSystem.init();
-            itemCardSystem.initOverlayText(c.fontPath, std::max(14, c.fontSize / 3));
+            itemCardSystem.initOverlayText(c.fontPath, std::max(16, c.fontSize / 2));
         }
         if (cardMode == CardMode::Shop) {
             ensureCurrencyHudResources();
@@ -223,6 +265,7 @@ void ScriptedState::ensureCardUI() {
         itemCardSystem.clearCards();
         shopCardsValid = false;
         hasShopReadyButton = false;
+        hasShopRerollButton = false;
     }
     titleText = std::make_unique<TextRenderer>(c.fontPath, c.fontSize);
 
@@ -263,6 +306,7 @@ void ScriptedState::handleInput(const InputEvent& event) {
         cardMode = CardMode::None;
         renderWorld = true;
         hasShopReadyButton = false;
+        hasShopRerollButton = false;
         ensureCardUI();
         return; // avoid also sending this key into old script state
     }
@@ -271,12 +315,17 @@ void ScriptedState::handleInput(const InputEvent& event) {
     script.call("handleInput");
 
     if (!uiInitialized) return;
+    if (event.type == InputEvent::Type::MouseDown && gameWorld) {
+        if (gameWorld->consumeUiClickBlocked()) return;
+        if (gameWorld->isUnitDragActive()) return;
+    }
 
     sol::table S = script.getScriptTable();
 
     if (event.type == InputEvent::Type::MouseDown) {
         if (cardMode == CardMode::TextMenu) {
             for (const auto& entry : textMenuEntries) {
+                if (!entry.enabled) continue;
                 const bool insideX = static_cast<float>(event.mouseX) >= entry.x &&
                                      static_cast<float>(event.mouseX) <= (entry.x + entry.w);
                 const bool insideY = static_cast<float>(event.mouseY) >= entry.y &&
@@ -290,6 +339,22 @@ void ScriptedState::handleInput(const InputEvent& event) {
                 }
                 script.flushCommands();
                 rebuildTextMenu();
+                return;
+            }
+        }
+
+        if (cardMode == CardMode::Shop && hasShopRerollButton) {
+            const bool insideRerollX = static_cast<float>(event.mouseX) >= shopRerollX &&
+                                       static_cast<float>(event.mouseX) <= (shopRerollX + shopRerollW);
+            const bool insideRerollY = static_cast<float>(event.mouseY) >= shopRerollY &&
+                                       static_cast<float>(event.mouseY) <= (shopRerollY + shopRerollH);
+            if (insideRerollX && insideRerollY) {
+                sol::function onReroll = S["on_shop_reroll_click"];
+                if (onReroll.valid()) {
+                    onReroll();
+                }
+                script.flushCommands();
+                rebuildCardRow();
                 return;
             }
         }
@@ -401,51 +466,88 @@ void ScriptedState::render() {
             std::string msg = r.get<std::string>();
             float w = titleText->measureTextWidth(msg, 1.0f);
             float x = (static_cast<float>(uiW) - w) * 0.5f;
+            constexpr float kHeaderY = 58.0f;
             const glm::vec3 msgColor = (cardMode == CardMode::TextMenu)
                 ? glm::vec3(1.0f, 1.0f, 1.0f)
                 : glm::vec3(1.0f, 1.0f, 0.0f);
-            titleText->renderText(msg, x, 150.0f, msgColor, 1.0f);
+            titleText->renderText(msg, x, kHeaderY, msgColor, 1.0f);
         }
     }
 
     if (cardMode == CardMode::Shop && hasShopReadyButton && titleText) {
         const std::string readyLabel = "[ Ready ]";
-        const float readyScale = 0.9f;
+        const float readyScale = 0.95f;
         shopReadyW = titleText->measureTextWidth(readyLabel, readyScale);
         shopReadyH = static_cast<float>(services.config.fontSize) * readyScale;
         shopReadyX = static_cast<float>(uiW) - shopReadyW - 36.0f;
-        shopReadyY = 152.0f;
-        titleText->renderText(readyLabel, shopReadyX + 1.0f, shopReadyY + 1.0f,
-                              glm::vec3(0.0f, 0.0f, 0.0f), readyScale, 0.65f);
+        shopReadyY = 62.0f;
         titleText->renderText(readyLabel, shopReadyX, shopReadyY,
-                              glm::vec3(0.95f, 0.95f, 0.95f), readyScale);
+                              glm::vec3(1.0f, 1.0f, 1.0f), readyScale);
     } else {
         shopReadyW = 0.0f;
         shopReadyH = 0.0f;
     }
 
     if (cardMode == CardMode::TextMenu && titleText) {
-        const float menuScale = 1.0f;
-        const float textH = static_cast<float>(services.config.fontSize) * menuScale;
-        const float startY = 220.0f;
-        const float spacing = textH + 16.0f;
-
-        for (size_t i = 0; i < textMenuEntries.size(); ++i) {
-            auto& entry = textMenuEntries[i];
-            entry.w = titleText->measureTextWidth(entry.label, menuScale);
+        float autoY = 220.0f;
+        for (auto& entry : textMenuEntries) {
+            const float scale = std::max(0.1f, entry.scale);
+            const float textH = static_cast<float>(services.config.fontSize) * scale;
+            entry.w = titleText->measureTextWidth(entry.label, scale);
             entry.h = textH;
-            entry.x = (static_cast<float>(uiW) - entry.w) * 0.5f;
-            entry.y = startY + static_cast<float>(i) * spacing;
 
-            titleText->renderText(entry.label, entry.x, entry.y,
-                                  {1.0f, 1.0f, 1.0f}, menuScale);
+            if (entry.hasCustomX) {
+                const float anchorX = static_cast<float>(uiW) * entry.xFrac;
+                entry.x = entry.anchorCenter ? (anchorX - entry.w * 0.5f) : anchorX;
+            } else {
+                entry.x = (static_cast<float>(uiW) - entry.w) * 0.5f;
+            }
+
+            if (entry.hasCustomY) {
+                entry.y = static_cast<float>(uiH) * entry.yFrac;
+            } else {
+                entry.y = autoY;
+                autoY += textH + 16.0f;
+            }
+
+            glm::vec3 color(1.0f, 1.0f, 1.0f);
+            if (!entry.enabled) {
+                color = glm::vec3(0.55f, 0.55f, 0.60f);
+            } else if (entry.hasColor) {
+                color = glm::vec3(entry.colorR, entry.colorG, entry.colorB);
+            }
+
+            if (entry.bold) {
+                titleText->renderText(entry.label, entry.x + 0.75f, entry.y, color, scale);
+            }
+            titleText->renderText(entry.label, entry.x, entry.y, color, scale);
+
+            if (entry.underline) {
+                const int underCount = std::max(4, static_cast<int>(std::round(entry.w / std::max(4.0f, 10.0f * scale))));
+                const std::string under(static_cast<size_t>(underCount), '_');
+                titleText->renderText(under, entry.x, entry.y + textH * 0.68f, color, scale);
+            }
         }
         return;
     }
 
-    cardSystem.render(uiW, uiH);
-    if (cardMode == CardMode::Shop && hasShopItems) {
-        itemCardSystem.render(uiW, uiH);
+    const bool showSellOverlay = (cardMode == CardMode::Shop) &&
+                                 gameWorld &&
+                                 gameWorld->isUnitDragActive() &&
+                                 !hasShopItems;
+
+    if (!showSellOverlay) {
+        cardSystem.render(uiW, uiH);
+        if (cardMode == CardMode::Shop && hasShopItems) {
+            itemCardSystem.render(uiW, uiH);
+        }
+    } else if (titleText) {
+        const std::string sellLabel = "[ DROP HERE TO SELL ]";
+        const float sellScale = 1.0f;
+        const float labelW = titleText->measureTextWidth(sellLabel, sellScale);
+        const float x = std::round((static_cast<float>(uiW) - labelW) * 0.5f);
+        const float y = std::round(static_cast<float>(shopCardsY) + static_cast<float>(shopCardsH) * 0.5f);
+        titleText->renderText(sellLabel, x, y, glm::vec3(1.0f, 0.35f, 0.35f), sellScale);
     }
     if (cardMode == CardMode::Shop) {
         drawCurrencyHud(uiW, uiH);
@@ -458,7 +560,7 @@ void ScriptedState::ensureCurrencyHudResources() {
     if (!currencyText) {
         currencyText = std::make_unique<TextRenderer>(
             services.config.fontPath,
-            std::max(16, services.config.fontSize / 3));
+            std::max(28, services.config.fontSize / 2));
     }
 
     const std::string desiredIconPath = (services.gameMode == "adventure")
@@ -551,11 +653,18 @@ void ScriptedState::drawCurrencyHud(int uiW, int uiH) {
 
     const int money = gameWorld ? gameWorld->getMoney() : 0;
     const std::string moneyText = std::to_string(std::max(0, money));
-    const float textScale = 0.9f;
+    const float textScale = 1.35f;
     const float textWidth = currencyText->measureTextWidth(moneyText, textScale);
+    const bool showReroll = (cardMode == CardMode::Shop) && hasShopRerollButton;
+    const std::string rerollLabel = "[Reroll 2g]";
+    const float rerollScale = 0.90f;
+    const float rerollWidth = showReroll ? currencyText->measureTextWidth(rerollLabel, rerollScale) : 0.0f;
+    const float rerollGap = showReroll ? 16.0f : 0.0f;
     const float iconSize = (services.gameMode == "adventure") ? 34.0f : 30.0f;
     const float gap = (currencyIconTexture != 0) ? 8.0f : 0.0f;
-    const float totalWidth = textWidth + ((currencyIconTexture != 0) ? (iconSize + gap) : 0.0f);
+    const float totalWidth = textWidth +
+                             ((currencyIconTexture != 0) ? (iconSize + gap) : 0.0f) +
+                             rerollGap + rerollWidth;
     const float x0 = std::round((static_cast<float>(uiW) - totalWidth) * 0.5f);
     const float y0 = std::max(6.0f, static_cast<float>(shopCardsY) - iconSize - 10.0f);
 
@@ -594,6 +703,22 @@ void ScriptedState::drawCurrencyHud(int uiW, int uiH) {
     }
 
     const float textX = x0 + ((currencyIconTexture != 0) ? (iconSize + gap) : 0.0f);
-    const float textY = y0 + 3.0f;
-    currencyText->renderText(moneyText, textX, textY, glm::vec3(1.0f, 0.92f, 0.10f), textScale);
+    const float textY = y0 + 1.0f;
+    const glm::vec3 goldColor(1.0f, 0.92f, 0.10f);
+    currencyText->renderText(moneyText, textX, textY, goldColor, textScale);
+    currencyText->renderText(moneyText, textX + 0.75f, textY, goldColor, textScale);
+    currencyText->renderText(moneyText, textX, textY + 0.75f, goldColor, textScale);
+
+    if (showReroll) {
+        shopRerollX = textX + textWidth + rerollGap;
+        shopRerollY = y0 + 3.0f;
+        shopRerollW = rerollWidth;
+        shopRerollH = static_cast<float>(services.config.fontSize) * rerollScale;
+        currencyText->renderText(rerollLabel, shopRerollX, shopRerollY, glm::vec3(1.0f), rerollScale);
+    } else {
+        shopRerollX = 0.0f;
+        shopRerollY = 0.0f;
+        shopRerollW = 0.0f;
+        shopRerollH = 0.0f;
+    }
 }

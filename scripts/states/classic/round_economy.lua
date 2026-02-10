@@ -2,19 +2,24 @@
 
 local function classic_emit_income(result)
     local gold_now = get_money()
-    local streak_label = result.won and ("W" .. tostring(result.win_streak))
-        or ("L" .. tostring(result.loss_streak))
-    local summary = string.format(
-        "%s +%dg (base %d, interest %d, streak %d) | Gold: %d | %s",
-        result.won and "Win!" or "Loss!",
-        result.total or 0,
-        result.base or 0,
-        result.interest or 0,
-        result.streak or 0,
-        gold_now,
-        streak_label
-    )
-    emit("Gold", summary)
+    local total = result.total or 0
+    local interest = result.interest or 0
+    local streak = result.streak or 0
+
+    local extras = {}
+    if interest > 0 then
+        table.insert(extras, "interest +" .. tostring(interest) .. "g")
+    end
+    if streak > 0 then
+        table.insert(extras, "streak +" .. tostring(streak) .. "g")
+    end
+
+    local suffix = ""
+    if #extras > 0 then
+        suffix = " (" .. table.concat(extras, ", ") .. ")"
+    end
+
+    emit_gold(string.format("Earned +%dg%s. Gold: %dg.", total, suffix, gold_now))
 end
 
 function classic_try_finish_round(next_shop_script)

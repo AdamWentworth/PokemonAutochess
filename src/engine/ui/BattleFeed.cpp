@@ -36,13 +36,20 @@ void BattleFeed::render(int screenW, int screenH) {
     if (!blendWasEnabled) glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
+    const float resScale = std::clamp(
+        std::min(static_cast<float>(screenW) / 1280.0f,
+                 static_cast<float>(screenH) / 720.0f),
+        0.80f, 1.10f);
+    const float scale = baseScale * resScale;
+    const float gap = lineGap * resScale;
+
     // Use font height for consistent line spacing
     int fh = 24;
     if (TTF_Font* f = text->getFont()) {
         fh = TTF_FontHeight(f);
         if (fh <= 0) fh = 24;
     }
-    const float lineH = fh * baseScale;  // scaled pixel height per line
+    const float lineH = fh * scale;  // scaled pixel height per line
 
     float x = alignRight ? (screenW - padX) : padX;
     // Start exactly one line-height above the bottom padding
@@ -56,13 +63,13 @@ void BattleFeed::render(int screenW, int screenH) {
         float alpha = (t < 0.75f) ? 1.f : std::max(0.f, 1.f - (t - 0.75f) / 0.25f);
 
         // Word wrap to fixed width (in pixels)
-        auto wrapped = wrap(ln.text, wrapWidth, baseScale);
+        auto wrapped = wrap(ln.text, wrapWidth, scale);
 
         // Draw the wrapped lines bottom-up so the last line sits on 'y'
         for (int w = static_cast<int>(wrapped.size()) - 1; w >= 0; --w) {
             float drawX = x;
             if (alignRight) {
-                const float lineW = text->measureTextWidth(wrapped[w], baseScale);
+                const float lineW = text->measureTextWidth(wrapped[w], scale);
                 drawX = x - lineW;
             }
             // Render and then move up by one line
@@ -70,7 +77,7 @@ void BattleFeed::render(int screenW, int screenH) {
                 wrapped[w],
                 drawX, y,
                 ln.color,
-                baseScale,
+                scale,
                 alpha /* NEW: true alpha fade */
             );
             y -= lineH;
@@ -78,7 +85,7 @@ void BattleFeed::render(int screenW, int screenH) {
         }
 
         // Add small gap between entries
-        y -= lineGap;
+        y -= gap;
         if (y < -lineH) break;
     }
 

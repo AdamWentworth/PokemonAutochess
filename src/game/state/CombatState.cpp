@@ -7,6 +7,7 @@
 
 #include "game/ecs/CombatActive.h"
 #include "engine/core/ecs/World.h"
+#include "engine/input/InputEvent.h"
 
 #include "engine/ui/TextRenderer.h"
 
@@ -21,6 +22,146 @@ std::string Capitalize(std::string s) {
     return s;
 }
 } // namespace
+
+bool CombatState::buildShopCardList(sol::protected_function fn, std::vector<CardData>& out) {
+    out.clear();
+    if (!fn.valid()) return false;
+
+    sol::protected_function_result r = fn();
+    if (!(r.valid() && r.get_type() == sol::type::table)) {
+        return false;
+    }
+
+    sol::table t = r;
+    for (auto&& kv : t) {
+        if (kv.second.get_type() != sol::type::table) continue;
+        sol::table row = kv.second.as<sol::table>();
+
+        CardData cd;
+        cd.pokemonName = row.get_or("name", std::string());
+        cd.cost = row.get_or("cost", 0);
+        cd.level = row.get_or("level", 0);
+        cd.label = row.get_or("label", std::string());
+        cd.imagePath = row.get_or("image", std::string());
+
+        auto uvOpt = row.get<sol::optional<sol::table>>("uv");
+        if (uvOpt) {
+            sol::table uv = *uvOpt;
+            auto u0 = uv.get<sol::optional<float>>(1);
+            auto v0 = uv.get<sol::optional<float>>(2);
+            auto u1 = uv.get<sol::optional<float>>(3);
+            auto v1 = uv.get<sol::optional<float>>(4);
+            if (u0 && v0 && u1 && v1) {
+                cd.uvMin = { *u0, *v0 };
+                cd.uvMax = { *u1, *v1 };
+            }
+        }
+
+        auto typeOpt = row.get<sol::optional<std::string>>("type");
+        std::string ty = typeOpt.value_or(std::string("Shop"));
+        if (ty == "Starter") cd.type = CardType::Starter;
+        else if (ty == "Item") cd.type = CardType::Item;
+        else cd.type = CardType::Shop;
+
+        if (!cd.pokemonName.empty() || !cd.label.empty()) {
+            out.push_back(cd);
+        }
+    }
+    return true;
+}
+
+void CombatState::ensureShopUi() {
+    sol::table S = script.getScriptTable();
+    const bool hasShopCards = S["get_shop_cards"].valid();
+    const bool hasShopClick = S["on_shop_card_click"].valid() || S["on_card_click"].valid() || S["onCardClick"].valid();
+    shopUiEnabled = hasShopCards && hasShopClick;
+    hasShopRerollButton = shopUiEnabled && S["on_shop_reroll_click"].valid();
+
+    if (!shopUiEnabled) {
+        shopCardSystem.clearCards();
+        shopCardsValid = false;
+        shopRerollX = 0.0f;
+        shopRerollY = 0.0f;
+        shopRerollW = 0.0f;
+        shopRerollH = 0.0f;
+        return;
+    }
+
+    if (!shopUiInitialized) {
+        shopCardSystem.init();
+        shopCardSystem.initOverlayText(services.config.fontPath, std::max(16, services.config.fontSize / 2));
+        shopHudText = std::make_unique<TextRenderer>(services.config.fontPath, std::max(28, services.config.fontSize / 2));
+        shopUiInitialized = true;
+    }
+
+    rebuildShopCards();
+}
+
+void CombatState::rebuildShopCards() {
+    if (!shopUiEnabled) return;
+
+    sol::table S = script.getScriptTable();
+    sol::protected_function getCards = S["get_shop_cards"];
+    std::vector<CardData> cards;
+    if (!buildShopCardList(getCards, cards)) {
+        shopCardSystem.clearCards();
+        shopCardsValid = false;
+        return;
+    }
+
+    const auto* viewport = services.viewport;
+    const int uiW = viewport ? viewport->width : 1280;
+    const int uiH = viewport ? viewport->height : 720;
+    const int cardW = 144;
+    const int cardH = 99;
+    const int spacing = 16;
+    const int margin = 40;
+    const int y = std::max(0, uiH - cardH - margin);
+
+    shopCardsY = y;
+    shopCardsH = cardH;
+    shopCardsValid = !cards.empty();
+    shopCardSystem.spawnCardRowLayout(cards, uiW, y, cardW, cardH, spacing);
+}
+
+void CombatState::drawShopHud(int uiW, int uiH) {
+    (void)uiH;
+    if (!shopUiEnabled || !shopHudText || !shopCardsValid) return;
+
+    const int money = gameWorld ? gameWorld->getMoney() : 0;
+    const std::string moneyText = std::to_string(std::max(0, money));
+    const float moneyScale = 1.35f;
+    const float moneyW = shopHudText->measureTextWidth(moneyText, moneyScale);
+
+    const bool showReroll = hasShopRerollButton;
+    const std::string rerollLabel = "[Reroll 2g]";
+    const float rerollScale = 0.92f;
+    const float rerollW = showReroll ? shopHudText->measureTextWidth(rerollLabel, rerollScale) : 0.0f;
+    const float gap = showReroll ? 18.0f : 0.0f;
+
+    const float totalW = moneyW + gap + rerollW;
+    const float x0 = std::round((static_cast<float>(uiW) - totalW) * 0.5f);
+    const float y0 = std::max(6.0f, static_cast<float>(shopCardsY) - 46.0f);
+
+    const glm::vec3 goldColor(1.0f, 0.92f, 0.10f);
+    // Keep combat gold bright yellow (no dark shadow pass).
+    shopHudText->renderText(moneyText, x0, y0, goldColor, moneyScale);
+    shopHudText->renderText(moneyText, x0 + 0.75f, y0, goldColor, moneyScale);
+    shopHudText->renderText(moneyText, x0, y0 + 0.75f, goldColor, moneyScale);
+
+    if (showReroll) {
+        shopRerollX = x0 + moneyW + gap;
+        shopRerollY = y0 + 4.0f;
+        shopRerollW = rerollW;
+        shopRerollH = static_cast<float>(services.config.fontSize) * rerollScale;
+        shopHudText->renderText(rerollLabel, shopRerollX, shopRerollY, glm::vec3(1.0f, 1.0f, 1.0f), rerollScale);
+    } else {
+        shopRerollX = 0.0f;
+        shopRerollY = 0.0f;
+        shopRerollW = 0.0f;
+        shopRerollH = 0.0f;
+    }
+}
 
 CombatState::CombatState(GameStateManager* manager, GameWorld* world, GameServices& svc, const std::string& path)
     : stateManager(manager)
@@ -114,6 +255,7 @@ void CombatState::onEnter() {
     }
 
     script.onEnter();
+    ensureShopUi();
 }
 
 void CombatState::onExit() {
@@ -128,10 +270,54 @@ void CombatState::onExit() {
         gameWorld->healPlayerUnitsToFull();
         gameWorld->resetCombatBalance();
     }
+    shopCardSystem.clearCards();
+    shopCardsValid = false;
+    shopUiEnabled = false;
+    hasShopRerollButton = false;
+    shopRerollX = 0.0f;
+    shopRerollY = 0.0f;
+    shopRerollW = 0.0f;
+    shopRerollH = 0.0f;
     script.onExit();
 }
 
-void CombatState::handleInput(const InputEvent&) {}
+void CombatState::handleInput(const InputEvent& event) {
+    script.call("handleInput");
+    if (event.type == InputEvent::Type::MouseDown && gameWorld) {
+        if (gameWorld->consumeUiClickBlocked()) return;
+        if (gameWorld->isUnitDragActive()) return;
+    }
+    if (!shopUiEnabled) return;
+    if (event.type != InputEvent::Type::MouseDown) return;
+
+    sol::table S = script.getScriptTable();
+
+    if (hasShopRerollButton) {
+        const bool insideX = static_cast<float>(event.mouseX) >= shopRerollX &&
+                             static_cast<float>(event.mouseX) <= (shopRerollX + shopRerollW);
+        const bool insideY = static_cast<float>(event.mouseY) >= shopRerollY &&
+                             static_cast<float>(event.mouseY) <= (shopRerollY + shopRerollH);
+        if (insideX && insideY) {
+            sol::function onReroll = S["on_shop_reroll_click"];
+            if (onReroll.valid()) onReroll();
+            script.flushCommands();
+            rebuildShopCards();
+            return;
+        }
+    }
+
+    auto clicked = shopCardSystem.handleMouseClick(event.mouseX, event.mouseY);
+    if (!clicked) return;
+
+    sol::function onClick = S["on_shop_card_click"];
+    if (!onClick.valid()) onClick = S["on_card_click"];
+    if (!onClick.valid()) onClick = S["onCardClick"];
+    if (onClick.valid()) {
+        onClick(clicked->pokemonName, clicked->level);
+        script.flushCommands();
+        rebuildShopCards();
+    }
+}
 
 void CombatState::update(float dt) {
     script.onUpdate(dt);
@@ -153,5 +339,24 @@ void CombatState::render() {
     float centeredX = viewport ? viewport->centerX(textWidth)
                                : std::round((uiWidth - textWidth) * 0.5f);
 
-    textRenderer->renderText(msg, centeredX, 50.0f, glm::vec3(1.0f), scale);
+    textRenderer->renderText(msg, centeredX, 22.0f, glm::vec3(1.0f), scale);
+
+    if (shopUiEnabled) {
+        const int uiW = viewport ? viewport->width : 1280;
+        const int uiH = viewport ? viewport->height : 720;
+        const bool showSellOverlay = gameWorld &&
+                                     gameWorld->isUnitDragActive() &&
+                                     !gameWorld->getClassicShopCards().empty();
+        if (!showSellOverlay) {
+            shopCardSystem.render(uiW, uiH);
+        } else if (shopHudText) {
+            const std::string sellLabel = "[ DROP HERE TO SELL ]";
+            const float sellScale = 1.0f;
+            const float labelW = shopHudText->measureTextWidth(sellLabel, sellScale);
+            const float x = std::round((static_cast<float>(uiW) - labelW) * 0.5f);
+            const float y = std::round(static_cast<float>(shopCardsY) + static_cast<float>(shopCardsH) * 0.5f);
+            shopHudText->renderText(sellLabel, x, y, glm::vec3(1.0f, 0.35f, 0.35f), sellScale);
+        }
+        drawShopHud(uiW, uiH);
+    }
 }

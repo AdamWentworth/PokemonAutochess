@@ -143,6 +143,42 @@ ScriptAPI::ClassicIncomeResult ScriptAPI::awardClassicRoundIncome(bool playerWon
     return out;
 }
 
+std::vector<ScriptAPI::ClassicShopCardSnapshot> ScriptAPI::getClassicShopCards() const {
+    std::vector<ClassicShopCardSnapshot> out;
+    if (!world_) return out;
+
+    const auto& src = world_->getClassicShopCards();
+    out.reserve(src.size());
+    for (const auto& c : src) {
+        ClassicShopCardSnapshot s;
+        s.name = c.name;
+        s.level = c.level;
+        s.cost = c.cost;
+        out.push_back(std::move(s));
+    }
+    return out;
+}
+
+void ScriptAPI::setClassicShopCards(const std::vector<ClassicShopCardSnapshot>& cards) {
+    if (!world_) return;
+    std::vector<GameWorld::ClassicShopCard> out;
+    out.reserve(cards.size());
+    for (const auto& c : cards) {
+        if (c.name.empty()) continue;
+        GameWorld::ClassicShopCard gc;
+        gc.name = c.name;
+        gc.level = c.level;
+        gc.cost = c.cost;
+        out.push_back(std::move(gc));
+    }
+    world_->setClassicShopCards(out);
+}
+
+void ScriptAPI::clearClassicShopCards() {
+    if (!world_) return;
+    world_->clearClassicShopCards();
+}
+
 void ScriptAPI::startNewGame(const std::string& mode) {
     StartNewGameCommand cmd;
     cmd.mode = mode;
@@ -457,6 +493,11 @@ void ScriptAPI::spawnOnGrid(const std::string& name, int col, int row, PokemonSi
 void ScriptAPI::emitCatch(const std::string& msg) {
     if (msg.empty()) return;
     services_.log.catchInfo(msg);
+}
+
+void ScriptAPI::emitGold(const std::string& msg) {
+    if (msg.empty()) return;
+    services_.log.economyInfo(msg);
 }
 
 void ScriptAPI::pushState(const std::string& scriptPath) {

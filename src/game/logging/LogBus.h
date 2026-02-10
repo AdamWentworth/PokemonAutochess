@@ -14,6 +14,7 @@ class Logger {
 public:
     void attach(BattleFeed* feed) { feed_ = feed; }
     void attachCatchFeed(BattleFeed* feed) { catch_feed_ = feed; }
+    void attachEconomyFeed(BattleFeed* feed) { economy_feed_ = feed; }
 
     void info(const std::string& s)  { push(s, {1,1,1}); }
     void warn(const std::string& s)  { push(std::string("[WARN] ")  + s, {1,0.9f,0.2f}); }
@@ -24,6 +25,7 @@ public:
     }
 
     void catchInfo(const std::string& s, const glm::vec3& rgb = {1,1,1}, float lifetime = 3.f);
+    void economyInfo(const std::string& s, const glm::vec3& rgb = {1,1,1}, float lifetime = 4.f);
 
     // stdout mirroring toggle (default: on)
     void setEchoToStdout(bool enabled) { echo_ = enabled; }
@@ -40,6 +42,7 @@ private:
 private:
     BattleFeed* feed_ = nullptr;
     BattleFeed* catch_feed_ = nullptr;
+    BattleFeed* economy_feed_ = nullptr;
     bool echo_ = true;
     bool feed_enabled_ = true;
 };

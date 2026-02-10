@@ -7,6 +7,7 @@
     "attack": 8,
     "hp": 120,
     "catchRate": 0.35,
+    "shopBaseCost": 3,
     "loadoutByLevel": {
       "1": {
         "fast": "tackle"
@@ -73,6 +74,7 @@
     "attack": 10,
     "hp": 100,
     "catchRate": 0.35,
+    "shopBaseCost": 3,
     "loadoutByLevel": {
       "1": {
         "fast": "ember"
@@ -126,6 +128,7 @@
     "attack": 9,
     "hp": 110,
     "catchRate": 0.35,
+    "shopBaseCost": 3,
     "loadoutByLevel": {
       "1": {
         "fast": "bubble"
@@ -180,6 +183,7 @@
     "attack": 7,
     "hp": 80,
     "catchRate": 0.75,
+    "shopBaseCost": 2,
     "loadoutByLevel": {
       "1": {
         "fast": "gust"
@@ -223,6 +227,7 @@
     "attack": 8,
     "hp": 60,
     "catchRate": 0.8,
+    "shopBaseCost": 2,
     "loadoutByLevel": {
       "1": {
         "fast": "tackle"

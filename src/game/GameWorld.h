@@ -36,6 +36,12 @@ namespace LogBus { class Logger; }
 
 class GameWorld {
 public:
+    struct ClassicShopCard {
+        std::string name;
+        int level = 1;
+        int cost = 0;
+    };
+
     struct CombatBalance {
         float playerDamageMult = 1.0f;
         float enemyDamageMult = 1.0f;
@@ -100,6 +106,10 @@ public:
     int getMoney() const { return money; }
     void addMoney(int amount);
     bool spendMoney(int amount);
+    int getSellValueForSpecies(const std::string& pokemonName) const;
+    void setClassicShopCards(const std::vector<ClassicShopCard>& cards);
+    const std::vector<ClassicShopCard>& getClassicShopCards() const { return classicShopCards; }
+    void clearClassicShopCards();
     int getItemCount(const std::string& item) const;
     void addItem(const std::string& item, int amount = 1);
     bool consumeItem(const std::string& item, int amount = 1);
@@ -128,6 +138,17 @@ public:
     void restorePlayerPositionsAfterBattle();
     void setBoardInteractionLocked(bool locked) { boardInteractionLocked = locked; }
     bool isBoardInteractionLocked() const { return boardInteractionLocked; }
+    void setUnitDragActive(bool active) { unitDragActive = active; }
+    bool isUnitDragActive() const { return unitDragActive; }
+    void blockUiClicks(int frames = 1) {
+        if (frames <= 0) return;
+        if (uiClickBlockFrames < frames) uiClickBlockFrames = frames;
+    }
+    bool consumeUiClickBlocked() {
+        if (uiClickBlockFrames <= 0) return false;
+        --uiClickBlockFrames;
+        return true;
+    }
 
 private:
     ResourceManager* resources = nullptr; // engine-owned
@@ -142,8 +163,11 @@ private:
 
     CombatBalance combatBalance{};
     bool boardInteractionLocked = false;
+    bool unitDragActive = false;
+    int uiClickBlockFrames = 0;
     std::unordered_map<int, glm::vec3> battleStartPositions;
     int money = 0;
+    std::vector<ClassicShopCard> classicShopCards;
     std::unordered_map<std::string, int> items;
     std::string selectedItemId;
 

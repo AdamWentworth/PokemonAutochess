@@ -8,6 +8,7 @@
 return {
     default_tier = 1,
     default_cost = 1,
+    global_add = 1,
 
     species_tier = {
         pidgey = 1,
@@ -25,4 +26,3 @@ return {
         { min = 4, max = 5, by_tier = { [1] = 2, [2] = 3 } }
     }
 }
-

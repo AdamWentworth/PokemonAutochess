@@ -69,14 +69,7 @@ void GameUpdateGraph::handleRoundPhaseTransitions() {
 
     inputs_.shopSystem->onRoundPhaseChanged(lastRoundPhase, current);
 
-    if (inputs_.log) {
-        inputs_.log->colored(
-            std::string("Phase: ") + phaseName(lastRoundPhase) +
-                " \xE2\x86\x92 " + phaseName(current),
-            {0.75f, 0.9f, 1.0f},
-            3.0f
-        );
-    }
+    // Keep phase transitions out of battle feed; state-specific UI owns player-facing messaging.
 
     if (inputs_.events) {
         const std::string payload = std::string("{\"prev\":\"") + phaseName(lastRoundPhase) +

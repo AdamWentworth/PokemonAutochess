@@ -2,6 +2,7 @@
 #include "UnitInteractionSystem.h"
 
 #include "game/GameConfig.h"
+#include "game/logging/LogBus.h"
 
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/common.hpp>
@@ -11,8 +12,13 @@
 #include <limits>
 
 UnitInteractionSystem::UnitInteractionSystem(Camera3D* cam, GameWorld* world, unsigned int w, unsigned int h)
-    : camera(cam), gameWorld(world), screenW(w), screenH(h), benchSystem(1.2f) {
-    cellSize = 1.2f;
+    : camera(cam),
+      gameWorld(world),
+      screenW(w),
+      screenH(h),
+      benchSystem(world ? world->getConfig().cellSize : 1.2f,
+                  world ? world->getConfig().benchSlots : 8) {
+    cellSize = world ? world->getConfig().cellSize : 1.2f;
 
     // Input is routed through GameApp via InputEvent (engine-owned).
 }
@@ -40,12 +46,91 @@ glm::vec3 UnitInteractionSystem::screenToWorld(int mouseX, int mouseY) const {
     return nearPt + t * dir;
 }
 
+glm::vec3 UnitInteractionSystem::snapBoardPosition(const glm::vec3& worldPos) const {
+    float boardOriginX = -((8 * cellSize) / 2.0f) + cellSize * 0.5f;
+    float boardOriginZ = cellSize * 0.5f;
+
+    int col = static_cast<int>(std::round((worldPos.x - boardOriginX) / cellSize));
+    int row = static_cast<int>(std::round((worldPos.z - boardOriginZ) / cellSize));
+
+    col = glm::clamp(col, 0, 7);
+    row = glm::clamp(row, 0, 3);
+
+    glm::vec3 snap = worldPos;
+    snap.x = boardOriginX + col * cellSize;
+    snap.z = boardOriginZ + row * cellSize;
+    snap.y = 0.0f;
+    return snap;
+}
+
+bool UnitInteractionSystem::findNearestAvailableBoardCell(const glm::vec3& worldPos,
+                                                          int ignoreIndex,
+                                                          glm::vec3& outPos) const {
+    bool found = false;
+    float bestDist2 = std::numeric_limits<float>::max();
+    for (int row = 0; row < 4; ++row) {
+        for (int col = 0; col < 8; ++col) {
+            glm::vec3 candidate;
+            candidate.x = -((8 * cellSize) / 2.0f) + cellSize * 0.5f + static_cast<float>(col) * cellSize;
+            candidate.z = cellSize * 0.5f + static_cast<float>(row) * cellSize;
+            candidate.y = 0.0f;
+            if (isBoardCellOccupied(candidate, ignoreIndex)) continue;
+            const float dx = worldPos.x - candidate.x;
+            const float dz = worldPos.z - candidate.z;
+            const float d2 = dx * dx + dz * dz;
+            if (d2 < bestDist2) {
+                bestDist2 = d2;
+                outPos = candidate;
+                found = true;
+            }
+        }
+    }
+    return found;
+}
+
+bool UnitInteractionSystem::findNearestAvailableBenchSlot(const glm::vec3& worldPos,
+                                                          int ignoreIndex,
+                                                          glm::vec3& outPos) const {
+    bool found = false;
+    float bestDist2 = std::numeric_limits<float>::max();
+    const int maxSlots = std::max(1, benchSystem.getMaxSlots());
+    for (int slot = 0; slot < maxSlots; ++slot) {
+        const glm::vec3 candidate = benchSystem.getSlotPosition(slot);
+        if (isBenchSlotOccupied(candidate, ignoreIndex)) continue;
+        const float dx = worldPos.x - candidate.x;
+        const float dz = worldPos.z - candidate.z;
+        const float d2 = dx * dx + dz * dz;
+        if (d2 < bestDist2) {
+            bestDist2 = d2;
+            outPos = candidate;
+            found = true;
+        }
+    }
+    return found;
+}
+
 bool UnitInteractionSystem::isInBenchZone(const glm::vec3& pos) const {
     return benchSystem.isInBenchZone(pos);
 }
 
 bool UnitInteractionSystem::isInBoardZone(const glm::vec3& pos) const {
     return pos.z >= (cellSize * 0.5f) && pos.z <= (cellSize * 4.0f);
+}
+
+bool UnitInteractionSystem::isInSellDropZoneScreen(int mouseX, int mouseY) const {
+    const float w = static_cast<float>(std::max(1u, screenW));
+    const float h = static_cast<float>(std::max(1u, screenH));
+
+    const float zoneW = w * 0.70f;
+    const float zoneH = glm::clamp(h * 0.28f, 120.0f, 300.0f);
+    const float x0 = (w - zoneW) * 0.5f;
+    const float y0 = h - zoneH;
+    const float x1 = x0 + zoneW;
+    const float y1 = h;
+
+    const float mx = static_cast<float>(mouseX);
+    const float my = static_cast<float>(mouseY);
+    return (mx >= x0 && mx <= x1 && my >= y0 && my <= y1);
 }
 
 void UnitInteractionSystem::setScreenSize(unsigned int width, unsigned int height) {
@@ -187,6 +272,7 @@ void UnitInteractionSystem::onMouseButtonDown(int x, int y) {
         if (idx >= 0 && best <= pickRadius) {
             draggingUnit = true;
             draggedIndex = idx;
+            gameWorld->setUnitDragActive(true);
             std::cout << "[UnitInteraction] Picked up index " << idx
                       << (draggingFromBench ? " from bench\n" : " from board\n");
             dragStartPos = draggingFromBench
@@ -196,69 +282,89 @@ void UnitInteractionSystem::onMouseButtonDown(int x, int y) {
     } else {
         // DROP
         const bool boardLocked = gameWorld ? gameWorld->isBoardInteractionLocked() : false;
-        glm::vec3 snap = worldPos;
+        const bool canSell = gameWorld && !gameWorld->getClassicShopCards().empty();
+        const bool toSell = canSell && isInSellDropZoneScreen(x, y);
         bool toBench = isInBenchZone(worldPos);
         bool toBoard = isInBoardZone(worldPos);
+        bool completeDrop = false;
 
-        if (toBench) {
-            snap = benchSystem.getSnappedBenchPosition(worldPos);
-        } else if (toBoard) {
-            float boardOriginX = -((8 * cellSize) / 2.0f) + cellSize * 0.5f;
-            float boardOriginZ = cellSize * 0.5f;
+        if (toSell) {
+            auto sellUnit = [&](const PokemonInstance& unit) {
+                const int sellValue = gameWorld->getSellValueForSpecies(unit.name);
+                gameWorld->addMoney(sellValue);
+                if (auto* logger = gameWorld->getLogger()) {
+                    logger->economyInfo("Earned +" + std::to_string(sellValue) + "g. Gold: " +
+                                        std::to_string(gameWorld->getMoney()) + "g.");
+                }
+                std::cout << "[UnitInteraction] Sold " << unit.name << " for " << sellValue << "g\n";
+            };
 
-            int col = static_cast<int>(std::round((worldPos.x - boardOriginX) / cellSize));
-            int row = static_cast<int>(std::round((worldPos.z - boardOriginZ) / cellSize));
-
-            col = glm::clamp(col, 0, 7);
-            row = glm::clamp(row, 0, 3);
-
-            snap.x = boardOriginX + col * cellSize;
-            snap.z = boardOriginZ + row * cellSize;
-            snap.y = 0.0f;
-        }
-
-        if (toBench && !draggingFromBench) {
-            if (boardLocked) {
-                gameWorld->getPokemons()[draggedIndex].position = dragStartPos;
-            } else {
-                if (isBenchSlotOccupied(snap, -1)) {
-                    gameWorld->getPokemons()[draggedIndex].position = dragStartPos;
-                } else {
-                    auto& board = gameWorld->getPokemons();
-                    auto unit = board[draggedIndex];
+            if (draggingFromBench) {
+                auto& bench = gameWorld->getBenchPokemons();
+                if (draggedIndex >= 0 && draggedIndex < static_cast<int>(bench.size())) {
+                    PokemonInstance unit = bench[draggedIndex];
+                    bench.erase(bench.begin() + draggedIndex);
+                    sellUnit(unit);
+                    completeDrop = true;
+                }
+            } else if (!boardLocked) {
+                auto& board = gameWorld->getPokemons();
+                if (draggedIndex >= 0 && draggedIndex < static_cast<int>(board.size())) {
+                    PokemonInstance unit = board[draggedIndex];
                     board.erase(board.begin() + draggedIndex);
-                    unit.position = snap;
-                    gameWorld->getBenchPokemons().push_back(unit);
-                    std::cout << "[UnitInteraction] Moved to bench\n";
+                    sellUnit(unit);
+                    completeDrop = true;
                 }
             }
-        } else if (toBoard && draggingFromBench) {
-            if (boardLocked) {
-                gameWorld->getBenchPokemons()[draggedIndex].position = dragStartPos;
-            } else {
-                if (isBoardCellOccupied(snap, -1)) {
-                    gameWorld->getBenchPokemons()[draggedIndex].position = dragStartPos;
-                } else {
+        } else if (draggingFromBench) {
+            if (toBoard && !boardLocked) {
+                glm::vec3 snap{};
+                if (findNearestAvailableBoardCell(worldPos, -1, snap)) {
                     auto& bench = gameWorld->getBenchPokemons();
                     auto unit = bench[draggedIndex];
                     bench.erase(bench.begin() + draggedIndex);
                     unit.position = snap;
                     gameWorld->getPokemons().push_back(unit);
                     std::cout << "[UnitInteraction] Moved to board\n";
+                    completeDrop = true;
                 }
             }
-        } else if (!toBench && !toBoard) {
-            if (draggingFromBench) {
-                gameWorld->getBenchPokemons()[draggedIndex].position = dragStartPos;
-            } else {
-                gameWorld->getPokemons()[draggedIndex].position = dragStartPos;
+            if (!completeDrop && toBench) {
+                glm::vec3 snap{};
+                if (findNearestAvailableBenchSlot(worldPos, draggedIndex, snap)) {
+                    gameWorld->getBenchPokemons()[draggedIndex].position = snap;
+                    completeDrop = true;
+                }
+            }
+        } else {
+            if (toBench && !boardLocked) {
+                glm::vec3 snap{};
+                if (findNearestAvailableBenchSlot(worldPos, -1, snap)) {
+                    auto& board = gameWorld->getPokemons();
+                    auto unit = board[draggedIndex];
+                    board.erase(board.begin() + draggedIndex);
+                    unit.position = snap;
+                    gameWorld->getBenchPokemons().push_back(unit);
+                    std::cout << "[UnitInteraction] Moved to bench\n";
+                    completeDrop = true;
+                }
+            }
+            if (!completeDrop && toBoard && !boardLocked) {
+                glm::vec3 snap{};
+                if (findNearestAvailableBoardCell(worldPos, draggedIndex, snap)) {
+                    gameWorld->getPokemons()[draggedIndex].position = snap;
+                    completeDrop = true;
+                }
             }
         }
 
-        // reset drag
-        draggingUnit = false;
-        draggedIndex = -1;
-        draggingFromBench = false;
+        if (completeDrop) {
+            draggingUnit = false;
+            draggedIndex = -1;
+            draggingFromBench = false;
+            gameWorld->setUnitDragActive(false);
+            gameWorld->blockUiClicks(1);
+        }
     }
 }
 
@@ -267,40 +373,16 @@ void UnitInteractionSystem::onMouseMotion(int x, int y) {
         if (!gameWorld) return;
         const bool boardLocked = gameWorld->isBoardInteractionLocked();
         glm::vec3 rawPos = screenToWorld(x, y);
-        glm::vec3 snappedPos = rawPos;
+        rawPos.y = 0.0f;
 
         if (boardLocked && !draggingFromBench) {
             return;
         }
 
-        if (isInBenchZone(rawPos)) {
-            snappedPos = benchSystem.getSnappedBenchPosition(rawPos);
-            int ignore = draggingFromBench ? draggedIndex : -1;
-            if (isBenchSlotOccupied(snappedPos, ignore)) return;
-        } else if (!boardLocked) {
-            float boardOriginX = -((8 * cellSize) / 2.0f) + cellSize * 0.5f;
-            float boardOriginZ = cellSize * 0.5f;
-
-            int col = static_cast<int>(std::round((rawPos.x - boardOriginX) / cellSize));
-            int row = static_cast<int>(std::round((rawPos.z - boardOriginZ) / cellSize));
-
-            col = glm::clamp(col, 0, 7);
-            row = glm::clamp(row, 0, 3);
-
-            snappedPos.x = boardOriginX + col * cellSize;
-            snappedPos.z = boardOriginZ + row * cellSize;
-            snappedPos.y = 0.0f;
-
-            int ignore = draggingFromBench ? -1 : draggedIndex;
-            if (isBoardCellOccupied(snappedPos, ignore)) return;
-        } else {
-            return;
-        }
-
         if (draggingFromBench) {
-            gameWorld->getBenchPokemons()[draggedIndex].position = snappedPos;
+            gameWorld->getBenchPokemons()[draggedIndex].position = rawPos;
         } else {
-            gameWorld->getPokemons()[draggedIndex].position = snappedPos;
+            gameWorld->getPokemons()[draggedIndex].position = rawPos;
         }
     }
 }

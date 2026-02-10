@@ -163,7 +163,9 @@ void HealthBarRenderer::render(const std::vector<HealthBarData>& healthBars) {
 
         if (levelText) {
             const std::string lvl = std::to_string(std::max(1, hb.level));
-            const float textScale = (ringInner * 1.35f) / std::max(1.0f, static_cast<float>(levelFontSize));
+            const float textScale = std::clamp(
+                (ringInner * 1.55f) / std::max(1.0f, static_cast<float>(levelFontSize)),
+                0.72f, 1.05f);
             const float w = levelText->measureTextWidth(lvl, textScale);
             const float h = static_cast<float>(levelFontSize) * textScale;
             const float tx = levelCenter.x - w * 0.5f;

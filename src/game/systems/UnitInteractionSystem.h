@@ -25,8 +25,12 @@ public:
 
 private:
     glm::vec3 screenToWorld(int mouseX, int mouseY) const;
+    glm::vec3 snapBoardPosition(const glm::vec3& worldPos) const;
+    bool findNearestAvailableBoardCell(const glm::vec3& worldPos, int ignoreIndex, glm::vec3& outPos) const;
+    bool findNearestAvailableBenchSlot(const glm::vec3& worldPos, int ignoreIndex, glm::vec3& outPos) const;
     bool isInBenchZone(const glm::vec3& pos) const;
     bool isInBoardZone(const glm::vec3& pos) const;
+    bool isInSellDropZoneScreen(int mouseX, int mouseY) const;
     bool isBoardCellOccupied(const glm::vec3& pos, int ignoreIndex) const;
     bool isBenchSlotOccupied(const glm::vec3& pos, int ignoreIndex) const;
     bool isSameCell(const glm::vec3& a, const glm::vec3& b, float eps = 0.01f) const;

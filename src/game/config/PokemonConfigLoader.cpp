@@ -41,6 +41,7 @@ bool PokemonConfigLoader::loadConfig(const std::string& filePath,
         stats.model         = data.value("model", name + ".glb");
         stats.baseExp       = data.value("baseExp", stats.baseExp);
         stats.catchRate     = data.value("catchRate", stats.catchRate);
+        stats.shopBaseCost  = std::max(1, data.value("shopBaseCost", stats.shopBaseCost));
 
         if (data.contains("types")) {
             const auto& t = data["types"];

@@ -3,6 +3,7 @@
 #include <memory>
 #include <string>
 #include <vector>
+#include <optional>
 
 #include "game/GameState.h"
 #include "game/GameWorld.h"
@@ -74,6 +75,19 @@ private:
         float y = 0.0f;
         float w = 0.0f;
         float h = 0.0f;
+        float scale = 1.0f;
+        bool enabled = true;
+        bool bold = false;
+        bool underline = false;
+        bool hasCustomX = false;
+        bool hasCustomY = false;
+        float xFrac = 0.5f;
+        float yFrac = 0.5f;
+        bool anchorCenter = true;
+        bool hasColor = false;
+        float colorR = 1.0f;
+        float colorG = 1.0f;
+        float colorB = 1.0f;
     };
     std::vector<TextMenuEntry> textMenuEntries;
     bool hasShopReadyButton = false;
@@ -81,4 +95,9 @@ private:
     float shopReadyY = 0.0f;
     float shopReadyW = 0.0f;
     float shopReadyH = 0.0f;
+    bool hasShopRerollButton = false;
+    float shopRerollX = 0.0f;
+    float shopRerollY = 0.0f;
+    float shopRerollW = 0.0f;
+    float shopRerollH = 0.0f;
 };

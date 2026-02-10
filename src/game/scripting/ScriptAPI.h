@@ -54,6 +54,15 @@ public:
     };
     ClassicIncomeResult awardClassicRoundIncome(bool playerWon);
 
+    struct ClassicShopCardSnapshot {
+        std::string name;
+        int level = 1;
+        int cost = 0;
+    };
+    std::vector<ClassicShopCardSnapshot> getClassicShopCards() const;
+    void setClassicShopCards(const std::vector<ClassicShopCardSnapshot>& cards);
+    void clearClassicShopCards();
+
     struct UnitSnapshot {
         int id = -1;
         std::string name;
@@ -124,6 +133,7 @@ public:
     // ---- Command surface (queued unless noted) ----
     void emit(const std::string& tagOrMsg, const std::optional<std::string>& payload);
     void emitCatch(const std::string& msg);
+    void emitGold(const std::string& msg);
     void spawnPokemon(const std::string& name, float x, float y, float z);
     void spawnOnGrid(const std::string& name, int col, int row, PokemonSide side, int level);
     void pushState(const std::string& scriptPath);

@@ -6,8 +6,8 @@
 #include <cmath>
 
 Camera3D::Camera3D(float fovDeg, float aspect, float nearPlane, float farPlane)
-    : position(0.0f, 15.0f, 15.0f),    // Higher Y, back Z
-      target(0.0f, 0.0f, 0.0f),
+    : position(0.0f, 14.5f, 15.0f),    // Slightly lower default to lift board in frame
+      target(0.0f, -1.0f, 0.0f),
       upVector(0.0f, 1.0f, 0.0f),
       fov(glm::radians(fovDeg)),
       aspectRatio(aspect),

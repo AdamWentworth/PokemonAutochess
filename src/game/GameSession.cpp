@@ -89,6 +89,7 @@ struct GameSession::Impl {
     std::unique_ptr<BoardRenderer>    board;
     std::unique_ptr<BattleFeed>       battleFeed;
     std::unique_ptr<BattleFeed>       catchFeed;
+    std::unique_ptr<BattleFeed>       economyFeed;
     ItemInventoryUI                  itemInventoryUI;
 
     HealthBarRenderer healthBarRenderer;
@@ -210,23 +211,33 @@ struct GameSession::Impl {
             } else {
                 healthBarRenderer.init();
             }
-            const int levelFontSize = std::max(12, config.fontSize / 3);
+            const int levelFontSize = std::max(20, config.fontSize / 2);
             healthBarRenderer.setFont(config.fontPath, levelFontSize,
                                       ctx.services ? ctx.services->shaders : nullptr);
 
             // Battle feed + logger (instance-based)
             battleFeed = std::make_unique<BattleFeed>(config.fontPath, config.fontSize);
+            battleFeed->setAlignRight(true);
             log.attach(battleFeed.get());
             log.setEchoToStdout(true);
 
             // Catch feed (right side)
             catchFeed = std::make_unique<BattleFeed>(config.fontPath, config.fontSize);
-            catchFeed->setAlignRight(true);
+            catchFeed->setAlignRight(false);
             catchFeed->setWrapWidth(320.f);
-            catchFeed->setMaxLines(6);
-            catchFeed->setBaseScale(0.6f);
+            catchFeed->setMaxLines(5);
+            catchFeed->setBaseScale(0.46f);
             catchFeed->setPadding(16.f, 16.f);
             log.attachCatchFeed(catchFeed.get());
+
+            // Classic economy feed (bottom-right, mode-specific)
+            economyFeed = std::make_unique<BattleFeed>(config.fontPath, config.fontSize);
+            economyFeed->setAlignRight(false);
+            economyFeed->setWrapWidth(320.f);
+            economyFeed->setMaxLines(4);
+            economyFeed->setBaseScale(0.44f);
+            economyFeed->setPadding(16.f, 16.f);
+            log.attachEconomyFeed(economyFeed.get());
 
             itemInventoryUI.init(config.fontPath, config.fontSize);
         }
@@ -254,6 +265,11 @@ struct GameSession::Impl {
             ), Phase::PostUpdate);
         }
         if (auto* feed = catchFeed.get()) {
+            scheduler.add(std::make_unique<game::CallbackSystemAdapter>(
+                [feed](float dt) { feed->update(dt); }
+            ), Phase::PostUpdate);
+        }
+        if (auto* feed = economyFeed.get()) {
             scheduler.add(std::make_unique<game::CallbackSystemAdapter>(
                 [feed](float dt) { feed->update(dt); }
             ), Phase::PostUpdate);
@@ -375,18 +391,33 @@ struct GameSession::Impl {
             itemInventoryUI.render(drawableW, drawableH);
 
             if (shopSystem) shopSystem->renderUI(drawableW, drawableH);
+            const float cornerX = std::round(std::max(10.0f, static_cast<float>(drawableW) * 0.012f));
+            const float cornerY = std::round(std::max(10.0f, static_cast<float>(drawableH) * 0.020f));
+
             if (battleFeed) {
-                const float wrap = std::max(220.0f, std::min(640.0f, static_cast<float>(drawableW) * 0.42f));
+                const float wrap = std::max(240.0f, std::min(640.0f, static_cast<float>(drawableW) * 0.42f));
                 battleFeed->setWrapWidth(wrap);
-                battleFeed->setPadding(16.0f, 16.0f);
+                battleFeed->setBaseScale(0.46f);
+                battleFeed->setPadding(cornerX, cornerY);
             }
             if (catchFeed) {
-                const float wrap = std::max(180.0f, std::min(420.0f, static_cast<float>(drawableW) * 0.30f));
+                const float wrap = std::max(200.0f, std::min(420.0f, static_cast<float>(drawableW) * 0.30f));
                 catchFeed->setWrapWidth(wrap);
-                catchFeed->setPadding(16.0f, 16.0f);
+                catchFeed->setBaseScale(0.44f);
+                catchFeed->setPadding(cornerX, cornerY);
+            }
+            if (economyFeed) {
+                const float wrap = std::max(220.0f, std::min(380.0f, static_cast<float>(drawableW) * 0.28f));
+                economyFeed->setWrapWidth(wrap);
+                economyFeed->setBaseScale(0.42f);
+                economyFeed->setPadding(cornerX, cornerY);
             }
             if (battleFeed) battleFeed->render(drawableW, drawableH);
-            if (catchFeed) catchFeed->render(drawableW, drawableH);
+            if (services && services->gameMode == "classic") {
+                if (economyFeed) economyFeed->render(drawableW, drawableH);
+            } else {
+                if (catchFeed) catchFeed->render(drawableW, drawableH);
+            }
         }
     }
 
@@ -395,6 +426,7 @@ struct GameSession::Impl {
 
         log.attach(nullptr);
         log.attachCatchFeed(nullptr);
+        log.attachEconomyFeed(nullptr);
 
         if (board) {
             board->shutdown();
@@ -407,6 +439,7 @@ struct GameSession::Impl {
 
         battleFeed.reset();
         catchFeed.reset();
+        economyFeed.reset();
         shopSystem = nullptr;
         unitSystem.reset();
         cameraSystem.reset();

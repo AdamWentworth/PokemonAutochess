@@ -111,5 +111,60 @@ bool test_battle_invariants(std::string& outFail) {
         return false;
     }
 
+    // XP from enemy faint should be split across alive allied board units.
+    list.clear();
+
+    PokemonInstance allyA;
+    allyA.id = 11;
+    allyA.name = "ally_a";
+    allyA.side = PokemonSide::Player;
+    allyA.alive = true;
+    allyA.level = 10;
+    allyA.hp = 100;
+    allyA.maxHP = 100;
+    allyA.xp = 0;
+
+    PokemonInstance allyB;
+    allyB.id = 12;
+    allyB.name = "ally_b";
+    allyB.side = PokemonSide::Player;
+    allyB.alive = true;
+    allyB.level = 10;
+    allyB.hp = 100;
+    allyB.maxHP = 100;
+    allyB.xp = 0;
+
+    PokemonInstance enemy;
+    enemy.id = 13;
+    enemy.name = "enemy";
+    enemy.side = PokemonSide::Enemy;
+    enemy.alive = true;
+    enemy.level = 3;
+    enemy.baseExp = 70; // floor(70 * 3 / 7) = 30 total XP to split
+    enemy.hp = 1;
+    enemy.maxHP = 1;
+
+    list.push_back(allyA);
+    list.push_back(allyB);
+    list.push_back(enemy);
+
+    PokemonInstance* dead = world.findUnitById(13);
+    if (!dead) {
+        outFail = "Enemy not found for XP split test";
+        return false;
+    }
+    world.handleUnitFaint(*dead);
+
+    PokemonInstance* a = world.findUnitById(11);
+    PokemonInstance* b = world.findUnitById(12);
+    if (!a || !b) {
+        outFail = "Allies missing after XP split test";
+        return false;
+    }
+    if (a->xp != 15 || b->xp != 15) {
+        outFail = "Enemy faint XP should split evenly among surviving allies";
+        return false;
+    }
+
     return true;
 }

@@ -46,6 +46,9 @@ void registerLuaBindings_Core(sol::state& lua, ScriptAPI& api) {
     lua.set_function("emit_catch", [&api](const std::string& msg) {
         api.emitCatch(msg);
     });
+    lua.set_function("emit_gold", [&api](const std::string& msg) {
+        api.emitGold(msg);
+    });
 
     // ---- Engine-safe spawners ----
     lua.set_function("spawnPokemon", [&api](std::string name, float x, float y, float z) {
@@ -64,9 +67,10 @@ void registerLuaBindings_Core(sol::state& lua, ScriptAPI& api) {
     // Deprecated: legacy shim kept so existing scripts don't crash.
     // Round phase changes are handled directly in C++ (GameApp / RoundSystem).
     lua.set_function("emit_round_phase_changed",
-        [logger](const std::string& prev, const std::string& next) {
-            (void)prev; (void)next;
-            game::log::warn(logger, "emit_round_phase_changed() is deprecated and currently a no-op");
+        [](const std::string& prev, const std::string& next) {
+            (void)prev;
+            (void)next;
+            // Intentionally a silent no-op. Phase transitions are handled in C++.
         }
     );
 
@@ -159,6 +163,36 @@ void registerLuaBindings_Core(sol::state& lua, ScriptAPI& api) {
         t["round"] = r.roundIndex;
         t["won"] = r.won;
         return t;
+    });
+    lua.set_function("classic_shop_get_cards", [&api, &lua]() {
+        sol::state_view L(lua);
+        sol::table arr = L.create_table();
+        const auto cards = api.getClassicShopCards();
+        int i = 1;
+        for (const auto& c : cards) {
+            sol::table row = L.create_table();
+            row["name"] = c.name;
+            row["level"] = c.level;
+            row["cost"] = c.cost;
+            arr[i++] = row;
+        }
+        return arr;
+    });
+    lua.set_function("classic_shop_set_cards", [&api](sol::table rows) {
+        std::vector<ScriptAPI::ClassicShopCardSnapshot> cards;
+        for (auto&& kv : rows) {
+            if (kv.second.get_type() != sol::type::table) continue;
+            sol::table row = kv.second.as<sol::table>();
+            ScriptAPI::ClassicShopCardSnapshot c;
+            c.name = row.get_or("name", std::string());
+            c.level = row.get_or("level", 1);
+            c.cost = row.get_or("cost", 0);
+            if (!c.name.empty()) cards.push_back(std::move(c));
+        }
+        api.setClassicShopCards(cards);
+    });
+    lua.set_function("classic_shop_clear_cards", [&api]() {
+        api.clearClassicShopCards();
     });
 
     // =================================================================

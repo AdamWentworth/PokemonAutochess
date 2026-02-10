@@ -177,8 +177,11 @@ bool test_script_api_contract(std::string& outFail) {
 
     // Emit + drain events should return a payload.
     sol::function emitFn = lua["emit"];
+    sol::function emitGoldFn = lua["emit_gold"];
     if (!expect(emitFn.valid(), "emit binding missing.", outFail)) return false;
+    if (!expect(emitGoldFn.valid(), "emit_gold binding missing.", outFail)) return false;
     emitFn("test_event", "payload");
+    emitGoldFn("Classic economy test line");
     api.flush();
     sol::function drainFn = lua["events_drain"];
     if (!expect(drainFn.valid(), "events_drain binding missing.", outFail)) return false;

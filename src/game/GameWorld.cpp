@@ -160,22 +160,34 @@ void GameWorld::addXp(PokemonInstance& unit, int amount) {
 }
 
 void GameWorld::awardXpForFaint(const PokemonInstance& dead) {
-    const int perFaint = xpFromFaint(dead);
-    if (perFaint <= 0) return;
-
     if (dead.side != PokemonSide::Enemy) return;
 
-    bool anyOppAlive = false;
-    for (const auto& u : pokemons) {
-        if (!u.alive) continue;
-        if (u.side == PokemonSide::Player) { anyOppAlive = true; break; }
-    }
-    if (!anyOppAlive) return;
+    const int totalXp = xpFromFaint(dead);
+    if (totalXp <= 0) return;
 
+    std::vector<PokemonInstance*> recipients;
+    recipients.reserve(pokemons.size());
     for (auto& u : pokemons) {
         if (!u.alive) continue;
         if (u.side != PokemonSide::Player) continue;
-        addXp(u, perFaint);
+        recipients.push_back(&u);
+    }
+    if (recipients.empty()) return;
+
+    std::sort(recipients.begin(), recipients.end(),
+              [](const PokemonInstance* a, const PokemonInstance* b) {
+                  return a->id < b->id;
+              });
+
+    const int split = totalXp / static_cast<int>(recipients.size());
+    int rem = totalXp % static_cast<int>(recipients.size());
+    for (auto* u : recipients) {
+        int grant = split;
+        if (rem > 0) {
+            grant += 1;
+            --rem;
+        }
+        addXp(*u, grant);
     }
 }
 
@@ -230,8 +242,33 @@ void GameWorld::handleUnitFaint(PokemonInstance& target) {
 void GameWorld::healPlayerUnitsToFull() {
     auto healList = [&](std::vector<PokemonInstance>& list) {
         for (auto& u : list) {
-            if (!u.alive) continue;
             if (u.side != PokemonSide::Player) continue;
+
+            // Between rounds, allied units are restored and ready again.
+            u.alive = true;
+            u.fainting = false;
+            u.faintTimerSec = 0.0f;
+            u.fadeOutTimerSec = 0.0f;
+            u.visualScale = 1.0f;
+            u.captureInProgress = false;
+            u.captureScale = 1.0f;
+            u.captureTintStrength = 0.0f;
+
+            u.isMoving = false;
+            u.moveT = 1.0f;
+            u.attackTimerSec = 0.0f;
+            u.pendingDamageActive = false;
+            u.pendingDamageApplied = false;
+            u.pendingProjectileActive = false;
+            u.pendingProjectileSpawned = false;
+            u.pendingImpactActive = false;
+            u.pendingImpactApplied = false;
+
+            u.leechSeeded = false;
+            u.leechSeedSourceId = -1;
+            u.leechSeedTimeLeftSec = 0.0f;
+            u.leechSeedTickTimerSec = 0.0f;
+
             u.hp = u.maxHP;
         }
     };
@@ -246,6 +283,7 @@ void GameWorld::resetForNewGame(int startingMoney) {
     battleStartPositions.clear();
     captureAttempts.clear();
     pendingLeechHeals.clear();
+    classicShopCards.clear();
 
     selectedItemId.clear();
     items.clear();
@@ -257,6 +295,8 @@ void GameWorld::resetForNewGame(int startingMoney) {
     classicRoundsCompleted = 0;
 
     boardInteractionLocked = false;
+    unitDragActive = false;
+    uiClickBlockFrames = 0;
     resetCombatBalance();
 
     sharedLoopAnimTimeSec = 0.0f;
@@ -311,6 +351,29 @@ bool GameWorld::spendMoney(int amount) {
     if (money < amount) return false;
     money -= amount;
     return true;
+}
+
+int GameWorld::getSellValueForSpecies(const std::string& pokemonName) const {
+    if (!data) return 1;
+    const PokemonStats* stats = data->pokemon.getStats(pokemonName);
+    if (!stats) return 1;
+    return std::max(1, stats->shopBaseCost);
+}
+
+void GameWorld::setClassicShopCards(const std::vector<ClassicShopCard>& cards) {
+    classicShopCards.clear();
+    classicShopCards.reserve(cards.size());
+    for (const auto& c : cards) {
+        if (c.name.empty()) continue;
+        ClassicShopCard out = c;
+        out.level = std::max(1, out.level);
+        out.cost = std::max(0, out.cost);
+        classicShopCards.push_back(std::move(out));
+    }
+}
+
+void GameWorld::clearClassicShopCards() {
+    classicShopCards.clear();
 }
 
 int GameWorld::getItemCount(const std::string& item) const {
