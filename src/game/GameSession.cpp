@@ -35,6 +35,7 @@
 #include "game/GameUpdateGraph.h"
 #include "game/ui/UIViewport.h"
 #include "game/ui/ItemInventoryUI.h"
+#include "game/ui/ShopLayout.h"
 
 #include "game/config/GameDataDb.h"
 #include "game/assets/DevAssetStore.h"
@@ -397,16 +398,10 @@ struct GameSession::Impl {
             const float minDim = static_cast<float>(std::min(drawableW, drawableH));
             const bool classicMode = services && services->gameMode == "classic";
             const auto computeClassicShopTopY = [&]() -> float {
-                const float scale = std::clamp(
-                    std::min(static_cast<float>(drawableW) / 1280.0f,
-                             static_cast<float>(drawableH) / 720.0f),
-                    0.60f, 1.80f);
-                const int cardH = std::max(56, static_cast<int>(std::round(94.0f * scale)));
-                const int edgeMargin = std::clamp(
-                    static_cast<int>(std::round(minDim * 0.024f)),
-                    10, 36);
-                const int y = std::max(0, drawableH - cardH - edgeMargin);
-                return static_cast<float>(y);
+                const game::ui::ShopRowLayout layout = game::ui::computeShopRowLayout(drawableW, drawableH, false);
+                const game::ui::ShopRowPlacement place =
+                    game::ui::computeShopRowPlacement(drawableW, drawableH, 0, layout);
+                return static_cast<float>(place.y);
             };
             const float classicShopTopY = computeClassicShopTopY();
 

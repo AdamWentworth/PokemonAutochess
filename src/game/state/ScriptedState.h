@@ -10,6 +10,7 @@
 #include "game/GameServices.h"
 #include "game/scripting/LuaScript.h"
 #include "game/systems/CardSystem.h"
+#include "game/ui/ShopUiFacade.h"
 #include "engine/ui/TextRenderer.h"
 
 class GameStateManager;
@@ -35,10 +36,7 @@ private:
     void ensureCardUI();
     void rebuildCardRow();
     void rebuildTextMenu();
-    void ensureCurrencyHudResources();
-    void releaseCurrencyHudResources();
-    void drawCurrencyHud(int uiW, int uiH);
-    unsigned int loadCurrencyTexture(const std::string& path) const;
+    void drawShopHud(int uiW, int uiH);
 
 private:
     GameStateManager* stateManager = nullptr;
@@ -58,16 +56,7 @@ private:
     bool hasTextMenu = false;
     bool renderWorld = true;
 
-    std::unique_ptr<TextRenderer> currencyText;
-    std::string currencyIconPath;
-    unsigned int currencyIconTexture = 0;
-    unsigned int currencyVAO = 0;
-    unsigned int currencyVBO = 0;
-    unsigned int currencyEBO = 0;
-    int shopCardsX = 0;
-    int shopCardsY = 0;
-    int shopCardsH = 0;
-    bool shopCardsValid = false;
+    std::unique_ptr<game::ui::ShopUiFacade> shopUi;
 
     struct TextMenuEntry {
         std::string id;
@@ -97,8 +86,4 @@ private:
     float shopReadyW = 0.0f;
     float shopReadyH = 0.0f;
     bool hasShopRerollButton = false;
-    float shopRerollX = 0.0f;
-    float shopRerollY = 0.0f;
-    float shopRerollW = 0.0f;
-    float shopRerollH = 0.0f;
 };

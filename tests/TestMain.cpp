@@ -30,6 +30,10 @@ bool test_layering_engine_no_game_includes(std::string& outFail);
 bool test_state_manager_input_deferral(std::string& outFail);
 bool test_mode_split_flow(std::string& outFail);
 bool test_mode_split_menu_entries(std::string& outFail);
+bool test_shop_layout_invariants(std::string& outFail);
+bool test_lua_card_parser_contract(std::string& outFail);
+bool test_lua_text_menu_parser_contract(std::string& outFail);
+bool test_lua_script_helpers(std::string& outFail);
 
 struct TestCase {
     const char* name;
@@ -101,6 +105,10 @@ int main(int argc, char** argv) {
         {"state_manager_input_deferral", &test_state_manager_input_deferral},
         {"mode_split_flow", &test_mode_split_flow},
         {"mode_split_menu_entries", &test_mode_split_menu_entries},
+        {"shop_layout_invariants", &test_shop_layout_invariants},
+        {"lua_card_parser_contract", &test_lua_card_parser_contract},
+        {"lua_text_menu_parser_contract", &test_lua_text_menu_parser_contract},
+        {"lua_script_helpers", &test_lua_script_helpers},
     };
 
     if (listOnly) {

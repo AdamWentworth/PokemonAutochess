@@ -187,6 +187,10 @@ add_library(PAC_GameObjects STATIC
     # Game UI
     src/game/ui/HealthBarQuery.cpp
     src/game/ui/ItemInventoryUI.cpp
+    src/game/ui/ShopLayout.cpp
+    src/game/ui/ClassicShopHud.cpp
+    src/game/ui/ShopUiFacade.cpp
+    src/game/ui/AdventureHud.cpp
 
     # Game VFX
     src/game/vfx/TailFireVFX.cpp
@@ -207,6 +211,9 @@ add_library(PAC_GameObjects STATIC
     src/game/scripting/LuaBindings_World.cpp
     src/game/scripting/LuaBindings_UnitMove.cpp
     src/game/scripting/LuaBindings_Util.cpp
+    src/game/scripting/LuaCardParser.cpp
+    src/game/scripting/LuaScriptHelpers.cpp
+    src/game/scripting/LuaTextMenuParser.cpp
     src/game/scripting/LuaScript.cpp
     src/game/scripting/ScriptAPI.cpp
     src/game/scripting/ScriptEventBus.cpp
@@ -274,6 +281,10 @@ if (BUILD_TESTING)
         tests/TestLayering.cpp
         tests/TestStateManager.cpp
         tests/TestModeSplit.cpp
+        tests/TestShopLayout.cpp
+        tests/TestLuaCardParser.cpp
+        tests/TestLuaTextMenuParser.cpp
+        tests/TestLuaScriptHelpers.cpp
     )
 
     target_link_libraries(PAC_Tests
@@ -326,6 +337,10 @@ if (BUILD_TESTING)
         state_manager_input_deferral
         mode_split_flow
         mode_split_menu_entries
+        shop_layout_invariants
+        lua_card_parser_contract
+        lua_text_menu_parser_contract
+        lua_script_helpers
     )
 
     foreach(test_name IN LISTS PAC_TEST_NAMES)
