@@ -393,6 +393,76 @@ void Model::drawAnimated(const Camera3D& camera,
     glBindVertexArray(0);
 }
 
+void Model::drawGeometryWithBoundShader(const Camera3D& camera,
+                                        const glm::mat4& instanceTransform,
+                                        int locMVP,
+                                        float animTimeSec,
+                                        int animIndex) const
+{
+    if (VAO == 0 || locMVP < 0) return;
+
+    std::vector<NodeTRS> locals;
+    std::vector<glm::mat4> globals;
+    buildPoseMatrices(animTimeSec, animIndex, locals, globals);
+
+    const glm::mat4 vp = camera.getProjectionMatrix() * camera.getViewMatrix();
+
+    glBindVertexArray(VAO);
+
+    bool hasNodeMesh = false;
+
+    auto drawMeshAtNode = [&](int nodeIdx, const glm::mat4& nodeGlobal) {
+        if (nodeIdx < 0 || nodeIdx >= (int)nodeMesh.size()) return;
+        const int meshIdx = nodeMesh[(size_t)nodeIdx];
+        if (meshIdx < 0) return;
+
+        hasNodeMesh = true;
+
+        const glm::mat4 mvp = vp * instanceTransform * nodeGlobal;
+        glUniformMatrix4fv(locMVP, 1, GL_FALSE, glm::value_ptr(mvp));
+
+        for (const auto& sm : submeshes) {
+            if (sm.meshIndex != meshIdx) continue;
+            glDrawElements(GL_TRIANGLES,
+                           (GLsizei)sm.indexCount,
+                           GL_UNSIGNED_INT,
+                           (void*)(sm.indexOffset * sizeof(uint32_t)));
+        }
+    };
+
+    std::function<void(int, const glm::mat4&)> dfsDraw = [&](int node, const glm::mat4& parentM) {
+        if (node < 0 || node >= (int)locals.size()) return;
+
+        const glm::mat4 localM = trsToMat4(locals[(size_t)node]);
+        const glm::mat4 globalM = parentM * localM;
+
+        drawMeshAtNode(node, globalM);
+
+        if (node < (int)nodeChildren.size()) {
+            for (int c : nodeChildren[(size_t)node]) dfsDraw(c, globalM);
+        }
+    };
+
+    if (sceneRoots.empty()) {
+        dfsDraw(0, glm::mat4(1.0f));
+    } else {
+        for (int r : sceneRoots) dfsDraw(r, glm::mat4(1.0f));
+    }
+
+    if (!hasNodeMesh) {
+        const glm::mat4 mvp = vp * instanceTransform;
+        glUniformMatrix4fv(locMVP, 1, GL_FALSE, glm::value_ptr(mvp));
+        for (const auto& sm : submeshes) {
+            glDrawElements(GL_TRIANGLES,
+                           (GLsizei)sm.indexCount,
+                           GL_UNSIGNED_INT,
+                           (void*)(sm.indexOffset * sizeof(uint32_t)));
+        }
+    }
+
+    glBindVertexArray(0);
+}
+
 bool Model::getNodeGlobalTransformByIndex(float animTimeSec,
                                          int animIndex,
                                          int nodeIndex,

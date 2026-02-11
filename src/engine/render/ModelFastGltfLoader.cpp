@@ -913,6 +913,10 @@ struct FG {
             }
 
             auto itPos = p.findAttribute("POSITION");
+            if (itPos == p.attributes.end()) {
+                std::cerr << "[fastgltf] Missing POSITION in primitive\n";
+                continue;
+            }
 
             // Determine which UV set this primitive *wants* based on the material texCoord indices.
             // Compatibility-safe behavior:
@@ -934,18 +938,18 @@ struct FG {
                 itUv = p.findAttribute("TEXCOORD_0");
             }
 
-            if (itPos == p.attributes.end() || itUv == p.attributes.end()) {
-                std::cerr << "[fastgltf] Missing POSITION or TEXCOORD_0 in primitive\n";
-                continue;
+            const bool hasUv = (itUv != p.attributes.end());
+            if (!hasUv) {
+                std::cerr << "[fastgltf] Missing TEXCOORD_0 in primitive; generating planar UVs from POSITION.\n";
             }
 
             const size_t posAcc = itPos->accessorIndex;
-            const size_t uvAcc  = itUv->accessorIndex;
+            const size_t uvAcc  = hasUv ? itUv->accessorIndex : 0;
 
             std::vector<glm::vec3> pos;
             std::vector<glm::vec2> uv;
             pos.reserve(asset.accessors[posAcc].count);
-            uv.reserve(asset.accessors[uvAcc].count);
+            uv.reserve(hasUv ? asset.accessors[uvAcc].count : asset.accessors[posAcc].count);
 
             fastgltf::iterateAccessorWithIndex<glm::vec3>(
                 asset, asset.accessors[posAcc],
@@ -953,11 +957,45 @@ struct FG {
                 adapter
             );
 
-            fastgltf::iterateAccessorWithIndex<glm::vec2>(
-                asset, asset.accessors[uvAcc],
-                [&](glm::vec2 v, size_t) { uv.push_back(v); },
-                adapter
-            );
+            if (hasUv) {
+                fastgltf::iterateAccessorWithIndex<glm::vec2>(
+                    asset, asset.accessors[uvAcc],
+                    [&](glm::vec2 v, size_t) { uv.push_back(v); },
+                    adapter
+                );
+            } else {
+                // Fallback UVs from projected position when TEXCOORD is missing.
+                // Pick the two widest axes to avoid collapse on flat dimensions.
+                glm::vec3 pMin( std::numeric_limits<float>::max());
+                glm::vec3 pMax(-std::numeric_limits<float>::max());
+                for (const auto& p3 : pos) {
+                    pMin.x = (std::min)(pMin.x, p3.x); pMin.y = (std::min)(pMin.y, p3.y); pMin.z = (std::min)(pMin.z, p3.z);
+                    pMax.x = (std::max)(pMax.x, p3.x); pMax.y = (std::max)(pMax.y, p3.y); pMax.z = (std::max)(pMax.z, p3.z);
+                }
+
+                const float r[3] = { pMax.x - pMin.x, pMax.y - pMin.y, pMax.z - pMin.z };
+                int a = 0;
+                if (r[1] > r[a]) a = 1;
+                if (r[2] > r[a]) a = 2;
+
+                int b = (a == 0) ? 1 : 0;
+                for (int i = 0; i < 3; ++i) {
+                    if (i == a) continue;
+                    if (r[i] > r[b]) b = i;
+                }
+
+                const float minA = (a == 0) ? pMin.x : ((a == 1) ? pMin.y : pMin.z);
+                const float minB = (b == 0) ? pMin.x : ((b == 1) ? pMin.y : pMin.z);
+                const float denA = std::max(1e-6f, (a == 0) ? r[0] : ((a == 1) ? r[1] : r[2]));
+                const float denB = std::max(1e-6f, (b == 0) ? r[0] : ((b == 1) ? r[1] : r[2]));
+
+                uv.reserve(pos.size());
+                for (const auto& p3 : pos) {
+                    const float ca = (a == 0) ? p3.x : ((a == 1) ? p3.y : p3.z);
+                    const float cb = (b == 0) ? p3.x : ((b == 1) ? p3.y : p3.z);
+                    uv.emplace_back((ca - minA) / denA, (cb - minB) / denB);
+                }
+            }
 
             // ---- COLOR_0 (vertex color) ----
             std::vector<glm::vec4> color;
@@ -1037,7 +1075,7 @@ struct FG {
             applyKHRTextureTransform(baseTI);
 
             if (pos.empty() || uv.empty() || pos.size() != uv.size()) {
-                std::cerr << "[fastgltf] Invalid POSITION/TEXCOORD_0 sizes\n";
+                std::cerr << "[fastgltf] Invalid POSITION/TEXCOORD sizes\n";
                 continue;
             }
 
