@@ -26,6 +26,14 @@ public:
             bool useAlphaMaskForColor = true;
             float scaleMul = 1.0f;
             float alphaMul = 1.0f;
+            float forwardOffset = 0.0f;
+            float radiusMul = 1.0f;
+            float thicknessMul = 1.0f;
+            bool overrideTev = false;
+            glm::vec3 tevC0 = glm::vec3(1.0f, 1.0f, 1.0f);
+            glm::vec3 tevC1 = glm::vec3(0.0f, 0.0f, 0.0f);
+            glm::vec3 tevK0 = glm::vec3(1.0f, 1.0f, 1.0f);
+            float tevK1A = 1.0f;
             bool enabled = true;
         };
 
@@ -64,20 +72,38 @@ public:
 
         // Optional manifest for pass routing by EID.
         std::string drawManifestPath = "config/vfx/moves/growl_draw_passes.json";
-        std::vector<DrawPass> drawPasses = {
-            DrawPass{},
-            DrawPass{
-                "growl_eid_1085",
-                1085,
-                "assets/meshes/growl_1085_mesh.glb",
-                "assets/textures/moves/growl/Texture3921.png",
-                glm::vec3(0.98f, 0.40f, 0.17f),
-                true,
-                1.04f,
-                0.90f,
-                true
-            }
-        };
+        std::vector<DrawPass> drawPasses = [] {
+            std::vector<DrawPass> passes;
+            passes.emplace_back();
+            passes[0].forwardOffset = 0.12f;
+
+            DrawPass p;
+            p.id = "growl_eid_1085";
+            p.eid = 1085;
+            p.meshPath = "assets/meshes/growl_1085_mesh.glb";
+            p.texturePath = "assets/textures/moves/growl/Texture3921.png";
+            p.tintColor = glm::vec3(0.98f, 0.40f, 0.17f);
+            p.useAlphaMaskForColor = true;
+            p.scaleMul = 1.04f;
+            p.alphaMul = 0.90f;
+            p.forwardOffset = 0.06f;
+            p.enabled = true;
+            passes.push_back(p);
+
+            DrawPass p2;
+            p2.id = "growl_eid_1092";
+            p2.eid = 1092;
+            p2.meshPath = "assets/meshes/growl_1092_mesh.glb";
+            p2.texturePath = "assets/textures/moves/growl/Texture3921.png";
+            p2.tintColor = glm::vec3(0.98f, 0.40f, 0.17f);
+            p2.useAlphaMaskForColor = true;
+            p2.scaleMul = 0.98f;
+            p2.alphaMul = 0.88f;
+            p2.forwardOffset = 0.00f;
+            p2.enabled = true;
+            passes.push_back(p2);
+            return passes;
+        }();
 
         bool depthTest = true;
         bool depthWrite = false;
@@ -107,6 +133,7 @@ private:
     struct RingInstance {
         glm::vec3 pos{0.0f};
         glm::vec3 vel{0.0f};
+        glm::vec3 forward{0.0f, 0.0f, 1.0f};
         glm::quat rot{1.0f, 0.0f, 0.0f, 0.0f};
         float lifeSec = 0.0f;
         float ageSec = 0.0f;

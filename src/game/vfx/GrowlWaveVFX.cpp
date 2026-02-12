@@ -132,10 +132,31 @@ void GrowlWaveVFX::applyDrawManifestOverrides() {
                 p.useAlphaMaskForColor = it.value("use_alpha_mask_for_color", p.useAlphaMaskForColor);
                 p.scaleMul = it.value("scale_mul", p.scaleMul);
                 p.alphaMul = it.value("alpha_mul", p.alphaMul);
+                p.forwardOffset = it.value("forward_offset", p.forwardOffset);
+                p.radiusMul = it.value("radius_mul", p.radiusMul);
+                p.thicknessMul = it.value("thickness_mul", p.thicknessMul);
+                p.overrideTev = it.value("override_tev", p.overrideTev);
                 p.enabled = it.value("enabled", p.enabled);
 
                 glm::vec3 tint;
                 if (it.contains("tint_color") && parseVec3Array(it["tint_color"], tint)) p.tintColor = tint;
+                glm::vec3 tev;
+                if (it.contains("tev_c0") && parseVec3Array(it["tev_c0"], tev)) {
+                    p.tevC0 = tev;
+                    p.overrideTev = true;
+                }
+                if (it.contains("tev_c1") && parseVec3Array(it["tev_c1"], tev)) {
+                    p.tevC1 = tev;
+                    p.overrideTev = true;
+                }
+                if (it.contains("tev_k0") && parseVec3Array(it["tev_k0"], tev)) {
+                    p.tevK0 = tev;
+                    p.overrideTev = true;
+                }
+                if (it.contains("tev_k1a") && it["tev_k1a"].is_number()) {
+                    p.tevK1A = it["tev_k1a"].get<float>();
+                    p.overrideTev = true;
+                }
 
                 if (!p.meshPath.empty() && !p.texturePath.empty()) parsed.push_back(std::move(p));
             }
@@ -330,14 +351,26 @@ void GrowlWaveVFX::render(const Camera3D& camera) {
 
     shader->use();
     if (locTexture >= 0) glUniform1i(locTexture, 0);
-    if (locTevC0 >= 0) glUniform3f(locTevC0, cfg.tevC0.x, cfg.tevC0.y, cfg.tevC0.z);
-    if (locTevC1 >= 0) glUniform3f(locTevC1, cfg.tevC1.x, cfg.tevC1.y, cfg.tevC1.z);
-    if (locTevK0 >= 0) glUniform3f(locTevK0, cfg.tevK0.x, cfg.tevK0.y, cfg.tevK0.z);
-    if (locTevK1A >= 0) glUniform1f(locTevK1A, cfg.tevK1A);
     glActiveTexture(GL_TEXTURE0);
+
+    const glm::vec3 meshForwardLocal =
+        (glm::dot(cfg.meshForwardAxis, cfg.meshForwardAxis) <= 0.0001f)
+        ? glm::vec3(0.0f, 1.0f, 0.0f)
+        : glm::normalize(cfg.meshForwardAxis);
+    const glm::vec3 meshForwardAxisWeight = meshForwardLocal * meshForwardLocal;
 
     for (const auto& pass : drawPasses) {
         if (!pass.meshModel || pass.textureID == 0 || !pass.cfg.enabled) continue;
+
+        const glm::vec3 passTevC0 = pass.cfg.overrideTev ? pass.cfg.tevC0 : cfg.tevC0;
+        const glm::vec3 passTevC1 = pass.cfg.overrideTev ? pass.cfg.tevC1 : cfg.tevC1;
+        const glm::vec3 passTevK0 = pass.cfg.overrideTev ? pass.cfg.tevK0 : cfg.tevK0;
+        const float passTevK1A = pass.cfg.overrideTev ? pass.cfg.tevK1A : cfg.tevK1A;
+
+        if (locTevC0 >= 0) glUniform3f(locTevC0, passTevC0.x, passTevC0.y, passTevC0.z);
+        if (locTevC1 >= 0) glUniform3f(locTevC1, passTevC1.x, passTevC1.y, passTevC1.z);
+        if (locTevK0 >= 0) glUniform3f(locTevK0, passTevK0.x, passTevK0.y, passTevK0.z);
+        if (locTevK1A >= 0) glUniform1f(locTevK1A, passTevK1A);
 
         glBindTexture(GL_TEXTURE_2D, pass.textureID);
         if (locTintColor >= 0) glUniform3f(locTintColor, pass.cfg.tintColor.x, pass.cfg.tintColor.y, pass.cfg.tintColor.z);
@@ -348,6 +381,16 @@ void GrowlWaveVFX::render(const Camera3D& camera) {
             const float life = std::max(0.0001f, r.lifeSec);
             const float age01 = glm::clamp(r.ageSec / life, 0.0f, 1.0f);
             const float scale = glm::mix(r.startScale, r.endScale, age01) * std::max(0.0f, pass.cfg.scaleMul);
+            const glm::vec3 ringForward =
+                (glm::dot(r.forward, r.forward) > 0.0001f)
+                ? glm::normalize(r.forward)
+                : glm::vec3(0.0f, 0.0f, 1.0f);
+            const glm::vec3 passPos = r.pos + ringForward * pass.cfg.forwardOffset;
+            const float radiusMul = std::max(0.0f, pass.cfg.radiusMul);
+            const float thicknessMul = std::max(0.0f, pass.cfg.thicknessMul);
+            const glm::vec3 axisScale =
+                glm::vec3(radiusMul) + (thicknessMul - radiusMul) * meshForwardAxisWeight;
+            const glm::vec3 finalScale = glm::vec3(scale) * axisScale;
 
             float fade = 1.0f;
             const float fadeStart = glm::clamp(cfg.fadeStart, 0.0f, 1.0f);
@@ -358,9 +401,9 @@ void GrowlWaveVFX::render(const Camera3D& camera) {
             if (locFade >= 0) glUniform1f(locFade, fade);
 
             const glm::mat4 world =
-                glm::translate(glm::mat4(1.0f), r.pos) *
+                glm::translate(glm::mat4(1.0f), passPos) *
                 glm::mat4_cast(r.rot) *
-                glm::scale(glm::mat4(1.0f), glm::vec3(scale));
+                glm::scale(glm::mat4(1.0f), finalScale);
 
             pass.meshModel->drawGeometryWithBoundShader(camera, world, locMVP);
         }
@@ -438,6 +481,7 @@ void GrowlWaveVFX::emitFrom(const glm::vec3& mouthWorldPos,
         RingInstance r;
         r.pos = origin + fwd * forwardOffset + right * lateral + glm::vec3(0.0f, vertical, 0.0f);
         r.vel = fwd * randRange(cfg.ringMinSpeed, cfg.ringMaxSpeed) * speedScale;
+        r.forward = fwd;
         r.lifeSec = randRange(cfg.ringMinLifeSec, cfg.ringMaxLifeSec) * lifeScale;
         r.ageSec = 0.0f;
         r.startScale = randRange(cfg.ringMinSize, cfg.ringMaxSize) * sizeScale;
