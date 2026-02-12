@@ -1,12 +1,14 @@
 # VFX Configs
 
-This folder holds data-driven VFX definitions.
+This folder now tracks only runtime configs that are actively consumed.
 
-- `blend_presets.json`: named blending + depth-write defaults.
-- `sprite_atlases.json`: atlas IDs mapped to texture paths and frame grids.
-- `emitter_presets.json`: reusable emitter defaults (spawn, motion, curves).
-- `recipes/*.recipe.json`: move/effect timelines composed from presets.
+## Live Runtime Configs
 
-These files are scaffolding for the upcoming recipe runtime.
-Current move VFX still run through existing C++ implementations.
+- `moves/<move>_draw_passes.json`
+  - Used by move-specific VFX code to map draw passes to mesh/texture/shader inputs.
+  - Current example in use: `moves/growl_draw_passes.json`.
 
+## Scope
+
+- Keep configs aligned with assets that currently ship and render in game.
+- Do not keep placeholder recipe/atlas/preset configs here unless they are wired into runtime.

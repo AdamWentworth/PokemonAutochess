@@ -1,59 +1,32 @@
-# VFX Pipeline (Colosseum-Style Direction)
+# VFX Pipeline (Current Runtime)
 
-This project already has solid low-level particle primitives. The next step is to author effects as **data-driven recipes** so we can iterate quickly without adding a new C++ class per move.
+This document reflects the live VFX path used in game today.
 
-## Design Targets
+## Runtime Model
 
-1. `Billboard sprite particles` are the primary system.
-2. `Flipbook atlases` are optional, used when one sprite is not enough.
-3. `Special meshes` are reserved for arcs/rings/shockwaves that need cleaner silhouettes.
-4. `Distortion` is opt-in and localized, not a default for every move.
-5. `Recipes` define timing/choreography: emitters, bursts, curves, blend, and lifetime windows.
+- Move VFX behavior is implemented in C++ classes under `src/game/vfx/`.
+- Move mesh draw passes are data-driven via:
+  - `config/vfx/moves/<move>_draw_passes.json`
+- For Growl:
+  - Runtime class: `src/game/vfx/GrowlWaveVFX.*`
+  - Manifest: `config/vfx/moves/growl_draw_passes.json`
 
-## Folder Layout
+## Asset Conventions In Use
 
-```text
-assets/
-  vfx/
-    textures/
-      common/
-      moves/
-        growl/
-    meshes/
-      common/
-      moves/
+- Meshes keep source EID names for traceability:
+  - `assets/meshes/growl_1076_mesh.glb`
+  - `assets/meshes/growl_1085_mesh.glb`
+- Textures keep source extracted names:
+  - `assets/textures/moves/growl/Texture3918.png`
+  - `assets/textures/moves/growl/Texture3921.png`
+- Shared shaders for the move:
+  - `assets/shaders/vfx/moves/growl/growl_ring_shared.vert`
+  - `assets/shaders/vfx/moves/growl/growl_ring_shared.frag`
 
-config/
-  vfx/
-    blend_presets.json
-    sprite_atlases.json
-    emitter_presets.json
-    recipes/
-      _template.recipe.json
-      growl.recipe.json
-```
+## Adding Another Growl Draw Pass
 
-## Why This Split
+1. Add mesh/texture assets.
+2. Append a new entry in `config/vfx/moves/growl_draw_passes.json`.
+3. Set `eid`, `mesh`, `texture`, and pass tuning fields (`tint_color`, `scale_mul`, `alpha_mul`).
 
-- `assets/vfx/**` = actual art content.
-- `config/vfx/**` = effect behavior and timing.
-- Current C++ VFX classes can gradually migrate to recipe execution, one move at a time.
-
-## Growl Recipe Direction
-
-For growl, use a single timeline with one primary billboard cone emitter:
-
-- One cone from tight to wide toward target direction.
-- Fuzzy linear streaks inside that cone.
-- Additive or premultiplied blend.
-- Size/alpha curves define onset and decay.
-- No flipbook/mesh/distortion required for this move.
-
-## Migration Plan
-
-1. Add a lightweight recipe loader (`config/vfx/recipes/*.json`).
-2. Build a generic recipe runner on top of existing `ParticleSystem`.
-3. Move growl to recipe first.
-4. Move tackle/leaf/scratch next.
-5. Keep specialized C++ VFX for outliers (fire tail, distortion-heavy effects).
-
+No code change is required when adding a pass that follows the same shader/state path.

@@ -1,0 +1,38 @@
+{
+  "version": 1,
+  "shared": {
+    "vert_shader": "assets/shaders/vfx/moves/growl/growl_ring_shared.vert",
+    "frag_shader": "assets/shaders/vfx/moves/growl/growl_ring_shared.frag",
+    "depth_test": true,
+    "depth_write": false,
+    "mesh_forward_axis": [0.0, 1.0, 0.0],
+    "tev_c0": [1.0, 1.0, 1.0],
+    "tev_c1": [0.0, 0.0, 0.0],
+    "tev_k0": [1.0, 1.0, 1.0],
+    "tev_k1a": 1.0
+  },
+  "draw_passes": [
+    {
+      "id": "growl_eid_1076",
+      "eid": 1076,
+      "mesh": "assets/meshes/growl_1076_mesh.glb",
+      "texture": "assets/textures/moves/growl/Texture3918.png",
+      "tint_color": [0.93, 0.28, 0.14],
+      "use_alpha_mask_for_color": true,
+      "scale_mul": 1.00,
+      "alpha_mul": 1.00,
+      "enabled": true
+    },
+    {
+      "id": "growl_eid_1085",
+      "eid": 1085,
+      "mesh": "assets/meshes/growl_1085_mesh.glb",
+      "texture": "assets/textures/moves/growl/Texture3921.png",
+      "tint_color": [1.00, 0.38, 0.16],
+      "use_alpha_mask_for_color": true,
+      "scale_mul": 1.04,
+      "alpha_mul": 0.90,
+      "enabled": true
+    }
+  ]
+}

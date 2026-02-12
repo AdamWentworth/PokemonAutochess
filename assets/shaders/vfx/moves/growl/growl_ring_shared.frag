@@ -11,6 +11,7 @@ uniform vec3 uTevK0;
 uniform float uTevK1A;
 uniform vec3 uTintColor;
 uniform int uUseAlphaMaskForColor;
+uniform float uPassAlphaMul;
 
 out vec4 FragColor;
 
@@ -31,7 +32,7 @@ void main()
     vec3 rgb = uTintColor * (uTevC0 * stage1);
 
     // stage0/2 alpha path: alpha = vColor.a * K1a * tex.a
-    float alpha = tex.a * vColor.a * uTevK1A * uFade;
+    float alpha = tex.a * vColor.a * uTevK1A * uFade * uPassAlphaMul;
 
     FragColor = vec4(rgb, alpha);
 }

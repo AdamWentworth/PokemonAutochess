@@ -17,6 +17,18 @@ class Shader;
 class GrowlWaveVFX {
 public:
     struct Config {
+        struct DrawPass {
+            std::string id = "growl_eid_1076";
+            int eid = 1076;
+            std::string meshPath = "assets/meshes/growl_1076_mesh.glb";
+            std::string texturePath = "assets/textures/moves/growl/Texture3918.png";
+            glm::vec3 tintColor = glm::vec3(0.93f, 0.28f, 0.14f);
+            bool useAlphaMaskForColor = true;
+            float scaleMul = 1.0f;
+            float alphaMul = 1.0f;
+            bool enabled = true;
+        };
+
         float spawnForwardOffset = 0.20f;
         float spawnHeightOffset = 0.40f;
 
@@ -39,24 +51,33 @@ public:
         float ringScaleGrowth = 1.15f;
         float fadeStart = 0.65f;
 
-        // Local forward axis of the authored ring mesh (this mesh is authored "up" in Blender).
+        // Local forward axis of authored meshes.
         glm::vec3 meshForwardAxis = glm::vec3(0.0f, 1.0f, 0.0f);
 
-        // TEV-inspired color constants from original shader path.
-        // Keep these neutral by default and drive visible color via tint.
+        // Shared shader + TEV-ish constants.
+        std::string vertShaderPath = "assets/shaders/vfx/moves/growl/growl_ring_shared.vert";
+        std::string fragShaderPath = "assets/shaders/vfx/moves/growl/growl_ring_shared.frag";
         glm::vec3 tevC0 = glm::vec3(1.0f, 1.0f, 1.0f);
         glm::vec3 tevC1 = glm::vec3(0.0f, 0.0f, 0.0f);
         glm::vec3 tevK0 = glm::vec3(1.0f, 1.0f, 1.0f);
         float tevK1A = 1.0f;
 
-        // Most Growl assets are alpha masks; color them explicitly.
-        bool useAlphaMaskForColor = true;
-        glm::vec3 tintColor = glm::vec3(0.93f, 0.28f, 0.14f);
-
-        std::string meshPath = "assets/meshes/growl_1076_mesh.glb";
-        std::string vertShaderPath = "assets/shaders/vfx/moves/growl/growl_1076_shader.vert";
-        std::string fragShaderPath = "assets/shaders/vfx/moves/growl/growl_1076_shader.frag";
-        std::string texturePath = "assets/textures/moves/growl/Texture3918.png";
+        // Optional manifest for pass routing by EID.
+        std::string drawManifestPath = "config/vfx/moves/growl_draw_passes.json";
+        std::vector<DrawPass> drawPasses = {
+            DrawPass{},
+            DrawPass{
+                "growl_eid_1085",
+                1085,
+                "assets/meshes/growl_1085_mesh.glb",
+                "assets/textures/moves/growl/Texture3921.png",
+                glm::vec3(0.98f, 0.40f, 0.17f),
+                true,
+                1.04f,
+                0.90f,
+                true
+            }
+        };
 
         bool depthTest = true;
         bool depthWrite = false;
@@ -77,6 +98,12 @@ public:
                   const glm::mat4* viewMatrix = nullptr);
 
 private:
+    struct DrawPassRuntime {
+        Config::DrawPass cfg;
+        std::unique_ptr<Model> meshModel;
+        unsigned int textureID = 0;
+    };
+
     struct RingInstance {
         glm::vec3 pos{0.0f};
         glm::vec3 vel{0.0f};
@@ -89,15 +116,15 @@ private:
 
     void ensureConfigured();
     void releaseResources();
+    void applyDrawManifestOverrides();
     float rand01();
     float randRange(float a, float b);
     glm::vec3 safeForwardXZ(const glm::vec3& v) const;
     glm::quat rotationFromToSafe(const glm::vec3& from, const glm::vec3& to) const;
 
 private:
-    std::unique_ptr<Model> meshModel;
+    std::vector<DrawPassRuntime> drawPasses;
     std::shared_ptr<Shader> shader;
-    unsigned int textureID = 0;
     int locMVP = -1;
     int locTexture = -1;
     int locFade = -1;
@@ -107,6 +134,7 @@ private:
     int locTevK1A = -1;
     int locTintColor = -1;
     int locUseAlphaMaskForColor = -1;
+    int locPassAlphaMul = -1;
 
     std::vector<RingInstance> rings;
     Config cfg{};
