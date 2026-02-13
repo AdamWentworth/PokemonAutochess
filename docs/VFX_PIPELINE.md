@@ -22,11 +22,17 @@ This document reflects the live VFX path used in game today.
 - Shared shaders for the move:
   - `assets/shaders/vfx/moves/growl/growl_ring_shared.vert`
   - `assets/shaders/vfx/moves/growl/growl_ring_shared.frag`
+  - Additional pass-specific shader pair(s) are supported when needed:
+    - `assets/shaders/vfx/moves/growl/growl_line_shared.vert`
+    - `assets/shaders/vfx/moves/growl/growl_line_shared.frag`
 
 ## Adding Another Growl Draw Pass
 
 1. Add mesh/texture assets.
 2. Append a new entry in `config/vfx/moves/growl_draw_passes.json`.
 3. Set `eid`, `mesh`, `texture`, and pass tuning fields (`tint_color`, `scale_mul`, `alpha_mul`).
+4. If a pass needs a different pipeline, add `vert_shader` and `frag_shader` on that pass.
+5. For line-cone passes, set `direction_local` or `directions_local` in caster-local basis
+   (`[right, up, forward]`) to fan directions out.
 
-No code change is required when adding a pass that follows the same shader/state path.
+No code change is required when adding passes that follow existing mesh draw logic.

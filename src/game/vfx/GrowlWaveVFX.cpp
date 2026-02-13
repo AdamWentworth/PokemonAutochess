@@ -6,6 +6,7 @@
 #include <fstream>
 #include <iostream>
 #include <stdexcept>
+#include <unordered_map>
 
 #include <glad/glad.h>
 #include <stb_image.h>
@@ -74,6 +75,23 @@ bool parseVec3Array(const nlohmann::json& j, glm::vec3& out) {
     out = glm::vec3(j[0].get<float>(), j[1].get<float>(), j[2].get<float>());
     return true;
 }
+
+bool parseVec3ArrayList(const nlohmann::json& j, std::vector<glm::vec3>& out) {
+    if (!j.is_array()) return false;
+
+    std::vector<glm::vec3> parsed;
+    parsed.reserve(j.size());
+    for (const auto& it : j) {
+        glm::vec3 v;
+        if (!parseVec3Array(it, v)) continue;
+        if (glm::dot(v, v) <= 0.000001f) continue;
+        parsed.push_back(v);
+    }
+    if (parsed.empty()) return false;
+
+    out = std::move(parsed);
+    return true;
+}
 } // namespace
 
 GrowlWaveVFX::~GrowlWaveVFX() {
@@ -129,10 +147,13 @@ void GrowlWaveVFX::applyDrawManifestOverrides() {
                 p.eid = it.value("eid", p.eid);
                 p.meshPath = it.value("mesh", p.meshPath);
                 p.texturePath = it.value("texture", p.texturePath);
+                p.vertShaderPath = it.value("vert_shader", p.vertShaderPath);
+                p.fragShaderPath = it.value("frag_shader", p.fragShaderPath);
                 p.useAlphaMaskForColor = it.value("use_alpha_mask_for_color", p.useAlphaMaskForColor);
                 p.scaleMul = it.value("scale_mul", p.scaleMul);
                 p.alphaMul = it.value("alpha_mul", p.alphaMul);
                 p.forwardOffset = it.value("forward_offset", p.forwardOffset);
+                p.heightOffset = it.value("height_offset", p.heightOffset);
                 p.radiusMul = it.value("radius_mul", p.radiusMul);
                 p.thicknessMul = it.value("thickness_mul", p.thicknessMul);
                 p.overrideTev = it.value("override_tev", p.overrideTev);
@@ -140,6 +161,25 @@ void GrowlWaveVFX::applyDrawManifestOverrides() {
 
                 glm::vec3 tint;
                 if (it.contains("tint_color") && parseVec3Array(it["tint_color"], tint)) p.tintColor = tint;
+                glm::vec3 passMeshForwardAxis;
+                if (it.contains("mesh_forward_axis") && parseVec3Array(it["mesh_forward_axis"], passMeshForwardAxis)) {
+                    if (glm::dot(passMeshForwardAxis, passMeshForwardAxis) > 0.000001f) {
+                        p.meshForwardAxis = passMeshForwardAxis;
+                        p.overrideMeshForwardAxis = true;
+                    }
+                }
+                glm::vec3 directionLocal;
+                if (it.contains("direction_local") && parseVec3Array(it["direction_local"], directionLocal)) {
+                    if (glm::dot(directionLocal, directionLocal) > 0.000001f) {
+                        p.directionLocal = directionLocal;
+                        p.overrideDirection = true;
+                    }
+                }
+                std::vector<glm::vec3> directionsLocal;
+                if (it.contains("directions_local") && parseVec3ArrayList(it["directions_local"], directionsLocal)) {
+                    p.directionsLocal = std::move(directionsLocal);
+                    p.overrideDirection = true;
+                }
                 glm::vec3 tev;
                 if (it.contains("tev_c0") && parseVec3Array(it["tev_c0"], tev)) {
                     p.tevC0 = tev;
@@ -158,7 +198,7 @@ void GrowlWaveVFX::applyDrawManifestOverrides() {
                     p.overrideTev = true;
                 }
 
-                if (!p.meshPath.empty() && !p.texturePath.empty()) parsed.push_back(std::move(p));
+                if (!p.meshPath.empty()) parsed.push_back(std::move(p));
             }
 
             if (!parsed.empty()) cfg.drawPasses = std::move(parsed);
@@ -176,20 +216,9 @@ void GrowlWaveVFX::releaseResources() {
             p.textureID = 0;
         }
         p.meshModel.reset();
+        p.shader.reset();
     }
     drawPasses.clear();
-    shader.reset();
-
-    locMVP = -1;
-    locTexture = -1;
-    locFade = -1;
-    locTevC0 = -1;
-    locTevC1 = -1;
-    locTevK0 = -1;
-    locTevK1A = -1;
-    locTintColor = -1;
-    locUseAlphaMaskForColor = -1;
-    locPassAlphaMul = -1;
     configured = false;
 }
 
@@ -198,27 +227,7 @@ void GrowlWaveVFX::ensureConfigured() {
     applyDrawManifestOverrides();
 
     try {
-        shader = std::make_shared<Shader>(cfg.vertShaderPath, cfg.fragShaderPath);
-
-        locMVP = glGetUniformLocation(shader->getID(), "uMVP");
-        locTexture = glGetUniformLocation(shader->getID(), "uTexture");
-        locFade = glGetUniformLocation(shader->getID(), "uFade");
-        locTevC0 = glGetUniformLocation(shader->getID(), "uTevC0");
-        locTevC1 = glGetUniformLocation(shader->getID(), "uTevC1");
-        locTevK0 = glGetUniformLocation(shader->getID(), "uTevK0");
-        locTevK1A = glGetUniformLocation(shader->getID(), "uTevK1A");
-        locTintColor = glGetUniformLocation(shader->getID(), "uTintColor");
-        locUseAlphaMaskForColor = glGetUniformLocation(shader->getID(), "uUseAlphaMaskForColor");
-        locPassAlphaMul = glGetUniformLocation(shader->getID(), "uPassAlphaMul");
-
-        shader->use();
-        if (locTexture >= 0) glUniform1i(locTexture, 0);
-        if (locFade >= 0) glUniform1f(locFade, 1.0f);
-        if (locTevC0 >= 0) glUniform3f(locTevC0, cfg.tevC0.x, cfg.tevC0.y, cfg.tevC0.z);
-        if (locTevC1 >= 0) glUniform3f(locTevC1, cfg.tevC1.x, cfg.tevC1.y, cfg.tevC1.z);
-        if (locTevK0 >= 0) glUniform3f(locTevK0, cfg.tevK0.x, cfg.tevK0.y, cfg.tevK0.z);
-        if (locTevK1A >= 0) glUniform1f(locTevK1A, cfg.tevK1A);
-
+        std::unordered_map<std::string, std::shared_ptr<Shader>> shaderCache;
         drawPasses.clear();
         drawPasses.reserve(cfg.drawPasses.size());
 
@@ -229,6 +238,39 @@ void GrowlWaveVFX::ensureConfigured() {
             runtime.cfg = passCfg;
             runtime.meshModel = std::make_unique<Model>(passCfg.meshPath);
             runtime.textureID = loadTextureRGBAOrWhite(passCfg.texturePath);
+
+            const std::string vertPath =
+                passCfg.vertShaderPath.empty() ? cfg.vertShaderPath : passCfg.vertShaderPath;
+            const std::string fragPath =
+                passCfg.fragShaderPath.empty() ? cfg.fragShaderPath : passCfg.fragShaderPath;
+
+            if (vertPath.empty() || fragPath.empty()) {
+                throw std::runtime_error("Draw pass missing shader path(s): " + passCfg.id);
+            }
+
+            const std::string shaderKey = vertPath + "|" + fragPath;
+            auto itShader = shaderCache.find(shaderKey);
+            if (itShader == shaderCache.end()) {
+                auto compiled = std::make_shared<Shader>(vertPath, fragPath);
+                itShader = shaderCache.emplace(shaderKey, compiled).first;
+            }
+            runtime.shader = itShader->second;
+
+            const GLuint pid = runtime.shader->getID();
+            runtime.locMVP = glGetUniformLocation(pid, "uMVP");
+            runtime.locTexture = glGetUniformLocation(pid, "uTexture");
+            runtime.locFade = glGetUniformLocation(pid, "uFade");
+            runtime.locTevC0 = glGetUniformLocation(pid, "uTevC0");
+            runtime.locTevC1 = glGetUniformLocation(pid, "uTevC1");
+            runtime.locTevK0 = glGetUniformLocation(pid, "uTevK0");
+            runtime.locTevK1A = glGetUniformLocation(pid, "uTevK1A");
+            runtime.locTintColor = glGetUniformLocation(pid, "uTintColor");
+            runtime.locUseAlphaMaskForColor = glGetUniformLocation(pid, "uUseAlphaMaskForColor");
+            runtime.locPassAlphaMul = glGetUniformLocation(pid, "uPassAlphaMul");
+
+            runtime.shader->use();
+            if (runtime.locTexture >= 0) glUniform1i(runtime.locTexture, 0);
+            if (runtime.locFade >= 0) glUniform1f(runtime.locFade, 1.0f);
             drawPasses.push_back(std::move(runtime));
         }
 
@@ -304,7 +346,7 @@ void GrowlWaveVFX::update(float dt) {
 
 void GrowlWaveVFX::render(const Camera3D& camera) {
     ensureConfigured();
-    if (!configured || rings.empty() || !shader || drawPasses.empty()) return;
+    if (!configured || rings.empty() || drawPasses.empty()) return;
 
     const GLboolean prevCullEnabled = glIsEnabled(GL_CULL_FACE);
     const GLboolean prevDepthEnabled = glIsEnabled(GL_DEPTH_TEST);
@@ -349,33 +391,40 @@ void GrowlWaveVFX::render(const Camera3D& camera) {
     glBlendFunc(GL_SRC_ALPHA, GL_ONE);
     glBlendEquation(GL_FUNC_ADD);
 
-    shader->use();
-    if (locTexture >= 0) glUniform1i(locTexture, 0);
-    glActiveTexture(GL_TEXTURE0);
-
-    const glm::vec3 meshForwardLocal =
-        (glm::dot(cfg.meshForwardAxis, cfg.meshForwardAxis) <= 0.0001f)
-        ? glm::vec3(0.0f, 1.0f, 0.0f)
-        : glm::normalize(cfg.meshForwardAxis);
-    const glm::vec3 meshForwardAxisWeight = meshForwardLocal * meshForwardLocal;
-
     for (const auto& pass : drawPasses) {
-        if (!pass.meshModel || pass.textureID == 0 || !pass.cfg.enabled) continue;
+        if (!pass.meshModel || !pass.shader || pass.textureID == 0 || !pass.cfg.enabled) continue;
+
+        const glm::vec3 passMeshForwardAxis =
+            pass.cfg.overrideMeshForwardAxis ? pass.cfg.meshForwardAxis : cfg.meshForwardAxis;
+        const glm::vec3 meshForwardLocal =
+            (glm::dot(passMeshForwardAxis, passMeshForwardAxis) <= 0.0001f)
+            ? glm::vec3(0.0f, 1.0f, 0.0f)
+            : glm::normalize(passMeshForwardAxis);
+        const glm::vec3 meshForwardAxisWeight = meshForwardLocal * meshForwardLocal;
 
         const glm::vec3 passTevC0 = pass.cfg.overrideTev ? pass.cfg.tevC0 : cfg.tevC0;
         const glm::vec3 passTevC1 = pass.cfg.overrideTev ? pass.cfg.tevC1 : cfg.tevC1;
         const glm::vec3 passTevK0 = pass.cfg.overrideTev ? pass.cfg.tevK0 : cfg.tevK0;
         const float passTevK1A = pass.cfg.overrideTev ? pass.cfg.tevK1A : cfg.tevK1A;
 
-        if (locTevC0 >= 0) glUniform3f(locTevC0, passTevC0.x, passTevC0.y, passTevC0.z);
-        if (locTevC1 >= 0) glUniform3f(locTevC1, passTevC1.x, passTevC1.y, passTevC1.z);
-        if (locTevK0 >= 0) glUniform3f(locTevK0, passTevK0.x, passTevK0.y, passTevK0.z);
-        if (locTevK1A >= 0) glUniform1f(locTevK1A, passTevK1A);
+        pass.shader->use();
+        if (pass.locTexture >= 0) glUniform1i(pass.locTexture, 0);
+        if (pass.locTevC0 >= 0) glUniform3f(pass.locTevC0, passTevC0.x, passTevC0.y, passTevC0.z);
+        if (pass.locTevC1 >= 0) glUniform3f(pass.locTevC1, passTevC1.x, passTevC1.y, passTevC1.z);
+        if (pass.locTevK0 >= 0) glUniform3f(pass.locTevK0, passTevK0.x, passTevK0.y, passTevK0.z);
+        if (pass.locTevK1A >= 0) glUniform1f(pass.locTevK1A, passTevK1A);
 
+        glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, pass.textureID);
-        if (locTintColor >= 0) glUniform3f(locTintColor, pass.cfg.tintColor.x, pass.cfg.tintColor.y, pass.cfg.tintColor.z);
-        if (locUseAlphaMaskForColor >= 0) glUniform1i(locUseAlphaMaskForColor, pass.cfg.useAlphaMaskForColor ? 1 : 0);
-        if (locPassAlphaMul >= 0) glUniform1f(locPassAlphaMul, std::max(0.0f, pass.cfg.alphaMul));
+        if (pass.locTintColor >= 0) {
+            glUniform3f(pass.locTintColor, pass.cfg.tintColor.x, pass.cfg.tintColor.y, pass.cfg.tintColor.z);
+        }
+        if (pass.locUseAlphaMaskForColor >= 0) {
+            glUniform1i(pass.locUseAlphaMaskForColor, pass.cfg.useAlphaMaskForColor ? 1 : 0);
+        }
+        if (pass.locPassAlphaMul >= 0) {
+            glUniform1f(pass.locPassAlphaMul, std::max(0.0f, pass.cfg.alphaMul));
+        }
 
         for (const auto& r : rings) {
             const float life = std::max(0.0001f, r.lifeSec);
@@ -385,7 +434,24 @@ void GrowlWaveVFX::render(const Camera3D& camera) {
                 (glm::dot(r.forward, r.forward) > 0.0001f)
                 ? glm::normalize(r.forward)
                 : glm::vec3(0.0f, 0.0f, 1.0f);
-            const glm::vec3 passPos = r.pos + ringForward * pass.cfg.forwardOffset;
+            glm::vec3 right = glm::cross(glm::vec3(0.0f, 1.0f, 0.0f), ringForward);
+            if (glm::dot(right, right) <= 0.0001f) right = glm::vec3(1.0f, 0.0f, 0.0f);
+            else right = glm::normalize(right);
+
+            glm::vec3 up = glm::cross(ringForward, right);
+            if (glm::dot(up, up) <= 0.0001f) up = glm::vec3(0.0f, 1.0f, 0.0f);
+            else up = glm::normalize(up);
+
+            std::vector<glm::vec3> localDirectionsFallback;
+            const std::vector<glm::vec3>* localDirections = &pass.cfg.directionsLocal;
+            if (localDirections->empty()) {
+                localDirectionsFallback.push_back(
+                    pass.cfg.overrideDirection
+                        ? pass.cfg.directionLocal
+                        : glm::vec3(0.0f, 0.0f, 1.0f));
+                localDirections = &localDirectionsFallback;
+            }
+
             const float radiusMul = std::max(0.0f, pass.cfg.radiusMul);
             const float thicknessMul = std::max(0.0f, pass.cfg.thicknessMul);
             const glm::vec3 axisScale =
@@ -398,14 +464,33 @@ void GrowlWaveVFX::render(const Camera3D& camera) {
                 const float t = (age01 - fadeStart) / std::max(0.0001f, (1.0f - fadeStart));
                 fade = 1.0f - glm::clamp(t, 0.0f, 1.0f);
             }
-            if (locFade >= 0) glUniform1f(locFade, fade);
+            if (pass.locFade >= 0) glUniform1f(pass.locFade, fade);
 
-            const glm::mat4 world =
-                glm::translate(glm::mat4(1.0f), passPos) *
-                glm::mat4_cast(r.rot) *
-                glm::scale(glm::mat4(1.0f), finalScale);
+            for (const auto& localDirRaw : *localDirections) {
+                if (glm::dot(localDirRaw, localDirRaw) <= 0.000001f) continue;
+                const glm::vec3 localDir = glm::normalize(localDirRaw);
+                const glm::vec3 worldDir =
+                    right * localDir.x +
+                    up * localDir.y +
+                    ringForward * localDir.z;
+                if (glm::dot(worldDir, worldDir) <= 0.0001f) continue;
 
-            pass.meshModel->drawGeometryWithBoundShader(camera, world, locMVP);
+                const glm::vec3 passForward = glm::normalize(worldDir);
+                const glm::quat passRot = rotationFromToSafe(meshForwardLocal, passForward);
+                // heightOffset controls start-position spread from origin (not global lift):
+                // top-aiming lines start higher, bottom-aiming lines start lower.
+                const glm::vec3 passPos =
+                    r.pos +
+                    passForward * pass.cfg.forwardOffset +
+                    up * (pass.cfg.heightOffset * localDirRaw.y);
+
+                const glm::mat4 world =
+                    glm::translate(glm::mat4(1.0f), passPos) *
+                    glm::mat4_cast(passRot) *
+                    glm::scale(glm::mat4(1.0f), finalScale);
+
+                pass.meshModel->drawGeometryWithBoundShader(camera, world, pass.locMVP);
+            }
         }
     }
 

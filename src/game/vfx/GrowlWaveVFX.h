@@ -22,11 +22,21 @@ public:
             int eid = 1076;
             std::string meshPath = "assets/meshes/growl_1076_mesh.glb";
             std::string texturePath = "assets/textures/moves/growl/Texture3918.png";
+            std::string vertShaderPath;
+            std::string fragShaderPath;
             glm::vec3 tintColor = glm::vec3(0.93f, 0.28f, 0.14f);
             bool useAlphaMaskForColor = true;
             float scaleMul = 1.0f;
             float alphaMul = 1.0f;
             float forwardOffset = 0.0f;
+            float heightOffset = 0.0f;
+            bool overrideMeshForwardAxis = false;
+            glm::vec3 meshForwardAxis = glm::vec3(0.0f, 1.0f, 0.0f);
+            bool overrideDirection = false;
+            // Local direction in caster-space basis: +X right, +Y up, +Z forward.
+            glm::vec3 directionLocal = glm::vec3(0.0f, 0.0f, 1.0f);
+            // Optional multi-line fan for line passes.
+            std::vector<glm::vec3> directionsLocal;
             float radiusMul = 1.0f;
             float thicknessMul = 1.0f;
             bool overrideTev = false;
@@ -127,7 +137,18 @@ private:
     struct DrawPassRuntime {
         Config::DrawPass cfg;
         std::unique_ptr<Model> meshModel;
+        std::shared_ptr<Shader> shader;
         unsigned int textureID = 0;
+        int locMVP = -1;
+        int locTexture = -1;
+        int locFade = -1;
+        int locTevC0 = -1;
+        int locTevC1 = -1;
+        int locTevK0 = -1;
+        int locTevK1A = -1;
+        int locTintColor = -1;
+        int locUseAlphaMaskForColor = -1;
+        int locPassAlphaMul = -1;
     };
 
     struct RingInstance {
@@ -151,17 +172,6 @@ private:
 
 private:
     std::vector<DrawPassRuntime> drawPasses;
-    std::shared_ptr<Shader> shader;
-    int locMVP = -1;
-    int locTexture = -1;
-    int locFade = -1;
-    int locTevC0 = -1;
-    int locTevC1 = -1;
-    int locTevK0 = -1;
-    int locTevK1A = -1;
-    int locTintColor = -1;
-    int locUseAlphaMaskForColor = -1;
-    int locPassAlphaMul = -1;
 
     std::vector<RingInstance> rings;
     Config cfg{};

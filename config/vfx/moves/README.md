@@ -13,6 +13,8 @@ This folder defines mesh draw passes for move VFX in a data-driven way.
   - `assets/meshes/<move>_<eid>_mesh.glb`
 - Per-EID texture:
   - `assets/textures/moves/<move>/Texture####.png` (keep source ID for traceability)
+- Optional per-pass shader override:
+  - `vert_shader` / `frag_shader` in JSON (for passes that do not use the shared ring shader)
 - Pass ID in JSON:
   - `<move>_eid_<eid>`
 
@@ -27,7 +29,20 @@ For Growl passes you can set optional per-pass overrides:
 - `tev_c1`: vec3 from `color[2].rgb / 255`
 - `tev_k0`: vec3 from `k[0].rgb / 255`
 - `tev_k1a`: float from `k[1].a / 255`
+- `vert_shader`: optional vertex shader path for this pass
+- `frag_shader`: optional fragment shader path for this pass
+- `texture`: can be empty (`""`) for non-textured passes
 - `forward_offset`: per-pass world offset along cast direction (higher = farther from caster)
+- `height_offset`: per-pass vertical start spread from origin (does not change aim angle)
+  - Applied as `up * (height_offset * direction_local.y)` per line.
+  - Positive values push top lines up and bottom lines down.
+- `mesh_forward_axis`: optional per-pass authored-forward axis override `[x, y, z]`
+  - Use this when a mesh's "length/forward" axis differs from shared config (e.g. line mesh authored in +Z).
+- `direction_local`: optional per-pass aim vector in caster-local space `[right, up, forward]`
+  - Example: `[0.22, -0.14, 1.0]` = slightly caster-right, slightly downward, mostly forward
+- `directions_local`: optional array of local aim vectors for multi-line fan/cone from a single pass
+  - Example: `[[0.24, -0.14, 1.0], [-0.24, -0.14, 1.0], [0.0, -0.28, 1.0]]`
+  - For cone behavior, keep `forward` positive (usually `1.0`). If `forward` is `0.0`, you get a flat side/up/down fan plane.
 - `radius_mul`: scales ring radius axes (per-pass, default `1.0`)
 - `thickness_mul`: scales mesh forward axis thickness (per-pass, default `1.0`)
 
