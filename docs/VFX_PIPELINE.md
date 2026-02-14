@@ -25,6 +25,8 @@ This document reflects the live VFX path used in game today.
   - Additional pass-specific shader pair(s) are supported when needed:
     - `assets/shaders/vfx/moves/growl/growl_line_shared.vert`
     - `assets/shaders/vfx/moves/growl/growl_line_shared.frag`
+    - `assets/shaders/vfx/moves/growl/growl_quarter_ring_shared.vert`
+    - `assets/shaders/vfx/moves/growl/growl_quarter_ring_shared.frag`
 
 ## Adding Another Growl Draw Pass
 
@@ -34,5 +36,7 @@ This document reflects the live VFX path used in game today.
 4. If a pass needs a different pipeline, add `vert_shader` and `frag_shader` on that pass.
 5. For line-cone passes, set `direction_local` or `directions_local` in caster-local basis
    (`[right, up, forward]`) to fan directions out.
+6. For texture-only quarter ring passes, set `render_mode: "texture_quarter_ring"` and provide
+   `quarter_count/quarter_step_deg` (e.g. `4` and `90.0`).
 
 No code change is required when adding passes that follow existing mesh draw logic.

@@ -20,10 +20,15 @@ public:
         struct DrawPass {
             std::string id = "growl_eid_1076";
             int eid = 1076;
+            std::string renderMode = "mesh";
             std::string meshPath = "assets/meshes/growl_1076_mesh.glb";
             std::string texturePath = "assets/textures/moves/growl/Texture3918.png";
             std::string vertShaderPath;
             std::string fragShaderPath;
+            bool textureQuarterRing = false;
+            int quarterCount = 4;
+            float quarterStepDeg = 90.0f;
+            float quarterStartDeg = 0.0f;
             glm::vec3 tintColor = glm::vec3(0.93f, 0.28f, 0.14f);
             bool useAlphaMaskForColor = true;
             float scaleMul = 1.0f;
@@ -165,6 +170,8 @@ private:
     void ensureConfigured();
     void releaseResources();
     void applyDrawManifestOverrides();
+    void ensureQuarterQuadResources();
+    void drawQuarterQuad(const Camera3D& camera, const glm::mat4& world, int locMVP) const;
     float rand01();
     float randRange(float a, float b);
     glm::vec3 safeForwardXZ(const glm::vec3& v) const;
@@ -177,6 +184,8 @@ private:
     Config cfg{};
     bool configured = false;
     bool configFailed = false;
+    unsigned int quarterQuadVAO = 0;
+    unsigned int quarterQuadVBO = 0;
 
     engine::XorShift32 rng{0xA17F2Du};
 };

@@ -145,10 +145,16 @@ void GrowlWaveVFX::applyDrawManifestOverrides() {
                 Config::DrawPass p{};
                 p.id = it.value("id", p.id);
                 p.eid = it.value("eid", p.eid);
+                p.renderMode = it.value("render_mode", p.renderMode);
                 p.meshPath = it.value("mesh", p.meshPath);
                 p.texturePath = it.value("texture", p.texturePath);
                 p.vertShaderPath = it.value("vert_shader", p.vertShaderPath);
                 p.fragShaderPath = it.value("frag_shader", p.fragShaderPath);
+                if (p.renderMode == "texture_quarter_ring") p.textureQuarterRing = true;
+                p.textureQuarterRing = it.value("texture_quarter_ring", p.textureQuarterRing);
+                p.quarterCount = std::clamp(it.value("quarter_count", p.quarterCount), 1, 64);
+                p.quarterStepDeg = it.value("quarter_step_deg", p.quarterStepDeg);
+                p.quarterStartDeg = it.value("quarter_start_deg", p.quarterStartDeg);
                 p.useAlphaMaskForColor = it.value("use_alpha_mask_for_color", p.useAlphaMaskForColor);
                 p.scaleMul = it.value("scale_mul", p.scaleMul);
                 p.alphaMul = it.value("alpha_mul", p.alphaMul);
@@ -198,7 +204,8 @@ void GrowlWaveVFX::applyDrawManifestOverrides() {
                     p.overrideTev = true;
                 }
 
-                if (!p.meshPath.empty()) parsed.push_back(std::move(p));
+                if (p.textureQuarterRing && !it.contains("mesh")) p.meshPath.clear();
+                if (!p.meshPath.empty() || p.textureQuarterRing) parsed.push_back(std::move(p));
             }
 
             if (!parsed.empty()) cfg.drawPasses = std::move(parsed);
@@ -218,8 +225,53 @@ void GrowlWaveVFX::releaseResources() {
         p.meshModel.reset();
         p.shader.reset();
     }
+    if (quarterQuadVBO != 0) {
+        glDeleteBuffers(1, &quarterQuadVBO);
+        quarterQuadVBO = 0;
+    }
+    if (quarterQuadVAO != 0) {
+        glDeleteVertexArrays(1, &quarterQuadVAO);
+        quarterQuadVAO = 0;
+    }
     drawPasses.clear();
     configured = false;
+}
+
+void GrowlWaveVFX::ensureQuarterQuadResources() {
+    if (quarterQuadVAO != 0 && quarterQuadVBO != 0) return;
+
+    static const float kVerts[] = {
+        // pos.xyz      uv
+        // UVs are flipped to place the quarter texture's circular center at the local origin.
+        0.0f, 0.0f, 0.0f, 1.0f, 1.0f,
+        1.0f, 0.0f, 0.0f, 0.0f, 1.0f,
+        0.0f, 0.0f, 1.0f, 1.0f, 0.0f,
+        1.0f, 0.0f, 1.0f, 0.0f, 0.0f,
+    };
+
+    glGenVertexArrays(1, &quarterQuadVAO);
+    glGenBuffers(1, &quarterQuadVBO);
+
+    glBindVertexArray(quarterQuadVAO);
+    glBindBuffer(GL_ARRAY_BUFFER, quarterQuadVBO);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(kVerts), kVerts, GL_STATIC_DRAW);
+
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)0);
+
+    glEnableVertexAttribArray(1);
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(3 * sizeof(float)));
+
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+    glBindVertexArray(0);
+}
+
+void GrowlWaveVFX::drawQuarterQuad(const Camera3D& camera, const glm::mat4& world, int locMVP) const {
+    if (quarterQuadVAO == 0 || locMVP < 0) return;
+    const glm::mat4 mvp = camera.getProjectionMatrix() * camera.getViewMatrix() * world;
+    glUniformMatrix4fv(locMVP, 1, GL_FALSE, glm::value_ptr(mvp));
+    glBindVertexArray(quarterQuadVAO);
+    glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 }
 
 void GrowlWaveVFX::ensureConfigured() {
@@ -236,7 +288,13 @@ void GrowlWaveVFX::ensureConfigured() {
 
             DrawPassRuntime runtime;
             runtime.cfg = passCfg;
-            runtime.meshModel = std::make_unique<Model>(passCfg.meshPath);
+            if (passCfg.textureQuarterRing) {
+                ensureQuarterQuadResources();
+            } else if (!passCfg.meshPath.empty()) {
+                runtime.meshModel = std::make_unique<Model>(passCfg.meshPath);
+            } else {
+                throw std::runtime_error("Draw pass missing mesh path: " + passCfg.id);
+            }
             runtime.textureID = loadTextureRGBAOrWhite(passCfg.texturePath);
 
             const std::string vertPath =
@@ -392,7 +450,9 @@ void GrowlWaveVFX::render(const Camera3D& camera) {
     glBlendEquation(GL_FUNC_ADD);
 
     for (const auto& pass : drawPasses) {
-        if (!pass.meshModel || !pass.shader || pass.textureID == 0 || !pass.cfg.enabled) continue;
+        const bool drawMesh = (pass.meshModel != nullptr);
+        const bool drawQuarterRing = pass.cfg.textureQuarterRing;
+        if ((!drawMesh && !drawQuarterRing) || !pass.shader || pass.textureID == 0 || !pass.cfg.enabled) continue;
 
         const glm::vec3 passMeshForwardAxis =
             pass.cfg.overrideMeshForwardAxis ? pass.cfg.meshForwardAxis : cfg.meshForwardAxis;
@@ -489,7 +549,20 @@ void GrowlWaveVFX::render(const Camera3D& camera) {
                     glm::mat4_cast(passRot) *
                     glm::scale(glm::mat4(1.0f), finalScale);
 
-                pass.meshModel->drawGeometryWithBoundShader(camera, world, pass.locMVP);
+                if (drawQuarterRing) {
+                    const int quarterCount = std::max(1, pass.cfg.quarterCount);
+                    for (int i = 0; i < quarterCount; ++i) {
+                        const float quarterDeg = pass.cfg.quarterStartDeg + pass.cfg.quarterStepDeg * static_cast<float>(i);
+                        const glm::quat quarterRot = glm::angleAxis(glm::radians(quarterDeg), meshForwardLocal);
+                        const glm::mat4 quarterWorld =
+                            glm::translate(glm::mat4(1.0f), passPos) *
+                            glm::mat4_cast(passRot * quarterRot) *
+                            glm::scale(glm::mat4(1.0f), finalScale);
+                        drawQuarterQuad(camera, quarterWorld, pass.locMVP);
+                    }
+                } else {
+                    pass.meshModel->drawGeometryWithBoundShader(camera, world, pass.locMVP);
+                }
             }
         }
     }

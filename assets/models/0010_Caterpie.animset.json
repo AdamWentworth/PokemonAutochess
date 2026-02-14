@@ -1,0 +1,595 @@
+{
+  "schema": "animset-v2",
+  "model_id": "0010_Caterpie",
+  "model_num": null,
+  "blend_file": "0010_Caterpie.blend",
+  "fps": 25.0,
+  "clip_count": 19,
+  "clips": [
+    {
+      "gltf_name": "pm0010_00_ba01_landA01.gfbanm",
+      "source": "action",
+      "action": "pm0010_00_ba01_landA01.gfbanm",
+      "clip_id": null,
+      "base": "pm0010_00_ba01_landA01.",
+      "phase": "one_shot",
+      "is_loop": false,
+      "category": "misc",
+      "frame_start": 0.0,
+      "frame_end": 16.0,
+      "duration_frames": 16.0,
+      "duration_seconds": 0.64,
+      "clip_key": "action:name:pm0010_00_ba01_landA01.gfbanm",
+      "model_num": null,
+      "action_name": "pm0010_00_ba01_landA01.gfbanm",
+      "action_frame_start": 0.0,
+      "action_frame_end": 16.0,
+      "action_duration_frames": 16.0,
+      "action_duration_seconds": 0.64
+    },
+    {
+      "gltf_name": "pm0010_00_ba01_landB01.gfbanm",
+      "source": "action",
+      "action": "pm0010_00_ba01_landB01.gfbanm",
+      "clip_id": null,
+      "base": "pm0010_00_ba01_landB01.",
+      "phase": "one_shot",
+      "is_loop": false,
+      "category": "misc",
+      "frame_start": 0.0,
+      "frame_end": 11.0,
+      "duration_frames": 11.0,
+      "duration_seconds": 0.44,
+      "clip_key": "action:name:pm0010_00_ba01_landB01.gfbanm",
+      "model_num": null,
+      "action_name": "pm0010_00_ba01_landB01.gfbanm",
+      "action_frame_start": 0.0,
+      "action_frame_end": 11.0,
+      "action_duration_frames": 11.0,
+      "action_duration_seconds": 0.44
+    },
+    {
+      "gltf_name": "pm0010_00_ba01_landC01.gfbanm",
+      "source": "action",
+      "action": "pm0010_00_ba01_landC01.gfbanm",
+      "clip_id": null,
+      "base": "pm0010_00_ba01_landC01.",
+      "phase": "one_shot",
+      "is_loop": false,
+      "category": "misc",
+      "frame_start": 0.0,
+      "frame_end": 26.0,
+      "duration_frames": 26.0,
+      "duration_seconds": 1.04,
+      "clip_key": "action:name:pm0010_00_ba01_landC01.gfbanm",
+      "model_num": null,
+      "action_name": "pm0010_00_ba01_landC01.gfbanm",
+      "action_frame_start": 0.0,
+      "action_frame_end": 26.0,
+      "action_duration_frames": 26.0,
+      "action_duration_seconds": 1.04
+    },
+    {
+      "gltf_name": "pm0010_00_ba02_roar01.gfbanm",
+      "source": "action",
+      "action": "pm0010_00_ba02_roar01.gfbanm",
+      "clip_id": null,
+      "base": "pm0010_00_ba02_roar01.",
+      "phase": "one_shot",
+      "is_loop": false,
+      "category": "misc",
+      "frame_start": 0.0,
+      "frame_end": 161.0,
+      "duration_frames": 161.0,
+      "duration_seconds": 6.44,
+      "clip_key": "action:name:pm0010_00_ba02_roar01.gfbanm",
+      "model_num": null,
+      "action_name": "pm0010_00_ba02_roar01.gfbanm",
+      "action_frame_start": 0.0,
+      "action_frame_end": 161.0,
+      "action_duration_frames": 161.0,
+      "action_duration_seconds": 6.44
+    },
+    {
+      "gltf_name": "pm0010_00_ba10_waitA01.gfbanm",
+      "source": "action",
+      "action": "pm0010_00_ba10_waitA01.gfbanm",
+      "clip_id": null,
+      "base": "pm0010_00_ba10_waitA01.",
+      "phase": "one_shot",
+      "is_loop": false,
+      "category": "idle",
+      "frame_start": 0.0,
+      "frame_end": 51.0,
+      "duration_frames": 51.0,
+      "duration_seconds": 2.04,
+      "clip_key": "action:name:pm0010_00_ba10_waitA01.gfbanm",
+      "model_num": null,
+      "action_name": "pm0010_00_ba10_waitA01.gfbanm",
+      "action_frame_start": 0.0,
+      "action_frame_end": 51.0,
+      "action_duration_frames": 51.0,
+      "action_duration_seconds": 2.04
+    },
+    {
+      "gltf_name": "pm0010_00_ba21_tokusyu01.gfbanm",
+      "source": "action",
+      "action": "pm0010_00_ba21_tokusyu01.gfbanm",
+      "clip_id": null,
+      "base": "pm0010_00_ba21_tokusyu01.",
+      "phase": "one_shot",
+      "is_loop": false,
+      "category": "misc",
+      "frame_start": 0.0,
+      "frame_end": 56.0,
+      "duration_frames": 56.0,
+      "duration_seconds": 2.24,
+      "clip_key": "action:name:pm0010_00_ba21_tokusyu01.gfbanm",
+      "model_num": null,
+      "action_name": "pm0010_00_ba21_tokusyu01.gfbanm",
+      "action_frame_start": 0.0,
+      "action_frame_end": 56.0,
+      "action_duration_frames": 56.0,
+      "action_duration_seconds": 2.24
+    },
+    {
+      "gltf_name": "pm0010_00_ba30_damageS01.gfbanm",
+      "source": "action",
+      "action": "pm0010_00_ba30_damageS01.gfbanm",
+      "clip_id": null,
+      "base": "pm0010_00_ba30_damageS01.",
+      "phase": "one_shot",
+      "is_loop": false,
+      "category": "hit",
+      "frame_start": 0.0,
+      "frame_end": 21.0,
+      "duration_frames": 21.0,
+      "duration_seconds": 0.84,
+      "clip_key": "action:name:pm0010_00_ba30_damageS01.gfbanm",
+      "model_num": null,
+      "action_name": "pm0010_00_ba30_damageS01.gfbanm",
+      "action_frame_start": 0.0,
+      "action_frame_end": 21.0,
+      "action_duration_frames": 21.0,
+      "action_duration_seconds": 0.84
+    },
+    {
+      "gltf_name": "pm0010_00_ba41_down01.gfbanm",
+      "source": "action",
+      "action": "pm0010_00_ba41_down01.gfbanm",
+      "clip_id": null,
+      "base": "pm0010_00_ba41_down01.",
+      "phase": "one_shot",
+      "is_loop": false,
+      "category": "status",
+      "frame_start": 0.0,
+      "frame_end": 51.0,
+      "duration_frames": 51.0,
+      "duration_seconds": 2.04,
+      "clip_key": "action:name:pm0010_00_ba41_down01.gfbanm",
+      "model_num": null,
+      "action_name": "pm0010_00_ba41_down01.gfbanm",
+      "action_frame_start": 0.0,
+      "action_frame_end": 51.0,
+      "action_duration_frames": 51.0,
+      "action_duration_seconds": 2.04
+    },
+    {
+      "gltf_name": "pm0010_00_fi20_walk01.gfbanm",
+      "source": "action",
+      "action": "pm0010_00_fi20_walk01.gfbanm",
+      "clip_id": null,
+      "base": "pm0010_00_fi20_walk01.",
+      "phase": "one_shot",
+      "is_loop": false,
+      "category": "move",
+      "frame_start": 0.0,
+      "frame_end": 61.0,
+      "duration_frames": 61.0,
+      "duration_seconds": 2.44,
+      "clip_key": "action:name:pm0010_00_fi20_walk01.gfbanm",
+      "model_num": null,
+      "action_name": "pm0010_00_fi20_walk01.gfbanm",
+      "action_frame_start": 0.0,
+      "action_frame_end": 61.0,
+      "action_duration_frames": 61.0,
+      "action_duration_seconds": 2.44
+    },
+    {
+      "gltf_name": "pm0010_00_fi21_run01.gfbanm",
+      "source": "action",
+      "action": "pm0010_00_fi21_run01.gfbanm",
+      "clip_id": null,
+      "base": "pm0010_00_fi21_run01.",
+      "phase": "one_shot",
+      "is_loop": false,
+      "category": "move",
+      "frame_start": 0.0,
+      "frame_end": 31.0,
+      "duration_frames": 31.0,
+      "duration_seconds": 1.24,
+      "clip_key": "action:name:pm0010_00_fi21_run01.gfbanm",
+      "model_num": null,
+      "action_name": "pm0010_00_fi21_run01.gfbanm",
+      "action_frame_start": 0.0,
+      "action_frame_end": 31.0,
+      "action_duration_frames": 31.0,
+      "action_duration_seconds": 1.24
+    },
+    {
+      "gltf_name": "pm0010_00_kw20_drowseA01.gfbanm",
+      "source": "action",
+      "action": "pm0010_00_kw20_drowseA01.gfbanm",
+      "clip_id": null,
+      "base": "pm0010_00_kw20_drowseA01.",
+      "phase": "one_shot",
+      "is_loop": false,
+      "category": "misc",
+      "frame_start": 0.0,
+      "frame_end": 31.0,
+      "duration_frames": 31.0,
+      "duration_seconds": 1.24,
+      "clip_key": "action:name:pm0010_00_kw20_drowseA01.gfbanm",
+      "model_num": null,
+      "action_name": "pm0010_00_kw20_drowseA01.gfbanm",
+      "action_frame_start": 0.0,
+      "action_frame_end": 31.0,
+      "action_duration_frames": 31.0,
+      "action_duration_seconds": 1.24
+    },
+    {
+      "gltf_name": "pm0010_00_kw20_drowseB01.gfbanm",
+      "source": "action",
+      "action": "pm0010_00_kw20_drowseB01.gfbanm",
+      "clip_id": null,
+      "base": "pm0010_00_kw20_drowseB01.",
+      "phase": "one_shot",
+      "is_loop": false,
+      "category": "misc",
+      "frame_start": 0.0,
+      "frame_end": 51.0,
+      "duration_frames": 51.0,
+      "duration_seconds": 2.04,
+      "clip_key": "action:name:pm0010_00_kw20_drowseB01.gfbanm",
+      "model_num": null,
+      "action_name": "pm0010_00_kw20_drowseB01.gfbanm",
+      "action_frame_start": 0.0,
+      "action_frame_end": 51.0,
+      "action_duration_frames": 51.0,
+      "action_duration_seconds": 2.04
+    },
+    {
+      "gltf_name": "pm0010_00_kw20_drowseC01.gfbanm",
+      "source": "action",
+      "action": "pm0010_00_kw20_drowseC01.gfbanm",
+      "clip_id": null,
+      "base": "pm0010_00_kw20_drowseC01.",
+      "phase": "one_shot",
+      "is_loop": false,
+      "category": "misc",
+      "frame_start": 0.0,
+      "frame_end": 46.0,
+      "duration_frames": 46.0,
+      "duration_seconds": 1.84,
+      "clip_key": "action:name:pm0010_00_kw20_drowseC01.gfbanm",
+      "model_num": null,
+      "action_name": "pm0010_00_kw20_drowseC01.gfbanm",
+      "action_frame_start": 0.0,
+      "action_frame_end": 46.0,
+      "action_duration_frames": 46.0,
+      "action_duration_seconds": 1.84
+    },
+    {
+      "gltf_name": "pm0010_00_kw30_hate01.gfbanm",
+      "source": "action",
+      "action": "pm0010_00_kw30_hate01.gfbanm",
+      "clip_id": null,
+      "base": "pm0010_00_kw30_hate01.",
+      "phase": "one_shot",
+      "is_loop": false,
+      "category": "misc",
+      "frame_start": 0.0,
+      "frame_end": 61.0,
+      "duration_frames": 61.0,
+      "duration_seconds": 2.44,
+      "clip_key": "action:name:pm0010_00_kw30_hate01.gfbanm",
+      "model_num": null,
+      "action_name": "pm0010_00_kw30_hate01.gfbanm",
+      "action_frame_start": 0.0,
+      "action_frame_end": 61.0,
+      "action_duration_frames": 61.0,
+      "action_duration_seconds": 2.44
+    },
+    {
+      "gltf_name": "pm0010_00_kw32_happyB01.gfbanm",
+      "source": "action",
+      "action": "pm0010_00_kw32_happyB01.gfbanm",
+      "clip_id": null,
+      "base": "pm0010_00_kw32_happyB01.",
+      "phase": "one_shot",
+      "is_loop": false,
+      "category": "misc",
+      "frame_start": 0.0,
+      "frame_end": 51.0,
+      "duration_frames": 51.0,
+      "duration_seconds": 2.04,
+      "clip_key": "action:name:pm0010_00_kw32_happyB01.gfbanm",
+      "model_num": null,
+      "action_name": "pm0010_00_kw32_happyB01.gfbanm",
+      "action_frame_start": 0.0,
+      "action_frame_end": 51.0,
+      "action_duration_frames": 51.0,
+      "action_duration_seconds": 2.04
+    },
+    {
+      "gltf_name": "pm0010_00_kw33_moveC01.gfbanm",
+      "source": "action",
+      "action": "pm0010_00_kw33_moveC01.gfbanm",
+      "clip_id": null,
+      "base": "pm0010_00_kw33_moveC01.",
+      "phase": "one_shot",
+      "is_loop": false,
+      "category": "move",
+      "frame_start": 0.0,
+      "frame_end": 91.0,
+      "duration_frames": 91.0,
+      "duration_seconds": 3.64,
+      "clip_key": "action:name:pm0010_00_kw33_moveC01.gfbanm",
+      "model_num": null,
+      "action_name": "pm0010_00_kw33_moveC01.gfbanm",
+      "action_frame_start": 0.0,
+      "action_frame_end": 91.0,
+      "action_duration_frames": 91.0,
+      "action_duration_seconds": 3.64
+    },
+    {
+      "gltf_name": "pm0010_00_kw50_eatA01.gfbanm",
+      "source": "action",
+      "action": "pm0010_00_kw50_eatA01.gfbanm",
+      "clip_id": null,
+      "base": "pm0010_00_kw50_eatA01.",
+      "phase": "one_shot",
+      "is_loop": false,
+      "category": "misc",
+      "frame_start": 0.0,
+      "frame_end": 6.0,
+      "duration_frames": 6.0,
+      "duration_seconds": 0.24,
+      "clip_key": "action:name:pm0010_00_kw50_eatA01.gfbanm",
+      "model_num": null,
+      "action_name": "pm0010_00_kw50_eatA01.gfbanm",
+      "action_frame_start": 0.0,
+      "action_frame_end": 6.0,
+      "action_duration_frames": 6.0,
+      "action_duration_seconds": 0.24
+    },
+    {
+      "gltf_name": "pm0010_00_kw50_eatB01.gfbanm",
+      "source": "action",
+      "action": "pm0010_00_kw50_eatB01.gfbanm",
+      "clip_id": null,
+      "base": "pm0010_00_kw50_eatB01.",
+      "phase": "one_shot",
+      "is_loop": false,
+      "category": "misc",
+      "frame_start": 0.0,
+      "frame_end": 11.0,
+      "duration_frames": 11.0,
+      "duration_seconds": 0.44,
+      "clip_key": "action:name:pm0010_00_kw50_eatB01.gfbanm",
+      "model_num": null,
+      "action_name": "pm0010_00_kw50_eatB01.gfbanm",
+      "action_frame_start": 0.0,
+      "action_frame_end": 11.0,
+      "action_duration_frames": 11.0,
+      "action_duration_seconds": 0.44
+    },
+    {
+      "gltf_name": "pm0010_00_kw50_eatC01.gfbanm",
+      "source": "action",
+      "action": "pm0010_00_kw50_eatC01.gfbanm",
+      "clip_id": null,
+      "base": "pm0010_00_kw50_eatC01.",
+      "phase": "one_shot",
+      "is_loop": false,
+      "category": "misc",
+      "frame_start": 0.0,
+      "frame_end": 21.0,
+      "duration_frames": 21.0,
+      "duration_seconds": 0.84,
+      "clip_key": "action:name:pm0010_00_kw50_eatC01.gfbanm",
+      "model_num": null,
+      "action_name": "pm0010_00_kw50_eatC01.gfbanm",
+      "action_frame_start": 0.0,
+      "action_frame_end": 21.0,
+      "action_duration_frames": 21.0,
+      "action_duration_seconds": 0.84
+    }
+  ],
+  "groups": {
+    "pm0010_00_ba01_landA01.": {
+      "one_shot": "pm0010_00_ba01_landA01.gfbanm"
+    },
+    "pm0010_00_ba01_landB01.": {
+      "one_shot": "pm0010_00_ba01_landB01.gfbanm"
+    },
+    "pm0010_00_ba01_landC01.": {
+      "one_shot": "pm0010_00_ba01_landC01.gfbanm"
+    },
+    "pm0010_00_ba02_roar01.": {
+      "one_shot": "pm0010_00_ba02_roar01.gfbanm"
+    },
+    "pm0010_00_ba10_waitA01.": {
+      "one_shot": "pm0010_00_ba10_waitA01.gfbanm"
+    },
+    "pm0010_00_ba21_tokusyu01.": {
+      "one_shot": "pm0010_00_ba21_tokusyu01.gfbanm"
+    },
+    "pm0010_00_ba30_damageS01.": {
+      "one_shot": "pm0010_00_ba30_damageS01.gfbanm"
+    },
+    "pm0010_00_ba41_down01.": {
+      "one_shot": "pm0010_00_ba41_down01.gfbanm"
+    },
+    "pm0010_00_fi20_walk01.": {
+      "one_shot": "pm0010_00_fi20_walk01.gfbanm"
+    },
+    "pm0010_00_fi21_run01.": {
+      "one_shot": "pm0010_00_fi21_run01.gfbanm"
+    },
+    "pm0010_00_kw20_drowseA01.": {
+      "one_shot": "pm0010_00_kw20_drowseA01.gfbanm"
+    },
+    "pm0010_00_kw20_drowseB01.": {
+      "one_shot": "pm0010_00_kw20_drowseB01.gfbanm"
+    },
+    "pm0010_00_kw20_drowseC01.": {
+      "one_shot": "pm0010_00_kw20_drowseC01.gfbanm"
+    },
+    "pm0010_00_kw30_hate01.": {
+      "one_shot": "pm0010_00_kw30_hate01.gfbanm"
+    },
+    "pm0010_00_kw32_happyB01.": {
+      "one_shot": "pm0010_00_kw32_happyB01.gfbanm"
+    },
+    "pm0010_00_kw33_moveC01.": {
+      "one_shot": "pm0010_00_kw33_moveC01.gfbanm"
+    },
+    "pm0010_00_kw50_eatA01.": {
+      "one_shot": "pm0010_00_kw50_eatA01.gfbanm"
+    },
+    "pm0010_00_kw50_eatB01.": {
+      "one_shot": "pm0010_00_kw50_eatB01.gfbanm"
+    },
+    "pm0010_00_kw50_eatC01.": {
+      "one_shot": "pm0010_00_kw50_eatC01.gfbanm"
+    }
+  },
+  "by_id": {},
+  "categories": {
+    "misc": [
+      "pm0010_00_ba01_landA01.gfbanm",
+      "pm0010_00_ba01_landB01.gfbanm",
+      "pm0010_00_ba01_landC01.gfbanm",
+      "pm0010_00_ba02_roar01.gfbanm",
+      "pm0010_00_ba21_tokusyu01.gfbanm",
+      "pm0010_00_kw20_drowseA01.gfbanm",
+      "pm0010_00_kw20_drowseB01.gfbanm",
+      "pm0010_00_kw20_drowseC01.gfbanm",
+      "pm0010_00_kw30_hate01.gfbanm",
+      "pm0010_00_kw32_happyB01.gfbanm",
+      "pm0010_00_kw50_eatA01.gfbanm",
+      "pm0010_00_kw50_eatB01.gfbanm",
+      "pm0010_00_kw50_eatC01.gfbanm"
+    ],
+    "idle": [
+      "pm0010_00_ba10_waitA01.gfbanm"
+    ],
+    "hit": [
+      "pm0010_00_ba30_damageS01.gfbanm"
+    ],
+    "status": [
+      "pm0010_00_ba41_down01.gfbanm"
+    ],
+    "move": [
+      "pm0010_00_fi20_walk01.gfbanm",
+      "pm0010_00_fi21_run01.gfbanm",
+      "pm0010_00_kw33_moveC01.gfbanm"
+    ]
+  },
+  "groups_v2": {
+    "pm0010_00_ba01_landA01.": {
+      "one_shot": "action:name:pm0010_00_ba01_landA01.gfbanm"
+    },
+    "pm0010_00_ba01_landB01.": {
+      "one_shot": "action:name:pm0010_00_ba01_landB01.gfbanm"
+    },
+    "pm0010_00_ba01_landC01.": {
+      "one_shot": "action:name:pm0010_00_ba01_landC01.gfbanm"
+    },
+    "pm0010_00_ba02_roar01.": {
+      "one_shot": "action:name:pm0010_00_ba02_roar01.gfbanm"
+    },
+    "pm0010_00_ba10_waitA01.": {
+      "one_shot": "action:name:pm0010_00_ba10_waitA01.gfbanm"
+    },
+    "pm0010_00_ba21_tokusyu01.": {
+      "one_shot": "action:name:pm0010_00_ba21_tokusyu01.gfbanm"
+    },
+    "pm0010_00_ba30_damageS01.": {
+      "one_shot": "action:name:pm0010_00_ba30_damageS01.gfbanm"
+    },
+    "pm0010_00_ba41_down01.": {
+      "one_shot": "action:name:pm0010_00_ba41_down01.gfbanm"
+    },
+    "pm0010_00_fi20_walk01.": {
+      "one_shot": "action:name:pm0010_00_fi20_walk01.gfbanm"
+    },
+    "pm0010_00_fi21_run01.": {
+      "one_shot": "action:name:pm0010_00_fi21_run01.gfbanm"
+    },
+    "pm0010_00_kw20_drowseA01.": {
+      "one_shot": "action:name:pm0010_00_kw20_drowseA01.gfbanm"
+    },
+    "pm0010_00_kw20_drowseB01.": {
+      "one_shot": "action:name:pm0010_00_kw20_drowseB01.gfbanm"
+    },
+    "pm0010_00_kw20_drowseC01.": {
+      "one_shot": "action:name:pm0010_00_kw20_drowseC01.gfbanm"
+    },
+    "pm0010_00_kw30_hate01.": {
+      "one_shot": "action:name:pm0010_00_kw30_hate01.gfbanm"
+    },
+    "pm0010_00_kw32_happyB01.": {
+      "one_shot": "action:name:pm0010_00_kw32_happyB01.gfbanm"
+    },
+    "pm0010_00_kw33_moveC01.": {
+      "one_shot": "action:name:pm0010_00_kw33_moveC01.gfbanm"
+    },
+    "pm0010_00_kw50_eatA01.": {
+      "one_shot": "action:name:pm0010_00_kw50_eatA01.gfbanm"
+    },
+    "pm0010_00_kw50_eatB01.": {
+      "one_shot": "action:name:pm0010_00_kw50_eatB01.gfbanm"
+    },
+    "pm0010_00_kw50_eatC01.": {
+      "one_shot": "action:name:pm0010_00_kw50_eatC01.gfbanm"
+    }
+  },
+  "categories_v2": {
+    "misc": [
+      "action:name:pm0010_00_ba01_landA01.gfbanm",
+      "action:name:pm0010_00_ba01_landB01.gfbanm",
+      "action:name:pm0010_00_ba01_landC01.gfbanm",
+      "action:name:pm0010_00_ba02_roar01.gfbanm",
+      "action:name:pm0010_00_ba21_tokusyu01.gfbanm",
+      "action:name:pm0010_00_kw20_drowseA01.gfbanm",
+      "action:name:pm0010_00_kw20_drowseB01.gfbanm",
+      "action:name:pm0010_00_kw20_drowseC01.gfbanm",
+      "action:name:pm0010_00_kw30_hate01.gfbanm",
+      "action:name:pm0010_00_kw32_happyB01.gfbanm",
+      "action:name:pm0010_00_kw50_eatA01.gfbanm",
+      "action:name:pm0010_00_kw50_eatB01.gfbanm",
+      "action:name:pm0010_00_kw50_eatC01.gfbanm"
+    ],
+    "idle": [
+      "action:name:pm0010_00_ba10_waitA01.gfbanm"
+    ],
+    "hit": [
+      "action:name:pm0010_00_ba30_damageS01.gfbanm"
+    ],
+    "status": [
+      "action:name:pm0010_00_ba41_down01.gfbanm"
+    ],
+    "move": [
+      "action:name:pm0010_00_fi20_walk01.gfbanm",
+      "action:name:pm0010_00_fi21_run01.gfbanm",
+      "action:name:pm0010_00_kw33_moveC01.gfbanm"
+    ]
+  },
+  "export_scope": {
+    "collection": null,
+    "armature_only": true,
+    "use_nla_strips_first": true
+  }
+}

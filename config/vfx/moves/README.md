@@ -32,6 +32,12 @@ For Growl passes you can set optional per-pass overrides:
 - `vert_shader`: optional vertex shader path for this pass
 - `frag_shader`: optional fragment shader path for this pass
 - `texture`: can be empty (`""`) for non-textured passes
+- `render_mode`: optional rendering path selector (default `mesh`)
+  - `mesh`: draw glTF mesh as-is
+  - `texture_quarter_ring`: no mesh; draws one textured quarter quad multiple times around forward
+- `quarter_count`: number of rotated quarter draws (default `4`)
+- `quarter_step_deg`: rotation step between quarter draws (default `90.0`)
+- `quarter_start_deg`: starting rotation offset (default `0.0`)
 - `forward_offset`: per-pass world offset along cast direction (higher = farther from caster)
 - `height_offset`: per-pass vertical start spread from origin (does not change aim angle)
   - Applied as `up * (height_offset * direction_local.y)` per line.
