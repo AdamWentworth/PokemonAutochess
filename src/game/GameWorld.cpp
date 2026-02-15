@@ -54,8 +54,55 @@ glm::vec3 SafeForwardXZ(const glm::vec3& v) {
     return f / len;
 }
 
+float ResolveModelScaleCorrection(const std::shared_ptr<Model>& model,
+                                  const std::string& scaleModeRaw,
+                                  const std::string& axisModeRaw) {
+    if (!model) return 1.0f;
+
+    const std::string scaleMode = Lower(scaleModeRaw);
+    if (scaleMode.empty() || scaleMode == "native" || scaleMode == "raw") {
+        const float importerScale = std::max(0.0f, model->getScaleFactor());
+        if (importerScale <= 1e-6f) return 1.0f;
+        // Cancel importer normalization so config scale reflects native GLB size.
+        return 1.0f / importerScale;
+    }
+
+    // Legacy compatibility path.
+    if (scaleMode != "normalized") {
+        const float importerScale = std::max(0.0f, model->getScaleFactor());
+        if (importerScale <= 1e-6f) return 1.0f;
+        return 1.0f / importerScale;
+    }
+
+    if (!model->hasBounds()) return 1.0f;
+
+    std::string axisMode = Lower(axisModeRaw);
+    if (axisMode.empty() || axisMode == "max") return 1.0f;
+
+    const glm::vec3 ext = model->getBoundsMax() - model->getBoundsMin();
+    const float ex = std::max(0.0f, ext.x);
+    const float ey = std::max(0.0f, ext.y);
+    const float ez = std::max(0.0f, ext.z);
+    const float maxExtent = std::max(ex, std::max(ey, ez));
+    if (maxExtent <= 1e-6f) return 1.0f;
+
+    float chosenExtent = maxExtent;
+    if (axisMode == "x") chosenExtent = ex;
+    else if (axisMode == "y") chosenExtent = ey;
+    else if (axisMode == "z") chosenExtent = ez;
+    else if (axisMode == "median") {
+        std::array<float, 3> arr{ex, ey, ez};
+        std::sort(arr.begin(), arr.end());
+        chosenExtent = arr[1];
+    }
+
+    if (chosenExtent <= 1e-6f) return 1.0f;
+    return maxExtent / chosenExtent;
+}
+
 glm::mat4 BuildModelInstanceTransform(const PokemonInstance& instance) {
     const float scaleFactor = (instance.model ? instance.model->getScaleFactor() : 1.0f) *
+                              std::max(0.0f, instance.modelScaleCorrection) *
                               std::max(0.0f, instance.speciesScale) *
                               std::max(0.0f, instance.visualScale) *
                               std::max(0.0f, instance.captureScale);
@@ -143,22 +190,16 @@ glm::vec3 GameWorld::benchSlotToWorld(int slot, float cellSize) const {
 }
 
 void GameWorld::reconcileBoardScaleFromRoster() {
-    if (unitDragActive) return;
-
-    float maxSpeciesScale = 1.0f;
-    auto inspect = [&](const std::vector<PokemonInstance>& list) {
-        for (const auto& u : list) {
-            maxSpeciesScale = std::max(maxSpeciesScale, std::max(0.05f, u.speciesScale));
-        }
-    };
-    inspect(pokemons);
-    inspect(benchPokemons);
-
-    const float targetScale = std::clamp(1.0f + (maxSpeciesScale - 1.0f) * 0.65f, 1.0f, 1.8f);
-    if (std::abs(targetScale - boardScaleMul) < 0.0001f) return;
+    // Fixed board sizing policy:
+    // keep a constant board cell size and never auto-resize from roster composition.
+    // This keeps rendered model size driven only by native model size and config visualScale.
+    if (std::abs(boardScaleMul - 1.0f) < 0.0001f) {
+        boardResizePauseSec = 0.0f;
+        return;
+    }
 
     const float oldCell = getBoardCellSize();
-    const float newCell = std::max(0.05f, config.cellSize * targetScale);
+    const float newCell = std::max(0.05f, config.cellSize);
 
     auto remapBoard = [&](std::vector<PokemonInstance>& list) {
         for (auto& u : list) {
@@ -186,11 +227,11 @@ void GameWorld::reconcileBoardScaleFromRoster() {
         kv.second = gridToWorldWithCellSize(cell.x, cell.y, newCell);
     }
 
-    boardScaleMul = targetScale;
-    boardResizePauseSec = std::max(boardResizePauseSec, 0.16f);
+    boardScaleMul = 1.0f;
+    boardResizePauseSec = 0.0f;
 
     if (log) {
-        game::log::infoTerminalOnly(log, "[BoardScale] Updated multiplier to " + std::to_string(boardScaleMul));
+        game::log::infoTerminalOnly(log, "[BoardScale] Auto-resize disabled; board multiplier fixed at 1.0");
     }
 }
 
@@ -312,6 +353,9 @@ void GameWorld::tryApplyEvolution(PokemonInstance& unit) {
         unit.types = nextStats->types;
         unit.baseExp = nextStats->baseExp;
         unit.speciesScale = nextStats->visualScale;
+        unit.modelScaleCorrection = ResolveModelScaleCorrection(nextModel,
+                                                                nextStats->modelScaleMode,
+                                                                nextStats->modelScaleAxis);
 
         applyLevelScaling(unit, unit.level, /*preserveHp=*/true);
         applyLoadoutForLevel(unit, /*preserveEnergy=*/true);
@@ -969,6 +1013,9 @@ void GameWorld::spawnPokemon(const std::string& pokemonName,
     inst.types = stats->types;
     inst.baseExp = stats->baseExp;
     inst.speciesScale = stats->visualScale;
+    inst.modelScaleCorrection = ResolveModelScaleCorrection(sharedModel,
+                                                            stats->modelScaleMode,
+                                                            stats->modelScaleAxis);
 
     applyLevelScaling(inst, level, false);
     applyLoadoutForLevel(inst, false);
@@ -997,6 +1044,14 @@ void GameWorld::spawnPokemon(const std::string& pokemonName,
               << ", HP: " << inst.hp << "/" << inst.maxHP
               << ", ATK: " << inst.attack
               << ", SPD: " << inst.movementSpeed
+              << ", Scale: model=" << (inst.model ? inst.model->getScaleFactor() : 1.0f)
+              << " corr=" << inst.modelScaleCorrection
+              << " species=" << inst.speciesScale
+              << " visual=" << inst.visualScale
+              << " final=" << ((inst.model ? inst.model->getScaleFactor() : 1.0f) *
+                               std::max(0.0f, inst.modelScaleCorrection) *
+                               std::max(0.0f, inst.speciesScale) *
+                               std::max(0.0f, inst.visualScale))
               << ", FAST: " << (inst.fastMove.empty() ? "-" : inst.fastMove)
               << ", CHARGED: " << (inst.chargedMove.empty() ? "-" : inst.chargedMove)
               << ", Ecap: " << inst.maxEnergy
@@ -1055,6 +1110,9 @@ void GameWorld::addToBench(const std::string& pokemonName, int level)
     inst.types = stats->types;
     inst.baseExp = stats->baseExp;
     inst.speciesScale = stats->visualScale;
+    inst.modelScaleCorrection = ResolveModelScaleCorrection(sharedModel,
+                                                            stats->modelScaleMode,
+                                                            stats->modelScaleAxis);
 
     applyLevelScaling(inst, level, false);
     applyLoadoutForLevel(inst, false);
@@ -1083,6 +1141,14 @@ void GameWorld::addToBench(const std::string& pokemonName, int level)
     std::cout << "[GameWorld] Benched " << pokemonName
               << " (ID: " << inst.id
               << " L" << inst.level
+              << ", Scale: model=" << (inst.model ? inst.model->getScaleFactor() : 1.0f)
+              << " corr=" << inst.modelScaleCorrection
+              << " species=" << inst.speciesScale
+              << " visual=" << inst.visualScale
+              << " final=" << ((inst.model ? inst.model->getScaleFactor() : 1.0f) *
+                               std::max(0.0f, inst.modelScaleCorrection) *
+                               std::max(0.0f, inst.speciesScale) *
+                               std::max(0.0f, inst.visualScale))
               << ", FAST: " << (inst.fastMove.empty() ? "-" : inst.fastMove)
               << ", CHARGED: " << (inst.chargedMove.empty() ? "-" : inst.chargedMove)
               << ")\n";
@@ -1563,6 +1629,7 @@ void GameWorld::drawAll(const Camera3D& camera, BoardRenderer& boardRenderer)
             if (!instance.alive && !instance.fainting) continue;
 
             float scaleFactor = instance.model->getScaleFactor() *
+                                std::max(0.0f, instance.modelScaleCorrection) *
                                 std::max(0.0f, instance.speciesScale) *
                                 std::max(0.0f, instance.visualScale) *
                                 std::max(0.0f, instance.captureScale);
@@ -1663,6 +1730,7 @@ void GameWorld::emitTackleImpactAt(const PokemonInstance& target, const PokemonI
         if (len > 0.0001f) {
             dir /= len;
             const float scale = target.model->getScaleFactor() *
+                                std::max(0.0f, target.modelScaleCorrection) *
                                 std::max(0.0f, target.speciesScale) *
                                 std::max(0.0f, target.visualScale) *
                                 std::max(0.0f, target.captureScale);
@@ -1722,6 +1790,7 @@ void GameWorld::emitMoveImpactByName(const std::string& moveName,
             const glm::vec3 fwdXZ = SafeForwardXZ(forward);
             const glm::vec3 renderPos = attacker->position + glm::vec3(0.0f, attacker->visualYOffset, 0.0f);
             const float worldScale = (attacker->model ? attacker->model->getScaleFactor() : 1.0f) *
+                                     std::max(0.0f, attacker->modelScaleCorrection) *
                                      std::max(0.0f, attacker->speciesScale) *
                                      std::max(0.0f, attacker->visualScale) *
                                      std::max(0.0f, attacker->captureScale);

@@ -22,6 +22,12 @@ struct PokemonStats {
     int attack = 10;
     float movementSpeed = 1.0f;
     float visualScale = 1.0f;
+    // "native" (default): keep Blender/exported model size (no importer normalization effect).
+    // "normalized": keep importer normalization (legacy compatibility).
+    std::string modelScaleMode = "native";
+    // Optional normalization axis used to compensate for problematic model bounds.
+    // Supported: "max" (default), "x", "y", "z", "median".
+    std::string modelScaleAxis = "max";
     std::string model;
     std::vector<std::string> types;
     int baseExp = 50;

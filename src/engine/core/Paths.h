@@ -2,6 +2,7 @@
 #pragma once
 
 #include <cstdlib>
+#include <filesystem>
 #include <string>
 #include <string_view>
 
@@ -39,6 +40,28 @@ inline std::string asset(std::string_view rel) {
 inline std::string dataRoot() {
     if (const char* v = std::getenv("PAC_DATA_ROOT")) {
         if (*v) return std::string(v);
+    }
+    // Dev convenience: if launched from a subfolder (e.g. dist/Release),
+    // walk upward and prefer the repository root that contains source data.
+    // This keeps config/script edits in the repo hot without duplicating files.
+    std::error_code ec;
+    std::filesystem::path p = std::filesystem::current_path(ec);
+    if (!ec) {
+        while (!p.empty()) {
+            std::error_code probeEc;
+            const bool hasGit =
+                std::filesystem::exists(p / ".git", probeEc) && !probeEc;
+            const bool hasConfig =
+                std::filesystem::exists(p / "config" / "pokemon_config.json", probeEc) && !probeEc;
+            const bool hasScripts =
+                std::filesystem::exists(p / "scripts", probeEc) && !probeEc;
+            if (hasGit && hasConfig && hasScripts) {
+                return p.string();
+            }
+            const std::filesystem::path parent = p.parent_path();
+            if (parent.empty() || parent == p) break;
+            p = parent;
+        }
     }
     return ".";
 }

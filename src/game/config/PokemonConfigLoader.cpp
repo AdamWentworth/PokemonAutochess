@@ -39,6 +39,26 @@ bool PokemonConfigLoader::loadConfig(const std::string& filePath,
         stats.attack        = data.value("attack", 10);
         stats.movementSpeed = data.value("movementSpeed", 1.0f);
         stats.visualScale   = std::max(0.05f, data.value("visualScale", 1.0f));
+        stats.modelScaleMode = toLowerCopy(data.value("modelScaleMode", std::string("native")));
+        // Backward-compat alias.
+        if (stats.modelScaleMode == "raw") stats.modelScaleMode = "native";
+        if (stats.modelScaleMode != "native" && stats.modelScaleMode != "normalized") {
+            game::log::warn(logger, std::string("[PokemonConfigLoader] Invalid modelScaleMode '") +
+                                   stats.modelScaleMode + "' for species '" + name +
+                                   "'. Using 'native'.");
+            stats.modelScaleMode = "native";
+        }
+        stats.modelScaleAxis = toLowerCopy(data.value("modelScaleAxis", std::string("max")));
+        if (stats.modelScaleAxis != "max" &&
+            stats.modelScaleAxis != "x" &&
+            stats.modelScaleAxis != "y" &&
+            stats.modelScaleAxis != "z" &&
+            stats.modelScaleAxis != "median") {
+            game::log::warn(logger, std::string("[PokemonConfigLoader] Invalid modelScaleAxis '") +
+                                   stats.modelScaleAxis + "' for species '" + name +
+                                   "'. Using 'max'.");
+            stats.modelScaleAxis = "max";
+        }
         stats.model         = data.value("model", name + ".glb");
         stats.baseExp       = data.value("baseExp", stats.baseExp);
         stats.catchRate     = data.value("catchRate", stats.catchRate);

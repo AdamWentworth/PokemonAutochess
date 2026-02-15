@@ -139,7 +139,7 @@
     },
     "model": "0007_Squirtle.glb",
     "movementSpeed": 0.9,
-    "visualScale": 1.0,
+    "visualScale": 1.25,
     "unlockTable": [
       {
         "charged": [],
@@ -196,7 +196,7 @@
     },
     "model": "0016_Pidgey.glb",
     "movementSpeed": 1.1,
-    "visualScale": 1.0,
+    "visualScale": 2,
     "unlockTable": [
       {
         "charged": [],
@@ -278,7 +278,8 @@
         ],
         "level": 13
       }
-    ]
+    ],
+    "visualScale": 1.0
   },
   "nidoran-f": {
     "types": [
@@ -303,7 +304,7 @@
     },
     "model": "0029_NidoranF.glb",
     "movementSpeed": 1.05,
-    "visualScale": 0.9,
+    "visualScale": 1.0,
     "unlockTable": [
       {
         "charged": [],
@@ -348,8 +349,8 @@
       }
     },
     "model": "0032_NidoranM.glb",
-    "movementSpeed": 1.10,
-    "visualScale": 0.9,
+    "movementSpeed": 1.1,
+    "visualScale": 1.0,
     "unlockTable": [
       {
         "charged": [],
@@ -395,7 +396,8 @@
       }
     },
     "model": "0021_Spearow.glb",
-    "movementSpeed": 1.20,
+    "movementSpeed": 1.2,
+    "visualScale": 1.5,
     "unlockTable": [
       {
         "charged": [],
@@ -444,6 +446,7 @@
     },
     "model": "0056_Mankey.glb",
     "movementSpeed": 1.25,
+    "visualScale": 1.0,
     "unlockTable": [
       {
         "charged": [],
@@ -490,7 +493,7 @@
     },
     "model": "0002_Ivysaur.glb",
     "movementSpeed": 1.0,
-    "visualScale": 1.42,
+    "visualScale": 1.0,
     "unlockTable": [
       {
         "charged": [],
@@ -539,7 +542,7 @@
     },
     "model": "0005_Charmeleon.glb",
     "movementSpeed": 1.25,
-    "visualScale": 1.58,
+    "visualScale": 1.0,
     "unlockTable": [
       {
         "charged": [],
@@ -592,7 +595,7 @@
     },
     "model": "0008_Wartortle.glb",
     "movementSpeed": 0.95,
-    "visualScale": 1.55,
+    "visualScale": 1.0,
     "unlockTable": [
       {
         "charged": [],
@@ -649,7 +652,7 @@
     },
     "model": "0017_Pidgeotto.glb",
     "movementSpeed": 1.25,
-    "visualScale": 1.45,
+    "visualScale": 1.0,
     "unlockTable": [
       {
         "charged": [],
@@ -724,7 +727,8 @@
         ],
         "level": 8
       }
-    ]
+    ],
+    "visualScale": 1.0
   },
   "caterpie": {
     "types": [
@@ -744,7 +748,7 @@
     },
     "model": "0010_Caterpie.glb",
     "movementSpeed": 1.0,
-    "visualScale": 0.72,
+    "visualScale": 1.5,
     "unlockTable": [
       {
         "charged": [],
@@ -773,7 +777,7 @@
     },
     "model": "0011_Metapod.glb",
     "movementSpeed": 0.8,
-    "visualScale": 0.86,
+    "visualScale": 1.0,
     "unlockTable": [
       {
         "charged": [],
@@ -804,7 +808,7 @@
     },
     "model": "0012_Butterfree.glb",
     "movementSpeed": 1.15,
-    "visualScale": 1.18,
+    "visualScale": 1.0,
     "unlockTable": [
       {
         "charged": [],
@@ -840,7 +844,7 @@
     },
     "model": "0013_Weedle.glb",
     "movementSpeed": 1.0,
-    "visualScale": 0.72,
+    "visualScale": 1.5,
     "unlockTable": [
       {
         "charged": [],
@@ -870,7 +874,7 @@
     },
     "model": "0014_Kakuna.glb",
     "movementSpeed": 0.8,
-    "visualScale": 0.86,
+    "visualScale": 1.0,
     "unlockTable": [
       {
         "charged": [],
@@ -901,7 +905,7 @@
     },
     "model": "0015_Beedrill.glb",
     "movementSpeed": 1.2,
-    "visualScale": 1.18,
+    "visualScale": 1.0,
     "unlockTable": [
       {
         "charged": [],

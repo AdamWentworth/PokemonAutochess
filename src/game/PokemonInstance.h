@@ -58,6 +58,9 @@ struct PokemonInstance {
     std::vector<std::string> types;
     int   baseExp = 0;
     float speciesScale = 1.0f;
+    // Additional render-time correction derived from model bounds interpretation.
+    // Kept separate so board-scaling logic can remain driven by speciesScale.
+    float modelScaleCorrection = 1.0f;
 
     int   hp = 100;
     int   maxHP = 100;

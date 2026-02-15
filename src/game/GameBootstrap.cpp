@@ -93,6 +93,8 @@ std::unique_ptr<GameSession> GameBootstrap::create(GameContext& ctx) {
     std::cout << "[Init] CWD: " << std::filesystem::current_path() << "\n";
     std::cout << "[Init] PAC_DATA_ROOT: " << engine::paths::dataRoot() << "\n";
     std::cout << "[Init] PAC_ASSET_ROOT: " << engine::paths::assetRoot() << "\n";
+    std::cout << "[Init] pokemon_config path: "
+              << std::filesystem::absolute(engine::paths::data("config/pokemon_config.json")) << "\n";
 
     return std::make_unique<GameSession>(ctx, std::move(db));
 }
