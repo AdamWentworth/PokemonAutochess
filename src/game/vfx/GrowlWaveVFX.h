@@ -4,6 +4,7 @@
 #include <memory>
 #include <string>
 #include <vector>
+#include <cstdint>
 
 #include <glm/glm.hpp>
 #include <glm/gtc/quaternion.hpp>
@@ -35,6 +36,7 @@ public:
             float alphaMul = 1.0f;
             float forwardOffset = 0.0f;
             float heightOffset = 0.0f;
+            float startRadiusMul = 1.0f;
             bool overrideMeshForwardAxis = false;
             glm::vec3 meshForwardAxis = glm::vec3(0.0f, 1.0f, 0.0f);
             bool overrideDirection = false;
@@ -42,6 +44,12 @@ public:
             glm::vec3 directionLocal = glm::vec3(0.0f, 0.0f, 1.0f);
             // Optional multi-line fan for line passes.
             std::vector<glm::vec3> directionsLocal;
+            // Per-emission angular jitter for directions_local (degrees).
+            // 0 = disabled (uses authored even spacing as-is).
+            float directionSpacingJitterDeg = 0.0f;
+            // Per-line alpha variation range (multiplies alpha_mul), for dynamic line brightness.
+            float lineAlphaMin = 1.0f;
+            float lineAlphaMax = 1.0f;
             float radiusMul = 1.0f;
             float thicknessMul = 1.0f;
             bool overrideTev = false;
@@ -165,6 +173,7 @@ private:
         float ageSec = 0.0f;
         float startScale = 1.0f;
         float endScale = 1.0f;
+        std::uint32_t randomSeed = 0u;
     };
 
     void ensureConfigured();

@@ -275,5 +275,189 @@
         "level": 13
       }
     ]
+  },
+  "nidoran-f": {
+    "types": [
+      "poison"
+    ],
+    "attack": 8,
+    "hp": 78,
+    "catchRate": 0.65,
+    "shopBaseCost": 2,
+    "loadoutByLevel": {
+      "1": {
+        "fast": "poison_sting"
+      },
+      "4": {
+        "charged": "tail_whip",
+        "fast": "poison_sting"
+      },
+      "8": {
+        "charged": "sludge",
+        "fast": "poison_sting"
+      }
+    },
+    "model": "0029_NidoranF.glb",
+    "movementSpeed": 1.05,
+    "unlockTable": [
+      {
+        "charged": [],
+        "fast": [
+          "poison_sting"
+        ],
+        "level": 1
+      },
+      {
+        "charged": [
+          "tail_whip"
+        ],
+        "level": 4
+      },
+      {
+        "charged": [
+          "sludge"
+        ],
+        "level": 8
+      }
+    ]
+  },
+  "nidoran-m": {
+    "types": [
+      "poison"
+    ],
+    "attack": 9,
+    "hp": 76,
+    "catchRate": 0.62,
+    "shopBaseCost": 2,
+    "loadoutByLevel": {
+      "1": {
+        "fast": "poison_sting"
+      },
+      "4": {
+        "charged": "growl",
+        "fast": "poison_sting"
+      },
+      "8": {
+        "charged": "sludge",
+        "fast": "poison_sting"
+      }
+    },
+    "model": "0032_NidoranM.glb",
+    "movementSpeed": 1.10,
+    "unlockTable": [
+      {
+        "charged": [],
+        "fast": [
+          "poison_sting"
+        ],
+        "level": 1
+      },
+      {
+        "charged": [
+          "growl"
+        ],
+        "level": 4
+      },
+      {
+        "charged": [
+          "sludge"
+        ],
+        "level": 8
+      }
+    ]
+  },
+  "spearow": {
+    "types": [
+      "normal",
+      "flying"
+    ],
+    "attack": 9,
+    "hp": 72,
+    "catchRate": 0.68,
+    "shopBaseCost": 2,
+    "loadoutByLevel": {
+      "1": {
+        "fast": "quick_attack"
+      },
+      "4": {
+        "charged": "sand_attack",
+        "fast": "quick_attack"
+      },
+      "8": {
+        "charged": "gust",
+        "fast": "wing_attack"
+      }
+    },
+    "model": "0021_Spearow.glb",
+    "movementSpeed": 1.20,
+    "unlockTable": [
+      {
+        "charged": [],
+        "fast": [
+          "quick_attack"
+        ],
+        "level": 1
+      },
+      {
+        "charged": [
+          "sand_attack"
+        ],
+        "level": 4
+      },
+      {
+        "charged": [
+          "gust"
+        ],
+        "fast": [
+          "wing_attack"
+        ],
+        "level": 8
+      }
+    ]
+  },
+  "mankey": {
+    "types": [
+      "fighting"
+    ],
+    "attack": 10,
+    "hp": 82,
+    "catchRate": 0.58,
+    "shopBaseCost": 2,
+    "loadoutByLevel": {
+      "1": {
+        "fast": "scratch"
+      },
+      "4": {
+        "charged": "growl",
+        "fast": "scratch"
+      },
+      "8": {
+        "charged": "hyper_fang",
+        "fast": "scratch"
+      }
+    },
+    "model": "0056_Mankey.glb",
+    "movementSpeed": 1.25,
+    "unlockTable": [
+      {
+        "charged": [],
+        "fast": [
+          "scratch"
+        ],
+        "level": 1
+      },
+      {
+        "charged": [
+          "growl"
+        ],
+        "level": 4
+      },
+      {
+        "charged": [
+          "hyper_fang"
+        ],
+        "level": 8
+      }
+    ]
   }
 }

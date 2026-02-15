@@ -92,6 +92,16 @@ bool parseVec3ArrayList(const nlohmann::json& j, std::vector<glm::vec3>& out) {
     out = std::move(parsed);
     return true;
 }
+
+float hash01(std::uint32_t x) {
+    x ^= x >> 16;
+    x *= 0x7feb352du;
+    x ^= x >> 15;
+    x *= 0x846ca68bu;
+    x ^= x >> 16;
+    const std::uint32_t v = x >> 8;
+    return static_cast<float>(v) * (1.0f / 16777216.0f);
+}
 } // namespace
 
 GrowlWaveVFX::~GrowlWaveVFX() {
@@ -160,6 +170,7 @@ void GrowlWaveVFX::applyDrawManifestOverrides() {
                 p.alphaMul = it.value("alpha_mul", p.alphaMul);
                 p.forwardOffset = it.value("forward_offset", p.forwardOffset);
                 p.heightOffset = it.value("height_offset", p.heightOffset);
+                p.startRadiusMul = it.value("start_radius_mul", p.startRadiusMul);
                 p.radiusMul = it.value("radius_mul", p.radiusMul);
                 p.thicknessMul = it.value("thickness_mul", p.thicknessMul);
                 p.overrideTev = it.value("override_tev", p.overrideTev);
@@ -186,6 +197,11 @@ void GrowlWaveVFX::applyDrawManifestOverrides() {
                     p.directionsLocal = std::move(directionsLocal);
                     p.overrideDirection = true;
                 }
+                p.directionSpacingJitterDeg =
+                    std::max(0.0f, it.value("direction_spacing_jitter_deg", p.directionSpacingJitterDeg));
+                p.lineAlphaMin = std::max(0.0f, it.value("line_alpha_min", p.lineAlphaMin));
+                p.lineAlphaMax = std::max(0.0f, it.value("line_alpha_max", p.lineAlphaMax));
+                if (p.lineAlphaMax < p.lineAlphaMin) std::swap(p.lineAlphaMin, p.lineAlphaMax);
                 glm::vec3 tev;
                 if (it.contains("tev_c0") && parseVec3Array(it["tev_c0"], tev)) {
                     p.tevC0 = tev;
@@ -482,9 +498,6 @@ void GrowlWaveVFX::render(const Camera3D& camera) {
         if (pass.locUseAlphaMaskForColor >= 0) {
             glUniform1i(pass.locUseAlphaMaskForColor, pass.cfg.useAlphaMaskForColor ? 1 : 0);
         }
-        if (pass.locPassAlphaMul >= 0) {
-            glUniform1f(pass.locPassAlphaMul, std::max(0.0f, pass.cfg.alphaMul));
-        }
 
         for (const auto& r : rings) {
             const float life = std::max(0.0001f, r.lifeSec);
@@ -526,9 +539,43 @@ void GrowlWaveVFX::render(const Camera3D& camera) {
             }
             if (pass.locFade >= 0) glUniform1f(pass.locFade, fade);
 
-            for (const auto& localDirRaw : *localDirections) {
-                if (glm::dot(localDirRaw, localDirRaw) <= 0.000001f) continue;
-                const glm::vec3 localDir = glm::normalize(localDirRaw);
+            for (size_t dirIndex = 0; dirIndex < localDirections->size(); ++dirIndex) {
+                glm::vec3 localDirBasisRaw = (*localDirections)[dirIndex];
+                if (glm::dot(localDirBasisRaw, localDirBasisRaw) <= 0.000001f) continue;
+
+                if (pass.cfg.directionSpacingJitterDeg > 0.0001f && localDirections->size() > 1) {
+                    const glm::vec2 baseXY(localDirBasisRaw.x, localDirBasisRaw.y);
+                    const float xyLen = glm::length(baseXY);
+                    if (xyLen > 0.0001f) {
+                        const float baseAngle = std::atan2(baseXY.y, baseXY.x);
+                        const std::uint32_t passSalt =
+                            static_cast<std::uint32_t>(pass.cfg.eid) * 0x9e3779b9u;
+                        const std::uint32_t dirSalt =
+                            static_cast<std::uint32_t>(dirIndex) * 0x85ebca6bu;
+                        const float noise = hash01(r.randomSeed ^ passSalt ^ dirSalt ^ 0x68e31da4u);
+                        const float delta =
+                            glm::radians(pass.cfg.directionSpacingJitterDeg) * (noise * 2.0f - 1.0f);
+                        const float angle = baseAngle + delta;
+                        localDirBasisRaw.x = std::cos(angle) * xyLen;
+                        localDirBasisRaw.y = std::sin(angle) * xyLen;
+                    }
+                }
+
+                float lineAlphaMul = std::max(0.0f, pass.cfg.alphaMul);
+                if (pass.cfg.lineAlphaMax > pass.cfg.lineAlphaMin + 0.0001f) {
+                    const std::uint32_t passSalt =
+                        static_cast<std::uint32_t>(pass.cfg.eid) * 0x9e3779b9u;
+                    const std::uint32_t dirSalt =
+                        static_cast<std::uint32_t>(dirIndex) * 0x85ebca6bu;
+                    const float noise = hash01(r.randomSeed ^ passSalt ^ dirSalt ^ 0x4f1bbcdcu);
+                    const float lineFactor = glm::mix(pass.cfg.lineAlphaMin, pass.cfg.lineAlphaMax, noise);
+                    lineAlphaMul *= lineFactor;
+                }
+                if (pass.locPassAlphaMul >= 0) {
+                    glUniform1f(pass.locPassAlphaMul, lineAlphaMul);
+                }
+
+                const glm::vec3 localDir = glm::normalize(localDirBasisRaw);
                 const glm::vec3 worldDir =
                     right * localDir.x +
                     up * localDir.y +
@@ -537,12 +584,15 @@ void GrowlWaveVFX::render(const Camera3D& camera) {
 
                 const glm::vec3 passForward = glm::normalize(worldDir);
                 const glm::quat passRot = rotationFromToSafe(meshForwardLocal, passForward);
-                // heightOffset controls start-position spread from origin (not global lift):
-                // top-aiming lines start higher, bottom-aiming lines start lower.
+                // heightOffset controls base radial spawn spread. startRadiusMul scales that spread
+                // without changing direction angles.
+                const float radialRadius = pass.cfg.heightOffset * std::max(0.0f, pass.cfg.startRadiusMul);
+                const glm::vec3 radialStartOffset =
+                    (right * localDirBasisRaw.x + up * localDirBasisRaw.y) * radialRadius;
                 const glm::vec3 passPos =
                     r.pos +
                     passForward * pass.cfg.forwardOffset +
-                    up * (pass.cfg.heightOffset * localDirRaw.y);
+                    radialStartOffset;
 
                 const glm::mat4 world =
                     glm::translate(glm::mat4(1.0f), passPos) *
@@ -645,6 +695,7 @@ void GrowlWaveVFX::emitFrom(const glm::vec3& mouthWorldPos,
         r.startScale = randRange(cfg.ringMinSize, cfg.ringMaxSize) * sizeScale;
         r.endScale = r.startScale * std::max(1.0f, cfg.ringScaleGrowth);
         r.rot = rotationFromToSafe(meshForward, fwd);
+        r.randomSeed = engine::random::nextU32(rng);
 
         rings.push_back(r);
     }

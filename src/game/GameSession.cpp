@@ -98,6 +98,8 @@ struct GameSession::Impl {
     GameUpdateGraph updateGraph;
 
     bool renderEnabled = false;
+    bool devPauseWorld = false;
+    int devPauseStepTicks = 0;
 
     std::shared_ptr<CameraSystem>           cameraSystem;
     std::shared_ptr<UnitInteractionSystem>  unitSystem;
@@ -314,6 +316,24 @@ struct GameSession::Impl {
             }
         }
 
+        if (event.type == InputEvent::Type::KeyDown && !event.repeat) {
+            if (event.keyId == InputEvent::Key::P) {
+                devPauseWorld = !devPauseWorld;
+                devPauseStepTicks = 0;
+                game::log::info(
+                    &log,
+                    devPauseWorld
+                        ? "[DevPause] ON (P resumes, O steps one frame)"
+                        : "[DevPause] OFF");
+                return;
+            }
+            if (event.keyId == InputEvent::Key::O && devPauseWorld) {
+                devPauseStepTicks = 1;
+                game::log::info(&log, "[DevPause] Step 1 frame");
+                return;
+            }
+        }
+
         bool renderWorldForInput = true;
         if (stateManager) {
             if (auto* state = stateManager->getCurrentState()) {
@@ -355,8 +375,14 @@ struct GameSession::Impl {
     }
 
     void fixedUpdate(float dt) {
+        if (devPauseWorld && devPauseStepTicks <= 0) {
+            return;
+        }
         timeSource.advance(dt);
         updateGraph.tick(dt);
+        if (devPauseWorld && devPauseStepTicks > 0) {
+            --devPauseStepTicks;
+        }
     }
 
     void render(int drawableW, int drawableH) {

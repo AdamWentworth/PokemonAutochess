@@ -1,11 +1,13 @@
--- scripts/states/classic/route1_5.lua
+-- scripts/states/classic/route22_shop.lua
 
-dofile("scripts/states/classic/round_economy.lua")
-local cost_cfg = dofile("scripts/config/classic_shop_costs.lua")
-
-local commons = { "pidgey", "rattata" }
-local starters = { "bulbasaur", "charmander", "squirtle" }
+local SHOP_DURATION = 30.0
 local REROLL_COST = 2
+local time_left = SHOP_DURATION
+local transitioned = false
+
+local commons = { "nidoran-f", "nidoran-m", "spearow", "mankey", "pidgey", "rattata" }
+local starters = { "bulbasaur", "charmander", "squirtle" }
+local cost_cfg = dofile("scripts/config/classic_shop_costs.lua")
 
 local cards = {}
 local seeded = false
@@ -20,7 +22,7 @@ local function pretty_name(name)
 end
 
 local function pick_weighted()
-    if math.random() < 0.5 then
+    if math.random() < 0.6 then
         return commons[math.random(#commons)]
     end
     return starters[math.random(#starters)]
@@ -39,10 +41,12 @@ local function get_card_cost(name, level)
             local by_tier = bracket.by_tier or {}
             local cost = by_tier[tier]
             if cost ~= nil then
-                return math.max(0, cost + (cfg.global_add or 0))
+                local adjusted = math.max(0, cost + (cfg.global_add or 0))
+                return adjusted
             end
             if bracket.default ~= nil then
-                return math.max(0, bracket.default + (cfg.global_add or 0))
+                local adjusted = math.max(0, bracket.default + (cfg.global_add or 0))
+                return adjusted
             end
         end
     end
@@ -51,7 +55,7 @@ end
 
 local function make_card()
     local name = pick_weighted()
-    local level = math.random(2, 5)
+    local level = math.random(3, 6)
     local cost = get_card_cost(name, level)
     return {
         name = name,
@@ -69,65 +73,11 @@ local function refill_cards(count)
     end
 end
 
-local function hydrate_card(raw)
-    if not raw then return nil end
-    local name = raw.name
-    if not name or name == "" then return nil end
-    local level = math.max(1, tonumber(raw.level) or 1)
-    local cost = math.max(0, tonumber(raw.cost) or get_card_cost(name, level))
-    return {
-        name = name,
-        level = level,
-        cost = cost,
-        label = pretty_name(name) .. " [" .. tostring(cost) .. "g]",
-        type = "Shop"
-    }
-end
-
-local function load_or_refill_cards()
-    cards = {}
-    if classic_shop_get_cards then
-        local cached = classic_shop_get_cards()
-        if type(cached) == "table" then
-            for i = 1, #cached do
-                local c = hydrate_card(cached[i])
-                if c then cards[#cards + 1] = c end
-            end
-        end
-    end
-    if #cards == 0 then
-        refill_cards(5)
-    end
-end
-
 local function persist_cards()
     if classic_shop_set_cards then
         classic_shop_set_cards(cards)
     end
 end
-
-function get_message()
-    return "Route 1.5 - Another wave!"
-end
-
-function get_enemies()
-    return {
-        { name = "pidgey",  gridCol = 1, gridRow = 1, level = 3 },
-        { name = "rattata", gridCol = 4, gridRow = 1, level = 4 },
-        { name = "pidgey",  gridCol = 6, gridRow = 1, level = 3 },
-    }
-end
-
-function get_combat_balance()
-    return {
-        playerDamageMult = 1.20,
-        enemyDamageMult = 0.90,
-        playerDamageTakenMult = 0.90,
-        enemyDamageTakenMult = 1.00
-    }
-end
-
-local transitioned = false
 
 function on_enter()
     if not seeded then
@@ -136,8 +86,14 @@ function on_enter()
         end
         seeded = true
     end
-    load_or_refill_cards()
+    time_left = SHOP_DURATION
+    transitioned = false
+    refill_cards(5)
     persist_cards()
+end
+
+function get_message()
+    return string.format("Route 22 Shop - Time left: %ds", math.max(0, math.floor(time_left)))
 end
 
 function get_shop_cards()
@@ -161,7 +117,7 @@ function on_shop_card_click(pokemon, level)
         card_level = cards[selected_index].level
         card_cost = cards[selected_index].cost or card_cost
     end
-    card_level = card_level or math.random(2, 5)
+    card_level = card_level or math.random(3, 6)
 
     if not spend_money(card_cost) then
         emit("Shop", "Not enough gold to buy " .. pretty_name(pokemon) .. " (" .. tostring(card_cost) .. "g)")
@@ -181,7 +137,25 @@ function on_shop_card_click(pokemon, level)
     persist_cards()
 end
 
+function on_update(dt)
+    if transitioned then return end
+    time_left = time_left - (dt or 0.016)
+    if time_left <= 0.0 then
+        transitioned = true
+        persist_cards()
+        pop_state()
+        push_combat_state("scripts/states/classic/route22.lua")
+    end
+end
+
+function on_shop_ready_click()
+    if transitioned then return end
+    time_left = 0.0
+    emit("Shop", "Ready. Starting next round...")
+end
+
 function on_shop_reroll_click()
+    if transitioned then return end
     if not spend_money(REROLL_COST) then
         emit("Shop", "Not enough gold to reroll (" .. tostring(REROLL_COST) .. "g)")
         emit_gold("Spend failed: reroll costs " .. tostring(REROLL_COST) .. "g.")
@@ -192,11 +166,4 @@ function on_shop_reroll_click()
     emit("Shop", "Shop rerolled for " .. tostring(REROLL_COST) .. "g")
     emit_gold("Spent -" .. tostring(REROLL_COST) .. "g: shop reroll.")
     persist_cards()
-end
-
-function on_update(dt)
-    if transitioned then return end
-    if classic_try_finish_round("scripts/states/classic/route22_shop.lua") then
-        transitioned = true
-    end
 end

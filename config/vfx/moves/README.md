@@ -39,9 +39,10 @@ For Growl passes you can set optional per-pass overrides:
 - `quarter_step_deg`: rotation step between quarter draws (default `90.0`)
 - `quarter_start_deg`: starting rotation offset (default `0.0`)
 - `forward_offset`: per-pass world offset along cast direction (higher = farther from caster)
-- `height_offset`: per-pass vertical start spread from origin (does not change aim angle)
-  - Applied as `up * (height_offset * direction_local.y)` per line.
-  - Positive values push top lines up and bottom lines down.
+- `height_offset`: per-pass base radial start spread from origin (does not change aim angle)
+  - Applied in local fan plane as `(right * direction_local.x + up * direction_local.y) * height_offset`.
+- `start_radius_mul`: optional multiplier for line start radius (default `1.0`)
+  - Use values `< 1.0` to tighten where lines begin while keeping the same aim cone.
 - `mesh_forward_axis`: optional per-pass authored-forward axis override `[x, y, z]`
   - Use this when a mesh's "length/forward" axis differs from shared config (e.g. line mesh authored in +Z).
 - `direction_local`: optional per-pass aim vector in caster-local space `[right, up, forward]`
@@ -49,6 +50,12 @@ For Growl passes you can set optional per-pass overrides:
 - `directions_local`: optional array of local aim vectors for multi-line fan/cone from a single pass
   - Example: `[[0.24, -0.14, 1.0], [-0.24, -0.14, 1.0], [0.0, -0.28, 1.0]]`
   - For cone behavior, keep `forward` positive (usually `1.0`). If `forward` is `0.0`, you get a flat side/up/down fan plane.
+- `direction_spacing_jitter_deg`: optional per-emission angular jitter for `directions_local` (degrees)
+  - `0.0` keeps authored spacing exactly.
+  - Higher values keep the circular pattern but randomize gaps between lines each cast.
+- `line_alpha_min` / `line_alpha_max`: optional per-line alpha factor range (multiplies `alpha_mul`)
+  - Use this to make some lines brighter and others more subtle in the same burst.
+  - Example: `0.55` to `1.45`.
 - `radius_mul`: scales ring radius axes (per-pass, default `1.0`)
 - `thickness_mul`: scales mesh forward axis thickness (per-pass, default `1.0`)
 

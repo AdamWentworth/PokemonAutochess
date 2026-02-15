@@ -5,7 +5,11 @@
     "charmander",
     "squirtle",
     "pidgey",
-    "rattata"
+    "rattata",
+    "nidoran-f",
+    "nidoran-m",
+    "spearow",
+    "mankey"
   ],
   "models": []
 }
