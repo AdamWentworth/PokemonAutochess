@@ -127,17 +127,18 @@ void PlacementState::moveStarterToBoard() {
 }
 
 bool PlacementState::isValidGridPosition(const glm::vec3& position) const {
-    const float cellSize = 1.2f;
+    if (!gameWorld) return false;
+    const float cellSize = gameWorld->getBoardCellSize();
     const float epsilon = 0.01f;
 
-    float boardOriginX = -((8 * cellSize) / 2.0f) + cellSize * 0.5f;
+    float boardOriginX = -((services.config.cols * cellSize) / 2.0f) + cellSize * 0.5f;
     float boardOriginZ = cellSize * 0.5f;
 
     int col = static_cast<int>(std::round((position.x - boardOriginX) / cellSize));
     int row = static_cast<int>(std::round((position.z - boardOriginZ) / cellSize));
 
     // Player board = top 4 rows in this prototype
-    if (col < 0 || col >= 8 || row < 0 || row >= 4) return false;
+    if (col < 0 || col >= services.config.cols || row < 0 || row >= 4) return false;
 
     float expectedX = boardOriginX + col * cellSize;
     float expectedZ = boardOriginZ + row * cellSize;
@@ -179,8 +180,9 @@ void PlacementState::moveStarterToValidGridPosition() {
 }
 
 void PlacementState::placeOnValidGridPosition(PokemonInstance& starter) {
-    const float cellSize = 1.2f;
-    float boardOriginX = -((8 * cellSize) / 2.0f) + cellSize * 0.5f;
+    if (!gameWorld) return;
+    const float cellSize = gameWorld->getBoardCellSize();
+    float boardOriginX = -((services.config.cols * cellSize) / 2.0f) + cellSize * 0.5f;
     float boardOriginZ = cellSize * 0.5f;
 
     int col = 3;

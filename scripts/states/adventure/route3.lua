@@ -1,24 +1,25 @@
--- scripts/states/adventure/route22.lua
+-- scripts/states/adventure/route3.lua
 
 function get_message()
-    return "Route 22 - New challengers!"
+    return "Route 3 - Stronger wilds ahead!"
 end
 
 function get_enemies()
     return {
-        { name = "nidoran-f", gridCol = 1, gridRow = 1, level = 4 },
-        { name = "spearow",   gridCol = 3, gridRow = 1, level = 5 },
-        { name = "nidoran-m", gridCol = 5, gridRow = 1, level = 4 },
-        { name = "mankey",    gridCol = 6, gridRow = 1, level = 4 },
+        { name = "metapod", gridCol = 1, gridRow = 1, level = 8 },
+        { name = "kakuna",  gridCol = 2, gridRow = 1, level = 8 },
+        { name = "pidgey",  gridCol = 4, gridRow = 1, level = 9 },
+        { name = "kakuna",  gridCol = 5, gridRow = 1, level = 8 },
+        { name = "metapod", gridCol = 6, gridRow = 1, level = 8 }
     }
 end
 
 function get_combat_balance()
     return {
-        playerDamageMult = 1.10,
-        enemyDamageMult = 1.00,
-        playerDamageTakenMult = 0.95,
-        enemyDamageTakenMult = 1.00
+        playerDamageMult = 0.96,
+        enemyDamageMult = 1.04,
+        playerDamageTakenMult = 1.04,
+        enemyDamageTakenMult = 0.98
     }
 end
 
@@ -46,8 +47,8 @@ function on_update(dt)
 
     if anyPlayerAlive and (not anyEnemyAlive) then
         transitioned = true
-        emit("Route 22 cleared!")
+        emit("Route 3 cleared!")
         pop_state()
-        push_state("scripts/states/adventure/route2_shop.lua")
+        push_state("scripts/states/adventure/route3_shop.lua")
     end
 end

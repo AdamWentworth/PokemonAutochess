@@ -1,14 +1,26 @@
 {
   "flyers": [
     "pidgey",
-    "spearow"
+    "pidgeotto",
+    "spearow",
+    "butterfree",
+    "beedrill"
   ],
   "airLocomotionDefaults": {
     "pidgey": {
       "airLiftY": 0.65
     },
+    "pidgeotto": {
+      "airLiftY": 0.78
+    },
     "spearow": {
       "airLiftY": 0.72
+    },
+    "butterfree": {
+      "airLiftY": 0.62
+    },
+    "beedrill": {
+      "airLiftY": 0.60
     }
   }
 }

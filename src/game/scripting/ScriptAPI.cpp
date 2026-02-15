@@ -200,7 +200,7 @@ std::vector<ScriptAPI::UnitSnapshot> ScriptAPI::listUnits() const {
         s.speed = u.movementSpeed;
         s.energy = u.energy;
         s.maxEnergy = u.maxEnergy;
-        auto cell = worldToGrid(config(), u.position);
+        auto cell = world_->worldToGrid(u.position);
         s.col = cell.x;
         s.row = cell.y;
         const bool active = isCombatActive(u);
@@ -230,7 +230,7 @@ std::optional<ScriptAPI::UnitSnapshot> ScriptAPI::getUnitSnapshot(int unitId) co
     s.speed = u->movementSpeed;
     s.energy = u->energy;
     s.maxEnergy = u->maxEnergy;
-    auto cell = worldToGrid(config(), u->position);
+    auto cell = world_->worldToGrid(u->position);
     s.col = cell.x;
     s.row = cell.y;
     const bool active = isCombatActive(*u);
@@ -253,14 +253,14 @@ std::pair<int, int> ScriptAPI::nearestEnemyCell(int unitId) const {
     if (it == list.end()) return std::make_pair(-1, -1);
 
     if (!isCombatActive(*it)) return std::make_pair(-1, -1);
-    const auto myCell = worldToGrid(config(), it->position);
+    const auto myCell = world_->worldToGrid(it->position);
 
     int best = std::numeric_limits<int>::max();
     glm::ivec2 bestCell(-1, -1);
 
     for (const auto& u : list) {
         if (!isCombatActive(u) || u.side == it->side) continue;
-        const auto ec = worldToGrid(config(), u.position);
+        const auto ec = world_->worldToGrid(u.position);
         const int d = std::max(std::abs(myCell.x - ec.x), std::abs(myCell.y - ec.y));
         if (d < best) {
             best = d;
@@ -278,13 +278,13 @@ bool ScriptAPI::isAdjacentToEnemy(int unitId) const {
         [&](const PokemonInstance& p){ return p.id == unitId; });
     if (it == list.end()) return false;
     if (!isCombatActive(*it)) return false;
-    auto myCell = worldToGrid(config(), it->position);
+    auto myCell = world_->worldToGrid(it->position);
 
     int best = std::numeric_limits<int>::max();
     glm::ivec2 bestCell(-999,-999);
     for (auto& u : list) {
         if (!isCombatActive(u) || u.side == it->side) continue;
-        auto ec = worldToGrid(config(), u.position);
+        auto ec = world_->worldToGrid(u.position);
         const int d = std::max(std::abs(myCell.x - ec.x), std::abs(myCell.y - ec.y));
         if (d < best) { best = d; bestCell = ec; }
     }
@@ -301,10 +301,10 @@ std::vector<int> ScriptAPI::enemiesAdjacent(int unitId) const {
     for (auto& u : world_->getPokemons()) if (u.id == unitId) { attacker = &u; break; }
     if (!attacker || !isCombatActive(*attacker)) return out;
 
-    auto ac = worldToGrid(config(), attacker->position);
+    auto ac = world_->worldToGrid(attacker->position);
     for (auto& u : world_->getPokemons()) {
         if (!isCombatActive(u) || u.side == attacker->side) continue;
-        auto ec = worldToGrid(config(), u.position);
+        auto ec = world_->worldToGrid(u.position);
         const int dx = std::abs(ac.x - ec.x);
         const int dy = std::abs(ac.y - ec.y);
         if (std::max(dx, dy) == 1) {
@@ -377,6 +377,24 @@ float ScriptAPI::getUnitSpeed(int unitId) const {
     if (!world_) return 0.0f;
     if (auto* u = world_->findUnitById(unitId)) return u->movementSpeed;
     return 0.0f;
+}
+
+std::tuple<float, float, float> ScriptAPI::gridToWorldPos(int col, int row) const {
+    if (!world_) {
+        auto p = gridToWorld(config(), col, row);
+        return std::make_tuple(p.x, p.y, p.z);
+    }
+    const auto p = world_->gridToWorld(col, row);
+    return std::make_tuple(p.x, p.y, p.z);
+}
+
+std::pair<int, int> ScriptAPI::worldToGridPos(float x, float y, float z) const {
+    if (!world_) {
+        auto c = worldToGrid(config(), glm::vec3{x, y, z});
+        return std::make_pair(c.x, c.y);
+    }
+    const auto c = world_->worldToGrid(glm::vec3{x, y, z});
+    return std::make_pair(c.x, c.y);
 }
 
 float ScriptAPI::getDamageMultiplier(int attackerId, int targetId) const {
@@ -653,7 +671,7 @@ void ScriptAPI::applyCommand(const Command& cmd) {
         if (!world_) return;
         auto* u = world_->findUnitById(c.unitId);
         if (!u || !isCombatActive(*u)) return;
-        u->position = gridToWorld(config(), c.col, c.row);
+        u->position = world_->gridToWorld(c.col, c.row);
         u->isMoving = false;
         u->moveT = 1.0f;
         u->committedDest = {-1,-1};
@@ -670,7 +688,7 @@ void ScriptAPI::applyCommand(const Command& cmd) {
             if (!other.alive && !other.captureInProgress && !(other.fainting && config().faintBlockTiles)) continue;
             if (other.id == u->id) continue;
 
-            const auto oc = worldToGrid(config(), other.position);
+            const auto oc = world_->worldToGrid(other.position);
             if (oc == target) return;
             if (other.committedDest.x >= 0 && other.committedDest.y >= 0) {
                 if (other.committedDest == target) return;
@@ -678,7 +696,7 @@ void ScriptAPI::applyCommand(const Command& cmd) {
         }
         u->committedDest = {c.col, c.row};
         u->moveFrom = u->position;
-        u->moveTo = gridToWorld(config(), c.col, c.row);
+        u->moveTo = world_->gridToWorld(c.col, c.row);
         u->moveT = 0.0f;
         u->isMoving = true;
         return;
@@ -694,7 +712,7 @@ void ScriptAPI::applyCommand(const Command& cmd) {
 
         glm::vec3 target;
         if (c.hasTarget) {
-            target = gridToWorld(config(), c.col, c.row);
+            target = world_->gridToWorld(c.col, c.row);
         } else {
             float best = std::numeric_limits<float>::max();
             glm::vec3 bestPos = it->position;

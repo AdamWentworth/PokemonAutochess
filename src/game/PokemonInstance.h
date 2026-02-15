@@ -57,6 +57,7 @@ struct PokemonInstance {
     float baseMovementSpeed = 1.0f;
     std::vector<std::string> types;
     int   baseExp = 0;
+    float speciesScale = 1.0f;
 
     int   hp = 100;
     int   maxHP = 100;

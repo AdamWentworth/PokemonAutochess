@@ -403,6 +403,9 @@ struct GameSession::Impl {
             return;
         }
         if (renderWorld) {
+            if (board && gameWorld) {
+                board->setCellSize(gameWorld->getBoardCellSize());
+            }
             if (board && camera) board->draw(*camera);
             if (gameWorld && camera && board) gameWorld->drawAll(*camera, *board);
             if (gameWorld && camera) {

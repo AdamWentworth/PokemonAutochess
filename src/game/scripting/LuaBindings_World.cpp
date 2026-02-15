@@ -12,8 +12,6 @@
 #include "LuaBindings_Internal.h"
 
 void registerLuaBindings_World(sol::state& lua, ScriptAPI& api) {
-    const GameConfigData* cfg = &api.config();
-
     lua.set_function("world_list_units", [&api, &lua]() {
         sol::state_view L(lua);
         sol::table arr = L.create_table();
@@ -134,13 +132,11 @@ void registerLuaBindings_World(sol::state& lua, ScriptAPI& api) {
     });
 
     // Grid converters
-    lua.set_function("grid_to_world", [cfg](int col, int row) {
-        auto p = gridToWorld(*cfg, col, row);
-        return std::make_tuple(p.x, p.y, p.z);
+    lua.set_function("grid_to_world", [&api](int col, int row) {
+        return api.gridToWorldPos(col, row);
     });
-    lua.set_function("world_to_grid", [cfg](float x, float y, float z) {
-        auto c = worldToGrid(*cfg, glm::vec3{x,y,z});
-        return std::make_pair(c.x, c.y);
+    lua.set_function("world_to_grid", [&api](float x, float y, float z) {
+        return api.worldToGridPos(x, y, z);
     });
 
     // Optional: per-move tuning for minimum seconds between attack requests.

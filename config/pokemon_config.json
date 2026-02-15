@@ -27,6 +27,7 @@
     },
     "model": "0001_Bulbasaur.glb",
     "movementSpeed": 1.0,
+    "visualScale": 1.0,
     "unlockTable": [
       {
         "charged": [],
@@ -82,6 +83,7 @@
     },
     "model": "0004_Charmander.glb",
     "movementSpeed": 1.2,
+    "visualScale": 1.0,
     "unlockTable": [
       {
         "charged": [],
@@ -137,6 +139,7 @@
     },
     "model": "0007_Squirtle.glb",
     "movementSpeed": 0.9,
+    "visualScale": 1.0,
     "unlockTable": [
       {
         "charged": [],
@@ -193,6 +196,7 @@
     },
     "model": "0016_Pidgey.glb",
     "movementSpeed": 1.1,
+    "visualScale": 1.0,
     "unlockTable": [
       {
         "charged": [],
@@ -299,6 +303,7 @@
     },
     "model": "0029_NidoranF.glb",
     "movementSpeed": 1.05,
+    "visualScale": 0.9,
     "unlockTable": [
       {
         "charged": [],
@@ -344,6 +349,7 @@
     },
     "model": "0032_NidoranM.glb",
     "movementSpeed": 1.10,
+    "visualScale": 0.9,
     "unlockTable": [
       {
         "charged": [],
@@ -457,6 +463,458 @@
           "hyper_fang"
         ],
         "level": 8
+      }
+    ]
+  },
+  "ivysaur": {
+    "types": [
+      "grass",
+      "poison"
+    ],
+    "attack": 11,
+    "hp": 150,
+    "catchRate": 0.25,
+    "shopBaseCost": 4,
+    "loadoutByLevel": {
+      "1": {
+        "fast": "tackle"
+      },
+      "7": {
+        "charged": "leech_seed",
+        "fast": "vine_whip"
+      },
+      "13": {
+        "charged": "seed_bomb",
+        "fast": "vine_whip"
+      }
+    },
+    "model": "0002_Ivysaur.glb",
+    "movementSpeed": 1.0,
+    "visualScale": 1.42,
+    "unlockTable": [
+      {
+        "charged": [],
+        "fast": [
+          "tackle"
+        ],
+        "level": 1
+      },
+      {
+        "charged": [
+          "leech_seed"
+        ],
+        "fast": [
+          "vine_whip"
+        ],
+        "level": 7
+      },
+      {
+        "charged": [
+          "seed_bomb"
+        ],
+        "level": 13
+      }
+    ]
+  },
+  "charmeleon": {
+    "types": [
+      "fire"
+    ],
+    "attack": 12,
+    "hp": 130,
+    "catchRate": 0.25,
+    "shopBaseCost": 4,
+    "loadoutByLevel": {
+      "1": {
+        "fast": "scratch"
+      },
+      "7": {
+        "charged": "ember",
+        "fast": "scratch"
+      },
+      "13": {
+        "charged": "flame_burst",
+        "fast": "metal_claw"
+      }
+    },
+    "model": "0005_Charmeleon.glb",
+    "movementSpeed": 1.25,
+    "visualScale": 1.58,
+    "unlockTable": [
+      {
+        "charged": [],
+        "fast": [
+          "scratch"
+        ],
+        "level": 1
+      },
+      {
+        "charged": [
+          "ember"
+        ],
+        "level": 7
+      },
+      {
+        "charged": [
+          "flame_burst"
+        ],
+        "fast": [
+          "metal_claw"
+        ],
+        "level": 13
+      }
+    ]
+  },
+  "wartortle": {
+    "types": [
+      "water"
+    ],
+    "attack": 11,
+    "hp": 140,
+    "catchRate": 0.25,
+    "shopBaseCost": 4,
+    "loadoutByLevel": {
+      "1": {
+        "fast": "tackle"
+      },
+      "7": {
+        "charged": "bubble",
+        "fast": "tackle"
+      },
+      "10": {
+        "charged": "water_gun",
+        "fast": "tackle"
+      },
+      "13": {
+        "charged": "aqua_tail",
+        "fast": "tackle"
+      }
+    },
+    "model": "0008_Wartortle.glb",
+    "movementSpeed": 0.95,
+    "visualScale": 1.55,
+    "unlockTable": [
+      {
+        "charged": [],
+        "fast": [
+          "tackle"
+        ],
+        "level": 1
+      },
+      {
+        "charged": [
+          "bubble"
+        ],
+        "level": 7
+      },
+      {
+        "charged": [
+          "water_gun"
+        ],
+        "level": 10
+      },
+      {
+        "charged": [
+          "aqua_tail"
+        ],
+        "level": 13
+      }
+    ]
+  },
+  "pidgeotto": {
+    "types": [
+      "normal",
+      "flying"
+    ],
+    "attack": 13,
+    "hp": 120,
+    "catchRate": 0.22,
+    "shopBaseCost": 4,
+    "loadoutByLevel": {
+      "1": {
+        "fast": "quick_attack"
+      },
+      "7": {
+        "charged": "sand_attack",
+        "fast": "quick_attack"
+      },
+      "11": {
+        "charged": "gust",
+        "fast": "wing_attack"
+      },
+      "18": {
+        "charged": "aerial_ace",
+        "fast": "wing_attack"
+      }
+    },
+    "model": "0017_Pidgeotto.glb",
+    "movementSpeed": 1.25,
+    "visualScale": 1.45,
+    "unlockTable": [
+      {
+        "charged": [],
+        "fast": [
+          "quick_attack"
+        ],
+        "level": 1
+      },
+      {
+        "charged": [
+          "sand_attack"
+        ],
+        "level": 7
+      },
+      {
+        "charged": [
+          "gust"
+        ],
+        "fast": [
+          "wing_attack"
+        ],
+        "level": 11
+      },
+      {
+        "charged": [
+          "aerial_ace"
+        ],
+        "level": 18
+      }
+    ]
+  },
+  "pikachu": {
+    "types": [
+      "electric"
+    ],
+    "attack": 11,
+    "hp": 90,
+    "catchRate": 0.45,
+    "shopBaseCost": 3,
+    "loadoutByLevel": {
+      "1": {
+        "fast": "quick_attack"
+      },
+      "4": {
+        "charged": "tail_whip",
+        "fast": "quick_attack"
+      },
+      "8": {
+        "charged": "hyper_fang",
+        "fast": "quick_attack"
+      }
+    },
+    "model": "0025_Pikachu.glb",
+    "movementSpeed": 1.3,
+    "unlockTable": [
+      {
+        "charged": [],
+        "fast": [
+          "quick_attack"
+        ],
+        "level": 1
+      },
+      {
+        "charged": [
+          "tail_whip"
+        ],
+        "level": 4
+      },
+      {
+        "charged": [
+          "hyper_fang"
+        ],
+        "level": 8
+      }
+    ]
+  },
+  "caterpie": {
+    "types": [
+      "bug"
+    ],
+    "attack": 5,
+    "hp": 65,
+    "catchRate": 0.85,
+    "shopBaseCost": 1,
+    "loadoutByLevel": {
+      "1": {
+        "fast": "string_shot"
+      },
+      "7": {
+        "fast": "string_shot"
+      }
+    },
+    "model": "0010_Caterpie.glb",
+    "movementSpeed": 1.0,
+    "visualScale": 0.72,
+    "unlockTable": [
+      {
+        "charged": [],
+        "fast": [
+          "string_shot"
+        ],
+        "level": 1
+      }
+    ]
+  },
+  "metapod": {
+    "types": [
+      "bug"
+    ],
+    "attack": 6,
+    "hp": 90,
+    "catchRate": 0.6,
+    "shopBaseCost": 2,
+    "loadoutByLevel": {
+      "1": {
+        "fast": "tackle"
+      },
+      "10": {
+        "fast": "tackle"
+      }
+    },
+    "model": "0011_Metapod.glb",
+    "movementSpeed": 0.8,
+    "visualScale": 0.86,
+    "unlockTable": [
+      {
+        "charged": [],
+        "fast": [
+          "tackle"
+        ],
+        "level": 1
+      }
+    ]
+  },
+  "butterfree": {
+    "types": [
+      "bug",
+      "flying"
+    ],
+    "attack": 10,
+    "hp": 110,
+    "catchRate": 0.35,
+    "shopBaseCost": 3,
+    "loadoutByLevel": {
+      "1": {
+        "fast": "wing_attack"
+      },
+      "10": {
+        "charged": "gust",
+        "fast": "wing_attack"
+      }
+    },
+    "model": "0012_Butterfree.glb",
+    "movementSpeed": 1.15,
+    "visualScale": 1.18,
+    "unlockTable": [
+      {
+        "charged": [],
+        "fast": [
+          "wing_attack"
+        ],
+        "level": 1
+      },
+      {
+        "charged": [
+          "gust"
+        ],
+        "level": 10
+      }
+    ]
+  },
+  "weedle": {
+    "types": [
+      "bug",
+      "poison"
+    ],
+    "attack": 5,
+    "hp": 62,
+    "catchRate": 0.85,
+    "shopBaseCost": 1,
+    "loadoutByLevel": {
+      "1": {
+        "fast": "poison_sting"
+      },
+      "7": {
+        "fast": "poison_sting"
+      }
+    },
+    "model": "0013_Weedle.glb",
+    "movementSpeed": 1.0,
+    "visualScale": 0.72,
+    "unlockTable": [
+      {
+        "charged": [],
+        "fast": [
+          "poison_sting"
+        ],
+        "level": 1
+      }
+    ]
+  },
+  "kakuna": {
+    "types": [
+      "bug",
+      "poison"
+    ],
+    "attack": 6,
+    "hp": 88,
+    "catchRate": 0.6,
+    "shopBaseCost": 2,
+    "loadoutByLevel": {
+      "1": {
+        "fast": "poison_sting"
+      },
+      "10": {
+        "fast": "poison_sting"
+      }
+    },
+    "model": "0014_Kakuna.glb",
+    "movementSpeed": 0.8,
+    "visualScale": 0.86,
+    "unlockTable": [
+      {
+        "charged": [],
+        "fast": [
+          "poison_sting"
+        ],
+        "level": 1
+      }
+    ]
+  },
+  "beedrill": {
+    "types": [
+      "bug",
+      "poison"
+    ],
+    "attack": 11,
+    "hp": 112,
+    "catchRate": 0.35,
+    "shopBaseCost": 3,
+    "loadoutByLevel": {
+      "1": {
+        "fast": "poison_sting"
+      },
+      "10": {
+        "charged": "sludge",
+        "fast": "poison_sting"
+      }
+    },
+    "model": "0015_Beedrill.glb",
+    "movementSpeed": 1.2,
+    "visualScale": 1.18,
+    "unlockTable": [
+      {
+        "charged": [],
+        "fast": [
+          "poison_sting"
+        ],
+        "level": 1
+      },
+      {
+        "charged": [
+          "sludge"
+        ],
+        "level": 10
       }
     ]
   }

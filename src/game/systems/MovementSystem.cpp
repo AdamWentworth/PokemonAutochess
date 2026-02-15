@@ -103,6 +103,7 @@ void MovementSystem::update(engine::ecs::World& ecsWorld, float deltaTime) {
     if (!ecsWorld.alive(combatEntity)) return;
     auto* combat = ecsWorld.get<game::CombatActive>(combatEntity);
     if (!combat || !combat->active) return;
+    if (!gameWorld || gameWorld->isBoardResizePauseActive()) return;
 
     // 1) Let Lua compute winners and start committed one-cell moves.
     if (sol::function updateFn = lua["movement_update"]; updateFn.valid()) {

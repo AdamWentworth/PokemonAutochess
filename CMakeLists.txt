@@ -176,6 +176,7 @@ add_library(PAC_GameObjects STATIC
     src/game/config/AttackAnimConfigLoader.cpp
     src/game/config/AnimSetLoader.cpp
     src/game/config/FlyerConfigLoader.cpp
+    src/game/config/EvolutionConfigLoader.cpp
     src/game/config/LeechSeedConfigDB.cpp
 
     # Game Animations

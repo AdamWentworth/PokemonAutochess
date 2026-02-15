@@ -3,13 +3,24 @@
   "pokemon": [
     "bulbasaur",
     "charmander",
+    "charmeleon",
     "squirtle",
+    "wartortle",
+    "ivysaur",
     "pidgey",
+    "pidgeotto",
     "rattata",
     "nidoran-f",
     "nidoran-m",
     "spearow",
-    "mankey"
+    "mankey",
+    "pikachu",
+    "caterpie",
+    "metapod",
+    "butterfree",
+    "weedle",
+    "kakuna",
+    "beedrill"
   ],
   "models": []
 }

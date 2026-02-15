@@ -1326,7 +1326,10 @@ struct FG {
 
     // ---- Scale factor ----
     float desiredHeight = 0.8f;
-    float denom = (maxZ - minZ);
+    const float ex = std::max(0.0f, maxX - minX);
+    const float ey = std::max(0.0f, maxY - minY);
+    const float ez = std::max(0.0f, maxZ - minZ);
+    float denom = std::max(ex, std::max(ey, ez));
     if (std::abs(denom) < 1e-6f) denom = 1.0f;
     modelScaleFactor = desiredHeight / denom;
 

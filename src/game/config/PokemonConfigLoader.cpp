@@ -38,6 +38,7 @@ bool PokemonConfigLoader::loadConfig(const std::string& filePath,
         stats.hp            = data.value("hp", 100);
         stats.attack        = data.value("attack", 10);
         stats.movementSpeed = data.value("movementSpeed", 1.0f);
+        stats.visualScale   = std::max(0.05f, data.value("visualScale", 1.0f));
         stats.model         = data.value("model", name + ".glb");
         stats.baseExp       = data.value("baseExp", stats.baseExp);
         stats.catchRate     = data.value("catchRate", stats.catchRate);

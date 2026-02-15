@@ -8,6 +8,8 @@
 #include <fstream>
 #include <sstream>
 #include <iostream>
+#include <algorithm>
+#include <cmath>
 
 BoardRenderer::BoardRenderer(int rows, int cols, float cellSize, ShaderCache* shaderCache)
     : rows(rows), cols(cols), cellSize(cellSize)
@@ -24,15 +26,7 @@ mvpLocation = glGetUniformLocation(gridShader->getID(), "u_MVP");
     glGenVertexArrays(1, &vao);
     glGenBuffers(1, &vbo);
 
-    std::vector<float> allVertices = gridVertices;
-    allVertices.insert(allVertices.end(), benchVertices.begin(), benchVertices.end()); // NEW
-
-    glBindVertexArray(vao);
-    glBindBuffer(GL_ARRAY_BUFFER, vbo);
-    glBufferData(GL_ARRAY_BUFFER, allVertices.size() * sizeof(float), allVertices.data(), GL_STATIC_DRAW);
-
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
-    glEnableVertexAttribArray(0);
+    rebuildGeometryBuffer();
 }
 
 BoardRenderer::~BoardRenderer() {
@@ -58,13 +52,35 @@ void BoardRenderer::drawBench(const Camera3D& camera) {
     glDrawArrays(GL_LINES, (GLsizei)benchOffset, (GLsizei)benchCount);
 }
 
+void BoardRenderer::setCellSize(float newCellSize) {
+    const float clamped = std::max(0.05f, newCellSize);
+    if (std::abs(clamped - cellSize) < 0.0001f) return;
+    cellSize = clamped;
+    initGrid();
+    initBench();
+    rebuildGeometryBuffer();
+}
+
 void BoardRenderer::shutdown() {
     glDeleteBuffers(1, &vbo);
     glDeleteVertexArrays(1, &vao);
     gridShader.reset();
 }
 
+void BoardRenderer::rebuildGeometryBuffer() {
+    std::vector<float> allVertices = gridVertices;
+    allVertices.insert(allVertices.end(), benchVertices.begin(), benchVertices.end());
+
+    glBindVertexArray(vao);
+    glBindBuffer(GL_ARRAY_BUFFER, vbo);
+    glBufferData(GL_ARRAY_BUFFER, allVertices.size() * sizeof(float), allVertices.data(), GL_STATIC_DRAW);
+
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
+    glEnableVertexAttribArray(0);
+}
+
 void BoardRenderer::initGrid() {
+    gridVertices.clear();
     float halfW = (cols * cellSize) / 2.0f;
     float halfH = (rows * cellSize) / 2.0f;
 
@@ -84,6 +100,7 @@ void BoardRenderer::initGrid() {
 }
 
 void BoardRenderer::initBench() {
+    benchVertices.clear();
     float benchY = 0.01f;  // Slightly above ground
     float slotSize = cellSize; // Make bench use same cell size as board
     float totalWidth = 8 * slotSize;

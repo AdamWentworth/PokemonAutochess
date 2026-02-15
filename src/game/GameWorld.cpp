@@ -56,6 +56,7 @@ glm::vec3 SafeForwardXZ(const glm::vec3& v) {
 
 glm::mat4 BuildModelInstanceTransform(const PokemonInstance& instance) {
     const float scaleFactor = (instance.model ? instance.model->getScaleFactor() : 1.0f) *
+                              std::max(0.0f, instance.speciesScale) *
                               std::max(0.0f, instance.visualScale) *
                               std::max(0.0f, instance.captureScale);
 
@@ -101,6 +102,96 @@ bool TryResolveAnimatedNodeWorld(const PokemonInstance& unit,
 GameWorld::GameWorld(const GameConfigData& cfg)
     : config(cfg) {
     money = std::max(0, config.startingCash);
+}
+
+float GameWorld::getBoardCellSize() const {
+    return std::max(0.05f, config.cellSize * boardScaleMul);
+}
+
+glm::vec3 GameWorld::gridToWorldWithCellSize(int col, int row, float cellSize) const {
+    const float boardOriginX = -((config.cols * cellSize) / 2.0f) + cellSize * 0.5f;
+    const float boardOriginZ = -((config.rows * cellSize) / 2.0f) + cellSize * 0.5f;
+    return { boardOriginX + col * cellSize, 0.0f, boardOriginZ + row * cellSize };
+}
+
+glm::ivec2 GameWorld::worldToGridWithCellSize(const glm::vec3& pos, float cellSize) const {
+    const float boardOriginX = -((config.cols * cellSize) / 2.0f) + cellSize * 0.5f;
+    const float boardOriginZ = -((config.rows * cellSize) / 2.0f) + cellSize * 0.5f;
+    const int col = static_cast<int>(std::round((pos.x - boardOriginX) / cellSize));
+    const int row = static_cast<int>(std::round((pos.z - boardOriginZ) / cellSize));
+    return { col, row };
+}
+
+int GameWorld::benchSlotFromPosition(const glm::vec3& pos, float cellSize) const {
+    const int benchSlots = std::max(1, config.benchSlots);
+    const float totalWidth = benchSlots * cellSize;
+    const float startX = -totalWidth * 0.5f;
+    int slot = static_cast<int>(std::round((pos.x - (startX + cellSize * 0.5f)) / cellSize));
+    slot = std::clamp(slot, 0, benchSlots - 1);
+    return slot;
+}
+
+glm::vec3 GameWorld::benchSlotToWorld(int slot, float cellSize) const {
+    const int benchSlots = std::max(1, config.benchSlots);
+    slot = std::clamp(slot, 0, benchSlots - 1);
+    const float totalWidth = benchSlots * cellSize;
+    const float startX = -totalWidth * 0.5f;
+    const float startZ = (config.rows * cellSize) * 0.5f + 0.5f;
+    const float x = startX + cellSize * 0.5f + slot * cellSize;
+    const float z = startZ + cellSize * 0.5f;
+    return glm::vec3(x, 0.0f, z);
+}
+
+void GameWorld::reconcileBoardScaleFromRoster() {
+    if (unitDragActive) return;
+
+    float maxSpeciesScale = 1.0f;
+    auto inspect = [&](const std::vector<PokemonInstance>& list) {
+        for (const auto& u : list) {
+            maxSpeciesScale = std::max(maxSpeciesScale, std::max(0.05f, u.speciesScale));
+        }
+    };
+    inspect(pokemons);
+    inspect(benchPokemons);
+
+    const float targetScale = std::clamp(1.0f + (maxSpeciesScale - 1.0f) * 0.65f, 1.0f, 1.8f);
+    if (std::abs(targetScale - boardScaleMul) < 0.0001f) return;
+
+    const float oldCell = getBoardCellSize();
+    const float newCell = std::max(0.05f, config.cellSize * targetScale);
+
+    auto remapBoard = [&](std::vector<PokemonInstance>& list) {
+        for (auto& u : list) {
+            const glm::ivec2 cell = worldToGridWithCellSize(u.position, oldCell);
+            u.position = gridToWorldWithCellSize(cell.x, cell.y, newCell);
+
+            if (u.isMoving) {
+                const glm::ivec2 fromCell = worldToGridWithCellSize(u.moveFrom, oldCell);
+                const glm::ivec2 toCell = worldToGridWithCellSize(u.moveTo, oldCell);
+                u.moveFrom = gridToWorldWithCellSize(fromCell.x, fromCell.y, newCell);
+                u.moveTo = gridToWorldWithCellSize(toCell.x, toCell.y, newCell);
+            }
+        }
+    };
+
+    remapBoard(pokemons);
+
+    for (auto& u : benchPokemons) {
+        const int slot = benchSlotFromPosition(u.position, oldCell);
+        u.position = benchSlotToWorld(slot, newCell);
+    }
+
+    for (auto& kv : battleStartPositions) {
+        const glm::ivec2 cell = worldToGridWithCellSize(kv.second, oldCell);
+        kv.second = gridToWorldWithCellSize(cell.x, cell.y, newCell);
+    }
+
+    boardScaleMul = targetScale;
+    boardResizePauseSec = std::max(boardResizePauseSec, 0.16f);
+
+    if (log) {
+        game::log::infoTerminalOnly(log, "[BoardScale] Updated multiplier to " + std::to_string(boardScaleMul));
+    }
 }
 
 void GameWorld::applyLevelScaling(PokemonInstance& inst, int level, bool preserveHp) const {
@@ -176,6 +267,71 @@ void GameWorld::applyLoadoutForLevel(PokemonInstance& inst, bool preserveEnergy)
         inst.energy = std::min(inst.energy, inst.maxEnergy);
     } else {
         inst.energy = 0;
+    }
+}
+
+void GameWorld::tryApplyEvolution(PokemonInstance& unit) {
+    if (!data) return;
+
+    // Protect against malformed cyclic evolution data.
+    for (int i = 0; i < 8; ++i) {
+        const EvolutionRule* rule = data->evolution.getRule(unit.name);
+        if (!rule) return;
+        if (unit.level < rule->level) return;
+
+        const PokemonStats* nextStats = data->pokemon.getStats(rule->evolvesTo);
+        if (!nextStats) {
+            if (log) {
+                game::log::warn(log, "Evolution target '" + rule->evolvesTo + "' missing in pokemon_config.json");
+            }
+            return;
+        }
+
+        const std::string prevName = unit.name;
+        const std::string nextName = rule->evolvesTo;
+        const std::string path = "assets/models/" + nextStats->model;
+
+        std::shared_ptr<Model> nextModel = unit.model;
+        if (resources) {
+            auto loaded = resources->getModel(path);
+            if (loaded) nextModel = loaded;
+            else if (renderEnabled) {
+                if (log) game::log::warn(log, "Evolution model load failed for " + nextName + ": " + path);
+                return;
+            }
+        } else if (renderEnabled) {
+            if (log) game::log::warn(log, "Resource service missing; cannot load evolution model: " + path);
+            return;
+        }
+
+        unit.name = nextName;
+        unit.model = nextModel;
+        unit.baseHp = nextStats->hp;
+        unit.baseAttack = nextStats->attack;
+        unit.baseMovementSpeed = nextStats->movementSpeed;
+        unit.types = nextStats->types;
+        unit.baseExp = nextStats->baseExp;
+        unit.speciesScale = nextStats->visualScale;
+
+        applyLevelScaling(unit, unit.level, /*preserveHp=*/true);
+        applyLoadoutForLevel(unit, /*preserveEnergy=*/true);
+
+        unit.animTimeSec = sharedLoopAnimTimeSec;
+        AnimSet::applyAnimSetOverrides(unit, path, data ? &data->flyers : nullptr);
+        unit.animTimeSec = sharedLoopAnimTimeSec;
+
+        if (log) {
+            game::log::info(log, Capitalize(prevName) + " evolved into " + Capitalize(nextName) + "!");
+        }
+    }
+}
+
+void GameWorld::reconcileEligibleEvolutions() {
+    for (auto& unit : pokemons) {
+        tryApplyEvolution(unit);
+    }
+    for (auto& unit : benchPokemons) {
+        tryApplyEvolution(unit);
     }
 }
 
@@ -287,6 +443,7 @@ bool GameWorld::mergeOneTripleForPlayer() {
     keeper->xp = std::max(0, newXp);
     applyLevelScaling(*keeper, newLevel, /*preserveHp=*/true);
     applyLoadoutForLevel(*keeper, /*preserveEnergy=*/true);
+    tryApplyEvolution(*keeper);
 
     if (log) {
         game::log::info(log, "Merged 3x " + Capitalize(species) + " -> Lv" + std::to_string(keeper->level));
@@ -325,6 +482,7 @@ void GameWorld::addXp(PokemonInstance& unit, int amount) {
         const int nextLevel = unit.level + 1;
         applyLevelScaling(unit, nextLevel, /*preserveHp=*/true);
         applyLoadoutForLevel(unit, /*preserveEnergy=*/true);
+        tryApplyEvolution(unit);
     }
 }
 
@@ -469,6 +627,8 @@ void GameWorld::resetForNewGame(int startingMoney) {
     classicWinStreak = 0;
     classicLossStreak = 0;
     classicRoundsCompleted = 0;
+    boardScaleMul = 1.0f;
+    boardResizePauseSec = 0.0f;
 
     boardInteractionLocked = false;
     unitDragActive = false;
@@ -684,7 +844,7 @@ bool GameWorld::startCaptureAttempt(int targetId, float ballMult, const glm::vec
     if (throwOrigin) {
         attempt.startPos = *throwOrigin;
     } else {
-        attempt.startPos = target->position + glm::vec3(0.0f, 0.0f, -config.cellSize * 3.0f);
+        attempt.startPos = target->position + glm::vec3(0.0f, 0.0f, -getBoardCellSize() * 3.0f);
         attempt.startPos.y = 0.45f;
     }
     attempt.ballPos = attempt.startPos;
@@ -808,14 +968,20 @@ void GameWorld::spawnPokemon(const std::string& pokemonName,
     inst.baseMovementSpeed = stats->movementSpeed;
     inst.types = stats->types;
     inst.baseExp = stats->baseExp;
+    inst.speciesScale = stats->visualScale;
 
     applyLevelScaling(inst, level, false);
     applyLoadoutForLevel(inst, false);
+    tryApplyEvolution(inst);
+    reconcileBoardScaleFromRoster();
 
     inst.animTimeSec = 0.0f;
 
+    const PokemonStats* finalStats = data->pokemon.getStats(inst.name);
+    const std::string finalPath = "assets/models/" + ((finalStats && !finalStats->model.empty()) ? finalStats->model : stats->model);
+
     // ✅ NEW: animset-v2/v3 roles/groups/categories support (optional file)
-    AnimSet::applyAnimSetOverrides(inst, path, data ? &data->flyers : nullptr);
+    AnimSet::applyAnimSetOverrides(inst, finalPath, data ? &data->flyers : nullptr);
 
     // Start looped animations in sync across all units
     inst.animTimeSec = sharedLoopAnimTimeSec;
@@ -838,10 +1004,11 @@ void GameWorld::spawnPokemon(const std::string& pokemonName,
 }
 
 glm::vec3 GameWorld::gridToWorld(int col, int row) const {
-    const auto& cfg = config;
-    float boardOriginX = -((cfg.cols * cfg.cellSize) / 2.0f) + cfg.cellSize * 0.5f;
-    float boardOriginZ = -((cfg.rows * cfg.cellSize) / 2.0f) + cfg.cellSize * 0.5f;
-    return { boardOriginX + col * cfg.cellSize, 0.0f, boardOriginZ + row * cfg.cellSize };
+    return gridToWorldWithCellSize(col, row, getBoardCellSize());
+}
+
+glm::ivec2 GameWorld::worldToGrid(const glm::vec3& pos) const {
+    return worldToGridWithCellSize(pos, getBoardCellSize());
 }
 
 void GameWorld::spawnPokemonAtGrid(const std::string& pokemonName,
@@ -887,27 +1054,25 @@ void GameWorld::addToBench(const std::string& pokemonName, int level)
     inst.baseMovementSpeed = stats->movementSpeed;
     inst.types = stats->types;
     inst.baseExp = stats->baseExp;
+    inst.speciesScale = stats->visualScale;
 
     applyLevelScaling(inst, level, false);
     applyLoadoutForLevel(inst, false);
+    tryApplyEvolution(inst);
+    reconcileBoardScaleFromRoster();
 
     int slot = static_cast<int>(benchPokemons.size());
-    const float slotSize = config.cellSize;
     const int benchSlots = std::max(1, config.benchSlots);
     slot = std::min(slot, benchSlots - 1);
-
-    const float totalWidth = benchSlots * slotSize;
-    const float startX = -totalWidth * 0.5f;
-    const float startZ = (config.rows * config.cellSize) * 0.5f + 0.5f;
-
-    const float x = startX + slotSize * 0.5f + slot * slotSize;
-    const float z = startZ + slotSize * 0.5f;
-    inst.position = glm::vec3(x, 0.0f, z);
+    inst.position = benchSlotToWorld(slot, getBoardCellSize());
 
     inst.animTimeSec = 0.0f;
 
+    const PokemonStats* finalStats = data->pokemon.getStats(inst.name);
+    const std::string finalPath = "assets/models/" + ((finalStats && !finalStats->model.empty()) ? finalStats->model : stats->model);
+
     // ✅ NEW: animset-v2/v3 roles/groups/categories support (optional file)
-    AnimSet::applyAnimSetOverrides(inst, path, data ? &data->flyers : nullptr);
+    AnimSet::applyAnimSetOverrides(inst, finalPath, data ? &data->flyers : nullptr);
 
     // Start looped animations in sync across all units
     inst.animTimeSec = sharedLoopAnimTimeSec;
@@ -956,6 +1121,16 @@ std::vector<PokemonInstance>& GameWorld::getBenchPokemons() { return benchPokemo
 
 void GameWorld::update(float dt)
 {
+    // Global guardrail: any unit that meets an evolution threshold evolves,
+    // even if it reached that level outside the common XP/merge flow.
+    reconcileEligibleEvolutions();
+    reconcileBoardScaleFromRoster();
+
+    if (boardResizePauseSec > 0.0f) {
+        boardResizePauseSec = std::max(0.0f, boardResizePauseSec - dt);
+        return;
+    }
+
     // Shared clock so all units loop idle/walk in sync
     sharedLoopAnimTimeSec += dt;
 
@@ -1242,7 +1417,7 @@ void GameWorld::updateCaptureAttempts(float dt) {
                 const float dur = std::max(0.05f, attempt.throwDur);
                 const float t = std::clamp(attempt.phaseTime / dur, 0.0f, 1.0f);
                 attempt.ballPos = glm::mix(attempt.startPos, attempt.targetPos, t);
-                const float arc = std::max(0.1f, config.cellSize * 0.9f);
+                const float arc = std::max(0.1f, getBoardCellSize() * 0.9f);
                 attempt.ballPos.y += std::sin(3.1415926f * t) * arc;
                 attempt.ballYawDeg += dt * 720.0f;
                 attempt.ballScale = glm::mix(attempt.ballStartScale, attempt.ballImpactScale, t);
@@ -1289,7 +1464,7 @@ void GameWorld::updateCaptureAttempts(float dt) {
                     }
                 }
 
-                const float wobble = std::sin(attempt.phaseTime * 16.0f) * (config.cellSize * 0.04f);
+                const float wobble = std::sin(attempt.phaseTime * 16.0f) * (getBoardCellSize() * 0.04f);
                 attempt.ballPos = attempt.targetPos;
                 attempt.ballPos.x += wobble;
                 attempt.ballPos.y = 0.05f;
@@ -1388,6 +1563,7 @@ void GameWorld::drawAll(const Camera3D& camera, BoardRenderer& boardRenderer)
             if (!instance.alive && !instance.fainting) continue;
 
             float scaleFactor = instance.model->getScaleFactor() *
+                                std::max(0.0f, instance.speciesScale) *
                                 std::max(0.0f, instance.visualScale) *
                                 std::max(0.0f, instance.captureScale);
 
@@ -1486,7 +1662,10 @@ void GameWorld::emitTackleImpactAt(const PokemonInstance& target, const PokemonI
         const float len = glm::length(dir);
         if (len > 0.0001f) {
             dir /= len;
-            const float scale = target.model->getScaleFactor();
+            const float scale = target.model->getScaleFactor() *
+                                std::max(0.0f, target.speciesScale) *
+                                std::max(0.0f, target.visualScale) *
+                                std::max(0.0f, target.captureScale);
             const float radius = target.model->getBoundsRadiusHorizontal();
             const float edge = radius * scale * tackleImpactVfx.getConfig().impactEdgeOffset;
             base += dir * edge;
@@ -1543,6 +1722,7 @@ void GameWorld::emitMoveImpactByName(const std::string& moveName,
             const glm::vec3 fwdXZ = SafeForwardXZ(forward);
             const glm::vec3 renderPos = attacker->position + glm::vec3(0.0f, attacker->visualYOffset, 0.0f);
             const float worldScale = (attacker->model ? attacker->model->getScaleFactor() : 1.0f) *
+                                     std::max(0.0f, attacker->speciesScale) *
                                      std::max(0.0f, attacker->visualScale) *
                                      std::max(0.0f, attacker->captureScale);
 
@@ -1573,7 +1753,7 @@ void GameWorld::emitMoveImpactByName(const std::string& moveName,
             if (resolvedFromNode) {
                 const glm::vec3 planarDelta = glm::vec3(origin.x - renderPos.x, 0.0f, origin.z - renderPos.z);
                 const float planarDist2 = glm::dot(planarDelta, planarDelta);
-                const float maxPlanar = std::max(0.30f, config.cellSize * 0.9f);
+                const float maxPlanar = std::max(0.30f, getBoardCellSize() * 0.9f);
                 const bool tooLow = origin.y < (renderPos.y + 0.04f);
                 const bool tooFar = planarDist2 > (maxPlanar * maxPlanar);
                 const bool behind = glm::dot(planarDelta, fwdXZ) < -0.05f;
@@ -1602,7 +1782,7 @@ void GameWorld::emitMoveImpactByName(const std::string& moveName,
 
             // Final vertical guardrail against extreme node-space values.
             const float minGrowlY = renderPos.y + 0.06f;
-            const float maxGrowlY = renderPos.y + std::max(0.28f, config.cellSize * 0.42f);
+            const float maxGrowlY = renderPos.y + std::max(0.28f, getBoardCellSize() * 0.42f);
             origin.y = std::clamp(origin.y, minGrowlY, maxGrowlY);
         }
 

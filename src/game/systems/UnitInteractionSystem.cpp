@@ -17,11 +17,19 @@ UnitInteractionSystem::UnitInteractionSystem(Camera3D* cam, GameWorld* world, un
       gameWorld(world),
       screenW(w),
       screenH(h),
-      benchSystem(world ? world->getConfig().cellSize : 1.2f,
+      benchSystem(world ? world->getBoardCellSize() : 1.2f,
                   world ? world->getConfig().benchSlots : 8) {
-    cellSize = world ? world->getConfig().cellSize : 1.2f;
+    cellSize = world ? world->getBoardCellSize() : 1.2f;
 
     // Input is routed through GameApp via InputEvent (engine-owned).
+}
+
+void UnitInteractionSystem::syncBoardCellSize() {
+    if (!gameWorld) return;
+    const float newCell = gameWorld->getBoardCellSize();
+    if (std::abs(newCell - cellSize) < 0.0001f) return;
+    cellSize = newCell;
+    benchSystem.setCellSize(cellSize);
 }
 
 // Convert screen coordinates to world coordinates.
@@ -229,6 +237,7 @@ bool UnitInteractionSystem::isBenchSlotOccupied(const glm::vec3& pos, int ignore
 }
 
 void UnitInteractionSystem::onMouseButtonDown(int x, int y) {
+    syncBoardCellSize();
     glm::vec3 worldPos = screenToWorld(x, y);
     worldPos.y = 0.0f;
 
@@ -269,7 +278,7 @@ void UnitInteractionSystem::onMouseButtonDown(int x, int y) {
             if (closest && best <= pickRadius) {
                 if (selected == "pokeball") {
                     if (gameWorld->getItemCount(selected) > 0) {
-                        glm::vec3 throwOrigin = closest->position + glm::vec3(0.0f, 0.0f, -gameWorld->getConfig().cellSize * 3.0f);
+                        glm::vec3 throwOrigin = closest->position + glm::vec3(0.0f, 0.0f, -gameWorld->getBoardCellSize() * 3.0f);
                         if (camera) {
                             const glm::vec3 dir = glm::normalize(camera->getDirection());
                             glm::vec3 right = glm::cross(dir, glm::vec3(0.0f, 1.0f, 0.0f));
@@ -279,8 +288,8 @@ void UnitInteractionSystem::onMouseButtonDown(int x, int y) {
                                 right = glm::normalize(right);
                             }
 
-                            const float forward = std::max(0.5f, gameWorld->getConfig().cellSize * 2.5f);
-                            const float side = std::max(0.2f, gameWorld->getConfig().cellSize * 0.7f);
+                            const float forward = std::max(0.5f, gameWorld->getBoardCellSize() * 2.5f);
+                            const float side = std::max(0.2f, gameWorld->getBoardCellSize() * 0.7f);
                             throwOrigin = camera->getPosition()
                                 + dir * forward
                                 + right * side;
@@ -433,6 +442,7 @@ void UnitInteractionSystem::onMouseButtonDown(int x, int y) {
 }
 
 void UnitInteractionSystem::onMouseMotion(int x, int y) {
+    syncBoardCellSize();
     if (draggingUnit && draggedIndex >= 0) {
         if (!gameWorld) return;
         const bool boardLocked = gameWorld->isBoardInteractionLocked();
@@ -469,5 +479,5 @@ void UnitInteractionSystem::handleInput(const InputEvent& event) {
 
 void UnitInteractionSystem::update(float deltaTime) {
     (void)deltaTime;
-    // no-op for now
+    syncBoardCellSize();
 }

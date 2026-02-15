@@ -9,10 +9,12 @@
 #include "MovesConfigLoader.h"
 #include "AttackAnimConfigLoader.h"
 #include "FlyerConfigLoader.h"
+#include "EvolutionConfigLoader.h"
 
 struct GameDataDb {
     PokemonConfigLoader   pokemon;
     MovesConfigLoader     moves;
     AttackAnimConfigLoader attackAnims;
     FlyerConfigLoader     flyers;
+    EvolutionConfigLoader evolution;
 };

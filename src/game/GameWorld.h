@@ -86,6 +86,9 @@ public:
                             int col, int row,
                             PokemonSide side = PokemonSide::Player,
                             int level = -1);
+    glm::vec3 gridToWorld(int col, int row) const;
+    glm::ivec2 worldToGrid(const glm::vec3& pos) const;
+    float getBoardCellSize() const;
 
     // Advances animation clocks + VFX emitters
     void update(float dt);
@@ -149,6 +152,7 @@ public:
     void restorePlayerPositionsAfterBattle();
     void setBoardInteractionLocked(bool locked) { boardInteractionLocked = locked; }
     bool isBoardInteractionLocked() const { return boardInteractionLocked; }
+    bool isBoardResizePauseActive() const { return boardResizePauseSec > 0.0f; }
     void setUnitDragActive(bool active) { unitDragActive = active; }
     bool isUnitDragActive() const { return unitDragActive; }
     void blockUiClicks(int frames = 1) {
@@ -207,10 +211,16 @@ private:
     };
     std::vector<CaptureAttempt> captureAttempts;
 
-    glm::vec3 gridToWorld(int col, int row) const;
+    glm::vec3 gridToWorldWithCellSize(int col, int row, float cellSize) const;
+    glm::ivec2 worldToGridWithCellSize(const glm::vec3& pos, float cellSize) const;
+    int benchSlotFromPosition(const glm::vec3& pos, float cellSize) const;
+    glm::vec3 benchSlotToWorld(int slot, float cellSize) const;
+    void reconcileBoardScaleFromRoster();
 
     void applyLevelScaling(PokemonInstance& inst, int level, bool preserveHp) const;
     void applyLoadoutForLevel(PokemonInstance& inst, bool preserveEnergy) const;
+    void tryApplyEvolution(PokemonInstance& unit);
+    void reconcileEligibleEvolutions();
     void awardXpForFaint(const PokemonInstance& dead);
     void addXp(PokemonInstance& unit, int amount);
     int xpToNextLevel(int level) const;
@@ -276,6 +286,8 @@ private:
     int classicWinStreak = 0;
     int classicLossStreak = 0;
     int classicRoundsCompleted = 0;
+    float boardScaleMul = 1.0f;
+    float boardResizePauseSec = 0.0f;
 
     std::shared_ptr<Model> pokeballModel;
     bool pokeballModelLoaded = false;

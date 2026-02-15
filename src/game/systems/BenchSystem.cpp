@@ -2,12 +2,18 @@
 
 #include "BenchSystem.h"
 #include <glm/common.hpp>
+#include <algorithm>
 #include <cmath>
 
 BenchSystem::BenchSystem(float cellSize, int maxSlots)
     : cellSize(cellSize), maxSlots(maxSlots)
 {
     // Bench starts just in front of the grid; offset scaled by cellSize for consistency.
+    benchStartZ = (8 * cellSize) / 2.0f + cellSize * 0.5f;
+}
+
+void BenchSystem::setCellSize(float newCellSize) {
+    cellSize = std::max(0.05f, newCellSize);
     benchStartZ = (8 * cellSize) / 2.0f + cellSize * 0.5f;
 }
 

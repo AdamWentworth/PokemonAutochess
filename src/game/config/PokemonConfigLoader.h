@@ -21,6 +21,7 @@ struct PokemonStats {
     int hp = 100;
     int attack = 10;
     float movementSpeed = 1.0f;
+    float visualScale = 1.0f;
     std::string model;
     std::vector<std::string> types;
     int baseExp = 50;

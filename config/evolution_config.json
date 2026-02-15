@@ -1,0 +1,34 @@
+{
+  "bulbasaur": {
+    "evolves_to": "ivysaur",
+    "level": 16
+  },
+  "charmander": {
+    "evolves_to": "charmeleon",
+    "level": 16
+  },
+  "squirtle": {
+    "evolves_to": "wartortle",
+    "level": 16
+  },
+  "pidgey": {
+    "evolves_to": "pidgeotto",
+    "level": 18
+  },
+  "caterpie": {
+    "evolves_to": "metapod",
+    "level": 7
+  },
+  "metapod": {
+    "evolves_to": "butterfree",
+    "level": 10
+  },
+  "weedle": {
+    "evolves_to": "kakuna",
+    "level": 7
+  },
+  "kakuna": {
+    "evolves_to": "beedrill",
+    "level": 10
+  }
+}

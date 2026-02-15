@@ -1,23 +1,24 @@
--- scripts/states/adventure/route22.lua
+-- scripts/states/adventure/viridian_forest.lua
 
 function get_message()
-    return "Route 22 - New challengers!"
+    return "Viridian Forest - The bugs are swarming!"
 end
 
 function get_enemies()
     return {
-        { name = "nidoran-f", gridCol = 1, gridRow = 1, level = 4 },
-        { name = "spearow",   gridCol = 3, gridRow = 1, level = 5 },
-        { name = "nidoran-m", gridCol = 5, gridRow = 1, level = 4 },
-        { name = "mankey",    gridCol = 6, gridRow = 1, level = 4 },
+        { name = "metapod",  gridCol = 1, gridRow = 1, level = 7 },
+        { name = "kakuna",   gridCol = 2, gridRow = 1, level = 7 },
+        { name = "pikachu",  gridCol = 4, gridRow = 1, level = 6 },
+        { name = "caterpie", gridCol = 5, gridRow = 1, level = 6 },
+        { name = "weedle",   gridCol = 6, gridRow = 1, level = 6 }
     }
 end
 
 function get_combat_balance()
     return {
-        playerDamageMult = 1.10,
+        playerDamageMult = 1.00,
         enemyDamageMult = 1.00,
-        playerDamageTakenMult = 0.95,
+        playerDamageTakenMult = 1.00,
         enemyDamageTakenMult = 1.00
     }
 end
@@ -46,8 +47,8 @@ function on_update(dt)
 
     if anyPlayerAlive and (not anyEnemyAlive) then
         transitioned = true
-        emit("Route 22 cleared!")
+        emit("Viridian Forest cleared!")
         pop_state()
-        push_state("scripts/states/adventure/route2_shop.lua")
+        push_state("scripts/states/adventure/route3_shop.lua")
     end
 end

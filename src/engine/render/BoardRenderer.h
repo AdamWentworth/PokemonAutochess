@@ -17,11 +17,13 @@ public:
 
     void draw(const Camera3D& camera);         // Draw the main board
     void drawBench(const Camera3D& camera);    // NEW: Draw bench grid
+    void setCellSize(float newCellSize);
     void shutdown();
 
 private:
     void initGrid();
     void initBench(); // NEW
+    void rebuildGeometryBuffer();
     std::string loadShaderSource(const char* path);
     unsigned int compileShader(const char* src, unsigned int type);
     unsigned int createShaderProgram(const char* vertPath, const char* fragPath);

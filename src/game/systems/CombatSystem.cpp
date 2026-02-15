@@ -84,6 +84,7 @@ void CombatSystem::update(engine::ecs::World& ecsWorld, float deltaTime) {
     if (!ecsWorld.alive(combatEntity)) return;
     auto* combat = ecsWorld.get<game::CombatActive>(combatEntity);
     if (!combat || !combat->active) return;
+    if (!gameWorld || gameWorld->isBoardResizePauseActive()) return;
     if (sol::function update = lua["combat_update"]; update.valid()) {
         sol::protected_function_result ur = update(deltaTime);
         if (!ur.valid()) {

@@ -36,6 +36,7 @@ private:
     bool isBoardCellOccupied(const glm::vec3& pos, int ignoreIndex) const;
     bool isBenchSlotOccupied(const glm::vec3& pos, int ignoreIndex) const;
     bool isSameCell(const glm::vec3& a, const glm::vec3& b, float eps = 0.01f) const;
+    void syncBoardCellSize();
 
 private:
     Camera3D* camera = nullptr;

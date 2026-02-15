@@ -6,6 +6,7 @@
 #include <variant>
 #include <vector>
 #include <utility>
+#include <tuple>
 
 #include "game/GameServices.h"
 #include "game/PokemonInstance.h"
@@ -107,6 +108,8 @@ public:
     std::vector<UnitSnapshot> listUnits() const;
     std::optional<UnitSnapshot> getUnitSnapshot(int unitId) const;
     std::pair<int, int> nearestEnemyCell(int unitId) const;
+    std::tuple<float, float, float> gridToWorldPos(int col, int row) const;
+    std::pair<int, int> worldToGridPos(float x, float y, float z) const;
     bool isAdjacentToEnemy(int unitId) const;
     std::vector<int> enemiesAdjacent(int unitId) const;
     bool canAttack(int unitId) const;
