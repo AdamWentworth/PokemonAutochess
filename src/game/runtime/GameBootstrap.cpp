@@ -1,4 +1,4 @@
-#include "game/GameBootstrap.h"
+#include "game/runtime/GameBootstrap.h"
 
 #include <iostream>
 #include <filesystem>
@@ -7,7 +7,7 @@
 #include "engine/core/GameContext.h"
 #include "engine/core/Paths.h"
 
-#include "game/GameSession.h"
+#include "game/runtime/GameSession.h"
 #include "game/assets/DevAssetStore.h"
 #include "game/assets/PackedAssetStore.h"
 #include "game/config/GameDataDb.h"
@@ -100,3 +100,4 @@ std::unique_ptr<GameSession> GameBootstrap::create(GameContext& ctx) {
 }
 
 } // namespace game
+

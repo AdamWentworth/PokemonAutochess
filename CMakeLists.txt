@@ -159,8 +159,8 @@ pac_apply_common_target_settings(engine_runtime)
 # ---------------- Game objects (shared by exe + tests) ----------------
 add_library(PAC_GameObjects STATIC
     # Game Core
-    src/game/GameApp.cpp
-    src/game/GameRunner.cpp
+    src/game/runtime/GameApp.cpp
+    src/game/runtime/GameRunner.cpp
     src/game/world/GameWorld.cpp
     src/game/world/GameWorldProgression.cpp
     src/game/world/GameWorldRoster.cpp
@@ -171,13 +171,15 @@ add_library(PAC_GameObjects STATIC
     src/game/world/GameWorldLeechSeed.cpp
     src/game/world/GameWorldRender.cpp
     src/game/world/GameWorldAnimation.cpp
+    src/game/world/GameWorldMoveImpact.cpp
+    src/game/world/GameWorldVfx.cpp
     src/game/GameStateManager.cpp
     src/game/GameConfig.cpp
-    src/game/GamePreload.cpp
-    src/game/GameRuntime.cpp
-    src/game/GameBootstrap.cpp
-    src/game/GameSession.cpp
-    src/game/GameUpdateGraph.cpp
+    src/game/runtime/GamePreload.cpp
+    src/game/runtime/GameRuntime.cpp
+    src/game/runtime/GameBootstrap.cpp
+    src/game/runtime/GameSession.cpp
+    src/game/runtime/GameUpdateGraph.cpp
 
     # Game Config
     src/game/config/PokemonConfigLoader.cpp
@@ -301,6 +303,7 @@ if (BUILD_TESTING)
         tests/TestLuaCardParser.cpp
         tests/TestLuaTextMenuParser.cpp
         tests/TestLuaScriptHelpers.cpp
+        tests/TestShopSystem.cpp
         tests/TestGameWorldProgression.cpp
         tests/TestGameWorldRoster.cpp
         tests/TestGameWorldEconomy.cpp

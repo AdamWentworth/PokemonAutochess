@@ -1,4 +1,4 @@
-#include "game/GameSession.h"
+#include "game/runtime/GameSession.h"
 
 // Heavy includes live here (not in headers).
 #include <iostream>
@@ -31,10 +31,10 @@
 
 #include "game/GameWorld.h"
 #include "game/GameStateManager.h"
-#include "game/GamePreload.h"
+#include "game/runtime/GamePreload.h"
 #include "game/GameServices.h"
 #include "game/GameConfig.h"
-#include "game/GameUpdateGraph.h"
+#include "game/runtime/GameUpdateGraph.h"
 #include "game/ui/UIViewport.h"
 #include "game/ui/ItemInventoryUI.h"
 #include "game/ui/ShopLayout.h"
@@ -374,7 +374,6 @@ struct GameSession::Impl {
         }
         if (renderWorldForInput && cameraSystem) cameraSystem->handleInput(event);
         if (renderWorldForInput && unitSystem)   unitSystem->handleInput(event);
-        if (renderWorldForInput && shopSystem)   shopSystem->handleInput(event);
         if (stateManager) stateManager->handleInput(event);
     }
 
@@ -431,7 +430,6 @@ struct GameSession::Impl {
             }
             itemInventoryUI.render(drawableW, drawableH);
 
-            if (shopSystem) shopSystem->renderUI(drawableW, drawableH);
             const float cornerX = std::round(std::max(10.0f, static_cast<float>(drawableW) * 0.012f));
             const float cornerY = std::round(std::max(10.0f, static_cast<float>(drawableH) * 0.020f));
             const float minDim = static_cast<float>(std::min(drawableW, drawableH));
@@ -551,3 +549,4 @@ void GameSession::render(int drawableW, int drawableH) { impl_->render(drawableW
 void GameSession::shutdown() { impl_->shutdown(); }
 
 } // namespace game
+

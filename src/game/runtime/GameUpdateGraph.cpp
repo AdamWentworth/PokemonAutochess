@@ -1,6 +1,6 @@
 // src/game/GameUpdateGraph.cpp
 
-#include "game/GameUpdateGraph.h"
+#include "game/runtime/GameUpdateGraph.h"
 
 #include <string>
 
@@ -80,3 +80,4 @@ void GameUpdateGraph::handleRoundPhaseTransitions() {
 }
 
 } // namespace game
+

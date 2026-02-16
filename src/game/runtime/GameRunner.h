@@ -1,4 +1,4 @@
-// src/game/GameRunner.h
+// src/game/runtime/GameRunner.h
 #pragma once
 
 namespace game {
@@ -6,3 +6,4 @@ namespace game {
 int runGame();
 
 } // namespace game
+

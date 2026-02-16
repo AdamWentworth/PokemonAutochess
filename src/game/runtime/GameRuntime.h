@@ -1,4 +1,4 @@
-// src/game/GameRuntime.h
+// src/game/runtime/GameRuntime.h
 #pragma once
 
 #include <memory>
@@ -33,3 +33,4 @@ private:
     struct Impl;                          // defined in .cpp
     std::unique_ptr<Impl> impl_;
 };
+

@@ -1,5 +1,5 @@
 // src/game/GamePreload.cpp
-#include "game/GamePreload.h"
+#include "game/runtime/GamePreload.h"
 
 #include <cctype>
 #include <fstream>
@@ -166,3 +166,4 @@ void preloadCommonModels(GameContext& ctx,
 }
 
 } // namespace game::preload
+

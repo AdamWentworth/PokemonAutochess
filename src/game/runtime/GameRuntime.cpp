@@ -1,6 +1,6 @@
 // src/game/GameRuntime.cpp
 
-#include "game/GameRuntime.h"
+#include "game/runtime/GameRuntime.h"
 
 // Keep GameRuntime minimal: it owns the game loop entrypoints and delegates to GameSession.
 // Composition/wiring lives in GameBootstrap.
@@ -9,8 +9,8 @@
 #include "engine/core/GameContext.h"
 #include "engine/input/InputEvent.h"
 
-#include "game/GameBootstrap.h"
-#include "game/GameSession.h"
+#include "game/runtime/GameBootstrap.h"
+#include "game/runtime/GameSession.h"
 
 struct GameRuntime::Impl {
     std::unique_ptr<game::GameSession> session;
@@ -35,3 +35,4 @@ void GameRuntime::handleEvent(const InputEvent& event) { impl_->handleEvent(even
 void GameRuntime::fixedUpdate(float dt) { impl_->fixedUpdate(dt); }
 void GameRuntime::render(int drawableW, int drawableH) { impl_->render(drawableW, drawableH); }
 void GameRuntime::shutdown() { impl_->shutdown(); }
+

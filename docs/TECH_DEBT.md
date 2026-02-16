@@ -5,10 +5,7 @@ This list is intentionally short and focused on the highest-value fixes.
 Open items
 - Monolithic gameplay/render files remain high-risk for regressions:
   - `src/engine/render/ModelFastGltfLoader.cpp` (~1100+ lines)
-  - `src/game/world/GameWorldRender.cpp` (~280+ lines)
-  - `src/game/world/GameWorldAnimation.cpp` (~250+ lines)
   - `src/game/scripting/ScriptAPICombat.cpp` (~300+ lines)
-- `ShopSystem` is still in placeholder mode (`TEMP` stubs for UI/input paths).
 - Packaged build smoke run is manual only (no automated run in CI).
 - Full fresh-machine validation of the installer flow (no cached vcpkg/toolchain).
 
@@ -29,4 +26,7 @@ Recent improvements
 - Split ScriptAPI combat/damage flow into `src/game/scripting/ScriptAPICombat.cpp` and added regression coverage for deferred hit-frame damage and mid-cycle request locking.
 - Split GameWorld rendering + move-impact VFX routing into `src/game/world/GameWorldRender.cpp` and added ScriptAPI combat-balance multiplier contract coverage.
 - Split GameWorld update/animation tick + render-VFX lifecycle into `src/game/world/GameWorldAnimation.cpp` and expanded ScriptAPI contract coverage for attack readiness and min-request timing queries.
+- Split move-impact/VFX routing into `src/game/world/GameWorldMoveImpact.cpp` and isolated render-VFX update lifecycle in `src/game/world/GameWorldVfx.cpp` to reduce `GameWorldRender` and `GameWorldAnimation` churn risk.
+- Moved runtime orchestration (`GameApp`, `GameRunner`, `GameRuntime`, `GameBootstrap`, `GamePreload`, `GameSession`, `GameUpdateGraph`) into `src/game/runtime/` to reduce `src/game/` top-level sprawl.
+- Converted `ShopSystem` from placeholder UI stubs into a phase-driven deterministic offer service and added dedicated phase/roll contract coverage.
 

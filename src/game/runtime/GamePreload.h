@@ -1,4 +1,4 @@
-// src/game/GamePreload.h
+// src/game/runtime/GamePreload.h
 #pragma once
 
 #include <string>
@@ -25,3 +25,4 @@ void preloadCommonModels(GameContext& ctx,
                          const std::string& appName = "PokemonAutochess");
 
 } // namespace game::preload
+

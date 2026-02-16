@@ -1,4 +1,4 @@
-// src/game/GameApp.h
+// src/game/runtime/GameApp.h
 #pragma once
 
 #include <memory>
@@ -36,3 +36,4 @@ public:
 private:
     std::unique_ptr<GameRuntime> runtime;
 };
+

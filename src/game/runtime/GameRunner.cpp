@@ -1,8 +1,8 @@
 // src/game/GameRunner.cpp
 
-#include "game/GameRunner.h"
+#include "game/runtime/GameRunner.h"
 
-#include "game/GameApp.h"
+#include "game/runtime/GameApp.h"
 
 #include "engine/core/EngineServices.h"
 #include "engine/core/GameContext.h"
@@ -458,3 +458,4 @@ int runGame() {
 }
 
 } // namespace game
+

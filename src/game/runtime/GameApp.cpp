@@ -1,7 +1,7 @@
 // src/game/GameApp.cpp
 
-#include "game/GameApp.h"
-#include "game/GameRuntime.h"
+#include "game/runtime/GameApp.h"
+#include "game/runtime/GameRuntime.h"
 
 GameApp::GameApp() = default;
 GameApp::~GameApp() = default;
@@ -29,3 +29,4 @@ void GameApp::shutdown() {
         runtime.reset();
     }
 }
+
