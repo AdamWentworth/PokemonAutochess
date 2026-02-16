@@ -6,7 +6,7 @@ Open items
 - Monolithic gameplay/render files remain high-risk for regressions:
   - `src/game/GameWorld.cpp` (~1700+ lines)
   - `src/engine/render/ModelFastGltfLoader.cpp` (~1100+ lines)
-  - `src/game/scripting/ScriptAPI.cpp` (~900+ lines)
+  - `src/game/scripting/ScriptAPICombat.cpp` (~350+ lines)
 - `ShopSystem` is still in placeholder mode (`TEMP` stubs for UI/input paths).
 - Packaged build smoke run is manual only (no automated run in CI).
 - Full fresh-machine validation of the installer flow (no cached vcpkg/toolchain).
@@ -25,3 +25,4 @@ Recent improvements
 - Split GameWorld leech-seed status/config/tick logic into `src/game/GameWorldLeechSeed.cpp` and added contract+clamp+invalid-state regression coverage.
 - Split ScriptAPI world-state/economy/mode surface into `src/game/scripting/ScriptAPIWorldState.cpp` and expanded contract coverage for money/items/mode/video/shop behavior.
 - Split ScriptAPI command queue/dispatch path into `src/game/scripting/ScriptAPICommands.cpp` and expanded contract coverage for queued energy command semantics.
+- Split ScriptAPI combat/damage flow into `src/game/scripting/ScriptAPICombat.cpp` and added regression coverage for deferred hit-frame damage and mid-cycle request locking.

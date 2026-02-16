@@ -3,6 +3,7 @@
 #include <optional>
 
 #include "engine/core/IAssetStore.h"
+#include "engine/core/Paths.h"
 #include "engine/core/Random.h"
 #include "engine/core/TimeSources.h"
 #include "game/GameServices.h"
@@ -108,6 +109,90 @@ bool test_battle_invariants(std::string& outFail) {
     }
     if (!t->chainedFastMove.empty() || t->fastChainTimerSec != 0.0f) {
         outFail = "fast-chain fields should reset on death";
+        return false;
+    }
+
+    const std::string movesPath = engine::paths::data("config/moves_config.json");
+    if (!db.moves.loadConfig(movesPath, nullptr)) {
+        outFail = "Failed to load moves config for ScriptAPI damage timing test";
+        return false;
+    }
+    const std::string attackAnimPath = engine::paths::data("config/attack_anim_config.json");
+    if (!db.attackAnims.loadConfig(attackAnimPath, &log)) {
+        outFail = "Failed to load attack anim config for ScriptAPI damage timing test";
+        return false;
+    }
+
+    GameWorld timingWorld(config);
+    timingWorld.setData(&db);
+    timingWorld.setLogger(&log);
+    ScriptAPI timingApi(&timingWorld, nullptr, services);
+
+    PokemonInstance timingAttacker;
+    timingAttacker.id = PokemonInstance::getNextUnitID();
+    timingAttacker.name = "bulbasaur";
+    timingAttacker.side = PokemonSide::Player;
+    timingAttacker.hp = 100;
+    timingAttacker.maxHP = 100;
+    timingAttacker.alive = true;
+    timingAttacker.attackDurationSec = 1.0f;
+    timingAttacker.animAttack1Index = 0;
+
+    PokemonInstance timingTarget;
+    timingTarget.id = PokemonInstance::getNextUnitID();
+    timingTarget.name = "squirtle";
+    timingTarget.side = PokemonSide::Enemy;
+    timingTarget.hp = 100;
+    timingTarget.maxHP = 100;
+    timingTarget.alive = true;
+
+    const int timingAttackerId = timingAttacker.id;
+    const int timingTargetId = timingTarget.id;
+    auto& timingUnits = timingWorld.getPokemons();
+    timingUnits.push_back(timingAttacker);
+    timingUnits.push_back(timingTarget);
+
+    int predictedHp = timingApi.applyDamage(
+        timingAttackerId,
+        timingTargetId,
+        13,
+        std::optional<float>(0.8f),
+        std::optional<std::string>("tackle"),
+        std::optional<std::string>("fast"));
+    PokemonInstance* timingA = timingWorld.findUnitById(timingAttackerId);
+    PokemonInstance* timingT = timingWorld.findUnitById(timingTargetId);
+    if (!timingA || !timingT) {
+        outFail = "Timing test units not found after ScriptAPI::applyDamage";
+        return false;
+    }
+    if (predictedHp != 87 || timingT->hp != 100) {
+        outFail = "Hit-frame damage should be deferred and only return projected HP";
+        return false;
+    }
+    if (!timingA->pendingDamageActive || timingA->pendingDamageTargetId != timingTargetId ||
+        timingA->pendingDamageAmount != 13 || timingA->pendingDamageMoveName != "tackle" ||
+        timingA->pendingDamageHitTimeSec <= 0.0f) {
+        outFail = "Deferred hit-frame state was not queued as expected";
+        return false;
+    }
+
+    timingA->attackTimerSec = 0.25f;
+    timingA->pendingDamageActive = false;
+    timingA->pendingDamageTargetId = -1;
+    timingA->pendingDamageAmount = 0;
+    const int lockedHp = timingApi.applyDamage(
+        timingAttackerId,
+        timingTargetId,
+        7,
+        std::optional<float>(0.8f),
+        std::optional<std::string>("tackle"),
+        std::optional<std::string>("fast"));
+    if (lockedHp != 100 || timingT->hp != 100) {
+        outFail = "Mid-cycle lock should prevent new damage requests";
+        return false;
+    }
+    if (timingA->pendingDamageActive || timingA->pendingDamageAmount != 0 || timingA->pendingDamageTargetId != -1) {
+        outFail = "Mid-cycle lock should not mutate pending damage state";
         return false;
     }
 

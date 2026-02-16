@@ -228,6 +228,7 @@ add_library(PAC_GameObjects STATIC
     src/game/scripting/LuaScript.cpp
     src/game/scripting/ScriptAPI.cpp
     src/game/scripting/ScriptAPICommands.cpp
+    src/game/scripting/ScriptAPICombat.cpp
     src/game/scripting/ScriptAPIWorldState.cpp
     src/game/scripting/ScriptEventBus.cpp
 
