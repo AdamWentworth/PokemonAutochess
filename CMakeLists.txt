@@ -170,6 +170,7 @@ add_library(PAC_GameObjects STATIC
     src/game/GameWorldRecovery.cpp
     src/game/GameWorldLeechSeed.cpp
     src/game/GameWorldRender.cpp
+    src/game/GameWorldAnimation.cpp
     src/game/GameStateManager.cpp
     src/game/GameConfig.cpp
     src/game/GamePreload.cpp

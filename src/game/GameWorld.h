@@ -230,6 +230,8 @@ private:
     int benchSlotFromPosition(const glm::vec3& pos, float cellSize) const;
     glm::vec3 benchSlotToWorld(int slot, float cellSize) const;
     void reconcileBoardScaleFromRoster();
+    void tickPokemonAnimation(PokemonInstance& unit, float dt);
+    void updateRenderVfx(float dt);
 
     void applyLevelScaling(PokemonInstance& inst, int level, bool preserveHp) const;
     void applyLoadoutForLevel(PokemonInstance& inst, bool preserveEnergy) const;

@@ -4,8 +4,9 @@ This list is intentionally short and focused on the highest-value fixes.
 
 Open items
 - Monolithic gameplay/render files remain high-risk for regressions:
-  - `src/game/GameWorld.cpp` (~450+ lines)
   - `src/engine/render/ModelFastGltfLoader.cpp` (~1100+ lines)
+  - `src/game/GameWorldRender.cpp` (~280+ lines)
+  - `src/game/GameWorldAnimation.cpp` (~250+ lines)
   - `src/game/scripting/ScriptAPICombat.cpp` (~300+ lines)
 - `ShopSystem` is still in placeholder mode (`TEMP` stubs for UI/input paths).
 - Packaged build smoke run is manual only (no automated run in CI).
@@ -27,3 +28,4 @@ Recent improvements
 - Split ScriptAPI command queue/dispatch path into `src/game/scripting/ScriptAPICommands.cpp` and expanded contract coverage for queued energy command semantics.
 - Split ScriptAPI combat/damage flow into `src/game/scripting/ScriptAPICombat.cpp` and added regression coverage for deferred hit-frame damage and mid-cycle request locking.
 - Split GameWorld rendering + move-impact VFX routing into `src/game/GameWorldRender.cpp` and added ScriptAPI combat-balance multiplier contract coverage.
+- Split GameWorld update/animation tick + render-VFX lifecycle into `src/game/GameWorldAnimation.cpp` and expanded ScriptAPI contract coverage for attack readiness and min-request timing queries.

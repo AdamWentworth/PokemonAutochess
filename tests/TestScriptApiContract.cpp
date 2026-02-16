@@ -72,6 +72,11 @@ bool test_script_api_contract(std::string& outFail) {
         outFail = "Failed to load moves config: " + movesPath;
         return false;
     }
+    const std::string attackAnimPath = engine::paths::data("config/attack_anim_config.json");
+    if (!db.attackAnims.loadConfig(attackAnimPath, &log)) {
+        outFail = "Failed to load attack anim config: " + attackAnimPath;
+        return false;
+    }
     const std::string pokemonPath = engine::paths::data("config/pokemon_config.json");
     if (!db.pokemon.loadConfig(pokemonPath, nullptr)) {
         outFail = "Failed to load pokemon config: " + pokemonPath;
@@ -117,6 +122,40 @@ bool test_script_api_contract(std::string& outFail) {
 
     if (!expect(api.getPokemonCatchRate("bulbasaur") > 0.0f, "getPokemonCatchRate should resolve configured species.", outFail)) return false;
     if (!expect(api.getPokemonCatchRate("missing_species") == 0.0f, "getPokemonCatchRate should return 0 for missing species.", outFail)) return false;
+
+    // Combat readiness helpers should reflect active/combat-eligible state.
+    const int idAReady = units[0].id;
+    units[0].usesAirLocomotion = false;
+    units[0].captureInProgress = false;
+    units[0].attackTimerSec = 0.0f;
+    if (!expect(api.canAttack(idAReady), "canAttack should be true for active grounded unit.", outFail)) return false;
+    if (!expect(api.attackReady(idAReady), "attackReady should be true when attack timer is zero.", outFail)) return false;
+
+    units[0].attackTimerSec = 0.2f;
+    if (!expect(api.canAttack(idAReady), "canAttack should stay true while cooldown is active.", outFail)) return false;
+    if (!expect(!api.attackReady(idAReady), "attackReady should be false while attack timer is positive.", outFail)) return false;
+
+    units[0].captureInProgress = true;
+    if (!expect(!api.canAttack(idAReady), "canAttack should be false for units in capture state.", outFail)) return false;
+    if (!expect(!api.attackReady(idAReady), "attackReady should be false for units in capture state.", outFail)) return false;
+    units[0].captureInProgress = false;
+    units[0].attackTimerSec = 0.0f;
+
+    // attackMinRequestSec should resolve configured move cadence by species + move kind.
+    GameWorld cadenceWorld(cfg);
+    cadenceWorld.setData(&db);
+    cadenceWorld.setLogger(&log);
+    auto& cadenceUnits = cadenceWorld.getPokemons();
+    PokemonInstance cadenceUnit = makeUnit(cfg, "bulbasaur", PokemonSide::Player, 0, 0);
+    cadenceUnits.push_back(cadenceUnit);
+    ScriptAPI cadenceApi(&cadenceWorld, nullptr, services);
+    const float minReq = cadenceApi.attackMinRequestSec(cadenceUnits[0].id,
+                                                        std::optional<std::string>("vine_whip"),
+                                                        std::nullopt);
+    if (!expect(minReq >= 1.19f && minReq <= 1.21f,
+                "attackMinRequestSec should match configured min request cadence for bulbasaur vine_whip.", outFail)) return false;
+    if (!expect(cadenceApi.attackMinRequestSec(-999, std::nullopt, std::nullopt) == 0.0f,
+                "attackMinRequestSec should return 0 for unknown unit id.", outFail)) return false;
 
     // Combat-balance multipliers should match side-aware products and clamp negatives.
     const int idPlayer = units[0].id;
