@@ -1,4 +1,4 @@
-#include "GameWorld.h"
+#include "game/world/GameWorld.h"
 
 #include <algorithm>
 #include <array>
@@ -11,7 +11,7 @@
 #include "engine/render/Camera3D.h"
 #include "engine/render/Model.h"
 
-#include "ui/HealthBarQuery.h"
+#include "game/ui/HealthBarQuery.h"
 
 namespace {
 
@@ -332,3 +332,4 @@ void GameWorld::emitMoveImpactByName(const std::string& moveName,
         return;
     }
 }
+

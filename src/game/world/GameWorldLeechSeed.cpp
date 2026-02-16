@@ -1,9 +1,9 @@
-#include "GameWorld.h"
+#include "game/world/GameWorld.h"
 
 #include <algorithm>
 #include <cmath>
 
-#include "config/LeechSeedConfigDB.h"
+#include "game/config/LeechSeedConfigDB.h"
 
 void GameWorld::ensureLeechSeedConfigLoaded()
 {
@@ -126,3 +126,4 @@ void GameWorld::updateLeechSeedStatus(float dt)
         );
     }
 }
+

@@ -161,16 +161,16 @@ add_library(PAC_GameObjects STATIC
     # Game Core
     src/game/GameApp.cpp
     src/game/GameRunner.cpp
-    src/game/GameWorld.cpp
-    src/game/GameWorldProgression.cpp
-    src/game/GameWorldRoster.cpp
-    src/game/GameWorldEconomy.cpp
-    src/game/GameWorldCapture.cpp
-    src/game/GameWorldQueries.cpp
-    src/game/GameWorldRecovery.cpp
-    src/game/GameWorldLeechSeed.cpp
-    src/game/GameWorldRender.cpp
-    src/game/GameWorldAnimation.cpp
+    src/game/world/GameWorld.cpp
+    src/game/world/GameWorldProgression.cpp
+    src/game/world/GameWorldRoster.cpp
+    src/game/world/GameWorldEconomy.cpp
+    src/game/world/GameWorldCapture.cpp
+    src/game/world/GameWorldQueries.cpp
+    src/game/world/GameWorldRecovery.cpp
+    src/game/world/GameWorldLeechSeed.cpp
+    src/game/world/GameWorldRender.cpp
+    src/game/world/GameWorldAnimation.cpp
     src/game/GameStateManager.cpp
     src/game/GameConfig.cpp
     src/game/GamePreload.cpp

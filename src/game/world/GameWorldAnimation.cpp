@@ -1,15 +1,15 @@
-#include "GameWorld.h"
+#include "game/world/GameWorld.h"
 
 #include <algorithm>
 #include <string>
 #include <unordered_map>
 
-#include "animation/FlightLocomotion.h"
+#include "game/animation/FlightLocomotion.h"
 
 #include "engine/render/Model.h"
 
-#include "logging/DebugTrace.h"
-#include "logging/LoggerUtil.h"
+#include "game/logging/DebugTrace.h"
+#include "game/logging/LoggerUtil.h"
 
 namespace {
 
@@ -306,3 +306,4 @@ void GameWorld::update(float dt)
     if (!renderEnabled) return;
     updateRenderVfx(dt);
 }
+

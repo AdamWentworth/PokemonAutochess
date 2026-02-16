@@ -1,4 +1,4 @@
-#include "GameWorld.h"
+#include "game/world/GameWorld.h"
 
 #include <algorithm>
 #include <iostream>
@@ -8,10 +8,10 @@
 #include "engine/render/Model.h"
 #include "engine/utils/ResourceManager.h"
 
-#include "GameConfig.h"
-#include "config/AnimSetLoader.h"
-#include "config/GameDataDb.h"
-#include "config/PokemonConfigLoader.h"
+#include "game/GameConfig.h"
+#include "game/config/AnimSetLoader.h"
+#include "game/config/GameDataDb.h"
+#include "game/config/PokemonConfigLoader.h"
 
 namespace {
 
@@ -150,3 +150,4 @@ void GameWorld::addToBench(const std::string& pokemonName, int level) {
               << ", CHARGED: " << (inst.chargedMove.empty() ? "-" : inst.chargedMove)
               << ")\n";
 }
+

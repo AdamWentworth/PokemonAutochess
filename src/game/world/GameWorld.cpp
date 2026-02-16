@@ -1,4 +1,4 @@
-// src/game/GameWorld.cpp
+// src/game/world/GameWorld.cpp
 #include <cmath>
 #include <algorithm>
 #include <memory>
@@ -20,17 +20,17 @@ std::string Lower(std::string s) {
 }
 } // namespace
 
-#include "GameWorld.h"
-#include "GameConfig.h"
+#include "game/world/GameWorld.h"
+#include "game/GameConfig.h"
 
 #include "engine/utils/ResourceManager.h"
 #include "engine/render/Model.h"
 
-#include "config/GameDataDb.h"
-#include "config/PokemonConfigLoader.h"
-#include "config/AnimSetLoader.h"
+#include "game/config/GameDataDb.h"
+#include "game/config/PokemonConfigLoader.h"
+#include "game/config/AnimSetLoader.h"
 
-#include "logging/LoggerUtil.h"
+#include "game/logging/LoggerUtil.h"
 
 namespace {
 float ResolveModelScaleCorrectionImpl(const std::shared_ptr<Model>& model,
@@ -261,3 +261,4 @@ const PokemonInstance* GameWorld::findUnitById(int unitId) const {
 }
 std::vector<PokemonInstance>& GameWorld::getPokemons() { return pokemons; }
 std::vector<PokemonInstance>& GameWorld::getBenchPokemons() { return benchPokemons; }
+

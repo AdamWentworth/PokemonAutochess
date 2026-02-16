@@ -1,4 +1,4 @@
-#include "GameWorld.h"
+#include "game/world/GameWorld.h"
 
 #include <algorithm>
 #include <cctype>
@@ -7,12 +7,12 @@
 #include <utility>
 #include <vector>
 
-#include "GameConfig.h"
+#include "game/GameConfig.h"
 
-#include "config/GameDataDb.h"
-#include "config/PokemonConfigLoader.h"
+#include "game/config/GameDataDb.h"
+#include "game/config/PokemonConfigLoader.h"
 
-#include "logging/LoggerUtil.h"
+#include "game/logging/LoggerUtil.h"
 
 namespace {
 
@@ -192,3 +192,4 @@ bool GameWorld::tryUseHealingItem(const std::string& itemId, int targetId) {
     }
     return true;
 }
+

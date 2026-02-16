@@ -1,4 +1,4 @@
-#include "GameWorld.h"
+#include "game/world/GameWorld.h"
 
 #include <algorithm>
 #include <cctype>
@@ -10,12 +10,12 @@
 #include "engine/core/Random.h"
 #include "engine/utils/ResourceManager.h"
 
-#include "GameConfig.h"
+#include "game/GameConfig.h"
 
-#include "config/GameDataDb.h"
-#include "config/PokemonConfigLoader.h"
+#include "game/config/GameDataDb.h"
+#include "game/config/PokemonConfigLoader.h"
 
-#include "logging/LogBus.h"
+#include "game/logging/LogBus.h"
 
 namespace {
 
@@ -262,3 +262,4 @@ void GameWorld::ensurePokeballModel() {
     pokeballModel = resources->getModel("assets/models/pokeball.glb");
     pokeballModelLoaded = (pokeballModel != nullptr);
 }
+

@@ -1,8 +1,8 @@
-#include "GameWorld.h"
+#include "game/world/GameWorld.h"
 
 #include <algorithm>
 
-#include "GameConfig.h"
+#include "game/GameConfig.h"
 
 #include "engine/render/Model.h"
 
@@ -165,3 +165,4 @@ void GameWorld::updateFaint(PokemonInstance& target, float dt) {
         target.fainting = false;
     }
 }
+

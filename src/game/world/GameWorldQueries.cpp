@@ -1,4 +1,4 @@
-#include "GameWorld.h"
+#include "game/world/GameWorld.h"
 
 #include <algorithm>
 #include <cctype>
@@ -7,8 +7,8 @@
 #include <unordered_map>
 #include <unordered_set>
 
-#include "config/GameDataDb.h"
-#include "config/PokemonConfigLoader.h"
+#include "game/config/GameDataDb.h"
+#include "game/config/PokemonConfigLoader.h"
 
 namespace {
 
@@ -97,3 +97,4 @@ glm::vec3 GameWorld::getNearestEnemyPosition(const PokemonInstance& unit) const 
 
     return closestPos;
 }
+
