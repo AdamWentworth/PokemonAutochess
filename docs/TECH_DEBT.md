@@ -4,7 +4,7 @@ This list is intentionally short and focused on the highest-value fixes.
 
 Open items
 - Monolithic gameplay/render files remain high-risk for regressions:
-  - `src/engine/render/ModelFastGltfLoader.cpp` (~1100+ lines)
+  - `src/engine/render/ModelFastGltfLoaderHelpers.cpp` (~500+ lines)
   - `src/game/scripting/ScriptAPICombat.cpp` (~300+ lines)
 - Packaged build smoke run is manual only (no automated run in CI).
 - Full fresh-machine validation of the installer flow (no cached vcpkg/toolchain).
@@ -29,4 +29,5 @@ Recent improvements
 - Split move-impact/VFX routing into `src/game/world/GameWorldMoveImpact.cpp` and isolated render-VFX update lifecycle in `src/game/world/GameWorldVfx.cpp` to reduce `GameWorldRender` and `GameWorldAnimation` churn risk.
 - Moved runtime orchestration (`GameApp`, `GameRunner`, `GameRuntime`, `GameBootstrap`, `GamePreload`, `GameSession`, `GameUpdateGraph`) into `src/game/runtime/` to reduce `src/game/` top-level sprawl.
 - Converted `ShopSystem` from placeholder UI stubs into a phase-driven deterministic offer service and added dedicated phase/roll contract coverage.
+- Split `ModelFastGltfLoader` into `ModelFastGltfLoader.cpp` and `ModelFastGltfLoaderHelpers.cpp` and added a source-modularity budget test to guard against re-growth.
 

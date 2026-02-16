@@ -115,6 +115,7 @@ add_library(engine_render STATIC
     src/engine/render/ModelAnimation.cpp
     src/engine/render/ModelCache.cpp
     src/engine/render/ModelFastGltfLoader.cpp
+    src/engine/render/ModelFastGltfLoaderHelpers.cpp
 
     src/engine/ui/UIManager.cpp
     src/engine/ui/Card.cpp
@@ -287,6 +288,7 @@ if (BUILD_TESTING)
         tests/TestEndToEnd.cpp
         tests/TestMovementSystem.cpp
         tests/TestModelParse.cpp
+        tests/TestModelLoaderStructure.cpp
         tests/TestGltfAsset.cpp
         tests/TestScriptApiContract.cpp
         tests/TestRoundFlow.cpp
