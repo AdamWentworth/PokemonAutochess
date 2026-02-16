@@ -13,6 +13,6 @@ struct RoundPhaseChangedEvent : public Event {
           previousPhase(prev), nextPhase(next) {}
 
     std::string toString() const override {
-        return "RoundPhaseChanged: " + previousPhase + " → " + nextPhase;
+        return "RoundPhaseChanged: " + previousPhase + " -> " + nextPhase;
     }
 };

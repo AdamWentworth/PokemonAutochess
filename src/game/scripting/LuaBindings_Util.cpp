@@ -77,7 +77,7 @@ glm::ivec2 worldToGrid(const GameConfigData& c, const glm::vec3& pos) {
 //
 // NOTE: This assumes your combat loop calls world_apply_damage at the time it *wants* to
 // deal damage. If the loop calls it continuously every tick while in range, this gating
-// will make it apply damage only once you start the attack animation (and only while it’s active),
+// will make it apply damage only once you start the attack animation (and only while it's active),
 // but you should still make sure the combat logic has a cooldown / one-shot trigger.
 //
 // ADDITIONAL CHANGE (anim state correctness):

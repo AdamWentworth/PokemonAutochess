@@ -34,6 +34,9 @@ bool test_shop_layout_invariants(std::string& outFail);
 bool test_lua_card_parser_contract(std::string& outFail);
 bool test_lua_text_menu_parser_contract(std::string& outFail);
 bool test_lua_script_helpers(std::string& outFail);
+bool test_pokemon_config_loader_contract(std::string& outFail);
+bool test_evolution_flyer_loader_contract(std::string& outFail);
+bool test_source_ascii_hygiene(std::string& outFail);
 
 struct TestCase {
     const char* name;
@@ -109,6 +112,9 @@ int main(int argc, char** argv) {
         {"lua_card_parser_contract", &test_lua_card_parser_contract},
         {"lua_text_menu_parser_contract", &test_lua_text_menu_parser_contract},
         {"lua_script_helpers", &test_lua_script_helpers},
+        {"pokemon_config_loader_contract", &test_pokemon_config_loader_contract},
+        {"evolution_flyer_loader_contract", &test_evolution_flyer_loader_contract},
+        {"source_ascii_hygiene", &test_source_ascii_hygiene},
     };
 
     if (listOnly) {

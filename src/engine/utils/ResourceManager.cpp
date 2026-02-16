@@ -21,7 +21,7 @@ std::shared_ptr<Model> ResourceManager::getModel(const std::string& modelPath) {
     LOG_INFO_T("RES", std::string("Loading model: ") + modelPath);
 #endif
 
-    // Optional fastgltf “shadow parse” for compatibility checking.
+    // Optional fastgltf "shadow parse" for compatibility checking.
     // Enabled only if you set: PAC_FASTGLTF_VALIDATE=1
     pac::fastgltf_validator::logSummaryIfEnabled(modelPath);
 

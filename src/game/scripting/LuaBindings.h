@@ -5,5 +5,5 @@
 
 class ScriptAPI;
 
-// Registers all C++↔Lua bindings used by gameplay scripts.
+// Registers all C++<->Lua bindings used by gameplay scripts.
 void registerLuaBindings(sol::state& lua, ScriptAPI& api);

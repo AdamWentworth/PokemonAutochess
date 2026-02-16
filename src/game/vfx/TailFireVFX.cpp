@@ -23,7 +23,7 @@ static std::string toLowerAscii(std::string s) {
 }
 
 // Build a stable orthonormal basis from a mat4 (ignoring translation).
-// This avoids “weird” particle rotations if the node matrix contains scale/shear.
+// This avoids "weird" particle rotations if the node matrix contains scale/shear.
 static glm::mat3 orthonormalBasis(const glm::mat4& m) {
     glm::vec3 x = glm::vec3(m[0]);
     glm::vec3 y = glm::vec3(m[1]);
@@ -212,7 +212,7 @@ void TailFireVFX::emitForList(float dt, const std::vector<PokemonInstance>& list
         // Stable orientation basis at the tail
         glm::mat3 tailBasis = orthonormalBasis(tailWorldM);
 
-        // Rotate the “back direction” with the tail
+        // Rotate the "back direction" with the tail
         glm::vec3 backDirWorld = tailBasis * cfg.backDir;
         float bd2 = glm::dot(backDirWorld, backDirWorld);
         if (bd2 > 1e-10f) backDirWorld *= (1.0f / std::sqrt(bd2));

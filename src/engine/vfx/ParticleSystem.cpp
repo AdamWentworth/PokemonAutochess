@@ -277,7 +277,7 @@ void ParticleSystem::render(const Camera3D& camera) {
         shader->setUniform("u_UseFlipbook", 0);
     }
 
-    // Flipbook 2 (optional) — required by fire_tail.frag when enabled.
+    // Flipbook 2 (optional) - required by fire_tail.frag when enabled.
     if (useFlipbook) {
         int has2 = (useSecondaryFlipbook && flipbookTex2 != 0) ? 1 : 0;
         {

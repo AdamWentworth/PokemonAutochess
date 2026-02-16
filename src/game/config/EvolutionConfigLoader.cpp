@@ -9,6 +9,16 @@
 #include "game/config/JsonFile.h"
 #include "game/logging/LoggerUtil.h"
 
+namespace {
+
+std::string toLowerCopy(std::string s) {
+    std::transform(s.begin(), s.end(), s.begin(),
+                   [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+    return s;
+}
+
+}  // namespace
+
 bool EvolutionConfigLoader::loadConfig(const std::string& filePath,
                                        LogBus::Logger* logger,
                                        const engine::IAssetStore* store) {
@@ -21,12 +31,6 @@ bool EvolutionConfigLoader::loadConfig(const std::string& filePath,
         game::log::error(logger, std::string("[EvolutionConfigLoader] Root must be an object: ") + filePath);
         return false;
     }
-
-    auto toLowerCopy = [](std::string s) {
-        std::transform(s.begin(), s.end(), s.begin(),
-                       [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
-        return s;
-    };
 
     rules_.clear();
 
@@ -55,18 +59,14 @@ bool EvolutionConfigLoader::loadConfig(const std::string& filePath,
 }
 
 const EvolutionRule* EvolutionConfigLoader::getRule(const std::string& species) const {
-    std::string key = species;
-    std::transform(key.begin(), key.end(), key.begin(),
-                   [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+    const std::string key = toLowerCopy(species);
     auto it = rules_.find(key);
     if (it == rules_.end()) return nullptr;
     return &it->second;
 }
 
 bool EvolutionConfigLoader::getPreEvolution(const std::string& species, std::string& outPreEvolution) const {
-    std::string key = species;
-    std::transform(key.begin(), key.end(), key.begin(),
-                   [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+    const std::string key = toLowerCopy(species);
 
     std::string best;
     for (const auto& kv : rules_) {

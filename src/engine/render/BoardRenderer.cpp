@@ -104,8 +104,8 @@ void BoardRenderer::initBench() {
     float benchY = 0.01f;  // Slightly above ground
     float slotSize = cellSize; // Make bench use same cell size as board
     float totalWidth = 8 * slotSize;
-    float startX = -totalWidth / 2.0f; // ✅ Centered
-    float startZ = (rows * cellSize) / 2.0f + 0.5f; // ✅ Just in front of the grid
+    float startX = -totalWidth / 2.0f; // Centered
+    float startZ = (rows * cellSize) / 2.0f + 0.5f; // Just in front of the grid
 
     for (int i = 0; i <= 8; ++i) {
         float x = startX + i * slotSize;

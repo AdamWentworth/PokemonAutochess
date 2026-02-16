@@ -25,7 +25,7 @@
 // Model.cpp provides this helper (keep definition there).
 extern bool isMipmapMinFilter(GLint minF);
 
-// ✅ Fix: use the real animation types (they live in pac_model_types)
+// Fix: use the real animation types (they live in pac_model_types)
 using pac_model_types::AnimationClip;
 using pac_model_types::AnimationSampler;
 using pac_model_types::AnimationChannel;
@@ -448,7 +448,7 @@ bool Model::tryLoadCache(const std::string& filepath)
             glEnableVertexAttribArray(3);
             glVertexAttribPointer(3, 4, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, w0));
 
-            // ✅ COLOR_0 (vec4) must exist in cache path too
+            // COLOR_0 (vec4) must exist in cache path too
             glEnableVertexAttribArray(4);
             glVertexAttribPointer(4, 4, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, r));
 

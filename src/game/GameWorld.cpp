@@ -982,7 +982,7 @@ void GameWorld::spawnPokemon(const std::string& pokemonName,
 
     const PokemonStats* stats = data->pokemon.getStats(pokemonName);
     if (!stats) {
-        std::cerr << "[GameWorld] No config found for Pokémon: " << pokemonName << "\n";
+        std::cerr << "[GameWorld] No config found for Pokemon: " << pokemonName << "\n";
         return;
     }
 
@@ -1023,7 +1023,7 @@ void GameWorld::spawnPokemon(const std::string& pokemonName,
     const PokemonStats* finalStats = data->pokemon.getStats(inst.name);
     const std::string finalPath = "assets/models/" + ((finalStats && !finalStats->model.empty()) ? finalStats->model : stats->model);
 
-    // ✅ NEW: animset-v2/v3 roles/groups/categories support (optional file)
+    // NEW: animset-v2/v3 roles/groups/categories support (optional file)
     AnimSet::applyAnimSetOverrides(inst, finalPath, data ? &data->flyers : nullptr);
 
     // Start looped animations in sync across all units
@@ -1079,7 +1079,7 @@ void GameWorld::addToBench(const std::string& pokemonName, int level)
 
     const PokemonStats* stats = data->pokemon.getStats(pokemonName);
     if (!stats) {
-        std::cerr << "[GameWorld] No config found for Pokémon: " << pokemonName << "\n";
+        std::cerr << "[GameWorld] No config found for Pokemon: " << pokemonName << "\n";
         return;
     }
 
@@ -1124,7 +1124,7 @@ void GameWorld::addToBench(const std::string& pokemonName, int level)
     const PokemonStats* finalStats = data->pokemon.getStats(inst.name);
     const std::string finalPath = "assets/models/" + ((finalStats && !finalStats->model.empty()) ? finalStats->model : stats->model);
 
-    // ✅ NEW: animset-v2/v3 roles/groups/categories support (optional file)
+    // NEW: animset-v2/v3 roles/groups/categories support (optional file)
     AnimSet::applyAnimSetOverrides(inst, finalPath, data ? &data->flyers : nullptr);
 
     // Start looped animations in sync across all units

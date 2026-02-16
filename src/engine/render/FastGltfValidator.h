@@ -43,8 +43,8 @@ inline const char* errorName(fastgltf::Error e) {
     }
 }
 
-// “Enable everything fastgltf documents as supported extensions”.
-// This does NOT mean “enable every glTF extension in existence”, only the ones fastgltf knows about.
+// "Enable everything fastgltf documents as supported extensions".
+// This does NOT mean "enable every glTF extension in existence", only the ones fastgltf knows about.
 constexpr fastgltf::Extensions kSupportedExtensionsMask =
     fastgltf::Extensions::KHR_texture_transform |
     fastgltf::Extensions::KHR_texture_basisu |

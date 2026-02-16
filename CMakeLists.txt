@@ -289,6 +289,8 @@ if (BUILD_TESTING)
         tests/TestLuaCardParser.cpp
         tests/TestLuaTextMenuParser.cpp
         tests/TestLuaScriptHelpers.cpp
+        tests/TestConfigLoaders.cpp
+        tests/TestSourceAscii.cpp
     )
 
     target_link_libraries(PAC_Tests
@@ -313,39 +315,27 @@ if (BUILD_TESTING)
     endif()
 
     # Register individual tests for CTest output granularity.
-    set(PAC_TEST_NAMES
-        lua_bindings_smoke
-        eventbus_basic
-        gameconfig_diagnostics
-        ecs_smoke
-        ecs_destroy_cleans_components
-        ecs_for_each_join
-        ecs_structural_change_deferral
-        rng_determinism
-        manual_time_source
-        content_invariants
-        battle_invariants
-        end_to_end_headless
-        movement_invariants
-        model_parse_smoke
-        gltf_asset_smoke
-        script_api_contract
-        round_flow_headless
-        animset_roles_smoke
-        combat_slice_headless
-        render_pipeline_smoke
-        animset_glb_name_smoke
-        placement_to_combat_headless
-        animset_clip_name_smoke
-        layering_engine_no_game_includes
-        state_manager_input_deferral
-        mode_split_flow
-        mode_split_menu_entries
-        shop_layout_invariants
-        lua_card_parser_contract
-        lua_text_menu_parser_contract
-        lua_script_helpers
-    )
+    # Source of truth is tests/TestMain.cpp (single list used by runtime filtering).
+    set(PAC_TEST_MAIN_FILE "${CMAKE_SOURCE_DIR}/tests/TestMain.cpp")
+    file(READ "${PAC_TEST_MAIN_FILE}" PAC_TEST_MAIN_CONTENTS)
+    string(REGEX MATCHALL "\\{\"[A-Za-z0-9_]+\",[ \t]*&test_[A-Za-z0-9_]+\\}" PAC_TEST_CASE_ROWS "${PAC_TEST_MAIN_CONTENTS}")
+
+    if (PAC_TEST_CASE_ROWS STREQUAL "")
+        message(FATAL_ERROR "Failed to parse test cases from ${PAC_TEST_MAIN_FILE}.")
+    endif()
+
+    set(PAC_TEST_NAMES)
+    foreach(test_case_row IN LISTS PAC_TEST_CASE_ROWS)
+        string(REGEX REPLACE ".*\\{\"([A-Za-z0-9_]+)\",[ \t]*&test_[A-Za-z0-9_]+\\}.*" "\\1" test_name "${test_case_row}")
+        list(APPEND PAC_TEST_NAMES "${test_name}")
+    endforeach()
+
+    list(LENGTH PAC_TEST_NAMES PAC_TEST_COUNT_RAW)
+    list(REMOVE_DUPLICATES PAC_TEST_NAMES)
+    list(LENGTH PAC_TEST_NAMES PAC_TEST_COUNT_UNIQUE)
+    if (NOT PAC_TEST_COUNT_RAW EQUAL PAC_TEST_COUNT_UNIQUE)
+        message(FATAL_ERROR "Duplicate PAC test names found in ${PAC_TEST_MAIN_FILE}.")
+    endif()
 
     foreach(test_name IN LISTS PAC_TEST_NAMES)
         add_test(NAME PAC_Tests.${test_name} COMMAND PAC_Tests --filter ${test_name})

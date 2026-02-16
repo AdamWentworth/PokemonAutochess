@@ -1196,7 +1196,7 @@ struct FG {
                 // emissiveFactor is always present in glTF (defaults to (0,0,0))
                 emissiveFactor = glm::vec3(mat.emissiveFactor[0], mat.emissiveFactor[1], mat.emissiveFactor[2]);
 
-                // âœ… Apply emissive strength ONCE
+                // Apply emissive strength ONCE
                 emissiveFactor *= (float)mat.emissiveStrength;
 
                 // Boost ONLY the tail fire, without affecting the rest of the model.

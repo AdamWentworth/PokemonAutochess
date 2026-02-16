@@ -7,6 +7,39 @@
 #include <cctype>
 #include <string>
 
+namespace {
+
+std::string toLowerCopy(std::string s) {
+    std::transform(s.begin(), s.end(), s.begin(),
+                   [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+    return s;
+}
+
+std::string normalizeModelScaleMode(std::string value,
+                                    const std::string& species,
+                                    LogBus::Logger* logger) {
+    value = toLowerCopy(std::move(value));
+    if (value == "raw") value = "native";  // Backward-compat alias.
+    if (value == "native" || value == "normalized") return value;
+
+    game::log::warn(logger, std::string("[PokemonConfigLoader] Invalid modelScaleMode '") +
+                           value + "' for species '" + species + "'. Using 'native'.");
+    return "native";
+}
+
+std::string normalizeModelScaleAxis(std::string value,
+                                    const std::string& species,
+                                    LogBus::Logger* logger) {
+    value = toLowerCopy(std::move(value));
+    if (value == "max" || value == "x" || value == "y" || value == "z" || value == "median") return value;
+
+    game::log::warn(logger, std::string("[PokemonConfigLoader] Invalid modelScaleAxis '") +
+                           value + "' for species '" + species + "'. Using 'max'.");
+    return "max";
+}
+
+}  // namespace
+
 bool PokemonConfigLoader::loadConfig(const std::string& filePath,
                                      LogBus::Logger* logger,
                                      const engine::IAssetStore* store) {
@@ -28,37 +61,13 @@ bool PokemonConfigLoader::loadConfig(const std::string& filePath,
             continue;
         }
 
-    auto toLowerCopy = [](std::string s) {
-        std::transform(s.begin(), s.end(), s.begin(),
-                       [](unsigned char c){ return static_cast<char>(std::tolower(c)); });
-        return s;
-    };
-
         PokemonStats stats;
         stats.hp            = data.value("hp", 100);
         stats.attack        = data.value("attack", 10);
         stats.movementSpeed = data.value("movementSpeed", 1.0f);
         stats.visualScale   = std::max(0.05f, data.value("visualScale", 1.0f));
-        stats.modelScaleMode = toLowerCopy(data.value("modelScaleMode", std::string("native")));
-        // Backward-compat alias.
-        if (stats.modelScaleMode == "raw") stats.modelScaleMode = "native";
-        if (stats.modelScaleMode != "native" && stats.modelScaleMode != "normalized") {
-            game::log::warn(logger, std::string("[PokemonConfigLoader] Invalid modelScaleMode '") +
-                                   stats.modelScaleMode + "' for species '" + name +
-                                   "'. Using 'native'.");
-            stats.modelScaleMode = "native";
-        }
-        stats.modelScaleAxis = toLowerCopy(data.value("modelScaleAxis", std::string("max")));
-        if (stats.modelScaleAxis != "max" &&
-            stats.modelScaleAxis != "x" &&
-            stats.modelScaleAxis != "y" &&
-            stats.modelScaleAxis != "z" &&
-            stats.modelScaleAxis != "median") {
-            game::log::warn(logger, std::string("[PokemonConfigLoader] Invalid modelScaleAxis '") +
-                                   stats.modelScaleAxis + "' for species '" + name +
-                                   "'. Using 'max'.");
-            stats.modelScaleAxis = "max";
-        }
+        stats.modelScaleMode = normalizeModelScaleMode(data.value("modelScaleMode", std::string("native")), name, logger);
+        stats.modelScaleAxis = normalizeModelScaleAxis(data.value("modelScaleAxis", std::string("max")), name, logger);
         stats.model         = data.value("model", name + ".glb");
         stats.baseExp       = data.value("baseExp", stats.baseExp);
         stats.catchRate     = data.value("catchRate", stats.catchRate);
@@ -130,12 +139,6 @@ bool PokemonConfigLoader::applyBaseExpConfig(const std::string& filePath,
         return false;
     }
 
-    auto toLowerCopy = [](std::string s) {
-        std::transform(s.begin(), s.end(), s.begin(),
-                       [](unsigned char c){ return static_cast<char>(std::tolower(c)); });
-        return s;
-    };
-
     baseExpMap.clear();
     for (const auto& [name, data] : jsonData.items()) {
         if (!data.is_number_integer()) continue;
@@ -153,18 +156,14 @@ bool PokemonConfigLoader::applyBaseExpConfig(const std::string& filePath,
 }
 
 const PokemonStats* PokemonConfigLoader::getStats(const std::string& name) const {
-    std::string key = name;
-    std::transform(key.begin(), key.end(), key.begin(),
-                   [](unsigned char c){ return static_cast<char>(std::tolower(c)); });
+    const std::string key = toLowerCopy(name);
     auto it = statsMap.find(key);
     if (it != statsMap.end()) return &it->second;
     return nullptr;
 }
 
 int PokemonConfigLoader::getBaseExp(const std::string& name) const {
-    std::string key = name;
-    std::transform(key.begin(), key.end(), key.begin(),
-                   [](unsigned char c){ return static_cast<char>(std::tolower(c)); });
+    const std::string key = toLowerCopy(name);
     auto it = baseExpMap.find(key);
     if (it != baseExpMap.end()) return it->second;
     return 0;

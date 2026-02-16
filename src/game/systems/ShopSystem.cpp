@@ -3,8 +3,6 @@
 
 #include "engine/core/Random.h"
 
-#include <iostream>
-
 ShopSystem::ShopSystem(engine::IRandom& rngIn)
     : rng(rngIn) {
     // Minimal placeholder pool (replace with real odds/config later)

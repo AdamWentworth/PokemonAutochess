@@ -103,7 +103,7 @@ void CardSystem::clearCards() {
     cards.clear();
 }
 
-// 🔄 Match the stable build’s look: 220×150 cards, 50px spacing, centered row
+// Match the stable build look: 220x150 cards, 50px spacing, centered row
 void CardSystem::spawnCardRow(const std::vector<CardData>& cardDatas, int screenWidth, int yOffset) {
     spawnCardRowLayout(cardDatas, screenWidth, yOffset, 220, 150, 50);
 }
