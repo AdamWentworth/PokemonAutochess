@@ -1,10 +1,11 @@
-// src/engine/render/ModelFastGltfLoader.cpp
+// src/engine/render/gltf/ModelFastGltfLoader.cpp
 // Extracted from ModelFastGltfLoad.inl to keep Model.cpp small and testable.
 
-#include "Model.h"
-#include "ModelStartupLog.h"
+#include "engine/render/Model.h"
+#include "engine/render/ModelStartupLog.h"
 #include "FastGLTFLoader.h"
 #include "ModelFastGltfLoaderHelpers.h"
+#include "ModelFastGltfMaterial.h"
 #include "ModelFastGltfSceneData.h"
 
 #include <fastgltf/tools.hpp>
@@ -37,8 +38,6 @@
 #include <utility>
 #include <variant>
 #include <vector>
-
-extern bool isMipmapMinFilter(GLint minF);
 
 void Model::loadGLTFFast(const std::string& filepath) {
 // ------------------------------------------------------------
@@ -384,154 +383,21 @@ void Model::loadGLTFFast(const std::string& filepath) {
                         << "), meshUV=" << requiredTexCoord << "\n";
             }
 
-            glm::vec3 emissiveFactor(0.0f);
-            int alphaMode = 0;       // OPAQUE
-            float alphaCutoff = 0.5f;
-            bool doubleSided = false;
+            const pac::model_fastgltf::MaterialRenderInfo materialInfo =
+                pac::model_fastgltf::resolveMaterialRenderInfo(asset, materialIndex, baseCPU, dbgThisModel);
 
-            if (materialIndex >= 0 && materialIndex < (int)asset.materials.size()) {
-                const auto& mat = asset.materials[(size_t)materialIndex];
-
-                // emissiveFactor is always present in glTF (defaults to (0,0,0))
-                emissiveFactor = glm::vec3(mat.emissiveFactor[0], mat.emissiveFactor[1], mat.emissiveFactor[2]);
-
-                // Apply emissive strength ONCE
-                emissiveFactor *= (float)mat.emissiveStrength;
-
-                // Boost ONLY the tail fire, without affecting the rest of the model.
-                const std::string matName(mat.name.begin(), mat.name.end());
-                if (matName == "fire") {
-                    const float kTailFireBoost = 1.35f;
-                    emissiveFactor *= kTailFireBoost;
-                }
-
-                // alpha mode
-                switch (mat.alphaMode) {
-                    case fastgltf::AlphaMode::Mask:  alphaMode = 1; break;
-                    case fastgltf::AlphaMode::Blend: alphaMode = 2; break;
-                    default:                         alphaMode = 0; break; // Opaque
-                }
-                alphaCutoff = (float)mat.alphaCutoff;
-                doubleSided = mat.doubleSided;
-
-                // Some source assets tag materials as BLEND even when alpha is effectively
-                // fully opaque (e.g., eyes), which causes depth-write issues and "hollow"
-                // look-through artifacts. Normalize these here using decoded base alpha.
-                if (alphaMode == 2 && !baseCPU.rgba.empty()) {
-                    const size_t pixelCount = baseCPU.rgba.size() / 4u;
-                    if (pixelCount > 0u) {
-                        uint8_t minA = 255u;
-                        uint8_t maxA = 0u;
-                        size_t zeroA = 0u;
-                        size_t midA = 0u;
-
-                        for (size_t i = 3; i < baseCPU.rgba.size(); i += 4u) {
-                            const uint8_t a = baseCPU.rgba[i];
-                            minA = (std::min)(minA, a);
-                            maxA = (std::max)(maxA, a);
-                            if (a == 0u) ++zeroA;
-                            else if (a < 255u) ++midA;
-                        }
-
-                        const float midFrac = static_cast<float>(midA) / static_cast<float>(pixelCount);
-                        const bool effectivelyOpaque = (minA >= 250u) && (midFrac <= 0.001f);
-                        const bool mostlyBinaryCutout = (zeroA > 0u) && (midFrac <= 0.015f);
-
-                        if (effectivelyOpaque) {
-                            alphaMode = 0; // OPAQUE
-                        } else if (mostlyBinaryCutout) {
-                            alphaMode = 1; // MASK
-                            alphaCutoff = std::clamp(alphaCutoff, 0.1f, 0.9f);
-                        }
-
-                        if (dbgThisModel && alphaMode != 2) {
-                            std::cerr << "[gltf][MAT] normalized BLEND material '" << matName
-                                      << "' -> " << (alphaMode == 0 ? "OPAQUE" : "MASK")
-                                      << " (minA=" << (int)minA
-                                      << " maxA=" << (int)maxA
-                                      << " zero=" << zeroA
-                                      << " mid=" << midA
-                                      << " px=" << pixelCount << ")\n";
-                        }
-                    }
-                }
-            }
-
-            // Upload baseColor texture
-            GLuint baseTexId = 0;
-            glGenTextures(1, &baseTexId);
-            glBindTexture(GL_TEXTURE_2D, baseTexId);
-            glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
-
-            const uint32_t bw = (baseCPU.width  == 0 ? 1u : baseCPU.width);
-            const uint32_t bh = (baseCPU.height == 0 ? 1u : baseCPU.height);
-            const void* bpixels = baseCPU.rgba.empty() ? nullptr : baseCPU.rgba.data();
-
-            glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, (GLsizei)bw, (GLsizei)bh, 0,
-                         GL_RGBA, GL_UNSIGNED_BYTE, bpixels);
-            if (dbgThisModel) {
-                GLenum err = glGetError();
-                if (err != GL_NO_ERROR) {
-                    std::cerr << "[gltf][GL] baseTex glTexImage2D error=0x" << std::hex << (unsigned)err << std::dec << "\n";
-                }
-                GLint wq = 0, hq = 0, ifmt = 0;
-                glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_WIDTH, &wq);
-                glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_HEIGHT, &hq);
-                glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_INTERNAL_FORMAT, &ifmt);
-                std::cerr << "[gltf][GL] baseTex uploaded size=" << wq << "x" << hq << " ifmt=" << ifmt << "\n";
-            }
-
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, (GLint)baseCPU.wrapS);
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, (GLint)baseCPU.wrapT);
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, (GLint)baseCPU.minF);
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, (GLint)baseCPU.magF);
-
-            if (isMipmapMinFilter((GLint)baseCPU.minF)) {
-                glGenerateMipmap(GL_TEXTURE_2D);
-            }
-
-            // Upload emissive texture
-            GLuint emissiveTexId = 0;
-            glGenTextures(1, &emissiveTexId);
-            glBindTexture(GL_TEXTURE_2D, emissiveTexId);
-            glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
-
-            const uint32_t ew = (emissiveCPU.width  == 0 ? 1u : emissiveCPU.width);
-            const uint32_t eh = (emissiveCPU.height == 0 ? 1u : emissiveCPU.height);
-            const void* epixels = emissiveCPU.rgba.empty() ? nullptr : emissiveCPU.rgba.data();
-
-            glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, (GLsizei)ew, (GLsizei)eh, 0,
-                         GL_RGBA, GL_UNSIGNED_BYTE, epixels);
-            if (dbgThisModel) {
-                GLenum err = glGetError();
-                if (err != GL_NO_ERROR) {
-                    std::cerr << "[gltf][GL] emissiveTex glTexImage2D error=0x" << std::hex << (unsigned)err << std::dec << "\n";
-                }
-                GLint wq = 0, hq = 0, ifmt = 0;
-                glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_WIDTH, &wq);
-                glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_HEIGHT, &hq);
-                glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_INTERNAL_FORMAT, &ifmt);
-                std::cerr << "[gltf][GL] emissiveTex uploaded size=" << wq << "x" << hq << " ifmt=" << ifmt << "\n";
-            }
-
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, (GLint)emissiveCPU.wrapS);
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, (GLint)emissiveCPU.wrapT);
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, (GLint)emissiveCPU.minF);
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, (GLint)emissiveCPU.magF);
-
-            if (isMipmapMinFilter((GLint)emissiveCPU.minF)) {
-                glGenerateMipmap(GL_TEXTURE_2D);
-            }
+            const GLuint baseTexId = pac::model_fastgltf::uploadTexture2D(baseCPU, dbgThisModel, "baseTex");
+            const GLuint emissiveTexId = pac::model_fastgltf::uploadTexture2D(emissiveCPU, dbgThisModel, "emissiveTex");
 
             Submesh sm;
             sm.indexOffset = subIndexOffset;
             sm.indexCount  = primIdxU32.size();
             sm.baseColorTexID = baseTexId;
             sm.emissiveTexID  = emissiveTexId;
-            sm.emissiveFactor = emissiveFactor;
-            sm.alphaMode      = alphaMode;
-            sm.alphaCutoff    = alphaCutoff;
-            sm.doubleSided    = doubleSided;
+            sm.emissiveFactor = materialInfo.emissiveFactor;
+            sm.alphaMode      = materialInfo.alphaMode;
+            sm.alphaCutoff    = materialInfo.alphaCutoff;
+            sm.doubleSided    = materialInfo.doubleSided;
             sm.meshIndex   = (int)meshIdx;
             submeshes.push_back(sm);
 

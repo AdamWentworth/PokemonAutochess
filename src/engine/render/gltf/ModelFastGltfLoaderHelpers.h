@@ -7,7 +7,7 @@
 #include <fastgltf/tools.hpp>
 #include <glm/glm.hpp>
 
-#include "Model.h"
+#include "engine/render/Model.h"
 
 namespace pac::model_fastgltf {
 

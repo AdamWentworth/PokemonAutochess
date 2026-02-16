@@ -6,7 +6,7 @@
 #include "engine/render/Model.h"
 
 // NEW: optional fastgltf parsing/logging (does not change loader behavior)
-#include "engine/render/FastGltfValidator.h"
+#include "engine/render/gltf/FastGltfValidator.h"
 #include "engine/utils/Log.h"
 
 

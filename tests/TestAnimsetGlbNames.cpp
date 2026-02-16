@@ -11,7 +11,7 @@
 #include <nlohmann/json.hpp>
 
 #include "engine/core/Paths.h"
-#include "engine/render/FastGLTFLoader.h"
+#include "engine/render/gltf/FastGLTFLoader.h"
 #include "game/config/AnimSetLoader.h"
 #include "game/config/PokemonConfigLoader.h"
 

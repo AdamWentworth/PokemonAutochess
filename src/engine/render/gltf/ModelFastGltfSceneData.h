@@ -4,7 +4,7 @@
 
 #include <fastgltf/tools.hpp>
 
-#include "ModelAnimationTypes.h"
+#include "engine/render/ModelAnimationTypes.h"
 
 namespace pac::model_fastgltf {
 

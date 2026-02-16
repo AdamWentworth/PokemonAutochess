@@ -3,7 +3,7 @@
 #include <string>
 
 #include "engine/core/Paths.h"
-#include "engine/render/FastGLTFLoader.h"
+#include "engine/render/gltf/FastGLTFLoader.h"
 #include "game/config/PokemonConfigLoader.h"
 
 bool test_gltf_asset_smoke(std::string& outFail) {

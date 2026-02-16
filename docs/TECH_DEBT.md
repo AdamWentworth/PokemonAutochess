@@ -4,7 +4,7 @@ This list is intentionally short and focused on the highest-value fixes.
 
 Open items
 - Monolithic gameplay/render files remain high-risk for regressions:
-  - `src/engine/render/ModelFastGltfLoaderHelpers.cpp` (~500+ lines)
+  - `src/engine/render/gltf/ModelFastGltfLoaderHelpers.cpp` (~500+ lines)
   - `src/game/scripting/ScriptAPICombat.cpp` (~300+ lines)
 - Packaged build smoke run is manual only (no automated run in CI).
 - Full fresh-machine validation of the installer flow (no cached vcpkg/toolchain).
@@ -30,5 +30,6 @@ Recent improvements
 - Moved runtime orchestration (`GameApp`, `GameRunner`, `GameRuntime`, `GameBootstrap`, `GamePreload`, `GameSession`, `GameUpdateGraph`) into `src/game/runtime/` to reduce `src/game/` top-level sprawl.
 - Converted `ShopSystem` from placeholder UI stubs into a phase-driven deterministic offer service and added dedicated phase/roll contract coverage.
 - Split `ModelFastGltfLoader` into `ModelFastGltfLoader.cpp` and `ModelFastGltfLoaderHelpers.cpp` and added a source-modularity budget test to guard against re-growth.
-- Split fastgltf scene/skin/animation extraction into `src/engine/render/ModelFastGltfSceneData.cpp` to further reduce `ModelFastGltfLoader.cpp` churn surface.
+- Split fastgltf scene/skin/animation extraction into `src/engine/render/gltf/ModelFastGltfSceneData.cpp` to further reduce `ModelFastGltfLoader.cpp` churn surface.
+- Split fastgltf material interpretation and GPU texture upload into `src/engine/render/gltf/ModelFastGltfMaterial.cpp` to remove duplicated GL upload blocks from the core loader flow.
 
