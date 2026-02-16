@@ -118,6 +118,35 @@ bool test_script_api_contract(std::string& outFail) {
     if (!expect(api.getPokemonCatchRate("bulbasaur") > 0.0f, "getPokemonCatchRate should resolve configured species.", outFail)) return false;
     if (!expect(api.getPokemonCatchRate("missing_species") == 0.0f, "getPokemonCatchRate should return 0 for missing species.", outFail)) return false;
 
+    // Combat-balance multipliers should match side-aware products and clamp negatives.
+    const int idPlayer = units[0].id;
+    const int idEnemy = units[1].id;
+    {
+        GameWorld::CombatBalance b;
+        b.playerDamageMult = 1.5f;
+        b.enemyDamageTakenMult = 0.5f;
+        b.enemyDamageMult = 2.0f;
+        b.playerDamageTakenMult = 0.25f;
+        world.setCombatBalance(b);
+    }
+    if (!expect(std::fabs(api.getDamageMultiplier(idPlayer, idEnemy) - 0.75f) < 0.0001f,
+                "getDamageMultiplier mismatch for player -> enemy path.", outFail)) return false;
+    if (!expect(std::fabs(api.getDamageMultiplier(idEnemy, idPlayer) - 0.5f) < 0.0001f,
+                "getDamageMultiplier mismatch for enemy -> player path.", outFail)) return false;
+
+    {
+        GameWorld::CombatBalance b;
+        b.playerDamageMult = -2.0f;
+        b.enemyDamageTakenMult = 3.0f;
+        world.setCombatBalance(b);
+    }
+    if (!expect(std::fabs(api.getDamageMultiplier(idPlayer, idEnemy) - 0.0f) < 0.0001f,
+                "getDamageMultiplier should clamp negative multipliers to zero.", outFail)) return false;
+
+    world.resetCombatBalance();
+    if (!expect(std::fabs(api.getDamageMultiplier(-999, idEnemy) - 1.0f) < 0.0001f,
+                "getDamageMultiplier should default to 1 for unknown units.", outFail)) return false;
+
     api.setGameMode("adventure");
     if (!expect(api.getGameMode() == "adventure", "setGameMode/getGameMode mismatch for valid mode.", outFail)) return false;
     api.setGameMode("invalid_mode");
@@ -193,7 +222,7 @@ bool test_script_api_contract(std::string& outFail) {
     }
     if (!expect(byId.size() == 3, "world_list_units returned unexpected size.", outFail)) return false;
 
-    const int idA = units[0].id;
+    const int idA = idPlayer;
     if (!expect(byId.count(idA) == 1, "world_list_units missing unit_a.", outFail)) return false;
     sol::table ta = byId[idA];
     const std::string name = ta["name"].get_or(std::string());
