@@ -42,6 +42,8 @@ bool test_gameworld_reset_economy_state(std::string& outFail);
 bool test_gameworld_capture_preconditions(std::string& outFail);
 bool test_gameworld_capture_success_resolution(std::string& outFail);
 bool test_gameworld_capture_failure_recovery(std::string& outFail);
+bool test_gameworld_type_line_counts(std::string& outFail);
+bool test_gameworld_nearest_enemy_position(std::string& outFail);
 bool test_pokemon_config_loader_contract(std::string& outFail);
 bool test_evolution_flyer_loader_contract(std::string& outFail);
 bool test_source_ascii_hygiene(std::string& outFail);
@@ -128,6 +130,8 @@ int main(int argc, char** argv) {
         {"gameworld_capture_preconditions", &test_gameworld_capture_preconditions},
         {"gameworld_capture_success_resolution", &test_gameworld_capture_success_resolution},
         {"gameworld_capture_failure_recovery", &test_gameworld_capture_failure_recovery},
+        {"gameworld_type_line_counts", &test_gameworld_type_line_counts},
+        {"gameworld_nearest_enemy_position", &test_gameworld_nearest_enemy_position},
         {"pokemon_config_loader_contract", &test_pokemon_config_loader_contract},
         {"evolution_flyer_loader_contract", &test_evolution_flyer_loader_contract},
         {"source_ascii_hygiene", &test_source_ascii_hygiene},

@@ -166,6 +166,7 @@ add_library(PAC_GameObjects STATIC
     src/game/GameWorldRoster.cpp
     src/game/GameWorldEconomy.cpp
     src/game/GameWorldCapture.cpp
+    src/game/GameWorldQueries.cpp
     src/game/GameStateManager.cpp
     src/game/GameConfig.cpp
     src/game/GamePreload.cpp
@@ -297,6 +298,7 @@ if (BUILD_TESTING)
         tests/TestGameWorldRoster.cpp
         tests/TestGameWorldEconomy.cpp
         tests/TestGameWorldCapture.cpp
+        tests/TestGameWorldQueries.cpp
         tests/TestConfigLoaders.cpp
         tests/TestSourceAscii.cpp
     )
