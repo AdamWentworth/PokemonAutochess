@@ -748,7 +748,7 @@
     },
     "model": "0010_Caterpie.glb",
     "movementSpeed": 1.0,
-    "visualScale": 1.5,
+    "visualScale": 2,
     "unlockTable": [
       {
         "charged": [],
@@ -844,7 +844,7 @@
     },
     "model": "0013_Weedle.glb",
     "movementSpeed": 1.0,
-    "visualScale": 1.5,
+    "visualScale": 2,
     "unlockTable": [
       {
         "charged": [],

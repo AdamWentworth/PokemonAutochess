@@ -1,4 +1,4 @@
--- scripts/states/classic/round_economy.lua
+-- scripts/states/shared/round_economy.lua
 
 local function classic_emit_income(result)
     local gold_now = get_money()

@@ -66,6 +66,11 @@ public:
         bool won = false;
     };
 
+    struct TypeLineCount {
+        std::string type;
+        int uniqueLineCount = 0;
+    };
+
     explicit GameWorld(const GameConfigData& cfg);
 
     void setResources(ResourceManager* rm) { resources = rm; }
@@ -106,6 +111,7 @@ public:
     void mergeTriplesForPlayer();
 
     std::vector<HealthBarData> getHealthBarData(const Camera3D& camera, int screenWidth, int screenHeight) const;
+    std::vector<TypeLineCount> getPlayerTypeLineCounts() const;
 
     glm::vec3 getNearestEnemyPosition(const PokemonInstance& unit) const;
 
@@ -120,6 +126,11 @@ public:
     void setClassicShopCards(const std::vector<ClassicShopCard>& cards);
     const std::vector<ClassicShopCard>& getClassicShopCards() const { return classicShopCards; }
     void clearClassicShopCards();
+    void setUnitDropZoneLayoutHint(int cardCount, bool allItems);
+    int getUnitDropZoneCardCount() const { return unitDropZoneCardCount; }
+    bool getUnitDropZoneUsesItemLayout() const { return unitDropZoneAllItems; }
+    void setUnitSellRewardsEnabled(bool enabled) { unitSellRewardsEnabled = enabled; }
+    bool isUnitSellRewardsEnabled() const { return unitSellRewardsEnabled; }
     int getItemCount(const std::string& item) const;
     void addItem(const std::string& item, int amount = 1);
     bool consumeItem(const std::string& item, int amount = 1);
@@ -183,6 +194,9 @@ private:
     std::unordered_map<int, glm::vec3> battleStartPositions;
     int money = 0;
     std::vector<ClassicShopCard> classicShopCards;
+    int unitDropZoneCardCount = 0;
+    bool unitDropZoneAllItems = false;
+    bool unitSellRewardsEnabled = true;
     std::unordered_map<std::string, int> items;
     std::string selectedItemId;
 
@@ -220,6 +234,7 @@ private:
     void applyLevelScaling(PokemonInstance& inst, int level, bool preserveHp) const;
     void applyLoadoutForLevel(PokemonInstance& inst, bool preserveEnergy) const;
     void tryApplyEvolution(PokemonInstance& unit);
+    std::string resolveEvolutionLineRoot(const std::string& species) const;
     void awardXpForFaint(const PokemonInstance& dead);
     void addXp(PokemonInstance& unit, int amount);
     int xpToNextLevel(int level) const;

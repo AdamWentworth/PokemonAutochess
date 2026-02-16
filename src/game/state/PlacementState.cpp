@@ -65,7 +65,7 @@ void PlacementState::update(float dt) {
         flow->loadScript("scripts/states/flow.lua");
     }
 
-    std::string routeScript = "scripts/states/classic/route1.lua";
+    std::string routeScript = "scripts/states/route1.lua";
 
     // IMPORTANT: flow script functions live in its environment now.
     sol::table F = flow->getScriptTable();

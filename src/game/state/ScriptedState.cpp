@@ -59,8 +59,9 @@ void ScriptedState::rebuildCardRow() {
     std::string parseError;
     if (!game::scripting::parseCardList(f, list, &parseError)) {
         std::cerr << "[ScriptedState] failed to parse card list: " << parseError << "\n";
-        if (cardMode == CardMode::Shop && gameWorld && services.gameMode == "classic") {
+        if (cardMode == CardMode::Shop && gameWorld) {
             gameWorld->clearClassicShopCards();
+            gameWorld->setUnitDropZoneLayoutHint(0, false);
         }
         return;
     }
@@ -69,12 +70,17 @@ void ScriptedState::rebuildCardRow() {
     const int uiW = viewport ? viewport->width : 1280;
     const int uiH = viewport ? viewport->height : 720;
     if (cardMode == CardMode::Shop) {
-        if (gameWorld) {
-            if (services.gameMode == "classic") {
-                gameWorld->setClassicShopCards(buildClassicCardsFromUi(list));
-            } else {
-                gameWorld->clearClassicShopCards();
+        bool allItems = true;
+        for (const auto& card : list) {
+            if (card.type != CardType::Item) {
+                allItems = false;
+                break;
             }
+        }
+        if (gameWorld) {
+            gameWorld->setClassicShopCards(buildClassicCardsFromUi(list));
+            gameWorld->setUnitDropZoneLayoutHint(static_cast<int>(list.size()), allItems);
+            gameWorld->setUnitSellRewardsEnabled(services.gameMode == "classic");
         }
         if (shopUi) {
             shopUi->setCards(list, uiW, uiH);
@@ -88,7 +94,9 @@ void ScriptedState::rebuildCardRow() {
                 const int itemW = itemLayout.cardW;
                 const int itemH = itemLayout.cardH;
                 const int itemSpacing = itemLayout.spacing;
-                const int itemY = std::max(0, itemLayout.edgeMargin);
+                // Keep item shop row below header/ready UI to avoid overlap.
+                const int headerClearanceY = std::max(96, static_cast<int>(std::round(static_cast<float>(uiH) * 0.14f)));
+                const int itemY = std::max(headerClearanceY, itemLayout.edgeMargin);
                 itemCardSystem.spawnCardRowLayout(items, uiW, itemY, itemW, itemH, itemSpacing);
             } else {
                 std::cerr << "[ScriptedState] failed to parse item card list: " << itemParseError << "\n";
@@ -98,6 +106,10 @@ void ScriptedState::rebuildCardRow() {
             itemCardSystem.clearCards();
         }
     } else {
+        if (gameWorld) {
+            gameWorld->clearClassicShopCards();
+            gameWorld->setUnitDropZoneLayoutHint(0, false);
+        }
         cardSystem.spawnCardRow(list, uiW, /*y*/ 300);
     }
     std::cout << "[ScriptedState] Spawned " << list.size() << " cards\n";
@@ -177,6 +189,10 @@ void ScriptedState::ensureCardUI() {
         cardMode = CardMode::None;
         hasShopReadyButton = false;
         hasShopRerollButton = false;
+        if (gameWorld) {
+            gameWorld->clearClassicShopCards();
+            gameWorld->setUnitDropZoneLayoutHint(0, false);
+        }
         if (shopUi) shopUi->clear();
         uiInitialized = true;
         return;
@@ -223,6 +239,10 @@ void ScriptedState::onEnter() {
 }
 
 void ScriptedState::onExit() {
+    if (gameWorld) {
+        gameWorld->clearClassicShopCards();
+        gameWorld->setUnitDropZoneLayoutHint(0, false);
+    }
     script.onExit();
 }
 
@@ -472,9 +492,9 @@ void ScriptedState::render() {
     }
 
     const bool showSellOverlay = (cardMode == CardMode::Shop) &&
-                                 (services.gameMode == "classic") &&
                                  gameWorld &&
-                                 gameWorld->isUnitDragActive();
+                                 gameWorld->isUnitDragActive() &&
+                                 (gameWorld->getUnitDropZoneCardCount() > 0);
 
     if (cardMode == CardMode::Shop) {
         if (hasShopItems && !showSellOverlay) {
@@ -498,8 +518,9 @@ void ScriptedState::drawShopHud(int uiW, int uiH) {
     in.moneyScale = 1.35f;
     in.rerollScale = 0.90f;
     in.rerollLabel = "[Reroll 2g]";
-    in.showSellOverlay = (services.gameMode == "classic") &&
-                         gameWorld &&
-                         gameWorld->isUnitDragActive();
+    in.showSellOverlay = gameWorld &&
+                         gameWorld->isUnitDragActive() &&
+                         (gameWorld->getUnitDropZoneCardCount() > 0);
+    in.sellOverlayPaysMoney = gameWorld ? gameWorld->isUnitSellRewardsEnabled() : true;
     shopUi->render(in);
 }

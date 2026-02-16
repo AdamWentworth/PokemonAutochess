@@ -56,26 +56,7 @@ if (Test-Path $packPath) {
     Write-Warning "content_pak/content.pak not found (PAC_PackData may have failed)."
 }
 
-$assetsPath = Join-Path (Get-Location) "assets"
-if (Test-Path $assetsPath) {
-    Copy-Item $assetsPath -Destination (Join-Path $OutDir "assets") -Recurse -Force
-} else {
-    Write-Warning "assets/ not found."
-}
-
-$configPath = Join-Path (Get-Location) "config"
-if (Test-Path $configPath) {
-    Copy-Item $configPath -Destination (Join-Path $OutDir "config") -Recurse -Force
-} else {
-    Write-Warning "config/ not found."
-}
-
-$scriptsPath = Join-Path (Get-Location) "scripts"
-if (Test-Path $scriptsPath) {
-    Copy-Item $scriptsPath -Destination (Join-Path $OutDir "scripts") -Recurse -Force
-} else {
-    Write-Warning "scripts/ not found."
-}
+& "$PSScriptRoot\\sync_runtime_content.ps1" -OutDir $OutDir -Folders @("assets", "config", "scripts")
 
 if ($IncludeVcpkgDlls) {
     $vcpkgBin = Join-Path $BuildDir "vcpkg_installed\\x64-windows\\bin"

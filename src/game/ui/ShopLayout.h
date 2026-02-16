@@ -61,6 +61,7 @@ struct ClassicHudLayout {
 ShopRowLayout computeShopRowLayout(int uiW, int uiH, bool allItems);
 ShopRowPlacement computeShopRowPlacement(int uiW, int uiH, int cardCount, const ShopRowLayout& layout);
 SellDropZoneLayout computeSellDropZoneLayout(int uiW, int uiH, int cardCount, bool allItems);
+SellDropZoneLayout computeSellDropZoneCenterHitLayout(const SellDropZoneLayout& zone);
 ClassicHudLayout computeClassicHudLayout(const ClassicHudLayoutInput& in);
 
 } // namespace game::ui

@@ -20,6 +20,7 @@ public:
                     const engine::IAssetStore* store = nullptr);
 
     const EvolutionRule* getRule(const std::string& species) const;
+    bool getPreEvolution(const std::string& species, std::string& outPreEvolution) const;
     std::size_t ruleCount() const { return rules_.size(); }
 
 private:

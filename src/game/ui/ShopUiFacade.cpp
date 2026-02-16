@@ -118,17 +118,21 @@ void ShopUiFacade::render(const ShopUiRenderInput& in) {
     rerollH_ = 0.0f;
     if (!initialized_ || !hasCards_) return;
 
-    cardSystem_.render(in.uiW, in.uiH);
+    if (!in.showSellOverlay) {
+        cardSystem_.render(in.uiW, in.uiH);
+    }
 
     if (in.showSellOverlay && overlayText_ && sellZoneW_ > 0 && sellZoneH_ > 0) {
-        const std::string line1 = "[ SELL ]";
-        const std::string line2 = "Drop unit here";
+        const bool paysMoney = in.sellOverlayPaysMoney;
+        const std::string line1 = paysMoney ? "[ SELL ]" : "[ RELEASE ]";
+        const std::string line2 = paysMoney ? "Drop unit in center for gold"
+                                            : "Drop unit in center to release";
         constexpr float kTitleScale = 1.0f;
         constexpr float kHintScale = 0.78f;
 
         const float xCenter = static_cast<float>(sellZoneX_) + static_cast<float>(sellZoneW_) * 0.5f;
-        const float yTop = static_cast<float>(sellZoneY_) + static_cast<float>(sellZoneH_) * 0.18f;
-        const float yHint = static_cast<float>(sellZoneY_) + static_cast<float>(sellZoneH_) * 0.55f;
+        const float yTop = static_cast<float>(sellZoneY_) + static_cast<float>(sellZoneH_) * 0.30f;
+        const float yHint = static_cast<float>(sellZoneY_) + static_cast<float>(sellZoneH_) * 0.58f;
 
         const float w1 = overlayText_->measureTextWidth(line1, kTitleScale);
         const float w2 = overlayText_->measureTextWidth(line2, kHintScale);

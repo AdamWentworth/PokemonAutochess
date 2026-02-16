@@ -5,6 +5,7 @@
 #include <string>
 #include <utility>
 #include <cstdlib>
+#include <cctype>
 #include <random>
 #include <algorithm>
 
@@ -23,6 +24,7 @@
 #include "engine/ui/UIManager.h"
 #include "engine/ui/BattleFeed.h"
 #include "engine/ui/HealthBarRenderer.h"
+#include "engine/ui/TextRenderer.h"
 
 #include "engine/core/ecs/Scheduler.h"
 #include "engine/core/ecs/World.h"
@@ -91,6 +93,7 @@ struct GameSession::Impl {
     std::unique_ptr<BattleFeed>       battleFeed;
     std::unique_ptr<BattleFeed>       catchFeed;
     std::unique_ptr<BattleFeed>       economyFeed;
+    std::unique_ptr<TextRenderer>     typeBonusText;
     ItemInventoryUI                  itemInventoryUI;
 
     HealthBarRenderer healthBarRenderer;
@@ -244,6 +247,7 @@ struct GameSession::Impl {
             log.attachEconomyFeed(economyFeed.get());
 
             itemInventoryUI.init(config.fontPath, config.fontSize);
+            typeBonusText = std::make_unique<TextRenderer>(config.fontPath, std::max(18, config.fontSize / 2));
         }
 
         if (auto* stateMgr = stateManager.get()) {
@@ -417,6 +421,12 @@ struct GameSession::Impl {
 
         if (renderWorld) {
             if (gameWorld) {
+                const bool adventureMode = services && services->gameMode == "adventure";
+                const int invTopInset = adventureMode
+                    ? std::max(110, static_cast<int>(std::round(static_cast<float>(drawableH) * 0.16f)))
+                    : 16;
+                const int invRightInset = adventureMode ? 24 : 16;
+                itemInventoryUI.setLayoutInsets(invTopInset, invRightInset, 16, 16);
                 itemInventoryUI.updateFromWorld(*gameWorld, drawableW, drawableH);
             }
             itemInventoryUI.render(drawableW, drawableH);
@@ -465,6 +475,32 @@ struct GameSession::Impl {
                 if (economyFeed) economyFeed->render(drawableW, drawableH);
             } else {
                 if (catchFeed) catchFeed->render(drawableW, drawableH);
+            }
+
+            if (gameWorld && typeBonusText) {
+                const auto counts = gameWorld->getPlayerTypeLineCounts();
+                if (!counts.empty()) {
+                    auto formatType = [](std::string t) {
+                        if (t.empty()) return t;
+                        t[0] = static_cast<char>(std::toupper(static_cast<unsigned char>(t[0])));
+                        return t;
+                    };
+
+                    const float panelX = std::round(std::max(10.0f, static_cast<float>(drawableW) * 0.012f));
+                    const float panelY = std::round(std::max(110.0f, static_cast<float>(drawableH) * 0.20f));
+                    const float titleScale = 0.44f;
+                    const float rowScale = 0.40f;
+
+                    typeBonusText->renderText("Type Lines", panelX, panelY,
+                                              glm::vec3(0.98f, 0.90f, 0.60f), titleScale);
+
+                    float y = panelY + typeBonusText->measureTextHeight(titleScale) + 6.0f;
+                    for (const auto& entry : counts) {
+                        const std::string line = formatType(entry.type) + " x" + std::to_string(entry.uniqueLineCount);
+                        typeBonusText->renderText(line, panelX, y, glm::vec3(0.94f, 0.94f, 0.94f), rowScale);
+                        y += typeBonusText->measureTextHeight(rowScale) + 3.0f;
+                    }
+                }
             }
         }
     }

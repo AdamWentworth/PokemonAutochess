@@ -22,6 +22,7 @@ struct ShopUiRenderInput {
     float rerollScale = 0.90f;
     std::string rerollLabel = "[Reroll 2g]";
     bool showSellOverlay = false;
+    bool sellOverlayPaysMoney = true;
 };
 
 struct ShopUiClickResult {

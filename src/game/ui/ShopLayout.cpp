@@ -36,24 +36,49 @@ ShopRowPlacement computeShopRowPlacement(int uiW, int uiH, int cardCount, const 
 
 SellDropZoneLayout computeSellDropZoneLayout(int uiW, int uiH, int cardCount, bool allItems) {
     SellDropZoneLayout out;
-    if (cardCount <= 0 || uiW <= 0 || uiH <= 0) return out;
+    if (uiW <= 0 || uiH <= 0) return out;
+    if (cardCount <= 0) return out;
 
     const ShopRowLayout row = computeShopRowLayout(uiW, uiH, allItems);
-    const ShopRowPlacement place = computeShopRowPlacement(uiW, uiH, cardCount, row);
+    const int count = std::max(1, cardCount);
+    const ShopRowPlacement place = computeShopRowPlacement(uiW, uiH, count, row);
 
-    const float zoneW = std::clamp(static_cast<float>(row.cardW) * 0.92f, 76.0f, 150.0f);
-    const float zoneH = std::clamp(static_cast<float>(row.cardH), 56.0f, 128.0f);
-    const float gap = std::clamp(static_cast<float>(row.spacing) * 0.85f, 8.0f, 18.0f);
+    const float maxW = std::max(140.0f, static_cast<float>(uiW - row.edgeMargin * 2));
+    const float maxH = std::max(72.0f, static_cast<float>(uiH - row.edgeMargin * 2));
+    const float zoneW = std::clamp(
+        std::max(static_cast<float>(row.cardW) * 2.6f, static_cast<float>(uiW) * 0.24f),
+        140.0f, maxW);
+    const float zoneH = std::clamp(
+        std::max(static_cast<float>(row.cardH) * 1.35f, static_cast<float>(uiH) * 0.12f),
+        72.0f, maxH);
 
+    const float rowCenterY = static_cast<float>(place.y) + static_cast<float>(row.cardH) * 0.5f;
+    const float rawX = static_cast<float>(uiW) * 0.5f - zoneW * 0.5f;
+    const float rawY = rowCenterY - zoneH * 0.5f;
     const float minX = static_cast<float>(row.edgeMargin);
     const float maxX = std::max(minX, static_cast<float>(uiW) - zoneW - static_cast<float>(row.edgeMargin));
-    const float rawX = static_cast<float>(place.startX) - gap - zoneW;
-    const float rawY = static_cast<float>(place.y);
+    const float minY = 0.0f;
+    const float maxY = std::max(minY, static_cast<float>(uiH) - zoneH);
 
     out.x = static_cast<int>(std::round(std::clamp(rawX, minX, maxX)));
-    out.y = static_cast<int>(std::round(std::clamp(rawY, 0.0f, static_cast<float>(uiH))));
+    out.y = static_cast<int>(std::round(std::clamp(rawY, minY, maxY)));
     out.w = static_cast<int>(std::round(zoneW));
     out.h = static_cast<int>(std::round(zoneH));
+    return out;
+}
+
+SellDropZoneLayout computeSellDropZoneCenterHitLayout(const SellDropZoneLayout& zone) {
+    SellDropZoneLayout out;
+    if (zone.w <= 0 || zone.h <= 0) return out;
+
+    const float widthMul = 0.58f;
+    const float heightMul = 0.58f;
+    out.w = std::clamp(static_cast<int>(std::round(static_cast<float>(zone.w) * widthMul)),
+                       72, zone.w);
+    out.h = std::clamp(static_cast<int>(std::round(static_cast<float>(zone.h) * heightMul)),
+                       56, zone.h);
+    out.x = zone.x + (zone.w - out.w) / 2;
+    out.y = zone.y + (zone.h - out.h) / 2;
     return out;
 }
 

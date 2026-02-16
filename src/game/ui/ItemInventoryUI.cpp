@@ -41,9 +41,56 @@ const ItemIcon* findIcon(const std::string& id) {
 
 void ItemInventoryUI::init(const std::string& fontPath, int fontSize) {
     if (initialized) return;
+    labelFontSize = std::max(12, fontSize / 3);
     cardSystem.init();
-    cardSystem.initOverlayText(fontPath, std::max(12, fontSize / 3));
+    cardSystem.initOverlayText(fontPath, labelFontSize);
     initialized = true;
+}
+
+void ItemInventoryUI::setLayoutInsets(int top, int right, int bottom, int left) {
+    const int clampedTop = std::max(0, top);
+    const int clampedRight = std::max(0, right);
+    const int clampedBottom = std::max(0, bottom);
+    const int clampedLeft = std::max(0, left);
+    if (clampedTop == insetTop &&
+        clampedRight == insetRight &&
+        clampedBottom == insetBottom &&
+        clampedLeft == insetLeft) {
+        return;
+    }
+
+    insetTop = clampedTop;
+    insetRight = clampedRight;
+    insetBottom = clampedBottom;
+    insetLeft = clampedLeft;
+
+    if (initialized && lastScreenW > 0 && lastScreenH > 0) {
+        rebuildCards(lastScreenW, lastScreenH);
+    }
+}
+
+float ItemInventoryUI::computeRowPitch() const {
+    // Reserve vertical room for the per-card quantity label drawn below each icon.
+    constexpr float kLabelScale = 0.8f;
+    constexpr float kLabelPad = 6.0f;
+    const float labelH = static_cast<float>(labelFontSize) * kLabelScale;
+    const float labelReserve = std::max(10.0f, labelH + kLabelPad);
+    return static_cast<float>(cardH + spacing) + labelReserve;
+}
+
+float ItemInventoryUI::computeVisibleHeight(int screenH) const {
+    const int top = std::max(0, insetTop);
+    const int bottom = std::max(0, insetBottom);
+    return std::max(0.0f, static_cast<float>(screenH - top - bottom));
+}
+
+int ItemInventoryUI::topAnchor() const {
+    return std::max(0, insetTop);
+}
+
+int ItemInventoryUI::rightAnchor(int screenW) const {
+    const int right = std::max(0, insetRight);
+    return std::max(0, screenW - cardW - right);
 }
 
 glm::vec2 ItemInventoryUI::atlasUvMin(int row, int col) const {
@@ -97,13 +144,14 @@ void ItemInventoryUI::rebuildCards(int screenW, int screenH) {
     cardSystem.clearCards();
     if (cards.empty()) return;
 
-    const float totalHeight = static_cast<float>(cards.size()) * (cardH + spacing) - spacing;
-    const float available = static_cast<float>(screenH - 2 * margin);
+    const float rowPitch = computeRowPitch();
+    const float totalHeight = static_cast<float>(cards.size()) * rowPitch;
+    const float available = computeVisibleHeight(screenH);
     const float maxScroll = std::max(0.0f, totalHeight - available);
     scrollOffset = std::clamp(scrollOffset, 0.0f, maxScroll);
 
-    const int x = screenW - cardW - margin;
-    float y = static_cast<float>(margin) - scrollOffset;
+    const int x = rightAnchor(screenW);
+    float y = static_cast<float>(topAnchor()) - scrollOffset;
 
     for (const auto& cd : cards) {
         ui::Rect rect = {
@@ -115,7 +163,7 @@ void ItemInventoryUI::rebuildCards(int screenW, int screenH) {
         Card card(rect, cd.imagePath);
         card.setData(cd);
         cardSystem.addCard(std::move(card));
-        y += static_cast<float>(cardH + spacing);
+        y += rowPitch;
     }
 }
 
@@ -140,8 +188,9 @@ void ItemInventoryUI::handleScroll(int wheelY, int screenH) {
     if (!initialized || !visible) return;
     if (cards.empty()) return;
 
-    const float totalHeight = static_cast<float>(cards.size()) * (cardH + spacing) - spacing;
-    const float available = static_cast<float>(screenH - 2 * margin);
+    const float rowPitch = computeRowPitch();
+    const float totalHeight = static_cast<float>(cards.size()) * rowPitch;
+    const float available = computeVisibleHeight(screenH);
     if (totalHeight <= available) return;
 
     scrollOffset -= static_cast<float>(wheelY) * 18.0f;

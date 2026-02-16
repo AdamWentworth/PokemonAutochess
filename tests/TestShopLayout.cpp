@@ -106,7 +106,7 @@ bool test_shop_layout_invariants(std::string& outFail) {
 
     {
         const SellDropZoneLayout sell = computeSellDropZoneLayout(1280, 720, 5, false);
-        if (sell.x != 135 || sell.y != 609 || sell.w != 125 || sell.h != 94) {
+        if (sell.x != 463 || sell.y != 593 || sell.w != 354 || sell.h != 127) {
             outFail = "Sell zone placement changed unexpectedly for base shop layout.";
             return false;
         }
@@ -114,8 +114,17 @@ bool test_shop_layout_invariants(std::string& outFail) {
 
     {
         const SellDropZoneLayout sell = computeSellDropZoneLayout(1280, 720, 8, false);
-        if (sell.x != 17) {
-            outFail = "Sell zone should clamp to left edge when shop row is very wide.";
+        if (sell.x != 463) {
+            outFail = "Sell zone should stay bottom-center for wide shop rows.";
+            return false;
+        }
+    }
+
+    {
+        const SellDropZoneLayout outer = computeSellDropZoneLayout(1280, 720, 5, false);
+        const SellDropZoneLayout center = computeSellDropZoneCenterHitLayout(outer);
+        if (center.x != 537 || center.y != 619 || center.w != 205 || center.h != 74) {
+            outFail = "Sell zone center-hit area changed unexpectedly.";
             return false;
         }
     }

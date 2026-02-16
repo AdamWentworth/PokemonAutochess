@@ -62,3 +62,19 @@ const EvolutionRule* EvolutionConfigLoader::getRule(const std::string& species) 
     if (it == rules_.end()) return nullptr;
     return &it->second;
 }
+
+bool EvolutionConfigLoader::getPreEvolution(const std::string& species, std::string& outPreEvolution) const {
+    std::string key = species;
+    std::transform(key.begin(), key.end(), key.begin(),
+                   [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+
+    std::string best;
+    for (const auto& kv : rules_) {
+        if (kv.second.evolvesTo != key) continue;
+        if (best.empty() || kv.first < best) best = kv.first;
+    }
+
+    if (best.empty()) return false;
+    outPreEvolution = best;
+    return true;
+}

@@ -58,6 +58,10 @@ void CombatState::ensureShopUi() {
 
     if (!shopUiEnabled) {
         if (shopUi) shopUi->clear();
+        if (gameWorld) {
+            gameWorld->clearClassicShopCards();
+            gameWorld->setUnitDropZoneLayoutHint(0, false);
+        }
         return;
     }
 
@@ -82,18 +86,25 @@ void CombatState::rebuildShopCards() {
             game::log::warn(&services.log, std::string("[CombatState] failed to parse shop cards: ") + parseError);
         }
         if (shopUi) shopUi->clear();
-        if (gameWorld && services.gameMode == "classic") {
+        if (gameWorld) {
             gameWorld->clearClassicShopCards();
+            gameWorld->setUnitDropZoneLayoutHint(0, false);
         }
         return;
     }
 
-    if (gameWorld) {
-        if (services.gameMode == "classic") {
-            gameWorld->setClassicShopCards(buildClassicCardsFromUi(cards));
-        } else {
-            gameWorld->clearClassicShopCards();
+    bool allItems = true;
+    for (const auto& card : cards) {
+        if (card.type != CardType::Item) {
+            allItems = false;
+            break;
         }
+    }
+
+    if (gameWorld) {
+        gameWorld->setClassicShopCards(buildClassicCardsFromUi(cards));
+        gameWorld->setUnitDropZoneLayoutHint(static_cast<int>(cards.size()), allItems);
+        gameWorld->setUnitSellRewardsEnabled(services.gameMode == "classic");
     }
 
     const auto* viewport = services.viewport;
@@ -117,6 +128,7 @@ void CombatState::drawShopHud(int uiW, int uiH, bool showSellOverlay) {
     in.rerollScale = 0.92f;
     in.rerollLabel = "[Reroll 2g]";
     in.showSellOverlay = showSellOverlay;
+    in.sellOverlayPaysMoney = gameWorld ? gameWorld->isUnitSellRewardsEnabled() : true;
     shopUi->render(in);
 }
 
@@ -248,6 +260,10 @@ void CombatState::onExit() {
     hasShopRerollButton = false;
     shopUiInitialized = false;
     shopUi.reset();
+    if (gameWorld) {
+        gameWorld->clearClassicShopCards();
+        gameWorld->setUnitDropZoneLayoutHint(0, false);
+    }
     script.onExit();
 }
 
@@ -347,9 +363,9 @@ void CombatState::render() {
     if (shopUiEnabled) {
         const int uiW = viewport ? viewport->width : 1280;
         const int uiH = viewport ? viewport->height : 720;
-        const bool showSellOverlay = (services.gameMode == "classic") &&
-                                     gameWorld &&
-                                     gameWorld->isUnitDragActive();
+        const bool showSellOverlay = gameWorld &&
+                                     gameWorld->isUnitDragActive() &&
+                                     (gameWorld->getUnitDropZoneCardCount() > 0);
         drawShopHud(uiW, uiH, showSellOverlay);
     }
 }

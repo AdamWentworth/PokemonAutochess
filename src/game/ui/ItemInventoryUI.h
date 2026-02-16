@@ -21,9 +21,14 @@ public:
 
     std::optional<std::string> handleMouseClick(int mouseX, int mouseY);
     void handleScroll(int wheelY, int screenH);
+    void setLayoutInsets(int top, int right, int bottom, int left);
 
 private:
     void rebuildCards(int screenW, int screenH);
+    float computeRowPitch() const;
+    float computeVisibleHeight(int screenH) const;
+    int topAnchor() const;
+    int rightAnchor(int screenW) const;
     glm::vec2 atlasUvMin(int row, int col) const;
     glm::vec2 atlasUvMax(int row, int col) const;
 
@@ -36,12 +41,16 @@ private:
     int lastHash = 0;
     int lastScreenW = 0;
     int lastScreenH = 0;
+    int labelFontSize = 12;
 
     // Layout
     int cardW = 72;
     int cardH = 72;
     int spacing = 12;
-    int margin = 16;
+    int insetTop = 16;
+    int insetRight = 16;
+    int insetBottom = 16;
+    int insetLeft = 16;
 
     // Atlas (keep in sync with shop script)
     std::string atlasPath = "assets/images/items_atlas.png";

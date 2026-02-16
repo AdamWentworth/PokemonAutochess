@@ -185,20 +185,22 @@ bool UnitInteractionSystem::isInBoardZone(const glm::vec3& pos) const {
 
 bool UnitInteractionSystem::isInSellDropZoneScreen(int mouseX, int mouseY) const {
     if (!gameWorld) return false;
-    const auto& shopCards = gameWorld->getClassicShopCards();
-    if (shopCards.empty()) return false;
+    const int cardCount = gameWorld->getUnitDropZoneCardCount();
+    if (cardCount <= 0) return false;
 
     const auto sellZone = game::ui::computeSellDropZoneLayout(
         static_cast<int>(std::max(1u, screenW)),
         static_cast<int>(std::max(1u, screenH)),
-        static_cast<int>(shopCards.size()),
-        /*allItems=*/false);
+        cardCount,
+        gameWorld->getUnitDropZoneUsesItemLayout());
     if (sellZone.w <= 0 || sellZone.h <= 0) return false;
+    const auto centerHit = game::ui::computeSellDropZoneCenterHitLayout(sellZone);
+    if (centerHit.w <= 0 || centerHit.h <= 0) return false;
 
-    const int x0 = sellZone.x;
-    const int y0 = sellZone.y;
-    const int x1 = sellZone.x + sellZone.w;
-    const int y1 = sellZone.y + sellZone.h;
+    const int x0 = centerHit.x;
+    const int y0 = centerHit.y;
+    const int x1 = centerHit.x + centerHit.w;
+    const int y1 = centerHit.y + centerHit.h;
     return (mouseX >= x0 && mouseX <= x1 && mouseY >= y0 && mouseY <= y1);
 }
 
@@ -352,7 +354,7 @@ void UnitInteractionSystem::onMouseButtonDown(int x, int y) {
     } else {
         // DROP
         const bool boardLocked = gameWorld ? gameWorld->isBoardInteractionLocked() : false;
-        const bool canSell = gameWorld && !gameWorld->getClassicShopCards().empty();
+        const bool canSell = gameWorld && (gameWorld->getUnitDropZoneCardCount() > 0);
         bool toBench = isInBenchZone(worldPos);
         const bool nearBench = isNearBenchZone(worldPos);
         const bool nearBenchScreen = isNearBenchZoneScreen(x, y);
@@ -362,6 +364,11 @@ void UnitInteractionSystem::onMouseButtonDown(int x, int y) {
         bool completeDrop = false;
 
         auto sellUnit = [&](const PokemonInstance& unit) {
+            if (!gameWorld->isUnitSellRewardsEnabled()) {
+                std::cout << "[UnitInteraction] Released " << unit.name << "\n";
+                return;
+            }
+
             const int sellValue = gameWorld->getSellValueForSpecies(unit.name);
             gameWorld->addMoney(sellValue);
             if (auto* logger = gameWorld->getLogger()) {

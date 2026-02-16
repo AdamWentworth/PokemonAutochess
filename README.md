@@ -92,6 +92,11 @@ Notes
 .\build\Debug\PokemonAutochess.exe
 ```
 
+When running from `dist/Release` during development, sync runtime content first so `config/` changes are reflected:
+```powershell
+.\tools\sync_runtime_content.ps1 -OutDir dist/Release -Folders config
+```
+
 ---
 
 ## 🧪 Tests
