@@ -7,14 +7,12 @@
 #include "ModelFastGltfLoaderHelpers.h"
 #include "ModelFastGltfMaterial.h"
 #include "ModelFastGltfSceneData.h"
+#include "ModelFastGltfTextures.h"
 
 #include <fastgltf/tools.hpp>
 #include <fastgltf/glm_element_traits.hpp>
 
 #include <nlohmann/json.hpp>
-
-#include <stb_image.h>
-#include <stb_image_write.h>
 
 #include <glad/glad.h>
 #include <glm/gtc/matrix_transform.hpp>

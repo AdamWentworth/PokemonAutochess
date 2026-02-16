@@ -118,6 +118,7 @@ add_library(engine_render STATIC
     src/engine/render/gltf/ModelFastGltfLoaderHelpers.cpp
     src/engine/render/gltf/ModelFastGltfMaterial.cpp
     src/engine/render/gltf/ModelFastGltfSceneData.cpp
+    src/engine/render/gltf/ModelFastGltfTextures.cpp
 
     src/engine/ui/UIManager.cpp
     src/engine/ui/Card.cpp

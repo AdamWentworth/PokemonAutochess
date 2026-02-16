@@ -37,6 +37,7 @@ bool expectMaxLines(const std::filesystem::path& path,
 bool test_model_loader_source_modularity(std::string& outFail) {
     const std::filesystem::path loaderPath = "src/engine/render/gltf/ModelFastGltfLoader.cpp";
     const std::filesystem::path helperPath = "src/engine/render/gltf/ModelFastGltfLoaderHelpers.cpp";
+    const std::filesystem::path texturesPath = "src/engine/render/gltf/ModelFastGltfTextures.cpp";
     const std::filesystem::path materialPath = "src/engine/render/gltf/ModelFastGltfMaterial.cpp";
     const std::filesystem::path scenePath = "src/engine/render/gltf/ModelFastGltfSceneData.cpp";
 
@@ -46,6 +47,10 @@ bool test_model_loader_source_modularity(std::string& outFail) {
     }
     if (!std::filesystem::exists(helperPath)) {
         outFail = "missing helper source file: " + helperPath.string();
+        return false;
+    }
+    if (!std::filesystem::exists(texturesPath)) {
+        outFail = "missing textures source file: " + texturesPath.string();
         return false;
     }
     if (!std::filesystem::exists(materialPath)) {
@@ -58,7 +63,8 @@ bool test_model_loader_source_modularity(std::string& outFail) {
     }
 
     if (!expectMaxLines(loaderPath, 550, outFail)) return false;
-    if (!expectMaxLines(helperPath, 700, outFail)) return false;
+    if (!expectMaxLines(helperPath, 250, outFail)) return false;
+    if (!expectMaxLines(texturesPath, 650, outFail)) return false;
     if (!expectMaxLines(materialPath, 250, outFail)) return false;
     if (!expectMaxLines(scenePath, 400, outFail)) return false;
 
