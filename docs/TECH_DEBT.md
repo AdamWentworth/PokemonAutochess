@@ -21,3 +21,4 @@ Recent improvements
 - Split GameWorld economy/inventory/healing flows into `src/game/GameWorldEconomy.cpp` and added income, inventory, and reset regression coverage.
 - Split GameWorld capture attempt lifecycle into `src/game/GameWorldCapture.cpp` and added capture precondition/success/failure recovery regression coverage.
 - Split GameWorld query/synergy helpers into `src/game/GameWorldQueries.cpp` and added regression coverage for type-line counting and nearest-enemy targeting.
+- Split GameWorld faint/recovery and battle-position restore flows into `src/game/GameWorldRecovery.cpp` with targeted lifecycle regression tests.

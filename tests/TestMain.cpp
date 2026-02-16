@@ -44,6 +44,9 @@ bool test_gameworld_capture_success_resolution(std::string& outFail);
 bool test_gameworld_capture_failure_recovery(std::string& outFail);
 bool test_gameworld_type_line_counts(std::string& outFail);
 bool test_gameworld_nearest_enemy_position(std::string& outFail);
+bool test_gameworld_heal_player_units_to_full(std::string& outFail);
+bool test_gameworld_capture_restore_player_positions(std::string& outFail);
+bool test_gameworld_handle_unit_faint_state_reset(std::string& outFail);
 bool test_pokemon_config_loader_contract(std::string& outFail);
 bool test_evolution_flyer_loader_contract(std::string& outFail);
 bool test_source_ascii_hygiene(std::string& outFail);
@@ -132,6 +135,9 @@ int main(int argc, char** argv) {
         {"gameworld_capture_failure_recovery", &test_gameworld_capture_failure_recovery},
         {"gameworld_type_line_counts", &test_gameworld_type_line_counts},
         {"gameworld_nearest_enemy_position", &test_gameworld_nearest_enemy_position},
+        {"gameworld_heal_player_units_to_full", &test_gameworld_heal_player_units_to_full},
+        {"gameworld_capture_restore_player_positions", &test_gameworld_capture_restore_player_positions},
+        {"gameworld_handle_unit_faint_state_reset", &test_gameworld_handle_unit_faint_state_reset},
         {"pokemon_config_loader_contract", &test_pokemon_config_loader_contract},
         {"evolution_flyer_loader_contract", &test_evolution_flyer_loader_contract},
         {"source_ascii_hygiene", &test_source_ascii_hygiene},
