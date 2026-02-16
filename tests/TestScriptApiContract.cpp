@@ -72,6 +72,11 @@ bool test_script_api_contract(std::string& outFail) {
         outFail = "Failed to load moves config: " + movesPath;
         return false;
     }
+    const std::string pokemonPath = engine::paths::data("config/pokemon_config.json");
+    if (!db.pokemon.loadConfig(pokemonPath, nullptr)) {
+        outFail = "Failed to load pokemon config: " + pokemonPath;
+        return false;
+    }
 
     GameServices services(cfg, db, log, events, assets, rng, time);
     bool quitRequested = false;
@@ -96,6 +101,65 @@ bool test_script_api_contract(std::string& outFail) {
     sol::state lua;
     lua.open_libraries(sol::lib::base, sol::lib::math, sol::lib::table, sol::lib::string);
     registerLuaBindings(lua, api);
+
+    // Direct API world-state surface.
+    if (!expect(api.getMoney() == cfg.startingCash, "Initial ScriptAPI money mismatch.", outFail)) return false;
+    api.addMoney(17);
+    if (!expect(api.getMoney() == cfg.startingCash + 17, "addMoney/getMoney mismatch.", outFail)) return false;
+    if (!expect(api.spendMoney(7), "spendMoney should succeed with available funds.", outFail)) return false;
+    if (!expect(api.getMoney() == cfg.startingCash + 10, "spendMoney did not reduce funds as expected.", outFail)) return false;
+    if (!expect(!api.spendMoney(cfg.startingCash + 1000), "spendMoney should fail when amount exceeds funds.", outFail)) return false;
+
+    api.addItem("potion", 2);
+    if (!expect(api.getItemCount("potion") == 2, "addItem/getItemCount mismatch.", outFail)) return false;
+    if (!expect(api.consumeItem("potion", 1), "consumeItem should succeed for available quantity.", outFail)) return false;
+    if (!expect(api.getItemCount("potion") == 1, "consumeItem did not reduce quantity.", outFail)) return false;
+
+    if (!expect(api.getPokemonCatchRate("bulbasaur") > 0.0f, "getPokemonCatchRate should resolve configured species.", outFail)) return false;
+    if (!expect(api.getPokemonCatchRate("missing_species") == 0.0f, "getPokemonCatchRate should return 0 for missing species.", outFail)) return false;
+
+    api.setGameMode("adventure");
+    if (!expect(api.getGameMode() == "adventure", "setGameMode/getGameMode mismatch for valid mode.", outFail)) return false;
+    api.setGameMode("invalid_mode");
+    if (!expect(api.getGameMode() == "adventure", "setGameMode should ignore invalid mode values.", outFail)) return false;
+
+    api.setHasStartedGame(true);
+    if (!expect(api.getHasStartedGame(), "setHasStartedGame/getHasStartedGame mismatch.", outFail)) return false;
+    api.setHasStartedGame(false);
+
+    int videoW = -1;
+    int videoH = -1;
+    bool videoFullscreen = false;
+    services.applyVideoMode = [&](int w, int h, bool fs) {
+        videoW = w;
+        videoH = h;
+        videoFullscreen = fs;
+        return true;
+    };
+    if (!expect(api.setVideoMode(320, 200, true), "setVideoMode should invoke applyVideoMode callback.", outFail)) return false;
+    if (!expect(videoW == 640 && videoH == 360 && videoFullscreen,
+                "setVideoMode should clamp to minimum resolution before callback.", outFail)) return false;
+    services.queryVideoMode = []() {
+        GameServices::VideoMode vm;
+        vm.width = 1920;
+        vm.height = 1080;
+        vm.fullscreen = true;
+        return vm;
+    };
+    const GameServices::VideoMode vm = api.getVideoMode();
+    if (!expect(vm.width == 1920 && vm.height == 1080 && vm.fullscreen,
+                "getVideoMode should return queryVideoMode callback value.", outFail)) return false;
+
+    api.setClassicShopCards({
+        {"pikachu", 0, -2},
+        {"", 2, 3},
+    });
+    const auto shopCards = api.getClassicShopCards();
+    if (!expect(shopCards.size() == 1, "setClassicShopCards should filter empty names.", outFail)) return false;
+    if (!expect(shopCards[0].name == "pikachu" && shopCards[0].level == 1 && shopCards[0].cost == 0,
+                "setClassicShopCards should preserve world-side sanitization.", outFail)) return false;
+    api.clearClassicShopCards();
+    if (!expect(api.getClassicShopCards().empty(), "clearClassicShopCards should clear world shop cards.", outFail)) return false;
 
     // world_list_units should return 3 entries with core fields.
     sol::function listFn = lua["world_list_units"];
