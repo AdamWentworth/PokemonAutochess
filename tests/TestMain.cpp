@@ -39,6 +39,9 @@ bool test_gameworld_spawn_bench_flow(std::string& outFail);
 bool test_gameworld_income_flow(std::string& outFail);
 bool test_gameworld_inventory_healing(std::string& outFail);
 bool test_gameworld_reset_economy_state(std::string& outFail);
+bool test_gameworld_capture_preconditions(std::string& outFail);
+bool test_gameworld_capture_success_resolution(std::string& outFail);
+bool test_gameworld_capture_failure_recovery(std::string& outFail);
 bool test_pokemon_config_loader_contract(std::string& outFail);
 bool test_evolution_flyer_loader_contract(std::string& outFail);
 bool test_source_ascii_hygiene(std::string& outFail);
@@ -122,6 +125,9 @@ int main(int argc, char** argv) {
         {"gameworld_income_flow", &test_gameworld_income_flow},
         {"gameworld_inventory_healing", &test_gameworld_inventory_healing},
         {"gameworld_reset_economy_state", &test_gameworld_reset_economy_state},
+        {"gameworld_capture_preconditions", &test_gameworld_capture_preconditions},
+        {"gameworld_capture_success_resolution", &test_gameworld_capture_success_resolution},
+        {"gameworld_capture_failure_recovery", &test_gameworld_capture_failure_recovery},
         {"pokemon_config_loader_contract", &test_pokemon_config_loader_contract},
         {"evolution_flyer_loader_contract", &test_evolution_flyer_loader_contract},
         {"source_ascii_hygiene", &test_source_ascii_hygiene},

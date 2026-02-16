@@ -19,3 +19,4 @@ Recent improvements
 - Split GameWorld progression/merge/XP logic into `src/game/GameWorldProgression.cpp` and added merge progression regression coverage.
 - Split GameWorld spawn/bench roster flow into `src/game/GameWorldRoster.cpp` with targeted spawn+bench regression coverage.
 - Split GameWorld economy/inventory/healing flows into `src/game/GameWorldEconomy.cpp` and added income, inventory, and reset regression coverage.
+- Split GameWorld capture attempt lifecycle into `src/game/GameWorldCapture.cpp` and added capture precondition/success/failure recovery regression coverage.
