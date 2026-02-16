@@ -296,6 +296,13 @@ private:
     void ensureLeechSeedConfigLoaded();
     void updateCaptureAttempts(float dt);
     void ensurePokeballModel();
+    bool buildPokemonInstance(const std::string& pokemonName,
+                              PokemonSide side,
+                              int level,
+                              PokemonInstance& outInst);
+    static float resolveModelScaleCorrection(const std::shared_ptr<Model>& model,
+                                             const std::string& scaleModeRaw,
+                                             const std::string& axisModeRaw);
 
     int classicWinStreak = 0;
     int classicLossStreak = 0;

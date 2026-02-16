@@ -162,6 +162,8 @@ add_library(PAC_GameObjects STATIC
     src/game/GameApp.cpp
     src/game/GameRunner.cpp
     src/game/GameWorld.cpp
+    src/game/GameWorldProgression.cpp
+    src/game/GameWorldRoster.cpp
     src/game/GameStateManager.cpp
     src/game/GameConfig.cpp
     src/game/GamePreload.cpp
@@ -289,6 +291,8 @@ if (BUILD_TESTING)
         tests/TestLuaCardParser.cpp
         tests/TestLuaTextMenuParser.cpp
         tests/TestLuaScriptHelpers.cpp
+        tests/TestGameWorldProgression.cpp
+        tests/TestGameWorldRoster.cpp
         tests/TestConfigLoaders.cpp
         tests/TestSourceAscii.cpp
     )
