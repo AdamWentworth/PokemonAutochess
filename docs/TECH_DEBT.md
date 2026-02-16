@@ -22,3 +22,4 @@ Recent improvements
 - Split GameWorld capture attempt lifecycle into `src/game/GameWorldCapture.cpp` and added capture precondition/success/failure recovery regression coverage.
 - Split GameWorld query/synergy helpers into `src/game/GameWorldQueries.cpp` and added regression coverage for type-line counting and nearest-enemy targeting.
 - Split GameWorld faint/recovery and battle-position restore flows into `src/game/GameWorldRecovery.cpp` with targeted lifecycle regression tests.
+- Split GameWorld leech-seed status/config/tick logic into `src/game/GameWorldLeechSeed.cpp` and added contract+clamp+invalid-state regression coverage.

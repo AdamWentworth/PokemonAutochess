@@ -168,6 +168,7 @@ add_library(PAC_GameObjects STATIC
     src/game/GameWorldCapture.cpp
     src/game/GameWorldQueries.cpp
     src/game/GameWorldRecovery.cpp
+    src/game/GameWorldLeechSeed.cpp
     src/game/GameStateManager.cpp
     src/game/GameConfig.cpp
     src/game/GamePreload.cpp
@@ -301,6 +302,7 @@ if (BUILD_TESTING)
         tests/TestGameWorldCapture.cpp
         tests/TestGameWorldQueries.cpp
         tests/TestGameWorldRecovery.cpp
+        tests/TestGameWorldLeechSeed.cpp
         tests/TestConfigLoaders.cpp
         tests/TestSourceAscii.cpp
     )
