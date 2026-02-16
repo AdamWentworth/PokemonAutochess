@@ -1214,6 +1214,48 @@ struct FG {
                 }
                 alphaCutoff = (float)mat.alphaCutoff;
                 doubleSided = mat.doubleSided;
+
+                // Some source assets tag materials as BLEND even when alpha is effectively
+                // fully opaque (e.g., eyes), which causes depth-write issues and "hollow"
+                // look-through artifacts. Normalize these here using decoded base alpha.
+                if (alphaMode == 2 && !baseCPU.rgba.empty()) {
+                    const size_t pixelCount = baseCPU.rgba.size() / 4u;
+                    if (pixelCount > 0u) {
+                        uint8_t minA = 255u;
+                        uint8_t maxA = 0u;
+                        size_t zeroA = 0u;
+                        size_t midA = 0u;
+
+                        for (size_t i = 3; i < baseCPU.rgba.size(); i += 4u) {
+                            const uint8_t a = baseCPU.rgba[i];
+                            minA = (std::min)(minA, a);
+                            maxA = (std::max)(maxA, a);
+                            if (a == 0u) ++zeroA;
+                            else if (a < 255u) ++midA;
+                        }
+
+                        const float midFrac = static_cast<float>(midA) / static_cast<float>(pixelCount);
+                        const bool effectivelyOpaque = (minA >= 250u) && (midFrac <= 0.001f);
+                        const bool mostlyBinaryCutout = (zeroA > 0u) && (midFrac <= 0.015f);
+
+                        if (effectivelyOpaque) {
+                            alphaMode = 0; // OPAQUE
+                        } else if (mostlyBinaryCutout) {
+                            alphaMode = 1; // MASK
+                            alphaCutoff = std::clamp(alphaCutoff, 0.1f, 0.9f);
+                        }
+
+                        if (dbgThisModel && alphaMode != 2) {
+                            std::cerr << "[gltf][MAT] normalized BLEND material '" << matName
+                                      << "' -> " << (alphaMode == 0 ? "OPAQUE" : "MASK")
+                                      << " (minA=" << (int)minA
+                                      << " maxA=" << (int)maxA
+                                      << " zero=" << zeroA
+                                      << " mid=" << midA
+                                      << " px=" << pixelCount << ")\n";
+                        }
+                    }
+                }
             }
 
             // Upload baseColor texture

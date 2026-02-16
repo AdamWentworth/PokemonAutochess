@@ -27,7 +27,7 @@
     },
     "model": "0001_Bulbasaur.glb",
     "movementSpeed": 1.0,
-    "visualScale": 1.0,
+    "visualScale": 0.85,
     "unlockTable": [
       {
         "charged": [],

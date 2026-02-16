@@ -302,58 +302,61 @@ void Model::drawAnimated(const Camera3D& camera,
         }
     };
 
+    const glm::mat4 vp = camera.getProjectionMatrix() * camera.getViewMatrix();
     bool hasNodeMesh = false;
 
-    auto drawMeshAtNode = [&](int nodeIdx, const glm::mat4& nodeGlobal) {
-        if (nodeIdx < 0 || nodeIdx >= (int)nodeMesh.size()) return;
-        int meshIdx = nodeMesh[nodeIdx];
-        if (meshIdx < 0) return;
+    auto drawScenePass = [&](int pass) {
+        std::function<void(int, const glm::mat4&)> dfsDrawPass = [&](int node, const glm::mat4& parentM) {
+            if (node < 0 || node >= (int)locals.size()) return;
 
-        hasNodeMesh = true;
+            glm::mat4 localM  = trsToMat4(locals[node]);
+            glm::mat4 globalM = parentM * localM;
 
-        glm::mat4 vp  = camera.getProjectionMatrix() * camera.getViewMatrix();
-        glm::mat4 mvp = vp * instanceTransform * nodeGlobal;
-        glUniformMatrix4fv(locMVP, 1, GL_FALSE, glm::value_ptr(mvp));
+            if (node >= 0 && node < (int)nodeMesh.size()) {
+                const int meshIdx = nodeMesh[node];
+                if (meshIdx >= 0) {
+                    hasNodeMesh = true;
 
-        uploadSkinUniforms(nodeGlobal,
-                           (nodeIdx < (int)nodeSkin.size() ? nodeSkin[nodeIdx] : -1),
-                           globals);
+                    const glm::mat4 mvp = vp * instanceTransform * globalM;
+                    glUniformMatrix4fv(locMVP, 1, GL_FALSE, glm::value_ptr(mvp));
 
-        for (int pass = 0; pass < 2; ++pass) {
-            for (const auto& sm : submeshes) {
-                if (sm.meshIndex != meshIdx) continue;
+                    uploadSkinUniforms(globalM,
+                                       (node < (int)nodeSkin.size() ? nodeSkin[node] : -1),
+                                       globals);
 
-                const bool isBlend = (sm.alphaMode == 2);
-                if ((pass == 0 && isBlend) || (pass == 1 && !isBlend)) continue;
+                    for (const auto& sm : submeshes) {
+                        if (sm.meshIndex != meshIdx) continue;
 
-                setMaterial(sm);
+                        const bool isBlend = (sm.alphaMode == 2);
+                        if ((pass == 0 && isBlend) || (pass == 1 && !isBlend)) continue;
 
-                glDrawElements(GL_TRIANGLES,
-                               (GLsizei)sm.indexCount,
-                               GL_UNSIGNED_INT,
-                               (void*)(sm.indexOffset * sizeof(uint32_t)));
+                        setMaterial(sm);
+
+                        glDrawElements(GL_TRIANGLES,
+                                       (GLsizei)sm.indexCount,
+                                       GL_UNSIGNED_INT,
+                                       (void*)(sm.indexOffset * sizeof(uint32_t)));
+                    }
+                }
             }
+
+            if (node < (int)nodeChildren.size()) {
+                for (int c : nodeChildren[node]) dfsDrawPass(c, globalM);
+            }
+        };
+
+        if (sceneRoots.empty()) {
+            dfsDrawPass(0, glm::mat4(1.0f));
+        } else {
+            for (int r : sceneRoots) dfsDrawPass(r, glm::mat4(1.0f));
         }
     };
 
-    std::function<void(int, const glm::mat4&)> dfsDraw = [&](int node, const glm::mat4& parentM) {
-        if (node < 0 || node >= (int)locals.size()) return;
-
-        glm::mat4 localM  = trsToMat4(locals[node]);
-        glm::mat4 globalM = parentM * localM;
-
-        drawMeshAtNode(node, globalM);
-
-        if (node < (int)nodeChildren.size()) {
-            for (int c : nodeChildren[node]) dfsDraw(c, globalM);
-        }
-    };
-
-    if (sceneRoots.empty()) {
-        dfsDraw(0, glm::mat4(1.0f));
-    } else {
-        for (int r : sceneRoots) dfsDraw(r, glm::mat4(1.0f));
-    }
+    // Global material passes across the entire scene graph.
+    // Pass 0: OPAQUE + MASK (depth-writing)
+    // Pass 1: BLEND (depth-tested, no depth write)
+    drawScenePass(0);
+    drawScenePass(1);
 
     if (!hasNodeMesh) {
         glm::mat4 vp  = camera.getProjectionMatrix() * camera.getViewMatrix();
