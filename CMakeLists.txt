@@ -164,6 +164,7 @@ add_library(PAC_GameObjects STATIC
     src/game/GameWorld.cpp
     src/game/GameWorldProgression.cpp
     src/game/GameWorldRoster.cpp
+    src/game/GameWorldEconomy.cpp
     src/game/GameStateManager.cpp
     src/game/GameConfig.cpp
     src/game/GamePreload.cpp
@@ -293,6 +294,7 @@ if (BUILD_TESTING)
         tests/TestLuaScriptHelpers.cpp
         tests/TestGameWorldProgression.cpp
         tests/TestGameWorldRoster.cpp
+        tests/TestGameWorldEconomy.cpp
         tests/TestConfigLoaders.cpp
         tests/TestSourceAscii.cpp
     )

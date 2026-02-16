@@ -36,6 +36,9 @@ bool test_lua_text_menu_parser_contract(std::string& outFail);
 bool test_lua_script_helpers(std::string& outFail);
 bool test_gameworld_merge_progression(std::string& outFail);
 bool test_gameworld_spawn_bench_flow(std::string& outFail);
+bool test_gameworld_income_flow(std::string& outFail);
+bool test_gameworld_inventory_healing(std::string& outFail);
+bool test_gameworld_reset_economy_state(std::string& outFail);
 bool test_pokemon_config_loader_contract(std::string& outFail);
 bool test_evolution_flyer_loader_contract(std::string& outFail);
 bool test_source_ascii_hygiene(std::string& outFail);
@@ -116,6 +119,9 @@ int main(int argc, char** argv) {
         {"lua_script_helpers", &test_lua_script_helpers},
         {"gameworld_merge_progression", &test_gameworld_merge_progression},
         {"gameworld_spawn_bench_flow", &test_gameworld_spawn_bench_flow},
+        {"gameworld_income_flow", &test_gameworld_income_flow},
+        {"gameworld_inventory_healing", &test_gameworld_inventory_healing},
+        {"gameworld_reset_economy_state", &test_gameworld_reset_economy_state},
         {"pokemon_config_loader_contract", &test_pokemon_config_loader_contract},
         {"evolution_flyer_loader_contract", &test_evolution_flyer_loader_contract},
         {"source_ascii_hygiene", &test_source_ascii_hygiene},

@@ -18,3 +18,4 @@ Recent improvements
 - Normalized source comments/strings to ASCII in `src/` and added `source_ascii_hygiene` regression test.
 - Split GameWorld progression/merge/XP logic into `src/game/GameWorldProgression.cpp` and added merge progression regression coverage.
 - Split GameWorld spawn/bench roster flow into `src/game/GameWorldRoster.cpp` with targeted spawn+bench regression coverage.
+- Split GameWorld economy/inventory/healing flows into `src/game/GameWorldEconomy.cpp` and added income, inventory, and reset regression coverage.
