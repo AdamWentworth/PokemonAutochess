@@ -314,68 +314,56 @@ void GameWorld::applyLoadoutForLevel(PokemonInstance& inst, bool preserveEnergy)
 void GameWorld::tryApplyEvolution(PokemonInstance& unit) {
     if (!data) return;
 
-    // Protect against malformed cyclic evolution data.
-    for (int i = 0; i < 8; ++i) {
-        const EvolutionRule* rule = data->evolution.getRule(unit.name);
-        if (!rule) return;
-        if (unit.level < rule->level) return;
+    const EvolutionRule* rule = data->evolution.getRule(unit.name);
+    if (!rule) return;
+    if (unit.level < rule->level) return;
 
-        const PokemonStats* nextStats = data->pokemon.getStats(rule->evolvesTo);
-        if (!nextStats) {
-            if (log) {
-                game::log::warn(log, "Evolution target '" + rule->evolvesTo + "' missing in pokemon_config.json");
-            }
-            return;
-        }
-
-        const std::string prevName = unit.name;
-        const std::string nextName = rule->evolvesTo;
-        const std::string path = "assets/models/" + nextStats->model;
-
-        std::shared_ptr<Model> nextModel = unit.model;
-        if (resources) {
-            auto loaded = resources->getModel(path);
-            if (loaded) nextModel = loaded;
-            else if (renderEnabled) {
-                if (log) game::log::warn(log, "Evolution model load failed for " + nextName + ": " + path);
-                return;
-            }
-        } else if (renderEnabled) {
-            if (log) game::log::warn(log, "Resource service missing; cannot load evolution model: " + path);
-            return;
-        }
-
-        unit.name = nextName;
-        unit.model = nextModel;
-        unit.baseHp = nextStats->hp;
-        unit.baseAttack = nextStats->attack;
-        unit.baseMovementSpeed = nextStats->movementSpeed;
-        unit.types = nextStats->types;
-        unit.baseExp = nextStats->baseExp;
-        unit.speciesScale = nextStats->visualScale;
-        unit.modelScaleCorrection = ResolveModelScaleCorrection(nextModel,
-                                                                nextStats->modelScaleMode,
-                                                                nextStats->modelScaleAxis);
-
-        applyLevelScaling(unit, unit.level, /*preserveHp=*/true);
-        applyLoadoutForLevel(unit, /*preserveEnergy=*/true);
-
-        unit.animTimeSec = sharedLoopAnimTimeSec;
-        AnimSet::applyAnimSetOverrides(unit, path, data ? &data->flyers : nullptr);
-        unit.animTimeSec = sharedLoopAnimTimeSec;
-
+    const PokemonStats* nextStats = data->pokemon.getStats(rule->evolvesTo);
+    if (!nextStats) {
         if (log) {
-            game::log::info(log, Capitalize(prevName) + " evolved into " + Capitalize(nextName) + "!");
+            game::log::warn(log, "Evolution target '" + rule->evolvesTo + "' missing in pokemon_config.json");
         }
+        return;
     }
-}
 
-void GameWorld::reconcileEligibleEvolutions() {
-    for (auto& unit : pokemons) {
-        tryApplyEvolution(unit);
+    const std::string prevName = unit.name;
+    const std::string nextName = rule->evolvesTo;
+    const std::string path = "assets/models/" + nextStats->model;
+
+    std::shared_ptr<Model> nextModel = unit.model;
+    if (resources) {
+        auto loaded = resources->getModel(path);
+        if (loaded) nextModel = loaded;
+        else if (renderEnabled) {
+            if (log) game::log::warn(log, "Evolution model load failed for " + nextName + ": " + path);
+            return;
+        }
+    } else if (renderEnabled) {
+        if (log) game::log::warn(log, "Resource service missing; cannot load evolution model: " + path);
+        return;
     }
-    for (auto& unit : benchPokemons) {
-        tryApplyEvolution(unit);
+
+    unit.name = nextName;
+    unit.model = nextModel;
+    unit.baseHp = nextStats->hp;
+    unit.baseAttack = nextStats->attack;
+    unit.baseMovementSpeed = nextStats->movementSpeed;
+    unit.types = nextStats->types;
+    unit.baseExp = nextStats->baseExp;
+    unit.speciesScale = nextStats->visualScale;
+    unit.modelScaleCorrection = ResolveModelScaleCorrection(nextModel,
+                                                            nextStats->modelScaleMode,
+                                                            nextStats->modelScaleAxis);
+
+    applyLevelScaling(unit, unit.level, /*preserveHp=*/true);
+    applyLoadoutForLevel(unit, /*preserveEnergy=*/true);
+
+    unit.animTimeSec = sharedLoopAnimTimeSec;
+    AnimSet::applyAnimSetOverrides(unit, path, data ? &data->flyers : nullptr);
+    unit.animTimeSec = sharedLoopAnimTimeSec;
+
+    if (log) {
+        game::log::info(log, Capitalize(prevName) + " evolved into " + Capitalize(nextName) + "!");
     }
 }
 
@@ -1019,7 +1007,6 @@ void GameWorld::spawnPokemon(const std::string& pokemonName,
 
     applyLevelScaling(inst, level, false);
     applyLoadoutForLevel(inst, false);
-    tryApplyEvolution(inst);
     reconcileBoardScaleFromRoster();
 
     inst.animTimeSec = 0.0f;
@@ -1116,7 +1103,6 @@ void GameWorld::addToBench(const std::string& pokemonName, int level)
 
     applyLevelScaling(inst, level, false);
     applyLoadoutForLevel(inst, false);
-    tryApplyEvolution(inst);
     reconcileBoardScaleFromRoster();
 
     int slot = static_cast<int>(benchPokemons.size());
@@ -1187,9 +1173,7 @@ std::vector<PokemonInstance>& GameWorld::getBenchPokemons() { return benchPokemo
 
 void GameWorld::update(float dt)
 {
-    // Global guardrail: any unit that meets an evolution threshold evolves,
-    // even if it reached that level outside the common XP/merge flow.
-    reconcileEligibleEvolutions();
+    // Evolution is level-up driven only (see addXp / mergeOneTripleForPlayer).
     reconcileBoardScaleFromRoster();
 
     if (boardResizePauseSec > 0.0f) {

@@ -220,7 +220,6 @@ private:
     void applyLevelScaling(PokemonInstance& inst, int level, bool preserveHp) const;
     void applyLoadoutForLevel(PokemonInstance& inst, bool preserveEnergy) const;
     void tryApplyEvolution(PokemonInstance& unit);
-    void reconcileEligibleEvolutions();
     void awardXpForFaint(const PokemonInstance& dead);
     void addXp(PokemonInstance& unit, int amount);
     int xpToNextLevel(int level) const;
