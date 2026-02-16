@@ -24,3 +24,4 @@ Recent improvements
 - Split GameWorld faint/recovery and battle-position restore flows into `src/game/GameWorldRecovery.cpp` with targeted lifecycle regression tests.
 - Split GameWorld leech-seed status/config/tick logic into `src/game/GameWorldLeechSeed.cpp` and added contract+clamp+invalid-state regression coverage.
 - Split ScriptAPI world-state/economy/mode surface into `src/game/scripting/ScriptAPIWorldState.cpp` and expanded contract coverage for money/items/mode/video/shop behavior.
+- Split ScriptAPI command queue/dispatch path into `src/game/scripting/ScriptAPICommands.cpp` and expanded contract coverage for queued energy command semantics.

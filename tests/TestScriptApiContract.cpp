@@ -161,6 +161,26 @@ bool test_script_api_contract(std::string& outFail) {
     api.clearClassicShopCards();
     if (!expect(api.getClassicShopCards().empty(), "clearClassicShopCards should clear world shop cards.", outFail)) return false;
 
+    // Command queue energy semantics.
+    const int idAEnergy = units[0].id;
+    units[0].energy = 10;
+    const int projectedEnergy = api.addEnergy(idAEnergy, 15);
+    if (!expect(projectedEnergy == 25, "addEnergy projected value mismatch before flush.", outFail)) return false;
+    if (!expect(units[0].energy == 10, "addEnergy should queue without immediate mutation.", outFail)) return false;
+    api.flush();
+    if (!expect(units[0].energy == 25, "addEnergy should apply queued delta on flush.", outFail)) return false;
+
+    if (!expect(api.setEnergy(idAEnergy, 999), "setEnergy should queue for valid unit id.", outFail)) return false;
+    api.flush();
+    if (!expect(units[0].energy == units[0].maxEnergy, "setEnergy should clamp to maxEnergy on apply.", outFail)) return false;
+
+    if (!expect(api.setEnergy(idAEnergy, -5), "setEnergy should accept negative values and clamp on apply.", outFail)) return false;
+    api.flush();
+    if (!expect(units[0].energy == 0, "setEnergy should clamp negative values to zero on apply.", outFail)) return false;
+
+    if (!expect(!api.setEnergy(-123, 5), "setEnergy should fail for unknown unit id.", outFail)) return false;
+    if (!expect(api.addEnergy(-123, 5) == 0, "addEnergy should return 0 for unknown unit id.", outFail)) return false;
+
     // world_list_units should return 3 entries with core fields.
     sol::function listFn = lua["world_list_units"];
     if (!expect(listFn.valid(), "world_list_units binding missing.", outFail)) return false;
