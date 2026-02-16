@@ -30,4 +30,5 @@ Recent improvements
 - Moved runtime orchestration (`GameApp`, `GameRunner`, `GameRuntime`, `GameBootstrap`, `GamePreload`, `GameSession`, `GameUpdateGraph`) into `src/game/runtime/` to reduce `src/game/` top-level sprawl.
 - Converted `ShopSystem` from placeholder UI stubs into a phase-driven deterministic offer service and added dedicated phase/roll contract coverage.
 - Split `ModelFastGltfLoader` into `ModelFastGltfLoader.cpp` and `ModelFastGltfLoaderHelpers.cpp` and added a source-modularity budget test to guard against re-growth.
+- Split fastgltf scene/skin/animation extraction into `src/engine/render/ModelFastGltfSceneData.cpp` to further reduce `ModelFastGltfLoader.cpp` churn surface.
 

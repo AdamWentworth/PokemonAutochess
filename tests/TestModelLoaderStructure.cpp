@@ -37,6 +37,7 @@ bool expectMaxLines(const std::filesystem::path& path,
 bool test_model_loader_source_modularity(std::string& outFail) {
     const std::filesystem::path loaderPath = "src/engine/render/ModelFastGltfLoader.cpp";
     const std::filesystem::path helperPath = "src/engine/render/ModelFastGltfLoaderHelpers.cpp";
+    const std::filesystem::path scenePath = "src/engine/render/ModelFastGltfSceneData.cpp";
 
     if (!std::filesystem::exists(loaderPath)) {
         outFail = "missing loader source file: " + loaderPath.string();
@@ -46,9 +47,14 @@ bool test_model_loader_source_modularity(std::string& outFail) {
         outFail = "missing helper source file: " + helperPath.string();
         return false;
     }
+    if (!std::filesystem::exists(scenePath)) {
+        outFail = "missing scene-data source file: " + scenePath.string();
+        return false;
+    }
 
-    if (!expectMaxLines(loaderPath, 900, outFail)) return false;
+    if (!expectMaxLines(loaderPath, 700, outFail)) return false;
     if (!expectMaxLines(helperPath, 700, outFail)) return false;
+    if (!expectMaxLines(scenePath, 400, outFail)) return false;
 
     return true;
 }

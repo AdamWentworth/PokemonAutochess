@@ -5,6 +5,7 @@
 #include "ModelStartupLog.h"
 #include "FastGLTFLoader.h"
 #include "ModelFastGltfLoaderHelpers.h"
+#include "ModelFastGltfSceneData.h"
 
 #include <fastgltf/tools.hpp>
 #include <fastgltf/glm_element_traits.hpp>
@@ -33,85 +34,13 @@
 #include <optional>
 #include <sstream>
 #include <string>
-#include <string_view>
-#include <type_traits>
 #include <utility>
 #include <variant>
 #include <vector>
 
 extern bool isMipmapMinFilter(GLint minF);
 
-namespace {
-template <typename T, typename = void>
-struct fg_has_has_value : std::false_type {};
-
-template <typename T>
-struct fg_has_has_value<T, std::void_t<decltype(std::declval<const T&>().has_value())>>
-    : std::true_type {};
-
-template <typename T, typename = void>
-struct fg_has_value_fn : std::false_type {};
-
-template <typename T>
-struct fg_has_value_fn<T, std::void_t<decltype(std::declval<const T&>().value())>>
-    : std::true_type {};
-
-template <typename T, typename = void>
-struct fg_has_get : std::false_type {};
-
-template <typename T>
-struct fg_has_get<T, std::void_t<decltype(std::declval<const T&>().get())>>
-    : std::true_type {};
-
-template <typename T, typename = void>
-struct fg_has_value_member : std::false_type {};
-
-template <typename T>
-struct fg_has_value_member<T, std::void_t<decltype((std::declval<const T&>().value))>>
-    : std::true_type {};
-
-template <typename T, typename = void>
-struct fg_is_deref : std::false_type {};
-
-template <typename T>
-struct fg_is_deref<T, std::void_t<decltype(*std::declval<const T&>())>>
-    : std::true_type {};
-
-template <typename Opt>
-bool fgOptHas(const Opt& o) {
-    if constexpr (std::is_integral_v<std::decay_t<Opt>> || std::is_enum_v<std::decay_t<Opt>>) {
-        return true;
-    } else if constexpr (fg_has_has_value<Opt>::value) {
-        return o.has_value();
-    } else {
-        return static_cast<bool>(o);
-    }
-}
-
-template <typename Opt>
-std::size_t fgOptGet(const Opt& o) {
-    if constexpr (std::is_integral_v<std::decay_t<Opt>> || std::is_enum_v<std::decay_t<Opt>>) {
-        return static_cast<std::size_t>(o);
-    } else if constexpr (fg_has_get<Opt>::value) {
-        return static_cast<std::size_t>(o.get());
-    } else if constexpr (fg_has_value_fn<Opt>::value) {
-        return static_cast<std::size_t>(o.value());
-    } else if constexpr (fg_has_value_member<Opt>::value) {
-        return static_cast<std::size_t>(o.value);
-    } else if constexpr (fg_is_deref<Opt>::value) {
-        return static_cast<std::size_t>(*o);
-    } else {
-        static_assert(!sizeof(Opt), "fgOptGet: unsupported optional type");
-    }
-}
-} // namespace
-
 void Model::loadGLTFFast(const std::string& filepath) {
-using pac_model_types::AnimationClip;
-using pac_model_types::AnimationSampler;
-using pac_model_types::AnimationChannel;
-using pac_model_types::ChannelPath;
-
 // ------------------------------------------------------------
 // FastGLTF load (full path)
 // ------------------------------------------------------------
@@ -141,149 +70,15 @@ using pac_model_types::ChannelPath;
 
     fastgltf::DefaultBufferDataAdapter adapter{};
 
-    // ---- Nodes + scene roots ----
-    nodesDefault.resize(asset.nodes.size());
-    nodeChildren.resize(asset.nodes.size());
-    nodeMesh.assign(asset.nodes.size(), -1);
-    nodeSkin.assign(asset.nodes.size(), -1);
-
-    if (!asset.scenes.empty()) {
-        size_t sceneIndex = 0;
-        if (asset.defaultScene.has_value()) sceneIndex = asset.defaultScene.value();
-        if (sceneIndex >= asset.scenes.size()) sceneIndex = 0;
-
-        sceneRoots.clear();
-        for (auto n : asset.scenes[sceneIndex].nodeIndices) {
-            sceneRoots.push_back((int)n);
-        }
-    }
-
-    for (size_t i = 0; i < asset.nodes.size(); ++i) {
-        const auto& n = asset.nodes[i];
-
-        nodeChildren[i].clear();
-        nodeChildren[i].reserve(n.children.size());
-        for (auto c : n.children) nodeChildren[i].push_back((int)c);
-
-        if (n.meshIndex.has_value()) nodeMesh[i] = (int)n.meshIndex.value();
-        if (n.skinIndex.has_value()) nodeSkin[i] = (int)n.skinIndex.value();
-
-        NodeTRS trs;
-        trs.hasMatrix = false;
-
-        if (const auto* t = std::get_if<fastgltf::TRS>(&n.transform)) {
-            trs.t = glm::vec3(t->translation[0], t->translation[1], t->translation[2]);
-            trs.r = glm::normalize(glm::quat(t->rotation[3], t->rotation[0], t->rotation[1], t->rotation[2]));
-            trs.s = glm::vec3(t->scale[0], t->scale[1], t->scale[2]);
-        } else if (const auto* m = std::get_if<fastgltf::math::fmat4x4>(&n.transform)) {
-            trs.hasMatrix = true;
-            trs.matrix = glm::make_mat4(m->data());
-        }
-
-        nodesDefault[i] = trs;
-    }
-
-    // ---- Skins ----
-    skins.resize(asset.skins.size());
-    for (size_t si = 0; si < asset.skins.size(); ++si) {
-        const auto& s = asset.skins[si];
-        SkinData out;
-        out.joints.reserve(s.joints.size());
-        for (auto j : s.joints) out.joints.push_back((int)j);
-
-        if (s.inverseBindMatrices.has_value()) {
-            const size_t accIndex = s.inverseBindMatrices.value();
-            if (accIndex < asset.accessors.size()) {
-                std::vector<glm::mat4> mats;
-                pac::model_fastgltf::readMat4(asset, asset.accessors[accIndex], mats, adapter);
-                out.inverseBind = std::move(mats);
-            }
-        }
-
-        if (out.inverseBind.size() != out.joints.size()) {
-            out.inverseBind.assign(out.joints.size(), glm::mat4(1.0f));
-        }
-
-        skins[si] = std::move(out);
-    }
-
-    // ---- Animations ----
-    animations.reserve(asset.animations.size());
-    for (const auto& anim : asset.animations) {
-        AnimationClip clip;
-        clip.name = std::string(anim.name.begin(), anim.name.end());
-        clip.durationSec = 0.0f;
-
-        clip.samplers.resize(anim.samplers.size());
-
-        for (size_t si = 0; si < anim.samplers.size(); ++si) {
-            const auto& s = anim.samplers[si];
-            AnimationSampler samp;
-
-            switch (s.interpolation) {
-                case fastgltf::AnimationInterpolation::Step:        samp.interpolation = "STEP"; break;
-                case fastgltf::AnimationInterpolation::CubicSpline: samp.interpolation = "CUBICSPLINE"; break;
-                case fastgltf::AnimationInterpolation::Linear:
-                default:                                           samp.interpolation = "LINEAR"; break;
-            }
-
-            if (s.inputAccessor < asset.accessors.size()) {
-                pac::model_fastgltf::readScalarFloat(asset, asset.accessors[s.inputAccessor], samp.inputs, adapter);
-                if (!samp.inputs.empty()) {
-                    clip.durationSec = (std::max)(clip.durationSec, samp.inputs.back());
-                }
-            }
-
-            if (s.outputAccessor < asset.accessors.size()) {
-                const auto& outAcc = asset.accessors[s.outputAccessor];
-                std::vector<glm::vec4> raw;
-
-                if (outAcc.type == fastgltf::AccessorType::Vec3) {
-                    pac::model_fastgltf::readVec3AsVec4(asset, outAcc, raw, adapter);
-                    samp.isVec4 = false;
-                } else {
-                    pac::model_fastgltf::readVec4(asset, outAcc, raw, adapter);
-                    samp.isVec4 = true;
-                }
-
-                if (samp.interpolation == "CUBICSPLINE" && !samp.inputs.empty()) {
-                    const size_t keys = samp.inputs.size();
-                    std::vector<glm::vec4> values;
-                    values.reserve(keys);
-                    for (size_t k = 0; k < keys; ++k) {
-                        const size_t idx = k * 3 + 1;
-                        if (idx < raw.size()) values.push_back(raw[idx]);
-                    }
-                    samp.outputs = std::move(values);
-                } else {
-                    samp.outputs = std::move(raw);
-                }
-            }
-
-            clip.samplers[si] = std::move(samp);
-        }
-
-        clip.channels.reserve(anim.channels.size());
-        for (const auto& ch : anim.channels) {
-            if (!fgOptHas(ch.nodeIndex))    continue;
-            if (!fgOptHas(ch.samplerIndex)) continue;
-
-            AnimationChannel c;
-            c.targetNode   = (int)fgOptGet(ch.nodeIndex);
-            c.samplerIndex = (int)fgOptGet(ch.samplerIndex);
-
-            switch (ch.path) {
-                case fastgltf::AnimationPath::Translation: c.path = ChannelPath::Translation; break;
-                case fastgltf::AnimationPath::Rotation:    c.path = ChannelPath::Rotation;    break;
-                case fastgltf::AnimationPath::Scale:       c.path = ChannelPath::Scale;       break;
-                default: continue;
-            }
-
-            clip.channels.push_back(c);
-        }
-
-        animations.push_back(std::move(clip));
-    }
+    pac::model_fastgltf::buildSceneData(asset,
+                                        adapter,
+                                        nodesDefault,
+                                        nodeChildren,
+                                        nodeMesh,
+                                        nodeSkin,
+                                        sceneRoots,
+                                        skins,
+                                        animations);
 
     std::cerr << "[gltf] fastgltf animations=" << animations.size()
               << " skins=" << skins.size()
@@ -312,8 +107,8 @@ using pac_model_types::ChannelPath;
 
 
             int materialIndex = -1;
-            if (fgOptHas(p.materialIndex)) {
-                materialIndex = (int)fgOptGet(p.materialIndex);
+            if (p.materialIndex.has_value()) {
+                materialIndex = static_cast<int>(p.materialIndex.value());
             }
 
             auto itPos = p.findAttribute("POSITION");
