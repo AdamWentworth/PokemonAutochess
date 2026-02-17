@@ -20,6 +20,7 @@
 #include "engine/utils/ResourceManager.h"
 #include "engine/utils/ShaderCache.h"
 #include "game/runtime/GpuAdapters.h"
+#include "game/runtime/D3D12Probe.h"
 #include "game/runtime/VideoPreferences.h"
 
 #define NOMINMAX
@@ -248,9 +249,26 @@ namespace {
         if (!game::video::isRendererBackendImplemented(requestedBackend)) {
             activeBackend = game::video::RendererBackend::OpenGL;
             services.rendererBackendFallback = true;
-            services.rendererBackendFallbackReason =
-                std::string("requested backend '") + services.requestedRendererBackend +
-                "' is not implemented; falling back to OpenGL.";
+            if (requestedBackend == game::video::RendererBackend::D3D12) {
+                const auto d3d12Probe = game::video::probeD3D12Adapter(services.preferredGpuAdapter);
+                if (d3d12Probe.supported) {
+                    if (!d3d12Probe.selectedAdapter.empty()) {
+                        std::cout << "[D3D12] Probe adapter: " << d3d12Probe.selectedAdapter << "\n";
+                    }
+                    std::cout << "[D3D12] " << d3d12Probe.message << "\n";
+                    services.rendererBackendFallbackReason =
+                        "requested backend 'd3d12' passed adapter/device probe but draw pipeline is not "
+                        "ported yet; falling back to OpenGL.";
+                } else {
+                    services.rendererBackendFallbackReason =
+                        std::string("requested backend 'd3d12' is unsupported on this platform: ") +
+                        d3d12Probe.message + " Falling back to OpenGL.";
+                }
+            } else {
+                services.rendererBackendFallbackReason =
+                    std::string("requested backend '") + services.requestedRendererBackend +
+                    "' is not implemented; falling back to OpenGL.";
+            }
             std::cout << "[Renderer] " << services.rendererBackendFallbackReason << "\n";
         } else if (requestedBackend == game::video::RendererBackend::Auto) {
             activeBackend = game::video::RendererBackend::OpenGL;

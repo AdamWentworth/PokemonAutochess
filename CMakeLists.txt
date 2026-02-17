@@ -216,6 +216,7 @@ add_library(PAC_GameObjects STATIC
     src/game/runtime/GameUpdateGraph.cpp
     src/game/runtime/VideoPreferences.cpp
     src/game/runtime/GpuAdapters.cpp
+    src/game/runtime/D3D12Probe.cpp
 
     # Game Config
     src/game/config/PokemonConfigLoader.cpp
@@ -292,7 +293,7 @@ add_library(PAC_GameObjects STATIC
 )
 target_link_libraries(PAC_GameObjects PUBLIC Engine glm::glm nlohmann_json::nlohmann_json)
 if (WIN32)
-    target_link_libraries(PAC_GameObjects PRIVATE dxgi)
+    target_link_libraries(PAC_GameObjects PRIVATE dxgi d3d12)
 endif()
 pac_apply_common_target_settings(PAC_GameObjects)
 
@@ -326,6 +327,7 @@ if (BUILD_TESTING)
         tests/TestDeterminism.cpp
         tests/TestEnvironment.cpp
         tests/TestVideoPreferences.cpp
+        tests/TestD3D12Probe.cpp
         tests/TestContentValidation.cpp
         tests/TestBattleInvariants.cpp
         tests/TestEndToEnd.cpp
