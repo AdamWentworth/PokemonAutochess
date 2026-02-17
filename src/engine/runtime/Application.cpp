@@ -152,6 +152,7 @@ bool Application::initApplication() {
     pumpPreloadEvents();
 
     renderer = std::make_unique<OpenGLRenderBackend>();
+    renderer->onResize(drawableW, drawableH);
     camera   = std::make_unique<Camera3D>(45.0f, float(drawableW) / float(drawableH), 0.1f, 100.0f);
 
     std::cout << "[Init] Application initialized.\n";
@@ -227,6 +228,9 @@ bool Application::pumpPreloadEvents() {
                 e.window.event == SDL_WINDOWEVENT_RESIZED) {
                 updateDrawableSizeAndViewport();
                 updateMouseScale();
+                if (renderer) {
+                    renderer->onResize(drawableW, drawableH);
+                }
 
                 if (camera && drawableW > 0 && drawableH > 0) {
                     *camera = Camera3D(45.0f, float(drawableW) / float(drawableH), 0.1f, 100.0f);
@@ -294,6 +298,9 @@ void Application::run(GameLoop& game) {
                     sdlEvent.window.event == SDL_WINDOWEVENT_RESIZED) {
                     updateDrawableSizeAndViewport();
                     updateMouseScale();
+                    if (renderer) {
+                        renderer->onResize(drawableW, drawableH);
+                    }
 
                     if (camera && drawableW > 0 && drawableH > 0) {
                         *camera = Camera3D(45.0f, float(drawableW) / float(drawableH), 0.1f, 100.0f);
@@ -334,7 +341,14 @@ void Application::run(GameLoop& game) {
 
         game.render(drawableW, drawableH);
 
-        swapBuffers();
+        if (renderer) {
+            renderer->endFrame();
+            if (!renderer->handlesPresentation()) {
+                swapBuffers();
+            }
+        } else {
+            swapBuffers();
+        }
 
         frameCount++;
         fpsTimer += frameDt;

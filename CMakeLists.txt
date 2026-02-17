@@ -134,6 +134,7 @@ pac_apply_common_target_settings(engine_platform)
 
 # ---------------- engine_render (OpenGL + renderer + resources) ----------------
 add_library(engine_render STATIC
+    src/engine/render/D3D12RenderBackend.cpp
     src/engine/render/OpenGLRenderBackend.cpp
     src/engine/render/Renderer.cpp
     src/engine/render/Camera3D.cpp
@@ -173,6 +174,9 @@ target_link_libraries(engine_render
         fastgltf::fastgltf
         ${PAC_SOL2_TARGET}
 )
+if (WIN32)
+    target_link_libraries(engine_render PRIVATE d3d12 dxgi)
+endif()
 pac_apply_common_target_settings(engine_render)
 
 # ---------------- Engine (compat umbrella target) ----------------

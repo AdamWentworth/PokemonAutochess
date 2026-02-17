@@ -8,16 +8,23 @@
 
 class Window {
 public:
-    Window(const std::string& title, int width, int height);
+    enum class GraphicsApi {
+        OpenGL,
+        Native
+    };
+
+    Window(const std::string& title, int width, int height, GraphicsApi graphicsApi = GraphicsApi::OpenGL);
     ~Window();
 
     SDL_Window* getSDLWindow() const { return window; }
     SDL_GLContext getContext() const { return context; }
+    bool hasOpenGLContext() const { return context != nullptr; }
 
     void setTitle(const std::string& title);
     void swapBuffers();
 
 private:
+    GraphicsApi graphicsApi = GraphicsApi::OpenGL;
     SDL_Window* window = nullptr;
     SDL_GLContext context = nullptr;
 };

@@ -22,6 +22,17 @@ bool test_video_preferences_parse_and_roundtrip(std::string& outFail) {
         outFail = "known renderer token check failed";
         return false;
     }
+#if defined(_WIN32)
+    if (!game::video::isRendererBackendImplemented(RendererBackend::D3D12)) {
+        outFail = "D3D12 backend should be marked implemented on Windows";
+        return false;
+    }
+#else
+    if (game::video::isRendererBackendImplemented(RendererBackend::D3D12)) {
+        outFail = "D3D12 backend should be marked unimplemented on non-Windows";
+        return false;
+    }
+#endif
 
     const std::filesystem::path tempPath =
         std::filesystem::temp_directory_path() / "pac_video_settings_test.json";

@@ -8,22 +8,26 @@
 #include <stdexcept>
 #include <string>
 
-Window::Window(const std::string& title, int width, int height) {
+Window::Window(const std::string& title, int width, int height, GraphicsApi graphicsApi_)
+    : graphicsApi(graphicsApi_) {
     if (SDL_Init(SDL_INIT_VIDEO) != 0) {
         const std::string msg = std::string("SDL_Init failed: ") + SDL_GetError();
         std::cerr << msg << "\n";
         throw std::runtime_error(msg);
     }
 
-    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
-    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 3);
-    SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
+    Uint32 flags = SDL_WINDOW_SHOWN | SDL_WINDOW_ALLOW_HIGHDPI | SDL_WINDOW_RESIZABLE;
 
-    SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
-    SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
-    SDL_GL_SetAttribute(SDL_GL_STENCIL_SIZE, 8);
+    if (graphicsApi == GraphicsApi::OpenGL) {
+        SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
+        SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 3);
+        SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
 
-    Uint32 flags = SDL_WINDOW_OPENGL | SDL_WINDOW_SHOWN | SDL_WINDOW_ALLOW_HIGHDPI | SDL_WINDOW_RESIZABLE;
+        SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
+        SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
+        SDL_GL_SetAttribute(SDL_GL_STENCIL_SIZE, 8);
+        flags |= SDL_WINDOW_OPENGL;
+    }
 
     window = SDL_CreateWindow(
         title.c_str(),
@@ -39,18 +43,20 @@ Window::Window(const std::string& title, int width, int height) {
         throw std::runtime_error(msg);
     }
 
-    context = SDL_GL_CreateContext(window);
-    if (!context) {
-        const std::string msg = std::string("OpenGL context creation failed: ") + SDL_GetError();
-        std::cerr << msg << "\n";
-        SDL_DestroyWindow(window);
-        window = nullptr;
-        SDL_Quit();
-        throw std::runtime_error(msg);
-    }
+    if (graphicsApi == GraphicsApi::OpenGL) {
+        context = SDL_GL_CreateContext(window);
+        if (!context) {
+            const std::string msg = std::string("OpenGL context creation failed: ") + SDL_GetError();
+            std::cerr << msg << "\n";
+            SDL_DestroyWindow(window);
+            window = nullptr;
+            SDL_Quit();
+            throw std::runtime_error(msg);
+        }
 
-    SDL_GL_MakeCurrent(window, context);
-    SDL_GL_SetSwapInterval(1);
+        SDL_GL_MakeCurrent(window, context);
+        SDL_GL_SetSwapInterval(1);
+    }
 }
 
 Window::~Window() {
@@ -72,5 +78,5 @@ void Window::setTitle(const std::string& title) {
 }
 
 void Window::swapBuffers() {
-    if (window) SDL_GL_SwapWindow(window);
+    if (window && context) SDL_GL_SwapWindow(window);
 }

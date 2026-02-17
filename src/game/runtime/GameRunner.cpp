@@ -14,19 +14,25 @@
 #include "engine/input/SdlKeyMap.h"
 #include "engine/platform/Window.h"
 #include "engine/render/Camera3D.h"
+#include "engine/render/D3D12RenderBackend.h"
 #include "engine/render/IRenderBackend.h"
 #include "engine/render/OpenGLRenderBackend.h"
 #include "engine/ui/BootLoadingView.h"
 #include "engine/utils/ResourceManager.h"
 #include "engine/utils/ShaderCache.h"
 #include "game/runtime/GpuAdapters.h"
-#include "game/runtime/D3D12Probe.h"
 #include "game/runtime/VideoPreferences.h"
 
 #define NOMINMAX
 #ifdef _WIN32
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
+#ifdef max
+#undef max
+#endif
+#ifdef min
+#undef min
+#endif
 #endif
 
 #include <SDL2/SDL.h>
@@ -67,16 +73,43 @@ namespace {
         return containsCi(vendor, "intel") || containsCi(renderer, "intel");
     }
 
-    std::unique_ptr<IRenderBackend> createRenderBackend(game::video::RendererBackend backend) {
+    std::unique_ptr<IRenderBackend> createRenderBackend(game::video::RendererBackend backend,
+                                                        SDL_Window* sdlWindow,
+                                                        int width,
+                                                        int height,
+                                                        const std::string& preferredAdapter,
+                                                        std::string* outError) {
+        try {
+            switch (backend) {
+            case game::video::RendererBackend::Auto:
+            case game::video::RendererBackend::OpenGL:
+                return std::make_unique<OpenGLRenderBackend>();
+            case game::video::RendererBackend::D3D12:
+                return std::make_unique<D3D12RenderBackend>(sdlWindow, width, height, preferredAdapter);
+            case game::video::RendererBackend::Vulkan:
+                if (outError) *outError = "Vulkan backend is not implemented.";
+                return nullptr;
+            default:
+                if (outError) *outError = "Unknown renderer backend.";
+                return nullptr;
+            }
+        } catch (const std::exception& e) {
+            if (outError) *outError = e.what();
+            return nullptr;
+        }
+    }
+
+    Window::GraphicsApi graphicsApiForBackend(game::video::RendererBackend backend) {
         switch (backend) {
         case game::video::RendererBackend::Auto:
         case game::video::RendererBackend::OpenGL:
-            return std::make_unique<OpenGLRenderBackend>();
-        case game::video::RendererBackend::Vulkan:
+            return Window::GraphicsApi::OpenGL;
         case game::video::RendererBackend::D3D12:
-            return nullptr;
+            return Window::GraphicsApi::Native;
+        case game::video::RendererBackend::Vulkan:
+            return Window::GraphicsApi::Native;
         default:
-            return nullptr;
+            return Window::GraphicsApi::OpenGL;
         }
     }
 
@@ -195,6 +228,7 @@ namespace {
         int windowW = (int)START_W;
         int windowH = (int)START_H;
         bool fullscreen = false;
+        bool windowHasOpenGLContext = false;
 
         float mouseScaleX = 1.0f;
         float mouseScaleY = 1.0f;
@@ -249,26 +283,9 @@ namespace {
         if (!game::video::isRendererBackendImplemented(requestedBackend)) {
             activeBackend = game::video::RendererBackend::OpenGL;
             services.rendererBackendFallback = true;
-            if (requestedBackend == game::video::RendererBackend::D3D12) {
-                const auto d3d12Probe = game::video::probeD3D12Adapter(services.preferredGpuAdapter);
-                if (d3d12Probe.supported) {
-                    if (!d3d12Probe.selectedAdapter.empty()) {
-                        std::cout << "[D3D12] Probe adapter: " << d3d12Probe.selectedAdapter << "\n";
-                    }
-                    std::cout << "[D3D12] " << d3d12Probe.message << "\n";
-                    services.rendererBackendFallbackReason =
-                        "requested backend 'd3d12' passed adapter/device probe but draw pipeline is not "
-                        "ported yet; falling back to OpenGL.";
-                } else {
-                    services.rendererBackendFallbackReason =
-                        std::string("requested backend 'd3d12' is unsupported on this platform: ") +
-                        d3d12Probe.message + " Falling back to OpenGL.";
-                }
-            } else {
-                services.rendererBackendFallbackReason =
-                    std::string("requested backend '") + services.requestedRendererBackend +
-                    "' is not implemented; falling back to OpenGL.";
-            }
+            services.rendererBackendFallbackReason =
+                std::string("requested backend '") + services.requestedRendererBackend +
+                "' is not implemented; falling back to OpenGL.";
             std::cout << "[Renderer] " << services.rendererBackendFallbackReason << "\n";
         } else if (requestedBackend == game::video::RendererBackend::Auto) {
             activeBackend = game::video::RendererBackend::OpenGL;
@@ -278,37 +295,122 @@ namespace {
         services.activeRendererBackend = game::video::rendererBackendName(activeBackend);
 
         try {
-            window = std::make_unique<Window>("Pokemon Autochess", (int)START_W, (int)START_H);
+            window = std::make_unique<Window>(
+                "Pokemon Autochess",
+                static_cast<int>(START_W),
+                static_cast<int>(START_H),
+                graphicsApiForBackend(activeBackend));
         } catch (const std::exception& ex) {
             std::cerr << "[GameRunner] Window init failed: " << ex.what() << "\n";
             return false;
         }
+        windowHasOpenGLContext = window->hasOpenGLContext();
 
-        if (!gladLoadGLLoader((GLADloadproc)SDL_GL_GetProcAddress)) {
-            std::cerr << "[GameRunner] Failed to initialize GLAD\n";
-            return false;
+        updateDrawableSizeAndViewport();
+        updateMouseScale();
+        const Uint32 flags = SDL_GetWindowFlags(window->getSDLWindow());
+        fullscreen = (flags & SDL_WINDOW_FULLSCREEN) != 0 || (flags & SDL_WINDOW_FULLSCREEN_DESKTOP) != 0;
+
+        if (windowHasOpenGLContext) {
+            if (!gladLoadGLLoader((GLADloadproc)SDL_GL_GetProcAddress)) {
+                std::cerr << "[GameRunner] Failed to initialize GLAD\n";
+                return false;
+            }
+
+            bootLoadingView = std::make_unique<BootLoadingView>();
+            bootLoadingView->init(shaderCache);
+
+            setTitle("PokemonAutochess - Loading...");
+            glClearColor(0.05f, 0.05f, 0.07f, 1.0f);
+            glClear(GL_COLOR_BUFFER_BIT);
+            swapBuffers();
+            pumpPreloadEvents();
+        } else {
+            pumpPreloadEvents();
         }
 
-        services.gpuVendor = glStringOrUnknown(GL_VENDOR);
-        services.gpuRenderer = glStringOrUnknown(GL_RENDERER);
-        services.gpuDiscrete = !looksIntegratedGpu(services.gpuVendor, services.gpuRenderer);
+        std::string backendCreateError;
+        renderer = createRenderBackend(activeBackend,
+                                       window ? window->getSDLWindow() : nullptr,
+                                       drawableW,
+                                       drawableH,
+                                       services.preferredGpuAdapter,
+                                       &backendCreateError);
+        if (!renderer) {
+            if (activeBackend != game::video::RendererBackend::OpenGL) {
+                services.rendererBackendFallback = true;
+                services.rendererBackendFallbackReason =
+                    "backend '" + services.activeRendererBackend + "' failed to initialize (" + backendCreateError +
+                    "); falling back to OpenGL.";
+                std::cout << "[Renderer] " << services.rendererBackendFallbackReason << "\n";
+
+                window.reset();
+                try {
+                    activeBackend = game::video::RendererBackend::OpenGL;
+                    services.activeRendererBackend = game::video::rendererBackendName(activeBackend);
+                    window = std::make_unique<Window>(
+                        "Pokemon Autochess",
+                        static_cast<int>(START_W),
+                        static_cast<int>(START_H),
+                        Window::GraphicsApi::OpenGL);
+                    windowHasOpenGLContext = true;
+                    if (!gladLoadGLLoader((GLADloadproc)SDL_GL_GetProcAddress)) {
+                        std::cerr << "[GameRunner] Failed to initialize GLAD after fallback\n";
+                        return false;
+                    }
+                    updateDrawableSizeAndViewport();
+                    updateMouseScale();
+                    renderer = createRenderBackend(activeBackend,
+                                                   window ? window->getSDLWindow() : nullptr,
+                                                   drawableW,
+                                                   drawableH,
+                                                   services.preferredGpuAdapter,
+                                                   &backendCreateError);
+                } catch (const std::exception& ex) {
+                    std::cerr << "[Renderer] OpenGL fallback window init failed: " << ex.what() << "\n";
+                    return false;
+                }
+            }
+            if (!renderer) {
+                std::cerr << "[Renderer] Failed to create backend '" << services.activeRendererBackend
+                          << "' (" << backendCreateError << ").\n";
+                return false;
+            }
+        }
+
+        services.activeRendererBackend = renderer->backendId();
+        services.gpuRenderer = renderer->activeGpuName();
+        services.gpuDiscrete = renderer->activeGpuIsDiscrete();
+
+        if (renderer->requiresOpenGLContext()) {
+            services.gpuVendor = glStringOrUnknown(GL_VENDOR);
+            if (services.gpuRenderer.empty()) {
+                services.gpuRenderer = glStringOrUnknown(GL_RENDERER);
+            }
+            services.gpuDiscrete = !looksIntegratedGpu(services.gpuVendor, services.gpuRenderer);
+        } else {
+            services.gpuVendor = "d3d12";
+            if (services.gpuRenderer.empty()) {
+                services.gpuRenderer = "<unknown d3d12 adapter>";
+            }
+            std::cout << "[Renderer] D3D12 backend initialized with clear/present path. "
+                         "Gameplay draw port is in progress.\n";
+        }
 
         std::cout << "[Renderer] Requested: " << services.requestedRendererBackend << "\n";
         std::cout << "[Renderer] Active:    " << services.activeRendererBackend << "\n";
         std::cout << "[GPU] Vendor:   " << services.gpuVendor << "\n";
         std::cout << "[GPU] Renderer: " << services.gpuRenderer << "\n";
-        std::cout << "[GPU] OpenGL:   " << glStringOrUnknown(GL_VERSION) << "\n";
-        std::cout << "[GPU] GLSL:     " << glStringOrUnknown(GL_SHADING_LANGUAGE_VERSION) << "\n";
-        if (services.gpuDiscrete) {
-            std::cout << "[GPU] Class:    discrete\n";
-        } else {
-            std::cout << "[GPU] Class:    integrated\n";
+        if (renderer->requiresOpenGLContext()) {
+            std::cout << "[GPU] OpenGL:   " << glStringOrUnknown(GL_VERSION) << "\n";
+            std::cout << "[GPU] GLSL:     " << glStringOrUnknown(GL_SHADING_LANGUAGE_VERSION) << "\n";
         }
+        std::cout << "[GPU] Class:    " << (services.gpuDiscrete ? "discrete" : "integrated") << "\n";
+
         if (!services.preferredGpuAdapter.empty() &&
             !containsCi(services.gpuRenderer, services.preferredGpuAdapter)) {
             std::cout << "[GPU] Preferred adapter '" << services.preferredGpuAdapter
-                      << "' was not selected for this OpenGL context.\n";
-            std::cout << "[GPU] Driver/OS policy may override process hints. Use OS graphics settings if needed.\n";
+                      << "' was not selected by active backend.\n";
         }
 
         if (services.requireDiscreteGpu && !services.gpuDiscrete) {
@@ -321,27 +423,10 @@ namespace {
             std::cerr << "[GameRunner] TTF_Init error: " << TTF_GetError() << "\n";
         }
 
-        updateDrawableSizeAndViewport();
-        updateMouseScale();
-        const Uint32 flags = SDL_GetWindowFlags(window->getSDLWindow());
-        fullscreen = (flags & SDL_WINDOW_FULLSCREEN) != 0 || (flags & SDL_WINDOW_FULLSCREEN_DESKTOP) != 0;
-
-        bootLoadingView = std::make_unique<BootLoadingView>();
-        bootLoadingView->init(shaderCache);
-
-        setTitle("PokemonAutochess - Loading...");
-        glClearColor(0.05f, 0.05f, 0.07f, 1.0f);
-        glClear(GL_COLOR_BUFFER_BIT);
-        swapBuffers();
-        pumpPreloadEvents();
-
-        renderer = createRenderBackend(activeBackend);
-        if (!renderer) {
-            std::cerr << "[Renderer] Failed to create backend '" << services.activeRendererBackend << "'.\n";
-            return false;
-        }
-        services.activeRendererBackend = renderer->backendId();
         camera   = std::make_unique<Camera3D>(45.0f, float(drawableW) / float(drawableH), 0.1f, 100.0f);
+        if (renderer) {
+            renderer->onResize(drawableW, drawableH);
+        }
 
         initialized = true;
         std::cout << "[Init] Game runner initialized.\n";
@@ -377,12 +462,19 @@ namespace {
         if (!window || !window->getSDLWindow()) return;
 
         SDL_GetWindowSize(window->getSDLWindow(), &windowW, &windowH);
-        SDL_GL_GetDrawableSize(window->getSDLWindow(), &drawableW, &drawableH);
+        if (windowHasOpenGLContext) {
+            SDL_GL_GetDrawableSize(window->getSDLWindow(), &drawableW, &drawableH);
+        } else {
+            drawableW = windowW;
+            drawableH = windowH;
+        }
 
         if (drawableW <= 0) drawableW = windowW;
         if (drawableH <= 0) drawableH = windowH;
 
-        glViewport(0, 0, drawableW, drawableH);
+        if (windowHasOpenGLContext) {
+            glViewport(0, 0, drawableW, drawableH);
+        }
     }
 
     void GameRunner::updateMouseScale() {
@@ -439,6 +531,9 @@ namespace {
         updateDrawableSizeAndViewport();
         updateMouseScale();
         updateCameraAspect();
+        if (renderer) {
+            renderer->onResize(drawableW, drawableH);
+        }
         return true;
     }
 
@@ -477,10 +572,15 @@ namespace {
     }
 
     void GameRunner::renderBootLoading(float progress01) {
-        if (!bootLoadingView) return;
         updateDrawableSizeAndViewport();
-        bootLoadingView->render(progress01, drawableW, drawableH);
-        swapBuffers();
+        if (bootLoadingView) {
+            bootLoadingView->render(progress01, drawableW, drawableH);
+            swapBuffers();
+        } else if (renderer) {
+            (void)progress01;
+            renderer->beginFrame(0.05f, 0.05f, 0.07f, 1.0f);
+            renderer->endFrame();
+        }
     }
 
     int GameRunner::run(GameLoop& game) {
@@ -494,7 +594,8 @@ namespace {
         services.events = &eventBus;
 
         GameContext ctx;
-        ctx.renderer = renderer.get();
+        const bool exposeRendererToGame = renderer && renderer->requiresOpenGLContext();
+        ctx.renderer = exposeRendererToGame ? renderer.get() : nullptr;
         ctx.camera   = camera.get();
         ctx.services = &services;
         ctx.drawableW = drawableW;
@@ -546,6 +647,9 @@ namespace {
                         updateDrawableSizeAndViewport();
                         updateMouseScale();
                         updateCameraAspect();
+                        if (renderer) {
+                            renderer->onResize(drawableW, drawableH);
+                        }
 
                         ctx.drawableW = drawableW;
                         ctx.drawableH = drawableH;
@@ -589,7 +693,14 @@ namespace {
             game.render(drawableW, drawableH);
             const auto renderEnd = clock::now();
 
-            swapBuffers();
+            if (renderer) {
+                renderer->endFrame();
+                if (!renderer->handlesPresentation()) {
+                    swapBuffers();
+                }
+            } else {
+                swapBuffers();
+            }
             const auto swapEnd = clock::now();
 
             const double fixedMs = std::chrono::duration<double, std::milli>(fixedEnd - fixedStart).count();

@@ -62,8 +62,15 @@ const char* rendererBackendName(RendererBackend backend) {
 }
 
 bool isRendererBackendImplemented(RendererBackend backend) {
-    // Current renderer stack is OpenGL only.
-    return backend == RendererBackend::Auto || backend == RendererBackend::OpenGL;
+    if (backend == RendererBackend::Auto || backend == RendererBackend::OpenGL) {
+        return true;
+    }
+#if defined(_WIN32)
+    if (backend == RendererBackend::D3D12) {
+        return true;
+    }
+#endif
+    return false;
 }
 
 Preferences loadPreferences(const std::string& path) {
