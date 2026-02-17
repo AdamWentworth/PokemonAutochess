@@ -1,5 +1,9 @@
 // tests/TestContentValidation.cpp
+#include <filesystem>
+#include <fstream>
 #include <string>
+
+#include <nlohmann/json.hpp>
 
 #include "engine/core/Paths.h"
 #include "game/config/PokemonConfigLoader.h"
@@ -27,6 +31,42 @@ bool test_content_invariants(std::string& outFail) {
     }
     if (!pokemon.loadConfig(pokemonPath, nullptr)) {
         outFail = "Failed to load pokemon config: " + pokemonPath;
+        return false;
+    }
+
+    const std::string growlManifestPath =
+        engine::paths::data("config/vfx/moves/growl_draw_passes.json");
+    const std::string deprecatedDirectionalAliasPath =
+        engine::paths::data("config/vfx/moves/directional_sound_rings_draw_passes.json");
+
+    auto loadManifest = [&](const std::string& path, nlohmann::json& outJson) -> bool {
+        std::ifstream in(path);
+        if (!in.is_open()) return false;
+        try {
+            in >> outJson;
+        } catch (...) {
+            return false;
+        }
+        return true;
+    };
+
+    if (!std::filesystem::exists(growlManifestPath)) {
+        outFail = "Missing growl VFX manifest: " + growlManifestPath;
+        return false;
+    }
+    if (std::filesystem::exists(deprecatedDirectionalAliasPath)) {
+        outFail = "Deprecated duplicate growl VFX manifest should be removed: " + deprecatedDirectionalAliasPath;
+        return false;
+    }
+
+    nlohmann::json growlManifest;
+    if (!loadManifest(growlManifestPath, growlManifest)) {
+        outFail = "Failed to parse growl VFX manifest: " + growlManifestPath;
+        return false;
+    }
+    if (!growlManifest.contains("draw_passes") || !growlManifest["draw_passes"].is_array() ||
+        growlManifest["draw_passes"].empty()) {
+        outFail = "Growl VFX manifest must define non-empty draw_passes.";
         return false;
     }
 

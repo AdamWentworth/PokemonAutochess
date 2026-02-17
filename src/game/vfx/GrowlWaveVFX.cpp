@@ -119,11 +119,42 @@ void GrowlWaveVFX::setConfig(const Config& c) {
 void GrowlWaveVFX::applyDrawManifestOverrides() {
     if (cfg.drawManifestPath.empty()) return;
 
-    std::ifstream in(cfg.drawManifestPath);
-    if (!in.is_open()) {
-        const std::string alt = engine::paths::data(cfg.drawManifestPath);
-        if (alt != cfg.drawManifestPath) in.open(alt);
+    constexpr const char* kGrowlManifestRel =
+        "config/vfx/moves/growl_draw_passes.json";
+    constexpr const char* kLegacyDirectionalManifestRel =
+        "config/vfx/moves/directional_sound_rings_draw_passes.json";
+
+    auto openFirstExistingManifest = [](const std::vector<std::string>& paths, std::ifstream& out) -> bool {
+        for (const auto& path : paths) {
+            if (path.empty()) continue;
+            out.open(path);
+            if (out.is_open()) return true;
+            out.clear();
+        }
+        return false;
+    };
+
+    std::vector<std::string> manifestCandidates;
+    manifestCandidates.reserve(6);
+    auto addCandidate = [&](const std::string& path) {
+        if (path.empty()) return;
+        if (std::find(manifestCandidates.begin(), manifestCandidates.end(), path) != manifestCandidates.end()) return;
+        manifestCandidates.push_back(path);
+    };
+
+    addCandidate(cfg.drawManifestPath);
+    addCandidate(engine::paths::data(cfg.drawManifestPath));
+
+    if (cfg.drawManifestPath == kGrowlManifestRel) {
+        addCandidate(kLegacyDirectionalManifestRel);
+        addCandidate(engine::paths::data(kLegacyDirectionalManifestRel));
+    } else if (cfg.drawManifestPath == kLegacyDirectionalManifestRel) {
+        addCandidate(kGrowlManifestRel);
+        addCandidate(engine::paths::data(kGrowlManifestRel));
     }
+
+    std::ifstream in;
+    if (!openFirstExistingManifest(manifestCandidates, in)) return;
     if (!in.is_open()) return;
 
     try {

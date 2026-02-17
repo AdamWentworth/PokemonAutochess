@@ -152,6 +152,7 @@ void GameWorld::emitMoveImpactByName(const std::string& moveName,
             GrowlWaveVFX::Config c;
             c.spawnForwardOffset = 0.0f;
             c.spawnHeightOffset = 0.0f;
+            c.drawManifestPath = "config/vfx/moves/growl_draw_passes.json";
             growlWaveVfx.setConfig(c);
             growlWaveVfxInitialized = true;
         }

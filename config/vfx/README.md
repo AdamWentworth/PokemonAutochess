@@ -6,7 +6,7 @@ This folder now tracks only runtime configs that are actively consumed.
 
 - `moves/<move>_draw_passes.json`
   - Used by move-specific VFX code to map draw passes to mesh/texture/shader inputs.
-  - Current example in use: `moves/growl_draw_passes.json`.
+  - Growl example: `moves/growl_draw_passes.json`.
 
 ## Scope
 

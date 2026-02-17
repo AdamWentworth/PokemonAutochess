@@ -94,6 +94,7 @@ public:
         float tevK1A = 1.0f;
 
         // Optional manifest for pass routing by EID.
+        // Keep move-first naming so Growl config is discoverable under the move name.
         std::string drawManifestPath = "config/vfx/moves/growl_draw_passes.json";
         std::vector<DrawPass> drawPasses = [] {
             std::vector<DrawPass> passes;

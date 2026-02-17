@@ -56,6 +56,7 @@ void GameWorld::updateRenderVfx(float dt) {
         // We now resolve the origin from head/jaw nodes, so keep built-in offsets minimal.
         configData.spawnForwardOffset = 0.0f;
         configData.spawnHeightOffset = 0.0f;
+        configData.drawManifestPath = "config/vfx/moves/growl_draw_passes.json";
         growlWaveVfx.setConfig(configData);
         growlWaveVfxInitialized = true;
     }
