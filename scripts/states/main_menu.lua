@@ -24,7 +24,10 @@ local video_cfg = {
     ui_scales = { 75, 100, 125, 150 },
     ui_scale_index = 2,
     quality = { "Low", "Medium", "High", "Ultra" },
-    quality_index = 3
+    quality_index = 3,
+    renderer_backends = { "auto", "opengl", "vulkan", "d3d12" },
+    renderer_index = 1,
+    require_discrete_gpu = false
 }
 
 local audio_cfg = {
@@ -68,6 +71,14 @@ local function bool_text(v)
     return "Off"
 end
 
+local function renderer_label(v)
+    if v == "auto" then return "Auto" end
+    if v == "opengl" then return "OpenGL" end
+    if v == "vulkan" then return "Vulkan" end
+    if v == "d3d12" then return "D3D12" end
+    return tostring(v)
+end
+
 local function cycle_index(tbl, idx, dir)
     local n = #tbl
     if n <= 0 then return 1 end
@@ -95,6 +106,17 @@ local function sync_from_engine()
             end
         end
     end
+
+    local pref = get_renderer_backend_pref()
+    if pref then
+        for i, backend in ipairs(video_cfg.renderer_backends) do
+            if backend == pref then
+                video_cfg.renderer_index = i
+                break
+            end
+        end
+    end
+    video_cfg.require_discrete_gpu = get_require_discrete_gpu_pref() == true
 end
 
 local function apply_video_mode(width, height, want_fullscreen)
@@ -204,17 +226,29 @@ local function build_video_entries(entries)
     segmented(entries, "res_1600_900", "1600x900", 0.50, 0.46, selected_res_index == 2)
     segmented(entries, "res_1920_1080", "1920x1080", 0.68, 0.46, selected_res_index == 3)
 
+    local backend = video_cfg.renderer_backends[video_cfg.renderer_index]
+    local active_backend = get_active_renderer_backend()
+    local active_gpu = get_active_gpu_renderer()
+    local gpu_class = is_active_gpu_discrete() and "Discrete" or "Integrated"
+
+    action(entries, "video_renderer_backend",
+        "Render API: " .. renderer_label(backend) .. " (applies next launch)", 0.54, false)
+    action(entries, "video_require_discrete",
+        "Require Discrete GPU: " .. bool_text(video_cfg.require_discrete_gpu) .. " (applies next launch)", 0.60, false)
+    info(entries, "Active API: " .. renderer_label(active_backend), 0.66)
+    info(entries, "Active GPU: " .. tostring(active_gpu) .. " (" .. gpu_class .. ")", 0.70)
+
     local fps = video_cfg.fps_caps[video_cfg.fps_index]
     local fps_label = "FPS Cap: "
     if fps == 0 then fps_label = fps_label .. "Uncapped (placeholder)"
     else fps_label = fps_label .. tostring(fps) .. " (placeholder)" end
 
-    action(entries, "video_vsync", "VSync: " .. bool_text(video_cfg.vsync) .. " (placeholder)", 0.58, false)
-    action(entries, "video_fps", fps_label, 0.64, false)
-    action(entries, "video_ui_scale", "UI Scale: " .. tostring(video_cfg.ui_scales[video_cfg.ui_scale_index]) .. "% (placeholder)", 0.70, false)
-    action(entries, "video_quality", "Quality: " .. video_cfg.quality[video_cfg.quality_index] .. " (placeholder)", 0.76, false)
+    action(entries, "video_vsync", "VSync: " .. bool_text(video_cfg.vsync) .. " (placeholder)", 0.76, false)
+    action(entries, "video_fps", fps_label, 0.80, false)
+    action(entries, "video_ui_scale", "UI Scale: " .. tostring(video_cfg.ui_scales[video_cfg.ui_scale_index]) .. "% (placeholder)", 0.84, false)
+    action(entries, "video_quality", "Quality: " .. video_cfg.quality[video_cfg.quality_index] .. " (placeholder)", 0.88, false)
 
-    action(entries, "settings_back", "Back", 0.84, false)
+    action(entries, "settings_back", "Back", 0.94, false)
 end
 
 local function build_audio_entries(entries)
@@ -366,6 +400,28 @@ local function handle_video_click(entry_id)
             apply_video_mode(r.w, r.h, fullscreen)
             return true
         end
+    end
+
+    if entry_id == "video_renderer_backend" then
+        video_cfg.renderer_index = cycle_index(video_cfg.renderer_backends, video_cfg.renderer_index, 1)
+        local backend = video_cfg.renderer_backends[video_cfg.renderer_index]
+        local ok = set_renderer_backend_pref(backend)
+        if ok then
+            emit("Menu", "Render API preference saved: " .. renderer_label(backend) .. " (restart required)")
+        else
+            emit("Menu", "Failed to save render API preference")
+        end
+        return true
+    end
+    if entry_id == "video_require_discrete" then
+        video_cfg.require_discrete_gpu = not video_cfg.require_discrete_gpu
+        local ok = set_require_discrete_gpu_pref(video_cfg.require_discrete_gpu)
+        if ok then
+            emit("Menu", "Require Discrete GPU: " .. bool_text(video_cfg.require_discrete_gpu) .. " (restart required)")
+        else
+            emit("Menu", "Failed to save discrete GPU preference")
+        end
+        return true
     end
 
     if entry_id == "video_vsync" then

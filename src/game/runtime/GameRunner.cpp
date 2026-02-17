@@ -5,8 +5,10 @@
 #include "game/runtime/GameApp.h"
 
 #include "engine/core/EngineServices.h"
+#include "engine/core/Environment.h"
 #include "engine/core/GameContext.h"
 #include "engine/core/GameLoop.h"
+#include "engine/core/Paths.h"
 #include "engine/events/EventBus.h"
 #include "engine/input/InputEvent.h"
 #include "engine/input/SdlKeyMap.h"
@@ -16,6 +18,7 @@
 #include "engine/ui/BootLoadingView.h"
 #include "engine/utils/ResourceManager.h"
 #include "engine/utils/ShaderCache.h"
+#include "game/runtime/VideoPreferences.h"
 
 #define NOMINMAX
 #ifdef _WIN32
@@ -28,9 +31,11 @@
 #include <glad/glad.h>
 
 #include <algorithm>
+#include <cctype>
 #include <chrono>
 #include <cmath>
 #include <exception>
+#include <iomanip>
 #include <iostream>
 #include <memory>
 #include <string>
@@ -42,6 +47,27 @@ namespace {
 
     int scaledMouseX(int x, float s) { return (int)std::lround((float)x * s); }
     int scaledMouseY(int y, float s) { return (int)std::lround((float)y * s); }
+
+    std::string toLowerCopy(std::string s) {
+        for (char& c : s) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+        return s;
+    }
+
+    bool containsCi(const std::string& haystack, const std::string& needle) {
+        const std::string h = toLowerCopy(haystack);
+        const std::string n = toLowerCopy(needle);
+        return h.find(n) != std::string::npos;
+    }
+
+    bool looksIntegratedGpu(const std::string& vendor, const std::string& renderer) {
+        // Heuristic: Intel OpenGL contexts on hybrid laptops are typically iGPU.
+        return containsCi(vendor, "intel") || containsCi(renderer, "intel");
+    }
+
+    const char* glStringOrUnknown(GLenum token) {
+        const GLubyte* s = glGetString(token);
+        return s ? reinterpret_cast<const char*>(s) : "<unknown>";
+    }
 
     InputEvent::MouseButton mapSdlMouseButtonToEngineButton(int sdlButton) {
         switch (sdlButton) {
@@ -144,6 +170,8 @@ namespace {
         EngineServices services;
 
         bool initialized = false;
+        game::video::RendererBackend requestedBackend = game::video::RendererBackend::Auto;
+        game::video::RendererBackend activeBackend = game::video::RendererBackend::OpenGL;
 
         int drawableW = (int)START_W;
         int drawableH = (int)START_H;
@@ -157,6 +185,32 @@ namespace {
     };
 
     bool GameRunner::init() {
+        const std::string prefsPath = game::video::defaultPreferencesPath();
+        game::video::Preferences prefs = game::video::loadPreferences(prefsPath);
+
+        std::string backendToken = prefs.rendererBackend;
+        if (const auto envBackend = engine::env::get("PAC_RENDER_BACKEND")) {
+            backendToken = *envBackend;
+            std::cout << "[Renderer] PAC_RENDER_BACKEND override: " << backendToken << "\n";
+        }
+        requestedBackend = game::video::parseRendererBackend(backendToken);
+        services.requestedRendererBackend = game::video::rendererBackendName(requestedBackend);
+        services.requireDiscreteGpu = prefs.requireDiscreteGpu;
+
+        if (!game::video::isRendererBackendImplemented(requestedBackend)) {
+            activeBackend = game::video::RendererBackend::OpenGL;
+            services.rendererBackendFallback = true;
+            services.rendererBackendFallbackReason =
+                std::string("requested backend '") + services.requestedRendererBackend +
+                "' is not implemented; falling back to OpenGL.";
+            std::cout << "[Renderer] " << services.rendererBackendFallbackReason << "\n";
+        } else if (requestedBackend == game::video::RendererBackend::Auto) {
+            activeBackend = game::video::RendererBackend::OpenGL;
+        } else {
+            activeBackend = requestedBackend;
+        }
+        services.activeRendererBackend = game::video::rendererBackendName(activeBackend);
+
         try {
             window = std::make_unique<Window>("Pokemon Autochess", (int)START_W, (int)START_H);
         } catch (const std::exception& ex) {
@@ -166,6 +220,28 @@ namespace {
 
         if (!gladLoadGLLoader((GLADloadproc)SDL_GL_GetProcAddress)) {
             std::cerr << "[GameRunner] Failed to initialize GLAD\n";
+            return false;
+        }
+
+        services.gpuVendor = glStringOrUnknown(GL_VENDOR);
+        services.gpuRenderer = glStringOrUnknown(GL_RENDERER);
+        services.gpuDiscrete = !looksIntegratedGpu(services.gpuVendor, services.gpuRenderer);
+
+        std::cout << "[Renderer] Requested: " << services.requestedRendererBackend << "\n";
+        std::cout << "[Renderer] Active:    " << services.activeRendererBackend << "\n";
+        std::cout << "[GPU] Vendor:   " << services.gpuVendor << "\n";
+        std::cout << "[GPU] Renderer: " << services.gpuRenderer << "\n";
+        std::cout << "[GPU] OpenGL:   " << glStringOrUnknown(GL_VERSION) << "\n";
+        std::cout << "[GPU] GLSL:     " << glStringOrUnknown(GL_SHADING_LANGUAGE_VERSION) << "\n";
+        if (services.gpuDiscrete) {
+            std::cout << "[GPU] Class:    discrete\n";
+        } else {
+            std::cout << "[GPU] Class:    integrated\n";
+        }
+
+        if (services.requireDiscreteGpu && !services.gpuDiscrete) {
+            std::cerr << "[GPU] Discrete GPU required by settings, but integrated GPU is active.\n";
+            std::cerr << "[GPU] Change Graphics preference to high performance or choose a discrete adapter.\n";
             return false;
         }
 
@@ -375,6 +451,11 @@ namespace {
 
         int frameCount = 0;
         double fpsTimer = 0.0;
+        double perfAccumFrameMs = 0.0;
+        double perfAccumFixedMs = 0.0;
+        double perfAccumRenderMs = 0.0;
+        double perfAccumSwapMs = 0.0;
+        int perfAccumFixedTicks = 0;
 
         while (running) {
             SDL_Event sdlEvent;
@@ -415,24 +496,68 @@ namespace {
 
             accumulator += frameDt;
 
+            const auto frameCpuStart = clock::now();
+            const auto fixedStart = frameCpuStart;
+            int fixedTicksThisFrame = 0;
             while (accumulator >= TIME_STEP) {
                 game.fixedUpdate(TIME_STEP);
                 accumulator -= TIME_STEP;
+                ++fixedTicksThisFrame;
             }
+            const auto fixedEnd = clock::now();
 
+            const auto renderStart = fixedEnd;
             glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
             game.render(drawableW, drawableH);
+            const auto renderEnd = clock::now();
 
             swapBuffers();
+            const auto swapEnd = clock::now();
+
+            const double fixedMs = std::chrono::duration<double, std::milli>(fixedEnd - fixedStart).count();
+            const double renderMs = std::chrono::duration<double, std::milli>(renderEnd - renderStart).count();
+            const double swapMs = std::chrono::duration<double, std::milli>(swapEnd - renderEnd).count();
+            const double frameCpuMs = std::chrono::duration<double, std::milli>(swapEnd - frameCpuStart).count();
 
             frameCount++;
             fpsTimer += frameDt;
+            perfAccumFrameMs += frameCpuMs;
+            perfAccumFixedMs += fixedMs;
+            perfAccumRenderMs += renderMs;
+            perfAccumSwapMs += swapMs;
+            perfAccumFixedTicks += fixedTicksThisFrame;
             if (fpsTimer >= 1.0) {
-                std::cout << "[FPS] " << frameCount << "\n";
+                const double frames = std::max(1, frameCount);
+                const double fps = static_cast<double>(frameCount) / fpsTimer;
+                const double avgFrameMs = perfAccumFrameMs / frames;
+                const double avgFixedMs = perfAccumFixedMs / frames;
+                const double avgRenderMs = perfAccumRenderMs / frames;
+                const double avgSwapMs = perfAccumSwapMs / frames;
+                const int avgFixedTicks = static_cast<int>(std::lround(static_cast<double>(perfAccumFixedTicks) / frames));
+
+                services.framePerf.fps = static_cast<float>(fps);
+                services.framePerf.frameMs = static_cast<float>(avgFrameMs);
+                services.framePerf.fixedMs = static_cast<float>(avgFixedMs);
+                services.framePerf.renderMs = static_cast<float>(avgRenderMs);
+                services.framePerf.swapMs = static_cast<float>(avgSwapMs);
+                services.framePerf.fixedTicks = avgFixedTicks;
+
+                std::cout << std::fixed << std::setprecision(1)
+                          << "[Perf] FPS=" << fps
+                          << " frame=" << avgFrameMs << "ms"
+                          << " fixed=" << avgFixedMs << "ms"
+                          << " render=" << avgRenderMs << "ms"
+                          << " swap=" << avgSwapMs << "ms"
+                          << " ticks=" << avgFixedTicks << "\n";
                 frameCount = 0;
                 fpsTimer = 0.0;
+                perfAccumFrameMs = 0.0;
+                perfAccumFixedMs = 0.0;
+                perfAccumRenderMs = 0.0;
+                perfAccumSwapMs = 0.0;
+                perfAccumFixedTicks = 0;
             }
         }
 

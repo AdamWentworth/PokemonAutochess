@@ -5,9 +5,20 @@
 // without exposing global singletons in game code.
 //
 // Batch scope: ResourceManager + ShaderCache (+ Events).
+#include <string>
+
 class ResourceManager;
 class ShaderCache;
 class EventBus;
+
+struct EngineFramePerfStats {
+    float fps = 0.0f;
+    float frameMs = 0.0f;
+    float fixedMs = 0.0f;
+    float renderMs = 0.0f;
+    float swapMs = 0.0f;
+    int fixedTicks = 0;
+};
 
 struct EngineServices {
     ResourceManager* resources = nullptr;
@@ -15,4 +26,17 @@ struct EngineServices {
 
     // Engine-owned event bus (no singleton wrapper).
     EventBus* events = nullptr;
+
+    // Updated by host loop each second (debug/perf overlay + logging).
+    EngineFramePerfStats framePerf;
+
+    // Render backend + GPU diagnostics.
+    std::string requestedRendererBackend = "auto";
+    std::string activeRendererBackend = "opengl";
+    bool rendererBackendFallback = false;
+    std::string rendererBackendFallbackReason;
+    std::string gpuVendor;
+    std::string gpuRenderer;
+    bool gpuDiscrete = false;
+    bool requireDiscreteGpu = false;
 };

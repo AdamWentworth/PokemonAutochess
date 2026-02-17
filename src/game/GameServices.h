@@ -43,6 +43,14 @@ struct GameServices {
     std::function<VideoMode()> queryVideoMode;
     std::function<void()> requestQuit;
 
+    std::string requestedRendererBackend = "auto";
+    std::string activeRendererBackend = "opengl";
+    bool rendererBackendFallback = false;
+    std::string gpuVendor;
+    std::string gpuRenderer;
+    bool gpuDiscrete = false;
+    bool requireDiscreteGpu = false;
+
     GameServices(const GameConfigData& cfg,
                  GameDataDb& db,
                  LogBus::Logger& logger,

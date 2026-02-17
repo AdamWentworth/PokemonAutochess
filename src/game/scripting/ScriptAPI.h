@@ -41,6 +41,13 @@ public:
     void setHasStartedGame(bool started);
     bool setVideoMode(int width, int height, bool fullscreen);
     GameServices::VideoMode getVideoMode() const;
+    std::string getRendererBackendPreference() const;
+    bool setRendererBackendPreference(const std::string& backend);
+    bool getRequireDiscreteGpuPreference() const;
+    bool setRequireDiscreteGpuPreference(bool required);
+    std::string getActiveRendererBackend() const;
+    std::string getActiveGpuRenderer() const;
+    bool isActiveGpuDiscrete() const;
     void requestQuit();
     void startNewGame(const std::string& mode);
     struct ClassicIncomeResult {

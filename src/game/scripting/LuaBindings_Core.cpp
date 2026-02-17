@@ -144,6 +144,27 @@ void registerLuaBindings_Core(sol::state& lua, ScriptAPI& api) {
         t["fullscreen"] = vm.fullscreen;
         return t;
     });
+    lua.set_function("get_renderer_backend_pref", [&api]() {
+        return api.getRendererBackendPreference();
+    });
+    lua.set_function("set_renderer_backend_pref", [&api](const std::string& backend) {
+        return api.setRendererBackendPreference(backend);
+    });
+    lua.set_function("get_require_discrete_gpu_pref", [&api]() {
+        return api.getRequireDiscreteGpuPreference();
+    });
+    lua.set_function("set_require_discrete_gpu_pref", [&api](bool required) {
+        return api.setRequireDiscreteGpuPreference(required);
+    });
+    lua.set_function("get_active_renderer_backend", [&api]() {
+        return api.getActiveRendererBackend();
+    });
+    lua.set_function("get_active_gpu_renderer", [&api]() {
+        return api.getActiveGpuRenderer();
+    });
+    lua.set_function("is_active_gpu_discrete", [&api]() {
+        return api.isActiveGpuDiscrete();
+    });
     lua.set_function("request_quit", [&api]() {
         api.requestQuit();
     });

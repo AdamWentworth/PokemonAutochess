@@ -213,6 +213,7 @@ add_library(PAC_GameObjects STATIC
     src/game/runtime/GameBootstrap.cpp
     src/game/runtime/GameSession.cpp
     src/game/runtime/GameUpdateGraph.cpp
+    src/game/runtime/VideoPreferences.cpp
 
     # Game Config
     src/game/config/PokemonConfigLoader.cpp
@@ -319,6 +320,7 @@ if (BUILD_TESTING)
         tests/TestECS.cpp
         tests/TestDeterminism.cpp
         tests/TestEnvironment.cpp
+        tests/TestVideoPreferences.cpp
         tests/TestContentValidation.cpp
         tests/TestBattleInvariants.cpp
         tests/TestEndToEnd.cpp

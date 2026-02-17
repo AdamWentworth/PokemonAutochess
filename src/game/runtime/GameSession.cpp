@@ -7,6 +7,8 @@
 #include <cctype>
 #include <random>
 #include <algorithm>
+#include <iomanip>
+#include <sstream>
 
 #include "engine/core/GameContext.h"
 #include "engine/core/EngineServices.h"
@@ -63,6 +65,7 @@ namespace game {
 struct GameSession::Impl {
     // Pointers (engine-owned)
     Camera3D* camera = nullptr;
+    EngineServices* engineServices = nullptr;
 
     // Injected db (owned; loader instances).
     GameDataDb dataDb;
@@ -101,6 +104,7 @@ struct GameSession::Impl {
     GameUpdateGraph updateGraph;
 
     bool renderEnabled = false;
+    bool showPerfOverlay = true;
     bool devPauseWorld = false;
     int devPauseStepTicks = 0;
 
@@ -117,7 +121,11 @@ struct GameSession::Impl {
 
     void init(GameContext& ctx) {
         camera = ctx.camera;
+        engineServices = ctx.services;
         renderEnabled = (ctx.renderer != nullptr) && (ctx.camera != nullptr);
+        if (engine::env::get("PAC_SHOW_PERF_OVERLAY").has_value()) {
+            showPerfOverlay = engine::env::flagEnabled("PAC_SHOW_PERF_OVERLAY");
+        }
         viewport.set(ctx.drawableW, ctx.drawableH);
 
         const std::string packPath = engine::paths::dataPack();
@@ -164,6 +172,15 @@ struct GameSession::Impl {
                                                   &ecsWorld, roundPhaseEntity, &viewport, renderEnabled);
         services->applyVideoMode = ctx.applyVideoMode;
         services->requestQuit = ctx.requestQuit;
+        if (ctx.services) {
+            services->requestedRendererBackend = ctx.services->requestedRendererBackend;
+            services->activeRendererBackend = ctx.services->activeRendererBackend;
+            services->rendererBackendFallback = ctx.services->rendererBackendFallback;
+            services->gpuVendor = ctx.services->gpuVendor;
+            services->gpuRenderer = ctx.services->gpuRenderer;
+            services->gpuDiscrete = ctx.services->gpuDiscrete;
+            services->requireDiscreteGpu = ctx.services->requireDiscreteGpu;
+        }
         if (ctx.queryVideoMode) {
             services->queryVideoMode = [q = ctx.queryVideoMode]() {
                 auto vm = q();
@@ -409,7 +426,6 @@ struct GameSession::Impl {
             if (board && gameWorld) {
                 board->setCellSize(gameWorld->getBoardCellSize());
             }
-            if (board && camera) board->draw(*camera);
             if (gameWorld && camera && board) gameWorld->drawAll(*camera, *board);
             if (gameWorld && camera) {
                 auto healthBarData = gameWorld->getHealthBarData(*camera, drawableW, drawableH);
@@ -499,6 +515,35 @@ struct GameSession::Impl {
                         y += typeBonusText->measureTextHeight(rowScale) + 3.0f;
                     }
                 }
+            }
+        }
+
+        if (showPerfOverlay && typeBonusText && engineServices) {
+            const EngineFramePerfStats& perf = engineServices->framePerf;
+            if (perf.fps > 0.0f) {
+                std::ostringstream line1;
+                line1 << std::fixed << std::setprecision(1)
+                      << "FPS " << perf.fps
+                      << "  frame " << perf.frameMs << "ms"
+                      << "  fixed " << perf.fixedMs << "ms"
+                      << "  render " << perf.renderMs << "ms"
+                      << "  swap " << perf.swapMs << "ms";
+
+                const std::string stats = line1.str();
+                const std::string ticks = "ticks " + std::to_string(perf.fixedTicks);
+
+                const float scale = 0.34f;
+                const float xPad = std::round(std::max(10.0f, static_cast<float>(drawableW) * 0.012f));
+                const float yPad = std::round(std::max(10.0f, static_cast<float>(drawableH) * 0.020f));
+
+                const float statsW = typeBonusText->measureTextWidth(stats, scale);
+                const float statsX = std::max(8.0f, static_cast<float>(drawableW) - statsW - xPad);
+                typeBonusText->renderText(stats, statsX, yPad, glm::vec3(0.96f, 0.96f, 0.65f), scale);
+
+                const float ticksW = typeBonusText->measureTextWidth(ticks, scale);
+                const float ticksX = std::max(8.0f, static_cast<float>(drawableW) - ticksW - xPad);
+                const float ticksY = yPad + typeBonusText->measureTextHeight(scale) + 2.0f;
+                typeBonusText->renderText(ticks, ticksX, ticksY, glm::vec3(0.86f, 0.93f, 0.98f), scale);
             }
         }
     }

@@ -8,6 +8,8 @@
 
 #include "game/config/GameDataDb.h"
 #include "game/config/PokemonConfigLoader.h"
+#include "game/runtime/VideoPreferences.h"
+#include "game/logging/LoggerUtil.h"
 
 #include "LuaBindings_Internal.h"
 
@@ -76,6 +78,59 @@ bool ScriptAPI::setVideoMode(int width, int height, bool fullscreen) {
 GameServices::VideoMode ScriptAPI::getVideoMode() const {
     if (services_.queryVideoMode) return services_.queryVideoMode();
     return {};
+}
+
+std::string ScriptAPI::getRendererBackendPreference() const {
+    return services_.requestedRendererBackend;
+}
+
+bool ScriptAPI::setRendererBackendPreference(const std::string& backend) {
+    if (!game::video::isKnownRendererBackendToken(backend)) return false;
+
+    services_.requestedRendererBackend =
+        game::video::rendererBackendName(game::video::parseRendererBackend(backend));
+
+    game::video::Preferences prefs = game::video::loadPreferences();
+    prefs.rendererBackend = services_.requestedRendererBackend;
+    prefs.requireDiscreteGpu = services_.requireDiscreteGpu;
+
+    std::string err;
+    if (!game::video::savePreferences(prefs, game::video::defaultPreferencesPath(), &err)) {
+        game::log::warn(&services_.log, std::string("[Video] Failed to save renderer backend preference: ") + err);
+        return false;
+    }
+    return true;
+}
+
+bool ScriptAPI::getRequireDiscreteGpuPreference() const {
+    return services_.requireDiscreteGpu;
+}
+
+bool ScriptAPI::setRequireDiscreteGpuPreference(bool required) {
+    services_.requireDiscreteGpu = required;
+
+    game::video::Preferences prefs = game::video::loadPreferences();
+    prefs.rendererBackend = services_.requestedRendererBackend;
+    prefs.requireDiscreteGpu = services_.requireDiscreteGpu;
+
+    std::string err;
+    if (!game::video::savePreferences(prefs, game::video::defaultPreferencesPath(), &err)) {
+        game::log::warn(&services_.log, std::string("[Video] Failed to save discrete GPU preference: ") + err);
+        return false;
+    }
+    return true;
+}
+
+std::string ScriptAPI::getActiveRendererBackend() const {
+    return services_.activeRendererBackend;
+}
+
+std::string ScriptAPI::getActiveGpuRenderer() const {
+    return services_.gpuRenderer;
+}
+
+bool ScriptAPI::isActiveGpuDiscrete() const {
+    return services_.gpuDiscrete;
 }
 
 void ScriptAPI::requestQuit() {
