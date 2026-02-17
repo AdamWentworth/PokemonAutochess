@@ -540,6 +540,14 @@ struct GameSession::Impl {
         quads.reserve(1024);
         std::vector<IRenderBackend::DebugLine> lines;
         lines.reserve(512);
+        struct BackendUnitLabel {
+            float x = 0.0f;
+            float y = 0.0f;
+            std::string text;
+            glm::vec3 color{1.0f, 1.0f, 1.0f};
+        };
+        std::vector<BackendUnitLabel> unitLabels;
+        unitLabels.reserve(64);
 
         const int rows = std::max(1, config.rows);
         const int cols = std::max(1, config.cols);
@@ -551,16 +559,17 @@ struct GameSession::Impl {
         const float cellW = boardW / static_cast<float>(cols);
         const float cellH = boardH / static_cast<float>(rows);
 
-        if (renderWorld) {
+        const bool showWorldBackdrop = renderWorld || (services && services->activeRendererBackend != "opengl");
+        if (showWorldBackdrop) {
             IRenderBackend::DebugQuad boardBg;
             boardBg.x = boardX;
             boardBg.y = boardY;
             boardBg.w = boardW;
             boardBg.h = boardH;
-            boardBg.r = 0.10f;
-            boardBg.g = 0.16f;
-            boardBg.b = 0.20f;
-            boardBg.a = 1.0f;
+            boardBg.r = renderWorld ? 0.10f : 0.08f;
+            boardBg.g = renderWorld ? 0.16f : 0.10f;
+            boardBg.b = renderWorld ? 0.20f : 0.14f;
+            boardBg.a = renderWorld ? 1.0f : 0.90f;
             quads.push_back(boardBg);
 
             const float line = std::max(1.0f, minDim * 0.002f);
@@ -571,9 +580,9 @@ struct GameSession::Impl {
                 vLine.x2 = vLine.x1;
                 vLine.y2 = boardY + boardH;
                 vLine.thickness = line;
-                vLine.r = 0.22f;
-                vLine.g = 0.33f;
-                vLine.b = 0.40f;
+                vLine.r = renderWorld ? 0.24f : 0.18f;
+                vLine.g = renderWorld ? 0.36f : 0.23f;
+                vLine.b = renderWorld ? 0.45f : 0.30f;
                 vLine.a = 1.0f;
                 lines.push_back(vLine);
             }
@@ -584,14 +593,14 @@ struct GameSession::Impl {
                 hLine.x2 = boardX + boardW;
                 hLine.y2 = hLine.y1;
                 hLine.thickness = line;
-                hLine.r = 0.22f;
-                hLine.g = 0.33f;
-                hLine.b = 0.40f;
+                hLine.r = renderWorld ? 0.24f : 0.18f;
+                hLine.g = renderWorld ? 0.36f : 0.23f;
+                hLine.b = renderWorld ? 0.45f : 0.30f;
                 hLine.a = 1.0f;
                 lines.push_back(hLine);
             }
 
-            if (gameWorld) {
+            if (renderWorld && gameWorld) {
                 const float worldCellSize = gameWorld->getBoardCellSize();
                 const auto& units = gameWorld->getPokemons();
                 for (const auto& unit : units) {
@@ -632,6 +641,18 @@ struct GameSession::Impl {
                     }
                     u.a = 1.0f;
                     quads.push_back(u);
+
+                    BackendUnitLabel label;
+                    label.x = std::max(6.0f, u.x);
+                    label.y = std::max(4.0f, u.y - 14.0f);
+                    label.text = unit.name;
+                    if (!label.text.empty()) {
+                        label.text[0] = static_cast<char>(std::toupper(static_cast<unsigned char>(label.text[0])));
+                    }
+                    label.color = (unit.side == PokemonSide::Player)
+                        ? glm::vec3(0.84f, 0.98f, 0.88f)
+                        : glm::vec3(0.98f, 0.84f, 0.80f);
+                    unitLabels.push_back(std::move(label));
 
                     const float hpRatio = std::clamp(
                         static_cast<float>(std::max(0, unit.hp)) /
@@ -847,9 +868,15 @@ struct GameSession::Impl {
         }
         appendText(20.0f,
                    74.0f,
-                   runtime::backend_status_text::roundLine(roundPhase, combatActive),
-                   1.0f,
-                   glm::vec3(0.83f, 0.91f, 0.98f));
+                       runtime::backend_status_text::roundLine(roundPhase, combatActive),
+                       1.0f,
+                       glm::vec3(0.83f, 0.91f, 0.98f));
+
+        if (!unitLabels.empty()) {
+            for (const auto& label : unitLabels) {
+                appendText(label.x, label.y, label.text, 0.80f, label.color);
+            }
+        }
 
         int playerAlive = 0;
         int enemyAlive = 0;

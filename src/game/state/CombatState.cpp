@@ -3,6 +3,7 @@
 #include "game/GameWorld.h"
 #include "game/GameServices.h"
 #include "game/logging/LoggerUtil.h"
+#include "game/runtime/BackendCardVisuals.h"
 #include "game/runtime/BackendDebugText.h"
 #include "game/runtime/BackendSellOverlayModel.h"
 #include "game/runtime/BackendShopHudModel.h"
@@ -186,44 +187,26 @@ void CombatState::renderBackendShopUi(int uiW, int uiH, bool showSellOverlay, co
         for (std::size_t i = 0; i < backendShopButtons.size(); ++i) {
             const auto& button = backendShopButtons[i];
 
-            IRenderBackend::DebugQuad panel;
-            panel.x = button.x;
-            panel.y = button.y;
-            panel.w = button.w;
-            panel.h = button.h;
-            panel.r = (button.data.type == CardType::Item) ? 0.26f : 0.14f;
-            panel.g = (button.data.type == CardType::Item) ? 0.20f : 0.20f;
-            panel.b = (button.data.type == CardType::Item) ? 0.10f : 0.28f;
-            panel.a = 0.92f;
-            quads.push_back(panel);
-
-            IRenderBackend::DebugQuad border;
-            border.x = button.x + 1.0f;
-            border.y = button.y + 1.0f;
-            border.w = std::max(0.0f, button.w - 2.0f);
-            border.h = std::max(0.0f, button.h - 2.0f);
-            border.r = 0.06f;
-            border.g = 0.07f;
-            border.b = 0.10f;
-            border.a = 0.40f;
-            quads.push_back(border);
-
             const int slot = game::state::backend_shop::keyboardSlotFor(
                 backendShopSnapshot,
                 game::state::backend_shop::ActionType::ShopCard,
                 i);
-            const std::string label = button.data.label.empty() ? button.data.pokemonName : button.data.label;
-            appendText(button.x + 8.0f,
-                       button.y + 8.0f,
-                       game::runtime::backend_shop_hud::keyboardPrefixedLabel(slot, label),
-                       0.78f,
-                       0.97f,
-                       0.97f,
-                       0.99f);
+            const std::string label = button.data.label.empty()
+                ? button.data.pokemonName
+                : button.data.label;
 
             std::string sub = "Lv " + std::to_string(std::max(1, button.data.level));
             sub += "  Cost " + std::to_string(std::max(0, button.data.cost)) + "g";
-            appendText(button.x + 8.0f, button.y + std::max(16.0f, button.h - 24.0f), sub, 0.70f, 0.83f, 0.90f, 0.96f);
+            game::runtime::backend_cards::CardVisualInput visual;
+            visual.x = button.x;
+            visual.y = button.y;
+            visual.w = button.w;
+            visual.h = button.h;
+            visual.title = label;
+            visual.subtitle = sub;
+            visual.keyboardSlot = slot;
+            visual.item = (button.data.type == CardType::Item);
+            game::runtime::backend_cards::appendStylizedCard(quads, visual, 0.86f);
         }
     }
 

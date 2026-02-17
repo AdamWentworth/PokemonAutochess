@@ -5,6 +5,7 @@
 #include "game/scripting/LuaCardParser.h"
 #include "game/scripting/LuaScriptHelpers.h"
 #include "game/scripting/LuaTextMenuParser.h"
+#include "game/runtime/BackendCardVisuals.h"
 #include "game/runtime/BackendDebugText.h"
 #include "game/runtime/BackendSellOverlayModel.h"
 #include "game/runtime/BackendShopHudModel.h"
@@ -518,60 +519,22 @@ void ScriptedState::renderBackendCardUi(int uiW, int uiH) {
                                 bool itemRow) {
         for (std::size_t i = 0; i < row.size(); ++i) {
             const auto& card = row[i];
-            IRenderBackend::DebugQuad panel;
-            panel.x = card.x;
-            panel.y = card.y;
-            panel.w = card.w;
-            panel.h = card.h;
-            if (itemRow || card.item) {
-                panel.r = 0.26f;
-                panel.g = 0.20f;
-                panel.b = 0.10f;
-            } else {
-                panel.r = 0.14f;
-                panel.g = 0.20f;
-                panel.b = 0.28f;
-            }
-            panel.a = 0.92f;
-            quads.push_back(panel);
-
-            IRenderBackend::DebugQuad border;
-            border.x = card.x + 1.0f;
-            border.y = card.y + 1.0f;
-            border.w = std::max(0.0f, card.w - 2.0f);
-            border.h = std::max(0.0f, card.h - 2.0f);
-            border.r = 0.06f;
-            border.g = 0.07f;
-            border.b = 0.10f;
-            border.a = 0.40f;
-            quads.push_back(border);
-
             const std::string name = card.data.label.empty() ? card.data.pokemonName : card.data.label;
             const int slot = game::state::backend_shop::keyboardSlotFor(backendShopSnapshot, action, i);
-            const std::string indexed = game::runtime::backend_shop_hud::keyboardPrefixedLabel(slot, name);
-            game::runtime::backend_text::appendTextQuads(quads,
-                                    card.x + 8.0f,
-                                    card.y + 8.0f,
-                                    indexed,
-                                    1.0f,
-                                    0.97f,
-                                    0.97f,
-                                    0.99f,
-                                    1.0f);
-
             std::string sub = "Lv " + std::to_string(std::max(1, card.data.level));
             if (cardMode == CardMode::Shop) {
                 sub += "  Cost " + std::to_string(std::max(0, card.data.cost)) + "g";
             }
-            game::runtime::backend_text::appendTextQuads(quads,
-                                    card.x + 8.0f,
-                                    card.y + std::max(16.0f, card.h - 24.0f),
-                                    sub,
-                                    0.9f,
-                                    0.83f,
-                                    0.90f,
-                                    0.96f,
-                                    1.0f);
+            game::runtime::backend_cards::CardVisualInput visual;
+            visual.x = card.x;
+            visual.y = card.y;
+            visual.w = card.w;
+            visual.h = card.h;
+            visual.title = name;
+            visual.subtitle = sub;
+            visual.keyboardSlot = slot;
+            visual.item = itemRow || card.item;
+            game::runtime::backend_cards::appendStylizedCard(quads, visual, 0.86f);
         }
     };
 

@@ -336,6 +336,7 @@ if (BUILD_TESTING)
         tests/TestBackendInventoryOverlay.cpp
         tests/TestBackendInventoryPanel.cpp
         tests/TestBackendCardLayoutModel.cpp
+        tests/TestBackendCardVisuals.cpp
         tests/TestBackendShopHudModel.cpp
         tests/TestBackendSellOverlayModel.cpp
         tests/TestBackendStatusText.cpp

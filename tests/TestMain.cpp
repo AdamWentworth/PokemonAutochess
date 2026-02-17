@@ -22,6 +22,7 @@ bool test_backend_world_projection_contract(std::string& outFail);
 bool test_backend_inventory_overlay_contract(std::string& outFail);
 bool test_backend_inventory_panel_contract(std::string& outFail);
 bool test_backend_card_layout_model_contract(std::string& outFail);
+bool test_backend_card_visuals_contract(std::string& outFail);
 bool test_backend_shop_hud_model_contract(std::string& outFail);
 bool test_backend_sell_overlay_model_contract(std::string& outFail);
 bool test_backend_status_text_contract(std::string& outFail);
@@ -144,6 +145,7 @@ int main(int argc, char** argv) {
         {"backend_inventory_overlay_contract", &test_backend_inventory_overlay_contract},
         {"backend_inventory_panel_contract", &test_backend_inventory_panel_contract},
         {"backend_card_layout_model_contract", &test_backend_card_layout_model_contract},
+        {"backend_card_visuals_contract", &test_backend_card_visuals_contract},
         {"backend_shop_hud_model_contract", &test_backend_shop_hud_model_contract},
         {"backend_sell_overlay_model_contract", &test_backend_sell_overlay_model_contract},
         {"backend_status_text_contract", &test_backend_status_text_contract},
