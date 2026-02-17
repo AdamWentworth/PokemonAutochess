@@ -6,6 +6,24 @@ bool test_backend_ui_sell_overlay_policy(std::string& outFail) {
     using game::state::backend_ui::computeSellOverlayHitLayout;
     using game::state::backend_ui::computeSellOverlayOuterLayout;
     using game::state::backend_ui::shouldShowSellOverlay;
+    using game::state::backend_ui::shouldUseBackendUi;
+
+    if (!shouldUseBackendUi(true, "d3d12")) {
+        outFail = "backend ui policy should allow d3d12";
+        return false;
+    }
+    if (!shouldUseBackendUi(true, "D3D12")) {
+        outFail = "backend ui policy should be case-insensitive";
+        return false;
+    }
+    if (shouldUseBackendUi(true, "opengl")) {
+        outFail = "backend ui policy should disable opengl";
+        return false;
+    }
+    if (shouldUseBackendUi(false, "d3d12")) {
+        outFail = "backend ui policy should require renderer availability";
+        return false;
+    }
 
     if (shouldShowSellOverlay(false, true, true, 3)) {
         outFail = "sell overlay should require shop mode";

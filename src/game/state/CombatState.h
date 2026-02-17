@@ -2,8 +2,10 @@
 
 #include "game/GameState.h"
 #include "game/GameServices.h"
+#include "game/state/BackendShopSnapshot.h"
 #include "game/scripting/LuaScript.h"
 #include "game/ui/ShopUiFacade.h"
+#include "engine/input/InputEvent.h"
 #include "engine/ui/Card.h"
 
 #include <memory>
@@ -27,6 +29,21 @@ public:
     void render() override;
 
 private:
+    struct BackendCardButton {
+        CardData data;
+        float x = 0.0f;
+        float y = 0.0f;
+        float w = 0.0f;
+        float h = 0.0f;
+    };
+
+    bool shouldUseBackendShopUi() const;
+    void rebuildBackendShopUi(const std::vector<CardData>& cards, int uiW, int uiH);
+    void refreshBackendShopSnapshot();
+    bool invokeBackendShopEntry(const game::state::backend_shop::Entry& entry);
+    bool tryHandleBackendShopKey(InputEvent::Key keyId);
+    bool handleBackendShopMouseClick(int mouseX, int mouseY);
+    void renderBackendShopUi(int uiW, int uiH, bool showSellOverlay, const std::string& header);
     void ensureShopUi();
     void rebuildShopCards();
     void drawShopHud(int uiW, int uiH, bool showSellOverlay);
@@ -46,6 +63,12 @@ private:
     bool shopUiEnabled = false;
     bool shopUiInitialized = false;
     bool hasShopRerollButton = false;
+    std::vector<BackendCardButton> backendShopButtons;
+    std::vector<game::state::backend_shop::Entry> backendShopSnapshot;
+    float backendRerollX = 0.0f;
+    float backendRerollY = 0.0f;
+    float backendRerollW = 0.0f;
+    float backendRerollH = 0.0f;
 
     bool combatStarted = false;
     bool postCombatHoldActive = false;

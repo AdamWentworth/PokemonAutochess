@@ -55,7 +55,9 @@ ScriptedState::ScriptedState(GameStateManager* manager, GameWorld* world, GameSe
 ScriptedState::~ScriptedState() = default;
 
 bool ScriptedState::shouldUseBackendCardUi() const {
-    return (services.renderer != nullptr) && (services.activeRendererBackend != "opengl");
+    return game::state::backend_ui::shouldUseBackendUi(
+        services.renderer != nullptr,
+        services.activeRendererBackend);
 }
 
 void ScriptedState::rebuildCardRow() {
