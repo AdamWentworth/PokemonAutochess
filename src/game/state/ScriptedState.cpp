@@ -515,6 +515,8 @@ void ScriptedState::renderBackendCardUi(int uiW, int uiH) {
         hasWorld && gameWorld->isUnitDragActive(),
         dropZoneCardCount);
 
+    refreshBackendShopSnapshot();
+
     const auto addButton = [&](float x,
                                float y,
                                const std::string& label,
@@ -574,9 +576,18 @@ void ScriptedState::renderBackendCardUi(int uiW, int uiH) {
     shopReadyW = 0.0f;
     shopReadyH = 0.0f;
 
-    int keyboardSlot = 1;
-    const auto addCardRow = [&](const std::vector<BackendCardButton>& row, bool itemRow) {
-        for (const auto& card : row) {
+    const auto prefixedLabel = [&](int slot, const std::string& label) {
+        if (slot > 0 && slot <= 9) {
+            return "[" + std::to_string(slot) + "] " + label;
+        }
+        return label;
+    };
+
+    const auto addCardRow = [&](const std::vector<BackendCardButton>& row,
+                                game::state::backend_shop::ActionType action,
+                                bool itemRow) {
+        for (std::size_t i = 0; i < row.size(); ++i) {
+            const auto& card = row[i];
             IRenderBackend::DebugQuad panel;
             panel.x = card.x;
             panel.y = card.y;
@@ -606,7 +617,8 @@ void ScriptedState::renderBackendCardUi(int uiW, int uiH) {
             quads.push_back(border);
 
             const std::string name = card.data.label.empty() ? card.data.pokemonName : card.data.label;
-            const std::string indexed = "[" + std::to_string(keyboardSlot) + "] " + name;
+            const int slot = game::state::backend_shop::keyboardSlotFor(backendShopSnapshot, action, i);
+            const std::string indexed = prefixedLabel(slot, name);
             appendEasyFontTextQuads(quads,
                                     card.x + 8.0f,
                                     card.y + 8.0f,
@@ -630,13 +642,16 @@ void ScriptedState::renderBackendCardUi(int uiW, int uiH) {
                                     0.90f,
                                     0.96f,
                                     1.0f);
-            ++keyboardSlot;
         }
     };
 
-    addCardRow(backendMainButtons, /*itemRow=*/false);
+    addCardRow(
+        backendMainButtons,
+        isShopMode ? game::state::backend_shop::ActionType::ShopCard
+                   : game::state::backend_shop::ActionType::StarterCard,
+        /*itemRow=*/false);
     if (game::ui::sell_overlay::shouldRenderItemRow(hasShopItems, showSellOverlay)) {
-        addCardRow(backendItemButtons, /*itemRow=*/true);
+        addCardRow(backendItemButtons, game::state::backend_shop::ActionType::ItemCard, /*itemRow=*/true);
     }
 
     if (showSellOverlay && hasWorld) {
@@ -703,16 +718,23 @@ void ScriptedState::renderBackendCardUi(int uiW, int uiH) {
             const float buttonTextY = 96.0f;
             float buttonW = 0.0f;
             float buttonH = 0.0f;
-            addButton(buttonTextX, buttonTextY, "[" + std::to_string(keyboardSlot) + "] Reroll 2g", 1.0f,
+            const int rerollSlot = game::state::backend_shop::keyboardSlotFor(
+                backendShopSnapshot,
+                game::state::backend_shop::ActionType::ShopReroll,
+                0);
+            addButton(buttonTextX, buttonTextY, prefixedLabel(rerollSlot, "Reroll 2g"), 1.0f,
                       0.20f, 0.16f, 0.08f, &buttonW, &buttonH);
             backendRerollX = buttonTextX - std::max(8.0f, kBackendTextScaleBase * 4.0f);
             backendRerollY = buttonTextY - std::max(5.0f, kBackendTextScaleBase * 2.5f);
             backendRerollW = buttonW;
             backendRerollH = buttonH;
-            ++keyboardSlot;
         }
         if (hasShopReadyButton) {
-            const std::string readyLabel = "[" + std::to_string(keyboardSlot) + "] Ready";
+            const int readySlot = game::state::backend_shop::keyboardSlotFor(
+                backendShopSnapshot,
+                game::state::backend_shop::ActionType::ShopReady,
+                0);
+            const std::string readyLabel = prefixedLabel(readySlot, "Ready");
             const float textScale = 1.0f * kBackendTextScaleBase;
             const int baseW = stb_easy_font_width(const_cast<char*>(readyLabel.c_str()));
             const float textW = std::max(1.0f, static_cast<float>(baseW) * textScale);
@@ -727,10 +749,10 @@ void ScriptedState::renderBackendCardUi(int uiW, int uiH) {
             shopReadyY = textY - padY;
             shopReadyW = buttonW;
             shopReadyH = buttonH;
-            ++keyboardSlot;
         }
     }
 
+    // Rebuild once after reroll/ready rects are known so mouse hit-testing stays in sync.
     refreshBackendShopSnapshot();
 
     appendEasyFontTextQuads(quads, 26.0f, static_cast<float>(uiH) - 36.0f,

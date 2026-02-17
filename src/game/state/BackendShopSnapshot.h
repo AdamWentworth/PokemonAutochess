@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstddef>
+#include <string>
 #include <vector>
 
 namespace game::state::backend_shop {
@@ -83,6 +84,24 @@ inline const Entry* findByKeyboardSlot(const std::vector<Entry>& entries, int ke
         if (entry.keyboardSlot == keyboardSlot) return &entry;
     }
     return nullptr;
+}
+
+inline const Entry* findByAction(const std::vector<Entry>& entries,
+                                 ActionType action,
+                                 std::size_t sourceIndex = 0) {
+    for (const Entry& entry : entries) {
+        if (entry.action != action) continue;
+        if (entry.sourceIndex != sourceIndex) continue;
+        return &entry;
+    }
+    return nullptr;
+}
+
+inline int keyboardSlotFor(const std::vector<Entry>& entries,
+                           ActionType action,
+                           std::size_t sourceIndex = 0) {
+    const Entry* entry = findByAction(entries, action, sourceIndex);
+    return entry ? entry->keyboardSlot : 0;
 }
 
 inline const Entry* findByPoint(const std::vector<Entry>& entries, float x, float y) {

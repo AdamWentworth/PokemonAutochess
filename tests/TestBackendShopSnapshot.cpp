@@ -8,8 +8,10 @@ bool test_backend_shop_snapshot_contract(std::string& outFail) {
     using game::state::backend_shop::BuildInput;
     using game::state::backend_shop::Entry;
     using game::state::backend_shop::buildEntries;
+    using game::state::backend_shop::findByAction;
     using game::state::backend_shop::findByKeyboardSlot;
     using game::state::backend_shop::findByPoint;
+    using game::state::backend_shop::keyboardSlotFor;
 
     {
         BuildInput in;
@@ -49,6 +51,16 @@ bool test_backend_shop_snapshot_contract(std::string& outFail) {
             outFail = "ready entry slot mismatch";
             return false;
         }
+
+        const Entry* reroll = findByAction(entries, ActionType::ShopReroll, 0);
+        if (!reroll || reroll->keyboardSlot != 6) {
+            outFail = "findByAction should locate reroll action entry";
+            return false;
+        }
+        if (keyboardSlotFor(entries, ActionType::ShopReady, 0) != 7) {
+            outFail = "keyboardSlotFor ready action mismatch";
+            return false;
+        }
     }
 
     {
@@ -72,6 +84,10 @@ bool test_backend_shop_snapshot_contract(std::string& outFail) {
             outFail = "ready slot should shift when item row is hidden";
             return false;
         }
+        if (keyboardSlotFor(entries, ActionType::ItemCard, 0) != 0) {
+            outFail = "keyboardSlotFor should return zero when item row is omitted";
+            return false;
+        }
     }
 
     {
@@ -85,6 +101,10 @@ bool test_backend_shop_snapshot_contract(std::string& outFail) {
         }
         if (entries[0].action != ActionType::StarterCard || entries[1].action != ActionType::StarterCard) {
             outFail = "starter snapshot action kind mismatch";
+            return false;
+        }
+        if (keyboardSlotFor(entries, ActionType::StarterCard, 1) != 2) {
+            outFail = "starter keyboard slot mapping mismatch";
             return false;
         }
     }
