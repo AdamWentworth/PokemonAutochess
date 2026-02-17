@@ -9,6 +9,7 @@
 #include "engine/core/ecs/Entity.h"
 #include <functional>
 #include <string>
+#include <vector>
 
 // Forward decls (keep headers light)
 struct GameDataDb;
@@ -48,6 +49,8 @@ struct GameServices {
     bool rendererBackendFallback = false;
     std::string gpuVendor;
     std::string gpuRenderer;
+    std::vector<std::string> availableGpuAdapters;
+    std::string preferredGpuAdapter;
     bool gpuDiscrete = false;
     bool requireDiscreteGpu = false;
 

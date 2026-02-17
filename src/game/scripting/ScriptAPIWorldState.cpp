@@ -13,6 +13,18 @@
 
 #include "LuaBindings_Internal.h"
 
+namespace {
+
+bool saveVideoPreferencesFromServices(const GameServices& services, std::string* outError) {
+    game::video::Preferences prefs = game::video::loadPreferences();
+    prefs.rendererBackend = services.requestedRendererBackend;
+    prefs.requireDiscreteGpu = services.requireDiscreteGpu;
+    prefs.preferredGpuAdapter = services.preferredGpuAdapter;
+    return game::video::savePreferences(prefs, game::video::defaultPreferencesPath(), outError);
+}
+
+} // namespace
+
 int ScriptAPI::getMoney() const {
     return world_ ? world_->getMoney() : 0;
 }
@@ -90,12 +102,8 @@ bool ScriptAPI::setRendererBackendPreference(const std::string& backend) {
     services_.requestedRendererBackend =
         game::video::rendererBackendName(game::video::parseRendererBackend(backend));
 
-    game::video::Preferences prefs = game::video::loadPreferences();
-    prefs.rendererBackend = services_.requestedRendererBackend;
-    prefs.requireDiscreteGpu = services_.requireDiscreteGpu;
-
     std::string err;
-    if (!game::video::savePreferences(prefs, game::video::defaultPreferencesPath(), &err)) {
+    if (!saveVideoPreferencesFromServices(services_, &err)) {
         game::log::warn(&services_.log, std::string("[Video] Failed to save renderer backend preference: ") + err);
         return false;
     }
@@ -109,12 +117,8 @@ bool ScriptAPI::getRequireDiscreteGpuPreference() const {
 bool ScriptAPI::setRequireDiscreteGpuPreference(bool required) {
     services_.requireDiscreteGpu = required;
 
-    game::video::Preferences prefs = game::video::loadPreferences();
-    prefs.rendererBackend = services_.requestedRendererBackend;
-    prefs.requireDiscreteGpu = services_.requireDiscreteGpu;
-
     std::string err;
-    if (!game::video::savePreferences(prefs, game::video::defaultPreferencesPath(), &err)) {
+    if (!saveVideoPreferencesFromServices(services_, &err)) {
         game::log::warn(&services_.log, std::string("[Video] Failed to save discrete GPU preference: ") + err);
         return false;
     }
@@ -127,6 +131,34 @@ std::string ScriptAPI::getActiveRendererBackend() const {
 
 std::string ScriptAPI::getActiveGpuRenderer() const {
     return services_.gpuRenderer;
+}
+
+std::vector<std::string> ScriptAPI::getGpuAdapters() const {
+    return services_.availableGpuAdapters;
+}
+
+std::string ScriptAPI::getPreferredGpuAdapterPreference() const {
+    return services_.preferredGpuAdapter;
+}
+
+bool ScriptAPI::setPreferredGpuAdapterPreference(const std::string& adapterName) {
+    if (!adapterName.empty()) {
+        const auto it = std::find(services_.availableGpuAdapters.begin(),
+                                  services_.availableGpuAdapters.end(),
+                                  adapterName);
+        if (it == services_.availableGpuAdapters.end()) {
+            return false;
+        }
+    }
+
+    services_.preferredGpuAdapter = adapterName;
+
+    std::string err;
+    if (!saveVideoPreferencesFromServices(services_, &err)) {
+        game::log::warn(&services_.log, std::string("[Video] Failed to save preferred GPU adapter: ") + err);
+        return false;
+    }
+    return true;
 }
 
 bool ScriptAPI::isActiveGpuDiscrete() const {

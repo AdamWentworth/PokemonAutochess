@@ -102,6 +102,14 @@ bool test_mode_split_menu_entries(std::string& outFail) {
     lua.set_function("set_require_discrete_gpu_pref", [](bool) { return true; });
     lua.set_function("get_active_renderer_backend", []() { return std::string("opengl"); });
     lua.set_function("get_active_gpu_renderer", []() { return std::string("Mock GPU"); });
+    lua.set_function("get_gpu_adapters", [](sol::this_state s) {
+        sol::state_view L(s);
+        sol::table t = L.create_table();
+        t[1] = std::string("Mock GPU");
+        return t;
+    });
+    lua.set_function("get_preferred_gpu_adapter_pref", []() { return std::string(); });
+    lua.set_function("set_preferred_gpu_adapter_pref", [](const std::string&) { return true; });
     lua.set_function("is_active_gpu_discrete", []() { return true; });
     lua.set_function("request_quit", []() {});
     lua.set_function("set_has_started_game", [](bool) {});

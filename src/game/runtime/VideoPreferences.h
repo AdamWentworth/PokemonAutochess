@@ -15,6 +15,7 @@ enum class RendererBackend {
 struct Preferences {
     std::string rendererBackend = "auto";
     bool requireDiscreteGpu = false;
+    std::string preferredGpuAdapter;
 };
 
 std::string defaultPreferencesPath();

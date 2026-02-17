@@ -6,6 +6,7 @@
 //
 // Batch scope: ResourceManager + ShaderCache (+ Events).
 #include <string>
+#include <vector>
 
 class ResourceManager;
 class ShaderCache;
@@ -37,6 +38,8 @@ struct EngineServices {
     std::string rendererBackendFallbackReason;
     std::string gpuVendor;
     std::string gpuRenderer;
+    std::vector<std::string> availableGpuAdapters;
+    std::string preferredGpuAdapter;
     bool gpuDiscrete = false;
     bool requireDiscreteGpu = false;
 };

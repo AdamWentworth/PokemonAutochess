@@ -19,6 +19,7 @@
 #include "engine/ui/BootLoadingView.h"
 #include "engine/utils/ResourceManager.h"
 #include "engine/utils/ShaderCache.h"
+#include "game/runtime/GpuAdapters.h"
 #include "game/runtime/VideoPreferences.h"
 
 #define NOMINMAX
@@ -210,6 +211,39 @@ namespace {
         requestedBackend = game::video::parseRendererBackend(backendToken);
         services.requestedRendererBackend = game::video::rendererBackendName(requestedBackend);
         services.requireDiscreteGpu = prefs.requireDiscreteGpu;
+        services.preferredGpuAdapter = prefs.preferredGpuAdapter;
+
+        {
+            const auto adapters = game::video::enumerateSystemGpuAdapters();
+            services.availableGpuAdapters.clear();
+            services.availableGpuAdapters.reserve(adapters.size());
+            for (const auto& adapter : adapters) {
+                services.availableGpuAdapters.push_back(adapter.name);
+            }
+
+            if (!adapters.empty()) {
+                std::cout << "[GPU] Adapters detected: " << adapters.size() << "\n";
+                for (std::size_t i = 0; i < adapters.size(); ++i) {
+                    std::cout << "  [" << i << "] " << adapters[i].name
+                              << " (" << (adapters[i].discrete ? "discrete" : "integrated") << ")\n";
+                }
+            } else {
+                std::cout << "[GPU] Adapter enumeration unavailable for this platform/runtime.\n";
+            }
+
+            if (!services.preferredGpuAdapter.empty()) {
+                const auto it = std::find_if(adapters.begin(), adapters.end(),
+                    [this](const game::video::SystemGpuAdapter& adapter) {
+                        return adapter.name == services.preferredGpuAdapter;
+                    });
+                if (it != adapters.end()) {
+                    std::cout << "[GPU] Preferred adapter setting: " << services.preferredGpuAdapter << "\n";
+                } else {
+                    std::cout << "[GPU] Preferred adapter setting not found on this machine: "
+                              << services.preferredGpuAdapter << "\n";
+                }
+            }
+        }
 
         if (!game::video::isRendererBackendImplemented(requestedBackend)) {
             activeBackend = game::video::RendererBackend::OpenGL;
@@ -251,6 +285,12 @@ namespace {
             std::cout << "[GPU] Class:    discrete\n";
         } else {
             std::cout << "[GPU] Class:    integrated\n";
+        }
+        if (!services.preferredGpuAdapter.empty() &&
+            !containsCi(services.gpuRenderer, services.preferredGpuAdapter)) {
+            std::cout << "[GPU] Preferred adapter '" << services.preferredGpuAdapter
+                      << "' was not selected for this OpenGL context.\n";
+            std::cout << "[GPU] Driver/OS policy may override process hints. Use OS graphics settings if needed.\n";
         }
 
         if (services.requireDiscreteGpu && !services.gpuDiscrete) {

@@ -178,6 +178,8 @@ struct GameSession::Impl {
             services->rendererBackendFallback = ctx.services->rendererBackendFallback;
             services->gpuVendor = ctx.services->gpuVendor;
             services->gpuRenderer = ctx.services->gpuRenderer;
+            services->availableGpuAdapters = ctx.services->availableGpuAdapters;
+            services->preferredGpuAdapter = ctx.services->preferredGpuAdapter;
             services->gpuDiscrete = ctx.services->gpuDiscrete;
             services->requireDiscreteGpu = ctx.services->requireDiscreteGpu;
         }

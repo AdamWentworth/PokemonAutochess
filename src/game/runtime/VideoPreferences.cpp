@@ -86,6 +86,7 @@ Preferences loadPreferences(const std::string& path) {
         out.rendererBackend = rendererBackendName(parseRendererBackend(backend));
     }
     out.requireDiscreteGpu = j.value("require_discrete_gpu", out.requireDiscreteGpu);
+    out.preferredGpuAdapter = j.value("preferred_gpu_adapter", out.preferredGpuAdapter);
     return out;
 }
 
@@ -93,6 +94,7 @@ bool savePreferences(const Preferences& prefs, const std::string& path, std::str
     nlohmann::json j = nlohmann::json::object();
     j["renderer_backend"] = rendererBackendName(parseRendererBackend(prefs.rendererBackend));
     j["require_discrete_gpu"] = prefs.requireDiscreteGpu;
+    j["preferred_gpu_adapter"] = prefs.preferredGpuAdapter;
 
     std::error_code ec;
     const std::filesystem::path outPath(path);

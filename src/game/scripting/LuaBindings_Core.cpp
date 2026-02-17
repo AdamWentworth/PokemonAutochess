@@ -162,6 +162,22 @@ void registerLuaBindings_Core(sol::state& lua, ScriptAPI& api) {
     lua.set_function("get_active_gpu_renderer", [&api]() {
         return api.getActiveGpuRenderer();
     });
+    lua.set_function("get_gpu_adapters", [&api, &lua]() {
+        sol::state_view L(lua);
+        sol::table arr = L.create_table();
+        const auto adapters = api.getGpuAdapters();
+        int i = 1;
+        for (const auto& adapter : adapters) {
+            arr[i++] = adapter;
+        }
+        return arr;
+    });
+    lua.set_function("get_preferred_gpu_adapter_pref", [&api]() {
+        return api.getPreferredGpuAdapterPreference();
+    });
+    lua.set_function("set_preferred_gpu_adapter_pref", [&api](const std::string& adapterName) {
+        return api.setPreferredGpuAdapterPreference(adapterName);
+    });
     lua.set_function("is_active_gpu_discrete", [&api]() {
         return api.isActiveGpuDiscrete();
     });

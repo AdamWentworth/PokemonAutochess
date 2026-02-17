@@ -215,6 +215,7 @@ add_library(PAC_GameObjects STATIC
     src/game/runtime/GameSession.cpp
     src/game/runtime/GameUpdateGraph.cpp
     src/game/runtime/VideoPreferences.cpp
+    src/game/runtime/GpuAdapters.cpp
 
     # Game Config
     src/game/config/PokemonConfigLoader.cpp
@@ -290,6 +291,9 @@ add_library(PAC_GameObjects STATIC
     src/game/systems/ShopSystem.cpp
 )
 target_link_libraries(PAC_GameObjects PUBLIC Engine glm::glm nlohmann_json::nlohmann_json)
+if (WIN32)
+    target_link_libraries(PAC_GameObjects PRIVATE dxgi)
+endif()
 pac_apply_common_target_settings(PAC_GameObjects)
 
 # ---------------- Executable ----------------

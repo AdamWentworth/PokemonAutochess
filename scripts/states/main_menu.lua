@@ -27,7 +27,9 @@ local video_cfg = {
     quality_index = 3,
     renderer_backends = { "auto", "opengl", "vulkan", "d3d12" },
     renderer_index = 1,
-    require_discrete_gpu = false
+    require_discrete_gpu = false,
+    gpu_adapters = { "auto" },
+    gpu_adapter_index = 1
 }
 
 local audio_cfg = {
@@ -79,6 +81,13 @@ local function renderer_label(v)
     return tostring(v)
 end
 
+local function gpu_adapter_label(v)
+    if v == nil or v == "" or v == "auto" then
+        return "Auto (System Default)"
+    end
+    return tostring(v)
+end
+
 local function cycle_index(tbl, idx, dir)
     local n = #tbl
     if n <= 0 then return 1 end
@@ -86,6 +95,29 @@ local function cycle_index(tbl, idx, dir)
     if next_idx > n then next_idx = 1 end
     if next_idx < 1 then next_idx = n end
     return next_idx
+end
+
+local function sync_gpu_adapter_options()
+    video_cfg.gpu_adapters = { "auto" }
+    local adapters = get_gpu_adapters()
+    if adapters then
+        for _, name in ipairs(adapters) do
+            if type(name) == "string" and name ~= "" then
+                table.insert(video_cfg.gpu_adapters, name)
+            end
+        end
+    end
+
+    video_cfg.gpu_adapter_index = 1
+    local pref = get_preferred_gpu_adapter_pref()
+    if pref and pref ~= "" then
+        for i, name in ipairs(video_cfg.gpu_adapters) do
+            if name == pref then
+                video_cfg.gpu_adapter_index = i
+                break
+            end
+        end
+    end
 end
 
 local function sync_from_engine()
@@ -117,6 +149,7 @@ local function sync_from_engine()
         end
     end
     video_cfg.require_discrete_gpu = get_require_discrete_gpu_pref() == true
+    sync_gpu_adapter_options()
 end
 
 local function apply_video_mode(width, height, want_fullscreen)
@@ -235,20 +268,23 @@ local function build_video_entries(entries)
         "Render API: " .. renderer_label(backend) .. " (applies next launch)", 0.54, false)
     action(entries, "video_require_discrete",
         "Require Discrete GPU: " .. bool_text(video_cfg.require_discrete_gpu) .. " (applies next launch)", 0.60, false)
-    info(entries, "Active API: " .. renderer_label(active_backend), 0.66)
-    info(entries, "Active GPU: " .. tostring(active_gpu) .. " (" .. gpu_class .. ")", 0.70)
+    local adapter_pref = video_cfg.gpu_adapters[video_cfg.gpu_adapter_index]
+    action(entries, "video_gpu_adapter",
+        "Preferred GPU: " .. gpu_adapter_label(adapter_pref) .. " (applies next launch)", 0.66, false)
+    info(entries, "Active API: " .. renderer_label(active_backend), 0.72)
+    info(entries, "Active GPU: " .. tostring(active_gpu) .. " (" .. gpu_class .. ")", 0.76)
 
     local fps = video_cfg.fps_caps[video_cfg.fps_index]
     local fps_label = "FPS Cap: "
     if fps == 0 then fps_label = fps_label .. "Uncapped (placeholder)"
     else fps_label = fps_label .. tostring(fps) .. " (placeholder)" end
 
-    action(entries, "video_vsync", "VSync: " .. bool_text(video_cfg.vsync) .. " (placeholder)", 0.76, false)
-    action(entries, "video_fps", fps_label, 0.80, false)
-    action(entries, "video_ui_scale", "UI Scale: " .. tostring(video_cfg.ui_scales[video_cfg.ui_scale_index]) .. "% (placeholder)", 0.84, false)
-    action(entries, "video_quality", "Quality: " .. video_cfg.quality[video_cfg.quality_index] .. " (placeholder)", 0.88, false)
+    action(entries, "video_vsync", "VSync: " .. bool_text(video_cfg.vsync) .. " (placeholder)", 0.82, false)
+    action(entries, "video_fps", fps_label, 0.86, false)
+    action(entries, "video_ui_scale", "UI Scale: " .. tostring(video_cfg.ui_scales[video_cfg.ui_scale_index]) .. "% (placeholder)", 0.90, false)
+    action(entries, "video_quality", "Quality: " .. video_cfg.quality[video_cfg.quality_index] .. " (placeholder)", 0.94, false)
 
-    action(entries, "settings_back", "Back", 0.94, false)
+    action(entries, "settings_back", "Back", 0.98, false)
 end
 
 local function build_audio_entries(entries)
@@ -420,6 +456,19 @@ local function handle_video_click(entry_id)
             emit("Menu", "Require Discrete GPU: " .. bool_text(video_cfg.require_discrete_gpu) .. " (restart required)")
         else
             emit("Menu", "Failed to save discrete GPU preference")
+        end
+        return true
+    end
+    if entry_id == "video_gpu_adapter" then
+        video_cfg.gpu_adapter_index = cycle_index(video_cfg.gpu_adapters, video_cfg.gpu_adapter_index, 1)
+        local selected = video_cfg.gpu_adapters[video_cfg.gpu_adapter_index]
+        local requested = selected
+        if requested == "auto" then requested = "" end
+        local ok = set_preferred_gpu_adapter_pref(requested)
+        if ok then
+            emit("Menu", "Preferred GPU saved: " .. gpu_adapter_label(selected) .. " (restart required)")
+        else
+            emit("Menu", "Failed to save preferred GPU")
         end
         return true
     end

@@ -47,6 +47,9 @@ public:
     bool setRequireDiscreteGpuPreference(bool required);
     std::string getActiveRendererBackend() const;
     std::string getActiveGpuRenderer() const;
+    std::vector<std::string> getGpuAdapters() const;
+    std::string getPreferredGpuAdapterPreference() const;
+    bool setPreferredGpuAdapterPreference(const std::string& adapterName);
     bool isActiveGpuDiscrete() const;
     void requestQuit();
     void startNewGame(const std::string& mode);
