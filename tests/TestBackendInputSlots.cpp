@@ -46,6 +46,30 @@ bool test_backend_input_slots_contract(std::string& outFail) {
         outFail = "Num1 should not map to clear-selection key";
         return false;
     }
+    if (game::runtime::backend_input::inventoryOffsetDeltaFromKey(InputEvent::Key::Up, 6) != -1) {
+        outFail = "Up key should map to -1 inventory offset delta";
+        return false;
+    }
+    if (game::runtime::backend_input::inventoryOffsetDeltaFromKey(InputEvent::Key::Down, 6) != 1) {
+        outFail = "Down key should map to +1 inventory offset delta";
+        return false;
+    }
+    if (game::runtime::backend_input::inventoryOffsetDeltaFromKey(InputEvent::Key::Left, 6) != -6) {
+        outFail = "Left key should map to negative page-step inventory offset delta";
+        return false;
+    }
+    if (game::runtime::backend_input::inventoryOffsetDeltaFromKey(InputEvent::Key::Right, 6) != 6) {
+        outFail = "Right key should map to positive page-step inventory offset delta";
+        return false;
+    }
+    if (game::runtime::backend_input::inventoryOffsetDeltaFromKey(InputEvent::Key::Right, 0) != 1) {
+        outFail = "inventory page-step should clamp to at least 1";
+        return false;
+    }
+    if (game::runtime::backend_input::inventoryOffsetDeltaFromKey(InputEvent::Key::A, 6) != 0) {
+        outFail = "non-navigation keys should not change inventory offset";
+        return false;
+    }
 
     return true;
 }

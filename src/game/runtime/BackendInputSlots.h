@@ -2,6 +2,7 @@
 
 #include "engine/input/InputEvent.h"
 
+#include <algorithm>
 #include <cstddef>
 
 namespace game::runtime::backend_input {
@@ -31,6 +32,18 @@ inline int inventoryIndexFromSlot(int slot, std::size_t visibleCount) {
 
 inline bool isClearSelectionKey(InputEvent::Key keyId) {
     return keyId == InputEvent::Key::Num0;
+}
+
+inline int inventoryOffsetDeltaFromKey(InputEvent::Key keyId, int pageSize) {
+    const int pageStep = std::max(1, pageSize);
+    switch (keyId) {
+        case InputEvent::Key::Up: return -1;
+        case InputEvent::Key::Down: return 1;
+        case InputEvent::Key::Left: return -pageStep;
+        case InputEvent::Key::Right: return pageStep;
+        default:
+            return 0;
+    }
 }
 
 } // namespace game::runtime::backend_input

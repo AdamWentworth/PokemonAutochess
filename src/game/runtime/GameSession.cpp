@@ -38,6 +38,7 @@
 #include "game/runtime/GamePreload.h"
 #include "game/runtime/RenderFlowDecisions.h"
 #include "game/runtime/BackendDebugText.h"
+#include "game/runtime/BackendInventoryOverlay.h"
 #include "game/runtime/BackendInputSlots.h"
 #include "game/runtime/BackendHudFormatting.h"
 #include "game/runtime/BackendWorldProjection.h"
@@ -129,10 +130,12 @@ struct GameSession::Impl {
     enum class BackendInventoryHitAction {
         SelectItem,
         ClearSelection,
+        ScrollOffset,
     };
     struct BackendInventoryHitBox {
         BackendInventoryHitAction action = BackendInventoryHitAction::SelectItem;
         std::string itemId;
+        int offsetDelta = 0;
         float x = 0.0f;
         float y = 0.0f;
         float w = 0.0f;
@@ -385,6 +388,46 @@ struct GameSession::Impl {
         return true;
     }
 
+    void refreshBackendInventoryFromWorld() {
+        backendInventoryAllEntries.clear();
+        backendInventoryEntries.clear();
+
+        if (!gameWorld) {
+            backendInventoryOffset = 0;
+            return;
+        }
+
+        backendInventoryAllEntries = runtime::hud::normalizeInventoryEntries(gameWorld->listItems(), 0);
+        backendInventoryOffset = runtime::hud::clampInventoryOffset(
+            backendInventoryOffset,
+            static_cast<int>(kBackendInventoryVisibleCount),
+            backendInventoryAllEntries.size());
+        backendInventoryEntries = runtime::hud::sliceInventoryEntries(
+            backendInventoryAllEntries,
+            backendInventoryOffset,
+            kBackendInventoryVisibleCount);
+    }
+
+    bool applyBackendInventoryOffsetDelta(int delta) {
+        if (delta == 0) return false;
+
+        refreshBackendInventoryFromWorld();
+        const int nextOffset = runtime::hud::clampInventoryOffset(
+            backendInventoryOffset + delta,
+            static_cast<int>(kBackendInventoryVisibleCount),
+            backendInventoryAllEntries.size());
+        if (nextOffset == backendInventoryOffset) {
+            return false;
+        }
+
+        backendInventoryOffset = nextOffset;
+        backendInventoryEntries = runtime::hud::sliceInventoryEntries(
+            backendInventoryAllEntries,
+            backendInventoryOffset,
+            kBackendInventoryVisibleCount);
+        return true;
+    }
+
     void handleEvent(const InputEvent& event) {
         if (event.type == InputEvent::Type::Resize) {
             viewport.set(event.drawableW, event.drawableH);
@@ -447,6 +490,14 @@ struct GameSession::Impl {
             !legacyRenderPath &&
             event.type == InputEvent::Type::KeyDown &&
             !event.repeat) {
+            const int offsetDelta = runtime::backend_input::inventoryOffsetDeltaFromKey(
+                event.keyId,
+                static_cast<int>(kBackendInventoryVisibleCount));
+            if (applyBackendInventoryOffsetDelta(offsetDelta)) {
+                return; // consume nav key when inventory paging changed.
+            }
+
+            refreshBackendInventoryFromWorld();
             const int slot = runtime::backend_input::slotFromNumberKey(event.keyId);
             const int index = runtime::backend_input::inventoryIndexFromSlot(
                 slot,
@@ -462,15 +513,16 @@ struct GameSession::Impl {
         if (renderWorldForInput && event.type == InputEvent::Type::MouseWheel) {
             if (legacyRenderPath) {
                 itemInventoryUI.handleScroll(event.wheelY, viewport.height);
-            } else if (gameWorld) {
-                backendInventoryAllEntries = runtime::hud::normalizeInventoryEntries(
-                    gameWorld->listItems(),
-                    0);
-                backendInventoryOffset = runtime::hud::stepInventoryOffset(
-                    backendInventoryOffset,
-                    event.wheelY,
-                    static_cast<int>(kBackendInventoryVisibleCount),
-                    backendInventoryAllEntries.size());
+            } else {
+                int wheelDelta = 0;
+                if (event.wheelY > 0) {
+                    wheelDelta = -1;
+                } else if (event.wheelY < 0) {
+                    wheelDelta = 1;
+                }
+                if (applyBackendInventoryOffsetDelta(wheelDelta)) {
+                    return;
+                }
             }
         }
         if (renderWorldForInput && event.type == InputEvent::Type::MouseDown &&
@@ -492,6 +544,10 @@ struct GameSession::Impl {
                     if (!insideX || !insideY) continue;
                     if (hit.action == BackendInventoryHitAction::ClearSelection) {
                         clearBackendInventorySelection();
+                        return;
+                    }
+                    if (hit.action == BackendInventoryHitAction::ScrollOffset) {
+                        applyBackendInventoryOffsetDelta(hit.offsetDelta);
                         return;
                     }
                     if (selectBackendInventoryItem(hit.itemId)) {
@@ -867,55 +923,88 @@ struct GameSession::Impl {
                            glm::vec3(0.84f, 0.90f, 0.98f));
             }
 
-            backendInventoryAllEntries = runtime::hud::normalizeInventoryEntries(gameWorld->listItems(), 0);
-            backendInventoryOffset = runtime::hud::clampInventoryOffset(
-                backendInventoryOffset,
-                static_cast<int>(kBackendInventoryVisibleCount),
-                backendInventoryAllEntries.size());
-            backendInventoryEntries = runtime::hud::sliceInventoryEntries(
+            refreshBackendInventoryFromWorld();
+            const auto inventoryModel = runtime::backend_inventory::buildOverlayModel(
                 backendInventoryAllEntries,
                 backendInventoryOffset,
-                kBackendInventoryVisibleCount);
-            if (!backendInventoryEntries.empty()) {
+                kBackendInventoryVisibleCount,
+                selectedItem);
+            backendInventoryOffset = inventoryModel.offset;
+            backendInventoryEntries = inventoryModel.visibleEntries;
+
+            if (inventoryModel.totalCount > 0 || !selectedItem.empty()) {
                 float invY = 146.0f;
-                const std::size_t firstVisible = static_cast<std::size_t>(backendInventoryOffset) + 1u;
-                const std::size_t lastVisible =
-                    static_cast<std::size_t>(backendInventoryOffset) + backendInventoryEntries.size();
-                const std::string itemsTitle =
-                    "Items [" + std::to_string(firstVisible) + "-" +
-                    std::to_string(lastVisible) + "/" +
-                    std::to_string(backendInventoryAllEntries.size()) + "]";
-                appendText(20.0f, invY, itemsTitle, 1.0f, glm::vec3(0.92f, 0.95f, 0.99f));
+                appendText(20.0f,
+                           invY,
+                           runtime::backend_inventory::makeTitleLabel(inventoryModel),
+                           1.0f,
+                           glm::vec3(0.92f, 0.95f, 0.99f));
                 invY += 16.0f;
-                for (std::size_t i = 0; i < backendInventoryEntries.size(); ++i) {
-                    const auto& item = backendInventoryEntries[i];
-                    const bool isSelected = (item.id == selectedItem);
-                    std::string line = runtime::hud::formatInventoryEntry(item);
-                    if (i < 9) {
-                        line = "[" + std::to_string(i + 1) + "] " + line;
+
+                const bool hasPrev = runtime::backend_inventory::canScrollPrev(inventoryModel);
+                const bool hasNext = runtime::backend_inventory::canScrollNext(inventoryModel);
+                if (hasPrev || hasNext) {
+                    constexpr float kNavScale = 0.84f;
+                    const std::string prevLabel = runtime::backend_inventory::prevPageLabel();
+                    const std::string nextLabel = runtime::backend_inventory::nextPageLabel();
+                    appendText(20.0f,
+                               invY,
+                               prevLabel,
+                               kNavScale,
+                               hasPrev ? glm::vec3(0.75f, 0.87f, 0.96f)
+                                       : glm::vec3(0.42f, 0.48f, 0.55f));
+                    if (hasPrev) {
+                        BackendInventoryHitBox prevHit;
+                        prevHit.action = BackendInventoryHitAction::ScrollOffset;
+                        prevHit.offsetDelta = -1;
+                        prevHit.x = 20.0f;
+                        prevHit.y = invY;
+                        prevHit.w = std::max(1.0f, runtime::backend_text::measureTextWidth(prevLabel, kNavScale));
+                        prevHit.h = std::max(1.0f, runtime::backend_text::measureTextHeight(prevLabel, kNavScale));
+                        backendInventoryHitBoxes.push_back(std::move(prevHit));
                     }
-                    if (isSelected) {
-                        line = "> " + line;
+
+                    const float nextX = 20.0f + std::max(1.0f, runtime::backend_text::measureTextWidth(prevLabel, kNavScale)) + 12.0f;
+                    appendText(nextX,
+                               invY,
+                               nextLabel,
+                               kNavScale,
+                               hasNext ? glm::vec3(0.75f, 0.87f, 0.96f)
+                                       : glm::vec3(0.42f, 0.48f, 0.55f));
+                    if (hasNext) {
+                        BackendInventoryHitBox nextHit;
+                        nextHit.action = BackendInventoryHitAction::ScrollOffset;
+                        nextHit.offsetDelta = 1;
+                        nextHit.x = nextX;
+                        nextHit.y = invY;
+                        nextHit.w = std::max(1.0f, runtime::backend_text::measureTextWidth(nextLabel, kNavScale));
+                        nextHit.h = std::max(1.0f, runtime::backend_text::measureTextHeight(nextLabel, kNavScale));
+                        backendInventoryHitBoxes.push_back(std::move(nextHit));
                     }
+                    invY += 14.0f;
+                }
+
+                for (const auto& row : inventoryModel.rows) {
                     constexpr float kItemScale = 0.95f;
                     appendText(20.0f,
                                invY,
-                               line,
+                               row.line,
                                kItemScale,
-                               isSelected
+                               row.selected
                                    ? glm::vec3(0.98f, 0.90f, 0.58f)
                                    : glm::vec3(0.84f, 0.90f, 0.97f));
                     BackendInventoryHitBox hit;
                     hit.action = BackendInventoryHitAction::SelectItem;
-                    hit.itemId = item.id;
+                    hit.itemId = row.itemId;
                     hit.x = 20.0f;
                     hit.y = invY;
-                    hit.w = std::max(1.0f, runtime::backend_text::measureTextWidth(line, kItemScale));
-                    hit.h = std::max(1.0f, runtime::backend_text::measureTextHeight(line, kItemScale));
+                    hit.w = std::max(1.0f, runtime::backend_text::measureTextWidth(row.line, kItemScale));
+                    hit.h = std::max(1.0f, runtime::backend_text::measureTextHeight(row.line, kItemScale));
                     backendInventoryHitBoxes.push_back(std::move(hit));
                     invY += 15.0f;
                 }
-                const std::string clearLine = "[0] Clear selection";
+
+                const std::string clearLine = runtime::backend_inventory::clearSelectionLabel();
                 appendText(20.0f,
                            invY + 1.0f,
                            clearLine,
@@ -934,7 +1023,7 @@ struct GameSession::Impl {
                 invY += 16.0f;
                 appendText(20.0f,
                            invY + 2.0f,
-                           "Mouse wheel scroll, 1-9 select, 0 clear",
+                           runtime::backend_inventory::hintLabel(),
                            0.82f,
                            glm::vec3(0.66f, 0.76f, 0.90f));
             }
