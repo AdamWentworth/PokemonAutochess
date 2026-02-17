@@ -3,6 +3,7 @@
 #include "game/GameWorld.h"
 #include "game/GameServices.h"
 #include "game/logging/LoggerUtil.h"
+#include "game/runtime/BackendDebugText.h"
 #include "game/scripting/LuaCardParser.h"
 #include "game/scripting/LuaScriptHelpers.h"
 #include "game/ui/UIViewport.h"
@@ -10,6 +11,7 @@
 #include "game/ecs/CombatActive.h"
 #include "engine/core/ecs/World.h"
 #include "engine/input/InputEvent.h"
+#include "engine/render/IRenderBackend.h"
 
 #include "engine/ui/TextRenderer.h"
 
@@ -340,15 +342,6 @@ void CombatState::update(float dt) {
 }
 
 void CombatState::render() {
-    if (!services.renderEnabled) return;
-
-    if (!textRenderer) {
-        const auto& c = services.config;
-        textRenderer = std::make_unique<TextRenderer>(c.fontPath, c.fontSize);
-    }
-    if (!textRenderer) return;
-
-    const float scale = 1.0f;
     std::string msg = combatMessage.empty() ? std::string("Combat") : combatMessage;
     glm::vec3 msgColor(1.0f, 1.0f, 1.0f);
     if (!combatStarted) {
@@ -362,7 +355,47 @@ void CombatState::render() {
     }
 
     const auto* viewport = services.viewport;
-    const float uiWidth = static_cast<float>(viewport ? viewport->width : 1280);
+    const int uiW = viewport ? viewport->width : 1280;
+    const int uiH = viewport ? viewport->height : 720;
+    const float uiWidth = static_cast<float>(uiW);
+
+    if (!services.renderEnabled) {
+        if (!services.renderer) return;
+
+        std::vector<IRenderBackend::DebugQuad> quads;
+        quads.reserve(1024);
+
+        const float scale = 2.0f;
+        const float textW = game::runtime::backend_text::measureTextWidth(msg, scale);
+        const float textH = game::runtime::backend_text::measureTextHeight(msg, scale);
+        const float textX = std::max(14.0f, (uiWidth - textW) * 0.5f);
+        const float textY = kHeaderY;
+
+        IRenderBackend::DebugQuad panel;
+        panel.x = std::max(8.0f, textX - 14.0f);
+        panel.y = std::max(8.0f, textY - 10.0f);
+        panel.w = std::min(static_cast<float>(uiW) - panel.x - 8.0f, textW + 28.0f);
+        panel.h = std::max(20.0f, textH + 16.0f);
+        panel.r = 0.08f;
+        panel.g = 0.10f;
+        panel.b = 0.12f;
+        panel.a = 0.82f;
+        quads.push_back(panel);
+
+        game::runtime::backend_text::appendTextQuads(
+            quads, textX, textY, msg, scale, msgColor.r, msgColor.g, msgColor.b, 1.0f);
+
+        services.renderer->drawDebugQuads(quads.data(), quads.size(), uiW, uiH);
+        return;
+    }
+
+    if (!textRenderer) {
+        const auto& c = services.config;
+        textRenderer = std::make_unique<TextRenderer>(c.fontPath, c.fontSize);
+    }
+    if (!textRenderer) return;
+
+    const float scale = 1.0f;
     float textWidth = textRenderer->measureTextWidth(msg, scale);
     float centeredX = viewport ? viewport->centerX(textWidth)
                                : std::round((uiWidth - textWidth) * 0.5f);
@@ -370,8 +403,6 @@ void CombatState::render() {
     textRenderer->renderText(msg, centeredX, kHeaderY, msgColor, scale);
 
     if (shopUiEnabled) {
-        const int uiW = viewport ? viewport->width : 1280;
-        const int uiH = viewport ? viewport->height : 720;
         const bool showSellOverlay = gameWorld &&
                                      gameWorld->isUnitDragActive() &&
                                      (gameWorld->getUnitDropZoneCardCount() > 0);

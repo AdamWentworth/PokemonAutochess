@@ -17,6 +17,7 @@ bool test_logbus_recent_lines_contract(std::string& outFail);
 bool test_render_flow_decisions_contract(std::string& outFail);
 bool test_debug_geometry_line_raster_contract(std::string& outFail);
 bool test_backend_hud_formatting_contract(std::string& outFail);
+bool test_backend_debug_text_quads_contract(std::string& outFail);
 bool test_backend_world_projection_contract(std::string& outFail);
 bool test_backend_ui_sell_overlay_policy(std::string& outFail);
 bool test_backend_shop_snapshot_contract(std::string& outFail);
@@ -128,6 +129,7 @@ int main(int argc, char** argv) {
         {"render_flow_decisions_contract", &test_render_flow_decisions_contract},
         {"debug_geometry_line_raster_contract", &test_debug_geometry_line_raster_contract},
         {"backend_hud_formatting_contract", &test_backend_hud_formatting_contract},
+        {"backend_debug_text_quads_contract", &test_backend_debug_text_quads_contract},
         {"backend_world_projection_contract", &test_backend_world_projection_contract},
         {"backend_ui_sell_overlay_policy", &test_backend_ui_sell_overlay_policy},
         {"backend_shop_snapshot_contract", &test_backend_shop_snapshot_contract},

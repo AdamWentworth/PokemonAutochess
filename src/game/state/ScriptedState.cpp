@@ -5,6 +5,7 @@
 #include "game/scripting/LuaCardParser.h"
 #include "game/scripting/LuaScriptHelpers.h"
 #include "game/scripting/LuaTextMenuParser.h"
+#include "game/runtime/BackendDebugText.h"
 #include "game/state/PlacementState.h"
 #include "game/state/BackendUiPolicy.h"
 #include "game/ui/ShopLayout.h"
@@ -20,14 +21,6 @@
 #include <iostream>
 
 namespace {
-struct EasyFontVertex {
-    float x = 0.0f;
-    float y = 0.0f;
-    float z = 0.0f;
-    unsigned char color[4] = {255, 255, 255, 255};
-};
-static_assert(sizeof(EasyFontVertex) == 16, "Unexpected stb_easy_font vertex layout.");
-
 constexpr float kBackendTextScaleBase = 1.35f;
 
 std::vector<GameWorld::ClassicShopCard> buildClassicCardsFromUi(const std::vector<CardData>& cards) {
@@ -45,71 +38,6 @@ std::vector<GameWorld::ClassicShopCard> buildClassicCardsFromUi(const std::vecto
     return out;
 }
 
-void appendEasyFontTextQuads(std::vector<IRenderBackend::DebugQuad>& out,
-                             float originX,
-                             float originY,
-                             const std::string& text,
-                             float scale,
-                             float r,
-                             float g,
-                             float b,
-                             float a) {
-    if (text.empty()) return;
-
-    const std::size_t approxBytes = text.size() * 320u + 4096u;
-    const std::size_t vertexCount = std::max<std::size_t>(256u, approxBytes / sizeof(EasyFontVertex));
-    std::vector<EasyFontVertex> verts(vertexCount);
-
-    const int quadCount = stb_easy_font_print(
-        originX,
-        originY,
-        const_cast<char*>(text.c_str()),
-        nullptr,
-        verts.data(),
-        static_cast<int>(verts.size() * sizeof(EasyFontVertex)));
-    if (quadCount <= 0) return;
-
-    out.reserve(out.size() + static_cast<std::size_t>(quadCount));
-    const std::size_t maxQuads = std::min<std::size_t>(
-        static_cast<std::size_t>(quadCount),
-        verts.size() / 4u);
-
-    for (std::size_t i = 0; i < maxQuads; ++i) {
-        float minX = 0.0f;
-        float minY = 0.0f;
-        float maxX = 0.0f;
-        float maxY = 0.0f;
-        for (int v = 0; v < 4; ++v) {
-            float x = verts[i * 4u + static_cast<std::size_t>(v)].x;
-            float y = verts[i * 4u + static_cast<std::size_t>(v)].y;
-            if (scale != 1.0f) {
-                x = originX + (x - originX) * scale;
-                y = originY + (y - originY) * scale;
-            }
-            if (v == 0) {
-                minX = maxX = x;
-                minY = maxY = y;
-            } else {
-                minX = std::min(minX, x);
-                minY = std::min(minY, y);
-                maxX = std::max(maxX, x);
-                maxY = std::max(maxY, y);
-            }
-        }
-
-        IRenderBackend::DebugQuad q;
-        q.x = minX;
-        q.y = minY;
-        q.w = std::max(0.0f, maxX - minX);
-        q.h = std::max(0.0f, maxY - minY);
-        if (q.w <= 0.0f || q.h <= 0.0f) continue;
-        q.r = r;
-        q.g = g;
-        q.b = b;
-        q.a = a;
-        out.push_back(q);
-    }
-}
 } // namespace
 
 ScriptedState::ScriptedState(GameStateManager* manager, GameWorld* world, GameServices& svc, const std::string& path)
@@ -545,7 +473,8 @@ void ScriptedState::renderBackendCardUi(int uiW, int uiH) {
         bg.a = 0.92f;
         quads.push_back(bg);
 
-        appendEasyFontTextQuads(quads, x, y, label, textScale, 0.98f, 0.98f, 0.98f, 1.0f);
+        game::runtime::backend_text::appendTextQuads(
+            quads, x, y, label, textScale, 0.98f, 0.98f, 0.98f, 1.0f);
         if (outW) *outW = bg.w;
         if (outH) *outH = bg.h;
     };
@@ -560,12 +489,14 @@ void ScriptedState::renderBackendCardUi(int uiW, int uiH) {
         const int baseW = stb_easy_font_width(const_cast<char*>(text.c_str()));
         const float textW = std::max(1.0f, static_cast<float>(baseW) * textScale);
         const float x = centerX - textW * 0.5f;
-        appendEasyFontTextQuads(quads, x, y, text, textScale, r, g, b, 1.0f);
+        game::runtime::backend_text::appendTextQuads(
+            quads, x, y, text, textScale, r, g, b, 1.0f);
     };
 
     const auto msgOpt = game::scripting::callStringFunction(script.getScriptTable(), {"get_message"});
     const std::string header = msgOpt ? *msgOpt : ((cardMode == CardMode::Starter) ? "Starter" : "Shop");
-    appendEasyFontTextQuads(quads, 26.0f, 24.0f, header, 2.6f, 0.95f, 0.95f, 0.98f, 1.0f);
+    game::runtime::backend_text::appendTextQuads(
+        quads, 26.0f, 24.0f, header, 2.6f, 0.95f, 0.95f, 0.98f, 1.0f);
 
     backendRerollX = 0.0f;
     backendRerollY = 0.0f;
@@ -619,7 +550,7 @@ void ScriptedState::renderBackendCardUi(int uiW, int uiH) {
             const std::string name = card.data.label.empty() ? card.data.pokemonName : card.data.label;
             const int slot = game::state::backend_shop::keyboardSlotFor(backendShopSnapshot, action, i);
             const std::string indexed = prefixedLabel(slot, name);
-            appendEasyFontTextQuads(quads,
+            game::runtime::backend_text::appendTextQuads(quads,
                                     card.x + 8.0f,
                                     card.y + 8.0f,
                                     indexed,
@@ -633,7 +564,7 @@ void ScriptedState::renderBackendCardUi(int uiW, int uiH) {
             if (cardMode == CardMode::Shop) {
                 sub += "  Cost " + std::to_string(std::max(0, card.data.cost)) + "g";
             }
-            appendEasyFontTextQuads(quads,
+            game::runtime::backend_text::appendTextQuads(quads,
                                     card.x + 8.0f,
                                     card.y + std::max(16.0f, card.h - 24.0f),
                                     sub,
@@ -711,7 +642,8 @@ void ScriptedState::renderBackendCardUi(int uiW, int uiH) {
     if (cardMode == CardMode::Shop) {
         if (gameWorld) {
             const std::string moneyLabel = "Gold: " + std::to_string(std::max(0, gameWorld->getMoney()));
-            appendEasyFontTextQuads(quads, 26.0f, 64.0f, moneyLabel, 1.3f, 0.95f, 0.88f, 0.50f, 1.0f);
+            game::runtime::backend_text::appendTextQuads(
+                quads, 26.0f, 64.0f, moneyLabel, 1.3f, 0.95f, 0.88f, 0.50f, 1.0f);
         }
         if (hasShopRerollButton) {
             const float buttonTextX = 26.0f;
@@ -755,8 +687,16 @@ void ScriptedState::renderBackendCardUi(int uiW, int uiH) {
     // Rebuild once after reroll/ready rects are known so mouse hit-testing stays in sync.
     refreshBackendShopSnapshot();
 
-    appendEasyFontTextQuads(quads, 26.0f, static_cast<float>(uiH) - 36.0f,
-                            "Use mouse or keys 1-9", 1.0f, 0.72f, 0.82f, 0.93f, 1.0f);
+    game::runtime::backend_text::appendTextQuads(
+        quads,
+        26.0f,
+        static_cast<float>(uiH) - 36.0f,
+        "Use mouse or keys 1-9",
+        1.0f,
+        0.72f,
+        0.82f,
+        0.93f,
+        1.0f);
 
     if (!quads.empty()) {
         services.renderer->drawDebugQuads(quads.data(), quads.size(), uiW, uiH);
@@ -861,7 +801,8 @@ void ScriptedState::renderBackendTextMenu(int uiW, int uiH) {
             tb = entry.colorB;
         }
 
-        appendEasyFontTextQuads(quads, entry.x, entry.y, display, textScale, tr, tg, tb, 1.0f);
+        game::runtime::backend_text::appendTextQuads(
+            quads, entry.x, entry.y, display, textScale, tr, tg, tb, 1.0f);
 
         minX = std::min(minX, bg.x);
         minY = std::min(minY, bg.y);
@@ -873,7 +814,7 @@ void ScriptedState::renderBackendTextMenu(int uiW, int uiH) {
     if (hasAnyEntry) {
         const auto msgOpt = game::scripting::callStringFunction(script.getScriptTable(), {"get_message"});
         std::string header = msgOpt ? *msgOpt : "Menu";
-        appendEasyFontTextQuads(quads,
+        game::runtime::backend_text::appendTextQuads(quads,
                                 minX,
                                 std::max(24.0f, minY - 62.0f),
                                 header,
@@ -882,7 +823,7 @@ void ScriptedState::renderBackendTextMenu(int uiW, int uiH) {
                                 0.97f,
                                 0.98f,
                                 1.0f);
-        appendEasyFontTextQuads(quads,
+        game::runtime::backend_text::appendTextQuads(quads,
                                 minX,
                                 std::max(52.0f, minY - 30.0f),
                                 "Click entries or press 1-9",

@@ -11,8 +11,6 @@
 #include <sstream>
 #include <vector>
 
-#include <stb_easy_font.h>
-
 #include "engine/core/GameContext.h"
 #include "engine/core/EngineServices.h"
 #include "engine/core/Paths.h"
@@ -39,6 +37,7 @@
 #include "game/GameStateManager.h"
 #include "game/runtime/GamePreload.h"
 #include "game/runtime/RenderFlowDecisions.h"
+#include "game/runtime/BackendDebugText.h"
 #include "game/runtime/BackendHudFormatting.h"
 #include "game/runtime/BackendWorldProjection.h"
 #include "game/GameServices.h"
@@ -68,80 +67,6 @@
 #include "game/scripting/ScriptEventBus.h"
 
 namespace {
-struct EasyFontVertex {
-    float x = 0.0f;
-    float y = 0.0f;
-    float z = 0.0f;
-    unsigned char color[4] = {255, 255, 255, 255};
-};
-static_assert(sizeof(EasyFontVertex) == 16, "Unexpected stb_easy_font vertex layout.");
-
-void appendEasyFontTextQuads(std::vector<IRenderBackend::DebugQuad>& out,
-                             float originX,
-                             float originY,
-                             const std::string& text,
-                             float scale,
-                             float r,
-                             float g,
-                             float b,
-                             float a) {
-    if (text.empty()) return;
-
-    const std::size_t approxBytes = text.size() * 320u + 4096u;
-    const std::size_t vertexCount = std::max<std::size_t>(256u, approxBytes / sizeof(EasyFontVertex));
-    std::vector<EasyFontVertex> verts(vertexCount);
-
-    const int quadCount = stb_easy_font_print(
-        originX,
-        originY,
-        const_cast<char*>(text.c_str()),
-        nullptr,
-        verts.data(),
-        static_cast<int>(verts.size() * sizeof(EasyFontVertex)));
-    if (quadCount <= 0) return;
-
-    out.reserve(out.size() + static_cast<std::size_t>(quadCount));
-    const std::size_t maxQuads = std::min<std::size_t>(
-        static_cast<std::size_t>(quadCount),
-        verts.size() / 4u);
-
-    for (std::size_t i = 0; i < maxQuads; ++i) {
-        float minX = 0.0f;
-        float minY = 0.0f;
-        float maxX = 0.0f;
-        float maxY = 0.0f;
-        for (int v = 0; v < 4; ++v) {
-            float x = verts[i * 4u + static_cast<std::size_t>(v)].x;
-            float y = verts[i * 4u + static_cast<std::size_t>(v)].y;
-            if (scale != 1.0f) {
-                x = originX + (x - originX) * scale;
-                y = originY + (y - originY) * scale;
-            }
-            if (v == 0) {
-                minX = maxX = x;
-                minY = maxY = y;
-            } else {
-                minX = std::min(minX, x);
-                minY = std::min(minY, y);
-                maxX = std::max(maxX, x);
-                maxY = std::max(maxY, y);
-            }
-        }
-
-        IRenderBackend::DebugQuad q;
-        q.x = minX;
-        q.y = minY;
-        q.w = std::max(0.0f, maxX - minX);
-        q.h = std::max(0.0f, maxY - minY);
-        if (q.w <= 0.0f || q.h <= 0.0f) continue;
-        q.r = r;
-        q.g = g;
-        q.b = b;
-        q.a = a;
-        out.push_back(q);
-    }
-}
-
 std::string trimDebugLine(std::string s, std::size_t maxChars) {
     if (s.size() <= maxChars) return s;
     if (maxChars <= 3) return s.substr(0, maxChars);
@@ -777,14 +702,14 @@ struct GameSession::Impl {
                                     const std::string& text,
                                     float scale,
                                     const glm::vec3& color) {
-            appendEasyFontTextQuads(quads, x, y, text, scale, color.r, color.g, color.b, 1.0f);
+            runtime::backend_text::appendTextQuads(
+                quads, x, y, text, scale, color.r, color.g, color.b, 1.0f);
         };
         const auto appendRightText = [&](float y,
                                          const std::string& text,
                                          float scale,
                                          const glm::vec3& color) {
-            const int baseW = stb_easy_font_width(const_cast<char*>(text.c_str()));
-            const float textW = std::max(1.0f, static_cast<float>(baseW) * scale);
+            const float textW = std::max(1.0f, runtime::backend_text::measureTextWidth(text, scale));
             const float x = std::max(20.0f, static_cast<float>(drawableW) - textW - 22.0f);
             appendText(x, y, text, scale, color);
         };
@@ -945,8 +870,7 @@ struct GameSession::Impl {
             for (const auto& line : sideLines) {
                 const std::string text = trimDebugLine(line.text, 54);
                 const float scale = 1.0f;
-                const int baseW = stb_easy_font_width(const_cast<char*>(text.c_str()));
-                const float textW = std::max(1.0f, static_cast<float>(baseW) * scale);
+                const float textW = std::max(1.0f, runtime::backend_text::measureTextWidth(text, scale));
                 const float x = std::max(20.0f, static_cast<float>(drawableW) - textW - 22.0f);
                 appendText(x,
                            y,

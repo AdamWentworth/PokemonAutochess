@@ -5,13 +5,16 @@
 #include "game/GameStateManager.h"
 #include "game/GameWorld.h"
 #include "game/GameServices.h"
+#include "game/runtime/BackendDebugText.h"
 #include "game/ui/UIViewport.h"
 
+#include "engine/render/IRenderBackend.h"
 #include "engine/ui/TextRenderer.h"
 
 #include <algorithm>
 #include <cmath>
 #include <memory>
+#include <vector>
 #include <sol/sol.hpp>
 
 PlacementState::PlacementState(GameStateManager* manager, GameWorld* world, GameServices& svc, const std::string& name)
@@ -81,7 +84,43 @@ void PlacementState::update(float dt) {
 
 void PlacementState::render() {
     if (!gameWorld) return;
-    if (!services.renderEnabled) return;
+
+    const std::string message =
+        "Place your starter! Time left: " + std::to_string(static_cast<int>(std::max(0.0f, timer)));
+
+    const auto* viewport = services.viewport;
+    const int uiW = viewport ? viewport->width : 1280;
+    const int uiH = viewport ? viewport->height : 720;
+
+    if (!services.renderEnabled) {
+        if (!services.renderer) return;
+
+        std::vector<IRenderBackend::DebugQuad> quads;
+        quads.reserve(1024);
+
+        const float scale = 1.9f;
+        const float textW = game::runtime::backend_text::measureTextWidth(message, scale);
+        const float textH = game::runtime::backend_text::measureTextHeight(message, scale);
+        const float textX = std::max(12.0f, (static_cast<float>(uiW) - textW) * 0.5f);
+        const float textY = std::max(12.0f, std::round(static_cast<float>(uiH) * 0.08f));
+
+        IRenderBackend::DebugQuad panel;
+        panel.x = std::max(8.0f, textX - 14.0f);
+        panel.y = std::max(8.0f, textY - 10.0f);
+        panel.w = std::min(static_cast<float>(uiW) - panel.x - 8.0f, textW + 28.0f);
+        panel.h = std::max(20.0f, textH + 18.0f);
+        panel.r = 0.08f;
+        panel.g = 0.09f;
+        panel.b = 0.12f;
+        panel.a = 0.80f;
+        quads.push_back(panel);
+
+        game::runtime::backend_text::appendTextQuads(
+            quads, textX, textY, message, scale, 1.0f, 0.98f, 0.45f, 1.0f);
+
+        services.renderer->drawDebugQuads(quads.data(), quads.size(), uiW, uiH);
+        return;
+    }
 
     static std::unique_ptr<TextRenderer> text;
     if (!text) {
@@ -89,13 +128,8 @@ void PlacementState::render() {
         text = std::make_unique<TextRenderer>(c.fontPath, c.fontSize);
     }
 
-    const std::string message =
-        "Place your starter! Time left: " + std::to_string(static_cast<int>(std::max(0.0f, timer)));
-
     const float scale = 1.0f;
-
-    const auto* viewport = services.viewport;
-    const float uiWidth = static_cast<float>(viewport ? viewport->width : 1280);
+    const float uiWidth = static_cast<float>(uiW);
     float textWidth = text->measureTextWidth(message, scale);
     float centeredX = viewport ? viewport->centerX(textWidth)
                                : std::round((uiWidth - textWidth) * 0.5f);
