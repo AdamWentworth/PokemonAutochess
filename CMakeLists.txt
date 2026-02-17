@@ -335,6 +335,7 @@ if (BUILD_TESTING)
         tests/TestBackendWorldProjection.cpp
         tests/TestBackendUiPolicy.cpp
         tests/TestBackendShopSnapshot.cpp
+        tests/TestBackendInputSlots.cpp
         tests/TestSellOverlayUiPolicy.cpp
         tests/TestLogBus.cpp
         tests/TestRenderFlowDecisions.cpp

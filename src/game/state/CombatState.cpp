@@ -6,6 +6,7 @@
 #include "game/runtime/BackendDebugText.h"
 #include "game/scripting/LuaCardParser.h"
 #include "game/scripting/LuaScriptHelpers.h"
+#include "game/state/BackendInputSlots.h"
 #include "game/state/BackendUiPolicy.h"
 #include "game/ui/ShopLayout.h"
 #include "game/ui/SellOverlayUiPolicy.h"
@@ -156,20 +157,7 @@ bool CombatState::invokeBackendShopEntry(const game::state::backend_shop::Entry&
 }
 
 bool CombatState::tryHandleBackendShopKey(InputEvent::Key keyId) {
-    int target = -1;
-    switch (keyId) {
-        case InputEvent::Key::Num1: target = 1; break;
-        case InputEvent::Key::Num2: target = 2; break;
-        case InputEvent::Key::Num3: target = 3; break;
-        case InputEvent::Key::Num4: target = 4; break;
-        case InputEvent::Key::Num5: target = 5; break;
-        case InputEvent::Key::Num6: target = 6; break;
-        case InputEvent::Key::Num7: target = 7; break;
-        case InputEvent::Key::Num8: target = 8; break;
-        case InputEvent::Key::Num9: target = 9; break;
-        default:
-            return false;
-    }
+    const int target = game::state::backend_input::slotFromNumberKey(keyId);
 
     if (target <= 0) return false;
     refreshBackendShopSnapshot();

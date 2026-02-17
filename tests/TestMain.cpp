@@ -21,6 +21,7 @@ bool test_backend_debug_text_quads_contract(std::string& outFail);
 bool test_backend_world_projection_contract(std::string& outFail);
 bool test_backend_ui_sell_overlay_policy(std::string& outFail);
 bool test_backend_shop_snapshot_contract(std::string& outFail);
+bool test_backend_input_slots_contract(std::string& outFail);
 bool test_sell_overlay_ui_policy_contract(std::string& outFail);
 bool test_video_init_gl_viewport_guard(std::string& outFail);
 bool test_video_preferences_parse_and_roundtrip(std::string& outFail);
@@ -133,6 +134,7 @@ int main(int argc, char** argv) {
         {"backend_world_projection_contract", &test_backend_world_projection_contract},
         {"backend_ui_sell_overlay_policy", &test_backend_ui_sell_overlay_policy},
         {"backend_shop_snapshot_contract", &test_backend_shop_snapshot_contract},
+        {"backend_input_slots_contract", &test_backend_input_slots_contract},
         {"sell_overlay_ui_policy_contract", &test_sell_overlay_ui_policy_contract},
         {"video_init_gl_viewport_guard", &test_video_init_gl_viewport_guard},
         {"video_preferences_parse_and_roundtrip", &test_video_preferences_parse_and_roundtrip},

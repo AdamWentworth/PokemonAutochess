@@ -6,6 +6,7 @@
 #include "game/scripting/LuaScriptHelpers.h"
 #include "game/scripting/LuaTextMenuParser.h"
 #include "game/runtime/BackendDebugText.h"
+#include "game/state/BackendInputSlots.h"
 #include "game/state/PlacementState.h"
 #include "game/state/BackendUiPolicy.h"
 #include "game/ui/ShopLayout.h"
@@ -642,21 +643,53 @@ void ScriptedState::renderBackendCardUi(int uiW, int uiH) {
     }
 
     if (cardMode == CardMode::Shop) {
-        if (gameWorld) {
-            const std::string moneyLabel = "Gold: " + std::to_string(std::max(0, gameWorld->getMoney()));
-            game::runtime::backend_text::appendTextQuads(
-                quads, 26.0f, 64.0f, moneyLabel, 1.3f, 0.95f, 0.88f, 0.50f, 1.0f);
+        const std::string moneyLabel =
+            "Gold: " + std::to_string(std::max(0, gameWorld ? gameWorld->getMoney() : 0));
+        const int rerollSlot = game::state::backend_shop::keyboardSlotFor(
+            backendShopSnapshot,
+            game::state::backend_shop::ActionType::ShopReroll,
+            0);
+        const std::string rerollLabel = prefixedLabel(rerollSlot, "Reroll 2g");
+
+        int cardsX = 18;
+        int cardsY = std::max(0, uiH - 120);
+        int cardsH = 96;
+        if (!backendMainButtons.empty()) {
+            cardsX = static_cast<int>(std::round(backendMainButtons.front().x));
+            cardsY = static_cast<int>(std::round(backendMainButtons.front().y));
+            cardsH = static_cast<int>(std::round(backendMainButtons.front().h));
         }
+
+        const float moneyScale = 1.0f * kBackendTextScaleBase;
+        const float rerollScale = 1.0f * kBackendTextScaleBase;
+        const float moneyW = game::runtime::backend_text::measureTextWidth(moneyLabel, moneyScale);
+        const float moneyH = game::runtime::backend_text::measureTextHeight(moneyLabel, moneyScale);
+        const float rerollW = game::runtime::backend_text::measureTextWidth(rerollLabel, rerollScale);
+        const float rerollH = game::runtime::backend_text::measureTextHeight(rerollLabel, rerollScale);
+
+        game::ui::ClassicHudLayoutInput hudIn;
+        hudIn.uiW = uiW;
+        hudIn.uiH = uiH;
+        hudIn.shopCardsX = cardsX;
+        hudIn.shopCardsY = cardsY;
+        hudIn.shopCardsH = cardsH;
+        hudIn.moneyTextW = moneyW;
+        hudIn.moneyTextH = moneyH;
+        hudIn.rerollTextW = rerollW;
+        hudIn.rerollTextH = rerollH;
+        hudIn.showReroll = hasShopRerollButton;
+        hudIn.iconVisible = false;
+        const game::ui::ClassicHudLayout hud = game::ui::computeClassicHudLayout(hudIn);
+
+        game::runtime::backend_text::appendTextQuads(
+            quads, hud.textX, hud.textY, moneyLabel, moneyScale, 0.95f, 0.88f, 0.50f, 1.0f);
+
         if (hasShopRerollButton) {
-            const float buttonTextX = 26.0f;
-            const float buttonTextY = 96.0f;
+            const float buttonTextX = hud.rerollX;
+            const float buttonTextY = hud.rerollY;
             float buttonW = 0.0f;
             float buttonH = 0.0f;
-            const int rerollSlot = game::state::backend_shop::keyboardSlotFor(
-                backendShopSnapshot,
-                game::state::backend_shop::ActionType::ShopReroll,
-                0);
-            addButton(buttonTextX, buttonTextY, prefixedLabel(rerollSlot, "Reroll 2g"), 1.0f,
+            addButton(buttonTextX, buttonTextY, rerollLabel, 1.0f,
                       0.20f, 0.16f, 0.08f, &buttonW, &buttonH);
             backendRerollX = buttonTextX - std::max(8.0f, kBackendTextScaleBase * 4.0f);
             backendRerollY = buttonTextY - std::max(5.0f, kBackendTextScaleBase * 2.5f);
@@ -670,12 +703,11 @@ void ScriptedState::renderBackendCardUi(int uiW, int uiH) {
                 0);
             const std::string readyLabel = prefixedLabel(readySlot, "Ready");
             const float textScale = 1.0f * kBackendTextScaleBase;
-            const int baseW = stb_easy_font_width(const_cast<char*>(readyLabel.c_str()));
-            const float textW = std::max(1.0f, static_cast<float>(baseW) * textScale);
+            const float textW = std::max(1.0f, game::runtime::backend_text::measureTextWidth(readyLabel, textScale));
             const float padX = std::max(8.0f, textScale * 4.0f);
             const float padY = std::max(5.0f, textScale * 2.5f);
             const float textX = static_cast<float>(uiW) - textW - padX * 2.0f - 28.0f + padX;
-            const float textY = 96.0f;
+            const float textY = 62.0f;
             float buttonW = 0.0f;
             float buttonH = 0.0f;
             addButton(textX, textY, readyLabel, 1.0f, 0.12f, 0.25f, 0.14f, &buttonW, &buttonH);
@@ -706,20 +738,7 @@ void ScriptedState::renderBackendCardUi(int uiW, int uiH) {
 }
 
 bool ScriptedState::tryHandleBackendCardKey(InputEvent::Key keyId) {
-    int target = -1;
-    switch (keyId) {
-        case InputEvent::Key::Num1: target = 1; break;
-        case InputEvent::Key::Num2: target = 2; break;
-        case InputEvent::Key::Num3: target = 3; break;
-        case InputEvent::Key::Num4: target = 4; break;
-        case InputEvent::Key::Num5: target = 5; break;
-        case InputEvent::Key::Num6: target = 6; break;
-        case InputEvent::Key::Num7: target = 7; break;
-        case InputEvent::Key::Num8: target = 8; break;
-        case InputEvent::Key::Num9: target = 9; break;
-        default:
-            return false;
-    }
+    const int target = game::state::backend_input::slotFromNumberKey(keyId);
 
     if (target <= 0) return false;
     refreshBackendShopSnapshot();
@@ -875,19 +894,8 @@ void ScriptedState::logHeadlessTextMenuHints() const {
 }
 
 bool ScriptedState::tryHandleHeadlessTextMenuKey(InputEvent::Key keyId) {
-    int targetOption = -1;
-    switch (keyId) {
-        case InputEvent::Key::Num1: targetOption = 1; break;
-        case InputEvent::Key::Num2: targetOption = 2; break;
-        case InputEvent::Key::Num3: targetOption = 3; break;
-        case InputEvent::Key::Num4: targetOption = 4; break;
-        case InputEvent::Key::Num5: targetOption = 5; break;
-        case InputEvent::Key::Num6: targetOption = 6; break;
-        case InputEvent::Key::Num7: targetOption = 7; break;
-        case InputEvent::Key::Num8: targetOption = 8; break;
-        case InputEvent::Key::Num9: targetOption = 9; break;
-        default: return false;
-    }
+    const int targetOption = game::state::backend_input::slotFromNumberKey(keyId);
+    if (targetOption <= 0) return false;
 
     int option = 0;
     for (const auto& entry : textMenuEntries) {
