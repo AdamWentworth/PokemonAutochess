@@ -1,7 +1,9 @@
 #include <algorithm>
+#include <exception>
 #include <string>
 
 #include "engine/core/Paths.h"
+#include "engine/utils/ResourceManager.h"
 
 #include "game/GameConfig.h"
 #include "game/GameWorld.h"
@@ -169,6 +171,45 @@ bool test_gameworld_capture_failure_recovery(std::string& outFail) {
                 "Failed capture should clear capture visual/interaction flags.", outFail)) return false;
     if (!expect(recovered->alive && !recovered->fainting && recovered->hp >= 1,
                 "Failed capture should restore fainting target to alive state with minimum HP.", outFail)) return false;
+
+    return true;
+}
+
+bool test_gameworld_capture_nonrender_skips_pokeball_model_load(std::string& outFail) {
+    GameConfigData cfg;
+    cfg.captureMinChance = 1.0f;
+    cfg.captureMaxChance = 1.0f;
+    cfg.captureAttemptSec = 0.2f;
+
+    GameWorld world(cfg);
+    world.setRenderEnabled(false);
+
+    GameDataDb db;
+    if (!loadPokemonConfig(db, outFail)) return false;
+    world.setData(&db);
+
+    ResourceManager resources;
+    world.setResources(&resources);
+
+    PokemonInstance enemy = makeCaptureTarget("bulbasaur", PokemonSide::Enemy, true, false, false, 3, 100, 35);
+    const int enemyId = enemy.id;
+    world.getPokemons().push_back(enemy);
+
+    try {
+        if (!world.startCaptureAttempt(enemyId, 1.0f, nullptr)) {
+            outFail = "Capture attempt should start in non-render mode with resources configured.";
+            return false;
+        }
+    } catch (const std::exception& ex) {
+        outFail = std::string("Capture start should not throw in non-render mode: ") + ex.what();
+        return false;
+    }
+
+    const PokemonInstance* target = world.findUnitById(enemyId);
+    if (!target || !target->captureInProgress) {
+        outFail = "Capture start should still mark target capture state in non-render mode.";
+        return false;
+    }
 
     return true;
 }

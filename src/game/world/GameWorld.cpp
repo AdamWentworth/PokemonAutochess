@@ -195,16 +195,18 @@ void GameWorld::tryApplyEvolution(PokemonInstance& unit) {
     const std::string path = "assets/models/" + nextStats->model;
 
     std::shared_ptr<Model> nextModel = unit.model;
-    if (resources) {
-        auto loaded = resources->getModel(path);
-        if (loaded) nextModel = loaded;
-        else if (renderEnabled) {
-            if (log) game::log::warn(log, "Evolution model load failed for " + nextName + ": " + path);
+    if (renderEnabled) {
+        if (resources) {
+            auto loaded = resources->getModel(path);
+            if (loaded) nextModel = loaded;
+            else {
+                if (log) game::log::warn(log, "Evolution model load failed for " + nextName + ": " + path);
+                return;
+            }
+        } else {
+            if (log) game::log::warn(log, "Resource service missing; cannot load evolution model: " + path);
             return;
         }
-    } else if (renderEnabled) {
-        if (log) game::log::warn(log, "Resource service missing; cannot load evolution model: " + path);
-        return;
     }
 
     unit.name = nextName;

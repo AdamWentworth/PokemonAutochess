@@ -41,10 +41,11 @@ bool GameWorld::buildPokemonInstance(const std::string& pokemonName,
 
     const std::string modelPath = "assets/models/" + stats->model;
     std::shared_ptr<Model> sharedModel;
-    if (!resources) {
-        std::cerr << "[GameWorld] Resource service not set; cannot load model: " << modelPath << "\n";
-        if (renderEnabled) return false;
-    } else {
+    if (renderEnabled) {
+        if (!resources) {
+            std::cerr << "[GameWorld] Resource service not set; cannot load model: " << modelPath << "\n";
+            return false;
+        }
         sharedModel = resources->getModel(modelPath);
     }
 

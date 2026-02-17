@@ -1,8 +1,10 @@
 #include <algorithm>
 #include <cmath>
+#include <exception>
 #include <string>
 
 #include "engine/core/Paths.h"
+#include "engine/utils/ResourceManager.h"
 
 #include "game/GameConfig.h"
 #include "game/GameWorld.h"
@@ -117,6 +119,65 @@ bool test_gameworld_spawn_bench_flow(std::string& outFail) {
     world.addToBench("not_a_species", 1);
     if (board.size() != boardBeforeInvalid || bench.size() != benchBeforeInvalid) {
         outFail = "Invalid species should not change board/bench counts.";
+        return false;
+    }
+
+    return true;
+}
+
+bool test_gameworld_nonrender_with_resources_skips_model_load(std::string& outFail) {
+    GameConfigData cfg;
+    GameDataDb db;
+
+    const std::string pokemonPath = engine::paths::data("config/pokemon_config.json");
+    const std::string movesPath = engine::paths::data("config/moves_config.json");
+    if (!db.pokemon.loadConfig(pokemonPath, nullptr)) {
+        outFail = "Failed to load pokemon config: " + pokemonPath;
+        return false;
+    }
+    if (!db.moves.loadConfig(movesPath, nullptr)) {
+        outFail = "Failed to load moves config: " + movesPath;
+        return false;
+    }
+
+    GameWorld world(cfg);
+    world.setData(&db);
+    world.setRenderEnabled(false);
+
+    ResourceManager resources;
+    world.setResources(&resources);
+
+    try {
+        world.spawnPokemon("bulbasaur", glm::vec3(0.0f, 0.0f, 0.0f), PokemonSide::Player, 3);
+    } catch (const std::exception& ex) {
+        outFail = std::string("spawnPokemon should not throw in non-render mode: ") + ex.what();
+        return false;
+    }
+
+    const auto& board = world.getPokemons();
+    if (board.empty()) {
+        outFail = "spawnPokemon should still create units in non-render mode.";
+        return false;
+    }
+    if (board.back().model != nullptr) {
+        outFail = "non-render spawn should skip OpenGL model attachment.";
+        return false;
+    }
+
+    try {
+        world.addToBench("charmander", 2);
+    } catch (const std::exception& ex) {
+        outFail = std::string("addToBench should not throw in non-render mode: ") + ex.what();
+        return false;
+    }
+
+    const auto& bench = world.getBenchPokemons();
+    if (bench.empty()) {
+        outFail = "addToBench should still create bench units in non-render mode.";
+        return false;
+    }
+    if (bench.back().model != nullptr) {
+        outFail = "non-render bench add should skip OpenGL model attachment.";
         return false;
     }
 

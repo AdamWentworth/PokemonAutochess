@@ -258,6 +258,7 @@ void GameWorld::updateCaptureAttempts(float dt) {
 
 void GameWorld::ensurePokeballModel() {
     if (pokeballModelLoaded) return;
+    if (!renderEnabled) return;
     if (!resources) return;
     pokeballModel = resources->getModel("assets/models/pokeball.glb");
     pokeballModelLoaded = (pokeballModel != nullptr);

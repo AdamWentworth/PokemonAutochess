@@ -62,12 +62,14 @@ bool test_lua_script_helpers(std::string& outFail);
 bool test_shop_system_phase_contract(std::string& outFail);
 bool test_gameworld_merge_progression(std::string& outFail);
 bool test_gameworld_spawn_bench_flow(std::string& outFail);
+bool test_gameworld_nonrender_with_resources_skips_model_load(std::string& outFail);
 bool test_gameworld_income_flow(std::string& outFail);
 bool test_gameworld_inventory_healing(std::string& outFail);
 bool test_gameworld_reset_economy_state(std::string& outFail);
 bool test_gameworld_capture_preconditions(std::string& outFail);
 bool test_gameworld_capture_success_resolution(std::string& outFail);
 bool test_gameworld_capture_failure_recovery(std::string& outFail);
+bool test_gameworld_capture_nonrender_skips_pokeball_model_load(std::string& outFail);
 bool test_gameworld_type_line_counts(std::string& outFail);
 bool test_gameworld_nearest_enemy_position(std::string& outFail);
 bool test_gameworld_heal_player_units_to_full(std::string& outFail);
@@ -182,12 +184,14 @@ int main(int argc, char** argv) {
         {"shop_system_phase_contract", &test_shop_system_phase_contract},
         {"gameworld_merge_progression", &test_gameworld_merge_progression},
         {"gameworld_spawn_bench_flow", &test_gameworld_spawn_bench_flow},
+        {"gameworld_nonrender_with_resources_skips_model_load", &test_gameworld_nonrender_with_resources_skips_model_load},
         {"gameworld_income_flow", &test_gameworld_income_flow},
         {"gameworld_inventory_healing", &test_gameworld_inventory_healing},
         {"gameworld_reset_economy_state", &test_gameworld_reset_economy_state},
         {"gameworld_capture_preconditions", &test_gameworld_capture_preconditions},
         {"gameworld_capture_success_resolution", &test_gameworld_capture_success_resolution},
         {"gameworld_capture_failure_recovery", &test_gameworld_capture_failure_recovery},
+        {"gameworld_capture_nonrender_skips_pokeball_model_load", &test_gameworld_capture_nonrender_skips_pokeball_model_load},
         {"gameworld_type_line_counts", &test_gameworld_type_line_counts},
         {"gameworld_nearest_enemy_position", &test_gameworld_nearest_enemy_position},
         {"gameworld_heal_player_units_to_full", &test_gameworld_heal_player_units_to_full},
