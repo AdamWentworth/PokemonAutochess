@@ -181,6 +181,12 @@ void registerLuaBindings_Core(sol::state& lua, ScriptAPI& api) {
     lua.set_function("is_active_gpu_discrete", [&api]() {
         return api.isActiveGpuDiscrete();
     });
+    lua.set_function("request_restart_to_menu", [&api](const std::string& menuScreen) {
+        return api.requestRestartToMenu(menuScreen);
+    });
+    lua.set_function("consume_boot_menu_screen", [&api]() {
+        return api.consumeBootMenuScreen();
+    });
     lua.set_function("request_quit", [&api]() {
         api.requestQuit();
     });

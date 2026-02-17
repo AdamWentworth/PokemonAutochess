@@ -26,7 +26,7 @@ struct EasyFontVertex {
 };
 static_assert(sizeof(EasyFontVertex) == 16, "Unexpected stb_easy_font vertex layout.");
 
-constexpr float kBackendTextScaleBase = 2.0f;
+constexpr float kBackendTextScaleBase = 1.35f;
 
 std::vector<GameWorld::ClassicShopCard> buildClassicCardsFromUi(const std::vector<CardData>& cards) {
     std::vector<GameWorld::ClassicShopCard> out;
@@ -147,6 +147,13 @@ void ScriptedState::rebuildCardRow() {
     const auto* viewport = services.viewport;
     const int uiW = viewport ? viewport->width : 1280;
     const int uiH = viewport ? viewport->height : 720;
+    backendMainButtons.clear();
+    backendItemButtons.clear();
+    backendRerollX = 0.0f;
+    backendRerollY = 0.0f;
+    backendRerollW = 0.0f;
+    backendRerollH = 0.0f;
+
     if (cardMode == CardMode::Shop) {
         bool allItems = true;
         for (const auto& card : list) {
@@ -159,6 +166,22 @@ void ScriptedState::rebuildCardRow() {
             gameWorld->setClassicShopCards(buildClassicCardsFromUi(list));
             gameWorld->setUnitDropZoneLayoutHint(static_cast<int>(list.size()), allItems);
             gameWorld->setUnitSellRewardsEnabled(services.gameMode == "classic");
+        }
+        if (services.renderer) {
+            rebuildBackendCardUi(list, uiW, uiH, /*isItemRow=*/false);
+            if (hasShopItems) {
+                sol::protected_function itemFn = S["get_shop_items"];
+                std::vector<CardData> items;
+                std::string itemParseError;
+                if (game::scripting::parseCardList(itemFn, items, &itemParseError)) {
+                    rebuildBackendCardUi(items, uiW, uiH, /*isItemRow=*/true);
+                } else {
+                    std::cerr << "[ScriptedState] failed to parse item card list: " << itemParseError << "\n";
+                    backendItemButtons.clear();
+                }
+            }
+            std::cout << "[ScriptedState] Spawned " << list.size() << " cards\n";
+            return;
         }
         if (shopUi) {
             shopUi->setCards(list, uiW, uiH);
@@ -188,7 +211,11 @@ void ScriptedState::rebuildCardRow() {
             gameWorld->clearClassicShopCards();
             gameWorld->setUnitDropZoneLayoutHint(0, false);
         }
-        cardSystem.spawnCardRow(list, uiW, /*y*/ 300);
+        if (services.renderer) {
+            rebuildBackendCardUi(list, uiW, uiH, /*isItemRow=*/false);
+        } else {
+            cardSystem.spawnCardRow(list, uiW, /*y*/ 300);
+        }
     }
     std::cout << "[ScriptedState] Spawned " << list.size() << " cards\n";
 }
@@ -234,40 +261,427 @@ void ScriptedState::rebuildTextMenu() {
 }
 
 void ScriptedState::layoutBackendTextMenu(int uiW, int uiH) {
-    const float autoStartY = std::max(150.0f, static_cast<float>(uiH) * 0.28f);
-    const float rowGap = std::max(10.0f, static_cast<float>(uiH) * 0.02f);
-    float autoY = autoStartY;
+    const auto applyLayout = [&](float scaleMul) -> float {
+        const float autoStartY = std::max(110.0f, static_cast<float>(uiH) * 0.22f);
+        const float rowGap = std::max(6.0f, static_cast<float>(uiH) * 0.016f) * scaleMul;
+        float autoY = autoStartY;
+        float maxBottom = 0.0f;
 
-    int keyboardIndex = 0;
-    for (auto& entry : textMenuEntries) {
-        std::string display = entry.label;
-        if (entry.enabled) {
-            ++keyboardIndex;
-            if (keyboardIndex <= 9) {
-                display = "[" + std::to_string(keyboardIndex) + "] " + display;
+        int keyboardIndex = 0;
+        for (auto& entry : textMenuEntries) {
+            std::string display = entry.label;
+            if (entry.enabled) {
+                ++keyboardIndex;
+                if (keyboardIndex <= 9) {
+                    display = "[" + std::to_string(keyboardIndex) + "] " + display;
+                }
+            }
+
+            const float textScale = std::max(0.1f, entry.scale) * kBackendTextScaleBase * scaleMul;
+            const int baseW = stb_easy_font_width(const_cast<char*>(display.c_str()));
+            const int baseH = stb_easy_font_height(const_cast<char*>(display.c_str()));
+            entry.w = std::max(8.0f, static_cast<float>(baseW) * textScale);
+            entry.h = std::max(8.0f, static_cast<float>(baseH) * textScale);
+
+            if (entry.hasCustomX) {
+                const float anchorX = static_cast<float>(uiW) * entry.xFrac;
+                entry.x = entry.anchorCenter ? (anchorX - entry.w * 0.5f) : anchorX;
+            } else {
+                entry.x = (static_cast<float>(uiW) - entry.w) * 0.5f;
+            }
+
+            if (entry.hasCustomY) {
+                entry.y = static_cast<float>(uiH) * entry.yFrac;
+            } else {
+                entry.y = autoY;
+                autoY += entry.h + rowGap;
+            }
+
+            maxBottom = std::max(maxBottom, entry.y + entry.h);
+        }
+        return maxBottom;
+    };
+
+    backendTextMenuScale = 1.0f;
+    float maxBottom = applyLayout(backendTextMenuScale);
+    const float maxAllowed = static_cast<float>(uiH) - 18.0f;
+    if (maxBottom > maxAllowed) {
+        float minTop = static_cast<float>(uiH);
+        for (const auto& entry : textMenuEntries) {
+            minTop = std::min(minTop, entry.y);
+        }
+        const float span = std::max(1.0f, maxBottom - minTop);
+        const float targetSpan = std::max(40.0f, maxAllowed - minTop);
+        backendTextMenuScale = std::clamp(targetSpan / span, 0.55f, 1.0f);
+        maxBottom = applyLayout(backendTextMenuScale);
+
+        if (maxBottom > maxAllowed) {
+            const float shiftUp = maxBottom - maxAllowed;
+            for (auto& entry : textMenuEntries) {
+                entry.y = std::max(8.0f, entry.y - shiftUp);
             }
         }
+    }
+}
 
-        const float textScale = std::max(0.1f, entry.scale) * kBackendTextScaleBase;
-        const int baseW = stb_easy_font_width(const_cast<char*>(display.c_str()));
-        const int baseH = stb_easy_font_height(const_cast<char*>(display.c_str()));
-        entry.w = std::max(8.0f, static_cast<float>(baseW) * textScale);
-        entry.h = std::max(8.0f, static_cast<float>(baseH) * textScale);
+void ScriptedState::rebuildBackendCardUi(const std::vector<CardData>& cards, int uiW, int uiH, bool isItemRow) {
+    std::vector<BackendCardButton>& out = isItemRow ? backendItemButtons : backendMainButtons;
+    out.clear();
 
-        if (entry.hasCustomX) {
-            const float anchorX = static_cast<float>(uiW) * entry.xFrac;
-            entry.x = entry.anchorCenter ? (anchorX - entry.w * 0.5f) : anchorX;
-        } else {
-            entry.x = (static_cast<float>(uiW) - entry.w) * 0.5f;
-        }
+    if (cards.empty()) return;
 
-        if (entry.hasCustomY) {
-            entry.y = static_cast<float>(uiH) * entry.yFrac;
-        } else {
-            entry.y = autoY;
-            autoY += entry.h + rowGap;
+    bool allItems = isItemRow;
+    if (!allItems) {
+        allItems = true;
+        for (const auto& card : cards) {
+            if (card.type != CardType::Item) {
+                allItems = false;
+                break;
+            }
         }
     }
+
+    const game::ui::ShopRowLayout layout = game::ui::computeShopRowLayout(uiW, uiH, allItems);
+    const int count = static_cast<int>(cards.size());
+    const int cardW = std::max(64, layout.cardW);
+    const int cardH = std::max(48, layout.cardH);
+    const int spacing = std::max(6, layout.spacing);
+
+    int startX = layout.edgeMargin;
+    int rowY = layout.edgeMargin;
+    if (cardMode == CardMode::Shop) {
+        const game::ui::ShopRowPlacement place = game::ui::computeShopRowPlacement(uiW, uiH, count, layout);
+        startX = place.startX;
+        rowY = place.y;
+        if (isItemRow) {
+            const int topShelf = std::max(layout.edgeMargin + 64,
+                                          static_cast<int>(std::round(static_cast<float>(uiH) * 0.16f)));
+            rowY = topShelf;
+        }
+    } else {
+        const int totalW = count * (cardW + spacing) - spacing;
+        startX = std::max(layout.edgeMargin, (uiW - totalW) / 2);
+        rowY = std::max(layout.edgeMargin + 72,
+                        static_cast<int>(std::round(static_cast<float>(uiH) * 0.44f)));
+    }
+
+    out.reserve(cards.size());
+    for (int i = 0; i < count; ++i) {
+        BackendCardButton b;
+        b.data = cards[static_cast<std::size_t>(i)];
+        b.x = static_cast<float>(startX + i * (cardW + spacing));
+        b.y = static_cast<float>(rowY);
+        b.w = static_cast<float>(cardW);
+        b.h = static_cast<float>(cardH);
+        b.item = (b.data.type == CardType::Item) || isItemRow;
+        out.push_back(std::move(b));
+    }
+}
+
+void ScriptedState::renderBackendCardUi(int uiW, int uiH) {
+    if (!services.renderer) return;
+    if (cardMode != CardMode::Shop && cardMode != CardMode::Starter) return;
+
+    std::vector<IRenderBackend::DebugQuad> quads;
+    quads.reserve(4096);
+
+    const auto addButton = [&](float x,
+                               float y,
+                               const std::string& label,
+                               float scale,
+                               float r,
+                               float g,
+                               float b,
+                               float* outW,
+                               float* outH) {
+        const float textScale = std::max(0.1f, scale) * kBackendTextScaleBase;
+        const int baseW = stb_easy_font_width(const_cast<char*>(label.c_str()));
+        const int baseH = stb_easy_font_height(const_cast<char*>(label.c_str()));
+        const float textW = std::max(1.0f, static_cast<float>(baseW) * textScale);
+        const float textH = std::max(1.0f, static_cast<float>(baseH) * textScale);
+        const float padX = std::max(8.0f, textScale * 4.0f);
+        const float padY = std::max(5.0f, textScale * 2.5f);
+
+        IRenderBackend::DebugQuad bg;
+        bg.x = x - padX;
+        bg.y = y - padY;
+        bg.w = textW + padX * 2.0f;
+        bg.h = textH + padY * 2.0f;
+        bg.r = r;
+        bg.g = g;
+        bg.b = b;
+        bg.a = 0.92f;
+        quads.push_back(bg);
+
+        appendEasyFontTextQuads(quads, x, y, label, textScale, 0.98f, 0.98f, 0.98f, 1.0f);
+        if (outW) *outW = bg.w;
+        if (outH) *outH = bg.h;
+    };
+
+    const auto msgOpt = game::scripting::callStringFunction(script.getScriptTable(), {"get_message"});
+    const std::string header = msgOpt ? *msgOpt : ((cardMode == CardMode::Starter) ? "Starter" : "Shop");
+    appendEasyFontTextQuads(quads, 26.0f, 24.0f, header, 2.6f, 0.95f, 0.95f, 0.98f, 1.0f);
+
+    backendRerollX = 0.0f;
+    backendRerollY = 0.0f;
+    backendRerollW = 0.0f;
+    backendRerollH = 0.0f;
+    shopReadyX = 0.0f;
+    shopReadyY = 0.0f;
+    shopReadyW = 0.0f;
+    shopReadyH = 0.0f;
+
+    int keyboardSlot = 1;
+    const auto addCardRow = [&](const std::vector<BackendCardButton>& row, bool itemRow) {
+        for (const auto& card : row) {
+            IRenderBackend::DebugQuad panel;
+            panel.x = card.x;
+            panel.y = card.y;
+            panel.w = card.w;
+            panel.h = card.h;
+            if (itemRow || card.item) {
+                panel.r = 0.26f;
+                panel.g = 0.20f;
+                panel.b = 0.10f;
+            } else {
+                panel.r = 0.14f;
+                panel.g = 0.20f;
+                panel.b = 0.28f;
+            }
+            panel.a = 0.92f;
+            quads.push_back(panel);
+
+            IRenderBackend::DebugQuad border;
+            border.x = card.x + 1.0f;
+            border.y = card.y + 1.0f;
+            border.w = std::max(0.0f, card.w - 2.0f);
+            border.h = std::max(0.0f, card.h - 2.0f);
+            border.r = 0.06f;
+            border.g = 0.07f;
+            border.b = 0.10f;
+            border.a = 0.40f;
+            quads.push_back(border);
+
+            const std::string name = card.data.label.empty() ? card.data.pokemonName : card.data.label;
+            const std::string indexed = "[" + std::to_string(keyboardSlot) + "] " + name;
+            appendEasyFontTextQuads(quads,
+                                    card.x + 8.0f,
+                                    card.y + 8.0f,
+                                    indexed,
+                                    1.0f,
+                                    0.97f,
+                                    0.97f,
+                                    0.99f,
+                                    1.0f);
+
+            std::string sub = "Lv " + std::to_string(std::max(1, card.data.level));
+            if (cardMode == CardMode::Shop) {
+                sub += "  Cost " + std::to_string(std::max(0, card.data.cost)) + "g";
+            }
+            appendEasyFontTextQuads(quads,
+                                    card.x + 8.0f,
+                                    card.y + std::max(16.0f, card.h - 24.0f),
+                                    sub,
+                                    0.9f,
+                                    0.83f,
+                                    0.90f,
+                                    0.96f,
+                                    1.0f);
+            ++keyboardSlot;
+        }
+    };
+
+    addCardRow(backendMainButtons, /*itemRow=*/false);
+    addCardRow(backendItemButtons, /*itemRow=*/true);
+
+    if (cardMode == CardMode::Shop) {
+        if (gameWorld) {
+            const std::string moneyLabel = "Gold: " + std::to_string(std::max(0, gameWorld->getMoney()));
+            appendEasyFontTextQuads(quads, 26.0f, 64.0f, moneyLabel, 1.3f, 0.95f, 0.88f, 0.50f, 1.0f);
+        }
+        if (hasShopRerollButton) {
+            const float buttonTextX = 26.0f;
+            const float buttonTextY = 96.0f;
+            float buttonW = 0.0f;
+            float buttonH = 0.0f;
+            addButton(buttonTextX, buttonTextY, "[" + std::to_string(keyboardSlot) + "] Reroll 2g", 1.0f,
+                      0.20f, 0.16f, 0.08f, &buttonW, &buttonH);
+            backendRerollX = buttonTextX - std::max(8.0f, kBackendTextScaleBase * 4.0f);
+            backendRerollY = buttonTextY - std::max(5.0f, kBackendTextScaleBase * 2.5f);
+            backendRerollW = buttonW;
+            backendRerollH = buttonH;
+            ++keyboardSlot;
+        }
+        if (hasShopReadyButton) {
+            const std::string readyLabel = "[" + std::to_string(keyboardSlot) + "] Ready";
+            const float textScale = 1.0f * kBackendTextScaleBase;
+            const int baseW = stb_easy_font_width(const_cast<char*>(readyLabel.c_str()));
+            const float textW = std::max(1.0f, static_cast<float>(baseW) * textScale);
+            const float padX = std::max(8.0f, textScale * 4.0f);
+            const float padY = std::max(5.0f, textScale * 2.5f);
+            const float textX = static_cast<float>(uiW) - textW - padX * 2.0f - 28.0f + padX;
+            const float textY = 96.0f;
+            float buttonW = 0.0f;
+            float buttonH = 0.0f;
+            addButton(textX, textY, readyLabel, 1.0f, 0.12f, 0.25f, 0.14f, &buttonW, &buttonH);
+            shopReadyX = textX - padX;
+            shopReadyY = textY - padY;
+            shopReadyW = buttonW;
+            shopReadyH = buttonH;
+            ++keyboardSlot;
+        }
+    }
+
+    appendEasyFontTextQuads(quads, 26.0f, static_cast<float>(uiH) - 36.0f,
+                            "Use mouse or keys 1-9", 1.0f, 0.72f, 0.82f, 0.93f, 1.0f);
+
+    if (!quads.empty()) {
+        services.renderer->drawDebugQuads(quads.data(), quads.size(), uiW, uiH);
+    }
+}
+
+bool ScriptedState::tryHandleBackendCardKey(InputEvent::Key keyId) {
+    int target = -1;
+    switch (keyId) {
+        case InputEvent::Key::Num1: target = 1; break;
+        case InputEvent::Key::Num2: target = 2; break;
+        case InputEvent::Key::Num3: target = 3; break;
+        case InputEvent::Key::Num4: target = 4; break;
+        case InputEvent::Key::Num5: target = 5; break;
+        case InputEvent::Key::Num6: target = 6; break;
+        case InputEvent::Key::Num7: target = 7; break;
+        case InputEvent::Key::Num8: target = 8; break;
+        case InputEvent::Key::Num9: target = 9; break;
+        default:
+            return false;
+    }
+
+    if (target <= 0) return false;
+    sol::table S = script.getScriptTable();
+
+    int slot = 1;
+    for (const auto& card : backendMainButtons) {
+        if (slot == target) {
+            if (cardMode == CardMode::Shop) {
+                sol::function onClick = game::scripting::resolveFunction(S, {"on_shop_card_click", "on_card_click", "onCardClick"});
+                if (onClick.valid()) onClick(card.data.pokemonName, card.data.level);
+                script.flushCommands();
+                rebuildCardRow();
+                return true;
+            }
+
+            if (cardMode == CardMode::Starter) {
+                sol::function onClick = game::scripting::resolveFunction(S, {"on_card_click", "onCardClick"});
+                if (onClick.valid()) onClick(card.data.pokemonName);
+                script.flushCommands();
+                if (stateManager) {
+                    stateManager->pushState(std::make_unique<PlacementState>(
+                        stateManager, gameWorld, services, card.data.pokemonName));
+                }
+                return true;
+            }
+            return false;
+        }
+        ++slot;
+    }
+
+    for (const auto& card : backendItemButtons) {
+        if (slot == target) {
+            sol::function onItemClick = game::scripting::resolveFunction(S, {"on_shop_item_click"});
+            if (onItemClick.valid()) onItemClick(card.data.pokemonName, card.data.cost);
+            script.flushCommands();
+            rebuildCardRow();
+            return true;
+        }
+        ++slot;
+    }
+
+    if (cardMode == CardMode::Shop && hasShopRerollButton) {
+        if (slot == target) {
+            sol::function onReroll = game::scripting::resolveFunction(S, {"on_shop_reroll_click"});
+            if (onReroll.valid()) onReroll();
+            script.flushCommands();
+            rebuildCardRow();
+            return true;
+        }
+        ++slot;
+    }
+
+    if (cardMode == CardMode::Shop && hasShopReadyButton && slot == target) {
+        sol::function onReady = game::scripting::resolveFunction(S, {"on_shop_ready_click"});
+        if (onReady.valid()) onReady();
+        script.flushCommands();
+        rebuildCardRow();
+        return true;
+    }
+
+    return false;
+}
+
+bool ScriptedState::handleBackendCardMouseClick(int mouseX, int mouseY) {
+    if (cardMode != CardMode::Shop && cardMode != CardMode::Starter) return false;
+
+    sol::table S = script.getScriptTable();
+    const float mx = static_cast<float>(mouseX);
+    const float my = static_cast<float>(mouseY);
+
+    if (cardMode == CardMode::Shop && hasShopRerollButton &&
+        mx >= backendRerollX && mx <= (backendRerollX + backendRerollW) &&
+        my >= backendRerollY && my <= (backendRerollY + backendRerollH)) {
+        sol::function onReroll = game::scripting::resolveFunction(S, {"on_shop_reroll_click"});
+        if (onReroll.valid()) onReroll();
+        script.flushCommands();
+        rebuildCardRow();
+        return true;
+    }
+
+    if (cardMode == CardMode::Shop && hasShopReadyButton &&
+        mx >= shopReadyX && mx <= (shopReadyX + shopReadyW) &&
+        my >= shopReadyY && my <= (shopReadyY + shopReadyH)) {
+        sol::function onReady = game::scripting::resolveFunction(S, {"on_shop_ready_click"});
+        if (onReady.valid()) onReady();
+        script.flushCommands();
+        rebuildCardRow();
+        return true;
+    }
+
+    for (const auto& card : backendMainButtons) {
+        if (mx < card.x || mx > (card.x + card.w) || my < card.y || my > (card.y + card.h)) {
+            continue;
+        }
+
+        if (cardMode == CardMode::Shop) {
+            sol::function onClick = game::scripting::resolveFunction(S, {"on_shop_card_click", "on_card_click", "onCardClick"});
+            if (onClick.valid()) onClick(card.data.pokemonName, card.data.level);
+            script.flushCommands();
+            rebuildCardRow();
+            return true;
+        }
+
+        sol::function onClick = game::scripting::resolveFunction(S, {"on_card_click", "onCardClick"});
+        if (onClick.valid()) onClick(card.data.pokemonName);
+        script.flushCommands();
+        if (stateManager) {
+            stateManager->pushState(std::make_unique<PlacementState>(
+                stateManager, gameWorld, services, card.data.pokemonName));
+        }
+        return true;
+    }
+
+    if (cardMode == CardMode::Shop) {
+        for (const auto& card : backendItemButtons) {
+            if (mx < card.x || mx > (card.x + card.w) || my < card.y || my > (card.y + card.h)) {
+                continue;
+            }
+            sol::function onItemClick = game::scripting::resolveFunction(S, {"on_shop_item_click"});
+            if (onItemClick.valid()) onItemClick(card.data.pokemonName, card.data.cost);
+            script.flushCommands();
+            rebuildCardRow();
+            return true;
+        }
+    }
+
+    return false;
 }
 
 void ScriptedState::renderBackendTextMenu(int uiW, int uiH) {
@@ -294,7 +708,7 @@ void ScriptedState::renderBackendTextMenu(int uiW, int uiH) {
             }
         }
 
-        const float textScale = std::max(0.1f, entry.scale) * kBackendTextScaleBase;
+        const float textScale = std::max(0.1f, entry.scale) * kBackendTextScaleBase * backendTextMenuScale;
         const float padX = std::max(8.0f, 10.0f * textScale * 0.5f);
         const float padY = std::max(4.0f, 6.0f * textScale * 0.5f);
 
@@ -350,7 +764,7 @@ void ScriptedState::renderBackendTextMenu(int uiW, int uiH) {
                                 minX,
                                 std::max(24.0f, minY - 62.0f),
                                 header,
-                                3.0f,
+                                3.0f * backendTextMenuScale,
                                 0.97f,
                                 0.97f,
                                 0.98f,
@@ -359,7 +773,7 @@ void ScriptedState::renderBackendTextMenu(int uiW, int uiH) {
                                 minX,
                                 std::max(52.0f, minY - 30.0f),
                                 "Click entries or press 1-9",
-                                1.5f,
+                                1.5f * backendTextMenuScale,
                                 0.72f,
                                 0.84f,
                                 0.96f,
@@ -387,7 +801,7 @@ void ScriptedState::logHeadlessTextMenuHints() const {
 
     int option = 0;
     bool any = false;
-    std::cout << "[Menu][BackendUI] Non-OpenGL menu path active.\n";
+    std::cout << "[Menu][BackendUI] Shared backend menu path active.\n";
     std::cout << "[Menu][BackendUI] Click the game window to focus, then use mouse or press 1-9:\n";
     for (const auto& entry : textMenuEntries) {
         if (!entry.enabled) continue;
@@ -449,22 +863,48 @@ void ScriptedState::ensureCardUI() {
         sol::table S = script.getScriptTable();
         const bool hasTextMenuEntries = game::scripting::hasFunction(S, "get_text_menu_entries");
         const bool hasTextMenuClick = game::scripting::hasAnyFunction(S, {"on_text_menu_click", "on_menu_click"});
+        const bool hasShopCards = game::scripting::hasFunction(S, "get_shop_cards");
+        const bool hasShopClick = game::scripting::hasAnyFunction(S, {"on_shop_card_click", "on_card_click", "onCardClick"});
+        const bool hasStarterCards = game::scripting::hasFunction(S, "get_starter_cards");
+        const bool hasStarterClick = game::scripting::hasAnyFunction(S, {"on_card_click", "onCardClick"});
+        hasShopItems = game::scripting::hasFunction(S, "get_shop_items") &&
+                       game::scripting::hasFunction(S, "on_shop_item_click");
+        hasShopReadyButton = game::scripting::hasFunction(S, "on_shop_ready_click");
+        hasShopRerollButton = game::scripting::hasFunction(S, "on_shop_reroll_click");
         hasTextMenu = hasTextMenuEntries && hasTextMenuClick;
 
         renderWorld = true;
         if (auto hideWorld = S.get<sol::optional<bool>>("hide_world")) {
             renderWorld = !(*hideWorld);
         }
+
+        backendMainButtons.clear();
+        backendItemButtons.clear();
+        backendRerollX = 0.0f;
+        backendRerollY = 0.0f;
+        backendRerollW = 0.0f;
+        backendRerollH = 0.0f;
+
         if (hasTextMenu) {
             cardMode = CardMode::TextMenu;
             rebuildTextMenu();
             logHeadlessTextMenuHints();
+        } else if (hasShopCards && hasShopClick) {
+            cardMode = CardMode::Shop;
+            rebuildCardRow();
+        } else if (hasStarterCards && hasStarterClick) {
+            cardMode = CardMode::Starter;
+            rebuildCardRow();
         } else {
             cardMode = CardMode::None;
+            hasShopItems = false;
+            hasShopReadyButton = false;
+            hasShopRerollButton = false;
+            if (gameWorld) {
+                gameWorld->clearClassicShopCards();
+                gameWorld->setUnitDropZoneLayoutHint(0, false);
+            }
         }
-
-        hasShopReadyButton = false;
-        hasShopRerollButton = false;
         uiInitialized = true;
         script.flushCommands();
         return;
@@ -505,6 +945,18 @@ void ScriptedState::ensureCardUI() {
         }
         if (shopUi) shopUi->clear();
         uiInitialized = true;
+        return;
+    }
+
+    const bool useBackendCardUi = (services.renderer != nullptr) && (cardMode != CardMode::TextMenu);
+    if (useBackendCardUi) {
+        cardSystem.clearCards();
+        itemCardSystem.clearCards();
+        if (shopUi) shopUi->clear();
+        titleText.reset();
+        rebuildCardRow();
+        uiInitialized = true;
+        script.flushCommands();
         return;
     }
 
@@ -586,6 +1038,16 @@ void ScriptedState::handleInput(const InputEvent& event) {
         renderWorld = true;
         hasShopReadyButton = false;
         hasShopRerollButton = false;
+        backendMainButtons.clear();
+        backendItemButtons.clear();
+        backendRerollX = 0.0f;
+        backendRerollY = 0.0f;
+        backendRerollW = 0.0f;
+        backendRerollH = 0.0f;
+        shopReadyX = 0.0f;
+        shopReadyY = 0.0f;
+        shopReadyW = 0.0f;
+        shopReadyH = 0.0f;
         ensureCardUI();
         return; // avoid also sending this key into old script state
     }
@@ -597,7 +1059,25 @@ void ScriptedState::handleInput(const InputEvent& event) {
     if (cardMode == CardMode::TextMenu &&
         event.type == InputEvent::Type::KeyDown &&
         !event.repeat) {
+        if (event.keyId == InputEvent::Key::Escape) {
+            sol::table S = script.getScriptTable();
+            sol::function onMenuBack = game::scripting::resolveFunction(S, {"on_text_menu_back", "on_menu_back"});
+            if (onMenuBack.valid()) {
+                onMenuBack();
+                script.flushCommands();
+                rebuildTextMenu();
+                return;
+            }
+        }
         if (tryHandleHeadlessTextMenuKey(event.keyId)) {
+            return;
+        }
+    }
+    if (services.renderer &&
+        (cardMode == CardMode::Shop || cardMode == CardMode::Starter) &&
+        event.type == InputEvent::Type::KeyDown &&
+        !event.repeat) {
+        if (tryHandleBackendCardKey(event.keyId)) {
             return;
         }
     }
@@ -624,6 +1104,13 @@ void ScriptedState::handleInput(const InputEvent& event) {
                 }
                 script.flushCommands();
                 rebuildTextMenu();
+                return;
+            }
+        }
+
+        if (services.renderer &&
+            (cardMode == CardMode::Shop || cardMode == CardMode::Starter)) {
+            if (handleBackendCardMouseClick(event.mouseX, event.mouseY)) {
                 return;
             }
         }
@@ -810,6 +1297,12 @@ void ScriptedState::render() {
                 titleText->renderText(under, entry.x, entry.y + textH * 0.68f, color, scale);
             }
         }
+        return;
+    }
+
+    if (services.renderer &&
+        (cardMode == CardMode::Shop || cardMode == CardMode::Starter)) {
+        renderBackendCardUi(uiW, uiH);
         return;
     }
 

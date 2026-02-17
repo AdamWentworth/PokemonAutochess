@@ -50,6 +50,13 @@ std::vector<GameWorld::ClassicShopCard> buildClassicCardsFromUi(const std::vecto
 }
 
 void CombatState::ensureShopUi() {
+    if (!services.renderEnabled) {
+        shopUiEnabled = false;
+        hasShopRerollButton = false;
+        if (shopUi) shopUi->clear();
+        return;
+    }
+
     sol::table S = script.getScriptTable();
     const bool hasShopCards = game::scripting::hasFunction(S, "get_shop_cards");
     const bool hasShopClick = game::scripting::hasAnyFunction(S, {"on_shop_card_click", "on_card_click", "onCardClick"});
@@ -333,6 +340,8 @@ void CombatState::update(float dt) {
 }
 
 void CombatState::render() {
+    if (!services.renderEnabled) return;
+
     if (!textRenderer) {
         const auto& c = services.config;
         textRenderer = std::make_unique<TextRenderer>(c.fontPath, c.fontSize);

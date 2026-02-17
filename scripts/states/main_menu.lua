@@ -1,7 +1,7 @@
 -- scripts/states/main_menu.lua
 
 local selected_mode = "classic"
-local screen = "main" -- main | settings | video | audio | controls | gameplay | accessibility
+local screen = "main" -- main | settings | video | video_restart_confirm | audio | controls | gameplay | accessibility
 local fullscreen = false
 local started = false
 hide_world = true
@@ -265,26 +265,38 @@ local function build_video_entries(entries)
     local gpu_class = is_active_gpu_discrete() and "Discrete" or "Integrated"
 
     action(entries, "video_renderer_backend",
-        "Render API: " .. renderer_label(backend) .. " (applies next launch)", 0.54, false)
+        "Render API: " .. renderer_label(backend) .. " (applies next launch)", 0.52, false)
     action(entries, "video_require_discrete",
-        "Require Discrete GPU: " .. bool_text(video_cfg.require_discrete_gpu) .. " (applies next launch)", 0.60, false)
+        "Require Discrete GPU: " .. bool_text(video_cfg.require_discrete_gpu) .. " (applies next launch)", 0.56, false)
     local adapter_pref = video_cfg.gpu_adapters[video_cfg.gpu_adapter_index]
     action(entries, "video_gpu_adapter",
-        "Preferred GPU: " .. gpu_adapter_label(adapter_pref) .. " (applies next launch)", 0.66, false)
-    info(entries, "Active API: " .. renderer_label(active_backend), 0.72)
-    info(entries, "Active GPU: " .. tostring(active_gpu) .. " (" .. gpu_class .. ")", 0.76)
+        "Preferred GPU: " .. gpu_adapter_label(adapter_pref) .. " (applies next launch)", 0.60, false)
+    info(entries, "Active API: " .. renderer_label(active_backend), 0.64)
+    info(entries, "Active GPU: " .. tostring(active_gpu) .. " (" .. gpu_class .. ")", 0.68)
 
     local fps = video_cfg.fps_caps[video_cfg.fps_index]
     local fps_label = "FPS Cap: "
     if fps == 0 then fps_label = fps_label .. "Uncapped (placeholder)"
     else fps_label = fps_label .. tostring(fps) .. " (placeholder)" end
 
-    action(entries, "video_vsync", "VSync: " .. bool_text(video_cfg.vsync) .. " (placeholder)", 0.82, false)
-    action(entries, "video_fps", fps_label, 0.86, false)
-    action(entries, "video_ui_scale", "UI Scale: " .. tostring(video_cfg.ui_scales[video_cfg.ui_scale_index]) .. "% (placeholder)", 0.90, false)
-    action(entries, "video_quality", "Quality: " .. video_cfg.quality[video_cfg.quality_index] .. " (placeholder)", 0.94, false)
+    action(entries, "video_vsync", "VSync: " .. bool_text(video_cfg.vsync) .. " (placeholder)", 0.72, false)
+    action(entries, "video_fps", fps_label, 0.76, false)
+    action(entries, "video_ui_scale", "UI Scale: " .. tostring(video_cfg.ui_scales[video_cfg.ui_scale_index]) .. "% (placeholder)", 0.80, false)
+    action(entries, "video_quality", "Quality: " .. video_cfg.quality[video_cfg.quality_index] .. " (placeholder)", 0.84, false)
+    action(entries, "video_apply_restart", "Apply + Restart", 0.90, true)
+    action(entries, "settings_back", "Back", 0.95, false)
+end
 
-    action(entries, "settings_back", "Back", 0.98, false)
+local function build_video_restart_confirm_entries(entries)
+    heading(entries, "Apply + Restart", 0.22)
+    info(entries, "Renderer/GPU changes need a full restart to take effect.", 0.34)
+    if started then
+        info(entries, "Warning: restarting now will drop your current run progress.", 0.40)
+    else
+        info(entries, "You will return to Display settings after restart.", 0.40)
+    end
+    action(entries, "video_restart_confirm_yes", "Restart Now", 0.56, true)
+    action(entries, "video_restart_confirm_no", "Cancel", 0.64, false)
 end
 
 local function build_audio_entries(entries)
@@ -332,6 +344,18 @@ end
 function on_enter()
     started = get_has_started_game()
     screen = "main"
+    local boot_screen = nil
+    if consume_boot_menu_screen then
+        boot_screen = consume_boot_menu_screen()
+    end
+    if boot_screen == "settings" or
+       boot_screen == "video" or
+       boot_screen == "audio" or
+       boot_screen == "controls" or
+       boot_screen == "gameplay" or
+       boot_screen == "accessibility" then
+        screen = boot_screen
+    end
     sync_from_engine()
 end
 
@@ -339,6 +363,7 @@ function get_message()
     if screen == "main" then return "Pokemon Autochess" end
     if screen == "settings" then return "Settings" end
     if screen == "video" then return "Display" end
+    if screen == "video_restart_confirm" then return "Apply Display Changes" end
     if screen == "audio" then return "Audio" end
     if screen == "controls" then return "Controls" end
     if screen == "gameplay" then return "Gameplay" end
@@ -354,6 +379,8 @@ function get_text_menu_entries()
         build_settings_entries(entries)
     elseif screen == "video" then
         build_video_entries(entries)
+    elseif screen == "video_restart_confirm" then
+        build_video_restart_confirm_entries(entries)
     elseif screen == "audio" then
         build_audio_entries(entries)
     elseif screen == "controls" then
@@ -497,6 +524,34 @@ local function handle_video_click(entry_id)
         screen = "settings"
         return true
     end
+    if entry_id == "video_apply_restart" then
+        if started then
+            screen = "video_restart_confirm"
+            return true
+        end
+        if request_restart_to_menu and request_restart_to_menu("video") then
+            emit("Menu", "Applying display settings and restarting...")
+        else
+            emit("Menu", "Failed to restart game")
+        end
+        return true
+    end
+    return false
+end
+
+local function handle_video_restart_confirm_click(entry_id)
+    if entry_id == "video_restart_confirm_yes" then
+        if request_restart_to_menu and request_restart_to_menu("video") then
+            emit("Menu", "Applying display settings and restarting...")
+        else
+            emit("Menu", "Failed to restart game")
+        end
+        return true
+    end
+    if entry_id == "video_restart_confirm_no" then
+        screen = "video"
+        return true
+    end
     return false
 end
 
@@ -611,6 +666,10 @@ function on_text_menu_click(entry_id)
         handle_video_click(entry_id)
         return
     end
+    if screen == "video_restart_confirm" then
+        handle_video_restart_confirm_click(entry_id)
+        return
+    end
     if screen == "audio" then
         handle_audio_click(entry_id)
         return
@@ -631,4 +690,24 @@ end
 
 function on_update(dt)
     local _ = dt
+end
+
+function on_text_menu_back()
+    if screen == "video_restart_confirm" then
+        screen = "video"
+        return true
+    end
+    if screen == "video" or
+       screen == "audio" or
+       screen == "controls" or
+       screen == "gameplay" or
+       screen == "accessibility" then
+        screen = "settings"
+        return true
+    end
+    if screen == "settings" then
+        screen = "main"
+        return true
+    end
+    return false
 end

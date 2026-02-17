@@ -190,6 +190,7 @@ struct GameSession::Impl {
             services->preferredGpuAdapter = ctx.services->preferredGpuAdapter;
             services->gpuDiscrete = ctx.services->gpuDiscrete;
             services->requireDiscreteGpu = ctx.services->requireDiscreteGpu;
+            services->bootMenuScreen = ctx.services->bootMenuScreen;
         }
         if (ctx.queryVideoMode) {
             services->queryVideoMode = [q = ctx.queryVideoMode]() {

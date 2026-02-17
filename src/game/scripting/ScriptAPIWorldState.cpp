@@ -23,6 +23,21 @@ bool saveVideoPreferencesFromServices(const GameServices& services, std::string*
     return game::video::savePreferences(prefs, game::video::defaultPreferencesPath(), outError);
 }
 
+std::string sanitizeMenuScreenToken(const std::string& token) {
+    const std::string lower = toLowerCopy(token);
+    if (lower == "display") return "video";
+    if (lower == "video" ||
+        lower == "settings" ||
+        lower == "audio" ||
+        lower == "controls" ||
+        lower == "gameplay" ||
+        lower == "accessibility" ||
+        lower == "main") {
+        return lower;
+    }
+    return "main";
+}
+
 } // namespace
 
 int ScriptAPI::getMoney() const {
@@ -163,6 +178,33 @@ bool ScriptAPI::setPreferredGpuAdapterPreference(const std::string& adapterName)
 
 bool ScriptAPI::isActiveGpuDiscrete() const {
     return services_.gpuDiscrete;
+}
+
+bool ScriptAPI::requestRestartToMenu(const std::string& menuScreen) {
+    game::video::Preferences prefs = game::video::loadPreferences();
+    prefs.rendererBackend = services_.requestedRendererBackend;
+    prefs.requireDiscreteGpu = services_.requireDiscreteGpu;
+    prefs.preferredGpuAdapter = services_.preferredGpuAdapter;
+    prefs.restartOnExit = true;
+    prefs.bootMenuScreen = sanitizeMenuScreenToken(menuScreen);
+
+    std::string err;
+    if (!game::video::savePreferences(prefs, game::video::defaultPreferencesPath(), &err)) {
+        game::log::warn(&services_.log, std::string("[Video] Failed to queue restart: ") + err);
+        return false;
+    }
+
+    if (services_.requestQuit) {
+        services_.requestQuit();
+    }
+    return true;
+}
+
+std::string ScriptAPI::consumeBootMenuScreen() {
+    if (services_.bootMenuScreen.empty()) return {};
+    const std::string out = services_.bootMenuScreen;
+    services_.bootMenuScreen.clear();
+    return out;
 }
 
 void ScriptAPI::requestQuit() {

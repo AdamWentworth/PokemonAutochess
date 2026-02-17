@@ -61,6 +61,8 @@ bool test_lua_bindings_smoke(std::string& outFail) {
         "get_gpu_adapters",
         "get_preferred_gpu_adapter_pref",
         "set_preferred_gpu_adapter_pref",
+        "request_restart_to_menu",
+        "consume_boot_menu_screen",
         "world_list_units",
         "world_get_unit_snapshot",
         "world_apply_move",

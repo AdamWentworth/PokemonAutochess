@@ -79,6 +79,8 @@ bool test_mode_split_menu_entries(std::string& outFail) {
 
     bool started = false;
     std::string requestedNewGameMode;
+    std::string restartMenuScreen;
+    int restartRequests = 0;
 
     lua.set_function("get_game_mode", []() { return std::string("classic"); });
     lua.set_function("get_has_started_game", [&started]() { return started; });
@@ -111,6 +113,12 @@ bool test_mode_split_menu_entries(std::string& outFail) {
     lua.set_function("get_preferred_gpu_adapter_pref", []() { return std::string(); });
     lua.set_function("set_preferred_gpu_adapter_pref", [](const std::string&) { return true; });
     lua.set_function("is_active_gpu_discrete", []() { return true; });
+    lua.set_function("request_restart_to_menu", [&restartMenuScreen, &restartRequests](const std::string& screen) {
+        restartMenuScreen = screen;
+        ++restartRequests;
+        return true;
+    });
+    lua.set_function("consume_boot_menu_screen", []() { return std::string(); });
     lua.set_function("request_quit", []() {});
     lua.set_function("set_has_started_game", [](bool) {});
     lua.set_function("push_state", [](const std::string&) {});
@@ -133,7 +141,8 @@ bool test_mode_split_menu_entries(std::string& outFail) {
     sol::function onEnter = lua["on_enter"];
     sol::function getEntries = lua["get_text_menu_entries"];
     sol::function onClick = lua["on_text_menu_click"];
-    if (!onEnter.valid() || !getEntries.valid() || !onClick.valid()) {
+    sol::function onBack = lua["on_text_menu_back"];
+    if (!onEnter.valid() || !getEntries.valid() || !onClick.valid() || !onBack.valid()) {
         outFail = "main_menu.lua did not expose expected menu functions.";
         return false;
     }
@@ -141,6 +150,8 @@ bool test_mode_split_menu_entries(std::string& outFail) {
     {
         started = false;
         requestedNewGameMode.clear();
+        restartMenuScreen.clear();
+        restartRequests = 0;
         sol::protected_function_result e1 = onEnter();
         if (!e1.valid()) {
             sol::error e = e1;
@@ -162,11 +173,58 @@ bool test_mode_split_menu_entries(std::string& outFail) {
             outFail = "main menu should not show new-game mode shortcuts before first start.";
             return false;
         }
+
+        onClick("open_settings");
+        onClick("open_video");
+        sol::protected_function_result videoRes = getEntries();
+        if (!videoRes.valid()) {
+            sol::error e = videoRes;
+            outFail = std::string("main_menu video entries (not-started) failed: ") + e.what();
+            return false;
+        }
+        const sol::table videoEntries = videoRes.get<sol::table>();
+        if (!hasEntry(videoEntries, "video_apply_restart")) {
+            outFail = "video menu should expose Apply + Restart entry.";
+            return false;
+        }
+        onClick("video_apply_restart");
+        if (restartRequests != 1 || restartMenuScreen != "video") {
+            outFail = "video_apply_restart should request restart to video screen when no run is active.";
+            return false;
+        }
+        onClick("open_settings");
+        onClick("open_video");
+        onBack();
+        sol::protected_function_result backToSettingsRes = getEntries();
+        if (!backToSettingsRes.valid()) {
+            sol::error e = backToSettingsRes;
+            outFail = std::string("on_text_menu_back from video failed: ") + e.what();
+            return false;
+        }
+        const sol::table settingsEntries = backToSettingsRes.get<sol::table>();
+        if (!hasEntry(settingsEntries, "open_video")) {
+            outFail = "on_text_menu_back should return from video to settings screen.";
+            return false;
+        }
+        onBack();
+        sol::protected_function_result backToMainRes = getEntries();
+        if (!backToMainRes.valid()) {
+            sol::error e = backToMainRes;
+            outFail = std::string("on_text_menu_back from settings failed: ") + e.what();
+            return false;
+        }
+        const sol::table mainEntries = backToMainRes.get<sol::table>();
+        if (!hasEntry(mainEntries, "open_settings")) {
+            outFail = "on_text_menu_back should return from settings to main screen.";
+            return false;
+        }
     }
 
     {
         started = true;
         requestedNewGameMode.clear();
+        restartMenuScreen.clear();
+        restartRequests = 0;
         sol::protected_function_result e2 = onEnter();
         if (!e2.valid()) {
             sol::error e = e2;
@@ -197,6 +255,31 @@ bool test_mode_split_menu_entries(std::string& outFail) {
         }
         if (requestedNewGameMode != "adventure") {
             outFail = "new_game_adventure did not call start_new_game(\"adventure\").";
+            return false;
+        }
+
+        onClick("open_settings");
+        onClick("open_video");
+        onClick("video_apply_restart");
+        if (restartRequests != 0) {
+            outFail = "video_apply_restart should show confirmation before restart during active run.";
+            return false;
+        }
+        sol::protected_function_result confirmRes = getEntries();
+        if (!confirmRes.valid()) {
+            sol::error e = confirmRes;
+            outFail = std::string("main_menu restart confirm entries failed: ") + e.what();
+            return false;
+        }
+        const sol::table confirmEntries = confirmRes.get<sol::table>();
+        if (!hasEntry(confirmEntries, "video_restart_confirm_yes") ||
+            !hasEntry(confirmEntries, "video_restart_confirm_no")) {
+            outFail = "video restart confirm screen entries missing.";
+            return false;
+        }
+        onClick("video_restart_confirm_yes");
+        if (restartRequests != 1 || restartMenuScreen != "video") {
+            outFail = "video restart confirmation should request restart to video screen.";
             return false;
         }
     }

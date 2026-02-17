@@ -42,4 +42,5 @@ struct EngineServices {
     std::string preferredGpuAdapter;
     bool gpuDiscrete = false;
     bool requireDiscreteGpu = false;
+    std::string bootMenuScreen;
 };

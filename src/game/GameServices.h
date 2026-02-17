@@ -55,6 +55,7 @@ struct GameServices {
     std::string preferredGpuAdapter;
     bool gpuDiscrete = false;
     bool requireDiscreteGpu = false;
+    std::string bootMenuScreen;
 
     GameServices(const GameConfigData& cfg,
                  GameDataDb& db,

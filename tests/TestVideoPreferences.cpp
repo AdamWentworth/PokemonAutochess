@@ -42,6 +42,8 @@ bool test_video_preferences_parse_and_roundtrip(std::string& outFail) {
     prefs.rendererBackend = "vulkan";
     prefs.requireDiscreteGpu = true;
     prefs.preferredGpuAdapter = "NVIDIA GeForce GTX 1050";
+    prefs.restartOnExit = true;
+    prefs.bootMenuScreen = "video";
 
     std::string err;
     if (!game::video::savePreferences(prefs, path, &err)) {
@@ -63,6 +65,14 @@ bool test_video_preferences_parse_and_roundtrip(std::string& outFail) {
     }
     if (loaded.preferredGpuAdapter != "NVIDIA GeForce GTX 1050") {
         outFail = "roundtrip preferredGpuAdapter mismatch";
+        return false;
+    }
+    if (!loaded.restartOnExit) {
+        outFail = "roundtrip restartOnExit mismatch";
+        return false;
+    }
+    if (loaded.bootMenuScreen != "video") {
+        outFail = "roundtrip bootMenuScreen mismatch";
         return false;
     }
 

@@ -23,6 +23,23 @@ std::string normalizeToken(std::string token) {
     return token;
 }
 
+std::string normalizeMenuScreenToken(std::string token) {
+    token = normalizeToken(std::move(token));
+    if (token == "display") {
+        return "video";
+    }
+    if (token == "video" ||
+        token == "settings" ||
+        token == "audio" ||
+        token == "controls" ||
+        token == "gameplay" ||
+        token == "accessibility" ||
+        token == "main") {
+        return token;
+    }
+    return {};
+}
+
 } // namespace
 
 std::string defaultPreferencesPath() {
@@ -94,6 +111,10 @@ Preferences loadPreferences(const std::string& path) {
     }
     out.requireDiscreteGpu = j.value("require_discrete_gpu", out.requireDiscreteGpu);
     out.preferredGpuAdapter = j.value("preferred_gpu_adapter", out.preferredGpuAdapter);
+    out.restartOnExit = j.value("restart_on_exit", out.restartOnExit);
+
+    const std::string menuScreen = j.value("boot_menu_screen", std::string());
+    out.bootMenuScreen = normalizeMenuScreenToken(menuScreen);
     return out;
 }
 
@@ -102,6 +123,8 @@ bool savePreferences(const Preferences& prefs, const std::string& path, std::str
     j["renderer_backend"] = rendererBackendName(parseRendererBackend(prefs.rendererBackend));
     j["require_discrete_gpu"] = prefs.requireDiscreteGpu;
     j["preferred_gpu_adapter"] = prefs.preferredGpuAdapter;
+    j["restart_on_exit"] = prefs.restartOnExit;
+    j["boot_menu_screen"] = normalizeMenuScreenToken(prefs.bootMenuScreen);
 
     std::error_code ec;
     const std::filesystem::path outPath(path);

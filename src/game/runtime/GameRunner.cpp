@@ -240,6 +240,15 @@ namespace {
         const std::string prefsPath = game::video::defaultPreferencesPath();
         game::video::Preferences prefs = game::video::loadPreferences(prefsPath);
 
+        services.bootMenuScreen = prefs.bootMenuScreen;
+        if (!prefs.bootMenuScreen.empty()) {
+            prefs.bootMenuScreen.clear();
+            std::string consumeErr;
+            if (!game::video::savePreferences(prefs, prefsPath, &consumeErr)) {
+                std::cerr << "[Video] Failed to clear one-shot boot menu screen: " << consumeErr << "\n";
+            }
+        }
+
         std::string backendToken = prefs.rendererBackend;
         if (const auto envBackend = engine::env::get("PAC_RENDER_BACKEND")) {
             backendToken = *envBackend;
@@ -768,17 +777,46 @@ namespace {
 namespace game {
 
 int runGame() {
-    GameRunner runner;
-    if (!runner.init()) {
+    const std::string prefsPath = game::video::defaultPreferencesPath();
+    int lastResult = 0;
+    for (;;) {
+        {
+            game::video::Preferences startupPrefs = game::video::loadPreferences(prefsPath);
+            if (startupPrefs.restartOnExit) {
+                startupPrefs.restartOnExit = false;
+                startupPrefs.bootMenuScreen.clear();
+                std::string clearErr;
+                if (!game::video::savePreferences(startupPrefs, prefsPath, &clearErr)) {
+                    std::cerr << "[Video] Failed to clear stale restart request: " << clearErr << "\n";
+                }
+            }
+        }
+
+        GameRunner runner;
+        if (!runner.init()) {
+            runner.shutdown();
+            return 1;
+        }
+
+        GameApp app;
+        lastResult = runner.run(app);
+
         runner.shutdown();
-        return 1;
+
+        game::video::Preferences prefsAfterRun = game::video::loadPreferences(prefsPath);
+        if (!prefsAfterRun.restartOnExit) {
+            return lastResult;
+        }
+
+        prefsAfterRun.restartOnExit = false;
+        std::string err;
+        if (!game::video::savePreferences(prefsAfterRun, prefsPath, &err)) {
+            std::cerr << "[Video] Failed to consume restart request: " << err << "\n";
+            return lastResult;
+        }
+
+        std::cout << "[Run] Restart requested. Re-launching game session...\n";
     }
-
-    GameApp app;
-    const int result = runner.run(app);
-
-    runner.shutdown();
-    return result;
 }
 
 } // namespace game

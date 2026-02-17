@@ -40,6 +40,10 @@ private:
     void drawShopHud(int uiW, int uiH);
     void layoutBackendTextMenu(int uiW, int uiH);
     void renderBackendTextMenu(int uiW, int uiH);
+    void rebuildBackendCardUi(const std::vector<CardData>& cards, int uiW, int uiH, bool isItemRow);
+    void renderBackendCardUi(int uiW, int uiH);
+    bool tryHandleBackendCardKey(InputEvent::Key keyId);
+    bool handleBackendCardMouseClick(int mouseX, int mouseY);
     bool tryHandleHeadlessTextMenuKey(InputEvent::Key keyId);
     void logHeadlessTextMenuHints() const;
 
@@ -91,4 +95,20 @@ private:
     float shopReadyW = 0.0f;
     float shopReadyH = 0.0f;
     bool hasShopRerollButton = false;
+    float backendTextMenuScale = 1.0f;
+
+    struct BackendCardButton {
+        CardData data;
+        float x = 0.0f;
+        float y = 0.0f;
+        float w = 0.0f;
+        float h = 0.0f;
+        bool item = false;
+    };
+    std::vector<BackendCardButton> backendMainButtons;
+    std::vector<BackendCardButton> backendItemButtons;
+    float backendRerollX = 0.0f;
+    float backendRerollY = 0.0f;
+    float backendRerollW = 0.0f;
+    float backendRerollH = 0.0f;
 };

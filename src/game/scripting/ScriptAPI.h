@@ -51,6 +51,8 @@ public:
     std::string getPreferredGpuAdapterPreference() const;
     bool setPreferredGpuAdapterPreference(const std::string& adapterName);
     bool isActiveGpuDiscrete() const;
+    bool requestRestartToMenu(const std::string& menuScreen);
+    std::string consumeBootMenuScreen();
     void requestQuit();
     void startNewGame(const std::string& mode);
     struct ClassicIncomeResult {

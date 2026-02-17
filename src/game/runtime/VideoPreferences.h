@@ -16,6 +16,8 @@ struct Preferences {
     std::string rendererBackend = "auto";
     bool requireDiscreteGpu = false;
     std::string preferredGpuAdapter;
+    bool restartOnExit = false;
+    std::string bootMenuScreen;
 };
 
 std::string defaultPreferencesPath();

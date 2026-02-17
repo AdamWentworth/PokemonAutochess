@@ -81,6 +81,7 @@ void PlacementState::update(float dt) {
 
 void PlacementState::render() {
     if (!gameWorld) return;
+    if (!services.renderEnabled) return;
 
     static std::unique_ptr<TextRenderer> text;
     if (!text) {

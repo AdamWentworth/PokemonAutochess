@@ -403,11 +403,15 @@ bool test_script_api_contract(std::string& outFail) {
     sol::function getStartedFn = lua["get_has_started_game"];
     sol::function setStartedFn = lua["set_has_started_game"];
     sol::function requestQuitFn = lua["request_quit"];
+    sol::function requestRestartFn = lua["request_restart_to_menu"];
+    sol::function consumeBootFn = lua["consume_boot_menu_screen"];
     sol::function startNewGameFn = lua["start_new_game"];
     sol::function classicIncomeFn = lua["classic_award_round_income"];
     if (!expect(getStartedFn.valid(), "get_has_started_game binding missing.", outFail)) return false;
     if (!expect(setStartedFn.valid(), "set_has_started_game binding missing.", outFail)) return false;
     if (!expect(requestQuitFn.valid(), "request_quit binding missing.", outFail)) return false;
+    if (!expect(requestRestartFn.valid(), "request_restart_to_menu binding missing.", outFail)) return false;
+    if (!expect(consumeBootFn.valid(), "consume_boot_menu_screen binding missing.", outFail)) return false;
     if (!expect(startNewGameFn.valid(), "start_new_game binding missing.", outFail)) return false;
     if (!expect(classicIncomeFn.valid(), "classic_award_round_income binding missing.", outFail)) return false;
     {
@@ -425,6 +429,18 @@ bool test_script_api_contract(std::string& outFail) {
     }
     requestQuitFn();
     if (!expect(quitRequested, "request_quit callback did not run.", outFail)) return false;
+
+    services.bootMenuScreen = "video";
+    {
+        sol::protected_function_result r = consumeBootFn();
+        if (!expect(r.valid(), "consume_boot_menu_screen call failed.", outFail)) return false;
+        if (!expect(r.get<std::string>() == "video", "consume_boot_menu_screen should return current boot screen.", outFail)) return false;
+    }
+    {
+        sol::protected_function_result r = consumeBootFn();
+        if (!expect(r.valid(), "consume_boot_menu_screen second call failed.", outFail)) return false;
+        if (!expect(r.get<std::string>().empty(), "consume_boot_menu_screen should clear consumed value.", outFail)) return false;
+    }
 
     // Capturing units should stay tile-blocking and visible to scripts as captureInProgress.
     const int idB = units[1].id;
