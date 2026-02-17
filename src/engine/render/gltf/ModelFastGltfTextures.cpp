@@ -1,6 +1,7 @@
 #include "ModelFastGltfTextures.h"
 
 #include "ModelFastGltfLoaderHelpers.h"
+#include "engine/core/Environment.h"
 
 #include <stb_image.h>
 #include <stb_image_write.h>
@@ -13,7 +14,6 @@
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
-#include <cstdlib>
 #include <cstring>
 #include <filesystem>
 #include <fstream>
@@ -307,9 +307,9 @@ CPUTexture decodeTextureFast(const fastgltf::Asset& asset,
         if (forceDbg) return true;
 
         const auto envMatch = [&](const char* envVar) -> bool {
-            const char* v = std::getenv(envVar);
-            if (!v || !*v) return false;
-            std::string s(v);
+            const auto v = engine::env::get(envVar);
+            if (!v.has_value()) return false;
+            std::string s(*v);
             for (char& c : s) {
                 if (c == ';') c = ',';
             }

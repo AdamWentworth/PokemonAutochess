@@ -5,22 +5,16 @@
 #include <fastgltf/core.hpp>
 #include <fastgltf/types.hpp>
 
-#include <cctype>
-#include <cstdlib>
 #include <filesystem>
 #include <iostream>
 #include <string>
 
+#include "engine/core/Environment.h"
+
 namespace pac::fastgltf_validator {
 
 inline bool envFlagEnabled(const char* name) {
-    if (name == nullptr) return false;
-    const char* v = std::getenv(name);
-    if (v == nullptr) return false;
-
-    std::string s(v);
-    for (char& c : s) c = (char)std::tolower((unsigned char)c);
-    return (s == "1" || s == "true" || s == "yes" || s == "on");
+    return engine::env::flagEnabled(name);
 }
 
 inline const char* errorName(fastgltf::Error e) {

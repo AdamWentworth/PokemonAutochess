@@ -249,11 +249,21 @@ Longer-term
 CMake options
 - `PAC_VERBOSE_STARTUP` enables verbose startup/model-load logging
 - `PAC_BUILD_TOOLS` toggles developer tools like the data cooker
+- `PAC_ENABLE_WARNINGS` enables project warning flags (`/W4` on MSVC, `-Wall -Wextra -Wpedantic` otherwise)
+- `PAC_WARNINGS_AS_ERRORS` upgrades warnings to errors (`/WX` or `-Werror`)
+  - Defaults to `ON` in CI when the `CI` environment variable is present/non-zero
 
 Example
 
 ```powershell
 cmake --preset vs2026 -DPAC_VERBOSE_STARTUP=ON
+```
+
+Strict local quality gate example
+
+```powershell
+cmake --preset vs2026 -DPAC_WARNINGS_AS_ERRORS=ON
+cmake --build --preset debug --target PAC_Tests
 ```
 
 ---

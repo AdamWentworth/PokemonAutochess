@@ -1,10 +1,11 @@
 // src/engine/core/Paths.h
 #pragma once
 
-#include <cstdlib>
 #include <filesystem>
 #include <string>
 #include <string_view>
+
+#include "engine/core/Environment.h"
 
 namespace engine::paths {
 
@@ -13,9 +14,7 @@ namespace engine::paths {
 // Asset root can be overridden with env var PAC_ASSET_ROOT.
 // Default is "assets".
 inline std::string assetRoot() {
-    if (const char* v = std::getenv("PAC_ASSET_ROOT")) {
-        if (*v) return std::string(v);
-    }
+    if (const auto v = engine::env::get("PAC_ASSET_ROOT")) return *v;
     return "assets";
 }
 
@@ -38,9 +37,7 @@ inline std::string asset(std::string_view rel) {
 // Use this for non-asset runtime files that you ship alongside the exe
 // (scripts/, config/, etc.) when they are not under assets/.
 inline std::string dataRoot() {
-    if (const char* v = std::getenv("PAC_DATA_ROOT")) {
-        if (*v) return std::string(v);
-    }
+    if (const auto v = engine::env::get("PAC_DATA_ROOT")) return *v;
     // Dev convenience: if launched from a subfolder (e.g. dist/Release),
     // walk upward and prefer the repository root that contains source data.
     // This keeps config/script edits in the repo hot without duplicating files.
@@ -68,9 +65,7 @@ inline std::string dataRoot() {
 
 // Optional packed data bundle (scripts/config). Empty if not set.
 inline std::string dataPack() {
-    if (const char* v = std::getenv("PAC_DATA_PACK")) {
-        if (*v) return std::string(v);
-    }
+    if (const auto v = engine::env::get("PAC_DATA_PACK")) return *v;
     return "";
 }
 

@@ -12,6 +12,7 @@ bool test_ecs_for_each_join(std::string& outFail);
 bool test_ecs_structural_change_deferral(std::string& outFail);
 bool test_rng_determinism(std::string& outFail);
 bool test_manual_time_source(std::string& outFail);
+bool test_environment_helpers_contract(std::string& outFail);
 bool test_content_invariants(std::string& outFail);
 bool test_battle_invariants(std::string& outFail);
 bool test_end_to_end_headless(std::string& outFail);
@@ -110,6 +111,7 @@ int main(int argc, char** argv) {
         {"ecs_structural_change_deferral", &test_ecs_structural_change_deferral},
         {"rng_determinism", &test_rng_determinism},
         {"manual_time_source", &test_manual_time_source},
+        {"environment_helpers_contract", &test_environment_helpers_contract},
         {"content_invariants", &test_content_invariants},
         {"battle_invariants", &test_battle_invariants},
         {"end_to_end_headless", &test_end_to_end_headless},

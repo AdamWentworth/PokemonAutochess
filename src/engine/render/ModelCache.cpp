@@ -2,6 +2,7 @@
 
 #include "Model.h"
 #include "ModelStartupLog.h"
+#include "engine/core/Environment.h"
 #include "engine/utils/Log.h"
 
 #include <filesystem>
@@ -15,8 +16,6 @@
 #include <limits>
 #include <vector>
 #include <string>
-#include <cstdlib>   // std::getenv
-#include <cstring>   // std::strcmp
 #include <exception>
 
 #include <glad/glad.h>
@@ -67,9 +66,7 @@ static std::string hexHash64(uint64_t v) {
 
 // Treat any non-empty value other than "0" as true.
 static bool envTruthy(const char* name) {
-    const char* v = std::getenv(name);
-    if (!v || !*v) return false;
-    return std::strcmp(v, "0") != 0;
+    return engine::env::truthyNonZero(name);
 }
 
 // Cache format constants

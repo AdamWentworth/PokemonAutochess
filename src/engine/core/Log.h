@@ -2,16 +2,16 @@
 #pragma once
 #include <cstdarg>
 #include <cstdio>
-#include <cstdlib>
 #include <sstream>
 #include <string>
+
+#include "engine/core/Environment.h"
 
 namespace engine::log {
 
 // Debug enabled if ENGINE_LOG_DEBUG=1
 inline bool debug_enabled() {
-    const char* v = std::getenv("ENGINE_LOG_DEBUG");
-    return v && std::string(v) == "1";
+    return engine::env::equals("ENGINE_LOG_DEBUG", "1");
 }
 
 inline void vprint(FILE* out, const char* level, const char* fmt, std::va_list args) {

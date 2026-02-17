@@ -4,8 +4,9 @@
 #include <string>
 #include <string_view>
 #include <vector>
-#include <cstdlib>
 #include <cctype>
+
+#include "engine/core/Environment.h"
 
 namespace DebugTrace {
 
@@ -37,10 +38,10 @@ inline std::vector<Rule>& rulesCombat() {
     if (loaded) return rules;
     loaded = true;
 
-    const char* env = std::getenv("PAC_TRACE_COMBAT");
-    if (!env || !*env) return rules;
+    const auto env = engine::env::get("PAC_TRACE_COMBAT");
+    if (!env.has_value()) return rules;
 
-    std::string s(env);
+    std::string s(*env);
     auto pushTok = [&](std::string tok) {
         // trim
         auto l = tok.find_first_not_of(" \t\r\n");
@@ -78,8 +79,7 @@ inline std::vector<Rule>& rulesCombat() {
 }
 
 inline bool traceAll() {
-    const char* all = std::getenv("PAC_TRACE_ALL");
-    return all && *all && std::string_view(all) != "0";
+    return engine::env::truthyNonZero("PAC_TRACE_ALL");
 }
 
 inline bool matchOne(std::string_view value, const std::string& patLower) {

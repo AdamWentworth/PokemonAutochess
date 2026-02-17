@@ -4,7 +4,6 @@
 #include <iostream>
 #include <string>
 #include <utility>
-#include <cstdlib>
 #include <cctype>
 #include <random>
 #include <algorithm>
@@ -15,6 +14,7 @@
 #include "engine/core/Random.h"
 #include "engine/core/Services.h"
 #include "engine/core/TimeSources.h"
+#include "engine/core/Environment.h"
 #include "engine/core/ecs/Entity.h"
 #include "engine/input/InputEvent.h"
 
@@ -140,12 +140,12 @@ struct GameSession::Impl {
         {
             std::uint32_t seed = 0;
             bool hasSeed = false;
-            if (const char* v = std::getenv("PAC_RANDOM_SEED")) {
+            if (const auto v = engine::env::get("PAC_RANDOM_SEED")) {
                 try {
-                    seed = static_cast<std::uint32_t>(std::stoul(v));
+                    seed = static_cast<std::uint32_t>(std::stoul(*v));
                     hasSeed = true;
                 } catch (...) {
-                    game::log::warn(&log, std::string("[Init] Invalid PAC_RANDOM_SEED value: ") + v);
+                    game::log::warn(&log, std::string("[Init] Invalid PAC_RANDOM_SEED value: ") + *v);
                 }
             }
             if (!hasSeed) {

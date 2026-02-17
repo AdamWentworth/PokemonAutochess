@@ -1,6 +1,5 @@
 // tests/TestRenderSmoke.cpp
 #include <cctype>
-#include <cstdlib>
 #include <exception>
 #include <filesystem>
 #include <fstream>
@@ -14,6 +13,7 @@
 #include <glm/gtc/matrix_transform.hpp>
 
 #include "engine/core/Paths.h"
+#include "engine/core/Environment.h"
 #include "engine/render/BoardRenderer.h"
 #include "engine/render/Camera3D.h"
 #include "engine/render/Model.h"
@@ -21,13 +21,7 @@
 
 namespace {
 bool envFlagEnabled(const char *name) {
-    if (!name) return false;
-    const char *v = std::getenv(name);
-    if (!v) return false;
-    std::string s(v);
-    for (char &c : s)
-        c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
-    return (s == "1" || s == "true" || s == "yes" || s == "on");
+    return engine::env::flagEnabled(name);
 }
 
 bool isFilesystemAbsolute(const std::string &path) {
@@ -55,8 +49,8 @@ std::string resolveIncludePath(const std::string &includeName, const std::string
 }
 
 std::string resolveSmokeModelPath() {
-    const char *env = std::getenv("PAC_TEST_MODEL");
-    std::string rel = (env && *env) ? std::string(env) : "models/0016_Pidgey.glb";
+    const auto env = engine::env::get("PAC_TEST_MODEL");
+    std::string rel = env.has_value() ? *env : "models/0016_Pidgey.glb";
     if (isFilesystemAbsolute(rel) || isProjectAbsolute(rel)) return rel;
     return engine::paths::asset(rel);
 }

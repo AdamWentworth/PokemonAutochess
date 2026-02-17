@@ -6,6 +6,13 @@ project(PokemonAutochess LANGUAGES CXX)
 option(PAC_VERBOSE_STARTUP "Enable verbose startup/model-load logging" OFF)
 option(PAC_BUILD_TOOLS "Build developer tools (data cooker)" ON)
 
+set(_pac_werror_default OFF)
+if (DEFINED ENV{CI} AND NOT "$ENV{CI}" STREQUAL "" AND NOT "$ENV{CI}" STREQUAL "0")
+    set(_pac_werror_default ON)
+endif()
+option(PAC_ENABLE_WARNINGS "Enable compiler warning flags for project sources" ON)
+option(PAC_WARNINGS_AS_ERRORS "Treat compiler warnings as errors for project sources" ${_pac_werror_default})
+
 include(CTest)
 
 set(CMAKE_CXX_STANDARD 20)
@@ -35,6 +42,24 @@ endif()
 set(PROJECT_SRC_ROOT "${CMAKE_SOURCE_DIR}/src")
 
 # ---------------- Common target settings ----------------
+function(pac_apply_warning_flags target_name)
+    if (NOT PAC_ENABLE_WARNINGS)
+        return()
+    endif()
+
+    if (MSVC)
+        target_compile_options(${target_name} PRIVATE /W4)
+        if (PAC_WARNINGS_AS_ERRORS)
+            target_compile_options(${target_name} PRIVATE /WX)
+        endif()
+    else()
+        target_compile_options(${target_name} PRIVATE -Wall -Wextra -Wpedantic)
+        if (PAC_WARNINGS_AS_ERRORS)
+            target_compile_options(${target_name} PRIVATE -Werror)
+        endif()
+    endif()
+endfunction()
+
 function(pac_apply_common_target_settings target_name)
     get_target_property(_type ${target_name} TYPE)
 
@@ -62,6 +87,7 @@ function(pac_apply_common_target_settings target_name)
         else()
             target_compile_options(${target_name} PRIVATE -std=c++20)
         endif()
+        pac_apply_warning_flags(${target_name})
     endif()
 endfunction()
 
@@ -292,6 +318,7 @@ if (BUILD_TESTING)
         tests/TestGameConfig.cpp
         tests/TestECS.cpp
         tests/TestDeterminism.cpp
+        tests/TestEnvironment.cpp
         tests/TestContentValidation.cpp
         tests/TestBattleInvariants.cpp
         tests/TestEndToEnd.cpp
@@ -348,6 +375,7 @@ if (BUILD_TESTING)
     else()
         target_compile_options(PAC_Tests PRIVATE -std=c++20)
     endif()
+    pac_apply_warning_flags(PAC_Tests)
 
     # Register individual tests for CTest output granularity.
     # Source of truth is tests/TestMain.cpp (single list used by runtime filtering).

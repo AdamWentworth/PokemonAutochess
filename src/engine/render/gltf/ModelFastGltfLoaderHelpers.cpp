@@ -1,11 +1,10 @@
 #include "ModelFastGltfLoaderHelpers.h"
+#include "engine/core/Environment.h"
 
 #include <fastgltf/glm_element_traits.hpp>
 
 #include <algorithm>
 #include <cctype>
-#include <cstdlib>
-#include <cstring>
 
 namespace pac::model_fastgltf {
 
@@ -19,9 +18,7 @@ std::string toLowerCopy(std::string s) {
 }  // namespace
 
 bool envTruthy(const char* name) {
-    const char* v = std::getenv(name);
-    if (!v || !*v) return false;
-    return std::strcmp(v, "0") != 0;
+    return engine::env::truthyNonZero(name);
 }
 
 bool ciContains(const std::string& s, const std::string& needle) {

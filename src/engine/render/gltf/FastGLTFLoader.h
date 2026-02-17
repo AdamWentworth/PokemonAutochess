@@ -4,35 +4,19 @@
 #include <fastgltf/core.hpp>
 #include <fastgltf/types.hpp>
 
-#include <cctype>
-#include <cstdlib>
 #include <filesystem>
 #include <optional>
 #include <string_view>
 #include <system_error>
 
+#include "engine/core/Environment.h"
+
 namespace pac::fastgltf_loader {
 
 namespace detail {
 
-inline bool iequals(std::string_view a, std::string_view b) {
-    if (a.size() != b.size()) return false;
-    for (size_t i = 0; i < a.size(); ++i) {
-        const unsigned char ac = static_cast<unsigned char>(a[i]);
-        const unsigned char bc = static_cast<unsigned char>(b[i]);
-        if (std::tolower(ac) != std::tolower(bc)) return false;
-    }
-    return true;
-}
-
 inline bool envFlagEnabled(const char* name) {
-    if (name == nullptr) return false;
-    const char* v = std::getenv(name);
-    if (v == nullptr) return false;
-
-    const std::string_view s(v);
-    // accept common truthy values
-    return s == "1" || iequals(s, "true") || iequals(s, "yes") || iequals(s, "on");
+    return engine::env::flagEnabled(name);
 }
 
 } // namespace detail
