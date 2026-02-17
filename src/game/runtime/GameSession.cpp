@@ -125,6 +125,7 @@ struct GameSession::Impl {
     bool devPauseWorld = false;
     int devPauseStepTicks = 0;
 
+    static constexpr std::size_t kBackendInventoryVisibleCount = 6;
     struct BackendInventoryHitBox {
         std::string itemId;
         float x = 0.0f;
@@ -132,8 +133,10 @@ struct GameSession::Impl {
         float w = 0.0f;
         float h = 0.0f;
     };
+    std::vector<runtime::hud::InventoryEntry> backendInventoryAllEntries;
     std::vector<runtime::hud::InventoryEntry> backendInventoryEntries;
     std::vector<BackendInventoryHitBox> backendInventoryHitBoxes;
+    int backendInventoryOffset = 0;
 
     std::shared_ptr<CameraSystem>           cameraSystem;
     std::shared_ptr<UnitInteractionSystem>  unitSystem;
@@ -433,8 +436,19 @@ struct GameSession::Impl {
             }
         }
 
-        if (renderWorldForInput && event.type == InputEvent::Type::MouseWheel && legacyRenderPath) {
-            itemInventoryUI.handleScroll(event.wheelY, viewport.height);
+        if (renderWorldForInput && event.type == InputEvent::Type::MouseWheel) {
+            if (legacyRenderPath) {
+                itemInventoryUI.handleScroll(event.wheelY, viewport.height);
+            } else if (gameWorld) {
+                backendInventoryAllEntries = runtime::hud::normalizeInventoryEntries(
+                    gameWorld->listItems(),
+                    0);
+                backendInventoryOffset = runtime::hud::stepInventoryOffset(
+                    backendInventoryOffset,
+                    event.wheelY,
+                    static_cast<int>(kBackendInventoryVisibleCount),
+                    backendInventoryAllEntries.size());
+            }
         }
         if (renderWorldForInput && event.type == InputEvent::Type::MouseDown &&
             event.mouseButtonId == InputEvent::MouseButton::Left) {
@@ -478,6 +492,7 @@ struct GameSession::Impl {
     void renderBackendDebugView(int drawableW, int drawableH, bool renderWorld) {
         if (!renderer || drawableW <= 0 || drawableH <= 0) return;
 
+        backendInventoryAllEntries.clear();
         backendInventoryEntries.clear();
         backendInventoryHitBoxes.clear();
 
@@ -825,10 +840,25 @@ struct GameSession::Impl {
                            glm::vec3(0.84f, 0.90f, 0.98f));
             }
 
-            backendInventoryEntries = runtime::hud::normalizeInventoryEntries(gameWorld->listItems(), 6);
+            backendInventoryAllEntries = runtime::hud::normalizeInventoryEntries(gameWorld->listItems(), 0);
+            backendInventoryOffset = runtime::hud::clampInventoryOffset(
+                backendInventoryOffset,
+                static_cast<int>(kBackendInventoryVisibleCount),
+                backendInventoryAllEntries.size());
+            backendInventoryEntries = runtime::hud::sliceInventoryEntries(
+                backendInventoryAllEntries,
+                backendInventoryOffset,
+                kBackendInventoryVisibleCount);
             if (!backendInventoryEntries.empty()) {
                 float invY = 146.0f;
-                appendText(20.0f, invY, "Items", 1.0f, glm::vec3(0.92f, 0.95f, 0.99f));
+                const std::size_t firstVisible = static_cast<std::size_t>(backendInventoryOffset) + 1u;
+                const std::size_t lastVisible =
+                    static_cast<std::size_t>(backendInventoryOffset) + backendInventoryEntries.size();
+                const std::string itemsTitle =
+                    "Items [" + std::to_string(firstVisible) + "-" +
+                    std::to_string(lastVisible) + "/" +
+                    std::to_string(backendInventoryAllEntries.size()) + "]";
+                appendText(20.0f, invY, itemsTitle, 1.0f, glm::vec3(0.92f, 0.95f, 0.99f));
                 invY += 16.0f;
                 for (std::size_t i = 0; i < backendInventoryEntries.size(); ++i) {
                     const auto& item = backendInventoryEntries[i];
@@ -853,7 +883,7 @@ struct GameSession::Impl {
                 }
                 appendText(20.0f,
                            invY + 3.0f,
-                           "Use 1-9 or click item names",
+                           "Mouse wheel scroll, use 1-9 or click",
                            0.82f,
                            glm::vec3(0.66f, 0.76f, 0.90f));
             }

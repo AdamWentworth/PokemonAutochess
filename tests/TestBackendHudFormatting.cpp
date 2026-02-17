@@ -10,7 +10,10 @@ bool test_backend_hud_formatting_contract(std::string& outFail) {
     using game::runtime::hud::formatTypeLineEntry;
     using game::runtime::hud::formatUnitEntry;
     using game::runtime::hud::humanizeToken;
+    using game::runtime::hud::clampInventoryOffset;
     using game::runtime::hud::normalizeInventoryEntries;
+    using game::runtime::hud::sliceInventoryEntries;
+    using game::runtime::hud::stepInventoryOffset;
 
     if (humanizeToken("potion_super") != "Potion Super") {
         outFail = "humanizeToken should convert underscore tokens to title words";
@@ -46,6 +49,45 @@ bool test_backend_hud_formatting_contract(std::string& outFail) {
     }
     if (normalized[2].id != "potion" || normalized[2].count != 2) {
         outFail = "normalizeInventoryEntries third slot mismatch";
+        return false;
+    }
+    if (clampInventoryOffset(-2, 6, 10) != 0) {
+        outFail = "clampInventoryOffset should clamp negative offsets to zero";
+        return false;
+    }
+    if (clampInventoryOffset(99, 6, 10) != 4) {
+        outFail = "clampInventoryOffset max bound mismatch";
+        return false;
+    }
+    if (clampInventoryOffset(2, 6, 4) != 0) {
+        outFail = "clampInventoryOffset should clamp to zero when visible >= total";
+        return false;
+    }
+    if (stepInventoryOffset(1, 1, 6, 10) != 0) {
+        outFail = "stepInventoryOffset wheel-up behavior mismatch";
+        return false;
+    }
+    if (stepInventoryOffset(1, -1, 6, 10) != 2) {
+        outFail = "stepInventoryOffset wheel-down behavior mismatch";
+        return false;
+    }
+    if (stepInventoryOffset(4, -1, 6, 10) != 4) {
+        outFail = "stepInventoryOffset should clamp at max offset";
+        return false;
+    }
+
+    const auto normalizedAll = normalizeInventoryEntries(raw, 0);
+    if (normalizedAll.size() != 4u) {
+        outFail = "normalizeInventoryEntries maxCount=0 should keep all filtered entries";
+        return false;
+    }
+    const auto sliced = sliceInventoryEntries(normalizedAll, 1, 2);
+    if (sliced.size() != 2u || sliced[0].id != "x_speed" || sliced[1].id != "potion") {
+        outFail = "sliceInventoryEntries result mismatch";
+        return false;
+    }
+    if (!sliceInventoryEntries(normalizedAll, 0, 0).empty()) {
+        outFail = "sliceInventoryEntries should return empty for maxVisible=0";
         return false;
     }
 

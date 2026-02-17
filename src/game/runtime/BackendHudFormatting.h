@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cctype>
+#include <cstddef>
 #include <string>
 #include <utility>
 #include <vector>
@@ -49,6 +50,42 @@ inline std::vector<InventoryEntry> normalizeInventoryEntries(
 
     if (maxCount > 0 && out.size() > maxCount) {
         out.resize(maxCount);
+    }
+    return out;
+}
+
+inline int clampInventoryOffset(int offset, int visibleCount, std::size_t totalCount) {
+    if (visibleCount <= 0) return 0;
+    const std::size_t maxOffsetSize =
+        (totalCount > static_cast<std::size_t>(visibleCount))
+            ? (totalCount - static_cast<std::size_t>(visibleCount))
+            : 0u;
+    const int maxOffset = static_cast<int>(maxOffsetSize);
+    return std::clamp(offset, 0, maxOffset);
+}
+
+inline int stepInventoryOffset(int offset, int wheelDelta, int visibleCount, std::size_t totalCount) {
+    int next = offset;
+    if (wheelDelta > 0) {
+        --next;
+    } else if (wheelDelta < 0) {
+        ++next;
+    }
+    return clampInventoryOffset(next, visibleCount, totalCount);
+}
+
+inline std::vector<InventoryEntry> sliceInventoryEntries(const std::vector<InventoryEntry>& entries,
+                                                         int offset,
+                                                         std::size_t maxVisible) {
+    std::vector<InventoryEntry> out;
+    if (entries.empty() || maxVisible == 0) return out;
+
+    const int clampedOffset = clampInventoryOffset(offset, static_cast<int>(maxVisible), entries.size());
+    const std::size_t begin = static_cast<std::size_t>(clampedOffset);
+    const std::size_t end = std::min(entries.size(), begin + maxVisible);
+    out.reserve(end - begin);
+    for (std::size_t i = begin; i < end; ++i) {
+        out.push_back(entries[i]);
     }
     return out;
 }
