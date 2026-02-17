@@ -40,6 +40,7 @@
 #include "game/runtime/GamePreload.h"
 #include "game/runtime/RenderFlowDecisions.h"
 #include "game/runtime/BackendHudFormatting.h"
+#include "game/runtime/BackendWorldProjection.h"
 #include "game/GameServices.h"
 #include "game/GameConfig.h"
 #include "game/runtime/GameUpdateGraph.h"
@@ -561,17 +562,25 @@ struct GameSession::Impl {
             }
 
             if (gameWorld) {
+                const float worldCellSize = gameWorld->getBoardCellSize();
                 const auto& units = gameWorld->getPokemons();
                 for (const auto& unit : units) {
                     if (!unit.alive && !unit.captureInProgress && !unit.fainting) continue;
-                    const auto cell = gameWorld->worldToGrid(unit.position);
-                    if (cell.x < 0 || cell.y < 0 || cell.x >= cols || cell.y >= rows) continue;
+                    const auto uv = runtime::backendview::worldToBoardUv(
+                        unit.position.x,
+                        unit.position.z,
+                        cols,
+                        rows,
+                        worldCellSize);
+                    if (uv.first < 0.0f || uv.first > 1.0f || uv.second < 0.0f || uv.second > 1.0f) continue;
 
                     IRenderBackend::DebugQuad u;
-                    u.x = boardX + cellW * static_cast<float>(cell.x) + cellW * 0.20f;
-                    u.y = boardY + cellH * static_cast<float>(cell.y) + cellH * 0.20f;
+                    const float centerX = boardX + uv.first * boardW;
+                    const float centerY = boardY + uv.second * boardH;
                     u.w = cellW * 0.60f;
                     u.h = cellH * 0.60f;
+                    u.x = centerX - u.w * 0.5f;
+                    u.y = centerY - u.h * 0.5f;
 
                     if (unit.side == PokemonSide::Player) {
                         u.r = 0.16f;
@@ -661,6 +670,79 @@ struct GameSession::Impl {
                         energy.b = 0.98f;
                         energy.a = 1.0f;
                         lines.push_back(energy);
+                    }
+                }
+
+                const auto& benchUnits = gameWorld->getBenchPokemons();
+                if (!benchUnits.empty()) {
+                    const int benchSlots = std::max(1, config.benchSlots);
+                    const float benchGap = std::max(12.0f, minDim * 0.02f);
+                    const float benchH = std::max(26.0f, minDim * 0.085f);
+                    const float benchW = std::max(160.0f, std::min(boardW, static_cast<float>(drawableW) - 40.0f));
+                    const float benchX = (static_cast<float>(drawableW) - benchW) * 0.5f;
+                    const float desiredBenchY = boardY + boardH + benchGap;
+                    const float benchY = std::min(desiredBenchY, static_cast<float>(drawableH) - benchH - 24.0f);
+                    if (benchY > boardY + boardH + 3.0f) {
+                        IRenderBackend::DebugQuad benchBg;
+                        benchBg.x = benchX;
+                        benchBg.y = benchY;
+                        benchBg.w = benchW;
+                        benchBg.h = benchH;
+                        benchBg.r = 0.09f;
+                        benchBg.g = 0.12f;
+                        benchBg.b = 0.15f;
+                        benchBg.a = 0.96f;
+                        quads.push_back(benchBg);
+
+                        const float benchCellW = benchW / static_cast<float>(benchSlots);
+                        const float benchLineThickness = std::max(1.0f, line * 0.95f);
+                        for (int slot = 0; slot <= benchSlots; ++slot) {
+                            IRenderBackend::DebugLine slotLine;
+                            slotLine.x1 = benchX + benchCellW * static_cast<float>(slot);
+                            slotLine.y1 = benchY;
+                            slotLine.x2 = slotLine.x1;
+                            slotLine.y2 = benchY + benchH;
+                            slotLine.thickness = benchLineThickness;
+                            slotLine.r = 0.20f;
+                            slotLine.g = 0.26f;
+                            slotLine.b = 0.32f;
+                            slotLine.a = 1.0f;
+                            lines.push_back(slotLine);
+                        }
+
+                        IRenderBackend::DebugLine top;
+                        top.x1 = benchX;
+                        top.y1 = benchY;
+                        top.x2 = benchX + benchW;
+                        top.y2 = benchY;
+                        top.thickness = benchLineThickness;
+                        top.r = 0.24f;
+                        top.g = 0.30f;
+                        top.b = 0.36f;
+                        top.a = 1.0f;
+                        lines.push_back(top);
+
+                        IRenderBackend::DebugLine bottom = top;
+                        bottom.y1 = benchY + benchH;
+                        bottom.y2 = benchY + benchH;
+                        lines.push_back(bottom);
+
+                        for (const auto& unit : benchUnits) {
+                            const int slot = runtime::backendview::worldToBenchSlot(
+                                unit.position.x,
+                                benchSlots,
+                                worldCellSize);
+                            IRenderBackend::DebugQuad benchUnit;
+                            benchUnit.x = benchX + benchCellW * static_cast<float>(slot) + benchCellW * 0.20f;
+                            benchUnit.y = benchY + benchH * 0.20f;
+                            benchUnit.w = benchCellW * 0.60f;
+                            benchUnit.h = benchH * 0.60f;
+                            benchUnit.r = 0.34f;
+                            benchUnit.g = 0.73f;
+                            benchUnit.b = 0.96f;
+                            benchUnit.a = 1.0f;
+                            quads.push_back(benchUnit);
+                        }
                     }
                 }
             }
