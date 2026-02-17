@@ -7,6 +7,7 @@
 #include <glad/glad.h>
 
 #include "engine/render/Renderer.h"
+#include "engine/render/DebugGeometry.h"
 
 namespace {
 
@@ -78,32 +79,65 @@ void OpenGLRenderBackend::drawDebugQuads(const DebugQuad* quads,
     ensureDebugPipeline();
     if (debugProgram_ == 0 || debugVao_ == 0 || debugVbo_ == 0 || debugSurfaceSizeLoc_ < 0) return;
 
-    struct GlDebugVertex {
-        float x;
-        float y;
-        float r;
-        float g;
-        float b;
-        float a;
-    };
+    using GlDebugVertex = engine::render::debug::Vertex2D;
 
     constexpr std::size_t kMaxDebugQuads = 4096;
     const std::size_t safeCount = std::min(quadCount, kMaxDebugQuads);
     std::vector<GlDebugVertex> vertices;
     vertices.reserve(safeCount * 6);
     for (std::size_t i = 0; i < safeCount; ++i) {
-        const DebugQuad& q = quads[i];
-        const GlDebugVertex a{q.x, q.y, q.r, q.g, q.b, q.a};
-        const GlDebugVertex b{q.x + q.w, q.y, q.r, q.g, q.b, q.a};
-        const GlDebugVertex c{q.x + q.w, q.y + q.h, q.r, q.g, q.b, q.a};
-        const GlDebugVertex d{q.x, q.y + q.h, q.r, q.g, q.b, q.a};
+        engine::render::debug::appendQuadAsTriangles(quads[i], vertices);
+    }
+    if (vertices.empty()) return;
 
-        vertices.push_back(a);
-        vertices.push_back(b);
-        vertices.push_back(c);
-        vertices.push_back(a);
-        vertices.push_back(c);
-        vertices.push_back(d);
+    GLint prevProgram = 0;
+    GLint prevVao = 0;
+    GLint prevArrayBuffer = 0;
+    glGetIntegerv(GL_CURRENT_PROGRAM, &prevProgram);
+    glGetIntegerv(GL_VERTEX_ARRAY_BINDING, &prevVao);
+    glGetIntegerv(GL_ARRAY_BUFFER_BINDING, &prevArrayBuffer);
+
+    const GLboolean depthEnabled = glIsEnabled(GL_DEPTH_TEST);
+    const GLboolean blendEnabled = glIsEnabled(GL_BLEND);
+
+    glDisable(GL_DEPTH_TEST);
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+    glUseProgram(debugProgram_);
+    glUniform2f(debugSurfaceSizeLoc_, static_cast<float>(surfaceWidth), static_cast<float>(surfaceHeight));
+
+    glBindVertexArray(debugVao_);
+    glBindBuffer(GL_ARRAY_BUFFER, debugVbo_);
+    glBufferData(GL_ARRAY_BUFFER,
+                 static_cast<GLsizeiptr>(vertices.size() * sizeof(GlDebugVertex)),
+                 vertices.data(),
+                 GL_STREAM_DRAW);
+    glDrawArrays(GL_TRIANGLES, 0, static_cast<GLsizei>(vertices.size()));
+
+    glBindBuffer(GL_ARRAY_BUFFER, static_cast<GLuint>(prevArrayBuffer));
+    glBindVertexArray(static_cast<GLuint>(prevVao));
+    glUseProgram(static_cast<GLuint>(prevProgram));
+
+    if (!blendEnabled) glDisable(GL_BLEND);
+    if (depthEnabled) glEnable(GL_DEPTH_TEST);
+}
+
+void OpenGLRenderBackend::drawDebugLines(const DebugLine* lines,
+                                         std::size_t lineCount,
+                                         int surfaceWidth,
+                                         int surfaceHeight) {
+    if (!lines || lineCount == 0 || surfaceWidth <= 0 || surfaceHeight <= 0) return;
+    ensureDebugPipeline();
+    if (debugProgram_ == 0 || debugVao_ == 0 || debugVbo_ == 0 || debugSurfaceSizeLoc_ < 0) return;
+
+    using GlDebugVertex = engine::render::debug::Vertex2D;
+    constexpr std::size_t kMaxDebugLines = 4096;
+    const std::size_t safeCount = std::min(lineCount, kMaxDebugLines);
+    std::vector<GlDebugVertex> vertices;
+    vertices.reserve(safeCount * 6);
+    for (std::size_t i = 0; i < safeCount; ++i) {
+        engine::render::debug::appendLineAsTriangles(lines[i], vertices);
     }
     if (vertices.empty()) return;
 

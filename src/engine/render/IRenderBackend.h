@@ -16,6 +16,18 @@ public:
         float a = 1.0f;
     };
 
+    struct DebugLine {
+        float x1 = 0.0f;
+        float y1 = 0.0f;
+        float x2 = 0.0f;
+        float y2 = 0.0f;
+        float thickness = 1.0f;
+        float r = 1.0f;
+        float g = 1.0f;
+        float b = 1.0f;
+        float a = 1.0f;
+    };
+
     virtual ~IRenderBackend() = default;
 
     virtual const char* backendId() const = 0;
@@ -32,6 +44,15 @@ public:
                                 int surfaceHeight) {
         (void)quads;
         (void)quadCount;
+        (void)surfaceWidth;
+        (void)surfaceHeight;
+    }
+    virtual void drawDebugLines(const DebugLine* lines,
+                                std::size_t lineCount,
+                                int surfaceWidth,
+                                int surfaceHeight) {
+        (void)lines;
+        (void)lineCount;
         (void)surfaceWidth;
         (void)surfaceHeight;
     }

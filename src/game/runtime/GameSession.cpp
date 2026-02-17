@@ -506,6 +506,8 @@ struct GameSession::Impl {
 
         std::vector<IRenderBackend::DebugQuad> quads;
         quads.reserve(1024);
+        std::vector<IRenderBackend::DebugLine> lines;
+        lines.reserve(512);
 
         const int rows = std::max(1, config.rows);
         const int cols = std::max(1, config.cols);
@@ -531,28 +533,30 @@ struct GameSession::Impl {
 
             const float line = std::max(1.0f, minDim * 0.002f);
             for (int c = 0; c <= cols; ++c) {
-                IRenderBackend::DebugQuad vLine;
-                vLine.x = boardX + cellW * static_cast<float>(c) - line * 0.5f;
-                vLine.y = boardY;
-                vLine.w = line;
-                vLine.h = boardH;
+                IRenderBackend::DebugLine vLine;
+                vLine.x1 = boardX + cellW * static_cast<float>(c);
+                vLine.y1 = boardY;
+                vLine.x2 = vLine.x1;
+                vLine.y2 = boardY + boardH;
+                vLine.thickness = line;
                 vLine.r = 0.22f;
                 vLine.g = 0.33f;
                 vLine.b = 0.40f;
                 vLine.a = 1.0f;
-                quads.push_back(vLine);
+                lines.push_back(vLine);
             }
             for (int r = 0; r <= rows; ++r) {
-                IRenderBackend::DebugQuad hLine;
-                hLine.x = boardX;
-                hLine.y = boardY + cellH * static_cast<float>(r) - line * 0.5f;
-                hLine.w = boardW;
-                hLine.h = line;
+                IRenderBackend::DebugLine hLine;
+                hLine.x1 = boardX;
+                hLine.y1 = boardY + cellH * static_cast<float>(r);
+                hLine.x2 = boardX + boardW;
+                hLine.y2 = hLine.y1;
+                hLine.thickness = line;
                 hLine.r = 0.22f;
                 hLine.g = 0.33f;
                 hLine.b = 0.40f;
                 hLine.a = 1.0f;
-                quads.push_back(hLine);
+                lines.push_back(hLine);
             }
 
             if (gameWorld) {
@@ -588,6 +592,42 @@ struct GameSession::Impl {
                     }
                     u.a = 1.0f;
                     quads.push_back(u);
+
+                    const float hpRatio = std::clamp(
+                        static_cast<float>(std::max(0, unit.hp)) /
+                            static_cast<float>(std::max(1, unit.maxHP)),
+                        0.0f,
+                        1.0f);
+                    const float hpY = std::max(2.0f, u.y - std::max(2.0f, line * 2.0f));
+                    IRenderBackend::DebugLine hpBg;
+                    hpBg.x1 = u.x;
+                    hpBg.y1 = hpY;
+                    hpBg.x2 = u.x + u.w;
+                    hpBg.y2 = hpY;
+                    hpBg.thickness = std::max(2.0f, line * 2.2f);
+                    hpBg.r = 0.12f;
+                    hpBg.g = 0.12f;
+                    hpBg.b = 0.14f;
+                    hpBg.a = 0.95f;
+                    lines.push_back(hpBg);
+
+                    IRenderBackend::DebugLine hp;
+                    hp.x1 = u.x + std::max(0.5f, line * 0.4f);
+                    hp.y1 = hpY;
+                    hp.x2 = hp.x1 + std::max(0.0f, (u.w - std::max(1.0f, line * 0.8f)) * hpRatio);
+                    hp.y2 = hpY;
+                    hp.thickness = std::max(1.0f, line * 1.4f);
+                    if (unit.side == PokemonSide::Player) {
+                        hp.r = 0.28f;
+                        hp.g = 0.92f;
+                        hp.b = 0.46f;
+                    } else {
+                        hp.r = 0.94f;
+                        hp.g = 0.38f;
+                        hp.b = 0.28f;
+                    }
+                    hp.a = 1.0f;
+                    lines.push_back(hp);
                 }
             }
         }
@@ -726,6 +766,9 @@ struct GameSession::Impl {
 
         if (!quads.empty()) {
             renderer->drawDebugQuads(quads.data(), quads.size(), drawableW, drawableH);
+        }
+        if (!lines.empty()) {
+            renderer->drawDebugLines(lines.data(), lines.size(), drawableW, drawableH);
         }
     }
 

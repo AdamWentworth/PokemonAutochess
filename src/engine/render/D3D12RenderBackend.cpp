@@ -1,8 +1,10 @@
 #include "engine/render/D3D12RenderBackend.h"
 #include "engine/render/DxgiAdapterSelection.h"
+#include "engine/render/DebugGeometry.h"
 
 #include <stdexcept>
 #include <string>
+#include <vector>
 
 #include <SDL2/SDL.h>
 
@@ -18,14 +20,7 @@
 
 namespace {
 #if defined(_WIN32)
-struct DebugVertex {
-    float x;
-    float y;
-    float r;
-    float g;
-    float b;
-    float a;
-};
+using DebugVertex = engine::render::debug::Vertex2D;
 #endif
 
 } // namespace
@@ -161,28 +156,98 @@ void D3D12RenderBackend::drawDebugQuads(const DebugQuad* quads,
     D3D12_RANGE readRange{0, 0};
     if (FAILED(debugVertexBuffer_->Map(0, &readRange, &mapped)) || !mapped) return;
 
+    std::vector<DebugVertex> verts;
+    verts.reserve(vertexCount);
+    for (std::size_t i = 0; i < safeCount; ++i) {
+        engine::render::debug::appendQuadAsTriangles(quads[i], verts);
+    }
+    if (verts.empty()) {
+        debugVertexBuffer_->Unmap(0, nullptr);
+        return;
+    }
+
     DebugVertex* out = static_cast<DebugVertex*>(mapped);
-    std::size_t v = 0;
     const float invW = 1.0f / static_cast<float>(surfaceWidth);
     const float invH = 1.0f / static_cast<float>(surfaceHeight);
+    for (std::size_t i = 0; i < verts.size(); ++i) {
+        const DebugVertex& src = verts[i];
+        out[i].x = src.x * invW * 2.0f - 1.0f;
+        out[i].y = 1.0f - src.y * invH * 2.0f;
+        out[i].r = src.r;
+        out[i].g = src.g;
+        out[i].b = src.b;
+        out[i].a = src.a;
+    }
+    const std::size_t clampedVertexCount = verts.size();
+
+    D3D12_RANGE writeRange{0, static_cast<SIZE_T>(clampedVertexCount * sizeof(DebugVertex))};
+    debugVertexBuffer_->Unmap(0, &writeRange);
+
+    D3D12_VIEWPORT vp{};
+    vp.TopLeftX = 0.0f;
+    vp.TopLeftY = 0.0f;
+    vp.Width = static_cast<float>(surfaceWidth);
+    vp.Height = static_cast<float>(surfaceHeight);
+    vp.MinDepth = 0.0f;
+    vp.MaxDepth = 1.0f;
+    D3D12_RECT scissor{0, 0, surfaceWidth, surfaceHeight};
+
+    commandList_->RSSetViewports(1, &vp);
+    commandList_->RSSetScissorRects(1, &scissor);
+    commandList_->SetGraphicsRootSignature(debugRootSignature_.Get());
+    commandList_->SetPipelineState(debugPipelineState_.Get());
+    commandList_->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+    D3D12_VERTEX_BUFFER_VIEW vbv{};
+    vbv.BufferLocation = debugVertexBufferGpuAddress_;
+    vbv.StrideInBytes = debugVertexStride_;
+    vbv.SizeInBytes = static_cast<UINT>(clampedVertexCount * sizeof(DebugVertex));
+    commandList_->IASetVertexBuffers(0, 1, &vbv);
+    commandList_->DrawInstanced(static_cast<UINT>(clampedVertexCount), 1, 0, 0);
+#else
+    (void)quads;
+    (void)quadCount;
+    (void)surfaceWidth;
+    (void)surfaceHeight;
+#endif
+}
+
+void D3D12RenderBackend::drawDebugLines(const DebugLine* lines,
+                                        std::size_t lineCount,
+                                        int surfaceWidth,
+                                        int surfaceHeight) {
+#if defined(_WIN32)
+    if (!recording_ || !lines || lineCount == 0 || surfaceWidth <= 0 || surfaceHeight <= 0) return;
+    if (!debugPipelineState_ || !debugRootSignature_ || !debugVertexBuffer_ || !commandList_) return;
+
+    constexpr std::size_t kMaxDebugLines = 2048;
+    const std::size_t safeCount = (lineCount > kMaxDebugLines) ? kMaxDebugLines : lineCount;
+
+    std::vector<DebugVertex> verts;
+    verts.reserve(safeCount * 6);
     for (std::size_t i = 0; i < safeCount; ++i) {
-        const DebugQuad& q = quads[i];
-        const float left = q.x * invW * 2.0f - 1.0f;
-        const float right = (q.x + q.w) * invW * 2.0f - 1.0f;
-        const float top = 1.0f - q.y * invH * 2.0f;
-        const float bottom = 1.0f - (q.y + q.h) * invH * 2.0f;
+        engine::render::debug::appendLineAsTriangles(lines[i], verts);
+    }
+    if (verts.empty()) return;
 
-        const DebugVertex a{left, top, q.r, q.g, q.b, q.a};
-        const DebugVertex b{right, top, q.r, q.g, q.b, q.a};
-        const DebugVertex c{right, bottom, q.r, q.g, q.b, q.a};
-        const DebugVertex d{left, bottom, q.r, q.g, q.b, q.a};
+    const std::size_t neededBytes = verts.size() * sizeof(DebugVertex);
+    if (neededBytes == 0 || neededBytes > debugVertexBufferSize_) return;
 
-        out[v++] = a;
-        out[v++] = b;
-        out[v++] = c;
-        out[v++] = a;
-        out[v++] = c;
-        out[v++] = d;
+    void* mapped = nullptr;
+    D3D12_RANGE readRange{0, 0};
+    if (FAILED(debugVertexBuffer_->Map(0, &readRange, &mapped)) || !mapped) return;
+
+    DebugVertex* out = static_cast<DebugVertex*>(mapped);
+    const float invW = 1.0f / static_cast<float>(surfaceWidth);
+    const float invH = 1.0f / static_cast<float>(surfaceHeight);
+    for (std::size_t i = 0; i < verts.size(); ++i) {
+        const DebugVertex& src = verts[i];
+        out[i].x = src.x * invW * 2.0f - 1.0f;
+        out[i].y = 1.0f - src.y * invH * 2.0f;
+        out[i].r = src.r;
+        out[i].g = src.g;
+        out[i].b = src.b;
+        out[i].a = src.a;
     }
 
     D3D12_RANGE writeRange{0, static_cast<SIZE_T>(neededBytes)};
@@ -208,10 +273,10 @@ void D3D12RenderBackend::drawDebugQuads(const DebugQuad* quads,
     vbv.StrideInBytes = debugVertexStride_;
     vbv.SizeInBytes = static_cast<UINT>(neededBytes);
     commandList_->IASetVertexBuffers(0, 1, &vbv);
-    commandList_->DrawInstanced(static_cast<UINT>(vertexCount), 1, 0, 0);
+    commandList_->DrawInstanced(static_cast<UINT>(verts.size()), 1, 0, 0);
 #else
-    (void)quads;
-    (void)quadCount;
+    (void)lines;
+    (void)lineCount;
     (void)surfaceWidth;
     (void)surfaceHeight;
 #endif

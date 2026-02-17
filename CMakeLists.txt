@@ -332,6 +332,7 @@ if (BUILD_TESTING)
         tests/TestEnvironment.cpp
         tests/TestLogBus.cpp
         tests/TestRenderFlowDecisions.cpp
+        tests/TestDebugGeometry.cpp
         tests/TestVideoInitGuards.cpp
         tests/TestVideoPreferences.cpp
         tests/TestDxgiAdapterSelectionPolicy.cpp

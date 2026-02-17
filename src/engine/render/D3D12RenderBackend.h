@@ -45,6 +45,10 @@ public:
                         std::size_t quadCount,
                         int surfaceWidth,
                         int surfaceHeight) override;
+    void drawDebugLines(const DebugLine* lines,
+                        std::size_t lineCount,
+                        int surfaceWidth,
+                        int surfaceHeight) override;
     void shutdown() override;
 
 private:
