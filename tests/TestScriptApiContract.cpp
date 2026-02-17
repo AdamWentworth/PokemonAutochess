@@ -343,10 +343,43 @@ bool test_script_api_contract(std::string& outFail) {
     // Face enemy should change rotation.
     const float prevRot = units[0].rotation.y;
     sol::function faceFn = lua["world_face_enemy"];
+    sol::function faceTargetFn = lua["world_face_target"];
     if (!expect(faceFn.valid(), "world_face_enemy binding missing.", outFail)) return false;
+    if (!expect(faceTargetFn.valid(), "world_face_target binding missing.", outFail)) return false;
     faceFn(idA);
     api.flush();
     if (!expect(std::fabs(units[0].rotation.y - prevRot) > 0.01f, "world_face_enemy did not update rotation.", outFail)) return false;
+
+    // Facing helpers should not produce NaN when target direction has zero length.
+    const int idBForFacing = units[1].id;
+    units[1].position = units[0].position;
+    const float rotBeforeFaceTarget = units[0].rotation.y;
+    faceTargetFn(idA, idBForFacing);
+    api.flush();
+    if (!expect(std::isfinite(units[0].rotation.y), "world_face_target should keep rotation finite on zero-length direction.", outFail)) return false;
+    if (!expect(std::fabs(units[0].rotation.y - rotBeforeFaceTarget) < 0.0001f,
+                "world_face_target should leave rotation unchanged on zero-length direction.", outFail)) return false;
+
+    const auto selfCell = worldToGrid(cfg, units[0].position);
+    const float rotBeforeFaceEnemyTarget = units[0].rotation.y;
+    faceFn(idA, selfCell.x, selfCell.y);
+    api.flush();
+    if (!expect(std::isfinite(units[0].rotation.y), "world_face_enemy should keep rotation finite for explicit self target.", outFail)) return false;
+    if (!expect(std::fabs(units[0].rotation.y - rotBeforeFaceEnemyTarget) < 0.0001f,
+                "world_face_enemy should leave rotation unchanged for explicit self target.", outFail)) return false;
+
+    const bool oldCaptureB = units[1].captureInProgress;
+    const bool oldCaptureC = units[2].captureInProgress;
+    units[1].captureInProgress = true;
+    units[2].captureInProgress = true;
+    const float rotBeforeNoEnemy = units[0].rotation.y;
+    faceFn(idA);
+    api.flush();
+    if (!expect(std::isfinite(units[0].rotation.y), "world_face_enemy should keep rotation finite when no active enemies exist.", outFail)) return false;
+    if (!expect(std::fabs(units[0].rotation.y - rotBeforeNoEnemy) < 0.0001f,
+                "world_face_enemy should leave rotation unchanged when no active enemies exist.", outFail)) return false;
+    units[1].captureInProgress = oldCaptureB;
+    units[2].captureInProgress = oldCaptureC;
 
     // Emit + drain events should return a payload.
     sol::function emitFn = lua["emit"];

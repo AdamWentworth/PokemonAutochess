@@ -22,6 +22,17 @@ bool isCombatActive(const PokemonInstance& u) {
     return u.alive && !u.captureInProgress;
 }
 
+bool setFacingToTarget(PokemonInstance& unit, const glm::vec3& targetPos) {
+    const glm::vec3 delta = targetPos - unit.position;
+    const float lenSq = glm::dot(delta, delta);
+    if (lenSq <= 1e-8f) return false;
+
+    const glm::vec3 lookDir = delta / std::sqrt(lenSq);
+    constexpr float kRadToDeg = 57.29577951308232f;
+    unit.rotation.y = std::atan2(lookDir.x, lookDir.z) * kRadToDeg;
+    return true;
+}
+
 }  // namespace
 
 std::vector<ScriptEvent> ScriptAPI::drainEvents() {
@@ -286,8 +297,7 @@ void ScriptAPI::applyCommand(const Command& cmd) {
             }
             target = bestPos;
         }
-        const glm::vec3 lookDir = glm::normalize(target - it->position);
-        it->rotation.y = std::atan2(lookDir.x, lookDir.z) * 180.0f / 3.14159265358979323846f;
+        setFacingToTarget(*it, target);
         return;
     }
 
@@ -300,8 +310,7 @@ void ScriptAPI::applyCommand(const Command& cmd) {
         auto* t = world_->findUnitById(c.targetId);
         if (!u || !t) return;
 
-        const glm::vec3 lookDir = glm::normalize(t->position - u->position);
-        u->rotation.y = std::atan2(lookDir.x, lookDir.z) * 180.0f / 3.14159265358979323846f;
+        setFacingToTarget(*u, t->position);
         return;
     }
 
