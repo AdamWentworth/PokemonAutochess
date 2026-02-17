@@ -6,6 +6,7 @@
 #include "game/scripting/LuaScriptHelpers.h"
 #include "game/scripting/LuaTextMenuParser.h"
 #include "game/state/PlacementState.h"
+#include "game/state/BackendUiPolicy.h"
 #include "game/ui/ShopLayout.h"
 #include "game/ui/UIViewport.h"
 #include "engine/input/InputEvent.h"
@@ -389,6 +390,15 @@ void ScriptedState::renderBackendCardUi(int uiW, int uiH) {
 
     std::vector<IRenderBackend::DebugQuad> quads;
     quads.reserve(4096);
+    const bool isShopMode = (cardMode == CardMode::Shop);
+    const bool hasWorld = (gameWorld != nullptr);
+    const int dropZoneCardCount = hasWorld ? gameWorld->getUnitDropZoneCardCount() : 0;
+    const bool useItemLayout = hasWorld ? gameWorld->getUnitDropZoneUsesItemLayout() : false;
+    const bool showSellOverlay = game::state::backend_ui::shouldShowSellOverlay(
+        isShopMode,
+        hasWorld,
+        hasWorld && gameWorld->isUnitDragActive(),
+        dropZoneCardCount);
 
     const auto addButton = [&](float x,
                                float y,
@@ -421,6 +431,19 @@ void ScriptedState::renderBackendCardUi(int uiW, int uiH) {
         appendEasyFontTextQuads(quads, x, y, label, textScale, 0.98f, 0.98f, 0.98f, 1.0f);
         if (outW) *outW = bg.w;
         if (outH) *outH = bg.h;
+    };
+    const auto appendCenteredText = [&](float centerX,
+                                        float y,
+                                        const std::string& text,
+                                        float scale,
+                                        float r,
+                                        float g,
+                                        float b) {
+        const float textScale = std::max(0.1f, scale) * kBackendTextScaleBase;
+        const int baseW = stb_easy_font_width(const_cast<char*>(text.c_str()));
+        const float textW = std::max(1.0f, static_cast<float>(baseW) * textScale);
+        const float x = centerX - textW * 0.5f;
+        appendEasyFontTextQuads(quads, x, y, text, textScale, r, g, b, 1.0f);
     };
 
     const auto msgOpt = game::scripting::callStringFunction(script.getScriptTable(), {"get_message"});
@@ -497,7 +520,62 @@ void ScriptedState::renderBackendCardUi(int uiW, int uiH) {
     };
 
     addCardRow(backendMainButtons, /*itemRow=*/false);
-    addCardRow(backendItemButtons, /*itemRow=*/true);
+    if (!(showSellOverlay && hasShopItems)) {
+        addCardRow(backendItemButtons, /*itemRow=*/true);
+    }
+
+    if (showSellOverlay && hasWorld) {
+        const game::ui::SellDropZoneLayout outer = game::state::backend_ui::computeSellOverlayOuterLayout(
+            uiW,
+            uiH,
+            dropZoneCardCount,
+            useItemLayout);
+        const game::ui::SellDropZoneLayout hit = game::state::backend_ui::computeSellOverlayHitLayout(outer);
+        if (outer.w > 0 && outer.h > 0) {
+            IRenderBackend::DebugQuad outerBg;
+            outerBg.x = static_cast<float>(outer.x);
+            outerBg.y = static_cast<float>(outer.y);
+            outerBg.w = static_cast<float>(outer.w);
+            outerBg.h = static_cast<float>(outer.h);
+            outerBg.r = 0.36f;
+            outerBg.g = 0.07f;
+            outerBg.b = 0.09f;
+            outerBg.a = 0.82f;
+            quads.push_back(outerBg);
+
+            if (hit.w > 0 && hit.h > 0) {
+                IRenderBackend::DebugQuad hitBg;
+                hitBg.x = static_cast<float>(hit.x);
+                hitBg.y = static_cast<float>(hit.y);
+                hitBg.w = static_cast<float>(hit.w);
+                hitBg.h = static_cast<float>(hit.h);
+                hitBg.r = 0.88f;
+                hitBg.g = 0.21f;
+                hitBg.b = 0.16f;
+                hitBg.a = 0.90f;
+                quads.push_back(hitBg);
+            }
+
+            const float cx = static_cast<float>(outer.x) + static_cast<float>(outer.w) * 0.5f;
+            const float titleY = static_cast<float>(outer.y) + 10.0f;
+            const float hintY = static_cast<float>(outer.y) + static_cast<float>(outer.h) * 0.58f;
+            const bool pays = gameWorld->isUnitSellRewardsEnabled();
+            appendCenteredText(cx,
+                               titleY,
+                               pays ? "Drop Unit To Sell" : "Drop Unit To Remove",
+                               0.92f,
+                               0.99f,
+                               0.95f,
+                               0.90f);
+            appendCenteredText(cx,
+                               hintY,
+                               pays ? "+gold reward on drop" : "no gold reward",
+                               0.74f,
+                               0.98f,
+                               0.86f,
+                               0.82f);
+        }
+    }
 
     if (cardMode == CardMode::Shop) {
         if (gameWorld) {
@@ -1311,10 +1389,11 @@ void ScriptedState::render() {
         return;
     }
 
-    const bool showSellOverlay = (cardMode == CardMode::Shop) &&
-                                 gameWorld &&
-                                 gameWorld->isUnitDragActive() &&
-                                 (gameWorld->getUnitDropZoneCardCount() > 0);
+    const bool showSellOverlay = game::state::backend_ui::shouldShowSellOverlay(
+        cardMode == CardMode::Shop,
+        gameWorld != nullptr,
+        gameWorld && gameWorld->isUnitDragActive(),
+        gameWorld ? gameWorld->getUnitDropZoneCardCount() : 0);
 
     if (cardMode == CardMode::Shop) {
         if (hasShopItems && !showSellOverlay) {
@@ -1338,9 +1417,11 @@ void ScriptedState::drawShopHud(int uiW, int uiH) {
     in.moneyScale = 1.35f;
     in.rerollScale = 0.90f;
     in.rerollLabel = "[Reroll 2g]";
-    in.showSellOverlay = gameWorld &&
-                         gameWorld->isUnitDragActive() &&
-                         (gameWorld->getUnitDropZoneCardCount() > 0);
+    in.showSellOverlay = game::state::backend_ui::shouldShowSellOverlay(
+        cardMode == CardMode::Shop,
+        gameWorld != nullptr,
+        gameWorld && gameWorld->isUnitDragActive(),
+        gameWorld ? gameWorld->getUnitDropZoneCardCount() : 0);
     in.sellOverlayPaysMoney = gameWorld ? gameWorld->isUnitSellRewardsEnabled() : true;
     shopUi->render(in);
 }

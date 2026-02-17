@@ -332,6 +332,7 @@ if (BUILD_TESTING)
         tests/TestEnvironment.cpp
         tests/TestBackendHudFormatting.cpp
         tests/TestBackendWorldProjection.cpp
+        tests/TestBackendUiPolicy.cpp
         tests/TestLogBus.cpp
         tests/TestRenderFlowDecisions.cpp
         tests/TestDebugGeometry.cpp
