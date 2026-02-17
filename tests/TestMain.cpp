@@ -21,8 +21,13 @@ bool test_backend_debug_text_quads_contract(std::string& outFail);
 bool test_backend_world_projection_contract(std::string& outFail);
 bool test_backend_inventory_overlay_contract(std::string& outFail);
 bool test_backend_inventory_panel_contract(std::string& outFail);
+bool test_backend_card_layout_model_contract(std::string& outFail);
+bool test_backend_shop_hud_model_contract(std::string& outFail);
+bool test_backend_sell_overlay_model_contract(std::string& outFail);
+bool test_backend_status_text_contract(std::string& outFail);
 bool test_backend_ui_sell_overlay_policy(std::string& outFail);
 bool test_backend_shop_snapshot_contract(std::string& outFail);
+bool test_shop_card_conversion_contract(std::string& outFail);
 bool test_backend_input_slots_contract(std::string& outFail);
 bool test_sell_overlay_ui_policy_contract(std::string& outFail);
 bool test_video_init_gl_viewport_guard(std::string& outFail);
@@ -136,8 +141,13 @@ int main(int argc, char** argv) {
         {"backend_world_projection_contract", &test_backend_world_projection_contract},
         {"backend_inventory_overlay_contract", &test_backend_inventory_overlay_contract},
         {"backend_inventory_panel_contract", &test_backend_inventory_panel_contract},
+        {"backend_card_layout_model_contract", &test_backend_card_layout_model_contract},
+        {"backend_shop_hud_model_contract", &test_backend_shop_hud_model_contract},
+        {"backend_sell_overlay_model_contract", &test_backend_sell_overlay_model_contract},
+        {"backend_status_text_contract", &test_backend_status_text_contract},
         {"backend_ui_sell_overlay_policy", &test_backend_ui_sell_overlay_policy},
         {"backend_shop_snapshot_contract", &test_backend_shop_snapshot_contract},
+        {"shop_card_conversion_contract", &test_shop_card_conversion_contract},
         {"backend_input_slots_contract", &test_backend_input_slots_contract},
         {"sell_overlay_ui_policy_contract", &test_sell_overlay_ui_policy_contract},
         {"video_init_gl_viewport_guard", &test_video_init_gl_viewport_guard},

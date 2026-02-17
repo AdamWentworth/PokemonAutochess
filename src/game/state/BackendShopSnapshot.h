@@ -24,6 +24,22 @@ struct Entry {
     float h = 0.0f;
 };
 
+struct Rect {
+    float x = 0.0f;
+    float y = 0.0f;
+    float w = 0.0f;
+    float h = 0.0f;
+};
+
+struct PlacementInput {
+    const std::vector<Rect>* mainRects = nullptr;
+    const std::vector<Rect>* itemRects = nullptr;
+    Rect rerollRect;
+    bool hasRerollRect = false;
+    Rect readyRect;
+    bool hasReadyRect = false;
+};
+
 struct BuildInput {
     bool shopMode = true;
     std::size_t mainCount = 0;
@@ -112,6 +128,48 @@ inline const Entry* findByPoint(const std::vector<Entry>& entries, float x, floa
         return &entry;
     }
     return nullptr;
+}
+
+inline void applyPlacement(std::vector<Entry>& entries, const PlacementInput& in) {
+    for (Entry& entry : entries) {
+        switch (entry.action) {
+            case ActionType::ShopCard:
+            case ActionType::StarterCard:
+                if (in.mainRects && entry.sourceIndex < in.mainRects->size()) {
+                    const Rect& r = (*in.mainRects)[entry.sourceIndex];
+                    entry.x = r.x;
+                    entry.y = r.y;
+                    entry.w = r.w;
+                    entry.h = r.h;
+                }
+                break;
+            case ActionType::ItemCard:
+                if (in.itemRects && entry.sourceIndex < in.itemRects->size()) {
+                    const Rect& r = (*in.itemRects)[entry.sourceIndex];
+                    entry.x = r.x;
+                    entry.y = r.y;
+                    entry.w = r.w;
+                    entry.h = r.h;
+                }
+                break;
+            case ActionType::ShopReroll:
+                if (in.hasRerollRect) {
+                    entry.x = in.rerollRect.x;
+                    entry.y = in.rerollRect.y;
+                    entry.w = in.rerollRect.w;
+                    entry.h = in.rerollRect.h;
+                }
+                break;
+            case ActionType::ShopReady:
+                if (in.hasReadyRect) {
+                    entry.x = in.readyRect.x;
+                    entry.y = in.readyRect.y;
+                    entry.w = in.readyRect.w;
+                    entry.h = in.readyRect.h;
+                }
+                break;
+        }
+    }
 }
 
 } // namespace game::state::backend_shop

@@ -41,6 +41,7 @@
 #include "game/runtime/BackendInventoryOverlay.h"
 #include "game/runtime/BackendInventoryPanel.h"
 #include "game/runtime/BackendInputSlots.h"
+#include "game/runtime/BackendStatusText.h"
 #include "game/runtime/BackendHudFormatting.h"
 #include "game/runtime/BackendWorldProjection.h"
 #include "game/GameServices.h"
@@ -819,28 +820,26 @@ struct GameSession::Impl {
         };
 
         const std::string mode = (services ? services->gameMode : std::string("classic"));
-        appendText(20.0f, 38.0f, "Mode: " + mode, 1.2f, glm::vec3(0.93f, 0.95f, 0.99f));
+        appendText(20.0f,
+                   38.0f,
+                   runtime::backend_status_text::modeLine(mode),
+                   1.2f,
+                   glm::vec3(0.93f, 0.95f, 0.99f));
         if (services) {
             appendText(20.0f,
                        56.0f,
-                       "Backend: " + services->activeRendererBackend + " | GPU: " + services->gpuRenderer,
+                       runtime::backend_status_text::backendLine(
+                           services->activeRendererBackend,
+                           services->gpuRenderer),
                        1.0f,
                        glm::vec3(0.68f, 0.80f, 0.94f));
         }
 
-        std::string roundPhase = "Planning";
+        RoundPhase roundPhase = RoundPhase::Planning;
         bool combatActive = false;
-        const auto roundPhaseLabel = [](RoundPhase phase) {
-            switch (phase) {
-                case RoundPhase::Planning: return "Planning";
-                case RoundPhase::Battle: return "Battle";
-                case RoundPhase::Resolution: return "Resolution";
-                default: return "Planning";
-            }
-        };
         if (ecsWorld.alive(roundPhaseEntity)) {
             if (const auto* roundState = ecsWorld.get<game::RoundState>(roundPhaseEntity)) {
-                roundPhase = roundPhaseLabel(roundState->phase);
+                roundPhase = roundState->phase;
             }
             if (const auto* combatState = ecsWorld.get<game::CombatActive>(roundPhaseEntity)) {
                 combatActive = combatState->active;
@@ -848,7 +847,7 @@ struct GameSession::Impl {
         }
         appendText(20.0f,
                    74.0f,
-                   "Round: " + roundPhase + " | Combat: " + (combatActive ? std::string("active") : std::string("idle")),
+                   runtime::backend_status_text::roundLine(roundPhase, combatActive),
                    1.0f,
                    glm::vec3(0.83f, 0.91f, 0.98f));
 
@@ -862,19 +861,19 @@ struct GameSession::Impl {
             }
             appendText(20.0f,
                        92.0f,
-                       "Units: Player " + std::to_string(playerAlive) + " | Enemy " + std::to_string(enemyAlive),
+                       runtime::backend_status_text::unitsLine(playerAlive, enemyAlive),
                        1.0f,
                        glm::vec3(0.72f, 0.90f, 0.84f));
             appendText(20.0f,
                        110.0f,
-                       "Gold: " + std::to_string(std::max(0, gameWorld->getMoney())),
+                       runtime::backend_status_text::goldLine(gameWorld->getMoney()),
                        1.0f,
                        glm::vec3(0.96f, 0.88f, 0.56f));
             const std::string selectedItem = gameWorld->getSelectedItem();
             if (!selectedItem.empty()) {
                 appendText(20.0f,
                            128.0f,
-                           "Selected item: " + runtime::hud::humanizeToken(selectedItem),
+                           runtime::backend_status_text::selectedItemLine(selectedItem),
                            1.0f,
                            glm::vec3(0.84f, 0.90f, 0.98f));
             }

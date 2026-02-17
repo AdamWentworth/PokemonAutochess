@@ -335,8 +335,13 @@ if (BUILD_TESTING)
         tests/TestBackendWorldProjection.cpp
         tests/TestBackendInventoryOverlay.cpp
         tests/TestBackendInventoryPanel.cpp
+        tests/TestBackendCardLayoutModel.cpp
+        tests/TestBackendShopHudModel.cpp
+        tests/TestBackendSellOverlayModel.cpp
+        tests/TestBackendStatusText.cpp
         tests/TestBackendUiPolicy.cpp
         tests/TestBackendShopSnapshot.cpp
+        tests/TestShopCardConversion.cpp
         tests/TestBackendInputSlots.cpp
         tests/TestSellOverlayUiPolicy.cpp
         tests/TestLogBus.cpp

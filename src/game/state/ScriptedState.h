@@ -10,6 +10,7 @@
 #include "game/GameServices.h"
 #include "game/scripting/LuaScript.h"
 #include "game/state/BackendShopSnapshot.h"
+#include "game/state/BackendCardLayoutModel.h"
 #include "game/systems/CardSystem.h"
 #include "game/ui/ShopUiFacade.h"
 #include "engine/ui/TextRenderer.h"
@@ -43,6 +44,8 @@ private:
     void renderBackendTextMenu(int uiW, int uiH);
     bool shouldUseBackendCardUi() const;
     void rebuildBackendCardUi(const std::vector<CardData>& cards, int uiW, int uiH, bool isItemRow);
+    void clearBackendShopUiCache();
+    void resetBackendShopActionRects();
     void refreshBackendShopSnapshot();
     bool invokeBackendShopEntry(const game::state::backend_shop::Entry& entry);
     void renderBackendCardUi(int uiW, int uiH);
@@ -101,16 +104,8 @@ private:
     bool hasShopRerollButton = false;
     float backendTextMenuScale = 1.0f;
 
-    struct BackendCardButton {
-        CardData data;
-        float x = 0.0f;
-        float y = 0.0f;
-        float w = 0.0f;
-        float h = 0.0f;
-        bool item = false;
-    };
-    std::vector<BackendCardButton> backendMainButtons;
-    std::vector<BackendCardButton> backendItemButtons;
+    std::vector<game::state::backend_cards::Button> backendMainButtons;
+    std::vector<game::state::backend_cards::Button> backendItemButtons;
     std::vector<game::state::backend_shop::Entry> backendShopSnapshot;
     float backendRerollX = 0.0f;
     float backendRerollY = 0.0f;

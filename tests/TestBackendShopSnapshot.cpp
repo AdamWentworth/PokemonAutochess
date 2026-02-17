@@ -5,8 +5,11 @@
 
 bool test_backend_shop_snapshot_contract(std::string& outFail) {
     using game::state::backend_shop::ActionType;
+    using game::state::backend_shop::PlacementInput;
+    using game::state::backend_shop::Rect;
     using game::state::backend_shop::BuildInput;
     using game::state::backend_shop::Entry;
+    using game::state::backend_shop::applyPlacement;
     using game::state::backend_shop::buildEntries;
     using game::state::backend_shop::findByAction;
     using game::state::backend_shop::findByKeyboardSlot;
@@ -145,6 +148,72 @@ bool test_backend_shop_snapshot_contract(std::string& outFail) {
         if (findByPoint(entries, 80.0f, 80.0f) != nullptr) {
             outFail = "findByPoint should return null outside of hit rects";
             return false;
+        }
+    }
+
+    {
+        BuildInput in;
+        in.shopMode = true;
+        in.mainCount = 2;
+        in.itemCount = 1;
+        in.includeItemRow = true;
+        in.includeReroll = true;
+        in.includeReady = true;
+        auto entries = buildEntries(in);
+
+        std::vector<Rect> mainRects = {
+            Rect{10.0f, 20.0f, 30.0f, 40.0f},
+            Rect{50.0f, 60.0f, 70.0f, 80.0f}
+        };
+        std::vector<Rect> itemRects = {
+            Rect{90.0f, 100.0f, 110.0f, 120.0f}
+        };
+        PlacementInput placement;
+        placement.mainRects = &mainRects;
+        placement.itemRects = &itemRects;
+        placement.rerollRect = Rect{130.0f, 140.0f, 150.0f, 160.0f};
+        placement.hasRerollRect = true;
+        placement.readyRect = Rect{170.0f, 180.0f, 190.0f, 200.0f};
+        placement.hasReadyRect = true;
+
+        applyPlacement(entries, placement);
+
+        if (entries[0].x != 10.0f || entries[0].y != 20.0f || entries[0].w != 30.0f || entries[0].h != 40.0f) {
+            outFail = "applyPlacement should map main card index 0 rect";
+            return false;
+        }
+        if (entries[1].x != 50.0f || entries[1].y != 60.0f || entries[1].w != 70.0f || entries[1].h != 80.0f) {
+            outFail = "applyPlacement should map main card index 1 rect";
+            return false;
+        }
+        if (entries[2].x != 90.0f || entries[2].y != 100.0f || entries[2].w != 110.0f || entries[2].h != 120.0f) {
+            outFail = "applyPlacement should map item card rect";
+            return false;
+        }
+        if (entries[3].x != 130.0f || entries[3].y != 140.0f || entries[3].w != 150.0f || entries[3].h != 160.0f) {
+            outFail = "applyPlacement should map reroll rect";
+            return false;
+        }
+        if (entries[4].x != 170.0f || entries[4].y != 180.0f || entries[4].w != 190.0f || entries[4].h != 200.0f) {
+            outFail = "applyPlacement should map ready rect";
+            return false;
+        }
+    }
+
+    {
+        BuildInput in;
+        in.shopMode = true;
+        in.mainCount = 1;
+        in.includeReroll = true;
+        auto entries = buildEntries(in);
+        PlacementInput placement;
+        // Intentionally omit all placement data to ensure no accidental writes.
+        applyPlacement(entries, placement);
+        for (const Entry& e : entries) {
+            if (e.x != 0.0f || e.y != 0.0f || e.w != 0.0f || e.h != 0.0f) {
+                outFail = "applyPlacement should preserve zero rects when placement is missing";
+                return false;
+            }
         }
     }
 

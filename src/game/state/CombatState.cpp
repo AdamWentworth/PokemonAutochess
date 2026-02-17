@@ -4,10 +4,13 @@
 #include "game/GameServices.h"
 #include "game/logging/LoggerUtil.h"
 #include "game/runtime/BackendDebugText.h"
+#include "game/runtime/BackendSellOverlayModel.h"
+#include "game/runtime/BackendShopHudModel.h"
 #include "game/scripting/LuaCardParser.h"
 #include "game/scripting/LuaScriptHelpers.h"
 #include "game/state/BackendInputSlots.h"
 #include "game/state/BackendUiPolicy.h"
+#include "game/state/ShopCardConversion.h"
 #include "game/ui/ShopLayout.h"
 #include "game/ui/SellOverlayUiPolicy.h"
 #include "game/ui/UIViewport.h"
@@ -39,21 +42,6 @@ constexpr float kCombatStartCountdownSec = 3.0f;
 constexpr float kCombatEndHoldSec = 3.0f;
 constexpr float kHeaderY = 58.0f;
 constexpr float kBackendTextScaleBase = 1.35f;
-
-std::vector<GameWorld::ClassicShopCard> buildClassicCardsFromUi(const std::vector<CardData>& cards) {
-    std::vector<GameWorld::ClassicShopCard> out;
-    out.reserve(cards.size());
-    for (const auto& c : cards) {
-        if (c.pokemonName.empty()) continue;
-        if (c.type == CardType::Item) continue;
-        GameWorld::ClassicShopCard card;
-        card.name = c.pokemonName;
-        card.level = std::max(1, c.level);
-        card.cost = std::max(0, c.cost);
-        out.push_back(std::move(card));
-    }
-    return out;
-}
 } // namespace
 
 bool CombatState::shouldUseBackendShopUi() const {
@@ -62,37 +50,24 @@ bool CombatState::shouldUseBackendShopUi() const {
         services.activeRendererBackend);
 }
 
-void CombatState::rebuildBackendShopUi(const std::vector<CardData>& cards, int uiW, int uiH) {
+void CombatState::clearBackendShopUiCache() {
     backendShopButtons.clear();
     backendShopSnapshot.clear();
     backendRerollX = 0.0f;
     backendRerollY = 0.0f;
     backendRerollW = 0.0f;
     backendRerollH = 0.0f;
+}
 
-    if (cards.empty()) return;
-
-    bool allItems = true;
-    for (const auto& card : cards) {
-        if (card.type != CardType::Item) {
-            allItems = false;
-            break;
-        }
-    }
-
-    const game::ui::ShopRowLayout layout = game::ui::computeShopRowLayout(uiW, uiH, allItems);
-    const game::ui::ShopRowPlacement place =
-        game::ui::computeShopRowPlacement(uiW, uiH, static_cast<int>(cards.size()), layout);
-    backendShopButtons.reserve(cards.size());
-    for (std::size_t i = 0; i < cards.size(); ++i) {
-        BackendCardButton button;
-        button.data = cards[i];
-        button.x = static_cast<float>(place.startX + static_cast<int>(i) * (layout.cardW + layout.spacing));
-        button.y = static_cast<float>(place.y);
-        button.w = static_cast<float>(layout.cardW);
-        button.h = static_cast<float>(layout.cardH);
-        backendShopButtons.push_back(std::move(button));
-    }
+void CombatState::rebuildBackendShopUi(const std::vector<CardData>& cards, int uiW, int uiH) {
+    clearBackendShopUiCache();
+    game::state::backend_cards::BuildInput in;
+    in.cards = cards;
+    in.uiW = uiW;
+    in.uiH = uiH;
+    in.mode = game::state::backend_cards::LayoutMode::Shop;
+    in.forceItemRow = false;
+    backendShopButtons = game::state::backend_cards::buildButtons(in);
 }
 
 void CombatState::refreshBackendShopSnapshot() {
@@ -102,28 +77,27 @@ void CombatState::refreshBackendShopSnapshot() {
     input.includeReroll = hasShopRerollButton;
     backendShopSnapshot = game::state::backend_shop::buildEntries(input);
 
-    for (auto& entry : backendShopSnapshot) {
-        switch (entry.action) {
-            case game::state::backend_shop::ActionType::ShopCard: {
-                if (entry.sourceIndex >= backendShopButtons.size()) break;
-                const auto& button = backendShopButtons[entry.sourceIndex];
-                entry.x = button.x;
-                entry.y = button.y;
-                entry.w = button.w;
-                entry.h = button.h;
-                break;
-            }
-            case game::state::backend_shop::ActionType::ShopReroll: {
-                entry.x = backendRerollX;
-                entry.y = backendRerollY;
-                entry.w = backendRerollW;
-                entry.h = backendRerollH;
-                break;
-            }
-            default:
-                break;
-        }
+    std::vector<game::state::backend_shop::Rect> mainRects;
+    mainRects.reserve(backendShopButtons.size());
+    for (const auto& button : backendShopButtons) {
+        mainRects.push_back(game::state::backend_shop::Rect{
+            button.x,
+            button.y,
+            button.w,
+            button.h
+        });
     }
+
+    game::state::backend_shop::PlacementInput placement;
+    placement.mainRects = &mainRects;
+    placement.rerollRect = game::state::backend_shop::Rect{
+        backendRerollX,
+        backendRerollY,
+        backendRerollW,
+        backendRerollH
+    };
+    placement.hasRerollRect = input.includeReroll;
+    game::state::backend_shop::applyPlacement(backendShopSnapshot, placement);
 }
 
 bool CombatState::invokeBackendShopEntry(const game::state::backend_shop::Entry& entry) {
@@ -200,13 +174,6 @@ void CombatState::renderBackendShopUi(int uiW, int uiH, bool showSellOverlay, co
             1.0f);
     };
 
-    const auto prefixedLabel = [&](int slot, const std::string& label) {
-        if (slot > 0 && slot <= 9) {
-            return "[" + std::to_string(slot) + "] " + label;
-        }
-        return label;
-    };
-
     backendRerollX = 0.0f;
     backendRerollY = 0.0f;
     backendRerollW = 0.0f;
@@ -246,7 +213,13 @@ void CombatState::renderBackendShopUi(int uiW, int uiH, bool showSellOverlay, co
                 game::state::backend_shop::ActionType::ShopCard,
                 i);
             const std::string label = button.data.label.empty() ? button.data.pokemonName : button.data.label;
-            appendText(button.x + 8.0f, button.y + 8.0f, prefixedLabel(slot, label), 0.78f, 0.97f, 0.97f, 0.99f);
+            appendText(button.x + 8.0f,
+                       button.y + 8.0f,
+                       game::runtime::backend_shop_hud::keyboardPrefixedLabel(slot, label),
+                       0.78f,
+                       0.97f,
+                       0.97f,
+                       0.99f);
 
             std::string sub = "Lv " + std::to_string(std::max(1, button.data.level));
             sub += "  Cost " + std::to_string(std::max(0, button.data.cost)) + "g";
@@ -254,14 +227,13 @@ void CombatState::renderBackendShopUi(int uiW, int uiH, bool showSellOverlay, co
         }
     }
 
-    const std::string moneyLabel =
-        "Gold: " + std::to_string(std::max(0, gameWorld ? gameWorld->getMoney() : 0));
-    const std::string rerollLabel = prefixedLabel(
+    const std::string moneyLabel = game::runtime::backend_shop_hud::moneyLabel(
+        gameWorld ? gameWorld->getMoney() : 0);
+    const std::string rerollLabel = game::runtime::backend_shop_hud::rerollLabel(
         game::state::backend_shop::keyboardSlotFor(
             backendShopSnapshot,
             game::state::backend_shop::ActionType::ShopReroll,
-            0),
-        "Reroll 2g");
+            0));
 
     const float moneyScale = 1.0f * kBackendTextScaleBase;
     const float rerollScale = 0.78f * kBackendTextScaleBase;
@@ -274,24 +246,23 @@ void CombatState::renderBackendShopUi(int uiW, int uiH, bool showSellOverlay, co
     int cardsY = std::max(0, uiH - 120);
     int cardsH = 96;
     if (!backendShopButtons.empty()) {
-        cardsX = static_cast<int>(std::round(backendShopButtons.front().x));
-        cardsY = static_cast<int>(std::round(backendShopButtons.front().y));
-        cardsH = static_cast<int>(std::round(backendShopButtons.front().h));
+        cardsX = game::runtime::backend_shop_hud::cardsAnchorX(backendShopButtons.front().x);
+        cardsY = game::runtime::backend_shop_hud::cardsAnchorY(backendShopButtons.front().y, uiH);
+        cardsH = game::runtime::backend_shop_hud::cardsAnchorH(backendShopButtons.front().h);
     }
 
-    game::ui::ClassicHudLayoutInput hudIn;
+    game::runtime::backend_shop_hud::LayoutInput hudIn;
     hudIn.uiW = uiW;
     hudIn.uiH = uiH;
-    hudIn.shopCardsX = cardsX;
-    hudIn.shopCardsY = cardsY;
-    hudIn.shopCardsH = cardsH;
+    hudIn.cardsX = cardsX;
+    hudIn.cardsY = cardsY;
+    hudIn.cardsH = cardsH;
     hudIn.moneyTextW = moneyW;
     hudIn.moneyTextH = moneyH;
     hudIn.rerollTextW = rerollW;
     hudIn.rerollTextH = rerollH;
     hudIn.showReroll = hasShopRerollButton;
-    hudIn.iconVisible = false;
-    const game::ui::ClassicHudLayout hud = game::ui::computeClassicHudLayout(hudIn);
+    const game::ui::ClassicHudLayout hud = game::runtime::backend_shop_hud::computeLayout(hudIn);
 
     {
         IRenderBackend::DebugQuad moneyPanel;
@@ -327,14 +298,16 @@ void CombatState::renderBackendShopUi(int uiW, int uiH, bool showSellOverlay, co
         backendRerollH = rerollPanel.h;
     }
 
-    if (showSellOverlay && gameWorld) {
-        const game::ui::SellDropZoneLayout outer = game::state::backend_ui::computeSellOverlayOuterLayout(
-            uiW,
-            uiH,
-            gameWorld->getUnitDropZoneCardCount(),
-            gameWorld->getUnitDropZoneUsesItemLayout());
-        const game::ui::SellDropZoneLayout hit = game::state::backend_ui::computeSellOverlayHitLayout(outer);
-        if (outer.w > 0 && outer.h > 0) {
+    const auto sellOverlay = game::runtime::backend_sell_overlay::buildModel(
+        showSellOverlay && gameWorld != nullptr,
+        uiW,
+        uiH,
+        gameWorld ? gameWorld->getUnitDropZoneCardCount() : 0,
+        gameWorld ? gameWorld->getUnitDropZoneUsesItemLayout() : false,
+        gameWorld ? gameWorld->isUnitSellRewardsEnabled() : true);
+    if (sellOverlay.visible) {
+        const auto& outer = sellOverlay.outer;
+        const auto& hit = sellOverlay.hit;
             IRenderBackend::DebugQuad outerBg;
             outerBg.x = static_cast<float>(outer.x);
             outerBg.y = static_cast<float>(outer.y);
@@ -359,34 +332,36 @@ void CombatState::renderBackendShopUi(int uiW, int uiH, bool showSellOverlay, co
                 quads.push_back(hitBg);
             }
 
-            const game::ui::sell_overlay::Copy copy =
-                game::ui::sell_overlay::makeCopy(gameWorld->isUnitSellRewardsEnabled());
             const float titleW = game::runtime::backend_text::measureTextWidth(
-                copy.title, copy.titleScale * kBackendTextScaleBase);
+                sellOverlay.copy.title, sellOverlay.copy.titleScale * kBackendTextScaleBase);
             const float hintW = game::runtime::backend_text::measureTextWidth(
-                copy.hint, copy.hintScale * kBackendTextScaleBase);
-            const float cx = static_cast<float>(outer.x) + static_cast<float>(outer.w) * 0.5f;
+                sellOverlay.copy.hint, sellOverlay.copy.hintScale * kBackendTextScaleBase);
             appendText(
-                cx - titleW * 0.5f,
-                static_cast<float>(outer.y) + 10.0f,
-                copy.title,
-                copy.titleScale,
+                sellOverlay.centerX - titleW * 0.5f,
+                sellOverlay.titleY,
+                sellOverlay.copy.title,
+                sellOverlay.copy.titleScale,
                 0.99f,
                 0.95f,
                 0.90f);
             appendText(
-                cx - hintW * 0.5f,
-                static_cast<float>(outer.y) + static_cast<float>(outer.h) * 0.58f,
-                copy.hint,
-                copy.hintScale,
+                sellOverlay.centerX - hintW * 0.5f,
+                sellOverlay.hintY,
+                sellOverlay.copy.hint,
+                sellOverlay.copy.hintScale,
                 0.98f,
                 0.86f,
                 0.82f);
-        }
     }
 
     refreshBackendShopSnapshot();
-    appendText(26.0f, static_cast<float>(uiH) - 34.0f, "Use mouse or keys 1-9", 0.74f, 0.72f, 0.82f, 0.93f);
+    appendText(26.0f,
+               static_cast<float>(uiH) - 34.0f,
+               game::runtime::backend_shop_hud::interactionHint(),
+               0.74f,
+               0.72f,
+               0.82f,
+               0.93f);
 
     if (!quads.empty()) {
         services.renderer->drawDebugQuads(quads.data(), quads.size(), uiW, uiH);
@@ -402,12 +377,7 @@ void CombatState::ensureShopUi() {
 
     if (!shopUiEnabled) {
         if (shopUi) shopUi->clear();
-        backendShopButtons.clear();
-        backendShopSnapshot.clear();
-        backendRerollX = 0.0f;
-        backendRerollY = 0.0f;
-        backendRerollW = 0.0f;
-        backendRerollH = 0.0f;
+        clearBackendShopUiCache();
         if (gameWorld) {
             gameWorld->clearClassicShopCards();
             gameWorld->setUnitDropZoneLayoutHint(0, false);
@@ -423,12 +393,7 @@ void CombatState::ensureShopUi() {
         return;
     }
 
-    backendShopButtons.clear();
-    backendShopSnapshot.clear();
-    backendRerollX = 0.0f;
-    backendRerollY = 0.0f;
-    backendRerollW = 0.0f;
-    backendRerollH = 0.0f;
+    clearBackendShopUiCache();
 
     if (!services.renderEnabled) {
         if (shopUi) shopUi->clear();
@@ -474,7 +439,7 @@ void CombatState::rebuildShopCards() {
     }
 
     if (gameWorld) {
-        gameWorld->setClassicShopCards(buildClassicCardsFromUi(cards));
+        gameWorld->setClassicShopCards(game::state::shop_cards::toClassicCards(cards));
         gameWorld->setUnitDropZoneLayoutHint(static_cast<int>(cards.size()), allItems);
         gameWorld->setUnitSellRewardsEnabled(services.gameMode == "classic");
     }
@@ -489,12 +454,7 @@ void CombatState::rebuildShopCards() {
         return;
     }
 
-    backendShopButtons.clear();
-    backendShopSnapshot.clear();
-    backendRerollX = 0.0f;
-    backendRerollY = 0.0f;
-    backendRerollW = 0.0f;
-    backendRerollH = 0.0f;
+    clearBackendShopUiCache();
     if (shopUi) shopUi->setCards(cards, uiW, uiH);
 }
 
@@ -645,12 +605,7 @@ void CombatState::onExit() {
     hasShopRerollButton = false;
     shopUiInitialized = false;
     shopUi.reset();
-    backendShopButtons.clear();
-    backendShopSnapshot.clear();
-    backendRerollX = 0.0f;
-    backendRerollY = 0.0f;
-    backendRerollW = 0.0f;
-    backendRerollH = 0.0f;
+    clearBackendShopUiCache();
     if (gameWorld) {
         gameWorld->clearClassicShopCards();
         gameWorld->setUnitDropZoneLayoutHint(0, false);
