@@ -330,6 +330,7 @@ if (BUILD_TESTING)
         tests/TestECS.cpp
         tests/TestDeterminism.cpp
         tests/TestEnvironment.cpp
+        tests/TestBackendHudFormatting.cpp
         tests/TestLogBus.cpp
         tests/TestRenderFlowDecisions.cpp
         tests/TestDebugGeometry.cpp

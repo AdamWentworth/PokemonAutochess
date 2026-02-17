@@ -39,6 +39,7 @@
 #include "game/GameStateManager.h"
 #include "game/runtime/GamePreload.h"
 #include "game/runtime/RenderFlowDecisions.h"
+#include "game/runtime/BackendHudFormatting.h"
 #include "game/GameServices.h"
 #include "game/GameConfig.h"
 #include "game/runtime/GameUpdateGraph.h"
@@ -628,6 +629,39 @@ struct GameSession::Impl {
                     }
                     hp.a = 1.0f;
                     lines.push_back(hp);
+
+                    if (!unit.chargedMove.empty()) {
+                        const float energyRatio = std::clamp(
+                            static_cast<float>(std::max(0, unit.energy)) /
+                                static_cast<float>(std::max(1, unit.maxEnergy)),
+                            0.0f,
+                            1.0f);
+                        const float energyY = std::min(
+                            boardY + boardH - 2.0f,
+                            u.y + u.h + std::max(2.0f, line * 2.4f));
+
+                        IRenderBackend::DebugLine energyBg;
+                        energyBg.x1 = u.x;
+                        energyBg.y1 = energyY;
+                        energyBg.x2 = u.x + u.w;
+                        energyBg.y2 = energyY;
+                        energyBg.thickness = std::max(1.0f, line * 1.8f);
+                        energyBg.r = 0.10f;
+                        energyBg.g = 0.11f;
+                        energyBg.b = 0.15f;
+                        energyBg.a = 0.95f;
+                        lines.push_back(energyBg);
+
+                        IRenderBackend::DebugLine energy = energyBg;
+                        energy.x1 = u.x + std::max(0.5f, line * 0.4f);
+                        energy.x2 =
+                            energy.x1 + std::max(0.0f, (u.w - std::max(1.0f, line * 0.8f)) * energyRatio);
+                        energy.r = 0.34f;
+                        energy.g = 0.70f;
+                        energy.b = 0.98f;
+                        energy.a = 1.0f;
+                        lines.push_back(energy);
+                    }
                 }
             }
         }
@@ -662,6 +696,15 @@ struct GameSession::Impl {
                                     float scale,
                                     const glm::vec3& color) {
             appendEasyFontTextQuads(quads, x, y, text, scale, color.r, color.g, color.b, 1.0f);
+        };
+        const auto appendRightText = [&](float y,
+                                         const std::string& text,
+                                         float scale,
+                                         const glm::vec3& color) {
+            const int baseW = stb_easy_font_width(const_cast<char*>(text.c_str()));
+            const float textW = std::max(1.0f, static_cast<float>(baseW) * scale);
+            const float x = std::max(20.0f, static_cast<float>(drawableW) - textW - 22.0f);
+            appendText(x, y, text, scale, color);
         };
 
         const std::string mode = (services ? services->gameMode : std::string("classic"));
@@ -720,9 +763,80 @@ struct GameSession::Impl {
             if (!selectedItem.empty()) {
                 appendText(20.0f,
                            128.0f,
-                           "Selected item: " + selectedItem,
+                           "Selected item: " + runtime::hud::humanizeToken(selectedItem),
                            1.0f,
                            glm::vec3(0.84f, 0.90f, 0.98f));
+            }
+
+            const auto invEntries = runtime::hud::normalizeInventoryEntries(gameWorld->listItems(), 6);
+            if (!invEntries.empty()) {
+                float invY = 146.0f;
+                appendText(20.0f, invY, "Items", 1.0f, glm::vec3(0.92f, 0.95f, 0.99f));
+                invY += 16.0f;
+                for (const auto& item : invEntries) {
+                    appendText(20.0f,
+                               invY,
+                               runtime::hud::formatInventoryEntry(item),
+                               0.95f,
+                               glm::vec3(0.84f, 0.90f, 0.97f));
+                    invY += 15.0f;
+                }
+            }
+
+            auto typeCounts = gameWorld->getPlayerTypeLineCounts();
+            if (!typeCounts.empty()) {
+                std::sort(typeCounts.begin(), typeCounts.end(),
+                          [](const GameWorld::TypeLineCount& a, const GameWorld::TypeLineCount& b) {
+                              if (a.uniqueLineCount != b.uniqueLineCount) {
+                                  return a.uniqueLineCount > b.uniqueLineCount;
+                              }
+                              return a.type < b.type;
+                          });
+
+                float typeY = 128.0f;
+                appendRightText(typeY, "Type Lines", 1.0f, glm::vec3(0.98f, 0.90f, 0.60f));
+                typeY += 16.0f;
+                const std::size_t maxRows = std::min<std::size_t>(6, typeCounts.size());
+                for (std::size_t i = 0; i < maxRows; ++i) {
+                    appendRightText(typeY,
+                                    runtime::hud::formatTypeLineEntry(typeCounts[i].type, typeCounts[i].uniqueLineCount),
+                                    0.95f,
+                                    glm::vec3(0.92f, 0.94f, 0.98f));
+                    typeY += 15.0f;
+                }
+            }
+
+            const auto& benchUnits = gameWorld->getBenchPokemons();
+            if (!benchUnits.empty()) {
+                float benchY = 252.0f;
+                appendText(20.0f, benchY, "Bench", 1.0f, glm::vec3(0.86f, 0.94f, 0.98f));
+                benchY += 16.0f;
+                const std::size_t maxRows = std::min<std::size_t>(5, benchUnits.size());
+                for (std::size_t i = 0; i < maxRows; ++i) {
+                    appendText(20.0f,
+                               benchY,
+                               runtime::hud::formatUnitEntry(benchUnits[i].name, benchUnits[i].level),
+                               0.95f,
+                               glm::vec3(0.80f, 0.88f, 0.96f));
+                    benchY += 15.0f;
+                }
+            }
+
+            const auto& shopCards = gameWorld->getClassicShopCards();
+            if (!shopCards.empty()) {
+                float shopY = 252.0f;
+                appendRightText(shopY, "Shop Offers", 1.0f, glm::vec3(0.98f, 0.90f, 0.60f));
+                shopY += 16.0f;
+                const std::size_t maxRows = std::min<std::size_t>(5, shopCards.size());
+                for (std::size_t i = 0; i < maxRows; ++i) {
+                    appendRightText(shopY,
+                                    runtime::hud::formatShopCardEntry(shopCards[i].name,
+                                                                      shopCards[i].level,
+                                                                      shopCards[i].cost),
+                                    0.95f,
+                                    glm::vec3(0.92f, 0.94f, 0.98f));
+                    shopY += 15.0f;
+                }
             }
         }
 
