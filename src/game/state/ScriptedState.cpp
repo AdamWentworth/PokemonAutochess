@@ -150,13 +150,88 @@ void ScriptedState::rebuildTextMenu() {
     }
 }
 
+void ScriptedState::logHeadlessTextMenuHints() const {
+    if (!hasTextMenu || cardMode != CardMode::TextMenu) return;
+
+    int option = 0;
+    bool any = false;
+    std::cout << "[Menu][Headless] Non-OpenGL UI fallback active. Use number keys to select:\n";
+    for (const auto& entry : textMenuEntries) {
+        if (!entry.enabled) continue;
+        ++option;
+        any = true;
+        if (option <= 9) {
+            std::cout << "  [" << option << "] " << entry.label << " (" << entry.id << ")\n";
+        }
+    }
+    if (!any) {
+        std::cout << "  (no selectable entries)\n";
+    } else if (option > 9) {
+        std::cout << "  [Headless] Only options 1-9 are keyboard-selectable in this fallback.\n";
+    }
+}
+
+bool ScriptedState::tryHandleHeadlessTextMenuKey(InputEvent::Key keyId) {
+    int targetOption = -1;
+    switch (keyId) {
+        case InputEvent::Key::Num1: targetOption = 1; break;
+        case InputEvent::Key::Num2: targetOption = 2; break;
+        case InputEvent::Key::Num3: targetOption = 3; break;
+        case InputEvent::Key::Num4: targetOption = 4; break;
+        case InputEvent::Key::Num5: targetOption = 5; break;
+        case InputEvent::Key::Num6: targetOption = 6; break;
+        case InputEvent::Key::Num7: targetOption = 7; break;
+        case InputEvent::Key::Num8: targetOption = 8; break;
+        case InputEvent::Key::Num9: targetOption = 9; break;
+        default: return false;
+    }
+
+    int option = 0;
+    for (const auto& entry : textMenuEntries) {
+        if (!entry.enabled) continue;
+        ++option;
+        if (option != targetOption) continue;
+
+        sol::table S = script.getScriptTable();
+        sol::function onMenuClick = game::scripting::resolveFunction(S, {"on_text_menu_click", "on_menu_click"});
+        if (!onMenuClick.valid()) {
+            std::cout << "[Menu][Headless] Menu click handler unavailable.\n";
+            return false;
+        }
+        std::cout << "[Menu][Headless] Selected [" << targetOption << "] " << entry.label << "\n";
+        onMenuClick(entry.id);
+        script.flushCommands();
+        rebuildTextMenu();
+        logHeadlessTextMenuHints();
+        return true;
+    }
+
+    std::cout << "[Menu][Headless] No menu option mapped to key " << targetOption << ".\n";
+    return false;
+}
+
 void ScriptedState::ensureCardUI() {
     if (uiInitialized) return;
     if (!services.renderEnabled) {
-        cardMode = CardMode::None;
+        sol::table S = script.getScriptTable();
+        const bool hasTextMenuEntries = game::scripting::hasFunction(S, "get_text_menu_entries");
+        const bool hasTextMenuClick = game::scripting::hasAnyFunction(S, {"on_text_menu_click", "on_menu_click"});
+        hasTextMenu = hasTextMenuEntries && hasTextMenuClick;
+
+        // Keep world visible for backend debug path when the GL menu UI is unavailable.
+        renderWorld = true;
+        if (hasTextMenu) {
+            cardMode = CardMode::TextMenu;
+            rebuildTextMenu();
+            logHeadlessTextMenuHints();
+        } else {
+            cardMode = CardMode::None;
+        }
+
         hasShopReadyButton = false;
         hasShopRerollButton = false;
         uiInitialized = true;
+        script.flushCommands();
         return;
     }
 
@@ -284,6 +359,14 @@ void ScriptedState::handleInput(const InputEvent& event) {
     script.call("handleInput");
 
     if (!uiInitialized) return;
+    if (!services.renderEnabled &&
+        cardMode == CardMode::TextMenu &&
+        event.type == InputEvent::Type::KeyDown &&
+        !event.repeat) {
+        if (tryHandleHeadlessTextMenuKey(event.keyId)) {
+            return;
+        }
+    }
     if (event.type == InputEvent::Type::MouseDown && gameWorld) {
         if (gameWorld->consumeUiClickBlocked()) return;
         if (gameWorld->isUnitDragActive()) return;

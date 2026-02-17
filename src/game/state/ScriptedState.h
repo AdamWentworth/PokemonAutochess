@@ -12,6 +12,7 @@
 #include "game/systems/CardSystem.h"
 #include "game/ui/ShopUiFacade.h"
 #include "engine/ui/TextRenderer.h"
+#include "engine/input/InputEvent.h"
 
 class GameStateManager;
 
@@ -37,6 +38,8 @@ private:
     void rebuildCardRow();
     void rebuildTextMenu();
     void drawShopHud(int uiW, int uiH);
+    bool tryHandleHeadlessTextMenuKey(InputEvent::Key keyId);
+    void logHeadlessTextMenuHints() const;
 
 private:
     GameStateManager* stateManager = nullptr;
