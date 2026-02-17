@@ -12,6 +12,7 @@
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 #include <d3d12.h>
+#include <d3dcompiler.h>
 #include <dxgi1_6.h>
 #include <SDL2/SDL_syswm.h>
 #endif
@@ -49,6 +50,15 @@ bool isLikelyDiscrete(const DXGI_ADAPTER_DESC1& desc) {
     if (isSoftwareAdapter(desc)) return false;
     return desc.VendorId != 0x8086;
 }
+
+struct DebugVertex {
+    float x;
+    float y;
+    float r;
+    float g;
+    float b;
+    float a;
+};
 #endif
 
 } // namespace
@@ -166,12 +176,92 @@ void D3D12RenderBackend::onResize(int width, int height) {
 #endif
 }
 
+void D3D12RenderBackend::drawDebugQuads(const DebugQuad* quads,
+                                        std::size_t quadCount,
+                                        int surfaceWidth,
+                                        int surfaceHeight) {
+#if defined(_WIN32)
+    if (!recording_ || !quads || quadCount == 0 || surfaceWidth <= 0 || surfaceHeight <= 0) return;
+    if (!debugPipelineState_ || !debugRootSignature_ || !debugVertexBuffer_ || !commandList_) return;
+
+    constexpr std::size_t kMaxDebugQuads = 2048;
+    const std::size_t safeCount = (quadCount > kMaxDebugQuads) ? kMaxDebugQuads : quadCount;
+    const std::size_t vertexCount = safeCount * 6;
+    const std::size_t neededBytes = vertexCount * sizeof(DebugVertex);
+    if (neededBytes == 0 || neededBytes > debugVertexBufferSize_) return;
+
+    void* mapped = nullptr;
+    D3D12_RANGE readRange{0, 0};
+    if (FAILED(debugVertexBuffer_->Map(0, &readRange, &mapped)) || !mapped) return;
+
+    DebugVertex* out = static_cast<DebugVertex*>(mapped);
+    std::size_t v = 0;
+    const float invW = 1.0f / static_cast<float>(surfaceWidth);
+    const float invH = 1.0f / static_cast<float>(surfaceHeight);
+    for (std::size_t i = 0; i < safeCount; ++i) {
+        const DebugQuad& q = quads[i];
+        const float left = q.x * invW * 2.0f - 1.0f;
+        const float right = (q.x + q.w) * invW * 2.0f - 1.0f;
+        const float top = 1.0f - q.y * invH * 2.0f;
+        const float bottom = 1.0f - (q.y + q.h) * invH * 2.0f;
+
+        const DebugVertex a{left, top, q.r, q.g, q.b, q.a};
+        const DebugVertex b{right, top, q.r, q.g, q.b, q.a};
+        const DebugVertex c{right, bottom, q.r, q.g, q.b, q.a};
+        const DebugVertex d{left, bottom, q.r, q.g, q.b, q.a};
+
+        out[v++] = a;
+        out[v++] = b;
+        out[v++] = c;
+        out[v++] = a;
+        out[v++] = c;
+        out[v++] = d;
+    }
+
+    D3D12_RANGE writeRange{0, static_cast<SIZE_T>(neededBytes)};
+    debugVertexBuffer_->Unmap(0, &writeRange);
+
+    D3D12_VIEWPORT vp{};
+    vp.TopLeftX = 0.0f;
+    vp.TopLeftY = 0.0f;
+    vp.Width = static_cast<float>(surfaceWidth);
+    vp.Height = static_cast<float>(surfaceHeight);
+    vp.MinDepth = 0.0f;
+    vp.MaxDepth = 1.0f;
+    D3D12_RECT scissor{0, 0, surfaceWidth, surfaceHeight};
+
+    commandList_->RSSetViewports(1, &vp);
+    commandList_->RSSetScissorRects(1, &scissor);
+    commandList_->SetGraphicsRootSignature(debugRootSignature_.Get());
+    commandList_->SetPipelineState(debugPipelineState_.Get());
+    commandList_->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+    D3D12_VERTEX_BUFFER_VIEW vbv{};
+    vbv.BufferLocation = debugVertexBufferGpuAddress_;
+    vbv.StrideInBytes = debugVertexStride_;
+    vbv.SizeInBytes = static_cast<UINT>(neededBytes);
+    commandList_->IASetVertexBuffers(0, 1, &vbv);
+    commandList_->DrawInstanced(static_cast<UINT>(vertexCount), 1, 0, 0);
+#else
+    (void)quads;
+    (void)quadCount;
+    (void)surfaceWidth;
+    (void)surfaceHeight;
+#endif
+}
+
 void D3D12RenderBackend::shutdown() {
 #if defined(_WIN32)
     if (!initialized_) return;
 
     waitForGpu();
     releaseRenderTargets();
+    debugVertexBuffer_.Reset();
+    debugVertexBufferGpuAddress_ = 0;
+    debugVertexStride_ = 0;
+    debugVertexBufferSize_ = 0;
+    debugPipelineState_.Reset();
+    debugRootSignature_.Reset();
 
     commandList_.Reset();
     for (auto& allocator : commandAllocators_) allocator.Reset();
@@ -331,6 +421,7 @@ void D3D12RenderBackend::initDeviceAndSwapchain(const std::string& preferredAdap
         throw std::runtime_error("CreateEvent failed for D3D12 fence.");
     }
 
+    createDebugPipeline();
     createRenderTargets();
     initialized_ = true;
 #endif
@@ -355,6 +446,163 @@ void D3D12RenderBackend::releaseRenderTargets() {
     for (auto& target : renderTargets_) {
         target.Reset();
     }
+#endif
+}
+
+void D3D12RenderBackend::createDebugPipeline() {
+#if defined(_WIN32)
+    static constexpr char kVsSource[] =
+        "struct VSIn { float2 pos : POSITION; float4 col : COLOR; };"
+        "struct VSOut { float4 pos : SV_POSITION; float4 col : COLOR; };"
+        "VSOut main(VSIn i) { VSOut o; o.pos = float4(i.pos, 0.0, 1.0); o.col = i.col; return o; }";
+    static constexpr char kPsSource[] =
+        "struct PSIn { float4 pos : SV_POSITION; float4 col : COLOR; };"
+        "float4 main(PSIn i) : SV_TARGET { return i.col; }";
+
+    Microsoft::WRL::ComPtr<ID3DBlob> vsBlob;
+    Microsoft::WRL::ComPtr<ID3DBlob> psBlob;
+    Microsoft::WRL::ComPtr<ID3DBlob> errBlob;
+    if (FAILED(D3DCompile(kVsSource, sizeof(kVsSource) - 1, nullptr, nullptr, nullptr,
+                          "main", "vs_5_0", 0, 0, vsBlob.ReleaseAndGetAddressOf(),
+                          errBlob.ReleaseAndGetAddressOf())) ||
+        !vsBlob) {
+        throw std::runtime_error("D3DCompile failed for debug VS.");
+    }
+    errBlob.Reset();
+    if (FAILED(D3DCompile(kPsSource, sizeof(kPsSource) - 1, nullptr, nullptr, nullptr,
+                          "main", "ps_5_0", 0, 0, psBlob.ReleaseAndGetAddressOf(),
+                          errBlob.ReleaseAndGetAddressOf())) ||
+        !psBlob) {
+        throw std::runtime_error("D3DCompile failed for debug PS.");
+    }
+
+    D3D12_ROOT_SIGNATURE_DESC rsDesc{};
+    rsDesc.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
+    Microsoft::WRL::ComPtr<ID3DBlob> serializedRs;
+    Microsoft::WRL::ComPtr<ID3DBlob> rsErr;
+    if (FAILED(D3D12SerializeRootSignature(&rsDesc,
+                                           D3D_ROOT_SIGNATURE_VERSION_1,
+                                           serializedRs.ReleaseAndGetAddressOf(),
+                                           rsErr.ReleaseAndGetAddressOf())) ||
+        !serializedRs) {
+        throw std::runtime_error("D3D12SerializeRootSignature failed.");
+    }
+    if (FAILED(device_->CreateRootSignature(0,
+                                            serializedRs->GetBufferPointer(),
+                                            serializedRs->GetBufferSize(),
+                                            IID_PPV_ARGS(debugRootSignature_.ReleaseAndGetAddressOf()))) ||
+        !debugRootSignature_) {
+        throw std::runtime_error("CreateRootSignature failed for D3D12 debug pipeline.");
+    }
+
+    D3D12_INPUT_ELEMENT_DESC layout[] = {
+        {"POSITION", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
+        {"COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 8, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
+    };
+
+    D3D12_GRAPHICS_PIPELINE_STATE_DESC pso{};
+    pso.pRootSignature = debugRootSignature_.Get();
+    pso.VS = {vsBlob->GetBufferPointer(), vsBlob->GetBufferSize()};
+    pso.PS = {psBlob->GetBufferPointer(), psBlob->GetBufferSize()};
+
+    D3D12_BLEND_DESC blend{};
+    blend.AlphaToCoverageEnable = FALSE;
+    blend.IndependentBlendEnable = FALSE;
+    D3D12_RENDER_TARGET_BLEND_DESC rtBlend{};
+    rtBlend.BlendEnable = FALSE;
+    rtBlend.LogicOpEnable = FALSE;
+    rtBlend.SrcBlend = D3D12_BLEND_ONE;
+    rtBlend.DestBlend = D3D12_BLEND_ZERO;
+    rtBlend.BlendOp = D3D12_BLEND_OP_ADD;
+    rtBlend.SrcBlendAlpha = D3D12_BLEND_ONE;
+    rtBlend.DestBlendAlpha = D3D12_BLEND_ZERO;
+    rtBlend.BlendOpAlpha = D3D12_BLEND_OP_ADD;
+    rtBlend.LogicOp = D3D12_LOGIC_OP_NOOP;
+    rtBlend.RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
+    blend.RenderTarget[0] = rtBlend;
+    pso.BlendState = blend;
+
+    pso.SampleMask = UINT_MAX;
+
+    D3D12_RASTERIZER_DESC raster{};
+    raster.FillMode = D3D12_FILL_MODE_SOLID;
+    raster.CullMode = D3D12_CULL_MODE_NONE;
+    raster.FrontCounterClockwise = FALSE;
+    raster.DepthBias = D3D12_DEFAULT_DEPTH_BIAS;
+    raster.DepthBiasClamp = D3D12_DEFAULT_DEPTH_BIAS_CLAMP;
+    raster.SlopeScaledDepthBias = D3D12_DEFAULT_SLOPE_SCALED_DEPTH_BIAS;
+    raster.DepthClipEnable = TRUE;
+    raster.MultisampleEnable = FALSE;
+    raster.AntialiasedLineEnable = FALSE;
+    raster.ForcedSampleCount = 0;
+    raster.ConservativeRaster = D3D12_CONSERVATIVE_RASTERIZATION_MODE_OFF;
+    pso.RasterizerState = raster;
+
+    pso.RasterizerState.CullMode = D3D12_CULL_MODE_NONE;
+
+    D3D12_DEPTH_STENCIL_DESC depthStencil{};
+    depthStencil.DepthEnable = FALSE;
+    depthStencil.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ZERO;
+    depthStencil.DepthFunc = D3D12_COMPARISON_FUNC_ALWAYS;
+    depthStencil.StencilEnable = FALSE;
+    depthStencil.StencilReadMask = D3D12_DEFAULT_STENCIL_READ_MASK;
+    depthStencil.StencilWriteMask = D3D12_DEFAULT_STENCIL_WRITE_MASK;
+    depthStencil.FrontFace.StencilFunc = D3D12_COMPARISON_FUNC_ALWAYS;
+    depthStencil.FrontFace.StencilPassOp = D3D12_STENCIL_OP_KEEP;
+    depthStencil.FrontFace.StencilFailOp = D3D12_STENCIL_OP_KEEP;
+    depthStencil.FrontFace.StencilDepthFailOp = D3D12_STENCIL_OP_KEEP;
+    depthStencil.BackFace = depthStencil.FrontFace;
+    pso.DepthStencilState = depthStencil;
+
+    pso.DepthStencilState.DepthEnable = FALSE;
+    pso.DepthStencilState.StencilEnable = FALSE;
+    pso.InputLayout = {layout, static_cast<UINT>(_countof(layout))};
+    pso.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
+    pso.NumRenderTargets = 1;
+    pso.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
+    pso.SampleDesc.Count = 1;
+    if (FAILED(device_->CreateGraphicsPipelineState(&pso,
+                                                    IID_PPV_ARGS(debugPipelineState_.ReleaseAndGetAddressOf()))) ||
+        !debugPipelineState_) {
+        throw std::runtime_error("CreateGraphicsPipelineState failed for D3D12 debug pipeline.");
+    }
+
+    constexpr std::size_t kMaxDebugQuads = 2048;
+    constexpr std::size_t kMaxVertices = kMaxDebugQuads * 6;
+    constexpr std::size_t kBufferBytes = kMaxVertices * sizeof(DebugVertex);
+    D3D12_HEAP_PROPERTIES heapProps{};
+    heapProps.Type = D3D12_HEAP_TYPE_UPLOAD;
+    heapProps.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
+    heapProps.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
+    heapProps.CreationNodeMask = 1;
+    heapProps.VisibleNodeMask = 1;
+
+    D3D12_RESOURCE_DESC bufferDesc{};
+    bufferDesc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
+    bufferDesc.Alignment = 0;
+    bufferDesc.Width = kBufferBytes;
+    bufferDesc.Height = 1;
+    bufferDesc.DepthOrArraySize = 1;
+    bufferDesc.MipLevels = 1;
+    bufferDesc.Format = DXGI_FORMAT_UNKNOWN;
+    bufferDesc.SampleDesc.Count = 1;
+    bufferDesc.SampleDesc.Quality = 0;
+    bufferDesc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
+    bufferDesc.Flags = D3D12_RESOURCE_FLAG_NONE;
+
+    if (FAILED(device_->CreateCommittedResource(&heapProps,
+                                                D3D12_HEAP_FLAG_NONE,
+                                                &bufferDesc,
+                                                D3D12_RESOURCE_STATE_GENERIC_READ,
+                                                nullptr,
+                                                IID_PPV_ARGS(debugVertexBuffer_.ReleaseAndGetAddressOf()))) ||
+        !debugVertexBuffer_) {
+        throw std::runtime_error("CreateCommittedResource failed for D3D12 debug vertex buffer.");
+    }
+
+    debugVertexBufferGpuAddress_ = debugVertexBuffer_->GetGPUVirtualAddress();
+    debugVertexStride_ = sizeof(DebugVertex);
+    debugVertexBufferSize_ = static_cast<UINT>(kBufferBytes);
 #endif
 }
 

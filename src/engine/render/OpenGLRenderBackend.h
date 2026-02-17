@@ -19,6 +19,10 @@ public:
     bool handlesPresentation() const override { return false; }
     std::string activeGpuName() const override;
     bool activeGpuIsDiscrete() const override;
+    void drawDebugQuads(const DebugQuad* quads,
+                        std::size_t quadCount,
+                        int surfaceWidth,
+                        int surfaceHeight) override;
     void shutdown() override;
 
 private:

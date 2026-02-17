@@ -20,7 +20,9 @@ struct ID3D12DescriptorHeap;
 struct ID3D12Device;
 struct ID3D12Fence;
 struct ID3D12GraphicsCommandList;
+struct ID3D12PipelineState;
 struct ID3D12Resource;
+struct ID3D12RootSignature;
 #endif
 
 class D3D12RenderBackend final : public IRenderBackend {
@@ -39,12 +41,17 @@ public:
     bool handlesPresentation() const override { return true; }
     std::string activeGpuName() const override { return adapterName_; }
     bool activeGpuIsDiscrete() const override { return discreteAdapter_; }
+    void drawDebugQuads(const DebugQuad* quads,
+                        std::size_t quadCount,
+                        int surfaceWidth,
+                        int surfaceHeight) override;
     void shutdown() override;
 
 private:
     void initDeviceAndSwapchain(const std::string& preferredAdapterName);
     void createRenderTargets();
     void releaseRenderTargets();
+    void createDebugPipeline();
     void waitForGpu();
     void ensureWindowHandle();
 
@@ -78,5 +85,11 @@ private:
     Microsoft::WRL::ComPtr<ID3D12GraphicsCommandList> commandList_;
     Microsoft::WRL::ComPtr<ID3D12Fence> fence_;
     void* fenceEvent_ = nullptr;
+    Microsoft::WRL::ComPtr<ID3D12RootSignature> debugRootSignature_;
+    Microsoft::WRL::ComPtr<ID3D12PipelineState> debugPipelineState_;
+    Microsoft::WRL::ComPtr<ID3D12Resource> debugVertexBuffer_;
+    std::uint64_t debugVertexBufferGpuAddress_ = 0;
+    std::uint32_t debugVertexStride_ = 0;
+    std::uint32_t debugVertexBufferSize_ = 0;
 #endif
 };

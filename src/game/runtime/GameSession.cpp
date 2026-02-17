@@ -9,6 +9,7 @@
 #include <algorithm>
 #include <iomanip>
 #include <sstream>
+#include <vector>
 
 #include "engine/core/GameContext.h"
 #include "engine/core/EngineServices.h"
@@ -22,6 +23,7 @@
 
 #include "engine/render/BoardRenderer.h"
 #include "engine/render/Camera3D.h"
+#include "engine/render/IRenderBackend.h"
 
 #include "engine/ui/UIManager.h"
 #include "engine/ui/BattleFeed.h"
@@ -65,6 +67,7 @@ namespace game {
 struct GameSession::Impl {
     // Pointers (engine-owned)
     Camera3D* camera = nullptr;
+    IRenderBackend* renderer = nullptr;
     EngineServices* engineServices = nullptr;
 
     // Injected db (owned; loader instances).
@@ -104,6 +107,7 @@ struct GameSession::Impl {
     GameUpdateGraph updateGraph;
 
     bool renderEnabled = false;
+    bool legacyRenderPath = false;
     bool showPerfOverlay = true;
     bool devPauseWorld = false;
     int devPauseStepTicks = 0;
@@ -121,8 +125,11 @@ struct GameSession::Impl {
 
     void init(GameContext& ctx) {
         camera = ctx.camera;
+        renderer = ctx.renderer;
         engineServices = ctx.services;
-        renderEnabled = (ctx.renderer != nullptr) && (ctx.camera != nullptr);
+        const bool hasBackend = (ctx.renderer != nullptr) && (ctx.camera != nullptr);
+        legacyRenderPath = hasBackend && std::string(ctx.renderer->backendId()) == "opengl";
+        renderEnabled = hasBackend;
         if (engine::env::get("PAC_SHOW_PERF_OVERLAY").has_value()) {
             showPerfOverlay = engine::env::flagEnabled("PAC_SHOW_PERF_OVERLAY");
         }
@@ -169,7 +176,7 @@ struct GameSession::Impl {
 
         config = GameConfig::load(&log, assetStore.get());
         services = std::make_unique<GameServices>(config, dataDb, log, scriptEvents, *assetStore, rng, timeSource,
-                                                  &ecsWorld, roundPhaseEntity, &viewport, renderEnabled);
+                                                  &ecsWorld, roundPhaseEntity, &viewport, legacyRenderPath);
         services->applyVideoMode = ctx.applyVideoMode;
         services->requestQuit = ctx.requestQuit;
         if (ctx.services) {
@@ -197,13 +204,13 @@ struct GameSession::Impl {
         coreServices.time = &services->time;
 
         // Board visuals
-        if (renderEnabled) {
+        if (legacyRenderPath) {
             board = std::make_unique<BoardRenderer>(config.rows, config.cols, config.cellSize);
         }
 
         // World
         gameWorld = std::make_unique<GameWorld>(config);
-        gameWorld->setRenderEnabled(renderEnabled);
+        gameWorld->setRenderEnabled(legacyRenderPath);
         gameWorld->setLogger(&log);
         gameWorld->setRng(&services->rng);
         if (ctx.services) gameWorld->setResources(ctx.services->resources);
@@ -230,7 +237,7 @@ struct GameSession::Impl {
         scheduler.add(std::move(roundSystem), Phase::Update);
 
 
-        if (renderEnabled) {
+        if (legacyRenderPath) {
             if (ctx.services && ctx.services->shaders) {
                 healthBarRenderer.init(*ctx.services->shaders);
             } else {
@@ -312,10 +319,10 @@ struct GameSession::Impl {
         });
 
         // Preload common models (uses the db's pokemon loader).
-        if (renderEnabled) {
+        if (legacyRenderPath) {
             game::preload::preloadCommonModels(ctx, dataDb.pokemon, "PokemonAutochess");
         } else {
-            std::cout << "[Init] Headless mode (renderer/camera missing): skipping model preload.\n";
+            std::cout << "[Init] Non-OpenGL render path: skipping GL model preload.\n";
         }
 
         stateManager->pushState(std::make_unique<ScriptedState>(
@@ -407,6 +414,126 @@ struct GameSession::Impl {
         }
     }
 
+    void renderBackendDebugView(int drawableW, int drawableH, bool renderWorld) {
+        if (!renderer || drawableW <= 0 || drawableH <= 0) return;
+
+        std::vector<IRenderBackend::DebugQuad> quads;
+        quads.reserve(1024);
+
+        const int rows = std::max(1, config.rows);
+        const int cols = std::max(1, config.cols);
+        const float minDim = static_cast<float>(std::min(drawableW, drawableH));
+        const float boardW = std::max(240.0f, minDim * 0.78f);
+        const float boardH = std::max(180.0f, minDim * 0.58f);
+        const float boardX = (static_cast<float>(drawableW) - boardW) * 0.5f;
+        const float boardY = (static_cast<float>(drawableH) - boardH) * 0.5f;
+        const float cellW = boardW / static_cast<float>(cols);
+        const float cellH = boardH / static_cast<float>(rows);
+
+        if (renderWorld) {
+            IRenderBackend::DebugQuad boardBg;
+            boardBg.x = boardX;
+            boardBg.y = boardY;
+            boardBg.w = boardW;
+            boardBg.h = boardH;
+            boardBg.r = 0.10f;
+            boardBg.g = 0.16f;
+            boardBg.b = 0.20f;
+            boardBg.a = 1.0f;
+            quads.push_back(boardBg);
+
+            const float line = std::max(1.0f, minDim * 0.002f);
+            for (int c = 0; c <= cols; ++c) {
+                IRenderBackend::DebugQuad vLine;
+                vLine.x = boardX + cellW * static_cast<float>(c) - line * 0.5f;
+                vLine.y = boardY;
+                vLine.w = line;
+                vLine.h = boardH;
+                vLine.r = 0.22f;
+                vLine.g = 0.33f;
+                vLine.b = 0.40f;
+                vLine.a = 1.0f;
+                quads.push_back(vLine);
+            }
+            for (int r = 0; r <= rows; ++r) {
+                IRenderBackend::DebugQuad hLine;
+                hLine.x = boardX;
+                hLine.y = boardY + cellH * static_cast<float>(r) - line * 0.5f;
+                hLine.w = boardW;
+                hLine.h = line;
+                hLine.r = 0.22f;
+                hLine.g = 0.33f;
+                hLine.b = 0.40f;
+                hLine.a = 1.0f;
+                quads.push_back(hLine);
+            }
+
+            if (gameWorld) {
+                const auto& units = gameWorld->getPokemons();
+                for (const auto& unit : units) {
+                    if (!unit.alive && !unit.captureInProgress && !unit.fainting) continue;
+                    const auto cell = gameWorld->worldToGrid(unit.position);
+                    if (cell.x < 0 || cell.y < 0 || cell.x >= cols || cell.y >= rows) continue;
+
+                    IRenderBackend::DebugQuad u;
+                    u.x = boardX + cellW * static_cast<float>(cell.x) + cellW * 0.20f;
+                    u.y = boardY + cellH * static_cast<float>(cell.y) + cellH * 0.20f;
+                    u.w = cellW * 0.60f;
+                    u.h = cellH * 0.60f;
+
+                    if (unit.side == PokemonSide::Player) {
+                        u.r = 0.16f;
+                        u.g = 0.84f;
+                        u.b = 0.40f;
+                    } else {
+                        u.r = 0.90f;
+                        u.g = 0.28f;
+                        u.b = 0.22f;
+                    }
+                    if (!unit.alive && unit.captureInProgress) {
+                        u.r = 0.98f;
+                        u.g = 0.82f;
+                        u.b = 0.30f;
+                    } else if (!unit.alive) {
+                        u.r *= 0.45f;
+                        u.g *= 0.45f;
+                        u.b *= 0.45f;
+                    }
+                    u.a = 1.0f;
+                    quads.push_back(u);
+                }
+            }
+        }
+
+        if (showPerfOverlay && engineServices) {
+            const EngineFramePerfStats& perf = engineServices->framePerf;
+            if (perf.fps > 0.0f) {
+                const float fpsNorm = std::clamp(perf.fps / 120.0f, 0.0f, 1.0f);
+                IRenderBackend::DebugQuad fpsBarBg;
+                fpsBarBg.x = 20.0f;
+                fpsBarBg.y = 20.0f;
+                fpsBarBg.w = 220.0f;
+                fpsBarBg.h = 10.0f;
+                fpsBarBg.r = 0.15f;
+                fpsBarBg.g = 0.15f;
+                fpsBarBg.b = 0.18f;
+                fpsBarBg.a = 1.0f;
+                quads.push_back(fpsBarBg);
+
+                IRenderBackend::DebugQuad fpsBar = fpsBarBg;
+                fpsBar.w *= fpsNorm;
+                fpsBar.r = (fpsNorm < 0.5f) ? 0.85f : 0.30f;
+                fpsBar.g = (fpsNorm < 0.5f) ? 0.28f : 0.88f;
+                fpsBar.b = 0.30f;
+                quads.push_back(fpsBar);
+            }
+        }
+
+        if (!quads.empty()) {
+            renderer->drawDebugQuads(quads.data(), quads.size(), drawableW, drawableH);
+        }
+    }
+
     void render(int drawableW, int drawableH) {
         viewport.set(drawableW, drawableH);
         if (unitSystem) {
@@ -421,6 +548,11 @@ struct GameSession::Impl {
             }
         }
         if (!renderEnabled) {
+            if (stateManager) stateManager->render();
+            return;
+        }
+        if (!legacyRenderPath) {
+            renderBackendDebugView(drawableW, drawableH, renderWorld);
             if (stateManager) stateManager->render();
             return;
         }
@@ -562,7 +694,7 @@ struct GameSession::Impl {
             board.reset();
         }
 
-        if (renderEnabled) {
+        if (legacyRenderPath) {
             UIManager::shutdown();
         }
 

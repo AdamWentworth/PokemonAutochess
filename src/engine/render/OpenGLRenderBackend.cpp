@@ -54,6 +54,16 @@ bool OpenGLRenderBackend::activeGpuIsDiscrete() const {
     return !containsCi(vendorStr, "intel") && !containsCi(rendererStr, "intel");
 }
 
+void OpenGLRenderBackend::drawDebugQuads(const DebugQuad* quads,
+                                         std::size_t quadCount,
+                                         int surfaceWidth,
+                                         int surfaceHeight) {
+    (void)quads;
+    (void)quadCount;
+    (void)surfaceWidth;
+    (void)surfaceHeight;
+}
+
 void OpenGLRenderBackend::shutdown() {
     if (renderer_) {
         renderer_->shutdown();

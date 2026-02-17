@@ -175,7 +175,7 @@ target_link_libraries(engine_render
         ${PAC_SOL2_TARGET}
 )
 if (WIN32)
-    target_link_libraries(engine_render PRIVATE d3d12 dxgi)
+    target_link_libraries(engine_render PRIVATE d3d12 dxgi d3dcompiler)
 endif()
 pac_apply_common_target_settings(engine_render)
 

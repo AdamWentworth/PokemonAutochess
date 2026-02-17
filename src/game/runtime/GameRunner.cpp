@@ -594,8 +594,7 @@ namespace {
         services.events = &eventBus;
 
         GameContext ctx;
-        const bool exposeRendererToGame = renderer && renderer->requiresOpenGLContext();
-        ctx.renderer = exposeRendererToGame ? renderer.get() : nullptr;
+        ctx.renderer = renderer.get();
         ctx.camera   = camera.get();
         ctx.services = &services;
         ctx.drawableW = drawableW;
