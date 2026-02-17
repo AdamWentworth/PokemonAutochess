@@ -38,6 +38,7 @@
 #include "game/GameWorld.h"
 #include "game/GameStateManager.h"
 #include "game/runtime/GamePreload.h"
+#include "game/runtime/RenderFlowDecisions.h"
 #include "game/GameServices.h"
 #include "game/GameConfig.h"
 #include "game/runtime/GameUpdateGraph.h"
@@ -675,6 +676,14 @@ struct GameSession::Impl {
                        "Gold: " + std::to_string(std::max(0, gameWorld->getMoney())),
                        1.0f,
                        glm::vec3(0.96f, 0.88f, 0.56f));
+            const std::string selectedItem = gameWorld->getSelectedItem();
+            if (!selectedItem.empty()) {
+                appendText(20.0f,
+                           128.0f,
+                           "Selected item: " + selectedItem,
+                           1.0f,
+                           glm::vec3(0.84f, 0.90f, 0.98f));
+            }
         }
 
         const auto recentMain = log.recentMainLines(7);
@@ -720,120 +729,99 @@ struct GameSession::Impl {
         }
     }
 
-    void render(int drawableW, int drawableH) {
-        viewport.set(drawableW, drawableH);
-        if (unitSystem) {
-            unitSystem->setScreenSize(
-                static_cast<unsigned int>(std::max(1, drawableW)),
-                static_cast<unsigned int>(std::max(1, drawableH)));
+    void renderLegacyWorldLayer(int drawableW, int drawableH, bool renderWorld) {
+        if (!renderWorld) return;
+        if (board && gameWorld) {
+            board->setCellSize(gameWorld->getBoardCellSize());
         }
-        bool renderWorld = true;
-        if (stateManager) {
-            if (auto* state = stateManager->getCurrentState()) {
-                renderWorld = state->shouldRenderWorld();
-            }
+        if (gameWorld && camera && board) gameWorld->drawAll(*camera, *board);
+        if (gameWorld && camera) {
+            auto healthBarData = gameWorld->getHealthBarData(*camera, drawableW, drawableH);
+            healthBarRenderer.render(healthBarData);
         }
-        if (!renderEnabled) {
-            if (stateManager) stateManager->render();
-            return;
-        }
-        if (!legacyRenderPath) {
-            renderBackendDebugView(drawableW, drawableH, renderWorld);
-            if (stateManager) stateManager->render();
-            return;
-        }
-        if (renderWorld) {
-            if (board && gameWorld) {
-                board->setCellSize(gameWorld->getBoardCellSize());
-            }
-            if (gameWorld && camera && board) gameWorld->drawAll(*camera, *board);
-            if (gameWorld && camera) {
-                auto healthBarData = gameWorld->getHealthBarData(*camera, drawableW, drawableH);
-                healthBarRenderer.render(healthBarData);
-            }
-        }
-        if (stateManager) stateManager->render();
+    }
 
-        if (renderWorld) {
-            if (gameWorld) {
-                const bool adventureMode = services && services->gameMode == "adventure";
-                const int invTopInset = adventureMode
-                    ? std::max(110, static_cast<int>(std::round(static_cast<float>(drawableH) * 0.16f)))
-                    : 16;
-                const int invRightInset = adventureMode ? 24 : 16;
-                itemInventoryUI.setLayoutInsets(invTopInset, invRightInset, 16, 16);
-                itemInventoryUI.updateFromWorld(*gameWorld, drawableW, drawableH);
-            }
-            itemInventoryUI.render(drawableW, drawableH);
+    void renderLegacyHudLayer(int drawableW, int drawableH, bool renderWorld) {
+        if (!renderWorld) return;
 
-            const float cornerX = std::round(std::max(10.0f, static_cast<float>(drawableW) * 0.012f));
-            const float cornerY = std::round(std::max(10.0f, static_cast<float>(drawableH) * 0.020f));
-            const float minDim = static_cast<float>(std::min(drawableW, drawableH));
-            const bool classicMode = services && services->gameMode == "classic";
-            const auto computeClassicShopTopY = [&]() -> float {
-                const game::ui::ShopRowLayout layout = game::ui::computeShopRowLayout(drawableW, drawableH, false);
-                const game::ui::ShopRowPlacement place =
-                    game::ui::computeShopRowPlacement(drawableW, drawableH, 0, layout);
-                return static_cast<float>(place.y);
-            };
-            const float classicShopTopY = computeClassicShopTopY();
+        if (gameWorld) {
+            const bool adventureMode = services && services->gameMode == "adventure";
+            const int invTopInset = adventureMode
+                ? std::max(110, static_cast<int>(std::round(static_cast<float>(drawableH) * 0.16f)))
+                : 16;
+            const int invRightInset = adventureMode ? 24 : 16;
+            itemInventoryUI.setLayoutInsets(invTopInset, invRightInset, 16, 16);
+            itemInventoryUI.updateFromWorld(*gameWorld, drawableW, drawableH);
+        }
+        itemInventoryUI.render(drawableW, drawableH);
 
-            if (battleFeed) {
-                const float wrap = std::max(240.0f, std::min(640.0f, static_cast<float>(drawableW) * 0.42f));
-                battleFeed->setWrapWidth(wrap);
-                battleFeed->setBaseScale(0.40f);
-                const float battleLift = std::max(18.0f, minDim * 0.03f);
-                battleFeed->setPadding(cornerX, cornerY + battleLift);
-                battleFeed->clearBaselineYOverride();
-            }
-            if (catchFeed) {
-                const float wrap = std::max(200.0f, std::min(420.0f, static_cast<float>(drawableW) * 0.30f));
-                catchFeed->setWrapWidth(wrap);
-                catchFeed->setBaseScale(0.38f);
-                catchFeed->setPadding(cornerX, cornerY);
-                catchFeed->clearBaselineYOverride();
-            }
-            if (economyFeed) {
-                const float wrap = std::max(220.0f, std::min(380.0f, static_cast<float>(drawableW) * 0.28f));
-                economyFeed->setWrapWidth(wrap);
-                economyFeed->setBaseScale(0.36f);
-                economyFeed->setPadding(cornerX, cornerY);
-                economyFeed->clearBaselineYOverride();
-                if (classicMode) {
-                    const float clearance = std::max(22.0f, minDim * 0.03f);
-                    economyFeed->setBaselineYOverride(std::max(8.0f, classicShopTopY - clearance));
-                }
-            }
-            if (battleFeed) battleFeed->render(drawableW, drawableH);
+        const float cornerX = std::round(std::max(10.0f, static_cast<float>(drawableW) * 0.012f));
+        const float cornerY = std::round(std::max(10.0f, static_cast<float>(drawableH) * 0.020f));
+        const float minDim = static_cast<float>(std::min(drawableW, drawableH));
+        const bool classicMode = services && services->gameMode == "classic";
+        const auto computeClassicShopTopY = [&]() -> float {
+            const game::ui::ShopRowLayout layout = game::ui::computeShopRowLayout(drawableW, drawableH, false);
+            const game::ui::ShopRowPlacement place =
+                game::ui::computeShopRowPlacement(drawableW, drawableH, 0, layout);
+            return static_cast<float>(place.y);
+        };
+        const float classicShopTopY = computeClassicShopTopY();
+
+        if (battleFeed) {
+            const float wrap = std::max(240.0f, std::min(640.0f, static_cast<float>(drawableW) * 0.42f));
+            battleFeed->setWrapWidth(wrap);
+            battleFeed->setBaseScale(0.40f);
+            const float battleLift = std::max(18.0f, minDim * 0.03f);
+            battleFeed->setPadding(cornerX, cornerY + battleLift);
+            battleFeed->clearBaselineYOverride();
+        }
+        if (catchFeed) {
+            const float wrap = std::max(200.0f, std::min(420.0f, static_cast<float>(drawableW) * 0.30f));
+            catchFeed->setWrapWidth(wrap);
+            catchFeed->setBaseScale(0.38f);
+            catchFeed->setPadding(cornerX, cornerY);
+            catchFeed->clearBaselineYOverride();
+        }
+        if (economyFeed) {
+            const float wrap = std::max(220.0f, std::min(380.0f, static_cast<float>(drawableW) * 0.28f));
+            economyFeed->setWrapWidth(wrap);
+            economyFeed->setBaseScale(0.36f);
+            economyFeed->setPadding(cornerX, cornerY);
+            economyFeed->clearBaselineYOverride();
             if (classicMode) {
-                if (economyFeed) economyFeed->render(drawableW, drawableH);
-            } else {
-                if (catchFeed) catchFeed->render(drawableW, drawableH);
+                const float clearance = std::max(22.0f, minDim * 0.03f);
+                economyFeed->setBaselineYOverride(std::max(8.0f, classicShopTopY - clearance));
             }
+        }
+        if (battleFeed) battleFeed->render(drawableW, drawableH);
+        if (classicMode) {
+            if (economyFeed) economyFeed->render(drawableW, drawableH);
+        } else {
+            if (catchFeed) catchFeed->render(drawableW, drawableH);
+        }
 
-            if (gameWorld && typeBonusText) {
-                const auto counts = gameWorld->getPlayerTypeLineCounts();
-                if (!counts.empty()) {
-                    auto formatType = [](std::string t) {
-                        if (t.empty()) return t;
-                        t[0] = static_cast<char>(std::toupper(static_cast<unsigned char>(t[0])));
-                        return t;
-                    };
+        if (gameWorld && typeBonusText) {
+            const auto counts = gameWorld->getPlayerTypeLineCounts();
+            if (!counts.empty()) {
+                auto formatType = [](std::string t) {
+                    if (t.empty()) return t;
+                    t[0] = static_cast<char>(std::toupper(static_cast<unsigned char>(t[0])));
+                    return t;
+                };
 
-                    const float panelX = std::round(std::max(10.0f, static_cast<float>(drawableW) * 0.012f));
-                    const float panelY = std::round(std::max(110.0f, static_cast<float>(drawableH) * 0.20f));
-                    const float titleScale = 0.44f;
-                    const float rowScale = 0.40f;
+                const float panelX = std::round(std::max(10.0f, static_cast<float>(drawableW) * 0.012f));
+                const float panelY = std::round(std::max(110.0f, static_cast<float>(drawableH) * 0.20f));
+                const float titleScale = 0.44f;
+                const float rowScale = 0.40f;
 
-                    typeBonusText->renderText("Type Lines", panelX, panelY,
-                                              glm::vec3(0.98f, 0.90f, 0.60f), titleScale);
+                typeBonusText->renderText("Type Lines", panelX, panelY,
+                                          glm::vec3(0.98f, 0.90f, 0.60f), titleScale);
 
-                    float y = panelY + typeBonusText->measureTextHeight(titleScale) + 6.0f;
-                    for (const auto& entry : counts) {
-                        const std::string line = formatType(entry.type) + " x" + std::to_string(entry.uniqueLineCount);
-                        typeBonusText->renderText(line, panelX, y, glm::vec3(0.94f, 0.94f, 0.94f), rowScale);
-                        y += typeBonusText->measureTextHeight(rowScale) + 3.0f;
-                    }
+                float y = panelY + typeBonusText->measureTextHeight(titleScale) + 6.0f;
+                for (const auto& entry : counts) {
+                    const std::string line = formatType(entry.type) + " x" + std::to_string(entry.uniqueLineCount);
+                    typeBonusText->renderText(line, panelX, y, glm::vec3(0.94f, 0.94f, 0.94f), rowScale);
+                    y += typeBonusText->measureTextHeight(rowScale) + 3.0f;
                 }
             }
         }
@@ -865,6 +853,44 @@ struct GameSession::Impl {
                 const float ticksY = yPad + typeBonusText->measureTextHeight(scale) + 2.0f;
                 typeBonusText->renderText(ticks, ticksX, ticksY, glm::vec3(0.86f, 0.93f, 0.98f), scale);
             }
+        }
+    }
+
+    void renderStateLayer() {
+        if (stateManager) {
+            stateManager->render();
+        }
+    }
+
+    void render(int drawableW, int drawableH) {
+        viewport.set(drawableW, drawableH);
+        if (unitSystem) {
+            unitSystem->setScreenSize(
+                static_cast<unsigned int>(std::max(1, drawableW)),
+                static_cast<unsigned int>(std::max(1, drawableH)));
+        }
+
+        bool renderWorld = true;
+        if (stateManager) {
+            if (auto* state = stateManager->getCurrentState()) {
+                renderWorld = state->shouldRenderWorld();
+            }
+        }
+
+        const auto flow = runtime::render::decideFrameRenderFlow(
+            renderEnabled, legacyRenderPath, renderWorld);
+
+        if (flow.renderLegacyWorldLayer) {
+            renderLegacyWorldLayer(drawableW, drawableH, renderWorld);
+        }
+        if (flow.renderBackendDebugLayer) {
+            renderBackendDebugView(drawableW, drawableH, renderWorld);
+        }
+        if (flow.renderStateLayer) {
+            renderStateLayer();
+        }
+        if (flow.renderLegacyHudLayer) {
+            renderLegacyHudLayer(drawableW, drawableH, renderWorld);
         }
     }
 
