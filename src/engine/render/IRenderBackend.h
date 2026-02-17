@@ -28,6 +28,22 @@ public:
         float a = 1.0f;
     };
 
+    struct DebugSprite {
+        float x = 0.0f;
+        float y = 0.0f;
+        float w = 0.0f;
+        float h = 0.0f;
+        float u0 = 0.0f;
+        float v0 = 0.0f;
+        float u1 = 1.0f;
+        float v1 = 1.0f;
+        float r = 1.0f;
+        float g = 1.0f;
+        float b = 1.0f;
+        float a = 1.0f;
+        std::string texturePath;
+    };
+
     virtual ~IRenderBackend() = default;
 
     virtual const char* backendId() const = 0;
@@ -53,6 +69,15 @@ public:
                                 int surfaceHeight) {
         (void)lines;
         (void)lineCount;
+        (void)surfaceWidth;
+        (void)surfaceHeight;
+    }
+    virtual void drawDebugSprites(const DebugSprite* sprites,
+                                  std::size_t spriteCount,
+                                  int surfaceWidth,
+                                  int surfaceHeight) {
+        (void)sprites;
+        (void)spriteCount;
         (void)surfaceWidth;
         (void)surfaceHeight;
     }

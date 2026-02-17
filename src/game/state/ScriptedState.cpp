@@ -447,6 +447,8 @@ void ScriptedState::renderBackendCardUi(int uiW, int uiH) {
 
     std::vector<IRenderBackend::DebugQuad> quads;
     quads.reserve(4096);
+    std::vector<IRenderBackend::DebugSprite> sprites;
+    sprites.reserve(1024);
     const bool isShopMode = (cardMode == CardMode::Shop);
     const bool hasWorld = (gameWorld != nullptr);
     const int dropZoneCardCount = hasWorld ? gameWorld->getUnitDropZoneCardCount() : 0;
@@ -535,6 +537,14 @@ void ScriptedState::renderBackendCardUi(int uiW, int uiH) {
             visual.keyboardSlot = slot;
             visual.item = itemRow || card.item;
             game::runtime::backend_cards::appendStylizedCard(quads, visual, 0.86f);
+
+            const std::string imagePath = game::runtime::backend_cards::resolveCardImagePath(
+                card.data.imagePath,
+                card.data.pokemonName,
+                visual.item);
+            IRenderBackend::DebugSprite sprite =
+                game::runtime::backend_cards::makeCardArtSprite(visual, imagePath, 1.0f);
+            sprites.push_back(std::move(sprite));
         }
     };
 
@@ -686,6 +696,9 @@ void ScriptedState::renderBackendCardUi(int uiW, int uiH) {
         0.93f,
         1.0f);
 
+    if (!sprites.empty()) {
+        services.renderer->drawDebugSprites(sprites.data(), sprites.size(), uiW, uiH);
+    }
     if (!quads.empty()) {
         services.renderer->drawDebugQuads(quads.data(), quads.size(), uiW, uiH);
     }

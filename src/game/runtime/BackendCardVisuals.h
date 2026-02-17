@@ -4,6 +4,7 @@
 #include "game/runtime/BackendDebugText.h"
 
 #include <algorithm>
+#include <cctype>
 #include <cstdint>
 #include <string>
 #include <vector>
@@ -21,6 +22,16 @@ struct CardVisualInput {
     bool item = false;
 };
 
+struct CardVisualLayout {
+    float outerPad = 0.0f;
+    float innerPad = 0.0f;
+    float artX = 0.0f;
+    float artY = 0.0f;
+    float artW = 0.0f;
+    float artH = 0.0f;
+    float footerY = 0.0f;
+};
+
 inline std::uint32_t fnv1aHash(const std::string& text) {
     std::uint32_t hash = 2166136261u;
     for (const unsigned char c : text) {
@@ -28,6 +39,68 @@ inline std::uint32_t fnv1aHash(const std::string& text) {
         hash *= 16777619u;
     }
     return hash;
+}
+
+inline std::string normalizeCardNameForImage(std::string name) {
+    std::string out;
+    out.reserve(name.size());
+    for (char c : name) {
+        const unsigned char uc = static_cast<unsigned char>(c);
+        if (std::isalnum(uc) || c == '-' || c == '_') {
+            out.push_back(static_cast<char>(std::tolower(uc)));
+            continue;
+        }
+        if (std::isspace(uc)) {
+            out.push_back('_');
+        }
+    }
+    return out;
+}
+
+inline std::string resolveCardImagePath(const std::string& explicitImagePath,
+                                        const std::string& cardName,
+                                        bool itemCard) {
+    if (!explicitImagePath.empty()) return explicitImagePath;
+    if (itemCard) return "assets/images/item_placeholder.png";
+    const std::string normalizedName = normalizeCardNameForImage(cardName);
+    if (normalizedName.empty()) return "assets/images/item_placeholder.png";
+    return "assets/images/" + normalizedName + ".png";
+}
+
+inline CardVisualLayout computeCardVisualLayout(const CardVisualInput& input) {
+    CardVisualLayout layout;
+    if (input.w <= 0.0f || input.h <= 0.0f) return layout;
+
+    const float artHeight = std::max(14.0f, input.h * 0.58f);
+    layout.outerPad = std::max(1.0f, std::min(input.w, input.h) * 0.016f);
+    layout.innerPad = std::max(2.0f, std::min(input.w, input.h) * 0.028f);
+    layout.artX = input.x + layout.innerPad;
+    layout.artY = input.y + layout.innerPad;
+    layout.artW = std::max(0.0f, input.w - layout.innerPad * 2.0f);
+    layout.artH = std::max(0.0f, artHeight - layout.innerPad * 1.7f);
+    layout.footerY = input.y + artHeight;
+    return layout;
+}
+
+inline IRenderBackend::DebugSprite makeCardArtSprite(const CardVisualInput& input,
+                                                     const std::string& imagePath,
+                                                     float alpha = 1.0f) {
+    const CardVisualLayout layout = computeCardVisualLayout(input);
+    IRenderBackend::DebugSprite sprite;
+    sprite.x = layout.artX;
+    sprite.y = layout.artY;
+    sprite.w = layout.artW;
+    sprite.h = layout.artH;
+    sprite.u0 = 0.0f;
+    sprite.v0 = 0.0f;
+    sprite.u1 = 1.0f;
+    sprite.v1 = 1.0f;
+    sprite.r = 1.0f;
+    sprite.g = 1.0f;
+    sprite.b = 1.0f;
+    sprite.a = std::clamp(alpha, 0.0f, 1.0f);
+    sprite.texturePath = imagePath;
+    return sprite;
 }
 
 inline void appendStylizedCard(std::vector<IRenderBackend::DebugQuad>& quads,
@@ -44,10 +117,10 @@ inline void appendStylizedCard(std::vector<IRenderBackend::DebugQuad>& quads,
     const float accentG = input.item ? 0.58f : std::clamp(0.28f + tintB * 0.40f, 0.0f, 1.0f);
     const float accentB = input.item ? 0.24f : std::clamp(0.38f + tintC * 0.48f, 0.0f, 1.0f);
 
-    const float outerPad = std::max(1.0f, std::min(input.w, input.h) * 0.016f);
-    const float innerPad = std::max(2.0f, std::min(input.w, input.h) * 0.028f);
-    const float artHeight = std::max(14.0f, input.h * 0.58f);
-    const float footerY = input.y + artHeight;
+    const CardVisualLayout layout = computeCardVisualLayout(input);
+    const float outerPad = layout.outerPad;
+    const float innerPad = layout.innerPad;
+    const float footerY = layout.footerY;
     const float badgeSize = std::max(12.0f, std::min(input.w, input.h) * 0.16f);
 
     IRenderBackend::DebugQuad shadow;
@@ -84,14 +157,14 @@ inline void appendStylizedCard(std::vector<IRenderBackend::DebugQuad>& quads,
     quads.push_back(inset);
 
     IRenderBackend::DebugQuad art;
-    art.x = input.x + innerPad;
-    art.y = input.y + innerPad;
-    art.w = std::max(0.0f, input.w - innerPad * 2.0f);
-    art.h = std::max(0.0f, artHeight - innerPad * 1.7f);
+    art.x = layout.artX;
+    art.y = layout.artY;
+    art.w = layout.artW;
+    art.h = layout.artH;
     art.r = std::clamp(accentR * 0.90f, 0.0f, 1.0f);
     art.g = std::clamp(accentG * 0.90f, 0.0f, 1.0f);
     art.b = std::clamp(accentB * 0.92f, 0.0f, 1.0f);
-    art.a = 0.96f;
+    art.a = 0.34f;
     quads.push_back(art);
 
     IRenderBackend::DebugQuad shine;
@@ -162,4 +235,3 @@ inline void appendStylizedCard(std::vector<IRenderBackend::DebugQuad>& quads,
 }
 
 } // namespace game::runtime::backend_cards
-

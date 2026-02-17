@@ -6,7 +6,10 @@
 bool test_backend_card_visuals_contract(std::string& outFail) {
     using game::runtime::backend_cards::CardVisualInput;
     using game::runtime::backend_cards::appendStylizedCard;
+    using game::runtime::backend_cards::computeCardVisualLayout;
     using game::runtime::backend_cards::fnv1aHash;
+    using game::runtime::backend_cards::makeCardArtSprite;
+    using game::runtime::backend_cards::resolveCardImagePath;
 
     if (fnv1aHash("charmander") != fnv1aHash("charmander")) {
         outFail = "fnv1aHash should be deterministic for identical input";
@@ -30,6 +33,24 @@ bool test_backend_card_visuals_contract(std::string& outFail) {
         appendStylizedCard(quads, in, 0.9f);
         if (quads.size() < 7u) {
             outFail = "appendStylizedCard should emit multiple layered quads for a valid card";
+            return false;
+        }
+
+        const auto layout = computeCardVisualLayout(in);
+        if (layout.artW <= 0.0f || layout.artH <= 0.0f) {
+            outFail = "computeCardVisualLayout should emit positive art dimensions";
+            return false;
+        }
+        const auto sprite = makeCardArtSprite(
+            in,
+            resolveCardImagePath("", "charmander", false),
+            1.0f);
+        if (sprite.texturePath != "assets/images/charmander.png") {
+            outFail = "card sprite path should resolve to pokemon portrait path";
+            return false;
+        }
+        if (sprite.w <= 0.0f || sprite.h <= 0.0f) {
+            outFail = "card sprite should have positive geometry";
             return false;
         }
     }
@@ -70,6 +91,19 @@ bool test_backend_card_visuals_contract(std::string& outFail) {
         }
     }
 
+    {
+        const std::string itemPath = resolveCardImagePath("", "Potion", true);
+        if (itemPath != "assets/images/item_placeholder.png") {
+            outFail = "item cards should default to item placeholder portrait";
+            return false;
+        }
+        const std::string explicitPath =
+            resolveCardImagePath("assets/images/custom.png", "pikachu", false);
+        if (explicitPath != "assets/images/custom.png") {
+            outFail = "explicit card image path should take precedence";
+            return false;
+        }
+    }
+
     return true;
 }
-

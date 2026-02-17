@@ -155,6 +155,8 @@ void CombatState::renderBackendShopUi(int uiW, int uiH, bool showSellOverlay, co
 
     std::vector<IRenderBackend::DebugQuad> quads;
     quads.reserve(4096);
+    std::vector<IRenderBackend::DebugSprite> sprites;
+    sprites.reserve(1024);
 
     const auto appendText = [&](float x,
                                 float y,
@@ -207,6 +209,14 @@ void CombatState::renderBackendShopUi(int uiW, int uiH, bool showSellOverlay, co
             visual.keyboardSlot = slot;
             visual.item = (button.data.type == CardType::Item);
             game::runtime::backend_cards::appendStylizedCard(quads, visual, 0.86f);
+
+            const std::string imagePath = game::runtime::backend_cards::resolveCardImagePath(
+                button.data.imagePath,
+                button.data.pokemonName,
+                visual.item);
+            IRenderBackend::DebugSprite sprite =
+                game::runtime::backend_cards::makeCardArtSprite(visual, imagePath, 1.0f);
+            sprites.push_back(std::move(sprite));
         }
     }
 
@@ -346,6 +356,9 @@ void CombatState::renderBackendShopUi(int uiW, int uiH, bool showSellOverlay, co
                0.82f,
                0.93f);
 
+    if (!sprites.empty()) {
+        services.renderer->drawDebugSprites(sprites.data(), sprites.size(), uiW, uiH);
+    }
     if (!quads.empty()) {
         services.renderer->drawDebugQuads(quads.data(), quads.size(), uiW, uiH);
     }

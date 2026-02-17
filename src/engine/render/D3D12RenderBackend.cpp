@@ -2,6 +2,8 @@
 #include "engine/render/DxgiAdapterSelection.h"
 #include "engine/render/DebugGeometry.h"
 
+#include <algorithm>
+#include <cstring>
 #include <stdexcept>
 #include <string>
 #include <vector>
@@ -16,11 +18,196 @@
 #include <d3dcompiler.h>
 #include <dxgi1_6.h>
 #include <SDL2/SDL_syswm.h>
+#include <stb_image.h>
 #endif
 
 namespace {
 #if defined(_WIN32)
 using DebugVertex = engine::render::debug::Vertex2D;
+
+struct SpriteVertex {
+    float x;
+    float y;
+    float u;
+    float v;
+    float r;
+    float g;
+    float b;
+    float a;
+};
+
+constexpr std::size_t kMaxSpriteQuads = 2048;
+constexpr std::size_t kMaxSpriteVertices = kMaxSpriteQuads * 6;
+constexpr std::size_t kMaxSrvDescriptors = 2048;
+constexpr const char* kFallbackSpriteTextureKey = "__fallback_sprite_texture__";
+
+bool createTextureResourceFromRgba(ID3D12Device* device,
+                                   ID3D12CommandQueue* commandQueue,
+                                   ID3D12Fence* fence,
+                                   HANDLE fenceEvent,
+                                   std::uint64_t& fenceValue,
+                                   ID3D12DescriptorHeap* srvHeap,
+                                   std::uint32_t srvDescriptorSize,
+                                   std::uint32_t descriptorIndex,
+                                   const unsigned char* rgbaPixels,
+                                   int width,
+                                   int height,
+                                   Microsoft::WRL::ComPtr<ID3D12Resource>& outTexture) {
+    if (!device || !commandQueue || !fence || !fenceEvent || !srvHeap || !rgbaPixels || width <= 0 || height <= 0) {
+        return false;
+    }
+
+    D3D12_HEAP_PROPERTIES defaultHeap{};
+    defaultHeap.Type = D3D12_HEAP_TYPE_DEFAULT;
+    defaultHeap.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
+    defaultHeap.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
+    defaultHeap.CreationNodeMask = 1;
+    defaultHeap.VisibleNodeMask = 1;
+
+    D3D12_RESOURCE_DESC texDesc{};
+    texDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
+    texDesc.Alignment = 0;
+    texDesc.Width = static_cast<UINT64>(width);
+    texDesc.Height = static_cast<UINT>(height);
+    texDesc.DepthOrArraySize = 1;
+    texDesc.MipLevels = 1;
+    texDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+    texDesc.SampleDesc.Count = 1;
+    texDesc.SampleDesc.Quality = 0;
+    texDesc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
+    texDesc.Flags = D3D12_RESOURCE_FLAG_NONE;
+
+    Microsoft::WRL::ComPtr<ID3D12Resource> texture;
+    if (FAILED(device->CreateCommittedResource(&defaultHeap,
+                                               D3D12_HEAP_FLAG_NONE,
+                                               &texDesc,
+                                               D3D12_RESOURCE_STATE_COPY_DEST,
+                                               nullptr,
+                                               IID_PPV_ARGS(texture.ReleaseAndGetAddressOf()))) ||
+        !texture) {
+        return false;
+    }
+
+    D3D12_PLACED_SUBRESOURCE_FOOTPRINT footprint{};
+    UINT numRows = 0;
+    UINT64 rowSizeBytes = 0;
+    UINT64 uploadBufferSize = 0;
+    device->GetCopyableFootprints(&texDesc, 0, 1, 0, &footprint, &numRows, &rowSizeBytes, &uploadBufferSize);
+    if (uploadBufferSize == 0) return false;
+
+    D3D12_HEAP_PROPERTIES uploadHeap{};
+    uploadHeap.Type = D3D12_HEAP_TYPE_UPLOAD;
+    uploadHeap.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
+    uploadHeap.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
+    uploadHeap.CreationNodeMask = 1;
+    uploadHeap.VisibleNodeMask = 1;
+
+    D3D12_RESOURCE_DESC uploadDesc{};
+    uploadDesc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
+    uploadDesc.Alignment = 0;
+    uploadDesc.Width = uploadBufferSize;
+    uploadDesc.Height = 1;
+    uploadDesc.DepthOrArraySize = 1;
+    uploadDesc.MipLevels = 1;
+    uploadDesc.Format = DXGI_FORMAT_UNKNOWN;
+    uploadDesc.SampleDesc.Count = 1;
+    uploadDesc.SampleDesc.Quality = 0;
+    uploadDesc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
+    uploadDesc.Flags = D3D12_RESOURCE_FLAG_NONE;
+
+    Microsoft::WRL::ComPtr<ID3D12Resource> upload;
+    if (FAILED(device->CreateCommittedResource(&uploadHeap,
+                                               D3D12_HEAP_FLAG_NONE,
+                                               &uploadDesc,
+                                               D3D12_RESOURCE_STATE_GENERIC_READ,
+                                               nullptr,
+                                               IID_PPV_ARGS(upload.ReleaseAndGetAddressOf()))) ||
+        !upload) {
+        return false;
+    }
+
+    void* mapped = nullptr;
+    D3D12_RANGE readRange{0, 0};
+    if (FAILED(upload->Map(0, &readRange, &mapped)) || !mapped) {
+        return false;
+    }
+    const std::size_t srcRowPitch = static_cast<std::size_t>(width) * 4u;
+    for (int row = 0; row < height; ++row) {
+        auto* dstRow = static_cast<unsigned char*>(mapped) +
+            footprint.Offset +
+            static_cast<std::size_t>(row) * static_cast<std::size_t>(footprint.Footprint.RowPitch);
+        const auto* srcRow = rgbaPixels + static_cast<std::size_t>(row) * srcRowPitch;
+        std::memcpy(dstRow, srcRow, srcRowPitch);
+    }
+    D3D12_RANGE writeRange{0, static_cast<SIZE_T>(uploadBufferSize)};
+    upload->Unmap(0, &writeRange);
+
+    Microsoft::WRL::ComPtr<ID3D12CommandAllocator> copyAllocator;
+    if (FAILED(device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT,
+                                              IID_PPV_ARGS(copyAllocator.ReleaseAndGetAddressOf()))) ||
+        !copyAllocator) {
+        return false;
+    }
+
+    Microsoft::WRL::ComPtr<ID3D12GraphicsCommandList> copyList;
+    if (FAILED(device->CreateCommandList(0,
+                                         D3D12_COMMAND_LIST_TYPE_DIRECT,
+                                         copyAllocator.Get(),
+                                         nullptr,
+                                         IID_PPV_ARGS(copyList.ReleaseAndGetAddressOf()))) ||
+        !copyList) {
+        return false;
+    }
+
+    D3D12_TEXTURE_COPY_LOCATION dstLoc{};
+    dstLoc.pResource = texture.Get();
+    dstLoc.Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
+    dstLoc.SubresourceIndex = 0;
+
+    D3D12_TEXTURE_COPY_LOCATION srcLoc{};
+    srcLoc.pResource = upload.Get();
+    srcLoc.Type = D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT;
+    srcLoc.PlacedFootprint = footprint;
+
+    copyList->CopyTextureRegion(&dstLoc, 0, 0, 0, &srcLoc, nullptr);
+
+    D3D12_RESOURCE_BARRIER toShader{};
+    toShader.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+    toShader.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
+    toShader.Transition.pResource = texture.Get();
+    toShader.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
+    toShader.Transition.StateBefore = D3D12_RESOURCE_STATE_COPY_DEST;
+    toShader.Transition.StateAfter = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
+    copyList->ResourceBarrier(1, &toShader);
+
+    if (FAILED(copyList->Close())) return false;
+
+    ID3D12CommandList* lists[] = {copyList.Get()};
+    commandQueue->ExecuteCommandLists(1, lists);
+
+    const std::uint64_t signalValue = ++fenceValue;
+    if (FAILED(commandQueue->Signal(fence, signalValue))) return false;
+    if (fence->GetCompletedValue() < signalValue) {
+        if (FAILED(fence->SetEventOnCompletion(signalValue, fenceEvent))) return false;
+        WaitForSingleObject(fenceEvent, INFINITE);
+    }
+
+    D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc{};
+    srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+    srvDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+    srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+    srvDesc.Texture2D.MostDetailedMip = 0;
+    srvDesc.Texture2D.MipLevels = 1;
+    srvDesc.Texture2D.PlaneSlice = 0;
+    srvDesc.Texture2D.ResourceMinLODClamp = 0.0f;
+
+    D3D12_CPU_DESCRIPTOR_HANDLE cpuHandle = srvHeap->GetCPUDescriptorHandleForHeapStart();
+    cpuHandle.ptr += static_cast<SIZE_T>(descriptorIndex) * static_cast<SIZE_T>(srvDescriptorSize);
+    device->CreateShaderResourceView(texture.Get(), &srvDesc, cpuHandle);
+
+    outTexture = texture;
+    return true;
+}
 #endif
 
 } // namespace
@@ -282,6 +469,104 @@ void D3D12RenderBackend::drawDebugLines(const DebugLine* lines,
 #endif
 }
 
+void D3D12RenderBackend::drawDebugSprites(const DebugSprite* sprites,
+                                          std::size_t spriteCount,
+                                          int surfaceWidth,
+                                          int surfaceHeight) {
+#if defined(_WIN32)
+    if (!recording_ || !sprites || spriteCount == 0 || surfaceWidth <= 0 || surfaceHeight <= 0) return;
+    if (!spritePipelineState_ || !spriteRootSignature_ || !spriteVertexBuffer_ || !commandList_ || !srvHeap_) return;
+
+    const std::size_t safeCount = (spriteCount > kMaxSpriteQuads) ? kMaxSpriteQuads : spriteCount;
+
+    std::vector<SpriteVertex> vertices;
+    vertices.reserve(safeCount * 6);
+    std::vector<std::uint32_t> descriptorIndices;
+    descriptorIndices.reserve(safeCount);
+
+    for (std::size_t i = 0; i < safeCount; ++i) {
+        const DebugSprite& sprite = sprites[i];
+        if (sprite.w <= 0.0f || sprite.h <= 0.0f) continue;
+
+        SpriteTexture* texture = ensureSpriteTexture(sprite.texturePath);
+        if (!texture || !texture->valid) continue;
+
+        const float x0 = sprite.x;
+        const float y0 = sprite.y;
+        const float x1 = sprite.x + sprite.w;
+        const float y1 = sprite.y + sprite.h;
+        const float r = sprite.r;
+        const float g = sprite.g;
+        const float b = sprite.b;
+        const float a = sprite.a;
+        const float u0 = sprite.u0;
+        const float v0 = sprite.v0;
+        const float u1 = sprite.u1;
+        const float v1 = sprite.v1;
+
+        vertices.push_back({x0, y0, u0, v0, r, g, b, a});
+        vertices.push_back({x1, y0, u1, v0, r, g, b, a});
+        vertices.push_back({x1, y1, u1, v1, r, g, b, a});
+        vertices.push_back({x0, y0, u0, v0, r, g, b, a});
+        vertices.push_back({x1, y1, u1, v1, r, g, b, a});
+        vertices.push_back({x0, y1, u0, v1, r, g, b, a});
+        descriptorIndices.push_back(texture->descriptorIndex);
+    }
+    if (vertices.empty() || descriptorIndices.empty()) return;
+
+    const std::size_t neededBytes = vertices.size() * sizeof(SpriteVertex);
+    if (neededBytes == 0 || neededBytes > spriteVertexBufferSize_) return;
+
+    void* mapped = nullptr;
+    D3D12_RANGE readRange{0, 0};
+    if (FAILED(spriteVertexBuffer_->Map(0, &readRange, &mapped)) || !mapped) return;
+    std::memcpy(mapped, vertices.data(), neededBytes);
+    D3D12_RANGE writeRange{0, static_cast<SIZE_T>(neededBytes)};
+    spriteVertexBuffer_->Unmap(0, &writeRange);
+
+    D3D12_VIEWPORT vp{};
+    vp.TopLeftX = 0.0f;
+    vp.TopLeftY = 0.0f;
+    vp.Width = static_cast<float>(surfaceWidth);
+    vp.Height = static_cast<float>(surfaceHeight);
+    vp.MinDepth = 0.0f;
+    vp.MaxDepth = 1.0f;
+    D3D12_RECT scissor{0, 0, surfaceWidth, surfaceHeight};
+
+    commandList_->RSSetViewports(1, &vp);
+    commandList_->RSSetScissorRects(1, &scissor);
+    ID3D12DescriptorHeap* heaps[] = {srvHeap_.Get()};
+    commandList_->SetDescriptorHeaps(1, heaps);
+    commandList_->SetGraphicsRootSignature(spriteRootSignature_.Get());
+    const float surfaceSize[2] = {
+        static_cast<float>(surfaceWidth),
+        static_cast<float>(surfaceHeight)
+    };
+    commandList_->SetGraphicsRoot32BitConstants(0, 2, surfaceSize, 0);
+    commandList_->SetPipelineState(spritePipelineState_.Get());
+    commandList_->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+    D3D12_VERTEX_BUFFER_VIEW vbv{};
+    vbv.BufferLocation = spriteVertexBufferGpuAddress_;
+    vbv.StrideInBytes = spriteVertexStride_;
+    vbv.SizeInBytes = static_cast<UINT>(neededBytes);
+    commandList_->IASetVertexBuffers(0, 1, &vbv);
+
+    D3D12_GPU_DESCRIPTOR_HANDLE baseSrv = srvHeap_->GetGPUDescriptorHandleForHeapStart();
+    for (std::size_t i = 0; i < descriptorIndices.size(); ++i) {
+        D3D12_GPU_DESCRIPTOR_HANDLE srvHandle = baseSrv;
+        srvHandle.ptr += static_cast<SIZE_T>(descriptorIndices[i]) * static_cast<SIZE_T>(srvDescriptorSize_);
+        commandList_->SetGraphicsRootDescriptorTable(1, srvHandle);
+        commandList_->DrawInstanced(6, 1, static_cast<UINT>(i * 6), 0);
+    }
+#else
+    (void)sprites;
+    (void)spriteCount;
+    (void)surfaceWidth;
+    (void)surfaceHeight;
+#endif
+}
+
 void D3D12RenderBackend::shutdown() {
 #if defined(_WIN32)
     if (!initialized_) return;
@@ -292,6 +577,16 @@ void D3D12RenderBackend::shutdown() {
     debugVertexBufferGpuAddress_ = 0;
     debugVertexStride_ = 0;
     debugVertexBufferSize_ = 0;
+    spriteTextures_.clear();
+    spriteVertexBuffer_.Reset();
+    spriteVertexBufferGpuAddress_ = 0;
+    spriteVertexStride_ = 0;
+    spriteVertexBufferSize_ = 0;
+    spritePipelineState_.Reset();
+    spriteRootSignature_.Reset();
+    srvHeap_.Reset();
+    srvDescriptorSize_ = 0;
+    nextSrvDescriptorIndex_ = 0;
     debugPipelineState_.Reset();
     debugRootSignature_.Reset();
 
@@ -416,6 +711,7 @@ void D3D12RenderBackend::initDeviceAndSwapchain(const std::string& preferredAdap
     }
 
     createDebugPipeline();
+    createSpritePipeline();
     createRenderTargets();
     initialized_ = true;
 #endif
@@ -597,6 +893,316 @@ void D3D12RenderBackend::createDebugPipeline() {
     debugVertexBufferGpuAddress_ = debugVertexBuffer_->GetGPUVirtualAddress();
     debugVertexStride_ = sizeof(DebugVertex);
     debugVertexBufferSize_ = static_cast<UINT>(kBufferBytes);
+#endif
+}
+
+void D3D12RenderBackend::createSpritePipeline() {
+#if defined(_WIN32)
+    if (!device_) return;
+
+    D3D12_DESCRIPTOR_HEAP_DESC srvHeapDesc{};
+    srvHeapDesc.NumDescriptors = static_cast<UINT>(kMaxSrvDescriptors);
+    srvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
+    srvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+    if (FAILED(device_->CreateDescriptorHeap(&srvHeapDesc, IID_PPV_ARGS(srvHeap_.ReleaseAndGetAddressOf()))) ||
+        !srvHeap_) {
+        throw std::runtime_error("CreateDescriptorHeap (SRV) failed for D3D12 sprite pipeline.");
+    }
+    srvDescriptorSize_ = device_->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+    nextSrvDescriptorIndex_ = 0;
+    spriteTextures_.clear();
+
+    static constexpr char kVsSource[] =
+        "cbuffer VSConstants : register(b0) { float2 uSurfaceSize; };"
+        "struct VSIn { float2 pos : POSITION; float2 uv : TEXCOORD; float4 col : COLOR; };"
+        "struct VSOut { float4 pos : SV_POSITION; float2 uv : TEXCOORD; float4 col : COLOR; };"
+        "VSOut main(VSIn i) {"
+        "  VSOut o;"
+        "  float2 ndc;"
+        "  ndc.x = (i.pos.x / max(uSurfaceSize.x, 1.0f)) * 2.0f - 1.0f;"
+        "  ndc.y = 1.0f - (i.pos.y / max(uSurfaceSize.y, 1.0f)) * 2.0f;"
+        "  o.pos = float4(ndc, 0.0f, 1.0f);"
+        "  o.uv = i.uv;"
+        "  o.col = i.col;"
+        "  return o;"
+        "}";
+    static constexpr char kPsSource[] =
+        "Texture2D gTex : register(t0);"
+        "SamplerState gSamp : register(s0);"
+        "struct PSIn { float4 pos : SV_POSITION; float2 uv : TEXCOORD; float4 col : COLOR; };"
+        "float4 main(PSIn i) : SV_TARGET {"
+        "  float4 tex = gTex.Sample(gSamp, i.uv);"
+        "  return tex * i.col;"
+        "}";
+
+    Microsoft::WRL::ComPtr<ID3DBlob> vsBlob;
+    Microsoft::WRL::ComPtr<ID3DBlob> psBlob;
+    Microsoft::WRL::ComPtr<ID3DBlob> errBlob;
+    if (FAILED(D3DCompile(kVsSource, sizeof(kVsSource) - 1, nullptr, nullptr, nullptr,
+                          "main", "vs_5_0", 0, 0, vsBlob.ReleaseAndGetAddressOf(),
+                          errBlob.ReleaseAndGetAddressOf())) ||
+        !vsBlob) {
+        throw std::runtime_error("D3DCompile failed for sprite VS.");
+    }
+    errBlob.Reset();
+    if (FAILED(D3DCompile(kPsSource, sizeof(kPsSource) - 1, nullptr, nullptr, nullptr,
+                          "main", "ps_5_0", 0, 0, psBlob.ReleaseAndGetAddressOf(),
+                          errBlob.ReleaseAndGetAddressOf())) ||
+        !psBlob) {
+        throw std::runtime_error("D3DCompile failed for sprite PS.");
+    }
+
+    D3D12_DESCRIPTOR_RANGE srvRange{};
+    srvRange.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
+    srvRange.NumDescriptors = 1;
+    srvRange.BaseShaderRegister = 0;
+    srvRange.RegisterSpace = 0;
+    srvRange.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
+
+    D3D12_ROOT_PARAMETER rootParams[2]{};
+    rootParams[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_32BIT_CONSTANTS;
+    rootParams[0].Constants.Num32BitValues = 2;
+    rootParams[0].Constants.ShaderRegister = 0;
+    rootParams[0].Constants.RegisterSpace = 0;
+    rootParams[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX;
+
+    rootParams[1].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+    rootParams[1].DescriptorTable.NumDescriptorRanges = 1;
+    rootParams[1].DescriptorTable.pDescriptorRanges = &srvRange;
+    rootParams[1].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+
+    D3D12_STATIC_SAMPLER_DESC sampler{};
+    sampler.Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;
+    sampler.AddressU = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+    sampler.AddressV = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+    sampler.AddressW = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+    sampler.MipLODBias = 0.0f;
+    sampler.MaxAnisotropy = 1;
+    sampler.ComparisonFunc = D3D12_COMPARISON_FUNC_ALWAYS;
+    sampler.BorderColor = D3D12_STATIC_BORDER_COLOR_TRANSPARENT_BLACK;
+    sampler.MinLOD = 0.0f;
+    sampler.MaxLOD = D3D12_FLOAT32_MAX;
+    sampler.ShaderRegister = 0;
+    sampler.RegisterSpace = 0;
+    sampler.ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+
+    D3D12_ROOT_SIGNATURE_DESC rsDesc{};
+    rsDesc.NumParameters = static_cast<UINT>(_countof(rootParams));
+    rsDesc.pParameters = rootParams;
+    rsDesc.NumStaticSamplers = 1;
+    rsDesc.pStaticSamplers = &sampler;
+    rsDesc.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
+
+    Microsoft::WRL::ComPtr<ID3DBlob> serializedRs;
+    Microsoft::WRL::ComPtr<ID3DBlob> rsErr;
+    if (FAILED(D3D12SerializeRootSignature(&rsDesc,
+                                           D3D_ROOT_SIGNATURE_VERSION_1,
+                                           serializedRs.ReleaseAndGetAddressOf(),
+                                           rsErr.ReleaseAndGetAddressOf())) ||
+        !serializedRs) {
+        throw std::runtime_error("D3D12SerializeRootSignature failed for sprite pipeline.");
+    }
+    if (FAILED(device_->CreateRootSignature(0,
+                                            serializedRs->GetBufferPointer(),
+                                            serializedRs->GetBufferSize(),
+                                            IID_PPV_ARGS(spriteRootSignature_.ReleaseAndGetAddressOf()))) ||
+        !spriteRootSignature_) {
+        throw std::runtime_error("CreateRootSignature failed for D3D12 sprite pipeline.");
+    }
+
+    D3D12_INPUT_ELEMENT_DESC layout[] = {
+        {"POSITION", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
+        {"TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 8, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
+        {"COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 16, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
+    };
+
+    D3D12_GRAPHICS_PIPELINE_STATE_DESC pso{};
+    pso.pRootSignature = spriteRootSignature_.Get();
+    pso.VS = {vsBlob->GetBufferPointer(), vsBlob->GetBufferSize()};
+    pso.PS = {psBlob->GetBufferPointer(), psBlob->GetBufferSize()};
+
+    D3D12_BLEND_DESC blend{};
+    blend.AlphaToCoverageEnable = FALSE;
+    blend.IndependentBlendEnable = FALSE;
+    D3D12_RENDER_TARGET_BLEND_DESC rtBlend{};
+    rtBlend.BlendEnable = TRUE;
+    rtBlend.LogicOpEnable = FALSE;
+    rtBlend.SrcBlend = D3D12_BLEND_SRC_ALPHA;
+    rtBlend.DestBlend = D3D12_BLEND_INV_SRC_ALPHA;
+    rtBlend.BlendOp = D3D12_BLEND_OP_ADD;
+    rtBlend.SrcBlendAlpha = D3D12_BLEND_ONE;
+    rtBlend.DestBlendAlpha = D3D12_BLEND_INV_SRC_ALPHA;
+    rtBlend.BlendOpAlpha = D3D12_BLEND_OP_ADD;
+    rtBlend.LogicOp = D3D12_LOGIC_OP_NOOP;
+    rtBlend.RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
+    blend.RenderTarget[0] = rtBlend;
+    pso.BlendState = blend;
+    pso.SampleMask = UINT_MAX;
+
+    D3D12_RASTERIZER_DESC raster{};
+    raster.FillMode = D3D12_FILL_MODE_SOLID;
+    raster.CullMode = D3D12_CULL_MODE_NONE;
+    raster.FrontCounterClockwise = FALSE;
+    raster.DepthBias = D3D12_DEFAULT_DEPTH_BIAS;
+    raster.DepthBiasClamp = D3D12_DEFAULT_DEPTH_BIAS_CLAMP;
+    raster.SlopeScaledDepthBias = D3D12_DEFAULT_SLOPE_SCALED_DEPTH_BIAS;
+    raster.DepthClipEnable = TRUE;
+    raster.MultisampleEnable = FALSE;
+    raster.AntialiasedLineEnable = FALSE;
+    raster.ForcedSampleCount = 0;
+    raster.ConservativeRaster = D3D12_CONSERVATIVE_RASTERIZATION_MODE_OFF;
+    pso.RasterizerState = raster;
+
+    D3D12_DEPTH_STENCIL_DESC depthStencil{};
+    depthStencil.DepthEnable = FALSE;
+    depthStencil.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ZERO;
+    depthStencil.DepthFunc = D3D12_COMPARISON_FUNC_ALWAYS;
+    depthStencil.StencilEnable = FALSE;
+    pso.DepthStencilState = depthStencil;
+
+    pso.InputLayout = {layout, static_cast<UINT>(_countof(layout))};
+    pso.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
+    pso.NumRenderTargets = 1;
+    pso.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
+    pso.SampleDesc.Count = 1;
+    if (FAILED(device_->CreateGraphicsPipelineState(&pso,
+                                                    IID_PPV_ARGS(spritePipelineState_.ReleaseAndGetAddressOf()))) ||
+        !spritePipelineState_) {
+        throw std::runtime_error("CreateGraphicsPipelineState failed for D3D12 sprite pipeline.");
+    }
+
+    constexpr std::size_t kBufferBytes = kMaxSpriteVertices * sizeof(SpriteVertex);
+    D3D12_HEAP_PROPERTIES heapProps{};
+    heapProps.Type = D3D12_HEAP_TYPE_UPLOAD;
+    heapProps.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
+    heapProps.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
+    heapProps.CreationNodeMask = 1;
+    heapProps.VisibleNodeMask = 1;
+
+    D3D12_RESOURCE_DESC bufferDesc{};
+    bufferDesc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
+    bufferDesc.Alignment = 0;
+    bufferDesc.Width = kBufferBytes;
+    bufferDesc.Height = 1;
+    bufferDesc.DepthOrArraySize = 1;
+    bufferDesc.MipLevels = 1;
+    bufferDesc.Format = DXGI_FORMAT_UNKNOWN;
+    bufferDesc.SampleDesc.Count = 1;
+    bufferDesc.SampleDesc.Quality = 0;
+    bufferDesc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
+    bufferDesc.Flags = D3D12_RESOURCE_FLAG_NONE;
+
+    if (FAILED(device_->CreateCommittedResource(&heapProps,
+                                                D3D12_HEAP_FLAG_NONE,
+                                                &bufferDesc,
+                                                D3D12_RESOURCE_STATE_GENERIC_READ,
+                                                nullptr,
+                                                IID_PPV_ARGS(spriteVertexBuffer_.ReleaseAndGetAddressOf()))) ||
+        !spriteVertexBuffer_) {
+        throw std::runtime_error("CreateCommittedResource failed for D3D12 sprite vertex buffer.");
+    }
+    spriteVertexBufferGpuAddress_ = spriteVertexBuffer_->GetGPUVirtualAddress();
+    spriteVertexStride_ = sizeof(SpriteVertex);
+    spriteVertexBufferSize_ = static_cast<UINT>(kBufferBytes);
+#endif
+}
+
+D3D12RenderBackend::SpriteTexture* D3D12RenderBackend::ensureFallbackSpriteTexture() {
+#if defined(_WIN32)
+    const auto it = spriteTextures_.find(kFallbackSpriteTextureKey);
+    if (it != spriteTextures_.end()) {
+        return const_cast<SpriteTexture*>(&it->second);
+    }
+    if (!device_ || !commandQueue_ || !fence_ || !srvHeap_) return nullptr;
+    if (nextSrvDescriptorIndex_ >= kMaxSrvDescriptors) return nullptr;
+
+    static const unsigned char kFallbackRgba[16] = {
+        255,  30, 120, 255,
+         32,  32,  36, 255,
+         32,  32,  36, 255,
+        255,  30, 120, 255
+    };
+
+    SpriteTexture texture;
+    texture.descriptorIndex = nextSrvDescriptorIndex_;
+    if (!createTextureResourceFromRgba(device_.Get(),
+                                       commandQueue_.Get(),
+                                       fence_.Get(),
+                                       static_cast<HANDLE>(fenceEvent_),
+                                       fenceValue_,
+                                       srvHeap_.Get(),
+                                       srvDescriptorSize_,
+                                       texture.descriptorIndex,
+                                       kFallbackRgba,
+                                       2,
+                                       2,
+                                       texture.resource)) {
+        return nullptr;
+    }
+    texture.valid = true;
+    ++nextSrvDescriptorIndex_;
+    auto [insertedIt, _] = spriteTextures_.emplace(kFallbackSpriteTextureKey, std::move(texture));
+    return &insertedIt->second;
+#else
+    return nullptr;
+#endif
+}
+
+D3D12RenderBackend::SpriteTexture* D3D12RenderBackend::ensureSpriteTexture(const std::string& texturePath) {
+#if defined(_WIN32)
+    if (texturePath.empty()) return ensureFallbackSpriteTexture();
+
+    auto existing = spriteTextures_.find(texturePath);
+    if (existing != spriteTextures_.end()) {
+        return &existing->second;
+    }
+    if (!device_ || !commandQueue_ || !fence_ || !srvHeap_) return ensureFallbackSpriteTexture();
+    if (nextSrvDescriptorIndex_ >= kMaxSrvDescriptors) return ensureFallbackSpriteTexture();
+
+    int width = 0;
+    int height = 0;
+    int channels = 0;
+    unsigned char* pixels = stbi_load(texturePath.c_str(), &width, &height, &channels, 4);
+    std::string altPath;
+    if (!pixels) {
+        altPath = texturePath;
+        std::replace(altPath.begin(), altPath.end(), '\\', '/');
+        if (altPath != texturePath) {
+            pixels = stbi_load(altPath.c_str(), &width, &height, &channels, 4);
+        }
+    }
+
+    if (!pixels || width <= 0 || height <= 0) {
+        if (pixels) stbi_image_free(pixels);
+        return ensureFallbackSpriteTexture();
+    }
+
+    SpriteTexture texture;
+    texture.descriptorIndex = nextSrvDescriptorIndex_;
+    const bool ok = createTextureResourceFromRgba(device_.Get(),
+                                                  commandQueue_.Get(),
+                                                  fence_.Get(),
+                                                  static_cast<HANDLE>(fenceEvent_),
+                                                  fenceValue_,
+                                                  srvHeap_.Get(),
+                                                  srvDescriptorSize_,
+                                                  texture.descriptorIndex,
+                                                  pixels,
+                                                  width,
+                                                  height,
+                                                  texture.resource);
+    stbi_image_free(pixels);
+    if (!ok) {
+        return ensureFallbackSpriteTexture();
+    }
+
+    texture.valid = true;
+    ++nextSrvDescriptorIndex_;
+    auto [insertedIt, _] = spriteTextures_.emplace(texturePath, std::move(texture));
+    return &insertedIt->second;
+#else
+    (void)texturePath;
+    return nullptr;
 #endif
 }
 

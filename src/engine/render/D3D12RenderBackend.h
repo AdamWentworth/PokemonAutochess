@@ -3,6 +3,7 @@
 #include <array>
 #include <cstdint>
 #include <string>
+#include <unordered_map>
 
 #include "engine/render/IRenderBackend.h"
 
@@ -49,6 +50,10 @@ public:
                         std::size_t lineCount,
                         int surfaceWidth,
                         int surfaceHeight) override;
+    void drawDebugSprites(const DebugSprite* sprites,
+                          std::size_t spriteCount,
+                          int surfaceWidth,
+                          int surfaceHeight) override;
     void shutdown() override;
 
 private:
@@ -56,6 +61,10 @@ private:
     void createRenderTargets();
     void releaseRenderTargets();
     void createDebugPipeline();
+    void createSpritePipeline();
+    struct SpriteTexture;
+    SpriteTexture* ensureSpriteTexture(const std::string& texturePath);
+    SpriteTexture* ensureFallbackSpriteTexture();
     void waitForGpu();
     void ensureWindowHandle();
 
@@ -95,5 +104,21 @@ private:
     std::uint64_t debugVertexBufferGpuAddress_ = 0;
     std::uint32_t debugVertexStride_ = 0;
     std::uint32_t debugVertexBufferSize_ = 0;
+
+    struct SpriteTexture {
+        Microsoft::WRL::ComPtr<ID3D12Resource> resource;
+        std::uint32_t descriptorIndex = 0;
+        bool valid = false;
+    };
+    Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> srvHeap_;
+    std::uint32_t srvDescriptorSize_ = 0;
+    std::uint32_t nextSrvDescriptorIndex_ = 0;
+    Microsoft::WRL::ComPtr<ID3D12RootSignature> spriteRootSignature_;
+    Microsoft::WRL::ComPtr<ID3D12PipelineState> spritePipelineState_;
+    Microsoft::WRL::ComPtr<ID3D12Resource> spriteVertexBuffer_;
+    std::uint64_t spriteVertexBufferGpuAddress_ = 0;
+    std::uint32_t spriteVertexStride_ = 0;
+    std::uint32_t spriteVertexBufferSize_ = 0;
+    std::unordered_map<std::string, SpriteTexture> spriteTextures_;
 #endif
 };
