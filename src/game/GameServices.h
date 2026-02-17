@@ -14,7 +14,7 @@
 // Forward decls (keep headers light)
 struct GameDataDb;
 
-namespace LogBus { struct Logger; }
+namespace LogBus { class Logger; }
 class ScriptEventBus;
 namespace engine { class IAssetStore; class IRandom; class ITimeSource; }
 namespace engine::ecs { class World; }

@@ -11,6 +11,8 @@
 #include <sstream>
 #include <vector>
 
+#include <stb_easy_font.h>
+
 #include "engine/core/GameContext.h"
 #include "engine/core/EngineServices.h"
 #include "engine/core/Paths.h"
@@ -61,6 +63,88 @@
 #include "game/logging/LogBus.h"
 #include "game/logging/LoggerUtil.h"
 #include "game/scripting/ScriptEventBus.h"
+
+namespace {
+struct EasyFontVertex {
+    float x = 0.0f;
+    float y = 0.0f;
+    float z = 0.0f;
+    unsigned char color[4] = {255, 255, 255, 255};
+};
+static_assert(sizeof(EasyFontVertex) == 16, "Unexpected stb_easy_font vertex layout.");
+
+void appendEasyFontTextQuads(std::vector<IRenderBackend::DebugQuad>& out,
+                             float originX,
+                             float originY,
+                             const std::string& text,
+                             float scale,
+                             float r,
+                             float g,
+                             float b,
+                             float a) {
+    if (text.empty()) return;
+
+    const std::size_t approxBytes = text.size() * 320u + 4096u;
+    const std::size_t vertexCount = std::max<std::size_t>(256u, approxBytes / sizeof(EasyFontVertex));
+    std::vector<EasyFontVertex> verts(vertexCount);
+
+    const int quadCount = stb_easy_font_print(
+        originX,
+        originY,
+        const_cast<char*>(text.c_str()),
+        nullptr,
+        verts.data(),
+        static_cast<int>(verts.size() * sizeof(EasyFontVertex)));
+    if (quadCount <= 0) return;
+
+    out.reserve(out.size() + static_cast<std::size_t>(quadCount));
+    const std::size_t maxQuads = std::min<std::size_t>(
+        static_cast<std::size_t>(quadCount),
+        verts.size() / 4u);
+
+    for (std::size_t i = 0; i < maxQuads; ++i) {
+        float minX = 0.0f;
+        float minY = 0.0f;
+        float maxX = 0.0f;
+        float maxY = 0.0f;
+        for (int v = 0; v < 4; ++v) {
+            float x = verts[i * 4u + static_cast<std::size_t>(v)].x;
+            float y = verts[i * 4u + static_cast<std::size_t>(v)].y;
+            if (scale != 1.0f) {
+                x = originX + (x - originX) * scale;
+                y = originY + (y - originY) * scale;
+            }
+            if (v == 0) {
+                minX = maxX = x;
+                minY = maxY = y;
+            } else {
+                minX = std::min(minX, x);
+                minY = std::min(minY, y);
+                maxX = std::max(maxX, x);
+                maxY = std::max(maxY, y);
+            }
+        }
+
+        IRenderBackend::DebugQuad q;
+        q.x = minX;
+        q.y = minY;
+        q.w = std::max(0.0f, maxX - minX);
+        q.h = std::max(0.0f, maxY - minY);
+        if (q.w <= 0.0f || q.h <= 0.0f) continue;
+        q.r = r;
+        q.g = g;
+        q.b = b;
+        q.a = a;
+        out.push_back(q);
+    }
+}
+
+std::string trimDebugLine(std::string s, std::size_t maxChars) {
+    if (s.size() <= maxChars) return s;
+    if (maxChars <= 3) return s.substr(0, maxChars);
+    return s.substr(0, maxChars - 3) + "...";
+}
+} // namespace
 
 namespace game {
 
@@ -528,6 +612,106 @@ struct GameSession::Impl {
                 fpsBar.g = (fpsNorm < 0.5f) ? 0.28f : 0.88f;
                 fpsBar.b = 0.30f;
                 quads.push_back(fpsBar);
+            }
+        }
+
+        const auto appendText = [&](float x,
+                                    float y,
+                                    const std::string& text,
+                                    float scale,
+                                    const glm::vec3& color) {
+            appendEasyFontTextQuads(quads, x, y, text, scale, color.r, color.g, color.b, 1.0f);
+        };
+
+        const std::string mode = (services ? services->gameMode : std::string("classic"));
+        appendText(20.0f, 38.0f, "Mode: " + mode, 1.2f, glm::vec3(0.93f, 0.95f, 0.99f));
+        if (services) {
+            appendText(20.0f,
+                       56.0f,
+                       "Backend: " + services->activeRendererBackend + " | GPU: " + services->gpuRenderer,
+                       1.0f,
+                       glm::vec3(0.68f, 0.80f, 0.94f));
+        }
+
+        std::string roundPhase = "Planning";
+        bool combatActive = false;
+        const auto roundPhaseLabel = [](RoundPhase phase) {
+            switch (phase) {
+                case RoundPhase::Planning: return "Planning";
+                case RoundPhase::Battle: return "Battle";
+                case RoundPhase::Resolution: return "Resolution";
+                default: return "Planning";
+            }
+        };
+        if (ecsWorld.alive(roundPhaseEntity)) {
+            if (const auto* roundState = ecsWorld.get<game::RoundState>(roundPhaseEntity)) {
+                roundPhase = roundPhaseLabel(roundState->phase);
+            }
+            if (const auto* combatState = ecsWorld.get<game::CombatActive>(roundPhaseEntity)) {
+                combatActive = combatState->active;
+            }
+        }
+        appendText(20.0f,
+                   74.0f,
+                   "Round: " + roundPhase + " | Combat: " + (combatActive ? std::string("active") : std::string("idle")),
+                   1.0f,
+                   glm::vec3(0.83f, 0.91f, 0.98f));
+
+        int playerAlive = 0;
+        int enemyAlive = 0;
+        if (gameWorld) {
+            for (const auto& unit : gameWorld->getPokemons()) {
+                if (!unit.alive && !unit.captureInProgress) continue;
+                if (unit.side == PokemonSide::Player) ++playerAlive;
+                else ++enemyAlive;
+            }
+            appendText(20.0f,
+                       92.0f,
+                       "Units: Player " + std::to_string(playerAlive) + " | Enemy " + std::to_string(enemyAlive),
+                       1.0f,
+                       glm::vec3(0.72f, 0.90f, 0.84f));
+            appendText(20.0f,
+                       110.0f,
+                       "Gold: " + std::to_string(std::max(0, gameWorld->getMoney())),
+                       1.0f,
+                       glm::vec3(0.96f, 0.88f, 0.56f));
+        }
+
+        const auto recentMain = log.recentMainLines(7);
+        if (!recentMain.empty()) {
+            float y = std::max(142.0f, static_cast<float>(drawableH) - 170.0f);
+            for (const auto& line : recentMain) {
+                appendText(20.0f,
+                           y,
+                           trimDebugLine(line.text, 84),
+                           1.0f,
+                           glm::vec3(
+                               std::clamp(line.color.r, 0.0f, 1.0f),
+                               std::clamp(line.color.g, 0.0f, 1.0f),
+                               std::clamp(line.color.b, 0.0f, 1.0f)));
+                y += 16.0f;
+            }
+        }
+
+        const bool classicMode = (mode == "classic");
+        const auto sideLines = classicMode ? log.recentEconomyLines(5) : log.recentCatchLines(5);
+        if (!sideLines.empty()) {
+            float y = std::max(142.0f, static_cast<float>(drawableH) - 170.0f);
+            for (const auto& line : sideLines) {
+                const std::string text = trimDebugLine(line.text, 54);
+                const float scale = 1.0f;
+                const int baseW = stb_easy_font_width(const_cast<char*>(text.c_str()));
+                const float textW = std::max(1.0f, static_cast<float>(baseW) * scale);
+                const float x = std::max(20.0f, static_cast<float>(drawableW) - textW - 22.0f);
+                appendText(x,
+                           y,
+                           text,
+                           scale,
+                           glm::vec3(
+                               std::clamp(line.color.r, 0.0f, 1.0f),
+                               std::clamp(line.color.g, 0.0f, 1.0f),
+                               std::clamp(line.color.b, 0.0f, 1.0f)));
+                y += 16.0f;
             }
         }
 

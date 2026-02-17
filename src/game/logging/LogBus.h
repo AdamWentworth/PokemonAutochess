@@ -2,6 +2,7 @@
 #pragma once
 
 #include <string>
+#include <vector>
 #include <glm/glm.hpp>
 
 class BattleFeed;
@@ -12,6 +13,11 @@ namespace LogBus {
 // Composition root should own a Logger and wire it explicitly.
 class Logger {
 public:
+    struct LineSnapshot {
+        std::string text;
+        glm::vec3 color{1.0f, 1.0f, 1.0f};
+    };
+
     void attach(BattleFeed* feed) { feed_ = feed; }
     void attachCatchFeed(BattleFeed* feed) { catch_feed_ = feed; }
     void attachEconomyFeed(BattleFeed* feed) { economy_feed_ = feed; }
@@ -36,7 +42,20 @@ public:
     // stdout only
     void infoTerminalOnly(const std::string& s);
 
+    std::vector<LineSnapshot> recentMainLines(std::size_t maxCount) const;
+    std::vector<LineSnapshot> recentCatchLines(std::size_t maxCount) const;
+    std::vector<LineSnapshot> recentEconomyLines(std::size_t maxCount) const;
+
 private:
+    struct StoredLine {
+        std::string text;
+        glm::vec3 color{1.0f, 1.0f, 1.0f};
+    };
+
+    static constexpr std::size_t kRecentLineCap = 24;
+
+    static void pushRecent(std::vector<StoredLine>& bucket, const std::string& s, const glm::vec3& c);
+    static std::vector<LineSnapshot> snapshotRecent(const std::vector<StoredLine>& bucket, std::size_t maxCount);
     void push(const std::string& s, const glm::vec3& c, float life = 3.f);
 
 private:
@@ -45,6 +64,9 @@ private:
     BattleFeed* economy_feed_ = nullptr;
     bool echo_ = true;
     bool feed_enabled_ = true;
+    std::vector<StoredLine> recent_main_;
+    std::vector<StoredLine> recent_catch_;
+    std::vector<StoredLine> recent_economy_;
 };
 
 } // namespace LogBus
