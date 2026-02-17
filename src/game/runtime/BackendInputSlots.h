@@ -29,4 +29,8 @@ inline int inventoryIndexFromSlot(int slot, std::size_t visibleCount) {
     return static_cast<int>(index);
 }
 
+inline bool isClearSelectionKey(InputEvent::Key keyId) {
+    return keyId == InputEvent::Key::Num0;
+}
+
 } // namespace game::runtime::backend_input

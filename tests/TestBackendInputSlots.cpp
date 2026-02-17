@@ -38,6 +38,14 @@ bool test_backend_input_slots_contract(std::string& outFail) {
         outFail = "negative slot should map to -1";
         return false;
     }
+    if (!game::runtime::backend_input::isClearSelectionKey(InputEvent::Key::Num0)) {
+        outFail = "Num0 should map to clear-selection key";
+        return false;
+    }
+    if (game::runtime::backend_input::isClearSelectionKey(InputEvent::Key::Num1)) {
+        outFail = "Num1 should not map to clear-selection key";
+        return false;
+    }
 
     return true;
 }

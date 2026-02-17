@@ -126,7 +126,12 @@ struct GameSession::Impl {
     int devPauseStepTicks = 0;
 
     static constexpr std::size_t kBackendInventoryVisibleCount = 6;
+    enum class BackendInventoryHitAction {
+        SelectItem,
+        ClearSelection,
+    };
     struct BackendInventoryHitBox {
+        BackendInventoryHitAction action = BackendInventoryHitAction::SelectItem;
         std::string itemId;
         float x = 0.0f;
         float y = 0.0f;
@@ -366,8 +371,17 @@ struct GameSession::Impl {
 
     bool selectBackendInventoryItem(const std::string& itemId) {
         if (!gameWorld || itemId.empty()) return false;
+        if (gameWorld->getSelectedItem() == itemId) return true;
         gameWorld->setSelectedItem(itemId);
         log.catchInfo("Selected " + runtime::hud::humanizeToken(itemId) + ". Click a target.");
+        return true;
+    }
+
+    bool clearBackendInventorySelection() {
+        if (!gameWorld) return false;
+        if (gameWorld->getSelectedItem().empty()) return false;
+        gameWorld->setSelectedItem("");
+        log.catchInfo("Cleared selected item.");
         return true;
     }
 
@@ -421,6 +435,15 @@ struct GameSession::Impl {
         }
 
         if (renderWorldForInput &&
+            event.type == InputEvent::Type::KeyDown &&
+            !event.repeat &&
+            runtime::backend_input::isClearSelectionKey(event.keyId)) {
+            if (clearBackendInventorySelection()) {
+                return; // consume key so gameplay actions do not fire simultaneously.
+            }
+        }
+
+        if (renderWorldForInput &&
             !legacyRenderPath &&
             event.type == InputEvent::Type::KeyDown &&
             !event.repeat) {
@@ -467,6 +490,10 @@ struct GameSession::Impl {
                     const bool insideX = mx >= hit.x && mx <= (hit.x + hit.w);
                     const bool insideY = my >= hit.y && my <= (hit.y + hit.h);
                     if (!insideX || !insideY) continue;
+                    if (hit.action == BackendInventoryHitAction::ClearSelection) {
+                        clearBackendInventorySelection();
+                        return;
+                    }
                     if (selectBackendInventoryItem(hit.itemId)) {
                         return;
                     }
@@ -862,17 +889,24 @@ struct GameSession::Impl {
                 invY += 16.0f;
                 for (std::size_t i = 0; i < backendInventoryEntries.size(); ++i) {
                     const auto& item = backendInventoryEntries[i];
+                    const bool isSelected = (item.id == selectedItem);
                     std::string line = runtime::hud::formatInventoryEntry(item);
                     if (i < 9) {
                         line = "[" + std::to_string(i + 1) + "] " + line;
+                    }
+                    if (isSelected) {
+                        line = "> " + line;
                     }
                     constexpr float kItemScale = 0.95f;
                     appendText(20.0f,
                                invY,
                                line,
                                kItemScale,
-                               glm::vec3(0.84f, 0.90f, 0.97f));
+                               isSelected
+                                   ? glm::vec3(0.98f, 0.90f, 0.58f)
+                                   : glm::vec3(0.84f, 0.90f, 0.97f));
                     BackendInventoryHitBox hit;
+                    hit.action = BackendInventoryHitAction::SelectItem;
                     hit.itemId = item.id;
                     hit.x = 20.0f;
                     hit.y = invY;
@@ -881,9 +915,26 @@ struct GameSession::Impl {
                     backendInventoryHitBoxes.push_back(std::move(hit));
                     invY += 15.0f;
                 }
+                const std::string clearLine = "[0] Clear selection";
                 appendText(20.0f,
-                           invY + 3.0f,
-                           "Mouse wheel scroll, use 1-9 or click",
+                           invY + 1.0f,
+                           clearLine,
+                           0.90f,
+                           selectedItem.empty()
+                               ? glm::vec3(0.62f, 0.68f, 0.76f)
+                               : glm::vec3(0.95f, 0.78f, 0.66f));
+                BackendInventoryHitBox clearHit;
+                clearHit.action = BackendInventoryHitAction::ClearSelection;
+                clearHit.itemId.clear();
+                clearHit.x = 20.0f;
+                clearHit.y = invY + 1.0f;
+                clearHit.w = std::max(1.0f, runtime::backend_text::measureTextWidth(clearLine, 0.90f));
+                clearHit.h = std::max(1.0f, runtime::backend_text::measureTextHeight(clearLine, 0.90f));
+                backendInventoryHitBoxes.push_back(std::move(clearHit));
+                invY += 16.0f;
+                appendText(20.0f,
+                           invY + 2.0f,
+                           "Mouse wheel scroll, 1-9 select, 0 clear",
                            0.82f,
                            glm::vec3(0.66f, 0.76f, 0.90f));
             }
