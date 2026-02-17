@@ -196,6 +196,66 @@ bool test_battle_invariants(std::string& outFail) {
         return false;
     }
 
+    GameWorld leechWorld(config);
+    leechWorld.setData(&db);
+    leechWorld.setLogger(&log);
+    ScriptAPI leechApi(&leechWorld, nullptr, services);
+
+    PokemonInstance leechAttacker;
+    leechAttacker.id = PokemonInstance::getNextUnitID();
+    leechAttacker.name = "bulbasaur";
+    leechAttacker.side = PokemonSide::Player;
+    leechAttacker.hp = 100;
+    leechAttacker.maxHP = 100;
+    leechAttacker.alive = true;
+    leechAttacker.attackDurationSec = 1.0f;
+    leechAttacker.animAttack1Index = 0;
+    leechAttacker.position = glm::vec3(0.0f, 0.0f, 0.0f);
+
+    PokemonInstance leechTarget;
+    leechTarget.id = PokemonInstance::getNextUnitID();
+    leechTarget.name = "squirtle";
+    leechTarget.side = PokemonSide::Enemy;
+    leechTarget.hp = 100;
+    leechTarget.maxHP = 100;
+    leechTarget.alive = true;
+    leechTarget.position = glm::vec3(2.0f, 0.0f, 0.0f);
+
+    const int leechAttackerId = leechAttacker.id;
+    const int leechTargetId = leechTarget.id;
+    auto& leechUnits = leechWorld.getPokemons();
+    leechUnits.push_back(leechAttacker);
+    leechUnits.push_back(leechTarget);
+
+    const int leechPredictedHp = leechApi.applyDamage(
+        leechAttackerId,
+        leechTargetId,
+        11,
+        std::optional<float>(0.8f),
+        std::optional<std::string>("leech_seed"),
+        std::nullopt);
+    PokemonInstance* leechA = leechWorld.findUnitById(leechAttackerId);
+    PokemonInstance* leechT = leechWorld.findUnitById(leechTargetId);
+    if (!leechA || !leechT) {
+        outFail = "Leech Seed test units not found after ScriptAPI::applyDamage";
+        return false;
+    }
+    if (leechPredictedHp != 100 || leechT->hp != 100) {
+        outFail = "Leech Seed should queue deferred impact without immediate HP damage";
+        return false;
+    }
+    if (!leechA->pendingImpactActive || !leechA->pendingImpactIsLeechSeed ||
+        leechA->pendingImpactTargetId != leechTargetId || leechA->pendingImpactTimeSec < 0.0f ||
+        !leechA->pendingProjectileActive || leechA->pendingProjectileTargetId != leechTargetId ||
+        leechA->pendingProjectileSpawnTimeSec < 0.0f || leechA->pendingProjectileTravelSec < 0.01f) {
+        outFail = "Leech Seed should queue pending projectile and impact state";
+        return false;
+    }
+    if (leechA->pendingDamageActive) {
+        outFail = "Leech Seed should not queue deferred direct-damage hit-frame state";
+        return false;
+    }
+
     // XP from enemy faint should be split across alive allied board units.
     list.clear();
 
