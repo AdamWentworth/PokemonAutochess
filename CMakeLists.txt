@@ -330,6 +330,7 @@ if (BUILD_TESTING)
         tests/TestECS.cpp
         tests/TestDeterminism.cpp
         tests/TestEnvironment.cpp
+        tests/TestVideoInitGuards.cpp
         tests/TestVideoPreferences.cpp
         tests/TestDxgiAdapterSelectionPolicy.cpp
         tests/TestD3D12Probe.cpp

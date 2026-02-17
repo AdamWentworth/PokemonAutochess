@@ -227,12 +227,10 @@ void ScriptedState::rebuildTextMenu() {
         textMenuEntries.push_back(std::move(entry));
     }
 
-    if (!services.renderEnabled) {
-        const auto* viewport = services.viewport;
-        const int uiW = viewport ? viewport->width : 1280;
-        const int uiH = viewport ? viewport->height : 720;
-        layoutBackendTextMenu(uiW, uiH);
-    }
+    const auto* viewport = services.viewport;
+    const int uiW = viewport ? viewport->width : 1280;
+    const int uiH = viewport ? viewport->height : 720;
+    layoutBackendTextMenu(uiW, uiH);
 }
 
 void ScriptedState::layoutBackendTextMenu(int uiW, int uiH) {
@@ -596,8 +594,7 @@ void ScriptedState::handleInput(const InputEvent& event) {
     script.call("handleInput");
 
     if (!uiInitialized) return;
-    if (!services.renderEnabled &&
-        cardMode == CardMode::TextMenu &&
+    if (cardMode == CardMode::TextMenu &&
         event.type == InputEvent::Type::KeyDown &&
         !event.repeat) {
         if (tryHandleHeadlessTextMenuKey(event.keyId)) {
@@ -768,7 +765,7 @@ void ScriptedState::render() {
         shopReadyH = 0.0f;
     }
 
-    if (cardMode == CardMode::TextMenu && !services.renderEnabled) {
+    if (cardMode == CardMode::TextMenu && services.renderer) {
         renderBackendTextMenu(uiW, uiH);
         return;
     }

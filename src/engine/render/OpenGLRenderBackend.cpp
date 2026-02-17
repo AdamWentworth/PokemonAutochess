@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cctype>
+#include <vector>
 
 #include <glad/glad.h>
 
@@ -19,6 +20,21 @@ std::string toLowerCopy(std::string s) {
 bool containsCi(const std::string& haystack, const std::string& needle) {
     if (needle.empty()) return false;
     return toLowerCopy(haystack).find(toLowerCopy(needle)) != std::string::npos;
+}
+
+unsigned int compileShader(GLenum type, const char* source) {
+    const unsigned int shader = glCreateShader(type);
+    if (shader == 0) return 0;
+    glShaderSource(shader, 1, &source, nullptr);
+    glCompileShader(shader);
+
+    GLint ok = 0;
+    glGetShaderiv(shader, GL_COMPILE_STATUS, &ok);
+    if (!ok) {
+        glDeleteShader(shader);
+        return 0;
+    }
+    return shader;
 }
 
 } // namespace
@@ -58,15 +74,180 @@ void OpenGLRenderBackend::drawDebugQuads(const DebugQuad* quads,
                                          std::size_t quadCount,
                                          int surfaceWidth,
                                          int surfaceHeight) {
-    (void)quads;
-    (void)quadCount;
-    (void)surfaceWidth;
-    (void)surfaceHeight;
+    if (!quads || quadCount == 0 || surfaceWidth <= 0 || surfaceHeight <= 0) return;
+    ensureDebugPipeline();
+    if (debugProgram_ == 0 || debugVao_ == 0 || debugVbo_ == 0 || debugSurfaceSizeLoc_ < 0) return;
+
+    struct GlDebugVertex {
+        float x;
+        float y;
+        float r;
+        float g;
+        float b;
+        float a;
+    };
+
+    constexpr std::size_t kMaxDebugQuads = 4096;
+    const std::size_t safeCount = std::min(quadCount, kMaxDebugQuads);
+    std::vector<GlDebugVertex> vertices;
+    vertices.reserve(safeCount * 6);
+    for (std::size_t i = 0; i < safeCount; ++i) {
+        const DebugQuad& q = quads[i];
+        const GlDebugVertex a{q.x, q.y, q.r, q.g, q.b, q.a};
+        const GlDebugVertex b{q.x + q.w, q.y, q.r, q.g, q.b, q.a};
+        const GlDebugVertex c{q.x + q.w, q.y + q.h, q.r, q.g, q.b, q.a};
+        const GlDebugVertex d{q.x, q.y + q.h, q.r, q.g, q.b, q.a};
+
+        vertices.push_back(a);
+        vertices.push_back(b);
+        vertices.push_back(c);
+        vertices.push_back(a);
+        vertices.push_back(c);
+        vertices.push_back(d);
+    }
+    if (vertices.empty()) return;
+
+    GLint prevProgram = 0;
+    GLint prevVao = 0;
+    GLint prevArrayBuffer = 0;
+    glGetIntegerv(GL_CURRENT_PROGRAM, &prevProgram);
+    glGetIntegerv(GL_VERTEX_ARRAY_BINDING, &prevVao);
+    glGetIntegerv(GL_ARRAY_BUFFER_BINDING, &prevArrayBuffer);
+
+    const GLboolean depthEnabled = glIsEnabled(GL_DEPTH_TEST);
+    const GLboolean blendEnabled = glIsEnabled(GL_BLEND);
+
+    glDisable(GL_DEPTH_TEST);
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+    glUseProgram(debugProgram_);
+    glUniform2f(debugSurfaceSizeLoc_, static_cast<float>(surfaceWidth), static_cast<float>(surfaceHeight));
+
+    glBindVertexArray(debugVao_);
+    glBindBuffer(GL_ARRAY_BUFFER, debugVbo_);
+    glBufferData(GL_ARRAY_BUFFER,
+                 static_cast<GLsizeiptr>(vertices.size() * sizeof(GlDebugVertex)),
+                 vertices.data(),
+                 GL_STREAM_DRAW);
+    glDrawArrays(GL_TRIANGLES, 0, static_cast<GLsizei>(vertices.size()));
+
+    glBindBuffer(GL_ARRAY_BUFFER, static_cast<GLuint>(prevArrayBuffer));
+    glBindVertexArray(static_cast<GLuint>(prevVao));
+    glUseProgram(static_cast<GLuint>(prevProgram));
+
+    if (!blendEnabled) glDisable(GL_BLEND);
+    if (depthEnabled) glEnable(GL_DEPTH_TEST);
 }
 
 void OpenGLRenderBackend::shutdown() {
+    destroyDebugPipeline();
     if (renderer_) {
         renderer_->shutdown();
         renderer_.reset();
     }
+}
+
+void OpenGLRenderBackend::ensureDebugPipeline() {
+    if (debugProgram_ != 0 && debugVao_ != 0 && debugVbo_ != 0 && debugSurfaceSizeLoc_ >= 0) {
+        return;
+    }
+    if (!GLAD_GL_VERSION_3_3) {
+        return;
+    }
+
+    static constexpr const char* kVs = R"GLSL(
+        #version 330 core
+        layout (location = 0) in vec2 aPos;
+        layout (location = 1) in vec4 aColor;
+        uniform vec2 uSurfaceSize;
+        out vec4 vColor;
+        void main() {
+            vec2 ndc;
+            ndc.x = (aPos.x / max(uSurfaceSize.x, 1.0)) * 2.0 - 1.0;
+            ndc.y = 1.0 - (aPos.y / max(uSurfaceSize.y, 1.0)) * 2.0;
+            gl_Position = vec4(ndc, 0.0, 1.0);
+            vColor = aColor;
+        }
+    )GLSL";
+
+    static constexpr const char* kFs = R"GLSL(
+        #version 330 core
+        in vec4 vColor;
+        out vec4 FragColor;
+        void main() {
+            FragColor = vColor;
+        }
+    )GLSL";
+
+    const unsigned int vs = compileShader(GL_VERTEX_SHADER, kVs);
+    const unsigned int fs = compileShader(GL_FRAGMENT_SHADER, kFs);
+    if (vs == 0 || fs == 0) {
+        if (vs != 0) glDeleteShader(vs);
+        if (fs != 0) glDeleteShader(fs);
+        return;
+    }
+
+    debugProgram_ = glCreateProgram();
+    if (debugProgram_ == 0) {
+        glDeleteShader(vs);
+        glDeleteShader(fs);
+        return;
+    }
+
+    glAttachShader(debugProgram_, vs);
+    glAttachShader(debugProgram_, fs);
+    glLinkProgram(debugProgram_);
+    glDeleteShader(vs);
+    glDeleteShader(fs);
+
+    GLint linkOk = 0;
+    glGetProgramiv(debugProgram_, GL_LINK_STATUS, &linkOk);
+    if (!linkOk) {
+        glDeleteProgram(debugProgram_);
+        debugProgram_ = 0;
+        return;
+    }
+
+    debugSurfaceSizeLoc_ = glGetUniformLocation(debugProgram_, "uSurfaceSize");
+    if (debugSurfaceSizeLoc_ < 0) {
+        destroyDebugPipeline();
+        return;
+    }
+
+    glGenVertexArrays(1, &debugVao_);
+    glGenBuffers(1, &debugVbo_);
+    if (debugVao_ == 0 || debugVbo_ == 0) {
+        destroyDebugPipeline();
+        return;
+    }
+
+    glBindVertexArray(debugVao_);
+    glBindBuffer(GL_ARRAY_BUFFER, debugVbo_);
+    glBufferData(GL_ARRAY_BUFFER, 1024, nullptr, GL_STREAM_DRAW);
+
+    constexpr GLsizei stride = static_cast<GLsizei>(sizeof(float) * 6);
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, stride, reinterpret_cast<void*>(0));
+    glEnableVertexAttribArray(1);
+    glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, stride, reinterpret_cast<void*>(sizeof(float) * 2));
+
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+    glBindVertexArray(0);
+}
+
+void OpenGLRenderBackend::destroyDebugPipeline() {
+    if (debugVbo_ != 0) {
+        glDeleteBuffers(1, &debugVbo_);
+        debugVbo_ = 0;
+    }
+    if (debugVao_ != 0) {
+        glDeleteVertexArrays(1, &debugVao_);
+        debugVao_ = 0;
+    }
+    if (debugProgram_ != 0) {
+        glDeleteProgram(debugProgram_);
+        debugProgram_ = 0;
+    }
+    debugSurfaceSizeLoc_ = -1;
 }

@@ -26,5 +26,12 @@ public:
     void shutdown() override;
 
 private:
+    void ensureDebugPipeline();
+    void destroyDebugPipeline();
+
     std::unique_ptr<Renderer> renderer_;
+    unsigned int debugProgram_ = 0;
+    unsigned int debugVao_ = 0;
+    unsigned int debugVbo_ = 0;
+    int debugSurfaceSizeLoc_ = -1;
 };

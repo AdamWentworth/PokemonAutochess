@@ -13,6 +13,7 @@ bool test_ecs_structural_change_deferral(std::string& outFail);
 bool test_rng_determinism(std::string& outFail);
 bool test_manual_time_source(std::string& outFail);
 bool test_environment_helpers_contract(std::string& outFail);
+bool test_video_init_gl_viewport_guard(std::string& outFail);
 bool test_video_preferences_parse_and_roundtrip(std::string& outFail);
 bool test_dxgi_adapter_selection_policy(std::string& outFail);
 bool test_d3d12_probe_contract(std::string& outFail);
@@ -115,6 +116,7 @@ int main(int argc, char** argv) {
         {"rng_determinism", &test_rng_determinism},
         {"manual_time_source", &test_manual_time_source},
         {"environment_helpers_contract", &test_environment_helpers_contract},
+        {"video_init_gl_viewport_guard", &test_video_init_gl_viewport_guard},
         {"video_preferences_parse_and_roundtrip", &test_video_preferences_parse_and_roundtrip},
         {"dxgi_adapter_selection_policy", &test_dxgi_adapter_selection_policy},
         {"d3d12_probe_contract", &test_d3d12_probe_contract},

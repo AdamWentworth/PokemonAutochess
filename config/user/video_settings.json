@@ -1,0 +1,5 @@
+{
+  "preferred_gpu_adapter": "",
+  "renderer_backend": "d3d12",
+  "require_discrete_gpu": false
+}

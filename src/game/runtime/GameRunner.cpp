@@ -21,6 +21,7 @@
 #include "engine/utils/ResourceManager.h"
 #include "engine/utils/ShaderCache.h"
 #include "game/runtime/GpuAdapters.h"
+#include "game/runtime/VideoInitGuards.h"
 #include "game/runtime/VideoPreferences.h"
 
 #define NOMINMAX
@@ -229,6 +230,7 @@ namespace {
         int windowH = (int)START_H;
         bool fullscreen = false;
         bool windowHasOpenGLContext = false;
+        bool glFunctionsReady = false;
 
         float mouseScaleX = 1.0f;
         float mouseScaleY = 1.0f;
@@ -305,6 +307,7 @@ namespace {
             return false;
         }
         windowHasOpenGLContext = window->hasOpenGLContext();
+        glFunctionsReady = false;
 
         updateDrawableSizeAndViewport();
         updateMouseScale();
@@ -316,6 +319,7 @@ namespace {
                 std::cerr << "[GameRunner] Failed to initialize GLAD\n";
                 return false;
             }
+            glFunctionsReady = true;
 
             bootLoadingView = std::make_unique<BootLoadingView>();
             bootLoadingView->init(shaderCache);
@@ -358,6 +362,7 @@ namespace {
                         std::cerr << "[GameRunner] Failed to initialize GLAD after fallback\n";
                         return false;
                     }
+                    glFunctionsReady = true;
                     updateDrawableSizeAndViewport();
                     updateMouseScale();
                     renderer = createRenderBackend(activeBackend,
@@ -471,7 +476,7 @@ namespace {
         if (drawableW <= 0) drawableW = windowW;
         if (drawableH <= 0) drawableH = windowH;
 
-        if (windowHasOpenGLContext) {
+        if (game::runtime::video::shouldApplyOpenGLViewport(windowHasOpenGLContext, glFunctionsReady)) {
             glViewport(0, 0, drawableW, drawableH);
         }
     }
