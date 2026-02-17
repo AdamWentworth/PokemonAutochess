@@ -10,7 +10,8 @@
 #include "engine/input/InputEvent.h"
 #include "engine/input/SdlKeyMap.h"
 
-#include "engine/render/Renderer.h"
+#include "engine/render/IRenderBackend.h"
+#include "engine/render/OpenGLRenderBackend.h"
 #include "engine/ui/BootLoadingView.h"
 
 #include "engine/utils/ResourceManager.h"
@@ -140,8 +141,6 @@ bool Application::initApplication() {
     updateDrawableSizeAndViewport();
     updateMouseScale();
 
-    glEnable(GL_DEPTH_TEST);
-
     bootLoadingView = std::make_unique<BootLoadingView>();
     bootLoadingView->init(shaderCache);
 
@@ -152,7 +151,7 @@ bool Application::initApplication() {
     swapBuffers();
     pumpPreloadEvents();
 
-    renderer = std::make_unique<Renderer>();
+    renderer = std::make_unique<OpenGLRenderBackend>();
     camera   = std::make_unique<Camera3D>(45.0f, float(drawableW) / float(drawableH), 0.1f, 100.0f);
 
     std::cout << "[Init] Application initialized.\n";
@@ -329,8 +328,9 @@ void Application::run(GameLoop& game) {
             accumulator -= TIME_STEP;
         }
 
-        glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        if (renderer) {
+            renderer->beginFrame(0.1f, 0.1f, 0.1f, 1.0f);
+        }
 
         game.render(drawableW, drawableH);
 

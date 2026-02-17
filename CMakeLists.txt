@@ -134,6 +134,7 @@ pac_apply_common_target_settings(engine_platform)
 
 # ---------------- engine_render (OpenGL + renderer + resources) ----------------
 add_library(engine_render STATIC
+    src/engine/render/OpenGLRenderBackend.cpp
     src/engine/render/Renderer.cpp
     src/engine/render/Camera3D.cpp
     src/engine/render/BoardRenderer.cpp

@@ -5,7 +5,7 @@
 #include <string>
 
 // Forward-declare engine services
-class Renderer;
+class IRenderBackend;
 class Camera3D;
 struct EngineServices;
 
@@ -23,7 +23,7 @@ struct GameContext {
     };
 
     // Core render services (owned by engine)
-    Renderer* renderer = nullptr;
+    IRenderBackend* renderer = nullptr;
     Camera3D* camera   = nullptr;
 
 

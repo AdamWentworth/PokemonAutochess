@@ -11,7 +11,7 @@
 #include "engine/events/EventBus.h"
 
 class Window;
-class Renderer;
+class IRenderBackend;
 class BootLoadingView;
 
 class GameLoop;
@@ -25,7 +25,7 @@ public:
     void run(GameLoop& game);
 
     Window*   getWindow()   const { return window.get(); }
-    Renderer* getRenderer() const { return renderer.get(); }
+    IRenderBackend* getRenderer() const { return renderer.get(); }
     Camera3D* getCamera()   const { return camera.get();  }
 
     int getDrawableW() const { return drawableW; }
@@ -50,7 +50,7 @@ private:
 
 private:
     std::unique_ptr<Window>   window;
-    std::unique_ptr<Renderer> renderer;
+    std::unique_ptr<IRenderBackend> renderer;
     std::unique_ptr<Camera3D> camera;
 
     std::unique_ptr<BootLoadingView> bootLoadingView;

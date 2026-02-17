@@ -14,7 +14,8 @@
 #include "engine/input/SdlKeyMap.h"
 #include "engine/platform/Window.h"
 #include "engine/render/Camera3D.h"
-#include "engine/render/Renderer.h"
+#include "engine/render/IRenderBackend.h"
+#include "engine/render/OpenGLRenderBackend.h"
 #include "engine/ui/BootLoadingView.h"
 #include "engine/utils/ResourceManager.h"
 #include "engine/utils/ShaderCache.h"
@@ -62,6 +63,19 @@ namespace {
     bool looksIntegratedGpu(const std::string& vendor, const std::string& renderer) {
         // Heuristic: Intel OpenGL contexts on hybrid laptops are typically iGPU.
         return containsCi(vendor, "intel") || containsCi(renderer, "intel");
+    }
+
+    std::unique_ptr<IRenderBackend> createRenderBackend(game::video::RendererBackend backend) {
+        switch (backend) {
+        case game::video::RendererBackend::Auto:
+        case game::video::RendererBackend::OpenGL:
+            return std::make_unique<OpenGLRenderBackend>();
+        case game::video::RendererBackend::Vulkan:
+        case game::video::RendererBackend::D3D12:
+            return nullptr;
+        default:
+            return nullptr;
+        }
     }
 
     const char* glStringOrUnknown(GLenum token) {
@@ -159,7 +173,7 @@ namespace {
 
     private:
         std::unique_ptr<Window>   window;
-        std::unique_ptr<Renderer> renderer;
+        std::unique_ptr<IRenderBackend> renderer;
         std::unique_ptr<Camera3D> camera;
 
         std::unique_ptr<BootLoadingView> bootLoadingView;
@@ -254,8 +268,6 @@ namespace {
         const Uint32 flags = SDL_GetWindowFlags(window->getSDLWindow());
         fullscreen = (flags & SDL_WINDOW_FULLSCREEN) != 0 || (flags & SDL_WINDOW_FULLSCREEN_DESKTOP) != 0;
 
-        glEnable(GL_DEPTH_TEST);
-
         bootLoadingView = std::make_unique<BootLoadingView>();
         bootLoadingView->init(shaderCache);
 
@@ -265,7 +277,12 @@ namespace {
         swapBuffers();
         pumpPreloadEvents();
 
-        renderer = std::make_unique<Renderer>();
+        renderer = createRenderBackend(activeBackend);
+        if (!renderer) {
+            std::cerr << "[Renderer] Failed to create backend '" << services.activeRendererBackend << "'.\n";
+            return false;
+        }
+        services.activeRendererBackend = renderer->backendId();
         camera   = std::make_unique<Camera3D>(45.0f, float(drawableW) / float(drawableH), 0.1f, 100.0f);
 
         initialized = true;
@@ -507,8 +524,9 @@ namespace {
             const auto fixedEnd = clock::now();
 
             const auto renderStart = fixedEnd;
-            glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
-            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+            if (renderer) {
+                renderer->beginFrame(0.1f, 0.1f, 0.1f, 1.0f);
+            }
 
             game.render(drawableW, drawableH);
             const auto renderEnd = clock::now();
