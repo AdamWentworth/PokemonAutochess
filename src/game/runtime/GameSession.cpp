@@ -38,6 +38,7 @@
 #include "game/runtime/GamePreload.h"
 #include "game/runtime/RenderFlowDecisions.h"
 #include "game/runtime/BackendDebugText.h"
+#include "game/runtime/BackendInputSlots.h"
 #include "game/runtime/BackendHudFormatting.h"
 #include "game/runtime/BackendWorldProjection.h"
 #include "game/GameServices.h"
@@ -123,6 +124,16 @@ struct GameSession::Impl {
     bool showPerfOverlay = true;
     bool devPauseWorld = false;
     int devPauseStepTicks = 0;
+
+    struct BackendInventoryHitBox {
+        std::string itemId;
+        float x = 0.0f;
+        float y = 0.0f;
+        float w = 0.0f;
+        float h = 0.0f;
+    };
+    std::vector<runtime::hud::InventoryEntry> backendInventoryEntries;
+    std::vector<BackendInventoryHitBox> backendInventoryHitBoxes;
 
     std::shared_ptr<CameraSystem>           cameraSystem;
     std::shared_ptr<UnitInteractionSystem>  unitSystem;
@@ -350,6 +361,13 @@ struct GameSession::Impl {
         std::cout << "[Init] Game initialized.\n";
     }
 
+    bool selectBackendInventoryItem(const std::string& itemId) {
+        if (!gameWorld || itemId.empty()) return false;
+        gameWorld->setSelectedItem(itemId);
+        log.catchInfo("Selected " + runtime::hud::humanizeToken(itemId) + ". Click a target.");
+        return true;
+    }
+
     void handleEvent(const InputEvent& event) {
         if (event.type == InputEvent::Type::Resize) {
             viewport.set(event.drawableW, event.drawableH);
@@ -399,17 +417,46 @@ struct GameSession::Impl {
             }
         }
 
-        if (renderWorldForInput && event.type == InputEvent::Type::MouseWheel) {
+        if (renderWorldForInput &&
+            !legacyRenderPath &&
+            event.type == InputEvent::Type::KeyDown &&
+            !event.repeat) {
+            const int slot = runtime::backend_input::slotFromNumberKey(event.keyId);
+            const int index = runtime::backend_input::inventoryIndexFromSlot(
+                slot,
+                backendInventoryEntries.size());
+            if (index >= 0) {
+                if (selectBackendInventoryItem(
+                        backendInventoryEntries[static_cast<std::size_t>(index)].id)) {
+                    return; // consume key to avoid accidental board interactions.
+                }
+            }
+        }
+
+        if (renderWorldForInput && event.type == InputEvent::Type::MouseWheel && legacyRenderPath) {
             itemInventoryUI.handleScroll(event.wheelY, viewport.height);
         }
         if (renderWorldForInput && event.type == InputEvent::Type::MouseDown &&
             event.mouseButtonId == InputEvent::MouseButton::Left) {
-            if (auto clicked = itemInventoryUI.handleMouseClick(event.mouseX, event.mouseY)) {
-                if (gameWorld) {
-                    gameWorld->setSelectedItem(*clicked);
-                    log.catchInfo("Selected " + *clicked + ". Click a target.");
+            if (legacyRenderPath) {
+                if (auto clicked = itemInventoryUI.handleMouseClick(event.mouseX, event.mouseY)) {
+                    if (gameWorld) {
+                        gameWorld->setSelectedItem(*clicked);
+                        log.catchInfo("Selected " + runtime::hud::humanizeToken(*clicked) + ". Click a target.");
+                    }
+                    return; // consume click (avoid dragging/other UI)
                 }
-                return; // consume click (avoid dragging/other UI)
+            } else {
+                const float mx = static_cast<float>(event.mouseX);
+                const float my = static_cast<float>(event.mouseY);
+                for (const auto& hit : backendInventoryHitBoxes) {
+                    const bool insideX = mx >= hit.x && mx <= (hit.x + hit.w);
+                    const bool insideY = my >= hit.y && my <= (hit.y + hit.h);
+                    if (!insideX || !insideY) continue;
+                    if (selectBackendInventoryItem(hit.itemId)) {
+                        return;
+                    }
+                }
             }
         }
         if (renderWorldForInput && cameraSystem) cameraSystem->handleInput(event);
@@ -430,6 +477,9 @@ struct GameSession::Impl {
 
     void renderBackendDebugView(int drawableW, int drawableH, bool renderWorld) {
         if (!renderer || drawableW <= 0 || drawableH <= 0) return;
+
+        backendInventoryEntries.clear();
+        backendInventoryHitBoxes.clear();
 
         std::vector<IRenderBackend::DebugQuad> quads;
         quads.reserve(1024);
@@ -775,19 +825,37 @@ struct GameSession::Impl {
                            glm::vec3(0.84f, 0.90f, 0.98f));
             }
 
-            const auto invEntries = runtime::hud::normalizeInventoryEntries(gameWorld->listItems(), 6);
-            if (!invEntries.empty()) {
+            backendInventoryEntries = runtime::hud::normalizeInventoryEntries(gameWorld->listItems(), 6);
+            if (!backendInventoryEntries.empty()) {
                 float invY = 146.0f;
                 appendText(20.0f, invY, "Items", 1.0f, glm::vec3(0.92f, 0.95f, 0.99f));
                 invY += 16.0f;
-                for (const auto& item : invEntries) {
+                for (std::size_t i = 0; i < backendInventoryEntries.size(); ++i) {
+                    const auto& item = backendInventoryEntries[i];
+                    std::string line = runtime::hud::formatInventoryEntry(item);
+                    if (i < 9) {
+                        line = "[" + std::to_string(i + 1) + "] " + line;
+                    }
+                    constexpr float kItemScale = 0.95f;
                     appendText(20.0f,
                                invY,
-                               runtime::hud::formatInventoryEntry(item),
-                               0.95f,
+                               line,
+                               kItemScale,
                                glm::vec3(0.84f, 0.90f, 0.97f));
+                    BackendInventoryHitBox hit;
+                    hit.itemId = item.id;
+                    hit.x = 20.0f;
+                    hit.y = invY;
+                    hit.w = std::max(1.0f, runtime::backend_text::measureTextWidth(line, kItemScale));
+                    hit.h = std::max(1.0f, runtime::backend_text::measureTextHeight(line, kItemScale));
+                    backendInventoryHitBoxes.push_back(std::move(hit));
                     invY += 15.0f;
                 }
+                appendText(20.0f,
+                           invY + 3.0f,
+                           "Use 1-9 or click item names",
+                           0.82f,
+                           glm::vec3(0.66f, 0.76f, 0.90f));
             }
 
             auto typeCounts = gameWorld->getPlayerTypeLineCounts();

@@ -1,4 +1,5 @@
 #include "game/state/BackendInputSlots.h"
+#include "game/runtime/BackendInputSlots.h"
 
 #include <string>
 
@@ -21,7 +22,22 @@ bool test_backend_input_slots_contract(std::string& outFail) {
         outFail = "non-number key should map to -1";
         return false;
     }
+    if (game::runtime::backend_input::inventoryIndexFromSlot(1, 3) != 0) {
+        outFail = "slot 1 should map to index 0";
+        return false;
+    }
+    if (game::runtime::backend_input::inventoryIndexFromSlot(3, 3) != 2) {
+        outFail = "slot 3 should map to index 2";
+        return false;
+    }
+    if (game::runtime::backend_input::inventoryIndexFromSlot(4, 3) != -1) {
+        outFail = "out-of-range slot should map to -1";
+        return false;
+    }
+    if (game::runtime::backend_input::inventoryIndexFromSlot(-1, 3) != -1) {
+        outFail = "negative slot should map to -1";
+        return false;
+    }
 
     return true;
 }
-

@@ -39,6 +39,53 @@ std::vector<GameWorld::ClassicShopCard> buildClassicCardsFromUi(const std::vecto
     return out;
 }
 
+struct ScriptedUiCapabilities {
+    bool hasTextMenuEntries = false;
+    bool hasTextMenuClick = false;
+    bool hasShopCards = false;
+    bool hasShopClick = false;
+    bool hasStarterCards = false;
+    bool hasStarterClick = false;
+    bool hasShopItems = false;
+    bool hasShopReadyButton = false;
+    bool hasShopRerollButton = false;
+    bool hasTextMenu = false;
+    bool renderWorld = true;
+};
+
+ScriptedUiCapabilities readScriptedUiCapabilities(sol::table scriptTable) {
+    ScriptedUiCapabilities out;
+    out.hasTextMenuEntries = game::scripting::hasFunction(scriptTable, "get_text_menu_entries");
+    out.hasTextMenuClick = game::scripting::hasAnyFunction(scriptTable, {"on_text_menu_click", "on_menu_click"});
+    out.hasShopCards = game::scripting::hasFunction(scriptTable, "get_shop_cards");
+    out.hasShopClick = game::scripting::hasAnyFunction(scriptTable, {"on_shop_card_click", "on_card_click", "onCardClick"});
+    out.hasStarterCards = game::scripting::hasFunction(scriptTable, "get_starter_cards");
+    out.hasStarterClick = game::scripting::hasAnyFunction(scriptTable, {"on_card_click", "onCardClick"});
+    out.hasShopItems = game::scripting::hasFunction(scriptTable, "get_shop_items") &&
+                       game::scripting::hasFunction(scriptTable, "on_shop_item_click");
+    out.hasShopReadyButton = game::scripting::hasFunction(scriptTable, "on_shop_ready_click");
+    out.hasShopRerollButton = game::scripting::hasFunction(scriptTable, "on_shop_reroll_click");
+    out.hasTextMenu = out.hasTextMenuEntries && out.hasTextMenuClick;
+    if (auto hideWorld = scriptTable.get<sol::optional<bool>>("hide_world")) {
+        out.renderWorld = !(*hideWorld);
+    }
+    return out;
+}
+
+enum class ScriptedUiMode {
+    None,
+    Starter,
+    Shop,
+    TextMenu,
+};
+
+ScriptedUiMode chooseScriptedUiMode(const ScriptedUiCapabilities& caps) {
+    if (caps.hasTextMenu) return ScriptedUiMode::TextMenu;
+    if (caps.hasShopCards && caps.hasShopClick) return ScriptedUiMode::Shop;
+    if (caps.hasStarterCards && caps.hasStarterClick) return ScriptedUiMode::Starter;
+    return ScriptedUiMode::None;
+}
+
 } // namespace
 
 ScriptedState::ScriptedState(GameStateManager* manager, GameWorld* world, GameServices& svc, const std::string& path)
@@ -923,25 +970,15 @@ bool ScriptedState::tryHandleHeadlessTextMenuKey(InputEvent::Key keyId) {
 
 void ScriptedState::ensureCardUI() {
     if (uiInitialized) return;
-    if (!services.renderEnabled) {
-        sol::table S = script.getScriptTable();
-        const bool hasTextMenuEntries = game::scripting::hasFunction(S, "get_text_menu_entries");
-        const bool hasTextMenuClick = game::scripting::hasAnyFunction(S, {"on_text_menu_click", "on_menu_click"});
-        const bool hasShopCards = game::scripting::hasFunction(S, "get_shop_cards");
-        const bool hasShopClick = game::scripting::hasAnyFunction(S, {"on_shop_card_click", "on_card_click", "onCardClick"});
-        const bool hasStarterCards = game::scripting::hasFunction(S, "get_starter_cards");
-        const bool hasStarterClick = game::scripting::hasAnyFunction(S, {"on_card_click", "onCardClick"});
-        hasShopItems = game::scripting::hasFunction(S, "get_shop_items") &&
-                       game::scripting::hasFunction(S, "on_shop_item_click");
-        hasShopReadyButton = game::scripting::hasFunction(S, "on_shop_ready_click");
-        hasShopRerollButton = game::scripting::hasFunction(S, "on_shop_reroll_click");
-        hasTextMenu = hasTextMenuEntries && hasTextMenuClick;
+    sol::table S = script.getScriptTable();
+    const ScriptedUiCapabilities caps = readScriptedUiCapabilities(S);
+    hasShopItems = caps.hasShopItems;
+    hasShopReadyButton = caps.hasShopReadyButton;
+    hasShopRerollButton = caps.hasShopRerollButton;
+    hasTextMenu = caps.hasTextMenu;
+    renderWorld = caps.renderWorld;
 
-        renderWorld = true;
-        if (auto hideWorld = S.get<sol::optional<bool>>("hide_world")) {
-            renderWorld = !(*hideWorld);
-        }
-
+    const auto clearBackendShopUi = [&]() {
         backendMainButtons.clear();
         backendItemButtons.clear();
         backendShopSnapshot.clear();
@@ -949,77 +986,59 @@ void ScriptedState::ensureCardUI() {
         backendRerollY = 0.0f;
         backendRerollW = 0.0f;
         backendRerollH = 0.0f;
+    };
 
-        if (hasTextMenu) {
+    switch (chooseScriptedUiMode(caps)) {
+        case ScriptedUiMode::TextMenu:
             cardMode = CardMode::TextMenu;
-            rebuildTextMenu();
-            logHeadlessTextMenuHints();
-        } else if (hasShopCards && hasShopClick) {
+            break;
+        case ScriptedUiMode::Shop:
             cardMode = CardMode::Shop;
-            rebuildCardRow();
-        } else if (hasStarterCards && hasStarterClick) {
+            break;
+        case ScriptedUiMode::Starter:
             cardMode = CardMode::Starter;
-            rebuildCardRow();
-        } else {
+            break;
+        default:
             cardMode = CardMode::None;
             hasShopItems = false;
             hasShopReadyButton = false;
             hasShopRerollButton = false;
+            clearBackendShopUi();
             if (gameWorld) {
                 gameWorld->clearClassicShopCards();
                 gameWorld->setUnitDropZoneLayoutHint(0, false);
             }
+            if (shopUi) shopUi->clear();
+            uiInitialized = true;
+            script.flushCommands();
+            return;
+    }
+
+    if (!services.renderer) {
+        clearBackendShopUi();
+        if (cardMode == CardMode::TextMenu) {
+            rebuildTextMenu();
+            logHeadlessTextMenuHints();
+        } else {
+            rebuildCardRow();
         }
         uiInitialized = true;
         script.flushCommands();
         return;
     }
 
-    // Script functions/vars live in the script environment now.
-    sol::table S = script.getScriptTable();
-
-    bool hasTextMenuEntries = game::scripting::hasFunction(S, "get_text_menu_entries");
-    bool hasTextMenuClick = game::scripting::hasAnyFunction(S, {"on_text_menu_click", "on_menu_click"});
-    bool hasShopCards = game::scripting::hasFunction(S, "get_shop_cards");
-    bool hasShopClick = game::scripting::hasAnyFunction(S, {"on_shop_card_click", "on_card_click", "onCardClick"});
-    bool hasStarterCards = game::scripting::hasFunction(S, "get_starter_cards");
-    bool hasStarterClick = game::scripting::hasAnyFunction(S, {"on_card_click", "onCardClick"});
-    hasShopItems = game::scripting::hasFunction(S, "get_shop_items") &&
-                   game::scripting::hasFunction(S, "on_shop_item_click");
-    hasShopReadyButton = game::scripting::hasFunction(S, "on_shop_ready_click");
-    hasShopRerollButton = game::scripting::hasFunction(S, "on_shop_reroll_click");
-    hasTextMenu = hasTextMenuEntries && hasTextMenuClick;
-    renderWorld = true;
-    if (auto hideWorld = S.get<sol::optional<bool>>("hide_world")) {
-        renderWorld = !(*hideWorld);
-    }
-
-    if (hasTextMenu) {
-        cardMode = CardMode::TextMenu;
-    } else if (hasShopCards && hasShopClick) {
-        cardMode = CardMode::Shop;
-    } else if (hasStarterCards && hasStarterClick) {
-        cardMode = CardMode::Starter;
-    } else {
-        cardMode = CardMode::None;
-        hasShopReadyButton = false;
-        hasShopRerollButton = false;
-        if (gameWorld) {
-            gameWorld->clearClassicShopCards();
-            gameWorld->setUnitDropZoneLayoutHint(0, false);
-        }
-        if (shopUi) shopUi->clear();
-        uiInitialized = true;
-        return;
-    }
-
-    const bool useBackendCardUi = shouldUseBackendCardUi() && (cardMode != CardMode::TextMenu);
+    const bool useBackendCardUi = shouldUseBackendCardUi();
     if (useBackendCardUi) {
         cardSystem.clearCards();
         itemCardSystem.clearCards();
         if (shopUi) shopUi->clear();
         titleText.reset();
-        rebuildCardRow();
+        if (cardMode == CardMode::TextMenu) {
+            rebuildTextMenu();
+            logHeadlessTextMenuHints();
+        } else {
+            rebuildCardRow();
+        }
         uiInitialized = true;
         script.flushCommands();
         return;
