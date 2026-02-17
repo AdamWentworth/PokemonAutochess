@@ -156,6 +156,7 @@ void ScriptedState::rebuildCardRow() {
     const bool useBackendCardUi = shouldUseBackendCardUi();
     backendMainButtons.clear();
     backendItemButtons.clear();
+    backendShopSnapshot.clear();
     backendRerollX = 0.0f;
     backendRerollY = 0.0f;
     backendRerollW = 0.0f;
@@ -185,6 +186,7 @@ void ScriptedState::rebuildCardRow() {
                 } else {
                     std::cerr << "[ScriptedState] failed to parse item card list: " << itemParseError << "\n";
                     backendItemButtons.clear();
+                    backendShopSnapshot.clear();
                 }
             }
             std::cout << "[ScriptedState] Spawned " << list.size() << " cards\n";
@@ -383,6 +385,118 @@ void ScriptedState::rebuildBackendCardUi(const std::vector<CardData>& cards, int
         b.item = (b.data.type == CardType::Item) || isItemRow;
         out.push_back(std::move(b));
     }
+}
+
+void ScriptedState::refreshBackendShopSnapshot() {
+    const bool isShopMode = (cardMode == CardMode::Shop);
+    const bool hasWorld = (gameWorld != nullptr);
+    const bool showSellOverlay = game::state::backend_ui::shouldShowSellOverlay(
+        isShopMode,
+        hasWorld,
+        hasWorld && gameWorld->isUnitDragActive(),
+        hasWorld ? gameWorld->getUnitDropZoneCardCount() : 0);
+    const bool includeItemRow = isShopMode &&
+        game::ui::sell_overlay::shouldRenderItemRow(hasShopItems, showSellOverlay);
+
+    game::state::backend_shop::BuildInput input;
+    input.shopMode = isShopMode;
+    input.mainCount = backendMainButtons.size();
+    input.itemCount = includeItemRow ? backendItemButtons.size() : 0u;
+    input.includeItemRow = includeItemRow;
+    input.includeReroll = isShopMode && hasShopRerollButton;
+    input.includeReady = isShopMode && hasShopReadyButton;
+    backendShopSnapshot = game::state::backend_shop::buildEntries(input);
+
+    for (auto& entry : backendShopSnapshot) {
+        switch (entry.action) {
+            case game::state::backend_shop::ActionType::ShopCard:
+            case game::state::backend_shop::ActionType::StarterCard: {
+                if (entry.sourceIndex >= backendMainButtons.size()) break;
+                const auto& button = backendMainButtons[entry.sourceIndex];
+                entry.x = button.x;
+                entry.y = button.y;
+                entry.w = button.w;
+                entry.h = button.h;
+                break;
+            }
+            case game::state::backend_shop::ActionType::ItemCard: {
+                if (entry.sourceIndex >= backendItemButtons.size()) break;
+                const auto& button = backendItemButtons[entry.sourceIndex];
+                entry.x = button.x;
+                entry.y = button.y;
+                entry.w = button.w;
+                entry.h = button.h;
+                break;
+            }
+            case game::state::backend_shop::ActionType::ShopReroll: {
+                entry.x = backendRerollX;
+                entry.y = backendRerollY;
+                entry.w = backendRerollW;
+                entry.h = backendRerollH;
+                break;
+            }
+            case game::state::backend_shop::ActionType::ShopReady: {
+                entry.x = shopReadyX;
+                entry.y = shopReadyY;
+                entry.w = shopReadyW;
+                entry.h = shopReadyH;
+                break;
+            }
+        }
+    }
+}
+
+bool ScriptedState::invokeBackendShopEntry(const game::state::backend_shop::Entry& entry) {
+    sol::table S = script.getScriptTable();
+
+    switch (entry.action) {
+        case game::state::backend_shop::ActionType::ShopCard: {
+            if (entry.sourceIndex >= backendMainButtons.size()) return false;
+            const auto& card = backendMainButtons[entry.sourceIndex];
+            sol::function onClick = game::scripting::resolveFunction(S, {"on_shop_card_click", "on_card_click", "onCardClick"});
+            if (onClick.valid()) onClick(card.data.pokemonName, card.data.level);
+            script.flushCommands();
+            rebuildCardRow();
+            return true;
+        }
+        case game::state::backend_shop::ActionType::StarterCard: {
+            if (entry.sourceIndex >= backendMainButtons.size()) return false;
+            const auto& card = backendMainButtons[entry.sourceIndex];
+            sol::function onClick = game::scripting::resolveFunction(S, {"on_card_click", "onCardClick"});
+            if (onClick.valid()) onClick(card.data.pokemonName);
+            script.flushCommands();
+            if (stateManager) {
+                stateManager->pushState(std::make_unique<PlacementState>(
+                    stateManager, gameWorld, services, card.data.pokemonName));
+            }
+            return true;
+        }
+        case game::state::backend_shop::ActionType::ItemCard: {
+            if (entry.sourceIndex >= backendItemButtons.size()) return false;
+            const auto& card = backendItemButtons[entry.sourceIndex];
+            sol::function onItemClick = game::scripting::resolveFunction(S, {"on_shop_item_click"});
+            if (onItemClick.valid()) onItemClick(card.data.pokemonName, card.data.cost);
+            script.flushCommands();
+            rebuildCardRow();
+            return true;
+        }
+        case game::state::backend_shop::ActionType::ShopReroll: {
+            sol::function onReroll = game::scripting::resolveFunction(S, {"on_shop_reroll_click"});
+            if (onReroll.valid()) onReroll();
+            script.flushCommands();
+            rebuildCardRow();
+            return true;
+        }
+        case game::state::backend_shop::ActionType::ShopReady: {
+            sol::function onReady = game::scripting::resolveFunction(S, {"on_shop_ready_click"});
+            if (onReady.valid()) onReady();
+            script.flushCommands();
+            rebuildCardRow();
+            return true;
+        }
+    }
+
+    return false;
 }
 
 void ScriptedState::renderBackendCardUi(int uiW, int uiH) {
@@ -617,6 +731,8 @@ void ScriptedState::renderBackendCardUi(int uiW, int uiH) {
         }
     }
 
+    refreshBackendShopSnapshot();
+
     appendEasyFontTextQuads(quads, 26.0f, static_cast<float>(uiH) - 36.0f,
                             "Use mouse or keys 1-9", 1.0f, 0.72f, 0.82f, 0.93f, 1.0f);
 
@@ -642,131 +758,21 @@ bool ScriptedState::tryHandleBackendCardKey(InputEvent::Key keyId) {
     }
 
     if (target <= 0) return false;
-    sol::table S = script.getScriptTable();
-
-    int slot = 1;
-    for (const auto& card : backendMainButtons) {
-        if (slot == target) {
-            if (cardMode == CardMode::Shop) {
-                sol::function onClick = game::scripting::resolveFunction(S, {"on_shop_card_click", "on_card_click", "onCardClick"});
-                if (onClick.valid()) onClick(card.data.pokemonName, card.data.level);
-                script.flushCommands();
-                rebuildCardRow();
-                return true;
-            }
-
-            if (cardMode == CardMode::Starter) {
-                sol::function onClick = game::scripting::resolveFunction(S, {"on_card_click", "onCardClick"});
-                if (onClick.valid()) onClick(card.data.pokemonName);
-                script.flushCommands();
-                if (stateManager) {
-                    stateManager->pushState(std::make_unique<PlacementState>(
-                        stateManager, gameWorld, services, card.data.pokemonName));
-                }
-                return true;
-            }
-            return false;
-        }
-        ++slot;
-    }
-
-    for (const auto& card : backendItemButtons) {
-        if (slot == target) {
-            sol::function onItemClick = game::scripting::resolveFunction(S, {"on_shop_item_click"});
-            if (onItemClick.valid()) onItemClick(card.data.pokemonName, card.data.cost);
-            script.flushCommands();
-            rebuildCardRow();
-            return true;
-        }
-        ++slot;
-    }
-
-    if (cardMode == CardMode::Shop && hasShopRerollButton) {
-        if (slot == target) {
-            sol::function onReroll = game::scripting::resolveFunction(S, {"on_shop_reroll_click"});
-            if (onReroll.valid()) onReroll();
-            script.flushCommands();
-            rebuildCardRow();
-            return true;
-        }
-        ++slot;
-    }
-
-    if (cardMode == CardMode::Shop && hasShopReadyButton && slot == target) {
-        sol::function onReady = game::scripting::resolveFunction(S, {"on_shop_ready_click"});
-        if (onReady.valid()) onReady();
-        script.flushCommands();
-        rebuildCardRow();
-        return true;
-    }
-
-    return false;
+    refreshBackendShopSnapshot();
+    const auto* entry = game::state::backend_shop::findByKeyboardSlot(backendShopSnapshot, target);
+    if (!entry) return false;
+    return invokeBackendShopEntry(*entry);
 }
 
 bool ScriptedState::handleBackendCardMouseClick(int mouseX, int mouseY) {
     if (cardMode != CardMode::Shop && cardMode != CardMode::Starter) return false;
 
-    sol::table S = script.getScriptTable();
     const float mx = static_cast<float>(mouseX);
     const float my = static_cast<float>(mouseY);
-
-    if (cardMode == CardMode::Shop && hasShopRerollButton &&
-        mx >= backendRerollX && mx <= (backendRerollX + backendRerollW) &&
-        my >= backendRerollY && my <= (backendRerollY + backendRerollH)) {
-        sol::function onReroll = game::scripting::resolveFunction(S, {"on_shop_reroll_click"});
-        if (onReroll.valid()) onReroll();
-        script.flushCommands();
-        rebuildCardRow();
-        return true;
-    }
-
-    if (cardMode == CardMode::Shop && hasShopReadyButton &&
-        mx >= shopReadyX && mx <= (shopReadyX + shopReadyW) &&
-        my >= shopReadyY && my <= (shopReadyY + shopReadyH)) {
-        sol::function onReady = game::scripting::resolveFunction(S, {"on_shop_ready_click"});
-        if (onReady.valid()) onReady();
-        script.flushCommands();
-        rebuildCardRow();
-        return true;
-    }
-
-    for (const auto& card : backendMainButtons) {
-        if (mx < card.x || mx > (card.x + card.w) || my < card.y || my > (card.y + card.h)) {
-            continue;
-        }
-
-        if (cardMode == CardMode::Shop) {
-            sol::function onClick = game::scripting::resolveFunction(S, {"on_shop_card_click", "on_card_click", "onCardClick"});
-            if (onClick.valid()) onClick(card.data.pokemonName, card.data.level);
-            script.flushCommands();
-            rebuildCardRow();
-            return true;
-        }
-
-        sol::function onClick = game::scripting::resolveFunction(S, {"on_card_click", "onCardClick"});
-        if (onClick.valid()) onClick(card.data.pokemonName);
-        script.flushCommands();
-        if (stateManager) {
-            stateManager->pushState(std::make_unique<PlacementState>(
-                stateManager, gameWorld, services, card.data.pokemonName));
-        }
-        return true;
-    }
-
-    if (cardMode == CardMode::Shop) {
-        for (const auto& card : backendItemButtons) {
-            if (mx < card.x || mx > (card.x + card.w) || my < card.y || my > (card.y + card.h)) {
-                continue;
-            }
-            sol::function onItemClick = game::scripting::resolveFunction(S, {"on_shop_item_click"});
-            if (onItemClick.valid()) onItemClick(card.data.pokemonName, card.data.cost);
-            script.flushCommands();
-            rebuildCardRow();
-            return true;
-        }
-    }
-
-    return false;
+    refreshBackendShopSnapshot();
+    const auto* entry = game::state::backend_shop::findByPoint(backendShopSnapshot, mx, my);
+    if (!entry) return false;
+    return invokeBackendShopEntry(*entry);
 }
 
 void ScriptedState::renderBackendTextMenu(int uiW, int uiH) {
@@ -965,6 +971,7 @@ void ScriptedState::ensureCardUI() {
 
         backendMainButtons.clear();
         backendItemButtons.clear();
+        backendShopSnapshot.clear();
         backendRerollX = 0.0f;
         backendRerollY = 0.0f;
         backendRerollW = 0.0f;
@@ -1125,6 +1132,7 @@ void ScriptedState::handleInput(const InputEvent& event) {
         hasShopRerollButton = false;
         backendMainButtons.clear();
         backendItemButtons.clear();
+        backendShopSnapshot.clear();
         backendRerollX = 0.0f;
         backendRerollY = 0.0f;
         backendRerollW = 0.0f;

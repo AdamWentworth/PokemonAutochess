@@ -9,6 +9,7 @@
 #include "game/GameWorld.h"
 #include "game/GameServices.h"
 #include "game/scripting/LuaScript.h"
+#include "game/state/BackendShopSnapshot.h"
 #include "game/systems/CardSystem.h"
 #include "game/ui/ShopUiFacade.h"
 #include "engine/ui/TextRenderer.h"
@@ -42,6 +43,8 @@ private:
     void renderBackendTextMenu(int uiW, int uiH);
     bool shouldUseBackendCardUi() const;
     void rebuildBackendCardUi(const std::vector<CardData>& cards, int uiW, int uiH, bool isItemRow);
+    void refreshBackendShopSnapshot();
+    bool invokeBackendShopEntry(const game::state::backend_shop::Entry& entry);
     void renderBackendCardUi(int uiW, int uiH);
     bool tryHandleBackendCardKey(InputEvent::Key keyId);
     bool handleBackendCardMouseClick(int mouseX, int mouseY);
@@ -108,6 +111,7 @@ private:
     };
     std::vector<BackendCardButton> backendMainButtons;
     std::vector<BackendCardButton> backendItemButtons;
+    std::vector<game::state::backend_shop::Entry> backendShopSnapshot;
     float backendRerollX = 0.0f;
     float backendRerollY = 0.0f;
     float backendRerollW = 0.0f;
