@@ -271,6 +271,16 @@ bool test_script_api_contract(std::string& outFail) {
     if (!expect(name == "unit_a", "world_list_units name mismatch.", outFail)) return false;
     if (!expect(alive == true, "world_list_units alive mismatch.", outFail)) return false;
     if (!expect(col == 1 && row == 1, "world_list_units grid mismatch.", outFail)) return false;
+    if (!expect(!api.getUnitSnapshot(-999).has_value(), "getUnitSnapshot should return nullopt for unknown unit.", outFail)) return false;
+
+    sol::function snapFn = lua["world_get_unit_snapshot"];
+    if (!expect(snapFn.valid(), "world_get_unit_snapshot binding missing.", outFail)) return false;
+    sol::table snapA = snapFn(idA);
+    if (!expect(snapA.valid(), "world_get_unit_snapshot returned invalid table.", outFail)) return false;
+    if (!expect(snapA["name"].get_or(std::string()) == name, "world_get_unit_snapshot name mismatch.", outFail)) return false;
+    if (!expect(snapA["alive"].get_or(false) == alive, "world_get_unit_snapshot alive mismatch.", outFail)) return false;
+    if (!expect(snapA["col"].get_or(-1) == col && snapA["row"].get_or(-1) == row,
+                "world_get_unit_snapshot grid mismatch.", outFail)) return false;
 
     // Move accessors should return configured moves.
     sol::function fastFn = lua["unit_fast_move"];
@@ -300,6 +310,17 @@ bool test_script_api_contract(std::string& outFail) {
     if (!expect(adjacentFn.valid(), "world_is_adjacent_to_enemy binding missing.", outFail)) return false;
     const bool adjacent = adjacentFn(idA);
     if (!expect(adjacent == true, "world_is_adjacent_to_enemy expected true.", outFail)) return false;
+
+    sol::function enemiesAdjacentFn = lua["world_enemies_adjacent"];
+    if (!expect(enemiesAdjacentFn.valid(), "world_enemies_adjacent binding missing.", outFail)) return false;
+    sol::table adjacentIds = enemiesAdjacentFn(idA);
+    if (!expect(adjacentIds.size() == 1 && adjacentIds[1].get_or(-1) == idEnemy,
+                "world_enemies_adjacent should return only the one adjacent enemy.", outFail)) return false;
+    units[1].captureInProgress = true;
+    adjacentIds = enemiesAdjacentFn(idA);
+    if (!expect(adjacentIds.size() == 0,
+                "world_enemies_adjacent should filter enemies in capture state.", outFail)) return false;
+    units[1].captureInProgress = false;
 
     // Commit move queues and applies after flush.
     sol::function commitFn = lua["world_commit_move"];
@@ -375,8 +396,6 @@ bool test_script_api_contract(std::string& outFail) {
     // Capturing units should stay tile-blocking and visible to scripts as captureInProgress.
     const int idB = units[1].id;
     units[1].captureInProgress = true;
-    sol::function snapFn = lua["world_get_unit_snapshot"];
-    if (!expect(snapFn.valid(), "world_get_unit_snapshot binding missing.", outFail)) return false;
     sol::table captured = snapFn(idB);
     if (!expect(captured.valid(), "world_get_unit_snapshot returned invalid table for capture test.", outFail)) return false;
     const bool capFlag = captured["captureInProgress"].get_or(false);

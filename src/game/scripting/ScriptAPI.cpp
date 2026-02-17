@@ -5,22 +5,58 @@
 #include <algorithm>
 #include <cmath>
 #include <limits>
+#include <optional>
 
 #include <glm/glm.hpp>
 
 #include "game/GameWorld.h"
-
 #include "game/animation/FlightLocomotion.h"
-
 #include "game/config/GameDataDb.h"
 
 #include "LuaBindings_Internal.h"
 
 namespace {
-bool isCombatActive(const PokemonInstance& u) {
-    return u.alive && !u.captureInProgress;
+
+constexpr float kAttackReadyEps = 0.0001f;
+
+bool isCombatActive(const PokemonInstance& unit) {
+    return unit.alive && !unit.captureInProgress;
 }
-} // namespace
+
+bool canIssueAttack(const PokemonInstance& unit) {
+    if (!isCombatActive(unit)) return false;
+    if (unit.usesAirLocomotion && FlightLocomotion::isAirborne(unit)) return false;
+    return true;
+}
+
+ScriptAPI::UnitSnapshot makeUnitSnapshot(const GameWorld& world,
+                                         const GameConfigData& config,
+                                         const PokemonInstance& unit) {
+    ScriptAPI::UnitSnapshot snapshot;
+    snapshot.id = unit.id;
+    snapshot.name = unit.name;
+    snapshot.side = unit.side;
+    snapshot.hp = unit.hp;
+    snapshot.attack = unit.attack;
+    snapshot.speed = unit.movementSpeed;
+    snapshot.energy = unit.energy;
+    snapshot.maxEnergy = unit.maxEnergy;
+
+    const auto cell = world.worldToGrid(unit.position);
+    snapshot.col = cell.x;
+    snapshot.row = cell.y;
+
+    const bool active = isCombatActive(unit);
+    snapshot.alive = active;
+    snapshot.fainting = unit.fainting;
+    snapshot.blocksTile = active || unit.captureInProgress || (unit.fainting && config.faintBlockTiles);
+    snapshot.captureInProgress = unit.captureInProgress;
+    snapshot.fastMove = unit.fastMove;
+    snapshot.chargedMove = unit.chargedMove;
+    snapshot.types = unit.types;
+    return snapshot;
+}
+}  // namespace
 
 ScriptAPI::ScriptAPI(GameWorld* world, GameStateManager* manager, GameServices& services)
     : world_(world), manager_(manager), services_(services) {}
@@ -32,79 +68,34 @@ const GameConfigData& ScriptAPI::config() const { return services_.config; }
 std::vector<ScriptAPI::UnitSnapshot> ScriptAPI::listUnits() const {
     std::vector<UnitSnapshot> out;
     if (!world_) return out;
-    auto& list = world_->getPokemons();
-    out.reserve(list.size());
-    for (const auto& u : list) {
-        UnitSnapshot s;
-        s.id = u.id;
-        s.name = u.name;
-        s.side = u.side;
-        s.hp = u.hp;
-        s.attack = u.attack;
-        s.speed = u.movementSpeed;
-        s.energy = u.energy;
-        s.maxEnergy = u.maxEnergy;
-        auto cell = world_->worldToGrid(u.position);
-        s.col = cell.x;
-        s.row = cell.y;
-        const bool active = isCombatActive(u);
-        s.alive = active;
-        s.fainting = u.fainting;
-        s.blocksTile = active || u.captureInProgress || (u.fainting && config().faintBlockTiles);
-        s.captureInProgress = u.captureInProgress;
-        s.fastMove = u.fastMove;
-        s.chargedMove = u.chargedMove;
-        s.types = u.types;
-        out.push_back(std::move(s));
+    const auto& units = world_->getPokemons();
+    out.reserve(units.size());
+    for (const auto& unit : units) {
+        out.push_back(makeUnitSnapshot(*world_, config(), unit));
     }
     return out;
 }
 
 std::optional<ScriptAPI::UnitSnapshot> ScriptAPI::getUnitSnapshot(int unitId) const {
     if (!world_) return std::nullopt;
-    auto* u = world_->findUnitById(unitId);
-    if (!u) return std::nullopt;
-
-    UnitSnapshot s;
-    s.id = u->id;
-    s.name = u->name;
-    s.side = u->side;
-    s.hp = u->hp;
-    s.attack = u->attack;
-    s.speed = u->movementSpeed;
-    s.energy = u->energy;
-    s.maxEnergy = u->maxEnergy;
-    auto cell = world_->worldToGrid(u->position);
-    s.col = cell.x;
-    s.row = cell.y;
-    const bool active = isCombatActive(*u);
-    s.alive = active;
-    s.fainting = u->fainting;
-    s.blocksTile = active || u->captureInProgress || (u->fainting && config().faintBlockTiles);
-    s.captureInProgress = u->captureInProgress;
-    s.fastMove = u->fastMove;
-    s.chargedMove = u->chargedMove;
-    s.types = u->types;
-    return s;
+    const auto* unit = world_->findUnitById(unitId);
+    if (!unit) return std::nullopt;
+    return makeUnitSnapshot(*world_, config(), *unit);
 }
 
 std::pair<int, int> ScriptAPI::nearestEnemyCell(int unitId) const {
-    if (!world_) return std::make_pair(-1, -1);
+    if (!world_) return {-1, -1};
+    const auto* unit = world_->findUnitById(unitId);
+    if (!unit || !isCombatActive(*unit)) return {-1, -1};
 
-    auto& list = world_->getPokemons();
-    const auto it = std::find_if(list.begin(), list.end(),
-        [&](const PokemonInstance& p){ return p.id == unitId; });
-    if (it == list.end()) return std::make_pair(-1, -1);
-
-    if (!isCombatActive(*it)) return std::make_pair(-1, -1);
-    const auto myCell = world_->worldToGrid(it->position);
+    const auto myCell = world_->worldToGrid(unit->position);
 
     int best = std::numeric_limits<int>::max();
     glm::ivec2 bestCell(-1, -1);
 
-    for (const auto& u : list) {
-        if (!isCombatActive(u) || u.side == it->side) continue;
-        const auto ec = world_->worldToGrid(u.position);
+    for (const auto& candidate : world_->getPokemons()) {
+        if (!isCombatActive(candidate) || candidate.side == unit->side) continue;
+        const auto ec = world_->worldToGrid(candidate.position);
         const int d = std::max(std::abs(myCell.x - ec.x), std::abs(myCell.y - ec.y));
         if (d < best) {
             best = d;
@@ -112,28 +103,20 @@ std::pair<int, int> ScriptAPI::nearestEnemyCell(int unitId) const {
         }
     }
 
-    return std::make_pair(bestCell.x, bestCell.y);
+    return {bestCell.x, bestCell.y};
 }
 
 bool ScriptAPI::isAdjacentToEnemy(int unitId) const {
     if (!world_) return false;
-    auto& list = world_->getPokemons();
-    auto it = std::find_if(list.begin(), list.end(),
-        [&](const PokemonInstance& p){ return p.id == unitId; });
-    if (it == list.end()) return false;
-    if (!isCombatActive(*it)) return false;
-    auto myCell = world_->worldToGrid(it->position);
+    const auto* unit = world_->findUnitById(unitId);
+    if (!unit || !isCombatActive(*unit)) return false;
 
-    int best = std::numeric_limits<int>::max();
-    glm::ivec2 bestCell(-999,-999);
-    for (auto& u : list) {
-        if (!isCombatActive(u) || u.side == it->side) continue;
-        auto ec = world_->worldToGrid(u.position);
-        const int d = std::max(std::abs(myCell.x - ec.x), std::abs(myCell.y - ec.y));
-        if (d < best) { best = d; bestCell = ec; }
-    }
-    const int dx = std::abs(myCell.x - bestCell.x);
-    const int dy = std::abs(myCell.y - bestCell.y);
+    const auto myCell = world_->worldToGrid(unit->position);
+    const auto nearest = nearestEnemyCell(unitId);
+    if (nearest.first < 0 || nearest.second < 0) return false;
+
+    const int dx = std::abs(myCell.x - nearest.first);
+    const int dy = std::abs(myCell.y - nearest.second);
     return std::max(dx, dy) == 1;
 }
 
@@ -141,18 +124,17 @@ std::vector<int> ScriptAPI::enemiesAdjacent(int unitId) const {
     std::vector<int> out;
     if (!world_) return out;
 
-    PokemonInstance* attacker = nullptr;
-    for (auto& u : world_->getPokemons()) if (u.id == unitId) { attacker = &u; break; }
+    const auto* attacker = world_->findUnitById(unitId);
     if (!attacker || !isCombatActive(*attacker)) return out;
 
-    auto ac = world_->worldToGrid(attacker->position);
-    for (auto& u : world_->getPokemons()) {
-        if (!isCombatActive(u) || u.side == attacker->side) continue;
-        auto ec = world_->worldToGrid(u.position);
+    const auto ac = world_->worldToGrid(attacker->position);
+    for (const auto& candidate : world_->getPokemons()) {
+        if (!isCombatActive(candidate) || candidate.side == attacker->side) continue;
+        const auto ec = world_->worldToGrid(candidate.position);
         const int dx = std::abs(ac.x - ec.x);
         const int dy = std::abs(ac.y - ec.y);
         if (std::max(dx, dy) == 1) {
-            out.push_back(u.id);
+            out.push_back(candidate.id);
         }
     }
     return out;
@@ -160,37 +142,25 @@ std::vector<int> ScriptAPI::enemiesAdjacent(int unitId) const {
 
 bool ScriptAPI::canAttack(int unitId) const {
     if (!world_) return false;
-    for (auto& u : world_->getPokemons()) {
-        if (u.id != unitId) continue;
-        if (!isCombatActive(u)) return false;
-        if (u.usesAirLocomotion && FlightLocomotion::isAirborne(u)) return false;
-        return true;
-    }
-    return false;
+    const auto* unit = world_->findUnitById(unitId);
+    return unit && canIssueAttack(*unit);
 }
 
 bool ScriptAPI::attackReady(int unitId) const {
     if (!world_) return false;
-    for (auto& u : world_->getPokemons()) {
-        if (u.id != unitId) continue;
-        if (!isCombatActive(u)) return false;
-        if (u.usesAirLocomotion && FlightLocomotion::isAirborne(u)) return false;
-        if (u.attackTimerSec > 0.0001f) return false;
-        return true;
-    }
-    return false;
+    const auto* unit = world_->findUnitById(unitId);
+    if (!unit || !canIssueAttack(*unit)) return false;
+    return unit->attackTimerSec <= kAttackReadyEps;
 }
 
 float ScriptAPI::attackMinRequestSec(int attackerId,
                                      const std::optional<std::string>& moveName,
                                      const std::optional<std::string>& kind) const {
     if (!world_) return 0.0f;
-    auto& list = world_->getPokemons();
-    auto A = std::find_if(list.begin(), list.end(),
-        [&](const PokemonInstance& p){ return p.id == attackerId; });
-    if (A == list.end()) return 0.0f;
+    const auto* attacker = world_->findUnitById(attackerId);
+    if (!attacker) return 0.0f;
 
-    const std::string speciesLower = toLowerCopy(A->name);
+    const std::string speciesLower = toLowerCopy(attacker->name);
     const std::string moveLower    = moveName ? toLowerCopy(*moveName) : "";
     std::string kindLower          = kind ? toLowerCopy(*kind) : "";
 
@@ -207,19 +177,19 @@ float ScriptAPI::attackMinRequestSec(int attackerId,
 
 int ScriptAPI::getEnergy(int unitId) const {
     if (!world_) return 0;
-    if (auto* u = world_->findUnitById(unitId)) return u->energy;
+    if (const auto* unit = world_->findUnitById(unitId)) return unit->energy;
     return 0;
 }
 
 int ScriptAPI::getMaxEnergy(int unitId) const {
     if (!world_) return 100;
-    if (auto* u = world_->findUnitById(unitId)) return u->maxEnergy;
+    if (const auto* unit = world_->findUnitById(unitId)) return unit->maxEnergy;
     return 100;
 }
 
 float ScriptAPI::getUnitSpeed(int unitId) const {
     if (!world_) return 0.0f;
-    if (auto* u = world_->findUnitById(unitId)) return u->movementSpeed;
+    if (const auto* unit = world_->findUnitById(unitId)) return unit->movementSpeed;
     return 0.0f;
 }
 
@@ -243,14 +213,14 @@ std::pair<int, int> ScriptAPI::worldToGridPos(float x, float y, float z) const {
 
 float ScriptAPI::getDamageMultiplier(int attackerId, int targetId) const {
     if (!world_) return 1.0f;
-    auto* A = world_->findUnitById(attackerId);
-    auto* T = world_->findUnitById(targetId);
-    if (!A || !T) return 1.0f;
+    const auto* attacker = world_->findUnitById(attackerId);
+    const auto* target = world_->findUnitById(targetId);
+    if (!attacker || !target) return 1.0f;
 
     const auto& b = world_->getCombatBalance();
 
-    const float attMult = (A->side == PokemonSide::Player) ? b.playerDamageMult : b.enemyDamageMult;
-    const float takenMult = (T->side == PokemonSide::Player) ? b.playerDamageTakenMult : b.enemyDamageTakenMult;
+    const float attMult = (attacker->side == PokemonSide::Player) ? b.playerDamageMult : b.enemyDamageMult;
+    const float takenMult = (target->side == PokemonSide::Player) ? b.playerDamageTakenMult : b.enemyDamageTakenMult;
 
     const float safeAtt = std::max(0.0f, attMult);
     const float safeTaken = std::max(0.0f, takenMult);
@@ -260,13 +230,13 @@ float ScriptAPI::getDamageMultiplier(int attackerId, int targetId) const {
 
 std::string ScriptAPI::getUnitFastMove(int unitId) const {
     if (!world_) return {};
-    if (auto* u = world_->findUnitById(unitId)) return u->fastMove;
+    if (const auto* unit = world_->findUnitById(unitId)) return unit->fastMove;
     return {};
 }
 
 std::string ScriptAPI::getUnitChargedMove(int unitId) const {
     if (!world_) return {};
-    if (auto* u = world_->findUnitById(unitId)) return u->chargedMove;
+    if (const auto* unit = world_->findUnitById(unitId)) return unit->chargedMove;
     return {};
 }
 
@@ -296,14 +266,14 @@ std::optional<ScriptAPI::MoveSnapshot> ScriptAPI::getMove(const std::string& nam
 
 bool ScriptAPI::hasPlannedMove(int unitId) const {
     if (!world_) return false;
-    if (auto* u = world_->findUnitById(unitId)) {
-        return (u->committedDest.x >= 0 && u->committedDest.y >= 0);
+    if (const auto* unit = world_->findUnitById(unitId)) {
+        return (unit->committedDest.x >= 0 && unit->committedDest.y >= 0);
     }
     return false;
 }
 
 bool ScriptAPI::isMoving(int unitId) const {
     if (!world_) return false;
-    if (auto* u = world_->findUnitById(unitId)) return u->isMoving;
+    if (const auto* unit = world_->findUnitById(unitId)) return unit->isMoving;
     return false;
 }
