@@ -4,10 +4,12 @@
 #include <array>
 #include <cctype>
 #include <string>
+#include <string_view>
 
 #include <glm/gtc/matrix_transform.hpp>
 
 #include "engine/render/Model.h"
+#include "game/world/MoveImpactRouting.h"
 
 namespace {
 
@@ -78,6 +80,20 @@ bool tryResolveAnimatedNodeWorld(const PokemonInstance& unit,
     return false;
 }
 
+bool isMetalClawMove(std::string_view moveLower) {
+    return moveLower == "metal_claw";
+}
+
+bool isTailWhipMove(std::string_view moveLower) {
+    return moveLower == "tail_whip";
+}
+
+AquaSwooshVFX::Style aquaSwooshStyleForMove(std::string_view moveLower) {
+    if (moveLower == "bubble") return AquaSwooshVFX::Style::Bubble;
+    if (moveLower == "water_gun") return AquaSwooshVFX::Style::WaterGun;
+    return AquaSwooshVFX::Style::TailWhip;
+}
+
 }  // namespace
 
 void GameWorld::emitGrassImpactAt(const PokemonInstance& target) {
@@ -126,16 +142,8 @@ void GameWorld::emitMoveImpactByName(const std::string& moveName,
 
     const std::string move = lowerCopy(moveName);
     if (move.empty()) return;
-
-    if (move == "tackle") {
-        emitTackleImpactAt(target, attacker);
-        return;
-    }
-
-    if (move == "vine_whip" || move == "leech_seed") {
-        emitGrassImpactAt(target);
-        return;
-    }
+    const MoveImpactRoute route = classifyMoveImpactRoute(move);
+    if (route == MoveImpactRoute::None) return;
 
     auto makeForward = [&]() -> glm::vec3 {
         if (attacker) {
@@ -147,7 +155,18 @@ void GameWorld::emitMoveImpactByName(const std::string& moveName,
         return glm::vec3(0.0f, 0.0f, 1.0f);
     };
 
-    if (move == "growl") {
+    switch (route) {
+    case MoveImpactRoute::Tackle: {
+        emitTackleImpactAt(target, attacker);
+        return;
+    }
+
+    case MoveImpactRoute::GrassImpact: {
+        emitGrassImpactAt(target);
+        return;
+    }
+
+    case MoveImpactRoute::GrowlSoundRings: {
         if (!growlWaveVfxInitialized) {
             GrowlWaveVFX::Config c;
             c.spawnForwardOffset = 0.0f;
@@ -227,33 +246,36 @@ void GameWorld::emitMoveImpactByName(const std::string& moveName,
         return;
     }
 
-    if (move == "scratch" || move == "metal_claw") {
+    case MoveImpactRoute::ClawSwipe: {
         if (!clawSwipeVfxInitialized) {
             ClawSwipeVFX::Config c;
             clawSwipeVfx.setConfig(c);
             clawSwipeVfxInitialized = true;
         }
-        const bool metallic = (move == "metal_claw");
+        const bool metallic = isMetalClawMove(move);
         const glm::vec3 base = target.position + glm::vec3(0.0f, target.visualYOffset, 0.0f);
         clawSwipeVfx.emitAt(base, makeForward(), metallic);
         return;
     }
 
-    if (move == "tail_whip" || move == "bubble" || move == "water_gun") {
+    case MoveImpactRoute::AquaSwoosh: {
         if (!aquaSwooshVfxInitialized) {
             AquaSwooshVFX::Config c;
             aquaSwooshVfx.setConfig(c);
             aquaSwooshVfxInitialized = true;
         }
-        AquaSwooshVFX::Style style = AquaSwooshVFX::Style::TailWhip;
-        if (move == "bubble") style = AquaSwooshVFX::Style::Bubble;
-        if (move == "water_gun") style = AquaSwooshVFX::Style::WaterGun;
+        const AquaSwooshVFX::Style style = aquaSwooshStyleForMove(move);
 
         const glm::vec3 base =
-            ((move == "tail_whip") && attacker)
+            (isTailWhipMove(move) && attacker)
                 ? (attacker->position + glm::vec3(0.0f, attacker->visualYOffset, 0.0f))
                 : (target.position + glm::vec3(0.0f, target.visualYOffset, 0.0f));
         aquaSwooshVfx.emitAt(base, makeForward(), style);
+        return;
+    }
+
+    case MoveImpactRoute::None:
+    default:
         return;
     }
 }
