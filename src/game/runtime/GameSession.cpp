@@ -177,6 +177,7 @@ struct GameSession::Impl {
         config = GameConfig::load(&log, assetStore.get());
         services = std::make_unique<GameServices>(config, dataDb, log, scriptEvents, *assetStore, rng, timeSource,
                                                   &ecsWorld, roundPhaseEntity, &viewport, legacyRenderPath);
+        services->renderer = renderer;
         services->applyVideoMode = ctx.applyVideoMode;
         services->requestQuit = ctx.requestQuit;
         if (ctx.services) {

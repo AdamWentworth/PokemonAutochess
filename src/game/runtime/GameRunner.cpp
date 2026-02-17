@@ -588,6 +588,7 @@ namespace {
         std::cout << "[Run] Main loop @ 60 Hz...\n";
 
         bool running = true;
+        std::string stopReason;
         services.resources = &resourceManager;
         services.shaders = &shaderCache;
         services.events = &eventBus;
@@ -601,7 +602,10 @@ namespace {
 
         ctx.setTitle = [this](const std::string& t) { this->setTitle(t); };
         ctx.swapBuffers = [this]() { this->swapBuffers(); };
-        ctx.requestQuit = [&running]() { running = false; };
+        ctx.requestQuit = [&running, &stopReason]() {
+            running = false;
+            if (stopReason.empty()) stopReason = "requestQuit() callback invoked";
+        };
         ctx.pumpPreloadEvents = [this]() { return this->pumpPreloadEvents(); };
         ctx.renderBootLoading = [this](float p) { this->renderBootLoading(p); };
         ctx.applyVideoMode = [this, &ctx](int width, int height, bool isFullscreen) {
@@ -637,6 +641,7 @@ namespace {
             while (SDL_PollEvent(&sdlEvent)) {
                 if (sdlEvent.type == SDL_QUIT) {
                     running = false;
+                    if (stopReason.empty()) stopReason = "SDL_QUIT event";
                 }
 
                 if (sdlEvent.type == SDL_WINDOWEVENT) {
@@ -746,6 +751,10 @@ namespace {
             }
         }
 
+        if (stopReason.empty()) {
+            stopReason = "main loop ended";
+        }
+        std::cout << "[Run] Exiting main loop: " << stopReason << "\n";
         game.shutdown();
         return 0;
     }

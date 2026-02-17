@@ -38,6 +38,8 @@ private:
     void rebuildCardRow();
     void rebuildTextMenu();
     void drawShopHud(int uiW, int uiH);
+    void layoutBackendTextMenu(int uiW, int uiH);
+    void renderBackendTextMenu(int uiW, int uiH);
     bool tryHandleHeadlessTextMenuKey(InputEvent::Key keyId);
     void logHeadlessTextMenuHints() const;
 

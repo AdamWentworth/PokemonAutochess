@@ -18,6 +18,16 @@ InputEvent::Key mapSdlKeyToEngineKey(int sdlKeycode) {
             case SDLK_7: return InputEvent::Key::Num7;
             case SDLK_8: return InputEvent::Key::Num8;
             case SDLK_9: return InputEvent::Key::Num9;
+            case SDLK_KP_0: return InputEvent::Key::Num0;
+            case SDLK_KP_1: return InputEvent::Key::Num1;
+            case SDLK_KP_2: return InputEvent::Key::Num2;
+            case SDLK_KP_3: return InputEvent::Key::Num3;
+            case SDLK_KP_4: return InputEvent::Key::Num4;
+            case SDLK_KP_5: return InputEvent::Key::Num5;
+            case SDLK_KP_6: return InputEvent::Key::Num6;
+            case SDLK_KP_7: return InputEvent::Key::Num7;
+            case SDLK_KP_8: return InputEvent::Key::Num8;
+            case SDLK_KP_9: return InputEvent::Key::Num9;
 
             case SDLK_a: return InputEvent::Key::A;
             case SDLK_b: return InputEvent::Key::B;
@@ -48,6 +58,7 @@ InputEvent::Key mapSdlKeyToEngineKey(int sdlKeycode) {
 
             case SDLK_ESCAPE: return InputEvent::Key::Escape;
             case SDLK_RETURN: return InputEvent::Key::Enter;
+            case SDLK_KP_ENTER: return InputEvent::Key::Enter;
             case SDLK_SPACE:  return InputEvent::Key::Space;
             case SDLK_TAB:    return InputEvent::Key::Tab;
             case SDLK_BACKSPACE: return InputEvent::Key::Backspace;

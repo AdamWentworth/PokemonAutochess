@@ -9,13 +9,25 @@
 #include "game/ui/ShopLayout.h"
 #include "game/ui/UIViewport.h"
 #include "engine/input/InputEvent.h"
+#include "engine/render/IRenderBackend.h"
 
 #include <sol/sol.hpp>
+#include <stb_easy_font.h>
 #include <algorithm>
 #include <cmath>
 #include <iostream>
 
 namespace {
+struct EasyFontVertex {
+    float x = 0.0f;
+    float y = 0.0f;
+    float z = 0.0f;
+    unsigned char color[4] = {255, 255, 255, 255};
+};
+static_assert(sizeof(EasyFontVertex) == 16, "Unexpected stb_easy_font vertex layout.");
+
+constexpr float kBackendTextScaleBase = 2.0f;
+
 std::vector<GameWorld::ClassicShopCard> buildClassicCardsFromUi(const std::vector<CardData>& cards) {
     std::vector<GameWorld::ClassicShopCard> out;
     out.reserve(cards.size());
@@ -29,6 +41,72 @@ std::vector<GameWorld::ClassicShopCard> buildClassicCardsFromUi(const std::vecto
         out.push_back(std::move(card));
     }
     return out;
+}
+
+void appendEasyFontTextQuads(std::vector<IRenderBackend::DebugQuad>& out,
+                             float originX,
+                             float originY,
+                             const std::string& text,
+                             float scale,
+                             float r,
+                             float g,
+                             float b,
+                             float a) {
+    if (text.empty()) return;
+
+    const std::size_t approxBytes = text.size() * 320u + 4096u;
+    const std::size_t vertexCount = std::max<std::size_t>(256u, approxBytes / sizeof(EasyFontVertex));
+    std::vector<EasyFontVertex> verts(vertexCount);
+
+    const int quadCount = stb_easy_font_print(
+        originX,
+        originY,
+        const_cast<char*>(text.c_str()),
+        nullptr,
+        verts.data(),
+        static_cast<int>(verts.size() * sizeof(EasyFontVertex)));
+    if (quadCount <= 0) return;
+
+    out.reserve(out.size() + static_cast<std::size_t>(quadCount));
+    const std::size_t maxQuads = std::min<std::size_t>(
+        static_cast<std::size_t>(quadCount),
+        verts.size() / 4u);
+
+    for (std::size_t i = 0; i < maxQuads; ++i) {
+        float minX = 0.0f;
+        float minY = 0.0f;
+        float maxX = 0.0f;
+        float maxY = 0.0f;
+        for (int v = 0; v < 4; ++v) {
+            float x = verts[i * 4u + static_cast<std::size_t>(v)].x;
+            float y = verts[i * 4u + static_cast<std::size_t>(v)].y;
+            if (scale != 1.0f) {
+                x = originX + (x - originX) * scale;
+                y = originY + (y - originY) * scale;
+            }
+            if (v == 0) {
+                minX = maxX = x;
+                minY = maxY = y;
+            } else {
+                minX = std::min(minX, x);
+                minY = std::min(minY, y);
+                maxX = std::max(maxX, x);
+                maxY = std::max(maxY, y);
+            }
+        }
+
+        IRenderBackend::DebugQuad q;
+        q.x = minX;
+        q.y = minY;
+        q.w = std::max(0.0f, maxX - minX);
+        q.h = std::max(0.0f, maxY - minY);
+        if (q.w <= 0.0f || q.h <= 0.0f) continue;
+        q.r = r;
+        q.g = g;
+        q.b = b;
+        q.a = a;
+        out.push_back(q);
+    }
 }
 } // namespace
 
@@ -148,6 +226,162 @@ void ScriptedState::rebuildTextMenu() {
         entry.colorB = src.colorB;
         textMenuEntries.push_back(std::move(entry));
     }
+
+    if (!services.renderEnabled) {
+        const auto* viewport = services.viewport;
+        const int uiW = viewport ? viewport->width : 1280;
+        const int uiH = viewport ? viewport->height : 720;
+        layoutBackendTextMenu(uiW, uiH);
+    }
+}
+
+void ScriptedState::layoutBackendTextMenu(int uiW, int uiH) {
+    const float autoStartY = std::max(150.0f, static_cast<float>(uiH) * 0.28f);
+    const float rowGap = std::max(10.0f, static_cast<float>(uiH) * 0.02f);
+    float autoY = autoStartY;
+
+    int keyboardIndex = 0;
+    for (auto& entry : textMenuEntries) {
+        std::string display = entry.label;
+        if (entry.enabled) {
+            ++keyboardIndex;
+            if (keyboardIndex <= 9) {
+                display = "[" + std::to_string(keyboardIndex) + "] " + display;
+            }
+        }
+
+        const float textScale = std::max(0.1f, entry.scale) * kBackendTextScaleBase;
+        const int baseW = stb_easy_font_width(const_cast<char*>(display.c_str()));
+        const int baseH = stb_easy_font_height(const_cast<char*>(display.c_str()));
+        entry.w = std::max(8.0f, static_cast<float>(baseW) * textScale);
+        entry.h = std::max(8.0f, static_cast<float>(baseH) * textScale);
+
+        if (entry.hasCustomX) {
+            const float anchorX = static_cast<float>(uiW) * entry.xFrac;
+            entry.x = entry.anchorCenter ? (anchorX - entry.w * 0.5f) : anchorX;
+        } else {
+            entry.x = (static_cast<float>(uiW) - entry.w) * 0.5f;
+        }
+
+        if (entry.hasCustomY) {
+            entry.y = static_cast<float>(uiH) * entry.yFrac;
+        } else {
+            entry.y = autoY;
+            autoY += entry.h + rowGap;
+        }
+    }
+}
+
+void ScriptedState::renderBackendTextMenu(int uiW, int uiH) {
+    if (!services.renderer || cardMode != CardMode::TextMenu) return;
+
+    layoutBackendTextMenu(uiW, uiH);
+
+    std::vector<IRenderBackend::DebugQuad> quads;
+    quads.reserve(4096);
+
+    float minX = static_cast<float>(uiW);
+    float minY = static_cast<float>(uiH);
+    float maxX = 0.0f;
+    float maxY = 0.0f;
+    bool hasAnyEntry = false;
+
+    int keyboardIndex = 0;
+    for (const auto& entry : textMenuEntries) {
+        std::string display = entry.label;
+        if (entry.enabled) {
+            ++keyboardIndex;
+            if (keyboardIndex <= 9) {
+                display = "[" + std::to_string(keyboardIndex) + "] " + display;
+            }
+        }
+
+        const float textScale = std::max(0.1f, entry.scale) * kBackendTextScaleBase;
+        const float padX = std::max(8.0f, 10.0f * textScale * 0.5f);
+        const float padY = std::max(4.0f, 6.0f * textScale * 0.5f);
+
+        IRenderBackend::DebugQuad bg;
+        bg.x = entry.x - padX;
+        bg.y = entry.y - padY;
+        bg.w = entry.w + padX * 2.0f;
+        bg.h = entry.h + padY * 2.0f;
+        if (!entry.enabled) {
+            bg.r = 0.16f;
+            bg.g = 0.16f;
+            bg.b = 0.18f;
+            bg.a = 0.85f;
+        } else if (entry.hasColor) {
+            bg.r = std::clamp(entry.colorR * 0.24f, 0.0f, 1.0f);
+            bg.g = std::clamp(entry.colorG * 0.24f, 0.0f, 1.0f);
+            bg.b = std::clamp(entry.colorB * 0.24f, 0.0f, 1.0f);
+            bg.a = 0.92f;
+        } else {
+            bg.r = 0.20f;
+            bg.g = 0.22f;
+            bg.b = 0.28f;
+            bg.a = 0.92f;
+        }
+        quads.push_back(bg);
+
+        float tr = 1.0f;
+        float tg = 1.0f;
+        float tb = 1.0f;
+        if (!entry.enabled) {
+            tr = 0.55f;
+            tg = 0.58f;
+            tb = 0.62f;
+        } else if (entry.hasColor) {
+            tr = entry.colorR;
+            tg = entry.colorG;
+            tb = entry.colorB;
+        }
+
+        appendEasyFontTextQuads(quads, entry.x, entry.y, display, textScale, tr, tg, tb, 1.0f);
+
+        minX = std::min(minX, bg.x);
+        minY = std::min(minY, bg.y);
+        maxX = std::max(maxX, bg.x + bg.w);
+        maxY = std::max(maxY, bg.y + bg.h);
+        hasAnyEntry = true;
+    }
+
+    if (hasAnyEntry) {
+        const auto msgOpt = game::scripting::callStringFunction(script.getScriptTable(), {"get_message"});
+        std::string header = msgOpt ? *msgOpt : "Menu";
+        appendEasyFontTextQuads(quads,
+                                minX,
+                                std::max(24.0f, minY - 62.0f),
+                                header,
+                                3.0f,
+                                0.97f,
+                                0.97f,
+                                0.98f,
+                                1.0f);
+        appendEasyFontTextQuads(quads,
+                                minX,
+                                std::max(52.0f, minY - 30.0f),
+                                "Click entries or press 1-9",
+                                1.5f,
+                                0.72f,
+                                0.84f,
+                                0.96f,
+                                1.0f);
+
+        IRenderBackend::DebugQuad panel;
+        panel.x = std::max(8.0f, minX - 18.0f);
+        panel.y = std::max(8.0f, minY - 20.0f);
+        panel.w = std::min(static_cast<float>(uiW) - panel.x - 8.0f, (maxX - minX) + 36.0f);
+        panel.h = std::min(static_cast<float>(uiH) - panel.y - 8.0f, (maxY - minY) + 28.0f);
+        panel.r = 0.05f;
+        panel.g = 0.06f;
+        panel.b = 0.08f;
+        panel.a = 0.70f;
+        quads.insert(quads.begin(), panel);
+    }
+
+    if (!quads.empty()) {
+        services.renderer->drawDebugQuads(quads.data(), quads.size(), uiW, uiH);
+    }
 }
 
 void ScriptedState::logHeadlessTextMenuHints() const {
@@ -155,7 +389,8 @@ void ScriptedState::logHeadlessTextMenuHints() const {
 
     int option = 0;
     bool any = false;
-    std::cout << "[Menu][Headless] Non-OpenGL UI fallback active. Use number keys to select:\n";
+    std::cout << "[Menu][BackendUI] Non-OpenGL menu path active.\n";
+    std::cout << "[Menu][BackendUI] Click the game window to focus, then use mouse or press 1-9:\n";
     for (const auto& entry : textMenuEntries) {
         if (!entry.enabled) continue;
         ++option;
@@ -167,7 +402,7 @@ void ScriptedState::logHeadlessTextMenuHints() const {
     if (!any) {
         std::cout << "  (no selectable entries)\n";
     } else if (option > 9) {
-        std::cout << "  [Headless] Only options 1-9 are keyboard-selectable in this fallback.\n";
+        std::cout << "  [BackendUI] Only options 1-9 are keyboard-selectable.\n";
     }
 }
 
@@ -195,10 +430,10 @@ bool ScriptedState::tryHandleHeadlessTextMenuKey(InputEvent::Key keyId) {
         sol::table S = script.getScriptTable();
         sol::function onMenuClick = game::scripting::resolveFunction(S, {"on_text_menu_click", "on_menu_click"});
         if (!onMenuClick.valid()) {
-            std::cout << "[Menu][Headless] Menu click handler unavailable.\n";
+            std::cout << "[Menu][BackendUI] Menu click handler unavailable.\n";
             return false;
         }
-        std::cout << "[Menu][Headless] Selected [" << targetOption << "] " << entry.label << "\n";
+        std::cout << "[Menu][BackendUI] Selected [" << targetOption << "] " << entry.label << "\n";
         onMenuClick(entry.id);
         script.flushCommands();
         rebuildTextMenu();
@@ -206,7 +441,7 @@ bool ScriptedState::tryHandleHeadlessTextMenuKey(InputEvent::Key keyId) {
         return true;
     }
 
-    std::cout << "[Menu][Headless] No menu option mapped to key " << targetOption << ".\n";
+    std::cout << "[Menu][BackendUI] No menu option mapped to key " << targetOption << ".\n";
     return false;
 }
 
@@ -218,8 +453,10 @@ void ScriptedState::ensureCardUI() {
         const bool hasTextMenuClick = game::scripting::hasAnyFunction(S, {"on_text_menu_click", "on_menu_click"});
         hasTextMenu = hasTextMenuEntries && hasTextMenuClick;
 
-        // Keep world visible for backend debug path when the GL menu UI is unavailable.
         renderWorld = true;
+        if (auto hideWorld = S.get<sol::optional<bool>>("hide_world")) {
+            renderWorld = !(*hideWorld);
+        }
         if (hasTextMenu) {
             cardMode = CardMode::TextMenu;
             rebuildTextMenu();
@@ -529,6 +766,11 @@ void ScriptedState::render() {
     } else {
         shopReadyW = 0.0f;
         shopReadyH = 0.0f;
+    }
+
+    if (cardMode == CardMode::TextMenu && !services.renderEnabled) {
+        renderBackendTextMenu(uiW, uiH);
+        return;
     }
 
     if (cardMode == CardMode::TextMenu && titleText) {
