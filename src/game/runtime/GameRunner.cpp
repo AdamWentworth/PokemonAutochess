@@ -393,8 +393,7 @@ namespace {
             if (services.gpuRenderer.empty()) {
                 services.gpuRenderer = "<unknown d3d12 adapter>";
             }
-            std::cout << "[Renderer] D3D12 backend initialized with clear/present path. "
-                         "Gameplay draw port is in progress.\n";
+            std::cout << "[Renderer] D3D12 backend initialized with debug-world render path.\n";
         }
 
         std::cout << "[Renderer] Requested: " << services.requestedRendererBackend << "\n";

@@ -331,6 +331,7 @@ if (BUILD_TESTING)
         tests/TestDeterminism.cpp
         tests/TestEnvironment.cpp
         tests/TestVideoPreferences.cpp
+        tests/TestDxgiAdapterSelectionPolicy.cpp
         tests/TestD3D12Probe.cpp
         tests/TestContentValidation.cpp
         tests/TestBattleInvariants.cpp

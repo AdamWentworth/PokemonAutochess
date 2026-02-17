@@ -1,7 +1,6 @@
 #include "engine/render/D3D12RenderBackend.h"
+#include "engine/render/DxgiAdapterSelection.h"
 
-#include <algorithm>
-#include <cctype>
 #include <stdexcept>
 #include <string>
 
@@ -18,39 +17,7 @@
 #endif
 
 namespace {
-
-std::string toLowerCopy(std::string s) {
-    for (char& c : s) {
-        c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
-    }
-    return s;
-}
-
-bool containsCi(const std::string& haystack, const std::string& needle) {
-    if (needle.empty()) return false;
-    return toLowerCopy(haystack).find(toLowerCopy(needle)) != std::string::npos;
-}
-
 #if defined(_WIN32)
-std::string utf8FromWide(const wchar_t* wide) {
-    if (!wide || *wide == L'\0') return {};
-    const int needed = WideCharToMultiByte(CP_UTF8, 0, wide, -1, nullptr, 0, nullptr, nullptr);
-    if (needed <= 1) return {};
-    std::string out(static_cast<std::size_t>(needed), '\0');
-    WideCharToMultiByte(CP_UTF8, 0, wide, -1, out.data(), needed, nullptr, nullptr);
-    if (!out.empty() && out.back() == '\0') out.pop_back();
-    return out;
-}
-
-bool isSoftwareAdapter(const DXGI_ADAPTER_DESC1& desc) {
-    return (desc.Flags & DXGI_ADAPTER_FLAG_SOFTWARE) != 0;
-}
-
-bool isLikelyDiscrete(const DXGI_ADAPTER_DESC1& desc) {
-    if (isSoftwareAdapter(desc)) return false;
-    return desc.VendorId != 0x8086;
-}
-
 struct DebugVertex {
     float x;
     float y;
@@ -292,51 +259,13 @@ void D3D12RenderBackend::initDeviceAndSwapchain(const std::string& preferredAdap
         throw std::runtime_error("CreateDXGIFactory1 failed for D3D12 backend.");
     }
 
-    bool selected = false;
-    DXGI_ADAPTER_DESC1 selectedDesc{};
-
-    for (UINT i = 0;; ++i) {
-        Microsoft::WRL::ComPtr<IDXGIAdapter1> candidate;
-        const HRESULT hr = factory_->EnumAdapters1(i, candidate.ReleaseAndGetAddressOf());
-        if (hr == DXGI_ERROR_NOT_FOUND) break;
-        if (FAILED(hr) || !candidate) continue;
-
-        DXGI_ADAPTER_DESC1 desc{};
-        if (FAILED(candidate->GetDesc1(&desc))) continue;
-        if (isSoftwareAdapter(desc)) continue;
-
-        const std::string name = utf8FromWide(desc.Description);
-        const bool preferred = !preferredAdapterName.empty() && containsCi(name, preferredAdapterName);
-        const bool discrete = isLikelyDiscrete(desc);
-
-        if (!selected) {
-            adapter_ = candidate;
-            selectedDesc = desc;
-            selected = true;
-            continue;
-        }
-
-        if (preferred) {
-            adapter_ = candidate;
-            selectedDesc = desc;
-            selected = true;
-            break;
-        }
-
-        const bool selectedDiscrete = isLikelyDiscrete(selectedDesc);
-        if (!selectedDiscrete && discrete) {
-            adapter_ = candidate;
-            selectedDesc = desc;
-            selected = true;
-        }
-    }
-
-    if (!selected || !adapter_) {
+    const auto selection = engine::render::dxgi::selectHardwareAdapter(factory_.Get(), preferredAdapterName);
+    if (!selection.adapter) {
         throw std::runtime_error("No suitable DXGI adapter found for D3D12 backend.");
     }
-
-    adapterName_ = utf8FromWide(selectedDesc.Description);
-    discreteAdapter_ = isLikelyDiscrete(selectedDesc);
+    adapter_ = selection.adapter;
+    adapterName_ = selection.name.empty() ? "<unnamed dxgi adapter>" : selection.name;
+    discreteAdapter_ = selection.discrete;
 
     if (FAILED(D3D12CreateDevice(adapter_.Get(),
                                  D3D_FEATURE_LEVEL_11_0,
