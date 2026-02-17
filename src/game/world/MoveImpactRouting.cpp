@@ -10,3 +10,17 @@ MoveImpactRoute classifyMoveImpactRoute(std::string_view moveLower) noexcept {
     }
     return MoveImpactRoute::None;
 }
+
+bool isMetalClawImpactMove(std::string_view moveLower) noexcept {
+    return moveLower == "metal_claw";
+}
+
+bool isTailWhipImpactMove(std::string_view moveLower) noexcept {
+    return moveLower == "tail_whip";
+}
+
+AquaImpactStyle classifyAquaImpactStyle(std::string_view moveLower) noexcept {
+    if (moveLower == "bubble") return AquaImpactStyle::Bubble;
+    if (moveLower == "water_gun") return AquaImpactStyle::WaterGun;
+    return AquaImpactStyle::TailWhip;
+}

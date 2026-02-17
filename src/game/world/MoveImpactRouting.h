@@ -11,4 +11,13 @@ enum class MoveImpactRoute {
     AquaSwoosh,
 };
 
+enum class AquaImpactStyle {
+    TailWhip = 0,
+    Bubble,
+    WaterGun,
+};
+
 MoveImpactRoute classifyMoveImpactRoute(std::string_view moveLower) noexcept;
+bool isMetalClawImpactMove(std::string_view moveLower) noexcept;
+bool isTailWhipImpactMove(std::string_view moveLower) noexcept;
+AquaImpactStyle classifyAquaImpactStyle(std::string_view moveLower) noexcept;

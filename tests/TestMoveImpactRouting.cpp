@@ -43,5 +43,58 @@ bool test_move_impact_routing(std::string& outFail) {
         return false;
     }
 
+    if (!expect(isMetalClawImpactMove("metal_claw"),
+                "Metal-claw helper should return true for metal_claw.",
+                outFail)) {
+        return false;
+    }
+    if (!expect(!isMetalClawImpactMove("scratch"),
+                "Metal-claw helper should return false for scratch.",
+                outFail)) {
+        return false;
+    }
+    if (!expect(!isMetalClawImpactMove("METAL_CLAW"),
+                "Metal-claw helper should remain lowercase-key based.",
+                outFail)) {
+        return false;
+    }
+
+    if (!expect(isTailWhipImpactMove("tail_whip"),
+                "Tail-whip helper should return true for tail_whip.",
+                outFail)) {
+        return false;
+    }
+    if (!expect(!isTailWhipImpactMove("bubble"),
+                "Tail-whip helper should return false for bubble.",
+                outFail)) {
+        return false;
+    }
+    if (!expect(!isTailWhipImpactMove("TAIL_WHIP"),
+                "Tail-whip helper should remain lowercase-key based.",
+                outFail)) {
+        return false;
+    }
+
+    if (!expect(classifyAquaImpactStyle("tail_whip") == AquaImpactStyle::TailWhip,
+                "Aqua style should map tail_whip to TailWhip.",
+                outFail)) {
+        return false;
+    }
+    if (!expect(classifyAquaImpactStyle("bubble") == AquaImpactStyle::Bubble,
+                "Aqua style should map bubble to Bubble.",
+                outFail)) {
+        return false;
+    }
+    if (!expect(classifyAquaImpactStyle("water_gun") == AquaImpactStyle::WaterGun,
+                "Aqua style should map water_gun to WaterGun.",
+                outFail)) {
+        return false;
+    }
+    if (!expect(classifyAquaImpactStyle("unknown_move") == AquaImpactStyle::TailWhip,
+                "Aqua style should default to TailWhip for unknown values.",
+                outFail)) {
+        return false;
+    }
+
     return true;
 }

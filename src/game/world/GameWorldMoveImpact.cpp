@@ -3,7 +3,6 @@
 #include <algorithm>
 #include <cctype>
 #include <string>
-#include <string_view>
 
 #include "engine/render/Model.h"
 #include "game/world/MoveImpactMath.h"
@@ -17,17 +16,9 @@ std::string lowerCopy(std::string s) {
     return s;
 }
 
-bool isMetalClawMove(std::string_view moveLower) {
-    return moveLower == "metal_claw";
-}
-
-bool isTailWhipMove(std::string_view moveLower) {
-    return moveLower == "tail_whip";
-}
-
-AquaSwooshVFX::Style aquaSwooshStyleForMove(std::string_view moveLower) {
-    if (moveLower == "bubble") return AquaSwooshVFX::Style::Bubble;
-    if (moveLower == "water_gun") return AquaSwooshVFX::Style::WaterGun;
+constexpr AquaSwooshVFX::Style toAquaSwooshStyle(AquaImpactStyle style) {
+    if (style == AquaImpactStyle::Bubble) return AquaSwooshVFX::Style::Bubble;
+    if (style == AquaImpactStyle::WaterGun) return AquaSwooshVFX::Style::WaterGun;
     return AquaSwooshVFX::Style::TailWhip;
 }
 
@@ -109,30 +100,14 @@ void GameWorld::emitMoveImpactByName(const std::string& moveName,
     }
 
     case MoveImpactRoute::ClawSwipe: {
-        if (!clawSwipeVfxInitialized) {
-            ClawSwipeVFX::Config c;
-            clawSwipeVfx.setConfig(c);
-            clawSwipeVfxInitialized = true;
-        }
-        const bool metallic = isMetalClawMove(move);
-        const glm::vec3 base = target.position + glm::vec3(0.0f, target.visualYOffset, 0.0f);
-        clawSwipeVfx.emitAt(base, makeForward(), metallic);
+        emitClawSwipeImpact(target, makeForward(), isMetalClawImpactMove(move));
         return;
     }
 
     case MoveImpactRoute::AquaSwoosh: {
-        if (!aquaSwooshVfxInitialized) {
-            AquaSwooshVFX::Config c;
-            aquaSwooshVfx.setConfig(c);
-            aquaSwooshVfxInitialized = true;
-        }
-        const AquaSwooshVFX::Style style = aquaSwooshStyleForMove(move);
-
-        const glm::vec3 base =
-            (isTailWhipMove(move) && attacker)
-                ? (attacker->position + glm::vec3(0.0f, attacker->visualYOffset, 0.0f))
-                : (target.position + glm::vec3(0.0f, target.visualYOffset, 0.0f));
-        aquaSwooshVfx.emitAt(base, makeForward(), style);
+        const AquaSwooshVFX::Style style = toAquaSwooshStyle(classifyAquaImpactStyle(move));
+        const bool originFromAttacker = isTailWhipImpactMove(move);
+        emitAquaSwooshImpact(target, attacker, makeForward(), style, originFromAttacker);
         return;
     }
 

@@ -177,6 +177,7 @@ add_library(PAC_GameObjects STATIC
     src/game/world/GameWorldAnimation.cpp
     src/game/world/MoveImpactRouting.cpp
     src/game/world/GameWorldMoveImpactGrowl.cpp
+    src/game/world/GameWorldMoveImpactStyles.cpp
     src/game/world/GameWorldMoveImpact.cpp
     src/game/world/GameWorldVfx.cpp
     src/game/GameStateManager.cpp

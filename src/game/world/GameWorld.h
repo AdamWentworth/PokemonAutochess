@@ -235,6 +235,14 @@ private:
     void emitGrowlImpact(const PokemonInstance& target,
                          const PokemonInstance* attacker,
                          const glm::vec3& forward);
+    void emitClawSwipeImpact(const PokemonInstance& target,
+                             const glm::vec3& forward,
+                             bool metallic);
+    void emitAquaSwooshImpact(const PokemonInstance& target,
+                              const PokemonInstance* attacker,
+                              const glm::vec3& forward,
+                              AquaSwooshVFX::Style style,
+                              bool originFromAttacker);
 
     void applyLevelScaling(PokemonInstance& inst, int level, bool preserveHp) const;
     void applyLoadoutForLevel(PokemonInstance& inst, bool preserveEnergy) const;
