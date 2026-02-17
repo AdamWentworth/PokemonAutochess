@@ -232,6 +232,9 @@ private:
     void reconcileBoardScaleFromRoster();
     void tickPokemonAnimation(PokemonInstance& unit, float dt);
     void updateRenderVfx(float dt);
+    void emitGrowlImpact(const PokemonInstance& target,
+                         const PokemonInstance* attacker,
+                         const glm::vec3& forward);
 
     void applyLevelScaling(PokemonInstance& inst, int level, bool preserveHp) const;
     void applyLoadoutForLevel(PokemonInstance& inst, bool preserveEnergy) const;

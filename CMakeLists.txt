@@ -176,6 +176,7 @@ add_library(PAC_GameObjects STATIC
     src/game/world/GameWorldRender.cpp
     src/game/world/GameWorldAnimation.cpp
     src/game/world/MoveImpactRouting.cpp
+    src/game/world/GameWorldMoveImpactGrowl.cpp
     src/game/world/GameWorldMoveImpact.cpp
     src/game/world/GameWorldVfx.cpp
     src/game/GameStateManager.cpp
@@ -302,6 +303,7 @@ if (BUILD_TESTING)
         tests/TestAnimsetRoles.cpp
         tests/TestCombatSlice.cpp
         tests/TestMoveImpactRouting.cpp
+        tests/TestMoveImpactMath.cpp
         tests/TestRenderSmoke.cpp
         tests/TestAnimsetGlbNames.cpp
         tests/TestPlacementToCombat.cpp

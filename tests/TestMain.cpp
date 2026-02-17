@@ -24,6 +24,7 @@ bool test_round_flow_headless(std::string& outFail);
 bool test_animset_roles_smoke(std::string& outFail);
 bool test_combat_slice_headless(std::string& outFail);
 bool test_move_impact_routing(std::string& outFail);
+bool test_move_impact_math(std::string& outFail);
 bool test_render_pipeline_smoke(std::string& outFail);
 bool test_animset_glb_name_smoke(std::string& outFail);
 bool test_placement_to_combat_headless(std::string& outFail);
@@ -121,6 +122,7 @@ int main(int argc, char** argv) {
         {"animset_roles_smoke", &test_animset_roles_smoke},
         {"combat_slice_headless", &test_combat_slice_headless},
         {"move_impact_routing", &test_move_impact_routing},
+        {"move_impact_math", &test_move_impact_math},
         {"render_pipeline_smoke", &test_render_pipeline_smoke},
         {"animset_glb_name_smoke", &test_animset_glb_name_smoke},
         {"placement_to_combat_headless", &test_placement_to_combat_headless},
