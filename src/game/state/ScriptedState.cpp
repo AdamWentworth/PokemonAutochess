@@ -8,6 +8,7 @@
 #include "game/state/PlacementState.h"
 #include "game/state/BackendUiPolicy.h"
 #include "game/ui/ShopLayout.h"
+#include "game/ui/SellOverlayUiPolicy.h"
 #include "game/ui/UIViewport.h"
 #include "engine/input/InputEvent.h"
 #include "engine/render/IRenderBackend.h"
@@ -520,7 +521,7 @@ void ScriptedState::renderBackendCardUi(int uiW, int uiH) {
     };
 
     addCardRow(backendMainButtons, /*itemRow=*/false);
-    if (!(showSellOverlay && hasShopItems)) {
+    if (game::ui::sell_overlay::shouldRenderItemRow(hasShopItems, showSellOverlay)) {
         addCardRow(backendItemButtons, /*itemRow=*/true);
     }
 
@@ -560,17 +561,18 @@ void ScriptedState::renderBackendCardUi(int uiW, int uiH) {
             const float titleY = static_cast<float>(outer.y) + 10.0f;
             const float hintY = static_cast<float>(outer.y) + static_cast<float>(outer.h) * 0.58f;
             const bool pays = gameWorld->isUnitSellRewardsEnabled();
+            const game::ui::sell_overlay::Copy copy = game::ui::sell_overlay::makeCopy(pays);
             appendCenteredText(cx,
                                titleY,
-                               pays ? "Drop Unit To Sell" : "Drop Unit To Remove",
-                               0.92f,
+                               copy.title,
+                               copy.titleScale,
                                0.99f,
                                0.95f,
                                0.90f);
             appendCenteredText(cx,
                                hintY,
-                               pays ? "+gold reward on drop" : "no gold reward",
-                               0.74f,
+                               copy.hint,
+                               copy.hintScale,
                                0.98f,
                                0.86f,
                                0.82f);

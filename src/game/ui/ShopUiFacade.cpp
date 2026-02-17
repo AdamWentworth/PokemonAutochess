@@ -1,6 +1,7 @@
 #include "game/ui/ShopUiFacade.h"
 
 #include "game/ui/ShopLayout.h"
+#include "game/ui/SellOverlayUiPolicy.h"
 #include "engine/ui/TextRenderer.h"
 
 #include <algorithm>
@@ -118,28 +119,24 @@ void ShopUiFacade::render(const ShopUiRenderInput& in) {
     rerollH_ = 0.0f;
     if (!initialized_ || !hasCards_) return;
 
-    if (!in.showSellOverlay) {
+    if (sell_overlay::shouldRenderShopCards(in.showSellOverlay)) {
         cardSystem_.render(in.uiW, in.uiH);
     }
 
     if (in.showSellOverlay && overlayText_ && sellZoneW_ > 0 && sellZoneH_ > 0) {
         const bool paysMoney = in.sellOverlayPaysMoney;
-        const std::string line1 = paysMoney ? "[ SELL ]" : "[ RELEASE ]";
-        const std::string line2 = paysMoney ? "Drop unit in center for gold"
-                                            : "Drop unit in center to release";
-        constexpr float kTitleScale = 1.0f;
-        constexpr float kHintScale = 0.78f;
+        const sell_overlay::Copy copy = sell_overlay::makeCopy(paysMoney);
 
         const float xCenter = static_cast<float>(sellZoneX_) + static_cast<float>(sellZoneW_) * 0.5f;
         const float yTop = static_cast<float>(sellZoneY_) + static_cast<float>(sellZoneH_) * 0.30f;
         const float yHint = static_cast<float>(sellZoneY_) + static_cast<float>(sellZoneH_) * 0.58f;
 
-        const float w1 = overlayText_->measureTextWidth(line1, kTitleScale);
-        const float w2 = overlayText_->measureTextWidth(line2, kHintScale);
-        overlayText_->renderText(line1, std::round(xCenter - (w1 * 0.5f)), std::round(yTop),
-                                 glm::vec3(1.0f, 0.33f, 0.33f), kTitleScale);
-        overlayText_->renderText(line2, std::round(xCenter - (w2 * 0.5f)), std::round(yHint),
-                                 glm::vec3(1.0f, 0.78f, 0.78f), kHintScale);
+        const float w1 = overlayText_->measureTextWidth(copy.title, copy.titleScale);
+        const float w2 = overlayText_->measureTextWidth(copy.hint, copy.hintScale);
+        overlayText_->renderText(copy.title, std::round(xCenter - (w1 * 0.5f)), std::round(yTop),
+                                 glm::vec3(1.0f, 0.33f, 0.33f), copy.titleScale);
+        overlayText_->renderText(copy.hint, std::round(xCenter - (w2 * 0.5f)), std::round(yHint),
+                                 glm::vec3(1.0f, 0.78f, 0.78f), copy.hintScale);
     }
 
     if (!hud_) return;

@@ -19,6 +19,7 @@ bool test_debug_geometry_line_raster_contract(std::string& outFail);
 bool test_backend_hud_formatting_contract(std::string& outFail);
 bool test_backend_world_projection_contract(std::string& outFail);
 bool test_backend_ui_sell_overlay_policy(std::string& outFail);
+bool test_sell_overlay_ui_policy_contract(std::string& outFail);
 bool test_video_init_gl_viewport_guard(std::string& outFail);
 bool test_video_preferences_parse_and_roundtrip(std::string& outFail);
 bool test_dxgi_adapter_selection_policy(std::string& outFail);
@@ -128,6 +129,7 @@ int main(int argc, char** argv) {
         {"backend_hud_formatting_contract", &test_backend_hud_formatting_contract},
         {"backend_world_projection_contract", &test_backend_world_projection_contract},
         {"backend_ui_sell_overlay_policy", &test_backend_ui_sell_overlay_policy},
+        {"sell_overlay_ui_policy_contract", &test_sell_overlay_ui_policy_contract},
         {"video_init_gl_viewport_guard", &test_video_init_gl_viewport_guard},
         {"video_preferences_parse_and_roundtrip", &test_video_preferences_parse_and_roundtrip},
         {"dxgi_adapter_selection_policy", &test_dxgi_adapter_selection_policy},
