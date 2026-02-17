@@ -40,6 +40,7 @@ private:
     void drawShopHud(int uiW, int uiH);
     void layoutBackendTextMenu(int uiW, int uiH);
     void renderBackendTextMenu(int uiW, int uiH);
+    bool shouldUseBackendCardUi() const;
     void rebuildBackendCardUi(const std::vector<CardData>& cards, int uiW, int uiH, bool isItemRow);
     void renderBackendCardUi(int uiW, int uiH);
     bool tryHandleBackendCardKey(InputEvent::Key keyId);

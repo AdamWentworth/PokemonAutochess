@@ -124,6 +124,10 @@ ScriptedState::ScriptedState(GameStateManager* manager, GameWorld* world, GameSe
 
 ScriptedState::~ScriptedState() = default;
 
+bool ScriptedState::shouldUseBackendCardUi() const {
+    return (services.renderer != nullptr) && (services.activeRendererBackend != "opengl");
+}
+
 void ScriptedState::rebuildCardRow() {
     sol::table S = script.getScriptTable();
     sol::protected_function f;
@@ -147,6 +151,7 @@ void ScriptedState::rebuildCardRow() {
     const auto* viewport = services.viewport;
     const int uiW = viewport ? viewport->width : 1280;
     const int uiH = viewport ? viewport->height : 720;
+    const bool useBackendCardUi = shouldUseBackendCardUi();
     backendMainButtons.clear();
     backendItemButtons.clear();
     backendRerollX = 0.0f;
@@ -167,7 +172,7 @@ void ScriptedState::rebuildCardRow() {
             gameWorld->setUnitDropZoneLayoutHint(static_cast<int>(list.size()), allItems);
             gameWorld->setUnitSellRewardsEnabled(services.gameMode == "classic");
         }
-        if (services.renderer) {
+        if (useBackendCardUi) {
             rebuildBackendCardUi(list, uiW, uiH, /*isItemRow=*/false);
             if (hasShopItems) {
                 sol::protected_function itemFn = S["get_shop_items"];
@@ -211,7 +216,7 @@ void ScriptedState::rebuildCardRow() {
             gameWorld->clearClassicShopCards();
             gameWorld->setUnitDropZoneLayoutHint(0, false);
         }
-        if (services.renderer) {
+        if (useBackendCardUi) {
             rebuildBackendCardUi(list, uiW, uiH, /*isItemRow=*/false);
         } else {
             cardSystem.spawnCardRow(list, uiW, /*y*/ 300);
@@ -948,7 +953,7 @@ void ScriptedState::ensureCardUI() {
         return;
     }
 
-    const bool useBackendCardUi = (services.renderer != nullptr) && (cardMode != CardMode::TextMenu);
+    const bool useBackendCardUi = shouldUseBackendCardUi() && (cardMode != CardMode::TextMenu);
     if (useBackendCardUi) {
         cardSystem.clearCards();
         itemCardSystem.clearCards();
@@ -1073,7 +1078,7 @@ void ScriptedState::handleInput(const InputEvent& event) {
             return;
         }
     }
-    if (services.renderer &&
+    if (shouldUseBackendCardUi() &&
         (cardMode == CardMode::Shop || cardMode == CardMode::Starter) &&
         event.type == InputEvent::Type::KeyDown &&
         !event.repeat) {
@@ -1108,7 +1113,7 @@ void ScriptedState::handleInput(const InputEvent& event) {
             }
         }
 
-        if (services.renderer &&
+        if (shouldUseBackendCardUi() &&
             (cardMode == CardMode::Shop || cardMode == CardMode::Starter)) {
             if (handleBackendCardMouseClick(event.mouseX, event.mouseY)) {
                 return;
@@ -1300,7 +1305,7 @@ void ScriptedState::render() {
         return;
     }
 
-    if (services.renderer &&
+    if (shouldUseBackendCardUi() &&
         (cardMode == CardMode::Shop || cardMode == CardMode::Starter)) {
         renderBackendCardUi(uiW, uiH);
         return;
