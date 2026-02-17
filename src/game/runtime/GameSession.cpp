@@ -39,6 +39,7 @@
 #include "game/runtime/RenderFlowDecisions.h"
 #include "game/runtime/BackendDebugText.h"
 #include "game/runtime/BackendInventoryOverlay.h"
+#include "game/runtime/BackendInventoryPanel.h"
 #include "game/runtime/BackendInputSlots.h"
 #include "game/runtime/BackendHudFormatting.h"
 #include "game/runtime/BackendWorldProjection.h"
@@ -127,24 +128,7 @@ struct GameSession::Impl {
     int devPauseStepTicks = 0;
 
     static constexpr std::size_t kBackendInventoryVisibleCount = 6;
-    enum class BackendInventoryHitAction {
-        SelectItem,
-        ClearSelection,
-        ScrollOffset,
-    };
-    struct BackendInventoryHitBox {
-        BackendInventoryHitAction action = BackendInventoryHitAction::SelectItem;
-        std::string itemId;
-        int offsetDelta = 0;
-        float x = 0.0f;
-        float y = 0.0f;
-        float w = 0.0f;
-        float h = 0.0f;
-    };
-    std::vector<runtime::hud::InventoryEntry> backendInventoryAllEntries;
-    std::vector<runtime::hud::InventoryEntry> backendInventoryEntries;
-    std::vector<BackendInventoryHitBox> backendInventoryHitBoxes;
-    int backendInventoryOffset = 0;
+    runtime::backend_inventory_panel::PanelState backendInventoryPanel;
 
     std::shared_ptr<CameraSystem>           cameraSystem;
     std::shared_ptr<UnitInteractionSystem>  unitSystem;
@@ -389,43 +373,27 @@ struct GameSession::Impl {
     }
 
     void refreshBackendInventoryFromWorld() {
-        backendInventoryAllEntries.clear();
-        backendInventoryEntries.clear();
-
         if (!gameWorld) {
-            backendInventoryOffset = 0;
+            backendInventoryPanel = {};
             return;
         }
 
-        backendInventoryAllEntries = runtime::hud::normalizeInventoryEntries(gameWorld->listItems(), 0);
-        backendInventoryOffset = runtime::hud::clampInventoryOffset(
-            backendInventoryOffset,
-            static_cast<int>(kBackendInventoryVisibleCount),
-            backendInventoryAllEntries.size());
-        backendInventoryEntries = runtime::hud::sliceInventoryEntries(
-            backendInventoryAllEntries,
-            backendInventoryOffset,
-            kBackendInventoryVisibleCount);
+        runtime::backend_inventory_panel::refreshPanelState(
+            backendInventoryPanel,
+            gameWorld->listItems(),
+            kBackendInventoryVisibleCount,
+            gameWorld->getSelectedItem());
     }
 
     bool applyBackendInventoryOffsetDelta(int delta) {
-        if (delta == 0) return false;
+        if (delta == 0 || !gameWorld) return false;
 
         refreshBackendInventoryFromWorld();
-        const int nextOffset = runtime::hud::clampInventoryOffset(
-            backendInventoryOffset + delta,
-            static_cast<int>(kBackendInventoryVisibleCount),
-            backendInventoryAllEntries.size());
-        if (nextOffset == backendInventoryOffset) {
-            return false;
-        }
-
-        backendInventoryOffset = nextOffset;
-        backendInventoryEntries = runtime::hud::sliceInventoryEntries(
-            backendInventoryAllEntries,
-            backendInventoryOffset,
-            kBackendInventoryVisibleCount);
-        return true;
+        return runtime::backend_inventory_panel::applyOffsetDelta(
+            backendInventoryPanel,
+            delta,
+            kBackendInventoryVisibleCount,
+            gameWorld->getSelectedItem());
     }
 
     void handleEvent(const InputEvent& event) {
@@ -499,14 +467,11 @@ struct GameSession::Impl {
 
             refreshBackendInventoryFromWorld();
             const int slot = runtime::backend_input::slotFromNumberKey(event.keyId);
-            const int index = runtime::backend_input::inventoryIndexFromSlot(
-                slot,
-                backendInventoryEntries.size());
-            if (index >= 0) {
-                if (selectBackendInventoryItem(
-                        backendInventoryEntries[static_cast<std::size_t>(index)].id)) {
-                    return; // consume key to avoid accidental board interactions.
-                }
+            const auto itemId = runtime::backend_inventory_panel::visibleItemForSlot(
+                backendInventoryPanel,
+                slot);
+            if (itemId && selectBackendInventoryItem(*itemId)) {
+                return; // consume key to avoid accidental board interactions.
             }
         }
 
@@ -514,12 +479,7 @@ struct GameSession::Impl {
             if (legacyRenderPath) {
                 itemInventoryUI.handleScroll(event.wheelY, viewport.height);
             } else {
-                int wheelDelta = 0;
-                if (event.wheelY > 0) {
-                    wheelDelta = -1;
-                } else if (event.wheelY < 0) {
-                    wheelDelta = 1;
-                }
+                const int wheelDelta = runtime::backend_inventory_panel::offsetDeltaFromWheel(event.wheelY);
                 if (applyBackendInventoryOffsetDelta(wheelDelta)) {
                     return;
                 }
@@ -538,19 +498,17 @@ struct GameSession::Impl {
             } else {
                 const float mx = static_cast<float>(event.mouseX);
                 const float my = static_cast<float>(event.mouseY);
-                for (const auto& hit : backendInventoryHitBoxes) {
-                    const bool insideX = mx >= hit.x && mx <= (hit.x + hit.w);
-                    const bool insideY = my >= hit.y && my <= (hit.y + hit.h);
-                    if (!insideX || !insideY) continue;
-                    if (hit.action == BackendInventoryHitAction::ClearSelection) {
+                const auto* hit = runtime::backend_inventory_panel::findHit(backendInventoryPanel, mx, my);
+                if (hit) {
+                    if (hit->action == runtime::backend_inventory_panel::HitAction::ClearSelection) {
                         clearBackendInventorySelection();
                         return;
                     }
-                    if (hit.action == BackendInventoryHitAction::ScrollOffset) {
-                        applyBackendInventoryOffsetDelta(hit.offsetDelta);
+                    if (hit->action == runtime::backend_inventory_panel::HitAction::ScrollOffset) {
+                        applyBackendInventoryOffsetDelta(hit->offsetDelta);
                         return;
                     }
-                    if (selectBackendInventoryItem(hit.itemId)) {
+                    if (selectBackendInventoryItem(hit->itemId)) {
                         return;
                     }
                 }
@@ -575,9 +533,7 @@ struct GameSession::Impl {
     void renderBackendDebugView(int drawableW, int drawableH, bool renderWorld) {
         if (!renderer || drawableW <= 0 || drawableH <= 0) return;
 
-        backendInventoryAllEntries.clear();
-        backendInventoryEntries.clear();
-        backendInventoryHitBoxes.clear();
+        runtime::backend_inventory_panel::clearHitRegions(backendInventoryPanel);
 
         std::vector<IRenderBackend::DebugQuad> quads;
         quads.reserve(1024);
@@ -924,13 +880,7 @@ struct GameSession::Impl {
             }
 
             refreshBackendInventoryFromWorld();
-            const auto inventoryModel = runtime::backend_inventory::buildOverlayModel(
-                backendInventoryAllEntries,
-                backendInventoryOffset,
-                kBackendInventoryVisibleCount,
-                selectedItem);
-            backendInventoryOffset = inventoryModel.offset;
-            backendInventoryEntries = inventoryModel.visibleEntries;
+            const auto& inventoryModel = backendInventoryPanel.model;
 
             if (inventoryModel.totalCount > 0 || !selectedItem.empty()) {
                 float invY = 146.0f;
@@ -954,14 +904,14 @@ struct GameSession::Impl {
                                hasPrev ? glm::vec3(0.75f, 0.87f, 0.96f)
                                        : glm::vec3(0.42f, 0.48f, 0.55f));
                     if (hasPrev) {
-                        BackendInventoryHitBox prevHit;
-                        prevHit.action = BackendInventoryHitAction::ScrollOffset;
+                        runtime::backend_inventory_panel::HitRegion prevHit;
+                        prevHit.action = runtime::backend_inventory_panel::HitAction::ScrollOffset;
                         prevHit.offsetDelta = -1;
                         prevHit.x = 20.0f;
                         prevHit.y = invY;
                         prevHit.w = std::max(1.0f, runtime::backend_text::measureTextWidth(prevLabel, kNavScale));
                         prevHit.h = std::max(1.0f, runtime::backend_text::measureTextHeight(prevLabel, kNavScale));
-                        backendInventoryHitBoxes.push_back(std::move(prevHit));
+                        backendInventoryPanel.hitRegions.push_back(std::move(prevHit));
                     }
 
                     const float nextX = 20.0f + std::max(1.0f, runtime::backend_text::measureTextWidth(prevLabel, kNavScale)) + 12.0f;
@@ -972,14 +922,14 @@ struct GameSession::Impl {
                                hasNext ? glm::vec3(0.75f, 0.87f, 0.96f)
                                        : glm::vec3(0.42f, 0.48f, 0.55f));
                     if (hasNext) {
-                        BackendInventoryHitBox nextHit;
-                        nextHit.action = BackendInventoryHitAction::ScrollOffset;
+                        runtime::backend_inventory_panel::HitRegion nextHit;
+                        nextHit.action = runtime::backend_inventory_panel::HitAction::ScrollOffset;
                         nextHit.offsetDelta = 1;
                         nextHit.x = nextX;
                         nextHit.y = invY;
                         nextHit.w = std::max(1.0f, runtime::backend_text::measureTextWidth(nextLabel, kNavScale));
                         nextHit.h = std::max(1.0f, runtime::backend_text::measureTextHeight(nextLabel, kNavScale));
-                        backendInventoryHitBoxes.push_back(std::move(nextHit));
+                        backendInventoryPanel.hitRegions.push_back(std::move(nextHit));
                     }
                     invY += 14.0f;
                 }
@@ -993,14 +943,14 @@ struct GameSession::Impl {
                                row.selected
                                    ? glm::vec3(0.98f, 0.90f, 0.58f)
                                    : glm::vec3(0.84f, 0.90f, 0.97f));
-                    BackendInventoryHitBox hit;
-                    hit.action = BackendInventoryHitAction::SelectItem;
+                    runtime::backend_inventory_panel::HitRegion hit;
+                    hit.action = runtime::backend_inventory_panel::HitAction::SelectItem;
                     hit.itemId = row.itemId;
                     hit.x = 20.0f;
                     hit.y = invY;
                     hit.w = std::max(1.0f, runtime::backend_text::measureTextWidth(row.line, kItemScale));
                     hit.h = std::max(1.0f, runtime::backend_text::measureTextHeight(row.line, kItemScale));
-                    backendInventoryHitBoxes.push_back(std::move(hit));
+                    backendInventoryPanel.hitRegions.push_back(std::move(hit));
                     invY += 15.0f;
                 }
 
@@ -1012,14 +962,14 @@ struct GameSession::Impl {
                            selectedItem.empty()
                                ? glm::vec3(0.62f, 0.68f, 0.76f)
                                : glm::vec3(0.95f, 0.78f, 0.66f));
-                BackendInventoryHitBox clearHit;
-                clearHit.action = BackendInventoryHitAction::ClearSelection;
+                runtime::backend_inventory_panel::HitRegion clearHit;
+                clearHit.action = runtime::backend_inventory_panel::HitAction::ClearSelection;
                 clearHit.itemId.clear();
                 clearHit.x = 20.0f;
                 clearHit.y = invY + 1.0f;
                 clearHit.w = std::max(1.0f, runtime::backend_text::measureTextWidth(clearLine, 0.90f));
                 clearHit.h = std::max(1.0f, runtime::backend_text::measureTextHeight(clearLine, 0.90f));
-                backendInventoryHitBoxes.push_back(std::move(clearHit));
+                backendInventoryPanel.hitRegions.push_back(std::move(clearHit));
                 invY += 16.0f;
                 appendText(20.0f,
                            invY + 2.0f,

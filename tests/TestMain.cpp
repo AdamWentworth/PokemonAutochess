@@ -20,6 +20,7 @@ bool test_backend_hud_formatting_contract(std::string& outFail);
 bool test_backend_debug_text_quads_contract(std::string& outFail);
 bool test_backend_world_projection_contract(std::string& outFail);
 bool test_backend_inventory_overlay_contract(std::string& outFail);
+bool test_backend_inventory_panel_contract(std::string& outFail);
 bool test_backend_ui_sell_overlay_policy(std::string& outFail);
 bool test_backend_shop_snapshot_contract(std::string& outFail);
 bool test_backend_input_slots_contract(std::string& outFail);
@@ -134,6 +135,7 @@ int main(int argc, char** argv) {
         {"backend_debug_text_quads_contract", &test_backend_debug_text_quads_contract},
         {"backend_world_projection_contract", &test_backend_world_projection_contract},
         {"backend_inventory_overlay_contract", &test_backend_inventory_overlay_contract},
+        {"backend_inventory_panel_contract", &test_backend_inventory_panel_contract},
         {"backend_ui_sell_overlay_policy", &test_backend_ui_sell_overlay_policy},
         {"backend_shop_snapshot_contract", &test_backend_shop_snapshot_contract},
         {"backend_input_slots_contract", &test_backend_input_slots_contract},
