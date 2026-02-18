@@ -20,6 +20,7 @@ bool test_backend_hud_formatting_contract(std::string& outFail);
 bool test_backend_debug_text_quads_contract(std::string& outFail);
 bool test_backend_image_path_contract(std::string& outFail);
 bool test_backend_world_projection_contract(std::string& outFail);
+bool test_backend_world_proxy_geometry_contract(std::string& outFail);
 bool test_backend_unit_visuals_contract(std::string& outFail);
 bool test_backend_inventory_overlay_contract(std::string& outFail);
 bool test_backend_inventory_panel_contract(std::string& outFail);
@@ -145,6 +146,7 @@ int main(int argc, char** argv) {
         {"backend_debug_text_quads_contract", &test_backend_debug_text_quads_contract},
         {"backend_image_path_contract", &test_backend_image_path_contract},
         {"backend_world_projection_contract", &test_backend_world_projection_contract},
+        {"backend_world_proxy_geometry_contract", &test_backend_world_proxy_geometry_contract},
         {"backend_unit_visuals_contract", &test_backend_unit_visuals_contract},
         {"backend_inventory_overlay_contract", &test_backend_inventory_overlay_contract},
         {"backend_inventory_panel_contract", &test_backend_inventory_panel_contract},

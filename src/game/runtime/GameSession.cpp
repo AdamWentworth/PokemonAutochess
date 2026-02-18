@@ -45,6 +45,7 @@
 #include "game/runtime/BackendStatusText.h"
 #include "game/runtime/BackendHudFormatting.h"
 #include "game/runtime/BackendWorldProjection.h"
+#include "game/runtime/BackendWorldProxyGeometry.h"
 #include "game/runtime/BackendUnitVisuals.h"
 #include "game/GameServices.h"
 #include "game/GameConfig.h"
@@ -775,18 +776,14 @@ struct GameSession::Impl {
                             cellPx = std::max(14.0f, minDim * 0.035f);
                         }
                         const float unitSize = std::clamp(cellPx * 0.75f, 10.0f, 84.0f);
-                        const float worldHalf = std::max(0.06f, worldCellSize * 0.22f);
-                        const float worldHeight =
-                            std::max(0.20f, worldCellSize * 0.72f) * std::clamp(unit.speciesScale, 0.75f, 1.70f);
-                        const glm::vec3 baseCenter = unit.position + glm::vec3(0.0f, unit.visualYOffset, 0.0f);
-                        const glm::vec3 b0 = baseCenter + glm::vec3(-worldHalf, 0.02f, -worldHalf);
-                        const glm::vec3 b1 = baseCenter + glm::vec3(worldHalf, 0.02f, -worldHalf);
-                        const glm::vec3 b2 = baseCenter + glm::vec3(worldHalf, 0.02f, worldHalf);
-                        const glm::vec3 b3 = baseCenter + glm::vec3(-worldHalf, 0.02f, worldHalf);
-                        const glm::vec3 t0 = b0 + glm::vec3(0.0f, worldHeight, 0.0f);
-                        const glm::vec3 t1 = b1 + glm::vec3(0.0f, worldHeight, 0.0f);
-                        const glm::vec3 t2 = b2 + glm::vec3(0.0f, worldHeight, 0.0f);
-                        const glm::vec3 t3 = b3 + glm::vec3(0.0f, worldHeight, 0.0f);
+                        const game::runtime::backend_proxy::UnitProxyExtents extents =
+                            game::runtime::backend_proxy::computeUnitProxyExtents(unit, worldCellSize);
+                        const glm::vec3 proxyCenter = unit.position + glm::vec3(0.0f, unit.visualYOffset, 0.0f);
+                        const game::runtime::backend_proxy::UnitProxyCorners corners =
+                            game::runtime::backend_proxy::computeUnitProxyCorners(
+                                proxyCenter,
+                                extents,
+                                unit.rotation.y);
 
                         IRenderBackend::DebugQuad tint;
                         runtime::backend_units::applyWorldUnitTint(tint, unit);
@@ -798,12 +795,54 @@ struct GameSession::Impl {
                         const float sideB = std::clamp(tint.b * 0.72f, 0.0f, 1.0f);
                         const float topAlpha = unit.alive ? 0.96f : 0.78f;
                         const float sideAlpha = unit.alive ? 0.88f : 0.70f;
+                        const auto shadow = game::runtime::backend_proxy::computeShadowQuad(
+                            proxyCenter,
+                            extents.halfWidth * 1.15f,
+                            extents.halfDepth * 1.15f,
+                            unit.rotation.y,
+                            0.010f);
+                        appendProjectedQuad(
+                            shadow[0],
+                            shadow[1],
+                            shadow[2],
+                            shadow[3],
+                            0.02f,
+                            0.03f,
+                            0.04f,
+                            unit.alive ? 0.42f : 0.24f);
 
-                        appendProjectedQuad(t0, t1, t2, t3, topR, topG, topB, topAlpha);
-                        appendProjectedQuad(b0, b1, t1, t0, sideR, sideG, sideB, sideAlpha);
-                        appendProjectedQuad(b1, b2, t2, t1, sideR, sideG, sideB, sideAlpha);
-                        appendProjectedQuad(b2, b3, t3, t2, sideR, sideG, sideB, sideAlpha);
-                        appendProjectedQuad(b3, b0, t0, t3, sideR, sideG, sideB, sideAlpha);
+                        appendProjectedQuad(
+                            corners.top[0],
+                            corners.top[1],
+                            corners.top[2],
+                            corners.top[3],
+                            topR, topG, topB, topAlpha);
+                        appendProjectedQuad(
+                            corners.bottom[0], corners.bottom[1], corners.top[1], corners.top[0],
+                            sideR, sideG, sideB, sideAlpha);
+                        appendProjectedQuad(
+                            corners.bottom[1], corners.bottom[2], corners.top[2], corners.top[1],
+                            sideR, sideG, sideB, sideAlpha);
+                        appendProjectedQuad(
+                            corners.bottom[2], corners.bottom[3], corners.top[3], corners.top[2],
+                            sideR, sideG, sideB, sideAlpha);
+                        appendProjectedQuad(
+                            corners.bottom[3], corners.bottom[0], corners.top[0], corners.top[3],
+                            sideR, sideG, sideB, sideAlpha);
+
+                        const glm::vec3 heading = game::runtime::backend_proxy::yawForward(unit.rotation.y);
+                        const glm::vec3 headingStart =
+                            corners.top[0] * 0.25f + corners.top[1] * 0.25f +
+                            corners.top[2] * 0.25f + corners.top[3] * 0.25f;
+                        appendProjectedLine(
+                            headingStart + glm::vec3(0.0f, extents.height * 0.06f, 0.0f),
+                            headingStart + heading * std::max(0.08f, extents.halfDepth * 1.1f) +
+                                glm::vec3(0.0f, extents.height * 0.06f, 0.0f),
+                            0.95f,
+                            0.95f,
+                            0.98f,
+                            unit.alive ? 0.75f : 0.45f,
+                            std::max(1.0f, line * 0.9f));
 
                         const float topLabelY = cy - std::max(14.0f, unitSize * 0.40f);
 

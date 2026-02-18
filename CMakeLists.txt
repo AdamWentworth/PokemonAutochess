@@ -334,6 +334,7 @@ if (BUILD_TESTING)
         tests/TestBackendDebugText.cpp
         tests/TestBackendImagePath.cpp
         tests/TestBackendWorldProjection.cpp
+        tests/TestBackendWorldProxyGeometry.cpp
         tests/TestBackendUnitVisuals.cpp
         tests/TestBackendInventoryOverlay.cpp
         tests/TestBackendInventoryPanel.cpp
