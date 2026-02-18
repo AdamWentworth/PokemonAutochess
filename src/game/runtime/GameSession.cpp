@@ -51,6 +51,7 @@
 #include "game/runtime/BackendWorldProjection.h"
 #include "game/runtime/BackendWorldProxyGeometry.h"
 #include "game/runtime/BackendModelCache.h"
+#include "game/runtime/BackendProceduralPose.h"
 #include "game/runtime/BackendUnitVisuals.h"
 #include "game/GameServices.h"
 #include "game/GameConfig.h"
@@ -87,9 +88,9 @@ std::string trimDebugLine(std::string s, std::size_t maxChars) {
 
 std::size_t backendModelTriangleLimit() {
     static const std::size_t limit = []() -> std::size_t {
-        constexpr std::size_t kDefault = 8000u;
+        constexpr std::size_t kDefault = 24000u;
         constexpr std::size_t kMin = 256u;
-        constexpr std::size_t kMax = 40000u;
+        constexpr std::size_t kMax = 120000u;
         const auto env = engine::env::get("PAC_BACKEND_MODEL_TRI_LIMIT");
         if (!env.has_value()) return kDefault;
         try {
@@ -100,6 +101,18 @@ std::size_t backendModelTriangleLimit() {
         }
     }();
     return limit;
+}
+
+std::size_t selectUniformTriangleIndex(std::size_t sampleIndex,
+                                       std::size_t sampleCount,
+                                       std::size_t triangleCount) {
+    if (sampleCount == 0u || triangleCount == 0u) return 0u;
+    if (sampleCount >= triangleCount) return std::min(sampleIndex, triangleCount - 1u);
+    const double span = static_cast<double>(triangleCount) / static_cast<double>(sampleCount);
+    const double center = (static_cast<double>(sampleIndex) + 0.5) * span;
+    const std::size_t tri =
+        std::min(triangleCount - 1u, static_cast<std::size_t>(std::floor(center)));
+    return tri;
 }
 } // namespace
 
@@ -615,6 +628,13 @@ struct GameSession::Impl {
 
                 const glm::mat4 view = camera->getViewMatrix();
                 const glm::mat4 proj = camera->getProjectionMatrix();
+                const glm::mat4 invView = glm::inverse(view);
+                glm::vec3 cameraWorldPos(invView[3].x, invView[3].y, invView[3].z);
+                if (!std::isfinite(cameraWorldPos.x) ||
+                    !std::isfinite(cameraWorldPos.y) ||
+                    !std::isfinite(cameraWorldPos.z)) {
+                    cameraWorldPos = glm::vec3(0.0f, 6.0f, -6.0f);
+                }
                 const glm::vec4 screenViewport(
                     0.0f,
                     0.0f,
@@ -869,36 +889,20 @@ struct GameSession::Impl {
                     for (const auto& unit : units) {
                         if (!unit.alive && !unit.captureInProgress && !unit.fainting) continue;
 
-                        const bool activeAttackWindow =
-                            unit.attackTimerSec > 0.0f ||
-                            unit.pendingDamageActive ||
-                            unit.pendingImpactActive ||
-                            unit.pendingProjectileActive;
-                        const float attackDuration = std::max(0.05f, unit.attackDurationSec);
-                        const float attackProgress = std::clamp(unit.attackTimerSec / attackDuration, 0.0f, 1.0f);
-                        const float attackLunge =
-                            activeAttackWindow ? std::sin(attackProgress * 3.1415926f) * worldCellSize * 0.11f : 0.0f;
+                        const runtime::backend_anim::ProceduralPose pose =
+                            runtime::backend_anim::computeProceduralPose(unit, worldCellSize);
+                        const bool activeAttackWindow = pose.activeAttackWindow;
+                        const float attackProgress = pose.attackProgress;
                         const glm::vec3 attackOffset =
-                            game::runtime::backend_proxy::yawForward(unit.rotation.y) * attackLunge;
-                        const float faintProgress = (unit.fainting && unit.faintAnimDurationSec > 0.0f)
-                            ? std::clamp(unit.faintTimerSec / unit.faintAnimDurationSec, 0.0f, 1.0f)
-                            : 0.0f;
-                        const float faintDrop = faintProgress * worldCellSize * 0.35f;
-                        const float faintRoll = faintProgress * 72.0f;
-                        const float idleFreq = unit.isMoving ? 10.5f : 4.2f;
-                        const float bobAmp = unit.isMoving ? worldCellSize * 0.032f : worldCellSize * 0.012f;
-                        const float bobY = std::sin(unit.animTimeSec * idleFreq) * bobAmp;
-                        const float animYaw =
-                            unit.rotation.y + std::sin(unit.animTimeSec * (unit.isMoving ? 7.0f : 3.2f)) *
-                                (unit.isMoving ? 3.8f : 1.4f);
-                        const float animPitch = unit.rotation.x + attackLunge * 48.0f;
+                            game::runtime::backend_proxy::yawForward(unit.rotation.y) * pose.attackLunge;
+                        const float animYaw = pose.yawDeg;
+                        const float animPitch = pose.pitchDeg;
                         const float animRoll =
-                            unit.rotation.z + (unit.side == PokemonSide::Player ? -faintRoll : faintRoll);
-                        const float attackPulse = activeAttackWindow
-                            ? (1.0f + (0.5f + 0.5f * std::sin(unit.animTimeSec * 18.0f)) * 0.055f)
-                            : 1.0f;
+                            pose.rollDeg + (unit.side == PokemonSide::Player ? -pose.faintRoll : pose.faintRoll);
+                        const float attackPulse = pose.attackPulse;
                         const glm::vec3 animatedCenter =
-                            unit.position + attackOffset + glm::vec3(0.0f, unit.visualYOffset + bobY - faintDrop, 0.0f);
+                            unit.position + attackOffset +
+                            glm::vec3(0.0f, unit.visualYOffset + pose.bobY - pose.faintDrop, 0.0f);
                         const glm::vec3 worldPos =
                             animatedCenter +
                             glm::vec3(0.0f, std::max(0.2f, worldCellSize * 0.22f), 0.0f);
@@ -953,7 +957,7 @@ struct GameSession::Impl {
 
                         bool drewModelMesh = false;
                         if (const runtime::backend_model::MeshData* mesh = resolveModelMesh(unit)) {
-                            const std::size_t triangleCount = mesh->indices.size() / 3;
+                            const std::size_t triangleCount = mesh->indices.size() / 3u;
                             const std::size_t maxTrianglesPerUnit = backendModelTriangleLimit();
                             const std::size_t unitTriangleBudget = std::min(triangleCount, maxTrianglesPerUnit);
 
@@ -990,7 +994,8 @@ struct GameSession::Impl {
                                                                 const glm::vec3& n1,
                                                                 const glm::vec3& n2,
                                                                 const glm::vec3& baseColor,
-                                                                float alpha) {
+                                                                float alpha,
+                                                                bool doubleSided) {
                                 float x1 = 0.0f;
                                 float y1 = 0.0f;
                                 float z1 = 0.0f;
@@ -1021,9 +1026,24 @@ struct GameSession::Impl {
                                     const float rawLenSq = glm::dot(rawNormal, rawNormal);
                                     if (rawLenSq > 0.000001f) n = glm::normalize(rawNormal);
                                 }
+                                const glm::vec3 triCenter = (a + b + c) * (1.0f / 3.0f);
+                                glm::vec3 toCamera = cameraWorldPos - triCenter;
+                                const float toCameraLenSq = glm::dot(toCamera, toCamera);
+                                if (toCameraLenSq > 0.000001f) {
+                                    toCamera = glm::normalize(toCamera);
+                                } else {
+                                    toCamera = glm::vec3(0.0f, 0.0f, -1.0f);
+                                }
                                 const float lit = std::clamp(glm::dot(n, lightDir), 0.0f, 1.0f);
-                                const float shade = 0.36f + lit * 0.64f;
-                                const glm::vec3 shaded = glm::clamp(baseColor * shade, 0.0f, 1.0f);
+                                const float facing = std::clamp(glm::dot(n, toCamera), -1.0f, 1.0f);
+                                if (!doubleSided && facing <= 0.01f) return;
+                                const float rim = std::pow(std::clamp(1.0f - std::max(0.0f, facing), 0.0f, 1.0f), 2.0f);
+                                const glm::vec3 halfDir = glm::normalize(lightDir + toCamera);
+                                const float spec = std::pow(std::clamp(glm::dot(n, halfDir), 0.0f, 1.0f), 22.0f);
+                                const float shade = std::clamp(0.22f + lit * 0.62f + rim * 0.10f + spec * 0.20f, 0.05f, 1.40f);
+                                const glm::vec3 baseLinear = glm::pow(glm::clamp(baseColor, 0.0f, 1.0f), glm::vec3(2.2f));
+                                const glm::vec3 litLinear = glm::clamp(baseLinear * shade, 0.0f, 1.0f);
+                                const glm::vec3 shaded = glm::pow(litLinear, glm::vec3(1.0f / 2.2f));
 
                                 DepthTri dt;
                                 dt.tri.x1 = x1;
@@ -1035,7 +1055,8 @@ struct GameSession::Impl {
                                 dt.tri.r = shaded.r;
                                 dt.tri.g = shaded.g;
                                 dt.tri.b = shaded.b;
-                                dt.tri.a = alpha;
+                                const float facingFade = 0.60f + 0.40f * std::max(0.0f, facing);
+                                dt.tri.a = alpha * facingFade;
                                 dt.depth = (z1 + z2 + z3) * (1.0f / 3.0f);
                                 modelDepthTris.push_back(dt);
                             };
@@ -1045,8 +1066,16 @@ struct GameSession::Impl {
                                 return glm::vec3(0.0f, 1.0f, 0.0f);
                             };
 
-                            for (std::size_t triIdx = 0; triIdx < unitTriangleBudget; ++triIdx) {
-                                const std::size_t i = triIdx * 3;
+                            std::size_t previousTriSample = triangleCount;
+                            for (std::size_t sampleIdx = 0; sampleIdx < unitTriangleBudget; ++sampleIdx) {
+                                std::size_t triIdx =
+                                    selectUniformTriangleIndex(sampleIdx, unitTriangleBudget, triangleCount);
+                                if (unitTriangleBudget < triangleCount && triIdx == previousTriSample) {
+                                    if (triIdx + 1u < triangleCount) ++triIdx;
+                                }
+                                previousTriSample = triIdx;
+
+                                const std::size_t i = triIdx * 3u;
                                 const std::uint32_t i0 = mesh->indices[i + 0];
                                 const std::uint32_t i1 = mesh->indices[i + 1];
                                 const std::uint32_t i2 = mesh->indices[i + 2];
@@ -1060,9 +1089,31 @@ struct GameSession::Impl {
                                 const auto& v1 = mesh->vertices[i1];
                                 const auto& v2 = mesh->vertices[i2];
 
-                                const glm::vec3 a = glm::vec3(modelM * glm::vec4(v0.position, 1.0f));
-                                const glm::vec3 b = glm::vec3(modelM * glm::vec4(v1.position, 1.0f));
-                                const glm::vec3 c = glm::vec3(modelM * glm::vec4(v2.position, 1.0f));
+                                const glm::vec3 local0 = runtime::backend_anim::deformLocalVertex(
+                                    unit,
+                                    pose,
+                                    v0.position,
+                                    mesh->boundsMin,
+                                    mesh->boundsMax,
+                                    worldCellSize);
+                                const glm::vec3 local1 = runtime::backend_anim::deformLocalVertex(
+                                    unit,
+                                    pose,
+                                    v1.position,
+                                    mesh->boundsMin,
+                                    mesh->boundsMax,
+                                    worldCellSize);
+                                const glm::vec3 local2 = runtime::backend_anim::deformLocalVertex(
+                                    unit,
+                                    pose,
+                                    v2.position,
+                                    mesh->boundsMin,
+                                    mesh->boundsMax,
+                                    worldCellSize);
+
+                                const glm::vec3 a = glm::vec3(modelM * glm::vec4(local0, 1.0f));
+                                const glm::vec3 b = glm::vec3(modelM * glm::vec4(local1, 1.0f));
+                                const glm::vec3 c = glm::vec3(modelM * glm::vec4(local2, 1.0f));
                                 const glm::vec3 n0 = safeNormalize(normalM * v0.normal);
                                 const glm::vec3 n1 = safeNormalize(normalM * v1.normal);
                                 const glm::vec3 n2 = safeNormalize(normalM * v2.normal);
@@ -1090,7 +1141,10 @@ struct GameSession::Impl {
                                     : 1.0f;
                                 const float alpha = (unit.alive ? 0.95f : 0.74f) * std::clamp(triOpacity, 0.0f, 1.0f);
                                 if (alpha < 0.03f) continue;
-                                pushModelTriangle(a, b, c, n0, n1, n2, baseColor, alpha);
+                                const bool triDoubleSided =
+                                    (triIdx < mesh->triangleDoubleSided.size()) &&
+                                    (mesh->triangleDoubleSided[triIdx] != 0u);
+                                pushModelTriangle(a, b, c, n0, n1, n2, baseColor, alpha, triDoubleSided);
                             }
 
                             drewModelMesh = (modelDepthTris.size() > modelDepthCountBefore);

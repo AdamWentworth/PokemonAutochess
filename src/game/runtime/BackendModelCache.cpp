@@ -272,6 +272,45 @@ glm::vec4 sampleTextureNearest(const DecodedTexture& tex, const glm::vec2& uv) {
         static_cast<float>(tex.rgba[idx + 3u]) / 255.0f);
 }
 
+glm::vec4 sampleTextureBilinear(const DecodedTexture& tex, const glm::vec2& uv) {
+    if (!tex.hasPixels()) return tex.average;
+
+    float u = uv.x - std::floor(uv.x);
+    float v = uv.y - std::floor(uv.y);
+    if (u < 0.0f) u += 1.0f;
+    if (v < 0.0f) v += 1.0f;
+
+    const int w = std::max(1, tex.width);
+    const int h = std::max(1, tex.height);
+    const float fx = u * static_cast<float>(w - 1);
+    const float fy = (1.0f - v) * static_cast<float>(h - 1);
+    const int x0 = std::clamp(static_cast<int>(std::floor(fx)), 0, w - 1);
+    const int y0 = std::clamp(static_cast<int>(std::floor(fy)), 0, h - 1);
+    const int x1 = std::min(w - 1, x0 + 1);
+    const int y1 = std::min(h - 1, y0 + 1);
+    const float tx = std::clamp(fx - static_cast<float>(x0), 0.0f, 1.0f);
+    const float ty = std::clamp(fy - static_cast<float>(y0), 0.0f, 1.0f);
+
+    const auto sampleAt = [&](int x, int y) -> glm::vec4 {
+        const std::size_t idx =
+            (static_cast<std::size_t>(y) * static_cast<std::size_t>(w) + static_cast<std::size_t>(x)) * 4u;
+        if (idx + 3u >= tex.rgba.size()) return tex.average;
+        return glm::vec4(
+            static_cast<float>(tex.rgba[idx + 0u]) / 255.0f,
+            static_cast<float>(tex.rgba[idx + 1u]) / 255.0f,
+            static_cast<float>(tex.rgba[idx + 2u]) / 255.0f,
+            static_cast<float>(tex.rgba[idx + 3u]) / 255.0f);
+    };
+
+    const glm::vec4 c00 = sampleAt(x0, y0);
+    const glm::vec4 c10 = sampleAt(x1, y0);
+    const glm::vec4 c01 = sampleAt(x0, y1);
+    const glm::vec4 c11 = sampleAt(x1, y1);
+    const glm::vec4 cx0 = c00 * (1.0f - tx) + c10 * tx;
+    const glm::vec4 cx1 = c01 * (1.0f - tx) + c11 * tx;
+    return cx0 * (1.0f - ty) + cx1 * ty;
+}
+
 } // namespace
 
 namespace game::runtime::backend_model {
@@ -342,14 +381,26 @@ bool loadMeshFromCache(const std::string& modelPath, MeshData& out, std::string*
     out.modelScaleFactor = hdr.modelScaleFactor;
     out.vertices.reserve(cpuVertices.size());
     out.indices = std::move(cpuIndices);
+    out.boundsMin = glm::vec3(0.0f);
+    out.boundsMax = glm::vec3(0.0f);
 
     bool anyNonWhiteColor = false;
+    bool initializedBounds = false;
     for (const auto& v : cpuVertices) {
         MeshVertex mv;
         mv.position = glm::vec3(v.px, v.py, v.pz);
         mv.uv = glm::vec2(v.u, v.v);
         mv.color = glm::vec4(v.r, v.g, v.b, v.a);
         out.vertices.push_back(mv);
+
+        if (!initializedBounds) {
+            out.boundsMin = mv.position;
+            out.boundsMax = mv.position;
+            initializedBounds = true;
+        } else {
+            out.boundsMin = glm::min(out.boundsMin, mv.position);
+            out.boundsMax = glm::max(out.boundsMax, mv.position);
+        }
 
         const bool nonWhite =
             std::fabs(v.r - 1.0f) > 0.001f ||
@@ -366,6 +417,7 @@ bool loadMeshFromCache(const std::string& modelPath, MeshData& out, std::string*
         glm::vec4 baseColor{1.0f};
         backend_material::AlphaMode alphaMode = backend_material::AlphaMode::Opaque;
         float alphaCutoff = 0.5f;
+        bool doubleSided = false;
         DecodedTexture baseTexture;
     };
     std::vector<SubmeshRange> submeshRanges;
@@ -410,6 +462,7 @@ bool loadMeshFromCache(const std::string& modelPath, MeshData& out, std::string*
         range.baseColor = baseTexture.average;
         range.alphaMode = backend_material::alphaModeFromByte(alphaModeRaw);
         range.alphaCutoff = alphaCutoff;
+        range.doubleSided = (doubleSided != 0u);
         range.baseTexture = std::move(baseTexture);
         submeshRanges.push_back(range);
         out.submeshBaseColors.push_back(range.baseColor);
@@ -419,6 +472,7 @@ bool loadMeshFromCache(const std::string& modelPath, MeshData& out, std::string*
     out.triangleSubmesh.assign(triangleCount, 0u);
     out.triangleBaseColors.assign(triangleCount, glm::vec3(1.0f, 1.0f, 1.0f));
     out.triangleOpacity.assign(triangleCount, 1.0f);
+    out.triangleDoubleSided.assign(triangleCount, 0u);
     if (!submeshRanges.empty()) {
         for (std::size_t si = 0; si < submeshRanges.size(); ++si) {
             const SubmeshRange& range = submeshRanges[si];
@@ -426,6 +480,7 @@ bool loadMeshFromCache(const std::string& modelPath, MeshData& out, std::string*
             const std::size_t endTri = std::min(triangleCount, (range.firstIndex + range.indexCount) / 3u);
             for (std::size_t ti = startTri; ti < endTri; ++ti) {
                 out.triangleSubmesh[ti] = static_cast<std::uint16_t>(si);
+                out.triangleDoubleSided[ti] = range.doubleSided ? 1u : 0u;
                 glm::vec3 triColor(range.baseColor.r, range.baseColor.g, range.baseColor.b);
                 float triOpacity = 1.0f;
                 if (range.baseTexture.hasPixels()) {
@@ -434,9 +489,15 @@ bool loadMeshFromCache(const std::string& modelPath, MeshData& out, std::string*
                     const std::uint32_t i1 = out.indices[i + 1u];
                     const std::uint32_t i2 = out.indices[i + 2u];
                     if (i0 < out.vertices.size() && i1 < out.vertices.size() && i2 < out.vertices.size()) {
-                        const glm::vec2 uv =
-                            (out.vertices[i0].uv + out.vertices[i1].uv + out.vertices[i2].uv) * (1.0f / 3.0f);
-                        const glm::vec4 texel = sampleTextureNearest(range.baseTexture, uv);
+                        const glm::vec2 uv0 = out.vertices[i0].uv;
+                        const glm::vec2 uv1 = out.vertices[i1].uv;
+                        const glm::vec2 uv2 = out.vertices[i2].uv;
+                        const glm::vec2 uvc = (uv0 + uv1 + uv2) * (1.0f / 3.0f);
+                        const glm::vec4 tex0 = sampleTextureBilinear(range.baseTexture, uv0);
+                        const glm::vec4 tex1 = sampleTextureBilinear(range.baseTexture, uv1);
+                        const glm::vec4 tex2 = sampleTextureBilinear(range.baseTexture, uv2);
+                        const glm::vec4 texc = sampleTextureBilinear(range.baseTexture, uvc);
+                        const glm::vec4 texel = (tex0 + tex1 + tex2 + texc) * 0.25f;
                         const glm::vec3 texelRgb(texel.r, texel.g, texel.b);
                         triColor = backend_material::blendBaseAndTexture(triColor, texelRgb, texel.a);
                         triOpacity = backend_material::opacityFromAlphaMode(
@@ -453,6 +514,7 @@ bool loadMeshFromCache(const std::string& modelPath, MeshData& out, std::string*
         out.submeshBaseColors.push_back(glm::vec4(1.0f));
         std::fill(out.triangleBaseColors.begin(), out.triangleBaseColors.end(), glm::vec3(1.0f, 1.0f, 1.0f));
         std::fill(out.triangleOpacity.begin(), out.triangleOpacity.end(), 1.0f);
+        std::fill(out.triangleDoubleSided.begin(), out.triangleDoubleSided.end(), 1u);
     }
 
     if (out.vertices.empty() || out.indices.empty()) {

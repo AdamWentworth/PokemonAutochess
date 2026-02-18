@@ -48,7 +48,8 @@ bool test_backend_model_cache_contract(std::string& outFail) {
         if (!mesh.vertices.empty() ||
             !mesh.indices.empty() ||
             !mesh.triangleBaseColors.empty() ||
-            !mesh.triangleOpacity.empty()) {
+            !mesh.triangleOpacity.empty() ||
+            !mesh.triangleDoubleSided.empty()) {
             outFail = "loadMeshFromCache should clear output mesh on failure";
             return false;
         }
@@ -68,7 +69,8 @@ bool test_backend_model_cache_contract(std::string& outFail) {
         if (!mesh.vertices.empty() ||
             !mesh.indices.empty() ||
             !mesh.triangleBaseColors.empty() ||
-            !mesh.triangleOpacity.empty()) {
+            !mesh.triangleOpacity.empty() ||
+            !mesh.triangleDoubleSided.empty()) {
             outFail = "missing-cache load failure should leave mesh output empty";
             return false;
         }

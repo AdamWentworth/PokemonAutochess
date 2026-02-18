@@ -22,6 +22,7 @@ bool test_backend_debug_text_quads_contract(std::string& outFail);
 bool test_backend_image_path_contract(std::string& outFail);
 bool test_backend_material_shading_contract(std::string& outFail);
 bool test_backend_mesh_normals_contract(std::string& outFail);
+bool test_backend_procedural_pose_contract(std::string& outFail);
 bool test_backend_model_cache_contract(std::string& outFail);
 bool test_backend_world_projection_contract(std::string& outFail);
 bool test_backend_world_proxy_geometry_contract(std::string& outFail);
@@ -154,6 +155,7 @@ int main(int argc, char** argv) {
         {"backend_image_path_contract", &test_backend_image_path_contract},
         {"backend_material_shading_contract", &test_backend_material_shading_contract},
         {"backend_mesh_normals_contract", &test_backend_mesh_normals_contract},
+        {"backend_procedural_pose_contract", &test_backend_procedural_pose_contract},
         {"backend_model_cache_contract", &test_backend_model_cache_contract},
         {"backend_world_projection_contract", &test_backend_world_projection_contract},
         {"backend_world_proxy_geometry_contract", &test_backend_world_proxy_geometry_contract},

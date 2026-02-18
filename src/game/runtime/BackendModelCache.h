@@ -17,11 +17,14 @@ struct MeshVertex {
 
 struct MeshData {
     float modelScaleFactor = 1.0f;
+    glm::vec3 boundsMin{0.0f};
+    glm::vec3 boundsMax{0.0f};
     std::vector<MeshVertex> vertices;
     std::vector<std::uint32_t> indices;
     std::vector<std::uint16_t> triangleSubmesh;
     std::vector<glm::vec3> triangleBaseColors;
     std::vector<float> triangleOpacity;
+    std::vector<std::uint8_t> triangleDoubleSided;
     std::vector<glm::vec4> submeshBaseColors;
     bool hasVertexColor = false;
 };

@@ -338,6 +338,7 @@ if (BUILD_TESTING)
         tests/TestBackendImagePath.cpp
         tests/TestBackendMaterialShading.cpp
         tests/TestBackendMeshNormals.cpp
+        tests/TestBackendProceduralPose.cpp
         tests/TestBackendModelCache.cpp
         tests/TestBackendWorldProjection.cpp
         tests/TestBackendWorldProxyGeometry.cpp
