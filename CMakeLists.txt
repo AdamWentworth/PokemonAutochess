@@ -332,7 +332,9 @@ if (BUILD_TESTING)
         tests/TestEnvironment.cpp
         tests/TestBackendHudFormatting.cpp
         tests/TestBackendDebugText.cpp
+        tests/TestBackendImagePath.cpp
         tests/TestBackendWorldProjection.cpp
+        tests/TestBackendUnitVisuals.cpp
         tests/TestBackendInventoryOverlay.cpp
         tests/TestBackendInventoryPanel.cpp
         tests/TestBackendCardLayoutModel.cpp

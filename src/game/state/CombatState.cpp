@@ -3,7 +3,7 @@
 #include "game/GameWorld.h"
 #include "game/GameServices.h"
 #include "game/logging/LoggerUtil.h"
-#include "game/runtime/BackendCardVisuals.h"
+#include "game/runtime/BackendCardRenderer.h"
 #include "game/runtime/BackendDebugText.h"
 #include "game/runtime/BackendSellOverlayModel.h"
 #include "game/runtime/BackendShopHudModel.h"
@@ -199,24 +199,20 @@ void CombatState::renderBackendShopUi(int uiW, int uiH, bool showSellOverlay, co
 
             std::string sub = "Lv " + std::to_string(std::max(1, button.data.level));
             sub += "  Cost " + std::to_string(std::max(0, button.data.cost)) + "g";
-            game::runtime::backend_cards::CardVisualInput visual;
-            visual.x = button.x;
-            visual.y = button.y;
-            visual.w = button.w;
-            visual.h = button.h;
-            visual.title = label;
-            visual.subtitle = sub;
-            visual.keyboardSlot = slot;
-            visual.item = (button.data.type == CardType::Item);
-            game::runtime::backend_cards::appendStylizedCard(quads, visual, 0.74f);
-
-            const std::string imagePath = game::runtime::backend_cards::resolveCardImagePath(
-                button.data.imagePath,
-                button.data.pokemonName,
-                visual.item);
-            IRenderBackend::DebugSprite sprite =
-                game::runtime::backend_cards::makeCardArtSprite(visual, imagePath, 1.0f);
-            sprites.push_back(std::move(sprite));
+            game::runtime::backend_card_renderer::CardRenderInput renderIn;
+            renderIn.x = button.x;
+            renderIn.y = button.y;
+            renderIn.w = button.w;
+            renderIn.h = button.h;
+            renderIn.displayName = label;
+            renderIn.speciesName = button.data.pokemonName;
+            renderIn.subtitle = sub;
+            renderIn.explicitImagePath = button.data.imagePath;
+            renderIn.keyboardSlot = slot;
+            renderIn.item = (button.data.type == CardType::Item);
+            renderIn.textScale = 0.74f;
+            renderIn.spriteAlpha = 1.0f;
+            game::runtime::backend_card_renderer::appendCard(quads, &sprites, renderIn);
         }
     }
 

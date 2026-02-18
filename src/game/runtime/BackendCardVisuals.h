@@ -2,11 +2,10 @@
 
 #include "engine/render/IRenderBackend.h"
 #include "game/runtime/BackendDebugText.h"
+#include "game/runtime/BackendImagePath.h"
 
 #include <algorithm>
-#include <cctype>
 #include <cstdint>
-#include <filesystem>
 #include <string>
 #include <vector>
 
@@ -42,37 +41,15 @@ inline std::uint32_t fnv1aHash(const std::string& text) {
     return hash;
 }
 
-inline std::string normalizeCardNameForImage(std::string name) {
-    std::string out;
-    out.reserve(name.size());
-    for (char c : name) {
-        const unsigned char uc = static_cast<unsigned char>(c);
-        if (std::isalnum(uc) || c == '-' || c == '_') {
-            out.push_back(static_cast<char>(std::tolower(uc)));
-            continue;
-        }
-        if (std::isspace(uc)) {
-            out.push_back('_');
-        }
-    }
-    return out;
-}
-
 inline std::string resolveCardImagePath(const std::string& explicitImagePath,
                                         const std::string& cardName,
                                         bool itemCard) {
-    if (!explicitImagePath.empty()) return explicitImagePath;
+    (void)itemCard;
     const std::string fallback = "assets/images/item_placeholder.png";
-    if (itemCard) return fallback;
-
-    const auto exists = [](const std::string& path) {
-        std::error_code ec;
-        return std::filesystem::exists(path, ec);
-    };
-    const std::string normalizedName = normalizeCardNameForImage(cardName);
-    if (normalizedName.empty()) return fallback;
-    const std::string candidate = "assets/images/" + normalizedName + ".png";
-    return exists(candidate) ? candidate : fallback;
+    return runtime::backend_images::resolvePokemonPortraitPath(
+        explicitImagePath,
+        cardName,
+        fallback);
 }
 
 inline CardVisualLayout computeCardVisualLayout(const CardVisualInput& input) {

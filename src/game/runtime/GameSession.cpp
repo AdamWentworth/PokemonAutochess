@@ -10,6 +10,7 @@
 #include <iomanip>
 #include <sstream>
 #include <vector>
+#include <glm/gtc/matrix_transform.hpp>
 
 #include "engine/core/GameContext.h"
 #include "engine/core/EngineServices.h"
@@ -44,6 +45,7 @@
 #include "game/runtime/BackendStatusText.h"
 #include "game/runtime/BackendHudFormatting.h"
 #include "game/runtime/BackendWorldProjection.h"
+#include "game/runtime/BackendUnitVisuals.h"
 #include "game/GameServices.h"
 #include "game/GameConfig.h"
 #include "game/runtime/GameUpdateGraph.h"
@@ -536,10 +538,14 @@ struct GameSession::Impl {
 
         runtime::backend_inventory_panel::clearHitRegions(backendInventoryPanel);
 
-        std::vector<IRenderBackend::DebugQuad> quads;
-        quads.reserve(1024);
+        std::vector<IRenderBackend::DebugQuad> worldQuads;
+        worldQuads.reserve(1024);
+        std::vector<IRenderBackend::DebugQuad> overlayQuads;
+        overlayQuads.reserve(1024);
         std::vector<IRenderBackend::DebugLine> lines;
         lines.reserve(512);
+        std::vector<IRenderBackend::DebugSprite> sprites;
+        sprites.reserve(256);
         struct BackendUnitLabel {
             float x = 0.0f;
             float y = 0.0f;
@@ -561,6 +567,252 @@ struct GameSession::Impl {
 
         const bool showWorldBackdrop = renderWorld || (services && services->activeRendererBackend != "opengl");
         if (showWorldBackdrop) {
+            const bool useProjectedWorldLayout = renderWorld && gameWorld && (camera != nullptr);
+            if (useProjectedWorldLayout) {
+                const float worldCellSize = std::max(0.05f, gameWorld->getBoardCellSize());
+                const runtime::backendview::BoardBounds boardBounds =
+                    runtime::backendview::computeBoardBounds(cols, rows, worldCellSize);
+                const float boardMinX = boardBounds.minX;
+                const float boardMinZ = boardBounds.minZ;
+                const float boardMaxX = boardBounds.maxX;
+                const float boardMaxZ = boardBounds.maxZ;
+
+                const glm::mat4 view = camera->getViewMatrix();
+                const glm::mat4 proj = camera->getProjectionMatrix();
+                const glm::vec4 screenViewport(
+                    0.0f,
+                    0.0f,
+                    static_cast<float>(drawableW),
+                    static_cast<float>(drawableH));
+
+                const auto projectWorld = [&](const glm::vec3& worldPos,
+                                              float& outX,
+                                              float& outY,
+                                              float& outZ) {
+                    const glm::vec3 p = glm::project(worldPos, view, proj, screenViewport);
+                    if (!std::isfinite(p.x) || !std::isfinite(p.y) || !std::isfinite(p.z)) return false;
+                    outX = p.x;
+                    outY = static_cast<float>(drawableH) - p.y;
+                    outZ = p.z;
+                    return true;
+                };
+
+                float projMinX = static_cast<float>(drawableW);
+                float projMinY = static_cast<float>(drawableH);
+                float projMaxX = 0.0f;
+                float projMaxY = 0.0f;
+                bool hasProjectedBounds = false;
+                const glm::vec3 corners[4] = {
+                    {boardMinX, 0.01f, boardMinZ},
+                    {boardMaxX, 0.01f, boardMinZ},
+                    {boardMaxX, 0.01f, boardMaxZ},
+                    {boardMinX, 0.01f, boardMaxZ}
+                };
+                for (const glm::vec3& corner : corners) {
+                    float sx = 0.0f;
+                    float sy = 0.0f;
+                    float sz = 0.0f;
+                    if (!projectWorld(corner, sx, sy, sz)) continue;
+                    if (sz < 0.0f || sz > 1.0f) continue;
+                    projMinX = std::min(projMinX, sx);
+                    projMinY = std::min(projMinY, sy);
+                    projMaxX = std::max(projMaxX, sx);
+                    projMaxY = std::max(projMaxY, sy);
+                    hasProjectedBounds = true;
+                }
+                if (hasProjectedBounds) {
+                    IRenderBackend::DebugQuad boardBg;
+                    boardBg.x = std::max(0.0f, projMinX);
+                    boardBg.y = std::max(0.0f, projMinY);
+                    boardBg.w = std::max(0.0f, std::min(static_cast<float>(drawableW), projMaxX) - boardBg.x);
+                    boardBg.h = std::max(0.0f, std::min(static_cast<float>(drawableH), projMaxY) - boardBg.y);
+                    boardBg.r = 0.07f;
+                    boardBg.g = 0.11f;
+                    boardBg.b = 0.14f;
+                    boardBg.a = 0.46f;
+                    worldQuads.push_back(boardBg);
+                }
+
+                const float line = std::max(1.0f, minDim * 0.0019f);
+                const auto appendProjectedLine = [&](const glm::vec3& a,
+                                                     const glm::vec3& b,
+                                                     float r,
+                                                     float g,
+                                                     float bl,
+                                                     float alpha,
+                                                     float thickness) {
+                    float x1 = 0.0f;
+                    float y1 = 0.0f;
+                    float z1 = 0.0f;
+                    float x2 = 0.0f;
+                    float y2 = 0.0f;
+                    float z2 = 0.0f;
+                    if (!projectWorld(a, x1, y1, z1) || !projectWorld(b, x2, y2, z2)) return;
+                    if ((z1 < 0.0f || z1 > 1.0f) && (z2 < 0.0f || z2 > 1.0f)) return;
+                    IRenderBackend::DebugLine l;
+                    l.x1 = x1;
+                    l.y1 = y1;
+                    l.x2 = x2;
+                    l.y2 = y2;
+                    l.thickness = thickness;
+                    l.r = r;
+                    l.g = g;
+                    l.b = bl;
+                    l.a = alpha;
+                    lines.push_back(l);
+                };
+
+                for (int c = 0; c <= cols; ++c) {
+                    const float x = boardMinX + static_cast<float>(c) * worldCellSize;
+                    appendProjectedLine(
+                        glm::vec3(x, 0.01f, boardMinZ),
+                        glm::vec3(x, 0.01f, boardMaxZ),
+                        0.23f, 0.35f, 0.44f, 0.95f, line);
+                }
+                for (int r = 0; r <= rows; ++r) {
+                    const float z = boardMinZ + static_cast<float>(r) * worldCellSize;
+                    appendProjectedLine(
+                        glm::vec3(boardMinX, 0.01f, z),
+                        glm::vec3(boardMaxX, 0.01f, z),
+                        0.23f, 0.35f, 0.44f, 0.95f, line);
+                }
+
+                const auto drawProjectedUnits = [&](const std::vector<PokemonInstance>& units) {
+                    for (const auto& unit : units) {
+                        if (!unit.alive && !unit.captureInProgress && !unit.fainting) continue;
+
+                        const glm::vec3 worldPos =
+                            unit.position +
+                            glm::vec3(0.0f, std::max(0.2f, worldCellSize * 0.22f) + unit.visualYOffset, 0.0f);
+                        float cx = 0.0f;
+                        float cy = 0.0f;
+                        float cz = 0.0f;
+                        if (!projectWorld(worldPos, cx, cy, cz)) continue;
+                        if (cz < 0.0f || cz > 1.0f) continue;
+
+                        float sx = 0.0f;
+                        float sy = 0.0f;
+                        float sz = 0.0f;
+                        const bool hasCellX = projectWorld(
+                            worldPos + glm::vec3(worldCellSize, 0.0f, 0.0f),
+                            sx,
+                            sy,
+                            sz);
+                        float cellPx = hasCellX ? glm::length(glm::vec2(sx - cx, sy - cy)) : 0.0f;
+                        if (!std::isfinite(cellPx) || cellPx < 8.0f) {
+                            cellPx = std::max(14.0f, minDim * 0.035f);
+                        }
+                        const float unitSize = std::clamp(cellPx * 0.75f, 10.0f, 84.0f);
+
+                        IRenderBackend::DebugQuad u;
+                        u.w = unitSize;
+                        u.h = unitSize;
+                        u.x = cx - u.w * 0.5f;
+                        u.y = cy - u.h * 0.5f;
+                        runtime::backend_units::applyWorldUnitTint(u, unit);
+                        worldQuads.push_back(u);
+
+                        const std::string unitImagePath =
+                            runtime::backend_units::resolveWorldUnitImagePath(unit.name);
+                        IRenderBackend::DebugSprite unitSprite =
+                            runtime::backend_units::makeWorldUnitSprite(
+                                cx,
+                                cy,
+                                unitSize * 2.0f,
+                                unitSize * 2.0f,
+                                unitImagePath,
+                                unit.alive ? 0.97f : 0.72f);
+                        if (!unitSprite.texturePath.empty()) {
+                            sprites.push_back(std::move(unitSprite));
+                        }
+
+                        BackendUnitLabel label;
+                        label.x = std::max(6.0f, u.x);
+                        label.y = std::max(4.0f, u.y - std::max(12.0f, unitSize * 0.30f));
+                        label.text = unit.name;
+                        if (!label.text.empty()) {
+                            label.text[0] = static_cast<char>(std::toupper(static_cast<unsigned char>(label.text[0])));
+                        }
+                        label.color = (unit.side == PokemonSide::Player)
+                            ? glm::vec3(0.84f, 0.98f, 0.88f)
+                            : glm::vec3(0.98f, 0.84f, 0.80f);
+                        unitLabels.push_back(std::move(label));
+
+                        const float hpRatio = std::clamp(
+                            static_cast<float>(std::max(0, unit.hp)) /
+                                static_cast<float>(std::max(1, unit.maxHP)),
+                            0.0f,
+                            1.0f);
+                        const float hpW = unitSize * 0.86f;
+                        const float hpX = cx - hpW * 0.5f;
+                        const float hpY = u.y - std::max(3.0f, unitSize * 0.13f);
+                        const float hpThick = std::max(1.0f, line * 2.1f);
+
+                        IRenderBackend::DebugLine hpBg;
+                        hpBg.x1 = hpX;
+                        hpBg.y1 = hpY;
+                        hpBg.x2 = hpX + hpW;
+                        hpBg.y2 = hpY;
+                        hpBg.thickness = hpThick;
+                        hpBg.r = 0.12f;
+                        hpBg.g = 0.12f;
+                        hpBg.b = 0.14f;
+                        hpBg.a = 0.95f;
+                        lines.push_back(hpBg);
+
+                        IRenderBackend::DebugLine hp = hpBg;
+                        hp.x1 = hpX + std::max(0.5f, line * 0.4f);
+                        hp.x2 = hp.x1 + std::max(0.0f, (hpW - std::max(1.0f, line * 0.8f)) * hpRatio);
+                        if (unit.side == PokemonSide::Player) {
+                            hp.r = 0.28f;
+                            hp.g = 0.92f;
+                            hp.b = 0.46f;
+                        } else {
+                            hp.r = 0.94f;
+                            hp.g = 0.38f;
+                            hp.b = 0.28f;
+                        }
+                        hp.a = 1.0f;
+                        lines.push_back(hp);
+
+                        if (!unit.chargedMove.empty()) {
+                            const float energyRatio = std::clamp(
+                                static_cast<float>(std::max(0, unit.energy)) /
+                                    static_cast<float>(std::max(1, unit.maxEnergy)),
+                                0.0f,
+                                1.0f);
+                            const float energyY =
+                                std::min(static_cast<float>(drawableH) - 2.0f,
+                                         u.y + u.h + std::max(2.0f, line * 2.2f));
+
+                            IRenderBackend::DebugLine energyBg;
+                            energyBg.x1 = hpX;
+                            energyBg.y1 = energyY;
+                            energyBg.x2 = hpX + hpW;
+                            energyBg.y2 = energyY;
+                            energyBg.thickness = std::max(1.0f, line * 1.7f);
+                            energyBg.r = 0.10f;
+                            energyBg.g = 0.11f;
+                            energyBg.b = 0.15f;
+                            energyBg.a = 0.95f;
+                            lines.push_back(energyBg);
+
+                            IRenderBackend::DebugLine energy = energyBg;
+                            energy.x1 = hpX + std::max(0.5f, line * 0.4f);
+                            energy.x2 =
+                                energy.x1 + std::max(0.0f, (hpW - std::max(1.0f, line * 0.8f)) * energyRatio);
+                            energy.r = 0.34f;
+                            energy.g = 0.70f;
+                            energy.b = 0.98f;
+                            energy.a = 1.0f;
+                            lines.push_back(energy);
+                        }
+                    }
+                };
+
+                drawProjectedUnits(gameWorld->getPokemons());
+                drawProjectedUnits(gameWorld->getBenchPokemons());
+            } else {
             IRenderBackend::DebugQuad boardBg;
             boardBg.x = boardX;
             boardBg.y = boardY;
@@ -570,9 +822,32 @@ struct GameSession::Impl {
             boardBg.g = renderWorld ? 0.16f : 0.10f;
             boardBg.b = renderWorld ? 0.20f : 0.14f;
             boardBg.a = renderWorld ? 1.0f : 0.90f;
-            quads.push_back(boardBg);
+            worldQuads.push_back(boardBg);
 
             const float line = std::max(1.0f, minDim * 0.002f);
+            for (int r = 0; r < rows; ++r) {
+                for (int c = 0; c < cols; ++c) {
+                    IRenderBackend::DebugQuad cell;
+                    cell.x = boardX + cellW * static_cast<float>(c);
+                    cell.y = boardY + cellH * static_cast<float>(r);
+                    cell.w = cellW;
+                    cell.h = cellH;
+                    const bool darkCell = ((r + c) % 2) == 0;
+                    if (darkCell) {
+                        cell.r = renderWorld ? 0.08f : 0.07f;
+                        cell.g = renderWorld ? 0.13f : 0.09f;
+                        cell.b = renderWorld ? 0.18f : 0.12f;
+                        cell.a = renderWorld ? 0.28f : 0.22f;
+                    } else {
+                        cell.r = renderWorld ? 0.16f : 0.10f;
+                        cell.g = renderWorld ? 0.22f : 0.14f;
+                        cell.b = renderWorld ? 0.27f : 0.18f;
+                        cell.a = renderWorld ? 0.18f : 0.14f;
+                    }
+                    worldQuads.push_back(cell);
+                }
+            }
+
             for (int c = 0; c <= cols; ++c) {
                 IRenderBackend::DebugLine vLine;
                 vLine.x1 = boardX + cellW * static_cast<float>(c);
@@ -620,27 +895,22 @@ struct GameSession::Impl {
                     u.h = cellH * 0.60f;
                     u.x = centerX - u.w * 0.5f;
                     u.y = centerY - u.h * 0.5f;
+                    runtime::backend_units::applyWorldUnitTint(u, unit);
+                    worldQuads.push_back(u);
 
-                    if (unit.side == PokemonSide::Player) {
-                        u.r = 0.16f;
-                        u.g = 0.84f;
-                        u.b = 0.40f;
-                    } else {
-                        u.r = 0.90f;
-                        u.g = 0.28f;
-                        u.b = 0.22f;
+                    const std::string unitImagePath =
+                        runtime::backend_units::resolveWorldUnitImagePath(unit.name);
+                    IRenderBackend::DebugSprite unitSprite =
+                        runtime::backend_units::makeWorldUnitSprite(
+                            centerX,
+                            centerY,
+                            cellW,
+                            cellH,
+                            unitImagePath,
+                            unit.alive ? 0.96f : 0.70f);
+                    if (!unitSprite.texturePath.empty()) {
+                        sprites.push_back(std::move(unitSprite));
                     }
-                    if (!unit.alive && unit.captureInProgress) {
-                        u.r = 0.98f;
-                        u.g = 0.82f;
-                        u.b = 0.30f;
-                    } else if (!unit.alive) {
-                        u.r *= 0.45f;
-                        u.g *= 0.45f;
-                        u.b *= 0.45f;
-                    }
-                    u.a = 0.26f;
-                    quads.push_back(u);
 
                     BackendUnitLabel label;
                     label.x = std::max(6.0f, u.x);
@@ -743,7 +1013,7 @@ struct GameSession::Impl {
                         benchBg.g = 0.12f;
                         benchBg.b = 0.15f;
                         benchBg.a = 0.96f;
-                        quads.push_back(benchBg);
+                        worldQuads.push_back(benchBg);
 
                         const float benchCellW = benchW / static_cast<float>(benchSlots);
                         const float benchLineThickness = std::max(1.0f, line * 0.95f);
@@ -792,11 +1062,26 @@ struct GameSession::Impl {
                             benchUnit.g = 0.73f;
                             benchUnit.b = 0.96f;
                             benchUnit.a = 0.24f;
-                            quads.push_back(benchUnit);
+                            worldQuads.push_back(benchUnit);
+
+                            const std::string benchImagePath =
+                                runtime::backend_units::resolveWorldUnitImagePath(unit.name);
+                            IRenderBackend::DebugSprite benchSprite =
+                                runtime::backend_units::makeBenchUnitSprite(
+                                    benchUnit.x,
+                                    benchUnit.y,
+                                    benchUnit.w,
+                                    benchUnit.h,
+                                    benchImagePath,
+                                    0.92f);
+                            if (!benchSprite.texturePath.empty()) {
+                                sprites.push_back(std::move(benchSprite));
+                            }
 
                         }
                     }
                 }
+            }
             }
         }
 
@@ -813,14 +1098,14 @@ struct GameSession::Impl {
                 fpsBarBg.g = 0.15f;
                 fpsBarBg.b = 0.18f;
                 fpsBarBg.a = 1.0f;
-                quads.push_back(fpsBarBg);
+                overlayQuads.push_back(fpsBarBg);
 
                 IRenderBackend::DebugQuad fpsBar = fpsBarBg;
                 fpsBar.w *= fpsNorm;
                 fpsBar.r = (fpsNorm < 0.5f) ? 0.85f : 0.30f;
                 fpsBar.g = (fpsNorm < 0.5f) ? 0.28f : 0.88f;
                 fpsBar.b = 0.30f;
-                quads.push_back(fpsBar);
+                overlayQuads.push_back(fpsBar);
             }
         }
 
@@ -830,7 +1115,7 @@ struct GameSession::Impl {
                                     float scale,
                                     const glm::vec3& color) {
             runtime::backend_text::appendTextQuads(
-                quads, x, y, text, scale, color.r, color.g, color.b, 1.0f);
+                overlayQuads, x, y, text, scale, color.r, color.g, color.b, 1.0f);
         };
         const auto appendRightText = [&](float y,
                                          const std::string& text,
@@ -1099,11 +1384,17 @@ struct GameSession::Impl {
             }
         }
 
-        if (!quads.empty()) {
-            renderer->drawDebugQuads(quads.data(), quads.size(), drawableW, drawableH);
+        if (!worldQuads.empty()) {
+            renderer->drawDebugQuads(worldQuads.data(), worldQuads.size(), drawableW, drawableH);
+        }
+        if (!sprites.empty()) {
+            renderer->drawDebugSprites(sprites.data(), sprites.size(), drawableW, drawableH);
         }
         if (!lines.empty()) {
             renderer->drawDebugLines(lines.data(), lines.size(), drawableW, drawableH);
+        }
+        if (!overlayQuads.empty()) {
+            renderer->drawDebugQuads(overlayQuads.data(), overlayQuads.size(), drawableW, drawableH);
         }
     }
 

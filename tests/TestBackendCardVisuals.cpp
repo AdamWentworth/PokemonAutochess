@@ -98,9 +98,16 @@ bool test_backend_card_visuals_contract(std::string& outFail) {
             return false;
         }
         const std::string explicitPath =
-            resolveCardImagePath("assets/images/custom.png", "pikachu", false);
-        if (explicitPath != "assets/images/custom.png") {
-            outFail = "explicit card image path should take precedence";
+            resolveCardImagePath("assets/images/charmander.png", "pikachu", false);
+        if (explicitPath != "assets/images/charmander.png") {
+            outFail = "existing explicit card image path should take precedence";
+            return false;
+        }
+
+        const std::string missingExplicit =
+            resolveCardImagePath("assets/images/custom_missing.png", "pikachu", false);
+        if (missingExplicit != "assets/images/item_placeholder.png") {
+            outFail = "missing explicit image path should fall back to placeholder";
             return false;
         }
     }

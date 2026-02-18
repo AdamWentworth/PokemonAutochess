@@ -5,7 +5,7 @@
 #include "game/scripting/LuaCardParser.h"
 #include "game/scripting/LuaScriptHelpers.h"
 #include "game/scripting/LuaTextMenuParser.h"
-#include "game/runtime/BackendCardVisuals.h"
+#include "game/runtime/BackendCardRenderer.h"
 #include "game/runtime/BackendDebugText.h"
 #include "game/runtime/BackendSellOverlayModel.h"
 #include "game/runtime/BackendShopHudModel.h"
@@ -527,24 +527,20 @@ void ScriptedState::renderBackendCardUi(int uiW, int uiH) {
             if (cardMode == CardMode::Shop) {
                 sub += "  Cost " + std::to_string(std::max(0, card.data.cost)) + "g";
             }
-            game::runtime::backend_cards::CardVisualInput visual;
-            visual.x = card.x;
-            visual.y = card.y;
-            visual.w = card.w;
-            visual.h = card.h;
-            visual.title = name;
-            visual.subtitle = sub;
-            visual.keyboardSlot = slot;
-            visual.item = itemRow || card.item;
-            game::runtime::backend_cards::appendStylizedCard(quads, visual, 0.74f);
-
-            const std::string imagePath = game::runtime::backend_cards::resolveCardImagePath(
-                card.data.imagePath,
-                card.data.pokemonName,
-                visual.item);
-            IRenderBackend::DebugSprite sprite =
-                game::runtime::backend_cards::makeCardArtSprite(visual, imagePath, 1.0f);
-            sprites.push_back(std::move(sprite));
+            game::runtime::backend_card_renderer::CardRenderInput renderIn;
+            renderIn.x = card.x;
+            renderIn.y = card.y;
+            renderIn.w = card.w;
+            renderIn.h = card.h;
+            renderIn.displayName = name;
+            renderIn.speciesName = card.data.pokemonName;
+            renderIn.subtitle = sub;
+            renderIn.explicitImagePath = card.data.imagePath;
+            renderIn.keyboardSlot = slot;
+            renderIn.item = itemRow || card.item;
+            renderIn.textScale = 0.74f;
+            renderIn.spriteAlpha = 1.0f;
+            game::runtime::backend_card_renderer::appendCard(quads, &sprites, renderIn);
         }
     };
 

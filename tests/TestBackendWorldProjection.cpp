@@ -12,6 +12,7 @@ bool approx(float a, float b, float eps = 0.0005f) {
 } // namespace
 
 bool test_backend_world_projection_contract(std::string& outFail) {
+    using game::runtime::backendview::computeBoardBounds;
     using game::runtime::backendview::worldToBenchSlot;
     using game::runtime::backendview::worldToBoardUv;
 
@@ -58,6 +59,15 @@ bool test_backend_world_projection_contract(std::string& outFail) {
     if (worldToBenchSlot(-100.0f, 6, cell) != 0) {
         outFail = "worldToBenchSlot should clamp low out-of-range";
         return false;
+    }
+
+    {
+        const auto bounds = computeBoardBounds(8, 4, 1.0f);
+        if (!approx(bounds.minX, -4.0f) || !approx(bounds.maxX, 4.0f) ||
+            !approx(bounds.minZ, -2.0f) || !approx(bounds.maxZ, 2.0f)) {
+            outFail = "computeBoardBounds should map to expected world extents";
+            return false;
+        }
     }
 
     return true;
