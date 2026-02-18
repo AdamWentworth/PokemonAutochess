@@ -36,12 +36,24 @@ struct SpriteVertex {
     float a;
 };
 
+struct WorldVertex {
+    float x;
+    float y;
+    float z;
+    float r;
+    float g;
+    float b;
+    float a;
+};
+
 constexpr std::size_t kMaxSpriteQuads = 2048;
 constexpr std::size_t kMaxSpriteVertices = kMaxSpriteQuads * 6;
 constexpr std::size_t kMaxDebugQuads = 4096;
 constexpr std::size_t kMaxDebugLines = 8192;
 constexpr std::size_t kMaxDebugTriangles = 65536;
 constexpr std::size_t kMaxDebugVertices = kMaxDebugTriangles * 3;
+constexpr std::size_t kMaxWorldTriangles = 180000;
+constexpr std::size_t kMaxWorldVertices = kMaxWorldTriangles * 3;
 constexpr std::size_t kMaxSrvDescriptors = 2048;
 constexpr const char* kFallbackSpriteTextureKey = "__fallback_sprite_texture__";
 
@@ -260,9 +272,23 @@ void D3D12RenderBackend::beginFrame(float r, float g, float b, float a) {
 
     D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle = rtvHeap_->GetCPUDescriptorHandleForHeapStart();
     rtvHandle.ptr += static_cast<SIZE_T>(frameIndex_) * static_cast<SIZE_T>(rtvDescriptorSize_);
+    D3D12_CPU_DESCRIPTOR_HANDLE dsvHandle = {};
+    if (dsvHeap_) {
+        dsvHandle = dsvHeap_->GetCPUDescriptorHandleForHeapStart();
+        dsvHandle.ptr += static_cast<SIZE_T>(frameIndex_) * static_cast<SIZE_T>(dsvDescriptorSize_);
+    }
 
-    commandList_->OMSetRenderTargets(1, &rtvHandle, FALSE, nullptr);
+    commandList_->OMSetRenderTargets(1, &rtvHandle, FALSE, dsvHeap_ ? &dsvHandle : nullptr);
     commandList_->ClearRenderTargetView(rtvHandle, clearColor_, 0, nullptr);
+    if (dsvHeap_) {
+        commandList_->ClearDepthStencilView(
+            dsvHandle,
+            D3D12_CLEAR_FLAG_DEPTH,
+            1.0f,
+            0,
+            0,
+            nullptr);
+    }
 
     recording_ = true;
 #else
@@ -313,6 +339,7 @@ void D3D12RenderBackend::onResize(int width, int height) {
     waitForGpu();
     recording_ = false;
     releaseRenderTargets();
+    releaseDepthResources();
 
     if (SUCCEEDED(swapChain_->ResizeBuffers(
             kFrameCount,
@@ -322,10 +349,73 @@ void D3D12RenderBackend::onResize(int width, int height) {
             0))) {
         frameIndex_ = swapChain_->GetCurrentBackBufferIndex();
         createRenderTargets();
+        createDepthResources();
     }
 #else
     (void)width;
     (void)height;
+#endif
+}
+
+void D3D12RenderBackend::drawWorldTriangles(const WorldTriangle* triangles,
+                                            std::size_t triangleCount,
+                                            const float* viewProjectionMatrix4x4,
+                                            int surfaceWidth,
+                                            int surfaceHeight) {
+#if defined(_WIN32)
+    if (!recording_ || !triangles || triangleCount == 0 || !viewProjectionMatrix4x4) return;
+    if (surfaceWidth <= 0 || surfaceHeight <= 0) return;
+    if (!worldPipelineState_ || !worldRootSignature_ || !worldVertexBuffer_ || !commandList_) return;
+
+    const std::size_t safeCount = (triangleCount > kMaxWorldTriangles) ? kMaxWorldTriangles : triangleCount;
+    if (safeCount == 0) return;
+    const std::size_t vertexCount = safeCount * 3;
+    const std::size_t neededBytes = vertexCount * sizeof(WorldVertex);
+    if (neededBytes == 0 || neededBytes > worldVertexBufferSize_) return;
+
+    void* mapped = nullptr;
+    D3D12_RANGE readRange{0, 0};
+    if (FAILED(worldVertexBuffer_->Map(0, &readRange, &mapped)) || !mapped) return;
+
+    WorldVertex* out = static_cast<WorldVertex*>(mapped);
+    for (std::size_t i = 0; i < safeCount; ++i) {
+        const WorldTriangle& t = triangles[i];
+        const std::size_t base = i * 3;
+        out[base + 0] = WorldVertex{t.x1, t.y1, t.z1, t.r, t.g, t.b, t.a};
+        out[base + 1] = WorldVertex{t.x2, t.y2, t.z2, t.r, t.g, t.b, t.a};
+        out[base + 2] = WorldVertex{t.x3, t.y3, t.z3, t.r, t.g, t.b, t.a};
+    }
+    D3D12_RANGE writeRange{0, static_cast<SIZE_T>(neededBytes)};
+    worldVertexBuffer_->Unmap(0, &writeRange);
+
+    D3D12_VIEWPORT vp{};
+    vp.TopLeftX = 0.0f;
+    vp.TopLeftY = 0.0f;
+    vp.Width = static_cast<float>(surfaceWidth);
+    vp.Height = static_cast<float>(surfaceHeight);
+    vp.MinDepth = 0.0f;
+    vp.MaxDepth = 1.0f;
+    D3D12_RECT scissor{0, 0, surfaceWidth, surfaceHeight};
+
+    commandList_->RSSetViewports(1, &vp);
+    commandList_->RSSetScissorRects(1, &scissor);
+    commandList_->SetGraphicsRootSignature(worldRootSignature_.Get());
+    commandList_->SetGraphicsRoot32BitConstants(0, 16, viewProjectionMatrix4x4, 0);
+    commandList_->SetPipelineState(worldPipelineState_.Get());
+    commandList_->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+    D3D12_VERTEX_BUFFER_VIEW vbv{};
+    vbv.BufferLocation = worldVertexBufferGpuAddress_;
+    vbv.StrideInBytes = worldVertexStride_;
+    vbv.SizeInBytes = static_cast<UINT>(neededBytes);
+    commandList_->IASetVertexBuffers(0, 1, &vbv);
+    commandList_->DrawInstanced(static_cast<UINT>(vertexCount), 1, 0, 0);
+#else
+    (void)triangles;
+    (void)triangleCount;
+    (void)viewProjectionMatrix4x4;
+    (void)surfaceWidth;
+    (void)surfaceHeight;
 #endif
 }
 
@@ -646,10 +736,17 @@ void D3D12RenderBackend::shutdown() {
 
     waitForGpu();
     releaseRenderTargets();
+    releaseDepthResources();
     debugVertexBuffer_.Reset();
     debugVertexBufferGpuAddress_ = 0;
     debugVertexStride_ = 0;
     debugVertexBufferSize_ = 0;
+    worldVertexBuffer_.Reset();
+    worldVertexBufferGpuAddress_ = 0;
+    worldVertexStride_ = 0;
+    worldVertexBufferSize_ = 0;
+    worldPipelineState_.Reset();
+    worldRootSignature_.Reset();
     spriteTextures_.clear();
     spriteVertexBuffer_.Reset();
     spriteVertexBufferGpuAddress_ = 0;
@@ -666,6 +763,8 @@ void D3D12RenderBackend::shutdown() {
     commandList_.Reset();
     for (auto& allocator : commandAllocators_) allocator.Reset();
     rtvHeap_.Reset();
+    dsvHeap_.Reset();
+    dsvDescriptorSize_ = 0;
     swapChain_.Reset();
     commandQueue_.Reset();
     fence_.Reset();
@@ -784,8 +883,10 @@ void D3D12RenderBackend::initDeviceAndSwapchain(const std::string& preferredAdap
     }
 
     createDebugPipeline();
+    createWorldPipeline();
     createSpritePipeline();
     createRenderTargets();
+    createDepthResources();
     initialized_ = true;
 #endif
 }
@@ -800,6 +901,79 @@ void D3D12RenderBackend::createRenderTargets() {
             device_->CreateRenderTargetView(renderTargets_[i].Get(), nullptr, handle);
         }
         handle.ptr += static_cast<SIZE_T>(rtvDescriptorSize_);
+    }
+#endif
+}
+
+void D3D12RenderBackend::createDepthResources() {
+#if defined(_WIN32)
+    if (!device_ || width_ <= 0 || height_ <= 0) return;
+
+    if (!dsvHeap_) {
+        D3D12_DESCRIPTOR_HEAP_DESC dsvHeapDesc{};
+        dsvHeapDesc.NumDescriptors = kFrameCount;
+        dsvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_DSV;
+        dsvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
+        if (FAILED(device_->CreateDescriptorHeap(&dsvHeapDesc, IID_PPV_ARGS(dsvHeap_.ReleaseAndGetAddressOf()))) ||
+            !dsvHeap_) {
+            throw std::runtime_error("CreateDescriptorHeap (DSV) failed.");
+        }
+        dsvDescriptorSize_ = device_->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_DSV);
+    }
+
+    D3D12_HEAP_PROPERTIES heapProps{};
+    heapProps.Type = D3D12_HEAP_TYPE_DEFAULT;
+    heapProps.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
+    heapProps.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
+    heapProps.CreationNodeMask = 1;
+    heapProps.VisibleNodeMask = 1;
+
+    D3D12_RESOURCE_DESC depthDesc{};
+    depthDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
+    depthDesc.Alignment = 0;
+    depthDesc.Width = static_cast<UINT64>(width_);
+    depthDesc.Height = static_cast<UINT>(height_);
+    depthDesc.DepthOrArraySize = 1;
+    depthDesc.MipLevels = 1;
+    depthDesc.Format = DXGI_FORMAT_D32_FLOAT;
+    depthDesc.SampleDesc.Count = 1;
+    depthDesc.SampleDesc.Quality = 0;
+    depthDesc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
+    depthDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
+
+    D3D12_CLEAR_VALUE clearValue{};
+    clearValue.Format = DXGI_FORMAT_D32_FLOAT;
+    clearValue.DepthStencil.Depth = 1.0f;
+    clearValue.DepthStencil.Stencil = 0;
+
+    D3D12_DEPTH_STENCIL_VIEW_DESC dsvDesc{};
+    dsvDesc.Format = DXGI_FORMAT_D32_FLOAT;
+    dsvDesc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D;
+    dsvDesc.Flags = D3D12_DSV_FLAG_NONE;
+
+    D3D12_CPU_DESCRIPTOR_HANDLE dsvHandle = dsvHeap_->GetCPUDescriptorHandleForHeapStart();
+    for (std::uint32_t i = 0; i < kFrameCount; ++i) {
+        depthBuffers_[i].Reset();
+        if (FAILED(device_->CreateCommittedResource(
+                &heapProps,
+                D3D12_HEAP_FLAG_NONE,
+                &depthDesc,
+                D3D12_RESOURCE_STATE_DEPTH_WRITE,
+                &clearValue,
+                IID_PPV_ARGS(depthBuffers_[i].ReleaseAndGetAddressOf()))) ||
+            !depthBuffers_[i]) {
+            throw std::runtime_error("CreateCommittedResource failed for D3D12 depth buffer.");
+        }
+        device_->CreateDepthStencilView(depthBuffers_[i].Get(), &dsvDesc, dsvHandle);
+        dsvHandle.ptr += static_cast<SIZE_T>(dsvDescriptorSize_);
+    }
+#endif
+}
+
+void D3D12RenderBackend::releaseDepthResources() {
+#if defined(_WIN32)
+    for (auto& depth : depthBuffers_) {
+        depth.Reset();
     }
 #endif
 }
@@ -964,6 +1138,168 @@ void D3D12RenderBackend::createDebugPipeline() {
     debugVertexBufferGpuAddress_ = debugVertexBuffer_->GetGPUVirtualAddress();
     debugVertexStride_ = sizeof(DebugVertex);
     debugVertexBufferSize_ = static_cast<UINT>(kBufferBytes);
+#endif
+}
+
+void D3D12RenderBackend::createWorldPipeline() {
+#if defined(_WIN32)
+    static constexpr char kVsSource[] =
+        "cbuffer VSConstants : register(b0) { float4x4 uViewProj; };"
+        "struct VSIn { float3 pos : POSITION; float4 col : COLOR; };"
+        "struct VSOut { float4 pos : SV_POSITION; float4 col : COLOR; };"
+        "VSOut main(VSIn i) {"
+        "  VSOut o;"
+        "  o.pos = mul(uViewProj, float4(i.pos, 1.0f));"
+        "  o.col = i.col;"
+        "  return o;"
+        "}";
+    static constexpr char kPsSource[] =
+        "struct PSIn { float4 pos : SV_POSITION; float4 col : COLOR; };"
+        "float4 main(PSIn i) : SV_TARGET { return i.col; }";
+
+    Microsoft::WRL::ComPtr<ID3DBlob> vsBlob;
+    Microsoft::WRL::ComPtr<ID3DBlob> psBlob;
+    Microsoft::WRL::ComPtr<ID3DBlob> errBlob;
+    if (FAILED(D3DCompile(kVsSource, sizeof(kVsSource) - 1, nullptr, nullptr, nullptr,
+                          "main", "vs_5_0", 0, 0, vsBlob.ReleaseAndGetAddressOf(),
+                          errBlob.ReleaseAndGetAddressOf())) ||
+        !vsBlob) {
+        throw std::runtime_error("D3DCompile failed for world VS.");
+    }
+    errBlob.Reset();
+    if (FAILED(D3DCompile(kPsSource, sizeof(kPsSource) - 1, nullptr, nullptr, nullptr,
+                          "main", "ps_5_0", 0, 0, psBlob.ReleaseAndGetAddressOf(),
+                          errBlob.ReleaseAndGetAddressOf())) ||
+        !psBlob) {
+        throw std::runtime_error("D3DCompile failed for world PS.");
+    }
+
+    D3D12_ROOT_PARAMETER rootParam{};
+    rootParam.ParameterType = D3D12_ROOT_PARAMETER_TYPE_32BIT_CONSTANTS;
+    rootParam.Constants.Num32BitValues = 16;
+    rootParam.Constants.ShaderRegister = 0;
+    rootParam.Constants.RegisterSpace = 0;
+    rootParam.ShaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX;
+
+    D3D12_ROOT_SIGNATURE_DESC rsDesc{};
+    rsDesc.NumParameters = 1;
+    rsDesc.pParameters = &rootParam;
+    rsDesc.NumStaticSamplers = 0;
+    rsDesc.pStaticSamplers = nullptr;
+    rsDesc.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
+
+    Microsoft::WRL::ComPtr<ID3DBlob> serializedRs;
+    Microsoft::WRL::ComPtr<ID3DBlob> rsErr;
+    if (FAILED(D3D12SerializeRootSignature(&rsDesc,
+                                           D3D_ROOT_SIGNATURE_VERSION_1,
+                                           serializedRs.ReleaseAndGetAddressOf(),
+                                           rsErr.ReleaseAndGetAddressOf())) ||
+        !serializedRs) {
+        throw std::runtime_error("D3D12SerializeRootSignature failed for world pipeline.");
+    }
+    if (FAILED(device_->CreateRootSignature(0,
+                                            serializedRs->GetBufferPointer(),
+                                            serializedRs->GetBufferSize(),
+                                            IID_PPV_ARGS(worldRootSignature_.ReleaseAndGetAddressOf()))) ||
+        !worldRootSignature_) {
+        throw std::runtime_error("CreateRootSignature failed for D3D12 world pipeline.");
+    }
+
+    D3D12_INPUT_ELEMENT_DESC layout[] = {
+        {"POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
+        {"COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
+    };
+
+    D3D12_GRAPHICS_PIPELINE_STATE_DESC pso{};
+    pso.pRootSignature = worldRootSignature_.Get();
+    pso.VS = {vsBlob->GetBufferPointer(), vsBlob->GetBufferSize()};
+    pso.PS = {psBlob->GetBufferPointer(), psBlob->GetBufferSize()};
+
+    D3D12_BLEND_DESC blend{};
+    blend.AlphaToCoverageEnable = FALSE;
+    blend.IndependentBlendEnable = FALSE;
+    D3D12_RENDER_TARGET_BLEND_DESC rtBlend{};
+    rtBlend.BlendEnable = TRUE;
+    rtBlend.LogicOpEnable = FALSE;
+    rtBlend.SrcBlend = D3D12_BLEND_SRC_ALPHA;
+    rtBlend.DestBlend = D3D12_BLEND_INV_SRC_ALPHA;
+    rtBlend.BlendOp = D3D12_BLEND_OP_ADD;
+    rtBlend.SrcBlendAlpha = D3D12_BLEND_ONE;
+    rtBlend.DestBlendAlpha = D3D12_BLEND_INV_SRC_ALPHA;
+    rtBlend.BlendOpAlpha = D3D12_BLEND_OP_ADD;
+    rtBlend.LogicOp = D3D12_LOGIC_OP_NOOP;
+    rtBlend.RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
+    blend.RenderTarget[0] = rtBlend;
+    pso.BlendState = blend;
+    pso.SampleMask = UINT_MAX;
+
+    D3D12_RASTERIZER_DESC raster{};
+    raster.FillMode = D3D12_FILL_MODE_SOLID;
+    raster.CullMode = D3D12_CULL_MODE_NONE;
+    raster.FrontCounterClockwise = FALSE;
+    raster.DepthBias = D3D12_DEFAULT_DEPTH_BIAS;
+    raster.DepthBiasClamp = D3D12_DEFAULT_DEPTH_BIAS_CLAMP;
+    raster.SlopeScaledDepthBias = D3D12_DEFAULT_SLOPE_SCALED_DEPTH_BIAS;
+    raster.DepthClipEnable = TRUE;
+    raster.MultisampleEnable = FALSE;
+    raster.AntialiasedLineEnable = FALSE;
+    raster.ForcedSampleCount = 0;
+    raster.ConservativeRaster = D3D12_CONSERVATIVE_RASTERIZATION_MODE_OFF;
+    pso.RasterizerState = raster;
+
+    D3D12_DEPTH_STENCIL_DESC depthStencil{};
+    depthStencil.DepthEnable = TRUE;
+    depthStencil.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ALL;
+    depthStencil.DepthFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL;
+    depthStencil.StencilEnable = FALSE;
+    pso.DepthStencilState = depthStencil;
+
+    pso.InputLayout = {layout, static_cast<UINT>(_countof(layout))};
+    pso.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
+    pso.NumRenderTargets = 1;
+    pso.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
+    pso.DSVFormat = DXGI_FORMAT_D32_FLOAT;
+    pso.SampleDesc.Count = 1;
+    if (FAILED(device_->CreateGraphicsPipelineState(&pso,
+                                                    IID_PPV_ARGS(worldPipelineState_.ReleaseAndGetAddressOf()))) ||
+        !worldPipelineState_) {
+        throw std::runtime_error("CreateGraphicsPipelineState failed for D3D12 world pipeline.");
+    }
+
+    constexpr std::size_t kBufferBytes = kMaxWorldVertices * sizeof(WorldVertex);
+    D3D12_HEAP_PROPERTIES heapProps{};
+    heapProps.Type = D3D12_HEAP_TYPE_UPLOAD;
+    heapProps.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
+    heapProps.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
+    heapProps.CreationNodeMask = 1;
+    heapProps.VisibleNodeMask = 1;
+
+    D3D12_RESOURCE_DESC bufferDesc{};
+    bufferDesc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
+    bufferDesc.Alignment = 0;
+    bufferDesc.Width = kBufferBytes;
+    bufferDesc.Height = 1;
+    bufferDesc.DepthOrArraySize = 1;
+    bufferDesc.MipLevels = 1;
+    bufferDesc.Format = DXGI_FORMAT_UNKNOWN;
+    bufferDesc.SampleDesc.Count = 1;
+    bufferDesc.SampleDesc.Quality = 0;
+    bufferDesc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
+    bufferDesc.Flags = D3D12_RESOURCE_FLAG_NONE;
+
+    if (FAILED(device_->CreateCommittedResource(&heapProps,
+                                                D3D12_HEAP_FLAG_NONE,
+                                                &bufferDesc,
+                                                D3D12_RESOURCE_STATE_GENERIC_READ,
+                                                nullptr,
+                                                IID_PPV_ARGS(worldVertexBuffer_.ReleaseAndGetAddressOf()))) ||
+        !worldVertexBuffer_) {
+        throw std::runtime_error("CreateCommittedResource failed for D3D12 world vertex buffer.");
+    }
+
+    worldVertexBufferGpuAddress_ = worldVertexBuffer_->GetGPUVirtualAddress();
+    worldVertexStride_ = sizeof(WorldVertex);
+    worldVertexBufferSize_ = static_cast<UINT>(kBufferBytes);
 #endif
 }
 

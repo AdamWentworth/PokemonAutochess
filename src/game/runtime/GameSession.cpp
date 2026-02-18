@@ -14,6 +14,7 @@
 #include <unordered_map>
 #include <vector>
 #include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/type_ptr.hpp>
 
 #include "engine/core/GameContext.h"
 #include "engine/core/EngineServices.h"
@@ -586,6 +587,8 @@ struct GameSession::Impl {
         worldQuads.reserve(1024);
         std::vector<IRenderBackend::DebugTriangle> worldTriangles;
         worldTriangles.reserve(4096);
+        std::vector<IRenderBackend::WorldTriangle> world3DTriangles;
+        world3DTriangles.reserve(120000);
         std::vector<IRenderBackend::DebugQuad> overlayQuads;
         overlayQuads.reserve(1024);
         std::vector<IRenderBackend::DebugLine> lines;
@@ -600,6 +603,9 @@ struct GameSession::Impl {
         };
         std::vector<BackendUnitLabel> unitLabels;
         unitLabels.reserve(64);
+        const bool supportsWorldTriangles3D = renderer->supportsWorldTriangles3D();
+        float worldViewProj[16] = {};
+        bool hasWorldViewProj = false;
 
         const int rows = std::max(1, config.rows);
         const int cols = std::max(1, config.cols);
@@ -628,6 +634,12 @@ struct GameSession::Impl {
 
                 const glm::mat4 view = camera->getViewMatrix();
                 const glm::mat4 proj = camera->getProjectionMatrix();
+                const glm::mat4 viewProj = proj * view;
+                if (supportsWorldTriangles3D) {
+                    const float* vp = glm::value_ptr(viewProj);
+                    std::copy(vp, vp + 16, worldViewProj);
+                    hasWorldViewProj = true;
+                }
                 const glm::mat4 invView = glm::inverse(view);
                 glm::vec3 cameraWorldPos(invView[3].x, invView[3].y, invView[3].z);
                 if (!std::isfinite(cameraWorldPos.x) ||
@@ -690,6 +702,41 @@ struct GameSession::Impl {
                 }
 
                 const float line = std::max(1.0f, minDim * 0.0019f);
+                const auto appendWorldTriangle = [&](const glm::vec3& a,
+                                                     const glm::vec3& b,
+                                                     const glm::vec3& c,
+                                                     float r,
+                                                     float g,
+                                                     float bl,
+                                                     float alpha) {
+                    if (!supportsWorldTriangles3D) return;
+                    IRenderBackend::WorldTriangle tri;
+                    tri.x1 = a.x;
+                    tri.y1 = a.y;
+                    tri.z1 = a.z;
+                    tri.x2 = b.x;
+                    tri.y2 = b.y;
+                    tri.z2 = b.z;
+                    tri.x3 = c.x;
+                    tri.y3 = c.y;
+                    tri.z3 = c.z;
+                    tri.r = r;
+                    tri.g = g;
+                    tri.b = bl;
+                    tri.a = alpha;
+                    world3DTriangles.push_back(tri);
+                };
+                const auto appendWorldQuad = [&](const glm::vec3& a,
+                                                 const glm::vec3& b,
+                                                 const glm::vec3& c,
+                                                 const glm::vec3& d,
+                                                 float r,
+                                                 float g,
+                                                 float bl,
+                                                 float alpha) {
+                    appendWorldTriangle(a, b, c, r, g, bl, alpha);
+                    appendWorldTriangle(a, c, d, r, g, bl, alpha);
+                };
                 const auto appendProjectedTriangle = [&](const glm::vec3& a,
                                                          const glm::vec3& b,
                                                          const glm::vec3& c,
@@ -787,7 +834,8 @@ struct GameSession::Impl {
                     }
                     return &cacheEntry.mesh;
                 };
-                const std::size_t boardTrianglesStart = worldTriangles.size();
+                const std::size_t boardTrianglesStart2D = worldTriangles.size();
+                const std::size_t boardTrianglesStart3D = world3DTriangles.size();
                 struct DepthTri {
                     IRenderBackend::DebugTriangle tri;
                     float depth = 0.0f;
@@ -806,12 +854,15 @@ struct GameSession::Impl {
                         const float cg = darkCell ? 0.13f : 0.17f;
                         const float cb = darkCell ? 0.18f : 0.23f;
                         const float ca = darkCell ? 0.34f : 0.27f;
-                        appendProjectedQuad(
-                            glm::vec3(x0, 0.006f, z0),
-                            glm::vec3(x1, 0.006f, z0),
-                            glm::vec3(x1, 0.006f, z1),
-                            glm::vec3(x0, 0.006f, z1),
-                            cr, cg, cb, ca);
+                        const glm::vec3 qa(x0, 0.006f, z0);
+                        const glm::vec3 qb(x1, 0.006f, z0);
+                        const glm::vec3 qc(x1, 0.006f, z1);
+                        const glm::vec3 qd(x0, 0.006f, z1);
+                        if (supportsWorldTriangles3D) {
+                            appendWorldQuad(qa, qb, qc, qd, cr, cg, cb, ca);
+                        } else {
+                            appendProjectedQuad(qa, qb, qc, qd, cr, cg, cb, ca);
+                        }
                     }
                 }
 
@@ -829,7 +880,8 @@ struct GameSession::Impl {
                         glm::vec3(boardMaxX, 0.01f, z),
                         0.23f, 0.35f, 0.44f, 0.95f, line);
                 }
-                if (worldTriangles.size() == boardTrianglesStart) {
+                if (worldTriangles.size() == boardTrianglesStart2D &&
+                    world3DTriangles.size() == boardTrianglesStart3D) {
                     IRenderBackend::DebugQuad boardFallback;
                     boardFallback.x = boardX;
                     boardFallback.y = boardY;
@@ -945,15 +997,27 @@ struct GameSession::Impl {
                             extents.halfDepth * 1.15f,
                             animYaw,
                             0.010f);
-                        appendProjectedQuad(
-                            shadow[0],
-                            shadow[1],
-                            shadow[2],
-                            shadow[3],
-                            0.02f,
-                            0.03f,
-                            0.04f,
-                            unit.alive ? 0.42f : 0.24f);
+                        if (supportsWorldTriangles3D) {
+                            appendWorldQuad(
+                                shadow[0],
+                                shadow[1],
+                                shadow[2],
+                                shadow[3],
+                                0.02f,
+                                0.03f,
+                                0.04f,
+                                unit.alive ? 0.42f : 0.24f);
+                        } else {
+                            appendProjectedQuad(
+                                shadow[0],
+                                shadow[1],
+                                shadow[2],
+                                shadow[3],
+                                0.02f,
+                                0.03f,
+                                0.04f,
+                                unit.alive ? 0.42f : 0.24f);
+                        }
 
                         bool drewModelMesh = false;
                         if (const runtime::backend_model::MeshData* mesh = resolveModelMesh(unit)) {
@@ -980,6 +1044,7 @@ struct GameSession::Impl {
                             const glm::mat4 modelM = translation * rotationY * rotationX * rotationZ * scale;
                             const glm::mat3 normalM = glm::transpose(glm::inverse(glm::mat3(modelM)));
                             const std::size_t modelDepthCountBefore = modelDepthTris.size();
+                            const std::size_t modelWorld3DCountBefore = world3DTriangles.size();
 
                             const glm::vec3 lightDir = glm::normalize(glm::vec3(0.45f, 0.90f, 0.35f));
                             const glm::vec3 fallbackBase(
@@ -1005,15 +1070,17 @@ struct GameSession::Impl {
                                 float x3 = 0.0f;
                                 float y3 = 0.0f;
                                 float z3 = 0.0f;
-                                if (!projectWorld(a, x1, y1, z1) ||
-                                    !projectWorld(b, x2, y2, z2) ||
-                                    !projectWorld(c, x3, y3, z3)) {
-                                    return;
-                                }
-                                if ((z1 < 0.0f || z1 > 1.0f) &&
-                                    (z2 < 0.0f || z2 > 1.0f) &&
-                                    (z3 < 0.0f || z3 > 1.0f)) {
-                                    return;
+                                if (!supportsWorldTriangles3D) {
+                                    if (!projectWorld(a, x1, y1, z1) ||
+                                        !projectWorld(b, x2, y2, z2) ||
+                                        !projectWorld(c, x3, y3, z3)) {
+                                        return;
+                                    }
+                                    if ((z1 < 0.0f || z1 > 1.0f) &&
+                                        (z2 < 0.0f || z2 > 1.0f) &&
+                                        (z3 < 0.0f || z3 > 1.0f)) {
+                                        return;
+                                    }
                                 }
 
                                 glm::vec3 n(0.0f, 1.0f, 0.0f);
@@ -1044,6 +1111,27 @@ struct GameSession::Impl {
                                 const glm::vec3 baseLinear = glm::pow(glm::clamp(baseColor, 0.0f, 1.0f), glm::vec3(2.2f));
                                 const glm::vec3 litLinear = glm::clamp(baseLinear * shade, 0.0f, 1.0f);
                                 const glm::vec3 shaded = glm::pow(litLinear, glm::vec3(1.0f / 2.2f));
+                                const float facingFade = 0.60f + 0.40f * std::max(0.0f, facing);
+                                const float outAlpha = alpha * facingFade;
+
+                                if (supportsWorldTriangles3D) {
+                                    IRenderBackend::WorldTriangle tri3d;
+                                    tri3d.x1 = a.x;
+                                    tri3d.y1 = a.y;
+                                    tri3d.z1 = a.z;
+                                    tri3d.x2 = b.x;
+                                    tri3d.y2 = b.y;
+                                    tri3d.z2 = b.z;
+                                    tri3d.x3 = c.x;
+                                    tri3d.y3 = c.y;
+                                    tri3d.z3 = c.z;
+                                    tri3d.r = shaded.r;
+                                    tri3d.g = shaded.g;
+                                    tri3d.b = shaded.b;
+                                    tri3d.a = outAlpha;
+                                    world3DTriangles.push_back(tri3d);
+                                    return;
+                                }
 
                                 DepthTri dt;
                                 dt.tri.x1 = x1;
@@ -1055,8 +1143,7 @@ struct GameSession::Impl {
                                 dt.tri.r = shaded.r;
                                 dt.tri.g = shaded.g;
                                 dt.tri.b = shaded.b;
-                                const float facingFade = 0.60f + 0.40f * std::max(0.0f, facing);
-                                dt.tri.a = alpha * facingFade;
+                                dt.tri.a = outAlpha;
                                 dt.depth = (z1 + z2 + z3) * (1.0f / 3.0f);
                                 modelDepthTris.push_back(dt);
                             };
@@ -1147,7 +1234,9 @@ struct GameSession::Impl {
                                 pushModelTriangle(a, b, c, n0, n1, n2, baseColor, alpha, triDoubleSided);
                             }
 
-                            drewModelMesh = (modelDepthTris.size() > modelDepthCountBefore);
+                            drewModelMesh =
+                                (modelDepthTris.size() > modelDepthCountBefore) ||
+                                (world3DTriangles.size() > modelWorld3DCountBefore);
                         }
 
                         const game::runtime::backend_proxy::UnitProxyCorners corners =
@@ -1156,24 +1245,45 @@ struct GameSession::Impl {
                                 extents,
                                 animYaw);
                         if (!drewModelMesh) {
-                            appendProjectedQuad(
-                                corners.top[0],
-                                corners.top[1],
-                                corners.top[2],
-                                corners.top[3],
-                                topR, topG, topB, topAlpha);
-                            appendProjectedQuad(
-                                corners.bottom[0], corners.bottom[1], corners.top[1], corners.top[0],
-                                sideR, sideG, sideB, sideAlpha);
-                            appendProjectedQuad(
-                                corners.bottom[1], corners.bottom[2], corners.top[2], corners.top[1],
-                                sideR, sideG, sideB, sideAlpha);
-                            appendProjectedQuad(
-                                corners.bottom[2], corners.bottom[3], corners.top[3], corners.top[2],
-                                sideR, sideG, sideB, sideAlpha);
-                            appendProjectedQuad(
-                                corners.bottom[3], corners.bottom[0], corners.top[0], corners.top[3],
-                                sideR, sideG, sideB, sideAlpha);
+                            if (supportsWorldTriangles3D) {
+                                appendWorldQuad(
+                                    corners.top[0],
+                                    corners.top[1],
+                                    corners.top[2],
+                                    corners.top[3],
+                                    topR, topG, topB, topAlpha);
+                                appendWorldQuad(
+                                    corners.bottom[0], corners.bottom[1], corners.top[1], corners.top[0],
+                                    sideR, sideG, sideB, sideAlpha);
+                                appendWorldQuad(
+                                    corners.bottom[1], corners.bottom[2], corners.top[2], corners.top[1],
+                                    sideR, sideG, sideB, sideAlpha);
+                                appendWorldQuad(
+                                    corners.bottom[2], corners.bottom[3], corners.top[3], corners.top[2],
+                                    sideR, sideG, sideB, sideAlpha);
+                                appendWorldQuad(
+                                    corners.bottom[3], corners.bottom[0], corners.top[0], corners.top[3],
+                                    sideR, sideG, sideB, sideAlpha);
+                            } else {
+                                appendProjectedQuad(
+                                    corners.top[0],
+                                    corners.top[1],
+                                    corners.top[2],
+                                    corners.top[3],
+                                    topR, topG, topB, topAlpha);
+                                appendProjectedQuad(
+                                    corners.bottom[0], corners.bottom[1], corners.top[1], corners.top[0],
+                                    sideR, sideG, sideB, sideAlpha);
+                                appendProjectedQuad(
+                                    corners.bottom[1], corners.bottom[2], corners.top[2], corners.top[1],
+                                    sideR, sideG, sideB, sideAlpha);
+                                appendProjectedQuad(
+                                    corners.bottom[2], corners.bottom[3], corners.top[3], corners.top[2],
+                                    sideR, sideG, sideB, sideAlpha);
+                                appendProjectedQuad(
+                                    corners.bottom[3], corners.bottom[0], corners.top[0], corners.top[3],
+                                    sideR, sideG, sideB, sideAlpha);
+                            }
                         }
 
                         const glm::vec3 heading = game::runtime::backend_proxy::yawForward(animYaw);
@@ -1904,6 +2014,14 @@ struct GameSession::Impl {
 
         if (!worldBackgroundQuads.empty()) {
             renderer->drawDebugQuads(worldBackgroundQuads.data(), worldBackgroundQuads.size(), drawableW, drawableH);
+        }
+        if (!world3DTriangles.empty() && hasWorldViewProj && supportsWorldTriangles3D) {
+            renderer->drawWorldTriangles(
+                world3DTriangles.data(),
+                world3DTriangles.size(),
+                worldViewProj,
+                drawableW,
+                drawableH);
         }
         if (!worldTriangles.empty()) {
             renderer->drawDebugTriangles(worldTriangles.data(), worldTriangles.size(), drawableW, drawableH);

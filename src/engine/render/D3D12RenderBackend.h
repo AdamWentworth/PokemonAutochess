@@ -42,6 +42,12 @@ public:
     bool handlesPresentation() const override { return true; }
     std::string activeGpuName() const override { return adapterName_; }
     bool activeGpuIsDiscrete() const override { return discreteAdapter_; }
+    bool supportsWorldTriangles3D() const override { return true; }
+    void drawWorldTriangles(const WorldTriangle* triangles,
+                            std::size_t triangleCount,
+                            const float* viewProjectionMatrix4x4,
+                            int surfaceWidth,
+                            int surfaceHeight) override;
     void drawDebugQuads(const DebugQuad* quads,
                         std::size_t quadCount,
                         int surfaceWidth,
@@ -64,7 +70,10 @@ private:
     void initDeviceAndSwapchain(const std::string& preferredAdapterName);
     void createRenderTargets();
     void releaseRenderTargets();
+    void createDepthResources();
+    void releaseDepthResources();
     void createDebugPipeline();
+    void createWorldPipeline();
     void createSpritePipeline();
     struct SpriteTexture;
     SpriteTexture* ensureSpriteTexture(const std::string& texturePath);
@@ -96,8 +105,11 @@ private:
     Microsoft::WRL::ComPtr<ID3D12CommandQueue> commandQueue_;
     Microsoft::WRL::ComPtr<IDXGISwapChain3> swapChain_;
     Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> rtvHeap_;
+    Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> dsvHeap_;
     std::uint32_t rtvDescriptorSize_ = 0;
+    std::uint32_t dsvDescriptorSize_ = 0;
     std::array<Microsoft::WRL::ComPtr<ID3D12Resource>, kFrameCount> renderTargets_;
+    std::array<Microsoft::WRL::ComPtr<ID3D12Resource>, kFrameCount> depthBuffers_;
     std::array<Microsoft::WRL::ComPtr<ID3D12CommandAllocator>, kFrameCount> commandAllocators_;
     Microsoft::WRL::ComPtr<ID3D12GraphicsCommandList> commandList_;
     Microsoft::WRL::ComPtr<ID3D12Fence> fence_;
@@ -108,6 +120,12 @@ private:
     std::uint64_t debugVertexBufferGpuAddress_ = 0;
     std::uint32_t debugVertexStride_ = 0;
     std::uint32_t debugVertexBufferSize_ = 0;
+    Microsoft::WRL::ComPtr<ID3D12RootSignature> worldRootSignature_;
+    Microsoft::WRL::ComPtr<ID3D12PipelineState> worldPipelineState_;
+    Microsoft::WRL::ComPtr<ID3D12Resource> worldVertexBuffer_;
+    std::uint64_t worldVertexBufferGpuAddress_ = 0;
+    std::uint32_t worldVertexStride_ = 0;
+    std::uint32_t worldVertexBufferSize_ = 0;
 
     struct SpriteTexture {
         Microsoft::WRL::ComPtr<ID3D12Resource> resource;

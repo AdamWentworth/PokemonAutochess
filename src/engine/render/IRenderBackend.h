@@ -5,6 +5,22 @@
 
 class IRenderBackend {
 public:
+    struct WorldTriangle {
+        float x1 = 0.0f;
+        float y1 = 0.0f;
+        float z1 = 0.0f;
+        float x2 = 0.0f;
+        float y2 = 0.0f;
+        float z2 = 0.0f;
+        float x3 = 0.0f;
+        float y3 = 0.0f;
+        float z3 = 0.0f;
+        float r = 1.0f;
+        float g = 1.0f;
+        float b = 1.0f;
+        float a = 1.0f;
+    };
+
     struct DebugQuad {
         float x = 0.0f;
         float y = 0.0f;
@@ -67,6 +83,18 @@ public:
     virtual bool handlesPresentation() const = 0;
     virtual std::string activeGpuName() const { return {}; }
     virtual bool activeGpuIsDiscrete() const { return false; }
+    virtual bool supportsWorldTriangles3D() const { return false; }
+    virtual void drawWorldTriangles(const WorldTriangle* triangles,
+                                    std::size_t triangleCount,
+                                    const float* viewProjectionMatrix4x4,
+                                    int surfaceWidth,
+                                    int surfaceHeight) {
+        (void)triangles;
+        (void)triangleCount;
+        (void)viewProjectionMatrix4x4;
+        (void)surfaceWidth;
+        (void)surfaceHeight;
+    }
     virtual void drawDebugQuads(const DebugQuad* quads,
                                 std::size_t quadCount,
                                 int surfaceWidth,
