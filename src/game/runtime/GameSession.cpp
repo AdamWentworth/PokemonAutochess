@@ -46,6 +46,7 @@
 #include "game/runtime/BackendInventoryPanel.h"
 #include "game/runtime/BackendInputSlots.h"
 #include "game/runtime/BackendStatusText.h"
+#include "game/runtime/BackendUiScale.h"
 #include "game/runtime/BackendHudFormatting.h"
 #include "game/runtime/BackendWorldProjection.h"
 #include "game/runtime/BackendWorldProxyGeometry.h"
@@ -590,6 +591,9 @@ struct GameSession::Impl {
         const int rows = std::max(1, config.rows);
         const int cols = std::max(1, config.cols);
         const float minDim = static_cast<float>(std::min(drawableW, drawableH));
+        const float uiScale = runtime::backend_ui::viewportScale(drawableW, drawableH);
+        const float edgePad = runtime::backend_ui::edgePad(drawableW, drawableH);
+        const float lineStep = runtime::backend_ui::lineStep(drawableW, drawableH);
         const float boardW = std::max(240.0f, minDim * 0.78f);
         const float boardH = std::max(180.0f, minDim * 0.58f);
         const float boardX = (static_cast<float>(drawableW) - boardW) * 0.5f;
@@ -1548,10 +1552,10 @@ struct GameSession::Impl {
             if (perf.fps > 0.0f) {
                 const float fpsNorm = std::clamp(perf.fps / 120.0f, 0.0f, 1.0f);
                 IRenderBackend::DebugQuad fpsBarBg;
-                fpsBarBg.x = 20.0f;
-                fpsBarBg.y = 20.0f;
-                fpsBarBg.w = 220.0f;
-                fpsBarBg.h = 10.0f;
+                fpsBarBg.x = edgePad;
+                fpsBarBg.y = std::max(8.0f, edgePad - lineStep * 0.2f);
+                fpsBarBg.w = std::clamp(220.0f * uiScale, 140.0f, 320.0f);
+                fpsBarBg.h = std::clamp(10.0f * uiScale, 8.0f, 16.0f);
                 fpsBarBg.r = 0.15f;
                 fpsBarBg.g = 0.15f;
                 fpsBarBg.b = 0.18f;
@@ -1580,23 +1584,23 @@ struct GameSession::Impl {
                                          float scale,
                                          const glm::vec3& color) {
             const float textW = std::max(1.0f, runtime::backend_text::measureTextWidth(text, scale));
-            const float x = std::max(20.0f, static_cast<float>(drawableW) - textW - 22.0f);
+            const float x = std::max(edgePad, static_cast<float>(drawableW) - textW - edgePad);
             appendText(x, y, text, scale, color);
         };
 
         const std::string mode = (services ? services->gameMode : std::string("classic"));
-        appendText(20.0f,
-                   38.0f,
+        appendText(edgePad,
+                   edgePad + lineStep * 1.1f,
                    runtime::backend_status_text::modeLine(mode),
-                   1.2f,
+                   std::clamp(1.2f * uiScale, 0.95f, 1.7f),
                    glm::vec3(0.93f, 0.95f, 0.99f));
         if (services) {
-            appendText(20.0f,
-                       56.0f,
+            appendText(edgePad,
+                       edgePad + lineStep * 2.2f,
                        runtime::backend_status_text::backendLine(
                            services->activeRendererBackend,
                            services->gpuRenderer),
-                       1.0f,
+                       std::clamp(1.0f * uiScale, 0.80f, 1.35f),
                        glm::vec3(0.68f, 0.80f, 0.94f));
         }
 
@@ -1610,10 +1614,10 @@ struct GameSession::Impl {
                 combatActive = combatState->active;
             }
         }
-        appendText(20.0f,
-                   74.0f,
+        appendText(edgePad,
+                   edgePad + lineStep * 3.3f,
                        runtime::backend_status_text::roundLine(roundPhase, combatActive),
-                       1.0f,
+                       std::clamp(1.0f * uiScale, 0.80f, 1.35f),
                        glm::vec3(0.83f, 0.91f, 0.98f));
 
         if (!unitLabels.empty()) {
@@ -1630,36 +1634,38 @@ struct GameSession::Impl {
                 if (unit.side == PokemonSide::Player) ++playerAlive;
                 else ++enemyAlive;
             }
-            appendText(20.0f,
-                       92.0f,
+            appendText(edgePad,
+                       edgePad + lineStep * 4.4f,
                        runtime::backend_status_text::unitsLine(playerAlive, enemyAlive),
-                       1.0f,
+                       std::clamp(1.0f * uiScale, 0.80f, 1.35f),
                        glm::vec3(0.72f, 0.90f, 0.84f));
-            appendText(20.0f,
-                       110.0f,
+            appendText(edgePad,
+                       edgePad + lineStep * 5.5f,
                        runtime::backend_status_text::goldLine(gameWorld->getMoney()),
-                       1.0f,
+                       std::clamp(1.0f * uiScale, 0.80f, 1.35f),
                        glm::vec3(0.96f, 0.88f, 0.56f));
             const std::string selectedItem = gameWorld->getSelectedItem();
             if (!selectedItem.empty()) {
-                appendText(20.0f,
-                           128.0f,
+                appendText(edgePad,
+                           edgePad + lineStep * 6.6f,
                            runtime::backend_status_text::selectedItemLine(selectedItem),
-                           1.0f,
+                           std::clamp(1.0f * uiScale, 0.80f, 1.35f),
                            glm::vec3(0.84f, 0.90f, 0.98f));
             }
 
             refreshBackendInventoryFromWorld();
             const auto& inventoryModel = backendInventoryPanel.model;
+            const float leftX = edgePad;
+            const float invStartY = edgePad + lineStep * 7.7f;
 
             if (inventoryModel.totalCount > 0 || !selectedItem.empty()) {
-                float invY = 146.0f;
-                appendText(20.0f,
+                float invY = invStartY;
+                appendText(leftX,
                            invY,
                            runtime::backend_inventory::makeTitleLabel(inventoryModel),
-                           1.0f,
+                           std::clamp(1.0f * uiScale, 0.80f, 1.30f),
                            glm::vec3(0.92f, 0.95f, 0.99f));
-                invY += 16.0f;
+                invY += lineStep;
 
                 const bool hasPrev = runtime::backend_inventory::canScrollPrev(inventoryModel);
                 const bool hasNext = runtime::backend_inventory::canScrollNext(inventoryModel);
@@ -1667,7 +1673,7 @@ struct GameSession::Impl {
                     constexpr float kNavScale = 0.84f;
                     const std::string prevLabel = runtime::backend_inventory::prevPageLabel();
                     const std::string nextLabel = runtime::backend_inventory::nextPageLabel();
-                    appendText(20.0f,
+                    appendText(leftX,
                                invY,
                                prevLabel,
                                kNavScale,
@@ -1677,14 +1683,14 @@ struct GameSession::Impl {
                         runtime::backend_inventory_panel::HitRegion prevHit;
                         prevHit.action = runtime::backend_inventory_panel::HitAction::ScrollOffset;
                         prevHit.offsetDelta = -1;
-                        prevHit.x = 20.0f;
+                        prevHit.x = leftX;
                         prevHit.y = invY;
                         prevHit.w = std::max(1.0f, runtime::backend_text::measureTextWidth(prevLabel, kNavScale));
                         prevHit.h = std::max(1.0f, runtime::backend_text::measureTextHeight(prevLabel, kNavScale));
                         backendInventoryPanel.hitRegions.push_back(std::move(prevHit));
                     }
 
-                    const float nextX = 20.0f + std::max(1.0f, runtime::backend_text::measureTextWidth(prevLabel, kNavScale)) + 12.0f;
+                    const float nextX = leftX + std::max(1.0f, runtime::backend_text::measureTextWidth(prevLabel, kNavScale)) + std::max(10.0f, lineStep * 0.75f);
                     appendText(nextX,
                                invY,
                                nextLabel,
@@ -1701,12 +1707,12 @@ struct GameSession::Impl {
                         nextHit.h = std::max(1.0f, runtime::backend_text::measureTextHeight(nextLabel, kNavScale));
                         backendInventoryPanel.hitRegions.push_back(std::move(nextHit));
                     }
-                    invY += 14.0f;
+                    invY += lineStep * 0.88f;
                 }
 
                 for (const auto& row : inventoryModel.rows) {
                     constexpr float kItemScale = 0.95f;
-                    appendText(20.0f,
+                    appendText(leftX,
                                invY,
                                row.line,
                                kItemScale,
@@ -1716,16 +1722,16 @@ struct GameSession::Impl {
                     runtime::backend_inventory_panel::HitRegion hit;
                     hit.action = runtime::backend_inventory_panel::HitAction::SelectItem;
                     hit.itemId = row.itemId;
-                    hit.x = 20.0f;
+                    hit.x = leftX;
                     hit.y = invY;
                     hit.w = std::max(1.0f, runtime::backend_text::measureTextWidth(row.line, kItemScale));
                     hit.h = std::max(1.0f, runtime::backend_text::measureTextHeight(row.line, kItemScale));
                     backendInventoryPanel.hitRegions.push_back(std::move(hit));
-                    invY += 15.0f;
+                    invY += lineStep * 0.93f;
                 }
 
                 const std::string clearLine = runtime::backend_inventory::clearSelectionLabel();
-                appendText(20.0f,
+                appendText(leftX,
                            invY + 1.0f,
                            clearLine,
                            0.90f,
@@ -1735,13 +1741,13 @@ struct GameSession::Impl {
                 runtime::backend_inventory_panel::HitRegion clearHit;
                 clearHit.action = runtime::backend_inventory_panel::HitAction::ClearSelection;
                 clearHit.itemId.clear();
-                clearHit.x = 20.0f;
+                clearHit.x = leftX;
                 clearHit.y = invY + 1.0f;
                 clearHit.w = std::max(1.0f, runtime::backend_text::measureTextWidth(clearLine, 0.90f));
                 clearHit.h = std::max(1.0f, runtime::backend_text::measureTextHeight(clearLine, 0.90f));
                 backendInventoryPanel.hitRegions.push_back(std::move(clearHit));
-                invY += 16.0f;
-                appendText(20.0f,
+                invY += lineStep;
+                appendText(leftX,
                            invY + 2.0f,
                            runtime::backend_inventory::hintLabel(),
                            0.82f,
@@ -1758,40 +1764,40 @@ struct GameSession::Impl {
                               return a.type < b.type;
                           });
 
-                float typeY = 128.0f;
-                appendRightText(typeY, "Type Lines", 1.0f, glm::vec3(0.98f, 0.90f, 0.60f));
-                typeY += 16.0f;
+                float typeY = edgePad + lineStep * 6.6f;
+                appendRightText(typeY, "Type Lines", std::clamp(1.0f * uiScale, 0.80f, 1.30f), glm::vec3(0.98f, 0.90f, 0.60f));
+                typeY += lineStep;
                 const std::size_t maxRows = std::min<std::size_t>(6, typeCounts.size());
                 for (std::size_t i = 0; i < maxRows; ++i) {
                     appendRightText(typeY,
                                     runtime::hud::formatTypeLineEntry(typeCounts[i].type, typeCounts[i].uniqueLineCount),
                                     0.95f,
                                     glm::vec3(0.92f, 0.94f, 0.98f));
-                    typeY += 15.0f;
+                    typeY += lineStep * 0.93f;
                 }
             }
 
             const auto& benchUnits = gameWorld->getBenchPokemons();
             if (!benchUnits.empty()) {
-                float benchY = 252.0f;
-                appendText(20.0f, benchY, "Bench", 1.0f, glm::vec3(0.86f, 0.94f, 0.98f));
-                benchY += 16.0f;
+                float benchY = edgePad + lineStep * 13.6f;
+                appendText(edgePad, benchY, "Bench", std::clamp(1.0f * uiScale, 0.80f, 1.30f), glm::vec3(0.86f, 0.94f, 0.98f));
+                benchY += lineStep;
                 const std::size_t maxRows = std::min<std::size_t>(5, benchUnits.size());
                 for (std::size_t i = 0; i < maxRows; ++i) {
-                    appendText(20.0f,
+                    appendText(edgePad,
                                benchY,
                                runtime::hud::formatUnitEntry(benchUnits[i].name, benchUnits[i].level),
                                0.95f,
                                glm::vec3(0.80f, 0.88f, 0.96f));
-                    benchY += 15.0f;
+                    benchY += lineStep * 0.93f;
                 }
             }
 
             const auto& shopCards = gameWorld->getClassicShopCards();
             if (!shopCards.empty()) {
-                float shopY = 252.0f;
-                appendRightText(shopY, "Shop Offers", 1.0f, glm::vec3(0.98f, 0.90f, 0.60f));
-                shopY += 16.0f;
+                float shopY = edgePad + lineStep * 13.6f;
+                appendRightText(shopY, "Shop Offers", std::clamp(1.0f * uiScale, 0.80f, 1.30f), glm::vec3(0.98f, 0.90f, 0.60f));
+                shopY += lineStep;
                 const std::size_t maxRows = std::min<std::size_t>(5, shopCards.size());
                 for (std::size_t i = 0; i < maxRows; ++i) {
                     appendRightText(shopY,
@@ -1800,16 +1806,16 @@ struct GameSession::Impl {
                                                                       shopCards[i].cost),
                                     0.95f,
                                     glm::vec3(0.92f, 0.94f, 0.98f));
-                    shopY += 15.0f;
+                    shopY += lineStep * 0.93f;
                 }
             }
         }
 
         const auto recentMain = log.recentMainLines(7);
         if (!recentMain.empty()) {
-            float y = std::max(142.0f, static_cast<float>(drawableH) - 170.0f);
+            float y = std::max(edgePad + lineStep * 7.0f, static_cast<float>(drawableH) - lineStep * 11.0f);
             for (const auto& line : recentMain) {
-                appendText(20.0f,
+                appendText(edgePad,
                            y,
                            trimDebugLine(line.text, 84),
                            1.0f,
@@ -1817,19 +1823,19 @@ struct GameSession::Impl {
                                std::clamp(line.color.r, 0.0f, 1.0f),
                                std::clamp(line.color.g, 0.0f, 1.0f),
                                std::clamp(line.color.b, 0.0f, 1.0f)));
-                y += 16.0f;
+                y += lineStep;
             }
         }
 
         const bool classicMode = (mode == "classic");
         const auto sideLines = classicMode ? log.recentEconomyLines(5) : log.recentCatchLines(5);
         if (!sideLines.empty()) {
-            float y = std::max(142.0f, static_cast<float>(drawableH) - 170.0f);
+            float y = std::max(edgePad + lineStep * 7.0f, static_cast<float>(drawableH) - lineStep * 11.0f);
             for (const auto& line : sideLines) {
                 const std::string text = trimDebugLine(line.text, 54);
                 const float scale = 1.0f;
                 const float textW = std::max(1.0f, runtime::backend_text::measureTextWidth(text, scale));
-                const float x = std::max(20.0f, static_cast<float>(drawableW) - textW - 22.0f);
+                const float x = std::max(edgePad, static_cast<float>(drawableW) - textW - edgePad);
                 appendText(x,
                            y,
                            text,
@@ -1838,7 +1844,7 @@ struct GameSession::Impl {
                                std::clamp(line.color.r, 0.0f, 1.0f),
                                std::clamp(line.color.g, 0.0f, 1.0f),
                                std::clamp(line.color.b, 0.0f, 1.0f)));
-                y += 16.0f;
+                y += lineStep;
             }
         }
 

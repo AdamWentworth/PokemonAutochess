@@ -9,6 +9,7 @@
 #include "game/runtime/BackendDebugText.h"
 #include "game/runtime/BackendSellOverlayModel.h"
 #include "game/runtime/BackendShopHudModel.h"
+#include "game/runtime/BackendUiScale.h"
 #include "game/state/BackendInputSlots.h"
 #include "game/state/PlacementState.h"
 #include "game/state/BackendUiPolicy.h"
@@ -444,6 +445,9 @@ bool ScriptedState::invokeBackendShopEntry(const game::state::backend_shop::Entr
 void ScriptedState::renderBackendCardUi(int uiW, int uiH) {
     if (!services.renderer) return;
     if (cardMode != CardMode::Shop && cardMode != CardMode::Starter) return;
+    const float uiScale = game::runtime::backend_ui::viewportScale(uiW, uiH);
+    const float edgePad = game::runtime::backend_ui::edgePad(uiW, uiH);
+    const float lineStep = game::runtime::backend_ui::lineStep(uiW, uiH);
 
     std::vector<IRenderBackend::DebugQuad> baseQuads;
     baseQuads.reserve(4096);
@@ -472,7 +476,7 @@ void ScriptedState::renderBackendCardUi(int uiW, int uiH) {
                                float b,
                                float* outW,
                                float* outH) {
-        const float textScale = std::max(0.1f, scale) * kBackendTextScaleBase;
+        const float textScale = std::max(0.1f, scale) * kBackendTextScaleBase * uiScale;
         const int baseW = stb_easy_font_width(const_cast<char*>(label.c_str()));
         const int baseH = stb_easy_font_height(const_cast<char*>(label.c_str()));
         const float textW = std::max(1.0f, static_cast<float>(baseW) * textScale);
@@ -503,7 +507,7 @@ void ScriptedState::renderBackendCardUi(int uiW, int uiH) {
                                         float r,
                                         float g,
                                         float b) {
-        const float textScale = std::max(0.1f, scale) * kBackendTextScaleBase;
+        const float textScale = std::max(0.1f, scale) * kBackendTextScaleBase * uiScale;
         const int baseW = stb_easy_font_width(const_cast<char*>(text.c_str()));
         const float textW = std::max(1.0f, static_cast<float>(baseW) * textScale);
         const float x = centerX - textW * 0.5f;
@@ -514,7 +518,15 @@ void ScriptedState::renderBackendCardUi(int uiW, int uiH) {
     const auto msgOpt = game::scripting::callStringFunction(script.getScriptTable(), {"get_message"});
     const std::string header = msgOpt ? *msgOpt : ((cardMode == CardMode::Starter) ? "Starter" : "Shop");
     game::runtime::backend_text::appendTextQuads(
-        textQuads, 26.0f, 24.0f, header, 2.6f, 0.95f, 0.95f, 0.98f, 1.0f);
+        textQuads,
+        edgePad,
+        std::max(10.0f, edgePad - lineStep * 0.15f),
+        header,
+        std::clamp(2.6f * uiScale, 1.6f, 3.3f),
+        0.95f,
+        0.95f,
+        0.98f,
+        1.0f);
 
     resetBackendShopActionRects();
 
@@ -544,7 +556,7 @@ void ScriptedState::renderBackendCardUi(int uiW, int uiH) {
             renderIn.v1 = card.data.uvMax.y;
             renderIn.keyboardSlot = slot;
             renderIn.item = itemRow || card.item;
-            renderIn.textScale = 0.74f;
+            renderIn.textScale = std::clamp(0.74f * uiScale, 0.55f, 1.10f);
             renderIn.spriteAlpha = 1.0f;
             game::runtime::backend_card_renderer::appendCardLayered(baseQuads, textQuads, &sprites, renderIn);
         }
@@ -627,8 +639,8 @@ void ScriptedState::renderBackendCardUi(int uiW, int uiH) {
             cardsH = game::runtime::backend_shop_hud::cardsAnchorH(backendMainButtons.front().h);
         }
 
-        const float moneyScale = 1.0f * kBackendTextScaleBase;
-        const float rerollScale = 1.0f * kBackendTextScaleBase;
+        const float moneyScale = 1.0f * kBackendTextScaleBase * uiScale;
+        const float rerollScale = 1.0f * kBackendTextScaleBase * uiScale;
         const float moneyW = game::runtime::backend_text::measureTextWidth(moneyLabel, moneyScale);
         const float moneyH = game::runtime::backend_text::measureTextHeight(moneyLabel, moneyScale);
         const float rerollW = game::runtime::backend_text::measureTextWidth(rerollLabel, rerollScale);
@@ -657,8 +669,8 @@ void ScriptedState::renderBackendCardUi(int uiW, int uiH) {
             float buttonH = 0.0f;
             addButton(buttonTextX, buttonTextY, rerollLabel, 1.0f,
                       0.20f, 0.16f, 0.08f, &buttonW, &buttonH);
-            backendRerollX = buttonTextX - std::max(8.0f, kBackendTextScaleBase * 4.0f);
-            backendRerollY = buttonTextY - std::max(5.0f, kBackendTextScaleBase * 2.5f);
+            backendRerollX = buttonTextX - std::max(8.0f, kBackendTextScaleBase * 4.0f * uiScale);
+            backendRerollY = buttonTextY - std::max(5.0f, kBackendTextScaleBase * 2.5f * uiScale);
             backendRerollW = buttonW;
             backendRerollH = buttonH;
         }
@@ -668,12 +680,12 @@ void ScriptedState::renderBackendCardUi(int uiW, int uiH) {
                 game::state::backend_shop::ActionType::ShopReady,
                 0);
             const std::string readyLabel = game::runtime::backend_shop_hud::keyboardPrefixedLabel(readySlot, "Ready");
-            const float textScale = 1.0f * kBackendTextScaleBase;
+            const float textScale = 1.0f * kBackendTextScaleBase * uiScale;
             const float textW = std::max(1.0f, game::runtime::backend_text::measureTextWidth(readyLabel, textScale));
             const float padX = std::max(8.0f, textScale * 4.0f);
             const float padY = std::max(5.0f, textScale * 2.5f);
-            const float textX = static_cast<float>(uiW) - textW - padX * 2.0f - 28.0f + padX;
-            const float textY = 62.0f;
+            const float textX = static_cast<float>(uiW) - textW - padX * 2.0f - edgePad + padX;
+            const float textY = edgePad + lineStep * 0.95f;
             float buttonW = 0.0f;
             float buttonH = 0.0f;
             addButton(textX, textY, readyLabel, 1.0f, 0.12f, 0.25f, 0.14f, &buttonW, &buttonH);
@@ -689,10 +701,10 @@ void ScriptedState::renderBackendCardUi(int uiW, int uiH) {
 
     game::runtime::backend_text::appendTextQuads(
         textQuads,
-        26.0f,
-        static_cast<float>(uiH) - 36.0f,
+        edgePad,
+        std::max(4.0f, static_cast<float>(uiH) - edgePad - lineStep * 0.8f),
         game::runtime::backend_shop_hud::interactionHint(),
-        1.0f,
+        std::clamp(1.0f * uiScale, 0.80f, 1.30f),
         0.72f,
         0.82f,
         0.93f,

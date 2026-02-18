@@ -350,6 +350,7 @@ if (BUILD_TESTING)
         tests/TestBackendShopHudModel.cpp
         tests/TestBackendSellOverlayModel.cpp
         tests/TestBackendStatusText.cpp
+        tests/TestBackendUiScale.cpp
         tests/TestBackendUiPolicy.cpp
         tests/TestBackendShopSnapshot.cpp
         tests/TestShopCardConversion.cpp

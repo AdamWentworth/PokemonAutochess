@@ -7,6 +7,7 @@
 #include "game/runtime/BackendDebugText.h"
 #include "game/runtime/BackendSellOverlayModel.h"
 #include "game/runtime/BackendShopHudModel.h"
+#include "game/runtime/BackendUiScale.h"
 #include "game/scripting/LuaCardParser.h"
 #include "game/scripting/LuaScriptHelpers.h"
 #include "game/state/BackendInputSlots.h"
@@ -152,6 +153,9 @@ bool CombatState::handleBackendShopMouseClick(int mouseX, int mouseY) {
 
 void CombatState::renderBackendShopUi(int uiW, int uiH, bool showSellOverlay, const std::string& header) {
     if (!services.renderer) return;
+    const float uiScale = game::runtime::backend_ui::viewportScale(uiW, uiH);
+    const float edgePad = game::runtime::backend_ui::edgePad(uiW, uiH);
+    const float lineStep = game::runtime::backend_ui::lineStep(uiW, uiH);
 
     std::vector<IRenderBackend::DebugQuad> baseQuads;
     baseQuads.reserve(4096);
@@ -172,7 +176,7 @@ void CombatState::renderBackendShopUi(int uiW, int uiH, bool showSellOverlay, co
             x,
             y,
             text,
-            std::max(0.1f, scale) * kBackendTextScaleBase,
+            std::max(0.1f, scale) * kBackendTextScaleBase * uiScale,
             r,
             g,
             b,
@@ -185,7 +189,7 @@ void CombatState::renderBackendShopUi(int uiW, int uiH, bool showSellOverlay, co
     backendRerollH = 0.0f;
     refreshBackendShopSnapshot();
 
-    appendText(26.0f, 24.0f, header, 1.9f, 0.97f, 0.97f, 0.99f);
+    appendText(edgePad, std::max(10.0f, edgePad - lineStep * 0.15f), header, 1.9f, 0.97f, 0.97f, 0.99f);
 
     if (game::ui::sell_overlay::shouldRenderShopCards(showSellOverlay)) {
         for (std::size_t i = 0; i < backendShopButtons.size(); ++i) {
@@ -216,7 +220,7 @@ void CombatState::renderBackendShopUi(int uiW, int uiH, bool showSellOverlay, co
             renderIn.v1 = button.data.uvMax.y;
             renderIn.keyboardSlot = slot;
             renderIn.item = (button.data.type == CardType::Item);
-            renderIn.textScale = 0.74f;
+            renderIn.textScale = std::clamp(0.74f * uiScale, 0.55f, 1.10f);
             renderIn.spriteAlpha = 1.0f;
             game::runtime::backend_card_renderer::appendCardLayered(baseQuads, textQuads, &sprites, renderIn);
         }
@@ -230,8 +234,8 @@ void CombatState::renderBackendShopUi(int uiW, int uiH, bool showSellOverlay, co
             game::state::backend_shop::ActionType::ShopReroll,
             0));
 
-    const float moneyScale = 1.0f * kBackendTextScaleBase;
-    const float rerollScale = 0.78f * kBackendTextScaleBase;
+    const float moneyScale = 1.0f * kBackendTextScaleBase * uiScale;
+    const float rerollScale = 0.78f * kBackendTextScaleBase * uiScale;
     const float moneyW = game::runtime::backend_text::measureTextWidth(moneyLabel, moneyScale);
     const float moneyH = game::runtime::backend_text::measureTextHeight(moneyLabel, moneyScale);
     const float rerollW = game::runtime::backend_text::measureTextWidth(rerollLabel, rerollScale);
@@ -350,8 +354,8 @@ void CombatState::renderBackendShopUi(int uiW, int uiH, bool showSellOverlay, co
     }
 
     refreshBackendShopSnapshot();
-    appendText(26.0f,
-               static_cast<float>(uiH) - 34.0f,
+    appendText(edgePad,
+               std::max(4.0f, static_cast<float>(uiH) - edgePad - lineStep * 0.8f),
                game::runtime::backend_shop_hud::interactionHint(),
                0.74f,
                0.72f,
