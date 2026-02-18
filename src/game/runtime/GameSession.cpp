@@ -566,6 +566,8 @@ struct GameSession::Impl {
 
         runtime::backend_inventory_panel::clearHitRegions(backendInventoryPanel);
 
+        std::vector<IRenderBackend::DebugQuad> worldBackgroundQuads;
+        worldBackgroundQuads.reserve(1024);
         std::vector<IRenderBackend::DebugQuad> worldQuads;
         worldQuads.reserve(1024);
         std::vector<IRenderBackend::DebugTriangle> worldTriangles;
@@ -660,7 +662,7 @@ struct GameSession::Impl {
                     boardBg.g = 0.11f;
                     boardBg.b = 0.14f;
                     boardBg.a = 0.36f;
-                    worldQuads.push_back(boardBg);
+                    worldBackgroundQuads.push_back(boardBg);
                 }
 
                 const float line = std::max(1.0f, minDim * 0.0019f);
@@ -762,6 +764,12 @@ struct GameSession::Impl {
                     return &cacheEntry.mesh;
                 };
                 const std::size_t boardTrianglesStart = worldTriangles.size();
+                struct DepthTri {
+                    IRenderBackend::DebugTriangle tri;
+                    float depth = 0.0f;
+                };
+                std::vector<DepthTri> modelDepthTris;
+                modelDepthTris.reserve(12000);
 
                 for (int r = 0; r < rows; ++r) {
                     for (int c = 0; c < cols; ++c) {
@@ -807,7 +815,7 @@ struct GameSession::Impl {
                     boardFallback.g = 0.11f;
                     boardFallback.b = 0.15f;
                     boardFallback.a = 0.92f;
-                    worldQuads.push_back(boardFallback);
+                    worldBackgroundQuads.push_back(boardFallback);
 
                     for (int r = 0; r < rows; ++r) {
                         for (int c = 0; c < cols; ++c) {
@@ -821,7 +829,7 @@ struct GameSession::Impl {
                             cell.g = darkCell ? 0.14f : 0.19f;
                             cell.b = darkCell ? 0.19f : 0.25f;
                             cell.a = darkCell ? 0.34f : 0.26f;
-                            worldQuads.push_back(cell);
+                            worldBackgroundQuads.push_back(cell);
                         }
                     }
 
@@ -941,14 +949,9 @@ struct GameSession::Impl {
 
                         bool drewModelMesh = false;
                         if (const runtime::backend_model::MeshData* mesh = resolveModelMesh(unit)) {
-                            struct DepthTri {
-                                IRenderBackend::DebugTriangle tri;
-                                float depth = 0.0f;
-                            };
-                            std::vector<DepthTri> depthSorted;
                             const std::size_t triangleCount = mesh->indices.size() / 3;
                             const std::size_t maxTrianglesPerUnit = backendModelTriangleLimit();
-                            depthSorted.reserve(std::min(triangleCount, maxTrianglesPerUnit));
+                            const std::size_t unitTriangleBudget = std::min(triangleCount, maxTrianglesPerUnit);
 
                             const float modelScale =
                                 std::max(0.01f, mesh->modelScaleFactor) *
@@ -967,6 +970,8 @@ struct GameSession::Impl {
                                 glm::rotate(glm::mat4(1.0f), glm::radians(animRoll), glm::vec3(0, 0, 1));
                             const glm::mat4 translation = glm::translate(glm::mat4(1.0f), renderPos);
                             const glm::mat4 modelM = translation * rotationY * rotationX * rotationZ * scale;
+                            const glm::mat3 normalM = glm::transpose(glm::inverse(glm::mat3(modelM)));
+                            const std::size_t modelDepthCountBefore = modelDepthTris.size();
 
                             const glm::vec3 lightDir = glm::normalize(glm::vec3(0.45f, 0.90f, 0.35f));
                             const glm::vec3 fallbackBase(
@@ -977,6 +982,9 @@ struct GameSession::Impl {
                             const auto pushModelTriangle = [&](const glm::vec3& a,
                                                                 const glm::vec3& b,
                                                                 const glm::vec3& c,
+                                                                const glm::vec3& n0,
+                                                                const glm::vec3& n1,
+                                                                const glm::vec3& n2,
                                                                 const glm::vec3& baseColor,
                                                                 float alpha) {
                                 float x1 = 0.0f;
@@ -999,13 +1007,15 @@ struct GameSession::Impl {
                                     return;
                                 }
 
-                                const glm::vec3 e1 = b - a;
-                                const glm::vec3 e2 = c - a;
                                 glm::vec3 n(0.0f, 1.0f, 0.0f);
-                                const glm::vec3 rawNormal = glm::cross(e1, e2);
-                                const float normalLenSq = glm::dot(rawNormal, rawNormal);
-                                if (normalLenSq > 0.000001f) {
-                                    n = glm::normalize(rawNormal);
+                                const glm::vec3 blendedNormal = n0 + n1 + n2;
+                                const float blendedLenSq = glm::dot(blendedNormal, blendedNormal);
+                                if (blendedLenSq > 0.000001f) {
+                                    n = glm::normalize(blendedNormal);
+                                } else {
+                                    const glm::vec3 rawNormal = glm::cross(b - a, c - a);
+                                    const float rawLenSq = glm::dot(rawNormal, rawNormal);
+                                    if (rawLenSq > 0.000001f) n = glm::normalize(rawNormal);
                                 }
                                 const float lit = std::clamp(glm::dot(n, lightDir), 0.0f, 1.0f);
                                 const float shade = 0.36f + lit * 0.64f;
@@ -1023,11 +1033,15 @@ struct GameSession::Impl {
                                 dt.tri.b = shaded.b;
                                 dt.tri.a = alpha;
                                 dt.depth = (z1 + z2 + z3) * (1.0f / 3.0f);
-                                depthSorted.push_back(dt);
+                                modelDepthTris.push_back(dt);
+                            };
+                            const auto safeNormalize = [](const glm::vec3& v) {
+                                const float lenSq = glm::dot(v, v);
+                                if (lenSq > 1e-12f) return glm::normalize(v);
+                                return glm::vec3(0.0f, 1.0f, 0.0f);
                             };
 
-                            const std::size_t triLimit = std::min(triangleCount, maxTrianglesPerUnit);
-                            for (std::size_t triIdx = 0; triIdx < triLimit; ++triIdx) {
+                            for (std::size_t triIdx = 0; triIdx < unitTriangleBudget; ++triIdx) {
                                 const std::size_t i = triIdx * 3;
                                 const std::uint32_t i0 = mesh->indices[i + 0];
                                 const std::uint32_t i1 = mesh->indices[i + 1];
@@ -1045,6 +1059,9 @@ struct GameSession::Impl {
                                 const glm::vec3 a = glm::vec3(modelM * glm::vec4(v0.position, 1.0f));
                                 const glm::vec3 b = glm::vec3(modelM * glm::vec4(v1.position, 1.0f));
                                 const glm::vec3 c = glm::vec3(modelM * glm::vec4(v2.position, 1.0f));
+                                const glm::vec3 n0 = safeNormalize(normalM * v0.normal);
+                                const glm::vec3 n1 = safeNormalize(normalM * v1.normal);
+                                const glm::vec3 n2 = safeNormalize(normalM * v2.normal);
 
                                 glm::vec3 baseColor = fallbackBase;
                                 if (mesh->hasVertexColor) {
@@ -1069,20 +1086,10 @@ struct GameSession::Impl {
                                     : 1.0f;
                                 const float alpha = (unit.alive ? 0.95f : 0.74f) * std::clamp(triOpacity, 0.0f, 1.0f);
                                 if (alpha < 0.03f) continue;
-                                pushModelTriangle(a, b, c, baseColor, alpha);
+                                pushModelTriangle(a, b, c, n0, n1, n2, baseColor, alpha);
                             }
 
-                            std::sort(
-                                depthSorted.begin(),
-                                depthSorted.end(),
-                                [](const DepthTri& lhs, const DepthTri& rhs) {
-                                    return lhs.depth > rhs.depth;
-                                });
-                            for (const DepthTri& tri : depthSorted) {
-                                worldTriangles.push_back(tri.tri);
-                            }
-
-                            drewModelMesh = !depthSorted.empty();
+                            drewModelMesh = (modelDepthTris.size() > modelDepthCountBefore);
                         }
 
                         const game::runtime::backend_proxy::UnitProxyCorners corners =
@@ -1251,6 +1258,18 @@ struct GameSession::Impl {
 
                 drawProjectedUnits(gameWorld->getPokemons());
                 drawProjectedUnits(gameWorld->getBenchPokemons());
+                if (!modelDepthTris.empty()) {
+                    std::sort(
+                        modelDepthTris.begin(),
+                        modelDepthTris.end(),
+                        [](const DepthTri& lhs, const DepthTri& rhs) {
+                            return lhs.depth > rhs.depth;
+                        });
+                    worldTriangles.reserve(worldTriangles.size() + modelDepthTris.size());
+                    for (const DepthTri& tri : modelDepthTris) {
+                        worldTriangles.push_back(tri.tri);
+                    }
+                }
             } else {
             IRenderBackend::DebugQuad boardBg;
             boardBg.x = boardX;
@@ -1261,7 +1280,7 @@ struct GameSession::Impl {
             boardBg.g = renderWorld ? 0.16f : 0.10f;
             boardBg.b = renderWorld ? 0.20f : 0.14f;
             boardBg.a = renderWorld ? 1.0f : 0.90f;
-            worldQuads.push_back(boardBg);
+            worldBackgroundQuads.push_back(boardBg);
 
             const float line = std::max(1.0f, minDim * 0.002f);
             for (int r = 0; r < rows; ++r) {
@@ -1283,7 +1302,7 @@ struct GameSession::Impl {
                         cell.b = renderWorld ? 0.27f : 0.18f;
                         cell.a = renderWorld ? 0.18f : 0.14f;
                     }
-                    worldQuads.push_back(cell);
+                    worldBackgroundQuads.push_back(cell);
                 }
             }
 
@@ -1823,6 +1842,9 @@ struct GameSession::Impl {
             }
         }
 
+        if (!worldBackgroundQuads.empty()) {
+            renderer->drawDebugQuads(worldBackgroundQuads.data(), worldBackgroundQuads.size(), drawableW, drawableH);
+        }
         if (!worldTriangles.empty()) {
             renderer->drawDebugTriangles(worldTriangles.data(), worldTriangles.size(), drawableW, drawableH);
         }

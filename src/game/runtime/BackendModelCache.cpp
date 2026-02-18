@@ -15,6 +15,7 @@
 #include "engine/render/ModelAnimationTypes.h"
 #include "engine/render/ModelMeshTypes.h"
 #include "game/runtime/BackendMaterialShading.h"
+#include "game/runtime/BackendMeshNormals.h"
 
 namespace {
 namespace fs = std::filesystem;
@@ -357,6 +358,7 @@ bool loadMeshFromCache(const std::string& modelPath, MeshData& out, std::string*
         anyNonWhiteColor = anyNonWhiteColor || nonWhite;
     }
     out.hasVertexColor = anyNonWhiteColor;
+    computeVertexNormals(out.vertices, out.indices);
 
     struct SubmeshRange {
         std::size_t firstIndex = 0u;
