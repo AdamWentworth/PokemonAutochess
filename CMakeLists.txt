@@ -344,6 +344,7 @@ if (BUILD_TESTING)
         tests/TestBackendInventoryPanel.cpp
         tests/TestBackendCardLayoutModel.cpp
         tests/TestBackendCardVisuals.cpp
+        tests/TestBackendCardRenderer.cpp
         tests/TestBackendShopHudModel.cpp
         tests/TestBackendSellOverlayModel.cpp
         tests/TestBackendStatusText.cpp

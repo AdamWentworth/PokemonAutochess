@@ -208,6 +208,10 @@ void CombatState::renderBackendShopUi(int uiW, int uiH, bool showSellOverlay, co
             renderIn.speciesName = button.data.pokemonName;
             renderIn.subtitle = sub;
             renderIn.explicitImagePath = button.data.imagePath;
+            renderIn.u0 = button.data.uvMin.x;
+            renderIn.v0 = button.data.uvMin.y;
+            renderIn.u1 = button.data.uvMax.x;
+            renderIn.v1 = button.data.uvMax.y;
             renderIn.keyboardSlot = slot;
             renderIn.item = (button.data.type == CardType::Item);
             renderIn.textScale = 0.74f;

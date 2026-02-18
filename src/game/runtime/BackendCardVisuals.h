@@ -69,17 +69,25 @@ inline CardVisualLayout computeCardVisualLayout(const CardVisualInput& input) {
 
 inline IRenderBackend::DebugSprite makeCardArtSprite(const CardVisualInput& input,
                                                      const std::string& imagePath,
-                                                     float alpha = 1.0f) {
+                                                     float alpha = 1.0f,
+                                                     float u0 = 0.0f,
+                                                     float v0 = 0.0f,
+                                                     float u1 = 1.0f,
+                                                     float v1 = 1.0f) {
     const CardVisualLayout layout = computeCardVisualLayout(input);
+    const float clampedU0 = std::clamp(u0, 0.0f, 1.0f);
+    const float clampedV0 = std::clamp(v0, 0.0f, 1.0f);
+    const float clampedU1 = std::clamp(u1, 0.0f, 1.0f);
+    const float clampedV1 = std::clamp(v1, 0.0f, 1.0f);
     IRenderBackend::DebugSprite sprite;
     sprite.x = layout.artX;
     sprite.y = layout.artY;
     sprite.w = layout.artW;
     sprite.h = layout.artH;
-    sprite.u0 = 0.0f;
-    sprite.v0 = 0.0f;
-    sprite.u1 = 1.0f;
-    sprite.v1 = 1.0f;
+    sprite.u0 = std::min(clampedU0, clampedU1);
+    sprite.v0 = std::min(clampedV0, clampedV1);
+    sprite.u1 = std::max(clampedU0, clampedU1);
+    sprite.v1 = std::max(clampedV0, clampedV1);
     sprite.r = 1.0f;
     sprite.g = 1.0f;
     sprite.b = 1.0f;

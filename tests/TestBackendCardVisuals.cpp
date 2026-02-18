@@ -53,6 +53,20 @@ bool test_backend_card_visuals_contract(std::string& outFail) {
             outFail = "card sprite should have positive geometry";
             return false;
         }
+
+        const auto uvSprite = makeCardArtSprite(
+            in,
+            resolveCardImagePath("", "charmander", false),
+            1.0f,
+            0.75f,
+            0.80f,
+            0.25f,
+            0.20f);
+        if (uvSprite.u0 != 0.25f || uvSprite.v0 != 0.20f ||
+            uvSprite.u1 != 0.75f || uvSprite.v1 != 0.80f) {
+            outFail = "card sprite UVs should preserve normalized atlas crop bounds";
+            return false;
+        }
     }
 
     {

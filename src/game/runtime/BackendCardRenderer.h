@@ -18,6 +18,10 @@ struct CardRenderInput {
     std::string speciesName;
     std::string subtitle;
     std::string explicitImagePath;
+    float u0 = 0.0f;
+    float v0 = 0.0f;
+    float u1 = 1.0f;
+    float v1 = 1.0f;
     int keyboardSlot = 0;
     bool item = false;
     float textScale = 0.74f;
@@ -44,7 +48,14 @@ inline void appendCard(std::vector<IRenderBackend::DebugQuad>& quads,
         input.speciesName.empty() ? input.displayName : input.speciesName,
         input.item);
     IRenderBackend::DebugSprite sprite =
-        runtime::backend_cards::makeCardArtSprite(visual, imagePath, input.spriteAlpha);
+        runtime::backend_cards::makeCardArtSprite(
+            visual,
+            imagePath,
+            input.spriteAlpha,
+            input.u0,
+            input.v0,
+            input.u1,
+            input.v1);
     if (!sprite.texturePath.empty()) {
         sprites->push_back(std::move(sprite));
     }

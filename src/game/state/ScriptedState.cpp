@@ -536,6 +536,10 @@ void ScriptedState::renderBackendCardUi(int uiW, int uiH) {
             renderIn.speciesName = card.data.pokemonName;
             renderIn.subtitle = sub;
             renderIn.explicitImagePath = card.data.imagePath;
+            renderIn.u0 = card.data.uvMin.x;
+            renderIn.v0 = card.data.uvMin.y;
+            renderIn.u1 = card.data.uvMax.x;
+            renderIn.v1 = card.data.uvMax.y;
             renderIn.keyboardSlot = slot;
             renderIn.item = itemRow || card.item;
             renderIn.textScale = 0.74f;
