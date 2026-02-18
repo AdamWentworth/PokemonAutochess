@@ -13,6 +13,7 @@ bool test_ecs_structural_change_deferral(std::string& outFail);
 bool test_rng_determinism(std::string& outFail);
 bool test_manual_time_source(std::string& outFail);
 bool test_environment_helpers_contract(std::string& outFail);
+bool test_auto_quit_policy_contract(std::string& outFail);
 bool test_logbus_recent_lines_contract(std::string& outFail);
 bool test_render_flow_decisions_contract(std::string& outFail);
 bool test_debug_geometry_line_raster_contract(std::string& outFail);
@@ -140,6 +141,7 @@ int main(int argc, char** argv) {
         {"rng_determinism", &test_rng_determinism},
         {"manual_time_source", &test_manual_time_source},
         {"environment_helpers_contract", &test_environment_helpers_contract},
+        {"auto_quit_policy_contract", &test_auto_quit_policy_contract},
         {"logbus_recent_lines_contract", &test_logbus_recent_lines_contract},
         {"render_flow_decisions_contract", &test_render_flow_decisions_contract},
         {"debug_geometry_line_raster_contract", &test_debug_geometry_line_raster_contract},

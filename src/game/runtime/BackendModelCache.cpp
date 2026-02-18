@@ -1,9 +1,11 @@
 #include "game/runtime/BackendModelCache.h"
 
 #include <cmath>
+#include <cstddef>
 #include <filesystem>
 #include <fstream>
 #include <iomanip>
+#include <limits>
 #include <sstream>
 #include <string>
 #include <vector>
@@ -160,6 +162,67 @@ bool skipAnimations(std::istream& in, std::uint32_t animCount) {
     return true;
 }
 
+struct CacheTextureHeader {
+    std::int32_t width = 0;
+    std::int32_t height = 0;
+    std::int32_t wrapS = 0;
+    std::int32_t wrapT = 0;
+    std::int32_t minF = 0;
+    std::int32_t magF = 0;
+    std::uint32_t bytes = 0;
+};
+
+bool readTextureAverageColor(std::istream& in, glm::vec4& outColor) {
+    outColor = glm::vec4(1.0f);
+
+    CacheTextureHeader h{};
+    if (!readPod(in, h.width) ||
+        !readPod(in, h.height) ||
+        !readPod(in, h.wrapS) ||
+        !readPod(in, h.wrapT) ||
+        !readPod(in, h.minF) ||
+        !readPod(in, h.magF) ||
+        !readPod(in, h.bytes)) {
+        return false;
+    }
+
+    constexpr std::uint32_t kMaxTextureBytes = 64u * 1024u * 1024u;
+    if (h.bytes > kMaxTextureBytes) return false;
+    if (h.bytes == 0) return true;
+
+    std::vector<unsigned char> rgba(h.bytes, 0u);
+    if (!in.read(reinterpret_cast<char*>(rgba.data()), static_cast<std::streamsize>(rgba.size()))) {
+        return false;
+    }
+
+    const std::size_t pixelCount = rgba.size() / 4u;
+    if (pixelCount == 0u) return true;
+
+    const std::size_t maxSamples = 4096u;
+    const std::size_t step = std::max<std::size_t>(1u, pixelCount / maxSamples);
+    double sumR = 0.0;
+    double sumG = 0.0;
+    double sumB = 0.0;
+    double sumA = 0.0;
+    std::size_t samples = 0u;
+    for (std::size_t i = 0; i < pixelCount; i += step) {
+        const std::size_t b = i * 4u;
+        sumR += static_cast<double>(rgba[b + 0u]) / 255.0;
+        sumG += static_cast<double>(rgba[b + 1u]) / 255.0;
+        sumB += static_cast<double>(rgba[b + 2u]) / 255.0;
+        sumA += static_cast<double>(rgba[b + 3u]) / 255.0;
+        ++samples;
+    }
+    if (samples == 0u) return true;
+
+    outColor = glm::vec4(
+        static_cast<float>(sumR / static_cast<double>(samples)),
+        static_cast<float>(sumG / static_cast<double>(samples)),
+        static_cast<float>(sumB / static_cast<double>(samples)),
+        static_cast<float>(sumA / static_cast<double>(samples)));
+    return true;
+}
+
 } // namespace
 
 namespace game::runtime::backend_model {
@@ -206,7 +269,8 @@ bool loadMeshFromCache(const std::string& modelPath, MeshData& out, std::string*
 
     constexpr std::uint32_t kMaxVertices = 2'000'000;
     constexpr std::uint32_t kMaxIndices = 6'000'000;
-    if (hdr.vertexCount > kMaxVertices || hdr.indexCount > kMaxIndices) {
+    constexpr std::uint32_t kMaxSubmeshes = std::numeric_limits<std::uint16_t>::max();
+    if (hdr.vertexCount > kMaxVertices || hdr.indexCount > kMaxIndices || hdr.submeshCount > kMaxSubmeshes) {
         if (outError) *outError = "cache geometry exceeds safety limits";
         return false;
     }
@@ -234,6 +298,7 @@ bool loadMeshFromCache(const std::string& modelPath, MeshData& out, std::string*
     for (const auto& v : cpuVertices) {
         MeshVertex mv;
         mv.position = glm::vec3(v.px, v.py, v.pz);
+        mv.uv = glm::vec2(v.u, v.v);
         mv.color = glm::vec4(v.r, v.g, v.b, v.a);
         out.vertices.push_back(mv);
 
@@ -244,6 +309,69 @@ bool loadMeshFromCache(const std::string& modelPath, MeshData& out, std::string*
         anyNonWhiteColor = anyNonWhiteColor || nonWhite;
     }
     out.hasVertexColor = anyNonWhiteColor;
+
+    struct SubmeshRange {
+        std::size_t firstIndex = 0u;
+        std::size_t indexCount = 0u;
+        glm::vec4 baseColor{1.0f};
+    };
+    std::vector<SubmeshRange> submeshRanges;
+    submeshRanges.reserve(hdr.submeshCount);
+    out.submeshBaseColors.reserve(hdr.submeshCount);
+    for (std::uint32_t si = 0; si < hdr.submeshCount; ++si) {
+        std::uint64_t off = 0u;
+        std::uint64_t cnt = 0u;
+        std::int32_t meshIdx = -1;
+        float emissiveX = 0.0f;
+        float emissiveY = 0.0f;
+        float emissiveZ = 0.0f;
+        std::uint8_t alphaMode = 0u;
+        float alphaCutoff = 0.0f;
+        std::uint8_t doubleSided = 0u;
+        if (!readPod(in, off) ||
+            !readPod(in, cnt) ||
+            !readPod(in, meshIdx) ||
+            !readPod(in, emissiveX) ||
+            !readPod(in, emissiveY) ||
+            !readPod(in, emissiveZ) ||
+            !readPod(in, alphaMode) ||
+            !readPod(in, alphaCutoff) ||
+            !readPod(in, doubleSided)) {
+            if (outError) *outError = "failed to read cache submesh header";
+            return false;
+        }
+
+        glm::vec4 baseColor(1.0f);
+        glm::vec4 ignoredEmissive(1.0f);
+        if (!readTextureAverageColor(in, baseColor) || !readTextureAverageColor(in, ignoredEmissive)) {
+            if (outError) *outError = "failed to read cache submesh textures";
+            return false;
+        }
+
+        SubmeshRange range;
+        range.firstIndex = static_cast<std::size_t>(std::min<std::uint64_t>(off, out.indices.size()));
+        const std::size_t maxRemaining =
+            (range.firstIndex < out.indices.size()) ? (out.indices.size() - range.firstIndex) : 0u;
+        range.indexCount = static_cast<std::size_t>(std::min<std::uint64_t>(cnt, maxRemaining));
+        range.baseColor = baseColor;
+        submeshRanges.push_back(range);
+        out.submeshBaseColors.push_back(baseColor);
+    }
+
+    const std::size_t triangleCount = out.indices.size() / 3u;
+    out.triangleSubmesh.assign(triangleCount, 0u);
+    if (!submeshRanges.empty()) {
+        for (std::size_t si = 0; si < submeshRanges.size(); ++si) {
+            const SubmeshRange& range = submeshRanges[si];
+            const std::size_t startTri = std::min(triangleCount, range.firstIndex / 3u);
+            const std::size_t endTri = std::min(triangleCount, (range.firstIndex + range.indexCount) / 3u);
+            for (std::size_t ti = startTri; ti < endTri; ++ti) {
+                out.triangleSubmesh[ti] = static_cast<std::uint16_t>(si);
+            }
+        }
+    } else if (triangleCount > 0u) {
+        out.submeshBaseColors.push_back(glm::vec4(1.0f));
+    }
 
     if (out.vertices.empty() || out.indices.empty()) {
         if (outError) *outError = "cache geometry empty";

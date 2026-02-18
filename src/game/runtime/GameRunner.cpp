@@ -21,6 +21,7 @@
 #include "engine/utils/ResourceManager.h"
 #include "engine/utils/ShaderCache.h"
 #include "game/runtime/GpuAdapters.h"
+#include "game/runtime/AutoQuitPolicy.h"
 #include "game/runtime/VideoInitGuards.h"
 #include "game/runtime/VideoPreferences.h"
 
@@ -648,6 +649,19 @@ namespace {
         double perfAccumRenderMs = 0.0;
         double perfAccumSwapMs = 0.0;
         int perfAccumFixedTicks = 0;
+        int renderedFrames = 0;
+        double elapsedSeconds = 0.0;
+        const game::runtime::auto_quit::Policy autoQuit = game::runtime::auto_quit::fromEnvironment();
+        if (autoQuit.enabled()) {
+            std::cout << "[Run] Auto-quit policy enabled:";
+            if (autoQuit.maxSeconds > 0.0) {
+                std::cout << " seconds=" << autoQuit.maxSeconds;
+            }
+            if (autoQuit.maxFrames > 0) {
+                std::cout << " frames=" << autoQuit.maxFrames;
+            }
+            std::cout << "\n";
+        }
 
         while (running) {
             SDL_Event sdlEvent;
@@ -724,6 +738,8 @@ namespace {
             const double renderMs = std::chrono::duration<double, std::milli>(renderEnd - renderStart).count();
             const double swapMs = std::chrono::duration<double, std::milli>(swapEnd - renderEnd).count();
             const double frameCpuMs = std::chrono::duration<double, std::milli>(swapEnd - frameCpuStart).count();
+            ++renderedFrames;
+            elapsedSeconds += frameDt;
 
             frameCount++;
             fpsTimer += frameDt;
@@ -762,6 +778,14 @@ namespace {
                 perfAccumRenderMs = 0.0;
                 perfAccumSwapMs = 0.0;
                 perfAccumFixedTicks = 0;
+            }
+
+            if (autoQuit.enabled() &&
+                game::runtime::auto_quit::shouldTrigger(autoQuit, elapsedSeconds, renderedFrames)) {
+                running = false;
+                if (stopReason.empty()) {
+                    stopReason = "PAC_AUTO_QUIT policy reached";
+                }
             }
         }
 

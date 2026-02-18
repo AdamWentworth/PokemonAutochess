@@ -12,6 +12,7 @@ if (DEFINED ENV{CI} AND NOT "$ENV{CI}" STREQUAL "" AND NOT "$ENV{CI}" STREQUAL "
 endif()
 option(PAC_ENABLE_WARNINGS "Enable compiler warning flags for project sources" ON)
 option(PAC_WARNINGS_AS_ERRORS "Treat compiler warnings as errors for project sources" ${_pac_werror_default})
+option(PAC_ENABLE_RUNTIME_SMOKE_TESTS "Run short executable startup smoke tests for renderer backends" OFF)
 
 include(CTest)
 
@@ -331,6 +332,7 @@ if (BUILD_TESTING)
         tests/TestECS.cpp
         tests/TestDeterminism.cpp
         tests/TestEnvironment.cpp
+        tests/TestAutoQuitPolicy.cpp
         tests/TestBackendHudFormatting.cpp
         tests/TestBackendDebugText.cpp
         tests/TestBackendImagePath.cpp
@@ -452,6 +454,26 @@ if (BUILD_TESTING)
         WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
         ENVIRONMENT "PAC_DATA_ROOT=${CMAKE_SOURCE_DIR};PAC_ASSET_ROOT=${CMAKE_SOURCE_DIR}/assets"
     )
+
+    if (PAC_ENABLE_RUNTIME_SMOKE_TESTS)
+        add_test(NAME PAC_RuntimeSmoke.opengl COMMAND PokemonAutochess)
+        set_tests_properties(PAC_RuntimeSmoke.opengl PROPERTIES
+            WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+            TIMEOUT 45
+            ENVIRONMENT
+                "PAC_DATA_ROOT=${CMAKE_SOURCE_DIR};PAC_ASSET_ROOT=${CMAKE_SOURCE_DIR}/assets;PAC_RENDER_BACKEND=opengl;PAC_AUTO_QUIT_SECONDS=2;PAC_DISABLE_MODELCACHE=1"
+        )
+
+        if (WIN32)
+            add_test(NAME PAC_RuntimeSmoke.d3d12 COMMAND PokemonAutochess)
+            set_tests_properties(PAC_RuntimeSmoke.d3d12 PROPERTIES
+                WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+                TIMEOUT 45
+                ENVIRONMENT
+                    "PAC_DATA_ROOT=${CMAKE_SOURCE_DIR};PAC_ASSET_ROOT=${CMAKE_SOURCE_DIR}/assets;PAC_RENDER_BACKEND=d3d12;PAC_AUTO_QUIT_SECONDS=2;PAC_DISABLE_MODELCACHE=1"
+            )
+        endif()
+    endif()
 endif()
 
 # ---------------- Convenience aggregate target ----------------

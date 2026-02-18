@@ -82,6 +82,23 @@ std::string trimDebugLine(std::string s, std::size_t maxChars) {
     if (maxChars <= 3) return s.substr(0, maxChars);
     return s.substr(0, maxChars - 3) + "...";
 }
+
+std::size_t backendModelTriangleLimit() {
+    static const std::size_t limit = []() -> std::size_t {
+        constexpr std::size_t kDefault = 8000u;
+        constexpr std::size_t kMin = 256u;
+        constexpr std::size_t kMax = 40000u;
+        const auto env = engine::env::get("PAC_BACKEND_MODEL_TRI_LIMIT");
+        if (!env.has_value()) return kDefault;
+        try {
+            const std::size_t parsed = static_cast<std::size_t>(std::stoull(*env));
+            return std::clamp(parsed, kMin, kMax);
+        } catch (...) {
+            return kDefault;
+        }
+    }();
+    return limit;
+}
 } // namespace
 
 namespace game {
@@ -843,7 +860,7 @@ struct GameSession::Impl {
                             };
                             std::vector<DepthTri> depthSorted;
                             const std::size_t triangleCount = mesh->indices.size() / 3;
-                            const std::size_t maxTrianglesPerUnit = 2600;
+                            const std::size_t maxTrianglesPerUnit = backendModelTriangleLimit();
                             depthSorted.reserve(std::min(triangleCount, maxTrianglesPerUnit));
 
                             const float modelScale =
@@ -947,6 +964,13 @@ struct GameSession::Impl {
                                         (v0.color.r + v1.color.r + v2.color.r) * (1.0f / 3.0f),
                                         (v0.color.g + v1.color.g + v2.color.g) * (1.0f / 3.0f),
                                         (v0.color.b + v1.color.b + v2.color.b) * (1.0f / 3.0f));
+                                } else if (triIdx < mesh->triangleSubmesh.size() &&
+                                           !mesh->submeshBaseColors.empty()) {
+                                    const std::uint16_t submeshIndex = mesh->triangleSubmesh[triIdx];
+                                    if (submeshIndex < mesh->submeshBaseColors.size()) {
+                                        const glm::vec4 subColor = mesh->submeshBaseColors[submeshIndex];
+                                        baseColor = glm::vec3(subColor.r, subColor.g, subColor.b);
+                                    }
                                 }
                                 baseColor = glm::clamp(baseColor, 0.0f, 1.0f);
 

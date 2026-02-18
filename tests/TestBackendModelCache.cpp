@@ -1,5 +1,7 @@
 #include "game/runtime/BackendModelCache.h"
 
+#include <filesystem>
+#include <fstream>
 #include <string>
 
 namespace {
@@ -54,6 +56,41 @@ bool test_backend_model_cache_contract(std::string& outFail) {
         }
         if (err.empty()) {
             outFail = "loadMeshFromCache should provide an error when cache file is missing";
+            return false;
+        }
+    }
+
+    {
+        namespace fs = std::filesystem;
+        const std::string fakeModel = "assets/models/_unit_test_corrupt_cache_probe.glb";
+        const fs::path corruptPath = cachePathForModel(fakeModel);
+        std::error_code ec;
+        fs::create_directories(corruptPath.parent_path(), ec);
+        if (ec) {
+            outFail = "failed to create cache directory for corrupt-cache probe";
+            return false;
+        }
+
+        {
+            std::ofstream out(corruptPath, std::ios::binary | std::ios::trunc);
+            if (!out.is_open()) {
+                outFail = "failed to write corrupt cache probe file";
+                return false;
+            }
+            const char payload[] = {'B', 'A', 'D', '!'};
+            out.write(payload, sizeof(payload));
+        }
+
+        MeshData mesh;
+        std::string err;
+        const bool ok = loadMeshFromCache(fakeModel, mesh, &err);
+        fs::remove(corruptPath, ec);
+        if (ok) {
+            outFail = "loadMeshFromCache should reject corrupt cache files";
+            return false;
+        }
+        if (err.empty()) {
+            outFail = "loadMeshFromCache should surface an error for corrupt cache files";
             return false;
         }
     }
