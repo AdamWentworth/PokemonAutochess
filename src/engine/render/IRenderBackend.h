@@ -28,6 +28,19 @@ public:
         float a = 1.0f;
     };
 
+    struct DebugTriangle {
+        float x1 = 0.0f;
+        float y1 = 0.0f;
+        float x2 = 0.0f;
+        float y2 = 0.0f;
+        float x3 = 0.0f;
+        float y3 = 0.0f;
+        float r = 1.0f;
+        float g = 1.0f;
+        float b = 1.0f;
+        float a = 1.0f;
+    };
+
     struct DebugSprite {
         float x = 0.0f;
         float y = 0.0f;
@@ -69,6 +82,15 @@ public:
                                 int surfaceHeight) {
         (void)lines;
         (void)lineCount;
+        (void)surfaceWidth;
+        (void)surfaceHeight;
+    }
+    virtual void drawDebugTriangles(const DebugTriangle* triangles,
+                                    std::size_t triangleCount,
+                                    int surfaceWidth,
+                                    int surfaceHeight) {
+        (void)triangles;
+        (void)triangleCount;
         (void)surfaceWidth;
         (void)surfaceHeight;
     }

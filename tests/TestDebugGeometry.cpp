@@ -113,5 +113,32 @@ bool test_debug_geometry_line_raster_contract(std::string& outFail) {
         return false;
     }
 
+    vertices.clear();
+    IRenderBackend::DebugTriangle tri;
+    tri.x1 = 0.0f;
+    tri.y1 = 0.0f;
+    tri.x2 = 10.0f;
+    tri.y2 = 0.0f;
+    tri.x3 = 5.0f;
+    tri.y3 = 8.0f;
+    tri.r = 0.2f;
+    tri.g = 0.3f;
+    tri.b = 0.4f;
+    tri.a = 0.9f;
+    engine::render::debug::appendTriangle(tri, vertices);
+    if (vertices.size() != 3u) {
+        outFail = "triangle append should emit exactly 3 vertices";
+        return false;
+    }
+    if (!approx(vertices[0].x, 0.0f) || !approx(vertices[1].x, 10.0f) || !approx(vertices[2].x, 5.0f)) {
+        outFail = "triangle vertex positions mismatch";
+        return false;
+    }
+    if (!approx(vertices[0].r, 0.2f) || !approx(vertices[1].g, 0.3f) ||
+        !approx(vertices[2].b, 0.4f) || !approx(vertices[2].a, 0.9f)) {
+        outFail = "triangle vertex colors mismatch";
+        return false;
+    }
+
     return true;
 }

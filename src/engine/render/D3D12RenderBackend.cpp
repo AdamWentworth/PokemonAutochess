@@ -469,6 +469,78 @@ void D3D12RenderBackend::drawDebugLines(const DebugLine* lines,
 #endif
 }
 
+void D3D12RenderBackend::drawDebugTriangles(const DebugTriangle* triangles,
+                                            std::size_t triangleCount,
+                                            int surfaceWidth,
+                                            int surfaceHeight) {
+#if defined(_WIN32)
+    if (!recording_ || !triangles || triangleCount == 0 || surfaceWidth <= 0 || surfaceHeight <= 0) return;
+    if (!debugPipelineState_ || !debugRootSignature_ || !debugVertexBuffer_ || !commandList_) return;
+
+    constexpr std::size_t kMaxDebugTriangles = 4096;
+    const std::size_t safeCount = (triangleCount > kMaxDebugTriangles) ? kMaxDebugTriangles : triangleCount;
+
+    std::vector<DebugVertex> verts;
+    verts.reserve(safeCount * 3);
+    for (std::size_t i = 0; i < safeCount; ++i) {
+        const DebugTriangle& t = triangles[i];
+        verts.push_back(DebugVertex{t.x1, t.y1, t.r, t.g, t.b, t.a});
+        verts.push_back(DebugVertex{t.x2, t.y2, t.r, t.g, t.b, t.a});
+        verts.push_back(DebugVertex{t.x3, t.y3, t.r, t.g, t.b, t.a});
+    }
+    if (verts.empty()) return;
+
+    const std::size_t neededBytes = verts.size() * sizeof(DebugVertex);
+    if (neededBytes == 0 || neededBytes > debugVertexBufferSize_) return;
+
+    void* mapped = nullptr;
+    D3D12_RANGE readRange{0, 0};
+    if (FAILED(debugVertexBuffer_->Map(0, &readRange, &mapped)) || !mapped) return;
+
+    DebugVertex* out = static_cast<DebugVertex*>(mapped);
+    const float invW = 1.0f / static_cast<float>(surfaceWidth);
+    const float invH = 1.0f / static_cast<float>(surfaceHeight);
+    for (std::size_t i = 0; i < verts.size(); ++i) {
+        const DebugVertex& src = verts[i];
+        out[i].x = src.x * invW * 2.0f - 1.0f;
+        out[i].y = 1.0f - src.y * invH * 2.0f;
+        out[i].r = src.r;
+        out[i].g = src.g;
+        out[i].b = src.b;
+        out[i].a = src.a;
+    }
+    D3D12_RANGE writeRange{0, static_cast<SIZE_T>(neededBytes)};
+    debugVertexBuffer_->Unmap(0, &writeRange);
+
+    D3D12_VIEWPORT vp{};
+    vp.TopLeftX = 0.0f;
+    vp.TopLeftY = 0.0f;
+    vp.Width = static_cast<float>(surfaceWidth);
+    vp.Height = static_cast<float>(surfaceHeight);
+    vp.MinDepth = 0.0f;
+    vp.MaxDepth = 1.0f;
+    D3D12_RECT scissor{0, 0, surfaceWidth, surfaceHeight};
+
+    commandList_->RSSetViewports(1, &vp);
+    commandList_->RSSetScissorRects(1, &scissor);
+    commandList_->SetGraphicsRootSignature(debugRootSignature_.Get());
+    commandList_->SetPipelineState(debugPipelineState_.Get());
+    commandList_->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+    D3D12_VERTEX_BUFFER_VIEW vbv{};
+    vbv.BufferLocation = debugVertexBufferGpuAddress_;
+    vbv.StrideInBytes = debugVertexStride_;
+    vbv.SizeInBytes = static_cast<UINT>(neededBytes);
+    commandList_->IASetVertexBuffers(0, 1, &vbv);
+    commandList_->DrawInstanced(static_cast<UINT>(verts.size()), 1, 0, 0);
+#else
+    (void)triangles;
+    (void)triangleCount;
+    (void)surfaceWidth;
+    (void)surfaceHeight;
+#endif
+}
+
 void D3D12RenderBackend::drawDebugSprites(const DebugSprite* sprites,
                                           std::size_t spriteCount,
                                           int surfaceWidth,

@@ -540,6 +540,8 @@ struct GameSession::Impl {
 
         std::vector<IRenderBackend::DebugQuad> worldQuads;
         worldQuads.reserve(1024);
+        std::vector<IRenderBackend::DebugTriangle> worldTriangles;
+        worldTriangles.reserve(4096);
         std::vector<IRenderBackend::DebugQuad> overlayQuads;
         overlayQuads.reserve(1024);
         std::vector<IRenderBackend::DebugLine> lines;
@@ -629,11 +631,61 @@ struct GameSession::Impl {
                     boardBg.r = 0.07f;
                     boardBg.g = 0.11f;
                     boardBg.b = 0.14f;
-                    boardBg.a = 0.46f;
+                    boardBg.a = 0.36f;
                     worldQuads.push_back(boardBg);
                 }
 
                 const float line = std::max(1.0f, minDim * 0.0019f);
+                const auto appendProjectedTriangle = [&](const glm::vec3& a,
+                                                         const glm::vec3& b,
+                                                         const glm::vec3& c,
+                                                         float r,
+                                                         float g,
+                                                         float bl,
+                                                         float alpha) {
+                    float x1 = 0.0f;
+                    float y1 = 0.0f;
+                    float z1 = 0.0f;
+                    float x2 = 0.0f;
+                    float y2 = 0.0f;
+                    float z2 = 0.0f;
+                    float x3 = 0.0f;
+                    float y3 = 0.0f;
+                    float z3 = 0.0f;
+                    if (!projectWorld(a, x1, y1, z1) ||
+                        !projectWorld(b, x2, y2, z2) ||
+                        !projectWorld(c, x3, y3, z3)) {
+                        return;
+                    }
+                    if ((z1 < 0.0f || z1 > 1.0f) &&
+                        (z2 < 0.0f || z2 > 1.0f) &&
+                        (z3 < 0.0f || z3 > 1.0f)) {
+                        return;
+                    }
+                    IRenderBackend::DebugTriangle tri;
+                    tri.x1 = x1;
+                    tri.y1 = y1;
+                    tri.x2 = x2;
+                    tri.y2 = y2;
+                    tri.x3 = x3;
+                    tri.y3 = y3;
+                    tri.r = r;
+                    tri.g = g;
+                    tri.b = bl;
+                    tri.a = alpha;
+                    worldTriangles.push_back(tri);
+                };
+                const auto appendProjectedQuad = [&](const glm::vec3& a,
+                                                     const glm::vec3& b,
+                                                     const glm::vec3& c,
+                                                     const glm::vec3& d,
+                                                     float r,
+                                                     float g,
+                                                     float bl,
+                                                     float alpha) {
+                    appendProjectedTriangle(a, b, c, r, g, bl, alpha);
+                    appendProjectedTriangle(a, c, d, r, g, bl, alpha);
+                };
                 const auto appendProjectedLine = [&](const glm::vec3& a,
                                                      const glm::vec3& b,
                                                      float r,
@@ -661,6 +713,26 @@ struct GameSession::Impl {
                     l.a = alpha;
                     lines.push_back(l);
                 };
+
+                for (int r = 0; r < rows; ++r) {
+                    for (int c = 0; c < cols; ++c) {
+                        const float x0 = boardMinX + static_cast<float>(c) * worldCellSize;
+                        const float z0 = boardMinZ + static_cast<float>(r) * worldCellSize;
+                        const float x1 = x0 + worldCellSize;
+                        const float z1 = z0 + worldCellSize;
+                        const bool darkCell = ((r + c) % 2) == 0;
+                        const float cr = darkCell ? 0.08f : 0.12f;
+                        const float cg = darkCell ? 0.13f : 0.17f;
+                        const float cb = darkCell ? 0.18f : 0.23f;
+                        const float ca = darkCell ? 0.34f : 0.27f;
+                        appendProjectedQuad(
+                            glm::vec3(x0, 0.006f, z0),
+                            glm::vec3(x1, 0.006f, z0),
+                            glm::vec3(x1, 0.006f, z1),
+                            glm::vec3(x0, 0.006f, z1),
+                            cr, cg, cb, ca);
+                    }
+                }
 
                 for (int c = 0; c <= cols; ++c) {
                     const float x = boardMinX + static_cast<float>(c) * worldCellSize;
@@ -703,32 +775,41 @@ struct GameSession::Impl {
                             cellPx = std::max(14.0f, minDim * 0.035f);
                         }
                         const float unitSize = std::clamp(cellPx * 0.75f, 10.0f, 84.0f);
+                        const float worldHalf = std::max(0.06f, worldCellSize * 0.22f);
+                        const float worldHeight =
+                            std::max(0.20f, worldCellSize * 0.72f) * std::clamp(unit.speciesScale, 0.75f, 1.70f);
+                        const glm::vec3 baseCenter = unit.position + glm::vec3(0.0f, unit.visualYOffset, 0.0f);
+                        const glm::vec3 b0 = baseCenter + glm::vec3(-worldHalf, 0.02f, -worldHalf);
+                        const glm::vec3 b1 = baseCenter + glm::vec3(worldHalf, 0.02f, -worldHalf);
+                        const glm::vec3 b2 = baseCenter + glm::vec3(worldHalf, 0.02f, worldHalf);
+                        const glm::vec3 b3 = baseCenter + glm::vec3(-worldHalf, 0.02f, worldHalf);
+                        const glm::vec3 t0 = b0 + glm::vec3(0.0f, worldHeight, 0.0f);
+                        const glm::vec3 t1 = b1 + glm::vec3(0.0f, worldHeight, 0.0f);
+                        const glm::vec3 t2 = b2 + glm::vec3(0.0f, worldHeight, 0.0f);
+                        const glm::vec3 t3 = b3 + glm::vec3(0.0f, worldHeight, 0.0f);
 
-                        IRenderBackend::DebugQuad u;
-                        u.w = unitSize;
-                        u.h = unitSize;
-                        u.x = cx - u.w * 0.5f;
-                        u.y = cy - u.h * 0.5f;
-                        runtime::backend_units::applyWorldUnitTint(u, unit);
-                        worldQuads.push_back(u);
+                        IRenderBackend::DebugQuad tint;
+                        runtime::backend_units::applyWorldUnitTint(tint, unit);
+                        const float topR = std::clamp(tint.r * 0.86f + 0.12f, 0.0f, 1.0f);
+                        const float topG = std::clamp(tint.g * 0.86f + 0.12f, 0.0f, 1.0f);
+                        const float topB = std::clamp(tint.b * 0.86f + 0.12f, 0.0f, 1.0f);
+                        const float sideR = std::clamp(tint.r * 0.72f, 0.0f, 1.0f);
+                        const float sideG = std::clamp(tint.g * 0.72f, 0.0f, 1.0f);
+                        const float sideB = std::clamp(tint.b * 0.72f, 0.0f, 1.0f);
+                        const float topAlpha = unit.alive ? 0.96f : 0.78f;
+                        const float sideAlpha = unit.alive ? 0.88f : 0.70f;
 
-                        const std::string unitImagePath =
-                            runtime::backend_units::resolveWorldUnitImagePath(unit.name);
-                        IRenderBackend::DebugSprite unitSprite =
-                            runtime::backend_units::makeWorldUnitSprite(
-                                cx,
-                                cy,
-                                unitSize * 2.0f,
-                                unitSize * 2.0f,
-                                unitImagePath,
-                                unit.alive ? 0.97f : 0.72f);
-                        if (!unitSprite.texturePath.empty()) {
-                            sprites.push_back(std::move(unitSprite));
-                        }
+                        appendProjectedQuad(t0, t1, t2, t3, topR, topG, topB, topAlpha);
+                        appendProjectedQuad(b0, b1, t1, t0, sideR, sideG, sideB, sideAlpha);
+                        appendProjectedQuad(b1, b2, t2, t1, sideR, sideG, sideB, sideAlpha);
+                        appendProjectedQuad(b2, b3, t3, t2, sideR, sideG, sideB, sideAlpha);
+                        appendProjectedQuad(b3, b0, t0, t3, sideR, sideG, sideB, sideAlpha);
+
+                        const float topLabelY = cy - std::max(14.0f, unitSize * 0.40f);
 
                         BackendUnitLabel label;
-                        label.x = std::max(6.0f, u.x);
-                        label.y = std::max(4.0f, u.y - std::max(12.0f, unitSize * 0.30f));
+                        label.x = std::max(6.0f, cx - unitSize * 0.55f);
+                        label.y = std::max(4.0f, topLabelY);
                         label.text = unit.name;
                         if (!label.text.empty()) {
                             label.text[0] = static_cast<char>(std::toupper(static_cast<unsigned char>(label.text[0])));
@@ -745,7 +826,7 @@ struct GameSession::Impl {
                             1.0f);
                         const float hpW = unitSize * 0.86f;
                         const float hpX = cx - hpW * 0.5f;
-                        const float hpY = u.y - std::max(3.0f, unitSize * 0.13f);
+                        const float hpY = topLabelY - std::max(2.0f, unitSize * 0.10f);
                         const float hpThick = std::max(1.0f, line * 2.1f);
 
                         IRenderBackend::DebugLine hpBg;
@@ -783,7 +864,7 @@ struct GameSession::Impl {
                                 1.0f);
                             const float energyY =
                                 std::min(static_cast<float>(drawableH) - 2.0f,
-                                         u.y + u.h + std::max(2.0f, line * 2.2f));
+                                         cy + unitSize * 0.50f + std::max(2.0f, line * 2.2f));
 
                             IRenderBackend::DebugLine energyBg;
                             energyBg.x1 = hpX;
@@ -1384,6 +1465,9 @@ struct GameSession::Impl {
             }
         }
 
+        if (!worldTriangles.empty()) {
+            renderer->drawDebugTriangles(worldTriangles.data(), worldTriangles.size(), drawableW, drawableH);
+        }
         if (!worldQuads.empty()) {
             renderer->drawDebugQuads(worldQuads.data(), worldQuads.size(), drawableW, drawableH);
         }

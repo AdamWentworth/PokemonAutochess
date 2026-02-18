@@ -58,4 +58,11 @@ inline bool appendLineAsTriangles(const IRenderBackend::DebugLine& line,
     return true;
 }
 
+inline void appendTriangle(const IRenderBackend::DebugTriangle& tri,
+                           std::vector<Vertex2D>& out) {
+    out.push_back(Vertex2D{tri.x1, tri.y1, tri.r, tri.g, tri.b, tri.a});
+    out.push_back(Vertex2D{tri.x2, tri.y2, tri.r, tri.g, tri.b, tri.a});
+    out.push_back(Vertex2D{tri.x3, tri.y3, tri.r, tri.g, tri.b, tri.a});
+}
+
 } // namespace engine::render::debug

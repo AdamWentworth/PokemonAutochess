@@ -50,6 +50,10 @@ public:
                         std::size_t lineCount,
                         int surfaceWidth,
                         int surfaceHeight) override;
+    void drawDebugTriangles(const DebugTriangle* triangles,
+                            std::size_t triangleCount,
+                            int surfaceWidth,
+                            int surfaceHeight) override;
     void drawDebugSprites(const DebugSprite* sprites,
                           std::size_t spriteCount,
                           int surfaceWidth,

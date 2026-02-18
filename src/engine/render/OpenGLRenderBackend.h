@@ -27,6 +27,10 @@ public:
                         std::size_t lineCount,
                         int surfaceWidth,
                         int surfaceHeight) override;
+    void drawDebugTriangles(const DebugTriangle* triangles,
+                            std::size_t triangleCount,
+                            int surfaceWidth,
+                            int surfaceHeight) override;
     void shutdown() override;
 
 private:

@@ -174,6 +174,60 @@ void OpenGLRenderBackend::drawDebugLines(const DebugLine* lines,
     if (depthEnabled) glEnable(GL_DEPTH_TEST);
 }
 
+void OpenGLRenderBackend::drawDebugTriangles(const DebugTriangle* triangles,
+                                             std::size_t triangleCount,
+                                             int surfaceWidth,
+                                             int surfaceHeight) {
+    if (!triangles || triangleCount == 0 || surfaceWidth <= 0 || surfaceHeight <= 0) return;
+    ensureDebugPipeline();
+    if (debugProgram_ == 0 || debugVao_ == 0 || debugVbo_ == 0 || debugSurfaceSizeLoc_ < 0) return;
+
+    using GlDebugVertex = engine::render::debug::Vertex2D;
+    constexpr std::size_t kMaxDebugTriangles = 4096;
+    const std::size_t safeCount = std::min(triangleCount, kMaxDebugTriangles);
+    std::vector<GlDebugVertex> vertices;
+    vertices.reserve(safeCount * 3);
+    for (std::size_t i = 0; i < safeCount; ++i) {
+        const DebugTriangle& t = triangles[i];
+        vertices.push_back(GlDebugVertex{t.x1, t.y1, t.r, t.g, t.b, t.a});
+        vertices.push_back(GlDebugVertex{t.x2, t.y2, t.r, t.g, t.b, t.a});
+        vertices.push_back(GlDebugVertex{t.x3, t.y3, t.r, t.g, t.b, t.a});
+    }
+    if (vertices.empty()) return;
+
+    GLint prevProgram = 0;
+    GLint prevVao = 0;
+    GLint prevArrayBuffer = 0;
+    glGetIntegerv(GL_CURRENT_PROGRAM, &prevProgram);
+    glGetIntegerv(GL_VERTEX_ARRAY_BINDING, &prevVao);
+    glGetIntegerv(GL_ARRAY_BUFFER_BINDING, &prevArrayBuffer);
+
+    const GLboolean depthEnabled = glIsEnabled(GL_DEPTH_TEST);
+    const GLboolean blendEnabled = glIsEnabled(GL_BLEND);
+
+    glDisable(GL_DEPTH_TEST);
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+    glUseProgram(debugProgram_);
+    glUniform2f(debugSurfaceSizeLoc_, static_cast<float>(surfaceWidth), static_cast<float>(surfaceHeight));
+
+    glBindVertexArray(debugVao_);
+    glBindBuffer(GL_ARRAY_BUFFER, debugVbo_);
+    glBufferData(GL_ARRAY_BUFFER,
+                 static_cast<GLsizeiptr>(vertices.size() * sizeof(GlDebugVertex)),
+                 vertices.data(),
+                 GL_STREAM_DRAW);
+    glDrawArrays(GL_TRIANGLES, 0, static_cast<GLsizei>(vertices.size()));
+
+    glBindBuffer(GL_ARRAY_BUFFER, static_cast<GLuint>(prevArrayBuffer));
+    glBindVertexArray(static_cast<GLuint>(prevVao));
+    glUseProgram(static_cast<GLuint>(prevProgram));
+
+    if (!blendEnabled) glDisable(GL_BLEND);
+    if (depthEnabled) glEnable(GL_DEPTH_TEST);
+}
+
 void OpenGLRenderBackend::shutdown() {
     destroyDebugPipeline();
     if (renderer_) {
