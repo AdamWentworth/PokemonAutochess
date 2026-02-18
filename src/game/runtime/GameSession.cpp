@@ -8,6 +8,7 @@
 #include <cstdint>
 #include <random>
 #include <algorithm>
+#include <cmath>
 #include <iomanip>
 #include <sstream>
 #include <unordered_map>
@@ -760,6 +761,7 @@ struct GameSession::Impl {
                     }
                     return &cacheEntry.mesh;
                 };
+                const std::size_t boardTrianglesStart = worldTriangles.size();
 
                 for (int r = 0; r < rows; ++r) {
                     for (int c = 0; c < cols; ++c) {
@@ -795,14 +797,85 @@ struct GameSession::Impl {
                         glm::vec3(boardMaxX, 0.01f, z),
                         0.23f, 0.35f, 0.44f, 0.95f, line);
                 }
+                if (worldTriangles.size() == boardTrianglesStart) {
+                    IRenderBackend::DebugQuad boardFallback;
+                    boardFallback.x = boardX;
+                    boardFallback.y = boardY;
+                    boardFallback.w = boardW;
+                    boardFallback.h = boardH;
+                    boardFallback.r = 0.07f;
+                    boardFallback.g = 0.11f;
+                    boardFallback.b = 0.15f;
+                    boardFallback.a = 0.92f;
+                    worldQuads.push_back(boardFallback);
+
+                    for (int r = 0; r < rows; ++r) {
+                        for (int c = 0; c < cols; ++c) {
+                            IRenderBackend::DebugQuad cell;
+                            cell.x = boardX + cellW * static_cast<float>(c);
+                            cell.y = boardY + cellH * static_cast<float>(r);
+                            cell.w = cellW;
+                            cell.h = cellH;
+                            const bool darkCell = ((r + c) % 2) == 0;
+                            cell.r = darkCell ? 0.09f : 0.14f;
+                            cell.g = darkCell ? 0.14f : 0.19f;
+                            cell.b = darkCell ? 0.19f : 0.25f;
+                            cell.a = darkCell ? 0.34f : 0.26f;
+                            worldQuads.push_back(cell);
+                        }
+                    }
+
+                    for (int c = 0; c <= cols; ++c) {
+                        IRenderBackend::DebugLine vLine;
+                        vLine.x1 = boardX + cellW * static_cast<float>(c);
+                        vLine.y1 = boardY;
+                        vLine.x2 = vLine.x1;
+                        vLine.y2 = boardY + boardH;
+                        vLine.thickness = line;
+                        vLine.r = 0.26f;
+                        vLine.g = 0.38f;
+                        vLine.b = 0.47f;
+                        vLine.a = 0.96f;
+                        lines.push_back(vLine);
+                    }
+                    for (int r = 0; r <= rows; ++r) {
+                        IRenderBackend::DebugLine hLine;
+                        hLine.x1 = boardX;
+                        hLine.y1 = boardY + cellH * static_cast<float>(r);
+                        hLine.x2 = boardX + boardW;
+                        hLine.y2 = hLine.y1;
+                        hLine.thickness = line;
+                        hLine.r = 0.26f;
+                        hLine.g = 0.38f;
+                        hLine.b = 0.47f;
+                        hLine.a = 0.96f;
+                        lines.push_back(hLine);
+                    }
+                }
 
                 const auto drawProjectedUnits = [&](const std::vector<PokemonInstance>& units) {
                     for (const auto& unit : units) {
                         if (!unit.alive && !unit.captureInProgress && !unit.fainting) continue;
 
+                        const bool activeAttackWindow =
+                            unit.attackTimerSec > 0.0f ||
+                            unit.pendingDamageActive ||
+                            unit.pendingImpactActive ||
+                            unit.pendingProjectileActive;
+                        const float idleFreq = unit.isMoving ? 10.5f : 4.2f;
+                        const float bobAmp = unit.isMoving ? worldCellSize * 0.032f : worldCellSize * 0.012f;
+                        const float bobY = std::sin(unit.animTimeSec * idleFreq) * bobAmp;
+                        const float animYaw =
+                            unit.rotation.y + std::sin(unit.animTimeSec * (unit.isMoving ? 7.0f : 3.2f)) *
+                                (unit.isMoving ? 3.8f : 1.4f);
+                        const float attackPulse = activeAttackWindow
+                            ? (1.0f + (0.5f + 0.5f * std::sin(unit.animTimeSec * 18.0f)) * 0.055f)
+                            : 1.0f;
+                        const glm::vec3 animatedCenter =
+                            unit.position + glm::vec3(0.0f, unit.visualYOffset + bobY, 0.0f);
                         const glm::vec3 worldPos =
-                            unit.position +
-                            glm::vec3(0.0f, std::max(0.2f, worldCellSize * 0.22f) + unit.visualYOffset, 0.0f);
+                            animatedCenter +
+                            glm::vec3(0.0f, std::max(0.2f, worldCellSize * 0.22f), 0.0f);
                         float cx = 0.0f;
                         float cy = 0.0f;
                         float cz = 0.0f;
@@ -824,7 +897,7 @@ struct GameSession::Impl {
                         const float unitSize = std::clamp(cellPx * 0.75f, 10.0f, 84.0f);
                         const game::runtime::backend_proxy::UnitProxyExtents extents =
                             game::runtime::backend_proxy::computeUnitProxyExtents(unit, worldCellSize);
-                        const glm::vec3 proxyCenter = unit.position + glm::vec3(0.0f, unit.visualYOffset, 0.0f);
+                        const glm::vec3 proxyCenter = animatedCenter;
 
                         IRenderBackend::DebugQuad tint;
                         runtime::backend_units::applyWorldUnitTint(tint, unit);
@@ -840,7 +913,7 @@ struct GameSession::Impl {
                             proxyCenter,
                             extents.halfWidth * 1.15f,
                             extents.halfDepth * 1.15f,
-                            unit.rotation.y,
+                            animYaw,
                             0.010f);
                         appendProjectedQuad(
                             shadow[0],
@@ -868,13 +941,14 @@ struct GameSession::Impl {
                                 std::max(0.05f, unit.modelScaleCorrection) *
                                 std::max(0.05f, unit.speciesScale) *
                                 std::max(0.05f, unit.visualScale) *
-                                std::max(0.05f, unit.captureScale);
+                                std::max(0.05f, unit.captureScale) *
+                                attackPulse;
                             const glm::vec3 renderPos = proxyCenter;
                             const glm::mat4 scale = glm::scale(glm::mat4(1.0f), glm::vec3(modelScale));
                             const glm::mat4 rotationX =
                                 glm::rotate(glm::mat4(1.0f), glm::radians(unit.rotation.x), glm::vec3(1, 0, 0));
                             const glm::mat4 rotationY =
-                                glm::rotate(glm::mat4(1.0f), glm::radians(unit.rotation.y), glm::vec3(0, 1, 0));
+                                glm::rotate(glm::mat4(1.0f), glm::radians(animYaw), glm::vec3(0, 1, 0));
                             const glm::mat4 rotationZ =
                                 glm::rotate(glm::mat4(1.0f), glm::radians(unit.rotation.z), glm::vec3(0, 0, 1));
                             const glm::mat4 translation = glm::translate(glm::mat4(1.0f), renderPos);
@@ -964,6 +1038,8 @@ struct GameSession::Impl {
                                         (v0.color.r + v1.color.r + v2.color.r) * (1.0f / 3.0f),
                                         (v0.color.g + v1.color.g + v2.color.g) * (1.0f / 3.0f),
                                         (v0.color.b + v1.color.b + v2.color.b) * (1.0f / 3.0f));
+                                } else if (triIdx < mesh->triangleBaseColors.size()) {
+                                    baseColor = mesh->triangleBaseColors[triIdx];
                                 } else if (triIdx < mesh->triangleSubmesh.size() &&
                                            !mesh->submeshBaseColors.empty()) {
                                     const std::uint16_t submeshIndex = mesh->triangleSubmesh[triIdx];
@@ -994,7 +1070,7 @@ struct GameSession::Impl {
                             game::runtime::backend_proxy::computeUnitProxyCorners(
                                 proxyCenter,
                                 extents,
-                                unit.rotation.y);
+                                animYaw);
                         if (!drewModelMesh) {
                             appendProjectedQuad(
                                 corners.top[0],
@@ -1016,7 +1092,7 @@ struct GameSession::Impl {
                                 sideR, sideG, sideB, sideAlpha);
                         }
 
-                        const glm::vec3 heading = game::runtime::backend_proxy::yawForward(unit.rotation.y);
+                        const glm::vec3 heading = game::runtime::backend_proxy::yawForward(animYaw);
                         const glm::vec3 headingStart =
                             corners.top[0] * 0.25f + corners.top[1] * 0.25f +
                             corners.top[2] * 0.25f + corners.top[3] * 0.25f;

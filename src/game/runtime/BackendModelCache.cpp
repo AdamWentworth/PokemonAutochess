@@ -1,5 +1,6 @@
 #include "game/runtime/BackendModelCache.h"
 
+#include <algorithm>
 #include <cmath>
 #include <cstddef>
 #include <filesystem>
@@ -172,8 +173,22 @@ struct CacheTextureHeader {
     std::uint32_t bytes = 0;
 };
 
-bool readTextureAverageColor(std::istream& in, glm::vec4& outColor) {
-    outColor = glm::vec4(1.0f);
+struct DecodedTexture {
+    int width = 0;
+    int height = 0;
+    std::vector<unsigned char> rgba;
+    glm::vec4 average{1.0f};
+
+    bool hasPixels() const {
+        if (width <= 0 || height <= 0) return false;
+        const std::uint64_t pixels = static_cast<std::uint64_t>(width) * static_cast<std::uint64_t>(height);
+        const std::uint64_t requiredBytes = pixels * 4ull;
+        return requiredBytes > 0ull && requiredBytes <= static_cast<std::uint64_t>(rgba.size());
+    }
+};
+
+bool readTexture(std::istream& in, DecodedTexture& out, bool keepPixels) {
+    out = DecodedTexture{};
 
     CacheTextureHeader h{};
     if (!readPod(in, h.width) ||
@@ -186,9 +201,15 @@ bool readTextureAverageColor(std::istream& in, glm::vec4& outColor) {
         return false;
     }
 
+    out.width = h.width;
+    out.height = h.height;
+
     constexpr std::uint32_t kMaxTextureBytes = 64u * 1024u * 1024u;
     if (h.bytes > kMaxTextureBytes) return false;
-    if (h.bytes == 0) return true;
+    if (h.bytes == 0) {
+        out.average = glm::vec4(1.0f);
+        return true;
+    }
 
     std::vector<unsigned char> rgba(h.bytes, 0u);
     if (!in.read(reinterpret_cast<char*>(rgba.data()), static_cast<std::streamsize>(rgba.size()))) {
@@ -215,12 +236,38 @@ bool readTextureAverageColor(std::istream& in, glm::vec4& outColor) {
     }
     if (samples == 0u) return true;
 
-    outColor = glm::vec4(
+    out.average = glm::vec4(
         static_cast<float>(sumR / static_cast<double>(samples)),
         static_cast<float>(sumG / static_cast<double>(samples)),
         static_cast<float>(sumB / static_cast<double>(samples)),
         static_cast<float>(sumA / static_cast<double>(samples)));
+
+    if (keepPixels) {
+        out.rgba = std::move(rgba);
+    }
     return true;
+}
+
+glm::vec4 sampleTextureNearest(const DecodedTexture& tex, const glm::vec2& uv) {
+    if (!tex.hasPixels()) return tex.average;
+
+    float u = uv.x - std::floor(uv.x);
+    float v = uv.y - std::floor(uv.y);
+    if (u < 0.0f) u += 1.0f;
+    if (v < 0.0f) v += 1.0f;
+
+    const int w = std::max(1, tex.width);
+    const int h = std::max(1, tex.height);
+    const int x = std::clamp(static_cast<int>(std::floor(u * static_cast<float>(w))), 0, w - 1);
+    const int y = std::clamp(static_cast<int>(std::floor((1.0f - v) * static_cast<float>(h))), 0, h - 1);
+    const std::size_t idx = (static_cast<std::size_t>(y) * static_cast<std::size_t>(w) + static_cast<std::size_t>(x)) * 4u;
+    if (idx + 3u >= tex.rgba.size()) return tex.average;
+
+    return glm::vec4(
+        static_cast<float>(tex.rgba[idx + 0u]) / 255.0f,
+        static_cast<float>(tex.rgba[idx + 1u]) / 255.0f,
+        static_cast<float>(tex.rgba[idx + 2u]) / 255.0f,
+        static_cast<float>(tex.rgba[idx + 3u]) / 255.0f);
 }
 
 } // namespace
@@ -314,6 +361,7 @@ bool loadMeshFromCache(const std::string& modelPath, MeshData& out, std::string*
         std::size_t firstIndex = 0u;
         std::size_t indexCount = 0u;
         glm::vec4 baseColor{1.0f};
+        DecodedTexture baseTexture;
     };
     std::vector<SubmeshRange> submeshRanges;
     submeshRanges.reserve(hdr.submeshCount);
@@ -341,9 +389,10 @@ bool loadMeshFromCache(const std::string& modelPath, MeshData& out, std::string*
             return false;
         }
 
-        glm::vec4 baseColor(1.0f);
-        glm::vec4 ignoredEmissive(1.0f);
-        if (!readTextureAverageColor(in, baseColor) || !readTextureAverageColor(in, ignoredEmissive)) {
+        DecodedTexture baseTexture;
+        DecodedTexture emissiveTexture;
+        if (!readTexture(in, baseTexture, /*keepPixels=*/true) ||
+            !readTexture(in, emissiveTexture, /*keepPixels=*/false)) {
             if (outError) *outError = "failed to read cache submesh textures";
             return false;
         }
@@ -353,13 +402,15 @@ bool loadMeshFromCache(const std::string& modelPath, MeshData& out, std::string*
         const std::size_t maxRemaining =
             (range.firstIndex < out.indices.size()) ? (out.indices.size() - range.firstIndex) : 0u;
         range.indexCount = static_cast<std::size_t>(std::min<std::uint64_t>(cnt, maxRemaining));
-        range.baseColor = baseColor;
+        range.baseColor = baseTexture.average;
+        range.baseTexture = std::move(baseTexture);
         submeshRanges.push_back(range);
-        out.submeshBaseColors.push_back(baseColor);
+        out.submeshBaseColors.push_back(range.baseColor);
     }
 
     const std::size_t triangleCount = out.indices.size() / 3u;
     out.triangleSubmesh.assign(triangleCount, 0u);
+    out.triangleBaseColors.assign(triangleCount, glm::vec3(1.0f, 1.0f, 1.0f));
     if (!submeshRanges.empty()) {
         for (std::size_t si = 0; si < submeshRanges.size(); ++si) {
             const SubmeshRange& range = submeshRanges[si];
@@ -367,10 +418,27 @@ bool loadMeshFromCache(const std::string& modelPath, MeshData& out, std::string*
             const std::size_t endTri = std::min(triangleCount, (range.firstIndex + range.indexCount) / 3u);
             for (std::size_t ti = startTri; ti < endTri; ++ti) {
                 out.triangleSubmesh[ti] = static_cast<std::uint16_t>(si);
+                glm::vec3 triColor(range.baseColor.r, range.baseColor.g, range.baseColor.b);
+                if (range.baseTexture.hasPixels()) {
+                    const std::size_t i = ti * 3u;
+                    const std::uint32_t i0 = out.indices[i + 0u];
+                    const std::uint32_t i1 = out.indices[i + 1u];
+                    const std::uint32_t i2 = out.indices[i + 2u];
+                    if (i0 < out.vertices.size() && i1 < out.vertices.size() && i2 < out.vertices.size()) {
+                        const glm::vec2 uv =
+                            (out.vertices[i0].uv + out.vertices[i1].uv + out.vertices[i2].uv) * (1.0f / 3.0f);
+                        const glm::vec4 texel = sampleTextureNearest(range.baseTexture, uv);
+                        const glm::vec3 texelRgb(texel.r, texel.g, texel.b);
+                        const float blend = std::max(0.35f, std::clamp(texel.a, 0.0f, 1.0f));
+                        triColor = triColor * (1.0f - blend) + texelRgb * blend;
+                    }
+                }
+                out.triangleBaseColors[ti] = glm::clamp(triColor, 0.0f, 1.0f);
             }
         }
     } else if (triangleCount > 0u) {
         out.submeshBaseColors.push_back(glm::vec4(1.0f));
+        std::fill(out.triangleBaseColors.begin(), out.triangleBaseColors.end(), glm::vec3(1.0f, 1.0f, 1.0f));
     }
 
     if (out.vertices.empty() || out.indices.empty()) {

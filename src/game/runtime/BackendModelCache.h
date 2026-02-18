@@ -19,6 +19,7 @@ struct MeshData {
     std::vector<MeshVertex> vertices;
     std::vector<std::uint32_t> indices;
     std::vector<std::uint16_t> triangleSubmesh;
+    std::vector<glm::vec3> triangleBaseColors;
     std::vector<glm::vec4> submeshBaseColors;
     bool hasVertexColor = false;
 };
