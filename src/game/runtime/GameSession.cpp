@@ -43,7 +43,6 @@
 #include "game/runtime/BackendInputSlots.h"
 #include "game/runtime/BackendStatusText.h"
 #include "game/runtime/BackendHudFormatting.h"
-#include "game/runtime/BackendCardVisuals.h"
 #include "game/runtime/BackendWorldProjection.h"
 #include "game/GameServices.h"
 #include "game/GameConfig.h"
@@ -539,8 +538,6 @@ struct GameSession::Impl {
 
         std::vector<IRenderBackend::DebugQuad> quads;
         quads.reserve(1024);
-        std::vector<IRenderBackend::DebugSprite> sprites;
-        sprites.reserve(256);
         std::vector<IRenderBackend::DebugLine> lines;
         lines.reserve(512);
         struct BackendUnitLabel {
@@ -644,25 +641,6 @@ struct GameSession::Impl {
                     }
                     u.a = 0.26f;
                     quads.push_back(u);
-
-                    IRenderBackend::DebugSprite unitSprite;
-                    unitSprite.x = u.x;
-                    unitSprite.y = u.y;
-                    unitSprite.w = u.w;
-                    unitSprite.h = u.h;
-                    unitSprite.u0 = 0.0f;
-                    unitSprite.v0 = 0.0f;
-                    unitSprite.u1 = 1.0f;
-                    unitSprite.v1 = 1.0f;
-                    unitSprite.r = 1.0f;
-                    unitSprite.g = 1.0f;
-                    unitSprite.b = 1.0f;
-                    unitSprite.a = unit.alive ? 1.0f : 0.65f;
-                    unitSprite.texturePath = game::runtime::backend_cards::resolveCardImagePath(
-                        std::string{},
-                        unit.name,
-                        false);
-                    sprites.push_back(std::move(unitSprite));
 
                     BackendUnitLabel label;
                     label.x = std::max(6.0f, u.x);
@@ -816,24 +794,6 @@ struct GameSession::Impl {
                             benchUnit.a = 0.24f;
                             quads.push_back(benchUnit);
 
-                            IRenderBackend::DebugSprite benchSprite;
-                            benchSprite.x = benchUnit.x;
-                            benchSprite.y = benchUnit.y;
-                            benchSprite.w = benchUnit.w;
-                            benchSprite.h = benchUnit.h;
-                            benchSprite.u0 = 0.0f;
-                            benchSprite.v0 = 0.0f;
-                            benchSprite.u1 = 1.0f;
-                            benchSprite.v1 = 1.0f;
-                            benchSprite.r = 1.0f;
-                            benchSprite.g = 1.0f;
-                            benchSprite.b = 1.0f;
-                            benchSprite.a = 1.0f;
-                            benchSprite.texturePath = game::runtime::backend_cards::resolveCardImagePath(
-                                std::string{},
-                                unit.name,
-                                false);
-                            sprites.push_back(std::move(benchSprite));
                         }
                     }
                 }
@@ -1139,9 +1099,6 @@ struct GameSession::Impl {
             }
         }
 
-        if (!sprites.empty()) {
-            renderer->drawDebugSprites(sprites.data(), sprites.size(), drawableW, drawableH);
-        }
         if (!quads.empty()) {
             renderer->drawDebugQuads(quads.data(), quads.size(), drawableW, drawableH);
         }

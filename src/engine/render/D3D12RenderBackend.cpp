@@ -1117,10 +1117,10 @@ D3D12RenderBackend::SpriteTexture* D3D12RenderBackend::ensureFallbackSpriteTextu
     if (nextSrvDescriptorIndex_ >= kMaxSrvDescriptors) return nullptr;
 
     static const unsigned char kFallbackRgba[16] = {
-        255,  30, 120, 255,
-         32,  32,  36, 255,
-         32,  32,  36, 255,
-        255,  30, 120, 255
+         72,  90, 108, 255,
+         56,  70,  84, 255,
+         56,  70,  84, 255,
+         72,  90, 108, 255
     };
 
     SpriteTexture texture;

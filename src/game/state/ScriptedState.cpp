@@ -536,7 +536,7 @@ void ScriptedState::renderBackendCardUi(int uiW, int uiH) {
             visual.subtitle = sub;
             visual.keyboardSlot = slot;
             visual.item = itemRow || card.item;
-            game::runtime::backend_cards::appendStylizedCard(quads, visual, 0.86f);
+            game::runtime::backend_cards::appendStylizedCard(quads, visual, 0.74f);
 
             const std::string imagePath = game::runtime::backend_cards::resolveCardImagePath(
                 card.data.imagePath,

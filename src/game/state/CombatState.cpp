@@ -208,7 +208,7 @@ void CombatState::renderBackendShopUi(int uiW, int uiH, bool showSellOverlay, co
             visual.subtitle = sub;
             visual.keyboardSlot = slot;
             visual.item = (button.data.type == CardType::Item);
-            game::runtime::backend_cards::appendStylizedCard(quads, visual, 0.86f);
+            game::runtime::backend_cards::appendStylizedCard(quads, visual, 0.74f);
 
             const std::string imagePath = game::runtime::backend_cards::resolveCardImagePath(
                 button.data.imagePath,

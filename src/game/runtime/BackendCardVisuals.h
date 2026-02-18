@@ -6,6 +6,7 @@
 #include <algorithm>
 #include <cctype>
 #include <cstdint>
+#include <filesystem>
 #include <string>
 #include <vector>
 
@@ -61,19 +62,26 @@ inline std::string resolveCardImagePath(const std::string& explicitImagePath,
                                         const std::string& cardName,
                                         bool itemCard) {
     if (!explicitImagePath.empty()) return explicitImagePath;
-    if (itemCard) return "assets/images/item_placeholder.png";
+    const std::string fallback = "assets/images/item_placeholder.png";
+    if (itemCard) return fallback;
+
+    const auto exists = [](const std::string& path) {
+        std::error_code ec;
+        return std::filesystem::exists(path, ec);
+    };
     const std::string normalizedName = normalizeCardNameForImage(cardName);
-    if (normalizedName.empty()) return "assets/images/item_placeholder.png";
-    return "assets/images/" + normalizedName + ".png";
+    if (normalizedName.empty()) return fallback;
+    const std::string candidate = "assets/images/" + normalizedName + ".png";
+    return exists(candidate) ? candidate : fallback;
 }
 
 inline CardVisualLayout computeCardVisualLayout(const CardVisualInput& input) {
     CardVisualLayout layout;
     if (input.w <= 0.0f || input.h <= 0.0f) return layout;
 
-    const float artHeight = std::max(14.0f, input.h * 0.58f);
-    layout.outerPad = std::max(1.0f, std::min(input.w, input.h) * 0.016f);
-    layout.innerPad = std::max(2.0f, std::min(input.w, input.h) * 0.028f);
+    const float artHeight = std::max(14.0f, input.h * 0.66f);
+    layout.outerPad = std::max(1.0f, std::min(input.w, input.h) * 0.012f);
+    layout.innerPad = std::max(2.0f, std::min(input.w, input.h) * 0.022f);
     layout.artX = input.x + layout.innerPad;
     layout.artY = input.y + layout.innerPad;
     layout.artW = std::max(0.0f, input.w - layout.innerPad * 2.0f);
@@ -113,9 +121,9 @@ inline void appendStylizedCard(std::vector<IRenderBackend::DebugQuad>& quads,
     const float tintB = static_cast<float>((hash >> 8) & 0xFF) / 255.0f;
     const float tintC = static_cast<float>((hash >> 16) & 0xFF) / 255.0f;
 
-    const float accentR = input.item ? 0.78f : std::clamp(0.28f + tintA * 0.42f, 0.0f, 1.0f);
-    const float accentG = input.item ? 0.58f : std::clamp(0.28f + tintB * 0.40f, 0.0f, 1.0f);
-    const float accentB = input.item ? 0.24f : std::clamp(0.38f + tintC * 0.48f, 0.0f, 1.0f);
+    const float accentR = input.item ? 0.62f : std::clamp(0.30f + tintA * 0.22f, 0.0f, 1.0f);
+    const float accentG = input.item ? 0.50f : std::clamp(0.34f + tintB * 0.20f, 0.0f, 1.0f);
+    const float accentB = input.item ? 0.26f : std::clamp(0.44f + tintC * 0.24f, 0.0f, 1.0f);
 
     const CardVisualLayout layout = computeCardVisualLayout(input);
     const float outerPad = layout.outerPad;
@@ -139,9 +147,9 @@ inline void appendStylizedCard(std::vector<IRenderBackend::DebugQuad>& quads,
     frame.y = input.y;
     frame.w = input.w;
     frame.h = input.h;
-    frame.r = 0.06f;
-    frame.g = 0.08f;
-    frame.b = 0.11f;
+    frame.r = 0.09f;
+    frame.g = 0.10f;
+    frame.b = 0.13f;
     frame.a = 0.95f;
     quads.push_back(frame);
 
@@ -150,10 +158,10 @@ inline void appendStylizedCard(std::vector<IRenderBackend::DebugQuad>& quads,
     inset.y = input.y + outerPad;
     inset.w = std::max(0.0f, input.w - outerPad * 2.0f);
     inset.h = std::max(0.0f, input.h - outerPad * 2.0f);
-    inset.r = std::clamp(accentR * 0.45f, 0.0f, 1.0f);
-    inset.g = std::clamp(accentG * 0.45f, 0.0f, 1.0f);
-    inset.b = std::clamp(accentB * 0.45f, 0.0f, 1.0f);
-    inset.a = 0.90f;
+    inset.r = 0.12f;
+    inset.g = 0.13f;
+    inset.b = 0.16f;
+    inset.a = 0.56f;
     quads.push_back(inset);
 
     IRenderBackend::DebugQuad art;
@@ -161,10 +169,10 @@ inline void appendStylizedCard(std::vector<IRenderBackend::DebugQuad>& quads,
     art.y = layout.artY;
     art.w = layout.artW;
     art.h = layout.artH;
-    art.r = std::clamp(accentR * 0.90f, 0.0f, 1.0f);
-    art.g = std::clamp(accentG * 0.90f, 0.0f, 1.0f);
-    art.b = std::clamp(accentB * 0.92f, 0.0f, 1.0f);
-    art.a = 0.34f;
+    art.r = std::clamp(accentR, 0.0f, 1.0f);
+    art.g = std::clamp(accentG, 0.0f, 1.0f);
+    art.b = std::clamp(accentB, 0.0f, 1.0f);
+    art.a = 0.07f;
     quads.push_back(art);
 
     IRenderBackend::DebugQuad shine;
@@ -175,7 +183,7 @@ inline void appendStylizedCard(std::vector<IRenderBackend::DebugQuad>& quads,
     shine.r = 1.0f;
     shine.g = 1.0f;
     shine.b = 1.0f;
-    shine.a = 0.10f;
+    shine.a = 0.06f;
     quads.push_back(shine);
 
     IRenderBackend::DebugQuad footer;
@@ -183,10 +191,10 @@ inline void appendStylizedCard(std::vector<IRenderBackend::DebugQuad>& quads,
     footer.y = footerY;
     footer.w = std::max(0.0f, input.w - innerPad * 2.0f);
     footer.h = std::max(0.0f, input.h - (footerY - input.y) - innerPad);
-    footer.r = 0.08f;
-    footer.g = 0.10f;
-    footer.b = 0.14f;
-    footer.a = 0.92f;
+    footer.r = 0.07f;
+    footer.g = 0.08f;
+    footer.b = 0.11f;
+    footer.a = 0.88f;
     quads.push_back(footer);
 
     if (input.keyboardSlot > 0) {
@@ -212,9 +220,13 @@ inline void appendStylizedCard(std::vector<IRenderBackend::DebugQuad>& quads,
                                                1.0f);
     }
 
+    const float footerH = footer.h;
+    const float titleY = footer.y + std::max(4.0f, footerH * 0.14f);
+    const float subtitleY = footer.y + std::max(16.0f, footerH * 0.56f);
+
     runtime::backend_text::appendTextQuads(quads,
                                            input.x + innerPad,
-                                           footerY + std::max(4.0f, innerPad * 0.65f),
+                                           titleY,
                                            input.title,
                                            textScale,
                                            0.97f,
@@ -224,7 +236,7 @@ inline void appendStylizedCard(std::vector<IRenderBackend::DebugQuad>& quads,
     if (!input.subtitle.empty()) {
         runtime::backend_text::appendTextQuads(quads,
                                                input.x + innerPad,
-                                               footerY + std::max(16.0f, innerPad * 0.65f + 14.0f),
+                                               subtitleY,
                                                input.subtitle,
                                                textScale * 0.90f,
                                                0.86f,
