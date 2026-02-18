@@ -5,10 +5,12 @@
 #include <string>
 #include <utility>
 #include <cctype>
+#include <cstdint>
 #include <random>
 #include <algorithm>
 #include <iomanip>
 #include <sstream>
+#include <unordered_map>
 #include <vector>
 #include <glm/gtc/matrix_transform.hpp>
 
@@ -46,6 +48,7 @@
 #include "game/runtime/BackendHudFormatting.h"
 #include "game/runtime/BackendWorldProjection.h"
 #include "game/runtime/BackendWorldProxyGeometry.h"
+#include "game/runtime/BackendModelCache.h"
 #include "game/runtime/BackendUnitVisuals.h"
 #include "game/GameServices.h"
 #include "game/GameConfig.h"
@@ -133,6 +136,12 @@ struct GameSession::Impl {
 
     static constexpr std::size_t kBackendInventoryVisibleCount = 6;
     runtime::backend_inventory_panel::PanelState backendInventoryPanel;
+    struct BackendMeshCacheEntry {
+        bool attemptedLoad = false;
+        runtime::backend_model::MeshData mesh;
+        std::string error;
+    };
+    std::unordered_map<std::string, BackendMeshCacheEntry> backendMeshByModelPath;
 
     std::shared_ptr<CameraSystem>           cameraSystem;
     std::shared_ptr<UnitInteractionSystem>  unitSystem;
@@ -714,6 +723,26 @@ struct GameSession::Impl {
                     l.a = alpha;
                     lines.push_back(l);
                 };
+                const auto resolveModelMesh = [&](const PokemonInstance& unit)
+                    -> const runtime::backend_model::MeshData* {
+                    const PokemonStats* stats = dataDb.pokemon.getStats(unit.name);
+                    if (!stats || stats->model.empty()) return nullptr;
+
+                    const std::string modelPath = "assets/models/" + stats->model;
+                    auto& cacheEntry = backendMeshByModelPath[modelPath];
+                    if (!cacheEntry.attemptedLoad) {
+                        cacheEntry.attemptedLoad = true;
+                        std::string err;
+                        if (!runtime::backend_model::loadMeshFromCache(modelPath, cacheEntry.mesh, &err)) {
+                            cacheEntry.error = std::move(err);
+                            cacheEntry.mesh = {};
+                        }
+                    }
+                    if (cacheEntry.mesh.vertices.empty() || cacheEntry.mesh.indices.size() < 3) {
+                        return nullptr;
+                    }
+                    return &cacheEntry.mesh;
+                };
 
                 for (int r = 0; r < rows; ++r) {
                     for (int c = 0; c < cols; ++c) {
@@ -779,11 +808,6 @@ struct GameSession::Impl {
                         const game::runtime::backend_proxy::UnitProxyExtents extents =
                             game::runtime::backend_proxy::computeUnitProxyExtents(unit, worldCellSize);
                         const glm::vec3 proxyCenter = unit.position + glm::vec3(0.0f, unit.visualYOffset, 0.0f);
-                        const game::runtime::backend_proxy::UnitProxyCorners corners =
-                            game::runtime::backend_proxy::computeUnitProxyCorners(
-                                proxyCenter,
-                                extents,
-                                unit.rotation.y);
 
                         IRenderBackend::DebugQuad tint;
                         runtime::backend_units::applyWorldUnitTint(tint, unit);
@@ -811,24 +835,162 @@ struct GameSession::Impl {
                             0.04f,
                             unit.alive ? 0.42f : 0.24f);
 
-                        appendProjectedQuad(
-                            corners.top[0],
-                            corners.top[1],
-                            corners.top[2],
-                            corners.top[3],
-                            topR, topG, topB, topAlpha);
-                        appendProjectedQuad(
-                            corners.bottom[0], corners.bottom[1], corners.top[1], corners.top[0],
-                            sideR, sideG, sideB, sideAlpha);
-                        appendProjectedQuad(
-                            corners.bottom[1], corners.bottom[2], corners.top[2], corners.top[1],
-                            sideR, sideG, sideB, sideAlpha);
-                        appendProjectedQuad(
-                            corners.bottom[2], corners.bottom[3], corners.top[3], corners.top[2],
-                            sideR, sideG, sideB, sideAlpha);
-                        appendProjectedQuad(
-                            corners.bottom[3], corners.bottom[0], corners.top[0], corners.top[3],
-                            sideR, sideG, sideB, sideAlpha);
+                        bool drewModelMesh = false;
+                        if (const runtime::backend_model::MeshData* mesh = resolveModelMesh(unit)) {
+                            struct DepthTri {
+                                IRenderBackend::DebugTriangle tri;
+                                float depth = 0.0f;
+                            };
+                            std::vector<DepthTri> depthSorted;
+                            const std::size_t triangleCount = mesh->indices.size() / 3;
+                            const std::size_t maxTrianglesPerUnit = 2600;
+                            depthSorted.reserve(std::min(triangleCount, maxTrianglesPerUnit));
+
+                            const float modelScale =
+                                std::max(0.01f, mesh->modelScaleFactor) *
+                                std::max(0.05f, unit.modelScaleCorrection) *
+                                std::max(0.05f, unit.speciesScale) *
+                                std::max(0.05f, unit.visualScale) *
+                                std::max(0.05f, unit.captureScale);
+                            const glm::vec3 renderPos = proxyCenter;
+                            const glm::mat4 scale = glm::scale(glm::mat4(1.0f), glm::vec3(modelScale));
+                            const glm::mat4 rotationX =
+                                glm::rotate(glm::mat4(1.0f), glm::radians(unit.rotation.x), glm::vec3(1, 0, 0));
+                            const glm::mat4 rotationY =
+                                glm::rotate(glm::mat4(1.0f), glm::radians(unit.rotation.y), glm::vec3(0, 1, 0));
+                            const glm::mat4 rotationZ =
+                                glm::rotate(glm::mat4(1.0f), glm::radians(unit.rotation.z), glm::vec3(0, 0, 1));
+                            const glm::mat4 translation = glm::translate(glm::mat4(1.0f), renderPos);
+                            const glm::mat4 modelM = translation * rotationY * rotationX * rotationZ * scale;
+
+                            const glm::vec3 lightDir = glm::normalize(glm::vec3(0.45f, 0.90f, 0.35f));
+                            const glm::vec3 fallbackBase(
+                                std::clamp(tint.r * 0.85f + 0.10f, 0.0f, 1.0f),
+                                std::clamp(tint.g * 0.85f + 0.10f, 0.0f, 1.0f),
+                                std::clamp(tint.b * 0.85f + 0.10f, 0.0f, 1.0f));
+
+                            const auto pushModelTriangle = [&](const glm::vec3& a,
+                                                                const glm::vec3& b,
+                                                                const glm::vec3& c,
+                                                                const glm::vec3& baseColor,
+                                                                float alpha) {
+                                float x1 = 0.0f;
+                                float y1 = 0.0f;
+                                float z1 = 0.0f;
+                                float x2 = 0.0f;
+                                float y2 = 0.0f;
+                                float z2 = 0.0f;
+                                float x3 = 0.0f;
+                                float y3 = 0.0f;
+                                float z3 = 0.0f;
+                                if (!projectWorld(a, x1, y1, z1) ||
+                                    !projectWorld(b, x2, y2, z2) ||
+                                    !projectWorld(c, x3, y3, z3)) {
+                                    return;
+                                }
+                                if ((z1 < 0.0f || z1 > 1.0f) &&
+                                    (z2 < 0.0f || z2 > 1.0f) &&
+                                    (z3 < 0.0f || z3 > 1.0f)) {
+                                    return;
+                                }
+
+                                const glm::vec3 e1 = b - a;
+                                const glm::vec3 e2 = c - a;
+                                glm::vec3 n(0.0f, 1.0f, 0.0f);
+                                const glm::vec3 rawNormal = glm::cross(e1, e2);
+                                const float normalLenSq = glm::dot(rawNormal, rawNormal);
+                                if (normalLenSq > 0.000001f) {
+                                    n = glm::normalize(rawNormal);
+                                }
+                                const float lit = std::clamp(glm::dot(n, lightDir), 0.0f, 1.0f);
+                                const float shade = 0.36f + lit * 0.64f;
+                                const glm::vec3 shaded = glm::clamp(baseColor * shade, 0.0f, 1.0f);
+
+                                DepthTri dt;
+                                dt.tri.x1 = x1;
+                                dt.tri.y1 = y1;
+                                dt.tri.x2 = x2;
+                                dt.tri.y2 = y2;
+                                dt.tri.x3 = x3;
+                                dt.tri.y3 = y3;
+                                dt.tri.r = shaded.r;
+                                dt.tri.g = shaded.g;
+                                dt.tri.b = shaded.b;
+                                dt.tri.a = alpha;
+                                dt.depth = (z1 + z2 + z3) * (1.0f / 3.0f);
+                                depthSorted.push_back(dt);
+                            };
+
+                            const std::size_t triLimit = std::min(triangleCount, maxTrianglesPerUnit);
+                            for (std::size_t triIdx = 0; triIdx < triLimit; ++triIdx) {
+                                const std::size_t i = triIdx * 3;
+                                const std::uint32_t i0 = mesh->indices[i + 0];
+                                const std::uint32_t i1 = mesh->indices[i + 1];
+                                const std::uint32_t i2 = mesh->indices[i + 2];
+                                if (i0 >= mesh->vertices.size() ||
+                                    i1 >= mesh->vertices.size() ||
+                                    i2 >= mesh->vertices.size()) {
+                                    continue;
+                                }
+
+                                const auto& v0 = mesh->vertices[i0];
+                                const auto& v1 = mesh->vertices[i1];
+                                const auto& v2 = mesh->vertices[i2];
+
+                                const glm::vec3 a = glm::vec3(modelM * glm::vec4(v0.position, 1.0f));
+                                const glm::vec3 b = glm::vec3(modelM * glm::vec4(v1.position, 1.0f));
+                                const glm::vec3 c = glm::vec3(modelM * glm::vec4(v2.position, 1.0f));
+
+                                glm::vec3 baseColor = fallbackBase;
+                                if (mesh->hasVertexColor) {
+                                    baseColor = glm::vec3(
+                                        (v0.color.r + v1.color.r + v2.color.r) * (1.0f / 3.0f),
+                                        (v0.color.g + v1.color.g + v2.color.g) * (1.0f / 3.0f),
+                                        (v0.color.b + v1.color.b + v2.color.b) * (1.0f / 3.0f));
+                                }
+                                baseColor = glm::clamp(baseColor, 0.0f, 1.0f);
+
+                                pushModelTriangle(a, b, c, baseColor, unit.alive ? 0.95f : 0.74f);
+                            }
+
+                            std::sort(
+                                depthSorted.begin(),
+                                depthSorted.end(),
+                                [](const DepthTri& lhs, const DepthTri& rhs) {
+                                    return lhs.depth > rhs.depth;
+                                });
+                            for (const DepthTri& tri : depthSorted) {
+                                worldTriangles.push_back(tri.tri);
+                            }
+
+                            drewModelMesh = !depthSorted.empty();
+                        }
+
+                        const game::runtime::backend_proxy::UnitProxyCorners corners =
+                            game::runtime::backend_proxy::computeUnitProxyCorners(
+                                proxyCenter,
+                                extents,
+                                unit.rotation.y);
+                        if (!drewModelMesh) {
+                            appendProjectedQuad(
+                                corners.top[0],
+                                corners.top[1],
+                                corners.top[2],
+                                corners.top[3],
+                                topR, topG, topB, topAlpha);
+                            appendProjectedQuad(
+                                corners.bottom[0], corners.bottom[1], corners.top[1], corners.top[0],
+                                sideR, sideG, sideB, sideAlpha);
+                            appendProjectedQuad(
+                                corners.bottom[1], corners.bottom[2], corners.top[2], corners.top[1],
+                                sideR, sideG, sideB, sideAlpha);
+                            appendProjectedQuad(
+                                corners.bottom[2], corners.bottom[3], corners.top[3], corners.top[2],
+                                sideR, sideG, sideB, sideAlpha);
+                            appendProjectedQuad(
+                                corners.bottom[3], corners.bottom[0], corners.top[0], corners.top[3],
+                                sideR, sideG, sideB, sideAlpha);
+                        }
 
                         const glm::vec3 heading = game::runtime::backend_proxy::yawForward(unit.rotation.y);
                         const glm::vec3 headingStart =

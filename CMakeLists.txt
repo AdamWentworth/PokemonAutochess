@@ -221,6 +221,7 @@ add_library(PAC_GameObjects STATIC
     src/game/runtime/VideoPreferences.cpp
     src/game/runtime/GpuAdapters.cpp
     src/game/runtime/D3D12Probe.cpp
+    src/game/runtime/BackendModelCache.cpp
 
     # Game Config
     src/game/config/PokemonConfigLoader.cpp
@@ -333,6 +334,7 @@ if (BUILD_TESTING)
         tests/TestBackendHudFormatting.cpp
         tests/TestBackendDebugText.cpp
         tests/TestBackendImagePath.cpp
+        tests/TestBackendModelCache.cpp
         tests/TestBackendWorldProjection.cpp
         tests/TestBackendWorldProxyGeometry.cpp
         tests/TestBackendUnitVisuals.cpp
