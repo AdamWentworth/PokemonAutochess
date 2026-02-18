@@ -38,6 +38,10 @@ struct SpriteVertex {
 
 constexpr std::size_t kMaxSpriteQuads = 2048;
 constexpr std::size_t kMaxSpriteVertices = kMaxSpriteQuads * 6;
+constexpr std::size_t kMaxDebugQuads = 4096;
+constexpr std::size_t kMaxDebugLines = 8192;
+constexpr std::size_t kMaxDebugTriangles = 65536;
+constexpr std::size_t kMaxDebugVertices = kMaxDebugTriangles * 3;
 constexpr std::size_t kMaxSrvDescriptors = 2048;
 constexpr const char* kFallbackSpriteTextureKey = "__fallback_sprite_texture__";
 
@@ -333,7 +337,6 @@ void D3D12RenderBackend::drawDebugQuads(const DebugQuad* quads,
     if (!recording_ || !quads || quadCount == 0 || surfaceWidth <= 0 || surfaceHeight <= 0) return;
     if (!debugPipelineState_ || !debugRootSignature_ || !debugVertexBuffer_ || !commandList_) return;
 
-    constexpr std::size_t kMaxDebugQuads = 2048;
     const std::size_t safeCount = (quadCount > kMaxDebugQuads) ? kMaxDebugQuads : quadCount;
     const std::size_t vertexCount = safeCount * 6;
     const std::size_t neededBytes = vertexCount * sizeof(DebugVertex);
@@ -407,7 +410,6 @@ void D3D12RenderBackend::drawDebugLines(const DebugLine* lines,
     if (!recording_ || !lines || lineCount == 0 || surfaceWidth <= 0 || surfaceHeight <= 0) return;
     if (!debugPipelineState_ || !debugRootSignature_ || !debugVertexBuffer_ || !commandList_) return;
 
-    constexpr std::size_t kMaxDebugLines = 2048;
     const std::size_t safeCount = (lineCount > kMaxDebugLines) ? kMaxDebugLines : lineCount;
 
     std::vector<DebugVertex> verts;
@@ -477,7 +479,6 @@ void D3D12RenderBackend::drawDebugTriangles(const DebugTriangle* triangles,
     if (!recording_ || !triangles || triangleCount == 0 || surfaceWidth <= 0 || surfaceHeight <= 0) return;
     if (!debugPipelineState_ || !debugRootSignature_ || !debugVertexBuffer_ || !commandList_) return;
 
-    constexpr std::size_t kMaxDebugTriangles = 4096;
     const std::size_t safeCount = (triangleCount > kMaxDebugTriangles) ? kMaxDebugTriangles : triangleCount;
 
     std::vector<DebugVertex> verts;
@@ -871,13 +872,13 @@ void D3D12RenderBackend::createDebugPipeline() {
     blend.AlphaToCoverageEnable = FALSE;
     blend.IndependentBlendEnable = FALSE;
     D3D12_RENDER_TARGET_BLEND_DESC rtBlend{};
-    rtBlend.BlendEnable = FALSE;
+    rtBlend.BlendEnable = TRUE;
     rtBlend.LogicOpEnable = FALSE;
-    rtBlend.SrcBlend = D3D12_BLEND_ONE;
-    rtBlend.DestBlend = D3D12_BLEND_ZERO;
+    rtBlend.SrcBlend = D3D12_BLEND_SRC_ALPHA;
+    rtBlend.DestBlend = D3D12_BLEND_INV_SRC_ALPHA;
     rtBlend.BlendOp = D3D12_BLEND_OP_ADD;
     rtBlend.SrcBlendAlpha = D3D12_BLEND_ONE;
-    rtBlend.DestBlendAlpha = D3D12_BLEND_ZERO;
+    rtBlend.DestBlendAlpha = D3D12_BLEND_INV_SRC_ALPHA;
     rtBlend.BlendOpAlpha = D3D12_BLEND_OP_ADD;
     rtBlend.LogicOp = D3D12_LOGIC_OP_NOOP;
     rtBlend.RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
@@ -929,9 +930,7 @@ void D3D12RenderBackend::createDebugPipeline() {
         throw std::runtime_error("CreateGraphicsPipelineState failed for D3D12 debug pipeline.");
     }
 
-    constexpr std::size_t kMaxDebugQuads = 2048;
-    constexpr std::size_t kMaxVertices = kMaxDebugQuads * 6;
-    constexpr std::size_t kBufferBytes = kMaxVertices * sizeof(DebugVertex);
+    constexpr std::size_t kBufferBytes = kMaxDebugVertices * sizeof(DebugVertex);
     D3D12_HEAP_PROPERTIES heapProps{};
     heapProps.Type = D3D12_HEAP_TYPE_UPLOAD;
     heapProps.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;

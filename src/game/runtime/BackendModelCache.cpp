@@ -14,6 +14,7 @@
 #include "engine/core/Environment.h"
 #include "engine/render/ModelAnimationTypes.h"
 #include "engine/render/ModelMeshTypes.h"
+#include "game/runtime/BackendMaterialShading.h"
 
 namespace {
 namespace fs = std::filesystem;
@@ -361,6 +362,8 @@ bool loadMeshFromCache(const std::string& modelPath, MeshData& out, std::string*
         std::size_t firstIndex = 0u;
         std::size_t indexCount = 0u;
         glm::vec4 baseColor{1.0f};
+        backend_material::AlphaMode alphaMode = backend_material::AlphaMode::Opaque;
+        float alphaCutoff = 0.5f;
         DecodedTexture baseTexture;
     };
     std::vector<SubmeshRange> submeshRanges;
@@ -373,7 +376,7 @@ bool loadMeshFromCache(const std::string& modelPath, MeshData& out, std::string*
         float emissiveX = 0.0f;
         float emissiveY = 0.0f;
         float emissiveZ = 0.0f;
-        std::uint8_t alphaMode = 0u;
+        std::uint8_t alphaModeRaw = 0u;
         float alphaCutoff = 0.0f;
         std::uint8_t doubleSided = 0u;
         if (!readPod(in, off) ||
@@ -382,7 +385,7 @@ bool loadMeshFromCache(const std::string& modelPath, MeshData& out, std::string*
             !readPod(in, emissiveX) ||
             !readPod(in, emissiveY) ||
             !readPod(in, emissiveZ) ||
-            !readPod(in, alphaMode) ||
+            !readPod(in, alphaModeRaw) ||
             !readPod(in, alphaCutoff) ||
             !readPod(in, doubleSided)) {
             if (outError) *outError = "failed to read cache submesh header";
@@ -403,6 +406,8 @@ bool loadMeshFromCache(const std::string& modelPath, MeshData& out, std::string*
             (range.firstIndex < out.indices.size()) ? (out.indices.size() - range.firstIndex) : 0u;
         range.indexCount = static_cast<std::size_t>(std::min<std::uint64_t>(cnt, maxRemaining));
         range.baseColor = baseTexture.average;
+        range.alphaMode = backend_material::alphaModeFromByte(alphaModeRaw);
+        range.alphaCutoff = alphaCutoff;
         range.baseTexture = std::move(baseTexture);
         submeshRanges.push_back(range);
         out.submeshBaseColors.push_back(range.baseColor);
@@ -411,6 +416,7 @@ bool loadMeshFromCache(const std::string& modelPath, MeshData& out, std::string*
     const std::size_t triangleCount = out.indices.size() / 3u;
     out.triangleSubmesh.assign(triangleCount, 0u);
     out.triangleBaseColors.assign(triangleCount, glm::vec3(1.0f, 1.0f, 1.0f));
+    out.triangleOpacity.assign(triangleCount, 1.0f);
     if (!submeshRanges.empty()) {
         for (std::size_t si = 0; si < submeshRanges.size(); ++si) {
             const SubmeshRange& range = submeshRanges[si];
@@ -419,6 +425,7 @@ bool loadMeshFromCache(const std::string& modelPath, MeshData& out, std::string*
             for (std::size_t ti = startTri; ti < endTri; ++ti) {
                 out.triangleSubmesh[ti] = static_cast<std::uint16_t>(si);
                 glm::vec3 triColor(range.baseColor.r, range.baseColor.g, range.baseColor.b);
+                float triOpacity = 1.0f;
                 if (range.baseTexture.hasPixels()) {
                     const std::size_t i = ti * 3u;
                     const std::uint32_t i0 = out.indices[i + 0u];
@@ -429,16 +436,21 @@ bool loadMeshFromCache(const std::string& modelPath, MeshData& out, std::string*
                             (out.vertices[i0].uv + out.vertices[i1].uv + out.vertices[i2].uv) * (1.0f / 3.0f);
                         const glm::vec4 texel = sampleTextureNearest(range.baseTexture, uv);
                         const glm::vec3 texelRgb(texel.r, texel.g, texel.b);
-                        const float blend = std::max(0.35f, std::clamp(texel.a, 0.0f, 1.0f));
-                        triColor = triColor * (1.0f - blend) + texelRgb * blend;
+                        triColor = backend_material::blendBaseAndTexture(triColor, texelRgb, texel.a);
+                        triOpacity = backend_material::opacityFromAlphaMode(
+                            range.alphaMode,
+                            texel.a,
+                            range.alphaCutoff);
                     }
                 }
                 out.triangleBaseColors[ti] = glm::clamp(triColor, 0.0f, 1.0f);
+                out.triangleOpacity[ti] = std::clamp(triOpacity, 0.0f, 1.0f);
             }
         }
     } else if (triangleCount > 0u) {
         out.submeshBaseColors.push_back(glm::vec4(1.0f));
         std::fill(out.triangleBaseColors.begin(), out.triangleBaseColors.end(), glm::vec3(1.0f, 1.0f, 1.0f));
+        std::fill(out.triangleOpacity.begin(), out.triangleOpacity.end(), 1.0f);
     }
 
     if (out.vertices.empty() || out.indices.empty()) {

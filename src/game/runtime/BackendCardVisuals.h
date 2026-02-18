@@ -96,9 +96,10 @@ inline IRenderBackend::DebugSprite makeCardArtSprite(const CardVisualInput& inpu
     return sprite;
 }
 
-inline void appendStylizedCard(std::vector<IRenderBackend::DebugQuad>& quads,
-                               const CardVisualInput& input,
-                               float textScale = 1.0f) {
+inline void appendStylizedCardLayered(std::vector<IRenderBackend::DebugQuad>& baseQuads,
+                                      std::vector<IRenderBackend::DebugQuad>& textQuads,
+                                      const CardVisualInput& input,
+                                      float textScale = 1.0f) {
     if (input.w <= 0.0f || input.h <= 0.0f) return;
 
     const std::uint32_t hash = fnv1aHash(input.title);
@@ -125,7 +126,7 @@ inline void appendStylizedCard(std::vector<IRenderBackend::DebugQuad>& quads,
     shadow.g = 0.00f;
     shadow.b = 0.00f;
     shadow.a = 0.42f;
-    quads.push_back(shadow);
+    baseQuads.push_back(shadow);
 
     IRenderBackend::DebugQuad frame;
     frame.x = input.x;
@@ -136,7 +137,7 @@ inline void appendStylizedCard(std::vector<IRenderBackend::DebugQuad>& quads,
     frame.g = 0.10f;
     frame.b = 0.13f;
     frame.a = 0.95f;
-    quads.push_back(frame);
+    baseQuads.push_back(frame);
 
     IRenderBackend::DebugQuad inset;
     inset.x = input.x + outerPad;
@@ -147,7 +148,7 @@ inline void appendStylizedCard(std::vector<IRenderBackend::DebugQuad>& quads,
     inset.g = 0.13f;
     inset.b = 0.16f;
     inset.a = 0.56f;
-    quads.push_back(inset);
+    baseQuads.push_back(inset);
 
     IRenderBackend::DebugQuad art;
     art.x = layout.artX;
@@ -158,7 +159,7 @@ inline void appendStylizedCard(std::vector<IRenderBackend::DebugQuad>& quads,
     art.g = std::clamp(accentG, 0.0f, 1.0f);
     art.b = std::clamp(accentB, 0.0f, 1.0f);
     art.a = 0.07f;
-    quads.push_back(art);
+    baseQuads.push_back(art);
 
     IRenderBackend::DebugQuad shine;
     shine.x = art.x;
@@ -169,7 +170,7 @@ inline void appendStylizedCard(std::vector<IRenderBackend::DebugQuad>& quads,
     shine.g = 1.0f;
     shine.b = 1.0f;
     shine.a = 0.06f;
-    quads.push_back(shine);
+    baseQuads.push_back(shine);
 
     IRenderBackend::DebugQuad footer;
     footer.x = input.x + innerPad;
@@ -180,7 +181,7 @@ inline void appendStylizedCard(std::vector<IRenderBackend::DebugQuad>& quads,
     footer.g = 0.08f;
     footer.b = 0.11f;
     footer.a = 0.88f;
-    quads.push_back(footer);
+    baseQuads.push_back(footer);
 
     if (input.keyboardSlot > 0) {
         IRenderBackend::DebugQuad badge;
@@ -192,9 +193,9 @@ inline void appendStylizedCard(std::vector<IRenderBackend::DebugQuad>& quads,
         badge.g = 0.84f;
         badge.b = 0.36f;
         badge.a = 0.96f;
-        quads.push_back(badge);
+        baseQuads.push_back(badge);
 
-        runtime::backend_text::appendTextQuads(quads,
+        runtime::backend_text::appendTextQuads(textQuads,
                                                badge.x + 3.0f,
                                                badge.y + 2.0f,
                                                std::to_string(input.keyboardSlot),
@@ -209,7 +210,7 @@ inline void appendStylizedCard(std::vector<IRenderBackend::DebugQuad>& quads,
     const float titleY = footer.y + std::max(4.0f, footerH * 0.14f);
     const float subtitleY = footer.y + std::max(16.0f, footerH * 0.56f);
 
-    runtime::backend_text::appendTextQuads(quads,
+    runtime::backend_text::appendTextQuads(textQuads,
                                            input.x + innerPad,
                                            titleY,
                                            input.title,
@@ -219,7 +220,7 @@ inline void appendStylizedCard(std::vector<IRenderBackend::DebugQuad>& quads,
                                            0.99f,
                                            1.0f);
     if (!input.subtitle.empty()) {
-        runtime::backend_text::appendTextQuads(quads,
+        runtime::backend_text::appendTextQuads(textQuads,
                                                input.x + innerPad,
                                                subtitleY,
                                                input.subtitle,
@@ -229,6 +230,12 @@ inline void appendStylizedCard(std::vector<IRenderBackend::DebugQuad>& quads,
                                                0.97f,
                                                1.0f);
     }
+}
+
+inline void appendStylizedCard(std::vector<IRenderBackend::DebugQuad>& quads,
+                               const CardVisualInput& input,
+                               float textScale = 1.0f) {
+    appendStylizedCardLayered(quads, quads, input, textScale);
 }
 
 } // namespace game::runtime::backend_cards

@@ -153,8 +153,10 @@ bool CombatState::handleBackendShopMouseClick(int mouseX, int mouseY) {
 void CombatState::renderBackendShopUi(int uiW, int uiH, bool showSellOverlay, const std::string& header) {
     if (!services.renderer) return;
 
-    std::vector<IRenderBackend::DebugQuad> quads;
-    quads.reserve(4096);
+    std::vector<IRenderBackend::DebugQuad> baseQuads;
+    baseQuads.reserve(4096);
+    std::vector<IRenderBackend::DebugQuad> textQuads;
+    textQuads.reserve(4096);
     std::vector<IRenderBackend::DebugSprite> sprites;
     sprites.reserve(1024);
 
@@ -166,7 +168,7 @@ void CombatState::renderBackendShopUi(int uiW, int uiH, bool showSellOverlay, co
                                 float g,
                                 float b) {
         game::runtime::backend_text::appendTextQuads(
-            quads,
+            textQuads,
             x,
             y,
             text,
@@ -216,7 +218,7 @@ void CombatState::renderBackendShopUi(int uiW, int uiH, bool showSellOverlay, co
             renderIn.item = (button.data.type == CardType::Item);
             renderIn.textScale = 0.74f;
             renderIn.spriteAlpha = 1.0f;
-            game::runtime::backend_card_renderer::appendCard(quads, &sprites, renderIn);
+            game::runtime::backend_card_renderer::appendCardLayered(baseQuads, textQuads, &sprites, renderIn);
         }
     }
 
@@ -267,7 +269,7 @@ void CombatState::renderBackendShopUi(int uiW, int uiH, bool showSellOverlay, co
         moneyPanel.g = 0.18f;
         moneyPanel.b = 0.10f;
         moneyPanel.a = 0.86f;
-        quads.push_back(moneyPanel);
+        baseQuads.push_back(moneyPanel);
         appendText(hud.textX, hud.textY, moneyLabel, 0.74f, 0.95f, 0.88f, 0.50f);
     }
 
@@ -281,7 +283,7 @@ void CombatState::renderBackendShopUi(int uiW, int uiH, bool showSellOverlay, co
         rerollPanel.g = 0.16f;
         rerollPanel.b = 0.08f;
         rerollPanel.a = 0.90f;
-        quads.push_back(rerollPanel);
+        baseQuads.push_back(rerollPanel);
 
         appendText(hud.rerollX, hud.rerollY, rerollLabel, 0.58f, 0.98f, 0.96f, 0.90f);
 
@@ -310,7 +312,7 @@ void CombatState::renderBackendShopUi(int uiW, int uiH, bool showSellOverlay, co
             outerBg.g = 0.07f;
             outerBg.b = 0.09f;
             outerBg.a = 0.82f;
-            quads.push_back(outerBg);
+            baseQuads.push_back(outerBg);
 
             if (hit.w > 0 && hit.h > 0) {
                 IRenderBackend::DebugQuad hitBg;
@@ -322,7 +324,7 @@ void CombatState::renderBackendShopUi(int uiW, int uiH, bool showSellOverlay, co
                 hitBg.g = 0.21f;
                 hitBg.b = 0.16f;
                 hitBg.a = 0.90f;
-                quads.push_back(hitBg);
+                baseQuads.push_back(hitBg);
             }
 
             const float titleW = game::runtime::backend_text::measureTextWidth(
@@ -356,11 +358,14 @@ void CombatState::renderBackendShopUi(int uiW, int uiH, bool showSellOverlay, co
                0.82f,
                0.93f);
 
+    if (!baseQuads.empty()) {
+        services.renderer->drawDebugQuads(baseQuads.data(), baseQuads.size(), uiW, uiH);
+    }
     if (!sprites.empty()) {
         services.renderer->drawDebugSprites(sprites.data(), sprites.size(), uiW, uiH);
     }
-    if (!quads.empty()) {
-        services.renderer->drawDebugQuads(quads.data(), quads.size(), uiW, uiH);
+    if (!textQuads.empty()) {
+        services.renderer->drawDebugQuads(textQuads.data(), textQuads.size(), uiW, uiH);
     }
 }
 

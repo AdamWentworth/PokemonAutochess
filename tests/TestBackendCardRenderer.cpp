@@ -48,5 +48,28 @@ bool test_backend_card_renderer_contract(std::string& outFail) {
         return false;
     }
 
+    {
+        std::vector<IRenderBackend::DebugQuad> baseQuads;
+        std::vector<IRenderBackend::DebugQuad> textQuads;
+        std::vector<IRenderBackend::DebugSprite> layeredSprites;
+        game::runtime::backend_card_renderer::appendCardLayered(
+            baseQuads,
+            textQuads,
+            &layeredSprites,
+            in);
+        if (baseQuads.empty()) {
+            outFail = "appendCardLayered should emit base quads";
+            return false;
+        }
+        if (textQuads.empty()) {
+            outFail = "appendCardLayered should emit text quads";
+            return false;
+        }
+        if (layeredSprites.size() != 1u) {
+            outFail = "appendCardLayered should preserve sprite emission";
+            return false;
+        }
+    }
+
     return true;
 }

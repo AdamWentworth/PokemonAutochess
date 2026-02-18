@@ -336,6 +336,7 @@ if (BUILD_TESTING)
         tests/TestBackendHudFormatting.cpp
         tests/TestBackendDebugText.cpp
         tests/TestBackendImagePath.cpp
+        tests/TestBackendMaterialShading.cpp
         tests/TestBackendModelCache.cpp
         tests/TestBackendWorldProjection.cpp
         tests/TestBackendWorldProxyGeometry.cpp

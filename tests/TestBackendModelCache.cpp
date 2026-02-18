@@ -45,7 +45,10 @@ bool test_backend_model_cache_contract(std::string& outFail) {
             outFail = "loadMeshFromCache should provide an error for empty model path";
             return false;
         }
-        if (!mesh.vertices.empty() || !mesh.indices.empty() || !mesh.triangleBaseColors.empty()) {
+        if (!mesh.vertices.empty() ||
+            !mesh.indices.empty() ||
+            !mesh.triangleBaseColors.empty() ||
+            !mesh.triangleOpacity.empty()) {
             outFail = "loadMeshFromCache should clear output mesh on failure";
             return false;
         }
@@ -62,7 +65,10 @@ bool test_backend_model_cache_contract(std::string& outFail) {
             outFail = "loadMeshFromCache should provide an error when cache file is missing";
             return false;
         }
-        if (!mesh.vertices.empty() || !mesh.indices.empty() || !mesh.triangleBaseColors.empty()) {
+        if (!mesh.vertices.empty() ||
+            !mesh.indices.empty() ||
+            !mesh.triangleBaseColors.empty() ||
+            !mesh.triangleOpacity.empty()) {
             outFail = "missing-cache load failure should leave mesh output empty";
             return false;
         }

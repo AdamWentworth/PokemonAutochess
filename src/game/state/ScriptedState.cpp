@@ -445,8 +445,10 @@ void ScriptedState::renderBackendCardUi(int uiW, int uiH) {
     if (!services.renderer) return;
     if (cardMode != CardMode::Shop && cardMode != CardMode::Starter) return;
 
-    std::vector<IRenderBackend::DebugQuad> quads;
-    quads.reserve(4096);
+    std::vector<IRenderBackend::DebugQuad> baseQuads;
+    baseQuads.reserve(4096);
+    std::vector<IRenderBackend::DebugQuad> textQuads;
+    textQuads.reserve(4096);
     std::vector<IRenderBackend::DebugSprite> sprites;
     sprites.reserve(1024);
     const bool isShopMode = (cardMode == CardMode::Shop);
@@ -487,10 +489,10 @@ void ScriptedState::renderBackendCardUi(int uiW, int uiH) {
         bg.g = g;
         bg.b = b;
         bg.a = 0.92f;
-        quads.push_back(bg);
+        baseQuads.push_back(bg);
 
         game::runtime::backend_text::appendTextQuads(
-            quads, x, y, label, textScale, 0.98f, 0.98f, 0.98f, 1.0f);
+            textQuads, x, y, label, textScale, 0.98f, 0.98f, 0.98f, 1.0f);
         if (outW) *outW = bg.w;
         if (outH) *outH = bg.h;
     };
@@ -506,13 +508,13 @@ void ScriptedState::renderBackendCardUi(int uiW, int uiH) {
         const float textW = std::max(1.0f, static_cast<float>(baseW) * textScale);
         const float x = centerX - textW * 0.5f;
         game::runtime::backend_text::appendTextQuads(
-            quads, x, y, text, textScale, r, g, b, 1.0f);
+            textQuads, x, y, text, textScale, r, g, b, 1.0f);
     };
 
     const auto msgOpt = game::scripting::callStringFunction(script.getScriptTable(), {"get_message"});
     const std::string header = msgOpt ? *msgOpt : ((cardMode == CardMode::Starter) ? "Starter" : "Shop");
     game::runtime::backend_text::appendTextQuads(
-        quads, 26.0f, 24.0f, header, 2.6f, 0.95f, 0.95f, 0.98f, 1.0f);
+        textQuads, 26.0f, 24.0f, header, 2.6f, 0.95f, 0.95f, 0.98f, 1.0f);
 
     resetBackendShopActionRects();
 
@@ -544,7 +546,7 @@ void ScriptedState::renderBackendCardUi(int uiW, int uiH) {
             renderIn.item = itemRow || card.item;
             renderIn.textScale = 0.74f;
             renderIn.spriteAlpha = 1.0f;
-            game::runtime::backend_card_renderer::appendCard(quads, &sprites, renderIn);
+            game::runtime::backend_card_renderer::appendCardLayered(baseQuads, textQuads, &sprites, renderIn);
         }
     };
 
@@ -576,7 +578,7 @@ void ScriptedState::renderBackendCardUi(int uiW, int uiH) {
             outerBg.g = 0.07f;
             outerBg.b = 0.09f;
             outerBg.a = 0.82f;
-            quads.push_back(outerBg);
+            baseQuads.push_back(outerBg);
 
             if (hit.w > 0 && hit.h > 0) {
                 IRenderBackend::DebugQuad hitBg;
@@ -588,7 +590,7 @@ void ScriptedState::renderBackendCardUi(int uiW, int uiH) {
                 hitBg.g = 0.21f;
                 hitBg.b = 0.16f;
                 hitBg.a = 0.90f;
-                quads.push_back(hitBg);
+                baseQuads.push_back(hitBg);
             }
 
             appendCenteredText(sellOverlay.centerX,
@@ -646,7 +648,7 @@ void ScriptedState::renderBackendCardUi(int uiW, int uiH) {
         const game::ui::ClassicHudLayout hud = game::runtime::backend_shop_hud::computeLayout(hudIn);
 
         game::runtime::backend_text::appendTextQuads(
-            quads, hud.textX, hud.textY, moneyLabel, moneyScale, 0.95f, 0.88f, 0.50f, 1.0f);
+            textQuads, hud.textX, hud.textY, moneyLabel, moneyScale, 0.95f, 0.88f, 0.50f, 1.0f);
 
         if (hasShopRerollButton) {
             const float buttonTextX = hud.rerollX;
@@ -686,7 +688,7 @@ void ScriptedState::renderBackendCardUi(int uiW, int uiH) {
     refreshBackendShopSnapshot();
 
     game::runtime::backend_text::appendTextQuads(
-        quads,
+        textQuads,
         26.0f,
         static_cast<float>(uiH) - 36.0f,
         game::runtime::backend_shop_hud::interactionHint(),
@@ -696,11 +698,14 @@ void ScriptedState::renderBackendCardUi(int uiW, int uiH) {
         0.93f,
         1.0f);
 
+    if (!baseQuads.empty()) {
+        services.renderer->drawDebugQuads(baseQuads.data(), baseQuads.size(), uiW, uiH);
+    }
     if (!sprites.empty()) {
         services.renderer->drawDebugSprites(sprites.data(), sprites.size(), uiW, uiH);
     }
-    if (!quads.empty()) {
-        services.renderer->drawDebugQuads(quads.data(), quads.size(), uiW, uiH);
+    if (!textQuads.empty()) {
+        services.renderer->drawDebugQuads(textQuads.data(), textQuads.size(), uiW, uiH);
     }
 }
 

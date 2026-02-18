@@ -6,6 +6,7 @@
 bool test_backend_card_visuals_contract(std::string& outFail) {
     using game::runtime::backend_cards::CardVisualInput;
     using game::runtime::backend_cards::appendStylizedCard;
+    using game::runtime::backend_cards::appendStylizedCardLayered;
     using game::runtime::backend_cards::computeCardVisualLayout;
     using game::runtime::backend_cards::fnv1aHash;
     using game::runtime::backend_cards::makeCardArtSprite;
@@ -65,6 +66,29 @@ bool test_backend_card_visuals_contract(std::string& outFail) {
         if (uvSprite.u0 != 0.25f || uvSprite.v0 != 0.20f ||
             uvSprite.u1 != 0.75f || uvSprite.v1 != 0.80f) {
             outFail = "card sprite UVs should preserve normalized atlas crop bounds";
+            return false;
+        }
+    }
+
+    {
+        CardVisualInput in;
+        in.x = 48.0f;
+        in.y = 40.0f;
+        in.w = 196.0f;
+        in.h = 132.0f;
+        in.title = "Squirtle";
+        in.subtitle = "Lv 4  Cost 2g";
+        in.keyboardSlot = 2;
+
+        std::vector<IRenderBackend::DebugQuad> baseQuads;
+        std::vector<IRenderBackend::DebugQuad> textQuads;
+        appendStylizedCardLayered(baseQuads, textQuads, in, 0.92f);
+        if (baseQuads.empty()) {
+            outFail = "appendStylizedCardLayered should emit base card geometry";
+            return false;
+        }
+        if (textQuads.empty()) {
+            outFail = "appendStylizedCardLayered should emit text geometry separately";
             return false;
         }
     }

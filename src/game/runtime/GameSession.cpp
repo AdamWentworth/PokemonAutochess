@@ -862,17 +862,31 @@ struct GameSession::Impl {
                             unit.pendingDamageActive ||
                             unit.pendingImpactActive ||
                             unit.pendingProjectileActive;
+                        const float attackDuration = std::max(0.05f, unit.attackDurationSec);
+                        const float attackProgress = std::clamp(unit.attackTimerSec / attackDuration, 0.0f, 1.0f);
+                        const float attackLunge =
+                            activeAttackWindow ? std::sin(attackProgress * 3.1415926f) * worldCellSize * 0.11f : 0.0f;
+                        const glm::vec3 attackOffset =
+                            game::runtime::backend_proxy::yawForward(unit.rotation.y) * attackLunge;
+                        const float faintProgress = (unit.fainting && unit.faintAnimDurationSec > 0.0f)
+                            ? std::clamp(unit.faintTimerSec / unit.faintAnimDurationSec, 0.0f, 1.0f)
+                            : 0.0f;
+                        const float faintDrop = faintProgress * worldCellSize * 0.35f;
+                        const float faintRoll = faintProgress * 72.0f;
                         const float idleFreq = unit.isMoving ? 10.5f : 4.2f;
                         const float bobAmp = unit.isMoving ? worldCellSize * 0.032f : worldCellSize * 0.012f;
                         const float bobY = std::sin(unit.animTimeSec * idleFreq) * bobAmp;
                         const float animYaw =
                             unit.rotation.y + std::sin(unit.animTimeSec * (unit.isMoving ? 7.0f : 3.2f)) *
                                 (unit.isMoving ? 3.8f : 1.4f);
+                        const float animPitch = unit.rotation.x + attackLunge * 48.0f;
+                        const float animRoll =
+                            unit.rotation.z + (unit.side == PokemonSide::Player ? -faintRoll : faintRoll);
                         const float attackPulse = activeAttackWindow
                             ? (1.0f + (0.5f + 0.5f * std::sin(unit.animTimeSec * 18.0f)) * 0.055f)
                             : 1.0f;
                         const glm::vec3 animatedCenter =
-                            unit.position + glm::vec3(0.0f, unit.visualYOffset + bobY, 0.0f);
+                            unit.position + attackOffset + glm::vec3(0.0f, unit.visualYOffset + bobY - faintDrop, 0.0f);
                         const glm::vec3 worldPos =
                             animatedCenter +
                             glm::vec3(0.0f, std::max(0.2f, worldCellSize * 0.22f), 0.0f);
@@ -946,11 +960,11 @@ struct GameSession::Impl {
                             const glm::vec3 renderPos = proxyCenter;
                             const glm::mat4 scale = glm::scale(glm::mat4(1.0f), glm::vec3(modelScale));
                             const glm::mat4 rotationX =
-                                glm::rotate(glm::mat4(1.0f), glm::radians(unit.rotation.x), glm::vec3(1, 0, 0));
+                                glm::rotate(glm::mat4(1.0f), glm::radians(animPitch), glm::vec3(1, 0, 0));
                             const glm::mat4 rotationY =
                                 glm::rotate(glm::mat4(1.0f), glm::radians(animYaw), glm::vec3(0, 1, 0));
                             const glm::mat4 rotationZ =
-                                glm::rotate(glm::mat4(1.0f), glm::radians(unit.rotation.z), glm::vec3(0, 0, 1));
+                                glm::rotate(glm::mat4(1.0f), glm::radians(animRoll), glm::vec3(0, 0, 1));
                             const glm::mat4 translation = glm::translate(glm::mat4(1.0f), renderPos);
                             const glm::mat4 modelM = translation * rotationY * rotationX * rotationZ * scale;
 
@@ -1050,7 +1064,12 @@ struct GameSession::Impl {
                                 }
                                 baseColor = glm::clamp(baseColor, 0.0f, 1.0f);
 
-                                pushModelTriangle(a, b, c, baseColor, unit.alive ? 0.95f : 0.74f);
+                                const float triOpacity = (triIdx < mesh->triangleOpacity.size())
+                                    ? mesh->triangleOpacity[triIdx]
+                                    : 1.0f;
+                                const float alpha = (unit.alive ? 0.95f : 0.74f) * std::clamp(triOpacity, 0.0f, 1.0f);
+                                if (alpha < 0.03f) continue;
+                                pushModelTriangle(a, b, c, baseColor, alpha);
                             }
 
                             std::sort(
@@ -1105,6 +1124,44 @@ struct GameSession::Impl {
                             0.98f,
                             unit.alive ? 0.75f : 0.45f,
                             std::max(1.0f, line * 0.9f));
+                        if (activeAttackWindow) {
+                            const float ringRadius = std::max(0.04f, extents.halfWidth * 1.05f + attackProgress * 0.10f);
+                            const int segments = 12;
+                            for (int seg = 0; seg < segments; ++seg) {
+                                const float t0 = (static_cast<float>(seg) / static_cast<float>(segments)) * 6.2831853f;
+                                const float t1 = (static_cast<float>(seg + 1) / static_cast<float>(segments)) * 6.2831853f;
+                                const glm::vec3 p0 =
+                                    proxyCenter +
+                                    glm::vec3(std::cos(t0) * ringRadius, extents.height * 0.25f, std::sin(t0) * ringRadius);
+                                const glm::vec3 p1 =
+                                    proxyCenter +
+                                    glm::vec3(std::cos(t1) * ringRadius, extents.height * 0.25f, std::sin(t1) * ringRadius);
+                                appendProjectedLine(
+                                    p0,
+                                    p1,
+                                    0.98f,
+                                    0.84f,
+                                    0.42f,
+                                    0.82f,
+                                    std::max(1.0f, line * 0.85f));
+                            }
+                            if (unit.pendingDamageTargetId >= 0) {
+                                if (const PokemonInstance* target = gameWorld->findUnitById(unit.pendingDamageTargetId)) {
+                                    const glm::vec3 from = proxyCenter + glm::vec3(0.0f, extents.height * 0.35f, 0.0f);
+                                    const glm::vec3 to =
+                                        target->position +
+                                        glm::vec3(0.0f, std::max(0.12f, worldCellSize * 0.24f) + target->visualYOffset, 0.0f);
+                                    appendProjectedLine(
+                                        from,
+                                        to,
+                                        0.98f,
+                                        0.62f,
+                                        0.28f,
+                                        0.74f,
+                                        std::max(1.0f, line * 1.0f));
+                                }
+                            }
+                        }
 
                         const float topLabelY = cy - std::max(14.0f, unitSize * 0.40f);
 
