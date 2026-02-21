@@ -12,6 +12,7 @@
 #include <iomanip>
 #include <sstream>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/quaternion.hpp>
@@ -91,9 +92,9 @@ std::string trimDebugLine(std::string s, std::size_t maxChars) {
 
 std::size_t backendModelTriangleLimit() {
     static const std::size_t limit = []() -> std::size_t {
-        constexpr std::size_t kDefault = 12000u;
+        constexpr std::size_t kDefault = 24000u;
         constexpr std::size_t kMin = 256u;
-        constexpr std::size_t kMax = 120000u;
+        constexpr std::size_t kMax = 180000u;
         const auto env = engine::env::get("PAC_BACKEND_MODEL_TRI_LIMIT");
         if (!env.has_value()) return kDefault;
         try {
@@ -1048,6 +1049,22 @@ struct GameSession::Impl {
                     eval.nodeLocals = mesh.nodesDefault;
                     eval.nodeGlobals.assign(mesh.nodesDefault.size(), glm::mat4(1.0f));
 
+                    std::unordered_set<int> rootMotionCarrierNodes;
+                    rootMotionCarrierNodes.reserve(16);
+                    for (const auto& skin : mesh.skins) {
+                        if (skin.joints.empty()) continue;
+                        std::unordered_set<int> jointSet;
+                        jointSet.reserve(skin.joints.size());
+                        for (const int j : skin.joints) jointSet.insert(j);
+                        for (const int j : skin.joints) {
+                            if (j < 0 || static_cast<std::size_t>(j) >= mesh.nodeParent.size()) continue;
+                            const int parent = mesh.nodeParent[static_cast<std::size_t>(j)];
+                            if (parent < 0 || jointSet.find(parent) == jointSet.end()) {
+                                rootMotionCarrierNodes.insert(j);
+                            }
+                        }
+                    }
+
                     int animIndex = unit.activeAnimIndex;
                     if (animIndex < 0 || static_cast<std::size_t>(animIndex) >= mesh.animations.size()) {
                         animIndex = unit.currentAttackAnimIndex;
@@ -1074,8 +1091,24 @@ struct GameSession::Impl {
                             const auto& sampler = clip.samplers[static_cast<std::size_t>(channel.samplerIndex)];
                             if (channel.path == pac_model_types::ChannelPath::Translation) {
                                 const glm::vec4 tr = sampleVec4(sampler, clipTime);
-                                local.t = glm::vec3(tr.x, tr.y, tr.z);
-                                local.hasMatrix = false;
+                                if (rootMotionCarrierNodes.find(channel.targetNode) != rootMotionCarrierNodes.end()) {
+                                    const auto& bind =
+                                        mesh.nodesDefault[static_cast<std::size_t>(channel.targetNode)];
+                                    if (bind.hasMatrix) {
+                                        local = bind;
+                                        local.matrix[3].x = bind.matrix[3].x;
+                                        local.matrix[3].y = tr.y;
+                                        local.matrix[3].z = bind.matrix[3].z;
+                                        local.matrix[3].w = 1.0f;
+                                        local.hasMatrix = true;
+                                    } else {
+                                        local.t = glm::vec3(bind.t.x, tr.y, bind.t.z);
+                                        local.hasMatrix = false;
+                                    }
+                                } else {
+                                    local.t = glm::vec3(tr.x, tr.y, tr.z);
+                                    local.hasMatrix = false;
+                                }
                             } else if (channel.path == pac_model_types::ChannelPath::Scale) {
                                 const glm::vec4 sc = sampleVec4(sampler, clipTime);
                                 local.s = glm::vec3(sc.x, sc.y, sc.z);
@@ -1200,16 +1233,17 @@ struct GameSession::Impl {
                         if (const runtime::backend_model::MeshData* mesh = resolveModelMesh(unit)) {
                             const std::size_t triangleCount = mesh->indices.size() / 3u;
                             const std::size_t maxTrianglesPerUnit = backendModelTriangleLimit();
-                            const float detailScale = std::clamp(unitSize / 72.0f, 0.18f, 1.0f);
+                            const float detailScale = std::clamp(unitSize / 70.0f, 0.30f, 1.0f);
+                            const std::size_t minTrianglesPerUnit =
+                                std::min<std::size_t>(1200u, maxTrianglesPerUnit);
                             const std::size_t scaledBudget = static_cast<std::size_t>(
                                 std::clamp(
                                     static_cast<double>(maxTrianglesPerUnit) *
-                                        static_cast<double>(detailScale) *
                                         static_cast<double>(detailScale),
-                                    384.0,
+                                    static_cast<double>(minTrianglesPerUnit),
                                     static_cast<double>(maxTrianglesPerUnit)));
                             const std::size_t unitTriangleBudget =
-                                std::min(triangleCount, std::max<std::size_t>(384u, scaledBudget));
+                                std::min(triangleCount, std::max(minTrianglesPerUnit, scaledBudget));
 
                             const float modelScale =
                                 std::max(0.01f, mesh->modelScaleFactor) *
@@ -1364,19 +1398,7 @@ struct GameSession::Impl {
                                 }
 
                                 const float lit = std::clamp(glm::dot(faceNormal, lightDir), 0.0f, 1.0f);
-                                const float facing = std::clamp(faceFacing, 0.0f, 1.0f);
-                                const float rim = std::pow(std::clamp(1.0f - facing, 0.0f, 1.0f), 2.0f);
-                                glm::vec3 halfDir = lightDir + toCameraCenter;
-                                const float halfLenSq = glm::dot(halfDir, halfDir);
-                                if (halfLenSq > 0.000001f) {
-                                    halfDir = glm::normalize(halfDir);
-                                } else {
-                                    halfDir = lightDir;
-                                }
-                                const float spec =
-                                    std::pow(std::clamp(glm::dot(faceNormal, halfDir), 0.0f, 1.0f), 18.0f);
-                                const float shade =
-                                    std::clamp(0.24f + lit * 0.60f + rim * 0.08f + spec * 0.14f, 0.08f, 1.25f);
+                                const float shade = std::clamp(0.82f + lit * 0.18f, 0.70f, 1.0f);
                                 const auto shadeColor = [&](const glm::vec3& baseColor) {
                                     return glm::clamp(baseColor * shade, 0.0f, 1.0f);
                                 };

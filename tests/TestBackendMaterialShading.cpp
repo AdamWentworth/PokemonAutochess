@@ -15,8 +15,11 @@ bool test_backend_material_shading_contract(std::string& outFail) {
     using game::runtime::backend_material::AlphaMode;
     using game::runtime::backend_material::alphaModeFromByte;
     using game::runtime::backend_material::blendBaseAndTexture;
+    using game::runtime::backend_material::composeGltfLikeColor;
+    using game::runtime::backend_material::linearToSrgb;
     using game::runtime::backend_material::modulateBaseAndTexture;
     using game::runtime::backend_material::opacityFromAlphaMode;
+    using game::runtime::backend_material::srgbToLinear;
 
     if (alphaModeFromByte(0u) != AlphaMode::Opaque ||
         alphaModeFromByte(1u) != AlphaMode::Mask ||
@@ -58,6 +61,28 @@ bool test_backend_material_shading_contract(std::string& outFail) {
             !approx(modulated.g, 0.2f) ||
             !approx(modulated.b, 0.5f)) {
             outFail = "modulateBaseAndTexture should multiply channels";
+            return false;
+        }
+    }
+
+    {
+        const glm::vec3 srgb(0.08f, 0.25f, 0.66f);
+        const glm::vec3 roundTrip = linearToSrgb(srgbToLinear(srgb));
+        if (!approx(roundTrip.r, srgb.r, 0.0015f) ||
+            !approx(roundTrip.g, srgb.g, 0.0015f) ||
+            !approx(roundTrip.b, srgb.b, 0.0015f)) {
+            outFail = "sRGB linear conversion round-trip drifted too far";
+            return false;
+        }
+    }
+
+    {
+        const glm::vec3 base(0.35f, 0.22f, 0.11f);
+        const glm::vec3 emissive(0.9f, 0.4f, 0.2f);
+        const glm::vec3 noEmi = composeGltfLikeColor(base, emissive, glm::vec3(0.0f));
+        const glm::vec3 withEmi = composeGltfLikeColor(base, emissive, glm::vec3(1.0f, 0.8f, 0.5f));
+        if (!(withEmi.r >= noEmi.r && withEmi.g >= noEmi.g && withEmi.b >= noEmi.b)) {
+            outFail = "composeGltfLikeColor should brighten when emissive contribution increases";
             return false;
         }
     }

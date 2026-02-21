@@ -75,8 +75,8 @@ Prioritized Backlog
 - [ ] Remove `setRenderEnabled(legacyRenderPath)` behavior that disables non-OpenGL world resources.
 - [ ] Move backend debug world rendering behind an explicit dev-only flag. (In progress: menu world-backdrop is now disabled by default and can be enabled via `PAC_BACKEND_MENU_BACKDROP=1`.)
 - [ ] Implement/align backend-neutral draw contracts in `IRenderBackend` for required scene features.
-- [ ] Complete D3D12 material and alpha-mode parity.
-- [ ] Complete D3D12 animation/skinning parity (no fallback-only pose path).
+- [ ] Complete D3D12 material and alpha-mode parity. (In progress: wrap-aware texture sampling, glTF-like base+emissive color composition, and higher model detail budget landed in backend mesh path.)
+- [ ] Complete D3D12 animation/skinning parity (no fallback-only pose path). (In progress: backend clip evaluation now applies root-motion carrier X/Z suppression like OpenGL.)
 - [ ] Port/align board and bench rendering parity.
 - [ ] Port/align health bars and combat overlays parity.
 - [ ] Port/align shop/starter card style parity (image, frame, typography, spacing). (In progress: D3D12/backend cards now use OpenGL-like image+gold-frame composition with `Lv` overlay and below-card labels; starter row geometry now matches legacy OpenGL constants, with texture-quality tuning still ongoing.)
@@ -102,6 +102,7 @@ Iteration Log
 - Iteration 12: Added outlined menu panel/button styling in shared backend text-menu rendering, locked backend starter card row to legacy OpenGL geometry (220x150, spacing 50, y=300), and upgraded D3D12 sprite textures to mipmapped uploads with anisotropic sampling for closer card image quality.
 - Iteration 13: Added backend text-menu `bold` and `underline` style parity (matching legacy menu semantics) so selected/active entries read consistently across OpenGL and D3D12.
 - Iteration 14: Fixed D3D12 dynamic-vertex buffer overwrite hazards by adding per-frame write offsets for debug quads/lines/triangles and sprites, preventing later draws from clobbering earlier menu/background geometry in the same frame.
+- Iteration 15: Improved backend model parity by honoring texture wrap modes, applying glTF-like base+emissive color composition in model cache sampling, increasing per-unit triangle fidelity defaults, and matching OpenGL root-motion carrier translation handling during backend clip pose evaluation.
 
 How This File Is Used
 - Before each parity implementation iteration:

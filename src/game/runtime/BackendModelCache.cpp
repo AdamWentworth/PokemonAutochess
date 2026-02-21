@@ -277,6 +277,10 @@ struct CacheTextureHeader {
 struct DecodedTexture {
     int width = 0;
     int height = 0;
+    int wrapS = 10497; // GL_REPEAT
+    int wrapT = 10497; // GL_REPEAT
+    int minF = 9729;   // GL_LINEAR
+    int magF = 9729;   // GL_LINEAR
     std::vector<unsigned char> rgba;
     glm::vec4 average{1.0f};
 
@@ -304,6 +308,10 @@ bool readTexture(std::istream& in, DecodedTexture& out, bool keepPixels) {
 
     out.width = h.width;
     out.height = h.height;
+    out.wrapS = h.wrapS;
+    out.wrapT = h.wrapT;
+    out.minF = h.minF;
+    out.magF = h.magF;
 
     constexpr std::uint32_t kMaxTextureBytes = 64u * 1024u * 1024u;
     if (h.bytes > kMaxTextureBytes) return false;
@@ -352,10 +360,29 @@ bool readTexture(std::istream& in, DecodedTexture& out, bool keepPixels) {
 glm::vec4 sampleTextureNearest(const DecodedTexture& tex, const glm::vec2& uv) {
     if (!tex.hasPixels()) return tex.average;
 
-    float u = uv.x - std::floor(uv.x);
-    float v = uv.y - std::floor(uv.y);
-    if (u < 0.0f) u += 1.0f;
-    if (v < 0.0f) v += 1.0f;
+    constexpr int GL_REPEAT = 10497;
+    constexpr int GL_CLAMP_TO_EDGE = 33071;
+    constexpr int GL_MIRRORED_REPEAT = 33648;
+
+    const auto wrapCoord = [](float coord, int mode) {
+        switch (mode) {
+            case GL_CLAMP_TO_EDGE:
+                return std::clamp(coord, 0.0f, 1.0f);
+            case GL_MIRRORED_REPEAT: {
+                const float x = std::fmod(coord, 2.0f);
+                const float y = (x < 0.0f) ? (x + 2.0f) : x;
+                return (y <= 1.0f) ? y : (2.0f - y);
+            }
+            case GL_REPEAT:
+            default: {
+                const float x = std::fmod(coord, 1.0f);
+                return (x < 0.0f) ? (x + 1.0f) : x;
+            }
+        }
+    };
+
+    const float u = wrapCoord(uv.x, tex.wrapS);
+    const float v = wrapCoord(uv.y, tex.wrapT);
 
     const int w = std::max(1, tex.width);
     const int h = std::max(1, tex.height);
@@ -374,10 +401,29 @@ glm::vec4 sampleTextureNearest(const DecodedTexture& tex, const glm::vec2& uv) {
 glm::vec4 sampleTextureBilinear(const DecodedTexture& tex, const glm::vec2& uv) {
     if (!tex.hasPixels()) return tex.average;
 
-    float u = uv.x - std::floor(uv.x);
-    float v = uv.y - std::floor(uv.y);
-    if (u < 0.0f) u += 1.0f;
-    if (v < 0.0f) v += 1.0f;
+    constexpr int GL_REPEAT = 10497;
+    constexpr int GL_CLAMP_TO_EDGE = 33071;
+    constexpr int GL_MIRRORED_REPEAT = 33648;
+
+    const auto wrapCoord = [](float coord, int mode) {
+        switch (mode) {
+            case GL_CLAMP_TO_EDGE:
+                return std::clamp(coord, 0.0f, 1.0f);
+            case GL_MIRRORED_REPEAT: {
+                const float x = std::fmod(coord, 2.0f);
+                const float y = (x < 0.0f) ? (x + 2.0f) : x;
+                return (y <= 1.0f) ? y : (2.0f - y);
+            }
+            case GL_REPEAT:
+            default: {
+                const float x = std::fmod(coord, 1.0f);
+                return (x < 0.0f) ? (x + 1.0f) : x;
+            }
+        }
+    };
+
+    const float u = wrapCoord(uv.x, tex.wrapS);
+    const float v = wrapCoord(uv.y, tex.wrapT);
 
     const int w = std::max(1, tex.width);
     const int h = std::max(1, tex.height);
@@ -541,10 +587,12 @@ bool loadMeshFromCache(const std::string& modelPath, MeshData& out, std::string*
         std::size_t indexCount = 0u;
         int meshIndex = -1;
         glm::vec4 baseColor{1.0f};
+        glm::vec3 emissiveFactor{0.0f};
         backend_material::AlphaMode alphaMode = backend_material::AlphaMode::Opaque;
         float alphaCutoff = 0.5f;
         bool doubleSided = false;
         DecodedTexture baseTexture;
+        DecodedTexture emissiveTexture;
     };
     std::vector<SubmeshRange> submeshRanges;
     submeshRanges.reserve(hdr.submeshCount);
@@ -576,7 +624,7 @@ bool loadMeshFromCache(const std::string& modelPath, MeshData& out, std::string*
         DecodedTexture baseTexture;
         DecodedTexture emissiveTexture;
         if (!readTexture(in, baseTexture, /*keepPixels=*/true) ||
-            !readTexture(in, emissiveTexture, /*keepPixels=*/false)) {
+            !readTexture(in, emissiveTexture, /*keepPixels=*/true)) {
             if (outError) *outError = "failed to read cache submesh textures";
             return false;
         }
@@ -590,10 +638,12 @@ bool loadMeshFromCache(const std::string& modelPath, MeshData& out, std::string*
         // Base-color texture data is already multiplied by glTF baseColorFactor during decode.
         // Keep a neutral factor when pixels are present to preserve per-texel detail.
         range.baseColor = baseTexture.hasPixels() ? glm::vec4(1.0f) : baseTexture.average;
+        range.emissiveFactor = glm::vec3(emissiveX, emissiveY, emissiveZ);
         range.alphaMode = backend_material::alphaModeFromByte(alphaModeRaw);
         range.alphaCutoff = alphaCutoff;
         range.doubleSided = (doubleSided != 0u);
         range.baseTexture = std::move(baseTexture);
+        range.emissiveTexture = std::move(emissiveTexture);
         submeshRanges.push_back(range);
         out.submeshBaseColors.push_back(range.baseColor);
         out.submeshMeshIndex.push_back(range.meshIndex);
@@ -642,43 +692,78 @@ bool loadMeshFromCache(const std::string& modelPath, MeshData& out, std::string*
                 out.triangleDoubleSided[ti] = range.doubleSided ? 1u : 0u;
                 out.triangleNodeIndex[ti] = resolvedNodeIndex;
                 out.triangleSkinIndex[ti] = resolvedSkinIndex;
-                glm::vec3 triColor(range.baseColor.r, range.baseColor.g, range.baseColor.b);
+                const glm::vec3 baseRgb(range.baseColor.r, range.baseColor.g, range.baseColor.b);
+                glm::vec3 triColor =
+                    backend_material::composeGltfLikeColor(baseRgb, glm::vec3(0.0f), range.emissiveFactor);
                 float triOpacity = 1.0f;
-                if (range.baseTexture.hasPixels()) {
-                    const std::size_t i = ti * 3u;
-                    const std::uint32_t i0 = out.indices[i + 0u];
-                    const std::uint32_t i1 = out.indices[i + 1u];
-                    const std::uint32_t i2 = out.indices[i + 2u];
-                    if (i0 < out.vertices.size() && i1 < out.vertices.size() && i2 < out.vertices.size()) {
-                        const glm::vec2 uv0 = out.vertices[i0].uv;
-                        const glm::vec2 uv1 = out.vertices[i1].uv;
-                        const glm::vec2 uv2 = out.vertices[i2].uv;
-                        const glm::vec2 uvc = (uv0 + uv1 + uv2) * (1.0f / 3.0f);
-                        const glm::vec4 tex0 = sampleTextureBilinear(range.baseTexture, uv0);
-                        const glm::vec4 tex1 = sampleTextureBilinear(range.baseTexture, uv1);
-                        const glm::vec4 tex2 = sampleTextureBilinear(range.baseTexture, uv2);
-                        const glm::vec4 texc = sampleTextureBilinear(range.baseTexture, uvc);
-                        const glm::vec3 baseRgb(range.baseColor.r, range.baseColor.g, range.baseColor.b);
-                        const glm::vec3 c0 = backend_material::modulateBaseAndTexture(
-                            baseRgb, glm::vec3(tex0.r, tex0.g, tex0.b));
-                        const glm::vec3 c1 = backend_material::modulateBaseAndTexture(
-                            baseRgb, glm::vec3(tex1.r, tex1.g, tex1.b));
-                        const glm::vec3 c2 = backend_material::modulateBaseAndTexture(
-                            baseRgb, glm::vec3(tex2.r, tex2.g, tex2.b));
-                        vertexColorAccum[i0] += c0;
-                        vertexColorAccum[i1] += c1;
-                        vertexColorAccum[i2] += c2;
-                        vertexColorWeight[i0] += 1.0f;
-                        vertexColorWeight[i1] += 1.0f;
-                        vertexColorWeight[i2] += 1.0f;
-                        const glm::vec4 texel = (tex0 + tex1 + tex2 + texc) * 0.25f;
-                        const glm::vec3 texelRgb(texel.r, texel.g, texel.b);
-                        triColor = backend_material::modulateBaseAndTexture(baseRgb, texelRgb);
-                        triOpacity = backend_material::opacityFromAlphaMode(
-                            range.alphaMode,
-                            texel.a,
-                            range.alphaCutoff);
-                    }
+
+                const std::size_t i = ti * 3u;
+                const std::uint32_t i0 = out.indices[i + 0u];
+                const std::uint32_t i1 = out.indices[i + 1u];
+                const std::uint32_t i2 = out.indices[i + 2u];
+                if (i0 < out.vertices.size() && i1 < out.vertices.size() && i2 < out.vertices.size()) {
+                    const glm::vec2 uv0 = out.vertices[i0].uv;
+                    const glm::vec2 uv1 = out.vertices[i1].uv;
+                    const glm::vec2 uv2 = out.vertices[i2].uv;
+                    const glm::vec2 uvc = (uv0 + uv1 + uv2) * (1.0f / 3.0f);
+
+                    const glm::vec4 tex0 = range.baseTexture.hasPixels()
+                        ? sampleTextureBilinear(range.baseTexture, uv0)
+                        : range.baseTexture.average;
+                    const glm::vec4 tex1 = range.baseTexture.hasPixels()
+                        ? sampleTextureBilinear(range.baseTexture, uv1)
+                        : range.baseTexture.average;
+                    const glm::vec4 tex2 = range.baseTexture.hasPixels()
+                        ? sampleTextureBilinear(range.baseTexture, uv2)
+                        : range.baseTexture.average;
+                    const glm::vec4 texc = range.baseTexture.hasPixels()
+                        ? sampleTextureBilinear(range.baseTexture, uvc)
+                        : range.baseTexture.average;
+
+                    const glm::vec4 emi0 = range.emissiveTexture.hasPixels()
+                        ? sampleTextureBilinear(range.emissiveTexture, uv0)
+                        : glm::vec4(0.0f);
+                    const glm::vec4 emi1 = range.emissiveTexture.hasPixels()
+                        ? sampleTextureBilinear(range.emissiveTexture, uv1)
+                        : glm::vec4(0.0f);
+                    const glm::vec4 emi2 = range.emissiveTexture.hasPixels()
+                        ? sampleTextureBilinear(range.emissiveTexture, uv2)
+                        : glm::vec4(0.0f);
+                    const glm::vec4 emic = range.emissiveTexture.hasPixels()
+                        ? sampleTextureBilinear(range.emissiveTexture, uvc)
+                        : glm::vec4(0.0f);
+
+                    const glm::vec3 base0 = backend_material::modulateBaseAndTexture(
+                        baseRgb, glm::vec3(tex0.r, tex0.g, tex0.b));
+                    const glm::vec3 base1 = backend_material::modulateBaseAndTexture(
+                        baseRgb, glm::vec3(tex1.r, tex1.g, tex1.b));
+                    const glm::vec3 base2 = backend_material::modulateBaseAndTexture(
+                        baseRgb, glm::vec3(tex2.r, tex2.g, tex2.b));
+
+                    const glm::vec3 c0 = backend_material::composeGltfLikeColor(
+                        base0, glm::vec3(emi0.r, emi0.g, emi0.b), range.emissiveFactor);
+                    const glm::vec3 c1 = backend_material::composeGltfLikeColor(
+                        base1, glm::vec3(emi1.r, emi1.g, emi1.b), range.emissiveFactor);
+                    const glm::vec3 c2 = backend_material::composeGltfLikeColor(
+                        base2, glm::vec3(emi2.r, emi2.g, emi2.b), range.emissiveFactor);
+                    vertexColorAccum[i0] += c0;
+                    vertexColorAccum[i1] += c1;
+                    vertexColorAccum[i2] += c2;
+                    vertexColorWeight[i0] += 1.0f;
+                    vertexColorWeight[i1] += 1.0f;
+                    vertexColorWeight[i2] += 1.0f;
+
+                    const glm::vec4 texel = (tex0 + tex1 + tex2 + texc) * 0.25f;
+                    const glm::vec4 emixel = (emi0 + emi1 + emi2 + emic) * 0.25f;
+                    const glm::vec3 texelRgb(texel.r, texel.g, texel.b);
+                    triColor = backend_material::composeGltfLikeColor(
+                        backend_material::modulateBaseAndTexture(baseRgb, texelRgb),
+                        glm::vec3(emixel.r, emixel.g, emixel.b),
+                        range.emissiveFactor);
+                    triOpacity = backend_material::opacityFromAlphaMode(
+                        range.alphaMode,
+                        texel.a,
+                        range.alphaCutoff);
                 }
                 out.triangleBaseColors[ti] = glm::clamp(triColor, 0.0f, 1.0f);
                 out.triangleOpacity[ti] = std::clamp(triOpacity, 0.0f, 1.0f);
