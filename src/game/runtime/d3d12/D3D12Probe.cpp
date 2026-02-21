@@ -1,4 +1,4 @@
-#include "game/runtime/D3D12Probe.h"
+#include "game/runtime/d3d12/D3D12Probe.h"
 #include "engine/render/DxgiAdapterSelection.h"
 
 #include <string>

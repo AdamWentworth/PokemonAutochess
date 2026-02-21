@@ -75,8 +75,9 @@ Prioritized Backlog
 - [ ] Remove `setRenderEnabled(legacyRenderPath)` behavior that disables non-OpenGL world resources.
 - [ ] Move backend debug world rendering behind an explicit dev-only flag. (In progress: menu world-backdrop is now disabled by default and can be enabled via `PAC_BACKEND_MENU_BACKDROP=1`.)
 - [ ] Implement/align backend-neutral draw contracts in `IRenderBackend` for required scene features. (In progress: indexed world-mesh draw contract landed and backend model submission now uses indexed batches on supporting backends.)
-- [ ] Complete D3D12 material and alpha-mode parity. (In progress: wrap-aware texture sampling, glTF-like base+emissive color composition, and higher model detail budget landed in backend mesh path.)
+- [ ] Complete D3D12 material and alpha-mode parity. (In progress: wrap-aware texture sampling, glTF-like base+emissive color composition, higher model detail budget, GL-clip-depth-to-D3D conversion, and OpenGL-like sRGB+ACES textured world shading landed in backend mesh path.)
 - [ ] Complete D3D12 animation/skinning parity (no fallback-only pose path). (In progress: backend clip evaluation now applies root-motion carrier X/Z suppression like OpenGL.)
+- [ ] Split D3D12 renderer implementation into smaller modules. (In progress: texture upload/mipmap staging moved from `src/engine/render/D3D12RenderBackend.cpp` to `src/engine/render/d3d12/D3D12TextureUpload.cpp`.)
 - [ ] Port/align board and bench rendering parity.
 - [ ] Port/align health bars and combat overlays parity.
 - [ ] Port/align shop/starter card style parity (image, frame, typography, spacing). (In progress: D3D12/backend cards now use OpenGL-like image+gold-frame composition with `Lv` overlay and below-card labels; starter row geometry now matches legacy OpenGL constants, with texture-quality tuning still ongoing.)
@@ -109,6 +110,7 @@ Iteration Log
 - Iteration 19: Added an indexed world-mesh backend contract (`supportsWorldIndexedMeshes`/`drawWorldIndexedMesh`), implemented D3D12 indexed world draws with dedicated upload index buffers, and switched backend model submission in `GameSession` to emit indexed per-unit batches instead of only triangle streams.
 - Iteration 20: Improved backend model visual fidelity by raising default model triangle/scene budgets and minimum per-unit LOD floor, switching model lighting to per-vertex directional/hemi/rim shading (including two-sided backface handling), and adding contract tests for the new shading helper in `BackendMaterialShading`.
 - Iteration 21: Implemented textured indexed world-model rendering for D3D12 by extending backend draw contracts with textured mesh submission, adding D3D12 world-shader UV texture sampling + descriptor-table binding/caching, and wiring `GameSession` model batches per submesh to submit cached base-color textures from `BackendModelCache` instead of color-only geometry.
+- Iteration 22: Reorganized D3D12-specific code by extracting texture upload helpers (`engine/render/d3d12`) and moving runtime probe files under `game/runtime/d3d12`, then improved visual parity with OpenGL by converting GL clip-space depth for D3D12 world draws and applying OpenGL-like sRGB+ACES color mapping for textured world meshes.
 
 How This File Is Used
 - Before each parity implementation iteration:

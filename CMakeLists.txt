@@ -136,6 +136,7 @@ pac_apply_common_target_settings(engine_platform)
 # ---------------- engine_render (OpenGL + renderer + resources) ----------------
 add_library(engine_render STATIC
     src/engine/render/D3D12RenderBackend.cpp
+    src/engine/render/d3d12/D3D12TextureUpload.cpp
     src/engine/render/OpenGLRenderBackend.cpp
     src/engine/render/Renderer.cpp
     src/engine/render/Camera3D.cpp
@@ -221,7 +222,7 @@ add_library(PAC_GameObjects STATIC
     src/game/runtime/GameUpdateGraph.cpp
     src/game/runtime/VideoPreferences.cpp
     src/game/runtime/GpuAdapters.cpp
-    src/game/runtime/D3D12Probe.cpp
+    src/game/runtime/d3d12/D3D12Probe.cpp
     src/game/runtime/BackendModelCache.cpp
 
     # Game Config

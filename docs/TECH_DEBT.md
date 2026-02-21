@@ -4,6 +4,7 @@ This list is intentionally short and focused on the highest-value fixes.
 
 Open items
 - Monolithic gameplay/render files remain high-risk for regressions:
+  - `src/engine/render/D3D12RenderBackend.cpp` (~1500+ lines after helper extraction)
   - `src/engine/render/gltf/ModelFastGltfTextures.cpp` (~400+ lines)
   - `src/game/scripting/ScriptAPICombat.cpp` (~300+ lines)
 - Packaged build smoke run is manual only (no automated run in CI).
@@ -33,4 +34,5 @@ Recent improvements
 - Split fastgltf scene/skin/animation extraction into `src/engine/render/gltf/ModelFastGltfSceneData.cpp` to further reduce `ModelFastGltfLoader.cpp` churn surface.
 - Split fastgltf material interpretation and GPU texture upload into `src/engine/render/gltf/ModelFastGltfMaterial.cpp` to remove duplicated GL upload blocks from the core loader flow.
 - Split fastgltf texture decode/data-source handling into `src/engine/render/gltf/ModelFastGltfTextures.cpp` and reduced `ModelFastGltfLoaderHelpers.cpp` to general utility/accessor reader responsibilities.
+- Extracted D3D12 texture upload/mipmap staging from `src/engine/render/D3D12RenderBackend.cpp` into `src/engine/render/d3d12/D3D12TextureUpload.cpp` and moved D3D12 runtime probe files to `src/game/runtime/d3d12/` to reduce backend-specific top-level sprawl.
 
