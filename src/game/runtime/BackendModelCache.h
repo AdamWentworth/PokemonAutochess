@@ -24,6 +24,23 @@ struct MeshVertex {
     float w3 = 0.0f;
 };
 
+struct CachedTextureRgba {
+    int width = 0;
+    int height = 0;
+    int wrapS = 10497;
+    int wrapT = 10497;
+    int minF = 9729;
+    int magF = 9729;
+    std::vector<unsigned char> rgba;
+
+    bool hasPixels() const {
+        if (width <= 0 || height <= 0) return false;
+        const std::uint64_t pixels = static_cast<std::uint64_t>(width) * static_cast<std::uint64_t>(height);
+        const std::uint64_t requiredBytes = pixels * 4ull;
+        return requiredBytes > 0ull && requiredBytes <= static_cast<std::uint64_t>(rgba.size());
+    }
+};
+
 struct MeshData {
     float modelScaleFactor = 1.0f;
     glm::vec3 boundsMin{0.0f};
@@ -36,6 +53,7 @@ struct MeshData {
     std::vector<std::uint8_t> triangleDoubleSided;
     std::vector<glm::vec4> submeshBaseColors;
     std::vector<int> submeshMeshIndex;
+    std::vector<CachedTextureRgba> submeshBaseTextures;
     std::vector<int> meshIndexToNode;
     std::vector<int> triangleNodeIndex;
     std::vector<int> triangleSkinIndex;

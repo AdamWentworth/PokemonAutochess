@@ -56,6 +56,14 @@ public:
                               const float* viewProjectionMatrix4x4,
                               int surfaceWidth,
                               int surfaceHeight) override;
+    void drawWorldIndexedMeshTextured(const WorldMeshVertex* vertices,
+                                      std::size_t vertexCount,
+                                      const std::uint32_t* indices,
+                                      std::size_t indexCount,
+                                      const WorldTextureData* texture,
+                                      const float* viewProjectionMatrix4x4,
+                                      int surfaceWidth,
+                                      int surfaceHeight) override;
     void drawDebugQuads(const DebugQuad* quads,
                         std::size_t quadCount,
                         int surfaceWidth,
@@ -86,6 +94,16 @@ private:
     struct SpriteTexture;
     SpriteTexture* ensureSpriteTexture(const std::string& texturePath);
     SpriteTexture* ensureFallbackSpriteTexture();
+    SpriteTexture* ensureWorldTexture(const WorldTextureData* textureData);
+    void drawWorldIndexedMeshInternal(const WorldMeshVertex* vertices,
+                                      std::size_t vertexCount,
+                                      const std::uint32_t* indices,
+                                      std::size_t indexCount,
+                                      std::uint32_t textureDescriptorIndex,
+                                      float useTexture,
+                                      const float* viewProjectionMatrix4x4,
+                                      int surfaceWidth,
+                                      int surfaceHeight);
     void waitForGpu();
     void ensureWindowHandle();
 
@@ -138,6 +156,7 @@ private:
     Microsoft::WRL::ComPtr<ID3D12Resource> worldIndexBuffer_;
     std::uint64_t worldIndexBufferGpuAddress_ = 0;
     std::uint32_t worldIndexBufferSize_ = 0;
+    std::uint32_t worldFallbackTextureDescriptorIndex_ = 0;
 
     struct SpriteTexture {
         Microsoft::WRL::ComPtr<ID3D12Resource> resource;
@@ -155,5 +174,6 @@ private:
     std::uint32_t spriteVertexBufferSize_ = 0;
     std::uint32_t spriteVertexFrameOffset_ = 0;
     std::unordered_map<std::string, SpriteTexture> spriteTextures_;
+    std::unordered_map<std::string, SpriteTexture> worldTextures_;
 #endif
 };

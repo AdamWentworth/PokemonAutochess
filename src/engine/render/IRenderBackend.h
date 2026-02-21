@@ -10,10 +10,19 @@ public:
         float x = 0.0f;
         float y = 0.0f;
         float z = 0.0f;
+        float u = 0.0f;
+        float v = 0.0f;
         float r = 1.0f;
         float g = 1.0f;
         float b = 1.0f;
         float a = 1.0f;
+    };
+
+    struct WorldTextureData {
+        const char* key = nullptr;
+        const unsigned char* rgba = nullptr;
+        int width = 0;
+        int height = 0;
     };
 
     struct WorldTriangle {
@@ -130,6 +139,23 @@ public:
         (void)vertexCount;
         (void)indices;
         (void)indexCount;
+        (void)viewProjectionMatrix4x4;
+        (void)surfaceWidth;
+        (void)surfaceHeight;
+    }
+    virtual void drawWorldIndexedMeshTextured(const WorldMeshVertex* vertices,
+                                              std::size_t vertexCount,
+                                              const std::uint32_t* indices,
+                                              std::size_t indexCount,
+                                              const WorldTextureData* texture,
+                                              const float* viewProjectionMatrix4x4,
+                                              int surfaceWidth,
+                                              int surfaceHeight) {
+        (void)vertices;
+        (void)vertexCount;
+        (void)indices;
+        (void)indexCount;
+        (void)texture;
         (void)viewProjectionMatrix4x4;
         (void)surfaceWidth;
         (void)surfaceHeight;

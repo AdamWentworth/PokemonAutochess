@@ -694,6 +694,10 @@ struct GameSession::Impl {
         struct WorldIndexedBatch {
             std::vector<IRenderBackend::WorldMeshVertex> vertices;
             std::vector<std::uint32_t> indices;
+            std::string textureKey;
+            const unsigned char* textureRgba = nullptr;
+            int textureWidth = 0;
+            int textureHeight = 0;
         };
         std::vector<WorldIndexedBatch> worldIndexedBatches;
         worldIndexedBatches.reserve(64);
@@ -1347,11 +1351,32 @@ struct GameSession::Impl {
                             const std::size_t world3DTriangleCountBefore = world3DTriangles.size();
                             const bool useIndexedWorldModelPath =
                                 supportsWorldTriangles3D && supportsWorldIndexedMeshes;
-                            std::vector<IRenderBackend::WorldMeshVertex> modelIndexedVertices;
-                            std::vector<std::uint32_t> modelIndexedIndices;
+                            std::vector<WorldIndexedBatch> modelIndexedBatchesPerSubmesh;
                             if (useIndexedWorldModelPath) {
-                                modelIndexedVertices.reserve(effectiveUnitTriangleBudget * 3u);
-                                modelIndexedIndices.reserve(effectiveUnitTriangleBudget * 3u);
+                                const std::size_t batchCount =
+                                    std::max<std::size_t>(1u, mesh->submeshBaseTextures.size());
+                                modelIndexedBatchesPerSubmesh.resize(batchCount);
+
+                                std::string unitModelPath;
+                                if (const PokemonStats* stats = dataDb.pokemon.getStats(unit.name)) {
+                                    if (!stats->model.empty()) {
+                                        unitModelPath = "assets/models/" + stats->model;
+                                    }
+                                }
+                                for (std::size_t si = 0; si < modelIndexedBatchesPerSubmesh.size(); ++si) {
+                                    auto& batch = modelIndexedBatchesPerSubmesh[si];
+                                    batch.vertices.reserve((effectiveUnitTriangleBudget * 3u) / batchCount + 64u);
+                                    batch.indices.reserve((effectiveUnitTriangleBudget * 3u) / batchCount + 64u);
+                                    if (si < mesh->submeshBaseTextures.size()) {
+                                        const auto& tex = mesh->submeshBaseTextures[si];
+                                        if (tex.hasPixels() && !unitModelPath.empty()) {
+                                            batch.textureKey = unitModelPath + "#submesh:" + std::to_string(si);
+                                            batch.textureRgba = tex.rgba.data();
+                                            batch.textureWidth = tex.width;
+                                            batch.textureHeight = tex.height;
+                                        }
+                                    }
+                                }
                             }
                             const BackendPoseEval scenePose = evaluateScenePose(*mesh, unit);
                             const auto& nodeGlobals = scenePose.hasScenePose ? scenePose.nodeGlobals : mesh->bindNodeGlobals;
@@ -1505,12 +1530,16 @@ struct GameSession::Impl {
                             const auto pushModelTriangle = [&](const glm::vec3& a,
                                                                 const glm::vec3& b,
                                                                 const glm::vec3& c,
+                                                                const glm::vec2& uv0,
+                                                                const glm::vec2& uv1,
+                                                                const glm::vec2& uv2,
                                                                 const glm::vec3& n0,
                                                                 const glm::vec3& n1,
                                                                 const glm::vec3& n2,
                                                                 const glm::vec3& baseColor0,
                                                                 const glm::vec3& baseColor1,
                                                                 const glm::vec3& baseColor2,
+                                                                std::uint16_t submeshIndex,
                                                                 float alpha,
                                                                 bool doubleSided) {
                                 float x1 = 0.0f;
@@ -1572,22 +1601,42 @@ struct GameSession::Impl {
 
                                 if (supportsWorldTriangles3D) {
                                     if (useIndexedWorldModelPath) {
-                                        const std::size_t nextVertexCount = modelIndexedVertices.size() + 3u;
+                                        std::size_t batchIndex = static_cast<std::size_t>(submeshIndex);
+                                        if (batchIndex >= modelIndexedBatchesPerSubmesh.size()) batchIndex = 0u;
+                                        auto& batch = modelIndexedBatchesPerSubmesh[batchIndex];
+                                        const bool texturedBatch =
+                                            batch.textureRgba != nullptr &&
+                                            batch.textureWidth > 0 &&
+                                            batch.textureHeight > 0;
+                                        const std::size_t nextVertexCount = batch.vertices.size() + 3u;
                                         if (nextVertexCount >=
                                             static_cast<std::size_t>(std::numeric_limits<std::uint32_t>::max())) {
                                             return;
                                         }
-                                        const std::uint32_t base =
-                                            static_cast<std::uint32_t>(modelIndexedVertices.size());
-                                        modelIndexedVertices.push_back(IRenderBackend::WorldMeshVertex{
-                                            a.x, a.y, a.z, shaded0.r, shaded0.g, shaded0.b, outAlpha});
-                                        modelIndexedVertices.push_back(IRenderBackend::WorldMeshVertex{
-                                            b.x, b.y, b.z, shaded1.r, shaded1.g, shaded1.b, outAlpha});
-                                        modelIndexedVertices.push_back(IRenderBackend::WorldMeshVertex{
-                                            c.x, c.y, c.z, shaded2.r, shaded2.g, shaded2.b, outAlpha});
-                                        modelIndexedIndices.push_back(base + 0u);
-                                        modelIndexedIndices.push_back(base + 1u);
-                                        modelIndexedIndices.push_back(base + 2u);
+
+                                        const auto shadeTint = [&](const glm::vec3& normal,
+                                                                   const glm::vec3& worldPos) {
+                                            return runtime::backend_material::shadeVertexLitColor(
+                                                glm::vec3(1.0f),
+                                                normal,
+                                                lightDir,
+                                                cameraWorldPos - worldPos,
+                                                flipForBackface);
+                                        };
+                                        const glm::vec3 outC0 = texturedBatch ? shadeTint(n0, a) : shaded0;
+                                        const glm::vec3 outC1 = texturedBatch ? shadeTint(n1, b) : shaded1;
+                                        const glm::vec3 outC2 = texturedBatch ? shadeTint(n2, c) : shaded2;
+
+                                        const std::uint32_t base = static_cast<std::uint32_t>(batch.vertices.size());
+                                        batch.vertices.push_back(IRenderBackend::WorldMeshVertex{
+                                            a.x, a.y, a.z, uv0.x, uv0.y, outC0.r, outC0.g, outC0.b, outAlpha});
+                                        batch.vertices.push_back(IRenderBackend::WorldMeshVertex{
+                                            b.x, b.y, b.z, uv1.x, uv1.y, outC1.r, outC1.g, outC1.b, outAlpha});
+                                        batch.vertices.push_back(IRenderBackend::WorldMeshVertex{
+                                            c.x, c.y, c.z, uv2.x, uv2.y, outC2.r, outC2.g, outC2.b, outAlpha});
+                                        batch.indices.push_back(base + 0u);
+                                        batch.indices.push_back(base + 1u);
+                                        batch.indices.push_back(base + 2u);
                                         return;
                                     }
 
@@ -1718,6 +1767,10 @@ struct GameSession::Impl {
                                     : 1.0f;
                                 const float alpha = (unit.alive ? 1.0f : 0.82f) * std::clamp(triOpacity, 0.0f, 1.0f);
                                 if (alpha < 0.03f) continue;
+                                const std::uint16_t triSubmeshIndex =
+                                    (triIdx < mesh->triangleSubmesh.size())
+                                        ? mesh->triangleSubmesh[triIdx]
+                                        : static_cast<std::uint16_t>(0u);
                                 const bool triDoubleSided =
                                     (triIdx < mesh->triangleDoubleSided.size()) &&
                                     (mesh->triangleDoubleSided[triIdx] != 0u);
@@ -1725,24 +1778,26 @@ struct GameSession::Impl {
                                     a,
                                     b,
                                     c,
+                                    v0.uv,
+                                    v1.uv,
+                                    v2.uv,
                                     n0,
                                     n1,
                                     n2,
                                     baseColor0,
                                     baseColor1,
                                     baseColor2,
+                                    triSubmeshIndex,
                                     alpha,
                                     triDoubleSided);
                             }
                             bool queuedIndexedBatch = false;
-                            if (useIndexedWorldModelPath &&
-                                !modelIndexedVertices.empty() &&
-                                !modelIndexedIndices.empty()) {
-                                WorldIndexedBatch batch;
-                                batch.vertices = std::move(modelIndexedVertices);
-                                batch.indices = std::move(modelIndexedIndices);
-                                worldIndexedBatches.push_back(std::move(batch));
-                                queuedIndexedBatch = true;
+                            if (useIndexedWorldModelPath && !modelIndexedBatchesPerSubmesh.empty()) {
+                                for (auto& batch : modelIndexedBatchesPerSubmesh) {
+                                    if (batch.vertices.empty() || batch.indices.empty()) continue;
+                                    worldIndexedBatches.push_back(std::move(batch));
+                                    queuedIndexedBatch = true;
+                                }
                             }
 
                             drewModelMesh = runtime::backend_units::didAccumulateModelGeometry(
@@ -2579,14 +2634,32 @@ struct GameSession::Impl {
         if (!worldIndexedBatches.empty() && hasWorldViewProj && supportsWorldIndexedMeshes) {
             for (const WorldIndexedBatch& batch : worldIndexedBatches) {
                 if (batch.vertices.empty() || batch.indices.empty()) continue;
-                renderer->drawWorldIndexedMesh(
-                    batch.vertices.data(),
-                    batch.vertices.size(),
-                    batch.indices.data(),
-                    batch.indices.size(),
-                    worldViewProj,
-                    drawableW,
-                    drawableH);
+                if (batch.textureRgba && batch.textureWidth > 0 && batch.textureHeight > 0 &&
+                    !batch.textureKey.empty()) {
+                    IRenderBackend::WorldTextureData tex;
+                    tex.key = batch.textureKey.c_str();
+                    tex.rgba = batch.textureRgba;
+                    tex.width = batch.textureWidth;
+                    tex.height = batch.textureHeight;
+                    renderer->drawWorldIndexedMeshTextured(
+                        batch.vertices.data(),
+                        batch.vertices.size(),
+                        batch.indices.data(),
+                        batch.indices.size(),
+                        &tex,
+                        worldViewProj,
+                        drawableW,
+                        drawableH);
+                } else {
+                    renderer->drawWorldIndexedMesh(
+                        batch.vertices.data(),
+                        batch.vertices.size(),
+                        batch.indices.data(),
+                        batch.indices.size(),
+                        worldViewProj,
+                        drawableW,
+                        drawableH);
+                }
             }
         }
         if (!worldTriangles.empty()) {

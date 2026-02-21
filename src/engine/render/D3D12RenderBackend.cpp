@@ -40,6 +40,8 @@ struct WorldVertex {
     float x;
     float y;
     float z;
+    float u;
+    float v;
     float r;
     float g;
     float b;
@@ -458,7 +460,7 @@ void D3D12RenderBackend::drawWorldTriangles(const WorldTriangle* triangles,
 #if defined(_WIN32)
     if (!recording_ || !triangles || triangleCount == 0 || !viewProjectionMatrix4x4) return;
     if (surfaceWidth <= 0 || surfaceHeight <= 0) return;
-    if (!worldPipelineState_ || !worldRootSignature_ || !worldVertexBuffer_ || !commandList_) return;
+    if (!worldPipelineState_ || !worldRootSignature_ || !worldVertexBuffer_ || !commandList_ || !srvHeap_) return;
 
     const std::size_t safeCount = (triangleCount > kMaxWorldTriangles) ? kMaxWorldTriangles : triangleCount;
     if (safeCount == 0) return;
@@ -479,18 +481,21 @@ void D3D12RenderBackend::drawWorldTriangles(const WorldTriangle* triangles,
         const std::size_t base = i * 3;
         out[base + 0] = WorldVertex{
             t.x1, t.y1, t.z1,
+            0.0f, 0.0f,
             std::clamp(resolve(t.r1, t.r), 0.0f, 1.0f),
             std::clamp(resolve(t.g1, t.g), 0.0f, 1.0f),
             std::clamp(resolve(t.b1, t.b), 0.0f, 1.0f),
             std::clamp(resolve(t.a1, t.a), 0.0f, 1.0f)};
         out[base + 1] = WorldVertex{
             t.x2, t.y2, t.z2,
+            0.0f, 0.0f,
             std::clamp(resolve(t.r2, t.r), 0.0f, 1.0f),
             std::clamp(resolve(t.g2, t.g), 0.0f, 1.0f),
             std::clamp(resolve(t.b2, t.b), 0.0f, 1.0f),
             std::clamp(resolve(t.a2, t.a), 0.0f, 1.0f)};
         out[base + 2] = WorldVertex{
             t.x3, t.y3, t.z3,
+            0.0f, 0.0f,
             std::clamp(resolve(t.r3, t.r), 0.0f, 1.0f),
             std::clamp(resolve(t.g3, t.g), 0.0f, 1.0f),
             std::clamp(resolve(t.b3, t.b), 0.0f, 1.0f),
@@ -510,8 +515,20 @@ void D3D12RenderBackend::drawWorldTriangles(const WorldTriangle* triangles,
 
     commandList_->RSSetViewports(1, &vp);
     commandList_->RSSetScissorRects(1, &scissor);
+    if (srvHeap_) {
+        ID3D12DescriptorHeap* heaps[] = {srvHeap_.Get()};
+        commandList_->SetDescriptorHeaps(1, heaps);
+    }
     commandList_->SetGraphicsRootSignature(worldRootSignature_.Get());
     commandList_->SetGraphicsRoot32BitConstants(0, 16, viewProjectionMatrix4x4, 0);
+    const float useTexture = 0.0f;
+    commandList_->SetGraphicsRoot32BitConstants(1, 1, &useTexture, 0);
+    if (srvHeap_) {
+        D3D12_GPU_DESCRIPTOR_HANDLE srvHandle = srvHeap_->GetGPUDescriptorHandleForHeapStart();
+        srvHandle.ptr += static_cast<SIZE_T>(worldFallbackTextureDescriptorIndex_) *
+                         static_cast<SIZE_T>(srvDescriptorSize_);
+        commandList_->SetGraphicsRootDescriptorTable(2, srvHandle);
+    }
     commandList_->SetPipelineState(worldPipelineState_.Get());
     commandList_->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
@@ -538,6 +555,71 @@ void D3D12RenderBackend::drawWorldIndexedMesh(const WorldMeshVertex* vertices,
                                               int surfaceWidth,
                                               int surfaceHeight) {
 #if defined(_WIN32)
+    drawWorldIndexedMeshInternal(
+        vertices,
+        vertexCount,
+        indices,
+        indexCount,
+        worldFallbackTextureDescriptorIndex_,
+        0.0f,
+        viewProjectionMatrix4x4,
+        surfaceWidth,
+        surfaceHeight);
+#else
+    (void)vertices;
+    (void)vertexCount;
+    (void)indices;
+    (void)indexCount;
+    (void)viewProjectionMatrix4x4;
+    (void)surfaceWidth;
+    (void)surfaceHeight;
+#endif
+}
+
+void D3D12RenderBackend::drawWorldIndexedMeshTextured(const WorldMeshVertex* vertices,
+                                                      std::size_t vertexCount,
+                                                      const std::uint32_t* indices,
+                                                      std::size_t indexCount,
+                                                      const WorldTextureData* texture,
+                                                      const float* viewProjectionMatrix4x4,
+                                                      int surfaceWidth,
+                                                      int surfaceHeight) {
+#if defined(_WIN32)
+    SpriteTexture* worldTex = ensureWorldTexture(texture);
+    const std::uint32_t descriptorIndex = worldTex ? worldTex->descriptorIndex : worldFallbackTextureDescriptorIndex_;
+    const float useTexture = (worldTex && worldTex->valid) ? 1.0f : 0.0f;
+    drawWorldIndexedMeshInternal(
+        vertices,
+        vertexCount,
+        indices,
+        indexCount,
+        descriptorIndex,
+        useTexture,
+        viewProjectionMatrix4x4,
+        surfaceWidth,
+        surfaceHeight);
+#else
+    (void)vertices;
+    (void)vertexCount;
+    (void)indices;
+    (void)indexCount;
+    (void)texture;
+    (void)viewProjectionMatrix4x4;
+    (void)surfaceWidth;
+    (void)surfaceHeight;
+#endif
+}
+
+void D3D12RenderBackend::drawWorldIndexedMeshInternal(const WorldMeshVertex* vertices,
+                                                      std::size_t vertexCount,
+                                                      const std::uint32_t* indices,
+                                                      std::size_t indexCount,
+                                                      std::uint32_t textureDescriptorIndex,
+                                                      float useTexture,
+                                                      const float* viewProjectionMatrix4x4,
+                                                      int surfaceWidth,
+                                                      int surfaceHeight) {
+#if defined(_WIN32)
     if (!recording_ || !vertices || !indices || vertexCount == 0 || indexCount == 0 || !viewProjectionMatrix4x4) {
         return;
     }
@@ -546,7 +628,8 @@ void D3D12RenderBackend::drawWorldIndexedMesh(const WorldMeshVertex* vertices,
         !worldRootSignature_ ||
         !worldVertexBuffer_ ||
         !worldIndexBuffer_ ||
-        !commandList_) {
+        !commandList_ ||
+        !srvHeap_) {
         return;
     }
 
@@ -570,6 +653,8 @@ void D3D12RenderBackend::drawWorldIndexedMesh(const WorldMeshVertex* vertices,
             src.x,
             src.y,
             src.z,
+            src.u,
+            src.v,
             std::clamp(src.r, 0.0f, 1.0f),
             std::clamp(src.g, 0.0f, 1.0f),
             std::clamp(src.b, 0.0f, 1.0f),
@@ -596,8 +681,15 @@ void D3D12RenderBackend::drawWorldIndexedMesh(const WorldMeshVertex* vertices,
 
     commandList_->RSSetViewports(1, &vp);
     commandList_->RSSetScissorRects(1, &scissor);
+
+    ID3D12DescriptorHeap* heaps[] = {srvHeap_.Get()};
+    commandList_->SetDescriptorHeaps(1, heaps);
     commandList_->SetGraphicsRootSignature(worldRootSignature_.Get());
     commandList_->SetGraphicsRoot32BitConstants(0, 16, viewProjectionMatrix4x4, 0);
+    commandList_->SetGraphicsRoot32BitConstants(1, 1, &useTexture, 0);
+    D3D12_GPU_DESCRIPTOR_HANDLE srvHandle = srvHeap_->GetGPUDescriptorHandleForHeapStart();
+    srvHandle.ptr += static_cast<SIZE_T>(textureDescriptorIndex) * static_cast<SIZE_T>(srvDescriptorSize_);
+    commandList_->SetGraphicsRootDescriptorTable(2, srvHandle);
     commandList_->SetPipelineState(worldPipelineState_.Get());
     commandList_->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
@@ -619,6 +711,8 @@ void D3D12RenderBackend::drawWorldIndexedMesh(const WorldMeshVertex* vertices,
     (void)vertexCount;
     (void)indices;
     (void)indexCount;
+    (void)textureDescriptorIndex;
+    (void)useTexture;
     (void)viewProjectionMatrix4x4;
     (void)surfaceWidth;
     (void)surfaceHeight;
@@ -979,9 +1073,11 @@ void D3D12RenderBackend::shutdown() {
     worldIndexBuffer_.Reset();
     worldIndexBufferGpuAddress_ = 0;
     worldIndexBufferSize_ = 0;
+    worldFallbackTextureDescriptorIndex_ = 0;
     worldPipelineState_.Reset();
     worldRootSignature_.Reset();
     spriteTextures_.clear();
+    worldTextures_.clear();
     spriteVertexBuffer_.Reset();
     spriteVertexBufferGpuAddress_ = 0;
     spriteVertexStride_ = 0;
@@ -1380,17 +1476,25 @@ void D3D12RenderBackend::createWorldPipeline() {
 #if defined(_WIN32)
     static constexpr char kVsSource[] =
         "cbuffer VSConstants : register(b0) { float4x4 uViewProj; };"
-        "struct VSIn { float3 pos : POSITION; float4 col : COLOR; };"
-        "struct VSOut { float4 pos : SV_POSITION; float4 col : COLOR; };"
+        "struct VSIn { float3 pos : POSITION; float2 uv : TEXCOORD; float4 col : COLOR; };"
+        "struct VSOut { float4 pos : SV_POSITION; float2 uv : TEXCOORD; float4 col : COLOR; };"
         "VSOut main(VSIn i) {"
         "  VSOut o;"
         "  o.pos = mul(uViewProj, float4(i.pos, 1.0f));"
+        "  o.uv = i.uv;"
         "  o.col = i.col;"
         "  return o;"
         "}";
     static constexpr char kPsSource[] =
-        "struct PSIn { float4 pos : SV_POSITION; float4 col : COLOR; };"
-        "float4 main(PSIn i) : SV_TARGET { return i.col; }";
+        "cbuffer PSConstants : register(b1) { float uUseTexture; float3 _pad; };"
+        "Texture2D gTex : register(t0);"
+        "SamplerState gSamp : register(s0);"
+        "struct PSIn { float4 pos : SV_POSITION; float2 uv : TEXCOORD; float4 col : COLOR; };"
+        "float4 main(PSIn i) : SV_TARGET {"
+        "  float4 base = i.col;"
+        "  if (uUseTexture > 0.5f) { base *= gTex.Sample(gSamp, i.uv); }"
+        "  return base;"
+        "}";
 
     Microsoft::WRL::ComPtr<ID3DBlob> vsBlob;
     Microsoft::WRL::ComPtr<ID3DBlob> psBlob;
@@ -1409,18 +1513,49 @@ void D3D12RenderBackend::createWorldPipeline() {
         throw std::runtime_error("D3DCompile failed for world PS.");
     }
 
-    D3D12_ROOT_PARAMETER rootParam{};
-    rootParam.ParameterType = D3D12_ROOT_PARAMETER_TYPE_32BIT_CONSTANTS;
-    rootParam.Constants.Num32BitValues = 16;
-    rootParam.Constants.ShaderRegister = 0;
-    rootParam.Constants.RegisterSpace = 0;
-    rootParam.ShaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX;
+    D3D12_DESCRIPTOR_RANGE srvRange{};
+    srvRange.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
+    srvRange.NumDescriptors = 1;
+    srvRange.BaseShaderRegister = 0;
+    srvRange.RegisterSpace = 0;
+    srvRange.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
+
+    D3D12_ROOT_PARAMETER rootParams[3]{};
+    rootParams[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_32BIT_CONSTANTS;
+    rootParams[0].Constants.Num32BitValues = 16;
+    rootParams[0].Constants.ShaderRegister = 0;
+    rootParams[0].Constants.RegisterSpace = 0;
+    rootParams[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX;
+    rootParams[1].ParameterType = D3D12_ROOT_PARAMETER_TYPE_32BIT_CONSTANTS;
+    rootParams[1].Constants.Num32BitValues = 1;
+    rootParams[1].Constants.ShaderRegister = 1;
+    rootParams[1].Constants.RegisterSpace = 0;
+    rootParams[1].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+    rootParams[2].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+    rootParams[2].DescriptorTable.NumDescriptorRanges = 1;
+    rootParams[2].DescriptorTable.pDescriptorRanges = &srvRange;
+    rootParams[2].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+
+    D3D12_STATIC_SAMPLER_DESC sampler{};
+    sampler.Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;
+    sampler.AddressU = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+    sampler.AddressV = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+    sampler.AddressW = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+    sampler.MipLODBias = 0.0f;
+    sampler.MaxAnisotropy = 1;
+    sampler.ComparisonFunc = D3D12_COMPARISON_FUNC_ALWAYS;
+    sampler.BorderColor = D3D12_STATIC_BORDER_COLOR_TRANSPARENT_BLACK;
+    sampler.MinLOD = 0.0f;
+    sampler.MaxLOD = D3D12_FLOAT32_MAX;
+    sampler.ShaderRegister = 0;
+    sampler.RegisterSpace = 0;
+    sampler.ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
 
     D3D12_ROOT_SIGNATURE_DESC rsDesc{};
-    rsDesc.NumParameters = 1;
-    rsDesc.pParameters = &rootParam;
-    rsDesc.NumStaticSamplers = 0;
-    rsDesc.pStaticSamplers = nullptr;
+    rsDesc.NumParameters = static_cast<UINT>(_countof(rootParams));
+    rsDesc.pParameters = rootParams;
+    rsDesc.NumStaticSamplers = 1;
+    rsDesc.pStaticSamplers = &sampler;
     rsDesc.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
 
     Microsoft::WRL::ComPtr<ID3DBlob> serializedRs;
@@ -1442,7 +1577,8 @@ void D3D12RenderBackend::createWorldPipeline() {
 
     D3D12_INPUT_ELEMENT_DESC layout[] = {
         {"POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
-        {"COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
+        {"TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
+        {"COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 20, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
     };
 
     D3D12_GRAPHICS_PIPELINE_STATE_DESC pso{};
@@ -1568,6 +1704,7 @@ void D3D12RenderBackend::createSpritePipeline() {
     srvDescriptorSize_ = device_->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
     nextSrvDescriptorIndex_ = 0;
     spriteTextures_.clear();
+    worldTextures_.clear();
 
     static constexpr char kVsSource[] =
         "cbuffer VSConstants : register(b0) { float2 uSurfaceSize; };"
@@ -1761,6 +1898,12 @@ void D3D12RenderBackend::createSpritePipeline() {
     spriteVertexBufferGpuAddress_ = spriteVertexBuffer_->GetGPUVirtualAddress();
     spriteVertexStride_ = sizeof(SpriteVertex);
     spriteVertexBufferSize_ = static_cast<UINT>(kBufferBytes);
+
+    if (SpriteTexture* fallback = ensureFallbackSpriteTexture()) {
+        worldFallbackTextureDescriptorIndex_ = fallback->descriptorIndex;
+    } else {
+        throw std::runtime_error("Failed to create fallback texture for D3D12 world pipeline.");
+    }
 #endif
 }
 
@@ -1859,6 +2002,52 @@ D3D12RenderBackend::SpriteTexture* D3D12RenderBackend::ensureSpriteTexture(const
     return &insertedIt->second;
 #else
     (void)texturePath;
+    return nullptr;
+#endif
+}
+
+D3D12RenderBackend::SpriteTexture* D3D12RenderBackend::ensureWorldTexture(const WorldTextureData* textureData) {
+#if defined(_WIN32)
+    if (!textureData ||
+        !textureData->rgba ||
+        textureData->width <= 0 ||
+        textureData->height <= 0 ||
+        !textureData->key ||
+        textureData->key[0] == '\0') {
+        return nullptr;
+    }
+
+    const std::string key(textureData->key);
+    auto it = worldTextures_.find(key);
+    if (it != worldTextures_.end()) {
+        return &it->second;
+    }
+
+    if (!device_ || !commandQueue_ || !fence_ || !srvHeap_) return nullptr;
+    if (nextSrvDescriptorIndex_ >= kMaxSrvDescriptors) return nullptr;
+
+    SpriteTexture texture;
+    texture.descriptorIndex = nextSrvDescriptorIndex_;
+    const bool ok = createTextureResourceFromRgba(device_.Get(),
+                                                  commandQueue_.Get(),
+                                                  fence_.Get(),
+                                                  static_cast<HANDLE>(fenceEvent_),
+                                                  fenceValue_,
+                                                  srvHeap_.Get(),
+                                                  srvDescriptorSize_,
+                                                  texture.descriptorIndex,
+                                                  textureData->rgba,
+                                                  textureData->width,
+                                                  textureData->height,
+                                                  texture.resource);
+    if (!ok) return nullptr;
+
+    texture.valid = true;
+    ++nextSrvDescriptorIndex_;
+    auto [insertedIt, _] = worldTextures_.emplace(key, std::move(texture));
+    return &insertedIt->second;
+#else
+    (void)textureData;
     return nullptr;
 #endif
 }

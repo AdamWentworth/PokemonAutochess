@@ -52,6 +52,7 @@ bool test_backend_model_cache_contract(std::string& outFail) {
             !mesh.triangleDoubleSided.empty() ||
             !mesh.vertexBaseColors.empty() ||
             !mesh.submeshMeshIndex.empty() ||
+            !mesh.submeshBaseTextures.empty() ||
             !mesh.meshIndexToNode.empty() ||
             !mesh.triangleNodeIndex.empty() ||
             !mesh.triangleSkinIndex.empty() ||
@@ -81,6 +82,7 @@ bool test_backend_model_cache_contract(std::string& outFail) {
             !mesh.triangleDoubleSided.empty() ||
             !mesh.vertexBaseColors.empty() ||
             !mesh.submeshMeshIndex.empty() ||
+            !mesh.submeshBaseTextures.empty() ||
             !mesh.meshIndexToNode.empty() ||
             !mesh.triangleNodeIndex.empty() ||
             !mesh.triangleSkinIndex.empty() ||
