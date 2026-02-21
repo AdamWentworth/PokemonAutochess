@@ -191,6 +191,19 @@ bool backendModelFullMeshEnabled() {
     return enabled;
 }
 
+bool backendModelVerboseLoggingEnabled() {
+    static const bool enabled = []() -> bool {
+        const auto env = engine::env::get("PAC_BACKEND_MODEL_VERBOSE");
+        if (!env.has_value()) return false;
+        const std::string raw = *env;
+        if (raw == "0" || raw == "false" || raw == "FALSE" || raw == "off" || raw == "OFF") {
+            return false;
+        }
+        return true;
+    }();
+    return enabled;
+}
+
 std::size_t selectUniformTriangleIndex(std::size_t sampleIndex,
                                        std::size_t sampleCount,
                                        std::size_t triangleCount) {
@@ -259,6 +272,7 @@ struct GameSession::Impl {
     runtime::backend_inventory_panel::PanelState backendInventoryPanel;
     struct BackendMeshCacheEntry {
         bool attemptedLoad = false;
+        bool reportedFailure = false;
         runtime::backend_model::MeshData mesh;
         std::string error;
     };
@@ -481,8 +495,11 @@ struct GameSession::Impl {
         } else {
             if (backendPreloadModelCacheEnabled()) {
                 std::cout << "[Init] Non-OpenGL render path: preloading backend model cache...\n";
+                const bool verboseModelCacheLog = backendModelVerboseLoggingEnabled();
                 std::size_t loaded = 0u;
                 std::size_t failed = 0u;
+                std::vector<std::string> failedSamples;
+                failedSamples.reserve(8);
                 for (const auto& [name, stats] : dataDb.pokemon.all()) {
                     (void)name;
                     if (stats.model.empty()) continue;
@@ -495,12 +512,32 @@ struct GameSession::Impl {
                         cacheEntry.error = std::move(err);
                         cacheEntry.mesh = {};
                         ++failed;
+                        if (failedSamples.size() < 8u) {
+                            failedSamples.push_back(modelPath + " (" + cacheEntry.error + ")");
+                        }
+                        if (verboseModelCacheLog) {
+                            std::cout << "[Init][ModelCache][MISS] " << modelPath
+                                      << " reason=" << cacheEntry.error << "\n";
+                        }
                     } else {
                         ++loaded;
+                        if (verboseModelCacheLog) {
+                            std::cout << "[Init][ModelCache][OK] " << modelPath
+                                      << " vtx=" << cacheEntry.mesh.vertices.size()
+                                      << " idx=" << cacheEntry.mesh.indices.size()
+                                      << " submesh=" << cacheEntry.mesh.submeshBaseTextures.size() << "\n";
+                        }
                     }
                 }
                 std::cout << "[Init] Backend model cache preload complete: loaded=" << loaded
                           << " failed=" << failed << "\n";
+                if (failed > 0u && !failedSamples.empty() && !verboseModelCacheLog) {
+                    std::cout << "[Init][ModelCache] Sample failures:\n";
+                    for (const std::string& item : failedSamples) {
+                        std::cout << "  - " << item << "\n";
+                    }
+                    std::cout << "[Init][ModelCache] Set PAC_BACKEND_MODEL_VERBOSE=1 for full per-model cache logs.\n";
+                }
             } else {
                 std::cout << "[Init] Non-OpenGL render path: backend model cache preload disabled.\n";
             }
@@ -968,6 +1005,13 @@ struct GameSession::Impl {
                         }
                     }
                     if (cacheEntry.mesh.vertices.empty() || cacheEntry.mesh.indices.size() < 3) {
+                        if (!cacheEntry.reportedFailure) {
+                            cacheEntry.reportedFailure = true;
+                            std::cout << "[Render][ModelCache] Unable to render model '" << modelPath
+                                      << "' ("
+                                      << (cacheEntry.error.empty() ? "mesh data unavailable" : cacheEntry.error)
+                                      << ")\n";
+                        }
                         return nullptr;
                     }
                     return &cacheEntry.mesh;
@@ -1798,15 +1842,30 @@ struct GameSession::Impl {
                                 const glm::vec3 baseColor1 = resolveVertexBase(i1, v1);
                                 const glm::vec3 baseColor2 = resolveVertexBase(i2, v2);
 
-                                const float triOpacity = (triIdx < mesh->triangleOpacity.size())
-                                    ? mesh->triangleOpacity[triIdx]
-                                    : 1.0f;
-                                const float alpha = (unit.alive ? 1.0f : 0.82f) * std::clamp(triOpacity, 0.0f, 1.0f);
-                                if (alpha < 0.03f) continue;
                                 const std::uint16_t triSubmeshIndex =
                                     (triIdx < mesh->triangleSubmesh.size())
                                         ? mesh->triangleSubmesh[triIdx]
                                         : static_cast<std::uint16_t>(0u);
+                                const bool texturedSubmesh =
+                                    useIndexedWorldModelPath &&
+                                    static_cast<std::size_t>(triSubmeshIndex) <
+                                        modelIndexedBatchesPerSubmesh.size() &&
+                                    modelIndexedBatchesPerSubmesh[static_cast<std::size_t>(triSubmeshIndex)]
+                                            .textureRgba != nullptr &&
+                                    modelIndexedBatchesPerSubmesh[static_cast<std::size_t>(triSubmeshIndex)]
+                                            .textureWidth > 0 &&
+                                    modelIndexedBatchesPerSubmesh[static_cast<std::size_t>(triSubmeshIndex)]
+                                            .textureHeight > 0;
+                                const float triOpacity = (triIdx < mesh->triangleOpacity.size())
+                                    ? mesh->triangleOpacity[triIdx]
+                                    : 1.0f;
+                                // Textured indexed batches apply alpha in the pixel shader.
+                                // Avoid pre-multiplying with sampled triangle opacity (which would double-attenuate).
+                                const float alphaBase = unit.alive ? 1.0f : 0.82f;
+                                const float alpha = texturedSubmesh
+                                    ? alphaBase
+                                    : alphaBase * std::clamp(triOpacity, 0.0f, 1.0f);
+                                if (alpha < 0.03f && !texturedSubmesh) continue;
                                 const bool triDoubleSided =
                                     (triIdx < mesh->triangleDoubleSided.size()) &&
                                     (mesh->triangleDoubleSided[triIdx] != 0u);

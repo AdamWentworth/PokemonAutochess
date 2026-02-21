@@ -38,4 +38,6 @@ Recent improvements
 - Extended backend model-cache/runtime draw metadata contracts so indexed textured submeshes carry alpha mode/cutoff and wrap modes into D3D12 world shading, reducing hidden GL-vs-D3D material behavior drift.
 - Added explicit D3D12 world blend pipeline/pass ordering to match OpenGL-style alpha depth-write behavior and reduce transparent submesh self-occlusion artifacts.
 - Set indexed backend model submission to full-mesh by default (with env opt-out) to remove budget-driven geometry loss as a visual parity blocker; residual debt is performance tuning rather than geometry correctness.
+- Fixed backend indexed textured alpha handling to avoid double-applying texture alpha (triangle pre-opacity plus pixel texture alpha), which was causing BLEND submesh dropout and missing textured regions during animation/movement.
+- Added backend model-cache diagnostics (`PAC_BACKEND_MODEL_VERBOSE` and one-shot runtime miss logs) to make cache-load/render failures observable instead of silent.
 

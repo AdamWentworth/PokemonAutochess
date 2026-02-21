@@ -75,7 +75,8 @@ Prioritized Backlog
 - [ ] Remove `setRenderEnabled(legacyRenderPath)` behavior that disables non-OpenGL world resources.
 - [ ] Move backend debug world rendering behind an explicit dev-only flag. (In progress: menu world-backdrop is now disabled by default and can be enabled via `PAC_BACKEND_MENU_BACKDROP=1`.)
 - [ ] Implement/align backend-neutral draw contracts in `IRenderBackend` for required scene features. (In progress: indexed world-mesh draw contract landed and backend model submission now uses indexed batches on supporting backends.)
-- [ ] Complete D3D12 material and alpha-mode parity. (In progress: wrap-aware texture sampling, glTF-like base+emissive color composition, higher model detail budget, GL-clip-depth-to-D3D conversion, OpenGL-like sRGB+ACES textured world shading, indexed textured-submesh alpha-mode+cutoff + UV wrap controls, explicit D3D12 blend-depth-write-off world pipeline ordering, and depth-sorted blend batch submission landed in backend mesh path.)
+- [ ] Complete D3D12 material and alpha-mode parity. (In progress: wrap-aware texture sampling, glTF-like base+emissive color composition, higher model detail budget, GL-clip-depth-to-D3D conversion, OpenGL-like sRGB+ACES textured world shading, indexed textured-submesh alpha-mode+cutoff + UV wrap controls, explicit D3D12 blend-depth-write-off world pipeline ordering, depth-sorted blend batch submission, and removal of textured-path alpha double-attenuation that was culling BLEND submesh regions landed in backend mesh path.)
+- [ ] Add explicit emissive-texture parity in the backend indexed world path (OpenGL currently samples `u_EmissiveTex`; backend indexed path still approximates emissive via cached shading data).
 - [ ] Complete D3D12 animation/skinning parity (no fallback-only pose path). (In progress: backend clip evaluation now applies root-motion carrier X/Z suppression like OpenGL.)
 - [ ] Split D3D12 renderer implementation into smaller modules. (In progress: texture upload/mipmap staging moved from `src/engine/render/D3D12RenderBackend.cpp` to `src/engine/render/d3d12/D3D12TextureUpload.cpp`.)
 - [ ] Port/align board and bench rendering parity.
@@ -114,6 +115,7 @@ Iteration Log
 - Iteration 23: Added per-submesh textured material metadata plumbing (wrapS/wrapT, alpha mode, alpha cutoff) from backend model cache through `GameSession` into D3D12 world draws, and updated D3D12 world pixel shader logic to honor glTF-like OPAQUE/MASK/BLEND alpha behavior and UV wrap controls for indexed textured meshes.
 - Iteration 24: Added a dedicated D3D12 world blend pipeline (depth test on, depth write off) and render-pass ordering (OPAQUE/MASK first, BLEND second), while always routing indexed world batches through textured draw metadata so alpha-mode behavior applies consistently to textured and non-textured submeshes.
 - Iteration 25: Identified triangle-budget decimation as a core parity blocker for indexed D3D12 model path, switched indexed model submission to full-mesh by default (`PAC_BACKEND_MODEL_FULL_MESH` opt-out), and added depth-sorted blend batch ordering to reduce transparent submesh popping/invisibility while moving.
+- Iteration 26: Parsed shipped `.glb` materials to confirm BLEND usage, traced OpenGL vs backend alpha flow, fixed backend indexed textured alpha double-attenuation (preventing BLEND regions from dropping out), and added one-shot backend model-cache miss diagnostics plus optional verbose preload logging (`PAC_BACKEND_MODEL_VERBOSE`).
 
 How This File Is Used
 - Before each parity implementation iteration:
