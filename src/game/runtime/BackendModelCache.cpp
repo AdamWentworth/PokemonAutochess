@@ -599,6 +599,8 @@ bool loadMeshFromCache(const std::string& modelPath, MeshData& out, std::string*
     out.submeshBaseColors.reserve(hdr.submeshCount);
     out.submeshMeshIndex.reserve(hdr.submeshCount);
     out.submeshBaseTextures.reserve(hdr.submeshCount);
+    out.submeshAlphaMode.reserve(hdr.submeshCount);
+    out.submeshAlphaCutoff.reserve(hdr.submeshCount);
     for (std::uint32_t si = 0; si < hdr.submeshCount; ++si) {
         std::uint64_t off = 0u;
         std::uint64_t cnt = 0u;
@@ -648,6 +650,8 @@ bool loadMeshFromCache(const std::string& modelPath, MeshData& out, std::string*
         submeshRanges.push_back(range);
         out.submeshBaseColors.push_back(range.baseColor);
         out.submeshMeshIndex.push_back(range.meshIndex);
+        out.submeshAlphaMode.push_back(static_cast<std::uint8_t>(range.alphaMode));
+        out.submeshAlphaCutoff.push_back(std::clamp(range.alphaCutoff, 0.0f, 1.0f));
         CachedTextureRgba cachedTex;
         cachedTex.width = range.baseTexture.width;
         cachedTex.height = range.baseTexture.height;
@@ -793,6 +797,8 @@ bool loadMeshFromCache(const std::string& modelPath, MeshData& out, std::string*
     } else if (triangleCount > 0u) {
         out.submeshBaseColors.push_back(glm::vec4(1.0f));
         out.submeshBaseTextures.push_back(CachedTextureRgba{});
+        out.submeshAlphaMode.push_back(static_cast<std::uint8_t>(backend_material::AlphaMode::Opaque));
+        out.submeshAlphaCutoff.push_back(0.5f);
         std::fill(out.triangleBaseColors.begin(), out.triangleBaseColors.end(), glm::vec3(1.0f, 1.0f, 1.0f));
         std::fill(out.triangleOpacity.begin(), out.triangleOpacity.end(), 1.0f);
         std::fill(out.triangleDoubleSided.begin(), out.triangleDoubleSided.end(), 1u);

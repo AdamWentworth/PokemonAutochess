@@ -23,6 +23,10 @@ public:
         const unsigned char* rgba = nullptr;
         int width = 0;
         int height = 0;
+        int wrapS = 10497; // GL_REPEAT
+        int wrapT = 10497; // GL_REPEAT
+        std::uint8_t alphaMode = 0u; // 0=OPAQUE, 1=MASK, 2=BLEND
+        float alphaCutoff = 0.5f;
     };
 
     struct WorldTriangle {

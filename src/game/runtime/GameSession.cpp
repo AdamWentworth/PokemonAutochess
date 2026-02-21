@@ -698,6 +698,10 @@ struct GameSession::Impl {
             const unsigned char* textureRgba = nullptr;
             int textureWidth = 0;
             int textureHeight = 0;
+            int textureWrapS = 10497;
+            int textureWrapT = 10497;
+            std::uint8_t alphaMode = 0u;
+            float alphaCutoff = 0.5f;
         };
         std::vector<WorldIndexedBatch> worldIndexedBatches;
         worldIndexedBatches.reserve(64);
@@ -1374,7 +1378,15 @@ struct GameSession::Impl {
                                             batch.textureRgba = tex.rgba.data();
                                             batch.textureWidth = tex.width;
                                             batch.textureHeight = tex.height;
+                                            batch.textureWrapS = tex.wrapS;
+                                            batch.textureWrapT = tex.wrapT;
                                         }
+                                    }
+                                    if (si < mesh->submeshAlphaMode.size()) {
+                                        batch.alphaMode = mesh->submeshAlphaMode[si];
+                                    }
+                                    if (si < mesh->submeshAlphaCutoff.size()) {
+                                        batch.alphaCutoff = mesh->submeshAlphaCutoff[si];
                                     }
                                 }
                             }
@@ -2641,6 +2653,10 @@ struct GameSession::Impl {
                     tex.rgba = batch.textureRgba;
                     tex.width = batch.textureWidth;
                     tex.height = batch.textureHeight;
+                    tex.wrapS = batch.textureWrapS;
+                    tex.wrapT = batch.textureWrapT;
+                    tex.alphaMode = batch.alphaMode;
+                    tex.alphaCutoff = batch.alphaCutoff;
                     renderer->drawWorldIndexedMeshTextured(
                         batch.vertices.data(),
                         batch.vertices.size(),

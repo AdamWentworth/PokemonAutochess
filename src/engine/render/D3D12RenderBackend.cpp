@@ -60,11 +60,43 @@ constexpr std::size_t kMaxWorldVertices = kMaxWorldTriangles * 3;
 constexpr std::size_t kMaxWorldIndices = kMaxWorldTriangles * 3;
 constexpr std::size_t kMaxSrvDescriptors = 2048;
 constexpr const char* kFallbackSpriteTextureKey = "__fallback_sprite_texture__";
+constexpr int kGlRepeat = 10497;
+constexpr int kGlMirroredRepeat = 33648;
+constexpr int kGlClampToEdge = 33071;
 
 std::size_t alignUp(std::size_t value, std::size_t alignment) {
     if (alignment == 0u) return value;
     const std::size_t mask = alignment - 1u;
     return (value + mask) & ~mask;
+}
+
+float sanitizeWrapMode(int wrapMode) {
+    if (wrapMode == kGlClampToEdge || wrapMode == kGlMirroredRepeat || wrapMode == kGlRepeat) {
+        return static_cast<float>(wrapMode);
+    }
+    return static_cast<float>(kGlRepeat);
+}
+
+struct WorldPsConstants {
+    float useTexture = 0.0f;
+    float wrapS = static_cast<float>(kGlRepeat);
+    float wrapT = static_cast<float>(kGlRepeat);
+    float alphaMode = 0.0f;
+    float alphaCutoff = 0.5f;
+    float pad0 = 0.0f;
+    float pad1 = 0.0f;
+    float pad2 = 0.0f;
+};
+
+WorldPsConstants makeWorldPsConstants(const IRenderBackend::WorldTextureData* textureData, float useTexture) {
+    WorldPsConstants constants;
+    constants.useTexture = useTexture;
+    if (!textureData) return constants;
+    constants.wrapS = sanitizeWrapMode(textureData->wrapS);
+    constants.wrapT = sanitizeWrapMode(textureData->wrapT);
+    constants.alphaMode = static_cast<float>(std::min<std::uint8_t>(2u, textureData->alphaMode));
+    constants.alphaCutoff = std::clamp(textureData->alphaCutoff, 0.0f, 1.0f);
+    return constants;
 }
 #endif
 
@@ -271,8 +303,8 @@ void D3D12RenderBackend::drawWorldTriangles(const WorldTriangle* triangles,
     }
     commandList_->SetGraphicsRootSignature(worldRootSignature_.Get());
     commandList_->SetGraphicsRoot32BitConstants(0, 16, viewProjectionMatrix4x4, 0);
-    const float useTexture = 0.0f;
-    commandList_->SetGraphicsRoot32BitConstants(1, 1, &useTexture, 0);
+    const WorldPsConstants worldPs = makeWorldPsConstants(nullptr, 0.0f);
+    commandList_->SetGraphicsRoot32BitConstants(1, 8, &worldPs, 0);
     if (srvHeap_) {
         D3D12_GPU_DESCRIPTOR_HANDLE srvHandle = srvHeap_->GetGPUDescriptorHandleForHeapStart();
         srvHandle.ptr += static_cast<SIZE_T>(worldFallbackTextureDescriptorIndex_) *
@@ -311,6 +343,7 @@ void D3D12RenderBackend::drawWorldIndexedMesh(const WorldMeshVertex* vertices,
         indices,
         indexCount,
         worldFallbackTextureDescriptorIndex_,
+        nullptr,
         0.0f,
         viewProjectionMatrix4x4,
         surfaceWidth,
@@ -344,6 +377,7 @@ void D3D12RenderBackend::drawWorldIndexedMeshTextured(const WorldMeshVertex* ver
         indices,
         indexCount,
         descriptorIndex,
+        texture,
         useTexture,
         viewProjectionMatrix4x4,
         surfaceWidth,
@@ -365,6 +399,7 @@ void D3D12RenderBackend::drawWorldIndexedMeshInternal(const WorldMeshVertex* ver
                                                       const std::uint32_t* indices,
                                                       std::size_t indexCount,
                                                       std::uint32_t textureDescriptorIndex,
+                                                      const WorldTextureData* textureData,
                                                       float useTexture,
                                                       const float* viewProjectionMatrix4x4,
                                                       int surfaceWidth,
@@ -436,7 +471,8 @@ void D3D12RenderBackend::drawWorldIndexedMeshInternal(const WorldMeshVertex* ver
     commandList_->SetDescriptorHeaps(1, heaps);
     commandList_->SetGraphicsRootSignature(worldRootSignature_.Get());
     commandList_->SetGraphicsRoot32BitConstants(0, 16, viewProjectionMatrix4x4, 0);
-    commandList_->SetGraphicsRoot32BitConstants(1, 1, &useTexture, 0);
+    const WorldPsConstants worldPs = makeWorldPsConstants(textureData, useTexture);
+    commandList_->SetGraphicsRoot32BitConstants(1, 8, &worldPs, 0);
     D3D12_GPU_DESCRIPTOR_HANDLE srvHandle = srvHeap_->GetGPUDescriptorHandleForHeapStart();
     srvHandle.ptr += static_cast<SIZE_T>(textureDescriptorIndex) * static_cast<SIZE_T>(srvDescriptorSize_);
     commandList_->SetGraphicsRootDescriptorTable(2, srvHandle);
@@ -462,6 +498,7 @@ void D3D12RenderBackend::drawWorldIndexedMeshInternal(const WorldMeshVertex* ver
     (void)indices;
     (void)indexCount;
     (void)textureDescriptorIndex;
+    (void)textureData;
     (void)useTexture;
     (void)viewProjectionMatrix4x4;
     (void)surfaceWidth;
@@ -1238,10 +1275,27 @@ void D3D12RenderBackend::createWorldPipeline() {
         "  return o;"
         "}";
     static constexpr char kPsSource[] =
-        "cbuffer PSConstants : register(b1) { float uUseTexture; float3 _pad; };"
+        "cbuffer PSConstants : register(b1) {"
+        "  float uUseTexture;"
+        "  float uWrapS;"
+        "  float uWrapT;"
+        "  float uAlphaMode;"
+        "  float uAlphaCutoff;"
+        "  float3 _pad;"
+        "};"
         "Texture2D gTex : register(t0);"
         "SamplerState gSamp : register(s0);"
         "struct PSIn { float4 pos : SV_POSITION; float2 uv : TEXCOORD; float4 col : COLOR; };"
+        "float applyWrap(float coord, float mode) {"
+        "  if (abs(mode - 33071.0f) < 0.5f) { return saturate(coord); }"
+        "  if (abs(mode - 33648.0f) < 0.5f) {"
+        "    float i = floor(coord);"
+        "    float f = frac(coord);"
+        "    float odd = fmod(abs(i), 2.0f);"
+        "    return (odd >= 1.0f) ? (1.0f - f) : f;"
+        "  }"
+        "  return frac(coord);"
+        "}"
         "float3 srgbToLinear(float3 c) {"
         "  c = saturate(c);"
         "  float3 lo = c / 12.92f;"
@@ -1264,11 +1318,18 @@ void D3D12RenderBackend::createWorldPipeline() {
         "}"
         "float4 main(PSIn i) : SV_TARGET {"
         "  if (uUseTexture <= 0.5f) { return i.col; }"
-        "  float4 tex = gTex.Sample(gSamp, i.uv);"
+        "  float2 uv = float2(applyWrap(i.uv.x, uWrapS), applyWrap(i.uv.y, uWrapT));"
+        "  float4 tex = gTex.Sample(gSamp, uv);"
         "  float3 baseLin = srgbToLinear(tex.rgb) * saturate(i.col.rgb);"
         "  float3 mapped = tonemapACES(baseLin * 0.85f);"
         "  float3 outSrgb = linearToSrgb(mapped);"
-        "  float outA = saturate(tex.a * i.col.a);"
+        "  float outA = saturate(i.col.a * tex.a);"
+        "  if (uAlphaMode < 0.5f) {"
+        "    outA = saturate(i.col.a);"
+        "  } else if (uAlphaMode < 1.5f) {"
+        "    if (outA < saturate(uAlphaCutoff)) discard;"
+        "    outA = saturate(i.col.a);"
+        "  }"
         "  return float4(outSrgb, outA);"
         "}";
 
@@ -1303,7 +1364,7 @@ void D3D12RenderBackend::createWorldPipeline() {
     rootParams[0].Constants.RegisterSpace = 0;
     rootParams[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX;
     rootParams[1].ParameterType = D3D12_ROOT_PARAMETER_TYPE_32BIT_CONSTANTS;
-    rootParams[1].Constants.Num32BitValues = 1;
+    rootParams[1].Constants.Num32BitValues = 8;
     rootParams[1].Constants.ShaderRegister = 1;
     rootParams[1].Constants.RegisterSpace = 0;
     rootParams[1].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;

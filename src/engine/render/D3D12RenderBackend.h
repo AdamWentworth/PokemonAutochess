@@ -100,6 +100,7 @@ private:
                                       const std::uint32_t* indices,
                                       std::size_t indexCount,
                                       std::uint32_t textureDescriptorIndex,
+                                      const WorldTextureData* textureData,
                                       float useTexture,
                                       const float* viewProjectionMatrix4x4,
                                       int surfaceWidth,
