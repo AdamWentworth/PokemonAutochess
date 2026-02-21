@@ -178,6 +178,19 @@ bool backendPreloadModelCacheEnabled() {
     return enabled;
 }
 
+bool backendModelFullMeshEnabled() {
+    static const bool enabled = []() -> bool {
+        const auto env = engine::env::get("PAC_BACKEND_MODEL_FULL_MESH");
+        if (!env.has_value()) return true;
+        const std::string raw = *env;
+        if (raw == "0" || raw == "false" || raw == "FALSE" || raw == "off" || raw == "OFF") {
+            return false;
+        }
+        return true;
+    }();
+    return enabled;
+}
+
 std::size_t selectUniformTriangleIndex(std::size_t sampleIndex,
                                        std::size_t sampleCount,
                                        std::size_t triangleCount) {
@@ -702,6 +715,7 @@ struct GameSession::Impl {
             int textureWrapT = 10497;
             std::uint8_t alphaMode = 0u;
             float alphaCutoff = 0.5f;
+            float sortDepth = 0.0f;
         };
         std::vector<WorldIndexedBatch> worldIndexedBatches;
         worldIndexedBatches.reserve(64);
@@ -1304,6 +1318,7 @@ struct GameSession::Impl {
                         bool drewModelMesh = false;
                         if (const runtime::backend_model::MeshData* mesh = resolveModelMesh(unit)) {
                             const std::size_t triangleCount = mesh->indices.size() / 3u;
+                            if (triangleCount == 0u) continue;
                             const std::size_t maxTrianglesPerUnit = backendModelTriangleLimit();
                             const float detailScale = std::clamp(unitSize / 70.0f, 0.45f, 1.0f);
                             const std::size_t minTrianglesPerUnit =
@@ -1316,21 +1331,29 @@ struct GameSession::Impl {
                                     static_cast<double>(maxTrianglesPerUnit)));
                             const std::size_t unitTriangleBudget =
                                 std::min(triangleCount, std::max(minTrianglesPerUnit, scaledBudget));
+                            const bool useIndexedWorldModelPath =
+                                supportsWorldTriangles3D && supportsWorldIndexedMeshes;
+                            const bool fullIndexedMeshPath =
+                                useIndexedWorldModelPath && backendModelFullMeshEnabled();
                             std::size_t effectiveUnitTriangleBudget = unitTriangleBudget;
-                            if (remainingModelTrianglesBudget > 0u) {
-                                effectiveUnitTriangleBudget =
-                                    std::min(effectiveUnitTriangleBudget, remainingModelTrianglesBudget);
+                            if (fullIndexedMeshPath) {
+                                effectiveUnitTriangleBudget = triangleCount;
                             } else {
-                                effectiveUnitTriangleBudget =
-                                    std::min<std::size_t>(triangleCount, 384u);
-                            }
-                            if (effectiveUnitTriangleBudget == 0u) {
-                                effectiveUnitTriangleBudget = std::min<std::size_t>(triangleCount, 384u);
-                            }
-                            if (remainingModelTrianglesBudget >= effectiveUnitTriangleBudget) {
-                                remainingModelTrianglesBudget -= effectiveUnitTriangleBudget;
-                            } else {
-                                remainingModelTrianglesBudget = 0u;
+                                if (remainingModelTrianglesBudget > 0u) {
+                                    effectiveUnitTriangleBudget =
+                                        std::min(effectiveUnitTriangleBudget, remainingModelTrianglesBudget);
+                                } else {
+                                    effectiveUnitTriangleBudget =
+                                        std::min<std::size_t>(triangleCount, 384u);
+                                }
+                                if (effectiveUnitTriangleBudget == 0u) {
+                                    effectiveUnitTriangleBudget = std::min<std::size_t>(triangleCount, 384u);
+                                }
+                                if (remainingModelTrianglesBudget >= effectiveUnitTriangleBudget) {
+                                    remainingModelTrianglesBudget -= effectiveUnitTriangleBudget;
+                                } else {
+                                    remainingModelTrianglesBudget = 0u;
+                                }
                             }
 
                             const float modelScale =
@@ -1353,8 +1376,6 @@ struct GameSession::Impl {
                             const std::size_t modelDepthCountBefore = modelDepthTris.size();
                             const std::size_t modelDepthWorldCountBefore = modelDepthWorldTris.size();
                             const std::size_t world3DTriangleCountBefore = world3DTriangles.size();
-                            const bool useIndexedWorldModelPath =
-                                supportsWorldTriangles3D && supportsWorldIndexedMeshes;
                             std::vector<WorldIndexedBatch> modelIndexedBatchesPerSubmesh;
                             if (useIndexedWorldModelPath) {
                                 const std::size_t batchCount =
@@ -1371,6 +1392,7 @@ struct GameSession::Impl {
                                     auto& batch = modelIndexedBatchesPerSubmesh[si];
                                     batch.vertices.reserve((effectiveUnitTriangleBudget * 3u) / batchCount + 64u);
                                     batch.indices.reserve((effectiveUnitTriangleBudget * 3u) / batchCount + 64u);
+                                    batch.sortDepth = glm::dot(cameraWorldPos - proxyCenter, cameraWorldPos - proxyCenter);
                                     if (si < mesh->submeshBaseTextures.size()) {
                                         const auto& tex = mesh->submeshBaseTextures[si];
                                         if (tex.hasPixels() && !unitModelPath.empty()) {
@@ -1696,12 +1718,14 @@ struct GameSession::Impl {
                                 dt.depth = (z1 + z2 + z3) * (1.0f / 3.0f);
                                 modelDepthTris.push_back(dt);
                             };
+                            const bool downsampleModelTriangles = effectiveUnitTriangleBudget < triangleCount;
                             std::size_t previousTriSample = triangleCount;
                             for (std::size_t sampleIdx = 0; sampleIdx < effectiveUnitTriangleBudget; ++sampleIdx) {
-                                std::size_t triIdx =
-                                    selectUniformTriangleIndex(sampleIdx, effectiveUnitTriangleBudget, triangleCount);
-                                if (effectiveUnitTriangleBudget < triangleCount && triIdx == previousTriSample) {
-                                    if (triIdx + 1u < triangleCount) ++triIdx;
+                                std::size_t triIdx = sampleIdx;
+                                if (downsampleModelTriangles) {
+                                    triIdx =
+                                        selectUniformTriangleIndex(sampleIdx, effectiveUnitTriangleBudget, triangleCount);
+                                    if (triIdx == previousTriSample && triIdx + 1u < triangleCount) ++triIdx;
                                 }
                                 previousTriSample = triIdx;
 
@@ -2665,14 +2689,28 @@ struct GameSession::Impl {
                     drawableH);
             };
 
-            for (int pass = 0; pass < 2; ++pass) {
-                const bool blendPass = (pass == 1);
-                for (const WorldIndexedBatch& batch : worldIndexedBatches) {
-                    if (batch.vertices.empty() || batch.indices.empty()) continue;
-                    const bool isBlend = (batch.alphaMode == 2u);
-                    if (isBlend != blendPass) continue;
-                    drawIndexedBatch(batch);
-                }
+            for (const WorldIndexedBatch& batch : worldIndexedBatches) {
+                if (batch.vertices.empty() || batch.indices.empty()) continue;
+                if (batch.alphaMode == 2u) continue;
+                drawIndexedBatch(batch);
+            }
+
+            std::vector<const WorldIndexedBatch*> blendBatches;
+            blendBatches.reserve(worldIndexedBatches.size());
+            for (const WorldIndexedBatch& batch : worldIndexedBatches) {
+                if (batch.vertices.empty() || batch.indices.empty()) continue;
+                if (batch.alphaMode != 2u) continue;
+                blendBatches.push_back(&batch);
+            }
+            std::sort(
+                blendBatches.begin(),
+                blendBatches.end(),
+                [](const WorldIndexedBatch* lhs, const WorldIndexedBatch* rhs) {
+                    return lhs->sortDepth > rhs->sortDepth;
+                });
+            for (const WorldIndexedBatch* batch : blendBatches) {
+                if (!batch) continue;
+                drawIndexedBatch(*batch);
             }
         }
         if (!worldTriangles.empty()) {
