@@ -40,4 +40,9 @@ inline glm::vec3 blendBaseAndTexture(const glm::vec3& baseColor,
     return glm::clamp(baseColor * (1.0f - blend) + texColor * blend, 0.0f, 1.0f);
 }
 
+inline glm::vec3 modulateBaseAndTexture(const glm::vec3& baseColor,
+                                        const glm::vec3& texColor) {
+    return glm::clamp(baseColor * texColor, 0.0f, 1.0f);
+}
+
 } // namespace game::runtime::backend_material

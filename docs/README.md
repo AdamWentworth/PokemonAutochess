@@ -9,6 +9,7 @@ These are **internal notes** for quality, architecture, and testing. They are no
 | `ENGINE_RULES.md` | Non-negotiable architecture rules. |
 | `TEST_PLAN.md` | Test coverage goals and next additions. |
 | `TECH_DEBT.md` | Known tech debt and smells to keep in mind. |
+| `RENDERER_PARITY_ROADMAP.md` | Living roadmap for OpenGL/D3D12 parity work. |
 | `CI.md` | What CI runs and how to mirror it locally. |
 | `VFX_PIPELINE.md` | Data-driven VFX authoring direction and folder contracts. |
 

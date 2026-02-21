@@ -14,6 +14,7 @@
 #include <unordered_map>
 #include <vector>
 #include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/quaternion.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
 #include "engine/core/GameContext.h"
@@ -89,7 +90,7 @@ std::string trimDebugLine(std::string s, std::size_t maxChars) {
 
 std::size_t backendModelTriangleLimit() {
     static const std::size_t limit = []() -> std::size_t {
-        constexpr std::size_t kDefault = 24000u;
+        constexpr std::size_t kDefault = 12000u;
         constexpr std::size_t kMin = 256u;
         constexpr std::size_t kMax = 120000u;
         const auto env = engine::env::get("PAC_BACKEND_MODEL_TRI_LIMIT");
@@ -102,6 +103,19 @@ std::size_t backendModelTriangleLimit() {
         }
     }();
     return limit;
+}
+
+bool backendModelBackfaceCullingEnabled() {
+    static const bool enabled = []() -> bool {
+        const auto env = engine::env::get("PAC_BACKEND_MODEL_CULL");
+        if (!env.has_value()) return false;
+        const std::string raw = *env;
+        if (raw == "0" || raw == "false" || raw == "FALSE" || raw == "off" || raw == "OFF") {
+            return false;
+        }
+        return true;
+    }();
+    return enabled;
 }
 
 std::size_t selectUniformTriangleIndex(std::size_t sampleIndex,
@@ -840,8 +854,14 @@ struct GameSession::Impl {
                     IRenderBackend::DebugTriangle tri;
                     float depth = 0.0f;
                 };
+                struct DepthWorldTri {
+                    IRenderBackend::WorldTriangle tri;
+                    float depth = 0.0f;
+                };
                 std::vector<DepthTri> modelDepthTris;
                 modelDepthTris.reserve(12000);
+                std::vector<DepthWorldTri> modelDepthWorldTris;
+                modelDepthWorldTris.reserve(12000);
 
                 for (int r = 0; r < rows; ++r) {
                     for (int c = 0; c < cols; ++c) {
@@ -937,6 +957,125 @@ struct GameSession::Impl {
                     }
                 }
 
+                struct BackendPoseEval {
+                    bool hasScenePose = false;
+                    bool hasClipPose = false;
+                    std::vector<pac_model_types::NodeTRS> nodeLocals;
+                    std::vector<glm::mat4> nodeGlobals;
+                };
+
+                const auto trsToMat4 = [](const pac_model_types::NodeTRS& n) {
+                    if (n.hasMatrix) return n.matrix;
+                    const glm::mat4 t = glm::translate(glm::mat4(1.0f), n.t);
+                    const glm::mat4 r = glm::mat4_cast(glm::normalize(n.r));
+                    const glm::mat4 s = glm::scale(glm::mat4(1.0f), n.s);
+                    return t * r * s;
+                };
+                const auto wrapTime = [](float t, float duration) {
+                    if (duration <= 0.0f) return 0.0f;
+                    float wrapped = std::fmod(t, duration);
+                    if (wrapped < 0.0f) wrapped += duration;
+                    return wrapped;
+                };
+                const auto findKeyframe = [](const std::vector<float>& times, float t) -> std::size_t {
+                    if (times.empty()) return 0u;
+                    if (t <= times.front()) return 0u;
+                    if (t >= times.back()) return times.size() - 1u;
+                    const auto it = std::upper_bound(times.begin(), times.end(), t);
+                    return (it == times.begin()) ? 0u : static_cast<std::size_t>((it - times.begin()) - 1u);
+                };
+                const auto sampleVec4 = [&](const pac_model_types::AnimationSampler& sampler, float t) {
+                    if (sampler.inputs.empty() || sampler.outputs.empty()) return glm::vec4(0.0f);
+                    const std::size_t i = findKeyframe(sampler.inputs, t);
+                    if (i >= sampler.inputs.size() - 1u) {
+                        return sampler.outputs[std::min(i, sampler.outputs.size() - 1u)];
+                    }
+                    const float t0 = sampler.inputs[i];
+                    const float t1 = sampler.inputs[i + 1u];
+                    const float a = (t1 > t0) ? ((t - t0) / (t1 - t0)) : 0.0f;
+                    const glm::vec4 v0 = sampler.outputs[std::min(i, sampler.outputs.size() - 1u)];
+                    const glm::vec4 v1 = sampler.outputs[std::min(i + 1u, sampler.outputs.size() - 1u)];
+                    if (sampler.interpolation == "STEP") return v0;
+                    return glm::mix(v0, v1, std::clamp(a, 0.0f, 1.0f));
+                };
+                const auto sampleQuat = [&](const pac_model_types::AnimationSampler& sampler, float t) {
+                    const glm::vec4 v = sampleVec4(sampler, t);
+                    return glm::normalize(glm::quat(v.w, v.x, v.y, v.z));
+                };
+                const auto evaluateScenePose = [&](const runtime::backend_model::MeshData& mesh,
+                                                   const PokemonInstance& unit) {
+                    BackendPoseEval eval;
+                    if (mesh.nodesDefault.empty()) return eval;
+                    eval.hasScenePose = true;
+                    eval.nodeLocals = mesh.nodesDefault;
+                    eval.nodeGlobals.assign(mesh.nodesDefault.size(), glm::mat4(1.0f));
+
+                    int animIndex = unit.activeAnimIndex;
+                    if (animIndex < 0 || static_cast<std::size_t>(animIndex) >= mesh.animations.size()) {
+                        animIndex = unit.currentAttackAnimIndex;
+                    }
+                    if (animIndex < 0 || static_cast<std::size_t>(animIndex) >= mesh.animations.size()) {
+                        animIndex = unit.animMoveIndex;
+                    }
+                    if (animIndex < 0 || static_cast<std::size_t>(animIndex) >= mesh.animations.size()) {
+                        animIndex = unit.animIdleIndex;
+                    }
+                    if (animIndex >= 0 && static_cast<std::size_t>(animIndex) < mesh.animations.size()) {
+                        const auto& clip = mesh.animations[static_cast<std::size_t>(animIndex)];
+                        const float clipTime = wrapTime(unit.animTimeSec, clip.durationSec);
+                        for (const auto& channel : clip.channels) {
+                            if (channel.targetNode < 0 ||
+                                static_cast<std::size_t>(channel.targetNode) >= eval.nodeLocals.size()) {
+                                continue;
+                            }
+                            if (channel.samplerIndex < 0 ||
+                                static_cast<std::size_t>(channel.samplerIndex) >= clip.samplers.size()) {
+                                continue;
+                            }
+                            auto& local = eval.nodeLocals[static_cast<std::size_t>(channel.targetNode)];
+                            const auto& sampler = clip.samplers[static_cast<std::size_t>(channel.samplerIndex)];
+                            if (channel.path == pac_model_types::ChannelPath::Translation) {
+                                const glm::vec4 tr = sampleVec4(sampler, clipTime);
+                                local.t = glm::vec3(tr.x, tr.y, tr.z);
+                                local.hasMatrix = false;
+                            } else if (channel.path == pac_model_types::ChannelPath::Scale) {
+                                const glm::vec4 sc = sampleVec4(sampler, clipTime);
+                                local.s = glm::vec3(sc.x, sc.y, sc.z);
+                                local.hasMatrix = false;
+                            } else if (channel.path == pac_model_types::ChannelPath::Rotation) {
+                                local.r = sampleQuat(sampler, clipTime);
+                                local.hasMatrix = false;
+                            }
+                        }
+                        eval.hasClipPose = true;
+                    }
+
+                    const auto dfs = [&](const auto& self, int node, const glm::mat4& parentM) -> void {
+                        if (node < 0 || static_cast<std::size_t>(node) >= eval.nodeLocals.size()) return;
+                        const glm::mat4 global = parentM * trsToMat4(eval.nodeLocals[static_cast<std::size_t>(node)]);
+                        eval.nodeGlobals[static_cast<std::size_t>(node)] = global;
+                        if (static_cast<std::size_t>(node) >= mesh.nodeChildren.size()) return;
+                        for (int child : mesh.nodeChildren[static_cast<std::size_t>(node)]) {
+                            self(self, child, global);
+                        }
+                    };
+
+                    if (!mesh.sceneRoots.empty()) {
+                        for (int root : mesh.sceneRoots) {
+                            dfs(dfs, root, glm::mat4(1.0f));
+                        }
+                    } else if (!eval.nodeLocals.empty()) {
+                        bool drewAny = false;
+                        for (std::size_t i = 0; i < mesh.nodeParent.size(); ++i) {
+                            if (mesh.nodeParent[i] >= 0) continue;
+                            dfs(dfs, static_cast<int>(i), glm::mat4(1.0f));
+                            drewAny = true;
+                        }
+                        if (!drewAny) dfs(dfs, 0, glm::mat4(1.0f));
+                    }
+                    return eval;
+                };
+
                 const auto drawProjectedUnits = [&](const std::vector<PokemonInstance>& units) {
                     for (const auto& unit : units) {
                         if (!unit.alive && !unit.captureInProgress && !unit.fainting) continue;
@@ -1023,7 +1162,16 @@ struct GameSession::Impl {
                         if (const runtime::backend_model::MeshData* mesh = resolveModelMesh(unit)) {
                             const std::size_t triangleCount = mesh->indices.size() / 3u;
                             const std::size_t maxTrianglesPerUnit = backendModelTriangleLimit();
-                            const std::size_t unitTriangleBudget = std::min(triangleCount, maxTrianglesPerUnit);
+                            const float detailScale = std::clamp(unitSize / 72.0f, 0.18f, 1.0f);
+                            const std::size_t scaledBudget = static_cast<std::size_t>(
+                                std::clamp(
+                                    static_cast<double>(maxTrianglesPerUnit) *
+                                        static_cast<double>(detailScale) *
+                                        static_cast<double>(detailScale),
+                                    384.0,
+                                    static_cast<double>(maxTrianglesPerUnit)));
+                            const std::size_t unitTriangleBudget =
+                                std::min(triangleCount, std::max<std::size_t>(384u, scaledBudget));
 
                             const float modelScale =
                                 std::max(0.01f, mesh->modelScaleFactor) *
@@ -1042,15 +1190,89 @@ struct GameSession::Impl {
                                 glm::rotate(glm::mat4(1.0f), glm::radians(animRoll), glm::vec3(0, 0, 1));
                             const glm::mat4 translation = glm::translate(glm::mat4(1.0f), renderPos);
                             const glm::mat4 modelM = translation * rotationY * rotationX * rotationZ * scale;
-                            const glm::mat3 normalM = glm::transpose(glm::inverse(glm::mat3(modelM)));
                             const std::size_t modelDepthCountBefore = modelDepthTris.size();
                             const std::size_t modelWorld3DCountBefore = world3DTriangles.size();
+                            const BackendPoseEval scenePose = evaluateScenePose(*mesh, unit);
+                            const auto& nodeGlobals = scenePose.hasScenePose ? scenePose.nodeGlobals : mesh->bindNodeGlobals;
+                            const bool hasClipPose = scenePose.hasClipPose;
 
                             const glm::vec3 lightDir = glm::normalize(glm::vec3(0.45f, 0.90f, 0.35f));
                             const glm::vec3 fallbackBase(
                                 std::clamp(tint.r * 0.85f + 0.10f, 0.0f, 1.0f),
                                 std::clamp(tint.g * 0.85f + 0.10f, 0.0f, 1.0f),
                                 std::clamp(tint.b * 0.85f + 0.10f, 0.0f, 1.0f));
+                            const auto safeNormalize = [](const glm::vec3& v) {
+                                const float lenSq = glm::dot(v, v);
+                                if (lenSq > 1e-12f) return glm::normalize(v);
+                                return glm::vec3(0.0f, 1.0f, 0.0f);
+                            };
+
+                            std::unordered_map<int, std::vector<glm::mat4>> skinMatricesByNode;
+                            skinMatricesByNode.reserve(8);
+                            const auto skinVertexAtNode = [&](int nodeIndex,
+                                                             const runtime::backend_model::MeshVertex& vtx,
+                                                             const glm::vec3& localPos,
+                                                             const glm::vec3& localNormal) {
+                                struct SkinResult {
+                                    glm::vec3 pos;
+                                    glm::vec3 normal;
+                                    bool applied = false;
+                                } outSkin{localPos, localNormal, false};
+                                if (nodeIndex < 0 ||
+                                    static_cast<std::size_t>(nodeIndex) >= mesh->nodeSkin.size() ||
+                                    static_cast<std::size_t>(nodeIndex) >= nodeGlobals.size()) {
+                                    return outSkin;
+                                }
+                                const int skinIndex = mesh->nodeSkin[static_cast<std::size_t>(nodeIndex)];
+                                if (skinIndex < 0 || static_cast<std::size_t>(skinIndex) >= mesh->skins.size()) {
+                                    return outSkin;
+                                }
+
+                                auto cached = skinMatricesByNode.find(nodeIndex);
+                                if (cached == skinMatricesByNode.end()) {
+                                    const auto& skin = mesh->skins[static_cast<std::size_t>(skinIndex)];
+                                    const glm::mat4 meshGlobal = nodeGlobals[static_cast<std::size_t>(nodeIndex)];
+                                    const glm::mat4 invMeshGlobal = glm::inverse(meshGlobal);
+                                    std::vector<glm::mat4> mats(skin.joints.size(), glm::mat4(1.0f));
+                                    for (std::size_t j = 0; j < skin.joints.size(); ++j) {
+                                        const int jointNode = skin.joints[j];
+                                        if (jointNode < 0 ||
+                                            static_cast<std::size_t>(jointNode) >= nodeGlobals.size()) {
+                                            continue;
+                                        }
+                                        mats[j] =
+                                            invMeshGlobal *
+                                            nodeGlobals[static_cast<std::size_t>(jointNode)] *
+                                            skin.inverseBind[j];
+                                    }
+                                    cached = skinMatricesByNode.emplace(nodeIndex, std::move(mats)).first;
+                                }
+                                const auto& mats = cached->second;
+                                const std::uint16_t joints[4] = {vtx.j0, vtx.j1, vtx.j2, vtx.j3};
+                                const float weights[4] = {vtx.w0, vtx.w1, vtx.w2, vtx.w3};
+                                glm::vec4 blendedPos(0.0f);
+                                glm::vec3 blendedNormal(0.0f);
+                                float totalWeight = 0.0f;
+                                for (int i = 0; i < 4; ++i) {
+                                    const float w = weights[i];
+                                    if (w <= 0.00001f) continue;
+                                    const std::size_t joint = static_cast<std::size_t>(joints[i]);
+                                    if (joint >= mats.size()) continue;
+                                    blendedPos += (mats[joint] * glm::vec4(localPos, 1.0f)) * w;
+                                    blendedNormal += (glm::mat3(mats[joint]) * localNormal) * w;
+                                    totalWeight += w;
+                                }
+                                if (totalWeight <= 0.00001f) return outSkin;
+                                if (totalWeight < 0.999f) {
+                                    const float remain = 1.0f - totalWeight;
+                                    blendedPos += glm::vec4(localPos, 1.0f) * remain;
+                                    blendedNormal += localNormal * remain;
+                                }
+                                outSkin.pos = glm::vec3(blendedPos);
+                                outSkin.normal = safeNormalize(blendedNormal);
+                                outSkin.applied = true;
+                                return outSkin;
+                            };
 
                             const auto pushModelTriangle = [&](const glm::vec3& a,
                                                                 const glm::vec3& b,
@@ -1085,43 +1307,46 @@ struct GameSession::Impl {
                                     }
                                 }
 
-                                glm::vec3 n(0.0f, 1.0f, 0.0f);
-                                const glm::vec3 blendedNormal = n0 + n1 + n2;
-                                const float blendedLenSq = glm::dot(blendedNormal, blendedNormal);
-                                if (blendedLenSq > 0.000001f) {
-                                    n = glm::normalize(blendedNormal);
-                                } else {
-                                    const glm::vec3 rawNormal = glm::cross(b - a, c - a);
-                                    const float rawLenSq = glm::dot(rawNormal, rawNormal);
-                                    if (rawLenSq > 0.000001f) n = glm::normalize(rawNormal);
-                                }
                                 const glm::vec3 triCenter = (a + b + c) * (1.0f / 3.0f);
-                                glm::vec3 toCamera = cameraWorldPos - triCenter;
-                                const float toCameraLenSq = glm::dot(toCamera, toCamera);
-                                if (toCameraLenSq > 0.000001f) {
-                                    toCamera = glm::normalize(toCamera);
+                                const glm::vec3 rawFaceNormal = glm::cross(b - a, c - a);
+                                const float rawFaceLenSq = glm::dot(rawFaceNormal, rawFaceNormal);
+                                const glm::vec3 faceNormal = (rawFaceLenSq > 0.000001f)
+                                    ? glm::normalize(rawFaceNormal)
+                                    : safeNormalize(n0 + n1 + n2);
+                                glm::vec3 toCameraCenter = cameraWorldPos - triCenter;
+                                const float toCameraCenterLenSq = glm::dot(toCameraCenter, toCameraCenter);
+                                if (toCameraCenterLenSq > 0.000001f) {
+                                    toCameraCenter = glm::normalize(toCameraCenter);
                                 } else {
-                                    toCamera = glm::vec3(0.0f, 0.0f, -1.0f);
+                                    toCameraCenter = glm::vec3(0.0f, 0.0f, -1.0f);
                                 }
-                                const float lit = std::clamp(glm::dot(n, lightDir), 0.0f, 1.0f);
-                                const float facing = std::clamp(glm::dot(n, toCamera), -1.0f, 1.0f);
-                                if (!doubleSided && facing <= 0.01f) return;
-                                const float rim = std::pow(std::clamp(1.0f - std::max(0.0f, facing), 0.0f, 1.0f), 2.0f);
-                                const glm::vec3 halfDir = glm::normalize(lightDir + toCamera);
-                                const float spec = std::pow(std::clamp(glm::dot(n, halfDir), 0.0f, 1.0f), 22.0f);
-                                const float shade = std::clamp(0.22f + lit * 0.62f + rim * 0.10f + spec * 0.20f, 0.05f, 1.40f);
-                                const auto shadeColor = [&](const glm::vec3& cIn) {
-                                    const glm::vec3 baseLinear =
-                                        glm::pow(glm::clamp(cIn, 0.0f, 1.0f), glm::vec3(2.2f));
-                                    const glm::vec3 litLinear = glm::clamp(baseLinear * shade, 0.0f, 1.0f);
-                                    return glm::pow(litLinear, glm::vec3(1.0f / 2.2f));
+                                const float faceFacing = std::clamp(glm::dot(faceNormal, toCameraCenter), -1.0f, 1.0f);
+                                if (backendModelBackfaceCullingEnabled() && !doubleSided && faceFacing <= 0.01f) {
+                                    return;
+                                }
+
+                                const float lit = std::clamp(glm::dot(faceNormal, lightDir), 0.0f, 1.0f);
+                                const float facing = std::clamp(faceFacing, 0.0f, 1.0f);
+                                const float rim = std::pow(std::clamp(1.0f - facing, 0.0f, 1.0f), 2.0f);
+                                glm::vec3 halfDir = lightDir + toCameraCenter;
+                                const float halfLenSq = glm::dot(halfDir, halfDir);
+                                if (halfLenSq > 0.000001f) {
+                                    halfDir = glm::normalize(halfDir);
+                                } else {
+                                    halfDir = lightDir;
+                                }
+                                const float spec =
+                                    std::pow(std::clamp(glm::dot(faceNormal, halfDir), 0.0f, 1.0f), 18.0f);
+                                const float shade =
+                                    std::clamp(0.24f + lit * 0.60f + rim * 0.08f + spec * 0.14f, 0.08f, 1.25f);
+                                const auto shadeColor = [&](const glm::vec3& baseColor) {
+                                    return glm::clamp(baseColor * shade, 0.0f, 1.0f);
                                 };
                                 const glm::vec3 shaded0 = shadeColor(baseColor0);
                                 const glm::vec3 shaded1 = shadeColor(baseColor1);
                                 const glm::vec3 shaded2 = shadeColor(baseColor2);
                                 const glm::vec3 shadedAvg = (shaded0 + shaded1 + shaded2) * (1.0f / 3.0f);
-                                const float facingFade = 0.60f + 0.40f * std::max(0.0f, facing);
-                                const float outAlpha = alpha * facingFade;
+                                const float outAlpha = alpha;
 
                                 if (supportsWorldTriangles3D) {
                                     IRenderBackend::WorldTriangle tri3d;
@@ -1150,7 +1375,10 @@ struct GameSession::Impl {
                                     tri3d.g3 = shaded2.g;
                                     tri3d.b3 = shaded2.b;
                                     tri3d.a3 = outAlpha;
-                                    world3DTriangles.push_back(tri3d);
+                                    DepthWorldTri d3;
+                                    d3.tri = tri3d;
+                                    d3.depth = glm::dot(cameraWorldPos - triCenter, cameraWorldPos - triCenter);
+                                    modelDepthWorldTris.push_back(std::move(d3));
                                     return;
                                 }
 
@@ -1168,12 +1396,6 @@ struct GameSession::Impl {
                                 dt.depth = (z1 + z2 + z3) * (1.0f / 3.0f);
                                 modelDepthTris.push_back(dt);
                             };
-                            const auto safeNormalize = [](const glm::vec3& v) {
-                                const float lenSq = glm::dot(v, v);
-                                if (lenSq > 1e-12f) return glm::normalize(v);
-                                return glm::vec3(0.0f, 1.0f, 0.0f);
-                            };
-
                             std::size_t previousTriSample = triangleCount;
                             for (std::size_t sampleIdx = 0; sampleIdx < unitTriangleBudget; ++sampleIdx) {
                                 std::size_t triIdx =
@@ -1197,34 +1419,69 @@ struct GameSession::Impl {
                                 const auto& v1 = mesh->vertices[i1];
                                 const auto& v2 = mesh->vertices[i2];
 
-                                const glm::vec3 local0 = runtime::backend_anim::deformLocalVertex(
-                                    unit,
-                                    pose,
-                                    v0.position,
-                                    mesh->boundsMin,
-                                    mesh->boundsMax,
-                                    worldCellSize);
-                                const glm::vec3 local1 = runtime::backend_anim::deformLocalVertex(
-                                    unit,
-                                    pose,
-                                    v1.position,
-                                    mesh->boundsMin,
-                                    mesh->boundsMax,
-                                    worldCellSize);
-                                const glm::vec3 local2 = runtime::backend_anim::deformLocalVertex(
-                                    unit,
-                                    pose,
-                                    v2.position,
-                                    mesh->boundsMin,
-                                    mesh->boundsMax,
-                                    worldCellSize);
+                                glm::vec3 local0 = v0.position;
+                                glm::vec3 local1 = v1.position;
+                                glm::vec3 local2 = v2.position;
+                                if (!hasClipPose) {
+                                    local0 = runtime::backend_anim::deformLocalVertex(
+                                        unit,
+                                        pose,
+                                        local0,
+                                        mesh->boundsMin,
+                                        mesh->boundsMax,
+                                        worldCellSize);
+                                    local1 = runtime::backend_anim::deformLocalVertex(
+                                        unit,
+                                        pose,
+                                        local1,
+                                        mesh->boundsMin,
+                                        mesh->boundsMax,
+                                        worldCellSize);
+                                    local2 = runtime::backend_anim::deformLocalVertex(
+                                        unit,
+                                        pose,
+                                        local2,
+                                        mesh->boundsMin,
+                                        mesh->boundsMax,
+                                        worldCellSize);
+                                }
 
-                                const glm::vec3 a = glm::vec3(modelM * glm::vec4(local0, 1.0f));
-                                const glm::vec3 b = glm::vec3(modelM * glm::vec4(local1, 1.0f));
-                                const glm::vec3 c = glm::vec3(modelM * glm::vec4(local2, 1.0f));
-                                const glm::vec3 n0 = safeNormalize(normalM * v0.normal);
-                                const glm::vec3 n1 = safeNormalize(normalM * v1.normal);
-                                const glm::vec3 n2 = safeNormalize(normalM * v2.normal);
+                                int triNodeIndex =
+                                    (triIdx < mesh->triangleNodeIndex.size())
+                                        ? mesh->triangleNodeIndex[triIdx]
+                                        : -1;
+                                if (triNodeIndex < 0 &&
+                                    triIdx < mesh->triangleSubmesh.size() &&
+                                    !mesh->submeshMeshIndex.empty()) {
+                                    const std::uint16_t submeshIndex = mesh->triangleSubmesh[triIdx];
+                                    if (submeshIndex < mesh->submeshMeshIndex.size()) {
+                                        const int meshIndex = mesh->submeshMeshIndex[submeshIndex];
+                                        for (std::size_t ni = 0; ni < mesh->nodeMesh.size(); ++ni) {
+                                            if (mesh->nodeMesh[ni] == meshIndex) {
+                                                triNodeIndex = static_cast<int>(ni);
+                                                break;
+                                            }
+                                        }
+                                    }
+                                }
+                                const glm::mat4 nodeGlobal =
+                                    (triNodeIndex >= 0 &&
+                                     static_cast<std::size_t>(triNodeIndex) < nodeGlobals.size())
+                                        ? nodeGlobals[static_cast<std::size_t>(triNodeIndex)]
+                                        : glm::mat4(1.0f);
+                                const glm::mat4 worldM = modelM * nodeGlobal;
+                                const glm::mat3 worldNormalM = glm::transpose(glm::inverse(glm::mat3(worldM)));
+
+                                const auto sk0 = skinVertexAtNode(triNodeIndex, v0, local0, v0.normal);
+                                const auto sk1 = skinVertexAtNode(triNodeIndex, v1, local1, v1.normal);
+                                const auto sk2 = skinVertexAtNode(triNodeIndex, v2, local2, v2.normal);
+
+                                const glm::vec3 a = glm::vec3(worldM * glm::vec4(sk0.pos, 1.0f));
+                                const glm::vec3 b = glm::vec3(worldM * glm::vec4(sk1.pos, 1.0f));
+                                const glm::vec3 c = glm::vec3(worldM * glm::vec4(sk2.pos, 1.0f));
+                                const glm::vec3 n0 = safeNormalize(worldNormalM * sk0.normal);
+                                const glm::vec3 n1 = safeNormalize(worldNormalM * sk1.normal);
+                                const glm::vec3 n2 = safeNormalize(worldNormalM * sk2.normal);
 
                                 auto resolveVertexBase = [&](std::uint32_t vi,
                                                              const runtime::backend_model::MeshVertex& v) {
@@ -1467,6 +1724,18 @@ struct GameSession::Impl {
 
                 drawProjectedUnits(gameWorld->getPokemons());
                 drawProjectedUnits(gameWorld->getBenchPokemons());
+                if (!modelDepthWorldTris.empty()) {
+                    std::sort(
+                        modelDepthWorldTris.begin(),
+                        modelDepthWorldTris.end(),
+                        [](const DepthWorldTri& lhs, const DepthWorldTri& rhs) {
+                            return lhs.depth > rhs.depth;
+                        });
+                    world3DTriangles.reserve(world3DTriangles.size() + modelDepthWorldTris.size());
+                    for (const DepthWorldTri& tri : modelDepthWorldTris) {
+                        world3DTriangles.push_back(tri.tri);
+                    }
+                }
                 if (!modelDepthTris.empty()) {
                     std::sort(
                         modelDepthTris.begin(),

@@ -50,7 +50,13 @@ bool test_backend_model_cache_contract(std::string& outFail) {
             !mesh.triangleBaseColors.empty() ||
             !mesh.triangleOpacity.empty() ||
             !mesh.triangleDoubleSided.empty() ||
-            !mesh.vertexBaseColors.empty()) {
+            !mesh.vertexBaseColors.empty() ||
+            !mesh.submeshMeshIndex.empty() ||
+            !mesh.triangleNodeIndex.empty() ||
+            !mesh.triangleSkinIndex.empty() ||
+            !mesh.nodesDefault.empty() ||
+            !mesh.bindNodeGlobals.empty() ||
+            !mesh.animations.empty()) {
             outFail = "loadMeshFromCache should clear output mesh on failure";
             return false;
         }
@@ -72,7 +78,13 @@ bool test_backend_model_cache_contract(std::string& outFail) {
             !mesh.triangleBaseColors.empty() ||
             !mesh.triangleOpacity.empty() ||
             !mesh.triangleDoubleSided.empty() ||
-            !mesh.vertexBaseColors.empty()) {
+            !mesh.vertexBaseColors.empty() ||
+            !mesh.submeshMeshIndex.empty() ||
+            !mesh.triangleNodeIndex.empty() ||
+            !mesh.triangleSkinIndex.empty() ||
+            !mesh.nodesDefault.empty() ||
+            !mesh.bindNodeGlobals.empty() ||
+            !mesh.animations.empty()) {
             outFail = "missing-cache load failure should leave mesh output empty";
             return false;
         }

@@ -9,6 +9,7 @@
 #include <limits>
 #include <sstream>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 #include "engine/core/Environment.h"
@@ -16,6 +17,8 @@
 #include "engine/render/ModelMeshTypes.h"
 #include "game/runtime/BackendMaterialShading.h"
 #include "game/runtime/BackendMeshNormals.h"
+#include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/quaternion.hpp>
 
 namespace {
 namespace fs = std::filesystem;
@@ -68,100 +71,196 @@ struct CacheHeader {
 };
 #pragma pack(pop)
 
-bool skipNodes(std::istream& in, std::uint32_t nodeCount) {
-    using pac_model_types::NodeTRS;
+glm::mat4 trsToMat4(const pac_model_types::NodeTRS& n) {
+    if (n.hasMatrix) return n.matrix;
+    const glm::mat4 t = glm::translate(glm::mat4(1.0f), n.t);
+    const glm::mat4 r = glm::mat4_cast(glm::normalize(n.r));
+    const glm::mat4 s = glm::scale(glm::mat4(1.0f), n.s);
+    return t * r * s;
+}
+
+void buildNodeParentTable(const std::vector<std::vector<int>>& nodeChildren,
+                          std::vector<int>& outParent) {
+    outParent.assign(nodeChildren.size(), -1);
+    for (std::size_t p = 0; p < nodeChildren.size(); ++p) {
+        for (int c : nodeChildren[p]) {
+            if (c < 0 || static_cast<std::size_t>(c) >= outParent.size()) continue;
+            if (outParent[static_cast<std::size_t>(c)] < 0) {
+                outParent[static_cast<std::size_t>(c)] = static_cast<int>(p);
+            }
+        }
+    }
+}
+
+void buildNodeGlobals(const std::vector<pac_model_types::NodeTRS>& nodesDefault,
+                      const std::vector<std::vector<int>>& nodeChildren,
+                      const std::vector<int>& sceneRoots,
+                      std::vector<glm::mat4>& outGlobals) {
+    outGlobals.assign(nodesDefault.size(), glm::mat4(1.0f));
+    if (nodesDefault.empty()) return;
+
+    std::vector<int> parent;
+    buildNodeParentTable(nodeChildren, parent);
+
+    const auto dfs = [&](const auto& self, int node, const glm::mat4& parentM) -> void {
+        if (node < 0 || static_cast<std::size_t>(node) >= nodesDefault.size()) return;
+        const glm::mat4 global = parentM * trsToMat4(nodesDefault[static_cast<std::size_t>(node)]);
+        outGlobals[static_cast<std::size_t>(node)] = global;
+        if (static_cast<std::size_t>(node) >= nodeChildren.size()) return;
+        for (int child : nodeChildren[static_cast<std::size_t>(node)]) {
+            self(self, child, global);
+        }
+    };
+
+    if (!sceneRoots.empty()) {
+        for (int root : sceneRoots) {
+            dfs(dfs, root, glm::mat4(1.0f));
+        }
+        return;
+    }
+
+    bool drewAny = false;
+    for (std::size_t i = 0; i < parent.size(); ++i) {
+        if (parent[i] >= 0) continue;
+        dfs(dfs, static_cast<int>(i), glm::mat4(1.0f));
+        drewAny = true;
+    }
+    if (!drewAny) {
+        dfs(dfs, 0, glm::mat4(1.0f));
+    }
+}
+
+bool readSceneData(std::istream& in,
+                   std::uint32_t nodeCount,
+                   std::uint32_t skinCount,
+                   std::uint32_t animCount,
+                   std::vector<pac_model_types::NodeTRS>& outNodesDefault,
+                   std::vector<std::vector<int>>& outNodeChildren,
+                   std::vector<int>& outNodeParent,
+                   std::vector<int>& outNodeMesh,
+                   std::vector<int>& outNodeSkin,
+                   std::vector<int>& outSceneRoots,
+                   std::vector<pac_model_types::SkinData>& outSkins,
+                   std::vector<pac_model_types::AnimationClip>& outAnimations) {
+    outNodesDefault.assign(nodeCount, pac_model_types::NodeTRS{});
+    outNodeChildren.assign(nodeCount, {});
+    outNodeMesh.assign(nodeCount, -1);
+    outNodeSkin.assign(nodeCount, -1);
+
     for (std::uint32_t i = 0; i < nodeCount; ++i) {
-        NodeTRS n{};
-        std::uint8_t hasMatrix = 0;
-        if (!readPod(in, n.t) || !readPod(in, n.r) || !readPod(in, n.s)) return false;
-        if (!readPod(in, hasMatrix)) return false;
-        if (!readPod(in, n.matrix)) return false;
+        auto& n = outNodesDefault[static_cast<std::size_t>(i)];
+        std::uint8_t hasMatrix = 0u;
+        if (!readPod(in, n.t) ||
+            !readPod(in, n.r) ||
+            !readPod(in, n.s) ||
+            !readPod(in, hasMatrix) ||
+            !readPod(in, n.matrix)) {
+            return false;
+        }
+        n.r = glm::normalize(n.r);
+        n.hasMatrix = (hasMatrix != 0u);
     }
 
     for (std::uint32_t i = 0; i < nodeCount; ++i) {
-        std::uint32_t childCount = 0;
+        std::uint32_t childCount = 0u;
         if (!readPod(in, childCount)) return false;
+        auto& children = outNodeChildren[static_cast<std::size_t>(i)];
+        children.assign(childCount, -1);
         for (std::uint32_t k = 0; k < childCount; ++k) {
-            std::int32_t ignored = 0;
-            if (!readPod(in, ignored)) return false;
+            std::int32_t v = -1;
+            if (!readPod(in, v)) return false;
+            children[static_cast<std::size_t>(k)] = static_cast<int>(v);
         }
     }
 
     for (std::uint32_t i = 0; i < nodeCount; ++i) {
-        std::int32_t ignored = 0;
-        if (!readPod(in, ignored)) return false;
+        std::int32_t v = -1;
+        if (!readPod(in, v)) return false;
+        outNodeMesh[static_cast<std::size_t>(i)] = static_cast<int>(v);
     }
     for (std::uint32_t i = 0; i < nodeCount; ++i) {
-        std::int32_t ignored = 0;
-        if (!readPod(in, ignored)) return false;
+        std::int32_t v = -1;
+        if (!readPod(in, v)) return false;
+        outNodeSkin[static_cast<std::size_t>(i)] = static_cast<int>(v);
     }
 
-    std::uint32_t rootCount = 0;
+    std::uint32_t rootCount = 0u;
     if (!readPod(in, rootCount)) return false;
+    outSceneRoots.assign(rootCount, -1);
     for (std::uint32_t i = 0; i < rootCount; ++i) {
-        std::int32_t ignored = 0;
-        if (!readPod(in, ignored)) return false;
+        std::int32_t v = -1;
+        if (!readPod(in, v)) return false;
+        outSceneRoots[static_cast<std::size_t>(i)] = static_cast<int>(v);
     }
-    return true;
-}
 
-bool skipSkins(std::istream& in, std::uint32_t skinCount) {
+    outSkins.assign(skinCount, pac_model_types::SkinData{});
     for (std::uint32_t si = 0; si < skinCount; ++si) {
-        std::uint32_t jointCount = 0;
+        std::uint32_t jointCount = 0u;
         if (!readPod(in, jointCount)) return false;
+        auto& skin = outSkins[static_cast<std::size_t>(si)];
+        skin.joints.assign(jointCount, -1);
+        skin.inverseBind.assign(jointCount, glm::mat4(1.0f));
         for (std::uint32_t j = 0; j < jointCount; ++j) {
-            std::int32_t ignored = 0;
-            if (!readPod(in, ignored)) return false;
+            std::int32_t v = -1;
+            if (!readPod(in, v)) return false;
+            skin.joints[static_cast<std::size_t>(j)] = static_cast<int>(v);
         }
         for (std::uint32_t j = 0; j < jointCount; ++j) {
-            glm::mat4 ignored(1.0f);
-            if (!readPod(in, ignored)) return false;
+            if (!readPod(in, skin.inverseBind[static_cast<std::size_t>(j)])) return false;
         }
     }
-    return true;
-}
 
-bool skipAnimations(std::istream& in, std::uint32_t animCount) {
+    outAnimations.assign(animCount, pac_model_types::AnimationClip{});
     for (std::uint32_t ai = 0; ai < animCount; ++ai) {
-        std::string name;
-        float duration = 0.0f;
-        if (!readString(in, name) || !readPod(in, duration)) return false;
+        auto& clip = outAnimations[static_cast<std::size_t>(ai)];
+        if (!readString(in, clip.name) || !readPod(in, clip.durationSec)) return false;
 
-        std::uint32_t samplerCount = 0;
+        std::uint32_t samplerCount = 0u;
         if (!readPod(in, samplerCount)) return false;
+        clip.samplers.assign(samplerCount, pac_model_types::AnimationSampler{});
         for (std::uint32_t s = 0; s < samplerCount; ++s) {
-            std::string interpolation;
-            std::uint8_t isVec4 = 0;
-            if (!readString(in, interpolation) || !readPod(in, isVec4)) return false;
+            auto& samp = clip.samplers[static_cast<std::size_t>(s)];
+            std::uint8_t isVec4 = 0u;
+            if (!readString(in, samp.interpolation) || !readPod(in, isVec4)) return false;
+            samp.isVec4 = (isVec4 != 0u);
 
-            std::uint32_t inputCount = 0;
+            std::uint32_t inputCount = 0u;
             if (!readPod(in, inputCount)) return false;
+            samp.inputs.assign(inputCount, 0.0f);
             for (std::uint32_t i = 0; i < inputCount; ++i) {
-                float ignored = 0.0f;
-                if (!readPod(in, ignored)) return false;
+                if (!readPod(in, samp.inputs[static_cast<std::size_t>(i)])) return false;
             }
 
-            std::uint32_t outputCount = 0;
+            std::uint32_t outputCount = 0u;
             if (!readPod(in, outputCount)) return false;
+            samp.outputs.assign(outputCount, glm::vec4(0.0f));
             for (std::uint32_t i = 0; i < outputCount; ++i) {
-                glm::vec4 ignored(0.0f);
-                if (!readPod(in, ignored)) return false;
+                if (!readPod(in, samp.outputs[static_cast<std::size_t>(i)])) return false;
             }
         }
 
-        std::uint32_t channelCount = 0;
+        std::uint32_t channelCount = 0u;
         if (!readPod(in, channelCount)) return false;
+        clip.channels.assign(channelCount, pac_model_types::AnimationChannel{});
         for (std::uint32_t c = 0; c < channelCount; ++c) {
-            std::int32_t ignoredSampler = -1;
-            std::int32_t ignoredTarget = -1;
-            std::uint8_t ignoredPath = 0;
-            if (!readPod(in, ignoredSampler) ||
-                !readPod(in, ignoredTarget) ||
-                !readPod(in, ignoredPath)) {
+            std::int32_t samplerIndex = -1;
+            std::int32_t targetNode = -1;
+            std::uint8_t path = 0u;
+            if (!readPod(in, samplerIndex) ||
+                !readPod(in, targetNode) ||
+                !readPod(in, path)) {
                 return false;
             }
+            auto& ch = clip.channels[static_cast<std::size_t>(c)];
+            ch.samplerIndex = static_cast<int>(samplerIndex);
+            ch.targetNode = static_cast<int>(targetNode);
+            ch.path = (path == 1u) ? pac_model_types::ChannelPath::Rotation
+                    : (path == 2u) ? pac_model_types::ChannelPath::Scale
+                                   : pac_model_types::ChannelPath::Translation;
         }
     }
+
+    buildNodeParentTable(outNodeChildren, outNodeParent);
     return true;
 }
 
@@ -348,12 +447,30 @@ bool loadMeshFromCache(const std::string& modelPath, MeshData& out, std::string*
         return false;
     }
 
-    if (!skipNodes(in, hdr.nodeCount) ||
-        !skipSkins(in, hdr.skinCount) ||
-        !skipAnimations(in, hdr.animCount)) {
-        if (outError) *outError = "failed while skipping cache scene/animation sections";
+    constexpr std::uint32_t kMaxNodes = 4096u;
+    constexpr std::uint32_t kMaxSkins = 512u;
+    constexpr std::uint32_t kMaxAnimations = 512u;
+    if (hdr.nodeCount > kMaxNodes || hdr.skinCount > kMaxSkins || hdr.animCount > kMaxAnimations) {
+        if (outError) *outError = "cache scene metadata exceeds safety limits";
         return false;
     }
+
+    if (!readSceneData(in,
+                       hdr.nodeCount,
+                       hdr.skinCount,
+                       hdr.animCount,
+                       out.nodesDefault,
+                       out.nodeChildren,
+                       out.nodeParent,
+                       out.nodeMesh,
+                       out.nodeSkin,
+                       out.sceneRoots,
+                       out.skins,
+                       out.animations)) {
+        if (outError) *outError = "failed to read cache scene/animation sections";
+        return false;
+    }
+    buildNodeGlobals(out.nodesDefault, out.nodeChildren, out.sceneRoots, out.bindNodeGlobals);
 
     constexpr std::uint32_t kMaxVertices = 2'000'000;
     constexpr std::uint32_t kMaxIndices = 6'000'000;
@@ -391,6 +508,14 @@ bool loadMeshFromCache(const std::string& modelPath, MeshData& out, std::string*
         mv.position = glm::vec3(v.px, v.py, v.pz);
         mv.uv = glm::vec2(v.u, v.v);
         mv.color = glm::vec4(v.r, v.g, v.b, v.a);
+        mv.j0 = v.j0;
+        mv.j1 = v.j1;
+        mv.j2 = v.j2;
+        mv.j3 = v.j3;
+        mv.w0 = v.w0;
+        mv.w1 = v.w1;
+        mv.w2 = v.w2;
+        mv.w3 = v.w3;
         out.vertices.push_back(mv);
 
         if (!initializedBounds) {
@@ -414,6 +539,7 @@ bool loadMeshFromCache(const std::string& modelPath, MeshData& out, std::string*
     struct SubmeshRange {
         std::size_t firstIndex = 0u;
         std::size_t indexCount = 0u;
+        int meshIndex = -1;
         glm::vec4 baseColor{1.0f};
         backend_material::AlphaMode alphaMode = backend_material::AlphaMode::Opaque;
         float alphaCutoff = 0.5f;
@@ -423,6 +549,7 @@ bool loadMeshFromCache(const std::string& modelPath, MeshData& out, std::string*
     std::vector<SubmeshRange> submeshRanges;
     submeshRanges.reserve(hdr.submeshCount);
     out.submeshBaseColors.reserve(hdr.submeshCount);
+    out.submeshMeshIndex.reserve(hdr.submeshCount);
     for (std::uint32_t si = 0; si < hdr.submeshCount; ++si) {
         std::uint64_t off = 0u;
         std::uint64_t cnt = 0u;
@@ -459,13 +586,17 @@ bool loadMeshFromCache(const std::string& modelPath, MeshData& out, std::string*
         const std::size_t maxRemaining =
             (range.firstIndex < out.indices.size()) ? (out.indices.size() - range.firstIndex) : 0u;
         range.indexCount = static_cast<std::size_t>(std::min<std::uint64_t>(cnt, maxRemaining));
-        range.baseColor = baseTexture.average;
+        range.meshIndex = static_cast<int>(meshIdx);
+        // Base-color texture data is already multiplied by glTF baseColorFactor during decode.
+        // Keep a neutral factor when pixels are present to preserve per-texel detail.
+        range.baseColor = baseTexture.hasPixels() ? glm::vec4(1.0f) : baseTexture.average;
         range.alphaMode = backend_material::alphaModeFromByte(alphaModeRaw);
         range.alphaCutoff = alphaCutoff;
         range.doubleSided = (doubleSided != 0u);
         range.baseTexture = std::move(baseTexture);
         submeshRanges.push_back(range);
         out.submeshBaseColors.push_back(range.baseColor);
+        out.submeshMeshIndex.push_back(range.meshIndex);
     }
 
     const std::size_t triangleCount = out.indices.size() / 3u;
@@ -473,18 +604,44 @@ bool loadMeshFromCache(const std::string& modelPath, MeshData& out, std::string*
     out.triangleBaseColors.assign(triangleCount, glm::vec3(1.0f, 1.0f, 1.0f));
     out.triangleOpacity.assign(triangleCount, 1.0f);
     out.triangleDoubleSided.assign(triangleCount, 0u);
+    out.triangleNodeIndex.assign(triangleCount, -1);
+    out.triangleSkinIndex.assign(triangleCount, -1);
     out.vertexBaseColors.assign(out.vertices.size(), glm::vec3(1.0f, 1.0f, 1.0f));
     out.hasVertexBaseColor = false;
     std::vector<glm::vec3> vertexColorAccum(out.vertices.size(), glm::vec3(0.0f));
     std::vector<float> vertexColorWeight(out.vertices.size(), 0.0f);
+    std::unordered_map<int, int> meshToNode;
+    meshToNode.reserve(out.nodeMesh.size());
+    for (std::size_t ni = 0; ni < out.nodeMesh.size(); ++ni) {
+        const int meshIndex = out.nodeMesh[ni];
+        if (meshIndex < 0) continue;
+        if (meshToNode.find(meshIndex) == meshToNode.end()) {
+            meshToNode.emplace(meshIndex, static_cast<int>(ni));
+        }
+    }
     if (!submeshRanges.empty()) {
         for (std::size_t si = 0; si < submeshRanges.size(); ++si) {
             const SubmeshRange& range = submeshRanges[si];
             const std::size_t startTri = std::min(triangleCount, range.firstIndex / 3u);
             const std::size_t endTri = std::min(triangleCount, (range.firstIndex + range.indexCount) / 3u);
+            int resolvedNodeIndex = -1;
+            if (range.meshIndex >= 0) {
+                const auto it = meshToNode.find(range.meshIndex);
+                if (it != meshToNode.end()) resolvedNodeIndex = it->second;
+            }
+            if (resolvedNodeIndex < 0 && !out.sceneRoots.empty()) {
+                resolvedNodeIndex = out.sceneRoots.front();
+            }
+            int resolvedSkinIndex = -1;
+            if (resolvedNodeIndex >= 0 &&
+                static_cast<std::size_t>(resolvedNodeIndex) < out.nodeSkin.size()) {
+                resolvedSkinIndex = out.nodeSkin[static_cast<std::size_t>(resolvedNodeIndex)];
+            }
             for (std::size_t ti = startTri; ti < endTri; ++ti) {
                 out.triangleSubmesh[ti] = static_cast<std::uint16_t>(si);
                 out.triangleDoubleSided[ti] = range.doubleSided ? 1u : 0u;
+                out.triangleNodeIndex[ti] = resolvedNodeIndex;
+                out.triangleSkinIndex[ti] = resolvedSkinIndex;
                 glm::vec3 triColor(range.baseColor.r, range.baseColor.g, range.baseColor.b);
                 float triOpacity = 1.0f;
                 if (range.baseTexture.hasPixels()) {
@@ -502,12 +659,12 @@ bool loadMeshFromCache(const std::string& modelPath, MeshData& out, std::string*
                         const glm::vec4 tex2 = sampleTextureBilinear(range.baseTexture, uv2);
                         const glm::vec4 texc = sampleTextureBilinear(range.baseTexture, uvc);
                         const glm::vec3 baseRgb(range.baseColor.r, range.baseColor.g, range.baseColor.b);
-                        const glm::vec3 c0 = backend_material::blendBaseAndTexture(
-                            baseRgb, glm::vec3(tex0.r, tex0.g, tex0.b), tex0.a);
-                        const glm::vec3 c1 = backend_material::blendBaseAndTexture(
-                            baseRgb, glm::vec3(tex1.r, tex1.g, tex1.b), tex1.a);
-                        const glm::vec3 c2 = backend_material::blendBaseAndTexture(
-                            baseRgb, glm::vec3(tex2.r, tex2.g, tex2.b), tex2.a);
+                        const glm::vec3 c0 = backend_material::modulateBaseAndTexture(
+                            baseRgb, glm::vec3(tex0.r, tex0.g, tex0.b));
+                        const glm::vec3 c1 = backend_material::modulateBaseAndTexture(
+                            baseRgb, glm::vec3(tex1.r, tex1.g, tex1.b));
+                        const glm::vec3 c2 = backend_material::modulateBaseAndTexture(
+                            baseRgb, glm::vec3(tex2.r, tex2.g, tex2.b));
                         vertexColorAccum[i0] += c0;
                         vertexColorAccum[i1] += c1;
                         vertexColorAccum[i2] += c2;
@@ -516,7 +673,7 @@ bool loadMeshFromCache(const std::string& modelPath, MeshData& out, std::string*
                         vertexColorWeight[i2] += 1.0f;
                         const glm::vec4 texel = (tex0 + tex1 + tex2 + texc) * 0.25f;
                         const glm::vec3 texelRgb(texel.r, texel.g, texel.b);
-                        triColor = backend_material::blendBaseAndTexture(triColor, texelRgb, texel.a);
+                        triColor = backend_material::modulateBaseAndTexture(baseRgb, texelRgb);
                         triOpacity = backend_material::opacityFromAlphaMode(
                             range.alphaMode,
                             texel.a,
@@ -532,6 +689,12 @@ bool loadMeshFromCache(const std::string& modelPath, MeshData& out, std::string*
         std::fill(out.triangleBaseColors.begin(), out.triangleBaseColors.end(), glm::vec3(1.0f, 1.0f, 1.0f));
         std::fill(out.triangleOpacity.begin(), out.triangleOpacity.end(), 1.0f);
         std::fill(out.triangleDoubleSided.begin(), out.triangleDoubleSided.end(), 1u);
+        const int fallbackNode = !out.sceneRoots.empty() ? out.sceneRoots.front() : -1;
+        std::fill(out.triangleNodeIndex.begin(), out.triangleNodeIndex.end(), fallbackNode);
+        if (fallbackNode >= 0 && static_cast<std::size_t>(fallbackNode) < out.nodeSkin.size()) {
+            const int fallbackSkin = out.nodeSkin[static_cast<std::size_t>(fallbackNode)];
+            std::fill(out.triangleSkinIndex.begin(), out.triangleSkinIndex.end(), fallbackSkin);
+        }
     }
     for (std::size_t vi = 0; vi < out.vertices.size(); ++vi) {
         if (vertexColorWeight[vi] > 0.0f) {
