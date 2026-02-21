@@ -1,5 +1,7 @@
 #pragma once
 
+#include "game/runtime/BackendRenderPolicy.h"
+
 namespace game::runtime::render {
 
 struct FrameRenderFlow {
@@ -23,9 +25,8 @@ inline FrameRenderFlow decideFrameRenderFlow(bool renderEnabled,
         return flow;
     }
 
-    // Non-legacy backends keep the backend debug gameplay layer active.
-    // The layer itself decides whether to draw world geometry from renderWorldRequested.
-    flow.renderBackendDebugLayer = true;
+    flow.renderBackendDebugLayer =
+        shouldRenderBackendDebugLayer(renderEnabled, legacyRenderPath, renderWorldRequested);
     return flow;
 }
 

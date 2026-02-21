@@ -54,7 +54,7 @@ bool test_render_flow_decisions_contract(std::string& outFail) {
         if (!flow.renderStateLayer ||
             flow.renderLegacyWorldLayer ||
             flow.renderLegacyHudLayer ||
-            !flow.renderBackendDebugLayer) {
+            flow.renderBackendDebugLayer) {
             outFail = "backend menu-only flow mismatch";
             return false;
         }

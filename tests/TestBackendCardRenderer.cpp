@@ -51,22 +51,52 @@ bool test_backend_card_renderer_contract(std::string& outFail) {
     {
         std::vector<IRenderBackend::DebugQuad> baseQuads;
         std::vector<IRenderBackend::DebugQuad> textQuads;
+        std::vector<IRenderBackend::DebugLine> textLines;
         std::vector<IRenderBackend::DebugSprite> layeredSprites;
         game::runtime::backend_card_renderer::appendCardLayered(
             baseQuads,
-            textQuads,
+            &textQuads,
             &layeredSprites,
-            in);
+            in,
+            &textLines);
         if (baseQuads.empty()) {
             outFail = "appendCardLayered should emit base quads";
             return false;
         }
-        if (textQuads.empty()) {
-            outFail = "appendCardLayered should emit text quads";
+        if (textLines.empty()) {
+            outFail = "appendCardLayered should emit text lines when line sink is provided";
+            return false;
+        }
+        if (!textQuads.empty()) {
+            outFail = "appendCardLayered should avoid text quads when line sink is provided";
             return false;
         }
         if (layeredSprites.size() != 1u) {
             outFail = "appendCardLayered should preserve sprite emission";
+            return false;
+        }
+    }
+
+    {
+        std::vector<IRenderBackend::DebugQuad> baseQuads;
+        std::vector<IRenderBackend::DebugLine> textLines;
+        std::vector<IRenderBackend::DebugSprite> layeredSprites;
+        game::runtime::backend_card_renderer::appendCardLayered(
+            baseQuads,
+            nullptr,
+            &layeredSprites,
+            in,
+            &textLines);
+        if (baseQuads.empty()) {
+            outFail = "appendCardLayered should emit base quads without a text-quad sink";
+            return false;
+        }
+        if (textLines.empty()) {
+            outFail = "appendCardLayered should still emit text lines without a text-quad sink";
+            return false;
+        }
+        if (layeredSprites.size() != 1u) {
+            outFail = "appendCardLayered should still emit sprites without a text-quad sink";
             return false;
         }
     }

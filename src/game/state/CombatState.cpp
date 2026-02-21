@@ -159,8 +159,6 @@ void CombatState::renderBackendShopUi(int uiW, int uiH, bool showSellOverlay, co
 
     std::vector<IRenderBackend::DebugQuad> baseQuads;
     baseQuads.reserve(4096);
-    std::vector<IRenderBackend::DebugQuad> textQuads;
-    textQuads.reserve(4096);
     std::vector<IRenderBackend::DebugLine> textLines;
     textLines.reserve(8192);
     std::vector<IRenderBackend::DebugSprite> sprites;
@@ -225,7 +223,12 @@ void CombatState::renderBackendShopUi(int uiW, int uiH, bool showSellOverlay, co
             renderIn.item = (button.data.type == CardType::Item);
             renderIn.textScale = std::clamp(0.74f * uiScale, 0.55f, 1.10f);
             renderIn.spriteAlpha = 1.0f;
-            game::runtime::backend_card_renderer::appendCardLayered(baseQuads, textQuads, &sprites, renderIn);
+            game::runtime::backend_card_renderer::appendCardLayered(
+                baseQuads,
+                nullptr,
+                &sprites,
+                renderIn,
+                &textLines);
         }
     }
 
@@ -370,9 +373,6 @@ void CombatState::renderBackendShopUi(int uiW, int uiH, bool showSellOverlay, co
     }
     if (!sprites.empty()) {
         services.renderer->drawDebugSprites(sprites.data(), sprites.size(), uiW, uiH);
-    }
-    if (!textQuads.empty()) {
-        services.renderer->drawDebugQuads(textQuads.data(), textQuads.size(), uiW, uiH);
     }
     if (!textLines.empty()) {
         services.renderer->drawDebugLines(textLines.data(), textLines.size(), uiW, uiH);

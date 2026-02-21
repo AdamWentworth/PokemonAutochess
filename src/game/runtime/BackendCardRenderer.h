@@ -29,9 +29,10 @@ struct CardRenderInput {
 };
 
 inline void appendCardLayered(std::vector<IRenderBackend::DebugQuad>& baseQuads,
-                              std::vector<IRenderBackend::DebugQuad>& textQuads,
+                              std::vector<IRenderBackend::DebugQuad>* textQuads,
                               std::vector<IRenderBackend::DebugSprite>* sprites,
-                              const CardRenderInput& input) {
+                              const CardRenderInput& input,
+                              std::vector<IRenderBackend::DebugLine>* textLines = nullptr) {
     runtime::backend_cards::CardVisualInput visual;
     visual.x = input.x;
     visual.y = input.y;
@@ -41,7 +42,7 @@ inline void appendCardLayered(std::vector<IRenderBackend::DebugQuad>& baseQuads,
     visual.subtitle = input.subtitle;
     visual.keyboardSlot = input.keyboardSlot;
     visual.item = input.item;
-    runtime::backend_cards::appendStylizedCardLayered(baseQuads, textQuads, visual, input.textScale);
+    runtime::backend_cards::appendStylizedCardLayered(baseQuads, textQuads, visual, input.textScale, textLines);
 
     if (!sprites) return;
     const std::string imagePath = runtime::backend_cards::resolveCardImagePath(
@@ -65,7 +66,7 @@ inline void appendCardLayered(std::vector<IRenderBackend::DebugQuad>& baseQuads,
 inline void appendCard(std::vector<IRenderBackend::DebugQuad>& quads,
                        std::vector<IRenderBackend::DebugSprite>* sprites,
                        const CardRenderInput& input) {
-    appendCardLayered(quads, quads, sprites, input);
+    appendCardLayered(quads, &quads, sprites, input);
 }
 
 } // namespace game::runtime::backend_card_renderer

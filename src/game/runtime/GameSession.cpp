@@ -42,6 +42,7 @@
 #include "game/GameWorld.h"
 #include "game/GameStateManager.h"
 #include "game/runtime/GamePreload.h"
+#include "game/runtime/BackendRenderPolicy.h"
 #include "game/runtime/RenderFlowDecisions.h"
 #include "game/runtime/BackendDebugText.h"
 #include "game/runtime/BackendInventoryOverlay.h"
@@ -177,6 +178,7 @@ struct GameSession::Impl {
 
     bool renderEnabled = false;
     bool legacyRenderPath = false;
+    bool allowBackendMenuBackdrop = false;
     bool showPerfOverlay = true;
     bool devPauseWorld = false;
     int devPauseStepTicks = 0;
@@ -208,6 +210,9 @@ struct GameSession::Impl {
         const bool hasBackend = (ctx.renderer != nullptr) && (ctx.camera != nullptr);
         legacyRenderPath = hasBackend && std::string(ctx.renderer->backendId()) == "opengl";
         renderEnabled = hasBackend;
+        if (engine::env::get("PAC_BACKEND_MENU_BACKDROP").has_value()) {
+            allowBackendMenuBackdrop = engine::env::flagEnabled("PAC_BACKEND_MENU_BACKDROP");
+        }
         if (engine::env::get("PAC_SHOW_PERF_OVERLAY").has_value()) {
             showPerfOverlay = engine::env::flagEnabled("PAC_SHOW_PERF_OVERLAY");
         }
@@ -636,7 +641,10 @@ struct GameSession::Impl {
         const float cellW = boardW / static_cast<float>(cols);
         const float cellH = boardH / static_cast<float>(rows);
 
-        const bool showWorldBackdrop = renderWorld || (services && services->activeRendererBackend != "opengl");
+        const bool showWorldBackdrop = runtime::render::shouldRenderBackendWorldBackdrop(
+            renderWorld,
+            legacyRenderPath,
+            allowBackendMenuBackdrop);
         if (showWorldBackdrop) {
             const bool useProjectedWorldLayout = renderWorld && gameWorld && (camera != nullptr);
             if (useProjectedWorldLayout) {

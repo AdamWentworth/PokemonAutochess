@@ -67,19 +67,19 @@ Milestones
 
 Prioritized Backlog
 - [x] Guard backend text-menu fallback behind explicit backend policy (regression safety for OpenGL menu path).
-- [ ] Remove backend-specific gameplay render flow and unify frame graph.
+- [ ] Remove backend-specific gameplay render flow and unify frame graph. (In progress: backend debug layer is now policy-gated to world-visible states.)
 - [ ] Remove `shouldUseBackendUi` backend split and unify UI policy.
 - [ ] Replace backend quad text with glyph text rendering. (In progress: backend text menu now uses line-stroke text, full glyph path still pending.)
 - [ ] Route both backends through the same menu/shop/HUD layout/render code.
 - [ ] Route both backends through the same world command generation code.
 - [ ] Remove `setRenderEnabled(legacyRenderPath)` behavior that disables non-OpenGL world resources.
-- [ ] Move backend debug world rendering behind an explicit dev-only flag.
+- [ ] Move backend debug world rendering behind an explicit dev-only flag. (In progress: menu world-backdrop is now disabled by default and can be enabled via `PAC_BACKEND_MENU_BACKDROP=1`.)
 - [ ] Implement/align backend-neutral draw contracts in `IRenderBackend` for required scene features.
 - [ ] Complete D3D12 material and alpha-mode parity.
 - [ ] Complete D3D12 animation/skinning parity (no fallback-only pose path).
 - [ ] Port/align board and bench rendering parity.
 - [ ] Port/align health bars and combat overlays parity.
-- [ ] Port/align shop/starter card style parity (image, frame, typography, spacing).
+- [ ] Port/align shop/starter card style parity (image, frame, typography, spacing). (In progress: backend cards now render typography on line layer instead of filled quad glyph blocks.)
 - [ ] Validate VFX parity for growl, tackle, grass impact, claw swipe, aqua, leech seed.
 - [ ] Add backend-switch startup regression test (including starter selection path).
 - [ ] Add visual parity test harness for key scenes.
@@ -90,6 +90,9 @@ Iteration Log
 - Iteration 0 (current): Established living roadmap and consolidated parity backlog with milestones and done criteria.
 - Iteration 1: Restored policy-gated OpenGL text-menu rendering, switched backend text-menu/overlay text to line-stroke rendering (reducing rectangle artifacts), and added regression coverage for backend text line generation.
 - Iteration 2: Added explicit backend text-menu policy helper and contract tests to prevent accidental OpenGL fallback-path regressions.
+- Iteration 3: Added line-layer text support to backend card visuals/renderer and wired shop/starter backend UI paths to use text lines instead of filled text quads.
+- Iteration 4: Removed direct `stb_easy_font` metric usage from `ScriptedState` and switched backend menu/card text sizing to shared backend text metric helpers.
+- Iteration 5: Added backend render policy helpers + tests, aligned frame-flow menu behavior to avoid backend debug-world draws in menu-only states, disabled backend menu world-backdrop by default (env-overrideable), and removed mandatory text-quad sinks from backend card rendering when line text is used.
 
 How This File Is Used
 - Before each parity implementation iteration:

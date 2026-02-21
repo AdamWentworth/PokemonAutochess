@@ -21,7 +21,6 @@
 #include "engine/render/IRenderBackend.h"
 
 #include <sol/sol.hpp>
-#include <stb_easy_font.h>
 #include <algorithm>
 #include <cmath>
 #include <iostream>
@@ -268,10 +267,8 @@ void ScriptedState::layoutBackendTextMenu(int uiW, int uiH) {
             }
 
             const float textScale = std::max(0.1f, entry.scale) * kBackendTextScaleBase * scaleMul;
-            const int baseW = stb_easy_font_width(const_cast<char*>(display.c_str()));
-            const int baseH = stb_easy_font_height(const_cast<char*>(display.c_str()));
-            entry.w = std::max(8.0f, static_cast<float>(baseW) * textScale);
-            entry.h = std::max(8.0f, static_cast<float>(baseH) * textScale);
+            entry.w = std::max(8.0f, game::runtime::backend_text::measureTextWidth(display, textScale));
+            entry.h = std::max(8.0f, game::runtime::backend_text::measureTextHeight(display, textScale));
 
             if (entry.hasCustomX) {
                 const float anchorX = static_cast<float>(uiW) * entry.xFrac;
@@ -451,8 +448,8 @@ void ScriptedState::renderBackendCardUi(int uiW, int uiH) {
 
     std::vector<IRenderBackend::DebugQuad> baseQuads;
     baseQuads.reserve(4096);
-    std::vector<IRenderBackend::DebugQuad> textQuads;
-    textQuads.reserve(4096);
+    std::vector<IRenderBackend::DebugLine> textLines;
+    textLines.reserve(8192);
     std::vector<IRenderBackend::DebugSprite> sprites;
     sprites.reserve(1024);
     const bool isShopMode = (cardMode == CardMode::Shop);
@@ -477,10 +474,8 @@ void ScriptedState::renderBackendCardUi(int uiW, int uiH) {
                                float* outW,
                                float* outH) {
         const float textScale = std::max(0.1f, scale) * kBackendTextScaleBase * uiScale;
-        const int baseW = stb_easy_font_width(const_cast<char*>(label.c_str()));
-        const int baseH = stb_easy_font_height(const_cast<char*>(label.c_str()));
-        const float textW = std::max(1.0f, static_cast<float>(baseW) * textScale);
-        const float textH = std::max(1.0f, static_cast<float>(baseH) * textScale);
+        const float textW = std::max(1.0f, game::runtime::backend_text::measureTextWidth(label, textScale));
+        const float textH = std::max(1.0f, game::runtime::backend_text::measureTextHeight(label, textScale));
         const float padX = std::max(8.0f, textScale * 4.0f);
         const float padY = std::max(5.0f, textScale * 2.5f);
 
@@ -495,8 +490,8 @@ void ScriptedState::renderBackendCardUi(int uiW, int uiH) {
         bg.a = 0.92f;
         baseQuads.push_back(bg);
 
-        game::runtime::backend_text::appendTextQuads(
-            textQuads, x, y, label, textScale, 0.98f, 0.98f, 0.98f, 1.0f);
+        game::runtime::backend_text::appendTextLines(
+            textLines, x, y, label, textScale, 0.98f, 0.98f, 0.98f, 1.0f, 0.88f);
         if (outW) *outW = bg.w;
         if (outH) *outH = bg.h;
     };
@@ -508,17 +503,16 @@ void ScriptedState::renderBackendCardUi(int uiW, int uiH) {
                                         float g,
                                         float b) {
         const float textScale = std::max(0.1f, scale) * kBackendTextScaleBase * uiScale;
-        const int baseW = stb_easy_font_width(const_cast<char*>(text.c_str()));
-        const float textW = std::max(1.0f, static_cast<float>(baseW) * textScale);
+        const float textW = std::max(1.0f, game::runtime::backend_text::measureTextWidth(text, textScale));
         const float x = centerX - textW * 0.5f;
-        game::runtime::backend_text::appendTextQuads(
-            textQuads, x, y, text, textScale, r, g, b, 1.0f);
+        game::runtime::backend_text::appendTextLines(
+            textLines, x, y, text, textScale, r, g, b, 1.0f, 0.88f);
     };
 
     const auto msgOpt = game::scripting::callStringFunction(script.getScriptTable(), {"get_message"});
     const std::string header = msgOpt ? *msgOpt : ((cardMode == CardMode::Starter) ? "Starter" : "Shop");
-    game::runtime::backend_text::appendTextQuads(
-        textQuads,
+    game::runtime::backend_text::appendTextLines(
+        textLines,
         edgePad,
         std::max(10.0f, edgePad - lineStep * 0.15f),
         header,
@@ -526,7 +520,8 @@ void ScriptedState::renderBackendCardUi(int uiW, int uiH) {
         0.95f,
         0.95f,
         0.98f,
-        1.0f);
+        1.0f,
+        0.88f);
 
     resetBackendShopActionRects();
 
@@ -558,7 +553,12 @@ void ScriptedState::renderBackendCardUi(int uiW, int uiH) {
             renderIn.item = itemRow || card.item;
             renderIn.textScale = std::clamp(0.74f * uiScale, 0.55f, 1.10f);
             renderIn.spriteAlpha = 1.0f;
-            game::runtime::backend_card_renderer::appendCardLayered(baseQuads, textQuads, &sprites, renderIn);
+            game::runtime::backend_card_renderer::appendCardLayered(
+                baseQuads,
+                nullptr,
+                &sprites,
+                renderIn,
+                &textLines);
         }
     };
 
@@ -659,8 +659,8 @@ void ScriptedState::renderBackendCardUi(int uiW, int uiH) {
         hudIn.showReroll = hasShopRerollButton;
         const game::ui::ClassicHudLayout hud = game::runtime::backend_shop_hud::computeLayout(hudIn);
 
-        game::runtime::backend_text::appendTextQuads(
-            textQuads, hud.textX, hud.textY, moneyLabel, moneyScale, 0.95f, 0.88f, 0.50f, 1.0f);
+        game::runtime::backend_text::appendTextLines(
+            textLines, hud.textX, hud.textY, moneyLabel, moneyScale, 0.95f, 0.88f, 0.50f, 1.0f, 0.88f);
 
         if (hasShopRerollButton) {
             const float buttonTextX = hud.rerollX;
@@ -699,8 +699,8 @@ void ScriptedState::renderBackendCardUi(int uiW, int uiH) {
     // Rebuild once after reroll/ready rects are known so mouse hit-testing stays in sync.
     refreshBackendShopSnapshot();
 
-    game::runtime::backend_text::appendTextQuads(
-        textQuads,
+    game::runtime::backend_text::appendTextLines(
+        textLines,
         edgePad,
         std::max(4.0f, static_cast<float>(uiH) - edgePad - lineStep * 0.8f),
         game::runtime::backend_shop_hud::interactionHint(),
@@ -708,7 +708,8 @@ void ScriptedState::renderBackendCardUi(int uiW, int uiH) {
         0.72f,
         0.82f,
         0.93f,
-        1.0f);
+        1.0f,
+        0.88f);
 
     if (!baseQuads.empty()) {
         services.renderer->drawDebugQuads(baseQuads.data(), baseQuads.size(), uiW, uiH);
@@ -716,8 +717,8 @@ void ScriptedState::renderBackendCardUi(int uiW, int uiH) {
     if (!sprites.empty()) {
         services.renderer->drawDebugSprites(sprites.data(), sprites.size(), uiW, uiH);
     }
-    if (!textQuads.empty()) {
-        services.renderer->drawDebugQuads(textQuads.data(), textQuads.size(), uiW, uiH);
+    if (!textLines.empty()) {
+        services.renderer->drawDebugLines(textLines.data(), textLines.size(), uiW, uiH);
     }
 }
 

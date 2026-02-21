@@ -359,6 +359,7 @@ if (BUILD_TESTING)
         tests/TestSellOverlayUiPolicy.cpp
         tests/TestLogBus.cpp
         tests/TestRenderFlowDecisions.cpp
+        tests/TestBackendRenderPolicy.cpp
         tests/TestDebugGeometry.cpp
         tests/TestVideoInitGuards.cpp
         tests/TestVideoPreferences.cpp

@@ -82,13 +82,35 @@ bool test_backend_card_visuals_contract(std::string& outFail) {
 
         std::vector<IRenderBackend::DebugQuad> baseQuads;
         std::vector<IRenderBackend::DebugQuad> textQuads;
-        appendStylizedCardLayered(baseQuads, textQuads, in, 0.92f);
+        std::vector<IRenderBackend::DebugLine> textLines;
+        appendStylizedCardLayered(baseQuads, &textQuads, in, 0.92f, &textLines);
         if (baseQuads.empty()) {
             outFail = "appendStylizedCardLayered should emit base card geometry";
             return false;
         }
-        if (textQuads.empty()) {
-            outFail = "appendStylizedCardLayered should emit text geometry separately";
+        if (textLines.empty()) {
+            outFail = "appendStylizedCardLayered should emit text line geometry when line sink is provided";
+            return false;
+        }
+        if (!textQuads.empty()) {
+            outFail = "appendStylizedCardLayered should avoid text quad emission when line sink is provided";
+            return false;
+        }
+    }
+
+    {
+        CardVisualInput in;
+        in.x = 48.0f;
+        in.y = 40.0f;
+        in.w = 196.0f;
+        in.h = 132.0f;
+        in.title = "Bulbasaur";
+        in.subtitle = "Lv 3";
+
+        std::vector<IRenderBackend::DebugQuad> baseQuads;
+        appendStylizedCardLayered(baseQuads, nullptr, in, 0.92f, nullptr);
+        if (baseQuads.empty()) {
+            outFail = "appendStylizedCardLayered should still emit base geometry when text layers are omitted";
             return false;
         }
     }

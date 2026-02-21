@@ -97,9 +97,10 @@ inline IRenderBackend::DebugSprite makeCardArtSprite(const CardVisualInput& inpu
 }
 
 inline void appendStylizedCardLayered(std::vector<IRenderBackend::DebugQuad>& baseQuads,
-                                      std::vector<IRenderBackend::DebugQuad>& textQuads,
+                                      std::vector<IRenderBackend::DebugQuad>* textQuads,
                                       const CardVisualInput& input,
-                                      float textScale = 1.0f) {
+                                      float textScale = 1.0f,
+                                      std::vector<IRenderBackend::DebugLine>* textLines = nullptr) {
     if (input.w <= 0.0f || input.h <= 0.0f) return;
 
     const std::uint32_t hash = fnv1aHash(input.title);
@@ -195,47 +196,86 @@ inline void appendStylizedCardLayered(std::vector<IRenderBackend::DebugQuad>& ba
         badge.a = 0.96f;
         baseQuads.push_back(badge);
 
-        runtime::backend_text::appendTextQuads(textQuads,
-                                               badge.x + 3.0f,
-                                               badge.y + 2.0f,
-                                               std::to_string(input.keyboardSlot),
-                                               textScale * 0.75f,
-                                               0.11f,
-                                               0.11f,
-                                               0.09f,
-                                               1.0f);
+        if (textLines) {
+            runtime::backend_text::appendTextLines(*textLines,
+                                                   badge.x + 3.0f,
+                                                   badge.y + 2.0f,
+                                                   std::to_string(input.keyboardSlot),
+                                                   textScale * 0.75f,
+                                                   0.11f,
+                                                   0.11f,
+                                                   0.09f,
+                                                   1.0f,
+                                                   0.88f);
+        } else if (textQuads) {
+            runtime::backend_text::appendTextQuads(*textQuads,
+                                                   badge.x + 3.0f,
+                                                   badge.y + 2.0f,
+                                                   std::to_string(input.keyboardSlot),
+                                                   textScale * 0.75f,
+                                                   0.11f,
+                                                   0.11f,
+                                                   0.09f,
+                                                   1.0f);
+        }
     }
 
     const float footerH = footer.h;
     const float titleY = footer.y + std::max(4.0f, footerH * 0.14f);
     const float subtitleY = footer.y + std::max(16.0f, footerH * 0.56f);
 
-    runtime::backend_text::appendTextQuads(textQuads,
-                                           input.x + innerPad,
-                                           titleY,
-                                           input.title,
-                                           textScale,
-                                           0.97f,
-                                           0.97f,
-                                           0.99f,
-                                           1.0f);
-    if (!input.subtitle.empty()) {
-        runtime::backend_text::appendTextQuads(textQuads,
+    if (textLines) {
+        runtime::backend_text::appendTextLines(*textLines,
                                                input.x + innerPad,
-                                               subtitleY,
-                                               input.subtitle,
-                                               textScale * 0.90f,
-                                               0.86f,
-                                               0.91f,
+                                               titleY,
+                                               input.title,
+                                               textScale,
                                                0.97f,
+                                               0.97f,
+                                               0.99f,
+                                               1.0f,
+                                               0.88f);
+    } else if (textQuads) {
+        runtime::backend_text::appendTextQuads(*textQuads,
+                                               input.x + innerPad,
+                                               titleY,
+                                               input.title,
+                                               textScale,
+                                               0.97f,
+                                               0.97f,
+                                               0.99f,
                                                1.0f);
+    }
+    if (!input.subtitle.empty()) {
+        if (textLines) {
+            runtime::backend_text::appendTextLines(*textLines,
+                                                   input.x + innerPad,
+                                                   subtitleY,
+                                                   input.subtitle,
+                                                   textScale * 0.90f,
+                                                   0.86f,
+                                                   0.91f,
+                                                   0.97f,
+                                                   1.0f,
+                                                   0.88f);
+        } else if (textQuads) {
+            runtime::backend_text::appendTextQuads(*textQuads,
+                                                   input.x + innerPad,
+                                                   subtitleY,
+                                                   input.subtitle,
+                                                   textScale * 0.90f,
+                                                   0.86f,
+                                                   0.91f,
+                                                   0.97f,
+                                                   1.0f);
+        }
     }
 }
 
 inline void appendStylizedCard(std::vector<IRenderBackend::DebugQuad>& quads,
                                const CardVisualInput& input,
                                float textScale = 1.0f) {
-    appendStylizedCardLayered(quads, quads, input, textScale);
+    appendStylizedCardLayered(quads, &quads, input, textScale);
 }
 
 } // namespace game::runtime::backend_cards
