@@ -118,6 +118,7 @@ Iteration Log
 - Iteration 26: Parsed shipped `.glb` materials to confirm BLEND usage, traced OpenGL vs backend alpha flow, fixed backend indexed textured alpha double-attenuation (preventing BLEND regions from dropping out), and added one-shot backend model-cache miss diagnostics plus optional verbose preload logging (`PAC_BACKEND_MODEL_VERBOSE`).
 - Iteration 27: Fixed D3D12 world indexed/triangle upload-buffer overwrite hazards by introducing per-frame world vertex/index write offsets, preventing later model draws from clobbering earlier draws in the same command list (a key cause of disappearing model regions when more units spawned); also logged that non-OpenGL path uses backend cache loading instead of OpenGL `ModelStartupLog`.
 - Iteration 28: Restored startup loading parity for non-OpenGL backends by driving boot-progress updates during backend model-cache preload and adding a renderer-driven fallback loading gauge in `GameRunner` when no OpenGL `BootLoadingView` is available (e.g., D3D12).
+- Iteration 29: Restored backend unit animation drive and scale parity by hydrating non-OpenGL unit anim roles/durations directly from backend mesh + `.animset.json` metadata each fixed tick, removing model-pointer gating from `GameWorldAnimation` so anim clocks advance without OpenGL `Model*`, and applying native-mode scale correction parity when only backend mesh scale is available.
 
 How This File Is Used
 - Before each parity implementation iteration:

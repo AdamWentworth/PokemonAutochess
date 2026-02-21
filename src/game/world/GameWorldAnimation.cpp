@@ -40,7 +40,6 @@ void clearPendingAttackState(PokemonInstance& unit) {
 }  // namespace
 
 void GameWorld::tickPokemonAnimation(PokemonInstance& unit, float dt) {
-    if (!unit.model) return;
     if (unit.fainting) {
         updateFaint(unit, dt);
         return;
@@ -86,7 +85,10 @@ void GameWorld::tickPokemonAnimation(PokemonInstance& unit, float dt) {
 
         // Clamp at last frame (avoid looping).
         const float speed = (unit.attackAnimSpeed > 0.0f) ? unit.attackAnimSpeed : 1.0f;
-        const float duration = unit.model->getAnimationDurationSec(unit.activeAnimIndex);
+        const float duration =
+            (unit.model && unit.activeAnimIndex >= 0)
+                ? unit.model->getAnimationDurationSec(unit.activeAnimIndex)
+                : std::max(0.0f, unit.attackDurationSec);
         if (duration > 0.0f) {
             unit.animTimeSec = std::min(unit.animTimeSec + dt * speed, duration - 0.0001f);
 

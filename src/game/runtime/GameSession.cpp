@@ -67,6 +67,7 @@
 #include "game/ui/ShopLayout.h"
 
 #include "game/config/GameDataDb.h"
+#include "game/config/AnimSetLoader.h"
 #include "game/assets/DevAssetStore.h"
 #include "game/assets/PackedAssetStore.h"
 #include "game/ecs/RoundState.h"
@@ -107,6 +108,87 @@ std::size_t backendModelTriangleLimit() {
         }
     }();
     return limit;
+}
+
+std::string toLowerCopy(std::string s) {
+    std::transform(
+        s.begin(),
+        s.end(),
+        s.begin(),
+        [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+    return s;
+}
+
+std::string stripSuffix(const std::string& s, const std::string& suffix) {
+    if (s.size() >= suffix.size() && s.compare(s.size() - suffix.size(), suffix.size(), suffix) == 0) {
+        return s.substr(0, s.size() - suffix.size());
+    }
+    return s;
+}
+
+int resolveBackendAnimIndexByName(const std::vector<pac_model_types::AnimationClip>& animations,
+                                  const std::string& requestedName) {
+    if (animations.empty() || requestedName.empty()) return -1;
+
+    auto findExact = [&](const std::string& candidate) -> int {
+        for (std::size_t i = 0; i < animations.size(); ++i) {
+            if (animations[i].name == candidate) return static_cast<int>(i);
+        }
+        return -1;
+    };
+    auto findCaseInsensitive = [&](const std::string& candidate) -> int {
+        if (candidate.empty()) return -1;
+        const std::string needle = toLowerCopy(candidate);
+        for (std::size_t i = 0; i < animations.size(); ++i) {
+            if (toLowerCopy(animations[i].name) == needle) return static_cast<int>(i);
+        }
+        return -1;
+    };
+
+    int idx = findExact(requestedName);
+    if (idx >= 0) return idx;
+
+    const std::string noGfbanm = stripSuffix(requestedName, ".gfbanm");
+    idx = findExact(noGfbanm);
+    if (idx >= 0) return idx;
+
+    const std::string noStart = stripSuffix(requestedName, "__START");
+    idx = findExact(noStart);
+    if (idx >= 0) return idx;
+
+    const std::string noEnd = stripSuffix(requestedName, "__END");
+    idx = findExact(noEnd);
+    if (idx >= 0) return idx;
+
+    std::string compact = stripSuffix(noGfbanm, "__START");
+    compact = stripSuffix(compact, "__END");
+    idx = findExact(compact);
+    if (idx >= 0) return idx;
+
+    idx = findCaseInsensitive(requestedName);
+    if (idx >= 0) return idx;
+    idx = findCaseInsensitive(noGfbanm);
+    if (idx >= 0) return idx;
+    idx = findCaseInsensitive(noStart);
+    if (idx >= 0) return idx;
+    idx = findCaseInsensitive(noEnd);
+    if (idx >= 0) return idx;
+    return findCaseInsensitive(compact);
+}
+
+int findBackendAnimIndexBySubstring(const std::vector<pac_model_types::AnimationClip>& animations,
+                                    const std::vector<std::string>& needles) {
+    if (animations.empty() || needles.empty()) return -1;
+    for (std::size_t i = 0; i < animations.size(); ++i) {
+        const std::string lowerName = toLowerCopy(animations[i].name);
+        for (const std::string& needle : needles) {
+            if (needle.empty()) continue;
+            if (lowerName.find(toLowerCopy(needle)) != std::string::npos) {
+                return static_cast<int>(i);
+            }
+        }
+    }
+    return -1;
 }
 
 std::size_t backendModelTriangleFrameBudget() {
@@ -277,6 +359,27 @@ struct GameSession::Impl {
         std::string error;
     };
     std::unordered_map<std::string, BackendMeshCacheEntry> backendMeshByModelPath;
+    struct BackendAnimRoleEntry {
+        bool attemptedResolve = false;
+        int idleIndex = -1;
+        int moveIndex = -1;
+        int attackIndex = -1;
+        int groundIdleIndex = -1;
+        int airIdleIndex = -1;
+        int takeoffIndex = -1;
+        int landIndex = -1;
+        int landAIndex = -1;
+        int landBIndex = -1;
+        int landCIndex = -1;
+        int faintIndex = -1;
+        float attackDurationSec = 0.0f;
+        float faintDurationSec = 0.0f;
+        bool usesAirLocomotion = false;
+        float airLiftY = 0.0f;
+        float takeoffSec = 0.0f;
+        float landingSec = 0.0f;
+    };
+    std::unordered_map<std::string, BackendAnimRoleEntry> backendAnimByModelPath;
 
     std::shared_ptr<CameraSystem>           cameraSystem;
     std::shared_ptr<UnitInteractionSystem>  unitSystem;
@@ -287,6 +390,241 @@ struct GameSession::Impl {
         : dataDb(std::move(db))
         , ecsWorld(&coreServices) {
         init(ctx);
+    }
+
+    runtime::backend_model::MeshData* ensureBackendMeshLoaded(const std::string& modelPath) {
+        auto& cacheEntry = backendMeshByModelPath[modelPath];
+        if (!cacheEntry.attemptedLoad) {
+            cacheEntry.attemptedLoad = true;
+            std::string err;
+            if (!runtime::backend_model::loadMeshFromCache(modelPath, cacheEntry.mesh, &err)) {
+                cacheEntry.error = std::move(err);
+                cacheEntry.mesh = {};
+            }
+        }
+
+        if (!cacheEntry.error.empty()) {
+            if (!cacheEntry.reportedFailure) {
+                std::cout << "[Render][ModelCache] Unable to render model '" << modelPath
+                          << "' (" << cacheEntry.error << ")\n";
+                cacheEntry.reportedFailure = true;
+            }
+            return nullptr;
+        }
+        if (cacheEntry.mesh.vertices.empty() || cacheEntry.mesh.indices.empty()) {
+            return nullptr;
+        }
+        return &cacheEntry.mesh;
+    }
+
+    BackendAnimRoleEntry& ensureBackendAnimRoles(const std::string& modelPath,
+                                                 const runtime::backend_model::MeshData* mesh) {
+        auto& entry = backendAnimByModelPath[modelPath];
+        if (entry.attemptedResolve) return entry;
+        entry.attemptedResolve = true;
+        if (!mesh) return entry;
+
+        const int fallbackLoop = mesh->animations.empty() ? -1 : 0;
+        entry.idleIndex = fallbackLoop;
+        entry.moveIndex = fallbackLoop;
+        entry.attackIndex = fallbackLoop;
+        entry.groundIdleIndex = fallbackLoop;
+        entry.airIdleIndex = fallbackLoop;
+
+        nlohmann::json animSetJson;
+        if (AnimSet::loadAnimSetJson(AnimSet::animSetPathFromModelPath(modelPath), animSetJson)) {
+            const auto idlePick = AnimSet::resolveRoleClip(
+                animSetJson, "idle", "idle", {"battlewait", "defaultwait", "idle", "wait"}, true);
+            const auto movePick = AnimSet::resolveRoleClip(
+                animSetJson, "move", "move", {"run", "dash", "move"}, true);
+
+            auto attackPick = AnimSet::resolveRoleClip(
+                animSetJson, "attack1", "attack", {"attack01", "attack1", "attack"}, true);
+            if (!attackPick.valid || attackPick.clipName.empty()) {
+                attackPick =
+                    AnimSet::resolveRoleClip(animSetJson, "attack1", "misc", {"buturi", "ba20_buturi", "ba20"}, false);
+            }
+
+            auto faintPick = AnimSet::resolveRoleClip(
+                animSetJson, "faint", "status", {"down01_start", "down_start", "down01", "down"}, true);
+            if (!faintPick.valid || faintPick.clipName.empty()) {
+                faintPick = AnimSet::resolveRoleClip(
+                    animSetJson, "down", "status", {"down01_start", "down_start", "down01", "down"}, true);
+            }
+
+            const auto groundIdlePick = AnimSet::resolveRoleClip(
+                animSetJson, "ground_idle", "idle", {"ba10_wait", "battlewait", "ba10", "wait", "idle"}, true);
+            const auto airIdlePick = AnimSet::resolveRoleClip(
+                animSetJson, "air_idle", "idle", {"fi01_wait", "fly", "air", "hover"}, true);
+            const auto takeoffPick = AnimSet::resolveRoleClip(
+                animSetJson, "takeoff", "misc", {"take_flight", "takeflight", "takeoff"}, false);
+            const auto landPick = AnimSet::resolveRoleClip(
+                animSetJson, "land", "misc", {"land"}, false);
+            const auto landAPick = AnimSet::resolveRoleClip(
+                animSetJson, "land_a", "misc", {"landa"}, false);
+            const auto landBPick = AnimSet::resolveRoleClip(
+                animSetJson, "land_b", "misc", {"landb"}, false);
+            const auto landCPick = AnimSet::resolveRoleClip(
+                animSetJson, "land_c", "misc", {"landc"}, false);
+
+            auto resolvePick = [&](const AnimSet::RolePick& pick) -> int {
+                if (!pick.valid || pick.clipName.empty()) return -1;
+                return resolveBackendAnimIndexByName(mesh->animations, pick.clipName);
+            };
+
+            const int idleIdx = resolvePick(idlePick);
+            if (idleIdx >= 0) entry.idleIndex = idleIdx;
+
+            const int moveIdx = resolvePick(movePick);
+            if (moveIdx >= 0) entry.moveIndex = moveIdx;
+
+            const int attackIdx = resolvePick(attackPick);
+            if (attackIdx >= 0) {
+                entry.attackIndex = attackIdx;
+                entry.attackDurationSec = attackPick.durationSec;
+            }
+
+            const int faintIdx = resolvePick(faintPick);
+            if (faintIdx >= 0) {
+                entry.faintIndex = faintIdx;
+                entry.faintDurationSec = faintPick.durationSec;
+            }
+
+            const int groundIdleIdx = resolvePick(groundIdlePick);
+            if (groundIdleIdx >= 0) entry.groundIdleIndex = groundIdleIdx;
+            const int airIdleIdx = resolvePick(airIdlePick);
+            if (airIdleIdx >= 0) entry.airIdleIndex = airIdleIdx;
+            entry.takeoffIndex = resolvePick(takeoffPick);
+            entry.landIndex = resolvePick(landPick);
+            entry.landAIndex = resolvePick(landAPick);
+            entry.landBIndex = resolvePick(landBPick);
+            entry.landCIndex = resolvePick(landCPick);
+
+            if (animSetJson.contains("meta") && animSetJson["meta"].is_object()) {
+                const auto& meta = animSetJson["meta"];
+                if (meta.contains("movementMode") && meta["movementMode"].is_string()) {
+                    const std::string mode = toLowerCopy(meta["movementMode"].get<std::string>());
+                    entry.usesAirLocomotion =
+                        (mode == "airborne" || mode == "air" || mode == "flying" || mode == "fly");
+                }
+                if (meta.contains("airLiftY") && meta["airLiftY"].is_number()) {
+                    entry.airLiftY = meta["airLiftY"].get<float>();
+                }
+                if (meta.contains("takeoffSec") && meta["takeoffSec"].is_number()) {
+                    entry.takeoffSec = meta["takeoffSec"].get<float>();
+                }
+                if (meta.contains("landingSec") && meta["landingSec"].is_number()) {
+                    entry.landingSec = meta["landingSec"].get<float>();
+                }
+            }
+        }
+
+        if (entry.idleIndex < 0) {
+            entry.idleIndex = findBackendAnimIndexBySubstring(mesh->animations, {"wait", "idle", "ba10"});
+        }
+        if (entry.moveIndex < 0) {
+            entry.moveIndex = findBackendAnimIndexBySubstring(mesh->animations, {"move", "run", "walk", "fly"});
+        }
+        if (entry.attackIndex < 0) {
+            entry.attackIndex =
+                findBackendAnimIndexBySubstring(mesh->animations, {"attack", "ba20", "buturi", "strike"});
+        }
+        if (entry.faintIndex < 0) {
+            entry.faintIndex = findBackendAnimIndexBySubstring(mesh->animations, {"down", "faint", "death", "ko"});
+        }
+
+        if (entry.groundIdleIndex < 0) entry.groundIdleIndex = entry.idleIndex;
+        if (entry.airIdleIndex < 0) entry.airIdleIndex = entry.idleIndex;
+
+        if (entry.attackDurationSec <= 0.0f &&
+            entry.attackIndex >= 0 &&
+            static_cast<std::size_t>(entry.attackIndex) < mesh->animations.size()) {
+            entry.attackDurationSec = mesh->animations[static_cast<std::size_t>(entry.attackIndex)].durationSec;
+        }
+        if (entry.faintDurationSec <= 0.0f &&
+            entry.faintIndex >= 0 &&
+            static_cast<std::size_t>(entry.faintIndex) < mesh->animations.size()) {
+            entry.faintDurationSec = mesh->animations[static_cast<std::size_t>(entry.faintIndex)].durationSec;
+        }
+
+        const bool hasTakeoff = entry.takeoffIndex >= 0;
+        const bool hasSeqLanding = (entry.landCIndex >= 0) && (entry.landAIndex >= 0 || entry.landBIndex >= 0);
+        const bool hasSingleLanding = entry.landIndex >= 0;
+        const bool hasDistinctLand =
+            hasSeqLanding || (hasTakeoff && hasSingleLanding && entry.takeoffIndex != entry.landIndex);
+        if (hasTakeoff && hasDistinctLand) {
+            entry.usesAirLocomotion = true;
+        }
+
+        return entry;
+    }
+
+    void hydrateBackendUnitAnimationAndScale() {
+        if (!renderEnabled || legacyRenderPath || !gameWorld) return;
+
+        auto hydrate = [&](PokemonInstance& unit) {
+            const PokemonStats* stats = dataDb.pokemon.getStats(unit.name);
+            if (!stats || stats->model.empty()) return;
+
+            const std::string modelPath = "assets/models/" + stats->model;
+            runtime::backend_model::MeshData* mesh = ensureBackendMeshLoaded(modelPath);
+            if (!mesh) return;
+
+            BackendAnimRoleEntry& roles = ensureBackendAnimRoles(modelPath, mesh);
+
+            if (unit.animIdleIndex < 0) unit.animIdleIndex = roles.idleIndex;
+            if (unit.animMoveIndex < 0) unit.animMoveIndex = roles.moveIndex;
+            if (unit.animAttack1Index < 0) unit.animAttack1Index = roles.attackIndex;
+            if (unit.animFaintIndex < 0) unit.animFaintIndex = roles.faintIndex;
+            if (unit.animGroundIdleIndex < 0) unit.animGroundIdleIndex = roles.groundIdleIndex;
+            if (unit.animAirIdleIndex < 0) unit.animAirIdleIndex = roles.airIdleIndex;
+            if (unit.animTakeoffIndex < 0) unit.animTakeoffIndex = roles.takeoffIndex;
+            if (unit.animLandIndex < 0) unit.animLandIndex = roles.landIndex;
+            if (unit.animLandAIndex < 0) unit.animLandAIndex = roles.landAIndex;
+            if (unit.animLandBIndex < 0) unit.animLandBIndex = roles.landBIndex;
+            if (unit.animLandCIndex < 0) unit.animLandCIndex = roles.landCIndex;
+
+            if (unit.attackDurationSec <= 0.0f && roles.attackDurationSec > 0.0f) {
+                unit.attackDurationSec = roles.attackDurationSec;
+            }
+            if (unit.faintAnimDurationSec <= 0.0f && roles.faintDurationSec > 0.0f) {
+                unit.faintAnimDurationSec = roles.faintDurationSec;
+            }
+
+            if (roles.usesAirLocomotion && !unit.usesAirLocomotion) {
+                unit.usesAirLocomotion = true;
+            }
+            if (unit.usesAirLocomotion) {
+                if (unit.airLiftY <= 0.0f && roles.airLiftY > 0.0f) unit.airLiftY = roles.airLiftY;
+                if (unit.takeoffSec <= 0.0f && roles.takeoffSec > 0.0f) unit.takeoffSec = roles.takeoffSec;
+                if (unit.landingSec <= 0.0f && roles.landingSec > 0.0f) unit.landingSec = roles.landingSec;
+            }
+
+            if (unit.activeAnimIndex < 0) {
+                unit.activeAnimIndex = unit.isMoving ? unit.animMoveIndex : unit.animIdleIndex;
+            }
+            if (unit.activeAnimIndex < 0 && !mesh->animations.empty()) {
+                unit.activeAnimIndex = 0;
+            }
+            if (unit.currentAttackAnimIndex < 0) {
+                unit.currentAttackAnimIndex = unit.animAttack1Index;
+            }
+
+            const std::string scaleMode = toLowerCopy(stats->modelScaleMode);
+            if (!unit.model && scaleMode != "normalized") {
+                const float importerScale = std::max(0.0f, mesh->modelScaleFactor);
+                if (importerScale > 1e-6f) {
+                    unit.modelScaleCorrection = 1.0f / importerScale;
+                }
+            }
+        };
+
+        for (auto& unit : gameWorld->getPokemons()) {
+            hydrate(unit);
+        }
+        for (auto& unit : gameWorld->getBenchPokemons()) {
+            hydrate(unit);
+        }
     }
 
     void init(GameContext& ctx) {
@@ -769,6 +1107,9 @@ struct GameSession::Impl {
             return;
         }
         timeSource.advance(dt);
+        if (!legacyRenderPath) {
+            hydrateBackendUnitAnimationAndScale();
+        }
         updateGraph.tick(dt);
         if (devPauseWorld && devPauseStepTicks > 0) {
             --devPauseStepTicks;
@@ -1042,26 +1383,11 @@ struct GameSession::Impl {
                     if (!stats || stats->model.empty()) return nullptr;
 
                     const std::string modelPath = "assets/models/" + stats->model;
-                    auto& cacheEntry = backendMeshByModelPath[modelPath];
-                    if (!cacheEntry.attemptedLoad) {
-                        cacheEntry.attemptedLoad = true;
-                        std::string err;
-                        if (!runtime::backend_model::loadMeshFromCache(modelPath, cacheEntry.mesh, &err)) {
-                            cacheEntry.error = std::move(err);
-                            cacheEntry.mesh = {};
-                        }
-                    }
-                    if (cacheEntry.mesh.vertices.empty() || cacheEntry.mesh.indices.size() < 3) {
-                        if (!cacheEntry.reportedFailure) {
-                            cacheEntry.reportedFailure = true;
-                            std::cout << "[Render][ModelCache] Unable to render model '" << modelPath
-                                      << "' ("
-                                      << (cacheEntry.error.empty() ? "mesh data unavailable" : cacheEntry.error)
-                                      << ")\n";
-                        }
+                    runtime::backend_model::MeshData* mesh = ensureBackendMeshLoaded(modelPath);
+                    if (!mesh || mesh->indices.size() < 3u) {
                         return nullptr;
                     }
-                    return &cacheEntry.mesh;
+                    return mesh;
                 };
                 const std::size_t boardTrianglesStart2D = worldTriangles.size();
                 const std::size_t boardTrianglesStart3D = world3DTriangles.size();
@@ -1251,6 +1577,9 @@ struct GameSession::Impl {
                     }
                     if (animIndex < 0 || static_cast<std::size_t>(animIndex) >= mesh.animations.size()) {
                         animIndex = unit.animIdleIndex;
+                    }
+                    if (animIndex < 0 && !mesh.animations.empty()) {
+                        animIndex = 0;
                     }
                     if (animIndex >= 0 && static_cast<std::size_t>(animIndex) < mesh.animations.size()) {
                         const auto& clip = mesh.animations[static_cast<std::size_t>(animIndex)];
@@ -1447,9 +1776,22 @@ struct GameSession::Impl {
                                 }
                             }
 
+                            float resolvedScaleCorrection = std::max(0.05f, unit.modelScaleCorrection);
+                            if (!unit.model) {
+                                if (const PokemonStats* stats = dataDb.pokemon.getStats(unit.name)) {
+                                    const std::string mode = toLowerCopy(stats->modelScaleMode);
+                                    if (mode != "normalized") {
+                                        const float importerScale = std::max(0.0f, mesh->modelScaleFactor);
+                                        if (importerScale > 1e-6f) {
+                                            resolvedScaleCorrection =
+                                                std::max(0.05f, 1.0f / importerScale);
+                                        }
+                                    }
+                                }
+                            }
                             const float modelScale =
                                 std::max(0.01f, mesh->modelScaleFactor) *
-                                std::max(0.05f, unit.modelScaleCorrection) *
+                                resolvedScaleCorrection *
                                 std::max(0.05f, unit.speciesScale) *
                                 std::max(0.05f, unit.visualScale) *
                                 std::max(0.05f, unit.captureScale) *
