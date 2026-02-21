@@ -101,6 +101,7 @@ Iteration Log
 - Iteration 11: Added explicit gold-stroke fallback borders to backend cards (ensuring visible framing across backends) and unified text-menu rendering policy so OpenGL and D3D12 share the same menu visual path.
 - Iteration 12: Added outlined menu panel/button styling in shared backend text-menu rendering, locked backend starter card row to legacy OpenGL geometry (220x150, spacing 50, y=300), and upgraded D3D12 sprite textures to mipmapped uploads with anisotropic sampling for closer card image quality.
 - Iteration 13: Added backend text-menu `bold` and `underline` style parity (matching legacy menu semantics) so selected/active entries read consistently across OpenGL and D3D12.
+- Iteration 14: Fixed D3D12 dynamic-vertex buffer overwrite hazards by adding per-frame write offsets for debug quads/lines/triangles and sprites, preventing later draws from clobbering earlier menu/background geometry in the same frame.
 
 How This File Is Used
 - Before each parity implementation iteration:

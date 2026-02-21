@@ -57,6 +57,12 @@ constexpr std::size_t kMaxWorldVertices = kMaxWorldTriangles * 3;
 constexpr std::size_t kMaxSrvDescriptors = 2048;
 constexpr const char* kFallbackSpriteTextureKey = "__fallback_sprite_texture__";
 
+std::size_t alignUp(std::size_t value, std::size_t alignment) {
+    if (alignment == 0u) return value;
+    const std::size_t mask = alignment - 1u;
+    return (value + mask) & ~mask;
+}
+
 struct CpuMipLevel {
     int width = 0;
     int height = 0;
@@ -344,6 +350,9 @@ void D3D12RenderBackend::beginFrame(float r, float g, float b, float a) {
     if (FAILED(allocator->Reset())) return;
     if (FAILED(commandList_->Reset(allocator.Get(), nullptr))) return;
 
+    debugVertexFrameOffset_ = 0;
+    spriteVertexFrameOffset_ = 0;
+
     D3D12_RESOURCE_BARRIER toRtv{};
     toRtv.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
     toRtv.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
@@ -531,7 +540,8 @@ void D3D12RenderBackend::drawDebugQuads(const DebugQuad* quads,
     const std::size_t safeCount = (quadCount > kMaxDebugQuads) ? kMaxDebugQuads : quadCount;
     const std::size_t vertexCount = safeCount * 6;
     const std::size_t neededBytes = vertexCount * sizeof(DebugVertex);
-    if (neededBytes == 0 || neededBytes > debugVertexBufferSize_) return;
+    const std::size_t writeOffset = alignUp(static_cast<std::size_t>(debugVertexFrameOffset_), 256u);
+    if (neededBytes == 0 || writeOffset + neededBytes > debugVertexBufferSize_) return;
 
     void* mapped = nullptr;
     D3D12_RANGE readRange{0, 0};
@@ -547,7 +557,8 @@ void D3D12RenderBackend::drawDebugQuads(const DebugQuad* quads,
         return;
     }
 
-    DebugVertex* out = static_cast<DebugVertex*>(mapped);
+    auto* mappedBytes = static_cast<unsigned char*>(mapped);
+    DebugVertex* out = reinterpret_cast<DebugVertex*>(mappedBytes + writeOffset);
     const float invW = 1.0f / static_cast<float>(surfaceWidth);
     const float invH = 1.0f / static_cast<float>(surfaceHeight);
     for (std::size_t i = 0; i < verts.size(); ++i) {
@@ -561,7 +572,10 @@ void D3D12RenderBackend::drawDebugQuads(const DebugQuad* quads,
     }
     const std::size_t clampedVertexCount = verts.size();
 
-    D3D12_RANGE writeRange{0, static_cast<SIZE_T>(clampedVertexCount * sizeof(DebugVertex))};
+    D3D12_RANGE writeRange{
+        static_cast<SIZE_T>(writeOffset),
+        static_cast<SIZE_T>(writeOffset + clampedVertexCount * sizeof(DebugVertex))
+    };
     debugVertexBuffer_->Unmap(0, &writeRange);
 
     D3D12_VIEWPORT vp{};
@@ -580,11 +594,12 @@ void D3D12RenderBackend::drawDebugQuads(const DebugQuad* quads,
     commandList_->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
     D3D12_VERTEX_BUFFER_VIEW vbv{};
-    vbv.BufferLocation = debugVertexBufferGpuAddress_;
+    vbv.BufferLocation = debugVertexBufferGpuAddress_ + writeOffset;
     vbv.StrideInBytes = debugVertexStride_;
     vbv.SizeInBytes = static_cast<UINT>(clampedVertexCount * sizeof(DebugVertex));
     commandList_->IASetVertexBuffers(0, 1, &vbv);
     commandList_->DrawInstanced(static_cast<UINT>(clampedVertexCount), 1, 0, 0);
+    debugVertexFrameOffset_ = static_cast<std::uint32_t>(writeOffset + clampedVertexCount * sizeof(DebugVertex));
 #else
     (void)quads;
     (void)quadCount;
@@ -611,13 +626,15 @@ void D3D12RenderBackend::drawDebugLines(const DebugLine* lines,
     if (verts.empty()) return;
 
     const std::size_t neededBytes = verts.size() * sizeof(DebugVertex);
-    if (neededBytes == 0 || neededBytes > debugVertexBufferSize_) return;
+    const std::size_t writeOffset = alignUp(static_cast<std::size_t>(debugVertexFrameOffset_), 256u);
+    if (neededBytes == 0 || writeOffset + neededBytes > debugVertexBufferSize_) return;
 
     void* mapped = nullptr;
     D3D12_RANGE readRange{0, 0};
     if (FAILED(debugVertexBuffer_->Map(0, &readRange, &mapped)) || !mapped) return;
 
-    DebugVertex* out = static_cast<DebugVertex*>(mapped);
+    auto* mappedBytes = static_cast<unsigned char*>(mapped);
+    DebugVertex* out = reinterpret_cast<DebugVertex*>(mappedBytes + writeOffset);
     const float invW = 1.0f / static_cast<float>(surfaceWidth);
     const float invH = 1.0f / static_cast<float>(surfaceHeight);
     for (std::size_t i = 0; i < verts.size(); ++i) {
@@ -630,7 +647,10 @@ void D3D12RenderBackend::drawDebugLines(const DebugLine* lines,
         out[i].a = src.a;
     }
 
-    D3D12_RANGE writeRange{0, static_cast<SIZE_T>(neededBytes)};
+    D3D12_RANGE writeRange{
+        static_cast<SIZE_T>(writeOffset),
+        static_cast<SIZE_T>(writeOffset + neededBytes)
+    };
     debugVertexBuffer_->Unmap(0, &writeRange);
 
     D3D12_VIEWPORT vp{};
@@ -649,11 +669,12 @@ void D3D12RenderBackend::drawDebugLines(const DebugLine* lines,
     commandList_->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
     D3D12_VERTEX_BUFFER_VIEW vbv{};
-    vbv.BufferLocation = debugVertexBufferGpuAddress_;
+    vbv.BufferLocation = debugVertexBufferGpuAddress_ + writeOffset;
     vbv.StrideInBytes = debugVertexStride_;
     vbv.SizeInBytes = static_cast<UINT>(neededBytes);
     commandList_->IASetVertexBuffers(0, 1, &vbv);
     commandList_->DrawInstanced(static_cast<UINT>(verts.size()), 1, 0, 0);
+    debugVertexFrameOffset_ = static_cast<std::uint32_t>(writeOffset + neededBytes);
 #else
     (void)lines;
     (void)lineCount;
@@ -683,13 +704,15 @@ void D3D12RenderBackend::drawDebugTriangles(const DebugTriangle* triangles,
     if (verts.empty()) return;
 
     const std::size_t neededBytes = verts.size() * sizeof(DebugVertex);
-    if (neededBytes == 0 || neededBytes > debugVertexBufferSize_) return;
+    const std::size_t writeOffset = alignUp(static_cast<std::size_t>(debugVertexFrameOffset_), 256u);
+    if (neededBytes == 0 || writeOffset + neededBytes > debugVertexBufferSize_) return;
 
     void* mapped = nullptr;
     D3D12_RANGE readRange{0, 0};
     if (FAILED(debugVertexBuffer_->Map(0, &readRange, &mapped)) || !mapped) return;
 
-    DebugVertex* out = static_cast<DebugVertex*>(mapped);
+    auto* mappedBytes = static_cast<unsigned char*>(mapped);
+    DebugVertex* out = reinterpret_cast<DebugVertex*>(mappedBytes + writeOffset);
     const float invW = 1.0f / static_cast<float>(surfaceWidth);
     const float invH = 1.0f / static_cast<float>(surfaceHeight);
     for (std::size_t i = 0; i < verts.size(); ++i) {
@@ -701,7 +724,10 @@ void D3D12RenderBackend::drawDebugTriangles(const DebugTriangle* triangles,
         out[i].b = src.b;
         out[i].a = src.a;
     }
-    D3D12_RANGE writeRange{0, static_cast<SIZE_T>(neededBytes)};
+    D3D12_RANGE writeRange{
+        static_cast<SIZE_T>(writeOffset),
+        static_cast<SIZE_T>(writeOffset + neededBytes)
+    };
     debugVertexBuffer_->Unmap(0, &writeRange);
 
     D3D12_VIEWPORT vp{};
@@ -720,11 +746,12 @@ void D3D12RenderBackend::drawDebugTriangles(const DebugTriangle* triangles,
     commandList_->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
     D3D12_VERTEX_BUFFER_VIEW vbv{};
-    vbv.BufferLocation = debugVertexBufferGpuAddress_;
+    vbv.BufferLocation = debugVertexBufferGpuAddress_ + writeOffset;
     vbv.StrideInBytes = debugVertexStride_;
     vbv.SizeInBytes = static_cast<UINT>(neededBytes);
     commandList_->IASetVertexBuffers(0, 1, &vbv);
     commandList_->DrawInstanced(static_cast<UINT>(verts.size()), 1, 0, 0);
+    debugVertexFrameOffset_ = static_cast<std::uint32_t>(writeOffset + neededBytes);
 #else
     (void)triangles;
     (void)triangleCount;
@@ -779,13 +806,18 @@ void D3D12RenderBackend::drawDebugSprites(const DebugSprite* sprites,
     if (vertices.empty() || descriptorIndices.empty()) return;
 
     const std::size_t neededBytes = vertices.size() * sizeof(SpriteVertex);
-    if (neededBytes == 0 || neededBytes > spriteVertexBufferSize_) return;
+    const std::size_t writeOffset = alignUp(static_cast<std::size_t>(spriteVertexFrameOffset_), 256u);
+    if (neededBytes == 0 || writeOffset + neededBytes > spriteVertexBufferSize_) return;
 
     void* mapped = nullptr;
     D3D12_RANGE readRange{0, 0};
     if (FAILED(spriteVertexBuffer_->Map(0, &readRange, &mapped)) || !mapped) return;
-    std::memcpy(mapped, vertices.data(), neededBytes);
-    D3D12_RANGE writeRange{0, static_cast<SIZE_T>(neededBytes)};
+    auto* mappedBytes = static_cast<unsigned char*>(mapped);
+    std::memcpy(mappedBytes + writeOffset, vertices.data(), neededBytes);
+    D3D12_RANGE writeRange{
+        static_cast<SIZE_T>(writeOffset),
+        static_cast<SIZE_T>(writeOffset + neededBytes)
+    };
     spriteVertexBuffer_->Unmap(0, &writeRange);
 
     D3D12_VIEWPORT vp{};
@@ -811,7 +843,7 @@ void D3D12RenderBackend::drawDebugSprites(const DebugSprite* sprites,
     commandList_->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
     D3D12_VERTEX_BUFFER_VIEW vbv{};
-    vbv.BufferLocation = spriteVertexBufferGpuAddress_;
+    vbv.BufferLocation = spriteVertexBufferGpuAddress_ + writeOffset;
     vbv.StrideInBytes = spriteVertexStride_;
     vbv.SizeInBytes = static_cast<UINT>(neededBytes);
     commandList_->IASetVertexBuffers(0, 1, &vbv);
@@ -823,6 +855,7 @@ void D3D12RenderBackend::drawDebugSprites(const DebugSprite* sprites,
         commandList_->SetGraphicsRootDescriptorTable(1, srvHandle);
         commandList_->DrawInstanced(6, 1, static_cast<UINT>(i * 6), 0);
     }
+    spriteVertexFrameOffset_ = static_cast<std::uint32_t>(writeOffset + neededBytes);
 #else
     (void)sprites;
     (void)spriteCount;
@@ -842,6 +875,7 @@ void D3D12RenderBackend::shutdown() {
     debugVertexBufferGpuAddress_ = 0;
     debugVertexStride_ = 0;
     debugVertexBufferSize_ = 0;
+    debugVertexFrameOffset_ = 0;
     worldVertexBuffer_.Reset();
     worldVertexBufferGpuAddress_ = 0;
     worldVertexStride_ = 0;
@@ -853,6 +887,7 @@ void D3D12RenderBackend::shutdown() {
     spriteVertexBufferGpuAddress_ = 0;
     spriteVertexStride_ = 0;
     spriteVertexBufferSize_ = 0;
+    spriteVertexFrameOffset_ = 0;
     spritePipelineState_.Reset();
     spriteRootSignature_.Reset();
     srvHeap_.Reset();

@@ -120,6 +120,7 @@ private:
     std::uint64_t debugVertexBufferGpuAddress_ = 0;
     std::uint32_t debugVertexStride_ = 0;
     std::uint32_t debugVertexBufferSize_ = 0;
+    std::uint32_t debugVertexFrameOffset_ = 0;
     Microsoft::WRL::ComPtr<ID3D12RootSignature> worldRootSignature_;
     Microsoft::WRL::ComPtr<ID3D12PipelineState> worldPipelineState_;
     Microsoft::WRL::ComPtr<ID3D12Resource> worldVertexBuffer_;
@@ -141,6 +142,7 @@ private:
     std::uint64_t spriteVertexBufferGpuAddress_ = 0;
     std::uint32_t spriteVertexStride_ = 0;
     std::uint32_t spriteVertexBufferSize_ = 0;
+    std::uint32_t spriteVertexFrameOffset_ = 0;
     std::unordered_map<std::string, SpriteTexture> spriteTextures_;
 #endif
 };
