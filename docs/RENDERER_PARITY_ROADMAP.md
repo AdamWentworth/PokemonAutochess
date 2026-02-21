@@ -124,6 +124,7 @@ Iteration Log
 - Iteration 32: Optimized fast textured backend submission by adding position-only vertex transform/skinning cache for the fast path (skipping normal work when not needed) and constrained that fast path to full-mesh indexed mode so aggressive triangle-budget decimation remains an explicit quality/perf tradeoff instead of being mistaken for texture corruption.
 - Iteration 33: Removed duplicate CPU skinning work from the fast textured full-mesh path (avoid doing full normal+position resolve before fast-path early-out) and switched D3D12 dynamic upload buffers to persistent mapping to eliminate per-draw `Map/Unmap` churn in world/debug/sprite submission.
 - Iteration 34: Reduced full-mesh fast-textured model CPU cost by resolving skinned world positions only on first-use vertex remap (instead of every triangle hit), and precomputed per-submesh node fallback mapping once per mesh draw to remove repeated triangle-loop lookup work.
+- Iteration 35: Added a debug-performance mode (`PAC_OPTIMIZE_RENDER_HOTPATHS_IN_DEBUG`, default on) that compiles D3D12/GameSession render hotpaths with optimization in Debug builds, and removed per-call backend text vertex-buffer allocations via reusable scratch storage in `BackendDebugText` to cut UI/text CPU churn.
 
 How This File Is Used
 - Before each parity implementation iteration:

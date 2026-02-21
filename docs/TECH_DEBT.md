@@ -48,4 +48,5 @@ Recent improvements
 - Clarified that low triangle-budget mode (`PAC_BACKEND_MODEL_FULL_MESH=0` with small limits) intentionally decimates geometry and can produce visible faceting/gaps; this is a quality-for-performance mode and not a texture decode bug.
 - Removed redundant full vertex resolve work in the fast textured full-mesh loop (positions+normals were previously computed before fast-path short-circuit), and moved D3D12 dynamic upload buffers to persistent mapping so per-draw buffer updates avoid repeated `Map/Unmap` overhead.
 - Reduced fast full-mesh textured submission overhead further by performing skinned-position resolve only when a vertex is first inserted into the remap table; residual debt remains a true GPU-skinning path so CPU does not own pose deformation for D3D12.
+- Added Debug hotpath optimization wiring in CMake so selected render files can run with optimized codegen while keeping a Debug workflow, and removed per-text-call `stb_easy_font` scratch allocations by reusing thread-local buffers; residual debt remains deeper structural split and GPU-skinning migration for consistent 60+ fps under combat load.
 

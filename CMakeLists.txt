@@ -13,6 +13,9 @@ endif()
 option(PAC_ENABLE_WARNINGS "Enable compiler warning flags for project sources" ON)
 option(PAC_WARNINGS_AS_ERRORS "Treat compiler warnings as errors for project sources" ${_pac_werror_default})
 option(PAC_ENABLE_RUNTIME_SMOKE_TESTS "Run short executable startup smoke tests for renderer backends" OFF)
+option(PAC_OPTIMIZE_RENDER_HOTPATHS_IN_DEBUG
+    "Compile selected render/runtime hotpath files with optimization in Debug"
+    ON)
 
 include(CTest)
 
@@ -41,6 +44,30 @@ else()
 endif()
 
 set(PROJECT_SRC_ROOT "${CMAKE_SOURCE_DIR}/src")
+
+if (PAC_OPTIMIZE_RENDER_HOTPATHS_IN_DEBUG)
+    if (MSVC)
+        string(REPLACE "/RTC1" "" CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG}")
+        string(REPLACE "/RTCs" "" CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG}")
+        string(REPLACE "/RTCu" "" CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG}")
+    endif()
+
+    set(_pac_hotpath_sources
+        "${CMAKE_SOURCE_DIR}/src/game/runtime/GameSession.cpp"
+        "${CMAKE_SOURCE_DIR}/src/engine/render/D3D12RenderBackend.cpp"
+    )
+    if (MSVC)
+        foreach(_src IN LISTS _pac_hotpath_sources)
+            set_property(SOURCE ${_src} APPEND PROPERTY COMPILE_OPTIONS
+                "$<$<CONFIG:Debug>:/O2>")
+            set_source_files_properties(${_src} PROPERTIES MSVC_RUNTIME_CHECKS "")
+        endforeach()
+    else()
+        foreach(_src IN LISTS _pac_hotpath_sources)
+            set_property(SOURCE ${_src} APPEND PROPERTY COMPILE_OPTIONS "$<$<CONFIG:Debug>:-O2>")
+        endforeach()
+    endif()
+endif()
 
 # ---------------- Common target settings ----------------
 function(pac_apply_warning_flags target_name)

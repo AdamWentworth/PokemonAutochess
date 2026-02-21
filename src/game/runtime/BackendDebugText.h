@@ -18,6 +18,14 @@ struct EasyFontVertex {
 };
 static_assert(sizeof(EasyFontVertex) == 16, "Unexpected stb_easy_font vertex layout.");
 
+inline std::vector<EasyFontVertex>& easyFontScratchBuffer(std::size_t minVertexCount) {
+    thread_local std::vector<EasyFontVertex> scratch;
+    if (scratch.size() < minVertexCount) {
+        scratch.resize(minVertexCount);
+    }
+    return scratch;
+}
+
 inline float measureTextWidth(const std::string& text, float scale) {
     if (text.empty()) return 0.0f;
     const float safeScale = std::max(0.01f, scale);
@@ -45,7 +53,7 @@ inline void appendTextQuads(std::vector<IRenderBackend::DebugQuad>& out,
 
     const std::size_t approxBytes = text.size() * 320u + 4096u;
     const std::size_t vertexCount = std::max<std::size_t>(256u, approxBytes / sizeof(EasyFontVertex));
-    std::vector<EasyFontVertex> verts(vertexCount);
+    std::vector<EasyFontVertex>& verts = easyFontScratchBuffer(vertexCount);
 
     const int quadCount = stb_easy_font_print(
         originX,
@@ -112,7 +120,7 @@ inline void appendTextLines(std::vector<IRenderBackend::DebugLine>& out,
 
     const std::size_t approxBytes = text.size() * 320u + 4096u;
     const std::size_t vertexCount = std::max<std::size_t>(256u, approxBytes / sizeof(EasyFontVertex));
-    std::vector<EasyFontVertex> verts(vertexCount);
+    std::vector<EasyFontVertex>& verts = easyFontScratchBuffer(vertexCount);
 
     const int quadCount = stb_easy_font_print(
         originX,
@@ -180,4 +188,5 @@ inline void appendTextLines(std::vector<IRenderBackend::DebugLine>& out,
 }
 
 } // namespace game::runtime::backend_text
+
 
