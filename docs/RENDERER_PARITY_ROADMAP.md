@@ -79,7 +79,7 @@ Prioritized Backlog
 - [ ] Complete D3D12 animation/skinning parity (no fallback-only pose path).
 - [ ] Port/align board and bench rendering parity.
 - [ ] Port/align health bars and combat overlays parity.
-- [ ] Port/align shop/starter card style parity (image, frame, typography, spacing). (In progress: backend cards now render typography on line layer instead of filled quad glyph blocks.)
+- [ ] Port/align shop/starter card style parity (image, frame, typography, spacing). (In progress: D3D12/backend cards now use OpenGL-like image+gold-frame composition with `Lv` overlay and below-card labels; final parity tuning still pending.)
 - [ ] Validate VFX parity for growl, tackle, grass impact, claw swipe, aqua, leech seed.
 - [ ] Add backend-switch startup regression test (including starter selection path).
 - [ ] Add visual parity test harness for key scenes.
@@ -97,6 +97,7 @@ Iteration Log
 - Iteration 7: Added world portrait policy controls (model-first, portrait fallback/force toggles), removed tint-under-portrait artifacts in fallback world rendering, and expanded backend unit visual contract coverage.
 - Iteration 8: Fixed projected-world model draw detection to track the correct 3D depth container (preventing false fallback to portrait/rectangle proxies), and added a regression helper/test for model-geometry accumulation logic.
 - Iteration 9: Restored OpenGL to the legacy starter/shop UI policy after a visual regression, while keeping D3D12 on backend UI and re-opening the UI-policy unification item until style parity is complete.
+- Iteration 10: Reworked backend card visuals to match OpenGL styling (portrait fill + gold frame sprite + legacy-style `Lv` and label overlays), wired shop/starter state inputs to legacy text semantics, and expanded card renderer/visual tests for two-sprite (art+frame) output.
 
 How This File Is Used
 - Before each parity implementation iteration:

@@ -10,6 +10,7 @@ bool test_backend_card_visuals_contract(std::string& outFail) {
     using game::runtime::backend_cards::computeCardVisualLayout;
     using game::runtime::backend_cards::fnv1aHash;
     using game::runtime::backend_cards::makeCardArtSprite;
+    using game::runtime::backend_cards::makeCardFrameSprite;
     using game::runtime::backend_cards::resolveCardImagePath;
 
     if (fnv1aHash("charmander") != fnv1aHash("charmander")) {
@@ -29,11 +30,10 @@ bool test_backend_card_visuals_contract(std::string& outFail) {
         in.w = 220.0f;
         in.h = 150.0f;
         in.title = "Charmander";
-        in.subtitle = "Lv 5  Cost 3g";
-        in.keyboardSlot = 1;
+        in.subtitle = "Lv5";
         appendStylizedCard(quads, in, 0.9f);
-        if (quads.size() < 7u) {
-            outFail = "appendStylizedCard should emit multiple layered quads for a valid card";
+        if (quads.size() < 1u) {
+            outFail = "appendStylizedCard should emit backing geometry for a valid card";
             return false;
         }
 
@@ -52,6 +52,15 @@ bool test_backend_card_visuals_contract(std::string& outFail) {
         }
         if (sprite.w <= 0.0f || sprite.h <= 0.0f) {
             outFail = "card sprite should have positive geometry";
+            return false;
+        }
+        const auto frame = makeCardFrameSprite(in, 1.0f);
+        if (frame.texturePath != "assets/ui/frame_gold.png") {
+            outFail = "card frame sprite should resolve to legacy gold frame asset";
+            return false;
+        }
+        if (frame.w != in.w || frame.h != in.h) {
+            outFail = "card frame sprite should cover full card rect";
             return false;
         }
 
@@ -139,14 +148,14 @@ bool test_backend_card_visuals_contract(std::string& outFail) {
         in.w = 180.0f;
         in.h = 120.0f;
         in.title = "Potion";
-        in.subtitle = "Cost 2g";
+        in.subtitle = "Lv2";
         in.item = true;
-        in.keyboardSlot = 4;
+        in.keyboardSlot = 4; // keyboard slot should not affect OpenGL-style visuals
         appendStylizedCard(withBadge, in, 0.85f);
         in.keyboardSlot = 0;
         appendStylizedCard(withoutBadge, in, 0.85f);
-        if (withBadge.size() <= withoutBadge.size()) {
-            outFail = "keyboard slot badge should add extra debug quads";
+        if (withBadge.size() != withoutBadge.size()) {
+            outFail = "keyboard slot should not alter OpenGL-style card backing geometry";
             return false;
         }
     }

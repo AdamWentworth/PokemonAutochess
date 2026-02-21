@@ -28,23 +28,28 @@ bool test_backend_card_renderer_contract(std::string& outFail) {
         outFail = "appendCard should emit visual quads";
         return false;
     }
-    if (sprites.size() != 1u) {
-        outFail = "appendCard should emit one sprite when texture path resolves";
+    if (sprites.size() != 2u) {
+        outFail = "appendCard should emit art + frame sprites when texture path resolves";
         return false;
     }
 
-    const auto& sprite = sprites.front();
-    if (sprite.texturePath != "assets/images/charmander.png") {
-        outFail = "appendCard should preserve explicit image path";
+    const auto& artSprite = sprites.front();
+    if (artSprite.texturePath != "assets/images/charmander.png") {
+        outFail = "appendCard should preserve explicit art image path";
         return false;
     }
-    if (sprite.u0 != 0.20f || sprite.v0 != 0.10f ||
-        sprite.u1 != 0.60f || sprite.v1 != 0.90f) {
+    if (artSprite.u0 != 0.20f || artSprite.v0 != 0.10f ||
+        artSprite.u1 != 0.60f || artSprite.v1 != 0.90f) {
         outFail = "appendCard should propagate UV bounds to sprite";
         return false;
     }
-    if (sprite.w <= 0.0f || sprite.h <= 0.0f) {
+    if (artSprite.w <= 0.0f || artSprite.h <= 0.0f) {
         outFail = "appendCard should emit positive sprite geometry";
+        return false;
+    }
+    const auto& frameSprite = sprites.back();
+    if (frameSprite.texturePath != "assets/ui/frame_gold.png") {
+        outFail = "appendCard should emit legacy gold frame sprite";
         return false;
     }
 
@@ -71,8 +76,8 @@ bool test_backend_card_renderer_contract(std::string& outFail) {
             outFail = "appendCardLayered should avoid text quads when line sink is provided";
             return false;
         }
-        if (layeredSprites.size() != 1u) {
-            outFail = "appendCardLayered should preserve sprite emission";
+        if (layeredSprites.size() != 2u) {
+            outFail = "appendCardLayered should preserve art + frame sprite emission";
             return false;
         }
     }
@@ -95,8 +100,8 @@ bool test_backend_card_renderer_contract(std::string& outFail) {
             outFail = "appendCardLayered should still emit text lines without a text-quad sink";
             return false;
         }
-        if (layeredSprites.size() != 1u) {
-            outFail = "appendCardLayered should still emit sprites without a text-quad sink";
+        if (layeredSprites.size() != 2u) {
+            outFail = "appendCardLayered should still emit art + frame sprites without a text-quad sink";
             return false;
         }
     }

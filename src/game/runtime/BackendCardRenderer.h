@@ -61,6 +61,12 @@ inline void appendCardLayered(std::vector<IRenderBackend::DebugQuad>& baseQuads,
     if (!sprite.texturePath.empty()) {
         sprites->push_back(std::move(sprite));
     }
+
+    IRenderBackend::DebugSprite frameSprite =
+        runtime::backend_cards::makeCardFrameSprite(visual, 1.0f);
+    if (!frameSprite.texturePath.empty()) {
+        sprites->push_back(std::move(frameSprite));
+    }
 }
 
 inline void appendCard(std::vector<IRenderBackend::DebugQuad>& quads,

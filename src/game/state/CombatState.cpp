@@ -200,20 +200,16 @@ void CombatState::renderBackendShopUi(int uiW, int uiH, bool showSellOverlay, co
                 backendShopSnapshot,
                 game::state::backend_shop::ActionType::ShopCard,
                 i);
-            const std::string label = button.data.label.empty()
-                ? button.data.pokemonName
-                : button.data.label;
-
-            std::string sub = "Lv " + std::to_string(std::max(1, button.data.level));
-            sub += "  Cost " + std::to_string(std::max(0, button.data.cost)) + "g";
             game::runtime::backend_card_renderer::CardRenderInput renderIn;
             renderIn.x = button.x;
             renderIn.y = button.y;
             renderIn.w = button.w;
             renderIn.h = button.h;
-            renderIn.displayName = label;
+            renderIn.displayName = button.data.label;
             renderIn.speciesName = button.data.pokemonName;
-            renderIn.subtitle = sub;
+            renderIn.subtitle = (button.data.level > 0)
+                ? ("Lv" + std::to_string(button.data.level))
+                : std::string();
             renderIn.explicitImagePath = button.data.imagePath;
             renderIn.u0 = button.data.uvMin.x;
             renderIn.v0 = button.data.uvMin.y;
@@ -221,7 +217,7 @@ void CombatState::renderBackendShopUi(int uiW, int uiH, bool showSellOverlay, co
             renderIn.v1 = button.data.uvMax.y;
             renderIn.keyboardSlot = slot;
             renderIn.item = (button.data.type == CardType::Item);
-            renderIn.textScale = std::clamp(0.74f * uiScale, 0.55f, 1.10f);
+            renderIn.textScale = std::clamp(1.0f * uiScale, 0.70f, 1.35f);
             renderIn.spriteAlpha = 1.0f;
             game::runtime::backend_card_renderer::appendCardLayered(
                 baseQuads,

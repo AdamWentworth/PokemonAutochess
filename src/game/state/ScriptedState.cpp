@@ -530,20 +530,17 @@ void ScriptedState::renderBackendCardUi(int uiW, int uiH) {
                                 bool itemRow) {
         for (std::size_t i = 0; i < row.size(); ++i) {
             const auto& card = row[i];
-            const std::string name = card.data.label.empty() ? card.data.pokemonName : card.data.label;
             const int slot = game::state::backend_shop::keyboardSlotFor(backendShopSnapshot, action, i);
-            std::string sub = "Lv " + std::to_string(std::max(1, card.data.level));
-            if (cardMode == CardMode::Shop) {
-                sub += "  Cost " + std::to_string(std::max(0, card.data.cost)) + "g";
-            }
             game::runtime::backend_card_renderer::CardRenderInput renderIn;
             renderIn.x = card.x;
             renderIn.y = card.y;
             renderIn.w = card.w;
             renderIn.h = card.h;
-            renderIn.displayName = name;
+            renderIn.displayName = card.data.label;
             renderIn.speciesName = card.data.pokemonName;
-            renderIn.subtitle = sub;
+            renderIn.subtitle = (card.data.level > 0)
+                ? ("Lv" + std::to_string(card.data.level))
+                : std::string();
             renderIn.explicitImagePath = card.data.imagePath;
             renderIn.u0 = card.data.uvMin.x;
             renderIn.v0 = card.data.uvMin.y;
@@ -551,7 +548,7 @@ void ScriptedState::renderBackendCardUi(int uiW, int uiH) {
             renderIn.v1 = card.data.uvMax.y;
             renderIn.keyboardSlot = slot;
             renderIn.item = itemRow || card.item;
-            renderIn.textScale = std::clamp(0.74f * uiScale, 0.55f, 1.10f);
+            renderIn.textScale = std::clamp(1.0f * uiScale, 0.70f, 1.35f);
             renderIn.spriteAlpha = 1.0f;
             game::runtime::backend_card_renderer::appendCardLayered(
                 baseQuads,
