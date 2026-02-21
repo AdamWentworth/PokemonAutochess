@@ -874,8 +874,34 @@ void ScriptedState::renderBackendTextMenu(int uiW, int uiH) {
             tb = entry.colorB;
         }
 
+        if (entry.bold) {
+            game::runtime::backend_text::appendTextLines(
+                textLines,
+                entry.x + 0.9f,
+                entry.y + 0.9f,
+                display,
+                textScale,
+                std::clamp(tr * 0.50f, 0.0f, 1.0f),
+                std::clamp(tg * 0.50f, 0.0f, 1.0f),
+                std::clamp(tb * 0.50f, 0.0f, 1.0f),
+                0.72f,
+                0.82f);
+        }
         game::runtime::backend_text::appendTextLines(
             textLines, entry.x, entry.y, display, textScale, tr, tg, tb, 1.0f, 0.82f);
+        if (entry.underline) {
+            IRenderBackend::DebugLine ul;
+            ul.x1 = entry.x;
+            ul.x2 = entry.x + entry.w;
+            ul.y1 = entry.y + entry.h * 0.78f;
+            ul.y2 = ul.y1;
+            ul.thickness = std::clamp(1.0f + textScale * 0.08f, 1.0f, 2.2f);
+            ul.r = std::clamp(tr * 0.95f, 0.0f, 1.0f);
+            ul.g = std::clamp(tg * 0.95f, 0.0f, 1.0f);
+            ul.b = std::clamp(tb * 0.95f, 0.0f, 1.0f);
+            ul.a = entry.enabled ? 0.96f : 0.72f;
+            textLines.push_back(ul);
+        }
 
         minX = std::min(minX, bg.x);
         minY = std::min(minY, bg.y);
