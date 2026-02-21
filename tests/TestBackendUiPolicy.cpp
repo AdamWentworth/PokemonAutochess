@@ -17,12 +17,12 @@ bool test_backend_ui_sell_overlay_policy(std::string& outFail) {
         outFail = "backend ui policy should be case-insensitive";
         return false;
     }
-    if (!shouldUseBackendUi(true, "opengl")) {
-        outFail = "backend ui policy should allow opengl for shared UI parity";
-        return false;
-    }
     if (shouldUseBackendUi(true, "d3d12", true)) {
         outFail = "backend ui policy should allow explicit legacy-ui opt-out";
+        return false;
+    }
+    if (shouldUseBackendUi(true, "opengl")) {
+        outFail = "backend ui policy should keep opengl on legacy UI path";
         return false;
     }
     if (shouldUseBackendUi(false, "d3d12")) {
@@ -33,8 +33,8 @@ bool test_backend_ui_sell_overlay_policy(std::string& outFail) {
         outFail = "backend text menu policy should allow d3d12 text menus";
         return false;
     }
-    if (!shouldRenderBackendTextMenu(true, "opengl", true)) {
-        outFail = "backend text menu policy should allow opengl text menus for parity";
+    if (shouldRenderBackendTextMenu(true, "opengl", true)) {
+        outFail = "backend text menu policy should block opengl text menus";
         return false;
     }
     if (shouldRenderBackendTextMenu(true, "d3d12", false)) {

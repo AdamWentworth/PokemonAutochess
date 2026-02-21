@@ -6,6 +6,7 @@ bool test_backend_unit_visuals_contract(std::string& outFail) {
     using game::runtime::backend_units::applyWorldUnitTint;
     using game::runtime::backend_units::makeBenchUnitSprite;
     using game::runtime::backend_units::makeWorldUnitSprite;
+    using game::runtime::backend_units::didAccumulateModelGeometry;
     using game::runtime::backend_units::resolveWorldUnitImagePath;
     using game::runtime::backend_units::shouldRenderTintUnderPortrait;
     using game::runtime::backend_units::shouldRenderWorldUnitPortrait;
@@ -57,6 +58,21 @@ bool test_backend_unit_visuals_contract(std::string& outFail) {
         }
         if (!shouldRenderTintUnderPortrait(false)) {
             outFail = "tint underlay should render when no portrait sprite exists";
+            return false;
+        }
+    }
+
+    {
+        if (!didAccumulateModelGeometry(0u, 1u, 0u, 0u)) {
+            outFail = "model geometry detector should report true when 2D model depth grows";
+            return false;
+        }
+        if (!didAccumulateModelGeometry(0u, 0u, 2u, 3u)) {
+            outFail = "model geometry detector should report true when 3D model depth grows";
+            return false;
+        }
+        if (didAccumulateModelGeometry(4u, 4u, 7u, 7u)) {
+            outFail = "model geometry detector should report false when neither depth buffer grows";
             return false;
         }
     }

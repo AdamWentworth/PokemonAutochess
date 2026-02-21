@@ -1229,7 +1229,7 @@ struct GameSession::Impl {
                             const glm::mat4 translation = glm::translate(glm::mat4(1.0f), renderPos);
                             const glm::mat4 modelM = translation * rotationY * rotationX * rotationZ * scale;
                             const std::size_t modelDepthCountBefore = modelDepthTris.size();
-                            const std::size_t modelWorld3DCountBefore = world3DTriangles.size();
+                            const std::size_t modelDepthWorldCountBefore = modelDepthWorldTris.size();
                             const BackendPoseEval scenePose = evaluateScenePose(*mesh, unit);
                             const auto& nodeGlobals = scenePose.hasScenePose ? scenePose.nodeGlobals : mesh->bindNodeGlobals;
                             const bool hasClipPose = scenePose.hasClipPose;
@@ -1570,9 +1570,11 @@ struct GameSession::Impl {
                                     triDoubleSided);
                             }
 
-                            drewModelMesh =
-                                (modelDepthTris.size() > modelDepthCountBefore) ||
-                                (world3DTriangles.size() > modelWorld3DCountBefore);
+                            drewModelMesh = runtime::backend_units::didAccumulateModelGeometry(
+                                modelDepthCountBefore,
+                                modelDepthTris.size(),
+                                modelDepthWorldCountBefore,
+                                modelDepthWorldTris.size());
                         }
 
                         const game::runtime::backend_proxy::UnitProxyCorners corners =

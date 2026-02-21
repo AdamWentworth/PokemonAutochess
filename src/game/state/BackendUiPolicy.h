@@ -2,6 +2,8 @@
 
 #include "game/ui/ShopLayout.h"
 
+#include <algorithm>
+#include <cctype>
 #include <string>
 
 namespace game::state::backend_ui {
@@ -9,12 +11,16 @@ namespace game::state::backend_ui {
 inline bool shouldUseBackendUi(bool hasRenderer,
                                const std::string& activeRendererBackend,
                                bool preferLegacyUi = false) {
-    (void)activeRendererBackend;
-    // UI flow parity target: once a renderer exists, use the shared backend UI path
-    // for both OpenGL and D3D12 unless explicitly asked to keep legacy UI.
     if (preferLegacyUi) return false;
     if (!hasRenderer) return false;
-    return true;
+    std::string backend = activeRendererBackend;
+    std::transform(
+        backend.begin(),
+        backend.end(),
+        backend.begin(),
+        [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+    // Keep OpenGL on legacy UI path until style/layout parity is complete.
+    return backend != "opengl";
 }
 
 inline bool shouldRenderBackendTextMenu(bool hasRenderer,

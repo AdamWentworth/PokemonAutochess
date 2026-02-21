@@ -5,6 +5,7 @@
 #include "game/runtime/BackendImagePath.h"
 
 #include <algorithm>
+#include <cstddef>
 #include <string>
 
 namespace game::runtime::backend_units {
@@ -26,6 +27,13 @@ inline bool shouldRenderWorldUnitPortrait(bool drewModelMesh,
 
 inline bool shouldRenderTintUnderPortrait(bool hasPortraitSprite) {
     return !hasPortraitSprite;
+}
+
+inline bool didAccumulateModelGeometry(std::size_t depth2dBefore,
+                                       std::size_t depth2dAfter,
+                                       std::size_t depth3dBefore,
+                                       std::size_t depth3dAfter) {
+    return (depth2dAfter > depth2dBefore) || (depth3dAfter > depth3dBefore);
 }
 
 inline void applyWorldUnitTint(IRenderBackend::DebugQuad& quad, const PokemonInstance& unit) {
