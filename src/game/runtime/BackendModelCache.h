@@ -26,7 +26,9 @@ struct MeshData {
     std::vector<float> triangleOpacity;
     std::vector<std::uint8_t> triangleDoubleSided;
     std::vector<glm::vec4> submeshBaseColors;
+    std::vector<glm::vec3> vertexBaseColors;
     bool hasVertexColor = false;
+    bool hasVertexBaseColor = false;
 };
 
 std::string cachePathForModel(const std::string& modelPath);

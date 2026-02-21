@@ -1058,7 +1058,9 @@ struct GameSession::Impl {
                                                                 const glm::vec3& n0,
                                                                 const glm::vec3& n1,
                                                                 const glm::vec3& n2,
-                                                                const glm::vec3& baseColor,
+                                                                const glm::vec3& baseColor0,
+                                                                const glm::vec3& baseColor1,
+                                                                const glm::vec3& baseColor2,
                                                                 float alpha,
                                                                 bool doubleSided) {
                                 float x1 = 0.0f;
@@ -1108,9 +1110,16 @@ struct GameSession::Impl {
                                 const glm::vec3 halfDir = glm::normalize(lightDir + toCamera);
                                 const float spec = std::pow(std::clamp(glm::dot(n, halfDir), 0.0f, 1.0f), 22.0f);
                                 const float shade = std::clamp(0.22f + lit * 0.62f + rim * 0.10f + spec * 0.20f, 0.05f, 1.40f);
-                                const glm::vec3 baseLinear = glm::pow(glm::clamp(baseColor, 0.0f, 1.0f), glm::vec3(2.2f));
-                                const glm::vec3 litLinear = glm::clamp(baseLinear * shade, 0.0f, 1.0f);
-                                const glm::vec3 shaded = glm::pow(litLinear, glm::vec3(1.0f / 2.2f));
+                                const auto shadeColor = [&](const glm::vec3& cIn) {
+                                    const glm::vec3 baseLinear =
+                                        glm::pow(glm::clamp(cIn, 0.0f, 1.0f), glm::vec3(2.2f));
+                                    const glm::vec3 litLinear = glm::clamp(baseLinear * shade, 0.0f, 1.0f);
+                                    return glm::pow(litLinear, glm::vec3(1.0f / 2.2f));
+                                };
+                                const glm::vec3 shaded0 = shadeColor(baseColor0);
+                                const glm::vec3 shaded1 = shadeColor(baseColor1);
+                                const glm::vec3 shaded2 = shadeColor(baseColor2);
+                                const glm::vec3 shadedAvg = (shaded0 + shaded1 + shaded2) * (1.0f / 3.0f);
                                 const float facingFade = 0.60f + 0.40f * std::max(0.0f, facing);
                                 const float outAlpha = alpha * facingFade;
 
@@ -1125,10 +1134,22 @@ struct GameSession::Impl {
                                     tri3d.x3 = c.x;
                                     tri3d.y3 = c.y;
                                     tri3d.z3 = c.z;
-                                    tri3d.r = shaded.r;
-                                    tri3d.g = shaded.g;
-                                    tri3d.b = shaded.b;
+                                    tri3d.r = shadedAvg.r;
+                                    tri3d.g = shadedAvg.g;
+                                    tri3d.b = shadedAvg.b;
                                     tri3d.a = outAlpha;
+                                    tri3d.r1 = shaded0.r;
+                                    tri3d.g1 = shaded0.g;
+                                    tri3d.b1 = shaded0.b;
+                                    tri3d.a1 = outAlpha;
+                                    tri3d.r2 = shaded1.r;
+                                    tri3d.g2 = shaded1.g;
+                                    tri3d.b2 = shaded1.b;
+                                    tri3d.a2 = outAlpha;
+                                    tri3d.r3 = shaded2.r;
+                                    tri3d.g3 = shaded2.g;
+                                    tri3d.b3 = shaded2.b;
+                                    tri3d.a3 = outAlpha;
                                     world3DTriangles.push_back(tri3d);
                                     return;
                                 }
@@ -1140,9 +1161,9 @@ struct GameSession::Impl {
                                 dt.tri.y2 = y2;
                                 dt.tri.x3 = x3;
                                 dt.tri.y3 = y3;
-                                dt.tri.r = shaded.r;
-                                dt.tri.g = shaded.g;
-                                dt.tri.b = shaded.b;
+                                dt.tri.r = shadedAvg.r;
+                                dt.tri.g = shadedAvg.g;
+                                dt.tri.b = shadedAvg.b;
                                 dt.tri.a = outAlpha;
                                 dt.depth = (z1 + z2 + z3) * (1.0f / 3.0f);
                                 modelDepthTris.push_back(dt);
@@ -1205,33 +1226,53 @@ struct GameSession::Impl {
                                 const glm::vec3 n1 = safeNormalize(normalM * v1.normal);
                                 const glm::vec3 n2 = safeNormalize(normalM * v2.normal);
 
-                                glm::vec3 baseColor = fallbackBase;
-                                if (mesh->hasVertexColor) {
-                                    baseColor = glm::vec3(
-                                        (v0.color.r + v1.color.r + v2.color.r) * (1.0f / 3.0f),
-                                        (v0.color.g + v1.color.g + v2.color.g) * (1.0f / 3.0f),
-                                        (v0.color.b + v1.color.b + v2.color.b) * (1.0f / 3.0f));
-                                } else if (triIdx < mesh->triangleBaseColors.size()) {
-                                    baseColor = mesh->triangleBaseColors[triIdx];
-                                } else if (triIdx < mesh->triangleSubmesh.size() &&
-                                           !mesh->submeshBaseColors.empty()) {
-                                    const std::uint16_t submeshIndex = mesh->triangleSubmesh[triIdx];
-                                    if (submeshIndex < mesh->submeshBaseColors.size()) {
-                                        const glm::vec4 subColor = mesh->submeshBaseColors[submeshIndex];
-                                        baseColor = glm::vec3(subColor.r, subColor.g, subColor.b);
+                                auto resolveVertexBase = [&](std::uint32_t vi,
+                                                             const runtime::backend_model::MeshVertex& v) {
+                                    if (mesh->hasVertexBaseColor && vi < mesh->vertexBaseColors.size()) {
+                                        return glm::clamp(mesh->vertexBaseColors[vi], 0.0f, 1.0f);
                                     }
-                                }
-                                baseColor = glm::clamp(baseColor, 0.0f, 1.0f);
+                                    if (mesh->hasVertexColor) {
+                                        return glm::clamp(glm::vec3(v.color.r, v.color.g, v.color.b), 0.0f, 1.0f);
+                                    }
+                                    if (triIdx < mesh->triangleBaseColors.size()) {
+                                        return glm::clamp(mesh->triangleBaseColors[triIdx], 0.0f, 1.0f);
+                                    }
+                                    if (triIdx < mesh->triangleSubmesh.size() &&
+                                        !mesh->submeshBaseColors.empty()) {
+                                        const std::uint16_t submeshIndex = mesh->triangleSubmesh[triIdx];
+                                        if (submeshIndex < mesh->submeshBaseColors.size()) {
+                                            const glm::vec4 subColor = mesh->submeshBaseColors[submeshIndex];
+                                            return glm::clamp(
+                                                glm::vec3(subColor.r, subColor.g, subColor.b), 0.0f, 1.0f);
+                                        }
+                                    }
+                                    (void)vi;
+                                    return fallbackBase;
+                                };
+                                const glm::vec3 baseColor0 = resolveVertexBase(i0, v0);
+                                const glm::vec3 baseColor1 = resolveVertexBase(i1, v1);
+                                const glm::vec3 baseColor2 = resolveVertexBase(i2, v2);
 
                                 const float triOpacity = (triIdx < mesh->triangleOpacity.size())
                                     ? mesh->triangleOpacity[triIdx]
                                     : 1.0f;
-                                const float alpha = (unit.alive ? 0.95f : 0.74f) * std::clamp(triOpacity, 0.0f, 1.0f);
+                                const float alpha = (unit.alive ? 1.0f : 0.82f) * std::clamp(triOpacity, 0.0f, 1.0f);
                                 if (alpha < 0.03f) continue;
                                 const bool triDoubleSided =
                                     (triIdx < mesh->triangleDoubleSided.size()) &&
                                     (mesh->triangleDoubleSided[triIdx] != 0u);
-                                pushModelTriangle(a, b, c, n0, n1, n2, baseColor, alpha, triDoubleSided);
+                                pushModelTriangle(
+                                    a,
+                                    b,
+                                    c,
+                                    n0,
+                                    n1,
+                                    n2,
+                                    baseColor0,
+                                    baseColor1,
+                                    baseColor2,
+                                    alpha,
+                                    triDoubleSided);
                             }
 
                             drewModelMesh =

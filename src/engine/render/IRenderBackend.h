@@ -19,6 +19,18 @@ public:
         float g = 1.0f;
         float b = 1.0f;
         float a = 1.0f;
+        float r1 = -1.0f;
+        float g1 = -1.0f;
+        float b1 = -1.0f;
+        float a1 = -1.0f;
+        float r2 = -1.0f;
+        float g2 = -1.0f;
+        float b2 = -1.0f;
+        float a2 = -1.0f;
+        float r3 = -1.0f;
+        float g3 = -1.0f;
+        float b3 = -1.0f;
+        float a3 = -1.0f;
     };
 
     struct DebugQuad {

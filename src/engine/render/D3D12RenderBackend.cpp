@@ -380,10 +380,28 @@ void D3D12RenderBackend::drawWorldTriangles(const WorldTriangle* triangles,
     WorldVertex* out = static_cast<WorldVertex*>(mapped);
     for (std::size_t i = 0; i < safeCount; ++i) {
         const WorldTriangle& t = triangles[i];
+        const auto resolve = [](float vtx, float fallback) {
+            return (vtx >= 0.0f) ? vtx : fallback;
+        };
         const std::size_t base = i * 3;
-        out[base + 0] = WorldVertex{t.x1, t.y1, t.z1, t.r, t.g, t.b, t.a};
-        out[base + 1] = WorldVertex{t.x2, t.y2, t.z2, t.r, t.g, t.b, t.a};
-        out[base + 2] = WorldVertex{t.x3, t.y3, t.z3, t.r, t.g, t.b, t.a};
+        out[base + 0] = WorldVertex{
+            t.x1, t.y1, t.z1,
+            std::clamp(resolve(t.r1, t.r), 0.0f, 1.0f),
+            std::clamp(resolve(t.g1, t.g), 0.0f, 1.0f),
+            std::clamp(resolve(t.b1, t.b), 0.0f, 1.0f),
+            std::clamp(resolve(t.a1, t.a), 0.0f, 1.0f)};
+        out[base + 1] = WorldVertex{
+            t.x2, t.y2, t.z2,
+            std::clamp(resolve(t.r2, t.r), 0.0f, 1.0f),
+            std::clamp(resolve(t.g2, t.g), 0.0f, 1.0f),
+            std::clamp(resolve(t.b2, t.b), 0.0f, 1.0f),
+            std::clamp(resolve(t.a2, t.a), 0.0f, 1.0f)};
+        out[base + 2] = WorldVertex{
+            t.x3, t.y3, t.z3,
+            std::clamp(resolve(t.r3, t.r), 0.0f, 1.0f),
+            std::clamp(resolve(t.g3, t.g), 0.0f, 1.0f),
+            std::clamp(resolve(t.b3, t.b), 0.0f, 1.0f),
+            std::clamp(resolve(t.a3, t.a), 0.0f, 1.0f)};
     }
     D3D12_RANGE writeRange{0, static_cast<SIZE_T>(neededBytes)};
     worldVertexBuffer_->Unmap(0, &writeRange);

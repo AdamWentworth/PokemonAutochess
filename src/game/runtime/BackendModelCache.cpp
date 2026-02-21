@@ -473,6 +473,10 @@ bool loadMeshFromCache(const std::string& modelPath, MeshData& out, std::string*
     out.triangleBaseColors.assign(triangleCount, glm::vec3(1.0f, 1.0f, 1.0f));
     out.triangleOpacity.assign(triangleCount, 1.0f);
     out.triangleDoubleSided.assign(triangleCount, 0u);
+    out.vertexBaseColors.assign(out.vertices.size(), glm::vec3(1.0f, 1.0f, 1.0f));
+    out.hasVertexBaseColor = false;
+    std::vector<glm::vec3> vertexColorAccum(out.vertices.size(), glm::vec3(0.0f));
+    std::vector<float> vertexColorWeight(out.vertices.size(), 0.0f);
     if (!submeshRanges.empty()) {
         for (std::size_t si = 0; si < submeshRanges.size(); ++si) {
             const SubmeshRange& range = submeshRanges[si];
@@ -497,6 +501,19 @@ bool loadMeshFromCache(const std::string& modelPath, MeshData& out, std::string*
                         const glm::vec4 tex1 = sampleTextureBilinear(range.baseTexture, uv1);
                         const glm::vec4 tex2 = sampleTextureBilinear(range.baseTexture, uv2);
                         const glm::vec4 texc = sampleTextureBilinear(range.baseTexture, uvc);
+                        const glm::vec3 baseRgb(range.baseColor.r, range.baseColor.g, range.baseColor.b);
+                        const glm::vec3 c0 = backend_material::blendBaseAndTexture(
+                            baseRgb, glm::vec3(tex0.r, tex0.g, tex0.b), tex0.a);
+                        const glm::vec3 c1 = backend_material::blendBaseAndTexture(
+                            baseRgb, glm::vec3(tex1.r, tex1.g, tex1.b), tex1.a);
+                        const glm::vec3 c2 = backend_material::blendBaseAndTexture(
+                            baseRgb, glm::vec3(tex2.r, tex2.g, tex2.b), tex2.a);
+                        vertexColorAccum[i0] += c0;
+                        vertexColorAccum[i1] += c1;
+                        vertexColorAccum[i2] += c2;
+                        vertexColorWeight[i0] += 1.0f;
+                        vertexColorWeight[i1] += 1.0f;
+                        vertexColorWeight[i2] += 1.0f;
                         const glm::vec4 texel = (tex0 + tex1 + tex2 + texc) * 0.25f;
                         const glm::vec3 texelRgb(texel.r, texel.g, texel.b);
                         triColor = backend_material::blendBaseAndTexture(triColor, texelRgb, texel.a);
@@ -515,6 +532,16 @@ bool loadMeshFromCache(const std::string& modelPath, MeshData& out, std::string*
         std::fill(out.triangleBaseColors.begin(), out.triangleBaseColors.end(), glm::vec3(1.0f, 1.0f, 1.0f));
         std::fill(out.triangleOpacity.begin(), out.triangleOpacity.end(), 1.0f);
         std::fill(out.triangleDoubleSided.begin(), out.triangleDoubleSided.end(), 1u);
+    }
+    for (std::size_t vi = 0; vi < out.vertices.size(); ++vi) {
+        if (vertexColorWeight[vi] > 0.0f) {
+            out.vertexBaseColors[vi] =
+                glm::clamp(vertexColorAccum[vi] / vertexColorWeight[vi], 0.0f, 1.0f);
+            out.hasVertexBaseColor = true;
+        } else if (out.hasVertexColor) {
+            const glm::vec4 c = out.vertices[vi].color;
+            out.vertexBaseColors[vi] = glm::clamp(glm::vec3(c.r, c.g, c.b), 0.0f, 1.0f);
+        }
     }
 
     if (out.vertices.empty() || out.indices.empty()) {
