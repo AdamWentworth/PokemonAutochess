@@ -120,6 +120,8 @@ Iteration Log
 - Iteration 28: Restored startup loading parity for non-OpenGL backends by driving boot-progress updates during backend model-cache preload and adding a renderer-driven fallback loading gauge in `GameRunner` when no OpenGL `BootLoadingView` is available (e.g., D3D12).
 - Iteration 29: Restored backend unit animation drive and scale parity by hydrating non-OpenGL unit anim roles/durations directly from backend mesh + `.animset.json` metadata each fixed tick, removing model-pointer gating from `GameWorldAnimation` so anim clocks advance without OpenGL `Model*`, and applying native-mode scale correction parity when only backend mesh scale is available.
 - Iteration 30: Reduced D3D12 backend model CPU/render cost by skipping unnecessary base-color shading work on textured indexed batches and reusing per-submesh indexed vertices in full-mesh mode (instead of emitting duplicate vertices per triangle), targeting the combat-frame render bottleneck seen after animation parity fixes.
+- Iteration 31: Added a faster textured-indexed backend path (`PAC_BACKEND_MODEL_FAST_TEXTURED`, default on) that bypasses per-triangle CPU lighting/culling for textured submeshes and emits flat-tinted indexed textured vertices directly, targeting the persistent D3D12 `render`-time bottleneck in combat.
+- Iteration 32: Optimized fast textured backend submission by adding position-only vertex transform/skinning cache for the fast path (skipping normal work when not needed) and constrained that fast path to full-mesh indexed mode so aggressive triangle-budget decimation remains an explicit quality/perf tradeoff instead of being mistaken for texture corruption.
 
 How This File Is Used
 - Before each parity implementation iteration:

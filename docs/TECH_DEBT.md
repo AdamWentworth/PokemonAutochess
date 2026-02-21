@@ -44,4 +44,6 @@ Recent improvements
 - Reduced backend startup UX divergence by wiring D3D12/non-OpenGL model-cache preload into boot progress updates and adding a non-GL fallback loading gauge path in `GameRunner`.
 - Reduced backend animation/scale drift by hydrating non-OpenGL unit anim role indices + durations from backend cache/animset metadata and by applying native-scale correction parity without requiring OpenGL `Model*` handles.
 - Reduced backend full-mesh indexed submission overhead by avoiding duplicate per-triangle vertex emission for textured submeshes (per-submesh vertex reuse), but further profiling is still needed for large-fight CPU skinning throughput.
+- Added a fast textured indexed fallback (`PAC_BACKEND_MODEL_FAST_TEXTURED`) that intentionally trades some per-triangle lighting fidelity for CPU time; residual debt is replacing CPU triangle shading with a GPU-lighting-capable world vertex format to keep parity without the CPU cost.
+- Clarified that low triangle-budget mode (`PAC_BACKEND_MODEL_FULL_MESH=0` with small limits) intentionally decimates geometry and can produce visible faceting/gaps; this is a quality-for-performance mode and not a texture decode bug.
 
