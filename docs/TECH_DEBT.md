@@ -40,4 +40,5 @@ Recent improvements
 - Set indexed backend model submission to full-mesh by default (with env opt-out) to remove budget-driven geometry loss as a visual parity blocker; residual debt is performance tuning rather than geometry correctness.
 - Fixed backend indexed textured alpha handling to avoid double-applying texture alpha (triangle pre-opacity plus pixel texture alpha), which was causing BLEND submesh dropout and missing textured regions during animation/movement.
 - Added backend model-cache diagnostics (`PAC_BACKEND_MODEL_VERBOSE` and one-shot runtime miss logs) to make cache-load/render failures observable instead of silent.
+- Fixed D3D12 world mesh upload-buffer hazards by adding per-frame world vertex/index offsets (preventing draw-data overwrite between multiple model draws in one frame).
 

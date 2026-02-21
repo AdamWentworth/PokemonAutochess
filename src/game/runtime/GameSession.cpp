@@ -493,6 +493,7 @@ struct GameSession::Impl {
         if (legacyRenderPath) {
             game::preload::preloadCommonModels(ctx, dataDb.pokemon, "PokemonAutochess");
         } else {
+            std::cout << "[Init] Non-OpenGL render path: using backend model cache loader (OpenGL ModelStartupLog is not used).\n";
             if (backendPreloadModelCacheEnabled()) {
                 std::cout << "[Init] Non-OpenGL render path: preloading backend model cache...\n";
                 const bool verboseModelCacheLog = backendModelVerboseLoggingEnabled();

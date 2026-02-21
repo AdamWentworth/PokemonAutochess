@@ -155,9 +155,11 @@ private:
     std::uint64_t worldVertexBufferGpuAddress_ = 0;
     std::uint32_t worldVertexStride_ = 0;
     std::uint32_t worldVertexBufferSize_ = 0;
+    std::uint32_t worldVertexFrameOffset_ = 0;
     Microsoft::WRL::ComPtr<ID3D12Resource> worldIndexBuffer_;
     std::uint64_t worldIndexBufferGpuAddress_ = 0;
     std::uint32_t worldIndexBufferSize_ = 0;
+    std::uint32_t worldIndexFrameOffset_ = 0;
     std::uint32_t worldFallbackTextureDescriptorIndex_ = 0;
 
     struct SpriteTexture {
