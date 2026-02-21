@@ -131,6 +131,48 @@ inline void appendStylizedCardLayered(std::vector<IRenderBackend::DebugQuad>& ba
     backing.a = 0.90f;
     baseQuads.push_back(backing);
 
+    // Draw an explicit gold stroke so card framing remains visible even if
+    // sprite alpha sampling differs across backends.
+    const float border = std::clamp(std::min(input.w, input.h) * 0.022f, 2.0f, 4.5f);
+    const float innerX = input.x + border;
+    const float innerY = input.y + border;
+    const float innerW = std::max(0.0f, input.w - border * 2.0f);
+    const float innerH = std::max(0.0f, input.h - border * 2.0f);
+    const float goldR = 0.95f;
+    const float goldG = 0.78f;
+    const float goldB = 0.33f;
+    const float goldA = 0.96f;
+
+    IRenderBackend::DebugQuad topBorder;
+    topBorder.x = input.x;
+    topBorder.y = input.y;
+    topBorder.w = input.w;
+    topBorder.h = border;
+    topBorder.r = goldR;
+    topBorder.g = goldG;
+    topBorder.b = goldB;
+    topBorder.a = goldA;
+    baseQuads.push_back(topBorder);
+
+    IRenderBackend::DebugQuad bottomBorder = topBorder;
+    bottomBorder.y = input.y + std::max(0.0f, input.h - border);
+    baseQuads.push_back(bottomBorder);
+
+    IRenderBackend::DebugQuad leftBorder;
+    leftBorder.x = input.x;
+    leftBorder.y = innerY;
+    leftBorder.w = border;
+    leftBorder.h = innerH;
+    leftBorder.r = goldR;
+    leftBorder.g = goldG;
+    leftBorder.b = goldB;
+    leftBorder.a = goldA;
+    baseQuads.push_back(leftBorder);
+
+    IRenderBackend::DebugQuad rightBorder = leftBorder;
+    rightBorder.x = innerX + innerW;
+    baseQuads.push_back(rightBorder);
+
     const auto appendText = [&](float x,
                                 float y,
                                 const std::string& text,

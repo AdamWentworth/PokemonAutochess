@@ -70,7 +70,7 @@ Prioritized Backlog
 - [ ] Remove backend-specific gameplay render flow and unify frame graph. (In progress: backend debug layer is now policy-gated to world-visible states.)
 - [ ] Remove `shouldUseBackendUi` backend split and unify UI policy. (Re-opened: OpenGL legacy card/shop path restored to prevent visual regressions while parity work continues.)
 - [ ] Replace backend quad text with glyph text rendering. (In progress: backend text menu now uses line-stroke text, full glyph path still pending.)
-- [ ] Route both backends through the same menu/shop/HUD layout/render code.
+- [ ] Route both backends through the same menu/shop/HUD layout/render code. (In progress: text-menu rendering is now forced through one backend-neutral path for both OpenGL and D3D12; shop/starter parity remains.)
 - [ ] Route both backends through the same world command generation code. (In progress: backend world path now prefers model mesh rendering with portrait fallback policy and suppresses tint-under-portrait artifacts.)
 - [ ] Remove `setRenderEnabled(legacyRenderPath)` behavior that disables non-OpenGL world resources.
 - [ ] Move backend debug world rendering behind an explicit dev-only flag. (In progress: menu world-backdrop is now disabled by default and can be enabled via `PAC_BACKEND_MENU_BACKDROP=1`.)
@@ -98,6 +98,7 @@ Iteration Log
 - Iteration 8: Fixed projected-world model draw detection to track the correct 3D depth container (preventing false fallback to portrait/rectangle proxies), and added a regression helper/test for model-geometry accumulation logic.
 - Iteration 9: Restored OpenGL to the legacy starter/shop UI policy after a visual regression, while keeping D3D12 on backend UI and re-opening the UI-policy unification item until style parity is complete.
 - Iteration 10: Reworked backend card visuals to match OpenGL styling (portrait fill + gold frame sprite + legacy-style `Lv` and label overlays), wired shop/starter state inputs to legacy text semantics, and expanded card renderer/visual tests for two-sprite (art+frame) output.
+- Iteration 11: Added explicit gold-stroke fallback borders to backend cards (ensuring visible framing across backends) and unified text-menu rendering policy so OpenGL and D3D12 share the same menu visual path.
 
 How This File Is Used
 - Before each parity implementation iteration:

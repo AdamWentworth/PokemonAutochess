@@ -33,8 +33,8 @@ bool test_backend_ui_sell_overlay_policy(std::string& outFail) {
         outFail = "backend text menu policy should allow d3d12 text menus";
         return false;
     }
-    if (shouldRenderBackendTextMenu(true, "opengl", true)) {
-        outFail = "backend text menu policy should block opengl text menus";
+    if (!shouldRenderBackendTextMenu(true, "opengl", true)) {
+        outFail = "backend text menu policy should allow opengl text menus";
         return false;
     }
     if (shouldRenderBackendTextMenu(true, "d3d12", false)) {

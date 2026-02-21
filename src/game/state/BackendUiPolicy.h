@@ -26,7 +26,10 @@ inline bool shouldUseBackendUi(bool hasRenderer,
 inline bool shouldRenderBackendTextMenu(bool hasRenderer,
                                         const std::string& activeRendererBackend,
                                         bool isTextMenuMode) {
-    return isTextMenuMode && shouldUseBackendUi(hasRenderer, activeRendererBackend);
+    (void)activeRendererBackend;
+    // Text-menu rendering is backend-neutral (quads + lines only), so keep one
+    // shared menu visual path across OpenGL and D3D12.
+    return hasRenderer && isTextMenuMode;
 }
 
 inline bool shouldShowSellOverlay(bool isShopMode,

@@ -1233,8 +1233,12 @@ void ScriptedState::render() {
     const auto* viewport = services.viewport;
     const int uiW = viewport ? viewport->width : 1280;
     const int uiH = viewport ? viewport->height : 720;
+    const bool renderBackendTextMenuPath = game::state::backend_ui::shouldRenderBackendTextMenu(
+        services.renderer != nullptr,
+        services.activeRendererBackend,
+        cardMode == CardMode::TextMenu);
 
-    if (titleText) {
+    if (titleText && !renderBackendTextMenuPath) {
         const auto msgOpt = game::scripting::callStringFunction(S, {"get_message"});
         if (msgOpt) {
             const std::string& msg = *msgOpt;
@@ -1262,10 +1266,7 @@ void ScriptedState::render() {
         shopReadyH = 0.0f;
     }
 
-    if (game::state::backend_ui::shouldRenderBackendTextMenu(
-            services.renderer != nullptr,
-            services.activeRendererBackend,
-            cardMode == CardMode::TextMenu)) {
+    if (renderBackendTextMenuPath) {
         renderBackendTextMenu(uiW, uiH);
         return;
     }

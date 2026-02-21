@@ -36,6 +36,14 @@ bool test_backend_card_visuals_contract(std::string& outFail) {
             outFail = "appendStylizedCard should emit backing geometry for a valid card";
             return false;
         }
+        if (quads.size() < 5u) {
+            outFail = "appendStylizedCard should emit explicit border geometry for frame visibility fallback";
+            return false;
+        }
+        if (quads[1].r < 0.80f || quads[1].g < 0.60f) {
+            outFail = "appendStylizedCard border fallback should be gold-tinted";
+            return false;
+        }
 
         const auto layout = computeCardVisualLayout(in);
         if (layout.artW <= 0.0f || layout.artH <= 0.0f) {
