@@ -46,4 +46,5 @@ Recent improvements
 - Reduced backend full-mesh indexed submission overhead by avoiding duplicate per-triangle vertex emission for textured submeshes (per-submesh vertex reuse), but further profiling is still needed for large-fight CPU skinning throughput.
 - Added a fast textured indexed fallback (`PAC_BACKEND_MODEL_FAST_TEXTURED`) that intentionally trades some per-triangle lighting fidelity for CPU time; residual debt is replacing CPU triangle shading with a GPU-lighting-capable world vertex format to keep parity without the CPU cost.
 - Clarified that low triangle-budget mode (`PAC_BACKEND_MODEL_FULL_MESH=0` with small limits) intentionally decimates geometry and can produce visible faceting/gaps; this is a quality-for-performance mode and not a texture decode bug.
+- Removed redundant full vertex resolve work in the fast textured full-mesh loop (positions+normals were previously computed before fast-path short-circuit), and moved D3D12 dynamic upload buffers to persistent mapping so per-draw buffer updates avoid repeated `Map/Unmap` overhead.
 

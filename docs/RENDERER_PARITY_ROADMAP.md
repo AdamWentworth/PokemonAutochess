@@ -122,6 +122,7 @@ Iteration Log
 - Iteration 30: Reduced D3D12 backend model CPU/render cost by skipping unnecessary base-color shading work on textured indexed batches and reusing per-submesh indexed vertices in full-mesh mode (instead of emitting duplicate vertices per triangle), targeting the combat-frame render bottleneck seen after animation parity fixes.
 - Iteration 31: Added a faster textured-indexed backend path (`PAC_BACKEND_MODEL_FAST_TEXTURED`, default on) that bypasses per-triangle CPU lighting/culling for textured submeshes and emits flat-tinted indexed textured vertices directly, targeting the persistent D3D12 `render`-time bottleneck in combat.
 - Iteration 32: Optimized fast textured backend submission by adding position-only vertex transform/skinning cache for the fast path (skipping normal work when not needed) and constrained that fast path to full-mesh indexed mode so aggressive triangle-budget decimation remains an explicit quality/perf tradeoff instead of being mistaken for texture corruption.
+- Iteration 33: Removed duplicate CPU skinning work from the fast textured full-mesh path (avoid doing full normal+position resolve before fast-path early-out) and switched D3D12 dynamic upload buffers to persistent mapping to eliminate per-draw `Map/Unmap` churn in world/debug/sprite submission.
 
 How This File Is Used
 - Before each parity implementation iteration:

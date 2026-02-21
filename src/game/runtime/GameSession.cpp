@@ -2460,17 +2460,6 @@ struct GameSession::Impl {
                                     }
                                 }
 
-                                const auto sk0 = resolveWorldVertex(triNodeIndex, i0, v0);
-                                const auto sk1 = resolveWorldVertex(triNodeIndex, i1, v1);
-                                const auto sk2 = resolveWorldVertex(triNodeIndex, i2, v2);
-
-                                const glm::vec3& a = sk0.pos;
-                                const glm::vec3& b = sk1.pos;
-                                const glm::vec3& c = sk2.pos;
-                                const glm::vec3& n0 = sk0.normal;
-                                const glm::vec3& n1 = sk1.normal;
-                                const glm::vec3& n2 = sk2.normal;
-
                                 const std::uint16_t triSubmeshIndex =
                                     (triIdx < mesh->triangleSubmesh.size())
                                         ? mesh->triangleSubmesh[triIdx]
@@ -2531,6 +2520,17 @@ struct GameSession::Impl {
                                         triDoubleSided);
                                     continue;
                                 }
+
+                                const auto sk0 = resolveWorldVertex(triNodeIndex, i0, v0);
+                                const auto sk1 = resolveWorldVertex(triNodeIndex, i1, v1);
+                                const auto sk2 = resolveWorldVertex(triNodeIndex, i2, v2);
+
+                                const glm::vec3& a = sk0.pos;
+                                const glm::vec3& b = sk1.pos;
+                                const glm::vec3& c = sk2.pos;
+                                const glm::vec3& n0 = sk0.normal;
+                                const glm::vec3& n1 = sk1.normal;
+                                const glm::vec3& n2 = sk2.normal;
 
                                 glm::vec3 baseColor0 = fallbackBase;
                                 glm::vec3 baseColor1 = fallbackBase;

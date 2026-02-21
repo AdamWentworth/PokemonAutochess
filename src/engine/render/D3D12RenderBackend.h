@@ -148,6 +148,7 @@ private:
     std::uint32_t debugVertexStride_ = 0;
     std::uint32_t debugVertexBufferSize_ = 0;
     std::uint32_t debugVertexFrameOffset_ = 0;
+    std::uint8_t* debugVertexMappedData_ = nullptr;
     Microsoft::WRL::ComPtr<ID3D12RootSignature> worldRootSignature_;
     Microsoft::WRL::ComPtr<ID3D12PipelineState> worldPipelineState_;
     Microsoft::WRL::ComPtr<ID3D12PipelineState> worldBlendPipelineState_;
@@ -156,10 +157,12 @@ private:
     std::uint32_t worldVertexStride_ = 0;
     std::uint32_t worldVertexBufferSize_ = 0;
     std::uint32_t worldVertexFrameOffset_ = 0;
+    std::uint8_t* worldVertexMappedData_ = nullptr;
     Microsoft::WRL::ComPtr<ID3D12Resource> worldIndexBuffer_;
     std::uint64_t worldIndexBufferGpuAddress_ = 0;
     std::uint32_t worldIndexBufferSize_ = 0;
     std::uint32_t worldIndexFrameOffset_ = 0;
+    std::uint8_t* worldIndexMappedData_ = nullptr;
     std::uint32_t worldFallbackTextureDescriptorIndex_ = 0;
 
     struct SpriteTexture {
@@ -177,6 +180,7 @@ private:
     std::uint32_t spriteVertexStride_ = 0;
     std::uint32_t spriteVertexBufferSize_ = 0;
     std::uint32_t spriteVertexFrameOffset_ = 0;
+    std::uint8_t* spriteVertexMappedData_ = nullptr;
     std::unordered_map<std::string, SpriteTexture> spriteTextures_;
     std::unordered_map<std::string, SpriteTexture> worldTextures_;
 #endif
