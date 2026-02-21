@@ -10,6 +10,7 @@
 #include <algorithm>
 #include <cmath>
 #include <iomanip>
+#include <limits>
 #include <sstream>
 #include <unordered_map>
 #include <unordered_set>
@@ -107,6 +108,23 @@ std::size_t backendModelTriangleLimit() {
     return limit;
 }
 
+std::size_t backendModelTriangleFrameBudget() {
+    static const std::size_t budget = []() -> std::size_t {
+        constexpr std::size_t kDefault = 28000u;
+        constexpr std::size_t kMin = 1024u;
+        constexpr std::size_t kMax = 240000u;
+        const auto env = engine::env::get("PAC_BACKEND_MODEL_TRI_FRAME_BUDGET");
+        if (!env.has_value()) return kDefault;
+        try {
+            const std::size_t parsed = static_cast<std::size_t>(std::stoull(*env));
+            return std::clamp(parsed, kMin, kMax);
+        } catch (...) {
+            return kDefault;
+        }
+    }();
+    return budget;
+}
+
 bool backendModelBackfaceCullingEnabled() {
     static const bool enabled = []() -> bool {
         const auto env = engine::env::get("PAC_BACKEND_MODEL_CULL");
@@ -137,6 +155,19 @@ bool backendWorldPortraitOverlayForced() {
     static const bool enabled = []() -> bool {
         const auto env = engine::env::get("PAC_BACKEND_WORLD_PORTRAIT_OVERLAY");
         if (!env.has_value()) return false;
+        const std::string raw = *env;
+        if (raw == "0" || raw == "false" || raw == "FALSE" || raw == "off" || raw == "OFF") {
+            return false;
+        }
+        return true;
+    }();
+    return enabled;
+}
+
+bool backendPreloadModelCacheEnabled() {
+    static const bool enabled = []() -> bool {
+        const auto env = engine::env::get("PAC_BACKEND_PRELOAD_MODELS");
+        if (!env.has_value()) return true;
         const std::string raw = *env;
         if (raw == "0" || raw == "false" || raw == "FALSE" || raw == "off" || raw == "OFF") {
             return false;
@@ -434,7 +465,31 @@ struct GameSession::Impl {
         if (legacyRenderPath) {
             game::preload::preloadCommonModels(ctx, dataDb.pokemon, "PokemonAutochess");
         } else {
-            std::cout << "[Init] Non-OpenGL render path: skipping GL model preload.\n";
+            if (backendPreloadModelCacheEnabled()) {
+                std::cout << "[Init] Non-OpenGL render path: preloading backend model cache...\n";
+                std::size_t loaded = 0u;
+                std::size_t failed = 0u;
+                for (const auto& [name, stats] : dataDb.pokemon.all()) {
+                    (void)name;
+                    if (stats.model.empty()) continue;
+                    const std::string modelPath = "assets/models/" + stats.model;
+                    auto& cacheEntry = backendMeshByModelPath[modelPath];
+                    if (cacheEntry.attemptedLoad) continue;
+                    cacheEntry.attemptedLoad = true;
+                    std::string err;
+                    if (!runtime::backend_model::loadMeshFromCache(modelPath, cacheEntry.mesh, &err)) {
+                        cacheEntry.error = std::move(err);
+                        cacheEntry.mesh = {};
+                        ++failed;
+                    } else {
+                        ++loaded;
+                    }
+                }
+                std::cout << "[Init] Backend model cache preload complete: loaded=" << loaded
+                          << " failed=" << failed << "\n";
+            } else {
+                std::cout << "[Init] Non-OpenGL render path: backend model cache preload disabled.\n";
+            }
         }
 
         stateManager->pushState(std::make_unique<ScriptedState>(
@@ -901,6 +956,7 @@ struct GameSession::Impl {
                 modelDepthTris.reserve(12000);
                 std::vector<DepthWorldTri> modelDepthWorldTris;
                 modelDepthWorldTris.reserve(12000);
+                std::size_t remainingModelTrianglesBudget = backendModelTriangleFrameBudget();
 
                 for (int r = 0; r < rows; ++r) {
                     for (int c = 0; c < cols; ++c) {
@@ -1244,6 +1300,22 @@ struct GameSession::Impl {
                                     static_cast<double>(maxTrianglesPerUnit)));
                             const std::size_t unitTriangleBudget =
                                 std::min(triangleCount, std::max(minTrianglesPerUnit, scaledBudget));
+                            std::size_t effectiveUnitTriangleBudget = unitTriangleBudget;
+                            if (remainingModelTrianglesBudget > 0u) {
+                                effectiveUnitTriangleBudget =
+                                    std::min(effectiveUnitTriangleBudget, remainingModelTrianglesBudget);
+                            } else {
+                                effectiveUnitTriangleBudget =
+                                    std::min<std::size_t>(triangleCount, 192u);
+                            }
+                            if (effectiveUnitTriangleBudget == 0u) {
+                                effectiveUnitTriangleBudget = std::min<std::size_t>(triangleCount, 192u);
+                            }
+                            if (remainingModelTrianglesBudget >= effectiveUnitTriangleBudget) {
+                                remainingModelTrianglesBudget -= effectiveUnitTriangleBudget;
+                            } else {
+                                remainingModelTrianglesBudget = 0u;
+                            }
 
                             const float modelScale =
                                 std::max(0.01f, mesh->modelScaleFactor) *
@@ -1264,18 +1336,10 @@ struct GameSession::Impl {
                             const glm::mat4 modelM = translation * rotationY * rotationX * rotationZ * scale;
                             const std::size_t modelDepthCountBefore = modelDepthTris.size();
                             const std::size_t modelDepthWorldCountBefore = modelDepthWorldTris.size();
+                            const std::size_t world3DTriangleCountBefore = world3DTriangles.size();
                             const BackendPoseEval scenePose = evaluateScenePose(*mesh, unit);
                             const auto& nodeGlobals = scenePose.hasScenePose ? scenePose.nodeGlobals : mesh->bindNodeGlobals;
                             const bool hasClipPose = scenePose.hasClipPose;
-                            std::unordered_map<int, int> meshIndexToNode;
-                            meshIndexToNode.reserve(mesh->nodeMesh.size());
-                            for (std::size_t ni = 0; ni < mesh->nodeMesh.size(); ++ni) {
-                                const int meshIndex = mesh->nodeMesh[ni];
-                                if (meshIndex < 0) continue;
-                                if (meshIndexToNode.find(meshIndex) == meshIndexToNode.end()) {
-                                    meshIndexToNode.emplace(meshIndex, static_cast<int>(ni));
-                                }
-                            }
 
                             const glm::vec3 lightDir = glm::normalize(glm::vec3(0.45f, 0.90f, 0.35f));
                             const glm::vec3 fallbackBase(
@@ -1288,8 +1352,9 @@ struct GameSession::Impl {
                                 return glm::vec3(0.0f, 1.0f, 0.0f);
                             };
 
-                            std::unordered_map<int, std::vector<glm::mat4>> skinMatricesByNode;
-                            skinMatricesByNode.reserve(8);
+                            const std::size_t nodeCount = nodeGlobals.size();
+                            std::vector<std::vector<glm::mat4>> skinMatricesByNode(nodeCount);
+                            std::vector<std::uint8_t> skinMatricesReady(nodeCount, 0u);
                             const auto skinVertexAtNode = [&](int nodeIndex,
                                                              const runtime::backend_model::MeshVertex& vtx,
                                                              const glm::vec3& localPos,
@@ -1309,8 +1374,7 @@ struct GameSession::Impl {
                                     return outSkin;
                                 }
 
-                                auto cached = skinMatricesByNode.find(nodeIndex);
-                                if (cached == skinMatricesByNode.end()) {
+                                if (skinMatricesReady[static_cast<std::size_t>(nodeIndex)] == 0u) {
                                     const auto& skin = mesh->skins[static_cast<std::size_t>(skinIndex)];
                                     const glm::mat4 meshGlobal = nodeGlobals[static_cast<std::size_t>(nodeIndex)];
                                     const glm::mat4 invMeshGlobal = glm::inverse(meshGlobal);
@@ -1326,9 +1390,10 @@ struct GameSession::Impl {
                                             nodeGlobals[static_cast<std::size_t>(jointNode)] *
                                             skin.inverseBind[j];
                                     }
-                                    cached = skinMatricesByNode.emplace(nodeIndex, std::move(mats)).first;
+                                    skinMatricesByNode[static_cast<std::size_t>(nodeIndex)] = std::move(mats);
+                                    skinMatricesReady[static_cast<std::size_t>(nodeIndex)] = 1u;
                                 }
-                                const auto& mats = cached->second;
+                                const auto& mats = skinMatricesByNode[static_cast<std::size_t>(nodeIndex)];
                                 const std::uint16_t joints[4] = {vtx.j0, vtx.j1, vtx.j2, vtx.j3};
                                 const float weights[4] = {vtx.w0, vtx.w1, vtx.w2, vtx.w3};
                                 glm::vec4 blendedPos(0.0f);
@@ -1359,42 +1424,44 @@ struct GameSession::Impl {
                                 glm::mat4 worldM{1.0f};
                                 glm::mat3 worldNormalM{1.0f};
                             };
-                            std::unordered_map<int, NodeTransformCacheEntry> nodeTransformCache;
-                            nodeTransformCache.reserve(16);
-                            const auto nodeTransformsFor = [&](int triNodeIndex) {
-                                auto it = nodeTransformCache.find(triNodeIndex);
-                                if (it != nodeTransformCache.end()) return it;
+                            std::vector<NodeTransformCacheEntry> nodeTransformCache(nodeCount + 1u);
+                            std::vector<std::uint8_t> nodeTransformReady(nodeCount + 1u, 0u);
+                            const auto nodeTransformsFor = [&](int triNodeIndex) -> const NodeTransformCacheEntry& {
+                                std::size_t cacheIndex = 0u;
+                                if (triNodeIndex >= 0 && static_cast<std::size_t>(triNodeIndex) < nodeCount) {
+                                    cacheIndex = static_cast<std::size_t>(triNodeIndex) + 1u;
+                                }
+                                if (nodeTransformReady[cacheIndex] != 0u) {
+                                    return nodeTransformCache[cacheIndex];
+                                }
                                 const glm::mat4 nodeGlobal =
                                     (triNodeIndex >= 0 &&
                                      static_cast<std::size_t>(triNodeIndex) < nodeGlobals.size())
                                         ? nodeGlobals[static_cast<std::size_t>(triNodeIndex)]
                                         : glm::mat4(1.0f);
-                                NodeTransformCacheEntry entry;
+                                auto& entry = nodeTransformCache[cacheIndex];
                                 entry.worldM = modelM * nodeGlobal;
                                 entry.worldNormalM =
                                     glm::transpose(glm::inverse(glm::mat3(entry.worldM)));
-                                return nodeTransformCache.emplace(triNodeIndex, std::move(entry)).first;
+                                nodeTransformReady[cacheIndex] = 1u;
+                                return entry;
                             };
 
                             struct WorldVertexSample {
                                 glm::vec3 pos{0.0f};
                                 glm::vec3 normal{0.0f, 1.0f, 0.0f};
                             };
-                            std::unordered_map<std::uint64_t, WorldVertexSample> worldVertexCache;
-                            worldVertexCache.reserve(
-                                std::min<std::size_t>(unitTriangleBudget * 2u, mesh->vertices.size()));
-                            const auto worldVertexCacheKey =
-                                [](int triNodeIndex, std::uint32_t vertexIndex) -> std::uint64_t {
-                                return (static_cast<std::uint64_t>(
-                                            static_cast<std::uint32_t>(triNodeIndex + 1)) << 32u) |
-                                       static_cast<std::uint64_t>(vertexIndex);
-                            };
+                            std::vector<WorldVertexSample> worldVertexCache(mesh->vertices.size());
+                            std::vector<int> worldVertexCacheNode(mesh->vertices.size(), std::numeric_limits<int>::min());
+                            std::vector<std::uint8_t> worldVertexCacheValid(mesh->vertices.size(), 0u);
                             const auto resolveWorldVertex = [&](int triNodeIndex,
                                                                 std::uint32_t vertexIndex,
                                                                 const runtime::backend_model::MeshVertex& vtx) {
-                                const std::uint64_t key = worldVertexCacheKey(triNodeIndex, vertexIndex);
-                                auto cached = worldVertexCache.find(key);
-                                if (cached != worldVertexCache.end()) return cached->second;
+                                if (vertexIndex < worldVertexCache.size() &&
+                                    worldVertexCacheValid[vertexIndex] != 0u &&
+                                    worldVertexCacheNode[vertexIndex] == triNodeIndex) {
+                                    return worldVertexCache[vertexIndex];
+                                }
 
                                 glm::vec3 local = vtx.position;
                                 if (!hasClipPose) {
@@ -1407,11 +1474,16 @@ struct GameSession::Impl {
                                         worldCellSize);
                                 }
                                 const auto sk = skinVertexAtNode(triNodeIndex, vtx, local, vtx.normal);
-                                const auto nt = nodeTransformsFor(triNodeIndex);
+                                const auto& nt = nodeTransformsFor(triNodeIndex);
                                 WorldVertexSample out;
-                                out.pos = glm::vec3(nt->second.worldM * glm::vec4(sk.pos, 1.0f));
-                                out.normal = safeNormalize(nt->second.worldNormalM * sk.normal);
-                                return worldVertexCache.emplace(key, out).first->second;
+                                out.pos = glm::vec3(nt.worldM * glm::vec4(sk.pos, 1.0f));
+                                out.normal = safeNormalize(nt.worldNormalM * sk.normal);
+                                if (vertexIndex < worldVertexCache.size()) {
+                                    worldVertexCache[vertexIndex] = out;
+                                    worldVertexCacheNode[vertexIndex] = triNodeIndex;
+                                    worldVertexCacheValid[vertexIndex] = 1u;
+                                }
+                                return out;
                             };
 
                             const auto pushModelTriangle = [&](const glm::vec3& a,
@@ -1503,10 +1575,8 @@ struct GameSession::Impl {
                                     tri3d.g3 = shaded2.g;
                                     tri3d.b3 = shaded2.b;
                                     tri3d.a3 = outAlpha;
-                                    DepthWorldTri d3;
-                                    d3.tri = tri3d;
-                                    d3.depth = glm::dot(cameraWorldPos - triCenter, cameraWorldPos - triCenter);
-                                    modelDepthWorldTris.push_back(std::move(d3));
+                                    // D3D12 world path has depth testing; avoid per-frame depth sort CPU cost.
+                                    world3DTriangles.push_back(tri3d);
                                     return;
                                 }
 
@@ -1525,10 +1595,10 @@ struct GameSession::Impl {
                                 modelDepthTris.push_back(dt);
                             };
                             std::size_t previousTriSample = triangleCount;
-                            for (std::size_t sampleIdx = 0; sampleIdx < unitTriangleBudget; ++sampleIdx) {
+                            for (std::size_t sampleIdx = 0; sampleIdx < effectiveUnitTriangleBudget; ++sampleIdx) {
                                 std::size_t triIdx =
-                                    selectUniformTriangleIndex(sampleIdx, unitTriangleBudget, triangleCount);
-                                if (unitTriangleBudget < triangleCount && triIdx == previousTriSample) {
+                                    selectUniformTriangleIndex(sampleIdx, effectiveUnitTriangleBudget, triangleCount);
+                                if (effectiveUnitTriangleBudget < triangleCount && triIdx == previousTriSample) {
                                     if (triIdx + 1u < triangleCount) ++triIdx;
                                 }
                                 previousTriSample = triIdx;
@@ -1557,8 +1627,10 @@ struct GameSession::Impl {
                                     const std::uint16_t submeshIndex = mesh->triangleSubmesh[triIdx];
                                     if (submeshIndex < mesh->submeshMeshIndex.size()) {
                                         const int meshIndex = mesh->submeshMeshIndex[submeshIndex];
-                                        const auto nodeIt = meshIndexToNode.find(meshIndex);
-                                        if (nodeIt != meshIndexToNode.end()) triNodeIndex = nodeIt->second;
+                                        if (meshIndex >= 0 &&
+                                            static_cast<std::size_t>(meshIndex) < mesh->meshIndexToNode.size()) {
+                                            triNodeIndex = mesh->meshIndexToNode[static_cast<std::size_t>(meshIndex)];
+                                        }
                                     }
                                 }
 
@@ -1626,7 +1698,8 @@ struct GameSession::Impl {
                                 modelDepthCountBefore,
                                 modelDepthTris.size(),
                                 modelDepthWorldCountBefore,
-                                modelDepthWorldTris.size());
+                                modelDepthWorldTris.size()) ||
+                                (world3DTriangles.size() > world3DTriangleCountBefore);
                         }
 
                         const game::runtime::backend_proxy::UnitProxyCorners corners =

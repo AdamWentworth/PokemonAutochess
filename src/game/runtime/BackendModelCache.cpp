@@ -662,11 +662,22 @@ bool loadMeshFromCache(const std::string& modelPath, MeshData& out, std::string*
     std::vector<float> vertexColorWeight(out.vertices.size(), 0.0f);
     std::unordered_map<int, int> meshToNode;
     meshToNode.reserve(out.nodeMesh.size());
+    int maxMeshIndex = -1;
     for (std::size_t ni = 0; ni < out.nodeMesh.size(); ++ni) {
         const int meshIndex = out.nodeMesh[ni];
         if (meshIndex < 0) continue;
+        maxMeshIndex = std::max(maxMeshIndex, meshIndex);
         if (meshToNode.find(meshIndex) == meshToNode.end()) {
             meshToNode.emplace(meshIndex, static_cast<int>(ni));
+        }
+    }
+    out.meshIndexToNode.clear();
+    if (maxMeshIndex >= 0) {
+        out.meshIndexToNode.assign(static_cast<std::size_t>(maxMeshIndex) + 1u, -1);
+        for (const auto& kv : meshToNode) {
+            if (kv.first < 0) continue;
+            const std::size_t idx = static_cast<std::size_t>(kv.first);
+            if (idx < out.meshIndexToNode.size()) out.meshIndexToNode[idx] = kv.second;
         }
     }
     if (!submeshRanges.empty()) {

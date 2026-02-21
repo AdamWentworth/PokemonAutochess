@@ -36,6 +36,7 @@ struct MeshData {
     std::vector<std::uint8_t> triangleDoubleSided;
     std::vector<glm::vec4> submeshBaseColors;
     std::vector<int> submeshMeshIndex;
+    std::vector<int> meshIndexToNode;
     std::vector<int> triangleNodeIndex;
     std::vector<int> triangleSkinIndex;
     std::vector<glm::vec3> vertexBaseColors;
