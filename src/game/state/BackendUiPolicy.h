@@ -19,6 +19,12 @@ inline bool shouldUseBackendUi(bool hasRenderer, const std::string& activeRender
     return backend != "opengl";
 }
 
+inline bool shouldRenderBackendTextMenu(bool hasRenderer,
+                                        const std::string& activeRendererBackend,
+                                        bool isTextMenuMode) {
+    return isTextMenuMode && shouldUseBackendUi(hasRenderer, activeRendererBackend);
+}
+
 inline bool shouldShowSellOverlay(bool isShopMode,
                                   bool hasWorld,
                                   bool unitDragActive,

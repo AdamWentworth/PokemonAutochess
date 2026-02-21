@@ -66,9 +66,10 @@ Milestones
 - M5: Test/perf hardening and cleanup
 
 Prioritized Backlog
+- [x] Guard backend text-menu fallback behind explicit backend policy (regression safety for OpenGL menu path).
 - [ ] Remove backend-specific gameplay render flow and unify frame graph.
 - [ ] Remove `shouldUseBackendUi` backend split and unify UI policy.
-- [ ] Replace backend quad text with glyph text rendering.
+- [ ] Replace backend quad text with glyph text rendering. (In progress: backend text menu now uses line-stroke text, full glyph path still pending.)
 - [ ] Route both backends through the same menu/shop/HUD layout/render code.
 - [ ] Route both backends through the same world command generation code.
 - [ ] Remove `setRenderEnabled(legacyRenderPath)` behavior that disables non-OpenGL world resources.
@@ -87,6 +88,8 @@ Prioritized Backlog
 
 Iteration Log
 - Iteration 0 (current): Established living roadmap and consolidated parity backlog with milestones and done criteria.
+- Iteration 1: Restored policy-gated OpenGL text-menu rendering, switched backend text-menu/overlay text to line-stroke rendering (reducing rectangle artifacts), and added regression coverage for backend text line generation.
+- Iteration 2: Added explicit backend text-menu policy helper and contract tests to prevent accidental OpenGL fallback-path regressions.
 
 How This File Is Used
 - Before each parity implementation iteration:

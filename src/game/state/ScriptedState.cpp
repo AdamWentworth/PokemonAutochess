@@ -747,8 +747,10 @@ void ScriptedState::renderBackendTextMenu(int uiW, int uiH) {
 
     layoutBackendTextMenu(uiW, uiH);
 
-    std::vector<IRenderBackend::DebugQuad> quads;
-    quads.reserve(4096);
+    std::vector<IRenderBackend::DebugQuad> baseQuads;
+    baseQuads.reserve(1024);
+    std::vector<IRenderBackend::DebugLine> textLines;
+    textLines.reserve(8192);
 
     float minX = static_cast<float>(uiW);
     float minY = static_cast<float>(uiH);
@@ -791,7 +793,7 @@ void ScriptedState::renderBackendTextMenu(int uiW, int uiH) {
             bg.b = 0.28f;
             bg.a = 0.92f;
         }
-        quads.push_back(bg);
+        baseQuads.push_back(bg);
 
         float tr = 1.0f;
         float tg = 1.0f;
@@ -806,8 +808,8 @@ void ScriptedState::renderBackendTextMenu(int uiW, int uiH) {
             tb = entry.colorB;
         }
 
-        game::runtime::backend_text::appendTextQuads(
-            quads, entry.x, entry.y, display, textScale, tr, tg, tb, 1.0f);
+        game::runtime::backend_text::appendTextLines(
+            textLines, entry.x, entry.y, display, textScale, tr, tg, tb, 1.0f, 0.82f);
 
         minX = std::min(minX, bg.x);
         minY = std::min(minY, bg.y);
@@ -819,7 +821,7 @@ void ScriptedState::renderBackendTextMenu(int uiW, int uiH) {
     if (hasAnyEntry) {
         const auto msgOpt = game::scripting::callStringFunction(script.getScriptTable(), {"get_message"});
         std::string header = msgOpt ? *msgOpt : "Menu";
-        game::runtime::backend_text::appendTextQuads(quads,
+        game::runtime::backend_text::appendTextLines(textLines,
                                 minX,
                                 std::max(24.0f, minY - 62.0f),
                                 header,
@@ -827,8 +829,9 @@ void ScriptedState::renderBackendTextMenu(int uiW, int uiH) {
                                 0.97f,
                                 0.97f,
                                 0.98f,
-                                1.0f);
-        game::runtime::backend_text::appendTextQuads(quads,
+                                1.0f,
+                                0.96f);
+        game::runtime::backend_text::appendTextLines(textLines,
                                 minX,
                                 std::max(52.0f, minY - 30.0f),
                                 "Click entries or press 1-9",
@@ -836,7 +839,8 @@ void ScriptedState::renderBackendTextMenu(int uiW, int uiH) {
                                 0.72f,
                                 0.84f,
                                 0.96f,
-                                1.0f);
+                                1.0f,
+                                0.86f);
 
         IRenderBackend::DebugQuad panel;
         panel.x = std::max(8.0f, minX - 18.0f);
@@ -847,11 +851,14 @@ void ScriptedState::renderBackendTextMenu(int uiW, int uiH) {
         panel.g = 0.06f;
         panel.b = 0.08f;
         panel.a = 0.70f;
-        quads.insert(quads.begin(), panel);
+        baseQuads.insert(baseQuads.begin(), panel);
     }
 
-    if (!quads.empty()) {
-        services.renderer->drawDebugQuads(quads.data(), quads.size(), uiW, uiH);
+    if (!baseQuads.empty()) {
+        services.renderer->drawDebugQuads(baseQuads.data(), baseQuads.size(), uiW, uiH);
+    }
+    if (!textLines.empty()) {
+        services.renderer->drawDebugLines(textLines.data(), textLines.size(), uiW, uiH);
     }
 }
 
@@ -1257,7 +1264,10 @@ void ScriptedState::render() {
         shopReadyH = 0.0f;
     }
 
-    if (cardMode == CardMode::TextMenu && services.renderer) {
+    if (game::state::backend_ui::shouldRenderBackendTextMenu(
+            services.renderer != nullptr,
+            services.activeRendererBackend,
+            cardMode == CardMode::TextMenu)) {
         renderBackendTextMenu(uiW, uiH);
         return;
     }

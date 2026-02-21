@@ -607,6 +607,8 @@ struct GameSession::Impl {
         overlayQuads.reserve(1024);
         std::vector<IRenderBackend::DebugLine> lines;
         lines.reserve(512);
+        std::vector<IRenderBackend::DebugLine> textLines;
+        textLines.reserve(8192);
         std::vector<IRenderBackend::DebugSprite> sprites;
         sprites.reserve(256);
         struct BackendUnitLabel {
@@ -2050,8 +2052,8 @@ struct GameSession::Impl {
                                     const std::string& text,
                                     float scale,
                                     const glm::vec3& color) {
-            runtime::backend_text::appendTextQuads(
-                overlayQuads, x, y, text, scale, color.r, color.g, color.b, 1.0f);
+            runtime::backend_text::appendTextLines(
+                textLines, x, y, text, scale, color.r, color.g, color.b, 1.0f, 0.88f);
         };
         const auto appendRightText = [&](float y,
                                          const std::string& text,
@@ -2347,6 +2349,9 @@ struct GameSession::Impl {
         }
         if (!overlayQuads.empty()) {
             renderer->drawDebugQuads(overlayQuads.data(), overlayQuads.size(), drawableW, drawableH);
+        }
+        if (!textLines.empty()) {
+            renderer->drawDebugLines(textLines.data(), textLines.size(), drawableW, drawableH);
         }
     }
 

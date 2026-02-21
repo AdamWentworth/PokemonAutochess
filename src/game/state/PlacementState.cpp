@@ -96,7 +96,9 @@ void PlacementState::render() {
         if (!services.renderer) return;
 
         std::vector<IRenderBackend::DebugQuad> quads;
-        quads.reserve(1024);
+        quads.reserve(512);
+        std::vector<IRenderBackend::DebugLine> lines;
+        lines.reserve(2048);
 
         const float scale = 1.9f;
         const float textW = game::runtime::backend_text::measureTextWidth(message, scale);
@@ -115,10 +117,13 @@ void PlacementState::render() {
         panel.a = 0.80f;
         quads.push_back(panel);
 
-        game::runtime::backend_text::appendTextQuads(
-            quads, textX, textY, message, scale, 1.0f, 0.98f, 0.45f, 1.0f);
+        game::runtime::backend_text::appendTextLines(
+            lines, textX, textY, message, scale, 1.0f, 0.98f, 0.45f, 1.0f, 0.88f);
 
         services.renderer->drawDebugQuads(quads.data(), quads.size(), uiW, uiH);
+        if (!lines.empty()) {
+            services.renderer->drawDebugLines(lines.data(), lines.size(), uiW, uiH);
+        }
         return;
     }
 

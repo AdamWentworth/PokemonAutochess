@@ -161,6 +161,8 @@ void CombatState::renderBackendShopUi(int uiW, int uiH, bool showSellOverlay, co
     baseQuads.reserve(4096);
     std::vector<IRenderBackend::DebugQuad> textQuads;
     textQuads.reserve(4096);
+    std::vector<IRenderBackend::DebugLine> textLines;
+    textLines.reserve(8192);
     std::vector<IRenderBackend::DebugSprite> sprites;
     sprites.reserve(1024);
 
@@ -171,8 +173,8 @@ void CombatState::renderBackendShopUi(int uiW, int uiH, bool showSellOverlay, co
                                 float r,
                                 float g,
                                 float b) {
-        game::runtime::backend_text::appendTextQuads(
-            textQuads,
+        game::runtime::backend_text::appendTextLines(
+            textLines,
             x,
             y,
             text,
@@ -180,7 +182,8 @@ void CombatState::renderBackendShopUi(int uiW, int uiH, bool showSellOverlay, co
             r,
             g,
             b,
-            1.0f);
+            1.0f,
+            0.88f);
     };
 
     backendRerollX = 0.0f;
@@ -370,6 +373,9 @@ void CombatState::renderBackendShopUi(int uiW, int uiH, bool showSellOverlay, co
     }
     if (!textQuads.empty()) {
         services.renderer->drawDebugQuads(textQuads.data(), textQuads.size(), uiW, uiH);
+    }
+    if (!textLines.empty()) {
+        services.renderer->drawDebugLines(textLines.data(), textLines.size(), uiW, uiH);
     }
 }
 
@@ -730,7 +736,9 @@ void CombatState::render() {
         if (!services.renderer) return;
 
         std::vector<IRenderBackend::DebugQuad> quads;
-        quads.reserve(1024);
+        quads.reserve(512);
+        std::vector<IRenderBackend::DebugLine> lines;
+        lines.reserve(2048);
 
         const float scale = 2.0f;
         const float textW = game::runtime::backend_text::measureTextWidth(msg, scale);
@@ -749,10 +757,13 @@ void CombatState::render() {
         panel.a = 0.82f;
         quads.push_back(panel);
 
-        game::runtime::backend_text::appendTextQuads(
-            quads, textX, textY, msg, scale, msgColor.r, msgColor.g, msgColor.b, 1.0f);
+        game::runtime::backend_text::appendTextLines(
+            lines, textX, textY, msg, scale, msgColor.r, msgColor.g, msgColor.b, 1.0f, 0.88f);
 
         services.renderer->drawDebugQuads(quads.data(), quads.size(), uiW, uiH);
+        if (!lines.empty()) {
+            services.renderer->drawDebugLines(lines.data(), lines.size(), uiW, uiH);
+        }
         return;
     }
 

@@ -5,6 +5,7 @@
 bool test_backend_ui_sell_overlay_policy(std::string& outFail) {
     using game::state::backend_ui::computeSellOverlayHitLayout;
     using game::state::backend_ui::computeSellOverlayOuterLayout;
+    using game::state::backend_ui::shouldRenderBackendTextMenu;
     using game::state::backend_ui::shouldShowSellOverlay;
     using game::state::backend_ui::shouldUseBackendUi;
 
@@ -22,6 +23,22 @@ bool test_backend_ui_sell_overlay_policy(std::string& outFail) {
     }
     if (shouldUseBackendUi(false, "d3d12")) {
         outFail = "backend ui policy should require renderer availability";
+        return false;
+    }
+    if (!shouldRenderBackendTextMenu(true, "d3d12", true)) {
+        outFail = "backend text menu policy should allow d3d12 text menus";
+        return false;
+    }
+    if (shouldRenderBackendTextMenu(true, "opengl", true)) {
+        outFail = "backend text menu policy should block opengl text menus";
+        return false;
+    }
+    if (shouldRenderBackendTextMenu(true, "d3d12", false)) {
+        outFail = "backend text menu policy should require text-menu mode";
+        return false;
+    }
+    if (shouldRenderBackendTextMenu(false, "d3d12", true)) {
+        outFail = "backend text menu policy should require renderer availability";
         return false;
     }
 
