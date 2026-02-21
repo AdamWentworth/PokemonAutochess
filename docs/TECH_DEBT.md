@@ -43,4 +43,5 @@ Recent improvements
 - Fixed D3D12 world mesh upload-buffer hazards by adding per-frame world vertex/index offsets (preventing draw-data overwrite between multiple model draws in one frame).
 - Reduced backend startup UX divergence by wiring D3D12/non-OpenGL model-cache preload into boot progress updates and adding a non-GL fallback loading gauge path in `GameRunner`.
 - Reduced backend animation/scale drift by hydrating non-OpenGL unit anim role indices + durations from backend cache/animset metadata and by applying native-scale correction parity without requiring OpenGL `Model*` handles.
+- Reduced backend full-mesh indexed submission overhead by avoiding duplicate per-triangle vertex emission for textured submeshes (per-submesh vertex reuse), but further profiling is still needed for large-fight CPU skinning throughput.
 

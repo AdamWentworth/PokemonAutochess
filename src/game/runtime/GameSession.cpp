@@ -1810,10 +1810,17 @@ struct GameSession::Impl {
                             const std::size_t modelDepthWorldCountBefore = modelDepthWorldTris.size();
                             const std::size_t world3DTriangleCountBefore = world3DTriangles.size();
                             std::vector<WorldIndexedBatch> modelIndexedBatchesPerSubmesh;
+                            std::vector<std::vector<int>> modelIndexedVertexRemap;
                             if (useIndexedWorldModelPath) {
                                 const std::size_t batchCount =
                                     std::max<std::size_t>(1u, mesh->submeshBaseTextures.size());
                                 modelIndexedBatchesPerSubmesh.resize(batchCount);
+                                if (fullIndexedMeshPath && !mesh->vertices.empty()) {
+                                    modelIndexedVertexRemap.resize(batchCount);
+                                    for (auto& remap : modelIndexedVertexRemap) {
+                                        remap.assign(mesh->vertices.size(), -1);
+                                    }
+                                }
 
                                 std::string unitModelPath;
                                 if (const PokemonStats* stats = dataDb.pokemon.getStats(unit.name)) {
@@ -1997,6 +2004,9 @@ struct GameSession::Impl {
                             const auto pushModelTriangle = [&](const glm::vec3& a,
                                                                 const glm::vec3& b,
                                                                 const glm::vec3& c,
+                                                                std::uint32_t src0,
+                                                                std::uint32_t src1,
+                                                                std::uint32_t src2,
                                                                 const glm::vec2& uv0,
                                                                 const glm::vec2& uv1,
                                                                 const glm::vec2& uv2,
@@ -2050,6 +2060,128 @@ struct GameSession::Impl {
                                 }
 
                                 const bool flipForBackface = doubleSided && (faceFacing < 0.0f);
+                                const float outAlpha = alpha;
+
+                                if (supportsWorldTriangles3D && useIndexedWorldModelPath) {
+                                    std::size_t batchIndex = static_cast<std::size_t>(submeshIndex);
+                                    if (batchIndex >= modelIndexedBatchesPerSubmesh.size()) batchIndex = 0u;
+                                    auto& batch = modelIndexedBatchesPerSubmesh[batchIndex];
+                                    const bool texturedBatch =
+                                        batch.textureRgba != nullptr &&
+                                        batch.textureWidth > 0 &&
+                                        batch.textureHeight > 0;
+
+                                    if (texturedBatch) {
+                                        const auto shadeTint = [&](const glm::vec3& normal,
+                                                                   const glm::vec3& worldPos) {
+                                            return runtime::backend_material::shadeVertexLitColor(
+                                                glm::vec3(1.0f),
+                                                normal,
+                                                lightDir,
+                                                cameraWorldPos - worldPos,
+                                                flipForBackface);
+                                        };
+                                        const glm::vec3 outC0 = shadeTint(n0, a);
+                                        const glm::vec3 outC1 = shadeTint(n1, b);
+                                        const glm::vec3 outC2 = shadeTint(n2, c);
+
+                                        const bool canReuseIndexedVertices =
+                                            fullIndexedMeshPath &&
+                                            batchIndex < modelIndexedVertexRemap.size();
+                                        const auto appendIndexedVertex =
+                                            [&](std::uint32_t src,
+                                                const glm::vec3& pos,
+                                                const glm::vec2& uv,
+                                                const glm::vec3& outColor) -> std::uint32_t {
+                                            if (canReuseIndexedVertices &&
+                                                src < modelIndexedVertexRemap[batchIndex].size()) {
+                                                int& mapped = modelIndexedVertexRemap[batchIndex][src];
+                                                if (mapped >= 0) {
+                                                    return static_cast<std::uint32_t>(mapped);
+                                                }
+                                                if (batch.vertices.size() >=
+                                                    static_cast<std::size_t>(std::numeric_limits<std::uint32_t>::max())) {
+                                                    return std::numeric_limits<std::uint32_t>::max();
+                                                }
+                                                const std::uint32_t next =
+                                                    static_cast<std::uint32_t>(batch.vertices.size());
+                                                batch.vertices.push_back(IRenderBackend::WorldMeshVertex{
+                                                    pos.x,
+                                                    pos.y,
+                                                    pos.z,
+                                                    uv.x,
+                                                    uv.y,
+                                                    outColor.r,
+                                                    outColor.g,
+                                                    outColor.b,
+                                                    outAlpha});
+                                                mapped = static_cast<int>(next);
+                                                return next;
+                                            }
+                                            if (batch.vertices.size() >=
+                                                static_cast<std::size_t>(std::numeric_limits<std::uint32_t>::max())) {
+                                                return std::numeric_limits<std::uint32_t>::max();
+                                            }
+                                            const std::uint32_t next = static_cast<std::uint32_t>(batch.vertices.size());
+                                            batch.vertices.push_back(IRenderBackend::WorldMeshVertex{
+                                                pos.x,
+                                                pos.y,
+                                                pos.z,
+                                                uv.x,
+                                                uv.y,
+                                                outColor.r,
+                                                outColor.g,
+                                                outColor.b,
+                                                outAlpha});
+                                            return next;
+                                        };
+
+                                        const std::uint32_t outI0 = appendIndexedVertex(src0, a, uv0, outC0);
+                                        const std::uint32_t outI1 = appendIndexedVertex(src1, b, uv1, outC1);
+                                        const std::uint32_t outI2 = appendIndexedVertex(src2, c, uv2, outC2);
+                                        if (outI0 == std::numeric_limits<std::uint32_t>::max() ||
+                                            outI1 == std::numeric_limits<std::uint32_t>::max() ||
+                                            outI2 == std::numeric_limits<std::uint32_t>::max()) {
+                                            return;
+                                        }
+                                        batch.indices.push_back(outI0);
+                                        batch.indices.push_back(outI1);
+                                        batch.indices.push_back(outI2);
+                                        return;
+                                    }
+
+                                    const auto shadeColor = [&](const glm::vec3& baseColor,
+                                                                const glm::vec3& normal,
+                                                                const glm::vec3& worldPos) {
+                                        return runtime::backend_material::shadeVertexLitColor(
+                                            baseColor,
+                                            normal,
+                                            lightDir,
+                                            cameraWorldPos - worldPos,
+                                            flipForBackface);
+                                    };
+                                    const glm::vec3 shaded0 = shadeColor(baseColor0, n0, a);
+                                    const glm::vec3 shaded1 = shadeColor(baseColor1, n1, b);
+                                    const glm::vec3 shaded2 = shadeColor(baseColor2, n2, c);
+                                    const std::size_t nextVertexCount = batch.vertices.size() + 3u;
+                                    if (nextVertexCount >=
+                                        static_cast<std::size_t>(std::numeric_limits<std::uint32_t>::max())) {
+                                        return;
+                                    }
+
+                                    const std::uint32_t base = static_cast<std::uint32_t>(batch.vertices.size());
+                                    batch.vertices.push_back(IRenderBackend::WorldMeshVertex{
+                                        a.x, a.y, a.z, uv0.x, uv0.y, shaded0.r, shaded0.g, shaded0.b, outAlpha});
+                                    batch.vertices.push_back(IRenderBackend::WorldMeshVertex{
+                                        b.x, b.y, b.z, uv1.x, uv1.y, shaded1.r, shaded1.g, shaded1.b, outAlpha});
+                                    batch.vertices.push_back(IRenderBackend::WorldMeshVertex{
+                                        c.x, c.y, c.z, uv2.x, uv2.y, shaded2.r, shaded2.g, shaded2.b, outAlpha});
+                                    batch.indices.push_back(base + 0u);
+                                    batch.indices.push_back(base + 1u);
+                                    batch.indices.push_back(base + 2u);
+                                    return;
+                                }
+
                                 const auto shadeColor = [&](const glm::vec3& baseColor,
                                                             const glm::vec3& normal,
                                                             const glm::vec3& worldPos) {
@@ -2064,49 +2196,8 @@ struct GameSession::Impl {
                                 const glm::vec3 shaded1 = shadeColor(baseColor1, n1, b);
                                 const glm::vec3 shaded2 = shadeColor(baseColor2, n2, c);
                                 const glm::vec3 shadedAvg = (shaded0 + shaded1 + shaded2) * (1.0f / 3.0f);
-                                const float outAlpha = alpha;
 
                                 if (supportsWorldTriangles3D) {
-                                    if (useIndexedWorldModelPath) {
-                                        std::size_t batchIndex = static_cast<std::size_t>(submeshIndex);
-                                        if (batchIndex >= modelIndexedBatchesPerSubmesh.size()) batchIndex = 0u;
-                                        auto& batch = modelIndexedBatchesPerSubmesh[batchIndex];
-                                        const bool texturedBatch =
-                                            batch.textureRgba != nullptr &&
-                                            batch.textureWidth > 0 &&
-                                            batch.textureHeight > 0;
-                                        const std::size_t nextVertexCount = batch.vertices.size() + 3u;
-                                        if (nextVertexCount >=
-                                            static_cast<std::size_t>(std::numeric_limits<std::uint32_t>::max())) {
-                                            return;
-                                        }
-
-                                        const auto shadeTint = [&](const glm::vec3& normal,
-                                                                   const glm::vec3& worldPos) {
-                                            return runtime::backend_material::shadeVertexLitColor(
-                                                glm::vec3(1.0f),
-                                                normal,
-                                                lightDir,
-                                                cameraWorldPos - worldPos,
-                                                flipForBackface);
-                                        };
-                                        const glm::vec3 outC0 = texturedBatch ? shadeTint(n0, a) : shaded0;
-                                        const glm::vec3 outC1 = texturedBatch ? shadeTint(n1, b) : shaded1;
-                                        const glm::vec3 outC2 = texturedBatch ? shadeTint(n2, c) : shaded2;
-
-                                        const std::uint32_t base = static_cast<std::uint32_t>(batch.vertices.size());
-                                        batch.vertices.push_back(IRenderBackend::WorldMeshVertex{
-                                            a.x, a.y, a.z, uv0.x, uv0.y, outC0.r, outC0.g, outC0.b, outAlpha});
-                                        batch.vertices.push_back(IRenderBackend::WorldMeshVertex{
-                                            b.x, b.y, b.z, uv1.x, uv1.y, outC1.r, outC1.g, outC1.b, outAlpha});
-                                        batch.vertices.push_back(IRenderBackend::WorldMeshVertex{
-                                            c.x, c.y, c.z, uv2.x, uv2.y, outC2.r, outC2.g, outC2.b, outAlpha});
-                                        batch.indices.push_back(base + 0u);
-                                        batch.indices.push_back(base + 1u);
-                                        batch.indices.push_back(base + 2u);
-                                        return;
-                                    }
-
                                     IRenderBackend::WorldTriangle tri3d;
                                     tri3d.x1 = a.x;
                                     tri3d.y1 = a.y;
@@ -2204,33 +2295,6 @@ struct GameSession::Impl {
                                 const glm::vec3& n1 = sk1.normal;
                                 const glm::vec3& n2 = sk2.normal;
 
-                                auto resolveVertexBase = [&](std::uint32_t vi,
-                                                             const runtime::backend_model::MeshVertex& v) {
-                                    if (mesh->hasVertexBaseColor && vi < mesh->vertexBaseColors.size()) {
-                                        return glm::clamp(mesh->vertexBaseColors[vi], 0.0f, 1.0f);
-                                    }
-                                    if (mesh->hasVertexColor) {
-                                        return glm::clamp(glm::vec3(v.color.r, v.color.g, v.color.b), 0.0f, 1.0f);
-                                    }
-                                    if (triIdx < mesh->triangleBaseColors.size()) {
-                                        return glm::clamp(mesh->triangleBaseColors[triIdx], 0.0f, 1.0f);
-                                    }
-                                    if (triIdx < mesh->triangleSubmesh.size() &&
-                                        !mesh->submeshBaseColors.empty()) {
-                                        const std::uint16_t submeshIndex = mesh->triangleSubmesh[triIdx];
-                                        if (submeshIndex < mesh->submeshBaseColors.size()) {
-                                            const glm::vec4 subColor = mesh->submeshBaseColors[submeshIndex];
-                                            return glm::clamp(
-                                                glm::vec3(subColor.r, subColor.g, subColor.b), 0.0f, 1.0f);
-                                        }
-                                    }
-                                    (void)vi;
-                                    return fallbackBase;
-                                };
-                                const glm::vec3 baseColor0 = resolveVertexBase(i0, v0);
-                                const glm::vec3 baseColor1 = resolveVertexBase(i1, v1);
-                                const glm::vec3 baseColor2 = resolveVertexBase(i2, v2);
-
                                 const std::uint16_t triSubmeshIndex =
                                     (triIdx < mesh->triangleSubmesh.size())
                                         ? mesh->triangleSubmesh[triIdx]
@@ -2258,10 +2322,46 @@ struct GameSession::Impl {
                                 const bool triDoubleSided =
                                     (triIdx < mesh->triangleDoubleSided.size()) &&
                                     (mesh->triangleDoubleSided[triIdx] != 0u);
+
+                                glm::vec3 baseColor0 = fallbackBase;
+                                glm::vec3 baseColor1 = fallbackBase;
+                                glm::vec3 baseColor2 = fallbackBase;
+                                if (!texturedSubmesh) {
+                                    auto resolveVertexBase = [&](std::uint32_t vi,
+                                                                 const runtime::backend_model::MeshVertex& v) {
+                                        if (mesh->hasVertexBaseColor && vi < mesh->vertexBaseColors.size()) {
+                                            return glm::clamp(mesh->vertexBaseColors[vi], 0.0f, 1.0f);
+                                        }
+                                        if (mesh->hasVertexColor) {
+                                            return glm::clamp(
+                                                glm::vec3(v.color.r, v.color.g, v.color.b), 0.0f, 1.0f);
+                                        }
+                                        if (triIdx < mesh->triangleBaseColors.size()) {
+                                            return glm::clamp(mesh->triangleBaseColors[triIdx], 0.0f, 1.0f);
+                                        }
+                                        if (triIdx < mesh->triangleSubmesh.size() &&
+                                            !mesh->submeshBaseColors.empty()) {
+                                            const std::uint16_t submeshIndex = mesh->triangleSubmesh[triIdx];
+                                            if (submeshIndex < mesh->submeshBaseColors.size()) {
+                                                const glm::vec4 subColor = mesh->submeshBaseColors[submeshIndex];
+                                                return glm::clamp(
+                                                    glm::vec3(subColor.r, subColor.g, subColor.b), 0.0f, 1.0f);
+                                            }
+                                        }
+                                        (void)vi;
+                                        return fallbackBase;
+                                    };
+                                    baseColor0 = resolveVertexBase(i0, v0);
+                                    baseColor1 = resolveVertexBase(i1, v1);
+                                    baseColor2 = resolveVertexBase(i2, v2);
+                                }
                                 pushModelTriangle(
                                     a,
                                     b,
                                     c,
+                                    i0,
+                                    i1,
+                                    i2,
                                     v0.uv,
                                     v1.uv,
                                     v2.uv,
