@@ -1822,6 +1822,18 @@ struct GameSession::Impl {
                             const std::size_t modelDepthCountBefore = modelDepthTris.size();
                             const std::size_t modelDepthWorldCountBefore = modelDepthWorldTris.size();
                             const std::size_t world3DTriangleCountBefore = world3DTriangles.size();
+                            std::vector<int> submeshNodeFallback;
+                            if (!mesh->submeshMeshIndex.empty()) {
+                                submeshNodeFallback.assign(mesh->submeshMeshIndex.size(), -1);
+                                for (std::size_t si = 0; si < mesh->submeshMeshIndex.size(); ++si) {
+                                    const int meshIndex = mesh->submeshMeshIndex[si];
+                                    if (meshIndex >= 0 &&
+                                        static_cast<std::size_t>(meshIndex) < mesh->meshIndexToNode.size()) {
+                                        submeshNodeFallback[si] =
+                                            mesh->meshIndexToNode[static_cast<std::size_t>(meshIndex)];
+                                    }
+                                }
+                            }
                             std::vector<WorldIndexedBatch> modelIndexedBatchesPerSubmesh;
                             std::vector<std::vector<int>> modelIndexedVertexRemap;
                             if (useIndexedWorldModelPath) {
@@ -2419,6 +2431,12 @@ struct GameSession::Impl {
                                 modelDepthTris.push_back(dt);
                             };
                             const bool downsampleModelTriangles = effectiveUnitTriangleBudget < triangleCount;
+                            const bool useFastTexturedFullMeshPath =
+                                supportsWorldTriangles3D &&
+                                useIndexedWorldModelPath &&
+                                backendModelFastTexturedPathEnabled() &&
+                                fullIndexedMeshPath;
+                            const float fastTexturedAlpha = unit.alive ? 1.0f : 0.82f;
                             std::size_t previousTriSample = triangleCount;
                             for (std::size_t sampleIdx = 0; sampleIdx < effectiveUnitTriangleBudget; ++sampleIdx) {
                                 std::size_t triIdx = sampleIdx;
@@ -2449,14 +2467,10 @@ struct GameSession::Impl {
                                         : -1;
                                 if (triNodeIndex < 0 &&
                                     triIdx < mesh->triangleSubmesh.size() &&
-                                    !mesh->submeshMeshIndex.empty()) {
+                                    !submeshNodeFallback.empty()) {
                                     const std::uint16_t submeshIndex = mesh->triangleSubmesh[triIdx];
-                                    if (submeshIndex < mesh->submeshMeshIndex.size()) {
-                                        const int meshIndex = mesh->submeshMeshIndex[submeshIndex];
-                                        if (meshIndex >= 0 &&
-                                            static_cast<std::size_t>(meshIndex) < mesh->meshIndexToNode.size()) {
-                                            triNodeIndex = mesh->meshIndexToNode[static_cast<std::size_t>(meshIndex)];
-                                        }
+                                    if (submeshIndex < submeshNodeFallback.size()) {
+                                        triNodeIndex = submeshNodeFallback[submeshIndex];
                                     }
                                 }
 
@@ -2474,6 +2488,75 @@ struct GameSession::Impl {
                                             .textureWidth > 0 &&
                                     modelIndexedBatchesPerSubmesh[static_cast<std::size_t>(triSubmeshIndex)]
                                             .textureHeight > 0;
+                                if (useFastTexturedFullMeshPath && texturedSubmesh) {
+                                    std::size_t fastBatchIndex = static_cast<std::size_t>(triSubmeshIndex);
+                                    if (fastBatchIndex >= modelIndexedBatchesPerSubmesh.size()) fastBatchIndex = 0u;
+                                    auto& fastBatch = modelIndexedBatchesPerSubmesh[fastBatchIndex];
+                                    const bool canReuseIndexedVertices =
+                                        fastBatchIndex < modelIndexedVertexRemap.size();
+                                    const auto appendFastVertex = [&](std::uint32_t src,
+                                                                      const runtime::backend_model::MeshVertex& srcVertex)
+                                        -> std::uint32_t {
+                                        if (canReuseIndexedVertices &&
+                                            src < modelIndexedVertexRemap[fastBatchIndex].size()) {
+                                            int& mapped = modelIndexedVertexRemap[fastBatchIndex][src];
+                                            if (mapped >= 0) {
+                                                return static_cast<std::uint32_t>(mapped);
+                                            }
+                                            if (fastBatch.vertices.size() >=
+                                                static_cast<std::size_t>(std::numeric_limits<std::uint32_t>::max())) {
+                                                return std::numeric_limits<std::uint32_t>::max();
+                                            }
+                                            const glm::vec3 pos = resolveWorldVertexPos(triNodeIndex, src, srcVertex);
+                                            const std::uint32_t next =
+                                                static_cast<std::uint32_t>(fastBatch.vertices.size());
+                                            fastBatch.vertices.push_back(IRenderBackend::WorldMeshVertex{
+                                                pos.x,
+                                                pos.y,
+                                                pos.z,
+                                                srcVertex.uv.x,
+                                                srcVertex.uv.y,
+                                                1.0f,
+                                                1.0f,
+                                                1.0f,
+                                                fastTexturedAlpha});
+                                            mapped = static_cast<int>(next);
+                                            return next;
+                                        }
+                                        if (fastBatch.vertices.size() >=
+                                            static_cast<std::size_t>(std::numeric_limits<std::uint32_t>::max())) {
+                                            return std::numeric_limits<std::uint32_t>::max();
+                                        }
+                                        const glm::vec3 pos = resolveWorldVertexPos(triNodeIndex, src, srcVertex);
+                                        const std::uint32_t next =
+                                            static_cast<std::uint32_t>(fastBatch.vertices.size());
+                                        fastBatch.vertices.push_back(IRenderBackend::WorldMeshVertex{
+                                            pos.x,
+                                            pos.y,
+                                            pos.z,
+                                            srcVertex.uv.x,
+                                            srcVertex.uv.y,
+                                            1.0f,
+                                            1.0f,
+                                            1.0f,
+                                            fastTexturedAlpha});
+                                        return next;
+                                    };
+
+                                    const std::uint32_t outI0 = appendFastVertex(i0, v0);
+                                    const std::uint32_t outI1 = appendFastVertex(i1, v1);
+                                    const std::uint32_t outI2 = appendFastVertex(i2, v2);
+                                    if (outI0 == std::numeric_limits<std::uint32_t>::max() ||
+                                        outI1 == std::numeric_limits<std::uint32_t>::max() ||
+                                        outI2 == std::numeric_limits<std::uint32_t>::max()) {
+                                        continue;
+                                    }
+                                    fastBatch.indices.push_back(outI0);
+                                    fastBatch.indices.push_back(outI1);
+                                    fastBatch.indices.push_back(outI2);
+                                    continue;
+                                }
+
                                 const float triOpacity = (triIdx < mesh->triangleOpacity.size())
                                     ? mesh->triangleOpacity[triIdx]
                                     : 1.0f;
@@ -2487,39 +2570,6 @@ struct GameSession::Impl {
                                 const bool triDoubleSided =
                                     (triIdx < mesh->triangleDoubleSided.size()) &&
                                     (mesh->triangleDoubleSided[triIdx] != 0u);
-
-                                const bool useFastTexturedTri =
-                                    supportsWorldTriangles3D &&
-                                    useIndexedWorldModelPath &&
-                                    backendModelFastTexturedPathEnabled() &&
-                                    texturedSubmesh &&
-                                    fullIndexedMeshPath;
-                                if (useFastTexturedTri) {
-                                    const glm::vec3 fastA = resolveWorldVertexPos(triNodeIndex, i0, v0);
-                                    const glm::vec3 fastB = resolveWorldVertexPos(triNodeIndex, i1, v1);
-                                    const glm::vec3 fastC = resolveWorldVertexPos(triNodeIndex, i2, v2);
-                                    const glm::vec3 dummyNormal(0.0f, 1.0f, 0.0f);
-                                    pushModelTriangle(
-                                        fastA,
-                                        fastB,
-                                        fastC,
-                                        i0,
-                                        i1,
-                                        i2,
-                                        v0.uv,
-                                        v1.uv,
-                                        v2.uv,
-                                        dummyNormal,
-                                        dummyNormal,
-                                        dummyNormal,
-                                        fallbackBase,
-                                        fallbackBase,
-                                        fallbackBase,
-                                        triSubmeshIndex,
-                                        alpha,
-                                        triDoubleSided);
-                                    continue;
-                                }
 
                                 const auto sk0 = resolveWorldVertex(triNodeIndex, i0, v0);
                                 const auto sk1 = resolveWorldVertex(triNodeIndex, i1, v1);
