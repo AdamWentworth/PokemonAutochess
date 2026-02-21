@@ -45,9 +45,9 @@ inline std::vector<Button> buildButtons(const BuildInput& in) {
     const bool allItems = in.forceItemRow || allItemCards(in.cards);
     const game::ui::ShopRowLayout layout = game::ui::computeShopRowLayout(in.uiW, in.uiH, allItems);
     const int count = static_cast<int>(in.cards.size());
-    const int cardW = std::max(64, layout.cardW);
-    const int cardH = std::max(48, layout.cardH);
-    const int spacing = std::max(6, layout.spacing);
+    int cardW = std::max(64, layout.cardW);
+    int cardH = std::max(48, layout.cardH);
+    int spacing = std::max(6, layout.spacing);
 
     int startX = layout.edgeMargin;
     int rowY = layout.edgeMargin;
@@ -61,10 +61,16 @@ inline std::vector<Button> buildButtons(const BuildInput& in) {
                             static_cast<int>(std::round(static_cast<float>(in.uiH) * 0.16f)));
         }
     } else {
+        // Match legacy OpenGL starter card row geometry exactly.
+        cardW = 220;
+        cardH = 150;
+        spacing = 50;
         const int totalW = count * (cardW + spacing) - spacing;
         startX = std::max(layout.edgeMargin, (in.uiW - totalW) / 2);
-        rowY = std::max(layout.edgeMargin + 72,
-                        static_cast<int>(std::round(static_cast<float>(in.uiH) * 0.44f)));
+        const int legacyY = 300;
+        rowY = std::clamp(legacyY,
+                          layout.edgeMargin + 12,
+                          std::max(layout.edgeMargin + 12, in.uiH - cardH - layout.edgeMargin));
     }
 
     out.reserve(in.cards.size());

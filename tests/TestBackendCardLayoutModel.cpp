@@ -121,8 +121,16 @@ bool test_backend_card_layout_model_contract(std::string& outFail) {
             outFail = "starter mode should place cards in a centered horizontal row";
             return false;
         }
-        if (buttons[0].y <= 0.0f) {
-            outFail = "starter mode y should be positive";
+        if (std::abs(buttons[0].w - 220.0f) > 0.001f || std::abs(buttons[0].h - 150.0f) > 0.001f) {
+            outFail = "starter mode should match legacy OpenGL card dimensions (220x150)";
+            return false;
+        }
+        if (std::abs((buttons[1].x - buttons[0].x) - 270.0f) > 0.001f) {
+            outFail = "starter mode spacing should match legacy OpenGL row spacing (50)";
+            return false;
+        }
+        if (std::abs(buttons[0].y - 300.0f) > 0.001f) {
+            outFail = "starter mode y should match legacy OpenGL starter row (y=300)";
             return false;
         }
     }

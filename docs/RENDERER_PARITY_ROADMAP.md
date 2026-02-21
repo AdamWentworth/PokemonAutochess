@@ -79,7 +79,7 @@ Prioritized Backlog
 - [ ] Complete D3D12 animation/skinning parity (no fallback-only pose path).
 - [ ] Port/align board and bench rendering parity.
 - [ ] Port/align health bars and combat overlays parity.
-- [ ] Port/align shop/starter card style parity (image, frame, typography, spacing). (In progress: D3D12/backend cards now use OpenGL-like image+gold-frame composition with `Lv` overlay and below-card labels; final parity tuning still pending.)
+- [ ] Port/align shop/starter card style parity (image, frame, typography, spacing). (In progress: D3D12/backend cards now use OpenGL-like image+gold-frame composition with `Lv` overlay and below-card labels; starter row geometry now matches legacy OpenGL constants, with texture-quality tuning still ongoing.)
 - [ ] Validate VFX parity for growl, tackle, grass impact, claw swipe, aqua, leech seed.
 - [ ] Add backend-switch startup regression test (including starter selection path).
 - [ ] Add visual parity test harness for key scenes.
@@ -99,6 +99,7 @@ Iteration Log
 - Iteration 9: Restored OpenGL to the legacy starter/shop UI policy after a visual regression, while keeping D3D12 on backend UI and re-opening the UI-policy unification item until style parity is complete.
 - Iteration 10: Reworked backend card visuals to match OpenGL styling (portrait fill + gold frame sprite + legacy-style `Lv` and label overlays), wired shop/starter state inputs to legacy text semantics, and expanded card renderer/visual tests for two-sprite (art+frame) output.
 - Iteration 11: Added explicit gold-stroke fallback borders to backend cards (ensuring visible framing across backends) and unified text-menu rendering policy so OpenGL and D3D12 share the same menu visual path.
+- Iteration 12: Added outlined menu panel/button styling in shared backend text-menu rendering, locked backend starter card row to legacy OpenGL geometry (220x150, spacing 50, y=300), and upgraded D3D12 sprite textures to mipmapped uploads with anisotropic sampling for closer card image quality.
 
 How This File Is Used
 - Before each parity implementation iteration:

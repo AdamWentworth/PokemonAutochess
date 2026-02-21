@@ -750,6 +750,58 @@ void ScriptedState::renderBackendTextMenu(int uiW, int uiH) {
     std::vector<IRenderBackend::DebugLine> textLines;
     textLines.reserve(8192);
 
+    const auto appendOutline = [&](float x,
+                                   float y,
+                                   float w,
+                                   float h,
+                                   float thickness,
+                                   float r,
+                                   float g,
+                                   float b,
+                                   float a) {
+        if (w <= 0.0f || h <= 0.0f || thickness <= 0.0f) return;
+        IRenderBackend::DebugQuad top;
+        top.x = x;
+        top.y = y;
+        top.w = w;
+        top.h = thickness;
+        top.r = r;
+        top.g = g;
+        top.b = b;
+        top.a = a;
+        baseQuads.push_back(top);
+
+        IRenderBackend::DebugQuad bottom = top;
+        bottom.y = y + std::max(0.0f, h - thickness);
+        baseQuads.push_back(bottom);
+
+        IRenderBackend::DebugQuad left;
+        left.x = x;
+        left.y = y + thickness;
+        left.w = thickness;
+        left.h = std::max(0.0f, h - thickness * 2.0f);
+        left.r = r;
+        left.g = g;
+        left.b = b;
+        left.a = a;
+        baseQuads.push_back(left);
+
+        IRenderBackend::DebugQuad right = left;
+        right.x = x + std::max(0.0f, w - thickness);
+        baseQuads.push_back(right);
+    };
+
+    IRenderBackend::DebugQuad screenBackdrop;
+    screenBackdrop.x = 0.0f;
+    screenBackdrop.y = 0.0f;
+    screenBackdrop.w = static_cast<float>(uiW);
+    screenBackdrop.h = static_cast<float>(uiH);
+    screenBackdrop.r = 0.02f;
+    screenBackdrop.g = 0.04f;
+    screenBackdrop.b = 0.08f;
+    screenBackdrop.a = 0.46f;
+    baseQuads.push_back(screenBackdrop);
+
     float minX = static_cast<float>(uiW);
     float minY = static_cast<float>(uiH);
     float maxX = 0.0f;
@@ -769,6 +821,7 @@ void ScriptedState::renderBackendTextMenu(int uiW, int uiH) {
         const float textScale = std::max(0.1f, entry.scale) * kBackendTextScaleBase * backendTextMenuScale;
         const float padX = std::max(8.0f, 10.0f * textScale * 0.5f);
         const float padY = std::max(4.0f, 6.0f * textScale * 0.5f);
+        const float border = std::clamp(0.9f + textScale * 0.08f, 1.0f, 2.4f);
 
         IRenderBackend::DebugQuad bg;
         bg.x = entry.x - padX;
@@ -792,6 +845,21 @@ void ScriptedState::renderBackendTextMenu(int uiW, int uiH) {
             bg.a = 0.92f;
         }
         baseQuads.push_back(bg);
+        if (!entry.enabled) {
+            appendOutline(bg.x, bg.y, bg.w, bg.h, border, 0.36f, 0.38f, 0.42f, 0.96f);
+        } else if (entry.hasColor) {
+            appendOutline(bg.x,
+                          bg.y,
+                          bg.w,
+                          bg.h,
+                          border,
+                          std::clamp(entry.colorR * 0.95f, 0.0f, 1.0f),
+                          std::clamp(entry.colorG * 0.95f, 0.0f, 1.0f),
+                          std::clamp(entry.colorB * 0.95f, 0.0f, 1.0f),
+                          0.98f);
+        } else {
+            appendOutline(bg.x, bg.y, bg.w, bg.h, border, 0.78f, 0.80f, 0.88f, 0.95f);
+        }
 
         float tr = 1.0f;
         float tg = 1.0f;
@@ -849,7 +917,9 @@ void ScriptedState::renderBackendTextMenu(int uiW, int uiH) {
         panel.g = 0.06f;
         panel.b = 0.08f;
         panel.a = 0.70f;
-        baseQuads.insert(baseQuads.begin(), panel);
+        baseQuads.insert(baseQuads.begin() + 1, panel);
+        const float panelBorder = std::clamp(1.2f + backendTextMenuScale * 0.8f, 1.4f, 2.8f);
+        appendOutline(panel.x, panel.y, panel.w, panel.h, panelBorder, 0.42f, 0.54f, 0.70f, 0.96f);
     }
 
     if (!baseQuads.empty()) {

@@ -57,6 +57,71 @@ constexpr std::size_t kMaxWorldVertices = kMaxWorldTriangles * 3;
 constexpr std::size_t kMaxSrvDescriptors = 2048;
 constexpr const char* kFallbackSpriteTextureKey = "__fallback_sprite_texture__";
 
+struct CpuMipLevel {
+    int width = 0;
+    int height = 0;
+    std::vector<unsigned char> rgba;
+};
+
+std::vector<CpuMipLevel> buildRgbaMipChain(const unsigned char* rgbaPixels, int width, int height) {
+    std::vector<CpuMipLevel> chain;
+    if (!rgbaPixels || width <= 0 || height <= 0) return chain;
+
+    CpuMipLevel base;
+    base.width = width;
+    base.height = height;
+    base.rgba.assign(
+        rgbaPixels,
+        rgbaPixels + static_cast<std::size_t>(width) * static_cast<std::size_t>(height) * 4u);
+    chain.push_back(std::move(base));
+
+    while (chain.back().width > 1 || chain.back().height > 1) {
+        const CpuMipLevel& prev = chain.back();
+        CpuMipLevel next;
+        next.width = (prev.width / 2 > 0) ? (prev.width / 2) : 1;
+        next.height = (prev.height / 2 > 0) ? (prev.height / 2) : 1;
+        next.rgba.resize(static_cast<std::size_t>(next.width) * static_cast<std::size_t>(next.height) * 4u);
+
+        for (int y = 0; y < next.height; ++y) {
+            for (int x = 0; x < next.width; ++x) {
+                std::uint32_t sumR = 0;
+                std::uint32_t sumG = 0;
+                std::uint32_t sumB = 0;
+                std::uint32_t sumA = 0;
+                std::uint32_t taps = 0;
+
+                for (int oy = 0; oy < 2; ++oy) {
+                    const int srcY = ((y * 2 + oy) < (prev.height - 1)) ? (y * 2 + oy) : (prev.height - 1);
+                    for (int ox = 0; ox < 2; ++ox) {
+                        const int srcX = ((x * 2 + ox) < (prev.width - 1)) ? (x * 2 + ox) : (prev.width - 1);
+                        const std::size_t srcIndex =
+                            (static_cast<std::size_t>(srcY) * static_cast<std::size_t>(prev.width) +
+                             static_cast<std::size_t>(srcX)) * 4u;
+                        sumR += prev.rgba[srcIndex + 0];
+                        sumG += prev.rgba[srcIndex + 1];
+                        sumB += prev.rgba[srcIndex + 2];
+                        sumA += prev.rgba[srcIndex + 3];
+                        ++taps;
+                    }
+                }
+
+                const std::size_t dstIndex =
+                    (static_cast<std::size_t>(y) * static_cast<std::size_t>(next.width) +
+                     static_cast<std::size_t>(x)) * 4u;
+                const std::uint32_t safeTaps = (taps > 0) ? taps : 1u;
+                next.rgba[dstIndex + 0] = static_cast<unsigned char>(sumR / safeTaps);
+                next.rgba[dstIndex + 1] = static_cast<unsigned char>(sumG / safeTaps);
+                next.rgba[dstIndex + 2] = static_cast<unsigned char>(sumB / safeTaps);
+                next.rgba[dstIndex + 3] = static_cast<unsigned char>(sumA / safeTaps);
+            }
+        }
+
+        chain.push_back(std::move(next));
+    }
+
+    return chain;
+}
+
 bool createTextureResourceFromRgba(ID3D12Device* device,
                                    ID3D12CommandQueue* commandQueue,
                                    ID3D12Fence* fence,
@@ -72,6 +137,9 @@ bool createTextureResourceFromRgba(ID3D12Device* device,
     if (!device || !commandQueue || !fence || !fenceEvent || !srvHeap || !rgbaPixels || width <= 0 || height <= 0) {
         return false;
     }
+    const std::vector<CpuMipLevel> mipChain = buildRgbaMipChain(rgbaPixels, width, height);
+    if (mipChain.empty()) return false;
+    const UINT mipLevels = static_cast<UINT>(mipChain.size());
 
     D3D12_HEAP_PROPERTIES defaultHeap{};
     defaultHeap.Type = D3D12_HEAP_TYPE_DEFAULT;
@@ -86,7 +154,7 @@ bool createTextureResourceFromRgba(ID3D12Device* device,
     texDesc.Width = static_cast<UINT64>(width);
     texDesc.Height = static_cast<UINT>(height);
     texDesc.DepthOrArraySize = 1;
-    texDesc.MipLevels = 1;
+    texDesc.MipLevels = static_cast<UINT16>(mipLevels);
     texDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
     texDesc.SampleDesc.Count = 1;
     texDesc.SampleDesc.Quality = 0;
@@ -104,11 +172,18 @@ bool createTextureResourceFromRgba(ID3D12Device* device,
         return false;
     }
 
-    D3D12_PLACED_SUBRESOURCE_FOOTPRINT footprint{};
-    UINT numRows = 0;
-    UINT64 rowSizeBytes = 0;
+    std::vector<D3D12_PLACED_SUBRESOURCE_FOOTPRINT> footprints(mipLevels);
+    std::vector<UINT> numRows(mipLevels);
+    std::vector<UINT64> rowSizeBytes(mipLevels);
     UINT64 uploadBufferSize = 0;
-    device->GetCopyableFootprints(&texDesc, 0, 1, 0, &footprint, &numRows, &rowSizeBytes, &uploadBufferSize);
+    device->GetCopyableFootprints(&texDesc,
+                                  0,
+                                  mipLevels,
+                                  0,
+                                  footprints.data(),
+                                  numRows.data(),
+                                  rowSizeBytes.data(),
+                                  &uploadBufferSize);
     if (uploadBufferSize == 0) return false;
 
     D3D12_HEAP_PROPERTIES uploadHeap{};
@@ -147,13 +222,19 @@ bool createTextureResourceFromRgba(ID3D12Device* device,
     if (FAILED(upload->Map(0, &readRange, &mapped)) || !mapped) {
         return false;
     }
-    const std::size_t srcRowPitch = static_cast<std::size_t>(width) * 4u;
-    for (int row = 0; row < height; ++row) {
-        auto* dstRow = static_cast<unsigned char*>(mapped) +
-            footprint.Offset +
-            static_cast<std::size_t>(row) * static_cast<std::size_t>(footprint.Footprint.RowPitch);
-        const auto* srcRow = rgbaPixels + static_cast<std::size_t>(row) * srcRowPitch;
-        std::memcpy(dstRow, srcRow, srcRowPitch);
+    auto* mappedBytes = static_cast<unsigned char*>(mapped);
+    for (UINT mip = 0; mip < mipLevels; ++mip) {
+        const auto& mipCpu = mipChain[mip];
+        const auto& footprint = footprints[mip];
+        const std::size_t srcRowPitch = static_cast<std::size_t>(mipCpu.width) * 4u;
+        for (int row = 0; row < mipCpu.height; ++row) {
+            auto* dstRow = mappedBytes +
+                footprint.Offset +
+                static_cast<std::size_t>(row) * static_cast<std::size_t>(footprint.Footprint.RowPitch);
+            const auto* srcRow =
+                mipCpu.rgba.data() + static_cast<std::size_t>(row) * srcRowPitch;
+            std::memcpy(dstRow, srcRow, srcRowPitch);
+        }
     }
     D3D12_RANGE writeRange{0, static_cast<SIZE_T>(uploadBufferSize)};
     upload->Unmap(0, &writeRange);
@@ -175,17 +256,19 @@ bool createTextureResourceFromRgba(ID3D12Device* device,
         return false;
     }
 
-    D3D12_TEXTURE_COPY_LOCATION dstLoc{};
-    dstLoc.pResource = texture.Get();
-    dstLoc.Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
-    dstLoc.SubresourceIndex = 0;
+    for (UINT mip = 0; mip < mipLevels; ++mip) {
+        D3D12_TEXTURE_COPY_LOCATION dstLoc{};
+        dstLoc.pResource = texture.Get();
+        dstLoc.Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
+        dstLoc.SubresourceIndex = mip;
 
-    D3D12_TEXTURE_COPY_LOCATION srcLoc{};
-    srcLoc.pResource = upload.Get();
-    srcLoc.Type = D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT;
-    srcLoc.PlacedFootprint = footprint;
+        D3D12_TEXTURE_COPY_LOCATION srcLoc{};
+        srcLoc.pResource = upload.Get();
+        srcLoc.Type = D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT;
+        srcLoc.PlacedFootprint = footprints[mip];
 
-    copyList->CopyTextureRegion(&dstLoc, 0, 0, 0, &srcLoc, nullptr);
+        copyList->CopyTextureRegion(&dstLoc, 0, 0, 0, &srcLoc, nullptr);
+    }
 
     D3D12_RESOURCE_BARRIER toShader{};
     toShader.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
@@ -213,7 +296,7 @@ bool createTextureResourceFromRgba(ID3D12Device* device,
     srvDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
     srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
     srvDesc.Texture2D.MostDetailedMip = 0;
-    srvDesc.Texture2D.MipLevels = 1;
+    srvDesc.Texture2D.MipLevels = mipLevels;
     srvDesc.Texture2D.PlaneSlice = 0;
     srvDesc.Texture2D.ResourceMinLODClamp = 0.0f;
 
@@ -1397,12 +1480,12 @@ void D3D12RenderBackend::createSpritePipeline() {
     rootParams[1].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
 
     D3D12_STATIC_SAMPLER_DESC sampler{};
-    sampler.Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;
+    sampler.Filter = D3D12_FILTER_ANISOTROPIC;
     sampler.AddressU = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
     sampler.AddressV = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
     sampler.AddressW = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
     sampler.MipLODBias = 0.0f;
-    sampler.MaxAnisotropy = 1;
+    sampler.MaxAnisotropy = 8;
     sampler.ComparisonFunc = D3D12_COMPARISON_FUNC_ALWAYS;
     sampler.BorderColor = D3D12_STATIC_BORDER_COLOR_TRANSPARENT_BLACK;
     sampler.MinLOD = 0.0f;
