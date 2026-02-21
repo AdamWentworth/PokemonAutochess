@@ -476,7 +476,12 @@ void D3D12RenderBackend::drawWorldIndexedMeshInternal(const WorldMeshVertex* ver
     D3D12_GPU_DESCRIPTOR_HANDLE srvHandle = srvHeap_->GetGPUDescriptorHandleForHeapStart();
     srvHandle.ptr += static_cast<SIZE_T>(textureDescriptorIndex) * static_cast<SIZE_T>(srvDescriptorSize_);
     commandList_->SetGraphicsRootDescriptorTable(2, srvHandle);
-    commandList_->SetPipelineState(worldPipelineState_.Get());
+    const bool blendMaterial = textureData && textureData->alphaMode == 2u;
+    ID3D12PipelineState* pso = worldPipelineState_.Get();
+    if (blendMaterial && worldBlendPipelineState_) {
+        pso = worldBlendPipelineState_.Get();
+    }
+    commandList_->SetPipelineState(pso);
     commandList_->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
     D3D12_VERTEX_BUFFER_VIEW vbv{};
@@ -1317,12 +1322,15 @@ void D3D12RenderBackend::createWorldPipeline() {
         "  return saturate((x * (a * x + b)) / (x * (c * x + d) + e));"
         "}"
         "float4 main(PSIn i) : SV_TARGET {"
-        "  if (uUseTexture <= 0.5f) { return i.col; }"
-        "  float2 uv = float2(applyWrap(i.uv.x, uWrapS), applyWrap(i.uv.y, uWrapT));"
-        "  float4 tex = gTex.Sample(gSamp, uv);"
-        "  float3 baseLin = srgbToLinear(tex.rgb) * saturate(i.col.rgb);"
-        "  float3 mapped = tonemapACES(baseLin * 0.85f);"
-        "  float3 outSrgb = linearToSrgb(mapped);"
+        "  float4 tex = float4(1.0f, 1.0f, 1.0f, 1.0f);"
+        "  float3 outSrgb = saturate(i.col.rgb);"
+        "  if (uUseTexture > 0.5f) {"
+        "    float2 uv = float2(applyWrap(i.uv.x, uWrapS), applyWrap(i.uv.y, uWrapT));"
+        "    tex = gTex.Sample(gSamp, uv);"
+        "    float3 baseLin = srgbToLinear(tex.rgb) * saturate(i.col.rgb);"
+        "    float3 mapped = tonemapACES(baseLin * 0.85f);"
+        "    outSrgb = linearToSrgb(mapped);"
+        "  }"
         "  float outA = saturate(i.col.a * tex.a);"
         "  if (uAlphaMode < 0.5f) {"
         "    outA = saturate(i.col.a);"
@@ -1472,6 +1480,14 @@ void D3D12RenderBackend::createWorldPipeline() {
                                                     IID_PPV_ARGS(worldPipelineState_.ReleaseAndGetAddressOf()))) ||
         !worldPipelineState_) {
         throw std::runtime_error("CreateGraphicsPipelineState failed for D3D12 world pipeline.");
+    }
+    D3D12_GRAPHICS_PIPELINE_STATE_DESC blendPso = pso;
+    blendPso.DepthStencilState.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ZERO;
+    if (FAILED(device_->CreateGraphicsPipelineState(
+            &blendPso,
+            IID_PPV_ARGS(worldBlendPipelineState_.ReleaseAndGetAddressOf()))) ||
+        !worldBlendPipelineState_) {
+        throw std::runtime_error("CreateGraphicsPipelineState failed for D3D12 world blend pipeline.");
     }
 
     constexpr std::size_t kBufferBytes = kMaxWorldVertices * sizeof(WorldVertex);

@@ -2644,37 +2644,34 @@ struct GameSession::Impl {
                 drawableH);
         }
         if (!worldIndexedBatches.empty() && hasWorldViewProj && supportsWorldIndexedMeshes) {
-            for (const WorldIndexedBatch& batch : worldIndexedBatches) {
-                if (batch.vertices.empty() || batch.indices.empty()) continue;
-                if (batch.textureRgba && batch.textureWidth > 0 && batch.textureHeight > 0 &&
-                    !batch.textureKey.empty()) {
-                    IRenderBackend::WorldTextureData tex;
-                    tex.key = batch.textureKey.c_str();
-                    tex.rgba = batch.textureRgba;
-                    tex.width = batch.textureWidth;
-                    tex.height = batch.textureHeight;
-                    tex.wrapS = batch.textureWrapS;
-                    tex.wrapT = batch.textureWrapT;
-                    tex.alphaMode = batch.alphaMode;
-                    tex.alphaCutoff = batch.alphaCutoff;
-                    renderer->drawWorldIndexedMeshTextured(
-                        batch.vertices.data(),
-                        batch.vertices.size(),
-                        batch.indices.data(),
-                        batch.indices.size(),
-                        &tex,
-                        worldViewProj,
-                        drawableW,
-                        drawableH);
-                } else {
-                    renderer->drawWorldIndexedMesh(
-                        batch.vertices.data(),
-                        batch.vertices.size(),
-                        batch.indices.data(),
-                        batch.indices.size(),
-                        worldViewProj,
-                        drawableW,
-                        drawableH);
+            const auto drawIndexedBatch = [&](const WorldIndexedBatch& batch) {
+                IRenderBackend::WorldTextureData tex;
+                tex.key = batch.textureKey.c_str();
+                tex.rgba = batch.textureRgba;
+                tex.width = batch.textureWidth;
+                tex.height = batch.textureHeight;
+                tex.wrapS = batch.textureWrapS;
+                tex.wrapT = batch.textureWrapT;
+                tex.alphaMode = batch.alphaMode;
+                tex.alphaCutoff = batch.alphaCutoff;
+                renderer->drawWorldIndexedMeshTextured(
+                    batch.vertices.data(),
+                    batch.vertices.size(),
+                    batch.indices.data(),
+                    batch.indices.size(),
+                    &tex,
+                    worldViewProj,
+                    drawableW,
+                    drawableH);
+            };
+
+            for (int pass = 0; pass < 2; ++pass) {
+                const bool blendPass = (pass == 1);
+                for (const WorldIndexedBatch& batch : worldIndexedBatches) {
+                    if (batch.vertices.empty() || batch.indices.empty()) continue;
+                    const bool isBlend = (batch.alphaMode == 2u);
+                    if (isBlend != blendPass) continue;
+                    drawIndexedBatch(batch);
                 }
             }
         }

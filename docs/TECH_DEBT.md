@@ -36,4 +36,5 @@ Recent improvements
 - Split fastgltf texture decode/data-source handling into `src/engine/render/gltf/ModelFastGltfTextures.cpp` and reduced `ModelFastGltfLoaderHelpers.cpp` to general utility/accessor reader responsibilities.
 - Extracted D3D12 texture upload/mipmap staging from `src/engine/render/D3D12RenderBackend.cpp` into `src/engine/render/d3d12/D3D12TextureUpload.cpp` and moved D3D12 runtime probe files to `src/game/runtime/d3d12/` to reduce backend-specific top-level sprawl.
 - Extended backend model-cache/runtime draw metadata contracts so indexed textured submeshes carry alpha mode/cutoff and wrap modes into D3D12 world shading, reducing hidden GL-vs-D3D material behavior drift.
+- Added explicit D3D12 world blend pipeline/pass ordering to match OpenGL-style alpha depth-write behavior and reduce transparent submesh self-occlusion artifacts.
 
