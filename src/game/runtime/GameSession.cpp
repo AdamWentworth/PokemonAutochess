@@ -92,7 +92,7 @@ std::string trimDebugLine(std::string s, std::size_t maxChars) {
 
 std::size_t backendModelTriangleLimit() {
     static const std::size_t limit = []() -> std::size_t {
-        constexpr std::size_t kDefault = 24000u;
+        constexpr std::size_t kDefault = 18000u;
         constexpr std::size_t kMin = 256u;
         constexpr std::size_t kMax = 180000u;
         const auto env = engine::env::get("PAC_BACKEND_MODEL_TRI_LIMIT");
@@ -1233,9 +1233,9 @@ struct GameSession::Impl {
                         if (const runtime::backend_model::MeshData* mesh = resolveModelMesh(unit)) {
                             const std::size_t triangleCount = mesh->indices.size() / 3u;
                             const std::size_t maxTrianglesPerUnit = backendModelTriangleLimit();
-                            const float detailScale = std::clamp(unitSize / 70.0f, 0.30f, 1.0f);
+                            const float detailScale = std::clamp(unitSize / 70.0f, 0.28f, 1.0f);
                             const std::size_t minTrianglesPerUnit =
-                                std::min<std::size_t>(1200u, maxTrianglesPerUnit);
+                                std::min<std::size_t>(900u, maxTrianglesPerUnit);
                             const std::size_t scaledBudget = static_cast<std::size_t>(
                                 std::clamp(
                                     static_cast<double>(maxTrianglesPerUnit) *
@@ -1267,6 +1267,15 @@ struct GameSession::Impl {
                             const BackendPoseEval scenePose = evaluateScenePose(*mesh, unit);
                             const auto& nodeGlobals = scenePose.hasScenePose ? scenePose.nodeGlobals : mesh->bindNodeGlobals;
                             const bool hasClipPose = scenePose.hasClipPose;
+                            std::unordered_map<int, int> meshIndexToNode;
+                            meshIndexToNode.reserve(mesh->nodeMesh.size());
+                            for (std::size_t ni = 0; ni < mesh->nodeMesh.size(); ++ni) {
+                                const int meshIndex = mesh->nodeMesh[ni];
+                                if (meshIndex < 0) continue;
+                                if (meshIndexToNode.find(meshIndex) == meshIndexToNode.end()) {
+                                    meshIndexToNode.emplace(meshIndex, static_cast<int>(ni));
+                                }
+                            }
 
                             const glm::vec3 lightDir = glm::normalize(glm::vec3(0.45f, 0.90f, 0.35f));
                             const glm::vec3 fallbackBase(
@@ -1344,6 +1353,65 @@ struct GameSession::Impl {
                                 outSkin.normal = safeNormalize(blendedNormal);
                                 outSkin.applied = true;
                                 return outSkin;
+                            };
+
+                            struct NodeTransformCacheEntry {
+                                glm::mat4 worldM{1.0f};
+                                glm::mat3 worldNormalM{1.0f};
+                            };
+                            std::unordered_map<int, NodeTransformCacheEntry> nodeTransformCache;
+                            nodeTransformCache.reserve(16);
+                            const auto nodeTransformsFor = [&](int triNodeIndex) {
+                                auto it = nodeTransformCache.find(triNodeIndex);
+                                if (it != nodeTransformCache.end()) return it;
+                                const glm::mat4 nodeGlobal =
+                                    (triNodeIndex >= 0 &&
+                                     static_cast<std::size_t>(triNodeIndex) < nodeGlobals.size())
+                                        ? nodeGlobals[static_cast<std::size_t>(triNodeIndex)]
+                                        : glm::mat4(1.0f);
+                                NodeTransformCacheEntry entry;
+                                entry.worldM = modelM * nodeGlobal;
+                                entry.worldNormalM =
+                                    glm::transpose(glm::inverse(glm::mat3(entry.worldM)));
+                                return nodeTransformCache.emplace(triNodeIndex, std::move(entry)).first;
+                            };
+
+                            struct WorldVertexSample {
+                                glm::vec3 pos{0.0f};
+                                glm::vec3 normal{0.0f, 1.0f, 0.0f};
+                            };
+                            std::unordered_map<std::uint64_t, WorldVertexSample> worldVertexCache;
+                            worldVertexCache.reserve(
+                                std::min<std::size_t>(unitTriangleBudget * 2u, mesh->vertices.size()));
+                            const auto worldVertexCacheKey =
+                                [](int triNodeIndex, std::uint32_t vertexIndex) -> std::uint64_t {
+                                return (static_cast<std::uint64_t>(
+                                            static_cast<std::uint32_t>(triNodeIndex + 1)) << 32u) |
+                                       static_cast<std::uint64_t>(vertexIndex);
+                            };
+                            const auto resolveWorldVertex = [&](int triNodeIndex,
+                                                                std::uint32_t vertexIndex,
+                                                                const runtime::backend_model::MeshVertex& vtx) {
+                                const std::uint64_t key = worldVertexCacheKey(triNodeIndex, vertexIndex);
+                                auto cached = worldVertexCache.find(key);
+                                if (cached != worldVertexCache.end()) return cached->second;
+
+                                glm::vec3 local = vtx.position;
+                                if (!hasClipPose) {
+                                    local = runtime::backend_anim::deformLocalVertex(
+                                        unit,
+                                        pose,
+                                        local,
+                                        mesh->boundsMin,
+                                        mesh->boundsMax,
+                                        worldCellSize);
+                                }
+                                const auto sk = skinVertexAtNode(triNodeIndex, vtx, local, vtx.normal);
+                                const auto nt = nodeTransformsFor(triNodeIndex);
+                                WorldVertexSample out;
+                                out.pos = glm::vec3(nt->second.worldM * glm::vec4(sk.pos, 1.0f));
+                                out.normal = safeNormalize(nt->second.worldNormalM * sk.normal);
+                                return worldVertexCache.emplace(key, out).first->second;
                             };
 
                             const auto pushModelTriangle = [&](const glm::vec3& a,
@@ -1479,33 +1547,6 @@ struct GameSession::Impl {
                                 const auto& v1 = mesh->vertices[i1];
                                 const auto& v2 = mesh->vertices[i2];
 
-                                glm::vec3 local0 = v0.position;
-                                glm::vec3 local1 = v1.position;
-                                glm::vec3 local2 = v2.position;
-                                if (!hasClipPose) {
-                                    local0 = runtime::backend_anim::deformLocalVertex(
-                                        unit,
-                                        pose,
-                                        local0,
-                                        mesh->boundsMin,
-                                        mesh->boundsMax,
-                                        worldCellSize);
-                                    local1 = runtime::backend_anim::deformLocalVertex(
-                                        unit,
-                                        pose,
-                                        local1,
-                                        mesh->boundsMin,
-                                        mesh->boundsMax,
-                                        worldCellSize);
-                                    local2 = runtime::backend_anim::deformLocalVertex(
-                                        unit,
-                                        pose,
-                                        local2,
-                                        mesh->boundsMin,
-                                        mesh->boundsMax,
-                                        worldCellSize);
-                                }
-
                                 int triNodeIndex =
                                     (triIdx < mesh->triangleNodeIndex.size())
                                         ? mesh->triangleNodeIndex[triIdx]
@@ -1516,32 +1557,21 @@ struct GameSession::Impl {
                                     const std::uint16_t submeshIndex = mesh->triangleSubmesh[triIdx];
                                     if (submeshIndex < mesh->submeshMeshIndex.size()) {
                                         const int meshIndex = mesh->submeshMeshIndex[submeshIndex];
-                                        for (std::size_t ni = 0; ni < mesh->nodeMesh.size(); ++ni) {
-                                            if (mesh->nodeMesh[ni] == meshIndex) {
-                                                triNodeIndex = static_cast<int>(ni);
-                                                break;
-                                            }
-                                        }
+                                        const auto nodeIt = meshIndexToNode.find(meshIndex);
+                                        if (nodeIt != meshIndexToNode.end()) triNodeIndex = nodeIt->second;
                                     }
                                 }
-                                const glm::mat4 nodeGlobal =
-                                    (triNodeIndex >= 0 &&
-                                     static_cast<std::size_t>(triNodeIndex) < nodeGlobals.size())
-                                        ? nodeGlobals[static_cast<std::size_t>(triNodeIndex)]
-                                        : glm::mat4(1.0f);
-                                const glm::mat4 worldM = modelM * nodeGlobal;
-                                const glm::mat3 worldNormalM = glm::transpose(glm::inverse(glm::mat3(worldM)));
 
-                                const auto sk0 = skinVertexAtNode(triNodeIndex, v0, local0, v0.normal);
-                                const auto sk1 = skinVertexAtNode(triNodeIndex, v1, local1, v1.normal);
-                                const auto sk2 = skinVertexAtNode(triNodeIndex, v2, local2, v2.normal);
+                                const auto sk0 = resolveWorldVertex(triNodeIndex, i0, v0);
+                                const auto sk1 = resolveWorldVertex(triNodeIndex, i1, v1);
+                                const auto sk2 = resolveWorldVertex(triNodeIndex, i2, v2);
 
-                                const glm::vec3 a = glm::vec3(worldM * glm::vec4(sk0.pos, 1.0f));
-                                const glm::vec3 b = glm::vec3(worldM * glm::vec4(sk1.pos, 1.0f));
-                                const glm::vec3 c = glm::vec3(worldM * glm::vec4(sk2.pos, 1.0f));
-                                const glm::vec3 n0 = safeNormalize(worldNormalM * sk0.normal);
-                                const glm::vec3 n1 = safeNormalize(worldNormalM * sk1.normal);
-                                const glm::vec3 n2 = safeNormalize(worldNormalM * sk2.normal);
+                                const glm::vec3& a = sk0.pos;
+                                const glm::vec3& b = sk1.pos;
+                                const glm::vec3& c = sk2.pos;
+                                const glm::vec3& n0 = sk0.normal;
+                                const glm::vec3& n1 = sk1.normal;
+                                const glm::vec3& n2 = sk2.normal;
 
                                 auto resolveVertexBase = [&](std::uint32_t vi,
                                                              const runtime::backend_model::MeshVertex& v) {

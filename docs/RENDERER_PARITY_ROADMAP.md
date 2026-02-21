@@ -103,6 +103,7 @@ Iteration Log
 - Iteration 13: Added backend text-menu `bold` and `underline` style parity (matching legacy menu semantics) so selected/active entries read consistently across OpenGL and D3D12.
 - Iteration 14: Fixed D3D12 dynamic-vertex buffer overwrite hazards by adding per-frame write offsets for debug quads/lines/triangles and sprites, preventing later draws from clobbering earlier menu/background geometry in the same frame.
 - Iteration 15: Improved backend model parity by honoring texture wrap modes, applying glTF-like base+emissive color composition in model cache sampling, increasing per-unit triangle fidelity defaults, and matching OpenGL root-motion carrier translation handling during backend clip pose evaluation.
+- Iteration 16: Reduced backend model-path CPU cost by caching per-node world transforms and per-vertex skinned world results during triangle sampling, replacing repeated mesh-index-to-node scans with a precomputed map, and tuning default backend triangle budgets for better D3D12 combat-frame stability.
 
 How This File Is Used
 - Before each parity implementation iteration:
