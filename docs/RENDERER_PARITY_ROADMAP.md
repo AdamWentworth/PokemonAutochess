@@ -71,7 +71,7 @@ Prioritized Backlog
 - [x] Remove `shouldUseBackendUi` backend split and unify UI policy.
 - [ ] Replace backend quad text with glyph text rendering. (In progress: backend text menu now uses line-stroke text, full glyph path still pending.)
 - [ ] Route both backends through the same menu/shop/HUD layout/render code.
-- [ ] Route both backends through the same world command generation code.
+- [ ] Route both backends through the same world command generation code. (In progress: backend world path now prefers model mesh rendering with portrait fallback policy and suppresses tint-under-portrait artifacts.)
 - [ ] Remove `setRenderEnabled(legacyRenderPath)` behavior that disables non-OpenGL world resources.
 - [ ] Move backend debug world rendering behind an explicit dev-only flag. (In progress: menu world-backdrop is now disabled by default and can be enabled via `PAC_BACKEND_MENU_BACKDROP=1`.)
 - [ ] Implement/align backend-neutral draw contracts in `IRenderBackend` for required scene features.
@@ -94,6 +94,7 @@ Iteration Log
 - Iteration 4: Removed direct `stb_easy_font` metric usage from `ScriptedState` and switched backend menu/card text sizing to shared backend text metric helpers.
 - Iteration 5: Added backend render policy helpers + tests, aligned frame-flow menu behavior to avoid backend debug-world draws in menu-only states, disabled backend menu world-backdrop by default (env-overrideable), and removed mandatory text-quad sinks from backend card rendering when line text is used.
 - Iteration 6: Unified scripted/menu/shop UI policy across OpenGL and D3D12 by removing backend-id gating in `shouldUseBackendUi`, added explicit legacy opt-out hook, and updated backend UI policy contract tests.
+- Iteration 7: Added world portrait policy controls (model-first, portrait fallback/force toggles), removed tint-under-portrait artifacts in fallback world rendering, and expanded backend unit visual contract coverage.
 
 How This File Is Used
 - Before each parity implementation iteration:

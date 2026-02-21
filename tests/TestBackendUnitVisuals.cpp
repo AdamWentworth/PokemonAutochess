@@ -7,6 +7,8 @@ bool test_backend_unit_visuals_contract(std::string& outFail) {
     using game::runtime::backend_units::makeBenchUnitSprite;
     using game::runtime::backend_units::makeWorldUnitSprite;
     using game::runtime::backend_units::resolveWorldUnitImagePath;
+    using game::runtime::backend_units::shouldRenderTintUnderPortrait;
+    using game::runtime::backend_units::shouldRenderWorldUnitPortrait;
 
     {
         IRenderBackend::DebugQuad q;
@@ -29,6 +31,32 @@ bool test_backend_unit_visuals_contract(std::string& outFail) {
         applyWorldUnitTint(q, u);
         if (!(q.r >= q.g && q.r >= q.b && q.a > 0.0f)) {
             outFail = "enemy tint should remain red-biased";
+            return false;
+        }
+    }
+
+    {
+        if (!shouldRenderWorldUnitPortrait(false, false, true)) {
+            outFail = "portrait fallback should render when model mesh is unavailable";
+            return false;
+        }
+        if (shouldRenderWorldUnitPortrait(true, false, true)) {
+            outFail = "portrait fallback should not render when model mesh is available";
+            return false;
+        }
+        if (!shouldRenderWorldUnitPortrait(true, true, false)) {
+            outFail = "forced portrait overlay should render regardless of mesh state";
+            return false;
+        }
+    }
+
+    {
+        if (shouldRenderTintUnderPortrait(true)) {
+            outFail = "tint underlay should be disabled when portrait sprite exists";
+            return false;
+        }
+        if (!shouldRenderTintUnderPortrait(false)) {
+            outFail = "tint underlay should render when no portrait sprite exists";
             return false;
         }
     }

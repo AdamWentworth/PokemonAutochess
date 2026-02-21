@@ -16,6 +16,18 @@ inline std::string resolveWorldUnitImagePath(const std::string& unitName) {
         "");
 }
 
+inline bool shouldRenderWorldUnitPortrait(bool drewModelMesh,
+                                          bool forcePortraitOverlay,
+                                          bool fallbackWhenModelMissing) {
+    if (forcePortraitOverlay) return true;
+    if (drewModelMesh) return false;
+    return fallbackWhenModelMissing;
+}
+
+inline bool shouldRenderTintUnderPortrait(bool hasPortraitSprite) {
+    return !hasPortraitSprite;
+}
+
 inline void applyWorldUnitTint(IRenderBackend::DebugQuad& quad, const PokemonInstance& unit) {
     if (unit.side == PokemonSide::Player) {
         quad.r = 0.16f;

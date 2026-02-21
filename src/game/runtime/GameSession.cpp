@@ -119,6 +119,32 @@ bool backendModelBackfaceCullingEnabled() {
     return enabled;
 }
 
+bool backendWorldPortraitFallbackEnabled() {
+    static const bool enabled = []() -> bool {
+        const auto env = engine::env::get("PAC_BACKEND_WORLD_PORTRAITS");
+        if (!env.has_value()) return true;
+        const std::string raw = *env;
+        if (raw == "0" || raw == "false" || raw == "FALSE" || raw == "off" || raw == "OFF") {
+            return false;
+        }
+        return true;
+    }();
+    return enabled;
+}
+
+bool backendWorldPortraitOverlayForced() {
+    static const bool enabled = []() -> bool {
+        const auto env = engine::env::get("PAC_BACKEND_WORLD_PORTRAIT_OVERLAY");
+        if (!env.has_value()) return false;
+        const std::string raw = *env;
+        if (raw == "0" || raw == "false" || raw == "FALSE" || raw == "off" || raw == "OFF") {
+            return false;
+        }
+        return true;
+    }();
+    return enabled;
+}
+
 std::size_t selectUniformTriangleIndex(std::size_t sampleIndex,
                                        std::size_t sampleCount,
                                        std::size_t triangleCount) {
@@ -625,6 +651,8 @@ struct GameSession::Impl {
         std::vector<BackendUnitLabel> unitLabels;
         unitLabels.reserve(64);
         const bool supportsWorldTriangles3D = renderer->supportsWorldTriangles3D();
+        const bool allowPortraitFallback = backendWorldPortraitFallbackEnabled();
+        const bool forcePortraitOverlay = backendWorldPortraitOverlayForced();
         float worldViewProj[16] = {};
         bool hasWorldViewProj = false;
 
@@ -1594,6 +1622,26 @@ struct GameSession::Impl {
                             }
                         }
 
+                        const bool shouldShowPortrait = runtime::backend_units::shouldRenderWorldUnitPortrait(
+                            drewModelMesh,
+                            forcePortraitOverlay,
+                            allowPortraitFallback);
+                        if (shouldShowPortrait) {
+                            const std::string unitImagePath =
+                                runtime::backend_units::resolveWorldUnitImagePath(unit.name);
+                            IRenderBackend::DebugSprite unitSprite =
+                                runtime::backend_units::makeWorldUnitSprite(
+                                    cx,
+                                    cy,
+                                    unitSize * 1.20f,
+                                    unitSize * 1.20f,
+                                    unitImagePath,
+                                    unit.alive ? 0.96f : 0.76f);
+                            if (!unitSprite.texturePath.empty()) {
+                                sprites.push_back(std::move(unitSprite));
+                            }
+                        }
+
                         const glm::vec3 heading = game::runtime::backend_proxy::yawForward(animYaw);
                         const glm::vec3 headingStart =
                             corners.top[0] * 0.25f + corners.top[1] * 0.25f +
@@ -1842,7 +1890,6 @@ struct GameSession::Impl {
                     u.x = centerX - u.w * 0.5f;
                     u.y = centerY - u.h * 0.5f;
                     runtime::backend_units::applyWorldUnitTint(u, unit);
-                    worldQuads.push_back(u);
 
                     const std::string unitImagePath =
                         runtime::backend_units::resolveWorldUnitImagePath(unit.name);
@@ -1854,7 +1901,11 @@ struct GameSession::Impl {
                             cellH,
                             unitImagePath,
                             unit.alive ? 0.96f : 0.70f);
-                    if (!unitSprite.texturePath.empty()) {
+                    const bool hasUnitSprite = !unitSprite.texturePath.empty();
+                    if (runtime::backend_units::shouldRenderTintUnderPortrait(hasUnitSprite)) {
+                        worldQuads.push_back(u);
+                    }
+                    if (hasUnitSprite) {
                         sprites.push_back(std::move(unitSprite));
                     }
 
@@ -2008,7 +2059,6 @@ struct GameSession::Impl {
                             benchUnit.g = 0.73f;
                             benchUnit.b = 0.96f;
                             benchUnit.a = 0.24f;
-                            worldQuads.push_back(benchUnit);
 
                             const std::string benchImagePath =
                                 runtime::backend_units::resolveWorldUnitImagePath(unit.name);
@@ -2020,7 +2070,11 @@ struct GameSession::Impl {
                                     benchUnit.h,
                                     benchImagePath,
                                     0.92f);
-                            if (!benchSprite.texturePath.empty()) {
+                            const bool hasBenchSprite = !benchSprite.texturePath.empty();
+                            if (runtime::backend_units::shouldRenderTintUnderPortrait(hasBenchSprite)) {
+                                worldQuads.push_back(benchUnit);
+                            }
+                            if (hasBenchSprite) {
                                 sprites.push_back(std::move(benchSprite));
                             }
 
