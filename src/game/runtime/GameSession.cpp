@@ -497,16 +497,53 @@ struct GameSession::Impl {
             if (backendPreloadModelCacheEnabled()) {
                 std::cout << "[Init] Non-OpenGL render path: preloading backend model cache...\n";
                 const bool verboseModelCacheLog = backendModelVerboseLoggingEnabled();
-                std::size_t loaded = 0u;
-                std::size_t failed = 0u;
-                std::vector<std::string> failedSamples;
-                failedSamples.reserve(8);
+                std::vector<std::string> modelPathsToPreload;
+                modelPathsToPreload.reserve(dataDb.pokemon.all().size());
+                std::unordered_set<std::string> seenModelPaths;
+                seenModelPaths.reserve(dataDb.pokemon.all().size());
                 for (const auto& [name, stats] : dataDb.pokemon.all()) {
                     (void)name;
                     if (stats.model.empty()) continue;
                     const std::string modelPath = "assets/models/" + stats.model;
+                    if (seenModelPaths.insert(modelPath).second) {
+                        modelPathsToPreload.push_back(modelPath);
+                    }
+                }
+
+                if (ctx.setTitle) ctx.setTitle("PokemonAutochess - Loading.");
+                if (ctx.renderBootLoading) ctx.renderBootLoading(0.0f);
+                bool preloadInterrupted = false;
+                if (ctx.pumpPreloadEvents && !ctx.pumpPreloadEvents()) {
+                    if (ctx.requestQuit) ctx.requestQuit();
+                    preloadInterrupted = true;
+                }
+
+                std::size_t loaded = 0u;
+                std::size_t failed = 0u;
+                std::vector<std::string> failedSamples;
+                failedSamples.reserve(8);
+                const std::size_t totalModels = modelPathsToPreload.size();
+                for (std::size_t i = 0; i < totalModels; ++i) {
+                    const std::string& modelPath = modelPathsToPreload[i];
+                    if (ctx.setTitle) {
+                        ctx.setTitle(
+                            std::string("PokemonAutochess - Loading ") +
+                            std::to_string(i + 1u) + "/" + std::to_string(totalModels) + "  " + modelPath);
+                    }
+                    if (ctx.pumpPreloadEvents && !ctx.pumpPreloadEvents()) {
+                        if (ctx.requestQuit) ctx.requestQuit();
+                        preloadInterrupted = true;
+                        break;
+                    }
+
                     auto& cacheEntry = backendMeshByModelPath[modelPath];
-                    if (cacheEntry.attemptedLoad) continue;
+                    if (cacheEntry.attemptedLoad) {
+                        const float progress = totalModels > 0u
+                            ? static_cast<float>(i + 1u) / static_cast<float>(totalModels)
+                            : 1.0f;
+                        if (ctx.renderBootLoading) ctx.renderBootLoading(progress);
+                        continue;
+                    }
                     cacheEntry.attemptedLoad = true;
                     std::string err;
                     if (!runtime::backend_model::loadMeshFromCache(modelPath, cacheEntry.mesh, &err)) {
@@ -529,6 +566,10 @@ struct GameSession::Impl {
                                       << " submesh=" << cacheEntry.mesh.submeshBaseTextures.size() << "\n";
                         }
                     }
+                    const float progress = totalModels > 0u
+                        ? static_cast<float>(i + 1u) / static_cast<float>(totalModels)
+                        : 1.0f;
+                    if (ctx.renderBootLoading) ctx.renderBootLoading(progress);
                 }
                 std::cout << "[Init] Backend model cache preload complete: loaded=" << loaded
                           << " failed=" << failed << "\n";
@@ -539,6 +580,11 @@ struct GameSession::Impl {
                     }
                     std::cout << "[Init][ModelCache] Set PAC_BACKEND_MODEL_VERBOSE=1 for full per-model cache logs.\n";
                 }
+                if (preloadInterrupted) {
+                    std::cout << "[Init][ModelCache] Preload interrupted by window close or quit request.\n";
+                }
+                if (ctx.setTitle) ctx.setTitle("Pokemon Autochess");
+                if (ctx.pumpPreloadEvents) ctx.pumpPreloadEvents();
             } else {
                 std::cout << "[Init] Non-OpenGL render path: backend model cache preload disabled.\n";
             }

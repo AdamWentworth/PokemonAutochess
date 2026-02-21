@@ -41,4 +41,5 @@ Recent improvements
 - Fixed backend indexed textured alpha handling to avoid double-applying texture alpha (triangle pre-opacity plus pixel texture alpha), which was causing BLEND submesh dropout and missing textured regions during animation/movement.
 - Added backend model-cache diagnostics (`PAC_BACKEND_MODEL_VERBOSE` and one-shot runtime miss logs) to make cache-load/render failures observable instead of silent.
 - Fixed D3D12 world mesh upload-buffer hazards by adding per-frame world vertex/index offsets (preventing draw-data overwrite between multiple model draws in one frame).
+- Reduced backend startup UX divergence by wiring D3D12/non-OpenGL model-cache preload into boot progress updates and adding a non-GL fallback loading gauge path in `GameRunner`.
 

@@ -117,6 +117,7 @@ Iteration Log
 - Iteration 25: Identified triangle-budget decimation as a core parity blocker for indexed D3D12 model path, switched indexed model submission to full-mesh by default (`PAC_BACKEND_MODEL_FULL_MESH` opt-out), and added depth-sorted blend batch ordering to reduce transparent submesh popping/invisibility while moving.
 - Iteration 26: Parsed shipped `.glb` materials to confirm BLEND usage, traced OpenGL vs backend alpha flow, fixed backend indexed textured alpha double-attenuation (preventing BLEND regions from dropping out), and added one-shot backend model-cache miss diagnostics plus optional verbose preload logging (`PAC_BACKEND_MODEL_VERBOSE`).
 - Iteration 27: Fixed D3D12 world indexed/triangle upload-buffer overwrite hazards by introducing per-frame world vertex/index write offsets, preventing later model draws from clobbering earlier draws in the same command list (a key cause of disappearing model regions when more units spawned); also logged that non-OpenGL path uses backend cache loading instead of OpenGL `ModelStartupLog`.
+- Iteration 28: Restored startup loading parity for non-OpenGL backends by driving boot-progress updates during backend model-cache preload and adding a renderer-driven fallback loading gauge in `GameRunner` when no OpenGL `BootLoadingView` is available (e.g., D3D12).
 
 How This File Is Used
 - Before each parity implementation iteration:
