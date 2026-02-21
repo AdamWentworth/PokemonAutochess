@@ -107,6 +107,7 @@ Iteration Log
 - Iteration 17: Added backend model frame-budget control (`PAC_BACKEND_MODEL_TRI_FRAME_BUDGET`), removed D3D12 world-triangle depth sorting from the 3D depth-tested path, and moved mesh-index-to-node lookup precomputation into model-cache load so per-frame unit rendering does less CPU work.
 - Iteration 18: Replaced hot-path hash maps in backend unit model rendering with vector-indexed caches (skin matrices, node transforms, and skinned vertices), and enabled non-OpenGL startup preloading of backend model caches to avoid first-spawn hitching when models appear in combat.
 - Iteration 19: Added an indexed world-mesh backend contract (`supportsWorldIndexedMeshes`/`drawWorldIndexedMesh`), implemented D3D12 indexed world draws with dedicated upload index buffers, and switched backend model submission in `GameSession` to emit indexed per-unit batches instead of only triangle streams.
+- Iteration 20: Improved backend model visual fidelity by raising default model triangle/scene budgets and minimum per-unit LOD floor, switching model lighting to per-vertex directional/hemi/rim shading (including two-sided backface handling), and adding contract tests for the new shading helper in `BackendMaterialShading`.
 
 How This File Is Used
 - Before each parity implementation iteration:

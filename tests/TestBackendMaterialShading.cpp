@@ -19,6 +19,7 @@ bool test_backend_material_shading_contract(std::string& outFail) {
     using game::runtime::backend_material::linearToSrgb;
     using game::runtime::backend_material::modulateBaseAndTexture;
     using game::runtime::backend_material::opacityFromAlphaMode;
+    using game::runtime::backend_material::shadeVertexLitColor;
     using game::runtime::backend_material::srgbToLinear;
 
     if (alphaModeFromByte(0u) != AlphaMode::Opaque ||
@@ -83,6 +84,31 @@ bool test_backend_material_shading_contract(std::string& outFail) {
         const glm::vec3 withEmi = composeGltfLikeColor(base, emissive, glm::vec3(1.0f, 0.8f, 0.5f));
         if (!(withEmi.r >= noEmi.r && withEmi.g >= noEmi.g && withEmi.b >= noEmi.b)) {
             outFail = "composeGltfLikeColor should brighten when emissive contribution increases";
+            return false;
+        }
+    }
+
+    {
+        const glm::vec3 base(0.45f, 0.45f, 0.45f);
+        const glm::vec3 lightDir = glm::normalize(glm::vec3(0.45f, 0.90f, 0.35f));
+        const glm::vec3 viewDir = glm::normalize(glm::vec3(0.0f, 0.5f, 1.0f));
+        const glm::vec3 litFacing = shadeVertexLitColor(base, lightDir, lightDir, viewDir, false);
+        const glm::vec3 litAway = shadeVertexLitColor(base, -lightDir, lightDir, viewDir, false);
+        if (!(litFacing.r > litAway.r && litFacing.g > litAway.g && litFacing.b > litAway.b)) {
+            outFail = "shadeVertexLitColor should brighten surfaces facing light";
+            return false;
+        }
+        if (litFacing.r < 0.0f || litFacing.r > 1.0f ||
+            litFacing.g < 0.0f || litFacing.g > 1.0f ||
+            litFacing.b < 0.0f || litFacing.b > 1.0f) {
+            outFail = "shadeVertexLitColor output must remain clamped";
+            return false;
+        }
+
+        const glm::vec3 litDoubleSided =
+            shadeVertexLitColor(base, -lightDir, lightDir, viewDir, true);
+        if (!(litDoubleSided.r >= litFacing.r * 0.90f)) {
+            outFail = "shadeVertexLitColor backface flip should keep two-sided faces lit";
             return false;
         }
     }

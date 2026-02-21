@@ -56,6 +56,7 @@
 #include "game/runtime/BackendWorldProjection.h"
 #include "game/runtime/BackendWorldProxyGeometry.h"
 #include "game/runtime/BackendModelCache.h"
+#include "game/runtime/BackendMaterialShading.h"
 #include "game/runtime/BackendProceduralPose.h"
 #include "game/runtime/BackendUnitVisuals.h"
 #include "game/GameServices.h"
@@ -93,9 +94,9 @@ std::string trimDebugLine(std::string s, std::size_t maxChars) {
 
 std::size_t backendModelTriangleLimit() {
     static const std::size_t limit = []() -> std::size_t {
-        constexpr std::size_t kDefault = 18000u;
-        constexpr std::size_t kMin = 256u;
-        constexpr std::size_t kMax = 180000u;
+        constexpr std::size_t kDefault = 42000u;
+        constexpr std::size_t kMin = 512u;
+        constexpr std::size_t kMax = 360000u;
         const auto env = engine::env::get("PAC_BACKEND_MODEL_TRI_LIMIT");
         if (!env.has_value()) return kDefault;
         try {
@@ -110,9 +111,9 @@ std::size_t backendModelTriangleLimit() {
 
 std::size_t backendModelTriangleFrameBudget() {
     static const std::size_t budget = []() -> std::size_t {
-        constexpr std::size_t kDefault = 28000u;
+        constexpr std::size_t kDefault = 126000u;
         constexpr std::size_t kMin = 1024u;
-        constexpr std::size_t kMax = 240000u;
+        constexpr std::size_t kMax = 720000u;
         const auto env = engine::env::get("PAC_BACKEND_MODEL_TRI_FRAME_BUDGET");
         if (!env.has_value()) return kDefault;
         try {
@@ -1296,9 +1297,9 @@ struct GameSession::Impl {
                         if (const runtime::backend_model::MeshData* mesh = resolveModelMesh(unit)) {
                             const std::size_t triangleCount = mesh->indices.size() / 3u;
                             const std::size_t maxTrianglesPerUnit = backendModelTriangleLimit();
-                            const float detailScale = std::clamp(unitSize / 70.0f, 0.28f, 1.0f);
+                            const float detailScale = std::clamp(unitSize / 70.0f, 0.45f, 1.0f);
                             const std::size_t minTrianglesPerUnit =
-                                std::min<std::size_t>(900u, maxTrianglesPerUnit);
+                                std::min<std::size_t>(1800u, maxTrianglesPerUnit);
                             const std::size_t scaledBudget = static_cast<std::size_t>(
                                 std::clamp(
                                     static_cast<double>(maxTrianglesPerUnit) *
@@ -1313,10 +1314,10 @@ struct GameSession::Impl {
                                     std::min(effectiveUnitTriangleBudget, remainingModelTrianglesBudget);
                             } else {
                                 effectiveUnitTriangleBudget =
-                                    std::min<std::size_t>(triangleCount, 192u);
+                                    std::min<std::size_t>(triangleCount, 384u);
                             }
                             if (effectiveUnitTriangleBudget == 0u) {
-                                effectiveUnitTriangleBudget = std::min<std::size_t>(triangleCount, 192u);
+                                effectiveUnitTriangleBudget = std::min<std::size_t>(triangleCount, 384u);
                             }
                             if (remainingModelTrianglesBudget >= effectiveUnitTriangleBudget) {
                                 remainingModelTrianglesBudget -= effectiveUnitTriangleBudget;
@@ -1552,14 +1553,20 @@ struct GameSession::Impl {
                                     return;
                                 }
 
-                                const float lit = std::clamp(glm::dot(faceNormal, lightDir), 0.0f, 1.0f);
-                                const float shade = std::clamp(0.82f + lit * 0.18f, 0.70f, 1.0f);
-                                const auto shadeColor = [&](const glm::vec3& baseColor) {
-                                    return glm::clamp(baseColor * shade, 0.0f, 1.0f);
+                                const bool flipForBackface = doubleSided && (faceFacing < 0.0f);
+                                const auto shadeColor = [&](const glm::vec3& baseColor,
+                                                            const glm::vec3& normal,
+                                                            const glm::vec3& worldPos) {
+                                    return runtime::backend_material::shadeVertexLitColor(
+                                        baseColor,
+                                        normal,
+                                        lightDir,
+                                        cameraWorldPos - worldPos,
+                                        flipForBackface);
                                 };
-                                const glm::vec3 shaded0 = shadeColor(baseColor0);
-                                const glm::vec3 shaded1 = shadeColor(baseColor1);
-                                const glm::vec3 shaded2 = shadeColor(baseColor2);
+                                const glm::vec3 shaded0 = shadeColor(baseColor0, n0, a);
+                                const glm::vec3 shaded1 = shadeColor(baseColor1, n1, b);
+                                const glm::vec3 shaded2 = shadeColor(baseColor2, n2, c);
                                 const glm::vec3 shadedAvg = (shaded0 + shaded1 + shaded2) * (1.0f / 3.0f);
                                 const float outAlpha = alpha;
 

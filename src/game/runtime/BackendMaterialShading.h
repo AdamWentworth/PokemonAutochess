@@ -93,4 +93,29 @@ inline glm::vec3 composeGltfLikeColor(const glm::vec3& baseColorSrgb,
     return glm::clamp(linearToSrgb(mapped), 0.0f, 1.0f);
 }
 
+inline glm::vec3 safeNormalize(const glm::vec3& v, const glm::vec3& fallback) {
+    const float lenSq = glm::dot(v, v);
+    if (lenSq > 1e-12f) return glm::normalize(v);
+    return fallback;
+}
+
+inline glm::vec3 shadeVertexLitColor(const glm::vec3& baseColorSrgb,
+                                     const glm::vec3& worldNormal,
+                                     const glm::vec3& lightDirWorld,
+                                     const glm::vec3& viewDirWorld,
+                                     bool flipForBackface = false) {
+    glm::vec3 n = safeNormalize(worldNormal, glm::vec3(0.0f, 1.0f, 0.0f));
+    if (flipForBackface) n = -n;
+    const glm::vec3 l = safeNormalize(lightDirWorld, glm::vec3(0.45f, 0.90f, 0.35f));
+    const glm::vec3 v = safeNormalize(viewDirWorld, glm::vec3(0.0f, 0.0f, 1.0f));
+
+    const float ndotl = std::clamp(glm::dot(n, l), 0.0f, 1.0f);
+    const float diffuse = 0.32f + 0.68f * ndotl;
+    const float hemi = 0.06f + 0.14f * std::clamp(n.y * 0.5f + 0.5f, 0.0f, 1.0f);
+    const float rimBase = 1.0f - std::clamp(glm::dot(n, v), 0.0f, 1.0f);
+    const float rim = std::pow(rimBase, 2.0f) * 0.10f;
+
+    return glm::clamp(baseColorSrgb * (diffuse + hemi) + glm::vec3(rim), 0.0f, 1.0f);
+}
+
 } // namespace game::runtime::backend_material
