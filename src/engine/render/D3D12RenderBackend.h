@@ -43,11 +43,19 @@ public:
     std::string activeGpuName() const override { return adapterName_; }
     bool activeGpuIsDiscrete() const override { return discreteAdapter_; }
     bool supportsWorldTriangles3D() const override { return true; }
+    bool supportsWorldIndexedMeshes() const override { return true; }
     void drawWorldTriangles(const WorldTriangle* triangles,
                             std::size_t triangleCount,
                             const float* viewProjectionMatrix4x4,
                             int surfaceWidth,
                             int surfaceHeight) override;
+    void drawWorldIndexedMesh(const WorldMeshVertex* vertices,
+                              std::size_t vertexCount,
+                              const std::uint32_t* indices,
+                              std::size_t indexCount,
+                              const float* viewProjectionMatrix4x4,
+                              int surfaceWidth,
+                              int surfaceHeight) override;
     void drawDebugQuads(const DebugQuad* quads,
                         std::size_t quadCount,
                         int surfaceWidth,
@@ -127,6 +135,9 @@ private:
     std::uint64_t worldVertexBufferGpuAddress_ = 0;
     std::uint32_t worldVertexStride_ = 0;
     std::uint32_t worldVertexBufferSize_ = 0;
+    Microsoft::WRL::ComPtr<ID3D12Resource> worldIndexBuffer_;
+    std::uint64_t worldIndexBufferGpuAddress_ = 0;
+    std::uint32_t worldIndexBufferSize_ = 0;
 
     struct SpriteTexture {
         Microsoft::WRL::ComPtr<ID3D12Resource> resource;

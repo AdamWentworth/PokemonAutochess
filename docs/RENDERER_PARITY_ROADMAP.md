@@ -74,7 +74,7 @@ Prioritized Backlog
 - [ ] Route both backends through the same world command generation code. (In progress: backend world path now prefers model mesh rendering with portrait fallback policy and suppresses tint-under-portrait artifacts.)
 - [ ] Remove `setRenderEnabled(legacyRenderPath)` behavior that disables non-OpenGL world resources.
 - [ ] Move backend debug world rendering behind an explicit dev-only flag. (In progress: menu world-backdrop is now disabled by default and can be enabled via `PAC_BACKEND_MENU_BACKDROP=1`.)
-- [ ] Implement/align backend-neutral draw contracts in `IRenderBackend` for required scene features.
+- [ ] Implement/align backend-neutral draw contracts in `IRenderBackend` for required scene features. (In progress: indexed world-mesh draw contract landed and backend model submission now uses indexed batches on supporting backends.)
 - [ ] Complete D3D12 material and alpha-mode parity. (In progress: wrap-aware texture sampling, glTF-like base+emissive color composition, and higher model detail budget landed in backend mesh path.)
 - [ ] Complete D3D12 animation/skinning parity (no fallback-only pose path). (In progress: backend clip evaluation now applies root-motion carrier X/Z suppression like OpenGL.)
 - [ ] Port/align board and bench rendering parity.
@@ -106,6 +106,7 @@ Iteration Log
 - Iteration 16: Reduced backend model-path CPU cost by caching per-node world transforms and per-vertex skinned world results during triangle sampling, replacing repeated mesh-index-to-node scans with a precomputed map, and tuning default backend triangle budgets for better D3D12 combat-frame stability.
 - Iteration 17: Added backend model frame-budget control (`PAC_BACKEND_MODEL_TRI_FRAME_BUDGET`), removed D3D12 world-triangle depth sorting from the 3D depth-tested path, and moved mesh-index-to-node lookup precomputation into model-cache load so per-frame unit rendering does less CPU work.
 - Iteration 18: Replaced hot-path hash maps in backend unit model rendering with vector-indexed caches (skin matrices, node transforms, and skinned vertices), and enabled non-OpenGL startup preloading of backend model caches to avoid first-spawn hitching when models appear in combat.
+- Iteration 19: Added an indexed world-mesh backend contract (`supportsWorldIndexedMeshes`/`drawWorldIndexedMesh`), implemented D3D12 indexed world draws with dedicated upload index buffers, and switched backend model submission in `GameSession` to emit indexed per-unit batches instead of only triangle streams.
 
 How This File Is Used
 - Before each parity implementation iteration:

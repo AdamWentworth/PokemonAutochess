@@ -1,10 +1,21 @@
 #pragma once
 
 #include <cstddef>
+#include <cstdint>
 #include <string>
 
 class IRenderBackend {
 public:
+    struct WorldMeshVertex {
+        float x = 0.0f;
+        float y = 0.0f;
+        float z = 0.0f;
+        float r = 1.0f;
+        float g = 1.0f;
+        float b = 1.0f;
+        float a = 1.0f;
+    };
+
     struct WorldTriangle {
         float x1 = 0.0f;
         float y1 = 0.0f;
@@ -96,6 +107,7 @@ public:
     virtual std::string activeGpuName() const { return {}; }
     virtual bool activeGpuIsDiscrete() const { return false; }
     virtual bool supportsWorldTriangles3D() const { return false; }
+    virtual bool supportsWorldIndexedMeshes() const { return false; }
     virtual void drawWorldTriangles(const WorldTriangle* triangles,
                                     std::size_t triangleCount,
                                     const float* viewProjectionMatrix4x4,
@@ -103,6 +115,21 @@ public:
                                     int surfaceHeight) {
         (void)triangles;
         (void)triangleCount;
+        (void)viewProjectionMatrix4x4;
+        (void)surfaceWidth;
+        (void)surfaceHeight;
+    }
+    virtual void drawWorldIndexedMesh(const WorldMeshVertex* vertices,
+                                      std::size_t vertexCount,
+                                      const std::uint32_t* indices,
+                                      std::size_t indexCount,
+                                      const float* viewProjectionMatrix4x4,
+                                      int surfaceWidth,
+                                      int surfaceHeight) {
+        (void)vertices;
+        (void)vertexCount;
+        (void)indices;
+        (void)indexCount;
         (void)viewProjectionMatrix4x4;
         (void)surfaceWidth;
         (void)surfaceHeight;

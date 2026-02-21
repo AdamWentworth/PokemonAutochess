@@ -690,6 +690,12 @@ struct GameSession::Impl {
         worldTriangles.reserve(4096);
         std::vector<IRenderBackend::WorldTriangle> world3DTriangles;
         world3DTriangles.reserve(120000);
+        struct WorldIndexedBatch {
+            std::vector<IRenderBackend::WorldMeshVertex> vertices;
+            std::vector<std::uint32_t> indices;
+        };
+        std::vector<WorldIndexedBatch> worldIndexedBatches;
+        worldIndexedBatches.reserve(64);
         std::vector<IRenderBackend::DebugQuad> overlayQuads;
         overlayQuads.reserve(1024);
         std::vector<IRenderBackend::DebugLine> lines;
@@ -707,6 +713,7 @@ struct GameSession::Impl {
         std::vector<BackendUnitLabel> unitLabels;
         unitLabels.reserve(64);
         const bool supportsWorldTriangles3D = renderer->supportsWorldTriangles3D();
+        const bool supportsWorldIndexedMeshes = renderer->supportsWorldIndexedMeshes();
         const bool allowPortraitFallback = backendWorldPortraitFallbackEnabled();
         const bool forcePortraitOverlay = backendWorldPortraitOverlayForced();
         float worldViewProj[16] = {};
@@ -1337,6 +1344,14 @@ struct GameSession::Impl {
                             const std::size_t modelDepthCountBefore = modelDepthTris.size();
                             const std::size_t modelDepthWorldCountBefore = modelDepthWorldTris.size();
                             const std::size_t world3DTriangleCountBefore = world3DTriangles.size();
+                            const bool useIndexedWorldModelPath =
+                                supportsWorldTriangles3D && supportsWorldIndexedMeshes;
+                            std::vector<IRenderBackend::WorldMeshVertex> modelIndexedVertices;
+                            std::vector<std::uint32_t> modelIndexedIndices;
+                            if (useIndexedWorldModelPath) {
+                                modelIndexedVertices.reserve(effectiveUnitTriangleBudget * 3u);
+                                modelIndexedIndices.reserve(effectiveUnitTriangleBudget * 3u);
+                            }
                             const BackendPoseEval scenePose = evaluateScenePose(*mesh, unit);
                             const auto& nodeGlobals = scenePose.hasScenePose ? scenePose.nodeGlobals : mesh->bindNodeGlobals;
                             const bool hasClipPose = scenePose.hasClipPose;
@@ -1549,6 +1564,26 @@ struct GameSession::Impl {
                                 const float outAlpha = alpha;
 
                                 if (supportsWorldTriangles3D) {
+                                    if (useIndexedWorldModelPath) {
+                                        const std::size_t nextVertexCount = modelIndexedVertices.size() + 3u;
+                                        if (nextVertexCount >=
+                                            static_cast<std::size_t>(std::numeric_limits<std::uint32_t>::max())) {
+                                            return;
+                                        }
+                                        const std::uint32_t base =
+                                            static_cast<std::uint32_t>(modelIndexedVertices.size());
+                                        modelIndexedVertices.push_back(IRenderBackend::WorldMeshVertex{
+                                            a.x, a.y, a.z, shaded0.r, shaded0.g, shaded0.b, outAlpha});
+                                        modelIndexedVertices.push_back(IRenderBackend::WorldMeshVertex{
+                                            b.x, b.y, b.z, shaded1.r, shaded1.g, shaded1.b, outAlpha});
+                                        modelIndexedVertices.push_back(IRenderBackend::WorldMeshVertex{
+                                            c.x, c.y, c.z, shaded2.r, shaded2.g, shaded2.b, outAlpha});
+                                        modelIndexedIndices.push_back(base + 0u);
+                                        modelIndexedIndices.push_back(base + 1u);
+                                        modelIndexedIndices.push_back(base + 2u);
+                                        return;
+                                    }
+
                                     IRenderBackend::WorldTriangle tri3d;
                                     tri3d.x1 = a.x;
                                     tri3d.y1 = a.y;
@@ -1575,7 +1610,6 @@ struct GameSession::Impl {
                                     tri3d.g3 = shaded2.g;
                                     tri3d.b3 = shaded2.b;
                                     tri3d.a3 = outAlpha;
-                                    // D3D12 world path has depth testing; avoid per-frame depth sort CPU cost.
                                     world3DTriangles.push_back(tri3d);
                                     return;
                                 }
@@ -1693,13 +1727,24 @@ struct GameSession::Impl {
                                     alpha,
                                     triDoubleSided);
                             }
+                            bool queuedIndexedBatch = false;
+                            if (useIndexedWorldModelPath &&
+                                !modelIndexedVertices.empty() &&
+                                !modelIndexedIndices.empty()) {
+                                WorldIndexedBatch batch;
+                                batch.vertices = std::move(modelIndexedVertices);
+                                batch.indices = std::move(modelIndexedIndices);
+                                worldIndexedBatches.push_back(std::move(batch));
+                                queuedIndexedBatch = true;
+                            }
 
                             drewModelMesh = runtime::backend_units::didAccumulateModelGeometry(
                                 modelDepthCountBefore,
                                 modelDepthTris.size(),
                                 modelDepthWorldCountBefore,
                                 modelDepthWorldTris.size()) ||
-                                (world3DTriangles.size() > world3DTriangleCountBefore);
+                                (world3DTriangles.size() > world3DTriangleCountBefore) ||
+                                queuedIndexedBatch;
                         }
 
                         const game::runtime::backend_proxy::UnitProxyCorners corners =
@@ -2523,6 +2568,19 @@ struct GameSession::Impl {
                 worldViewProj,
                 drawableW,
                 drawableH);
+        }
+        if (!worldIndexedBatches.empty() && hasWorldViewProj && supportsWorldIndexedMeshes) {
+            for (const WorldIndexedBatch& batch : worldIndexedBatches) {
+                if (batch.vertices.empty() || batch.indices.empty()) continue;
+                renderer->drawWorldIndexedMesh(
+                    batch.vertices.data(),
+                    batch.vertices.size(),
+                    batch.indices.data(),
+                    batch.indices.size(),
+                    worldViewProj,
+                    drawableW,
+                    drawableH);
+            }
         }
         if (!worldTriangles.empty()) {
             renderer->drawDebugTriangles(worldTriangles.data(), worldTriangles.size(), drawableW, drawableH);

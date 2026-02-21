@@ -54,6 +54,7 @@ constexpr std::size_t kMaxDebugTriangles = 65536;
 constexpr std::size_t kMaxDebugVertices = kMaxDebugTriangles * 3;
 constexpr std::size_t kMaxWorldTriangles = 180000;
 constexpr std::size_t kMaxWorldVertices = kMaxWorldTriangles * 3;
+constexpr std::size_t kMaxWorldIndices = kMaxWorldTriangles * 3;
 constexpr std::size_t kMaxSrvDescriptors = 2048;
 constexpr const char* kFallbackSpriteTextureKey = "__fallback_sprite_texture__";
 
@@ -529,6 +530,101 @@ void D3D12RenderBackend::drawWorldTriangles(const WorldTriangle* triangles,
 #endif
 }
 
+void D3D12RenderBackend::drawWorldIndexedMesh(const WorldMeshVertex* vertices,
+                                              std::size_t vertexCount,
+                                              const std::uint32_t* indices,
+                                              std::size_t indexCount,
+                                              const float* viewProjectionMatrix4x4,
+                                              int surfaceWidth,
+                                              int surfaceHeight) {
+#if defined(_WIN32)
+    if (!recording_ || !vertices || !indices || vertexCount == 0 || indexCount == 0 || !viewProjectionMatrix4x4) {
+        return;
+    }
+    if (surfaceWidth <= 0 || surfaceHeight <= 0) return;
+    if (!worldPipelineState_ ||
+        !worldRootSignature_ ||
+        !worldVertexBuffer_ ||
+        !worldIndexBuffer_ ||
+        !commandList_) {
+        return;
+    }
+
+    const std::size_t maxVertexCapacity = worldVertexBufferSize_ / sizeof(WorldVertex);
+    const std::size_t maxIndexCapacity = worldIndexBufferSize_ / sizeof(std::uint32_t);
+    const std::size_t safeVertexCount = (std::min)(vertexCount, maxVertexCapacity);
+    const std::size_t safeIndexCount = (std::min)(indexCount, maxIndexCapacity);
+    if (safeVertexCount == 0 || safeIndexCount < 3u) return;
+
+    const std::size_t vertexBytes = safeVertexCount * sizeof(WorldVertex);
+    const std::size_t indexBytes = safeIndexCount * sizeof(std::uint32_t);
+    if (vertexBytes == 0 || indexBytes == 0) return;
+
+    void* mappedVertices = nullptr;
+    D3D12_RANGE readRange{0, 0};
+    if (FAILED(worldVertexBuffer_->Map(0, &readRange, &mappedVertices)) || !mappedVertices) return;
+    auto* outVertices = static_cast<WorldVertex*>(mappedVertices);
+    for (std::size_t i = 0; i < safeVertexCount; ++i) {
+        const WorldMeshVertex& src = vertices[i];
+        outVertices[i] = WorldVertex{
+            src.x,
+            src.y,
+            src.z,
+            std::clamp(src.r, 0.0f, 1.0f),
+            std::clamp(src.g, 0.0f, 1.0f),
+            std::clamp(src.b, 0.0f, 1.0f),
+            std::clamp(src.a, 0.0f, 1.0f)};
+    }
+    D3D12_RANGE vertexWriteRange{0, static_cast<SIZE_T>(vertexBytes)};
+    worldVertexBuffer_->Unmap(0, &vertexWriteRange);
+
+    void* mappedIndices = nullptr;
+    if (FAILED(worldIndexBuffer_->Map(0, &readRange, &mappedIndices)) || !mappedIndices) return;
+    auto* outIndices = static_cast<std::uint32_t*>(mappedIndices);
+    std::memcpy(outIndices, indices, indexBytes);
+    D3D12_RANGE indexWriteRange{0, static_cast<SIZE_T>(indexBytes)};
+    worldIndexBuffer_->Unmap(0, &indexWriteRange);
+
+    D3D12_VIEWPORT vp{};
+    vp.TopLeftX = 0.0f;
+    vp.TopLeftY = 0.0f;
+    vp.Width = static_cast<float>(surfaceWidth);
+    vp.Height = static_cast<float>(surfaceHeight);
+    vp.MinDepth = 0.0f;
+    vp.MaxDepth = 1.0f;
+    D3D12_RECT scissor{0, 0, surfaceWidth, surfaceHeight};
+
+    commandList_->RSSetViewports(1, &vp);
+    commandList_->RSSetScissorRects(1, &scissor);
+    commandList_->SetGraphicsRootSignature(worldRootSignature_.Get());
+    commandList_->SetGraphicsRoot32BitConstants(0, 16, viewProjectionMatrix4x4, 0);
+    commandList_->SetPipelineState(worldPipelineState_.Get());
+    commandList_->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+    D3D12_VERTEX_BUFFER_VIEW vbv{};
+    vbv.BufferLocation = worldVertexBufferGpuAddress_;
+    vbv.StrideInBytes = worldVertexStride_;
+    vbv.SizeInBytes = static_cast<UINT>(vertexBytes);
+    commandList_->IASetVertexBuffers(0, 1, &vbv);
+
+    D3D12_INDEX_BUFFER_VIEW ibv{};
+    ibv.BufferLocation = worldIndexBufferGpuAddress_;
+    ibv.Format = DXGI_FORMAT_R32_UINT;
+    ibv.SizeInBytes = static_cast<UINT>(indexBytes);
+    commandList_->IASetIndexBuffer(&ibv);
+
+    commandList_->DrawIndexedInstanced(static_cast<UINT>(safeIndexCount), 1, 0, 0, 0);
+#else
+    (void)vertices;
+    (void)vertexCount;
+    (void)indices;
+    (void)indexCount;
+    (void)viewProjectionMatrix4x4;
+    (void)surfaceWidth;
+    (void)surfaceHeight;
+#endif
+}
+
 void D3D12RenderBackend::drawDebugQuads(const DebugQuad* quads,
                                         std::size_t quadCount,
                                         int surfaceWidth,
@@ -880,6 +976,9 @@ void D3D12RenderBackend::shutdown() {
     worldVertexBufferGpuAddress_ = 0;
     worldVertexStride_ = 0;
     worldVertexBufferSize_ = 0;
+    worldIndexBuffer_.Reset();
+    worldIndexBufferGpuAddress_ = 0;
+    worldIndexBufferSize_ = 0;
     worldPipelineState_.Reset();
     worldRootSignature_.Reset();
     spriteTextures_.clear();
@@ -1436,6 +1535,21 @@ void D3D12RenderBackend::createWorldPipeline() {
     worldVertexBufferGpuAddress_ = worldVertexBuffer_->GetGPUVirtualAddress();
     worldVertexStride_ = sizeof(WorldVertex);
     worldVertexBufferSize_ = static_cast<UINT>(kBufferBytes);
+
+    const std::size_t indexBufferBytes = kMaxWorldIndices * sizeof(std::uint32_t);
+    D3D12_RESOURCE_DESC indexBufferDesc = bufferDesc;
+    indexBufferDesc.Width = indexBufferBytes;
+    if (FAILED(device_->CreateCommittedResource(&heapProps,
+                                                D3D12_HEAP_FLAG_NONE,
+                                                &indexBufferDesc,
+                                                D3D12_RESOURCE_STATE_GENERIC_READ,
+                                                nullptr,
+                                                IID_PPV_ARGS(worldIndexBuffer_.ReleaseAndGetAddressOf()))) ||
+        !worldIndexBuffer_) {
+        throw std::runtime_error("CreateCommittedResource failed for D3D12 world index buffer.");
+    }
+    worldIndexBufferGpuAddress_ = worldIndexBuffer_->GetGPUVirtualAddress();
+    worldIndexBufferSize_ = static_cast<UINT>(indexBufferBytes);
 #endif
 }
 
