@@ -7,6 +7,7 @@
 #include <cstring>
 #include <stdexcept>
 #include <string>
+#include <type_traits>
 #include <vector>
 
 #include <SDL2/SDL.h>
@@ -48,6 +49,14 @@ struct WorldVertex {
     float b;
     float a;
 };
+
+static_assert(
+    sizeof(WorldVertex) == sizeof(IRenderBackend::WorldMeshVertex),
+    "WorldVertex and WorldMeshVertex layout must match for fast memcpy upload path.");
+static_assert(std::is_trivially_copyable_v<WorldVertex>, "WorldVertex must be trivially copyable.");
+static_assert(
+    std::is_trivially_copyable_v<IRenderBackend::WorldMeshVertex>,
+    "WorldMeshVertex must be trivially copyable.");
 
 constexpr std::size_t kMaxSpriteQuads = 2048;
 constexpr std::size_t kMaxSpriteVertices = kMaxSpriteQuads * 6;
@@ -264,24 +273,24 @@ void D3D12RenderBackend::drawWorldTriangles(const WorldTriangle* triangles,
         out[base + 0] = WorldVertex{
             t.x1, t.y1, t.z1,
             0.0f, 0.0f,
-            std::clamp(resolve(t.r1, t.r), 0.0f, 1.0f),
-            std::clamp(resolve(t.g1, t.g), 0.0f, 1.0f),
-            std::clamp(resolve(t.b1, t.b), 0.0f, 1.0f),
-            std::clamp(resolve(t.a1, t.a), 0.0f, 1.0f)};
+            resolve(t.r1, t.r),
+            resolve(t.g1, t.g),
+            resolve(t.b1, t.b),
+            resolve(t.a1, t.a)};
         out[base + 1] = WorldVertex{
             t.x2, t.y2, t.z2,
             0.0f, 0.0f,
-            std::clamp(resolve(t.r2, t.r), 0.0f, 1.0f),
-            std::clamp(resolve(t.g2, t.g), 0.0f, 1.0f),
-            std::clamp(resolve(t.b2, t.b), 0.0f, 1.0f),
-            std::clamp(resolve(t.a2, t.a), 0.0f, 1.0f)};
+            resolve(t.r2, t.r),
+            resolve(t.g2, t.g),
+            resolve(t.b2, t.b),
+            resolve(t.a2, t.a)};
         out[base + 2] = WorldVertex{
             t.x3, t.y3, t.z3,
             0.0f, 0.0f,
-            std::clamp(resolve(t.r3, t.r), 0.0f, 1.0f),
-            std::clamp(resolve(t.g3, t.g), 0.0f, 1.0f),
-            std::clamp(resolve(t.b3, t.b), 0.0f, 1.0f),
-            std::clamp(resolve(t.a3, t.a), 0.0f, 1.0f)};
+            resolve(t.r3, t.r),
+            resolve(t.g3, t.g),
+            resolve(t.b3, t.b),
+            resolve(t.a3, t.a)};
     }
     D3D12_VIEWPORT vp{};
     vp.TopLeftX = 0.0f;
@@ -433,20 +442,7 @@ void D3D12RenderBackend::drawWorldIndexedMeshInternal(const WorldMeshVertex* ver
         return;
     }
 
-    auto* outVertices = reinterpret_cast<WorldVertex*>(worldVertexMappedData_ + vertexWriteOffset);
-    for (std::size_t i = 0; i < safeVertexCount; ++i) {
-        const WorldMeshVertex& src = vertices[i];
-        outVertices[i] = WorldVertex{
-            src.x,
-            src.y,
-            src.z,
-            src.u,
-            src.v,
-            std::clamp(src.r, 0.0f, 1.0f),
-            std::clamp(src.g, 0.0f, 1.0f),
-            std::clamp(src.b, 0.0f, 1.0f),
-            std::clamp(src.a, 0.0f, 1.0f)};
-    }
+    std::memcpy(worldVertexMappedData_ + vertexWriteOffset, vertices, vertexBytes);
     auto* outIndices = reinterpret_cast<std::uint32_t*>(worldIndexMappedData_ + indexWriteOffset);
     std::memcpy(outIndices, indices, indexBytes);
 
@@ -523,7 +519,8 @@ void D3D12RenderBackend::drawDebugQuads(const DebugQuad* quads,
     const std::size_t writeOffset = alignUp(static_cast<std::size_t>(debugVertexFrameOffset_), 256u);
     if (neededBytes == 0 || writeOffset + neededBytes > debugVertexBufferSize_) return;
 
-    std::vector<DebugVertex> verts;
+    static thread_local std::vector<DebugVertex> verts;
+    verts.clear();
     verts.reserve(vertexCount);
     for (std::size_t i = 0; i < safeCount; ++i) {
         engine::render::debug::appendQuadAsTriangles(quads[i], verts);
@@ -585,7 +582,8 @@ void D3D12RenderBackend::drawDebugLines(const DebugLine* lines,
 
     const std::size_t safeCount = (lineCount > kMaxDebugLines) ? kMaxDebugLines : lineCount;
 
-    std::vector<DebugVertex> verts;
+    static thread_local std::vector<DebugVertex> verts;
+    verts.clear();
     verts.reserve(safeCount * 6);
     for (std::size_t i = 0; i < safeCount; ++i) {
         engine::render::debug::appendLineAsTriangles(lines[i], verts);
@@ -650,7 +648,8 @@ void D3D12RenderBackend::drawDebugTriangles(const DebugTriangle* triangles,
 
     const std::size_t safeCount = (triangleCount > kMaxDebugTriangles) ? kMaxDebugTriangles : triangleCount;
 
-    std::vector<DebugVertex> verts;
+    static thread_local std::vector<DebugVertex> verts;
+    verts.clear();
     verts.reserve(safeCount * 3);
     for (std::size_t i = 0; i < safeCount; ++i) {
         const DebugTriangle& t = triangles[i];
@@ -717,9 +716,11 @@ void D3D12RenderBackend::drawDebugSprites(const DebugSprite* sprites,
 
     const std::size_t safeCount = (spriteCount > kMaxSpriteQuads) ? kMaxSpriteQuads : spriteCount;
 
-    std::vector<SpriteVertex> vertices;
+    static thread_local std::vector<SpriteVertex> vertices;
+    vertices.clear();
     vertices.reserve(safeCount * 6);
-    std::vector<std::uint32_t> descriptorIndices;
+    static thread_local std::vector<std::uint32_t> descriptorIndices;
+    descriptorIndices.clear();
     descriptorIndices.reserve(safeCount);
 
     for (std::size_t i = 0; i < safeCount; ++i) {

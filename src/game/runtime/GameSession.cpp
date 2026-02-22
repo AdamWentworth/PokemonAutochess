@@ -359,7 +359,7 @@ struct GameSession::Impl {
     bool renderEnabled = false;
     bool legacyRenderPath = false;
     bool allowBackendMenuBackdrop = false;
-    bool showPerfOverlay = true;
+    bool showPerfOverlay = false;
     bool devPauseWorld = false;
     int devPauseStepTicks = 0;
 
@@ -1134,14 +1134,6 @@ struct GameSession::Impl {
 
         runtime::backend_inventory_panel::clearHitRegions(backendInventoryPanel);
 
-        std::vector<IRenderBackend::DebugQuad> worldBackgroundQuads;
-        worldBackgroundQuads.reserve(1024);
-        std::vector<IRenderBackend::DebugQuad> worldQuads;
-        worldQuads.reserve(1024);
-        std::vector<IRenderBackend::DebugTriangle> worldTriangles;
-        worldTriangles.reserve(4096);
-        std::vector<IRenderBackend::WorldTriangle> world3DTriangles;
-        world3DTriangles.reserve(120000);
         struct WorldIndexedBatch {
             std::vector<IRenderBackend::WorldMeshVertex> vertices;
             std::vector<std::uint32_t> indices;
@@ -1155,24 +1147,59 @@ struct GameSession::Impl {
             float alphaCutoff = 0.5f;
             float sortDepth = 0.0f;
         };
-        std::vector<WorldIndexedBatch> worldIndexedBatches;
-        worldIndexedBatches.reserve(64);
-        std::vector<IRenderBackend::DebugQuad> overlayQuads;
-        overlayQuads.reserve(1024);
-        std::vector<IRenderBackend::DebugLine> lines;
-        lines.reserve(512);
-        std::vector<IRenderBackend::DebugLine> textLines;
-        textLines.reserve(8192);
-        std::vector<IRenderBackend::DebugSprite> sprites;
-        sprites.reserve(256);
         struct BackendUnitLabel {
             float x = 0.0f;
             float y = 0.0f;
             std::string text;
             glm::vec3 color{1.0f, 1.0f, 1.0f};
         };
-        std::vector<BackendUnitLabel> unitLabels;
-        unitLabels.reserve(64);
+        struct BackendRenderScratch {
+            std::vector<IRenderBackend::DebugQuad> worldBackgroundQuads;
+            std::vector<IRenderBackend::DebugQuad> worldQuads;
+            std::vector<IRenderBackend::DebugTriangle> worldTriangles;
+            std::vector<IRenderBackend::WorldTriangle> world3DTriangles;
+            std::vector<WorldIndexedBatch> worldIndexedBatches;
+            std::vector<IRenderBackend::DebugQuad> overlayQuads;
+            std::vector<IRenderBackend::DebugLine> lines;
+            std::vector<IRenderBackend::DebugLine> textLines;
+            std::vector<IRenderBackend::DebugSprite> sprites;
+            std::vector<BackendUnitLabel> unitLabels;
+        };
+        static thread_local BackendRenderScratch scratch;
+
+        auto& worldBackgroundQuads = scratch.worldBackgroundQuads;
+        auto& worldQuads = scratch.worldQuads;
+        auto& worldTriangles = scratch.worldTriangles;
+        auto& world3DTriangles = scratch.world3DTriangles;
+        auto& worldIndexedBatches = scratch.worldIndexedBatches;
+        auto& overlayQuads = scratch.overlayQuads;
+        auto& lines = scratch.lines;
+        auto& textLines = scratch.textLines;
+        auto& sprites = scratch.sprites;
+        auto& unitLabels = scratch.unitLabels;
+
+        worldBackgroundQuads.clear();
+        worldQuads.clear();
+        worldTriangles.clear();
+        world3DTriangles.clear();
+        worldIndexedBatches.clear();
+        overlayQuads.clear();
+        lines.clear();
+        textLines.clear();
+        sprites.clear();
+        unitLabels.clear();
+
+        if (worldBackgroundQuads.capacity() < 1024u) worldBackgroundQuads.reserve(1024u);
+        if (worldQuads.capacity() < 1024u) worldQuads.reserve(1024u);
+        if (worldTriangles.capacity() < 4096u) worldTriangles.reserve(4096u);
+        if (world3DTriangles.capacity() < 120000u) world3DTriangles.reserve(120000u);
+        if (worldIndexedBatches.capacity() < 64u) worldIndexedBatches.reserve(64u);
+        if (overlayQuads.capacity() < 1024u) overlayQuads.reserve(1024u);
+        if (lines.capacity() < 512u) lines.reserve(512u);
+        if (textLines.capacity() < 8192u) textLines.reserve(8192u);
+        if (sprites.capacity() < 256u) sprites.reserve(256u);
+        if (unitLabels.capacity() < 64u) unitLabels.reserve(64u);
+
         const bool supportsWorldTriangles3D = renderer->supportsWorldTriangles3D();
         const bool supportsWorldIndexedMeshes = renderer->supportsWorldIndexedMeshes();
         const bool allowPortraitFallback = backendWorldPortraitFallbackEnabled();
@@ -1557,6 +1584,41 @@ struct GameSession::Impl {
                     const glm::vec4 v = sampleVec4(sampler, t);
                     return glm::normalize(glm::quat(v.w, v.x, v.y, v.z));
                 };
+                const auto rootMotionCarrierMaskForMesh =
+                    [](const runtime::backend_model::MeshData& mesh) -> const std::vector<std::uint8_t>& {
+                    static std::unordered_map<
+                        const runtime::backend_model::MeshData*,
+                        std::vector<std::uint8_t>>
+                        cache;
+                    const auto found = cache.find(&mesh);
+                    if (found != cache.end()) {
+                        return found->second;
+                    }
+
+                    std::vector<std::uint8_t> mask(mesh.nodesDefault.size(), 0u);
+                    for (const auto& skin : mesh.skins) {
+                        if (skin.joints.empty()) continue;
+                        std::unordered_set<int> jointSet;
+                        jointSet.reserve(skin.joints.size());
+                        for (const int jointNode : skin.joints) {
+                            jointSet.insert(jointNode);
+                        }
+                        for (const int jointNode : skin.joints) {
+                            if (jointNode < 0 ||
+                                static_cast<std::size_t>(jointNode) >= mesh.nodeParent.size() ||
+                                static_cast<std::size_t>(jointNode) >= mask.size()) {
+                                continue;
+                            }
+                            const int parent = mesh.nodeParent[static_cast<std::size_t>(jointNode)];
+                            if (parent < 0 || jointSet.find(parent) == jointSet.end()) {
+                                mask[static_cast<std::size_t>(jointNode)] = 1u;
+                            }
+                        }
+                    }
+
+                    const auto inserted = cache.emplace(&mesh, std::move(mask));
+                    return inserted.first->second;
+                };
                 const auto evaluateScenePose = [&](const runtime::backend_model::MeshData& mesh,
                                                    const PokemonInstance& unit) {
                     BackendPoseEval eval;
@@ -1564,22 +1626,7 @@ struct GameSession::Impl {
                     eval.hasScenePose = true;
                     eval.nodeLocals = mesh.nodesDefault;
                     eval.nodeGlobals.assign(mesh.nodesDefault.size(), glm::mat4(1.0f));
-
-                    std::unordered_set<int> rootMotionCarrierNodes;
-                    rootMotionCarrierNodes.reserve(16);
-                    for (const auto& skin : mesh.skins) {
-                        if (skin.joints.empty()) continue;
-                        std::unordered_set<int> jointSet;
-                        jointSet.reserve(skin.joints.size());
-                        for (const int j : skin.joints) jointSet.insert(j);
-                        for (const int j : skin.joints) {
-                            if (j < 0 || static_cast<std::size_t>(j) >= mesh.nodeParent.size()) continue;
-                            const int parent = mesh.nodeParent[static_cast<std::size_t>(j)];
-                            if (parent < 0 || jointSet.find(parent) == jointSet.end()) {
-                                rootMotionCarrierNodes.insert(j);
-                            }
-                        }
-                    }
+                    const auto& rootMotionCarrierMask = rootMotionCarrierMaskForMesh(mesh);
 
                     int animIndex = unit.activeAnimIndex;
                     if (animIndex < 0 || static_cast<std::size_t>(animIndex) >= mesh.animations.size()) {
@@ -1610,7 +1657,12 @@ struct GameSession::Impl {
                             const auto& sampler = clip.samplers[static_cast<std::size_t>(channel.samplerIndex)];
                             if (channel.path == pac_model_types::ChannelPath::Translation) {
                                 const glm::vec4 tr = sampleVec4(sampler, clipTime);
-                                if (rootMotionCarrierNodes.find(channel.targetNode) != rootMotionCarrierNodes.end()) {
+                                const bool rootMotionCarrier =
+                                    (channel.targetNode >= 0) &&
+                                    (static_cast<std::size_t>(channel.targetNode) <
+                                     rootMotionCarrierMask.size()) &&
+                                    (rootMotionCarrierMask[static_cast<std::size_t>(channel.targetNode)] != 0u);
+                                if (rootMotionCarrier) {
                                     const auto& bind =
                                         mesh.nodesDefault[static_cast<std::size_t>(channel.targetNode)];
                                     if (bind.hasMatrix) {
@@ -1822,7 +1874,8 @@ struct GameSession::Impl {
                             const std::size_t modelDepthCountBefore = modelDepthTris.size();
                             const std::size_t modelDepthWorldCountBefore = modelDepthWorldTris.size();
                             const std::size_t world3DTriangleCountBefore = world3DTriangles.size();
-                            std::vector<int> submeshNodeFallback;
+                            static thread_local std::vector<int> submeshNodeFallback;
+                            submeshNodeFallback.clear();
                             if (!mesh->submeshMeshIndex.empty()) {
                                 submeshNodeFallback.assign(mesh->submeshMeshIndex.size(), -1);
                                 for (std::size_t si = 0; si < mesh->submeshMeshIndex.size(); ++si) {
@@ -1880,6 +1933,23 @@ struct GameSession::Impl {
                             const BackendPoseEval scenePose = evaluateScenePose(*mesh, unit);
                             const auto& nodeGlobals = scenePose.hasScenePose ? scenePose.nodeGlobals : mesh->bindNodeGlobals;
                             const bool hasClipPose = scenePose.hasClipPose;
+                            const bool useFastTexturedFullMeshPath =
+                                supportsWorldTriangles3D &&
+                                useIndexedWorldModelPath &&
+                                backendModelFastTexturedPathEnabled() &&
+                                fullIndexedMeshPath;
+                            bool allSubmeshesTextured = !mesh->submeshBaseTextures.empty();
+                            if (allSubmeshesTextured) {
+                                for (const auto& tex : mesh->submeshBaseTextures) {
+                                    if (!tex.hasPixels()) {
+                                        allSubmeshesTextured = false;
+                                        break;
+                                    }
+                                }
+                            }
+                            const bool usePositionOnlyVertexPath =
+                                useFastTexturedFullMeshPath &&
+                                allSubmeshesTextured;
 
                             const glm::vec3 lightDir = glm::normalize(glm::vec3(0.45f, 0.90f, 0.35f));
                             const glm::vec3 fallbackBase(
@@ -1893,8 +1963,60 @@ struct GameSession::Impl {
                             };
 
                             const std::size_t nodeCount = nodeGlobals.size();
-                            std::vector<std::vector<glm::mat4>> skinMatricesByNode(nodeCount);
-                            std::vector<std::uint8_t> skinMatricesReady(nodeCount, 0u);
+                            static thread_local std::vector<std::vector<glm::mat4>> skinMatricesByNode;
+                            static thread_local std::vector<std::uint8_t> skinMatricesReady;
+                            static thread_local std::vector<glm::mat4> nodeGlobalInverseCache;
+                            static thread_local std::vector<std::uint8_t> nodeGlobalInverseReady;
+                            if (skinMatricesByNode.size() < nodeCount) skinMatricesByNode.resize(nodeCount);
+                            for (std::size_t ni = 0; ni < nodeCount; ++ni) skinMatricesByNode[ni].clear();
+                            if (skinMatricesReady.size() < nodeCount) skinMatricesReady.resize(nodeCount, 0u);
+                            std::fill(skinMatricesReady.begin(), skinMatricesReady.begin() + nodeCount, 0u);
+                            if (nodeGlobalInverseCache.size() < nodeCount) {
+                                nodeGlobalInverseCache.resize(nodeCount, glm::mat4(1.0f));
+                            }
+                            if (nodeGlobalInverseReady.size() < nodeCount) nodeGlobalInverseReady.resize(nodeCount, 0u);
+                            std::fill(nodeGlobalInverseReady.begin(), nodeGlobalInverseReady.begin() + nodeCount, 0u);
+
+                            const auto ensureSkinMatricesForNode =
+                                [&](int nodeIndex) -> const std::vector<glm::mat4>* {
+                                if (nodeIndex < 0 ||
+                                    static_cast<std::size_t>(nodeIndex) >= mesh->nodeSkin.size() ||
+                                    static_cast<std::size_t>(nodeIndex) >= nodeGlobals.size()) {
+                                    return nullptr;
+                                }
+                                const std::size_t nodeIdx = static_cast<std::size_t>(nodeIndex);
+                                const int skinIndex = mesh->nodeSkin[nodeIdx];
+                                if (skinIndex < 0 || static_cast<std::size_t>(skinIndex) >= mesh->skins.size()) {
+                                    return nullptr;
+                                }
+                                if (skinMatricesReady[nodeIdx] == 0u) {
+                                    const auto& skin = mesh->skins[static_cast<std::size_t>(skinIndex)];
+                                    if (nodeGlobalInverseReady[nodeIdx] == 0u) {
+                                        nodeGlobalInverseCache[nodeIdx] = glm::inverse(nodeGlobals[nodeIdx]);
+                                        nodeGlobalInverseReady[nodeIdx] = 1u;
+                                    }
+                                    const glm::mat4& invMeshGlobal = nodeGlobalInverseCache[nodeIdx];
+                                    auto& mats = skinMatricesByNode[nodeIdx];
+                                    mats.assign(skin.joints.size(), glm::mat4(1.0f));
+                                    for (std::size_t j = 0; j < skin.joints.size(); ++j) {
+                                        const int jointNode = skin.joints[j];
+                                        if (jointNode < 0 ||
+                                            static_cast<std::size_t>(jointNode) >= nodeGlobals.size()) {
+                                            continue;
+                                        }
+                                        const glm::mat4 invBind =
+                                            (j < skin.inverseBind.size())
+                                                ? skin.inverseBind[j]
+                                                : glm::mat4(1.0f);
+                                        mats[j] =
+                                            invMeshGlobal *
+                                            nodeGlobals[static_cast<std::size_t>(jointNode)] *
+                                            invBind;
+                                    }
+                                    skinMatricesReady[nodeIdx] = 1u;
+                                }
+                                return &skinMatricesByNode[nodeIdx];
+                            };
                             const auto skinVertexAtNode = [&](int nodeIndex,
                                                              const runtime::backend_model::MeshVertex& vtx,
                                                              const glm::vec3& localPos,
@@ -1904,36 +2026,9 @@ struct GameSession::Impl {
                                     glm::vec3 normal;
                                     bool applied = false;
                                 } outSkin{localPos, localNormal, false};
-                                if (nodeIndex < 0 ||
-                                    static_cast<std::size_t>(nodeIndex) >= mesh->nodeSkin.size() ||
-                                    static_cast<std::size_t>(nodeIndex) >= nodeGlobals.size()) {
-                                    return outSkin;
-                                }
-                                const int skinIndex = mesh->nodeSkin[static_cast<std::size_t>(nodeIndex)];
-                                if (skinIndex < 0 || static_cast<std::size_t>(skinIndex) >= mesh->skins.size()) {
-                                    return outSkin;
-                                }
-
-                                if (skinMatricesReady[static_cast<std::size_t>(nodeIndex)] == 0u) {
-                                    const auto& skin = mesh->skins[static_cast<std::size_t>(skinIndex)];
-                                    const glm::mat4 meshGlobal = nodeGlobals[static_cast<std::size_t>(nodeIndex)];
-                                    const glm::mat4 invMeshGlobal = glm::inverse(meshGlobal);
-                                    std::vector<glm::mat4> mats(skin.joints.size(), glm::mat4(1.0f));
-                                    for (std::size_t j = 0; j < skin.joints.size(); ++j) {
-                                        const int jointNode = skin.joints[j];
-                                        if (jointNode < 0 ||
-                                            static_cast<std::size_t>(jointNode) >= nodeGlobals.size()) {
-                                            continue;
-                                        }
-                                        mats[j] =
-                                            invMeshGlobal *
-                                            nodeGlobals[static_cast<std::size_t>(jointNode)] *
-                                            skin.inverseBind[j];
-                                    }
-                                    skinMatricesByNode[static_cast<std::size_t>(nodeIndex)] = std::move(mats);
-                                    skinMatricesReady[static_cast<std::size_t>(nodeIndex)] = 1u;
-                                }
-                                const auto& mats = skinMatricesByNode[static_cast<std::size_t>(nodeIndex)];
+                                const auto* matsPtr = ensureSkinMatricesForNode(nodeIndex);
+                                if (!matsPtr) return outSkin;
+                                const auto& mats = *matsPtr;
                                 const std::uint16_t joints[4] = {vtx.j0, vtx.j1, vtx.j2, vtx.j3};
                                 const float weights[4] = {vtx.w0, vtx.w1, vtx.w2, vtx.w3};
                                 glm::vec4 blendedPos(0.0f);
@@ -1963,36 +2058,9 @@ struct GameSession::Impl {
                                                                 const runtime::backend_model::MeshVertex& vtx,
                                                                 const glm::vec3& localPos) {
                                 glm::vec3 outPos = localPos;
-                                if (nodeIndex < 0 ||
-                                    static_cast<std::size_t>(nodeIndex) >= mesh->nodeSkin.size() ||
-                                    static_cast<std::size_t>(nodeIndex) >= nodeGlobals.size()) {
-                                    return outPos;
-                                }
-                                const int skinIndex = mesh->nodeSkin[static_cast<std::size_t>(nodeIndex)];
-                                if (skinIndex < 0 || static_cast<std::size_t>(skinIndex) >= mesh->skins.size()) {
-                                    return outPos;
-                                }
-
-                                if (skinMatricesReady[static_cast<std::size_t>(nodeIndex)] == 0u) {
-                                    const auto& skin = mesh->skins[static_cast<std::size_t>(skinIndex)];
-                                    const glm::mat4 meshGlobal = nodeGlobals[static_cast<std::size_t>(nodeIndex)];
-                                    const glm::mat4 invMeshGlobal = glm::inverse(meshGlobal);
-                                    std::vector<glm::mat4> mats(skin.joints.size(), glm::mat4(1.0f));
-                                    for (std::size_t j = 0; j < skin.joints.size(); ++j) {
-                                        const int jointNode = skin.joints[j];
-                                        if (jointNode < 0 ||
-                                            static_cast<std::size_t>(jointNode) >= nodeGlobals.size()) {
-                                            continue;
-                                        }
-                                        mats[j] =
-                                            invMeshGlobal *
-                                            nodeGlobals[static_cast<std::size_t>(jointNode)] *
-                                            skin.inverseBind[j];
-                                    }
-                                    skinMatricesByNode[static_cast<std::size_t>(nodeIndex)] = std::move(mats);
-                                    skinMatricesReady[static_cast<std::size_t>(nodeIndex)] = 1u;
-                                }
-                                const auto& mats = skinMatricesByNode[static_cast<std::size_t>(nodeIndex)];
+                                const auto* matsPtr = ensureSkinMatricesForNode(nodeIndex);
+                                if (!matsPtr) return outPos;
+                                const auto& mats = *matsPtr;
                                 const std::uint16_t joints[4] = {vtx.j0, vtx.j1, vtx.j2, vtx.j3};
                                 const float weights[4] = {vtx.w0, vtx.w1, vtx.w2, vtx.w3};
                                 glm::vec4 blendedPos(0.0f);
@@ -2018,15 +2086,37 @@ struct GameSession::Impl {
                                 glm::mat4 worldM{1.0f};
                                 glm::mat3 worldNormalM{1.0f};
                             };
-                            std::vector<NodeTransformCacheEntry> nodeTransformCache(nodeCount + 1u);
-                            std::vector<std::uint8_t> nodeTransformReady(nodeCount + 1u, 0u);
-                            const auto nodeTransformsFor = [&](int triNodeIndex) -> const NodeTransformCacheEntry& {
+                            static thread_local std::vector<NodeTransformCacheEntry> nodeTransformCache;
+                            static thread_local std::vector<std::uint8_t> nodeTransformWorldReady;
+                            static thread_local std::vector<std::uint8_t> nodeTransformNormalReady;
+                            const std::size_t nodeCacheCount = nodeCount + 1u;
+                            if (nodeTransformCache.size() < nodeCacheCount) nodeTransformCache.resize(nodeCacheCount);
+                            if (nodeTransformWorldReady.size() < nodeCacheCount) {
+                                nodeTransformWorldReady.resize(nodeCacheCount, 0u);
+                            }
+                            if (nodeTransformNormalReady.size() < nodeCacheCount) {
+                                nodeTransformNormalReady.resize(nodeCacheCount, 0u);
+                            }
+                            std::fill(
+                                nodeTransformWorldReady.begin(),
+                                nodeTransformWorldReady.begin() + nodeCacheCount,
+                                0u);
+                            std::fill(
+                                nodeTransformNormalReady.begin(),
+                                nodeTransformNormalReady.begin() + nodeCacheCount,
+                                0u);
+
+                            const auto nodeTransformIndexFor = [&](int triNodeIndex) -> std::size_t {
                                 std::size_t cacheIndex = 0u;
                                 if (triNodeIndex >= 0 && static_cast<std::size_t>(triNodeIndex) < nodeCount) {
                                     cacheIndex = static_cast<std::size_t>(triNodeIndex) + 1u;
                                 }
-                                if (nodeTransformReady[cacheIndex] != 0u) {
-                                    return nodeTransformCache[cacheIndex];
+                                return cacheIndex;
+                            };
+                            const auto worldMatrixForNode = [&](int triNodeIndex) -> const glm::mat4& {
+                                const std::size_t cacheIndex = nodeTransformIndexFor(triNodeIndex);
+                                if (nodeTransformWorldReady[cacheIndex] != 0u) {
+                                    return nodeTransformCache[cacheIndex].worldM;
                                 }
                                 const glm::mat4 nodeGlobal =
                                     (triNodeIndex >= 0 &&
@@ -2035,22 +2125,46 @@ struct GameSession::Impl {
                                         : glm::mat4(1.0f);
                                 auto& entry = nodeTransformCache[cacheIndex];
                                 entry.worldM = modelM * nodeGlobal;
-                                entry.worldNormalM =
-                                    glm::transpose(glm::inverse(glm::mat3(entry.worldM)));
-                                nodeTransformReady[cacheIndex] = 1u;
-                                return entry;
+                                nodeTransformWorldReady[cacheIndex] = 1u;
+                                return entry.worldM;
+                            };
+                            const auto worldNormalMatrixForNode = [&](int triNodeIndex) -> const glm::mat3& {
+                                const std::size_t cacheIndex = nodeTransformIndexFor(triNodeIndex);
+                                if (nodeTransformNormalReady[cacheIndex] != 0u) {
+                                    return nodeTransformCache[cacheIndex].worldNormalM;
+                                }
+                                if (nodeTransformWorldReady[cacheIndex] == 0u) {
+                                    (void)worldMatrixForNode(triNodeIndex);
+                                }
+                                auto& entry = nodeTransformCache[cacheIndex];
+                                entry.worldNormalM = glm::transpose(glm::inverse(glm::mat3(entry.worldM)));
+                                nodeTransformNormalReady[cacheIndex] = 1u;
+                                return entry.worldNormalM;
                             };
 
                             struct WorldVertexSample {
                                 glm::vec3 pos{0.0f};
                                 glm::vec3 normal{0.0f, 1.0f, 0.0f};
                             };
-                            std::vector<WorldVertexSample> worldVertexCache(mesh->vertices.size());
-                            std::vector<int> worldVertexCacheNode(mesh->vertices.size(), std::numeric_limits<int>::min());
-                            std::vector<std::uint8_t> worldVertexCacheValid(mesh->vertices.size(), 0u);
-                            std::vector<glm::vec3> worldVertexPosCache(mesh->vertices.size(), glm::vec3(0.0f));
-                            std::vector<int> worldVertexPosCacheNode(mesh->vertices.size(), std::numeric_limits<int>::min());
-                            std::vector<std::uint8_t> worldVertexPosCacheValid(mesh->vertices.size(), 0u);
+                            const std::size_t meshVertexCount = mesh->vertices.size();
+                            static thread_local std::vector<WorldVertexSample> worldVertexCache;
+                            static thread_local std::vector<int> worldVertexCacheNode;
+                            static thread_local std::vector<std::uint8_t> worldVertexCacheValid;
+                            static thread_local std::vector<glm::vec3> worldVertexPosCache;
+                            static thread_local std::vector<int> worldVertexPosCacheNode;
+                            static thread_local std::vector<std::uint8_t> worldVertexPosCacheValid;
+                            if (!usePositionOnlyVertexPath) {
+                                worldVertexCache.resize(meshVertexCount);
+                                worldVertexCacheNode.assign(meshVertexCount, std::numeric_limits<int>::min());
+                                worldVertexCacheValid.assign(meshVertexCount, 0u);
+                            } else {
+                                worldVertexCache.clear();
+                                worldVertexCacheNode.clear();
+                                worldVertexCacheValid.clear();
+                            }
+                            worldVertexPosCache.resize(meshVertexCount);
+                            worldVertexPosCacheNode.assign(meshVertexCount, std::numeric_limits<int>::min());
+                            worldVertexPosCacheValid.assign(meshVertexCount, 0u);
                             const auto resolveWorldVertex = [&](int triNodeIndex,
                                                                 std::uint32_t vertexIndex,
                                                                 const runtime::backend_model::MeshVertex& vtx) {
@@ -2071,10 +2185,11 @@ struct GameSession::Impl {
                                         worldCellSize);
                                 }
                                 const auto sk = skinVertexAtNode(triNodeIndex, vtx, local, vtx.normal);
-                                const auto& nt = nodeTransformsFor(triNodeIndex);
+                                const glm::mat4& worldM = worldMatrixForNode(triNodeIndex);
+                                const glm::mat3& worldNormalM = worldNormalMatrixForNode(triNodeIndex);
                                 WorldVertexSample out;
-                                out.pos = glm::vec3(nt.worldM * glm::vec4(sk.pos, 1.0f));
-                                out.normal = safeNormalize(nt.worldNormalM * sk.normal);
+                                out.pos = glm::vec3(worldM * glm::vec4(sk.pos, 1.0f));
+                                out.normal = safeNormalize(worldNormalM * sk.normal);
                                 if (vertexIndex < worldVertexCache.size()) {
                                     worldVertexCache[vertexIndex] = out;
                                     worldVertexCacheNode[vertexIndex] = triNodeIndex;
@@ -2102,8 +2217,8 @@ struct GameSession::Impl {
                                         worldCellSize);
                                 }
                                 const glm::vec3 skinnedPos = skinPositionAtNode(triNodeIndex, vtx, local);
-                                const auto& nt = nodeTransformsFor(triNodeIndex);
-                                const glm::vec3 outPos = glm::vec3(nt.worldM * glm::vec4(skinnedPos, 1.0f));
+                                const glm::mat4& worldM = worldMatrixForNode(triNodeIndex);
+                                const glm::vec3 outPos = glm::vec3(worldM * glm::vec4(skinnedPos, 1.0f));
                                 if (vertexIndex < worldVertexPosCache.size()) {
                                     worldVertexPosCache[vertexIndex] = outPos;
                                     worldVertexPosCacheNode[vertexIndex] = triNodeIndex;
@@ -2431,11 +2546,6 @@ struct GameSession::Impl {
                                 modelDepthTris.push_back(dt);
                             };
                             const bool downsampleModelTriangles = effectiveUnitTriangleBudget < triangleCount;
-                            const bool useFastTexturedFullMeshPath =
-                                supportsWorldTriangles3D &&
-                                useIndexedWorldModelPath &&
-                                backendModelFastTexturedPathEnabled() &&
-                                fullIndexedMeshPath;
                             const float fastTexturedAlpha = unit.alive ? 1.0f : 0.82f;
                             std::size_t previousTriSample = triangleCount;
                             for (std::size_t sampleIdx = 0; sampleIdx < effectiveUnitTriangleBudget; ++sampleIdx) {
