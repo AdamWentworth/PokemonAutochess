@@ -58,3 +58,6 @@ Focus on catching real regressions while keeping tests fast and headless.
 9. Verify faint parity in shared routes: faint animation completes, fade-out reaches full disappear (no lingering tiny proxies/models), and dead units are no longer rendered after faint finishes.
 10. Verify shared combat FX timing in `opengl_shared` and `d3d12`: attack telegraph appears during real attack windows, projectile traces follow pending projectile timing, and impact bursts appear near pending hit/impact times.
 11. Verify shared card-shop textures are visually stable (reduced shimmer/grain) when cards are viewed at menu scale and during camera/mode transitions.
+12. Verify shared move-VFX variety against legacy route mapping: `growl` shows blue sound-wave rings, `tackle` shows orange burst/impact, `scratch`/`metal_claw` show slash-style overlays, `tail_whip`/`bubble`/`water_gun` show aqua-style overlays, and `vine_whip`/`leech_seed` show green burst behavior.
+13. Verify Charmander tail-fire presentation is visible in both `opengl_shared` and `d3d12` during gameplay (tail flame should remain active while alive, not only during attacks).
+14. Verify leech-seed shared visual flow: projectile trace appears at spawn/hit timing, then drain traces are visible from seeded target to source while seed is active.

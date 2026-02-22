@@ -86,6 +86,7 @@
 #include "game/logging/LogBus.h"
 #include "game/logging/LoggerUtil.h"
 #include "game/scripting/ScriptEventBus.h"
+#include "game/world/MoveImpactRouting.h"
 
 namespace {
 std::string trimDebugLine(std::string s, std::size_t maxChars) {
@@ -1628,6 +1629,141 @@ struct GameSession::Impl {
                     l.a = alpha;
                     lines.push_back(l);
                 };
+                const auto safeNormalize3 = [&](const glm::vec3& v, const glm::vec3& fallback) {
+                    const float lenSq = glm::dot(v, v);
+                    if (lenSq > 1e-9f) return glm::normalize(v);
+                    return fallback;
+                };
+                const auto appendProjectedRing = [&](const glm::vec3& center,
+                                                     float radius,
+                                                     float r,
+                                                     float g,
+                                                     float bl,
+                                                     float alpha,
+                                                     float thickness,
+                                                     int segments = 14) {
+                    const int safeSegments = std::max(8, segments);
+                    for (int seg = 0; seg < safeSegments; ++seg) {
+                        const float t0 =
+                            (static_cast<float>(seg) / static_cast<float>(safeSegments)) * 6.2831853f;
+                        const float t1 =
+                            (static_cast<float>(seg + 1) / static_cast<float>(safeSegments)) * 6.2831853f;
+                        const glm::vec3 p0 = center + glm::vec3(std::cos(t0) * radius, 0.0f, std::sin(t0) * radius);
+                        const glm::vec3 p1 = center + glm::vec3(std::cos(t1) * radius, 0.0f, std::sin(t1) * radius);
+                        appendProjectedLine(p0, p1, r, g, bl, alpha, thickness);
+                    }
+                };
+                const auto appendProjectedBurst = [&](const glm::vec3& center,
+                                                      const glm::vec3& forward,
+                                                      float radius,
+                                                      float r,
+                                                      float g,
+                                                      float bl,
+                                                      float alpha,
+                                                      float thickness,
+                                                      int spokes = 8) {
+                    const int safeSpokes = std::max(4, spokes);
+                    const glm::vec3 up(0.0f, 1.0f, 0.0f);
+                    const glm::vec3 fwd = safeNormalize3(forward, glm::vec3(0.0f, 0.0f, 1.0f));
+                    const glm::vec3 right = safeNormalize3(glm::cross(up, fwd), glm::vec3(1.0f, 0.0f, 0.0f));
+                    for (int i = 0; i < safeSpokes; ++i) {
+                        const float t = (static_cast<float>(i) / static_cast<float>(safeSpokes)) * 6.2831853f;
+                        const glm::vec3 dir = safeNormalize3(
+                            right * std::cos(t) + fwd * std::sin(t) + up * 0.25f,
+                            fwd);
+                        appendProjectedLine(
+                            center,
+                            center + dir * radius,
+                            r,
+                            g,
+                            bl,
+                            alpha,
+                            thickness);
+                    }
+                };
+                const auto appendProjectedTailFire = [&](const PokemonInstance& unit,
+                                                         const glm::vec3& center,
+                                                         const game::runtime::backend_proxy::UnitProxyExtents& extents,
+                                                         float yawDeg,
+                                                         float thickness) {
+                    const std::string species = toLowerCopy(unit.name);
+                    if (species != "charmander") return;
+                    if (!unit.alive || unit.fainting) return;
+
+                    const glm::vec3 up(0.0f, 1.0f, 0.0f);
+                    const glm::vec3 fwd = game::runtime::backend_proxy::yawForward(yawDeg);
+                    const glm::vec3 right = game::runtime::backend_proxy::yawRight(yawDeg);
+                    const glm::vec3 tailBase =
+                        center - fwd * std::max(0.03f, extents.halfDepth * 0.95f) +
+                        up * std::max(0.02f, extents.height * 0.22f);
+                    const float flameHeight = std::max(0.05f, extents.height * 0.26f);
+                    const float flameRadius = std::max(0.015f, extents.halfWidth * 0.16f);
+                    const float pulse = 0.5f + 0.5f * std::sin(unit.animTimeSec * 13.0f + static_cast<float>(unit.id) * 0.93f);
+
+                    appendProjectedLine(
+                        tailBase,
+                        tailBase + up * flameHeight * (0.90f + pulse * 0.35f),
+                        1.00f,
+                        0.62f,
+                        0.20f,
+                        0.92f,
+                        std::max(1.0f, thickness * 1.25f));
+                    appendProjectedLine(
+                        tailBase + right * flameRadius * 0.35f,
+                        tailBase + right * flameRadius * 0.10f + up * flameHeight * (0.65f + pulse * 0.25f),
+                        1.00f,
+                        0.88f,
+                        0.38f,
+                        0.88f,
+                        std::max(1.0f, thickness * 1.05f));
+                    appendProjectedLine(
+                        tailBase - right * flameRadius * 0.30f,
+                        tailBase - right * flameRadius * 0.08f + up * flameHeight * (0.58f + pulse * 0.22f),
+                        1.00f,
+                        0.80f,
+                        0.32f,
+                        0.82f,
+                        std::max(1.0f, thickness * 1.0f));
+
+                    const glm::vec3 tip = tailBase + up * flameHeight * (0.88f + pulse * 0.30f);
+                    appendProjectedRing(
+                        tip,
+                        flameRadius * (0.45f + pulse * 0.20f),
+                        1.00f,
+                        0.66f,
+                        0.22f,
+                        0.70f,
+                        std::max(1.0f, thickness * 0.95f),
+                        10);
+                };
+                const auto appendProjectedLeechDrain = [&](const PokemonInstance& target,
+                                                           float worldY,
+                                                           float thickness) {
+                    if (!target.leechSeeded || target.leechSeedSourceId < 0) return;
+                    if (!gameWorld) return;
+                    const PokemonInstance* source = gameWorld->findUnitById(target.leechSeedSourceId);
+                    if (!source || !source->alive) return;
+                    const glm::vec3 from =
+                        target.position + glm::vec3(0.0f, std::max(0.08f, worldY) + target.visualYOffset, 0.0f);
+                    const glm::vec3 to =
+                        source->position + glm::vec3(0.0f, std::max(0.08f, worldY) + source->visualYOffset, 0.0f);
+                    const float phase = std::fmod(target.animTimeSec * 1.8f + static_cast<float>(target.id) * 0.21f, 1.0f);
+                    const int segments = 6;
+                    for (int i = 0; i < segments; ++i) {
+                        const float t0 = std::fmod(phase + static_cast<float>(i) / static_cast<float>(segments), 1.0f);
+                        const float t1 = std::min(1.0f, t0 + 0.10f);
+                        const glm::vec3 p0 = glm::mix(from, to, t0);
+                        const glm::vec3 p1 = glm::mix(from, to, t1);
+                        appendProjectedLine(
+                            p0,
+                            p1,
+                            0.42f,
+                            0.94f,
+                            0.34f,
+                            0.86f,
+                            std::max(1.0f, thickness * 1.05f));
+                    }
+                };
                 const auto resolveModelMesh = [&](const PokemonInstance& unit)
                     -> const runtime::backend_model::MeshData* {
                     const PokemonStats* stats = dataDb.pokemon.getStats(unit.name);
@@ -3129,50 +3265,147 @@ struct GameSession::Impl {
                         }
 
                         const std::string pendingMoveLower = toLowerCopy(unit.pendingDamageMoveName);
-                        const bool pendingGrowl = pendingMoveLower.find("growl") != std::string::npos;
-                        const bool pendingTackle = pendingMoveLower.find("tackle") != std::string::npos;
+                        const MoveImpactRoute impactRoute = classifyMoveImpactRoute(pendingMoveLower);
+                        const AquaImpactStyle aquaStyle = classifyAquaImpactStyle(pendingMoveLower);
+                        const bool pendingGrowl = (impactRoute == MoveImpactRoute::GrowlSoundRings);
+                        const bool pendingTackle = (impactRoute == MoveImpactRoute::Tackle);
+                        const bool pendingClaw = (impactRoute == MoveImpactRoute::ClawSwipe);
+                        const bool pendingAqua = (impactRoute == MoveImpactRoute::AquaSwoosh);
                         const bool pendingLeechSeed =
                             pendingMoveLower.find("leech") != std::string::npos ||
                             pendingMoveLower.find("seed") != std::string::npos;
+                        const bool pendingGrass = (impactRoute == MoveImpactRoute::GrassImpact) || pendingLeechSeed;
+                        const glm::vec3 forward = game::runtime::backend_proxy::yawForward(animYaw);
+                        const glm::vec3 right = game::runtime::backend_proxy::yawRight(animYaw);
+                        const glm::vec3 up(0.0f, 1.0f, 0.0f);
+
+                        appendProjectedTailFire(unit, proxyCenter, extents, animYaw, std::max(1.0f, line * 0.92f));
+                        appendProjectedLeechDrain(unit, std::max(0.12f, worldCellSize * 0.24f), std::max(1.0f, line));
 
                         if (activeAttackWindow) {
-                            const float ringRadius = std::max(0.04f, extents.halfWidth * 1.05f + attackProgress * 0.10f);
-                            const int segments = 12;
-                            const float ringR = pendingGrowl ? 0.46f : (pendingLeechSeed ? 0.52f : 0.98f);
-                            const float ringG = pendingGrowl ? 0.70f : (pendingLeechSeed ? 0.86f : 0.84f);
-                            const float ringB = pendingGrowl ? 0.98f : (pendingLeechSeed ? 0.42f : 0.42f);
-                            for (int seg = 0; seg < segments; ++seg) {
-                                const float t0 = (static_cast<float>(seg) / static_cast<float>(segments)) * 6.2831853f;
-                                const float t1 = (static_cast<float>(seg + 1) / static_cast<float>(segments)) * 6.2831853f;
-                                const glm::vec3 p0 =
-                                    proxyCenter +
-                                    glm::vec3(std::cos(t0) * ringRadius, extents.height * 0.25f, std::sin(t0) * ringRadius);
-                                const glm::vec3 p1 =
-                                    proxyCenter +
-                                    glm::vec3(std::cos(t1) * ringRadius, extents.height * 0.25f, std::sin(t1) * ringRadius);
-                                appendProjectedLine(
-                                    p0,
-                                    p1,
-                                    ringR,
-                                    ringG,
-                                    ringB,
-                                    0.82f,
-                                    std::max(1.0f, line * 0.85f));
+                            const glm::vec3 attackOrigin =
+                                proxyCenter + up * std::max(0.06f, extents.height * 0.28f);
+                            const float attackRadius =
+                                std::max(0.04f, extents.halfWidth * 0.95f + attackProgress * worldCellSize * 0.24f);
+                            const float attackThickness = std::max(1.0f, line * 0.95f);
+                            if (pendingGrowl) {
+                                for (int w = 0; w < 3; ++w) {
+                                    const float waveT = std::fmod(attackProgress + static_cast<float>(w) * 0.23f, 1.0f);
+                                    const float waveRadius = attackRadius + waveT * worldCellSize * 0.45f;
+                                    const glm::vec3 center =
+                                        attackOrigin +
+                                        forward * (extents.halfDepth * 0.40f + waveT * worldCellSize * 0.35f);
+                                    appendProjectedRing(
+                                        center,
+                                        waveRadius,
+                                        0.46f,
+                                        0.70f,
+                                        0.98f,
+                                        0.74f,
+                                        attackThickness,
+                                        14);
+                                }
+                            } else if (pendingTackle) {
+                                appendProjectedBurst(
+                                    attackOrigin + forward * extents.halfDepth * 0.55f,
+                                    forward,
+                                    attackRadius * 1.05f,
+                                    0.98f,
+                                    0.62f,
+                                    0.28f,
+                                    0.76f,
+                                    attackThickness,
+                                    7);
+                            } else if (pendingClaw) {
+                                const glm::vec3 base = attackOrigin + forward * extents.halfDepth * 0.58f;
+                                for (int slash = -1; slash <= 1; ++slash) {
+                                    const float side = static_cast<float>(slash) * attackRadius * 0.42f;
+                                    const glm::vec3 s0 = base + right * side + up * attackRadius * 0.10f;
+                                    const glm::vec3 s1 = s0 + forward * attackRadius * 0.92f + up * attackRadius * 0.18f;
+                                    appendProjectedLine(
+                                        s0,
+                                        s1,
+                                        0.94f,
+                                        (pendingMoveLower == "metal_claw") ? 0.94f : 0.84f,
+                                        (pendingMoveLower == "metal_claw") ? 0.98f : 0.84f,
+                                        0.88f,
+                                        std::max(1.0f, attackThickness * 1.05f));
+                                }
+                            } else if (pendingAqua) {
+                                const glm::vec3 center = attackOrigin + forward * extents.halfDepth * 0.35f;
+                                appendProjectedRing(
+                                    center,
+                                    attackRadius * (aquaStyle == AquaImpactStyle::WaterGun ? 0.75f : 1.15f),
+                                    0.36f,
+                                    0.72f,
+                                    0.98f,
+                                    0.78f,
+                                    attackThickness,
+                                    13);
+                                if (aquaStyle == AquaImpactStyle::WaterGun) {
+                                    appendProjectedLine(
+                                        center,
+                                        center + forward * std::max(0.08f, worldCellSize * (0.45f + attackProgress * 0.30f)),
+                                        0.40f,
+                                        0.80f,
+                                        1.00f,
+                                        0.86f,
+                                        std::max(1.0f, attackThickness * 1.20f));
+                                } else if (aquaStyle == AquaImpactStyle::Bubble) {
+                                    for (int bubble = 0; bubble < 3; ++bubble) {
+                                        const float bt = attackProgress + static_cast<float>(bubble) * 0.19f;
+                                        const glm::vec3 bubbleCenter =
+                                            center +
+                                            forward * (0.02f + bt * 0.18f) +
+                                            right * std::sin(bt * 5.4f) * attackRadius * 0.35f +
+                                            up * std::max(0.02f, attackRadius * 0.08f);
+                                        appendProjectedRing(
+                                            bubbleCenter,
+                                            attackRadius * (0.24f + static_cast<float>(bubble) * 0.10f),
+                                            0.56f,
+                                            0.88f,
+                                            1.00f,
+                                            0.74f,
+                                            std::max(1.0f, attackThickness * 0.90f),
+                                            10);
+                                    }
+                                }
+                            } else if (pendingGrass) {
+                                appendProjectedRing(
+                                    attackOrigin + forward * extents.halfDepth * 0.30f,
+                                    attackRadius * 1.08f,
+                                    0.42f,
+                                    0.92f,
+                                    0.34f,
+                                    0.78f,
+                                    attackThickness,
+                                    14);
+                            } else {
+                                appendProjectedRing(
+                                    attackOrigin,
+                                    attackRadius * 1.02f,
+                                    0.98f,
+                                    0.84f,
+                                    0.42f,
+                                    0.76f,
+                                    attackThickness,
+                                    12);
                             }
+
                             if (unit.pendingDamageTargetId >= 0) {
                                 if (const PokemonInstance* target = gameWorld->findUnitById(unit.pendingDamageTargetId)) {
-                                    const glm::vec3 from = proxyCenter + glm::vec3(0.0f, extents.height * 0.35f, 0.0f);
+                                    const glm::vec3 from = attackOrigin;
                                     const glm::vec3 to =
                                         target->position +
                                         glm::vec3(0.0f, std::max(0.12f, worldCellSize * 0.24f) + target->visualYOffset, 0.0f);
                                     appendProjectedLine(
                                         from,
                                         to,
-                                        pendingGrowl ? 0.50f : 0.98f,
-                                        pendingGrowl ? 0.70f : (pendingTackle ? 0.62f : 0.76f),
-                                        pendingGrowl ? 0.98f : (pendingTackle ? 0.28f : 0.30f),
+                                        pendingGrowl ? 0.50f : (pendingGrass ? 0.42f : 0.98f),
+                                        pendingGrowl ? 0.70f : (pendingGrass ? 0.92f : (pendingTackle ? 0.62f : 0.78f)),
+                                        pendingGrowl ? 0.98f : (pendingGrass ? 0.34f : (pendingTackle ? 0.28f : 0.30f)),
                                         0.74f,
-                                        std::max(1.0f, line * 1.0f));
+                                        std::max(1.0f, line * 1.02f));
                                 }
                             }
                         }
@@ -3194,7 +3427,7 @@ struct GameSession::Impl {
                                     travelT = 1.0f;
                                 }
                                 if (travelT > 0.0f) {
-                                    const float prevT = std::clamp(travelT - 0.08f, 0.0f, 1.0f);
+                                    const float prevT = std::clamp(travelT - 0.07f, 0.0f, 1.0f);
                                     const glm::vec3 curPos =
                                         glm::mix(from, to, travelT) + glm::vec3(0.0f, std::sin(travelT * 3.1415926f) * 0.08f, 0.0f);
                                     const glm::vec3 prevPos =
@@ -3206,7 +3439,17 @@ struct GameSession::Impl {
                                         0.92f,
                                         0.34f,
                                         0.95f,
-                                        std::max(1.0f, line * 1.2f));
+                                        std::max(1.0f, line * 1.20f));
+                                    appendProjectedBurst(
+                                        curPos,
+                                        forward,
+                                        std::max(0.02f, worldCellSize * 0.05f),
+                                        0.52f,
+                                        0.98f,
+                                        0.40f,
+                                        0.85f,
+                                        std::max(1.0f, line * 0.9f),
+                                        5);
                                 }
                             }
                         }
@@ -3222,31 +3465,104 @@ struct GameSession::Impl {
                             if (impactTargetId >= 0 && impactTimeSec >= 0.0f) {
                                 if (const PokemonInstance* target = gameWorld->findUnitById(impactTargetId)) {
                                     const float distToHit = std::abs(unit.animTimeSec - impactTimeSec);
-                                    if (distToHit <= 0.14f || (unit.pendingDamageApplied || unit.pendingImpactApplied)) {
-                                        const float burst = std::clamp(1.0f - (distToHit / 0.14f), 0.0f, 1.0f);
+                                    if (distToHit <= 0.16f || (unit.pendingDamageApplied || unit.pendingImpactApplied)) {
+                                        const float burst = std::clamp(1.0f - (distToHit / 0.16f), 0.0f, 1.0f);
                                         const float radius =
-                                            std::max(0.03f, worldCellSize * (0.12f + (1.0f - burst) * 0.10f));
+                                            std::max(0.03f, worldCellSize * (0.11f + (1.0f - burst) * 0.11f));
                                         const glm::vec3 center =
                                             target->position +
                                             glm::vec3(0.0f, std::max(0.12f, worldCellSize * 0.24f) + target->visualYOffset, 0.0f);
-                                        const int segments = 10;
-                                        const float ir = (unit.pendingImpactIsGrass || pendingLeechSeed) ? 0.42f : 1.0f;
-                                        const float ig = (unit.pendingImpactIsGrass || pendingLeechSeed) ? 0.92f : 0.76f;
-                                        const float ib = (unit.pendingImpactIsGrass || pendingLeechSeed) ? 0.34f : 0.28f;
-                                        const float ia = 0.45f + burst * 0.45f;
-                                        for (int seg = 0; seg < segments; ++seg) {
-                                            const float t0 =
-                                                (static_cast<float>(seg) / static_cast<float>(segments)) * 6.2831853f;
-                                            const float t1 =
-                                                (static_cast<float>(seg + 1) / static_cast<float>(segments)) * 6.2831853f;
-                                            appendProjectedLine(
-                                                center + glm::vec3(std::cos(t0) * radius, 0.0f, std::sin(t0) * radius),
-                                                center + glm::vec3(std::cos(t1) * radius, 0.0f, std::sin(t1) * radius),
-                                                ir,
-                                                ig,
-                                                ib,
+                                        const float ia = 0.44f + burst * 0.42f;
+                                        if (pendingGrowl) {
+                                            appendProjectedRing(
+                                                center,
+                                                radius * 1.25f,
+                                                0.46f,
+                                                0.70f,
+                                                0.98f,
                                                 ia,
-                                                std::max(1.0f, line * 0.95f));
+                                                std::max(1.0f, line * 0.95f),
+                                                14);
+                                            appendProjectedRing(
+                                                center,
+                                                radius * 0.72f,
+                                                0.60f,
+                                                0.84f,
+                                                1.00f,
+                                                ia * 0.8f,
+                                                std::max(1.0f, line * 0.9f),
+                                                12);
+                                        } else if (pendingClaw) {
+                                            appendProjectedBurst(
+                                                center,
+                                                forward,
+                                                radius * 1.10f,
+                                                0.95f,
+                                                (pendingMoveLower == "metal_claw") ? 0.95f : 0.82f,
+                                                (pendingMoveLower == "metal_claw") ? 0.99f : 0.82f,
+                                                ia,
+                                                std::max(1.0f, line),
+                                                6);
+                                        } else if (pendingAqua) {
+                                            appendProjectedRing(
+                                                center,
+                                                radius * 1.30f,
+                                                0.36f,
+                                                0.78f,
+                                                1.00f,
+                                                ia,
+                                                std::max(1.0f, line * 0.95f),
+                                                14);
+                                            appendProjectedBurst(
+                                                center,
+                                                up,
+                                                radius * 0.75f,
+                                                0.52f,
+                                                0.90f,
+                                                1.00f,
+                                                ia * 0.86f,
+                                                std::max(1.0f, line * 0.9f),
+                                                7);
+                                        } else if (pendingGrass || unit.pendingImpactIsGrass || unit.pendingImpactIsLeechSeed) {
+                                            appendProjectedRing(
+                                                center,
+                                                radius * 1.18f,
+                                                0.42f,
+                                                0.92f,
+                                                0.34f,
+                                                ia,
+                                                std::max(1.0f, line * 0.95f),
+                                                13);
+                                            appendProjectedBurst(
+                                                center,
+                                                forward,
+                                                radius * 0.85f,
+                                                0.42f,
+                                                0.96f,
+                                                0.36f,
+                                                ia * 0.92f,
+                                                std::max(1.0f, line * 0.95f),
+                                                8);
+                                        } else {
+                                            appendProjectedRing(
+                                                center,
+                                                radius * 1.15f,
+                                                1.00f,
+                                                0.76f,
+                                                0.28f,
+                                                ia,
+                                                std::max(1.0f, line * 0.95f),
+                                                12);
+                                            appendProjectedBurst(
+                                                center,
+                                                forward,
+                                                radius * 0.95f,
+                                                0.98f,
+                                                0.72f,
+                                                0.26f,
+                                                ia * 0.9f,
+                                                std::max(1.0f, line),
+                                                8);
                                         }
                                     }
                                 }
