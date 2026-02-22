@@ -17,22 +17,4 @@ inline bool shouldRenderBackendWorldBackdrop(const RenderRoutes& routes,
     return routes.usesBackendRenderPath() && allowMenuBackdrop;
 }
 
-// Transitional overloads for existing call sites.
-inline bool shouldRenderBackendDebugLayer(bool renderEnabled,
-                                          bool legacyRenderPath,
-                                          bool renderWorldRequested) {
-    return shouldRenderBackendDebugLayer(
-        makeRenderRoutes(renderEnabled, legacyRenderPath),
-        renderWorldRequested);
-}
-
-inline bool shouldRenderBackendWorldBackdrop(bool renderWorldRequested,
-                                             bool legacyRenderPath,
-                                             bool allowMenuBackdrop) {
-    return shouldRenderBackendWorldBackdrop(
-        makeRenderRoutes(true, legacyRenderPath),
-        renderWorldRequested,
-        allowMenuBackdrop);
-}
-
 } // namespace game::runtime::render

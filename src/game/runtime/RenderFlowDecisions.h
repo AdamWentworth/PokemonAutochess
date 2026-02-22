@@ -29,22 +29,4 @@ inline FrameRenderFlow decideFrameRenderFlow(const RenderRoutes& routes,
     return flow;
 }
 
-// Transitional overload for existing call sites/tests.
-inline FrameRenderFlow decideFrameRenderFlow(bool renderEnabled,
-                                             bool legacyRenderPath,
-                                             bool renderWorldRequested) {
-    return decideFrameRenderFlow(
-        makeRenderRoutes(renderEnabled, legacyRenderPath),
-        renderWorldRequested);
-}
-
-inline FrameRenderFlow decideFrameRenderFlow(bool renderEnabled,
-                                             bool legacyRenderPath,
-                                             bool legacyUiPath,
-                                             bool renderWorldRequested) {
-    return decideFrameRenderFlow(
-        makeRenderRoutes(renderEnabled, legacyRenderPath, legacyUiPath),
-        renderWorldRequested);
-}
-
 } // namespace game::runtime::render

@@ -47,6 +47,7 @@
 #include "game/runtime/BackendRenderPolicy.h"
 #include "game/runtime/RenderFlowDecisions.h"
 #include "game/runtime/BackendDebugText.h"
+#include "game/runtime/GameServiceRenderRoutes.h"
 #include "game/runtime/BackendInventoryOverlay.h"
 #include "game/runtime/BackendInventoryPanel.h"
 #include "game/runtime/BackendInputSlots.h"
@@ -356,9 +357,7 @@ struct GameSession::Impl {
     engine::ecs::Scheduler scheduler;
     GameUpdateGraph updateGraph;
 
-    bool renderEnabled = false;
-    bool legacyRenderPath = false;
-    bool legacyUiPath = false;
+    runtime::render::RenderRoutes startupRoutes{};
     bool allowBackendMenuBackdrop = false;
     bool showPerfOverlay = false;
     bool devPauseWorld = false;
@@ -408,34 +407,34 @@ struct GameSession::Impl {
 
     bool hasActiveRenderBackend() const {
         if (services) return services->renderEnabled;
-        return renderEnabled;
+        return startupRoutes.hasRenderer;
     }
 
     bool usesLegacyGameRenderPath() const {
         if (services) return services->usesLegacyGameRenderPath();
-        return renderEnabled && legacyRenderPath;
+        return startupRoutes.usesLegacyRenderPath();
     }
 
     bool usesBackendGameRenderPath() const {
         if (services) return services->usesBackendGameRenderPath();
-        return renderEnabled && !legacyRenderPath;
+        return startupRoutes.usesBackendRenderPath();
     }
 
     bool usesLegacyGameUiPath() const {
         if (services) return services->usesLegacyGameUiPath();
-        return renderEnabled && legacyUiPath;
+        return startupRoutes.usesLegacyUiPath();
     }
 
     bool usesBackendGameUiPath() const {
         if (services) return services->usesBackendGameUiPath();
-        return renderEnabled && !legacyUiPath;
+        return startupRoutes.usesBackendUiPath();
     }
 
     runtime::render::RenderRoutes activeRenderRoutes() const {
-        return runtime::render::makeRenderRoutes(
-            hasActiveRenderBackend(),
-            usesLegacyGameRenderPath(),
-            usesLegacyGameUiPath());
+        if (services) {
+            return runtime::render::routesFromServices(*services);
+        }
+        return startupRoutes;
     }
 
     runtime::render::FrameRenderFlow currentFrameFlow(bool renderWorldRequested) const {
@@ -682,9 +681,12 @@ struct GameSession::Impl {
         renderer = ctx.renderer;
         engineServices = ctx.services;
         const bool hasBackend = (ctx.renderer != nullptr) && (ctx.camera != nullptr);
-        legacyRenderPath = hasBackend && ctx.renderer->prefersLegacyGameRenderPath();
-        legacyUiPath = hasBackend && ctx.renderer->prefersLegacyGameUiPath();
-        renderEnabled = hasBackend;
+        const bool prefersLegacyRenderPath = hasBackend && ctx.renderer->prefersLegacyGameRenderPath();
+        const bool prefersLegacyUiPath = hasBackend && ctx.renderer->prefersLegacyGameUiPath();
+        startupRoutes = runtime::render::makeRenderRoutes(
+            hasBackend,
+            prefersLegacyRenderPath,
+            prefersLegacyUiPath);
         if (engine::env::get("PAC_BACKEND_MENU_BACKDROP").has_value()) {
             allowBackendMenuBackdrop = engine::env::flagEnabled("PAC_BACKEND_MENU_BACKDROP");
         }
@@ -734,10 +736,10 @@ struct GameSession::Impl {
 
         config = GameConfig::load(&log, assetStore.get());
         services = std::make_unique<GameServices>(config, dataDb, log, scriptEvents, *assetStore, rng, timeSource,
-                                                  &ecsWorld, roundPhaseEntity, &viewport, renderEnabled);
+                                                  &ecsWorld, roundPhaseEntity, &viewport, startupRoutes.hasRenderer);
         services->renderer = renderer;
-        services->legacyGameRenderPath = legacyRenderPath;
-        services->legacyGameUiPath = legacyUiPath;
+        services->legacyGameRenderPath = startupRoutes.legacyRenderPath;
+        services->legacyGameUiPath = startupRoutes.legacyUiPath;
         services->applyVideoMode = ctx.applyVideoMode;
         services->requestQuit = ctx.requestQuit;
         if (ctx.services) {

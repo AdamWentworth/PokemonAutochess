@@ -5,6 +5,7 @@
 #include "game/logging/LoggerUtil.h"
 #include "game/runtime/BackendCardRenderer.h"
 #include "game/runtime/BackendDebugText.h"
+#include "game/runtime/GameServiceRenderRoutes.h"
 #include "game/runtime/BackendSellOverlayModel.h"
 #include "game/runtime/BackendShopHudModel.h"
 #include "game/runtime/BackendUiScale.h"
@@ -47,10 +48,7 @@ constexpr float kBackendTextScaleBase = 1.35f;
 } // namespace
 
 bool CombatState::shouldUseBackendShopUi() const {
-    const auto routes = game::runtime::render::makeRenderRoutes(
-        services.renderEnabled,
-        services.usesLegacyGameRenderPath(),
-        services.usesLegacyGameUiPath());
+    const auto routes = game::runtime::render::routesFromServices(services);
     return game::state::backend_ui::shouldUseBackendUi(
         routes);
 }

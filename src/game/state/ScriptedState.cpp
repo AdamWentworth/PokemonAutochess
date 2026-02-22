@@ -7,6 +7,7 @@
 #include "game/scripting/LuaTextMenuParser.h"
 #include "game/runtime/BackendCardRenderer.h"
 #include "game/runtime/BackendDebugText.h"
+#include "game/runtime/GameServiceRenderRoutes.h"
 #include "game/runtime/BackendSellOverlayModel.h"
 #include "game/runtime/BackendShopHudModel.h"
 #include "game/runtime/BackendUiScale.h"
@@ -92,10 +93,7 @@ ScriptedState::ScriptedState(GameStateManager* manager, GameWorld* world, GameSe
 ScriptedState::~ScriptedState() = default;
 
 bool ScriptedState::shouldUseBackendCardUi() const {
-    const auto routes = game::runtime::render::makeRenderRoutes(
-        services.renderEnabled,
-        services.usesLegacyGameRenderPath(),
-        services.usesLegacyGameUiPath());
+    const auto routes = game::runtime::render::routesFromServices(services);
     return game::state::backend_ui::shouldUseBackendUi(
         routes);
 }
@@ -1332,10 +1330,7 @@ void ScriptedState::render() {
     const auto* viewport = services.viewport;
     const int uiW = viewport ? viewport->width : 1280;
     const int uiH = viewport ? viewport->height : 720;
-    const auto routes = game::runtime::render::makeRenderRoutes(
-        services.renderEnabled,
-        services.usesLegacyGameRenderPath(),
-        services.usesLegacyGameUiPath());
+    const auto routes = game::runtime::render::routesFromServices(services);
     const bool renderBackendTextMenuPath = game::state::backend_ui::shouldRenderBackendTextMenu(
         routes,
         cardMode == CardMode::TextMenu);

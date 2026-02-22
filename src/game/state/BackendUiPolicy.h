@@ -18,25 +18,6 @@ inline bool shouldRenderBackendTextMenu(const game::runtime::render::RenderRoute
     return routes.hasRenderer && isTextMenuMode;
 }
 
-// Transitional overloads for existing call sites/tests.
-inline bool shouldUseBackendUi(bool hasRenderer,
-                               bool backendPrefersLegacyUiPath,
-                               bool preferLegacyUi = false) {
-    return shouldUseBackendUi(
-        game::runtime::render::makeRenderRoutes(
-            hasRenderer,
-            /*legacyRenderPath*/ false,
-            backendPrefersLegacyUiPath),
-        preferLegacyUi);
-}
-
-inline bool shouldRenderBackendTextMenu(bool hasRenderer,
-                                        bool isTextMenuMode) {
-    return shouldRenderBackendTextMenu(
-        game::runtime::render::makeRenderRoutes(hasRenderer, /*legacyRenderPath*/ false),
-        isTextMenuMode);
-}
-
 inline bool shouldShowSellOverlay(bool isShopMode,
                                   bool hasWorld,
                                   bool unitDragActive,

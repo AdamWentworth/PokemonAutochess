@@ -72,6 +72,8 @@ Prioritized Backlog
 - [x] Route `GameSession` gameplay input/update/render decisions through `GameServices` route helpers (render path vs UI path) instead of directly branching on local `legacyRenderPath`.
 - [x] Introduce a shared runtime route contract (`RenderRoutes`) and route render/UI policy helpers through it.
 - [x] Add route ownership guardrails so only `GameSession` reads backend route-preference hooks.
+- [x] Remove transitional bool-based route policy overloads so frame/UI render policy APIs are route-object only.
+- [x] Centralize `GameServices` -> `RenderRoutes` conversion in one helper (`routesFromServices`) and use it in gameplay states/session route selection.
 - [ ] Remove backend-specific gameplay render flow and unify frame graph. (In progress: backend debug layer is now policy-gated to world-visible states.)
 - [ ] Remove `shouldUseBackendUi` backend split and unify UI policy. (Re-opened: OpenGL legacy card/shop path restored to prevent visual regressions while parity work continues.)
 - [ ] Replace backend quad text with glyph text rendering. (In progress: backend text menu now uses line-stroke text, full glyph path still pending.)
@@ -147,6 +149,11 @@ Iteration Log
 - Iteration 50: Extracted frame-flow selection/execution helpers (`currentFrameFlow`, `renderFrameFromFlow`) in `GameSession` for cleaner route-driven render orchestration.
 - Iteration 51: Split `GameWorld` render contracts into backend-neutral `renderEnabled` and legacy-only model attachment flag (`legacyModelRenderPathEnabled`), and switched `GameSession` world setup to set both explicitly.
 - Iteration 52: Added route contract regression test (`render_routes_contract`) plus backend-world model-attachment regression (`gameworld_backend_render_mode_skips_legacy_model_load`) and revalidated route/boundary test coverage.
+- Iteration 53: Removed temporary bool-overload shims from backend render policy, frame-flow, and backend UI policy so all route decisions now require `RenderRoutes`.
+- Iteration 54: Added `GameServiceRenderRoutes.h` (`routesFromServices`) and switched `CombatState`/`ScriptedState` route construction to this shared helper.
+- Iteration 55: Simplified `GameSession` startup routing state by replacing separate local route booleans with one `RenderRoutes` snapshot and resolving active routes via `routesFromServices` when services are available.
+- Iteration 56: Added `render_policy_api_contract` to prevent reintroduction of legacy bool-based route-policy signatures in policy headers.
+- Iteration 57: Added `game_service_render_routes_contract` to verify `routesFromServices` mapping stays consistent with `GameServices` render/legacy route flags.
 
 How This File Is Used
 - Before each parity implementation iteration:

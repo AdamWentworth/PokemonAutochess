@@ -362,8 +362,10 @@ if (BUILD_TESTING)
         tests/TestEnvironment.cpp
         tests/TestAutoQuitPolicy.cpp
         tests/TestGameServicesRoutes.cpp
+        tests/TestGameServiceRenderRoutes.cpp
         tests/TestRenderRouteOwnership.cpp
         tests/TestRenderRoutes.cpp
+        tests/TestRenderPolicyApi.cpp
         tests/TestBackendHudFormatting.cpp
         tests/TestBackendDebugText.cpp
         tests/TestBackendImagePath.cpp
