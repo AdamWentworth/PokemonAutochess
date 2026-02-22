@@ -1789,18 +1789,31 @@ struct GameSession::Impl {
 
                         const runtime::backend_anim::ProceduralPose pose =
                             runtime::backend_anim::computeProceduralPose(unit, worldCellSize);
-                        const bool activeAttackWindow = pose.activeAttackWindow;
-                        const float attackProgress = pose.attackProgress;
-                        const glm::vec3 attackOffset =
-                            game::runtime::backend_proxy::yawForward(unit.rotation.y) * pose.attackLunge;
-                        const float animYaw = pose.yawDeg;
-                        const float animPitch = pose.pitchDeg;
-                        const float animRoll =
-                            pose.rollDeg + (unit.side == PokemonSide::Player ? -pose.faintRoll : pose.faintRoll);
-                        const float attackPulse = pose.attackPulse;
+                        const runtime::backend_model::MeshData* meshForUnit = resolveModelMesh(unit);
+                        BackendPoseEval scenePose;
+                        bool scenePoseReady = false;
+                        if (meshForUnit) {
+                            scenePose = evaluateScenePose(*meshForUnit, unit);
+                            scenePoseReady = true;
+                        }
+                        const bool hasClipPoseDrivenModel = scenePoseReady && scenePose.hasClipPose;
+                        const bool applyProceduralModelMotion = !hasClipPoseDrivenModel;
+                        const bool activeAttackWindow = applyProceduralModelMotion && pose.activeAttackWindow;
+                        const float attackProgress = applyProceduralModelMotion ? pose.attackProgress : 0.0f;
+                        const glm::vec3 attackOffset = applyProceduralModelMotion
+                            ? (game::runtime::backend_proxy::yawForward(unit.rotation.y) * pose.attackLunge)
+                            : glm::vec3(0.0f);
+                        const float animYaw = applyProceduralModelMotion ? pose.yawDeg : unit.rotation.y;
+                        const float animPitch = applyProceduralModelMotion ? pose.pitchDeg : unit.rotation.x;
+                        const float animRoll = applyProceduralModelMotion
+                            ? (pose.rollDeg + (unit.side == PokemonSide::Player ? -pose.faintRoll : pose.faintRoll))
+                            : unit.rotation.z;
+                        const float attackPulse = applyProceduralModelMotion ? pose.attackPulse : 1.0f;
+                        const float proceduralBobY = applyProceduralModelMotion ? pose.bobY : 0.0f;
+                        const float proceduralFaintDrop = applyProceduralModelMotion ? pose.faintDrop : 0.0f;
                         const glm::vec3 animatedCenter =
                             unit.position + attackOffset +
-                            glm::vec3(0.0f, unit.visualYOffset + pose.bobY - pose.faintDrop, 0.0f);
+                            glm::vec3(0.0f, unit.visualYOffset + proceduralBobY - proceduralFaintDrop, 0.0f);
                         const glm::vec3 worldPos =
                             animatedCenter +
                             glm::vec3(0.0f, std::max(0.2f, worldCellSize * 0.22f), 0.0f);
@@ -1837,7 +1850,6 @@ struct GameSession::Impl {
                         const float sideB = std::clamp(tint.b * 0.72f, 0.0f, 1.0f);
                         const float topAlpha = unit.alive ? 0.96f : 0.78f;
                         const float sideAlpha = unit.alive ? 0.88f : 0.70f;
-                        const runtime::backend_model::MeshData* meshForUnit = resolveModelMesh(unit);
                         if (!meshForUnit) {
                             const auto shadow = game::runtime::backend_proxy::computeShadowQuad(
                                 proxyCenter,
@@ -2003,7 +2015,10 @@ struct GameSession::Impl {
                                     }
                                 }
                             }
-                            const BackendPoseEval scenePose = evaluateScenePose(*mesh, unit);
+                            if (!scenePoseReady) {
+                                scenePose = evaluateScenePose(*mesh, unit);
+                                scenePoseReady = true;
+                            }
                             const auto& nodeGlobals = scenePose.hasScenePose ? scenePose.nodeGlobals : mesh->bindNodeGlobals;
                             const bool hasClipPose = scenePose.hasClipPose;
                             const bool useFastTexturedFullMeshPath =

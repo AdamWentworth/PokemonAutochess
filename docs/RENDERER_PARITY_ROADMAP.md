@@ -104,6 +104,7 @@ Prioritized Backlog
 - [ ] Complete D3D12 material and alpha-mode parity. (In progress: wrap-aware texture sampling, glTF-like base+emissive color composition, higher model detail budget, GL-clip-depth-to-D3D conversion, OpenGL-like sRGB+ACES textured world shading, indexed textured-submesh alpha-mode+cutoff + UV wrap controls, explicit D3D12 blend-depth-write-off world pipeline ordering, depth-sorted blend batch submission, and removal of textured-path alpha double-attenuation that was culling BLEND submesh regions landed in backend mesh path.)
 - [ ] Add explicit emissive-texture parity in the backend indexed world path (OpenGL currently samples `u_EmissiveTex`; backend indexed path still approximates emissive via cached shading data).
 - [ ] Complete D3D12 animation/skinning parity (no fallback-only pose path). (In progress: backend clip evaluation now applies root-motion carrier X/Z suppression like OpenGL.)
+- [ ] Align shared-path model motion with OpenGL legacy clip-driven presentation (avoid procedural bob/lunge/tilt layering when clip pose is active).
 - [ ] Split D3D12 renderer implementation into smaller modules. (In progress: texture upload/mipmap staging moved from `src/engine/render/D3D12RenderBackend.cpp` to `src/engine/render/d3d12/D3D12TextureUpload.cpp`.)
 - [ ] Port/align board and bench rendering parity.
 - [ ] Port/align health bars and combat overlays parity.
@@ -179,6 +180,7 @@ Iteration Log
 - Iteration 61: Added shared `BackendTopBanner` layout/render helpers and switched `PlacementState` plus both `CombatState` banner paths (shop + non-shop, backend + legacy centering/Y policy) to one top-banner contract, with dedicated `backend_top_banner_contract` test coverage.
 - Iteration 62: Documented the contract-first migration path and added temporary in-game OpenGL shared-contract mode (`opengl_shared`) with runtime route override in `GameSession`, updated Display menu labels/options for tri-mode parity checks, and expanded video-preference token tests.
 - Iteration 63: Implemented OpenGL shared-contract backend draw support for 3D world triangles, indexed world meshes (including textured + alpha-mode/cutoff + wrap handling), and debug sprites with texture caching/fallbacks so `opengl_shared` now exercises the same world/sprite draw contracts used by D3D12; revalidated with full build + 98/98 tests.
+- Iteration 64: Reduced shared-path model bounce drift by making backend world rendering use clip-driven unit transform defaults (legacy-like position/rotation/scale) whenever a valid animation clip pose is active, keeping procedural bob/lunge/tilt only for non-clip fallback cases.
 
 How This File Is Used
 - Before each parity implementation iteration:
