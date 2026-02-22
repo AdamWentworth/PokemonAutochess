@@ -1439,10 +1439,12 @@ struct GameSession::Impl {
                     IRenderBackend::WorldTriangle tri;
                     float depth = 0.0f;
                 };
-                std::vector<DepthTri> modelDepthTris;
-                modelDepthTris.reserve(12000);
-                std::vector<DepthWorldTri> modelDepthWorldTris;
-                modelDepthWorldTris.reserve(12000);
+                static thread_local std::vector<DepthTri> modelDepthTris;
+                modelDepthTris.clear();
+                if (modelDepthTris.capacity() < 12000u) modelDepthTris.reserve(12000u);
+                static thread_local std::vector<DepthWorldTri> modelDepthWorldTris;
+                modelDepthWorldTris.clear();
+                if (modelDepthWorldTris.capacity() < 12000u) modelDepthWorldTris.reserve(12000u);
                 std::size_t remainingModelTrianglesBudget = backendModelTriangleFrameBudget();
 
                 for (int r = 0; r < rows; ++r) {
@@ -1468,19 +1470,39 @@ struct GameSession::Impl {
                     }
                 }
 
+                const float gridY = 0.0075f;
+                const float gridHalfWidthWorld = std::max(0.0025f, worldCellSize * 0.0125f);
                 for (int c = 0; c <= cols; ++c) {
                     const float x = boardMinX + static_cast<float>(c) * worldCellSize;
-                    appendProjectedLine(
-                        glm::vec3(x, 0.01f, boardMinZ),
-                        glm::vec3(x, 0.01f, boardMaxZ),
-                        0.23f, 0.35f, 0.44f, 0.95f, line);
+                    if (supportsWorldTriangles3D) {
+                        appendWorldQuad(
+                            glm::vec3(x - gridHalfWidthWorld, gridY, boardMinZ),
+                            glm::vec3(x + gridHalfWidthWorld, gridY, boardMinZ),
+                            glm::vec3(x + gridHalfWidthWorld, gridY, boardMaxZ),
+                            glm::vec3(x - gridHalfWidthWorld, gridY, boardMaxZ),
+                            0.23f, 0.35f, 0.44f, 0.95f);
+                    } else {
+                        appendProjectedLine(
+                            glm::vec3(x, 0.01f, boardMinZ),
+                            glm::vec3(x, 0.01f, boardMaxZ),
+                            0.23f, 0.35f, 0.44f, 0.95f, line);
+                    }
                 }
                 for (int r = 0; r <= rows; ++r) {
                     const float z = boardMinZ + static_cast<float>(r) * worldCellSize;
-                    appendProjectedLine(
-                        glm::vec3(boardMinX, 0.01f, z),
-                        glm::vec3(boardMaxX, 0.01f, z),
-                        0.23f, 0.35f, 0.44f, 0.95f, line);
+                    if (supportsWorldTriangles3D) {
+                        appendWorldQuad(
+                            glm::vec3(boardMinX, gridY, z - gridHalfWidthWorld),
+                            glm::vec3(boardMaxX, gridY, z - gridHalfWidthWorld),
+                            glm::vec3(boardMaxX, gridY, z + gridHalfWidthWorld),
+                            glm::vec3(boardMinX, gridY, z + gridHalfWidthWorld),
+                            0.23f, 0.35f, 0.44f, 0.95f);
+                    } else {
+                        appendProjectedLine(
+                            glm::vec3(boardMinX, 0.01f, z),
+                            glm::vec3(boardMaxX, 0.01f, z),
+                            0.23f, 0.35f, 0.44f, 0.95f, line);
+                    }
                 }
                 if (worldTriangles.size() == boardTrianglesStart2D &&
                     world3DTriangles.size() == boardTrianglesStart3D) {
@@ -2031,6 +2053,19 @@ struct GameSession::Impl {
                                 const auto& mats = *matsPtr;
                                 const std::uint16_t joints[4] = {vtx.j0, vtx.j1, vtx.j2, vtx.j3};
                                 const float weights[4] = {vtx.w0, vtx.w1, vtx.w2, vtx.w3};
+                                const bool rigidSingleJoint =
+                                    (weights[0] >= 0.999f) &&
+                                    (weights[1] <= 0.00001f) &&
+                                    (weights[2] <= 0.00001f) &&
+                                    (weights[3] <= 0.00001f) &&
+                                    (static_cast<std::size_t>(joints[0]) < mats.size());
+                                if (rigidSingleJoint) {
+                                    const glm::mat4& m = mats[static_cast<std::size_t>(joints[0])];
+                                    outSkin.pos = glm::vec3(m * glm::vec4(localPos, 1.0f));
+                                    outSkin.normal = safeNormalize(glm::mat3(m) * localNormal);
+                                    outSkin.applied = true;
+                                    return outSkin;
+                                }
                                 glm::vec4 blendedPos(0.0f);
                                 glm::vec3 blendedNormal(0.0f);
                                 float totalWeight = 0.0f;
@@ -2063,6 +2098,18 @@ struct GameSession::Impl {
                                 const auto& mats = *matsPtr;
                                 const std::uint16_t joints[4] = {vtx.j0, vtx.j1, vtx.j2, vtx.j3};
                                 const float weights[4] = {vtx.w0, vtx.w1, vtx.w2, vtx.w3};
+                                const bool rigidSingleJoint =
+                                    (weights[0] >= 0.999f) &&
+                                    (weights[1] <= 0.00001f) &&
+                                    (weights[2] <= 0.00001f) &&
+                                    (weights[3] <= 0.00001f) &&
+                                    (static_cast<std::size_t>(joints[0]) < mats.size());
+                                if (rigidSingleJoint) {
+                                    outPos = glm::vec3(
+                                        mats[static_cast<std::size_t>(joints[0])] *
+                                        glm::vec4(localPos, 1.0f));
+                                    return outPos;
+                                }
                                 glm::vec4 blendedPos(0.0f);
                                 float totalWeight = 0.0f;
                                 for (int i = 0; i < 4; ++i) {
@@ -3610,8 +3657,11 @@ struct GameSession::Impl {
                 drawIndexedBatch(batch);
             }
 
-            std::vector<const WorldIndexedBatch*> blendBatches;
-            blendBatches.reserve(worldIndexedBatches.size());
+            static thread_local std::vector<const WorldIndexedBatch*> blendBatches;
+            blendBatches.clear();
+            if (blendBatches.capacity() < worldIndexedBatches.size()) {
+                blendBatches.reserve(worldIndexedBatches.size());
+            }
             for (const WorldIndexedBatch& batch : worldIndexedBatches) {
                 if (batch.vertices.empty() || batch.indices.empty()) continue;
                 if (batch.alphaMode != 2u) continue;
