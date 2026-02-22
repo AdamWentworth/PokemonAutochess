@@ -358,6 +358,7 @@ struct GameSession::Impl {
 
     bool renderEnabled = false;
     bool legacyRenderPath = false;
+    bool legacyUiPath = false;
     bool allowBackendMenuBackdrop = false;
     bool showPerfOverlay = false;
     bool devPauseWorld = false;
@@ -403,6 +404,31 @@ struct GameSession::Impl {
         : dataDb(std::move(db))
         , ecsWorld(&coreServices) {
         init(ctx);
+    }
+
+    bool hasActiveRenderBackend() const {
+        if (services) return services->renderEnabled;
+        return renderEnabled;
+    }
+
+    bool usesLegacyGameRenderPath() const {
+        if (services) return services->usesLegacyGameRenderPath();
+        return renderEnabled && legacyRenderPath;
+    }
+
+    bool usesBackendGameRenderPath() const {
+        if (services) return services->usesBackendGameRenderPath();
+        return renderEnabled && !legacyRenderPath;
+    }
+
+    bool usesLegacyGameUiPath() const {
+        if (services) return services->usesLegacyGameUiPath();
+        return renderEnabled && legacyUiPath;
+    }
+
+    bool usesBackendGameUiPath() const {
+        if (services) return services->usesBackendGameUiPath();
+        return renderEnabled && !legacyUiPath;
     }
 
     runtime::backend_model::MeshData* ensureBackendMeshLoaded(const std::string& modelPath) {
@@ -573,7 +599,7 @@ struct GameSession::Impl {
     }
 
     void hydrateBackendUnitAnimationAndScale() {
-        if (!renderEnabled || legacyRenderPath || !gameWorld) return;
+        if (!usesBackendGameRenderPath() || !gameWorld) return;
 
         auto hydrate = [&](PokemonInstance& unit) {
             const PokemonStats* stats = dataDb.pokemon.getStats(unit.name);
@@ -646,7 +672,7 @@ struct GameSession::Impl {
         engineServices = ctx.services;
         const bool hasBackend = (ctx.renderer != nullptr) && (ctx.camera != nullptr);
         legacyRenderPath = hasBackend && ctx.renderer->prefersLegacyGameRenderPath();
-        const bool legacyUiPath = hasBackend && ctx.renderer->prefersLegacyGameUiPath();
+        legacyUiPath = hasBackend && ctx.renderer->prefersLegacyGameUiPath();
         renderEnabled = hasBackend;
         if (engine::env::get("PAC_BACKEND_MENU_BACKDROP").has_value()) {
             allowBackendMenuBackdrop = engine::env::flagEnabled("PAC_BACKEND_MENU_BACKDROP");
@@ -729,13 +755,13 @@ struct GameSession::Impl {
         coreServices.time = &services->time;
 
         // Board visuals
-        if (legacyRenderPath) {
+        if (usesLegacyGameRenderPath()) {
             board = std::make_unique<BoardRenderer>(config.rows, config.cols, config.cellSize);
         }
 
         // World
         gameWorld = std::make_unique<GameWorld>(config);
-        gameWorld->setRenderEnabled(legacyRenderPath);
+        gameWorld->setRenderEnabled(usesLegacyGameRenderPath());
         gameWorld->setLogger(&log);
         gameWorld->setRng(&services->rng);
         if (ctx.services) gameWorld->setResources(ctx.services->resources);
@@ -762,7 +788,7 @@ struct GameSession::Impl {
         scheduler.add(std::move(roundSystem), Phase::Update);
 
 
-        if (legacyRenderPath) {
+        if (usesLegacyGameRenderPath()) {
             if (ctx.services && ctx.services->shaders) {
                 healthBarRenderer.init(*ctx.services->shaders);
             } else {
@@ -844,7 +870,7 @@ struct GameSession::Impl {
         });
 
         // Preload common models (uses the db's pokemon loader).
-        if (legacyRenderPath) {
+        if (usesLegacyGameRenderPath()) {
             game::preload::preloadCommonModels(ctx, dataDb.pokemon, "PokemonAutochess");
         } else {
             std::cout << "[Init] Non-OpenGL render path: using backend model cache loader (OpenGL ModelStartupLog is not used).\n";
@@ -1054,7 +1080,7 @@ struct GameSession::Impl {
         }
 
         if (renderWorldForInput &&
-            !legacyRenderPath &&
+            usesBackendGameUiPath() &&
             event.type == InputEvent::Type::KeyDown &&
             !event.repeat) {
             const int offsetDelta = runtime::backend_input::inventoryOffsetDeltaFromKey(
@@ -1075,7 +1101,7 @@ struct GameSession::Impl {
         }
 
         if (renderWorldForInput && event.type == InputEvent::Type::MouseWheel) {
-            if (legacyRenderPath) {
+            if (usesLegacyGameUiPath()) {
                 itemInventoryUI.handleScroll(event.wheelY, viewport.height);
             } else {
                 const int wheelDelta = runtime::backend_inventory_panel::offsetDeltaFromWheel(event.wheelY);
@@ -1086,7 +1112,7 @@ struct GameSession::Impl {
         }
         if (renderWorldForInput && event.type == InputEvent::Type::MouseDown &&
             event.mouseButtonId == InputEvent::MouseButton::Left) {
-            if (legacyRenderPath) {
+            if (usesLegacyGameUiPath()) {
                 if (auto clicked = itemInventoryUI.handleMouseClick(event.mouseX, event.mouseY)) {
                     if (gameWorld) {
                         gameWorld->setSelectedItem(*clicked);
@@ -1123,7 +1149,7 @@ struct GameSession::Impl {
             return;
         }
         timeSource.advance(dt);
-        if (!legacyRenderPath) {
+        if (usesBackendGameRenderPath()) {
             hydrateBackendUnitAnimationAndScale();
         }
         updateGraph.tick(dt);
@@ -1225,7 +1251,7 @@ struct GameSession::Impl {
 
         const bool showWorldBackdrop = runtime::render::shouldRenderBackendWorldBackdrop(
             renderWorld,
-            legacyRenderPath,
+            usesLegacyGameRenderPath(),
             allowBackendMenuBackdrop);
         if (showWorldBackdrop) {
             const bool useProjectedWorldLayout = renderWorld && gameWorld && (camera != nullptr);
@@ -3820,7 +3846,7 @@ struct GameSession::Impl {
         }
 
         const auto flow = runtime::render::decideFrameRenderFlow(
-            renderEnabled, legacyRenderPath, renderWorld);
+            hasActiveRenderBackend(), usesLegacyGameRenderPath(), renderWorld);
 
         if (flow.renderLegacyWorldLayer) {
             renderLegacyWorldLayer(drawableW, drawableH, renderWorld);
@@ -3848,7 +3874,7 @@ struct GameSession::Impl {
             board.reset();
         }
 
-        if (legacyRenderPath) {
+        if (usesLegacyGameRenderPath()) {
             UIManager::shutdown();
         }
 
