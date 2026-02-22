@@ -1447,6 +1447,7 @@ struct GameSession::Impl {
                 if (modelDepthWorldTris.capacity() < 12000u) modelDepthWorldTris.reserve(12000u);
                 std::size_t remainingModelTrianglesBudget = backendModelTriangleFrameBudget();
 
+                const float boardSurfaceY = 0.006f;
                 for (int r = 0; r < rows; ++r) {
                     for (int c = 0; c < cols; ++c) {
                         const float x0 = boardMinX + static_cast<float>(c) * worldCellSize;
@@ -1458,10 +1459,10 @@ struct GameSession::Impl {
                         const float cg = darkCell ? 0.13f : 0.17f;
                         const float cb = darkCell ? 0.18f : 0.23f;
                         const float ca = darkCell ? 0.34f : 0.27f;
-                        const glm::vec3 qa(x0, 0.006f, z0);
-                        const glm::vec3 qb(x1, 0.006f, z0);
-                        const glm::vec3 qc(x1, 0.006f, z1);
-                        const glm::vec3 qd(x0, 0.006f, z1);
+                        const glm::vec3 qa(x0, boardSurfaceY, z0);
+                        const glm::vec3 qb(x1, boardSurfaceY, z0);
+                        const glm::vec3 qc(x1, boardSurfaceY, z1);
+                        const glm::vec3 qd(x0, boardSurfaceY, z1);
                         if (supportsWorldTriangles3D) {
                             appendWorldQuad(qa, qb, qc, qd, cr, cg, cb, ca);
                         } else {
@@ -1794,36 +1795,39 @@ struct GameSession::Impl {
                         const float sideB = std::clamp(tint.b * 0.72f, 0.0f, 1.0f);
                         const float topAlpha = unit.alive ? 0.96f : 0.78f;
                         const float sideAlpha = unit.alive ? 0.88f : 0.70f;
-                        const auto shadow = game::runtime::backend_proxy::computeShadowQuad(
-                            proxyCenter,
-                            extents.halfWidth * 1.15f,
-                            extents.halfDepth * 1.15f,
-                            animYaw,
-                            0.010f);
-                        if (supportsWorldTriangles3D) {
-                            appendWorldQuad(
-                                shadow[0],
-                                shadow[1],
-                                shadow[2],
-                                shadow[3],
-                                0.02f,
-                                0.03f,
-                                0.04f,
-                                unit.alive ? 0.42f : 0.24f);
-                        } else {
-                            appendProjectedQuad(
-                                shadow[0],
-                                shadow[1],
-                                shadow[2],
-                                shadow[3],
-                                0.02f,
-                                0.03f,
-                                0.04f,
-                                unit.alive ? 0.42f : 0.24f);
+                        const runtime::backend_model::MeshData* meshForUnit = resolveModelMesh(unit);
+                        if (!meshForUnit) {
+                            const auto shadow = game::runtime::backend_proxy::computeShadowQuad(
+                                proxyCenter,
+                                extents.halfWidth * 1.15f,
+                                extents.halfDepth * 1.15f,
+                                animYaw,
+                                0.010f);
+                            if (supportsWorldTriangles3D) {
+                                appendWorldQuad(
+                                    shadow[0],
+                                    shadow[1],
+                                    shadow[2],
+                                    shadow[3],
+                                    0.02f,
+                                    0.03f,
+                                    0.04f,
+                                    unit.alive ? 0.42f : 0.24f);
+                            } else {
+                                appendProjectedQuad(
+                                    shadow[0],
+                                    shadow[1],
+                                    shadow[2],
+                                    shadow[3],
+                                    0.02f,
+                                    0.03f,
+                                    0.04f,
+                                    unit.alive ? 0.42f : 0.24f);
+                            }
                         }
 
                         bool drewModelMesh = false;
-                        if (const runtime::backend_model::MeshData* mesh = resolveModelMesh(unit)) {
+                        if (const runtime::backend_model::MeshData* mesh = meshForUnit) {
                             const std::size_t triangleCount = mesh->indices.size() / 3u;
                             if (triangleCount == 0u) continue;
                             const std::size_t maxTrianglesPerUnit = backendModelTriangleLimit();
@@ -1883,7 +1887,12 @@ struct GameSession::Impl {
                                 std::max(0.05f, unit.visualScale) *
                                 std::max(0.05f, unit.captureScale) *
                                 attackPulse;
-                            const glm::vec3 renderPos = proxyCenter;
+                            glm::vec3 renderPos = proxyCenter;
+                            const float minAllowedModelY = boardSurfaceY + 0.0025f;
+                            const float approxModelMinY = renderPos.y + mesh->boundsMin.y * modelScale;
+                            if (std::isfinite(approxModelMinY) && approxModelMinY < minAllowedModelY) {
+                                renderPos.y += (minAllowedModelY - approxModelMinY);
+                            }
                             const glm::mat4 scale = glm::scale(glm::mat4(1.0f), glm::vec3(modelScale));
                             const glm::mat4 rotationX =
                                 glm::rotate(glm::mat4(1.0f), glm::radians(animPitch), glm::vec3(1, 0, 0));
@@ -3585,10 +3594,14 @@ struct GameSession::Impl {
         if (!recentMain.empty()) {
             float y = std::max(edgePad + lineStep * 7.0f, static_cast<float>(drawableH) - lineStep * 11.0f);
             for (const auto& line : recentMain) {
-                appendText(edgePad,
+                const std::string text = trimDebugLine(line.text, 84);
+                const float scale = 1.0f;
+                const float textW = std::max(1.0f, runtime::backend_text::measureTextWidth(text, scale));
+                const float x = std::max(edgePad, static_cast<float>(drawableW) - textW - edgePad);
+                appendText(x,
                            y,
-                           trimDebugLine(line.text, 84),
-                           1.0f,
+                           text,
+                           scale,
                            glm::vec3(
                                std::clamp(line.color.r, 0.0f, 1.0f),
                                std::clamp(line.color.g, 0.0f, 1.0f),
@@ -3604,9 +3617,7 @@ struct GameSession::Impl {
             for (const auto& line : sideLines) {
                 const std::string text = trimDebugLine(line.text, 54);
                 const float scale = 1.0f;
-                const float textW = std::max(1.0f, runtime::backend_text::measureTextWidth(text, scale));
-                const float x = std::max(edgePad, static_cast<float>(drawableW) - textW - edgePad);
-                appendText(x,
+                appendText(edgePad,
                            y,
                            text,
                            scale,

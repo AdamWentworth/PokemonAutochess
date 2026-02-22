@@ -52,4 +52,5 @@ Recent improvements
 - Removed per-frame heap churn in backend debug-world rendering by reusing persistent frame scratch vectors (including large world triangle containers), and reduced skinning transform overhead with cached node inverse/matrix prep plus a position-only fast path for fully textured full-mesh submissions.
 - Fixed projected-world board-grid overdraw artifacts by moving D3D12/world grid lines to depth-tested world geometry, and reduced skinning/temporary-buffer overhead further with rigid single-joint fast paths plus reusable depth/blend scratch buffers.
 - Reduced backend-switch confusion by surfacing env-override precedence in runtime logs and Display menu mismatch hints; residual debt is exposing env-override state directly in script/UI bindings rather than inferring via active-vs-preference comparison.
+- Reduced backend world-view visual drift by grounding model anchors to board surface, suppressing fallback shadow-floor quads when full meshes render, and restoring backend feed column parity; residual debt remains a longer-term pass to unify OpenGL and D3D12 lighting/tone stages under one shared material pipeline.
 
