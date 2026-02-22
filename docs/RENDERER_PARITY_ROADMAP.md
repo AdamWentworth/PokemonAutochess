@@ -105,6 +105,7 @@ Prioritized Backlog
 - [ ] Add explicit emissive-texture parity in the backend indexed world path (OpenGL currently samples `u_EmissiveTex`; backend indexed path still approximates emissive via cached shading data).
 - [ ] Complete D3D12 animation/skinning parity (no fallback-only pose path). (In progress: backend clip evaluation now applies root-motion carrier X/Z suppression like OpenGL.)
 - [ ] Align shared-path model motion with OpenGL legacy clip-driven presentation (avoid procedural bob/lunge/tilt layering when clip pose is active).
+- [ ] Finish shared per-unit HUD parity with OpenGL legacy (level ring geometry, XP progress arc, HP/energy bar sizing/color, and text anchoring).
 - [ ] Split D3D12 renderer implementation into smaller modules. (In progress: texture upload/mipmap staging moved from `src/engine/render/D3D12RenderBackend.cpp` to `src/engine/render/d3d12/D3D12TextureUpload.cpp`.)
 - [ ] Port/align board and bench rendering parity.
 - [ ] Port/align health bars and combat overlays parity.
@@ -181,6 +182,7 @@ Iteration Log
 - Iteration 62: Documented the contract-first migration path and added temporary in-game OpenGL shared-contract mode (`opengl_shared`) with runtime route override in `GameSession`, updated Display menu labels/options for tri-mode parity checks, and expanded video-preference token tests.
 - Iteration 63: Implemented OpenGL shared-contract backend draw support for 3D world triangles, indexed world meshes (including textured + alpha-mode/cutoff + wrap handling), and debug sprites with texture caching/fallbacks so `opengl_shared` now exercises the same world/sprite draw contracts used by D3D12; revalidated with full build + 98/98 tests.
 - Iteration 64: Reduced shared-path model bounce drift by making backend world rendering use clip-driven unit transform defaults (legacy-like position/rotation/scale) whenever a valid animation clip pose is active, keeping procedural bob/lunge/tilt only for non-clip fallback cases.
+- Iteration 65: Ported legacy per-unit HUD bar/ring math into shared world HUD rendering so OpenGL shared and D3D12 now use legacy-aligned HP/energy bar geometry/colors plus level text + player XP ring progress arc around level.
 
 How This File Is Used
 - Before each parity implementation iteration:

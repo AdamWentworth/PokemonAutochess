@@ -1283,6 +1283,167 @@ struct GameSession::Impl {
         const bool forcePortraitOverlay = backendWorldPortraitOverlayForced();
         float worldViewProj[16] = {};
         bool hasWorldViewProj = false;
+        const auto xpToNextLevel = [&](int level) {
+            if (config.xpLevelBase <= 0) return 0;
+            const int useLevel = std::max(1, level);
+            const float growth = (config.xpLevelGrowth > 0.0f) ? config.xpLevelGrowth : 1.0f;
+            const float raw =
+                static_cast<float>(config.xpLevelBase) * std::pow(growth, static_cast<float>(useLevel - 1));
+            return std::max(1, static_cast<int>(std::round(raw)));
+        };
+        const auto appendRingArc = [&](const glm::vec2& center,
+                                       float innerR,
+                                       float outerR,
+                                       float startRad,
+                                       float endRad,
+                                       float r,
+                                       float g,
+                                       float b,
+                                       float a) {
+            const float arc = endRad - startRad;
+            if (std::abs(arc) < 0.0001f) return;
+            const float full = 6.2831853f;
+            const int segments = std::max(
+                6, static_cast<int>(std::ceil(std::abs(arc) / full * 32.0f)));
+            const float thickness = std::max(1.0f, outerR - innerR);
+            for (int i = 0; i < segments; ++i) {
+                const float t0 = static_cast<float>(i) / static_cast<float>(segments);
+                const float t1 = static_cast<float>(i + 1) / static_cast<float>(segments);
+                const float a0 = startRad + arc * t0;
+                const float a1 = startRad + arc * t1;
+                IRenderBackend::DebugLine lineSeg;
+                lineSeg.x1 = center.x + std::cos(a0) * (innerR + outerR) * 0.5f;
+                lineSeg.y1 = center.y + std::sin(a0) * (innerR + outerR) * 0.5f;
+                lineSeg.x2 = center.x + std::cos(a1) * (innerR + outerR) * 0.5f;
+                lineSeg.y2 = center.y + std::sin(a1) * (innerR + outerR) * 0.5f;
+                lineSeg.thickness = thickness;
+                lineSeg.r = r;
+                lineSeg.g = g;
+                lineSeg.b = b;
+                lineSeg.a = a;
+                lines.push_back(lineSeg);
+            }
+        };
+        const auto appendLegacyUnitHud = [&](const PokemonInstance& unit,
+                                             float screenX,
+                                             float screenY,
+                                             float cellPx) {
+            const float safeCellPx = std::max(8.0f, cellPx);
+            const float width = safeCellPx * 0.45f;
+            const float hpH = safeCellPx * 0.07f;
+            const float enH = safeCellPx * 0.06f;
+            const float yOffset = safeCellPx * 0.35f;
+            const float gap = safeCellPx * 0.03f;
+
+            const float ringOuter = safeCellPx * 0.155f;
+            const float ringInner = safeCellPx * 0.135f;
+            const float ringGap = safeCellPx * 0.035f;
+            const float ringPad = ringOuter + ringGap;
+            const float leftExtent = ringOuter + ringPad;
+
+            glm::vec2 pos(screenX, screenY);
+            pos.x -= (width - leftExtent) * 0.5f;
+            pos.y -= yOffset;
+
+            const float hpRatio = std::clamp(
+                static_cast<float>(std::max(0, unit.hp)) /
+                    static_cast<float>(std::max(1, unit.maxHP)),
+                0.0f,
+                1.0f);
+            const float energyRatio = std::clamp(
+                static_cast<float>(std::max(0, unit.energy)) /
+                    static_cast<float>(std::max(1, unit.maxEnergy)),
+                0.0f,
+                1.0f);
+
+            IRenderBackend::DebugQuad hpBg;
+            hpBg.x = pos.x;
+            hpBg.y = pos.y;
+            hpBg.w = width;
+            hpBg.h = hpH;
+            hpBg.r = 0.3f;
+            hpBg.g = 0.3f;
+            hpBg.b = 0.3f;
+            hpBg.a = 1.0f;
+            worldQuads.push_back(hpBg);
+
+            IRenderBackend::DebugQuad hpFg = hpBg;
+            hpFg.w = width * hpRatio;
+            if (unit.side == PokemonSide::Enemy) {
+                hpFg.r = 1.0f;
+                hpFg.g = 0.0f;
+                hpFg.b = 0.0f;
+            } else {
+                hpFg.r = 0.0f;
+                hpFg.g = 1.0f;
+                hpFg.b = 0.0f;
+            }
+            worldQuads.push_back(hpFg);
+
+            IRenderBackend::DebugQuad energyBg = hpBg;
+            energyBg.y = pos.y + hpH + gap;
+            energyBg.h = enH;
+            energyBg.r = 0.25f;
+            energyBg.g = 0.25f;
+            energyBg.b = 0.25f;
+            worldQuads.push_back(energyBg);
+
+            IRenderBackend::DebugQuad energyFg = energyBg;
+            energyFg.w = width * energyRatio;
+            energyFg.r = 0.95f;
+            energyFg.g = 0.65f;
+            energyFg.b = 0.20f;
+            worldQuads.push_back(energyFg);
+
+            const float barH = hpH + gap + enH;
+            const glm::vec2 levelCenter(pos.x - ringPad, pos.y + barH * 0.5f - safeCellPx * 0.02f);
+            const bool showXP = (unit.side == PokemonSide::Player);
+            const int maxXP = showXP ? xpToNextLevel(unit.level) : 0;
+            if (showXP && maxXP > 0) {
+                const float xFrac = std::clamp(
+                    static_cast<float>(std::max(0, unit.xp)) / static_cast<float>(std::max(1, maxXP)),
+                    0.0f,
+                    1.0f);
+                const float start = -1.5707963f;
+                appendRingArc(levelCenter,
+                              ringInner,
+                              ringOuter,
+                              start,
+                              start + 6.2831853f,
+                              0.20f,
+                              0.20f,
+                              0.20f,
+                              1.0f);
+                appendRingArc(levelCenter,
+                              ringInner,
+                              ringOuter,
+                              start,
+                              start + xFrac * 6.2831853f,
+                              0.20f,
+                              0.55f,
+                              1.0f,
+                              1.0f);
+            }
+
+            const std::string levelText = std::to_string(std::max(1, unit.level));
+            const float baseLevelH = std::max(1.0f, runtime::backend_text::measureTextHeight(levelText, 1.0f));
+            const float levelScale = std::clamp((ringInner * 1.55f) / baseLevelH, 0.72f, 1.05f);
+            const float textW = std::max(1.0f, runtime::backend_text::measureTextWidth(levelText, levelScale));
+            const float textH = std::max(1.0f, runtime::backend_text::measureTextHeight(levelText, levelScale));
+            const float textX = levelCenter.x - textW * 0.5f;
+            const float textY = levelCenter.y - textH * 0.5f + safeCellPx * 0.03f;
+            runtime::backend_text::appendTextLines(
+                textLines,
+                textX,
+                textY,
+                levelText,
+                levelScale,
+                1.0f,
+                1.0f,
+                1.0f,
+                1.0f,
+                0.88f);
+        };
 
         const int rows = std::max(1, config.rows);
         const int cols = std::max(1, config.cols);
@@ -3005,76 +3166,7 @@ struct GameSession::Impl {
                             ? glm::vec3(0.84f, 0.98f, 0.88f)
                             : glm::vec3(0.98f, 0.84f, 0.80f);
                         unitLabels.push_back(std::move(label));
-
-                        const float hpRatio = std::clamp(
-                            static_cast<float>(std::max(0, unit.hp)) /
-                                static_cast<float>(std::max(1, unit.maxHP)),
-                            0.0f,
-                            1.0f);
-                        const float hpW = unitSize * 0.86f;
-                        const float hpX = cx - hpW * 0.5f;
-                        const float hpY = topLabelY - std::max(2.0f, unitSize * 0.10f);
-                        const float hpThick = std::max(1.0f, line * 2.1f);
-
-                        IRenderBackend::DebugLine hpBg;
-                        hpBg.x1 = hpX;
-                        hpBg.y1 = hpY;
-                        hpBg.x2 = hpX + hpW;
-                        hpBg.y2 = hpY;
-                        hpBg.thickness = hpThick;
-                        hpBg.r = 0.12f;
-                        hpBg.g = 0.12f;
-                        hpBg.b = 0.14f;
-                        hpBg.a = 0.95f;
-                        lines.push_back(hpBg);
-
-                        IRenderBackend::DebugLine hp = hpBg;
-                        hp.x1 = hpX + std::max(0.5f, line * 0.4f);
-                        hp.x2 = hp.x1 + std::max(0.0f, (hpW - std::max(1.0f, line * 0.8f)) * hpRatio);
-                        if (unit.side == PokemonSide::Player) {
-                            hp.r = 0.28f;
-                            hp.g = 0.92f;
-                            hp.b = 0.46f;
-                        } else {
-                            hp.r = 0.94f;
-                            hp.g = 0.38f;
-                            hp.b = 0.28f;
-                        }
-                        hp.a = 1.0f;
-                        lines.push_back(hp);
-
-                        if (!unit.chargedMove.empty()) {
-                            const float energyRatio = std::clamp(
-                                static_cast<float>(std::max(0, unit.energy)) /
-                                    static_cast<float>(std::max(1, unit.maxEnergy)),
-                                0.0f,
-                                1.0f);
-                            const float energyY =
-                                std::min(static_cast<float>(drawableH) - 2.0f,
-                                         cy + unitSize * 0.50f + std::max(2.0f, line * 2.2f));
-
-                            IRenderBackend::DebugLine energyBg;
-                            energyBg.x1 = hpX;
-                            energyBg.y1 = energyY;
-                            energyBg.x2 = hpX + hpW;
-                            energyBg.y2 = energyY;
-                            energyBg.thickness = std::max(1.0f, line * 1.7f);
-                            energyBg.r = 0.10f;
-                            energyBg.g = 0.11f;
-                            energyBg.b = 0.15f;
-                            energyBg.a = 0.95f;
-                            lines.push_back(energyBg);
-
-                            IRenderBackend::DebugLine energy = energyBg;
-                            energy.x1 = hpX + std::max(0.5f, line * 0.4f);
-                            energy.x2 =
-                                energy.x1 + std::max(0.0f, (hpW - std::max(1.0f, line * 0.8f)) * energyRatio);
-                            energy.r = 0.34f;
-                            energy.g = 0.70f;
-                            energy.b = 0.98f;
-                            energy.a = 1.0f;
-                            lines.push_back(energy);
-                        }
+                        appendLegacyUnitHud(unit, cx, cy, cellPx);
                     }
                 };
 
@@ -3218,75 +3310,7 @@ struct GameSession::Impl {
                         ? glm::vec3(0.84f, 0.98f, 0.88f)
                         : glm::vec3(0.98f, 0.84f, 0.80f);
                     unitLabels.push_back(std::move(label));
-
-                    const float hpRatio = std::clamp(
-                        static_cast<float>(std::max(0, unit.hp)) /
-                            static_cast<float>(std::max(1, unit.maxHP)),
-                        0.0f,
-                        1.0f);
-                    const float hpY = std::max(2.0f, u.y - std::max(2.0f, line * 2.0f));
-                    IRenderBackend::DebugLine hpBg;
-                    hpBg.x1 = u.x;
-                    hpBg.y1 = hpY;
-                    hpBg.x2 = u.x + u.w;
-                    hpBg.y2 = hpY;
-                    hpBg.thickness = std::max(2.0f, line * 2.2f);
-                    hpBg.r = 0.12f;
-                    hpBg.g = 0.12f;
-                    hpBg.b = 0.14f;
-                    hpBg.a = 0.95f;
-                    lines.push_back(hpBg);
-
-                    IRenderBackend::DebugLine hp;
-                    hp.x1 = u.x + std::max(0.5f, line * 0.4f);
-                    hp.y1 = hpY;
-                    hp.x2 = hp.x1 + std::max(0.0f, (u.w - std::max(1.0f, line * 0.8f)) * hpRatio);
-                    hp.y2 = hpY;
-                    hp.thickness = std::max(1.0f, line * 1.4f);
-                    if (unit.side == PokemonSide::Player) {
-                        hp.r = 0.28f;
-                        hp.g = 0.92f;
-                        hp.b = 0.46f;
-                    } else {
-                        hp.r = 0.94f;
-                        hp.g = 0.38f;
-                        hp.b = 0.28f;
-                    }
-                    hp.a = 1.0f;
-                    lines.push_back(hp);
-
-                    if (!unit.chargedMove.empty()) {
-                        const float energyRatio = std::clamp(
-                            static_cast<float>(std::max(0, unit.energy)) /
-                                static_cast<float>(std::max(1, unit.maxEnergy)),
-                            0.0f,
-                            1.0f);
-                        const float energyY = std::min(
-                            boardY + boardH - 2.0f,
-                            u.y + u.h + std::max(2.0f, line * 2.4f));
-
-                        IRenderBackend::DebugLine energyBg;
-                        energyBg.x1 = u.x;
-                        energyBg.y1 = energyY;
-                        energyBg.x2 = u.x + u.w;
-                        energyBg.y2 = energyY;
-                        energyBg.thickness = std::max(1.0f, line * 1.8f);
-                        energyBg.r = 0.10f;
-                        energyBg.g = 0.11f;
-                        energyBg.b = 0.15f;
-                        energyBg.a = 0.95f;
-                        lines.push_back(energyBg);
-
-                        IRenderBackend::DebugLine energy = energyBg;
-                        energy.x1 = u.x + std::max(0.5f, line * 0.4f);
-                        energy.x2 =
-                            energy.x1 + std::max(0.0f, (u.w - std::max(1.0f, line * 0.8f)) * energyRatio);
-                        energy.r = 0.34f;
-                        energy.g = 0.70f;
-                        energy.b = 0.98f;
-                        energy.a = 1.0f;
-                        lines.push_back(energy);
-                    }
+                    appendLegacyUnitHud(unit, centerX, centerY, std::max(8.0f, std::min(cellW, cellH)));
                 }
 
                 const auto& benchUnits = gameWorld->getBenchPokemons();

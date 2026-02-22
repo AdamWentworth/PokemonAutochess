@@ -53,3 +53,4 @@ Focus on catching real regressions while keeping tests fast and headless.
 4. In combat with 3+ units moving/attacking, verify no textured submesh dropout (example failures: eyes/bulbs missing, body pieces disappearing mid-motion).
 5. Verify alpha behavior parity for MASK/BLEND submeshes (no triangular holes/gaps while moving) in both `opengl_shared` and `d3d12`.
 6. Verify shared-path idle/move motion does not add extra bounce versus `opengl` legacy when clip animation is active.
+7. Verify per-unit HUD parity (HP bar size/color, energy bar color, level text placement, and player XP ring progress) between `opengl` legacy and shared routes.
