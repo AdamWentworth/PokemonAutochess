@@ -386,6 +386,7 @@ if (BUILD_TESTING)
         tests/TestBackendSellOverlayModel.cpp
         tests/TestBackendStatusText.cpp
         tests/TestBackendUiScale.cpp
+        tests/TestBackendTopBanner.cpp
         tests/TestBackendUiPolicy.cpp
         tests/TestBackendShopSnapshot.cpp
         tests/TestShopCardConversion.cpp

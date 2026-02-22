@@ -43,6 +43,7 @@ bool test_backend_shop_hud_model_contract(std::string& outFail);
 bool test_backend_sell_overlay_model_contract(std::string& outFail);
 bool test_backend_status_text_contract(std::string& outFail);
 bool test_backend_ui_scale_contract(std::string& outFail);
+bool test_backend_top_banner_contract(std::string& outFail);
 bool test_backend_ui_sell_overlay_policy(std::string& outFail);
 bool test_backend_shop_snapshot_contract(std::string& outFail);
 bool test_shop_card_conversion_contract(std::string& outFail);
@@ -184,6 +185,7 @@ int main(int argc, char** argv) {
         {"backend_sell_overlay_model_contract", &test_backend_sell_overlay_model_contract},
         {"backend_status_text_contract", &test_backend_status_text_contract},
         {"backend_ui_scale_contract", &test_backend_ui_scale_contract},
+        {"backend_top_banner_contract", &test_backend_top_banner_contract},
         {"backend_ui_sell_overlay_policy", &test_backend_ui_sell_overlay_policy},
         {"backend_shop_snapshot_contract", &test_backend_shop_snapshot_contract},
         {"shop_card_conversion_contract", &test_shop_card_conversion_contract},

@@ -6,6 +6,7 @@
 #include "game/GameWorld.h"
 #include "game/GameServices.h"
 #include "game/runtime/BackendDebugText.h"
+#include "game/runtime/BackendTopBanner.h"
 #include "game/runtime/GameServiceRenderRoutes.h"
 #include "game/state/BackendUiPolicy.h"
 #include "game/ui/UIViewport.h"
@@ -104,25 +105,12 @@ void PlacementState::render() {
         std::vector<IRenderBackend::DebugLine> lines;
         lines.reserve(2048);
 
-        const float scale = 1.9f;
-        const float textW = game::runtime::backend_text::measureTextWidth(message, scale);
-        const float textH = game::runtime::backend_text::measureTextHeight(message, scale);
-        const float textX = std::max(12.0f, (static_cast<float>(uiW) - textW) * 0.5f);
-        const float textY = std::max(12.0f, std::round(static_cast<float>(uiH) * 0.08f));
-
-        IRenderBackend::DebugQuad panel;
-        panel.x = std::max(8.0f, textX - 14.0f);
-        panel.y = std::max(8.0f, textY - 10.0f);
-        panel.w = std::min(static_cast<float>(uiW) - panel.x - 8.0f, textW + 28.0f);
-        panel.h = std::max(20.0f, textH + 18.0f);
-        panel.r = 0.08f;
-        panel.g = 0.09f;
-        panel.b = 0.12f;
-        panel.a = 0.80f;
-        quads.push_back(panel);
-
-        game::runtime::backend_text::appendTextLines(
-            lines, textX, textY, message, scale, 1.0f, 0.98f, 0.45f, 1.0f, 0.88f);
+        game::runtime::top_banner::Style style;
+        style.textScale = 1.95f;
+        style.panelG = 0.09f;
+        style.panelA = 0.80f;
+        game::runtime::top_banner::appendBackendBanner(
+            quads, lines, uiW, uiH, message, 1.0f, 0.98f, 0.45f, style);
 
         services.renderer->drawDebugQuads(quads.data(), quads.size(), uiW, uiH);
         if (!lines.empty()) {
@@ -138,12 +126,12 @@ void PlacementState::render() {
     }
 
     const float scale = 1.0f;
-    const float uiWidth = static_cast<float>(uiW);
     float textWidth = text->measureTextWidth(message, scale);
     float centeredX = viewport ? viewport->centerX(textWidth)
-                               : std::round((uiWidth - textWidth) * 0.5f);
+                               : game::runtime::top_banner::centeredTextX(uiW, textWidth);
+    const float textY = game::runtime::top_banner::topTextY(uiH);
 
-    text->renderText(message, centeredX, 50.0f, glm::vec3(1.0f), scale);
+    text->renderText(message, centeredX, textY, glm::vec3(1.0f), scale);
 }
 
 bool PlacementState::isStarterOnBoard() const {

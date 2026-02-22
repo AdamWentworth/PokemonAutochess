@@ -83,6 +83,7 @@ Prioritized Backlog
 - [x] Remove transitional bool-based route policy overloads so frame/UI render policy APIs are route-object only.
 - [x] Centralize `GameServices` -> `RenderRoutes` conversion in one helper (`routesFromServices`) and use it in gameplay states/session route selection.
 - [x] Remove direct `GameServices` UI-route reads in gameplay states (`services.usesLegacyGameUiPath` / `usesBackendGameUiPath`) and consume route helpers via `routesFromServices` + backend UI policy.
+- [x] Unify top-banner overlay layout contract for gameplay states (`PlacementState`, `CombatState`) across backend and legacy UI paths.
 - [ ] Remove backend-specific gameplay render flow and unify frame graph. (In progress: frame-flow contract now uses backend-neutral world/HUD layer decisions and route-dispatched world-layer execution; remaining work is to retire backend debug-world as the primary gameplay world renderer.)
 - [x] Unify frame-flow policy contract to backend-neutral world/HUD layer outputs (`renderWorldLayer`, `renderLegacyHudLayer`) with menu-backdrop-aware world routing.
 - [x] Unify `GameSession` frame execution around one `renderWorldLayer` route dispatcher instead of backend-specific flow flags.
@@ -168,6 +169,7 @@ Iteration Log
 - Iteration 58: Added an explicit remaining parity estimate and parity-first sequencing to this living roadmap (9-12 iterations), so progress and expectations are tracked against a concrete plan.
 - Iteration 59: Unified frame-flow decisions to backend-neutral world/HUD layers, routed `GameSession` world rendering through one route-dispatched `renderWorldLayer`, and added policy/flow contract coverage for backend menu-backdrop routing.
 - Iteration 60: Removed remaining state-level direct UI route reads in `CombatState`/`PlacementState`, routed those decisions through `routesFromServices` + backend UI policy helpers, and added a `state_ui_route_policy_contract` guardrail test to prevent regressions.
+- Iteration 61: Added shared `BackendTopBanner` layout/render helpers and switched `PlacementState` plus both `CombatState` banner paths (shop + non-shop, backend + legacy centering/Y policy) to one top-banner contract, with dedicated `backend_top_banner_contract` test coverage.
 
 How This File Is Used
 - Before each parity implementation iteration:

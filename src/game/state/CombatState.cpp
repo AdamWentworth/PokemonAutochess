@@ -5,6 +5,7 @@
 #include "game/logging/LoggerUtil.h"
 #include "game/runtime/BackendCardRenderer.h"
 #include "game/runtime/BackendDebugText.h"
+#include "game/runtime/BackendTopBanner.h"
 #include "game/runtime/GameServiceRenderRoutes.h"
 #include "game/runtime/BackendSellOverlayModel.h"
 #include "game/runtime/BackendShopHudModel.h"
@@ -43,7 +44,6 @@ std::string Capitalize(std::string s) {
 namespace {
 constexpr float kCombatStartCountdownSec = 3.0f;
 constexpr float kCombatEndHoldSec = 3.0f;
-constexpr float kHeaderY = 58.0f;
 constexpr float kBackendTextScaleBase = 1.35f;
 } // namespace
 
@@ -191,7 +191,18 @@ void CombatState::renderBackendShopUi(int uiW, int uiH, bool showSellOverlay, co
     backendRerollH = 0.0f;
     refreshBackendShopSnapshot();
 
-    appendText(edgePad, std::max(10.0f, edgePad - lineStep * 0.15f), header, 1.9f, 0.97f, 0.97f, 0.99f);
+    game::runtime::top_banner::Style bannerStyle;
+    bannerStyle.textScale = 1.95f;
+    game::runtime::top_banner::appendBackendBanner(
+        baseQuads,
+        textLines,
+        uiW,
+        uiH,
+        header,
+        0.97f,
+        0.97f,
+        0.99f,
+        bannerStyle);
 
     if (game::ui::sell_overlay::shouldRenderShopCards(showSellOverlay)) {
         for (std::size_t i = 0; i < backendShopButtons.size(); ++i) {
@@ -722,7 +733,6 @@ void CombatState::render() {
     const int uiW = viewport ? viewport->width : 1280;
     const int uiH = viewport ? viewport->height : 720;
     const auto routes = game::runtime::render::routesFromServices(services);
-    const float uiWidth = static_cast<float>(uiW);
     const bool showSellOverlay = gameWorld &&
                                  gameWorld->isUnitDragActive() &&
                                  (gameWorld->getUnitDropZoneCardCount() > 0);
@@ -741,25 +751,8 @@ void CombatState::render() {
         std::vector<IRenderBackend::DebugLine> lines;
         lines.reserve(2048);
 
-        const float scale = 2.0f;
-        const float textW = game::runtime::backend_text::measureTextWidth(msg, scale);
-        const float textH = game::runtime::backend_text::measureTextHeight(msg, scale);
-        const float textX = std::max(14.0f, (uiWidth - textW) * 0.5f);
-        const float textY = kHeaderY;
-
-        IRenderBackend::DebugQuad panel;
-        panel.x = std::max(8.0f, textX - 14.0f);
-        panel.y = std::max(8.0f, textY - 10.0f);
-        panel.w = std::min(static_cast<float>(uiW) - panel.x - 8.0f, textW + 28.0f);
-        panel.h = std::max(20.0f, textH + 16.0f);
-        panel.r = 0.08f;
-        panel.g = 0.10f;
-        panel.b = 0.12f;
-        panel.a = 0.82f;
-        quads.push_back(panel);
-
-        game::runtime::backend_text::appendTextLines(
-            lines, textX, textY, msg, scale, msgColor.r, msgColor.g, msgColor.b, 1.0f, 0.88f);
+        game::runtime::top_banner::appendBackendBanner(
+            quads, lines, uiW, uiH, msg, msgColor.r, msgColor.g, msgColor.b);
 
         services.renderer->drawDebugQuads(quads.data(), quads.size(), uiW, uiH);
         if (!lines.empty()) {
@@ -777,9 +770,10 @@ void CombatState::render() {
     const float scale = 1.0f;
     float textWidth = textRenderer->measureTextWidth(msg, scale);
     float centeredX = viewport ? viewport->centerX(textWidth)
-                               : std::round((uiWidth - textWidth) * 0.5f);
+                               : game::runtime::top_banner::centeredTextX(uiW, textWidth);
+    const float textY = game::runtime::top_banner::topTextY(uiH);
 
-    textRenderer->renderText(msg, centeredX, kHeaderY, msgColor, scale);
+    textRenderer->renderText(msg, centeredX, textY, msgColor, scale);
 
     if (shopUiEnabled) {
         drawShopHud(uiW, uiH, showSellOverlay);
