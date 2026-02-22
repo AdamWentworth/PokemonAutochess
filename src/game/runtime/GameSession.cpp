@@ -1297,10 +1297,10 @@ struct GameSession::Impl {
                     boardBg.y = std::max(0.0f, projMinY);
                     boardBg.w = std::max(0.0f, std::min(static_cast<float>(drawableW), projMaxX) - boardBg.x);
                     boardBg.h = std::max(0.0f, std::min(static_cast<float>(drawableH), projMaxY) - boardBg.y);
-                    boardBg.r = 0.07f;
-                    boardBg.g = 0.11f;
-                    boardBg.b = 0.14f;
-                    boardBg.a = 0.36f;
+                    boardBg.r = 0.06f;
+                    boardBg.g = 0.07f;
+                    boardBg.b = 0.08f;
+                    boardBg.a = 0.30f;
                     worldBackgroundQuads.push_back(boardBg);
                 }
 
@@ -1455,10 +1455,10 @@ struct GameSession::Impl {
                         const float x1 = x0 + worldCellSize;
                         const float z1 = z0 + worldCellSize;
                         const bool darkCell = ((r + c) % 2) == 0;
-                        const float cr = darkCell ? 0.08f : 0.12f;
-                        const float cg = darkCell ? 0.13f : 0.17f;
-                        const float cb = darkCell ? 0.18f : 0.23f;
-                        const float ca = darkCell ? 0.34f : 0.27f;
+                        const float cr = darkCell ? 0.07f : 0.10f;
+                        const float cg = darkCell ? 0.08f : 0.11f;
+                        const float cb = darkCell ? 0.09f : 0.12f;
+                        const float ca = darkCell ? 0.32f : 0.26f;
                         const glm::vec3 qa(x0, boardSurfaceY, z0);
                         const glm::vec3 qb(x1, boardSurfaceY, z0);
                         const glm::vec3 qc(x1, boardSurfaceY, z1);
@@ -1481,12 +1481,12 @@ struct GameSession::Impl {
                             glm::vec3(x + gridHalfWidthWorld, gridY, boardMinZ),
                             glm::vec3(x + gridHalfWidthWorld, gridY, boardMaxZ),
                             glm::vec3(x - gridHalfWidthWorld, gridY, boardMaxZ),
-                            0.23f, 0.35f, 0.44f, 0.95f);
+                            0.74f, 0.75f, 0.77f, 0.88f);
                     } else {
                         appendProjectedLine(
                             glm::vec3(x, 0.01f, boardMinZ),
                             glm::vec3(x, 0.01f, boardMaxZ),
-                            0.23f, 0.35f, 0.44f, 0.95f, line);
+                            0.74f, 0.75f, 0.77f, 0.88f, line);
                     }
                 }
                 for (int r = 0; r <= rows; ++r) {
@@ -1497,12 +1497,12 @@ struct GameSession::Impl {
                             glm::vec3(boardMaxX, gridY, z - gridHalfWidthWorld),
                             glm::vec3(boardMaxX, gridY, z + gridHalfWidthWorld),
                             glm::vec3(boardMinX, gridY, z + gridHalfWidthWorld),
-                            0.23f, 0.35f, 0.44f, 0.95f);
+                            0.74f, 0.75f, 0.77f, 0.88f);
                     } else {
                         appendProjectedLine(
                             glm::vec3(boardMinX, 0.01f, z),
                             glm::vec3(boardMaxX, 0.01f, z),
-                            0.23f, 0.35f, 0.44f, 0.95f, line);
+                            0.74f, 0.75f, 0.77f, 0.88f, line);
                     }
                 }
                 if (worldTriangles.size() == boardTrianglesStart2D &&
@@ -1512,9 +1512,9 @@ struct GameSession::Impl {
                     boardFallback.y = boardY;
                     boardFallback.w = boardW;
                     boardFallback.h = boardH;
-                    boardFallback.r = 0.07f;
-                    boardFallback.g = 0.11f;
-                    boardFallback.b = 0.15f;
+                    boardFallback.r = 0.06f;
+                    boardFallback.g = 0.07f;
+                    boardFallback.b = 0.08f;
                     boardFallback.a = 0.92f;
                     worldBackgroundQuads.push_back(boardFallback);
 
@@ -3053,9 +3053,9 @@ struct GameSession::Impl {
             boardBg.y = boardY;
             boardBg.w = boardW;
             boardBg.h = boardH;
-            boardBg.r = renderWorld ? 0.10f : 0.08f;
-            boardBg.g = renderWorld ? 0.16f : 0.10f;
-            boardBg.b = renderWorld ? 0.20f : 0.14f;
+            boardBg.r = renderWorld ? 0.08f : 0.07f;
+            boardBg.g = renderWorld ? 0.09f : 0.08f;
+            boardBg.b = renderWorld ? 0.10f : 0.09f;
             boardBg.a = renderWorld ? 1.0f : 0.90f;
             worldBackgroundQuads.push_back(boardBg);
 
@@ -3070,13 +3070,13 @@ struct GameSession::Impl {
                     const bool darkCell = ((r + c) % 2) == 0;
                     if (darkCell) {
                         cell.r = renderWorld ? 0.08f : 0.07f;
-                        cell.g = renderWorld ? 0.13f : 0.09f;
-                        cell.b = renderWorld ? 0.18f : 0.12f;
-                        cell.a = renderWorld ? 0.28f : 0.22f;
+                        cell.g = renderWorld ? 0.09f : 0.08f;
+                        cell.b = renderWorld ? 0.10f : 0.09f;
+                        cell.a = renderWorld ? 0.24f : 0.20f;
                     } else {
-                        cell.r = renderWorld ? 0.16f : 0.10f;
-                        cell.g = renderWorld ? 0.22f : 0.14f;
-                        cell.b = renderWorld ? 0.27f : 0.18f;
+                        cell.r = renderWorld ? 0.11f : 0.09f;
+                        cell.g = renderWorld ? 0.12f : 0.10f;
+                        cell.b = renderWorld ? 0.13f : 0.11f;
                         cell.a = renderWorld ? 0.18f : 0.14f;
                     }
                     worldBackgroundQuads.push_back(cell);
@@ -3090,9 +3090,9 @@ struct GameSession::Impl {
                 vLine.x2 = vLine.x1;
                 vLine.y2 = boardY + boardH;
                 vLine.thickness = line;
-                vLine.r = renderWorld ? 0.24f : 0.18f;
-                vLine.g = renderWorld ? 0.36f : 0.23f;
-                vLine.b = renderWorld ? 0.45f : 0.30f;
+                vLine.r = renderWorld ? 0.74f : 0.62f;
+                vLine.g = renderWorld ? 0.75f : 0.63f;
+                vLine.b = renderWorld ? 0.77f : 0.65f;
                 vLine.a = 1.0f;
                 lines.push_back(vLine);
             }
@@ -3103,9 +3103,9 @@ struct GameSession::Impl {
                 hLine.x2 = boardX + boardW;
                 hLine.y2 = hLine.y1;
                 hLine.thickness = line;
-                hLine.r = renderWorld ? 0.24f : 0.18f;
-                hLine.g = renderWorld ? 0.36f : 0.23f;
-                hLine.b = renderWorld ? 0.45f : 0.30f;
+                hLine.r = renderWorld ? 0.74f : 0.62f;
+                hLine.g = renderWorld ? 0.75f : 0.63f;
+                hLine.b = renderWorld ? 0.77f : 0.65f;
                 hLine.a = 1.0f;
                 lines.push_back(hLine);
             }
@@ -3368,19 +3368,17 @@ struct GameSession::Impl {
         };
 
         const std::string mode = (services ? services->gameMode : std::string("classic"));
-        appendText(edgePad,
-                   edgePad + lineStep * 1.1f,
-                   runtime::backend_status_text::modeLine(mode),
-                   std::clamp(1.2f * uiScale, 0.95f, 1.7f),
-                   glm::vec3(0.93f, 0.95f, 0.99f));
+        appendRightText(edgePad + lineStep * 1.1f,
+                        runtime::backend_status_text::modeLine(mode),
+                        std::clamp(1.2f * uiScale, 0.95f, 1.7f),
+                        glm::vec3(0.93f, 0.95f, 0.99f));
         if (services) {
-            appendText(edgePad,
-                       edgePad + lineStep * 2.2f,
-                       runtime::backend_status_text::backendLine(
-                           services->activeRendererBackend,
-                           services->gpuRenderer),
-                       std::clamp(1.0f * uiScale, 0.80f, 1.35f),
-                       glm::vec3(0.68f, 0.80f, 0.94f));
+            appendRightText(edgePad + lineStep * 2.2f,
+                            runtime::backend_status_text::backendLine(
+                                services->activeRendererBackend,
+                                services->gpuRenderer),
+                            std::clamp(1.0f * uiScale, 0.80f, 1.35f),
+                            glm::vec3(0.68f, 0.80f, 0.94f));
         }
 
         RoundPhase roundPhase = RoundPhase::Planning;
@@ -3393,11 +3391,10 @@ struct GameSession::Impl {
                 combatActive = combatState->active;
             }
         }
-        appendText(edgePad,
-                   edgePad + lineStep * 3.3f,
-                       runtime::backend_status_text::roundLine(roundPhase, combatActive),
-                       std::clamp(1.0f * uiScale, 0.80f, 1.35f),
-                       glm::vec3(0.83f, 0.91f, 0.98f));
+        appendRightText(edgePad + lineStep * 3.3f,
+                        runtime::backend_status_text::roundLine(roundPhase, combatActive),
+                        std::clamp(1.0f * uiScale, 0.80f, 1.35f),
+                        glm::vec3(0.83f, 0.91f, 0.98f));
 
         if (!unitLabels.empty()) {
             for (const auto& label : unitLabels) {
@@ -3413,23 +3410,20 @@ struct GameSession::Impl {
                 if (unit.side == PokemonSide::Player) ++playerAlive;
                 else ++enemyAlive;
             }
-            appendText(edgePad,
-                       edgePad + lineStep * 4.4f,
-                       runtime::backend_status_text::unitsLine(playerAlive, enemyAlive),
-                       std::clamp(1.0f * uiScale, 0.80f, 1.35f),
-                       glm::vec3(0.72f, 0.90f, 0.84f));
-            appendText(edgePad,
-                       edgePad + lineStep * 5.5f,
-                       runtime::backend_status_text::goldLine(gameWorld->getMoney()),
-                       std::clamp(1.0f * uiScale, 0.80f, 1.35f),
-                       glm::vec3(0.96f, 0.88f, 0.56f));
+            appendRightText(edgePad + lineStep * 4.4f,
+                            runtime::backend_status_text::unitsLine(playerAlive, enemyAlive),
+                            std::clamp(1.0f * uiScale, 0.80f, 1.35f),
+                            glm::vec3(0.72f, 0.90f, 0.84f));
+            appendRightText(edgePad + lineStep * 5.5f,
+                            runtime::backend_status_text::goldLine(gameWorld->getMoney()),
+                            std::clamp(1.0f * uiScale, 0.80f, 1.35f),
+                            glm::vec3(0.96f, 0.88f, 0.56f));
             const std::string selectedItem = gameWorld->getSelectedItem();
             if (!selectedItem.empty()) {
-                appendText(edgePad,
-                           edgePad + lineStep * 6.6f,
-                           runtime::backend_status_text::selectedItemLine(selectedItem),
-                           std::clamp(1.0f * uiScale, 0.80f, 1.35f),
-                           glm::vec3(0.84f, 0.90f, 0.98f));
+                appendRightText(edgePad + lineStep * 6.6f,
+                                runtime::backend_status_text::selectedItemLine(selectedItem),
+                                std::clamp(1.0f * uiScale, 0.80f, 1.35f),
+                                glm::vec3(0.84f, 0.90f, 0.98f));
             }
 
             refreshBackendInventoryFromWorld();
@@ -3544,14 +3538,15 @@ struct GameSession::Impl {
                           });
 
                 float typeY = edgePad + lineStep * 6.6f;
-                appendRightText(typeY, "Type Lines", std::clamp(1.0f * uiScale, 0.80f, 1.30f), glm::vec3(0.98f, 0.90f, 0.60f));
+                appendText(edgePad, typeY, "Type Lines", std::clamp(1.0f * uiScale, 0.80f, 1.30f), glm::vec3(0.98f, 0.90f, 0.60f));
                 typeY += lineStep;
                 const std::size_t maxRows = std::min<std::size_t>(6, typeCounts.size());
                 for (std::size_t i = 0; i < maxRows; ++i) {
-                    appendRightText(typeY,
-                                    runtime::hud::formatTypeLineEntry(typeCounts[i].type, typeCounts[i].uniqueLineCount),
-                                    0.95f,
-                                    glm::vec3(0.92f, 0.94f, 0.98f));
+                    appendText(edgePad,
+                               typeY,
+                               runtime::hud::formatTypeLineEntry(typeCounts[i].type, typeCounts[i].uniqueLineCount),
+                               0.95f,
+                               glm::vec3(0.92f, 0.94f, 0.98f));
                     typeY += lineStep * 0.93f;
                 }
             }

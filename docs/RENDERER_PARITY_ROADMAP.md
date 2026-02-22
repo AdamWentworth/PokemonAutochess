@@ -129,6 +129,7 @@ Iteration Log
 - Iteration 37: Fixed board-grid depth parity by rendering projected-world grid lines as depth-tested 3D world quads (instead of 2D overlay lines that could appear through models), and added rigid single-joint skinning fast paths plus reusable depth/blend temporary buffers to reduce backend combat-frame CPU cost.
 - Iteration 38: Hardened backend-switch UX by adding an explicit runtime warning when `PAC_RENDER_BACKEND` env override is active (saved Display/API prefs ignored until unset) and a Display-menu mismatch hint when active API differs from preferred API (override/fallback visibility).
 - Iteration 39: Improved D3D12 visual parity by clamping backend model anchor height against board floor to prevent floor penetration/bounce artifacts, disabling proxy shadow floor quads when a real model mesh is rendered, restoring battle/economy feed side placement parity with OpenGL in backend HUD text layout, and removing D3D12 textured world-path ACES remap so textured model colors track OpenGL appearance more closely.
+- Iteration 40: Matched backend HUD anchoring closer to OpenGL by moving status block text (mode/backend/round/units/gold/selected item) to top-right and returning `Type Lines` to the left panel, while de-blueing backend board/cell/grid colors in both projected-world and 2D fallback paths to reduce D3D12 board tint drift.
 
 How This File Is Used
 - Before each parity implementation iteration:
