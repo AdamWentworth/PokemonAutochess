@@ -127,6 +127,7 @@ Iteration Log
 - Iteration 35: Added a debug-performance mode (`PAC_OPTIMIZE_RENDER_HOTPATHS_IN_DEBUG`, default on) that compiles D3D12/GameSession render hotpaths with optimization in Debug builds, and removed per-call backend text vertex-buffer allocations via reusable scratch storage in `BackendDebugText` to cut UI/text CPU churn.
 - Iteration 36: Reused backend debug-view frame buffers across frames (eliminating large per-frame vector allocations), cached per-node skin matrix prerequisites (including shared node-global inverses), and added an all-textured full-mesh position-only fast path to skip unnecessary normal-matrix work on D3D12 backend model rendering.
 - Iteration 37: Fixed board-grid depth parity by rendering projected-world grid lines as depth-tested 3D world quads (instead of 2D overlay lines that could appear through models), and added rigid single-joint skinning fast paths plus reusable depth/blend temporary buffers to reduce backend combat-frame CPU cost.
+- Iteration 38: Hardened backend-switch UX by adding an explicit runtime warning when `PAC_RENDER_BACKEND` env override is active (saved Display/API prefs ignored until unset) and a Display-menu mismatch hint when active API differs from preferred API (override/fallback visibility).
 
 How This File Is Used
 - Before each parity implementation iteration:

@@ -273,6 +273,9 @@ local function build_video_entries(entries)
         "Preferred GPU: " .. gpu_adapter_label(adapter_pref) .. " (applies next launch)", 0.60, false)
     info(entries, "Active API: " .. renderer_label(active_backend), 0.64)
     info(entries, "Active GPU: " .. tostring(active_gpu) .. " (" .. gpu_class .. ")", 0.68)
+    if active_backend ~= backend then
+        info(entries, "Active API differs from preference (env override or fallback).", 0.70)
+    end
 
     local fps = video_cfg.fps_caps[video_cfg.fps_index]
     local fps_label = "FPS Cap: "

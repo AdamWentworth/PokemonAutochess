@@ -254,6 +254,8 @@ namespace {
         if (const auto envBackend = engine::env::get("PAC_RENDER_BACKEND")) {
             backendToken = *envBackend;
             std::cout << "[Renderer] PAC_RENDER_BACKEND override: " << backendToken << "\n";
+            std::cout << "[Renderer] Note: env override is active; saved Display settings "
+                         "(Render API) are ignored until PAC_RENDER_BACKEND is unset.\n";
         }
         requestedBackend = game::video::parseRendererBackend(backendToken);
         services.requestedRendererBackend = game::video::rendererBackendName(requestedBackend);
