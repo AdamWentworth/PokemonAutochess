@@ -1268,42 +1268,6 @@ struct GameSession::Impl {
                     return true;
                 };
 
-                float projMinX = static_cast<float>(drawableW);
-                float projMinY = static_cast<float>(drawableH);
-                float projMaxX = 0.0f;
-                float projMaxY = 0.0f;
-                bool hasProjectedBounds = false;
-                const glm::vec3 corners[4] = {
-                    {boardMinX, 0.01f, boardMinZ},
-                    {boardMaxX, 0.01f, boardMinZ},
-                    {boardMaxX, 0.01f, boardMaxZ},
-                    {boardMinX, 0.01f, boardMaxZ}
-                };
-                for (const glm::vec3& corner : corners) {
-                    float sx = 0.0f;
-                    float sy = 0.0f;
-                    float sz = 0.0f;
-                    if (!projectWorld(corner, sx, sy, sz)) continue;
-                    if (sz < 0.0f || sz > 1.0f) continue;
-                    projMinX = std::min(projMinX, sx);
-                    projMinY = std::min(projMinY, sy);
-                    projMaxX = std::max(projMaxX, sx);
-                    projMaxY = std::max(projMaxY, sy);
-                    hasProjectedBounds = true;
-                }
-                if (hasProjectedBounds) {
-                    IRenderBackend::DebugQuad boardBg;
-                    boardBg.x = std::max(0.0f, projMinX);
-                    boardBg.y = std::max(0.0f, projMinY);
-                    boardBg.w = std::max(0.0f, std::min(static_cast<float>(drawableW), projMaxX) - boardBg.x);
-                    boardBg.h = std::max(0.0f, std::min(static_cast<float>(drawableH), projMaxY) - boardBg.y);
-                    boardBg.r = 0.06f;
-                    boardBg.g = 0.07f;
-                    boardBg.b = 0.08f;
-                    boardBg.a = 0.30f;
-                    worldBackgroundQuads.push_back(boardBg);
-                }
-
                 const float line = std::max(1.0f, minDim * 0.0019f);
                 const auto appendWorldTriangle = [&](const glm::vec3& a,
                                                      const glm::vec3& b,
