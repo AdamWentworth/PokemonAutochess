@@ -195,7 +195,7 @@ void GameWorld::tryApplyEvolution(PokemonInstance& unit) {
     const std::string path = "assets/models/" + nextStats->model;
 
     std::shared_ptr<Model> nextModel = unit.model;
-    if (renderEnabled) {
+    if (legacyModelRenderPathEnabled) {
         if (resources) {
             auto loaded = resources->getModel(path);
             if (loaded) nextModel = loaded;

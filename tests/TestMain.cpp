@@ -15,6 +15,8 @@ bool test_manual_time_source(std::string& outFail);
 bool test_environment_helpers_contract(std::string& outFail);
 bool test_auto_quit_policy_contract(std::string& outFail);
 bool test_game_services_route_helpers(std::string& outFail);
+bool test_render_route_ownership_contract(std::string& outFail);
+bool test_render_routes_contract(std::string& outFail);
 bool test_logbus_recent_lines_contract(std::string& outFail);
 bool test_render_flow_decisions_contract(std::string& outFail);
 bool test_backend_render_policy_contract(std::string& outFail);
@@ -76,6 +78,7 @@ bool test_shop_system_phase_contract(std::string& outFail);
 bool test_gameworld_merge_progression(std::string& outFail);
 bool test_gameworld_spawn_bench_flow(std::string& outFail);
 bool test_gameworld_nonrender_with_resources_skips_model_load(std::string& outFail);
+bool test_gameworld_backend_render_mode_skips_legacy_model_load(std::string& outFail);
 bool test_gameworld_income_flow(std::string& outFail);
 bool test_gameworld_inventory_healing(std::string& outFail);
 bool test_gameworld_reset_economy_state(std::string& outFail);
@@ -150,6 +153,8 @@ int main(int argc, char** argv) {
         {"environment_helpers_contract", &test_environment_helpers_contract},
         {"auto_quit_policy_contract", &test_auto_quit_policy_contract},
         {"game_services_route_helpers", &test_game_services_route_helpers},
+        {"render_route_ownership_contract", &test_render_route_ownership_contract},
+        {"render_routes_contract", &test_render_routes_contract},
         {"logbus_recent_lines_contract", &test_logbus_recent_lines_contract},
         {"render_flow_decisions_contract", &test_render_flow_decisions_contract},
         {"backend_render_policy_contract", &test_backend_render_policy_contract},
@@ -211,6 +216,7 @@ int main(int argc, char** argv) {
         {"gameworld_merge_progression", &test_gameworld_merge_progression},
         {"gameworld_spawn_bench_flow", &test_gameworld_spawn_bench_flow},
         {"gameworld_nonrender_with_resources_skips_model_load", &test_gameworld_nonrender_with_resources_skips_model_load},
+        {"gameworld_backend_render_mode_skips_legacy_model_load", &test_gameworld_backend_render_mode_skips_legacy_model_load},
         {"gameworld_income_flow", &test_gameworld_income_flow},
         {"gameworld_inventory_healing", &test_gameworld_inventory_healing},
         {"gameworld_reset_economy_state", &test_gameworld_reset_economy_state},

@@ -6,6 +6,7 @@ CI is Windows-first and mirrors the local flow: configure, build, test, validate
 - Configure with the vcpkg toolchain.
 - Build Debug.
 - Run CTest.
+- CTest includes route-boundary contracts (render route ownership, frame/UI route policy, and backend-vs-legacy world model-attachment behavior).
 - Run `PAC_ValidateData`.
 - Use a vcpkg binary cache for faster rebuilds.
 - Run a clang-format check on changed C++ files.

@@ -70,12 +70,14 @@ Prioritized Backlog
 - [x] Decouple `GameServices::renderEnabled` from legacy-path selection and route state UI fallbacks through legacy-route helpers (`usesLegacyGameUiPath`) instead of treating non-OpenGL as non-render.
 - [x] Remove state-level direct backend route preference reads (`prefersLegacyGameUiPath`) and route gameplay UI decisions through `GameServices` route helpers (`usesLegacyGameUiPath` / `usesBackendGameUiPath`).
 - [x] Route `GameSession` gameplay input/update/render decisions through `GameServices` route helpers (render path vs UI path) instead of directly branching on local `legacyRenderPath`.
+- [x] Introduce a shared runtime route contract (`RenderRoutes`) and route render/UI policy helpers through it.
+- [x] Add route ownership guardrails so only `GameSession` reads backend route-preference hooks.
 - [ ] Remove backend-specific gameplay render flow and unify frame graph. (In progress: backend debug layer is now policy-gated to world-visible states.)
 - [ ] Remove `shouldUseBackendUi` backend split and unify UI policy. (Re-opened: OpenGL legacy card/shop path restored to prevent visual regressions while parity work continues.)
 - [ ] Replace backend quad text with glyph text rendering. (In progress: backend text menu now uses line-stroke text, full glyph path still pending.)
 - [ ] Route both backends through the same menu/shop/HUD layout/render code. (In progress: text-menu rendering is now forced through one backend-neutral path for both OpenGL and D3D12; shop/starter parity remains.)
 - [ ] Route both backends through the same world command generation code. (In progress: backend world path now prefers model mesh rendering with portrait fallback policy and suppresses tint-under-portrait artifacts.)
-- [ ] Remove `setRenderEnabled(legacyRenderPath)` behavior that disables non-OpenGL world resources.
+- [x] Remove `setRenderEnabled(legacyRenderPath)` behavior that disabled non-OpenGL world resources. (Now split into `renderEnabled` vs `legacyModelRenderPathEnabled` in `GameWorld`, with backend-mode regression coverage.)
 - [ ] Move backend debug world rendering behind an explicit dev-only flag. (In progress: menu world-backdrop is now disabled by default and can be enabled via `PAC_BACKEND_MENU_BACKDROP=1`.)
 - [ ] Implement/align backend-neutral draw contracts in `IRenderBackend` for required scene features. (In progress: indexed world-mesh draw contract landed and backend model submission now uses indexed batches on supporting backends.)
 - [ ] Complete D3D12 material and alpha-mode parity. (In progress: wrap-aware texture sampling, glTF-like base+emissive color composition, higher model detail budget, GL-clip-depth-to-D3D conversion, OpenGL-like sRGB+ACES textured world shading, indexed textured-submesh alpha-mode+cutoff + UV wrap controls, explicit D3D12 blend-depth-write-off world pipeline ordering, depth-sorted blend batch submission, and removal of textured-path alpha double-attenuation that was culling BLEND submesh regions landed in backend mesh path.)
@@ -138,6 +140,13 @@ Iteration Log
 - Iteration 43: Split renderer-availability from legacy-path routing in `GameSession`/`GameServices` (set `renderEnabled` from renderer presence, carry legacy render/UI routes explicitly), updated `PlacementState` and `CombatState` legacy text fallback checks to use `usesLegacyGameUiPath()`, and added a `GameServices` route-helper contract test.
 - Iteration 44: Removed remaining state-level renderer route probing in `ScriptedState` and `CombatState` (`prefersLegacyGameUiPath`) so only `GameSession` selects routes and gameplay UI logic now consumes `GameServices` route helpers, then revalidated with full 91-test pass.
 - Iteration 45: Refactored `GameSession` hot-path branching (input inventory UX path, fixed-update backend animation hydration, world-backdrop policy, frame-flow selection, and shutdown UI teardown) to consume `GameServices` route helpers instead of direct `legacyRenderPath` checks, preserving behavior while tightening renderer-agnostic boundaries.
+- Iteration 46: Introduced shared runtime `RenderRoutes` contract, migrated backend render policy + frame-flow decisions to route objects, and updated policy contract tests to consume route-based APIs.
+- Iteration 47: Migrated backend UI policy to route objects (`RenderRoutes`) and updated `ScriptedState`/`CombatState` call sites to use route-based UI policy decisions.
+- Iteration 48: Added `render_route_ownership_contract` to enforce that backend preference probes (`prefersLegacyGame*Path`) stay centralized in `GameSession`.
+- Iteration 49: Extracted legacy/backend inventory input handling into dedicated `GameSession` helpers to remove mixed-branch event logic and keep route behavior explicit.
+- Iteration 50: Extracted frame-flow selection/execution helpers (`currentFrameFlow`, `renderFrameFromFlow`) in `GameSession` for cleaner route-driven render orchestration.
+- Iteration 51: Split `GameWorld` render contracts into backend-neutral `renderEnabled` and legacy-only model attachment flag (`legacyModelRenderPathEnabled`), and switched `GameSession` world setup to set both explicitly.
+- Iteration 52: Added route contract regression test (`render_routes_contract`) plus backend-world model-attachment regression (`gameworld_backend_render_mode_skips_legacy_model_load`) and revalidated route/boundary test coverage.
 
 How This File Is Used
 - Before each parity implementation iteration:

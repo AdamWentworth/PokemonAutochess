@@ -183,3 +183,63 @@ bool test_gameworld_nonrender_with_resources_skips_model_load(std::string& outFa
 
     return true;
 }
+
+bool test_gameworld_backend_render_mode_skips_legacy_model_load(std::string& outFail) {
+    GameConfigData cfg;
+    GameDataDb db;
+
+    const std::string pokemonPath = engine::paths::data("config/pokemon_config.json");
+    const std::string movesPath = engine::paths::data("config/moves_config.json");
+    if (!db.pokemon.loadConfig(pokemonPath, nullptr)) {
+        outFail = "Failed to load pokemon config: " + pokemonPath;
+        return false;
+    }
+    if (!db.moves.loadConfig(movesPath, nullptr)) {
+        outFail = "Failed to load moves config: " + movesPath;
+        return false;
+    }
+
+    GameWorld world(cfg);
+    world.setData(&db);
+    world.setRenderEnabled(true);
+    world.setLegacyModelRenderPathEnabled(false);
+
+    ResourceManager resources;
+    world.setResources(&resources);
+
+    try {
+        world.spawnPokemon("bulbasaur", glm::vec3(0.0f, 0.0f, 0.0f), PokemonSide::Player, 3);
+    } catch (const std::exception& ex) {
+        outFail = std::string("backend render-mode spawn should not throw: ") + ex.what();
+        return false;
+    }
+
+    const auto& board = world.getPokemons();
+    if (board.empty()) {
+        outFail = "spawnPokemon should still create units in backend render mode.";
+        return false;
+    }
+    if (board.back().model != nullptr) {
+        outFail = "backend render mode should skip legacy OpenGL model attachment.";
+        return false;
+    }
+
+    try {
+        world.addToBench("charmander", 2);
+    } catch (const std::exception& ex) {
+        outFail = std::string("backend render-mode bench add should not throw: ") + ex.what();
+        return false;
+    }
+
+    const auto& bench = world.getBenchPokemons();
+    if (bench.empty()) {
+        outFail = "addToBench should still create bench units in backend render mode.";
+        return false;
+    }
+    if (bench.back().model != nullptr) {
+        outFail = "backend render mode should skip legacy bench model attachment.";
+        return false;
+    }
+
+    return true;
+}

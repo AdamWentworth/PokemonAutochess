@@ -4,9 +4,10 @@
 
 bool test_render_flow_decisions_contract(std::string& outFail) {
     using game::runtime::render::decideFrameRenderFlow;
+    using game::runtime::render::makeRenderRoutes;
 
     {
-        const auto flow = decideFrameRenderFlow(false, true, true);
+        const auto flow = decideFrameRenderFlow(makeRenderRoutes(false, true), true);
         if (!flow.renderStateLayer ||
             flow.renderLegacyWorldLayer ||
             flow.renderLegacyHudLayer ||
@@ -17,7 +18,7 @@ bool test_render_flow_decisions_contract(std::string& outFail) {
     }
 
     {
-        const auto flow = decideFrameRenderFlow(true, true, true);
+        const auto flow = decideFrameRenderFlow(makeRenderRoutes(true, true), true);
         if (!flow.renderStateLayer ||
             !flow.renderLegacyWorldLayer ||
             !flow.renderLegacyHudLayer ||
@@ -28,7 +29,7 @@ bool test_render_flow_decisions_contract(std::string& outFail) {
     }
 
     {
-        const auto flow = decideFrameRenderFlow(true, true, false);
+        const auto flow = decideFrameRenderFlow(makeRenderRoutes(true, true), false);
         if (!flow.renderStateLayer ||
             flow.renderLegacyWorldLayer ||
             flow.renderLegacyHudLayer ||
@@ -39,7 +40,7 @@ bool test_render_flow_decisions_contract(std::string& outFail) {
     }
 
     {
-        const auto flow = decideFrameRenderFlow(true, false, true);
+        const auto flow = decideFrameRenderFlow(makeRenderRoutes(true, false), true);
         if (!flow.renderStateLayer ||
             flow.renderLegacyWorldLayer ||
             flow.renderLegacyHudLayer ||
@@ -50,7 +51,7 @@ bool test_render_flow_decisions_contract(std::string& outFail) {
     }
 
     {
-        const auto flow = decideFrameRenderFlow(true, false, false);
+        const auto flow = decideFrameRenderFlow(makeRenderRoutes(true, false), false);
         if (!flow.renderStateLayer ||
             flow.renderLegacyWorldLayer ||
             flow.renderLegacyHudLayer ||

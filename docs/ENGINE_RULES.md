@@ -6,6 +6,7 @@ These rules protect engine reuse and keep the project maintainable.
 - Headless core: `engine_core` must not depend on SDL/OpenGL/GLAD.
 - No mutable runtime globals or singletons.
 - Game-owned loop and composition root.
+- Renderer API routing is selected once in `GameSession`; gameplay states consume route helpers from `GameServices` instead of querying backend-specific preferences directly.
 - One authoritative update graph (scheduler).
 - Lua interacts through a narrow ScriptAPI, not raw pointers.
 - Runtime reads cooked content through an asset store.

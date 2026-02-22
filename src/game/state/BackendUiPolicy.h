@@ -1,22 +1,40 @@
 #pragma once
 
+#include "game/runtime/RenderRoutes.h"
 #include "game/ui/ShopLayout.h"
 
 namespace game::state::backend_ui {
 
+inline bool shouldUseBackendUi(const game::runtime::render::RenderRoutes& routes,
+                               bool preferLegacyUi = false) {
+    if (preferLegacyUi) return false;
+    return routes.usesBackendUiPath();
+}
+
+inline bool shouldRenderBackendTextMenu(const game::runtime::render::RenderRoutes& routes,
+                                        bool isTextMenuMode) {
+    // Text-menu rendering is backend-neutral (quads + lines only), so keep one
+    // shared menu visual path across OpenGL and D3D12.
+    return routes.hasRenderer && isTextMenuMode;
+}
+
+// Transitional overloads for existing call sites/tests.
 inline bool shouldUseBackendUi(bool hasRenderer,
                                bool backendPrefersLegacyUiPath,
                                bool preferLegacyUi = false) {
-    if (preferLegacyUi) return false;
-    if (!hasRenderer) return false;
-    return !backendPrefersLegacyUiPath;
+    return shouldUseBackendUi(
+        game::runtime::render::makeRenderRoutes(
+            hasRenderer,
+            /*legacyRenderPath*/ false,
+            backendPrefersLegacyUiPath),
+        preferLegacyUi);
 }
 
 inline bool shouldRenderBackendTextMenu(bool hasRenderer,
                                         bool isTextMenuMode) {
-    // Text-menu rendering is backend-neutral (quads + lines only), so keep one
-    // shared menu visual path across OpenGL and D3D12.
-    return hasRenderer && isTextMenuMode;
+    return shouldRenderBackendTextMenu(
+        game::runtime::render::makeRenderRoutes(hasRenderer, /*legacyRenderPath*/ false),
+        isTextMenuMode);
 }
 
 inline bool shouldShowSellOverlay(bool isShopMode,

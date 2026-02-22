@@ -17,4 +17,5 @@ This repo is a portfolio piece and a reusable engine foundation. The game is the
 ## Success Signals
 - CI stays green on Windows.
 - Tests catch regressions in movement and rendering setup.
+- Render-route boundary tests stay green (`RenderRoutes`, route ownership, and backend/legacy route contracts).
 - README tells a clear story to employers in under a minute.

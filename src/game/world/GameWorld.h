@@ -77,6 +77,7 @@ public:
     void setData(const GameDataDb* db) { data = db; }
     void setLogger(LogBus::Logger* logger) { log = logger; }
     void setRenderEnabled(bool enabled) { renderEnabled = enabled; }
+    void setLegacyModelRenderPathEnabled(bool enabled) { legacyModelRenderPathEnabled = enabled; }
     void setRng(engine::IRandom* rngIn) { rng = rngIn; }
     LogBus::Logger* getLogger() const { return log; }
     const GameDataDb* getData() const { return data; }
@@ -182,6 +183,7 @@ private:
     LogBus::Logger* log = nullptr;        // optional game-owned logger
     const GameConfigData& config;
     bool renderEnabled = false;
+    bool legacyModelRenderPathEnabled = false;
     engine::IRandom* rng = nullptr;
 
     std::vector<PokemonInstance> pokemons;

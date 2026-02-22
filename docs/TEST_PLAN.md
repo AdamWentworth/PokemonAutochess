@@ -26,6 +26,8 @@ Focus on catching real regressions while keeping tests fast and headless.
 - Minimal end-to-end headless flow (placement -> combat -> round resolution).
 - Render pipeline smoke test (shader include checks; optional GL compile + board + real model draw via `PAC_TEST_GL=1`).
 - Layering enforcement check (engine cannot include game headers).
+- Render-route contract coverage (`RenderRoutes`, frame-flow policy, backend UI policy, and route ownership guardrail that only `GameSession` probes backend route preferences).
+- GameWorld backend-render mode regression coverage (render-enabled world can skip legacy OpenGL model attachment).
 
 ## Coverage Gaps (High Risk)
 - No packaged build smoke run (installer output or `dist/Release` execution).

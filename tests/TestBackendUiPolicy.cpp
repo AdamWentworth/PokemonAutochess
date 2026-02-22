@@ -3,37 +3,38 @@
 #include <string>
 
 bool test_backend_ui_sell_overlay_policy(std::string& outFail) {
+    using game::runtime::render::makeRenderRoutes;
     using game::state::backend_ui::computeSellOverlayHitLayout;
     using game::state::backend_ui::computeSellOverlayOuterLayout;
     using game::state::backend_ui::shouldRenderBackendTextMenu;
     using game::state::backend_ui::shouldShowSellOverlay;
     using game::state::backend_ui::shouldUseBackendUi;
 
-    if (!shouldUseBackendUi(true, false)) {
+    if (!shouldUseBackendUi(makeRenderRoutes(true, false, false))) {
         outFail = "backend ui policy should allow backend UI when legacy path is not preferred";
         return false;
     }
-    if (shouldUseBackendUi(true, true)) {
+    if (shouldUseBackendUi(makeRenderRoutes(true, false, true))) {
         outFail = "backend ui policy should respect backend legacy-ui preference";
         return false;
     }
-    if (shouldUseBackendUi(true, false, true)) {
+    if (shouldUseBackendUi(makeRenderRoutes(true, false, false), true)) {
         outFail = "backend ui policy should allow explicit legacy-ui opt-out";
         return false;
     }
-    if (shouldUseBackendUi(false, false)) {
+    if (shouldUseBackendUi(makeRenderRoutes(false, false, false))) {
         outFail = "backend ui policy should require renderer availability";
         return false;
     }
-    if (!shouldRenderBackendTextMenu(true, true)) {
+    if (!shouldRenderBackendTextMenu(makeRenderRoutes(true, false, false), true)) {
         outFail = "backend text menu policy should allow backend-neutral text menus";
         return false;
     }
-    if (shouldRenderBackendTextMenu(true, false)) {
+    if (shouldRenderBackendTextMenu(makeRenderRoutes(true, false, false), false)) {
         outFail = "backend text menu policy should require text-menu mode";
         return false;
     }
-    if (shouldRenderBackendTextMenu(false, true)) {
+    if (shouldRenderBackendTextMenu(makeRenderRoutes(false, false, false), true)) {
         outFail = "backend text menu policy should require renderer availability";
         return false;
     }

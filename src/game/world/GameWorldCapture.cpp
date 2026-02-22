@@ -215,7 +215,7 @@ void GameWorld::updateCaptureAttempts(float dt) {
                     attempt.ballScale = attempt.ballImpactScale * (1.0f + t * 0.6f);
                     if (t >= 1.0f) {
                         if (target) {
-                            if (renderEnabled) {
+                            if (legacyModelRenderPathEnabled) {
                                 emitTackleImpactAt(*target, nullptr);
                             }
                             target->captureInProgress = false;
@@ -258,7 +258,7 @@ void GameWorld::updateCaptureAttempts(float dt) {
 
 void GameWorld::ensurePokeballModel() {
     if (pokeballModelLoaded) return;
-    if (!renderEnabled) return;
+    if (!legacyModelRenderPathEnabled) return;
     if (!resources) return;
     pokeballModel = resources->getModel("assets/models/pokeball.glb");
     pokeballModelLoaded = (pokeballModel != nullptr);

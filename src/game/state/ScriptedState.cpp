@@ -92,9 +92,12 @@ ScriptedState::ScriptedState(GameStateManager* manager, GameWorld* world, GameSe
 ScriptedState::~ScriptedState() = default;
 
 bool ScriptedState::shouldUseBackendCardUi() const {
-    return game::state::backend_ui::shouldUseBackendUi(
+    const auto routes = game::runtime::render::makeRenderRoutes(
         services.renderEnabled,
+        services.usesLegacyGameRenderPath(),
         services.usesLegacyGameUiPath());
+    return game::state::backend_ui::shouldUseBackendUi(
+        routes);
 }
 
 void ScriptedState::resetBackendShopActionRects() {
@@ -1329,8 +1332,12 @@ void ScriptedState::render() {
     const auto* viewport = services.viewport;
     const int uiW = viewport ? viewport->width : 1280;
     const int uiH = viewport ? viewport->height : 720;
-    const bool renderBackendTextMenuPath = game::state::backend_ui::shouldRenderBackendTextMenu(
+    const auto routes = game::runtime::render::makeRenderRoutes(
         services.renderEnabled,
+        services.usesLegacyGameRenderPath(),
+        services.usesLegacyGameUiPath());
+    const bool renderBackendTextMenuPath = game::state::backend_ui::shouldRenderBackendTextMenu(
+        routes,
         cardMode == CardMode::TextMenu);
 
     if (titleText && !renderBackendTextMenuPath) {

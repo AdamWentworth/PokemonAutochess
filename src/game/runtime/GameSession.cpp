@@ -431,6 +431,17 @@ struct GameSession::Impl {
         return renderEnabled && !legacyUiPath;
     }
 
+    runtime::render::RenderRoutes activeRenderRoutes() const {
+        return runtime::render::makeRenderRoutes(
+            hasActiveRenderBackend(),
+            usesLegacyGameRenderPath(),
+            usesLegacyGameUiPath());
+    }
+
+    runtime::render::FrameRenderFlow currentFrameFlow(bool renderWorldRequested) const {
+        return runtime::render::decideFrameRenderFlow(activeRenderRoutes(), renderWorldRequested);
+    }
+
     runtime::backend_model::MeshData* ensureBackendMeshLoaded(const std::string& modelPath) {
         auto& cacheEntry = backendMeshByModelPath[modelPath];
         if (!cacheEntry.attemptedLoad) {
@@ -761,7 +772,8 @@ struct GameSession::Impl {
 
         // World
         gameWorld = std::make_unique<GameWorld>(config);
-        gameWorld->setRenderEnabled(usesLegacyGameRenderPath());
+        gameWorld->setRenderEnabled(hasActiveRenderBackend());
+        gameWorld->setLegacyModelRenderPathEnabled(usesLegacyGameRenderPath());
         gameWorld->setLogger(&log);
         gameWorld->setRng(&services->rng);
         if (ctx.services) gameWorld->setResources(ctx.services->resources);
@@ -1021,6 +1033,76 @@ struct GameSession::Impl {
             gameWorld->getSelectedItem());
     }
 
+    bool handleLegacyInventoryUiInput(const InputEvent& event) {
+        if (event.type == InputEvent::Type::MouseWheel) {
+            itemInventoryUI.handleScroll(event.wheelY, viewport.height);
+            return false;
+        }
+
+        if (event.type != InputEvent::Type::MouseDown ||
+            event.mouseButtonId != InputEvent::MouseButton::Left) {
+            return false;
+        }
+
+        if (auto clicked = itemInventoryUI.handleMouseClick(event.mouseX, event.mouseY)) {
+            if (gameWorld) {
+                gameWorld->setSelectedItem(*clicked);
+                log.catchInfo("Selected " + runtime::hud::humanizeToken(*clicked) + ". Click a target.");
+            }
+            return true; // consume click (avoid dragging/other UI)
+        }
+        return false;
+    }
+
+    bool handleBackendInventoryUiInput(const InputEvent& event) {
+        if (event.type == InputEvent::Type::KeyDown && !event.repeat) {
+            const int offsetDelta = runtime::backend_input::inventoryOffsetDeltaFromKey(
+                event.keyId,
+                static_cast<int>(kBackendInventoryVisibleCount));
+            if (applyBackendInventoryOffsetDelta(offsetDelta)) {
+                return true; // consume nav key when inventory paging changed.
+            }
+
+            refreshBackendInventoryFromWorld();
+            const int slot = runtime::backend_input::slotFromNumberKey(event.keyId);
+            const auto itemId = runtime::backend_inventory_panel::visibleItemForSlot(
+                backendInventoryPanel,
+                slot);
+            if (itemId && selectBackendInventoryItem(*itemId)) {
+                return true; // consume key to avoid accidental board interactions.
+            }
+            return false;
+        }
+
+        if (event.type == InputEvent::Type::MouseWheel) {
+            const int wheelDelta = runtime::backend_inventory_panel::offsetDeltaFromWheel(event.wheelY);
+            return applyBackendInventoryOffsetDelta(wheelDelta);
+        }
+
+        if (event.type != InputEvent::Type::MouseDown ||
+            event.mouseButtonId != InputEvent::MouseButton::Left) {
+            return false;
+        }
+
+        const float mx = static_cast<float>(event.mouseX);
+        const float my = static_cast<float>(event.mouseY);
+        const auto* hit = runtime::backend_inventory_panel::findHit(backendInventoryPanel, mx, my);
+        if (!hit) return false;
+
+        if (hit->action == runtime::backend_inventory_panel::HitAction::ClearSelection) {
+            clearBackendInventorySelection();
+            return true;
+        }
+        if (hit->action == runtime::backend_inventory_panel::HitAction::ScrollOffset) {
+            applyBackendInventoryOffsetDelta(hit->offsetDelta);
+            return true;
+        }
+        if (selectBackendInventoryItem(hit->itemId)) {
+            return true;
+        }
+        return false;
+    }
+
     void handleEvent(const InputEvent& event) {
         if (event.type == InputEvent::Type::Resize) {
             viewport.set(event.drawableW, event.drawableH);
@@ -1079,64 +1161,14 @@ struct GameSession::Impl {
             }
         }
 
-        if (renderWorldForInput &&
-            usesBackendGameUiPath() &&
-            event.type == InputEvent::Type::KeyDown &&
-            !event.repeat) {
-            const int offsetDelta = runtime::backend_input::inventoryOffsetDeltaFromKey(
-                event.keyId,
-                static_cast<int>(kBackendInventoryVisibleCount));
-            if (applyBackendInventoryOffsetDelta(offsetDelta)) {
-                return; // consume nav key when inventory paging changed.
-            }
-
-            refreshBackendInventoryFromWorld();
-            const int slot = runtime::backend_input::slotFromNumberKey(event.keyId);
-            const auto itemId = runtime::backend_inventory_panel::visibleItemForSlot(
-                backendInventoryPanel,
-                slot);
-            if (itemId && selectBackendInventoryItem(*itemId)) {
-                return; // consume key to avoid accidental board interactions.
+        if (renderWorldForInput && usesBackendGameUiPath()) {
+            if (handleBackendInventoryUiInput(event)) {
+                return;
             }
         }
-
-        if (renderWorldForInput && event.type == InputEvent::Type::MouseWheel) {
-            if (usesLegacyGameUiPath()) {
-                itemInventoryUI.handleScroll(event.wheelY, viewport.height);
-            } else {
-                const int wheelDelta = runtime::backend_inventory_panel::offsetDeltaFromWheel(event.wheelY);
-                if (applyBackendInventoryOffsetDelta(wheelDelta)) {
-                    return;
-                }
-            }
-        }
-        if (renderWorldForInput && event.type == InputEvent::Type::MouseDown &&
-            event.mouseButtonId == InputEvent::MouseButton::Left) {
-            if (usesLegacyGameUiPath()) {
-                if (auto clicked = itemInventoryUI.handleMouseClick(event.mouseX, event.mouseY)) {
-                    if (gameWorld) {
-                        gameWorld->setSelectedItem(*clicked);
-                        log.catchInfo("Selected " + runtime::hud::humanizeToken(*clicked) + ". Click a target.");
-                    }
-                    return; // consume click (avoid dragging/other UI)
-                }
-            } else {
-                const float mx = static_cast<float>(event.mouseX);
-                const float my = static_cast<float>(event.mouseY);
-                const auto* hit = runtime::backend_inventory_panel::findHit(backendInventoryPanel, mx, my);
-                if (hit) {
-                    if (hit->action == runtime::backend_inventory_panel::HitAction::ClearSelection) {
-                        clearBackendInventorySelection();
-                        return;
-                    }
-                    if (hit->action == runtime::backend_inventory_panel::HitAction::ScrollOffset) {
-                        applyBackendInventoryOffsetDelta(hit->offsetDelta);
-                        return;
-                    }
-                    if (selectBackendInventoryItem(hit->itemId)) {
-                        return;
-                    }
-                }
+        if (renderWorldForInput && usesLegacyGameUiPath()) {
+            if (handleLegacyInventoryUiInput(event)) {
+                return;
             }
         }
         if (renderWorldForInput && cameraSystem) cameraSystem->handleInput(event);
@@ -1249,9 +1281,10 @@ struct GameSession::Impl {
         const float cellW = boardW / static_cast<float>(cols);
         const float cellH = boardH / static_cast<float>(rows);
 
+        const runtime::render::RenderRoutes routes = activeRenderRoutes();
         const bool showWorldBackdrop = runtime::render::shouldRenderBackendWorldBackdrop(
+            routes,
             renderWorld,
-            usesLegacyGameRenderPath(),
             allowBackendMenuBackdrop);
         if (showWorldBackdrop) {
             const bool useProjectedWorldLayout = renderWorld && gameWorld && (camera != nullptr);
@@ -3830,6 +3863,24 @@ struct GameSession::Impl {
         }
     }
 
+    void renderFrameFromFlow(const runtime::render::FrameRenderFlow& flow,
+                             int drawableW,
+                             int drawableH,
+                             bool renderWorld) {
+        if (flow.renderLegacyWorldLayer) {
+            renderLegacyWorldLayer(drawableW, drawableH, renderWorld);
+        }
+        if (flow.renderBackendDebugLayer) {
+            renderBackendDebugView(drawableW, drawableH, renderWorld);
+        }
+        if (flow.renderStateLayer) {
+            renderStateLayer();
+        }
+        if (flow.renderLegacyHudLayer) {
+            renderLegacyHudLayer(drawableW, drawableH, renderWorld);
+        }
+    }
+
     void render(int drawableW, int drawableH) {
         viewport.set(drawableW, drawableH);
         if (unitSystem) {
@@ -3845,21 +3896,8 @@ struct GameSession::Impl {
             }
         }
 
-        const auto flow = runtime::render::decideFrameRenderFlow(
-            hasActiveRenderBackend(), usesLegacyGameRenderPath(), renderWorld);
-
-        if (flow.renderLegacyWorldLayer) {
-            renderLegacyWorldLayer(drawableW, drawableH, renderWorld);
-        }
-        if (flow.renderBackendDebugLayer) {
-            renderBackendDebugView(drawableW, drawableH, renderWorld);
-        }
-        if (flow.renderStateLayer) {
-            renderStateLayer();
-        }
-        if (flow.renderLegacyHudLayer) {
-            renderLegacyHudLayer(drawableW, drawableH, renderWorld);
-        }
+        const auto flow = currentFrameFlow(renderWorld);
+        renderFrameFromFlow(flow, drawableW, drawableH, renderWorld);
     }
 
     void shutdown() {
