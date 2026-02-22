@@ -10,6 +10,10 @@ bool test_video_preferences_parse_and_roundtrip(std::string& outFail) {
         outFail = "parseRendererBackend(opengl) failed";
         return false;
     }
+    if (game::video::parseRendererBackend("opengl_shared") != RendererBackend::OpenGLShared) {
+        outFail = "parseRendererBackend(opengl_shared) failed";
+        return false;
+    }
     if (game::video::parseRendererBackend("vk") != RendererBackend::Vulkan) {
         outFail = "parseRendererBackend(vk) failed";
         return false;
@@ -20,6 +24,10 @@ bool test_video_preferences_parse_and_roundtrip(std::string& outFail) {
     }
     if (!game::video::isKnownRendererBackendToken("direct3d12")) {
         outFail = "known renderer token check failed";
+        return false;
+    }
+    if (!game::video::isKnownRendererBackendToken("opengl_shared")) {
+        outFail = "known renderer token check failed for opengl_shared";
         return false;
     }
 #if defined(_WIN32)
@@ -73,6 +81,22 @@ bool test_video_preferences_parse_and_roundtrip(std::string& outFail) {
     }
     if (loaded.bootMenuScreen != "video") {
         outFail = "roundtrip bootMenuScreen mismatch";
+        return false;
+    }
+
+    prefs.rendererBackend = "opengl_shared";
+    prefs.requireDiscreteGpu = false;
+    prefs.preferredGpuAdapter.clear();
+    prefs.restartOnExit = false;
+    prefs.bootMenuScreen = {};
+    if (!game::video::savePreferences(prefs, path, &err)) {
+        outFail = "savePreferences failed for opengl_shared: " + err;
+        return false;
+    }
+    const game::video::Preferences loadedShared = game::video::loadPreferences(path);
+    std::filesystem::remove(tempPath, ec);
+    if (loadedShared.rendererBackend != "opengl_shared") {
+        outFail = "roundtrip renderer backend mismatch for opengl_shared";
         return false;
     }
 

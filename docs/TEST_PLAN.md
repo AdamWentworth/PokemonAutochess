@@ -45,3 +45,8 @@ Focus on catching real regressions while keeping tests fast and headless.
 2. Place a few units and start combat.
 3. Verify movement looks correct and units do not overlap.
 4. Verify animations play and models appear.
+
+## Manual Parity Matrix (Renderer Routes)
+1. Run with Display `Render API = OpenGL (Legacy)` (`renderer_backend=opengl`) and capture baseline screenshots/perf.
+2. Run with Display `Render API = OpenGL (Shared Contracts)` (`renderer_backend=opengl_shared`) and compare against OpenGL legacy.
+3. Run with Display `Render API = D3D12` (`renderer_backend=d3d12`) and compare against OpenGL shared-contract output.

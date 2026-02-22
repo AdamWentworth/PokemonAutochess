@@ -19,6 +19,7 @@ Current Reality (Baseline)
 - OpenGL path uses legacy world/UI path.
 - Text in backend UI is quad-based debug text, causing rectangle-like glyph artifacts.
 - World model/material/animation rendering is still split and not fully equivalent.
+- Temporary parity validation mode is available: `renderer_backend=opengl_shared` runs OpenGL with shared-contract render/UI routes (while `renderer_backend=opengl` keeps legacy routes).
 
 Evidence Anchors (Key Files)
 - Render-flow split: `src/game/runtime/RenderFlowDecisions.h`, `src/game/runtime/GameSession.cpp`
@@ -68,6 +69,10 @@ Milestones
 Remaining Estimate (as of 2026-02-22)
 - Estimated remaining work to true renderer-agnostic parity: 9-12 focused iterations.
 - Why this is still non-trivial: game/runtime still owns backend debug-world rendering and legacy world/HUD paths, so route contracts are cleaner now but visual stack ownership is not fully unified yet.
+- Migration target (contract-first):
+- 1) Treat OpenGL legacy behavior as source-of-truth and encode that behavior into shared contracts.
+- 2) Validate parity using three runtime modes: `opengl` (legacy), `opengl_shared` (shared contracts), and `d3d12` (shared contracts).
+- 3) Flip OpenGL default to shared contracts once parity is stable, then retire legacy world/HUD paths.
 - Next parity-first slice:
 - 1) Unify frame flow and frame-layer dispatch (remove backend-specific flow branching at render orchestration level).
 - 2) Continue frame-flow unification by keeping one world-layer decision path and isolating legacy-only HUD layering.
@@ -84,6 +89,7 @@ Prioritized Backlog
 - [x] Centralize `GameServices` -> `RenderRoutes` conversion in one helper (`routesFromServices`) and use it in gameplay states/session route selection.
 - [x] Remove direct `GameServices` UI-route reads in gameplay states (`services.usesLegacyGameUiPath` / `usesBackendGameUiPath`) and consume route helpers via `routesFromServices` + backend UI policy.
 - [x] Unify top-banner overlay layout contract for gameplay states (`PlacementState`, `CombatState`) across backend and legacy UI paths.
+- [x] Add temporary OpenGL shared-contract validation mode (`renderer_backend=opengl_shared`) so parity can be compared across `opengl` legacy, `opengl_shared`, and `d3d12` shared from in-game Display settings.
 - [ ] Remove backend-specific gameplay render flow and unify frame graph. (In progress: frame-flow contract now uses backend-neutral world/HUD layer decisions and route-dispatched world-layer execution; remaining work is to retire backend debug-world as the primary gameplay world renderer.)
 - [x] Unify frame-flow policy contract to backend-neutral world/HUD layer outputs (`renderWorldLayer`, `renderLegacyHudLayer`) with menu-backdrop-aware world routing.
 - [x] Unify `GameSession` frame execution around one `renderWorldLayer` route dispatcher instead of backend-specific flow flags.
@@ -170,6 +176,7 @@ Iteration Log
 - Iteration 59: Unified frame-flow decisions to backend-neutral world/HUD layers, routed `GameSession` world rendering through one route-dispatched `renderWorldLayer`, and added policy/flow contract coverage for backend menu-backdrop routing.
 - Iteration 60: Removed remaining state-level direct UI route reads in `CombatState`/`PlacementState`, routed those decisions through `routesFromServices` + backend UI policy helpers, and added a `state_ui_route_policy_contract` guardrail test to prevent regressions.
 - Iteration 61: Added shared `BackendTopBanner` layout/render helpers and switched `PlacementState` plus both `CombatState` banner paths (shop + non-shop, backend + legacy centering/Y policy) to one top-banner contract, with dedicated `backend_top_banner_contract` test coverage.
+- Iteration 62: Documented the contract-first migration path and added temporary in-game OpenGL shared-contract mode (`opengl_shared`) with runtime route override in `GameSession`, updated Display menu labels/options for tri-mode parity checks, and expanded video-preference token tests.
 
 How This File Is Used
 - Before each parity implementation iteration:

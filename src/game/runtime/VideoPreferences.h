@@ -8,6 +8,7 @@ namespace game::video {
 enum class RendererBackend {
     Auto,
     OpenGL,
+    OpenGLShared,
     Vulkan,
     D3D12
 };

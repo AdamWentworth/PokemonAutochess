@@ -690,6 +690,17 @@ struct GameSession::Impl {
             hasBackend,
             prefersLegacyRenderPath,
             prefersLegacyUiPath);
+        if (ctx.services) {
+            const std::string requestedBackend = toLowerCopy(ctx.services->requestedRendererBackend);
+            if (requestedBackend == "opengl_shared" && hasBackend &&
+                ctx.renderer->backendId() &&
+                toLowerCopy(ctx.renderer->backendId()) == "opengl") {
+                startupRoutes.legacyRenderPath = false;
+                startupRoutes.legacyUiPath = false;
+                std::cout << "[Renderer] OpenGL shared-contract mode enabled via Display preference "
+                          << "(renderer_backend=opengl_shared).\n";
+            }
+        }
         if (engine::env::get("PAC_BACKEND_MENU_BACKDROP").has_value()) {
             allowBackendMenuBackdrop = engine::env::flagEnabled("PAC_BACKEND_MENU_BACKDROP");
         }

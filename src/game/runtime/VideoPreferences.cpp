@@ -49,6 +49,10 @@ std::string defaultPreferencesPath() {
 RendererBackend parseRendererBackend(std::string_view tokenView) {
     const std::string token = normalizeToken(std::string(tokenView));
     if (token.empty() || token == "auto") return RendererBackend::Auto;
+    if (token == "opengl_shared" || token == "gl_shared" ||
+        token == "opengl_contracts" || token == "gl_contracts") {
+        return RendererBackend::OpenGLShared;
+    }
     if (token == "opengl" || token == "gl") return RendererBackend::OpenGL;
     if (token == "vulkan" || token == "vk") return RendererBackend::Vulkan;
     if (token == "d3d12" || token == "dx12" || token == "direct3d12") return RendererBackend::D3D12;
@@ -59,6 +63,8 @@ bool isKnownRendererBackendToken(std::string_view tokenView) {
     const std::string token = normalizeToken(std::string(tokenView));
     if (token.empty()) return true;
     return token == "auto" || token == "opengl" || token == "gl" ||
+           token == "opengl_shared" || token == "gl_shared" ||
+           token == "opengl_contracts" || token == "gl_contracts" ||
            token == "vulkan" || token == "vk" ||
            token == "d3d12" || token == "dx12" || token == "direct3d12";
 }
@@ -69,6 +75,8 @@ const char* rendererBackendName(RendererBackend backend) {
         return "auto";
     case RendererBackend::OpenGL:
         return "opengl";
+    case RendererBackend::OpenGLShared:
+        return "opengl_shared";
     case RendererBackend::Vulkan:
         return "vulkan";
     case RendererBackend::D3D12:
@@ -79,7 +87,9 @@ const char* rendererBackendName(RendererBackend backend) {
 }
 
 bool isRendererBackendImplemented(RendererBackend backend) {
-    if (backend == RendererBackend::Auto || backend == RendererBackend::OpenGL) {
+    if (backend == RendererBackend::Auto ||
+        backend == RendererBackend::OpenGL ||
+        backend == RendererBackend::OpenGLShared) {
         return true;
     }
 #if defined(_WIN32)
