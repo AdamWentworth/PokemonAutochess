@@ -17,6 +17,8 @@ public:
     void onResize(int width, int height) override;
     bool requiresOpenGLContext() const override { return true; }
     bool handlesPresentation() const override { return false; }
+    bool prefersLegacyGameRenderPath() const override { return true; }
+    bool prefersLegacyGameUiPath() const override { return true; }
     std::string activeGpuName() const override;
     bool activeGpuIsDiscrete() const override;
     void drawDebugQuads(const DebugQuad* quads,

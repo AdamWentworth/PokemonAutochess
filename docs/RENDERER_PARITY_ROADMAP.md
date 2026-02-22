@@ -131,6 +131,7 @@ Iteration Log
 - Iteration 39: Improved D3D12 visual parity by clamping backend model anchor height against board floor to prevent floor penetration/bounce artifacts, disabling proxy shadow floor quads when a real model mesh is rendered, restoring battle/economy feed side placement parity with OpenGL in backend HUD text layout, and removing D3D12 textured world-path ACES remap so textured model colors track OpenGL appearance more closely.
 - Iteration 40: Matched backend HUD anchoring closer to OpenGL by moving status block text (mode/backend/round/units/gold/selected item) to top-right and returning `Type Lines` to the left panel, while de-blueing backend board/cell/grid colors in both projected-world and 2D fallback paths to reduce D3D12 board tint drift.
 - Iteration 41: Removed the projected-world axis-aligned board backdrop quad so D3D12 no longer draws a darker rectangular panel behind the perspective grid, aligning board/background blending with OpenGL and eliminating the visible board-area color block.
+- Iteration 42: Moved render/UI route ownership away from backend string checks by adding backend-owned route hints on `IRenderBackend` (`prefersLegacyGameRenderPath`, `prefersLegacyGameUiPath`), wiring OpenGL/D3D12 implementations, switching `GameSession` legacy-path selection to backend hints, and updating backend-UI policy + tests to use route booleans instead of renderer id strings.
 
 How This File Is Used
 - Before each parity implementation iteration:

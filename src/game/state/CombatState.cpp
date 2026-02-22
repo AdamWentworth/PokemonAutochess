@@ -47,9 +47,12 @@ constexpr float kBackendTextScaleBase = 1.35f;
 } // namespace
 
 bool CombatState::shouldUseBackendShopUi() const {
+    const bool backendPrefersLegacyUi = services.renderer
+        ? services.renderer->prefersLegacyGameUiPath()
+        : false;
     return game::state::backend_ui::shouldUseBackendUi(
         services.renderer != nullptr,
-        services.activeRendererBackend);
+        backendPrefersLegacyUi);
 }
 
 void CombatState::clearBackendShopUiCache() {

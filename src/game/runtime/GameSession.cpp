@@ -645,7 +645,7 @@ struct GameSession::Impl {
         renderer = ctx.renderer;
         engineServices = ctx.services;
         const bool hasBackend = (ctx.renderer != nullptr) && (ctx.camera != nullptr);
-        legacyRenderPath = hasBackend && std::string(ctx.renderer->backendId()) == "opengl";
+        legacyRenderPath = hasBackend && ctx.renderer->prefersLegacyGameRenderPath();
         renderEnabled = hasBackend;
         if (engine::env::get("PAC_BACKEND_MENU_BACKDROP").has_value()) {
             allowBackendMenuBackdrop = engine::env::flagEnabled("PAC_BACKEND_MENU_BACKDROP");

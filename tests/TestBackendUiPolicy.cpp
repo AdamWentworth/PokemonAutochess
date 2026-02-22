@@ -9,39 +9,31 @@ bool test_backend_ui_sell_overlay_policy(std::string& outFail) {
     using game::state::backend_ui::shouldShowSellOverlay;
     using game::state::backend_ui::shouldUseBackendUi;
 
-    if (!shouldUseBackendUi(true, "d3d12")) {
-        outFail = "backend ui policy should allow d3d12";
+    if (!shouldUseBackendUi(true, false)) {
+        outFail = "backend ui policy should allow backend UI when legacy path is not preferred";
         return false;
     }
-    if (!shouldUseBackendUi(true, "D3D12")) {
-        outFail = "backend ui policy should be case-insensitive";
+    if (shouldUseBackendUi(true, true)) {
+        outFail = "backend ui policy should respect backend legacy-ui preference";
         return false;
     }
-    if (shouldUseBackendUi(true, "d3d12", true)) {
+    if (shouldUseBackendUi(true, false, true)) {
         outFail = "backend ui policy should allow explicit legacy-ui opt-out";
         return false;
     }
-    if (shouldUseBackendUi(true, "opengl")) {
-        outFail = "backend ui policy should keep opengl on legacy UI path";
-        return false;
-    }
-    if (shouldUseBackendUi(false, "d3d12")) {
+    if (shouldUseBackendUi(false, false)) {
         outFail = "backend ui policy should require renderer availability";
         return false;
     }
-    if (!shouldRenderBackendTextMenu(true, "d3d12", true)) {
-        outFail = "backend text menu policy should allow d3d12 text menus";
+    if (!shouldRenderBackendTextMenu(true, true)) {
+        outFail = "backend text menu policy should allow backend-neutral text menus";
         return false;
     }
-    if (!shouldRenderBackendTextMenu(true, "opengl", true)) {
-        outFail = "backend text menu policy should allow opengl text menus";
-        return false;
-    }
-    if (shouldRenderBackendTextMenu(true, "d3d12", false)) {
+    if (shouldRenderBackendTextMenu(true, false)) {
         outFail = "backend text menu policy should require text-menu mode";
         return false;
     }
-    if (shouldRenderBackendTextMenu(false, "d3d12", true)) {
+    if (shouldRenderBackendTextMenu(false, true)) {
         outFail = "backend text menu policy should require renderer availability";
         return false;
     }

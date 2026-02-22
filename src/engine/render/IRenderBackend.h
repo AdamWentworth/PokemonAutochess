@@ -119,6 +119,11 @@ public:
     virtual bool handlesPresentation() const = 0;
     virtual std::string activeGpuName() const { return {}; }
     virtual bool activeGpuIsDiscrete() const { return false; }
+    // Temporary game-path routing hints while legacy OpenGL and backend-debug
+    // render flows coexist. Backend implementations own this policy; gameplay
+    // code should not branch on backend string ids.
+    virtual bool prefersLegacyGameRenderPath() const { return false; }
+    virtual bool prefersLegacyGameUiPath() const { return false; }
     virtual bool supportsWorldTriangles3D() const { return false; }
     virtual bool supportsWorldIndexedMeshes() const { return false; }
     virtual void drawWorldTriangles(const WorldTriangle* triangles,
