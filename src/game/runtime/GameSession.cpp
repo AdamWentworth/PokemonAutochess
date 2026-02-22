@@ -438,7 +438,10 @@ struct GameSession::Impl {
     }
 
     runtime::render::FrameRenderFlow currentFrameFlow(bool renderWorldRequested) const {
-        return runtime::render::decideFrameRenderFlow(activeRenderRoutes(), renderWorldRequested);
+        return runtime::render::decideFrameRenderFlow(
+            activeRenderRoutes(),
+            renderWorldRequested,
+            allowBackendMenuBackdrop);
     }
 
     runtime::backend_model::MeshData* ensureBackendMeshLoaded(const std::string& modelPath) {
@@ -3859,6 +3862,17 @@ struct GameSession::Impl {
         }
     }
 
+    void renderWorldLayer(int drawableW, int drawableH, bool renderWorld) {
+        const runtime::render::RenderRoutes routes = activeRenderRoutes();
+        if (routes.usesLegacyRenderPath()) {
+            renderLegacyWorldLayer(drawableW, drawableH, renderWorld);
+            return;
+        }
+        if (routes.usesBackendRenderPath()) {
+            renderBackendDebugView(drawableW, drawableH, renderWorld);
+        }
+    }
+
     void renderStateLayer() {
         if (stateManager) {
             stateManager->render();
@@ -3869,11 +3883,8 @@ struct GameSession::Impl {
                              int drawableW,
                              int drawableH,
                              bool renderWorld) {
-        if (flow.renderLegacyWorldLayer) {
-            renderLegacyWorldLayer(drawableW, drawableH, renderWorld);
-        }
-        if (flow.renderBackendDebugLayer) {
-            renderBackendDebugView(drawableW, drawableH, renderWorld);
+        if (flow.renderWorldLayer) {
+            renderWorldLayer(drawableW, drawableH, renderWorld);
         }
         if (flow.renderStateLayer) {
             renderStateLayer();

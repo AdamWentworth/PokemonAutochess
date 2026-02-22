@@ -65,6 +65,14 @@ Milestones
 - M4: VFX parity
 - M5: Test/perf hardening and cleanup
 
+Remaining Estimate (as of 2026-02-22)
+- Estimated remaining work to true renderer-agnostic parity: 9-12 focused iterations.
+- Why this is still non-trivial: game/runtime still owns backend debug-world rendering and legacy world/HUD paths, so route contracts are cleaner now but visual stack ownership is not fully unified yet.
+- Next parity-first slice:
+- 1) Unify frame flow and frame-layer dispatch (remove backend-specific flow branching at render orchestration level).
+- 2) Continue frame-flow unification by keeping one world-layer decision path and isolating legacy-only HUD layering.
+- 3) Then proceed to UI and world command unification workstreams.
+
 Prioritized Backlog
 - [x] Guard backend text-menu fallback behind explicit backend policy (regression safety for OpenGL menu path).
 - [x] Decouple `GameServices::renderEnabled` from legacy-path selection and route state UI fallbacks through legacy-route helpers (`usesLegacyGameUiPath`) instead of treating non-OpenGL as non-render.
@@ -74,7 +82,9 @@ Prioritized Backlog
 - [x] Add route ownership guardrails so only `GameSession` reads backend route-preference hooks.
 - [x] Remove transitional bool-based route policy overloads so frame/UI render policy APIs are route-object only.
 - [x] Centralize `GameServices` -> `RenderRoutes` conversion in one helper (`routesFromServices`) and use it in gameplay states/session route selection.
-- [ ] Remove backend-specific gameplay render flow and unify frame graph. (In progress: backend debug layer is now policy-gated to world-visible states.)
+- [ ] Remove backend-specific gameplay render flow and unify frame graph. (In progress: frame-flow contract now uses backend-neutral world/HUD layer decisions and route-dispatched world-layer execution; remaining work is to retire backend debug-world as the primary gameplay world renderer.)
+- [x] Unify frame-flow policy contract to backend-neutral world/HUD layer outputs (`renderWorldLayer`, `renderLegacyHudLayer`) with menu-backdrop-aware world routing.
+- [x] Unify `GameSession` frame execution around one `renderWorldLayer` route dispatcher instead of backend-specific flow flags.
 - [ ] Remove `shouldUseBackendUi` backend split and unify UI policy. (Re-opened: OpenGL legacy card/shop path restored to prevent visual regressions while parity work continues.)
 - [ ] Replace backend quad text with glyph text rendering. (In progress: backend text menu now uses line-stroke text, full glyph path still pending.)
 - [ ] Route both backends through the same menu/shop/HUD layout/render code. (In progress: text-menu rendering is now forced through one backend-neutral path for both OpenGL and D3D12; shop/starter parity remains.)
@@ -154,6 +164,8 @@ Iteration Log
 - Iteration 55: Simplified `GameSession` startup routing state by replacing separate local route booleans with one `RenderRoutes` snapshot and resolving active routes via `routesFromServices` when services are available.
 - Iteration 56: Added `render_policy_api_contract` to prevent reintroduction of legacy bool-based route-policy signatures in policy headers.
 - Iteration 57: Added `game_service_render_routes_contract` to verify `routesFromServices` mapping stays consistent with `GameServices` render/legacy route flags.
+- Iteration 58: Added an explicit remaining parity estimate and parity-first sequencing to this living roadmap (9-12 iterations), so progress and expectations are tracked against a concrete plan.
+- Iteration 59: Unified frame-flow decisions to backend-neutral world/HUD layers, routed `GameSession` world rendering through one route-dispatched `renderWorldLayer`, and added policy/flow contract coverage for backend menu-backdrop routing.
 
 How This File Is Used
 - Before each parity implementation iteration:

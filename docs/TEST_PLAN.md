@@ -27,6 +27,7 @@ Focus on catching real regressions while keeping tests fast and headless.
 - Render pipeline smoke test (shader include checks; optional GL compile + board + real model draw via `PAC_TEST_GL=1`).
 - Layering enforcement check (engine cannot include game headers).
 - Render-route contract coverage (`RenderRoutes`, frame-flow policy, backend UI policy, and route ownership guardrail that only `GameSession` probes backend route preferences).
+- Unified frame-flow coverage for backend-neutral world/HUD layer decisions, including backend menu-backdrop world-layer routing.
 - Route API guardrails (`render_policy_api_contract`) to keep policy surfaces route-object only (no bool overload regressions).
 - Service-route mapping coverage (`game_service_render_routes_contract`) for `GameServices` -> `RenderRoutes` conversion.
 - GameWorld backend-render mode regression coverage (render-enabled world can skip legacy OpenGL model attachment).
