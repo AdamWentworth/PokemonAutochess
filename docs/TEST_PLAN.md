@@ -55,3 +55,6 @@ Focus on catching real regressions while keeping tests fast and headless.
 6. Verify shared-path idle/move motion does not add extra bounce versus `opengl` legacy when clip animation is active.
 7. Verify per-unit HUD parity (HP bar size/color, energy bar color, level text placement, and player XP ring progress) between `opengl` legacy and shared routes.
 8. While zooming camera in/out, verify shared per-unit HUD size remains visually stable, level text stays centered inside the XP ring, HUD sits clearly above the model, no floating Pokemon-name text is rendered above the HUD block, and no persistent white heading guide line follows each unit.
+9. Verify faint parity in shared routes: faint animation completes, fade-out reaches full disappear (no lingering tiny proxies/models), and dead units are no longer rendered after faint finishes.
+10. Verify shared combat FX timing in `opengl_shared` and `d3d12`: attack telegraph appears during real attack windows, projectile traces follow pending projectile timing, and impact bursts appear near pending hit/impact times.
+11. Verify shared card-shop textures are visually stable (reduced shimmer/grain) when cards are viewed at menu scale and during camera/mode transitions.

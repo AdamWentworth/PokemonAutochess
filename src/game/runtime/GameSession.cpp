@@ -1955,6 +1955,7 @@ struct GameSession::Impl {
                 const auto drawProjectedUnits = [&](const std::vector<PokemonInstance>& units) {
                     for (const auto& unit : units) {
                         if (!unit.alive && !unit.captureInProgress && !unit.fainting) continue;
+                        if (!unit.alive && unit.visualScale <= 0.0001f && !unit.captureInProgress) continue;
 
                         const runtime::backend_anim::ProceduralPose pose =
                             runtime::backend_anim::computeProceduralPose(unit, worldCellSize);
@@ -1967,8 +1968,16 @@ struct GameSession::Impl {
                         }
                         const bool hasClipPoseDrivenModel = scenePoseReady && scenePose.hasClipPose;
                         const bool applyProceduralModelMotion = !hasClipPoseDrivenModel;
-                        const bool activeAttackWindow = applyProceduralModelMotion && pose.activeAttackWindow;
-                        const float attackProgress = applyProceduralModelMotion ? pose.attackProgress : 0.0f;
+                        const bool gameplayAttackActive = unit.attackTimerSec > 0.0f;
+                        float attackProgress = 0.0f;
+                        if (gameplayAttackActive) {
+                            const float safeAttackDur = std::max(0.001f, unit.attackDurationSec);
+                            attackProgress = std::clamp(unit.animTimeSec / safeAttackDur, 0.0f, 1.0f);
+                        } else if (applyProceduralModelMotion && pose.activeAttackWindow) {
+                            attackProgress = std::clamp(pose.attackProgress, 0.0f, 1.0f);
+                        }
+                        const bool activeAttackWindow =
+                            gameplayAttackActive || (applyProceduralModelMotion && pose.activeAttackWindow);
                         const glm::vec3 attackOffset = applyProceduralModelMotion
                             ? (game::runtime::backend_proxy::yawForward(unit.rotation.y) * pose.attackLunge)
                             : glm::vec3(0.0f);
@@ -2008,6 +2017,16 @@ struct GameSession::Impl {
                         const game::runtime::backend_proxy::UnitProxyExtents extents =
                             game::runtime::backend_proxy::computeUnitProxyExtents(unit, worldCellSize);
                         const glm::vec3 proxyCenter = animatedCenter;
+                        const float renderVisualScale = (unit.fainting || !unit.alive)
+                            ? std::max(0.0f, unit.visualScale)
+                            : std::max(0.05f, unit.visualScale);
+                        const float renderCaptureScale = (unit.fainting || !unit.alive || unit.captureInProgress)
+                            ? std::max(0.0f, unit.captureScale)
+                            : std::max(0.05f, unit.captureScale);
+                        if ((unit.fainting || !unit.alive) &&
+                            (renderVisualScale <= 0.0001f || renderCaptureScale <= 0.0001f)) {
+                            continue;
+                        }
 
                         IRenderBackend::DebugQuad tint;
                         runtime::backend_units::applyWorldUnitTint(tint, unit);
@@ -2107,8 +2126,8 @@ struct GameSession::Impl {
                                 std::max(0.01f, mesh->modelScaleFactor) *
                                 resolvedScaleCorrection *
                                 std::max(0.05f, unit.speciesScale) *
-                                std::max(0.05f, unit.visualScale) *
-                                std::max(0.05f, unit.captureScale) *
+                                renderVisualScale *
+                                renderCaptureScale *
                                 attackPulse;
                             glm::vec3 renderPos = proxyCenter;
                             const float minAllowedModelY = boardSurfaceY + 0.0025f;
@@ -3109,9 +3128,19 @@ struct GameSession::Impl {
                             }
                         }
 
+                        const std::string pendingMoveLower = toLowerCopy(unit.pendingDamageMoveName);
+                        const bool pendingGrowl = pendingMoveLower.find("growl") != std::string::npos;
+                        const bool pendingTackle = pendingMoveLower.find("tackle") != std::string::npos;
+                        const bool pendingLeechSeed =
+                            pendingMoveLower.find("leech") != std::string::npos ||
+                            pendingMoveLower.find("seed") != std::string::npos;
+
                         if (activeAttackWindow) {
                             const float ringRadius = std::max(0.04f, extents.halfWidth * 1.05f + attackProgress * 0.10f);
                             const int segments = 12;
+                            const float ringR = pendingGrowl ? 0.46f : (pendingLeechSeed ? 0.52f : 0.98f);
+                            const float ringG = pendingGrowl ? 0.70f : (pendingLeechSeed ? 0.86f : 0.84f);
+                            const float ringB = pendingGrowl ? 0.98f : (pendingLeechSeed ? 0.42f : 0.42f);
                             for (int seg = 0; seg < segments; ++seg) {
                                 const float t0 = (static_cast<float>(seg) / static_cast<float>(segments)) * 6.2831853f;
                                 const float t1 = (static_cast<float>(seg + 1) / static_cast<float>(segments)) * 6.2831853f;
@@ -3124,9 +3153,9 @@ struct GameSession::Impl {
                                 appendProjectedLine(
                                     p0,
                                     p1,
-                                    0.98f,
-                                    0.84f,
-                                    0.42f,
+                                    ringR,
+                                    ringG,
+                                    ringB,
                                     0.82f,
                                     std::max(1.0f, line * 0.85f));
                             }
@@ -3139,11 +3168,87 @@ struct GameSession::Impl {
                                     appendProjectedLine(
                                         from,
                                         to,
-                                        0.98f,
-                                        0.62f,
-                                        0.28f,
+                                        pendingGrowl ? 0.50f : 0.98f,
+                                        pendingGrowl ? 0.70f : (pendingTackle ? 0.62f : 0.76f),
+                                        pendingGrowl ? 0.98f : (pendingTackle ? 0.28f : 0.30f),
                                         0.74f,
                                         std::max(1.0f, line * 1.0f));
+                                }
+                            }
+                        }
+
+                        if (unit.pendingProjectileActive && unit.pendingProjectileTargetId >= 0) {
+                            if (const PokemonInstance* target = gameWorld->findUnitById(unit.pendingProjectileTargetId)) {
+                                const glm::vec3 from =
+                                    proxyCenter + glm::vec3(0.0f, std::max(0.10f, extents.height * 0.42f), 0.0f);
+                                const glm::vec3 to =
+                                    target->position +
+                                    glm::vec3(0.0f, std::max(0.12f, worldCellSize * 0.24f) + target->visualYOffset, 0.0f);
+                                const float spawnT = std::max(0.0f, unit.pendingProjectileSpawnTimeSec);
+                                const float travelSec = std::max(0.001f, unit.pendingProjectileTravelSec);
+                                float travelT = 0.0f;
+                                if (unit.animTimeSec >= spawnT) {
+                                    travelT = std::clamp((unit.animTimeSec - spawnT) / travelSec, 0.0f, 1.0f);
+                                }
+                                if (unit.pendingProjectileSpawned && travelT <= 0.0f) {
+                                    travelT = 1.0f;
+                                }
+                                if (travelT > 0.0f) {
+                                    const float prevT = std::clamp(travelT - 0.08f, 0.0f, 1.0f);
+                                    const glm::vec3 curPos =
+                                        glm::mix(from, to, travelT) + glm::vec3(0.0f, std::sin(travelT * 3.1415926f) * 0.08f, 0.0f);
+                                    const glm::vec3 prevPos =
+                                        glm::mix(from, to, prevT) + glm::vec3(0.0f, std::sin(prevT * 3.1415926f) * 0.08f, 0.0f);
+                                    appendProjectedLine(
+                                        prevPos,
+                                        curPos,
+                                        0.38f,
+                                        0.92f,
+                                        0.34f,
+                                        0.95f,
+                                        std::max(1.0f, line * 1.2f));
+                                }
+                            }
+                        }
+
+                        const bool pendingImpactBurst =
+                            (unit.pendingImpactActive && !unit.pendingImpactApplied) ||
+                            (unit.pendingDamageActive && !unit.pendingDamageApplied);
+                        if (pendingImpactBurst) {
+                            const int impactTargetId =
+                                unit.pendingImpactActive ? unit.pendingImpactTargetId : unit.pendingDamageTargetId;
+                            const float impactTimeSec =
+                                unit.pendingImpactActive ? unit.pendingImpactTimeSec : unit.pendingDamageHitTimeSec;
+                            if (impactTargetId >= 0 && impactTimeSec >= 0.0f) {
+                                if (const PokemonInstance* target = gameWorld->findUnitById(impactTargetId)) {
+                                    const float distToHit = std::abs(unit.animTimeSec - impactTimeSec);
+                                    if (distToHit <= 0.14f || (unit.pendingDamageApplied || unit.pendingImpactApplied)) {
+                                        const float burst = std::clamp(1.0f - (distToHit / 0.14f), 0.0f, 1.0f);
+                                        const float radius =
+                                            std::max(0.03f, worldCellSize * (0.12f + (1.0f - burst) * 0.10f));
+                                        const glm::vec3 center =
+                                            target->position +
+                                            glm::vec3(0.0f, std::max(0.12f, worldCellSize * 0.24f) + target->visualYOffset, 0.0f);
+                                        const int segments = 10;
+                                        const float ir = (unit.pendingImpactIsGrass || pendingLeechSeed) ? 0.42f : 1.0f;
+                                        const float ig = (unit.pendingImpactIsGrass || pendingLeechSeed) ? 0.92f : 0.76f;
+                                        const float ib = (unit.pendingImpactIsGrass || pendingLeechSeed) ? 0.34f : 0.28f;
+                                        const float ia = 0.45f + burst * 0.45f;
+                                        for (int seg = 0; seg < segments; ++seg) {
+                                            const float t0 =
+                                                (static_cast<float>(seg) / static_cast<float>(segments)) * 6.2831853f;
+                                            const float t1 =
+                                                (static_cast<float>(seg + 1) / static_cast<float>(segments)) * 6.2831853f;
+                                            appendProjectedLine(
+                                                center + glm::vec3(std::cos(t0) * radius, 0.0f, std::sin(t0) * radius),
+                                                center + glm::vec3(std::cos(t1) * radius, 0.0f, std::sin(t1) * radius),
+                                                ir,
+                                                ig,
+                                                ib,
+                                                ia,
+                                                std::max(1.0f, line * 0.95f));
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -3151,7 +3256,9 @@ struct GameSession::Impl {
                         const float hudCellPxBase = std::clamp(minDim * 0.070f, 38.0f, 58.0f);
                         const float hudCellPx =
                             std::clamp(cellPx, hudCellPxBase * 0.90f, hudCellPxBase * 1.10f);
-                        appendLegacyUnitHud(unit, cx, cy, hudCellPx);
+                        if (unit.alive) {
+                            appendLegacyUnitHud(unit, cx, cy, hudCellPx);
+                        }
                     }
                 };
 
@@ -3285,7 +3392,9 @@ struct GameSession::Impl {
                     }
 
                     const float hudCellPx = std::clamp(minDim * 0.070f, 38.0f, 58.0f);
-                    appendLegacyUnitHud(unit, centerX, centerY, hudCellPx);
+                    if (unit.alive) {
+                        appendLegacyUnitHud(unit, centerX, centerY, hudCellPx);
+                    }
                 }
 
                 const auto& benchUnits = gameWorld->getBenchPokemons();

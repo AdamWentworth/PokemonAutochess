@@ -105,6 +105,7 @@ Prioritized Backlog
 - [ ] Add explicit emissive-texture parity in the backend indexed world path (OpenGL currently samples `u_EmissiveTex`; backend indexed path still approximates emissive via cached shading data).
 - [ ] Complete D3D12 animation/skinning parity (no fallback-only pose path). (In progress: backend clip evaluation now applies root-motion carrier X/Z suppression like OpenGL.)
 - [ ] Align shared-path model motion with OpenGL legacy clip-driven presentation (avoid procedural bob/lunge/tilt layering when clip pose is active).
+- [ ] Align shared combat VFX timing/presentation with OpenGL legacy move-impact flow (attack telegraph, projectile timing, and impact burst readability).
 - [ ] Finish shared per-unit HUD parity with OpenGL legacy (level ring geometry, XP progress arc, HP/energy bar sizing/color, and text anchoring).
 - [ ] Finalize shared per-unit HUD zoom behavior so HUD size remains stable while camera zoom changes (legacy readability parity).
 - [ ] Split D3D12 renderer implementation into smaller modules. (In progress: texture upload/mipmap staging moved from `src/engine/render/D3D12RenderBackend.cpp` to `src/engine/render/d3d12/D3D12TextureUpload.cpp`.)
@@ -187,6 +188,7 @@ Iteration Log
 - Iteration 66: Integrated Pokemon name text into the same shared per-unit HUD builder and switched shared HUD sizing to a stable screen-space reference (with tight projected-size clamping) so level/ring/bar text no longer shrinks unexpectedly while zooming.
 - Iteration 67: Tuned shared per-unit HUD presentation to match readability targets by scaling HUD geometry up (~20%), raising HUD vertical offset above units, recentering level text inside the XP ring, and removing floating Pokemon-name text above the HUD block.
 - Iteration 68: Raised shared per-unit HUD anchor further above unit models, switched level-ring number centering to rendered glyph bounds (instead of coarse text metrics), and removed always-on white unit heading guide lines from shared world rendering.
+- Iteration 69: Matched shared combat presentation closer to legacy by fixing backend faint progression when no OpenGL `Model*` is attached (dead units now finish fade and disappear), allowing shared model/proxy scale to reach zero during faint fade-out, driving shared attack FX from gameplay attack/pending-hit timing (not only procedural windows), adding projectile/impact burst overlays keyed to pending move events, and improving card-shop texture quality in OpenGL shared mode with mipmapped + anisotropic sprite sampling.
 
 How This File Is Used
 - Before each parity implementation iteration:

@@ -1621,8 +1621,8 @@ void D3D12RenderBackend::createSpritePipeline() {
     sampler.AddressU = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
     sampler.AddressV = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
     sampler.AddressW = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
-    sampler.MipLODBias = 0.0f;
-    sampler.MaxAnisotropy = 8;
+    sampler.MipLODBias = -0.25f;
+    sampler.MaxAnisotropy = 16;
     sampler.ComparisonFunc = D3D12_COMPARISON_FUNC_ALWAYS;
     sampler.BorderColor = D3D12_STATIC_BORDER_COLOR_TRANSPARENT_BLACK;
     sampler.MinLOD = 0.0f;

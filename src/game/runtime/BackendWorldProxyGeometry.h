@@ -16,11 +16,26 @@ struct UnitProxyExtents {
 
 inline UnitProxyExtents computeUnitProxyExtents(const PokemonInstance& unit, float worldCellSize) {
     const float cell = std::max(0.05f, worldCellSize);
+    const bool allowFadeToZero = unit.fainting || !unit.alive;
+    const float visualScale = allowFadeToZero
+        ? std::max(0.0f, unit.visualScale)
+        : std::max(0.55f, unit.visualScale);
+    const float captureScale = allowFadeToZero
+        ? std::max(0.0f, unit.captureScale)
+        : std::max(0.55f, unit.captureScale);
     const float scale =
         std::max(0.55f, unit.speciesScale) *
         std::max(0.40f, unit.modelScaleCorrection) *
-        std::max(0.55f, unit.visualScale) *
-        std::max(0.55f, unit.captureScale);
+        visualScale *
+        captureScale;
+
+    if (allowFadeToZero && scale <= 0.0001f) {
+        UnitProxyExtents out;
+        out.halfWidth = 0.0f;
+        out.halfDepth = 0.0f;
+        out.height = 0.0f;
+        return out;
+    }
 
     UnitProxyExtents out;
     const float baseRadius = cell * 0.22f;

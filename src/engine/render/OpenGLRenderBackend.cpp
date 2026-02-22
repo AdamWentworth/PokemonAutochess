@@ -894,7 +894,7 @@ void OpenGLRenderBackend::ensureSpritePipeline() {
         glGenTextures(1, &spriteFallbackTexture_);
         if (spriteFallbackTexture_ != 0) {
             glBindTexture(GL_TEXTURE_2D, spriteFallbackTexture_);
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
             glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
             glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
             glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
@@ -908,6 +908,7 @@ void OpenGLRenderBackend::ensureSpritePipeline() {
                          GL_RGBA,
                          GL_UNSIGNED_BYTE,
                          kFallbackRgba);
+            glGenerateMipmap(GL_TEXTURE_2D);
         }
         spriteTextures_[kFallbackSpriteTextureKey] = spriteFallbackTexture_;
     }
@@ -1006,7 +1007,7 @@ unsigned int OpenGLRenderBackend::ensureSpriteTexture(const std::string& texture
     }
 
     glBindTexture(GL_TEXTURE_2D, textureId);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
@@ -1020,6 +1021,15 @@ unsigned int OpenGLRenderBackend::ensureSpriteTexture(const std::string& texture
                  GL_RGBA,
                  GL_UNSIGNED_BYTE,
                  pixels);
+    glGenerateMipmap(GL_TEXTURE_2D);
+#if defined(GL_TEXTURE_MAX_ANISOTROPY_EXT) && defined(GL_MAX_TEXTURE_MAX_ANISOTROPY_EXT)
+    if (GLAD_GL_EXT_texture_filter_anisotropic) {
+        float maxAniso = 1.0f;
+        glGetFloatv(GL_MAX_TEXTURE_MAX_ANISOTROPY_EXT, &maxAniso);
+        const float requested = std::min(8.0f, std::max(1.0f, maxAniso));
+        glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAX_ANISOTROPY_EXT, requested);
+    }
+#endif
     stbi_image_free(pixels);
 
     spriteTextures_[texturePath] = textureId;

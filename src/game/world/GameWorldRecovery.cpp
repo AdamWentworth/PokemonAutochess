@@ -132,13 +132,14 @@ void GameWorld::restorePlayerPositionsAfterBattle() {
 }
 
 void GameWorld::updateFaint(PokemonInstance& target, float dt) {
-    if (!target.fainting || !target.model) return;
+    if (!target.fainting) return;
 
     target.faintTimerSec += dt;
 
     const float dur = std::max(0.0f, target.faintAnimDurationSec);
     if (target.animFaintIndex >= 0) {
-        const float clipDur = target.model->getAnimationDurationSec(target.animFaintIndex);
+        const float clipDur =
+            target.model ? target.model->getAnimationDurationSec(target.animFaintIndex) : dur;
         const float clampDur = (clipDur > 0.0f) ? clipDur : dur;
         if (clampDur > 0.0f) {
             target.animTimeSec = std::min(target.animTimeSec + dt, clampDur - 0.0001f);
