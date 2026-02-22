@@ -92,7 +92,7 @@ void PlacementState::render() {
     const int uiW = viewport ? viewport->width : 1280;
     const int uiH = viewport ? viewport->height : 720;
 
-    if (!services.renderEnabled) {
+    if (!services.usesLegacyGameUiPath()) {
         if (!services.renderer) return;
 
         std::vector<IRenderBackend::DebugQuad> quads;

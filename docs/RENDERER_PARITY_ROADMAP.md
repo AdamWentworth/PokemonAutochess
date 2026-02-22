@@ -67,6 +67,8 @@ Milestones
 
 Prioritized Backlog
 - [x] Guard backend text-menu fallback behind explicit backend policy (regression safety for OpenGL menu path).
+- [x] Decouple `GameServices::renderEnabled` from legacy-path selection and route state UI fallbacks through legacy-route helpers (`usesLegacyGameUiPath`) instead of treating non-OpenGL as non-render.
+- [x] Remove state-level direct backend route preference reads (`prefersLegacyGameUiPath`) and route gameplay UI decisions through `GameServices` route helpers (`usesLegacyGameUiPath` / `usesBackendGameUiPath`).
 - [ ] Remove backend-specific gameplay render flow and unify frame graph. (In progress: backend debug layer is now policy-gated to world-visible states.)
 - [ ] Remove `shouldUseBackendUi` backend split and unify UI policy. (Re-opened: OpenGL legacy card/shop path restored to prevent visual regressions while parity work continues.)
 - [ ] Replace backend quad text with glyph text rendering. (In progress: backend text menu now uses line-stroke text, full glyph path still pending.)
@@ -132,6 +134,8 @@ Iteration Log
 - Iteration 40: Matched backend HUD anchoring closer to OpenGL by moving status block text (mode/backend/round/units/gold/selected item) to top-right and returning `Type Lines` to the left panel, while de-blueing backend board/cell/grid colors in both projected-world and 2D fallback paths to reduce D3D12 board tint drift.
 - Iteration 41: Removed the projected-world axis-aligned board backdrop quad so D3D12 no longer draws a darker rectangular panel behind the perspective grid, aligning board/background blending with OpenGL and eliminating the visible board-area color block.
 - Iteration 42: Moved render/UI route ownership away from backend string checks by adding backend-owned route hints on `IRenderBackend` (`prefersLegacyGameRenderPath`, `prefersLegacyGameUiPath`), wiring OpenGL/D3D12 implementations, switching `GameSession` legacy-path selection to backend hints, and updating backend-UI policy + tests to use route booleans instead of renderer id strings.
+- Iteration 43: Split renderer-availability from legacy-path routing in `GameSession`/`GameServices` (set `renderEnabled` from renderer presence, carry legacy render/UI routes explicitly), updated `PlacementState` and `CombatState` legacy text fallback checks to use `usesLegacyGameUiPath()`, and added a `GameServices` route-helper contract test.
+- Iteration 44: Removed remaining state-level renderer route probing in `ScriptedState` and `CombatState` (`prefersLegacyGameUiPath`) so only `GameSession` selects routes and gameplay UI logic now consumes `GameServices` route helpers, then revalidated with full 91-test pass.
 
 How This File Is Used
 - Before each parity implementation iteration:

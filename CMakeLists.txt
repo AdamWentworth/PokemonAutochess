@@ -361,6 +361,7 @@ if (BUILD_TESTING)
         tests/TestDeterminism.cpp
         tests/TestEnvironment.cpp
         tests/TestAutoQuitPolicy.cpp
+        tests/TestGameServicesRoutes.cpp
         tests/TestBackendHudFormatting.cpp
         tests/TestBackendDebugText.cpp
         tests/TestBackendImagePath.cpp

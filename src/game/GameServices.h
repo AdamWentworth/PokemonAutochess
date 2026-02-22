@@ -40,6 +40,12 @@ struct GameServices {
     game::ui::UIViewport* viewport = nullptr;
     IRenderBackend* renderer = nullptr;
     bool renderEnabled = false;
+    // Route selection:
+    // - render path controls world/model drawing path selection
+    // - UI path controls state/UI rendering path selection
+    // Defaults preserve legacy behavior when render is enabled.
+    bool legacyGameRenderPath = true;
+    bool legacyGameUiPath = true;
     std::string gameMode = "classic";
     bool hasStartedGame = false;
     std::function<bool(int, int, bool)> applyVideoMode;
@@ -79,4 +85,20 @@ struct GameServices {
         , combatStateEntity(combatEntity)
         , viewport(viewportPtr)
         , renderEnabled(renderEnabled_) {}
+
+    bool usesLegacyGameRenderPath() const {
+        return renderEnabled && legacyGameRenderPath;
+    }
+
+    bool usesBackendGameRenderPath() const {
+        return renderEnabled && !legacyGameRenderPath;
+    }
+
+    bool usesLegacyGameUiPath() const {
+        return renderEnabled && legacyGameUiPath;
+    }
+
+    bool usesBackendGameUiPath() const {
+        return renderEnabled && !legacyGameUiPath;
+    }
 };

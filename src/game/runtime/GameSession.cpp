@@ -646,6 +646,7 @@ struct GameSession::Impl {
         engineServices = ctx.services;
         const bool hasBackend = (ctx.renderer != nullptr) && (ctx.camera != nullptr);
         legacyRenderPath = hasBackend && ctx.renderer->prefersLegacyGameRenderPath();
+        const bool legacyUiPath = hasBackend && ctx.renderer->prefersLegacyGameUiPath();
         renderEnabled = hasBackend;
         if (engine::env::get("PAC_BACKEND_MENU_BACKDROP").has_value()) {
             allowBackendMenuBackdrop = engine::env::flagEnabled("PAC_BACKEND_MENU_BACKDROP");
@@ -696,8 +697,10 @@ struct GameSession::Impl {
 
         config = GameConfig::load(&log, assetStore.get());
         services = std::make_unique<GameServices>(config, dataDb, log, scriptEvents, *assetStore, rng, timeSource,
-                                                  &ecsWorld, roundPhaseEntity, &viewport, legacyRenderPath);
+                                                  &ecsWorld, roundPhaseEntity, &viewport, renderEnabled);
         services->renderer = renderer;
+        services->legacyGameRenderPath = legacyRenderPath;
+        services->legacyGameUiPath = legacyUiPath;
         services->applyVideoMode = ctx.applyVideoMode;
         services->requestQuit = ctx.requestQuit;
         if (ctx.services) {

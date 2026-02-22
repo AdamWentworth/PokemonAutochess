@@ -47,12 +47,9 @@ constexpr float kBackendTextScaleBase = 1.35f;
 } // namespace
 
 bool CombatState::shouldUseBackendShopUi() const {
-    const bool backendPrefersLegacyUi = services.renderer
-        ? services.renderer->prefersLegacyGameUiPath()
-        : false;
     return game::state::backend_ui::shouldUseBackendUi(
-        services.renderer != nullptr,
-        backendPrefersLegacyUi);
+        services.renderEnabled,
+        services.usesLegacyGameUiPath());
 }
 
 void CombatState::clearBackendShopUiCache() {
@@ -405,7 +402,7 @@ void CombatState::ensureShopUi() {
 
     clearBackendShopUiCache();
 
-    if (!services.renderEnabled) {
+    if (!services.usesLegacyGameUiPath()) {
         if (shopUi) shopUi->clear();
         shopUiEnabled = false;
         hasShopRerollButton = false;
@@ -731,7 +728,7 @@ void CombatState::render() {
         return;
     }
 
-    if (!services.renderEnabled) {
+    if (!services.usesLegacyGameUiPath()) {
         if (!services.renderer) return;
 
         std::vector<IRenderBackend::DebugQuad> quads;
