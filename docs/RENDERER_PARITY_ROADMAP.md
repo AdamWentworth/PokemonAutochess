@@ -100,6 +100,7 @@ Prioritized Backlog
 - [x] Remove `setRenderEnabled(legacyRenderPath)` behavior that disabled non-OpenGL world resources. (Now split into `renderEnabled` vs `legacyModelRenderPathEnabled` in `GameWorld`, with backend-mode regression coverage.)
 - [ ] Move backend debug world rendering behind an explicit dev-only flag. (In progress: menu world-backdrop is now disabled by default and can be enabled via `PAC_BACKEND_MENU_BACKDROP=1`.)
 - [ ] Implement/align backend-neutral draw contracts in `IRenderBackend` for required scene features. (In progress: indexed world-mesh draw contract landed and backend model submission now uses indexed batches on supporting backends.)
+- [ ] Validate OpenGL shared-contract textured model parity against OpenGL legacy and D3D12 (focus: textured submeshes, alpha-mask/alpha-blend materials, and no movement-time mesh dropout).
 - [ ] Complete D3D12 material and alpha-mode parity. (In progress: wrap-aware texture sampling, glTF-like base+emissive color composition, higher model detail budget, GL-clip-depth-to-D3D conversion, OpenGL-like sRGB+ACES textured world shading, indexed textured-submesh alpha-mode+cutoff + UV wrap controls, explicit D3D12 blend-depth-write-off world pipeline ordering, depth-sorted blend batch submission, and removal of textured-path alpha double-attenuation that was culling BLEND submesh regions landed in backend mesh path.)
 - [ ] Add explicit emissive-texture parity in the backend indexed world path (OpenGL currently samples `u_EmissiveTex`; backend indexed path still approximates emissive via cached shading data).
 - [ ] Complete D3D12 animation/skinning parity (no fallback-only pose path). (In progress: backend clip evaluation now applies root-motion carrier X/Z suppression like OpenGL.)
@@ -177,6 +178,7 @@ Iteration Log
 - Iteration 60: Removed remaining state-level direct UI route reads in `CombatState`/`PlacementState`, routed those decisions through `routesFromServices` + backend UI policy helpers, and added a `state_ui_route_policy_contract` guardrail test to prevent regressions.
 - Iteration 61: Added shared `BackendTopBanner` layout/render helpers and switched `PlacementState` plus both `CombatState` banner paths (shop + non-shop, backend + legacy centering/Y policy) to one top-banner contract, with dedicated `backend_top_banner_contract` test coverage.
 - Iteration 62: Documented the contract-first migration path and added temporary in-game OpenGL shared-contract mode (`opengl_shared`) with runtime route override in `GameSession`, updated Display menu labels/options for tri-mode parity checks, and expanded video-preference token tests.
+- Iteration 63: Implemented OpenGL shared-contract backend draw support for 3D world triangles, indexed world meshes (including textured + alpha-mode/cutoff + wrap handling), and debug sprites with texture caching/fallbacks so `opengl_shared` now exercises the same world/sprite draw contracts used by D3D12; revalidated with full build + 98/98 tests.
 
 How This File Is Used
 - Before each parity implementation iteration:
