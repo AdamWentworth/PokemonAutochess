@@ -18,6 +18,14 @@ struct EasyFontVertex {
 };
 static_assert(sizeof(EasyFontVertex) == 16, "Unexpected stb_easy_font vertex layout.");
 
+struct TextBounds {
+    bool valid = false;
+    float minX = 0.0f;
+    float minY = 0.0f;
+    float maxX = 0.0f;
+    float maxY = 0.0f;
+};
+
 inline std::vector<EasyFontVertex>& easyFontScratchBuffer(std::size_t minVertexCount) {
     thread_local std::vector<EasyFontVertex> scratch;
     if (scratch.size() < minVertexCount) {
@@ -38,6 +46,50 @@ inline float measureTextHeight(const std::string& text, float scale) {
     const float safeScale = std::max(0.01f, scale);
     const int baseH = stb_easy_font_height(const_cast<char*>(text.c_str()));
     return std::max(0.0f, static_cast<float>(baseH) * safeScale);
+}
+
+inline TextBounds measureTextBounds(const std::string& text, float scale) {
+    TextBounds bounds{};
+    if (text.empty()) return bounds;
+
+    const float safeScale = std::max(0.01f, scale);
+    const std::size_t approxBytes = text.size() * 320u + 4096u;
+    const std::size_t vertexCount = std::max<std::size_t>(256u, approxBytes / sizeof(EasyFontVertex));
+    std::vector<EasyFontVertex>& verts = easyFontScratchBuffer(vertexCount);
+
+    const int quadCount = stb_easy_font_print(
+        0.0f,
+        0.0f,
+        const_cast<char*>(text.c_str()),
+        nullptr,
+        verts.data(),
+        static_cast<int>(verts.size() * sizeof(EasyFontVertex)));
+    if (quadCount <= 0) return bounds;
+
+    const std::size_t maxQuads = std::min<std::size_t>(
+        static_cast<std::size_t>(quadCount),
+        verts.size() / 4u);
+    if (maxQuads == 0u) return bounds;
+
+    bool haveAny = false;
+    for (std::size_t i = 0; i < maxQuads; ++i) {
+        for (int v = 0; v < 4; ++v) {
+            const float x = verts[i * 4u + static_cast<std::size_t>(v)].x * safeScale;
+            const float y = verts[i * 4u + static_cast<std::size_t>(v)].y * safeScale;
+            if (!haveAny) {
+                bounds.minX = bounds.maxX = x;
+                bounds.minY = bounds.maxY = y;
+                haveAny = true;
+            } else {
+                bounds.minX = std::min(bounds.minX, x);
+                bounds.minY = std::min(bounds.minY, y);
+                bounds.maxX = std::max(bounds.maxX, x);
+                bounds.maxY = std::max(bounds.maxY, y);
+            }
+        }
+    }
+    bounds.valid = haveAny;
+    return bounds;
 }
 
 inline void appendTextQuads(std::vector<IRenderBackend::DebugQuad>& out,

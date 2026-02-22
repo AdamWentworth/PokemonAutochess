@@ -1329,15 +1329,17 @@ struct GameSession::Impl {
                                              float screenY,
                                              float cellPx) {
             const float safeCellPx = std::max(8.0f, cellPx);
-            const float width = safeCellPx * 0.45f;
-            const float hpH = safeCellPx * 0.07f;
-            const float enH = safeCellPx * 0.06f;
-            const float yOffset = safeCellPx * 0.35f;
-            const float gap = safeCellPx * 0.03f;
+            const float hudScale = 1.20f; // Keep shared HUD ~20% larger to match legacy readability.
+            const float hudPx = safeCellPx * hudScale;
+            const float width = hudPx * 0.45f;
+            const float hpH = hudPx * 0.07f;
+            const float enH = hudPx * 0.06f;
+            const float yOffset = hudPx * 0.82f;
+            const float gap = hudPx * 0.03f;
 
-            const float ringOuter = safeCellPx * 0.155f;
-            const float ringInner = safeCellPx * 0.135f;
-            const float ringGap = safeCellPx * 0.035f;
+            const float ringOuter = hudPx * 0.155f;
+            const float ringInner = hudPx * 0.135f;
+            const float ringGap = hudPx * 0.035f;
             const float ringPad = ringOuter + ringGap;
             const float leftExtent = ringOuter + ringPad;
 
@@ -1396,7 +1398,7 @@ struct GameSession::Impl {
             worldQuads.push_back(energyFg);
 
             const float barH = hpH + gap + enH;
-            const glm::vec2 levelCenter(pos.x - ringPad, pos.y + barH * 0.5f - safeCellPx * 0.02f);
+            const glm::vec2 levelCenter(pos.x - ringPad, pos.y + barH * 0.5f - hudPx * 0.02f);
             const bool showXP = (unit.side == PokemonSide::Player);
             const int maxXP = showXP ? xpToNextLevel(unit.level) : 0;
             if (showXP && maxXP > 0) {
@@ -1428,10 +1430,16 @@ struct GameSession::Impl {
             const std::string levelText = std::to_string(std::max(1, unit.level));
             const float baseLevelH = std::max(1.0f, runtime::backend_text::measureTextHeight(levelText, 1.0f));
             const float levelScale = std::clamp((ringInner * 1.55f) / baseLevelH, 0.72f, 1.05f);
-            const float textW = std::max(1.0f, runtime::backend_text::measureTextWidth(levelText, levelScale));
-            const float textH = std::max(1.0f, runtime::backend_text::measureTextHeight(levelText, levelScale));
-            const float textX = levelCenter.x - textW * 0.5f;
-            const float textY = levelCenter.y - textH * 0.5f + safeCellPx * 0.03f;
+            const runtime::backend_text::TextBounds levelBounds =
+                runtime::backend_text::measureTextBounds(levelText, levelScale);
+            const float levelCenterOffsetX = levelBounds.valid
+                ? (levelBounds.minX + levelBounds.maxX) * 0.5f
+                : (std::max(1.0f, runtime::backend_text::measureTextWidth(levelText, levelScale)) * 0.5f);
+            const float levelCenterOffsetY = levelBounds.valid
+                ? (levelBounds.minY + levelBounds.maxY) * 0.5f
+                : (std::max(1.0f, runtime::backend_text::measureTextHeight(levelText, levelScale)) * 0.5f);
+            const float textX = levelCenter.x - levelCenterOffsetX;
+            const float textY = levelCenter.y - levelCenterOffsetY;
             runtime::backend_text::appendTextLines(
                 textLines,
                 textX,
@@ -3101,19 +3109,6 @@ struct GameSession::Impl {
                             }
                         }
 
-                        const glm::vec3 heading = game::runtime::backend_proxy::yawForward(animYaw);
-                        const glm::vec3 headingStart =
-                            corners.top[0] * 0.25f + corners.top[1] * 0.25f +
-                            corners.top[2] * 0.25f + corners.top[3] * 0.25f;
-                        appendProjectedLine(
-                            headingStart + glm::vec3(0.0f, extents.height * 0.06f, 0.0f),
-                            headingStart + heading * std::max(0.08f, extents.halfDepth * 1.1f) +
-                                glm::vec3(0.0f, extents.height * 0.06f, 0.0f),
-                            0.95f,
-                            0.95f,
-                            0.98f,
-                            unit.alive ? 0.75f : 0.45f,
-                            std::max(1.0f, line * 0.9f));
                         if (activeAttackWindow) {
                             const float ringRadius = std::max(0.04f, extents.halfWidth * 1.05f + attackProgress * 0.10f);
                             const int segments = 12;
@@ -3153,20 +3148,10 @@ struct GameSession::Impl {
                             }
                         }
 
-                        const float topLabelY = cy - std::max(14.0f, unitSize * 0.40f);
-
-                        BackendUnitLabel label;
-                        label.x = std::max(6.0f, cx - unitSize * 0.55f);
-                        label.y = std::max(4.0f, topLabelY);
-                        label.text = unit.name;
-                        if (!label.text.empty()) {
-                            label.text[0] = static_cast<char>(std::toupper(static_cast<unsigned char>(label.text[0])));
-                        }
-                        label.color = (unit.side == PokemonSide::Player)
-                            ? glm::vec3(0.84f, 0.98f, 0.88f)
-                            : glm::vec3(0.98f, 0.84f, 0.80f);
-                        unitLabels.push_back(std::move(label));
-                        appendLegacyUnitHud(unit, cx, cy, cellPx);
+                        const float hudCellPxBase = std::clamp(minDim * 0.070f, 38.0f, 58.0f);
+                        const float hudCellPx =
+                            std::clamp(cellPx, hudCellPxBase * 0.90f, hudCellPxBase * 1.10f);
+                        appendLegacyUnitHud(unit, cx, cy, hudCellPx);
                     }
                 };
 
@@ -3299,18 +3284,8 @@ struct GameSession::Impl {
                         sprites.push_back(std::move(unitSprite));
                     }
 
-                    BackendUnitLabel label;
-                    label.x = std::max(6.0f, u.x);
-                    label.y = std::max(4.0f, u.y - 14.0f);
-                    label.text = unit.name;
-                    if (!label.text.empty()) {
-                        label.text[0] = static_cast<char>(std::toupper(static_cast<unsigned char>(label.text[0])));
-                    }
-                    label.color = (unit.side == PokemonSide::Player)
-                        ? glm::vec3(0.84f, 0.98f, 0.88f)
-                        : glm::vec3(0.98f, 0.84f, 0.80f);
-                    unitLabels.push_back(std::move(label));
-                    appendLegacyUnitHud(unit, centerX, centerY, std::max(8.0f, std::min(cellW, cellH)));
+                    const float hudCellPx = std::clamp(minDim * 0.070f, 38.0f, 58.0f);
+                    appendLegacyUnitHud(unit, centerX, centerY, hudCellPx);
                 }
 
                 const auto& benchUnits = gameWorld->getBenchPokemons();
@@ -3476,12 +3451,6 @@ struct GameSession::Impl {
                         runtime::backend_status_text::roundLine(roundPhase, combatActive),
                         std::clamp(1.0f * uiScale, 0.80f, 1.35f),
                         glm::vec3(0.83f, 0.91f, 0.98f));
-
-        if (!unitLabels.empty()) {
-            for (const auto& label : unitLabels) {
-                appendText(label.x, label.y, label.text, 0.80f, label.color);
-            }
-        }
 
         int playerAlive = 0;
         int enemyAlive = 0;
