@@ -403,7 +403,9 @@ void CombatState::ensureShopUi() {
 
     clearBackendShopUiCache();
 
-    if (!services.usesLegacyGameUiPath()) {
+    const auto routes = game::runtime::render::routesFromServices(services);
+    const bool legacyUiPath = routes.usesLegacyUiPath();
+    if (!legacyUiPath) {
         if (shopUi) shopUi->clear();
         shopUiEnabled = false;
         hasShopRerollButton = false;
@@ -719,6 +721,7 @@ void CombatState::render() {
     const auto* viewport = services.viewport;
     const int uiW = viewport ? viewport->width : 1280;
     const int uiH = viewport ? viewport->height : 720;
+    const auto routes = game::runtime::render::routesFromServices(services);
     const float uiWidth = static_cast<float>(uiW);
     const bool showSellOverlay = gameWorld &&
                                  gameWorld->isUnitDragActive() &&
@@ -729,7 +732,8 @@ void CombatState::render() {
         return;
     }
 
-    if (!services.usesLegacyGameUiPath()) {
+    const bool renderLegacyUi = routes.usesLegacyUiPath();
+    if (!renderLegacyUi) {
         if (!services.renderer) return;
 
         std::vector<IRenderBackend::DebugQuad> quads;

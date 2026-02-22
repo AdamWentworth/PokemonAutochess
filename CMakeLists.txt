@@ -364,6 +364,7 @@ if (BUILD_TESTING)
         tests/TestGameServicesRoutes.cpp
         tests/TestGameServiceRenderRoutes.cpp
         tests/TestRenderRouteOwnership.cpp
+        tests/TestStateUiRoutePolicy.cpp
         tests/TestRenderRoutes.cpp
         tests/TestRenderPolicyApi.cpp
         tests/TestBackendHudFormatting.cpp

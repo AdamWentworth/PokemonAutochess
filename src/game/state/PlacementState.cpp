@@ -6,6 +6,8 @@
 #include "game/GameWorld.h"
 #include "game/GameServices.h"
 #include "game/runtime/BackendDebugText.h"
+#include "game/runtime/GameServiceRenderRoutes.h"
+#include "game/state/BackendUiPolicy.h"
 #include "game/ui/UIViewport.h"
 
 #include "engine/render/IRenderBackend.h"
@@ -91,8 +93,10 @@ void PlacementState::render() {
     const auto* viewport = services.viewport;
     const int uiW = viewport ? viewport->width : 1280;
     const int uiH = viewport ? viewport->height : 720;
+    const auto routes = game::runtime::render::routesFromServices(services);
+    const bool useBackendUi = game::state::backend_ui::shouldUseBackendUi(routes);
 
-    if (!services.usesLegacyGameUiPath()) {
+    if (useBackendUi) {
         if (!services.renderer) return;
 
         std::vector<IRenderBackend::DebugQuad> quads;

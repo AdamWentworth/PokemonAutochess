@@ -17,6 +17,7 @@ bool test_auto_quit_policy_contract(std::string& outFail);
 bool test_game_services_route_helpers(std::string& outFail);
 bool test_game_service_render_routes_contract(std::string& outFail);
 bool test_render_route_ownership_contract(std::string& outFail);
+bool test_state_ui_route_policy_contract(std::string& outFail);
 bool test_render_routes_contract(std::string& outFail);
 bool test_render_policy_api_contract(std::string& outFail);
 bool test_logbus_recent_lines_contract(std::string& outFail);
@@ -157,6 +158,7 @@ int main(int argc, char** argv) {
         {"game_services_route_helpers", &test_game_services_route_helpers},
         {"game_service_render_routes_contract", &test_game_service_render_routes_contract},
         {"render_route_ownership_contract", &test_render_route_ownership_contract},
+        {"state_ui_route_policy_contract", &test_state_ui_route_policy_contract},
         {"render_routes_contract", &test_render_routes_contract},
         {"render_policy_api_contract", &test_render_policy_api_contract},
         {"logbus_recent_lines_contract", &test_logbus_recent_lines_contract},

@@ -29,6 +29,7 @@ Focus on catching real regressions while keeping tests fast and headless.
 - Render-route contract coverage (`RenderRoutes`, frame-flow policy, backend UI policy, and route ownership guardrail that only `GameSession` probes backend route preferences).
 - Unified frame-flow coverage for backend-neutral world/HUD layer decisions, including backend menu-backdrop world-layer routing.
 - Route API guardrails (`render_policy_api_contract`) to keep policy surfaces route-object only (no bool overload regressions).
+- State UI route guardrail (`state_ui_route_policy_contract`) to prevent gameplay states from bypassing route-policy helpers with direct `GameServices` UI-route checks.
 - Service-route mapping coverage (`game_service_render_routes_contract`) for `GameServices` -> `RenderRoutes` conversion.
 - GameWorld backend-render mode regression coverage (render-enabled world can skip legacy OpenGL model attachment).
 
