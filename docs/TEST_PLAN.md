@@ -25,6 +25,7 @@ Focus on catching real regressions while keeping tests fast and headless.
 - Headless combat slice test (Lua combat system + damage applied).
 - Minimal end-to-end headless flow (placement -> combat -> round resolution).
 - Render pipeline smoke test (shader include checks; optional GL compile + board + real model draw via `PAC_TEST_GL=1`).
+- Combat animation clip-cache contract (`combat_anim_index_cache_contract`) to ensure backend/no-`Model*` alias resolution still maps move clip names (including `.gfbanm` + case variants) to cached animation indices.
 - Layering enforcement check (engine cannot include game headers).
 - Render-route contract coverage (`RenderRoutes`, frame-flow policy, backend UI policy, and route ownership guardrail that only `GameSession` probes backend route preferences).
 - Unified frame-flow coverage for backend-neutral world/HUD layer decisions, including backend menu-backdrop world-layer routing.
@@ -56,8 +57,9 @@ Focus on catching real regressions while keeping tests fast and headless.
 7. Verify per-unit HUD parity (HP bar size/color, energy bar color, level text placement, and player XP ring progress) between `opengl` legacy and shared routes.
 8. While zooming camera in/out, verify shared per-unit HUD size remains visually stable, level text stays centered inside the XP ring, HUD sits clearly above the model, no floating Pokemon-name text is rendered above the HUD block, and no persistent white heading guide line follows each unit.
 9. Verify faint parity in shared routes: faint animation completes, fade-out reaches full disappear (no lingering tiny proxies/models), and dead units are no longer rendered after faint finishes.
-10. Verify shared combat FX timing in `opengl_shared` and `d3d12`: attack telegraph appears during real attack windows, projectile traces follow pending projectile timing, and impact bursts appear near pending hit/impact times.
+10. Verify shared combat FX timing in `opengl_shared` and `d3d12`: no non-legacy attacker telegraph rings or attacker-to-target connector lines are rendered, projectile traces follow pending projectile timing, and impact bursts appear near pending hit/impact times.
 11. Verify shared card-shop textures are visually stable (reduced shimmer/grain) when cards are viewed at menu scale and during camera/mode transitions.
-12. Verify shared move-VFX variety against legacy route mapping: `growl` shows blue sound-wave rings, `tackle` shows orange burst/impact, `scratch`/`metal_claw` show slash-style overlays, `tail_whip`/`bubble`/`water_gun` show aqua-style overlays, and `vine_whip`/`leech_seed` show green burst behavior.
+12. Verify shared move-VFX variety against legacy route mapping: `growl` emits source-centered layered rings (legacy draw-pass style, no target link), `tackle` shows impact burst behavior, `scratch`/`metal_claw` show slash-style overlays, `tail_whip`/`bubble`/`water_gun` show aqua-style overlays, and `vine_whip`/`leech_seed` show green burst behavior.
 13. Verify Charmander tail-fire presentation is visible in both `opengl_shared` and `d3d12` during gameplay (tail flame should remain active while alive, not only during attacks).
 14. Verify leech-seed shared visual flow: projectile trace appears at spawn/hit timing, then drain traces are visible from seeded target to source while seed is active.
+15. Verify charged growl clip parity in shared routes (`opengl_shared`, `d3d12`): species that map growl to a dedicated charged clip in `config/attack_anim_config.json` (for example Bulbasaur/Charmander) should play that mapped clip rather than default attack1 during growl.

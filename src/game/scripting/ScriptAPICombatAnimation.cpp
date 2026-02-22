@@ -49,6 +49,7 @@ void resetPendingAttackState(PokemonInstance& attacker) {
     attacker.pendingImpactTimeSec = 0.0f;
     attacker.pendingImpactIsGrass = false;
     attacker.pendingImpactIsLeechSeed = false;
+    attacker.activeAttackMoveName.clear();
 }
 
 }  // namespace
@@ -172,6 +173,7 @@ bool tryBeginAttackAnimation(PokemonInstance& attacker,
 #endif
 
     if (airborne) {
+        attacker.activeAttackMoveName = ctx.moveLower;
         FlightLocomotion::queueAttackAfterLanding(attacker, desiredWindowSec, desiredAnimIdx);
         outResultHp = target.hp;
         return true;
@@ -187,6 +189,7 @@ bool tryBeginAttackAnimation(PokemonInstance& attacker,
     attacker.activeAnimIndex = desiredAnimIdx;
     attacker.attackAnimSpeed = (windowSec > 0.0f && clipDur > 0.0f) ? (clipDur / windowSec) : 1.0f;
     resetPendingAttackState(attacker);
+    attacker.activeAttackMoveName = ctx.moveLower;
 
     if (trace.enabled) {
         traceLog(trace,

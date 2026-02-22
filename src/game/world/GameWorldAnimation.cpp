@@ -35,6 +35,7 @@ void clearPendingAttackState(PokemonInstance& unit) {
     unit.pendingDamageMoveName.clear();
     unit.pendingDamageIsGrass = false;
     unit.pendingDamageIsTackle = false;
+    unit.activeAttackMoveName.clear();
 }
 
 }  // namespace

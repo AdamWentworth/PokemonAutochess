@@ -623,6 +623,36 @@ struct GameSession::Impl {
             runtime::backend_model::MeshData* mesh = ensureBackendMeshLoaded(modelPath);
             if (!mesh) return;
 
+            if (!unit.model) {
+                if (unit.animIndexCacheSourceModelPath != modelPath) {
+                    unit.animIndexCache.clear();
+                    unit.animIndexCacheSourceModelPath = modelPath;
+                }
+
+                const auto cacheAlias = [&](const std::string& clipName, int idx) {
+                    if (clipName.empty() || idx < 0) return;
+                    unit.animIndexCache[clipName] = idx;
+                    unit.animIndexCache[toLowerCopy(clipName)] = idx;
+                };
+
+                for (std::size_t i = 0; i < mesh->animations.size(); ++i) {
+                    const int idx = static_cast<int>(i);
+                    const std::string& raw = mesh->animations[i].name;
+                    cacheAlias(raw, idx);
+                    const std::string noGfbanm = stripSuffix(raw, ".gfbanm");
+                    cacheAlias(noGfbanm, idx);
+                    const std::string noStart = stripSuffix(raw, "__START");
+                    cacheAlias(noStart, idx);
+                    const std::string noEnd = stripSuffix(raw, "__END");
+                    cacheAlias(noEnd, idx);
+                    std::string compact = stripSuffix(noGfbanm, "__START");
+                    compact = stripSuffix(compact, "__END");
+                    cacheAlias(compact, idx);
+                }
+            } else {
+                unit.animIndexCacheSourceModelPath.clear();
+            }
+
             BackendAnimRoleEntry& roles = ensureBackendAnimRoles(modelPath, mesh);
 
             if (unit.animIdleIndex < 0) unit.animIdleIndex = roles.idleIndex;
@@ -2104,16 +2134,6 @@ struct GameSession::Impl {
                         }
                         const bool hasClipPoseDrivenModel = scenePoseReady && scenePose.hasClipPose;
                         const bool applyProceduralModelMotion = !hasClipPoseDrivenModel;
-                        const bool gameplayAttackActive = unit.attackTimerSec > 0.0f;
-                        float attackProgress = 0.0f;
-                        if (gameplayAttackActive) {
-                            const float safeAttackDur = std::max(0.001f, unit.attackDurationSec);
-                            attackProgress = std::clamp(unit.animTimeSec / safeAttackDur, 0.0f, 1.0f);
-                        } else if (applyProceduralModelMotion && pose.activeAttackWindow) {
-                            attackProgress = std::clamp(pose.attackProgress, 0.0f, 1.0f);
-                        }
-                        const bool activeAttackWindow =
-                            gameplayAttackActive || (applyProceduralModelMotion && pose.activeAttackWindow);
                         const glm::vec3 attackOffset = applyProceduralModelMotion
                             ? (game::runtime::backend_proxy::yawForward(unit.rotation.y) * pose.attackLunge)
                             : glm::vec3(0.0f);
@@ -3264,16 +3284,17 @@ struct GameSession::Impl {
                             }
                         }
 
-                        const std::string pendingMoveLower = toLowerCopy(unit.pendingDamageMoveName);
-                        const MoveImpactRoute impactRoute = classifyMoveImpactRoute(pendingMoveLower);
-                        const AquaImpactStyle aquaStyle = classifyAquaImpactStyle(pendingMoveLower);
+                        std::string routeMoveLower = toLowerCopy(unit.activeAttackMoveName);
+                        if (routeMoveLower.empty()) {
+                            routeMoveLower = toLowerCopy(unit.pendingDamageMoveName);
+                        }
+                        const MoveImpactRoute impactRoute = classifyMoveImpactRoute(routeMoveLower);
                         const bool pendingGrowl = (impactRoute == MoveImpactRoute::GrowlSoundRings);
-                        const bool pendingTackle = (impactRoute == MoveImpactRoute::Tackle);
                         const bool pendingClaw = (impactRoute == MoveImpactRoute::ClawSwipe);
                         const bool pendingAqua = (impactRoute == MoveImpactRoute::AquaSwoosh);
                         const bool pendingLeechSeed =
-                            pendingMoveLower.find("leech") != std::string::npos ||
-                            pendingMoveLower.find("seed") != std::string::npos;
+                            routeMoveLower.find("leech") != std::string::npos ||
+                            routeMoveLower.find("seed") != std::string::npos;
                         const bool pendingGrass = (impactRoute == MoveImpactRoute::GrassImpact) || pendingLeechSeed;
                         const glm::vec3 forward = game::runtime::backend_proxy::yawForward(animYaw);
                         const glm::vec3 right = game::runtime::backend_proxy::yawRight(animYaw);
@@ -3282,131 +3303,50 @@ struct GameSession::Impl {
                         appendProjectedTailFire(unit, proxyCenter, extents, animYaw, std::max(1.0f, line * 0.92f));
                         appendProjectedLeechDrain(unit, std::max(0.12f, worldCellSize * 0.24f), std::max(1.0f, line));
 
-                        if (activeAttackWindow) {
-                            const glm::vec3 attackOrigin =
-                                proxyCenter + up * std::max(0.06f, extents.height * 0.28f);
-                            const float attackRadius =
-                                std::max(0.04f, extents.halfWidth * 0.95f + attackProgress * worldCellSize * 0.24f);
-                            const float attackThickness = std::max(1.0f, line * 0.95f);
-                            if (pendingGrowl) {
-                                for (int w = 0; w < 3; ++w) {
-                                    const float waveT = std::fmod(attackProgress + static_cast<float>(w) * 0.23f, 1.0f);
-                                    const float waveRadius = attackRadius + waveT * worldCellSize * 0.45f;
-                                    const glm::vec3 center =
-                                        attackOrigin +
-                                        forward * (extents.halfDepth * 0.40f + waveT * worldCellSize * 0.35f);
-                                    appendProjectedRing(
-                                        center,
-                                        waveRadius,
-                                        0.46f,
-                                        0.70f,
-                                        0.98f,
-                                        0.74f,
-                                        attackThickness,
-                                        14);
-                                }
-                            } else if (pendingTackle) {
-                                appendProjectedBurst(
-                                    attackOrigin + forward * extents.halfDepth * 0.55f,
-                                    forward,
-                                    attackRadius * 1.05f,
-                                    0.98f,
-                                    0.62f,
-                                    0.28f,
-                                    0.76f,
-                                    attackThickness,
-                                    7);
-                            } else if (pendingClaw) {
-                                const glm::vec3 base = attackOrigin + forward * extents.halfDepth * 0.58f;
-                                for (int slash = -1; slash <= 1; ++slash) {
-                                    const float side = static_cast<float>(slash) * attackRadius * 0.42f;
-                                    const glm::vec3 s0 = base + right * side + up * attackRadius * 0.10f;
-                                    const glm::vec3 s1 = s0 + forward * attackRadius * 0.92f + up * attackRadius * 0.18f;
-                                    appendProjectedLine(
-                                        s0,
-                                        s1,
-                                        0.94f,
-                                        (pendingMoveLower == "metal_claw") ? 0.94f : 0.84f,
-                                        (pendingMoveLower == "metal_claw") ? 0.98f : 0.84f,
-                                        0.88f,
-                                        std::max(1.0f, attackThickness * 1.05f));
-                                }
-                            } else if (pendingAqua) {
-                                const glm::vec3 center = attackOrigin + forward * extents.halfDepth * 0.35f;
-                                appendProjectedRing(
-                                    center,
-                                    attackRadius * (aquaStyle == AquaImpactStyle::WaterGun ? 0.75f : 1.15f),
-                                    0.36f,
-                                    0.72f,
-                                    0.98f,
-                                    0.78f,
-                                    attackThickness,
-                                    13);
-                                if (aquaStyle == AquaImpactStyle::WaterGun) {
-                                    appendProjectedLine(
-                                        center,
-                                        center + forward * std::max(0.08f, worldCellSize * (0.45f + attackProgress * 0.30f)),
-                                        0.40f,
-                                        0.80f,
-                                        1.00f,
-                                        0.86f,
-                                        std::max(1.0f, attackThickness * 1.20f));
-                                } else if (aquaStyle == AquaImpactStyle::Bubble) {
-                                    for (int bubble = 0; bubble < 3; ++bubble) {
-                                        const float bt = attackProgress + static_cast<float>(bubble) * 0.19f;
-                                        const glm::vec3 bubbleCenter =
-                                            center +
-                                            forward * (0.02f + bt * 0.18f) +
-                                            right * std::sin(bt * 5.4f) * attackRadius * 0.35f +
-                                            up * std::max(0.02f, attackRadius * 0.08f);
-                                        appendProjectedRing(
-                                            bubbleCenter,
-                                            attackRadius * (0.24f + static_cast<float>(bubble) * 0.10f),
-                                            0.56f,
-                                            0.88f,
-                                            1.00f,
-                                            0.74f,
-                                            std::max(1.0f, attackThickness * 0.90f),
-                                            10);
-                                    }
-                                }
-                            } else if (pendingGrass) {
-                                appendProjectedRing(
-                                    attackOrigin + forward * extents.halfDepth * 0.30f,
-                                    attackRadius * 1.08f,
-                                    0.42f,
-                                    0.92f,
-                                    0.34f,
-                                    0.78f,
-                                    attackThickness,
-                                    14);
-                            } else {
-                                appendProjectedRing(
-                                    attackOrigin,
-                                    attackRadius * 1.02f,
-                                    0.98f,
-                                    0.84f,
-                                    0.42f,
-                                    0.76f,
-                                    attackThickness,
-                                    12);
-                            }
+                        if (pendingGrowl && unit.attackTimerSec > 0.0f) {
+                            const float safeAttackDur = std::max(0.001f, unit.attackDurationSec);
+                            const float attackProgress =
+                                std::clamp(unit.animTimeSec / safeAttackDur, 0.0f, 1.0f);
+                            const glm::vec3 growlSource =
+                                proxyCenter +
+                                up * std::max(0.10f, extents.height * 0.32f) +
+                                forward * std::max(0.03f, extents.halfDepth * 0.56f);
+                            const float baseRadius = std::max(0.04f, extents.halfWidth * 0.62f);
+                            const float ringAlpha = 0.42f + 0.32f * (1.0f - attackProgress);
+                            const float ringLine = std::max(1.0f, line * 0.90f);
 
-                            if (unit.pendingDamageTargetId >= 0) {
-                                if (const PokemonInstance* target = gameWorld->findUnitById(unit.pendingDamageTargetId)) {
-                                    const glm::vec3 from = attackOrigin;
-                                    const glm::vec3 to =
-                                        target->position +
-                                        glm::vec3(0.0f, std::max(0.12f, worldCellSize * 0.24f) + target->visualYOffset, 0.0f);
-                                    appendProjectedLine(
-                                        from,
-                                        to,
-                                        pendingGrowl ? 0.50f : (pendingGrass ? 0.42f : 0.98f),
-                                        pendingGrowl ? 0.70f : (pendingGrass ? 0.92f : (pendingTackle ? 0.62f : 0.78f)),
-                                        pendingGrowl ? 0.98f : (pendingGrass ? 0.34f : (pendingTackle ? 0.28f : 0.30f)),
-                                        0.74f,
-                                        std::max(1.0f, line * 1.02f));
-                                }
+                            // Legacy growl draw-pass approximation: layered source rings.
+                            appendProjectedRing(
+                                growlSource + forward * std::max(0.01f, worldCellSize * 0.05f),
+                                baseRadius * (0.80f + attackProgress * 0.65f),
+                                1.00f, 0.60f, 1.00f, ringAlpha * 0.95f, ringLine, 14);
+                            appendProjectedRing(
+                                growlSource + forward * std::max(0.03f, worldCellSize * 0.14f),
+                                baseRadius * (1.00f + attackProgress * 0.78f),
+                                1.00f, 0.70f, 0.82f, ringAlpha * 0.90f, ringLine, 16);
+                            appendProjectedRing(
+                                growlSource + forward * std::max(0.05f, worldCellSize * 0.24f),
+                                baseRadius * (1.24f + attackProgress * 0.92f),
+                                0.96f, 0.56f, 0.96f, ringAlpha * 0.82f, ringLine, 16);
+
+                            // Legacy line-pass approximation: radial fan from source.
+                            constexpr int kGrowlSpokes = 16;
+                            for (int s = 0; s < kGrowlSpokes; ++s) {
+                                const float t =
+                                    (static_cast<float>(s) / static_cast<float>(kGrowlSpokes)) * 6.2831853f;
+                                const float ripple = std::sin(attackProgress * 14.0f + static_cast<float>(s) * 0.65f);
+                                const glm::vec3 dir = glm::normalize(
+                                    right * (std::cos(t) * 1.10f) +
+                                    up * (std::sin(t) * 1.10f) +
+                                    forward * (1.00f + ripple * 0.12f));
+                                appendProjectedLine(
+                                    growlSource,
+                                    growlSource + dir * (baseRadius * (1.65f + attackProgress * 0.90f)),
+                                    1.00f,
+                                    0.64f,
+                                    0.88f,
+                                    ringAlpha * (0.55f + 0.30f * (0.5f + 0.5f * ripple)),
+                                    std::max(1.0f, line * 0.76f));
                             }
                         }
 
@@ -3474,32 +3414,45 @@ struct GameSession::Impl {
                                             glm::vec3(0.0f, std::max(0.12f, worldCellSize * 0.24f) + target->visualYOffset, 0.0f);
                                         const float ia = 0.44f + burst * 0.42f;
                                         if (pendingGrowl) {
+                                            const glm::vec3 growlSource =
+                                                proxyCenter +
+                                                up * std::max(0.10f, extents.height * 0.32f) +
+                                                forward * std::max(0.03f, extents.halfDepth * 0.56f);
                                             appendProjectedRing(
-                                                center,
-                                                radius * 1.25f,
-                                                0.46f,
+                                                growlSource,
+                                                radius * 0.98f,
+                                                1.00f,
+                                                0.60f,
+                                                1.00f,
+                                                ia * 0.95f,
+                                                std::max(1.0f, line * 0.88f),
+                                                12);
+                                            appendProjectedRing(
+                                                growlSource + forward * std::max(0.03f, worldCellSize * 0.14f),
+                                                radius * 1.26f,
+                                                1.00f,
                                                 0.70f,
-                                                0.98f,
-                                                ia,
-                                                std::max(1.0f, line * 0.95f),
+                                                0.82f,
+                                                ia * 0.86f,
+                                                std::max(1.0f, line * 0.92f),
                                                 14);
                                             appendProjectedRing(
-                                                center,
-                                                radius * 0.72f,
-                                                0.60f,
-                                                0.84f,
-                                                1.00f,
-                                                ia * 0.8f,
-                                                std::max(1.0f, line * 0.9f),
-                                                12);
+                                                growlSource + forward * std::max(0.05f, worldCellSize * 0.24f),
+                                                radius * 1.52f,
+                                                0.96f,
+                                                0.56f,
+                                                0.96f,
+                                                ia * 0.74f,
+                                                std::max(1.0f, line * 0.86f),
+                                                14);
                                         } else if (pendingClaw) {
                                             appendProjectedBurst(
                                                 center,
                                                 forward,
                                                 radius * 1.10f,
                                                 0.95f,
-                                                (pendingMoveLower == "metal_claw") ? 0.95f : 0.82f,
-                                                (pendingMoveLower == "metal_claw") ? 0.99f : 0.82f,
+                                                (routeMoveLower == "metal_claw") ? 0.95f : 0.82f,
+                                                (routeMoveLower == "metal_claw") ? 0.99f : 0.82f,
                                                 ia,
                                                 std::max(1.0f, line),
                                                 6);

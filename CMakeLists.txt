@@ -407,6 +407,7 @@ if (BUILD_TESTING)
         tests/TestModelParse.cpp
         tests/TestModelLoaderStructure.cpp
         tests/TestGltfAsset.cpp
+        tests/TestCombatAnimIndexCache.cpp
         tests/TestScriptApiContract.cpp
         tests/TestRoundFlow.cpp
         tests/TestAnimsetRoles.cpp

@@ -49,7 +49,9 @@ void GameWorld::handleUnitFaint(PokemonInstance& target) {
     target.pendingDamageAmount = 0;
     target.pendingDamageHitTimeSec = 0.0f;
     target.pendingDamageMoveName.clear();
+    target.activeAttackMoveName.clear();
     target.animIndexCache.clear();
+    target.animIndexCacheSourceModelPath.clear();
 
     target.leechSeeded = false;
     target.leechSeedSourceId = -1;
@@ -81,6 +83,7 @@ void GameWorld::healPlayerUnitsToFull() {
             u.pendingDamageActive = false;
             u.pendingDamageApplied = false;
             u.pendingDamageMoveName.clear();
+            u.activeAttackMoveName.clear();
             u.pendingProjectileActive = false;
             u.pendingProjectileSpawned = false;
             u.pendingImpactActive = false;

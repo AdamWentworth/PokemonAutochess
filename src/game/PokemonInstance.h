@@ -149,8 +149,12 @@ struct PokemonInstance {
     // Which clip to play during the current attack window (defaults to animAttack1Index).
     int currentAttackAnimIndex = -1;
 
+    // Lower-case move name currently driving the active attack animation window.
+    std::string activeAttackMoveName;
+
     // Cache of animation indices resolved by clip name (avoids repeated linear searches).
     std::unordered_map<std::string, int> animIndexCache;
+    std::string animIndexCacheSourceModelPath;
 
     // Generic fast-move chaining (for start/loop/end style moves).
     std::string chainedFastMove;     // lower-case move name

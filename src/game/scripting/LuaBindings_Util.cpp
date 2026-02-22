@@ -35,15 +35,61 @@ std::string toLowerCopy(std::string s) {
     return s;
 }
 
+namespace {
+std::string stripSuffix(const std::string& s, const std::string& suffix) {
+    if (!suffix.empty() && s.size() >= suffix.size()) {
+        const std::string tail = s.substr(s.size() - suffix.size());
+        if (toLowerCopy(tail) == toLowerCopy(suffix)) {
+            return s.substr(0, s.size() - suffix.size());
+        }
+    }
+    return s;
+}
+}  // namespace
+
 int animIndexCached(PokemonInstance& p, const std::string& clipName) {
-    if (!p.model) return -1;
     if (clipName.empty()) return -1;
 
-    auto it = p.animIndexCache.find(clipName);
-    if (it != p.animIndexCache.end()) return it->second;
+    const auto findCached = [&](const std::string& key) -> int {
+        if (key.empty()) return -1;
+        auto it = p.animIndexCache.find(key);
+        if (it != p.animIndexCache.end()) return it->second;
+        const std::string lower = toLowerCopy(key);
+        it = p.animIndexCache.find(lower);
+        if (it != p.animIndexCache.end()) return it->second;
+        return -1;
+    };
+    const auto cacheAlias = [&](const std::string& key, int idx) {
+        if (idx < 0 || key.empty()) return;
+        p.animIndexCache[key] = idx;
+        p.animIndexCache[toLowerCopy(key)] = idx;
+    };
 
-    const int idx = AnimSet::resolveAnimIndex(p.model.get(), clipName);
-    p.animIndexCache[clipName] = idx;
+    const std::string noGfbanm = stripSuffix(clipName, ".gfbanm");
+    const std::string noStart = stripSuffix(clipName, "__START");
+    const std::string noEnd = stripSuffix(clipName, "__END");
+    std::string compact = stripSuffix(noGfbanm, "__START");
+    compact = stripSuffix(compact, "__END");
+
+    int idx = findCached(clipName);
+    if (idx >= 0) return idx;
+    idx = findCached(noGfbanm);
+    if (idx >= 0) return idx;
+    idx = findCached(noStart);
+    if (idx >= 0) return idx;
+    idx = findCached(noEnd);
+    if (idx >= 0) return idx;
+    idx = findCached(compact);
+    if (idx >= 0) return idx;
+
+    if (!p.model) return -1;
+
+    idx = AnimSet::resolveAnimIndex(p.model.get(), clipName);
+    cacheAlias(clipName, idx);
+    cacheAlias(noGfbanm, idx);
+    cacheAlias(noStart, idx);
+    cacheAlias(noEnd, idx);
+    cacheAlias(compact, idx);
     return idx;
 }
 // Helper
