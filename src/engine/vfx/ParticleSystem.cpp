@@ -45,6 +45,7 @@ static unsigned int loadTextureRGBAOrWhite(const std::string& path) {
     stbi_set_flip_vertically_on_load(true);
 
     unsigned char* data = stbi_load(path.c_str(), &w, &h, &comp, 4);
+    stbi_set_flip_vertically_on_load(false);
     if (!data || w <= 0 || h <= 0) {
         if (data) stbi_image_free(data);
         return create1x1WhiteTextureRGBA();

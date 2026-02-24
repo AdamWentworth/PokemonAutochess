@@ -1856,12 +1856,14 @@ D3D12RenderBackend::SpriteTexture* D3D12RenderBackend::ensureSpriteTexture(const
     int width = 0;
     int height = 0;
     int channels = 0;
+    stbi_set_flip_vertically_on_load(false);
     unsigned char* pixels = stbi_load(texturePath.c_str(), &width, &height, &channels, 4);
     std::string altPath;
     if (!pixels) {
         altPath = texturePath;
         std::replace(altPath.begin(), altPath.end(), '\\', '/');
         if (altPath != texturePath) {
+            stbi_set_flip_vertically_on_load(false);
             pixels = stbi_load(altPath.c_str(), &width, &height, &channels, 4);
         }
     }

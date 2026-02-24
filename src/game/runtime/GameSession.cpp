@@ -536,11 +536,14 @@ struct GameSession::Impl {
         return &cacheEntry.mesh;
     }
 
-    BackendTextureCacheEntry* ensureBackendTextureLoaded(const std::string& texturePath) {
+    BackendTextureCacheEntry* ensureBackendTextureLoaded(const std::string& texturePath,
+                                                         bool flipVertical = false) {
         if (backendTextureByPath.empty()) {
             backendTextureByPath.reserve(64u);
         }
-        const std::string key = texturePath.empty() ? "__white__" : texturePath;
+        const std::string key = texturePath.empty()
+            ? "__white__"
+            : ((flipVertical ? "__flipv__:" : "__noflip__:" ) + texturePath);
         auto& cacheEntry = backendTextureByPath[key];
         if (cacheEntry.attemptedLoad) {
             return cacheEntry.valid ? &cacheEntry : nullptr;
@@ -655,13 +658,16 @@ struct GameSession::Impl {
         int width = 0;
         int height = 0;
         int channels = 0;
+        stbi_set_flip_vertically_on_load(flipVertical ? 1 : 0);
         unsigned char* pixels = stbi_load(texturePath.c_str(), &width, &height, &channels, 4);
         if (!pixels) {
             const std::string dataPath = engine::paths::data(texturePath);
             if (dataPath != texturePath) {
+                stbi_set_flip_vertically_on_load(flipVertical ? 1 : 0);
                 pixels = stbi_load(dataPath.c_str(), &width, &height, &channels, 4);
             }
         }
+        stbi_set_flip_vertically_on_load(false);
         if (!pixels || width <= 0 || height <= 0) {
             if (pixels) stbi_image_free(pixels);
             return nullptr;
@@ -2401,7 +2407,7 @@ struct GameSession::Impl {
                     if (!gameWorld) return;
 
                     GameWorld::ParticleVfxSnapshots vfxSnapshots;
-                    if (!gameWorld->buildParticleVfxSnapshots(vfxSnapshots)) return;
+                    (void)gameWorld->buildParticleVfxSnapshots(vfxSnapshots);
 
                     const auto toBackendBlendMode =
                         [](ParticleSystem::BlendMode mode) -> std::uint8_t {
@@ -2526,17 +2532,315 @@ struct GameSession::Impl {
                             return style;
                         };
 
+                    const auto hashFrac01 = [](float x) {
+                        const float s = std::sin(x * 12.9898f) * 43758.5453f;
+                        return s - std::floor(s);
+                    };
+                    const auto tailFireRampOrangeRed = [](float age01) {
+                        const glm::vec3 hot(1.05f, 0.42f, 0.18f);
+                        const glm::vec3 mid(0.90f, 0.30f, 0.14f);
+                        const glm::vec3 cool(0.58f, 0.16f, 0.10f);
+                        glm::vec3 c = glm::mix(hot, mid, glm::smoothstep(0.0f, 0.65f, age01));
+                        c = glm::mix(c, cool, glm::smoothstep(0.55f, 1.0f, age01));
+                        c *= 0.70f;
+                        const float l = glm::dot(c, glm::vec3(0.2126f, 0.7152f, 0.0722f));
+                        c = glm::mix(glm::vec3(l), c, 0.95f);
+                        return glm::clamp(c, glm::vec3(0.0f), glm::vec3(1.0f));
+                    };
+                    const auto resolveTailFirePremulAtlas =
+                        [&](const std::string& atlasPath) -> BackendTextureCacheEntry* {
+                            if (atlasPath.empty()) return nullptr;
+                            // Legacy ParticleSystem loads VFX flipbooks with stb vertical flip enabled.
+                            // Match that texture orientation here so the shared fire_tail UV logic aligns.
+                            BackendTextureCacheEntry* src = ensureBackendTextureLoaded(atlasPath, true);
+                            if (!src || !src->valid || src->rgba.empty() || src->width <= 0 || src->height <= 0) {
+                                return nullptr;
+                            }
+                            const std::string key = std::string("__tailfire_premul:") + atlasPath;
+                            if (backendTextureByPath.empty()) backendTextureByPath.reserve(64u);
+                            auto& baked = backendTextureByPath[key];
+                            if (baked.attemptedLoad) return baked.valid ? &baked : nullptr;
+
+                            baked.attemptedLoad = true;
+                            baked.valid = false;
+                            baked.width = src->width;
+                            baked.height = src->height;
+                            baked.rgba.assign(src->rgba.size(), 0u);
+
+                            for (std::size_t i = 0; i + 3u < src->rgba.size(); i += 4u) {
+                                const float r = static_cast<float>(src->rgba[i + 0u]) / 255.0f;
+                                const float g = static_cast<float>(src->rgba[i + 1u]) / 255.0f;
+                                const float b = static_cast<float>(src->rgba[i + 2u]) / 255.0f;
+                                const float a = static_cast<float>(src->rgba[i + 3u]) / 255.0f;
+                                // Shared world textured path multiplies texture * vertex color, so keep the atlas
+                                // color as-is and only premultiply by texture alpha here (avoid double darkening).
+                                glm::vec3 rgb = glm::vec3(r, g, b) * a;
+                                baked.rgba[i + 0u] = static_cast<unsigned char>(
+                                    std::clamp<int>(static_cast<int>(std::lround(rgb.r * 255.0f)), 0, 255));
+                                baked.rgba[i + 1u] = static_cast<unsigned char>(
+                                    std::clamp<int>(static_cast<int>(std::lround(rgb.g * 255.0f)), 0, 255));
+                                baked.rgba[i + 2u] = static_cast<unsigned char>(
+                                    std::clamp<int>(static_cast<int>(std::lround(rgb.b * 255.0f)), 0, 255));
+                                baked.rgba[i + 3u] = src->rgba[i + 3u];
+                            }
+
+                            baked.valid = true;
+                            return &baked;
+                        };
+
                     const auto appendSnapshotAsBillboards =
                         [&](const char* label, const ParticleSystem::RenderSnapshot& snapshot) -> bool {
                             if (!label) return false;
                             if (snapshot.particles.empty()) return false;
 
                             const std::uint8_t blendMode = toBackendBlendMode(snapshot.renderSettings.blend);
+                            const std::string frag = toLowerCopy(snapshot.shaderFragPath);
+                            const bool tailFireShader = (frag.find("fire_tail") != std::string::npos);
+
+                            if (tailFireShader && snapshot.useFlipbook && !snapshot.flipbookPath.empty()) {
+                                BackendTextureCacheEntry* primaryTex = resolveTailFirePremulAtlas(snapshot.flipbookPath);
+                                BackendTextureCacheEntry* secondaryTex =
+                                    (snapshot.useSecondaryFlipbook && !snapshot.flipbookPath2.empty())
+                                        ? resolveTailFirePremulAtlas(snapshot.flipbookPath2)
+                                        : nullptr;
+                                if (!primaryTex || !primaryTex->valid || primaryTex->rgba.empty()) {
+                                    return false;
+                                }
+
+                                auto initParticleBatch =
+                                    [&](WorldIndexedBatch& batch,
+                                        const char* passName,
+                                        const std::string& texPath,
+                                        const BackendTextureCacheEntry& texRef) {
+                                        batch = {};
+                                        batch.textureKey =
+                                            std::string("particle:") + label + ":" + passName + ":" + texPath;
+                                        batch.textureRgba = texRef.rgba.data();
+                                        batch.textureWidth = texRef.width;
+                                        batch.textureHeight = texRef.height;
+                                        batch.textureWrapS = 33071; // clamp
+                                        batch.textureWrapT = 33071; // clamp
+                                        batch.alphaMode = 2u;
+                                        batch.blendMode = blendMode;
+                                        batch.alphaCutoff = 0.0f;
+                                        batch.sortDepth = 0.0f;
+                                        batch.vertices.reserve(snapshot.particles.size() * 4u);
+                                        batch.indices.reserve(snapshot.particles.size() * 6u);
+                                    };
+
+                                WorldIndexedBatch hybridBatch;
+                                initParticleBatch(hybridBatch, "tail_fire_hybrid", snapshot.flipbookPath, *primaryTex);
+
+                                WorldIndexedBatch coreBatch;
+                                const bool hasSecondary =
+                                    (secondaryTex && secondaryTex->valid && !secondaryTex->rgba.empty());
+                                if (hasSecondary) {
+                                    initParticleBatch(coreBatch, "tail_fire_core", snapshot.flipbookPath2, *secondaryTex);
+                                }
+
+                                auto computeTailFireFrameUv =
+                                    [&](const ParticleSystem::Particle& particle,
+                                        bool secondary,
+                                        float& u0,
+                                        float& v0,
+                                        float& u1,
+                                        float& v1) {
+                                        const int cols = std::max(1, secondary ? snapshot.flipbookCols2 : snapshot.flipbookCols);
+                                        const int rows = std::max(1, secondary ? snapshot.flipbookRows2 : snapshot.flipbookRows);
+                                        const int maxFrames = std::max(1, cols * rows);
+                                        const int frameCountRaw = secondary ? snapshot.flipbookFrames2 : snapshot.flipbookFrames;
+                                        const int frames = std::clamp(frameCountRaw, 1, maxFrames);
+                                        const float fps = std::max(0.0f, secondary ? snapshot.flipbookFps2 : snapshot.flipbookFps);
+                                        if (frames <= 1 || cols <= 0 || rows <= 0 || fps <= 0.0f) {
+                                            u0 = 0.0f; v0 = 0.0f; u1 = 1.0f; v1 = 1.0f;
+                                            return;
+                                        }
+
+                                        const float seed = std::clamp(particle.seed, 0.0f, 1.0f);
+                                        const float speedNoise = hashFrac01(seed * 31.7f + 2.3f);
+                                        const float speed = glm::mix(0.85f, 1.10f, speedNoise);
+                                        const float f = std::floor(snapshot.timeSec * fps * speed + seed * static_cast<float>(frames));
+                                        int frame = static_cast<int>(std::fmod(f, static_cast<float>(frames)));
+                                        if (frame < 0) frame += frames;
+
+                                        const int col = frame % cols;
+                                        const int rowFromTop = frame / cols;
+                                        const int row = (rows - 1) - rowFromTop;
+                                        u0 = static_cast<float>(col) / static_cast<float>(cols);
+                                        v0 = static_cast<float>(row) / static_cast<float>(rows);
+                                        u1 = static_cast<float>(col + 1) / static_cast<float>(cols);
+                                        v1 = static_cast<float>(row + 1) / static_cast<float>(rows);
+                                    };
+
+                                auto appendBillboardToBatch =
+                                    [&](WorldIndexedBatch& batch,
+                                        const glm::vec4& clip,
+                                        const glm::vec3& particlePos,
+                                        float pxSize,
+                                        float sizeMul,
+                                        const glm::vec3& color,
+                                        float alpha,
+                                        bool secondaryAtlas,
+                                        const ParticleSystem::Particle& particle) -> bool {
+                                        if (alpha <= 0.001f || sizeMul <= 0.0001f) return false;
+                                        const float px = std::clamp(pxSize * sizeMul, 3.0f, 160.0f);
+                                        const float halfNdcX = px / std::max(1, drawableW);
+                                        const float halfNdcY = px / std::max(1, drawableH);
+                                        if (halfNdcX <= 0.000001f || halfNdcY <= 0.000001f) return false;
+
+                                        const float ndcX = clip.x / clip.w;
+                                        const float ndcY = clip.y / clip.w;
+                                        glm::vec3 corners[4];
+                                        if (!safeUnprojectClip(glm::vec4((ndcX - halfNdcX) * clip.w,
+                                                                         (ndcY - halfNdcY) * clip.w,
+                                                                         clip.z,
+                                                                         clip.w),
+                                                               corners[0]) ||
+                                            !safeUnprojectClip(glm::vec4((ndcX + halfNdcX) * clip.w,
+                                                                         (ndcY - halfNdcY) * clip.w,
+                                                                         clip.z,
+                                                                         clip.w),
+                                                               corners[1]) ||
+                                            !safeUnprojectClip(glm::vec4((ndcX + halfNdcX) * clip.w,
+                                                                         (ndcY + halfNdcY) * clip.w,
+                                                                         clip.z,
+                                                                         clip.w),
+                                                               corners[2]) ||
+                                            !safeUnprojectClip(glm::vec4((ndcX - halfNdcX) * clip.w,
+                                                                         (ndcY + halfNdcY) * clip.w,
+                                                                         clip.z,
+                                                                         clip.w),
+                                                               corners[3])) {
+                                            return false;
+                                        }
+
+                                        float u0 = 0.0f, v0 = 0.0f, u1 = 1.0f, v1 = 1.0f;
+                                        computeTailFireFrameUv(particle, secondaryAtlas, u0, v0, u1, v1);
+
+                                        const std::uint32_t baseVertex =
+                                            static_cast<std::uint32_t>(batch.vertices.size());
+                                        const auto pushVertex = [&](const glm::vec3& p, float u, float v) {
+                                            IRenderBackend::WorldMeshVertex vtx;
+                                            vtx.x = p.x;
+                                            vtx.y = p.y;
+                                            vtx.z = p.z;
+                                            vtx.u = u;
+                                            vtx.v = v;
+                                            vtx.r = color.r;
+                                            vtx.g = color.g;
+                                            vtx.b = color.b;
+                                            vtx.a = alpha;
+                                            batch.vertices.push_back(vtx);
+                                        };
+                                        // Tail-fire atlases are loaded using the legacy ParticleSystem flip policy,
+                                        // and frame-row selection already mirrors legacy sampleAtlas() indexing.
+                                        // Use the normal quad-local UV winding here to avoid a double Y flip.
+                                        pushVertex(corners[0], u0, v0);
+                                        pushVertex(corners[1], u1, v0);
+                                        pushVertex(corners[2], u1, v1);
+                                        pushVertex(corners[3], u0, v1);
+                                        batch.indices.push_back(baseVertex + 0u);
+                                        batch.indices.push_back(baseVertex + 1u);
+                                        batch.indices.push_back(baseVertex + 2u);
+                                        batch.indices.push_back(baseVertex + 0u);
+                                        batch.indices.push_back(baseVertex + 2u);
+                                        batch.indices.push_back(baseVertex + 3u);
+                                        const float distSq =
+                                            glm::dot(cameraWorldPos - particlePos, cameraWorldPos - particlePos);
+                                        batch.sortDepth = std::max(batch.sortDepth, distSq);
+                                        return true;
+                                    };
+
+                                bool appendedAny = false;
+                                for (const auto& particle : snapshot.particles) {
+                                    const float maxLife = std::max(0.0001f, particle.maxLifeSec);
+                                    float age01 = 1.0f - (particle.lifeSec / maxLife);
+                                    age01 = std::clamp(age01, 0.0f, 1.0f);
+
+                                    const glm::vec4 clip = viewProj * glm::vec4(particle.pos, 1.0f);
+                                    if (!std::isfinite(clip.x) || !std::isfinite(clip.y) ||
+                                        !std::isfinite(clip.z) || !std::isfinite(clip.w)) {
+                                        continue;
+                                    }
+                                    if (clip.w <= 0.0001f) continue;
+                                    const float ndcZ = clip.z / clip.w;
+                                    if (!std::isfinite(ndcZ) || ndcZ < -1.2f || ndcZ > 1.2f) continue;
+
+                                    const float pxSize = std::clamp(
+                                        particle.sizePx * snapshot.pointScale / std::max(0.0001f, clip.w),
+                                        3.0f,
+                                        160.0f);
+
+                                    const float seed = std::clamp(particle.seed, 0.0f, 1.0f);
+                                    const float fade = std::pow(glm::mix(1.0f - age01, 1.0f, 0.25f), 0.75f);
+                                    const float flicker =
+                                        glm::mix(0.92f,
+                                                 1.08f,
+                                                 hashFrac01(std::floor(snapshot.timeSec * 11.0f) + seed * 91.0f));
+                                    glm::vec3 hybridColor = tailFireRampOrangeRed(age01);
+                                    hybridColor *= (0.95f + 0.15f * flicker);
+                                    hybridColor = glm::clamp(hybridColor, glm::vec3(0.0f), glm::vec3(1.0f));
+                                    const float hybridAlpha = std::clamp(
+                                        (0.74f + 0.30f * (1.0f - age01)) * fade * (0.98f + 0.12f * flicker),
+                                        0.0f,
+                                        0.95f);
+                                    const glm::vec3 hybridColorPremul = hybridColor * hybridAlpha;
+
+                                    if (appendBillboardToBatch(
+                                            hybridBatch,
+                                            clip,
+                                            particle.pos,
+                                            pxSize,
+                                            1.12f,
+                                            hybridColorPremul,
+                                            hybridAlpha,
+                                            false,
+                                            particle)) {
+                                        appendedAny = true;
+                                    }
+
+                                    if (hasSecondary) {
+                                        const float hot = glm::smoothstep(0.10f, 0.55f, 1.0f - age01);
+                                        glm::vec3 coreTint =
+                                            glm::mix(glm::vec3(1.45f, 0.18f, 0.06f),
+                                                     glm::vec3(1.70f, 1.20f, 0.28f),
+                                                     hot);
+                                        coreTint *= 0.90f;
+                                        coreTint *= (0.98f + 0.10f * flicker);
+                                        coreTint = glm::clamp(coreTint, glm::vec3(0.0f), glm::vec3(1.0f));
+                                        const float coreAlpha = std::clamp(
+                                            (0.62f + 0.24f * (1.0f - age01)) * fade * (0.98f + 0.12f * flicker),
+                                            0.0f,
+                                            0.90f);
+                                        const glm::vec3 coreTintPremul = coreTint * coreAlpha;
+                                        if (appendBillboardToBatch(
+                                                coreBatch,
+                                                clip,
+                                                particle.pos,
+                                                pxSize,
+                                                0.86f,
+                                                coreTintPremul,
+                                                coreAlpha,
+                                                true,
+                                                particle)) {
+                                            appendedAny = true;
+                                        }
+                                    }
+                                }
+
+                                if (!hybridBatch.vertices.empty() && !hybridBatch.indices.empty()) {
+                                    worldIndexedBatches.push_back(std::move(hybridBatch));
+                                }
+                                if (hasSecondary && !coreBatch.vertices.empty() && !coreBatch.indices.empty()) {
+                                    worldIndexedBatches.push_back(std::move(coreBatch));
+                                }
+                                return appendedAny;
+                            }
+
                             std::string texturePath = "__proc:soft_circle";
                             if (snapshot.useFlipbook && !snapshot.flipbookPath.empty()) {
                                 texturePath = snapshot.flipbookPath;
                             } else {
-                                const std::string frag = toLowerCopy(snapshot.shaderFragPath);
                                 if (frag.find("leaf_impact") != std::string::npos) texturePath = "__proc:leaf";
                                 else if (frag.find("splat_impact") != std::string::npos) texturePath = "__proc:starburst";
                                 else if (frag.find("impact_spark") != std::string::npos) texturePath = "__proc:dot";
@@ -2671,7 +2975,7 @@ struct GameSession::Impl {
                             return appendedAny;
                         };
 
-                    const bool appendedTailFireBillboards =
+                    bool appendedTailFireBillboards =
                         appendSnapshotAsBillboards("tail_fire", vfxSnapshots.tailFire);
                     appendSnapshotAsBillboards("grass_impact", vfxSnapshots.grassImpact);
                     appendSnapshotAsBillboards("tackle_burst", vfxSnapshots.tackleBurst);
@@ -2682,6 +2986,114 @@ struct GameSession::Impl {
                     appendSnapshotAsBillboards("heal_plus", vfxSnapshots.healPlus);
                     appendSnapshotAsBillboards("claw_swipe", vfxSnapshots.clawSwipe);
                     appendSnapshotAsBillboards("aqua_swoosh", vfxSnapshots.aquaSwoosh);
+
+                    if (!appendedTailFireBillboards && gameWorld) {
+                        static TailFireVFX::Config sTailFireFallbackCfg{};
+                        static bool sTailFireFallbackCfgLoaded = false;
+                        if (!sTailFireFallbackCfgLoaded) {
+                            TailFireVFX::Config cfg;
+                            TailFireVFXConfigDB::get().ensureLoaded();
+                            TailFireVFXConfigDB::get().applyIfAny("charmander", cfg);
+                            sTailFireFallbackCfg = cfg;
+                            sTailFireFallbackCfgLoaded = true;
+                        }
+
+                        ParticleSystem::RenderSnapshot syntheticTailFire;
+                        syntheticTailFire.renderSettings.blend = sTailFireFallbackCfg.blend;
+                        syntheticTailFire.renderSettings.depthTest = sTailFireFallbackCfg.depthTest;
+                        syntheticTailFire.renderSettings.depthWrite = sTailFireFallbackCfg.depthWrite;
+                        syntheticTailFire.pointScale = sTailFireFallbackCfg.pointScale;
+                        syntheticTailFire.timeSec = 0.0f;
+                        syntheticTailFire.shaderVertPath = sTailFireFallbackCfg.vertShaderPath;
+                        syntheticTailFire.shaderFragPath = sTailFireFallbackCfg.fragShaderPath;
+                        syntheticTailFire.useFlipbook = sTailFireFallbackCfg.useFlipbook;
+                        syntheticTailFire.flipbookPath = sTailFireFallbackCfg.flipbookPath;
+                        syntheticTailFire.flipbookCols = sTailFireFallbackCfg.flipbookCols;
+                        syntheticTailFire.flipbookRows = sTailFireFallbackCfg.flipbookRows;
+                        syntheticTailFire.flipbookFrames = sTailFireFallbackCfg.flipbookFrames;
+                        syntheticTailFire.flipbookFps = sTailFireFallbackCfg.flipbookFps;
+                        syntheticTailFire.useSecondaryFlipbook = sTailFireFallbackCfg.useFlipbook2;
+                        syntheticTailFire.flipbookPath2 = sTailFireFallbackCfg.flipbook2Path;
+                        syntheticTailFire.flipbookCols2 = sTailFireFallbackCfg.flipbook2Cols;
+                        syntheticTailFire.flipbookRows2 = sTailFireFallbackCfg.flipbook2Rows;
+                        syntheticTailFire.flipbookFrames2 = sTailFireFallbackCfg.flipbook2Frames;
+                        syntheticTailFire.flipbookFps2 = sTailFireFallbackCfg.flipbook2Fps;
+
+                        syntheticTailFire.particles.reserve(32u);
+                        for (const auto& unit : gameWorld->getPokemons()) {
+                            const std::string species = toLowerCopy(unit.name);
+                            if (species != "charmander") continue;
+                            if (!unit.alive || unit.fainting) continue;
+
+                            syntheticTailFire.timeSec =
+                                std::max(syntheticTailFire.timeSec, std::max(0.0f, unit.animTimeSec));
+
+                            const auto extents =
+                                game::runtime::backend_proxy::computeUnitProxyExtents(unit, worldCellSize);
+                            if (extents.height <= 0.0001f) continue;
+
+                            const glm::vec3 center =
+                                unit.position + glm::vec3(0.0f, unit.visualYOffset, 0.0f);
+                            const glm::vec3 up(0.0f, 1.0f, 0.0f);
+                            const glm::vec3 fwd = game::runtime::backend_proxy::yawForward(unit.rotation.y);
+                            const glm::vec3 right = game::runtime::backend_proxy::yawRight(unit.rotation.y);
+                            const float scaleMul =
+                                std::clamp(extents.height / std::max(0.05f, worldCellSize * 0.72f),
+                                           0.80f,
+                                           2.40f);
+                            const float spawnRadius =
+                                std::max(0.004f, sTailFireFallbackCfg.spawnRadius * scaleMul);
+                            const float tailBackOffset =
+                                std::max(0.03f, extents.halfDepth * 0.82f + sTailFireFallbackCfg.spawnRadius * 2.5f);
+                            const glm::vec3 tailDir =
+                                glm::normalize((-fwd * 0.85f) + (up * 0.52f));
+                            const glm::vec3 tailAnchor =
+                                center - fwd * tailBackOffset +
+                                up * std::max(0.02f, sTailFireFallbackCfg.tailWorldYOffset) +
+                                tailDir * std::max(0.003f, spawnRadius * 0.8f);
+                            const glm::vec3 backDirWorld = tailDir;
+
+                            for (int i = 0; i < 3; ++i) {
+                                const float phase = std::fmod(
+                                    unit.animTimeSec * (2.2f + 0.35f * static_cast<float>(i)) +
+                                        static_cast<float>(unit.id) * (0.17f + 0.09f * static_cast<float>(i)),
+                                    1.0f);
+                                const float age01 = (phase < 0.0f) ? (phase + 1.0f) : phase;
+                                const float ageSec = (0.14f + 0.10f * age01) * age01;
+                                const float base = static_cast<float>(unit.id * 97 + i * 31);
+                                const float rx = (hashFrac01(base + 1.0f) * 2.0f - 1.0f) * spawnRadius;
+                                const float ry = (hashFrac01(base + 2.0f) * 2.0f - 1.0f) * spawnRadius;
+                                const float rz = (hashFrac01(base + 3.0f) * 2.0f - 1.0f) * spawnRadius;
+                                const float upVel = 0.055f + hashFrac01(base + 5.0f) * 0.095f;
+                                const float backVel = 0.050f + hashFrac01(base + 6.0f) * 0.050f;
+                                glm::vec3 vel = glm::vec3(0.0f, upVel, 0.0f) + backDirWorld * backVel;
+                                glm::vec3 accel = sTailFireFallbackCfg.acceleration;
+                                glm::vec3 travel = vel * ageSec + 0.5f * accel * (ageSec * ageSec);
+                                travel *= (0.70f + 0.30f * (1.0f - age01));
+
+                                ParticleSystem::Particle p;
+                                p.pos =
+                                    tailAnchor +
+                                    right * rx +
+                                    up * ry +
+                                    fwd * rz +
+                                    travel;
+                                p.maxLifeSec = 0.20f;
+                                p.lifeSec = std::max(0.001f, p.maxLifeSec * (1.0f - age01));
+                                p.sizePx =
+                                    (0.22f + hashFrac01(base + 8.0f) * 0.10f) * scaleMul;
+                                p.seed = std::fmod(
+                                    std::fabs(std::sin(base * 1.713f + 0.37f)) * 13.37f, 1.0f);
+                                syntheticTailFire.particles.push_back(p);
+                            }
+                        }
+
+                        if (!syntheticTailFire.particles.empty()) {
+                            appendedTailFireBillboards =
+                                appendSnapshotAsBillboards("tail_fire_synth", syntheticTailFire) ||
+                                appendedTailFireBillboards;
+                        }
+                    }
 
                     if (!appendedTailFireBillboards || !appendedLeechDrainBillboards) {
                         for (const auto& unit : gameWorld->getPokemons()) {
