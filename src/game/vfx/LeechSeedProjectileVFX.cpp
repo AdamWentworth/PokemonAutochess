@@ -158,7 +158,6 @@ void LeechSeedProjectileVFX::emit(const PokemonInstance& attacker,
                                   float travelSec) {
     ensureConfigured();
 
-    if (!attacker.model) return;
     if (travelSec <= 0.0001f) return;
 
     glm::vec3 start = computeOriginWorld(attacker);

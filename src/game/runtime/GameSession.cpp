@@ -4175,7 +4175,8 @@ struct GameSession::Impl {
                         }
                     }
 
-                    if (!appendedTailFireBillboards || !appendedLeechDrainBillboards) {
+                    if (!appendedTailFireBillboards ||
+                        (!appendedLeechDrainBillboards && !useLegacyParticleVfxSnapshotBridge)) {
                         for (const auto& unit : gameWorld->getPokemons()) {
                             const auto extents =
                                 game::runtime::backend_proxy::computeUnitProxyExtents(unit, worldCellSize);
@@ -4190,7 +4191,7 @@ struct GameSession::Impl {
                                     unit.rotation.y,
                                     std::max(1.0f, line * 0.92f));
                             }
-                            if (!appendedLeechDrainBillboards) {
+                            if (!appendedLeechDrainBillboards && !useLegacyParticleVfxSnapshotBridge) {
                                 appendProjectedLeechDrain(
                                     unit,
                                     std::max(0.12f, worldCellSize * 0.24f),
@@ -4253,8 +4254,10 @@ struct GameSession::Impl {
                     }
                 }
 
-                const float gridY = 0.0075f;
-                const float gridHalfWidthWorld = std::max(0.0025f, worldCellSize * 0.0125f);
+                // Slightly thicker/brighter depth-tested grid strips improve readability at grazing angles
+                // while preserving model occlusion (legacy-shared parity issue).
+                const float gridY = 0.0090f;
+                const float gridHalfWidthWorld = std::max(0.0035f, worldCellSize * 0.0180f);
                 for (int c = 0; c <= cols; ++c) {
                     const float x = boardMinX + static_cast<float>(c) * worldCellSize;
                     if (supportsWorldTriangles3D) {
@@ -4263,12 +4266,12 @@ struct GameSession::Impl {
                             glm::vec3(x + gridHalfWidthWorld, gridY, boardMinZ),
                             glm::vec3(x + gridHalfWidthWorld, gridY, boardMaxZ),
                             glm::vec3(x - gridHalfWidthWorld, gridY, boardMaxZ),
-                            0.74f, 0.75f, 0.77f, 0.88f);
+                            0.82f, 0.83f, 0.85f, 0.94f);
                     } else {
                         appendProjectedLine(
                             glm::vec3(x, 0.01f, boardMinZ),
                             glm::vec3(x, 0.01f, boardMaxZ),
-                            0.74f, 0.75f, 0.77f, 0.88f, line);
+                            0.82f, 0.83f, 0.85f, 0.94f, line);
                     }
                 }
                 for (int r = 0; r <= rows; ++r) {
@@ -4279,12 +4282,12 @@ struct GameSession::Impl {
                             glm::vec3(boardMaxX, gridY, z - gridHalfWidthWorld),
                             glm::vec3(boardMaxX, gridY, z + gridHalfWidthWorld),
                             glm::vec3(boardMinX, gridY, z + gridHalfWidthWorld),
-                            0.74f, 0.75f, 0.77f, 0.88f);
+                            0.82f, 0.83f, 0.85f, 0.94f);
                     } else {
                         appendProjectedLine(
                             glm::vec3(boardMinX, 0.01f, z),
                             glm::vec3(boardMaxX, 0.01f, z),
-                            0.74f, 0.75f, 0.77f, 0.88f, line);
+                            0.82f, 0.83f, 0.85f, 0.94f, line);
                     }
                 }
                 if (worldTriangles.size() == boardTrianglesStart2D &&
@@ -4584,6 +4587,10 @@ struct GameSession::Impl {
                         const float renderCaptureScale = (unit.fainting || !unit.alive || unit.captureInProgress)
                             ? std::max(0.0f, unit.captureScale)
                             : std::max(0.05f, unit.captureScale);
+                        const float faintFadeAlpha =
+                            (unit.fainting || !unit.alive)
+                                ? std::clamp(renderVisualScale * renderCaptureScale, 0.0f, 1.0f)
+                                : 1.0f;
                         if ((unit.fainting || !unit.alive) &&
                             (renderVisualScale <= 0.0001f || renderCaptureScale <= 0.0001f)) {
                             continue;
@@ -4761,6 +4768,13 @@ struct GameSession::Impl {
                                     }
                                     if (si < mesh->submeshAlphaCutoff.size()) {
                                         batch.alphaCutoff = mesh->submeshAlphaCutoff[si];
+                                    }
+                                    // During faint fade-out, force alpha blending for textured submeshes so MASK/OPAQUE
+                                    // materials don't pop/cut out while the model fades away.
+                                    if (faintFadeAlpha < 0.999f) {
+                                        batch.alphaMode = 2u;
+                                        batch.blendMode = 0u;
+                                        batch.alphaCutoff = 0.0f;
                                     }
                                 }
                             }
@@ -5442,7 +5456,7 @@ struct GameSession::Impl {
                                 modelDepthTris.push_back(dt);
                             };
                             const bool downsampleModelTriangles = effectiveUnitTriangleBudget < triangleCount;
-                            const float fastTexturedAlpha = unit.alive ? 1.0f : 0.82f;
+                            const float fastTexturedAlpha = std::clamp(faintFadeAlpha, 0.0f, 1.0f);
                             std::size_t previousTriSample = triangleCount;
                             for (std::size_t sampleIdx = 0; sampleIdx < effectiveUnitTriangleBudget; ++sampleIdx) {
                                 std::size_t triIdx = sampleIdx;
@@ -5568,7 +5582,7 @@ struct GameSession::Impl {
                                     : 1.0f;
                                 // Textured indexed batches apply alpha in the pixel shader.
                                 // Avoid pre-multiplying with sampled triangle opacity (which would double-attenuate).
-                                const float alphaBase = unit.alive ? 1.0f : 0.82f;
+                                const float alphaBase = std::clamp(faintFadeAlpha, 0.0f, 1.0f);
                                 const float alpha = texturedSubmesh
                                     ? alphaBase
                                     : alphaBase * std::clamp(triOpacity, 0.0f, 1.0f);
@@ -6123,7 +6137,8 @@ struct GameSession::Impl {
                     const float benchX = (static_cast<float>(drawableW) - benchW) * 0.5f;
                     const float desiredBenchY = boardY + boardH + benchGap;
                     const float benchY = std::min(desiredBenchY, static_cast<float>(drawableH) - benchH - 24.0f);
-                    if (benchY > boardY + boardH + 3.0f) {
+                    {
+                        const bool benchOverlapsBoard = (benchY <= boardY + boardH + 3.0f);
                         IRenderBackend::DebugQuad benchBg;
                         benchBg.x = benchX;
                         benchBg.y = benchY;
@@ -6132,7 +6147,7 @@ struct GameSession::Impl {
                         benchBg.r = 0.09f;
                         benchBg.g = 0.12f;
                         benchBg.b = 0.15f;
-                        benchBg.a = 0.96f;
+                        benchBg.a = benchOverlapsBoard ? 0.90f : 0.96f;
                         worldQuads.push_back(benchBg);
 
                         const float benchCellW = benchW / static_cast<float>(benchSlots);
