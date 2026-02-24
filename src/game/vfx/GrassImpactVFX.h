@@ -54,6 +54,7 @@ public:
 
     void update(float dt);
     void render(const Camera3D& camera);
+    const ParticleSystem& getParticles() const { return particles; }
 
     void emitAt(const glm::vec3& worldPos);
 

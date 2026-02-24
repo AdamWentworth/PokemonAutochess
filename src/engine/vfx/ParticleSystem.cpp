@@ -5,6 +5,8 @@
 #include "engine/utils/ShaderCache.h"
 #include "engine/render/Camera3D.h"
 
+#include <SDL2/SDL.h>
+
 #include <algorithm>
 #include <cmath>
 #include <cstddef>
@@ -167,7 +169,12 @@ void ParticleSystem::emit(const Particle& p) {
 }
 
 void ParticleSystem::update(float dt) {
-    if (!initialized) init();
+    if (!initialized) {
+        SDL_GLContext currentGlContext = SDL_GL_GetCurrentContext();
+        if (currentGlContext != nullptr) {
+            init();
+        }
+    }
 
     dt = std::clamp(dt, 0.0f, 0.05f);
     timeSec += dt;
@@ -331,4 +338,26 @@ void ParticleSystem::render(const Camera3D& camera) {
     glBlendFuncSeparate(prevBlendSrcRGB, prevBlendDstRGB, prevBlendSrcA, prevBlendDstA);
 
     if (!wasProgPoint) glDisable(GL_PROGRAM_POINT_SIZE);
+}
+
+bool ParticleSystem::buildRenderSnapshot(RenderSnapshot& out) const {
+    out.particles = particles;
+    out.renderSettings = renderSettings;
+    out.pointScale = pointScale;
+    out.timeSec = timeSec;
+    out.shaderVertPath = shaderVertPath;
+    out.shaderFragPath = shaderFragPath;
+    out.useFlipbook = useFlipbook;
+    out.flipbookPath = flipbookPath;
+    out.flipbookCols = flipbookCols;
+    out.flipbookRows = flipbookRows;
+    out.flipbookFrames = flipbookFrames;
+    out.flipbookFps = flipbookFps;
+    out.useSecondaryFlipbook = useSecondaryFlipbook;
+    out.flipbookPath2 = flipbookPath2;
+    out.flipbookCols2 = flipbookCols2;
+    out.flipbookRows2 = flipbookRows2;
+    out.flipbookFrames2 = flipbookFrames2;
+    out.flipbookFps2 = flipbookFps2;
+    return !out.particles.empty();
 }

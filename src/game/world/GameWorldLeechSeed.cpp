@@ -81,9 +81,7 @@ void GameWorld::updateLeechSeedStatus(float dt)
                 float travelSec = dist / std::max(0.1f, drainSpeed);
                 travelSec = std::clamp(travelSec, minTravel, maxTravel);
 
-                if (legacyModelRenderPathEnabled) {
-                    leechSeedDrainVfx.emitBetween(tpos, spos, travelSec);
-                }
+                leechSeedDrainVfx.emitBetween(tpos, spos, travelSec);
 
                 const float healMult = std::max(0.0f, leechSeedConfig.healMultiplier);
                 int heal = static_cast<int>(std::round(static_cast<float>(sap) * healMult));
@@ -115,10 +113,8 @@ void GameWorld::updateLeechSeedStatus(float dt)
                     auto* source = findUnitById(h.sourceId);
                     if (source && source->alive && h.amount > 0) {
                         source->hp = std::min(source->maxHP, source->hp + h.amount);
-                        if (legacyModelRenderPathEnabled) {
-                            const glm::vec3 spos = source->position + glm::vec3(0.0f, source->visualYOffset, 0.0f);
-                            healPlusVfx.emitAt(spos);
-                        }
+                        const glm::vec3 spos = source->position + glm::vec3(0.0f, source->visualYOffset, 0.0f);
+                        healPlusVfx.emitAt(spos);
                     }
                     return true;
                 }),

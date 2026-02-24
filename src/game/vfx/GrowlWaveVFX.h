@@ -133,6 +133,22 @@ public:
         bool depthWrite = false;
     };
 
+    struct RenderRing {
+        glm::vec3 pos{0.0f};
+        glm::vec3 forward{0.0f, 0.0f, 1.0f};
+        float lifeSec = 0.0f;
+        float ageSec = 0.0f;
+        float startScale = 1.0f;
+        float endScale = 1.0f;
+        std::uint32_t randomSeed = 0u;
+    };
+
+    struct RenderSnapshot {
+        Config config{};
+        std::vector<Config::DrawPass> drawPasses;
+        std::vector<RenderRing> rings;
+    };
+
 public:
     GrowlWaveVFX() = default;
     ~GrowlWaveVFX();
@@ -142,6 +158,7 @@ public:
 
     void update(float dt);
     void render(const Camera3D& camera);
+    bool buildRenderSnapshot(RenderSnapshot& out) const;
 
     void emitFrom(const glm::vec3& mouthWorldPos,
                   const glm::vec3& forwardDir,

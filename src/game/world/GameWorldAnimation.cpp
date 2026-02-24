@@ -111,9 +111,7 @@ void GameWorld::tickPokemonAnimation(PokemonInstance& unit, float dt) {
                     [&](const PokemonInstance& other){ return other.id == unit.pendingProjectileTargetId; });
 
                 if (itTarget != pokemons.end() && itTarget->alive && !itTarget->captureInProgress) {
-                    if (legacyModelRenderPathEnabled) {
-                        leechSeedVfx.emit(unit, *itTarget, unit.pendingProjectileTravelSec);
-                    }
+                    leechSeedVfx.emit(unit, *itTarget, unit.pendingProjectileTravelSec);
                 }
 
                 unit.pendingProjectileSpawned = true;
@@ -227,7 +225,6 @@ void GameWorld::update(float dt)
     updateLeechSeedStatus(dt);
     updateCaptureAttempts(dt);
 
-    if (!legacyModelRenderPathEnabled) return;
     updateRenderVfx(dt);
 }
 

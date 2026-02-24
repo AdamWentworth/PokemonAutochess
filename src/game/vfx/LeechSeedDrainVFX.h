@@ -45,6 +45,7 @@ public:
 
     void update(float dt);
     void render(const Camera3D& camera);
+    const ParticleSystem& getParticles() const { return particles; }
 
     void emitBetween(const glm::vec3& startPos,
                      const glm::vec3& endPos,

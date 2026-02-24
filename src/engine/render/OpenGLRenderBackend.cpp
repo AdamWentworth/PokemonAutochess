@@ -206,6 +206,7 @@ void OpenGLRenderBackend::drawWorldIndexedMeshTextured(const WorldMeshVertex* ve
     }
 
     const std::uint8_t alphaMode = texture ? std::min<std::uint8_t>(2u, texture->alphaMode) : 0u;
+    const std::uint8_t blendMode = texture ? std::min<std::uint8_t>(2u, texture->blendMode) : 0u;
     const float alphaCutoff = texture ? std::clamp(texture->alphaCutoff, 0.0f, 1.0f) : 0.5f;
     const GLuint worldTexture = ensureWorldTexture(texture);
     const bool hasTexture = (worldTexture != 0u);
@@ -237,12 +238,36 @@ void OpenGLRenderBackend::drawWorldIndexedMeshTextured(const WorldMeshVertex* ve
     const GLboolean cullEnabled = glIsEnabled(GL_CULL_FACE);
     GLboolean previousDepthMask = GL_TRUE;
     glGetBooleanv(GL_DEPTH_WRITEMASK, &previousDepthMask);
+    GLint prevBlendSrcRgb = GL_SRC_ALPHA;
+    GLint prevBlendDstRgb = GL_ONE_MINUS_SRC_ALPHA;
+    GLint prevBlendSrcAlpha = GL_ONE;
+    GLint prevBlendDstAlpha = GL_ONE_MINUS_SRC_ALPHA;
+    GLint prevBlendEqRgb = GL_FUNC_ADD;
+    GLint prevBlendEqAlpha = GL_FUNC_ADD;
+    glGetIntegerv(GL_BLEND_SRC_RGB, &prevBlendSrcRgb);
+    glGetIntegerv(GL_BLEND_DST_RGB, &prevBlendDstRgb);
+    glGetIntegerv(GL_BLEND_SRC_ALPHA, &prevBlendSrcAlpha);
+    glGetIntegerv(GL_BLEND_DST_ALPHA, &prevBlendDstAlpha);
+    glGetIntegerv(GL_BLEND_EQUATION_RGB, &prevBlendEqRgb);
+    glGetIntegerv(GL_BLEND_EQUATION_ALPHA, &prevBlendEqAlpha);
 
     glViewport(0, 0, std::max(1, surfaceWidth), std::max(1, surfaceHeight));
     glEnable(GL_DEPTH_TEST);
     glDisable(GL_CULL_FACE);
     glEnable(GL_BLEND);
-    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    glBlendEquationSeparate(GL_FUNC_ADD, GL_FUNC_ADD);
+    switch (blendMode) {
+    case 1u:
+        glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE, GL_ONE, GL_ONE);
+        break;
+    case 2u:
+        glBlendFuncSeparate(GL_ONE, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
+        break;
+    case 0u:
+    default:
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+        break;
+    }
     glDepthMask(blendAlpha ? GL_FALSE : GL_TRUE);
 
     glUseProgram(worldProgram_);
@@ -281,6 +306,11 @@ void OpenGLRenderBackend::drawWorldIndexedMeshTextured(const WorldMeshVertex* ve
     glBindTexture(GL_TEXTURE_2D, static_cast<GLuint>(prevTexture2DOnActive));
 
     glDepthMask(previousDepthMask);
+    glBlendEquationSeparate(static_cast<GLenum>(prevBlendEqRgb), static_cast<GLenum>(prevBlendEqAlpha));
+    glBlendFuncSeparate(static_cast<GLenum>(prevBlendSrcRgb),
+                        static_cast<GLenum>(prevBlendDstRgb),
+                        static_cast<GLenum>(prevBlendSrcAlpha),
+                        static_cast<GLenum>(prevBlendDstAlpha));
     if (!blendEnabled) glDisable(GL_BLEND);
     if (cullEnabled) glEnable(GL_CULL_FACE);
     if (!depthEnabled) glDisable(GL_DEPTH_TEST);

@@ -50,6 +50,7 @@ public:
 
     void update(float dt);
     void render(const Camera3D& camera);
+    const ParticleSystem& getParticles() const { return particles; }
 
     // metallic=false: white scratch swipe
     // metallic=true:  silver sparkling metal claw swipe

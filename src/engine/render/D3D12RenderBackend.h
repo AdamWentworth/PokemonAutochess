@@ -154,6 +154,8 @@ private:
     Microsoft::WRL::ComPtr<ID3D12RootSignature> worldRootSignature_;
     Microsoft::WRL::ComPtr<ID3D12PipelineState> worldPipelineState_;
     Microsoft::WRL::ComPtr<ID3D12PipelineState> worldBlendPipelineState_;
+    Microsoft::WRL::ComPtr<ID3D12PipelineState> worldAdditiveBlendPipelineState_;
+    Microsoft::WRL::ComPtr<ID3D12PipelineState> worldPremultipliedBlendPipelineState_;
     Microsoft::WRL::ComPtr<ID3D12Resource> worldVertexBuffer_;
     std::uint64_t worldVertexBufferGpuAddress_ = 0;
     std::uint32_t worldVertexStride_ = 0;

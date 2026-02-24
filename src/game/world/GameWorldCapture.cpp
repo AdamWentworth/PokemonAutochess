@@ -215,9 +215,7 @@ void GameWorld::updateCaptureAttempts(float dt) {
                     attempt.ballScale = attempt.ballImpactScale * (1.0f + t * 0.6f);
                     if (t >= 1.0f) {
                         if (target) {
-                            if (legacyModelRenderPathEnabled) {
-                                emitTackleImpactAt(*target, nullptr);
-                            }
+                            emitTackleImpactAt(*target, nullptr);
                             target->captureInProgress = false;
                             target->captureScale = 1.0f;
                             target->captureTintStrength = 0.0f;

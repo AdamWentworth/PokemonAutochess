@@ -71,6 +71,18 @@ public:
         int uniqueLineCount = 0;
     };
 
+    struct ParticleVfxSnapshots {
+        ParticleSystem::RenderSnapshot tailFire;
+        ParticleSystem::RenderSnapshot grassImpact;
+        ParticleSystem::RenderSnapshot tackleBurst;
+        ParticleSystem::RenderSnapshot tackleSpark;
+        ParticleSystem::RenderSnapshot leechSeedProjectile;
+        ParticleSystem::RenderSnapshot healPlus;
+        ParticleSystem::RenderSnapshot leechSeedDrain;
+        ParticleSystem::RenderSnapshot clawSwipe;
+        ParticleSystem::RenderSnapshot aquaSwoosh;
+    };
+
     explicit GameWorld(const GameConfigData& cfg);
 
     void setResources(ResourceManager* rm) { resources = rm; }
@@ -113,6 +125,8 @@ public:
 
     std::vector<HealthBarData> getHealthBarData(const Camera3D& camera, int screenWidth, int screenHeight) const;
     std::vector<TypeLineCount> getPlayerTypeLineCounts() const;
+    bool buildGrowlWaveSnapshot(GrowlWaveVFX::RenderSnapshot& out) const;
+    bool buildParticleVfxSnapshots(ParticleVfxSnapshots& out) const;
 
     glm::vec3 getNearestEnemyPosition(const PokemonInstance& unit) const;
 

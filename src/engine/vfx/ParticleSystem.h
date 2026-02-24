@@ -55,6 +55,30 @@ public:
         float dampingBase = 1.0f;
     };
 
+    struct RenderSnapshot {
+        std::vector<Particle> particles;
+        RenderSettings renderSettings{};
+        float pointScale = 220.0f;
+        float timeSec = 0.0f;
+
+        std::string shaderVertPath;
+        std::string shaderFragPath;
+
+        bool useFlipbook = false;
+        std::string flipbookPath;
+        int flipbookCols = 1;
+        int flipbookRows = 1;
+        int flipbookFrames = 1;
+        float flipbookFps = 0.0f;
+
+        bool useSecondaryFlipbook = false;
+        std::string flipbookPath2;
+        int flipbookCols2 = 1;
+        int flipbookRows2 = 1;
+        int flipbookFrames2 = 1;
+        float flipbookFps2 = 0.0f;
+    };
+
 public:
     ParticleSystem() = default;
     ~ParticleSystem();
@@ -70,6 +94,7 @@ public:
 
     void update(float dt);
     void render(const Camera3D& camera);
+    bool buildRenderSnapshot(RenderSnapshot& out) const;
 
     void emit(const Particle& p);
 

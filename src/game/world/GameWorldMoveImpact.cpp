@@ -25,7 +25,6 @@ constexpr AquaSwooshVFX::Style toAquaSwooshStyle(AquaImpactStyle style) {
 }  // namespace
 
 void GameWorld::emitGrassImpactAt(const PokemonInstance& target) {
-    if (!legacyModelRenderPathEnabled) return;
     if (!grassImpactVfxInitialized) {
         GrassImpactVFX::Config c;  // defaults
         grassImpactVfx.setConfig(c);
@@ -37,7 +36,6 @@ void GameWorld::emitGrassImpactAt(const PokemonInstance& target) {
 }
 
 void GameWorld::emitTackleImpactAt(const PokemonInstance& target, const PokemonInstance* attacker) {
-    if (!legacyModelRenderPathEnabled) return;
     if (!tackleImpactVfxInitialized) {
         TackleImpactVFX::Config c;  // defaults
         tackleImpactVfx.setConfig(c);
@@ -66,8 +64,6 @@ void GameWorld::emitTackleImpactAt(const PokemonInstance& target, const PokemonI
 void GameWorld::emitMoveImpactByName(const std::string& moveName,
                                      const PokemonInstance& target,
                                      const PokemonInstance* attacker) {
-    if (!legacyModelRenderPathEnabled) return;
-
     const std::string move = lowerCopy(moveName);
     if (move.empty()) return;
     const MoveImpactRoute route = classifyMoveImpactRoute(move);

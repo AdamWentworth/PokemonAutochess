@@ -26,6 +26,7 @@ public:
         int wrapS = 10497; // GL_REPEAT
         int wrapT = 10497; // GL_REPEAT
         std::uint8_t alphaMode = 0u; // 0=OPAQUE, 1=MASK, 2=BLEND
+        std::uint8_t blendMode = 0u; // 0=Alpha, 1=Additive, 2=Premultiplied
         float alphaCutoff = 0.5f;
     };
 

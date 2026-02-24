@@ -76,3 +76,21 @@ std::vector<HealthBarData> GameWorld::getHealthBarData(const Camera3D& camera,
     return BuildHealthBarData(pokemons, benchPokemons, camera, screenWidth, screenHeight, config);
 }
 
+bool GameWorld::buildGrowlWaveSnapshot(GrowlWaveVFX::RenderSnapshot& out) const {
+    return growlWaveVfx.buildRenderSnapshot(out);
+}
+
+bool GameWorld::buildParticleVfxSnapshots(ParticleVfxSnapshots& out) const {
+    bool any = false;
+    any = tailFireVfx.getParticles().buildRenderSnapshot(out.tailFire) || any;
+    any = grassImpactVfx.getParticles().buildRenderSnapshot(out.grassImpact) || any;
+    any = tackleImpactVfx.getBurstParticles().buildRenderSnapshot(out.tackleBurst) || any;
+    any = tackleImpactVfx.getSparkParticles().buildRenderSnapshot(out.tackleSpark) || any;
+    any = leechSeedVfx.getParticles().buildRenderSnapshot(out.leechSeedProjectile) || any;
+    any = healPlusVfx.getParticles().buildRenderSnapshot(out.healPlus) || any;
+    any = leechSeedDrainVfx.getParticles().buildRenderSnapshot(out.leechSeedDrain) || any;
+    any = clawSwipeVfx.getParticles().buildRenderSnapshot(out.clawSwipe) || any;
+    any = aquaSwooshVfx.getParticles().buildRenderSnapshot(out.aquaSwoosh) || any;
+    return any;
+}
+

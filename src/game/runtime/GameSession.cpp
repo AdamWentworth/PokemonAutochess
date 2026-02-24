@@ -6,6 +6,7 @@
 #include <utility>
 #include <cctype>
 #include <cstdint>
+#include <cstring>
 #include <random>
 #include <algorithm>
 #include <cmath>
@@ -18,6 +19,7 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/quaternion.hpp>
 #include <glm/gtc/type_ptr.hpp>
+#include <stb_image.h>
 
 #include "engine/core/GameContext.h"
 #include "engine/core/EngineServices.h"
@@ -301,6 +303,62 @@ bool backendModelFastTexturedPathEnabled() {
     return enabled;
 }
 
+bool backendUseLegacyGrowlWaveVfxEnabled() {
+    static const bool enabled = []() -> bool {
+        const auto env = engine::env::get("PAC_BACKEND_GROWL_LEGACY_VFX");
+        if (!env.has_value()) return true;
+        const std::string raw = *env;
+        if (raw == "0" || raw == "false" || raw == "FALSE" || raw == "off" || raw == "OFF") {
+            return false;
+        }
+        return true;
+    }();
+    return enabled;
+}
+
+bool backendUseLegacyParticleVfxSnapshotBridgeEnabled() {
+    static const bool enabled = []() -> bool {
+        const auto env = engine::env::get("PAC_BACKEND_PARTICLE_LEGACY_VFX");
+        if (!env.has_value()) return true;
+        const std::string raw = *env;
+        if (raw == "0" || raw == "false" || raw == "FALSE" || raw == "off" || raw == "OFF") {
+            return false;
+        }
+        return true;
+    }();
+    return enabled;
+}
+
+float hash01(std::uint32_t x) {
+    x ^= x >> 16;
+    x *= 0x7feb352du;
+    x ^= x >> 15;
+    x *= 0x846ca68bu;
+    x ^= x >> 16;
+    const std::uint32_t v = x >> 8;
+    return static_cast<float>(v) * (1.0f / 16777216.0f);
+}
+
+glm::quat rotationFromToSafe(const glm::vec3& from, const glm::vec3& to) {
+    glm::vec3 a = from;
+    glm::vec3 b = to;
+    const float la = glm::length(a);
+    const float lb = glm::length(b);
+    if (la <= 0.0001f || lb <= 0.0001f) return glm::quat(1.0f, 0.0f, 0.0f, 0.0f);
+    a /= la;
+    b /= lb;
+    const float d = glm::clamp(glm::dot(a, b), -1.0f, 1.0f);
+    if (d > 0.9999f) return glm::quat(1.0f, 0.0f, 0.0f, 0.0f);
+    if (d < -0.9999f) {
+        glm::vec3 ortho = glm::cross(a, glm::vec3(1.0f, 0.0f, 0.0f));
+        if (glm::dot(ortho, ortho) <= 0.0001f) ortho = glm::cross(a, glm::vec3(0.0f, 1.0f, 0.0f));
+        ortho = glm::normalize(ortho);
+        return glm::angleAxis(3.14159265f, ortho);
+    }
+    const glm::vec3 axis = glm::normalize(glm::cross(a, b));
+    return glm::angleAxis(std::acos(d), axis);
+}
+
 std::size_t selectUniformTriangleIndex(std::size_t sampleIndex,
                                        std::size_t sampleCount,
                                        std::size_t triangleCount) {
@@ -394,6 +452,14 @@ struct GameSession::Impl {
         float landingSec = 0.0f;
     };
     std::unordered_map<std::string, BackendAnimRoleEntry> backendAnimByModelPath;
+    struct BackendTextureCacheEntry {
+        bool attemptedLoad = false;
+        bool valid = false;
+        int width = 0;
+        int height = 0;
+        std::vector<unsigned char> rgba;
+    };
+    std::unordered_map<std::string, BackendTextureCacheEntry> backendTextureByPath;
 
     std::shared_ptr<CameraSystem>           cameraSystem;
     std::shared_ptr<UnitInteractionSystem>  unitSystem;
@@ -468,6 +534,147 @@ struct GameSession::Impl {
             return nullptr;
         }
         return &cacheEntry.mesh;
+    }
+
+    BackendTextureCacheEntry* ensureBackendTextureLoaded(const std::string& texturePath) {
+        if (backendTextureByPath.empty()) {
+            backendTextureByPath.reserve(64u);
+        }
+        const std::string key = texturePath.empty() ? "__white__" : texturePath;
+        auto& cacheEntry = backendTextureByPath[key];
+        if (cacheEntry.attemptedLoad) {
+            return cacheEntry.valid ? &cacheEntry : nullptr;
+        }
+
+        cacheEntry.attemptedLoad = true;
+        cacheEntry.valid = false;
+        cacheEntry.width = 0;
+        cacheEntry.height = 0;
+        cacheEntry.rgba.clear();
+
+        if (texturePath.empty()) {
+            cacheEntry.width = 1;
+            cacheEntry.height = 1;
+            cacheEntry.rgba = {255u, 255u, 255u, 255u};
+            cacheEntry.valid = true;
+            return &cacheEntry;
+        }
+
+        if (texturePath.rfind("__proc:", 0) == 0) {
+            const std::string procId = texturePath.substr(7);
+            const int width = 64;
+            const int height = 64;
+            cacheEntry.width = width;
+            cacheEntry.height = height;
+            cacheEntry.rgba.resize(static_cast<std::size_t>(width) * static_cast<std::size_t>(height) * 4u, 0u);
+
+            auto putPixel = [&](int x, int y, float alpha) {
+                alpha = std::clamp(alpha, 0.0f, 1.0f);
+                const std::size_t idx =
+                    (static_cast<std::size_t>(y) * static_cast<std::size_t>(width) +
+                     static_cast<std::size_t>(x)) *
+                    4u;
+                cacheEntry.rgba[idx + 0] = 255u;
+                cacheEntry.rgba[idx + 1] = 255u;
+                cacheEntry.rgba[idx + 2] = 255u;
+                cacheEntry.rgba[idx + 3] = static_cast<unsigned char>(std::round(alpha * 255.0f));
+            };
+
+            auto smooth = [](float e0, float e1, float x) {
+                const float t = std::clamp((x - e0) / std::max(0.0001f, (e1 - e0)), 0.0f, 1.0f);
+                return t * t * (3.0f - 2.0f * t);
+            };
+
+            for (int y = 0; y < height; ++y) {
+                for (int x = 0; x < width; ++x) {
+                    const float fx = ((static_cast<float>(x) + 0.5f) / static_cast<float>(width)) * 2.0f - 1.0f;
+                    const float fy = ((static_cast<float>(y) + 0.5f) / static_cast<float>(height)) * 2.0f - 1.0f;
+                    const float r = std::sqrt(fx * fx + fy * fy);
+                    float alpha = 0.0f;
+
+                    if (procId == "soft_circle" || procId == "dot") {
+                        alpha = 1.0f - smooth(0.55f, 1.0f, r);
+                    } else if (procId == "plus") {
+                        const float h = (1.0f - smooth(0.18f, 0.26f, std::fabs(fy))) *
+                                        (1.0f - smooth(0.78f, 0.98f, std::fabs(fx)));
+                        const float v = (1.0f - smooth(0.18f, 0.26f, std::fabs(fx))) *
+                                        (1.0f - smooth(0.78f, 0.98f, std::fabs(fy)));
+                        alpha = std::max(h, v);
+                    } else if (procId == "leaf" || procId == "seed") {
+                        float px = fx;
+                        float py = fy * 1.12f + 0.03f;
+                        const float t = std::clamp((py + 1.0f) * 0.5f, 0.0f, 1.0f);
+                        const float widthScale = (procId == "seed")
+                            ? std::max(0.20f, (0.85f - 0.60f * t))
+                            : std::max(0.20f, (0.95f - 0.70f * t));
+                        const float d = std::sqrt((px / widthScale) * (px / widthScale) + py * py);
+                        alpha = 1.0f - smooth(0.82f, 1.02f, d);
+                        alpha *= smooth(-1.0f, -0.68f, py);
+                    } else if (procId == "starburst") {
+                        const float ang = std::atan2(fy, fx);
+                        const float spikes = std::pow(std::fabs(std::sin(ang * 11.0f)), 0.75f);
+                        const float core = 1.0f - smooth(0.0f, 0.74f, r);
+                        const float streak = (1.0f - smooth(0.0f, 0.92f, r)) * spikes;
+                        alpha = std::max(core * 0.9f, streak);
+                    } else if (procId == "claw") {
+                        const float ca = std::cos(-0.60f);
+                        const float sa = std::sin(-0.60f);
+                        const float qx = ca * fx - sa * fy;
+                        const float qy = sa * fx + ca * fy;
+                        auto stroke = [&](float xOff, float halfLen, float width0) {
+                            const float lx = std::fabs(qx - xOff);
+                            const float ly = std::fabs(qy);
+                            const float tipT = std::clamp(ly / std::max(0.0001f, halfLen), 0.0f, 1.0f);
+                            const float tipNarrow = 1.0f - smooth(0.58f, 1.0f, tipT) * 0.96f;
+                            const float localWidth = width0 * tipNarrow;
+                            const float core = 1.0f - smooth(localWidth, localWidth + 0.02f, lx);
+                            const float lenMask = 1.0f - smooth(halfLen, halfLen + 0.05f, ly);
+                            return core * lenMask;
+                        };
+                        const float s1 = stroke(-0.34f, 0.90f, 0.075f);
+                        const float s2 = stroke(0.00f, 0.90f, 0.075f);
+                        const float s3 = stroke(0.34f, 0.90f, 0.075f);
+                        alpha = std::max(s1, std::max(s2, s3));
+                    } else if (procId == "swoosh") {
+                        const float band = std::fabs(fy - 0.6f * fx);
+                        const float arc = (1.0f - smooth(0.0f, 0.36f, band)) * (1.0f - smooth(0.32f, 1.0f, r));
+                        const float core = 1.0f - smooth(0.0f, 0.62f, r);
+                        alpha = std::max(arc, core * 0.35f);
+                    } else {
+                        alpha = 1.0f - smooth(0.55f, 1.0f, r);
+                    }
+
+                    putPixel(x, y, alpha);
+                }
+            }
+
+            cacheEntry.valid = true;
+            return &cacheEntry;
+        }
+
+        int width = 0;
+        int height = 0;
+        int channels = 0;
+        unsigned char* pixels = stbi_load(texturePath.c_str(), &width, &height, &channels, 4);
+        if (!pixels) {
+            const std::string dataPath = engine::paths::data(texturePath);
+            if (dataPath != texturePath) {
+                pixels = stbi_load(dataPath.c_str(), &width, &height, &channels, 4);
+            }
+        }
+        if (!pixels || width <= 0 || height <= 0) {
+            if (pixels) stbi_image_free(pixels);
+            return nullptr;
+        }
+
+        const std::size_t rgbaSize = static_cast<std::size_t>(width) * static_cast<std::size_t>(height) * 4u;
+        cacheEntry.rgba.resize(rgbaSize);
+        std::memcpy(cacheEntry.rgba.data(), pixels, rgbaSize);
+        stbi_image_free(pixels);
+        cacheEntry.width = width;
+        cacheEntry.height = height;
+        cacheEntry.valid = true;
+        return &cacheEntry;
     }
 
     BackendAnimRoleEntry& ensureBackendAnimRoles(const std::string& modelPath,
@@ -1239,6 +1446,8 @@ struct GameSession::Impl {
 
     void renderBackendDebugView(int drawableW, int drawableH, bool renderWorld) {
         if (!renderer || drawableW <= 0 || drawableH <= 0) return;
+        const bool useLegacyGrowlWaveVfx = backendUseLegacyGrowlWaveVfxEnabled();
+        const bool useLegacyParticleVfxSnapshotBridge = backendUseLegacyParticleVfxSnapshotBridgeEnabled();
 
         runtime::backend_inventory_panel::clearHitRegions(backendInventoryPanel);
 
@@ -1246,12 +1455,14 @@ struct GameSession::Impl {
             std::vector<IRenderBackend::WorldMeshVertex> vertices;
             std::vector<std::uint32_t> indices;
             std::string textureKey;
+            std::vector<unsigned char> ownedTextureRgba;
             const unsigned char* textureRgba = nullptr;
             int textureWidth = 0;
             int textureHeight = 0;
             int textureWrapS = 10497;
             int textureWrapT = 10497;
             std::uint8_t alphaMode = 0u;
+            std::uint8_t blendMode = 0u;
             float alphaCutoff = 0.5f;
             float sortDepth = 0.0f;
         };
@@ -1516,6 +1727,7 @@ struct GameSession::Impl {
                 const glm::mat4 view = camera->getViewMatrix();
                 const glm::mat4 proj = camera->getProjectionMatrix();
                 const glm::mat4 viewProj = proj * view;
+                const glm::mat4 invViewProj = glm::inverse(viewProj);
                 if (supportsWorldTriangles3D) {
                     const float* vp = glm::value_ptr(viewProj);
                     std::copy(vp, vp + 16, worldViewProj);
@@ -1792,6 +2004,564 @@ struct GameSession::Impl {
                             0.34f,
                             0.86f,
                             std::max(1.0f, thickness * 1.05f));
+                    }
+                };
+                const auto appendSharedGrowlWaveVfx = [&]() {
+                    if (!useLegacyGrowlWaveVfx) return;
+                    if (!supportsWorldIndexedMeshes || !hasWorldViewProj) return;
+                    if (!gameWorld) return;
+
+                    GrowlWaveVFX::RenderSnapshot growlSnapshot;
+                    if (!gameWorld->buildGrowlWaveSnapshot(growlSnapshot)) return;
+                    if (growlSnapshot.drawPasses.empty() || growlSnapshot.rings.empty()) return;
+
+                    const glm::vec3 defaultMeshForward =
+                        (glm::dot(growlSnapshot.config.meshForwardAxis, growlSnapshot.config.meshForwardAxis) <= 0.0001f)
+                            ? glm::vec3(0.0f, 1.0f, 0.0f)
+                            : glm::normalize(growlSnapshot.config.meshForwardAxis);
+                    const float fadeStart = glm::clamp(growlSnapshot.config.fadeStart, 0.0f, 1.0f);
+
+                    const auto appendTransformedMesh =
+                        [&](WorldIndexedBatch& batch,
+                            const runtime::backend_model::MeshData& mesh,
+                            const glm::mat4& world,
+                            const glm::vec4& color) {
+                            if (mesh.vertices.empty() || mesh.indices.size() < 3u) return;
+                            const std::uint32_t baseVertex =
+                                static_cast<std::uint32_t>(batch.vertices.size());
+                            batch.vertices.reserve(batch.vertices.size() + mesh.vertices.size());
+                            for (const auto& src : mesh.vertices) {
+                                const glm::vec4 wp = world * glm::vec4(src.position, 1.0f);
+                                IRenderBackend::WorldMeshVertex vtx;
+                                vtx.x = wp.x;
+                                vtx.y = wp.y;
+                                vtx.z = wp.z;
+                                vtx.u = src.uv.x;
+                                vtx.v = src.uv.y;
+                                vtx.r = color.r;
+                                vtx.g = color.g;
+                                vtx.b = color.b;
+                                vtx.a = color.a;
+                                batch.vertices.push_back(vtx);
+                            }
+                            batch.indices.reserve(batch.indices.size() + mesh.indices.size());
+                            for (std::uint32_t idx : mesh.indices) {
+                                batch.indices.push_back(baseVertex + idx);
+                            }
+                        };
+
+                    const auto appendQuarterRing =
+                        [&](WorldIndexedBatch& batch,
+                            const glm::mat4& world,
+                            const glm::vec4& color) {
+                            static constexpr glm::vec3 kPositions[4] = {
+                                glm::vec3(0.0f, 0.0f, 0.0f),
+                                glm::vec3(1.0f, 0.0f, 0.0f),
+                                glm::vec3(0.0f, 0.0f, 1.0f),
+                                glm::vec3(1.0f, 0.0f, 1.0f),
+                            };
+                            static constexpr glm::vec2 kUvs[4] = {
+                                glm::vec2(1.0f, 1.0f),
+                                glm::vec2(0.0f, 1.0f),
+                                glm::vec2(1.0f, 0.0f),
+                                glm::vec2(0.0f, 0.0f),
+                            };
+                            static constexpr std::uint32_t kIndices[6] = {0u, 1u, 2u, 2u, 1u, 3u};
+                            const std::uint32_t baseVertex =
+                                static_cast<std::uint32_t>(batch.vertices.size());
+                            batch.vertices.reserve(batch.vertices.size() + 4u);
+                            batch.indices.reserve(batch.indices.size() + 6u);
+                            for (int i = 0; i < 4; ++i) {
+                                const glm::vec4 wp = world * glm::vec4(kPositions[i], 1.0f);
+                                IRenderBackend::WorldMeshVertex vtx;
+                                vtx.x = wp.x;
+                                vtx.y = wp.y;
+                                vtx.z = wp.z;
+                                vtx.u = kUvs[i].x;
+                                vtx.v = kUvs[i].y;
+                                vtx.r = color.r;
+                                vtx.g = color.g;
+                                vtx.b = color.b;
+                                vtx.a = color.a;
+                                batch.vertices.push_back(vtx);
+                            }
+                            for (std::uint32_t idx : kIndices) {
+                                batch.indices.push_back(baseVertex + idx);
+                            }
+                        };
+
+                    for (const auto& pass : growlSnapshot.drawPasses) {
+                        if (!pass.enabled) continue;
+
+                        const bool drawQuarterRing = pass.textureQuarterRing;
+                        const runtime::backend_model::MeshData* passMesh = nullptr;
+                        if (!drawQuarterRing) {
+                            if (pass.meshPath.empty()) continue;
+                            passMesh = ensureBackendMeshLoaded(pass.meshPath);
+                            if (!passMesh) continue;
+                        }
+
+                        BackendTextureCacheEntry* tex = ensureBackendTextureLoaded(pass.texturePath);
+                        if (!tex) tex = ensureBackendTextureLoaded("");
+                        if (!tex || !tex->valid || tex->rgba.empty()) continue;
+
+                        WorldIndexedBatch batch;
+                        batch.textureKey =
+                            std::string("growl:") + pass.id + ":" +
+                            (pass.texturePath.empty() ? std::string("__white__") : pass.texturePath);
+                        batch.textureRgba = tex->rgba.data();
+                        batch.textureWidth = tex->width;
+                        batch.textureHeight = tex->height;
+                        batch.textureWrapS = 10497;
+                        batch.textureWrapT = 10497;
+                        batch.alphaMode = 2u;
+                        batch.alphaCutoff = 0.0f;
+
+                        const glm::vec3 passMeshForwardAxis = pass.overrideMeshForwardAxis
+                            ? pass.meshForwardAxis
+                            : defaultMeshForward;
+                        const glm::vec3 meshForwardLocal =
+                            (glm::dot(passMeshForwardAxis, passMeshForwardAxis) <= 0.0001f)
+                                ? glm::vec3(0.0f, 1.0f, 0.0f)
+                                : glm::normalize(passMeshForwardAxis);
+                        const glm::vec3 meshForwardAxisWeight = meshForwardLocal * meshForwardLocal;
+                        const glm::vec3 passTint = glm::clamp(
+                            pass.overrideTev
+                                ? (pass.tintColor * (pass.tevK0 * 0.75f + pass.tevC0 * 0.25f))
+                                : pass.tintColor,
+                            glm::vec3(0.0f),
+                            glm::vec3(1.0f));
+
+                        float sortDepth = 0.0f;
+                        bool hasGeometry = false;
+
+                        for (const auto& ring : growlSnapshot.rings) {
+                            const float life = std::max(0.0001f, ring.lifeSec);
+                            const float age01 = glm::clamp(ring.ageSec / life, 0.0f, 1.0f);
+                            const float scale =
+                                glm::mix(ring.startScale, ring.endScale, age01) * std::max(0.0f, pass.scaleMul);
+                            if (scale <= 0.0001f) continue;
+
+                            const glm::vec3 ringForward = safeNormalize3(ring.forward, glm::vec3(0.0f, 0.0f, 1.0f));
+                            glm::vec3 right = glm::cross(glm::vec3(0.0f, 1.0f, 0.0f), ringForward);
+                            right = safeNormalize3(right, glm::vec3(1.0f, 0.0f, 0.0f));
+                            glm::vec3 up = glm::cross(ringForward, right);
+                            up = safeNormalize3(up, glm::vec3(0.0f, 1.0f, 0.0f));
+
+                            std::vector<glm::vec3> localDirectionsFallback;
+                            const std::vector<glm::vec3>* localDirections = &pass.directionsLocal;
+                            if (localDirections->empty()) {
+                                localDirectionsFallback.push_back(
+                                    pass.overrideDirection ? pass.directionLocal : glm::vec3(0.0f, 0.0f, 1.0f));
+                                localDirections = &localDirectionsFallback;
+                            }
+                            if (localDirections->empty()) continue;
+
+                            float fade = 1.0f;
+                            if (age01 > fadeStart) {
+                                const float t = (age01 - fadeStart) / std::max(0.0001f, (1.0f - fadeStart));
+                                fade = 1.0f - glm::clamp(t, 0.0f, 1.0f);
+                            }
+                            if (fade <= 0.001f) continue;
+
+                            const float radiusMul = std::max(0.0f, pass.radiusMul);
+                            const float thicknessMul = std::max(0.0f, pass.thicknessMul);
+                            const glm::vec3 axisScale =
+                                glm::vec3(radiusMul) + (thicknessMul - radiusMul) * meshForwardAxisWeight;
+                            const glm::vec3 finalScale = glm::vec3(scale) * axisScale;
+
+                            for (std::size_t dirIndex = 0; dirIndex < localDirections->size(); ++dirIndex) {
+                                glm::vec3 localDirBasisRaw = (*localDirections)[dirIndex];
+                                if (glm::dot(localDirBasisRaw, localDirBasisRaw) <= 0.000001f) continue;
+
+                                if (pass.directionSpacingJitterDeg > 0.0001f && localDirections->size() > 1u) {
+                                    const glm::vec2 baseXY(localDirBasisRaw.x, localDirBasisRaw.y);
+                                    const float xyLen = glm::length(baseXY);
+                                    if (xyLen > 0.0001f) {
+                                        const float baseAngle = std::atan2(baseXY.y, baseXY.x);
+                                        const std::uint32_t passSalt =
+                                            static_cast<std::uint32_t>(pass.eid) * 0x9e3779b9u;
+                                        const std::uint32_t dirSalt =
+                                            static_cast<std::uint32_t>(dirIndex) * 0x85ebca6bu;
+                                        const float noise =
+                                            hash01(ring.randomSeed ^ passSalt ^ dirSalt ^ 0x68e31da4u);
+                                        const float delta =
+                                            glm::radians(pass.directionSpacingJitterDeg) * (noise * 2.0f - 1.0f);
+                                        const float angle = baseAngle + delta;
+                                        localDirBasisRaw.x = std::cos(angle) * xyLen;
+                                        localDirBasisRaw.y = std::sin(angle) * xyLen;
+                                    }
+                                }
+
+                                float lineAlphaMul = std::max(0.0f, pass.alphaMul);
+                                if (pass.lineAlphaMax > pass.lineAlphaMin + 0.0001f) {
+                                    const std::uint32_t passSalt =
+                                        static_cast<std::uint32_t>(pass.eid) * 0x9e3779b9u;
+                                    const std::uint32_t dirSalt =
+                                        static_cast<std::uint32_t>(dirIndex) * 0x85ebca6bu;
+                                    const float noise =
+                                        hash01(ring.randomSeed ^ passSalt ^ dirSalt ^ 0x4f1bbcdcu);
+                                    lineAlphaMul *= glm::mix(pass.lineAlphaMin, pass.lineAlphaMax, noise);
+                                }
+                                const float passAlpha = glm::clamp(fade * lineAlphaMul, 0.0f, 1.0f);
+                                if (passAlpha <= 0.001f) continue;
+
+                                const glm::vec3 localDir = glm::normalize(localDirBasisRaw);
+                                const glm::vec3 worldDir = right * localDir.x + up * localDir.y + ringForward * localDir.z;
+                                if (glm::dot(worldDir, worldDir) <= 0.000001f) continue;
+
+                                const glm::vec3 passForward = glm::normalize(worldDir);
+                                const glm::quat passRot = rotationFromToSafe(meshForwardLocal, passForward);
+                                const float radialRadius = pass.heightOffset * std::max(0.0f, pass.startRadiusMul);
+                                const glm::vec3 radialStartOffset =
+                                    (right * localDirBasisRaw.x + up * localDirBasisRaw.y) * radialRadius;
+                                const glm::vec3 passPos =
+                                    ring.pos + passForward * pass.forwardOffset + radialStartOffset;
+                                const float distSq = glm::dot(passPos - cameraWorldPos, passPos - cameraWorldPos);
+                                sortDepth = std::max(sortDepth, distSq);
+
+                                const glm::vec4 color(passTint, passAlpha);
+                                if (drawQuarterRing) {
+                                    const int quarterCount = std::max(1, pass.quarterCount);
+                                    for (int i = 0; i < quarterCount; ++i) {
+                                        const float quarterDeg =
+                                            pass.quarterStartDeg + pass.quarterStepDeg * static_cast<float>(i);
+                                        const glm::quat quarterRot =
+                                            glm::angleAxis(glm::radians(quarterDeg), meshForwardLocal);
+                                        const glm::mat4 world =
+                                            glm::translate(glm::mat4(1.0f), passPos) *
+                                            glm::mat4_cast(passRot * quarterRot) *
+                                            glm::scale(glm::mat4(1.0f), finalScale);
+                                        appendQuarterRing(batch, world, color);
+                                        hasGeometry = true;
+                                    }
+                                } else if (passMesh) {
+                                    const glm::mat4 world =
+                                        glm::translate(glm::mat4(1.0f), passPos) *
+                                        glm::mat4_cast(passRot) *
+                                        glm::scale(glm::mat4(1.0f), finalScale);
+                                    appendTransformedMesh(batch, *passMesh, world, color);
+                                    hasGeometry = true;
+                                }
+                            }
+                        }
+
+                        if (hasGeometry && !batch.vertices.empty() && !batch.indices.empty()) {
+                            batch.sortDepth = sortDepth;
+                            worldIndexedBatches.push_back(std::move(batch));
+                        }
+                    }
+                };
+                const auto appendSharedParticleVfx = [&]() {
+                    if (!useLegacyParticleVfxSnapshotBridge) return;
+                    if (!supportsWorldIndexedMeshes || !hasWorldViewProj) return;
+                    if (!gameWorld) return;
+
+                    GameWorld::ParticleVfxSnapshots vfxSnapshots;
+                    if (!gameWorld->buildParticleVfxSnapshots(vfxSnapshots)) return;
+
+                    const auto toBackendBlendMode =
+                        [](ParticleSystem::BlendMode mode) -> std::uint8_t {
+                            switch (mode) {
+                            case ParticleSystem::BlendMode::Additive:
+                                return 1u;
+                            case ParticleSystem::BlendMode::Premultiplied:
+                                return 2u;
+                            case ParticleSystem::BlendMode::Alpha:
+                            default:
+                                return 0u;
+                            }
+                        };
+
+                    const auto safeUnprojectClip =
+                        [&](const glm::vec4& clipPos, glm::vec3& outWorld) -> bool {
+                            const glm::vec4 world = invViewProj * clipPos;
+                            if (!std::isfinite(world.x) || !std::isfinite(world.y) ||
+                                !std::isfinite(world.z) || !std::isfinite(world.w)) {
+                                return false;
+                            }
+                            if (std::fabs(world.w) <= 0.000001f) return false;
+                            outWorld = glm::vec3(world) / world.w;
+                            return std::isfinite(outWorld.x) && std::isfinite(outWorld.y) &&
+                                   std::isfinite(outWorld.z);
+                        };
+
+                    struct ParticleVisualStyle {
+                        std::string texturePath;
+                        glm::vec3 color{1.0f, 1.0f, 1.0f};
+                        float alpha = 1.0f;
+                    };
+
+                    const auto resolveParticleStyle =
+                        [&](const ParticleSystem::RenderSnapshot& snapshot,
+                            const ParticleSystem::Particle& particle,
+                            float age01) -> ParticleVisualStyle {
+                            ParticleVisualStyle style;
+                            style.texturePath = "__proc:soft_circle";
+                            const std::string frag = toLowerCopy(snapshot.shaderFragPath);
+                            const float seed = std::clamp(particle.seed, 0.0f, 1.0f);
+                            const float fadeInFast = std::clamp(age01 / 0.12f, 0.0f, 1.0f);
+                            const float fadeOutLate = 1.0f - std::clamp((age01 - 0.70f) / 0.30f, 0.0f, 1.0f);
+                            const float lifeFade = std::clamp(1.0f - age01, 0.0f, 1.0f);
+
+                            if (snapshot.useFlipbook && !snapshot.flipbookPath.empty()) {
+                                style.texturePath = snapshot.flipbookPath;
+                                style.color = glm::vec3(1.0f);
+                                style.alpha = std::clamp((0.18f + lifeFade * 0.95f), 0.0f, 1.0f);
+                                return style;
+                            }
+
+                            if (frag.find("leaf_impact") != std::string::npos) {
+                                style.texturePath = "__proc:leaf";
+                                style.color = glm::mix(glm::vec3(0.12f, 0.45f, 0.15f),
+                                                       glm::vec3(0.50f, 0.88f, 0.36f),
+                                                       0.45f + 0.35f * seed);
+                                style.alpha = std::pow(lifeFade, 0.65f);
+                            } else if (frag.find("splat_impact") != std::string::npos) {
+                                style.texturePath = "__proc:starburst";
+                                style.color = glm::mix(glm::vec3(1.00f, 0.96f, 0.92f),
+                                                       glm::vec3(0.98f, 0.78f, 0.70f),
+                                                       0.55f + 0.25f * seed);
+                                const float fadeIn = std::clamp(age01 / 0.06f, 0.0f, 1.0f);
+                                const float fadeOut = 1.0f - std::clamp((age01 - 0.35f) / 0.65f, 0.0f, 1.0f);
+                                style.alpha = 0.80f * fadeIn * fadeOut;
+                            } else if (frag.find("impact_spark") != std::string::npos) {
+                                style.texturePath = "__proc:dot";
+                                style.color = glm::mix(glm::vec3(0.96f, 0.72f, 0.66f),
+                                                       glm::vec3(0.98f, 0.92f, 0.88f),
+                                                       seed);
+                                style.alpha = 0.70f * fadeInFast *
+                                              (1.0f - std::clamp((age01 - 0.55f) / 0.45f, 0.0f, 1.0f));
+                            } else if (frag.find("claw_swipe") != std::string::npos) {
+                                style.texturePath = "__proc:claw";
+                                const bool metallic = seed >= 0.55f;
+                                style.color = metallic ? glm::vec3(0.88f, 0.92f, 0.98f)
+                                                       : glm::vec3(0.96f, 0.96f, 0.96f);
+                                const float outStart = metallic ? 0.60f : 0.78f;
+                                style.alpha = (metallic ? 0.95f : 1.10f) *
+                                              std::clamp(age01 / (metallic ? 0.06f : 0.04f), 0.0f, 1.0f) *
+                                              (1.0f - std::clamp((age01 - outStart) /
+                                                                 std::max(0.01f, 1.0f - outStart),
+                                                                 0.0f,
+                                                                 1.0f));
+                            } else if (frag.find("aqua_swoosh") != std::string::npos) {
+                                style.texturePath = "__proc:swoosh";
+                                if (seed < 0.40f) {
+                                    style.color = glm::vec3(0.58f, 0.92f, 1.00f);
+                                } else if (seed < 0.75f) {
+                                    style.color = glm::vec3(0.70f, 0.95f, 1.00f);
+                                } else {
+                                    style.color = glm::vec3(0.52f, 0.82f, 1.00f);
+                                }
+                                style.alpha = 0.95f * fadeInFast * fadeOutLate;
+                            } else if (frag.find("seed_projectile") != std::string::npos) {
+                                style.texturePath = "__proc:seed";
+                                style.color = glm::mix(glm::vec3(0.50f, 0.40f, 0.14f),
+                                                       glm::vec3(0.96f, 0.86f, 0.34f),
+                                                       0.50f + 0.20f * seed);
+                                style.alpha = std::pow(lifeFade, 0.65f);
+                            } else if (frag.find("leech_drain_dot") != std::string::npos) {
+                                style.texturePath = "__proc:dot";
+                                style.color = glm::mix(glm::vec3(0.10f, 0.50f, 0.18f),
+                                                       glm::vec3(0.45f, 0.95f, 0.40f),
+                                                       0.65f);
+                                style.alpha = fadeInFast * fadeOutLate;
+                            } else if (frag.find("heal_plus") != std::string::npos) {
+                                style.texturePath = "__proc:plus";
+                                style.color = glm::mix(glm::vec3(0.10f, 0.55f, 0.18f),
+                                                       glm::vec3(0.35f, 0.95f, 0.45f),
+                                                       lifeFade);
+                                style.alpha = std::clamp(age01 / 0.18f, 0.0f, 1.0f) * fadeOutLate;
+                            } else {
+                                style.texturePath = "__proc:soft_circle";
+                                style.color = glm::vec3(1.0f);
+                                style.alpha = fadeInFast * fadeOutLate;
+                            }
+
+                            style.alpha = std::clamp(style.alpha, 0.0f, 1.0f);
+                            style.color = glm::clamp(style.color, glm::vec3(0.0f), glm::vec3(1.0f));
+                            return style;
+                        };
+
+                    const auto appendSnapshotAsBillboards =
+                        [&](const char* label, const ParticleSystem::RenderSnapshot& snapshot) -> bool {
+                            if (!label) return false;
+                            if (snapshot.particles.empty()) return false;
+
+                            const std::uint8_t blendMode = toBackendBlendMode(snapshot.renderSettings.blend);
+                            std::string texturePath = "__proc:soft_circle";
+                            if (snapshot.useFlipbook && !snapshot.flipbookPath.empty()) {
+                                texturePath = snapshot.flipbookPath;
+                            } else {
+                                const std::string frag = toLowerCopy(snapshot.shaderFragPath);
+                                if (frag.find("leaf_impact") != std::string::npos) texturePath = "__proc:leaf";
+                                else if (frag.find("splat_impact") != std::string::npos) texturePath = "__proc:starburst";
+                                else if (frag.find("impact_spark") != std::string::npos) texturePath = "__proc:dot";
+                                else if (frag.find("claw_swipe") != std::string::npos) texturePath = "__proc:claw";
+                                else if (frag.find("aqua_swoosh") != std::string::npos) texturePath = "__proc:swoosh";
+                                else if (frag.find("seed_projectile") != std::string::npos) texturePath = "__proc:seed";
+                                else if (frag.find("leech_drain_dot") != std::string::npos) texturePath = "__proc:dot";
+                                else if (frag.find("heal_plus") != std::string::npos) texturePath = "__proc:plus";
+                            }
+
+                            BackendTextureCacheEntry* tex = ensureBackendTextureLoaded(texturePath);
+                            if (!tex || !tex->valid || tex->rgba.empty()) {
+                                tex = ensureBackendTextureLoaded("");
+                            }
+                            if (!tex || !tex->valid || tex->rgba.empty()) return false;
+
+                            WorldIndexedBatch batch;
+                            batch.textureKey = std::string("particle:") + label + ":" + texturePath;
+                            batch.textureRgba = tex->rgba.data();
+                            batch.textureWidth = tex->width;
+                            batch.textureHeight = tex->height;
+                            batch.textureWrapS = 33071; // clamp
+                            batch.textureWrapT = 33071; // clamp
+                            batch.alphaMode = 2u;
+                            batch.blendMode = blendMode;
+                            batch.alphaCutoff = 0.0f;
+                            batch.sortDepth = 0.0f;
+                            batch.vertices.reserve(snapshot.particles.size() * 4u);
+                            batch.indices.reserve(snapshot.particles.size() * 6u);
+
+                            const int cols = std::max(1, snapshot.flipbookCols);
+                            const int rows = std::max(1, snapshot.flipbookRows);
+                            const int maxFrames = std::max(1, cols * rows);
+                            const int frames = std::clamp(snapshot.flipbookFrames, 1, maxFrames);
+                            bool appendedAny = false;
+
+                            for (const auto& particle : snapshot.particles) {
+                                const float maxLife = std::max(0.0001f, particle.maxLifeSec);
+                                float age01 = 1.0f - (particle.lifeSec / maxLife);
+                                age01 = std::clamp(age01, 0.0f, 1.0f);
+
+                                const ParticleVisualStyle style =
+                                    resolveParticleStyle(snapshot, particle, age01);
+                                if (style.alpha <= 0.001f) continue;
+
+                                const glm::vec4 clip = viewProj * glm::vec4(particle.pos, 1.0f);
+                                if (!std::isfinite(clip.x) || !std::isfinite(clip.y) ||
+                                    !std::isfinite(clip.z) || !std::isfinite(clip.w)) {
+                                    continue;
+                                }
+                                if (clip.w <= 0.0001f) continue;
+                                const float ndcZ = clip.z / clip.w;
+                                if (!std::isfinite(ndcZ) || ndcZ < -1.2f || ndcZ > 1.2f) continue;
+
+                                const float pxSize = std::clamp(
+                                    particle.sizePx * snapshot.pointScale / std::max(0.0001f, clip.w),
+                                    3.0f,
+                                    160.0f);
+                                const float halfNdcX = pxSize / std::max(1, drawableW);
+                                const float halfNdcY = pxSize / std::max(1, drawableH);
+                                if (halfNdcX <= 0.000001f || halfNdcY <= 0.000001f) continue;
+
+                                const float ndcX = clip.x / clip.w;
+                                const float ndcY = clip.y / clip.w;
+                                glm::vec3 corners[4];
+                                if (!safeUnprojectClip(
+                                        glm::vec4((ndcX - halfNdcX) * clip.w, (ndcY - halfNdcY) * clip.w, clip.z, clip.w),
+                                        corners[0]) ||
+                                    !safeUnprojectClip(
+                                        glm::vec4((ndcX + halfNdcX) * clip.w, (ndcY - halfNdcY) * clip.w, clip.z, clip.w),
+                                        corners[1]) ||
+                                    !safeUnprojectClip(
+                                        glm::vec4((ndcX + halfNdcX) * clip.w, (ndcY + halfNdcY) * clip.w, clip.z, clip.w),
+                                        corners[2]) ||
+                                    !safeUnprojectClip(
+                                        glm::vec4((ndcX - halfNdcX) * clip.w, (ndcY + halfNdcY) * clip.w, clip.z, clip.w),
+                                        corners[3])) {
+                                    continue;
+                                }
+
+                                float u0 = 0.0f;
+                                float v0 = 0.0f;
+                                float u1 = 1.0f;
+                                float v1 = 1.0f;
+                                if (snapshot.useFlipbook && frames > 1 && cols > 0 && rows > 0) {
+                                    int frame = static_cast<int>(std::round(age01 * static_cast<float>(frames - 1)));
+                                    frame = std::clamp(frame, 0, frames - 1);
+                                    const int col = frame % cols;
+                                    const int row = frame / cols;
+                                    u0 = static_cast<float>(col) / static_cast<float>(cols);
+                                    v0 = static_cast<float>(row) / static_cast<float>(rows);
+                                    u1 = static_cast<float>(col + 1) / static_cast<float>(cols);
+                                    v1 = static_cast<float>(row + 1) / static_cast<float>(rows);
+                                }
+
+                                const std::uint32_t baseVertex =
+                                    static_cast<std::uint32_t>(batch.vertices.size());
+                                const auto pushVertex =
+                                    [&](const glm::vec3& p, float u, float v) {
+                                        IRenderBackend::WorldMeshVertex vtx;
+                                        vtx.x = p.x;
+                                        vtx.y = p.y;
+                                        vtx.z = p.z;
+                                        vtx.u = u;
+                                        vtx.v = v;
+                                        vtx.r = style.color.r;
+                                        vtx.g = style.color.g;
+                                        vtx.b = style.color.b;
+                                        vtx.a = style.alpha;
+                                        batch.vertices.push_back(vtx);
+                                    };
+                                pushVertex(corners[0], u0, v0);
+                                pushVertex(corners[1], u1, v0);
+                                pushVertex(corners[2], u1, v1);
+                                pushVertex(corners[3], u0, v1);
+                                batch.indices.push_back(baseVertex + 0u);
+                                batch.indices.push_back(baseVertex + 1u);
+                                batch.indices.push_back(baseVertex + 2u);
+                                batch.indices.push_back(baseVertex + 0u);
+                                batch.indices.push_back(baseVertex + 2u);
+                                batch.indices.push_back(baseVertex + 3u);
+
+                                const float distSq =
+                                    glm::dot(cameraWorldPos - particle.pos, cameraWorldPos - particle.pos);
+                                batch.sortDepth = std::max(batch.sortDepth, distSq);
+                            }
+
+                            if (!batch.vertices.empty() && !batch.indices.empty()) {
+                                worldIndexedBatches.push_back(std::move(batch));
+                                appendedAny = true;
+                            }
+                            return appendedAny;
+                        };
+
+                    const bool appendedTailFireBillboards =
+                        appendSnapshotAsBillboards("tail_fire", vfxSnapshots.tailFire);
+                    appendSnapshotAsBillboards("grass_impact", vfxSnapshots.grassImpact);
+                    appendSnapshotAsBillboards("tackle_burst", vfxSnapshots.tackleBurst);
+                    appendSnapshotAsBillboards("tackle_spark", vfxSnapshots.tackleSpark);
+                    appendSnapshotAsBillboards("leech_seed_projectile", vfxSnapshots.leechSeedProjectile);
+                    const bool appendedLeechDrainBillboards =
+                        appendSnapshotAsBillboards("leech_seed_drain", vfxSnapshots.leechSeedDrain);
+                    appendSnapshotAsBillboards("heal_plus", vfxSnapshots.healPlus);
+                    appendSnapshotAsBillboards("claw_swipe", vfxSnapshots.clawSwipe);
+                    appendSnapshotAsBillboards("aqua_swoosh", vfxSnapshots.aquaSwoosh);
+
+                    if (!appendedTailFireBillboards || !appendedLeechDrainBillboards) {
+                        for (const auto& unit : gameWorld->getPokemons()) {
+                            const auto extents =
+                                game::runtime::backend_proxy::computeUnitProxyExtents(unit, worldCellSize);
+                            const glm::vec3 proxyCenter =
+                                unit.position + glm::vec3(0.0f, unit.visualYOffset, 0.0f);
+
+                            if (!appendedTailFireBillboards) {
+                                appendProjectedTailFire(
+                                    unit,
+                                    proxyCenter,
+                                    extents,
+                                    unit.rotation.y,
+                                    std::max(1.0f, line * 0.92f));
+                            }
+                            if (!appendedLeechDrainBillboards) {
+                                appendProjectedLeechDrain(
+                                    unit,
+                                    std::max(0.12f, worldCellSize * 0.24f),
+                                    std::max(1.0f, line));
+                            }
+                        }
                     }
                 };
                 const auto resolveModelMesh = [&](const PokemonInstance& unit)
@@ -3300,10 +4070,12 @@ struct GameSession::Impl {
                         const glm::vec3 right = game::runtime::backend_proxy::yawRight(animYaw);
                         const glm::vec3 up(0.0f, 1.0f, 0.0f);
 
-                        appendProjectedTailFire(unit, proxyCenter, extents, animYaw, std::max(1.0f, line * 0.92f));
-                        appendProjectedLeechDrain(unit, std::max(0.12f, worldCellSize * 0.24f), std::max(1.0f, line));
+                        if (!useLegacyParticleVfxSnapshotBridge) {
+                            appendProjectedTailFire(unit, proxyCenter, extents, animYaw, std::max(1.0f, line * 0.92f));
+                            appendProjectedLeechDrain(unit, std::max(0.12f, worldCellSize * 0.24f), std::max(1.0f, line));
+                        }
 
-                        if (pendingGrowl && unit.attackTimerSec > 0.0f) {
+                        if (pendingGrowl && unit.attackTimerSec > 0.0f && !useLegacyGrowlWaveVfx) {
                             const float safeAttackDur = std::max(0.001f, unit.attackDurationSec);
                             const float attackProgress =
                                 std::clamp(unit.animTimeSec / safeAttackDur, 0.0f, 1.0f);
@@ -3350,7 +4122,8 @@ struct GameSession::Impl {
                             }
                         }
 
-                        if (unit.pendingProjectileActive && unit.pendingProjectileTargetId >= 0) {
+                        if (!useLegacyParticleVfxSnapshotBridge &&
+                            unit.pendingProjectileActive && unit.pendingProjectileTargetId >= 0) {
                             if (const PokemonInstance* target = gameWorld->findUnitById(unit.pendingProjectileTargetId)) {
                                 const glm::vec3 from =
                                     proxyCenter + glm::vec3(0.0f, std::max(0.10f, extents.height * 0.42f), 0.0f);
@@ -3397,7 +4170,9 @@ struct GameSession::Impl {
                         const bool pendingImpactBurst =
                             (unit.pendingImpactActive && !unit.pendingImpactApplied) ||
                             (unit.pendingDamageActive && !unit.pendingDamageApplied);
-                        if (pendingImpactBurst) {
+                        const bool allowProjectedImpactFallback =
+                            !useLegacyParticleVfxSnapshotBridge || (pendingGrowl && !useLegacyGrowlWaveVfx);
+                        if (allowProjectedImpactFallback && pendingImpactBurst) {
                             const int impactTargetId =
                                 unit.pendingImpactActive ? unit.pendingImpactTargetId : unit.pendingDamageTargetId;
                             const float impactTimeSec =
@@ -3414,37 +4189,39 @@ struct GameSession::Impl {
                                             glm::vec3(0.0f, std::max(0.12f, worldCellSize * 0.24f) + target->visualYOffset, 0.0f);
                                         const float ia = 0.44f + burst * 0.42f;
                                         if (pendingGrowl) {
-                                            const glm::vec3 growlSource =
-                                                proxyCenter +
-                                                up * std::max(0.10f, extents.height * 0.32f) +
-                                                forward * std::max(0.03f, extents.halfDepth * 0.56f);
-                                            appendProjectedRing(
-                                                growlSource,
-                                                radius * 0.98f,
-                                                1.00f,
-                                                0.60f,
-                                                1.00f,
-                                                ia * 0.95f,
-                                                std::max(1.0f, line * 0.88f),
-                                                12);
-                                            appendProjectedRing(
-                                                growlSource + forward * std::max(0.03f, worldCellSize * 0.14f),
-                                                radius * 1.26f,
-                                                1.00f,
-                                                0.70f,
-                                                0.82f,
-                                                ia * 0.86f,
-                                                std::max(1.0f, line * 0.92f),
-                                                14);
-                                            appendProjectedRing(
-                                                growlSource + forward * std::max(0.05f, worldCellSize * 0.24f),
-                                                radius * 1.52f,
-                                                0.96f,
-                                                0.56f,
-                                                0.96f,
-                                                ia * 0.74f,
-                                                std::max(1.0f, line * 0.86f),
-                                                14);
+                                            if (!useLegacyGrowlWaveVfx) {
+                                                const glm::vec3 growlSource =
+                                                    proxyCenter +
+                                                    up * std::max(0.10f, extents.height * 0.32f) +
+                                                    forward * std::max(0.03f, extents.halfDepth * 0.56f);
+                                                appendProjectedRing(
+                                                    growlSource,
+                                                    radius * 0.98f,
+                                                    1.00f,
+                                                    0.60f,
+                                                    1.00f,
+                                                    ia * 0.95f,
+                                                    std::max(1.0f, line * 0.88f),
+                                                    12);
+                                                appendProjectedRing(
+                                                    growlSource + forward * std::max(0.03f, worldCellSize * 0.14f),
+                                                    radius * 1.26f,
+                                                    1.00f,
+                                                    0.70f,
+                                                    0.82f,
+                                                    ia * 0.86f,
+                                                    std::max(1.0f, line * 0.92f),
+                                                    14);
+                                                appendProjectedRing(
+                                                    growlSource + forward * std::max(0.05f, worldCellSize * 0.24f),
+                                                    radius * 1.52f,
+                                                    0.96f,
+                                                    0.56f,
+                                                    0.96f,
+                                                    ia * 0.74f,
+                                                    std::max(1.0f, line * 0.86f),
+                                                    14);
+                                            }
                                         } else if (pendingClaw) {
                                             appendProjectedBurst(
                                                 center,
@@ -3533,6 +4310,8 @@ struct GameSession::Impl {
 
                 drawProjectedUnits(gameWorld->getPokemons());
                 drawProjectedUnits(gameWorld->getBenchPokemons());
+                appendSharedParticleVfx();
+                appendSharedGrowlWaveVfx();
                 if (!modelDepthWorldTris.empty()) {
                     std::sort(
                         modelDepthWorldTris.begin(),
@@ -4065,14 +4844,19 @@ struct GameSession::Impl {
         }
         if (!worldIndexedBatches.empty() && hasWorldViewProj && supportsWorldIndexedMeshes) {
             const auto drawIndexedBatch = [&](const WorldIndexedBatch& batch) {
+                const unsigned char* rgbaData = batch.textureRgba;
+                if (!rgbaData && !batch.ownedTextureRgba.empty()) {
+                    rgbaData = batch.ownedTextureRgba.data();
+                }
                 IRenderBackend::WorldTextureData tex;
                 tex.key = batch.textureKey.c_str();
-                tex.rgba = batch.textureRgba;
+                tex.rgba = rgbaData;
                 tex.width = batch.textureWidth;
                 tex.height = batch.textureHeight;
                 tex.wrapS = batch.textureWrapS;
                 tex.wrapT = batch.textureWrapT;
                 tex.alphaMode = batch.alphaMode;
+                tex.blendMode = batch.blendMode;
                 tex.alphaCutoff = batch.alphaCutoff;
                 renderer->drawWorldIndexedMeshTextured(
                     batch.vertices.data(),

@@ -83,6 +83,8 @@ public:
 
     void update(float dt);
     void render(const Camera3D& camera);
+    const ParticleSystem& getBurstParticles() const { return burstParticles; }
+    const ParticleSystem& getSparkParticles() const { return sparkParticles; }
 
     void emitAt(const glm::vec3& worldPos);
 

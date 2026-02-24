@@ -432,9 +432,6 @@ glm::quat GrowlWaveVFX::rotationFromToSafe(const glm::vec3& from, const glm::vec
 }
 
 void GrowlWaveVFX::update(float dt) {
-    ensureConfigured();
-    if (!configured) return;
-
     dt = std::clamp(dt, 0.0f, 0.05f);
     if (dt <= 0.0f) return;
 
@@ -668,13 +665,36 @@ void GrowlWaveVFX::render(const Camera3D& camera) {
     else glDisable(GL_CULL_FACE);
 }
 
+bool GrowlWaveVFX::buildRenderSnapshot(RenderSnapshot& out) const {
+    out = {};
+    out.config = cfg;
+
+    out.drawPasses.reserve(cfg.drawPasses.size());
+    for (const auto& pass : cfg.drawPasses) {
+        if (!pass.enabled) continue;
+        out.drawPasses.push_back(pass);
+    }
+
+    out.rings.reserve(rings.size());
+    for (const auto& r : rings) {
+        RenderRing item;
+        item.pos = r.pos;
+        item.forward = r.forward;
+        item.lifeSec = r.lifeSec;
+        item.ageSec = r.ageSec;
+        item.startScale = r.startScale;
+        item.endScale = r.endScale;
+        item.randomSeed = r.randomSeed;
+        out.rings.push_back(item);
+    }
+
+    return !out.drawPasses.empty() && !out.rings.empty();
+}
+
 void GrowlWaveVFX::emitFrom(const glm::vec3& mouthWorldPos,
                             const glm::vec3& forwardDir,
                             const glm::mat4* viewMatrix) {
     (void)viewMatrix;
-
-    ensureConfigured();
-    if (!configured) return;
 
     const glm::vec3 fwd = safeForwardXZ(forwardDir);
     glm::vec3 right = glm::cross(glm::vec3(0.0f, 1.0f, 0.0f), fwd);

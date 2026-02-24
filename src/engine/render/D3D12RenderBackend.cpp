@@ -468,9 +468,16 @@ void D3D12RenderBackend::drawWorldIndexedMeshInternal(const WorldMeshVertex* ver
     srvHandle.ptr += static_cast<SIZE_T>(textureDescriptorIndex) * static_cast<SIZE_T>(srvDescriptorSize_);
     commandList_->SetGraphicsRootDescriptorTable(2, srvHandle);
     const bool blendMaterial = textureData && textureData->alphaMode == 2u;
+    const std::uint8_t blendMode = textureData ? std::min<std::uint8_t>(2u, textureData->blendMode) : 0u;
     ID3D12PipelineState* pso = worldPipelineState_.Get();
-    if (blendMaterial && worldBlendPipelineState_) {
-        pso = worldBlendPipelineState_.Get();
+    if (blendMaterial) {
+        if (blendMode == 1u && worldAdditiveBlendPipelineState_) {
+            pso = worldAdditiveBlendPipelineState_.Get();
+        } else if (blendMode == 2u && worldPremultipliedBlendPipelineState_) {
+            pso = worldPremultipliedBlendPipelineState_.Get();
+        } else if (worldBlendPipelineState_) {
+            pso = worldBlendPipelineState_.Get();
+        }
     }
     commandList_->SetPipelineState(pso);
     commandList_->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
@@ -840,6 +847,9 @@ void D3D12RenderBackend::shutdown() {
     worldIndexBufferSize_ = 0;
     worldIndexFrameOffset_ = 0;
     worldFallbackTextureDescriptorIndex_ = 0;
+    worldPremultipliedBlendPipelineState_.Reset();
+    worldAdditiveBlendPipelineState_.Reset();
+    worldBlendPipelineState_.Reset();
     worldPipelineState_.Reset();
     worldRootSignature_.Reset();
     spriteTextures_.clear();
@@ -1472,6 +1482,32 @@ void D3D12RenderBackend::createWorldPipeline() {
             IID_PPV_ARGS(worldBlendPipelineState_.ReleaseAndGetAddressOf()))) ||
         !worldBlendPipelineState_) {
         throw std::runtime_error("CreateGraphicsPipelineState failed for D3D12 world blend pipeline.");
+    }
+    D3D12_GRAPHICS_PIPELINE_STATE_DESC additiveBlendPso = blendPso;
+    additiveBlendPso.BlendState.RenderTarget[0].SrcBlend = D3D12_BLEND_SRC_ALPHA;
+    additiveBlendPso.BlendState.RenderTarget[0].DestBlend = D3D12_BLEND_ONE;
+    additiveBlendPso.BlendState.RenderTarget[0].BlendOp = D3D12_BLEND_OP_ADD;
+    additiveBlendPso.BlendState.RenderTarget[0].SrcBlendAlpha = D3D12_BLEND_ONE;
+    additiveBlendPso.BlendState.RenderTarget[0].DestBlendAlpha = D3D12_BLEND_ONE;
+    additiveBlendPso.BlendState.RenderTarget[0].BlendOpAlpha = D3D12_BLEND_OP_ADD;
+    if (FAILED(device_->CreateGraphicsPipelineState(
+            &additiveBlendPso,
+            IID_PPV_ARGS(worldAdditiveBlendPipelineState_.ReleaseAndGetAddressOf()))) ||
+        !worldAdditiveBlendPipelineState_) {
+        throw std::runtime_error("CreateGraphicsPipelineState failed for D3D12 world additive blend pipeline.");
+    }
+    D3D12_GRAPHICS_PIPELINE_STATE_DESC premulBlendPso = blendPso;
+    premulBlendPso.BlendState.RenderTarget[0].SrcBlend = D3D12_BLEND_ONE;
+    premulBlendPso.BlendState.RenderTarget[0].DestBlend = D3D12_BLEND_INV_SRC_ALPHA;
+    premulBlendPso.BlendState.RenderTarget[0].BlendOp = D3D12_BLEND_OP_ADD;
+    premulBlendPso.BlendState.RenderTarget[0].SrcBlendAlpha = D3D12_BLEND_ONE;
+    premulBlendPso.BlendState.RenderTarget[0].DestBlendAlpha = D3D12_BLEND_INV_SRC_ALPHA;
+    premulBlendPso.BlendState.RenderTarget[0].BlendOpAlpha = D3D12_BLEND_OP_ADD;
+    if (FAILED(device_->CreateGraphicsPipelineState(
+            &premulBlendPso,
+            IID_PPV_ARGS(worldPremultipliedBlendPipelineState_.ReleaseAndGetAddressOf()))) ||
+        !worldPremultipliedBlendPipelineState_) {
+        throw std::runtime_error("CreateGraphicsPipelineState failed for D3D12 world premultiplied blend pipeline.");
     }
 
     constexpr std::size_t kBufferBytes = kMaxWorldVertices * sizeof(WorldVertex);

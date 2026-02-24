@@ -66,6 +66,7 @@ public:
 
     void update(float dt);
     void render(const Camera3D& camera);
+    const ParticleSystem& getParticles() const { return particles; }
 
     // travelSec is real-time seconds for the projectile to reach target.
     void emit(const PokemonInstance& attacker,
