@@ -141,6 +141,15 @@ bool ScriptAPI::setRequireDiscreteGpuPreference(bool required) {
 }
 
 std::string ScriptAPI::getActiveRendererBackend() const {
+    // Present the effective user-facing backend token in menus/scripts.
+    // OpenGL shared-contract mode runs on the OpenGL backend, but is a distinct
+    // runtime route selection that the Display menu should reflect explicitly.
+    if (services_.renderEnabled &&
+        services_.activeRendererBackend == "opengl" &&
+        !services_.legacyGameRenderPath &&
+        !services_.legacyGameUiPath) {
+        return "opengl_shared";
+    }
     return services_.activeRendererBackend;
 }
 

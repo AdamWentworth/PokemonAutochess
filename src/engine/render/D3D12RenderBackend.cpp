@@ -92,9 +92,27 @@ struct WorldPsConstants {
     float wrapT = static_cast<float>(kGlRepeat);
     float alphaMode = 0.0f;
     float alphaCutoff = 0.5f;
-    float pad0 = 0.0f;
-    float pad1 = 0.0f;
-    float pad2 = 0.0f;
+    float materialMode = 0.0f;
+    float materialTimeSec = 0.0f;
+    float materialFlags = 0.0f;
+    float materialAtlasWidth = 0.0f;
+    float materialAtlasHeight = 0.0f;
+    float materialRect0U = 0.0f;
+    float materialRect0V = 0.0f;
+    float materialRect0W = 1.0f;
+    float materialRect0H = 1.0f;
+    float materialRect1U = 0.0f;
+    float materialRect1V = 0.0f;
+    float materialRect1W = 1.0f;
+    float materialRect1H = 1.0f;
+    float materialFlipbook0Cols = 1.0f;
+    float materialFlipbook0Rows = 1.0f;
+    float materialFlipbook0Frames = 1.0f;
+    float materialFlipbook0Fps = 0.0f;
+    float materialFlipbook1Cols = 1.0f;
+    float materialFlipbook1Rows = 1.0f;
+    float materialFlipbook1Frames = 1.0f;
+    float materialFlipbook1Fps = 0.0f;
 };
 
 WorldPsConstants makeWorldPsConstants(const IRenderBackend::WorldTextureData* textureData, float useTexture) {
@@ -105,6 +123,27 @@ WorldPsConstants makeWorldPsConstants(const IRenderBackend::WorldTextureData* te
     constants.wrapT = sanitizeWrapMode(textureData->wrapT);
     constants.alphaMode = static_cast<float>(std::min<std::uint8_t>(2u, textureData->alphaMode));
     constants.alphaCutoff = std::clamp(textureData->alphaCutoff, 0.0f, 1.0f);
+    constants.materialMode = static_cast<float>(textureData->materialMode);
+    constants.materialTimeSec = textureData->materialTimeSec;
+    constants.materialFlags = textureData->materialFlags;
+    constants.materialAtlasWidth = (std::max)(0.0f, textureData->materialAtlasWidth);
+    constants.materialAtlasHeight = (std::max)(0.0f, textureData->materialAtlasHeight);
+    constants.materialRect0U = textureData->materialRect0U;
+    constants.materialRect0V = textureData->materialRect0V;
+    constants.materialRect0W = textureData->materialRect0W;
+    constants.materialRect0H = textureData->materialRect0H;
+    constants.materialRect1U = textureData->materialRect1U;
+    constants.materialRect1V = textureData->materialRect1V;
+    constants.materialRect1W = textureData->materialRect1W;
+    constants.materialRect1H = textureData->materialRect1H;
+    constants.materialFlipbook0Cols = textureData->materialFlipbook0Cols;
+    constants.materialFlipbook0Rows = textureData->materialFlipbook0Rows;
+    constants.materialFlipbook0Frames = textureData->materialFlipbook0Frames;
+    constants.materialFlipbook0Fps = textureData->materialFlipbook0Fps;
+    constants.materialFlipbook1Cols = textureData->materialFlipbook1Cols;
+    constants.materialFlipbook1Rows = textureData->materialFlipbook1Rows;
+    constants.materialFlipbook1Frames = textureData->materialFlipbook1Frames;
+    constants.materialFlipbook1Fps = textureData->materialFlipbook1Fps;
     return constants;
 }
 #endif
@@ -310,7 +349,11 @@ void D3D12RenderBackend::drawWorldTriangles(const WorldTriangle* triangles,
     commandList_->SetGraphicsRootSignature(worldRootSignature_.Get());
     commandList_->SetGraphicsRoot32BitConstants(0, 16, viewProjectionMatrix4x4, 0);
     const WorldPsConstants worldPs = makeWorldPsConstants(nullptr, 0.0f);
-    commandList_->SetGraphicsRoot32BitConstants(1, 8, &worldPs, 0);
+    commandList_->SetGraphicsRoot32BitConstants(
+        1,
+        static_cast<UINT>(sizeof(WorldPsConstants) / sizeof(float)),
+        &worldPs,
+        0);
     if (srvHeap_) {
         D3D12_GPU_DESCRIPTOR_HANDLE srvHandle = srvHeap_->GetGPUDescriptorHandleForHeapStart();
         srvHandle.ptr += static_cast<SIZE_T>(worldFallbackTextureDescriptorIndex_) *
@@ -463,7 +506,11 @@ void D3D12RenderBackend::drawWorldIndexedMeshInternal(const WorldMeshVertex* ver
     commandList_->SetGraphicsRootSignature(worldRootSignature_.Get());
     commandList_->SetGraphicsRoot32BitConstants(0, 16, viewProjectionMatrix4x4, 0);
     const WorldPsConstants worldPs = makeWorldPsConstants(textureData, useTexture);
-    commandList_->SetGraphicsRoot32BitConstants(1, 8, &worldPs, 0);
+    commandList_->SetGraphicsRoot32BitConstants(
+        1,
+        static_cast<UINT>(sizeof(WorldPsConstants) / sizeof(float)),
+        &worldPs,
+        0);
     D3D12_GPU_DESCRIPTOR_HANDLE srvHandle = srvHeap_->GetGPUDescriptorHandleForHeapStart();
     srvHandle.ptr += static_cast<SIZE_T>(textureDescriptorIndex) * static_cast<SIZE_T>(srvDescriptorSize_);
     commandList_->SetGraphicsRootDescriptorTable(2, srvHandle);
@@ -1275,65 +1322,299 @@ void D3D12RenderBackend::createWorldPipeline() {
         "  o.col = i.col;"
         "  return o;"
         "}";
-    static constexpr char kPsSource[] =
-        "cbuffer PSConstants : register(b1) {"
-        "  float uUseTexture;"
-        "  float uWrapS;"
-        "  float uWrapT;"
-        "  float uAlphaMode;"
-        "  float uAlphaCutoff;"
-        "  float3 _pad;"
-        "};"
-        "Texture2D gTex : register(t0);"
-        "SamplerState gSamp : register(s0);"
-        "struct PSIn { float4 pos : SV_POSITION; float2 uv : TEXCOORD; float4 col : COLOR; };"
-        "float applyWrap(float coord, float mode) {"
-        "  if (abs(mode - 33071.0f) < 0.5f) { return saturate(coord); }"
-        "  if (abs(mode - 33648.0f) < 0.5f) {"
-        "    float i = floor(coord);"
-        "    float f = frac(coord);"
-        "    float odd = fmod(abs(i), 2.0f);"
-        "    return (odd >= 1.0f) ? (1.0f - f) : f;"
-        "  }"
-        "  return frac(coord);"
-        "}"
-        "float3 srgbToLinear(float3 c) {"
-        "  c = saturate(c);"
-        "  float3 lo = c / 12.92f;"
-        "  float3 hi = pow((c + 0.055f) / 1.055f, 2.4f);"
-        "  return lerp(lo, hi, step(float3(0.04045f, 0.04045f, 0.04045f), c));"
-        "}"
-        "float3 linearToSrgb(float3 c) {"
-        "  c = max(c, float3(0.0f, 0.0f, 0.0f));"
-        "  float3 lo = c * 12.92f;"
-        "  float3 hi = 1.055f * pow(c, float3(1.0f / 2.4f, 1.0f / 2.4f, 1.0f / 2.4f)) - 0.055f;"
-        "  return lerp(lo, hi, step(float3(0.0031308f, 0.0031308f, 0.0031308f), c));"
-        "}"
-        "float3 tonemapACES(float3 x) {"
-        "  const float a = 2.51f;"
-        "  const float b = 0.03f;"
-        "  const float c = 2.43f;"
-        "  const float d = 0.59f;"
-        "  const float e = 0.14f;"
-        "  return saturate((x * (a * x + b)) / (x * (c * x + d) + e));"
-        "}"
-        "float4 main(PSIn i) : SV_TARGET {"
-        "  float4 tex = float4(1.0f, 1.0f, 1.0f, 1.0f);"
-        "  float3 outSrgb = saturate(i.col.rgb);"
-        "  if (uUseTexture > 0.5f) {"
-        "    float2 uv = float2(applyWrap(i.uv.x, uWrapS), applyWrap(i.uv.y, uWrapT));"
-        "    tex = gTex.Sample(gSamp, uv);"
-        "    outSrgb = saturate(tex.rgb * i.col.rgb);"
-        "  }"
-        "  float outA = saturate(i.col.a * tex.a);"
-        "  if (uAlphaMode < 0.5f) {"
-        "    outA = saturate(i.col.a);"
-        "  } else if (uAlphaMode < 1.5f) {"
-        "    if (outA < saturate(uAlphaCutoff)) discard;"
-        "    outA = saturate(i.col.a);"
-        "  }"
-        "  return float4(outSrgb, outA);"
-        "}";
+    static constexpr char kPsSource[] = R"HLSL(
+cbuffer PSConstants : register(b1) {
+  float uUseTexture;
+  float uWrapS;
+  float uWrapT;
+  float uAlphaMode;
+  float uAlphaCutoff;
+  float uMaterialMode;
+  float uMaterialTimeSec;
+  float uMaterialFlags;
+  float uMaterialAtlasWidth;
+  float uMaterialAtlasHeight;
+  float uMaterialRect0U;
+  float uMaterialRect0V;
+  float uMaterialRect0W;
+  float uMaterialRect0H;
+  float uMaterialRect1U;
+  float uMaterialRect1V;
+  float uMaterialRect1W;
+  float uMaterialRect1H;
+  float uMaterialFlipbook0Cols;
+  float uMaterialFlipbook0Rows;
+  float uMaterialFlipbook0Frames;
+  float uMaterialFlipbook0Fps;
+  float uMaterialFlipbook1Cols;
+  float uMaterialFlipbook1Rows;
+  float uMaterialFlipbook1Frames;
+  float uMaterialFlipbook1Fps;
+};
+Texture2D gTex : register(t0);
+SamplerState gSamp : register(s0);
+struct PSIn { float4 pos : SV_POSITION; float2 uv : TEXCOORD; float4 col : COLOR; };
+
+float applyWrap(float coord, float mode) {
+  if (abs(mode - 33071.0f) < 0.5f) return saturate(coord);
+  if (abs(mode - 33648.0f) < 0.5f) {
+    float i = floor(coord);
+    float f = frac(coord);
+    float odd = fmod(abs(i), 2.0f);
+    return (odd >= 1.0f) ? (1.0f - f) : f;
+  }
+  return frac(coord);
+}
+
+float hash11(float x) { return frac(sin(x * 12.9898f) * 43758.5453f); }
+float hash21(float2 p) {
+  float n = dot(p, float2(127.1f, 311.7f));
+  return frac(sin(n) * 43758.5453f);
+}
+float valueNoise2D(float2 p) {
+  float2 i = floor(p);
+  float2 f = frac(p);
+  float2 u = f * f * (3.0f - 2.0f * f);
+  float a = hash21(i);
+  float b = hash21(i + float2(1.0f, 0.0f));
+  float c = hash21(i + float2(0.0f, 1.0f));
+  float d = hash21(i + float2(1.0f, 1.0f));
+  return lerp(lerp(a, b, u.x), lerp(c, d, u.x), u.y);
+}
+float smoothFlicker(float t, float seed) {
+  float x = t * 9.0f + seed * 97.0f;
+  float i = floor(x);
+  float f = frac(x);
+  f = f * f * (3.0f - 2.0f * f);
+  return lerp(hash11(i), hash11(i + 1.0f), f);
+}
+float fbm2D(float2 p) {
+  float v = 0.0f;
+  float a = 0.5f;
+  [unroll]
+  for (int k = 0; k < 5; ++k) {
+    v += a * valueNoise2D(p);
+    p *= 2.02f;
+    a *= 0.5f;
+  }
+  return v;
+}
+float2 fbmGrad(float2 p) {
+  float e = 0.03f;
+  float nx = fbm2D(p + float2(e, 0.0f)) - fbm2D(p - float2(e, 0.0f));
+  float ny = fbm2D(p + float2(0.0f, e)) - fbm2D(p - float2(0.0f, e));
+  return float2(nx, ny) / (2.0f * e);
+}
+float2 curl2D(float2 p) {
+  float2 g = fbmGrad(p);
+  return float2(g.y, -g.x);
+}
+float2 advect2D(float2 p, float flowY, float amount) {
+  float2 c1 = curl2D(p * 1.30f + float2(0.0f, -flowY * 0.10f));
+  float2 c2 = curl2D(p * 2.70f + float2(3.1f, -flowY * 0.18f));
+  return p + (c1 * 0.65f + c2 * 0.35f) * amount;
+}
+float3 tonemapSoftLocal(float3 c) { return c / (1.0f + c); }
+
+float2 clampUvToRegionPixels(float2 localUV01, float4 rectUv) {
+  float2 atlasSize = max(float2(uMaterialAtlasWidth, uMaterialAtlasHeight), float2(1.0f, 1.0f));
+  float2 rectPx = max(rectUv.zw * atlasSize, float2(1.0f, 1.0f));
+  float2 minPx = float2(0.5f, 0.5f) / atlasSize;
+  float2 maxPx = (rectPx - float2(0.5f, 0.5f)) / atlasSize;
+  float2 uv = saturate(localUV01);
+  float2 regionUv = rectUv.xy + uv * rectUv.zw;
+  return rectUv.xy + clamp(regionUv - rectUv.xy, minPx, maxPx);
+}
+
+float4 sampleAtlasCombined(float4 rectUv, float2 grid, float frames, float fps, float2 localUV01, float seed, float t) {
+  float speed = lerp(0.85f, 1.10f, hash11(seed * 31.7f + 2.3f));
+  float f = floor(t * fps * speed + seed * frames);
+  float frame = fmod(f, max(1.0f, frames));
+  if (frame < 0.0f) frame += max(1.0f, frames);
+  float cols = max(1.0f, grid.x);
+  float rows = max(1.0f, grid.y);
+  float col = fmod(frame, cols);
+  float rowFromTop = floor(frame / cols);
+  float row = (rows - 1.0f) - rowFromTop;
+  float2 cellUVLocal = (float2(col, row) + localUV01) / float2(cols, rows);
+  float2 cellUv = clampUvToRegionPixels(cellUVLocal, rectUv);
+  return gTex.Sample(gSamp, cellUv);
+}
+
+float lickBlobs(float x, float y, float2 advP, float flowY, float seed) {
+  float k = y * 6.6f + flowY * 0.55f;
+  float seg = floor(k);
+  float f = frac(k);
+  float cx1 = (hash11(seg + seed * 31.0f) - 0.5f) * 0.95f * (1.0f - y);
+  float cx2 = (hash11(seg + seed * 73.0f) - 0.5f) * 0.95f * (1.0f - y);
+  float w = lerp(0.34f, 0.085f, y);
+  float2 q1 = float2((x - cx1) / w,        (f - 0.30f) / 0.70f);
+  float2 q2 = float2((x - cx2) / (w*0.85f),(f - 0.45f) / 0.65f);
+  float m1 = 1.0f - smoothstep(0.60f, 1.00f, length(q1 * float2(1.0f, 1.45f)));
+  float m2 = 1.0f - smoothstep(0.60f, 1.00f, length(q2 * float2(1.0f, 1.60f)));
+  float br = fbm2D(advP * float2(7.0f, 12.0f) + seed * 17.0f);
+  float broken = smoothstep(0.25f, 0.88f, br);
+  float gate = smoothstep(0.05f, 0.22f, y) * (1.0f - smoothstep(0.86f, 1.0f, y));
+  float m = (m1 + 0.85f * m2) * broken * gate;
+  return saturate(m);
+}
+
+float4 evalFireTailExact(PSIn i) {
+  float age = saturate(i.col.r);
+  float vSeed = saturate(i.col.g);
+  float t = uMaterialTimeSec;
+  // Legacy fire_tail.frag flips gl_PointCoord.y; shared quads already provide the legacy-facing orientation.
+  float2 uv = i.uv;
+  float2 cc = (uv - 0.5f) * 2.0f;
+  float x = cc.x;
+  float y = saturate(uv.y);
+  float bottomFade = smoothstep(0.00f, 0.11f, y);
+
+  float baseT = smoothstep(0.00f, 0.22f, y);
+  float xScaleBase = lerp(2.55f, 1.90f, baseT);
+  float yScaleBase = lerp(1.05f, 0.75f, baseT);
+  float reBase = length(float2(cc.x * xScaleBase, cc.y * yScaleBase));
+  float radialMaskBase = 1.0f - smoothstep(0.98f, 1.10f, reBase);
+  float tightMask = 1.0f - smoothstep(0.62f, 0.88f, reBase);
+  float reLoose = length(cc * float2(0.55f, 0.85f));
+  float radialMaskLoose = 1.0f - smoothstep(0.98f, 1.20f, reLoose);
+
+  float fade = (1.0f - age);
+  fade = pow(lerp(fade, 1.0f, 0.25f), 0.75f);
+
+  float2 wobble = float2(
+    smoothFlicker(t * 0.9f, vSeed + 0.17f),
+    smoothFlicker(t * 1.1f, vSeed + 0.73f)
+  ) - 0.5f;
+  float2 local1 = uv + wobble * 0.010f;
+  float2 local2 = uv + wobble * 0.002f;
+
+  float4 fb1 = float4(1,1,1,1);
+  float4 fb2 = float4(1,1,1,1);
+  bool has1 = (uMaterialFlags >= 0.5f);
+  bool has2 = (uMaterialFlags >= 2.5f);
+  if (has1) {
+    fb1 = sampleAtlasCombined(float4(uMaterialRect0U, uMaterialRect0V, uMaterialRect0W, uMaterialRect0H),
+                              float2(uMaterialFlipbook0Cols, uMaterialFlipbook0Rows),
+                              uMaterialFlipbook0Frames, uMaterialFlipbook0Fps, local1, vSeed, t);
+    if (has2) {
+      fb2 = sampleAtlasCombined(float4(uMaterialRect1U, uMaterialRect1V, uMaterialRect1W, uMaterialRect1H),
+                                float2(uMaterialFlipbook1Cols, uMaterialFlipbook1Rows),
+                                uMaterialFlipbook1Frames, uMaterialFlipbook1Fps, local2, vSeed, t);
+    } else {
+      fb2 = fb1;
+    }
+  }
+
+  float fb1A = saturate(fb1.a);
+  float fb1Lum = saturate(dot(fb1.rgb, float3(0.3333f, 0.3333f, 0.3333f)));
+  float speed = lerp(0.95f, 1.10f, hash11(vSeed * 19.31f));
+  float flow = t * 1.55f * speed;
+  float flowY = flow * lerp(0.75f, 1.55f, y * y);
+  float width = lerp(0.30f, 0.055f, pow(y, 2.35f));
+  float widthHybrid = width * 2.80f;
+  float yy = (y * 2.0f - 1.0f);
+  yy = yy * 1.45f + 0.38f;
+  yy /= 1.12f;
+  float2 p = float2(x / widthHybrid, yy) * 1.22f;
+  float sway = fbm2D(float2(x * 1.7f, y * 3.8f) + float2(0.0f, -flowY * 0.65f) + vSeed * 7.0f);
+  p.x += (sway - 0.5f) * 0.015f * (1.0f - y);
+  float d0 = length(p);
+  float2 advP = advect2D(p * float2(1.20f, 1.0f) + vSeed * 6.0f, flowY, 0.25f);
+  float n = fbm2D(advP * float2(2.7f, 4.5f) + vSeed * 11.0f);
+  float d = d0 + (n - 0.5f) * 0.18f * (1.0f - y);
+  float core = saturate(1.0f - smoothstep(0.00f, 0.88f, d));
+  float outer = saturate(1.0f - smoothstep(0.30f, 1.05f, d));
+  float blobs = lickBlobs(x, y, advP, flowY, vSeed);
+  float body = saturate(smoothstep(0.92f, 0.12f, d));
+  float procAlpha = body * (0.60f + 0.55f * blobs);
+  procAlpha *= (0.92f + 0.15f * smoothFlicker(t * 1.2f, vSeed));
+  procAlpha *= bottomFade;
+  procAlpha *= fade;
+  procAlpha = 1.0f - exp(-procAlpha * 1.85f);
+  procAlpha = clamp(procAlpha, 0.0f, 0.96f);
+
+  float3 yellow = float3(1.70f, 1.20f, 0.28f);
+  float3 red = float3(1.45f, 0.18f, 0.06f);
+  float3 orange = float3(1.60f, 0.55f, 0.12f);
+  float wave = 0.5f + 0.5f * sin((x * 1.8f + y * 8.5f - flowY * 4.9f) + vSeed * 7.0f);
+  float kk = y * 6.0f - flowY * 0.55f;
+  float seg = floor(kk);
+  float segRand = hash11(seg + vSeed * 71.3f);
+  float segRand2 = hash11(seg + vSeed * 19.7f + 5.0f);
+  float tri1 = abs(frac((x * 0.85f + y * 1.05f - flowY * 0.18f) * 2.8f + vSeed * 7.0f) - 0.5f) * 2.0f;
+  float tri2 = abs(frac((x * 1.10f - y * 0.60f - flowY * 0.14f) * 3.8f + vSeed * 3.0f) - 0.5f) * 2.0f;
+  float zig = lerp(tri1, tri2, 0.50f + 0.50f * (segRand - 0.5f));
+  zig = smoothstep(0.15f, 0.85f, zig);
+  float warp = fbm2D(advect2D(float2(x * 0.85f, y * 1.2f) + vSeed * 6.0f, flowY, 0.22f) * float2(4.5f, 7.5f)) - 0.5f;
+  float jag = 0.0f;
+  jag += (segRand - 0.5f) * 0.10f;
+  jag += (segRand2 - 0.5f) * 0.05f;
+  jag += (zig - 0.5f) * 0.14f;
+  jag += warp * 0.06f;
+  jag *= (1.0f - 0.55f * smoothstep(0.65f, 1.0f, y));
+  float boundary = clamp(0.34f + jag, 0.14f, 0.62f);
+  float redMask = smoothstep(boundary, boundary + 0.11f, y);
+  float3 procRgb = lerp(yellow, red, redMask);
+  float band = smoothstep(boundary - 0.02f, boundary + 0.02f, y) *
+               (1.0f - smoothstep(boundary + 0.02f, boundary + 0.10f, y));
+  procRgb = lerp(procRgb, orange, 0.55f * band);
+  float climb = core * (1.0f - smoothstep(0.55f, 0.95f, y)) * (0.35f + 0.65f * wave);
+  procRgb = lerp(procRgb, yellow, 0.18f * climb);
+  procRgb *= (1.18f + 0.35f * outer);
+
+  float3 hybridRgb = procRgb;
+  float hybridAlpha = procAlpha;
+  if (has1) {
+    hybridAlpha = clamp(hybridAlpha * lerp(0.55f, 1.65f, fb1A), 0.0f, 0.96f);
+    hybridRgb *= lerp(0.85f, 1.25f, fb1Lum);
+    hybridRgb *= lerp(float3(1.0f,1.0f,1.0f), fb1.rgb * 1.35f, 0.30f);
+  }
+
+  float3 fb2Rgb = fb2.rgb;
+  float fb2Alpha = pow(saturate(fb2.a), 0.66f);
+  float hot = smoothstep(0.10f, 0.55f, 1.0f - y);
+  float3 tint = lerp(red, yellow, hot);
+  fb2Rgb *= tint * 1.30f;
+  fb2Alpha *= tightMask;
+  fb2Alpha *= bottomFade;
+
+  float hybridMaskedA = hybridAlpha * radialMaskLoose * bottomFade;
+  float fb2MaskedA = fb2Alpha * radialMaskBase;
+  float3 rgb = lerp(hybridRgb, fb2Rgb, 0.50f);
+  float alpha = lerp(hybridMaskedA, fb2MaskedA, 0.50f);
+  alpha *= fade;
+  alpha = clamp(alpha + 0.10f * outer * fade, 0.0f, 0.985f);
+  rgb *= 2.60f;
+  float emissive = (0.85f * outer + 0.45f * core) * fade;
+  rgb *= (1.0f + 2.10f * emissive);
+  rgb = tonemapSoftLocal(rgb);
+  if (alpha < 0.003f) discard;
+  rgb *= alpha;
+  return float4(rgb, alpha);
+}
+
+float4 main(PSIn i) : SV_TARGET {
+  if (uMaterialMode > 0.5f) {
+    return evalFireTailExact(i);
+  }
+  float4 tex = float4(1.0f, 1.0f, 1.0f, 1.0f);
+  float3 outSrgb = saturate(i.col.rgb);
+  if (uUseTexture > 0.5f) {
+    float2 uv = float2(applyWrap(i.uv.x, uWrapS), applyWrap(i.uv.y, uWrapT));
+    tex = gTex.Sample(gSamp, uv);
+    outSrgb = saturate(tex.rgb * i.col.rgb);
+  }
+  float outA = saturate(i.col.a * tex.a);
+  if (uAlphaMode < 0.5f) {
+    outA = saturate(i.col.a);
+  } else if (uAlphaMode < 1.5f) {
+    if (outA < saturate(uAlphaCutoff)) discard;
+    outA = saturate(i.col.a);
+  }
+  return float4(outSrgb, outA);
+}
+)HLSL";
 
     Microsoft::WRL::ComPtr<ID3DBlob> vsBlob;
     Microsoft::WRL::ComPtr<ID3DBlob> psBlob;
@@ -1366,7 +1647,7 @@ void D3D12RenderBackend::createWorldPipeline() {
     rootParams[0].Constants.RegisterSpace = 0;
     rootParams[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX;
     rootParams[1].ParameterType = D3D12_ROOT_PARAMETER_TYPE_32BIT_CONSTANTS;
-    rootParams[1].Constants.Num32BitValues = 8;
+    rootParams[1].Constants.Num32BitValues = static_cast<UINT>(sizeof(WorldPsConstants) / sizeof(float));
     rootParams[1].Constants.ShaderRegister = 1;
     rootParams[1].Constants.RegisterSpace = 0;
     rootParams[1].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;

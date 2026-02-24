@@ -273,16 +273,16 @@ local function build_video_entries(entries)
     local gpu_class = is_active_gpu_discrete() and "Discrete" or "Integrated"
 
     action(entries, "video_renderer_backend",
-        "Render API: " .. renderer_label(backend) .. " (applies next launch)", 0.52, false)
+        "Render API Pref: " .. renderer_label(backend) .. " (next launch)", 0.52, false)
     action(entries, "video_require_discrete",
         "Require Discrete GPU: " .. bool_text(video_cfg.require_discrete_gpu) .. " (applies next launch)", 0.56, false)
     local adapter_pref = video_cfg.gpu_adapters[video_cfg.gpu_adapter_index]
     action(entries, "video_gpu_adapter",
         "Preferred GPU: " .. gpu_adapter_label(adapter_pref) .. " (applies next launch)", 0.60, false)
-    info(entries, "Active API: " .. renderer_label(active_backend), 0.64)
+    info(entries, "Current API: " .. renderer_label(active_backend), 0.64)
     info(entries, "Active GPU: " .. tostring(active_gpu) .. " (" .. gpu_class .. ")", 0.68)
     if not backend_pref_matches_active(backend, active_backend) then
-        info(entries, "Active API differs from preference (env override or fallback).", 0.70)
+        info(entries, "Current API differs from preference (env override or fallback).", 0.70)
     end
 
     local fps = video_cfg.fps_caps[video_cfg.fps_index]

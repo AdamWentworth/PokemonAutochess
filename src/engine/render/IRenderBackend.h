@@ -27,7 +27,33 @@ public:
         int wrapT = 10497; // GL_REPEAT
         std::uint8_t alphaMode = 0u; // 0=OPAQUE, 1=MASK, 2=BLEND
         std::uint8_t blendMode = 0u; // 0=Alpha, 1=Additive, 2=Premultiplied
+        std::uint8_t materialMode = 0u; // 0=Default, 1=FireTailExact
         float alphaCutoff = 0.5f;
+
+        // Optional exact material payload used by world textured draws.
+        // Currently interpreted when materialMode == 1 (FireTailExact).
+        float materialTimeSec = 0.0f;
+        float materialFlags = 0.0f; // bit0=useFlipbook, bit1=hasFlipbook2
+        float materialAtlasWidth = 0.0f;
+        float materialAtlasHeight = 0.0f;
+
+        float materialRect0U = 0.0f;
+        float materialRect0V = 0.0f;
+        float materialRect0W = 1.0f;
+        float materialRect0H = 1.0f;
+        float materialRect1U = 0.0f;
+        float materialRect1V = 0.0f;
+        float materialRect1W = 1.0f;
+        float materialRect1H = 1.0f;
+
+        float materialFlipbook0Cols = 1.0f;
+        float materialFlipbook0Rows = 1.0f;
+        float materialFlipbook0Frames = 1.0f;
+        float materialFlipbook0Fps = 0.0f;
+        float materialFlipbook1Cols = 1.0f;
+        float materialFlipbook1Rows = 1.0f;
+        float materialFlipbook1Frames = 1.0f;
+        float materialFlipbook1Fps = 0.0f;
     };
 
     struct WorldTriangle {

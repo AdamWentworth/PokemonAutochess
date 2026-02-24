@@ -91,6 +91,14 @@ private:
     int worldWrapTLoc_ = -1;
     int worldAlphaModeLoc_ = -1;
     int worldAlphaCutoffLoc_ = -1;
+    int worldMaterialModeLoc_ = -1;
+    int worldMaterialTimeLoc_ = -1;
+    int worldMaterialFlagsLoc_ = -1;
+    int worldMaterialAtlasSizeLoc_ = -1;
+    int worldMaterialRect0Loc_ = -1;
+    int worldMaterialRect1Loc_ = -1;
+    int worldMaterialFlipbook0Loc_ = -1;
+    int worldMaterialFlipbook1Loc_ = -1;
 
     unsigned int spriteProgram_ = 0;
     unsigned int spriteVao_ = 0;
