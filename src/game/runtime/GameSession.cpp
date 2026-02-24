@@ -2020,12 +2020,133 @@ struct GameSession::Impl {
                             ? glm::vec3(0.0f, 1.0f, 0.0f)
                             : glm::normalize(growlSnapshot.config.meshForwardAxis);
                     const float fadeStart = glm::clamp(growlSnapshot.config.fadeStart, 0.0f, 1.0f);
+                    const auto growlClamp01 = [](float v) {
+                        return std::clamp(v, 0.0f, 1.0f);
+                    };
+                    const auto growlU8 = [&](float v) -> std::uint8_t {
+                        return static_cast<std::uint8_t>(std::clamp<int>(
+                            static_cast<int>(std::lround(growlClamp01(v) * 255.0f)), 0, 255));
+                    };
+                    const auto growlTevMixU8Scalar = [&](float a, float b, float t) {
+                        const float a8 = std::floor(growlClamp01(a) * 255.0f + 0.5f);
+                        const float b8 = std::floor(growlClamp01(b) * 255.0f + 0.5f);
+                        const float t8 = std::floor(growlClamp01(t) * 255.0f + 0.5f);
+                        const float tc = t8 + std::floor(t8 / 128.0f);
+                        const float out8 = std::floor((a8 * 256.0f + (b8 - a8) * tc + 128.0f) / 256.0f);
+                        return growlClamp01(out8 / 255.0f);
+                    };
+                    const auto growlAlpha6bit = [&](float a) {
+                        return growlClamp01(std::floor(growlClamp01(a) * 63.0f + 0.5f) / 63.0f);
+                    };
+
+                    struct GrowlTevState {
+                        glm::vec3 c0{1.0f, 1.0f, 1.0f};
+                        glm::vec3 c1{0.0f, 0.0f, 0.0f};
+                        glm::vec3 k0{1.0f, 1.0f, 1.0f};
+                        float k1a = 1.0f;
+                    };
+
+                    const auto resolveGrowlTevState = [&](const GrowlWaveVFX::Config::DrawPass& pass) {
+                        GrowlTevState tev;
+                        tev.c0 = pass.overrideTev ? pass.tevC0 : growlSnapshot.config.tevC0;
+                        tev.c1 = pass.overrideTev ? pass.tevC1 : growlSnapshot.config.tevC1;
+                        tev.k0 = pass.overrideTev ? pass.tevK0 : growlSnapshot.config.tevK0;
+                        tev.k1a = pass.overrideTev ? pass.tevK1A : growlSnapshot.config.tevK1A;
+                        tev.c0 = glm::clamp(tev.c0, glm::vec3(0.0f), glm::vec3(1.0f));
+                        tev.c1 = glm::clamp(tev.c1, glm::vec3(0.0f), glm::vec3(1.0f));
+                        tev.k0 = glm::clamp(tev.k0, glm::vec3(0.0f), glm::vec3(1.0f));
+                        tev.k1a = growlClamp01(tev.k1a);
+                        return tev;
+                    };
+
+                    const auto effectiveGrowlFragPath = [&](const GrowlWaveVFX::Config::DrawPass& pass) {
+                        return toLowerCopy(
+                            pass.fragShaderPath.empty() ? growlSnapshot.config.fragShaderPath : pass.fragShaderPath);
+                    };
+
+                    const auto isGrowlLinePass = [&](const GrowlWaveVFX::Config::DrawPass& pass) {
+                        return effectiveGrowlFragPath(pass).find("growl_line_shared") != std::string::npos;
+                    };
+
+                    const auto isGrowlQuarterRingPass = [&](const GrowlWaveVFX::Config::DrawPass& pass) {
+                        if (pass.textureQuarterRing) return true;
+                        return effectiveGrowlFragPath(pass).find("growl_quarter_ring_shared") != std::string::npos;
+                    };
+
+                    const auto resolveGrowlSharedTexture =
+                        [&](const GrowlWaveVFX::Config::DrawPass& pass,
+                            const GrowlTevState& tev) -> BackendTextureCacheEntry* {
+                            if (isGrowlLinePass(pass) || pass.texturePath.empty()) {
+                                return ensureBackendTextureLoaded("");
+                            }
+
+                            BackendTextureCacheEntry* rawTex = ensureBackendTextureLoaded(pass.texturePath);
+                            if (!rawTex || !rawTex->valid || rawTex->rgba.empty() ||
+                                rawTex->width <= 0 || rawTex->height <= 0) {
+                                return nullptr;
+                            }
+
+                            const bool quarterPass = isGrowlQuarterRingPass(pass);
+                            if (backendTextureByPath.empty()) backendTextureByPath.reserve(64u);
+                            const std::string bakedKey =
+                                std::string("__growl_baked:") + pass.id + ":" +
+                                (quarterPass ? "q:" : "m:") +
+                                (pass.texturePath.empty() ? std::string("__white__") : pass.texturePath);
+                            auto& baked = backendTextureByPath[bakedKey];
+                            if (baked.attemptedLoad) {
+                                return baked.valid ? &baked : nullptr;
+                            }
+
+                            baked.attemptedLoad = true;
+                            baked.valid = false;
+                            baked.width = rawTex->width;
+                            baked.height = rawTex->height;
+                            baked.rgba.clear();
+                            baked.rgba.resize(rawTex->rgba.size(), 0u);
+
+                            const glm::vec3 tint = glm::clamp(pass.tintColor, glm::vec3(0.0f), glm::vec3(1.0f));
+                            for (std::size_t i = 0; i + 3u < rawTex->rgba.size(); i += 4u) {
+                                const float tr = static_cast<float>(rawTex->rgba[i + 0u]) / 255.0f;
+                                const float tg = static_cast<float>(rawTex->rgba[i + 1u]) / 255.0f;
+                                const float tb = static_cast<float>(rawTex->rgba[i + 2u]) / 255.0f;
+                                const float ta = static_cast<float>(rawTex->rgba[i + 3u]) / 255.0f;
+
+                                glm::vec3 rgb(1.0f);
+                                float alpha = ta;
+                                if (quarterPass) {
+                                    rgb = glm::vec3(
+                                        growlTevMixU8Scalar(tev.c1.r, tev.c0.r, tr),
+                                        growlTevMixU8Scalar(tev.c1.g, tev.c0.g, tg),
+                                        growlTevMixU8Scalar(tev.c1.b, tev.c0.b, tb));
+                                    rgb *= tint;
+                                    alpha = growlAlpha6bit(ta * tev.k1a);
+                                } else {
+                                    const glm::vec3 tevInput = pass.useAlphaMaskForColor
+                                        ? glm::vec3(ta, ta, ta)
+                                        : glm::vec3(tr, tg, tb);
+                                    const glm::vec3 stage1 = glm::mix(tev.c1, tev.k0, tevInput);
+                                    rgb = tint * (tev.c0 * stage1);
+                                    alpha = ta;
+                                }
+
+                                rgb = glm::clamp(rgb, glm::vec3(0.0f), glm::vec3(1.0f));
+                                baked.rgba[i + 0u] = growlU8(rgb.r);
+                                baked.rgba[i + 1u] = growlU8(rgb.g);
+                                baked.rgba[i + 2u] = growlU8(rgb.b);
+                                baked.rgba[i + 3u] = growlU8(alpha);
+                            }
+
+                            baked.valid = true;
+                            return &baked;
+                        };
 
                     const auto appendTransformedMesh =
                         [&](WorldIndexedBatch& batch,
                             const runtime::backend_model::MeshData& mesh,
                             const glm::mat4& world,
-                            const glm::vec4& color) {
+                            const glm::vec4& color,
+                            bool quantizeLineAlpha,
+                            float lineTevK1A) {
                             if (mesh.vertices.empty() || mesh.indices.size() < 3u) return;
                             const std::uint32_t baseVertex =
                                 static_cast<std::uint32_t>(batch.vertices.size());
@@ -2041,7 +2162,17 @@ struct GameSession::Impl {
                                 vtx.r = color.r;
                                 vtx.g = color.g;
                                 vtx.b = color.b;
-                                vtx.a = color.a;
+                                const float srcAlpha = std::clamp(src.color.a, 0.0f, 1.0f);
+                                if (quantizeLineAlpha) {
+                                    const float alpha255 =
+                                        std::clamp(srcAlpha * std::clamp(lineTevK1A, 0.0f, 1.0f) * 255.0f,
+                                                   0.0f,
+                                                   255.0f);
+                                    const float quantized = std::floor(alpha255 * 0.25f) / 63.0f;
+                                    vtx.a = std::clamp(color.a * quantized, 0.0f, 1.0f);
+                                } else {
+                                    vtx.a = std::clamp(color.a * srcAlpha, 0.0f, 1.0f);
+                                }
                                 batch.vertices.push_back(vtx);
                             }
                             batch.indices.reserve(batch.indices.size() + mesh.indices.size());
@@ -2092,6 +2223,8 @@ struct GameSession::Impl {
 
                     for (const auto& pass : growlSnapshot.drawPasses) {
                         if (!pass.enabled) continue;
+                        const GrowlTevState passTev = resolveGrowlTevState(pass);
+                        const bool drawLinePass = isGrowlLinePass(pass);
 
                         const bool drawQuarterRing = pass.textureQuarterRing;
                         const runtime::backend_model::MeshData* passMesh = nullptr;
@@ -2101,7 +2234,7 @@ struct GameSession::Impl {
                             if (!passMesh) continue;
                         }
 
-                        BackendTextureCacheEntry* tex = ensureBackendTextureLoaded(pass.texturePath);
+                        BackendTextureCacheEntry* tex = resolveGrowlSharedTexture(pass, passTev);
                         if (!tex) tex = ensureBackendTextureLoaded("");
                         if (!tex || !tex->valid || tex->rgba.empty()) continue;
 
@@ -2115,6 +2248,7 @@ struct GameSession::Impl {
                         batch.textureWrapS = 10497;
                         batch.textureWrapT = 10497;
                         batch.alphaMode = 2u;
+                        batch.blendMode = 1u; // Legacy growl passes use additive blending.
                         batch.alphaCutoff = 0.0f;
 
                         const glm::vec3 passMeshForwardAxis = pass.overrideMeshForwardAxis
@@ -2125,12 +2259,11 @@ struct GameSession::Impl {
                                 ? glm::vec3(0.0f, 1.0f, 0.0f)
                                 : glm::normalize(passMeshForwardAxis);
                         const glm::vec3 meshForwardAxisWeight = meshForwardLocal * meshForwardLocal;
-                        const glm::vec3 passTint = glm::clamp(
-                            pass.overrideTev
-                                ? (pass.tintColor * (pass.tevK0 * 0.75f + pass.tevC0 * 0.25f))
-                                : pass.tintColor,
-                            glm::vec3(0.0f),
-                            glm::vec3(1.0f));
+                        const glm::vec3 passTint = drawLinePass
+                            ? glm::clamp(passTev.c0 * glm::clamp(pass.tintColor, glm::vec3(0.0f), glm::vec3(1.0f)),
+                                         glm::vec3(0.0f),
+                                         glm::vec3(1.0f))
+                            : glm::vec3(1.0f, 1.0f, 1.0f);
 
                         float sortDepth = 0.0f;
                         bool hasGeometry = false;
@@ -2203,7 +2336,11 @@ struct GameSession::Impl {
                                         hash01(ring.randomSeed ^ passSalt ^ dirSalt ^ 0x4f1bbcdcu);
                                     lineAlphaMul *= glm::mix(pass.lineAlphaMin, pass.lineAlphaMax, noise);
                                 }
-                                const float passAlpha = glm::clamp(fade * lineAlphaMul, 0.0f, 1.0f);
+                                float passAlphaScale = std::clamp(fade * lineAlphaMul, 0.0f, 1.0f);
+                                if (!drawQuarterRing && !drawLinePass) {
+                                    passAlphaScale *= passTev.k1a;
+                                }
+                                const float passAlpha = std::clamp(passAlphaScale, 0.0f, 1.0f);
                                 if (passAlpha <= 0.001f) continue;
 
                                 const glm::vec3 localDir = glm::normalize(localDirBasisRaw);
@@ -2240,7 +2377,13 @@ struct GameSession::Impl {
                                         glm::translate(glm::mat4(1.0f), passPos) *
                                         glm::mat4_cast(passRot) *
                                         glm::scale(glm::mat4(1.0f), finalScale);
-                                    appendTransformedMesh(batch, *passMesh, world, color);
+                                    appendTransformedMesh(
+                                        batch,
+                                        *passMesh,
+                                        world,
+                                        color,
+                                        drawLinePass,
+                                        passTev.k1a);
                                     hasGeometry = true;
                                 }
                             }
@@ -4885,7 +5028,7 @@ struct GameSession::Impl {
                 if (batch.alphaMode != 2u) continue;
                 blendBatches.push_back(&batch);
             }
-            std::sort(
+            std::stable_sort(
                 blendBatches.begin(),
                 blendBatches.end(),
                 [](const WorldIndexedBatch* lhs, const WorldIndexedBatch* rhs) {
