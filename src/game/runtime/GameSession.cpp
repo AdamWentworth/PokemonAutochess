@@ -64,6 +64,7 @@
 #include "game/runtime/BackendMaterialShading.h"
 #include "game/runtime/BackendProceduralPose.h"
 #include "game/runtime/BackendUnitVisuals.h"
+#include "game/runtime/SharedCapturePresentation.h"
 #include "game/GameServices.h"
 #include "game/GameConfig.h"
 #include "game/runtime/GameUpdateGraph.h"
@@ -178,61 +179,6 @@ std::string stripSuffix(const std::string& s, const std::string& suffix) {
         return s.substr(0, s.size() - suffix.size());
     }
     return s;
-}
-
-struct SharedCaptureSnapshotCache {
-    std::vector<GameWorld::CaptureAttemptRenderSnapshot> snaps;
-    std::unordered_map<int, std::size_t> byTargetId;
-
-    bool refresh(const GameWorld* gameWorld) {
-        snaps.clear();
-        byTargetId.clear();
-        if (!gameWorld) return false;
-        if (!gameWorld->buildCaptureAttemptRenderSnapshots(snaps)) return false;
-        byTargetId.reserve(snaps.size());
-        for (std::size_t i = 0; i < snaps.size(); ++i) {
-            const auto& snap = snaps[i];
-            if (snap.targetId < 0) continue;
-            byTargetId[snap.targetId] = i;
-        }
-        return !snaps.empty();
-    }
-
-    const GameWorld::CaptureAttemptRenderSnapshot* findByTarget(int targetId) const {
-        const auto it = byTargetId.find(targetId);
-        if (it == byTargetId.end()) return nullptr;
-        if (it->second >= snaps.size()) return nullptr;
-        return &snaps[it->second];
-    }
-};
-
-float sharedCaptureBallClipTimeSec(const GameWorld::CaptureAttemptRenderSnapshot& snap, float clipDurationSec) {
-    if (clipDurationSec <= 0.0f) return 0.0f;
-    if (snap.phase != 1) return 0.0f; // Absorb only; keep closed during throw/shake/resolve.
-    return std::clamp(snap.absorbNorm01, 0.0f, 1.0f) * clipDurationSec;
-}
-
-glm::mat4 buildCaptureBallModelMatrix(const glm::vec3& pos, float yawDeg, float uniformScale) {
-    const glm::mat4 scale = glm::scale(glm::mat4(1.0f), glm::vec3(std::max(0.0f, uniformScale)));
-    const glm::mat4 rotationY =
-        glm::rotate(glm::mat4(1.0f), glm::radians(yawDeg), glm::vec3(0, 1, 0));
-    const glm::mat4 translation = glm::translate(glm::mat4(1.0f), pos);
-    return translation * rotationY * scale;
-}
-
-int findPokeballAnimIndex(const std::shared_ptr<Model>& model) {
-    if (!model) return -1;
-    int animIndex = model->findAnimationIndexByName("Hinge_TopAction");
-    if (animIndex < 0 && model->getAnimationCount() > 0) animIndex = 0;
-    return animIndex;
-}
-
-int findPokeballAnimIndex(const game::runtime::backend_model::MeshData& mesh) {
-    if (mesh.animations.empty()) return -1;
-    for (std::size_t ai = 0; ai < mesh.animations.size(); ++ai) {
-        if (mesh.animations[ai].name == "Hinge_TopAction") return static_cast<int>(ai);
-    }
-    return 0;
 }
 
 int resolveBackendAnimIndexByName(const std::vector<pac_model_types::AnimationClip>& animations,
@@ -4851,7 +4797,7 @@ struct GameSession::Impl {
                     return eval;
                 };
 
-                SharedCaptureSnapshotCache sharedCaptureAttemptCache;
+                runtime::shared_capture::SnapshotCache sharedCaptureAttemptCache;
                 sharedCaptureAttemptCache.snaps.reserve(8);
                 sharedCaptureAttemptCache.byTargetId.reserve(8);
 
@@ -5064,7 +5010,7 @@ struct GameSession::Impl {
                     int captureAnimIndex = -1;
                     float captureAnimDurationSec = 0.0f;
                     if (!mesh->animations.empty()) {
-                        captureAnimIndex = findPokeballAnimIndex(*mesh);
+                        captureAnimIndex = runtime::shared_capture::findPokeballAnimIndex(*mesh);
                         if (captureAnimIndex >= 0 &&
                             static_cast<std::size_t>(captureAnimIndex) < mesh->animations.size()) {
                             captureAnimDurationSec = std::max(
@@ -5085,14 +5031,14 @@ struct GameSession::Impl {
                             renderPos.y += (minAllowedY - approxMinY);
                         }
                         const glm::mat4 modelM =
-                            buildCaptureBallModelMatrix(renderPos, snap.ballYawDeg, baseScale);
+                            runtime::shared_capture::buildBallModelMatrix(renderPos, snap.ballYawDeg, baseScale);
 
                         BackendPoseEval capturePoseEval;
                         bool hasCaptureClipPose = false;
                         std::vector<glm::mat4> captureNodeDelta;
                         if (captureAnimIndex >= 0 && captureAnimDurationSec > 0.0f && snap.phase == 1) {
                             const float clipAnimTimeSec =
-                                sharedCaptureBallClipTimeSec(snap, captureAnimDurationSec);
+                                runtime::shared_capture::ballClipTimeSec(snap, captureAnimDurationSec);
                             capturePoseEval = evaluateScenePoseForClipTime(*mesh, captureAnimIndex, clipAnimTimeSec);
                             hasCaptureClipPose =
                                 capturePoseEval.hasScenePose &&
@@ -7541,7 +7487,8 @@ struct GameSession::Impl {
                 std::shared_ptr<Model> pokeballModel =
                     engineServices->resources->getModel("assets/models/pokeball.glb");
                 if (pokeballModel) {
-                    const int captureAnimIndex = findPokeballAnimIndex(pokeballModel);
+                    const int captureAnimIndex =
+                        runtime::shared_capture::findPokeballAnimIndex(pokeballModel);
                     const float captureAnimDurSec =
                         (captureAnimIndex >= 0) ? pokeballModel->getAnimationDurationSec(captureAnimIndex) : 0.0f;
                     for (const auto& snap : captureSnaps) {
@@ -7549,10 +7496,13 @@ struct GameSession::Impl {
                         const float scaleFactor =
                             pokeballModel->getScaleFactor() * std::max(0.0f, snap.ballScale);
                         const glm::mat4 instanceTransform =
-                            buildCaptureBallModelMatrix(snap.ballPos, snap.ballYawDeg, scaleFactor);
+                            runtime::shared_capture::buildBallModelMatrix(
+                                snap.ballPos,
+                                snap.ballYawDeg,
+                                scaleFactor);
                         const float animTimeSec =
                             (captureAnimIndex >= 0 && captureAnimDurSec > 0.0f)
-                                ? sharedCaptureBallClipTimeSec(snap, captureAnimDurSec)
+                                ? runtime::shared_capture::ballClipTimeSec(snap, captureAnimDurSec)
                                 : 0.0f;
                         const int animIndexForDraw = (captureAnimIndex >= 0) ? captureAnimIndex : 0;
                         pokeballModel->drawAnimated(*camera, instanceTransform, animTimeSec, animIndexForDraw);

@@ -11,6 +11,7 @@ Current Position (2026-02-25)
 Progress Log
 1. Slice 1 complete: moved shared capture absorb timing semantics into `GameWorld::CaptureAttemptRenderSnapshot` (normalized phase progress + late absorb visual ramp), removing hardcoded capture timing assumptions from shared render paths in `GameSession`.
 2. Slice 2 complete: extracted reusable shared capture helpers in `GameSession.cpp` (snapshot cache/index lookup, pokeball clip-time mapping, pokeball transform builder, pokeball anim-index lookup) and reused them across backend shared capture rendering and the OpenGL-shared direct pokeball draw path.
+3. Slice 3 complete: moved the shared capture helper set into a dedicated runtime module (`SharedCapturePresentation.h/.cpp`) and rewired `GameSession.cpp` to consume that module, reducing capture-specific utility code in the giant `GameSession` translation unit and creating a clean seam for a later full shared-capture render extraction.
 
 Guardrails (Do Not Regress)
 1. Keep `opengl` legacy available as fallback during cleanup.
@@ -61,7 +62,7 @@ Primary Cleanup Targets
 - Performance in shared paths is acceptable for target hardware classes.
 
 First Recommended Housework Sequence
-1. Extract shared capture presentation helpers/path from `GameSession.cpp`. (In progress: timing + common helpers extracted; render path body extraction still pending.)
+1. Extract shared capture presentation helpers/path from `GameSession.cpp`. (In progress: timing + helper module extraction complete; render path body extraction still pending.)
 2. Extract shared VFX bridge appenders from `GameSession.cpp`.
 3. Extract shared world board/unit command generation helpers.
 4. Start splitting `D3D12RenderBackend.cpp` by subsystem.

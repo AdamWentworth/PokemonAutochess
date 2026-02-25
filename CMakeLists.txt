@@ -246,6 +246,7 @@ add_library(PAC_GameObjects STATIC
     src/game/runtime/GameRuntime.cpp
     src/game/runtime/GameBootstrap.cpp
     src/game/runtime/GameSession.cpp
+    src/game/runtime/SharedCapturePresentation.cpp
     src/game/runtime/GameUpdateGraph.cpp
     src/game/runtime/VideoPreferences.cpp
     src/game/runtime/GpuAdapters.cpp
