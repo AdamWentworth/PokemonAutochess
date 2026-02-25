@@ -434,6 +434,7 @@ if (BUILD_TESTING)
         tests/TestGameWorldQueries.cpp
         tests/TestGameWorldRecovery.cpp
         tests/TestGameWorldLeechSeed.cpp
+        tests/TestSharedCapturePresentation.cpp
         tests/TestConfigLoaders.cpp
         tests/TestSourceAscii.cpp
     )
@@ -505,6 +506,14 @@ if (BUILD_TESTING)
             TIMEOUT 45
             ENVIRONMENT
                 "PAC_DATA_ROOT=${CMAKE_SOURCE_DIR};PAC_ASSET_ROOT=${CMAKE_SOURCE_DIR}/assets;PAC_RENDER_BACKEND=opengl;PAC_AUTO_QUIT_SECONDS=2;PAC_DISABLE_MODELCACHE=1"
+        )
+
+        add_test(NAME PAC_RuntimeSmoke.opengl_shared COMMAND PokemonAutochess)
+        set_tests_properties(PAC_RuntimeSmoke.opengl_shared PROPERTIES
+            WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+            TIMEOUT 45
+            ENVIRONMENT
+                "PAC_DATA_ROOT=${CMAKE_SOURCE_DIR};PAC_ASSET_ROOT=${CMAKE_SOURCE_DIR}/assets;PAC_RENDER_BACKEND=opengl_shared;PAC_AUTO_QUIT_SECONDS=2;PAC_DISABLE_MODELCACHE=1"
         )
 
         if (WIN32)

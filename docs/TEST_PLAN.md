@@ -34,12 +34,19 @@ Focus on catching real regressions while keeping tests fast and headless.
 - Top-banner layout contract coverage (`backend_top_banner_contract`) to keep placement/combat header geometry and text anchoring on one shared helper.
 - Service-route mapping coverage (`game_service_render_routes_contract`) for `GameServices` -> `RenderRoutes` conversion.
 - GameWorld backend-render mode regression coverage (render-enabled world can skip legacy OpenGL model attachment).
+- Shared capture presentation helper contract coverage (`shared_capture_presentation_contract`) for pokeball clip-time mapping, transform assembly, anim-index lookup fallback, and shared capture snapshot cache lookup behavior.
+- GameWorld capture render snapshot timing contract coverage (`gameworld_capture_render_snapshot_timing_contract`) for normalized phase fields (`phaseNorm01`, `absorbNorm01`, `absorbLateVisual01`) and monotonic capture phase sequencing.
+- Runtime smoke coverage wiring includes `opengl_shared` alongside `opengl` and `d3d12` when `PAC_ENABLE_RUNTIME_SMOKE_TESTS` is enabled.
 
 ## Coverage Gaps (High Risk)
 - No packaged build smoke run (installer output or `dist/Release` execution).
+- No automated visual parity/image-diff harness across `opengl` / `opengl_shared` / `d3d12`.
+- No automated runtime menu click/input smoke across renderer APIs (startup/menu correctness still requires manual signoff).
 
 ## Next Tests to Add (Priority)
 - Packaged build smoke checklist automation (optional).
+- Scripted runtime menu-interaction smoke across renderer APIs (click/select main menu actions and verify no crash).
+- Seeded screenshot capture + image diff harness for a small parity scene matrix (board, 3-model combat, capture throw, key VFX).
 
 ## Manual Smoke Checklist (Release Builds)
 1. Launch the game and reach the board.

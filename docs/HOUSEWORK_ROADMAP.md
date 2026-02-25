@@ -12,6 +12,7 @@ Progress Log
 1. Slice 1 complete: moved shared capture absorb timing semantics into `GameWorld::CaptureAttemptRenderSnapshot` (normalized phase progress + late absorb visual ramp), removing hardcoded capture timing assumptions from shared render paths in `GameSession`.
 2. Slice 2 complete: extracted reusable shared capture helpers in `GameSession.cpp` (snapshot cache/index lookup, pokeball clip-time mapping, pokeball transform builder, pokeball anim-index lookup) and reused them across backend shared capture rendering and the OpenGL-shared direct pokeball draw path.
 3. Slice 3 complete: moved the shared capture helper set into a dedicated runtime module (`SharedCapturePresentation.h/.cpp`) and rewired `GameSession.cpp` to consume that module, reducing capture-specific utility code in the giant `GameSession` translation unit and creating a clean seam for a later full shared-capture render extraction.
+4. Slice 4 complete: added housework guardrails by wiring an `opengl_shared` runtime smoke test in `CMakeLists.txt` (when `PAC_ENABLE_RUNTIME_SMOKE_TESTS` is enabled), plus automated contracts for shared capture presentation helpers (`SharedCapturePresentation`) and `GameWorld` capture snapshot normalized timing fields (`phaseNorm01`, `absorbNorm01`, `absorbLateVisual01`).
 
 Guardrails (Do Not Regress)
 1. Keep `opengl` legacy available as fallback during cleanup.
