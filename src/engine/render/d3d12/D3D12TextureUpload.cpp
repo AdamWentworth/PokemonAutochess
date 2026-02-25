@@ -15,7 +15,37 @@ struct CpuMipLevel {
     std::vector<unsigned char> rgba;
 };
 
-std::vector<CpuMipLevel> buildRgbaMipChain(const unsigned char* rgbaPixels, int width, int height) {
+constexpr int kGlRepeat = 10497;
+constexpr int kGlClampToEdge = 33071;
+constexpr int kGlMirroredRepeat = 33648;
+
+int wrapTexelIndex(int index, int size, int wrapMode) {
+    if (size <= 1) return 0;
+    if (wrapMode == kGlClampToEdge) {
+        if (index < 0) return 0;
+        if (index >= size) return size - 1;
+        return index;
+    }
+    if (wrapMode == kGlMirroredRepeat) {
+        const int period = size * 2;
+        int j = index % period;
+        if (j < 0) j += period;
+        if (j >= size) {
+            j = period - 1 - j;
+        }
+        return j;
+    }
+    // Default to repeat for unknown modes.
+    int j = index % size;
+    if (j < 0) j += size;
+    return j;
+}
+
+std::vector<CpuMipLevel> buildRgbaMipChain(const unsigned char* rgbaPixels,
+                                           int width,
+                                           int height,
+                                           int wrapS,
+                                           int wrapT) {
     std::vector<CpuMipLevel> chain;
     if (!rgbaPixels || width <= 0 || height <= 0) return chain;
 
@@ -43,9 +73,9 @@ std::vector<CpuMipLevel> buildRgbaMipChain(const unsigned char* rgbaPixels, int 
                 std::uint32_t taps = 0;
 
                 for (int oy = 0; oy < 2; ++oy) {
-                    const int srcY = ((y * 2 + oy) < (prev.height - 1)) ? (y * 2 + oy) : (prev.height - 1);
+                    const int srcY = wrapTexelIndex(y * 2 + oy, prev.height, wrapT);
                     for (int ox = 0; ox < 2; ++ox) {
-                        const int srcX = ((x * 2 + ox) < (prev.width - 1)) ? (x * 2 + ox) : (prev.width - 1);
+                        const int srcX = wrapTexelIndex(x * 2 + ox, prev.width, wrapS);
                         const std::size_t srcIndex =
                             (static_cast<std::size_t>(srcY) * static_cast<std::size_t>(prev.width) +
                              static_cast<std::size_t>(srcX)) * 4u;
@@ -89,12 +119,18 @@ bool createTextureResourceFromRgba(ID3D12Device* device,
                                    const unsigned char* rgbaPixels,
                                    int width,
                                    int height,
+                                   int wrapS,
+                                   int wrapT,
+                                   bool generateMipChain,
                                    Microsoft::WRL::ComPtr<ID3D12Resource>& outTexture) {
     if (!device || !commandQueue || !fence || !fenceEvent || !srvHeap || !rgbaPixels || width <= 0 || height <= 0) {
         return false;
     }
-    const std::vector<CpuMipLevel> mipChain = buildRgbaMipChain(rgbaPixels, width, height);
+    std::vector<CpuMipLevel> mipChain = buildRgbaMipChain(rgbaPixels, width, height, wrapS, wrapT);
     if (mipChain.empty()) return false;
+    if (!generateMipChain && mipChain.size() > 1u) {
+        mipChain.resize(1u);
+    }
     const UINT mipLevels = static_cast<UINT>(mipChain.size());
 
     D3D12_HEAP_PROPERTIES defaultHeap{};
@@ -266,4 +302,3 @@ bool createTextureResourceFromRgba(ID3D12Device* device,
 
 } // namespace engine::render::d3d12
 #endif
-

@@ -780,6 +780,11 @@ void OpenGLRenderBackend::ensureWorldPipeline() {
             }
             return fract(coord);
         }
+        vec2 clampWrappedUvToTexelCenter(vec2 uv) {
+            vec2 texSize = max(vec2(textureSize(uTexture, 0)), vec2(1.0));
+            vec2 halfTexel = vec2(0.5) / texSize;
+            return clamp(uv, halfTexel, vec2(1.0) - halfTexel);
+        }
 
         float hash11(float x) { return fract(sin(x * 12.9898) * 43758.5453); }
         float hash21(vec2 p) {
@@ -1025,6 +1030,7 @@ void OpenGLRenderBackend::ensureWorldPipeline() {
             vec3 outSrgb = clamp(vColor.rgb, 0.0, 1.0);
             if (uUseTexture > 0.5) {
                 vec2 uv = vec2(applyWrap(vUv.x, uWrapS), applyWrap(vUv.y, uWrapT));
+                uv = clampWrappedUvToTexelCenter(uv);
                 tex = texture(uTexture, uv);
                 outSrgb = clamp(tex.rgb * vColor.rgb, 0.0, 1.0);
             }

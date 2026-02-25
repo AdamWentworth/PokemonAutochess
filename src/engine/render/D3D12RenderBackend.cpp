@@ -1352,7 +1352,15 @@ cbuffer PSConstants : register(b1) {
   float uMaterialFlipbook1Fps;
 };
 Texture2D gTex : register(t0);
-SamplerState gSamp : register(s0);
+SamplerState gSampCC : register(s0);
+SamplerState gSampRR : register(s1);
+SamplerState gSampCR : register(s2);
+SamplerState gSampRC : register(s3);
+SamplerState gSampMR : register(s4);
+SamplerState gSampRM : register(s5);
+SamplerState gSampMM : register(s6);
+SamplerState gSampCM : register(s7);
+SamplerState gSampMC : register(s8);
 struct PSIn { float4 pos : SV_POSITION; float2 uv : TEXCOORD; float4 col : COLOR; };
 
 float applyWrap(float coord, float mode) {
@@ -1364,6 +1372,32 @@ float applyWrap(float coord, float mode) {
     return (odd >= 1.0f) ? (1.0f - f) : f;
   }
   return frac(coord);
+}
+float2 clampWrappedUvToTexelCenter(float2 uv) {
+  uint w = 1, h = 1;
+  gTex.GetDimensions(w, h);
+  float2 texSize = max(float2((float)w, (float)h), float2(1.0f, 1.0f));
+  float2 halfTexel = 0.5f / texSize;
+  return clamp(uv, halfTexel, 1.0f.xx - halfTexel);
+}
+bool isClampWrap(float mode) { return abs(mode - 33071.0f) < 0.5f; }
+bool isMirrorWrap(float mode) { return abs(mode - 33648.0f) < 0.5f; }
+float4 sampleWorldTextureWithWrap(float2 uv, float2 uvDx, float2 uvDy) {
+  bool sClamp = isClampWrap(uWrapS);
+  bool tClamp = isClampWrap(uWrapT);
+  bool sMirror = isMirrorWrap(uWrapS);
+  bool tMirror = isMirrorWrap(uWrapT);
+
+  if (sClamp && tClamp) return gTex.SampleGrad(gSampCC, uv, uvDx, uvDy);
+  if (!sClamp && !sMirror && !tClamp && !tMirror) return gTex.SampleGrad(gSampRR, uv, uvDx, uvDy);
+  if (sClamp && !tClamp && !tMirror) return gTex.SampleGrad(gSampCR, uv, uvDx, uvDy);
+  if (!sClamp && !sMirror && tClamp) return gTex.SampleGrad(gSampRC, uv, uvDx, uvDy);
+  if (sMirror && !tClamp && !tMirror) return gTex.SampleGrad(gSampMR, uv, uvDx, uvDy);
+  if (!sClamp && !sMirror && tMirror) return gTex.SampleGrad(gSampRM, uv, uvDx, uvDy);
+  if (sMirror && tMirror) return gTex.SampleGrad(gSampMM, uv, uvDx, uvDy);
+  if (sClamp && tMirror) return gTex.SampleGrad(gSampCM, uv, uvDx, uvDy);
+  if (sMirror && tClamp) return gTex.SampleGrad(gSampMC, uv, uvDx, uvDy);
+  return gTex.SampleGrad(gSampRR, uv, uvDx, uvDy);
 }
 
 float hash11(float x) { return frac(sin(x * 12.9898f) * 43758.5453f); }
@@ -1438,7 +1472,7 @@ float4 sampleAtlasCombined(float4 rectUv, float2 grid, float frames, float fps, 
   float row = (rows - 1.0f) - rowFromTop;
   float2 cellUVLocal = (float2(col, row) + localUV01) / float2(cols, rows);
   float2 cellUv = clampUvToRegionPixels(cellUVLocal, rectUv);
-  return gTex.Sample(gSamp, cellUv);
+  return gTex.Sample(gSampCC, cellUv);
 }
 
 float lickBlobs(float x, float y, float2 advP, float flowY, float seed) {
@@ -1601,8 +1635,9 @@ float4 main(PSIn i) : SV_TARGET {
   float4 tex = float4(1.0f, 1.0f, 1.0f, 1.0f);
   float3 outSrgb = saturate(i.col.rgb);
   if (uUseTexture > 0.5f) {
-    float2 uv = float2(applyWrap(i.uv.x, uWrapS), applyWrap(i.uv.y, uWrapT));
-    tex = gTex.Sample(gSamp, uv);
+    float2 uvDx = ddx(i.uv);
+    float2 uvDy = ddy(i.uv);
+    tex = sampleWorldTextureWithWrap(i.uv, uvDx, uvDy);
     outSrgb = saturate(tex.rgb * i.col.rgb);
   }
   float outA = saturate(i.col.a * tex.a);
@@ -1656,26 +1691,42 @@ float4 main(PSIn i) : SV_TARGET {
     rootParams[2].DescriptorTable.pDescriptorRanges = &srvRange;
     rootParams[2].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
 
-    D3D12_STATIC_SAMPLER_DESC sampler{};
-    sampler.Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;
-    sampler.AddressU = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
-    sampler.AddressV = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
-    sampler.AddressW = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
-    sampler.MipLODBias = 0.0f;
-    sampler.MaxAnisotropy = 1;
-    sampler.ComparisonFunc = D3D12_COMPARISON_FUNC_ALWAYS;
-    sampler.BorderColor = D3D12_STATIC_BORDER_COLOR_TRANSPARENT_BLACK;
-    sampler.MinLOD = 0.0f;
-    sampler.MaxLOD = D3D12_FLOAT32_MAX;
-    sampler.ShaderRegister = 0;
-    sampler.RegisterSpace = 0;
-    sampler.ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+    auto makeStaticWorldSampler = [](UINT shaderRegister,
+                                     D3D12_TEXTURE_ADDRESS_MODE addressU,
+                                     D3D12_TEXTURE_ADDRESS_MODE addressV) {
+        D3D12_STATIC_SAMPLER_DESC s{};
+        s.Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;
+        s.AddressU = addressU;
+        s.AddressV = addressV;
+        s.AddressW = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+        s.MipLODBias = 0.0f;
+        s.MaxAnisotropy = 1;
+        s.ComparisonFunc = D3D12_COMPARISON_FUNC_ALWAYS;
+        s.BorderColor = D3D12_STATIC_BORDER_COLOR_TRANSPARENT_BLACK;
+        s.MinLOD = 0.0f;
+        s.MaxLOD = D3D12_FLOAT32_MAX;
+        s.ShaderRegister = shaderRegister;
+        s.RegisterSpace = 0;
+        s.ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+        return s;
+    };
+    std::array<D3D12_STATIC_SAMPLER_DESC, 9> worldSamplers = {
+        makeStaticWorldSampler(0, D3D12_TEXTURE_ADDRESS_MODE_CLAMP,  D3D12_TEXTURE_ADDRESS_MODE_CLAMP),  // CC
+        makeStaticWorldSampler(1, D3D12_TEXTURE_ADDRESS_MODE_WRAP,   D3D12_TEXTURE_ADDRESS_MODE_WRAP),   // RR
+        makeStaticWorldSampler(2, D3D12_TEXTURE_ADDRESS_MODE_CLAMP,  D3D12_TEXTURE_ADDRESS_MODE_WRAP),   // CR
+        makeStaticWorldSampler(3, D3D12_TEXTURE_ADDRESS_MODE_WRAP,   D3D12_TEXTURE_ADDRESS_MODE_CLAMP),  // RC
+        makeStaticWorldSampler(4, D3D12_TEXTURE_ADDRESS_MODE_MIRROR, D3D12_TEXTURE_ADDRESS_MODE_WRAP),   // MR
+        makeStaticWorldSampler(5, D3D12_TEXTURE_ADDRESS_MODE_WRAP,   D3D12_TEXTURE_ADDRESS_MODE_MIRROR), // RM
+        makeStaticWorldSampler(6, D3D12_TEXTURE_ADDRESS_MODE_MIRROR, D3D12_TEXTURE_ADDRESS_MODE_MIRROR), // MM
+        makeStaticWorldSampler(7, D3D12_TEXTURE_ADDRESS_MODE_CLAMP,  D3D12_TEXTURE_ADDRESS_MODE_MIRROR), // CM
+        makeStaticWorldSampler(8, D3D12_TEXTURE_ADDRESS_MODE_MIRROR, D3D12_TEXTURE_ADDRESS_MODE_CLAMP),  // MC
+    };
 
     D3D12_ROOT_SIGNATURE_DESC rsDesc{};
     rsDesc.NumParameters = static_cast<UINT>(_countof(rootParams));
     rsDesc.pParameters = rootParams;
-    rsDesc.NumStaticSamplers = 1;
-    rsDesc.pStaticSamplers = &sampler;
+    rsDesc.NumStaticSamplers = static_cast<UINT>(worldSamplers.size());
+    rsDesc.pStaticSamplers = worldSamplers.data();
     rsDesc.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
 
     Microsoft::WRL::ComPtr<ID3DBlob> serializedRs;
@@ -2111,6 +2162,9 @@ D3D12RenderBackend::SpriteTexture* D3D12RenderBackend::ensureFallbackSpriteTextu
                                                               kFallbackRgba,
                                                               2,
                                                               2,
+                                                              kGlClampToEdge,
+                                                              kGlClampToEdge,
+                                                              true,
                                                               texture.resource)) {
         return nullptr;
     }
@@ -2167,6 +2221,9 @@ D3D12RenderBackend::SpriteTexture* D3D12RenderBackend::ensureSpriteTexture(const
                                                                           pixels,
                                                                           width,
                                                                           height,
+                                                                          kGlClampToEdge,
+                                                                          kGlClampToEdge,
+                                                                          true,
                                                                           texture.resource);
     stbi_image_free(pixels);
     if (!ok) {
@@ -2216,6 +2273,9 @@ D3D12RenderBackend::SpriteTexture* D3D12RenderBackend::ensureWorldTexture(const 
                                                                           textureData->rgba,
                                                                           textureData->width,
                                                                           textureData->height,
+                                                                          textureData->wrapS,
+                                                                          textureData->wrapT,
+                                                                          false,
                                                                           texture.resource);
     if (!ok) return nullptr;
 
