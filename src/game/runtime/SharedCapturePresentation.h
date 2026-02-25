@@ -28,6 +28,7 @@ struct SnapshotCache {
 
 float ballClipTimeSec(const GameWorld::CaptureAttemptRenderSnapshot& snap, float clipDurationSec);
 glm::mat4 buildBallModelMatrix(const glm::vec3& pos, float yawDeg, float uniformScale);
+glm::mat4 buildBallModelMatrix(const GameWorld::CaptureAttemptRenderSnapshot& snap, float uniformScale);
 int findPokeballAnimIndex(const std::shared_ptr<Model>& model);
 int findPokeballAnimIndex(const backend_model::MeshData& mesh);
 bool drawOpenGlSharedCapturePokeballModels(const GameWorld* gameWorld,

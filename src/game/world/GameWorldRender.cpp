@@ -1,6 +1,7 @@
 #include "game/world/GameWorld.h"
 
 #include <algorithm>
+#include <cmath>
 
 #include <glm/gtc/matrix_transform.hpp>
 
@@ -47,13 +48,33 @@ void GameWorld::drawAll(const Camera3D& camera, BoardRenderer& boardRenderer) {
     drawPokemonList(benchPokemons);
 
     if (pokeballModelLoaded && pokeballModel) {
+        constexpr float kPokeballCaptureYawModelOffsetDeg = -90.0f;
         for (const auto& attempt : captureAttempts) {
             if (attempt.timeLeftSec <= 0.0f) continue;
             float scaleFactor = pokeballModel->getScaleFactor() * std::max(0.0f, attempt.ballScale);
             glm::mat4 scale = glm::scale(glm::mat4(1.0f), glm::vec3(scaleFactor));
-            glm::mat4 rotationY = glm::rotate(glm::mat4(1.0f), glm::radians(attempt.ballYawDeg), glm::vec3(0, 1, 0));
+            float yawDeg = attempt.ballYawDeg;
+            float rollDeg = 0.0f;
+            if (attempt.phase == CaptureAttempt::Phase::Shake ||
+                attempt.phase == CaptureAttempt::Phase::Resolve) {
+                // Keep a stable facing during roll/shake; legacy previously oscillated yaw
+                // left/right which reads as the ball "flipping" instead of rocking.
+                yawDeg = 0.0f;
+            }
+            if (attempt.phase == CaptureAttempt::Phase::Shake) {
+                const int totalShakes = std::max(1, attempt.shakes);
+                const float perShake = std::max(0.2f, attempt.shakeDur);
+                const float totalDur = (attempt.shakes > 0) ? (perShake * attempt.shakes) : perShake;
+                const float phaseNorm01 =
+                    std::clamp(attempt.phaseTime / std::max(0.05f, totalDur), 0.0f, 1.0f);
+                const float theta = phaseNorm01 * static_cast<float>(totalShakes) * 6.28318530718f;
+                rollDeg = std::sin(theta) * 18.0f;
+            }
+            yawDeg += kPokeballCaptureYawModelOffsetDeg;
+            glm::mat4 rotationY = glm::rotate(glm::mat4(1.0f), glm::radians(yawDeg), glm::vec3(0, 1, 0));
+            glm::mat4 rotationZ = glm::rotate(glm::mat4(1.0f), glm::radians(rollDeg), glm::vec3(0, 0, 1));
             glm::mat4 translation = glm::translate(glm::mat4(1.0f), attempt.ballPos);
-            glm::mat4 instanceTransform = translation * rotationY * scale;
+            glm::mat4 instanceTransform = translation * rotationY * rotationZ * scale;
             pokeballModel->drawAnimated(camera, instanceTransform, 0.0f, 0);
         }
     }
@@ -108,6 +129,12 @@ bool GameWorld::buildCaptureAttemptRenderSnapshots(std::vector<CaptureAttemptRen
         const float t = std::clamp((x - a) / (b - a), 0.0f, 1.0f);
         return t * t * (3.0f - 2.0f * t);
     };
+    const auto yawDegFromDirXZ = [](const glm::vec3& dir) {
+        const glm::vec2 xz(dir.x, dir.z);
+        const float lenSq = glm::dot(xz, xz);
+        if (!(lenSq > 1e-8f)) return 0.0f;
+        return glm::degrees(std::atan2(dir.x, dir.z));
+    };
 
     for (const auto& attempt : captureAttempts) {
         if (attempt.timeLeftSec <= 0.0f) continue;
@@ -119,6 +146,7 @@ bool GameWorld::buildCaptureAttemptRenderSnapshots(std::vector<CaptureAttemptRen
         snap.ballPos = attempt.ballPos;
         snap.ballScale = attempt.ballScale;
         snap.ballYawDeg = attempt.ballYawDeg;
+        snap.ballFacingYawDeg = yawDegFromDirXZ(attempt.startPos - attempt.targetPos);
         snap.phaseTimeSec = attempt.phaseTime;
         snap.timeLeftSec = attempt.timeLeftSec;
         switch (attempt.phase) {

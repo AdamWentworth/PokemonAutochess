@@ -178,6 +178,37 @@ void OpenGLRenderBackend::drawWorldIndexedMesh(const WorldMeshVertex* vertices,
                                  surfaceHeight);
 }
 
+void OpenGLRenderBackend::drawWorldIndexedMeshCached(const char* geometryKey,
+                                                     const WorldMeshVertex* vertices,
+                                                     std::size_t vertexCount,
+                                                     const std::uint32_t* indices,
+                                                     std::size_t indexCount,
+                                                     const float* viewProjectionMatrix4x4,
+                                                     int surfaceWidth,
+                                                     int surfaceHeight) {
+    (void)geometryKey;
+    drawWorldIndexedMesh(
+        vertices,
+        vertexCount,
+        indices,
+        indexCount,
+        viewProjectionMatrix4x4,
+        surfaceWidth,
+        surfaceHeight);
+}
+
+void OpenGLRenderBackend::prewarmWorldIndexedMeshCached(const char* geometryKey,
+                                                        const WorldMeshVertex* vertices,
+                                                        std::size_t vertexCount,
+                                                        const std::uint32_t* indices,
+                                                        std::size_t indexCount) {
+    (void)geometryKey;
+    (void)vertices;
+    (void)vertexCount;
+    (void)indices;
+    (void)indexCount;
+}
+
 void OpenGLRenderBackend::drawWorldIndexedMeshTextured(const WorldMeshVertex* vertices,
                                                        std::size_t vertexCount,
                                                        const std::uint32_t* indices,

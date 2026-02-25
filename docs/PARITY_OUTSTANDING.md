@@ -34,9 +34,9 @@ Confirmed good enough for parity across `opengl`, `opengl_shared`, and `d3d12`:
 - User reports performance still leaves headroom, but the parity goal is sufficiently met for current needs.
 - This should be treated as a separate optimization track, not a parity blocker, unless new perf regressions appear.
 
-2. D3D12 pokeball animation cache freshness (operational check, not renderer parity logic)
-- `d3d12` shared capture lid animation depends on the backend cache for `assets/models/pokeball.glb` (`cache/models/f664dfc73e402009.pacmdl`) containing the updated animation clip.
-- If D3D12 shows no lid animation while `opengl_shared` does, rebuild the backend model cache entry from the updated GLB.
+2. D3D12 backend model cache parity (mostly resolved; keep as regression watch)
+- Backend cache loads now self-heal on miss/corrupt/stale source metadata (CPU fastgltf parse -> write `.pacmdl` -> retry load), so `d3d12` no longer depends on an OpenGL path to rebuild `pokeball.glb` or other backend model caches.
+- Keep this as a regression watch item while housework continues because backend cache rebuild now runs inside the gameplay/runtime path.
 
 3. Optional visual polish items (out of parity scope)
 - HUD and Adventure inventory UI are acceptable for parity but may still be redesigned/polished independently of legacy behavior.

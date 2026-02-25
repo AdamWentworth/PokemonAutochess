@@ -16,6 +16,7 @@ Progress Log
 5. Slice 5 complete: extracted the `opengl_shared` capture pokeball draw loop out of `GameSession.cpp` into `SharedCapturePresentation` (`drawOpenGlSharedCapturePokeballModels(...)`), so shared capture model presentation logic for the OpenGL-shared route now lives with the capture presentation helpers and `GameSession` only dispatches the call.
 6. Slice 6 complete: extracted shared world indexed-batch submission (texture payload assembly + opaque/mask first pass + stable depth-sorted blend pass) out of `GameSession.cpp` into `SharedWorldIndexedBatches.h/.cpp`, moved the shared `WorldIndexedBatch` type into that module, and added an automated ordering contract test (`shared_world_indexed_batches_contract`) to lock batch draw ordering during future refactors.
 7. Slice 7 complete: started the `D3D12RenderBackend.cpp` backend split in earnest by extracting D3D12 backend-internal shared structs/constants/helpers (`D3D12RenderBackendInternal.h`), moving debug/sprite/world pipeline creation method definitions into `src/engine/render/d3d12/D3D12RenderBackendPipelines.cpp`, and adding a D3D12 helper contract test (`d3d12_world_material_constants_contract`) to lock `alignUp`, wrap-mode sanitization, and `WorldPsConstants` material payload mapping during further backend refactors.
+8. Slice 8 complete: closed a renderer-path boundary gap by teaching the backend model cache loader to self-heal on cache miss/corrupt/stale source metadata (CPU fastgltf parse -> write `.pacmdl` -> retry load), so `d3d12` no longer depends on `opengl`/`opengl_shared` to regenerate backend model caches after asset updates or manual cache deletion.
 
 Guardrails (Do Not Regress)
 1. Keep `opengl` legacy available as fallback during cleanup.
@@ -76,3 +77,6 @@ Out Of Scope (for this file)
 - New gameplay features
 - Non-parity UI redesign/polish
 - Balance/content changes
+
+Recent Housework / Stabilization Notes
+- D3D12 shared capture pokeball path now self-heals backend `.pacmdl` cache entries (via backend cache load-or-build) and uses cached world meshes stored in default GPU buffers instead of upload heaps, reducing repeated rigid-phase capture draw cost while preserving `opengl_shared` behavior as the visual reference.

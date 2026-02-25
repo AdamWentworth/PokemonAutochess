@@ -49,7 +49,9 @@ inline constexpr std::size_t kMaxDebugQuads = 4096;
 inline constexpr std::size_t kMaxDebugLines = 8192;
 inline constexpr std::size_t kMaxDebugTriangles = 65536;
 inline constexpr std::size_t kMaxDebugVertices = kMaxDebugTriangles * 3;
-inline constexpr std::size_t kMaxWorldTriangles = 180000;
+// Shared world path now also carries large animated capture props (e.g. animated pokeball.glb).
+// The previous cap could truncate indexed draws in D3D12, producing corrupted/partial meshes.
+inline constexpr std::size_t kMaxWorldTriangles = 900000;
 inline constexpr std::size_t kMaxWorldVertices = kMaxWorldTriangles * 3;
 inline constexpr std::size_t kMaxWorldIndices = kMaxWorldTriangles * 3;
 inline constexpr std::size_t kMaxSrvDescriptors = 2048;

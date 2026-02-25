@@ -11,6 +11,13 @@
 
 namespace game::runtime::shared_capture {
 
+namespace {
+// Pokeball model forward axis is rotated relative to the game's capture yaw convention.
+// Without this offset the ball reads as "pointing right" during shake/resolve instead of
+// facing back toward the camera/player side.
+constexpr float kPokeballCaptureYawModelOffsetDeg = -90.0f;
+}
+
 bool SnapshotCache::refresh(const GameWorld* gameWorld) {
     snaps.clear();
     byTargetId.clear();
@@ -39,11 +46,39 @@ float ballClipTimeSec(const GameWorld::CaptureAttemptRenderSnapshot& snap, float
 }
 
 glm::mat4 buildBallModelMatrix(const glm::vec3& pos, float yawDeg, float uniformScale) {
+    yawDeg += kPokeballCaptureYawModelOffsetDeg;
     const glm::mat4 scale = glm::scale(glm::mat4(1.0f), glm::vec3(std::max(0.0f, uniformScale)));
     const glm::mat4 rotationY =
         glm::rotate(glm::mat4(1.0f), glm::radians(yawDeg), glm::vec3(0, 1, 0));
     const glm::mat4 translation = glm::translate(glm::mat4(1.0f), pos);
     return translation * rotationY * scale;
+}
+
+glm::mat4 buildBallModelMatrix(const GameWorld::CaptureAttemptRenderSnapshot& snap, float uniformScale) {
+    float yawDeg = snap.ballYawDeg;
+    float rollDeg = 0.0f;
+
+    // Legacy capture behavior centers shake yaw at 0 degrees and only rocks side-to-side.
+    // Using a derived facing yaw here caused visible left/right facing flips relative to the
+    // camera/ally side for some board positions.
+    if (snap.phase == 2 /* Shake */ || snap.phase == 3 /* Resolve */) {
+        yawDeg = 0.0f;
+    }
+    if (snap.phase == 2 /* Shake */) {
+        const float cycles = static_cast<float>(std::max(1, snap.shakes));
+        const float theta = std::clamp(snap.phaseNorm01, 0.0f, 1.0f) * cycles * 6.28318530718f;
+        rollDeg = std::sin(theta) * 18.0f;
+    }
+
+    yawDeg += kPokeballCaptureYawModelOffsetDeg;
+
+    const glm::mat4 scale = glm::scale(glm::mat4(1.0f), glm::vec3(std::max(0.0f, uniformScale)));
+    const glm::mat4 rotationY =
+        glm::rotate(glm::mat4(1.0f), glm::radians(yawDeg), glm::vec3(0, 1, 0));
+    const glm::mat4 rotationZ =
+        glm::rotate(glm::mat4(1.0f), glm::radians(rollDeg), glm::vec3(0, 0, 1));
+    const glm::mat4 translation = glm::translate(glm::mat4(1.0f), snap.ballPos);
+    return translation * rotationY * rotationZ * scale;
 }
 
 int findPokeballAnimIndex(const std::shared_ptr<Model>& model) {
@@ -82,7 +117,7 @@ bool drawOpenGlSharedCapturePokeballModels(const GameWorld* gameWorld,
         const float scaleFactor =
             pokeballModel->getScaleFactor() * std::max(0.0f, snap.ballScale);
         const glm::mat4 instanceTransform =
-            buildBallModelMatrix(snap.ballPos, snap.ballYawDeg, scaleFactor);
+            buildBallModelMatrix(snap, scaleFactor);
         const float animTimeSec =
             (captureAnimIndex >= 0 && captureAnimDurSec > 0.0f)
                 ? ballClipTimeSec(snap, captureAnimDurSec)

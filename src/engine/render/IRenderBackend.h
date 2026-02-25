@@ -179,6 +179,35 @@ public:
         (void)surfaceWidth;
         (void)surfaceHeight;
     }
+    virtual void drawWorldIndexedMeshCached(const char* geometryKey,
+                                            const WorldMeshVertex* vertices,
+                                            std::size_t vertexCount,
+                                            const std::uint32_t* indices,
+                                            std::size_t indexCount,
+                                            const float* viewProjectionMatrix4x4,
+                                            int surfaceWidth,
+                                            int surfaceHeight) {
+        (void)geometryKey;
+        drawWorldIndexedMesh(
+            vertices,
+            vertexCount,
+            indices,
+            indexCount,
+            viewProjectionMatrix4x4,
+            surfaceWidth,
+            surfaceHeight);
+    }
+    virtual void prewarmWorldIndexedMeshCached(const char* geometryKey,
+                                               const WorldMeshVertex* vertices,
+                                               std::size_t vertexCount,
+                                               const std::uint32_t* indices,
+                                               std::size_t indexCount) {
+        (void)geometryKey;
+        (void)vertices;
+        (void)vertexCount;
+        (void)indices;
+        (void)indexCount;
+    }
     virtual void drawWorldIndexedMeshTextured(const WorldMeshVertex* vertices,
                                               std::size_t vertexCount,
                                               const std::uint32_t* indices,

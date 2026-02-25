@@ -92,6 +92,7 @@ public:
         glm::vec3 ballPos{0.0f};
         float ballScale = 1.0f;
         float ballYawDeg = 0.0f;
+        float ballFacingYawDeg = 0.0f; // stable yaw toward ally/throw side for shared shake-roll presentation
         float phaseTimeSec = 0.0f;
         float phaseNorm01 = 0.0f; // normalized progress of the active phase
         float absorbNorm01 = 0.0f; // normalized absorb progress (0 outside Absorb phase)

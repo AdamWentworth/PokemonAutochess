@@ -58,6 +58,19 @@ public:
                               const float* viewProjectionMatrix4x4,
                               int surfaceWidth,
                               int surfaceHeight) override;
+    void drawWorldIndexedMeshCached(const char* geometryKey,
+                                    const WorldMeshVertex* vertices,
+                                    std::size_t vertexCount,
+                                    const std::uint32_t* indices,
+                                    std::size_t indexCount,
+                                    const float* viewProjectionMatrix4x4,
+                                    int surfaceWidth,
+                                    int surfaceHeight) override;
+    void prewarmWorldIndexedMeshCached(const char* geometryKey,
+                                       const WorldMeshVertex* vertices,
+                                       std::size_t vertexCount,
+                                       const std::uint32_t* indices,
+                                       std::size_t indexCount) override;
     void drawWorldIndexedMeshTextured(const WorldMeshVertex* vertices,
                                       std::size_t vertexCount,
                                       const std::uint32_t* indices,
@@ -97,6 +110,28 @@ private:
     SpriteTexture* ensureSpriteTexture(const std::string& texturePath);
     SpriteTexture* ensureFallbackSpriteTexture();
     SpriteTexture* ensureWorldTexture(const WorldTextureData* textureData);
+#if defined(_WIN32)
+    struct CachedWorldMesh {
+        Microsoft::WRL::ComPtr<ID3D12Resource> vertexBuffer;
+        Microsoft::WRL::ComPtr<ID3D12Resource> indexBuffer;
+        std::uint64_t vertexGpuAddress = 0;
+        std::uint64_t indexGpuAddress = 0;
+        std::size_t vertexCount = 0u;
+        std::size_t indexCount = 0u;
+        std::size_t vertexBytes = 0u;
+        std::size_t indexBytes = 0u;
+        bool valid = false;
+    };
+    CachedWorldMesh* ensureCachedWorldMesh(const char* geometryKey,
+                                           const WorldMeshVertex* vertices,
+                                           std::size_t vertexCount,
+                                           const std::uint32_t* indices,
+                                           std::size_t indexCount);
+    void drawWorldIndexedMeshCachedInternal(const CachedWorldMesh& mesh,
+                                            const float* viewProjectionMatrix4x4,
+                                            int surfaceWidth,
+                                            int surfaceHeight);
+#endif
     void drawWorldIndexedMeshInternal(const WorldMeshVertex* vertices,
                                       std::size_t vertexCount,
                                       const std::uint32_t* indices,
@@ -187,5 +222,6 @@ private:
     std::uint8_t* spriteVertexMappedData_ = nullptr;
     std::unordered_map<std::string, SpriteTexture> spriteTextures_;
     std::unordered_map<std::string, SpriteTexture> worldTextures_;
+    std::unordered_map<std::string, CachedWorldMesh> cachedWorldMeshes_;
 #endif
 };

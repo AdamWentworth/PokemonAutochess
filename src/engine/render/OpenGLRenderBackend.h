@@ -37,6 +37,19 @@ public:
                               const float* viewProjectionMatrix4x4,
                               int surfaceWidth,
                               int surfaceHeight) override;
+    void drawWorldIndexedMeshCached(const char* geometryKey,
+                                    const WorldMeshVertex* vertices,
+                                    std::size_t vertexCount,
+                                    const std::uint32_t* indices,
+                                    std::size_t indexCount,
+                                    const float* viewProjectionMatrix4x4,
+                                    int surfaceWidth,
+                                    int surfaceHeight) override;
+    void prewarmWorldIndexedMeshCached(const char* geometryKey,
+                                       const WorldMeshVertex* vertices,
+                                       std::size_t vertexCount,
+                                       const std::uint32_t* indices,
+                                       std::size_t indexCount) override;
     void drawWorldIndexedMeshTextured(const WorldMeshVertex* vertices,
                                       std::size_t vertexCount,
                                       const std::uint32_t* indices,
