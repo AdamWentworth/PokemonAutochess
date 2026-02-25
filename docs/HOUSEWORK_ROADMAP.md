@@ -8,6 +8,10 @@ Current Position (2026-02-25)
 - Legacy OpenGL remains the fallback path for safety.
 - The next phase is housework: reduce code ownership sprawl and prepare for eventual legacy retirement without destabilizing gameplay.
 
+Progress Log
+1. Slice 1 complete: moved shared capture absorb timing semantics into `GameWorld::CaptureAttemptRenderSnapshot` (normalized phase progress + late absorb visual ramp), removing hardcoded capture timing assumptions from shared render paths in `GameSession`.
+2. Slice 2 complete: extracted reusable shared capture helpers in `GameSession.cpp` (snapshot cache/index lookup, pokeball clip-time mapping, pokeball transform builder, pokeball anim-index lookup) and reused them across backend shared capture rendering and the OpenGL-shared direct pokeball draw path.
+
 Guardrails (Do Not Regress)
 1. Keep `opengl` legacy available as fallback during cleanup.
 2. Prefer refactors that preserve behavior and move logic behind shared contracts.
@@ -57,7 +61,7 @@ Primary Cleanup Targets
 - Performance in shared paths is acceptable for target hardware classes.
 
 First Recommended Housework Sequence
-1. Extract shared capture presentation helpers/path from `GameSession.cpp`.
+1. Extract shared capture presentation helpers/path from `GameSession.cpp`. (In progress: timing + common helpers extracted; render path body extraction still pending.)
 2. Extract shared VFX bridge appenders from `GameSession.cpp`.
 3. Extract shared world board/unit command generation helpers.
 4. Start splitting `D3D12RenderBackend.cpp` by subsystem.
@@ -67,4 +71,3 @@ Out Of Scope (for this file)
 - New gameplay features
 - Non-parity UI redesign/polish
 - Balance/content changes
-
