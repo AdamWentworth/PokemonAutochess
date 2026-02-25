@@ -1223,6 +1223,8 @@ retry_read:
     submeshRanges.reserve(hdr.submeshCount);
     out.submeshBaseColors.reserve(hdr.submeshCount);
     out.submeshMeshIndex.reserve(hdr.submeshCount);
+    out.submeshIndexOffset.reserve(hdr.submeshCount);
+    out.submeshIndexCount.reserve(hdr.submeshCount);
     out.submeshBaseTextures.reserve(hdr.submeshCount);
     out.submeshAlphaMode.reserve(hdr.submeshCount);
     out.submeshAlphaCutoff.reserve(hdr.submeshCount);
@@ -1275,6 +1277,8 @@ retry_read:
         submeshRanges.push_back(range);
         out.submeshBaseColors.push_back(range.baseColor);
         out.submeshMeshIndex.push_back(range.meshIndex);
+        out.submeshIndexOffset.push_back(static_cast<std::uint32_t>(range.firstIndex));
+        out.submeshIndexCount.push_back(static_cast<std::uint32_t>(range.indexCount));
         out.submeshAlphaMode.push_back(static_cast<std::uint8_t>(range.alphaMode));
         out.submeshAlphaCutoff.push_back(std::clamp(range.alphaCutoff, 0.0f, 1.0f));
         CachedTextureRgba cachedTex;
@@ -1337,83 +1341,111 @@ retry_read:
                 static_cast<std::size_t>(resolvedNodeIndex) < out.nodeSkin.size()) {
                 resolvedSkinIndex = out.nodeSkin[static_cast<std::size_t>(resolvedNodeIndex)];
             }
+            const glm::vec3 baseRgb(range.baseColor.r, range.baseColor.g, range.baseColor.b);
+            const bool baseTexIsConstant =
+                !range.baseTexture.hasPixels() ||
+                (range.baseTexture.width <= 1 && range.baseTexture.height <= 1);
+            const bool emissiveTexIsConstant =
+                !range.emissiveTexture.hasPixels() ||
+                (range.emissiveTexture.width <= 1 && range.emissiveTexture.height <= 1);
+            const bool useConstantMaterialFastPath = baseTexIsConstant && emissiveTexIsConstant;
+            glm::vec3 constantTriColor =
+                backend_material::composeGltfLikeColor(baseRgb, glm::vec3(0.0f), range.emissiveFactor);
+            float constantTriOpacity = 1.0f;
+            if (useConstantMaterialFastPath) {
+                const glm::vec4 texel = range.baseTexture.average;
+                const glm::vec4 emixel = range.emissiveTexture.hasPixels()
+                    ? range.emissiveTexture.average
+                    : glm::vec4(0.0f);
+                constantTriColor = backend_material::composeGltfLikeColor(
+                    backend_material::modulateBaseAndTexture(baseRgb, glm::vec3(texel.r, texel.g, texel.b)),
+                    glm::vec3(emixel.r, emixel.g, emixel.b),
+                    range.emissiveFactor);
+                constantTriOpacity = backend_material::opacityFromAlphaMode(
+                    range.alphaMode,
+                    texel.a,
+                    range.alphaCutoff);
+            }
             for (std::size_t ti = startTri; ti < endTri; ++ti) {
                 out.triangleSubmesh[ti] = static_cast<std::uint16_t>(si);
                 out.triangleDoubleSided[ti] = range.doubleSided ? 1u : 0u;
                 out.triangleNodeIndex[ti] = resolvedNodeIndex;
                 out.triangleSkinIndex[ti] = resolvedSkinIndex;
-                const glm::vec3 baseRgb(range.baseColor.r, range.baseColor.g, range.baseColor.b);
-                glm::vec3 triColor =
-                    backend_material::composeGltfLikeColor(baseRgb, glm::vec3(0.0f), range.emissiveFactor);
-                float triOpacity = 1.0f;
+                glm::vec3 triColor = constantTriColor;
+                float triOpacity = constantTriOpacity;
 
                 const std::size_t i = ti * 3u;
                 const std::uint32_t i0 = out.indices[i + 0u];
                 const std::uint32_t i1 = out.indices[i + 1u];
                 const std::uint32_t i2 = out.indices[i + 2u];
                 if (i0 < out.vertices.size() && i1 < out.vertices.size() && i2 < out.vertices.size()) {
-                    const glm::vec2 uv0 = out.vertices[i0].uv;
-                    const glm::vec2 uv1 = out.vertices[i1].uv;
-                    const glm::vec2 uv2 = out.vertices[i2].uv;
-                    const glm::vec2 uvc = (uv0 + uv1 + uv2) * (1.0f / 3.0f);
+                    if (useConstantMaterialFastPath) {
+                        vertexColorAccum[i0] += constantTriColor;
+                        vertexColorAccum[i1] += constantTriColor;
+                        vertexColorAccum[i2] += constantTriColor;
+                    } else {
+                        const glm::vec2 uv0 = out.vertices[i0].uv;
+                        const glm::vec2 uv1 = out.vertices[i1].uv;
+                        const glm::vec2 uv2 = out.vertices[i2].uv;
+                        const glm::vec2 uvc = (uv0 + uv1 + uv2) * (1.0f / 3.0f);
 
-                    const glm::vec4 tex0 = range.baseTexture.hasPixels()
-                        ? sampleTextureBilinear(range.baseTexture, uv0)
-                        : range.baseTexture.average;
-                    const glm::vec4 tex1 = range.baseTexture.hasPixels()
-                        ? sampleTextureBilinear(range.baseTexture, uv1)
-                        : range.baseTexture.average;
-                    const glm::vec4 tex2 = range.baseTexture.hasPixels()
-                        ? sampleTextureBilinear(range.baseTexture, uv2)
-                        : range.baseTexture.average;
-                    const glm::vec4 texc = range.baseTexture.hasPixels()
-                        ? sampleTextureBilinear(range.baseTexture, uvc)
-                        : range.baseTexture.average;
+                        const glm::vec4 tex0 = range.baseTexture.hasPixels()
+                            ? sampleTextureBilinear(range.baseTexture, uv0)
+                            : range.baseTexture.average;
+                        const glm::vec4 tex1 = range.baseTexture.hasPixels()
+                            ? sampleTextureBilinear(range.baseTexture, uv1)
+                            : range.baseTexture.average;
+                        const glm::vec4 tex2 = range.baseTexture.hasPixels()
+                            ? sampleTextureBilinear(range.baseTexture, uv2)
+                            : range.baseTexture.average;
+                        const glm::vec4 texc = range.baseTexture.hasPixels()
+                            ? sampleTextureBilinear(range.baseTexture, uvc)
+                            : range.baseTexture.average;
 
-                    const glm::vec4 emi0 = range.emissiveTexture.hasPixels()
-                        ? sampleTextureBilinear(range.emissiveTexture, uv0)
-                        : glm::vec4(0.0f);
-                    const glm::vec4 emi1 = range.emissiveTexture.hasPixels()
-                        ? sampleTextureBilinear(range.emissiveTexture, uv1)
-                        : glm::vec4(0.0f);
-                    const glm::vec4 emi2 = range.emissiveTexture.hasPixels()
-                        ? sampleTextureBilinear(range.emissiveTexture, uv2)
-                        : glm::vec4(0.0f);
-                    const glm::vec4 emic = range.emissiveTexture.hasPixels()
-                        ? sampleTextureBilinear(range.emissiveTexture, uvc)
-                        : glm::vec4(0.0f);
+                        const glm::vec4 emi0 = range.emissiveTexture.hasPixels()
+                            ? sampleTextureBilinear(range.emissiveTexture, uv0)
+                            : glm::vec4(0.0f);
+                        const glm::vec4 emi1 = range.emissiveTexture.hasPixels()
+                            ? sampleTextureBilinear(range.emissiveTexture, uv1)
+                            : glm::vec4(0.0f);
+                        const glm::vec4 emi2 = range.emissiveTexture.hasPixels()
+                            ? sampleTextureBilinear(range.emissiveTexture, uv2)
+                            : glm::vec4(0.0f);
+                        const glm::vec4 emic = range.emissiveTexture.hasPixels()
+                            ? sampleTextureBilinear(range.emissiveTexture, uvc)
+                            : glm::vec4(0.0f);
 
-                    const glm::vec3 base0 = backend_material::modulateBaseAndTexture(
-                        baseRgb, glm::vec3(tex0.r, tex0.g, tex0.b));
-                    const glm::vec3 base1 = backend_material::modulateBaseAndTexture(
-                        baseRgb, glm::vec3(tex1.r, tex1.g, tex1.b));
-                    const glm::vec3 base2 = backend_material::modulateBaseAndTexture(
-                        baseRgb, glm::vec3(tex2.r, tex2.g, tex2.b));
+                        const glm::vec3 base0 = backend_material::modulateBaseAndTexture(
+                            baseRgb, glm::vec3(tex0.r, tex0.g, tex0.b));
+                        const glm::vec3 base1 = backend_material::modulateBaseAndTexture(
+                            baseRgb, glm::vec3(tex1.r, tex1.g, tex1.b));
+                        const glm::vec3 base2 = backend_material::modulateBaseAndTexture(
+                            baseRgb, glm::vec3(tex2.r, tex2.g, tex2.b));
 
-                    const glm::vec3 c0 = backend_material::composeGltfLikeColor(
-                        base0, glm::vec3(emi0.r, emi0.g, emi0.b), range.emissiveFactor);
-                    const glm::vec3 c1 = backend_material::composeGltfLikeColor(
-                        base1, glm::vec3(emi1.r, emi1.g, emi1.b), range.emissiveFactor);
-                    const glm::vec3 c2 = backend_material::composeGltfLikeColor(
-                        base2, glm::vec3(emi2.r, emi2.g, emi2.b), range.emissiveFactor);
-                    vertexColorAccum[i0] += c0;
-                    vertexColorAccum[i1] += c1;
-                    vertexColorAccum[i2] += c2;
+                        const glm::vec3 c0 = backend_material::composeGltfLikeColor(
+                            base0, glm::vec3(emi0.r, emi0.g, emi0.b), range.emissiveFactor);
+                        const glm::vec3 c1 = backend_material::composeGltfLikeColor(
+                            base1, glm::vec3(emi1.r, emi1.g, emi1.b), range.emissiveFactor);
+                        const glm::vec3 c2 = backend_material::composeGltfLikeColor(
+                            base2, glm::vec3(emi2.r, emi2.g, emi2.b), range.emissiveFactor);
+                        vertexColorAccum[i0] += c0;
+                        vertexColorAccum[i1] += c1;
+                        vertexColorAccum[i2] += c2;
+                        const glm::vec4 texel = (tex0 + tex1 + tex2 + texc) * 0.25f;
+                        const glm::vec4 emixel = (emi0 + emi1 + emi2 + emic) * 0.25f;
+                        const glm::vec3 texelRgb(texel.r, texel.g, texel.b);
+                        triColor = backend_material::composeGltfLikeColor(
+                            backend_material::modulateBaseAndTexture(baseRgb, texelRgb),
+                            glm::vec3(emixel.r, emixel.g, emixel.b),
+                            range.emissiveFactor);
+                        triOpacity = backend_material::opacityFromAlphaMode(
+                            range.alphaMode,
+                            texel.a,
+                            range.alphaCutoff);
+                    }
                     vertexColorWeight[i0] += 1.0f;
                     vertexColorWeight[i1] += 1.0f;
                     vertexColorWeight[i2] += 1.0f;
-
-                    const glm::vec4 texel = (tex0 + tex1 + tex2 + texc) * 0.25f;
-                    const glm::vec4 emixel = (emi0 + emi1 + emi2 + emic) * 0.25f;
-                    const glm::vec3 texelRgb(texel.r, texel.g, texel.b);
-                    triColor = backend_material::composeGltfLikeColor(
-                        backend_material::modulateBaseAndTexture(baseRgb, texelRgb),
-                        glm::vec3(emixel.r, emixel.g, emixel.b),
-                        range.emissiveFactor);
-                    triOpacity = backend_material::opacityFromAlphaMode(
-                        range.alphaMode,
-                        texel.a,
-                        range.alphaCutoff);
                 }
                 out.triangleBaseColors[ti] = glm::clamp(triColor, 0.0f, 1.0f);
                 out.triangleOpacity[ti] = std::clamp(triOpacity, 0.0f, 1.0f);

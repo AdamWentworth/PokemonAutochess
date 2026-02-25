@@ -1226,10 +1226,11 @@ struct GameSession::Impl {
                         modelPathsToPreload.push_back(modelPath);
                     }
                 }
-                // The capture pokeball mesh is dramatically heavier than the current Pokemon roster meshes.
-                // Preloading it here causes a very noticeable boot hitch in D3D12. Keep this opt-in and rely on
-                // backend cache self-heal + on-demand prewarm during Pokeball selection by default.
-                if (engine::env::truthyNonZero("PAC_BACKEND_PRELOAD_CAPTURE_POKEBALL")) {
+                // Shared capture uses pokeball.glb in both opengl_shared (OpenGL Model path) and d3d12
+                // (backend mesh path). Preload its backend cache with the Pokemon models by default so
+                // the first Pokeball use does not pay cache load/rebuild costs on an interactive click.
+                // Set PAC_BACKEND_PRELOAD_CAPTURE_POKEBALL=0 to disable if boot-time preload is preferred off.
+                if (!engine::env::equals("PAC_BACKEND_PRELOAD_CAPTURE_POKEBALL", "0")) {
                     const std::string sharedCapturePokeballPath = "assets/models/pokeball.glb";
                     if (seenModelPaths.insert(sharedCapturePokeballPath).second) {
                         modelPathsToPreload.push_back(sharedCapturePokeballPath);
@@ -4795,8 +4796,19 @@ struct GameSession::Impl {
                         renderer &&
                         renderer->backendId() &&
                         (toLowerCopy(renderer->backendId()) == "d3d12");
-                    const bool d3d12CapturePrewarmRequested =
-                        isD3d12Backend && (gameWorld->getSelectedItem() == "pokeball");
+                    bool d3d12CapturePrewarmRequested = false;
+                    if (isD3d12Backend) {
+                        d3d12CapturePrewarmRequested = (gameWorld->getSelectedItem() == "pokeball");
+                        if (!d3d12CapturePrewarmRequested) {
+                            const auto ownedItems = gameWorld->listItems();
+                            for (const auto& [itemId, count] : ownedItems) {
+                                if (count > 0 && itemId == "pokeball") {
+                                    d3d12CapturePrewarmRequested = true;
+                                    break;
+                                }
+                            }
+                        }
+                    }
 
                     if (sharedCaptureAttemptCache.snaps.empty()) {
                         (void)sharedCaptureAttemptCache.refresh(gameWorld.get());
@@ -4835,6 +4847,255 @@ struct GameSession::Impl {
                     // reliable per-submesh CPU-transform path for absorb/open-close clip frames. The older
                     // per-node chunk path is effectively dead for the pokeball and very expensive to build.
                     constexpr bool kCapturePokeballEnableNodeChunkPath = false;
+
+                    if (isD3d12Backend && renderer && hasWorldViewProj) {
+                        struct D3d12CaptureSubmeshCache {
+                            int nodeIndex = -1;
+                            std::uint8_t alphaMode = 0u;
+                            float alphaCutoff = 0.5f;
+                            std::vector<IRenderBackend::WorldMeshVertex> localVertices;
+                            std::vector<std::uint32_t> localIndices;
+                            std::string geomKey;
+                        };
+                        struct D3d12CaptureFastCache {
+                            const runtime::backend_model::MeshData* sourceMesh = nullptr;
+                            std::size_t sourceVertexCount = 0u;
+                            std::size_t sourceIndexCount = 0u;
+                            std::vector<D3d12CaptureSubmeshCache> submeshes;
+                            std::vector<IRenderBackend::WorldMeshVertex> rigidCombinedVertices;
+                            std::vector<std::uint32_t> rigidCombinedIndices;
+                            bool rigidCombinedPrewarmed = false;
+                            bool submeshesPrewarmed = false;
+                        };
+                        static thread_local D3d12CaptureFastCache sD3d12CaptureFastCache;
+
+                        const bool fastCacheValid =
+                            (sD3d12CaptureFastCache.sourceMesh == mesh) &&
+                            (sD3d12CaptureFastCache.sourceVertexCount == mesh->vertices.size()) &&
+                            (sD3d12CaptureFastCache.sourceIndexCount == mesh->indices.size()) &&
+                            !sD3d12CaptureFastCache.submeshes.empty();
+                        if (!fastCacheValid) {
+                            sD3d12CaptureFastCache = {};
+                            sD3d12CaptureFastCache.sourceMesh = mesh;
+                            sD3d12CaptureFastCache.sourceVertexCount = mesh->vertices.size();
+                            sD3d12CaptureFastCache.sourceIndexCount = mesh->indices.size();
+
+                            const std::size_t batchCount = std::max<std::size_t>(
+                                1u,
+                                std::max(mesh->submeshBaseTextures.size(), mesh->submeshIndexCount.size()));
+                            sD3d12CaptureFastCache.submeshes.resize(batchCount);
+
+                            std::vector<int> submeshNodeFallback(batchCount, -1);
+                            if (!mesh->submeshMeshIndex.empty()) {
+                                for (std::size_t si = 0; si < batchCount && si < mesh->submeshMeshIndex.size(); ++si) {
+                                    const int meshIndex = mesh->submeshMeshIndex[si];
+                                    if (meshIndex >= 0 &&
+                                        static_cast<std::size_t>(meshIndex) < mesh->meshIndexToNode.size()) {
+                                        submeshNodeFallback[si] =
+                                            mesh->meshIndexToNode[static_cast<std::size_t>(meshIndex)];
+                                    }
+                                }
+                            }
+                            const int fallbackNode = !mesh->sceneRoots.empty() ? mesh->sceneRoots.front() : -1;
+
+                            std::size_t totalRigidVerts = 0u;
+                            std::size_t totalRigidIndices = 0u;
+
+                            for (std::size_t si = 0; si < batchCount; ++si) {
+                                auto& sub = sD3d12CaptureFastCache.submeshes[si];
+                                sub.nodeIndex = (si < submeshNodeFallback.size() && submeshNodeFallback[si] >= 0)
+                                    ? submeshNodeFallback[si]
+                                    : fallbackNode;
+                                if (si < mesh->submeshAlphaMode.size()) sub.alphaMode = mesh->submeshAlphaMode[si];
+                                if (si < mesh->submeshAlphaCutoff.size()) sub.alphaCutoff = mesh->submeshAlphaCutoff[si];
+                                sub.geomKey = "assets/models/pokeball.glb#d3d12fastsubmesh:" + std::to_string(si);
+
+                                std::size_t indexOffset = 0u;
+                                std::size_t indexCount = 0u;
+                                if (si < mesh->submeshIndexOffset.size()) {
+                                    indexOffset = mesh->submeshIndexOffset[si];
+                                }
+                                if (si < mesh->submeshIndexCount.size()) {
+                                    indexCount = mesh->submeshIndexCount[si];
+                                }
+                                if (indexOffset >= mesh->indices.size()) continue;
+                                indexCount = std::min(indexCount, mesh->indices.size() - indexOffset);
+                                if (indexCount < 3u) continue;
+
+                                std::unordered_map<std::uint32_t, std::uint32_t> remap;
+                                remap.reserve(indexCount);
+                                sub.localVertices.reserve(indexCount);
+                                sub.localIndices.reserve(indexCount);
+
+                                const glm::vec3 subColor = (si < mesh->submeshBaseColors.size())
+                                    ? glm::clamp(glm::vec3(mesh->submeshBaseColors[si]), 0.0f, 1.0f)
+                                    : glm::vec3(1.0f);
+                                const glm::mat4 bindNodeGlobal =
+                                    (sub.nodeIndex >= 0 &&
+                                     static_cast<std::size_t>(sub.nodeIndex) < mesh->bindNodeGlobals.size())
+                                        ? mesh->bindNodeGlobals[static_cast<std::size_t>(sub.nodeIndex)]
+                                        : glm::mat4(1.0f);
+
+                                for (std::size_t ii = 0; ii < indexCount; ++ii) {
+                                    const std::uint32_t srcIdx = mesh->indices[indexOffset + ii];
+                                    if (srcIdx >= mesh->vertices.size()) continue;
+                                    const auto it = remap.find(srcIdx);
+                                    if (it != remap.end()) {
+                                        sub.localIndices.push_back(it->second);
+                                        continue;
+                                    }
+                                    const auto& src = mesh->vertices[srcIdx];
+                                    glm::vec3 color = subColor;
+                                    if (srcIdx < mesh->vertexBaseColors.size()) {
+                                        color = glm::clamp(mesh->vertexBaseColors[srcIdx], 0.0f, 1.0f);
+                                    } else {
+                                        color = glm::clamp(glm::vec3(src.color), 0.0f, 1.0f);
+                                    }
+                                    const std::uint32_t outIdx =
+                                        static_cast<std::uint32_t>(sub.localVertices.size());
+                                    sub.localVertices.push_back(
+                                        IRenderBackend::WorldMeshVertex{
+                                            src.position.x,
+                                            src.position.y,
+                                            src.position.z,
+                                            src.uv.x,
+                                            src.uv.y,
+                                            color.r,
+                                            color.g,
+                                            color.b,
+                                            1.0f});
+                                    remap.emplace(srcIdx, outIdx);
+                                    sub.localIndices.push_back(outIdx);
+                                }
+
+                                totalRigidVerts += sub.localVertices.size();
+                                totalRigidIndices += sub.localIndices.size();
+
+                                const std::uint32_t baseVertex =
+                                    static_cast<std::uint32_t>(sD3d12CaptureFastCache.rigidCombinedVertices.size());
+                                sD3d12CaptureFastCache.rigidCombinedVertices.reserve(totalRigidVerts);
+                                sD3d12CaptureFastCache.rigidCombinedIndices.reserve(totalRigidIndices);
+                                for (const auto& lv : sub.localVertices) {
+                                    const glm::vec3 bindPos = glm::vec3(
+                                        bindNodeGlobal * glm::vec4(lv.x, lv.y, lv.z, 1.0f));
+                                    auto v = lv;
+                                    v.x = bindPos.x;
+                                    v.y = bindPos.y;
+                                    v.z = bindPos.z;
+                                    sD3d12CaptureFastCache.rigidCombinedVertices.push_back(v);
+                                }
+                                for (std::uint32_t idx : sub.localIndices) {
+                                    sD3d12CaptureFastCache.rigidCombinedIndices.push_back(baseVertex + idx);
+                                }
+                            }
+                        }
+
+                        if (captureSnaps.empty() && d3d12CapturePrewarmRequested) {
+                            bool didPrewarmAny = false;
+                            if (!sD3d12CaptureFastCache.rigidCombinedPrewarmed &&
+                                !sD3d12CaptureFastCache.rigidCombinedVertices.empty() &&
+                                sD3d12CaptureFastCache.rigidCombinedIndices.size() >= 3u) {
+                                renderer->prewarmWorldIndexedMeshCached(
+                                    "assets/models/pokeball.glb#geomcombined",
+                                    sD3d12CaptureFastCache.rigidCombinedVertices.data(),
+                                    sD3d12CaptureFastCache.rigidCombinedVertices.size(),
+                                    sD3d12CaptureFastCache.rigidCombinedIndices.data(),
+                                    sD3d12CaptureFastCache.rigidCombinedIndices.size());
+                                sD3d12CaptureFastCache.rigidCombinedPrewarmed = true;
+                                didPrewarmAny = true;
+                            }
+                            if (!sD3d12CaptureFastCache.submeshesPrewarmed) {
+                                for (const auto& sub : sD3d12CaptureFastCache.submeshes) {
+                                    if (sub.localVertices.empty() || sub.localIndices.size() < 3u) continue;
+                                    renderer->prewarmWorldIndexedMeshCached(
+                                        sub.geomKey.c_str(),
+                                        sub.localVertices.data(),
+                                        sub.localVertices.size(),
+                                        sub.localIndices.data(),
+                                        sub.localIndices.size());
+                                    didPrewarmAny = true;
+                                }
+                                sD3d12CaptureFastCache.submeshesPrewarmed = true;
+                            }
+                            if (didPrewarmAny) return false;
+                        }
+
+                        int captureAnimIndex = -1;
+                        float captureAnimDurationSec = 0.0f;
+                        if (!mesh->animations.empty()) {
+                            captureAnimIndex = runtime::shared_capture::findPokeballAnimIndex(*mesh);
+                            if (captureAnimIndex >= 0 &&
+                                static_cast<std::size_t>(captureAnimIndex) < mesh->animations.size()) {
+                                captureAnimDurationSec = std::max(
+                                    0.0f,
+                                    mesh->animations[static_cast<std::size_t>(captureAnimIndex)].durationSec);
+                            }
+                        }
+
+                        bool appendedAny = false;
+                        const glm::mat4 viewProjM = glm::make_mat4(worldViewProj);
+                        for (const auto& snap : captureSnaps) {
+                            if (snap.timeLeftSec <= 0.0f) continue;
+
+                            const float baseScale =
+                                std::max(0.01f, mesh->modelScaleFactor) * std::max(0.02f, snap.ballScale);
+                            const glm::mat4 modelM =
+                                runtime::shared_capture::buildBallModelMatrix(snap, baseScale);
+
+                            BackendPoseEval capturePoseEval;
+                            bool hasCaptureClipPose = false;
+                            if (captureAnimIndex >= 0 && captureAnimDurationSec > 0.0f && snap.phase == 1) {
+                                const float clipAnimTimeSec =
+                                    runtime::shared_capture::ballClipTimeSec(snap, captureAnimDurationSec);
+                                capturePoseEval = evaluateScenePoseForClipTime(*mesh, captureAnimIndex, clipAnimTimeSec);
+                                hasCaptureClipPose =
+                                    capturePoseEval.hasScenePose &&
+                                    !capturePoseEval.nodeGlobals.empty();
+                            }
+
+                            if (!hasCaptureClipPose &&
+                                !sD3d12CaptureFastCache.rigidCombinedVertices.empty() &&
+                                sD3d12CaptureFastCache.rigidCombinedIndices.size() >= 3u) {
+                                const glm::mat4 rigidMvp = viewProjM * modelM;
+                                renderer->drawWorldIndexedMeshCached(
+                                    "assets/models/pokeball.glb#geomcombined",
+                                    sD3d12CaptureFastCache.rigidCombinedVertices.data(),
+                                    sD3d12CaptureFastCache.rigidCombinedVertices.size(),
+                                    sD3d12CaptureFastCache.rigidCombinedIndices.data(),
+                                    sD3d12CaptureFastCache.rigidCombinedIndices.size(),
+                                    glm::value_ptr(rigidMvp),
+                                    drawableW,
+                                    drawableH);
+                                appendedAny = true;
+                                continue;
+                            }
+
+                            for (const auto& sub : sD3d12CaptureFastCache.submeshes) {
+                                if (sub.localVertices.empty() || sub.localIndices.size() < 3u) continue;
+                                glm::mat4 nodeGlobal(1.0f);
+                                if (hasCaptureClipPose &&
+                                    sub.nodeIndex >= 0 &&
+                                    static_cast<std::size_t>(sub.nodeIndex) < capturePoseEval.nodeGlobals.size()) {
+                                    nodeGlobal = capturePoseEval.nodeGlobals[static_cast<std::size_t>(sub.nodeIndex)];
+                                } else if (sub.nodeIndex >= 0 &&
+                                           static_cast<std::size_t>(sub.nodeIndex) < mesh->bindNodeGlobals.size()) {
+                                    nodeGlobal = mesh->bindNodeGlobals[static_cast<std::size_t>(sub.nodeIndex)];
+                                }
+                                const glm::mat4 subMvp = viewProjM * modelM * nodeGlobal;
+                                renderer->drawWorldIndexedMeshCached(
+                                    sub.geomKey.c_str(),
+                                    sub.localVertices.data(),
+                                    sub.localVertices.size(),
+                                    sub.localIndices.data(),
+                                    sub.localIndices.size(),
+                                    glm::value_ptr(subMvp),
+                                    drawableW,
+                                    drawableH);
+                                appendedAny = true;
+                            }
+                        }
+                        return appendedAny;
+                    }
 
                     bool appendedAny = false;
                     const std::size_t triCount = mesh->indices.size() / 3u;

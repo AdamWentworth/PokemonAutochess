@@ -53,6 +53,8 @@ struct MeshData {
     std::vector<std::uint8_t> triangleDoubleSided;
     std::vector<glm::vec4> submeshBaseColors;
     std::vector<int> submeshMeshIndex;
+    std::vector<std::uint32_t> submeshIndexOffset;
+    std::vector<std::uint32_t> submeshIndexCount;
     std::vector<CachedTextureRgba> submeshBaseTextures;
     std::vector<std::uint8_t> submeshAlphaMode;
     std::vector<float> submeshAlphaCutoff;
