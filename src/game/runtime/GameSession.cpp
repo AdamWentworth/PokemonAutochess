@@ -4290,6 +4290,71 @@ struct GameSession::Impl {
                             0.82f, 0.83f, 0.85f, 0.94f, line);
                     }
                 }
+
+                // Legacy OpenGL draws a separate bench grid just beyond the board front edge.
+                // Mirror that in shared routes so bench slots are visible in-world (not only as 2D UI).
+                {
+                    const int benchSlots = std::max(1, config.benchSlots);
+                    const float benchGapWorld = std::max(0.5f, worldCellSize * 0.5f);
+                    const float benchMinX = -0.5f * static_cast<float>(benchSlots) * worldCellSize;
+                    const float benchMaxX = benchMinX + static_cast<float>(benchSlots) * worldCellSize;
+                    const float benchMinZ = boardMaxZ + benchGapWorld;
+                    const float benchMaxZ = benchMinZ + worldCellSize;
+                    const float benchSurfaceY = boardSurfaceY;
+
+                    for (int slot = 0; slot < benchSlots; ++slot) {
+                        const float x0 = benchMinX + static_cast<float>(slot) * worldCellSize;
+                        const float x1 = x0 + worldCellSize;
+                        const bool darkCell = (slot % 2) == 0;
+                        const float cr = darkCell ? 0.075f : 0.105f;
+                        const float cg = darkCell ? 0.085f : 0.115f;
+                        const float cb = darkCell ? 0.095f : 0.125f;
+                        const float ca = darkCell ? 0.28f : 0.24f;
+                        const glm::vec3 qa(x0, benchSurfaceY, benchMinZ);
+                        const glm::vec3 qb(x1, benchSurfaceY, benchMinZ);
+                        const glm::vec3 qc(x1, benchSurfaceY, benchMaxZ);
+                        const glm::vec3 qd(x0, benchSurfaceY, benchMaxZ);
+                        if (supportsWorldTriangles3D) {
+                            appendWorldQuad(qa, qb, qc, qd, cr, cg, cb, ca);
+                        } else {
+                            appendProjectedQuad(qa, qb, qc, qd, cr, cg, cb, ca);
+                        }
+                    }
+
+                    for (int c = 0; c <= benchSlots; ++c) {
+                        const float x = benchMinX + static_cast<float>(c) * worldCellSize;
+                        if (supportsWorldTriangles3D) {
+                            appendWorldQuad(
+                                glm::vec3(x - gridHalfWidthWorld, gridY, benchMinZ),
+                                glm::vec3(x + gridHalfWidthWorld, gridY, benchMinZ),
+                                glm::vec3(x + gridHalfWidthWorld, gridY, benchMaxZ),
+                                glm::vec3(x - gridHalfWidthWorld, gridY, benchMaxZ),
+                                0.82f, 0.83f, 0.85f, 0.94f);
+                        } else {
+                            appendProjectedLine(
+                                glm::vec3(x, 0.01f, benchMinZ),
+                                glm::vec3(x, 0.01f, benchMaxZ),
+                                0.82f, 0.83f, 0.85f, 0.94f, line);
+                        }
+                    }
+
+                    for (int r = 0; r <= 1; ++r) {
+                        const float z = benchMinZ + static_cast<float>(r) * worldCellSize;
+                        if (supportsWorldTriangles3D) {
+                            appendWorldQuad(
+                                glm::vec3(benchMinX, gridY, z - gridHalfWidthWorld),
+                                glm::vec3(benchMaxX, gridY, z - gridHalfWidthWorld),
+                                glm::vec3(benchMaxX, gridY, z + gridHalfWidthWorld),
+                                glm::vec3(benchMinX, gridY, z + gridHalfWidthWorld),
+                                0.82f, 0.83f, 0.85f, 0.94f);
+                        } else {
+                            appendProjectedLine(
+                                glm::vec3(benchMinX, 0.01f, z),
+                                glm::vec3(benchMaxX, 0.01f, z),
+                                0.82f, 0.83f, 0.85f, 0.94f, line);
+                        }
+                    }
+                }
                 if (worldTriangles.size() == boardTrianglesStart2D &&
                     world3DTriangles.size() == boardTrianglesStart3D) {
                     IRenderBackend::DebugQuad boardFallback;
@@ -6129,7 +6194,7 @@ struct GameSession::Impl {
                 }
 
                 const auto& benchUnits = gameWorld->getBenchPokemons();
-                if (!benchUnits.empty()) {
+                {
                     const int benchSlots = std::max(1, config.benchSlots);
                     const float benchGap = std::max(12.0f, minDim * 0.02f);
                     const float benchH = std::max(26.0f, minDim * 0.085f);
@@ -6137,85 +6202,97 @@ struct GameSession::Impl {
                     const float benchX = (static_cast<float>(drawableW) - benchW) * 0.5f;
                     const float desiredBenchY = boardY + boardH + benchGap;
                     const float benchY = std::min(desiredBenchY, static_cast<float>(drawableH) - benchH - 24.0f);
-                    {
-                        const bool benchOverlapsBoard = (benchY <= boardY + boardH + 3.0f);
-                        IRenderBackend::DebugQuad benchBg;
-                        benchBg.x = benchX;
-                        benchBg.y = benchY;
-                        benchBg.w = benchW;
-                        benchBg.h = benchH;
-                        benchBg.r = 0.09f;
-                        benchBg.g = 0.12f;
-                        benchBg.b = 0.15f;
-                        benchBg.a = benchOverlapsBoard ? 0.90f : 0.96f;
-                        worldQuads.push_back(benchBg);
 
-                        const float benchCellW = benchW / static_cast<float>(benchSlots);
-                        const float benchLineThickness = std::max(1.0f, line * 0.95f);
-                        for (int slot = 0; slot <= benchSlots; ++slot) {
-                            IRenderBackend::DebugLine slotLine;
-                            slotLine.x1 = benchX + benchCellW * static_cast<float>(slot);
-                            slotLine.y1 = benchY;
-                            slotLine.x2 = slotLine.x1;
-                            slotLine.y2 = benchY + benchH;
-                            slotLine.thickness = benchLineThickness;
-                            slotLine.r = 0.20f;
-                            slotLine.g = 0.26f;
-                            slotLine.b = 0.32f;
-                            slotLine.a = 1.0f;
-                            lines.push_back(slotLine);
+                    const bool benchOverlapsBoard = (benchY <= boardY + boardH + 3.0f);
+                    IRenderBackend::DebugQuad benchBg;
+                    benchBg.x = benchX;
+                    benchBg.y = benchY;
+                    benchBg.w = benchW;
+                    benchBg.h = benchH;
+                    benchBg.r = 0.09f;
+                    benchBg.g = 0.12f;
+                    benchBg.b = 0.15f;
+                    benchBg.a = benchOverlapsBoard ? 0.90f : 0.96f;
+                    worldQuads.push_back(benchBg);
+
+                    const float benchCellW = benchW / static_cast<float>(benchSlots);
+                    const float benchLineThickness = std::max(1.0f, line * 0.95f);
+                    for (int slot = 0; slot < benchSlots; ++slot) {
+                        IRenderBackend::DebugQuad cellBg;
+                        cellBg.x = benchX + benchCellW * static_cast<float>(slot);
+                        cellBg.y = benchY;
+                        cellBg.w = benchCellW;
+                        cellBg.h = benchH;
+                        const bool dark = (slot % 2) == 0;
+                        cellBg.r = dark ? 0.10f : 0.13f;
+                        cellBg.g = dark ? 0.13f : 0.16f;
+                        cellBg.b = dark ? 0.17f : 0.20f;
+                        cellBg.a = benchOverlapsBoard ? 0.14f : 0.20f;
+                        worldQuads.push_back(cellBg);
+                    }
+
+                    for (int slot = 0; slot <= benchSlots; ++slot) {
+                        IRenderBackend::DebugLine slotLine;
+                        slotLine.x1 = benchX + benchCellW * static_cast<float>(slot);
+                        slotLine.y1 = benchY;
+                        slotLine.x2 = slotLine.x1;
+                        slotLine.y2 = benchY + benchH;
+                        slotLine.thickness = benchLineThickness;
+                        slotLine.r = 0.58f;
+                        slotLine.g = 0.66f;
+                        slotLine.b = 0.74f;
+                        slotLine.a = 0.96f;
+                        lines.push_back(slotLine);
+                    }
+
+                    IRenderBackend::DebugLine top;
+                    top.x1 = benchX;
+                    top.y1 = benchY;
+                    top.x2 = benchX + benchW;
+                    top.y2 = benchY;
+                    top.thickness = benchLineThickness;
+                    top.r = 0.64f;
+                    top.g = 0.71f;
+                    top.b = 0.79f;
+                    top.a = 0.98f;
+                    lines.push_back(top);
+
+                    IRenderBackend::DebugLine bottom = top;
+                    bottom.y1 = benchY + benchH;
+                    bottom.y2 = benchY + benchH;
+                    lines.push_back(bottom);
+
+                    for (const auto& unit : benchUnits) {
+                        const int slot = runtime::backendview::worldToBenchSlot(
+                            unit.position.x,
+                            benchSlots,
+                            worldCellSize);
+                        IRenderBackend::DebugQuad benchUnit;
+                        benchUnit.x = benchX + benchCellW * static_cast<float>(slot) + benchCellW * 0.20f;
+                        benchUnit.y = benchY + benchH * 0.20f;
+                        benchUnit.w = benchCellW * 0.60f;
+                        benchUnit.h = benchH * 0.60f;
+                        benchUnit.r = 0.34f;
+                        benchUnit.g = 0.73f;
+                        benchUnit.b = 0.96f;
+                        benchUnit.a = 0.24f;
+
+                        const std::string benchImagePath =
+                            runtime::backend_units::resolveWorldUnitImagePath(unit.name);
+                        IRenderBackend::DebugSprite benchSprite =
+                            runtime::backend_units::makeBenchUnitSprite(
+                                benchUnit.x,
+                                benchUnit.y,
+                                benchUnit.w,
+                                benchUnit.h,
+                                benchImagePath,
+                                0.92f);
+                        const bool hasBenchSprite = !benchSprite.texturePath.empty();
+                        if (runtime::backend_units::shouldRenderTintUnderPortrait(hasBenchSprite)) {
+                            worldQuads.push_back(benchUnit);
                         }
-
-                        IRenderBackend::DebugLine top;
-                        top.x1 = benchX;
-                        top.y1 = benchY;
-                        top.x2 = benchX + benchW;
-                        top.y2 = benchY;
-                        top.thickness = benchLineThickness;
-                        top.r = 0.24f;
-                        top.g = 0.30f;
-                        top.b = 0.36f;
-                        top.a = 1.0f;
-                        lines.push_back(top);
-
-                        IRenderBackend::DebugLine bottom = top;
-                        bottom.y1 = benchY + benchH;
-                        bottom.y2 = benchY + benchH;
-                        lines.push_back(bottom);
-
-                        for (const auto& unit : benchUnits) {
-                            const int slot = runtime::backendview::worldToBenchSlot(
-                                unit.position.x,
-                                benchSlots,
-                                worldCellSize);
-                            IRenderBackend::DebugQuad benchUnit;
-                            benchUnit.x = benchX + benchCellW * static_cast<float>(slot) + benchCellW * 0.20f;
-                            benchUnit.y = benchY + benchH * 0.20f;
-                            benchUnit.w = benchCellW * 0.60f;
-                            benchUnit.h = benchH * 0.60f;
-                            benchUnit.r = 0.34f;
-                            benchUnit.g = 0.73f;
-                            benchUnit.b = 0.96f;
-                            benchUnit.a = 0.24f;
-
-                            const std::string benchImagePath =
-                                runtime::backend_units::resolveWorldUnitImagePath(unit.name);
-                            IRenderBackend::DebugSprite benchSprite =
-                                runtime::backend_units::makeBenchUnitSprite(
-                                    benchUnit.x,
-                                    benchUnit.y,
-                                    benchUnit.w,
-                                    benchUnit.h,
-                                    benchImagePath,
-                                    0.92f);
-                            const bool hasBenchSprite = !benchSprite.texturePath.empty();
-                            if (runtime::backend_units::shouldRenderTintUnderPortrait(hasBenchSprite)) {
-                                worldQuads.push_back(benchUnit);
-                            }
-                            if (hasBenchSprite) {
-                                sprites.push_back(std::move(benchSprite));
-                            }
-
+                        if (hasBenchSprite) {
+                            sprites.push_back(std::move(benchSprite));
                         }
                     }
                 }

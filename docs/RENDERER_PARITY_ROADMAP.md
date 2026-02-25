@@ -78,6 +78,16 @@ Remaining Estimate (as of 2026-02-22)
 - 2) Continue frame-flow unification by keeping one world-layer decision path and isolating legacy-only HUD layering.
 - 3) Then proceed to UI and world command unification workstreams.
 
+Current Status Snapshot (as of 2026-02-25)
+- Shared-contract routes are now usable for side-by-side parity testing across `opengl`, `opengl_shared`, and `d3d12`.
+- Major parity wins landed: shared model rendering/animation is substantially closer, shared per-unit HUD is much closer to legacy, growl VFX uses legacy-driven simulation/pass data, and tail-fire now uses a backend GPU exact-material path (instead of CPU emulation) in shared routes.
+- Shared OpenGL and D3D12 now track each other much more closely than earlier iterations; remaining parity gaps are increasingly "shared vs legacy OpenGL" rather than "OpenGL shared vs D3D12 shared".
+- Board/bench parity is still open: board grid readability improved and bench overlay visibility was restored, but shared world-space bench grid/layout still needs final validation against legacy.
+- Faint/fade parity is improved but still needs visual signoff (material behavior during fade-out can still differ from legacy in edge cases).
+- VFX parity is still the largest remaining visual gap category after tail-fire/growl improvements, especially `leech_seed` (projectile/drain look) and other move-specific material/draw-pass behavior that still route through generic shared particle rendering.
+- Renderer-agnostic boundary work is improved (route contracts and backend-neutral frame-flow decisions), but the game still owns too much render orchestration in `GameSession`, and backend debug-world rendering has not yet been fully retired behind a dev-only path.
+- Practical takeaway: the project is not in a rabbit hole, but it is in the normal "parity hardening" phase where remaining work is mostly effect-by-effect visual fidelity and final contract ownership cleanup.
+
 Prioritized Backlog
 - [x] Guard backend text-menu fallback behind explicit backend policy (regression safety for OpenGL menu path).
 - [x] Decouple `GameServices::renderEnabled` from legacy-path selection and route state UI fallbacks through legacy-route helpers (`usesLegacyGameUiPath`) instead of treating non-OpenGL as non-render.
@@ -109,7 +119,7 @@ Prioritized Backlog
 - [ ] Finish shared per-unit HUD parity with OpenGL legacy (level ring geometry, XP progress arc, HP/energy bar sizing/color, and text anchoring).
 - [ ] Finalize shared per-unit HUD zoom behavior so HUD size remains stable while camera zoom changes (legacy readability parity).
 - [ ] Split D3D12 renderer implementation into smaller modules. (In progress: texture upload/mipmap staging moved from `src/engine/render/D3D12RenderBackend.cpp` to `src/engine/render/d3d12/D3D12TextureUpload.cpp`.)
-- [ ] Port/align board and bench rendering parity.
+- [ ] Port/align board and bench rendering parity. (In progress: shared board grid readability improved, backend bench overlay is visible under tight framing, and shared world-space bench grid row now renders adjacent to the board; final layout/styling parity vs legacy still pending.)
 - [ ] Port/align health bars and combat overlays parity.
 - [ ] Port/align shop/starter card style parity (image, frame, typography, spacing). (In progress: D3D12/backend cards now use OpenGL-like image+gold-frame composition with `Lv` overlay and below-card labels; starter row geometry now matches legacy OpenGL constants, with texture-quality tuning still ongoing.)
 - [ ] Validate VFX parity for growl, tackle, grass impact, claw swipe, aqua, leech seed.
@@ -210,6 +220,7 @@ Iteration Log
 - Iteration 88: Implemented a backend world-material contract for exact shared `fire_tail` rendering (`materialMode=FireTailExact` + time/atlas-rect/flipbook params), switched shared tail-fire submission in `GameSession` to GPU-evaluated exact billboards (combined raw flipbook atlas + per-vertex age/seed payload) so `opengl_shared` and `d3d12` run the legacy `fire_tail` look math on GPU instead of the CPU tile-bake path, and kept the old dual-atlas/CPU paths only as fallback/debug routes.
 - Iteration 89: Fixed exact shared tail-fire GPU orientation by removing the leftover `gl_PointCoord` local-Y flip from the new backend `fire_tail` shader branches (OpenGL-shared + D3D12); shared billboard quads already provide the legacy-facing UV orientation, so the extra flip was inverting the flame.
 - Iteration 90: Restored shared-path leech-seed projectile arc emission in backend routes by removing an incorrect `attacker.model` gate in `LeechSeedProjectileVFX` (the effect already has a no-model fallback origin path), suppressed the non-legacy dotted projected leech-drain fallback line whenever the legacy particle snapshot bridge is active, forced textured submeshes into alpha-blend during faint fade-out (to avoid MASK/OPAQUE cutoff/material popping as units disappear), always rendered the bench overlay even when the board is vertically tight (clamped overlap instead of hidden), and thickened/brightened depth-tested board grid strips for better readability at grazing camera angles.
+- Iteration 91: Added a legacy-like shared world-space bench grid row (adjacent to the board front edge) so bench slots are visible in `opengl_shared`/`d3d12` even when the backend bench overlay strip is present, and refreshed the roadmap status snapshot to reflect current parity progress/gaps (shared model/HUD/growl/tail-fire gains, VFX and board/bench polish still open).
 
 How This File Is Used
 - Before each parity implementation iteration:
