@@ -7482,33 +7482,10 @@ struct GameSession::Impl {
             renderer && renderer->backendId() &&
             toLowerCopy(renderer->backendId()) == "opengl" &&
             gameWorld && camera && engineServices && engineServices->resources) {
-            std::vector<GameWorld::CaptureAttemptRenderSnapshot> captureSnaps;
-            if (gameWorld->buildCaptureAttemptRenderSnapshots(captureSnaps)) {
-                std::shared_ptr<Model> pokeballModel =
-                    engineServices->resources->getModel("assets/models/pokeball.glb");
-                if (pokeballModel) {
-                    const int captureAnimIndex =
-                        runtime::shared_capture::findPokeballAnimIndex(pokeballModel);
-                    const float captureAnimDurSec =
-                        (captureAnimIndex >= 0) ? pokeballModel->getAnimationDurationSec(captureAnimIndex) : 0.0f;
-                    for (const auto& snap : captureSnaps) {
-                        if (snap.timeLeftSec <= 0.0f) continue;
-                        const float scaleFactor =
-                            pokeballModel->getScaleFactor() * std::max(0.0f, snap.ballScale);
-                        const glm::mat4 instanceTransform =
-                            runtime::shared_capture::buildBallModelMatrix(
-                                snap.ballPos,
-                                snap.ballYawDeg,
-                                scaleFactor);
-                        const float animTimeSec =
-                            (captureAnimIndex >= 0 && captureAnimDurSec > 0.0f)
-                                ? runtime::shared_capture::ballClipTimeSec(snap, captureAnimDurSec)
-                                : 0.0f;
-                        const int animIndexForDraw = (captureAnimIndex >= 0) ? captureAnimIndex : 0;
-                        pokeballModel->drawAnimated(*camera, instanceTransform, animTimeSec, animIndexForDraw);
-                    }
-                }
-            }
+            (void)runtime::shared_capture::drawOpenGlSharedCapturePokeballModels(
+                gameWorld.get(),
+                engineServices->resources,
+                camera);
         }
         if (!worldTriangles.empty()) {
             renderer->drawDebugTriangles(worldTriangles.data(), worldTriangles.size(), drawableW, drawableH);

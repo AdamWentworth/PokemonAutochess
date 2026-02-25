@@ -4,7 +4,9 @@
 
 #include <glm/gtc/matrix_transform.hpp>
 
+#include "engine/render/Camera3D.h"
 #include "engine/render/Model.h"
+#include "engine/utils/ResourceManager.h"
 #include "game/runtime/BackendModelCache.h"
 
 namespace game::runtime::shared_capture {
@@ -59,5 +61,38 @@ int findPokeballAnimIndex(const backend_model::MeshData& mesh) {
     return 0;
 }
 
-} // namespace game::runtime::shared_capture
+bool drawOpenGlSharedCapturePokeballModels(const GameWorld* gameWorld,
+                                           ResourceManager* resources,
+                                           const Camera3D* camera) {
+    if (!gameWorld || !resources || !camera) return false;
 
+    SnapshotCache cache;
+    if (!cache.refresh(gameWorld)) return false;
+
+    std::shared_ptr<Model> pokeballModel = resources->getModel("assets/models/pokeball.glb");
+    if (!pokeballModel) return false;
+
+    const int captureAnimIndex = findPokeballAnimIndex(pokeballModel);
+    const float captureAnimDurSec =
+        (captureAnimIndex >= 0) ? pokeballModel->getAnimationDurationSec(captureAnimIndex) : 0.0f;
+
+    bool drewAny = false;
+    for (const auto& snap : cache.snaps) {
+        if (snap.timeLeftSec <= 0.0f) continue;
+        const float scaleFactor =
+            pokeballModel->getScaleFactor() * std::max(0.0f, snap.ballScale);
+        const glm::mat4 instanceTransform =
+            buildBallModelMatrix(snap.ballPos, snap.ballYawDeg, scaleFactor);
+        const float animTimeSec =
+            (captureAnimIndex >= 0 && captureAnimDurSec > 0.0f)
+                ? ballClipTimeSec(snap, captureAnimDurSec)
+                : 0.0f;
+        const int animIndexForDraw = (captureAnimIndex >= 0) ? captureAnimIndex : 0;
+        pokeballModel->drawAnimated(*camera, instanceTransform, animTimeSec, animIndexForDraw);
+        drewAny = true;
+    }
+
+    return drewAny;
+}
+
+} // namespace game::runtime::shared_capture
