@@ -94,3 +94,40 @@ bool GameWorld::buildParticleVfxSnapshots(ParticleVfxSnapshots& out) const {
     return any;
 }
 
+bool GameWorld::buildCaptureAttemptRenderSnapshots(std::vector<CaptureAttemptRenderSnapshot>& out) const {
+    out.clear();
+    if (captureAttempts.empty()) return false;
+    out.reserve(captureAttempts.size());
+
+    for (const auto& attempt : captureAttempts) {
+        if (attempt.timeLeftSec <= 0.0f) continue;
+        CaptureAttemptRenderSnapshot snap;
+        snap.targetId = attempt.targetId;
+        snap.success = attempt.success;
+        snap.shakes = attempt.shakes;
+        snap.shakesEmitted = attempt.shakesEmitted;
+        snap.ballPos = attempt.ballPos;
+        snap.ballScale = attempt.ballScale;
+        snap.ballYawDeg = attempt.ballYawDeg;
+        snap.phaseTimeSec = attempt.phaseTime;
+        snap.timeLeftSec = attempt.timeLeftSec;
+        switch (attempt.phase) {
+        case CaptureAttempt::Phase::Throw:
+            snap.phase = 0;
+            break;
+        case CaptureAttempt::Phase::Absorb:
+            snap.phase = 1;
+            break;
+        case CaptureAttempt::Phase::Shake:
+            snap.phase = 2;
+            break;
+        case CaptureAttempt::Phase::Resolve:
+            snap.phase = 3;
+            break;
+        }
+        out.push_back(std::move(snap));
+    }
+
+    return !out.empty();
+}
+

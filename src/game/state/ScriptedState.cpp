@@ -334,12 +334,13 @@ void ScriptedState::refreshBackendShopSnapshot() {
         hasWorld,
         hasWorld && gameWorld->isUnitDragActive(),
         hasWorld ? gameWorld->getUnitDropZoneCardCount() : 0);
+    const bool includeMainRow = !isShopMode || game::ui::sell_overlay::shouldRenderShopCards(showSellOverlay);
     const bool includeItemRow = isShopMode &&
         game::ui::sell_overlay::shouldRenderItemRow(hasShopItems, showSellOverlay);
 
     game::state::backend_shop::BuildInput input;
     input.shopMode = isShopMode;
-    input.mainCount = backendMainButtons.size();
+    input.mainCount = includeMainRow ? backendMainButtons.size() : 0u;
     input.itemCount = includeItemRow ? backendItemButtons.size() : 0u;
     input.includeItemRow = includeItemRow;
     input.includeReroll = isShopMode && hasShopRerollButton;
@@ -462,6 +463,7 @@ void ScriptedState::renderBackendCardUi(int uiW, int uiH) {
         hasWorld,
         hasWorld && gameWorld->isUnitDragActive(),
         dropZoneCardCount);
+    const bool renderMainRow = !isShopMode || game::ui::sell_overlay::shouldRenderShopCards(showSellOverlay);
 
     refreshBackendShopSnapshot();
 
@@ -560,11 +562,13 @@ void ScriptedState::renderBackendCardUi(int uiW, int uiH) {
         }
     };
 
-    addCardRow(
-        backendMainButtons,
-        isShopMode ? game::state::backend_shop::ActionType::ShopCard
-                   : game::state::backend_shop::ActionType::StarterCard,
-        /*itemRow=*/false);
+    if (renderMainRow) {
+        addCardRow(
+            backendMainButtons,
+            isShopMode ? game::state::backend_shop::ActionType::ShopCard
+                       : game::state::backend_shop::ActionType::StarterCard,
+            /*itemRow=*/false);
+    }
     if (game::ui::sell_overlay::shouldRenderItemRow(hasShopItems, showSellOverlay)) {
         addCardRow(backendItemButtons, game::state::backend_shop::ActionType::ItemCard, /*itemRow=*/true);
     }

@@ -83,6 +83,19 @@ public:
         ParticleSystem::RenderSnapshot aquaSwoosh;
     };
 
+    struct CaptureAttemptRenderSnapshot {
+        int targetId = -1;
+        bool success = false;
+        int phase = 0; // 0=Throw, 1=Absorb, 2=Shake, 3=Resolve
+        int shakes = 0;
+        int shakesEmitted = 0;
+        glm::vec3 ballPos{0.0f};
+        float ballScale = 1.0f;
+        float ballYawDeg = 0.0f;
+        float phaseTimeSec = 0.0f;
+        float timeLeftSec = 0.0f;
+    };
+
     explicit GameWorld(const GameConfigData& cfg);
 
     void setResources(ResourceManager* rm) { resources = rm; }
@@ -127,6 +140,7 @@ public:
     std::vector<TypeLineCount> getPlayerTypeLineCounts() const;
     bool buildGrowlWaveSnapshot(GrowlWaveVFX::RenderSnapshot& out) const;
     bool buildParticleVfxSnapshots(ParticleVfxSnapshots& out) const;
+    bool buildCaptureAttemptRenderSnapshots(std::vector<CaptureAttemptRenderSnapshot>& out) const;
 
     glm::vec3 getNearestEnemyPosition(const PokemonInstance& unit) const;
 

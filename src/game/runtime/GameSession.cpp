@@ -34,6 +34,7 @@
 #include "engine/render/BoardRenderer.h"
 #include "engine/render/Camera3D.h"
 #include "engine/render/IRenderBackend.h"
+#include "engine/render/Model.h"
 
 #include "engine/ui/UIManager.h"
 #include "engine/ui/BattleFeed.h"
@@ -42,6 +43,7 @@
 
 #include "engine/core/ecs/Scheduler.h"
 #include "engine/core/ecs/World.h"
+#include "engine/utils/ResourceManager.h"
 
 #include "game/GameWorld.h"
 #include "game/GameStateManager.h"
@@ -95,6 +97,54 @@ std::string trimDebugLine(std::string s, std::size_t maxChars) {
     if (s.size() <= maxChars) return s;
     if (maxChars <= 3) return s.substr(0, maxChars);
     return s.substr(0, maxChars - 3) + "...";
+}
+
+struct BackendItemAtlasIcon {
+    const char* id;
+    int row;
+    int col;
+};
+
+const BackendItemAtlasIcon* findBackendItemAtlasIcon(const std::string& id) {
+    static const BackendItemAtlasIcon kIcons[] = {
+        {"pokeball", 1, 4},
+        {"potion", 2, 4},
+        {"burn_heal", 2, 6},
+        {"antidote", 2, 5},
+        {"paralyze_heal", 2, 9},
+    };
+    for (const auto& icon : kIcons) {
+        if (id == icon.id) return &icon;
+    }
+    return nullptr;
+}
+
+glm::vec2 backendItemAtlasUvMin(int row, int col) {
+    constexpr int kCols = 13;
+    constexpr int kRows = 14;
+    constexpr float kPadU = 0.08f;
+    constexpr float kPadV = 0.08f;
+    const int c = std::max(1, col);
+    const int r = std::max(1, row);
+    float u0 = static_cast<float>(c - 1) / static_cast<float>(kCols);
+    float v0 = static_cast<float>(r - 1) / static_cast<float>(kRows);
+    u0 += (kPadU / static_cast<float>(kCols));
+    v0 += (kPadV / static_cast<float>(kRows));
+    return {u0, v0};
+}
+
+glm::vec2 backendItemAtlasUvMax(int row, int col) {
+    constexpr int kCols = 13;
+    constexpr int kRows = 14;
+    constexpr float kPadURight = 0.06f;
+    constexpr float kPadVBottom = 0.06f;
+    const int c = std::max(1, col);
+    const int r = std::max(1, row);
+    float u1 = static_cast<float>(c) / static_cast<float>(kCols);
+    float v1 = static_cast<float>(r) / static_cast<float>(kRows);
+    u1 -= (kPadURight / static_cast<float>(kCols));
+    v1 -= (kPadVBottom / static_cast<float>(kRows));
+    return {u1, v1};
 }
 
 std::size_t backendModelTriangleLimit() {
@@ -2456,6 +2506,95 @@ struct GameSession::Impl {
                     }
                     return sTailFireFallbackCfg;
                 };
+                const auto appendSharedCaptureAttemptVfx = [&]() {
+                    if (!gameWorld) return;
+                    if (!renderWorld) return;
+
+                    std::vector<GameWorld::CaptureAttemptRenderSnapshot> captureSnaps;
+                    if (!gameWorld->buildCaptureAttemptRenderSnapshots(captureSnaps)) return;
+
+                    const BackendItemAtlasIcon* icon = findBackendItemAtlasIcon("pokeball");
+                    if (!icon) return;
+                    const glm::vec2 uvMin = backendItemAtlasUvMin(icon->row, icon->col);
+                    const glm::vec2 uvMax = backendItemAtlasUvMax(icon->row, icon->col);
+                    const std::string atlasPath = "assets/images/items_atlas.png";
+
+                    for (const auto& snap : captureSnaps) {
+                        float sx = 0.0f;
+                        float sy = 0.0f;
+                        float sz = 0.0f;
+                        if (!projectWorld(snap.ballPos, sx, sy, sz)) continue;
+                        if (sz < 0.0f || sz > 1.0f) continue;
+
+                        const float worldRadius = std::max(0.03f, worldCellSize * 0.17f * std::max(0.05f, snap.ballScale));
+                        float sx2 = 0.0f;
+                        float sy2 = 0.0f;
+                        float sz2 = 0.0f;
+                        float ballPx = std::max(12.0f, line * 8.0f);
+                        if (projectWorld(snap.ballPos + glm::vec3(worldRadius, 0.0f, 0.0f), sx2, sy2, sz2)) {
+                            ballPx = std::max(ballPx, std::abs(sx2 - sx) * 2.0f);
+                        }
+                        ballPx = std::clamp(ballPx, 12.0f, 96.0f);
+
+                        IRenderBackend::DebugSprite ball;
+                        ball.x = sx - ballPx * 0.5f;
+                        ball.y = sy - ballPx * 0.5f;
+                        ball.w = ballPx;
+                        ball.h = ballPx;
+                        ball.u0 = uvMin.x;
+                        ball.v0 = uvMin.y;
+                        ball.u1 = uvMax.x;
+                        ball.v1 = uvMax.y;
+                        ball.r = 1.0f;
+                        ball.g = 1.0f;
+                        ball.b = 1.0f;
+                        ball.a = std::clamp(0.82f + (snap.phase == 3 && snap.success ? 0.12f : 0.0f), 0.0f, 1.0f);
+                        ball.texturePath = atlasPath;
+                        sprites.push_back(std::move(ball));
+
+                        // Screen-space seam line to make yaw/roll visible on the 2D icon.
+                        const float seamAng = glm::radians(snap.ballYawDeg + (snap.phase == 2 ? std::sin(snap.phaseTimeSec * 18.0f) * 8.0f : 0.0f));
+                        IRenderBackend::DebugLine seam;
+                        seam.x1 = sx - std::cos(seamAng) * (ballPx * 0.28f);
+                        seam.y1 = sy - std::sin(seamAng) * (ballPx * 0.18f);
+                        seam.x2 = sx + std::cos(seamAng) * (ballPx * 0.28f);
+                        seam.y2 = sy + std::sin(seamAng) * (ballPx * 0.18f);
+                        seam.thickness = std::max(1.0f, ballPx * 0.06f);
+                        seam.r = 0.10f;
+                        seam.g = 0.10f;
+                        seam.b = 0.10f;
+                        seam.a = 0.72f;
+                        lines.push_back(seam);
+
+                        if (snap.phase == 2) {
+                            const float pulse = 0.5f + 0.5f * std::sin(snap.phaseTimeSec * 16.0f);
+                            appendProjectedRing(
+                                snap.ballPos + glm::vec3(0.0f, 0.03f, 0.0f),
+                                std::max(0.03f, worldRadius * (0.9f + pulse * 0.35f)),
+                                0.96f, 0.94f, 0.86f, 0.48f + pulse * 0.18f,
+                                std::max(1.0f, line * 0.9f),
+                                10);
+                        } else if (snap.phase == 3) {
+                            if (snap.success) {
+                                const float t = std::clamp(snap.phaseTimeSec / 0.35f, 0.0f, 1.0f);
+                                appendProjectedRing(
+                                    snap.ballPos + glm::vec3(0.0f, 0.04f, 0.0f),
+                                    std::max(0.03f, worldRadius * (1.0f + t * 1.2f)),
+                                    1.00f, 0.86f, 0.28f, (1.0f - t) * 0.65f,
+                                    std::max(1.0f, line * 1.0f),
+                                    12);
+                            } else {
+                                const float t = std::clamp(snap.phaseTimeSec / 0.35f, 0.0f, 1.0f);
+                                appendProjectedRing(
+                                    snap.ballPos + glm::vec3(0.0f, 0.04f, 0.0f),
+                                    std::max(0.03f, worldRadius * (0.9f + t * 0.9f)),
+                                    1.00f, 0.42f, 0.30f, (1.0f - t) * 0.58f,
+                                    std::max(1.0f, line * 0.95f),
+                                    12);
+                            }
+                        }
+                    }
+                };
                 const auto appendSharedParticleVfx = [&]() {
                     if (!useLegacyParticleVfxSnapshotBridge) return;
                     if (!supportsWorldIndexedMeshes || !hasWorldViewProj) return;
@@ -4591,6 +4730,342 @@ struct GameSession::Impl {
                     return eval;
                 };
 
+                const auto evaluateScenePoseForClipTime =
+                    [&](const runtime::backend_model::MeshData& mesh,
+                        int animIndex,
+                        float animTimeSec) {
+                    BackendPoseEval eval;
+                    if (mesh.nodesDefault.empty()) return eval;
+                    eval.hasScenePose = true;
+                    eval.nodeLocals = mesh.nodesDefault;
+                    eval.nodeGlobals.assign(mesh.nodesDefault.size(), glm::mat4(1.0f));
+
+                    if (animIndex >= 0 && static_cast<std::size_t>(animIndex) < mesh.animations.size()) {
+                        const auto& clip = mesh.animations[static_cast<std::size_t>(animIndex)];
+                        const float clipTime = wrapTime(animTimeSec, clip.durationSec);
+                        for (const auto& channel : clip.channels) {
+                            if (channel.targetNode < 0 ||
+                                static_cast<std::size_t>(channel.targetNode) >= eval.nodeLocals.size()) {
+                                continue;
+                            }
+                            if (channel.samplerIndex < 0 ||
+                                static_cast<std::size_t>(channel.samplerIndex) >= clip.samplers.size()) {
+                                continue;
+                            }
+                            auto& local = eval.nodeLocals[static_cast<std::size_t>(channel.targetNode)];
+                            const auto& sampler = clip.samplers[static_cast<std::size_t>(channel.samplerIndex)];
+                            if (channel.path == pac_model_types::ChannelPath::Translation) {
+                                const glm::vec4 tr = sampleVec4(sampler, clipTime);
+                                local.t = glm::vec3(tr.x, tr.y, tr.z);
+                                local.hasMatrix = false;
+                            } else if (channel.path == pac_model_types::ChannelPath::Scale) {
+                                const glm::vec4 sc = sampleVec4(sampler, clipTime);
+                                local.s = glm::vec3(sc.x, sc.y, sc.z);
+                                local.hasMatrix = false;
+                            } else if (channel.path == pac_model_types::ChannelPath::Rotation) {
+                                local.r = sampleQuat(sampler, clipTime);
+                                local.hasMatrix = false;
+                            }
+                        }
+                        eval.hasClipPose = true;
+                    }
+
+                    const auto dfs = [&](const auto& self, int node, const glm::mat4& parentM) -> void {
+                        if (node < 0 || static_cast<std::size_t>(node) >= eval.nodeLocals.size()) return;
+                        const glm::mat4 global = parentM * trsToMat4(eval.nodeLocals[static_cast<std::size_t>(node)]);
+                        eval.nodeGlobals[static_cast<std::size_t>(node)] = global;
+                        if (static_cast<std::size_t>(node) >= mesh.nodeChildren.size()) return;
+                        for (int child : mesh.nodeChildren[static_cast<std::size_t>(node)]) {
+                            self(self, child, global);
+                        }
+                    };
+
+                    if (!mesh.sceneRoots.empty()) {
+                        for (int root : mesh.sceneRoots) {
+                            dfs(dfs, root, glm::mat4(1.0f));
+                        }
+                    } else if (!eval.nodeLocals.empty()) {
+                        bool didAny = false;
+                        for (std::size_t i = 0; i < mesh.nodeParent.size(); ++i) {
+                            if (mesh.nodeParent[i] >= 0) continue;
+                            dfs(dfs, static_cast<int>(i), glm::mat4(1.0f));
+                            didAny = true;
+                        }
+                        if (!didAny) dfs(dfs, 0, glm::mat4(1.0f));
+                    }
+                    return eval;
+                };
+
+                const auto appendSharedCaptureAttemptModels = [&]() -> bool {
+                    if (!gameWorld) return false;
+                    if (!supportsWorldIndexedMeshes || !hasWorldViewProj) return false;
+
+                    std::vector<GameWorld::CaptureAttemptRenderSnapshot> captureSnaps;
+                    if (!gameWorld->buildCaptureAttemptRenderSnapshots(captureSnaps)) return false;
+
+                    runtime::backend_model::MeshData* mesh =
+                        ensureBackendMeshLoaded("assets/models/pokeball.glb");
+                    if (!mesh || mesh->vertices.empty() || mesh->indices.empty()) {
+                        static bool sLoggedSharedPokeballModelFailure = false;
+                        if (!sLoggedSharedPokeballModelFailure) {
+                            std::cout
+                                << "[Render][CaptureShared] pokeball.glb unavailable for shared capture model path; "
+                                   "2D fallback is suppressed by policy.\n";
+                            sLoggedSharedPokeballModelFailure = true;
+                        }
+                        return false;
+                    }
+
+                    bool appendedAny = false;
+                    const std::size_t triCount = mesh->indices.size() / 3u;
+                    if (triCount == 0u) return false;
+                    struct PreparedCaptureVertex {
+                        glm::vec3 bindPos{0.0f};
+                        float u = 0.0f;
+                        float v = 0.0f;
+                        float r = 1.0f;
+                        float g = 1.0f;
+                        float b = 1.0f;
+                        float a = 1.0f;
+                    };
+                    struct PreparedCaptureSubmesh {
+                        std::vector<PreparedCaptureVertex> vertices;
+                        std::vector<std::uint32_t> indices;
+                        std::uint8_t alphaMode = 0u;
+                        float alphaCutoff = 0.5f;
+                    };
+                    struct PreparedCaptureMeshCache {
+                        const runtime::backend_model::MeshData* sourceMesh = nullptr;
+                        std::size_t sourceVertexCount = 0u;
+                        std::size_t sourceIndexCount = 0u;
+                        std::vector<PreparedCaptureSubmesh> submeshes;
+                    };
+                    static thread_local PreparedCaptureMeshCache sCaptureMeshCache;
+                    const bool captureMeshCacheValid =
+                        (sCaptureMeshCache.sourceMesh == mesh) &&
+                        (sCaptureMeshCache.sourceVertexCount == mesh->vertices.size()) &&
+                        (sCaptureMeshCache.sourceIndexCount == mesh->indices.size()) &&
+                        !sCaptureMeshCache.submeshes.empty();
+                    if (!captureMeshCacheValid) {
+                        sCaptureMeshCache = {};
+                        sCaptureMeshCache.sourceMesh = mesh;
+                        sCaptureMeshCache.sourceVertexCount = mesh->vertices.size();
+                        sCaptureMeshCache.sourceIndexCount = mesh->indices.size();
+
+                        const auto& nodeGlobals = mesh->bindNodeGlobals;
+                        const std::size_t batchCount =
+                            std::max<std::size_t>(1u, mesh->submeshBaseTextures.size());
+                        sCaptureMeshCache.submeshes.resize(batchCount);
+
+                        std::vector<std::unordered_map<std::uint64_t, std::uint32_t>> remap(batchCount);
+                        for (std::size_t si = 0; si < batchCount; ++si) {
+                            auto& sub = sCaptureMeshCache.submeshes[si];
+                            if (si < mesh->submeshAlphaMode.size()) sub.alphaMode = mesh->submeshAlphaMode[si];
+                            if (si < mesh->submeshAlphaCutoff.size()) sub.alphaCutoff = mesh->submeshAlphaCutoff[si];
+                            sub.vertices.reserve(std::max<std::size_t>(32u, mesh->vertices.size() / batchCount));
+                            sub.indices.reserve(std::max<std::size_t>(96u, mesh->indices.size() / batchCount));
+                            remap[si].reserve(std::max<std::size_t>(64u, mesh->vertices.size() / batchCount));
+                        }
+
+                        const auto nodeGlobalForTri = [&](int triNodeIndex) -> const glm::mat4& {
+                            static const glm::mat4 kIdentity(1.0f);
+                            if (triNodeIndex >= 0 && static_cast<std::size_t>(triNodeIndex) < nodeGlobals.size()) {
+                                return nodeGlobals[static_cast<std::size_t>(triNodeIndex)];
+                            }
+                            return kIdentity;
+                        };
+
+                        const auto appendPreparedVertex =
+                            [&](std::size_t submesh,
+                                std::uint32_t srcIndex,
+                                int triNodeIndex,
+                                const glm::vec3& triTint,
+                                float triAlpha) -> std::uint32_t {
+                                auto& sub = sCaptureMeshCache.submeshes[submesh];
+                                auto& subRemap = remap[submesh];
+                                const std::uint64_t key =
+                                    (static_cast<std::uint64_t>(static_cast<std::uint32_t>(triNodeIndex + 1)) << 32u) |
+                                    static_cast<std::uint64_t>(srcIndex);
+                                const auto it = subRemap.find(key);
+                                if (it != subRemap.end()) {
+                                    return it->second;
+                                }
+                                if (sub.vertices.size() >=
+                                    static_cast<std::size_t>(std::numeric_limits<std::uint32_t>::max())) {
+                                    return std::numeric_limits<std::uint32_t>::max();
+                                }
+
+                                const auto& src = mesh->vertices[srcIndex];
+                                const glm::mat4& nodeGlobal = nodeGlobalForTri(triNodeIndex);
+                                const glm::vec3 bindPos = glm::vec3(nodeGlobal * glm::vec4(src.position, 1.0f));
+
+                                PreparedCaptureVertex v{};
+                                v.bindPos = bindPos;
+                                v.u = src.uv.x;
+                                v.v = src.uv.y;
+                                if (mesh->hasVertexBaseColor && srcIndex < mesh->vertexBaseColors.size()) {
+                                    const glm::vec3 vc = glm::clamp(mesh->vertexBaseColors[srcIndex], 0.0f, 1.0f);
+                                    v.r = vc.r;
+                                    v.g = vc.g;
+                                    v.b = vc.b;
+                                } else if (mesh->hasVertexColor) {
+                                    v.r = std::clamp(src.color.r, 0.0f, 1.0f);
+                                    v.g = std::clamp(src.color.g, 0.0f, 1.0f);
+                                    v.b = std::clamp(src.color.b, 0.0f, 1.0f);
+                                } else {
+                                    v.r = triTint.r;
+                                    v.g = triTint.g;
+                                    v.b = triTint.b;
+                                }
+                                v.a = triAlpha;
+                                const std::uint32_t outIndex = static_cast<std::uint32_t>(sub.vertices.size());
+                                sub.vertices.push_back(v);
+                                subRemap.emplace(key, outIndex);
+                                return outIndex;
+                            };
+
+                        for (std::size_t triIdx = 0; triIdx < triCount; ++triIdx) {
+                            const std::size_t idxBase = triIdx * 3u;
+                            const std::uint32_t i0 = mesh->indices[idxBase + 0u];
+                            const std::uint32_t i1 = mesh->indices[idxBase + 1u];
+                            const std::uint32_t i2 = mesh->indices[idxBase + 2u];
+                            if (i0 >= mesh->vertices.size() || i1 >= mesh->vertices.size() || i2 >= mesh->vertices.size()) {
+                                continue;
+                            }
+                            std::size_t submesh = 0u;
+                            if (triIdx < mesh->triangleSubmesh.size()) {
+                                submesh = static_cast<std::size_t>(mesh->triangleSubmesh[triIdx]);
+                                if (submesh >= sCaptureMeshCache.submeshes.size()) submesh = 0u;
+                            }
+                            const int triNodeIndex =
+                                (triIdx < mesh->triangleNodeIndex.size()) ? mesh->triangleNodeIndex[triIdx] : -1;
+                            const glm::mat4& nodeGlobal = nodeGlobalForTri(triNodeIndex);
+                            const bool flipWinding = (glm::determinant(glm::mat3(nodeGlobal)) < 0.0f);
+                            const bool doubleSided =
+                                (triIdx < mesh->triangleDoubleSided.size()) &&
+                                (mesh->triangleDoubleSided[triIdx] != 0u);
+
+                            glm::vec3 triTint(1.0f, 1.0f, 1.0f);
+                            if (triIdx < mesh->triangleBaseColors.size()) {
+                                triTint = glm::clamp(mesh->triangleBaseColors[triIdx], 0.0f, 1.0f);
+                            } else if (submesh < mesh->submeshBaseColors.size()) {
+                                const glm::vec4 sc = mesh->submeshBaseColors[submesh];
+                                triTint = glm::clamp(glm::vec3(sc.r, sc.g, sc.b), 0.0f, 1.0f);
+                            }
+                            float triAlpha = 1.0f;
+                            if (submesh < mesh->submeshBaseColors.size()) {
+                                triAlpha = std::clamp(mesh->submeshBaseColors[submesh].a, 0.0f, 1.0f);
+                            }
+                            if (triIdx < mesh->triangleOpacity.size()) {
+                                triAlpha = std::max(
+                                    triAlpha,
+                                    std::clamp(mesh->triangleOpacity[triIdx], 0.0f, 1.0f));
+                            }
+                            triAlpha = std::clamp(triAlpha, 0.35f, 1.0f);
+
+                            const std::uint32_t o0 = appendPreparedVertex(submesh, i0, triNodeIndex, triTint, triAlpha);
+                            const std::uint32_t o1 = appendPreparedVertex(submesh, i1, triNodeIndex, triTint, triAlpha);
+                            const std::uint32_t o2 = appendPreparedVertex(submesh, i2, triNodeIndex, triTint, triAlpha);
+                            if (o0 == std::numeric_limits<std::uint32_t>::max() ||
+                                o1 == std::numeric_limits<std::uint32_t>::max() ||
+                                o2 == std::numeric_limits<std::uint32_t>::max()) {
+                                continue;
+                            }
+                            auto& sub = sCaptureMeshCache.submeshes[submesh];
+                            sub.indices.push_back(o0);
+                            sub.indices.push_back(flipWinding ? o2 : o1);
+                            sub.indices.push_back(flipWinding ? o1 : o2);
+                            if (doubleSided) {
+                                sub.indices.push_back(o0);
+                                sub.indices.push_back(flipWinding ? o1 : o2);
+                                sub.indices.push_back(flipWinding ? o2 : o1);
+                            }
+                        }
+                    }
+
+                    for (const auto& snap : captureSnaps) {
+                        if (snap.timeLeftSec <= 0.0f) continue;
+
+                        const float baseScale =
+                            std::max(0.01f, mesh->modelScaleFactor) * std::max(0.02f, snap.ballScale);
+                        glm::vec3 renderPos = snap.ballPos;
+                        const float minAllowedY = boardSurfaceY + 0.0025f;
+                        const float approxMinY = renderPos.y + mesh->boundsMin.y * baseScale;
+                        if (std::isfinite(approxMinY) && approxMinY < minAllowedY) {
+                            renderPos.y += (minAllowedY - approxMinY);
+                        }
+                        const glm::mat4 scaleM = glm::scale(glm::mat4(1.0f), glm::vec3(baseScale));
+                        const glm::mat4 rotYaw =
+                            glm::rotate(glm::mat4(1.0f), glm::radians(snap.ballYawDeg), glm::vec3(0, 1, 0));
+                        const glm::mat4 transM = glm::translate(glm::mat4(1.0f), renderPos);
+                        const glm::mat4 modelM = transM * rotYaw * scaleM;
+
+                        const std::size_t batchCount = sCaptureMeshCache.submeshes.size();
+                        std::vector<WorldIndexedBatch> captureBatches(batchCount);
+                        for (std::size_t si = 0; si < batchCount; ++si) {
+                            auto& batch = captureBatches[si];
+                            const auto& prepared = sCaptureMeshCache.submeshes[si];
+                            batch.vertices.reserve(prepared.vertices.size());
+                            batch.indices.reserve(prepared.indices.size());
+                            batch.sortDepth = glm::dot(cameraWorldPos - renderPos, cameraWorldPos - renderPos);
+                            if (si < mesh->submeshBaseTextures.size()) {
+                                const auto& tex = mesh->submeshBaseTextures[si];
+                                if (tex.hasPixels()) {
+                                    batch.textureKey = "assets/models/pokeball.glb#submesh:" + std::to_string(si);
+                                    batch.textureRgba = tex.rgba.data();
+                                    batch.textureWidth = tex.width;
+                                    batch.textureHeight = tex.height;
+                                    batch.textureWrapS = tex.wrapS;
+                                    batch.textureWrapT = tex.wrapT;
+                                }
+                            }
+                            if ((!batch.textureRgba || batch.textureWidth <= 0 || batch.textureHeight <= 0)) {
+                                if (BackendTextureCacheEntry* white = ensureBackendTextureLoaded("")) {
+                                    batch.textureKey =
+                                        "assets/models/pokeball.glb#submesh:" + std::to_string(si) + ":white";
+                                    batch.textureRgba = white->rgba.data();
+                                    batch.textureWidth = white->width;
+                                    batch.textureHeight = white->height;
+                                    batch.textureWrapS = 33071;
+                                    batch.textureWrapT = 33071;
+                                }
+                            }
+                            batch.alphaMode = prepared.alphaMode;
+                            batch.alphaCutoff = prepared.alphaCutoff;
+                        }
+                        for (std::size_t si = 0; si < batchCount; ++si) {
+                            auto& batch = captureBatches[si];
+                            const auto& prepared = sCaptureMeshCache.submeshes[si];
+                            if (prepared.vertices.empty() || prepared.indices.empty()) continue;
+                            if (!batch.textureRgba || batch.textureWidth <= 0 || batch.textureHeight <= 0) {
+                                continue;
+                            }
+                            batch.indices = prepared.indices;
+                            batch.vertices.resize(prepared.vertices.size());
+                            for (std::size_t vi = 0; vi < prepared.vertices.size(); ++vi) {
+                                const auto& src = prepared.vertices[vi];
+                                const glm::vec3 pos = glm::vec3(modelM * glm::vec4(src.bindPos, 1.0f));
+                                auto& dst = batch.vertices[vi];
+                                dst.x = pos.x;
+                                dst.y = pos.y;
+                                dst.z = pos.z;
+                                dst.u = src.u;
+                                dst.v = src.v;
+                                dst.r = src.r;
+                                dst.g = src.g;
+                                dst.b = src.b;
+                                dst.a = src.a;
+                            }
+                        }
+
+                        for (auto& batch : captureBatches) {
+                            if (batch.vertices.empty() || batch.indices.empty()) continue;
+                            worldIndexedBatches.push_back(std::move(batch));
+                            appendedAny = true;
+                        }
+                    }
+                    return appendedAny;
+                };
                 const auto drawProjectedUnits = [&](const std::vector<PokemonInstance>& units) {
                     for (const auto& unit : units) {
                         if (!unit.alive && !unit.captureInProgress && !unit.fainting) continue;
@@ -6058,6 +6533,11 @@ struct GameSession::Impl {
 
                 drawProjectedUnits(gameWorld->getPokemons());
                 drawProjectedUnits(gameWorld->getBenchPokemons());
+                const bool useOpenGlDirectCaptureModel =
+                    (renderer && renderer->backendId() && toLowerCopy(renderer->backendId()) == "opengl");
+                if (!useOpenGlDirectCaptureModel) {
+                    (void)appendSharedCaptureAttemptModels();
+                }
                 appendSharedParticleVfx();
                 appendSharedGrowlWaveVfx();
                 if (!modelDepthWorldTris.empty()) {
@@ -6398,8 +6878,215 @@ struct GameSession::Impl {
             const auto& inventoryModel = backendInventoryPanel.model;
             const float leftX = edgePad;
             const float invStartY = edgePad + lineStep * 7.7f;
+            const bool adventureModeInventoryIcons = services && services->gameMode == "adventure";
 
             if (inventoryModel.totalCount > 0 || !selectedItem.empty()) {
+                if (adventureModeInventoryIcons) {
+                    const float panelScale = std::clamp(uiScale, 0.85f, 1.30f);
+                    const float cardW = std::round(std::clamp(72.0f * panelScale, 60.0f, 90.0f));
+                    const float cardH = cardW;
+                    const float countScale = std::clamp(0.86f * panelScale, 0.72f, 1.05f);
+                    const float titleScale = std::clamp(1.00f * panelScale, 0.82f, 1.20f);
+                    const float labelScale = std::clamp(0.78f * panelScale, 0.68f, 0.95f);
+                    const float navScale = std::clamp(0.80f * panelScale, 0.68f, 0.95f);
+                    const float titleH =
+                        std::max(12.0f, runtime::backend_text::measureTextHeight("Items", titleScale));
+                    const float countH =
+                        std::max(10.0f, runtime::backend_text::measureTextHeight("x99", countScale));
+                    const float nameH =
+                        std::max(10.0f, runtime::backend_text::measureTextHeight("Pokeball", labelScale));
+                    const float rowPitch = cardH + std::max(6.0f, countH + 4.0f) + std::max(8.0f, nameH + 8.0f);
+                    const float rightInset = std::round(std::max(edgePad, 24.0f * panelScale));
+                    const float panelX = std::round(static_cast<float>(drawableW) - rightInset - cardW);
+                    const float panelTop = std::round(std::max(
+                        invStartY,
+                        std::max(110.0f, static_cast<float>(drawableH) * 0.16f)));
+
+                    const std::string title = runtime::backend_inventory::makeTitleLabel(inventoryModel);
+                    const float titleW = std::max(1.0f, runtime::backend_text::measureTextWidth(title, titleScale));
+                    appendText(std::max(edgePad, panelX + cardW - titleW),
+                               panelTop,
+                               title,
+                               titleScale,
+                               glm::vec3(0.92f, 0.95f, 0.99f));
+
+                    float navY = panelTop + titleH + std::max(4.0f, lineStep * 0.20f);
+                    const bool hasPrev = runtime::backend_inventory::canScrollPrev(inventoryModel);
+                    const bool hasNext = runtime::backend_inventory::canScrollNext(inventoryModel);
+                    if (hasPrev || hasNext) {
+                        const std::string prevLabel = "[Up] Prev";
+                        const std::string nextLabel = "[Down] Next";
+                        appendText(panelX,
+                                   navY,
+                                   prevLabel,
+                                   navScale,
+                                   hasPrev ? glm::vec3(0.75f, 0.87f, 0.96f)
+                                           : glm::vec3(0.42f, 0.48f, 0.55f));
+                        if (hasPrev) {
+                            runtime::backend_inventory_panel::HitRegion prevHit;
+                            prevHit.action = runtime::backend_inventory_panel::HitAction::ScrollOffset;
+                            prevHit.offsetDelta = -1;
+                            prevHit.x = panelX;
+                            prevHit.y = navY;
+                            prevHit.w = std::max(1.0f, runtime::backend_text::measureTextWidth(prevLabel, navScale));
+                            prevHit.h = std::max(1.0f, runtime::backend_text::measureTextHeight(prevLabel, navScale));
+                            backendInventoryPanel.hitRegions.push_back(std::move(prevHit));
+                        }
+
+                        const float nextW =
+                            std::max(1.0f, runtime::backend_text::measureTextWidth(nextLabel, navScale));
+                        const float nextX = panelX + cardW - nextW;
+                        appendText(nextX,
+                                   navY,
+                                   nextLabel,
+                                   navScale,
+                                   hasNext ? glm::vec3(0.75f, 0.87f, 0.96f)
+                                           : glm::vec3(0.42f, 0.48f, 0.55f));
+                        if (hasNext) {
+                            runtime::backend_inventory_panel::HitRegion nextHit;
+                            nextHit.action = runtime::backend_inventory_panel::HitAction::ScrollOffset;
+                            nextHit.offsetDelta = 1;
+                            nextHit.x = nextX;
+                            nextHit.y = navY;
+                            nextHit.w = nextW;
+                            nextHit.h = std::max(1.0f, runtime::backend_text::measureTextHeight(nextLabel, navScale));
+                            backendInventoryPanel.hitRegions.push_back(std::move(nextHit));
+                        }
+                        navY += std::max(12.0f, runtime::backend_text::measureTextHeight(prevLabel, navScale)) +
+                                std::max(6.0f, lineStep * 0.12f);
+                    }
+
+                    for (std::size_t i = 0; i < inventoryModel.visibleEntries.size(); ++i) {
+                        const auto& entry = inventoryModel.visibleEntries[i];
+                        const bool selected = (entry.id == selectedItem);
+                        const float y = navY + static_cast<float>(i) * rowPitch;
+                        const float cardX = panelX;
+                        const float cardY = y;
+
+                        IRenderBackend::DebugQuad shadow;
+                        shadow.x = cardX + 2.0f;
+                        shadow.y = cardY + 2.0f;
+                        shadow.w = cardW;
+                        shadow.h = cardH;
+                        shadow.r = 0.02f;
+                        shadow.g = 0.03f;
+                        shadow.b = 0.05f;
+                        shadow.a = 0.50f;
+                        worldQuads.push_back(shadow);
+
+                        IRenderBackend::DebugQuad cardBg;
+                        cardBg.x = cardX;
+                        cardBg.y = cardY;
+                        cardBg.w = cardW;
+                        cardBg.h = cardH;
+                        cardBg.r = selected ? 0.18f : 0.10f;
+                        cardBg.g = selected ? 0.18f : 0.11f;
+                        cardBg.b = selected ? 0.16f : 0.13f;
+                        cardBg.a = 0.95f;
+                        worldQuads.push_back(cardBg);
+
+                        const float border = std::clamp(cardW * 0.045f, 2.0f, 4.0f);
+                        const auto addBorderQuad = [&](float x, float y, float w, float h, const glm::vec4& c) {
+                            IRenderBackend::DebugQuad q;
+                            q.x = x;
+                            q.y = y;
+                            q.w = w;
+                            q.h = h;
+                            q.r = c.r;
+                            q.g = c.g;
+                            q.b = c.b;
+                            q.a = c.a;
+                            worldQuads.push_back(q);
+                        };
+                        const glm::vec4 borderColor = selected
+                            ? glm::vec4(0.95f, 0.78f, 0.33f, 0.98f)
+                            : glm::vec4(0.58f, 0.66f, 0.78f, 0.92f);
+                        addBorderQuad(cardX, cardY, cardW, border, borderColor);
+                        addBorderQuad(cardX, cardY + cardH - border, cardW, border, borderColor);
+                        addBorderQuad(cardX, cardY + border, border, std::max(0.0f, cardH - border * 2.0f), borderColor);
+                        addBorderQuad(cardX + cardW - border, cardY + border, border, std::max(0.0f, cardH - border * 2.0f), borderColor);
+
+                        const BackendItemAtlasIcon* itemIcon = findBackendItemAtlasIcon(entry.id);
+                        if (itemIcon) {
+                            const glm::vec2 uvMin = backendItemAtlasUvMin(itemIcon->row, itemIcon->col);
+                            const glm::vec2 uvMax = backendItemAtlasUvMax(itemIcon->row, itemIcon->col);
+                            IRenderBackend::DebugSprite sprite;
+                            const float pad = std::clamp(cardW * 0.10f, 6.0f, 10.0f);
+                            sprite.x = cardX + pad;
+                            sprite.y = cardY + pad;
+                            sprite.w = cardW - pad * 2.0f;
+                            sprite.h = cardH - pad * 2.0f;
+                            sprite.u0 = uvMin.x;
+                            sprite.v0 = uvMin.y;
+                            sprite.u1 = uvMax.x;
+                            sprite.v1 = uvMax.y;
+                            sprite.r = 1.0f;
+                            sprite.g = 1.0f;
+                            sprite.b = 1.0f;
+                            sprite.a = selected ? 1.0f : 0.96f;
+                            sprite.texturePath = "assets/images/items_atlas.png";
+                            sprites.push_back(std::move(sprite));
+                        } else {
+                            appendText(cardX + 6.0f,
+                                       cardY + cardH * 0.36f,
+                                       runtime::hud::humanizeToken(entry.id),
+                                       labelScale,
+                                       glm::vec3(0.86f, 0.90f, 0.96f));
+                        }
+
+                        const std::string countText = "x" + std::to_string(std::max(0, entry.count));
+                        const float countW =
+                            std::max(1.0f, runtime::backend_text::measureTextWidth(countText, countScale));
+                        appendText(cardX + std::max(0.0f, (cardW - countW) * 0.5f),
+                                   cardY + cardH + 2.0f,
+                                   countText,
+                                   countScale,
+                                   selected ? glm::vec3(0.99f, 0.90f, 0.56f)
+                                            : glm::vec3(0.90f, 0.94f, 0.99f));
+
+                        const std::string nameText = runtime::hud::humanizeToken(entry.id);
+                        const float nameW =
+                            std::max(1.0f, runtime::backend_text::measureTextWidth(nameText, labelScale));
+                        appendText(cardX + std::max(0.0f, (cardW - nameW) * 0.5f),
+                                   cardY + cardH + 2.0f + countH + 2.0f,
+                                   nameText,
+                                   labelScale,
+                                   glm::vec3(0.76f, 0.84f, 0.92f));
+
+                        runtime::backend_inventory_panel::HitRegion hit;
+                        hit.action = runtime::backend_inventory_panel::HitAction::SelectItem;
+                        hit.itemId = entry.id;
+                        hit.x = cardX;
+                        hit.y = cardY;
+                        hit.w = cardW;
+                        hit.h = rowPitch - std::max(2.0f, lineStep * 0.08f);
+                        backendInventoryPanel.hitRegions.push_back(std::move(hit));
+                    }
+
+                    const float footerY = navY + static_cast<float>(inventoryModel.visibleEntries.size()) * rowPitch;
+                    const std::string clearLine = runtime::backend_inventory::clearSelectionLabel();
+                    appendText(panelX,
+                               footerY + 1.0f,
+                               clearLine,
+                               0.90f,
+                               selectedItem.empty()
+                                   ? glm::vec3(0.62f, 0.68f, 0.76f)
+                                   : glm::vec3(0.95f, 0.78f, 0.66f));
+                    runtime::backend_inventory_panel::HitRegion clearHit;
+                    clearHit.action = runtime::backend_inventory_panel::HitAction::ClearSelection;
+                    clearHit.itemId.clear();
+                    clearHit.x = panelX;
+                    clearHit.y = footerY + 1.0f;
+                    clearHit.w = std::max(1.0f, runtime::backend_text::measureTextWidth(clearLine, 0.90f));
+                    clearHit.h = std::max(1.0f, runtime::backend_text::measureTextHeight(clearLine, 0.90f));
+                    backendInventoryPanel.hitRegions.push_back(std::move(clearHit));
+
+                    appendText(panelX,
+                               footerY + lineStep,
+                               "[1-9] select   Wheel/Arrows page",
+                               0.80f,
+                               glm::vec3(0.66f, 0.76f, 0.90f));
+                } else {
                 float invY = invStartY;
                 appendText(leftX,
                            invY,
@@ -6493,6 +7180,7 @@ struct GameSession::Impl {
                            runtime::backend_inventory::hintLabel(),
                            0.82f,
                            glm::vec3(0.66f, 0.76f, 0.90f));
+                }
             }
 
             auto typeCounts = gameWorld->getPlayerTypeLineCounts();
@@ -6676,6 +7364,33 @@ struct GameSession::Impl {
             for (const WorldIndexedBatch* batch : blendBatches) {
                 if (!batch) continue;
                 drawIndexedBatch(*batch);
+            }
+        }
+        if (renderWorld && hasWorldViewProj && supportsWorldIndexedMeshes &&
+            renderer && renderer->backendId() &&
+            toLowerCopy(renderer->backendId()) == "opengl" &&
+            gameWorld && camera && engineServices && engineServices->resources) {
+            std::vector<GameWorld::CaptureAttemptRenderSnapshot> captureSnaps;
+            if (gameWorld->buildCaptureAttemptRenderSnapshots(captureSnaps)) {
+                std::shared_ptr<Model> pokeballModel =
+                    engineServices->resources->getModel("assets/models/pokeball.glb");
+                if (pokeballModel) {
+                    for (const auto& snap : captureSnaps) {
+                        if (snap.timeLeftSec <= 0.0f) continue;
+                        const float scaleFactor =
+                            pokeballModel->getScaleFactor() * std::max(0.0f, snap.ballScale);
+                        const glm::mat4 scale =
+                            glm::scale(glm::mat4(1.0f), glm::vec3(std::max(0.0f, scaleFactor)));
+                        const glm::mat4 rotationY = glm::rotate(
+                            glm::mat4(1.0f),
+                            glm::radians(snap.ballYawDeg),
+                            glm::vec3(0, 1, 0));
+                        const glm::mat4 translation =
+                            glm::translate(glm::mat4(1.0f), snap.ballPos);
+                        const glm::mat4 instanceTransform = translation * rotationY * scale;
+                        pokeballModel->drawAnimated(*camera, instanceTransform, 0.0f, 0);
+                    }
+                }
             }
         }
         if (!worldTriangles.empty()) {
