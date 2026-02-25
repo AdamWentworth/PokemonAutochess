@@ -1,0 +1,100 @@
+#include <cmath>
+#include <string>
+
+#include "engine/render/IRenderBackend.h"
+#include "engine/render/d3d12/D3D12RenderBackendInternal.h"
+
+namespace {
+
+bool expect(bool condition, const std::string& message, std::string& outFail) {
+    if (condition) return true;
+    outFail = message;
+    return false;
+}
+
+bool nearf(float a, float b, float eps = 0.0001f) {
+    return std::fabs(a - b) <= eps;
+}
+
+} // namespace
+
+bool test_d3d12_world_material_constants_contract(std::string& outFail) {
+    namespace d3d12i = engine::render::d3d12_internal;
+
+    if (!expect(d3d12i::alignUp(0u, 256u) == 0u &&
+                    d3d12i::alignUp(1u, 256u) == 256u &&
+                    d3d12i::alignUp(512u, 256u) == 512u,
+                "alignUp should preserve aligned values and round up unaligned values.",
+                outFail)) {
+        return false;
+    }
+
+    if (!expect(nearf(d3d12i::sanitizeWrapMode(33071), 33071.0f) &&
+                    nearf(d3d12i::sanitizeWrapMode(33648), 33648.0f) &&
+                    nearf(d3d12i::sanitizeWrapMode(10497), 10497.0f) &&
+                    nearf(d3d12i::sanitizeWrapMode(-123), 10497.0f),
+                "sanitizeWrapMode should accept clamp/mirror/repeat and fall back invalid values to repeat.",
+                outFail)) {
+        return false;
+    }
+
+    {
+        const auto c = d3d12i::makeWorldPsConstants(nullptr, 0.75f);
+        if (!expect(nearf(c.useTexture, 0.75f) &&
+                        nearf(c.wrapS, 10497.0f) &&
+                        nearf(c.wrapT, 10497.0f) &&
+                        nearf(c.alphaCutoff, 0.5f),
+                    "makeWorldPsConstants(nullptr, ...) should preserve defaults and requested useTexture.",
+                    outFail)) {
+            return false;
+        }
+    }
+
+    {
+        IRenderBackend::WorldTextureData tex;
+        tex.wrapS = 33071;
+        tex.wrapT = 99999; // invalid -> repeat
+        tex.alphaMode = 9u; // clamp to BLEND (2)
+        tex.alphaCutoff = 1.5f; // clamp to 1
+        tex.materialMode = 1u;
+        tex.materialTimeSec = 12.0f;
+        tex.materialFlags = 3.0f;
+        tex.materialAtlasWidth = -5.0f;  // clamp to 0
+        tex.materialAtlasHeight = 64.0f;
+        tex.materialRect0U = 0.1f;
+        tex.materialRect0V = 0.2f;
+        tex.materialRect0W = 0.3f;
+        tex.materialRect0H = 0.4f;
+        tex.materialFlipbook0Cols = 4.0f;
+        tex.materialFlipbook0Rows = 5.0f;
+        tex.materialFlipbook0Frames = 6.0f;
+        tex.materialFlipbook0Fps = 7.0f;
+
+        const auto c = d3d12i::makeWorldPsConstants(&tex, 1.0f);
+        if (!expect(nearf(c.useTexture, 1.0f) &&
+                        nearf(c.wrapS, 33071.0f) &&
+                        nearf(c.wrapT, 10497.0f) &&
+                        nearf(c.alphaMode, 2.0f) &&
+                        nearf(c.alphaCutoff, 1.0f) &&
+                        nearf(c.materialMode, 1.0f) &&
+                        nearf(c.materialTimeSec, 12.0f) &&
+                        nearf(c.materialFlags, 3.0f) &&
+                        nearf(c.materialAtlasWidth, 0.0f) &&
+                        nearf(c.materialAtlasHeight, 64.0f) &&
+                        nearf(c.materialRect0U, 0.1f) &&
+                        nearf(c.materialRect0V, 0.2f) &&
+                        nearf(c.materialRect0W, 0.3f) &&
+                        nearf(c.materialRect0H, 0.4f) &&
+                        nearf(c.materialFlipbook0Cols, 4.0f) &&
+                        nearf(c.materialFlipbook0Rows, 5.0f) &&
+                        nearf(c.materialFlipbook0Frames, 6.0f) &&
+                        nearf(c.materialFlipbook0Fps, 7.0f),
+                    "makeWorldPsConstants should sanitize/clamp wrap+alpha values while forwarding material payload fields.",
+                    outFail)) {
+            return false;
+        }
+    }
+
+    return true;
+}
+

@@ -102,6 +102,7 @@ bool test_gameworld_leechseed_clears_for_invalid_state(std::string& outFail);
 bool test_shared_capture_presentation_contract(std::string& outFail);
 bool test_gameworld_capture_render_snapshot_timing_contract(std::string& outFail);
 bool test_shared_world_indexed_batches_contract(std::string& outFail);
+bool test_d3d12_world_material_constants_contract(std::string& outFail);
 bool test_pokemon_config_loader_contract(std::string& outFail);
 bool test_evolution_flyer_loader_contract(std::string& outFail);
 bool test_source_ascii_hygiene(std::string& outFail);
@@ -248,6 +249,7 @@ int main(int argc, char** argv) {
         {"shared_capture_presentation_contract", &test_shared_capture_presentation_contract},
         {"gameworld_capture_render_snapshot_timing_contract", &test_gameworld_capture_render_snapshot_timing_contract},
         {"shared_world_indexed_batches_contract", &test_shared_world_indexed_batches_contract},
+        {"d3d12_world_material_constants_contract", &test_d3d12_world_material_constants_contract},
         {"pokemon_config_loader_contract", &test_pokemon_config_loader_contract},
         {"evolution_flyer_loader_contract", &test_evolution_flyer_loader_contract},
         {"source_ascii_hygiene", &test_source_ascii_hygiene},

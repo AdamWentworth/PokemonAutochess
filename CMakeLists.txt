@@ -163,6 +163,7 @@ pac_apply_common_target_settings(engine_platform)
 # ---------------- engine_render (OpenGL + renderer + resources) ----------------
 add_library(engine_render STATIC
     src/engine/render/D3D12RenderBackend.cpp
+    src/engine/render/d3d12/D3D12RenderBackendPipelines.cpp
     src/engine/render/d3d12/D3D12TextureUpload.cpp
     src/engine/render/OpenGLRenderBackend.cpp
     src/engine/render/Renderer.cpp
@@ -437,6 +438,7 @@ if (BUILD_TESTING)
         tests/TestGameWorldLeechSeed.cpp
         tests/TestSharedCapturePresentation.cpp
         tests/TestSharedWorldIndexedBatches.cpp
+        tests/TestD3D12WorldMaterialConstants.cpp
         tests/TestConfigLoaders.cpp
         tests/TestSourceAscii.cpp
     )

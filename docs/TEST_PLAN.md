@@ -37,6 +37,7 @@ Focus on catching real regressions while keeping tests fast and headless.
 - Shared capture presentation helper contract coverage (`shared_capture_presentation_contract`) for pokeball clip-time mapping, transform assembly, anim-index lookup fallback, and shared capture snapshot cache lookup behavior.
 - GameWorld capture render snapshot timing contract coverage (`gameworld_capture_render_snapshot_timing_contract`) for normalized phase fields (`phaseNorm01`, `absorbNorm01`, `absorbLateVisual01`) and monotonic capture phase sequencing.
 - Shared world indexed-batch submission contract coverage (`shared_world_indexed_batches_contract`) for opaque/mask insertion-order draws, stable depth-sorted blend draws, and owned-texture fallback payload forwarding.
+- D3D12 backend helper/material-constant contract coverage (`d3d12_world_material_constants_contract`) for D3D12 shared world helper extraction (`alignUp`, wrap-mode sanitization, and `WorldPsConstants` payload mapping/clamping).
 - Runtime smoke coverage wiring includes `opengl_shared` alongside `opengl` and `d3d12` when `PAC_ENABLE_RUNTIME_SMOKE_TESTS` is enabled.
 
 ## Coverage Gaps (High Risk)
