@@ -3,76 +3,43 @@
 Purpose
 - Track the remaining parity gaps that still matter before shared contracts can be treated as the default gameplay path.
 - Keep this list focused on user-visible parity first, then architecture/maintenance cleanup.
+- See `docs/HOUSEWORK_ROADMAP.md` for the post-parity cleanup and legacy-retirement prep plan.
 
 Status Summary (2026-02-25)
 - Shared routes (`opengl_shared`, `d3d12`) are now close enough for real parity comparison against `opengl` legacy.
 - Major progress landed for model rendering/animation, per-unit HUD, growl VFX, and tail-fire (backend GPU exact material path).
 - Adventure shared route usability improved: backend/shared Adventure inventory now renders atlas-based item icon cards (not text-only rows), and shared routes now show a visible capture-attempt pokeball throw/shake/resolve overlay.
-- Remaining issues are now mostly specific visual mismatches and a smaller number of route-ownership cleanup tasks.
+- User manual signoff pass (2026-02-25) reports core parity is now good across all three routes for the features that matter most: renderer switching/menu correctness, board+bench, models, animations, capture sequence, tail-fire, growl, leech-seed, and D3D12 Pidgey seam.
+- Remaining work is now primarily housework/architecture cleanup plus optional perf optimization and non-parity UI polish.
+
+## Manual Parity Signoff Snapshot (User-Verified 2026-02-25)
+
+Confirmed good enough for parity across `opengl`, `opengl_shared`, and `d3d12`:
+- renderer switching + menu correctness
+- world board + bench visuals
+- model rendering/materials (no major parity issues)
+- animation behavior
+- per-unit HUD parity (not exact, but acceptable; further changes are desired independently of legacy parity)
+- Adventure inventory UI parity (acceptable; future changes are feature/polish work, not parity fixes)
+- pokeball capture sequence
+- Charmander tail-fire VFX
+- growl VFX
+- leech-seed VFX
+- D3D12 Pidgey seam (no longer reproducing in user verification)
+- overall stability (good enough to proceed)
 
 ## User-Visible Parity Gaps (Priority Order)
 
-1. D3D12-only Pidgey texture seam (high priority)
-- Symptom: visible line down Pidgey's face/torso in `d3d12`, more visible at distance and mostly disappears up close.
-- Why this matters: obvious model rendering mismatch and a confidence-breaker for D3D12 parity.
-- Current state: several D3D12 sampler/wrap/mip parity fixes are in, but the seam is still unresolved.
-- Next likely debug step:
-  - force mip0 in D3D12 shared world textured path for targeted validation
-  - log Pidgey submesh texture wrap/material path at runtime
-  - inspect whether the remaining artifact is mip-level or shading-path specific
+1. Performance optimization / backend suitability (non-blocking parity follow-up)
+- User reports performance still leaves headroom, but the parity goal is sufficiently met for current needs.
+- This should be treated as a separate optimization track, not a parity blocker, unless new perf regressions appear.
 
-2. Leech Seed VFX exact parity (high priority)
-- Shared routes improved (arc path restored, wrong dotted green connector fallback removed when legacy particle bridge is active).
-- Still not confirmed 1:1 with legacy OpenGL for:
-  - projectile appearance/material
-  - drain visual look and timing read
-  - overall move readability compared to legacy pass/shader behavior
+2. D3D12 pokeball animation cache freshness (operational check, not renderer parity logic)
+- `d3d12` shared capture lid animation depends on the backend cache for `assets/models/pokeball.glb` (`cache/models/f664dfc73e402009.pacmdl`) containing the updated animation clip.
+- If D3D12 shows no lid animation while `opengl_shared` does, rebuild the backend model cache entry from the updated GLB.
 
-3. Remaining move VFX exactness (high priority)
-- Tail-fire and growl are much closer now.
-- Other shared move VFX still rely on the shared particle bridge + generic billboard/material rendering in many cases, so they can match timing/positions but still differ visually from legacy.
-- Effects needing final signoff / likely follow-up:
-  - `tackle`
-  - `grass impact`
-  - `claw swipe`
-  - `aqua` variants
-  - `heal plus`
-  - other shared particle-driven move effects
-
-4. Board + bench final parity signoff (medium priority)
-- Improvements landed:
-  - board grid readability
-  - bench overlay visibility under tight framing
-  - shared world-space bench grid row adjacent to board
-- Still needs final visual signoff against legacy:
-  - exact layout/spacing
-  - colors/line weight
-  - readability at different camera angles
-
-5. Fainting material/fade visual signoff (medium priority)
-- Shared fade-out behavior is improved and textured submeshes now blend during faint fade.
-- Still needs parity signoff for edge cases (material behavior / appearance during fade progression).
-
-6. Shop / sell-overlay interaction parity signoff (medium priority)
-- Recent fix landed in `ScriptedState` to hide main shop cards while sell/release drop overlay is active and remove hidden cards from snapshot hit-testing.
-- Needs manual confirmation in both `opengl_shared` and `d3d12` across planning/shop flows.
-
-7. Shop/starter card visual polish parity (medium priority)
-- Shared/backend cards are much improved, but final signoff is still open for:
-  - texture quality consistency
-  - typography/spacing/frame polish
-  - exact legacy presentation feel
-
-8. Health bars / combat overlay parity (medium priority)
-- Shared per-unit HUD is much closer, but final parity signoff remains for full overlay set and edge cases.
-
-9. Adventure capture presentation exact parity (medium priority)
-- Shared routes now render `pokeball.glb` through the backend/shared world mesh path (not just the earlier icon overlay fallback).
-- Shared routes now support clip-driven pokeball absorb playback (updated `Hinge_TopAction` clip) and late absorb target red/fade/shrink timing, but D3D12 clip playback still depends on the backend `.pacmdl` cache containing the updated animation data.
-- Follow-up needed for exact parity:
-  - confirm the intended animated `pokeball.glb` asset version is present in the working tree and backend cache (`cache/models/f664dfc73e402009.pacmdl`)
-  - tune/confirm exact open-hit-suck-close timing and target red/fade timing against the new desired behavior (not legacy)
-  - confirm throw/shake/resolve timing and pokeball read feel correct in side-by-side shared route testing (`opengl_shared` + `d3d12`)
+3. Optional visual polish items (out of parity scope)
+- HUD and Adventure inventory UI are acceptable for parity but may still be redesigned/polished independently of legacy behavior.
 
 ## Renderer-Agnostic Architecture Gaps (Still Important)
 
@@ -103,14 +70,11 @@ Status Summary (2026-02-25)
 
 ## Suggested Next Sequence (Pragmatic)
 
-1. Finish D3D12 Pidgey seam root-cause debug (mip0/material path instrumentation).
-2. Finish leech-seed exact parity (visual/material behavior against legacy).
-3. Run a focused manual parity pass on:
-   - sell-overlay drag behavior
-   - board/bench visuals
-   - fainting fade
-   - remaining move VFX
-4. Then resume architecture cleanup (retire backend debug-world as primary path / unify UI path).
+1. Begin housework phase (module boundaries and render ownership cleanup) while keeping legacy OpenGL as fallback.
+2. Split large files (`GameSession.cpp`, `D3D12RenderBackend.cpp`) into coherent subsystems.
+3. Move more renderer-agnostic behavior into shared contracts so `GameSession` orchestrates less.
+4. Add guardrails for parity stability while housework proceeds (smoke runs, route-specific checks).
+5. Retire legacy only after shared path is the default and fallback is no longer needed in practice.
 
 ## Manual Signoff Notes (How To Use This File)
 

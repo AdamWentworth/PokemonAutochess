@@ -93,6 +93,9 @@ public:
         float ballScale = 1.0f;
         float ballYawDeg = 0.0f;
         float phaseTimeSec = 0.0f;
+        float phaseNorm01 = 0.0f; // normalized progress of the active phase
+        float absorbNorm01 = 0.0f; // normalized absorb progress (0 outside Absorb phase)
+        float absorbLateVisual01 = 0.0f; // late absorb ramp for shared capture visuals (red/fade/suck-in)
         float timeLeftSec = 0.0f;
     };
 

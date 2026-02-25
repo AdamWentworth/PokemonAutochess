@@ -4796,28 +4796,11 @@ struct GameSession::Impl {
                     return eval;
                 };
 
-                const auto smoothstep01 = [](float a, float b, float x) {
-                    if (!(b > a)) return (x >= b) ? 1.0f : 0.0f;
-                    const float t = std::clamp((x - a) / (b - a), 0.0f, 1.0f);
-                    return t * t * (3.0f - 2.0f * t);
-                };
-                const auto captureAbsorbPhase01 = [](const GameWorld::CaptureAttemptRenderSnapshot& snap) {
-                    if (snap.phase != 1) return 0.0f; // Absorb
-                    // GameWorld capture absorb duration is currently fixed at 0.35s.
-                    constexpr float kAbsorbDurSec = 0.35f;
-                    return std::clamp(snap.phaseTimeSec / kAbsorbDurSec, 0.0f, 1.0f);
-                };
-                const auto captureLateSuckInPhase01 = [&](float absorbP) {
-                    // User-requested timing: visible open first, then red/fade/suck-in near the end (roughly frame 35-40
-                    // of a 40-frame open-close clip).
-                    return smoothstep01(0.84f, 0.985f, absorbP);
-                };
                 const auto captureBallClipTimeSec =
                     [&](const GameWorld::CaptureAttemptRenderSnapshot& snap, float clipDurationSec) {
                     if (clipDurationSec <= 0.0f) return 0.0f;
                     if (snap.phase != 1) return 0.0f; // Only animate during Absorb; closed during throw/shake/resolve.
-                    const float absorbP = captureAbsorbPhase01(snap);
-                    return std::clamp(absorbP, 0.0f, 1.0f) * clipDurationSec;
+                    return std::clamp(snap.absorbNorm01, 0.0f, 1.0f) * clipDurationSec;
                 };
 
                 std::vector<GameWorld::CaptureAttemptRenderSnapshot> sharedCaptureAttemptSnaps;
@@ -5250,8 +5233,8 @@ struct GameSession::Impl {
                             ? std::max(0.0f, unit.captureScale)
                             : std::max(0.05f, unit.captureScale);
                         if (captureSnapForUnit && captureSnapForUnit->phase == 1) {
-                            const float absorbP = captureAbsorbPhase01(*captureSnapForUnit);
-                            const float lateSuckP = captureLateSuckInPhase01(absorbP);
+                            const float lateSuckP =
+                                std::clamp(captureSnapForUnit->absorbLateVisual01, 0.0f, 1.0f);
                             renderCaptureScale = std::min(renderCaptureScale, std::max(0.0f, 1.0f - lateSuckP));
                             captureVisualTintStrength = std::max(captureVisualTintStrength, lateSuckP);
                             captureVisualAlphaScale = std::clamp(1.0f - 0.5f * lateSuckP, 0.0f, 1.0f);
@@ -7538,11 +7521,6 @@ struct GameSession::Impl {
                 std::shared_ptr<Model> pokeballModel =
                     engineServices->resources->getModel("assets/models/pokeball.glb");
                 if (pokeballModel) {
-                    const auto absorbPhase01 = [](const GameWorld::CaptureAttemptRenderSnapshot& snap) {
-                        if (snap.phase != 1) return 0.0f;
-                        constexpr float kAbsorbDurSec = 0.35f;
-                        return std::clamp(snap.phaseTimeSec / kAbsorbDurSec, 0.0f, 1.0f);
-                    };
                     int captureAnimIndex = pokeballModel->findAnimationIndexByName("Hinge_TopAction");
                     if (captureAnimIndex < 0 && pokeballModel->getAnimationCount() > 0) {
                         captureAnimIndex = 0;
@@ -7564,7 +7542,7 @@ struct GameSession::Impl {
                         const glm::mat4 instanceTransform = translation * rotationY * scale;
                         const float animTimeSec =
                             (captureAnimIndex >= 0 && captureAnimDurSec > 0.0f)
-                                ? (absorbPhase01(snap) * captureAnimDurSec)
+                                ? (std::clamp(snap.absorbNorm01, 0.0f, 1.0f) * captureAnimDurSec)
                                 : 0.0f;
                         const int animIndexForDraw = (captureAnimIndex >= 0) ? captureAnimIndex : 0;
                         pokeballModel->drawAnimated(*camera, instanceTransform, animTimeSec, animIndexForDraw);

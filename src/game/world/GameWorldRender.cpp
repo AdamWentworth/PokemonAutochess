@@ -99,6 +99,16 @@ bool GameWorld::buildCaptureAttemptRenderSnapshots(std::vector<CaptureAttemptRen
     if (captureAttempts.empty()) return false;
     out.reserve(captureAttempts.size());
 
+    const auto normalize01 = [](float timeSec, float durSec) {
+        if (durSec <= 0.0f) return 0.0f;
+        return std::clamp(timeSec / durSec, 0.0f, 1.0f);
+    };
+    const auto smoothstep01 = [](float a, float b, float x) {
+        if (!(b > a)) return (x >= b) ? 1.0f : 0.0f;
+        const float t = std::clamp((x - a) / (b - a), 0.0f, 1.0f);
+        return t * t * (3.0f - 2.0f * t);
+    };
+
     for (const auto& attempt : captureAttempts) {
         if (attempt.timeLeftSec <= 0.0f) continue;
         CaptureAttemptRenderSnapshot snap;
@@ -114,16 +124,31 @@ bool GameWorld::buildCaptureAttemptRenderSnapshots(std::vector<CaptureAttemptRen
         switch (attempt.phase) {
         case CaptureAttempt::Phase::Throw:
             snap.phase = 0;
+            snap.phaseNorm01 = normalize01(attempt.phaseTime, std::max(0.05f, attempt.throwDur));
             break;
         case CaptureAttempt::Phase::Absorb:
             snap.phase = 1;
+            snap.phaseNorm01 = normalize01(attempt.phaseTime, std::max(0.05f, attempt.absorbDur));
             break;
         case CaptureAttempt::Phase::Shake:
             snap.phase = 2;
+            {
+                const int totalShakes = std::max(0, attempt.shakes);
+                const float perShake = std::max(0.2f, attempt.shakeDur);
+                const float totalDur = (totalShakes > 0) ? (perShake * totalShakes) : perShake;
+                snap.phaseNorm01 = normalize01(attempt.phaseTime, totalDur);
+            }
             break;
         case CaptureAttempt::Phase::Resolve:
             snap.phase = 3;
+            snap.phaseNorm01 = normalize01(attempt.phaseTime, std::max(0.05f, attempt.resolveDur));
             break;
+        }
+        if (snap.phase == 1) {
+            snap.absorbNorm01 = snap.phaseNorm01;
+            // Shared capture presentation contract: keep target mostly unchanged on impact/open, then ramp
+            // red/fade/suck-in near the end of absorb (requested behavior for animated pokeball sequence).
+            snap.absorbLateVisual01 = smoothstep01(0.84f, 0.985f, snap.absorbNorm01);
         }
         out.push_back(std::move(snap));
     }

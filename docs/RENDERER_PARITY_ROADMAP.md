@@ -88,6 +88,7 @@ Current Status Snapshot (as of 2026-02-25)
 - Renderer-agnostic boundary work is improved (route contracts and backend-neutral frame-flow decisions), but the game still owns too much render orchestration in `GameSession`, and backend debug-world rendering has not yet been fully retired behind a dev-only path.
 - Practical takeaway: the project is not in a rabbit hole, but it is in the normal "parity hardening" phase where remaining work is mostly effect-by-effect visual fidelity and final contract ownership cleanup.
 - See also: `docs/PARITY_OUTSTANDING.md` for a shorter user-priority punch list (what still matters for signoff).
+- Housework follow-up plan (post-parity cleanup / legacy retirement prep): `docs/HOUSEWORK_ROADMAP.md`.
 
 Prioritized Backlog
 - [x] Guard backend text-menu fallback behind explicit backend policy (regression safety for OpenGL menu path).
@@ -232,6 +233,7 @@ Iteration Log
 - Iteration 99: Replaced the shared Adventure capture overlay fallback with a real backend-rendered `assets/models/pokeball.glb` path in `opengl_shared`/`d3d12` (using the shared world indexed mesh pipeline + `GameWorld` capture snapshots), added optional auto-detected `open` clip playback (forward then reverse during absorb/impact) when the mesh actually contains an animation clip, and kept the icon overlay only as a load-failure fallback; note that the current raw `assets/models/pokeball.glb` in this checkout parses with zero animation clips, so open/close playback will only activate once the asset includes a clip.
 - Iteration 100: Fixed the new shared pokeball-model capture path to render non-textured/material-color pokeball submeshes instead of skipping them (white-texture fallback + triangle/submesh color/opacity tinting), which could otherwise make `pokeball.glb` appear missing in `opengl_shared`/`d3d12` even though the backend mesh path was active.
 - Iteration 101: Wired shared Adventure capture to the updated animated `pokeball.glb` clip (`Hinge_TopAction`) by driving pokeball open/close playback from the capture `Absorb` phase in both shared render paths (OpenGL-shared direct `Model::drawAnimated` path + backend indexed mesh path via backend clip-pose node deltas), and added shared target capture visual timing so the target turns red and fades toward half opacity while shrinking late in absorb (near the end of the pokeball clip) rather than immediately on impact; also added a one-time shared warning when the backend pokeball cache has no animations (stale `.pacmdl` vs updated GLB).
+- Iteration 102: Began post-parity housework phase after user manual signoff of core shared-vs-legacy parity gates, moved shared capture absorb presentation timing semantics (phase progress + late absorb visual ramp) into `GameWorld::CaptureAttemptRenderSnapshot` so renderer paths stop hardcoding capture durations in `GameSession`, and added a dedicated `docs/HOUSEWORK_ROADMAP.md` for modularization/legacy-retirement prep work.
 
 How This File Is Used
 - Before each parity implementation iteration:
