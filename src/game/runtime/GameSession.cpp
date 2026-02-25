@@ -4796,12 +4796,62 @@ struct GameSession::Impl {
                     return eval;
                 };
 
+                const auto smoothstep01 = [](float a, float b, float x) {
+                    if (!(b > a)) return (x >= b) ? 1.0f : 0.0f;
+                    const float t = std::clamp((x - a) / (b - a), 0.0f, 1.0f);
+                    return t * t * (3.0f - 2.0f * t);
+                };
+                const auto captureAbsorbPhase01 = [](const GameWorld::CaptureAttemptRenderSnapshot& snap) {
+                    if (snap.phase != 1) return 0.0f; // Absorb
+                    // GameWorld capture absorb duration is currently fixed at 0.35s.
+                    constexpr float kAbsorbDurSec = 0.35f;
+                    return std::clamp(snap.phaseTimeSec / kAbsorbDurSec, 0.0f, 1.0f);
+                };
+                const auto captureLateSuckInPhase01 = [&](float absorbP) {
+                    // User-requested timing: visible open first, then red/fade/suck-in near the end (roughly frame 35-40
+                    // of a 40-frame open-close clip).
+                    return smoothstep01(0.84f, 0.985f, absorbP);
+                };
+                const auto captureBallClipTimeSec =
+                    [&](const GameWorld::CaptureAttemptRenderSnapshot& snap, float clipDurationSec) {
+                    if (clipDurationSec <= 0.0f) return 0.0f;
+                    if (snap.phase != 1) return 0.0f; // Only animate during Absorb; closed during throw/shake/resolve.
+                    const float absorbP = captureAbsorbPhase01(snap);
+                    return std::clamp(absorbP, 0.0f, 1.0f) * clipDurationSec;
+                };
+
+                std::vector<GameWorld::CaptureAttemptRenderSnapshot> sharedCaptureAttemptSnaps;
+                sharedCaptureAttemptSnaps.reserve(8);
+                std::unordered_map<int, std::size_t> sharedCaptureSnapIndexByTargetId;
+                sharedCaptureSnapIndexByTargetId.reserve(8);
+                const auto refreshSharedCaptureAttemptSnaps = [&]() -> bool {
+                    sharedCaptureAttemptSnaps.clear();
+                    sharedCaptureSnapIndexByTargetId.clear();
+                    if (!gameWorld) return false;
+                    if (!gameWorld->buildCaptureAttemptRenderSnapshots(sharedCaptureAttemptSnaps)) return false;
+                    for (std::size_t i = 0; i < sharedCaptureAttemptSnaps.size(); ++i) {
+                        const auto& snap = sharedCaptureAttemptSnaps[i];
+                        if (snap.targetId < 0) continue;
+                        sharedCaptureSnapIndexByTargetId[snap.targetId] = i;
+                    }
+                    return !sharedCaptureAttemptSnaps.empty();
+                };
+                const auto findSharedCaptureSnapForTarget =
+                    [&](int targetId) -> const GameWorld::CaptureAttemptRenderSnapshot* {
+                    const auto it = sharedCaptureSnapIndexByTargetId.find(targetId);
+                    if (it == sharedCaptureSnapIndexByTargetId.end()) return nullptr;
+                    if (it->second >= sharedCaptureAttemptSnaps.size()) return nullptr;
+                    return &sharedCaptureAttemptSnaps[it->second];
+                };
+
                 const auto appendSharedCaptureAttemptModels = [&]() -> bool {
                     if (!gameWorld) return false;
                     if (!supportsWorldIndexedMeshes || !hasWorldViewProj) return false;
 
-                    std::vector<GameWorld::CaptureAttemptRenderSnapshot> captureSnaps;
-                    if (!gameWorld->buildCaptureAttemptRenderSnapshots(captureSnaps)) return false;
+                    if (sharedCaptureAttemptSnaps.empty()) {
+                        if (!refreshSharedCaptureAttemptSnaps()) return false;
+                    }
+                    const auto& captureSnaps = sharedCaptureAttemptSnaps;
 
                     runtime::backend_model::MeshData* mesh =
                         ensureBackendMeshLoaded("assets/models/pokeball.glb");
@@ -4815,12 +4865,21 @@ struct GameSession::Impl {
                         }
                         return false;
                     }
+                    if (mesh->animations.empty()) {
+                        static bool sLoggedSharedPokeballAnimMissing = false;
+                        if (!sLoggedSharedPokeballAnimMissing) {
+                            std::cout << "[Render][CaptureShared] pokeball cache has no animations; "
+                                         "shared clip playback is disabled (clear/rebuild cache if pokeball.glb was updated).\n";
+                            sLoggedSharedPokeballAnimMissing = true;
+                        }
+                    }
 
                     bool appendedAny = false;
                     const std::size_t triCount = mesh->indices.size() / 3u;
                     if (triCount == 0u) return false;
                     struct PreparedCaptureVertex {
                         glm::vec3 bindPos{0.0f};
+                        int nodeIndex = -1;
                         float u = 0.0f;
                         float v = 0.0f;
                         float r = 1.0f;
@@ -4838,6 +4897,7 @@ struct GameSession::Impl {
                         const runtime::backend_model::MeshData* sourceMesh = nullptr;
                         std::size_t sourceVertexCount = 0u;
                         std::size_t sourceIndexCount = 0u;
+                        std::vector<glm::mat4> bindNodeGlobalInv;
                         std::vector<PreparedCaptureSubmesh> submeshes;
                     };
                     static thread_local PreparedCaptureMeshCache sCaptureMeshCache;
@@ -4851,6 +4911,12 @@ struct GameSession::Impl {
                         sCaptureMeshCache.sourceMesh = mesh;
                         sCaptureMeshCache.sourceVertexCount = mesh->vertices.size();
                         sCaptureMeshCache.sourceIndexCount = mesh->indices.size();
+                        sCaptureMeshCache.bindNodeGlobalInv.assign(
+                            mesh->bindNodeGlobals.size(),
+                            glm::mat4(1.0f));
+                        for (std::size_t ni = 0; ni < mesh->bindNodeGlobals.size(); ++ni) {
+                            sCaptureMeshCache.bindNodeGlobalInv[ni] = glm::inverse(mesh->bindNodeGlobals[ni]);
+                        }
 
                         const auto& nodeGlobals = mesh->bindNodeGlobals;
                         const std::size_t batchCount =
@@ -4901,6 +4967,7 @@ struct GameSession::Impl {
 
                                 PreparedCaptureVertex v{};
                                 v.bindPos = bindPos;
+                                v.nodeIndex = triNodeIndex;
                                 v.u = src.uv.x;
                                 v.v = src.uv.y;
                                 if (mesh->hasVertexBaseColor && srcIndex < mesh->vertexBaseColors.size()) {
@@ -4983,6 +5050,24 @@ struct GameSession::Impl {
                         }
                     }
 
+                    int captureAnimIndex = -1;
+                    float captureAnimDurationSec = 0.0f;
+                    if (!mesh->animations.empty()) {
+                        for (std::size_t ai = 0; ai < mesh->animations.size(); ++ai) {
+                            if (mesh->animations[ai].name == "Hinge_TopAction") {
+                                captureAnimIndex = static_cast<int>(ai);
+                                break;
+                            }
+                        }
+                        if (captureAnimIndex < 0) captureAnimIndex = 0;
+                        if (captureAnimIndex >= 0 &&
+                            static_cast<std::size_t>(captureAnimIndex) < mesh->animations.size()) {
+                            captureAnimDurationSec = std::max(
+                                0.0f,
+                                mesh->animations[static_cast<std::size_t>(captureAnimIndex)].durationSec);
+                        }
+                    }
+
                     for (const auto& snap : captureSnaps) {
                         if (snap.timeLeftSec <= 0.0f) continue;
 
@@ -4999,6 +5084,28 @@ struct GameSession::Impl {
                             glm::rotate(glm::mat4(1.0f), glm::radians(snap.ballYawDeg), glm::vec3(0, 1, 0));
                         const glm::mat4 transM = glm::translate(glm::mat4(1.0f), renderPos);
                         const glm::mat4 modelM = transM * rotYaw * scaleM;
+
+                        BackendPoseEval capturePoseEval;
+                        bool hasCaptureClipPose = false;
+                        std::vector<glm::mat4> captureNodeDelta;
+                        if (captureAnimIndex >= 0 && captureAnimDurationSec > 0.0f && snap.phase == 1) {
+                            const float clipAnimTimeSec = captureBallClipTimeSec(snap, captureAnimDurationSec);
+                            capturePoseEval = evaluateScenePoseForClipTime(*mesh, captureAnimIndex, clipAnimTimeSec);
+                            hasCaptureClipPose =
+                                capturePoseEval.hasScenePose &&
+                                !capturePoseEval.nodeGlobals.empty() &&
+                                !mesh->bindNodeGlobals.empty();
+                            if (hasCaptureClipPose) {
+                                const std::size_t nodeCount = std::min(
+                                    capturePoseEval.nodeGlobals.size(),
+                                    sCaptureMeshCache.bindNodeGlobalInv.size());
+                                captureNodeDelta.assign(nodeCount, glm::mat4(1.0f));
+                                for (std::size_t ni = 0; ni < nodeCount; ++ni) {
+                                    captureNodeDelta[ni] =
+                                        capturePoseEval.nodeGlobals[ni] * sCaptureMeshCache.bindNodeGlobalInv[ni];
+                                }
+                            }
+                        }
 
                         const std::size_t batchCount = sCaptureMeshCache.submeshes.size();
                         std::vector<WorldIndexedBatch> captureBatches(batchCount);
@@ -5044,7 +5151,15 @@ struct GameSession::Impl {
                             batch.vertices.resize(prepared.vertices.size());
                             for (std::size_t vi = 0; vi < prepared.vertices.size(); ++vi) {
                                 const auto& src = prepared.vertices[vi];
-                                const glm::vec3 pos = glm::vec3(modelM * glm::vec4(src.bindPos, 1.0f));
+                                glm::vec3 posedBindPos = src.bindPos;
+                                if (hasCaptureClipPose &&
+                                    src.nodeIndex >= 0 &&
+                                    static_cast<std::size_t>(src.nodeIndex) < captureNodeDelta.size()) {
+                                    posedBindPos = glm::vec3(
+                                        captureNodeDelta[static_cast<std::size_t>(src.nodeIndex)] *
+                                        glm::vec4(src.bindPos, 1.0f));
+                                }
+                                const glm::vec3 pos = glm::vec3(modelM * glm::vec4(posedBindPos, 1.0f));
                                 auto& dst = batch.vertices[vi];
                                 dst.x = pos.x;
                                 dst.y = pos.y;
@@ -5121,16 +5236,35 @@ struct GameSession::Impl {
                         const game::runtime::backend_proxy::UnitProxyExtents extents =
                             game::runtime::backend_proxy::computeUnitProxyExtents(unit, worldCellSize);
                         const glm::vec3 proxyCenter = animatedCenter;
+                        const GameWorld::CaptureAttemptRenderSnapshot* captureSnapForUnit =
+                            unit.captureInProgress ? findSharedCaptureSnapForTarget(unit.id) : nullptr;
+                        float captureVisualTintStrength =
+                            unit.captureInProgress ? std::clamp(unit.captureTintStrength, 0.0f, 1.0f) : 0.0f;
+                        float captureVisualAlphaScale = 1.0f;
+                        const glm::vec3 captureTintColor(1.0f, 0.1f, 0.1f);
+
                         const float renderVisualScale = (unit.fainting || !unit.alive)
                             ? std::max(0.0f, unit.visualScale)
                             : std::max(0.05f, unit.visualScale);
-                        const float renderCaptureScale = (unit.fainting || !unit.alive || unit.captureInProgress)
+                        float renderCaptureScale = (unit.fainting || !unit.alive || unit.captureInProgress)
                             ? std::max(0.0f, unit.captureScale)
                             : std::max(0.05f, unit.captureScale);
+                        if (captureSnapForUnit && captureSnapForUnit->phase == 1) {
+                            const float absorbP = captureAbsorbPhase01(*captureSnapForUnit);
+                            const float lateSuckP = captureLateSuckInPhase01(absorbP);
+                            renderCaptureScale = std::min(renderCaptureScale, std::max(0.0f, 1.0f - lateSuckP));
+                            captureVisualTintStrength = std::max(captureVisualTintStrength, lateSuckP);
+                            captureVisualAlphaScale = std::clamp(1.0f - 0.5f * lateSuckP, 0.0f, 1.0f);
+                        } else if (captureVisualTintStrength > 0.0f) {
+                            captureVisualAlphaScale =
+                                std::clamp(1.0f - 0.5f * captureVisualTintStrength, 0.0f, 1.0f);
+                        }
                         const float faintFadeAlpha =
                             (unit.fainting || !unit.alive)
                                 ? std::clamp(renderVisualScale * renderCaptureScale, 0.0f, 1.0f)
                                 : 1.0f;
+                        const float modelFadeAlpha =
+                            std::clamp(faintFadeAlpha * captureVisualAlphaScale, 0.0f, 1.0f);
                         if ((unit.fainting || !unit.alive) &&
                             (renderVisualScale <= 0.0001f || renderCaptureScale <= 0.0001f)) {
                             continue;
@@ -5138,14 +5272,32 @@ struct GameSession::Impl {
 
                         IRenderBackend::DebugQuad tint;
                         runtime::backend_units::applyWorldUnitTint(tint, unit);
-                        const float topR = std::clamp(tint.r * 0.86f + 0.12f, 0.0f, 1.0f);
-                        const float topG = std::clamp(tint.g * 0.86f + 0.12f, 0.0f, 1.0f);
-                        const float topB = std::clamp(tint.b * 0.86f + 0.12f, 0.0f, 1.0f);
-                        const float sideR = std::clamp(tint.r * 0.72f, 0.0f, 1.0f);
-                        const float sideG = std::clamp(tint.g * 0.72f, 0.0f, 1.0f);
-                        const float sideB = std::clamp(tint.b * 0.72f, 0.0f, 1.0f);
-                        const float topAlpha = unit.alive ? 0.96f : 0.78f;
-                        const float sideAlpha = unit.alive ? 0.88f : 0.70f;
+                        float topR = std::clamp(tint.r * 0.86f + 0.12f, 0.0f, 1.0f);
+                        float topG = std::clamp(tint.g * 0.86f + 0.12f, 0.0f, 1.0f);
+                        float topB = std::clamp(tint.b * 0.86f + 0.12f, 0.0f, 1.0f);
+                        float sideR = std::clamp(tint.r * 0.72f, 0.0f, 1.0f);
+                        float sideG = std::clamp(tint.g * 0.72f, 0.0f, 1.0f);
+                        float sideB = std::clamp(tint.b * 0.72f, 0.0f, 1.0f);
+                        float topAlpha = unit.alive ? 0.96f : 0.78f;
+                        float sideAlpha = unit.alive ? 0.88f : 0.70f;
+                        if (captureVisualTintStrength > 0.001f) {
+                            const glm::vec3 topTinted = glm::mix(
+                                glm::vec3(topR, topG, topB),
+                                captureTintColor,
+                                captureVisualTintStrength);
+                            const glm::vec3 sideTinted = glm::mix(
+                                glm::vec3(sideR, sideG, sideB),
+                                captureTintColor,
+                                captureVisualTintStrength);
+                            topR = topTinted.r;
+                            topG = topTinted.g;
+                            topB = topTinted.b;
+                            sideR = sideTinted.r;
+                            sideG = sideTinted.g;
+                            sideB = sideTinted.b;
+                            topAlpha *= captureVisualAlphaScale;
+                            sideAlpha *= captureVisualAlphaScale;
+                        }
                         if (!meshForUnit) {
                             const auto shadow = game::runtime::backend_proxy::computeShadowQuad(
                                 proxyCenter,
@@ -5311,7 +5463,7 @@ struct GameSession::Impl {
                                     }
                                     // During faint fade-out, force alpha blending for textured submeshes so MASK/OPAQUE
                                     // materials don't pop/cut out while the model fades away.
-                                    if (faintFadeAlpha < 0.999f) {
+                                    if (modelFadeAlpha < 0.999f) {
                                         batch.alphaMode = 2u;
                                         batch.blendMode = 0u;
                                         batch.alphaCutoff = 0.0f;
@@ -5996,7 +6148,11 @@ struct GameSession::Impl {
                                 modelDepthTris.push_back(dt);
                             };
                             const bool downsampleModelTriangles = effectiveUnitTriangleBudget < triangleCount;
-                            const float fastTexturedAlpha = std::clamp(faintFadeAlpha, 0.0f, 1.0f);
+                            const float fastTexturedAlpha = std::clamp(modelFadeAlpha, 0.0f, 1.0f);
+                            const glm::vec3 fastTexturedTint = glm::mix(
+                                glm::vec3(1.0f),
+                                captureTintColor,
+                                std::clamp(captureVisualTintStrength, 0.0f, 1.0f));
                             std::size_t previousTriSample = triangleCount;
                             for (std::size_t sampleIdx = 0; sampleIdx < effectiveUnitTriangleBudget; ++sampleIdx) {
                                 std::size_t triIdx = sampleIdx;
@@ -6076,9 +6232,9 @@ struct GameSession::Impl {
                                                 pos.z,
                                                 srcVertex.uv.x,
                                                 srcVertex.uv.y,
-                                                1.0f,
-                                                1.0f,
-                                                1.0f,
+                                                fastTexturedTint.r,
+                                                fastTexturedTint.g,
+                                                fastTexturedTint.b,
                                                 fastTexturedAlpha});
                                             mapped = static_cast<int>(next);
                                             return next;
@@ -6096,9 +6252,9 @@ struct GameSession::Impl {
                                             pos.z,
                                             srcVertex.uv.x,
                                             srcVertex.uv.y,
-                                            1.0f,
-                                            1.0f,
-                                            1.0f,
+                                            fastTexturedTint.r,
+                                            fastTexturedTint.g,
+                                            fastTexturedTint.b,
                                             fastTexturedAlpha});
                                         return next;
                                     };
@@ -6122,7 +6278,7 @@ struct GameSession::Impl {
                                     : 1.0f;
                                 // Textured indexed batches apply alpha in the pixel shader.
                                 // Avoid pre-multiplying with sampled triangle opacity (which would double-attenuate).
-                                const float alphaBase = std::clamp(faintFadeAlpha, 0.0f, 1.0f);
+                                const float alphaBase = std::clamp(modelFadeAlpha, 0.0f, 1.0f);
                                 const float alpha = texturedSubmesh
                                     ? alphaBase
                                     : alphaBase * std::clamp(triOpacity, 0.0f, 1.0f);
@@ -6172,6 +6328,12 @@ struct GameSession::Impl {
                                 baseColor0 = resolveVertexBase(i0, v0);
                                 baseColor1 = resolveVertexBase(i1, v1);
                                 baseColor2 = resolveVertexBase(i2, v2);
+                                if (captureVisualTintStrength > 0.001f) {
+                                    const float tintAmt = std::clamp(captureVisualTintStrength, 0.0f, 1.0f);
+                                    baseColor0 = glm::mix(baseColor0, captureTintColor, tintAmt);
+                                    baseColor1 = glm::mix(baseColor1, captureTintColor, tintAmt);
+                                    baseColor2 = glm::mix(baseColor2, captureTintColor, tintAmt);
+                                }
                                 pushModelTriangle(
                                     a,
                                     b,
@@ -6531,6 +6693,7 @@ struct GameSession::Impl {
                     }
                 };
 
+                (void)refreshSharedCaptureAttemptSnaps();
                 drawProjectedUnits(gameWorld->getPokemons());
                 drawProjectedUnits(gameWorld->getBenchPokemons());
                 const bool useOpenGlDirectCaptureModel =
@@ -7375,6 +7538,17 @@ struct GameSession::Impl {
                 std::shared_ptr<Model> pokeballModel =
                     engineServices->resources->getModel("assets/models/pokeball.glb");
                 if (pokeballModel) {
+                    const auto absorbPhase01 = [](const GameWorld::CaptureAttemptRenderSnapshot& snap) {
+                        if (snap.phase != 1) return 0.0f;
+                        constexpr float kAbsorbDurSec = 0.35f;
+                        return std::clamp(snap.phaseTimeSec / kAbsorbDurSec, 0.0f, 1.0f);
+                    };
+                    int captureAnimIndex = pokeballModel->findAnimationIndexByName("Hinge_TopAction");
+                    if (captureAnimIndex < 0 && pokeballModel->getAnimationCount() > 0) {
+                        captureAnimIndex = 0;
+                    }
+                    const float captureAnimDurSec =
+                        (captureAnimIndex >= 0) ? pokeballModel->getAnimationDurationSec(captureAnimIndex) : 0.0f;
                     for (const auto& snap : captureSnaps) {
                         if (snap.timeLeftSec <= 0.0f) continue;
                         const float scaleFactor =
@@ -7388,7 +7562,12 @@ struct GameSession::Impl {
                         const glm::mat4 translation =
                             glm::translate(glm::mat4(1.0f), snap.ballPos);
                         const glm::mat4 instanceTransform = translation * rotationY * scale;
-                        pokeballModel->drawAnimated(*camera, instanceTransform, 0.0f, 0);
+                        const float animTimeSec =
+                            (captureAnimIndex >= 0 && captureAnimDurSec > 0.0f)
+                                ? (absorbPhase01(snap) * captureAnimDurSec)
+                                : 0.0f;
+                        const int animIndexForDraw = (captureAnimIndex >= 0) ? captureAnimIndex : 0;
+                        pokeballModel->drawAnimated(*camera, instanceTransform, animTimeSec, animIndexForDraw);
                     }
                 }
             }

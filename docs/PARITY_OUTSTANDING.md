@@ -68,11 +68,11 @@ Status Summary (2026-02-25)
 
 9. Adventure capture presentation exact parity (medium priority)
 - Shared routes now render `pokeball.glb` through the backend/shared world mesh path (not just the earlier icon overlay fallback).
-- Optional open/close animation playback is auto-wired if the asset contains an `open` clip (forward then reverse during absorb/impact), but this checkout's current raw `assets/models/pokeball.glb` parses with zero animation clips.
+- Shared routes now support clip-driven pokeball absorb playback (updated `Hinge_TopAction` clip) and late absorb target red/fade/shrink timing, but D3D12 clip playback still depends on the backend `.pacmdl` cache containing the updated animation data.
 - Follow-up needed for exact parity:
-  - confirm the intended animated `pokeball.glb` asset version is present in the working tree/cache
-  - match legacy pokeball model look/roll/read in shared routes
-  - confirm throw/shake/resolve timing feels the same as legacy in side-by-side play
+  - confirm the intended animated `pokeball.glb` asset version is present in the working tree and backend cache (`cache/models/f664dfc73e402009.pacmdl`)
+  - tune/confirm exact open-hit-suck-close timing and target red/fade timing against the new desired behavior (not legacy)
+  - confirm throw/shake/resolve timing and pokeball read feel correct in side-by-side shared route testing (`opengl_shared` + `d3d12`)
 
 ## Renderer-Agnostic Architecture Gaps (Still Important)
 
