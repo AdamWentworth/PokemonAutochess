@@ -268,6 +268,7 @@ add_library(PAC_GameObjects STATIC
     src/game/runtime/SharedGrowlVfxHelpers.cpp
     src/game/runtime/SharedGrowlWaveBridge.cpp
     src/game/runtime/SharedGrowlWaveBatches.cpp
+    src/game/runtime/SharedUnitHudBatches.cpp
     src/game/runtime/SharedWorldIndexedBatches.cpp
     src/game/runtime/GameUpdateGraph.cpp
     src/game/runtime/VideoPreferences.cpp
