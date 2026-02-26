@@ -259,6 +259,8 @@ add_library(PAC_GameObjects STATIC
     src/game/runtime/SharedCaptureD3d12FastPath.cpp
     src/game/runtime/SharedCapturePreparedMeshCache.cpp
     src/game/runtime/SharedBoardGridBatches.cpp
+    src/game/runtime/SharedProjectedDebugVfx.cpp
+    src/game/runtime/SharedProjectedWorldSceneHelpers.cpp
     src/game/runtime/SharedParticleBillboardBatches.cpp
     src/game/runtime/SharedParticleSnapshotBillboards.cpp
     src/game/runtime/SharedParticleVfxBridgeDispatch.cpp
