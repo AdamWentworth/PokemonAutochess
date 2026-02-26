@@ -254,6 +254,7 @@ add_library(PAC_GameObjects STATIC
     src/game/runtime/GameSession.cpp
     src/game/runtime/SharedCapturePresentation.cpp
     src/game/runtime/SharedCaptureOverlayVfx.cpp
+    src/game/runtime/SharedParticleVfxStyles.cpp
     src/game/runtime/SharedGrowlVfxHelpers.cpp
     src/game/runtime/SharedGrowlWaveBridge.cpp
     src/game/runtime/SharedGrowlWaveBatches.cpp
@@ -447,6 +448,7 @@ if (BUILD_TESTING)
         tests/TestGameWorldLeechSeed.cpp
         tests/TestSharedCapturePresentation.cpp
         tests/TestSharedCaptureOverlayVfx.cpp
+        tests/TestSharedParticleVfxStyles.cpp
         tests/TestSharedGrowlVfxHelpers.cpp
         tests/TestSharedGrowlWaveBridge.cpp
         tests/TestSharedGrowlWaveBatches.cpp
