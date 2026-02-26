@@ -171,7 +171,9 @@ add_library(engine_render STATIC
     src/engine/render/d3d12/D3D12RenderBackendLifecycle.cpp
     src/engine/render/d3d12/D3D12TextureUpload.cpp
     src/engine/render/OpenGLRenderBackend.cpp
+    src/engine/render/opengl/OpenGLRenderBackendDebugDraw.cpp
     src/engine/render/opengl/OpenGLRenderBackendTextures.cpp
+    src/engine/render/opengl/OpenGLRenderBackendWorldDraw.cpp
     src/engine/render/Renderer.cpp
     src/engine/render/Camera3D.cpp
     src/engine/render/BoardRenderer.cpp
