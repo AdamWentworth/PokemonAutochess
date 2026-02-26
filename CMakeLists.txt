@@ -258,39 +258,39 @@ add_library(PAC_GameObjects STATIC
     src/game/runtime/GameRuntime.cpp
     src/game/runtime/GameBootstrap.cpp
     src/game/runtime/GameSession.cpp
-    src/game/runtime/SharedBackendPoseEval.cpp
-    src/game/runtime/SharedCapturePresentation.cpp
-    src/game/runtime/SharedCaptureOverlayVfx.cpp
-    src/game/runtime/SharedCaptureModelBridge.cpp
-    src/game/runtime/SharedCaptureD3d12FastPath.cpp
-    src/game/runtime/SharedCapturePreparedMeshCache.cpp
-    src/game/runtime/SharedBoardGridBatches.cpp
-    src/game/runtime/SharedProjectedDebugVfx.cpp
-    src/game/runtime/SharedProjectedUnitBackendMeshRenderer.cpp
-    src/game/runtime/SharedProjectedUnitBackendMeshPrep.cpp
-    src/game/runtime/SharedProjectedUnitBackendMeshTriangleSubmit.cpp
-    src/game/runtime/SharedProjectedUnitBackendMeshTransforms.cpp
-    src/game/runtime/SharedProjectedUnitModelRenderer.cpp
-    src/game/runtime/SharedProjectedUnitRenderer.cpp
-    src/game/runtime/SharedProjectedUnitOverlays.cpp
-    src/game/runtime/SharedBackendDebugViewOverlay.cpp
-    src/game/runtime/SharedProjectedWorldSceneHelpers.cpp
-    src/game/runtime/SharedParticleBillboardBatches.cpp
-    src/game/runtime/SharedParticleSnapshotBillboards.cpp
-    src/game/runtime/SharedParticleVfxBridgeDispatch.cpp
-    src/game/runtime/SharedParticleVfxStyles.cpp
-    src/game/runtime/SharedTailFireSnapshotBillboards.cpp
-    src/game/runtime/SharedTailFireSnapshotAtlasCache.cpp
-    src/game/runtime/SharedTailFireFallbackEmitter.cpp
-    src/game/runtime/SharedTailFireAtlasHelpers.cpp
-    src/game/runtime/SharedTailFireExactCpuSnapshotBatches.cpp
-    src/game/runtime/SharedTailFireExactCpuTileBake.cpp
-    src/game/runtime/SharedTailFireExactGpuBatches.cpp
-    src/game/runtime/SharedGrowlVfxHelpers.cpp
-    src/game/runtime/SharedGrowlWaveBridge.cpp
-    src/game/runtime/SharedGrowlWaveBatches.cpp
-    src/game/runtime/SharedUnitHudBatches.cpp
-    src/game/runtime/SharedWorldIndexedBatches.cpp
+    src/game/runtime/shared/SharedBackendPoseEval.cpp
+    src/game/runtime/shared/SharedCapturePresentation.cpp
+    src/game/runtime/shared/SharedCaptureOverlayVfx.cpp
+    src/game/runtime/shared/SharedCaptureModelBridge.cpp
+    src/game/runtime/shared/SharedCaptureD3d12FastPath.cpp
+    src/game/runtime/shared/SharedCapturePreparedMeshCache.cpp
+    src/game/runtime/shared/SharedBoardGridBatches.cpp
+    src/game/runtime/shared/SharedProjectedDebugVfx.cpp
+    src/game/runtime/shared/SharedProjectedUnitBackendMeshRenderer.cpp
+    src/game/runtime/shared/SharedProjectedUnitBackendMeshPrep.cpp
+    src/game/runtime/shared/SharedProjectedUnitBackendMeshTriangleSubmit.cpp
+    src/game/runtime/shared/SharedProjectedUnitBackendMeshTransforms.cpp
+    src/game/runtime/shared/SharedProjectedUnitModelRenderer.cpp
+    src/game/runtime/shared/SharedProjectedUnitRenderer.cpp
+    src/game/runtime/shared/SharedProjectedUnitOverlays.cpp
+    src/game/runtime/shared/SharedBackendDebugViewOverlay.cpp
+    src/game/runtime/shared/SharedProjectedWorldSceneHelpers.cpp
+    src/game/runtime/shared/SharedParticleBillboardBatches.cpp
+    src/game/runtime/shared/SharedParticleSnapshotBillboards.cpp
+    src/game/runtime/shared/SharedParticleVfxBridgeDispatch.cpp
+    src/game/runtime/shared/SharedParticleVfxStyles.cpp
+    src/game/runtime/shared/SharedTailFireSnapshotBillboards.cpp
+    src/game/runtime/shared/SharedTailFireSnapshotAtlasCache.cpp
+    src/game/runtime/shared/SharedTailFireFallbackEmitter.cpp
+    src/game/runtime/shared/SharedTailFireAtlasHelpers.cpp
+    src/game/runtime/shared/SharedTailFireExactCpuSnapshotBatches.cpp
+    src/game/runtime/shared/SharedTailFireExactCpuTileBake.cpp
+    src/game/runtime/shared/SharedTailFireExactGpuBatches.cpp
+    src/game/runtime/shared/SharedGrowlVfxHelpers.cpp
+    src/game/runtime/shared/SharedGrowlWaveBridge.cpp
+    src/game/runtime/shared/SharedGrowlWaveBatches.cpp
+    src/game/runtime/shared/SharedUnitHudBatches.cpp
+    src/game/runtime/shared/SharedWorldIndexedBatches.cpp
     src/game/runtime/GameUpdateGraph.cpp
     src/game/runtime/VideoPreferences.cpp
     src/game/runtime/GpuAdapters.cpp

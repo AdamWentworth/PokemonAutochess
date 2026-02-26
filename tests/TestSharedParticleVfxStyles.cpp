@@ -3,7 +3,7 @@
 
 #include <glm/glm.hpp>
 
-#include "game/runtime/SharedParticleVfxStyles.h"
+#include "game/runtime/shared/SharedParticleVfxStyles.h"
 
 namespace {
 

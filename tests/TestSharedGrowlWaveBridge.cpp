@@ -3,7 +3,7 @@
 
 #include <glm/glm.hpp>
 
-#include "game/runtime/SharedGrowlWaveBridge.h"
+#include "game/runtime/shared/SharedGrowlWaveBridge.h"
 
 namespace {
 

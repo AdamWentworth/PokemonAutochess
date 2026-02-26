@@ -48,20 +48,20 @@ Notes
 These files implement the shared gameplay presentation path. They are game-side rendering orchestration/helpers, not engine backends.
 
 Strong signal
-- Most files prefixed `Shared*` under `src/game/runtime/`
+- Most files prefixed `Shared*` under `src/game/runtime/shared/`
 
 Paths (examples, not exhaustive)
-- `src/game/runtime/SharedProjected*.*`
-- `src/game/runtime/SharedCapture*.*`
-- `src/game/runtime/SharedGrowl*.*`
-- `src/game/runtime/SharedParticle*.*`
-- `src/game/runtime/SharedTailFire*.*`
-- `src/game/runtime/SharedUnitHudBatches.*`
-- `src/game/runtime/SharedWorldIndexedBatches.*`
-- `src/game/runtime/SharedBoardGridBatches.*`
-- `src/game/runtime/SharedBackendDebugViewOverlay.*`
-- `src/game/runtime/SharedBackendPoseEval.*`
-- `src/game/runtime/SharedBackendTextureCache.h`
+- `src/game/runtime/shared/SharedProjected*.*`
+- `src/game/runtime/shared/SharedCapture*.*`
+- `src/game/runtime/shared/SharedGrowl*.*`
+- `src/game/runtime/shared/SharedParticle*.*`
+- `src/game/runtime/shared/SharedTailFire*.*`
+- `src/game/runtime/shared/SharedUnitHudBatches.*`
+- `src/game/runtime/shared/SharedWorldIndexedBatches.*`
+- `src/game/runtime/shared/SharedBoardGridBatches.*`
+- `src/game/runtime/shared/SharedBackendDebugViewOverlay.*`
+- `src/game/runtime/shared/SharedBackendPoseEval.*`
+- `src/game/runtime/shared/SharedBackendTextureCache.h`
 
 Also shared-path support (not `Shared*`, but used by shared runtime paths)
 - `src/game/runtime/backend_model_cache/BackendModelCache*.*` (backend cache load/build/read/write)
@@ -76,7 +76,7 @@ These are game/runtime files only relevant when D3D12 is active (or when probing
 
 Paths
 - `src/game/runtime/d3d12/D3D12Probe.*`
-- `src/game/runtime/SharedCaptureD3d12FastPath.*` (D3D12-only branch extracted from shared capture model bridge)
+- `src/game/runtime/shared/SharedCaptureD3d12FastPath.*` (D3D12-only branch extracted from shared capture model bridge)
 
 Notes
 - This is game/runtime code, not engine/backend code.
@@ -234,12 +234,13 @@ Low-risk next organization move
 1. Document ownership (this file) and agree on naming/folder conventions.
 2. [x] Move `ScriptedState*` files into `src/game/state/scripted/` (completed).
 3. [x] Move `BackendModelCache*` family into `src/game/runtime/backend_model_cache/` (completed).
-4. Move `Shared*` runtime modules into `src/game/runtime/shared/...` in batches by subsystem:
+4. [x] Move `Shared*` runtime modules into `src/game/runtime/shared/` (flat first pass complete).
+5. Move `Shared*` runtime modules from `src/game/runtime/shared/` into deeper subsystem folders in batches:
 - projected
 - capture
 - growl/particles/tail-fire
 - UI/world
-5. Update includes incrementally, build + `ctest` after each batch, plus one manual smoke per batch.
+6. Update includes incrementally, build + `ctest` after each batch, plus one manual smoke per batch.
 
 ## What still counts as meaningful housework (not just line-count work)
 
@@ -260,8 +261,8 @@ Approx. top files in `src/game/runtime`, `src/game/state`, `src/engine/render`:
 - `src/game/state/scripted/ScriptedStateBackendUi.cpp` (~775)
 - `src/game/runtime/GameRunner.cpp` (~766)
 - `src/game/state/CombatState.cpp` (~689)
-- `src/game/runtime/SharedBackendDebugViewOverlay.cpp` (~630)
-- `src/game/runtime/SharedTailFireExactCpuTileBake.cpp` (~613)
+- `src/game/runtime/shared/SharedBackendDebugViewOverlay.cpp` (~630)
+- `src/game/runtime/shared/SharedTailFireExactCpuTileBake.cpp` (~613)
 - `src/game/runtime/backend_model_cache/BackendModelCacheReadDecode.cpp` (~512)
 
 This list is for prioritization, not a mandate to split everything immediately.

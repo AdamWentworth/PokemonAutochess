@@ -3,8 +3,8 @@
 
 #include <glm/glm.hpp>
 
-#include "game/runtime/SharedGrowlVfxHelpers.h"
-#include "game/runtime/SharedGrowlWaveBatches.h"
+#include "game/runtime/shared/SharedGrowlVfxHelpers.h"
+#include "game/runtime/shared/SharedGrowlWaveBatches.h"
 
 namespace {
 
