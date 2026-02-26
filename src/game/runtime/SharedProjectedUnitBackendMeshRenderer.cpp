@@ -1,5 +1,6 @@
 #include "game/runtime/SharedProjectedUnitBackendMeshRenderer.h"
 #include "game/runtime/SharedProjectedUnitBackendMeshPrep.h"
+#include "game/runtime/SharedProjectedUnitBackendMeshTransforms.h"
 
 #include "game/runtime/BackendMaterialShading.h"
 #include "game/runtime/BackendUnitVisuals.h"
@@ -48,44 +49,26 @@ Result renderProjectedUnitBackendMesh(const Args& args) {
         return out;
     }
 
-    const auto& dataDb = *args.dataDb;
     const auto& unit = *args.unit;
-    const auto& pose = *args.pose;
     const auto* meshForUnit = args.meshForUnit;
-    const auto& tint = *args.tint;
 
-    const float worldCellSize = args.worldCellSize;
-    const float boardSurfaceY = args.boardSurfaceY;
-    const float unitSize = args.unitSize;
-    const float animPitch = args.animPitch;
-    const float animYaw = args.animYaw;
-    const float animRoll = args.animRoll;
-    const float attackPulse = args.attackPulse;
-    const float renderVisualScale = args.renderVisualScale;
-    const float renderCaptureScale = args.renderCaptureScale;
     const float captureVisualTintStrength = args.captureVisualTintStrength;
     const float modelFadeAlpha = args.modelFadeAlpha;
     const glm::vec3 captureTintColor = args.captureTintColor;
-    const glm::vec3 proxyCenter = args.proxyCenter;
     const glm::vec3 cameraWorldPos = args.cameraWorldPos;
 
     const bool supportsWorldTriangles3D = args.supportsWorldTriangles3D;
-    const bool supportsWorldIndexedMeshes = args.supportsWorldIndexedMeshes;
 
     auto& projectedDebug = *args.projectedDebug;
     auto& sharedTailFireAnchors = *args.sharedTailFireAnchors;
     auto& worldIndexedBatches = *args.worldIndexedBatches;
     auto& modelDepthTris = *args.modelDepthTris;
     auto& modelDepthWorldTris = *args.modelDepthWorldTris;
-    auto& remainingModelTrianglesBudget = *args.remainingModelTrianglesBudget;
     auto& world3DTriangles = *args.world3DTriangles;
 
-    const auto& backendModelTriangleLimit = args.backendModelTriangleLimit;
-    const auto& backendModelFullMeshEnabled = args.backendModelFullMeshEnabled;
     const auto& backendModelFastTexturedPathEnabled = args.backendModelFastTexturedPathEnabled;
     const auto& backendModelBackfaceCullingEnabled = args.backendModelBackfaceCullingEnabled;
 
-    using BackendPoseEval = game::runtime::shared_backend_pose::PoseEval;
     using WorldIndexedBatch = game::runtime::shared_world_batches::WorldIndexedBatch;
     using SharedTailFireAnchor = game::runtime::shared_tail_fire_fallback::Anchor;
     using DepthTri = game::runtime::shared_projected_scene::DepthTri;
@@ -104,19 +87,15 @@ Result renderProjectedUnitBackendMesh(const Args& args) {
         const bool useIndexedWorldModelPath = prep.useIndexedWorldModelPath;
         const bool fullIndexedMeshPath = prep.fullIndexedMeshPath;
         const bool useFastTexturedFullMeshPath = prep.useFastTexturedFullMeshPath;
-        const bool usePositionOnlyVertexPath = prep.usePositionOnlyVertexPath;
         const float resolvedScaleCorrection = prep.resolvedScaleCorrection;
-        const glm::mat4& modelM = prep.modelM;
         const std::size_t modelDepthCountBefore = prep.modelDepthCountBefore;
         const std::size_t modelDepthWorldCountBefore = prep.modelDepthWorldCountBefore;
         const std::size_t world3DTriangleCountBefore = prep.world3DTriangleCountBefore;
         auto& submeshNodeFallback = prep.submeshNodeFallback;
         auto& modelIndexedBatchesPerSubmesh = prep.modelIndexedBatchesPerSubmesh;
         auto& modelIndexedVertexRemap = prep.modelIndexedVertexRemap;
-        const BackendPoseEval& scenePose = prep.scenePose;
         const auto& nodeGlobals =
-            scenePose.hasScenePose ? scenePose.nodeGlobals : mesh->bindNodeGlobals;
-        const bool hasClipPose = scenePose.hasClipPose;
+            prep.scenePose.hasScenePose ? prep.scenePose.nodeGlobals : mesh->bindNodeGlobals;
         const glm::vec3& lightDir = prep.lightDir;
         const glm::vec3& fallbackBase = prep.fallbackBase;
         const bool downsampleModelTriangles = prep.downsampleModelTriangles;
@@ -128,210 +107,8 @@ Result renderProjectedUnitBackendMesh(const Args& args) {
             return glm::vec3(0.0f, 1.0f, 0.0f);
         };
 
-        const std::size_t nodeCount = nodeGlobals.size();
-        static thread_local std::vector<std::vector<glm::mat4>> skinMatricesByNode;
-        static thread_local std::vector<std::uint8_t> skinMatricesReady;
-        static thread_local std::vector<glm::mat4> nodeGlobalInverseCache;
-        static thread_local std::vector<std::uint8_t> nodeGlobalInverseReady;
-        if (skinMatricesByNode.size() < nodeCount) skinMatricesByNode.resize(nodeCount);
-        for (std::size_t ni = 0; ni < nodeCount; ++ni) skinMatricesByNode[ni].clear();
-        if (skinMatricesReady.size() < nodeCount) skinMatricesReady.resize(nodeCount, 0u);
-        std::fill(skinMatricesReady.begin(), skinMatricesReady.begin() + nodeCount, 0u);
-        if (nodeGlobalInverseCache.size() < nodeCount) {
-            nodeGlobalInverseCache.resize(nodeCount, glm::mat4(1.0f));
-        }
-        if (nodeGlobalInverseReady.size() < nodeCount) nodeGlobalInverseReady.resize(nodeCount, 0u);
-        std::fill(nodeGlobalInverseReady.begin(), nodeGlobalInverseReady.begin() + nodeCount, 0u);
-
-        const auto ensureSkinMatricesForNode =
-            [&](int nodeIndex) -> const std::vector<glm::mat4>* {
-            if (nodeIndex < 0 ||
-                static_cast<std::size_t>(nodeIndex) >= mesh->nodeSkin.size() ||
-                static_cast<std::size_t>(nodeIndex) >= nodeGlobals.size()) {
-                return nullptr;
-            }
-            const std::size_t nodeIdx = static_cast<std::size_t>(nodeIndex);
-            const int skinIndex = mesh->nodeSkin[nodeIdx];
-            if (skinIndex < 0 || static_cast<std::size_t>(skinIndex) >= mesh->skins.size()) {
-                return nullptr;
-            }
-            if (skinMatricesReady[nodeIdx] == 0u) {
-                const auto& skin = mesh->skins[static_cast<std::size_t>(skinIndex)];
-                if (nodeGlobalInverseReady[nodeIdx] == 0u) {
-                    nodeGlobalInverseCache[nodeIdx] = glm::inverse(nodeGlobals[nodeIdx]);
-                    nodeGlobalInverseReady[nodeIdx] = 1u;
-                }
-                const glm::mat4& invMeshGlobal = nodeGlobalInverseCache[nodeIdx];
-                auto& mats = skinMatricesByNode[nodeIdx];
-                mats.assign(skin.joints.size(), glm::mat4(1.0f));
-                for (std::size_t j = 0; j < skin.joints.size(); ++j) {
-                    const int jointNode = skin.joints[j];
-                    if (jointNode < 0 ||
-                        static_cast<std::size_t>(jointNode) >= nodeGlobals.size()) {
-                        continue;
-                    }
-                    const glm::mat4 invBind =
-                        (j < skin.inverseBind.size())
-                            ? skin.inverseBind[j]
-                            : glm::mat4(1.0f);
-                    mats[j] =
-                        invMeshGlobal *
-                        nodeGlobals[static_cast<std::size_t>(jointNode)] *
-                        invBind;
-                }
-                skinMatricesReady[nodeIdx] = 1u;
-            }
-            return &skinMatricesByNode[nodeIdx];
-        };
-        const auto skinVertexAtNode = [&](int nodeIndex,
-                                         const runtime::backend_model::MeshVertex& vtx,
-                                         const glm::vec3& localPos,
-                                         const glm::vec3& localNormal) {
-            struct SkinResult {
-                glm::vec3 pos;
-                glm::vec3 normal;
-                bool applied = false;
-            } outSkin{localPos, localNormal, false};
-            const auto* matsPtr = ensureSkinMatricesForNode(nodeIndex);
-            if (!matsPtr) return outSkin;
-            const auto& mats = *matsPtr;
-            const std::uint16_t joints[4] = {vtx.j0, vtx.j1, vtx.j2, vtx.j3};
-            const float weights[4] = {vtx.w0, vtx.w1, vtx.w2, vtx.w3};
-            const bool rigidSingleJoint =
-                (weights[0] >= 0.999f) &&
-                (weights[1] <= 0.00001f) &&
-                (weights[2] <= 0.00001f) &&
-                (weights[3] <= 0.00001f) &&
-                (static_cast<std::size_t>(joints[0]) < mats.size());
-            if (rigidSingleJoint) {
-                const glm::mat4& m = mats[static_cast<std::size_t>(joints[0])];
-                outSkin.pos = glm::vec3(m * glm::vec4(localPos, 1.0f));
-                outSkin.normal = safeNormalize(glm::mat3(m) * localNormal);
-                outSkin.applied = true;
-                return outSkin;
-            }
-            glm::vec4 blendedPos(0.0f);
-            glm::vec3 blendedNormal(0.0f);
-            float totalWeight = 0.0f;
-            for (int i = 0; i < 4; ++i) {
-                const float w = weights[i];
-                if (w <= 0.00001f) continue;
-                const std::size_t joint = static_cast<std::size_t>(joints[i]);
-                if (joint >= mats.size()) continue;
-                blendedPos += (mats[joint] * glm::vec4(localPos, 1.0f)) * w;
-                blendedNormal += (glm::mat3(mats[joint]) * localNormal) * w;
-                totalWeight += w;
-            }
-            if (totalWeight <= 0.00001f) return outSkin;
-            if (totalWeight < 0.999f) {
-                const float remain = 1.0f - totalWeight;
-                blendedPos += glm::vec4(localPos, 1.0f) * remain;
-                blendedNormal += localNormal * remain;
-            }
-            outSkin.pos = glm::vec3(blendedPos);
-            outSkin.normal = safeNormalize(blendedNormal);
-            outSkin.applied = true;
-            return outSkin;
-        };
-        const auto skinPositionAtNode = [&](int nodeIndex,
-                                            const runtime::backend_model::MeshVertex& vtx,
-                                            const glm::vec3& localPos) {
-            glm::vec3 outPos = localPos;
-            const auto* matsPtr = ensureSkinMatricesForNode(nodeIndex);
-            if (!matsPtr) return outPos;
-            const auto& mats = *matsPtr;
-            const std::uint16_t joints[4] = {vtx.j0, vtx.j1, vtx.j2, vtx.j3};
-            const float weights[4] = {vtx.w0, vtx.w1, vtx.w2, vtx.w3};
-            const bool rigidSingleJoint =
-                (weights[0] >= 0.999f) &&
-                (weights[1] <= 0.00001f) &&
-                (weights[2] <= 0.00001f) &&
-                (weights[3] <= 0.00001f) &&
-                (static_cast<std::size_t>(joints[0]) < mats.size());
-            if (rigidSingleJoint) {
-                outPos = glm::vec3(
-                    mats[static_cast<std::size_t>(joints[0])] *
-                    glm::vec4(localPos, 1.0f));
-                return outPos;
-            }
-            glm::vec4 blendedPos(0.0f);
-            float totalWeight = 0.0f;
-            for (int i = 0; i < 4; ++i) {
-                const float w = weights[i];
-                if (w <= 0.00001f) continue;
-                const std::size_t joint = static_cast<std::size_t>(joints[i]);
-                if (joint >= mats.size()) continue;
-                blendedPos += (mats[joint] * glm::vec4(localPos, 1.0f)) * w;
-                totalWeight += w;
-            }
-            if (totalWeight <= 0.00001f) return outPos;
-            if (totalWeight < 0.999f) {
-                const float remain = 1.0f - totalWeight;
-                blendedPos += glm::vec4(localPos, 1.0f) * remain;
-            }
-            outPos = glm::vec3(blendedPos);
-            return outPos;
-        };
-
-        struct NodeTransformCacheEntry {
-            glm::mat4 worldM{1.0f};
-            glm::mat3 worldNormalM{1.0f};
-        };
-        static thread_local std::vector<NodeTransformCacheEntry> nodeTransformCache;
-        static thread_local std::vector<std::uint8_t> nodeTransformWorldReady;
-        static thread_local std::vector<std::uint8_t> nodeTransformNormalReady;
-        const std::size_t nodeCacheCount = nodeCount + 1u;
-        if (nodeTransformCache.size() < nodeCacheCount) nodeTransformCache.resize(nodeCacheCount);
-        if (nodeTransformWorldReady.size() < nodeCacheCount) {
-            nodeTransformWorldReady.resize(nodeCacheCount, 0u);
-        }
-        if (nodeTransformNormalReady.size() < nodeCacheCount) {
-            nodeTransformNormalReady.resize(nodeCacheCount, 0u);
-        }
-        std::fill(
-            nodeTransformWorldReady.begin(),
-            nodeTransformWorldReady.begin() + nodeCacheCount,
-            0u);
-        std::fill(
-            nodeTransformNormalReady.begin(),
-            nodeTransformNormalReady.begin() + nodeCacheCount,
-            0u);
-
-        const auto nodeTransformIndexFor = [&](int triNodeIndex) -> std::size_t {
-            std::size_t cacheIndex = 0u;
-            if (triNodeIndex >= 0 && static_cast<std::size_t>(triNodeIndex) < nodeCount) {
-                cacheIndex = static_cast<std::size_t>(triNodeIndex) + 1u;
-            }
-            return cacheIndex;
-        };
-        const auto worldMatrixForNode = [&](int triNodeIndex) -> const glm::mat4& {
-            const std::size_t cacheIndex = nodeTransformIndexFor(triNodeIndex);
-            if (nodeTransformWorldReady[cacheIndex] != 0u) {
-                return nodeTransformCache[cacheIndex].worldM;
-            }
-            const glm::mat4 nodeGlobal =
-                (triNodeIndex >= 0 &&
-                 static_cast<std::size_t>(triNodeIndex) < nodeGlobals.size())
-                    ? nodeGlobals[static_cast<std::size_t>(triNodeIndex)]
-                    : glm::mat4(1.0f);
-            auto& entry = nodeTransformCache[cacheIndex];
-            entry.worldM = modelM * nodeGlobal;
-            nodeTransformWorldReady[cacheIndex] = 1u;
-            return entry.worldM;
-        };
-        const auto worldNormalMatrixForNode = [&](int triNodeIndex) -> const glm::mat3& {
-            const std::size_t cacheIndex = nodeTransformIndexFor(triNodeIndex);
-            if (nodeTransformNormalReady[cacheIndex] != 0u) {
-                return nodeTransformCache[cacheIndex].worldNormalM;
-            }
-            if (nodeTransformWorldReady[cacheIndex] == 0u) {
-                (void)worldMatrixForNode(triNodeIndex);
-            }
-            auto& entry = nodeTransformCache[cacheIndex];
-            entry.worldNormalM = glm::transpose(glm::inverse(glm::mat3(entry.worldM)));
-            nodeTransformNormalReady[cacheIndex] = 1u;
-            return entry.worldNormalM;
-        };
+        shared_projected_unit_backend_mesh_transforms::Resolver transforms;
+        transforms.initialize(args, prep);
 
         if (unit.alive && !unit.fainting && toLowerCopy(unit.name) == "charmander") {
             const TailFireVFX::Config& tailCfg =
@@ -339,7 +116,7 @@ Result renderProjectedUnitBackendMesh(const Args& args) {
             const int tailNodeIndex = tailCfg.tailTipNodeIndex;
             if (tailNodeIndex >= 0 &&
                 static_cast<std::size_t>(tailNodeIndex) < nodeGlobals.size()) {
-                const glm::mat4& tailWorldM = worldMatrixForNode(tailNodeIndex);
+                const glm::mat4& tailWorldM = transforms.worldMatrixForNode(tailNodeIndex);
 
                 auto safeNorm = [](glm::vec3 v, const glm::vec3& fallback) {
                     const float len2 = glm::dot(v, v);
@@ -367,91 +144,6 @@ Result renderProjectedUnitBackendMesh(const Args& args) {
                     std::max(0.01f, std::max(0.01f, mesh->modelScaleFactor) * resolvedScaleCorrection);
             }
         }
-
-        struct WorldVertexSample {
-            glm::vec3 pos{0.0f};
-            glm::vec3 normal{0.0f, 1.0f, 0.0f};
-        };
-        const std::size_t meshVertexCount = mesh->vertices.size();
-        static thread_local std::vector<WorldVertexSample> worldVertexCache;
-        static thread_local std::vector<int> worldVertexCacheNode;
-        static thread_local std::vector<std::uint8_t> worldVertexCacheValid;
-        static thread_local std::vector<glm::vec3> worldVertexPosCache;
-        static thread_local std::vector<int> worldVertexPosCacheNode;
-        static thread_local std::vector<std::uint8_t> worldVertexPosCacheValid;
-        if (!usePositionOnlyVertexPath) {
-            worldVertexCache.resize(meshVertexCount);
-            worldVertexCacheNode.assign(meshVertexCount, std::numeric_limits<int>::min());
-            worldVertexCacheValid.assign(meshVertexCount, 0u);
-        } else {
-            worldVertexCache.clear();
-            worldVertexCacheNode.clear();
-            worldVertexCacheValid.clear();
-        }
-        worldVertexPosCache.resize(meshVertexCount);
-        worldVertexPosCacheNode.assign(meshVertexCount, std::numeric_limits<int>::min());
-        worldVertexPosCacheValid.assign(meshVertexCount, 0u);
-        const auto resolveWorldVertex = [&](int triNodeIndex,
-                                            std::uint32_t vertexIndex,
-                                            const runtime::backend_model::MeshVertex& vtx) {
-            if (vertexIndex < worldVertexCache.size() &&
-                worldVertexCacheValid[vertexIndex] != 0u &&
-                worldVertexCacheNode[vertexIndex] == triNodeIndex) {
-                return worldVertexCache[vertexIndex];
-            }
-
-            glm::vec3 local = vtx.position;
-            if (!hasClipPose) {
-                local = runtime::backend_anim::deformLocalVertex(
-                    unit,
-                    pose,
-                    local,
-                    mesh->boundsMin,
-                    mesh->boundsMax,
-                    worldCellSize);
-            }
-            const auto sk = skinVertexAtNode(triNodeIndex, vtx, local, vtx.normal);
-            const glm::mat4& worldM = worldMatrixForNode(triNodeIndex);
-            const glm::mat3& worldNormalM = worldNormalMatrixForNode(triNodeIndex);
-            WorldVertexSample out;
-            out.pos = glm::vec3(worldM * glm::vec4(sk.pos, 1.0f));
-            out.normal = safeNormalize(worldNormalM * sk.normal);
-            if (vertexIndex < worldVertexCache.size()) {
-                worldVertexCache[vertexIndex] = out;
-                worldVertexCacheNode[vertexIndex] = triNodeIndex;
-                worldVertexCacheValid[vertexIndex] = 1u;
-            }
-            return out;
-        };
-        const auto resolveWorldVertexPos = [&](int triNodeIndex,
-                                               std::uint32_t vertexIndex,
-                                               const runtime::backend_model::MeshVertex& vtx) {
-            if (vertexIndex < worldVertexPosCache.size() &&
-                worldVertexPosCacheValid[vertexIndex] != 0u &&
-                worldVertexPosCacheNode[vertexIndex] == triNodeIndex) {
-                return worldVertexPosCache[vertexIndex];
-            }
-
-            glm::vec3 local = vtx.position;
-            if (!hasClipPose) {
-                local = runtime::backend_anim::deformLocalVertex(
-                    unit,
-                    pose,
-                    local,
-                    mesh->boundsMin,
-                    mesh->boundsMax,
-                    worldCellSize);
-            }
-            const glm::vec3 skinnedPos = skinPositionAtNode(triNodeIndex, vtx, local);
-            const glm::mat4& worldM = worldMatrixForNode(triNodeIndex);
-            const glm::vec3 outPos = glm::vec3(worldM * glm::vec4(skinnedPos, 1.0f));
-            if (vertexIndex < worldVertexPosCache.size()) {
-                worldVertexPosCache[vertexIndex] = outPos;
-                worldVertexPosCacheNode[vertexIndex] = triNodeIndex;
-                worldVertexPosCacheValid[vertexIndex] = 1u;
-            }
-            return outPos;
-        };
 
         const auto pushModelTriangle = [&](const glm::vec3& a,
                                             const glm::vec3& b,
@@ -841,7 +533,7 @@ Result renderProjectedUnitBackendMesh(const Args& args) {
                             static_cast<std::size_t>(std::numeric_limits<std::uint32_t>::max())) {
                             return std::numeric_limits<std::uint32_t>::max();
                         }
-                        const glm::vec3 pos = resolveWorldVertexPos(triNodeIndex, src, srcVertex);
+                        const glm::vec3 pos = transforms.resolveWorldVertexPos(triNodeIndex, src, srcVertex);
                         const std::uint32_t next =
                             static_cast<std::uint32_t>(fastBatch.vertices.size());
                         fastBatch.vertices.push_back(IRenderBackend::WorldMeshVertex{
@@ -861,7 +553,7 @@ Result renderProjectedUnitBackendMesh(const Args& args) {
                         static_cast<std::size_t>(std::numeric_limits<std::uint32_t>::max())) {
                         return std::numeric_limits<std::uint32_t>::max();
                     }
-                    const glm::vec3 pos = resolveWorldVertexPos(triNodeIndex, src, srcVertex);
+                    const glm::vec3 pos = transforms.resolveWorldVertexPos(triNodeIndex, src, srcVertex);
                     const std::uint32_t next =
                         static_cast<std::uint32_t>(fastBatch.vertices.size());
                     fastBatch.vertices.push_back(IRenderBackend::WorldMeshVertex{
@@ -905,9 +597,9 @@ Result renderProjectedUnitBackendMesh(const Args& args) {
                 (triIdx < mesh->triangleDoubleSided.size()) &&
                 (mesh->triangleDoubleSided[triIdx] != 0u);
 
-            const auto sk0 = resolveWorldVertex(triNodeIndex, i0, v0);
-            const auto sk1 = resolveWorldVertex(triNodeIndex, i1, v1);
-            const auto sk2 = resolveWorldVertex(triNodeIndex, i2, v2);
+            const auto sk0 = transforms.resolveWorldVertex(triNodeIndex, i0, v0);
+            const auto sk1 = transforms.resolveWorldVertex(triNodeIndex, i1, v1);
+            const auto sk2 = transforms.resolveWorldVertex(triNodeIndex, i2, v2);
 
             const glm::vec3& a = sk0.pos;
             const glm::vec3& b = sk1.pos;
