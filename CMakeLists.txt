@@ -166,6 +166,7 @@ add_library(engine_render STATIC
     src/engine/render/d3d12/D3D12RenderBackendPipelines.cpp
     src/engine/render/d3d12/D3D12RenderBackendDebugDraw.cpp
     src/engine/render/d3d12/D3D12RenderBackendTextures.cpp
+    src/engine/render/d3d12/D3D12RenderBackendCachedWorldMeshes.cpp
     src/engine/render/d3d12/D3D12TextureUpload.cpp
     src/engine/render/OpenGLRenderBackend.cpp
     src/engine/render/Renderer.cpp
