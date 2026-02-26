@@ -10,31 +10,27 @@ bool test_backend_ui_sell_overlay_policy(std::string& outFail) {
     using game::state::backend_ui::shouldShowSellOverlay;
     using game::state::backend_ui::shouldUseBackendUi;
 
-    if (!shouldUseBackendUi(makeRenderRoutes(true, false, false))) {
+    if (!shouldUseBackendUi(makeRenderRoutes(true))) {
         outFail = "backend ui policy should allow backend UI when legacy path is not preferred";
         return false;
     }
-    if (shouldUseBackendUi(makeRenderRoutes(true, false, true))) {
-        outFail = "backend ui policy should respect backend legacy-ui preference";
-        return false;
-    }
-    if (shouldUseBackendUi(makeRenderRoutes(true, false, false), true)) {
+    if (shouldUseBackendUi(makeRenderRoutes(true), true)) {
         outFail = "backend ui policy should allow explicit legacy-ui opt-out";
         return false;
     }
-    if (shouldUseBackendUi(makeRenderRoutes(false, false, false))) {
+    if (shouldUseBackendUi(makeRenderRoutes(false))) {
         outFail = "backend ui policy should require renderer availability";
         return false;
     }
-    if (!shouldRenderBackendTextMenu(makeRenderRoutes(true, false, false), true)) {
+    if (!shouldRenderBackendTextMenu(makeRenderRoutes(true), true)) {
         outFail = "backend text menu policy should allow backend-neutral text menus";
         return false;
     }
-    if (shouldRenderBackendTextMenu(makeRenderRoutes(true, false, false), false)) {
+    if (shouldRenderBackendTextMenu(makeRenderRoutes(true), false)) {
         outFail = "backend text menu policy should require text-menu mode";
         return false;
     }
-    if (shouldRenderBackendTextMenu(makeRenderRoutes(false, false, false), true)) {
+    if (shouldRenderBackendTextMenu(makeRenderRoutes(false), true)) {
         outFail = "backend text menu policy should require renderer availability";
         return false;
     }

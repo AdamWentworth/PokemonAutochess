@@ -412,24 +412,11 @@ void CombatState::ensureShopUi() {
         return;
     }
 
+    // Legacy OpenGL shop UI path retired.
+    if (shopUi) shopUi->clear();
+    shopUiEnabled = false;
+    hasShopRerollButton = false;
     clearBackendShopUiCache();
-
-    const auto routes = game::runtime::render::routesFromServices(services);
-    const bool legacyUiPath = routes.usesLegacyUiPath();
-    if (!legacyUiPath) {
-        if (shopUi) shopUi->clear();
-        shopUiEnabled = false;
-        hasShopRerollButton = false;
-        return;
-    }
-
-    if (!shopUiInitialized) {
-        shopUi = std::make_unique<game::ui::ShopUiFacade>();
-        shopUi->init(services.config.fontPath, std::max(28, services.config.fontSize / 2),
-                     std::max(16, services.config.fontSize / 2));
-        shopUiInitialized = true;
-    }
-    rebuildShopCards();
 }
 
 void CombatState::rebuildShopCards() {
@@ -742,40 +729,18 @@ void CombatState::render() {
         return;
     }
 
-    const bool renderLegacyUi = routes.usesLegacyUiPath();
-    if (!renderLegacyUi) {
-        if (!services.renderer) return;
+    if (!services.renderer) return;
 
-        std::vector<IRenderBackend::DebugQuad> quads;
-        quads.reserve(512);
-        std::vector<IRenderBackend::DebugLine> lines;
-        lines.reserve(2048);
+    std::vector<IRenderBackend::DebugQuad> quads;
+    quads.reserve(512);
+    std::vector<IRenderBackend::DebugLine> lines;
+    lines.reserve(2048);
 
-        game::runtime::top_banner::appendBackendBanner(
-            quads, lines, uiW, uiH, msg, msgColor.r, msgColor.g, msgColor.b);
+    game::runtime::top_banner::appendBackendBanner(
+        quads, lines, uiW, uiH, msg, msgColor.r, msgColor.g, msgColor.b);
 
-        services.renderer->drawDebugQuads(quads.data(), quads.size(), uiW, uiH);
-        if (!lines.empty()) {
-            services.renderer->drawDebugLines(lines.data(), lines.size(), uiW, uiH);
-        }
-        return;
-    }
-
-    if (!textRenderer) {
-        const auto& c = services.config;
-        textRenderer = std::make_unique<TextRenderer>(c.fontPath, c.fontSize);
-    }
-    if (!textRenderer) return;
-
-    const float scale = 1.0f;
-    float textWidth = textRenderer->measureTextWidth(msg, scale);
-    float centeredX = viewport ? viewport->centerX(textWidth)
-                               : game::runtime::top_banner::centeredTextX(uiW, textWidth);
-    const float textY = game::runtime::top_banner::topTextY(uiH);
-
-    textRenderer->renderText(msg, centeredX, textY, msgColor, scale);
-
-    if (shopUiEnabled) {
-        drawShopHud(uiW, uiH, showSellOverlay);
+    services.renderer->drawDebugQuads(quads.data(), quads.size(), uiW, uiH);
+    if (!lines.empty()) {
+        services.renderer->drawDebugLines(lines.data(), lines.size(), uiW, uiH);
     }
 }

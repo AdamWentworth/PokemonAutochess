@@ -51,7 +51,8 @@ RendererBackend parseRendererBackend(std::string_view tokenView) {
     if (token.empty() || token == "auto") return RendererBackend::Auto;
     if (token == "opengl_shared" || token == "gl_shared" ||
         token == "opengl_contracts" || token == "gl_contracts") {
-        return RendererBackend::OpenGLShared;
+        // Backward-compat alias from the previous dual OpenGL token model.
+        return RendererBackend::OpenGL;
     }
     if (token == "opengl" || token == "gl") return RendererBackend::OpenGL;
     if (token == "vulkan" || token == "vk") return RendererBackend::Vulkan;
@@ -75,8 +76,6 @@ const char* rendererBackendName(RendererBackend backend) {
         return "auto";
     case RendererBackend::OpenGL:
         return "opengl";
-    case RendererBackend::OpenGLShared:
-        return "opengl_shared";
     case RendererBackend::Vulkan:
         return "vulkan";
     case RendererBackend::D3D12:
@@ -88,8 +87,7 @@ const char* rendererBackendName(RendererBackend backend) {
 
 bool isRendererBackendImplemented(RendererBackend backend) {
     if (backend == RendererBackend::Auto ||
-        backend == RendererBackend::OpenGL ||
-        backend == RendererBackend::OpenGLShared) {
+        backend == RendererBackend::OpenGL) {
         return true;
     }
 #if defined(_WIN32)

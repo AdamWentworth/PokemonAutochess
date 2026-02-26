@@ -25,7 +25,7 @@ local video_cfg = {
     ui_scale_index = 2,
     quality = { "Low", "Medium", "High", "Ultra" },
     quality_index = 3,
-    renderer_backends = { "auto", "opengl", "opengl_shared", "vulkan", "d3d12" },
+    renderer_backends = { "opengl", "vulkan", "d3d12" },
     renderer_index = 1,
     require_discrete_gpu = false,
     gpu_adapters = { "auto" },
@@ -75,18 +75,14 @@ end
 
 local function renderer_label(v)
     if v == "auto" then return "Auto" end
-    if v == "opengl" then return "OpenGL (Legacy)" end
-    if v == "opengl_shared" then return "OpenGL (Shared Contracts)" end
+    if v == "opengl" then return "OpenGL" end
     if v == "vulkan" then return "Vulkan" end
     if v == "d3d12" then return "D3D12" end
     return tostring(v)
 end
 
 local function backend_pref_matches_active(pref, active)
-    if pref == active then return true end
-    -- OpenGL shared-contract mode still reports active API as "opengl".
-    if pref == "opengl_shared" and active == "opengl" then return true end
-    return false
+    return pref == active
 end
 
 local function gpu_adapter_label(v)

@@ -7,7 +7,6 @@ namespace game::runtime::render {
 struct FrameRenderFlow {
     bool renderStateLayer = true;
     bool renderWorldLayer = false;
-    bool renderLegacyHudLayer = false;
 };
 
 inline FrameRenderFlow decideFrameRenderFlow(const RenderRoutes& routes,
@@ -16,7 +15,6 @@ inline FrameRenderFlow decideFrameRenderFlow(const RenderRoutes& routes,
     FrameRenderFlow flow;
     flow.renderWorldLayer =
         shouldRenderWorldLayer(routes, renderWorldRequested, allowBackendMenuBackdrop);
-    flow.renderLegacyHudLayer = shouldRenderLegacyHudLayer(routes, renderWorldRequested);
     return flow;
 }
 

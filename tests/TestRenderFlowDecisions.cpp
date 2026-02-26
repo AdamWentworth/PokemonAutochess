@@ -7,60 +7,45 @@ bool test_render_flow_decisions_contract(std::string& outFail) {
     using game::runtime::render::makeRenderRoutes;
 
     {
-        const auto flow = decideFrameRenderFlow(makeRenderRoutes(false, true), true);
+        const auto flow = decideFrameRenderFlow(makeRenderRoutes(false), true);
         if (!flow.renderStateLayer ||
-            flow.renderWorldLayer ||
-            flow.renderLegacyHudLayer) {
+            flow.renderWorldLayer) {
             outFail = "disabled rendering flow mismatch";
             return false;
         }
     }
 
     {
-        const auto flow = decideFrameRenderFlow(makeRenderRoutes(true, true), true);
+        const auto flow = decideFrameRenderFlow(makeRenderRoutes(true), true);
         if (!flow.renderStateLayer ||
-            !flow.renderWorldLayer ||
-            !flow.renderLegacyHudLayer) {
-            outFail = "legacy render-world flow mismatch";
+            !flow.renderWorldLayer) {
+            outFail = "render-world flow mismatch";
             return false;
         }
     }
 
     {
-        const auto flow = decideFrameRenderFlow(makeRenderRoutes(true, true), false);
+        const auto flow = decideFrameRenderFlow(makeRenderRoutes(true), false);
         if (!flow.renderStateLayer ||
-            flow.renderWorldLayer ||
-            flow.renderLegacyHudLayer) {
-            outFail = "legacy menu-only flow mismatch";
+            flow.renderWorldLayer) {
+            outFail = "menu-only flow mismatch";
             return false;
         }
     }
 
     {
-        const auto flow = decideFrameRenderFlow(makeRenderRoutes(true, false), true);
+        const auto flow = decideFrameRenderFlow(makeRenderRoutes(true), false);
         if (!flow.renderStateLayer ||
-            !flow.renderWorldLayer ||
-            flow.renderLegacyHudLayer) {
-            outFail = "backend world flow mismatch";
-            return false;
-        }
-    }
-
-    {
-        const auto flow = decideFrameRenderFlow(makeRenderRoutes(true, false), false);
-        if (!flow.renderStateLayer ||
-            flow.renderWorldLayer ||
-            flow.renderLegacyHudLayer) {
+            flow.renderWorldLayer) {
             outFail = "backend menu-only flow mismatch";
             return false;
         }
     }
 
     {
-        const auto flow = decideFrameRenderFlow(makeRenderRoutes(true, false), false, true);
+        const auto flow = decideFrameRenderFlow(makeRenderRoutes(true), false, true);
         if (!flow.renderStateLayer ||
-            !flow.renderWorldLayer ||
-            flow.renderLegacyHudLayer) {
+            !flow.renderWorldLayer) {
             outFail = "backend menu-backdrop flow mismatch";
             return false;
         }

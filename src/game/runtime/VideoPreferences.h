@@ -8,13 +8,12 @@ namespace game::video {
 enum class RendererBackend {
     Auto,
     OpenGL,
-    OpenGLShared,
     Vulkan,
     D3D12
 };
 
 struct Preferences {
-    std::string rendererBackend = "auto";
+    std::string rendererBackend = "opengl";
     bool requireDiscreteGpu = false;
     std::string preferredGpuAdapter;
     bool restartOnExit = false;

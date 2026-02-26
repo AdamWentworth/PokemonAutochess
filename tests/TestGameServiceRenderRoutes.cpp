@@ -28,11 +28,8 @@ bool test_game_service_render_routes_contract(std::string& outFail) {
 
     {
         services.renderEnabled = false;
-        services.legacyGameRenderPath = true;
-        services.legacyGameUiPath = true;
         const auto routes = game::runtime::render::routesFromServices(services);
-        if (routes.hasRenderer || routes.usesLegacyRenderPath() || routes.usesBackendRenderPath() ||
-            routes.usesLegacyUiPath() || routes.usesBackendUiPath()) {
+        if (routes.hasRenderer || routes.usesBackendRenderPath() || routes.usesBackendUiPath()) {
             outFail = "routesFromServices should report no active routes when renderEnabled is false";
             return false;
         }
@@ -40,24 +37,9 @@ bool test_game_service_render_routes_contract(std::string& outFail) {
 
     {
         services.renderEnabled = true;
-        services.legacyGameRenderPath = true;
-        services.legacyGameUiPath = true;
         const auto routes = game::runtime::render::routesFromServices(services);
-        if (!routes.hasRenderer || !routes.usesLegacyRenderPath() || routes.usesBackendRenderPath() ||
-            !routes.usesLegacyUiPath() || routes.usesBackendUiPath()) {
-            outFail = "routesFromServices legacy route mapping mismatch";
-            return false;
-        }
-    }
-
-    {
-        services.renderEnabled = true;
-        services.legacyGameRenderPath = false;
-        services.legacyGameUiPath = false;
-        const auto routes = game::runtime::render::routesFromServices(services);
-        if (!routes.hasRenderer || routes.usesLegacyRenderPath() || !routes.usesBackendRenderPath() ||
-            routes.usesLegacyUiPath() || !routes.usesBackendUiPath()) {
-            outFail = "routesFromServices backend route mapping mismatch";
+        if (!routes.hasRenderer || !routes.usesBackendRenderPath() || !routes.usesBackendUiPath()) {
+            outFail = "routesFromServices shared route mapping mismatch";
             return false;
         }
     }

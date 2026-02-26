@@ -8,8 +8,6 @@
 #include <vector>
 
 #include "engine/core/Random.h"
-#include "engine/utils/ResourceManager.h"
-
 #include "game/GameConfig.h"
 
 #include "game/config/GameDataDb.h"
@@ -75,8 +73,6 @@ bool GameWorld::startCaptureAttempt(int targetId, float ballMult, const glm::vec
     target->isMoving = false;
     target->committedDest = {-1, -1};
     target->attackTimerSec = 0.0f;
-
-    ensurePokeballModel();
 
     if (log) {
         log->catchInfo("Threw pokeball at " + capitalize(target->name) +
@@ -254,11 +250,4 @@ void GameWorld::updateCaptureAttempts(float dt) {
     );
 }
 
-void GameWorld::ensurePokeballModel() {
-    if (pokeballModelLoaded) return;
-    if (!legacyModelRenderPathEnabled) return;
-    if (!resources) return;
-    pokeballModel = resources->getModel("assets/models/pokeball.glb");
-    pokeballModelLoaded = (pokeballModel != nullptr);
-}
 

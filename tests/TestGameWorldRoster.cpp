@@ -202,7 +202,6 @@ bool test_gameworld_backend_render_mode_skips_legacy_model_load(std::string& out
     GameWorld world(cfg);
     world.setData(&db);
     world.setRenderEnabled(true);
-    world.setLegacyModelRenderPathEnabled(false);
 
     ResourceManager resources;
     world.setResources(&resources);

@@ -6,7 +6,6 @@
 #include <string>
 
 #include "engine/render/Model.h"
-#include "engine/utils/ResourceManager.h"
 
 #include "game/GameConfig.h"
 #include "game/config/AnimSetLoader.h"
@@ -39,15 +38,7 @@ bool GameWorld::buildPokemonInstance(const std::string& pokemonName,
         return false;
     }
 
-    const std::string modelPath = "assets/models/" + stats->model;
     std::shared_ptr<Model> sharedModel;
-    if (legacyModelRenderPathEnabled) {
-        if (!resources) {
-            std::cerr << "[GameWorld] Resource service not set; cannot load model: " << modelPath << "\n";
-            return false;
-        }
-        sharedModel = resources->getModel(modelPath);
-    }
 
     PokemonInstance inst;
     inst.id = PokemonInstance::getNextUnitID();

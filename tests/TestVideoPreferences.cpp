@@ -10,8 +10,8 @@ bool test_video_preferences_parse_and_roundtrip(std::string& outFail) {
         outFail = "parseRendererBackend(opengl) failed";
         return false;
     }
-    if (game::video::parseRendererBackend("opengl_shared") != RendererBackend::OpenGLShared) {
-        outFail = "parseRendererBackend(opengl_shared) failed";
+    if (game::video::parseRendererBackend("opengl_shared") != RendererBackend::OpenGL) {
+        outFail = "parseRendererBackend(opengl_shared alias) failed";
         return false;
     }
     if (game::video::parseRendererBackend("vk") != RendererBackend::Vulkan) {
@@ -84,19 +84,19 @@ bool test_video_preferences_parse_and_roundtrip(std::string& outFail) {
         return false;
     }
 
-    prefs.rendererBackend = "opengl_shared";
+    prefs.rendererBackend = "opengl_shared"; // backward-compat alias should canonicalize to opengl
     prefs.requireDiscreteGpu = false;
     prefs.preferredGpuAdapter.clear();
     prefs.restartOnExit = false;
     prefs.bootMenuScreen = {};
     if (!game::video::savePreferences(prefs, path, &err)) {
-        outFail = "savePreferences failed for opengl_shared: " + err;
+        outFail = "savePreferences failed for opengl_shared alias: " + err;
         return false;
     }
     const game::video::Preferences loadedShared = game::video::loadPreferences(path);
     std::filesystem::remove(tempPath, ec);
-    if (loadedShared.rendererBackend != "opengl_shared") {
-        outFail = "roundtrip renderer backend mismatch for opengl_shared";
+    if (loadedShared.rendererBackend != "opengl") {
+        outFail = "roundtrip renderer backend mismatch for opengl_shared alias";
         return false;
     }
 

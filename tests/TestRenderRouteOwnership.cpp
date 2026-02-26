@@ -32,7 +32,6 @@ bool fileContainsToken(const std::filesystem::path& path, const std::string& tok
 
 bool test_render_route_ownership_contract(std::string& outFail) {
     const std::filesystem::path gameRoot = "src/game";
-    const std::string allowedFile = "src/game/runtime/GameSession.cpp";
     const std::vector<std::string> tokens = {
         "prefersLegacyGameRenderPath(",
         "prefersLegacyGameUiPath("
@@ -49,12 +48,10 @@ bool test_render_route_ownership_contract(std::string& outFail) {
         if (!isSourceExtension(filePath)) continue;
 
         const std::string normalized = normalizePath(filePath);
-        if (normalized == allowedFile) continue;
-
         for (const auto& token : tokens) {
             if (!fileContainsToken(filePath, token)) continue;
-            outFail = "route ownership violation: " + normalized +
-                      " contains '" + token + "' (only " + allowedFile + " may read backend route preferences)";
+            outFail = "legacy route-preference token should be retired, found in " + normalized +
+                      ": '" + token + "'";
             return false;
         }
     }

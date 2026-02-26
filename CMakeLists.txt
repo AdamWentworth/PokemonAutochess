@@ -245,7 +245,7 @@ add_library(PAC_GameObjects STATIC
     src/game/world/GameWorldQueries.cpp
     src/game/world/GameWorldRecovery.cpp
     src/game/world/GameWorldLeechSeed.cpp
-    src/game/world/GameWorldRender.cpp
+    src/game/world/GameWorldSharedSnapshots.cpp
     src/game/world/GameWorldAnimation.cpp
     src/game/world/MoveImpactRouting.cpp
     src/game/world/GameWorldMoveImpactGrowl.cpp
@@ -571,14 +571,6 @@ if (BUILD_TESTING)
             TIMEOUT 45
             ENVIRONMENT
                 "PAC_DATA_ROOT=${CMAKE_SOURCE_DIR};PAC_ASSET_ROOT=${CMAKE_SOURCE_DIR}/assets;PAC_RENDER_BACKEND=opengl;PAC_AUTO_QUIT_SECONDS=2;PAC_DISABLE_MODELCACHE=1"
-        )
-
-        add_test(NAME PAC_RuntimeSmoke.opengl_shared COMMAND PokemonAutochess)
-        set_tests_properties(PAC_RuntimeSmoke.opengl_shared PROPERTIES
-            WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-            TIMEOUT 45
-            ENVIRONMENT
-                "PAC_DATA_ROOT=${CMAKE_SOURCE_DIR};PAC_ASSET_ROOT=${CMAKE_SOURCE_DIR}/assets;PAC_RENDER_BACKEND=opengl_shared;PAC_AUTO_QUIT_SECONDS=2;PAC_DISABLE_MODELCACHE=1"
         )
 
         if (WIN32)

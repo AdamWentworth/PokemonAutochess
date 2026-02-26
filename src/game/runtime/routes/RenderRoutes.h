@@ -9,22 +9,14 @@ namespace game::runtime::render {
 // - policy helpers consume this struct (instead of raw bool tuples)
 struct RenderRoutes {
     bool hasRenderer = false;
-    bool legacyRenderPath = false;
-    bool legacyUiPath = false;
 
-    bool usesLegacyRenderPath() const { return hasRenderer && legacyRenderPath; }
-    bool usesBackendRenderPath() const { return hasRenderer && !legacyRenderPath; }
-    bool usesLegacyUiPath() const { return hasRenderer && legacyUiPath; }
-    bool usesBackendUiPath() const { return hasRenderer && !legacyUiPath; }
+    bool usesBackendRenderPath() const { return hasRenderer; }
+    bool usesBackendUiPath() const { return hasRenderer; }
 };
 
-inline RenderRoutes makeRenderRoutes(bool hasRenderer,
-                                     bool legacyRenderPath,
-                                     bool legacyUiPath = false) {
+inline RenderRoutes makeRenderRoutes(bool hasRenderer) {
     RenderRoutes routes;
     routes.hasRenderer = hasRenderer;
-    routes.legacyRenderPath = legacyRenderPath;
-    routes.legacyUiPath = legacyUiPath;
     return routes;
 }
 

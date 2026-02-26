@@ -85,7 +85,6 @@ namespace {
             switch (backend) {
             case game::video::RendererBackend::Auto:
             case game::video::RendererBackend::OpenGL:
-            case game::video::RendererBackend::OpenGLShared:
                 return std::make_unique<OpenGLRenderBackend>();
             case game::video::RendererBackend::D3D12:
                 return std::make_unique<D3D12RenderBackend>(sdlWindow, width, height, preferredAdapter);
@@ -106,7 +105,6 @@ namespace {
         switch (backend) {
         case game::video::RendererBackend::Auto:
         case game::video::RendererBackend::OpenGL:
-        case game::video::RendererBackend::OpenGLShared:
             return Window::GraphicsApi::OpenGL;
         case game::video::RendererBackend::D3D12:
             return Window::GraphicsApi::Native;

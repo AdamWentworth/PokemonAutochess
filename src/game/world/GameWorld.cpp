@@ -23,7 +23,6 @@ std::string Lower(std::string s) {
 #include "game/world/GameWorld.h"
 #include "game/GameConfig.h"
 
-#include "engine/utils/ResourceManager.h"
 #include "engine/render/Model.h"
 
 #include "game/config/GameDataDb.h"
@@ -192,22 +191,7 @@ void GameWorld::tryApplyEvolution(PokemonInstance& unit) {
 
     const std::string prevName = unit.name;
     const std::string nextName = rule->evolvesTo;
-    const std::string path = "assets/models/" + nextStats->model;
-
     std::shared_ptr<Model> nextModel = unit.model;
-    if (legacyModelRenderPathEnabled) {
-        if (resources) {
-            auto loaded = resources->getModel(path);
-            if (loaded) nextModel = loaded;
-            else {
-                if (log) game::log::warn(log, "Evolution model load failed for " + nextName + ": " + path);
-                return;
-            }
-        } else {
-            if (log) game::log::warn(log, "Resource service missing; cannot load evolution model: " + path);
-            return;
-        }
-    }
 
     unit.name = nextName;
     unit.model = nextModel;
@@ -225,6 +209,7 @@ void GameWorld::tryApplyEvolution(PokemonInstance& unit) {
     applyLoadoutForLevel(unit, /*preserveEnergy=*/true);
 
     unit.animTimeSec = sharedLoopAnimTimeSec;
+    const std::string path = "assets/models/" + nextStats->model;
     AnimSet::applyAnimSetOverrides(unit, path, data ? &data->flyers : nullptr);
     unit.animTimeSec = sharedLoopAnimTimeSec;
 

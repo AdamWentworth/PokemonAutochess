@@ -6,10 +6,7 @@
 namespace game::runtime::render {
 
 inline RenderRoutes routesFromServices(const GameServices& services) {
-    return makeRenderRoutes(
-        services.renderEnabled,
-        services.usesLegacyGameRenderPath(),
-        services.usesLegacyGameUiPath());
+    return makeRenderRoutes(services.renderEnabled);
 }
 
 } // namespace game::runtime::render

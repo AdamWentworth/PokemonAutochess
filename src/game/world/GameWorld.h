@@ -7,7 +7,6 @@
 #include <unordered_map>
 
 #include "game/PokemonInstance.h"
-#include "engine/ui/HealthBarData.h"
 #include "engine/core/IRandom.h"
 
 // Tail fire particle VFX (data-driven via cfg)
@@ -33,7 +32,6 @@
 #include "game/config/LeechSeedConfigDB.h"
 
 class Camera3D;
-class BoardRenderer;
 class ResourceManager;
 class Model;
 struct GameDataDb;
@@ -106,7 +104,6 @@ public:
     void setData(const GameDataDb* db) { data = db; }
     void setLogger(LogBus::Logger* logger) { log = logger; }
     void setRenderEnabled(bool enabled) { renderEnabled = enabled; }
-    void setLegacyModelRenderPathEnabled(bool enabled) { legacyModelRenderPathEnabled = enabled; }
     void setRng(engine::IRandom* rngIn) { rng = rngIn; }
     LogBus::Logger* getLogger() const { return log; }
     const GameDataDb* getData() const { return data; }
@@ -128,8 +125,6 @@ public:
     // Advances animation clocks + VFX emitters
     void update(float dt);
 
-    void drawAll(const Camera3D& camera, BoardRenderer& boardRenderer);
-
     std::vector<PokemonInstance>& getPokemons();
     const PokemonInstance* getPokemonByName(const std::string& name) const;
 
@@ -140,7 +135,6 @@ public:
     std::vector<PokemonInstance>& getBenchPokemons();
     void mergeTriplesForPlayer();
 
-    std::vector<HealthBarData> getHealthBarData(const Camera3D& camera, int screenWidth, int screenHeight) const;
     std::vector<TypeLineCount> getPlayerTypeLineCounts() const;
     bool buildGrowlWaveSnapshot(GrowlWaveVFX::RenderSnapshot& out) const;
     bool buildParticleVfxSnapshots(ParticleVfxSnapshots& out) const;
@@ -215,7 +209,6 @@ private:
     LogBus::Logger* log = nullptr;        // optional game-owned logger
     const GameConfigData& config;
     bool renderEnabled = false;
-    bool legacyModelRenderPathEnabled = false;
     engine::IRandom* rng = nullptr;
 
     std::vector<PokemonInstance> pokemons;
@@ -342,7 +335,6 @@ private:
     void updateLeechSeedStatus(float dt);
     void ensureLeechSeedConfigLoaded();
     void updateCaptureAttempts(float dt);
-    void ensurePokeballModel();
     bool buildPokemonInstance(const std::string& pokemonName,
                               PokemonSide side,
                               int level,
@@ -356,9 +348,6 @@ private:
     int classicRoundsCompleted = 0;
     float boardScaleMul = 1.0f;
     float boardResizePauseSec = 0.0f;
-
-    std::shared_ptr<Model> pokeballModel;
-    bool pokeballModelLoaded = false;
 
     glm::mat4 lastViewMatrix = glm::mat4(1.0f);
     bool hasLastViewMatrix = false;

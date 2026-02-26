@@ -26,16 +26,6 @@ bool test_game_services_route_helpers(std::string& outFail) {
     GameServices services(cfg, db, log, events, assets, rng, time);
 
     services.renderEnabled = false;
-    services.legacyGameRenderPath = true;
-    services.legacyGameUiPath = true;
-    if (services.usesLegacyGameRenderPath()) {
-        outFail = "legacy render path should be false when renderEnabled is false";
-        return false;
-    }
-    if (services.usesLegacyGameUiPath()) {
-        outFail = "legacy UI path should be false when renderEnabled is false";
-        return false;
-    }
     if (services.usesBackendGameRenderPath()) {
         outFail = "backend render path should be false when renderEnabled is false";
         return false;
@@ -46,41 +36,12 @@ bool test_game_services_route_helpers(std::string& outFail) {
     }
 
     services.renderEnabled = true;
-    services.legacyGameRenderPath = true;
-    services.legacyGameUiPath = true;
-    if (!services.usesLegacyGameRenderPath()) {
-        outFail = "legacy render path should be true when enabled";
-        return false;
-    }
-    if (!services.usesLegacyGameUiPath()) {
-        outFail = "legacy UI path should be true when enabled";
-        return false;
-    }
-    if (services.usesBackendGameRenderPath()) {
-        outFail = "backend render path should be false when legacy render path is selected";
-        return false;
-    }
-    if (services.usesBackendGameUiPath()) {
-        outFail = "backend UI path should be false when legacy UI path is selected";
-        return false;
-    }
-
-    services.legacyGameRenderPath = false;
-    services.legacyGameUiPath = false;
-    if (services.usesLegacyGameRenderPath()) {
-        outFail = "legacy render path should be false when backend render path is selected";
-        return false;
-    }
-    if (services.usesLegacyGameUiPath()) {
-        outFail = "legacy UI path should be false when backend UI path is selected";
-        return false;
-    }
     if (!services.usesBackendGameRenderPath()) {
-        outFail = "backend render path should be true when renderEnabled is true and legacy render path is false";
+        outFail = "backend render path should be true when renderEnabled is true";
         return false;
     }
     if (!services.usesBackendGameUiPath()) {
-        outFail = "backend UI path should be true when renderEnabled is true and legacy UI path is false";
+        outFail = "backend UI path should be true when renderEnabled is true";
         return false;
     }
 

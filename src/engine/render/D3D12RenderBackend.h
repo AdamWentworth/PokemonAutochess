@@ -40,8 +40,6 @@ public:
     void onResize(int width, int height) override;
     bool requiresOpenGLContext() const override { return false; }
     bool handlesPresentation() const override { return true; }
-    bool prefersLegacyGameRenderPath() const override { return false; }
-    bool prefersLegacyGameUiPath() const override { return false; }
     std::string activeGpuName() const override { return adapterName_; }
     bool activeGpuIsDiscrete() const override { return discreteAdapter_; }
     bool supportsWorldTriangles3D() const override { return true; }

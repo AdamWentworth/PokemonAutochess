@@ -31,15 +31,9 @@
 #include "engine/core/ecs/Entity.h"
 #include "engine/input/InputEvent.h"
 
-#include "engine/render/BoardRenderer.h"
 #include "engine/render/Camera3D.h"
 #include "engine/render/IRenderBackend.h"
 #include "engine/render/Model.h"
-
-#include "engine/ui/UIManager.h"
-#include "engine/ui/BattleFeed.h"
-#include "engine/ui/HealthBarRenderer.h"
-#include "engine/ui/TextRenderer.h"
 
 #include "engine/core/ecs/Scheduler.h"
 #include "engine/core/ecs/World.h"
@@ -47,7 +41,6 @@
 
 #include "game/GameWorld.h"
 #include "game/GameStateManager.h"
-#include "game/runtime/GamePreload.h"
 #include "game/runtime/routes/BackendRenderPolicy.h"
 #include "game/runtime/routes/RenderFlowDecisions.h"
 #include "game/runtime/routes/StartupRenderRoutePolicy.h"
@@ -89,7 +82,6 @@
 #include "game/GameConfig.h"
 #include "game/runtime/GameUpdateGraph.h"
 #include "game/ui/UIViewport.h"
-#include "game/ui/ItemInventoryUI.h"
 #include "game/ui/ShopLayout.h"
 
 #include "game/config/GameDataDb.h"
@@ -359,11 +351,6 @@ bool backendUseExactTailFireCpuPathEnabled() {
     return enabled;
 }
 
-bool legacyGameplayRenderOverrideEnabled() {
-    static const bool enabled = engine::env::flagEnabled("PAC_LEGACY_GAMEPLAY_RENDER_PATH");
-    return enabled;
-}
-
 float hash01(std::uint32_t x) {
     x ^= x >> 16;
     x *= 0x7feb352du;
@@ -440,14 +427,6 @@ struct GameSession::Impl {
     // Owned state
     std::unique_ptr<GameStateManager> stateManager;
     std::unique_ptr<GameWorld>        gameWorld;
-    std::unique_ptr<BoardRenderer>    board;
-    std::unique_ptr<BattleFeed>       battleFeed;
-    std::unique_ptr<BattleFeed>       catchFeed;
-    std::unique_ptr<BattleFeed>       economyFeed;
-    std::unique_ptr<TextRenderer>     typeBonusText;
-    ItemInventoryUI                  itemInventoryUI;
-
-    HealthBarRenderer healthBarRenderer;
     engine::ecs::Scheduler scheduler;
     GameUpdateGraph updateGraph;
 
@@ -506,19 +485,9 @@ struct GameSession::Impl {
         return startupRoutes.hasRenderer;
     }
 
-    bool usesLegacyGameRenderPath() const {
-        if (services) return services->usesLegacyGameRenderPath();
-        return startupRoutes.usesLegacyRenderPath();
-    }
-
     bool usesBackendGameRenderPath() const {
         if (services) return services->usesBackendGameRenderPath();
         return startupRoutes.usesBackendRenderPath();
-    }
-
-    bool usesLegacyGameUiPath() const {
-        if (services) return services->usesLegacyGameUiPath();
-        return startupRoutes.usesLegacyUiPath();
     }
 
     bool usesBackendGameUiPath() const {
@@ -986,26 +955,7 @@ struct GameSession::Impl {
         renderer = ctx.renderer;
         engineServices = ctx.services;
         const bool hasBackend = (ctx.renderer != nullptr) && (ctx.camera != nullptr);
-        const bool legacyGameplayOverride = legacyGameplayRenderOverrideEnabled();
-        const bool prefersLegacyRenderPath = hasBackend && ctx.renderer->prefersLegacyGameRenderPath();
-        const bool prefersLegacyUiPath = hasBackend && ctx.renderer->prefersLegacyGameUiPath();
-        const bool isOpenGlBackend = hasBackend &&
-            ctx.renderer->backendId() &&
-            toLowerCopy(ctx.renderer->backendId()) == "opengl";
-        startupRoutes = runtime::render::selectStartupRenderRoutes(
-            hasBackend,
-            prefersLegacyRenderPath,
-            prefersLegacyUiPath,
-            isOpenGlBackend,
-            legacyGameplayOverride);
-        if (isOpenGlBackend) {
-            if (legacyGameplayOverride && startupRoutes.usesLegacyRenderPath()) {
-                std::cout << "[Renderer] PAC_LEGACY_GAMEPLAY_RENDER_PATH=1: forcing OpenGL legacy gameplay routes.\n";
-            } else {
-                std::cout << "[Renderer] OpenGL gameplay routes default to shared contracts "
-                          << "(set PAC_LEGACY_GAMEPLAY_RENDER_PATH=1 for legacy fallback).\n";
-            }
-        }
+        startupRoutes = runtime::render::selectStartupRenderRoutes(hasBackend);
         if (engine::env::get("PAC_BACKEND_MENU_BACKDROP").has_value()) {
             allowBackendMenuBackdrop = engine::env::flagEnabled("PAC_BACKEND_MENU_BACKDROP");
         }
@@ -1057,8 +1007,6 @@ struct GameSession::Impl {
         services = std::make_unique<GameServices>(config, dataDb, log, scriptEvents, *assetStore, rng, timeSource,
                                                   &ecsWorld, roundPhaseEntity, &viewport, startupRoutes.hasRenderer);
         services->renderer = renderer;
-        services->legacyGameRenderPath = startupRoutes.legacyRenderPath;
-        services->legacyGameUiPath = startupRoutes.legacyUiPath;
         services->applyVideoMode = ctx.applyVideoMode;
         services->requestQuit = ctx.requestQuit;
         if (ctx.services) {
@@ -1086,15 +1034,9 @@ struct GameSession::Impl {
         coreServices.rng = &services->rng;
         coreServices.time = &services->time;
 
-        // Board visuals
-        if (usesLegacyGameRenderPath()) {
-            board = std::make_unique<BoardRenderer>(config.rows, config.cols, config.cellSize);
-        }
-
         // World
         gameWorld = std::make_unique<GameWorld>(config);
         gameWorld->setRenderEnabled(hasActiveRenderBackend());
-        gameWorld->setLegacyModelRenderPathEnabled(usesLegacyGameRenderPath());
         gameWorld->setLogger(&log);
         gameWorld->setRng(&services->rng);
         if (ctx.services) gameWorld->setResources(ctx.services->resources);
@@ -1120,46 +1062,6 @@ struct GameSession::Impl {
         ecsWorld.add<game::RoundState>(roundPhaseEntity, game::RoundState{ roundSystem->getCurrentPhase() });
         scheduler.add(std::move(roundSystem), Phase::Update);
 
-
-        if (usesLegacyGameRenderPath()) {
-            if (ctx.services && ctx.services->shaders) {
-                healthBarRenderer.init(*ctx.services->shaders);
-            } else {
-                healthBarRenderer.init();
-            }
-            const int levelFontSize = std::max(20, config.fontSize / 2);
-            healthBarRenderer.setFont(config.fontPath, levelFontSize,
-                                      ctx.services ? ctx.services->shaders : nullptr);
-
-            // Battle feed + logger (instance-based)
-            battleFeed = std::make_unique<BattleFeed>(config.fontPath, config.fontSize);
-            battleFeed->setAlignRight(true);
-            battleFeed->setBaseScale(0.40f);
-            log.attach(battleFeed.get());
-            log.setEchoToStdout(true);
-
-            // Catch feed (right side)
-            catchFeed = std::make_unique<BattleFeed>(config.fontPath, config.fontSize);
-            catchFeed->setAlignRight(false);
-            catchFeed->setWrapWidth(320.f);
-            catchFeed->setMaxLines(5);
-            catchFeed->setBaseScale(0.38f);
-            catchFeed->setPadding(16.f, 16.f);
-            log.attachCatchFeed(catchFeed.get());
-
-            // Classic economy feed (bottom-right, mode-specific)
-            economyFeed = std::make_unique<BattleFeed>(config.fontPath, config.fontSize);
-            economyFeed->setAlignRight(false);
-            economyFeed->setWrapWidth(320.f);
-            economyFeed->setMaxLines(4);
-            economyFeed->setBaseScale(0.36f);
-            economyFeed->setPadding(16.f, 16.f);
-            log.attachEconomyFeed(economyFeed.get());
-
-            itemInventoryUI.init(config.fontPath, config.fontSize);
-            typeBonusText = std::make_unique<TextRenderer>(config.fontPath, std::max(18, config.fontSize / 2));
-        }
-
         if (auto* stateMgr = stateManager.get()) {
             scheduler.add(std::make_unique<game::CallbackSystemAdapter>(
                 [stateMgr](float dt) { stateMgr->update(dt); }
@@ -1177,21 +1079,6 @@ struct GameSession::Impl {
                 [worldPtr](float dt) { worldPtr->update(dt); }
             ), Phase::PostUpdate);
         }
-        if (auto* feed = battleFeed.get()) {
-            scheduler.add(std::make_unique<game::CallbackSystemAdapter>(
-                [feed](float dt) { feed->update(dt); }
-            ), Phase::PostUpdate);
-        }
-        if (auto* feed = catchFeed.get()) {
-            scheduler.add(std::make_unique<game::CallbackSystemAdapter>(
-                [feed](float dt) { feed->update(dt); }
-            ), Phase::PostUpdate);
-        }
-        if (auto* feed = economyFeed.get()) {
-            scheduler.add(std::make_unique<game::CallbackSystemAdapter>(
-                [feed](float dt) { feed->update(dt); }
-            ), Phase::PostUpdate);
-        }
 
         updateGraph.configure({
             &scheduler,
@@ -1202,121 +1089,112 @@ struct GameSession::Impl {
             &scriptEvents
         });
 
-        // Preload common models (uses the db's pokemon loader).
-        if (usesLegacyGameRenderPath()) {
-            game::preload::preloadCommonModels(ctx, dataDb.pokemon, "PokemonAutochess");
-        } else {
-            std::cout << "[Init] Shared gameplay render path: using backend model cache loader "
-                         "(OpenGL ModelStartupLog is not used).\n";
-            if (backendPreloadModelCacheEnabled()) {
-                std::cout << "[Init] Shared gameplay render path: preloading backend model cache...\n";
-                const bool verboseModelCacheLog = backendModelVerboseLoggingEnabled();
-                std::vector<std::string> modelPathsToPreload;
-                modelPathsToPreload.reserve(dataDb.pokemon.all().size());
-                std::unordered_set<std::string> seenModelPaths;
-                seenModelPaths.reserve(dataDb.pokemon.all().size());
-                for (const auto& [name, stats] : dataDb.pokemon.all()) {
-                    (void)name;
-                    if (stats.model.empty()) continue;
-                    const std::string modelPath = "assets/models/" + stats.model;
-                    if (seenModelPaths.insert(modelPath).second) {
-                        modelPathsToPreload.push_back(modelPath);
-                    }
+        std::cout << "[Init] Shared gameplay render path: using backend model cache loader.\n";
+        if (backendPreloadModelCacheEnabled()) {
+            std::cout << "[Init] Shared gameplay render path: preloading backend model cache...\n";
+            const bool verboseModelCacheLog = backendModelVerboseLoggingEnabled();
+            std::vector<std::string> modelPathsToPreload;
+            modelPathsToPreload.reserve(dataDb.pokemon.all().size());
+            std::unordered_set<std::string> seenModelPaths;
+            seenModelPaths.reserve(dataDb.pokemon.all().size());
+            for (const auto& [name, stats] : dataDb.pokemon.all()) {
+                (void)name;
+                if (stats.model.empty()) continue;
+                const std::string modelPath = "assets/models/" + stats.model;
+                if (seenModelPaths.insert(modelPath).second) {
+                    modelPathsToPreload.push_back(modelPath);
                 }
-                // Shared capture uses pokeball.glb in both opengl_shared (OpenGL Model path) and d3d12
-                // (backend mesh path). Preload its backend cache with the Pokemon models by default so
-                // the first Pokeball use does not pay cache load/rebuild costs on an interactive click.
-                // Set PAC_BACKEND_PRELOAD_CAPTURE_POKEBALL=0 to disable if boot-time preload is preferred off.
-                if (!engine::env::equals("PAC_BACKEND_PRELOAD_CAPTURE_POKEBALL", "0")) {
-                    const std::string sharedCapturePokeballPath = "assets/models/pokeball.glb";
-                    if (seenModelPaths.insert(sharedCapturePokeballPath).second) {
-                        modelPathsToPreload.push_back(sharedCapturePokeballPath);
-                    }
+            }
+            // Shared capture uses pokeball.glb as well; preload it by default so first-use
+            // capture interactions avoid cache/rebuild cost in active gameplay.
+            if (!engine::env::equals("PAC_BACKEND_PRELOAD_CAPTURE_POKEBALL", "0")) {
+                const std::string sharedCapturePokeballPath = "assets/models/pokeball.glb";
+                if (seenModelPaths.insert(sharedCapturePokeballPath).second) {
+                    modelPathsToPreload.push_back(sharedCapturePokeballPath);
                 }
+            }
 
-                if (ctx.setTitle) ctx.setTitle("PokemonAutochess - Loading.");
-                if (ctx.renderBootLoading) ctx.renderBootLoading(0.0f);
-                bool preloadInterrupted = false;
+            if (ctx.setTitle) ctx.setTitle("PokemonAutochess - Loading.");
+            if (ctx.renderBootLoading) ctx.renderBootLoading(0.0f);
+            bool preloadInterrupted = false;
+            if (ctx.pumpPreloadEvents && !ctx.pumpPreloadEvents()) {
+                if (ctx.requestQuit) ctx.requestQuit();
+                preloadInterrupted = true;
+            }
+
+            std::size_t loaded = 0u;
+            std::size_t failed = 0u;
+            std::vector<std::string> failedSamples;
+            failedSamples.reserve(8);
+            const std::size_t totalModels = modelPathsToPreload.size();
+            for (std::size_t i = 0; i < totalModels; ++i) {
+                const std::string& modelPath = modelPathsToPreload[i];
+                if (ctx.setTitle) {
+                    ctx.setTitle(
+                        std::string("PokemonAutochess - Loading ") +
+                        std::to_string(i + 1u) + "/" + std::to_string(totalModels) + "  " + modelPath);
+                }
                 if (ctx.pumpPreloadEvents && !ctx.pumpPreloadEvents()) {
                     if (ctx.requestQuit) ctx.requestQuit();
                     preloadInterrupted = true;
+                    break;
                 }
 
-                std::size_t loaded = 0u;
-                std::size_t failed = 0u;
-                std::vector<std::string> failedSamples;
-                failedSamples.reserve(8);
-                const std::size_t totalModels = modelPathsToPreload.size();
-                for (std::size_t i = 0; i < totalModels; ++i) {
-                    const std::string& modelPath = modelPathsToPreload[i];
-                    if (ctx.setTitle) {
-                        ctx.setTitle(
-                            std::string("PokemonAutochess - Loading ") +
-                            std::to_string(i + 1u) + "/" + std::to_string(totalModels) + "  " + modelPath);
-                    }
-                    if (ctx.pumpPreloadEvents && !ctx.pumpPreloadEvents()) {
-                        if (ctx.requestQuit) ctx.requestQuit();
-                        preloadInterrupted = true;
-                        break;
-                    }
-
-                    auto& cacheEntry = backendMeshByModelPath[modelPath];
-                    if (cacheEntry.attemptedLoad) {
-                        const float progress = totalModels > 0u
-                            ? static_cast<float>(i + 1u) / static_cast<float>(totalModels)
-                            : 1.0f;
-                        if (ctx.renderBootLoading) ctx.renderBootLoading(progress);
-                        continue;
-                    }
-                    cacheEntry.attemptedLoad = true;
-                    std::string err;
-                    if (!runtime::backend_model::loadMeshFromCache(modelPath, cacheEntry.mesh, &err)) {
-                        cacheEntry.error = std::move(err);
-                        cacheEntry.mesh = {};
-                        ++failed;
-                        if (failedSamples.size() < 8u) {
-                            failedSamples.push_back(modelPath + " (" + cacheEntry.error + ")");
-                        }
-                        if (verboseModelCacheLog) {
-                            std::cout << "[Init][ModelCache][MISS] " << modelPath
-                                      << " reason=" << cacheEntry.error << "\n";
-                        }
-                    } else {
-                        ++loaded;
-                        if (verboseModelCacheLog) {
-                            std::cout << "[Init][ModelCache][OK] " << modelPath
-                                      << " vtx=" << cacheEntry.mesh.vertices.size()
-                                      << " idx=" << cacheEntry.mesh.indices.size()
-                                      << " submesh=" << cacheEntry.mesh.submeshBaseTextures.size() << "\n";
-                        }
-                    }
+                auto& cacheEntry = backendMeshByModelPath[modelPath];
+                if (cacheEntry.attemptedLoad) {
                     const float progress = totalModels > 0u
                         ? static_cast<float>(i + 1u) / static_cast<float>(totalModels)
                         : 1.0f;
                     if (ctx.renderBootLoading) ctx.renderBootLoading(progress);
+                    continue;
                 }
-                std::cout << "[Init] Backend model cache preload complete: loaded=" << loaded
-                          << " failed=" << failed << "\n";
-                if (failed > 0u && !failedSamples.empty() && !verboseModelCacheLog) {
-                    std::cout << "[Init][ModelCache] Sample failures:\n";
-                    for (const std::string& item : failedSamples) {
-                        std::cout << "  - " << item << "\n";
+                cacheEntry.attemptedLoad = true;
+                std::string err;
+                if (!runtime::backend_model::loadMeshFromCache(modelPath, cacheEntry.mesh, &err)) {
+                    cacheEntry.error = std::move(err);
+                    cacheEntry.mesh = {};
+                    ++failed;
+                    if (failedSamples.size() < 8u) {
+                        failedSamples.push_back(modelPath + " (" + cacheEntry.error + ")");
                     }
-                    std::cout << "[Init][ModelCache] Set PAC_BACKEND_MODEL_VERBOSE=1 for full per-model cache logs.\n";
+                    if (verboseModelCacheLog) {
+                        std::cout << "[Init][ModelCache][MISS] " << modelPath
+                                  << " reason=" << cacheEntry.error << "\n";
+                    }
+                } else {
+                    ++loaded;
+                    if (verboseModelCacheLog) {
+                        std::cout << "[Init][ModelCache][OK] " << modelPath
+                                  << " vtx=" << cacheEntry.mesh.vertices.size()
+                                  << " idx=" << cacheEntry.mesh.indices.size()
+                                  << " submesh=" << cacheEntry.mesh.submeshBaseTextures.size() << "\n";
+                    }
                 }
-                if (preloadInterrupted) {
-                    std::cout << "[Init][ModelCache] Preload interrupted by window close or quit request.\n";
-                }
-                if (ctx.setTitle) ctx.setTitle("Pokemon Autochess");
-                if (ctx.pumpPreloadEvents) ctx.pumpPreloadEvents();
-            } else {
-                std::cout << "[Init] Shared gameplay render path: backend model cache preload disabled.\n";
+                const float progress = totalModels > 0u
+                    ? static_cast<float>(i + 1u) / static_cast<float>(totalModels)
+                    : 1.0f;
+                if (ctx.renderBootLoading) ctx.renderBootLoading(progress);
             }
+            std::cout << "[Init] Backend model cache preload complete: loaded=" << loaded
+                      << " failed=" << failed << "\n";
+            if (failed > 0u && !failedSamples.empty() && !verboseModelCacheLog) {
+                std::cout << "[Init][ModelCache] Sample failures:\n";
+                for (const std::string& item : failedSamples) {
+                    std::cout << "  - " << item << "\n";
+                }
+                std::cout << "[Init][ModelCache] Set PAC_BACKEND_MODEL_VERBOSE=1 for full per-model cache logs.\n";
+            }
+            if (preloadInterrupted) {
+                std::cout << "[Init][ModelCache] Preload interrupted by window close or quit request.\n";
+            }
+            if (ctx.setTitle) ctx.setTitle("Pokemon Autochess");
+            if (ctx.pumpPreloadEvents) ctx.pumpPreloadEvents();
+        } else {
+            std::cout << "[Init] Shared gameplay render path: backend model cache preload disabled.\n";
         }
 
-        // opengl_shared renders capture pokeball via the OpenGL Model path (ResourceManager),
-        // not the backend mesh cache. Prewarm it up front so first capture behavior matches the
-        // already-preloaded Pokemon model experience more closely.
+        // OpenGL shared route renders capture pokeball via the OpenGL Model path (ResourceManager),
+        // not the backend mesh cache. Prewarm up front to avoid first-use hitching.
         if (usesBackendGameRenderPath() &&
             renderer &&
             renderer->backendId() &&
@@ -1375,27 +1253,6 @@ struct GameSession::Impl {
             delta,
             kBackendInventoryVisibleCount,
             gameWorld->getSelectedItem());
-    }
-
-    bool handleLegacyInventoryUiInput(const InputEvent& event) {
-        if (event.type == InputEvent::Type::MouseWheel) {
-            itemInventoryUI.handleScroll(event.wheelY, viewport.height);
-            return false;
-        }
-
-        if (event.type != InputEvent::Type::MouseDown ||
-            event.mouseButtonId != InputEvent::MouseButton::Left) {
-            return false;
-        }
-
-        if (auto clicked = itemInventoryUI.handleMouseClick(event.mouseX, event.mouseY)) {
-            if (gameWorld) {
-                gameWorld->setSelectedItem(*clicked);
-                log.catchInfo("Selected " + runtime::hud::humanizeToken(*clicked) + ". Click a target.");
-            }
-            return true; // consume click (avoid dragging/other UI)
-        }
-        return false;
     }
 
     bool handleBackendInventoryUiInput(const InputEvent& event) {
@@ -1507,11 +1364,6 @@ struct GameSession::Impl {
 
         if (renderWorldForInput && usesBackendGameUiPath()) {
             if (handleBackendInventoryUiInput(event)) {
-                return;
-            }
-        }
-        if (renderWorldForInput && usesLegacyGameUiPath()) {
-            if (handleLegacyInventoryUiInput(event)) {
                 return;
             }
         }
@@ -2056,139 +1908,8 @@ struct GameSession::Impl {
         runtime::shared_backend_debug_view::composeAndSubmit(overlayArgs);
     }
 
-    void renderLegacyWorldLayer(int drawableW, int drawableH, bool renderWorld) {
-        if (!renderWorld) return;
-        if (board && gameWorld) {
-            board->setCellSize(gameWorld->getBoardCellSize());
-        }
-        if (gameWorld && camera && board) gameWorld->drawAll(*camera, *board);
-        if (gameWorld && camera) {
-            auto healthBarData = gameWorld->getHealthBarData(*camera, drawableW, drawableH);
-            healthBarRenderer.render(healthBarData);
-        }
-    }
-
-    void renderLegacyHudLayer(int drawableW, int drawableH, bool renderWorld) {
-        if (!renderWorld) return;
-
-        if (gameWorld) {
-            const bool adventureMode = services && services->gameMode == "adventure";
-            const int invTopInset = adventureMode
-                ? std::max(110, static_cast<int>(std::round(static_cast<float>(drawableH) * 0.16f)))
-                : 16;
-            const int invRightInset = adventureMode ? 24 : 16;
-            itemInventoryUI.setLayoutInsets(invTopInset, invRightInset, 16, 16);
-            itemInventoryUI.updateFromWorld(*gameWorld, drawableW, drawableH);
-        }
-        itemInventoryUI.render(drawableW, drawableH);
-
-        const float cornerX = std::round(std::max(10.0f, static_cast<float>(drawableW) * 0.012f));
-        const float cornerY = std::round(std::max(10.0f, static_cast<float>(drawableH) * 0.020f));
-        const float minDim = static_cast<float>(std::min(drawableW, drawableH));
-        const bool classicMode = services && services->gameMode == "classic";
-        const auto computeClassicShopTopY = [&]() -> float {
-            const game::ui::ShopRowLayout layout = game::ui::computeShopRowLayout(drawableW, drawableH, false);
-            const game::ui::ShopRowPlacement place =
-                game::ui::computeShopRowPlacement(drawableW, drawableH, 0, layout);
-            return static_cast<float>(place.y);
-        };
-        const float classicShopTopY = computeClassicShopTopY();
-
-        if (battleFeed) {
-            const float wrap = std::max(240.0f, std::min(640.0f, static_cast<float>(drawableW) * 0.42f));
-            battleFeed->setWrapWidth(wrap);
-            battleFeed->setBaseScale(0.40f);
-            const float battleLift = std::max(18.0f, minDim * 0.03f);
-            battleFeed->setPadding(cornerX, cornerY + battleLift);
-            battleFeed->clearBaselineYOverride();
-        }
-        if (catchFeed) {
-            const float wrap = std::max(200.0f, std::min(420.0f, static_cast<float>(drawableW) * 0.30f));
-            catchFeed->setWrapWidth(wrap);
-            catchFeed->setBaseScale(0.38f);
-            catchFeed->setPadding(cornerX, cornerY);
-            catchFeed->clearBaselineYOverride();
-        }
-        if (economyFeed) {
-            const float wrap = std::max(220.0f, std::min(380.0f, static_cast<float>(drawableW) * 0.28f));
-            economyFeed->setWrapWidth(wrap);
-            economyFeed->setBaseScale(0.36f);
-            economyFeed->setPadding(cornerX, cornerY);
-            economyFeed->clearBaselineYOverride();
-            if (classicMode) {
-                const float clearance = std::max(22.0f, minDim * 0.03f);
-                economyFeed->setBaselineYOverride(std::max(8.0f, classicShopTopY - clearance));
-            }
-        }
-        if (battleFeed) battleFeed->render(drawableW, drawableH);
-        if (classicMode) {
-            if (economyFeed) economyFeed->render(drawableW, drawableH);
-        } else {
-            if (catchFeed) catchFeed->render(drawableW, drawableH);
-        }
-
-        if (gameWorld && typeBonusText) {
-            const auto counts = gameWorld->getPlayerTypeLineCounts();
-            if (!counts.empty()) {
-                auto formatType = [](std::string t) {
-                    if (t.empty()) return t;
-                    t[0] = static_cast<char>(std::toupper(static_cast<unsigned char>(t[0])));
-                    return t;
-                };
-
-                const float panelX = std::round(std::max(10.0f, static_cast<float>(drawableW) * 0.012f));
-                const float panelY = std::round(std::max(110.0f, static_cast<float>(drawableH) * 0.20f));
-                const float titleScale = 0.44f;
-                const float rowScale = 0.40f;
-
-                typeBonusText->renderText("Type Lines", panelX, panelY,
-                                          glm::vec3(0.98f, 0.90f, 0.60f), titleScale);
-
-                float y = panelY + typeBonusText->measureTextHeight(titleScale) + 6.0f;
-                for (const auto& entry : counts) {
-                    const std::string line = formatType(entry.type) + " x" + std::to_string(entry.uniqueLineCount);
-                    typeBonusText->renderText(line, panelX, y, glm::vec3(0.94f, 0.94f, 0.94f), rowScale);
-                    y += typeBonusText->measureTextHeight(rowScale) + 3.0f;
-                }
-            }
-        }
-
-        if (showPerfOverlay && typeBonusText && engineServices) {
-            const EngineFramePerfStats& perf = engineServices->framePerf;
-            if (perf.fps > 0.0f) {
-                std::ostringstream line1;
-                line1 << std::fixed << std::setprecision(1)
-                      << "FPS " << perf.fps
-                      << "  frame " << perf.frameMs << "ms"
-                      << "  fixed " << perf.fixedMs << "ms"
-                      << "  render " << perf.renderMs << "ms"
-                      << "  swap " << perf.swapMs << "ms";
-
-                const std::string stats = line1.str();
-                const std::string ticks = "ticks " + std::to_string(perf.fixedTicks);
-
-                const float scale = 0.34f;
-                const float xPad = std::round(std::max(10.0f, static_cast<float>(drawableW) * 0.012f));
-                const float yPad = std::round(std::max(10.0f, static_cast<float>(drawableH) * 0.020f));
-
-                const float statsW = typeBonusText->measureTextWidth(stats, scale);
-                const float statsX = std::max(8.0f, static_cast<float>(drawableW) - statsW - xPad);
-                typeBonusText->renderText(stats, statsX, yPad, glm::vec3(0.96f, 0.96f, 0.65f), scale);
-
-                const float ticksW = typeBonusText->measureTextWidth(ticks, scale);
-                const float ticksX = std::max(8.0f, static_cast<float>(drawableW) - ticksW - xPad);
-                const float ticksY = yPad + typeBonusText->measureTextHeight(scale) + 2.0f;
-                typeBonusText->renderText(ticks, ticksX, ticksY, glm::vec3(0.86f, 0.93f, 0.98f), scale);
-            }
-        }
-    }
-
     void renderWorldLayer(int drawableW, int drawableH, bool renderWorld) {
         const runtime::render::RenderRoutes routes = activeRenderRoutes();
-        if (routes.usesLegacyRenderPath()) {
-            renderLegacyWorldLayer(drawableW, drawableH, renderWorld);
-            return;
-        }
         if (routes.usesBackendRenderPath()) {
             renderBackendDebugView(drawableW, drawableH, renderWorld);
         }
@@ -2209,9 +1930,6 @@ struct GameSession::Impl {
         }
         if (flow.renderStateLayer) {
             renderStateLayer();
-        }
-        if (flow.renderLegacyHudLayer) {
-            renderLegacyHudLayer(drawableW, drawableH, renderWorld);
         }
     }
 
@@ -2240,19 +1958,6 @@ struct GameSession::Impl {
         log.attach(nullptr);
         log.attachCatchFeed(nullptr);
         log.attachEconomyFeed(nullptr);
-
-        if (board) {
-            board->shutdown();
-            board.reset();
-        }
-
-        if (usesLegacyGameRenderPath()) {
-            UIManager::shutdown();
-        }
-
-        battleFeed.reset();
-        catchFeed.reset();
-        economyFeed.reset();
         shopSystem = nullptr;
         unitSystem.reset();
         cameraSystem.reset();
