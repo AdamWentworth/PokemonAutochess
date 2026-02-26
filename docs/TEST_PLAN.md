@@ -56,6 +56,7 @@ Focus on catching real regressions while keeping tests fast and headless.
 - `GameSession` shared-path extraction slices:
   - Automated: `shared_capture_presentation_contract`, `shared_capture_overlay_vfx_contract`, `shared_particle_vfx_styles_contract`, `shared_particle_billboard_batches_contract`, `shared_particle_vfx_bridge_dispatch_contract`, `gameworld_capture_render_snapshot_timing_contract`, `shared_world_indexed_batches_contract`, `shared_growl_vfx_helpers_contract`, `shared_growl_wave_bridge_contract`, `shared_growl_wave_batches_contract`, `render_flow_decisions_contract`, plus full `ctest`.
   - Add `shared_tail_fire_atlas_helpers_contract` / `shared_tail_fire_exact_gpu_batches_contract` when the slice touches tail-fire atlas prep or exact tail-fire GPU batch assembly helpers.
+  - If the slice moves `d3d12`-only shared capture fast-path logic (for example pokeball cached rigid/per-submesh direct draws), require a short `d3d12` Adventure capture smoke in addition to the `opengl_shared` smoke.
   - Manual (short): `opengl_shared` parity smoke on the feature being extracted (capture, VFX bridge, HUD, etc.).
 
 ## Coverage Gaps (High Risk)

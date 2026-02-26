@@ -255,10 +255,14 @@ add_library(PAC_GameObjects STATIC
     src/game/runtime/SharedBackendPoseEval.cpp
     src/game/runtime/SharedCapturePresentation.cpp
     src/game/runtime/SharedCaptureOverlayVfx.cpp
+    src/game/runtime/SharedCaptureD3d12FastPath.cpp
+    src/game/runtime/SharedCapturePreparedMeshCache.cpp
+    src/game/runtime/SharedBoardGridBatches.cpp
     src/game/runtime/SharedParticleBillboardBatches.cpp
     src/game/runtime/SharedParticleSnapshotBillboards.cpp
     src/game/runtime/SharedParticleVfxBridgeDispatch.cpp
     src/game/runtime/SharedParticleVfxStyles.cpp
+    src/game/runtime/SharedTailFireFallbackEmitter.cpp
     src/game/runtime/SharedTailFireAtlasHelpers.cpp
     src/game/runtime/SharedTailFireExactGpuBatches.cpp
     src/game/runtime/SharedGrowlVfxHelpers.cpp

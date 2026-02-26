@@ -68,9 +68,13 @@
 #include "game/runtime/SharedBackendPoseEval.h"
 #include "game/runtime/SharedCapturePresentation.h"
 #include "game/runtime/SharedCaptureOverlayVfx.h"
+#include "game/runtime/SharedCaptureD3d12FastPath.h"
+#include "game/runtime/SharedCapturePreparedMeshCache.h"
+#include "game/runtime/SharedBoardGridBatches.h"
 #include "game/runtime/SharedParticleBillboardBatches.h"
 #include "game/runtime/SharedParticleSnapshotBillboards.h"
 #include "game/runtime/SharedParticleVfxBridgeDispatch.h"
+#include "game/runtime/SharedTailFireFallbackEmitter.h"
 #include "game/runtime/SharedTailFireExactGpuBatches.h"
 #include "game/runtime/SharedTailFireAtlasHelpers.h"
 #include "game/runtime/SharedGrowlVfxHelpers.h"
@@ -2187,13 +2191,7 @@ struct GameSession::Impl {
                         [&](const std::string& meshPath) { return ensureBackendMeshLoaded(meshPath); },
                         resolveGrowlTextureView);
                 };
-                struct SharedTailFireAnchor {
-                    bool valid = false;
-                    glm::vec3 pos{0.0f};
-                    glm::mat3 basis{1.0f};
-                    glm::vec3 backDir{0.0f, 1.0f, 0.0f};
-                    float particleSizeScale = 1.0f;
-                };
+                using SharedTailFireAnchor = game::runtime::shared_tail_fire_fallback::Anchor;
                 std::unordered_map<int, SharedTailFireAnchor> sharedTailFireAnchors;
                 sharedTailFireAnchors.reserve(16u);
                 const auto getSharedTailFireFallbackCfg = [&]() -> const TailFireVFX::Config& {
@@ -2269,294 +2267,18 @@ struct GameSession::Impl {
                         particleDispatchResult.appendedLeechDrainBillboards;
 
                     if (!appendedTailFireBillboards && gameWorld) {
-                        const TailFireVFX::Config& sTailFireFallbackCfg = getSharedTailFireFallbackCfg();
-                        struct SharedTailFireFallbackEmitterState {
-                            ParticleSystem particles;
-                            bool configured = false;
-                            double lastSimTimeSec = -1.0;
-                            std::unordered_map<int, float> emitAccumulator;
-                            std::unordered_map<int, std::uint32_t> spawnSerial;
-                            std::unordered_map<int, glm::vec3> prevTailWorld;
-                            std::unordered_map<int, glm::vec3> smoothedTailWorld;
-                            std::unordered_map<int, int> prevAnimIndex;
-                            std::unordered_map<int, float> prevAnimTimeSec;
-                            std::unordered_map<int, glm::vec3> filteredTailVel;
-                        };
-                        static thread_local SharedTailFireFallbackEmitterState sTailFireFallbackState;
-
-                        const auto resetSharedTailFireFallbackState = [&]() {
-                            sTailFireFallbackState.particles.shutdown();
-                            sTailFireFallbackState.configured = false;
-                            sTailFireFallbackState.lastSimTimeSec = -1.0;
-                            sTailFireFallbackState.emitAccumulator.clear();
-                            sTailFireFallbackState.spawnSerial.clear();
-                            sTailFireFallbackState.prevTailWorld.clear();
-                            sTailFireFallbackState.smoothedTailWorld.clear();
-                            sTailFireFallbackState.prevAnimIndex.clear();
-                            sTailFireFallbackState.prevAnimTimeSec.clear();
-                            sTailFireFallbackState.filteredTailVel.clear();
-                        };
-                        const auto ensureSharedTailFireFallbackConfigured = [&]() {
-                            if (sTailFireFallbackState.configured) return;
-                            sTailFireFallbackState.particles.setShaderPaths(
-                                sTailFireFallbackCfg.vertShaderPath,
-                                sTailFireFallbackCfg.fragShaderPath);
-                            sTailFireFallbackState.particles.setUseFlipbook(sTailFireFallbackCfg.useFlipbook);
-                            if (sTailFireFallbackCfg.useFlipbook) {
-                                sTailFireFallbackState.particles.setFlipbook(
-                                    sTailFireFallbackCfg.flipbookPath,
-                                    sTailFireFallbackCfg.flipbookCols,
-                                    sTailFireFallbackCfg.flipbookRows,
-                                    sTailFireFallbackCfg.flipbookFrames,
-                                    sTailFireFallbackCfg.flipbookFps);
-                                if (sTailFireFallbackCfg.useFlipbook2) {
-                                    sTailFireFallbackState.particles.setSecondaryFlipbook(
-                                        sTailFireFallbackCfg.flipbook2Path,
-                                        sTailFireFallbackCfg.flipbook2Cols,
-                                        sTailFireFallbackCfg.flipbook2Rows,
-                                        sTailFireFallbackCfg.flipbook2Frames,
-                                        sTailFireFallbackCfg.flipbook2Fps);
-                                } else {
-                                    sTailFireFallbackState.particles.setSecondaryFlipbook("", 1, 1, 1, 0.0f);
-                                }
-                            } else {
-                                sTailFireFallbackState.particles.setSecondaryFlipbook("", 1, 1, 1, 0.0f);
-                            }
-                            ParticleSystem::RenderSettings rs;
-                            rs.blend = sTailFireFallbackCfg.blend;
-                            rs.depthTest = sTailFireFallbackCfg.depthTest;
-                            rs.depthWrite = sTailFireFallbackCfg.depthWrite;
-                            rs.programPointSize = true;
-                            sTailFireFallbackState.particles.setRenderSettings(rs);
-                            ParticleSystem::UpdateSettings us;
-                            us.acceleration = sTailFireFallbackCfg.acceleration;
-                            us.dampingBase = sTailFireFallbackCfg.dampingBase;
-                            sTailFireFallbackState.particles.setUpdateSettings(us);
-                            sTailFireFallbackState.particles.setPointScale(sTailFireFallbackCfg.pointScale);
-                            sTailFireFallbackState.configured = true;
-                        };
-                        ensureSharedTailFireFallbackConfigured();
-
-                        auto tailHash01 = [](float x) {
-                            const float s = std::sin(x * 12.9898f) * 43758.5453f;
-                            return s - std::floor(s);
-                        };
-                        auto tailHashSigned = [&](float x) {
-                            return tailHash01(x) * 2.0f - 1.0f;
-                        };
-                        auto safeNormOr = [](glm::vec3 v, const glm::vec3& fallback) {
-                            const float len2 = glm::dot(v, v);
-                            if (len2 <= 1e-10f) return fallback;
-                            return v * (1.0f / std::sqrt(len2));
-                        };
-
-                        const auto emitSharedTailFireForList =
-                            [&](float dt, const std::vector<PokemonInstance>& list) {
-                                dt = std::clamp(dt, 0.0f, 0.05f);
-                                if (dt <= 0.0f) return;
-
-                                for (const auto& unit : list) {
-                                    const std::string species = toLowerCopy(unit.name);
-                                    if (species != "charmander") continue;
-                                    if (!unit.alive) continue;
-
-                                    float& acc = sTailFireFallbackState.emitAccumulator[unit.id];
-                                    acc += dt * sTailFireFallbackCfg.emitRatePerSec;
-                                    int emitCount = static_cast<int>(std::floor(acc));
-                                    if (emitCount <= 0) continue;
-                                    acc -= static_cast<float>(emitCount);
-
-                                    int animIdx = unit.activeAnimIndex;
-                                    if (animIdx < 0) animIdx = unit.animIdleIndex;
-
-                                    {
-                                        int& prevIdx = sTailFireFallbackState.prevAnimIndex[unit.id];
-                                        if (prevIdx != animIdx) {
-                                            prevIdx = animIdx;
-                                            sTailFireFallbackState.prevTailWorld.erase(unit.id);
-                                            sTailFireFallbackState.smoothedTailWorld.erase(unit.id);
-                                            sTailFireFallbackState.prevAnimTimeSec.erase(unit.id);
-                                            sTailFireFallbackState.filteredTailVel.erase(unit.id);
-                                        }
-                                    }
-
-                                    bool timeWrapped = false;
-                                    {
-                                        auto itT = sTailFireFallbackState.prevAnimTimeSec.find(unit.id);
-                                        if (itT == sTailFireFallbackState.prevAnimTimeSec.end()) {
-                                            sTailFireFallbackState.prevAnimTimeSec[unit.id] = unit.animTimeSec;
-                                        } else {
-                                            const float prevT = itT->second;
-                                            if (unit.animTimeSec + 1e-4f < prevT) timeWrapped = true;
-                                            itT->second = unit.animTimeSec;
-                                        }
-                                    }
-                                    if (timeWrapped) {
-                                        sTailFireFallbackState.prevTailWorld.erase(unit.id);
-                                        sTailFireFallbackState.smoothedTailWorld.erase(unit.id);
-                                        sTailFireFallbackState.filteredTailVel.erase(unit.id);
-                                    }
-
-                                    const auto extents =
-                                        game::runtime::backend_proxy::computeUnitProxyExtents(unit, worldCellSize);
-                                    if (extents.height <= 0.0001f) continue;
-
-                                    const auto anchorIt = sharedTailFireAnchors.find(unit.id);
-                                    const bool hasTailAnchor =
-                                        (anchorIt != sharedTailFireAnchors.end()) && anchorIt->second.valid;
-                                    const SharedTailFireAnchor tailAnchorData =
-                                        hasTailAnchor ? anchorIt->second : SharedTailFireAnchor{};
-
-                                    const glm::vec3 center =
-                                        unit.position + glm::vec3(0.0f, unit.visualYOffset, 0.0f);
-                                    const glm::vec3 up(0.0f, 1.0f, 0.0f);
-                                    const glm::vec3 fwd = game::runtime::backend_proxy::yawForward(unit.rotation.y);
-                                    const glm::vec3 right = game::runtime::backend_proxy::yawRight(unit.rotation.y);
-                                    const float scaleMul =
-                                        std::clamp(extents.height / std::max(0.05f, worldCellSize * 0.72f),
-                                                   0.80f,
-                                                   2.40f);
-                                    const float spawnRadius =
-                                        std::max(0.004f,
-                                                 sTailFireFallbackCfg.spawnRadius *
-                                                     (hasTailAnchor ? tailAnchorData.particleSizeScale : scaleMul));
-                                    const float tailBackOffset =
-                                        std::max(0.03f,
-                                                 extents.halfDepth * 0.82f +
-                                                     sTailFireFallbackCfg.spawnRadius * 2.5f);
-                                    const glm::vec3 proxyTailDir = safeNormOr(
-                                        (-fwd * 0.85f) + (up * 0.52f),
-                                        glm::vec3(0.0f, 1.0f, 0.0f));
-                                    const glm::vec3 tailPosWorld =
-                                        hasTailAnchor
-                                            ? tailAnchorData.pos
-                                            : (center - fwd * tailBackOffset +
-                                               up * std::max(0.02f, sTailFireFallbackCfg.tailWorldYOffset) +
-                                               proxyTailDir * std::max(0.003f, spawnRadius * 0.8f));
-                                    const glm::mat3 tailBasis =
-                                        hasTailAnchor ? tailAnchorData.basis : glm::mat3(right, up, fwd);
-                                    glm::vec3 backDirWorld =
-                                        hasTailAnchor ? tailAnchorData.backDir : proxyTailDir;
-                                    backDirWorld = safeNormOr(backDirWorld, glm::vec3(0.0f, 1.0f, 0.0f));
-
-                                    glm::vec3 anchor = tailPosWorld;
-                                    if (sTailFireFallbackCfg.followSmoothing > 0.0f) {
-                                        auto itS = sTailFireFallbackState.smoothedTailWorld.find(unit.id);
-                                        if (itS == sTailFireFallbackState.smoothedTailWorld.end()) {
-                                            sTailFireFallbackState.smoothedTailWorld[unit.id] = tailPosWorld;
-                                        }
-                                        glm::vec3& s = sTailFireFallbackState.smoothedTailWorld[unit.id];
-                                        const float a = 1.0f - std::exp(-sTailFireFallbackCfg.followSmoothing * dt);
-                                        s = (1.0f - a) * s + a * tailPosWorld;
-                                        anchor = s;
-                                    }
-
-                                    glm::vec3 tailVel(0.0f);
-                                    {
-                                        auto itPrev = sTailFireFallbackState.prevTailWorld.find(unit.id);
-                                        if (itPrev != sTailFireFallbackState.prevTailWorld.end()) {
-                                            const glm::vec3 prev = itPrev->second;
-                                            const glm::vec3 delta = (tailPosWorld - prev);
-                                            const float maxDeltaPerFrame = 0.20f;
-                                            const bool discontinuity =
-                                                (glm::dot(delta, delta) >
-                                                 maxDeltaPerFrame * maxDeltaPerFrame);
-                                            if (!discontinuity) {
-                                                const float invDt = (dt > 1e-6f) ? (1.0f / dt) : 0.0f;
-                                                glm::vec3 rawVel = delta * invDt;
-                                                const float maxTailVel = 4.0f;
-                                                const float sp2 = glm::dot(rawVel, rawVel);
-                                                if (sp2 > maxTailVel * maxTailVel) {
-                                                    rawVel *= (maxTailVel / std::sqrt(sp2));
-                                                }
-
-                                                auto itFilt =
-                                                    sTailFireFallbackState.filteredTailVel.find(unit.id);
-                                                if (itFilt ==
-                                                    sTailFireFallbackState.filteredTailVel.end()) {
-                                                    sTailFireFallbackState.filteredTailVel[unit.id] = rawVel;
-                                                }
-                                                glm::vec3& vFilt =
-                                                    sTailFireFallbackState.filteredTailVel[unit.id];
-                                                const float k = 25.0f;
-                                                const float a = 1.0f - std::exp(-k * dt);
-                                                vFilt = (1.0f - a) * vFilt + a * rawVel;
-                                                tailVel = vFilt;
-                                            } else {
-                                                sTailFireFallbackState.filteredTailVel.erase(unit.id);
-                                                tailVel = glm::vec3(0.0f);
-                                            }
-                                        }
-                                        sTailFireFallbackState.prevTailWorld[unit.id] = tailPosWorld;
-                                    }
-
-                                    std::uint32_t& serial = sTailFireFallbackState.spawnSerial[unit.id];
-                                    for (int k = 0; k < emitCount; ++k) {
-                                        const float base = static_cast<float>(serial++);
-                                        const float rx = tailHashSigned(base + 1.0f) * spawnRadius;
-                                        const float ry = tailHashSigned(base + 2.0f) * spawnRadius;
-                                        const float rz = tailHashSigned(base + 3.0f) * spawnRadius;
-                                        const glm::vec3 localJitter(rx, ry, rz);
-                                        const glm::vec3 worldJitter = tailBasis * localJitter;
-
-                                        ParticleSystem::Particle p;
-                                        p.pos = anchor + worldJitter;
-
-                                        const float upVel = 0.055f + tailHash01(base + 5.0f) * 0.095f;
-                                        const float backVel = 0.050f + tailHash01(base + 6.0f) * 0.050f;
-                                        p.vel = glm::vec3(0.0f, upVel, 0.0f) + backDirWorld * backVel;
-
-                                        if (sTailFireFallbackCfg.inheritVelocity != 0.0f) {
-                                            glm::vec3 inh = tailVel * sTailFireFallbackCfg.inheritVelocity;
-                                            const float maxInherit = 2.5f;
-                                            const float inh2 = glm::dot(inh, inh);
-                                            if (inh2 > maxInherit * maxInherit) {
-                                                inh *= (maxInherit / std::sqrt(inh2));
-                                            }
-                                            p.vel += inh;
-                                        }
-
-                                        p.maxLifeSec = 0.14f + tailHash01(base + 7.0f) * 0.10f;
-                                        p.lifeSec = p.maxLifeSec;
-                                        const float sizeScale =
-                                            hasTailAnchor ? tailAnchorData.particleSizeScale : scaleMul;
-                                        p.sizePx = (0.22f + tailHash01(base + 8.0f) * 0.10f) * sizeScale;
-                                        p.seed = tailHash01(base + 9.0f);
-                                        sTailFireFallbackState.particles.emit(p);
-                                    }
-                                }
-                            };
-
-                        double simNowSec = timeSource.nowSeconds();
-                        if (!std::isfinite(simNowSec)) simNowSec = 0.0;
-                        if (sTailFireFallbackState.lastSimTimeSec < 0.0 ||
-                            simNowSec + 1e-6 < sTailFireFallbackState.lastSimTimeSec ||
-                            (simNowSec - sTailFireFallbackState.lastSimTimeSec) > 2.0) {
-                            resetSharedTailFireFallbackState();
-                            ensureSharedTailFireFallbackConfigured();
-                            sTailFireFallbackState.lastSimTimeSec = simNowSec;
-                        }
-                        double simDeltaSec = simNowSec - sTailFireFallbackState.lastSimTimeSec;
-                        if (!std::isfinite(simDeltaSec) || simDeltaSec < 0.0) simDeltaSec = 0.0;
-                        simDeltaSec = std::min(simDeltaSec, 0.50);
-                        sTailFireFallbackState.lastSimTimeSec = simNowSec;
-
-                        while (simDeltaSec > 1e-6) {
-                            const float step =
-                                static_cast<float>(std::min(simDeltaSec, 0.05));
-                            sTailFireFallbackState.particles.update(step);
-                            emitSharedTailFireForList(step, gameWorld->getPokemons());
-                            emitSharedTailFireForList(step, gameWorld->getBenchPokemons());
-                            simDeltaSec -= static_cast<double>(step);
-                        }
-
-                        ParticleSystem::RenderSnapshot syntheticTailFire;
-                        if (sTailFireFallbackState.particles.buildRenderSnapshot(syntheticTailFire)) {
-                            syntheticTailFire.timeSec = static_cast<float>(simNowSec);
-                            appendedTailFireBillboards =
-                                appendSnapshotAsBillboards("tail_fire_synth", syntheticTailFire) ||
-                                appendedTailFireBillboards;
-                        }
+                        const TailFireVFX::Config& tailFireFallbackCfg = getSharedTailFireFallbackCfg();
+                        game::runtime::shared_tail_fire_fallback::Args tailFireArgs;
+                        tailFireArgs.worldCellSize = worldCellSize;
+                        tailFireArgs.simNowSec = timeSource.nowSeconds();
+                        tailFireArgs.cfg = &tailFireFallbackCfg;
+                        tailFireArgs.anchors = &sharedTailFireAnchors;
+                        tailFireArgs.pokemons = &gameWorld->getPokemons();
+                        tailFireArgs.benchPokemons = &gameWorld->getBenchPokemons();
+                        tailFireArgs.appendSnapshot = appendSnapshotAsBillboards;
+                        appendedTailFireBillboards =
+                            game::runtime::shared_tail_fire_fallback::appendSyntheticTailFire(tailFireArgs) ||
+                            appendedTailFireBillboards;
                     }
 
                     if (!appendedTailFireBillboards ||
@@ -2596,8 +2318,6 @@ struct GameSession::Impl {
                     }
                     return mesh;
                 };
-                const std::size_t boardTrianglesStart2D = worldTriangles.size();
-                const std::size_t boardTrianglesStart3D = world3DTriangles.size();
                 struct DepthTri {
                     IRenderBackend::DebugTriangle tri;
                     float depth = 0.0f;
@@ -2614,187 +2334,35 @@ struct GameSession::Impl {
                 if (modelDepthWorldTris.capacity() < 12000u) modelDepthWorldTris.reserve(12000u);
                 std::size_t remainingModelTrianglesBudget = backendModelTriangleFrameBudget();
 
-                const float boardSurfaceY = 0.006f;
-                for (int r = 0; r < rows; ++r) {
-                    for (int c = 0; c < cols; ++c) {
-                        const float x0 = boardMinX + static_cast<float>(c) * worldCellSize;
-                        const float z0 = boardMinZ + static_cast<float>(r) * worldCellSize;
-                        const float x1 = x0 + worldCellSize;
-                        const float z1 = z0 + worldCellSize;
-                        const bool darkCell = ((r + c) % 2) == 0;
-                        const float cr = darkCell ? 0.07f : 0.10f;
-                        const float cg = darkCell ? 0.08f : 0.11f;
-                        const float cb = darkCell ? 0.09f : 0.12f;
-                        const float ca = darkCell ? 0.32f : 0.26f;
-                        const glm::vec3 qa(x0, boardSurfaceY, z0);
-                        const glm::vec3 qb(x1, boardSurfaceY, z0);
-                        const glm::vec3 qc(x1, boardSurfaceY, z1);
-                        const glm::vec3 qd(x0, boardSurfaceY, z1);
-                        if (supportsWorldTriangles3D) {
-                            appendWorldQuad(qa, qb, qc, qd, cr, cg, cb, ca);
-                        } else {
-                            appendProjectedQuad(qa, qb, qc, qd, cr, cg, cb, ca);
-                        }
-                    }
-                }
-
-                // Slightly thicker/brighter depth-tested grid strips improve readability at grazing angles
-                // while preserving model occlusion (legacy-shared parity issue).
-                const float gridY = 0.0090f;
-                const float gridHalfWidthWorld = std::max(0.0035f, worldCellSize * 0.0180f);
-                for (int c = 0; c <= cols; ++c) {
-                    const float x = boardMinX + static_cast<float>(c) * worldCellSize;
-                    if (supportsWorldTriangles3D) {
-                        appendWorldQuad(
-                            glm::vec3(x - gridHalfWidthWorld, gridY, boardMinZ),
-                            glm::vec3(x + gridHalfWidthWorld, gridY, boardMinZ),
-                            glm::vec3(x + gridHalfWidthWorld, gridY, boardMaxZ),
-                            glm::vec3(x - gridHalfWidthWorld, gridY, boardMaxZ),
-                            0.82f, 0.83f, 0.85f, 0.94f);
-                    } else {
-                        appendProjectedLine(
-                            glm::vec3(x, 0.01f, boardMinZ),
-                            glm::vec3(x, 0.01f, boardMaxZ),
-                            0.82f, 0.83f, 0.85f, 0.94f, line);
-                    }
-                }
-                for (int r = 0; r <= rows; ++r) {
-                    const float z = boardMinZ + static_cast<float>(r) * worldCellSize;
-                    if (supportsWorldTriangles3D) {
-                        appendWorldQuad(
-                            glm::vec3(boardMinX, gridY, z - gridHalfWidthWorld),
-                            glm::vec3(boardMaxX, gridY, z - gridHalfWidthWorld),
-                            glm::vec3(boardMaxX, gridY, z + gridHalfWidthWorld),
-                            glm::vec3(boardMinX, gridY, z + gridHalfWidthWorld),
-                            0.82f, 0.83f, 0.85f, 0.94f);
-                    } else {
-                        appendProjectedLine(
-                            glm::vec3(boardMinX, 0.01f, z),
-                            glm::vec3(boardMaxX, 0.01f, z),
-                            0.82f, 0.83f, 0.85f, 0.94f, line);
-                    }
-                }
-
-                // Legacy OpenGL draws a separate bench grid just beyond the board front edge.
-                // Mirror that in shared routes so bench slots are visible in-world (not only as 2D UI).
                 {
-                    const int benchSlots = std::max(1, config.benchSlots);
-                    const float benchGapWorld = std::max(0.5f, worldCellSize * 0.5f);
-                    const float benchMinX = -0.5f * static_cast<float>(benchSlots) * worldCellSize;
-                    const float benchMaxX = benchMinX + static_cast<float>(benchSlots) * worldCellSize;
-                    const float benchMinZ = boardMaxZ + benchGapWorld;
-                    const float benchMaxZ = benchMinZ + worldCellSize;
-                    const float benchSurfaceY = boardSurfaceY;
-
-                    for (int slot = 0; slot < benchSlots; ++slot) {
-                        const float x0 = benchMinX + static_cast<float>(slot) * worldCellSize;
-                        const float x1 = x0 + worldCellSize;
-                        const bool darkCell = (slot % 2) == 0;
-                        const float cr = darkCell ? 0.075f : 0.105f;
-                        const float cg = darkCell ? 0.085f : 0.115f;
-                        const float cb = darkCell ? 0.095f : 0.125f;
-                        const float ca = darkCell ? 0.28f : 0.24f;
-                        const glm::vec3 qa(x0, benchSurfaceY, benchMinZ);
-                        const glm::vec3 qb(x1, benchSurfaceY, benchMinZ);
-                        const glm::vec3 qc(x1, benchSurfaceY, benchMaxZ);
-                        const glm::vec3 qd(x0, benchSurfaceY, benchMaxZ);
-                        if (supportsWorldTriangles3D) {
-                            appendWorldQuad(qa, qb, qc, qd, cr, cg, cb, ca);
-                        } else {
-                            appendProjectedQuad(qa, qb, qc, qd, cr, cg, cb, ca);
-                        }
-                    }
-
-                    for (int c = 0; c <= benchSlots; ++c) {
-                        const float x = benchMinX + static_cast<float>(c) * worldCellSize;
-                        if (supportsWorldTriangles3D) {
-                            appendWorldQuad(
-                                glm::vec3(x - gridHalfWidthWorld, gridY, benchMinZ),
-                                glm::vec3(x + gridHalfWidthWorld, gridY, benchMinZ),
-                                glm::vec3(x + gridHalfWidthWorld, gridY, benchMaxZ),
-                                glm::vec3(x - gridHalfWidthWorld, gridY, benchMaxZ),
-                                0.82f, 0.83f, 0.85f, 0.94f);
-                        } else {
-                            appendProjectedLine(
-                                glm::vec3(x, 0.01f, benchMinZ),
-                                glm::vec3(x, 0.01f, benchMaxZ),
-                                0.82f, 0.83f, 0.85f, 0.94f, line);
-                        }
-                    }
-
-                    for (int r = 0; r <= 1; ++r) {
-                        const float z = benchMinZ + static_cast<float>(r) * worldCellSize;
-                        if (supportsWorldTriangles3D) {
-                            appendWorldQuad(
-                                glm::vec3(benchMinX, gridY, z - gridHalfWidthWorld),
-                                glm::vec3(benchMaxX, gridY, z - gridHalfWidthWorld),
-                                glm::vec3(benchMaxX, gridY, z + gridHalfWidthWorld),
-                                glm::vec3(benchMinX, gridY, z + gridHalfWidthWorld),
-                                0.82f, 0.83f, 0.85f, 0.94f);
-                        } else {
-                            appendProjectedLine(
-                                glm::vec3(benchMinX, 0.01f, z),
-                                glm::vec3(benchMaxX, 0.01f, z),
-                                0.82f, 0.83f, 0.85f, 0.94f, line);
-                        }
-                    }
+                    game::runtime::shared_board_grid::Config boardGridCfg;
+                    boardGridCfg.supportsWorldTriangles3D = supportsWorldTriangles3D;
+                    boardGridCfg.rows = rows;
+                    boardGridCfg.cols = cols;
+                    boardGridCfg.benchSlots = config.benchSlots;
+                    boardGridCfg.worldCellSize = worldCellSize;
+                    boardGridCfg.boardMinX = boardMinX;
+                    boardGridCfg.boardMinZ = boardMinZ;
+                    boardGridCfg.boardMaxX = boardMaxX;
+                    boardGridCfg.boardMaxZ = boardMaxZ;
+                    boardGridCfg.boardX = boardX;
+                    boardGridCfg.boardY = boardY;
+                    boardGridCfg.boardW = boardW;
+                    boardGridCfg.boardH = boardH;
+                    boardGridCfg.cellW = cellW;
+                    boardGridCfg.cellH = cellH;
+                    boardGridCfg.line = line;
+                    game::runtime::shared_board_grid::appendBoardAndBench(
+                        boardGridCfg,
+                        worldTriangles,
+                        world3DTriangles,
+                        worldBackgroundQuads,
+                        lines,
+                        appendWorldQuad,
+                        appendProjectedQuad,
+                        appendProjectedLine);
                 }
-                if (worldTriangles.size() == boardTrianglesStart2D &&
-                    world3DTriangles.size() == boardTrianglesStart3D) {
-                    IRenderBackend::DebugQuad boardFallback;
-                    boardFallback.x = boardX;
-                    boardFallback.y = boardY;
-                    boardFallback.w = boardW;
-                    boardFallback.h = boardH;
-                    boardFallback.r = 0.06f;
-                    boardFallback.g = 0.07f;
-                    boardFallback.b = 0.08f;
-                    boardFallback.a = 0.92f;
-                    worldBackgroundQuads.push_back(boardFallback);
-
-                    for (int r = 0; r < rows; ++r) {
-                        for (int c = 0; c < cols; ++c) {
-                            IRenderBackend::DebugQuad cell;
-                            cell.x = boardX + cellW * static_cast<float>(c);
-                            cell.y = boardY + cellH * static_cast<float>(r);
-                            cell.w = cellW;
-                            cell.h = cellH;
-                            const bool darkCell = ((r + c) % 2) == 0;
-                            cell.r = darkCell ? 0.09f : 0.14f;
-                            cell.g = darkCell ? 0.14f : 0.19f;
-                            cell.b = darkCell ? 0.19f : 0.25f;
-                            cell.a = darkCell ? 0.34f : 0.26f;
-                            worldBackgroundQuads.push_back(cell);
-                        }
-                    }
-
-                    for (int c = 0; c <= cols; ++c) {
-                        IRenderBackend::DebugLine vLine;
-                        vLine.x1 = boardX + cellW * static_cast<float>(c);
-                        vLine.y1 = boardY;
-                        vLine.x2 = vLine.x1;
-                        vLine.y2 = boardY + boardH;
-                        vLine.thickness = line;
-                        vLine.r = 0.26f;
-                        vLine.g = 0.38f;
-                        vLine.b = 0.47f;
-                        vLine.a = 0.96f;
-                        lines.push_back(vLine);
-                    }
-                    for (int r = 0; r <= rows; ++r) {
-                        IRenderBackend::DebugLine hLine;
-                        hLine.x1 = boardX;
-                        hLine.y1 = boardY + cellH * static_cast<float>(r);
-                        hLine.x2 = boardX + boardW;
-                        hLine.y2 = hLine.y1;
-                        hLine.thickness = line;
-                        hLine.r = 0.26f;
-                        hLine.g = 0.38f;
-                        hLine.b = 0.47f;
-                        hLine.a = 0.96f;
-                        lines.push_back(hLine);
-                    }
-                }
+                const float boardSurfaceY = 0.006f;
 
                 using BackendPoseEval = game::runtime::shared_backend_pose::PoseEval;
                 const auto evaluateScenePose =
@@ -2872,619 +2440,39 @@ struct GameSession::Impl {
                     constexpr bool kCapturePokeballEnableNodeChunkPath = false;
 
                     if (isD3d12Backend && renderer && hasWorldViewProj) {
-                        struct D3d12CaptureSubmeshCache {
-                            int nodeIndex = -1;
-                            std::uint8_t alphaMode = 0u;
-                            float alphaCutoff = 0.5f;
-                            std::vector<IRenderBackend::WorldMeshVertex> localVertices;
-                            std::vector<std::uint32_t> localIndices;
-                            std::string geomKey;
-                        };
-                        struct D3d12CaptureFastCache {
-                            const runtime::backend_model::MeshData* sourceMesh = nullptr;
-                            std::size_t sourceVertexCount = 0u;
-                            std::size_t sourceIndexCount = 0u;
-                            std::vector<D3d12CaptureSubmeshCache> submeshes;
-                            std::vector<IRenderBackend::WorldMeshVertex> rigidCombinedVertices;
-                            std::vector<std::uint32_t> rigidCombinedIndices;
-                            bool rigidCombinedPrewarmed = false;
-                            bool submeshesPrewarmed = false;
-                        };
-                        static thread_local D3d12CaptureFastCache sD3d12CaptureFastCache;
-
-                        const bool fastCacheValid =
-                            (sD3d12CaptureFastCache.sourceMesh == mesh) &&
-                            (sD3d12CaptureFastCache.sourceVertexCount == mesh->vertices.size()) &&
-                            (sD3d12CaptureFastCache.sourceIndexCount == mesh->indices.size()) &&
-                            !sD3d12CaptureFastCache.submeshes.empty();
-                        if (!fastCacheValid) {
-                            sD3d12CaptureFastCache = {};
-                            sD3d12CaptureFastCache.sourceMesh = mesh;
-                            sD3d12CaptureFastCache.sourceVertexCount = mesh->vertices.size();
-                            sD3d12CaptureFastCache.sourceIndexCount = mesh->indices.size();
-
-                            const std::size_t batchCount = std::max<std::size_t>(
-                                1u,
-                                std::max(mesh->submeshBaseTextures.size(), mesh->submeshIndexCount.size()));
-                            sD3d12CaptureFastCache.submeshes.resize(batchCount);
-
-                            std::vector<int> submeshNodeFallback(batchCount, -1);
-                            if (!mesh->submeshMeshIndex.empty()) {
-                                for (std::size_t si = 0; si < batchCount && si < mesh->submeshMeshIndex.size(); ++si) {
-                                    const int meshIndex = mesh->submeshMeshIndex[si];
-                                    if (meshIndex >= 0 &&
-                                        static_cast<std::size_t>(meshIndex) < mesh->meshIndexToNode.size()) {
-                                        submeshNodeFallback[si] =
-                                            mesh->meshIndexToNode[static_cast<std::size_t>(meshIndex)];
-                                    }
-                                }
-                            }
-                            const int fallbackNode = !mesh->sceneRoots.empty() ? mesh->sceneRoots.front() : -1;
-
-                            std::size_t totalRigidVerts = 0u;
-                            std::size_t totalRigidIndices = 0u;
-
-                            for (std::size_t si = 0; si < batchCount; ++si) {
-                                auto& sub = sD3d12CaptureFastCache.submeshes[si];
-                                sub.nodeIndex = (si < submeshNodeFallback.size() && submeshNodeFallback[si] >= 0)
-                                    ? submeshNodeFallback[si]
-                                    : fallbackNode;
-                                if (si < mesh->submeshAlphaMode.size()) sub.alphaMode = mesh->submeshAlphaMode[si];
-                                if (si < mesh->submeshAlphaCutoff.size()) sub.alphaCutoff = mesh->submeshAlphaCutoff[si];
-                                sub.geomKey = "assets/models/pokeball.glb#d3d12fastsubmesh:" + std::to_string(si);
-
-                                std::size_t indexOffset = 0u;
-                                std::size_t indexCount = 0u;
-                                if (si < mesh->submeshIndexOffset.size()) {
-                                    indexOffset = mesh->submeshIndexOffset[si];
-                                }
-                                if (si < mesh->submeshIndexCount.size()) {
-                                    indexCount = mesh->submeshIndexCount[si];
-                                }
-                                if (indexOffset >= mesh->indices.size()) continue;
-                                indexCount = std::min(indexCount, mesh->indices.size() - indexOffset);
-                                if (indexCount < 3u) continue;
-
-                                std::unordered_map<std::uint32_t, std::uint32_t> remap;
-                                remap.reserve(indexCount);
-                                sub.localVertices.reserve(indexCount);
-                                sub.localIndices.reserve(indexCount);
-
-                                const glm::vec3 subColor = (si < mesh->submeshBaseColors.size())
-                                    ? glm::clamp(glm::vec3(mesh->submeshBaseColors[si]), 0.0f, 1.0f)
-                                    : glm::vec3(1.0f);
-                                const glm::mat4 bindNodeGlobal =
-                                    (sub.nodeIndex >= 0 &&
-                                     static_cast<std::size_t>(sub.nodeIndex) < mesh->bindNodeGlobals.size())
-                                        ? mesh->bindNodeGlobals[static_cast<std::size_t>(sub.nodeIndex)]
-                                        : glm::mat4(1.0f);
-
-                                for (std::size_t ii = 0; ii < indexCount; ++ii) {
-                                    const std::uint32_t srcIdx = mesh->indices[indexOffset + ii];
-                                    if (srcIdx >= mesh->vertices.size()) continue;
-                                    const auto it = remap.find(srcIdx);
-                                    if (it != remap.end()) {
-                                        sub.localIndices.push_back(it->second);
-                                        continue;
-                                    }
-                                    const auto& src = mesh->vertices[srcIdx];
-                                    glm::vec3 color = subColor;
-                                    if (srcIdx < mesh->vertexBaseColors.size()) {
-                                        color = glm::clamp(mesh->vertexBaseColors[srcIdx], 0.0f, 1.0f);
-                                    } else {
-                                        color = glm::clamp(glm::vec3(src.color), 0.0f, 1.0f);
-                                    }
-                                    const std::uint32_t outIdx =
-                                        static_cast<std::uint32_t>(sub.localVertices.size());
-                                    sub.localVertices.push_back(
-                                        IRenderBackend::WorldMeshVertex{
-                                            src.position.x,
-                                            src.position.y,
-                                            src.position.z,
-                                            src.uv.x,
-                                            src.uv.y,
-                                            color.r,
-                                            color.g,
-                                            color.b,
-                                            1.0f});
-                                    remap.emplace(srcIdx, outIdx);
-                                    sub.localIndices.push_back(outIdx);
-                                }
-
-                                totalRigidVerts += sub.localVertices.size();
-                                totalRigidIndices += sub.localIndices.size();
-
-                                const std::uint32_t baseVertex =
-                                    static_cast<std::uint32_t>(sD3d12CaptureFastCache.rigidCombinedVertices.size());
-                                sD3d12CaptureFastCache.rigidCombinedVertices.reserve(totalRigidVerts);
-                                sD3d12CaptureFastCache.rigidCombinedIndices.reserve(totalRigidIndices);
-                                for (const auto& lv : sub.localVertices) {
-                                    const glm::vec3 bindPos = glm::vec3(
-                                        bindNodeGlobal * glm::vec4(lv.x, lv.y, lv.z, 1.0f));
-                                    auto v = lv;
-                                    v.x = bindPos.x;
-                                    v.y = bindPos.y;
-                                    v.z = bindPos.z;
-                                    sD3d12CaptureFastCache.rigidCombinedVertices.push_back(v);
-                                }
-                                for (std::uint32_t idx : sub.localIndices) {
-                                    sD3d12CaptureFastCache.rigidCombinedIndices.push_back(baseVertex + idx);
-                                }
-                            }
-                        }
-
-                        if (captureSnaps.empty() && d3d12CapturePrewarmRequested) {
-                            bool didPrewarmAny = false;
-                            if (!sD3d12CaptureFastCache.rigidCombinedPrewarmed &&
-                                !sD3d12CaptureFastCache.rigidCombinedVertices.empty() &&
-                                sD3d12CaptureFastCache.rigidCombinedIndices.size() >= 3u) {
-                                renderer->prewarmWorldIndexedMeshCached(
-                                    "assets/models/pokeball.glb#geomcombined",
-                                    sD3d12CaptureFastCache.rigidCombinedVertices.data(),
-                                    sD3d12CaptureFastCache.rigidCombinedVertices.size(),
-                                    sD3d12CaptureFastCache.rigidCombinedIndices.data(),
-                                    sD3d12CaptureFastCache.rigidCombinedIndices.size());
-                                sD3d12CaptureFastCache.rigidCombinedPrewarmed = true;
-                                didPrewarmAny = true;
-                            }
-                            if (!sD3d12CaptureFastCache.submeshesPrewarmed) {
-                                for (const auto& sub : sD3d12CaptureFastCache.submeshes) {
-                                    if (sub.localVertices.empty() || sub.localIndices.size() < 3u) continue;
-                                    renderer->prewarmWorldIndexedMeshCached(
-                                        sub.geomKey.c_str(),
-                                        sub.localVertices.data(),
-                                        sub.localVertices.size(),
-                                        sub.localIndices.data(),
-                                        sub.localIndices.size());
-                                    didPrewarmAny = true;
-                                }
-                                sD3d12CaptureFastCache.submeshesPrewarmed = true;
-                            }
-                            if (didPrewarmAny) return false;
-                        }
-
-                        int captureAnimIndex = -1;
-                        float captureAnimDurationSec = 0.0f;
-                        if (!mesh->animations.empty()) {
-                            captureAnimIndex = runtime::shared_capture::findPokeballAnimIndex(*mesh);
-                            if (captureAnimIndex >= 0 &&
-                                static_cast<std::size_t>(captureAnimIndex) < mesh->animations.size()) {
-                                captureAnimDurationSec = std::max(
-                                    0.0f,
-                                    mesh->animations[static_cast<std::size_t>(captureAnimIndex)].durationSec);
-                            }
-                        }
-
-                        bool appendedAny = false;
-                        const glm::mat4 viewProjM = glm::make_mat4(worldViewProj);
-                        for (const auto& snap : captureSnaps) {
-                            if (snap.timeLeftSec <= 0.0f) continue;
-
-                            const float baseScale =
-                                std::max(0.01f, mesh->modelScaleFactor) * std::max(0.02f, snap.ballScale);
-                            const glm::mat4 modelM =
-                                runtime::shared_capture::buildBallModelMatrix(snap, baseScale);
-
-                            BackendPoseEval capturePoseEval;
-                            bool hasCaptureClipPose = false;
-                            if (captureAnimIndex >= 0 && captureAnimDurationSec > 0.0f && snap.phase == 1) {
-                                const float clipAnimTimeSec =
-                                    runtime::shared_capture::ballClipTimeSec(snap, captureAnimDurationSec);
-                                capturePoseEval = evaluateScenePoseForClipTime(*mesh, captureAnimIndex, clipAnimTimeSec);
-                                hasCaptureClipPose =
-                                    capturePoseEval.hasScenePose &&
-                                    !capturePoseEval.nodeGlobals.empty();
-                            }
-
-                            if (!hasCaptureClipPose &&
-                                !sD3d12CaptureFastCache.rigidCombinedVertices.empty() &&
-                                sD3d12CaptureFastCache.rigidCombinedIndices.size() >= 3u) {
-                                const glm::mat4 rigidMvp = viewProjM * modelM;
-                                renderer->drawWorldIndexedMeshCached(
-                                    "assets/models/pokeball.glb#geomcombined",
-                                    sD3d12CaptureFastCache.rigidCombinedVertices.data(),
-                                    sD3d12CaptureFastCache.rigidCombinedVertices.size(),
-                                    sD3d12CaptureFastCache.rigidCombinedIndices.data(),
-                                    sD3d12CaptureFastCache.rigidCombinedIndices.size(),
-                                    glm::value_ptr(rigidMvp),
-                                    drawableW,
-                                    drawableH);
-                                appendedAny = true;
-                                continue;
-                            }
-
-                            for (const auto& sub : sD3d12CaptureFastCache.submeshes) {
-                                if (sub.localVertices.empty() || sub.localIndices.size() < 3u) continue;
-                                glm::mat4 nodeGlobal(1.0f);
-                                if (hasCaptureClipPose &&
-                                    sub.nodeIndex >= 0 &&
-                                    static_cast<std::size_t>(sub.nodeIndex) < capturePoseEval.nodeGlobals.size()) {
-                                    nodeGlobal = capturePoseEval.nodeGlobals[static_cast<std::size_t>(sub.nodeIndex)];
-                                } else if (sub.nodeIndex >= 0 &&
-                                           static_cast<std::size_t>(sub.nodeIndex) < mesh->bindNodeGlobals.size()) {
-                                    nodeGlobal = mesh->bindNodeGlobals[static_cast<std::size_t>(sub.nodeIndex)];
-                                }
-                                const glm::mat4 subMvp = viewProjM * modelM * nodeGlobal;
-                                renderer->drawWorldIndexedMeshCached(
-                                    sub.geomKey.c_str(),
-                                    sub.localVertices.data(),
-                                    sub.localVertices.size(),
-                                    sub.localIndices.data(),
-                                    sub.localIndices.size(),
-                                    glm::value_ptr(subMvp),
-                                    drawableW,
-                                    drawableH);
-                                appendedAny = true;
-                            }
-                        }
-                        return appendedAny;
+                        const auto d3d12FastResult =
+                            game::runtime::shared_capture_d3d12_fast::tryAppend(
+                                *renderer,
+                                hasWorldViewProj,
+                                worldViewProj,
+                                drawableW,
+                                drawableH,
+                                *mesh,
+                                captureSnaps,
+                                d3d12CapturePrewarmRequested,
+                                kCapturePokeballTreatAsUntextured,
+                                kCapturePokeballEnableNodeChunkPath,
+                                [&](int animIndex, float animTimeSec) {
+                                    return evaluateScenePoseForClipTime(*mesh, animIndex, animTimeSec);
+                                });
+                        if (d3d12FastResult.handled) return d3d12FastResult.appendedAny;
                     }
 
                     bool appendedAny = false;
-                    const std::size_t triCount = mesh->indices.size() / 3u;
-                    if (triCount == 0u) return false;
-                    struct PreparedCaptureVertex {
-                        glm::vec3 bindPos{0.0f};
-                        int nodeIndex = -1;
-                        float u = 0.0f;
-                        float v = 0.0f;
-                        float r = 1.0f;
-                        float g = 1.0f;
-                        float b = 1.0f;
-                        float a = 1.0f;
-                    };
-                    struct PreparedCaptureSubmesh {
-                        struct NodeChunk {
-                            int nodeIndex = -1;
-                            std::vector<std::uint32_t> indices;
-                            std::vector<IRenderBackend::WorldMeshVertex> compactVertices;
-                            std::vector<std::uint32_t> compactIndices;
-                        };
-                        std::vector<PreparedCaptureVertex> vertices;
-                        std::vector<std::uint32_t> indices;
-                        std::vector<NodeChunk> nodeChunks;
-                        std::vector<IRenderBackend::WorldMeshVertex> scratchVertices;
-                        bool scratchAtBindPose = false;
-                        std::uint8_t alphaMode = 0u;
-                        float alphaCutoff = 0.5f;
-                    };
-                    struct PreparedCaptureMeshCache {
-                        const runtime::backend_model::MeshData* sourceMesh = nullptr;
-                        std::size_t sourceVertexCount = 0u;
-                        std::size_t sourceIndexCount = 0u;
-                        std::vector<glm::mat4> bindNodeGlobalInv;
-                        std::vector<PreparedCaptureSubmesh> submeshes;
-                        std::vector<IRenderBackend::WorldMeshVertex> rigidCombinedVertices;
-                        std::vector<std::uint32_t> rigidCombinedIndices;
-                    };
-                    static thread_local PreparedCaptureMeshCache sCaptureMeshCache;
-                    const bool captureMeshCacheValid =
-                        (sCaptureMeshCache.sourceMesh == mesh) &&
-                        (sCaptureMeshCache.sourceVertexCount == mesh->vertices.size()) &&
-                        (sCaptureMeshCache.sourceIndexCount == mesh->indices.size()) &&
-                        !sCaptureMeshCache.submeshes.empty();
-                    if (!captureMeshCacheValid) {
-                        sCaptureMeshCache = {};
-                        sCaptureMeshCache.sourceMesh = mesh;
-                        sCaptureMeshCache.sourceVertexCount = mesh->vertices.size();
-                        sCaptureMeshCache.sourceIndexCount = mesh->indices.size();
-                        sCaptureMeshCache.bindNodeGlobalInv.assign(
-                            mesh->bindNodeGlobals.size(),
-                            glm::mat4(1.0f));
-                        for (std::size_t ni = 0; ni < mesh->bindNodeGlobals.size(); ++ni) {
-                            sCaptureMeshCache.bindNodeGlobalInv[ni] = glm::inverse(mesh->bindNodeGlobals[ni]);
-                        }
-
-                        const auto& nodeGlobals = mesh->bindNodeGlobals;
-                        const std::size_t batchCount =
-                            std::max<std::size_t>(1u, mesh->submeshBaseTextures.size());
-                        sCaptureMeshCache.submeshes.resize(batchCount);
-
-                        std::vector<std::unordered_map<std::uint64_t, std::uint32_t>> remap(batchCount);
-                        std::vector<std::unordered_map<int, std::size_t>> nodeChunkRemap(batchCount);
-                        std::vector<int> submeshNodeFallback;
-                        if (!mesh->submeshMeshIndex.empty()) {
-                            submeshNodeFallback.assign(mesh->submeshMeshIndex.size(), -1);
-                            for (std::size_t si = 0; si < mesh->submeshMeshIndex.size(); ++si) {
-                                const int meshIndex = mesh->submeshMeshIndex[si];
-                                if (meshIndex >= 0 &&
-                                    static_cast<std::size_t>(meshIndex) < mesh->meshIndexToNode.size()) {
-                                    submeshNodeFallback[si] =
-                                        mesh->meshIndexToNode[static_cast<std::size_t>(meshIndex)];
-                                }
-                            }
-                        }
-                        for (std::size_t si = 0; si < batchCount; ++si) {
-                            auto& sub = sCaptureMeshCache.submeshes[si];
-                            // Pokeball GLB currently has no textures and all materials are OPAQUE + double-sided.
-                            // Force opaque here to avoid backend-cache alpha metadata causing shell holes in D3D12.
-                            sub.alphaMode = 0u;
-                            if (si < mesh->submeshAlphaCutoff.size()) sub.alphaCutoff = mesh->submeshAlphaCutoff[si];
-                            sub.vertices.reserve(std::max<std::size_t>(32u, mesh->vertices.size() / batchCount));
-                            sub.indices.reserve(std::max<std::size_t>(96u, mesh->indices.size() / batchCount));
-                            sub.nodeChunks.clear();
-                            remap[si].reserve(std::max<std::size_t>(64u, mesh->vertices.size() / batchCount));
-                            if (kCapturePokeballEnableNodeChunkPath) {
-                                nodeChunkRemap[si].reserve(8u);
-                            }
-                        }
-
-                        const auto nodeGlobalForTri = [&](int triNodeIndex) -> const glm::mat4& {
-                            static const glm::mat4 kIdentity(1.0f);
-                            if (triNodeIndex >= 0 && static_cast<std::size_t>(triNodeIndex) < nodeGlobals.size()) {
-                                return nodeGlobals[static_cast<std::size_t>(triNodeIndex)];
-                            }
-                            return kIdentity;
-                        };
-
-                        const auto appendPreparedVertex =
-                            [&](std::size_t submesh,
-                                std::uint32_t srcIndex,
-                                int triNodeIndex,
-                                const glm::vec3& triTint,
-                                float triAlpha) -> std::uint32_t {
-                                auto& sub = sCaptureMeshCache.submeshes[submesh];
-                                auto& subRemap = remap[submesh];
-                                const std::uint64_t key =
-                                    (static_cast<std::uint64_t>(static_cast<std::uint32_t>(triNodeIndex + 1)) << 32u) |
-                                    static_cast<std::uint64_t>(srcIndex);
-                                const auto it = subRemap.find(key);
-                                if (it != subRemap.end()) {
-                                    return it->second;
-                                }
-                                if (sub.vertices.size() >=
-                                    static_cast<std::size_t>(std::numeric_limits<std::uint32_t>::max())) {
-                                    return std::numeric_limits<std::uint32_t>::max();
-                                }
-
-                                const auto& src = mesh->vertices[srcIndex];
-                                const glm::mat4& nodeGlobal = nodeGlobalForTri(triNodeIndex);
-                                const glm::vec3 bindPos = glm::vec3(nodeGlobal * glm::vec4(src.position, 1.0f));
-
-                                PreparedCaptureVertex v{};
-                                v.bindPos = bindPos;
-                                v.nodeIndex = triNodeIndex;
-                                v.u = src.uv.x;
-                                v.v = src.uv.y;
-                                // Capture pokeball parity in shared backend mode should use the cached material/triangle
-                                // color directly. Backend vertexBaseColor is already texture-baked/averaged and can
-                                // produce incorrect color modulation artifacts when routed through the generic world path.
-                                v.r = triTint.r;
-                                v.g = triTint.g;
-                                v.b = triTint.b;
-                                v.a = triAlpha;
-                                const std::uint32_t outIndex = static_cast<std::uint32_t>(sub.vertices.size());
-                                sub.vertices.push_back(v);
-                                subRemap.emplace(key, outIndex);
-                                return outIndex;
-                            };
-
-                        const auto appendPreparedNodeChunkIndices =
-                            [&](std::size_t submesh,
-                                int triNodeIndex,
-                                std::uint32_t o0,
-                                std::uint32_t o1,
-                                std::uint32_t o2,
-                                bool flipWinding,
-                                bool doubleSided) {
-                                if (!kCapturePokeballEnableNodeChunkPath) return;
-                                auto& sub = sCaptureMeshCache.submeshes[submesh];
-                                auto& subChunkMap = nodeChunkRemap[submesh];
-                                std::size_t chunkIndex = 0u;
-                                const auto found = subChunkMap.find(triNodeIndex);
-                                if (found == subChunkMap.end()) {
-                                    chunkIndex = sub.nodeChunks.size();
-                                    sub.nodeChunks.push_back({});
-                                    sub.nodeChunks.back().nodeIndex = triNodeIndex;
-                                    sub.nodeChunks.back().indices.reserve(256u);
-                                    subChunkMap.emplace(triNodeIndex, chunkIndex);
-                                } else {
-                                    chunkIndex = found->second;
-                                }
-                                auto& chunk = sub.nodeChunks[chunkIndex];
-                                chunk.indices.push_back(o0);
-                                chunk.indices.push_back(flipWinding ? o2 : o1);
-                                chunk.indices.push_back(flipWinding ? o1 : o2);
-                                if (doubleSided) {
-                                    chunk.indices.push_back(o0);
-                                    chunk.indices.push_back(flipWinding ? o1 : o2);
-                                    chunk.indices.push_back(flipWinding ? o2 : o1);
-                                }
-                            };
-
-                        for (std::size_t triIdx = 0; triIdx < triCount; ++triIdx) {
-                            const std::size_t idxBase = triIdx * 3u;
-                            const std::uint32_t i0 = mesh->indices[idxBase + 0u];
-                            const std::uint32_t i1 = mesh->indices[idxBase + 1u];
-                            const std::uint32_t i2 = mesh->indices[idxBase + 2u];
-                            if (i0 >= mesh->vertices.size() || i1 >= mesh->vertices.size() || i2 >= mesh->vertices.size()) {
-                                continue;
-                            }
-                            std::size_t submesh = 0u;
-                            if (triIdx < mesh->triangleSubmesh.size()) {
-                                submesh = static_cast<std::size_t>(mesh->triangleSubmesh[triIdx]);
-                                if (submesh >= sCaptureMeshCache.submeshes.size()) submesh = 0u;
-                            }
-                            const int triNodeIndex =
-                                (triIdx < mesh->triangleNodeIndex.size()) ? mesh->triangleNodeIndex[triIdx] : -1;
-                            int resolvedTriNodeIndex = triNodeIndex;
-                            if (resolvedTriNodeIndex < 0 &&
-                                triIdx < mesh->triangleSubmesh.size() &&
-                                !submeshNodeFallback.empty()) {
-                                const std::uint16_t submeshIndex = mesh->triangleSubmesh[triIdx];
-                                if (submeshIndex < submeshNodeFallback.size()) {
-                                    resolvedTriNodeIndex = submeshNodeFallback[submeshIndex];
-                                }
-                            }
-                            const glm::mat4& nodeGlobal = nodeGlobalForTri(resolvedTriNodeIndex);
-                            const bool flipWinding = (glm::determinant(glm::mat3(nodeGlobal)) < 0.0f);
-                            // Shared world indexed paths already render with culling disabled, so duplicating reverse
-                            // winding here only doubles the pokeball cost (and can exacerbate depth artifacts).
-                            const bool doubleSided = false;
-
-                            glm::vec3 triTint(1.0f, 1.0f, 1.0f);
-                            if (triIdx < mesh->triangleBaseColors.size()) {
-                                triTint = glm::clamp(mesh->triangleBaseColors[triIdx], 0.0f, 1.0f);
-                            } else if (submesh < mesh->submeshBaseColors.size()) {
-                                const glm::vec4 sc = mesh->submeshBaseColors[submesh];
-                                triTint = glm::clamp(glm::vec3(sc.r, sc.g, sc.b), 0.0f, 1.0f);
-                            }
-                            // Do not apply backend triangle-opacity approximations to the capture pokeball;
-                            // they can punch large holes in the shell in D3D12 shared rendering.
-                            float triAlpha = 1.0f;
-
-                            const std::uint32_t o0 =
-                                appendPreparedVertex(submesh, i0, resolvedTriNodeIndex, triTint, triAlpha);
-                            const std::uint32_t o1 =
-                                appendPreparedVertex(submesh, i1, resolvedTriNodeIndex, triTint, triAlpha);
-                            const std::uint32_t o2 =
-                                appendPreparedVertex(submesh, i2, resolvedTriNodeIndex, triTint, triAlpha);
-                            if (o0 == std::numeric_limits<std::uint32_t>::max() ||
-                                o1 == std::numeric_limits<std::uint32_t>::max() ||
-                                o2 == std::numeric_limits<std::uint32_t>::max()) {
-                                continue;
-                            }
-                            auto& sub = sCaptureMeshCache.submeshes[submesh];
-                            sub.indices.push_back(o0);
-                            sub.indices.push_back(flipWinding ? o2 : o1);
-                            sub.indices.push_back(flipWinding ? o1 : o2);
-                            if (doubleSided) {
-                                sub.indices.push_back(o0);
-                                sub.indices.push_back(flipWinding ? o1 : o2);
-                                sub.indices.push_back(flipWinding ? o2 : o1);
-                            }
-                            if (kCapturePokeballEnableNodeChunkPath) {
-                                appendPreparedNodeChunkIndices(
-                                    submesh,
-                                    resolvedTriNodeIndex,
-                                    o0,
-                                    o1,
-                                    o2,
-                                    flipWinding,
-                                    doubleSided);
-                            }
-                        }
-
-                        if (kCapturePokeballEnableNodeChunkPath) {
-                            for (auto& sub : sCaptureMeshCache.submeshes) {
-                                for (auto& nodeChunk : sub.nodeChunks) {
-                                    nodeChunk.compactVertices.clear();
-                                    nodeChunk.compactIndices.clear();
-                                    if (nodeChunk.indices.empty()) continue;
-                                    nodeChunk.compactVertices.reserve(std::min<std::size_t>(
-                                        sub.vertices.size(),
-                                        nodeChunk.indices.size()));
-                                    nodeChunk.compactIndices.reserve(nodeChunk.indices.size());
-                                    std::unordered_map<std::uint32_t, std::uint32_t> remapChunk;
-                                    remapChunk.reserve(nodeChunk.indices.size());
-                                    for (std::uint32_t idx : nodeChunk.indices) {
-                                        const auto it = remapChunk.find(idx);
-                                        if (it != remapChunk.end()) {
-                                            nodeChunk.compactIndices.push_back(it->second);
-                                            continue;
-                                        }
-                                        if (idx >= sub.vertices.size()) continue;
-                                        const auto& src = sub.vertices[idx];
-                                        const std::uint32_t outIdx =
-                                            static_cast<std::uint32_t>(nodeChunk.compactVertices.size());
-                                        nodeChunk.compactVertices.push_back(
-                                            IRenderBackend::WorldMeshVertex{
-                                                src.bindPos.x,
-                                                src.bindPos.y,
-                                                src.bindPos.z,
-                                                src.u,
-                                                src.v,
-                                                src.r,
-                                                src.g,
-                                                src.b,
-                                                src.a});
-                                        remapChunk.emplace(idx, outIdx);
-                                        nodeChunk.compactIndices.push_back(outIdx);
-                                    }
-                                }
-                            }
-                        }
-
-                        bool canBuildRigidCombined = true;
-                        std::size_t totalCombinedVerts = 0u;
-                        std::size_t totalCombinedIndices = 0u;
-                        for (std::size_t si = 0; si < sCaptureMeshCache.submeshes.size(); ++si) {
-                            const auto& sub = sCaptureMeshCache.submeshes[si];
-                            if (sub.vertices.empty() || sub.indices.empty()) continue;
-                            if (sub.alphaMode == 2u) {
-                                canBuildRigidCombined = false;
-                                break;
-                            }
-                            if (!kCapturePokeballTreatAsUntextured &&
-                                si < mesh->submeshBaseTextures.size() &&
-                                mesh->submeshBaseTextures[si].hasPixels()) {
-                                canBuildRigidCombined = false;
-                                break;
-                            }
-                            totalCombinedVerts += sub.vertices.size();
-                            totalCombinedIndices += sub.indices.size();
-                        }
-                        if (canBuildRigidCombined && totalCombinedVerts > 0u && totalCombinedIndices >= 3u) {
-                            sCaptureMeshCache.rigidCombinedVertices.clear();
-                            sCaptureMeshCache.rigidCombinedIndices.clear();
-                            sCaptureMeshCache.rigidCombinedVertices.reserve(totalCombinedVerts);
-                            sCaptureMeshCache.rigidCombinedIndices.reserve(totalCombinedIndices);
-                            std::uint32_t baseVertex = 0u;
-                            for (const auto& sub : sCaptureMeshCache.submeshes) {
-                                if (sub.vertices.empty() || sub.indices.empty()) continue;
-                                for (const auto& src : sub.vertices) {
-                                    sCaptureMeshCache.rigidCombinedVertices.push_back(
-                                        IRenderBackend::WorldMeshVertex{
-                                            src.bindPos.x,
-                                            src.bindPos.y,
-                                            src.bindPos.z,
-                                            src.u,
-                                            src.v,
-                                            src.r,
-                                            src.g,
-                                            src.b,
-                                            src.a});
-                                }
-                                for (std::uint32_t idx : sub.indices) {
-                                    sCaptureMeshCache.rigidCombinedIndices.push_back(baseVertex + idx);
-                                }
-                                baseVertex += static_cast<std::uint32_t>(sub.vertices.size());
-                            }
-                        }
-                    }
-
-                    if (captureSnaps.empty() && d3d12CapturePrewarmRequested && renderer) {
-                        bool didPrewarmAny = false;
-                        if (!sCaptureMeshCache.rigidCombinedVertices.empty() &&
-                            sCaptureMeshCache.rigidCombinedIndices.size() >= 3u) {
-                            renderer->prewarmWorldIndexedMeshCached(
-                                "assets/models/pokeball.glb#geomcombined",
-                                sCaptureMeshCache.rigidCombinedVertices.data(),
-                                sCaptureMeshCache.rigidCombinedVertices.size(),
-                                sCaptureMeshCache.rigidCombinedIndices.data(),
-                                sCaptureMeshCache.rigidCombinedIndices.size());
-                            didPrewarmAny = true;
-                        }
-                        if (didPrewarmAny) return false;
-                    }
-
-                    int captureAnimIndex = -1;
-                    float captureAnimDurationSec = 0.0f;
-                    const bool captureMeshLikelySkinned =
-                        !mesh->skins.empty() ||
-                        std::any_of(
-                            mesh->triangleSkinIndex.begin(),
-                            mesh->triangleSkinIndex.end(),
-                            [](int skinIndex) { return skinIndex >= 0; });
-                    if (!mesh->animations.empty()) {
-                        captureAnimIndex = runtime::shared_capture::findPokeballAnimIndex(*mesh);
-                        if (captureAnimIndex >= 0 &&
-                            static_cast<std::size_t>(captureAnimIndex) < mesh->animations.size()) {
-                            captureAnimDurationSec = std::max(
-                                0.0f,
-                                mesh->animations[static_cast<std::size_t>(captureAnimIndex)].durationSec);
-                        }
-                    }
+                    const auto captureMeshPrep =
+                        game::runtime::shared_capture_mesh_cache::preparePokeballCaptureMeshCache(
+                            *mesh,
+                            captureSnaps.empty(),
+                            d3d12CapturePrewarmRequested,
+                            kCapturePokeballTreatAsUntextured,
+                            kCapturePokeballEnableNodeChunkPath,
+                            renderer);
+                    if (captureMeshPrep.earlyReturnAfterPrewarm) return false;
+                    if (!captureMeshPrep.validForRender || !captureMeshPrep.cache) return false;
+                    auto& sCaptureMeshCache = *captureMeshPrep.cache;
+                    const int captureAnimIndex = captureMeshPrep.captureAnimIndex;
+                    const float captureAnimDurationSec = captureMeshPrep.captureAnimDurationSec;
+                    const bool captureMeshLikelySkinned = captureMeshPrep.captureMeshLikelySkinned;
 
                     for (const auto& snap : captureSnaps) {
                         if (snap.timeLeftSec <= 0.0f) continue;
