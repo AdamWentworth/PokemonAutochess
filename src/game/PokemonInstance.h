@@ -155,6 +155,10 @@ struct PokemonInstance {
     // Cache of animation indices resolved by clip name (avoids repeated linear searches).
     std::unordered_map<std::string, int> animIndexCache;
     std::string animIndexCacheSourceModelPath;
+    // Shared/backend render paths may not load `Model`, but flight/animation state machines still need
+    // clip durations (takeoff/landing/loop sync). This cache is hydrated from backend model metadata.
+    std::vector<float> backendAnimDurationsSec;
+    std::string backendAnimDurationsSourceModelPath;
 
     // Generic fast-move chaining (for start/loop/end style moves).
     std::string chainedFastMove;     // lower-case move name

@@ -29,8 +29,14 @@ static bool isDebug(const PokemonInstance& p) {
 
 static float clipDurationSec(const PokemonInstance& p, int animIndex)
 {
-    if (!p.model || animIndex < 0) return 0.0f;
-    return p.model->getAnimationDurationSec(animIndex);
+    if (animIndex < 0) return 0.0f;
+    if (p.model) {
+        return p.model->getAnimationDurationSec(animIndex);
+    }
+    if (static_cast<std::size_t>(animIndex) < p.backendAnimDurationsSec.size()) {
+        return std::max(0.0f, p.backendAnimDurationsSec[static_cast<std::size_t>(animIndex)]);
+    }
+    return 0.0f;
 }
 
 bool isAirborne(const PokemonInstance& p)
@@ -79,12 +85,12 @@ static void logTransition(const PokemonInstance& p,
 
 static void syncLoopTime(PokemonInstance& p, float sharedLoopTimeSec)
 {
-    if (!p.model || p.activeAnimIndex < 0) {
+    if (p.activeAnimIndex < 0) {
         p.animTimeSec = sharedLoopTimeSec;
         return;
     }
 
-    const float dur = p.model->getAnimationDurationSec(p.activeAnimIndex);
+    const float dur = clipDurationSec(p, p.activeAnimIndex);
     if (dur > 0.0f) {
         p.animTimeSec = std::fmod(sharedLoopTimeSec, dur);
     } else {

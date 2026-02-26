@@ -906,6 +906,15 @@ struct GameSession::Impl {
                     unit.animIndexCache.clear();
                     unit.animIndexCacheSourceModelPath = modelPath;
                 }
+                if (unit.backendAnimDurationsSourceModelPath != modelPath ||
+                    unit.backendAnimDurationsSec.size() != mesh->animations.size()) {
+                    unit.backendAnimDurationsSec.assign(mesh->animations.size(), 0.0f);
+                    for (std::size_t i = 0; i < mesh->animations.size(); ++i) {
+                        unit.backendAnimDurationsSec[i] =
+                            std::max(0.0f, mesh->animations[i].durationSec);
+                    }
+                    unit.backendAnimDurationsSourceModelPath = modelPath;
+                }
 
                 const auto cacheAlias = [&](const std::string& clipName, int idx) {
                     if (clipName.empty() || idx < 0) return;
@@ -929,6 +938,8 @@ struct GameSession::Impl {
                 }
             } else {
                 unit.animIndexCacheSourceModelPath.clear();
+                unit.backendAnimDurationsSourceModelPath.clear();
+                unit.backendAnimDurationsSec.clear();
             }
 
             BackendAnimRoleEntry& roles = ensureBackendAnimRoles(modelPath, mesh);
@@ -952,13 +963,31 @@ struct GameSession::Impl {
                 unit.faintAnimDurationSec = roles.faintDurationSec;
             }
 
-            if (roles.usesAirLocomotion && !unit.usesAirLocomotion) {
+            const bool speciesListedFlyer = dataDb.flyers.isFlyer(unit.name);
+            if ((roles.usesAirLocomotion || speciesListedFlyer) && !unit.usesAirLocomotion) {
                 unit.usesAirLocomotion = true;
             }
             if (unit.usesAirLocomotion) {
                 if (unit.airLiftY <= 0.0f && roles.airLiftY > 0.0f) unit.airLiftY = roles.airLiftY;
                 if (unit.takeoffSec <= 0.0f && roles.takeoffSec > 0.0f) unit.takeoffSec = roles.takeoffSec;
                 if (unit.landingSec <= 0.0f && roles.landingSec > 0.0f) unit.landingSec = roles.landingSec;
+                if (const auto* d = dataDb.flyers.getAirLocomotionDefaults(unit.name)) {
+                    if (unit.airLiftY <= 0.0f && d->airLiftY.has_value()) {
+                        unit.airLiftY = *d->airLiftY;
+                    }
+                    if (unit.takeoffSec <= 0.0f && d->takeoffSec.has_value()) {
+                        unit.takeoffSec = *d->takeoffSec;
+                    }
+                    if (unit.landingSec <= 0.0f && d->landingSec.has_value()) {
+                        unit.landingSec = *d->landingSec;
+                    }
+                    if (d->takeoffAnimSpeed.has_value()) {
+                        unit.takeoffAnimSpeed = *d->takeoffAnimSpeed;
+                    }
+                    if (d->landAnimSpeed.has_value()) {
+                        unit.landAnimSpeed = *d->landAnimSpeed;
+                    }
+                }
             }
 
             if (unit.activeAnimIndex < 0) {
