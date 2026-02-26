@@ -84,6 +84,7 @@ Out Of Scope (for this file)
 - Balance/content changes
 
 Recent Housework / Stabilization Notes
+- Housework Iteration 155: added `docs/RENDER_PATH_FILE_MAP.md`, a living file-ownership/runtime-route map and phased folder reorg plan that classifies game core vs shared-contract runtime vs D3D12-specific runtime vs legacy OpenGL gameplay render code vs engine backend implementations, so future file moves can be done by ownership boundaries instead of ad-hoc folder cleanup.
 - D3D12 shared capture pokeball path now self-heals backend `.pacmdl` cache entries (via backend cache load-or-build) and uses cached world meshes stored in default GPU buffers instead of upload heaps, reducing repeated rigid-phase capture draw cost while preserving `opengl_shared` behavior as the visual reference.
 - Continued D3D12 backend modularization by moving cached world-mesh draw/cache methods (used by shared capture rigid phases and future reusable world prop caches) out of `D3D12RenderBackend.cpp` into a dedicated `d3d12/D3D12RenderBackendCachedWorldMeshes.cpp` translation unit.
 - Continued D3D12 backend modularization by moving core world draw methods (`drawWorldTriangles`, dynamic indexed world draws, textured world draws, and the shared world dynamic upload path) out of `D3D12RenderBackend.cpp` into `d3d12/D3D12RenderBackendWorldDraw.cpp`, isolating the main backend world rendering submission path for safer future optimization and parity work.
