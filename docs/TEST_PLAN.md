@@ -40,6 +40,14 @@ Focus on catching real regressions while keeping tests fast and headless.
 - D3D12 backend helper/material-constant contract coverage (`d3d12_world_material_constants_contract`) for D3D12 shared world helper extraction (`alignUp`, wrap-mode sanitization, and `WorldPsConstants` payload mapping/clamping).
 - Runtime smoke coverage wiring includes `opengl_shared` alongside `opengl` and `d3d12` when `PAC_ENABLE_RUNTIME_SMOKE_TESTS` is enabled.
 
+## Housework Slice Regression Sets (Targeted)
+- D3D12 backend split slices (Pipelines / DebugDraw / Textures / CachedWorldMeshes / WorldDraw / Lifecycle):
+  - Automated: `PAC_Tests.d3d12_probe_contract`, `PAC_Tests.d3d12_world_material_constants_contract`, `PAC_Tests.render_pipeline_smoke`, plus full `ctest` before merge.
+  - Manual (short): one `d3d12` boot -> menu -> gameplay -> capture/FX smoke to validate world draw/UI draw/device lifecycle paths still render and shut down cleanly.
+- `GameSession` shared-path extraction slices:
+  - Automated: `shared_capture_presentation_contract`, `gameworld_capture_render_snapshot_timing_contract`, `shared_world_indexed_batches_contract`, `render_flow_decisions_contract`, plus full `ctest`.
+  - Manual (short): `opengl_shared` parity smoke on the feature being extracted (capture, VFX bridge, HUD, etc.).
+
 ## Coverage Gaps (High Risk)
 - No packaged build smoke run (installer output or `dist/Release` execution).
 - No automated visual parity/image-diff harness across `opengl` / `opengl_shared` / `d3d12`.
