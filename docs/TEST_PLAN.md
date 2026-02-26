@@ -65,6 +65,9 @@ Focus on catching real regressions while keeping tests fast and headless.
   - Automated: `backend_model_cache_contract`, `model_parse_smoke`, `gltf_asset_smoke`, plus full `ctest`.
   - Manual (short): one `d3d12` boot/startup preload smoke (watch `[Init][ModelCache]` and confirm no cache-load regressions), plus optional `opengl_shared` sanity boot if the slice touches source-build/rebuild behavior.
   - Manual (short): `opengl_shared` parity smoke on the feature being extracted (capture, VFX bridge, HUD, etc.).
+- `ScriptedState` UI/backend menu/shop slices:
+  - Automated: `backend_shop_snapshot_contract`, `backend_card_layout_model_contract`, `backend_card_renderer_contract`, `backend_inventory_panel_contract`, `backend_inventory_overlay_contract`, `backend_input_slots_contract`, `backend_top_banner_contract`, `backend_ui_sell_overlay_policy`, `sell_overlay_ui_policy_contract`, `lua_card_parser_contract`, `lua_text_menu_parser_contract`, plus full `ctest`.
+  - Manual (short): one `opengl_shared` menu/shop/adventure UI smoke (backend card row, text menu, click + keyboard actions, sell overlay drag behavior), plus optional `d3d12` sanity for backend UI rendering.
 
 ## Coverage Gaps (High Risk)
 - No packaged build smoke run (installer output or `dist/Release` execution).

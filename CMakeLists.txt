@@ -355,6 +355,7 @@ add_library(PAC_GameObjects STATIC
 
     # Game States
     src/game/state/ScriptedState.cpp
+    src/game/state/ScriptedStateBackendUi.cpp
     src/game/state/PlacementState.cpp
     src/game/state/CombatState.cpp
 
