@@ -1,5 +1,6 @@
 #include "game/runtime/BackendModelCache.h"
 #include "game/runtime/BackendModelCacheFormat.h"
+#include "game/runtime/BackendModelCacheLoadOrRebuild.h"
 #include "game/runtime/BackendModelCacheSourceBuild.h"
 #include "game/runtime/BackendModelCacheWrite.h"
 
@@ -65,8 +66,6 @@ std::string hexHash64(std::uint64_t v) {
 
 using game::runtime::backend_model::detail::CacheHeader;
 using game::runtime::backend_model::detail::CacheTextureHeader;
-constexpr std::uint64_t kModelCacheMagic = game::runtime::backend_model::detail::kModelCacheMagic;
-constexpr std::uint32_t kModelCacheVersion = game::runtime::backend_model::detail::kModelCacheVersion;
 
 glm::mat4 trsToMat4(const pac_model_types::NodeTRS& n) {
     if (n.hasMatrix) return n.matrix;
@@ -443,31 +442,6 @@ glm::vec4 sampleTextureBilinear(const DecodedTexture& tex, const glm::vec2& uv) 
     return cx0 * (1.0f - ty) + cx1 * ty;
 }
 
-bool sourceMetadataForModel(const std::string& modelPath,
-                            std::uint64_t& outFileSize,
-                            std::int64_t& outWriteTime) {
-    std::error_code ec;
-    if (!fs::exists(modelPath, ec) || ec) return false;
-    outFileSize = static_cast<std::uint64_t>(fs::file_size(modelPath, ec));
-    if (ec) return false;
-    outWriteTime = static_cast<std::int64_t>(fs::last_write_time(modelPath, ec).time_since_epoch().count());
-    return !ec;
-}
-
-bool cacheHeaderMatchesSource(const std::string& modelPath, const CacheHeader& hdr) {
-    std::uint64_t srcFileSize = 0u;
-    std::int64_t srcWriteTime = 0;
-    if (!sourceMetadataForModel(modelPath, srcFileSize, srcWriteTime)) return false;
-    return hdr.srcFileSize == srcFileSize && hdr.srcWriteTime == srcWriteTime;
-}
-
-bool readCacheHeaderOnly(const std::string& cachePath, CacheHeader& outHeader) {
-    outHeader = CacheHeader{};
-    std::ifstream in(cachePath, std::ios::binary);
-    if (!in.is_open()) return false;
-    return readPod(in, outHeader);
-}
-
 bool rebuildCacheFromSource(const std::string& modelPath, std::string* outError) {
     game::runtime::backend_model::detail::SourceCacheBuildData data;
     std::string err;
@@ -502,62 +476,14 @@ bool loadMeshFromCache(const std::string& modelPath, MeshData& out, std::string*
         return false;
     }
 
-    bool attemptedRebuild = false;
-retry_read:
-    const std::string cachePath = cachePathForModel(modelPath);
-    std::ifstream in(cachePath, std::ios::binary);
-    if (!in.is_open()) {
-        if (!attemptedRebuild) {
-            std::string rebuildErr;
-            if (rebuildCacheFromSource(modelPath, &rebuildErr)) {
-                attemptedRebuild = true;
-                goto retry_read;
-            }
-            if (outError) *outError = "cache file not found: " + cachePath + " (rebuild failed: " + rebuildErr + ")";
-            return false;
-        }
-        if (outError) *outError = "cache file not found: " + cachePath;
-        return false;
-    }
-
+    std::ifstream in;
     CacheHeader hdr{};
-    if (!readPod(in, hdr)) {
-        if (!attemptedRebuild) {
-            std::string rebuildErr;
-            if (rebuildCacheFromSource(modelPath, &rebuildErr)) {
-                attemptedRebuild = true;
-                goto retry_read;
-            }
-            if (outError) *outError = "failed to read cache header (rebuild failed: " + rebuildErr + ")";
-            return false;
-        }
-        if (outError) *outError = "failed to read cache header";
-        return false;
-    }
-    if (hdr.magic != kModelCacheMagic || hdr.version != kModelCacheVersion) {
-        if (!attemptedRebuild) {
-            std::string rebuildErr;
-            if (rebuildCacheFromSource(modelPath, &rebuildErr)) {
-                attemptedRebuild = true;
-                goto retry_read;
-            }
-            if (outError) *outError = "cache format mismatch (rebuild failed: " + rebuildErr + ")";
-            return false;
-        }
-        if (outError) *outError = "cache format mismatch";
-        return false;
-    }
-    if (!cacheHeaderMatchesSource(modelPath, hdr)) {
-        if (!attemptedRebuild) {
-            std::string rebuildErr;
-            if (rebuildCacheFromSource(modelPath, &rebuildErr)) {
-                attemptedRebuild = true;
-                goto retry_read;
-            }
-            if (outError) *outError = "cache stale and rebuild failed: " + rebuildErr;
-            return false;
-        }
-        if (outError) *outError = "cache stale after rebuild";
+    if (!detail::openValidatedCacheStreamForModel(modelPath,
+                                                  &cachePathForModel,
+                                                  &rebuildCacheFromSource,
+                                                  in,
+                                                  hdr,
+                                                  outError)) {
         return false;
     }
 
