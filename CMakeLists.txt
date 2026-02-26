@@ -277,6 +277,7 @@ add_library(PAC_GameObjects STATIC
     src/game/runtime/SharedParticleSnapshotBillboards.cpp
     src/game/runtime/SharedParticleVfxBridgeDispatch.cpp
     src/game/runtime/SharedParticleVfxStyles.cpp
+    src/game/runtime/SharedTailFireSnapshotBillboards.cpp
     src/game/runtime/SharedTailFireFallbackEmitter.cpp
     src/game/runtime/SharedTailFireAtlasHelpers.cpp
     src/game/runtime/SharedTailFireExactCpuSnapshotBatches.cpp
