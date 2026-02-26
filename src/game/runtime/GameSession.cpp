@@ -50,6 +50,7 @@
 #include "game/runtime/GamePreload.h"
 #include "game/runtime/routes/BackendRenderPolicy.h"
 #include "game/runtime/routes/RenderFlowDecisions.h"
+#include "game/runtime/routes/StartupRenderRoutePolicy.h"
 #include "game/runtime/BackendDebugText.h"
 #include "game/runtime/routes/GameServiceRenderRoutes.h"
 #include "game/runtime/BackendInventoryOverlay.h"
@@ -355,6 +356,11 @@ bool backendUseExactTailFireCpuPathEnabled() {
         }
         return true;
     }();
+    return enabled;
+}
+
+bool legacyGameplayRenderOverrideEnabled() {
+    static const bool enabled = engine::env::flagEnabled("PAC_LEGACY_GAMEPLAY_RENDER_PATH");
     return enabled;
 }
 
@@ -980,21 +986,24 @@ struct GameSession::Impl {
         renderer = ctx.renderer;
         engineServices = ctx.services;
         const bool hasBackend = (ctx.renderer != nullptr) && (ctx.camera != nullptr);
+        const bool legacyGameplayOverride = legacyGameplayRenderOverrideEnabled();
         const bool prefersLegacyRenderPath = hasBackend && ctx.renderer->prefersLegacyGameRenderPath();
         const bool prefersLegacyUiPath = hasBackend && ctx.renderer->prefersLegacyGameUiPath();
-        startupRoutes = runtime::render::makeRenderRoutes(
+        const bool isOpenGlBackend = hasBackend &&
+            ctx.renderer->backendId() &&
+            toLowerCopy(ctx.renderer->backendId()) == "opengl";
+        startupRoutes = runtime::render::selectStartupRenderRoutes(
             hasBackend,
             prefersLegacyRenderPath,
-            prefersLegacyUiPath);
-        if (ctx.services) {
-            const std::string requestedBackend = toLowerCopy(ctx.services->requestedRendererBackend);
-            if (requestedBackend == "opengl_shared" && hasBackend &&
-                ctx.renderer->backendId() &&
-                toLowerCopy(ctx.renderer->backendId()) == "opengl") {
-                startupRoutes.legacyRenderPath = false;
-                startupRoutes.legacyUiPath = false;
-                std::cout << "[Renderer] OpenGL shared-contract mode enabled via Display preference "
-                          << "(renderer_backend=opengl_shared).\n";
+            prefersLegacyUiPath,
+            isOpenGlBackend,
+            legacyGameplayOverride);
+        if (isOpenGlBackend) {
+            if (legacyGameplayOverride && startupRoutes.usesLegacyRenderPath()) {
+                std::cout << "[Renderer] PAC_LEGACY_GAMEPLAY_RENDER_PATH=1: forcing OpenGL legacy gameplay routes.\n";
+            } else {
+                std::cout << "[Renderer] OpenGL gameplay routes default to shared contracts "
+                          << "(set PAC_LEGACY_GAMEPLAY_RENDER_PATH=1 for legacy fallback).\n";
             }
         }
         if (engine::env::get("PAC_BACKEND_MENU_BACKDROP").has_value()) {
@@ -1197,9 +1206,10 @@ struct GameSession::Impl {
         if (usesLegacyGameRenderPath()) {
             game::preload::preloadCommonModels(ctx, dataDb.pokemon, "PokemonAutochess");
         } else {
-            std::cout << "[Init] Non-OpenGL render path: using backend model cache loader (OpenGL ModelStartupLog is not used).\n";
+            std::cout << "[Init] Shared gameplay render path: using backend model cache loader "
+                         "(OpenGL ModelStartupLog is not used).\n";
             if (backendPreloadModelCacheEnabled()) {
-                std::cout << "[Init] Non-OpenGL render path: preloading backend model cache...\n";
+                std::cout << "[Init] Shared gameplay render path: preloading backend model cache...\n";
                 const bool verboseModelCacheLog = backendModelVerboseLoggingEnabled();
                 std::vector<std::string> modelPathsToPreload;
                 modelPathsToPreload.reserve(dataDb.pokemon.all().size());
@@ -1300,7 +1310,7 @@ struct GameSession::Impl {
                 if (ctx.setTitle) ctx.setTitle("Pokemon Autochess");
                 if (ctx.pumpPreloadEvents) ctx.pumpPreloadEvents();
             } else {
-                std::cout << "[Init] Non-OpenGL render path: backend model cache preload disabled.\n";
+                std::cout << "[Init] Shared gameplay render path: backend model cache preload disabled.\n";
             }
         }
 

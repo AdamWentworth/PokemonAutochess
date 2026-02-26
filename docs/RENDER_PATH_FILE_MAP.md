@@ -172,6 +172,47 @@ Notes
 - OpenGL engine backend: no
 - D3D12 engine backend: yes
 
+## Legacy Retirement Strategy (Shared-First)
+
+This project should retire **legacy gameplay render path code**, not OpenGL itself.
+
+Important distinction
+- Keep: OpenGL engine backend (`opengl` renderer implementation) because `opengl_shared` still uses it.
+- Retire: legacy gameplay presentation path (`GameWorldRender.cpp`-driven world/HUD flow) once shared routes are the only gameplay path.
+
+Preconditions before deleting legacy gameplay render files
+1. Shared path is default for both `opengl` and `d3d12` gameplay presentation.
+2. Legacy route is disabled behind a kill switch in non-dev builds.
+3. Manual parity checklist and smoke tests are green for shared routes.
+4. No active production bug relies on the legacy gameplay render path.
+
+Retirement sequence
+1. Freeze new legacy-only features/fixes.
+2. Route `opengl` to shared gameplay path by default (keep dev override only via `PAC_LEGACY_GAMEPLAY_RENDER_PATH=1`).
+3. Remove legacy-only gameplay render entrypoints and dead call sites.
+4. Remove legacy-only helpers/assets/config paths after one stabilization cycle.
+5. Remove the temporary dev override.
+
+## Naming Simplification Policy
+
+Your direction is correct: simplify names after the legacy split is truly gone.
+
+Rule
+- Keep explicit names while dual-path exists (`Shared*`, `Legacy*`, route-aware names).
+- Rename only after retirement of the legacy gameplay path to avoid ambiguity and churn.
+
+Why
+- During transition, explicit names prevent accidental cross-path regressions.
+- Post-retirement, simplified names improve readability.
+
+Example post-retirement rename batch
+- `SharedProjectedUnitRenderer` -> `ProjectedUnitRenderer`
+- `SharedCaptureModelBridge` -> `CaptureModelBridge`
+- `SharedParticleSnapshotBillboards` -> `ParticleSnapshotBillboards`
+- `SharedTailFireSnapshotBillboards` -> `TailFireSnapshotBillboards`
+
+Do this as one coordinated rename batch, not piecemeal, and only after legacy gameplay render deletion.
+
 ## Proposed Folder Organization (phased, low-risk)
 
 This is a recommendation for future moves. Do not move everything at once.

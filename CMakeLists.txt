@@ -417,6 +417,7 @@ if (BUILD_TESTING)
         tests/TestAutoQuitPolicy.cpp
         tests/TestGameServicesRoutes.cpp
         tests/TestGameServiceRenderRoutes.cpp
+        tests/TestStartupRenderRoutePolicy.cpp
         tests/TestRenderRouteOwnership.cpp
         tests/TestStateUiRoutePolicy.cpp
         tests/TestRenderRoutes.cpp
