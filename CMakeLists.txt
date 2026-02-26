@@ -281,6 +281,7 @@ add_library(PAC_GameObjects STATIC
     src/game/runtime/SharedTailFireFallbackEmitter.cpp
     src/game/runtime/SharedTailFireAtlasHelpers.cpp
     src/game/runtime/SharedTailFireExactCpuSnapshotBatches.cpp
+    src/game/runtime/SharedTailFireExactCpuTileBake.cpp
     src/game/runtime/SharedTailFireExactGpuBatches.cpp
     src/game/runtime/SharedGrowlVfxHelpers.cpp
     src/game/runtime/SharedGrowlWaveBridge.cpp
