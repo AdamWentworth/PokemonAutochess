@@ -1,6 +1,6 @@
 #pragma once
 
-#include "game/runtime/RenderRoutes.h"
+#include "game/runtime/routes/RenderRoutes.h"
 
 namespace game::runtime::render {
 

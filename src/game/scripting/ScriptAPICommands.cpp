@@ -12,7 +12,7 @@
 #include "game/GameWorld.h"
 #include "game/logging/LoggerUtil.h"
 #include "game/state/CombatState.h"
-#include "game/state/ScriptedState.h"
+#include "game/state/scripted/ScriptedState.h"
 
 #include "LuaBindings_Internal.h"
 

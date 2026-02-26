@@ -1,7 +1,7 @@
 #include "ScriptedState.h"
 
 #include "game/scripting/LuaScriptHelpers.h"
-#include "game/runtime/GameServiceRenderRoutes.h"
+#include "game/runtime/routes/GameServiceRenderRoutes.h"
 #include "game/state/BackendUiPolicy.h"
 #include "game/ui/UIViewport.h"
 

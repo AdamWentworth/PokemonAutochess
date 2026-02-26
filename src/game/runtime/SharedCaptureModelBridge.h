@@ -1,6 +1,6 @@
 #pragma once
 
-#include "game/runtime/BackendModelCache.h"
+#include "game/runtime/backend_model_cache/BackendModelCache.h"
 #include "game/runtime/SharedBackendPoseEval.h"
 #include "game/runtime/SharedBackendTextureCache.h"
 #include "game/runtime/SharedCapturePresentation.h"

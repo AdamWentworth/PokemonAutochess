@@ -9,7 +9,7 @@
 #include "game/assets/DevAssetStore.h"
 #include "game/config/GameDataDb.h"
 #include "game/logging/LogBus.h"
-#include "game/runtime/GameServiceRenderRoutes.h"
+#include "game/runtime/routes/GameServiceRenderRoutes.h"
 #include "game/scripting/ScriptEventBus.h"
 
 bool test_game_service_render_routes_contract(std::string& outFail) {

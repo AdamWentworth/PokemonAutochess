@@ -2,7 +2,7 @@
 
 #include <string>
 
-#include "game/runtime/BackendModelCacheSourceBuild.h"
+#include "game/runtime/backend_model_cache/BackendModelCacheSourceBuild.h"
 
 namespace game::runtime::backend_model::detail {
 

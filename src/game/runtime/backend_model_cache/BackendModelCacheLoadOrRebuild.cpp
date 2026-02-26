@@ -1,4 +1,4 @@
-#include "game/runtime/BackendModelCacheLoadOrRebuild.h"
+#include "game/runtime/backend_model_cache/BackendModelCacheLoadOrRebuild.h"
 
 #include <filesystem>
 #include <fstream>

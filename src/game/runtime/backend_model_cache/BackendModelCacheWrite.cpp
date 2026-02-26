@@ -1,7 +1,7 @@
-#include "game/runtime/BackendModelCacheWrite.h"
+#include "game/runtime/backend_model_cache/BackendModelCacheWrite.h"
 
-#include "game/runtime/BackendModelCache.h"
-#include "game/runtime/BackendModelCacheFormat.h"
+#include "game/runtime/backend_model_cache/BackendModelCache.h"
+#include "game/runtime/backend_model_cache/BackendModelCacheFormat.h"
 
 #include <filesystem>
 #include <fstream>

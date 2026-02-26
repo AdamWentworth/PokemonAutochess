@@ -13,9 +13,9 @@ Why this exists
 - The next maintainability win is not just splitting files, but making ownership and runtime path usage obvious.
 
 How route selection works (source of truth)
-- `src/game/runtime/RenderRoutes.h`
+- `src/game/runtime/routes/RenderRoutes.h`
   - Canonical per-frame route state (`legacyRenderPath`, `legacyUiPath`)
-- `src/game/runtime/RenderFlowDecisions.h`
+- `src/game/runtime/routes/RenderFlowDecisions.h`
   - Decides frame layers (`renderWorldLayer`, `renderLegacyHudLayer`)
 - `src/game/state/BackendUiPolicy.h`
   - Backend/legacy UI policy helpers (menu/shop/sell overlay behavior)
@@ -34,9 +34,9 @@ Paths (primary)
 - `src/game/runtime/GameBootstrap.*`
 - `src/game/runtime/GameUpdateGraph.*`
 - `src/game/runtime/VideoPreferences.*`
-- `src/game/runtime/RenderRoutes.h`
-- `src/game/runtime/RenderFlowDecisions.h`
-- `src/game/runtime/GameServiceRenderRoutes.h`
+- `src/game/runtime/routes/RenderRoutes.h`
+- `src/game/runtime/routes/RenderFlowDecisions.h`
+- `src/game/runtime/routes/GameServiceRenderRoutes.h`
 - `src/game/state/CombatState.*`
 - `src/game/state/PlacementState.*`
 - `src/game/state/BackendUiPolicy.h` (policy helpers; path-agnostic logic)
@@ -64,7 +64,7 @@ Paths (examples, not exhaustive)
 - `src/game/runtime/SharedBackendTextureCache.h`
 
 Also shared-path support (not `Shared*`, but used by shared runtime paths)
-- `src/game/runtime/BackendModelCache*.*` (backend cache load/build/read/write)
+- `src/game/runtime/backend_model_cache/BackendModelCache*.*` (backend cache load/build/read/write)
 - `src/game/runtime/Backend*.*` helper headers (backend UI/HUD/world formatting/model visuals)
 
 Notes
@@ -103,7 +103,7 @@ These files are not a single render path; they dispatch based on route/backend.
 Paths
 - `src/game/runtime/GameSession.cpp`
   - now a much smaller coordinator, but still the main path dispatcher
-- `src/game/state/ScriptedState*.cpp`
+- `src/game/state/scripted/ScriptedState*.cpp`
   - backend/shared UI and menu/shop/adventure UI composition/input, route-aware behavior
 - `src/game/runtime/GameRunner.cpp`
   - backend selection, boot/runtime orchestration, renderer startup
@@ -232,8 +232,8 @@ Low-risk next organization move
 ## Recommended Reorg Order (to avoid churn)
 
 1. Document ownership (this file) and agree on naming/folder conventions.
-2. Move `ScriptedState*` files into `src/game/state/scripted/` (low risk, easy smoke tests).
-3. Move `BackendModelCache*` family into `src/game/runtime/backend_model_cache/` (already cleanly split).
+2. [x] Move `ScriptedState*` files into `src/game/state/scripted/` (completed).
+3. [x] Move `BackendModelCache*` family into `src/game/runtime/backend_model_cache/` (completed).
 4. Move `Shared*` runtime modules into `src/game/runtime/shared/...` in batches by subsystem:
 - projected
 - capture
@@ -257,11 +257,11 @@ Lower-value (for now)
 Approx. top files in `src/game/runtime`, `src/game/state`, `src/engine/render`:
 - `src/game/runtime/GameSession.cpp` (~2059) — coordinator, acceptable but still large
 - `src/engine/render/d3d12/D3D12RenderBackendPipelines.cpp` (~929)
-- `src/game/state/ScriptedStateBackendUi.cpp` (~775)
+- `src/game/state/scripted/ScriptedStateBackendUi.cpp` (~775)
 - `src/game/runtime/GameRunner.cpp` (~766)
 - `src/game/state/CombatState.cpp` (~689)
 - `src/game/runtime/SharedBackendDebugViewOverlay.cpp` (~630)
 - `src/game/runtime/SharedTailFireExactCpuTileBake.cpp` (~613)
-- `src/game/runtime/BackendModelCacheReadDecode.cpp` (~512)
+- `src/game/runtime/backend_model_cache/BackendModelCacheReadDecode.cpp` (~512)
 
 This list is for prioritization, not a mandate to split everything immediately.

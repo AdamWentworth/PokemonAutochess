@@ -6,7 +6,7 @@
 #include "game/runtime/BackendCardRenderer.h"
 #include "game/runtime/BackendDebugText.h"
 #include "game/runtime/BackendTopBanner.h"
-#include "game/runtime/GameServiceRenderRoutes.h"
+#include "game/runtime/routes/GameServiceRenderRoutes.h"
 #include "game/runtime/BackendSellOverlayModel.h"
 #include "game/runtime/BackendShopHudModel.h"
 #include "game/runtime/BackendUiScale.h"

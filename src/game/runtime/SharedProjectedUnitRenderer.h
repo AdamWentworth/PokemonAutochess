@@ -3,7 +3,7 @@
 #include "engine/render/IRenderBackend.h"
 #include "game/PokemonInstance.h"
 #include "game/config/GameDataDb.h"
-#include "game/runtime/BackendModelCache.h"
+#include "game/runtime/backend_model_cache/BackendModelCache.h"
 #include "game/runtime/SharedBackendPoseEval.h"
 #include "game/runtime/SharedBackendTextureCache.h"
 #include "game/runtime/SharedCapturePresentation.h"

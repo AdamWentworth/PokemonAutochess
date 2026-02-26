@@ -5,7 +5,7 @@
 #include <glm/glm.hpp>
 
 #include "game/PokemonInstance.h"
-#include "game/runtime/BackendModelCache.h"
+#include "game/runtime/backend_model_cache/BackendModelCache.h"
 
 namespace game::runtime::shared_backend_pose {
 

@@ -24,7 +24,7 @@
 #include "game/config/AttackAnimConfigLoader.h"
 #include "game/config/AnimSetLoader.h"
 
-#include "game/state/ScriptedState.h"
+#include "game/state/scripted/ScriptedState.h"
 
 #include "game/logging/LoggerUtil.h"
 #include "game/logging/DebugTrace.h"

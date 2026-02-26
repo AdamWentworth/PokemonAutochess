@@ -4,7 +4,7 @@
 
 #include <glm/glm.hpp>
 
-#include "game/runtime/BackendModelCache.h"
+#include "game/runtime/backend_model_cache/BackendModelCache.h"
 #include "game/runtime/SharedGrowlVfxHelpers.h"
 #include "game/runtime/SharedWorldIndexedBatches.h"
 #include "game/vfx/GrowlWaveVFX.h"

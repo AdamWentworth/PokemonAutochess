@@ -295,12 +295,12 @@ add_library(PAC_GameObjects STATIC
     src/game/runtime/VideoPreferences.cpp
     src/game/runtime/GpuAdapters.cpp
     src/game/runtime/d3d12/D3D12Probe.cpp
-    src/game/runtime/BackendModelCache.cpp
-    src/game/runtime/BackendModelCacheReadDecode.cpp
-    src/game/runtime/BackendModelCacheReadScene.cpp
-    src/game/runtime/BackendModelCacheLoadOrRebuild.cpp
-    src/game/runtime/BackendModelCacheWrite.cpp
-    src/game/runtime/BackendModelCacheSourceBuild.cpp
+    src/game/runtime/backend_model_cache/BackendModelCache.cpp
+    src/game/runtime/backend_model_cache/BackendModelCacheReadDecode.cpp
+    src/game/runtime/backend_model_cache/BackendModelCacheReadScene.cpp
+    src/game/runtime/backend_model_cache/BackendModelCacheLoadOrRebuild.cpp
+    src/game/runtime/backend_model_cache/BackendModelCacheWrite.cpp
+    src/game/runtime/backend_model_cache/BackendModelCacheSourceBuild.cpp
 
     # Game Config
     src/game/config/PokemonConfigLoader.cpp
@@ -361,11 +361,11 @@ add_library(PAC_GameObjects STATIC
     src/game/scripting/ScriptEventBus.cpp
 
     # Game States
-    src/game/state/ScriptedState.cpp
-    src/game/state/ScriptedStateBackendUi.cpp
-    src/game/state/ScriptedStateCardUi.cpp
-    src/game/state/ScriptedStateInputUi.cpp
-    src/game/state/ScriptedStateRenderUi.cpp
+    src/game/state/scripted/ScriptedState.cpp
+    src/game/state/scripted/ScriptedStateBackendUi.cpp
+    src/game/state/scripted/ScriptedStateCardUi.cpp
+    src/game/state/scripted/ScriptedStateInputUi.cpp
+    src/game/state/scripted/ScriptedStateRenderUi.cpp
     src/game/state/PlacementState.cpp
     src/game/state/CombatState.cpp
 

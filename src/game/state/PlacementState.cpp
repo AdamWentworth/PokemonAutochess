@@ -7,7 +7,7 @@
 #include "game/GameServices.h"
 #include "game/runtime/BackendDebugText.h"
 #include "game/runtime/BackendTopBanner.h"
-#include "game/runtime/GameServiceRenderRoutes.h"
+#include "game/runtime/routes/GameServiceRenderRoutes.h"
 #include "game/state/BackendUiPolicy.h"
 #include "game/ui/UIViewport.h"
 

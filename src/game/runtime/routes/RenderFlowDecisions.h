@@ -1,6 +1,6 @@
 #pragma once
 
-#include "game/runtime/BackendRenderPolicy.h"
+#include "game/runtime/routes/BackendRenderPolicy.h"
 
 namespace game::runtime::render {
 

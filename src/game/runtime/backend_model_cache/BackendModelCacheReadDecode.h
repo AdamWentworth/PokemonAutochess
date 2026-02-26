@@ -3,8 +3,8 @@
 #include <iosfwd>
 #include <string>
 
-#include "game/runtime/BackendModelCache.h"
-#include "game/runtime/BackendModelCacheFormat.h"
+#include "game/runtime/backend_model_cache/BackendModelCache.h"
+#include "game/runtime/backend_model_cache/BackendModelCacheFormat.h"
 
 namespace game::runtime::backend_model::detail {
 

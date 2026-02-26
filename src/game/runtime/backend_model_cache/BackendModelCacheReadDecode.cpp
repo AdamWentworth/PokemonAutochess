@@ -1,5 +1,5 @@
-#include "game/runtime/BackendModelCacheReadDecode.h"
-#include "game/runtime/BackendModelCacheReadScene.h"
+#include "game/runtime/backend_model_cache/BackendModelCacheReadDecode.h"
+#include "game/runtime/backend_model_cache/BackendModelCacheReadScene.h"
 
 #include <algorithm>
 #include <cmath>

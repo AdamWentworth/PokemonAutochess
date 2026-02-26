@@ -24,9 +24,9 @@ bool test_render_policy_api_contract(std::string& outFail) {
     };
 
     const std::vector<Rule> rules = {
-        {"src/game/runtime/BackendRenderPolicy.h", "shouldRenderBackendDebugLayer(bool "},
-        {"src/game/runtime/BackendRenderPolicy.h", "shouldRenderBackendWorldBackdrop(bool "},
-        {"src/game/runtime/RenderFlowDecisions.h", "decideFrameRenderFlow(bool "},
+        {"src/game/runtime/routes/BackendRenderPolicy.h", "shouldRenderBackendDebugLayer(bool "},
+        {"src/game/runtime/routes/BackendRenderPolicy.h", "shouldRenderBackendWorldBackdrop(bool "},
+        {"src/game/runtime/routes/RenderFlowDecisions.h", "decideFrameRenderFlow(bool "},
         {"src/game/state/BackendUiPolicy.h", "shouldUseBackendUi(bool "},
         {"src/game/state/BackendUiPolicy.h", "shouldRenderBackendTextMenu(bool "}
     };

@@ -7,7 +7,7 @@
 #include "engine/render/Camera3D.h"
 #include "engine/render/Model.h"
 #include "engine/utils/ResourceManager.h"
-#include "game/runtime/BackendModelCache.h"
+#include "game/runtime/backend_model_cache/BackendModelCache.h"
 
 namespace game::runtime::shared_capture {
 
