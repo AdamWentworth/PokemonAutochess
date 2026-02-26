@@ -253,6 +253,7 @@ add_library(PAC_GameObjects STATIC
     src/game/runtime/GameBootstrap.cpp
     src/game/runtime/GameSession.cpp
     src/game/runtime/SharedCapturePresentation.cpp
+    src/game/runtime/SharedGrowlVfxHelpers.cpp
     src/game/runtime/SharedWorldIndexedBatches.cpp
     src/game/runtime/GameUpdateGraph.cpp
     src/game/runtime/VideoPreferences.cpp
@@ -442,6 +443,7 @@ if (BUILD_TESTING)
         tests/TestGameWorldRecovery.cpp
         tests/TestGameWorldLeechSeed.cpp
         tests/TestSharedCapturePresentation.cpp
+        tests/TestSharedGrowlVfxHelpers.cpp
         tests/TestSharedWorldIndexedBatches.cpp
         tests/TestD3D12WorldMaterialConstants.cpp
         tests/TestConfigLoaders.cpp

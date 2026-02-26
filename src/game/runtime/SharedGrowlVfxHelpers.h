@@ -1,0 +1,40 @@
+#pragma once
+
+#include <cstdint>
+#include <string>
+#include <vector>
+
+#include <glm/glm.hpp>
+
+#include "game/vfx/GrowlWaveVFX.h"
+
+namespace game::runtime::shared_growl {
+
+struct TevState {
+    glm::vec3 c0{1.0f, 1.0f, 1.0f};
+    glm::vec3 c1{0.0f, 0.0f, 0.0f};
+    glm::vec3 k0{1.0f, 1.0f, 1.0f};
+    float k1a = 1.0f;
+};
+
+TevState resolveTevState(const GrowlWaveVFX::Config& config,
+                         const GrowlWaveVFX::Config::DrawPass& pass);
+
+bool isLinePass(const GrowlWaveVFX::Config& config,
+                const GrowlWaveVFX::Config::DrawPass& pass);
+
+bool isQuarterRingPass(const GrowlWaveVFX::Config& config,
+                       const GrowlWaveVFX::Config::DrawPass& pass);
+
+std::string makeBakedTextureKey(const GrowlWaveVFX::Config::DrawPass& pass, bool quarterPass);
+
+bool bakePassTextureRgba(const GrowlWaveVFX::Config::DrawPass& pass,
+                        const TevState& tev,
+                        bool quarterPass,
+                        const std::vector<unsigned char>& rawRgba,
+                        std::vector<unsigned char>& outRgba);
+
+float quantizeLineVertexAlpha(float srcAlpha, float lineTevK1A, float colorAlpha);
+
+} // namespace game::runtime::shared_growl
+
