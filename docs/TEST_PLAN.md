@@ -53,6 +53,9 @@ Focus on catching real regressions while keeping tests fast and headless.
 - D3D12 backend split slices (Pipelines / DebugDraw / Textures / CachedWorldMeshes / WorldDraw / Lifecycle):
   - Automated: `PAC_Tests.d3d12_probe_contract`, `PAC_Tests.d3d12_world_material_constants_contract`, `PAC_Tests.render_pipeline_smoke`, plus full `ctest` before merge.
   - Manual (short): one `d3d12` boot -> menu -> gameplay -> capture/FX smoke to validate world draw/UI draw/device lifecycle paths still render and shut down cleanly.
+- OpenGL backend split slices (e.g. texture/debug/world draw extraction from `OpenGLRenderBackend.cpp`):
+  - Automated: full `ctest` before merge (shared render route and backend contract tests already cover the moved call sites indirectly).
+  - Manual (short): one `opengl_shared` boot -> gameplay -> texture/UI/VFX smoke (cards/icons/world textures/tail fire) plus optional quick `d3d12` sanity if the slice touches shared-facing texture behavior.
 - `GameSession` shared-path extraction slices:
   - Automated: `shared_capture_presentation_contract`, `shared_capture_overlay_vfx_contract`, `shared_particle_vfx_styles_contract`, `shared_particle_billboard_batches_contract`, `shared_particle_vfx_bridge_dispatch_contract`, `gameworld_capture_render_snapshot_timing_contract`, `shared_world_indexed_batches_contract`, `shared_growl_vfx_helpers_contract`, `shared_growl_wave_bridge_contract`, `shared_growl_wave_batches_contract`, `render_flow_decisions_contract`, plus full `ctest`.
   - Add `shared_tail_fire_atlas_helpers_contract` / `shared_tail_fire_exact_gpu_batches_contract` when the slice touches tail-fire atlas prep or exact tail-fire GPU batch assembly helpers.
