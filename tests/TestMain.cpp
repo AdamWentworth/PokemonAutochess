@@ -102,6 +102,7 @@ bool test_gameworld_leechseed_clears_for_invalid_state(std::string& outFail);
 bool test_shared_capture_presentation_contract(std::string& outFail);
 bool test_shared_capture_overlay_vfx_contract(std::string& outFail);
 bool test_shared_particle_billboard_batches_contract(std::string& outFail);
+bool test_shared_particle_vfx_bridge_dispatch_contract(std::string& outFail);
 bool test_shared_particle_vfx_styles_contract(std::string& outFail);
 bool test_gameworld_capture_render_snapshot_timing_contract(std::string& outFail);
 bool test_shared_growl_vfx_helpers_contract(std::string& outFail);
@@ -255,6 +256,7 @@ int main(int argc, char** argv) {
         {"shared_capture_presentation_contract", &test_shared_capture_presentation_contract},
         {"shared_capture_overlay_vfx_contract", &test_shared_capture_overlay_vfx_contract},
         {"shared_particle_billboard_batches_contract", &test_shared_particle_billboard_batches_contract},
+        {"shared_particle_vfx_bridge_dispatch_contract", &test_shared_particle_vfx_bridge_dispatch_contract},
         {"shared_particle_vfx_styles_contract", &test_shared_particle_vfx_styles_contract},
         {"gameworld_capture_render_snapshot_timing_contract", &test_gameworld_capture_render_snapshot_timing_contract},
         {"shared_growl_vfx_helpers_contract", &test_shared_growl_vfx_helpers_contract},

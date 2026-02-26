@@ -1,7 +1,7 @@
 {
   "boot_menu_screen": "",
   "preferred_gpu_adapter": "NVIDIA GeForce GTX 1050",
-  "renderer_backend": "opengl_shared",
+  "renderer_backend": "d3d12",
   "require_discrete_gpu": false,
   "restart_on_exit": false
 }

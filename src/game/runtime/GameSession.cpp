@@ -67,6 +67,7 @@
 #include "game/runtime/SharedCapturePresentation.h"
 #include "game/runtime/SharedCaptureOverlayVfx.h"
 #include "game/runtime/SharedParticleBillboardBatches.h"
+#include "game/runtime/SharedParticleVfxBridgeDispatch.h"
 #include "game/runtime/SharedGrowlVfxHelpers.h"
 #include "game/runtime/SharedGrowlWaveBridge.h"
 #include "game/runtime/SharedGrowlWaveBatches.h"
@@ -3459,17 +3460,13 @@ struct GameSession::Impl {
                                 worldIndexedBatches);
                         };
 
-                    bool appendedTailFireBillboards =
-                        appendSnapshotAsBillboards("tail_fire", vfxSnapshots.tailFire);
-                    appendSnapshotAsBillboards("grass_impact", vfxSnapshots.grassImpact);
-                    appendSnapshotAsBillboards("tackle_burst", vfxSnapshots.tackleBurst);
-                    appendSnapshotAsBillboards("tackle_spark", vfxSnapshots.tackleSpark);
-                    appendSnapshotAsBillboards("leech_seed_projectile", vfxSnapshots.leechSeedProjectile);
+                    const auto particleDispatchResult =
+                        game::runtime::shared_particle_bridge_dispatch::appendStandardSnapshots(
+                            vfxSnapshots,
+                            appendSnapshotAsBillboards);
+                    bool appendedTailFireBillboards = particleDispatchResult.appendedTailFireBillboards;
                     const bool appendedLeechDrainBillboards =
-                        appendSnapshotAsBillboards("leech_seed_drain", vfxSnapshots.leechSeedDrain);
-                    appendSnapshotAsBillboards("heal_plus", vfxSnapshots.healPlus);
-                    appendSnapshotAsBillboards("claw_swipe", vfxSnapshots.clawSwipe);
-                    appendSnapshotAsBillboards("aqua_swoosh", vfxSnapshots.aquaSwoosh);
+                        particleDispatchResult.appendedLeechDrainBillboards;
 
                     if (!appendedTailFireBillboards && gameWorld) {
                         const TailFireVFX::Config& sTailFireFallbackCfg = getSharedTailFireFallbackCfg();
