@@ -102,6 +102,7 @@ bool test_gameworld_leechseed_clears_for_invalid_state(std::string& outFail);
 bool test_shared_capture_presentation_contract(std::string& outFail);
 bool test_gameworld_capture_render_snapshot_timing_contract(std::string& outFail);
 bool test_shared_growl_vfx_helpers_contract(std::string& outFail);
+bool test_shared_growl_wave_bridge_contract(std::string& outFail);
 bool test_shared_growl_wave_batches_contract(std::string& outFail);
 bool test_shared_world_indexed_batches_contract(std::string& outFail);
 bool test_d3d12_world_material_constants_contract(std::string& outFail);
@@ -251,6 +252,7 @@ int main(int argc, char** argv) {
         {"shared_capture_presentation_contract", &test_shared_capture_presentation_contract},
         {"gameworld_capture_render_snapshot_timing_contract", &test_gameworld_capture_render_snapshot_timing_contract},
         {"shared_growl_vfx_helpers_contract", &test_shared_growl_vfx_helpers_contract},
+        {"shared_growl_wave_bridge_contract", &test_shared_growl_wave_bridge_contract},
         {"shared_growl_wave_batches_contract", &test_shared_growl_wave_batches_contract},
         {"shared_world_indexed_batches_contract", &test_shared_world_indexed_batches_contract},
         {"d3d12_world_material_constants_contract", &test_d3d12_world_material_constants_contract},

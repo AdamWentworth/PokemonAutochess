@@ -66,6 +66,7 @@
 #include "game/runtime/BackendUnitVisuals.h"
 #include "game/runtime/SharedCapturePresentation.h"
 #include "game/runtime/SharedGrowlVfxHelpers.h"
+#include "game/runtime/SharedGrowlWaveBridge.h"
 #include "game/runtime/SharedGrowlWaveBatches.h"
 #include "game/runtime/SharedWorldIndexedBatches.h"
 #include "game/GameServices.h"
@@ -2164,36 +2165,25 @@ struct GameSession::Impl {
                             baked.valid = true;
                             return &baked;
                         };
+                    const auto resolveGrowlTextureView =
+                        [&](const GrowlWaveVFX::Config::DrawPass& pass,
+                            const GrowlTevState& tev,
+                            game::runtime::shared_growl_batches::TextureView& outView) {
+                            BackendTextureCacheEntry* tex = resolveGrowlSharedTexture(pass, tev);
+                            if (!tex) tex = ensureBackendTextureLoaded("");
+                            if (!tex || !tex->valid || tex->rgba.empty()) return false;
+                            outView.rgba = tex->rgba.data();
+                            outView.width = tex->width;
+                            outView.height = tex->height;
+                            return true;
+                        };
 
-                    for (const auto& pass : growlSnapshot.drawPasses) {
-                        if (!pass.enabled) continue;
-                        const GrowlTevState passTev =
-                            game::runtime::shared_growl::resolveTevState(growlSnapshot.config, pass);
-
-                        const bool drawQuarterRing = pass.textureQuarterRing;
-                        const runtime::backend_model::MeshData* passMesh = nullptr;
-                        if (!drawQuarterRing) {
-                            if (pass.meshPath.empty()) continue;
-                            passMesh = ensureBackendMeshLoaded(pass.meshPath);
-                            if (!passMesh) continue;
-                        }
-
-                        BackendTextureCacheEntry* tex = resolveGrowlSharedTexture(pass, passTev);
-                        if (!tex) tex = ensureBackendTextureLoaded("");
-                        if (!tex || !tex->valid || tex->rgba.empty()) continue;
-                        game::runtime::shared_growl_batches::TextureView growlTexView;
-                        growlTexView.rgba = tex->rgba.data();
-                        growlTexView.width = tex->width;
-                        growlTexView.height = tex->height;
-                        game::runtime::shared_growl_batches::appendPassBatch(
-                            worldIndexedBatches,
-                            growlSnapshot,
-                            pass,
-                            passTev,
-                            passMesh,
-                            growlTexView,
-                            cameraWorldPos);
-                    }
+                    game::runtime::shared_growl_bridge::appendBatches(
+                        growlSnapshot,
+                        worldIndexedBatches,
+                        cameraWorldPos,
+                        [&](const std::string& meshPath) { return ensureBackendMeshLoaded(meshPath); },
+                        resolveGrowlTextureView);
                 };
                 struct SharedTailFireAnchor {
                     bool valid = false;
