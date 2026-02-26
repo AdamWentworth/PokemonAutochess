@@ -1,4 +1,5 @@
 #include "game/runtime/SharedProjectedUnitBackendMeshRenderer.h"
+#include "game/runtime/SharedProjectedUnitBackendMeshPrep.h"
 
 #include "game/runtime/BackendMaterialShading.h"
 #include "game/runtime/BackendUnitVisuals.h"
@@ -51,8 +52,6 @@ Result renderProjectedUnitBackendMesh(const Args& args) {
     const auto& unit = *args.unit;
     const auto& pose = *args.pose;
     const auto* meshForUnit = args.meshForUnit;
-    auto scenePose = *args.scenePose;
-    bool scenePoseReady = args.scenePoseReady;
     const auto& tint = *args.tint;
 
     const float worldCellSize = args.worldCellSize;
@@ -92,176 +91,37 @@ Result renderProjectedUnitBackendMesh(const Args& args) {
     using DepthTri = game::runtime::shared_projected_scene::DepthTri;
     using DepthWorldTri = game::runtime::shared_projected_scene::DepthWorldTri;
 
-    bool drewModelMesh = false;    if (const runtime::backend_model::MeshData* mesh = meshForUnit) {
-        const std::size_t triangleCount = mesh->indices.size() / 3u;
-        if (triangleCount == 0u) { out.skipUnit = true; return out; }
-        const std::size_t maxTrianglesPerUnit = backendModelTriangleLimit();
-        const float detailScale = std::clamp(unitSize / 70.0f, 0.45f, 1.0f);
-        const std::size_t minTrianglesPerUnit =
-            std::min<std::size_t>(1800u, maxTrianglesPerUnit);
-        const std::size_t scaledBudget = static_cast<std::size_t>(
-            std::clamp(
-                static_cast<double>(maxTrianglesPerUnit) *
-                    static_cast<double>(detailScale),
-                static_cast<double>(minTrianglesPerUnit),
-                static_cast<double>(maxTrianglesPerUnit)));
-        const std::size_t unitTriangleBudget =
-            std::min(triangleCount, std::max(minTrianglesPerUnit, scaledBudget));
-        const bool useIndexedWorldModelPath =
-            supportsWorldTriangles3D && supportsWorldIndexedMeshes;
-        const bool fullIndexedMeshPath =
-            useIndexedWorldModelPath && backendModelFullMeshEnabled();
-        std::size_t effectiveUnitTriangleBudget = unitTriangleBudget;
-        if (fullIndexedMeshPath) {
-            effectiveUnitTriangleBudget = triangleCount;
-        } else {
-            if (remainingModelTrianglesBudget > 0u) {
-                effectiveUnitTriangleBudget =
-                    std::min(effectiveUnitTriangleBudget, remainingModelTrianglesBudget);
-            } else {
-                effectiveUnitTriangleBudget =
-                    std::min<std::size_t>(triangleCount, 384u);
-            }
-            if (effectiveUnitTriangleBudget == 0u) {
-                effectiveUnitTriangleBudget = std::min<std::size_t>(triangleCount, 384u);
-            }
-            if (remainingModelTrianglesBudget >= effectiveUnitTriangleBudget) {
-                remainingModelTrianglesBudget -= effectiveUnitTriangleBudget;
-            } else {
-                remainingModelTrianglesBudget = 0u;
-            }
+    bool drewModelMesh = false;
+    if (meshForUnit) {
+        shared_projected_unit_backend_mesh_prep::PreparedState prep;
+        if (!shared_projected_unit_backend_mesh_prep::prepareProjectedUnitBackendMesh(args, out, prep)) {
+            return out;
         }
 
-        float resolvedScaleCorrection = std::max(0.05f, unit.modelScaleCorrection);
-        if (!unit.model) {
-            if (const PokemonStats* stats = dataDb.pokemon.getStats(unit.name)) {
-                const std::string mode = toLowerCopy(stats->modelScaleMode);
-                if (mode != "normalized") {
-                    const float importerScale = std::max(0.0f, mesh->modelScaleFactor);
-                    if (importerScale > 1e-6f) {
-                        resolvedScaleCorrection =
-                            std::max(0.05f, 1.0f / importerScale);
-                    }
-                }
-            }
-        }
-        const float modelScale =
-            std::max(0.01f, mesh->modelScaleFactor) *
-            resolvedScaleCorrection *
-            std::max(0.05f, unit.speciesScale) *
-            renderVisualScale *
-            renderCaptureScale *
-            attackPulse;
-        glm::vec3 renderPos = proxyCenter;
-        const float minAllowedModelY = boardSurfaceY + 0.0025f;
-        const float approxModelMinY = renderPos.y + mesh->boundsMin.y * modelScale;
-        if (std::isfinite(approxModelMinY) && approxModelMinY < minAllowedModelY) {
-            renderPos.y += (minAllowedModelY - approxModelMinY);
-        }
-        const glm::mat4 scale = glm::scale(glm::mat4(1.0f), glm::vec3(modelScale));
-        const glm::mat4 rotationX =
-            glm::rotate(glm::mat4(1.0f), glm::radians(animPitch), glm::vec3(1, 0, 0));
-        const glm::mat4 rotationY =
-            glm::rotate(glm::mat4(1.0f), glm::radians(animYaw), glm::vec3(0, 1, 0));
-        const glm::mat4 rotationZ =
-            glm::rotate(glm::mat4(1.0f), glm::radians(animRoll), glm::vec3(0, 0, 1));
-        const glm::mat4 translation = glm::translate(glm::mat4(1.0f), renderPos);
-        const glm::mat4 modelM = translation * rotationY * rotationX * rotationZ * scale;
-        const std::size_t modelDepthCountBefore = modelDepthTris.size();
-        const std::size_t modelDepthWorldCountBefore = modelDepthWorldTris.size();
-        const std::size_t world3DTriangleCountBefore = world3DTriangles.size();
-        static thread_local std::vector<int> submeshNodeFallback;
-        submeshNodeFallback.clear();
-        if (!mesh->submeshMeshIndex.empty()) {
-            submeshNodeFallback.assign(mesh->submeshMeshIndex.size(), -1);
-            for (std::size_t si = 0; si < mesh->submeshMeshIndex.size(); ++si) {
-                const int meshIndex = mesh->submeshMeshIndex[si];
-                if (meshIndex >= 0 &&
-                    static_cast<std::size_t>(meshIndex) < mesh->meshIndexToNode.size()) {
-                    submeshNodeFallback[si] =
-                        mesh->meshIndexToNode[static_cast<std::size_t>(meshIndex)];
-                }
-            }
-        }
-        std::vector<WorldIndexedBatch> modelIndexedBatchesPerSubmesh;
-        std::vector<std::vector<int>> modelIndexedVertexRemap;
-        if (useIndexedWorldModelPath) {
-            const std::size_t batchCount =
-                std::max<std::size_t>(1u, mesh->submeshBaseTextures.size());
-            modelIndexedBatchesPerSubmesh.resize(batchCount);
-            if (fullIndexedMeshPath && !mesh->vertices.empty()) {
-                modelIndexedVertexRemap.resize(batchCount);
-                for (auto& remap : modelIndexedVertexRemap) {
-                    remap.assign(mesh->vertices.size(), -1);
-                }
-            }
-
-            std::string unitModelPath;
-            if (const PokemonStats* stats = dataDb.pokemon.getStats(unit.name)) {
-                if (!stats->model.empty()) {
-                    unitModelPath = "assets/models/" + stats->model;
-                }
-            }
-            for (std::size_t si = 0; si < modelIndexedBatchesPerSubmesh.size(); ++si) {
-                auto& batch = modelIndexedBatchesPerSubmesh[si];
-                batch.vertices.reserve((effectiveUnitTriangleBudget * 3u) / batchCount + 64u);
-                batch.indices.reserve((effectiveUnitTriangleBudget * 3u) / batchCount + 64u);
-                batch.sortDepth = glm::dot(cameraWorldPos - proxyCenter, cameraWorldPos - proxyCenter);
-                if (si < mesh->submeshBaseTextures.size()) {
-                    const auto& tex = mesh->submeshBaseTextures[si];
-                    if (tex.hasPixels() && !unitModelPath.empty()) {
-                        batch.textureKey = unitModelPath + "#submesh:" + std::to_string(si);
-                        batch.textureRgba = tex.rgba.data();
-                        batch.textureWidth = tex.width;
-                        batch.textureHeight = tex.height;
-                        batch.textureWrapS = tex.wrapS;
-                        batch.textureWrapT = tex.wrapT;
-                    }
-                }
-                if (si < mesh->submeshAlphaMode.size()) {
-                    batch.alphaMode = mesh->submeshAlphaMode[si];
-                }
-                if (si < mesh->submeshAlphaCutoff.size()) {
-                    batch.alphaCutoff = mesh->submeshAlphaCutoff[si];
-                }
-                // During faint fade-out, force alpha blending for textured submeshes so MASK/OPAQUE
-                // materials don't pop/cut out while the model fades away.
-                if (modelFadeAlpha < 0.999f) {
-                    batch.alphaMode = 2u;
-                    batch.blendMode = 0u;
-                    batch.alphaCutoff = 0.0f;
-                }
-            }
-        }
-        if (!scenePoseReady) {
-            scenePose = game::runtime::shared_backend_pose::evaluateScenePose(*mesh, unit);
-            scenePoseReady = true;
-        }
-        const auto& nodeGlobals = scenePose.hasScenePose ? scenePose.nodeGlobals : mesh->bindNodeGlobals;
+        const runtime::backend_model::MeshData* mesh = prep.mesh;
+        const std::size_t triangleCount = prep.triangleCount;
+        const std::size_t effectiveUnitTriangleBudget = prep.effectiveUnitTriangleBudget;
+        const bool useIndexedWorldModelPath = prep.useIndexedWorldModelPath;
+        const bool fullIndexedMeshPath = prep.fullIndexedMeshPath;
+        const bool useFastTexturedFullMeshPath = prep.useFastTexturedFullMeshPath;
+        const bool usePositionOnlyVertexPath = prep.usePositionOnlyVertexPath;
+        const float resolvedScaleCorrection = prep.resolvedScaleCorrection;
+        const glm::mat4& modelM = prep.modelM;
+        const std::size_t modelDepthCountBefore = prep.modelDepthCountBefore;
+        const std::size_t modelDepthWorldCountBefore = prep.modelDepthWorldCountBefore;
+        const std::size_t world3DTriangleCountBefore = prep.world3DTriangleCountBefore;
+        auto& submeshNodeFallback = prep.submeshNodeFallback;
+        auto& modelIndexedBatchesPerSubmesh = prep.modelIndexedBatchesPerSubmesh;
+        auto& modelIndexedVertexRemap = prep.modelIndexedVertexRemap;
+        const BackendPoseEval& scenePose = prep.scenePose;
+        const auto& nodeGlobals =
+            scenePose.hasScenePose ? scenePose.nodeGlobals : mesh->bindNodeGlobals;
         const bool hasClipPose = scenePose.hasClipPose;
-        const bool useFastTexturedFullMeshPath =
-            supportsWorldTriangles3D &&
-            useIndexedWorldModelPath &&
-            backendModelFastTexturedPathEnabled() &&
-            fullIndexedMeshPath;
-        bool allSubmeshesTextured = !mesh->submeshBaseTextures.empty();
-        if (allSubmeshesTextured) {
-            for (const auto& tex : mesh->submeshBaseTextures) {
-                if (!tex.hasPixels()) {
-                    allSubmeshesTextured = false;
-                    break;
-                }
-            }
-        }
-        const bool usePositionOnlyVertexPath =
-            useFastTexturedFullMeshPath &&
-            allSubmeshesTextured;
-
-        const glm::vec3 lightDir = glm::normalize(glm::vec3(0.45f, 0.90f, 0.35f));
-        const glm::vec3 fallbackBase(
-            std::clamp(tint.r * 0.85f + 0.10f, 0.0f, 1.0f),
-            std::clamp(tint.g * 0.85f + 0.10f, 0.0f, 1.0f),
-            std::clamp(tint.b * 0.85f + 0.10f, 0.0f, 1.0f));
+        const glm::vec3& lightDir = prep.lightDir;
+        const glm::vec3& fallbackBase = prep.fallbackBase;
+        const bool downsampleModelTriangles = prep.downsampleModelTriangles;
+        const float fastTexturedAlpha = prep.fastTexturedAlpha;
+        const glm::vec3& fastTexturedTint = prep.fastTexturedTint;
         const auto safeNormalize = [](const glm::vec3& v) {
             const float lenSq = glm::dot(v, v);
             if (lenSq > 1e-12f) return glm::normalize(v);
@@ -911,12 +771,6 @@ Result renderProjectedUnitBackendMesh(const Args& args) {
             dt.depth = (z1 + z2 + z3) * (1.0f / 3.0f);
             modelDepthTris.push_back(dt);
         };
-        const bool downsampleModelTriangles = effectiveUnitTriangleBudget < triangleCount;
-        const float fastTexturedAlpha = std::clamp(modelFadeAlpha, 0.0f, 1.0f);
-        const glm::vec3 fastTexturedTint = glm::mix(
-            glm::vec3(1.0f),
-            captureTintColor,
-            std::clamp(captureVisualTintStrength, 0.0f, 1.0f));
         std::size_t previousTriSample = triangleCount;
         for (std::size_t sampleIdx = 0; sampleIdx < effectiveUnitTriangleBudget; ++sampleIdx) {
             std::size_t triIdx = sampleIdx;
@@ -1140,3 +994,4 @@ Result renderProjectedUnitBackendMesh(const Args& args) {
 }
 
 } // namespace game::runtime::shared_projected_unit_backend_mesh
+
