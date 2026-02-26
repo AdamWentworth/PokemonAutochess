@@ -58,6 +58,9 @@ Focus on catching real regressions while keeping tests fast and headless.
   - Add `shared_tail_fire_atlas_helpers_contract` / `shared_tail_fire_exact_gpu_batches_contract` when the slice touches tail-fire atlas prep or exact tail-fire GPU batch assembly helpers.
   - If the slice moves `d3d12`-only shared capture fast-path logic (for example pokeball cached rigid/per-submesh direct draws), require a short `d3d12` Adventure capture smoke in addition to the `opengl_shared` smoke.
   - If the slice moves projected-unit rendering/model/HUD composition (for example `drawProjectedUnits` extraction), require `opengl_shared` combat smoke that covers unit models + per-unit HUD + shared VFX + one Adventure capture, plus optional `d3d12` sanity.
+- `BackendModelCache` slices:
+  - Automated: `backend_model_cache_contract`, `model_parse_smoke`, `gltf_asset_smoke`, plus full `ctest`.
+  - Manual (short): one `d3d12` boot/startup preload smoke (watch `[Init][ModelCache]` and confirm no cache-load regressions), plus optional `opengl_shared` sanity boot if the slice touches source-build/rebuild behavior.
   - Manual (short): `opengl_shared` parity smoke on the feature being extracted (capture, VFX bridge, HUD, etc.).
 
 ## Coverage Gaps (High Risk)

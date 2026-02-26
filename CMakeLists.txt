@@ -286,6 +286,7 @@ add_library(PAC_GameObjects STATIC
     src/game/runtime/GpuAdapters.cpp
     src/game/runtime/d3d12/D3D12Probe.cpp
     src/game/runtime/BackendModelCache.cpp
+    src/game/runtime/BackendModelCacheSourceBuild.cpp
 
     # Game Config
     src/game/config/PokemonConfigLoader.cpp
