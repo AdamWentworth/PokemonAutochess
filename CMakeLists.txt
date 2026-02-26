@@ -173,7 +173,9 @@ add_library(engine_render STATIC
     src/engine/render/OpenGLRenderBackend.cpp
     src/engine/render/opengl/OpenGLRenderBackendDebugDraw.cpp
     src/engine/render/opengl/OpenGLRenderBackendPipelines.cpp
+    src/engine/render/opengl/OpenGLRenderBackendShaderUtils.cpp
     src/engine/render/opengl/OpenGLRenderBackendTextures.cpp
+    src/engine/render/opengl/OpenGLRenderBackendWorldPipeline.cpp
     src/engine/render/opengl/OpenGLRenderBackendWorldDraw.cpp
     src/engine/render/Renderer.cpp
     src/engine/render/Camera3D.cpp
@@ -278,6 +280,7 @@ add_library(PAC_GameObjects STATIC
     src/game/runtime/SharedParticleVfxBridgeDispatch.cpp
     src/game/runtime/SharedParticleVfxStyles.cpp
     src/game/runtime/SharedTailFireSnapshotBillboards.cpp
+    src/game/runtime/SharedTailFireSnapshotAtlasCache.cpp
     src/game/runtime/SharedTailFireFallbackEmitter.cpp
     src/game/runtime/SharedTailFireAtlasHelpers.cpp
     src/game/runtime/SharedTailFireExactCpuSnapshotBatches.cpp
@@ -294,6 +297,7 @@ add_library(PAC_GameObjects STATIC
     src/game/runtime/d3d12/D3D12Probe.cpp
     src/game/runtime/BackendModelCache.cpp
     src/game/runtime/BackendModelCacheReadDecode.cpp
+    src/game/runtime/BackendModelCacheReadScene.cpp
     src/game/runtime/BackendModelCacheLoadOrRebuild.cpp
     src/game/runtime/BackendModelCacheWrite.cpp
     src/game/runtime/BackendModelCacheSourceBuild.cpp
