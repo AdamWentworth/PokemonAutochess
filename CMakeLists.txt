@@ -258,39 +258,39 @@ add_library(PAC_GameObjects STATIC
     src/game/runtime/GameRuntime.cpp
     src/game/runtime/GameBootstrap.cpp
     src/game/runtime/GameSession.cpp
-    src/game/runtime/shared/SharedBackendPoseEval.cpp
-    src/game/runtime/shared/SharedCapturePresentation.cpp
-    src/game/runtime/shared/SharedCaptureOverlayVfx.cpp
-    src/game/runtime/shared/SharedCaptureModelBridge.cpp
-    src/game/runtime/shared/SharedCaptureD3d12FastPath.cpp
-    src/game/runtime/shared/SharedCapturePreparedMeshCache.cpp
-    src/game/runtime/shared/SharedBoardGridBatches.cpp
-    src/game/runtime/shared/SharedProjectedDebugVfx.cpp
-    src/game/runtime/shared/SharedProjectedUnitBackendMeshRenderer.cpp
-    src/game/runtime/shared/SharedProjectedUnitBackendMeshPrep.cpp
-    src/game/runtime/shared/SharedProjectedUnitBackendMeshTriangleSubmit.cpp
-    src/game/runtime/shared/SharedProjectedUnitBackendMeshTransforms.cpp
-    src/game/runtime/shared/SharedProjectedUnitModelRenderer.cpp
-    src/game/runtime/shared/SharedProjectedUnitRenderer.cpp
-    src/game/runtime/shared/SharedProjectedUnitOverlays.cpp
-    src/game/runtime/shared/SharedBackendDebugViewOverlay.cpp
-    src/game/runtime/shared/SharedProjectedWorldSceneHelpers.cpp
-    src/game/runtime/shared/SharedParticleBillboardBatches.cpp
-    src/game/runtime/shared/SharedParticleSnapshotBillboards.cpp
-    src/game/runtime/shared/SharedParticleVfxBridgeDispatch.cpp
-    src/game/runtime/shared/SharedParticleVfxStyles.cpp
-    src/game/runtime/shared/SharedTailFireSnapshotBillboards.cpp
-    src/game/runtime/shared/SharedTailFireSnapshotAtlasCache.cpp
-    src/game/runtime/shared/SharedTailFireFallbackEmitter.cpp
-    src/game/runtime/shared/SharedTailFireAtlasHelpers.cpp
-    src/game/runtime/shared/SharedTailFireExactCpuSnapshotBatches.cpp
-    src/game/runtime/shared/SharedTailFireExactCpuTileBake.cpp
-    src/game/runtime/shared/SharedTailFireExactGpuBatches.cpp
-    src/game/runtime/shared/SharedGrowlVfxHelpers.cpp
-    src/game/runtime/shared/SharedGrowlWaveBridge.cpp
-    src/game/runtime/shared/SharedGrowlWaveBatches.cpp
-    src/game/runtime/shared/SharedUnitHudBatches.cpp
-    src/game/runtime/shared/SharedWorldIndexedBatches.cpp
+    src/game/runtime/shared/backend/SharedBackendPoseEval.cpp
+    src/game/runtime/shared/capture/SharedCapturePresentation.cpp
+    src/game/runtime/shared/capture/SharedCaptureOverlayVfx.cpp
+    src/game/runtime/shared/capture/SharedCaptureModelBridge.cpp
+    src/game/runtime/shared/capture/SharedCaptureD3d12FastPath.cpp
+    src/game/runtime/shared/capture/SharedCapturePreparedMeshCache.cpp
+    src/game/runtime/shared/world/SharedBoardGridBatches.cpp
+    src/game/runtime/shared/projected/SharedProjectedDebugVfx.cpp
+    src/game/runtime/shared/projected/SharedProjectedUnitBackendMeshRenderer.cpp
+    src/game/runtime/shared/projected/SharedProjectedUnitBackendMeshPrep.cpp
+    src/game/runtime/shared/projected/SharedProjectedUnitBackendMeshTriangleSubmit.cpp
+    src/game/runtime/shared/projected/SharedProjectedUnitBackendMeshTransforms.cpp
+    src/game/runtime/shared/projected/SharedProjectedUnitModelRenderer.cpp
+    src/game/runtime/shared/projected/SharedProjectedUnitRenderer.cpp
+    src/game/runtime/shared/projected/SharedProjectedUnitOverlays.cpp
+    src/game/runtime/shared/ui/SharedBackendDebugViewOverlay.cpp
+    src/game/runtime/shared/projected/SharedProjectedWorldSceneHelpers.cpp
+    src/game/runtime/shared/vfx/particles/SharedParticleBillboardBatches.cpp
+    src/game/runtime/shared/vfx/particles/SharedParticleSnapshotBillboards.cpp
+    src/game/runtime/shared/vfx/particles/SharedParticleVfxBridgeDispatch.cpp
+    src/game/runtime/shared/vfx/particles/SharedParticleVfxStyles.cpp
+    src/game/runtime/shared/vfx/tail_fire/SharedTailFireSnapshotBillboards.cpp
+    src/game/runtime/shared/vfx/tail_fire/SharedTailFireSnapshotAtlasCache.cpp
+    src/game/runtime/shared/vfx/tail_fire/SharedTailFireFallbackEmitter.cpp
+    src/game/runtime/shared/vfx/tail_fire/SharedTailFireAtlasHelpers.cpp
+    src/game/runtime/shared/vfx/tail_fire/SharedTailFireExactCpuSnapshotBatches.cpp
+    src/game/runtime/shared/vfx/tail_fire/SharedTailFireExactCpuTileBake.cpp
+    src/game/runtime/shared/vfx/tail_fire/SharedTailFireExactGpuBatches.cpp
+    src/game/runtime/shared/vfx/growl/SharedGrowlVfxHelpers.cpp
+    src/game/runtime/shared/vfx/growl/SharedGrowlWaveBridge.cpp
+    src/game/runtime/shared/vfx/growl/SharedGrowlWaveBatches.cpp
+    src/game/runtime/shared/ui/SharedUnitHudBatches.cpp
+    src/game/runtime/shared/world/SharedWorldIndexedBatches.cpp
     src/game/runtime/GameUpdateGraph.cpp
     src/game/runtime/VideoPreferences.cpp
     src/game/runtime/GpuAdapters.cpp

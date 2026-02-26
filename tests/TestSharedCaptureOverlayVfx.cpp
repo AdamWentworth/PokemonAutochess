@@ -4,7 +4,7 @@
 
 #include <glm/glm.hpp>
 
-#include "game/runtime/shared/SharedCaptureOverlayVfx.h"
+#include "game/runtime/shared/capture/SharedCaptureOverlayVfx.h"
 
 namespace {
 

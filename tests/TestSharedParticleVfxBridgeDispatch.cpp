@@ -1,7 +1,7 @@
 #include <string>
 #include <vector>
 
-#include "game/runtime/shared/SharedParticleVfxBridgeDispatch.h"
+#include "game/runtime/shared/vfx/particles/SharedParticleVfxBridgeDispatch.h"
 
 namespace {
 

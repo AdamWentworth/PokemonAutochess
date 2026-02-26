@@ -3,7 +3,7 @@
 #include <vector>
 
 #include "engine/render/IRenderBackend.h"
-#include "game/runtime/shared/SharedWorldIndexedBatches.h"
+#include "game/runtime/shared/world/SharedWorldIndexedBatches.h"
 
 namespace {
 

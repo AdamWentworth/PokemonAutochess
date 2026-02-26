@@ -5,7 +5,7 @@
 #include <glm/glm.hpp>
 
 #include "engine/vfx/ParticleSystem.h"
-#include "game/runtime/shared/SharedParticleBillboardBatches.h"
+#include "game/runtime/shared/vfx/particles/SharedParticleBillboardBatches.h"
 
 namespace {
 

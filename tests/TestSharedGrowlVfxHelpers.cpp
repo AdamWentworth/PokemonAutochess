@@ -5,7 +5,7 @@
 
 #include <glm/glm.hpp>
 
-#include "game/runtime/shared/SharedGrowlVfxHelpers.h"
+#include "game/runtime/shared/vfx/growl/SharedGrowlVfxHelpers.h"
 
 namespace {
 

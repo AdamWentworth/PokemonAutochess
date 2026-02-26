@@ -51,17 +51,17 @@ Strong signal
 - Most files prefixed `Shared*` under `src/game/runtime/shared/`
 
 Paths (examples, not exhaustive)
-- `src/game/runtime/shared/SharedProjected*.*`
-- `src/game/runtime/shared/SharedCapture*.*`
-- `src/game/runtime/shared/SharedGrowl*.*`
-- `src/game/runtime/shared/SharedParticle*.*`
-- `src/game/runtime/shared/SharedTailFire*.*`
-- `src/game/runtime/shared/SharedUnitHudBatches.*`
-- `src/game/runtime/shared/SharedWorldIndexedBatches.*`
-- `src/game/runtime/shared/SharedBoardGridBatches.*`
-- `src/game/runtime/shared/SharedBackendDebugViewOverlay.*`
-- `src/game/runtime/shared/SharedBackendPoseEval.*`
-- `src/game/runtime/shared/SharedBackendTextureCache.h`
+- `src/game/runtime/shared/projected/SharedProjected*.*`
+- `src/game/runtime/shared/capture/SharedCapture*.*`
+- `src/game/runtime/shared/vfx/growl/SharedGrowl*.*`
+- `src/game/runtime/shared/vfx/particles/SharedParticle*.*`
+- `src/game/runtime/shared/vfx/tail_fire/SharedTailFire*.*`
+- `src/game/runtime/shared/ui/SharedUnitHudBatches.*`
+- `src/game/runtime/shared/world/SharedWorldIndexedBatches.*`
+- `src/game/runtime/shared/world/SharedBoardGridBatches.*`
+- `src/game/runtime/shared/ui/SharedBackendDebugViewOverlay.*`
+- `src/game/runtime/shared/backend/SharedBackendPoseEval.*`
+- `src/game/runtime/shared/backend/SharedBackendTextureCache.h`
 
 Also shared-path support (not `Shared*`, but used by shared runtime paths)
 - `src/game/runtime/backend_model_cache/BackendModelCache*.*` (backend cache load/build/read/write)
@@ -76,7 +76,7 @@ These are game/runtime files only relevant when D3D12 is active (or when probing
 
 Paths
 - `src/game/runtime/d3d12/D3D12Probe.*`
-- `src/game/runtime/shared/SharedCaptureD3d12FastPath.*` (D3D12-only branch extracted from shared capture model bridge)
+- `src/game/runtime/shared/capture/SharedCaptureD3d12FastPath.*` (D3D12-only branch extracted from shared capture model bridge)
 
 Notes
 - This is game/runtime code, not engine/backend code.
@@ -201,6 +201,7 @@ Proposed structure
   - `vfx/tail_fire/` (`SharedTailFire*`)
   - `ui/` (`SharedUnitHudBatches`, `SharedBackendDebugViewOverlay`, etc.)
   - `world/` (`SharedWorldIndexedBatches`, `SharedBoardGridBatches`)
+  - `backend/` (`SharedBackendPoseEval`, `SharedBackendTextureCache`)
 - `src/game/runtime/platform/d3d12/`
   - keep `d3d12/D3D12Probe.*` (already mostly aligned)
 
@@ -235,12 +236,9 @@ Low-risk next organization move
 2. [x] Move `ScriptedState*` files into `src/game/state/scripted/` (completed).
 3. [x] Move `BackendModelCache*` family into `src/game/runtime/backend_model_cache/` (completed).
 4. [x] Move `Shared*` runtime modules into `src/game/runtime/shared/` (flat first pass complete).
-5. Move `Shared*` runtime modules from `src/game/runtime/shared/` into deeper subsystem folders in batches:
-- projected
-- capture
-- growl/particles/tail-fire
-- UI/world
-6. Update includes incrementally, build + `ctest` after each batch, plus one manual smoke per batch.
+5. [x] Move `Shared*` runtime modules from `src/game/runtime/shared/` into deeper subsystem folders by subsystem (`projected`, `capture`, `vfx/*`, `ui`, `world`, `backend`) and update includes/CMake/tests.
+6. Continue normalizing special cases over time (for example, decide whether D3D12-only shared capture helpers stay under `shared/capture/` or move under `shared/capture/d3d12/`).
+7. Update includes incrementally, build + `ctest` after each batch, plus one manual smoke per batch.
 
 ## What still counts as meaningful housework (not just line-count work)
 
@@ -261,8 +259,8 @@ Approx. top files in `src/game/runtime`, `src/game/state`, `src/engine/render`:
 - `src/game/state/scripted/ScriptedStateBackendUi.cpp` (~775)
 - `src/game/runtime/GameRunner.cpp` (~766)
 - `src/game/state/CombatState.cpp` (~689)
-- `src/game/runtime/shared/SharedBackendDebugViewOverlay.cpp` (~630)
-- `src/game/runtime/shared/SharedTailFireExactCpuTileBake.cpp` (~613)
+- `src/game/runtime/shared/ui/SharedBackendDebugViewOverlay.cpp` (~630)
+- `src/game/runtime/shared/vfx/tail_fire/SharedTailFireExactCpuTileBake.cpp` (~613)
 - `src/game/runtime/backend_model_cache/BackendModelCacheReadDecode.cpp` (~512)
 
 This list is for prioritization, not a mandate to split everything immediately.

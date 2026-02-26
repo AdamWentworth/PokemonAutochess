@@ -5,7 +5,7 @@
 
 #include <glm/glm.hpp>
 
-#include "game/runtime/shared/SharedTailFireAtlasHelpers.h"
+#include "game/runtime/shared/vfx/tail_fire/SharedTailFireAtlasHelpers.h"
 
 namespace {
 

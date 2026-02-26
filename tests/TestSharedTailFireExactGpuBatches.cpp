@@ -5,7 +5,7 @@
 #include <glm/glm.hpp>
 
 #include "engine/vfx/ParticleSystem.h"
-#include "game/runtime/shared/SharedTailFireExactGpuBatches.h"
+#include "game/runtime/shared/vfx/tail_fire/SharedTailFireExactGpuBatches.h"
 
 namespace {
 

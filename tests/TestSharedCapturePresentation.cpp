@@ -12,7 +12,7 @@
 #include "game/PokemonInstance.h"
 #include "game/config/GameDataDb.h"
 #include "game/runtime/backend_model_cache/BackendModelCache.h"
-#include "game/runtime/shared/SharedCapturePresentation.h"
+#include "game/runtime/shared/capture/SharedCapturePresentation.h"
 
 namespace {
 
