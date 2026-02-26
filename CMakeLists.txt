@@ -262,6 +262,7 @@ add_library(PAC_GameObjects STATIC
     src/game/runtime/SharedProjectedDebugVfx.cpp
     src/game/runtime/SharedProjectedUnitBackendMeshRenderer.cpp
     src/game/runtime/SharedProjectedUnitBackendMeshPrep.cpp
+    src/game/runtime/SharedProjectedUnitBackendMeshTriangleSubmit.cpp
     src/game/runtime/SharedProjectedUnitBackendMeshTransforms.cpp
     src/game/runtime/SharedProjectedUnitModelRenderer.cpp
     src/game/runtime/SharedProjectedUnitRenderer.cpp
