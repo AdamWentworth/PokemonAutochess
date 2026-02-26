@@ -255,6 +255,7 @@ add_library(PAC_GameObjects STATIC
     src/game/runtime/SharedBackendPoseEval.cpp
     src/game/runtime/SharedCapturePresentation.cpp
     src/game/runtime/SharedCaptureOverlayVfx.cpp
+    src/game/runtime/SharedCaptureModelBridge.cpp
     src/game/runtime/SharedCaptureD3d12FastPath.cpp
     src/game/runtime/SharedCapturePreparedMeshCache.cpp
     src/game/runtime/SharedBoardGridBatches.cpp
