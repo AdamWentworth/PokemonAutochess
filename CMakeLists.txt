@@ -257,6 +257,7 @@ add_library(PAC_GameObjects STATIC
     src/game/runtime/SharedParticleBillboardBatches.cpp
     src/game/runtime/SharedParticleVfxBridgeDispatch.cpp
     src/game/runtime/SharedParticleVfxStyles.cpp
+    src/game/runtime/SharedTailFireAtlasHelpers.cpp
     src/game/runtime/SharedGrowlVfxHelpers.cpp
     src/game/runtime/SharedGrowlWaveBridge.cpp
     src/game/runtime/SharedGrowlWaveBatches.cpp
@@ -453,6 +454,7 @@ if (BUILD_TESTING)
         tests/TestSharedParticleBillboardBatches.cpp
         tests/TestSharedParticleVfxBridgeDispatch.cpp
         tests/TestSharedParticleVfxStyles.cpp
+        tests/TestSharedTailFireAtlasHelpers.cpp
         tests/TestSharedGrowlVfxHelpers.cpp
         tests/TestSharedGrowlWaveBridge.cpp
         tests/TestSharedGrowlWaveBatches.cpp

@@ -39,6 +39,7 @@ Focus on catching real regressions while keeping tests fast and headless.
 - Shared particle VFX style resolver contract coverage (`shared_particle_vfx_styles_contract`) for shader-fragment-path style classification (proc texture/tint/alpha rules) after moving shared particle billboard style selection out of `GameSession`.
 - Shared particle billboard batch-builder contract coverage (`shared_particle_billboard_batches_contract`) for generic shared particle quad assembly, clip rejection, flipbook UV frame selection, and style tint propagation after moving non-tail-fire billboard batch assembly out of `GameSession`.
 - Shared particle VFX bridge dispatch contract coverage (`shared_particle_vfx_bridge_dispatch_contract`) for ordered per-effect snapshot append orchestration and tail-fire/leech-drain result flag forwarding after moving shared particle dispatch sequencing out of `GameSession`.
+- Shared tail-fire atlas helper contract coverage (`shared_tail_fire_atlas_helpers_contract`) for premultiplied atlas baking and combined-atlas packing/rect layout after moving tail-fire atlas prep math out of `GameSession`.
 - GameWorld capture render snapshot timing contract coverage (`gameworld_capture_render_snapshot_timing_contract`) for normalized phase fields (`phaseNorm01`, `absorbNorm01`, `absorbLateVisual01`) and monotonic capture phase sequencing.
 - Shared world indexed-batch submission contract coverage (`shared_world_indexed_batches_contract`) for opaque/mask insertion-order draws, stable depth-sorted blend draws, and owned-texture fallback payload forwarding.
 - Shared growl VFX helper contract coverage (`shared_growl_vfx_helpers_contract`) for TEV-state resolution/clamping, growl pass classification, baked texture key stability, pass texture baking, and line-alpha quantization used by shared growl VFX submission in `GameSession`.
@@ -53,6 +54,7 @@ Focus on catching real regressions while keeping tests fast and headless.
   - Manual (short): one `d3d12` boot -> menu -> gameplay -> capture/FX smoke to validate world draw/UI draw/device lifecycle paths still render and shut down cleanly.
 - `GameSession` shared-path extraction slices:
   - Automated: `shared_capture_presentation_contract`, `shared_capture_overlay_vfx_contract`, `shared_particle_vfx_styles_contract`, `shared_particle_billboard_batches_contract`, `shared_particle_vfx_bridge_dispatch_contract`, `gameworld_capture_render_snapshot_timing_contract`, `shared_world_indexed_batches_contract`, `shared_growl_vfx_helpers_contract`, `shared_growl_wave_bridge_contract`, `shared_growl_wave_batches_contract`, `render_flow_decisions_contract`, plus full `ctest`.
+  - Add `shared_tail_fire_atlas_helpers_contract` when the slice touches tail-fire atlas prep/baking helpers.
   - Manual (short): `opengl_shared` parity smoke on the feature being extracted (capture, VFX bridge, HUD, etc.).
 
 ## Coverage Gaps (High Risk)

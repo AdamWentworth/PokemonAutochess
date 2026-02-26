@@ -263,3 +263,4 @@ How This File Is Used
   - mark completed items,
   - append one-line summary in Iteration Log,
   - include one-line commit message in the status update.
+- Housework Iteration 123: extracted shared tail-fire atlas prep/bake helpers (`SharedTailFireAtlasHelpers`) from `GameSession` and added `shared_tail_fire_atlas_helpers_contract` so future tail-fire bridge refactors have a focused regression guard for premultiplied atlas generation and combined-atlas rect packing.

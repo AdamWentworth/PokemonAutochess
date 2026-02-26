@@ -68,6 +68,7 @@
 #include "game/runtime/SharedCaptureOverlayVfx.h"
 #include "game/runtime/SharedParticleBillboardBatches.h"
 #include "game/runtime/SharedParticleVfxBridgeDispatch.h"
+#include "game/runtime/SharedTailFireAtlasHelpers.h"
 #include "game/runtime/SharedGrowlVfxHelpers.h"
 #include "game/runtime/SharedGrowlWaveBridge.h"
 #include "game/runtime/SharedGrowlWaveBatches.h"
@@ -2300,28 +2301,17 @@ struct GameSession::Impl {
 
                             baked.attemptedLoad = true;
                             baked.valid = false;
-                            baked.width = src->width;
-                            baked.height = src->height;
-                            baked.rgba.assign(src->rgba.size(), 0u);
-
-                            for (std::size_t i = 0; i + 3u < src->rgba.size(); i += 4u) {
-                                const float r = static_cast<float>(src->rgba[i + 0u]) / 255.0f;
-                                const float g = static_cast<float>(src->rgba[i + 1u]) / 255.0f;
-                                const float b = static_cast<float>(src->rgba[i + 2u]) / 255.0f;
-                                const float a = static_cast<float>(src->rgba[i + 3u]) / 255.0f;
-                                // Shared world textured path multiplies texture * vertex color, so keep the atlas
-                                // color as-is and only premultiply by texture alpha here (avoid double darkening).
-                                glm::vec3 rgb = glm::vec3(r, g, b) * a;
-                                baked.rgba[i + 0u] = static_cast<unsigned char>(
-                                    std::clamp<int>(static_cast<int>(std::lround(rgb.r * 255.0f)), 0, 255));
-                                baked.rgba[i + 1u] = static_cast<unsigned char>(
-                                    std::clamp<int>(static_cast<int>(std::lround(rgb.g * 255.0f)), 0, 255));
-                                baked.rgba[i + 2u] = static_cast<unsigned char>(
-                                    std::clamp<int>(static_cast<int>(std::lround(rgb.b * 255.0f)), 0, 255));
-                                baked.rgba[i + 3u] = src->rgba[i + 3u];
+                            game::runtime::shared_tail_fire_atlas::RgbaTextureOwned premul;
+                            const game::runtime::shared_tail_fire_atlas::RgbaTextureView srcView{
+                                src->rgba.data(), src->width, src->height};
+                            if (!game::runtime::shared_tail_fire_atlas::buildPremultipliedAtlas(
+                                    srcView, premul)) {
+                                return nullptr;
                             }
-
-                            baked.valid = true;
+                            baked.width = premul.width;
+                            baked.height = premul.height;
+                            baked.rgba = std::move(premul.rgba);
+                            baked.valid = (baked.width > 0 && baked.height > 0 && !baked.rgba.empty());
                             return &baked;
                         };
 
@@ -2361,44 +2351,30 @@ struct GameSession::Impl {
                             if (!combined.attemptedLoad) {
                                 combined.attemptedLoad = true;
                                 combined.valid = false;
-                                const int gutter = out.hasSecondary ? 2 : 0;
-                                const int atlasW = std::max(1, primaryRaw->width + gutter +
-                                                                  (out.hasSecondary ? secondaryRaw->width : 0));
-                                const int atlasH = std::max(
-                                    1,
-                                    std::max(primaryRaw->height, out.hasSecondary ? secondaryRaw->height : 0));
-                                combined.width = atlasW;
-                                combined.height = atlasH;
-                                combined.rgba.assign(static_cast<std::size_t>(atlasW) *
-                                                         static_cast<std::size_t>(atlasH) * 4u,
-                                                     0u);
-
-                                auto blit = [&](const BackendTextureCacheEntry& src, int dstX, int dstY) {
-                                    for (int y = 0; y < src.height; ++y) {
-                                        if (dstY + y < 0 || dstY + y >= atlasH) continue;
-                                        const std::size_t srcRowBytes =
-                                            static_cast<std::size_t>(src.width) * 4u;
-                                        const std::size_t srcIdx =
-                                            static_cast<std::size_t>(y) *
-                                            static_cast<std::size_t>(src.width) * 4u;
-                                        const std::size_t dstIdx =
-                                            (static_cast<std::size_t>(dstY + y) *
-                                                 static_cast<std::size_t>(atlasW) +
-                                             static_cast<std::size_t>(dstX)) *
-                                            4u;
-                                        if (srcIdx + srcRowBytes <= src.rgba.size() &&
-                                            dstIdx + srcRowBytes <= combined.rgba.size()) {
-                                            std::memcpy(combined.rgba.data() + dstIdx,
-                                                        src.rgba.data() + srcIdx,
-                                                        srcRowBytes);
-                                        }
-                                    }
-                                };
-                                blit(*primaryRaw, 0, 0);
+                                game::runtime::shared_tail_fire_atlas::RgbaTextureOwned builtAtlas;
+                                game::runtime::shared_tail_fire_atlas::CombinedAtlasInfo builtInfo;
+                                const game::runtime::shared_tail_fire_atlas::RgbaTextureView primaryView{
+                                    primaryRaw->rgba.data(), primaryRaw->width, primaryRaw->height};
+                                game::runtime::shared_tail_fire_atlas::RgbaTextureView secondaryView{};
+                                const game::runtime::shared_tail_fire_atlas::RgbaTextureView* secondaryViewPtr =
+                                    nullptr;
                                 if (out.hasSecondary) {
-                                    blit(*secondaryRaw, primaryRaw->width + gutter, 0);
+                                    secondaryView = {secondaryRaw->rgba.data(),
+                                                     secondaryRaw->width,
+                                                     secondaryRaw->height};
+                                    secondaryViewPtr = &secondaryView;
                                 }
-                                combined.valid = true;
+                                if (game::runtime::shared_tail_fire_atlas::buildCombinedAtlas(
+                                        primaryView, secondaryViewPtr, builtAtlas, builtInfo)) {
+                                    combined.width = builtAtlas.width;
+                                    combined.height = builtAtlas.height;
+                                    combined.rgba = std::move(builtAtlas.rgba);
+                                    combined.valid = (combined.width > 0 && combined.height > 0 &&
+                                                      !combined.rgba.empty());
+                                    out.hasSecondary = builtInfo.hasSecondary;
+                                    out.rect0 = builtInfo.rect0;
+                                    out.rect1 = builtInfo.rect1;
+                                }
                             }
 
                             if (!combined.valid || combined.rgba.empty() || combined.width <= 0 || combined.height <= 0) {
@@ -2406,22 +2382,28 @@ struct GameSession::Impl {
                             }
 
                             out.atlas = &combined;
-                            const float invW = 1.0f / static_cast<float>(std::max(1, combined.width));
-                            const float invH = 1.0f / static_cast<float>(std::max(1, combined.height));
-                            out.rect0 = glm::vec4(
-                                0.0f,
-                                0.0f,
-                                static_cast<float>(primaryRaw->width) * invW,
-                                static_cast<float>(primaryRaw->height) * invH);
-                            if (out.hasSecondary) {
-                                const int gutter = 2;
-                                out.rect1 = glm::vec4(
-                                    static_cast<float>(primaryRaw->width + gutter) * invW,
+                            if (out.rect0 == glm::vec4(0.0f, 0.0f, 1.0f, 1.0f) &&
+                                out.rect1 == glm::vec4(0.0f, 0.0f, 1.0f, 1.0f)) {
+                                // Cache hit path: reconstruct atlas rects from source sizes.
+                                const float invW =
+                                    1.0f / static_cast<float>(std::max(1, combined.width));
+                                const float invH =
+                                    1.0f / static_cast<float>(std::max(1, combined.height));
+                                out.rect0 = glm::vec4(
                                     0.0f,
-                                    static_cast<float>(secondaryRaw->width) * invW,
-                                    static_cast<float>(secondaryRaw->height) * invH);
-                            } else {
-                                out.rect1 = out.rect0;
+                                    0.0f,
+                                    static_cast<float>(primaryRaw->width) * invW,
+                                    static_cast<float>(primaryRaw->height) * invH);
+                                if (out.hasSecondary) {
+                                    const int gutter = 2;
+                                    out.rect1 = glm::vec4(
+                                        static_cast<float>(primaryRaw->width + gutter) * invW,
+                                        0.0f,
+                                        static_cast<float>(secondaryRaw->width) * invW,
+                                        static_cast<float>(secondaryRaw->height) * invH);
+                                } else {
+                                    out.rect1 = out.rect0;
+                                }
                             }
                             return out;
                         };

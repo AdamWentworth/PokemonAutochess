@@ -104,6 +104,7 @@ bool test_shared_capture_overlay_vfx_contract(std::string& outFail);
 bool test_shared_particle_billboard_batches_contract(std::string& outFail);
 bool test_shared_particle_vfx_bridge_dispatch_contract(std::string& outFail);
 bool test_shared_particle_vfx_styles_contract(std::string& outFail);
+bool test_shared_tail_fire_atlas_helpers_contract(std::string& outFail);
 bool test_gameworld_capture_render_snapshot_timing_contract(std::string& outFail);
 bool test_shared_growl_vfx_helpers_contract(std::string& outFail);
 bool test_shared_growl_wave_bridge_contract(std::string& outFail);
@@ -258,6 +259,7 @@ int main(int argc, char** argv) {
         {"shared_particle_billboard_batches_contract", &test_shared_particle_billboard_batches_contract},
         {"shared_particle_vfx_bridge_dispatch_contract", &test_shared_particle_vfx_bridge_dispatch_contract},
         {"shared_particle_vfx_styles_contract", &test_shared_particle_vfx_styles_contract},
+        {"shared_tail_fire_atlas_helpers_contract", &test_shared_tail_fire_atlas_helpers_contract},
         {"gameworld_capture_render_snapshot_timing_contract", &test_gameworld_capture_render_snapshot_timing_contract},
         {"shared_growl_vfx_helpers_contract", &test_shared_growl_vfx_helpers_contract},
         {"shared_growl_wave_bridge_contract", &test_shared_growl_wave_bridge_contract},
