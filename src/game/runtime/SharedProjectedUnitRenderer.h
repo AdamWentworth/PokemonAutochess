@@ -6,6 +6,7 @@
 #include "game/runtime/BackendModelCache.h"
 #include "game/runtime/SharedBackendPoseEval.h"
 #include "game/runtime/SharedBackendTextureCache.h"
+#include "game/runtime/SharedCapturePresentation.h"
 #include "game/runtime/SharedProjectedDebugVfx.h"
 #include "game/runtime/SharedProjectedWorldSceneHelpers.h"
 #include "game/runtime/SharedTailFireFallbackEmitter.h"
@@ -33,6 +34,10 @@ struct Args {
     bool supportsWorldTriangles3D = false;
     bool supportsWorldIndexedMeshes = false;
     bool hasWorldViewProj = false;
+    bool allowPortraitFallback = false;
+    bool forcePortraitOverlay = false;
+    bool useLegacyGrowlWaveVfx = false;
+    bool useLegacyParticleVfxSnapshotBridge = false;
     const float* worldViewProj = nullptr;
     int drawableW = 0;
     int drawableH = 0;
@@ -48,7 +53,8 @@ struct Args {
     std::size_t* remainingModelTrianglesBudget = nullptr;
     std::vector<IRenderBackend::DebugQuad>* worldQuads = nullptr;
     std::vector<IRenderBackend::DebugLine>* lines = nullptr;
-    std::vector<IRenderBackend::DebugTextLine>* textLines = nullptr;
+    std::vector<IRenderBackend::DebugLine>* textLines = nullptr;
+    std::vector<IRenderBackend::DebugSprite>* sprites = nullptr;
     std::vector<IRenderBackend::DebugTriangle>* worldTriangles = nullptr;
     std::vector<IRenderBackend::WorldTriangle>* world3DTriangles = nullptr;
     const shared_unit_hud::Config* sharedUnitHudCfg = nullptr;
@@ -65,4 +71,3 @@ struct Args {
 void drawProjectedUnits(const Args& args, const std::vector<PokemonInstance>& units);
 
 } // namespace game::runtime::shared_projected_units
-

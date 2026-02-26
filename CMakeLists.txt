@@ -260,6 +260,7 @@ add_library(PAC_GameObjects STATIC
     src/game/runtime/SharedCapturePreparedMeshCache.cpp
     src/game/runtime/SharedBoardGridBatches.cpp
     src/game/runtime/SharedProjectedDebugVfx.cpp
+    src/game/runtime/SharedProjectedUnitRenderer.cpp
     src/game/runtime/SharedBackendDebugViewOverlay.cpp
     src/game/runtime/SharedProjectedWorldSceneHelpers.cpp
     src/game/runtime/SharedParticleBillboardBatches.cpp
