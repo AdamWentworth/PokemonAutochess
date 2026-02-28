@@ -159,7 +159,7 @@ D3D12RenderBackend::SpriteTexture* D3D12RenderBackend::ensureWorldTexture(const 
                                                                           textureData->height,
                                                                           textureData->wrapS,
                                                                           textureData->wrapT,
-                                                                          false,
+                                                                          true,
                                                                           texture.resource);
     if (!ok) return nullptr;
 

@@ -192,7 +192,8 @@ void TriangleSubmitter::pushTriangle(const glm::vec3& a,
                 [&](std::uint32_t src,
                     const glm::vec3& pos,
                     const glm::vec2& uv,
-                    const glm::vec3& outColor) -> std::uint32_t {
+                    const glm::vec3& outColor,
+                    const glm::vec3& normal) -> std::uint32_t {
                 if (canReuseIndexedVertices &&
                     src < modelIndexedVertexRemap[batchIndex].size()) {
                     int& mapped = modelIndexedVertexRemap[batchIndex][src];
@@ -214,7 +215,10 @@ void TriangleSubmitter::pushTriangle(const glm::vec3& a,
                         outColor.r,
                         outColor.g,
                         outColor.b,
-                        outAlpha});
+                        outAlpha,
+                        normal.x,
+                        normal.y,
+                        normal.z});
                     mapped = static_cast<int>(next);
                     return next;
                 }
@@ -232,13 +236,16 @@ void TriangleSubmitter::pushTriangle(const glm::vec3& a,
                     outColor.r,
                     outColor.g,
                     outColor.b,
-                    outAlpha});
+                    outAlpha,
+                    normal.x,
+                    normal.y,
+                    normal.z});
                 return next;
             };
 
-            const std::uint32_t outI0 = appendIndexedVertex(src0, a, uv0, outC0);
-            const std::uint32_t outI1 = appendIndexedVertex(src1, b, uv1, outC1);
-            const std::uint32_t outI2 = appendIndexedVertex(src2, c, uv2, outC2);
+            const std::uint32_t outI0 = appendIndexedVertex(src0, a, uv0, outC0, n0);
+            const std::uint32_t outI1 = appendIndexedVertex(src1, b, uv1, outC1, n1);
+            const std::uint32_t outI2 = appendIndexedVertex(src2, c, uv2, outC2, n2);
             if (outI0 == std::numeric_limits<std::uint32_t>::max() ||
                 outI1 == std::numeric_limits<std::uint32_t>::max() ||
                 outI2 == std::numeric_limits<std::uint32_t>::max()) {
@@ -261,11 +268,14 @@ void TriangleSubmitter::pushTriangle(const glm::vec3& a,
 
         const std::uint32_t base = static_cast<std::uint32_t>(batch.vertices.size());
         batch.vertices.push_back(IRenderBackend::WorldMeshVertex{
-            a.x, a.y, a.z, uv0.x, uv0.y, shaded0.r, shaded0.g, shaded0.b, outAlpha});
+            a.x, a.y, a.z, uv0.x, uv0.y, shaded0.r, shaded0.g, shaded0.b, outAlpha,
+            n0.x, n0.y, n0.z});
         batch.vertices.push_back(IRenderBackend::WorldMeshVertex{
-            b.x, b.y, b.z, uv1.x, uv1.y, shaded1.r, shaded1.g, shaded1.b, outAlpha});
+            b.x, b.y, b.z, uv1.x, uv1.y, shaded1.r, shaded1.g, shaded1.b, outAlpha,
+            n1.x, n1.y, n1.z});
         batch.vertices.push_back(IRenderBackend::WorldMeshVertex{
-            c.x, c.y, c.z, uv2.x, uv2.y, shaded2.r, shaded2.g, shaded2.b, outAlpha});
+            c.x, c.y, c.z, uv2.x, uv2.y, shaded2.r, shaded2.g, shaded2.b, outAlpha,
+            n2.x, n2.y, n2.z});
         batch.indices.push_back(base + 0u);
         batch.indices.push_back(base + 1u);
         batch.indices.push_back(base + 2u);

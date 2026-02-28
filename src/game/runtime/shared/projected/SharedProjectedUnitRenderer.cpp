@@ -45,7 +45,9 @@ std::size_t selectUniformTriangleIndex(std::size_t sampleIndex,
 bool backendClipSkinningAdaptiveEnabled() {
     static const bool enabled = []() -> bool {
         const auto env = engine::env::get("PAC_BACKEND_CLIP_SKINNING_ADAPTIVE");
-        if (!env.has_value()) return true;
+        // Quality-first default: keep clip skinning enabled for all eligible units
+        // unless adaptive throttling is explicitly requested.
+        if (!env.has_value()) return false;
         const std::string raw = *env;
         if (raw == "0" || raw == "false" || raw == "FALSE" || raw == "off" || raw == "OFF") {
             return false;
@@ -57,9 +59,10 @@ bool backendClipSkinningAdaptiveEnabled() {
 
 std::size_t backendClipSkinningMaxUnits() {
     static const std::size_t maxUnits = []() -> std::size_t {
-        constexpr std::size_t kDefault = 2u;
+        // Large default so adaptive mode does not degrade small/normal battles.
+        constexpr std::size_t kDefault = 64u;
         constexpr std::size_t kMin = 1u;
-        constexpr std::size_t kMax = 32u;
+        constexpr std::size_t kMax = 256u;
         const auto env = engine::env::get("PAC_BACKEND_CLIP_SKINNING_MAX_UNITS");
         if (!env.has_value()) return kDefault;
         try {
@@ -161,14 +164,8 @@ void drawProjectedUnits(const Args& args, const std::vector<PokemonInstance>& un
         std::sort(eligibleUnitIds.begin(), eligibleUnitIds.end());
         const std::size_t maxClipSkinned =
             std::min<std::size_t>(backendClipSkinningMaxUnits(), eligibleUnitIds.size());
-        static std::uint64_t roundRobinFrame = 0u;
-        const std::size_t start = eligibleUnitIds.empty()
-            ? 0u
-            : static_cast<std::size_t>(roundRobinFrame % eligibleUnitIds.size());
-        ++roundRobinFrame;
         for (std::size_t i = 0; i < maxClipSkinned; ++i) {
-            const std::size_t idx = (start + i) % eligibleUnitIds.size();
-            clipSkinningEnabledByUnitId[eligibleUnitIds[idx]] = true;
+            clipSkinningEnabledByUnitId[eligibleUnitIds[i]] = true;
         }
     }
 

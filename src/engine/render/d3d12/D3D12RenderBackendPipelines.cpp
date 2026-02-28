@@ -320,6 +320,20 @@ float2 advect2D(float2 p, float flowY, float amount) {
 }
 float3 tonemapSoftLocal(float3 c) { return c / (1.0f + c); }
 
+float3 srgbToLinear(float3 c) {
+  c = saturate(c);
+  float3 lo = c / 12.92f;
+  float3 hi = pow((c + 0.055f) / 1.055f, 2.4f);
+  return lerp(lo, hi, step(float3(0.04045f, 0.04045f, 0.04045f), c));
+}
+
+float3 linearToSrgb(float3 c) {
+  c = max(c, float3(0.0f, 0.0f, 0.0f));
+  float3 lo = c * 12.92f;
+  float3 hi = 1.055f * pow(c, 1.0f / 2.4f) - 0.055f;
+  return lerp(lo, hi, step(float3(0.0031308f, 0.0031308f, 0.0031308f), c));
+}
+
 float2 clampUvToRegionPixels(float2 localUV01, float4 rectUv) {
   float2 atlasSize = max(float2(uMaterialAtlasWidth, uMaterialAtlasHeight), float2(1.0f, 1.0f));
   float2 rectPx = max(rectUv.zw * atlasSize, float2(1.0f, 1.0f));
@@ -498,7 +512,7 @@ float4 evalFireTailExact(PSIn i) {
   return float4(rgb, alpha);
 }
 
-float3 applyWorldLitModel(PSIn i, bool isFrontFace, float3 srgbColor) {
+float3 applyWorldLitModel(PSIn i, bool isFrontFace, float3 linearColor) {
   float3 dx = ddx(i.worldPos);
   float3 dy = ddy(i.worldPos);
   float3 n = normalize(cross(dx, dy));
@@ -510,7 +524,7 @@ float3 applyWorldLitModel(PSIn i, bool isFrontFace, float3 srgbColor) {
   float hemi = n.y * 0.5f + 0.5f;
   float ambient = lerp(0.58f, 0.92f, saturate(hemi));
   float lit = ambient * 0.45f + (0.22f + 0.78f * ndl) * 0.70f;
-  return saturate(srgbColor * lit);
+  return max(linearColor * lit, 0.0f.xxx);
 }
 
 float4 main(PSIn i, bool isFrontFace : SV_IsFrontFace) : SV_TARGET {
@@ -518,12 +532,12 @@ float4 main(PSIn i, bool isFrontFace : SV_IsFrontFace) : SV_TARGET {
     return evalFireTailExact(i);
   }
   float4 tex = float4(1.0f, 1.0f, 1.0f, 1.0f);
-  float3 outSrgb = saturate(i.col.rgb);
+  float3 outLinear = saturate(i.col.rgb);
   if (uUseTexture > 0.5f) {
     float2 uvDx = ddx(i.uv);
     float2 uvDy = ddy(i.uv);
     tex = sampleWorldTextureWithWrap(i.uv, uvDx, uvDy);
-    outSrgb = saturate(tex.rgb * i.col.rgb);
+    outLinear = srgbToLinear(saturate(tex.rgb)) * outLinear;
   }
   float outA = saturate(i.col.a * tex.a);
   if (uAlphaMode < 0.5f) {
@@ -533,8 +547,9 @@ float4 main(PSIn i, bool isFrontFace : SV_IsFrontFace) : SV_TARGET {
     outA = saturate(i.col.a);
   }
   if (uMaterialMode >= 1.5f) {
-    outSrgb = applyWorldLitModel(i, isFrontFace, outSrgb);
+    outLinear = applyWorldLitModel(i, isFrontFace, outLinear);
   }
+  float3 outSrgb = linearToSrgb(saturate(outLinear));
   return float4(outSrgb, outA);
 }
 )HLSL";

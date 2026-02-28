@@ -41,7 +41,7 @@ unsigned int OpenGLRenderBackend::ensureWorldTexture(const WorldTextureData* tex
     const GLint wrapS = sanitizeWrapMode(textureData->wrapS);
     const GLint wrapT = sanitizeWrapMode(textureData->wrapT);
     glBindTexture(GL_TEXTURE_2D, textureId);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, wrapS);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, wrapT);
@@ -55,6 +55,15 @@ unsigned int OpenGLRenderBackend::ensureWorldTexture(const WorldTextureData* tex
                  GL_RGBA,
                  GL_UNSIGNED_BYTE,
                  textureData->rgba);
+    glGenerateMipmap(GL_TEXTURE_2D);
+#if defined(GL_TEXTURE_MAX_ANISOTROPY_EXT) && defined(GL_MAX_TEXTURE_MAX_ANISOTROPY_EXT)
+    if (GLAD_GL_EXT_texture_filter_anisotropic) {
+        float maxAniso = 1.0f;
+        glGetFloatv(GL_MAX_TEXTURE_MAX_ANISOTROPY_EXT, &maxAniso);
+        const float requested = std::min(8.0f, std::max(1.0f, maxAniso));
+        glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAX_ANISOTROPY_EXT, requested);
+    }
+#endif
 
     TextureCacheEntry entry;
     entry.textureId = textureId;

@@ -81,8 +81,10 @@ bool buildBackendCacheSourceData(const std::string& filepath,
 
             std::vector<glm::vec3> pos;
             std::vector<glm::vec2> uv;
+            std::vector<glm::vec3> normals;
             pos.reserve(asset.accessors[posAcc].count);
             uv.reserve(hasUv ? asset.accessors[uvAcc].count : asset.accessors[posAcc].count);
+            normals.reserve(asset.accessors[posAcc].count);
 
             fastgltf::iterateAccessorWithIndex<glm::vec3>(
                 asset, asset.accessors[posAcc],
@@ -117,6 +119,24 @@ bool buildBackendCacheSourceData(const std::string& filepath,
                     const float ca = (a == 0) ? p3.x : ((a == 1) ? p3.y : p3.z);
                     const float cb = (b == 0) ? p3.x : ((b == 1) ? p3.y : p3.z);
                     uv.emplace_back((ca - minA) / denA, (cb - minB) / denB);
+                }
+            }
+
+            // ---- NORMAL ----
+            bool hasExplicitNormals = false;
+            normals.assign(pos.size(), glm::vec3(0.0f, 1.0f, 0.0f));
+            auto itN = p.findAttribute("NORMAL");
+            if (itN != p.attributes.end()) {
+                normals.clear();
+                const std::size_t normAcc = itN->accessorIndex;
+                normals.reserve(asset.accessors[normAcc].count);
+                fastgltf::iterateAccessorWithIndex<glm::vec3>(
+                    asset, asset.accessors[normAcc],
+                    [&](glm::vec3 v, std::size_t) { normals.push_back(v); }, adapter);
+                if (normals.size() != pos.size()) {
+                    normals.assign(pos.size(), glm::vec3(0.0f, 1.0f, 0.0f));
+                } else {
+                    hasExplicitNormals = true;
                 }
             }
 
@@ -208,6 +228,30 @@ bool buildBackendCacheSourceData(const std::string& filepath,
                 for (std::size_t i = 0; i < pos.size(); ++i) primIdxU32[i] = static_cast<std::uint32_t>(i);
             }
 
+            if (!hasExplicitNormals) {
+                normals.assign(pos.size(), glm::vec3(0.0f));
+                const std::size_t triCount = primIdxU32.size() / 3u;
+                for (std::size_t triIdx = 0; triIdx < triCount; ++triIdx) {
+                    const std::size_t i = triIdx * 3u;
+                    const std::uint32_t i0 = primIdxU32[i + 0u];
+                    const std::uint32_t i1 = primIdxU32[i + 1u];
+                    const std::uint32_t i2 = primIdxU32[i + 2u];
+                    if (i0 >= pos.size() || i1 >= pos.size() || i2 >= pos.size()) continue;
+                    const glm::vec3 e1 = pos[i1] - pos[i0];
+                    const glm::vec3 e2 = pos[i2] - pos[i0];
+                    const glm::vec3 n = glm::cross(e1, e2);
+                    const float lenSq = glm::dot(n, n);
+                    if (lenSq <= 1e-12f) continue;
+                    normals[i0] += n;
+                    normals[i1] += n;
+                    normals[i2] += n;
+                }
+                for (auto& n : normals) {
+                    const float lenSq = glm::dot(n, n);
+                    n = (lenSq > 1e-12f) ? glm::normalize(n) : glm::vec3(0.0f, 1.0f, 0.0f);
+                }
+            }
+
             const std::size_t baseVertex = outData.vertices.size();
             const std::size_t subIndexOffset = outData.indices.size();
 
@@ -215,6 +259,7 @@ bool buildBackendCacheSourceData(const std::string& filepath,
                 pac_model_types::Vertex v{};
                 v.px = pos[i].x; v.py = pos[i].y; v.pz = pos[i].z;
                 v.u = uv[i].x; v.v = uv[i].y;
+                v.nx = normals[i].x; v.ny = normals[i].y; v.nz = normals[i].z;
                 v.j0 = v.j1 = v.j2 = v.j3 = 0u;
                 v.w0 = 1.0f; v.w1 = v.w2 = v.w3 = 0.0f;
                 v.r = color[i].r; v.g = color[i].g; v.b = color[i].b; v.a = color[i].a;

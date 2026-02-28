@@ -296,6 +296,17 @@ Result renderProjectedUnitBackendMesh(const Args& args) {
                         outVertex.b = fastTexturedTint.b;
                         outVertex.a = fastTexturedAlpha;
                         if (useGpuSkinning) {
+                            outVertex.nx = srcVertex.normal.x;
+                            outVertex.ny = srcVertex.normal.y;
+                            outVertex.nz = srcVertex.normal.z;
+                        } else {
+                            const glm::vec3 nrm =
+                                transforms.resolveModelVertexNormal(triNodeIndex, src, srcVertex);
+                            outVertex.nx = nrm.x;
+                            outVertex.ny = nrm.y;
+                            outVertex.nz = nrm.z;
+                        }
+                        if (useGpuSkinning) {
                             outVertex.joint0 = static_cast<float>(srcVertex.j0);
                             outVertex.joint1 = static_cast<float>(srcVertex.j1);
                             outVertex.joint2 = static_cast<float>(srcVertex.j2);
@@ -328,6 +339,17 @@ Result renderProjectedUnitBackendMesh(const Args& args) {
                     outVertex.g = fastTexturedTint.g;
                     outVertex.b = fastTexturedTint.b;
                     outVertex.a = fastTexturedAlpha;
+                    if (useGpuSkinning) {
+                        outVertex.nx = srcVertex.normal.x;
+                        outVertex.ny = srcVertex.normal.y;
+                        outVertex.nz = srcVertex.normal.z;
+                    } else {
+                        const glm::vec3 nrm =
+                            transforms.resolveModelVertexNormal(triNodeIndex, src, srcVertex);
+                        outVertex.nx = nrm.x;
+                        outVertex.ny = nrm.y;
+                        outVertex.nz = nrm.z;
+                    }
                     if (useGpuSkinning) {
                         outVertex.joint0 = static_cast<float>(srcVertex.j0);
                         outVertex.joint1 = static_cast<float>(srcVertex.j1);
@@ -380,6 +402,9 @@ Result renderProjectedUnitBackendMesh(const Args& args) {
                 a = transforms.resolveWorldVertexPos(triNodeIndex, i0, v0);
                 b = transforms.resolveWorldVertexPos(triNodeIndex, i1, v1);
                 c = transforms.resolveWorldVertexPos(triNodeIndex, i2, v2);
+                n0 = transforms.resolveModelVertexNormal(triNodeIndex, i0, v0);
+                n1 = transforms.resolveModelVertexNormal(triNodeIndex, i1, v1);
+                n2 = transforms.resolveModelVertexNormal(triNodeIndex, i2, v2);
             } else {
                 const auto sk0 = transforms.resolveWorldVertex(triNodeIndex, i0, v0);
                 const auto sk1 = transforms.resolveWorldVertex(triNodeIndex, i1, v1);

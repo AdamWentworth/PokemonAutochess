@@ -24,8 +24,9 @@ void OpenGLRenderBackend::ensureWorldPipeline() {
         layout (location = 0) in vec3 aPos;
         layout (location = 1) in vec2 aUv;
         layout (location = 2) in vec4 aColor;
-        layout (location = 3) in vec4 aJoints;
-        layout (location = 4) in vec4 aWeights;
+        layout (location = 3) in vec3 aNormal;
+        layout (location = 4) in vec4 aJoints;
+        layout (location = 5) in vec4 aWeights;
         uniform mat4 uViewProj;
         uniform mat4 uModel;
         uniform float uSkinningEnabled;
@@ -35,7 +36,8 @@ void OpenGLRenderBackend::ensureWorldPipeline() {
         out vec2 vUv;
         out vec4 vColor;
         out vec3 vWorldPos;
-        vec3 applySkinning(vec3 localPos) {
+        out vec3 vWorldNormal;
+        vec3 applySkinningPos(vec3 localPos) {
             vec4 blended = vec4(0.0);
             float totalWeight = 0.0;
 
@@ -71,16 +73,56 @@ void OpenGLRenderBackend::ensureWorldPipeline() {
             }
             return blended.xyz;
         }
+        vec3 applySkinningNormal(vec3 localNormal) {
+            vec3 blended = vec3(0.0);
+            float totalWeight = 0.0;
+
+            int j0 = int(aJoints.x + 0.5);
+            int j1 = int(aJoints.y + 0.5);
+            int j2 = int(aJoints.z + 0.5);
+            int j3 = int(aJoints.w + 0.5);
+            float w0 = aWeights.x;
+            float w1 = aWeights.y;
+            float w2 = aWeights.z;
+            float w3 = aWeights.w;
+
+            if (w0 > 0.00001 && j0 >= 0 && j0 < uSkinMatrixCount && j0 < kMaxSkinMatrices) {
+                blended += (mat3(uSkinMatrices[j0]) * localNormal) * w0;
+                totalWeight += w0;
+            }
+            if (w1 > 0.00001 && j1 >= 0 && j1 < uSkinMatrixCount && j1 < kMaxSkinMatrices) {
+                blended += (mat3(uSkinMatrices[j1]) * localNormal) * w1;
+                totalWeight += w1;
+            }
+            if (w2 > 0.00001 && j2 >= 0 && j2 < uSkinMatrixCount && j2 < kMaxSkinMatrices) {
+                blended += (mat3(uSkinMatrices[j2]) * localNormal) * w2;
+                totalWeight += w2;
+            }
+            if (w3 > 0.00001 && j3 >= 0 && j3 < uSkinMatrixCount && j3 < kMaxSkinMatrices) {
+                blended += (mat3(uSkinMatrices[j3]) * localNormal) * w3;
+                totalWeight += w3;
+            }
+
+            if (totalWeight <= 0.00001) return localNormal;
+            if (totalWeight < 0.999) {
+                blended += localNormal * (1.0 - totalWeight);
+            }
+            return normalize(blended);
+        }
         void main() {
             vec3 localPos = aPos;
+            vec3 localNormal = aNormal;
             if (uSkinningEnabled > 0.5) {
-                localPos = applySkinning(localPos);
+                localPos = applySkinningPos(localPos);
+                localNormal = applySkinningNormal(localNormal);
             }
             vec4 worldPos = uModel * vec4(localPos, 1.0);
             gl_Position = uViewProj * worldPos;
             vUv = aUv;
             vColor = aColor;
             vWorldPos = worldPos.xyz;
+            mat3 normalM = mat3(transpose(inverse(uModel)));
+            vWorldNormal = normalize(normalM * localNormal);
         }
     )GLSL";
 
@@ -89,6 +131,7 @@ void OpenGLRenderBackend::ensureWorldPipeline() {
         in vec2 vUv;
         in vec4 vColor;
         in vec3 vWorldPos;
+        in vec3 vWorldNormal;
         uniform float uUseTexture;
         uniform float uWrapS;
         uniform float uWrapT;
@@ -356,19 +399,38 @@ void OpenGLRenderBackend::ensureWorldPipeline() {
             return vec4(rgb, alpha);
         }
 
-        vec3 applyWorldLitModel(vec3 srgbColor) {
-            vec3 dx = dFdx(vWorldPos);
-            vec3 dy = dFdy(vWorldPos);
-            vec3 n = normalize(cross(dx, dy));
+        vec3 srgbToLinear(vec3 c) {
+            c = clamp(c, 0.0, 1.0);
+            vec3 lo = c / 12.92;
+            vec3 hi = pow((c + 0.055) / 1.055, vec3(2.4));
+            return mix(lo, hi, step(vec3(0.04045), c));
+        }
+
+        vec3 linearToSrgb(vec3 c) {
+            c = max(c, vec3(0.0));
+            vec3 lo = c * 12.92;
+            vec3 hi = 1.055 * pow(c, vec3(1.0 / 2.4)) - 0.055;
+            return mix(lo, hi, step(vec3(0.0031308), c));
+        }
+
+        vec3 applyWorldLitModel(vec3 linearColor) {
+            vec3 n = normalize(vWorldNormal);
+            if (dot(n, n) < 1e-6) {
+                vec3 dx = dFdx(vWorldPos);
+                vec3 dy = dFdy(vWorldPos);
+                n = normalize(cross(dx, dy));
+            }
             if (!gl_FrontFacing) {
                 n = -n;
             }
             vec3 l = normalize(vec3(0.45, 0.90, 0.35));
-            float ndl = max(dot(n, l), 0.0);
+            float ndlWrap = dot(n, l) * 0.5 + 0.5;
+            ndlWrap = clamp(ndlWrap, 0.0, 1.0);
             float hemi = n.y * 0.5 + 0.5;
             float ambient = mix(0.58, 0.92, clamp(hemi, 0.0, 1.0));
-            float lit = ambient * 0.45 + (0.22 + 0.78 * ndl) * 0.70;
-            return clamp(srgbColor * lit, 0.0, 1.0);
+            // Softer contrast to avoid harsh faceting on stylized/low-mid poly meshes.
+            float lit = ambient * 0.78 + ndlWrap * 0.34;
+            return max(linearColor * lit, vec3(0.0));
         }
 
         void main() {
@@ -377,12 +439,12 @@ void OpenGLRenderBackend::ensureWorldPipeline() {
                 return;
             }
             vec4 tex = vec4(1.0);
-            vec3 outSrgb = clamp(vColor.rgb, 0.0, 1.0);
+            vec3 outLinear = clamp(vColor.rgb, 0.0, 1.0);
             if (uUseTexture > 0.5) {
                 vec2 uv = vec2(applyWrap(vUv.x, uWrapS), applyWrap(vUv.y, uWrapT));
                 uv = clampWrappedUvToTexelCenter(uv);
                 tex = texture(uTexture, uv);
-                outSrgb = clamp(tex.rgb * vColor.rgb, 0.0, 1.0);
+                outLinear = srgbToLinear(clamp(tex.rgb, 0.0, 1.0)) * outLinear;
             }
             float outA = clamp(vColor.a * tex.a, 0.0, 1.0);
             if (uAlphaMode < 0.5) {
@@ -392,8 +454,9 @@ void OpenGLRenderBackend::ensureWorldPipeline() {
                 outA = clamp(vColor.a, 0.0, 1.0);
             }
             if (uMaterialMode >= 1.5) {
-                outSrgb = applyWorldLitModel(outSrgb);
+                outLinear = applyWorldLitModel(outLinear);
             }
+            vec3 outSrgb = linearToSrgb(clamp(outLinear, 0.0, 1.0));
             FragColor = vec4(outSrgb, outA);
         }
     )GLSL";
@@ -463,9 +526,11 @@ void OpenGLRenderBackend::ensureWorldPipeline() {
     glEnableVertexAttribArray(2);
     glVertexAttribPointer(2, 4, GL_FLOAT, GL_FALSE, stride, reinterpret_cast<void*>(offsetof(WorldMeshVertex, r)));
     glEnableVertexAttribArray(3);
-    glVertexAttribPointer(3, 4, GL_FLOAT, GL_FALSE, stride, reinterpret_cast<void*>(offsetof(WorldMeshVertex, joint0)));
+    glVertexAttribPointer(3, 3, GL_FLOAT, GL_FALSE, stride, reinterpret_cast<void*>(offsetof(WorldMeshVertex, nx)));
     glEnableVertexAttribArray(4);
-    glVertexAttribPointer(4, 4, GL_FLOAT, GL_FALSE, stride, reinterpret_cast<void*>(offsetof(WorldMeshVertex, weight0)));
+    glVertexAttribPointer(4, 4, GL_FLOAT, GL_FALSE, stride, reinterpret_cast<void*>(offsetof(WorldMeshVertex, joint0)));
+    glEnableVertexAttribArray(5);
+    glVertexAttribPointer(5, 4, GL_FLOAT, GL_FALSE, stride, reinterpret_cast<void*>(offsetof(WorldMeshVertex, weight0)));
 
     glBindVertexArray(0);
     glBindBuffer(GL_ARRAY_BUFFER, 0);

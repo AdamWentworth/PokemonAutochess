@@ -8,6 +8,8 @@ namespace pac_model_types {
 struct Vertex {
     float px, py, pz;
     float u, v;
+    // Source normal from glTF (model-local).
+    float nx, ny, nz;
     std::uint16_t j0, j1, j2, j3;
     float w0, w1, w2, w3;
 

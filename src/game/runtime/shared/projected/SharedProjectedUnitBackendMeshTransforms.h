@@ -29,6 +29,9 @@ class Resolver {
     glm::vec3 resolveWorldVertexPos(int triNodeIndex,
                                     std::uint32_t vertexIndex,
                                     const runtime::backend_model::MeshVertex& vtx);
+    glm::vec3 resolveModelVertexNormal(int triNodeIndex,
+                                       std::uint32_t vertexIndex,
+                                       const runtime::backend_model::MeshVertex& vtx);
     glm::vec3 resolveGpuSkinningInputPos(std::uint32_t vertexIndex,
                                          const runtime::backend_model::MeshVertex& vtx);
     bool configureGpuClipSkinningBatch(int triNodeIndex,

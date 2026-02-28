@@ -375,6 +375,33 @@ glm::vec3 Resolver::resolveWorldVertexPos(
     return outPos;
 }
 
+glm::vec3 Resolver::resolveModelVertexNormal(
+    int triNodeIndex,
+    std::uint32_t vertexIndex,
+    const runtime::backend_model::MeshVertex& vtx) {
+    // Reuse world-vertex cache when available and convert back into model space normal
+    // is not valid in general (requires inverse model), so compute directly.
+    (void)vertexIndex;
+
+    glm::vec3 local = vtx.position;
+    if (!hasClipPose_) {
+        local = runtime::backend_anim::deformLocalVertex(
+            *unit_,
+            *pose_,
+            local,
+            mesh_->boundsMin,
+            mesh_->boundsMax,
+            worldCellSize_);
+    }
+    const auto sk = skinVertexAtNode(triNodeIndex, vtx, local, vtx.normal);
+    const glm::mat4 nodeGlobal =
+        (triNodeIndex >= 0 && static_cast<std::size_t>(triNodeIndex) < nodeGlobals_->size())
+            ? (*nodeGlobals_)[static_cast<std::size_t>(triNodeIndex)]
+            : glm::mat4(1.0f);
+    const glm::mat3 nodeNormalM = glm::transpose(glm::inverse(glm::mat3(nodeGlobal)));
+    return safeNormalizeVec3(nodeNormalM * sk.normal);
+}
+
 glm::vec3 Resolver::resolveGpuSkinningInputPos(
     std::uint32_t vertexIndex,
     const runtime::backend_model::MeshVertex& vtx) {

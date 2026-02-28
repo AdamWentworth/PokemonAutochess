@@ -30,6 +30,10 @@ public:
         float g = 1.0f;
         float b = 1.0f;
         float a = 1.0f;
+        // Optional local-space normal used by material/shading paths.
+        float nx = 0.0f;
+        float ny = 0.0f;
+        float nz = 0.0f;
         // Optional GPU skinning payload used by backend world shaders.
         float joint0 = 0.0f;
         float joint1 = 0.0f;

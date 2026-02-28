@@ -5,7 +5,7 @@
 namespace game::runtime::backend_model::detail {
 
 inline constexpr std::uint64_t kModelCacheMagic = 0x4C444D434150554FULL;
-inline constexpr std::uint32_t kModelCacheVersion = 4;
+inline constexpr std::uint32_t kModelCacheVersion = 5;
 
 #pragma pack(push, 1)
 struct CacheHeader {

@@ -245,11 +245,20 @@ bool decodeMeshFromValidatedCacheStream(std::istream& in,
     out.boundsMax = glm::vec3(0.0f);
 
     bool anyNonWhiteColor = false;
+    bool anySourceNormal = false;
     bool initializedBounds = false;
     for (const auto& v : cpuVertices) {
         MeshVertex mv;
         mv.position = glm::vec3(v.px, v.py, v.pz);
         mv.uv = glm::vec2(v.u, v.v);
+        const glm::vec3 rawNormal(v.nx, v.ny, v.nz);
+        const float normalLenSq = glm::dot(rawNormal, rawNormal);
+        if (normalLenSq > 1e-12f) {
+            mv.normal = glm::normalize(rawNormal);
+            anySourceNormal = true;
+        } else {
+            mv.normal = glm::vec3(0.0f, 1.0f, 0.0f);
+        }
         mv.color = glm::vec4(v.r, v.g, v.b, v.a);
         mv.j0 = v.j0;
         mv.j1 = v.j1;
@@ -277,7 +286,9 @@ bool decodeMeshFromValidatedCacheStream(std::istream& in,
         anyNonWhiteColor = anyNonWhiteColor || nonWhite;
     }
     out.hasVertexColor = anyNonWhiteColor;
-    computeVertexNormals(out.vertices, out.indices);
+    if (!anySourceNormal) {
+        computeVertexNormals(out.vertices, out.indices);
+    }
 
     struct SubmeshRange {
         std::size_t firstIndex = 0u;

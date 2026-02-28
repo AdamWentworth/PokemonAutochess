@@ -33,6 +33,9 @@ struct WorldVertex {
     float g;
     float b;
     float a;
+    float nx;
+    float ny;
+    float nz;
     float joint0;
     float joint1;
     float joint2;
