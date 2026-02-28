@@ -689,6 +689,8 @@ namespace {
         int perfAccumGpuFrameSamples = 0;
         double perfAccumDrawCalls = 0.0;
         double perfAccumTriangles = 0.0;
+        double perfAccumVisibleAnimatedUnits = 0.0;
+        double perfAccumParticleCount = 0.0;
         int perfAccumFixedTicks = 0;
         int renderedFrames = 0;
         double elapsedSeconds = 0.0;
@@ -772,6 +774,8 @@ namespace {
             bool gpuFrameValid = false;
             std::uint32_t drawCallsThisFrame = 0u;
             std::uint64_t trianglesThisFrame = 0u;
+            std::uint32_t visibleAnimatedUnitsThisFrame = services.frameVisibleAnimatedUnits;
+            std::uint32_t particleCountThisFrame = services.frameParticleCount;
 
             if (renderer) {
                 renderer->endFrame();
@@ -839,6 +843,8 @@ namespace {
             }
             perfAccumDrawCalls += static_cast<double>(drawCallsThisFrame);
             perfAccumTriangles += static_cast<double>(trianglesThisFrame);
+            perfAccumVisibleAnimatedUnits += static_cast<double>(visibleAnimatedUnitsThisFrame);
+            perfAccumParticleCount += static_cast<double>(particleCountThisFrame);
             perfAccumFixedTicks += fixedTicksThisFrame;
             if (fpsTimer >= 1.0) {
                 const double frames = std::max(1, frameCount);
@@ -858,6 +864,10 @@ namespace {
                     std::lround(perfAccumDrawCalls / frames));
                 const std::uint64_t avgTriangles = static_cast<std::uint64_t>(
                     std::llround(perfAccumTriangles / frames));
+                const std::uint32_t avgVisibleAnimatedUnits = static_cast<std::uint32_t>(
+                    std::lround(perfAccumVisibleAnimatedUnits / frames));
+                const std::uint32_t avgParticleCount = static_cast<std::uint32_t>(
+                    std::lround(perfAccumParticleCount / frames));
                 const int avgFixedTicks = static_cast<int>(std::lround(static_cast<double>(perfAccumFixedTicks) / frames));
 
                 services.framePerf.fps = static_cast<float>(fps);
@@ -870,6 +880,8 @@ namespace {
                 services.framePerf.gpuFrameValid = hasGpuFrameAverage;
                 services.framePerf.drawCalls = avgDrawCalls;
                 services.framePerf.triangles = avgTriangles;
+                services.framePerf.visibleAnimatedUnits = avgVisibleAnimatedUnits;
+                services.framePerf.particleCount = avgParticleCount;
                 services.framePerf.renderMs = static_cast<float>(avgLegacyRenderMs);
                 services.framePerf.swapMs = static_cast<float>(avgLegacySwapMs);
                 services.framePerf.fixedTicks = avgFixedTicks;
@@ -884,6 +896,8 @@ namespace {
                           << " gpu=" << (hasGpuFrameAverage ? avgGpuFrameMs : -1.0) << "ms"
                           << " draws=" << avgDrawCalls
                           << " tris=" << avgTriangles
+                          << " units=" << avgVisibleAnimatedUnits
+                          << " particles=" << avgParticleCount
                           << " render=" << avgLegacyRenderMs << "ms"
                           << " swap=" << avgLegacySwapMs << "ms"
                           << " ticks=" << avgFixedTicks << "\n";
@@ -901,6 +915,8 @@ namespace {
                          << ",\"gpu_frame_valid\":" << (hasGpuFrameAverage ? 1 : 0)
                          << ",\"draw_calls\":" << avgDrawCalls
                          << ",\"triangles\":" << avgTriangles
+                         << ",\"visible_animated_units\":" << avgVisibleAnimatedUnits
+                         << ",\"particle_count\":" << avgParticleCount
                          << ",\"legacy_render_ms\":" << avgLegacyRenderMs
                          << ",\"legacy_swap_ms\":" << avgLegacySwapMs
                          << ",\"fixed_ticks\":" << avgFixedTicks
@@ -920,6 +936,8 @@ namespace {
                 perfAccumGpuFrameSamples = 0;
                 perfAccumDrawCalls = 0.0;
                 perfAccumTriangles = 0.0;
+                perfAccumVisibleAnimatedUnits = 0.0;
+                perfAccumParticleCount = 0.0;
                 perfAccumFixedTicks = 0;
             }
 

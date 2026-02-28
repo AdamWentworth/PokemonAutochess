@@ -85,6 +85,7 @@ void drawProjectedUnits(const Args& args, const std::vector<PokemonInstance>& un
     auto& sprites = *args.sprites;
     auto& worldTriangles = *args.worldTriangles;
     auto& world3DTriangles = *args.world3DTriangles;
+    std::uint32_t* visibleAnimatedUnitCount = args.visibleAnimatedUnitCount;
     const auto& sharedUnitHudCfg = *args.sharedUnitHudCfg;
 
     const auto& resolveModelMesh = args.resolveModelMesh;
@@ -332,6 +333,9 @@ for (const auto& unit : units) {
                 corners.bottom[3], corners.bottom[0], corners.top[0], corners.top[3],
                 sideR, sideG, sideB, sideAlpha);
         }
+    }
+    if (visibleAnimatedUnitCount) {
+        ++(*visibleAnimatedUnitCount);
     }
 
     runtime::shared_projected_unit_overlays::appendProjectedUnitOverlays(

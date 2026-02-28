@@ -63,6 +63,7 @@ For each matrix row, record:
 - draw calls
 - triangles
 - visible animated unit count
+- particle count
 
 ## Manual Parity Smoke (Before Merge)
 1. Start menu -> gameplay on OpenGL and D3D12.
@@ -71,6 +72,6 @@ For each matrix row, record:
 4. Confirm no crash, no missing model/material regressions, and no obvious backend-only artifacts.
 
 ## Gaps To Close Next
-1. Add remaining scene counters to perf logs: `visible_animated_units`, `particle_count`.
-2. Add an automated benchmark runner (`tools/benchmark_render_matrix.ps1`).
-3. Add optional screenshot parity harness for a small deterministic scene set.
+1. Add an automated benchmark runner (`tools/benchmark_render_matrix.ps1`).
+2. Add optional screenshot parity harness for a small deterministic scene set.
+3. Add benchmark result archival format (CSV/JSON) for merge PRs.

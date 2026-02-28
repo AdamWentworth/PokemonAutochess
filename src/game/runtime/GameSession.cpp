@@ -1446,6 +1446,8 @@ struct GameSession::Impl {
         if (textLines.capacity() < 8192u) textLines.reserve(8192u);
         if (sprites.capacity() < 256u) sprites.reserve(256u);
         if (unitLabels.capacity() < 64u) unitLabels.reserve(64u);
+        std::uint32_t visibleAnimatedUnitsThisFrame = 0u;
+        std::uint32_t particleCountThisFrame = 0u;
 
         const bool supportsWorldTriangles3D = renderer->supportsWorldTriangles3D();
         const bool supportsWorldIndexedMeshes = renderer->supportsWorldIndexedMeshes();
@@ -1595,6 +1597,7 @@ struct GameSession::Impl {
                 projectedUnitArgs.sprites = &sprites;
                 projectedUnitArgs.worldTriangles = &worldTriangles;
                 projectedUnitArgs.world3DTriangles = &world3DTriangles;
+                projectedUnitArgs.visibleAnimatedUnitCount = &visibleAnimatedUnitsThisFrame;
                 projectedUnitArgs.sharedUnitHudCfg = &sharedUnitHudCfg;
                 projectedUnitArgs.resolveModelMesh = [&](const PokemonInstance& unit)
                     -> const runtime::backend_model::MeshData* {
@@ -1725,6 +1728,7 @@ struct GameSession::Impl {
                         rows,
                         worldCellSize);
                     if (uv.first < 0.0f || uv.first > 1.0f || uv.second < 0.0f || uv.second > 1.0f) continue;
+                    ++visibleAnimatedUnitsThisFrame;
 
                     IRenderBackend::DebugQuad u;
                     const float centerX = boardX + uv.first * boardW;
@@ -1837,6 +1841,7 @@ struct GameSession::Impl {
                     lines.push_back(bottom);
 
                     for (const auto& unit : benchUnits) {
+                        ++visibleAnimatedUnitsThisFrame;
                         const int slot = runtime::backendview::worldToBenchSlot(
                             unit.position.x,
                             benchSlots,
@@ -1872,6 +1877,13 @@ struct GameSession::Impl {
                 }
             }
             }
+        }
+        if (renderWorld && gameWorld) {
+            particleCountThisFrame = gameWorld->countActiveParticleVfx();
+        }
+        if (engineServices) {
+            engineServices->frameVisibleAnimatedUnits = visibleAnimatedUnitsThisFrame;
+            engineServices->frameParticleCount = particleCountThisFrame;
         }
 
         runtime::shared_backend_debug_view::ComposeAndSubmitArgs overlayArgs;

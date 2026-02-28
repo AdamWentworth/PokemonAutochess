@@ -16,6 +16,7 @@
 #include "game/world/GameWorld.h"
 
 #include <functional>
+#include <cstdint>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -57,6 +58,7 @@ struct Args {
     std::vector<IRenderBackend::DebugSprite>* sprites = nullptr;
     std::vector<IRenderBackend::DebugTriangle>* worldTriangles = nullptr;
     std::vector<IRenderBackend::WorldTriangle>* world3DTriangles = nullptr;
+    std::uint32_t* visibleAnimatedUnitCount = nullptr;
     const shared_unit_hud::Config* sharedUnitHudCfg = nullptr;
 
     std::function<const runtime::backend_model::MeshData*(const PokemonInstance&)> resolveModelMesh;

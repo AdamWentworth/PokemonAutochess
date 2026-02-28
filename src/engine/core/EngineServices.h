@@ -24,6 +24,8 @@ struct EngineFramePerfStats {
     bool gpuFrameValid = false;
     std::uint32_t drawCalls = 0u;
     std::uint64_t triangles = 0u;
+    std::uint32_t visibleAnimatedUnits = 0u;
+    std::uint32_t particleCount = 0u;
     float renderMs = 0.0f;
     float swapMs = 0.0f;
     int fixedTicks = 0;
@@ -38,6 +40,9 @@ struct EngineServices {
 
     // Updated by host loop each second (debug/perf overlay + logging).
     EngineFramePerfStats framePerf;
+    // Updated by runtime each frame; host loop samples and aggregates.
+    std::uint32_t frameVisibleAnimatedUnits = 0u;
+    std::uint32_t frameParticleCount = 0u;
 
     // Render backend + GPU diagnostics.
     std::string requestedRendererBackend = "auto";

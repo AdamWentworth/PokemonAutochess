@@ -95,6 +95,7 @@ public:
     void update(float dt);
     void render(const Camera3D& camera);
     bool buildRenderSnapshot(RenderSnapshot& out) const;
+    std::size_t particleCount() const { return particles.size(); }
 
     void emit(const Particle& p);
 

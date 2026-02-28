@@ -3,6 +3,7 @@
 
 #include <vector>
 #include <string>
+#include <cstdint>
 #include <glm/glm.hpp>
 #include <unordered_map>
 
@@ -138,6 +139,7 @@ public:
     std::vector<TypeLineCount> getPlayerTypeLineCounts() const;
     bool buildGrowlWaveSnapshot(GrowlWaveVFX::RenderSnapshot& out) const;
     bool buildParticleVfxSnapshots(ParticleVfxSnapshots& out) const;
+    std::uint32_t countActiveParticleVfx() const;
     bool buildCaptureAttemptRenderSnapshots(std::vector<CaptureAttemptRenderSnapshot>& out) const;
 
     glm::vec3 getNearestEnemyPosition(const PokemonInstance& unit) const;

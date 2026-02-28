@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <limits>
 
 #include <glm/gtc/constants.hpp>
 
@@ -21,6 +22,22 @@ bool GameWorld::buildParticleVfxSnapshots(ParticleVfxSnapshots& out) const {
     any = clawSwipeVfx.getParticles().buildRenderSnapshot(out.clawSwipe) || any;
     any = aquaSwooshVfx.getParticles().buildRenderSnapshot(out.aquaSwoosh) || any;
     return any;
+}
+
+std::uint32_t GameWorld::countActiveParticleVfx() const {
+    const std::size_t total =
+        tailFireVfx.getParticles().particleCount() +
+        grassImpactVfx.getParticles().particleCount() +
+        tackleImpactVfx.getBurstParticles().particleCount() +
+        tackleImpactVfx.getSparkParticles().particleCount() +
+        leechSeedVfx.getParticles().particleCount() +
+        healPlusVfx.getParticles().particleCount() +
+        leechSeedDrainVfx.getParticles().particleCount() +
+        clawSwipeVfx.getParticles().particleCount() +
+        aquaSwooshVfx.getParticles().particleCount();
+    const std::size_t capped =
+        std::min(total, static_cast<std::size_t>(std::numeric_limits<std::uint32_t>::max()));
+    return static_cast<std::uint32_t>(capped);
 }
 
 bool GameWorld::buildCaptureAttemptRenderSnapshots(std::vector<CaptureAttemptRenderSnapshot>& out) const {
@@ -89,4 +106,3 @@ bool GameWorld::buildCaptureAttemptRenderSnapshots(std::vector<CaptureAttemptRen
 
     return !out.empty();
 }
-

@@ -25,8 +25,9 @@ Observed runtime facts from recent logs:
 - OpenGL and D3D12 both launch and run gameplay.
 - D3D12 combat sample shows render-heavy frames around ~16-17 ms render time with total ~20-22 ms frame time (~46-49 FPS).
 - Perf logs now include `render_build_ms`, `render_submit_ms`, `present_wait_ms`, `gpu_frame_ms`, plus `draw_calls` and `triangles`.
+- Perf logs now include `render_build_ms`, `render_submit_ms`, `present_wait_ms`, `gpu_frame_ms`,
+  `draw_calls`, `triangles`, `visible_animated_units`, and `particle_count`.
 - OpenGL still reports `gpu_frame_valid=0` (no GPU timestamp path yet on that backend).
-- Scene counters are still incomplete: `visible_animated_units` and `particle_count` are not logged yet.
 
 Code facts affecting measurement quality:
 - Main loop uses a 60 Hz fixed update step, but render is not hard-capped by that step (`GameRunner.cpp`).
