@@ -183,6 +183,21 @@ void composeAndSubmit(const ComposeAndSubmitArgs& args) {
                                 perfLine.str(),
                                 std::clamp(1.0f * uiScale, 0.82f, 1.35f),
                                 glm::vec3(0.84f, 0.95f, 0.90f));
+
+                std::ostringstream buildLine;
+                buildLine << std::fixed << std::setprecision(1)
+                          << "Build: " << perf.renderBuildMs << "ms"
+                          << " | Submit: " << perf.renderSubmitMs << "ms";
+                if (perf.projectedUnitsMs > 0.01f || perf.projectedUnitsProcessed > 0u) {
+                    buildLine << " | Proj: " << perf.projectedUnitsMs << "ms"
+                              << " (pose " << perf.projectedPoseEvalMs
+                              << ", model " << perf.projectedModelMs
+                              << ", overlay " << perf.projectedOverlayMs << ")";
+                }
+                appendRightText(edgePad + lineStep * 0.55f,
+                                buildLine.str(),
+                                std::clamp(0.82f * uiScale, 0.68f, 1.05f),
+                                glm::vec3(0.72f, 0.86f, 0.96f));
             }
         }
 

@@ -58,6 +58,7 @@ class Resolver {
     float worldCellSize_ = 1.0f;
     bool hasClipPose_ = false;
     bool usePositionOnlyVertexPath_ = false;
+    bool clipSkinningEnabled_ = true;
     std::size_t nodeCount_ = 0u;
 };
 

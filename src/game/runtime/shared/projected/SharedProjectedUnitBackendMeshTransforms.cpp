@@ -1,9 +1,12 @@
 #include "game/runtime/shared/projected/SharedProjectedUnitBackendMeshTransforms.h"
 
+#include "engine/core/Environment.h"
+
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
 #include <limits>
+#include <string>
 #include <vector>
 
 namespace {
@@ -12,6 +15,19 @@ glm::vec3 safeNormalizeVec3(const glm::vec3& v) {
     const float lenSq = glm::dot(v, v);
     if (lenSq > 1e-12f) return glm::normalize(v);
     return glm::vec3(0.0f, 1.0f, 0.0f);
+}
+
+bool backendClipSkinningEnabled() {
+    static const bool enabled = []() -> bool {
+        const auto env = engine::env::get("PAC_BACKEND_CLIP_SKINNING");
+        if (!env.has_value()) return true;
+        const std::string raw = *env;
+        if (raw == "0" || raw == "false" || raw == "FALSE" || raw == "off" || raw == "OFF") {
+            return false;
+        }
+        return true;
+    }();
+    return enabled;
 }
 
 struct NodeTransformCacheEntry {
@@ -56,6 +72,7 @@ void Resolver::initialize(const shared_projected_unit_backend_mesh::Args& args,
     worldCellSize_ = args.worldCellSize;
     hasClipPose_ = prep.scenePose.hasClipPose;
     usePositionOnlyVertexPath_ = prep.usePositionOnlyVertexPath;
+    clipSkinningEnabled_ = backendClipSkinningEnabled();
 
     nodeGlobals_ = prep.scenePose.hasScenePose ? &prep.scenePose.nodeGlobals : &mesh_->bindNodeGlobals;
     nodeCount_ = nodeGlobals_->size();
@@ -162,6 +179,9 @@ Resolver::SkinResult Resolver::skinVertexAtNode(
     const glm::vec3& localPos,
     const glm::vec3& localNormal) {
     SkinResult outSkin{localPos, localNormal, false};
+    if (hasClipPose_ && !clipSkinningEnabled_) {
+        return outSkin;
+    }
     const auto* matsPtr = ensureSkinMatricesForNode(nodeIndex);
     if (!matsPtr) return outSkin;
     const auto& mats = *matsPtr;
@@ -210,6 +230,9 @@ glm::vec3 Resolver::skinPositionAtNode(int nodeIndex,
                                        const runtime::backend_model::MeshVertex& vtx,
                                        const glm::vec3& localPos) {
     glm::vec3 outPos = localPos;
+    if (hasClipPose_ && !clipSkinningEnabled_) {
+        return outPos;
+    }
     const auto* matsPtr = ensureSkinMatricesForNode(nodeIndex);
     if (!matsPtr) return outPos;
     const auto& mats = *matsPtr;
@@ -346,4 +369,3 @@ glm::vec3 Resolver::resolveWorldVertexPos(
 }
 
 } // namespace game::runtime::shared_projected_unit_backend_mesh_transforms
-

@@ -26,6 +26,13 @@ Observed runtime facts from recent logs:
 - D3D12 combat sample shows render-heavy frames around ~16-17 ms render time with total ~20-22 ms frame time (~46-49 FPS).
 - Perf logs now include `render_build_ms`, `render_submit_ms`, `present_wait_ms`, `gpu_frame_ms`,
   `draw_calls`, `triangles`, `visible_animated_units`, and `particle_count`.
+- Perf logs now also include projected-unit breakdown:
+  - `projected_units_ms`
+  - `projected_pose_eval_ms`
+  - `projected_model_ms`
+  - `projected_overlay_ms`
+  - `projected_units_processed`
+  - `projected_model_units`
 - OpenGL still reports `gpu_frame_valid=0` (no GPU timestamp path yet on that backend).
 
 Code facts affecting measurement quality:
@@ -103,9 +110,14 @@ Required:
 3. Re-run matrix and compare deltas.
 
 ### Phase 3: Workload Optimization
-1. Reduce per-frame render submission overhead (batch/state churn).
-2. Prioritize high-impact combat costs (animated units, overdraw-heavy VFX, expensive passes).
-3. Validate gains with matrix reruns after each slice.
+1. Reduce CPU-side projected-unit cost first (pose eval, clip skinning, procedural per-vertex deform).
+2. Keep fast-path toggles benchmarkable:
+   - `PAC_BACKEND_VERTEX_DEFORM`
+   - `PAC_BACKEND_CLIP_SKINNING`
+3. Move validated hot paths from CPU to GPU in controlled slices (starting with skinning/deform equivalents).
+4. Reduce per-frame render submission overhead (batch/state churn).
+5. Prioritize high-impact combat costs (animated units, overdraw-heavy VFX, expensive passes).
+6. Validate gains with matrix reruns after each slice.
 
 ### Phase 4: Merge Decision
 Merge D3D12 branch into `master` only when Gates 1-5 pass.

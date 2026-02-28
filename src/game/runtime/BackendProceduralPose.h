@@ -3,10 +3,42 @@
 #include "game/PokemonInstance.h"
 
 #include <algorithm>
+#include <cctype>
+#include <cstdlib>
 #include <cmath>
+#include <string>
 #include <glm/glm.hpp>
 
 namespace game::runtime::backend_anim {
+
+inline bool backendVertexDeformEnabled() {
+    static const bool enabled = []() {
+        std::string token;
+#if defined(_WIN32)
+        char* rawValue = nullptr;
+        std::size_t rawLength = 0u;
+        if (_dupenv_s(&rawValue, &rawLength, "PAC_BACKEND_VERTEX_DEFORM") == 0 &&
+            rawValue && rawLength > 0u) {
+            token.assign(rawValue);
+        }
+        if (rawValue) std::free(rawValue);
+#else
+        if (const char* rawValue = std::getenv("PAC_BACKEND_VERTEX_DEFORM")) {
+            token.assign(rawValue);
+        }
+#endif
+
+        if (token.empty()) return true;
+        if (token[0] == '0') return false;
+
+        std::transform(token.begin(), token.end(), token.begin(), [](unsigned char c) {
+            return static_cast<char>(std::tolower(c));
+        });
+        if (token == "false" || token == "off" || token == "no") return false;
+        return true;
+    }();
+    return enabled;
+}
 
 struct ProceduralPose {
     float attackProgress = 0.0f;
@@ -106,6 +138,8 @@ inline glm::vec3 deformLocalVertex(const PokemonInstance& unit,
                                    const glm::vec3& boundsMin,
                                    const glm::vec3& boundsMax,
                                    float worldCellSize) {
+    if (!backendVertexDeformEnabled()) return localPos;
+
     glm::vec3 p = localPos;
     const glm::vec3 boundsSpan = glm::max(boundsMax - boundsMin, glm::vec3(0.001f));
     const glm::vec3 boundsCenter = (boundsMin + boundsMax) * 0.5f;

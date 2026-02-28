@@ -39,6 +39,10 @@ Notes:
 - Builds `PokemonAutochess` for the selected config by default before running.
 - Use `-NoBuild` only if you intentionally want to reuse an already-built executable.
 - Scores steady-state samples by default (`-WarmupSamples 5`), skipping startup-transition noise.
+- Also captures projected-path breakdown fields when available:
+  - `avg_render_build_ms`, `avg_render_submit_ms`
+  - `avg_projected_units_ms`, `avg_projected_pose_eval_ms`, `avg_projected_model_ms`, `avg_projected_overlay_ms`
+  - `avg_projected_units_processed`, `avg_projected_model_units`
 
 Artifacts written to `benchmark/`:
 - CSV summary per matrix row.
@@ -78,7 +82,32 @@ For each matrix row, record:
 - triangles
 - visible animated unit count
 - particle count
+- render build ms
+- render submit ms
+- projected units ms
+- projected pose eval ms
+- projected model ms
+- projected overlay ms
 - scored sample count (`sample_count_scored`) so runs are compared on equivalent steady-state windows
+
+### CPU-Heavy Render A/B (Diagnosis)
+Use these toggles to isolate CPU-side animation/deformation cost:
+
+```powershell
+# Baseline
+.\tools\benchmark_render_matrix.ps1 -BuildDir build -Config Release -DurationSeconds 35 -Seed 12345
+
+# Disable backend per-vertex procedural deformation
+.\tools\benchmark_render_matrix.ps1 -BuildDir build -Config Release -DurationSeconds 35 -Seed 12345 -BackendVertexDeform 0
+
+# Disable clip-pose skinning (diagnostic only)
+.\tools\benchmark_render_matrix.ps1 -BuildDir build -Config Release -DurationSeconds 35 -Seed 12345 -BackendClipSkinning 0
+```
+
+Interpretation:
+- Large FPS gain when `-BackendVertexDeform 0` means CPU per-vertex deform math is a major hotspot.
+- Large FPS gain when `-BackendClipSkinning 0` means CPU clip skinning is a major hotspot.
+- If both gains are small, focus next on draw submission/state churn and expensive VFX passes.
 
 ## Manual Parity Smoke (Before Merge)
 1. Start menu -> gameplay on OpenGL and D3D12.

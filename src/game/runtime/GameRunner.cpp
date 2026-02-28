@@ -763,6 +763,12 @@ namespace {
         double perfAccumTriangles = 0.0;
         double perfAccumVisibleAnimatedUnits = 0.0;
         double perfAccumParticleCount = 0.0;
+        double perfAccumProjectedUnitsMs = 0.0;
+        double perfAccumProjectedPoseEvalMs = 0.0;
+        double perfAccumProjectedModelMs = 0.0;
+        double perfAccumProjectedOverlayMs = 0.0;
+        double perfAccumProjectedUnitsProcessed = 0.0;
+        double perfAccumProjectedModelUnits = 0.0;
         int perfAccumFixedTicks = 0;
         int renderedFrames = 0;
         double elapsedSeconds = 0.0;
@@ -848,6 +854,12 @@ namespace {
             std::uint64_t trianglesThisFrame = 0u;
             std::uint32_t visibleAnimatedUnitsThisFrame = services.frameVisibleAnimatedUnits;
             std::uint32_t particleCountThisFrame = services.frameParticleCount;
+            const float projectedUnitsMsThisFrame = services.frameProjectedUnitsMs;
+            const float projectedPoseEvalMsThisFrame = services.frameProjectedPoseEvalMs;
+            const float projectedModelMsThisFrame = services.frameProjectedModelMs;
+            const float projectedOverlayMsThisFrame = services.frameProjectedOverlayMs;
+            const std::uint32_t projectedUnitsProcessedThisFrame = services.frameProjectedUnitsProcessed;
+            const std::uint32_t projectedModelUnitsThisFrame = services.frameProjectedModelUnits;
 
             if (renderer) {
                 renderer->endFrame();
@@ -917,6 +929,12 @@ namespace {
             perfAccumTriangles += static_cast<double>(trianglesThisFrame);
             perfAccumVisibleAnimatedUnits += static_cast<double>(visibleAnimatedUnitsThisFrame);
             perfAccumParticleCount += static_cast<double>(particleCountThisFrame);
+            perfAccumProjectedUnitsMs += static_cast<double>(projectedUnitsMsThisFrame);
+            perfAccumProjectedPoseEvalMs += static_cast<double>(projectedPoseEvalMsThisFrame);
+            perfAccumProjectedModelMs += static_cast<double>(projectedModelMsThisFrame);
+            perfAccumProjectedOverlayMs += static_cast<double>(projectedOverlayMsThisFrame);
+            perfAccumProjectedUnitsProcessed += static_cast<double>(projectedUnitsProcessedThisFrame);
+            perfAccumProjectedModelUnits += static_cast<double>(projectedModelUnitsThisFrame);
             perfAccumFixedTicks += fixedTicksThisFrame;
             if (fpsTimer >= 1.0) {
                 const double frames = std::max(1, frameCount);
@@ -940,6 +958,14 @@ namespace {
                     std::lround(perfAccumVisibleAnimatedUnits / frames));
                 const std::uint32_t avgParticleCount = static_cast<std::uint32_t>(
                     std::lround(perfAccumParticleCount / frames));
+                const double avgProjectedUnitsMs = perfAccumProjectedUnitsMs / frames;
+                const double avgProjectedPoseEvalMs = perfAccumProjectedPoseEvalMs / frames;
+                const double avgProjectedModelMs = perfAccumProjectedModelMs / frames;
+                const double avgProjectedOverlayMs = perfAccumProjectedOverlayMs / frames;
+                const std::uint32_t avgProjectedUnitsProcessed = static_cast<std::uint32_t>(
+                    std::lround(perfAccumProjectedUnitsProcessed / frames));
+                const std::uint32_t avgProjectedModelUnits = static_cast<std::uint32_t>(
+                    std::lround(perfAccumProjectedModelUnits / frames));
                 const int avgFixedTicks = static_cast<int>(std::lround(static_cast<double>(perfAccumFixedTicks) / frames));
 
                 services.framePerf.fps = static_cast<float>(fps);
@@ -954,6 +980,12 @@ namespace {
                 services.framePerf.triangles = avgTriangles;
                 services.framePerf.visibleAnimatedUnits = avgVisibleAnimatedUnits;
                 services.framePerf.particleCount = avgParticleCount;
+                services.framePerf.projectedUnitsMs = static_cast<float>(avgProjectedUnitsMs);
+                services.framePerf.projectedPoseEvalMs = static_cast<float>(avgProjectedPoseEvalMs);
+                services.framePerf.projectedModelMs = static_cast<float>(avgProjectedModelMs);
+                services.framePerf.projectedOverlayMs = static_cast<float>(avgProjectedOverlayMs);
+                services.framePerf.projectedUnitsProcessed = avgProjectedUnitsProcessed;
+                services.framePerf.projectedModelUnits = avgProjectedModelUnits;
                 services.framePerf.renderMs = static_cast<float>(avgLegacyRenderMs);
                 services.framePerf.swapMs = static_cast<float>(avgLegacySwapMs);
                 services.framePerf.fixedTicks = avgFixedTicks;
@@ -970,6 +1002,10 @@ namespace {
                           << " tris=" << avgTriangles
                           << " units=" << avgVisibleAnimatedUnits
                           << " particles=" << avgParticleCount
+                          << " proj=" << avgProjectedUnitsMs << "ms"
+                          << " pose=" << avgProjectedPoseEvalMs << "ms"
+                          << " model=" << avgProjectedModelMs << "ms"
+                          << " over=" << avgProjectedOverlayMs << "ms"
                           << " render=" << avgLegacyRenderMs << "ms"
                           << " swap=" << avgLegacySwapMs << "ms"
                           << " ticks=" << avgFixedTicks << "\n";
@@ -989,6 +1025,12 @@ namespace {
                          << ",\"triangles\":" << avgTriangles
                          << ",\"visible_animated_units\":" << avgVisibleAnimatedUnits
                          << ",\"particle_count\":" << avgParticleCount
+                         << ",\"projected_units_ms\":" << avgProjectedUnitsMs
+                         << ",\"projected_pose_eval_ms\":" << avgProjectedPoseEvalMs
+                         << ",\"projected_model_ms\":" << avgProjectedModelMs
+                         << ",\"projected_overlay_ms\":" << avgProjectedOverlayMs
+                         << ",\"projected_units_processed\":" << avgProjectedUnitsProcessed
+                         << ",\"projected_model_units\":" << avgProjectedModelUnits
                          << ",\"legacy_render_ms\":" << avgLegacyRenderMs
                          << ",\"legacy_swap_ms\":" << avgLegacySwapMs
                          << ",\"fixed_ticks\":" << avgFixedTicks
@@ -1010,6 +1052,12 @@ namespace {
                 perfAccumTriangles = 0.0;
                 perfAccumVisibleAnimatedUnits = 0.0;
                 perfAccumParticleCount = 0.0;
+                perfAccumProjectedUnitsMs = 0.0;
+                perfAccumProjectedPoseEvalMs = 0.0;
+                perfAccumProjectedModelMs = 0.0;
+                perfAccumProjectedOverlayMs = 0.0;
+                perfAccumProjectedUnitsProcessed = 0.0;
+                perfAccumProjectedModelUnits = 0.0;
                 perfAccumFixedTicks = 0;
             }
 

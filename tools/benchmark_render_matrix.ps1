@@ -10,7 +10,9 @@ param(
     [string]$OutDir = "benchmark",
     [string]$Tag = "",
     [switch]$NoBuild,
-    [switch]$AllowEmptySamples
+    [switch]$AllowEmptySamples,
+    [string]$BackendVertexDeform = "",
+    [string]$BackendClipSkinning = ""
 )
 
 $ErrorActionPreference = "Stop"
@@ -132,7 +134,9 @@ $envKeys = @(
     "PAC_AUTO_QUIT_SECONDS",
     "PAC_VIDEO_WIDTH",
     "PAC_VIDEO_HEIGHT",
-    "PAC_VIDEO_FULLSCREEN"
+    "PAC_VIDEO_FULLSCREEN",
+    "PAC_BACKEND_VERTEX_DEFORM",
+    "PAC_BACKEND_CLIP_SKINNING"
 )
 $envBackup = @{}
 foreach ($key in $envKeys) {
@@ -158,6 +162,16 @@ try {
             $env:PAC_VIDEO_WIDTH = "$($res.Width)"
             $env:PAC_VIDEO_HEIGHT = "$($res.Height)"
             $env:PAC_VIDEO_FULLSCREEN = "0"
+            if ([string]::IsNullOrWhiteSpace($BackendVertexDeform)) {
+                Remove-Item "Env:PAC_BACKEND_VERTEX_DEFORM" -ErrorAction SilentlyContinue
+            } else {
+                $env:PAC_BACKEND_VERTEX_DEFORM = $BackendVertexDeform
+            }
+            if ([string]::IsNullOrWhiteSpace($BackendClipSkinning)) {
+                Remove-Item "Env:PAC_BACKEND_CLIP_SKINNING" -ErrorAction SilentlyContinue
+            } else {
+                $env:PAC_BACKEND_CLIP_SKINNING = $BackendClipSkinning
+            }
 
             $stdoutPath = Join-Path $rawDir ("{0}_{1}.stdout.tmp.log" -f $backend, $res.Label)
             $stderrPath = Join-Path $rawDir ("{0}_{1}.stderr.tmp.log" -f $backend, $res.Label)
@@ -207,11 +221,19 @@ try {
 
             $fpsVals = @($scoredSamples | ForEach-Object { [double]$_.fps })
             $frameCpuVals = @($scoredSamples | ForEach-Object { [double]$_.frame_cpu_ms })
+            $buildVals = @($scoredSamples | ForEach-Object { [double]$_.render_build_ms })
+            $submitVals = @($scoredSamples | ForEach-Object { [double]$_.render_submit_ms })
             $presentVals = @($scoredSamples | ForEach-Object { [double]$_.present_wait_ms })
             $drawVals = @($scoredSamples | ForEach-Object { [double]$_.draw_calls })
             $triVals = @($scoredSamples | ForEach-Object { [double]$_.triangles })
             $visibleUnitVals = @($scoredSamples | ForEach-Object { [double]$_.visible_animated_units })
             $particleVals = @($scoredSamples | ForEach-Object { [double]$_.particle_count })
+            $projectedUnitsVals = @($scoredSamples | ForEach-Object { [double]$_.projected_units_ms })
+            $projectedPoseVals = @($scoredSamples | ForEach-Object { [double]$_.projected_pose_eval_ms })
+            $projectedModelVals = @($scoredSamples | ForEach-Object { [double]$_.projected_model_ms })
+            $projectedOverlayVals = @($scoredSamples | ForEach-Object { [double]$_.projected_overlay_ms })
+            $projectedUnitsProcessedVals = @($scoredSamples | ForEach-Object { [double]$_.projected_units_processed })
+            $projectedModelUnitsVals = @($scoredSamples | ForEach-Object { [double]$_.projected_model_units })
 
             $gpuValidSamples = @(
                 $scoredSamples | Where-Object {
@@ -237,6 +259,8 @@ try {
                 avg_fps = Round-OrNull (Get-AverageOrNull $fpsVals)
                 low_1pct_fps = Round-OrNull (Get-OnePercentLowOrNull $fpsVals)
                 avg_frame_cpu_ms = Round-OrNull (Get-AverageOrNull $frameCpuVals)
+                avg_render_build_ms = Round-OrNull (Get-AverageOrNull $buildVals)
+                avg_render_submit_ms = Round-OrNull (Get-AverageOrNull $submitVals)
                 avg_gpu_frame_ms = Round-OrNull (Get-AverageOrNull $gpuVals)
                 gpu_frame_valid_rate = Round-OrNull $gpuValidRate
                 avg_present_wait_ms = Round-OrNull (Get-AverageOrNull $presentVals)
@@ -244,6 +268,14 @@ try {
                 avg_triangles = Round-OrNull (Get-AverageOrNull $triVals)
                 avg_visible_animated_units = Round-OrNull (Get-AverageOrNull $visibleUnitVals)
                 avg_particle_count = Round-OrNull (Get-AverageOrNull $particleVals)
+                avg_projected_units_ms = Round-OrNull (Get-AverageOrNull $projectedUnitsVals)
+                avg_projected_pose_eval_ms = Round-OrNull (Get-AverageOrNull $projectedPoseVals)
+                avg_projected_model_ms = Round-OrNull (Get-AverageOrNull $projectedModelVals)
+                avg_projected_overlay_ms = Round-OrNull (Get-AverageOrNull $projectedOverlayVals)
+                avg_projected_units_processed = Round-OrNull (Get-AverageOrNull $projectedUnitsProcessedVals)
+                avg_projected_model_units = Round-OrNull (Get-AverageOrNull $projectedModelUnitsVals)
+                backend_vertex_deform = if ([string]::IsNullOrWhiteSpace($BackendVertexDeform)) { "default" } else { $BackendVertexDeform }
+                backend_clip_skinning = if ([string]::IsNullOrWhiteSpace($BackendClipSkinning)) { "default" } else { $BackendClipSkinning }
                 seed = $Seed
                 duration_seconds = $DurationSeconds
                 raw_log_path = $rawPath
@@ -285,4 +317,4 @@ Write-Host "CSV : $csvPath"
 Write-Host "JSON: $jsonPath"
 Write-Host "Raw : $rawDir"
 Write-Host ""
-$rows | Format-Table backend, resolution, avg_fps, low_1pct_fps, avg_frame_cpu_ms, avg_gpu_frame_ms, avg_present_wait_ms, avg_draw_calls, avg_triangles, avg_visible_animated_units, avg_particle_count, sample_count_scored -AutoSize
+$rows | Format-Table backend, resolution, avg_fps, low_1pct_fps, avg_frame_cpu_ms, avg_render_build_ms, avg_gpu_frame_ms, avg_projected_units_ms, avg_projected_model_ms, avg_present_wait_ms, avg_draw_calls, avg_triangles, avg_visible_animated_units, avg_particle_count, sample_count_scored -AutoSize

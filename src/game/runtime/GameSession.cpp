@@ -1448,6 +1448,12 @@ struct GameSession::Impl {
         if (unitLabels.capacity() < 64u) unitLabels.reserve(64u);
         std::uint32_t visibleAnimatedUnitsThisFrame = 0u;
         std::uint32_t particleCountThisFrame = 0u;
+        float projectedUnitsMsThisFrame = 0.0f;
+        float projectedPoseEvalMsThisFrame = 0.0f;
+        float projectedModelMsThisFrame = 0.0f;
+        float projectedOverlayMsThisFrame = 0.0f;
+        std::uint32_t projectedUnitsProcessedThisFrame = 0u;
+        std::uint32_t projectedModelUnitsThisFrame = 0u;
 
         const bool supportsWorldTriangles3D = renderer->supportsWorldTriangles3D();
         const bool supportsWorldIndexedMeshes = renderer->supportsWorldIndexedMeshes();
@@ -1530,6 +1536,7 @@ struct GameSession::Impl {
                 auto& modelDepthTris = modelDepthBuffers.modelDepthTris;
                 auto& modelDepthWorldTris = modelDepthBuffers.modelDepthWorldTris;
                 std::size_t remainingModelTrianglesBudget = backendModelTriangleFrameBudget();
+                runtime::shared_projected_units::PerfStats projectedUnitPerf{};
 
                 {
                     const game::runtime::shared_board_grid::Config boardGridCfg =
@@ -1627,6 +1634,7 @@ struct GameSession::Impl {
                 projectedUnitArgs.getTailFireFallbackCfg = [&]() -> const TailFireVFX::Config& {
                     return game::runtime::shared_projected_scene::getTailFireFallbackCfg();
                 };
+                projectedUnitArgs.perfStats = &projectedUnitPerf;
 
                 (void)sharedCaptureAttemptCache.refresh(gameWorld.get());
                 game::runtime::shared_projected_units::drawProjectedUnits(
@@ -1653,6 +1661,12 @@ struct GameSession::Impl {
                     modelDepthWorldTris,
                     worldTriangles,
                     world3DTriangles);
+                projectedUnitsMsThisFrame = static_cast<float>(projectedUnitPerf.totalMs);
+                projectedPoseEvalMsThisFrame = static_cast<float>(projectedUnitPerf.poseEvalMs);
+                projectedModelMsThisFrame = static_cast<float>(projectedUnitPerf.modelRenderMs);
+                projectedOverlayMsThisFrame = static_cast<float>(projectedUnitPerf.overlayMs);
+                projectedUnitsProcessedThisFrame = projectedUnitPerf.unitsProcessed;
+                projectedModelUnitsThisFrame = projectedUnitPerf.modelUnits;
             } else {
             IRenderBackend::DebugQuad boardBg;
             boardBg.x = boardX;
@@ -1884,6 +1898,12 @@ struct GameSession::Impl {
         if (engineServices) {
             engineServices->frameVisibleAnimatedUnits = visibleAnimatedUnitsThisFrame;
             engineServices->frameParticleCount = particleCountThisFrame;
+            engineServices->frameProjectedUnitsMs = projectedUnitsMsThisFrame;
+            engineServices->frameProjectedPoseEvalMs = projectedPoseEvalMsThisFrame;
+            engineServices->frameProjectedModelMs = projectedModelMsThisFrame;
+            engineServices->frameProjectedOverlayMs = projectedOverlayMsThisFrame;
+            engineServices->frameProjectedUnitsProcessed = projectedUnitsProcessedThisFrame;
+            engineServices->frameProjectedModelUnits = projectedModelUnitsThisFrame;
         }
 
         runtime::shared_backend_debug_view::ComposeAndSubmitArgs overlayArgs;

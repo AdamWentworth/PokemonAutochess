@@ -25,6 +25,15 @@
 
 namespace game::runtime::shared_projected_units {
 
+struct PerfStats {
+    double totalMs = 0.0;
+    double poseEvalMs = 0.0;
+    double modelRenderMs = 0.0;
+    double overlayMs = 0.0;
+    std::uint32_t unitsProcessed = 0u;
+    std::uint32_t modelUnits = 0u;
+};
+
 struct Args {
     const GameDataDb* dataDb = nullptr;
     GameWorld* gameWorld = nullptr;
@@ -68,6 +77,7 @@ struct Args {
     std::function<bool()> backendModelFastTexturedPathEnabled;
     std::function<bool()> backendModelBackfaceCullingEnabled;
     std::function<const TailFireVFX::Config&()> getTailFireFallbackCfg;
+    PerfStats* perfStats = nullptr;
 };
 
 void drawProjectedUnits(const Args& args, const std::vector<PokemonInstance>& units);

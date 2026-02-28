@@ -11,6 +11,7 @@
 #include <algorithm>
 #include <array>
 #include <cctype>
+#include <chrono>
 #include <cmath>
 #include <cstdint>
 
@@ -101,12 +102,22 @@ void drawProjectedUnits(const Args& args, const std::vector<PokemonInstance>& un
     using SharedTailFireAnchor = game::runtime::shared_tail_fire_fallback::Anchor;
     using DepthTri = game::runtime::shared_projected_scene::DepthTri;
     using DepthWorldTri = game::runtime::shared_projected_scene::DepthWorldTri;
+    using Clock = std::chrono::high_resolution_clock;
+    PerfStats* perfStats = args.perfStats;
+    const auto totalStart = Clock::now();
+    double poseEvalMsAcc = 0.0;
+    double modelRenderMsAcc = 0.0;
+    double overlayMsAcc = 0.0;
+    std::uint32_t unitsProcessed = 0u;
+    std::uint32_t modelUnits = 0u;
 
 
 for (const auto& unit : units) {
     if (!unit.alive && !unit.captureInProgress && !unit.fainting) continue;
     if (!unit.alive && unit.visualScale <= 0.0001f && !unit.captureInProgress) continue;
+    ++unitsProcessed;
 
+    const auto poseEvalStart = Clock::now();
     const runtime::backend_anim::ProceduralPose pose =
         runtime::backend_anim::computeProceduralPose(unit, worldCellSize);
     const runtime::backend_model::MeshData* meshForUnit = resolveModelMesh(unit);
@@ -116,6 +127,7 @@ for (const auto& unit : units) {
         scenePose = game::runtime::shared_backend_pose::evaluateScenePose(*meshForUnit, unit);
         scenePoseReady = true;
     }
+    poseEvalMsAcc += std::chrono::duration<double, std::milli>(Clock::now() - poseEvalStart).count();
     const bool hasClipPoseDrivenModel = scenePoseReady && scenePose.hasClipPose;
     const bool applyProceduralModelMotion = !hasClipPoseDrivenModel;
     const glm::vec3 attackOffset = applyProceduralModelMotion
@@ -249,6 +261,7 @@ for (const auto& unit : units) {
         }
     }    bool drewModelMesh = false;
     if (meshForUnit) {
+        const auto modelStart = Clock::now();
         const auto modelResult = runtime::shared_projected_unit_models::renderProjectedUnitModel(
             runtime::shared_projected_unit_models::Args{
                 .dataDb = &dataDb,
@@ -285,11 +298,14 @@ for (const auto& unit : units) {
                 .backendModelFullMeshEnabled = backendModelFullMeshEnabled,
                 .backendModelFastTexturedPathEnabled = backendModelFastTexturedPathEnabled,
                 .backendModelBackfaceCullingEnabled = backendModelBackfaceCullingEnabled});
+        modelRenderMsAcc += std::chrono::duration<double, std::milli>(Clock::now() - modelStart).count();
         if (modelResult.skipUnit) continue;
         drewModelMesh = modelResult.drewModelMesh;
+        if (drewModelMesh) ++modelUnits;
     }
 
-    const game::runtime::backend_proxy::UnitProxyCorners corners =        game::runtime::backend_proxy::computeUnitProxyCorners(
+    const game::runtime::backend_proxy::UnitProxyCorners corners =
+        game::runtime::backend_proxy::computeUnitProxyCorners(
             proxyCenter,
             extents,
             animYaw);
@@ -338,6 +354,7 @@ for (const auto& unit : units) {
         ++(*visibleAnimatedUnitCount);
     }
 
+    const auto overlayStart = Clock::now();
     runtime::shared_projected_unit_overlays::appendProjectedUnitOverlays(
         runtime::shared_projected_unit_overlays::Args{
             .unit = &unit,
@@ -363,9 +380,20 @@ for (const auto& unit : units) {
             .animYaw = animYaw,
             .proxyCenter = proxyCenter,
             .extents = extents});
+    overlayMsAcc += std::chrono::duration<double, std::milli>(Clock::now() - overlayStart).count();
+}
+
+if (perfStats) {
+    perfStats->totalMs += std::chrono::duration<double, std::milli>(Clock::now() - totalStart).count();
+    perfStats->poseEvalMs += poseEvalMsAcc;
+    perfStats->modelRenderMs += modelRenderMsAcc;
+    perfStats->overlayMs += overlayMsAcc;
+    perfStats->unitsProcessed += unitsProcessed;
+    perfStats->modelUnits += modelUnits;
 }
 
 }
 
 } // namespace game::runtime::shared_projected_units
+
 
