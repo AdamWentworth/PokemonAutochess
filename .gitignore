@@ -10,6 +10,7 @@ cache
 *.o
 *.pdb
 .vs
+benchmark/
 
 config/user/*
 

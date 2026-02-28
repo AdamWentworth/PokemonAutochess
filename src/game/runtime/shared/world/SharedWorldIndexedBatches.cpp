@@ -43,6 +43,10 @@ IRenderBackend::WorldTextureData toWorldTextureData(const WorldIndexedBatch& bat
     tex.materialFlipbook1Rows = batch.materialFlipbook1Rows;
     tex.materialFlipbook1Frames = batch.materialFlipbook1Frames;
     tex.materialFlipbook1Fps = batch.materialFlipbook1Fps;
+    tex.modelMatrix = batch.modelMatrix;
+    tex.gpuSkinning = batch.gpuSkinning;
+    tex.skinMatrixCount = batch.skinMatrixCount;
+    tex.skinMatrices = batch.skinMatrices.empty() ? nullptr : batch.skinMatrices.data();
     return tex;
 }
 

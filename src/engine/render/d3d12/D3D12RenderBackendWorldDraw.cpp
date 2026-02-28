@@ -15,6 +15,23 @@
 using namespace engine::render::d3d12_internal;
 #endif
 
+namespace {
+void packWorldVsConstants(const float* viewProjectionMatrix4x4,
+                          const float* modelMatrix4x4,
+                          float* out32) {
+    if (!out32) return;
+    static constexpr float kIdentity[16] = {
+        1.0f, 0.0f, 0.0f, 0.0f,
+        0.0f, 1.0f, 0.0f, 0.0f,
+        0.0f, 0.0f, 1.0f, 0.0f,
+        0.0f, 0.0f, 0.0f, 1.0f};
+    const float* vp = viewProjectionMatrix4x4 ? viewProjectionMatrix4x4 : kIdentity;
+    const float* model = modelMatrix4x4 ? modelMatrix4x4 : kIdentity;
+    std::memcpy(out32, vp, sizeof(float) * 16u);
+    std::memcpy(out32 + 16u, model, sizeof(float) * 16u);
+}
+} // namespace
+
 void D3D12RenderBackend::drawWorldTriangles(const WorldTriangle* triangles,
                                             std::size_t triangleCount,
                                             const float* viewProjectionMatrix4x4,
@@ -78,7 +95,9 @@ void D3D12RenderBackend::drawWorldTriangles(const WorldTriangle* triangles,
         commandList_->SetDescriptorHeaps(1, heaps);
     }
     commandList_->SetGraphicsRootSignature(worldRootSignature_.Get());
-    commandList_->SetGraphicsRoot32BitConstants(0, 16, viewProjectionMatrix4x4, 0);
+    float vsConstants[32] = {};
+    packWorldVsConstants(viewProjectionMatrix4x4, nullptr, vsConstants);
+    commandList_->SetGraphicsRoot32BitConstants(0, 32, vsConstants, 0);
     const WorldPsConstants worldPs = makeWorldPsConstants(nullptr, 0.0f);
     commandList_->SetGraphicsRoot32BitConstants(
         1,
@@ -242,7 +261,10 @@ void D3D12RenderBackend::drawWorldIndexedMeshInternal(const WorldMeshVertex* ver
     ID3D12DescriptorHeap* heaps[] = {srvHeap_.Get()};
     commandList_->SetDescriptorHeaps(1, heaps);
     commandList_->SetGraphicsRootSignature(worldRootSignature_.Get());
-    commandList_->SetGraphicsRoot32BitConstants(0, 16, viewProjectionMatrix4x4, 0);
+    const float* modelMatrix = textureData ? textureData->modelMatrix.data() : nullptr;
+    float vsConstants[32] = {};
+    packWorldVsConstants(viewProjectionMatrix4x4, modelMatrix, vsConstants);
+    commandList_->SetGraphicsRoot32BitConstants(0, 32, vsConstants, 0);
     const WorldPsConstants worldPs = makeWorldPsConstants(textureData, useTexture);
     commandList_->SetGraphicsRoot32BitConstants(
         1,

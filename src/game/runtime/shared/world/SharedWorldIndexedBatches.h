@@ -1,5 +1,6 @@
 #pragma once
 
+#include <array>
 #include <cstdint>
 #include <string>
 #include <vector>
@@ -43,6 +44,14 @@ struct WorldIndexedBatch {
     float materialFlipbook1Rows = 1.0f;
     float materialFlipbook1Frames = 1.0f;
     float materialFlipbook1Fps = 0.0f;
+    std::array<float, 16> modelMatrix{
+        1.0f, 0.0f, 0.0f, 0.0f,
+        0.0f, 1.0f, 0.0f, 0.0f,
+        0.0f, 0.0f, 1.0f, 0.0f,
+        0.0f, 0.0f, 0.0f, 1.0f};
+    std::uint8_t gpuSkinning = 0u;
+    std::uint32_t skinMatrixCount = 0u;
+    std::vector<float> skinMatrices;
 };
 
 void submitWorldIndexedBatches(IRenderBackend& renderer,

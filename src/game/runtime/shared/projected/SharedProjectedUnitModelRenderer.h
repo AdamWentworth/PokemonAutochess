@@ -33,6 +33,7 @@ struct Args {
     const runtime::shared_backend_pose::PoseEval* scenePose = nullptr;
     bool scenePoseReady = false;
     bool enableClipSkinning = true;
+    bool enableGpuClipSkinning = false;
     const IRenderBackend::DebugQuad* tint = nullptr;
 
     float worldCellSize = 1.0f;

@@ -9,6 +9,8 @@
 #include <string>
 #include <vector>
 
+#include <glm/gtc/type_ptr.hpp>
+
 namespace {
 
 glm::vec3 safeNormalizeVec3(const glm::vec3& v) {
@@ -56,6 +58,7 @@ struct TransformScratch {
 };
 
 thread_local TransformScratch g_scratch;
+constexpr std::size_t kMaxGpuSkinMatrices = 64u;
 
 } // namespace
 
@@ -73,6 +76,7 @@ void Resolver::initialize(const shared_projected_unit_backend_mesh::Args& args,
     hasClipPose_ = prep.scenePose.hasClipPose;
     usePositionOnlyVertexPath_ = prep.usePositionOnlyVertexPath;
     clipSkinningEnabled_ = backendClipSkinningEnabled() && args.enableClipSkinning;
+    gpuClipSkinningRequested_ = args.enableGpuClipSkinning;
 
     nodeGlobals_ = prep.scenePose.hasScenePose ? &prep.scenePose.nodeGlobals : &mesh_->bindNodeGlobals;
     nodeCount_ = nodeGlobals_->size();
@@ -357,8 +361,11 @@ glm::vec3 Resolver::resolveWorldVertexPos(
             worldCellSize_);
     }
     const glm::vec3 skinnedPos = skinPositionAtNode(triNodeIndex, vtx, local);
-    const glm::mat4& worldM = worldMatrixForNode(triNodeIndex);
-    const glm::vec3 outPos = glm::vec3(worldM * glm::vec4(skinnedPos, 1.0f));
+    const glm::mat4 nodeGlobal =
+        (triNodeIndex >= 0 && static_cast<std::size_t>(triNodeIndex) < nodeGlobals_->size())
+            ? (*nodeGlobals_)[static_cast<std::size_t>(triNodeIndex)]
+            : glm::mat4(1.0f);
+    const glm::vec3 outPos = glm::vec3(nodeGlobal * glm::vec4(skinnedPos, 1.0f));
 
     if (vertexIndex < g_scratch.worldVertexPosCache.size()) {
         g_scratch.worldVertexPosCache[vertexIndex] = outPos;
@@ -366,6 +373,60 @@ glm::vec3 Resolver::resolveWorldVertexPos(
         g_scratch.worldVertexPosCacheValid[vertexIndex] = 1u;
     }
     return outPos;
+}
+
+glm::vec3 Resolver::resolveGpuSkinningInputPos(
+    std::uint32_t vertexIndex,
+    const runtime::backend_model::MeshVertex& vtx) {
+    if (vertexIndex < g_scratch.worldVertexPosCache.size() &&
+        g_scratch.worldVertexPosCacheValid[vertexIndex] != 0u &&
+        g_scratch.worldVertexPosCacheNode[vertexIndex] == std::numeric_limits<int>::min()) {
+        return g_scratch.worldVertexPosCache[vertexIndex];
+    }
+
+    // GPU skinning path expects local (pre-skin) positions.
+    const glm::vec3 outPos = vtx.position;
+
+    if (vertexIndex < g_scratch.worldVertexPosCache.size()) {
+        g_scratch.worldVertexPosCache[vertexIndex] = outPos;
+        g_scratch.worldVertexPosCacheNode[vertexIndex] = std::numeric_limits<int>::min();
+        g_scratch.worldVertexPosCacheValid[vertexIndex] = 1u;
+    }
+    return outPos;
+}
+
+bool Resolver::configureGpuClipSkinningBatch(
+    int triNodeIndex,
+    std::array<float, 16>& inOutModelMatrix,
+    std::vector<float>& outSkinMatrices,
+    std::uint32_t& outSkinMatrixCount) {
+    outSkinMatrices.clear();
+    outSkinMatrixCount = 0u;
+    if (!gpuClipSkinningRequested_ || !clipSkinningEnabled_ || !hasClipPose_ ||
+        !usePositionOnlyVertexPath_) {
+        return false;
+    }
+
+    const auto* mats = ensureSkinMatricesForNode(triNodeIndex);
+    if (!mats || mats->empty() || mats->size() > kMaxGpuSkinMatrices) {
+        return false;
+    }
+
+    const glm::mat4 nodeGlobal =
+        (triNodeIndex >= 0 && static_cast<std::size_t>(triNodeIndex) < nodeGlobals_->size())
+            ? (*nodeGlobals_)[static_cast<std::size_t>(triNodeIndex)]
+            : glm::mat4(1.0f);
+    const glm::mat4 combinedModel = modelM_ * nodeGlobal;
+    const float* modelData = glm::value_ptr(combinedModel);
+    std::copy(modelData, modelData + 16, inOutModelMatrix.begin());
+
+    outSkinMatrices.resize(mats->size() * 16u);
+    for (std::size_t i = 0; i < mats->size(); ++i) {
+        const float* src = glm::value_ptr((*mats)[i]);
+        std::copy(src, src + 16, outSkinMatrices.data() + (i * 16u));
+    }
+    outSkinMatrixCount = static_cast<std::uint32_t>(mats->size());
+    return true;
 }
 
 } // namespace game::runtime::shared_projected_unit_backend_mesh_transforms

@@ -113,6 +113,10 @@ Interpretation:
 ### Adaptive Clip-Skinning Tuning
 Use these runtime env vars to balance animation fidelity vs CPU cost in projected rendering:
 
+Notes:
+- Adaptive selection uses fair round-robin across eligible units (no permanent per-unit priority bias).
+- Lower `PAC_BACKEND_CLIP_SKINNING_MAX_UNITS` reduces CPU cost but can reduce per-frame clip-driven fidelity.
+
 ```powershell
 # Default behavior (adaptive clip skinning ON, capped units)
 Remove-Item Env:PAC_BACKEND_CLIP_SKINNING_ADAPTIVE -ErrorAction SilentlyContinue

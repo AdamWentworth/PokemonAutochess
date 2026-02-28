@@ -33,6 +33,14 @@ struct WorldVertex {
     float g;
     float b;
     float a;
+    float joint0;
+    float joint1;
+    float joint2;
+    float joint3;
+    float weight0;
+    float weight1;
+    float weight2;
+    float weight3;
 };
 
 static_assert(

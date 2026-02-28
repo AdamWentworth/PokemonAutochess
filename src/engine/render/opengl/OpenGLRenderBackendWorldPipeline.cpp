@@ -2,16 +2,19 @@
 #include "engine/render/opengl/OpenGLRenderBackendShaderUtils.h"
 
 #include <algorithm>
+#include <cstddef>
 
 #include <glad/glad.h>
 
 void OpenGLRenderBackend::ensureWorldPipeline() {
     if (worldProgram_ != 0 && worldVao_ != 0 && worldVbo_ != 0 && worldIbo_ != 0 &&
-        worldViewProjLoc_ >= 0 && worldUseTextureLoc_ >= 0 && worldTextureSamplerLoc_ >= 0 &&
+        worldViewProjLoc_ >= 0 && worldModelLoc_ >= 0 &&
+        worldUseTextureLoc_ >= 0 && worldTextureSamplerLoc_ >= 0 &&
         worldWrapSLoc_ >= 0 && worldWrapTLoc_ >= 0 && worldAlphaModeLoc_ >= 0 && worldAlphaCutoffLoc_ >= 0 &&
         worldMaterialModeLoc_ >= 0 && worldMaterialTimeLoc_ >= 0 && worldMaterialFlagsLoc_ >= 0 &&
         worldMaterialAtlasSizeLoc_ >= 0 && worldMaterialRect0Loc_ >= 0 && worldMaterialRect1Loc_ >= 0 &&
-        worldMaterialFlipbook0Loc_ >= 0 && worldMaterialFlipbook1Loc_ >= 0) {
+        worldMaterialFlipbook0Loc_ >= 0 && worldMaterialFlipbook1Loc_ >= 0 &&
+        worldSkinningEnabledLoc_ >= 0 && worldSkinMatrixCountLoc_ >= 0 && worldSkinMatricesLoc_ >= 0) {
         return;
     }
     if (!GLAD_GL_VERSION_3_3) return;
@@ -21,13 +24,63 @@ void OpenGLRenderBackend::ensureWorldPipeline() {
         layout (location = 0) in vec3 aPos;
         layout (location = 1) in vec2 aUv;
         layout (location = 2) in vec4 aColor;
+        layout (location = 3) in vec4 aJoints;
+        layout (location = 4) in vec4 aWeights;
         uniform mat4 uViewProj;
+        uniform mat4 uModel;
+        uniform float uSkinningEnabled;
+        uniform int uSkinMatrixCount;
+        const int kMaxSkinMatrices = 64;
+        uniform mat4 uSkinMatrices[kMaxSkinMatrices];
         out vec2 vUv;
         out vec4 vColor;
+        out vec3 vWorldPos;
+        vec3 applySkinning(vec3 localPos) {
+            vec4 blended = vec4(0.0);
+            float totalWeight = 0.0;
+
+            int j0 = int(aJoints.x + 0.5);
+            int j1 = int(aJoints.y + 0.5);
+            int j2 = int(aJoints.z + 0.5);
+            int j3 = int(aJoints.w + 0.5);
+            float w0 = aWeights.x;
+            float w1 = aWeights.y;
+            float w2 = aWeights.z;
+            float w3 = aWeights.w;
+
+            if (w0 > 0.00001 && j0 >= 0 && j0 < uSkinMatrixCount && j0 < kMaxSkinMatrices) {
+                blended += (uSkinMatrices[j0] * vec4(localPos, 1.0)) * w0;
+                totalWeight += w0;
+            }
+            if (w1 > 0.00001 && j1 >= 0 && j1 < uSkinMatrixCount && j1 < kMaxSkinMatrices) {
+                blended += (uSkinMatrices[j1] * vec4(localPos, 1.0)) * w1;
+                totalWeight += w1;
+            }
+            if (w2 > 0.00001 && j2 >= 0 && j2 < uSkinMatrixCount && j2 < kMaxSkinMatrices) {
+                blended += (uSkinMatrices[j2] * vec4(localPos, 1.0)) * w2;
+                totalWeight += w2;
+            }
+            if (w3 > 0.00001 && j3 >= 0 && j3 < uSkinMatrixCount && j3 < kMaxSkinMatrices) {
+                blended += (uSkinMatrices[j3] * vec4(localPos, 1.0)) * w3;
+                totalWeight += w3;
+            }
+
+            if (totalWeight <= 0.00001) return localPos;
+            if (totalWeight < 0.999) {
+                blended += vec4(localPos, 1.0) * (1.0 - totalWeight);
+            }
+            return blended.xyz;
+        }
         void main() {
-            gl_Position = uViewProj * vec4(aPos, 1.0);
+            vec3 localPos = aPos;
+            if (uSkinningEnabled > 0.5) {
+                localPos = applySkinning(localPos);
+            }
+            vec4 worldPos = uModel * vec4(localPos, 1.0);
+            gl_Position = uViewProj * worldPos;
             vUv = aUv;
             vColor = aColor;
+            vWorldPos = worldPos.xyz;
         }
     )GLSL";
 
@@ -35,6 +88,7 @@ void OpenGLRenderBackend::ensureWorldPipeline() {
         #version 330 core
         in vec2 vUv;
         in vec4 vColor;
+        in vec3 vWorldPos;
         uniform float uUseTexture;
         uniform float uWrapS;
         uniform float uWrapT;
@@ -302,8 +356,23 @@ void OpenGLRenderBackend::ensureWorldPipeline() {
             return vec4(rgb, alpha);
         }
 
+        vec3 applyWorldLitModel(vec3 srgbColor) {
+            vec3 dx = dFdx(vWorldPos);
+            vec3 dy = dFdy(vWorldPos);
+            vec3 n = normalize(cross(dx, dy));
+            if (!gl_FrontFacing) {
+                n = -n;
+            }
+            vec3 l = normalize(vec3(0.45, 0.90, 0.35));
+            float ndl = max(dot(n, l), 0.0);
+            float hemi = n.y * 0.5 + 0.5;
+            float ambient = mix(0.58, 0.92, clamp(hemi, 0.0, 1.0));
+            float lit = ambient * 0.45 + (0.22 + 0.78 * ndl) * 0.70;
+            return clamp(srgbColor * lit, 0.0, 1.0);
+        }
+
         void main() {
-            if (uMaterialMode > 0.5) {
+            if (uMaterialMode > 0.5 && uMaterialMode < 1.5) {
                 FragColor = evalFireTailExact();
                 return;
             }
@@ -321,6 +390,9 @@ void OpenGLRenderBackend::ensureWorldPipeline() {
             } else if (uAlphaMode < 1.5) {
                 if (outA < clamp(uAlphaCutoff, 0.0, 1.0)) discard;
                 outA = clamp(vColor.a, 0.0, 1.0);
+            }
+            if (uMaterialMode >= 1.5) {
+                outSrgb = applyWorldLitModel(outSrgb);
             }
             FragColor = vec4(outSrgb, outA);
         }
@@ -340,6 +412,7 @@ void OpenGLRenderBackend::ensureWorldPipeline() {
     if (worldProgram_ == 0) return;
 
     worldViewProjLoc_ = glGetUniformLocation(worldProgram_, "uViewProj");
+    worldModelLoc_ = glGetUniformLocation(worldProgram_, "uModel");
     worldUseTextureLoc_ = glGetUniformLocation(worldProgram_, "uUseTexture");
     worldTextureSamplerLoc_ = glGetUniformLocation(worldProgram_, "uTexture");
     worldWrapSLoc_ = glGetUniformLocation(worldProgram_, "uWrapS");
@@ -354,11 +427,16 @@ void OpenGLRenderBackend::ensureWorldPipeline() {
     worldMaterialRect1Loc_ = glGetUniformLocation(worldProgram_, "uMaterialRect1");
     worldMaterialFlipbook0Loc_ = glGetUniformLocation(worldProgram_, "uMaterialFlipbook0");
     worldMaterialFlipbook1Loc_ = glGetUniformLocation(worldProgram_, "uMaterialFlipbook1");
-    if (worldViewProjLoc_ < 0 || worldUseTextureLoc_ < 0 || worldTextureSamplerLoc_ < 0 ||
+    worldSkinningEnabledLoc_ = glGetUniformLocation(worldProgram_, "uSkinningEnabled");
+    worldSkinMatrixCountLoc_ = glGetUniformLocation(worldProgram_, "uSkinMatrixCount");
+    worldSkinMatricesLoc_ = glGetUniformLocation(worldProgram_, "uSkinMatrices[0]");
+    if (worldViewProjLoc_ < 0 || worldModelLoc_ < 0 ||
+        worldUseTextureLoc_ < 0 || worldTextureSamplerLoc_ < 0 ||
         worldWrapSLoc_ < 0 || worldWrapTLoc_ < 0 || worldAlphaModeLoc_ < 0 || worldAlphaCutoffLoc_ < 0 ||
         worldMaterialModeLoc_ < 0 || worldMaterialTimeLoc_ < 0 || worldMaterialFlagsLoc_ < 0 ||
         worldMaterialAtlasSizeLoc_ < 0 || worldMaterialRect0Loc_ < 0 || worldMaterialRect1Loc_ < 0 ||
-        worldMaterialFlipbook0Loc_ < 0 || worldMaterialFlipbook1Loc_ < 0) {
+        worldMaterialFlipbook0Loc_ < 0 || worldMaterialFlipbook1Loc_ < 0 ||
+        worldSkinningEnabledLoc_ < 0 || worldSkinMatrixCountLoc_ < 0 || worldSkinMatricesLoc_ < 0) {
         destroyWorldPipeline();
         return;
     }
@@ -383,7 +461,11 @@ void OpenGLRenderBackend::ensureWorldPipeline() {
     glEnableVertexAttribArray(1);
     glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, stride, reinterpret_cast<void*>(sizeof(float) * 3));
     glEnableVertexAttribArray(2);
-    glVertexAttribPointer(2, 4, GL_FLOAT, GL_FALSE, stride, reinterpret_cast<void*>(sizeof(float) * 5));
+    glVertexAttribPointer(2, 4, GL_FLOAT, GL_FALSE, stride, reinterpret_cast<void*>(offsetof(WorldMeshVertex, r)));
+    glEnableVertexAttribArray(3);
+    glVertexAttribPointer(3, 4, GL_FLOAT, GL_FALSE, stride, reinterpret_cast<void*>(offsetof(WorldMeshVertex, joint0)));
+    glEnableVertexAttribArray(4);
+    glVertexAttribPointer(4, 4, GL_FLOAT, GL_FALSE, stride, reinterpret_cast<void*>(offsetof(WorldMeshVertex, weight0)));
 
     glBindVertexArray(0);
     glBindBuffer(GL_ARRAY_BUFFER, 0);
@@ -407,6 +489,7 @@ void OpenGLRenderBackend::destroyWorldPipeline() {
         worldProgram_ = 0;
     }
     worldViewProjLoc_ = -1;
+    worldModelLoc_ = -1;
     worldUseTextureLoc_ = -1;
     worldTextureSamplerLoc_ = -1;
     worldWrapSLoc_ = -1;
@@ -421,6 +504,9 @@ void OpenGLRenderBackend::destroyWorldPipeline() {
     worldMaterialRect1Loc_ = -1;
     worldMaterialFlipbook0Loc_ = -1;
     worldMaterialFlipbook1Loc_ = -1;
+    worldSkinningEnabledLoc_ = -1;
+    worldSkinMatrixCountLoc_ = -1;
+    worldSkinMatricesLoc_ = -1;
 }
 
 

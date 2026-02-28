@@ -116,6 +116,75 @@ Result renderProjectedUnitBackendMesh(const Args& args) {
                 &modelDepthTris,
                 &world3DTriangles});
 
+        const auto resolveTriNodeIndex = [&](std::size_t triIdx) -> int {
+            int triNodeIndex =
+                (triIdx < mesh->triangleNodeIndex.size())
+                    ? mesh->triangleNodeIndex[triIdx]
+                    : -1;
+            if (triNodeIndex < 0 &&
+                triIdx < mesh->triangleSubmesh.size() &&
+                !submeshNodeFallback.empty()) {
+                const std::uint16_t submeshIndex = mesh->triangleSubmesh[triIdx];
+                if (submeshIndex < submeshNodeFallback.size()) {
+                    triNodeIndex = submeshNodeFallback[submeshIndex];
+                }
+            }
+            return triNodeIndex;
+        };
+
+        if (args.enableGpuClipSkinning && useFastTexturedFullMeshPath &&
+            !modelIndexedBatchesPerSubmesh.empty()) {
+            std::vector<int> skinningNodeByBatch(
+                modelIndexedBatchesPerSubmesh.size(),
+                std::numeric_limits<int>::min());
+            std::vector<std::uint8_t> skinningEligibleByBatch(
+                modelIndexedBatchesPerSubmesh.size(),
+                1u);
+
+            for (std::size_t triIdx = 0; triIdx < triangleCount; ++triIdx) {
+                if (triIdx >= mesh->triangleSubmesh.size()) continue;
+                const std::size_t batchIndex =
+                    static_cast<std::size_t>(mesh->triangleSubmesh[triIdx]);
+                if (batchIndex >= modelIndexedBatchesPerSubmesh.size()) continue;
+                if (skinningEligibleByBatch[batchIndex] == 0u) continue;
+
+                const int triNodeIndex = resolveTriNodeIndex(triIdx);
+                if (triNodeIndex < 0) {
+                    skinningEligibleByBatch[batchIndex] = 0u;
+                    continue;
+                }
+
+                const int existingNode = skinningNodeByBatch[batchIndex];
+                if (existingNode == std::numeric_limits<int>::min()) {
+                    skinningNodeByBatch[batchIndex] = triNodeIndex;
+                } else if (existingNode != triNodeIndex) {
+                    // Mixed-node batches are rare and currently not supported by this GPU skinning path.
+                    skinningEligibleByBatch[batchIndex] = 0u;
+                }
+            }
+
+            for (std::size_t batchIndex = 0; batchIndex < modelIndexedBatchesPerSubmesh.size();
+                 ++batchIndex) {
+                auto& batch = modelIndexedBatchesPerSubmesh[batchIndex];
+                batch.gpuSkinning = 0u;
+                batch.skinMatrixCount = 0u;
+                batch.skinMatrices.clear();
+                if (skinningEligibleByBatch[batchIndex] == 0u) continue;
+
+                const int nodeIndex = skinningNodeByBatch[batchIndex];
+                if (nodeIndex == std::numeric_limits<int>::min()) continue;
+
+                if (!transforms.configureGpuClipSkinningBatch(
+                        nodeIndex,
+                        batch.modelMatrix,
+                        batch.skinMatrices,
+                        batch.skinMatrixCount)) {
+                    continue;
+                }
+                batch.gpuSkinning = 1u;
+            }
+        }
+
         if (unit.alive && !unit.fainting && toLowerCopy(unit.name) == "charmander") {
             const TailFireVFX::Config& tailCfg =
                 game::runtime::shared_projected_scene::getTailFireFallbackCfg();
@@ -175,18 +244,7 @@ Result renderProjectedUnitBackendMesh(const Args& args) {
             const auto& v1 = mesh->vertices[i1];
             const auto& v2 = mesh->vertices[i2];
 
-            int triNodeIndex =
-                (triIdx < mesh->triangleNodeIndex.size())
-                    ? mesh->triangleNodeIndex[triIdx]
-                    : -1;
-            if (triNodeIndex < 0 &&
-                triIdx < mesh->triangleSubmesh.size() &&
-                !submeshNodeFallback.empty()) {
-                const std::uint16_t submeshIndex = mesh->triangleSubmesh[triIdx];
-                if (submeshIndex < submeshNodeFallback.size()) {
-                    triNodeIndex = submeshNodeFallback[submeshIndex];
-                }
-            }
+            const int triNodeIndex = resolveTriNodeIndex(triIdx);
 
             const std::uint16_t triSubmeshIndex =
                 (triIdx < mesh->triangleSubmesh.size())
@@ -206,6 +264,7 @@ Result renderProjectedUnitBackendMesh(const Args& args) {
                 std::size_t fastBatchIndex = static_cast<std::size_t>(triSubmeshIndex);
                 if (fastBatchIndex >= modelIndexedBatchesPerSubmesh.size()) fastBatchIndex = 0u;
                 auto& fastBatch = modelIndexedBatchesPerSubmesh[fastBatchIndex];
+                const bool useGpuSkinning = (fastBatch.gpuSkinning != 0u);
                 const bool canReuseIndexedVertices =
                     fastBatchIndex < modelIndexedVertexRemap.size();
                 const auto appendFastVertex = [&](std::uint32_t src,
@@ -221,19 +280,32 @@ Result renderProjectedUnitBackendMesh(const Args& args) {
                             static_cast<std::size_t>(std::numeric_limits<std::uint32_t>::max())) {
                             return std::numeric_limits<std::uint32_t>::max();
                         }
-                        const glm::vec3 pos = transforms.resolveWorldVertexPos(triNodeIndex, src, srcVertex);
+                        const glm::vec3 pos = useGpuSkinning
+                            ? transforms.resolveGpuSkinningInputPos(src, srcVertex)
+                            : transforms.resolveWorldVertexPos(triNodeIndex, src, srcVertex);
                         const std::uint32_t next =
                             static_cast<std::uint32_t>(fastBatch.vertices.size());
-                        fastBatch.vertices.push_back(IRenderBackend::WorldMeshVertex{
-                            pos.x,
-                            pos.y,
-                            pos.z,
-                            srcVertex.uv.x,
-                            srcVertex.uv.y,
-                            fastTexturedTint.r,
-                            fastTexturedTint.g,
-                            fastTexturedTint.b,
-                            fastTexturedAlpha});
+                        IRenderBackend::WorldMeshVertex outVertex{};
+                        outVertex.x = pos.x;
+                        outVertex.y = pos.y;
+                        outVertex.z = pos.z;
+                        outVertex.u = srcVertex.uv.x;
+                        outVertex.v = srcVertex.uv.y;
+                        outVertex.r = fastTexturedTint.r;
+                        outVertex.g = fastTexturedTint.g;
+                        outVertex.b = fastTexturedTint.b;
+                        outVertex.a = fastTexturedAlpha;
+                        if (useGpuSkinning) {
+                            outVertex.joint0 = static_cast<float>(srcVertex.j0);
+                            outVertex.joint1 = static_cast<float>(srcVertex.j1);
+                            outVertex.joint2 = static_cast<float>(srcVertex.j2);
+                            outVertex.joint3 = static_cast<float>(srcVertex.j3);
+                            outVertex.weight0 = srcVertex.w0;
+                            outVertex.weight1 = srcVertex.w1;
+                            outVertex.weight2 = srcVertex.w2;
+                            outVertex.weight3 = srcVertex.w3;
+                        }
+                        fastBatch.vertices.push_back(outVertex);
                         mapped = static_cast<int>(next);
                         return next;
                     }
@@ -241,19 +313,32 @@ Result renderProjectedUnitBackendMesh(const Args& args) {
                         static_cast<std::size_t>(std::numeric_limits<std::uint32_t>::max())) {
                         return std::numeric_limits<std::uint32_t>::max();
                     }
-                    const glm::vec3 pos = transforms.resolveWorldVertexPos(triNodeIndex, src, srcVertex);
+                    const glm::vec3 pos = useGpuSkinning
+                        ? transforms.resolveGpuSkinningInputPos(src, srcVertex)
+                        : transforms.resolveWorldVertexPos(triNodeIndex, src, srcVertex);
                     const std::uint32_t next =
                         static_cast<std::uint32_t>(fastBatch.vertices.size());
-                    fastBatch.vertices.push_back(IRenderBackend::WorldMeshVertex{
-                        pos.x,
-                        pos.y,
-                        pos.z,
-                        srcVertex.uv.x,
-                        srcVertex.uv.y,
-                        fastTexturedTint.r,
-                        fastTexturedTint.g,
-                        fastTexturedTint.b,
-                        fastTexturedAlpha});
+                    IRenderBackend::WorldMeshVertex outVertex{};
+                    outVertex.x = pos.x;
+                    outVertex.y = pos.y;
+                    outVertex.z = pos.z;
+                    outVertex.u = srcVertex.uv.x;
+                    outVertex.v = srcVertex.uv.y;
+                    outVertex.r = fastTexturedTint.r;
+                    outVertex.g = fastTexturedTint.g;
+                    outVertex.b = fastTexturedTint.b;
+                    outVertex.a = fastTexturedAlpha;
+                    if (useGpuSkinning) {
+                        outVertex.joint0 = static_cast<float>(srcVertex.j0);
+                        outVertex.joint1 = static_cast<float>(srcVertex.j1);
+                        outVertex.joint2 = static_cast<float>(srcVertex.j2);
+                        outVertex.joint3 = static_cast<float>(srcVertex.j3);
+                        outVertex.weight0 = srcVertex.w0;
+                        outVertex.weight1 = srcVertex.w1;
+                        outVertex.weight2 = srcVertex.w2;
+                        outVertex.weight3 = srcVertex.w3;
+                    }
+                    fastBatch.vertices.push_back(outVertex);
                     return next;
                 };
 
@@ -285,16 +370,27 @@ Result renderProjectedUnitBackendMesh(const Args& args) {
                 (triIdx < mesh->triangleDoubleSided.size()) &&
                 (mesh->triangleDoubleSided[triIdx] != 0u);
 
-            const auto sk0 = transforms.resolveWorldVertex(triNodeIndex, i0, v0);
-            const auto sk1 = transforms.resolveWorldVertex(triNodeIndex, i1, v1);
-            const auto sk2 = transforms.resolveWorldVertex(triNodeIndex, i2, v2);
-
-            const glm::vec3& a = sk0.pos;
-            const glm::vec3& b = sk1.pos;
-            const glm::vec3& c = sk2.pos;
-            const glm::vec3& n0 = sk0.normal;
-            const glm::vec3& n1 = sk1.normal;
-            const glm::vec3& n2 = sk2.normal;
+            glm::vec3 a(0.0f);
+            glm::vec3 b(0.0f);
+            glm::vec3 c(0.0f);
+            glm::vec3 n0(0.0f, 1.0f, 0.0f);
+            glm::vec3 n1(0.0f, 1.0f, 0.0f);
+            glm::vec3 n2(0.0f, 1.0f, 0.0f);
+            if (useIndexedWorldModelPath) {
+                a = transforms.resolveWorldVertexPos(triNodeIndex, i0, v0);
+                b = transforms.resolveWorldVertexPos(triNodeIndex, i1, v1);
+                c = transforms.resolveWorldVertexPos(triNodeIndex, i2, v2);
+            } else {
+                const auto sk0 = transforms.resolveWorldVertex(triNodeIndex, i0, v0);
+                const auto sk1 = transforms.resolveWorldVertex(triNodeIndex, i1, v1);
+                const auto sk2 = transforms.resolveWorldVertex(triNodeIndex, i2, v2);
+                a = sk0.pos;
+                b = sk1.pos;
+                c = sk2.pos;
+                n0 = sk0.normal;
+                n1 = sk1.normal;
+                n2 = sk2.normal;
+            }
 
             glm::vec3 baseColor0 = fallbackBase;
             glm::vec3 baseColor1 = fallbackBase;

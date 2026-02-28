@@ -131,11 +131,13 @@ void OpenGLRenderBackend::drawWorldIndexedMeshTextured(const WorldMeshVertex* ve
     if (surfaceWidth <= 0 || surfaceHeight <= 0) return;
     ensureWorldPipeline();
     if (worldProgram_ == 0 || worldVao_ == 0 || worldVbo_ == 0 || worldIbo_ == 0 ||
-        worldViewProjLoc_ < 0 || worldUseTextureLoc_ < 0 || worldTextureSamplerLoc_ < 0 ||
+        worldViewProjLoc_ < 0 || worldModelLoc_ < 0 ||
+        worldUseTextureLoc_ < 0 || worldTextureSamplerLoc_ < 0 ||
         worldWrapSLoc_ < 0 || worldWrapTLoc_ < 0 || worldAlphaModeLoc_ < 0 || worldAlphaCutoffLoc_ < 0 ||
         worldMaterialModeLoc_ < 0 || worldMaterialTimeLoc_ < 0 || worldMaterialFlagsLoc_ < 0 ||
         worldMaterialAtlasSizeLoc_ < 0 || worldMaterialRect0Loc_ < 0 || worldMaterialRect1Loc_ < 0 ||
-        worldMaterialFlipbook0Loc_ < 0 || worldMaterialFlipbook1Loc_ < 0) {
+        worldMaterialFlipbook0Loc_ < 0 || worldMaterialFlipbook1Loc_ < 0 ||
+        worldSkinningEnabledLoc_ < 0 || worldSkinMatrixCountLoc_ < 0 || worldSkinMatricesLoc_ < 0) {
         return;
     }
 
@@ -217,6 +219,13 @@ void OpenGLRenderBackend::drawWorldIndexedMeshTextured(const WorldMeshVertex* ve
 
     glUseProgram(worldProgram_);
     glUniformMatrix4fv(worldViewProjLoc_, 1, GL_FALSE, viewProjectionMatrix4x4);
+    static constexpr float kIdentityModel[16] = {
+        1.0f, 0.0f, 0.0f, 0.0f,
+        0.0f, 1.0f, 0.0f, 0.0f,
+        0.0f, 0.0f, 1.0f, 0.0f,
+        0.0f, 0.0f, 0.0f, 1.0f};
+    const float* modelMatrix = texture ? texture->modelMatrix.data() : kIdentityModel;
+    glUniformMatrix4fv(worldModelLoc_, 1, GL_FALSE, modelMatrix);
     glUniform1f(worldUseTextureLoc_, useTexture);
     glUniform1f(worldWrapSLoc_, wrapS);
     glUniform1f(worldWrapTLoc_, wrapT);
@@ -248,6 +257,20 @@ void OpenGLRenderBackend::drawWorldIndexedMeshTextured(const WorldMeshVertex* ve
                 texture ? texture->materialFlipbook1Rows : 1.0f,
                 texture ? texture->materialFlipbook1Frames : 1.0f,
                 texture ? texture->materialFlipbook1Fps : 0.0f);
+    constexpr int kMaxGpuSkinMatrices = 64;
+    const bool gpuSkinningEnabled =
+        texture &&
+        texture->gpuSkinning != 0u &&
+        texture->skinMatrices != nullptr &&
+        texture->skinMatrixCount > 0u;
+    const int gpuSkinMatrixCount = gpuSkinningEnabled
+        ? std::min<int>(static_cast<int>(texture->skinMatrixCount), kMaxGpuSkinMatrices)
+        : 0;
+    glUniform1f(worldSkinningEnabledLoc_, gpuSkinningEnabled ? 1.0f : 0.0f);
+    glUniform1i(worldSkinMatrixCountLoc_, gpuSkinMatrixCount);
+    if (gpuSkinMatrixCount > 0) {
+        glUniformMatrix4fv(worldSkinMatricesLoc_, gpuSkinMatrixCount, GL_FALSE, texture->skinMatrices);
+    }
     glUniform1i(worldTextureSamplerLoc_, 0);
 
     glActiveTexture(GL_TEXTURE0);

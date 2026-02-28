@@ -44,6 +44,7 @@ struct Args {
     float lineThickness = 1.0f;
     bool supportsWorldTriangles3D = false;
     bool supportsWorldIndexedMeshes = false;
+    bool enableGpuClipSkinning = false;
     bool hasWorldViewProj = false;
     bool allowPortraitFallback = false;
     bool forcePortraitOverlay = false;

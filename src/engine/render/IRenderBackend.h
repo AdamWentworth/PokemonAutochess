@@ -1,5 +1,6 @@
 #pragma once
 
+#include <array>
 #include <cstddef>
 #include <cstdint>
 #include <string>
@@ -29,6 +30,15 @@ public:
         float g = 1.0f;
         float b = 1.0f;
         float a = 1.0f;
+        // Optional GPU skinning payload used by backend world shaders.
+        float joint0 = 0.0f;
+        float joint1 = 0.0f;
+        float joint2 = 0.0f;
+        float joint3 = 0.0f;
+        float weight0 = 0.0f;
+        float weight1 = 0.0f;
+        float weight2 = 0.0f;
+        float weight3 = 0.0f;
     };
 
     struct WorldTextureData {
@@ -67,6 +77,20 @@ public:
         float materialFlipbook1Rows = 1.0f;
         float materialFlipbook1Frames = 1.0f;
         float materialFlipbook1Fps = 0.0f;
+
+        // Optional model transform for world indexed mesh vertices.
+        // Vertices are interpreted in model space when this is non-identity.
+        std::array<float, 16> modelMatrix{
+            1.0f, 0.0f, 0.0f, 0.0f,
+            0.0f, 1.0f, 0.0f, 0.0f,
+            0.0f, 0.0f, 1.0f, 0.0f,
+            0.0f, 0.0f, 0.0f, 1.0f};
+
+        // Optional GPU skinning payload for world indexed mesh draws.
+        // Backend should ignore when gpuSkinning == 0.
+        std::uint8_t gpuSkinning = 0u;
+        std::uint32_t skinMatrixCount = 0u;
+        const float* skinMatrices = nullptr; // 16 * skinMatrixCount floats (column-major mat4)
     };
 
     struct WorldTriangle {

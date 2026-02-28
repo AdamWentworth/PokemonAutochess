@@ -181,18 +181,9 @@ void TriangleSubmitter::pushTriangle(const glm::vec3& a,
             batch.textureHeight > 0;
 
         if (texturedBatch) {
-            const auto shadeTint = [&](const glm::vec3& normal,
-                                       const glm::vec3& worldPos) {
-                return runtime::backend_material::shadeVertexLitColor(
-                    glm::vec3(1.0f),
-                    normal,
-                    args_.lightDir,
-                    args_.cameraWorldPos - worldPos,
-                    flipForBackface);
-            };
-            const glm::vec3 outC0 = shadeTint(n0, a);
-            const glm::vec3 outC1 = shadeTint(n1, b);
-            const glm::vec3 outC2 = shadeTint(n2, c);
+            const glm::vec3 outC0 = baseColor0;
+            const glm::vec3 outC1 = baseColor1;
+            const glm::vec3 outC2 = baseColor2;
 
             const bool canReuseIndexedVertices =
                 args_.fullIndexedMeshPath &&
@@ -259,19 +250,9 @@ void TriangleSubmitter::pushTriangle(const glm::vec3& a,
             return;
         }
 
-        const auto shadeColor = [&](const glm::vec3& baseColor,
-                                    const glm::vec3& normal,
-                                    const glm::vec3& worldPos) {
-            return runtime::backend_material::shadeVertexLitColor(
-                baseColor,
-                normal,
-                args_.lightDir,
-                args_.cameraWorldPos - worldPos,
-                flipForBackface);
-        };
-        const glm::vec3 shaded0 = shadeColor(baseColor0, n0, a);
-        const glm::vec3 shaded1 = shadeColor(baseColor1, n1, b);
-        const glm::vec3 shaded2 = shadeColor(baseColor2, n2, c);
+        const glm::vec3 shaded0 = baseColor0;
+        const glm::vec3 shaded1 = baseColor1;
+        const glm::vec3 shaded2 = baseColor2;
         const std::size_t nextVertexCount = batch.vertices.size() + 3u;
         if (nextVertexCount >=
             static_cast<std::size_t>(std::numeric_limits<std::uint32_t>::max())) {
@@ -353,4 +334,3 @@ void TriangleSubmitter::pushTriangle(const glm::vec3& a,
 }
 
 } // namespace game::runtime::shared_projected_unit_backend_mesh_submit
-

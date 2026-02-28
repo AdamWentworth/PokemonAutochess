@@ -72,20 +72,6 @@ std::size_t backendClipSkinningMaxUnits() {
     return maxUnits;
 }
 
-float clipSkinningPriority(const PokemonInstance& unit, const glm::vec3& cameraWorldPos) {
-    float score = 0.0f;
-    if (unit.side == PokemonSide::Player) score += 1200.0f;
-    if (unit.attackTimerSec > 0.0f) score += 1000.0f;
-    if (unit.pendingDamageActive || unit.pendingImpactActive || unit.pendingProjectileActive) score += 900.0f;
-    if (unit.captureInProgress || unit.fainting || !unit.alive) score += 700.0f;
-    if (unit.isMoving) score += 280.0f;
-
-    const glm::vec3 toCam = cameraWorldPos - unit.position;
-    const float dist2 = glm::dot(toCam, toCam);
-    // Nearby units keep clip skinning first when priorities are otherwise tied.
-    score += 200.0f / (1.0f + std::max(0.0f, dist2));
-    return score;
-}
 } // namespace
 
 namespace game::runtime::shared_projected_units {
@@ -111,6 +97,7 @@ void drawProjectedUnits(const Args& args, const std::vector<PokemonInstance>& un
     const float line = args.lineThickness;
     const bool supportsWorldTriangles3D = args.supportsWorldTriangles3D;
     const bool supportsWorldIndexedMeshes = args.supportsWorldIndexedMeshes;
+    const bool enableGpuClipSkinning = args.enableGpuClipSkinning;
     const bool hasWorldViewProj = args.hasWorldViewProj;
     const bool allowPortraitFallback = args.allowPortraitFallback;
     const bool forcePortraitOverlay = args.forcePortraitOverlay;
@@ -164,22 +151,24 @@ void drawProjectedUnits(const Args& args, const std::vector<PokemonInstance>& un
     const bool clipSkinningAdaptiveEnabled = backendClipSkinningAdaptiveEnabled();
     std::unordered_map<int, bool> clipSkinningEnabledByUnitId;
     if (clipSkinningAdaptiveEnabled) {
-        std::vector<std::pair<float, int>> prioritizedUnitIds;
-        prioritizedUnitIds.reserve(units.size());
+        std::vector<int> eligibleUnitIds;
+        eligibleUnitIds.reserve(units.size());
         for (const auto& unit : units) {
             if (!unit.alive && !unit.captureInProgress && !unit.fainting) continue;
             if (!unit.alive && unit.visualScale <= 0.0001f && !unit.captureInProgress) continue;
-            prioritizedUnitIds.emplace_back(clipSkinningPriority(unit, cameraWorldPos), unit.id);
+            eligibleUnitIds.push_back(unit.id);
         }
-
-        std::sort(
-            prioritizedUnitIds.begin(),
-            prioritizedUnitIds.end(),
-            [](const auto& a, const auto& b) { return a.first > b.first; });
+        std::sort(eligibleUnitIds.begin(), eligibleUnitIds.end());
         const std::size_t maxClipSkinned =
-            std::min<std::size_t>(backendClipSkinningMaxUnits(), prioritizedUnitIds.size());
+            std::min<std::size_t>(backendClipSkinningMaxUnits(), eligibleUnitIds.size());
+        static std::uint64_t roundRobinFrame = 0u;
+        const std::size_t start = eligibleUnitIds.empty()
+            ? 0u
+            : static_cast<std::size_t>(roundRobinFrame % eligibleUnitIds.size());
+        ++roundRobinFrame;
         for (std::size_t i = 0; i < maxClipSkinned; ++i) {
-            clipSkinningEnabledByUnitId[prioritizedUnitIds[i].second] = true;
+            const std::size_t idx = (start + i) % eligibleUnitIds.size();
+            clipSkinningEnabledByUnitId[eligibleUnitIds[idx]] = true;
         }
     }
 
@@ -349,6 +338,7 @@ for (const auto& unit : units) {
                 .scenePose = &scenePose,
                 .scenePoseReady = scenePoseReady,
                 .enableClipSkinning = unitClipSkinningEnabled,
+                .enableGpuClipSkinning = enableGpuClipSkinning,
                 .tint = &tint,
                 .worldCellSize = worldCellSize,
                 .boardSurfaceY = boardSurfaceY,

@@ -312,6 +312,22 @@ bool backendModelFastTexturedPathEnabled() {
     return enabled;
 }
 
+bool backendGpuClipSkinningEnabled(const IRenderBackend* renderer) {
+    static const bool requested = []() -> bool {
+        const auto env = engine::env::get("PAC_BACKEND_GPU_CLIP_SKINNING");
+        if (!env.has_value()) return true;
+        const std::string raw = *env;
+        if (raw == "0" || raw == "false" || raw == "FALSE" || raw == "off" || raw == "OFF") {
+            return false;
+        }
+        return true;
+    }();
+    if (!requested || !renderer) return false;
+    const char* backendId = renderer->backendId();
+    if (!backendId) return false;
+    return toLowerCopy(backendId) == "opengl";
+}
+
 bool backendUseLegacyGrowlWaveVfxEnabled() {
     static const bool enabled = []() -> bool {
         const auto env = engine::env::get("PAC_BACKEND_GROWL_LEGACY_VFX");
@@ -1581,6 +1597,7 @@ struct GameSession::Impl {
                 projectedUnitArgs.lineThickness = line;
                 projectedUnitArgs.supportsWorldTriangles3D = supportsWorldTriangles3D;
                 projectedUnitArgs.supportsWorldIndexedMeshes = supportsWorldIndexedMeshes;
+                projectedUnitArgs.enableGpuClipSkinning = backendGpuClipSkinningEnabled(renderer);
                 projectedUnitArgs.hasWorldViewProj = hasWorldViewProj;
                 projectedUnitArgs.allowPortraitFallback = allowPortraitFallback;
                 projectedUnitArgs.forcePortraitOverlay = forcePortraitOverlay;

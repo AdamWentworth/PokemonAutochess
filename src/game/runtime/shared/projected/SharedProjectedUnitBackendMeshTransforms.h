@@ -2,6 +2,7 @@
 
 #include "game/runtime/shared/projected/SharedProjectedUnitBackendMeshPrep.h"
 
+#include <array>
 #include <cstdint>
 #include <vector>
 
@@ -28,6 +29,12 @@ class Resolver {
     glm::vec3 resolveWorldVertexPos(int triNodeIndex,
                                     std::uint32_t vertexIndex,
                                     const runtime::backend_model::MeshVertex& vtx);
+    glm::vec3 resolveGpuSkinningInputPos(std::uint32_t vertexIndex,
+                                         const runtime::backend_model::MeshVertex& vtx);
+    bool configureGpuClipSkinningBatch(int triNodeIndex,
+                                       std::array<float, 16>& inOutModelMatrix,
+                                       std::vector<float>& outSkinMatrices,
+                                       std::uint32_t& outSkinMatrixCount);
 
   private:
     struct SkinResult {
@@ -59,6 +66,7 @@ class Resolver {
     bool hasClipPose_ = false;
     bool usePositionOnlyVertexPath_ = false;
     bool clipSkinningEnabled_ = true;
+    bool gpuClipSkinningRequested_ = false;
     std::size_t nodeCount_ = 0u;
 };
 

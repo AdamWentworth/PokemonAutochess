@@ -118,6 +118,9 @@ Required:
    - `PAC_BACKEND_CLIP_SKINNING_ADAPTIVE`
    - `PAC_BACKEND_CLIP_SKINNING_MAX_UNITS`
 3. Move validated hot paths from CPU to GPU in controlled slices (starting with skinning/deform equivalents).
+   - Completed slice: projected model lighting now runs in backend world shaders (`materialMode=2`) instead of CPU per-vertex shading.
+   - Completed slice: indexed model path now uses position-only CPU transforms (normal skinning skipped on CPU for indexed draws).
+   - In progress slice: indexed world mesh vertices now upload in model space with per-batch model matrix consumed by backend world shaders (GPU applies model transform).
 4. Reduce per-frame render submission overhead (batch/state churn).
 5. Prioritize high-impact combat costs (animated units, overdraw-heavy VFX, expensive passes).
 6. Validate gains with matrix reruns after each slice.

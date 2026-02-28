@@ -7,6 +7,7 @@
 #include <string>
 
 #include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/type_ptr.hpp>
 
 namespace {
 std::string toLowerCopy(std::string s) {
@@ -156,6 +157,8 @@ bool prepareProjectedUnitBackendMesh(const Args& args, Result& out, PreparedStat
             batch.indices.reserve((effectiveUnitTriangleBudget * 3u) / batchCount + 64u);
             batch.sortDepth =
                 glm::dot(args.cameraWorldPos - args.proxyCenter, args.cameraWorldPos - args.proxyCenter);
+            const float* modelM = glm::value_ptr(prepared.modelM);
+            std::copy(modelM, modelM + 16, batch.modelMatrix.begin());
             if (si < mesh->submeshBaseTextures.size()) {
                 const auto& tex = mesh->submeshBaseTextures[si];
                 if (tex.hasPixels() && !unitModelPath.empty()) {
@@ -173,6 +176,8 @@ bool prepareProjectedUnitBackendMesh(const Args& args, Result& out, PreparedStat
             if (si < mesh->submeshAlphaCutoff.size()) {
                 batch.alphaCutoff = mesh->submeshAlphaCutoff[si];
             }
+            // Material mode 2 routes model lighting to backend world shaders.
+            batch.materialMode = 2u;
             if (args.modelFadeAlpha < 0.999f) {
                 batch.alphaMode = 2u;
                 batch.blendMode = 0u;

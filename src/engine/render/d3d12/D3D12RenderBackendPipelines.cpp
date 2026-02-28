@@ -178,16 +178,18 @@ void D3D12RenderBackend::createDebugPipeline() {
 void D3D12RenderBackend::createWorldPipeline() {
 #if defined(_WIN32)
     static constexpr char kVsSource[] =
-        "cbuffer VSConstants : register(b0) { float4x4 uViewProj; };"
+        "cbuffer VSConstants : register(b0) { float4x4 uViewProj; float4x4 uModel; };"
         "struct VSIn { float3 pos : POSITION; float2 uv : TEXCOORD; float4 col : COLOR; };"
-        "struct VSOut { float4 pos : SV_POSITION; float2 uv : TEXCOORD; float4 col : COLOR; };"
+        "struct VSOut { float4 pos : SV_POSITION; float2 uv : TEXCOORD; float4 col : COLOR; float3 worldPos : TEXCOORD1; };"
         "VSOut main(VSIn i) {"
         "  VSOut o;"
-        "  float4 clip = mul(uViewProj, float4(i.pos, 1.0f));"
+        "  float4 world = mul(uModel, float4(i.pos, 1.0f));"
+        "  float4 clip = mul(uViewProj, world);"
         "  clip.z = clip.z * 0.5f + clip.w * 0.5f;"
         "  o.pos = clip;"
         "  o.uv = i.uv;"
         "  o.col = i.col;"
+        "  o.worldPos = world.xyz;"
         "  return o;"
         "}";
     static constexpr char kPsSource[] = R"HLSL(
@@ -229,7 +231,7 @@ SamplerState gSampRM : register(s5);
 SamplerState gSampMM : register(s6);
 SamplerState gSampCM : register(s7);
 SamplerState gSampMC : register(s8);
-struct PSIn { float4 pos : SV_POSITION; float2 uv : TEXCOORD; float4 col : COLOR; };
+struct PSIn { float4 pos : SV_POSITION; float2 uv : TEXCOORD; float4 col : COLOR; float3 worldPos : TEXCOORD1; };
 
 float applyWrap(float coord, float mode) {
   if (abs(mode - 33071.0f) < 0.5f) return saturate(coord);
@@ -496,8 +498,23 @@ float4 evalFireTailExact(PSIn i) {
   return float4(rgb, alpha);
 }
 
-float4 main(PSIn i) : SV_TARGET {
-  if (uMaterialMode > 0.5f) {
+float3 applyWorldLitModel(PSIn i, bool isFrontFace, float3 srgbColor) {
+  float3 dx = ddx(i.worldPos);
+  float3 dy = ddy(i.worldPos);
+  float3 n = normalize(cross(dx, dy));
+  if (!isFrontFace) {
+    n = -n;
+  }
+  float3 l = normalize(float3(0.45f, 0.90f, 0.35f));
+  float ndl = saturate(dot(n, l));
+  float hemi = n.y * 0.5f + 0.5f;
+  float ambient = lerp(0.58f, 0.92f, saturate(hemi));
+  float lit = ambient * 0.45f + (0.22f + 0.78f * ndl) * 0.70f;
+  return saturate(srgbColor * lit);
+}
+
+float4 main(PSIn i, bool isFrontFace : SV_IsFrontFace) : SV_TARGET {
+  if (uMaterialMode > 0.5f && uMaterialMode < 1.5f) {
     return evalFireTailExact(i);
   }
   float4 tex = float4(1.0f, 1.0f, 1.0f, 1.0f);
@@ -514,6 +531,9 @@ float4 main(PSIn i) : SV_TARGET {
   } else if (uAlphaMode < 1.5f) {
     if (outA < saturate(uAlphaCutoff)) discard;
     outA = saturate(i.col.a);
+  }
+  if (uMaterialMode >= 1.5f) {
+    outSrgb = applyWorldLitModel(i, isFrontFace, outSrgb);
   }
   return float4(outSrgb, outA);
 }
@@ -545,7 +565,7 @@ float4 main(PSIn i) : SV_TARGET {
 
     D3D12_ROOT_PARAMETER rootParams[3]{};
     rootParams[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_32BIT_CONSTANTS;
-    rootParams[0].Constants.Num32BitValues = 16;
+    rootParams[0].Constants.Num32BitValues = 32;
     rootParams[0].Constants.ShaderRegister = 0;
     rootParams[0].Constants.RegisterSpace = 0;
     rootParams[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX;
