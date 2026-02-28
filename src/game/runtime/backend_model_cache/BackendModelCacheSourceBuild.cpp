@@ -284,9 +284,18 @@ bool buildBackendCacheSourceData(const std::string& filepath,
             }
 
             int baseTexCoordUsed = 0;
+            int normalTexCoordUsed = 0;
+            int metallicRoughnessTexCoordUsed = 0;
+            int occlusionTexCoordUsed = 0;
             int emissiveTexCoordUsed = 0;
             auto baseCPU = pac::model_fastgltf::decodeBaseColorTextureFast(
                 asset, fg->baseDir, materialIndex, dbgThisModel, filepath, &baseTexCoordUsed);
+            auto normalCPU = pac::model_fastgltf::decodeNormalTextureFast(
+                asset, fg->baseDir, materialIndex, dbgThisModel, filepath, &normalTexCoordUsed);
+            auto metallicRoughnessCPU = pac::model_fastgltf::decodeMetallicRoughnessTextureFast(
+                asset, fg->baseDir, materialIndex, dbgThisModel, filepath, &metallicRoughnessTexCoordUsed);
+            auto occlusionCPU = pac::model_fastgltf::decodeOcclusionTextureFast(
+                asset, fg->baseDir, materialIndex, dbgThisModel, filepath, &occlusionTexCoordUsed);
             auto emissiveCPU = pac::model_fastgltf::decodeEmissiveTextureFast(
                 asset, fg->baseDir, materialIndex, dbgThisModel, filepath, &emissiveTexCoordUsed);
             const pac::model_fastgltf::MaterialRenderInfo materialInfo =
@@ -297,10 +306,17 @@ bool buildBackendCacheSourceData(const std::string& filepath,
             sm.indexCount = primIdxU32.size();
             sm.meshIndex = static_cast<int>(meshIdx);
             sm.emissiveFactor = materialInfo.emissiveFactor;
+            sm.normalScale = materialInfo.normalScale;
+            sm.metallicFactor = materialInfo.metallicFactor;
+            sm.roughnessFactor = materialInfo.roughnessFactor;
+            sm.occlusionStrength = materialInfo.occlusionStrength;
             sm.alphaMode = static_cast<std::uint8_t>(materialInfo.alphaMode);
             sm.alphaCutoff = materialInfo.alphaCutoff;
             sm.doubleSided = materialInfo.doubleSided;
             sm.baseTexture = std::move(baseCPU);
+            sm.normalTexture = std::move(normalCPU);
+            sm.metallicRoughnessTexture = std::move(metallicRoughnessCPU);
+            sm.occlusionTexture = std::move(occlusionCPU);
             sm.emissiveTexture = std::move(emissiveCPU);
             outData.submeshes.push_back(std::move(sm));
         }

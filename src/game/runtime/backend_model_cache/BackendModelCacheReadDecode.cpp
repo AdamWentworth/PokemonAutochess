@@ -296,10 +296,17 @@ bool decodeMeshFromValidatedCacheStream(std::istream& in,
         int meshIndex = -1;
         glm::vec4 baseColor{1.0f};
         glm::vec3 emissiveFactor{0.0f};
+        float normalScale = 1.0f;
+        float metallicFactor = 1.0f;
+        float roughnessFactor = 1.0f;
+        float occlusionStrength = 1.0f;
         backend_material::AlphaMode alphaMode = backend_material::AlphaMode::Opaque;
         float alphaCutoff = 0.5f;
         bool doubleSided = false;
         DecodedTexture baseTexture;
+        DecodedTexture normalTexture;
+        DecodedTexture metallicRoughnessTexture;
+        DecodedTexture occlusionTexture;
         DecodedTexture emissiveTexture;
     };
     std::vector<SubmeshRange> submeshRanges;
@@ -309,8 +316,17 @@ bool decodeMeshFromValidatedCacheStream(std::istream& in,
     out.submeshIndexOffset.reserve(hdr.submeshCount);
     out.submeshIndexCount.reserve(hdr.submeshCount);
     out.submeshBaseTextures.reserve(hdr.submeshCount);
+    out.submeshNormalTextures.reserve(hdr.submeshCount);
+    out.submeshMetallicRoughnessTextures.reserve(hdr.submeshCount);
+    out.submeshOcclusionTextures.reserve(hdr.submeshCount);
+    out.submeshEmissiveTextures.reserve(hdr.submeshCount);
     out.submeshAlphaMode.reserve(hdr.submeshCount);
     out.submeshAlphaCutoff.reserve(hdr.submeshCount);
+    out.submeshNormalScale.reserve(hdr.submeshCount);
+    out.submeshMetallicFactor.reserve(hdr.submeshCount);
+    out.submeshRoughnessFactor.reserve(hdr.submeshCount);
+    out.submeshOcclusionStrength.reserve(hdr.submeshCount);
+    out.submeshEmissiveFactors.reserve(hdr.submeshCount);
     for (std::uint32_t si = 0; si < hdr.submeshCount; ++si) {
         std::uint64_t off = 0u;
         std::uint64_t cnt = 0u;
@@ -318,6 +334,10 @@ bool decodeMeshFromValidatedCacheStream(std::istream& in,
         float emissiveX = 0.0f;
         float emissiveY = 0.0f;
         float emissiveZ = 0.0f;
+        float normalScale = 1.0f;
+        float metallicFactor = 1.0f;
+        float roughnessFactor = 1.0f;
+        float occlusionStrength = 1.0f;
         std::uint8_t alphaModeRaw = 0u;
         float alphaCutoff = 0.0f;
         std::uint8_t doubleSided = 0u;
@@ -327,6 +347,10 @@ bool decodeMeshFromValidatedCacheStream(std::istream& in,
             !readPod(in, emissiveX) ||
             !readPod(in, emissiveY) ||
             !readPod(in, emissiveZ) ||
+            !readPod(in, normalScale) ||
+            !readPod(in, metallicFactor) ||
+            !readPod(in, roughnessFactor) ||
+            !readPod(in, occlusionStrength) ||
             !readPod(in, alphaModeRaw) ||
             !readPod(in, alphaCutoff) ||
             !readPod(in, doubleSided)) {
@@ -335,8 +359,14 @@ bool decodeMeshFromValidatedCacheStream(std::istream& in,
         }
 
         DecodedTexture baseTexture;
+        DecodedTexture normalTexture;
+        DecodedTexture metallicRoughnessTexture;
+        DecodedTexture occlusionTexture;
         DecodedTexture emissiveTexture;
         if (!readTexture(in, baseTexture, /*keepPixels=*/true) ||
+            !readTexture(in, normalTexture, /*keepPixels=*/true) ||
+            !readTexture(in, metallicRoughnessTexture, /*keepPixels=*/true) ||
+            !readTexture(in, occlusionTexture, /*keepPixels=*/true) ||
             !readTexture(in, emissiveTexture, /*keepPixels=*/true)) {
             if (outError) *outError = "failed to read cache submesh textures";
             return false;
@@ -352,10 +382,17 @@ bool decodeMeshFromValidatedCacheStream(std::istream& in,
         // Keep a neutral factor when pixels are present to preserve per-texel detail.
         range.baseColor = baseTexture.hasPixels() ? glm::vec4(1.0f) : baseTexture.average;
         range.emissiveFactor = glm::vec3(emissiveX, emissiveY, emissiveZ);
+        range.normalScale = std::max(0.0f, normalScale);
+        range.metallicFactor = std::clamp(metallicFactor, 0.0f, 1.0f);
+        range.roughnessFactor = std::clamp(roughnessFactor, 0.0f, 1.0f);
+        range.occlusionStrength = std::clamp(occlusionStrength, 0.0f, 1.0f);
         range.alphaMode = backend_material::alphaModeFromByte(alphaModeRaw);
         range.alphaCutoff = alphaCutoff;
         range.doubleSided = (doubleSided != 0u);
         range.baseTexture = std::move(baseTexture);
+        range.normalTexture = std::move(normalTexture);
+        range.metallicRoughnessTexture = std::move(metallicRoughnessTexture);
+        range.occlusionTexture = std::move(occlusionTexture);
         range.emissiveTexture = std::move(emissiveTexture);
         submeshRanges.push_back(range);
         out.submeshBaseColors.push_back(range.baseColor);
@@ -364,6 +401,11 @@ bool decodeMeshFromValidatedCacheStream(std::istream& in,
         out.submeshIndexCount.push_back(static_cast<std::uint32_t>(range.indexCount));
         out.submeshAlphaMode.push_back(static_cast<std::uint8_t>(range.alphaMode));
         out.submeshAlphaCutoff.push_back(std::clamp(range.alphaCutoff, 0.0f, 1.0f));
+        out.submeshNormalScale.push_back(range.normalScale);
+        out.submeshMetallicFactor.push_back(range.metallicFactor);
+        out.submeshRoughnessFactor.push_back(range.roughnessFactor);
+        out.submeshOcclusionStrength.push_back(range.occlusionStrength);
+        out.submeshEmissiveFactors.push_back(range.emissiveFactor);
         CachedTextureRgba cachedTex;
         cachedTex.width = range.baseTexture.width;
         cachedTex.height = range.baseTexture.height;
@@ -373,6 +415,42 @@ bool decodeMeshFromValidatedCacheStream(std::istream& in,
         cachedTex.magF = range.baseTexture.magF;
         cachedTex.rgba = range.baseTexture.rgba;
         out.submeshBaseTextures.push_back(std::move(cachedTex));
+        CachedTextureRgba cachedNormalTex;
+        cachedNormalTex.width = range.normalTexture.width;
+        cachedNormalTex.height = range.normalTexture.height;
+        cachedNormalTex.wrapS = range.normalTexture.wrapS;
+        cachedNormalTex.wrapT = range.normalTexture.wrapT;
+        cachedNormalTex.minF = range.normalTexture.minF;
+        cachedNormalTex.magF = range.normalTexture.magF;
+        cachedNormalTex.rgba = range.normalTexture.rgba;
+        out.submeshNormalTextures.push_back(std::move(cachedNormalTex));
+        CachedTextureRgba cachedMetalRoughTex;
+        cachedMetalRoughTex.width = range.metallicRoughnessTexture.width;
+        cachedMetalRoughTex.height = range.metallicRoughnessTexture.height;
+        cachedMetalRoughTex.wrapS = range.metallicRoughnessTexture.wrapS;
+        cachedMetalRoughTex.wrapT = range.metallicRoughnessTexture.wrapT;
+        cachedMetalRoughTex.minF = range.metallicRoughnessTexture.minF;
+        cachedMetalRoughTex.magF = range.metallicRoughnessTexture.magF;
+        cachedMetalRoughTex.rgba = range.metallicRoughnessTexture.rgba;
+        out.submeshMetallicRoughnessTextures.push_back(std::move(cachedMetalRoughTex));
+        CachedTextureRgba cachedOcclusionTex;
+        cachedOcclusionTex.width = range.occlusionTexture.width;
+        cachedOcclusionTex.height = range.occlusionTexture.height;
+        cachedOcclusionTex.wrapS = range.occlusionTexture.wrapS;
+        cachedOcclusionTex.wrapT = range.occlusionTexture.wrapT;
+        cachedOcclusionTex.minF = range.occlusionTexture.minF;
+        cachedOcclusionTex.magF = range.occlusionTexture.magF;
+        cachedOcclusionTex.rgba = range.occlusionTexture.rgba;
+        out.submeshOcclusionTextures.push_back(std::move(cachedOcclusionTex));
+        CachedTextureRgba cachedEmissiveTex;
+        cachedEmissiveTex.width = range.emissiveTexture.width;
+        cachedEmissiveTex.height = range.emissiveTexture.height;
+        cachedEmissiveTex.wrapS = range.emissiveTexture.wrapS;
+        cachedEmissiveTex.wrapT = range.emissiveTexture.wrapT;
+        cachedEmissiveTex.minF = range.emissiveTexture.minF;
+        cachedEmissiveTex.magF = range.emissiveTexture.magF;
+        cachedEmissiveTex.rgba = range.emissiveTexture.rgba;
+        out.submeshEmissiveTextures.push_back(std::move(cachedEmissiveTex));
     }
 
     const std::size_t triangleCount = out.indices.size() / 3u;
@@ -537,8 +615,17 @@ bool decodeMeshFromValidatedCacheStream(std::istream& in,
     } else if (triangleCount > 0u) {
         out.submeshBaseColors.push_back(glm::vec4(1.0f));
         out.submeshBaseTextures.push_back(CachedTextureRgba{});
+        out.submeshNormalTextures.push_back(CachedTextureRgba{});
+        out.submeshMetallicRoughnessTextures.push_back(CachedTextureRgba{});
+        out.submeshOcclusionTextures.push_back(CachedTextureRgba{});
+        out.submeshEmissiveTextures.push_back(CachedTextureRgba{});
         out.submeshAlphaMode.push_back(static_cast<std::uint8_t>(backend_material::AlphaMode::Opaque));
         out.submeshAlphaCutoff.push_back(0.5f);
+        out.submeshNormalScale.push_back(1.0f);
+        out.submeshMetallicFactor.push_back(1.0f);
+        out.submeshRoughnessFactor.push_back(1.0f);
+        out.submeshOcclusionStrength.push_back(1.0f);
+        out.submeshEmissiveFactors.push_back(glm::vec3(0.0f));
         std::fill(out.triangleBaseColors.begin(), out.triangleBaseColors.end(), glm::vec3(1.0f, 1.0f, 1.0f));
         std::fill(out.triangleOpacity.begin(), out.triangleOpacity.end(), 1.0f);
         std::fill(out.triangleDoubleSided.begin(), out.triangleDoubleSided.end(), 1u);

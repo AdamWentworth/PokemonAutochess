@@ -16,6 +16,8 @@ std::string toLowerCopy(std::string s) {
     });
     return s;
 }
+
+constexpr unsigned char kFallbackWhiteRgba[4] = {255u, 255u, 255u, 255u};
 } // namespace
 
 namespace game::runtime::shared_projected_unit_backend_mesh_prep {
@@ -161,20 +163,93 @@ bool prepareProjectedUnitBackendMesh(const Args& args, Result& out, PreparedStat
             std::copy(modelM, modelM + 16, batch.modelMatrix.begin());
             if (si < mesh->submeshBaseTextures.size()) {
                 const auto& tex = mesh->submeshBaseTextures[si];
-                if (tex.hasPixels() && !unitModelPath.empty()) {
-                    batch.textureKey = unitModelPath + "#submesh:" + std::to_string(si);
+                if (tex.hasPixels()) {
+                    const std::string keyPrefix =
+                        unitModelPath.empty() ? std::string("__runtime_model__") : unitModelPath;
+                    batch.textureKey = keyPrefix + "#submesh:" + std::to_string(si);
                     batch.textureRgba = tex.rgba.data();
                     batch.textureWidth = tex.width;
                     batch.textureHeight = tex.height;
                     batch.textureWrapS = tex.wrapS;
                     batch.textureWrapT = tex.wrapT;
+                    if (si < mesh->submeshNormalTextures.size()) {
+                        const auto& normalTex = mesh->submeshNormalTextures[si];
+                        if (normalTex.hasPixels()) {
+                            batch.normalTextureKey = keyPrefix + "#submesh_normal:" + std::to_string(si);
+                            batch.normalTextureRgba = normalTex.rgba.data();
+                            batch.normalTextureWidth = normalTex.width;
+                            batch.normalTextureHeight = normalTex.height;
+                            batch.normalTextureWrapS = normalTex.wrapS;
+                            batch.normalTextureWrapT = normalTex.wrapT;
+                        }
+                    }
+                    if (si < mesh->submeshMetallicRoughnessTextures.size()) {
+                        const auto& metallicRoughnessTex = mesh->submeshMetallicRoughnessTextures[si];
+                        if (metallicRoughnessTex.hasPixels()) {
+                            batch.metallicRoughnessTextureKey =
+                                keyPrefix + "#submesh_mr:" + std::to_string(si);
+                            batch.metallicRoughnessTextureRgba = metallicRoughnessTex.rgba.data();
+                            batch.metallicRoughnessTextureWidth = metallicRoughnessTex.width;
+                            batch.metallicRoughnessTextureHeight = metallicRoughnessTex.height;
+                            batch.metallicRoughnessTextureWrapS = metallicRoughnessTex.wrapS;
+                            batch.metallicRoughnessTextureWrapT = metallicRoughnessTex.wrapT;
+                        }
+                    }
+                    if (si < mesh->submeshOcclusionTextures.size()) {
+                        const auto& occlusionTex = mesh->submeshOcclusionTextures[si];
+                        if (occlusionTex.hasPixels()) {
+                            batch.occlusionTextureKey = keyPrefix + "#submesh_occ:" + std::to_string(si);
+                            batch.occlusionTextureRgba = occlusionTex.rgba.data();
+                            batch.occlusionTextureWidth = occlusionTex.width;
+                            batch.occlusionTextureHeight = occlusionTex.height;
+                            batch.occlusionTextureWrapS = occlusionTex.wrapS;
+                            batch.occlusionTextureWrapT = occlusionTex.wrapT;
+                        }
+                    }
+                    if (si < mesh->submeshEmissiveTextures.size()) {
+                        const auto& emissiveTex = mesh->submeshEmissiveTextures[si];
+                        if (emissiveTex.hasPixels()) {
+                            batch.emissiveTextureKey = keyPrefix + "#submesh_emissive:" + std::to_string(si);
+                            batch.emissiveTextureRgba = emissiveTex.rgba.data();
+                            batch.emissiveTextureWidth = emissiveTex.width;
+                            batch.emissiveTextureHeight = emissiveTex.height;
+                            batch.emissiveTextureWrapS = emissiveTex.wrapS;
+                            batch.emissiveTextureWrapT = emissiveTex.wrapT;
+                        }
+                    }
                 }
+            }
+            if (!batch.textureRgba || batch.textureWidth <= 0 || batch.textureHeight <= 0) {
+                batch.textureKey = "__fallback_white_1x1__";
+                batch.textureRgba = kFallbackWhiteRgba;
+                batch.textureWidth = 1;
+                batch.textureHeight = 1;
+                batch.textureWrapS = 33071; // GL_CLAMP_TO_EDGE
+                batch.textureWrapT = 33071; // GL_CLAMP_TO_EDGE
             }
             if (si < mesh->submeshAlphaMode.size()) {
                 batch.alphaMode = mesh->submeshAlphaMode[si];
             }
             if (si < mesh->submeshAlphaCutoff.size()) {
                 batch.alphaCutoff = mesh->submeshAlphaCutoff[si];
+            }
+            if (si < mesh->submeshNormalScale.size()) {
+                batch.normalScale = std::max(0.0f, mesh->submeshNormalScale[si]);
+            }
+            if (si < mesh->submeshMetallicFactor.size()) {
+                batch.metallicFactor = std::clamp(mesh->submeshMetallicFactor[si], 0.0f, 1.0f);
+            }
+            if (si < mesh->submeshRoughnessFactor.size()) {
+                batch.roughnessFactor = std::clamp(mesh->submeshRoughnessFactor[si], 0.0f, 1.0f);
+            }
+            if (si < mesh->submeshOcclusionStrength.size()) {
+                batch.occlusionStrength = std::clamp(mesh->submeshOcclusionStrength[si], 0.0f, 1.0f);
+            }
+            if (si < mesh->submeshEmissiveFactors.size()) {
+                const glm::vec3& e = mesh->submeshEmissiveFactors[si];
+                batch.emissiveFactorR = std::max(0.0f, e.r);
+                batch.emissiveFactorG = std::max(0.0f, e.g);
+                batch.emissiveFactorB = std::max(0.0f, e.b);
             }
             // Material mode 2 routes model lighting to backend world shaders.
             batch.materialMode = 2u;

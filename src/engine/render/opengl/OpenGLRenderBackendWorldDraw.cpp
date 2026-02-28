@@ -157,8 +157,69 @@ void OpenGLRenderBackend::drawWorldIndexedMeshTextured(const WorldMeshVertex* ve
     const std::uint8_t materialMode = texture ? texture->materialMode : 0u;
     const GLuint worldTexture = ensureWorldTexture(texture);
     const bool hasTexture = (worldTexture != 0u);
-    const GLuint boundTexture = hasTexture ? worldTexture : worldFallbackTexture_;
+    static const unsigned char kFallbackWhiteRgba[4] = {255u, 255u, 255u, 255u};
+    static const unsigned char kFallbackFlatNormalRgba[4] = {128u, 128u, 255u, 255u};
+    const GLuint fallbackWhiteTexture = ensureWorldTextureRaw(
+        "__world_fallback_white_1x1__",
+        kFallbackWhiteRgba,
+        1,
+        1,
+        33071,
+        33071);
+    const GLuint fallbackFlatNormalTexture = ensureWorldTextureRaw(
+        "__world_fallback_flat_normal_1x1__",
+        kFallbackFlatNormalRgba,
+        1,
+        1,
+        33071,
+        33071);
+    const GLuint boundTexture = hasTexture ? worldTexture : fallbackWhiteTexture;
     const float useTexture = hasTexture ? 1.0f : 0.0f;
+    const GLuint normalTexture = texture
+        ? ensureWorldTextureRaw(
+            texture->normalKey,
+            texture->normalRgba,
+            texture->normalWidth,
+            texture->normalHeight,
+            texture->normalWrapS,
+            texture->normalWrapT)
+        : 0u;
+    const bool hasNormalTexture = (normalTexture != 0u);
+    const GLuint boundNormalTexture = hasNormalTexture ? normalTexture : fallbackFlatNormalTexture;
+    const GLuint metallicRoughnessTexture = texture
+        ? ensureWorldTextureRaw(
+            texture->metallicRoughnessKey,
+            texture->metallicRoughnessRgba,
+            texture->metallicRoughnessWidth,
+            texture->metallicRoughnessHeight,
+            texture->metallicRoughnessWrapS,
+            texture->metallicRoughnessWrapT)
+        : 0u;
+    const bool hasMetallicRoughnessTexture = (metallicRoughnessTexture != 0u);
+    const GLuint boundMetallicRoughnessTexture =
+        hasMetallicRoughnessTexture ? metallicRoughnessTexture : fallbackWhiteTexture;
+    const GLuint occlusionTexture = texture
+        ? ensureWorldTextureRaw(
+            texture->occlusionKey,
+            texture->occlusionRgba,
+            texture->occlusionWidth,
+            texture->occlusionHeight,
+            texture->occlusionWrapS,
+            texture->occlusionWrapT)
+        : 0u;
+    const bool hasOcclusionTexture = (occlusionTexture != 0u);
+    const GLuint boundOcclusionTexture = hasOcclusionTexture ? occlusionTexture : fallbackWhiteTexture;
+    const GLuint emissiveTexture = texture
+        ? ensureWorldTextureRaw(
+            texture->emissiveKey,
+            texture->emissiveRgba,
+            texture->emissiveWidth,
+            texture->emissiveHeight,
+            texture->emissiveWrapS,
+            texture->emissiveWrapT)
+        : 0u;
+    const bool hasEmissiveTexture = (emissiveTexture != 0u);
+    const GLuint boundEmissiveTexture = hasEmissiveTexture ? emissiveTexture : fallbackWhiteTexture;
     const GLfloat wrapS = static_cast<GLfloat>(texture ? texture->wrapS : 10497);
     const GLfloat wrapT = static_cast<GLfloat>(texture ? texture->wrapT : 10497);
     const bool blendAlpha = (alphaMode == 2u);
@@ -169,15 +230,17 @@ void OpenGLRenderBackend::drawWorldIndexedMeshTextured(const WorldMeshVertex* ve
     GLint prevElementArrayBuffer = 0;
     GLint prevActiveTexture = 0;
     GLint prevTexture2DOnActive = 0;
-    GLint prevTexture2DOnUnit0 = 0;
+    GLint prevTexture2DOnUnit[5] = {0, 0, 0, 0, 0};
     glGetIntegerv(GL_CURRENT_PROGRAM, &prevProgram);
     glGetIntegerv(GL_VERTEX_ARRAY_BINDING, &prevVao);
     glGetIntegerv(GL_ARRAY_BUFFER_BINDING, &prevArrayBuffer);
     glGetIntegerv(GL_ELEMENT_ARRAY_BUFFER_BINDING, &prevElementArrayBuffer);
     glGetIntegerv(GL_ACTIVE_TEXTURE, &prevActiveTexture);
     glGetIntegerv(GL_TEXTURE_BINDING_2D, &prevTexture2DOnActive);
-    glActiveTexture(GL_TEXTURE0);
-    glGetIntegerv(GL_TEXTURE_BINDING_2D, &prevTexture2DOnUnit0);
+    for (int unit = 0; unit < 5; ++unit) {
+        glActiveTexture(GL_TEXTURE0 + unit);
+        glGetIntegerv(GL_TEXTURE_BINDING_2D, &prevTexture2DOnUnit[unit]);
+    }
     glActiveTexture(static_cast<GLenum>(prevActiveTexture));
 
     const GLboolean depthEnabled = glIsEnabled(GL_DEPTH_TEST);
@@ -227,10 +290,46 @@ void OpenGLRenderBackend::drawWorldIndexedMeshTextured(const WorldMeshVertex* ve
     const float* modelMatrix = texture ? texture->modelMatrix.data() : kIdentityModel;
     glUniformMatrix4fv(worldModelLoc_, 1, GL_FALSE, modelMatrix);
     glUniform1f(worldUseTextureLoc_, useTexture);
+    if (worldUseNormalTextureLoc_ >= 0) {
+        glUniform1f(worldUseNormalTextureLoc_, hasNormalTexture ? 1.0f : 0.0f);
+    }
+    if (worldUseMetallicRoughnessTextureLoc_ >= 0) {
+        glUniform1f(worldUseMetallicRoughnessTextureLoc_, hasMetallicRoughnessTexture ? 1.0f : 0.0f);
+    }
+    if (worldUseOcclusionTextureLoc_ >= 0) {
+        glUniform1f(worldUseOcclusionTextureLoc_, hasOcclusionTexture ? 1.0f : 0.0f);
+    }
+    if (worldUseEmissiveTextureLoc_ >= 0) {
+        glUniform1f(worldUseEmissiveTextureLoc_, hasEmissiveTexture ? 1.0f : 0.0f);
+    }
     glUniform1f(worldWrapSLoc_, wrapS);
     glUniform1f(worldWrapTLoc_, wrapT);
     glUniform1f(worldAlphaModeLoc_, static_cast<GLfloat>(alphaMode));
     glUniform1f(worldAlphaCutoffLoc_, alphaCutoff);
+    if (worldNormalScaleLoc_ >= 0) {
+        glUniform1f(worldNormalScaleLoc_, texture ? std::max(0.0f, texture->normalScale) : 1.0f);
+    }
+    if (worldMetallicFactorLoc_ >= 0) {
+        glUniform1f(
+            worldMetallicFactorLoc_,
+            texture ? std::clamp(texture->metallicFactor, 0.0f, 1.0f) : 1.0f);
+    }
+    if (worldRoughnessFactorLoc_ >= 0) {
+        glUniform1f(
+            worldRoughnessFactorLoc_,
+            texture ? std::clamp(texture->roughnessFactor, 0.0f, 1.0f) : 1.0f);
+    }
+    if (worldOcclusionStrengthLoc_ >= 0) {
+        glUniform1f(
+            worldOcclusionStrengthLoc_,
+            texture ? std::clamp(texture->occlusionStrength, 0.0f, 1.0f) : 1.0f);
+    }
+    if (worldEmissiveFactorLoc_ >= 0) {
+        glUniform3f(worldEmissiveFactorLoc_,
+                    texture ? std::max(0.0f, texture->emissiveFactorR) : 0.0f,
+                    texture ? std::max(0.0f, texture->emissiveFactorG) : 0.0f,
+                    texture ? std::max(0.0f, texture->emissiveFactorB) : 0.0f);
+    }
     glUniform1f(worldMaterialModeLoc_, static_cast<GLfloat>(materialMode));
     glUniform1f(worldMaterialTimeLoc_, texture ? texture->materialTimeSec : 0.0f);
     glUniform1f(worldMaterialFlagsLoc_, texture ? texture->materialFlags : 0.0f);
@@ -272,9 +371,21 @@ void OpenGLRenderBackend::drawWorldIndexedMeshTextured(const WorldMeshVertex* ve
         glUniformMatrix4fv(worldSkinMatricesLoc_, gpuSkinMatrixCount, GL_FALSE, texture->skinMatrices);
     }
     glUniform1i(worldTextureSamplerLoc_, 0);
+    if (worldNormalTextureSamplerLoc_ >= 0) glUniform1i(worldNormalTextureSamplerLoc_, 1);
+    if (worldMetallicRoughnessTextureSamplerLoc_ >= 0) glUniform1i(worldMetallicRoughnessTextureSamplerLoc_, 2);
+    if (worldOcclusionTextureSamplerLoc_ >= 0) glUniform1i(worldOcclusionTextureSamplerLoc_, 3);
+    if (worldEmissiveTextureSamplerLoc_ >= 0) glUniform1i(worldEmissiveTextureSamplerLoc_, 4);
 
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, boundTexture);
+    glActiveTexture(GL_TEXTURE1);
+    glBindTexture(GL_TEXTURE_2D, boundNormalTexture);
+    glActiveTexture(GL_TEXTURE2);
+    glBindTexture(GL_TEXTURE_2D, boundMetallicRoughnessTexture);
+    glActiveTexture(GL_TEXTURE3);
+    glBindTexture(GL_TEXTURE_2D, boundOcclusionTexture);
+    glActiveTexture(GL_TEXTURE4);
+    glBindTexture(GL_TEXTURE_2D, boundEmissiveTexture);
 
     glBindVertexArray(worldVao_);
     glBindBuffer(GL_ARRAY_BUFFER, worldVbo_);
@@ -296,8 +407,10 @@ void OpenGLRenderBackend::drawWorldIndexedMeshTextured(const WorldMeshVertex* ve
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, static_cast<GLuint>(prevElementArrayBuffer));
     glUseProgram(static_cast<GLuint>(prevProgram));
 
-    glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, static_cast<GLuint>(prevTexture2DOnUnit0));
+    for (int unit = 0; unit < 5; ++unit) {
+        glActiveTexture(GL_TEXTURE0 + unit);
+        glBindTexture(GL_TEXTURE_2D, static_cast<GLuint>(prevTexture2DOnUnit[unit]));
+    }
     glActiveTexture(static_cast<GLenum>(prevActiveTexture));
     glBindTexture(GL_TEXTURE_2D, static_cast<GLuint>(prevTexture2DOnActive));
 

@@ -23,6 +23,14 @@ MaterialRenderInfo resolveMaterialRenderInfo(const fastgltf::Asset& asset,
 
     // emissiveFactor is always present in glTF (defaults to (0,0,0)).
     info.emissiveFactor = glm::vec3(mat.emissiveFactor[0], mat.emissiveFactor[1], mat.emissiveFactor[2]);
+    info.metallicFactor = std::clamp(static_cast<float>(mat.pbrData.metallicFactor), 0.0f, 1.0f);
+    info.roughnessFactor = std::clamp(static_cast<float>(mat.pbrData.roughnessFactor), 0.0f, 1.0f);
+    if (mat.normalTexture.has_value()) {
+        info.normalScale = std::max(0.0f, static_cast<float>(mat.normalTexture->scale));
+    }
+    if (mat.occlusionTexture.has_value()) {
+        info.occlusionStrength = std::clamp(static_cast<float>(mat.occlusionTexture->strength), 0.0f, 1.0f);
+    }
 
     // Apply emissive strength ONCE.
     info.emissiveFactor *= static_cast<float>(mat.emissiveStrength);

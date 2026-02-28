@@ -56,8 +56,17 @@ struct MeshData {
     std::vector<std::uint32_t> submeshIndexOffset;
     std::vector<std::uint32_t> submeshIndexCount;
     std::vector<CachedTextureRgba> submeshBaseTextures;
+    std::vector<CachedTextureRgba> submeshNormalTextures;
+    std::vector<CachedTextureRgba> submeshMetallicRoughnessTextures;
+    std::vector<CachedTextureRgba> submeshOcclusionTextures;
+    std::vector<CachedTextureRgba> submeshEmissiveTextures;
     std::vector<std::uint8_t> submeshAlphaMode;
     std::vector<float> submeshAlphaCutoff;
+    std::vector<float> submeshNormalScale;
+    std::vector<float> submeshMetallicFactor;
+    std::vector<float> submeshRoughnessFactor;
+    std::vector<float> submeshOcclusionStrength;
+    std::vector<glm::vec3> submeshEmissiveFactors;
     std::vector<int> meshIndexToNode;
     std::vector<int> triangleNodeIndex;
     std::vector<int> triangleSkinIndex;

@@ -146,6 +146,19 @@ void OpenGLRenderBackend::ensureWorldPipeline() {
         uniform vec4  uMaterialFlipbook0;
         uniform vec4  uMaterialFlipbook1;
         uniform sampler2D uTexture;
+        uniform sampler2D uNormalTexture;
+        uniform sampler2D uMetallicRoughnessTexture;
+        uniform sampler2D uOcclusionTexture;
+        uniform sampler2D uEmissiveTexture;
+        uniform float uUseNormalTexture;
+        uniform float uUseMetallicRoughnessTexture;
+        uniform float uUseOcclusionTexture;
+        uniform float uUseEmissiveTexture;
+        uniform float uNormalScale;
+        uniform float uMetallicFactor;
+        uniform float uRoughnessFactor;
+        uniform float uOcclusionStrength;
+        uniform vec3 uEmissiveFactor;
         out vec4 FragColor;
 
         float applyWrap(float coord, float mode) {
@@ -398,7 +411,8 @@ void OpenGLRenderBackend::ensureWorldPipeline() {
             rgb *= alpha;
             return vec4(rgb, alpha);
         }
-
+    )GLSL"
+    R"GLSL(
         vec3 srgbToLinear(vec3 c) {
             c = clamp(c, 0.0, 1.0);
             vec3 lo = c / 12.92;
@@ -413,24 +427,67 @@ void OpenGLRenderBackend::ensureWorldPipeline() {
             return mix(lo, hi, step(vec3(0.0031308), c));
         }
 
-        vec3 applyWorldLitModel(vec3 linearColor) {
+        vec3 computeMappedNormal(vec2 sampleUv) {
             vec3 n = normalize(vWorldNormal);
             if (dot(n, n) < 1e-6) {
                 vec3 dx = dFdx(vWorldPos);
                 vec3 dy = dFdy(vWorldPos);
                 n = normalize(cross(dx, dy));
             }
-            if (!gl_FrontFacing) {
-                n = -n;
-            }
+            if (!gl_FrontFacing) n = -n;
+            if (uUseNormalTexture < 0.5) return n;
+
+            vec3 dp1 = dFdx(vWorldPos);
+            vec3 dp2 = dFdy(vWorldPos);
+            vec2 duv1 = dFdx(vUv);
+            vec2 duv2 = dFdy(vUv);
+            float det = duv1.x * duv2.y - duv1.y * duv2.x;
+            if (abs(det) < 1e-8) return n;
+            float invDet = 1.0 / det;
+            vec3 t = normalize((dp1 * duv2.y - dp2 * duv1.y) * invDet);
+            vec3 b = normalize((dp2 * duv1.x - dp1 * duv2.x) * invDet);
+            mat3 tbn = mat3(t, b, n);
+
+            vec3 tn = texture(uNormalTexture, sampleUv).xyz * 2.0 - 1.0;
+            tn.xy *= max(uNormalScale, 0.0);
+            tn = normalize(tn);
+            return normalize(tbn * tn);
+        }
+
+        vec3 applyWorldLitModel(vec3 linearColor, vec3 n, vec2 sampleUv) {
             vec3 l = normalize(vec3(0.45, 0.90, 0.35));
-            float ndlWrap = dot(n, l) * 0.5 + 0.5;
-            ndlWrap = clamp(ndlWrap, 0.0, 1.0);
-            float hemi = n.y * 0.5 + 0.5;
-            float ambient = mix(0.58, 0.92, clamp(hemi, 0.0, 1.0));
-            // Softer contrast to avoid harsh faceting on stylized/low-mid poly meshes.
-            float lit = ambient * 0.78 + ndlWrap * 0.34;
-            return max(linearColor * lit, vec3(0.0));
+            vec3 v = normalize(vec3(0.15, 0.80, 0.55));
+            vec3 h = normalize(l + v);
+            float ndl = clamp(dot(n, l), 0.0, 1.0);
+            float ndh = clamp(dot(n, h), 0.0, 1.0);
+
+            vec3 orm = vec3(1.0, 1.0, 1.0);
+            if (uUseMetallicRoughnessTexture > 0.5) {
+                orm = texture(uMetallicRoughnessTexture, sampleUv).rgb;
+            }
+            float roughness = clamp(orm.g * clamp(uRoughnessFactor, 0.0, 1.0), 0.04, 1.0);
+            float metallic = clamp(orm.b * clamp(uMetallicFactor, 0.0, 1.0), 0.0, 1.0);
+            float ao = 1.0;
+            if (uUseOcclusionTexture > 0.5) {
+                float occTex = texture(uOcclusionTexture, sampleUv).r;
+                ao = mix(1.0, occTex, clamp(uOcclusionStrength, 0.0, 1.0));
+            } else if (uUseMetallicRoughnessTexture > 0.5) {
+                ao = mix(1.0, orm.r, clamp(uOcclusionStrength, 0.0, 1.0));
+            }
+
+            float hemi = clamp(n.y * 0.5 + 0.5, 0.0, 1.0);
+            float ambient = mix(0.30, 0.62, hemi) * ao;
+            vec3 diffuse = linearColor * (ambient + ndl * 0.82);
+            vec3 f0 = mix(vec3(0.04), linearColor, metallic);
+            float specPower = mix(8.0, 120.0, clamp(1.0 - roughness, 0.0, 1.0));
+            float spec = pow(ndh, specPower) * mix(0.08, 1.0, 1.0 - roughness) * (0.15 + 0.85 * ndl);
+            vec3 shaded = diffuse * (1.0 - metallic * 0.35) + f0 * spec;
+
+            vec3 emissiveTex = (uUseEmissiveTexture > 0.5)
+                ? srgbToLinear(clamp(texture(uEmissiveTexture, sampleUv).rgb, 0.0, 1.0))
+                : vec3(1.0);
+            vec3 emissive = emissiveTex * max(uEmissiveFactor, vec3(0.0));
+            return max(shaded + emissive, vec3(0.0));
         }
 
         void main() {
@@ -440,10 +497,10 @@ void OpenGLRenderBackend::ensureWorldPipeline() {
             }
             vec4 tex = vec4(1.0);
             vec3 outLinear = clamp(vColor.rgb, 0.0, 1.0);
+            vec2 wrappedUv = vec2(applyWrap(vUv.x, uWrapS), applyWrap(vUv.y, uWrapT));
+            wrappedUv = clampWrappedUvToTexelCenter(wrappedUv);
             if (uUseTexture > 0.5) {
-                vec2 uv = vec2(applyWrap(vUv.x, uWrapS), applyWrap(vUv.y, uWrapT));
-                uv = clampWrappedUvToTexelCenter(uv);
-                tex = texture(uTexture, uv);
+                tex = texture(uTexture, wrappedUv);
                 outLinear = srgbToLinear(clamp(tex.rgb, 0.0, 1.0)) * outLinear;
             }
             float outA = clamp(vColor.a * tex.a, 0.0, 1.0);
@@ -454,7 +511,8 @@ void OpenGLRenderBackend::ensureWorldPipeline() {
                 outA = clamp(vColor.a, 0.0, 1.0);
             }
             if (uMaterialMode >= 1.5) {
-                outLinear = applyWorldLitModel(outLinear);
+                vec3 n = computeMappedNormal(wrappedUv);
+                outLinear = applyWorldLitModel(outLinear, n, wrappedUv);
             }
             vec3 outSrgb = linearToSrgb(clamp(outLinear, 0.0, 1.0));
             FragColor = vec4(outSrgb, outA);
@@ -478,10 +536,25 @@ void OpenGLRenderBackend::ensureWorldPipeline() {
     worldModelLoc_ = glGetUniformLocation(worldProgram_, "uModel");
     worldUseTextureLoc_ = glGetUniformLocation(worldProgram_, "uUseTexture");
     worldTextureSamplerLoc_ = glGetUniformLocation(worldProgram_, "uTexture");
+    worldUseNormalTextureLoc_ = glGetUniformLocation(worldProgram_, "uUseNormalTexture");
+    worldUseMetallicRoughnessTextureLoc_ =
+        glGetUniformLocation(worldProgram_, "uUseMetallicRoughnessTexture");
+    worldUseOcclusionTextureLoc_ = glGetUniformLocation(worldProgram_, "uUseOcclusionTexture");
+    worldUseEmissiveTextureLoc_ = glGetUniformLocation(worldProgram_, "uUseEmissiveTexture");
+    worldNormalTextureSamplerLoc_ = glGetUniformLocation(worldProgram_, "uNormalTexture");
+    worldMetallicRoughnessTextureSamplerLoc_ =
+        glGetUniformLocation(worldProgram_, "uMetallicRoughnessTexture");
+    worldOcclusionTextureSamplerLoc_ = glGetUniformLocation(worldProgram_, "uOcclusionTexture");
+    worldEmissiveTextureSamplerLoc_ = glGetUniformLocation(worldProgram_, "uEmissiveTexture");
     worldWrapSLoc_ = glGetUniformLocation(worldProgram_, "uWrapS");
     worldWrapTLoc_ = glGetUniformLocation(worldProgram_, "uWrapT");
     worldAlphaModeLoc_ = glGetUniformLocation(worldProgram_, "uAlphaMode");
     worldAlphaCutoffLoc_ = glGetUniformLocation(worldProgram_, "uAlphaCutoff");
+    worldNormalScaleLoc_ = glGetUniformLocation(worldProgram_, "uNormalScale");
+    worldMetallicFactorLoc_ = glGetUniformLocation(worldProgram_, "uMetallicFactor");
+    worldRoughnessFactorLoc_ = glGetUniformLocation(worldProgram_, "uRoughnessFactor");
+    worldOcclusionStrengthLoc_ = glGetUniformLocation(worldProgram_, "uOcclusionStrength");
+    worldEmissiveFactorLoc_ = glGetUniformLocation(worldProgram_, "uEmissiveFactor");
     worldMaterialModeLoc_ = glGetUniformLocation(worldProgram_, "uMaterialMode");
     worldMaterialTimeLoc_ = glGetUniformLocation(worldProgram_, "uMaterialTimeSec");
     worldMaterialFlagsLoc_ = glGetUniformLocation(worldProgram_, "uMaterialFlags");
@@ -557,10 +630,23 @@ void OpenGLRenderBackend::destroyWorldPipeline() {
     worldModelLoc_ = -1;
     worldUseTextureLoc_ = -1;
     worldTextureSamplerLoc_ = -1;
+    worldUseNormalTextureLoc_ = -1;
+    worldUseMetallicRoughnessTextureLoc_ = -1;
+    worldUseOcclusionTextureLoc_ = -1;
+    worldUseEmissiveTextureLoc_ = -1;
+    worldNormalTextureSamplerLoc_ = -1;
+    worldMetallicRoughnessTextureSamplerLoc_ = -1;
+    worldOcclusionTextureSamplerLoc_ = -1;
+    worldEmissiveTextureSamplerLoc_ = -1;
     worldWrapSLoc_ = -1;
     worldWrapTLoc_ = -1;
     worldAlphaModeLoc_ = -1;
     worldAlphaCutoffLoc_ = -1;
+    worldNormalScaleLoc_ = -1;
+    worldMetallicFactorLoc_ = -1;
+    worldRoughnessFactorLoc_ = -1;
+    worldOcclusionStrengthLoc_ = -1;
+    worldEmissiveFactorLoc_ = -1;
     worldMaterialModeLoc_ = -1;
     worldMaterialTimeLoc_ = -1;
     worldMaterialFlagsLoc_ = -1;

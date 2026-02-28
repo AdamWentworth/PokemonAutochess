@@ -11,6 +11,22 @@ IRenderBackend::WorldTextureData toWorldTextureData(const WorldIndexedBatch& bat
     if (!rgbaData && !batch.ownedTextureRgba.empty()) {
         rgbaData = batch.ownedTextureRgba.data();
     }
+    const unsigned char* normalRgbaData = batch.normalTextureRgba;
+    if (!normalRgbaData && !batch.ownedNormalTextureRgba.empty()) {
+        normalRgbaData = batch.ownedNormalTextureRgba.data();
+    }
+    const unsigned char* mrRgbaData = batch.metallicRoughnessTextureRgba;
+    if (!mrRgbaData && !batch.ownedMetallicRoughnessTextureRgba.empty()) {
+        mrRgbaData = batch.ownedMetallicRoughnessTextureRgba.data();
+    }
+    const unsigned char* occlusionRgbaData = batch.occlusionTextureRgba;
+    if (!occlusionRgbaData && !batch.ownedOcclusionTextureRgba.empty()) {
+        occlusionRgbaData = batch.ownedOcclusionTextureRgba.data();
+    }
+    const unsigned char* emissiveRgbaData = batch.emissiveTextureRgba;
+    if (!emissiveRgbaData && !batch.ownedEmissiveTextureRgba.empty()) {
+        emissiveRgbaData = batch.ownedEmissiveTextureRgba.data();
+    }
 
     IRenderBackend::WorldTextureData tex;
     tex.key = batch.textureKey.c_str();
@@ -19,10 +35,41 @@ IRenderBackend::WorldTextureData toWorldTextureData(const WorldIndexedBatch& bat
     tex.height = batch.textureHeight;
     tex.wrapS = batch.textureWrapS;
     tex.wrapT = batch.textureWrapT;
+    tex.normalKey = batch.normalTextureKey.c_str();
+    tex.normalRgba = normalRgbaData;
+    tex.normalWidth = batch.normalTextureWidth;
+    tex.normalHeight = batch.normalTextureHeight;
+    tex.normalWrapS = batch.normalTextureWrapS;
+    tex.normalWrapT = batch.normalTextureWrapT;
+    tex.metallicRoughnessKey = batch.metallicRoughnessTextureKey.c_str();
+    tex.metallicRoughnessRgba = mrRgbaData;
+    tex.metallicRoughnessWidth = batch.metallicRoughnessTextureWidth;
+    tex.metallicRoughnessHeight = batch.metallicRoughnessTextureHeight;
+    tex.metallicRoughnessWrapS = batch.metallicRoughnessTextureWrapS;
+    tex.metallicRoughnessWrapT = batch.metallicRoughnessTextureWrapT;
+    tex.occlusionKey = batch.occlusionTextureKey.c_str();
+    tex.occlusionRgba = occlusionRgbaData;
+    tex.occlusionWidth = batch.occlusionTextureWidth;
+    tex.occlusionHeight = batch.occlusionTextureHeight;
+    tex.occlusionWrapS = batch.occlusionTextureWrapS;
+    tex.occlusionWrapT = batch.occlusionTextureWrapT;
+    tex.emissiveKey = batch.emissiveTextureKey.c_str();
+    tex.emissiveRgba = emissiveRgbaData;
+    tex.emissiveWidth = batch.emissiveTextureWidth;
+    tex.emissiveHeight = batch.emissiveTextureHeight;
+    tex.emissiveWrapS = batch.emissiveTextureWrapS;
+    tex.emissiveWrapT = batch.emissiveTextureWrapT;
     tex.alphaMode = batch.alphaMode;
     tex.blendMode = batch.blendMode;
     tex.materialMode = batch.materialMode;
     tex.alphaCutoff = batch.alphaCutoff;
+    tex.normalScale = batch.normalScale;
+    tex.metallicFactor = batch.metallicFactor;
+    tex.roughnessFactor = batch.roughnessFactor;
+    tex.occlusionStrength = batch.occlusionStrength;
+    tex.emissiveFactorR = batch.emissiveFactorR;
+    tex.emissiveFactorG = batch.emissiveFactorG;
+    tex.emissiveFactorB = batch.emissiveFactorB;
     tex.materialTimeSec = batch.materialTimeSec;
     tex.materialFlags = batch.materialFlags;
     tex.materialAtlasWidth = batch.materialAtlasWidth;

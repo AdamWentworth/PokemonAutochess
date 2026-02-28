@@ -17,10 +17,17 @@ struct SourceSubmeshRecord {
     std::size_t indexCount = 0u;
     int meshIndex = -1;
     glm::vec3 emissiveFactor{0.0f};
+    float normalScale = 1.0f;
+    float metallicFactor = 1.0f;
+    float roughnessFactor = 1.0f;
+    float occlusionStrength = 1.0f;
     std::uint8_t alphaMode = 0u;
     float alphaCutoff = 0.5f;
     bool doubleSided = false;
     Model::CPUTexture baseTexture;
+    Model::CPUTexture normalTexture;
+    Model::CPUTexture metallicRoughnessTexture;
+    Model::CPUTexture occlusionTexture;
     Model::CPUTexture emissiveTexture;
 };
 

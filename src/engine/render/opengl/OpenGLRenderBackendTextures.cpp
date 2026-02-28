@@ -23,12 +23,27 @@ constexpr const char* kFallbackSpriteTextureKey = "__fallback_sprite_texture__";
 } // namespace
 
 unsigned int OpenGLRenderBackend::ensureWorldTexture(const WorldTextureData* textureData) {
-    if (!textureData || !textureData->rgba || textureData->width <= 0 || textureData->height <= 0 ||
-        !textureData->key || textureData->key[0] == '\0') {
+    if (!textureData) return 0;
+    return ensureWorldTextureRaw(
+        textureData->key,
+        textureData->rgba,
+        textureData->width,
+        textureData->height,
+        textureData->wrapS,
+        textureData->wrapT);
+}
+
+unsigned int OpenGLRenderBackend::ensureWorldTextureRaw(const char* keyCStr,
+                                                        const unsigned char* rgba,
+                                                        int width,
+                                                        int height,
+                                                        int wrapSIn,
+                                                        int wrapTIn) {
+    if (!rgba || width <= 0 || height <= 0 || !keyCStr || keyCStr[0] == '\0') {
         return 0;
     }
 
-    const std::string key(textureData->key);
+    const std::string key(keyCStr);
     auto existing = worldTextures_.find(key);
     if (existing != worldTextures_.end()) {
         return existing->second.textureId;
@@ -38,8 +53,8 @@ unsigned int OpenGLRenderBackend::ensureWorldTexture(const WorldTextureData* tex
     glGenTextures(1, &textureId);
     if (textureId == 0) return 0;
 
-    const GLint wrapS = sanitizeWrapMode(textureData->wrapS);
-    const GLint wrapT = sanitizeWrapMode(textureData->wrapT);
+    const GLint wrapS = sanitizeWrapMode(wrapSIn);
+    const GLint wrapT = sanitizeWrapMode(wrapTIn);
     glBindTexture(GL_TEXTURE_2D, textureId);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
@@ -49,12 +64,12 @@ unsigned int OpenGLRenderBackend::ensureWorldTexture(const WorldTextureData* tex
     glTexImage2D(GL_TEXTURE_2D,
                  0,
                  GL_RGBA8,
-                 textureData->width,
-                 textureData->height,
+                 width,
+                 height,
                  0,
                  GL_RGBA,
                  GL_UNSIGNED_BYTE,
-                 textureData->rgba);
+                 rgba);
     glGenerateMipmap(GL_TEXTURE_2D);
 #if defined(GL_TEXTURE_MAX_ANISOTROPY_EXT) && defined(GL_MAX_TEXTURE_MAX_ANISOTROPY_EXT)
     if (GLAD_GL_EXT_texture_filter_anisotropic) {
@@ -67,10 +82,10 @@ unsigned int OpenGLRenderBackend::ensureWorldTexture(const WorldTextureData* tex
 
     TextureCacheEntry entry;
     entry.textureId = textureId;
-    entry.width = textureData->width;
-    entry.height = textureData->height;
-    entry.wrapS = textureData->wrapS;
-    entry.wrapT = textureData->wrapT;
+    entry.width = width;
+    entry.height = height;
+    entry.wrapS = wrapSIn;
+    entry.wrapT = wrapTIn;
     worldTextures_.emplace(key, entry);
     return textureId;
 }

@@ -227,7 +227,49 @@ CPUTexture makeBlackCPUTexture() {
     return t;
 }
 
-enum class TextureKind { BaseColor, Emissive };
+enum class TextureKind {
+    BaseColor,
+    Emissive,
+    Normal,
+    MetallicRoughness,
+    Occlusion
+};
+
+CPUTexture makeFlatNormalCPUTexture() {
+    CPUTexture t;
+    t.width = 1;
+    t.height = 1;
+    t.wrapS = GL_REPEAT;
+    t.wrapT = GL_REPEAT;
+    t.minF = GL_LINEAR;
+    t.magF = GL_LINEAR;
+    t.rgba = {128, 128, 255, 255};
+    return t;
+}
+
+CPUTexture makeMetallicRoughnessDefaultCPUTexture() {
+    CPUTexture t;
+    t.width = 1;
+    t.height = 1;
+    t.wrapS = GL_REPEAT;
+    t.wrapT = GL_REPEAT;
+    t.minF = GL_LINEAR;
+    t.magF = GL_LINEAR;
+    // glTF convention: R=occlusion (when packed), G=roughness, B=metallic.
+    t.rgba = {255, 255, 255, 255};
+    return t;
+}
+
+const char* textureKindName(TextureKind kind) {
+    switch (kind) {
+        case TextureKind::BaseColor: return "BaseColor";
+        case TextureKind::Emissive: return "Emissive";
+        case TextureKind::Normal: return "Normal";
+        case TextureKind::MetallicRoughness: return "MetallicRoughness";
+        case TextureKind::Occlusion: return "Occlusion";
+        default: return "Unknown";
+    }
+}
 
 const char* magicName(const std::vector<std::uint8_t>& bytes) {
     if (bytes.size() >= 12) {
@@ -337,23 +379,63 @@ CPUTexture decodeTextureFast(const fastgltf::Asset& asset,
 
     const auto white = makeWhiteCPUTexture();
     const auto black = makeBlackCPUTexture();
+    const auto flatNormal = makeFlatNormalCPUTexture();
+    const auto mrDefault = makeMetallicRoughnessDefaultCPUTexture();
+
+    const auto fallbackForKind = [&](TextureKind k) -> const CPUTexture& {
+        switch (k) {
+            case TextureKind::BaseColor: return white;
+            case TextureKind::Emissive: return black;
+            case TextureKind::Normal: return flatNormal;
+            case TextureKind::MetallicRoughness: return mrDefault;
+            case TextureKind::Occlusion: return white;
+            default: return white;
+        }
+    };
 
     if (materialIndex < 0 || materialIndex >= static_cast<int>(asset.materials.size())) {
-        return (kind == TextureKind::BaseColor) ? white : black;
+        return fallbackForKind(kind);
     }
 
     const auto& mat = asset.materials[static_cast<size_t>(materialIndex)];
 
-    const fastgltf::TextureInfo* texInfoPtr = nullptr;
+    std::size_t texIndex = static_cast<std::size_t>(-1);
+    int texCoord = 0;
+    bool hasTexture = false;
+    auto setTextureRef = [&](std::size_t index, int coord) {
+        texIndex = index;
+        texCoord = coord;
+        hasTexture = true;
+    };
     if (kind == TextureKind::BaseColor) {
         if (mat.pbrData.baseColorTexture.has_value()) {
-            texInfoPtr = &mat.pbrData.baseColorTexture.value();
+            setTextureRef(mat.pbrData.baseColorTexture->textureIndex,
+                          static_cast<int>(mat.pbrData.baseColorTexture->texCoordIndex));
         }
-    } else if (mat.emissiveTexture.has_value()) {
-        texInfoPtr = &mat.emissiveTexture.value();
+    } else if (kind == TextureKind::Emissive) {
+        if (mat.emissiveTexture.has_value()) {
+            setTextureRef(mat.emissiveTexture->textureIndex,
+                          static_cast<int>(mat.emissiveTexture->texCoordIndex));
+        }
+    } else if (kind == TextureKind::Normal) {
+        if (mat.normalTexture.has_value()) {
+            setTextureRef(mat.normalTexture->textureIndex,
+                          static_cast<int>(mat.normalTexture->texCoordIndex));
+        }
+    } else if (kind == TextureKind::MetallicRoughness) {
+        if (mat.pbrData.metallicRoughnessTexture.has_value()) {
+            setTextureRef(mat.pbrData.metallicRoughnessTexture->textureIndex,
+                          static_cast<int>(mat.pbrData.metallicRoughnessTexture->texCoordIndex));
+        }
+    } else if (kind == TextureKind::Occlusion) {
+        if (mat.occlusionTexture.has_value()) {
+            setTextureRef(mat.occlusionTexture->textureIndex,
+                          static_cast<int>(mat.occlusionTexture->texCoordIndex));
+        }
     }
+    if (outTexCoordIndex) *outTexCoordIndex = texCoord;
 
-    if (texInfoPtr == nullptr) {
+    if (!hasTexture) {
         if (kind == TextureKind::BaseColor) {
             CPUTexture t;
             t.width = 1;
@@ -377,26 +459,21 @@ CPUTexture decodeTextureFast(const fastgltf::Asset& asset,
             }
             return t;
         }
-
         if (wantLog()) {
             logTexDecode(prefix,
                          "mat[" + std::to_string(materialIndex) + "] '" +
-                             std::string(mat.name.begin(), mat.name.end()) + "' has NO emissiveTexture; using 1x1 black.");
+                             std::string(mat.name.begin(), mat.name.end()) +
+                             "' has NO " + textureKindName(kind) + " texture; using fallback.");
         }
-        return black;
+        return fallbackForKind(kind);
     }
-
-    const auto& texInfo = *texInfoPtr;
-    const size_t texIndex = texInfo.textureIndex;
-    const int texCoord = static_cast<int>(texInfo.texCoordIndex);
-    if (outTexCoordIndex) *outTexCoordIndex = texCoord;
 
     if (texIndex >= asset.textures.size()) {
         if (wantLog()) {
             logTexDecode(prefix, "mat[" + std::to_string(materialIndex) +
                                      "] textureIndex out of range: " + std::to_string(texIndex));
         }
-        return (kind == TextureKind::BaseColor) ? white : black;
+        return fallbackForKind(kind);
     }
 
     const auto& tex = asset.textures[texIndex];
@@ -421,7 +498,7 @@ CPUTexture decodeTextureFast(const fastgltf::Asset& asset,
             logTexDecode(prefix, "mat[" + std::to_string(materialIndex) + "] tex[" +
                                      std::to_string(texIndex) + "] has NO image index (all empty).");
         }
-        return (kind == TextureKind::BaseColor) ? white : black;
+        return fallbackForKind(kind);
     }
 
     const size_t imgIndex = imgIndexOpt.value();
@@ -430,7 +507,7 @@ CPUTexture decodeTextureFast(const fastgltf::Asset& asset,
             logTexDecode(prefix, "mat[" + std::to_string(materialIndex) +
                                      "] imageIndex out of range: " + std::to_string(imgIndex));
         }
-        return (kind == TextureKind::BaseColor) ? white : black;
+        return fallbackForKind(kind);
     }
 
     const auto& img = asset.images[imgIndex];
@@ -455,7 +532,7 @@ CPUTexture decodeTextureFast(const fastgltf::Asset& asset,
         const std::string matName(mat.name.begin(), mat.name.end());
         const char* fmt = magicName(enc->bytes);
         std::string msg = "mat[" + std::to_string(materialIndex) + "] '" + matName + "' ";
-        msg += (kind == TextureKind::BaseColor) ? "BaseColor" : "Emissive";
+        msg += textureKindName(kind);
         msg += " tex[" + std::to_string(texIndex) + "] img[" + std::to_string(imgIndex) + "](" + imgSlot + ")";
         msg += " texCoord=" + std::to_string(texCoord);
         msg += " src='" + enc->debugName + "'";
@@ -476,7 +553,7 @@ CPUTexture decodeTextureFast(const fastgltf::Asset& asset,
 
     if (decoded == nullptr || w <= 0 || h <= 0) {
         if (decoded) stbi_image_free(decoded);
-        return (kind == TextureKind::BaseColor) ? white : black;
+        return fallbackForKind(kind);
     }
 
     CPUTexture out;
@@ -525,7 +602,10 @@ CPUTexture decodeTextureFast(const fastgltf::Asset& asset,
     stbi_image_free(decoded);
 
     if (wantLog() && envTruthy("PAC_GLTF_DUMP_TEXTURES")) {
-        const std::string kindStr = (kind == TextureKind::BaseColor) ? "base" : "emissive";
+        std::string kindStr = textureKindName(kind);
+        std::transform(kindStr.begin(), kindStr.end(), kindStr.begin(), [](unsigned char c) {
+            return static_cast<char>(std::tolower(c));
+        });
         const std::filesystem::path dumpDir = std::filesystem::path("debug") / "gltf_textures";
         const std::filesystem::path outP =
             dumpDir / (std::filesystem::path(modelPath).stem().string() + "_mat" + std::to_string(materialIndex) +
@@ -558,6 +638,40 @@ CPUTexture decodeEmissiveTextureFast(const fastgltf::Asset& asset,
                                      const std::string& modelPath,
                                      int* outTexCoordIndex) {
     return decodeTextureFast(asset, baseDir, materialIndex, TextureKind::Emissive, dbg, modelPath, outTexCoordIndex);
+}
+
+CPUTexture decodeNormalTextureFast(const fastgltf::Asset& asset,
+                                   const std::filesystem::path& baseDir,
+                                   int materialIndex,
+                                   bool dbg,
+                                   const std::string& modelPath,
+                                   int* outTexCoordIndex) {
+    return decodeTextureFast(asset, baseDir, materialIndex, TextureKind::Normal, dbg, modelPath, outTexCoordIndex);
+}
+
+CPUTexture decodeMetallicRoughnessTextureFast(const fastgltf::Asset& asset,
+                                              const std::filesystem::path& baseDir,
+                                              int materialIndex,
+                                              bool dbg,
+                                              const std::string& modelPath,
+                                              int* outTexCoordIndex) {
+    return decodeTextureFast(
+        asset,
+        baseDir,
+        materialIndex,
+        TextureKind::MetallicRoughness,
+        dbg,
+        modelPath,
+        outTexCoordIndex);
+}
+
+CPUTexture decodeOcclusionTextureFast(const fastgltf::Asset& asset,
+                                      const std::filesystem::path& baseDir,
+                                      int materialIndex,
+                                      bool dbg,
+                                      const std::string& modelPath,
+                                      int* outTexCoordIndex) {
+    return decodeTextureFast(asset, baseDir, materialIndex, TextureKind::Occlusion, dbg, modelPath, outTexCoordIndex);
 }
 
 }  // namespace pac::model_fastgltf

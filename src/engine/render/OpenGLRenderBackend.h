@@ -84,6 +84,12 @@ private:
     void ensureSpritePipeline();
     void destroySpritePipeline();
     unsigned int ensureWorldTexture(const WorldTextureData* textureData);
+    unsigned int ensureWorldTextureRaw(const char* key,
+                                       const unsigned char* rgba,
+                                       int width,
+                                       int height,
+                                       int wrapS,
+                                       int wrapT);
     unsigned int ensureSpriteTexture(const std::string& texturePath);
     void clearTextureCaches();
 
@@ -101,10 +107,23 @@ private:
     int worldModelLoc_ = -1;
     int worldUseTextureLoc_ = -1;
     int worldTextureSamplerLoc_ = -1;
+    int worldUseNormalTextureLoc_ = -1;
+    int worldUseMetallicRoughnessTextureLoc_ = -1;
+    int worldUseOcclusionTextureLoc_ = -1;
+    int worldUseEmissiveTextureLoc_ = -1;
+    int worldNormalTextureSamplerLoc_ = -1;
+    int worldMetallicRoughnessTextureSamplerLoc_ = -1;
+    int worldOcclusionTextureSamplerLoc_ = -1;
+    int worldEmissiveTextureSamplerLoc_ = -1;
     int worldWrapSLoc_ = -1;
     int worldWrapTLoc_ = -1;
     int worldAlphaModeLoc_ = -1;
     int worldAlphaCutoffLoc_ = -1;
+    int worldNormalScaleLoc_ = -1;
+    int worldMetallicFactorLoc_ = -1;
+    int worldRoughnessFactorLoc_ = -1;
+    int worldOcclusionStrengthLoc_ = -1;
+    int worldEmissiveFactorLoc_ = -1;
     int worldMaterialModeLoc_ = -1;
     int worldMaterialTimeLoc_ = -1;
     int worldMaterialFlagsLoc_ = -1;

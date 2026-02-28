@@ -52,10 +52,41 @@ public:
         int height = 0;
         int wrapS = 10497; // GL_REPEAT
         int wrapT = 10497; // GL_REPEAT
+        const char* normalKey = nullptr;
+        const unsigned char* normalRgba = nullptr;
+        int normalWidth = 0;
+        int normalHeight = 0;
+        int normalWrapS = 10497; // GL_REPEAT
+        int normalWrapT = 10497; // GL_REPEAT
+        const char* metallicRoughnessKey = nullptr;
+        const unsigned char* metallicRoughnessRgba = nullptr;
+        int metallicRoughnessWidth = 0;
+        int metallicRoughnessHeight = 0;
+        int metallicRoughnessWrapS = 10497; // GL_REPEAT
+        int metallicRoughnessWrapT = 10497; // GL_REPEAT
+        const char* occlusionKey = nullptr;
+        const unsigned char* occlusionRgba = nullptr;
+        int occlusionWidth = 0;
+        int occlusionHeight = 0;
+        int occlusionWrapS = 10497; // GL_REPEAT
+        int occlusionWrapT = 10497; // GL_REPEAT
+        const char* emissiveKey = nullptr;
+        const unsigned char* emissiveRgba = nullptr;
+        int emissiveWidth = 0;
+        int emissiveHeight = 0;
+        int emissiveWrapS = 10497; // GL_REPEAT
+        int emissiveWrapT = 10497; // GL_REPEAT
         std::uint8_t alphaMode = 0u; // 0=OPAQUE, 1=MASK, 2=BLEND
         std::uint8_t blendMode = 0u; // 0=Alpha, 1=Additive, 2=Premultiplied
         std::uint8_t materialMode = 0u; // 0=Default, 1=FireTailExact
         float alphaCutoff = 0.5f;
+        float normalScale = 1.0f;
+        float metallicFactor = 1.0f;
+        float roughnessFactor = 1.0f;
+        float occlusionStrength = 1.0f;
+        float emissiveFactorR = 0.0f;
+        float emissiveFactorG = 0.0f;
+        float emissiveFactorB = 0.0f;
 
         // Optional exact material payload used by world textured draws.
         // Currently interpreted when materialMode == 1 (FireTailExact).

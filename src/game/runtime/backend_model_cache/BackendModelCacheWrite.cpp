@@ -269,10 +269,17 @@ bool writeBackendCacheFromSourceData(const std::string& filepath,
             !writePod(out, sm.emissiveFactor.x) ||
             !writePod(out, sm.emissiveFactor.y) ||
             !writePod(out, sm.emissiveFactor.z) ||
+            !writePod(out, sm.normalScale) ||
+            !writePod(out, sm.metallicFactor) ||
+            !writePod(out, sm.roughnessFactor) ||
+            !writePod(out, sm.occlusionStrength) ||
             !writePod(out, sm.alphaMode) ||
             !writePod(out, sm.alphaCutoff) ||
             !writePod(out, doubleSided) ||
             !writeTexture(out, sm.baseTexture) ||
+            !writeTexture(out, sm.normalTexture) ||
+            !writeTexture(out, sm.metallicRoughnessTexture) ||
+            !writeTexture(out, sm.occlusionTexture) ||
             !writeTexture(out, sm.emissiveTexture)) {
             if (outError) *outError = "failed to write cache submesh/texture";
             return false;
