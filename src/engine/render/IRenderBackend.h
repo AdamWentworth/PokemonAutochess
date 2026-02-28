@@ -6,6 +6,14 @@
 
 class IRenderBackend {
 public:
+    struct BackendFrameTimings {
+        // CPU time spent blocked in backend-controlled present/wait path.
+        float presentWaitMs = 0.0f;
+        // Backend-reported GPU frame duration (if available).
+        float gpuFrameMs = 0.0f;
+        bool gpuFrameValid = false;
+    };
+
     struct WorldMeshVertex {
         float x = 0.0f;
         float y = 0.0f;
@@ -144,6 +152,10 @@ public:
     virtual void onResize(int width, int height) = 0;
     virtual bool requiresOpenGLContext() const = 0;
     virtual bool handlesPresentation() const = 0;
+    virtual bool getLastFrameTimings(BackendFrameTimings& outTimings) const {
+        outTimings = BackendFrameTimings{};
+        return false;
+    }
     virtual std::string activeGpuName() const { return {}; }
     virtual bool activeGpuIsDiscrete() const { return false; }
     virtual bool supportsWorldTriangles3D() const { return false; }

@@ -1,59 +1,40 @@
-# Tech Debt and Code Smells
+# Tech Debt
 
-This list is intentionally short and focused on the highest-value fixes.
+Date: 2026-02-28
 
-Open items
-- Monolithic gameplay/render files remain high-risk for regressions:
-  - `src/engine/render/D3D12RenderBackend.cpp` (~1500+ lines after helper extraction)
-  - `src/engine/render/gltf/ModelFastGltfTextures.cpp` (~400+ lines)
-  - `src/game/scripting/ScriptAPICombat.cpp` (~300+ lines)
-- Packaged build smoke run is manual only (no automated run in CI).
-- Full fresh-machine validation of the installer flow (no cached vcpkg/toolchain).
+This list is intentionally short and prioritized by impact on renderer merge readiness.
 
-Recent improvements
-- Removed duplicate CTest name maintenance by deriving CTest registration directly from `tests/TestMain.cpp`.
-- Added targeted config-loader regression tests for Pokemon, Evolution, and Flyer parsing contracts.
-- Reduced repeated case-normalization logic in `PokemonConfigLoader` and `EvolutionConfigLoader`.
-- Normalized source comments/strings to ASCII in `src/` and added `source_ascii_hygiene` regression test.
-- Split GameWorld progression/merge/XP logic into `src/game/world/GameWorldProgression.cpp` and added merge progression regression coverage.
-- Split GameWorld spawn/bench roster flow into `src/game/world/GameWorldRoster.cpp` with targeted spawn+bench regression coverage.
-- Split GameWorld economy/inventory/healing flows into `src/game/world/GameWorldEconomy.cpp` and added income, inventory, and reset regression coverage.
-- Split GameWorld capture attempt lifecycle into `src/game/world/GameWorldCapture.cpp` and added capture precondition/success/failure recovery regression coverage.
-- Split GameWorld query/synergy helpers into `src/game/world/GameWorldQueries.cpp` and added regression coverage for type-line counting and nearest-enemy targeting.
-- Split GameWorld faint/recovery and battle-position restore flows into `src/game/world/GameWorldRecovery.cpp` with targeted lifecycle regression tests.
-- Split GameWorld leech-seed status/config/tick logic into `src/game/world/GameWorldLeechSeed.cpp` and added contract+clamp+invalid-state regression coverage.
-- Split ScriptAPI world-state/economy/mode surface into `src/game/scripting/ScriptAPIWorldState.cpp` and expanded contract coverage for money/items/mode/video/shop behavior.
-- Split ScriptAPI command queue/dispatch path into `src/game/scripting/ScriptAPICommands.cpp` and expanded contract coverage for queued energy command semantics.
-- Split ScriptAPI combat/damage flow into `src/game/scripting/ScriptAPICombat.cpp` and added regression coverage for deferred hit-frame damage and mid-cycle request locking.
-- Split GameWorld rendering + move-impact VFX routing into `src/game/world/GameWorldRender.cpp` and added ScriptAPI combat-balance multiplier contract coverage.
-- Split GameWorld update/animation tick + render-VFX lifecycle into `src/game/world/GameWorldAnimation.cpp` and expanded ScriptAPI contract coverage for attack readiness and min-request timing queries.
-- Split move-impact/VFX routing into `src/game/world/GameWorldMoveImpact.cpp` and isolated render-VFX update lifecycle in `src/game/world/GameWorldVfx.cpp` to reduce `GameWorldRender` and `GameWorldAnimation` churn risk.
-- Moved runtime orchestration (`GameApp`, `GameRunner`, `GameRuntime`, `GameBootstrap`, `GamePreload`, `GameSession`, `GameUpdateGraph`) into `src/game/runtime/` to reduce `src/game/` top-level sprawl.
-- Converted `ShopSystem` from placeholder UI stubs into a phase-driven deterministic offer service and added dedicated phase/roll contract coverage.
-- Split `ModelFastGltfLoader` into `ModelFastGltfLoader.cpp` and `ModelFastGltfLoaderHelpers.cpp` and added a source-modularity budget test to guard against re-growth.
-- Split fastgltf scene/skin/animation extraction into `src/engine/render/gltf/ModelFastGltfSceneData.cpp` to further reduce `ModelFastGltfLoader.cpp` churn surface.
-- Split fastgltf material interpretation and GPU texture upload into `src/engine/render/gltf/ModelFastGltfMaterial.cpp` to remove duplicated GL upload blocks from the core loader flow.
-- Split fastgltf texture decode/data-source handling into `src/engine/render/gltf/ModelFastGltfTextures.cpp` and reduced `ModelFastGltfLoaderHelpers.cpp` to general utility/accessor reader responsibilities.
-- Extracted D3D12 texture upload/mipmap staging from `src/engine/render/D3D12RenderBackend.cpp` into `src/engine/render/d3d12/D3D12TextureUpload.cpp` and moved D3D12 runtime probe files to `src/game/runtime/d3d12/` to reduce backend-specific top-level sprawl.
-- Extended backend model-cache/runtime draw metadata contracts so indexed textured submeshes carry alpha mode/cutoff and wrap modes into D3D12 world shading, reducing hidden GL-vs-D3D material behavior drift.
-- Added explicit D3D12 world blend pipeline/pass ordering to match OpenGL-style alpha depth-write behavior and reduce transparent submesh self-occlusion artifacts.
-- Set indexed backend model submission to full-mesh by default (with env opt-out) to remove budget-driven geometry loss as a visual parity blocker; residual debt is performance tuning rather than geometry correctness.
-- Fixed backend indexed textured alpha handling to avoid double-applying texture alpha (triangle pre-opacity plus pixel texture alpha), which was causing BLEND submesh dropout and missing textured regions during animation/movement.
-- Added backend model-cache diagnostics (`PAC_BACKEND_MODEL_VERBOSE` and one-shot runtime miss logs) to make cache-load/render failures observable instead of silent.
-- Fixed D3D12 world mesh upload-buffer hazards by adding per-frame world vertex/index offsets (preventing draw-data overwrite between multiple model draws in one frame).
-- Reduced backend startup UX divergence by wiring D3D12/non-OpenGL model-cache preload into boot progress updates and adding a non-GL fallback loading gauge path in `GameRunner`.
-- Reduced backend animation/scale drift by hydrating non-OpenGL unit anim role indices + durations from backend cache/animset metadata and by applying native-scale correction parity without requiring OpenGL `Model*` handles.
-- Reduced backend full-mesh indexed submission overhead by avoiding duplicate per-triangle vertex emission for textured submeshes (per-submesh vertex reuse), but further profiling is still needed for large-fight CPU skinning throughput.
-- Added a fast textured indexed fallback (`PAC_BACKEND_MODEL_FAST_TEXTURED`) that intentionally trades some per-triangle lighting fidelity for CPU time; residual debt is replacing CPU triangle shading with a GPU-lighting-capable world vertex format to keep parity without the CPU cost.
-- Clarified that low triangle-budget mode (`PAC_BACKEND_MODEL_FULL_MESH=0` with small limits) intentionally decimates geometry and can produce visible faceting/gaps; this is a quality-for-performance mode and not a texture decode bug.
-- Removed redundant full vertex resolve work in the fast textured full-mesh loop (positions+normals were previously computed before fast-path short-circuit), and moved D3D12 dynamic upload buffers to persistent mapping so per-draw buffer updates avoid repeated `Map/Unmap` overhead.
-- Reduced fast full-mesh textured submission overhead further by performing skinned-position resolve only when a vertex is first inserted into the remap table; residual debt remains a true GPU-skinning path so CPU does not own pose deformation for D3D12.
-- Added Debug hotpath optimization wiring in CMake so selected render files can run with optimized codegen while keeping a Debug workflow, and removed per-text-call `stb_easy_font` scratch allocations by reusing thread-local buffers; residual debt remains deeper structural split and GPU-skinning migration for consistent 60+ fps under combat load.
-- Removed per-frame heap churn in backend debug-world rendering by reusing persistent frame scratch vectors (including large world triangle containers), and reduced skinning transform overhead with cached node inverse/matrix prep plus a position-only fast path for fully textured full-mesh submissions.
-- Fixed projected-world board-grid overdraw artifacts by moving D3D12/world grid lines to depth-tested world geometry, and reduced skinning/temporary-buffer overhead further with rigid single-joint fast paths plus reusable depth/blend scratch buffers.
-- Reduced backend-switch confusion by surfacing env-override precedence in runtime logs and Display menu mismatch hints; residual debt is exposing env-override state directly in script/UI bindings rather than inferring via active-vs-preference comparison.
-- Reduced backend world-view visual drift by grounding model anchors to board surface, suppressing fallback shadow-floor quads when full meshes render, and restoring backend feed column parity; residual debt remains a longer-term pass to unify OpenGL and D3D12 lighting/tone stages under one shared material pipeline.
-- Reduced backend HUD/layout drift by aligning status and type-line panel sides to the OpenGL presentation expectations, and reduced board color-cast drift by replacing blue-biased backend board/grid palette values with neutral gray tones in both projected and fallback board paths.
-- Removed projected-world board bounds darkening panel to eliminate the remaining axis-aligned board tint block in D3D12; residual debt is a fuller shared scene-lighting pipeline so board and world shading are authored once for all backends.
-- Reduced renderer-id coupling in gameplay/UI routing by introducing backend-owned legacy-route hints in `IRenderBackend` and using those hints in `GameSession`/state UI policy; residual debt is removing the remaining `legacyRenderPath` split itself by converging legacy OpenGL and backend debug/render command generation into one backend-neutral world+HUD path.
+## Highest Priority Debt
+1. D3D12 end-of-frame synchronization is too strict.
+- `src/engine/render/d3d12/D3D12RenderBackendLifecycle.cpp` calls `waitForGpu()` each frame after `Present(1, 0)`.
+- Impact: limits CPU/GPU overlap and can mask true backend performance potential.
 
+2. Perf telemetry is not yet decision-grade.
+- `GameRunner` logs CPU-side `fixed/render/swap` only.
+- Missing: GPU frame duration and explicit present wait vs submit/build separation.
+
+3. Display settings expose placeholders as if active controls.
+- `scripts/states/main_menu.lua` still labels VSync/FPS/UI scale/quality as placeholders.
+- Impact: unreliable test conditions and user confusion during backend comparison.
+
+4. Runtime log terminology is stale.
+- D3D12 initialization still logs "debug-world render path" wording even though current route model is shared-path based.
+
+5. No automated backend perf regression guard.
+- CI verifies correctness but not frame-time thresholds.
+
+## Important Secondary Debt
+1. CPU-heavy render workload under combat still needs targeted profiling.
+- Need per-feature cost attribution (submission, skinning, overdraw-heavy VFX).
+
+2. Remaining large files are still high-churn risk.
+- `src/engine/render/D3D12RenderBackend.cpp` family
+- `src/game/runtime/GameSession.cpp` and shared runtime render modules
+
+3. Vulkan remains visible in menu while unimplemented.
+- Keep as placeholder only; do not treat as active roadmap work until OpenGL/D3D12 gates are complete.
+
+## Recent Positive Changes
+- Shared rendering route structure is significantly cleaner than earlier parity phases.
+- D3D12 and OpenGL runtime smoke coverage exists in CMake (opt-in).
+- Backend selection/preference parsing is explicit and tested.

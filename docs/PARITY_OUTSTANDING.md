@@ -1,82 +1,36 @@
-# Renderer Parity Outstanding (Living)
+# Parity Outstanding (Pre-Merge Blockers)
 
-Purpose
-- Track the remaining parity gaps that still matter before shared contracts can be treated as the default gameplay path.
-- Keep this list focused on user-visible parity first, then architecture/maintenance cleanup.
-- See `docs/HOUSEWORK_ROADMAP.md` for the post-parity cleanup and legacy-retirement prep plan.
+Date: 2026-02-28
 
-Status Summary (2026-02-25)
-- Shared routes (`opengl_shared`, `d3d12`) are now close enough for real parity comparison against `opengl` legacy.
-- Major progress landed for model rendering/animation, per-unit HUD, growl VFX, and tail-fire (backend GPU exact material path).
-- Adventure shared route usability improved: backend/shared Adventure inventory now renders atlas-based item icon cards (not text-only rows), and shared routes now show a visible capture-attempt pokeball throw/shake/resolve overlay.
-- User manual signoff pass (2026-02-25) reports core parity is now good across all three routes for the features that matter most: renderer switching/menu correctness, board+bench, models, animations, capture sequence, tail-fire, growl, leech-seed, and D3D12 Pidgey seam.
-- Remaining work is now primarily housework/architecture cleanup plus optional perf optimization and non-parity UI polish.
+This file is intentionally short. If an item is here, it is still open and relevant to the D3D12 merge decision.
 
-## Manual Parity Signoff Snapshot (User-Verified 2026-02-25)
+## Current Status
+- Functional parity is close enough for ongoing testing.
+- Merge is currently blocked by measurement and performance process gaps, not by broad feature absence.
 
-Confirmed good enough for parity across `opengl`, `opengl_shared`, and `d3d12`:
-- renderer switching + menu correctness
-- world board + bench visuals
-- model rendering/materials (no major parity issues)
-- animation behavior
-- per-unit HUD parity (not exact, but acceptable; further changes are desired independently of legacy parity)
-- Adventure inventory UI parity (acceptable; future changes are feature/polish work, not parity fixes)
-- pokeball capture sequence
-- Charmander tail-fire VFX
-- growl VFX
-- leech-seed VFX
-- D3D12 Pidgey seam (no longer reproducing in user verification)
-- overall stability (good enough to proceed)
+## Blockers (Must Resolve Before Merge)
+1. Release benchmark matrix is missing.
+- Current conclusions rely too heavily on Debug runs.
 
-## User-Visible Parity Gaps (Priority Order)
+2. Perf instrumentation is incomplete.
+- Current `render`/`swap` timing cannot separate CPU submission, present wait, and GPU execution.
 
-1. Performance optimization / backend suitability (non-blocking parity follow-up)
-- User reports performance still leaves headroom, but the parity goal is sufficiently met for current needs.
-- This should be treated as a separate optimization track, not a parity blocker, unless new perf regressions appear.
+3. D3D12 frame pacing is conservative.
+- `waitForGpu()` is called in the normal end-of-frame path, forcing CPU/GPU sync each frame.
 
-2. D3D12 backend model cache parity (mostly resolved; keep as regression watch)
-- Backend cache loads now self-heal on miss/corrupt/stale source metadata (CPU fastgltf parse -> write `.pacmdl` -> retry load), so `d3d12` no longer depends on an OpenGL path to rebuild `pokeball.glb` or other backend model caches.
-- Keep this as a regression watch item while housework continues because backend cache rebuild now runs inside the gameplay/runtime path.
+4. Display settings behavior is ambiguous to users.
+- VSync/FPS/UI-quality controls are shown as placeholders in UI.
+- Backend comparison quality is reduced until these controls are either wired or hidden.
 
-3. Optional visual polish items (out of parity scope)
-- HUD and Adventure inventory UI are acceptable for parity but may still be redesigned/polished independently of legacy behavior.
+5. Runtime log wording is partially stale.
+- D3D12 initialization still logs "debug-world render path", which is misleading for parity verification.
 
-## Renderer-Agnostic Architecture Gaps (Still Important)
+## Non-Blockers (Track After Merge)
+- Deeper content optimization for larger fight counts.
+- Additional API work (Vulkan) after the benchmark pipeline is stable.
+- UI polish unrelated to parity/perf correctness.
 
-1. Backend debug-world is still a primary shared gameplay render path
-- Goal remains: move this behind a dev-only flag and retire it as the main gameplay path.
-
-2. UI route unification is incomplete
-- `shouldUseBackendUi` split is still re-opened because some OpenGL legacy UI paths were restored to avoid regressions.
-
-3. Shared world command generation and visual stack ownership are not fully unified
-- Contracts are much better, but `GameSession` still owns too much orchestration/render detail.
-
-4. Backend text path still uses line-stroke text, not final glyph text rendering
-- Adequate for progress, but not final quality parity.
-
-5. No automated visual parity harness
-- Parity is still manually verified by eye, which slows signoff and makes regressions easier to miss.
-
-6. No backend perf threshold enforcement
-- Performance improvements are measured ad hoc; no automated guardrails yet.
-
-## What Is Functionally Close (Likely Near Signoff)
-
-- Shared OpenGL vs D3D12 overall gameplay presentation is much closer than before.
-- Tail-fire parity architecture is in the right place (backend GPU exact material path), even if small polish issues remain.
-- Growl VFX uses legacy-driven simulation/pass data rather than the old approximation.
-- Shared per-unit HUD behavior/readability is substantially improved.
-
-## Suggested Next Sequence (Pragmatic)
-
-1. Begin housework phase (module boundaries and render ownership cleanup) while keeping legacy OpenGL as fallback.
-2. Split large files (`GameSession.cpp`, `D3D12RenderBackend.cpp`) into coherent subsystems.
-3. Move more renderer-agnostic behavior into shared contracts so `GameSession` orchestrates less.
-4. Add guardrails for parity stability while housework proceeds (smoke runs, route-specific checks).
-5. Retire legacy only after shared path is the default and fallback is no longer needed in practice.
-
-## Manual Signoff Notes (How To Use This File)
-
-- When a gap is fixed and visually confirmed in both `opengl_shared` and `d3d12`, move it down or mark it resolved in a future edit.
-- Keep this list short and user-visible; implementation details belong in `docs/RENDERER_PARITY_ROADMAP.md`.
+## Exit Condition For This File
+- Remove every blocker above.
+- Record benchmark results per `docs/TEST_PLAN.md`.
+- Keep this file as a short watchlist for post-merge regressions only.

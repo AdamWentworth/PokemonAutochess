@@ -1,21 +1,28 @@
 # Project Goals
 
-This repo is a portfolio piece and a reusable engine foundation. The game is the current client.
+Date: 2026-02-28
+
+This repository is a portfolio project and reusable engine foundation. The current game is the first client.
 
 ## Primary Goals
-- Demonstrate engine-minded design in a real game prototype.
-- Keep the engine reusable for future projects.
-- Maintain a headless, deterministic core for testing and tooling.
-- Stay Windows-first today, with an easy path to Ubuntu later.
-- Keep the project easy to build and run for reviewers.
+- Keep one shared gameplay presentation path that works in both OpenGL and D3D12.
+- Use measurable frame-time budgets instead of subjective FPS-only tuning.
+- Maintain a deterministic, headless gameplay core that stays testable.
+- Keep Windows-first delivery stable and reviewer-friendly.
 
-## Non-Goals (For Now)
-- macOS support.
-- Production-ready tooling or packaging.
-- Multi-contributor workflow.
+## Rendering + Performance Success Criteria
+- Functional parity: the same gameplay state is readable and behaviorally equivalent across OpenGL and D3D12.
+- Measurement parity: both backends are compared using the same scene, same settings, same build type (Release), and same logging fields.
+- Performance gate: D3D12 frame time is not materially worse than OpenGL on the target laptop for the benchmark matrix defined in `docs/TEST_PLAN.md`.
+- Stability gate: backend switching + restart flow remains stable and predictable.
+
+## Non-Goals (Current Phase)
+- Adding a new renderer backend (for example Vulkan) before OpenGL/D3D12 merge gates pass.
+- Chasing synthetic benchmark scores without in-game profiling evidence.
+- Large visual redesign work unrelated to parity/performance readiness.
 
 ## Success Signals
-- CI stays green on Windows.
-- Tests catch regressions in movement and rendering setup.
-- Render-route boundary tests stay green (`RenderRoutes`, route ownership, and backend/legacy route contracts).
-- README tells a clear story to employers in under a minute.
+- CI remains green.
+- Pre-merge benchmark table is captured for OpenGL and D3D12 in Release builds.
+- Renderer docs and runtime logs match actual behavior (no stale route descriptions).
+- D3D12 branch merges to `master` with clear follow-up optimization backlog, not open ambiguity.

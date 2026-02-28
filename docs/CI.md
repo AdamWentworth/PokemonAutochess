@@ -1,20 +1,29 @@
 # CI
 
-CI is Windows-first and mirrors the local flow: configure, build, test, validate data.
+Date: 2026-02-28
 
-## What Runs
-- Configure with the vcpkg toolchain.
+CI is correctness-first and Windows-first.
+
+## What CI Runs
+- Configure with vcpkg toolchain.
 - Build Debug.
 - Run CTest.
-- CTest includes route-boundary contracts (render route ownership, frame/UI route policy, and backend-vs-legacy world model-attachment behavior).
 - Run `PAC_ValidateData`.
-- Use a vcpkg binary cache for faster rebuilds.
-- Run a clang-format check on changed C++ files.
-- Release installer build is not part of CI (run locally with `tools/build_installer.ps1 -Bundle`).
+- Run clang-format check on changed C++ files.
 
-## Why It Exists
-- Catch regressions before they land.
-- Keep a clean signal for portfolio reviewers.
+Optional runtime smoke tests (`PAC_ENABLE_RUNTIME_SMOKE_TESTS`):
+- `PAC_RuntimeSmoke.opengl`
+- `PAC_RuntimeSmoke.d3d12`
+
+## What CI Does Not Yet Run
+- Release benchmark matrix for backend performance.
+- Automated screenshot/image-diff parity checks.
+- Installer end-to-end smoke.
+
+## Required Local Supplement Before D3D12 Merge
+1. Run full Debug CTest locally.
+2. Run Release benchmark matrix from `docs/TEST_PLAN.md`.
+3. Record benchmark outputs in merge notes.
 
 ## Local Equivalent
 ```powershell
@@ -24,12 +33,12 @@ ctest --test-dir build -C Debug --output-on-failure
 cmake --build build --config Debug --target PAC_ValidateData
 ```
 
-One-command local check
+One-command local check:
 ```powershell
 .\tools\full_check.ps1
 ```
 
-Format check (changed files only)
+Format check (changed files):
 ```powershell
 .\tools\format_check.ps1
 ```

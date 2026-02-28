@@ -16,6 +16,11 @@ struct EngineFramePerfStats {
     float fps = 0.0f;
     float frameMs = 0.0f;
     float fixedMs = 0.0f;
+    float renderBuildMs = 0.0f;
+    float renderSubmitMs = 0.0f;
+    float presentWaitMs = 0.0f;
+    float gpuFrameMs = 0.0f;
+    bool gpuFrameValid = false;
     float renderMs = 0.0f;
     float swapMs = 0.0f;
     int fixedTicks = 0;

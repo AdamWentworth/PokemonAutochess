@@ -1,67 +1,68 @@
 # Render Path File Map
 
-## Status
-- Legacy OpenGL gameplay render path is retired.
-- Gameplay presentation now runs through the shared-contract path for active renderers.
-- In-game renderer API options are:
-  - `opengl`
-  - `d3d12`
-  - `vulkan` (placeholder/not implemented yet)
+Date: 2026-02-28
 
-Compatibility note:
-- `opengl_shared` is still accepted as a backward-compatible token in `VideoPreferences` parsing, but it canonicalizes to `opengl`.
+Use this file to find ownership quickly when working on parity/performance tasks.
 
-## Runtime Ownership
+## Runtime Route Model
+- Gameplay rendering routes are shared-path based for active renderers.
+- Legacy `opengl_shared` remains a backward-compat token in preference parsing, canonicalized to `opengl` (`src/game/runtime/VideoPreferences.cpp`).
+- Menu still exposes `vulkan` as a selectable placeholder token, but Vulkan backend is not implemented.
 
-### 1) Game Core (always used)
-- `src/game/runtime/GameApp.*`
-- `src/game/runtime/GameRunner.*`
-- `src/game/runtime/GameRuntime.*`
-- `src/game/runtime/GameBootstrap.*`
-- `src/game/runtime/GameUpdateGraph.*`
-- `src/game/runtime/VideoPreferences.*`
+## Ownership Map
 
-### 2) Shared Gameplay Presentation (OpenGL + D3D12)
+### 1) App + Frame Loop + Perf Logging
+- `src/game/runtime/GameRunner.cpp`
+  - Backend creation/fallback
+  - Main loop timing (`fixed`, `render`, `swap`)
+  - Perf log line emission (`[Perf]`)
+
+### 2) Runtime Route Policy
+- `src/game/runtime/routes/RenderRoutes.h`
+- `src/game/runtime/routes/StartupRenderRoutePolicy.h`
+- `src/game/runtime/routes/RenderFlowDecisions.h`
+
+### 3) Shared Gameplay Presentation Path
+- `src/game/runtime/GameSession.cpp`
 - `src/game/runtime/shared/projected/SharedProjected*.*`
 - `src/game/runtime/shared/capture/SharedCapture*.*`
-- `src/game/runtime/shared/vfx/particles/SharedParticle*.*`
 - `src/game/runtime/shared/vfx/growl/SharedGrowl*.*`
+- `src/game/runtime/shared/vfx/particles/SharedParticle*.*`
 - `src/game/runtime/shared/vfx/tail_fire/SharedTailFire*.*`
 - `src/game/runtime/shared/ui/Shared*.*`
 - `src/game/runtime/shared/world/Shared*.*`
 - `src/game/runtime/backend_model_cache/BackendModelCache*.*`
-- `src/game/runtime/Backend*.*` helper contracts
 
-### 3) Game Runtime Coordinator
-- `src/game/runtime/GameSession.cpp`
-  - Route dispatch and frame flow coordinator.
-  - No legacy world/HUD branch.
+### 4) Backend Implementations
+OpenGL:
+- `src/engine/render/OpenGLRenderBackend.*`
+- `src/engine/render/opengl/OpenGLRenderBackend*.cpp`
 
-### 4) Game World Simulation + Shared Snapshots
-- `src/game/world/GameWorld*.cpp`
-- `src/game/world/GameWorldSharedSnapshots.cpp`
-  - Shared snapshot builders used by shared capture/VFX render bridges.
+D3D12:
+- `src/engine/render/D3D12RenderBackend.*`
+- `src/engine/render/d3d12/D3D12RenderBackend*.cpp`
 
-### 5) Engine Backend Implementations
-- OpenGL backend:
-  - `src/engine/render/OpenGLRenderBackend.*`
-  - `src/engine/render/opengl/OpenGLRenderBackend*.cpp`
-- D3D12 backend:
-  - `src/engine/render/D3D12RenderBackend.*`
-  - `src/engine/render/d3d12/D3D12RenderBackend*.cpp`
+### 5) Display Settings and Backend Selection UX
+- `scripts/states/main_menu.lua`
+- `src/game/runtime/VideoPreferences.*`
+- `config/user/video_settings.json` (runtime preference file)
 
-## Removed Legacy Path Artifacts
-- Removed from build:
-  - `src/game/world/GameWorldRender.cpp`
-- Removed route model fields/policies:
-  - `legacyRenderPath`
-  - `legacyUiPath`
-  - legacy HUD flow branching in frame decisions
-- Removed legacy backend preference hooks from `IRenderBackend`:
-  - `prefersLegacyGameRenderPath()`
-  - `prefersLegacyGameUiPath()`
+## High-Impact Touch Points (Current Program)
+1. Instrumentation work:
+- `GameRunner.cpp`
+- backend timestamp support in render backends
 
-## Current Direction
-- Keep one gameplay presentation path (shared contracts).
-- Continue housework around module boundaries and file size reduction.
-- Keep OpenGL backend implementation as a first-class backend; only legacy gameplay path was retired.
+2. D3D12 frame pacing work:
+- `src/engine/render/d3d12/D3D12RenderBackendLifecycle.cpp`
+
+3. Settings clarity work:
+- `scripts/states/main_menu.lua`
+- `VideoPreferences.*`
+
+4. Parity/perf test wiring:
+- `tests/TestMain.cpp`
+- `CMakeLists.txt` runtime smoke section
+
+## Rule of Thumb
+- Shared rendering behavior changes should start in shared runtime modules, not backend-specific branches.
+- Backend files should only own API-specific resource/pipeline/submission mechanics.

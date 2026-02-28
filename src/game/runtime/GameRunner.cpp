@@ -49,6 +49,7 @@
 #include <iomanip>
 #include <iostream>
 #include <memory>
+#include <sstream>
 #include <string>
 
 namespace {
@@ -410,7 +411,7 @@ namespace {
             if (services.gpuRenderer.empty()) {
                 services.gpuRenderer = "<unknown d3d12 adapter>";
             }
-            std::cout << "[Renderer] D3D12 backend initialized with debug-world render path.\n";
+            std::cout << "[Renderer] D3D12 backend initialized with shared gameplay render path.\n";
         }
 
         std::cout << "[Renderer] Requested: " << services.requestedRendererBackend << "\n";
@@ -679,8 +680,13 @@ namespace {
         double fpsTimer = 0.0;
         double perfAccumFrameMs = 0.0;
         double perfAccumFixedMs = 0.0;
-        double perfAccumRenderMs = 0.0;
-        double perfAccumSwapMs = 0.0;
+        double perfAccumRenderBuildMs = 0.0;
+        double perfAccumRenderSubmitMs = 0.0;
+        double perfAccumPresentWaitMs = 0.0;
+        double perfAccumLegacyRenderMs = 0.0;
+        double perfAccumLegacySwapMs = 0.0;
+        double perfAccumGpuFrameMs = 0.0;
+        int perfAccumGpuFrameSamples = 0;
         int perfAccumFixedTicks = 0;
         int renderedFrames = 0;
         double elapsedSeconds = 0.0;
@@ -749,28 +755,58 @@ namespace {
             }
             const auto fixedEnd = clock::now();
 
-            const auto renderStart = fixedEnd;
+            const auto beginFrameStart = fixedEnd;
             if (renderer) {
                 renderer->beginFrame(0.1f, 0.1f, 0.1f, 1.0f);
             }
+            const auto renderBuildStart = clock::now();
 
             game.render(drawableW, drawableH);
-            const auto renderEnd = clock::now();
+            const auto renderBuildEnd = clock::now();
+            const auto submitStart = renderBuildEnd;
+
+            double presentWaitMs = 0.0;
+            double gpuFrameMs = 0.0;
+            bool gpuFrameValid = false;
 
             if (renderer) {
                 renderer->endFrame();
-                if (!renderer->handlesPresentation()) {
+                if (renderer->handlesPresentation()) {
+                    IRenderBackend::BackendFrameTimings backendTimings;
+                    if (renderer->getLastFrameTimings(backendTimings)) {
+                        presentWaitMs = std::max(0.0, static_cast<double>(backendTimings.presentWaitMs));
+                        if (backendTimings.gpuFrameValid) {
+                            gpuFrameMs = std::max(0.0, static_cast<double>(backendTimings.gpuFrameMs));
+                            gpuFrameValid = true;
+                        }
+                    }
+                } else {
+                    const auto presentStart = clock::now();
                     swapBuffers();
+                    const auto presentEnd = clock::now();
+                    presentWaitMs =
+                        std::chrono::duration<double, std::milli>(presentEnd - presentStart).count();
                 }
             } else {
+                const auto presentStart = clock::now();
                 swapBuffers();
+                const auto presentEnd = clock::now();
+                presentWaitMs =
+                    std::chrono::duration<double, std::milli>(presentEnd - presentStart).count();
             }
-            const auto swapEnd = clock::now();
+            const auto frameCpuEnd = clock::now();
 
             const double fixedMs = std::chrono::duration<double, std::milli>(fixedEnd - fixedStart).count();
-            const double renderMs = std::chrono::duration<double, std::milli>(renderEnd - renderStart).count();
-            const double swapMs = std::chrono::duration<double, std::milli>(swapEnd - renderEnd).count();
-            const double frameCpuMs = std::chrono::duration<double, std::milli>(swapEnd - frameCpuStart).count();
+            const double beginFrameMs =
+                std::chrono::duration<double, std::milli>(renderBuildStart - beginFrameStart).count();
+            const double renderBuildMs =
+                std::chrono::duration<double, std::milli>(renderBuildEnd - renderBuildStart).count();
+            const double submitRawMs =
+                std::chrono::duration<double, std::milli>(frameCpuEnd - submitStart).count();
+            const double submitMs = std::max(0.0, submitRawMs - presentWaitMs);
+            const double legacyRenderMs = beginFrameMs + renderBuildMs;
+            const double legacySwapMs = std::max(0.0, submitRawMs);
+            const double frameCpuMs = std::chrono::duration<double, std::milli>(frameCpuEnd - frameCpuStart).count();
             ++renderedFrames;
             elapsedSeconds += frameDt;
 
@@ -778,38 +814,84 @@ namespace {
             fpsTimer += frameDt;
             perfAccumFrameMs += frameCpuMs;
             perfAccumFixedMs += fixedMs;
-            perfAccumRenderMs += renderMs;
-            perfAccumSwapMs += swapMs;
+            perfAccumRenderBuildMs += renderBuildMs;
+            perfAccumRenderSubmitMs += submitMs;
+            perfAccumPresentWaitMs += presentWaitMs;
+            perfAccumLegacyRenderMs += legacyRenderMs;
+            perfAccumLegacySwapMs += legacySwapMs;
+            if (gpuFrameValid) {
+                perfAccumGpuFrameMs += gpuFrameMs;
+                ++perfAccumGpuFrameSamples;
+            }
             perfAccumFixedTicks += fixedTicksThisFrame;
             if (fpsTimer >= 1.0) {
                 const double frames = std::max(1, frameCount);
                 const double fps = static_cast<double>(frameCount) / fpsTimer;
                 const double avgFrameMs = perfAccumFrameMs / frames;
                 const double avgFixedMs = perfAccumFixedMs / frames;
-                const double avgRenderMs = perfAccumRenderMs / frames;
-                const double avgSwapMs = perfAccumSwapMs / frames;
+                const double avgRenderBuildMs = perfAccumRenderBuildMs / frames;
+                const double avgRenderSubmitMs = perfAccumRenderSubmitMs / frames;
+                const double avgPresentWaitMs = perfAccumPresentWaitMs / frames;
+                const double avgLegacyRenderMs = perfAccumLegacyRenderMs / frames;
+                const double avgLegacySwapMs = perfAccumLegacySwapMs / frames;
+                const bool hasGpuFrameAverage = perfAccumGpuFrameSamples > 0;
+                const double avgGpuFrameMs = hasGpuFrameAverage
+                    ? (perfAccumGpuFrameMs / static_cast<double>(perfAccumGpuFrameSamples))
+                    : 0.0;
                 const int avgFixedTicks = static_cast<int>(std::lround(static_cast<double>(perfAccumFixedTicks) / frames));
 
                 services.framePerf.fps = static_cast<float>(fps);
                 services.framePerf.frameMs = static_cast<float>(avgFrameMs);
                 services.framePerf.fixedMs = static_cast<float>(avgFixedMs);
-                services.framePerf.renderMs = static_cast<float>(avgRenderMs);
-                services.framePerf.swapMs = static_cast<float>(avgSwapMs);
+                services.framePerf.renderBuildMs = static_cast<float>(avgRenderBuildMs);
+                services.framePerf.renderSubmitMs = static_cast<float>(avgRenderSubmitMs);
+                services.framePerf.presentWaitMs = static_cast<float>(avgPresentWaitMs);
+                services.framePerf.gpuFrameMs = static_cast<float>(avgGpuFrameMs);
+                services.framePerf.gpuFrameValid = hasGpuFrameAverage;
+                services.framePerf.renderMs = static_cast<float>(avgLegacyRenderMs);
+                services.framePerf.swapMs = static_cast<float>(avgLegacySwapMs);
                 services.framePerf.fixedTicks = avgFixedTicks;
 
                 std::cout << std::fixed << std::setprecision(1)
                           << "[Perf] FPS=" << fps
                           << " frame=" << avgFrameMs << "ms"
                           << " fixed=" << avgFixedMs << "ms"
-                          << " render=" << avgRenderMs << "ms"
-                          << " swap=" << avgSwapMs << "ms"
+                          << " build=" << avgRenderBuildMs << "ms"
+                          << " submit=" << avgRenderSubmitMs << "ms"
+                          << " present=" << avgPresentWaitMs << "ms"
+                          << " gpu=" << (hasGpuFrameAverage ? avgGpuFrameMs : -1.0) << "ms"
+                          << " render=" << avgLegacyRenderMs << "ms"
+                          << " swap=" << avgLegacySwapMs << "ms"
                           << " ticks=" << avgFixedTicks << "\n";
+
+                std::ostringstream perfJson;
+                perfJson << std::fixed << std::setprecision(3)
+                         << "[PerfJSON] {"
+                         << "\"fps\":" << fps
+                         << ",\"frame_cpu_ms\":" << avgFrameMs
+                         << ",\"fixed_ms\":" << avgFixedMs
+                         << ",\"render_build_ms\":" << avgRenderBuildMs
+                         << ",\"render_submit_ms\":" << avgRenderSubmitMs
+                         << ",\"present_wait_ms\":" << avgPresentWaitMs
+                         << ",\"gpu_frame_ms\":" << (hasGpuFrameAverage ? avgGpuFrameMs : -1.0)
+                         << ",\"gpu_frame_valid\":" << (hasGpuFrameAverage ? 1 : 0)
+                         << ",\"legacy_render_ms\":" << avgLegacyRenderMs
+                         << ",\"legacy_swap_ms\":" << avgLegacySwapMs
+                         << ",\"fixed_ticks\":" << avgFixedTicks
+                         << "}";
+                std::cout << perfJson.str() << "\n";
+
                 frameCount = 0;
                 fpsTimer = 0.0;
                 perfAccumFrameMs = 0.0;
                 perfAccumFixedMs = 0.0;
-                perfAccumRenderMs = 0.0;
-                perfAccumSwapMs = 0.0;
+                perfAccumRenderBuildMs = 0.0;
+                perfAccumRenderSubmitMs = 0.0;
+                perfAccumPresentWaitMs = 0.0;
+                perfAccumLegacyRenderMs = 0.0;
+                perfAccumLegacySwapMs = 0.0;
+                perfAccumGpuFrameMs = 0.0;
+                perfAccumGpuFrameSamples = 0;
                 perfAccumFixedTicks = 0;
             }
 

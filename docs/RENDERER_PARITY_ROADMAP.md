@@ -1,302 +1,113 @@
-# Renderer Parity Roadmap (Living)
+# Renderer Parity + Performance Roadmap
 
-Goal
-- Deliver the same game experience in OpenGL and D3D12: same menus, layout, cards, board, models, materials, animation, VFX, and gameplay readability.
+Date: 2026-02-28
 
-Scope
-- In scope: render/UI parity, backend switch UX, parity tests, perf tracking.
-- Out of scope for this roadmap: new gameplay features unrelated to parity.
+This is the authoritative pre-merge plan for the D3D12 branch.
 
-Definition Of Done
-- OpenGL and D3D12 produce matching menu and in-game presentation for the same seed/state.
-- No backend-specific gameplay UI behavior differences.
-- Same board/unit/material/animation/VFX behavior across both backends.
-- Settings allow backend choice with restart flow and return to video menu after restart.
-- Parity regression tests and runtime smoke tests pass for both backends.
+## Scope
+In scope:
+- OpenGL/D3D12 parity and performance readiness.
+- Runtime instrumentation needed to make backend comparisons trustworthy.
+- Merge gating criteria before D3D12 returns to `master`.
 
-Current Reality (Baseline)
-- Non-OpenGL path uses backend debug view and backend-specific UI path.
-- OpenGL path uses legacy world/UI path.
-- Text in backend UI is quad-based debug text, causing rectangle-like glyph artifacts.
-- World model/material/animation rendering is still split and not fully equivalent.
-- Temporary parity validation mode is available: `renderer_backend=opengl_shared` runs OpenGL with shared-contract render/UI routes (while `renderer_backend=opengl` keeps legacy routes).
+Out of scope:
+- New renderer backend implementation (Vulkan remains placeholder until this plan is complete).
 
-Evidence Anchors (Key Files)
-- Render-flow split: `src/game/runtime/RenderFlowDecisions.h`, `src/game/runtime/GameSession.cpp`
-- Backend UI policy split: `src/game/state/BackendUiPolicy.h`
-- Backend quad-text path: `src/game/runtime/BackendDebugText.h`
-- Legacy world renderer: `src/game/world/GameWorldRender.cpp`
-- D3D12 backend implementation: `src/engine/render/D3D12RenderBackend.cpp`
-- Backend selection/restart prefs: `src/game/runtime/GameRunner.cpp`, `src/game/runtime/VideoPreferences.cpp`, `scripts/states/main_menu.lua`
+## Baseline Evidence (Current)
+Hardware reference (user machine):
+- OS: Windows 10 Home, Version 10.0.19045
+- GPU: NVIDIA GeForce GTX 1050 (discrete)
+- CPU: Intel i7-7700HQ
+- RAM: 32 GB
 
-Workstreams
-1. Unified Frame Flow
-- Remove legacy-vs-backend gameplay render branching.
-- Keep debug visualization as optional tooling only.
+Observed runtime facts from recent logs:
+- Discrete GPU selection is working (game runs on GTX 1050, not Intel HD 630).
+- OpenGL and D3D12 both launch and run gameplay.
+- D3D12 combat sample shows render-heavy frames around ~16-17 ms render time with total ~20-22 ms frame time (~46-49 FPS).
+- Current perf fields (`fixed`, `render`, `swap`) are CPU-side timings; they do not yet provide true GPU frame duration.
 
-2. Unified UI Stack
-- Use one menu/shop/HUD rendering path for both APIs.
-- Replace debug quad text with proper glyph text rendering.
+Code facts affecting measurement quality:
+- Main loop uses a 60 Hz fixed update step, but render is not hard-capped by that step (`GameRunner.cpp`).
+- Display menu VSync/FPS/UI-quality controls are placeholders (`scripts/states/main_menu.lua`).
+- OpenGL sets `SDL_GL_SetSwapInterval(1)` (`src/engine/platform/Window.cpp`).
+- D3D12 calls `Present(1, 0)` and then `waitForGpu()` every frame (`src/engine/render/d3d12/D3D12RenderBackendLifecycle.cpp`).
 
-3. Unified World Stack
-- Use one backend-neutral world command path (board, units, bench, health bars).
-- Remove backend-specific model proxy fallback as primary rendering path.
+## Interpretation
+- Current numbers indicate a render-bound combat workload, not a simulation-bound one.
+- API comparisons are not yet trustworthy enough for merge signoff because instrumentation is incomplete and frame pacing behavior differs.
+- The biggest immediate D3D12 performance risk is forced CPU/GPU synchronization each frame.
 
-4. Model/Material/Animation Parity
-- Ensure skinned mesh draw, material sampling, alpha behavior, and clip playback parity.
-- Remove visible quality downgrades from D3D12 path.
+## Pre-Merge Gates (Must Pass)
 
-5. VFX Parity
-- Ensure move VFX and combat readability match across backends.
+### Gate 1: Measurement Correctness
+Required:
+- Benchmark in `Release` (or `RelWithDebInfo`) only.
+- Add a clear timing split at minimum:
+  - `fixed_ms`
+  - `render_build_ms`
+  - `render_submit_ms`
+  - `present_wait_ms`
+  - `frame_cpu_ms`
+  - `gpu_frame_ms` (timestamp query path)
+- Add scene counters at log time:
+  - draw calls
+  - triangles
+  - visible animated units
+  - particle count
 
-6. Backend UX + Safety
-- Stable apply+restart flow.
-- Return users to video settings after restart.
-- Warn about unsaved run progress when relevant.
+### Gate 2: Apples-to-Apples Benchmark Matrix
+Required matrix for the same deterministic scene setup:
+- APIs: OpenGL, D3D12
+- Resolutions: 1280x720, 1600x900, 1920x1080
+- Build: Release
+- VSync state: explicit and actually wired (not placeholder)
+- Output: avg FPS, 1% low FPS, CPU frame ms, GPU frame ms, draw calls, triangles
 
-7. Test + Perf Guardrails
-- Add visual parity checks for key scenes.
-- Add crash regression tests for backend switching and starter selection.
-- Add perf snapshots for OpenGL vs D3D12 scenes.
+### Gate 3: Functional Parity Sanity
+Required:
+- No user-visible regressions in board, unit models/materials/animation, HUD readability, and core combat VFX.
+- Backend switching + restart remains stable.
+- Runtime/backend logs reflect actual route behavior (remove stale wording like "debug-world render path" if no longer true).
 
-Milestones
-- M1: UI/Menu parity (no backend-only menu visuals)
-- M2: World baseline parity (board + units + bench + HUD)
-- M3: Model/material/animation parity
-- M4: VFX parity
-- M5: Test/perf hardening and cleanup
+### Gate 4: Performance Acceptance
+Minimum acceptance for target laptop:
+- D3D12 is within 20% of OpenGL frame time in each matrix row.
+- No backend drops below 30 FPS average in the heavy benchmark scene at 1080p.
+- Stretch target: 60 FPS average at 900p in the same heavy scene.
 
-Remaining Estimate (as of 2026-02-22)
-- Estimated remaining work to true renderer-agnostic parity: 9-12 focused iterations.
-- Why this is still non-trivial: game/runtime still owns backend debug-world rendering and legacy world/HUD paths, so route contracts are cleaner now but visual stack ownership is not fully unified yet.
-- Migration target (contract-first):
-- 1) Treat OpenGL legacy behavior as source-of-truth and encode that behavior into shared contracts.
-- 2) Validate parity using three runtime modes: `opengl` (legacy), `opengl_shared` (shared contracts), and `d3d12` (shared contracts).
-- 3) Flip OpenGL default to shared contracts once parity is stable, then retire legacy world/HUD paths.
-- Next parity-first slice:
-- 1) Unify frame flow and frame-layer dispatch (remove backend-specific flow branching at render orchestration level).
-- 2) Continue frame-flow unification by keeping one world-layer decision path and isolating legacy-only HUD layering.
-- 3) Then proceed to UI and world command unification workstreams.
+### Gate 5: Test + Documentation Alignment
+Required:
+- `docs/TEST_PLAN.md` benchmark protocol executed and results recorded.
+- Runtime smoke tests remain green for `opengl` and `d3d12`.
+- Docs reflect actual current behavior (no references to retired route models as active paths).
 
-Current Status Snapshot (as of 2026-02-25)
-- Shared-contract routes are now usable for side-by-side parity testing across `opengl`, `opengl_shared`, and `d3d12`.
-- Major parity wins landed: shared model rendering/animation is substantially closer, shared per-unit HUD is much closer to legacy, growl VFX uses legacy-driven simulation/pass data, and tail-fire now uses a backend GPU exact-material path (instead of CPU emulation) in shared routes.
-- Shared OpenGL and D3D12 now track each other much more closely than earlier iterations; remaining parity gaps are increasingly "shared vs legacy OpenGL" rather than "OpenGL shared vs D3D12 shared".
-- Board/bench parity is still open: board grid readability improved and bench overlay visibility was restored, but shared world-space bench grid/layout still needs final validation against legacy.
-- Faint/fade parity is improved but still needs visual signoff (material behavior during fade-out can still differ from legacy in edge cases).
-- VFX parity is still the largest remaining visual gap category after tail-fire/growl improvements, especially `leech_seed` (projectile/drain look) and other move-specific material/draw-pass behavior that still route through generic shared particle rendering.
-- Renderer-agnostic boundary work is improved (route contracts and backend-neutral frame-flow decisions), but the game still owns too much render orchestration in `GameSession`, and backend debug-world rendering has not yet been fully retired behind a dev-only path.
-- Practical takeaway: the project is not in a rabbit hole, but it is in the normal "parity hardening" phase where remaining work is mostly effect-by-effect visual fidelity and final contract ownership cleanup.
-- See also: `docs/PARITY_OUTSTANDING.md` for a shorter user-priority punch list (what still matters for signoff).
-- Housework follow-up plan (post-parity cleanup / legacy retirement prep): `docs/HOUSEWORK_ROADMAP.md`.
+## Execution Roadmap
 
-Prioritized Backlog
-- [x] Guard backend text-menu fallback behind explicit backend policy (regression safety for OpenGL menu path).
-- [x] Decouple `GameServices::renderEnabled` from legacy-path selection and route state UI fallbacks through legacy-route helpers (`usesLegacyGameUiPath`) instead of treating non-OpenGL as non-render.
-- [x] Remove state-level direct backend route preference reads (`prefersLegacyGameUiPath`) and route gameplay UI decisions through `GameServices` route helpers (`usesLegacyGameUiPath` / `usesBackendGameUiPath`).
-- [x] Route `GameSession` gameplay input/update/render decisions through `GameServices` route helpers (render path vs UI path) instead of directly branching on local `legacyRenderPath`.
-- [x] Introduce a shared runtime route contract (`RenderRoutes`) and route render/UI policy helpers through it.
-- [x] Add route ownership guardrails so only `GameSession` reads backend route-preference hooks.
-- [x] Remove transitional bool-based route policy overloads so frame/UI render policy APIs are route-object only.
-- [x] Centralize `GameServices` -> `RenderRoutes` conversion in one helper (`routesFromServices`) and use it in gameplay states/session route selection.
-- [x] Remove direct `GameServices` UI-route reads in gameplay states (`services.usesLegacyGameUiPath` / `usesBackendGameUiPath`) and consume route helpers via `routesFromServices` + backend UI policy.
-- [x] Unify top-banner overlay layout contract for gameplay states (`PlacementState`, `CombatState`) across backend and legacy UI paths.
-- [x] Add temporary OpenGL shared-contract validation mode (`renderer_backend=opengl_shared`) so parity can be compared across `opengl` legacy, `opengl_shared`, and `d3d12` shared from in-game Display settings.
-- [ ] Remove backend-specific gameplay render flow and unify frame graph. (In progress: frame-flow contract now uses backend-neutral world/HUD layer decisions and route-dispatched world-layer execution; remaining work is to retire backend debug-world as the primary gameplay world renderer.)
-- [x] Unify frame-flow policy contract to backend-neutral world/HUD layer outputs (`renderWorldLayer`, `renderLegacyHudLayer`) with menu-backdrop-aware world routing.
-- [x] Unify `GameSession` frame execution around one `renderWorldLayer` route dispatcher instead of backend-specific flow flags.
-- [ ] Remove `shouldUseBackendUi` backend split and unify UI policy. (Re-opened: OpenGL legacy card/shop path restored to prevent visual regressions while parity work continues.)
-- [ ] Replace backend quad text with glyph text rendering. (In progress: backend text menu now uses line-stroke text, full glyph path still pending.)
-- [ ] Route both backends through the same menu/shop/HUD layout/render code. (In progress: text-menu rendering is now forced through one backend-neutral path for both OpenGL and D3D12; shop/starter parity remains.)
-- [ ] Route both backends through the same world command generation code. (In progress: backend world path now prefers model mesh rendering with portrait fallback policy and suppresses tint-under-portrait artifacts.)
-- [x] Remove `setRenderEnabled(legacyRenderPath)` behavior that disabled non-OpenGL world resources. (Now split into `renderEnabled` vs `legacyModelRenderPathEnabled` in `GameWorld`, with backend-mode regression coverage.)
-- [ ] Move backend debug world rendering behind an explicit dev-only flag. (In progress: menu world-backdrop is now disabled by default and can be enabled via `PAC_BACKEND_MENU_BACKDROP=1`.)
-- [ ] Implement/align backend-neutral draw contracts in `IRenderBackend` for required scene features. (In progress: indexed world-mesh draw contract landed and backend model submission now uses indexed batches on supporting backends.)
-- [ ] Validate OpenGL shared-contract textured model parity against OpenGL legacy and D3D12 (focus: textured submeshes, alpha-mask/alpha-blend materials, and no movement-time mesh dropout).
-- [ ] Complete D3D12 material and alpha-mode parity. (In progress: wrap-aware texture sampling, glTF-like base+emissive color composition, higher model detail budget, GL-clip-depth-to-D3D conversion, OpenGL-like sRGB+ACES textured world shading, indexed textured-submesh alpha-mode+cutoff + UV wrap controls, explicit D3D12 blend-depth-write-off world pipeline ordering, depth-sorted blend batch submission, and removal of textured-path alpha double-attenuation that was culling BLEND submesh regions landed in backend mesh path.)
-- [ ] Add explicit emissive-texture parity in the backend indexed world path (OpenGL currently samples `u_EmissiveTex`; backend indexed path still approximates emissive via cached shading data).
-- [ ] Complete D3D12 animation/skinning parity (no fallback-only pose path). (In progress: backend clip evaluation now applies root-motion carrier X/Z suppression like OpenGL.)
-- [ ] Align shared-path model motion with OpenGL legacy clip-driven presentation (avoid procedural bob/lunge/tilt layering when clip pose is active).
-- [ ] Align shared combat VFX timing/presentation with OpenGL legacy move-impact flow (attack telegraph, projectile timing, and impact burst readability).
-- [ ] Finish shared per-unit HUD parity with OpenGL legacy (level ring geometry, XP progress arc, HP/energy bar sizing/color, and text anchoring).
-- [ ] Finalize shared per-unit HUD zoom behavior so HUD size remains stable while camera zoom changes (legacy readability parity).
-- [ ] Split D3D12 renderer implementation into smaller modules. (In progress: texture upload/mipmap staging moved from `src/engine/render/D3D12RenderBackend.cpp` to `src/engine/render/d3d12/D3D12TextureUpload.cpp`.)
-- [ ] Port/align board and bench rendering parity. (In progress: shared board grid readability improved, backend bench overlay is visible under tight framing, and shared world-space bench grid row now renders adjacent to the board; final layout/styling parity vs legacy still pending.)
-- [ ] Port/align health bars and combat overlays parity.
-- [ ] Port/align shop/starter card style parity (image, frame, typography, spacing). (In progress: D3D12/backend cards now use OpenGL-like image+gold-frame composition with `Lv` overlay and below-card labels; starter row geometry now matches legacy OpenGL constants, with texture-quality tuning still ongoing.)
-- [ ] Validate VFX parity for growl, tackle, grass impact, claw swipe, aqua, leech seed.
-- [ ] Add backend-switch startup regression test (including starter selection path).
-- [ ] Add visual parity test harness for key scenes.
-- [ ] Add backend perf snapshot reporting and thresholds.
-- [ ] Remove dead backend-specific fallback code once parity path is stable.
+### Phase 0: Instrumentation Hardening (First)
+1. Add CPU timing split for build/submit/present.
+2. Add GPU timestamp frame duration path.
+3. Emit one structured perf line format used by both backends.
 
-Iteration Log
-- Iteration 0 (current): Established living roadmap and consolidated parity backlog with milestones and done criteria.
-- Iteration 1: Restored policy-gated OpenGL text-menu rendering, switched backend text-menu/overlay text to line-stroke rendering (reducing rectangle artifacts), and added regression coverage for backend text line generation.
-- Iteration 2: Added explicit backend text-menu policy helper and contract tests to prevent accidental OpenGL fallback-path regressions.
-- Iteration 3: Added line-layer text support to backend card visuals/renderer and wired shop/starter backend UI paths to use text lines instead of filled text quads.
-- Iteration 4: Removed direct `stb_easy_font` metric usage from `ScriptedState` and switched backend menu/card text sizing to shared backend text metric helpers.
-- Iteration 5: Added backend render policy helpers + tests, aligned frame-flow menu behavior to avoid backend debug-world draws in menu-only states, disabled backend menu world-backdrop by default (env-overrideable), and removed mandatory text-quad sinks from backend card rendering when line text is used.
-- Iteration 6: Unified scripted/menu/shop UI policy across OpenGL and D3D12 by removing backend-id gating in `shouldUseBackendUi`, added explicit legacy opt-out hook, and updated backend UI policy contract tests.
-- Iteration 7: Added world portrait policy controls (model-first, portrait fallback/force toggles), removed tint-under-portrait artifacts in fallback world rendering, and expanded backend unit visual contract coverage.
-- Iteration 8: Fixed projected-world model draw detection to track the correct 3D depth container (preventing false fallback to portrait/rectangle proxies), and added a regression helper/test for model-geometry accumulation logic.
-- Iteration 9: Restored OpenGL to the legacy starter/shop UI policy after a visual regression, while keeping D3D12 on backend UI and re-opening the UI-policy unification item until style parity is complete.
-- Iteration 10: Reworked backend card visuals to match OpenGL styling (portrait fill + gold frame sprite + legacy-style `Lv` and label overlays), wired shop/starter state inputs to legacy text semantics, and expanded card renderer/visual tests for two-sprite (art+frame) output.
-- Iteration 11: Added explicit gold-stroke fallback borders to backend cards (ensuring visible framing across backends) and unified text-menu rendering policy so OpenGL and D3D12 share the same menu visual path.
-- Iteration 12: Added outlined menu panel/button styling in shared backend text-menu rendering, locked backend starter card row to legacy OpenGL geometry (220x150, spacing 50, y=300), and upgraded D3D12 sprite textures to mipmapped uploads with anisotropic sampling for closer card image quality.
-- Iteration 13: Added backend text-menu `bold` and `underline` style parity (matching legacy menu semantics) so selected/active entries read consistently across OpenGL and D3D12.
-- Iteration 14: Fixed D3D12 dynamic-vertex buffer overwrite hazards by adding per-frame write offsets for debug quads/lines/triangles and sprites, preventing later draws from clobbering earlier menu/background geometry in the same frame.
-- Iteration 15: Improved backend model parity by honoring texture wrap modes, applying glTF-like base+emissive color composition in model cache sampling, increasing per-unit triangle fidelity defaults, and matching OpenGL root-motion carrier translation handling during backend clip pose evaluation.
-- Iteration 16: Reduced backend model-path CPU cost by caching per-node world transforms and per-vertex skinned world results during triangle sampling, replacing repeated mesh-index-to-node scans with a precomputed map, and tuning default backend triangle budgets for better D3D12 combat-frame stability.
-- Iteration 17: Added backend model frame-budget control (`PAC_BACKEND_MODEL_TRI_FRAME_BUDGET`), removed D3D12 world-triangle depth sorting from the 3D depth-tested path, and moved mesh-index-to-node lookup precomputation into model-cache load so per-frame unit rendering does less CPU work.
-- Iteration 18: Replaced hot-path hash maps in backend unit model rendering with vector-indexed caches (skin matrices, node transforms, and skinned vertices), and enabled non-OpenGL startup preloading of backend model caches to avoid first-spawn hitching when models appear in combat.
-- Iteration 19: Added an indexed world-mesh backend contract (`supportsWorldIndexedMeshes`/`drawWorldIndexedMesh`), implemented D3D12 indexed world draws with dedicated upload index buffers, and switched backend model submission in `GameSession` to emit indexed per-unit batches instead of only triangle streams.
-- Iteration 20: Improved backend model visual fidelity by raising default model triangle/scene budgets and minimum per-unit LOD floor, switching model lighting to per-vertex directional/hemi/rim shading (including two-sided backface handling), and adding contract tests for the new shading helper in `BackendMaterialShading`.
-- Iteration 21: Implemented textured indexed world-model rendering for D3D12 by extending backend draw contracts with textured mesh submission, adding D3D12 world-shader UV texture sampling + descriptor-table binding/caching, and wiring `GameSession` model batches per submesh to submit cached base-color textures from `BackendModelCache` instead of color-only geometry.
-- Iteration 22: Reorganized D3D12-specific code by extracting texture upload helpers (`engine/render/d3d12`) and moving runtime probe files under `game/runtime/d3d12`, then improved visual parity with OpenGL by converting GL clip-space depth for D3D12 world draws and applying OpenGL-like sRGB+ACES color mapping for textured world meshes.
-- Iteration 23: Added per-submesh textured material metadata plumbing (wrapS/wrapT, alpha mode, alpha cutoff) from backend model cache through `GameSession` into D3D12 world draws, and updated D3D12 world pixel shader logic to honor glTF-like OPAQUE/MASK/BLEND alpha behavior and UV wrap controls for indexed textured meshes.
-- Iteration 24: Added a dedicated D3D12 world blend pipeline (depth test on, depth write off) and render-pass ordering (OPAQUE/MASK first, BLEND second), while always routing indexed world batches through textured draw metadata so alpha-mode behavior applies consistently to textured and non-textured submeshes.
-- Iteration 25: Identified triangle-budget decimation as a core parity blocker for indexed D3D12 model path, switched indexed model submission to full-mesh by default (`PAC_BACKEND_MODEL_FULL_MESH` opt-out), and added depth-sorted blend batch ordering to reduce transparent submesh popping/invisibility while moving.
-- Iteration 26: Parsed shipped `.glb` materials to confirm BLEND usage, traced OpenGL vs backend alpha flow, fixed backend indexed textured alpha double-attenuation (preventing BLEND regions from dropping out), and added one-shot backend model-cache miss diagnostics plus optional verbose preload logging (`PAC_BACKEND_MODEL_VERBOSE`).
-- Iteration 27: Fixed D3D12 world indexed/triangle upload-buffer overwrite hazards by introducing per-frame world vertex/index write offsets, preventing later model draws from clobbering earlier draws in the same command list (a key cause of disappearing model regions when more units spawned); also logged that non-OpenGL path uses backend cache loading instead of OpenGL `ModelStartupLog`.
-- Iteration 28: Restored startup loading parity for non-OpenGL backends by driving boot-progress updates during backend model-cache preload and adding a renderer-driven fallback loading gauge in `GameRunner` when no OpenGL `BootLoadingView` is available (e.g., D3D12).
-- Iteration 29: Restored backend unit animation drive and scale parity by hydrating non-OpenGL unit anim roles/durations directly from backend mesh + `.animset.json` metadata each fixed tick, removing model-pointer gating from `GameWorldAnimation` so anim clocks advance without OpenGL `Model*`, and applying native-mode scale correction parity when only backend mesh scale is available.
-- Iteration 30: Reduced D3D12 backend model CPU/render cost by skipping unnecessary base-color shading work on textured indexed batches and reusing per-submesh indexed vertices in full-mesh mode (instead of emitting duplicate vertices per triangle), targeting the combat-frame render bottleneck seen after animation parity fixes.
-- Iteration 31: Added a faster textured-indexed backend path (`PAC_BACKEND_MODEL_FAST_TEXTURED`, default on) that bypasses per-triangle CPU lighting/culling for textured submeshes and emits flat-tinted indexed textured vertices directly, targeting the persistent D3D12 `render`-time bottleneck in combat.
-- Iteration 32: Optimized fast textured backend submission by adding position-only vertex transform/skinning cache for the fast path (skipping normal work when not needed) and constrained that fast path to full-mesh indexed mode so aggressive triangle-budget decimation remains an explicit quality/perf tradeoff instead of being mistaken for texture corruption.
-- Iteration 33: Removed duplicate CPU skinning work from the fast textured full-mesh path (avoid doing full normal+position resolve before fast-path early-out) and switched D3D12 dynamic upload buffers to persistent mapping to eliminate per-draw `Map/Unmap` churn in world/debug/sprite submission.
-- Iteration 34: Reduced full-mesh fast-textured model CPU cost by resolving skinned world positions only on first-use vertex remap (instead of every triangle hit), and precomputed per-submesh node fallback mapping once per mesh draw to remove repeated triangle-loop lookup work.
-- Iteration 35: Added a debug-performance mode (`PAC_OPTIMIZE_RENDER_HOTPATHS_IN_DEBUG`, default on) that compiles D3D12/GameSession render hotpaths with optimization in Debug builds, and removed per-call backend text vertex-buffer allocations via reusable scratch storage in `BackendDebugText` to cut UI/text CPU churn.
-- Iteration 36: Reused backend debug-view frame buffers across frames (eliminating large per-frame vector allocations), cached per-node skin matrix prerequisites (including shared node-global inverses), and added an all-textured full-mesh position-only fast path to skip unnecessary normal-matrix work on D3D12 backend model rendering.
-- Iteration 37: Fixed board-grid depth parity by rendering projected-world grid lines as depth-tested 3D world quads (instead of 2D overlay lines that could appear through models), and added rigid single-joint skinning fast paths plus reusable depth/blend temporary buffers to reduce backend combat-frame CPU cost.
-- Iteration 38: Hardened backend-switch UX by adding an explicit runtime warning when `PAC_RENDER_BACKEND` env override is active (saved Display/API prefs ignored until unset) and a Display-menu mismatch hint when active API differs from preferred API (override/fallback visibility).
-- Iteration 39: Improved D3D12 visual parity by clamping backend model anchor height against board floor to prevent floor penetration/bounce artifacts, disabling proxy shadow floor quads when a real model mesh is rendered, restoring battle/economy feed side placement parity with OpenGL in backend HUD text layout, and removing D3D12 textured world-path ACES remap so textured model colors track OpenGL appearance more closely.
-- Iteration 40: Matched backend HUD anchoring closer to OpenGL by moving status block text (mode/backend/round/units/gold/selected item) to top-right and returning `Type Lines` to the left panel, while de-blueing backend board/cell/grid colors in both projected-world and 2D fallback paths to reduce D3D12 board tint drift.
-- Iteration 41: Removed the projected-world axis-aligned board backdrop quad so D3D12 no longer draws a darker rectangular panel behind the perspective grid, aligning board/background blending with OpenGL and eliminating the visible board-area color block.
-- Iteration 42: Moved render/UI route ownership away from backend string checks by adding backend-owned route hints on `IRenderBackend` (`prefersLegacyGameRenderPath`, `prefersLegacyGameUiPath`), wiring OpenGL/D3D12 implementations, switching `GameSession` legacy-path selection to backend hints, and updating backend-UI policy + tests to use route booleans instead of renderer id strings.
-- Iteration 43: Split renderer-availability from legacy-path routing in `GameSession`/`GameServices` (set `renderEnabled` from renderer presence, carry legacy render/UI routes explicitly), updated `PlacementState` and `CombatState` legacy text fallback checks to use `usesLegacyGameUiPath()`, and added a `GameServices` route-helper contract test.
-- Iteration 44: Removed remaining state-level renderer route probing in `ScriptedState` and `CombatState` (`prefersLegacyGameUiPath`) so only `GameSession` selects routes and gameplay UI logic now consumes `GameServices` route helpers, then revalidated with full 91-test pass.
-- Iteration 45: Refactored `GameSession` hot-path branching (input inventory UX path, fixed-update backend animation hydration, world-backdrop policy, frame-flow selection, and shutdown UI teardown) to consume `GameServices` route helpers instead of direct `legacyRenderPath` checks, preserving behavior while tightening renderer-agnostic boundaries.
-- Iteration 46: Introduced shared runtime `RenderRoutes` contract, migrated backend render policy + frame-flow decisions to route objects, and updated policy contract tests to consume route-based APIs.
-- Iteration 47: Migrated backend UI policy to route objects (`RenderRoutes`) and updated `ScriptedState`/`CombatState` call sites to use route-based UI policy decisions.
-- Iteration 48: Added `render_route_ownership_contract` to enforce that backend preference probes (`prefersLegacyGame*Path`) stay centralized in `GameSession`.
-- Iteration 49: Extracted legacy/backend inventory input handling into dedicated `GameSession` helpers to remove mixed-branch event logic and keep route behavior explicit.
-- Iteration 50: Extracted frame-flow selection/execution helpers (`currentFrameFlow`, `renderFrameFromFlow`) in `GameSession` for cleaner route-driven render orchestration.
-- Iteration 51: Split `GameWorld` render contracts into backend-neutral `renderEnabled` and legacy-only model attachment flag (`legacyModelRenderPathEnabled`), and switched `GameSession` world setup to set both explicitly.
-- Iteration 52: Added route contract regression test (`render_routes_contract`) plus backend-world model-attachment regression (`gameworld_backend_render_mode_skips_legacy_model_load`) and revalidated route/boundary test coverage.
-- Iteration 53: Removed temporary bool-overload shims from backend render policy, frame-flow, and backend UI policy so all route decisions now require `RenderRoutes`.
-- Iteration 54: Added `GameServiceRenderRoutes.h` (`routesFromServices`) and switched `CombatState`/`ScriptedState` route construction to this shared helper.
-- Iteration 55: Simplified `GameSession` startup routing state by replacing separate local route booleans with one `RenderRoutes` snapshot and resolving active routes via `routesFromServices` when services are available.
-- Iteration 56: Added `render_policy_api_contract` to prevent reintroduction of legacy bool-based route-policy signatures in policy headers.
-- Iteration 57: Added `game_service_render_routes_contract` to verify `routesFromServices` mapping stays consistent with `GameServices` render/legacy route flags.
-- Iteration 58: Added an explicit remaining parity estimate and parity-first sequencing to this living roadmap (9-12 iterations), so progress and expectations are tracked against a concrete plan.
-- Iteration 59: Unified frame-flow decisions to backend-neutral world/HUD layers, routed `GameSession` world rendering through one route-dispatched `renderWorldLayer`, and added policy/flow contract coverage for backend menu-backdrop routing.
-- Iteration 60: Removed remaining state-level direct UI route reads in `CombatState`/`PlacementState`, routed those decisions through `routesFromServices` + backend UI policy helpers, and added a `state_ui_route_policy_contract` guardrail test to prevent regressions.
-- Iteration 61: Added shared `BackendTopBanner` layout/render helpers and switched `PlacementState` plus both `CombatState` banner paths (shop + non-shop, backend + legacy centering/Y policy) to one top-banner contract, with dedicated `backend_top_banner_contract` test coverage.
-- Iteration 62: Documented the contract-first migration path and added temporary in-game OpenGL shared-contract mode (`opengl_shared`) with runtime route override in `GameSession`, updated Display menu labels/options for tri-mode parity checks, and expanded video-preference token tests.
-- Iteration 63: Implemented OpenGL shared-contract backend draw support for 3D world triangles, indexed world meshes (including textured + alpha-mode/cutoff + wrap handling), and debug sprites with texture caching/fallbacks so `opengl_shared` now exercises the same world/sprite draw contracts used by D3D12; revalidated with full build + 98/98 tests.
-- Iteration 64: Reduced shared-path model bounce drift by making backend world rendering use clip-driven unit transform defaults (legacy-like position/rotation/scale) whenever a valid animation clip pose is active, keeping procedural bob/lunge/tilt only for non-clip fallback cases.
-- Iteration 65: Ported legacy per-unit HUD bar/ring math into shared world HUD rendering so OpenGL shared and D3D12 now use legacy-aligned HP/energy bar geometry/colors plus level text + player XP ring progress arc around level.
-- Iteration 66: Integrated Pokemon name text into the same shared per-unit HUD builder and switched shared HUD sizing to a stable screen-space reference (with tight projected-size clamping) so level/ring/bar text no longer shrinks unexpectedly while zooming.
-- Iteration 67: Tuned shared per-unit HUD presentation to match readability targets by scaling HUD geometry up (~20%), raising HUD vertical offset above units, recentering level text inside the XP ring, and removing floating Pokemon-name text above the HUD block.
-- Iteration 68: Raised shared per-unit HUD anchor further above unit models, switched level-ring number centering to rendered glyph bounds (instead of coarse text metrics), and removed always-on white unit heading guide lines from shared world rendering.
-- Iteration 69: Matched shared combat presentation closer to legacy by fixing backend faint progression when no OpenGL `Model*` is attached (dead units now finish fade and disappear), allowing shared model/proxy scale to reach zero during faint fade-out, driving shared attack FX from gameplay attack/pending-hit timing (not only procedural windows), adding projectile/impact burst overlays keyed to pending move events, and improving card-shop texture quality in OpenGL shared mode with mipmapped + anisotropic sprite sampling.
-- Iteration 70: Expanded shared combat VFX variety to track legacy move routing more closely by classifying pending move names via `MoveImpactRouting` (growl/tackle/claw/aqua/grass routes), adding route-specific shared overlays (sound-wave rings, tackle bursts, claw slashes, aqua rings/beam/bubbles, grass/leech bursts), adding shared leech-drain traces and per-projectile burst accents, and restoring Charmander tail-fire presentation in shared world rendering for both OpenGL-shared and D3D12 paths.
-- Iteration 71: Removed non-legacy shared attack telegraph artifacts (attacker orange circles + unit-to-unit connector lines) and shifted shared growl burst rendering to source-centered, legacy-like ring layering so OpenGL-shared and D3D12 no longer show the incorrect telegraph overlays seen in legacy comparisons.
-- Iteration 72: Fixed shared-path move clip resolution for non-OpenGL units by hydrating backend animation-name aliases into `PokemonInstance::animIndexCache` (so move-specific charged clips like growl resolve instead of falling back to default attack), added explicit `activeAttackMoveName` tracking through attack start/end/reset, switched shared growl route detection/VFX timing to that active move signal for species-specific growl animation + source-emitted growl ring presentation during the actual attack window, and added `combat_anim_index_cache_contract` regression coverage for backend alias resolution (`.gfbanm` + case variants).
-- Iteration 73: Replaced shared growl approximation rendering with a legacy-driven bridge: shared render now consumes `GrowlWaveVFX` simulation snapshots + manifest draw-pass config (mesh/quarter-ring, direction jitter, alpha variation, pass scaling) and submits textured world indexed batches on both OpenGL-shared and D3D12, while gating the old procedural growl fallback behind `PAC_BACKEND_GROWL_LEGACY_VFX=0`; additionally made non-legacy world updates advance growl simulation only (avoiding headless GL-dependent VFX init) and revalidated full `ctest` coverage.
-- Iteration 74: Removed legacy-only VFX simulation gates for shared routes (impacts, leech-seed projectile/drain/heal, failed-capture tackle, and full `updateRenderVfx` ticking), added a backend-agnostic `ParticleSystem` render-snapshot API plus `GameWorld` particle-VFX snapshot bundle, bridged shared rendering to legacy particle simulation via depth-sorted billboard batches (OpenGL-shared + D3D12) with per-batch blend-mode support (`alpha`/`additive`/`premultiplied`) and cached procedural mask textures, and kept old shared procedural particle approximations as an env-toggle fallback (`PAC_BACKEND_PARTICLE_LEGACY_VFX=0`).
-- Iteration 75: Improved shared growl VFX parity by matching legacy additive blending for growl draw passes, baking growl pass textures with TEV-style color/alpha math (including quarter-ring TEV quantized alpha), restoring mesh vertex-alpha influence for growl meshes/line pass, and switching blended world-indexed batch sorting to `stable_sort` to reduce pass-layer jitter at equal depth.
-- Iteration 76: Added a tail-fire-specific shared particle bridge path that matches legacy tail-fire behavior more closely by using time+seed-driven flipbook frame selection (instead of age-only frame advance), dual-atlas billboards (hybrid/core passes) for primary+secondary fire flipbooks, premultiplied atlas baking + premultiplied vertex tint output for the `fire_tail` shader path, and tuned fire ramp/alpha sizing so OpenGL-shared and D3D12 tail flames track legacy OpenGL timing and color better.
-- Iteration 77: Fixed two shared-path regressions: (1) starter/shared sprite textures could load upside-down intermittently because `stb_image` vertical-flip is global and VFX texture loads leaked flip state into backend sprite loaders, so shared sprite/world texture loaders now set explicit flip mode; and (2) shared tail-fire fallback could be skipped whenever `buildParticleVfxSnapshots` returned `false` (no active snapshots), so fallback tail-fire rendering now still executes even with an empty particle snapshot bundle.
-- Iteration 78: Replaced the no-snapshot shared Charmander tail-fire placeholder (projected line/ring fallback) with a synthetic textured tail-fire snapshot fallback that reuses the shared `fire_tail` billboard pipeline (dual flipbook atlases, premultiplied fire blending/material path, animated frame timing, and proxy-tail anchoring), so backend/shared routes without legacy `Model*` tail anchors still render flame-like tail fire instead of debug-style line art.
-- Iteration 79: Fixed shared tail-fire orientation/placement regressions by matching legacy `ParticleSystem` flipbook load orientation for `fire_tail` atlases in the backend texture cache (tail-fire-specific `stb` vertical flip), and rebuilt the synthetic no-snapshot Charmander tail-fire fallback around a smaller legacy-like tail-tip anchor/spawn spread (config-driven tail offset + scale-aware spawn radius/velocity travel) instead of the oversized proxy flame stack.
-- Iteration 80: Corrected shared tail-fire billboard UV mapping to remove an extra local Y flip (frame-row indexing already matched legacy, so the quad UV inversion was double-flipping the flame), and changed the synthetic fallback plume direction/anchor from flat `-forward` proxy motion to a tail-angled up/back vector so Charmander flame placement tracks the tail tip more closely in shared routes.
-- Iteration 81: Replaced the shared tail-fire fallback’s proxy-body anchoring with backend animated tail-tip anchoring when shared clip-pose data is available (captured from the same `worldMatrixForNode(...)` transforms used for shared model rendering), including tail-basis/back-direction extraction from the animated tail node and denser legacy-style synthetic particle emission (5-8 particles, legacy-like lifetime/size/velocity jitter) so Charmander tail fire in `opengl_shared`/`d3d12` follows the animated tail instead of hovering off a proxy guess.
-- Iteration 82: Replaced the shared tail-fire material approximation with a CPU port of the legacy `assets/shaders/vfx/fire/fire_tail.frag` shader (including legacy noise/fbm/curl advection, flipbook sampling, hybrid+fb2 composition, tonemap, and premultiplied output) that bakes a per-frame tail-fire atlas tile per particle and submits it as one shared textured billboard batch, so `opengl_shared` and `d3d12` now render the same tail-fire shader look instead of the previous dual-billboard color-ramp approximation.
-- Iteration 83: Reduced catastrophic frame spikes from the shared exact tail-fire CPU shader path by shrinking internal bake tiles, lowering/quantizing age+seed+time bins for cache reuse, switching cached-tile blit/capture to direct byte copies (no float roundtrip), and adding alias-cache reuse (ignore time, then ignore seed) so shared routes keep the legacy `fire_tail` shader-look path while avoiding the worst low-FPS cache-miss feedback loop.
-- Iteration 84: Corrected shared exact tail-fire orientation by flipping V only for the CPU-baked exact-tail atlas quads (top-down CPU atlas memory -> legacy point-sprite visual orientation), and raised exact-tail bake tile resolution from the overly aggressive optimization setting to reduce visible blockiness while keeping the cache/alias performance improvements from Iteration 83.
-- Iteration 85: Replaced the shared no-snapshot Charmander tail-fire fallback's stateless hash/phase particle approximation with a persistent legacy-style emitter state in `GameSession` (same accumulator-driven emit cadence, spawn-serial hashing, animation-wrap guards, tail-motion velocity smoothing/inheritance, and `ParticleSystem` integration settings), driven by shared backend tail-tip anchors and simulation time so emit speed/randomness tracks legacy `TailFireVFX` more closely across `opengl_shared` and `d3d12`.
-- Iteration 86: Removed the aggressive exact-tail CPU tile cache aliasing shortcuts (time/seed-agnostic tile reuse) that were corrupting the shared `fire_tail` look into square/orange artifacts after the stateful fallback emitter fix, and restored finer exact-tail cache quantization so visual parity takes priority again while retaining byte-copy cache blit/capture optimizations.
-- Iteration 87: Triage-stabilized shared Charmander tail-fire by making the exact CPU `fire_tail` shader path opt-in (`PAC_BACKEND_TAIL_FIRE_EXACT_CPU=1`) and defaulting shared routes back to the faster dual-atlas billboard tail-fire material path, preserving the new legacy-style stateful fallback emitter cadence/randomness while avoiding the square-artifact + severe performance failure mode until a proper backend GPU `fire_tail` material contract is implemented.
-- Iteration 88: Implemented a backend world-material contract for exact shared `fire_tail` rendering (`materialMode=FireTailExact` + time/atlas-rect/flipbook params), switched shared tail-fire submission in `GameSession` to GPU-evaluated exact billboards (combined raw flipbook atlas + per-vertex age/seed payload) so `opengl_shared` and `d3d12` run the legacy `fire_tail` look math on GPU instead of the CPU tile-bake path, and kept the old dual-atlas/CPU paths only as fallback/debug routes.
-- Iteration 89: Fixed exact shared tail-fire GPU orientation by removing the leftover `gl_PointCoord` local-Y flip from the new backend `fire_tail` shader branches (OpenGL-shared + D3D12); shared billboard quads already provide the legacy-facing UV orientation, so the extra flip was inverting the flame.
-- Iteration 90: Restored shared-path leech-seed projectile arc emission in backend routes by removing an incorrect `attacker.model` gate in `LeechSeedProjectileVFX` (the effect already has a no-model fallback origin path), suppressed the non-legacy dotted projected leech-drain fallback line whenever the legacy particle snapshot bridge is active, forced textured submeshes into alpha-blend during faint fade-out (to avoid MASK/OPAQUE cutoff/material popping as units disappear), always rendered the bench overlay even when the board is vertically tight (clamped overlap instead of hidden), and thickened/brightened depth-tested board grid strips for better readability at grazing camera angles.
-- Iteration 91: Added a legacy-like shared world-space bench grid row (adjacent to the board front edge) so bench slots are visible in `opengl_shared`/`d3d12` even when the backend bench overlay strip is present, and refreshed the roadmap status snapshot to reflect current parity progress/gaps (shared model/HUD/growl/tail-fire gains, VFX and board/bench polish still open).
-- Iteration 92: Fixed shared textured-model mirrored-UV seam artifacts (e.g. visible line down Pidgey's face/front) by clamping manually wrapped UVs to texel centers before sampling in both OpenGL-shared and D3D12 world textured pipelines, reducing boundary-edge bleed from repeat/mirrored-repeat wrap emulation.
-- Iteration 93: Followed up a D3D12-only Pidgey seam regression still visible after Iteration 92 by switching the D3D12 shared world sampler to clamp (shader already applies per-texture wrap) and sampling generic textured world meshes with `SampleGrad` using pre-wrap UV derivatives, reducing mip/edge seam artifacts on mirrored/repeated UV islands.
-- Iteration 94: Fixed the likely remaining D3D12-only textured seam source by making D3D12 CPU mip generation wrap-aware for world textures (repeat/mirrored-repeat/clamp per texture) instead of clamp-only edge averaging, while keeping sprite/fallback textures on clamp mips; this targets seams that persist only in D3D12 shared routes because they were baked into D3D12-generated mip levels.
-- Iteration 95: Replaced the D3D12 shared world textured path's single fixed sampler approximation with real static sampler combinations for clamp/repeat/mirror (per axis) and routed generic textured world sampling through the matching sampler state (while keeping tail-fire atlas sampling on clamp), so D3D12 filtering footprints honor the same wrap semantics as OpenGL shared on mirrored/repeated UV seams.
-- Iteration 96: Fixed shared/backend shop sell-overlay parity in `ScriptedState` by hiding the main shop card row while the sell/release drop overlay is active (previously only the item row was suppressed), and excluding hidden shop cards from the backend shop snapshot so they are not still clickable during a unit drag.
-- Iteration 97: Added `docs/PARITY_OUTSTANDING.md`, a shorter living punch list of remaining user-visible parity gaps (including the unresolved D3D12-only Pidgey seam, leech-seed/VFX signoff items, and final board/bench/faint/shop-overlay checks) plus the next pragmatic debug sequence.
-- Iteration 98: Improved Adventure-mode shared parity by replacing the backend/shared text-only inventory list with an icon-card inventory panel using the same `items_atlas.png` icon UV mappings as legacy `ItemInventoryUI` (including selection/page controls and click hit regions), and restored visible shared capture-attempt presentation (`opengl_shared`/`d3d12`) by bridging `GameWorld` capture state into a backend-rendered pokeball throw/shake/resolve animation overlay (screen-space pokeball icon + phase cues) while keeping exact 3D pokeball-model parity as a follow-up item.
-- Iteration 99: Replaced the shared Adventure capture overlay fallback with a real backend-rendered `assets/models/pokeball.glb` path in `opengl_shared`/`d3d12` (using the shared world indexed mesh pipeline + `GameWorld` capture snapshots), added optional auto-detected `open` clip playback (forward then reverse during absorb/impact) when the mesh actually contains an animation clip, and kept the icon overlay only as a load-failure fallback; note that the current raw `assets/models/pokeball.glb` in this checkout parses with zero animation clips, so open/close playback will only activate once the asset includes a clip.
-- Iteration 100: Fixed the new shared pokeball-model capture path to render non-textured/material-color pokeball submeshes instead of skipping them (white-texture fallback + triangle/submesh color/opacity tinting), which could otherwise make `pokeball.glb` appear missing in `opengl_shared`/`d3d12` even though the backend mesh path was active.
-- Iteration 101: Wired shared Adventure capture to the updated animated `pokeball.glb` clip (`Hinge_TopAction`) by driving pokeball open/close playback from the capture `Absorb` phase in both shared render paths (OpenGL-shared direct `Model::drawAnimated` path + backend indexed mesh path via backend clip-pose node deltas), and added shared target capture visual timing so the target turns red and fades toward half opacity while shrinking late in absorb (near the end of the pokeball clip) rather than immediately on impact; also added a one-time shared warning when the backend pokeball cache has no animations (stale `.pacmdl` vs updated GLB).
-- Iteration 102: Began post-parity housework phase after user manual signoff of core shared-vs-legacy parity gates, moved shared capture absorb presentation timing semantics (phase progress + late absorb visual ramp) into `GameWorld::CaptureAttemptRenderSnapshot` so renderer paths stop hardcoding capture durations in `GameSession`, and added a dedicated `docs/HOUSEWORK_ROADMAP.md` for modularization/legacy-retirement prep work.
-- Iteration 103: Continued housework in `GameSession.cpp` by extracting shared capture support helpers into the file-level utility namespace (`SharedCaptureSnapshotCache`, shared pokeball clip-time mapping, shared pokeball transform builder, and shared pokeball animation-index lookup) and reusing them across the backend shared capture path and the OpenGL-shared direct pokeball draw path, reducing duplicate capture-render logic while preserving behavior.
-- Iteration 104: Performed the first real runtime-module extraction in the housework phase by moving shared capture presentation helpers out of `GameSession.cpp` into a dedicated `src/game/runtime/SharedCapturePresentation.h/.cpp` module (snapshot cache/index lookup, pokeball clip-time mapping, pokeball transform builder, pokeball animation-index lookup), then rewired `GameSession` shared capture paths to call the new module so future capture-render body extraction can proceed on a smaller surface area.
-- Iteration 105: Added housework regression guardrails by wiring `PAC_RuntimeSmoke.opengl_shared` in `CMakeLists.txt` (enabled when `PAC_ENABLE_RUNTIME_SMOKE_TESTS` is on) and adding automated contracts for shared capture presentation helpers (`shared_capture_presentation_contract`) plus `GameWorld` capture snapshot normalized timing/presentation fields (`gameworld_capture_render_snapshot_timing_contract`), while documenting the remaining gap that runtime menu-click parity and visual parity still require manual signoff or a future image-diff harness.
-- Iteration 106: Continued housework by moving the `opengl_shared` capture pokeball render loop (snapshot fetch + `pokeball.glb` model draw + shared clip-time mapping) out of `GameSession.cpp` into `SharedCapturePresentation` as `drawOpenGlSharedCapturePokeballModels(...)`, reducing `GameSession` capture-specific dispatch code and consolidating OpenGL-shared capture model presentation logic with the shared capture helper module.
-- Iteration 107: Performed a larger shared-path modularization pass by extracting the shared world indexed-batch type and final submission logic (texture payload assembly, opaque/mask pass, stable depth-sorted blend pass) from `GameSession.cpp` into a dedicated `SharedWorldIndexedBatches.h/.cpp` runtime module, then added `shared_world_indexed_batches_contract` to lock draw ordering/owned-texture fallback behavior during future housework.
-- Iteration 108: Continued the post-parity housework split of `D3D12RenderBackend.cpp` by introducing `d3d12/D3D12RenderBackendInternal.h` for shared backend structs/constants/helper functions (`alignUp`, wrap sanitization, `WorldPsConstants` mapping), moving D3D12 pipeline creation method definitions (`createDebugPipeline`, `createWorldPipeline`, `createSpritePipeline`) into `d3d12/D3D12RenderBackendPipelines.cpp`, and adding `d3d12_world_material_constants_contract` so backend helper extraction remains regression-protected during further D3D12 modularization.
-- Iteration 109: Fixed a backend-cache parity gap between `opengl_shared` and `d3d12` by making `game/runtime/BackendModelCache::loadMeshFromCache(...)` self-heal on cache miss/corrupt/stale source metadata (fastgltf source parse -> write `.pacmdl` -> retry load) using CPU-only glTF helpers, so D3D12 no longer depends on an OpenGL path to regenerate deleted or outdated backend model caches (including `pokeball.glb`).
-- Iteration 110: Continued D3D12 shared capture pokeball parity/perf work by forcing the pokeball capture path down the material-color/no-texture route (the actual GLB has no image textures, but backend cache can synthesize 1x1 color textures that previously pushed it through the slower/wrong textured path), restoring stable legacy-centered shake yaw in shared capture presentation, disabling expensive D3D12 chunk prewarm on Pokeball selection, and moving cached D3D12 world meshes to default GPU buffers (one-time upload/copy) instead of upload heaps so rigid pokeball shake/resolve phases use a faster cached draw path.
-- Iteration 111: Resumed post-parity housework after stabilizing shared capture parity by splitting D3D12 sprite/world texture loading code (`ensureFallbackSpriteTexture`, `ensureSpriteTexture`, `ensureWorldTexture`) out of `src/engine/render/D3D12RenderBackend.cpp` into `src/engine/render/d3d12/D3D12RenderBackendTextures.cpp`, shrinking the backend monolith and creating a safer seam for follow-up D3D12 texture/sampler/upload refactors without touching shared capture gameplay behavior.
-- Iteration 112: Continued D3D12 backend housework by extracting D3D12 debug draw methods (`drawDebugQuads`, `drawDebugLines`, `drawDebugTriangles`, `drawDebugSprites`) into `src/engine/render/d3d12/D3D12RenderBackendDebugDraw.cpp`, separating backend UI/debug overlay draw code from core world/device/render backend logic and reducing `D3D12RenderBackend.cpp` size without changing gameplay behavior.
-- Iteration 113: Continued D3D12 backend housework by extracting cached world-mesh cache/draw methods (`drawWorldIndexedMeshCached`, `prewarmWorldIndexedMeshCached`, `ensureCachedWorldMesh`, and `drawWorldIndexedMeshCachedInternal`) into `src/engine/render/d3d12/D3D12RenderBackendCachedWorldMeshes.cpp`, isolating the reusable cached-rigid-world-mesh path (currently used heavily by shared capture props) from the D3D12 backend monolith without changing render behavior.
-- Iteration 114: Continued D3D12 backend housework by extracting core world draw submission methods (`drawWorldTriangles`, `drawWorldIndexedMesh`, `drawWorldIndexedMeshTextured`, and `drawWorldIndexedMeshInternal`) into `src/engine/render/d3d12/D3D12RenderBackendWorldDraw.cpp`, separating the main D3D12 shared-world dynamic upload/draw path from device/lifecycle code without changing render behavior.
-- Iteration 115: Continued D3D12 backend housework by extracting lifecycle/device-frame methods (`beginFrame`, `endFrame`, `onResize`, `shutdown`, `initDeviceAndSwapchain`, render-target/depth create/release, `waitForGpu`, and `ensureWindowHandle`) into `src/engine/render/d3d12/D3D12RenderBackendLifecycle.cpp`, reducing `D3D12RenderBackend.cpp` to constructor/destructor wiring while preserving behavior.
-- Iteration 116: Continued `GameSession` housework by extracting shared growl VFX TEV/pass-classification/texture-bake helper math (including shared line-alpha quantization) into `src/game/runtime/SharedGrowlVfxHelpers.h/.cpp`, rewiring the shared growl bridge to call helper functions directly, and adding `shared_growl_vfx_helpers_contract` so growl helper behavior stays locked during future shared VFX module extraction.
-- Iteration 117: Continued `GameSession` housework by extracting shared growl wave pass geometry/batch assembly (ring iteration, direction jitter, fade/alpha scaling, quarter-ring vs mesh batch generation, and sort-depth computation) into `src/game/runtime/SharedGrowlWaveBatches.h/.cpp`, keeping mesh/texture cache lookup in `GameSession`, and adding `shared_growl_wave_batches_contract` to guard the new batch-builder module during future shared VFX bridge extraction.
-- Iteration 118: Continued `GameSession` housework by extracting shared growl bridge orchestration (draw-pass iteration + TEV resolution + mesh/texture resolver callback dispatch into the growl batch-builder) into `src/game/runtime/SharedGrowlWaveBridge.h/.cpp`, reducing `GameSession` growl logic to snapshot gating and cache-backed resolver lambdas, and adding `shared_growl_wave_bridge_contract` to lock callback usage and valid-pass batch append behavior during further shared VFX module extraction.
-- Iteration 119: Continued `GameSession` housework by extracting the shared capture overlay fallback builder (screen-space pokeball icon/seam overlay plus phase-driven projected rings for the old 2D capture overlay path) into `src/game/runtime/SharedCaptureOverlayVfx.h/.cpp`, rewiring the local `appendSharedCaptureAttemptVfx` lambda to delegate to the new helper, and adding `shared_capture_overlay_vfx_contract` so shared capture presentation refactors keep the overlay fallback behavior stable.
-- Iteration 120: Continued `GameSession` housework by extracting shared particle billboard style selection (fragment-shader-name classification to procedural texture/tint/alpha rules for non-tail-fire shared particle VFX) into `src/game/runtime/SharedParticleVfxStyles.h/.cpp`, rewiring the shared particle bridge in `GameSession` to call the helper, and adding `shared_particle_vfx_styles_contract` so future particle-bridge decomposition keeps style mappings stable.
-- Iteration 121: Continued `GameSession` housework by extracting the generic shared particle billboard batch-builder (non-tail-fire particle quad assembly, clip rejection, flipbook UV frame selection, style tint/alpha propagation, and blend sort-depth accumulation) into `src/game/runtime/SharedParticleBillboardBatches.h/.cpp`, rewiring the non-tail-fire branch of `appendSharedParticleVfx` to call the helper, and adding `shared_particle_billboard_batches_contract` to guard particle billboard assembly behavior during further shared particle-bridge extraction.
-- Iteration 122: Continued `GameSession` housework by extracting shared particle VFX dispatch/orchestration (ordered per-effect snapshot append calls plus tail-fire/leech-drain result-flag forwarding) into `src/game/runtime/SharedParticleVfxBridgeDispatch.h/.cpp`, rewiring `appendSharedParticleVfx` to call the helper while leaving tail-fire exact/special/fallback code in `GameSession`, and adding `shared_particle_vfx_bridge_dispatch_contract` to guard dispatch order and flag behavior during further particle-bridge decomposition.
+### Phase 1: Benchmark Harness
+1. Define one repeatable heavy combat scene and one light scene.
+2. Automate scene startup as much as possible (seed + scripted actions).
+3. Run the full resolution/backend matrix and store results.
 
-How This File Is Used
-- Before each parity implementation iteration:
-  - pick items from the prioritized backlog,
-  - mark them `in progress` in this file.
-- After each iteration:
-  - mark completed items,
-  - append one-line summary in Iteration Log,
-  - include one-line commit message in the status update.
-- Housework Iteration 123: extracted shared tail-fire atlas prep/bake helpers (`SharedTailFireAtlasHelpers`) from `GameSession` and added `shared_tail_fire_atlas_helpers_contract` so future tail-fire bridge refactors have a focused regression guard for premultiplied atlas generation and combined-atlas rect packing.
-- Housework Iteration 124: extracted shared tail-fire exact GPU batch assembly (`SharedTailFireExactGpuBatches`) from `GameSession` and added `shared_tail_fire_exact_gpu_batches_contract` to guard exact fire-tail material payload fields, atlas-rect forwarding, and billboard quad assembly during further tail-fire bridge cleanup.
-- Housework Iteration 125: pushed `GameSession.cpp` under the interim `<6000` target by extracting backend pose evaluation/sampling (`SharedBackendPoseEval.h/.cpp`) and moving the large shared particle snapshot billboard builder block (including tail-fire special billboard branches) into `GameSessionSharedParticleBillboards.inl`, while preserving behavior and validating with full build + `ctest`.
-- Housework Iteration 126: replaced the temporary `GameSessionSharedParticleBillboards.inl` split with a proper runtime helper module (`SharedParticleSnapshotBillboards.h/.cpp`) so the shared particle snapshot billboard builder (including tail-fire special billboard branches) is no longer pulled into `GameSession.cpp` via an include fragment; `GameSession.cpp` stays below the interim `<6000` target after the cleanup (`5929` lines).
-- Housework Iteration 127: extracted the D3D12 shared capture pokeball fast path (cached rigid combined-mesh prewarm/draw plus per-submesh cached draw fallback for clip/open-close frames) from `GameSession.cpp` into `SharedCaptureD3d12FastPath.h/.cpp`, rewired `appendSharedCaptureAttemptModels` to delegate to the helper, and pushed `GameSession.cpp` below the next housework target to `4978` lines while keeping full build + `ctest` green.
-- Housework Iteration 128: extracted the shared per-unit HUD builder (`xpToNextLevel`, XP ring arc, HP/energy bars, and centered level text geometry/text assembly) from `GameSession.cpp` into `SharedUnitHudBatches.h/.cpp`, rewired both projected-HUD call sites to use the helper, and reduced `GameSession.cpp` again to `4838` lines with full build + `ctest` still green.
-- Housework Iteration 129: extracted the shared capture-model bridge (`appendSharedCaptureAttemptModels`) from `GameSession.cpp` into `SharedCaptureModelBridge.h/.cpp` (shared capture snapshot refresh/prewarm gating, backend pokeball mesh load, D3D12 fast-path delegation, capture clip-pose node-delta rendering, and shared indexed-batch fallback assembly), rewired `GameSession` to pass callback-based dependencies into the helper, and reduced `GameSession.cpp` to `4464` lines while keeping build + `ctest` green.
-- Housework Iteration 130: extracted projected-scene helper wrappers and thread-local depth-buffer plumbing from `GameSession.cpp` into `SharedProjectedWorldSceneHelpers.h/.cpp` (shared growl/particle bridge session wrappers, board-grid projected wrapper, model-depth buffer acquire/flush, tail-fire fallback config lookup, backend mesh resolve, and shared capture-model bridge convenience wrappers), then rewired `GameSession` projected-world flow to call the new helper module and pushed `GameSession.cpp` under the next target to `3996` lines with full build + `ctest` still green.
-- Housework Iteration 131: extracted backend debug-view overlay composition/submission (perf bar, backend status text, inventory panel/icon-card overlay, left/right log feeds, and final debug draw submissions) from `renderBackendDebugView(...)` into `SharedBackendDebugViewOverlay.h/.cpp`, rewired `GameSession` to pass a typed `ComposeAndSubmitArgs` object into the helper, and reduced `GameSession.cpp` to `3469` lines while preserving build + `ctest` stability.
-- Housework Iteration 132: extracted the large projected-unit render lambda (`drawProjectedUnits`) from `GameSession.cpp` into `SharedProjectedUnitRenderer.h/.cpp` (shared/backend model rendering, unit HUD appenders, shared VFX/capture hooks, portrait fallback handling, and model-depth callback plumbing), rewired board + bench projected-unit passes to use a typed args object, and reduced `GameSession.cpp` to `2059` lines while keeping full build + `ctest` green.
-- Housework Iteration 133: continued breaking up the new projected-unit renderer monolith by extracting the post-model projected-unit overlay/HUD/VFX block (portrait fallback sprite, projected growl/leech/tail-fire fallback overlays, projectile/impact fallback overlays, and per-unit HUD appenders) into `SharedProjectedUnitOverlays.h/.cpp`, reducing `SharedProjectedUnitRenderer.cpp` from `1558` to `1313` lines while keeping full build + `ctest` green.
-- Housework Iteration 134: continued projected-unit-renderer decomposition by extracting the large backend/shared model-render branch (backend mesh pose evaluation, shared indexed-batch/world-triangle submission, tail-anchor extraction, tint/fade/capture/faint model-state application, and triangle-budget handling) into `SharedProjectedUnitModelRenderer.h/.cpp`, reducing `SharedProjectedUnitRenderer.cpp` from `1313` to `346` lines while keeping full build + `ctest` green.
-- Housework Iteration 135: continued projected-unit-model-renderer decomposition by splitting the extracted backend/shared model-render implementation into a thin coordinator (`SharedProjectedUnitModelRenderer.cpp`) and a dedicated backend-mesh implementation module (`SharedProjectedUnitBackendMeshRenderer.h/.cpp`), preserving behavior while isolating the next large split target (pose/tint/model-state prep vs triangle/batch submission) and keeping full build + `ctest` green.
-- Housework Iteration 136: continued projected-unit backend-mesh decomposition by extracting model-state/pose/tint/budget prep and shared indexed-batch initialization into `SharedProjectedUnitBackendMeshPrep.h/.cpp`, reducing `SharedProjectedUnitBackendMeshRenderer.cpp` from `1091` to `947` lines and leaving the backend-mesh renderer focused on node/skin transform caches plus triangle/batch submission while full build + `ctest` remained green.
-- Housework Iteration 137: continued projected-unit backend-mesh decomposition by extracting the node/skin transform caches and world vertex resolvers (skin-matrix cache, node transform cache, deformed/skinned world-position sampling, and cached world normal/position resolve helpers) into `SharedProjectedUnitBackendMeshTransforms.h/.cpp`, reducing `SharedProjectedUnitBackendMeshRenderer.cpp` from `947` to `645` lines so the remaining file is concentrated on triangle/batch submission and material/color handling while full build + `ctest` stayed green.
-- Housework Iteration 138: continued projected-unit backend-mesh decomposition by extracting the triangle/batch submission helper (fast textured indexed-batch append, indexed textured/untextured batch append, and projected/world triangle fallback submission) into `SharedProjectedUnitBackendMeshTriangleSubmit.h/.cpp`, reducing `SharedProjectedUnitBackendMeshRenderer.cpp` from `645` to `346` lines so the renderer now focuses on triangle iteration/material-color resolution and dispatch into prep/transform/submission helpers while full build + `ctest` stayed green.
-- Housework Iteration 139: began `BackendModelCache.cpp` decomposition by extracting the source GLB parse/build stage (scene/mesh/material decode into `SourceCacheBuildData`) into `BackendModelCacheSourceBuild.h/.cpp`, rewired `BackendModelCache.cpp` rebuild orchestration to call the new helper module, and reduced `BackendModelCache.cpp` from `1365` to `1110` lines while keeping full build + `ctest` green.
-- Housework Iteration 140: continued `BackendModelCache.cpp` decomposition by extracting cache write/serialization (`writeBackendCacheFromSourceData`) into `BackendModelCacheWrite.h/.cpp`, moving shared cache header/texture-header format definitions into `BackendModelCacheFormat.h`, and reducing `BackendModelCache.cpp` further from `1110` to `850` lines while keeping full build + `ctest` green.
-- Housework Iteration 141: continued `BackendModelCache.cpp` decomposition by extracting cache open/header/freshness validation + rebuild-retry self-heal policy into `BackendModelCacheLoadOrRebuild.h/.cpp`, rewiring `loadMeshFromCache(...)` to delegate validated cache-stream acquisition before mesh decode, and reducing `BackendModelCache.cpp` again from `850` to `780` lines while keeping full build + `ctest` green.
-- Housework Iteration 142: continued `BackendModelCache.cpp` decomposition by extracting the validated-cache-stream mesh decode/material synthesis path (scene metadata decode, cached texture decode/sampling, triangle metadata synthesis, and vertex base-color accumulation) into `BackendModelCacheReadDecode.h/.cpp`, rewriting `BackendModelCache.cpp` as a thin coordinator over `LoadOrRebuild`, `ReadDecode`, `SourceBuild`, and `Write` helpers and reducing `BackendModelCache.cpp` further while keeping full build + `ctest` green.
-- Housework Iteration 143: began `OpenGLRenderBackend.cpp` decomposition by extracting OpenGL texture cache/load methods (`ensureWorldTexture`, `ensureSpriteTexture`, `clearTextureCaches`) into `src/engine/render/opengl/OpenGLRenderBackendTextures.cpp`, mirroring the D3D12 backend split pattern and reducing the OpenGL backend monolith without changing shared/legacy rendering behavior.
-- Housework Iteration 144: continued `OpenGLRenderBackend.cpp` decomposition by extracting OpenGL debug draw methods (`drawDebugQuads`, `drawDebugLines`, `drawDebugTriangles`, `drawDebugSprites`) into `src/engine/render/opengl/OpenGLRenderBackendDebugDraw.cpp`, preserving backend UI/debug overlay rendering behavior while further reducing the OpenGL backend monolith.
-- Housework Iteration 145: continued `OpenGLRenderBackend.cpp` decomposition by extracting core world draw submission methods (`drawWorldTriangles`, `drawWorldIndexedMesh`, `drawWorldIndexedMeshCached`, `prewarmWorldIndexedMeshCached`, and `drawWorldIndexedMeshTextured`) into `src/engine/render/opengl/OpenGLRenderBackendWorldDraw.cpp`, isolating the OpenGL shared/legacy world geometry submission path while keeping full build + `ctest` green.
-- Housework Iteration 146: continued `OpenGLRenderBackend.cpp` decomposition by extracting OpenGL pipeline creation/destruction methods (`ensure/destroyDebugPipeline`, `ensure/destroyWorldPipeline`, and `ensure/destroySpritePipeline`) into `src/engine/render/opengl/OpenGLRenderBackendPipelines.cpp`, leaving the backend file focused on lifecycle/basic API methods while keeping full build + `ctest` green.
-- Housework Iteration 147: began `ScriptedState.cpp` decomposition by extracting backend UI/text-menu method definitions (backend card row rebuild/snapshot/render/input handlers plus backend text-menu layout/render/headless key handling) into `src/game/state/ScriptedStateBackendUi.cpp`, reducing `ScriptedState.cpp` from `1328` to `577` lines while keeping full build + `ctest` green.
-- Housework Iteration 148: continued `ScriptedState.cpp` decomposition by extracting card-row rebuilding and scripted UI capability/init-selection logic (`rebuildCardRow`, `ensureCardUI`, and `ScriptedUiCapabilities` helpers) into `src/game/state/ScriptedStateCardUi.cpp`, further reducing `ScriptedState.cpp` and leaving it focused on lifecycle/input/update/render orchestration while keeping full build + `ctest` green.
-- Housework Iteration 149: continued `ScriptedState.cpp` decomposition by extracting the large scripted menu/shop/adventure UI interaction handler (`handleInput`) into `src/game/state/ScriptedStateInputUi.cpp`, further reducing `ScriptedState.cpp` so it mainly owns lifecycle/update/render flow while keeping full build + `ctest` green.
-- Housework Iteration 150: continued `ScriptedState.cpp` decomposition by extracting render/UI composition (`render`) and shop HUD rendering (`drawShopHud`) into `src/game/state/ScriptedStateRenderUi.cpp`, leaving `ScriptedState.cpp` as a thin lifecycle/update wrapper plus constructor/destructor while keeping full build + `ctest` green.
-- Housework Iteration 151: continued `SharedParticleSnapshotBillboards.cpp` decomposition by extracting the large exact tail-fire CPU snapshot batch path (CPU `fire_tail` tile bake, tile-cache reuse, and exact shared billboard batch assembly) into `src/game/runtime/SharedTailFireExactCpuSnapshotBatches.h/.cpp`, cutting the shared particle snapshot billboard hotspot roughly in half while preserving behavior and keeping full build + `ctest` green.
-- Housework Iteration 152: continued `SharedParticleSnapshotBillboards.cpp` decomposition by extracting the remaining tail-fire special-path orchestration (exact GPU dispatch, exact-CPU dispatch, premultiplied dual-atlas fallback billboard assembly, and tail-fire-specific atlas cache helpers) into `src/game/runtime/SharedTailFireSnapshotBillboards.h/.cpp`, reducing `SharedParticleSnapshotBillboards.cpp` to a small dispatcher (`103` lines) while preserving behavior and keeping full build + `ctest` green.
-- Housework Iteration 153: continued tail-fire exact-CPU path decomposition by splitting `SharedTailFireExactCpuSnapshotBatches.cpp` into a thin coordinator wrapper (`29` lines) and a dedicated tile-bake/cache implementation module (`SharedTailFireExactCpuTileBake.h/.cpp`, `613` lines), isolating the CPU `fire_tail` tile synthesis/cache code for future optimization while keeping behavior unchanged and full build + `ctest` green.
-- Housework Iteration 154: performed a larger three-file housework pass by extracting backend-cache scene/animation decode + bind-global reconstruction into `BackendModelCacheReadScene.h/.cpp`, splitting OpenGL world pipeline create/destroy methods and shared shader compile/link helpers into `OpenGLRenderBackendWorldPipeline.cpp` + `OpenGLRenderBackendShaderUtils.h/.cpp`, and extracting shared tail-fire snapshot atlas cache/premul/combined-atlas resolution plus exact-GPU dispatch wrapper into `SharedTailFireSnapshotAtlasCache.h/.cpp`, with full build + `ctest` remaining green.
-- Housework Iteration 156: performed a renderer-boundary-oriented folder reorg by moving route-policy headers into `src/game/runtime/routes/`, the split backend model-cache family into `src/game/runtime/backend_model_cache/`, and the split `ScriptedState` family into `src/game/state/scripted/`, then updating includes/CMake/tests so parity guardrails and runtime routes continue to build/test cleanly.
-- Housework Iteration 157: continued the renderer-boundary-oriented folder reorg by moving the split shared-contract runtime helper family (`Shared*`) into `src/game/runtime/shared/` (flat first pass), updating includes/CMake/tests, and keeping full build + `ctest` green; this makes shared-route ownership explicit and sets up a lower-risk follow-on reorg into `shared/projected`, `shared/capture`, `shared/vfx`, `shared/ui`, and `shared/world` while preserving the ability to identify and eventually retire legacy OpenGL-specific gameplay render files.
-- Housework Iteration 158: completed the deeper shared-contract runtime folder reorg by moving the `Shared*` family from `src/game/runtime/shared/` into subsystem folders (`shared/projected`, `shared/capture`, `shared/vfx/growl`, `shared/vfx/particles`, `shared/vfx/tail_fire`, `shared/ui`, `shared/world`, `shared/backend`), then updating includes/CMake/tests and keeping full build + `ctest` green; this improves file-ownership visibility for shared-vs-legacy render paths and supports the eventual retirement of legacy OpenGL-specific gameplay render files.
-- Housework Iteration 159: clarified the retirement target and naming strategy in `docs/RENDER_PATH_FILE_MAP.md`: retire legacy gameplay presentation files (not the OpenGL backend used by `opengl_shared`), and keep explicit `Shared*` naming until dual-path removal is complete, then perform one coordinated post-retirement rename batch to simplify names safely.
-- Housework Iteration 160: enforced shared-first gameplay route selection at startup in `GameSession` and route helpers: OpenGL now defaults to shared gameplay routes (same as D3D12), legacy gameplay routes are only re-enabled via a single explicit dev override (`PAC_LEGACY_GAMEPLAY_RENDER_PATH=1`), and the new `startup_render_route_policy_contract` test guards this behavior for future refactors.
+### Phase 2: Immediate Performance Wins
+1. Remove per-frame `waitForGpu()` behavior in normal D3D12 frame flow.
+2. Keep fences for resource safety, but allow frames-in-flight.
+3. Re-run matrix and compare deltas.
+
+### Phase 3: Workload Optimization
+1. Reduce per-frame render submission overhead (batch/state churn).
+2. Prioritize high-impact combat costs (animated units, overdraw-heavy VFX, expensive passes).
+3. Validate gains with matrix reruns after each slice.
+
+### Phase 4: Merge Decision
+Merge D3D12 branch into `master` only when Gates 1-5 pass.
+
+## API Expansion Rule
+Do not start Vulkan implementation until:
+- D3D12 branch is merged,
+- benchmark pipeline is stable,
+- and OpenGL/D3D12 regressions are caught by repeatable measurements.

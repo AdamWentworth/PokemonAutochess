@@ -11,7 +11,7 @@ cache
 *.pdb
 .vs
 
-all_contents.txt
+config/user/*
 
 # Visual Studio Code
 .vscode/

@@ -43,3 +43,10 @@ D3D12RenderBackend::~D3D12RenderBackend() {
     shutdown();
 }
 
+bool D3D12RenderBackend::getLastFrameTimings(BackendFrameTimings& outTimings) const {
+    outTimings.presentWaitMs = lastPresentWaitMs_;
+    outTimings.gpuFrameMs = lastGpuFrameMs_;
+    outTimings.gpuFrameValid = lastGpuFrameValid_;
+    return true;
+}
+

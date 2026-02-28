@@ -22,6 +22,7 @@ struct ID3D12Device;
 struct ID3D12Fence;
 struct ID3D12GraphicsCommandList;
 struct ID3D12PipelineState;
+struct ID3D12QueryHeap;
 struct ID3D12Resource;
 struct ID3D12RootSignature;
 #endif
@@ -40,6 +41,7 @@ public:
     void onResize(int width, int height) override;
     bool requiresOpenGLContext() const override { return false; }
     bool handlesPresentation() const override { return true; }
+    bool getLastFrameTimings(BackendFrameTimings& outTimings) const override;
     std::string activeGpuName() const override { return adapterName_; }
     bool activeGpuIsDiscrete() const override { return discreteAdapter_; }
     bool supportsWorldTriangles3D() const override { return true; }
@@ -151,12 +153,18 @@ private:
     bool recording_ = false;
     bool discreteAdapter_ = false;
     std::string adapterName_;
+    float lastPresentWaitMs_ = 0.0f;
+    float lastGpuFrameMs_ = 0.0f;
+    bool lastGpuFrameValid_ = false;
 
     float clearColor_[4] = {0.1f, 0.1f, 0.1f, 1.0f};
 
     static constexpr std::uint32_t kFrameCount = 2;
+    static constexpr std::uint32_t kTimestampQueriesPerFrame = 2;
+    static constexpr std::uint32_t kTimestampQueryCount = kFrameCount * kTimestampQueriesPerFrame;
     std::uint32_t frameIndex_ = 0;
     std::uint64_t fenceValue_ = 0;
+    std::uint64_t timestampFrequency_ = 0;
 
 #if defined(_WIN32)
     void* hwnd_ = nullptr;
@@ -175,6 +183,8 @@ private:
     std::array<Microsoft::WRL::ComPtr<ID3D12CommandAllocator>, kFrameCount> commandAllocators_;
     Microsoft::WRL::ComPtr<ID3D12GraphicsCommandList> commandList_;
     Microsoft::WRL::ComPtr<ID3D12Fence> fence_;
+    Microsoft::WRL::ComPtr<ID3D12QueryHeap> timestampQueryHeap_;
+    Microsoft::WRL::ComPtr<ID3D12Resource> timestampReadbackBuffer_;
     void* fenceEvent_ = nullptr;
     Microsoft::WRL::ComPtr<ID3D12RootSignature> debugRootSignature_;
     Microsoft::WRL::ComPtr<ID3D12PipelineState> debugPipelineState_;

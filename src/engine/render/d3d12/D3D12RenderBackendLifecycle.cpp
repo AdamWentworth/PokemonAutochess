@@ -4,6 +4,7 @@
 #include "engine/render/d3d12/D3D12RenderBackendInternal.h"
 
 #include <algorithm>
+#include <chrono>
 #include <cstring>
 #include <stdexcept>
 #include <string>
@@ -45,6 +46,14 @@ void D3D12RenderBackend::beginFrame(float r, float g, float b, float a) {
     worldVertexFrameOffset_ = 0;
     worldIndexFrameOffset_ = 0;
     spriteVertexFrameOffset_ = 0;
+
+    if (timestampQueryHeap_) {
+        const std::uint32_t queryBase = frameIndex_ * kTimestampQueriesPerFrame;
+        commandList_->EndQuery(
+            timestampQueryHeap_.Get(),
+            D3D12_QUERY_TYPE_TIMESTAMP,
+            queryBase);
+    }
 
     D3D12_RESOURCE_BARRIER toRtv{};
     toRtv.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
@@ -88,6 +97,10 @@ void D3D12RenderBackend::endFrame() {
 #if defined(_WIN32)
     if (!initialized_ || !recording_ || !commandList_ || !swapChain_ || !commandQueue_) return;
 
+    lastPresentWaitMs_ = 0.0f;
+    lastGpuFrameMs_ = 0.0f;
+    lastGpuFrameValid_ = false;
+
     D3D12_RESOURCE_BARRIER toPresent{};
     toPresent.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
     toPresent.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
@@ -97,6 +110,21 @@ void D3D12RenderBackend::endFrame() {
     toPresent.Transition.StateAfter = D3D12_RESOURCE_STATE_PRESENT;
     commandList_->ResourceBarrier(1, &toPresent);
 
+    if (timestampQueryHeap_ && timestampReadbackBuffer_) {
+        const std::uint32_t queryBase = frameIndex_ * kTimestampQueriesPerFrame;
+        commandList_->EndQuery(
+            timestampQueryHeap_.Get(),
+            D3D12_QUERY_TYPE_TIMESTAMP,
+            queryBase + 1);
+        commandList_->ResolveQueryData(
+            timestampQueryHeap_.Get(),
+            D3D12_QUERY_TYPE_TIMESTAMP,
+            queryBase,
+            kTimestampQueriesPerFrame,
+            timestampReadbackBuffer_.Get(),
+            static_cast<UINT64>(queryBase) * sizeof(std::uint64_t));
+    }
+
     if (FAILED(commandList_->Close())) {
         recording_ = false;
         return;
@@ -104,8 +132,38 @@ void D3D12RenderBackend::endFrame() {
 
     ID3D12CommandList* commandLists[] = {commandList_.Get()};
     commandQueue_->ExecuteCommandLists(1, commandLists);
+    const auto presentStart = std::chrono::high_resolution_clock::now();
     swapChain_->Present(1, 0);
     waitForGpu();
+    const auto presentEnd = std::chrono::high_resolution_clock::now();
+    lastPresentWaitMs_ = static_cast<float>(
+        std::chrono::duration<double, std::milli>(presentEnd - presentStart).count());
+
+    if (timestampReadbackBuffer_ && timestampFrequency_ > 0) {
+        D3D12_RANGE readRange{};
+        const std::uint32_t queryBase = frameIndex_ * kTimestampQueriesPerFrame;
+        readRange.Begin = static_cast<SIZE_T>(queryBase) * sizeof(std::uint64_t);
+        readRange.End = static_cast<SIZE_T>(queryBase + kTimestampQueriesPerFrame) * sizeof(std::uint64_t);
+
+        std::uint64_t* queryData = nullptr;
+        if (SUCCEEDED(timestampReadbackBuffer_->Map(
+                0,
+                &readRange,
+                reinterpret_cast<void**>(&queryData))) &&
+            queryData) {
+            const std::uint64_t tsBegin = queryData[queryBase];
+            const std::uint64_t tsEnd = queryData[queryBase + 1];
+            const D3D12_RANGE writtenRange{0, 0};
+            timestampReadbackBuffer_->Unmap(0, &writtenRange);
+
+            if (tsEnd > tsBegin) {
+                const double ticks = static_cast<double>(tsEnd - tsBegin);
+                const double freq = static_cast<double>(timestampFrequency_);
+                lastGpuFrameMs_ = static_cast<float>((ticks * 1000.0) / freq);
+                lastGpuFrameValid_ = true;
+            }
+        }
+    }
 
     recording_ = false;
 #endif
@@ -212,6 +270,9 @@ void D3D12RenderBackend::shutdown() {
     swapChain_.Reset();
     commandQueue_.Reset();
     fence_.Reset();
+    timestampReadbackBuffer_.Reset();
+    timestampQueryHeap_.Reset();
+    timestampFrequency_ = 0;
     device_.Reset();
     adapter_.Reset();
     factory_.Reset();
@@ -221,6 +282,9 @@ void D3D12RenderBackend::shutdown() {
         fenceEvent_ = nullptr;
     }
 #endif
+    lastPresentWaitMs_ = 0.0f;
+    lastGpuFrameMs_ = 0.0f;
+    lastGpuFrameValid_ = false;
     initialized_ = false;
 }
 
@@ -320,6 +384,54 @@ void D3D12RenderBackend::initDeviceAndSwapchain(const std::string& preferredAdap
         throw std::runtime_error("CreateFence failed.");
     }
     fenceValue_ = 0;
+
+    if (FAILED(commandQueue_->GetTimestampFrequency(&timestampFrequency_))) {
+        timestampFrequency_ = 0;
+    }
+    if (timestampFrequency_ > 0) {
+        D3D12_QUERY_HEAP_DESC queryHeapDesc{};
+        queryHeapDesc.Type = D3D12_QUERY_HEAP_TYPE_TIMESTAMP;
+        queryHeapDesc.Count = kTimestampQueryCount;
+        queryHeapDesc.NodeMask = 0;
+        if (FAILED(device_->CreateQueryHeap(
+                &queryHeapDesc,
+                IID_PPV_ARGS(timestampQueryHeap_.ReleaseAndGetAddressOf()))) ||
+            !timestampQueryHeap_) {
+            timestampFrequency_ = 0;
+        } else {
+            D3D12_HEAP_PROPERTIES readbackHeapProps{};
+            readbackHeapProps.Type = D3D12_HEAP_TYPE_READBACK;
+            readbackHeapProps.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
+            readbackHeapProps.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
+            readbackHeapProps.CreationNodeMask = 1;
+            readbackHeapProps.VisibleNodeMask = 1;
+
+            D3D12_RESOURCE_DESC readbackDesc{};
+            readbackDesc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
+            readbackDesc.Alignment = 0;
+            readbackDesc.Width = static_cast<UINT64>(kTimestampQueryCount) * sizeof(std::uint64_t);
+            readbackDesc.Height = 1;
+            readbackDesc.DepthOrArraySize = 1;
+            readbackDesc.MipLevels = 1;
+            readbackDesc.Format = DXGI_FORMAT_UNKNOWN;
+            readbackDesc.SampleDesc.Count = 1;
+            readbackDesc.SampleDesc.Quality = 0;
+            readbackDesc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
+            readbackDesc.Flags = D3D12_RESOURCE_FLAG_NONE;
+
+            if (FAILED(device_->CreateCommittedResource(
+                    &readbackHeapProps,
+                    D3D12_HEAP_FLAG_NONE,
+                    &readbackDesc,
+                    D3D12_RESOURCE_STATE_COPY_DEST,
+                    nullptr,
+                    IID_PPV_ARGS(timestampReadbackBuffer_.ReleaseAndGetAddressOf()))) ||
+                !timestampReadbackBuffer_) {
+                timestampQueryHeap_.Reset();
+                timestampFrequency_ = 0;
+            }
+        }
+    }
 
     fenceEvent_ = CreateEvent(nullptr, FALSE, FALSE, nullptr);
     if (!fenceEvent_) {
