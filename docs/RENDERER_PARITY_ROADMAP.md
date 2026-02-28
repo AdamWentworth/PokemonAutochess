@@ -24,7 +24,6 @@ Observed runtime facts from recent logs:
 - Discrete GPU selection is working (game runs on GTX 1050, not Intel HD 630).
 - OpenGL and D3D12 both launch and run gameplay.
 - D3D12 combat sample shows render-heavy frames around ~16-17 ms render time with total ~20-22 ms frame time (~46-49 FPS).
-- Perf logs now include `render_build_ms`, `render_submit_ms`, `present_wait_ms`, `gpu_frame_ms`, plus `draw_calls` and `triangles`.
 - Perf logs now include `render_build_ms`, `render_submit_ms`, `present_wait_ms`, `gpu_frame_ms`,
   `draw_calls`, `triangles`, `visible_animated_units`, and `particle_count`.
 - OpenGL still reports `gpu_frame_valid=0` (no GPU timestamp path yet on that backend).
@@ -93,8 +92,10 @@ Required:
 
 ### Phase 1: Benchmark Harness
 1. Define one repeatable heavy combat scene and one light scene.
-2. Automate scene startup as much as possible (seed + scripted actions).
+2. Automate scene startup as much as possible (seed + scripted actions + startup video override envs).
 3. Run the full resolution/backend matrix and store results.
+   - `tools/benchmark_render_matrix.ps1` is now the baseline runner for this gate.
+4. Add baseline-to-current comparison summary so matrix runs can fail fast on regressions.
 
 ### Phase 2: Immediate Performance Wins
 1. Remove per-frame `waitForGpu()` behavior in normal D3D12 frame flow.

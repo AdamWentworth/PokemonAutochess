@@ -20,8 +20,8 @@ Goal: catch real regressions while producing trustworthy backend parity/performa
 - `PAC_RuntimeSmoke.opengl`
 - `PAC_RuntimeSmoke.d3d12`
 
-3. Release benchmark gate (manual until automated)
-- Use the benchmark protocol below.
+3. Release benchmark gate
+- Run the benchmark protocol below (automated runner available).
 - Record results in the merge PR/notes.
 
 ## Release Benchmark Protocol (Required)
@@ -30,6 +30,19 @@ Goal: catch real regressions while producing trustworthy backend parity/performa
 ```powershell
 cmake --build build --config Release --target PokemonAutochess
 ```
+
+### Automated Runner (Preferred)
+```powershell
+.\tools\benchmark_render_matrix.ps1 -BuildDir build -Config Release -DurationSeconds 35 -Seed 12345
+```
+Notes:
+- Builds `PokemonAutochess` for the selected config by default before running.
+- Use `-NoBuild` only if you intentionally want to reuse an already-built executable.
+
+Artifacts written to `benchmark/`:
+- CSV summary per matrix row.
+- JSON summary + metadata.
+- Raw stdout logs per row.
 
 ### Test Controls
 - Keep AC power connected.
@@ -72,6 +85,6 @@ For each matrix row, record:
 4. Confirm no crash, no missing model/material regressions, and no obvious backend-only artifacts.
 
 ## Gaps To Close Next
-1. Add an automated benchmark runner (`tools/benchmark_render_matrix.ps1`).
-2. Add optional screenshot parity harness for a small deterministic scene set.
-3. Add benchmark result archival format (CSV/JSON) for merge PRs.
+1. Add optional screenshot parity harness for a small deterministic scene set.
+2. Add CI job to run a reduced benchmark matrix on dedicated hardware.
+3. Add automatic compare-against-baseline thresholds for frame-time regressions.

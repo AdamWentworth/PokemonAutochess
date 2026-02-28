@@ -18,11 +18,13 @@ This list is intentionally short and prioritized by impact on renderer merge rea
 - `scripts/states/main_menu.lua` still labels VSync/FPS/UI scale/quality as placeholders.
 - Impact: unreliable test conditions and user confusion during backend comparison.
 
-4. Runtime log terminology is stale.
-- D3D12 initialization still logs "debug-world render path" wording even though current route model is shared-path based.
+4. Local benchmark output still needs baseline comparison logic.
+- `tools/benchmark_render_matrix.ps1` produces repeatable artifacts, but it does not yet auto-compare
+  against a stored baseline with pass/fail thresholds.
 
 5. No automated backend perf regression guard.
-- CI verifies correctness but not frame-time thresholds.
+- `tools/benchmark_render_matrix.ps1` provides repeatable local matrix runs and artifacts.
+- CI still verifies correctness only; no perf-threshold enforcement on dedicated benchmark hardware yet.
 
 ## Important Secondary Debt
 1. CPU-heavy render workload under combat still needs targeted profiling.

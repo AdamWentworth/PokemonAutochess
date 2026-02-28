@@ -1,0 +1,7 @@
+﻿"backend","resolution","width","height","sample_count","process_exit_code","avg_fps","low_1pct_fps","avg_frame_cpu_ms","avg_gpu_frame_ms","gpu_frame_valid_rate","avg_present_wait_ms","avg_draw_calls","avg_triangles","avg_visible_animated_units","avg_particle_count","seed","duration_seconds","raw_log_path"
+"opengl","1280x720","1280","720","0","-1073741819",,,,,,,,,,,"12345","35","benchmark\render_matrix_20260227_221044_raw\opengl_1280x720.log"
+"opengl","1600x900","1600","900","0","0",,,,,,,,,,,"12345","35","benchmark\render_matrix_20260227_221044_raw\opengl_1600x900.log"
+"opengl","1920x1080","1920","1080","0","0",,,,,,,,,,,"12345","35","benchmark\render_matrix_20260227_221044_raw\opengl_1920x1080.log"
+"d3d12","1280x720","1280","720","0","0",,,,,,,,,,,"12345","35","benchmark\render_matrix_20260227_221044_raw\d3d12_1280x720.log"
+"d3d12","1600x900","1600","900","0","0",,,,,,,,,,,"12345","35","benchmark\render_matrix_20260227_221044_raw\d3d12_1600x900.log"
+"d3d12","1920x1080","1920","1080","0","0",,,,,,,,,,,"12345","35","benchmark\render_matrix_20260227_221044_raw\d3d12_1920x1080.log"

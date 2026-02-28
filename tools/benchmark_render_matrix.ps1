@@ -1,0 +1,274 @@
+param(
+    [string]$BuildDir = "build",
+    [string]$Config = "Release",
+    [string[]]$Backends = @("opengl", "d3d12"),
+    [string[]]$Resolutions = @("1280x720", "1600x900", "1920x1080"),
+    [int]$DurationSeconds = 35,
+    [int]$Seed = 12345,
+    [string]$OutDir = "benchmark",
+    [string]$Tag = "",
+    [switch]$NoBuild,
+    [switch]$AllowEmptySamples
+)
+
+$ErrorActionPreference = "Stop"
+
+function Resolve-GameExecutablePath {
+    param(
+        [string]$BuildDir,
+        [string]$Config
+    )
+
+    $candidates = @(
+        (Join-Path $BuildDir "$Config\PokemonAutochess.exe"),
+        (Join-Path $BuildDir "PokemonAutochess.exe")
+    )
+    foreach ($candidate in $candidates) {
+        if (Test-Path $candidate) {
+            return $candidate
+        }
+    }
+    throw "PokemonAutochess.exe not found in '$BuildDir' for config '$Config'."
+}
+
+function Parse-ResolutionToken {
+    param([string]$Token)
+
+    if ($Token -notmatch '^\s*(\d+)\s*[xX]\s*(\d+)\s*$') {
+        throw "Invalid resolution token '$Token'. Expected format WIDTHxHEIGHT (example: 1600x900)."
+    }
+
+    $w = [int]$Matches[1]
+    $h = [int]$Matches[2]
+    if ($w -le 0 -or $h -le 0) {
+        throw "Invalid resolution token '$Token'. Width/height must be > 0."
+    }
+
+    return @{
+        Width = $w
+        Height = $h
+        Label = "${w}x${h}"
+    }
+}
+
+function Extract-PerfSamples {
+    param([string[]]$Lines)
+
+    $samples = @()
+    foreach ($line in $Lines) {
+        if ($line -match '^\[PerfJSON\]\s*(\{.*\})\s*$') {
+            try {
+                $samples += ($Matches[1] | ConvertFrom-Json)
+            } catch {
+                Write-Warning "Failed to parse PerfJSON line: $line"
+            }
+        }
+    }
+    return $samples
+}
+
+function Get-AverageOrNull {
+    param([double[]]$Values)
+
+    if ($null -eq $Values -or $Values.Count -eq 0) {
+        return $null
+    }
+    return ($Values | Measure-Object -Average).Average
+}
+
+function Get-OnePercentLowOrNull {
+    param([double[]]$Values)
+
+    if ($null -eq $Values -or $Values.Count -eq 0) {
+        return $null
+    }
+    $sorted = $Values | Sort-Object
+    $idx = [int][Math]::Floor(($sorted.Count - 1) * 0.01)
+    return $sorted[$idx]
+}
+
+function Round-OrNull {
+    param(
+        [object]$Value,
+        [int]$Digits = 3
+    )
+
+    if ($null -eq $Value) {
+        return $null
+    }
+    return [Math]::Round([double]$Value, $Digits)
+}
+
+if (-not $NoBuild) {
+    cmake --build $BuildDir --config $Config --target PokemonAutochess
+}
+
+$exePath = Resolve-GameExecutablePath -BuildDir $BuildDir -Config $Config
+$exeInfo = Get-Item -Path $exePath
+Write-Host "Using executable: $($exeInfo.FullName)"
+Write-Host "Executable last write time: $($exeInfo.LastWriteTime.ToString("yyyy-MM-dd HH:mm:ss"))"
+Write-Host "Benchmark config: $Config"
+
+New-Item -ItemType Directory -Path $OutDir -Force | Out-Null
+$timestamp = Get-Date -Format "yyyyMMdd_HHmmss"
+$runName = if ([string]::IsNullOrWhiteSpace($Tag)) {
+    "render_matrix_$timestamp"
+} else {
+    "render_matrix_${Tag}_$timestamp"
+}
+$rawDir = Join-Path $OutDir "${runName}_raw"
+New-Item -ItemType Directory -Path $rawDir -Force | Out-Null
+
+$csvPath = Join-Path $OutDir "$runName.csv"
+$jsonPath = Join-Path $OutDir "$runName.json"
+
+$envKeys = @(
+    "PAC_RENDER_BACKEND",
+    "PAC_RANDOM_SEED",
+    "PAC_AUTO_QUIT_SECONDS",
+    "PAC_VIDEO_WIDTH",
+    "PAC_VIDEO_HEIGHT",
+    "PAC_VIDEO_FULLSCREEN"
+)
+$envBackup = @{}
+foreach ($key in $envKeys) {
+    $envBackup[$key] = [Environment]::GetEnvironmentVariable($key, "Process")
+}
+
+$rows = @()
+
+try {
+    foreach ($backendRaw in $Backends) {
+        $backend = $backendRaw.Trim().ToLowerInvariant()
+        if ([string]::IsNullOrWhiteSpace($backend)) {
+            continue
+        }
+
+        foreach ($resolutionToken in $Resolutions) {
+            $res = Parse-ResolutionToken -Token $resolutionToken
+            Write-Host "Running benchmark row: backend=$backend resolution=$($res.Label) duration=${DurationSeconds}s"
+
+            $env:PAC_RENDER_BACKEND = $backend
+            $env:PAC_RANDOM_SEED = "$Seed"
+            $env:PAC_AUTO_QUIT_SECONDS = "$DurationSeconds"
+            $env:PAC_VIDEO_WIDTH = "$($res.Width)"
+            $env:PAC_VIDEO_HEIGHT = "$($res.Height)"
+            $env:PAC_VIDEO_FULLSCREEN = "0"
+
+            $stdoutPath = Join-Path $rawDir ("{0}_{1}.stdout.tmp.log" -f $backend, $res.Label)
+            $stderrPath = Join-Path $rawDir ("{0}_{1}.stderr.tmp.log" -f $backend, $res.Label)
+            try {
+                $proc = Start-Process `
+                    -FilePath $exePath `
+                    -WorkingDirectory (Get-Location).Path `
+                    -NoNewWindow `
+                    -Wait `
+                    -PassThru `
+                    -RedirectStandardOutput $stdoutPath `
+                    -RedirectStandardError $stderrPath
+
+                $exitCode = $proc.ExitCode
+                $runLines = @()
+                if (Test-Path $stdoutPath) {
+                    $runLines += @(Get-Content -Path $stdoutPath)
+                }
+                if (Test-Path $stderrPath) {
+                    $runLines += @(Get-Content -Path $stderrPath)
+                }
+            } finally {
+                Remove-Item -Path $stdoutPath -ErrorAction SilentlyContinue
+                Remove-Item -Path $stderrPath -ErrorAction SilentlyContinue
+            }
+
+            $rawPath = Join-Path $rawDir ("{0}_{1}.log" -f $backend, $res.Label)
+            Set-Content -Path $rawPath -Value $runLines -Encoding UTF8
+
+            $samples = Extract-PerfSamples -Lines $runLines
+            if ($samples.Count -eq 0) {
+                $message = "No [PerfJSON] samples found for backend=$backend resolution=$($res.Label). " +
+                           "This usually means the wrong/stale executable is being run or instrumentation is missing. " +
+                           "Raw log: $rawPath"
+                if ($AllowEmptySamples) {
+                    Write-Warning $message
+                } else {
+                    throw $message
+                }
+            }
+
+            $fpsVals = @($samples | ForEach-Object { [double]$_.fps })
+            $frameCpuVals = @($samples | ForEach-Object { [double]$_.frame_cpu_ms })
+            $presentVals = @($samples | ForEach-Object { [double]$_.present_wait_ms })
+            $drawVals = @($samples | ForEach-Object { [double]$_.draw_calls })
+            $triVals = @($samples | ForEach-Object { [double]$_.triangles })
+            $visibleUnitVals = @($samples | ForEach-Object { [double]$_.visible_animated_units })
+            $particleVals = @($samples | ForEach-Object { [double]$_.particle_count })
+
+            $gpuValidSamples = @(
+                $samples | Where-Object {
+                    [int]$_.gpu_frame_valid -eq 1 -and [double]$_.gpu_frame_ms -ge 0.0
+                }
+            )
+            $gpuVals = @($gpuValidSamples | ForEach-Object { [double]$_.gpu_frame_ms })
+            $gpuValidRate = if ($samples.Count -gt 0) {
+                [double]$gpuValidSamples.Count / [double]$samples.Count
+            } else {
+                $null
+            }
+
+            $row = [PSCustomObject][ordered]@{
+                backend = $backend
+                resolution = $res.Label
+                width = $res.Width
+                height = $res.Height
+                sample_count = $samples.Count
+                process_exit_code = $exitCode
+                avg_fps = Round-OrNull (Get-AverageOrNull $fpsVals)
+                low_1pct_fps = Round-OrNull (Get-OnePercentLowOrNull $fpsVals)
+                avg_frame_cpu_ms = Round-OrNull (Get-AverageOrNull $frameCpuVals)
+                avg_gpu_frame_ms = Round-OrNull (Get-AverageOrNull $gpuVals)
+                gpu_frame_valid_rate = Round-OrNull $gpuValidRate
+                avg_present_wait_ms = Round-OrNull (Get-AverageOrNull $presentVals)
+                avg_draw_calls = Round-OrNull (Get-AverageOrNull $drawVals)
+                avg_triangles = Round-OrNull (Get-AverageOrNull $triVals)
+                avg_visible_animated_units = Round-OrNull (Get-AverageOrNull $visibleUnitVals)
+                avg_particle_count = Round-OrNull (Get-AverageOrNull $particleVals)
+                seed = $Seed
+                duration_seconds = $DurationSeconds
+                raw_log_path = $rawPath
+            }
+            $rows += $row
+        }
+    }
+} finally {
+    foreach ($key in $envKeys) {
+        $previous = $envBackup[$key]
+        if ($null -eq $previous) {
+            Remove-Item "Env:$key" -ErrorAction SilentlyContinue
+        } else {
+            [Environment]::SetEnvironmentVariable($key, $previous, "Process")
+        }
+    }
+}
+
+$rows | Export-Csv -Path $csvPath -NoTypeInformation -Encoding UTF8
+
+$payload = [ordered]@{
+    generated_at_utc = (Get-Date).ToUniversalTime().ToString("o")
+    executable = $exePath
+    build_dir = $BuildDir
+    config = $Config
+    seed = $Seed
+    duration_seconds = $DurationSeconds
+    backends = $Backends
+    resolutions = $Resolutions
+    rows = $rows
+}
+$payload | ConvertTo-Json -Depth 6 | Set-Content -Path $jsonPath -Encoding UTF8
+
+Write-Host ""
+Write-Host "Benchmark matrix complete."
+Write-Host "CSV : $csvPath"
+Write-Host "JSON: $jsonPath"
+Write-Host "Raw : $rawDir"
+Write-Host ""
+$rows | Format-Table backend, resolution, avg_fps, low_1pct_fps, avg_frame_cpu_ms, avg_gpu_frame_ms, avg_present_wait_ms, avg_draw_calls, avg_triangles, avg_visible_animated_units, avg_particle_count, sample_count -AutoSize

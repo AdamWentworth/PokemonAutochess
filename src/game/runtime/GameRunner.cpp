@@ -48,6 +48,7 @@
 #include <exception>
 #include <iomanip>
 #include <iostream>
+#include <limits>
 #include <memory>
 #include <sstream>
 #include <string>
@@ -74,6 +75,61 @@ namespace {
     bool looksIntegratedGpu(const std::string& vendor, const std::string& renderer) {
         // Heuristic: Intel OpenGL contexts on hybrid laptops are typically iGPU.
         return containsCi(vendor, "intel") || containsCi(renderer, "intel");
+    }
+
+    struct StartupVideoOverride {
+        bool hasWidth = false;
+        bool hasHeight = false;
+        bool hasFullscreen = false;
+        int width = 0;
+        int height = 0;
+        bool fullscreen = false;
+
+        bool enabled() const {
+            return hasWidth || hasHeight || hasFullscreen;
+        }
+    };
+
+    bool parseEnvIntValue(const char* envName, int& outValue) {
+        const auto raw = engine::env::get(envName);
+        if (!raw.has_value()) return false;
+        try {
+            const long long parsed = std::stoll(*raw);
+            if (parsed < static_cast<long long>(std::numeric_limits<int>::min()) ||
+                parsed > static_cast<long long>(std::numeric_limits<int>::max())) {
+                std::cerr << "[Video] Ignoring out-of-range " << envName << " value: " << *raw << "\n";
+                return false;
+            }
+            outValue = static_cast<int>(parsed);
+            return true;
+        } catch (...) {
+            std::cerr << "[Video] Ignoring invalid " << envName << " value: " << *raw << "\n";
+            return false;
+        }
+    }
+
+    bool parseEnvBoolValue(const char* envName, bool& outValue) {
+        const auto raw = engine::env::get(envName);
+        if (!raw.has_value()) return false;
+        const std::string token = toLowerCopy(*raw);
+        if (token == "1" || token == "true" || token == "on" || token == "yes") {
+            outValue = true;
+            return true;
+        }
+        if (token == "0" || token == "false" || token == "off" || token == "no") {
+            outValue = false;
+            return true;
+        }
+        std::cerr << "[Video] Ignoring invalid " << envName << " value: " << *raw << "\n";
+        return false;
+    }
+
+    StartupVideoOverride readStartupVideoOverride() {
+        StartupVideoOverride out;
+        out.hasWidth = parseEnvIntValue("PAC_VIDEO_WIDTH", out.width);
+        out.hasHeight = parseEnvIntValue("PAC_VIDEO_HEIGHT", out.height);
+        out.hasFullscreen = parseEnvBoolValue("PAC_VIDEO_FULLSCREEN", out.fullscreen);
+        return out;
     }
 
     std::unique_ptr<IRenderBackend> createRenderBackend(game::video::RendererBackend backend,
@@ -326,6 +382,22 @@ namespace {
         updateMouseScale();
         const Uint32 flags = SDL_GetWindowFlags(window->getSDLWindow());
         fullscreen = (flags & SDL_WINDOW_FULLSCREEN) != 0 || (flags & SDL_WINDOW_FULLSCREEN_DESKTOP) != 0;
+
+        const StartupVideoOverride startupVideoOverride = readStartupVideoOverride();
+        if (startupVideoOverride.enabled()) {
+            const int overrideW = startupVideoOverride.hasWidth ? startupVideoOverride.width : windowW;
+            const int overrideH = startupVideoOverride.hasHeight ? startupVideoOverride.height : windowH;
+            const bool overrideFullscreen = startupVideoOverride.hasFullscreen
+                ? startupVideoOverride.fullscreen
+                : fullscreen;
+            if (applyVideoMode(overrideW, overrideH, overrideFullscreen)) {
+                std::cout << "[Video] Startup override applied: "
+                          << (fullscreen ? "Fullscreen" : "Windowed")
+                          << " " << drawableW << "x" << drawableH << "\n";
+            } else {
+                std::cerr << "[Video] Failed to apply startup override video mode.\n";
+            }
+        }
 
         if (windowHasOpenGLContext) {
             if (!gladLoadGLLoader((GLADloadproc)SDL_GL_GetProcAddress)) {

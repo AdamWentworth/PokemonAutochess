@@ -1,0 +1,2 @@
+﻿"backend","resolution","width","height","sample_count","process_exit_code","avg_fps","low_1pct_fps","avg_frame_cpu_ms","avg_gpu_frame_ms","gpu_frame_valid_rate","avg_present_wait_ms","avg_draw_calls","avg_triangles","avg_visible_animated_units","avg_particle_count","seed","duration_seconds","raw_log_path"
+"d3d12","1280x720","1280","720","4","0","121.45","119.961","8.225","0.436","1","6.426","2","1002","0","0","12345","5","benchmark\render_matrix_smoke2_20260227_221340_raw\d3d12_1280x720.log"
