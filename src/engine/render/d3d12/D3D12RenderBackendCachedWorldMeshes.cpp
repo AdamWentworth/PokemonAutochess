@@ -346,6 +346,8 @@ void D3D12RenderBackend::drawWorldIndexedMeshCachedInternal(const CachedWorldMes
     ibv.SizeInBytes = static_cast<UINT>(mesh.indexBytes);
     commandList_->IASetIndexBuffer(&ibv);
     commandList_->DrawIndexedInstanced(static_cast<UINT>(mesh.indexCount), 1, 0, 0, 0);
+    ++frameDrawCalls_;
+    frameTriangles_ += static_cast<std::uint64_t>(mesh.indexCount / 3u);
 #else
     (void)mesh;
     (void)viewProjectionMatrix4x4;

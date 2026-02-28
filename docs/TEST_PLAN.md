@@ -71,6 +71,6 @@ For each matrix row, record:
 4. Confirm no crash, no missing model/material regressions, and no obvious backend-only artifacts.
 
 ## Gaps To Close Next
-1. Add true GPU frame timing to perf logs.
+1. Add remaining scene counters to perf logs: `visible_animated_units`, `particle_count`.
 2. Add an automated benchmark runner (`tools/benchmark_render_matrix.ps1`).
 3. Add optional screenshot parity harness for a small deterministic scene set.

@@ -100,6 +100,8 @@ void D3D12RenderBackend::drawWorldTriangles(const WorldTriangle* triangles,
     vbv.SizeInBytes = static_cast<UINT>(neededBytes);
     commandList_->IASetVertexBuffers(0, 1, &vbv);
     commandList_->DrawInstanced(static_cast<UINT>(vertexCount), 1, 0, 0);
+    ++frameDrawCalls_;
+    frameTriangles_ += static_cast<std::uint64_t>(vertexCount / 3u);
     worldVertexFrameOffset_ = static_cast<UINT>(writeOffset + neededBytes);
 #else
     (void)triangles;
@@ -278,6 +280,8 @@ void D3D12RenderBackend::drawWorldIndexedMeshInternal(const WorldMeshVertex* ver
     commandList_->IASetIndexBuffer(&ibv);
 
     commandList_->DrawIndexedInstanced(static_cast<UINT>(safeIndexCount), 1, 0, 0, 0);
+    ++frameDrawCalls_;
+    frameTriangles_ += static_cast<std::uint64_t>(safeIndexCount / 3u);
     worldVertexFrameOffset_ = static_cast<UINT>(vertexWriteOffset + vertexBytes);
     worldIndexFrameOffset_ = static_cast<UINT>(indexWriteOffset + indexBytes);
 #else

@@ -35,8 +35,15 @@ OpenGLRenderBackend::~OpenGLRenderBackend() {
 }
 
 void OpenGLRenderBackend::beginFrame(float r, float g, float b, float a) {
+    frameDrawCalls_ = 0u;
+    frameTriangles_ = 0u;
     glClearColor(r, g, b, a);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+}
+
+void OpenGLRenderBackend::endFrame() {
+    lastFrameDrawCalls_ = frameDrawCalls_;
+    lastFrameTriangles_ = frameTriangles_;
 }
 
 void OpenGLRenderBackend::onResize(int width, int height) {
@@ -56,6 +63,12 @@ bool OpenGLRenderBackend::activeGpuIsDiscrete() const {
     return !containsCi(vendorStr, "intel") && !containsCi(rendererStr, "intel");
 }
 
+bool OpenGLRenderBackend::getLastFrameStats(BackendFrameStats& outStats) const {
+    outStats.drawCalls = lastFrameDrawCalls_;
+    outStats.triangles = lastFrameTriangles_;
+    return true;
+}
+
 void OpenGLRenderBackend::shutdown() {
     destroyDebugPipeline();
     destroyWorldPipeline();
@@ -65,5 +78,9 @@ void OpenGLRenderBackend::shutdown() {
         renderer_->shutdown();
         renderer_.reset();
     }
+    frameDrawCalls_ = 0u;
+    frameTriangles_ = 0u;
+    lastFrameDrawCalls_ = 0u;
+    lastFrameTriangles_ = 0u;
 }
 

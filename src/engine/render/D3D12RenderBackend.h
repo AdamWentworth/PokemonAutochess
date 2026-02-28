@@ -42,6 +42,7 @@ public:
     bool requiresOpenGLContext() const override { return false; }
     bool handlesPresentation() const override { return true; }
     bool getLastFrameTimings(BackendFrameTimings& outTimings) const override;
+    bool getLastFrameStats(BackendFrameStats& outStats) const override;
     std::string activeGpuName() const override { return adapterName_; }
     bool activeGpuIsDiscrete() const override { return discreteAdapter_; }
     bool supportsWorldTriangles3D() const override { return true; }
@@ -143,6 +144,7 @@ private:
                                       int surfaceWidth,
                                       int surfaceHeight);
     void waitForGpu();
+    bool waitForFenceValue(std::uint64_t fenceValue);
     void ensureWindowHandle();
 
 private:
@@ -156,6 +158,10 @@ private:
     float lastPresentWaitMs_ = 0.0f;
     float lastGpuFrameMs_ = 0.0f;
     bool lastGpuFrameValid_ = false;
+    std::uint32_t frameDrawCalls_ = 0u;
+    std::uint64_t frameTriangles_ = 0u;
+    std::uint32_t lastFrameDrawCalls_ = 0u;
+    std::uint64_t lastFrameTriangles_ = 0u;
 
     float clearColor_[4] = {0.1f, 0.1f, 0.1f, 1.0f};
 
@@ -165,6 +171,7 @@ private:
     std::uint32_t frameIndex_ = 0;
     std::uint64_t fenceValue_ = 0;
     std::uint64_t timestampFrequency_ = 0;
+    std::array<std::uint64_t, kFrameCount> frameFenceValues_{};
 
 #if defined(_WIN32)
     void* hwnd_ = nullptr;

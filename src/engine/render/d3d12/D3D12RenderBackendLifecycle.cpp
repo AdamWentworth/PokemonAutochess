@@ -31,11 +31,44 @@ void D3D12RenderBackend::beginFrame(float r, float g, float b, float a) {
     clearColor_[1] = g;
     clearColor_[2] = b;
     clearColor_[3] = a;
+    frameDrawCalls_ = 0u;
+    frameTriangles_ = 0u;
 
 #if defined(_WIN32)
     if (!initialized_ || !device_ || !swapChain_ || !commandList_) return;
 
     frameIndex_ = swapChain_->GetCurrentBackBufferIndex();
+
+    if (frameFenceValues_[frameIndex_] != 0u) {
+        if (!waitForFenceValue(frameFenceValues_[frameIndex_])) return;
+    }
+
+    if (timestampReadbackBuffer_ && timestampFrequency_ > 0 && frameFenceValues_[frameIndex_] != 0u) {
+        const std::uint32_t queryBase = frameIndex_ * kTimestampQueriesPerFrame;
+        D3D12_RANGE readRange{};
+        readRange.Begin = static_cast<SIZE_T>(queryBase) * sizeof(std::uint64_t);
+        readRange.End = static_cast<SIZE_T>(queryBase + kTimestampQueriesPerFrame) * sizeof(std::uint64_t);
+
+        std::uint64_t* queryData = nullptr;
+        if (SUCCEEDED(timestampReadbackBuffer_->Map(
+                0,
+                &readRange,
+                reinterpret_cast<void**>(&queryData))) &&
+            queryData) {
+            const std::uint64_t tsBegin = queryData[queryBase];
+            const std::uint64_t tsEnd = queryData[queryBase + 1];
+            const D3D12_RANGE writtenRange{0, 0};
+            timestampReadbackBuffer_->Unmap(0, &writtenRange);
+
+            if (tsEnd > tsBegin) {
+                const double ticks = static_cast<double>(tsEnd - tsBegin);
+                const double freq = static_cast<double>(timestampFrequency_);
+                lastGpuFrameMs_ = static_cast<float>((ticks * 1000.0) / freq);
+                lastGpuFrameValid_ = true;
+            }
+        }
+    }
+
     auto& allocator = commandAllocators_[frameIndex_];
     if (!allocator) return;
 
@@ -98,8 +131,6 @@ void D3D12RenderBackend::endFrame() {
     if (!initialized_ || !recording_ || !commandList_ || !swapChain_ || !commandQueue_) return;
 
     lastPresentWaitMs_ = 0.0f;
-    lastGpuFrameMs_ = 0.0f;
-    lastGpuFrameValid_ = false;
 
     D3D12_RESOURCE_BARRIER toPresent{};
     toPresent.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
@@ -134,36 +165,19 @@ void D3D12RenderBackend::endFrame() {
     commandQueue_->ExecuteCommandLists(1, commandLists);
     const auto presentStart = std::chrono::high_resolution_clock::now();
     swapChain_->Present(1, 0);
-    waitForGpu();
     const auto presentEnd = std::chrono::high_resolution_clock::now();
     lastPresentWaitMs_ = static_cast<float>(
         std::chrono::duration<double, std::milli>(presentEnd - presentStart).count());
 
-    if (timestampReadbackBuffer_ && timestampFrequency_ > 0) {
-        D3D12_RANGE readRange{};
-        const std::uint32_t queryBase = frameIndex_ * kTimestampQueriesPerFrame;
-        readRange.Begin = static_cast<SIZE_T>(queryBase) * sizeof(std::uint64_t);
-        readRange.End = static_cast<SIZE_T>(queryBase + kTimestampQueriesPerFrame) * sizeof(std::uint64_t);
-
-        std::uint64_t* queryData = nullptr;
-        if (SUCCEEDED(timestampReadbackBuffer_->Map(
-                0,
-                &readRange,
-                reinterpret_cast<void**>(&queryData))) &&
-            queryData) {
-            const std::uint64_t tsBegin = queryData[queryBase];
-            const std::uint64_t tsEnd = queryData[queryBase + 1];
-            const D3D12_RANGE writtenRange{0, 0};
-            timestampReadbackBuffer_->Unmap(0, &writtenRange);
-
-            if (tsEnd > tsBegin) {
-                const double ticks = static_cast<double>(tsEnd - tsBegin);
-                const double freq = static_cast<double>(timestampFrequency_);
-                lastGpuFrameMs_ = static_cast<float>((ticks * 1000.0) / freq);
-                lastGpuFrameValid_ = true;
-            }
+    if (fence_) {
+        const std::uint64_t signal = ++fenceValue_;
+        if (SUCCEEDED(commandQueue_->Signal(fence_.Get(), signal))) {
+            frameFenceValues_[frameIndex_] = signal;
         }
     }
+
+    lastFrameDrawCalls_ = frameDrawCalls_;
+    lastFrameTriangles_ = frameTriangles_;
 
     recording_ = false;
 #endif
@@ -282,9 +296,14 @@ void D3D12RenderBackend::shutdown() {
         fenceEvent_ = nullptr;
     }
 #endif
+    frameFenceValues_.fill(0u);
     lastPresentWaitMs_ = 0.0f;
     lastGpuFrameMs_ = 0.0f;
     lastGpuFrameValid_ = false;
+    frameDrawCalls_ = 0u;
+    frameTriangles_ = 0u;
+    lastFrameDrawCalls_ = 0u;
+    lastFrameTriangles_ = 0u;
     initialized_ = false;
 }
 
@@ -384,6 +403,7 @@ void D3D12RenderBackend::initDeviceAndSwapchain(const std::string& preferredAdap
         throw std::runtime_error("CreateFence failed.");
     }
     fenceValue_ = 0;
+    frameFenceValues_.fill(0u);
 
     if (FAILED(commandQueue_->GetTimestampFrequency(&timestampFrequency_))) {
         timestampFrequency_ = 0;
@@ -548,12 +568,20 @@ void D3D12RenderBackend::waitForGpu() {
 
     const std::uint64_t signal = ++fenceValue_;
     if (FAILED(commandQueue_->Signal(fence_.Get(), signal))) return;
+    (void)waitForFenceValue(signal);
+#endif
+}
 
-    if (fence_->GetCompletedValue() < signal) {
-        if (SUCCEEDED(fence_->SetEventOnCompletion(signal, static_cast<HANDLE>(fenceEvent_)))) {
-            WaitForSingleObject(static_cast<HANDLE>(fenceEvent_), INFINITE);
-        }
-    }
+bool D3D12RenderBackend::waitForFenceValue(std::uint64_t value) {
+#if defined(_WIN32)
+    if (!initialized_ || !fence_ || !fenceEvent_) return false;
+    if (value == 0u) return true;
+    if (fence_->GetCompletedValue() >= value) return true;
+    if (FAILED(fence_->SetEventOnCompletion(value, static_cast<HANDLE>(fenceEvent_)))) return false;
+    return WaitForSingleObject(static_cast<HANDLE>(fenceEvent_), INFINITE) == WAIT_OBJECT_0;
+#else
+    (void)value;
+    return false;
 #endif
 }
 

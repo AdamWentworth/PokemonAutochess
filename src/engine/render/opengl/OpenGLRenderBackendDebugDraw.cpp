@@ -51,6 +51,8 @@ void OpenGLRenderBackend::drawDebugQuads(const DebugQuad* quads,
                  vertices.data(),
                  GL_STREAM_DRAW);
     glDrawArrays(GL_TRIANGLES, 0, static_cast<GLsizei>(vertices.size()));
+    ++frameDrawCalls_;
+    frameTriangles_ += static_cast<std::uint64_t>(vertices.size() / 3u);
 
     glBindBuffer(GL_ARRAY_BUFFER, static_cast<GLuint>(prevArrayBuffer));
     glBindVertexArray(static_cast<GLuint>(prevVao));
@@ -102,6 +104,8 @@ void OpenGLRenderBackend::drawDebugLines(const DebugLine* lines,
                  vertices.data(),
                  GL_STREAM_DRAW);
     glDrawArrays(GL_TRIANGLES, 0, static_cast<GLsizei>(vertices.size()));
+    ++frameDrawCalls_;
+    frameTriangles_ += static_cast<std::uint64_t>(vertices.size() / 3u);
 
     glBindBuffer(GL_ARRAY_BUFFER, static_cast<GLuint>(prevArrayBuffer));
     glBindVertexArray(static_cast<GLuint>(prevVao));
@@ -156,6 +160,8 @@ void OpenGLRenderBackend::drawDebugTriangles(const DebugTriangle* triangles,
                  vertices.data(),
                  GL_STREAM_DRAW);
     glDrawArrays(GL_TRIANGLES, 0, static_cast<GLsizei>(vertices.size()));
+    ++frameDrawCalls_;
+    frameTriangles_ += static_cast<std::uint64_t>(vertices.size() / 3u);
 
     glBindBuffer(GL_ARRAY_BUFFER, static_cast<GLuint>(prevArrayBuffer));
     glBindVertexArray(static_cast<GLuint>(prevVao));
@@ -256,6 +262,8 @@ void OpenGLRenderBackend::drawDebugSprites(const DebugSprite* sprites,
         glBindTexture(GL_TEXTURE_2D, textureIds[i]);
         glDrawArrays(GL_TRIANGLES, static_cast<GLint>(i * 6u), 6);
     }
+    frameDrawCalls_ += static_cast<std::uint32_t>(textureIds.size());
+    frameTriangles_ += static_cast<std::uint64_t>(textureIds.size() * 2u);
 
     glBindBuffer(GL_ARRAY_BUFFER, static_cast<GLuint>(prevArrayBuffer));
     glBindVertexArray(static_cast<GLuint>(prevVao));

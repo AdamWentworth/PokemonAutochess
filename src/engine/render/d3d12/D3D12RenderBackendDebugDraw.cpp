@@ -75,6 +75,8 @@ void D3D12RenderBackend::drawDebugQuads(const DebugQuad* quads,
     vbv.SizeInBytes = static_cast<UINT>(clampedVertexCount * sizeof(DebugVertex));
     commandList_->IASetVertexBuffers(0, 1, &vbv);
     commandList_->DrawInstanced(static_cast<UINT>(clampedVertexCount), 1, 0, 0);
+    ++frameDrawCalls_;
+    frameTriangles_ += static_cast<std::uint64_t>(clampedVertexCount / 3u);
     debugVertexFrameOffset_ = static_cast<std::uint32_t>(writeOffset + clampedVertexCount * sizeof(DebugVertex));
 #else
     (void)quads;
@@ -141,6 +143,8 @@ void D3D12RenderBackend::drawDebugLines(const DebugLine* lines,
     vbv.SizeInBytes = static_cast<UINT>(neededBytes);
     commandList_->IASetVertexBuffers(0, 1, &vbv);
     commandList_->DrawInstanced(static_cast<UINT>(verts.size()), 1, 0, 0);
+    ++frameDrawCalls_;
+    frameTriangles_ += static_cast<std::uint64_t>(verts.size() / 3u);
     debugVertexFrameOffset_ = static_cast<std::uint32_t>(writeOffset + neededBytes);
 #else
     (void)lines;
@@ -209,6 +213,8 @@ void D3D12RenderBackend::drawDebugTriangles(const DebugTriangle* triangles,
     vbv.SizeInBytes = static_cast<UINT>(neededBytes);
     commandList_->IASetVertexBuffers(0, 1, &vbv);
     commandList_->DrawInstanced(static_cast<UINT>(verts.size()), 1, 0, 0);
+    ++frameDrawCalls_;
+    frameTriangles_ += static_cast<std::uint64_t>(verts.size() / 3u);
     debugVertexFrameOffset_ = static_cast<std::uint32_t>(writeOffset + neededBytes);
 #else
     (void)triangles;
@@ -307,6 +313,8 @@ void D3D12RenderBackend::drawDebugSprites(const DebugSprite* sprites,
         commandList_->SetGraphicsRootDescriptorTable(1, srvHandle);
         commandList_->DrawInstanced(6, 1, static_cast<UINT>(i * 6), 0);
     }
+    frameDrawCalls_ += static_cast<std::uint32_t>(descriptorIndices.size());
+    frameTriangles_ += static_cast<std::uint64_t>(descriptorIndices.size() * 2u);
     spriteVertexFrameOffset_ = static_cast<std::uint32_t>(writeOffset + neededBytes);
 #else
     (void)sprites;

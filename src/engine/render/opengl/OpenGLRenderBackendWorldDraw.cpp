@@ -265,6 +265,8 @@ void OpenGLRenderBackend::drawWorldIndexedMeshTextured(const WorldMeshVertex* ve
                  indices,
                  GL_STREAM_DRAW);
     glDrawElements(GL_TRIANGLES, static_cast<GLsizei>(safeIndexCount), GL_UNSIGNED_INT, nullptr);
+    ++frameDrawCalls_;
+    frameTriangles_ += static_cast<std::uint64_t>(safeIndexCount / 3u);
 
     glBindVertexArray(static_cast<GLuint>(prevVao));
     glBindBuffer(GL_ARRAY_BUFFER, static_cast<GLuint>(prevArrayBuffer));

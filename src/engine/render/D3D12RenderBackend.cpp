@@ -50,3 +50,9 @@ bool D3D12RenderBackend::getLastFrameTimings(BackendFrameTimings& outTimings) co
     return true;
 }
 
+bool D3D12RenderBackend::getLastFrameStats(BackendFrameStats& outStats) const {
+    outStats.drawCalls = lastFrameDrawCalls_;
+    outStats.triangles = lastFrameTriangles_;
+    return true;
+}
+

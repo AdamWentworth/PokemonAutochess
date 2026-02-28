@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <memory>
 #include <string>
 #include <unordered_map>
@@ -15,10 +16,11 @@ public:
 
     const char* backendId() const override { return "opengl"; }
     void beginFrame(float r, float g, float b, float a) override;
-    void endFrame() override {}
+    void endFrame() override;
     void onResize(int width, int height) override;
     bool requiresOpenGLContext() const override { return true; }
     bool handlesPresentation() const override { return false; }
+    bool getLastFrameStats(BackendFrameStats& outStats) const override;
     bool supportsWorldTriangles3D() const override { return true; }
     bool supportsWorldIndexedMeshes() const override { return true; }
     std::string activeGpuName() const override;
@@ -129,4 +131,9 @@ private:
     std::unordered_map<std::string, unsigned int> spriteTextures_;
     unsigned int worldFallbackTexture_ = 0;
     unsigned int spriteFallbackTexture_ = 0;
+
+    std::uint32_t frameDrawCalls_ = 0u;
+    std::uint64_t frameTriangles_ = 0u;
+    std::uint32_t lastFrameDrawCalls_ = 0u;
+    std::uint64_t lastFrameTriangles_ = 0u;
 };

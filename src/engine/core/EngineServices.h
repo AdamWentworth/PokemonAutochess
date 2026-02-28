@@ -5,6 +5,7 @@
 // without exposing global singletons in game code.
 //
 // Batch scope: ResourceManager + ShaderCache (+ Events).
+#include <cstdint>
 #include <string>
 #include <vector>
 
@@ -21,6 +22,8 @@ struct EngineFramePerfStats {
     float presentWaitMs = 0.0f;
     float gpuFrameMs = 0.0f;
     bool gpuFrameValid = false;
+    std::uint32_t drawCalls = 0u;
+    std::uint64_t triangles = 0u;
     float renderMs = 0.0f;
     float swapMs = 0.0f;
     int fixedTicks = 0;

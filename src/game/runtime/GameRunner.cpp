@@ -687,6 +687,8 @@ namespace {
         double perfAccumLegacySwapMs = 0.0;
         double perfAccumGpuFrameMs = 0.0;
         int perfAccumGpuFrameSamples = 0;
+        double perfAccumDrawCalls = 0.0;
+        double perfAccumTriangles = 0.0;
         int perfAccumFixedTicks = 0;
         int renderedFrames = 0;
         double elapsedSeconds = 0.0;
@@ -768,6 +770,8 @@ namespace {
             double presentWaitMs = 0.0;
             double gpuFrameMs = 0.0;
             bool gpuFrameValid = false;
+            std::uint32_t drawCallsThisFrame = 0u;
+            std::uint64_t trianglesThisFrame = 0u;
 
             if (renderer) {
                 renderer->endFrame();
@@ -794,6 +798,13 @@ namespace {
                 presentWaitMs =
                     std::chrono::duration<double, std::milli>(presentEnd - presentStart).count();
             }
+            if (renderer) {
+                IRenderBackend::BackendFrameStats backendStats;
+                if (renderer->getLastFrameStats(backendStats)) {
+                    drawCallsThisFrame = backendStats.drawCalls;
+                    trianglesThisFrame = backendStats.triangles;
+                }
+            }
             const auto frameCpuEnd = clock::now();
 
             const double fixedMs = std::chrono::duration<double, std::milli>(fixedEnd - fixedStart).count();
@@ -804,6 +815,9 @@ namespace {
             const double submitRawMs =
                 std::chrono::duration<double, std::milli>(frameCpuEnd - submitStart).count();
             const double submitMs = std::max(0.0, submitRawMs - presentWaitMs);
+            const bool backendHandlesPresentation = renderer && renderer->handlesPresentation();
+            const double totalPresentWaitMs =
+                presentWaitMs + (backendHandlesPresentation ? beginFrameMs : 0.0);
             const double legacyRenderMs = beginFrameMs + renderBuildMs;
             const double legacySwapMs = std::max(0.0, submitRawMs);
             const double frameCpuMs = std::chrono::duration<double, std::milli>(frameCpuEnd - frameCpuStart).count();
@@ -816,13 +830,15 @@ namespace {
             perfAccumFixedMs += fixedMs;
             perfAccumRenderBuildMs += renderBuildMs;
             perfAccumRenderSubmitMs += submitMs;
-            perfAccumPresentWaitMs += presentWaitMs;
+            perfAccumPresentWaitMs += totalPresentWaitMs;
             perfAccumLegacyRenderMs += legacyRenderMs;
             perfAccumLegacySwapMs += legacySwapMs;
             if (gpuFrameValid) {
                 perfAccumGpuFrameMs += gpuFrameMs;
                 ++perfAccumGpuFrameSamples;
             }
+            perfAccumDrawCalls += static_cast<double>(drawCallsThisFrame);
+            perfAccumTriangles += static_cast<double>(trianglesThisFrame);
             perfAccumFixedTicks += fixedTicksThisFrame;
             if (fpsTimer >= 1.0) {
                 const double frames = std::max(1, frameCount);
@@ -838,6 +854,10 @@ namespace {
                 const double avgGpuFrameMs = hasGpuFrameAverage
                     ? (perfAccumGpuFrameMs / static_cast<double>(perfAccumGpuFrameSamples))
                     : 0.0;
+                const std::uint32_t avgDrawCalls = static_cast<std::uint32_t>(
+                    std::lround(perfAccumDrawCalls / frames));
+                const std::uint64_t avgTriangles = static_cast<std::uint64_t>(
+                    std::llround(perfAccumTriangles / frames));
                 const int avgFixedTicks = static_cast<int>(std::lround(static_cast<double>(perfAccumFixedTicks) / frames));
 
                 services.framePerf.fps = static_cast<float>(fps);
@@ -848,6 +868,8 @@ namespace {
                 services.framePerf.presentWaitMs = static_cast<float>(avgPresentWaitMs);
                 services.framePerf.gpuFrameMs = static_cast<float>(avgGpuFrameMs);
                 services.framePerf.gpuFrameValid = hasGpuFrameAverage;
+                services.framePerf.drawCalls = avgDrawCalls;
+                services.framePerf.triangles = avgTriangles;
                 services.framePerf.renderMs = static_cast<float>(avgLegacyRenderMs);
                 services.framePerf.swapMs = static_cast<float>(avgLegacySwapMs);
                 services.framePerf.fixedTicks = avgFixedTicks;
@@ -860,6 +882,8 @@ namespace {
                           << " submit=" << avgRenderSubmitMs << "ms"
                           << " present=" << avgPresentWaitMs << "ms"
                           << " gpu=" << (hasGpuFrameAverage ? avgGpuFrameMs : -1.0) << "ms"
+                          << " draws=" << avgDrawCalls
+                          << " tris=" << avgTriangles
                           << " render=" << avgLegacyRenderMs << "ms"
                           << " swap=" << avgLegacySwapMs << "ms"
                           << " ticks=" << avgFixedTicks << "\n";
@@ -875,6 +899,8 @@ namespace {
                          << ",\"present_wait_ms\":" << avgPresentWaitMs
                          << ",\"gpu_frame_ms\":" << (hasGpuFrameAverage ? avgGpuFrameMs : -1.0)
                          << ",\"gpu_frame_valid\":" << (hasGpuFrameAverage ? 1 : 0)
+                         << ",\"draw_calls\":" << avgDrawCalls
+                         << ",\"triangles\":" << avgTriangles
                          << ",\"legacy_render_ms\":" << avgLegacyRenderMs
                          << ",\"legacy_swap_ms\":" << avgLegacySwapMs
                          << ",\"fixed_ticks\":" << avgFixedTicks
@@ -892,6 +918,8 @@ namespace {
                 perfAccumLegacySwapMs = 0.0;
                 perfAccumGpuFrameMs = 0.0;
                 perfAccumGpuFrameSamples = 0;
+                perfAccumDrawCalls = 0.0;
+                perfAccumTriangles = 0.0;
                 perfAccumFixedTicks = 0;
             }
 

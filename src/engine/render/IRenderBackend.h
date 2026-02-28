@@ -14,6 +14,11 @@ public:
         bool gpuFrameValid = false;
     };
 
+    struct BackendFrameStats {
+        std::uint32_t drawCalls = 0u;
+        std::uint64_t triangles = 0u;
+    };
+
     struct WorldMeshVertex {
         float x = 0.0f;
         float y = 0.0f;
@@ -154,6 +159,10 @@ public:
     virtual bool handlesPresentation() const = 0;
     virtual bool getLastFrameTimings(BackendFrameTimings& outTimings) const {
         outTimings = BackendFrameTimings{};
+        return false;
+    }
+    virtual bool getLastFrameStats(BackendFrameStats& outStats) const {
+        outStats = BackendFrameStats{};
         return false;
     }
     virtual std::string activeGpuName() const { return {}; }

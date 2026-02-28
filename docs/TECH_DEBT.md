@@ -10,8 +10,8 @@ This list is intentionally short and prioritized by impact on renderer merge rea
 - Impact: limits CPU/GPU overlap and can mask true backend performance potential.
 
 2. Perf telemetry is not yet decision-grade.
-- `GameRunner` logs CPU-side `fixed/render/swap` only.
-- Missing: GPU frame duration and explicit present wait vs submit/build separation.
+- `GameRunner` now logs `render_build_ms`, `render_submit_ms`, `present_wait_ms`, `gpu_frame_ms`, `draw_calls`, and `triangles`.
+- Missing: `visible_animated_units`, `particle_count`, and OpenGL GPU timestamps (`gpu_frame_valid` remains `0` on OpenGL).
 
 3. Display settings expose placeholders as if active controls.
 - `scripts/states/main_menu.lua` still labels VSync/FPS/UI scale/quality as placeholders.
