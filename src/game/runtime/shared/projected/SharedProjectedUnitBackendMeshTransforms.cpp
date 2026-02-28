@@ -72,7 +72,7 @@ void Resolver::initialize(const shared_projected_unit_backend_mesh::Args& args,
     worldCellSize_ = args.worldCellSize;
     hasClipPose_ = prep.scenePose.hasClipPose;
     usePositionOnlyVertexPath_ = prep.usePositionOnlyVertexPath;
-    clipSkinningEnabled_ = backendClipSkinningEnabled();
+    clipSkinningEnabled_ = backendClipSkinningEnabled() && args.enableClipSkinning;
 
     nodeGlobals_ = prep.scenePose.hasScenePose ? &prep.scenePose.nodeGlobals : &mesh_->bindNodeGlobals;
     nodeCount_ = nodeGlobals_->size();

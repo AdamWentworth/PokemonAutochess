@@ -12,7 +12,9 @@ param(
     [switch]$NoBuild,
     [switch]$AllowEmptySamples,
     [string]$BackendVertexDeform = "",
-    [string]$BackendClipSkinning = ""
+    [string]$BackendClipSkinning = "",
+    [string]$BackendClipSkinningAdaptive = "",
+    [string]$BackendClipSkinningMaxUnits = ""
 )
 
 $ErrorActionPreference = "Stop"
@@ -136,7 +138,9 @@ $envKeys = @(
     "PAC_VIDEO_HEIGHT",
     "PAC_VIDEO_FULLSCREEN",
     "PAC_BACKEND_VERTEX_DEFORM",
-    "PAC_BACKEND_CLIP_SKINNING"
+    "PAC_BACKEND_CLIP_SKINNING",
+    "PAC_BACKEND_CLIP_SKINNING_ADAPTIVE",
+    "PAC_BACKEND_CLIP_SKINNING_MAX_UNITS"
 )
 $envBackup = @{}
 foreach ($key in $envKeys) {
@@ -171,6 +175,16 @@ try {
                 Remove-Item "Env:PAC_BACKEND_CLIP_SKINNING" -ErrorAction SilentlyContinue
             } else {
                 $env:PAC_BACKEND_CLIP_SKINNING = $BackendClipSkinning
+            }
+            if ([string]::IsNullOrWhiteSpace($BackendClipSkinningAdaptive)) {
+                Remove-Item "Env:PAC_BACKEND_CLIP_SKINNING_ADAPTIVE" -ErrorAction SilentlyContinue
+            } else {
+                $env:PAC_BACKEND_CLIP_SKINNING_ADAPTIVE = $BackendClipSkinningAdaptive
+            }
+            if ([string]::IsNullOrWhiteSpace($BackendClipSkinningMaxUnits)) {
+                Remove-Item "Env:PAC_BACKEND_CLIP_SKINNING_MAX_UNITS" -ErrorAction SilentlyContinue
+            } else {
+                $env:PAC_BACKEND_CLIP_SKINNING_MAX_UNITS = $BackendClipSkinningMaxUnits
             }
 
             $stdoutPath = Join-Path $rawDir ("{0}_{1}.stdout.tmp.log" -f $backend, $res.Label)
@@ -234,6 +248,7 @@ try {
             $projectedOverlayVals = @($scoredSamples | ForEach-Object { [double]$_.projected_overlay_ms })
             $projectedUnitsProcessedVals = @($scoredSamples | ForEach-Object { [double]$_.projected_units_processed })
             $projectedModelUnitsVals = @($scoredSamples | ForEach-Object { [double]$_.projected_model_units })
+            $projectedClipSkinnedUnitVals = @($scoredSamples | ForEach-Object { [double]$_.projected_clip_skinned_units })
 
             $gpuValidSamples = @(
                 $scoredSamples | Where-Object {
@@ -274,8 +289,11 @@ try {
                 avg_projected_overlay_ms = Round-OrNull (Get-AverageOrNull $projectedOverlayVals)
                 avg_projected_units_processed = Round-OrNull (Get-AverageOrNull $projectedUnitsProcessedVals)
                 avg_projected_model_units = Round-OrNull (Get-AverageOrNull $projectedModelUnitsVals)
+                avg_projected_clip_skinned_units = Round-OrNull (Get-AverageOrNull $projectedClipSkinnedUnitVals)
                 backend_vertex_deform = if ([string]::IsNullOrWhiteSpace($BackendVertexDeform)) { "default" } else { $BackendVertexDeform }
                 backend_clip_skinning = if ([string]::IsNullOrWhiteSpace($BackendClipSkinning)) { "default" } else { $BackendClipSkinning }
+                backend_clip_skinning_adaptive = if ([string]::IsNullOrWhiteSpace($BackendClipSkinningAdaptive)) { "default" } else { $BackendClipSkinningAdaptive }
+                backend_clip_skinning_max_units = if ([string]::IsNullOrWhiteSpace($BackendClipSkinningMaxUnits)) { "default" } else { $BackendClipSkinningMaxUnits }
                 seed = $Seed
                 duration_seconds = $DurationSeconds
                 raw_log_path = $rawPath
@@ -317,4 +335,4 @@ Write-Host "CSV : $csvPath"
 Write-Host "JSON: $jsonPath"
 Write-Host "Raw : $rawDir"
 Write-Host ""
-$rows | Format-Table backend, resolution, avg_fps, low_1pct_fps, avg_frame_cpu_ms, avg_render_build_ms, avg_gpu_frame_ms, avg_projected_units_ms, avg_projected_model_ms, avg_present_wait_ms, avg_draw_calls, avg_triangles, avg_visible_animated_units, avg_particle_count, sample_count_scored -AutoSize
+$rows | Format-Table backend, resolution, avg_fps, low_1pct_fps, avg_frame_cpu_ms, avg_render_build_ms, avg_gpu_frame_ms, avg_projected_units_ms, avg_projected_model_ms, avg_projected_clip_skinned_units, avg_present_wait_ms, avg_draw_calls, avg_triangles, avg_visible_animated_units, avg_particle_count, sample_count_scored -AutoSize

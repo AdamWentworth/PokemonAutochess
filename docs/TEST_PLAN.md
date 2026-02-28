@@ -42,7 +42,7 @@ Notes:
 - Also captures projected-path breakdown fields when available:
   - `avg_render_build_ms`, `avg_render_submit_ms`
   - `avg_projected_units_ms`, `avg_projected_pose_eval_ms`, `avg_projected_model_ms`, `avg_projected_overlay_ms`
-  - `avg_projected_units_processed`, `avg_projected_model_units`
+  - `avg_projected_units_processed`, `avg_projected_model_units`, `avg_projected_clip_skinned_units`
 
 Artifacts written to `benchmark/`:
 - CSV summary per matrix row.
@@ -88,6 +88,7 @@ For each matrix row, record:
 - projected pose eval ms
 - projected model ms
 - projected overlay ms
+- projected clip-skinned units
 - scored sample count (`sample_count_scored`) so runs are compared on equivalent steady-state windows
 
 ### CPU-Heavy Render A/B (Diagnosis)
@@ -108,6 +109,22 @@ Interpretation:
 - Large FPS gain when `-BackendVertexDeform 0` means CPU per-vertex deform math is a major hotspot.
 - Large FPS gain when `-BackendClipSkinning 0` means CPU clip skinning is a major hotspot.
 - If both gains are small, focus next on draw submission/state churn and expensive VFX passes.
+
+### Adaptive Clip-Skinning Tuning
+Use these runtime env vars to balance animation fidelity vs CPU cost in projected rendering:
+
+```powershell
+# Default behavior (adaptive clip skinning ON, capped units)
+Remove-Item Env:PAC_BACKEND_CLIP_SKINNING_ADAPTIVE -ErrorAction SilentlyContinue
+Remove-Item Env:PAC_BACKEND_CLIP_SKINNING_MAX_UNITS -ErrorAction SilentlyContinue
+
+# Force adaptive OFF (clip-skin all eligible units)
+$env:PAC_BACKEND_CLIP_SKINNING_ADAPTIVE='0'
+
+# Adaptive ON but allow only one clip-skinned unit at a time
+$env:PAC_BACKEND_CLIP_SKINNING_ADAPTIVE='1'
+$env:PAC_BACKEND_CLIP_SKINNING_MAX_UNITS='1'
+```
 
 ## Manual Parity Smoke (Before Merge)
 1. Start menu -> gameplay on OpenGL and D3D12.

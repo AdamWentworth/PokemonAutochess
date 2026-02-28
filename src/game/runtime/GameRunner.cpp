@@ -769,6 +769,7 @@ namespace {
         double perfAccumProjectedOverlayMs = 0.0;
         double perfAccumProjectedUnitsProcessed = 0.0;
         double perfAccumProjectedModelUnits = 0.0;
+        double perfAccumProjectedClipSkinnedUnits = 0.0;
         int perfAccumFixedTicks = 0;
         int renderedFrames = 0;
         double elapsedSeconds = 0.0;
@@ -860,6 +861,7 @@ namespace {
             const float projectedOverlayMsThisFrame = services.frameProjectedOverlayMs;
             const std::uint32_t projectedUnitsProcessedThisFrame = services.frameProjectedUnitsProcessed;
             const std::uint32_t projectedModelUnitsThisFrame = services.frameProjectedModelUnits;
+            const std::uint32_t projectedClipSkinnedUnitsThisFrame = services.frameProjectedClipSkinnedUnits;
 
             if (renderer) {
                 renderer->endFrame();
@@ -935,6 +937,7 @@ namespace {
             perfAccumProjectedOverlayMs += static_cast<double>(projectedOverlayMsThisFrame);
             perfAccumProjectedUnitsProcessed += static_cast<double>(projectedUnitsProcessedThisFrame);
             perfAccumProjectedModelUnits += static_cast<double>(projectedModelUnitsThisFrame);
+            perfAccumProjectedClipSkinnedUnits += static_cast<double>(projectedClipSkinnedUnitsThisFrame);
             perfAccumFixedTicks += fixedTicksThisFrame;
             if (fpsTimer >= 1.0) {
                 const double frames = std::max(1, frameCount);
@@ -966,6 +969,8 @@ namespace {
                     std::lround(perfAccumProjectedUnitsProcessed / frames));
                 const std::uint32_t avgProjectedModelUnits = static_cast<std::uint32_t>(
                     std::lround(perfAccumProjectedModelUnits / frames));
+                const std::uint32_t avgProjectedClipSkinnedUnits = static_cast<std::uint32_t>(
+                    std::lround(perfAccumProjectedClipSkinnedUnits / frames));
                 const int avgFixedTicks = static_cast<int>(std::lround(static_cast<double>(perfAccumFixedTicks) / frames));
 
                 services.framePerf.fps = static_cast<float>(fps);
@@ -986,6 +991,7 @@ namespace {
                 services.framePerf.projectedOverlayMs = static_cast<float>(avgProjectedOverlayMs);
                 services.framePerf.projectedUnitsProcessed = avgProjectedUnitsProcessed;
                 services.framePerf.projectedModelUnits = avgProjectedModelUnits;
+                services.framePerf.projectedClipSkinnedUnits = avgProjectedClipSkinnedUnits;
                 services.framePerf.renderMs = static_cast<float>(avgLegacyRenderMs);
                 services.framePerf.swapMs = static_cast<float>(avgLegacySwapMs);
                 services.framePerf.fixedTicks = avgFixedTicks;
@@ -1006,6 +1012,7 @@ namespace {
                           << " pose=" << avgProjectedPoseEvalMs << "ms"
                           << " model=" << avgProjectedModelMs << "ms"
                           << " over=" << avgProjectedOverlayMs << "ms"
+                          << " clipskin=" << avgProjectedClipSkinnedUnits
                           << " render=" << avgLegacyRenderMs << "ms"
                           << " swap=" << avgLegacySwapMs << "ms"
                           << " ticks=" << avgFixedTicks << "\n";
@@ -1031,6 +1038,7 @@ namespace {
                          << ",\"projected_overlay_ms\":" << avgProjectedOverlayMs
                          << ",\"projected_units_processed\":" << avgProjectedUnitsProcessed
                          << ",\"projected_model_units\":" << avgProjectedModelUnits
+                         << ",\"projected_clip_skinned_units\":" << avgProjectedClipSkinnedUnits
                          << ",\"legacy_render_ms\":" << avgLegacyRenderMs
                          << ",\"legacy_swap_ms\":" << avgLegacySwapMs
                          << ",\"fixed_ticks\":" << avgFixedTicks
@@ -1058,6 +1066,7 @@ namespace {
                 perfAccumProjectedOverlayMs = 0.0;
                 perfAccumProjectedUnitsProcessed = 0.0;
                 perfAccumProjectedModelUnits = 0.0;
+                perfAccumProjectedClipSkinnedUnits = 0.0;
                 perfAccumFixedTicks = 0;
             }
 

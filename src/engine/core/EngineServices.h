@@ -32,6 +32,7 @@ struct EngineFramePerfStats {
     float projectedOverlayMs = 0.0f;
     std::uint32_t projectedUnitsProcessed = 0u;
     std::uint32_t projectedModelUnits = 0u;
+    std::uint32_t projectedClipSkinnedUnits = 0u;
     float renderMs = 0.0f;
     float swapMs = 0.0f;
     int fixedTicks = 0;
@@ -55,6 +56,7 @@ struct EngineServices {
     float frameProjectedOverlayMs = 0.0f;
     std::uint32_t frameProjectedUnitsProcessed = 0u;
     std::uint32_t frameProjectedModelUnits = 0u;
+    std::uint32_t frameProjectedClipSkinnedUnits = 0u;
 
     // Render backend + GPU diagnostics.
     std::string requestedRendererBackend = "auto";

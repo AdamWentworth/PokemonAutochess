@@ -1454,6 +1454,7 @@ struct GameSession::Impl {
         float projectedOverlayMsThisFrame = 0.0f;
         std::uint32_t projectedUnitsProcessedThisFrame = 0u;
         std::uint32_t projectedModelUnitsThisFrame = 0u;
+        std::uint32_t projectedClipSkinnedUnitsThisFrame = 0u;
 
         const bool supportsWorldTriangles3D = renderer->supportsWorldTriangles3D();
         const bool supportsWorldIndexedMeshes = renderer->supportsWorldIndexedMeshes();
@@ -1667,6 +1668,7 @@ struct GameSession::Impl {
                 projectedOverlayMsThisFrame = static_cast<float>(projectedUnitPerf.overlayMs);
                 projectedUnitsProcessedThisFrame = projectedUnitPerf.unitsProcessed;
                 projectedModelUnitsThisFrame = projectedUnitPerf.modelUnits;
+                projectedClipSkinnedUnitsThisFrame = projectedUnitPerf.clipSkinnedUnits;
             } else {
             IRenderBackend::DebugQuad boardBg;
             boardBg.x = boardX;
@@ -1904,6 +1906,7 @@ struct GameSession::Impl {
             engineServices->frameProjectedOverlayMs = projectedOverlayMsThisFrame;
             engineServices->frameProjectedUnitsProcessed = projectedUnitsProcessedThisFrame;
             engineServices->frameProjectedModelUnits = projectedModelUnitsThisFrame;
+            engineServices->frameProjectedClipSkinnedUnits = projectedClipSkinnedUnitsThisFrame;
         }
 
         runtime::shared_backend_debug_view::ComposeAndSubmitArgs overlayArgs;

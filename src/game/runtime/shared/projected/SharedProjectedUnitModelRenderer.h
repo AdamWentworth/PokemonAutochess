@@ -32,6 +32,7 @@ struct Args {
     const runtime::backend_model::MeshData* meshForUnit = nullptr;
     const runtime::shared_backend_pose::PoseEval* scenePose = nullptr;
     bool scenePoseReady = false;
+    bool enableClipSkinning = true;
     const IRenderBackend::DebugQuad* tint = nullptr;
 
     float worldCellSize = 1.0f;

@@ -32,6 +32,7 @@ struct PerfStats {
     double overlayMs = 0.0;
     std::uint32_t unitsProcessed = 0u;
     std::uint32_t modelUnits = 0u;
+    std::uint32_t clipSkinnedUnits = 0u;
 };
 
 struct Args {

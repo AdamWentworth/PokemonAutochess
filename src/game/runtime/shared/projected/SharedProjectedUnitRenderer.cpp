@@ -7,6 +7,7 @@
 #include "game/runtime/shared/projected/SharedProjectedUnitModelRenderer.h"
 #include "game/runtime/shared/projected/SharedProjectedUnitOverlays.h"
 #include "game/world/MoveImpactRouting.h"
+#include "engine/core/Environment.h"
 
 #include <algorithm>
 #include <array>
@@ -14,6 +15,9 @@
 #include <chrono>
 #include <cmath>
 #include <cstdint>
+#include <string>
+#include <unordered_map>
+#include <vector>
 
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
@@ -36,6 +40,51 @@ std::size_t selectUniformTriangleIndex(std::size_t sampleIndex,
     const std::size_t idx =
         static_cast<std::size_t>(t * static_cast<double>(triangleCount));
     return std::min(idx, triangleCount - 1u);
+}
+
+bool backendClipSkinningAdaptiveEnabled() {
+    static const bool enabled = []() -> bool {
+        const auto env = engine::env::get("PAC_BACKEND_CLIP_SKINNING_ADAPTIVE");
+        if (!env.has_value()) return true;
+        const std::string raw = *env;
+        if (raw == "0" || raw == "false" || raw == "FALSE" || raw == "off" || raw == "OFF") {
+            return false;
+        }
+        return true;
+    }();
+    return enabled;
+}
+
+std::size_t backendClipSkinningMaxUnits() {
+    static const std::size_t maxUnits = []() -> std::size_t {
+        constexpr std::size_t kDefault = 2u;
+        constexpr std::size_t kMin = 1u;
+        constexpr std::size_t kMax = 32u;
+        const auto env = engine::env::get("PAC_BACKEND_CLIP_SKINNING_MAX_UNITS");
+        if (!env.has_value()) return kDefault;
+        try {
+            const std::size_t parsed = static_cast<std::size_t>(std::stoull(*env));
+            return std::clamp(parsed, kMin, kMax);
+        } catch (...) {
+            return kDefault;
+        }
+    }();
+    return maxUnits;
+}
+
+float clipSkinningPriority(const PokemonInstance& unit, const glm::vec3& cameraWorldPos) {
+    float score = 0.0f;
+    if (unit.side == PokemonSide::Player) score += 1200.0f;
+    if (unit.attackTimerSec > 0.0f) score += 1000.0f;
+    if (unit.pendingDamageActive || unit.pendingImpactActive || unit.pendingProjectileActive) score += 900.0f;
+    if (unit.captureInProgress || unit.fainting || !unit.alive) score += 700.0f;
+    if (unit.isMoving) score += 280.0f;
+
+    const glm::vec3 toCam = cameraWorldPos - unit.position;
+    const float dist2 = glm::dot(toCam, toCam);
+    // Nearby units keep clip skinning first when priorities are otherwise tied.
+    score += 200.0f / (1.0f + std::max(0.0f, dist2));
+    return score;
 }
 } // namespace
 
@@ -110,6 +159,29 @@ void drawProjectedUnits(const Args& args, const std::vector<PokemonInstance>& un
     double overlayMsAcc = 0.0;
     std::uint32_t unitsProcessed = 0u;
     std::uint32_t modelUnits = 0u;
+    std::uint32_t clipSkinnedUnits = 0u;
+
+    const bool clipSkinningAdaptiveEnabled = backendClipSkinningAdaptiveEnabled();
+    std::unordered_map<int, bool> clipSkinningEnabledByUnitId;
+    if (clipSkinningAdaptiveEnabled) {
+        std::vector<std::pair<float, int>> prioritizedUnitIds;
+        prioritizedUnitIds.reserve(units.size());
+        for (const auto& unit : units) {
+            if (!unit.alive && !unit.captureInProgress && !unit.fainting) continue;
+            if (!unit.alive && unit.visualScale <= 0.0001f && !unit.captureInProgress) continue;
+            prioritizedUnitIds.emplace_back(clipSkinningPriority(unit, cameraWorldPos), unit.id);
+        }
+
+        std::sort(
+            prioritizedUnitIds.begin(),
+            prioritizedUnitIds.end(),
+            [](const auto& a, const auto& b) { return a.first > b.first; });
+        const std::size_t maxClipSkinned =
+            std::min<std::size_t>(backendClipSkinningMaxUnits(), prioritizedUnitIds.size());
+        for (std::size_t i = 0; i < maxClipSkinned; ++i) {
+            clipSkinningEnabledByUnitId[prioritizedUnitIds[i].second] = true;
+        }
+    }
 
 
 for (const auto& unit : units) {
@@ -128,6 +200,12 @@ for (const auto& unit : units) {
         scenePoseReady = true;
     }
     poseEvalMsAcc += std::chrono::duration<double, std::milli>(Clock::now() - poseEvalStart).count();
+    const bool unitClipSkinningEnabled =
+        !clipSkinningAdaptiveEnabled ||
+        (clipSkinningEnabledByUnitId.find(unit.id) != clipSkinningEnabledByUnitId.end());
+    if (unitClipSkinningEnabled && scenePoseReady && scenePose.hasClipPose) {
+        ++clipSkinnedUnits;
+    }
     const bool hasClipPoseDrivenModel = scenePoseReady && scenePose.hasClipPose;
     const bool applyProceduralModelMotion = !hasClipPoseDrivenModel;
     const glm::vec3 attackOffset = applyProceduralModelMotion
@@ -270,6 +348,7 @@ for (const auto& unit : units) {
                 .meshForUnit = meshForUnit,
                 .scenePose = &scenePose,
                 .scenePoseReady = scenePoseReady,
+                .enableClipSkinning = unitClipSkinningEnabled,
                 .tint = &tint,
                 .worldCellSize = worldCellSize,
                 .boardSurfaceY = boardSurfaceY,
@@ -390,6 +469,7 @@ if (perfStats) {
     perfStats->overlayMs += overlayMsAcc;
     perfStats->unitsProcessed += unitsProcessed;
     perfStats->modelUnits += modelUnits;
+    perfStats->clipSkinnedUnits += clipSkinnedUnits;
 }
 
 }

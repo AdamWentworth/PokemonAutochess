@@ -193,6 +193,10 @@ void composeAndSubmit(const ComposeAndSubmitArgs& args) {
                               << " (pose " << perf.projectedPoseEvalMs
                               << ", model " << perf.projectedModelMs
                               << ", overlay " << perf.projectedOverlayMs << ")";
+                    if (perf.projectedUnitsProcessed > 0u) {
+                        buildLine << " | Clip " << perf.projectedClipSkinnedUnits
+                                  << "/" << perf.projectedUnitsProcessed;
+                    }
                 }
                 appendRightText(edgePad + lineStep * 0.55f,
                                 buildLine.str(),
