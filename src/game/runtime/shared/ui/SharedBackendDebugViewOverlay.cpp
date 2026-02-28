@@ -167,6 +167,25 @@ void composeAndSubmit(const ComposeAndSubmitArgs& args) {
             appendText(x, y, text, scale, color);
         };
 
+        if (engineServices) {
+            const EngineFramePerfStats& perf = engineServices->framePerf;
+            if (perf.fps > 0.0f) {
+                std::ostringstream perfLine;
+                perfLine << std::fixed << std::setprecision(1)
+                         << "FPS: " << perf.fps
+                         << " | CPU: " << perf.frameMs << "ms";
+                if (perf.gpuFrameValid) {
+                    perfLine << " | GPU: " << perf.gpuFrameMs << "ms";
+                } else {
+                    perfLine << " | GPU: n/a";
+                }
+                appendRightText(edgePad,
+                                perfLine.str(),
+                                std::clamp(1.0f * uiScale, 0.82f, 1.35f),
+                                glm::vec3(0.84f, 0.95f, 0.90f));
+            }
+        }
+
         const std::string mode = (services ? services->gameMode : std::string("classic"));
         appendRightText(edgePad + lineStep * 1.1f,
                         runtime::backend_status_text::modeLine(mode),
