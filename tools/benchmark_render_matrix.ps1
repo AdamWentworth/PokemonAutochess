@@ -5,6 +5,8 @@ param(
     [string[]]$Resolutions = @("1280x720", "1600x900", "1920x1080"),
     [int]$DurationSeconds = 35,
     [int]$Seed = 12345,
+    [int]$WarmupSamples = 5,
+    [int]$MinScoredSamples = 10,
     [string]$OutDir = "benchmark",
     [string]$Tag = "",
     [switch]$NoBuild,
@@ -108,6 +110,8 @@ $exeInfo = Get-Item -Path $exePath
 Write-Host "Using executable: $($exeInfo.FullName)"
 Write-Host "Executable last write time: $($exeInfo.LastWriteTime.ToString("yyyy-MM-dd HH:mm:ss"))"
 Write-Host "Benchmark config: $Config"
+Write-Host "Warmup samples: $WarmupSamples"
+Write-Host "Minimum scored samples: $MinScoredSamples"
 
 New-Item -ItemType Directory -Path $OutDir -Force | Out-Null
 $timestamp = Get-Date -Format "yyyyMMdd_HHmmss"
@@ -194,23 +198,29 @@ try {
                     throw $message
                 }
             }
+            $scoredSamples = @($samples | Select-Object -Skip $WarmupSamples)
+            if ($samples.Count -gt 0 -and $scoredSamples.Count -lt $MinScoredSamples) {
+                throw "Too few scored samples for backend=$backend resolution=$($res.Label): " +
+                      "total=$($samples.Count), warmup=$WarmupSamples, scored=$($scoredSamples.Count), " +
+                      "required=$MinScoredSamples. Raw log: $rawPath"
+            }
 
-            $fpsVals = @($samples | ForEach-Object { [double]$_.fps })
-            $frameCpuVals = @($samples | ForEach-Object { [double]$_.frame_cpu_ms })
-            $presentVals = @($samples | ForEach-Object { [double]$_.present_wait_ms })
-            $drawVals = @($samples | ForEach-Object { [double]$_.draw_calls })
-            $triVals = @($samples | ForEach-Object { [double]$_.triangles })
-            $visibleUnitVals = @($samples | ForEach-Object { [double]$_.visible_animated_units })
-            $particleVals = @($samples | ForEach-Object { [double]$_.particle_count })
+            $fpsVals = @($scoredSamples | ForEach-Object { [double]$_.fps })
+            $frameCpuVals = @($scoredSamples | ForEach-Object { [double]$_.frame_cpu_ms })
+            $presentVals = @($scoredSamples | ForEach-Object { [double]$_.present_wait_ms })
+            $drawVals = @($scoredSamples | ForEach-Object { [double]$_.draw_calls })
+            $triVals = @($scoredSamples | ForEach-Object { [double]$_.triangles })
+            $visibleUnitVals = @($scoredSamples | ForEach-Object { [double]$_.visible_animated_units })
+            $particleVals = @($scoredSamples | ForEach-Object { [double]$_.particle_count })
 
             $gpuValidSamples = @(
-                $samples | Where-Object {
+                $scoredSamples | Where-Object {
                     [int]$_.gpu_frame_valid -eq 1 -and [double]$_.gpu_frame_ms -ge 0.0
                 }
             )
             $gpuVals = @($gpuValidSamples | ForEach-Object { [double]$_.gpu_frame_ms })
-            $gpuValidRate = if ($samples.Count -gt 0) {
-                [double]$gpuValidSamples.Count / [double]$samples.Count
+            $gpuValidRate = if ($scoredSamples.Count -gt 0) {
+                [double]$gpuValidSamples.Count / [double]$scoredSamples.Count
             } else {
                 $null
             }
@@ -220,7 +230,9 @@ try {
                 resolution = $res.Label
                 width = $res.Width
                 height = $res.Height
-                sample_count = $samples.Count
+                sample_count_total = $samples.Count
+                sample_count_scored = $scoredSamples.Count
+                warmup_samples_skipped = $WarmupSamples
                 process_exit_code = $exitCode
                 avg_fps = Round-OrNull (Get-AverageOrNull $fpsVals)
                 low_1pct_fps = Round-OrNull (Get-OnePercentLowOrNull $fpsVals)
@@ -259,6 +271,8 @@ $payload = [ordered]@{
     config = $Config
     seed = $Seed
     duration_seconds = $DurationSeconds
+    warmup_samples = $WarmupSamples
+    min_scored_samples = $MinScoredSamples
     backends = $Backends
     resolutions = $Resolutions
     rows = $rows
@@ -271,4 +285,4 @@ Write-Host "CSV : $csvPath"
 Write-Host "JSON: $jsonPath"
 Write-Host "Raw : $rawDir"
 Write-Host ""
-$rows | Format-Table backend, resolution, avg_fps, low_1pct_fps, avg_frame_cpu_ms, avg_gpu_frame_ms, avg_present_wait_ms, avg_draw_calls, avg_triangles, avg_visible_animated_units, avg_particle_count, sample_count -AutoSize
+$rows | Format-Table backend, resolution, avg_fps, low_1pct_fps, avg_frame_cpu_ms, avg_gpu_frame_ms, avg_present_wait_ms, avg_draw_calls, avg_triangles, avg_visible_animated_units, avg_particle_count, sample_count_scored -AutoSize

@@ -38,6 +38,7 @@ cmake --build build --config Release --target PokemonAutochess
 Notes:
 - Builds `PokemonAutochess` for the selected config by default before running.
 - Use `-NoBuild` only if you intentionally want to reuse an already-built executable.
+- Scores steady-state samples by default (`-WarmupSamples 5`), skipping startup-transition noise.
 
 Artifacts written to `benchmark/`:
 - CSV summary per matrix row.
@@ -77,6 +78,7 @@ For each matrix row, record:
 - triangles
 - visible animated unit count
 - particle count
+- scored sample count (`sample_count_scored`) so runs are compared on equivalent steady-state windows
 
 ## Manual Parity Smoke (Before Merge)
 1. Start menu -> gameplay on OpenGL and D3D12.
