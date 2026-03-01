@@ -24,6 +24,7 @@ public:
     glm::mat4 getProjectionMatrix() const;
     glm::vec3 getDirection() const;
     glm::vec3 getPosition() const { return position; }
+    glm::vec3 getTarget() const { return target; }
     void setAspectRatio(float aspect);
 
 private:

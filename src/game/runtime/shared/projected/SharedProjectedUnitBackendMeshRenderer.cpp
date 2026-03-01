@@ -3,6 +3,7 @@
 #include "game/runtime/shared/projected/SharedProjectedUnitBackendMeshTriangleSubmit.h"
 #include "game/runtime/shared/projected/SharedProjectedUnitBackendMeshTransforms.h"
 
+#include "engine/core/Environment.h"
 #include "game/runtime/BackendUnitVisuals.h"
 
 #include <algorithm>
@@ -33,6 +34,19 @@ std::size_t selectUniformTriangleIndex(std::size_t sampleIndex,
     const std::size_t idx =
         static_cast<std::size_t>(t * static_cast<double>(triangleCount));
     return std::min(idx, triangleCount - 1u);
+}
+
+bool strictGltfParityEnabled() {
+    static const bool enabled = []() -> bool {
+        const auto env = engine::env::get("PAC_GLTF_PARITY_STRICT");
+        if (!env.has_value()) return true;
+        const std::string raw = *env;
+        if (raw == "0" || raw == "false" || raw == "FALSE" || raw == "off" || raw == "OFF") {
+            return false;
+        }
+        return true;
+    }();
+    return enabled;
 }
 } // namespace
 
@@ -68,6 +82,7 @@ Result renderProjectedUnitBackendMesh(const Args& args) {
 
     const auto& backendModelFastTexturedPathEnabled = args.backendModelFastTexturedPathEnabled;
     const auto& backendModelBackfaceCullingEnabled = args.backendModelBackfaceCullingEnabled;
+    const bool strictGltfParity = strictGltfParityEnabled();
 
     using SharedTailFireAnchor = game::runtime::shared_tail_fire_fallback::Anchor;
 
@@ -291,10 +306,20 @@ Result renderProjectedUnitBackendMesh(const Args& args) {
                         outVertex.z = pos.z;
                         outVertex.u = srcVertex.uv.x;
                         outVertex.v = srcVertex.uv.y;
-                        outVertex.r = fastTexturedTint.r;
-                        outVertex.g = fastTexturedTint.g;
-                        outVertex.b = fastTexturedTint.b;
-                        outVertex.a = fastTexturedAlpha;
+                        const glm::vec3 authoredVertexColor = mesh->hasVertexColor
+                            ? glm::clamp(
+                                glm::vec3(srcVertex.color.r, srcVertex.color.g, srcVertex.color.b),
+                                0.0f,
+                                1.0f)
+                            : glm::vec3(1.0f);
+                        const float authoredVertexAlpha = mesh->hasVertexColor
+                            ? std::clamp(srcVertex.color.a, 0.0f, 1.0f)
+                            : 1.0f;
+                        const glm::vec3 finalVertexColor = authoredVertexColor * fastTexturedTint;
+                        outVertex.r = finalVertexColor.r;
+                        outVertex.g = finalVertexColor.g;
+                        outVertex.b = finalVertexColor.b;
+                        outVertex.a = fastTexturedAlpha * authoredVertexAlpha;
                         if (useGpuSkinning) {
                             outVertex.nx = srcVertex.normal.x;
                             outVertex.ny = srcVertex.normal.y;
@@ -335,10 +360,20 @@ Result renderProjectedUnitBackendMesh(const Args& args) {
                     outVertex.z = pos.z;
                     outVertex.u = srcVertex.uv.x;
                     outVertex.v = srcVertex.uv.y;
-                    outVertex.r = fastTexturedTint.r;
-                    outVertex.g = fastTexturedTint.g;
-                    outVertex.b = fastTexturedTint.b;
-                    outVertex.a = fastTexturedAlpha;
+                    const glm::vec3 authoredVertexColor = mesh->hasVertexColor
+                        ? glm::clamp(
+                            glm::vec3(srcVertex.color.r, srcVertex.color.g, srcVertex.color.b),
+                            0.0f,
+                            1.0f)
+                        : glm::vec3(1.0f);
+                    const float authoredVertexAlpha = mesh->hasVertexColor
+                        ? std::clamp(srcVertex.color.a, 0.0f, 1.0f)
+                        : 1.0f;
+                    const glm::vec3 finalVertexColor = authoredVertexColor * fastTexturedTint;
+                    outVertex.r = finalVertexColor.r;
+                    outVertex.g = finalVertexColor.g;
+                    outVertex.b = finalVertexColor.b;
+                    outVertex.a = fastTexturedAlpha * authoredVertexAlpha;
                     if (useGpuSkinning) {
                         outVertex.nx = srcVertex.normal.x;
                         outVertex.ny = srcVertex.normal.y;
@@ -422,15 +457,21 @@ Result renderProjectedUnitBackendMesh(const Args& args) {
             glm::vec3 baseColor2 = fallbackBase;
             auto resolveVertexBase = [&](std::uint32_t vi,
                                          const runtime::backend_model::MeshVertex& v) {
-                if (mesh->hasVertexBaseColor && vi < mesh->vertexBaseColors.size()) {
-                    return glm::clamp(mesh->vertexBaseColors[vi], 0.0f, 1.0f);
+                if (texturedSubmesh) {
+                    // For textured glTF submeshes, preserve texture albedo.
+                    // Use authored vertex color only when it exists in source.
+                    if (mesh->hasVertexColor) {
+                        return glm::clamp(
+                            glm::vec3(v.color.r, v.color.g, v.color.b), 0.0f, 1.0f);
+                    }
+                    return glm::vec3(1.0f);
                 }
+                // For backend world-lit model rendering, do NOT use cached vertexBaseColors.
+                // Those are legacy precomposed/tonemapped colors and will darken/desaturate when
+                // fed through the modern PBR+ACES path again.
                 if (mesh->hasVertexColor) {
                     return glm::clamp(
                         glm::vec3(v.color.r, v.color.g, v.color.b), 0.0f, 1.0f);
-                }
-                if (triIdx < mesh->triangleBaseColors.size()) {
-                    return glm::clamp(mesh->triangleBaseColors[triIdx], 0.0f, 1.0f);
                 }
                 if (triIdx < mesh->triangleSubmesh.size() &&
                     !mesh->submeshBaseColors.empty()) {
@@ -447,7 +488,7 @@ Result renderProjectedUnitBackendMesh(const Args& args) {
             baseColor0 = resolveVertexBase(i0, v0);
             baseColor1 = resolveVertexBase(i1, v1);
             baseColor2 = resolveVertexBase(i2, v2);
-            if (captureVisualTintStrength > 0.001f) {
+            if (!strictGltfParity && captureVisualTintStrength > 0.001f) {
                 const float tintAmt = std::clamp(captureVisualTintStrength, 0.0f, 1.0f);
                 baseColor0 = glm::mix(baseColor0, captureTintColor, tintAmt);
                 baseColor1 = glm::mix(baseColor1, captureTintColor, tintAmt);

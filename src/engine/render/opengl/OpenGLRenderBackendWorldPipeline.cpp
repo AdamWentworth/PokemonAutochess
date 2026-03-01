@@ -11,6 +11,7 @@ void OpenGLRenderBackend::ensureWorldPipeline() {
         worldViewProjLoc_ >= 0 && worldModelLoc_ >= 0 &&
         worldUseTextureLoc_ >= 0 && worldTextureSamplerLoc_ >= 0 &&
         worldWrapSLoc_ >= 0 && worldWrapTLoc_ >= 0 && worldAlphaModeLoc_ >= 0 && worldAlphaCutoffLoc_ >= 0 &&
+        worldCameraPosLoc_ >= 0 && worldCameraForwardLoc_ >= 0 &&
         worldMaterialModeLoc_ >= 0 && worldMaterialTimeLoc_ >= 0 && worldMaterialFlagsLoc_ >= 0 &&
         worldMaterialAtlasSizeLoc_ >= 0 && worldMaterialRect0Loc_ >= 0 && worldMaterialRect1Loc_ >= 0 &&
         worldMaterialFlipbook0Loc_ >= 0 && worldMaterialFlipbook1Loc_ >= 0 &&
@@ -137,6 +138,9 @@ void OpenGLRenderBackend::ensureWorldPipeline() {
         uniform float uWrapT;
         uniform float uAlphaMode;
         uniform float uAlphaCutoff;
+        uniform vec3 uCameraPos;
+        uniform vec3 uCameraForward;
+        uniform vec3 uCameraTarget;
         uniform float uMaterialMode;
         uniform float uMaterialTimeSec;
         uniform float uMaterialFlags;
@@ -427,40 +431,212 @@ void OpenGLRenderBackend::ensureWorldPipeline() {
             return mix(lo, hi, step(vec3(0.0031308), c));
         }
 
-        vec3 computeMappedNormal(vec2 sampleUv) {
-            vec3 n = normalize(vWorldNormal);
-            if (dot(n, n) < 1e-6) {
-                vec3 dx = dFdx(vWorldPos);
-                vec3 dy = dFdy(vWorldPos);
-                n = normalize(cross(dx, dy));
+        vec3 safeNormalize(vec3 value, vec3 fallback) {
+            float len2 = dot(value, value);
+            if (len2 < 1e-8) return fallback;
+            return value * inversesqrt(len2);
+        }
+
+        vec3 rrtAndOdtFit(vec3 v) {
+            vec3 a = v * (v + 0.0245786) - 0.000090537;
+            vec3 b = v * (0.983729 * v + 0.4329510) + 0.238081;
+            return a / b;
+        }
+
+        vec3 linearToneMapping(vec3 color, float toneMappingExposure) {
+            return clamp(toneMappingExposure * color, 0.0, 1.0);
+        }
+
+        vec3 tonemapACESFilmic(vec3 color, float toneMappingExposure) {
+            // Matches three.js ACESFilmicToneMapping (including matrix orientation and /0.6 scale).
+            const mat3 ACESInputMat = mat3(
+                vec3(0.59719, 0.07600, 0.02840), // transposed from source
+                vec3(0.35458, 0.90834, 0.13383),
+                vec3(0.04823, 0.01566, 0.83777)
+            );
+            const mat3 ACESOutputMat = mat3(
+                vec3( 1.60475, -0.10208, -0.00327), // transposed from source
+                vec3(-0.53108,  1.10813, -0.07276),
+                vec3(-0.07367, -0.00605,  1.07602)
+            );
+            color *= toneMappingExposure / 0.6;
+            color = ACESInputMat * color;
+            color = rrtAndOdtFit(color);
+            color = ACESOutputMat * color;
+            return clamp(color, 0.0, 1.0);
+        }
+
+        vec3 applyViewerToneMapping(vec3 color, float toneMappingMode, float toneMappingExposure) {
+            // Matches three-gltf-viewer controls:
+            //   Linear => 0, ACES Filmic => 1.
+            if (toneMappingMode < 0.5) {
+                return linearToneMapping(color, toneMappingExposure);
             }
-            if (!gl_FrontFacing) n = -n;
+            return tonemapACESFilmic(color, toneMappingExposure);
+        }
+
+        float distributionGGX(float NdotH, float roughness) {
+            float a = roughness * roughness;
+            float a2 = a * a;
+            float d = (NdotH * NdotH) * (a2 - 1.0) + 1.0;
+            return a2 / max(3.14159265 * d * d, 1e-5);
+        }
+
+        float geometrySchlickGGX(float NdotV, float roughness) {
+            float r = roughness + 1.0;
+            float k = (r * r) * 0.125; // (r^2)/8
+            return NdotV / max(NdotV * (1.0 - k) + k, 1e-5);
+        }
+
+        float geometrySmith(float NdotV, float NdotL, float roughness) {
+            return geometrySchlickGGX(NdotV, roughness) *
+                   geometrySchlickGGX(NdotL, roughness);
+        }
+
+        vec3 fresnelSchlick(float cosTheta, vec3 F0) {
+            float m = clamp(1.0 - cosTheta, 0.0, 1.0);
+            float m2 = m * m;
+            float m5 = m2 * m2 * m;
+            return F0 + (vec3(1.0) - F0) * m5;
+        }
+
+        vec3 fresnelSchlickRoughness(float cosTheta, vec3 F0, float roughness) {
+            float m = clamp(1.0 - cosTheta, 0.0, 1.0);
+            float m2 = m * m;
+            float m5 = m2 * m2 * m;
+            vec3 F90 = max(vec3(1.0 - roughness), F0);
+            return F0 + (F90 - F0) * m5;
+        }
+
+        vec2 DFGApprox(const in vec3 normal, const in vec3 viewDir, const in float roughness) {
+            float dotNV = clamp(dot(normal, viewDir), 0.0, 1.0);
+            const vec4 c0 = vec4(-1.0, -0.0275, -0.572, 0.022);
+            const vec4 c1 = vec4( 1.0,  0.0425,  1.04, -0.04);
+            vec4 r = roughness * c0 + c1;
+            float a004 = min(r.x * r.x, exp2(-9.28 * dotNV)) * r.x + r.y;
+            vec2 fab = vec2(-1.04, 1.04) * a004 + r.zw;
+            return fab;
+        }
+
+        void computeMultiscattering(const in vec3 normal,
+                                    const in vec3 viewDir,
+                                    const in vec3 specularColor,
+                                    const in float specularF90,
+                                    const in float roughness,
+                                    inout vec3 singleScatter,
+                                    inout vec3 multiScatter) {
+            vec2 fab = DFGApprox(normal, viewDir, roughness);
+            vec3 FssEss = specularColor * fab.x + specularF90 * fab.y;
+            float Ess = fab.x + fab.y;
+            float Ems = 1.0 - Ess;
+            vec3 Favg = specularColor + (1.0 - specularColor) * 0.047619; // 1/21
+            vec3 Fms = FssEss * Favg / max(1.0 - Ems * Favg, vec3(1e-5));
+            singleScatter += FssEss;
+            multiScatter += Fms * Ems;
+        }
+
+        vec3 sampleNeutralEnvironment(vec3 dir, float roughness) {
+            vec3 d = safeNormalize(dir, vec3(0.0, 1.0, 0.0));
+            // RoomEnvironment light directions (from three.js examples/jsm/environments/RoomEnvironment.js).
+            const vec3 roomDirs[7] = vec3[](
+                normalize(vec3(-0.6976730, 0.6220875,  0.3553301)), // light1
+                normalize(vec3(-0.6310653, 0.7059674, -0.3215068)), // light2
+                normalize(vec3( 0.7703826, 0.6305104, -0.0946954)), // light3
+                normalize(vec3(-0.0271260, 0.5219704,  0.8525321)), // light4
+                normalize(vec3( 0.1868756, 0.6635094, -0.7244534)), // light5
+                normalize(vec3( 0.0,       1.0,        0.0      )), // light6
+                normalize(vec3( 0.0257911, 0.9994960,  0.0185103))  // main point light
+            );
+            // Relative weights derived from RoomEnvironment authored intensities.
+            // Area lights: 50, 50, 17, 43, 20, 100 ; point light: 900 with distance falloff.
+            const float roomW[7] = float[](
+                0.50, 0.50, 0.17, 0.43, 0.20, 1.00, 3.30
+            );
+            float blur = clamp(roughness * roughness, 0.0, 1.0);
+            float lobePower = mix(64.0, 2.0, blur);
+            float accum = 0.0;
+            float accumW = 0.0;
+            for (int i = 0; i < 7; ++i) {
+                float nd = max(dot(d, roomDirs[i]), 0.0);
+                accum += roomW[i] * pow(nd, lobePower);
+                accumW += roomW[i];
+            }
+            // Normalize lobe energy to avoid over-bright, washed-out albedo.
+            float directional = (accumW > 1e-6) ? (accum / accumW) : 0.0;
+            // Keep a small floor bounce and stronger top hemisphere, similar to RoomEnvironment PMREM behavior.
+            float hemi = clamp(d.y * 0.5 + 0.5, 0.0, 1.0);
+            float bounce = mix(0.045, 0.10, hemi);
+            // Slightly stronger specular-side lobe at low roughness, flatter at high roughness.
+            float lobeGain = mix(0.55, 0.30, blur);
+            float neutral = bounce + directional * lobeGain;
+            neutral = clamp(neutral, 0.0, 1.5);
+            return vec3(neutral);
+        }
+
+        vec3 evalDirectPbr(vec3 n,
+                           vec3 v,
+                           vec3 l,
+                           vec3 radiance,
+                           vec3 albedo,
+                           vec3 F0,
+                           float roughness,
+                           float metallic) {
+            float NdotL = max(dot(n, l), 0.0);
+            float NdotV = max(dot(n, v), 0.0);
+            if (NdotL <= 0.0 || NdotV <= 0.0) return vec3(0.0);
+            vec3 h = normalize(v + l);
+            float NdotH = max(dot(n, h), 0.0);
+            float VdotH = max(dot(v, h), 0.0);
+
+            float D = distributionGGX(NdotH, roughness);
+            float G = geometrySmith(NdotV, NdotL, roughness);
+            vec3  F = fresnelSchlick(VdotH, F0);
+            vec3  spec = (D * G * F) / max(4.0 * NdotV * NdotL, 1e-4);
+
+            vec3 kS = F;
+            vec3 kD = (vec3(1.0) - kS) * (1.0 - metallic);
+            return (kD * albedo / 3.14159265 + spec) * radiance * NdotL;
+        }
+
+        vec3 perturbNormal2Arb(vec3 eyePos, vec3 surfNorm, vec3 mapN, vec2 uv, float faceDirection) {
+            // Mirrors three.js perturbNormal2Arb derivative basis construction.
+            vec3 q0 = dFdx(eyePos.xyz);
+            vec3 q1 = dFdy(eyePos.xyz);
+            vec2 st0 = dFdx(uv);
+            vec2 st1 = dFdy(uv);
+
+            vec3 N = surfNorm;
+            vec3 q1perp = cross(q1, N);
+            vec3 q0perp = cross(N, q0);
+            vec3 T = q1perp * st0.x + q0perp * st1.x;
+            vec3 B = q1perp * st0.y + q0perp * st1.y;
+
+            float det = max(dot(T, T), dot(B, B));
+            // Use winding-independent basis scale to avoid per-side normal inversion.
+            float scale = (det <= 1e-10) ? 0.0 : inversesqrt(det);
+            return normalize(T * (mapN.x * scale) + B * (mapN.y * scale) + N * mapN.z);
+        }
+
+        vec3 computeMappedNormal(vec2 sampleUv) {
+            float faceDirection = gl_FrontFacing ? 1.0 : -1.0;
+            vec3 dx = dFdx(vWorldPos);
+            vec3 dy = dFdy(vWorldPos);
+            vec3 geomN = normalize(cross(dx, dy)) * faceDirection;
+            vec3 n = normalize(vWorldNormal);
+            if (dot(n, n) < 1e-6) n = geomN;
+            // Ensure shading normal stays consistent with actual face orientation.
+            if (dot(n, geomN) < 0.0) n = -n;
             if (uUseNormalTexture < 0.5) return n;
 
-            vec3 dp1 = dFdx(vWorldPos);
-            vec3 dp2 = dFdy(vWorldPos);
-            vec2 duv1 = dFdx(vUv);
-            vec2 duv2 = dFdy(vUv);
-            float det = duv1.x * duv2.y - duv1.y * duv2.x;
-            if (abs(det) < 1e-8) return n;
-            float invDet = 1.0 / det;
-            vec3 t = normalize((dp1 * duv2.y - dp2 * duv1.y) * invDet);
-            vec3 b = normalize((dp2 * duv1.x - dp1 * duv2.x) * invDet);
-            mat3 tbn = mat3(t, b, n);
-
-            vec3 tn = texture(uNormalTexture, sampleUv).xyz * 2.0 - 1.0;
-            tn.xy *= max(uNormalScale, 0.0);
-            tn = normalize(tn);
-            return normalize(tbn * tn);
+            vec3 mapN = texture(uNormalTexture, sampleUv).xyz * 2.0 - 1.0;
+            mapN.xy *= max(uNormalScale, 0.0);
+            mapN = normalize(mapN);
+            vec3 mapped = perturbNormal2Arb(vWorldPos, n, mapN, sampleUv, faceDirection);
+            if (dot(mapped, geomN) < 0.0) mapped = -mapped;
+            return mapped;
         }
 
         vec3 applyWorldLitModel(vec3 linearColor, vec3 n, vec2 sampleUv) {
-            vec3 l = normalize(vec3(0.45, 0.90, 0.35));
-            vec3 v = normalize(vec3(0.15, 0.80, 0.55));
-            vec3 h = normalize(l + v);
-            float ndl = clamp(dot(n, l), 0.0, 1.0);
-            float ndh = clamp(dot(n, h), 0.0, 1.0);
-
             vec3 orm = vec3(1.0, 1.0, 1.0);
             if (uUseMetallicRoughnessTexture > 0.5) {
                 orm = texture(uMetallicRoughnessTexture, sampleUv).rgb;
@@ -471,20 +647,59 @@ void OpenGLRenderBackend::ensureWorldPipeline() {
             if (uUseOcclusionTexture > 0.5) {
                 float occTex = texture(uOcclusionTexture, sampleUv).r;
                 ao = mix(1.0, occTex, clamp(uOcclusionStrength, 0.0, 1.0));
-            } else if (uUseMetallicRoughnessTexture > 0.5) {
-                ao = mix(1.0, orm.r, clamp(uOcclusionStrength, 0.0, 1.0));
             }
 
-            float hemi = clamp(n.y * 0.5 + 0.5, 0.0, 1.0);
-            float ambient = mix(0.30, 0.62, hemi) * ao;
-            vec3 diffuse = linearColor * (ambient + ndl * 0.82);
-            vec3 f0 = mix(vec3(0.04), linearColor, metallic);
-            float specPower = mix(8.0, 120.0, clamp(1.0 - roughness, 0.0, 1.0));
-            float spec = pow(ndh, specPower) * mix(0.08, 1.0, 1.0 - roughness) * (0.15 + 0.85 * ndl);
-            vec3 shaded = diffuse * (1.0 - metallic * 0.35) + f0 * spec;
+            vec3 albedo = clamp(linearColor, 0.0, 1.0);
+            vec3 F0 = mix(vec3(0.04), albedo, metallic);
+            vec3 diffuseColor = albedo * (1.0 - metallic);
+            const float specularF90 = 1.0;
+            vec3 camForward = safeNormalize(
+                uCameraForward,
+                normalize(vec3(0.0, -0.6139406, -0.7893522)));
+            vec3 camRight = cross(camForward, vec3(0.0, 1.0, 0.0));
+            if (dot(camRight, camRight) < 1e-6) {
+                camRight = cross(camForward, vec3(0.0, 0.0, 1.0));
+            }
+            camRight = safeNormalize(camRight, vec3(1.0, 0.0, 0.0));
+            vec3 camUp = safeNormalize(cross(camRight, camForward), vec3(0.0, 1.0, 0.0));
+            vec3 v = safeNormalize(uCameraPos - vWorldPos, -camForward);
+            // three-gltf-viewer defaults:
+            // punctualLights=true, ambientIntensity=0.3, directIntensity=0.8*PI, directColor=white.
+            const vec3 directColor = vec3(1.0);
+            const float directIntensity = 0.8 * 3.14159265;
+            const vec3 ambientColor = vec3(1.0);
+            const float ambientIntensity = 0.3;
+
+            // Match three-gltf-viewer: directional light parented to camera at local (0.5, 0, 0.866).
+            vec3 lightPos = uCameraPos + camRight * 0.5 + camUp * 0.0 - camForward * 0.8660254;
+            vec3 l0 = safeNormalize(lightPos - uCameraTarget, vec3(0.45, 0.86, 0.24));
+            vec3 direct = evalDirectPbr(
+                n, v, l0, directColor * directIntensity, albedo, F0, roughness, metallic);
+
+            float NdotV = max(dot(n, v), 0.0);
+            vec3 F = fresnelSchlickRoughness(NdotV, F0, roughness);
+            vec3 kS = F;
+            vec3 kD = (vec3(1.0) - kS) * (1.0 - metallic);
+
+            vec3 r = reflect(-v, n);
+            r = normalize(mix(r, n, roughness * roughness));
+            vec3 envIrradiance = 3.14159265 * sampleNeutralEnvironment(n, 1.0);
+            vec3 envRadiance = sampleNeutralEnvironment(r, roughness);
+            vec3 singleScattering = vec3(0.0);
+            vec3 multiScattering = vec3(0.0);
+            computeMultiscattering(n, v, F0, specularF90, roughness, singleScattering, multiScattering);
+            vec3 cosineWeightedIrradiance = envIrradiance * (1.0 / 3.14159265);
+            vec3 totalScattering = singleScattering + multiScattering;
+            float energyComp = 1.0 - max(max(totalScattering.r, totalScattering.g), totalScattering.b);
+            vec3 diffuseIBL = diffuseColor * max(energyComp, 0.0) * cosineWeightedIrradiance;
+            vec3 specularIBL = envRadiance * singleScattering + multiScattering * cosineWeightedIrradiance;
+            vec3 ibl = (diffuseIBL + specularIBL) * ao;
+
+            vec3 ambientLight = kD * albedo * ambientColor * ambientIntensity;
+            vec3 shaded = direct + ibl + ambientLight;
 
             vec3 emissiveTex = (uUseEmissiveTexture > 0.5)
-                ? srgbToLinear(clamp(texture(uEmissiveTexture, sampleUv).rgb, 0.0, 1.0))
+                ? clamp(texture(uEmissiveTexture, sampleUv).rgb, 0.0, 1.0)
                 : vec3(1.0);
             vec3 emissive = emissiveTex * max(uEmissiveFactor, vec3(0.0));
             return max(shaded + emissive, vec3(0.0));
@@ -498,10 +713,15 @@ void OpenGLRenderBackend::ensureWorldPipeline() {
             vec4 tex = vec4(1.0);
             vec3 outLinear = clamp(vColor.rgb, 0.0, 1.0);
             vec2 wrappedUv = vec2(applyWrap(vUv.x, uWrapS), applyWrap(vUv.y, uWrapT));
-            wrappedUv = clampWrappedUvToTexelCenter(wrappedUv);
+            // Preserve full repeat/mirror detail; only clamp to texel center for clamp-to-edge.
+            bool clampS = abs(uWrapS - 33071.0) < 0.5;
+            bool clampT = abs(uWrapT - 33071.0) < 0.5;
+            if (clampS || clampT) {
+                wrappedUv = clampWrappedUvToTexelCenter(wrappedUv);
+            }
             if (uUseTexture > 0.5) {
                 tex = texture(uTexture, wrappedUv);
-                outLinear = srgbToLinear(clamp(tex.rgb, 0.0, 1.0)) * outLinear;
+                outLinear = clamp(tex.rgb, 0.0, 1.0) * outLinear;
             }
             float outA = clamp(vColor.a * tex.a, 0.0, 1.0);
             if (uAlphaMode < 0.5) {
@@ -514,7 +734,13 @@ void OpenGLRenderBackend::ensureWorldPipeline() {
                 vec3 n = computeMappedNormal(wrappedUv);
                 outLinear = applyWorldLitModel(outLinear, n, wrappedUv);
             }
-            vec3 outSrgb = linearToSrgb(clamp(outLinear, 0.0, 1.0));
+            // three-gltf-viewer semantics:
+            //   toneMappingExposure = pow(2, exposure), exposure default = 0.
+            const float toneMappingExposure = 1.0;
+            // three-gltf-viewer: toneMapping = ACES Filmic.
+            const float toneMappingMode = 1.0;
+            vec3 mapped = applyViewerToneMapping(max(outLinear, vec3(0.0)), toneMappingMode, toneMappingExposure);
+            vec3 outSrgb = linearToSrgb(mapped);
             FragColor = vec4(outSrgb, outA);
         }
     )GLSL";
@@ -550,6 +776,9 @@ void OpenGLRenderBackend::ensureWorldPipeline() {
     worldWrapTLoc_ = glGetUniformLocation(worldProgram_, "uWrapT");
     worldAlphaModeLoc_ = glGetUniformLocation(worldProgram_, "uAlphaMode");
     worldAlphaCutoffLoc_ = glGetUniformLocation(worldProgram_, "uAlphaCutoff");
+    worldCameraPosLoc_ = glGetUniformLocation(worldProgram_, "uCameraPos");
+    worldCameraForwardLoc_ = glGetUniformLocation(worldProgram_, "uCameraForward");
+    worldCameraTargetLoc_ = glGetUniformLocation(worldProgram_, "uCameraTarget");
     worldNormalScaleLoc_ = glGetUniformLocation(worldProgram_, "uNormalScale");
     worldMetallicFactorLoc_ = glGetUniformLocation(worldProgram_, "uMetallicFactor");
     worldRoughnessFactorLoc_ = glGetUniformLocation(worldProgram_, "uRoughnessFactor");
@@ -569,6 +798,7 @@ void OpenGLRenderBackend::ensureWorldPipeline() {
     if (worldViewProjLoc_ < 0 || worldModelLoc_ < 0 ||
         worldUseTextureLoc_ < 0 || worldTextureSamplerLoc_ < 0 ||
         worldWrapSLoc_ < 0 || worldWrapTLoc_ < 0 || worldAlphaModeLoc_ < 0 || worldAlphaCutoffLoc_ < 0 ||
+        worldCameraPosLoc_ < 0 || worldCameraForwardLoc_ < 0 ||
         worldMaterialModeLoc_ < 0 || worldMaterialTimeLoc_ < 0 || worldMaterialFlagsLoc_ < 0 ||
         worldMaterialAtlasSizeLoc_ < 0 || worldMaterialRect0Loc_ < 0 || worldMaterialRect1Loc_ < 0 ||
         worldMaterialFlipbook0Loc_ < 0 || worldMaterialFlipbook1Loc_ < 0 ||
@@ -642,6 +872,9 @@ void OpenGLRenderBackend::destroyWorldPipeline() {
     worldWrapTLoc_ = -1;
     worldAlphaModeLoc_ = -1;
     worldAlphaCutoffLoc_ = -1;
+    worldCameraPosLoc_ = -1;
+    worldCameraForwardLoc_ = -1;
+    worldCameraTargetLoc_ = -1;
     worldNormalScaleLoc_ = -1;
     worldMetallicFactorLoc_ = -1;
     worldRoughnessFactorLoc_ = -1;

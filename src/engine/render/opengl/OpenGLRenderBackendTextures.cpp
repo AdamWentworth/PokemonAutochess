@@ -30,7 +30,8 @@ unsigned int OpenGLRenderBackend::ensureWorldTexture(const WorldTextureData* tex
         textureData->width,
         textureData->height,
         textureData->wrapS,
-        textureData->wrapT);
+        textureData->wrapT,
+        /*srgb=*/true);
 }
 
 unsigned int OpenGLRenderBackend::ensureWorldTextureRaw(const char* keyCStr,
@@ -38,13 +39,15 @@ unsigned int OpenGLRenderBackend::ensureWorldTextureRaw(const char* keyCStr,
                                                         int width,
                                                         int height,
                                                         int wrapSIn,
-                                                        int wrapTIn) {
+                                                        int wrapTIn,
+                                                        bool srgb) {
     if (!rgba || width <= 0 || height <= 0 || !keyCStr || keyCStr[0] == '\0') {
         return 0;
     }
 
-    const std::string key(keyCStr);
-    auto existing = worldTextures_.find(key);
+    std::string cacheKey(keyCStr);
+    cacheKey += srgb ? "|srgb" : "|lin";
+    auto existing = worldTextures_.find(cacheKey);
     if (existing != worldTextures_.end()) {
         return existing->second.textureId;
     }
@@ -63,7 +66,7 @@ unsigned int OpenGLRenderBackend::ensureWorldTextureRaw(const char* keyCStr,
     glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
     glTexImage2D(GL_TEXTURE_2D,
                  0,
-                 GL_RGBA8,
+                 srgb ? GL_SRGB8_ALPHA8 : GL_RGBA8,
                  width,
                  height,
                  0,
@@ -75,7 +78,7 @@ unsigned int OpenGLRenderBackend::ensureWorldTextureRaw(const char* keyCStr,
     if (GLAD_GL_EXT_texture_filter_anisotropic) {
         float maxAniso = 1.0f;
         glGetFloatv(GL_MAX_TEXTURE_MAX_ANISOTROPY_EXT, &maxAniso);
-        const float requested = std::min(8.0f, std::max(1.0f, maxAniso));
+        const float requested = std::max(1.0f, maxAniso);
         glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAX_ANISOTROPY_EXT, requested);
     }
 #endif
@@ -86,7 +89,7 @@ unsigned int OpenGLRenderBackend::ensureWorldTextureRaw(const char* keyCStr,
     entry.height = height;
     entry.wrapS = wrapSIn;
     entry.wrapT = wrapTIn;
-    worldTextures_.emplace(key, entry);
+    worldTextures_.emplace(cacheKey, entry);
     return textureId;
 }
 

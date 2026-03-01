@@ -6,7 +6,10 @@ namespace game::runtime::shared_world_batches {
 
 namespace {
 
-IRenderBackend::WorldTextureData toWorldTextureData(const WorldIndexedBatch& batch) {
+IRenderBackend::WorldTextureData toWorldTextureData(const WorldIndexedBatch& batch,
+                                                    const float* cameraWorldPos3,
+                                                    const float* cameraForward3,
+                                                    const float* cameraTarget3) {
     const unsigned char* rgbaData = batch.textureRgba;
     if (!rgbaData && !batch.ownedTextureRgba.empty()) {
         rgbaData = batch.ownedTextureRgba.data();
@@ -70,6 +73,15 @@ IRenderBackend::WorldTextureData toWorldTextureData(const WorldIndexedBatch& bat
     tex.emissiveFactorR = batch.emissiveFactorR;
     tex.emissiveFactorG = batch.emissiveFactorG;
     tex.emissiveFactorB = batch.emissiveFactorB;
+    tex.cameraPosX = (cameraWorldPos3 ? cameraWorldPos3[0] : tex.cameraPosX);
+    tex.cameraPosY = (cameraWorldPos3 ? cameraWorldPos3[1] : tex.cameraPosY);
+    tex.cameraPosZ = (cameraWorldPos3 ? cameraWorldPos3[2] : tex.cameraPosZ);
+    tex.cameraForwardX = (cameraForward3 ? cameraForward3[0] : tex.cameraForwardX);
+    tex.cameraForwardY = (cameraForward3 ? cameraForward3[1] : tex.cameraForwardY);
+    tex.cameraForwardZ = (cameraForward3 ? cameraForward3[2] : tex.cameraForwardZ);
+    tex.cameraTargetX = (cameraTarget3 ? cameraTarget3[0] : tex.cameraTargetX);
+    tex.cameraTargetY = (cameraTarget3 ? cameraTarget3[1] : tex.cameraTargetY);
+    tex.cameraTargetZ = (cameraTarget3 ? cameraTarget3[2] : tex.cameraTargetZ);
     tex.materialTimeSec = batch.materialTimeSec;
     tex.materialFlags = batch.materialFlags;
     tex.materialAtlasWidth = batch.materialAtlasWidth;
@@ -101,8 +113,12 @@ void drawOneBatch(IRenderBackend& renderer,
                   const WorldIndexedBatch& batch,
                   const float* viewProjectionMatrix4x4,
                   int surfaceWidth,
-                  int surfaceHeight) {
-    IRenderBackend::WorldTextureData tex = toWorldTextureData(batch);
+                  int surfaceHeight,
+                  const float* cameraWorldPos3,
+                  const float* cameraForward3,
+                  const float* cameraTarget3) {
+    IRenderBackend::WorldTextureData tex =
+        toWorldTextureData(batch, cameraWorldPos3, cameraForward3, cameraTarget3);
     renderer.drawWorldIndexedMeshTextured(
         batch.vertices.data(),
         batch.vertices.size(),
@@ -120,13 +136,24 @@ void submitWorldIndexedBatches(IRenderBackend& renderer,
                                const std::vector<WorldIndexedBatch>& batches,
                                const float* viewProjectionMatrix4x4,
                                int surfaceWidth,
-                               int surfaceHeight) {
+                               int surfaceHeight,
+                               const float* cameraWorldPos3,
+                               const float* cameraForward3,
+                               const float* cameraTarget3) {
     if (batches.empty() || !viewProjectionMatrix4x4 || surfaceWidth <= 0 || surfaceHeight <= 0) return;
 
     for (const WorldIndexedBatch& batch : batches) {
         if (batch.vertices.empty() || batch.indices.empty()) continue;
         if (batch.alphaMode == 2u) continue;
-        drawOneBatch(renderer, batch, viewProjectionMatrix4x4, surfaceWidth, surfaceHeight);
+        drawOneBatch(
+            renderer,
+            batch,
+            viewProjectionMatrix4x4,
+            surfaceWidth,
+            surfaceHeight,
+            cameraWorldPos3,
+            cameraForward3,
+            cameraTarget3);
     }
 
     static thread_local std::vector<const WorldIndexedBatch*> blendBatches;
@@ -147,7 +174,15 @@ void submitWorldIndexedBatches(IRenderBackend& renderer,
         });
     for (const WorldIndexedBatch* batch : blendBatches) {
         if (!batch) continue;
-        drawOneBatch(renderer, *batch, viewProjectionMatrix4x4, surfaceWidth, surfaceHeight);
+        drawOneBatch(
+            renderer,
+            *batch,
+            viewProjectionMatrix4x4,
+            surfaceWidth,
+            surfaceHeight,
+            cameraWorldPos3,
+            cameraForward3,
+            cameraTarget3);
     }
 }
 

@@ -676,8 +676,32 @@ void composeAndSubmit(const ComposeAndSubmitArgs& args) {
                 drawableH);
         }
         if (!worldIndexedBatches.empty() && hasWorldViewProj && supportsWorldIndexedMeshes) {
+            float cameraWorldPos3[3] = {0.0f, 7.0f, 9.0f};
+            float cameraForward3[3] = {0.0f, -0.6139406f, -0.7893522f};
+            float cameraTarget3[3] = {0.0f, -1.0f, 0.0f};
+            if (camera) {
+                const glm::vec3 camPos = camera->getPosition();
+                const glm::vec3 camForward = camera->getDirection();
+                const glm::vec3 camTarget = camera->getTarget();
+                cameraWorldPos3[0] = camPos.x;
+                cameraWorldPos3[1] = camPos.y;
+                cameraWorldPos3[2] = camPos.z;
+                cameraForward3[0] = camForward.x;
+                cameraForward3[1] = camForward.y;
+                cameraForward3[2] = camForward.z;
+                cameraTarget3[0] = camTarget.x;
+                cameraTarget3[1] = camTarget.y;
+                cameraTarget3[2] = camTarget.z;
+            }
             runtime::shared_world_batches::submitWorldIndexedBatches(
-                *renderer, worldIndexedBatches, worldViewProj, drawableW, drawableH);
+                *renderer,
+                worldIndexedBatches,
+                worldViewProj,
+                drawableW,
+                drawableH,
+                cameraWorldPos3,
+                cameraForward3,
+                cameraTarget3);
         }
         if (renderWorld && hasWorldViewProj && supportsWorldIndexedMeshes &&
             renderer && renderer->backendId() &&

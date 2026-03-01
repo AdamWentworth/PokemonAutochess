@@ -93,7 +93,10 @@ void submitWorldIndexedBatches(IRenderBackend& renderer,
                                const std::vector<WorldIndexedBatch>& batches,
                                const float* viewProjectionMatrix4x4,
                                int surfaceWidth,
-                               int surfaceHeight);
+                               int surfaceHeight,
+                               const float* cameraWorldPos3 = nullptr,
+                               const float* cameraForward3 = nullptr,
+                               const float* cameraTarget3 = nullptr);
 
 } // namespace game::runtime::shared_world_batches
 

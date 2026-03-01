@@ -134,6 +134,7 @@ void OpenGLRenderBackend::drawWorldIndexedMeshTextured(const WorldMeshVertex* ve
         worldViewProjLoc_ < 0 || worldModelLoc_ < 0 ||
         worldUseTextureLoc_ < 0 || worldTextureSamplerLoc_ < 0 ||
         worldWrapSLoc_ < 0 || worldWrapTLoc_ < 0 || worldAlphaModeLoc_ < 0 || worldAlphaCutoffLoc_ < 0 ||
+        worldCameraPosLoc_ < 0 || worldCameraForwardLoc_ < 0 ||
         worldMaterialModeLoc_ < 0 || worldMaterialTimeLoc_ < 0 || worldMaterialFlagsLoc_ < 0 ||
         worldMaterialAtlasSizeLoc_ < 0 || worldMaterialRect0Loc_ < 0 || worldMaterialRect1Loc_ < 0 ||
         worldMaterialFlipbook0Loc_ < 0 || worldMaterialFlipbook1Loc_ < 0 ||
@@ -159,21 +160,31 @@ void OpenGLRenderBackend::drawWorldIndexedMeshTextured(const WorldMeshVertex* ve
     const bool hasTexture = (worldTexture != 0u);
     static const unsigned char kFallbackWhiteRgba[4] = {255u, 255u, 255u, 255u};
     static const unsigned char kFallbackFlatNormalRgba[4] = {128u, 128u, 255u, 255u};
-    const GLuint fallbackWhiteTexture = ensureWorldTextureRaw(
-        "__world_fallback_white_1x1__",
+    const GLuint fallbackWhiteSrgbTexture = ensureWorldTextureRaw(
+        "__world_fallback_white_srgb_1x1__",
         kFallbackWhiteRgba,
         1,
         1,
         33071,
-        33071);
+        33071,
+        /*srgb=*/true);
+    const GLuint fallbackWhiteLinearTexture = ensureWorldTextureRaw(
+        "__world_fallback_white_linear_1x1__",
+        kFallbackWhiteRgba,
+        1,
+        1,
+        33071,
+        33071,
+        /*srgb=*/false);
     const GLuint fallbackFlatNormalTexture = ensureWorldTextureRaw(
         "__world_fallback_flat_normal_1x1__",
         kFallbackFlatNormalRgba,
         1,
         1,
         33071,
-        33071);
-    const GLuint boundTexture = hasTexture ? worldTexture : fallbackWhiteTexture;
+        33071,
+        /*srgb=*/false);
+    const GLuint boundTexture = hasTexture ? worldTexture : fallbackWhiteSrgbTexture;
     const float useTexture = hasTexture ? 1.0f : 0.0f;
     const GLuint normalTexture = texture
         ? ensureWorldTextureRaw(
@@ -182,7 +193,8 @@ void OpenGLRenderBackend::drawWorldIndexedMeshTextured(const WorldMeshVertex* ve
             texture->normalWidth,
             texture->normalHeight,
             texture->normalWrapS,
-            texture->normalWrapT)
+            texture->normalWrapT,
+            /*srgb=*/false)
         : 0u;
     const bool hasNormalTexture = (normalTexture != 0u);
     const GLuint boundNormalTexture = hasNormalTexture ? normalTexture : fallbackFlatNormalTexture;
@@ -193,11 +205,12 @@ void OpenGLRenderBackend::drawWorldIndexedMeshTextured(const WorldMeshVertex* ve
             texture->metallicRoughnessWidth,
             texture->metallicRoughnessHeight,
             texture->metallicRoughnessWrapS,
-            texture->metallicRoughnessWrapT)
+            texture->metallicRoughnessWrapT,
+            /*srgb=*/false)
         : 0u;
     const bool hasMetallicRoughnessTexture = (metallicRoughnessTexture != 0u);
     const GLuint boundMetallicRoughnessTexture =
-        hasMetallicRoughnessTexture ? metallicRoughnessTexture : fallbackWhiteTexture;
+        hasMetallicRoughnessTexture ? metallicRoughnessTexture : fallbackWhiteLinearTexture;
     const GLuint occlusionTexture = texture
         ? ensureWorldTextureRaw(
             texture->occlusionKey,
@@ -205,10 +218,11 @@ void OpenGLRenderBackend::drawWorldIndexedMeshTextured(const WorldMeshVertex* ve
             texture->occlusionWidth,
             texture->occlusionHeight,
             texture->occlusionWrapS,
-            texture->occlusionWrapT)
+            texture->occlusionWrapT,
+            /*srgb=*/false)
         : 0u;
     const bool hasOcclusionTexture = (occlusionTexture != 0u);
-    const GLuint boundOcclusionTexture = hasOcclusionTexture ? occlusionTexture : fallbackWhiteTexture;
+    const GLuint boundOcclusionTexture = hasOcclusionTexture ? occlusionTexture : fallbackWhiteLinearTexture;
     const GLuint emissiveTexture = texture
         ? ensureWorldTextureRaw(
             texture->emissiveKey,
@@ -216,10 +230,11 @@ void OpenGLRenderBackend::drawWorldIndexedMeshTextured(const WorldMeshVertex* ve
             texture->emissiveWidth,
             texture->emissiveHeight,
             texture->emissiveWrapS,
-            texture->emissiveWrapT)
+            texture->emissiveWrapT,
+            /*srgb=*/true)
         : 0u;
     const bool hasEmissiveTexture = (emissiveTexture != 0u);
-    const GLuint boundEmissiveTexture = hasEmissiveTexture ? emissiveTexture : fallbackWhiteTexture;
+    const GLuint boundEmissiveTexture = hasEmissiveTexture ? emissiveTexture : fallbackWhiteSrgbTexture;
     const GLfloat wrapS = static_cast<GLfloat>(texture ? texture->wrapS : 10497);
     const GLfloat wrapT = static_cast<GLfloat>(texture ? texture->wrapT : 10497);
     const bool blendAlpha = (alphaMode == 2u);
@@ -289,6 +304,20 @@ void OpenGLRenderBackend::drawWorldIndexedMeshTextured(const WorldMeshVertex* ve
         0.0f, 0.0f, 0.0f, 1.0f};
     const float* modelMatrix = texture ? texture->modelMatrix.data() : kIdentityModel;
     glUniformMatrix4fv(worldModelLoc_, 1, GL_FALSE, modelMatrix);
+    const float cameraPosX = texture ? texture->cameraPosX : 0.0f;
+    const float cameraPosY = texture ? texture->cameraPosY : 7.0f;
+    const float cameraPosZ = texture ? texture->cameraPosZ : 9.0f;
+    const float cameraForwardX = texture ? texture->cameraForwardX : 0.0f;
+    const float cameraForwardY = texture ? texture->cameraForwardY : -0.6139406f;
+    const float cameraForwardZ = texture ? texture->cameraForwardZ : -0.7893522f;
+    const float cameraTargetX = texture ? texture->cameraTargetX : 0.0f;
+    const float cameraTargetY = texture ? texture->cameraTargetY : -1.0f;
+    const float cameraTargetZ = texture ? texture->cameraTargetZ : 0.0f;
+    glUniform3f(worldCameraPosLoc_, cameraPosX, cameraPosY, cameraPosZ);
+    glUniform3f(worldCameraForwardLoc_, cameraForwardX, cameraForwardY, cameraForwardZ);
+    if (worldCameraTargetLoc_ >= 0) {
+        glUniform3f(worldCameraTargetLoc_, cameraTargetX, cameraTargetY, cameraTargetZ);
+    }
     glUniform1f(worldUseTextureLoc_, useTexture);
     if (worldUseNormalTextureLoc_ >= 0) {
         glUniform1f(worldUseNormalTextureLoc_, hasNormalTexture ? 1.0f : 0.0f);

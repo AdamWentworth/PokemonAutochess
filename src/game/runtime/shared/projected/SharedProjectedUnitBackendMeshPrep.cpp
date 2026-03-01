@@ -1,5 +1,7 @@
 #include "game/runtime/shared/projected/SharedProjectedUnitBackendMeshPrep.h"
 
+#include "engine/core/Environment.h"
+
 #include <algorithm>
 #include <cctype>
 #include <cmath>
@@ -18,6 +20,19 @@ std::string toLowerCopy(std::string s) {
 }
 
 constexpr unsigned char kFallbackWhiteRgba[4] = {255u, 255u, 255u, 255u};
+
+bool strictGltfParityEnabled() {
+    static const bool enabled = []() -> bool {
+        const auto env = engine::env::get("PAC_GLTF_PARITY_STRICT");
+        if (!env.has_value()) return true;
+        const std::string raw = *env;
+        if (raw == "0" || raw == "false" || raw == "FALSE" || raw == "off" || raw == "OFF") {
+            return false;
+        }
+        return true;
+    }();
+    return enabled;
+}
 } // namespace
 
 namespace game::runtime::shared_projected_unit_backend_mesh_prep {
@@ -288,10 +303,15 @@ bool prepareProjectedUnitBackendMesh(const Args& args, Result& out, PreparedStat
         std::clamp(tint.g * 0.85f + 0.10f, 0.0f, 1.0f),
         std::clamp(tint.b * 0.85f + 0.10f, 0.0f, 1.0f));
     prepared.fastTexturedAlpha = std::clamp(args.modelFadeAlpha, 0.0f, 1.0f);
-    prepared.fastTexturedTint = glm::mix(
-        glm::vec3(1.0f),
-        args.captureTintColor,
-        std::clamp(args.captureVisualTintStrength, 0.0f, 1.0f));
+    if (strictGltfParityEnabled()) {
+        // Parity mode: keep authored material colors untouched by gameplay tint.
+        prepared.fastTexturedTint = glm::vec3(1.0f);
+    } else {
+        prepared.fastTexturedTint = glm::mix(
+            glm::vec3(1.0f),
+            args.captureTintColor,
+            std::clamp(args.captureVisualTintStrength, 0.0f, 1.0f));
+    }
 
     return true;
 }

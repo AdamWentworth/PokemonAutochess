@@ -87,6 +87,17 @@ public:
         float emissiveFactorR = 0.0f;
         float emissiveFactorG = 0.0f;
         float emissiveFactorB = 0.0f;
+        // Optional camera payload used by world shaded paths.
+        // Defaults preserve prior fixed-camera lighting behavior.
+        float cameraPosX = 0.0f;
+        float cameraPosY = 7.0f;
+        float cameraPosZ = 9.0f;
+        float cameraForwardX = 0.0f;
+        float cameraForwardY = -0.6139406f;
+        float cameraForwardZ = -0.7893522f;
+        float cameraTargetX = 0.0f;
+        float cameraTargetY = -1.0f;
+        float cameraTargetZ = 0.0f;
 
         // Optional exact material payload used by world textured draws.
         // Currently interpreted when materialMode == 1 (FireTailExact).

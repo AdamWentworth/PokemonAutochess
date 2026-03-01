@@ -89,7 +89,8 @@ private:
                                        int width,
                                        int height,
                                        int wrapS,
-                                       int wrapT);
+                                       int wrapT,
+                                       bool srgb);
     unsigned int ensureSpriteTexture(const std::string& texturePath);
     void clearTextureCaches();
 
@@ -119,6 +120,9 @@ private:
     int worldWrapTLoc_ = -1;
     int worldAlphaModeLoc_ = -1;
     int worldAlphaCutoffLoc_ = -1;
+    int worldCameraPosLoc_ = -1;
+    int worldCameraForwardLoc_ = -1;
+    int worldCameraTargetLoc_ = -1;
     int worldNormalScaleLoc_ = -1;
     int worldMetallicFactorLoc_ = -1;
     int worldRoughnessFactorLoc_ = -1;
