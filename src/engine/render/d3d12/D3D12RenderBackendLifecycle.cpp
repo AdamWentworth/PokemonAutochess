@@ -251,6 +251,10 @@ void D3D12RenderBackend::shutdown() {
     worldIndexBufferSize_ = 0;
     worldIndexFrameOffset_ = 0;
     worldFallbackTextureDescriptorIndex_ = 0;
+    worldFallbackNormalTextureDescriptorIndex_ = 0;
+    worldFallbackMetallicRoughnessTextureDescriptorIndex_ = 0;
+    worldFallbackOcclusionTextureDescriptorIndex_ = 0;
+    worldFallbackEmissiveTextureDescriptorIndex_ = 0;
     worldPremultipliedBlendPipelineState_.Reset();
     worldAdditiveBlendPipelineState_.Reset();
     worldBlendPipelineState_.Reset();

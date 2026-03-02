@@ -45,6 +45,9 @@ class TriangleSubmitter {
                       const glm::vec3& n0,
                       const glm::vec3& n1,
                       const glm::vec3& n2,
+                      const glm::vec4& t0,
+                      const glm::vec4& t1,
+                      const glm::vec4& t2,
                       const glm::vec3& baseColor0,
                       const glm::vec3& baseColor1,
                       const glm::vec3& baseColor2,
@@ -57,4 +60,3 @@ class TriangleSubmitter {
 };
 
 } // namespace game::runtime::shared_projected_unit_backend_mesh_submit
-

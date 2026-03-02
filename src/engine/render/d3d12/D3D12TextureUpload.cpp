@@ -1,5 +1,7 @@
 #include "engine/render/d3d12/D3D12TextureUpload.h"
 
+#include <algorithm>
+#include <cmath>
 #include <cstdint>
 #include <cstring>
 #include <vector>
@@ -18,6 +20,22 @@ struct CpuMipLevel {
 constexpr int kGlRepeat = 10497;
 constexpr int kGlClampToEdge = 33071;
 constexpr int kGlMirroredRepeat = 33648;
+
+float srgbByteToLinear(unsigned char v) {
+    const float c = static_cast<float>(v) / 255.0f;
+    if (c <= 0.04045f) {
+        return c / 12.92f;
+    }
+    return std::pow((c + 0.055f) / 1.055f, 2.4f);
+}
+
+unsigned char linearToSrgbByte(float linear) {
+    const float c = std::clamp(linear, 0.0f, 1.0f);
+    const float srgb =
+        (c <= 0.0031308f) ? (c * 12.92f) : (1.055f * std::pow(c, 1.0f / 2.4f) - 0.055f);
+    const int quantized = static_cast<int>(std::lround(srgb * 255.0f));
+    return static_cast<unsigned char>(std::clamp(quantized, 0, 255));
+}
 
 int wrapTexelIndex(int index, int size, int wrapMode) {
     if (size <= 1) return 0;
@@ -45,7 +63,8 @@ std::vector<CpuMipLevel> buildRgbaMipChain(const unsigned char* rgbaPixels,
                                            int width,
                                            int height,
                                            int wrapS,
-                                           int wrapT) {
+                                           int wrapT,
+                                           bool srgbColorData) {
     std::vector<CpuMipLevel> chain;
     if (!rgbaPixels || width <= 0 || height <= 0) return chain;
 
@@ -66,10 +85,10 @@ std::vector<CpuMipLevel> buildRgbaMipChain(const unsigned char* rgbaPixels,
 
         for (int y = 0; y < next.height; ++y) {
             for (int x = 0; x < next.width; ++x) {
-                std::uint32_t sumR = 0;
-                std::uint32_t sumG = 0;
-                std::uint32_t sumB = 0;
-                std::uint32_t sumA = 0;
+                float sumR = 0.0f;
+                float sumG = 0.0f;
+                float sumB = 0.0f;
+                float sumA = 0.0f;
                 std::uint32_t taps = 0;
 
                 for (int oy = 0; oy < 2; ++oy) {
@@ -79,10 +98,16 @@ std::vector<CpuMipLevel> buildRgbaMipChain(const unsigned char* rgbaPixels,
                         const std::size_t srcIndex =
                             (static_cast<std::size_t>(srcY) * static_cast<std::size_t>(prev.width) +
                              static_cast<std::size_t>(srcX)) * 4u;
-                        sumR += prev.rgba[srcIndex + 0];
-                        sumG += prev.rgba[srcIndex + 1];
-                        sumB += prev.rgba[srcIndex + 2];
-                        sumA += prev.rgba[srcIndex + 3];
+                        if (srgbColorData) {
+                            sumR += srgbByteToLinear(prev.rgba[srcIndex + 0]);
+                            sumG += srgbByteToLinear(prev.rgba[srcIndex + 1]);
+                            sumB += srgbByteToLinear(prev.rgba[srcIndex + 2]);
+                        } else {
+                            sumR += static_cast<float>(prev.rgba[srcIndex + 0]) / 255.0f;
+                            sumG += static_cast<float>(prev.rgba[srcIndex + 1]) / 255.0f;
+                            sumB += static_cast<float>(prev.rgba[srcIndex + 2]) / 255.0f;
+                        }
+                        sumA += static_cast<float>(prev.rgba[srcIndex + 3]) / 255.0f;
                         ++taps;
                     }
                 }
@@ -90,11 +115,21 @@ std::vector<CpuMipLevel> buildRgbaMipChain(const unsigned char* rgbaPixels,
                 const std::size_t dstIndex =
                     (static_cast<std::size_t>(y) * static_cast<std::size_t>(next.width) +
                      static_cast<std::size_t>(x)) * 4u;
-                const std::uint32_t safeTaps = (taps > 0) ? taps : 1u;
-                next.rgba[dstIndex + 0] = static_cast<unsigned char>(sumR / safeTaps);
-                next.rgba[dstIndex + 1] = static_cast<unsigned char>(sumG / safeTaps);
-                next.rgba[dstIndex + 2] = static_cast<unsigned char>(sumB / safeTaps);
-                next.rgba[dstIndex + 3] = static_cast<unsigned char>(sumA / safeTaps);
+                const float invTaps = 1.0f / static_cast<float>((taps > 0) ? taps : 1u);
+                if (srgbColorData) {
+                    next.rgba[dstIndex + 0] = linearToSrgbByte(sumR * invTaps);
+                    next.rgba[dstIndex + 1] = linearToSrgbByte(sumG * invTaps);
+                    next.rgba[dstIndex + 2] = linearToSrgbByte(sumB * invTaps);
+                } else {
+                    const int qR = static_cast<int>(std::lround(sumR * invTaps * 255.0f));
+                    const int qG = static_cast<int>(std::lround(sumG * invTaps * 255.0f));
+                    const int qB = static_cast<int>(std::lround(sumB * invTaps * 255.0f));
+                    next.rgba[dstIndex + 0] = static_cast<unsigned char>(std::clamp(qR, 0, 255));
+                    next.rgba[dstIndex + 1] = static_cast<unsigned char>(std::clamp(qG, 0, 255));
+                    next.rgba[dstIndex + 2] = static_cast<unsigned char>(std::clamp(qB, 0, 255));
+                }
+                const int alphaQ = static_cast<int>(std::lround(sumA * invTaps * 255.0f));
+                next.rgba[dstIndex + 3] = static_cast<unsigned char>(std::clamp(alphaQ, 0, 255));
             }
         }
 
@@ -122,11 +157,13 @@ bool createTextureResourceFromRgba(ID3D12Device* device,
                                    int wrapS,
                                    int wrapT,
                                    bool generateMipChain,
+                                   bool srgbColorData,
                                    Microsoft::WRL::ComPtr<ID3D12Resource>& outTexture) {
     if (!device || !commandQueue || !fence || !fenceEvent || !srvHeap || !rgbaPixels || width <= 0 || height <= 0) {
         return false;
     }
-    std::vector<CpuMipLevel> mipChain = buildRgbaMipChain(rgbaPixels, width, height, wrapS, wrapT);
+    std::vector<CpuMipLevel> mipChain =
+        buildRgbaMipChain(rgbaPixels, width, height, wrapS, wrapT, srgbColorData);
     if (mipChain.empty()) return false;
     if (!generateMipChain && mipChain.size() > 1u) {
         mipChain.resize(1u);
@@ -147,7 +184,9 @@ bool createTextureResourceFromRgba(ID3D12Device* device,
     texDesc.Height = static_cast<UINT>(height);
     texDesc.DepthOrArraySize = 1;
     texDesc.MipLevels = static_cast<UINT16>(mipLevels);
-    texDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+    texDesc.Format = srgbColorData
+        ? DXGI_FORMAT_R8G8B8A8_UNORM_SRGB
+        : DXGI_FORMAT_R8G8B8A8_UNORM;
     texDesc.SampleDesc.Count = 1;
     texDesc.SampleDesc.Quality = 0;
     texDesc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
@@ -285,7 +324,9 @@ bool createTextureResourceFromRgba(ID3D12Device* device,
 
     D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc{};
     srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-    srvDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+    srvDesc.Format = srgbColorData
+        ? DXGI_FORMAT_R8G8B8A8_UNORM_SRGB
+        : DXGI_FORMAT_R8G8B8A8_UNORM;
     srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
     srvDesc.Texture2D.MostDetailedMip = 0;
     srvDesc.Texture2D.MipLevels = mipLevels;

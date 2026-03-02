@@ -15,6 +15,8 @@ struct Vertex {
 
     // glTF COLOR_0 (linear 0..1)
     float r, g, b, a;
+    // glTF TANGENT.xyz with handedness sign in .w.
+    float tx, ty, tz, tw;
 };
 
 } // namespace pac_model_types

@@ -110,6 +110,13 @@ private:
     struct SpriteTexture;
     SpriteTexture* ensureSpriteTexture(const std::string& texturePath);
     SpriteTexture* ensureFallbackSpriteTexture();
+    SpriteTexture* ensureWorldTextureRaw(const char* key,
+                                         const unsigned char* rgba,
+                                         int width,
+                                         int height,
+                                         int wrapS,
+                                         int wrapT,
+                                         bool srgb);
     SpriteTexture* ensureWorldTexture(const WorldTextureData* textureData);
 #if defined(_WIN32)
     struct CachedWorldMesh {
@@ -137,7 +144,11 @@ private:
                                       std::size_t vertexCount,
                                       const std::uint32_t* indices,
                                       std::size_t indexCount,
-                                      std::uint32_t textureDescriptorIndex,
+                                      std::uint32_t baseTextureDescriptorIndex,
+                                      std::uint32_t normalTextureDescriptorIndex,
+                                      std::uint32_t metallicRoughnessTextureDescriptorIndex,
+                                      std::uint32_t occlusionTextureDescriptorIndex,
+                                      std::uint32_t emissiveTextureDescriptorIndex,
                                       const WorldTextureData* textureData,
                                       float useTexture,
                                       const float* viewProjectionMatrix4x4,
@@ -218,6 +229,10 @@ private:
     std::uint32_t worldIndexFrameOffset_ = 0;
     std::uint8_t* worldIndexMappedData_ = nullptr;
     std::uint32_t worldFallbackTextureDescriptorIndex_ = 0;
+    std::uint32_t worldFallbackNormalTextureDescriptorIndex_ = 0;
+    std::uint32_t worldFallbackMetallicRoughnessTextureDescriptorIndex_ = 0;
+    std::uint32_t worldFallbackOcclusionTextureDescriptorIndex_ = 0;
+    std::uint32_t worldFallbackEmissiveTextureDescriptorIndex_ = 0;
 
     struct SpriteTexture {
         Microsoft::WRL::ComPtr<ID3D12Resource> resource;

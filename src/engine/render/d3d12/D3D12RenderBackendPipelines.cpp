@@ -179,8 +179,8 @@ void D3D12RenderBackend::createWorldPipeline() {
 #if defined(_WIN32)
     static constexpr char kVsSource[] =
         "cbuffer VSConstants : register(b0) { float4x4 uViewProj; float4x4 uModel; };"
-        "struct VSIn { float3 pos : POSITION; float2 uv : TEXCOORD; float4 col : COLOR; };"
-        "struct VSOut { float4 pos : SV_POSITION; float2 uv : TEXCOORD; float4 col : COLOR; float3 worldPos : TEXCOORD1; };"
+        "struct VSIn { float3 pos : POSITION; float2 uv : TEXCOORD; float4 col : COLOR; float3 nrm : NORMAL; float4 tan : TANGENT; };"
+        "struct VSOut { float4 pos : SV_POSITION; float2 uv : TEXCOORD; float4 col : COLOR; float3 worldPos : TEXCOORD1; float3 worldNormal : TEXCOORD2; float4 worldTangent : TEXCOORD3; };"
         "VSOut main(VSIn i) {"
         "  VSOut o;"
         "  float4 world = mul(uModel, float4(i.pos, 1.0f));"
@@ -190,6 +190,14 @@ void D3D12RenderBackend::createWorldPipeline() {
         "  o.uv = i.uv;"
         "  o.col = i.col;"
         "  o.worldPos = world.xyz;"
+        "  float3x3 normalM = (float3x3)uModel;"
+        "  float3 wn = mul(normalM, i.nrm);"
+        "  float wnLen2 = dot(wn, wn);"
+        "  o.worldNormal = (wnLen2 > 1e-8f) ? normalize(wn) : float3(0.0f, 1.0f, 0.0f);"
+        "  float3 wt = mul(normalM, i.tan.xyz);"
+        "  float wtLen2 = dot(wt, wt);"
+        "  if (wtLen2 > 1e-8f) wt = normalize(wt);"
+        "  o.worldTangent = float4(wt, i.tan.w);"
         "  return o;"
         "}";
     static constexpr char kPsSource[] = R"HLSL(
@@ -223,6 +231,10 @@ cbuffer PSConstants : register(b1) {
   float uCharacterInkingEnabled;
 };
 Texture2D gTex : register(t0);
+Texture2D gNormalTex : register(t1);
+Texture2D gMetallicRoughnessTex : register(t2);
+Texture2D gOcclusionTex : register(t3);
+Texture2D gEmissiveTex : register(t4);
 SamplerState gSampCC : register(s0);
 SamplerState gSampRR : register(s1);
 SamplerState gSampCR : register(s2);
@@ -232,7 +244,7 @@ SamplerState gSampRM : register(s5);
 SamplerState gSampMM : register(s6);
 SamplerState gSampCM : register(s7);
 SamplerState gSampMC : register(s8);
-struct PSIn { float4 pos : SV_POSITION; float2 uv : TEXCOORD; float4 col : COLOR; float3 worldPos : TEXCOORD1; };
+struct PSIn { float4 pos : SV_POSITION; float2 uv : TEXCOORD; float4 col : COLOR; float3 worldPos : TEXCOORD1; float3 worldNormal : TEXCOORD2; float4 worldTangent : TEXCOORD3; };
 
 float applyWrap(float coord, float mode) {
   if (abs(mode - 33071.0f) < 0.5f) return saturate(coord);
@@ -253,22 +265,30 @@ float2 clampWrappedUvToTexelCenter(float2 uv) {
 }
 bool isClampWrap(float mode) { return abs(mode - 33071.0f) < 0.5f; }
 bool isMirrorWrap(float mode) { return abs(mode - 33648.0f) < 0.5f; }
-float4 sampleWorldTextureWithWrap(float2 uv, float2 uvDx, float2 uvDy) {
-  bool sClamp = isClampWrap(uWrapS);
-  bool tClamp = isClampWrap(uWrapT);
-  bool sMirror = isMirrorWrap(uWrapS);
-  bool tMirror = isMirrorWrap(uWrapT);
+float4 sampleTextureWithWrap(Texture2D tex,
+                             float2 uv,
+                             float2 uvDx,
+                             float2 uvDy,
+                             float wrapS,
+                             float wrapT) {
+  bool sClamp = isClampWrap(wrapS);
+  bool tClamp = isClampWrap(wrapT);
+  bool sMirror = isMirrorWrap(wrapS);
+  bool tMirror = isMirrorWrap(wrapT);
 
-  if (sClamp && tClamp) return gTex.SampleGrad(gSampCC, uv, uvDx, uvDy);
-  if (!sClamp && !sMirror && !tClamp && !tMirror) return gTex.SampleGrad(gSampRR, uv, uvDx, uvDy);
-  if (sClamp && !tClamp && !tMirror) return gTex.SampleGrad(gSampCR, uv, uvDx, uvDy);
-  if (!sClamp && !sMirror && tClamp) return gTex.SampleGrad(gSampRC, uv, uvDx, uvDy);
-  if (sMirror && !tClamp && !tMirror) return gTex.SampleGrad(gSampMR, uv, uvDx, uvDy);
-  if (!sClamp && !sMirror && tMirror) return gTex.SampleGrad(gSampRM, uv, uvDx, uvDy);
-  if (sMirror && tMirror) return gTex.SampleGrad(gSampMM, uv, uvDx, uvDy);
-  if (sClamp && tMirror) return gTex.SampleGrad(gSampCM, uv, uvDx, uvDy);
-  if (sMirror && tClamp) return gTex.SampleGrad(gSampMC, uv, uvDx, uvDy);
-  return gTex.SampleGrad(gSampRR, uv, uvDx, uvDy);
+  if (sClamp && tClamp) return tex.SampleGrad(gSampCC, uv, uvDx, uvDy);
+  if (!sClamp && !sMirror && !tClamp && !tMirror) return tex.SampleGrad(gSampRR, uv, uvDx, uvDy);
+  if (sClamp && !tClamp && !tMirror) return tex.SampleGrad(gSampCR, uv, uvDx, uvDy);
+  if (!sClamp && !sMirror && tClamp) return tex.SampleGrad(gSampRC, uv, uvDx, uvDy);
+  if (sMirror && !tClamp && !tMirror) return tex.SampleGrad(gSampMR, uv, uvDx, uvDy);
+  if (!sClamp && !sMirror && tMirror) return tex.SampleGrad(gSampRM, uv, uvDx, uvDy);
+  if (sMirror && tMirror) return tex.SampleGrad(gSampMM, uv, uvDx, uvDy);
+  if (sClamp && tMirror) return tex.SampleGrad(gSampCM, uv, uvDx, uvDy);
+  if (sMirror && tClamp) return tex.SampleGrad(gSampMC, uv, uvDx, uvDy);
+  return tex.SampleGrad(gSampRR, uv, uvDx, uvDy);
+}
+float4 sampleWorldTextureWithWrap(float2 uv, float2 uvDx, float2 uvDy) {
+  return sampleTextureWithWrap(gTex, uv, uvDx, uvDy, uWrapS, uWrapT);
 }
 
 float hash11(float x) { return frac(sin(x * 12.9898f) * 43758.5453f); }
@@ -512,30 +532,364 @@ float4 evalFireTailExact(PSIn i) {
   rgb *= alpha;
   return float4(rgb, alpha);
 }
+)HLSL"
+R"HLSL(
 
-float3 applyWorldLitModel(PSIn i, bool isFrontFace, float3 linearColor) {
-  float3 dx = ddx(i.worldPos);
-  float3 dy = ddy(i.worldPos);
-  float3 n = normalize(cross(dx, dy));
-  if (!isFrontFace) {
-    n = -n;
-  }
-  float3 l = normalize(float3(0.45f, 0.90f, 0.35f));
-  float ndl = saturate(dot(n, l));
-  float hemi = n.y * 0.5f + 0.5f;
-  float ambient = lerp(0.58f, 0.92f, saturate(hemi));
-  float lit = ambient * 0.45f + (0.22f + 0.78f * ndl) * 0.70f;
-  return max(linearColor * lit, 0.0f.xxx);
+float3 safeNormalize(float3 value, float3 fallback) {
+  float len2 = dot(value, value);
+  if (len2 < 1e-8f) return fallback;
+  return value * rsqrt(len2);
 }
 
-float3 applyCharacterInking(PSIn i, bool isFrontFace, float3 linearColor) {
-  if (uCharacterInkingEnabled < 0.5f) return linearColor;
+float3 rrtAndOdtFit(float3 v) {
+  float3 a = v * (v + 0.0245786f) - 0.000090537f;
+  float3 b = v * (0.983729f * v + 0.4329510f) + 0.238081f;
+  return a / b;
+}
+
+float3 linearToneMapping(float3 color, float toneMappingExposure) {
+  return clamp(
+      toneMappingExposure * color,
+      float3(0.0f, 0.0f, 0.0f),
+      float3(1.0f, 1.0f, 1.0f));
+}
+
+float3 acesInputMul(float3 c) {
+  return float3(
+      0.59719f * c.x + 0.35458f * c.y + 0.04823f * c.z,
+      0.07600f * c.x + 0.90834f * c.y + 0.01566f * c.z,
+      0.02840f * c.x + 0.13383f * c.y + 0.83777f * c.z);
+}
+
+float3 acesOutputMul(float3 c) {
+  return float3(
+      1.60475f * c.x + -0.53108f * c.y + -0.07367f * c.z,
+     -0.10208f * c.x +  1.10813f * c.y + -0.00605f * c.z,
+     -0.00327f * c.x + -0.07276f * c.y +  1.07602f * c.z);
+}
+
+float3 tonemapACESFilmic(float3 color, float toneMappingExposure) {
+  color *= toneMappingExposure / 0.6f;
+  color = acesInputMul(color);
+  color = rrtAndOdtFit(color);
+  color = acesOutputMul(color);
+  return clamp(color, float3(0.0f, 0.0f, 0.0f), float3(1.0f, 1.0f, 1.0f));
+}
+
+float3 applyViewerToneMapping(float3 color, float toneMappingMode, float toneMappingExposure) {
+  if (toneMappingMode < 0.5f) {
+    return linearToneMapping(color, toneMappingExposure);
+  }
+  return tonemapACESFilmic(color, toneMappingExposure);
+}
+
+float distributionGGX(float NdotH, float roughness) {
+  float a = roughness * roughness;
+  float a2 = a * a;
+  float d = (NdotH * NdotH) * (a2 - 1.0f) + 1.0f;
+  return a2 / max(3.14159265f * d * d, 1e-5f);
+}
+
+float geometrySchlickGGX(float NdotV, float roughness) {
+  float r = roughness + 1.0f;
+  float k = (r * r) * 0.125f;
+  return NdotV / max(NdotV * (1.0f - k) + k, 1e-5f);
+}
+
+float geometrySmith(float NdotV, float NdotL, float roughness) {
+  return geometrySchlickGGX(NdotV, roughness) * geometrySchlickGGX(NdotL, roughness);
+}
+
+float3 fresnelSchlick(float cosTheta, float3 F0) {
+  float m = saturate(1.0f - cosTheta);
+  float m2 = m * m;
+  float m5 = m2 * m2 * m;
+  return F0 + (float3(1.0f, 1.0f, 1.0f) - F0) * m5;
+}
+
+float3 fresnelSchlickRoughness(float cosTheta, float3 F0, float roughness) {
+  float m = saturate(1.0f - cosTheta);
+  float m2 = m * m;
+  float m5 = m2 * m2 * m;
+  float3 F90 = max(float3(1.0f - roughness, 1.0f - roughness, 1.0f - roughness), F0);
+  return F0 + (F90 - F0) * m5;
+}
+
+float2 DFGApprox(const in float3 normal, const in float3 viewDir, const in float roughness) {
+  float dotNV = saturate(dot(normal, viewDir));
+  const float4 c0 = float4(-1.0f, -0.0275f, -0.572f, 0.022f);
+  const float4 c1 = float4( 1.0f,  0.0425f,  1.04f, -0.04f);
+  float4 r = roughness * c0 + c1;
+  float a004 = min(r.x * r.x, exp2(-9.28f * dotNV)) * r.x + r.y;
+  float2 fab = float2(-1.04f, 1.04f) * a004 + r.zw;
+  return fab;
+}
+
+void computeMultiscattering(const in float3 normal,
+                            const in float3 viewDir,
+                            const in float3 specularColor,
+                            const in float specularF90,
+                            const in float roughness,
+                            inout float3 singleScatter,
+                            inout float3 multiScatter) {
+  float2 fab = DFGApprox(normal, viewDir, roughness);
+  float3 FssEss = specularColor * fab.x + specularF90 * fab.y;
+  float Ess = fab.x + fab.y;
+  float Ems = 1.0f - Ess;
+  float3 Favg = specularColor + (float3(1.0f, 1.0f, 1.0f) - specularColor) * 0.047619f;
+  float3 Fms = FssEss * Favg / max(float3(1.0f, 1.0f, 1.0f) - Ems * Favg, 1e-5f);
+  singleScatter += FssEss;
+  multiScatter += Fms * Ems;
+}
+
+float computeSpecularOcclusion(const in float dotNV, const in float ambientOcclusion, const in float roughness) {
+  return saturate(pow(dotNV + ambientOcclusion, exp2(-16.0f * roughness - 1.0f)) - 1.0f + ambientOcclusion);
+}
+
+float roughnessToNeutralMip(float roughness) {
+  // Mirror three.js cubeUV roughness curve used by PMREM lookup.
+  const float r0 = 1.0f;
+  const float m0 = -2.0f;
+  const float r1 = 0.8f;
+  const float m1 = -1.0f;
+  const float r4 = 0.4f;
+  const float m4 = 2.0f;
+  const float r5 = 0.305f;
+  const float m5 = 3.0f;
+  const float r6 = 0.21f;
+  const float m6 = 4.0f;
+  float r = saturate(roughness);
+  if (r >= r1) return (r0 - r) * (m1 - m0) / (r0 - r1) + m0;
+  if (r >= r4) return (r1 - r) * (m4 - m1) / (r1 - r4) + m1;
+  if (r >= r5) return (r4 - r) * (m5 - m4) / (r4 - r5) + m4;
+  if (r >= r6) return (r5 - r) * (m6 - m5) / (r5 - r6) + m5;
+  return -2.0f * log2(max(1.16f * r, 1e-4f));
+}
+
+float neutralMipToLobePower(float mip) {
+  float t = saturate((mip + 2.0f) / 10.0f);
+  return lerp(256.0f, 1.4f, t);
+}
+
+float3 sampleNeutralEnvironment(float3 dir, float roughness) {
+  float3 d = safeNormalize(dir, float3(0.0f, 1.0f, 0.0f));
+  const float3 roomDirs[7] = {
+      normalize(float3(-0.6976730f, 0.6220875f,  0.3553301f)),
+      normalize(float3(-0.6310653f, 0.7059674f, -0.3215068f)),
+      normalize(float3( 0.7703826f, 0.6305104f, -0.0946954f)),
+      normalize(float3(-0.0271260f, 0.5219704f,  0.8525321f)),
+      normalize(float3( 0.1868756f, 0.6635094f, -0.7244534f)),
+      normalize(float3( 0.0f,       1.0f,        0.0f)),
+      normalize(float3( 0.0257911f, 0.9994960f,  0.0185103f))
+  };
+  const float roomIntensity[7] = {50.0f, 50.0f, 17.0f, 43.0f, 20.0f, 100.0f, 900.0f};
+  const float roomSoftness[7] = {0.90f, 0.90f, 0.72f, 0.74f, 0.78f, 1.00f, 1.15f};
+  float mip = clamp(roughnessToNeutralMip(roughness), -2.0f, 8.0f);
+  float basePower = neutralMipToLobePower(mip);
+  float rr = saturate(roughness * roughness);
+  float accum = 0.0f;
+  float accumW = 0.0f;
+  [unroll]
+  for (int idx = 0; idx < 7; ++idx) {
+    float lobePower = lerp(basePower * roomSoftness[idx], 1.10f, rr);
+    float nd = max(dot(d, roomDirs[idx]), 0.0f);
+    accum += roomIntensity[idx] * pow(nd, lobePower);
+    accumW += roomIntensity[idx];
+  }
+  float directional = (accumW > 1e-6f) ? (accum / accumW) : 0.0f;
+  float hemi = saturate(d.y * 0.5f + 0.5f);
+  float bounce = lerp(0.040f, 0.095f, hemi);
+  float neutral = bounce + directional * 0.95f;
+  neutral = clamp(neutral, 0.0f, 1.6f);
+  return float3(neutral, neutral, neutral);
+}
+
+float3 evalDirectPbr(float3 n,
+                     float3 v,
+                     float3 l,
+                     float3 radiance,
+                     float3 albedo,
+                     float3 F0,
+                     float roughness,
+                     float metallic) {
+  float NdotL = max(dot(n, l), 0.0f);
+  float NdotV = max(dot(n, v), 0.0f);
+  if (NdotL <= 0.0f || NdotV <= 0.0f) return float3(0.0f, 0.0f, 0.0f);
+  float3 h = normalize(v + l);
+  float NdotH = max(dot(n, h), 0.0f);
+  float VdotH = max(dot(v, h), 0.0f);
+
+  float D = distributionGGX(NdotH, roughness);
+  float G = geometrySmith(NdotV, NdotL, roughness);
+  float3 F = fresnelSchlick(VdotH, F0);
+  float3 spec = (D * G * F) / max(4.0f * NdotV * NdotL, 1e-4f);
+
+  float3 kS = F;
+  float3 kD = (float3(1.0f, 1.0f, 1.0f) - kS) * (1.0f - metallic);
+  return (kD * albedo / 3.14159265f + spec) * radiance * NdotL;
+}
+
+float3 perturbNormal2Arb(float3 eyePos, float3 surfNorm, float3 mapN, float2 uv) {
+  float3 q0 = ddx(eyePos.xyz);
+  float3 q1 = ddy(eyePos.xyz);
+  float2 st0 = ddx(uv);
+  float2 st1 = ddy(uv);
+
+  float3 N = surfNorm;
+  float3 q1perp = cross(q1, N);
+  float3 q0perp = cross(N, q0);
+  float3 T = q1perp * st0.x + q0perp * st1.x;
+  float3 B = q1perp * st0.y + q0perp * st1.y;
+
+  float det = max(dot(T, T), dot(B, B));
+  float scale = (det <= 1e-10f) ? 0.0f : rsqrt(det);
+  return normalize(T * (mapN.x * scale) + B * (mapN.y * scale) + N * mapN.z);
+}
+
+float3 computeMappedNormal(PSIn i,
+                           bool isFrontFace,
+                           float2 sampleUv,
+                           float2 uvDx,
+                           float2 uvDy,
+                           bool useNormalTexture,
+                           float normalScale) {
+  float faceDirection = isFrontFace ? 1.0f : -1.0f;
   float3 dx = ddx(i.worldPos);
   float3 dy = ddy(i.worldPos);
-  float3 n = normalize(cross(dx, dy));
-  if (!isFrontFace) n = -n;
-  float3 v = normalize(float3(0.0f, 7.0f, 9.0f) - i.worldPos);
-  float ndv = saturate(dot(n, v));
+  float3 geomN = normalize(cross(dx, dy)) * faceDirection;
+  float3 n = normalize(i.worldNormal);
+  if (dot(n, n) < 1e-6f) n = geomN;
+  if (dot(n, geomN) < 0.0f) n = -n;
+  if (!useNormalTexture) return n;
+
+  float3 mapN = sampleTextureWithWrap(gNormalTex, sampleUv, uvDx, uvDy, uWrapS, uWrapT).xyz * 2.0f - 1.0f;
+  mapN.xy *= max(normalScale, 0.0f);
+  mapN = normalize(mapN);
+  float3 mapped = float3(0.0f, 0.0f, 0.0f);
+  float3 tangent = i.worldTangent.xyz;
+  float tangentLen2 = dot(tangent, tangent);
+  bool hasAuthoredTangent = tangentLen2 > 1e-6f;
+  if (hasAuthoredTangent) {
+    tangent *= rsqrt(tangentLen2);
+    tangent = tangent - n * dot(n, tangent);
+    float orthoLen2 = dot(tangent, tangent);
+    if (orthoLen2 > 1e-10f) {
+      tangent *= rsqrt(orthoLen2);
+      float tangentSign = (i.worldTangent.w < 0.0f) ? -1.0f : 1.0f;
+      float3 bitangent = normalize(cross(n, tangent)) * tangentSign;
+      if (!isFrontFace) {
+        tangent = -tangent;
+        bitangent = -bitangent;
+        n = -n;
+      }
+      mapped = normalize(tangent * mapN.x + bitangent * mapN.y + n * mapN.z);
+    } else {
+      hasAuthoredTangent = false;
+    }
+  }
+  if (!hasAuthoredTangent) {
+    mapped = perturbNormal2Arb(i.worldPos, n, mapN, sampleUv);
+  }
+  if (dot(mapped, geomN) < 0.0f) mapped = -mapped;
+  return mapped;
+}
+
+float3 applyWorldLitModel(PSIn i,
+                          bool isFrontFace,
+                          float3 linearColor,
+                          float2 sampleUv,
+                          float2 uvDx,
+                          float2 uvDy,
+                          bool useNormalTexture,
+                          bool useMetallicRoughnessTexture,
+                          bool useOcclusionTexture,
+                          bool useEmissiveTexture,
+                          float normalScale,
+                          float metallicFactor,
+                          float roughnessFactor,
+                          float occlusionStrength,
+                          float3 emissiveFactor,
+                          float3 cameraPos,
+                          float3 cameraForwardPacked,
+                          float3 cameraTarget) {
+  float3 n = computeMappedNormal(i, isFrontFace, sampleUv, uvDx, uvDy, useNormalTexture, normalScale);
+  float3 orm = float3(1.0f, 1.0f, 1.0f);
+  if (useMetallicRoughnessTexture) {
+    orm = sampleTextureWithWrap(
+              gMetallicRoughnessTex,
+              sampleUv,
+              uvDx,
+              uvDy,
+              uWrapS,
+              uWrapT).rgb;
+  }
+  float roughness = clamp(orm.g * saturate(roughnessFactor), 0.04f, 1.0f);
+  float metallic = clamp(orm.b * saturate(metallicFactor), 0.0f, 1.0f);
+  float ao = 1.0f;
+  if (useOcclusionTexture) {
+    float occTex = sampleTextureWithWrap(gOcclusionTex, sampleUv, uvDx, uvDy, uWrapS, uWrapT).r;
+    ao = lerp(1.0f, occTex, saturate(occlusionStrength));
+  }
+
+  float3 albedo = saturate(linearColor);
+  float3 F0 = lerp(float3(0.04f, 0.04f, 0.04f), albedo, metallic);
+  float3 diffuseColor = albedo * (1.0f - metallic);
+  const float specularF90 = 1.0f;
+  float3 camForward = safeNormalize(cameraForwardPacked, normalize(float3(0.0f, -0.6139406f, -0.7893522f)));
+  float3 camRight = cross(camForward, float3(0.0f, 1.0f, 0.0f));
+  if (dot(camRight, camRight) < 1e-6f) {
+    camRight = cross(camForward, float3(0.0f, 0.0f, 1.0f));
+  }
+  camRight = safeNormalize(camRight, float3(1.0f, 0.0f, 0.0f));
+  float3 camUp = safeNormalize(cross(camRight, camForward), float3(0.0f, 1.0f, 0.0f));
+  float3 v = safeNormalize(cameraPos - i.worldPos, -camForward);
+  const float3 directColor = float3(1.0f, 1.0f, 1.0f);
+  const float directIntensity = 0.8f * 3.14159265f;
+  const float3 ambientColor = float3(1.0f, 1.0f, 1.0f);
+  const float ambientIntensity = 0.3f;
+
+  float3 lightPos = cameraPos + camRight * 0.5f + camUp * 0.0f - camForward * 0.8660254f;
+  float3 l0 = safeNormalize(lightPos - cameraTarget, float3(0.45f, 0.86f, 0.24f));
+  float3 direct = evalDirectPbr(n, v, l0, directColor * directIntensity, albedo, F0, roughness, metallic);
+
+  float NdotV = max(dot(n, v), 0.0f);
+  float3 F = fresnelSchlickRoughness(NdotV, F0, roughness);
+  float3 kS = F;
+  float3 kD = (float3(1.0f, 1.0f, 1.0f) - kS) * (1.0f - metallic);
+
+  float3 r = reflect(-v, n);
+  r = normalize(lerp(r, n, roughness * roughness));
+  float3 envIrradiance = 3.14159265f * sampleNeutralEnvironment(n, 1.0f);
+  float3 envRadiance = sampleNeutralEnvironment(r, roughness);
+  float3 singleScattering = float3(0.0f, 0.0f, 0.0f);
+  float3 multiScattering = float3(0.0f, 0.0f, 0.0f);
+  computeMultiscattering(n, v, F0, specularF90, roughness, singleScattering, multiScattering);
+  float3 cosineWeightedIrradiance = envIrradiance * (1.0f / 3.14159265f);
+  float3 totalScattering = singleScattering + multiScattering;
+  float energyComp = 1.0f - max(max(totalScattering.r, totalScattering.g), totalScattering.b);
+  float3 diffuseIBL = diffuseColor * max(energyComp, 0.0f) * cosineWeightedIrradiance;
+  float3 specularIBL = envRadiance * singleScattering + multiScattering * cosineWeightedIrradiance;
+  diffuseIBL *= ao;
+  float specularOcclusion = computeSpecularOcclusion(NdotV, ao, roughness);
+  specularIBL *= specularOcclusion;
+  float3 ibl = diffuseIBL + specularIBL;
+
+  float3 ambientLight = kD * albedo * ambientColor * ambientIntensity;
+  float3 shaded = direct + ibl + ambientLight;
+
+  float3 emissiveTex = useEmissiveTexture
+      ? saturate(sampleTextureWithWrap(gEmissiveTex, sampleUv, uvDx, uvDy, uWrapS, uWrapT).rgb)
+      : float3(1.0f, 1.0f, 1.0f);
+  float3 emissive = emissiveTex * max(emissiveFactor, float3(0.0f, 0.0f, 0.0f));
+  return max(shaded + emissive, float3(0.0f, 0.0f, 0.0f));
+}
+
+float3 applyCharacterInking(PSIn i, float3 linearColor, float3 n, float3 cameraPos, float3 cameraForwardPacked) {
+  if (uCharacterInkingEnabled < 0.5f) return linearColor;
+  float3 camForward = safeNormalize(cameraForwardPacked, normalize(float3(0.0f, -0.6139406f, -0.7893522f)));
+  float3 v = safeNormalize(cameraPos - i.worldPos, -camForward);
+  float3 nn = safeNormalize(n, float3(0.0f, 1.0f, 0.0f));
+  float ndv = saturate(dot(nn, v));
   float edge = 1.0f - ndv;
   float fw = max(fwidth(edge), 1e-4f);
   float t0 = 0.84f;
@@ -543,12 +897,14 @@ float3 applyCharacterInking(PSIn i, bool isFrontFace, float3 linearColor) {
   float ringOuter = smoothstep(t0 - fw * 1.5f, t0 + fw * 1.5f, edge);
   float ringInner = smoothstep(t1 - fw * 1.5f, t1 + fw * 1.5f, edge);
   float outline = saturate(ringOuter - ringInner);
-  return lerp(linearColor, 0.0f.xxx, outline);
+  return lerp(linearColor, float3(0.0f, 0.0f, 0.0f), outline);
 }
+)HLSL"
+R"HLSL(
 
 float4 main(PSIn i, bool isFrontFace : SV_IsFrontFace) : SV_TARGET {
   if (uMaterialMode > 2.5f && uMaterialMode < 3.5f) {
-    if (isFrontFace) discard;
+    if (!isFrontFace) discard;
     return float4(0.0f, 0.0f, 0.0f, 1.0f);
   }
   if (uMaterialMode > 0.5f && uMaterialMode < 1.5f) {
@@ -556,11 +912,17 @@ float4 main(PSIn i, bool isFrontFace : SV_IsFrontFace) : SV_TARGET {
   }
   float4 tex = float4(1.0f, 1.0f, 1.0f, 1.0f);
   float3 outLinear = saturate(i.col.rgb);
+  float2 wrappedUv = float2(applyWrap(i.uv.x, uWrapS), applyWrap(i.uv.y, uWrapT));
+  bool clampS = isClampWrap(uWrapS);
+  bool clampT = isClampWrap(uWrapT);
+  if (clampS || clampT) {
+    wrappedUv = clampWrappedUvToTexelCenter(wrappedUv);
+  }
+  float2 uvDx = ddx(wrappedUv);
+  float2 uvDy = ddy(wrappedUv);
   if (uUseTexture > 0.5f) {
-    float2 uvDx = ddx(i.uv);
-    float2 uvDy = ddy(i.uv);
-    tex = sampleWorldTextureWithWrap(i.uv, uvDx, uvDy);
-    outLinear = srgbToLinear(saturate(tex.rgb)) * outLinear;
+    tex = sampleWorldTextureWithWrap(wrappedUv, uvDx, uvDy);
+    outLinear = saturate(tex.rgb) * outLinear;
   }
   float outA = saturate(i.col.a * tex.a);
   if (uAlphaMode < 0.5f) {
@@ -570,9 +932,46 @@ float4 main(PSIn i, bool isFrontFace : SV_IsFrontFace) : SV_TARGET {
     outA = saturate(i.col.a);
   }
   if (uMaterialMode >= 1.5f) {
-    outLinear = applyWorldLitModel(i, isFrontFace, outLinear);
+    const int pbrFlags = (int)(uMaterialFlags + 0.5f);
+    const bool useNormalTexture = (pbrFlags & (1 << 0)) != 0;
+    const bool useMetallicRoughnessTexture = (pbrFlags & (1 << 1)) != 0;
+    const bool useOcclusionTexture = (pbrFlags & (1 << 2)) != 0;
+    const bool useEmissiveTexture = (pbrFlags & (1 << 3)) != 0;
+    const float normalScale = max(uMaterialAtlasWidth, 0.0f);
+    const float metallicFactor = saturate(uMaterialAtlasHeight);
+    const float roughnessFactor = saturate(uMaterialRect0U);
+    const float occlusionStrength = saturate(uMaterialRect0V);
+    const float3 emissiveFactor =
+        max(float3(uMaterialRect0W, uMaterialRect0H, uMaterialRect1U), float3(0.0f, 0.0f, 0.0f));
+    const float3 cameraPos = float3(uMaterialRect1V, uMaterialRect1W, uMaterialRect1H);
+    const float3 cameraForward = float3(uMaterialFlipbook0Cols, uMaterialFlipbook0Rows, uMaterialFlipbook0Frames);
+    const float3 cameraTarget = float3(uMaterialFlipbook0Fps, uMaterialFlipbook1Cols, uMaterialFlipbook1Rows);
+    outLinear = applyWorldLitModel(i,
+                                   isFrontFace,
+                                   outLinear,
+                                   wrappedUv,
+                                   uvDx,
+                                   uvDy,
+                                   useNormalTexture,
+                                   useMetallicRoughnessTexture,
+                                   useOcclusionTexture,
+                                   useEmissiveTexture,
+                                   normalScale,
+                                   metallicFactor,
+                                   roughnessFactor,
+                                   occlusionStrength,
+                                   emissiveFactor,
+                                   cameraPos,
+                                   cameraForward,
+                                   cameraTarget);
   }
-  float3 outSrgb = linearToSrgb(saturate(outLinear));
+  const float toneMappingExposure = 1.0f;
+  const float toneMappingMode = 1.0f;
+  float3 mapped = applyViewerToneMapping(
+      max(outLinear, float3(0.0f, 0.0f, 0.0f)),
+      toneMappingMode,
+      toneMappingExposure);
+  float3 outSrgb = linearToSrgb(mapped);
   return float4(outSrgb, outA);
 }
 )HLSL";
@@ -594,14 +993,16 @@ float4 main(PSIn i, bool isFrontFace : SV_IsFrontFace) : SV_TARGET {
         throw std::runtime_error("D3DCompile failed for world PS.");
     }
 
-    D3D12_DESCRIPTOR_RANGE srvRange{};
-    srvRange.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
-    srvRange.NumDescriptors = 1;
-    srvRange.BaseShaderRegister = 0;
-    srvRange.RegisterSpace = 0;
-    srvRange.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
+    std::array<D3D12_DESCRIPTOR_RANGE, 5> srvRanges{};
+    for (UINT i = 0; i < static_cast<UINT>(srvRanges.size()); ++i) {
+        srvRanges[i].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
+        srvRanges[i].NumDescriptors = 1;
+        srvRanges[i].BaseShaderRegister = i;
+        srvRanges[i].RegisterSpace = 0;
+        srvRanges[i].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
+    }
 
-    D3D12_ROOT_PARAMETER rootParams[3]{};
+    D3D12_ROOT_PARAMETER rootParams[7]{};
     rootParams[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_32BIT_CONSTANTS;
     rootParams[0].Constants.Num32BitValues = 32;
     rootParams[0].Constants.ShaderRegister = 0;
@@ -612,21 +1013,25 @@ float4 main(PSIn i, bool isFrontFace : SV_IsFrontFace) : SV_TARGET {
     rootParams[1].Constants.ShaderRegister = 1;
     rootParams[1].Constants.RegisterSpace = 0;
     rootParams[1].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
-    rootParams[2].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
-    rootParams[2].DescriptorTable.NumDescriptorRanges = 1;
-    rootParams[2].DescriptorTable.pDescriptorRanges = &srvRange;
-    rootParams[2].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+    for (UINT i = 0; i < static_cast<UINT>(srvRanges.size()); ++i) {
+        const UINT rootIndex = 2u + i;
+        rootParams[rootIndex].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+        rootParams[rootIndex].DescriptorTable.NumDescriptorRanges = 1;
+        rootParams[rootIndex].DescriptorTable.pDescriptorRanges = &srvRanges[i];
+        rootParams[rootIndex].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+    }
 
     auto makeStaticWorldSampler = [](UINT shaderRegister,
                                      D3D12_TEXTURE_ADDRESS_MODE addressU,
                                      D3D12_TEXTURE_ADDRESS_MODE addressV) {
         D3D12_STATIC_SAMPLER_DESC s{};
-        s.Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;
+        // Match OpenGL world texture quality closer: anisotropic + slight negative LOD bias.
+        s.Filter = D3D12_FILTER_ANISOTROPIC;
         s.AddressU = addressU;
         s.AddressV = addressV;
         s.AddressW = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
-        s.MipLODBias = 0.0f;
-        s.MaxAnisotropy = 1;
+        s.MipLODBias = -0.35f;
+        s.MaxAnisotropy = 16;
         s.ComparisonFunc = D3D12_COMPARISON_FUNC_ALWAYS;
         s.BorderColor = D3D12_STATIC_BORDER_COLOR_TRANSPARENT_BLACK;
         s.MinLOD = 0.0f;
@@ -676,6 +1081,8 @@ float4 main(PSIn i, bool isFrontFace : SV_IsFrontFace) : SV_TARGET {
         {"POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
         {"TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
         {"COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 20, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
+        {"NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 36, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
+        {"TANGENT", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 80, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
     };
 
     D3D12_GRAPHICS_PIPELINE_STATE_DESC pso{};
@@ -869,9 +1276,17 @@ void D3D12RenderBackend::createSpritePipeline() {
         "Texture2D gTex : register(t0);"
         "SamplerState gSamp : register(s0);"
         "struct PSIn { float4 pos : SV_POSITION; float2 uv : TEXCOORD; float4 col : COLOR; };"
+        "float3 linearToSrgb(float3 c) {"
+        "  c = max(c, float3(0.0f, 0.0f, 0.0f));"
+        "  float3 lo = c * 12.92f;"
+        "  float3 hi = 1.055f * pow(c, 1.0f / 2.4f) - 0.055f;"
+        "  return lerp(lo, hi, step(float3(0.0031308f, 0.0031308f, 0.0031308f), c));"
+        "}"
         "float4 main(PSIn i) : SV_TARGET {"
         "  float4 tex = gTex.Sample(gSamp, i.uv);"
-        "  return tex * i.col;"
+        "  float3 rgb = linearToSrgb(tex.rgb * saturate(i.col.rgb));"
+        "  float a = saturate(tex.a * i.col.a);"
+        "  return float4(rgb, a);"
         "}";
 
     Microsoft::WRL::ComPtr<ID3DBlob> vsBlob;
@@ -915,7 +1330,7 @@ void D3D12RenderBackend::createSpritePipeline() {
     sampler.AddressU = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
     sampler.AddressV = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
     sampler.AddressW = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
-    sampler.MipLODBias = -0.25f;
+    sampler.MipLODBias = -0.35f;
     sampler.MaxAnisotropy = 16;
     sampler.ComparisonFunc = D3D12_COMPARISON_FUNC_ALWAYS;
     sampler.BorderColor = D3D12_STATIC_BORDER_COLOR_TRANSPARENT_BLACK;
@@ -1051,11 +1466,48 @@ void D3D12RenderBackend::createSpritePipeline() {
     }
     spriteVertexMappedData_ = static_cast<std::uint8_t*>(spriteMapped);
 
-    if (SpriteTexture* fallback = ensureFallbackSpriteTexture()) {
-        worldFallbackTextureDescriptorIndex_ = fallback->descriptorIndex;
-    } else {
-        throw std::runtime_error("Failed to create fallback texture for D3D12 world pipeline.");
+    static const unsigned char kFallbackWhiteRgba[4] = {255u, 255u, 255u, 255u};
+    static const unsigned char kFallbackFlatNormalRgba[4] = {128u, 128u, 255u, 255u};
+    SpriteTexture* fallbackBase = ensureWorldTextureRaw(
+        "__world_fallback_white_base_1x1__",
+        kFallbackWhiteRgba,
+        1,
+        1,
+        kGlClampToEdge,
+        kGlClampToEdge,
+        /*srgb=*/true);
+    SpriteTexture* fallbackNormal = ensureWorldTextureRaw(
+        "__world_fallback_flat_normal_1x1__",
+        kFallbackFlatNormalRgba,
+        1,
+        1,
+        kGlClampToEdge,
+        kGlClampToEdge,
+        /*srgb=*/false);
+    SpriteTexture* fallbackLinear = ensureWorldTextureRaw(
+        "__world_fallback_white_linear_1x1__",
+        kFallbackWhiteRgba,
+        1,
+        1,
+        kGlClampToEdge,
+        kGlClampToEdge,
+        /*srgb=*/false);
+    SpriteTexture* fallbackEmissive = ensureWorldTextureRaw(
+        "__world_fallback_white_emissive_1x1__",
+        kFallbackWhiteRgba,
+        1,
+        1,
+        kGlClampToEdge,
+        kGlClampToEdge,
+        /*srgb=*/true);
+    if (!fallbackBase || !fallbackNormal || !fallbackLinear || !fallbackEmissive) {
+        throw std::runtime_error("Failed to create fallback textures for D3D12 world pipeline.");
     }
+    worldFallbackTextureDescriptorIndex_ = fallbackBase->descriptorIndex;
+    worldFallbackNormalTextureDescriptorIndex_ = fallbackNormal->descriptorIndex;
+    worldFallbackMetallicRoughnessTextureDescriptorIndex_ = fallbackLinear->descriptorIndex;
+    worldFallbackOcclusionTextureDescriptorIndex_ = fallbackLinear->descriptorIndex;
+    worldFallbackEmissiveTextureDescriptorIndex_ = fallbackEmissive->descriptorIndex;
 #endif
 }
 

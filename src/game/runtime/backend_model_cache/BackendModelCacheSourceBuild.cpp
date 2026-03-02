@@ -17,6 +17,80 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/quaternion.hpp>
 
+namespace {
+
+glm::vec3 safeNormalizeVec3(const glm::vec3& v, const glm::vec3& fallback) {
+    const float lenSq = glm::dot(v, v);
+    if (lenSq > 1e-12f) return glm::normalize(v);
+    return fallback;
+}
+
+void computeTangentsFromGeometry(const std::vector<glm::vec3>& positions,
+                                 const std::vector<glm::vec2>& uvs,
+                                 const std::vector<glm::vec3>& normals,
+                                 const std::vector<std::uint32_t>& indices,
+                                 std::vector<glm::vec4>& outTangents) {
+    outTangents.assign(positions.size(), glm::vec4(0.0f, 0.0f, 0.0f, 1.0f));
+    if (positions.empty() || uvs.size() != positions.size() || normals.size() != positions.size()) {
+        return;
+    }
+
+    std::vector<glm::vec3> tan1(positions.size(), glm::vec3(0.0f));
+    std::vector<glm::vec3> tan2(positions.size(), glm::vec3(0.0f));
+
+    const std::size_t triCount = indices.size() / 3u;
+    for (std::size_t triIdx = 0; triIdx < triCount; ++triIdx) {
+        const std::size_t i = triIdx * 3u;
+        const std::uint32_t i0 = indices[i + 0u];
+        const std::uint32_t i1 = indices[i + 1u];
+        const std::uint32_t i2 = indices[i + 2u];
+        if (i0 >= positions.size() || i1 >= positions.size() || i2 >= positions.size()) continue;
+
+        const glm::vec3& p0 = positions[i0];
+        const glm::vec3& p1 = positions[i1];
+        const glm::vec3& p2 = positions[i2];
+        const glm::vec2& uv0 = uvs[i0];
+        const glm::vec2& uv1 = uvs[i1];
+        const glm::vec2& uv2 = uvs[i2];
+
+        const glm::vec3 e1 = p1 - p0;
+        const glm::vec3 e2 = p2 - p0;
+        const glm::vec2 dUV1 = uv1 - uv0;
+        const glm::vec2 dUV2 = uv2 - uv0;
+        const float det = dUV1.x * dUV2.y - dUV2.x * dUV1.y;
+        if (std::fabs(det) <= 1e-8f) continue;
+        const float invDet = 1.0f / det;
+
+        const glm::vec3 sdir = (e1 * dUV2.y - e2 * dUV1.y) * invDet;
+        const glm::vec3 tdir = (e2 * dUV1.x - e1 * dUV2.x) * invDet;
+
+        tan1[i0] += sdir;
+        tan1[i1] += sdir;
+        tan1[i2] += sdir;
+        tan2[i0] += tdir;
+        tan2[i1] += tdir;
+        tan2[i2] += tdir;
+    }
+
+    for (std::size_t vi = 0; vi < positions.size(); ++vi) {
+        const glm::vec3 n = safeNormalizeVec3(normals[vi], glm::vec3(0.0f, 1.0f, 0.0f));
+        glm::vec3 t = tan1[vi] - n * glm::dot(n, tan1[vi]);
+        const float tLenSq = glm::dot(t, t);
+        if (tLenSq <= 1e-10f) {
+            const glm::vec3 helper =
+                (std::fabs(n.y) < 0.999f) ? glm::vec3(0.0f, 1.0f, 0.0f) : glm::vec3(1.0f, 0.0f, 0.0f);
+            t = safeNormalizeVec3(glm::cross(helper, n), glm::vec3(1.0f, 0.0f, 0.0f));
+            outTangents[vi] = glm::vec4(t, 1.0f);
+            continue;
+        }
+        t = glm::normalize(t);
+        const float handedness = (glm::dot(glm::cross(n, t), tan2[vi]) < 0.0f) ? -1.0f : 1.0f;
+        outTangents[vi] = glm::vec4(t, handedness);
+    }
+}
+
+} // namespace
+
 namespace game::runtime::backend_model::detail {
 
 bool buildBackendCacheSourceData(const std::string& filepath,
@@ -140,6 +214,28 @@ bool buildBackendCacheSourceData(const std::string& filepath,
                 }
             }
 
+            // ---- TANGENT ----
+            bool hasExplicitTangents = false;
+            std::vector<glm::vec4> tangents(pos.size(), glm::vec4(0.0f, 0.0f, 0.0f, 1.0f));
+            auto itT = p.findAttribute("TANGENT");
+            if (itT != p.attributes.end()) {
+                tangents.clear();
+                const std::size_t tanAcc = itT->accessorIndex;
+                tangents.reserve(asset.accessors[tanAcc].count);
+                fastgltf::iterateAccessorWithIndex<glm::vec4>(
+                    asset, asset.accessors[tanAcc],
+                    [&](glm::vec4 v, std::size_t) {
+                        const glm::vec3 xyz = safeNormalizeVec3(glm::vec3(v), glm::vec3(0.0f));
+                        const float w = (v.w < 0.0f) ? -1.0f : 1.0f;
+                        tangents.emplace_back(xyz, w);
+                    }, adapter);
+                if (tangents.size() == pos.size()) {
+                    hasExplicitTangents = true;
+                } else {
+                    tangents.assign(pos.size(), glm::vec4(0.0f, 0.0f, 0.0f, 1.0f));
+                }
+            }
+
             std::vector<glm::vec4> color(pos.size(), glm::vec4(1.0f));
             auto itC = p.findAttribute("COLOR_0");
             if (itC != p.attributes.end()) {
@@ -252,6 +348,27 @@ bool buildBackendCacheSourceData(const std::string& filepath,
                 }
             }
 
+            if (!hasExplicitTangents) {
+                computeTangentsFromGeometry(pos, uv, normals, primIdxU32, tangents);
+            } else {
+                bool needsFallback = false;
+                for (const glm::vec4& t : tangents) {
+                    if (glm::dot(glm::vec3(t), glm::vec3(t)) <= 1e-10f) {
+                        needsFallback = true;
+                        break;
+                    }
+                }
+                if (needsFallback) {
+                    std::vector<glm::vec4> fallbackTangents;
+                    computeTangentsFromGeometry(pos, uv, normals, primIdxU32, fallbackTangents);
+                    for (std::size_t vi = 0; vi < tangents.size(); ++vi) {
+                        if (glm::dot(glm::vec3(tangents[vi]), glm::vec3(tangents[vi])) <= 1e-10f) {
+                            tangents[vi] = fallbackTangents[vi];
+                        }
+                    }
+                }
+            }
+
             const std::size_t baseVertex = outData.vertices.size();
             const std::size_t subIndexOffset = outData.indices.size();
 
@@ -260,6 +377,7 @@ bool buildBackendCacheSourceData(const std::string& filepath,
                 v.px = pos[i].x; v.py = pos[i].y; v.pz = pos[i].z;
                 v.u = uv[i].x; v.v = uv[i].y;
                 v.nx = normals[i].x; v.ny = normals[i].y; v.nz = normals[i].z;
+                v.tx = tangents[i].x; v.ty = tangents[i].y; v.tz = tangents[i].z; v.tw = tangents[i].w;
                 v.j0 = v.j1 = v.j2 = v.j3 = 0u;
                 v.w0 = 1.0f; v.w1 = v.w2 = v.w3 = 0.0f;
                 v.r = color[i].r; v.g = color[i].g; v.b = color[i].b; v.a = color[i].a;

@@ -49,6 +49,7 @@ D3D12RenderBackend::SpriteTexture* D3D12RenderBackend::ensureFallbackSpriteTextu
                                                               kGlClampToEdge,
                                                               kGlClampToEdge,
                                                               true,
+                                                              true,
                                                               texture.resource)) {
         return nullptr;
     }
@@ -108,6 +109,7 @@ D3D12RenderBackend::SpriteTexture* D3D12RenderBackend::ensureSpriteTexture(const
                                                                           kGlClampToEdge,
                                                                           kGlClampToEdge,
                                                                           true,
+                                                                          true,
                                                                           texture.resource);
     stbi_image_free(pixels);
     if (!ok) {
@@ -126,23 +128,51 @@ D3D12RenderBackend::SpriteTexture* D3D12RenderBackend::ensureSpriteTexture(const
 
 D3D12RenderBackend::SpriteTexture* D3D12RenderBackend::ensureWorldTexture(const WorldTextureData* textureData) {
 #if defined(_WIN32)
-    if (!textureData ||
-        !textureData->rgba ||
-        textureData->width <= 0 ||
-        textureData->height <= 0 ||
-        !textureData->key ||
-        textureData->key[0] == '\0') {
+    if (!textureData) return nullptr;
+    return ensureWorldTextureRaw(
+        textureData->key,
+        textureData->rgba,
+        textureData->width,
+        textureData->height,
+        textureData->wrapS,
+        textureData->wrapT,
+        /*srgb=*/true);
+#else
+    (void)textureData;
+    return nullptr;
+#endif
+}
+
+D3D12RenderBackend::SpriteTexture* D3D12RenderBackend::ensureWorldTextureRaw(const char* key,
+                                                                              const unsigned char* rgba,
+                                                                              int width,
+                                                                              int height,
+                                                                              int wrapS,
+                                                                              int wrapT,
+                                                                              bool srgb) {
+#if defined(_WIN32)
+    if (!key || key[0] == '\0' || !rgba || width <= 0 || height <= 0) {
         return nullptr;
     }
+    if (!device_ || !commandQueue_ || !fence_ || !srvHeap_) return nullptr;
+    if (nextSrvDescriptorIndex_ >= kMaxSrvDescriptors) return nullptr;
 
-    const std::string key(textureData->key);
-    auto it = worldTextures_.find(key);
+    // Include wrap + dimensions to avoid accidental cache aliasing for reused key strings.
+    std::string cacheKey = key;
+    cacheKey += "|";
+    cacheKey += std::to_string(width);
+    cacheKey += "x";
+    cacheKey += std::to_string(height);
+    cacheKey += "|ws=";
+    cacheKey += std::to_string(wrapS);
+    cacheKey += "|wt=";
+    cacheKey += std::to_string(wrapT);
+    cacheKey += srgb ? "|srgb" : "|lin";
+
+    auto it = worldTextures_.find(cacheKey);
     if (it != worldTextures_.end()) {
         return &it->second;
     }
-
-    if (!device_ || !commandQueue_ || !fence_ || !srvHeap_) return nullptr;
-    if (nextSrvDescriptorIndex_ >= kMaxSrvDescriptors) return nullptr;
 
     SpriteTexture texture;
     texture.descriptorIndex = nextSrvDescriptorIndex_;
@@ -154,21 +184,28 @@ D3D12RenderBackend::SpriteTexture* D3D12RenderBackend::ensureWorldTexture(const 
                                                                           srvHeap_.Get(),
                                                                           srvDescriptorSize_,
                                                                           texture.descriptorIndex,
-                                                                          textureData->rgba,
-                                                                          textureData->width,
-                                                                          textureData->height,
-                                                                          textureData->wrapS,
-                                                                          textureData->wrapT,
+                                                                          rgba,
+                                                                          width,
+                                                                          height,
+                                                                          wrapS,
+                                                                          wrapT,
                                                                           true,
+                                                                          srgb,
                                                                           texture.resource);
     if (!ok) return nullptr;
 
     texture.valid = true;
     ++nextSrvDescriptorIndex_;
-    auto [insertedIt, _] = worldTextures_.emplace(key, std::move(texture));
+    auto [insertedIt, _] = worldTextures_.emplace(cacheKey, std::move(texture));
     return &insertedIt->second;
 #else
-    (void)textureData;
+    (void)key;
+    (void)rgba;
+    (void)width;
+    (void)height;
+    (void)wrapS;
+    (void)wrapT;
+    (void)srgb;
     return nullptr;
 #endif
 }

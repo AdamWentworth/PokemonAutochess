@@ -28,6 +28,7 @@ void OpenGLRenderBackend::ensureWorldPipeline() {
         layout (location = 3) in vec3 aNormal;
         layout (location = 4) in vec4 aJoints;
         layout (location = 5) in vec4 aWeights;
+        layout (location = 6) in vec4 aTangent;
         uniform mat4 uViewProj;
         uniform mat4 uModel;
         uniform float uSkinningEnabled;
@@ -38,6 +39,7 @@ void OpenGLRenderBackend::ensureWorldPipeline() {
         out vec4 vColor;
         out vec3 vWorldPos;
         out vec3 vWorldNormal;
+        out vec4 vWorldTangent;
         vec3 applySkinningPos(vec3 localPos) {
             vec4 blended = vec4(0.0);
             float totalWeight = 0.0;
@@ -110,12 +112,51 @@ void OpenGLRenderBackend::ensureWorldPipeline() {
             }
             return normalize(blended);
         }
+        vec4 applySkinningTangent(vec4 localTangent) {
+            vec3 tangent = localTangent.xyz;
+            vec3 blended = vec3(0.0);
+            float totalWeight = 0.0;
+
+            int j0 = int(aJoints.x + 0.5);
+            int j1 = int(aJoints.y + 0.5);
+            int j2 = int(aJoints.z + 0.5);
+            int j3 = int(aJoints.w + 0.5);
+            float w0 = aWeights.x;
+            float w1 = aWeights.y;
+            float w2 = aWeights.z;
+            float w3 = aWeights.w;
+
+            if (w0 > 0.00001 && j0 >= 0 && j0 < uSkinMatrixCount && j0 < kMaxSkinMatrices) {
+                blended += (mat3(uSkinMatrices[j0]) * tangent) * w0;
+                totalWeight += w0;
+            }
+            if (w1 > 0.00001 && j1 >= 0 && j1 < uSkinMatrixCount && j1 < kMaxSkinMatrices) {
+                blended += (mat3(uSkinMatrices[j1]) * tangent) * w1;
+                totalWeight += w1;
+            }
+            if (w2 > 0.00001 && j2 >= 0 && j2 < uSkinMatrixCount && j2 < kMaxSkinMatrices) {
+                blended += (mat3(uSkinMatrices[j2]) * tangent) * w2;
+                totalWeight += w2;
+            }
+            if (w3 > 0.00001 && j3 >= 0 && j3 < uSkinMatrixCount && j3 < kMaxSkinMatrices) {
+                blended += (mat3(uSkinMatrices[j3]) * tangent) * w3;
+                totalWeight += w3;
+            }
+
+            if (totalWeight <= 0.00001) return localTangent;
+            if (totalWeight < 0.999) {
+                blended += tangent * (1.0 - totalWeight);
+            }
+            return vec4(normalize(blended), localTangent.w);
+        }
         void main() {
             vec3 localPos = aPos;
             vec3 localNormal = aNormal;
+            vec4 localTangent = aTangent;
             if (uSkinningEnabled > 0.5) {
                 localPos = applySkinningPos(localPos);
                 localNormal = applySkinningNormal(localNormal);
+                localTangent = applySkinningTangent(localTangent);
             }
             vec4 worldPos = uModel * vec4(localPos, 1.0);
             gl_Position = uViewProj * worldPos;
@@ -124,6 +165,10 @@ void OpenGLRenderBackend::ensureWorldPipeline() {
             vWorldPos = worldPos.xyz;
             mat3 normalM = mat3(transpose(inverse(uModel)));
             vWorldNormal = normalize(normalM * localNormal);
+            vec3 worldTangent = normalM * localTangent.xyz;
+            float tangentLenSq = dot(worldTangent, worldTangent);
+            if (tangentLenSq > 1e-10) worldTangent *= inversesqrt(tangentLenSq);
+            vWorldTangent = vec4(worldTangent, localTangent.w);
         }
     )GLSL";
 
@@ -133,6 +178,7 @@ void OpenGLRenderBackend::ensureWorldPipeline() {
         in vec4 vColor;
         in vec3 vWorldPos;
         in vec3 vWorldNormal;
+        in vec4 vWorldTangent;
         uniform float uUseTexture;
         uniform float uWrapS;
         uniform float uWrapT;
@@ -533,41 +579,68 @@ void OpenGLRenderBackend::ensureWorldPipeline() {
             multiScatter += Fms * Ems;
         }
 
+        float computeSpecularOcclusion(const in float dotNV, const in float ambientOcclusion, const in float roughness) {
+            return clamp(pow(dotNV + ambientOcclusion, exp2(-16.0 * roughness - 1.0)) - 1.0 + ambientOcclusion, 0.0, 1.0);
+        }
+
+        float roughnessToNeutralMip(float roughness) {
+            // Mirror three.js cubeUV roughness curve used by PMREM lookup.
+            const float r0 = 1.0;
+            const float m0 = -2.0;
+            const float r1 = 0.8;
+            const float m1 = -1.0;
+            const float r4 = 0.4;
+            const float m4 = 2.0;
+            const float r5 = 0.305;
+            const float m5 = 3.0;
+            const float r6 = 0.21;
+            const float m6 = 4.0;
+            float r = clamp(roughness, 0.0, 1.0);
+            if (r >= r1) return (r0 - r) * (m1 - m0) / (r0 - r1) + m0;
+            if (r >= r4) return (r1 - r) * (m4 - m1) / (r1 - r4) + m1;
+            if (r >= r5) return (r4 - r) * (m5 - m4) / (r4 - r5) + m4;
+            if (r >= r6) return (r5 - r) * (m6 - m5) / (r5 - r6) + m5;
+            return -2.0 * log2(max(1.16 * r, 1e-4));
+        }
+
+        float neutralMipToLobePower(float mip) {
+            float t = clamp((mip + 2.0) / 10.0, 0.0, 1.0);
+            return mix(256.0, 1.4, t);
+        }
+
         vec3 sampleNeutralEnvironment(vec3 dir, float roughness) {
             vec3 d = safeNormalize(dir, vec3(0.0, 1.0, 0.0));
-            // RoomEnvironment light directions (from three.js examples/jsm/environments/RoomEnvironment.js).
+            // Directions/intensity profile taken from three.js RoomEnvironment authoring values.
             const vec3 roomDirs[7] = vec3[](
-                normalize(vec3(-0.6976730, 0.6220875,  0.3553301)), // light1
-                normalize(vec3(-0.6310653, 0.7059674, -0.3215068)), // light2
-                normalize(vec3( 0.7703826, 0.6305104, -0.0946954)), // light3
-                normalize(vec3(-0.0271260, 0.5219704,  0.8525321)), // light4
-                normalize(vec3( 0.1868756, 0.6635094, -0.7244534)), // light5
-                normalize(vec3( 0.0,       1.0,        0.0      )), // light6
-                normalize(vec3( 0.0257911, 0.9994960,  0.0185103))  // main point light
+                normalize(vec3(-0.6976730, 0.6220875,  0.3553301)),
+                normalize(vec3(-0.6310653, 0.7059674, -0.3215068)),
+                normalize(vec3( 0.7703826, 0.6305104, -0.0946954)),
+                normalize(vec3(-0.0271260, 0.5219704,  0.8525321)),
+                normalize(vec3( 0.1868756, 0.6635094, -0.7244534)),
+                normalize(vec3( 0.0,       1.0,        0.0      )),
+                normalize(vec3( 0.0257911, 0.9994960,  0.0185103))
             );
-            // Relative weights derived from RoomEnvironment authored intensities.
-            // Area lights: 50, 50, 17, 43, 20, 100 ; point light: 900 with distance falloff.
-            const float roomW[7] = float[](
-                0.50, 0.50, 0.17, 0.43, 0.20, 1.00, 3.30
-            );
-            float blur = clamp(roughness * roughness, 0.0, 1.0);
-            float lobePower = mix(64.0, 2.0, blur);
+            const float roomIntensity[7] = float[](50.0, 50.0, 17.0, 43.0, 20.0, 100.0, 900.0);
+            const float roomSoftness[7] = float[](0.90, 0.90, 0.72, 0.74, 0.78, 1.00, 1.15);
+
+            float mip = clamp(roughnessToNeutralMip(roughness), -2.0, 8.0);
+            float basePower = neutralMipToLobePower(mip);
+            float rr = clamp(roughness * roughness, 0.0, 1.0);
+
             float accum = 0.0;
             float accumW = 0.0;
             for (int i = 0; i < 7; ++i) {
+                float lobePower = mix(basePower * roomSoftness[i], 1.10, rr);
                 float nd = max(dot(d, roomDirs[i]), 0.0);
-                accum += roomW[i] * pow(nd, lobePower);
-                accumW += roomW[i];
+                accum += roomIntensity[i] * pow(nd, lobePower);
+                accumW += roomIntensity[i];
             }
-            // Normalize lobe energy to avoid over-bright, washed-out albedo.
             float directional = (accumW > 1e-6) ? (accum / accumW) : 0.0;
-            // Keep a small floor bounce and stronger top hemisphere, similar to RoomEnvironment PMREM behavior.
+
             float hemi = clamp(d.y * 0.5 + 0.5, 0.0, 1.0);
-            float bounce = mix(0.045, 0.10, hemi);
-            // Slightly stronger specular-side lobe at low roughness, flatter at high roughness.
-            float lobeGain = mix(0.55, 0.30, blur);
-            float neutral = bounce + directional * lobeGain;
-            neutral = clamp(neutral, 0.0, 1.5);
+            float bounce = mix(0.040, 0.095, hemi);
+            float neutral = bounce + directional * 0.95;
+            neutral = clamp(neutral, 0.0, 1.6);
             return vec3(neutral);
         }
 
@@ -614,7 +687,8 @@ void OpenGLRenderBackend::ensureWorldPipeline() {
             float scale = (det <= 1e-10) ? 0.0 : inversesqrt(det);
             return normalize(T * (mapN.x * scale) + B * (mapN.y * scale) + N * mapN.z);
         }
-
+    )GLSL"
+    R"GLSL(
         vec3 computeMappedNormal(vec2 sampleUv) {
             float faceDirection = gl_FrontFacing ? 1.0 : -1.0;
             vec3 dx = dFdx(vWorldPos);
@@ -629,7 +703,32 @@ void OpenGLRenderBackend::ensureWorldPipeline() {
             vec3 mapN = texture(uNormalTexture, sampleUv).xyz * 2.0 - 1.0;
             mapN.xy *= max(uNormalScale, 0.0);
             mapN = normalize(mapN);
-            vec3 mapped = perturbNormal2Arb(vWorldPos, n, mapN, sampleUv, faceDirection);
+
+            vec3 mapped = vec3(0.0);
+            vec3 tangent = vWorldTangent.xyz;
+            float tangentLenSq = dot(tangent, tangent);
+            bool hasAuthoredTangent = tangentLenSq > 1e-6;
+            if (hasAuthoredTangent) {
+                tangent *= inversesqrt(tangentLenSq);
+                tangent = tangent - n * dot(n, tangent);
+                float orthoLenSq = dot(tangent, tangent);
+                if (orthoLenSq > 1e-10) {
+                    tangent *= inversesqrt(orthoLenSq);
+                    float tangentSign = (vWorldTangent.w < 0.0) ? -1.0 : 1.0;
+                    vec3 bitangent = normalize(cross(n, tangent)) * tangentSign;
+                    if (faceDirection < 0.0) {
+                        tangent = -tangent;
+                        bitangent = -bitangent;
+                        n = -n;
+                    }
+                    mapped = normalize(tangent * mapN.x + bitangent * mapN.y + n * mapN.z);
+                } else {
+                    hasAuthoredTangent = false;
+                }
+            }
+            if (!hasAuthoredTangent) {
+                mapped = perturbNormal2Arb(vWorldPos, n, mapN, sampleUv, faceDirection);
+            }
             if (dot(mapped, geomN) < 0.0) mapped = -mapped;
             return mapped;
         }
@@ -688,7 +787,10 @@ void OpenGLRenderBackend::ensureWorldPipeline() {
             float energyComp = 1.0 - max(max(totalScattering.r, totalScattering.g), totalScattering.b);
             vec3 diffuseIBL = diffuseColor * max(energyComp, 0.0) * cosineWeightedIrradiance;
             vec3 specularIBL = envRadiance * singleScattering + multiScattering * cosineWeightedIrradiance;
-            vec3 ibl = (diffuseIBL + specularIBL) * ao;
+            diffuseIBL *= ao;
+            float specularOcclusion = computeSpecularOcclusion(NdotV, ao, roughness);
+            specularIBL *= specularOcclusion;
+            vec3 ibl = diffuseIBL + specularIBL;
 
             vec3 ambientLight = kD * albedo * ambientColor * ambientIntensity;
             vec3 shaded = direct + ibl + ambientLight;
@@ -722,7 +824,8 @@ void OpenGLRenderBackend::ensureWorldPipeline() {
             const float inkStrength = 1.0;
             return mix(linearColor, inkColor, outline * inkStrength);
         }
-
+    )GLSL"
+    R"GLSL(
         void main() {
             if (uMaterialMode > 2.5 && uMaterialMode < 3.5) {
                 if (gl_FrontFacing) discard;
@@ -854,6 +957,8 @@ void OpenGLRenderBackend::ensureWorldPipeline() {
     glVertexAttribPointer(4, 4, GL_FLOAT, GL_FALSE, stride, reinterpret_cast<void*>(offsetof(WorldMeshVertex, joint0)));
     glEnableVertexAttribArray(5);
     glVertexAttribPointer(5, 4, GL_FLOAT, GL_FALSE, stride, reinterpret_cast<void*>(offsetof(WorldMeshVertex, weight0)));
+    glEnableVertexAttribArray(6);
+    glVertexAttribPointer(6, 4, GL_FLOAT, GL_FALSE, stride, reinterpret_cast<void*>(offsetof(WorldMeshVertex, tx)));
 
     glBindVertexArray(0);
     glBindBuffer(GL_ARRAY_BUFFER, 0);

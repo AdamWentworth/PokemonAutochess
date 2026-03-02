@@ -259,6 +259,13 @@ bool decodeMeshFromValidatedCacheStream(std::istream& in,
         } else {
             mv.normal = glm::vec3(0.0f, 1.0f, 0.0f);
         }
+        const glm::vec3 rawTangent(v.tx, v.ty, v.tz);
+        const float tangentLenSq = glm::dot(rawTangent, rawTangent);
+        if (tangentLenSq > 1e-12f) {
+            mv.tangent = glm::vec4(glm::normalize(rawTangent), (v.tw < 0.0f) ? -1.0f : 1.0f);
+        } else {
+            mv.tangent = glm::vec4(0.0f, 0.0f, 0.0f, 1.0f);
+        }
         mv.color = glm::vec4(v.r, v.g, v.b, v.a);
         mv.j0 = v.j0;
         mv.j1 = v.j1;

@@ -44,6 +44,10 @@ struct WorldVertex {
     float weight1;
     float weight2;
     float weight3;
+    float tx;
+    float ty;
+    float tz;
+    float tw;
 };
 
 static_assert(
@@ -144,6 +148,49 @@ inline WorldPsConstants makeWorldPsConstants(const IRenderBackend::WorldTextureD
     constants.materialFlipbook1Frames = textureData->materialFlipbook1Frames;
     constants.materialFlipbook1Fps = textureData->materialFlipbook1Fps;
     constants.characterInkingEnabled = textureData->characterInkingEnabled != 0u ? 1.0f : 0.0f;
+
+    // D3D12 root signature is constrained to 64 DWORD. For lit model mode (materialMode >= 2),
+    // repurpose fire-tail payload slots to carry PBR/camera data needed for three-gltf-viewer parity.
+    if (textureData->materialMode >= 2u) {
+        const bool hasNormal =
+            textureData->normalRgba && textureData->normalWidth > 0 && textureData->normalHeight > 0;
+        const bool hasMetallicRoughness =
+            textureData->metallicRoughnessRgba &&
+            textureData->metallicRoughnessWidth > 0 &&
+            textureData->metallicRoughnessHeight > 0;
+        const bool hasOcclusion =
+            textureData->occlusionRgba && textureData->occlusionWidth > 0 && textureData->occlusionHeight > 0;
+        const bool hasEmissive =
+            textureData->emissiveRgba && textureData->emissiveWidth > 0 && textureData->emissiveHeight > 0;
+
+        std::uint32_t pbrFlags = 0u;
+        if (hasNormal) pbrFlags |= 1u << 0;             // useNormalTexture
+        if (hasMetallicRoughness) pbrFlags |= 1u << 1;  // useMetallicRoughnessTexture
+        if (hasOcclusion) pbrFlags |= 1u << 2;          // useOcclusionTexture
+        if (hasEmissive) pbrFlags |= 1u << 3;           // useEmissiveTexture
+        constants.materialFlags = static_cast<float>(pbrFlags);
+
+        // PBR factor packing.
+        constants.materialAtlasWidth = (std::max)(0.0f, textureData->normalScale);
+        constants.materialAtlasHeight = std::clamp(textureData->metallicFactor, 0.0f, 1.0f);
+        constants.materialRect0U = std::clamp(textureData->roughnessFactor, 0.0f, 1.0f);
+        constants.materialRect0V = std::clamp(textureData->occlusionStrength, 0.0f, 1.0f);
+        constants.materialRect0W = (std::max)(0.0f, textureData->emissiveFactorR);
+        constants.materialRect0H = (std::max)(0.0f, textureData->emissiveFactorG);
+        constants.materialRect1U = (std::max)(0.0f, textureData->emissiveFactorB);
+
+        // Camera packing.
+        constants.materialRect1V = textureData->cameraPosX;
+        constants.materialRect1W = textureData->cameraPosY;
+        constants.materialRect1H = textureData->cameraPosZ;
+        constants.materialFlipbook0Cols = textureData->cameraForwardX;
+        constants.materialFlipbook0Rows = textureData->cameraForwardY;
+        constants.materialFlipbook0Frames = textureData->cameraForwardZ;
+        constants.materialFlipbook0Fps = textureData->cameraTargetX;
+        constants.materialFlipbook1Cols = textureData->cameraTargetY;
+        constants.materialFlipbook1Rows = textureData->cameraTargetZ;
+    }
+
     return constants;
 }
 

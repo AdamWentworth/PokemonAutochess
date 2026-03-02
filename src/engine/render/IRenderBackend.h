@@ -43,6 +43,12 @@ public:
         float weight1 = 0.0f;
         float weight2 = 0.0f;
         float weight3 = 0.0f;
+        // Optional local-space tangent.xyz and handedness in .w.
+        // Zero-length tangent means "not provided" and shader should fallback.
+        float tx = 0.0f;
+        float ty = 0.0f;
+        float tz = 0.0f;
+        float tw = 1.0f;
     };
 
     struct WorldTextureData {

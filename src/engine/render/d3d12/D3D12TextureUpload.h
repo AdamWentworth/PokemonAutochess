@@ -30,6 +30,7 @@ bool createTextureResourceFromRgba(ID3D12Device* device,
                                    int wrapS,
                                    int wrapT,
                                    bool generateMipChain,
+                                   bool srgbColorData,
                                    Microsoft::WRL::ComPtr<ID3D12Resource>& outTexture);
 
 } // namespace engine::render::d3d12

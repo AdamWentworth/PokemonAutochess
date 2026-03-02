@@ -34,6 +34,9 @@ void TriangleSubmitter::pushTriangle(const glm::vec3& a,
                                      const glm::vec3& n0,
                                      const glm::vec3& n1,
                                      const glm::vec3& n2,
+                                     const glm::vec4& t0,
+                                     const glm::vec4& t1,
+                                     const glm::vec4& t2,
                                      const glm::vec3& baseColor0,
                                      const glm::vec3& baseColor1,
                                      const glm::vec3& baseColor2,
@@ -92,7 +95,8 @@ void TriangleSubmitter::pushTriangle(const glm::vec3& a,
             const auto appendFastVertex =
                 [&](std::uint32_t src,
                     const glm::vec3& pos,
-                    const glm::vec2& uv) -> std::uint32_t {
+                    const glm::vec2& uv,
+                    const glm::vec4& tangent) -> std::uint32_t {
                 if (canReuseIndexedVertices &&
                     src < modelIndexedVertexRemap[fastBatchIndex].size()) {
                     int& mapped = modelIndexedVertexRemap[fastBatchIndex][src];
@@ -105,16 +109,21 @@ void TriangleSubmitter::pushTriangle(const glm::vec3& a,
                     }
                     const std::uint32_t next =
                         static_cast<std::uint32_t>(fastBatch.vertices.size());
-                    fastBatch.vertices.push_back(IRenderBackend::WorldMeshVertex{
-                        pos.x,
-                        pos.y,
-                        pos.z,
-                        uv.x,
-                        uv.y,
-                        flatTint.r,
-                        flatTint.g,
-                        flatTint.b,
-                        outAlpha});
+                    IRenderBackend::WorldMeshVertex outVertex{};
+                    outVertex.x = pos.x;
+                    outVertex.y = pos.y;
+                    outVertex.z = pos.z;
+                    outVertex.u = uv.x;
+                    outVertex.v = uv.y;
+                    outVertex.r = flatTint.r;
+                    outVertex.g = flatTint.g;
+                    outVertex.b = flatTint.b;
+                    outVertex.a = outAlpha;
+                    outVertex.tx = tangent.x;
+                    outVertex.ty = tangent.y;
+                    outVertex.tz = tangent.z;
+                    outVertex.tw = tangent.w;
+                    fastBatch.vertices.push_back(outVertex);
                     mapped = static_cast<int>(next);
                     return next;
                 }
@@ -124,22 +133,27 @@ void TriangleSubmitter::pushTriangle(const glm::vec3& a,
                 }
                 const std::uint32_t next =
                     static_cast<std::uint32_t>(fastBatch.vertices.size());
-                fastBatch.vertices.push_back(IRenderBackend::WorldMeshVertex{
-                    pos.x,
-                    pos.y,
-                    pos.z,
-                    uv.x,
-                    uv.y,
-                    flatTint.r,
-                    flatTint.g,
-                    flatTint.b,
-                    outAlpha});
+                IRenderBackend::WorldMeshVertex outVertex{};
+                outVertex.x = pos.x;
+                outVertex.y = pos.y;
+                outVertex.z = pos.z;
+                outVertex.u = uv.x;
+                outVertex.v = uv.y;
+                outVertex.r = flatTint.r;
+                outVertex.g = flatTint.g;
+                outVertex.b = flatTint.b;
+                outVertex.a = outAlpha;
+                outVertex.tx = tangent.x;
+                outVertex.ty = tangent.y;
+                outVertex.tz = tangent.z;
+                outVertex.tw = tangent.w;
+                fastBatch.vertices.push_back(outVertex);
                 return next;
             };
 
-            const std::uint32_t outI0 = appendFastVertex(src0, a, uv0);
-            const std::uint32_t outI1 = appendFastVertex(src1, b, uv1);
-            const std::uint32_t outI2 = appendFastVertex(src2, c, uv2);
+            const std::uint32_t outI0 = appendFastVertex(src0, a, uv0, t0);
+            const std::uint32_t outI1 = appendFastVertex(src1, b, uv1, t1);
+            const std::uint32_t outI2 = appendFastVertex(src2, c, uv2, t2);
             if (outI0 == std::numeric_limits<std::uint32_t>::max() ||
                 outI1 == std::numeric_limits<std::uint32_t>::max() ||
                 outI2 == std::numeric_limits<std::uint32_t>::max()) {
@@ -193,7 +207,8 @@ void TriangleSubmitter::pushTriangle(const glm::vec3& a,
                     const glm::vec3& pos,
                     const glm::vec2& uv,
                     const glm::vec3& outColor,
-                    const glm::vec3& normal) -> std::uint32_t {
+                    const glm::vec3& normal,
+                    const glm::vec4& tangent) -> std::uint32_t {
                 if (canReuseIndexedVertices &&
                     src < modelIndexedVertexRemap[batchIndex].size()) {
                     int& mapped = modelIndexedVertexRemap[batchIndex][src];
@@ -206,19 +221,24 @@ void TriangleSubmitter::pushTriangle(const glm::vec3& a,
                     }
                     const std::uint32_t next =
                         static_cast<std::uint32_t>(batch.vertices.size());
-                    batch.vertices.push_back(IRenderBackend::WorldMeshVertex{
-                        pos.x,
-                        pos.y,
-                        pos.z,
-                        uv.x,
-                        uv.y,
-                        outColor.r,
-                        outColor.g,
-                        outColor.b,
-                        outAlpha,
-                        normal.x,
-                        normal.y,
-                        normal.z});
+                    IRenderBackend::WorldMeshVertex outVertex{};
+                    outVertex.x = pos.x;
+                    outVertex.y = pos.y;
+                    outVertex.z = pos.z;
+                    outVertex.u = uv.x;
+                    outVertex.v = uv.y;
+                    outVertex.r = outColor.r;
+                    outVertex.g = outColor.g;
+                    outVertex.b = outColor.b;
+                    outVertex.a = outAlpha;
+                    outVertex.nx = normal.x;
+                    outVertex.ny = normal.y;
+                    outVertex.nz = normal.z;
+                    outVertex.tx = tangent.x;
+                    outVertex.ty = tangent.y;
+                    outVertex.tz = tangent.z;
+                    outVertex.tw = tangent.w;
+                    batch.vertices.push_back(outVertex);
                     mapped = static_cast<int>(next);
                     return next;
                 }
@@ -227,25 +247,30 @@ void TriangleSubmitter::pushTriangle(const glm::vec3& a,
                     return std::numeric_limits<std::uint32_t>::max();
                 }
                 const std::uint32_t next = static_cast<std::uint32_t>(batch.vertices.size());
-                batch.vertices.push_back(IRenderBackend::WorldMeshVertex{
-                    pos.x,
-                    pos.y,
-                    pos.z,
-                    uv.x,
-                    uv.y,
-                    outColor.r,
-                    outColor.g,
-                    outColor.b,
-                    outAlpha,
-                    normal.x,
-                    normal.y,
-                    normal.z});
+                IRenderBackend::WorldMeshVertex outVertex{};
+                outVertex.x = pos.x;
+                outVertex.y = pos.y;
+                outVertex.z = pos.z;
+                outVertex.u = uv.x;
+                outVertex.v = uv.y;
+                outVertex.r = outColor.r;
+                outVertex.g = outColor.g;
+                outVertex.b = outColor.b;
+                outVertex.a = outAlpha;
+                outVertex.nx = normal.x;
+                outVertex.ny = normal.y;
+                outVertex.nz = normal.z;
+                outVertex.tx = tangent.x;
+                outVertex.ty = tangent.y;
+                outVertex.tz = tangent.z;
+                outVertex.tw = tangent.w;
+                batch.vertices.push_back(outVertex);
                 return next;
             };
 
-            const std::uint32_t outI0 = appendIndexedVertex(src0, a, uv0, outC0, n0);
-            const std::uint32_t outI1 = appendIndexedVertex(src1, b, uv1, outC1, n1);
-            const std::uint32_t outI2 = appendIndexedVertex(src2, c, uv2, outC2, n2);
+            const std::uint32_t outI0 = appendIndexedVertex(src0, a, uv0, outC0, n0, t0);
+            const std::uint32_t outI1 = appendIndexedVertex(src1, b, uv1, outC1, n1, t1);
+            const std::uint32_t outI2 = appendIndexedVertex(src2, c, uv2, outC2, n2, t2);
             if (outI0 == std::numeric_limits<std::uint32_t>::max() ||
                 outI1 == std::numeric_limits<std::uint32_t>::max() ||
                 outI2 == std::numeric_limits<std::uint32_t>::max()) {
@@ -267,15 +292,27 @@ void TriangleSubmitter::pushTriangle(const glm::vec3& a,
         }
 
         const std::uint32_t base = static_cast<std::uint32_t>(batch.vertices.size());
-        batch.vertices.push_back(IRenderBackend::WorldMeshVertex{
-            a.x, a.y, a.z, uv0.x, uv0.y, shaded0.r, shaded0.g, shaded0.b, outAlpha,
-            n0.x, n0.y, n0.z});
-        batch.vertices.push_back(IRenderBackend::WorldMeshVertex{
-            b.x, b.y, b.z, uv1.x, uv1.y, shaded1.r, shaded1.g, shaded1.b, outAlpha,
-            n1.x, n1.y, n1.z});
-        batch.vertices.push_back(IRenderBackend::WorldMeshVertex{
-            c.x, c.y, c.z, uv2.x, uv2.y, shaded2.r, shaded2.g, shaded2.b, outAlpha,
-            n2.x, n2.y, n2.z});
+        IRenderBackend::WorldMeshVertex outV0{};
+        outV0.x = a.x; outV0.y = a.y; outV0.z = a.z;
+        outV0.u = uv0.x; outV0.v = uv0.y;
+        outV0.r = shaded0.r; outV0.g = shaded0.g; outV0.b = shaded0.b; outV0.a = outAlpha;
+        outV0.nx = n0.x; outV0.ny = n0.y; outV0.nz = n0.z;
+        outV0.tx = t0.x; outV0.ty = t0.y; outV0.tz = t0.z; outV0.tw = t0.w;
+        batch.vertices.push_back(outV0);
+        IRenderBackend::WorldMeshVertex outV1{};
+        outV1.x = b.x; outV1.y = b.y; outV1.z = b.z;
+        outV1.u = uv1.x; outV1.v = uv1.y;
+        outV1.r = shaded1.r; outV1.g = shaded1.g; outV1.b = shaded1.b; outV1.a = outAlpha;
+        outV1.nx = n1.x; outV1.ny = n1.y; outV1.nz = n1.z;
+        outV1.tx = t1.x; outV1.ty = t1.y; outV1.tz = t1.z; outV1.tw = t1.w;
+        batch.vertices.push_back(outV1);
+        IRenderBackend::WorldMeshVertex outV2{};
+        outV2.x = c.x; outV2.y = c.y; outV2.z = c.z;
+        outV2.u = uv2.x; outV2.v = uv2.y;
+        outV2.r = shaded2.r; outV2.g = shaded2.g; outV2.b = shaded2.b; outV2.a = outAlpha;
+        outV2.nx = n2.x; outV2.ny = n2.y; outV2.nz = n2.z;
+        outV2.tx = t2.x; outV2.ty = t2.y; outV2.tz = t2.z; outV2.tw = t2.w;
+        batch.vertices.push_back(outV2);
         batch.indices.push_back(base + 0u);
         batch.indices.push_back(base + 1u);
         batch.indices.push_back(base + 2u);

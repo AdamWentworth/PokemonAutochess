@@ -19,6 +19,12 @@ glm::vec3 safeNormalizeVec3(const glm::vec3& v) {
     return glm::vec3(0.0f, 1.0f, 0.0f);
 }
 
+glm::vec3 safeNormalizeVec3(const glm::vec3& v, const glm::vec3& fallback) {
+    const float lenSq = glm::dot(v, v);
+    if (lenSq > 1e-12f) return glm::normalize(v);
+    return fallback;
+}
+
 bool backendClipSkinningEnabled() {
     static const bool enabled = []() -> bool {
         const auto env = engine::env::get("PAC_BACKEND_CLIP_SKINNING");
@@ -400,6 +406,42 @@ glm::vec3 Resolver::resolveModelVertexNormal(
             : glm::mat4(1.0f);
     const glm::mat3 nodeNormalM = glm::transpose(glm::inverse(glm::mat3(nodeGlobal)));
     return safeNormalizeVec3(nodeNormalM * sk.normal);
+}
+
+glm::vec4 Resolver::resolveModelVertexTangent(
+    int triNodeIndex,
+    std::uint32_t vertexIndex,
+    const runtime::backend_model::MeshVertex& vtx) {
+    (void)vertexIndex;
+
+    glm::vec3 local = vtx.position;
+    if (!hasClipPose_) {
+        local = runtime::backend_anim::deformLocalVertex(
+            *unit_,
+            *pose_,
+            local,
+            mesh_->boundsMin,
+            mesh_->boundsMax,
+            worldCellSize_);
+    }
+
+    glm::vec3 localTangent(vtx.tangent.x, vtx.tangent.y, vtx.tangent.z);
+    if (glm::dot(localTangent, localTangent) <= 1e-10f) {
+        glm::vec3 n = safeNormalizeVec3(vtx.normal, glm::vec3(0.0f, 1.0f, 0.0f));
+        const glm::vec3 helper =
+            (std::fabs(n.y) < 0.999f) ? glm::vec3(0.0f, 1.0f, 0.0f) : glm::vec3(1.0f, 0.0f, 0.0f);
+        localTangent = safeNormalizeVec3(glm::cross(helper, n), glm::vec3(1.0f, 0.0f, 0.0f));
+    }
+
+    const auto sk = skinVertexAtNode(triNodeIndex, vtx, local, localTangent);
+    const glm::mat4 nodeGlobal =
+        (triNodeIndex >= 0 && static_cast<std::size_t>(triNodeIndex) < nodeGlobals_->size())
+            ? (*nodeGlobals_)[static_cast<std::size_t>(triNodeIndex)]
+            : glm::mat4(1.0f);
+    const glm::mat3 nodeNormalM = glm::transpose(glm::inverse(glm::mat3(nodeGlobal)));
+    const glm::vec3 tangent = safeNormalizeVec3(nodeNormalM * sk.normal, glm::vec3(1.0f, 0.0f, 0.0f));
+    const float sign = (vtx.tangent.w < 0.0f) ? -1.0f : 1.0f;
+    return glm::vec4(tangent, sign);
 }
 
 glm::vec3 Resolver::resolveGpuSkinningInputPos(

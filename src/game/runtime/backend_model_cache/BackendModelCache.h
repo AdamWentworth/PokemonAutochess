@@ -12,6 +12,7 @@ namespace game::runtime::backend_model {
 struct MeshVertex {
     glm::vec3 position{0.0f};
     glm::vec3 normal{0.0f, 1.0f, 0.0f};
+    glm::vec4 tangent{0.0f, 0.0f, 0.0f, 1.0f};
     glm::vec2 uv{0.0f};
     glm::vec4 color{1.0f};
     std::uint16_t j0 = 0u;

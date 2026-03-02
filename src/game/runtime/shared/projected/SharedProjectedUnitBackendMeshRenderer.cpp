@@ -324,12 +324,22 @@ Result renderProjectedUnitBackendMesh(const Args& args) {
                             outVertex.nx = srcVertex.normal.x;
                             outVertex.ny = srcVertex.normal.y;
                             outVertex.nz = srcVertex.normal.z;
+                            outVertex.tx = srcVertex.tangent.x;
+                            outVertex.ty = srcVertex.tangent.y;
+                            outVertex.tz = srcVertex.tangent.z;
+                            outVertex.tw = srcVertex.tangent.w;
                         } else {
                             const glm::vec3 nrm =
                                 transforms.resolveModelVertexNormal(triNodeIndex, src, srcVertex);
                             outVertex.nx = nrm.x;
                             outVertex.ny = nrm.y;
                             outVertex.nz = nrm.z;
+                            const glm::vec4 tan =
+                                transforms.resolveModelVertexTangent(triNodeIndex, src, srcVertex);
+                            outVertex.tx = tan.x;
+                            outVertex.ty = tan.y;
+                            outVertex.tz = tan.z;
+                            outVertex.tw = tan.w;
                         }
                         if (useGpuSkinning) {
                             outVertex.joint0 = static_cast<float>(srcVertex.j0);
@@ -378,12 +388,22 @@ Result renderProjectedUnitBackendMesh(const Args& args) {
                         outVertex.nx = srcVertex.normal.x;
                         outVertex.ny = srcVertex.normal.y;
                         outVertex.nz = srcVertex.normal.z;
+                        outVertex.tx = srcVertex.tangent.x;
+                        outVertex.ty = srcVertex.tangent.y;
+                        outVertex.tz = srcVertex.tangent.z;
+                        outVertex.tw = srcVertex.tangent.w;
                     } else {
                         const glm::vec3 nrm =
                             transforms.resolveModelVertexNormal(triNodeIndex, src, srcVertex);
                         outVertex.nx = nrm.x;
                         outVertex.ny = nrm.y;
                         outVertex.nz = nrm.z;
+                        const glm::vec4 tan =
+                            transforms.resolveModelVertexTangent(triNodeIndex, src, srcVertex);
+                        outVertex.tx = tan.x;
+                        outVertex.ty = tan.y;
+                        outVertex.tz = tan.z;
+                        outVertex.tw = tan.w;
                     }
                     if (useGpuSkinning) {
                         outVertex.joint0 = static_cast<float>(srcVertex.j0);
@@ -433,6 +453,9 @@ Result renderProjectedUnitBackendMesh(const Args& args) {
             glm::vec3 n0(0.0f, 1.0f, 0.0f);
             glm::vec3 n1(0.0f, 1.0f, 0.0f);
             glm::vec3 n2(0.0f, 1.0f, 0.0f);
+            glm::vec4 t0(0.0f, 0.0f, 0.0f, 1.0f);
+            glm::vec4 t1(0.0f, 0.0f, 0.0f, 1.0f);
+            glm::vec4 t2(0.0f, 0.0f, 0.0f, 1.0f);
             if (useIndexedWorldModelPath) {
                 a = transforms.resolveWorldVertexPos(triNodeIndex, i0, v0);
                 b = transforms.resolveWorldVertexPos(triNodeIndex, i1, v1);
@@ -440,6 +463,9 @@ Result renderProjectedUnitBackendMesh(const Args& args) {
                 n0 = transforms.resolveModelVertexNormal(triNodeIndex, i0, v0);
                 n1 = transforms.resolveModelVertexNormal(triNodeIndex, i1, v1);
                 n2 = transforms.resolveModelVertexNormal(triNodeIndex, i2, v2);
+                t0 = transforms.resolveModelVertexTangent(triNodeIndex, i0, v0);
+                t1 = transforms.resolveModelVertexTangent(triNodeIndex, i1, v1);
+                t2 = transforms.resolveModelVertexTangent(triNodeIndex, i2, v2);
             } else {
                 const auto sk0 = transforms.resolveWorldVertex(triNodeIndex, i0, v0);
                 const auto sk1 = transforms.resolveWorldVertex(triNodeIndex, i1, v1);
@@ -450,6 +476,9 @@ Result renderProjectedUnitBackendMesh(const Args& args) {
                 n0 = sk0.normal;
                 n1 = sk1.normal;
                 n2 = sk2.normal;
+                t0 = v0.tangent;
+                t1 = v1.tangent;
+                t2 = v2.tangent;
             }
 
             glm::vec3 baseColor0 = fallbackBase;
@@ -507,6 +536,9 @@ Result renderProjectedUnitBackendMesh(const Args& args) {
                 n0,
                 n1,
                 n2,
+                t0,
+                t1,
+                t2,
                 baseColor0,
                 baseColor1,
                 baseColor2,
