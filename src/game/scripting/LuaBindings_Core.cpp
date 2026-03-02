@@ -178,6 +178,12 @@ void registerLuaBindings_Core(sol::state& lua, ScriptAPI& api) {
     lua.set_function("set_preferred_gpu_adapter_pref", [&api](const std::string& adapterName) {
         return api.setPreferredGpuAdapterPreference(adapterName);
     });
+    lua.set_function("get_character_inking_pref", [&api]() {
+        return api.getCharacterInkingPreference();
+    });
+    lua.set_function("set_character_inking_pref", [&api](bool enabled) {
+        return api.setCharacterInkingPreference(enabled);
+    });
     lua.set_function("is_active_gpu_discrete", [&api]() {
         return api.isActiveGpuDiscrete();
     });

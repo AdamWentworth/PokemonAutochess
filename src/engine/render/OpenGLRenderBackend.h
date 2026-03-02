@@ -128,6 +128,7 @@ private:
     int worldRoughnessFactorLoc_ = -1;
     int worldOcclusionStrengthLoc_ = -1;
     int worldEmissiveFactorLoc_ = -1;
+    int worldCharacterInkingEnabledLoc_ = -1;
     int worldMaterialModeLoc_ = -1;
     int worldMaterialTimeLoc_ = -1;
     int worldMaterialFlagsLoc_ = -1;

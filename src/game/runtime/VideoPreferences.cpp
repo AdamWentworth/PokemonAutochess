@@ -119,6 +119,7 @@ Preferences loadPreferences(const std::string& path) {
     }
     out.requireDiscreteGpu = j.value("require_discrete_gpu", out.requireDiscreteGpu);
     out.preferredGpuAdapter = j.value("preferred_gpu_adapter", out.preferredGpuAdapter);
+    out.characterInking = j.value("character_inking", out.characterInking);
     out.restartOnExit = j.value("restart_on_exit", out.restartOnExit);
 
     const std::string menuScreen = j.value("boot_menu_screen", std::string());
@@ -131,6 +132,7 @@ bool savePreferences(const Preferences& prefs, const std::string& path, std::str
     j["renderer_backend"] = rendererBackendName(parseRendererBackend(prefs.rendererBackend));
     j["require_discrete_gpu"] = prefs.requireDiscreteGpu;
     j["preferred_gpu_adapter"] = prefs.preferredGpuAdapter;
+    j["character_inking"] = prefs.characterInking;
     j["restart_on_exit"] = prefs.restartOnExit;
     j["boot_menu_screen"] = normalizeMenuScreenToken(prefs.bootMenuScreen);
 

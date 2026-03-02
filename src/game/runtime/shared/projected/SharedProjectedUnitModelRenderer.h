@@ -53,6 +53,7 @@ struct Args {
 
     bool supportsWorldTriangles3D = false;
     bool supportsWorldIndexedMeshes = false;
+    bool characterInkingEnabled = false;
 
     shared_projected_debug::ProjectedDebugVfxBuilder* projectedDebug = nullptr;
     std::unordered_map<int, shared_tail_fire_fallback::Anchor>* sharedTailFireAnchors = nullptr;

@@ -318,6 +318,7 @@ namespace {
         services.requestedRendererBackend = game::video::rendererBackendName(requestedBackend);
         services.requireDiscreteGpu = prefs.requireDiscreteGpu;
         services.preferredGpuAdapter = prefs.preferredGpuAdapter;
+        services.characterInkingEnabled = prefs.characterInking;
 
         {
             const auto adapters = game::video::enumerateSystemGpuAdapters();

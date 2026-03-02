@@ -16,6 +16,7 @@ struct Preferences {
     std::string rendererBackend = "opengl";
     bool requireDiscreteGpu = false;
     std::string preferredGpuAdapter;
+    bool characterInking = false;
     bool restartOnExit = false;
     std::string bootMenuScreen;
 };

@@ -58,6 +58,7 @@ struct WorldIndexedBatch {
     float emissiveFactorR = 0.0f;
     float emissiveFactorG = 0.0f;
     float emissiveFactorB = 0.0f;
+    std::uint8_t characterInkingEnabled = 0u;
     float sortDepth = 0.0f;
     float materialTimeSec = 0.0f;
     float materialFlags = 0.0f;

@@ -220,6 +220,7 @@ cbuffer PSConstants : register(b1) {
   float uMaterialFlipbook1Rows;
   float uMaterialFlipbook1Frames;
   float uMaterialFlipbook1Fps;
+  float uCharacterInkingEnabled;
 };
 Texture2D gTex : register(t0);
 SamplerState gSampCC : register(s0);
@@ -527,7 +528,29 @@ float3 applyWorldLitModel(PSIn i, bool isFrontFace, float3 linearColor) {
   return max(linearColor * lit, 0.0f.xxx);
 }
 
+float3 applyCharacterInking(PSIn i, bool isFrontFace, float3 linearColor) {
+  if (uCharacterInkingEnabled < 0.5f) return linearColor;
+  float3 dx = ddx(i.worldPos);
+  float3 dy = ddy(i.worldPos);
+  float3 n = normalize(cross(dx, dy));
+  if (!isFrontFace) n = -n;
+  float3 v = normalize(float3(0.0f, 7.0f, 9.0f) - i.worldPos);
+  float ndv = saturate(dot(n, v));
+  float edge = 1.0f - ndv;
+  float fw = max(fwidth(edge), 1e-4f);
+  float t0 = 0.84f;
+  float t1 = 0.985f;
+  float ringOuter = smoothstep(t0 - fw * 1.5f, t0 + fw * 1.5f, edge);
+  float ringInner = smoothstep(t1 - fw * 1.5f, t1 + fw * 1.5f, edge);
+  float outline = saturate(ringOuter - ringInner);
+  return lerp(linearColor, 0.0f.xxx, outline);
+}
+
 float4 main(PSIn i, bool isFrontFace : SV_IsFrontFace) : SV_TARGET {
+  if (uMaterialMode > 2.5f && uMaterialMode < 3.5f) {
+    if (isFrontFace) discard;
+    return float4(0.0f, 0.0f, 0.0f, 1.0f);
+  }
   if (uMaterialMode > 0.5f && uMaterialMode < 1.5f) {
     return evalFireTailExact(i);
   }

@@ -73,6 +73,7 @@ IRenderBackend::WorldTextureData toWorldTextureData(const WorldIndexedBatch& bat
     tex.emissiveFactorR = batch.emissiveFactorR;
     tex.emissiveFactorG = batch.emissiveFactorG;
     tex.emissiveFactorB = batch.emissiveFactorB;
+    tex.characterInkingEnabled = batch.characterInkingEnabled;
     tex.cameraPosX = (cameraWorldPos3 ? cameraWorldPos3[0] : tex.cameraPosX);
     tex.cameraPosY = (cameraWorldPos3 ? cameraWorldPos3[1] : tex.cameraPosY);
     tex.cameraPosZ = (cameraWorldPos3 ? cameraWorldPos3[2] : tex.cameraPosZ);

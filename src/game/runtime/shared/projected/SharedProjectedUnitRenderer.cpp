@@ -100,6 +100,7 @@ void drawProjectedUnits(const Args& args, const std::vector<PokemonInstance>& un
     const float line = args.lineThickness;
     const bool supportsWorldTriangles3D = args.supportsWorldTriangles3D;
     const bool supportsWorldIndexedMeshes = args.supportsWorldIndexedMeshes;
+    const bool characterInkingEnabled = args.characterInkingEnabled;
     const bool enableGpuClipSkinning = args.enableGpuClipSkinning;
     const bool hasWorldViewProj = args.hasWorldViewProj;
     const bool allowPortraitFallback = args.allowPortraitFallback;
@@ -353,6 +354,7 @@ for (const auto& unit : units) {
                 .cameraWorldPos = cameraWorldPos,
                 .supportsWorldTriangles3D = supportsWorldTriangles3D,
                 .supportsWorldIndexedMeshes = supportsWorldIndexedMeshes,
+                .characterInkingEnabled = characterInkingEnabled,
                 .projectedDebug = &projectedDebug,
                 .sharedTailFireAnchors = &sharedTailFireAnchors,
                 .worldIndexedBatches = &worldIndexedBatches,

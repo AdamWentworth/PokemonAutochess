@@ -87,6 +87,8 @@ public:
         float emissiveFactorR = 0.0f;
         float emissiveFactorG = 0.0f;
         float emissiveFactorB = 0.0f;
+        // Optional character inking (silhouette edge darkening) toggle for model shading paths.
+        std::uint8_t characterInkingEnabled = 0u;
         // Optional camera payload used by world shaded paths.
         // Defaults preserve prior fixed-camera lighting behavior.
         float cameraPosX = 0.0f;

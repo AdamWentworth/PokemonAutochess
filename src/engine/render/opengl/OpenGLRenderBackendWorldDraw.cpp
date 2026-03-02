@@ -1,6 +1,7 @@
 #include "engine/render/OpenGLRenderBackend.h"
 
 #include <algorithm>
+#include <cmath>
 #include <cstdint>
 #include <vector>
 
@@ -359,6 +360,11 @@ void OpenGLRenderBackend::drawWorldIndexedMeshTextured(const WorldMeshVertex* ve
                     texture ? std::max(0.0f, texture->emissiveFactorG) : 0.0f,
                     texture ? std::max(0.0f, texture->emissiveFactorB) : 0.0f);
     }
+    if (worldCharacterInkingEnabledLoc_ >= 0) {
+        glUniform1f(
+            worldCharacterInkingEnabledLoc_,
+            (texture && texture->characterInkingEnabled != 0u) ? 1.0f : 0.0f);
+    }
     glUniform1f(worldMaterialModeLoc_, static_cast<GLfloat>(materialMode));
     glUniform1f(worldMaterialTimeLoc_, texture ? texture->materialTimeSec : 0.0f);
     glUniform1f(worldMaterialFlagsLoc_, texture ? texture->materialFlags : 0.0f);
@@ -430,6 +436,46 @@ void OpenGLRenderBackend::drawWorldIndexedMeshTextured(const WorldMeshVertex* ve
     glDrawElements(GL_TRIANGLES, static_cast<GLsizei>(safeIndexCount), GL_UNSIGNED_INT, nullptr);
     ++frameDrawCalls_;
     frameTriangles_ += static_cast<std::uint64_t>(safeIndexCount / 3u);
+
+    const bool drawCharacterOutline =
+        texture &&
+        texture->characterInkingEnabled != 0u &&
+        materialMode >= 2u &&
+        safeVertexCount > 0u;
+    if (drawCharacterOutline) {
+        static thread_local std::vector<WorldMeshVertex> outlineVertices;
+        outlineVertices.resize(safeVertexCount);
+        std::copy(vertices, vertices + safeVertexCount, outlineVertices.begin());
+
+        // Keep this subtle: thin silhouette ring instead of heavy toon border.
+        const float kOutlineExtrude = 0.001f;
+        for (WorldMeshVertex& v : outlineVertices) {
+            const float lenSq = v.nx * v.nx + v.ny * v.ny + v.nz * v.nz;
+            if (lenSq > 1e-10f) {
+                const float invLen = 1.0f / std::sqrt(lenSq);
+                v.x += v.nx * invLen * kOutlineExtrude;
+                v.y += v.ny * invLen * kOutlineExtrude;
+                v.z += v.nz * invLen * kOutlineExtrude;
+            }
+            v.r = 0.0f;
+            v.g = 0.0f;
+            v.b = 0.0f;
+            v.a = 1.0f;
+        }
+
+        glUniform1f(worldUseTextureLoc_, 0.0f);
+        glUniform1f(worldMaterialModeLoc_, 3.0f);
+        glDepthMask(GL_FALSE);
+
+        glBindBuffer(GL_ARRAY_BUFFER, worldVbo_);
+        glBufferData(GL_ARRAY_BUFFER,
+                     static_cast<GLsizeiptr>(safeVertexCount * sizeof(WorldMeshVertex)),
+                     outlineVertices.data(),
+                     GL_STREAM_DRAW);
+        glDrawElements(GL_TRIANGLES, static_cast<GLsizei>(safeIndexCount), GL_UNSIGNED_INT, nullptr);
+        ++frameDrawCalls_;
+        frameTriangles_ += static_cast<std::uint64_t>(safeIndexCount / 3u);
+    }
 
     glBindVertexArray(static_cast<GLuint>(prevVao));
     glBindBuffer(GL_ARRAY_BUFFER, static_cast<GLuint>(prevArrayBuffer));

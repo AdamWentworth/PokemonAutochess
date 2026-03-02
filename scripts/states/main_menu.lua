@@ -28,6 +28,7 @@ local video_cfg = {
     renderer_backends = { "opengl", "vulkan", "d3d12" },
     renderer_index = 1,
     require_discrete_gpu = false,
+    character_inking = false,
     gpu_adapters = { "auto" },
     gpu_adapter_index = 1
 }
@@ -153,6 +154,7 @@ local function sync_from_engine()
         end
     end
     video_cfg.require_discrete_gpu = get_require_discrete_gpu_pref() == true
+    video_cfg.character_inking = get_character_inking_pref() == true
     sync_gpu_adapter_options()
 end
 
@@ -287,10 +289,11 @@ local function build_video_entries(entries)
     else fps_label = fps_label .. tostring(fps) .. " (placeholder)" end
 
     action(entries, "video_vsync", "VSync: " .. bool_text(video_cfg.vsync) .. " (placeholder)", 0.72, false)
-    action(entries, "video_fps", fps_label, 0.76, false)
-    action(entries, "video_ui_scale", "UI Scale: " .. tostring(video_cfg.ui_scales[video_cfg.ui_scale_index]) .. "% (placeholder)", 0.80, false)
-    action(entries, "video_quality", "Quality: " .. video_cfg.quality[video_cfg.quality_index] .. " (placeholder)", 0.84, false)
-    action(entries, "video_apply_restart", "Apply + Restart", 0.90, true)
+    action(entries, "video_character_inking", "Character Inking: " .. bool_text(video_cfg.character_inking), 0.76, false)
+    action(entries, "video_fps", fps_label, 0.80, false)
+    action(entries, "video_ui_scale", "UI Scale: " .. tostring(video_cfg.ui_scales[video_cfg.ui_scale_index]) .. "% (placeholder)", 0.84, false)
+    action(entries, "video_quality", "Quality: " .. video_cfg.quality[video_cfg.quality_index] .. " (placeholder)", 0.88, false)
+    action(entries, "video_apply_restart", "Apply + Restart", 0.92, true)
     action(entries, "settings_back", "Back", 0.95, false)
 end
 
@@ -510,6 +513,16 @@ local function handle_video_click(entry_id)
     if entry_id == "video_vsync" then
         video_cfg.vsync = not video_cfg.vsync
         emit("Menu", "VSync changed (placeholder)")
+        return true
+    end
+    if entry_id == "video_character_inking" then
+        video_cfg.character_inking = not video_cfg.character_inking
+        local ok = set_character_inking_pref(video_cfg.character_inking)
+        if ok then
+            emit("Menu", "Character inking: " .. bool_text(video_cfg.character_inking))
+        else
+            emit("Menu", "Failed to save character inking preference")
+        end
         return true
     end
     if entry_id == "video_fps" then

@@ -111,6 +111,7 @@ struct WorldPsConstants {
     float materialFlipbook1Rows = 1.0f;
     float materialFlipbook1Frames = 1.0f;
     float materialFlipbook1Fps = 0.0f;
+    float characterInkingEnabled = 0.0f;
 };
 
 inline WorldPsConstants makeWorldPsConstants(const IRenderBackend::WorldTextureData* textureData, float useTexture) {
@@ -142,6 +143,7 @@ inline WorldPsConstants makeWorldPsConstants(const IRenderBackend::WorldTextureD
     constants.materialFlipbook1Rows = textureData->materialFlipbook1Rows;
     constants.materialFlipbook1Frames = textureData->materialFlipbook1Frames;
     constants.materialFlipbook1Fps = textureData->materialFlipbook1Fps;
+    constants.characterInkingEnabled = textureData->characterInkingEnabled != 0u ? 1.0f : 0.0f;
     return constants;
 }
 

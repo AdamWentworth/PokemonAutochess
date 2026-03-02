@@ -2,6 +2,7 @@
 #include "engine/render/d3d12/D3D12RenderBackendInternal.h"
 
 #include <algorithm>
+#include <cmath>
 #include <cstring>
 
 #if defined(_WIN32)
@@ -304,8 +305,78 @@ void D3D12RenderBackend::drawWorldIndexedMeshInternal(const WorldMeshVertex* ver
     commandList_->DrawIndexedInstanced(static_cast<UINT>(safeIndexCount), 1, 0, 0, 0);
     ++frameDrawCalls_;
     frameTriangles_ += static_cast<std::uint64_t>(safeIndexCount / 3u);
-    worldVertexFrameOffset_ = static_cast<UINT>(vertexWriteOffset + vertexBytes);
-    worldIndexFrameOffset_ = static_cast<UINT>(indexWriteOffset + indexBytes);
+
+    std::size_t nextVertexOffset = vertexWriteOffset + vertexBytes;
+    std::size_t nextIndexOffset = indexWriteOffset + indexBytes;
+
+    const bool drawCharacterOutline =
+        textureData &&
+        textureData->characterInkingEnabled != 0u &&
+        textureData->materialMode >= 2u &&
+        safeVertexCount > 0u;
+    if (drawCharacterOutline) {
+        const std::size_t outlineVertexWriteOffset = alignUp(nextVertexOffset, 256u);
+        const std::size_t outlineIndexWriteOffset = alignUp(nextIndexOffset, 256u);
+        if (outlineVertexWriteOffset + vertexBytes <= worldVertexBufferSize_ &&
+            outlineIndexWriteOffset + indexBytes <= worldIndexBufferSize_) {
+            auto* outlineVertices =
+                reinterpret_cast<WorldVertex*>(worldVertexMappedData_ + outlineVertexWriteOffset);
+            const auto* srcVertices = reinterpret_cast<const WorldVertex*>(vertices);
+            std::memcpy(outlineVertices, srcVertices, vertexBytes);
+
+            const float kOutlineExtrude = 0.001f;
+            for (std::size_t vi = 0; vi < safeVertexCount; ++vi) {
+                WorldVertex& v = outlineVertices[vi];
+                const float lenSq = v.nx * v.nx + v.ny * v.ny + v.nz * v.nz;
+                if (lenSq > 1e-10f) {
+                    const float invLen = 1.0f / std::sqrt(lenSq);
+                    v.x += v.nx * invLen * kOutlineExtrude;
+                    v.y += v.ny * invLen * kOutlineExtrude;
+                    v.z += v.nz * invLen * kOutlineExtrude;
+                }
+                v.r = 0.0f;
+                v.g = 0.0f;
+                v.b = 0.0f;
+                v.a = 1.0f;
+            }
+
+            auto* outlineIndices =
+                reinterpret_cast<std::uint32_t*>(worldIndexMappedData_ + outlineIndexWriteOffset);
+            std::memcpy(outlineIndices, indices, indexBytes);
+
+            D3D12_VERTEX_BUFFER_VIEW outlineVbv{};
+            outlineVbv.BufferLocation =
+                worldVertexBufferGpuAddress_ + static_cast<std::uint64_t>(outlineVertexWriteOffset);
+            outlineVbv.StrideInBytes = worldVertexStride_;
+            outlineVbv.SizeInBytes = static_cast<UINT>(vertexBytes);
+            commandList_->IASetVertexBuffers(0, 1, &outlineVbv);
+
+            D3D12_INDEX_BUFFER_VIEW outlineIbv{};
+            outlineIbv.BufferLocation =
+                worldIndexBufferGpuAddress_ + static_cast<std::uint64_t>(outlineIndexWriteOffset);
+            outlineIbv.Format = DXGI_FORMAT_R32_UINT;
+            outlineIbv.SizeInBytes = static_cast<UINT>(indexBytes);
+            commandList_->IASetIndexBuffer(&outlineIbv);
+
+            WorldPsConstants outlinePs = makeWorldPsConstants(textureData, 0.0f);
+            outlinePs.materialMode = 3.0f;
+            commandList_->SetGraphicsRoot32BitConstants(
+                1,
+                static_cast<UINT>(sizeof(WorldPsConstants) / sizeof(float)),
+                &outlinePs,
+                0);
+            commandList_->SetPipelineState(worldPipelineState_.Get());
+            commandList_->DrawIndexedInstanced(static_cast<UINT>(safeIndexCount), 1, 0, 0, 0);
+            ++frameDrawCalls_;
+            frameTriangles_ += static_cast<std::uint64_t>(safeIndexCount / 3u);
+
+            nextVertexOffset = outlineVertexWriteOffset + vertexBytes;
+            nextIndexOffset = outlineIndexWriteOffset + indexBytes;
+        }
+    }
+
+    worldVertexFrameOffset_ = static_cast<UINT>(nextVertexOffset);
+    worldIndexFrameOffset_ = static_cast<UINT>(nextIndexOffset);
 #else
     (void)vertices;
     (void)vertexCount;

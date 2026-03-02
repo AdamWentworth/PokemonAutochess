@@ -1035,6 +1035,7 @@ struct GameSession::Impl {
             services->preferredGpuAdapter = ctx.services->preferredGpuAdapter;
             services->gpuDiscrete = ctx.services->gpuDiscrete;
             services->requireDiscreteGpu = ctx.services->requireDiscreteGpu;
+            services->characterInkingEnabled = ctx.services->characterInkingEnabled;
             services->bootMenuScreen = ctx.services->bootMenuScreen;
         }
         if (ctx.queryVideoMode) {
@@ -1597,6 +1598,8 @@ struct GameSession::Impl {
                 projectedUnitArgs.lineThickness = line;
                 projectedUnitArgs.supportsWorldTriangles3D = supportsWorldTriangles3D;
                 projectedUnitArgs.supportsWorldIndexedMeshes = supportsWorldIndexedMeshes;
+                projectedUnitArgs.characterInkingEnabled =
+                    (services ? services->characterInkingEnabled : false);
                 projectedUnitArgs.enableGpuClipSkinning = backendGpuClipSkinningEnabled(renderer);
                 projectedUnitArgs.hasWorldViewProj = hasWorldViewProj;
                 projectedUnitArgs.allowPortraitFallback = allowPortraitFallback;

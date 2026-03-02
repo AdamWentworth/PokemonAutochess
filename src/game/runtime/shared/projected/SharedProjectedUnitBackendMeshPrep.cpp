@@ -266,6 +266,7 @@ bool prepareProjectedUnitBackendMesh(const Args& args, Result& out, PreparedStat
                 batch.emissiveFactorG = std::max(0.0f, e.g);
                 batch.emissiveFactorB = std::max(0.0f, e.b);
             }
+            batch.characterInkingEnabled = args.characterInkingEnabled ? 1u : 0u;
             // Material mode 2 routes model lighting to backend world shaders.
             batch.materialMode = 2u;
             if (args.modelFadeAlpha < 0.999f) {

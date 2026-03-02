@@ -50,6 +50,8 @@ public:
     std::vector<std::string> getGpuAdapters() const;
     std::string getPreferredGpuAdapterPreference() const;
     bool setPreferredGpuAdapterPreference(const std::string& adapterName);
+    bool getCharacterInkingPreference() const;
+    bool setCharacterInkingPreference(bool enabled);
     bool isActiveGpuDiscrete() const;
     bool requestRestartToMenu(const std::string& menuScreen);
     std::string consumeBootMenuScreen();

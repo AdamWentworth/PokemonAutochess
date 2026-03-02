@@ -163,6 +163,7 @@ void OpenGLRenderBackend::ensureWorldPipeline() {
         uniform float uRoughnessFactor;
         uniform float uOcclusionStrength;
         uniform vec3 uEmissiveFactor;
+        uniform float uCharacterInkingEnabled;
         out vec4 FragColor;
 
         float applyWrap(float coord, float mode) {
@@ -448,14 +449,13 @@ void OpenGLRenderBackend::ensureWorldPipeline() {
         }
 
         vec3 tonemapACESFilmic(vec3 color, float toneMappingExposure) {
-            // Matches three.js ACESFilmicToneMapping (including matrix orientation and /0.6 scale).
             const mat3 ACESInputMat = mat3(
-                vec3(0.59719, 0.07600, 0.02840), // transposed from source
+                vec3(0.59719, 0.07600, 0.02840),
                 vec3(0.35458, 0.90834, 0.13383),
                 vec3(0.04823, 0.01566, 0.83777)
             );
             const mat3 ACESOutputMat = mat3(
-                vec3( 1.60475, -0.10208, -0.00327), // transposed from source
+                vec3( 1.60475, -0.10208, -0.00327),
                 vec3(-0.53108,  1.10813, -0.07276),
                 vec3(-0.07367, -0.00605,  1.07602)
             );
@@ -467,8 +467,6 @@ void OpenGLRenderBackend::ensureWorldPipeline() {
         }
 
         vec3 applyViewerToneMapping(vec3 color, float toneMappingMode, float toneMappingExposure) {
-            // Matches three-gltf-viewer controls:
-            //   Linear => 0, ACES Filmic => 1.
             if (toneMappingMode < 0.5) {
                 return linearToneMapping(color, toneMappingExposure);
             }
@@ -663,14 +661,11 @@ void OpenGLRenderBackend::ensureWorldPipeline() {
             camRight = safeNormalize(camRight, vec3(1.0, 0.0, 0.0));
             vec3 camUp = safeNormalize(cross(camRight, camForward), vec3(0.0, 1.0, 0.0));
             vec3 v = safeNormalize(uCameraPos - vWorldPos, -camForward);
-            // three-gltf-viewer defaults:
-            // punctualLights=true, ambientIntensity=0.3, directIntensity=0.8*PI, directColor=white.
             const vec3 directColor = vec3(1.0);
             const float directIntensity = 0.8 * 3.14159265;
             const vec3 ambientColor = vec3(1.0);
             const float ambientIntensity = 0.3;
 
-            // Match three-gltf-viewer: directional light parented to camera at local (0.5, 0, 0.866).
             vec3 lightPos = uCameraPos + camRight * 0.5 + camUp * 0.0 - camForward * 0.8660254;
             vec3 l0 = safeNormalize(lightPos - uCameraTarget, vec3(0.45, 0.86, 0.24));
             vec3 direct = evalDirectPbr(
@@ -705,7 +700,35 @@ void OpenGLRenderBackend::ensureWorldPipeline() {
             return max(shaded + emissive, vec3(0.0));
         }
 
+        vec3 applyCharacterInking(vec3 linearColor, vec3 n) {
+            if (uCharacterInkingEnabled < 0.5) return linearColor;
+
+            vec3 camForward = safeNormalize(
+                uCameraForward,
+                normalize(vec3(0.0, -0.6139406, -0.7893522)));
+            vec3 v = safeNormalize(uCameraPos - vWorldPos, -camForward);
+            vec3 nn = safeNormalize(n, vec3(0.0, 1.0, 0.0));
+            float ndv = clamp(dot(nn, v), 0.0, 1.0);
+            float edge = 1.0 - ndv;
+            float fw = max(fwidth(edge), 1e-4);
+            // Thin but clearly visible silhouette band (~1-2px at gameplay camera distance).
+            float t0 = 0.84;
+            float t1 = 0.985;
+            float ringOuter = smoothstep(t0 - fw * 1.5, t0 + fw * 1.5, edge);
+            float ringInner = smoothstep(t1 - fw * 1.5, t1 + fw * 1.5, edge);
+            float outline = clamp(ringOuter - ringInner, 0.0, 1.0);
+
+            const vec3 inkColor = vec3(0.0);
+            const float inkStrength = 1.0;
+            return mix(linearColor, inkColor, outline * inkStrength);
+        }
+
         void main() {
+            if (uMaterialMode > 2.5 && uMaterialMode < 3.5) {
+                if (gl_FrontFacing) discard;
+                FragColor = vec4(0.0, 0.0, 0.0, 1.0);
+                return;
+            }
             if (uMaterialMode > 0.5 && uMaterialMode < 1.5) {
                 FragColor = evalFireTailExact();
                 return;
@@ -713,7 +736,6 @@ void OpenGLRenderBackend::ensureWorldPipeline() {
             vec4 tex = vec4(1.0);
             vec3 outLinear = clamp(vColor.rgb, 0.0, 1.0);
             vec2 wrappedUv = vec2(applyWrap(vUv.x, uWrapS), applyWrap(vUv.y, uWrapT));
-            // Preserve full repeat/mirror detail; only clamp to texel center for clamp-to-edge.
             bool clampS = abs(uWrapS - 33071.0) < 0.5;
             bool clampT = abs(uWrapT - 33071.0) < 0.5;
             if (clampS || clampT) {
@@ -734,10 +756,7 @@ void OpenGLRenderBackend::ensureWorldPipeline() {
                 vec3 n = computeMappedNormal(wrappedUv);
                 outLinear = applyWorldLitModel(outLinear, n, wrappedUv);
             }
-            // three-gltf-viewer semantics:
-            //   toneMappingExposure = pow(2, exposure), exposure default = 0.
             const float toneMappingExposure = 1.0;
-            // three-gltf-viewer: toneMapping = ACES Filmic.
             const float toneMappingMode = 1.0;
             vec3 mapped = applyViewerToneMapping(max(outLinear, vec3(0.0)), toneMappingMode, toneMappingExposure);
             vec3 outSrgb = linearToSrgb(mapped);
@@ -784,6 +803,7 @@ void OpenGLRenderBackend::ensureWorldPipeline() {
     worldRoughnessFactorLoc_ = glGetUniformLocation(worldProgram_, "uRoughnessFactor");
     worldOcclusionStrengthLoc_ = glGetUniformLocation(worldProgram_, "uOcclusionStrength");
     worldEmissiveFactorLoc_ = glGetUniformLocation(worldProgram_, "uEmissiveFactor");
+    worldCharacterInkingEnabledLoc_ = glGetUniformLocation(worldProgram_, "uCharacterInkingEnabled");
     worldMaterialModeLoc_ = glGetUniformLocation(worldProgram_, "uMaterialMode");
     worldMaterialTimeLoc_ = glGetUniformLocation(worldProgram_, "uMaterialTimeSec");
     worldMaterialFlagsLoc_ = glGetUniformLocation(worldProgram_, "uMaterialFlags");
@@ -880,6 +900,7 @@ void OpenGLRenderBackend::destroyWorldPipeline() {
     worldRoughnessFactorLoc_ = -1;
     worldOcclusionStrengthLoc_ = -1;
     worldEmissiveFactorLoc_ = -1;
+    worldCharacterInkingEnabledLoc_ = -1;
     worldMaterialModeLoc_ = -1;
     worldMaterialTimeLoc_ = -1;
     worldMaterialFlagsLoc_ = -1;

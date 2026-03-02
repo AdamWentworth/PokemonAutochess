@@ -20,6 +20,7 @@ bool saveVideoPreferencesFromServices(const GameServices& services, std::string*
     prefs.rendererBackend = services.requestedRendererBackend;
     prefs.requireDiscreteGpu = services.requireDiscreteGpu;
     prefs.preferredGpuAdapter = services.preferredGpuAdapter;
+    prefs.characterInking = services.characterInkingEnabled;
     return game::video::savePreferences(prefs, game::video::defaultPreferencesPath(), outError);
 }
 
@@ -176,6 +177,21 @@ bool ScriptAPI::setPreferredGpuAdapterPreference(const std::string& adapterName)
     return true;
 }
 
+bool ScriptAPI::getCharacterInkingPreference() const {
+    return services_.characterInkingEnabled;
+}
+
+bool ScriptAPI::setCharacterInkingPreference(bool enabled) {
+    services_.characterInkingEnabled = enabled;
+
+    std::string err;
+    if (!saveVideoPreferencesFromServices(services_, &err)) {
+        game::log::warn(&services_.log, std::string("[Video] Failed to save character inking preference: ") + err);
+        return false;
+    }
+    return true;
+}
+
 bool ScriptAPI::isActiveGpuDiscrete() const {
     return services_.gpuDiscrete;
 }
@@ -185,6 +201,7 @@ bool ScriptAPI::requestRestartToMenu(const std::string& menuScreen) {
     prefs.rendererBackend = services_.requestedRendererBackend;
     prefs.requireDiscreteGpu = services_.requireDiscreteGpu;
     prefs.preferredGpuAdapter = services_.preferredGpuAdapter;
+    prefs.characterInking = services_.characterInkingEnabled;
     prefs.restartOnExit = true;
     prefs.bootMenuScreen = sanitizeMenuScreenToken(menuScreen);
 

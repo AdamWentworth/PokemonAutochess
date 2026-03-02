@@ -1,5 +1,6 @@
 {
   "boot_menu_screen": "",
+  "character_inking": true,
   "preferred_gpu_adapter": "NVIDIA GeForce GTX 1050",
   "renderer_backend": "opengl",
   "require_discrete_gpu": false,
