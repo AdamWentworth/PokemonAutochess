@@ -183,6 +183,8 @@ add_library(engine_render STATIC
     src/engine/render/Model.cpp
     src/engine/render/ModelAnimation.cpp
     src/engine/render/ModelCache.cpp
+    src/engine/render/RendererParityContract.cpp
+    src/engine/render/WorldPbrShaderShared.cpp
     src/engine/render/NeutralPmrem.cpp
     src/engine/render/gltf/ModelFastGltfLoader.cpp
     src/engine/render/gltf/ModelFastGltfLoaderHelpers.cpp
@@ -451,6 +453,7 @@ if (BUILD_TESTING)
         tests/TestLogBus.cpp
         tests/TestRenderFlowDecisions.cpp
         tests/TestBackendRenderPolicy.cpp
+        tests/TestRendererParityContract.cpp
         tests/TestDebugGeometry.cpp
         tests/TestVideoInitGuards.cpp
         tests/TestVideoPreferences.cpp
@@ -581,6 +584,20 @@ if (BUILD_TESTING)
                 TIMEOUT 45
                 ENVIRONMENT
                     "PAC_DATA_ROOT=${CMAKE_SOURCE_DIR};PAC_ASSET_ROOT=${CMAKE_SOURCE_DIR}/assets;PAC_RENDER_BACKEND=d3d12;PAC_AUTO_QUIT_SECONDS=2;PAC_DISABLE_MODELCACHE=1"
+            )
+
+            add_test(
+                NAME PAC_RuntimeSmoke.parity_contract
+                COMMAND powershell -ExecutionPolicy Bypass
+                    -File ${CMAKE_SOURCE_DIR}/tools/check_renderer_parity_contract.ps1
+                    -BuildDir ${CMAKE_BINARY_DIR}
+                    -Config $<CONFIG>
+                    -AutoQuitSeconds 2)
+            set_tests_properties(PAC_RuntimeSmoke.parity_contract PROPERTIES
+                WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+                TIMEOUT 120
+                ENVIRONMENT
+                    "PAC_DATA_ROOT=${CMAKE_SOURCE_DIR};PAC_ASSET_ROOT=${CMAKE_SOURCE_DIR}/assets;PAC_DISABLE_MODELCACHE=1"
             )
         endif()
     endif()

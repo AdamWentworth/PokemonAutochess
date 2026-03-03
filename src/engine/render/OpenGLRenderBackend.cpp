@@ -1,12 +1,18 @@
 #include "engine/render/OpenGLRenderBackend.h"
+#include "engine/render/RendererParityContract.h"
 
 #include <algorithm>
 #include <cctype>
 #include <cstdint>
+#include <cstring>
+#include <exception>
+#include <filesystem>
 #include <iostream>
 #include <vector>
 
 #include <glad/glad.h>
+#include <stb_image_write.h>
+#include "engine/core/Environment.h"
 #include "engine/render/Renderer.h"
 #include "engine/render/DebugGeometry.h"
 
@@ -29,13 +35,23 @@ bool containsCi(const std::string& haystack, const std::string& needle) {
 OpenGLRenderBackend::OpenGLRenderBackend()
     : renderer_(std::make_unique<Renderer>()) {
     glEnable(GL_DEPTH_TEST);
+    bool fbSrgbEnabled = false;
     // Shader path already tone-maps + encodes to sRGB explicitly.
     // Keep fixed-function framebuffer sRGB conversion disabled to avoid double-encoding.
 #ifdef GL_FRAMEBUFFER_SRGB
-    glDisable(GL_FRAMEBUFFER_SRGB);
-    const GLboolean fbSrgbEnabled = glIsEnabled(GL_FRAMEBUFFER_SRGB);
+    if (engine::render::parity_contract::kFramebufferSrgbEnabled) {
+        glEnable(GL_FRAMEBUFFER_SRGB);
+    } else {
+        glDisable(GL_FRAMEBUFFER_SRGB);
+    }
+    fbSrgbEnabled = (glIsEnabled(GL_FRAMEBUFFER_SRGB) == GL_TRUE);
     std::cout << "[OpenGL] GL_FRAMEBUFFER_SRGB=" << (fbSrgbEnabled ? "ON" : "OFF") << "\n";
 #endif
+    engine::render::parity_contract::RuntimeConfig parityCfg =
+        engine::render::parity_contract::makeBaselineConfig();
+    parityCfg.framebufferSrgbEnabled = fbSrgbEnabled;
+    engine::render::parity_contract::logValidation("OpenGL", parityCfg);
+    configureScreenshotCapture();
 }
 
 OpenGLRenderBackend::~OpenGLRenderBackend() {
@@ -43,16 +59,22 @@ OpenGLRenderBackend::~OpenGLRenderBackend() {
 }
 
 void OpenGLRenderBackend::beginFrame(float r, float g, float b, float a) {
+    ++frameCounter_;
     frameDrawCalls_ = 0u;
     frameTriangles_ = 0u;
 #ifdef GL_FRAMEBUFFER_SRGB
-    glDisable(GL_FRAMEBUFFER_SRGB);
+    if (engine::render::parity_contract::kFramebufferSrgbEnabled) {
+        glEnable(GL_FRAMEBUFFER_SRGB);
+    } else {
+        glDisable(GL_FRAMEBUFFER_SRGB);
+    }
 #endif
     glClearColor(r, g, b, a);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 }
 
 void OpenGLRenderBackend::endFrame() {
+    captureScreenshotIfRequested();
     lastFrameDrawCalls_ = frameDrawCalls_;
     lastFrameTriangles_ = frameTriangles_;
 }
@@ -93,5 +115,75 @@ void OpenGLRenderBackend::shutdown() {
     frameTriangles_ = 0u;
     lastFrameDrawCalls_ = 0u;
     lastFrameTriangles_ = 0u;
+}
+
+void OpenGLRenderBackend::configureScreenshotCapture() {
+    const auto path = engine::env::get("PAC_BACKEND_SCREENSHOT_PATH");
+    if (!path.has_value() || path->empty()) return;
+
+    screenshotPath_ = *path;
+    screenshotCaptureConfigured_ = true;
+    screenshotCaptured_ = false;
+    frameCounter_ = 0u;
+    screenshotFrameTarget_ = 0u;
+
+    if (const auto frame = engine::env::get("PAC_BACKEND_SCREENSHOT_FRAME")) {
+        try {
+            screenshotFrameTarget_ = static_cast<std::uint64_t>(std::stoull(*frame));
+        } catch (...) {
+            screenshotFrameTarget_ = 0u;
+        }
+    }
+}
+
+void OpenGLRenderBackend::captureScreenshotIfRequested() {
+    if (!screenshotCaptureConfigured_ || screenshotCaptured_) return;
+    if (frameCounter_ < screenshotFrameTarget_) return;
+
+    GLint viewport[4] = {0, 0, 0, 0};
+    glGetIntegerv(GL_VIEWPORT, viewport);
+    const int width = std::max(1, viewport[2]);
+    const int height = std::max(1, viewport[3]);
+    const std::size_t pixelCount = static_cast<std::size_t>(width) * static_cast<std::size_t>(height);
+    if (pixelCount == 0u) {
+        screenshotCaptured_ = true;
+        return;
+    }
+
+    std::vector<unsigned char> rgba(pixelCount * 4u, 0u);
+    glPixelStorei(GL_PACK_ALIGNMENT, 1);
+    glReadBuffer(GL_BACK);
+    glReadPixels(0, 0, width, height, GL_RGBA, GL_UNSIGNED_BYTE, rgba.data());
+
+    std::vector<unsigned char> flipped(rgba.size(), 0u);
+    const std::size_t rowBytes = static_cast<std::size_t>(width) * 4u;
+    for (int y = 0; y < height; ++y) {
+        const std::size_t srcOffset = static_cast<std::size_t>(y) * rowBytes;
+        const std::size_t dstOffset = static_cast<std::size_t>(height - 1 - y) * rowBytes;
+        std::memcpy(flipped.data() + dstOffset, rgba.data() + srcOffset, rowBytes);
+    }
+
+    try {
+        const std::filesystem::path outPath(screenshotPath_);
+        if (!outPath.parent_path().empty()) {
+            std::filesystem::create_directories(outPath.parent_path());
+        }
+        const int wrote = stbi_write_png(
+            outPath.string().c_str(),
+            width,
+            height,
+            4,
+            flipped.data(),
+            width * 4);
+        std::cout << "[Screenshot][OpenGL] "
+                  << (wrote != 0 ? "WROTE " : "FAILED ")
+                  << outPath.string()
+                  << " size=" << width << "x" << height
+                  << " frame=" << frameCounter_ << "\n";
+    } catch (const std::exception& ex) {
+        std::cout << "[Screenshot][OpenGL] FAILED exception=" << ex.what() << "\n";
+    }
+
+    screenshotCaptured_ = true;
 }
 

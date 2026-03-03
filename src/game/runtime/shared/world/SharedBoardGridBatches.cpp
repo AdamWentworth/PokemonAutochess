@@ -4,6 +4,11 @@
 
 namespace game::runtime::shared_board_grid {
 
+const VisualTheme& defaultVisualTheme() {
+    static const VisualTheme theme{};
+    return theme;
+}
+
 void appendBoardAndBench(
     const Config& cfg,
     std::vector<IRenderBackend::DebugTriangle>& worldTriangles,
@@ -15,8 +20,9 @@ void appendBoardAndBench(
     const AppendProjectedLineFn& appendProjectedLine) {
     const std::size_t boardTrianglesStart2D = worldTriangles.size();
     const std::size_t boardTrianglesStart3D = world3DTriangles.size();
+    const VisualTheme& theme = cfg.visualTheme ? *cfg.visualTheme : defaultVisualTheme();
 
-    const float boardSurfaceY = 0.006f;
+    const float boardSurfaceY = theme.boardSurfaceY;
     for (int r = 0; r < cfg.rows; ++r) {
         for (int c = 0; c < cfg.cols; ++c) {
             const float x0 = cfg.boardMinX + static_cast<float>(c) * cfg.worldCellSize;
@@ -24,24 +30,22 @@ void appendBoardAndBench(
             const float x1 = x0 + cfg.worldCellSize;
             const float z1 = z0 + cfg.worldCellSize;
             const bool darkCell = ((r + c) % 2) == 0;
-            const float cr = darkCell ? 0.07f : 0.10f;
-            const float cg = darkCell ? 0.08f : 0.11f;
-            const float cb = darkCell ? 0.09f : 0.12f;
-            const float ca = darkCell ? 0.32f : 0.26f;
+            const auto& color = darkCell ? theme.boardCellDark : theme.boardCellLight;
             const glm::vec3 qa(x0, boardSurfaceY, z0);
             const glm::vec3 qb(x1, boardSurfaceY, z0);
             const glm::vec3 qc(x1, boardSurfaceY, z1);
             const glm::vec3 qd(x0, boardSurfaceY, z1);
             if (cfg.supportsWorldTriangles3D) {
-                appendWorldQuad(qa, qb, qc, qd, cr, cg, cb, ca);
+                appendWorldQuad(qa, qb, qc, qd, color[0], color[1], color[2], color[3]);
             } else {
-                appendProjectedQuad(qa, qb, qc, qd, cr, cg, cb, ca);
+                appendProjectedQuad(qa, qb, qc, qd, color[0], color[1], color[2], color[3]);
             }
         }
     }
 
-    const float gridY = 0.0090f;
-    const float gridHalfWidthWorld = std::max(0.0035f, cfg.worldCellSize * 0.0180f);
+    const float gridY = theme.gridY;
+    const float gridHalfWidthWorld =
+        std::max(theme.gridHalfWidthMin, cfg.worldCellSize * theme.gridHalfWidthScale);
     for (int c = 0; c <= cfg.cols; ++c) {
         const float x = cfg.boardMinX + static_cast<float>(c) * cfg.worldCellSize;
         if (cfg.supportsWorldTriangles3D) {
@@ -50,18 +54,18 @@ void appendBoardAndBench(
                 glm::vec3(x + gridHalfWidthWorld, gridY, cfg.boardMinZ),
                 glm::vec3(x + gridHalfWidthWorld, gridY, cfg.boardMaxZ),
                 glm::vec3(x - gridHalfWidthWorld, gridY, cfg.boardMaxZ),
-                0.82f,
-                0.83f,
-                0.85f,
-                0.94f);
+                theme.gridLine[0],
+                theme.gridLine[1],
+                theme.gridLine[2],
+                theme.gridLine[3]);
         } else {
             appendProjectedLine(
                 glm::vec3(x, 0.01f, cfg.boardMinZ),
                 glm::vec3(x, 0.01f, cfg.boardMaxZ),
-                0.82f,
-                0.83f,
-                0.85f,
-                0.94f,
+                theme.gridLine[0],
+                theme.gridLine[1],
+                theme.gridLine[2],
+                theme.gridLine[3],
                 cfg.line);
         }
     }
@@ -73,25 +77,25 @@ void appendBoardAndBench(
                 glm::vec3(cfg.boardMaxX, gridY, z - gridHalfWidthWorld),
                 glm::vec3(cfg.boardMaxX, gridY, z + gridHalfWidthWorld),
                 glm::vec3(cfg.boardMinX, gridY, z + gridHalfWidthWorld),
-                0.82f,
-                0.83f,
-                0.85f,
-                0.94f);
+                theme.gridLine[0],
+                theme.gridLine[1],
+                theme.gridLine[2],
+                theme.gridLine[3]);
         } else {
             appendProjectedLine(
                 glm::vec3(cfg.boardMinX, 0.01f, z),
                 glm::vec3(cfg.boardMaxX, 0.01f, z),
-                0.82f,
-                0.83f,
-                0.85f,
-                0.94f,
+                theme.gridLine[0],
+                theme.gridLine[1],
+                theme.gridLine[2],
+                theme.gridLine[3],
                 cfg.line);
         }
     }
 
     {
         const int benchSlots = std::max(1, cfg.benchSlots);
-        const float benchGapWorld = std::max(0.5f, cfg.worldCellSize * 0.5f);
+        const float benchGapWorld = std::max(theme.benchGapMin, cfg.worldCellSize * theme.benchGapScale);
         const float benchMinX = -0.5f * static_cast<float>(benchSlots) * cfg.worldCellSize;
         const float benchMaxX = benchMinX + static_cast<float>(benchSlots) * cfg.worldCellSize;
         const float benchMinZ = cfg.boardMaxZ + benchGapWorld;
@@ -102,18 +106,15 @@ void appendBoardAndBench(
             const float x0 = benchMinX + static_cast<float>(slot) * cfg.worldCellSize;
             const float x1 = x0 + cfg.worldCellSize;
             const bool darkCell = (slot % 2) == 0;
-            const float cr = darkCell ? 0.075f : 0.105f;
-            const float cg = darkCell ? 0.085f : 0.115f;
-            const float cb = darkCell ? 0.095f : 0.125f;
-            const float ca = darkCell ? 0.28f : 0.24f;
+            const auto& color = darkCell ? theme.benchCellDark : theme.benchCellLight;
             const glm::vec3 qa(x0, benchSurfaceY, benchMinZ);
             const glm::vec3 qb(x1, benchSurfaceY, benchMinZ);
             const glm::vec3 qc(x1, benchSurfaceY, benchMaxZ);
             const glm::vec3 qd(x0, benchSurfaceY, benchMaxZ);
             if (cfg.supportsWorldTriangles3D) {
-                appendWorldQuad(qa, qb, qc, qd, cr, cg, cb, ca);
+                appendWorldQuad(qa, qb, qc, qd, color[0], color[1], color[2], color[3]);
             } else {
-                appendProjectedQuad(qa, qb, qc, qd, cr, cg, cb, ca);
+                appendProjectedQuad(qa, qb, qc, qd, color[0], color[1], color[2], color[3]);
             }
         }
 
@@ -125,18 +126,18 @@ void appendBoardAndBench(
                     glm::vec3(x + gridHalfWidthWorld, gridY, benchMinZ),
                     glm::vec3(x + gridHalfWidthWorld, gridY, benchMaxZ),
                     glm::vec3(x - gridHalfWidthWorld, gridY, benchMaxZ),
-                    0.82f,
-                    0.83f,
-                    0.85f,
-                    0.94f);
+                    theme.gridLine[0],
+                    theme.gridLine[1],
+                    theme.gridLine[2],
+                    theme.gridLine[3]);
             } else {
                 appendProjectedLine(
                     glm::vec3(x, 0.01f, benchMinZ),
                     glm::vec3(x, 0.01f, benchMaxZ),
-                    0.82f,
-                    0.83f,
-                    0.85f,
-                    0.94f,
+                    theme.gridLine[0],
+                    theme.gridLine[1],
+                    theme.gridLine[2],
+                    theme.gridLine[3],
                     cfg.line);
             }
         }
@@ -149,18 +150,18 @@ void appendBoardAndBench(
                     glm::vec3(benchMaxX, gridY, z - gridHalfWidthWorld),
                     glm::vec3(benchMaxX, gridY, z + gridHalfWidthWorld),
                     glm::vec3(benchMinX, gridY, z + gridHalfWidthWorld),
-                    0.82f,
-                    0.83f,
-                    0.85f,
-                    0.94f);
+                    theme.gridLine[0],
+                    theme.gridLine[1],
+                    theme.gridLine[2],
+                    theme.gridLine[3]);
             } else {
                 appendProjectedLine(
                     glm::vec3(benchMinX, 0.01f, z),
                     glm::vec3(benchMaxX, 0.01f, z),
-                    0.82f,
-                    0.83f,
-                    0.85f,
-                    0.94f,
+                    theme.gridLine[0],
+                    theme.gridLine[1],
+                    theme.gridLine[2],
+                    theme.gridLine[3],
                     cfg.line);
             }
         }
@@ -172,10 +173,10 @@ void appendBoardAndBench(
         boardFallback.y = cfg.boardY;
         boardFallback.w = cfg.boardW;
         boardFallback.h = cfg.boardH;
-        boardFallback.r = 0.06f;
-        boardFallback.g = 0.07f;
-        boardFallback.b = 0.08f;
-        boardFallback.a = 0.92f;
+        boardFallback.r = theme.fallbackBoardBackground[0];
+        boardFallback.g = theme.fallbackBoardBackground[1];
+        boardFallback.b = theme.fallbackBoardBackground[2];
+        boardFallback.a = theme.fallbackBoardBackground[3];
         worldBackgroundQuads.push_back(boardFallback);
 
         for (int r = 0; r < cfg.rows; ++r) {
@@ -186,10 +187,11 @@ void appendBoardAndBench(
                 cell.w = cfg.cellW;
                 cell.h = cfg.cellH;
                 const bool darkCell = ((r + c) % 2) == 0;
-                cell.r = darkCell ? 0.09f : 0.14f;
-                cell.g = darkCell ? 0.14f : 0.19f;
-                cell.b = darkCell ? 0.19f : 0.25f;
-                cell.a = darkCell ? 0.34f : 0.26f;
+                const auto& color = darkCell ? theme.fallbackBoardCellDark : theme.fallbackBoardCellLight;
+                cell.r = color[0];
+                cell.g = color[1];
+                cell.b = color[2];
+                cell.a = color[3];
                 worldBackgroundQuads.push_back(cell);
             }
         }
@@ -201,10 +203,10 @@ void appendBoardAndBench(
             vLine.x2 = vLine.x1;
             vLine.y2 = cfg.boardY + cfg.boardH;
             vLine.thickness = cfg.line;
-            vLine.r = 0.26f;
-            vLine.g = 0.38f;
-            vLine.b = 0.47f;
-            vLine.a = 0.96f;
+            vLine.r = theme.fallbackGridLine[0];
+            vLine.g = theme.fallbackGridLine[1];
+            vLine.b = theme.fallbackGridLine[2];
+            vLine.a = theme.fallbackGridLine[3];
             lines.push_back(vLine);
         }
         for (int r = 0; r <= cfg.rows; ++r) {
@@ -214,14 +216,13 @@ void appendBoardAndBench(
             hLine.x2 = cfg.boardX + cfg.boardW;
             hLine.y2 = hLine.y1;
             hLine.thickness = cfg.line;
-            hLine.r = 0.26f;
-            hLine.g = 0.38f;
-            hLine.b = 0.47f;
-            hLine.a = 0.96f;
+            hLine.r = theme.fallbackGridLine[0];
+            hLine.g = theme.fallbackGridLine[1];
+            hLine.b = theme.fallbackGridLine[2];
+            hLine.a = theme.fallbackGridLine[3];
             lines.push_back(hLine);
         }
     }
 }
 
 } // namespace game::runtime::shared_board_grid
-

@@ -1,6 +1,6 @@
 # Test Plan
 
-Date: 2026-02-28
+Date: 2026-03-03
 
 Goal: catch real regressions while producing trustworthy backend parity/performance evidence.
 
@@ -9,8 +9,12 @@ Goal: catch real regressions while producing trustworthy backend parity/performa
 - Render route contracts and startup route policy.
 - Video preference parsing and backend token handling.
 - Backend contracts (including D3D12 probe/material constants).
+- Renderer parity contract baseline signature drift checks.
 - Headless and render smoke coverage (`render_pipeline_smoke`).
 - Optional runtime smoke tests for `opengl` and `d3d12` when `PAC_ENABLE_RUNTIME_SMOKE_TESTS` is enabled.
+- Optional runtime parity contract startup comparison:
+  - `tools/check_renderer_parity_contract.ps1`
+  - `PAC_RuntimeSmoke.parity_contract` (when runtime smoke tests are enabled)
 
 ## Pre-Merge Required Validation Stack
 1. Debug correctness gate
@@ -136,7 +140,15 @@ $env:PAC_BACKEND_CLIP_SKINNING_MAX_UNITS='1'
 3. Switch backend preference and restart from Display menu.
 4. Confirm no crash, no missing model/material regressions, and no obvious backend-only artifacts.
 
+## Optional Screenshot Parity Harness
+```powershell
+.\tools\render_parity_screenshot_diff.ps1 -BuildDir build -Config Debug -ScreenshotFrame 120 -AutoQuitSeconds 3
+```
+Notes:
+- Writes backend screenshots under `debug/parity/`.
+- Fails when mean RGB absolute difference exceeds threshold.
+- Intended as a quick parity gate for deterministic startup scenes.
+
 ## Gaps To Close Next
-1. Add optional screenshot parity harness for a small deterministic scene set.
-2. Add CI job to run a reduced benchmark matrix on dedicated hardware.
-3. Add automatic compare-against-baseline thresholds for frame-time regressions.
+1. Add CI job to run a reduced benchmark matrix on dedicated hardware.
+2. Add automatic compare-against-baseline thresholds for frame-time regressions.

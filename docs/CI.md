@@ -1,6 +1,6 @@
 # CI
 
-Date: 2026-02-28
+Date: 2026-03-03
 
 CI is correctness-first and Windows-first.
 
@@ -14,10 +14,11 @@ CI is correctness-first and Windows-first.
 Optional runtime smoke tests (`PAC_ENABLE_RUNTIME_SMOKE_TESTS`):
 - `PAC_RuntimeSmoke.opengl`
 - `PAC_RuntimeSmoke.d3d12`
+- `PAC_RuntimeSmoke.parity_contract`
 
 ## What CI Does Not Yet Run
 - Release benchmark matrix for backend performance.
-- Automated screenshot/image-diff parity checks.
+- Screenshot/image-diff parity harness (`tools/render_parity_screenshot_diff.ps1`).
 - Installer end-to-end smoke.
 
 ## Required Local Supplement Before D3D12 Merge

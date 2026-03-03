@@ -1,5 +1,6 @@
 #include "engine/render/OpenGLRenderBackend.h"
 #include "engine/render/NeutralPmrem.h"
+#include "engine/render/RendererParityContract.h"
 #include "engine/core/Environment.h"
 
 #include <algorithm>
@@ -382,14 +383,13 @@ void OpenGLRenderBackend::drawWorldIndexedMeshTextured(const WorldMeshVertex* ve
 
     glViewport(0, 0, std::max(1, surfaceWidth), std::max(1, surfaceHeight));
     glEnable(GL_DEPTH_TEST);
-    // Match D3D12 rasterizer front-face convention (FrontCounterClockwise = FALSE)
-    // so SV_IsFrontFace/gl_FrontFacing driven normal-mapping branches stay in parity.
-    glFrontFace(GL_CW);
-    // Match D3D12 world pipeline depth test (LESS_EQUAL). This allows textured
-    // model pass to render over already-written proxy/model-depth geometry when
-    // depth values are equal, instead of being rejected under default GL_LESS.
-    glDepthFunc(GL_LEQUAL);
-    glDisable(GL_CULL_FACE);
+    glFrontFace(engine::render::parity_contract::kWorldFrontFaceClockwise ? GL_CW : GL_CCW);
+    glDepthFunc(engine::render::parity_contract::kWorldDepthFuncLessEqual ? GL_LEQUAL : GL_LESS);
+    if (engine::render::parity_contract::kWorldCullEnabled) {
+        glEnable(GL_CULL_FACE);
+    } else {
+        glDisable(GL_CULL_FACE);
+    }
     if (blendAlpha) {
         glEnable(GL_BLEND);
         glBlendEquationSeparate(GL_FUNC_ADD, GL_FUNC_ADD);

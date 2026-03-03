@@ -1,5 +1,7 @@
 #include "engine/render/D3D12RenderBackend.h"
 #include "engine/render/NeutralPmrem.h"
+#include "engine/render/RendererParityContract.h"
+#include "engine/render/WorldPbrShaderShared.h"
 #include "engine/render/d3d12/D3D12RenderBackendInternal.h"
 
 #include <string>
@@ -85,7 +87,7 @@ void D3D12RenderBackend::createDebugPipeline() {
     blend.AlphaToCoverageEnable = FALSE;
     blend.IndependentBlendEnable = FALSE;
     D3D12_RENDER_TARGET_BLEND_DESC rtBlend{};
-    rtBlend.BlendEnable = TRUE;
+    rtBlend.BlendEnable = engine::render::parity_contract::kDebugBlendEnabled ? TRUE : FALSE;
     rtBlend.LogicOpEnable = FALSE;
     rtBlend.SrcBlend = D3D12_BLEND_SRC_ALPHA;
     rtBlend.DestBlend = D3D12_BLEND_INV_SRC_ALPHA;
@@ -102,8 +104,10 @@ void D3D12RenderBackend::createDebugPipeline() {
 
     D3D12_RASTERIZER_DESC raster{};
     raster.FillMode = D3D12_FILL_MODE_SOLID;
-    raster.CullMode = D3D12_CULL_MODE_NONE;
-    raster.FrontCounterClockwise = FALSE;
+    raster.CullMode =
+        engine::render::parity_contract::kWorldCullEnabled ? D3D12_CULL_MODE_BACK : D3D12_CULL_MODE_NONE;
+    raster.FrontCounterClockwise =
+        engine::render::parity_contract::kWorldFrontFaceClockwise ? FALSE : TRUE;
     raster.DepthBias = D3D12_DEFAULT_DEPTH_BIAS;
     raster.DepthBiasClamp = D3D12_DEFAULT_DEPTH_BIAS_CLAMP;
     raster.SlopeScaledDepthBias = D3D12_DEFAULT_SLOPE_SCALED_DEPTH_BIAS;
@@ -553,245 +557,7 @@ float3 safeNormalize(float3 value, float3 fallback) {
   return value * rsqrt(len2);
 }
 
-float3 rrtAndOdtFit(float3 v) {
-  float3 a = v * (v + 0.0245786f) - 0.000090537f;
-  float3 b = v * (0.983729f * v + 0.4329510f) + 0.238081f;
-  return a / b;
-}
-
-float3 linearToneMapping(float3 color, float toneMappingExposure) {
-  return clamp(
-      toneMappingExposure * color,
-      float3(0.0f, 0.0f, 0.0f),
-      float3(1.0f, 1.0f, 1.0f));
-}
-
-float3 acesInputMul(float3 c) {
-  return float3(
-      0.59719f * c.x + 0.35458f * c.y + 0.04823f * c.z,
-      0.07600f * c.x + 0.90834f * c.y + 0.01566f * c.z,
-      0.02840f * c.x + 0.13383f * c.y + 0.83777f * c.z);
-}
-
-float3 acesOutputMul(float3 c) {
-  return float3(
-      1.60475f * c.x + -0.53108f * c.y + -0.07367f * c.z,
-     -0.10208f * c.x +  1.10813f * c.y + -0.00605f * c.z,
-     -0.00327f * c.x + -0.07276f * c.y +  1.07602f * c.z);
-}
-
-float3 tonemapACESFilmic(float3 color, float toneMappingExposure) {
-  color *= toneMappingExposure / 0.6f;
-  color = acesInputMul(color);
-  color = rrtAndOdtFit(color);
-  color = acesOutputMul(color);
-  return clamp(color, float3(0.0f, 0.0f, 0.0f), float3(1.0f, 1.0f, 1.0f));
-}
-
-float3 applyViewerToneMapping(float3 color, float toneMappingMode, float toneMappingExposure) {
-  if (toneMappingMode < 0.5f) {
-    return linearToneMapping(color, toneMappingExposure);
-  }
-  return tonemapACESFilmic(color, toneMappingExposure);
-}
-
-float distributionGGX(float NdotH, float roughness) {
-  float a = roughness * roughness;
-  float a2 = a * a;
-  float d = (NdotH * NdotH) * (a2 - 1.0f) + 1.0f;
-  return a2 / max(3.14159265f * d * d, 1e-5f);
-}
-
-float geometrySchlickGGX(float NdotV, float roughness) {
-  float r = roughness + 1.0f;
-  float k = (r * r) * 0.125f;
-  return NdotV / max(NdotV * (1.0f - k) + k, 1e-5f);
-}
-
-float geometrySmith(float NdotV, float NdotL, float roughness) {
-  return geometrySchlickGGX(NdotV, roughness) * geometrySchlickGGX(NdotL, roughness);
-}
-
-float3 fresnelSchlick(float cosTheta, float3 F0) {
-  float m = saturate(1.0f - cosTheta);
-  float m2 = m * m;
-  float m5 = m2 * m2 * m;
-  return F0 + (float3(1.0f, 1.0f, 1.0f) - F0) * m5;
-}
-
-float3 fresnelSchlickRoughness(float cosTheta, float3 F0, float roughness) {
-  float m = saturate(1.0f - cosTheta);
-  float m2 = m * m;
-  float m5 = m2 * m2 * m;
-  float3 F90 = max(float3(1.0f - roughness, 1.0f - roughness, 1.0f - roughness), F0);
-  return F0 + (F90 - F0) * m5;
-}
-
-float2 DFGApprox(const in float3 normal, const in float3 viewDir, const in float roughness) {
-  float dotNV = saturate(dot(normal, viewDir));
-  const float4 c0 = float4(-1.0f, -0.0275f, -0.572f, 0.022f);
-  const float4 c1 = float4( 1.0f,  0.0425f,  1.04f, -0.04f);
-  float4 r = roughness * c0 + c1;
-  float a004 = min(r.x * r.x, exp2(-9.28f * dotNV)) * r.x + r.y;
-  float2 fab = float2(-1.04f, 1.04f) * a004 + r.zw;
-  return fab;
-}
-
-void computeMultiscattering(const in float3 normal,
-                            const in float3 viewDir,
-                            const in float3 specularColor,
-                            const in float specularF90,
-                            const in float roughness,
-                            inout float3 singleScatter,
-                            inout float3 multiScatter) {
-  float2 fab = DFGApprox(normal, viewDir, roughness);
-  float3 FssEss = specularColor * fab.x + specularF90 * fab.y;
-  float Ess = fab.x + fab.y;
-  float Ems = 1.0f - Ess;
-  float3 Favg = specularColor + (float3(1.0f, 1.0f, 1.0f) - specularColor) * 0.047619f;
-  float3 Fms = FssEss * Favg / max(float3(1.0f, 1.0f, 1.0f) - Ems * Favg, 1e-5f);
-  singleScatter += FssEss;
-  multiScatter += Fms * Ems;
-}
-
-float computeSpecularOcclusion(const in float dotNV, const in float ambientOcclusion, const in float roughness) {
-  return saturate(pow(dotNV + ambientOcclusion, exp2(-16.0f * roughness - 1.0f)) - 1.0f + ambientOcclusion);
-}
-
-float roughnessToNeutralMip(float roughness) {
-  // Mirror three.js cubeUV roughness curve used by PMREM lookup.
-  const float r0 = 1.0f;
-  const float m0 = -2.0f;
-  const float r1 = 0.8f;
-  const float m1 = -1.0f;
-  const float r4 = 0.4f;
-  const float m4 = 2.0f;
-  const float r5 = 0.305f;
-  const float m5 = 3.0f;
-  const float r6 = 0.21f;
-  const float m6 = 4.0f;
-  float r = saturate(roughness);
-  if (r >= r1) return (r0 - r) * (m1 - m0) / (r0 - r1) + m0;
-  if (r >= r4) return (r1 - r) * (m4 - m1) / (r1 - r4) + m1;
-  if (r >= r5) return (r4 - r) * (m5 - m4) / (r4 - r5) + m4;
-  if (r >= r6) return (r5 - r) * (m6 - m5) / (r5 - r6) + m5;
-  return -2.0f * log2(max(1.16f * r, 1e-4f));
-}
-
-float getFace(float3 direction) {
-  float3 absDirection = abs(direction);
-  float face = -1.0f;
-  if (absDirection.x > absDirection.z) {
-    if (absDirection.x > absDirection.y) {
-      face = (direction.x > 0.0f) ? 0.0f : 3.0f;
-    } else {
-      face = (direction.y > 0.0f) ? 1.0f : 4.0f;
-    }
-  } else {
-    if (absDirection.z > absDirection.y) {
-      face = (direction.z > 0.0f) ? 2.0f : 5.0f;
-    } else {
-      face = (direction.y > 0.0f) ? 1.0f : 4.0f;
-    }
-  }
-  return face;
-}
-
-float2 getUV(float3 direction, float face) {
-  float2 uv;
-  if (face == 0.0f) {
-    uv = float2(direction.z, direction.y) / abs(direction.x);
-  } else if (face == 1.0f) {
-    uv = float2(-direction.x, -direction.z) / abs(direction.y);
-  } else if (face == 2.0f) {
-    uv = float2(-direction.x, direction.y) / abs(direction.z);
-  } else if (face == 3.0f) {
-    uv = float2(-direction.z, direction.y) / abs(direction.x);
-  } else if (face == 4.0f) {
-    uv = float2(-direction.x, direction.z) / abs(direction.y);
-  } else {
-    uv = float2(direction.x, direction.y) / abs(direction.z);
-  }
-  return 0.5f * (uv + 1.0f);
-}
-
-float2 getEnvTexelSize() {
-  uint w = 1, h = 1;
-  gEnvTex.GetDimensions(w, h);
-  float fw = max((float)w, 1.0f);
-  float fh = max((float)h, 1.0f);
-  return float2(1.0f / fw, 1.0f / fh);
-}
-
-float getEnvMaxMip() {
-  uint w = 1, h = 1;
-  gEnvTex.GetDimensions(w, h);
-  // cubeUV atlas width is 3 * 2^lodMax.
-  float faceSizeMax = max((float)w / 3.0f, 16.0f);
-  return max(log2(faceSizeMax), 4.0f);
-}
-
-float3 bilinearCubeUV(Texture2D envMap, float3 direction, float mipInt) {
-  const float cubeUV_minMipLevel = 4.0f;
-  const float cubeUV_minTileSize = 16.0f;
-  const float envMaxMip = getEnvMaxMip();
-  const float2 envTexelSize = getEnvTexelSize();
-  float face = getFace(direction);
-  float filterInt = max(cubeUV_minMipLevel - mipInt, 0.0f);
-  mipInt = max(mipInt, cubeUV_minMipLevel);
-  float faceSize = exp2(mipInt);
-  float2 uv = getUV(direction, face) * (faceSize - 2.0f) + 1.0f;
-  if (face > 2.0f) {
-    uv.y += faceSize;
-    face -= 3.0f;
-  }
-  uv.x += face * faceSize;
-  uv.x += filterInt * 3.0f * cubeUV_minTileSize;
-  uv.y += 4.0f * (exp2(envMaxMip) - faceSize);
-  uv *= envTexelSize;
-  return envMap.SampleLevel(gSampCC, uv, 0.0f).rgb;
-}
-
-float3 textureCubeUV(Texture2D envMap, float3 sampleDir, float roughness) {
-  const float envMaxMip = getEnvMaxMip();
-  float mip = clamp(roughnessToNeutralMip(roughness), -2.0f, envMaxMip);
-  float mipF = frac(mip);
-  float mipI = floor(mip);
-  float3 color0 = bilinearCubeUV(envMap, sampleDir, mipI);
-  if (mipF == 0.0f) return color0;
-  float3 color1 = bilinearCubeUV(envMap, sampleDir, mipI + 1.0f);
-  return lerp(color0, color1, mipF);
-}
-
-float3 sampleNeutralEnvironment(float3 dir, float roughness) {
-  float3 d = safeNormalize(dir, float3(0.0f, 1.0f, 0.0f));
-  return textureCubeUV(gEnvTex, d, saturate(roughness));
-}
-
-float3 evalDirectPbr(float3 n,
-                     float3 v,
-                     float3 l,
-                     float3 radiance,
-                     float3 albedo,
-                     float3 F0,
-                     float roughness,
-                     float metallic) {
-  float NdotL = max(dot(n, l), 0.0f);
-  float NdotV = max(dot(n, v), 0.0f);
-  if (NdotL <= 0.0f || NdotV <= 0.0f) return float3(0.0f, 0.0f, 0.0f);
-  float3 h = normalize(v + l);
-  float NdotH = max(dot(n, h), 0.0f);
-  float VdotH = max(dot(v, h), 0.0f);
-
-  float D = distributionGGX(NdotH, roughness);
-  float G = geometrySmith(NdotV, NdotL, roughness);
-  float3 F = fresnelSchlick(VdotH, F0);
-  float3 spec = (D * G * F) / max(4.0f * NdotV * NdotL, 1e-4f);
-
-  float3 kS = F;
-  float3 kD = (float3(1.0f, 1.0f, 1.0f) - kS) * (1.0f - metallic);
-  return (kD * albedo / 3.14159265f + spec) * radiance * NdotL;
-}
+__PAC_SHARED_WORLD_PBR_SECTION__
 
 float3 perturbNormal2Arb(float3 eyePos, float3 surfNorm, float3 mapN, float2 uv, float faceDirection) {
   float3 q0 = ddx(eyePos.xyz);
@@ -809,7 +575,6 @@ float3 perturbNormal2Arb(float3 eyePos, float3 surfNorm, float3 mapN, float2 uv,
   float scale = (det <= 1e-10f) ? 0.0f : faceDirection * rsqrt(det);
   return normalize(T * (mapN.x * scale) + B * (mapN.y * scale) + N * mapN.z);
 }
-
 float3 computeMappedNormal(PSIn i,
                            bool isFrontFace,
                            float2 sampleUv,
@@ -913,9 +678,9 @@ float3 applyWorldLitModel(PSIn i,
   float3 camUp = safeNormalize(cross(camRight, camForward), float3(0.0f, 1.0f, 0.0f));
   float3 v = safeNormalize(cameraPos - i.worldPos, -camForward);
   const float3 directColor = float3(1.0f, 1.0f, 1.0f);
-  const float directIntensity = 0.72f * 3.14159265f;
+  const float directIntensity = __PAC_PBR_DIRECT_INTENSITY__ * 3.14159265f;
   const float3 ambientColor = float3(1.0f, 1.0f, 1.0f);
-  const float ambientIntensity = 0.56f;
+  const float ambientIntensity = __PAC_PBR_AMBIENT_INTENSITY__;
 
   float3 lightPos = cameraPos + camRight * 0.5f + camUp * 0.0f - camForward * 0.8660254f;
   float3 l0 = safeNormalize(lightPos - cameraTarget, float3(0.45f, 0.86f, 0.24f));
@@ -937,8 +702,8 @@ float3 applyWorldLitModel(PSIn i,
   float energyComp = 1.0f - max(max(totalScattering.r, totalScattering.g), totalScattering.b);
   float3 diffuseIBL = diffuseColor * max(energyComp, 0.0f) * cosineWeightedIrradiance;
   float3 specularIBL = envRadiance * singleScattering + multiScattering * cosineWeightedIrradiance;
-  diffuseIBL *= 1.26f;
-  specularIBL *= 0.44f;
+  diffuseIBL *= __PAC_PBR_DIFFUSE_IBL_SCALE__;
+  specularIBL *= __PAC_PBR_SPECULAR_IBL_SCALE__;
   diffuseIBL *= ao;
   float specularOcclusion = computeSpecularOcclusion(NdotV, ao, roughness);
   specularIBL *= specularOcclusion;
@@ -1050,9 +815,7 @@ float4 main(PSIn i, bool isFrontFace : SV_IsFrontFace) : SV_TARGET {
                                    cameraForward,
                                    cameraTarget);
   }
-  // Slight exposure lift to match Neutral+ACES viewer appearance without
-  // flattening roughness/normal detail.
-  const float toneMappingExposure = 1.15f;
+  const float toneMappingExposure = __PAC_PBR_TONEMAP_EXPOSURE__;
   const float toneMappingMode = 1.0f;
   float3 mapped = applyViewerToneMapping(
       max(outLinear, float3(0.0f, 0.0f, 0.0f)),
@@ -1072,8 +835,11 @@ float4 main(PSIn i, bool isFrontFace : SV_IsFrontFace) : SV_TARGET {
         !vsBlob) {
         throw std::runtime_error("D3DCompile failed for world VS.");
     }
+    const std::string worldPsSource =
+        engine::render::world_pbr_shader_shared::injectSharedWorldPbr(
+            kPsSource, engine::render::world_pbr_shader_shared::ShaderLanguage::Hlsl);
     errBlob.Reset();
-    if (FAILED(D3DCompile(kPsSource, sizeof(kPsSource) - 1, nullptr, nullptr, nullptr,
+    if (FAILED(D3DCompile(worldPsSource.c_str(), worldPsSource.size(), nullptr, nullptr, nullptr,
                           "main", "ps_5_0", 0, 0, psBlob.ReleaseAndGetAddressOf(),
                           errBlob.ReleaseAndGetAddressOf())) ||
         !psBlob) {
@@ -1181,22 +947,22 @@ float4 main(PSIn i, bool isFrontFace : SV_IsFrontFace) : SV_TARGET {
     pso.VS = {vsBlob->GetBufferPointer(), vsBlob->GetBufferSize()};
     pso.PS = {psBlob->GetBufferPointer(), psBlob->GetBufferSize()};
 
-    D3D12_BLEND_DESC blend{};
-    blend.AlphaToCoverageEnable = FALSE;
-    blend.IndependentBlendEnable = FALSE;
-    D3D12_RENDER_TARGET_BLEND_DESC rtBlend{};
-    rtBlend.BlendEnable = TRUE;
-    rtBlend.LogicOpEnable = FALSE;
-    rtBlend.SrcBlend = D3D12_BLEND_SRC_ALPHA;
-    rtBlend.DestBlend = D3D12_BLEND_INV_SRC_ALPHA;
-    rtBlend.BlendOp = D3D12_BLEND_OP_ADD;
-    rtBlend.SrcBlendAlpha = D3D12_BLEND_ONE;
-    rtBlend.DestBlendAlpha = D3D12_BLEND_INV_SRC_ALPHA;
-    rtBlend.BlendOpAlpha = D3D12_BLEND_OP_ADD;
-    rtBlend.LogicOp = D3D12_LOGIC_OP_NOOP;
-    rtBlend.RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
-    blend.RenderTarget[0] = rtBlend;
-    pso.BlendState = blend;
+    D3D12_BLEND_DESC blendOpaque{};
+    blendOpaque.AlphaToCoverageEnable = FALSE;
+    blendOpaque.IndependentBlendEnable = FALSE;
+    D3D12_RENDER_TARGET_BLEND_DESC rtOpaque{};
+    rtOpaque.BlendEnable = engine::render::parity_contract::kWorldOpaqueBlendEnabled ? TRUE : FALSE;
+    rtOpaque.LogicOpEnable = FALSE;
+    rtOpaque.SrcBlend = D3D12_BLEND_ONE;
+    rtOpaque.DestBlend = D3D12_BLEND_ZERO;
+    rtOpaque.BlendOp = D3D12_BLEND_OP_ADD;
+    rtOpaque.SrcBlendAlpha = D3D12_BLEND_ONE;
+    rtOpaque.DestBlendAlpha = D3D12_BLEND_ZERO;
+    rtOpaque.BlendOpAlpha = D3D12_BLEND_OP_ADD;
+    rtOpaque.LogicOp = D3D12_LOGIC_OP_NOOP;
+    rtOpaque.RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
+    blendOpaque.RenderTarget[0] = rtOpaque;
+    pso.BlendState = blendOpaque;
     pso.SampleMask = UINT_MAX;
 
     D3D12_RASTERIZER_DESC raster{};
@@ -1216,7 +982,9 @@ float4 main(PSIn i, bool isFrontFace : SV_IsFrontFace) : SV_TARGET {
     D3D12_DEPTH_STENCIL_DESC depthStencil{};
     depthStencil.DepthEnable = TRUE;
     depthStencil.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ALL;
-    depthStencil.DepthFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL;
+    depthStencil.DepthFunc = engine::render::parity_contract::kWorldDepthFuncLessEqual
+        ? D3D12_COMPARISON_FUNC_LESS_EQUAL
+        : D3D12_COMPARISON_FUNC_LESS;
     depthStencil.StencilEnable = FALSE;
     pso.DepthStencilState = depthStencil;
 
@@ -1233,6 +1001,14 @@ float4 main(PSIn i, bool isFrontFace : SV_IsFrontFace) : SV_TARGET {
     }
     D3D12_GRAPHICS_PIPELINE_STATE_DESC blendPso = pso;
     blendPso.DepthStencilState.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ZERO;
+    blendPso.BlendState.RenderTarget[0].BlendEnable =
+        engine::render::parity_contract::kWorldBlendPipelineEnabled ? TRUE : FALSE;
+    blendPso.BlendState.RenderTarget[0].SrcBlend = D3D12_BLEND_SRC_ALPHA;
+    blendPso.BlendState.RenderTarget[0].DestBlend = D3D12_BLEND_INV_SRC_ALPHA;
+    blendPso.BlendState.RenderTarget[0].BlendOp = D3D12_BLEND_OP_ADD;
+    blendPso.BlendState.RenderTarget[0].SrcBlendAlpha = D3D12_BLEND_ONE;
+    blendPso.BlendState.RenderTarget[0].DestBlendAlpha = D3D12_BLEND_INV_SRC_ALPHA;
+    blendPso.BlendState.RenderTarget[0].BlendOpAlpha = D3D12_BLEND_OP_ADD;
     if (FAILED(device_->CreateGraphicsPipelineState(
             &blendPso,
             IID_PPV_ARGS(worldBlendPipelineState_.ReleaseAndGetAddressOf()))) ||
@@ -1619,4 +1395,5 @@ void D3D12RenderBackend::createSpritePipeline() {
     worldFallbackEnvTextureDescriptorIndex_ = fallbackEnv->descriptorIndex;
 #endif
 }
+
 

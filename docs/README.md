@@ -10,6 +10,7 @@ These are internal engineering docs. Keep them decision-oriented and current.
 | `RENDERER_PARITY_ROADMAP.md` | Primary pre-merge roadmap for OpenGL/D3D12 parity and performance readiness. |
 | `PARITY_OUTSTANDING.md` | Short blocker list that must be closed before merging D3D12 work to `master`. |
 | `RENDER_PATH_FILE_MAP.md` | Where rendering behavior lives in code (shared path, backend implementations, settings). |
+| `RENDERER_PARITY_CONTRACT.md` | Backend-agnostic render-state and color pipeline contract with runtime validation logging. |
 | `TEST_PLAN.md` | Automated and manual validation strategy, including Release benchmark protocol. |
 | `TECH_DEBT.md` | Highest-value debt list for rendering/runtime stability and performance. |
 | `HOUSEWORK_ROADMAP.md` | Post-merge cleanup and optimization sequence after merge gates are satisfied. |

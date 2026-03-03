@@ -1,8 +1,10 @@
 #include "engine/render/OpenGLRenderBackend.h"
+#include "engine/render/WorldPbrShaderShared.h"
 #include "engine/render/opengl/OpenGLRenderBackendShaderUtils.h"
 
 #include <algorithm>
 #include <cstddef>
+#include <string>
 
 #include <glad/glad.h>
 
@@ -493,225 +495,7 @@ void OpenGLRenderBackend::ensureWorldPipeline() {
             return value * inversesqrt(len2);
         }
 
-        vec3 rrtAndOdtFit(vec3 v) {
-            vec3 a = v * (v + 0.0245786) - 0.000090537;
-            vec3 b = v * (0.983729 * v + 0.4329510) + 0.238081;
-            return a / b;
-        }
-
-        vec3 linearToneMapping(vec3 color, float toneMappingExposure) {
-            return clamp(toneMappingExposure * color, 0.0, 1.0);
-        }
-
-        vec3 tonemapACESFilmic(vec3 color, float toneMappingExposure) {
-            const mat3 ACESInputMat = mat3(
-                vec3(0.59719, 0.07600, 0.02840),
-                vec3(0.35458, 0.90834, 0.13383),
-                vec3(0.04823, 0.01566, 0.83777)
-            );
-            const mat3 ACESOutputMat = mat3(
-                vec3( 1.60475, -0.10208, -0.00327),
-                vec3(-0.53108,  1.10813, -0.07276),
-                vec3(-0.07367, -0.00605,  1.07602)
-            );
-            color *= toneMappingExposure / 0.6;
-            color = ACESInputMat * color;
-            color = rrtAndOdtFit(color);
-            color = ACESOutputMat * color;
-            return clamp(color, 0.0, 1.0);
-        }
-
-        vec3 applyViewerToneMapping(vec3 color, float toneMappingMode, float toneMappingExposure) {
-            if (toneMappingMode < 0.5) {
-                return linearToneMapping(color, toneMappingExposure);
-            }
-            return tonemapACESFilmic(color, toneMappingExposure);
-        }
-
-        float distributionGGX(float NdotH, float roughness) {
-            float a = roughness * roughness;
-            float a2 = a * a;
-            float d = (NdotH * NdotH) * (a2 - 1.0) + 1.0;
-            return a2 / max(3.14159265 * d * d, 1e-5);
-        }
-
-        float geometrySchlickGGX(float NdotV, float roughness) {
-            float r = roughness + 1.0;
-            float k = (r * r) * 0.125; // (r^2)/8
-            return NdotV / max(NdotV * (1.0 - k) + k, 1e-5);
-        }
-
-        float geometrySmith(float NdotV, float NdotL, float roughness) {
-            return geometrySchlickGGX(NdotV, roughness) *
-                   geometrySchlickGGX(NdotL, roughness);
-        }
-
-        vec3 fresnelSchlick(float cosTheta, vec3 F0) {
-            float m = clamp(1.0 - cosTheta, 0.0, 1.0);
-            float m2 = m * m;
-            float m5 = m2 * m2 * m;
-            return F0 + (vec3(1.0) - F0) * m5;
-        }
-
-        vec3 fresnelSchlickRoughness(float cosTheta, vec3 F0, float roughness) {
-            float m = clamp(1.0 - cosTheta, 0.0, 1.0);
-            float m2 = m * m;
-            float m5 = m2 * m2 * m;
-            vec3 F90 = max(vec3(1.0 - roughness), F0);
-            return F0 + (F90 - F0) * m5;
-        }
-
-        vec2 DFGApprox(const in vec3 normal, const in vec3 viewDir, const in float roughness) {
-            float dotNV = clamp(dot(normal, viewDir), 0.0, 1.0);
-            const vec4 c0 = vec4(-1.0, -0.0275, -0.572, 0.022);
-            const vec4 c1 = vec4( 1.0,  0.0425,  1.04, -0.04);
-            vec4 r = roughness * c0 + c1;
-            float a004 = min(r.x * r.x, exp2(-9.28 * dotNV)) * r.x + r.y;
-            vec2 fab = vec2(-1.04, 1.04) * a004 + r.zw;
-            return fab;
-        }
-
-        void computeMultiscattering(const in vec3 normal,
-                                    const in vec3 viewDir,
-                                    const in vec3 specularColor,
-                                    const in float specularF90,
-                                    const in float roughness,
-                                    inout vec3 singleScatter,
-                                    inout vec3 multiScatter) {
-            vec2 fab = DFGApprox(normal, viewDir, roughness);
-            vec3 FssEss = specularColor * fab.x + specularF90 * fab.y;
-            float Ess = fab.x + fab.y;
-            float Ems = 1.0 - Ess;
-            vec3 Favg = specularColor + (1.0 - specularColor) * 0.047619; // 1/21
-            vec3 Fms = FssEss * Favg / max(1.0 - Ems * Favg, vec3(1e-5));
-            singleScatter += FssEss;
-            multiScatter += Fms * Ems;
-        }
-
-        float computeSpecularOcclusion(const in float dotNV, const in float ambientOcclusion, const in float roughness) {
-            return clamp(pow(dotNV + ambientOcclusion, exp2(-16.0 * roughness - 1.0)) - 1.0 + ambientOcclusion, 0.0, 1.0);
-        }
-
-        float roughnessToNeutralMip(float roughness) {
-            // Mirror three.js cubeUV roughness curve used by PMREM lookup.
-            const float r0 = 1.0;
-            const float m0 = -2.0;
-            const float r1 = 0.8;
-            const float m1 = -1.0;
-            const float r4 = 0.4;
-            const float m4 = 2.0;
-            const float r5 = 0.305;
-            const float m5 = 3.0;
-            const float r6 = 0.21;
-            const float m6 = 4.0;
-            float r = clamp(roughness, 0.0, 1.0);
-            if (r >= r1) return (r0 - r) * (m1 - m0) / (r0 - r1) + m0;
-            if (r >= r4) return (r1 - r) * (m4 - m1) / (r1 - r4) + m1;
-            if (r >= r5) return (r4 - r) * (m5 - m4) / (r4 - r5) + m4;
-            if (r >= r6) return (r5 - r) * (m6 - m5) / (r5 - r6) + m5;
-            return -2.0 * log2(max(1.16 * r, 1e-4));
-        }
-
-        float getFace(vec3 direction) {
-            vec3 absDirection = abs(direction);
-            float face = -1.0;
-            if (absDirection.x > absDirection.z) {
-                if (absDirection.x > absDirection.y) {
-                    face = direction.x > 0.0 ? 0.0 : 3.0;
-                } else {
-                    face = direction.y > 0.0 ? 1.0 : 4.0;
-                }
-            } else {
-                if (absDirection.z > absDirection.y) {
-                    face = direction.z > 0.0 ? 2.0 : 5.0;
-                } else {
-                    face = direction.y > 0.0 ? 1.0 : 4.0;
-                }
-            }
-            return face;
-        }
-
-        vec2 getUV(vec3 direction, float face) {
-            vec2 uv;
-            if (face == 0.0) {
-                uv = vec2(direction.z, direction.y) / abs(direction.x);
-            } else if (face == 1.0) {
-                uv = vec2(-direction.x, -direction.z) / abs(direction.y);
-            } else if (face == 2.0) {
-                uv = vec2(-direction.x, direction.y) / abs(direction.z);
-            } else if (face == 3.0) {
-                uv = vec2(-direction.z, direction.y) / abs(direction.x);
-            } else if (face == 4.0) {
-                uv = vec2(-direction.x, direction.z) / abs(direction.y);
-            } else {
-                uv = vec2(direction.x, direction.y) / abs(direction.z);
-            }
-            return 0.5 * (uv + 1.0);
-        }
-
-        vec3 bilinearCubeUV(sampler2D envMap, vec3 direction, float mipInt) {
-            const float cubeUV_minMipLevel = 4.0;
-            const float cubeUV_minTileSize = 16.0;
-            vec2 envTexelSize = 1.0 / max(vec2(textureSize(envMap, 0)), vec2(1.0));
-            float faceSizeMax = max(float(textureSize(envMap, 0).x) / 3.0, 16.0);
-            float envMaxMip = max(log2(faceSizeMax), 4.0);
-            float face = getFace(direction);
-            float filterInt = max(cubeUV_minMipLevel - mipInt, 0.0);
-            mipInt = max(mipInt, cubeUV_minMipLevel);
-            float faceSize = exp2(mipInt);
-            vec2 uv = getUV(direction, face) * (faceSize - 2.0) + 1.0;
-            if (face > 2.0) {
-                uv.y += faceSize;
-                face -= 3.0;
-            }
-            uv.x += face * faceSize;
-            uv.x += filterInt * 3.0 * cubeUV_minTileSize;
-            uv.y += 4.0 * (exp2(envMaxMip) - faceSize);
-            uv *= envTexelSize;
-            return textureLod(envMap, uv, 0.0).rgb;
-        }
-
-        vec3 textureCubeUV(sampler2D envMap, vec3 sampleDir, float roughness) {
-            float faceSizeMax = max(float(textureSize(envMap, 0).x) / 3.0, 16.0);
-            float envMaxMip = max(log2(faceSizeMax), 4.0);
-            float mip = clamp(roughnessToNeutralMip(roughness), -2.0, envMaxMip);
-            float mipF = fract(mip);
-            float mipI = floor(mip);
-            vec3 color0 = bilinearCubeUV(envMap, sampleDir, mipI);
-            if (mipF == 0.0) return color0;
-            vec3 color1 = bilinearCubeUV(envMap, sampleDir, mipI + 1.0);
-            return mix(color0, color1, mipF);
-        }
-
-        vec3 sampleNeutralEnvironment(vec3 dir, float roughness) {
-            vec3 d = safeNormalize(dir, vec3(0.0, 1.0, 0.0));
-            return textureCubeUV(uEnvTexture, d, clamp(roughness, 0.0, 1.0));
-        }
-
-        vec3 evalDirectPbr(vec3 n,
-                           vec3 v,
-                           vec3 l,
-                           vec3 radiance,
-                           vec3 albedo,
-                           vec3 F0,
-                           float roughness,
-                           float metallic) {
-            float NdotL = max(dot(n, l), 0.0);
-            float NdotV = max(dot(n, v), 0.0);
-            if (NdotL <= 0.0 || NdotV <= 0.0) return vec3(0.0);
-            vec3 h = normalize(v + l);
-            float NdotH = max(dot(n, h), 0.0);
-            float VdotH = max(dot(v, h), 0.0);
-
-            float D = distributionGGX(NdotH, roughness);
-            float G = geometrySmith(NdotV, NdotL, roughness);
-            vec3  F = fresnelSchlick(VdotH, F0);
-            vec3  spec = (D * G * F) / max(4.0 * NdotV * NdotL, 1e-4);
-
-            vec3 kS = F;
-            vec3 kD = (vec3(1.0) - kS) * (1.0 - metallic);
-            return (kD * albedo / 3.14159265 + spec) * radiance * NdotL;
-        }
+__PAC_SHARED_WORLD_PBR_SECTION__
 
         vec3 perturbNormal2Arb(vec3 eyePos, vec3 surfNorm, vec3 mapN, vec2 uv, float faceDirection) {
             // Mirrors three.js perturbNormal2Arb derivative basis construction.
@@ -817,9 +601,9 @@ void OpenGLRenderBackend::ensureWorldPipeline() {
             vec3 camUp = safeNormalize(cross(camRight, camForward), vec3(0.0, 1.0, 0.0));
             vec3 v = safeNormalize(uCameraPos - vWorldPos, -camForward);
             const vec3 directColor = vec3(1.0);
-            const float directIntensity = 0.72 * 3.14159265;
+            const float directIntensity = __PAC_PBR_DIRECT_INTENSITY__ * 3.14159265;
             const vec3 ambientColor = vec3(1.0);
-            const float ambientIntensity = 0.56;
+            const float ambientIntensity = __PAC_PBR_AMBIENT_INTENSITY__;
 
             vec3 lightPos = uCameraPos + camRight * 0.5 + camUp * 0.0 - camForward * 0.8660254;
             vec3 l0 = safeNormalize(lightPos - uCameraTarget, vec3(0.45, 0.86, 0.24));
@@ -842,8 +626,8 @@ void OpenGLRenderBackend::ensureWorldPipeline() {
             float energyComp = 1.0 - max(max(totalScattering.r, totalScattering.g), totalScattering.b);
             vec3 diffuseIBL = diffuseColor * max(energyComp, 0.0) * cosineWeightedIrradiance;
             vec3 specularIBL = envRadiance * singleScattering + multiScattering * cosineWeightedIrradiance;
-            diffuseIBL *= 1.26;
-            specularIBL *= 0.44;
+            diffuseIBL *= __PAC_PBR_DIFFUSE_IBL_SCALE__;
+            specularIBL *= __PAC_PBR_SPECULAR_IBL_SCALE__;
             diffuseIBL *= ao;
             float specularOcclusion = computeSpecularOcclusion(NdotV, ao, roughness);
             specularIBL *= specularOcclusion;
@@ -953,9 +737,7 @@ void OpenGLRenderBackend::ensureWorldPipeline() {
                 vec3 n = computeMappedNormal(wrappedUv, uvDx, uvDy);
                 outLinear = applyWorldLitModel(outLinear, n, wrappedUv, uvDx, uvDy);
             }
-            // Slight exposure lift to match Neutral+ACES viewer appearance without
-            // flattening roughness/normal detail.
-            const float toneMappingExposure = 1.15;
+            const float toneMappingExposure = __PAC_PBR_TONEMAP_EXPOSURE__;
             const float toneMappingMode = 1.0;
             vec3 mapped = applyViewerToneMapping(max(outLinear, vec3(0.0)), toneMappingMode, toneMappingExposure);
             vec3 outSrgb = linearToSrgb(mapped);
@@ -964,7 +746,11 @@ void OpenGLRenderBackend::ensureWorldPipeline() {
     )GLSL";
 
     const unsigned int vs = opengl_backend_shader_utils::compileShader(GL_VERTEX_SHADER, kVs);
-    const unsigned int fs = opengl_backend_shader_utils::compileShader(GL_FRAGMENT_SHADER, kFs);
+    const std::string fsSource =
+        engine::render::world_pbr_shader_shared::injectSharedWorldPbr(
+            kFs, engine::render::world_pbr_shader_shared::ShaderLanguage::Glsl);
+    const unsigned int fs =
+        opengl_backend_shader_utils::compileShader(GL_FRAGMENT_SHADER, fsSource.c_str());
     if (vs == 0 || fs == 0) {
         if (vs != 0) glDeleteShader(vs);
         if (fs != 0) glDeleteShader(fs);
@@ -1122,5 +908,6 @@ void OpenGLRenderBackend::destroyWorldPipeline() {
     worldSkinMatrixCountLoc_ = -1;
     worldSkinMatricesLoc_ = -1;
 }
+
 
 

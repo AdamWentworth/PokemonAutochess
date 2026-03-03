@@ -57,6 +57,7 @@ shared_board_grid::Config makeBoardGridConfig(bool supportsWorldTriangles3D,
     cfg.cellW = cellW;
     cfg.cellH = cellH;
     cfg.line = line;
+    cfg.visualTheme = &shared_board_grid::defaultVisualTheme();
     return cfg;
 }
 

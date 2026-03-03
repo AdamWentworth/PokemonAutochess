@@ -6,12 +6,15 @@
 #include <algorithm>
 #include <chrono>
 #include <cstring>
+#include <filesystem>
+#include <iostream>
 #include <stdexcept>
 #include <string>
 #include <type_traits>
 #include <vector>
 
 #include <SDL2/SDL.h>
+#include <stb_image_write.h>
 
 #if defined(_WIN32)
 #define NOMINMAX
@@ -27,6 +30,7 @@
 using namespace engine::render::d3d12_internal;
 #endif
 void D3D12RenderBackend::beginFrame(float r, float g, float b, float a) {
+    ++frameCounter_;
     clearColor_[0] = r;
     clearColor_[1] = g;
     clearColor_[2] = b;
@@ -132,6 +136,93 @@ void D3D12RenderBackend::endFrame() {
 
     lastPresentWaitMs_ = 0.0f;
 
+    const bool captureThisFrame =
+        screenshotCaptureConfigured_ &&
+        !screenshotCaptured_ &&
+        frameCounter_ >= screenshotFrameTarget_;
+    Microsoft::WRL::ComPtr<ID3D12Resource> screenshotReadbackBuffer;
+    D3D12_PLACED_SUBRESOURCE_FOOTPRINT screenshotFootprint{};
+    int screenshotWidth = 0;
+    int screenshotHeight = 0;
+    UINT64 screenshotTotalBytes = 0;
+
+    if (captureThisFrame && renderTargets_[frameIndex_]) {
+        const D3D12_RESOURCE_DESC backbufferDesc = renderTargets_[frameIndex_]->GetDesc();
+        screenshotWidth = static_cast<int>(backbufferDesc.Width);
+        screenshotHeight = static_cast<int>(backbufferDesc.Height);
+
+        UINT numRows = 0;
+        UINT64 rowSizeInBytes = 0;
+        device_->GetCopyableFootprints(
+            &backbufferDesc,
+            0,
+            1,
+            0,
+            &screenshotFootprint,
+            &numRows,
+            &rowSizeInBytes,
+            &screenshotTotalBytes);
+
+        D3D12_HEAP_PROPERTIES readbackHeap{};
+        readbackHeap.Type = D3D12_HEAP_TYPE_READBACK;
+        readbackHeap.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
+        readbackHeap.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
+        readbackHeap.CreationNodeMask = 1;
+        readbackHeap.VisibleNodeMask = 1;
+
+        D3D12_RESOURCE_DESC readbackDesc{};
+        readbackDesc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
+        readbackDesc.Alignment = 0;
+        readbackDesc.Width = screenshotTotalBytes;
+        readbackDesc.Height = 1;
+        readbackDesc.DepthOrArraySize = 1;
+        readbackDesc.MipLevels = 1;
+        readbackDesc.Format = DXGI_FORMAT_UNKNOWN;
+        readbackDesc.SampleDesc.Count = 1;
+        readbackDesc.SampleDesc.Quality = 0;
+        readbackDesc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
+        readbackDesc.Flags = D3D12_RESOURCE_FLAG_NONE;
+
+        if (SUCCEEDED(device_->CreateCommittedResource(
+                &readbackHeap,
+                D3D12_HEAP_FLAG_NONE,
+                &readbackDesc,
+                D3D12_RESOURCE_STATE_COPY_DEST,
+                nullptr,
+                IID_PPV_ARGS(screenshotReadbackBuffer.ReleaseAndGetAddressOf()))) &&
+            screenshotReadbackBuffer) {
+            D3D12_RESOURCE_BARRIER toCopySrc{};
+            toCopySrc.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+            toCopySrc.Transition.pResource = renderTargets_[frameIndex_].Get();
+            toCopySrc.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
+            toCopySrc.Transition.StateBefore = D3D12_RESOURCE_STATE_RENDER_TARGET;
+            toCopySrc.Transition.StateAfter = D3D12_RESOURCE_STATE_COPY_SOURCE;
+            commandList_->ResourceBarrier(1, &toCopySrc);
+
+            D3D12_TEXTURE_COPY_LOCATION srcLoc{};
+            srcLoc.pResource = renderTargets_[frameIndex_].Get();
+            srcLoc.Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
+            srcLoc.SubresourceIndex = 0;
+
+            D3D12_TEXTURE_COPY_LOCATION dstLoc{};
+            dstLoc.pResource = screenshotReadbackBuffer.Get();
+            dstLoc.Type = D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT;
+            dstLoc.PlacedFootprint = screenshotFootprint;
+
+            commandList_->CopyTextureRegion(&dstLoc, 0, 0, 0, &srcLoc, nullptr);
+
+            D3D12_RESOURCE_BARRIER backToRtv{};
+            backToRtv.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+            backToRtv.Transition.pResource = renderTargets_[frameIndex_].Get();
+            backToRtv.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
+            backToRtv.Transition.StateBefore = D3D12_RESOURCE_STATE_COPY_SOURCE;
+            backToRtv.Transition.StateAfter = D3D12_RESOURCE_STATE_RENDER_TARGET;
+            commandList_->ResourceBarrier(1, &backToRtv);
+        } else {
+            screenshotReadbackBuffer.Reset();
+        }
+    }
+
     D3D12_RESOURCE_BARRIER toPresent{};
     toPresent.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
     toPresent.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
@@ -173,6 +264,69 @@ void D3D12RenderBackend::endFrame() {
         const std::uint64_t signal = ++fenceValue_;
         if (SUCCEEDED(commandQueue_->Signal(fence_.Get(), signal))) {
             frameFenceValues_[frameIndex_] = signal;
+            if (captureThisFrame && screenshotReadbackBuffer && screenshotWidth > 0 && screenshotHeight > 0) {
+                if (waitForFenceValue(signal)) {
+                    const std::size_t rowBytes = static_cast<std::size_t>(screenshotWidth) * 4u;
+                    std::vector<unsigned char> rgba(
+                        static_cast<std::size_t>(screenshotWidth) *
+                            static_cast<std::size_t>(screenshotHeight) *
+                            4u,
+                        0u);
+                    D3D12_RANGE readRange{};
+                    readRange.Begin = 0;
+                    readRange.End = static_cast<SIZE_T>(screenshotTotalBytes);
+                    unsigned char* mapped = nullptr;
+                    if (SUCCEEDED(screenshotReadbackBuffer->Map(
+                            0,
+                            &readRange,
+                            reinterpret_cast<void**>(&mapped))) &&
+                        mapped) {
+                        const std::size_t srcStride =
+                            static_cast<std::size_t>(screenshotFootprint.Footprint.RowPitch);
+                        for (int y = 0; y < screenshotHeight; ++y) {
+                            const std::size_t srcOff = static_cast<std::size_t>(y) * srcStride;
+                            const std::size_t dstOff = static_cast<std::size_t>(y) * rowBytes;
+                            std::memcpy(rgba.data() + dstOff, mapped + srcOff, rowBytes);
+                        }
+                        const D3D12_RANGE writtenRange{0, 0};
+                        screenshotReadbackBuffer->Unmap(0, &writtenRange);
+
+                        std::vector<unsigned char> flipped(rgba.size(), 0u);
+                        for (int y = 0; y < screenshotHeight; ++y) {
+                            const std::size_t srcOffset = static_cast<std::size_t>(y) * rowBytes;
+                            const std::size_t dstOffset =
+                                static_cast<std::size_t>(screenshotHeight - 1 - y) * rowBytes;
+                            std::memcpy(
+                                flipped.data() + dstOffset,
+                                rgba.data() + srcOffset,
+                                rowBytes);
+                        }
+
+                        try {
+                            const std::filesystem::path outPath(screenshotPath_);
+                            if (!outPath.parent_path().empty()) {
+                                std::filesystem::create_directories(outPath.parent_path());
+                            }
+                            const int wrote = stbi_write_png(
+                                outPath.string().c_str(),
+                                screenshotWidth,
+                                screenshotHeight,
+                                4,
+                                flipped.data(),
+                                screenshotWidth * 4);
+                            std::cout << "[Screenshot][D3D12] "
+                                      << (wrote != 0 ? "WROTE " : "FAILED ")
+                                      << outPath.string()
+                                      << " size=" << screenshotWidth << "x" << screenshotHeight
+                                      << " frame=" << frameCounter_ << "\n";
+                        } catch (const std::exception& ex) {
+                            std::cout << "[Screenshot][D3D12] FAILED exception=" << ex.what() << "\n";
+                        }
+
+                        screenshotCaptured_ = true;
+                    }
+                }
+            }
         }
     }
 

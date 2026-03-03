@@ -99,6 +99,8 @@ public:
     void shutdown() override;
 
 private:
+    void configureScreenshotCapture();
+
     void initDeviceAndSwapchain(const std::string& preferredAdapterName);
     void createRenderTargets();
     void releaseRenderTargets();
@@ -180,6 +182,11 @@ private:
     std::uint64_t frameTriangles_ = 0u;
     std::uint32_t lastFrameDrawCalls_ = 0u;
     std::uint64_t lastFrameTriangles_ = 0u;
+    bool screenshotCaptureConfigured_ = false;
+    bool screenshotCaptured_ = false;
+    std::uint64_t screenshotFrameTarget_ = 0u;
+    std::uint64_t frameCounter_ = 0u;
+    std::string screenshotPath_;
 
     float clearColor_[4] = {0.1f, 0.1f, 0.1f, 1.0f};
 
