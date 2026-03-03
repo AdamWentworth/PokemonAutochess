@@ -183,6 +183,7 @@ add_library(engine_render STATIC
     src/engine/render/Model.cpp
     src/engine/render/ModelAnimation.cpp
     src/engine/render/ModelCache.cpp
+    src/engine/render/NeutralPmrem.cpp
     src/engine/render/gltf/ModelFastGltfLoader.cpp
     src/engine/render/gltf/ModelFastGltfLoaderHelpers.cpp
     src/engine/render/gltf/ModelFastGltfMaterial.cpp

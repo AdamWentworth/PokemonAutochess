@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cctype>
 #include <cstdint>
+#include <iostream>
 #include <vector>
 
 #include <glad/glad.h>
@@ -28,6 +29,13 @@ bool containsCi(const std::string& haystack, const std::string& needle) {
 OpenGLRenderBackend::OpenGLRenderBackend()
     : renderer_(std::make_unique<Renderer>()) {
     glEnable(GL_DEPTH_TEST);
+    // Shader path already tone-maps + encodes to sRGB explicitly.
+    // Keep fixed-function framebuffer sRGB conversion disabled to avoid double-encoding.
+#ifdef GL_FRAMEBUFFER_SRGB
+    glDisable(GL_FRAMEBUFFER_SRGB);
+    const GLboolean fbSrgbEnabled = glIsEnabled(GL_FRAMEBUFFER_SRGB);
+    std::cout << "[OpenGL] GL_FRAMEBUFFER_SRGB=" << (fbSrgbEnabled ? "ON" : "OFF") << "\n";
+#endif
 }
 
 OpenGLRenderBackend::~OpenGLRenderBackend() {
@@ -37,6 +45,9 @@ OpenGLRenderBackend::~OpenGLRenderBackend() {
 void OpenGLRenderBackend::beginFrame(float r, float g, float b, float a) {
     frameDrawCalls_ = 0u;
     frameTriangles_ = 0u;
+#ifdef GL_FRAMEBUFFER_SRGB
+    glDisable(GL_FRAMEBUFFER_SRGB);
+#endif
     glClearColor(r, g, b, a);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 }

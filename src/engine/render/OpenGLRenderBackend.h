@@ -91,6 +91,12 @@ private:
                                        int wrapS,
                                        int wrapT,
                                        bool srgb);
+    unsigned int ensureWorldTextureRawHalfFloat(const char* key,
+                                                const std::uint16_t* rgba16f,
+                                                int width,
+                                                int height,
+                                                int wrapS,
+                                                int wrapT);
     unsigned int ensureSpriteTexture(const std::string& texturePath);
     void clearTextureCaches();
 
@@ -116,6 +122,10 @@ private:
     int worldMetallicRoughnessTextureSamplerLoc_ = -1;
     int worldOcclusionTextureSamplerLoc_ = -1;
     int worldEmissiveTextureSamplerLoc_ = -1;
+    int worldEnvTextureSamplerLoc_ = -1;
+    int worldEnvTexelSizeLoc_ = -1;
+    int worldEnvMaxMipLoc_ = -1;
+    int worldEnvRgbmRangeLoc_ = -1;
     int worldWrapSLoc_ = -1;
     int worldWrapTLoc_ = -1;
     int worldAlphaModeLoc_ = -1;

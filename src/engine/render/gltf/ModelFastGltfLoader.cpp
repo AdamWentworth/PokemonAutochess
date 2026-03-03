@@ -475,6 +475,9 @@ void Model::loadGLTFFast(const std::string& filepath) {
 
             if (!hasExplicitTangents) {
                 computeTangentsFromGeometry(pos, uv, normals, primIdxU32, tangents);
+                // Mark generated tangents as non-authored so world shaders can
+                // select derivative-tangent normal mapping for viewer parity.
+                for (glm::vec4& t : tangents) t.w = 0.0f;
             } else {
                 bool needsFallback = false;
                 for (const glm::vec4& t : tangents) {

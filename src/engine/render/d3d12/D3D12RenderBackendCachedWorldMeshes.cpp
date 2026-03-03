@@ -341,6 +341,7 @@ void D3D12RenderBackend::drawWorldIndexedMeshCachedInternal(const CachedWorldMes
     D3D12_GPU_DESCRIPTOR_HANDLE srvMetalRoughHandle = srvBaseHandle;
     D3D12_GPU_DESCRIPTOR_HANDLE srvOcclusionHandle = srvBaseHandle;
     D3D12_GPU_DESCRIPTOR_HANDLE srvEmissiveHandle = srvBaseHandle;
+    D3D12_GPU_DESCRIPTOR_HANDLE srvEnvHandle = srvBaseHandle;
     srvBaseHandle.ptr += static_cast<SIZE_T>(worldFallbackTextureDescriptorIndex_) *
                          static_cast<SIZE_T>(srvDescriptorSize_);
     srvNormalHandle.ptr += static_cast<SIZE_T>(worldFallbackNormalTextureDescriptorIndex_) *
@@ -352,11 +353,14 @@ void D3D12RenderBackend::drawWorldIndexedMeshCachedInternal(const CachedWorldMes
                               static_cast<SIZE_T>(srvDescriptorSize_);
     srvEmissiveHandle.ptr += static_cast<SIZE_T>(worldFallbackEmissiveTextureDescriptorIndex_) *
                              static_cast<SIZE_T>(srvDescriptorSize_);
+    srvEnvHandle.ptr += static_cast<SIZE_T>(worldFallbackEnvTextureDescriptorIndex_) *
+                        static_cast<SIZE_T>(srvDescriptorSize_);
     commandList_->SetGraphicsRootDescriptorTable(2, srvBaseHandle);
     commandList_->SetGraphicsRootDescriptorTable(3, srvNormalHandle);
     commandList_->SetGraphicsRootDescriptorTable(4, srvMetalRoughHandle);
     commandList_->SetGraphicsRootDescriptorTable(5, srvOcclusionHandle);
     commandList_->SetGraphicsRootDescriptorTable(6, srvEmissiveHandle);
+    commandList_->SetGraphicsRootDescriptorTable(7, srvEnvHandle);
     commandList_->SetPipelineState(worldPipelineState_.Get());
     commandList_->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 

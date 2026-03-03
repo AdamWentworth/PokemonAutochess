@@ -350,6 +350,9 @@ bool buildBackendCacheSourceData(const std::string& filepath,
 
             if (!hasExplicitTangents) {
                 computeTangentsFromGeometry(pos, uv, normals, primIdxU32, tangents);
+                // Keep generated tangent vectors but mark them as non-authored so
+                // runtime shaders can choose derivative-tangent normal mapping parity.
+                for (glm::vec4& t : tangents) t.w = 0.0f;
             } else {
                 bool needsFallback = false;
                 for (const glm::vec4& t : tangents) {

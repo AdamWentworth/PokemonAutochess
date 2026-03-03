@@ -1,8 +1,13 @@
 #include "engine/render/OpenGLRenderBackend.h"
+#include "engine/render/NeutralPmrem.h"
+#include "engine/core/Environment.h"
 
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
+#include <cstdlib>
+#include <iostream>
+#include <string>
 #include <vector>
 
 #include <glad/glad.h>
@@ -11,6 +16,74 @@ namespace {
 
 float resolveVertexChannel(float channel, float fallback) {
     return (channel >= 0.0f) ? channel : fallback;
+}
+
+bool pbrBindingLogEnabled() {
+    static const bool enabled = []() -> bool {
+        const auto env = engine::env::get("PAC_BACKEND_PBR_BIND_LOG");
+        if (!env.has_value()) return false;
+        const std::string raw = *env;
+        if (raw == "0" || raw == "false" || raw == "FALSE" || raw == "off" || raw == "OFF") {
+            return false;
+        }
+        return true;
+    }();
+    return enabled;
+}
+
+int pbrDebugViewMode() {
+    static const int mode = []() -> int {
+        const auto env = engine::env::get("PAC_BACKEND_PBR_DEBUG_VIEW");
+        if (!env.has_value()) return 0;
+        try {
+            return std::clamp(std::atoi(env->c_str()), 0, 8);
+        } catch (...) {
+            return 0;
+        }
+    }();
+    return mode;
+}
+
+int pbrBindingLogMaxEntries() {
+    static const int maxEntries = []() -> int {
+        const auto env = engine::env::get("PAC_BACKEND_PBR_BIND_LOG_MAX");
+        if (!env.has_value()) return 64;
+        try {
+            return (std::max)(1, std::atoi(env->c_str()));
+        } catch (...) {
+            return 64;
+        }
+    }();
+    return maxEntries;
+}
+
+void maybeLogPbrBindingOpenGL(const IRenderBackend::WorldTextureData* texture,
+                              bool hasBase,
+                              bool hasNormal,
+                              bool hasMetallicRoughness,
+                              bool hasOcclusion,
+                              bool hasEmissive) {
+    if (!pbrBindingLogEnabled()) return;
+    if (!texture || texture->materialMode < 2u) return;
+    static int sPrinted = 0;
+    if (sPrinted >= pbrBindingLogMaxEntries()) return;
+    ++sPrinted;
+    std::cout
+        << "[PBRBind][OpenGL] key=" << (texture->key ? texture->key : "<null>")
+        << " mode=" << static_cast<int>(texture->materialMode)
+        << " has(base/norm/mr/occ/emi)="
+        << (hasBase ? "1" : "0") << "/"
+        << (hasNormal ? "1" : "0") << "/"
+        << (hasMetallicRoughness ? "1" : "0") << "/"
+        << (hasOcclusion ? "1" : "0") << "/"
+        << (hasEmissive ? "1" : "0")
+        << " texSize=" << texture->width << "x" << texture->height
+        << " normSize=" << texture->normalWidth << "x" << texture->normalHeight
+        << " mrSize=" << texture->metallicRoughnessWidth << "x" << texture->metallicRoughnessHeight
+        << " roughF=" << texture->roughnessFactor
+        << " metalF=" << texture->metallicFactor
+        << " occF=" << texture->occlusionStrength
+        << "\n";
 }
 
 } // namespace
@@ -236,9 +309,35 @@ void OpenGLRenderBackend::drawWorldIndexedMeshTextured(const WorldMeshVertex* ve
         : 0u;
     const bool hasEmissiveTexture = (emissiveTexture != 0u);
     const GLuint boundEmissiveTexture = hasEmissiveTexture ? emissiveTexture : fallbackWhiteSrgbTexture;
+    const auto& neutralPmremAtlas = engine::render::neutral_pmrem::getNeutralRoomPmremAtlas();
+    const GLuint neutralPmremTexture = !neutralPmremAtlas.rgba16f.empty()
+        ? ensureWorldTextureRawHalfFloat(
+            "__neutral_room_pmrem_rgba16f_v1__",
+            neutralPmremAtlas.rgba16f.data(),
+            neutralPmremAtlas.width,
+            neutralPmremAtlas.height,
+            33071,
+            33071)
+        : ensureWorldTextureRaw(
+            "__neutral_room_pmrem_rgbm_v1__",
+            neutralPmremAtlas.rgba.data(),
+            neutralPmremAtlas.width,
+            neutralPmremAtlas.height,
+            33071,
+            33071,
+            /*srgb=*/false);
+    const GLuint boundEnvTexture = (neutralPmremTexture != 0u) ? neutralPmremTexture : fallbackWhiteLinearTexture;
     const GLfloat wrapS = static_cast<GLfloat>(texture ? texture->wrapS : 10497);
     const GLfloat wrapT = static_cast<GLfloat>(texture ? texture->wrapT : 10497);
     const bool blendAlpha = (alphaMode == 2u);
+
+    maybeLogPbrBindingOpenGL(
+        texture,
+        hasTexture,
+        hasNormalTexture,
+        hasMetallicRoughnessTexture,
+        hasOcclusionTexture,
+        hasEmissiveTexture);
 
     GLint prevProgram = 0;
     GLint prevVao = 0;
@@ -246,14 +345,14 @@ void OpenGLRenderBackend::drawWorldIndexedMeshTextured(const WorldMeshVertex* ve
     GLint prevElementArrayBuffer = 0;
     GLint prevActiveTexture = 0;
     GLint prevTexture2DOnActive = 0;
-    GLint prevTexture2DOnUnit[5] = {0, 0, 0, 0, 0};
+    GLint prevTexture2DOnUnit[6] = {0, 0, 0, 0, 0, 0};
     glGetIntegerv(GL_CURRENT_PROGRAM, &prevProgram);
     glGetIntegerv(GL_VERTEX_ARRAY_BINDING, &prevVao);
     glGetIntegerv(GL_ARRAY_BUFFER_BINDING, &prevArrayBuffer);
     glGetIntegerv(GL_ELEMENT_ARRAY_BUFFER_BINDING, &prevElementArrayBuffer);
     glGetIntegerv(GL_ACTIVE_TEXTURE, &prevActiveTexture);
     glGetIntegerv(GL_TEXTURE_BINDING_2D, &prevTexture2DOnActive);
-    for (int unit = 0; unit < 5; ++unit) {
+    for (int unit = 0; unit < 6; ++unit) {
         glActiveTexture(GL_TEXTURE0 + unit);
         glGetIntegerv(GL_TEXTURE_BINDING_2D, &prevTexture2DOnUnit[unit]);
     }
@@ -262,8 +361,12 @@ void OpenGLRenderBackend::drawWorldIndexedMeshTextured(const WorldMeshVertex* ve
     const GLboolean depthEnabled = glIsEnabled(GL_DEPTH_TEST);
     const GLboolean blendEnabled = glIsEnabled(GL_BLEND);
     const GLboolean cullEnabled = glIsEnabled(GL_CULL_FACE);
+    GLint prevFrontFace = GL_CCW;
+    glGetIntegerv(GL_FRONT_FACE, &prevFrontFace);
     GLboolean previousDepthMask = GL_TRUE;
+    GLint previousDepthFunc = GL_LESS;
     glGetBooleanv(GL_DEPTH_WRITEMASK, &previousDepthMask);
+    glGetIntegerv(GL_DEPTH_FUNC, &previousDepthFunc);
     GLint prevBlendSrcRgb = GL_SRC_ALPHA;
     GLint prevBlendDstRgb = GL_ONE_MINUS_SRC_ALPHA;
     GLint prevBlendSrcAlpha = GL_ONE;
@@ -279,20 +382,31 @@ void OpenGLRenderBackend::drawWorldIndexedMeshTextured(const WorldMeshVertex* ve
 
     glViewport(0, 0, std::max(1, surfaceWidth), std::max(1, surfaceHeight));
     glEnable(GL_DEPTH_TEST);
+    // Match D3D12 rasterizer front-face convention (FrontCounterClockwise = FALSE)
+    // so SV_IsFrontFace/gl_FrontFacing driven normal-mapping branches stay in parity.
+    glFrontFace(GL_CW);
+    // Match D3D12 world pipeline depth test (LESS_EQUAL). This allows textured
+    // model pass to render over already-written proxy/model-depth geometry when
+    // depth values are equal, instead of being rejected under default GL_LESS.
+    glDepthFunc(GL_LEQUAL);
     glDisable(GL_CULL_FACE);
-    glEnable(GL_BLEND);
-    glBlendEquationSeparate(GL_FUNC_ADD, GL_FUNC_ADD);
-    switch (blendMode) {
-    case 1u:
-        glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE, GL_ONE, GL_ONE);
-        break;
-    case 2u:
-        glBlendFuncSeparate(GL_ONE, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
-        break;
-    case 0u:
-    default:
-        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-        break;
+    if (blendAlpha) {
+        glEnable(GL_BLEND);
+        glBlendEquationSeparate(GL_FUNC_ADD, GL_FUNC_ADD);
+        switch (blendMode) {
+        case 1u:
+            glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE, GL_ONE, GL_ONE);
+            break;
+        case 2u:
+            glBlendFuncSeparate(GL_ONE, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
+            break;
+        case 0u:
+        default:
+            glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+            break;
+        }
+    } else {
+        glDisable(GL_BLEND);
     }
     glDepthMask(blendAlpha ? GL_FALSE : GL_TRUE);
 
@@ -390,7 +504,9 @@ void OpenGLRenderBackend::drawWorldIndexedMeshTextured(const WorldMeshVertex* ve
                 texture ? texture->materialFlipbook1Cols : 1.0f,
                 texture ? texture->materialFlipbook1Rows : 1.0f,
                 texture ? texture->materialFlipbook1Frames : 1.0f,
-                texture ? texture->materialFlipbook1Fps : 0.0f);
+                (texture && materialMode >= 2u)
+                    ? static_cast<float>(pbrDebugViewMode())
+                    : (texture ? texture->materialFlipbook1Fps : 0.0f));
     constexpr int kMaxGpuSkinMatrices = 64;
     const bool gpuSkinningEnabled =
         texture &&
@@ -410,6 +526,16 @@ void OpenGLRenderBackend::drawWorldIndexedMeshTextured(const WorldMeshVertex* ve
     if (worldMetallicRoughnessTextureSamplerLoc_ >= 0) glUniform1i(worldMetallicRoughnessTextureSamplerLoc_, 2);
     if (worldOcclusionTextureSamplerLoc_ >= 0) glUniform1i(worldOcclusionTextureSamplerLoc_, 3);
     if (worldEmissiveTextureSamplerLoc_ >= 0) glUniform1i(worldEmissiveTextureSamplerLoc_, 4);
+    if (worldEnvTextureSamplerLoc_ >= 0) glUniform1i(worldEnvTextureSamplerLoc_, 5);
+    if (worldEnvTexelSizeLoc_ >= 0) {
+        glUniform2f(worldEnvTexelSizeLoc_, neutralPmremAtlas.texelWidth, neutralPmremAtlas.texelHeight);
+    }
+    if (worldEnvMaxMipLoc_ >= 0) {
+        glUniform1f(worldEnvMaxMipLoc_, neutralPmremAtlas.maxMip);
+    }
+    if (worldEnvRgbmRangeLoc_ >= 0) {
+        glUniform1f(worldEnvRgbmRangeLoc_, neutralPmremAtlas.rgbmRange);
+    }
 
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, boundTexture);
@@ -421,6 +547,8 @@ void OpenGLRenderBackend::drawWorldIndexedMeshTextured(const WorldMeshVertex* ve
     glBindTexture(GL_TEXTURE_2D, boundOcclusionTexture);
     glActiveTexture(GL_TEXTURE4);
     glBindTexture(GL_TEXTURE_2D, boundEmissiveTexture);
+    glActiveTexture(GL_TEXTURE5);
+    glBindTexture(GL_TEXTURE_2D, boundEnvTexture);
 
     glBindVertexArray(worldVao_);
     glBindBuffer(GL_ARRAY_BUFFER, worldVbo_);
@@ -482,7 +610,7 @@ void OpenGLRenderBackend::drawWorldIndexedMeshTextured(const WorldMeshVertex* ve
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, static_cast<GLuint>(prevElementArrayBuffer));
     glUseProgram(static_cast<GLuint>(prevProgram));
 
-    for (int unit = 0; unit < 5; ++unit) {
+    for (int unit = 0; unit < 6; ++unit) {
         glActiveTexture(GL_TEXTURE0 + unit);
         glBindTexture(GL_TEXTURE_2D, static_cast<GLuint>(prevTexture2DOnUnit[unit]));
     }
@@ -490,12 +618,14 @@ void OpenGLRenderBackend::drawWorldIndexedMeshTextured(const WorldMeshVertex* ve
     glBindTexture(GL_TEXTURE_2D, static_cast<GLuint>(prevTexture2DOnActive));
 
     glDepthMask(previousDepthMask);
+    glDepthFunc(static_cast<GLenum>(previousDepthFunc));
     glBlendEquationSeparate(static_cast<GLenum>(prevBlendEqRgb), static_cast<GLenum>(prevBlendEqAlpha));
     glBlendFuncSeparate(static_cast<GLenum>(prevBlendSrcRgb),
                         static_cast<GLenum>(prevBlendDstRgb),
                         static_cast<GLenum>(prevBlendSrcAlpha),
                         static_cast<GLenum>(prevBlendDstAlpha));
     if (!blendEnabled) glDisable(GL_BLEND);
+    glFrontFace(static_cast<GLenum>(prevFrontFace));
     if (cullEnabled) glEnable(GL_CULL_FACE);
     if (!depthEnabled) glDisable(GL_DEPTH_TEST);
 }

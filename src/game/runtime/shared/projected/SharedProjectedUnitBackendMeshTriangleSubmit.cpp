@@ -96,6 +96,7 @@ void TriangleSubmitter::pushTriangle(const glm::vec3& a,
                 [&](std::uint32_t src,
                     const glm::vec3& pos,
                     const glm::vec2& uv,
+                    const glm::vec3& normal,
                     const glm::vec4& tangent) -> std::uint32_t {
                 if (canReuseIndexedVertices &&
                     src < modelIndexedVertexRemap[fastBatchIndex].size()) {
@@ -119,6 +120,9 @@ void TriangleSubmitter::pushTriangle(const glm::vec3& a,
                     outVertex.g = flatTint.g;
                     outVertex.b = flatTint.b;
                     outVertex.a = outAlpha;
+                    outVertex.nx = normal.x;
+                    outVertex.ny = normal.y;
+                    outVertex.nz = normal.z;
                     outVertex.tx = tangent.x;
                     outVertex.ty = tangent.y;
                     outVertex.tz = tangent.z;
@@ -143,6 +147,9 @@ void TriangleSubmitter::pushTriangle(const glm::vec3& a,
                 outVertex.g = flatTint.g;
                 outVertex.b = flatTint.b;
                 outVertex.a = outAlpha;
+                outVertex.nx = normal.x;
+                outVertex.ny = normal.y;
+                outVertex.nz = normal.z;
                 outVertex.tx = tangent.x;
                 outVertex.ty = tangent.y;
                 outVertex.tz = tangent.z;
@@ -151,9 +158,9 @@ void TriangleSubmitter::pushTriangle(const glm::vec3& a,
                 return next;
             };
 
-            const std::uint32_t outI0 = appendFastVertex(src0, a, uv0, t0);
-            const std::uint32_t outI1 = appendFastVertex(src1, b, uv1, t1);
-            const std::uint32_t outI2 = appendFastVertex(src2, c, uv2, t2);
+            const std::uint32_t outI0 = appendFastVertex(src0, a, uv0, n0, t0);
+            const std::uint32_t outI1 = appendFastVertex(src1, b, uv1, n1, t1);
+            const std::uint32_t outI2 = appendFastVertex(src2, c, uv2, n2, t2);
             if (outI0 == std::numeric_limits<std::uint32_t>::max() ||
                 outI1 == std::numeric_limits<std::uint32_t>::max() ||
                 outI2 == std::numeric_limits<std::uint32_t>::max()) {

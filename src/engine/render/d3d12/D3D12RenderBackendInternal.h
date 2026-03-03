@@ -115,7 +115,6 @@ struct WorldPsConstants {
     float materialFlipbook1Rows = 1.0f;
     float materialFlipbook1Frames = 1.0f;
     float materialFlipbook1Fps = 0.0f;
-    float characterInkingEnabled = 0.0f;
 };
 
 inline WorldPsConstants makeWorldPsConstants(const IRenderBackend::WorldTextureData* textureData, float useTexture) {
@@ -147,8 +146,6 @@ inline WorldPsConstants makeWorldPsConstants(const IRenderBackend::WorldTextureD
     constants.materialFlipbook1Rows = textureData->materialFlipbook1Rows;
     constants.materialFlipbook1Frames = textureData->materialFlipbook1Frames;
     constants.materialFlipbook1Fps = textureData->materialFlipbook1Fps;
-    constants.characterInkingEnabled = textureData->characterInkingEnabled != 0u ? 1.0f : 0.0f;
-
     // D3D12 root signature is constrained to 64 DWORD. For lit model mode (materialMode >= 2),
     // repurpose fire-tail payload slots to carry PBR/camera data needed for three-gltf-viewer parity.
     if (textureData->materialMode >= 2u) {

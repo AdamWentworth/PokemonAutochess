@@ -516,6 +516,9 @@ namespace {
         camera   = std::make_unique<Camera3D>(45.0f, float(drawableW) / float(drawableH), 0.1f, 100.0f);
         if (renderer) {
             renderer->onResize(drawableW, drawableH);
+            // Ensure native backends show the same dark loading frame immediately,
+            // avoiding a temporary OS white window before preload UI starts updating.
+            renderBootLoading(0.0f);
         }
 
         initialized = true;

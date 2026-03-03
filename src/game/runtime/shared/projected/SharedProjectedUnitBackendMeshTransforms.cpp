@@ -426,6 +426,7 @@ glm::vec4 Resolver::resolveModelVertexTangent(
     }
 
     glm::vec3 localTangent(vtx.tangent.x, vtx.tangent.y, vtx.tangent.z);
+    const bool authoredTangentFrame = std::fabs(vtx.tangent.w) > 0.5f;
     if (glm::dot(localTangent, localTangent) <= 1e-10f) {
         glm::vec3 n = safeNormalizeVec3(vtx.normal, glm::vec3(0.0f, 1.0f, 0.0f));
         const glm::vec3 helper =
@@ -440,7 +441,7 @@ glm::vec4 Resolver::resolveModelVertexTangent(
             : glm::mat4(1.0f);
     const glm::mat3 nodeNormalM = glm::transpose(glm::inverse(glm::mat3(nodeGlobal)));
     const glm::vec3 tangent = safeNormalizeVec3(nodeNormalM * sk.normal, glm::vec3(1.0f, 0.0f, 0.0f));
-    const float sign = (vtx.tangent.w < 0.0f) ? -1.0f : 1.0f;
+    const float sign = authoredTangentFrame ? ((vtx.tangent.w < 0.0f) ? -1.0f : 1.0f) : 0.0f;
     return glm::vec4(tangent, sign);
 }
 

@@ -209,3 +209,65 @@ D3D12RenderBackend::SpriteTexture* D3D12RenderBackend::ensureWorldTextureRaw(con
     return nullptr;
 #endif
 }
+
+D3D12RenderBackend::SpriteTexture* D3D12RenderBackend::ensureWorldTextureRawHalfFloat(
+    const char* key,
+    const std::uint16_t* rgba16f,
+    int width,
+    int height,
+    int wrapS,
+    int wrapT) {
+#if defined(_WIN32)
+    if (!key || key[0] == '\0' || !rgba16f || width <= 0 || height <= 0) {
+        return nullptr;
+    }
+    if (!device_ || !commandQueue_ || !fence_ || !srvHeap_) return nullptr;
+    if (nextSrvDescriptorIndex_ >= kMaxSrvDescriptors) return nullptr;
+
+    std::string cacheKey = key;
+    cacheKey += "|";
+    cacheKey += std::to_string(width);
+    cacheKey += "x";
+    cacheKey += std::to_string(height);
+    cacheKey += "|ws=";
+    cacheKey += std::to_string(wrapS);
+    cacheKey += "|wt=";
+    cacheKey += std::to_string(wrapT);
+    cacheKey += "|rgba16f";
+
+    auto it = worldTextures_.find(cacheKey);
+    if (it != worldTextures_.end()) {
+        return &it->second;
+    }
+
+    SpriteTexture texture;
+    texture.descriptorIndex = nextSrvDescriptorIndex_;
+    const bool ok = engine::render::d3d12::createTextureResourceFromRgba16F(
+        device_.Get(),
+        commandQueue_.Get(),
+        fence_.Get(),
+        static_cast<HANDLE>(fenceEvent_),
+        fenceValue_,
+        srvHeap_.Get(),
+        srvDescriptorSize_,
+        texture.descriptorIndex,
+        rgba16f,
+        width,
+        height,
+        texture.resource);
+    if (!ok) return nullptr;
+
+    texture.valid = true;
+    ++nextSrvDescriptorIndex_;
+    auto [insertedIt, _] = worldTextures_.emplace(cacheKey, std::move(texture));
+    return &insertedIt->second;
+#else
+    (void)key;
+    (void)rgba16f;
+    (void)width;
+    (void)height;
+    (void)wrapS;
+    (void)wrapT;
+    return nullptr;
+#endif
+}

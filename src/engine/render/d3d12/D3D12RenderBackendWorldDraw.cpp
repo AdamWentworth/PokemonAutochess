@@ -1,9 +1,13 @@
 #include "engine/render/D3D12RenderBackend.h"
 #include "engine/render/d3d12/D3D12RenderBackendInternal.h"
+#include "engine/core/Environment.h"
 
 #include <algorithm>
 #include <cmath>
 #include <cstring>
+#include <cstdlib>
+#include <iostream>
+#include <string>
 
 #if defined(_WIN32)
 #define NOMINMAX
@@ -30,6 +34,74 @@ void packWorldVsConstants(const float* viewProjectionMatrix4x4,
     const float* model = modelMatrix4x4 ? modelMatrix4x4 : kIdentity;
     std::memcpy(out32, vp, sizeof(float) * 16u);
     std::memcpy(out32 + 16u, model, sizeof(float) * 16u);
+}
+
+bool pbrBindingLogEnabled() {
+    static const bool enabled = []() -> bool {
+        const auto env = engine::env::get("PAC_BACKEND_PBR_BIND_LOG");
+        if (!env.has_value()) return false;
+        const std::string raw = *env;
+        if (raw == "0" || raw == "false" || raw == "FALSE" || raw == "off" || raw == "OFF") {
+            return false;
+        }
+        return true;
+    }();
+    return enabled;
+}
+
+int pbrDebugViewMode() {
+    static const int mode = []() -> int {
+        const auto env = engine::env::get("PAC_BACKEND_PBR_DEBUG_VIEW");
+        if (!env.has_value()) return 0;
+        try {
+            return std::clamp(std::atoi(env->c_str()), 0, 8);
+        } catch (...) {
+            return 0;
+        }
+    }();
+    return mode;
+}
+
+int pbrBindingLogMaxEntries() {
+    static const int maxEntries = []() -> int {
+        const auto env = engine::env::get("PAC_BACKEND_PBR_BIND_LOG_MAX");
+        if (!env.has_value()) return 64;
+        try {
+            return (std::max)(1, std::atoi(env->c_str()));
+        } catch (...) {
+            return 64;
+        }
+    }();
+    return maxEntries;
+}
+
+void maybeLogPbrBindingD3D12(const IRenderBackend::WorldTextureData* texture,
+                             bool hasBase,
+                             bool hasNormal,
+                             bool hasMetallicRoughness,
+                             bool hasOcclusion,
+                             bool hasEmissive) {
+    if (!pbrBindingLogEnabled()) return;
+    if (!texture || texture->materialMode < 2u) return;
+    static int sPrinted = 0;
+    if (sPrinted >= pbrBindingLogMaxEntries()) return;
+    ++sPrinted;
+    std::cout
+        << "[PBRBind][D3D12] key=" << (texture->key ? texture->key : "<null>")
+        << " mode=" << static_cast<int>(texture->materialMode)
+        << " has(base/norm/mr/occ/emi)="
+        << (hasBase ? "1" : "0") << "/"
+        << (hasNormal ? "1" : "0") << "/"
+        << (hasMetallicRoughness ? "1" : "0") << "/"
+        << (hasOcclusion ? "1" : "0") << "/"
+        << (hasEmissive ? "1" : "0")
+        << " texSize=" << texture->width << "x" << texture->height
+        << " normSize=" << texture->normalWidth << "x" << texture->normalHeight
+        << " mrSize=" << texture->metallicRoughnessWidth << "x" << texture->metallicRoughnessHeight
+        << " roughF=" << texture->roughnessFactor
+        << " metalF=" << texture->metallicFactor
+        << " occF=" << texture->occlusionStrength
+        << "\n";
 }
 } // namespace
 
@@ -111,6 +183,7 @@ void D3D12RenderBackend::drawWorldTriangles(const WorldTriangle* triangles,
         D3D12_GPU_DESCRIPTOR_HANDLE srvMetalRoughHandle = srvBaseHandle;
         D3D12_GPU_DESCRIPTOR_HANDLE srvOcclusionHandle = srvBaseHandle;
         D3D12_GPU_DESCRIPTOR_HANDLE srvEmissiveHandle = srvBaseHandle;
+        D3D12_GPU_DESCRIPTOR_HANDLE srvEnvHandle = srvBaseHandle;
         srvBaseHandle.ptr += static_cast<SIZE_T>(worldFallbackTextureDescriptorIndex_) *
                              static_cast<SIZE_T>(srvDescriptorSize_);
         srvNormalHandle.ptr += static_cast<SIZE_T>(worldFallbackNormalTextureDescriptorIndex_) *
@@ -122,11 +195,14 @@ void D3D12RenderBackend::drawWorldTriangles(const WorldTriangle* triangles,
                                   static_cast<SIZE_T>(srvDescriptorSize_);
         srvEmissiveHandle.ptr += static_cast<SIZE_T>(worldFallbackEmissiveTextureDescriptorIndex_) *
                                  static_cast<SIZE_T>(srvDescriptorSize_);
+        srvEnvHandle.ptr += static_cast<SIZE_T>(worldFallbackEnvTextureDescriptorIndex_) *
+                            static_cast<SIZE_T>(srvDescriptorSize_);
         commandList_->SetGraphicsRootDescriptorTable(2, srvBaseHandle);
         commandList_->SetGraphicsRootDescriptorTable(3, srvNormalHandle);
         commandList_->SetGraphicsRootDescriptorTable(4, srvMetalRoughHandle);
         commandList_->SetGraphicsRootDescriptorTable(5, srvOcclusionHandle);
         commandList_->SetGraphicsRootDescriptorTable(6, srvEmissiveHandle);
+        commandList_->SetGraphicsRootDescriptorTable(7, srvEnvHandle);
     }
     commandList_->SetPipelineState(worldPipelineState_.Get());
     commandList_->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
@@ -167,6 +243,7 @@ void D3D12RenderBackend::drawWorldIndexedMesh(const WorldMeshVertex* vertices,
         worldFallbackMetallicRoughnessTextureDescriptorIndex_,
         worldFallbackOcclusionTextureDescriptorIndex_,
         worldFallbackEmissiveTextureDescriptorIndex_,
+        worldFallbackEnvTextureDescriptorIndex_,
         nullptr,
         0.0f,
         viewProjectionMatrix4x4,
@@ -243,6 +320,14 @@ void D3D12RenderBackend::drawWorldIndexedMeshTextured(const WorldMeshVertex* ver
     const std::uint32_t emissiveDescriptorIndex =
         emissiveTex ? emissiveTex->descriptorIndex : worldFallbackEmissiveTextureDescriptorIndex_;
 
+    maybeLogPbrBindingD3D12(
+        texture,
+        worldTex != nullptr,
+        normalTex != nullptr,
+        metallicRoughnessTex != nullptr,
+        occlusionTex != nullptr,
+        emissiveTex != nullptr);
+
     drawWorldIndexedMeshInternal(
         vertices,
         vertexCount,
@@ -253,6 +338,7 @@ void D3D12RenderBackend::drawWorldIndexedMeshTextured(const WorldMeshVertex* ver
         metallicRoughnessDescriptorIndex,
         occlusionDescriptorIndex,
         emissiveDescriptorIndex,
+        worldFallbackEnvTextureDescriptorIndex_,
         texture,
         useTexture,
         viewProjectionMatrix4x4,
@@ -279,6 +365,7 @@ void D3D12RenderBackend::drawWorldIndexedMeshInternal(const WorldMeshVertex* ver
                                                       std::uint32_t metallicRoughnessTextureDescriptorIndex,
                                                       std::uint32_t occlusionTextureDescriptorIndex,
                                                       std::uint32_t emissiveTextureDescriptorIndex,
+                                                      std::uint32_t envTextureDescriptorIndex,
                                                       const WorldTextureData* textureData,
                                                       float useTexture,
                                                       const float* viewProjectionMatrix4x4,
@@ -343,7 +430,11 @@ void D3D12RenderBackend::drawWorldIndexedMeshInternal(const WorldMeshVertex* ver
     float vsConstants[32] = {};
     packWorldVsConstants(viewProjectionMatrix4x4, modelMatrix, vsConstants);
     commandList_->SetGraphicsRoot32BitConstants(0, 32, vsConstants, 0);
-    const WorldPsConstants worldPs = makeWorldPsConstants(textureData, useTexture);
+    WorldPsConstants worldPs = makeWorldPsConstants(textureData, useTexture);
+    if (textureData && textureData->materialMode >= 2u) {
+        // Reuse an unused packed slot in lit model mode for shader debug-view selection.
+        worldPs.materialFlipbook1Fps = static_cast<float>(pbrDebugViewMode());
+    }
     commandList_->SetGraphicsRoot32BitConstants(
         1,
         static_cast<UINT>(sizeof(WorldPsConstants) / sizeof(float)),
@@ -354,6 +445,7 @@ void D3D12RenderBackend::drawWorldIndexedMeshInternal(const WorldMeshVertex* ver
     D3D12_GPU_DESCRIPTOR_HANDLE srvMetalRoughHandle = srvBaseHandle;
     D3D12_GPU_DESCRIPTOR_HANDLE srvOcclusionHandle = srvBaseHandle;
     D3D12_GPU_DESCRIPTOR_HANDLE srvEmissiveHandle = srvBaseHandle;
+    D3D12_GPU_DESCRIPTOR_HANDLE srvEnvHandle = srvBaseHandle;
     srvBaseHandle.ptr += static_cast<SIZE_T>(baseTextureDescriptorIndex) * static_cast<SIZE_T>(srvDescriptorSize_);
     srvNormalHandle.ptr +=
         static_cast<SIZE_T>(normalTextureDescriptorIndex) * static_cast<SIZE_T>(srvDescriptorSize_);
@@ -363,11 +455,14 @@ void D3D12RenderBackend::drawWorldIndexedMeshInternal(const WorldMeshVertex* ver
         static_cast<SIZE_T>(occlusionTextureDescriptorIndex) * static_cast<SIZE_T>(srvDescriptorSize_);
     srvEmissiveHandle.ptr +=
         static_cast<SIZE_T>(emissiveTextureDescriptorIndex) * static_cast<SIZE_T>(srvDescriptorSize_);
+    srvEnvHandle.ptr +=
+        static_cast<SIZE_T>(envTextureDescriptorIndex) * static_cast<SIZE_T>(srvDescriptorSize_);
     commandList_->SetGraphicsRootDescriptorTable(2, srvBaseHandle);
     commandList_->SetGraphicsRootDescriptorTable(3, srvNormalHandle);
     commandList_->SetGraphicsRootDescriptorTable(4, srvMetalRoughHandle);
     commandList_->SetGraphicsRootDescriptorTable(5, srvOcclusionHandle);
     commandList_->SetGraphicsRootDescriptorTable(6, srvEmissiveHandle);
+    commandList_->SetGraphicsRootDescriptorTable(7, srvEnvHandle);
     const bool blendMaterial = textureData && textureData->alphaMode == 2u;
     const std::uint8_t blendMode = textureData ? std::min<std::uint8_t>(2u, textureData->blendMode) : 0u;
     ID3D12PipelineState* pso = worldPipelineState_.Get();
@@ -480,6 +575,7 @@ void D3D12RenderBackend::drawWorldIndexedMeshInternal(const WorldMeshVertex* ver
     (void)metallicRoughnessTextureDescriptorIndex;
     (void)occlusionTextureDescriptorIndex;
     (void)emissiveTextureDescriptorIndex;
+    (void)envTextureDescriptorIndex;
     (void)textureData;
     (void)useTexture;
     (void)viewProjectionMatrix4x4;

@@ -163,7 +163,9 @@ void OpenGLRenderBackend::ensureWorldPipeline() {
             vUv = aUv;
             vColor = aColor;
             vWorldPos = worldPos.xyz;
-            mat3 normalM = mat3(transpose(inverse(uModel)));
+            // Keep world normal/tangent transform behavior aligned with D3D12 path.
+            // This improves cross-backend parity for authored tangent-space normal detail.
+            mat3 normalM = mat3(uModel);
             vWorldNormal = normalize(normalM * localNormal);
             vec3 worldTangent = normalM * localTangent.xyz;
             float tangentLenSq = dot(worldTangent, worldTangent);
@@ -200,6 +202,10 @@ void OpenGLRenderBackend::ensureWorldPipeline() {
         uniform sampler2D uMetallicRoughnessTexture;
         uniform sampler2D uOcclusionTexture;
         uniform sampler2D uEmissiveTexture;
+        uniform sampler2D uEnvTexture;
+        uniform vec2 uEnvTexelSize;
+        uniform float uEnvMaxMip;
+        uniform float uEnvRgbmRange;
         uniform float uUseNormalTexture;
         uniform float uUseMetallicRoughnessTexture;
         uniform float uUseOcclusionTexture;
@@ -226,6 +232,9 @@ void OpenGLRenderBackend::ensureWorldPipeline() {
             vec2 texSize = max(vec2(textureSize(uTexture, 0)), vec2(1.0));
             vec2 halfTexel = vec2(0.5) / texSize;
             return clamp(uv, halfTexel, vec2(1.0) - halfTexel);
+        }
+        vec4 sampleTextureWithWrap(sampler2D tex, vec2 uv, vec2 uvDx, vec2 uvDy) {
+            return textureGrad(tex, uv, uvDx, uvDy);
         }
 
         float hash11(float x) { return fract(sin(x * 12.9898) * 43758.5453); }
@@ -603,45 +612,80 @@ void OpenGLRenderBackend::ensureWorldPipeline() {
             return -2.0 * log2(max(1.16 * r, 1e-4));
         }
 
-        float neutralMipToLobePower(float mip) {
-            float t = clamp((mip + 2.0) / 10.0, 0.0, 1.0);
-            return mix(256.0, 1.4, t);
+        float getFace(vec3 direction) {
+            vec3 absDirection = abs(direction);
+            float face = -1.0;
+            if (absDirection.x > absDirection.z) {
+                if (absDirection.x > absDirection.y) {
+                    face = direction.x > 0.0 ? 0.0 : 3.0;
+                } else {
+                    face = direction.y > 0.0 ? 1.0 : 4.0;
+                }
+            } else {
+                if (absDirection.z > absDirection.y) {
+                    face = direction.z > 0.0 ? 2.0 : 5.0;
+                } else {
+                    face = direction.y > 0.0 ? 1.0 : 4.0;
+                }
+            }
+            return face;
+        }
+
+        vec2 getUV(vec3 direction, float face) {
+            vec2 uv;
+            if (face == 0.0) {
+                uv = vec2(direction.z, direction.y) / abs(direction.x);
+            } else if (face == 1.0) {
+                uv = vec2(-direction.x, -direction.z) / abs(direction.y);
+            } else if (face == 2.0) {
+                uv = vec2(-direction.x, direction.y) / abs(direction.z);
+            } else if (face == 3.0) {
+                uv = vec2(-direction.z, direction.y) / abs(direction.x);
+            } else if (face == 4.0) {
+                uv = vec2(-direction.x, direction.z) / abs(direction.y);
+            } else {
+                uv = vec2(direction.x, direction.y) / abs(direction.z);
+            }
+            return 0.5 * (uv + 1.0);
+        }
+
+        vec3 bilinearCubeUV(sampler2D envMap, vec3 direction, float mipInt) {
+            const float cubeUV_minMipLevel = 4.0;
+            const float cubeUV_minTileSize = 16.0;
+            vec2 envTexelSize = 1.0 / max(vec2(textureSize(envMap, 0)), vec2(1.0));
+            float faceSizeMax = max(float(textureSize(envMap, 0).x) / 3.0, 16.0);
+            float envMaxMip = max(log2(faceSizeMax), 4.0);
+            float face = getFace(direction);
+            float filterInt = max(cubeUV_minMipLevel - mipInt, 0.0);
+            mipInt = max(mipInt, cubeUV_minMipLevel);
+            float faceSize = exp2(mipInt);
+            vec2 uv = getUV(direction, face) * (faceSize - 2.0) + 1.0;
+            if (face > 2.0) {
+                uv.y += faceSize;
+                face -= 3.0;
+            }
+            uv.x += face * faceSize;
+            uv.x += filterInt * 3.0 * cubeUV_minTileSize;
+            uv.y += 4.0 * (exp2(envMaxMip) - faceSize);
+            uv *= envTexelSize;
+            return textureLod(envMap, uv, 0.0).rgb;
+        }
+
+        vec3 textureCubeUV(sampler2D envMap, vec3 sampleDir, float roughness) {
+            float faceSizeMax = max(float(textureSize(envMap, 0).x) / 3.0, 16.0);
+            float envMaxMip = max(log2(faceSizeMax), 4.0);
+            float mip = clamp(roughnessToNeutralMip(roughness), -2.0, envMaxMip);
+            float mipF = fract(mip);
+            float mipI = floor(mip);
+            vec3 color0 = bilinearCubeUV(envMap, sampleDir, mipI);
+            if (mipF == 0.0) return color0;
+            vec3 color1 = bilinearCubeUV(envMap, sampleDir, mipI + 1.0);
+            return mix(color0, color1, mipF);
         }
 
         vec3 sampleNeutralEnvironment(vec3 dir, float roughness) {
             vec3 d = safeNormalize(dir, vec3(0.0, 1.0, 0.0));
-            // Directions/intensity profile taken from three.js RoomEnvironment authoring values.
-            const vec3 roomDirs[7] = vec3[](
-                normalize(vec3(-0.6976730, 0.6220875,  0.3553301)),
-                normalize(vec3(-0.6310653, 0.7059674, -0.3215068)),
-                normalize(vec3( 0.7703826, 0.6305104, -0.0946954)),
-                normalize(vec3(-0.0271260, 0.5219704,  0.8525321)),
-                normalize(vec3( 0.1868756, 0.6635094, -0.7244534)),
-                normalize(vec3( 0.0,       1.0,        0.0      )),
-                normalize(vec3( 0.0257911, 0.9994960,  0.0185103))
-            );
-            const float roomIntensity[7] = float[](50.0, 50.0, 17.0, 43.0, 20.0, 100.0, 900.0);
-            const float roomSoftness[7] = float[](0.90, 0.90, 0.72, 0.74, 0.78, 1.00, 1.15);
-
-            float mip = clamp(roughnessToNeutralMip(roughness), -2.0, 8.0);
-            float basePower = neutralMipToLobePower(mip);
-            float rr = clamp(roughness * roughness, 0.0, 1.0);
-
-            float accum = 0.0;
-            float accumW = 0.0;
-            for (int i = 0; i < 7; ++i) {
-                float lobePower = mix(basePower * roomSoftness[i], 1.10, rr);
-                float nd = max(dot(d, roomDirs[i]), 0.0);
-                accum += roomIntensity[i] * pow(nd, lobePower);
-                accumW += roomIntensity[i];
-            }
-            float directional = (accumW > 1e-6) ? (accum / accumW) : 0.0;
-
-            float hemi = clamp(d.y * 0.5 + 0.5, 0.0, 1.0);
-            float bounce = mix(0.040, 0.095, hemi);
-            float neutral = bounce + directional * 0.95;
-            neutral = clamp(neutral, 0.0, 1.6);
-            return vec3(neutral);
+            return textureCubeUV(uEnvTexture, d, clamp(roughness, 0.0, 1.0));
         }
 
         vec3 evalDirectPbr(vec3 n,
@@ -683,31 +727,43 @@ void OpenGLRenderBackend::ensureWorldPipeline() {
             vec3 B = q1perp * st0.y + q0perp * st1.y;
 
             float det = max(dot(T, T), dot(B, B));
-            // Use winding-independent basis scale to avoid per-side normal inversion.
-            float scale = (det <= 1e-10) ? 0.0 : inversesqrt(det);
+            float scale = (det <= 1e-10) ? 0.0 : faceDirection * inversesqrt(det);
             return normalize(T * (mapN.x * scale) + B * (mapN.y * scale) + N * mapN.z);
         }
     )GLSL"
     R"GLSL(
-        vec3 computeMappedNormal(vec2 sampleUv) {
-            float faceDirection = gl_FrontFacing ? 1.0 : -1.0;
-            vec3 dx = dFdx(vWorldPos);
-            vec3 dy = dFdy(vWorldPos);
-            vec3 geomN = normalize(cross(dx, dy)) * faceDirection;
+        vec3 computeMappedNormal(vec2 sampleUv, vec2 uvDx, vec2 uvDy) {
+            // Keep OpenGL tangent-space face handling tied to native front-face
+            // classification for stable normal-map response.
+            bool isFrontFace = gl_FrontFacing;
+            float faceDirection = isFrontFace ? 1.0 : -1.0;
             vec3 n = normalize(vWorldNormal);
-            if (dot(n, n) < 1e-6) n = geomN;
-            // Ensure shading normal stays consistent with actual face orientation.
-            if (dot(n, geomN) < 0.0) n = -n;
-            if (uUseNormalTexture < 0.5) return n;
+            if (dot(n, n) < 1e-6) {
+                vec3 dx = dFdx(vWorldPos);
+                vec3 dy = dFdy(vWorldPos);
+                n = normalize(cross(dx, dy));
+            }
+            n *= faceDirection;
 
-            vec3 mapN = texture(uNormalTexture, sampleUv).xyz * 2.0 - 1.0;
-            mapN.xy *= max(uNormalScale, 0.0);
-            mapN = normalize(mapN);
+            vec3 normalTexel = sampleTextureWithWrap(
+                uNormalTexture,
+                sampleUv,
+                uvDx,
+                uvDy).xyz;
+            vec2 mapXY = normalTexel.xy * 2.0 - 1.0;
+            mapXY *= max(uNormalScale, 0.0) * 1.25;
+            // Support both standard tangent-space normals (RGB) and packed XY normals
+            // used by some assets where blue is authored as 0 and Z is reconstructed.
+            float authoredZ = normalTexel.z * 2.0 - 1.0;
+            float reconZ = sqrt(max(1.0 - clamp(dot(mapXY, mapXY), 0.0, 1.0), 0.0));
+            float useReconstructedZ = (normalTexel.z <= (1.5 / 255.0)) ? 1.0 : 0.0;
+            float mapZ = mix(authoredZ, reconZ, useReconstructedZ);
+            vec3 mapN = normalize(vec3(mapXY, mapZ));
 
             vec3 mapped = vec3(0.0);
             vec3 tangent = vWorldTangent.xyz;
             float tangentLenSq = dot(tangent, tangent);
-            bool hasAuthoredTangent = tangentLenSq > 1e-6;
+            bool hasAuthoredTangent = tangentLenSq > 1e-6 && abs(vWorldTangent.w) > 0.5;
             if (hasAuthoredTangent) {
                 tangent *= inversesqrt(tangentLenSq);
                 tangent = tangent - n * dot(n, tangent);
@@ -716,10 +772,9 @@ void OpenGLRenderBackend::ensureWorldPipeline() {
                     tangent *= inversesqrt(orthoLenSq);
                     float tangentSign = (vWorldTangent.w < 0.0) ? -1.0 : 1.0;
                     vec3 bitangent = normalize(cross(n, tangent)) * tangentSign;
-                    if (faceDirection < 0.0) {
+                    if (!isFrontFace) {
                         tangent = -tangent;
                         bitangent = -bitangent;
-                        n = -n;
                     }
                     mapped = normalize(tangent * mapN.x + bitangent * mapN.y + n * mapN.z);
                 } else {
@@ -729,22 +784,23 @@ void OpenGLRenderBackend::ensureWorldPipeline() {
             if (!hasAuthoredTangent) {
                 mapped = perturbNormal2Arb(vWorldPos, n, mapN, sampleUv, faceDirection);
             }
-            if (dot(mapped, geomN) < 0.0) mapped = -mapped;
             return mapped;
         }
 
-        vec3 applyWorldLitModel(vec3 linearColor, vec3 n, vec2 sampleUv) {
-            vec3 orm = vec3(1.0, 1.0, 1.0);
-            if (uUseMetallicRoughnessTexture > 0.5) {
-                orm = texture(uMetallicRoughnessTexture, sampleUv).rgb;
-            }
-            float roughness = clamp(orm.g * clamp(uRoughnessFactor, 0.0, 1.0), 0.04, 1.0);
+        vec3 applyWorldLitModel(vec3 linearColor, vec3 n, vec2 sampleUv, vec2 uvDx, vec2 uvDy) {
+            vec3 orm = sampleTextureWithWrap(
+                uMetallicRoughnessTexture,
+                sampleUv,
+                uvDx,
+                uvDy).rgb;
+            float roughness = clamp(orm.g * clamp(uRoughnessFactor, 0.0, 1.0), 0.16, 1.0);
             float metallic = clamp(orm.b * clamp(uMetallicFactor, 0.0, 1.0), 0.0, 1.0);
-            float ao = 1.0;
-            if (uUseOcclusionTexture > 0.5) {
-                float occTex = texture(uOcclusionTexture, sampleUv).r;
-                ao = mix(1.0, occTex, clamp(uOcclusionStrength, 0.0, 1.0));
-            }
+            float occTex = sampleTextureWithWrap(
+                uOcclusionTexture,
+                sampleUv,
+                uvDx,
+                uvDy).r;
+            float ao = mix(1.0, occTex, clamp(uOcclusionStrength, 0.0, 1.0));
 
             vec3 albedo = clamp(linearColor, 0.0, 1.0);
             vec3 F0 = mix(vec3(0.04), albedo, metallic);
@@ -761,9 +817,9 @@ void OpenGLRenderBackend::ensureWorldPipeline() {
             vec3 camUp = safeNormalize(cross(camRight, camForward), vec3(0.0, 1.0, 0.0));
             vec3 v = safeNormalize(uCameraPos - vWorldPos, -camForward);
             const vec3 directColor = vec3(1.0);
-            const float directIntensity = 0.8 * 3.14159265;
+            const float directIntensity = 0.72 * 3.14159265;
             const vec3 ambientColor = vec3(1.0);
-            const float ambientIntensity = 0.3;
+            const float ambientIntensity = 0.56;
 
             vec3 lightPos = uCameraPos + camRight * 0.5 + camUp * 0.0 - camForward * 0.8660254;
             vec3 l0 = safeNormalize(lightPos - uCameraTarget, vec3(0.45, 0.86, 0.24));
@@ -776,7 +832,6 @@ void OpenGLRenderBackend::ensureWorldPipeline() {
             vec3 kD = (vec3(1.0) - kS) * (1.0 - metallic);
 
             vec3 r = reflect(-v, n);
-            r = normalize(mix(r, n, roughness * roughness));
             vec3 envIrradiance = 3.14159265 * sampleNeutralEnvironment(n, 1.0);
             vec3 envRadiance = sampleNeutralEnvironment(r, roughness);
             vec3 singleScattering = vec3(0.0);
@@ -787,6 +842,8 @@ void OpenGLRenderBackend::ensureWorldPipeline() {
             float energyComp = 1.0 - max(max(totalScattering.r, totalScattering.g), totalScattering.b);
             vec3 diffuseIBL = diffuseColor * max(energyComp, 0.0) * cosineWeightedIrradiance;
             vec3 specularIBL = envRadiance * singleScattering + multiScattering * cosineWeightedIrradiance;
+            diffuseIBL *= 1.26;
+            specularIBL *= 0.44;
             diffuseIBL *= ao;
             float specularOcclusion = computeSpecularOcclusion(NdotV, ao, roughness);
             specularIBL *= specularOcclusion;
@@ -795,9 +852,14 @@ void OpenGLRenderBackend::ensureWorldPipeline() {
             vec3 ambientLight = kD * albedo * ambientColor * ambientIntensity;
             vec3 shaded = direct + ibl + ambientLight;
 
-            vec3 emissiveTex = (uUseEmissiveTexture > 0.5)
-                ? clamp(texture(uEmissiveTexture, sampleUv).rgb, 0.0, 1.0)
-                : vec3(1.0);
+            vec3 emissiveTex = clamp(
+                sampleTextureWithWrap(
+                    uEmissiveTexture,
+                    sampleUv,
+                    uvDx,
+                    uvDy).rgb,
+                0.0,
+                1.0);
             vec3 emissive = emissiveTex * max(uEmissiveFactor, vec3(0.0));
             return max(shaded + emissive, vec3(0.0));
         }
@@ -838,14 +900,19 @@ void OpenGLRenderBackend::ensureWorldPipeline() {
             }
             vec4 tex = vec4(1.0);
             vec3 outLinear = clamp(vColor.rgb, 0.0, 1.0);
-            vec2 wrappedUv = vec2(applyWrap(vUv.x, uWrapS), applyWrap(vUv.y, uWrapT));
+            vec2 rawUv = vUv;
+            vec2 wrappedUv = vec2(applyWrap(rawUv.x, uWrapS), applyWrap(rawUv.y, uWrapT));
             bool clampS = abs(uWrapS - 33071.0) < 0.5;
             bool clampT = abs(uWrapT - 33071.0) < 0.5;
             if (clampS || clampT) {
                 wrappedUv = clampWrappedUvToTexelCenter(wrappedUv);
             }
+            // Keep derivative source aligned with D3D12 path for exact sampler parity.
+            vec2 uvDx = dFdx(wrappedUv);
+            vec2 uvDy = dFdy(wrappedUv);
+            float pbrDebugView = uMaterialFlipbook1.w;
             if (uUseTexture > 0.5) {
-                tex = texture(uTexture, wrappedUv);
+                tex = sampleTextureWithWrap(uTexture, wrappedUv, uvDx, uvDy);
                 outLinear = clamp(tex.rgb, 0.0, 1.0) * outLinear;
             }
             float outA = clamp(vColor.a * tex.a, 0.0, 1.0);
@@ -855,11 +922,40 @@ void OpenGLRenderBackend::ensureWorldPipeline() {
                 if (outA < clamp(uAlphaCutoff, 0.0, 1.0)) discard;
                 outA = clamp(vColor.a, 0.0, 1.0);
             }
-            if (uMaterialMode >= 1.5) {
-                vec3 n = computeMappedNormal(wrappedUv);
-                outLinear = applyWorldLitModel(outLinear, n, wrappedUv);
+            if (uMaterialMode >= 1.5 && pbrDebugView > 0.5) {
+                vec3 dbg = vec3(0.0);
+                if (pbrDebugView < 1.5) {
+                    // 1: Base/albedo sample.
+                    dbg = clamp(tex.rgb, 0.0, 1.0);
+                } else if (pbrDebugView < 2.5) {
+                    // 2: Normal map sample.
+                    dbg = sampleTextureWithWrap(uNormalTexture, wrappedUv, uvDx, uvDy).rgb;
+                } else if (pbrDebugView < 3.5) {
+                    // 3: Roughness channel.
+                    float rgh = sampleTextureWithWrap(
+                        uMetallicRoughnessTexture, wrappedUv, uvDx, uvDy).g;
+                    dbg = vec3(rgh);
+                } else if (pbrDebugView < 4.5) {
+                    // 4: Metallic channel.
+                    float met = sampleTextureWithWrap(
+                        uMetallicRoughnessTexture, wrappedUv, uvDx, uvDy).b;
+                    dbg = vec3(met);
+                } else if (pbrDebugView < 5.5) {
+                    // 5: AO channel.
+                    float ao = sampleTextureWithWrap(
+                        uOcclusionTexture, wrappedUv, uvDx, uvDy).r;
+                    dbg = vec3(ao);
+                }
+                FragColor = vec4(linearToSrgb(clamp(dbg, 0.0, 1.0)), 1.0);
+                return;
             }
-            const float toneMappingExposure = 1.0;
+            if (uMaterialMode >= 1.5) {
+                vec3 n = computeMappedNormal(wrappedUv, uvDx, uvDy);
+                outLinear = applyWorldLitModel(outLinear, n, wrappedUv, uvDx, uvDy);
+            }
+            // Slight exposure lift to match Neutral+ACES viewer appearance without
+            // flattening roughness/normal detail.
+            const float toneMappingExposure = 1.15;
             const float toneMappingMode = 1.0;
             vec3 mapped = applyViewerToneMapping(max(outLinear, vec3(0.0)), toneMappingMode, toneMappingExposure);
             vec3 outSrgb = linearToSrgb(mapped);
@@ -894,6 +990,10 @@ void OpenGLRenderBackend::ensureWorldPipeline() {
         glGetUniformLocation(worldProgram_, "uMetallicRoughnessTexture");
     worldOcclusionTextureSamplerLoc_ = glGetUniformLocation(worldProgram_, "uOcclusionTexture");
     worldEmissiveTextureSamplerLoc_ = glGetUniformLocation(worldProgram_, "uEmissiveTexture");
+    worldEnvTextureSamplerLoc_ = glGetUniformLocation(worldProgram_, "uEnvTexture");
+    worldEnvTexelSizeLoc_ = glGetUniformLocation(worldProgram_, "uEnvTexelSize");
+    worldEnvMaxMipLoc_ = glGetUniformLocation(worldProgram_, "uEnvMaxMip");
+    worldEnvRgbmRangeLoc_ = glGetUniformLocation(worldProgram_, "uEnvRgbmRange");
     worldWrapSLoc_ = glGetUniformLocation(worldProgram_, "uWrapS");
     worldWrapTLoc_ = glGetUniformLocation(worldProgram_, "uWrapT");
     worldAlphaModeLoc_ = glGetUniformLocation(worldProgram_, "uAlphaMode");
@@ -993,6 +1093,10 @@ void OpenGLRenderBackend::destroyWorldPipeline() {
     worldMetallicRoughnessTextureSamplerLoc_ = -1;
     worldOcclusionTextureSamplerLoc_ = -1;
     worldEmissiveTextureSamplerLoc_ = -1;
+    worldEnvTextureSamplerLoc_ = -1;
+    worldEnvTexelSizeLoc_ = -1;
+    worldEnvMaxMipLoc_ = -1;
+    worldEnvRgbmRangeLoc_ = -1;
     worldWrapSLoc_ = -1;
     worldWrapTLoc_ = -1;
     worldAlphaModeLoc_ = -1;

@@ -255,6 +255,7 @@ void D3D12RenderBackend::shutdown() {
     worldFallbackMetallicRoughnessTextureDescriptorIndex_ = 0;
     worldFallbackOcclusionTextureDescriptorIndex_ = 0;
     worldFallbackEmissiveTextureDescriptorIndex_ = 0;
+    worldFallbackEnvTextureDescriptorIndex_ = 0;
     worldPremultipliedBlendPipelineState_.Reset();
     worldAdditiveBlendPipelineState_.Reset();
     worldBlendPipelineState_.Reset();

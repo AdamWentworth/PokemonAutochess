@@ -117,6 +117,12 @@ private:
                                          int wrapS,
                                          int wrapT,
                                          bool srgb);
+    SpriteTexture* ensureWorldTextureRawHalfFloat(const char* key,
+                                                  const std::uint16_t* rgba16f,
+                                                  int width,
+                                                  int height,
+                                                  int wrapS,
+                                                  int wrapT);
     SpriteTexture* ensureWorldTexture(const WorldTextureData* textureData);
 #if defined(_WIN32)
     struct CachedWorldMesh {
@@ -149,6 +155,7 @@ private:
                                       std::uint32_t metallicRoughnessTextureDescriptorIndex,
                                       std::uint32_t occlusionTextureDescriptorIndex,
                                       std::uint32_t emissiveTextureDescriptorIndex,
+                                      std::uint32_t envTextureDescriptorIndex,
                                       const WorldTextureData* textureData,
                                       float useTexture,
                                       const float* viewProjectionMatrix4x4,
@@ -233,6 +240,7 @@ private:
     std::uint32_t worldFallbackMetallicRoughnessTextureDescriptorIndex_ = 0;
     std::uint32_t worldFallbackOcclusionTextureDescriptorIndex_ = 0;
     std::uint32_t worldFallbackEmissiveTextureDescriptorIndex_ = 0;
+    std::uint32_t worldFallbackEnvTextureDescriptorIndex_ = 0;
 
     struct SpriteTexture {
         Microsoft::WRL::ComPtr<ID3D12Resource> resource;

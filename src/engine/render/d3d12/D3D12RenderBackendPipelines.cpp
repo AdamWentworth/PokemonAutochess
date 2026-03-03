@@ -1,6 +1,8 @@
 #include "engine/render/D3D12RenderBackend.h"
+#include "engine/render/NeutralPmrem.h"
 #include "engine/render/d3d12/D3D12RenderBackendInternal.h"
 
+#include <string>
 #include <stdexcept>
 
 #if defined(_WIN32)
@@ -12,6 +14,16 @@
 
 using namespace engine::render::d3d12_internal;
 #endif
+
+namespace {
+std::string d3dCompileErrorMessage(ID3DBlob* errBlob) {
+    if (!errBlob || !errBlob->GetBufferPointer() || errBlob->GetBufferSize() == 0) {
+        return {};
+    }
+    const char* msg = static_cast<const char*>(errBlob->GetBufferPointer());
+    return std::string(msg, msg + errBlob->GetBufferSize());
+}
+} // namespace
 
 void D3D12RenderBackend::createDebugPipeline() {
 #if defined(_WIN32)
@@ -228,13 +240,13 @@ cbuffer PSConstants : register(b1) {
   float uMaterialFlipbook1Rows;
   float uMaterialFlipbook1Frames;
   float uMaterialFlipbook1Fps;
-  float uCharacterInkingEnabled;
 };
 Texture2D gTex : register(t0);
 Texture2D gNormalTex : register(t1);
 Texture2D gMetallicRoughnessTex : register(t2);
 Texture2D gOcclusionTex : register(t3);
 Texture2D gEmissiveTex : register(t4);
+Texture2D gEnvTex : register(t5);
 SamplerState gSampCC : register(s0);
 SamplerState gSampRR : register(s1);
 SamplerState gSampCR : register(s2);
@@ -666,42 +678,94 @@ float roughnessToNeutralMip(float roughness) {
   return -2.0f * log2(max(1.16f * r, 1e-4f));
 }
 
-float neutralMipToLobePower(float mip) {
-  float t = saturate((mip + 2.0f) / 10.0f);
-  return lerp(256.0f, 1.4f, t);
+float getFace(float3 direction) {
+  float3 absDirection = abs(direction);
+  float face = -1.0f;
+  if (absDirection.x > absDirection.z) {
+    if (absDirection.x > absDirection.y) {
+      face = (direction.x > 0.0f) ? 0.0f : 3.0f;
+    } else {
+      face = (direction.y > 0.0f) ? 1.0f : 4.0f;
+    }
+  } else {
+    if (absDirection.z > absDirection.y) {
+      face = (direction.z > 0.0f) ? 2.0f : 5.0f;
+    } else {
+      face = (direction.y > 0.0f) ? 1.0f : 4.0f;
+    }
+  }
+  return face;
+}
+
+float2 getUV(float3 direction, float face) {
+  float2 uv;
+  if (face == 0.0f) {
+    uv = float2(direction.z, direction.y) / abs(direction.x);
+  } else if (face == 1.0f) {
+    uv = float2(-direction.x, -direction.z) / abs(direction.y);
+  } else if (face == 2.0f) {
+    uv = float2(-direction.x, direction.y) / abs(direction.z);
+  } else if (face == 3.0f) {
+    uv = float2(-direction.z, direction.y) / abs(direction.x);
+  } else if (face == 4.0f) {
+    uv = float2(-direction.x, direction.z) / abs(direction.y);
+  } else {
+    uv = float2(direction.x, direction.y) / abs(direction.z);
+  }
+  return 0.5f * (uv + 1.0f);
+}
+
+float2 getEnvTexelSize() {
+  uint w = 1, h = 1;
+  gEnvTex.GetDimensions(w, h);
+  float fw = max((float)w, 1.0f);
+  float fh = max((float)h, 1.0f);
+  return float2(1.0f / fw, 1.0f / fh);
+}
+
+float getEnvMaxMip() {
+  uint w = 1, h = 1;
+  gEnvTex.GetDimensions(w, h);
+  // cubeUV atlas width is 3 * 2^lodMax.
+  float faceSizeMax = max((float)w / 3.0f, 16.0f);
+  return max(log2(faceSizeMax), 4.0f);
+}
+
+float3 bilinearCubeUV(Texture2D envMap, float3 direction, float mipInt) {
+  const float cubeUV_minMipLevel = 4.0f;
+  const float cubeUV_minTileSize = 16.0f;
+  const float envMaxMip = getEnvMaxMip();
+  const float2 envTexelSize = getEnvTexelSize();
+  float face = getFace(direction);
+  float filterInt = max(cubeUV_minMipLevel - mipInt, 0.0f);
+  mipInt = max(mipInt, cubeUV_minMipLevel);
+  float faceSize = exp2(mipInt);
+  float2 uv = getUV(direction, face) * (faceSize - 2.0f) + 1.0f;
+  if (face > 2.0f) {
+    uv.y += faceSize;
+    face -= 3.0f;
+  }
+  uv.x += face * faceSize;
+  uv.x += filterInt * 3.0f * cubeUV_minTileSize;
+  uv.y += 4.0f * (exp2(envMaxMip) - faceSize);
+  uv *= envTexelSize;
+  return envMap.SampleLevel(gSampCC, uv, 0.0f).rgb;
+}
+
+float3 textureCubeUV(Texture2D envMap, float3 sampleDir, float roughness) {
+  const float envMaxMip = getEnvMaxMip();
+  float mip = clamp(roughnessToNeutralMip(roughness), -2.0f, envMaxMip);
+  float mipF = frac(mip);
+  float mipI = floor(mip);
+  float3 color0 = bilinearCubeUV(envMap, sampleDir, mipI);
+  if (mipF == 0.0f) return color0;
+  float3 color1 = bilinearCubeUV(envMap, sampleDir, mipI + 1.0f);
+  return lerp(color0, color1, mipF);
 }
 
 float3 sampleNeutralEnvironment(float3 dir, float roughness) {
   float3 d = safeNormalize(dir, float3(0.0f, 1.0f, 0.0f));
-  const float3 roomDirs[7] = {
-      normalize(float3(-0.6976730f, 0.6220875f,  0.3553301f)),
-      normalize(float3(-0.6310653f, 0.7059674f, -0.3215068f)),
-      normalize(float3( 0.7703826f, 0.6305104f, -0.0946954f)),
-      normalize(float3(-0.0271260f, 0.5219704f,  0.8525321f)),
-      normalize(float3( 0.1868756f, 0.6635094f, -0.7244534f)),
-      normalize(float3( 0.0f,       1.0f,        0.0f)),
-      normalize(float3( 0.0257911f, 0.9994960f,  0.0185103f))
-  };
-  const float roomIntensity[7] = {50.0f, 50.0f, 17.0f, 43.0f, 20.0f, 100.0f, 900.0f};
-  const float roomSoftness[7] = {0.90f, 0.90f, 0.72f, 0.74f, 0.78f, 1.00f, 1.15f};
-  float mip = clamp(roughnessToNeutralMip(roughness), -2.0f, 8.0f);
-  float basePower = neutralMipToLobePower(mip);
-  float rr = saturate(roughness * roughness);
-  float accum = 0.0f;
-  float accumW = 0.0f;
-  [unroll]
-  for (int idx = 0; idx < 7; ++idx) {
-    float lobePower = lerp(basePower * roomSoftness[idx], 1.10f, rr);
-    float nd = max(dot(d, roomDirs[idx]), 0.0f);
-    accum += roomIntensity[idx] * pow(nd, lobePower);
-    accumW += roomIntensity[idx];
-  }
-  float directional = (accumW > 1e-6f) ? (accum / accumW) : 0.0f;
-  float hemi = saturate(d.y * 0.5f + 0.5f);
-  float bounce = lerp(0.040f, 0.095f, hemi);
-  float neutral = bounce + directional * 0.95f;
-  neutral = clamp(neutral, 0.0f, 1.6f);
-  return float3(neutral, neutral, neutral);
+  return textureCubeUV(gEnvTex, d, saturate(roughness));
 }
 
 float3 evalDirectPbr(float3 n,
@@ -729,7 +793,7 @@ float3 evalDirectPbr(float3 n,
   return (kD * albedo / 3.14159265f + spec) * radiance * NdotL;
 }
 
-float3 perturbNormal2Arb(float3 eyePos, float3 surfNorm, float3 mapN, float2 uv) {
+float3 perturbNormal2Arb(float3 eyePos, float3 surfNorm, float3 mapN, float2 uv, float faceDirection) {
   float3 q0 = ddx(eyePos.xyz);
   float3 q1 = ddy(eyePos.xyz);
   float2 st0 = ddx(uv);
@@ -742,7 +806,7 @@ float3 perturbNormal2Arb(float3 eyePos, float3 surfNorm, float3 mapN, float2 uv)
   float3 B = q1perp * st0.y + q0perp * st1.y;
 
   float det = max(dot(T, T), dot(B, B));
-  float scale = (det <= 1e-10f) ? 0.0f : rsqrt(det);
+  float scale = (det <= 1e-10f) ? 0.0f : faceDirection * rsqrt(det);
   return normalize(T * (mapN.x * scale) + B * (mapN.y * scale) + N * mapN.z);
 }
 
@@ -754,21 +818,28 @@ float3 computeMappedNormal(PSIn i,
                            bool useNormalTexture,
                            float normalScale) {
   float faceDirection = isFrontFace ? 1.0f : -1.0f;
-  float3 dx = ddx(i.worldPos);
-  float3 dy = ddy(i.worldPos);
-  float3 geomN = normalize(cross(dx, dy)) * faceDirection;
   float3 n = normalize(i.worldNormal);
-  if (dot(n, n) < 1e-6f) n = geomN;
-  if (dot(n, geomN) < 0.0f) n = -n;
+  if (dot(n, n) < 1e-6f) {
+    float3 dx = ddx(i.worldPos);
+    float3 dy = ddy(i.worldPos);
+    n = normalize(cross(dx, dy));
+  }
+  n *= faceDirection;
   if (!useNormalTexture) return n;
 
-  float3 mapN = sampleTextureWithWrap(gNormalTex, sampleUv, uvDx, uvDy, uWrapS, uWrapT).xyz * 2.0f - 1.0f;
-  mapN.xy *= max(normalScale, 0.0f);
-  mapN = normalize(mapN);
+  float3 normalTexel = sampleTextureWithWrap(gNormalTex, sampleUv, uvDx, uvDy, uWrapS, uWrapT).xyz;
+  float2 mapXY = normalTexel.xy * 2.0f - 1.0f;
+  mapXY *= max(normalScale, 0.0f) * 1.25f;
+  // Support standard RGB tangent-space normals and packed-XY normals (blue=0).
+  float authoredZ = normalTexel.z * 2.0f - 1.0f;
+  float reconZ = sqrt(max(1.0f - saturate(dot(mapXY, mapXY)), 0.0f));
+  float useReconstructedZ = (normalTexel.z <= (1.5f / 255.0f)) ? 1.0f : 0.0f;
+  float mapZ = lerp(authoredZ, reconZ, useReconstructedZ);
+  float3 mapN = normalize(float3(mapXY, mapZ));
   float3 mapped = float3(0.0f, 0.0f, 0.0f);
   float3 tangent = i.worldTangent.xyz;
   float tangentLen2 = dot(tangent, tangent);
-  bool hasAuthoredTangent = tangentLen2 > 1e-6f;
+  bool hasAuthoredTangent = tangentLen2 > 1e-6f && abs(i.worldTangent.w) > 0.5f;
   if (hasAuthoredTangent) {
     tangent *= rsqrt(tangentLen2);
     tangent = tangent - n * dot(n, tangent);
@@ -780,7 +851,6 @@ float3 computeMappedNormal(PSIn i,
       if (!isFrontFace) {
         tangent = -tangent;
         bitangent = -bitangent;
-        n = -n;
       }
       mapped = normalize(tangent * mapN.x + bitangent * mapN.y + n * mapN.z);
     } else {
@@ -788,9 +858,8 @@ float3 computeMappedNormal(PSIn i,
     }
   }
   if (!hasAuthoredTangent) {
-    mapped = perturbNormal2Arb(i.worldPos, n, mapN, sampleUv);
+    mapped = perturbNormal2Arb(i.worldPos, n, mapN, sampleUv, faceDirection);
   }
-  if (dot(mapped, geomN) < 0.0f) mapped = -mapped;
   return mapped;
 }
 
@@ -823,7 +892,7 @@ float3 applyWorldLitModel(PSIn i,
               uWrapS,
               uWrapT).rgb;
   }
-  float roughness = clamp(orm.g * saturate(roughnessFactor), 0.04f, 1.0f);
+  float roughness = clamp(orm.g * saturate(roughnessFactor), 0.16f, 1.0f);
   float metallic = clamp(orm.b * saturate(metallicFactor), 0.0f, 1.0f);
   float ao = 1.0f;
   if (useOcclusionTexture) {
@@ -844,9 +913,9 @@ float3 applyWorldLitModel(PSIn i,
   float3 camUp = safeNormalize(cross(camRight, camForward), float3(0.0f, 1.0f, 0.0f));
   float3 v = safeNormalize(cameraPos - i.worldPos, -camForward);
   const float3 directColor = float3(1.0f, 1.0f, 1.0f);
-  const float directIntensity = 0.8f * 3.14159265f;
+  const float directIntensity = 0.72f * 3.14159265f;
   const float3 ambientColor = float3(1.0f, 1.0f, 1.0f);
-  const float ambientIntensity = 0.3f;
+  const float ambientIntensity = 0.56f;
 
   float3 lightPos = cameraPos + camRight * 0.5f + camUp * 0.0f - camForward * 0.8660254f;
   float3 l0 = safeNormalize(lightPos - cameraTarget, float3(0.45f, 0.86f, 0.24f));
@@ -858,7 +927,6 @@ float3 applyWorldLitModel(PSIn i,
   float3 kD = (float3(1.0f, 1.0f, 1.0f) - kS) * (1.0f - metallic);
 
   float3 r = reflect(-v, n);
-  r = normalize(lerp(r, n, roughness * roughness));
   float3 envIrradiance = 3.14159265f * sampleNeutralEnvironment(n, 1.0f);
   float3 envRadiance = sampleNeutralEnvironment(r, roughness);
   float3 singleScattering = float3(0.0f, 0.0f, 0.0f);
@@ -869,6 +937,8 @@ float3 applyWorldLitModel(PSIn i,
   float energyComp = 1.0f - max(max(totalScattering.r, totalScattering.g), totalScattering.b);
   float3 diffuseIBL = diffuseColor * max(energyComp, 0.0f) * cosineWeightedIrradiance;
   float3 specularIBL = envRadiance * singleScattering + multiScattering * cosineWeightedIrradiance;
+  diffuseIBL *= 1.26f;
+  specularIBL *= 0.44f;
   diffuseIBL *= ao;
   float specularOcclusion = computeSpecularOcclusion(NdotV, ao, roughness);
   specularIBL *= specularOcclusion;
@@ -885,19 +955,7 @@ float3 applyWorldLitModel(PSIn i,
 }
 
 float3 applyCharacterInking(PSIn i, float3 linearColor, float3 n, float3 cameraPos, float3 cameraForwardPacked) {
-  if (uCharacterInkingEnabled < 0.5f) return linearColor;
-  float3 camForward = safeNormalize(cameraForwardPacked, normalize(float3(0.0f, -0.6139406f, -0.7893522f)));
-  float3 v = safeNormalize(cameraPos - i.worldPos, -camForward);
-  float3 nn = safeNormalize(n, float3(0.0f, 1.0f, 0.0f));
-  float ndv = saturate(dot(nn, v));
-  float edge = 1.0f - ndv;
-  float fw = max(fwidth(edge), 1e-4f);
-  float t0 = 0.84f;
-  float t1 = 0.985f;
-  float ringOuter = smoothstep(t0 - fw * 1.5f, t0 + fw * 1.5f, edge);
-  float ringInner = smoothstep(t1 - fw * 1.5f, t1 + fw * 1.5f, edge);
-  float outline = saturate(ringOuter - ringInner);
-  return lerp(linearColor, float3(0.0f, 0.0f, 0.0f), outline);
+  return linearColor;
 }
 )HLSL"
 R"HLSL(
@@ -930,6 +988,33 @@ float4 main(PSIn i, bool isFrontFace : SV_IsFrontFace) : SV_TARGET {
   } else if (uAlphaMode < 1.5f) {
     if (outA < saturate(uAlphaCutoff)) discard;
     outA = saturate(i.col.a);
+  }
+  const float pbrDebugView = uMaterialFlipbook1Fps;
+  if (uMaterialMode >= 1.5f && pbrDebugView > 0.5f) {
+    float3 dbg = float3(0.0f, 0.0f, 0.0f);
+    if (pbrDebugView < 1.5f) {
+      // 1: Base/albedo sample.
+      dbg = saturate(tex.rgb);
+    } else if (pbrDebugView < 2.5f) {
+      // 2: Normal map sample.
+      dbg = sampleTextureWithWrap(gNormalTex, wrappedUv, uvDx, uvDy, uWrapS, uWrapT).rgb;
+    } else if (pbrDebugView < 3.5f) {
+      // 3: Roughness channel.
+      const float rgh =
+          sampleTextureWithWrap(gMetallicRoughnessTex, wrappedUv, uvDx, uvDy, uWrapS, uWrapT).g;
+      dbg = float3(rgh, rgh, rgh);
+    } else if (pbrDebugView < 4.5f) {
+      // 4: Metallic channel.
+      const float met =
+          sampleTextureWithWrap(gMetallicRoughnessTex, wrappedUv, uvDx, uvDy, uWrapS, uWrapT).b;
+      dbg = float3(met, met, met);
+    } else if (pbrDebugView < 5.5f) {
+      // 5: AO channel.
+      const float ao =
+          sampleTextureWithWrap(gOcclusionTex, wrappedUv, uvDx, uvDy, uWrapS, uWrapT).r;
+      dbg = float3(ao, ao, ao);
+    }
+    return float4(linearToSrgb(saturate(dbg)), 1.0f);
   }
   if (uMaterialMode >= 1.5f) {
     const int pbrFlags = (int)(uMaterialFlags + 0.5f);
@@ -965,7 +1050,9 @@ float4 main(PSIn i, bool isFrontFace : SV_IsFrontFace) : SV_TARGET {
                                    cameraForward,
                                    cameraTarget);
   }
-  const float toneMappingExposure = 1.0f;
+  // Slight exposure lift to match Neutral+ACES viewer appearance without
+  // flattening roughness/normal detail.
+  const float toneMappingExposure = 1.15f;
   const float toneMappingMode = 1.0f;
   float3 mapped = applyViewerToneMapping(
       max(outLinear, float3(0.0f, 0.0f, 0.0f)),
@@ -990,10 +1077,14 @@ float4 main(PSIn i, bool isFrontFace : SV_IsFrontFace) : SV_TARGET {
                           "main", "ps_5_0", 0, 0, psBlob.ReleaseAndGetAddressOf(),
                           errBlob.ReleaseAndGetAddressOf())) ||
         !psBlob) {
+        const std::string details = d3dCompileErrorMessage(errBlob.Get());
+        if (!details.empty()) {
+            throw std::runtime_error(std::string("D3DCompile failed for world PS: ") + details);
+        }
         throw std::runtime_error("D3DCompile failed for world PS.");
     }
 
-    std::array<D3D12_DESCRIPTOR_RANGE, 5> srvRanges{};
+    std::array<D3D12_DESCRIPTOR_RANGE, 6> srvRanges{};
     for (UINT i = 0; i < static_cast<UINT>(srvRanges.size()); ++i) {
         srvRanges[i].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
         srvRanges[i].NumDescriptors = 1;
@@ -1002,7 +1093,7 @@ float4 main(PSIn i, bool isFrontFace : SV_IsFrontFace) : SV_TARGET {
         srvRanges[i].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
     }
 
-    D3D12_ROOT_PARAMETER rootParams[7]{};
+    D3D12_ROOT_PARAMETER rootParams[8]{};
     rootParams[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_32BIT_CONSTANTS;
     rootParams[0].Constants.Num32BitValues = 32;
     rootParams[0].Constants.ShaderRegister = 0;
@@ -1500,7 +1591,24 @@ void D3D12RenderBackend::createSpritePipeline() {
         kGlClampToEdge,
         kGlClampToEdge,
         /*srgb=*/true);
-    if (!fallbackBase || !fallbackNormal || !fallbackLinear || !fallbackEmissive) {
+    const auto& neutralPmremAtlas = engine::render::neutral_pmrem::getNeutralRoomPmremAtlas();
+    SpriteTexture* fallbackEnv = !neutralPmremAtlas.rgba16f.empty()
+        ? ensureWorldTextureRawHalfFloat(
+            "__neutral_room_pmrem_rgba16f_v1__",
+            neutralPmremAtlas.rgba16f.data(),
+            neutralPmremAtlas.width,
+            neutralPmremAtlas.height,
+            kGlClampToEdge,
+            kGlClampToEdge)
+        : ensureWorldTextureRaw(
+            "__neutral_room_pmrem_rgbm_v1__",
+            neutralPmremAtlas.rgba.data(),
+            neutralPmremAtlas.width,
+            neutralPmremAtlas.height,
+            kGlClampToEdge,
+            kGlClampToEdge,
+            /*srgb=*/false);
+    if (!fallbackBase || !fallbackNormal || !fallbackLinear || !fallbackEmissive || !fallbackEnv) {
         throw std::runtime_error("Failed to create fallback textures for D3D12 world pipeline.");
     }
     worldFallbackTextureDescriptorIndex_ = fallbackBase->descriptorIndex;
@@ -1508,6 +1616,7 @@ void D3D12RenderBackend::createSpritePipeline() {
     worldFallbackMetallicRoughnessTextureDescriptorIndex_ = fallbackLinear->descriptorIndex;
     worldFallbackOcclusionTextureDescriptorIndex_ = fallbackLinear->descriptorIndex;
     worldFallbackEmissiveTextureDescriptorIndex_ = fallbackEmissive->descriptorIndex;
+    worldFallbackEnvTextureDescriptorIndex_ = fallbackEnv->descriptorIndex;
 #endif
 }
 

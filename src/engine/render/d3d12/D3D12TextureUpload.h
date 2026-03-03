@@ -33,5 +33,18 @@ bool createTextureResourceFromRgba(ID3D12Device* device,
                                    bool srgbColorData,
                                    Microsoft::WRL::ComPtr<ID3D12Resource>& outTexture);
 
+bool createTextureResourceFromRgba16F(ID3D12Device* device,
+                                      ID3D12CommandQueue* commandQueue,
+                                      ID3D12Fence* fence,
+                                      HANDLE fenceEvent,
+                                      std::uint64_t& fenceValue,
+                                      ID3D12DescriptorHeap* srvHeap,
+                                      std::uint32_t srvDescriptorSize,
+                                      std::uint32_t descriptorIndex,
+                                      const std::uint16_t* rgba16fPixels,
+                                      int width,
+                                      int height,
+                                      Microsoft::WRL::ComPtr<ID3D12Resource>& outTexture);
+
 } // namespace engine::render::d3d12
 #endif

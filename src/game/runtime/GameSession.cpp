@@ -313,19 +313,10 @@ bool backendModelFastTexturedPathEnabled() {
 }
 
 bool backendGpuClipSkinningEnabled(const IRenderBackend* renderer) {
-    static const bool requested = []() -> bool {
-        const auto env = engine::env::get("PAC_BACKEND_GPU_CLIP_SKINNING");
-        if (!env.has_value()) return true;
-        const std::string raw = *env;
-        if (raw == "0" || raw == "false" || raw == "FALSE" || raw == "off" || raw == "OFF") {
-            return false;
-        }
-        return true;
-    }();
-    if (!requested || !renderer) return false;
-    const char* backendId = renderer->backendId();
-    if (!backendId) return false;
-    return toLowerCopy(backendId) == "opengl";
+    (void)renderer;
+    // Temporarily force OFF for strict cross-backend parity.
+    // OpenGL GPU clip skinning can diverge from D3D12 visual/material results in current pipeline.
+    return false;
 }
 
 bool backendUseLegacyGrowlWaveVfxEnabled() {
