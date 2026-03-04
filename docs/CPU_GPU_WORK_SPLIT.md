@@ -133,6 +133,7 @@ This section is based on direct code parse of runtime and backend render paths.
 - Fast textured projected path now splits mixed-node submeshes into per-node indexed batches for GPU clip skinning, increasing GPU skinning eligibility instead of forcing whole submeshes back to CPU skinning.
 - Mixed-node split path now reuses the original submesh batch for the first node and preserves reserved vertex/index capacity on cloned batches to avoid per-frame allocator churn.
 - Renderer hot loop now precomputes `triNodeIndex` and fast-batch routing per triangle for mixed-node GPU-skinning paths, removing repeated per-triangle hash lookups in the submit loop.
+- Fast position-only projected path is no longer blocked by "all submeshes textured"; fallback texture normalization now allows GPU clip-skinning coverage even when source assets have missing base textures.
 
 ## Autobattler-Specific Guidance
 - Keep combat outcomes and RNG on CPU.

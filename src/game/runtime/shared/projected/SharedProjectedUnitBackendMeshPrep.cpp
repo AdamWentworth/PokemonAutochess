@@ -283,20 +283,14 @@ bool prepareProjectedUnitBackendMesh(const Args& args, Result& out, PreparedStat
     }
     prepared.scenePose = std::move(scenePose);
 
-    bool allSubmeshesTextured = !mesh->submeshBaseTextures.empty();
-    if (allSubmeshesTextured) {
-        for (const auto& tex : mesh->submeshBaseTextures) {
-            if (!tex.hasPixels()) {
-                allSubmeshesTextured = false;
-                break;
-            }
-        }
-    }
     prepared.useFastTexturedFullMeshPath =
         args.supportsWorldTriangles3D && prepared.useIndexedWorldModelPath &&
         args.backendModelFastTexturedPathEnabled() && prepared.fullIndexedMeshPath;
-    prepared.usePositionOnlyVertexPath =
-        prepared.useFastTexturedFullMeshPath && allSubmeshesTextured;
+    // Do not gate fast position-only path on authored base textures.
+    // Missing texture payloads are already normalized to fallback white in batch prep,
+    // and this keeps GPU clip skinning coverage high instead of silently falling back
+    // to CPU vertex/normal/tangent work.
+    prepared.usePositionOnlyVertexPath = prepared.useFastTexturedFullMeshPath;
 
     prepared.lightDir = glm::normalize(glm::vec3(0.45f, 0.90f, 0.35f));
     prepared.fallbackBase = glm::vec3(
