@@ -1,10 +1,12 @@
 -- scripts/states/main_menu.lua
 
 local selected_mode = "classic"
-local screen = "main" -- main | settings | video | video_restart_confirm | audio | controls | gameplay | accessibility
+local screen = "main" -- main | starting | settings | video | video_restart_confirm | audio | controls | gameplay | accessibility
 local fullscreen = false
 local started = false
 hide_world = true
+local start_pending = false
+local start_pending_mode = "classic"
 
 local COLOR_SELECTED = { 1.0, 0.92, 0.10 }
 local COLOR_NORMAL = { 1.0, 1.0, 1.0 }
@@ -240,6 +242,12 @@ local function build_main_entries(entries)
     action(entries, "quit_game", "Quit", 0.80, false)
 end
 
+local function build_starting_entries(entries)
+    heading(entries, "Starting New Run", 0.28)
+    info(entries, "Preparing starter selection...", 0.42)
+    info(entries, "Please wait...", 0.50)
+end
+
 local function build_settings_entries(entries)
     heading(entries, "Settings", 0.22)
     info(entries, "Most options are placeholders for tuning.", 0.27)
@@ -371,6 +379,7 @@ end
 
 function get_message()
     if screen == "main" then return "Pokemon Autochess" end
+    if screen == "starting" then return "Starting" end
     if screen == "settings" then return "Settings" end
     if screen == "video" then return "Display" end
     if screen == "video_restart_confirm" then return "Apply Display Changes" end
@@ -385,6 +394,8 @@ function get_text_menu_entries()
     local entries = {}
     if screen == "main" then
         build_main_entries(entries)
+    elseif screen == "starting" then
+        build_starting_entries(entries)
     elseif screen == "settings" then
         build_settings_entries(entries)
     elseif screen == "video" then
@@ -419,10 +430,12 @@ local function handle_main_click(entry_id)
         return true
     end
     if entry_id == "new_game_classic" then
+        emit("FlowTrace", "menu_click entry=new_game_classic mode=classic")
         start_new_game("classic")
         return true
     end
     if entry_id == "new_game_adventure" then
+        emit("FlowTrace", "menu_click entry=new_game_adventure mode=adventure")
         start_new_game("adventure")
         return true
     end
@@ -434,7 +447,10 @@ local function handle_main_click(entry_id)
         if started then
             pop_state()
         else
-            start_new_game(selected_mode)
+            emit("FlowTrace", "menu_click entry=start_game mode=" .. tostring(selected_mode))
+            start_pending = true
+            start_pending_mode = selected_mode
+            screen = "starting"
         end
         return true
     end
@@ -710,6 +726,11 @@ end
 
 function on_update(dt)
     local _ = dt
+    if screen == "starting" and start_pending then
+        start_pending = false
+        emit("FlowTrace", "menu_dispatch_start mode=" .. tostring(start_pending_mode))
+        start_new_game(start_pending_mode)
+    end
 end
 
 function on_text_menu_back()

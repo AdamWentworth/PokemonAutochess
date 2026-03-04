@@ -355,5 +355,8 @@ public:
         (void)surfaceWidth;
         (void)surfaceHeight;
     }
+    virtual void prewarmDebugSpriteTexture(const char* texturePath) {
+        (void)texturePath;
+    }
     virtual void shutdown() = 0;
 };

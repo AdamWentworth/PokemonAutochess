@@ -7,6 +7,7 @@
 #include <cctype>
 #include <cstdint>
 #include <cstring>
+#include <chrono>
 #include <random>
 #include <algorithm>
 #include <cmath>
@@ -106,6 +107,8 @@
 #include "game/world/MoveImpactRouting.h"
 
 namespace {
+constexpr int kWorldLayerPrewarmFrames = 2;
+
 std::size_t backendModelTriangleLimit() {
     static const std::size_t limit = []() -> std::size_t {
         constexpr std::size_t kDefault = 42000u;
@@ -312,6 +315,32 @@ bool backendModelFastTexturedPathEnabled() {
     return enabled;
 }
 
+bool backendUiSpritePrewarmEnabled() {
+    static const bool enabled = []() -> bool {
+        const auto env = engine::env::get("PAC_BACKEND_PREWARM_UI_SPRITES");
+        if (!env.has_value()) return true;
+        const std::string raw = *env;
+        if (raw == "0" || raw == "false" || raw == "FALSE" || raw == "off" || raw == "OFF") {
+            return false;
+        }
+        return true;
+    }();
+    return enabled;
+}
+
+bool backendWorldLayerPrewarmEnabled() {
+    static const bool enabled = []() -> bool {
+        const auto env = engine::env::get("PAC_BACKEND_PREWARM_WORLD_LAYER");
+        if (!env.has_value()) return true;
+        const std::string raw = *env;
+        if (raw == "0" || raw == "false" || raw == "FALSE" || raw == "off" || raw == "OFF") {
+            return false;
+        }
+        return true;
+    }();
+    return enabled;
+}
+
 bool backendGpuClipSkinningEnabled(const IRenderBackend* renderer) {
     if (!renderer) return false;
     const auto parseFlag = [](const char* key, bool defaultValue) {
@@ -459,6 +488,8 @@ struct GameSession::Impl {
     runtime::render::RenderRoutes startupRoutes{};
     bool allowBackendMenuBackdrop = false;
     bool showPerfOverlay = false;
+    int worldLayerPrewarmFramesRemaining = 0;
+    std::function<void(const std::string&)> setTitleCallback;
     bool devPauseWorld = false;
     int devPauseStepTicks = 0;
 
@@ -980,6 +1011,7 @@ struct GameSession::Impl {
         camera = ctx.camera;
         renderer = ctx.renderer;
         engineServices = ctx.services;
+        setTitleCallback = ctx.setTitle;
         const bool hasBackend = (ctx.renderer != nullptr) && (ctx.camera != nullptr);
         startupRoutes = runtime::render::selectStartupRenderRoutes(hasBackend);
         if (engine::env::get("PAC_BACKEND_MENU_BACKDROP").has_value()) {
@@ -1231,6 +1263,68 @@ struct GameSession::Impl {
             (void)engineServices->resources->getModel("assets/models/pokeball.glb");
         }
 
+        if (usesBackendGameRenderPath() &&
+            renderer &&
+            backendUiSpritePrewarmEnabled()) {
+            if (ctx.setTitle) ctx.setTitle("PokemonAutochess - Loading UI sprites...");
+            if (ctx.renderBootLoading) ctx.renderBootLoading(0.94f);
+            static constexpr const char* kUiSpritePrewarmPaths[] = {
+                "assets/ui/frame_gold.png",
+                "assets/images/item_placeholder.png",
+                "assets/images/pokedollar.png",
+                "assets/images/pokegold.png",
+                "assets/images/bulbasaur.png",
+                "assets/images/charmander.png",
+                "assets/images/squirtle.png",
+                "assets/images/pidgey.png",
+                "assets/images/rattata.png",
+            };
+            const auto t0 = std::chrono::high_resolution_clock::now();
+            std::size_t requested = 0u;
+            const std::size_t totalSprites = std::size(kUiSpritePrewarmPaths);
+            for (const char* path : kUiSpritePrewarmPaths) {
+                if (!path || path[0] == '\0') continue;
+                if (ctx.setTitle) {
+                    ctx.setTitle(
+                        std::string("PokemonAutochess - Loading UI sprite ") +
+                        std::to_string(requested + 1u) + "/" + std::to_string(totalSprites) +
+                        "  " + path);
+                }
+                renderer->prewarmDebugSpriteTexture(path);
+                ++requested;
+                if (ctx.renderBootLoading) {
+                    const float p = (totalSprites > 0u)
+                        ? (0.94f + (static_cast<float>(requested) / static_cast<float>(totalSprites)) * 0.04f)
+                        : 0.98f;
+                    ctx.renderBootLoading(std::min(0.98f, p));
+                }
+                if (ctx.pumpPreloadEvents && !ctx.pumpPreloadEvents()) {
+                    if (ctx.requestQuit) ctx.requestQuit();
+                    break;
+                }
+            }
+            const auto t1 = std::chrono::high_resolution_clock::now();
+            const double ms =
+                std::chrono::duration<double, std::milli>(t1 - t0).count();
+            std::ostringstream prewarmTiming;
+            prewarmTiming << std::fixed << std::setprecision(1) << ms;
+            std::cout << "[Init] UI sprite prewarm complete: requested=" << requested
+                      << " time=" << prewarmTiming.str() << "ms\n";
+        }
+
+        if (usesBackendGameRenderPath() &&
+            renderer &&
+            backendWorldLayerPrewarmEnabled()) {
+            worldLayerPrewarmFramesRemaining = kWorldLayerPrewarmFrames;
+            if (ctx.setTitle) {
+                ctx.setTitle("PokemonAutochess - Loading world/board...");
+            }
+            if (ctx.renderBootLoading) ctx.renderBootLoading(0.98f);
+            std::cout << "[Init] World/board prewarm scheduled: frames="
+                      << worldLayerPrewarmFramesRemaining
+                      << " (board grid + world render path)\n";
+        }
+
         stateManager->pushState(std::make_unique<ScriptedState>(
             stateManager.get(),
             gameWorld.get(),
@@ -1238,7 +1332,13 @@ struct GameSession::Impl {
             engine::paths::data("scripts/states/main_menu.lua")
         ));
 
-        if (ctx.setTitle) ctx.setTitle("Pokemon Autochess");
+        if (ctx.setTitle) {
+            if (worldLayerPrewarmFramesRemaining > 0) {
+                ctx.setTitle("PokemonAutochess - Loading world/board...");
+            } else {
+                ctx.setTitle("Pokemon Autochess");
+            }
+        }
         std::cout << "[Init] Game initialized.\n";
     }
 
@@ -2014,6 +2114,33 @@ struct GameSession::Impl {
         }
 
         const auto flow = currentFrameFlow(renderWorld);
+        if (worldLayerPrewarmFramesRemaining > 0 && !flow.renderWorldLayer) {
+            const int frameIndex =
+                kWorldLayerPrewarmFrames - worldLayerPrewarmFramesRemaining + 1;
+            if (setTitleCallback) {
+                setTitleCallback(
+                    std::string("PokemonAutochess - Loading world/board ") +
+                    std::to_string(frameIndex) + "/" +
+                    std::to_string(kWorldLayerPrewarmFrames));
+            }
+            std::cout << "[Init] World/board prewarm frame "
+                      << frameIndex << "/" << kWorldLayerPrewarmFrames
+                      << " begin\n";
+            const auto t0 = std::chrono::high_resolution_clock::now();
+            renderWorldLayer(drawableW, drawableH, /*renderWorld=*/true);
+            const auto t1 = std::chrono::high_resolution_clock::now();
+            const double ms =
+                std::chrono::duration<double, std::milli>(t1 - t0).count();
+            std::ostringstream timing;
+            timing << std::fixed << std::setprecision(1) << ms;
+            std::cout << "[Init] World/board prewarm frame "
+                      << frameIndex << "/" << kWorldLayerPrewarmFrames
+                      << " complete: time=" << timing.str() << "ms\n";
+            --worldLayerPrewarmFramesRemaining;
+            if (worldLayerPrewarmFramesRemaining <= 0 && setTitleCallback) {
+                setTitleCallback("Pokemon Autochess");
+            }
+        }
         renderFrameFromFlow(flow, drawableW, drawableH, renderWorld);
     }
 

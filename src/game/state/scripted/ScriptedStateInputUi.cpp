@@ -1,11 +1,38 @@
 #include "ScriptedState.h"
 
 #include "game/GameStateManager.h"
+#include "game/logging/FlowTrace.h"
 #include "game/scripting/LuaScriptHelpers.h"
 #include "game/state/PlacementState.h"
 
 #include <sol/sol.hpp>
+#include <algorithm>
 #include <iostream>
+
+namespace {
+constexpr float kBackendTextScaleBaseForHit = 1.35f;
+
+bool isPointInsideTextMenuEntryHitBox(float entryX,
+                                      float entryY,
+                                      float entryW,
+                                      float entryH,
+                                      float entryScale,
+                                      int mouseX,
+                                      int mouseY,
+                                      float backendTextMenuScale) {
+    const float textScale =
+        std::max(0.1f, entryScale) * kBackendTextScaleBaseForHit * std::max(0.55f, backendTextMenuScale);
+    const float padX = std::max(8.0f, 10.0f * textScale * 0.5f);
+    const float padY = std::max(4.0f, 6.0f * textScale * 0.5f);
+    const float left = entryX - padX;
+    const float top = entryY - padY;
+    const float right = entryX + entryW + padX;
+    const float bottom = entryY + entryH + padY;
+    const float mx = static_cast<float>(mouseX);
+    const float my = static_cast<float>(mouseY);
+    return mx >= left && mx <= right && my >= top && my <= bottom;
+}
+} // namespace
 
 void ScriptedState::handleInput(const InputEvent& event) {
     if (event.type == InputEvent::Type::Resize) {
@@ -84,18 +111,41 @@ void ScriptedState::handleInput(const InputEvent& event) {
         if (cardMode == CardMode::TextMenu) {
             for (const auto& entry : textMenuEntries) {
                 if (!entry.enabled) continue;
-                const bool insideX = static_cast<float>(event.mouseX) >= entry.x &&
-                                     static_cast<float>(event.mouseX) <= (entry.x + entry.w);
-                const bool insideY = static_cast<float>(event.mouseY) >= entry.y &&
-                                     static_cast<float>(event.mouseY) <= (entry.y + entry.h);
-                if (!(insideX && insideY)) continue;
+                const std::string selectedEntryId = entry.id;
+                if (!isPointInsideTextMenuEntryHitBox(
+                        entry.x,
+                        entry.y,
+                        entry.w,
+                        entry.h,
+                        entry.scale,
+                        event.mouseX,
+                        event.mouseY,
+                        backendTextMenuScale)) {
+                    continue;
+                }
 
+                const bool startActionEntry = game::logging::flow::isStartActionEntry(selectedEntryId);
+                if (startActionEntry) {
+                    game::logging::flow::noteMenuActionClick(selectedEntryId, scriptPath);
+                }
+                const double tLuaStart = game::logging::flow::nowMs();
                 sol::function onMenuClick = game::scripting::resolveFunction(S, {"on_text_menu_click", "on_menu_click"});
                 if (onMenuClick.valid()) {
-                    onMenuClick(entry.id);
+                    onMenuClick(selectedEntryId);
                 }
+                const double tLuaEnd = game::logging::flow::nowMs();
                 script.flushCommands();
+                const double tFlushEnd = game::logging::flow::nowMs();
                 rebuildTextMenu();
+                const double tRebuildEnd = game::logging::flow::nowMs();
+                if (startActionEntry) {
+                    game::logging::flow::log(
+                        "menu_click_pipeline",
+                        "entry=" + selectedEntryId +
+                        " lua=" + game::logging::flow::formatMs(tLuaEnd - tLuaStart) +
+                        " flush=" + game::logging::flow::formatMs(tFlushEnd - tLuaEnd) +
+                        " rebuild=" + game::logging::flow::formatMs(tRebuildEnd - tFlushEnd));
+                }
                 return;
             }
         }
@@ -146,16 +196,27 @@ void ScriptedState::handleInput(const InputEvent& event) {
         } else {
             auto clicked = cardSystem.handleMouseClick(event.mouseX, event.mouseY);
             if (clicked && cardMode == CardMode::Starter) {
+                game::logging::flow::noteStarterCardClick(clicked->pokemonName);
+                const double tLuaStart = game::logging::flow::nowMs();
                 sol::function onClick = game::scripting::resolveFunction(S, {"on_card_click", "onCardClick"});
                 if (onClick.valid()) {
                     onClick(clicked->pokemonName);
                 }
+                const double tLuaEnd = game::logging::flow::nowMs();
                 script.flushCommands();
+                const double tFlushEnd = game::logging::flow::nowMs();
 
                 if (stateManager) {
                     stateManager->pushState(std::make_unique<PlacementState>(
                         stateManager, gameWorld, services, clicked->pokemonName));
                 }
+                const double tPushEnd = game::logging::flow::nowMs();
+                game::logging::flow::log(
+                    "starter_click_pipeline",
+                    "pokemon=" + clicked->pokemonName +
+                    " lua=" + game::logging::flow::formatMs(tLuaEnd - tLuaStart) +
+                    " flush=" + game::logging::flow::formatMs(tFlushEnd - tLuaEnd) +
+                    " push_placement=" + game::logging::flow::formatMs(tPushEnd - tFlushEnd));
             }
         }
         if (cardMode == CardMode::Shop && hasShopItems) {
@@ -187,14 +248,25 @@ void ScriptedState::handleInput(const InputEvent& event) {
                     if (r.valid() && r.get_type() == sol::type::string) {
                         std::string pokemon = r.get<std::string>();
 
+                        game::logging::flow::noteStarterCardClick(pokemon);
+                        const double tLuaStart = game::logging::flow::nowMs();
                         sol::function onClick = game::scripting::resolveFunction(S, {"on_card_click", "onCardClick"});
                         if (onClick.valid()) onClick(pokemon);
+                        const double tLuaEnd = game::logging::flow::nowMs();
                         script.flushCommands();
+                        const double tFlushEnd = game::logging::flow::nowMs();
 
                         if (stateManager) {
                             stateManager->pushState(std::make_unique<PlacementState>(
                                 stateManager, gameWorld, services, pokemon));
                         }
+                        const double tPushEnd = game::logging::flow::nowMs();
+                        game::logging::flow::log(
+                            "starter_key_pipeline",
+                            "pokemon=" + pokemon +
+                            " lua=" + game::logging::flow::formatMs(tLuaEnd - tLuaStart) +
+                            " flush=" + game::logging::flow::formatMs(tFlushEnd - tLuaEnd) +
+                            " push_placement=" + game::logging::flow::formatMs(tPushEnd - tFlushEnd));
                     }
                 }
             }

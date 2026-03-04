@@ -14,6 +14,7 @@
 #include "game/state/PlacementState.h"
 #include "game/state/BackendUiPolicy.h"
 #include "game/state/ShopCardConversion.h"
+#include "game/logging/FlowTrace.h"
 #include "game/ui/SellOverlayUiPolicy.h"
 #include "game/ui/UIViewport.h"
 #include "engine/render/IRenderBackend.h"
@@ -245,13 +246,24 @@ bool ScriptedState::invokeBackendShopEntry(const game::state::backend_shop::Entr
         case game::state::backend_shop::ActionType::StarterCard: {
             if (entry.sourceIndex >= backendMainButtons.size()) return false;
             const auto& card = backendMainButtons[entry.sourceIndex];
+            game::logging::flow::noteStarterCardClick(card.data.pokemonName);
+            const double tLuaStart = game::logging::flow::nowMs();
             sol::function onClick = game::scripting::resolveFunction(S, {"on_card_click", "onCardClick"});
             if (onClick.valid()) onClick(card.data.pokemonName);
+            const double tLuaEnd = game::logging::flow::nowMs();
             script.flushCommands();
+            const double tFlushEnd = game::logging::flow::nowMs();
             if (stateManager) {
                 stateManager->pushState(std::make_unique<PlacementState>(
                     stateManager, gameWorld, services, card.data.pokemonName));
             }
+            const double tPushEnd = game::logging::flow::nowMs();
+            game::logging::flow::log(
+                "starter_click_pipeline",
+                "pokemon=" + card.data.pokemonName +
+                " lua=" + game::logging::flow::formatMs(tLuaEnd - tLuaStart) +
+                " flush=" + game::logging::flow::formatMs(tFlushEnd - tLuaEnd) +
+                " push_placement=" + game::logging::flow::formatMs(tPushEnd - tFlushEnd));
             return true;
         }
         case game::state::backend_shop::ActionType::ItemCard: {
@@ -831,6 +843,7 @@ bool ScriptedState::tryHandleHeadlessTextMenuKey(InputEvent::Key keyId) {
     int option = 0;
     for (const auto& entry : textMenuEntries) {
         if (!entry.enabled) continue;
+        const std::string selectedEntryId = entry.id;
         ++option;
         if (option != targetOption) continue;
 
@@ -840,10 +853,26 @@ bool ScriptedState::tryHandleHeadlessTextMenuKey(InputEvent::Key keyId) {
             std::cout << "[Menu][BackendUI] Menu click handler unavailable.\n";
             return false;
         }
+        const bool startActionEntry = game::logging::flow::isStartActionEntry(selectedEntryId);
+        if (startActionEntry) {
+            game::logging::flow::noteMenuActionClick(selectedEntryId, scriptPath + ":keyboard");
+        }
         std::cout << "[Menu][BackendUI] Selected [" << targetOption << "] " << entry.label << "\n";
-        onMenuClick(entry.id);
+        const double tLuaStart = game::logging::flow::nowMs();
+        onMenuClick(selectedEntryId);
+        const double tLuaEnd = game::logging::flow::nowMs();
         script.flushCommands();
+        const double tFlushEnd = game::logging::flow::nowMs();
         rebuildTextMenu();
+        const double tRebuildEnd = game::logging::flow::nowMs();
+        if (startActionEntry) {
+            game::logging::flow::log(
+                "menu_click_pipeline",
+                "entry=" + selectedEntryId +
+                " lua=" + game::logging::flow::formatMs(tLuaEnd - tLuaStart) +
+                " flush=" + game::logging::flow::formatMs(tFlushEnd - tLuaEnd) +
+                " rebuild=" + game::logging::flow::formatMs(tRebuildEnd - tFlushEnd));
+        }
         logHeadlessTextMenuHints();
         return true;
     }

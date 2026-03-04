@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstddef>
+#include <limits>
 #include <string>
 #include <vector>
 
@@ -121,12 +122,52 @@ inline int keyboardSlotFor(const std::vector<Entry>& entries,
 }
 
 inline const Entry* findByPoint(const std::vector<Entry>& entries, float x, float y) {
+    // First pass: exact hit region.
     for (const Entry& entry : entries) {
         if (entry.w <= 0.0f || entry.h <= 0.0f) continue;
         if (x < entry.x || x > (entry.x + entry.w)) continue;
         if (y < entry.y || y > (entry.y + entry.h)) continue;
         return &entry;
     }
+
+    // Second pass: forgiving hit region so slightly-off clicks still select
+    // the intended menu/card target.
+    const Entry* best = nullptr;
+    float bestDistSq = std::numeric_limits<float>::max();
+    for (const Entry& entry : entries) {
+        if (entry.w <= 0.0f || entry.h <= 0.0f) continue;
+
+        float pad = 10.0f;
+        switch (entry.action) {
+            case ActionType::ShopCard:
+            case ActionType::StarterCard:
+            case ActionType::ItemCard:
+                pad = 18.0f;
+                break;
+            case ActionType::ShopReroll:
+            case ActionType::ShopReady:
+                pad = 10.0f;
+                break;
+        }
+
+        const float left = entry.x - pad;
+        const float right = entry.x + entry.w + pad;
+        const float top = entry.y - pad;
+        const float bottom = entry.y + entry.h + pad;
+        if (x < left || x > right || y < top || y > bottom) continue;
+
+        const float cx = entry.x + entry.w * 0.5f;
+        const float cy = entry.y + entry.h * 0.5f;
+        const float dx = x - cx;
+        const float dy = y - cy;
+        const float distSq = dx * dx + dy * dy;
+        if (distSq < bestDistSq) {
+            bestDistSq = distSq;
+            best = &entry;
+        }
+    }
+    if (best) return best;
+
     return nullptr;
 }
 

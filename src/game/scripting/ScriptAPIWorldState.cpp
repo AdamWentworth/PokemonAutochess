@@ -9,6 +9,7 @@
 #include "game/config/GameDataDb.h"
 #include "game/config/PokemonConfigLoader.h"
 #include "game/runtime/VideoPreferences.h"
+#include "game/logging/FlowTrace.h"
 #include "game/logging/LoggerUtil.h"
 
 #include "LuaBindings_Internal.h"
@@ -284,6 +285,7 @@ void ScriptAPI::clearClassicShopCards() {
 }
 
 void ScriptAPI::startNewGame(const std::string& mode) {
+    game::logging::flow::noteStartNewGameQueued(mode);
     StartNewGameCommand cmd;
     cmd.mode = mode;
     enqueue(cmd);

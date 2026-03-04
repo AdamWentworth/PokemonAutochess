@@ -1,6 +1,7 @@
 -- scripts/states/starter.lua
 
 dofile("scripts/ui/starter_menu.lua")
+hide_world = true
 
 function get_starter_cards()
     return {

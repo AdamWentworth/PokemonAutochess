@@ -1,6 +1,7 @@
 #include "engine/render/D3D12RenderBackend.h"
 #include "engine/render/d3d12/D3D12RenderBackendInternal.h"
 #include "engine/render/d3d12/D3D12TextureUpload.h"
+#include "engine/core/Environment.h"
 
 #include <algorithm>
 #include <string>
@@ -16,6 +17,23 @@
 #if defined(_WIN32)
 using namespace engine::render::d3d12_internal;
 #endif
+
+namespace {
+
+bool worldTextureMipChainEnabled() {
+    static const bool enabled = []() -> bool {
+        const auto env = engine::env::get("PAC_BACKEND_WORLD_TEXTURE_MIPS");
+        if (!env.has_value()) return false;
+        const std::string raw = *env;
+        if (raw == "0" || raw == "false" || raw == "FALSE" || raw == "off" || raw == "OFF") {
+            return false;
+        }
+        return true;
+    }();
+    return enabled;
+}
+
+} // namespace
 
 D3D12RenderBackend::SpriteTexture* D3D12RenderBackend::ensureFallbackSpriteTexture() {
 #if defined(_WIN32)
@@ -68,7 +86,8 @@ D3D12RenderBackend::SpriteTexture* D3D12RenderBackend::ensureSpriteTexture(const
 
     auto existing = spriteTextures_.find(texturePath);
     if (existing != spriteTextures_.end()) {
-        return &existing->second;
+        if (existing->second.valid) return &existing->second;
+        return ensureFallbackSpriteTexture();
     }
     if (!device_ || !commandQueue_ || !fence_ || !srvHeap_) return ensureFallbackSpriteTexture();
     if (nextSrvDescriptorIndex_ >= kMaxSrvDescriptors) return ensureFallbackSpriteTexture();
@@ -90,6 +109,12 @@ D3D12RenderBackend::SpriteTexture* D3D12RenderBackend::ensureSpriteTexture(const
 
     if (!pixels || width <= 0 || height <= 0) {
         if (pixels) stbi_image_free(pixels);
+        SpriteTexture failed;
+        failed.valid = false;
+        spriteTextures_.emplace(texturePath, failed);
+        if (!altPath.empty() && altPath != texturePath) {
+            spriteTextures_.emplace(altPath, failed);
+        }
         return ensureFallbackSpriteTexture();
     }
 
@@ -108,21 +133,39 @@ D3D12RenderBackend::SpriteTexture* D3D12RenderBackend::ensureSpriteTexture(const
                                                                           height,
                                                                           kGlClampToEdge,
                                                                           kGlClampToEdge,
-                                                                          true,
+                                                                          false,
                                                                           true,
                                                                           texture.resource);
     stbi_image_free(pixels);
     if (!ok) {
+        SpriteTexture failed;
+        failed.valid = false;
+        spriteTextures_.emplace(texturePath, failed);
+        if (!altPath.empty() && altPath != texturePath) {
+            spriteTextures_.emplace(altPath, failed);
+        }
         return ensureFallbackSpriteTexture();
     }
 
     texture.valid = true;
     ++nextSrvDescriptorIndex_;
-    auto [insertedIt, _] = spriteTextures_.emplace(texturePath, std::move(texture));
+    auto [insertedIt, _] = spriteTextures_.emplace(texturePath, texture);
+    if (!altPath.empty() && altPath != texturePath) {
+        spriteTextures_.emplace(altPath, texture);
+    }
     return &insertedIt->second;
 #else
     (void)texturePath;
     return nullptr;
+#endif
+}
+
+void D3D12RenderBackend::prewarmDebugSpriteTexture(const char* texturePath) {
+#if defined(_WIN32)
+    if (!texturePath || texturePath[0] == '\0') return;
+    (void)ensureSpriteTexture(texturePath);
+#else
+    (void)texturePath;
 #endif
 }
 
@@ -176,6 +219,7 @@ D3D12RenderBackend::SpriteTexture* D3D12RenderBackend::ensureWorldTextureRaw(con
 
     SpriteTexture texture;
     texture.descriptorIndex = nextSrvDescriptorIndex_;
+    const bool generateMipChain = worldTextureMipChainEnabled();
     const bool ok = engine::render::d3d12::createTextureResourceFromRgba(device_.Get(),
                                                                           commandQueue_.Get(),
                                                                           fence_.Get(),
@@ -189,7 +233,7 @@ D3D12RenderBackend::SpriteTexture* D3D12RenderBackend::ensureWorldTextureRaw(con
                                                                           height,
                                                                           wrapS,
                                                                           wrapT,
-                                                                          true,
+                                                                          generateMipChain,
                                                                           srgb,
                                                                           texture.resource);
     if (!ok) return nullptr;

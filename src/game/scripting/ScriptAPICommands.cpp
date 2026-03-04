@@ -10,6 +10,7 @@
 
 #include "game/GameStateManager.h"
 #include "game/GameWorld.h"
+#include "game/logging/FlowTrace.h"
 #include "game/logging/LoggerUtil.h"
 #include "game/state/CombatState.h"
 #include "game/state/scripted/ScriptedState.h"
@@ -44,10 +45,29 @@ void ScriptAPI::enqueue(Command cmd) {
 }
 
 void ScriptAPI::flush() {
+    std::size_t startNewGameCount = 0;
+    for (const auto& cmd : queue_) {
+        if (std::holds_alternative<StartNewGameCommand>(cmd)) {
+            ++startNewGameCount;
+        }
+    }
+    const double tFlushStart = game::logging::flow::nowMs();
+    if (startNewGameCount > 0) {
+        game::logging::flow::log(
+            "scriptapi_flush_begin",
+            "commands=" + std::to_string(queue_.size()) +
+            " start_new_game=" + std::to_string(startNewGameCount));
+    }
     for (const auto& cmd : queue_) {
         applyCommand(cmd);
     }
     queue_.clear();
+    if (startNewGameCount > 0) {
+        const double tFlushEnd = game::logging::flow::nowMs();
+        game::logging::flow::log(
+            "scriptapi_flush_end",
+            "duration=" + game::logging::flow::formatMs(tFlushEnd - tFlushStart));
+    }
 }
 
 void ScriptAPI::emit(const std::string& tagOrMsg, const std::optional<std::string>& payload) {
@@ -336,11 +356,14 @@ void ScriptAPI::applyCommand(const Command& cmd) {
     if (std::holds_alternative<StartNewGameCommand>(cmd)) {
         const auto& c = std::get<StartNewGameCommand>(cmd);
         const std::string mode = toLowerCopy(c.mode);
+        game::logging::flow::noteStartNewGameApplyBegin(mode);
+        const double tApplyStart = game::logging::flow::nowMs();
         if (mode == "classic" || mode == "adventure") {
             services_.gameMode = mode;
         }
         services_.hasStartedGame = true;
 
+        const double tResetStart = game::logging::flow::nowMs();
         if (world_) {
             int startingMoney = services_.config.startingCash;
             if (services_.gameMode == "classic") {
@@ -348,11 +371,20 @@ void ScriptAPI::applyCommand(const Command& cmd) {
             }
             world_->resetForNewGame(startingMoney);
         }
+        const double tResetEnd = game::logging::flow::nowMs();
 
+        const double tClearPushStart = game::logging::flow::nowMs();
         if (manager_) {
             manager_->clearAndPushState(std::make_unique<ScriptedState>(
                 manager_, world_, services_, "scripts/states/starter.lua"));
         }
+        const double tClearPushEnd = game::logging::flow::nowMs();
+        game::logging::flow::log(
+            "start_new_game_apply_end",
+            "mode=" + services_.gameMode +
+            " reset_world=" + game::logging::flow::formatMs(tResetEnd - tResetStart) +
+            " clear_push=" + game::logging::flow::formatMs(tClearPushEnd - tClearPushStart) +
+            " total=" + game::logging::flow::formatMs(tClearPushEnd - tApplyStart));
         return;
     }
 }

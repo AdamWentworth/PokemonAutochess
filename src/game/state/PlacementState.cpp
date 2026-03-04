@@ -5,6 +5,7 @@
 #include "game/GameStateManager.h"
 #include "game/GameWorld.h"
 #include "game/GameServices.h"
+#include "game/logging/FlowTrace.h"
 #include "game/runtime/BackendDebugText.h"
 #include "game/runtime/BackendTopBanner.h"
 #include "game/runtime/routes/GameServiceRenderRoutes.h"
@@ -31,6 +32,7 @@ PlacementState::~PlacementState() = default;
 
 void PlacementState::onEnter() {
     // no-op: player can drag unit; we only enforce validity + transition when timer expires
+    game::logging::flow::notePlacementStateEntered(starterName);
 }
 
 void PlacementState::onExit() {

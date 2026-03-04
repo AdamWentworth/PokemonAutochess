@@ -1,4 +1,5 @@
 #include "engine/render/OpenGLRenderBackend.h"
+#include "engine/core/Environment.h"
 
 #include <algorithm>
 #include <cmath>
@@ -9,6 +10,19 @@
 #include <stb_image.h>
 
 namespace {
+
+bool worldTextureMipChainEnabled() {
+    static const bool enabled = []() -> bool {
+        const auto env = engine::env::get("PAC_BACKEND_WORLD_TEXTURE_MIPS");
+        if (!env.has_value()) return false;
+        const std::string raw = *env;
+        if (raw == "0" || raw == "false" || raw == "FALSE" || raw == "off" || raw == "OFF") {
+            return false;
+        }
+        return true;
+    }();
+    return enabled;
+}
 
 GLint sanitizeWrapMode(int wrap) {
     switch (wrap) {
@@ -193,19 +207,24 @@ unsigned int OpenGLRenderBackend::ensureWorldTextureRaw(const char* keyCStr,
 
     const GLint wrapS = sanitizeWrapMode(wrapSIn);
     const GLint wrapT = sanitizeWrapMode(wrapTIn);
+    const bool generateMipChain = worldTextureMipChainEnabled();
     glBindTexture(GL_TEXTURE_2D, textureId);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, generateMipChain ? GL_LINEAR_MIPMAP_LINEAR : GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, wrapS);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, wrapT);
     glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_LOD_BIAS, -0.35f);
     glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
-    const std::vector<CpuMipLevel> mipChain =
-        buildRgbaMipChain(rgba, width, height, wrapSIn, wrapTIn, srgb);
-    const GLint maxLevel = static_cast<GLint>((mipChain.empty() ? 1u : mipChain.size()) - 1u);
+    std::vector<CpuMipLevel> mipChain;
+    if (generateMipChain) {
+        mipChain = buildRgbaMipChain(rgba, width, height, wrapSIn, wrapTIn, srgb);
+    }
+    const GLint maxLevel = generateMipChain
+        ? static_cast<GLint>((mipChain.empty() ? 1u : mipChain.size()) - 1u)
+        : 0;
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_BASE_LEVEL, 0);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, maxLevel);
-    if (!mipChain.empty()) {
+    if (generateMipChain && !mipChain.empty()) {
         for (std::size_t level = 0; level < mipChain.size(); ++level) {
             const CpuMipLevel& mip = mipChain[level];
             glTexImage2D(GL_TEXTURE_2D,
@@ -230,7 +249,7 @@ unsigned int OpenGLRenderBackend::ensureWorldTextureRaw(const char* keyCStr,
                      rgba);
     }
 #if defined(GL_TEXTURE_MAX_ANISOTROPY_EXT) && defined(GL_MAX_TEXTURE_MAX_ANISOTROPY_EXT)
-    if (GLAD_GL_EXT_texture_filter_anisotropic) {
+    if (generateMipChain && GLAD_GL_EXT_texture_filter_anisotropic) {
         float maxAniso = 1.0f;
         glGetFloatv(GL_MAX_TEXTURE_MAX_ANISOTROPY_EXT, &maxAniso);
         const float requested = std::max(1.0f, maxAniso);
@@ -317,8 +336,9 @@ unsigned int OpenGLRenderBackend::ensureSpriteTexture(const std::string& texture
     int channels = 0;
     stbi_set_flip_vertically_on_load(false);
     unsigned char* pixels = stbi_load(texturePath.c_str(), &width, &height, &channels, 4);
+    std::string altPath;
     if (!pixels) {
-        std::string altPath = texturePath;
+        altPath = texturePath;
         std::replace(altPath.begin(), altPath.end(), '\\', '/');
         if (altPath != texturePath) {
             stbi_set_flip_vertically_on_load(false);
@@ -328,6 +348,10 @@ unsigned int OpenGLRenderBackend::ensureSpriteTexture(const std::string& texture
 
     if (!pixels || width <= 0 || height <= 0) {
         if (pixels) stbi_image_free(pixels);
+        spriteTextures_[texturePath] = spriteFallbackTexture_;
+        if (!altPath.empty() && altPath != texturePath) {
+            spriteTextures_[altPath] = spriteFallbackTexture_;
+        }
         return spriteFallbackTexture_;
     }
 
@@ -339,7 +363,7 @@ unsigned int OpenGLRenderBackend::ensureSpriteTexture(const std::string& texture
     }
 
     glBindTexture(GL_TEXTURE_2D, textureId);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
@@ -353,19 +377,18 @@ unsigned int OpenGLRenderBackend::ensureSpriteTexture(const std::string& texture
                  GL_RGBA,
                  GL_UNSIGNED_BYTE,
                  pixels);
-    glGenerateMipmap(GL_TEXTURE_2D);
-#if defined(GL_TEXTURE_MAX_ANISOTROPY_EXT) && defined(GL_MAX_TEXTURE_MAX_ANISOTROPY_EXT)
-    if (GLAD_GL_EXT_texture_filter_anisotropic) {
-        float maxAniso = 1.0f;
-        glGetFloatv(GL_MAX_TEXTURE_MAX_ANISOTROPY_EXT, &maxAniso);
-        const float requested = std::min(8.0f, std::max(1.0f, maxAniso));
-        glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAX_ANISOTROPY_EXT, requested);
-    }
-#endif
     stbi_image_free(pixels);
 
     spriteTextures_[texturePath] = textureId;
+    if (!altPath.empty() && altPath != texturePath) {
+        spriteTextures_[altPath] = textureId;
+    }
     return textureId;
+}
+
+void OpenGLRenderBackend::prewarmDebugSpriteTexture(const char* texturePath) {
+    if (!texturePath || texturePath[0] == '\0') return;
+    (void)ensureSpriteTexture(texturePath);
 }
 
 void OpenGLRenderBackend::clearTextureCaches() {

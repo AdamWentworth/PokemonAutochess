@@ -1,6 +1,7 @@
 #include "ScriptedState.h"
 
 #include "game/GameServices.h"
+#include "game/logging/FlowTrace.h"
 #include <iostream>
 
 
@@ -20,8 +21,20 @@ ScriptedState::~ScriptedState() = default;
 
 
 void ScriptedState::onEnter() {
+    const double tEnterStart = game::logging::flow::nowMs();
     script.onEnter();
+    const double tScriptEnterEnd = game::logging::flow::nowMs();
     ensureCardUI();
+    const double tUiReadyEnd = game::logging::flow::nowMs();
+    game::logging::flow::log(
+        "scripted_state_on_enter",
+        "script=" + scriptPath +
+        " script_on_enter=" + game::logging::flow::formatMs(tScriptEnterEnd - tEnterStart) +
+        " ensure_card_ui=" + game::logging::flow::formatMs(tUiReadyEnd - tScriptEnterEnd) +
+        " total=" + game::logging::flow::formatMs(tUiReadyEnd - tEnterStart));
+    if (scriptPath == "scripts/states/starter.lua") {
+        game::logging::flow::noteStarterStateEntered(scriptPath);
+    }
 }
 
 void ScriptedState::onExit() {

@@ -60,6 +60,10 @@ Window::Window(const std::string& title, int width, int height, GraphicsApi grap
         SDL_GL_MakeCurrent(window, context);
         SDL_GL_SetSwapInterval(1);
     }
+
+    // Request foreground/focus on startup so the first user click is less likely
+    // to be interpreted as focus-only by the OS/window manager.
+    SDL_RaiseWindow(window);
 }
 
 Window::~Window() {

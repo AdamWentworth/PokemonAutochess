@@ -76,6 +76,7 @@ public:
                           std::size_t spriteCount,
                           int surfaceWidth,
                           int surfaceHeight) override;
+    void prewarmDebugSpriteTexture(const char* texturePath) override;
     void shutdown() override;
 
 private:

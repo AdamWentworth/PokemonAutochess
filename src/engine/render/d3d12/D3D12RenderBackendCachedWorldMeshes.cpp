@@ -1,5 +1,6 @@
 #include "engine/render/D3D12RenderBackend.h"
 #include "engine/render/d3d12/D3D12RenderBackendInternal.h"
+#include "engine/core/Environment.h"
 
 #include <cstring>
 #include <string>
@@ -14,6 +15,23 @@
 #if defined(_WIN32)
 using namespace engine::render::d3d12_internal;
 #endif
+
+namespace {
+
+bool worldMeshCacheUseDefaultHeap() {
+    static const bool enabled = []() -> bool {
+        const auto env = engine::env::get("PAC_D3D12_MESH_CACHE_DEFAULT_HEAP");
+        if (!env.has_value()) return false;
+        const std::string raw = *env;
+        if (raw == "0" || raw == "false" || raw == "FALSE" || raw == "off" || raw == "OFF") {
+            return false;
+        }
+        return true;
+    }();
+    return enabled;
+}
+
+} // namespace
 
 void D3D12RenderBackend::drawWorldIndexedMeshCached(const char* geometryKey,
                                                     const WorldMeshVertex* vertices,
@@ -144,6 +162,7 @@ D3D12RenderBackend::CachedWorldMesh* D3D12RenderBackend::ensureCachedWorldMesh(
 
     CachedWorldMesh mesh{};
     const bool canUseDefaultHeapCache =
+        worldMeshCacheUseDefaultHeap() &&
         device_ && commandQueue_ && fence_ && fenceEvent_;
 
     if (canUseDefaultHeapCache) {
