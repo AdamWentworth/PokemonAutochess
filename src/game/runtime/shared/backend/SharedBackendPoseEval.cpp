@@ -188,38 +188,69 @@ int resolveSceneAnimIndex(const backend_model::MeshData& mesh, const PokemonInst
     return animIndex;
 }
 
+void resetPoseEvalForMesh(const backend_model::MeshData& mesh, PoseEval& eval) {
+    eval.hasScenePose = true;
+    eval.hasClipPose = false;
+    const std::size_t nodeCount = mesh.nodesDefault.size();
+
+    if (eval.nodeLocals.size() != nodeCount) {
+        eval.nodeLocals.resize(nodeCount);
+    }
+    std::copy(mesh.nodesDefault.begin(), mesh.nodesDefault.end(), eval.nodeLocals.begin());
+
+    if (eval.nodeGlobals.size() != nodeCount) {
+        eval.nodeGlobals.resize(nodeCount);
+    }
+    std::fill(eval.nodeGlobals.begin(), eval.nodeGlobals.end(), glm::mat4(1.0f));
+}
+
 } // namespace
 
-PoseEval evaluateScenePose(const backend_model::MeshData& mesh, const PokemonInstance& unit) {
-    PoseEval eval;
-    if (mesh.nodesDefault.empty()) return eval;
-    eval.hasScenePose = true;
-    eval.nodeLocals = mesh.nodesDefault;
-    eval.nodeGlobals.assign(mesh.nodesDefault.size(), glm::mat4(1.0f));
+void evaluateScenePose(const backend_model::MeshData& mesh,
+                       const PokemonInstance& unit,
+                       PoseEval& outPose) {
+    if (mesh.nodesDefault.empty()) {
+        outPose = PoseEval{};
+        return;
+    }
+    resetPoseEvalForMesh(mesh, outPose);
 
     const int animIndex = resolveSceneAnimIndex(mesh, unit);
     if (animIndex >= 0) {
-        applyClipPose(mesh, eval, animIndex, unit.animTimeSec, true);
+        applyClipPose(mesh, outPose, animIndex, unit.animTimeSec, true);
     }
 
-    buildGlobals(mesh, eval);
+    buildGlobals(mesh, outPose);
+}
+
+PoseEval evaluateScenePose(const backend_model::MeshData& mesh, const PokemonInstance& unit) {
+    PoseEval eval;
+    evaluateScenePose(mesh, unit, eval);
     return eval;
+}
+
+void evaluateScenePoseForClipTime(const backend_model::MeshData& mesh,
+                                  int animIndex,
+                                  float animTimeSec,
+                                  PoseEval& outPose) {
+    if (mesh.nodesDefault.empty()) {
+        outPose = PoseEval{};
+        return;
+    }
+    resetPoseEvalForMesh(mesh, outPose);
+
+    if (animIndex >= 0) {
+        applyClipPose(mesh, outPose, animIndex, animTimeSec, false);
+    }
+
+    buildGlobals(mesh, outPose);
 }
 
 PoseEval evaluateScenePoseForClipTime(const backend_model::MeshData& mesh,
                                       int animIndex,
                                       float animTimeSec) {
     PoseEval eval;
-    if (mesh.nodesDefault.empty()) return eval;
-    eval.hasScenePose = true;
-    eval.nodeLocals = mesh.nodesDefault;
-    eval.nodeGlobals.assign(mesh.nodesDefault.size(), glm::mat4(1.0f));
-
-    if (animIndex >= 0) {
-        applyClipPose(mesh, eval, animIndex, animTimeSec, false);
-    }
-
-    buildGlobals(mesh, eval);
+    evaluateScenePoseForClipTime(mesh, animIndex, animTimeSec, eval);
     return eval;
 }
 

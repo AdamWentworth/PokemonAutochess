@@ -15,6 +15,7 @@
 #include <chrono>
 #include <cmath>
 #include <cstdint>
+#include <cstring>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -73,6 +74,84 @@ std::size_t backendClipSkinningMaxUnits() {
         }
     }();
     return maxUnits;
+}
+
+int resolveSceneAnimIndexForUnit(const game::runtime::backend_model::MeshData& mesh,
+                                 const ::PokemonInstance& unit) {
+    int animIndex = unit.activeAnimIndex;
+    if (animIndex < 0 || static_cast<std::size_t>(animIndex) >= mesh.animations.size()) {
+        animIndex = unit.currentAttackAnimIndex;
+    }
+    if (animIndex < 0 || static_cast<std::size_t>(animIndex) >= mesh.animations.size()) {
+        animIndex = unit.animMoveIndex;
+    }
+    if (animIndex < 0 || static_cast<std::size_t>(animIndex) >= mesh.animations.size()) {
+        animIndex = unit.animIdleIndex;
+    }
+    if (animIndex < 0 && !mesh.animations.empty()) {
+        animIndex = 0;
+    }
+    return animIndex;
+}
+
+std::uint32_t floatToBits(float value) {
+    std::uint32_t bits = 0u;
+    static_assert(sizeof(bits) == sizeof(value));
+    std::memcpy(&bits, &value, sizeof(bits));
+    return bits;
+}
+
+struct CachedScenePoseKey {
+    const game::runtime::backend_model::MeshData* mesh = nullptr;
+    int animIndex = -1;
+    std::uint32_t animTimeBits = 0u;
+
+    bool operator==(const CachedScenePoseKey& other) const {
+        return mesh == other.mesh &&
+               animIndex == other.animIndex &&
+               animTimeBits == other.animTimeBits;
+    }
+};
+
+struct CachedScenePoseKeyHash {
+    std::size_t operator()(const CachedScenePoseKey& key) const noexcept {
+        const std::size_t h0 =
+            std::hash<const game::runtime::backend_model::MeshData*>{}(key.mesh);
+        const std::size_t h1 = std::hash<int>{}(key.animIndex);
+        const std::size_t h2 = std::hash<std::uint32_t>{}(key.animTimeBits);
+        return (h0 * 1315423911u) ^ (h1 + 0x9e3779b9u + (h2 << 6u) + (h2 >> 2u));
+    }
+};
+
+struct CachedScenePoseEntry {
+    std::uint64_t lastUsedFrame = 0u;
+    game::runtime::shared_backend_pose::PoseEval pose;
+};
+
+thread_local std::unordered_map<CachedScenePoseKey, CachedScenePoseEntry, CachedScenePoseKeyHash>
+    g_cachedScenePoseBySignature;
+thread_local std::uint64_t g_cachedScenePoseFrameCounter = 0u;
+
+void pruneScenePoseCache(std::uint64_t frameCounter) {
+    constexpr std::size_t kSoftMaxEntries = 8192u;
+    constexpr std::size_t kHardMaxEntries = 16384u;
+    constexpr std::uint64_t kKeepRecentFrames = 240u;
+    if (g_cachedScenePoseBySignature.size() <= kSoftMaxEntries) return;
+
+    const std::uint64_t minFrameToKeep =
+        frameCounter > kKeepRecentFrames ? (frameCounter - kKeepRecentFrames) : 0u;
+    for (auto it = g_cachedScenePoseBySignature.begin();
+         it != g_cachedScenePoseBySignature.end();) {
+        if (it->second.lastUsedFrame >= minFrameToKeep) {
+            ++it;
+            continue;
+        }
+        it = g_cachedScenePoseBySignature.erase(it);
+    }
+
+    if (g_cachedScenePoseBySignature.size() > kHardMaxEntries) {
+        g_cachedScenePoseBySignature.clear();
+    }
 }
 
 } // namespace
@@ -170,6 +249,8 @@ void drawProjectedUnits(const Args& args, const std::vector<PokemonInstance>& un
         }
     }
 
+    const std::uint64_t poseCacheFrame = ++g_cachedScenePoseFrameCounter;
+    pruneScenePoseCache(poseCacheFrame);
 
 for (const auto& unit : units) {
     if (!unit.alive && !unit.captureInProgress && !unit.fainting) continue;
@@ -177,23 +258,40 @@ for (const auto& unit : units) {
     ++unitsProcessed;
 
     const auto poseEvalStart = Clock::now();
-    const runtime::backend_anim::ProceduralPose pose =
-        runtime::backend_anim::computeProceduralPose(unit, worldCellSize);
     const runtime::backend_model::MeshData* meshForUnit = resolveModelMesh(unit);
-    BackendPoseEval scenePose;
+    const BackendPoseEval* scenePose = nullptr;
     bool scenePoseReady = false;
     if (meshForUnit) {
-        scenePose = game::runtime::shared_backend_pose::evaluateScenePose(*meshForUnit, unit);
+        const int animIndex = resolveSceneAnimIndexForUnit(*meshForUnit, unit);
+        const CachedScenePoseKey key{
+            meshForUnit,
+            animIndex,
+            floatToBits(unit.animTimeSec)};
+        auto it = g_cachedScenePoseBySignature.find(key);
+        if (it == g_cachedScenePoseBySignature.end()) {
+            CachedScenePoseEntry inserted;
+            game::runtime::shared_backend_pose::evaluateScenePose(
+                *meshForUnit, unit, inserted.pose);
+            inserted.lastUsedFrame = poseCacheFrame;
+            it = g_cachedScenePoseBySignature.emplace(key, std::move(inserted)).first;
+        } else {
+            it->second.lastUsedFrame = poseCacheFrame;
+        }
+        scenePose = &it->second.pose;
         scenePoseReady = true;
+    }
+    const bool hasClipPoseDrivenModel = scenePoseReady && scenePose && scenePose->hasClipPose;
+    runtime::backend_anim::ProceduralPose pose{};
+    if (!hasClipPoseDrivenModel) {
+        pose = runtime::backend_anim::computeProceduralPose(unit, worldCellSize);
     }
     poseEvalMsAcc += std::chrono::duration<double, std::milli>(Clock::now() - poseEvalStart).count();
     const bool unitClipSkinningEnabled =
         !clipSkinningAdaptiveEnabled ||
         (clipSkinningEnabledByUnitId.find(unit.id) != clipSkinningEnabledByUnitId.end());
-    if (unitClipSkinningEnabled && scenePoseReady && scenePose.hasClipPose) {
+    if (unitClipSkinningEnabled && hasClipPoseDrivenModel) {
         ++clipSkinnedUnits;
     }
-    const bool hasClipPoseDrivenModel = scenePoseReady && scenePose.hasClipPose;
     const bool applyProceduralModelMotion = !hasClipPoseDrivenModel;
     const glm::vec3 attackOffset = applyProceduralModelMotion
         ? (game::runtime::backend_proxy::yawForward(unit.rotation.y) * pose.attackLunge)
@@ -333,7 +431,7 @@ for (const auto& unit : units) {
                 .unit = &unit,
                 .pose = &pose,
                 .meshForUnit = meshForUnit,
-                .scenePose = &scenePose,
+                .scenePose = scenePose,
                 .scenePoseReady = scenePoseReady,
                 .enableClipSkinning = unitClipSkinningEnabled,
                 .enableGpuClipSkinning = enableGpuClipSkinning,

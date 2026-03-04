@@ -16,7 +16,14 @@ struct PoseEval {
     std::vector<glm::mat4> nodeGlobals;
 };
 
+void evaluateScenePose(const backend_model::MeshData& mesh,
+                       const PokemonInstance& unit,
+                       PoseEval& outPose);
 PoseEval evaluateScenePose(const backend_model::MeshData& mesh, const PokemonInstance& unit);
+void evaluateScenePoseForClipTime(const backend_model::MeshData& mesh,
+                                  int animIndex,
+                                  float animTimeSec,
+                                  PoseEval& outPose);
 PoseEval evaluateScenePoseForClipTime(const backend_model::MeshData& mesh,
                                       int animIndex,
                                       float animTimeSec);
