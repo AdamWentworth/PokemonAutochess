@@ -139,6 +139,7 @@ This section is based on direct code parse of runtime and backend render paths.
 - Transform resolver per-vertex caches now use an epoch-stamp scheme instead of per-unit full-array clears, cutting CPU memory churn for local/world position + normal/tangent cache state.
 - Projected mesh prep now skips full-mesh remap allocation and large per-batch reserve work when the fast textured full-mesh path is active; fallback paths allocate those structures lazily only when needed.
 - Projected backend mesh renderer now defers triangle submitter setup and per-triangle node fallback table construction until fallback triangle paths are actually used, removing that overhead from the normal fast GPU-skin path.
+- Projected fast path now reuses one GPU skin-matrix payload per unit/node across split sub-batches via shared skin-matrix pointers, removing duplicate per-batch matrix vector copies while keeping model geometry ownership local for stability.
 
 ## Autobattler-Specific Guidance
 - Keep combat outcomes and RNG on CPU.

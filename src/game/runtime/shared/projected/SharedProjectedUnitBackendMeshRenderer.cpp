@@ -10,6 +10,7 @@
 #include <array>
 #include <cctype>
 #include <cmath>
+#include <cstring>
 #include <cstdint>
 #include <limits>
 #include <string>
@@ -71,6 +72,26 @@ struct FastTexturedMeshTemplateCache {
 thread_local std::unordered_map<
     const game::runtime::backend_model::MeshData*,
     FastTexturedMeshTemplateCache> g_fastTexturedMeshTemplateCaches;
+
+struct UnitNodeSkinMatrixKey {
+    int unitId = 0;
+    int nodeIndex = -1;
+
+    bool operator==(const UnitNodeSkinMatrixKey& other) const {
+        return unitId == other.unitId && nodeIndex == other.nodeIndex;
+    }
+};
+
+struct UnitNodeSkinMatrixKeyHash {
+    std::size_t operator()(const UnitNodeSkinMatrixKey& key) const noexcept {
+        std::size_t h = static_cast<std::size_t>(static_cast<std::uint32_t>(key.unitId));
+        h ^= (static_cast<std::size_t>(static_cast<std::uint32_t>(key.nodeIndex + 1)) << 1);
+        return h;
+    }
+};
+
+thread_local std::unordered_map<UnitNodeSkinMatrixKey, std::vector<float>, UnitNodeSkinMatrixKeyHash>
+    g_unitNodeSkinMatrices;
 
 bool nearlyOne(float v) {
     return std::abs(v - 1.0f) <= 1e-6f;
@@ -339,6 +360,7 @@ Result renderProjectedUnitBackendMesh(const Args& args) {
                     newBatch.sharedIndexCount = 0u;
                     newBatch.gpuSkinning = 0u;
                     newBatch.skinMatrixCount = 0u;
+                    newBatch.sharedSkinMatrices = nullptr;
                     newBatch.skinMatrices.clear();
                 }
             }
@@ -346,6 +368,7 @@ Result renderProjectedUnitBackendMesh(const Args& args) {
             for (auto& batch : modelIndexedBatchesPerSubmesh) {
                 batch.gpuSkinning = 0u;
                 batch.skinMatrixCount = 0u;
+                batch.sharedSkinMatrices = nullptr;
                 batch.skinMatrices.clear();
                 batch.sharedVertices = nullptr;
                 batch.sharedVertexCount = 0u;
@@ -354,28 +377,67 @@ Result renderProjectedUnitBackendMesh(const Args& args) {
             }
 
             const bool applyTintAlpha = !tintAlphaIdentity(fastTexturedTint, fastTexturedAlpha);
+            struct GpuSkinBatchState {
+                bool valid = false;
+                std::array<float, 16> modelMatrix{};
+                std::uint32_t skinMatrixCount = 0u;
+                const float* sharedSkinMatrices = nullptr;
+            };
+            std::unordered_map<int, GpuSkinBatchState> gpuSkinBatchStateByNode;
             for (std::size_t bi = 0; bi < fastCache.batches.size(); ++bi) {
                 if (bi >= modelIndexedBatchesPerSubmesh.size()) continue;
                 const auto& srcBatch = fastCache.batches[bi];
                 auto& dstBatch = modelIndexedBatchesPerSubmesh[bi];
 
-                if (args.enableGpuClipSkinning &&
-                    transforms.configureGpuClipSkinningBatch(
-                        srcBatch.triNodeIndex,
-                        dstBatch.modelMatrix,
-                        dstBatch.skinMatrices,
-                        dstBatch.skinMatrixCount)) {
-                    dstBatch.gpuSkinning = 1u;
+                if (args.enableGpuClipSkinning) {
+                    const int triNodeIndex = srcBatch.triNodeIndex;
+                    auto stateIt = gpuSkinBatchStateByNode.find(triNodeIndex);
+                    if (stateIt == gpuSkinBatchStateByNode.end()) {
+                        GpuSkinBatchState newState{};
+                        UnitNodeSkinMatrixKey key{};
+                        key.unitId = unit.id;
+                        key.nodeIndex = triNodeIndex;
+                        auto& sharedSkinMatrices = g_unitNodeSkinMatrices[key];
+                        if (transforms.configureGpuClipSkinningBatch(
+                                triNodeIndex,
+                                newState.modelMatrix,
+                                sharedSkinMatrices,
+                                newState.skinMatrixCount)) {
+                            newState.valid = true;
+                            newState.sharedSkinMatrices = sharedSkinMatrices.data();
+                        }
+                        stateIt = gpuSkinBatchStateByNode.emplace(triNodeIndex, newState).first;
+                    }
+                    if (stateIt->second.valid) {
+                        dstBatch.gpuSkinning = 1u;
+                        dstBatch.modelMatrix = stateIt->second.modelMatrix;
+                        dstBatch.skinMatrixCount = stateIt->second.skinMatrixCount;
+                        dstBatch.sharedSkinMatrices = stateIt->second.sharedSkinMatrices;
+                        dstBatch.skinMatrices.clear();
+                    }
                 }
 
                 dstBatch.indices.clear();
                 dstBatch.sharedIndices = nullptr;
                 dstBatch.sharedIndexCount = 0u;
-                dstBatch.indices = srcBatch.indices;
+                dstBatch.indices.resize(srcBatch.indices.size());
+                if (!srcBatch.indices.empty()) {
+                    std::memcpy(
+                        dstBatch.indices.data(),
+                        srcBatch.indices.data(),
+                        srcBatch.indices.size() * sizeof(std::uint32_t));
+                }
                 if (dstBatch.gpuSkinning != 0u) {
                     dstBatch.sharedVertices = nullptr;
                     dstBatch.sharedVertexCount = 0u;
-                    dstBatch.vertices = srcBatch.gpuTemplateVertices;
+                    dstBatch.vertices.resize(srcBatch.gpuTemplateVertices.size());
+                    if (!srcBatch.gpuTemplateVertices.empty()) {
+                        std::memcpy(
+                            dstBatch.vertices.data(),
+                            srcBatch.gpuTemplateVertices.data(),
+                            srcBatch.gpuTemplateVertices.size() *
+                                sizeof(IRenderBackend::WorldMeshVertex));
+                    }
                     if (applyTintAlpha) {
                         for (auto& v : dstBatch.vertices) {
                             v.r *= fastTexturedTint.r;
@@ -387,6 +449,7 @@ Result renderProjectedUnitBackendMesh(const Args& args) {
                 } else {
                     dstBatch.sharedVertices = nullptr;
                     dstBatch.sharedVertexCount = 0u;
+                    dstBatch.sharedSkinMatrices = nullptr;
                     dstBatch.vertices.resize(srcBatch.sourceVertexIndices.size());
                     for (std::size_t vi = 0; vi < srcBatch.sourceVertexIndices.size(); ++vi) {
                         const std::uint32_t srcIndex = srcBatch.sourceVertexIndices[vi];
@@ -439,6 +502,7 @@ Result renderProjectedUnitBackendMesh(const Args& args) {
                     batch.sharedIndexCount = 0u;
                     batch.gpuSkinning = 0u;
                     batch.skinMatrixCount = 0u;
+                    batch.sharedSkinMatrices = nullptr;
                     batch.skinMatrices.clear();
                 }
             }

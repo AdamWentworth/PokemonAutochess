@@ -328,6 +328,7 @@ bool prepareProjectedUnitBackendMesh(const Args& args, Result& out, PreparedStat
             batch.sharedVertexCount = 0u;
             batch.sharedIndices = nullptr;
             batch.sharedIndexCount = 0u;
+            batch.sharedSkinMatrices = nullptr;
             if (!prepared.useFastTexturedFullMeshPath) {
                 batch.vertices.reserve((effectiveUnitTriangleBudget * 3u) / batchCount + 64u);
                 batch.indices.reserve((effectiveUnitTriangleBudget * 3u) / batchCount + 64u);

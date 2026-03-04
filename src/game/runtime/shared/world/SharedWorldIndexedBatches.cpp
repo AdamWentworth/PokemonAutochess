@@ -106,7 +106,9 @@ IRenderBackend::WorldTextureData toWorldTextureData(const WorldIndexedBatch& bat
     tex.modelMatrix = batch.modelMatrix;
     tex.gpuSkinning = batch.gpuSkinning;
     tex.skinMatrixCount = batch.skinMatrixCount;
-    tex.skinMatrices = batch.skinMatrices.empty() ? nullptr : batch.skinMatrices.data();
+    tex.skinMatrices = batch.sharedSkinMatrices
+        ? batch.sharedSkinMatrices
+        : (batch.skinMatrices.empty() ? nullptr : batch.skinMatrices.data());
     return tex;
 }
 
