@@ -10,58 +10,132 @@ IRenderBackend::WorldTextureData toWorldTextureData(const WorldIndexedBatch& bat
                                                     const float* cameraWorldPos3,
                                                     const float* cameraForward3,
                                                     const float* cameraTarget3) {
-    const unsigned char* rgbaData = batch.textureRgba;
-    if (!rgbaData && !batch.ownedTextureRgba.empty()) {
-        rgbaData = batch.ownedTextureRgba.data();
-    }
-    const unsigned char* normalRgbaData = batch.normalTextureRgba;
-    if (!normalRgbaData && !batch.ownedNormalTextureRgba.empty()) {
-        normalRgbaData = batch.ownedNormalTextureRgba.data();
-    }
-    const unsigned char* mrRgbaData = batch.metallicRoughnessTextureRgba;
-    if (!mrRgbaData && !batch.ownedMetallicRoughnessTextureRgba.empty()) {
-        mrRgbaData = batch.ownedMetallicRoughnessTextureRgba.data();
-    }
-    const unsigned char* occlusionRgbaData = batch.occlusionTextureRgba;
-    if (!occlusionRgbaData && !batch.ownedOcclusionTextureRgba.empty()) {
-        occlusionRgbaData = batch.ownedOcclusionTextureRgba.data();
-    }
-    const unsigned char* emissiveRgbaData = batch.emissiveTextureRgba;
-    if (!emissiveRgbaData && !batch.ownedEmissiveTextureRgba.empty()) {
-        emissiveRgbaData = batch.ownedEmissiveTextureRgba.data();
-    }
+    const WorldIndexedBatch* templateBatch = batch.sharedTemplate;
+    const auto resolveKey = [](const std::string& localKey, const std::string* templateKey) {
+        if (!localKey.empty()) return localKey.c_str();
+        if (templateKey && !templateKey->empty()) return templateKey->c_str();
+        return "";
+    };
+    const auto resolveRgba = [](const unsigned char* localPtr,
+                                const std::vector<unsigned char>& localOwned,
+                                const unsigned char* templatePtr,
+                                const std::vector<unsigned char>* templateOwned) {
+        if (localPtr) return localPtr;
+        if (!localOwned.empty()) return localOwned.data();
+        if (templatePtr) return templatePtr;
+        if (templateOwned && !templateOwned->empty()) return templateOwned->data();
+        return static_cast<const unsigned char*>(nullptr);
+    };
+
+    const unsigned char* rgbaData = resolveRgba(
+        batch.textureRgba,
+        batch.ownedTextureRgba,
+        templateBatch ? templateBatch->textureRgba : nullptr,
+        templateBatch ? &templateBatch->ownedTextureRgba : nullptr);
+    const unsigned char* normalRgbaData = resolveRgba(
+        batch.normalTextureRgba,
+        batch.ownedNormalTextureRgba,
+        templateBatch ? templateBatch->normalTextureRgba : nullptr,
+        templateBatch ? &templateBatch->ownedNormalTextureRgba : nullptr);
+    const unsigned char* mrRgbaData = resolveRgba(
+        batch.metallicRoughnessTextureRgba,
+        batch.ownedMetallicRoughnessTextureRgba,
+        templateBatch ? templateBatch->metallicRoughnessTextureRgba : nullptr,
+        templateBatch ? &templateBatch->ownedMetallicRoughnessTextureRgba : nullptr);
+    const unsigned char* occlusionRgbaData = resolveRgba(
+        batch.occlusionTextureRgba,
+        batch.ownedOcclusionTextureRgba,
+        templateBatch ? templateBatch->occlusionTextureRgba : nullptr,
+        templateBatch ? &templateBatch->ownedOcclusionTextureRgba : nullptr);
+    const unsigned char* emissiveRgbaData = resolveRgba(
+        batch.emissiveTextureRgba,
+        batch.ownedEmissiveTextureRgba,
+        templateBatch ? templateBatch->emissiveTextureRgba : nullptr,
+        templateBatch ? &templateBatch->ownedEmissiveTextureRgba : nullptr);
 
     IRenderBackend::WorldTextureData tex;
-    tex.key = batch.textureKey.c_str();
+    tex.key = resolveKey(
+        batch.textureKey, templateBatch ? &templateBatch->textureKey : nullptr);
     tex.rgba = rgbaData;
-    tex.width = batch.textureWidth;
-    tex.height = batch.textureHeight;
-    tex.wrapS = batch.textureWrapS;
-    tex.wrapT = batch.textureWrapT;
-    tex.normalKey = batch.normalTextureKey.c_str();
+    tex.width = batch.textureWidth > 0
+        ? batch.textureWidth
+        : (templateBatch ? templateBatch->textureWidth : batch.textureWidth);
+    tex.height = batch.textureHeight > 0
+        ? batch.textureHeight
+        : (templateBatch ? templateBatch->textureHeight : batch.textureHeight);
+    tex.wrapS = (batch.textureWidth > 0 && batch.textureHeight > 0)
+        ? batch.textureWrapS
+        : (templateBatch ? templateBatch->textureWrapS : batch.textureWrapS);
+    tex.wrapT = (batch.textureWidth > 0 && batch.textureHeight > 0)
+        ? batch.textureWrapT
+        : (templateBatch ? templateBatch->textureWrapT : batch.textureWrapT);
+    tex.normalKey = resolveKey(
+        batch.normalTextureKey, templateBatch ? &templateBatch->normalTextureKey : nullptr);
     tex.normalRgba = normalRgbaData;
-    tex.normalWidth = batch.normalTextureWidth;
-    tex.normalHeight = batch.normalTextureHeight;
-    tex.normalWrapS = batch.normalTextureWrapS;
-    tex.normalWrapT = batch.normalTextureWrapT;
-    tex.metallicRoughnessKey = batch.metallicRoughnessTextureKey.c_str();
+    tex.normalWidth = batch.normalTextureWidth > 0
+        ? batch.normalTextureWidth
+        : (templateBatch ? templateBatch->normalTextureWidth : batch.normalTextureWidth);
+    tex.normalHeight = batch.normalTextureHeight > 0
+        ? batch.normalTextureHeight
+        : (templateBatch ? templateBatch->normalTextureHeight : batch.normalTextureHeight);
+    tex.normalWrapS = (batch.normalTextureWidth > 0 && batch.normalTextureHeight > 0)
+        ? batch.normalTextureWrapS
+        : (templateBatch ? templateBatch->normalTextureWrapS : batch.normalTextureWrapS);
+    tex.normalWrapT = (batch.normalTextureWidth > 0 && batch.normalTextureHeight > 0)
+        ? batch.normalTextureWrapT
+        : (templateBatch ? templateBatch->normalTextureWrapT : batch.normalTextureWrapT);
+    tex.metallicRoughnessKey = resolveKey(
+        batch.metallicRoughnessTextureKey,
+        templateBatch ? &templateBatch->metallicRoughnessTextureKey : nullptr);
     tex.metallicRoughnessRgba = mrRgbaData;
-    tex.metallicRoughnessWidth = batch.metallicRoughnessTextureWidth;
-    tex.metallicRoughnessHeight = batch.metallicRoughnessTextureHeight;
-    tex.metallicRoughnessWrapS = batch.metallicRoughnessTextureWrapS;
-    tex.metallicRoughnessWrapT = batch.metallicRoughnessTextureWrapT;
-    tex.occlusionKey = batch.occlusionTextureKey.c_str();
+    tex.metallicRoughnessWidth = batch.metallicRoughnessTextureWidth > 0
+        ? batch.metallicRoughnessTextureWidth
+        : (templateBatch ? templateBatch->metallicRoughnessTextureWidth
+                         : batch.metallicRoughnessTextureWidth);
+    tex.metallicRoughnessHeight = batch.metallicRoughnessTextureHeight > 0
+        ? batch.metallicRoughnessTextureHeight
+        : (templateBatch ? templateBatch->metallicRoughnessTextureHeight
+                         : batch.metallicRoughnessTextureHeight);
+    tex.metallicRoughnessWrapS =
+        (batch.metallicRoughnessTextureWidth > 0 && batch.metallicRoughnessTextureHeight > 0)
+        ? batch.metallicRoughnessTextureWrapS
+        : (templateBatch ? templateBatch->metallicRoughnessTextureWrapS
+                         : batch.metallicRoughnessTextureWrapS);
+    tex.metallicRoughnessWrapT =
+        (batch.metallicRoughnessTextureWidth > 0 && batch.metallicRoughnessTextureHeight > 0)
+        ? batch.metallicRoughnessTextureWrapT
+        : (templateBatch ? templateBatch->metallicRoughnessTextureWrapT
+                         : batch.metallicRoughnessTextureWrapT);
+    tex.occlusionKey = resolveKey(
+        batch.occlusionTextureKey, templateBatch ? &templateBatch->occlusionTextureKey : nullptr);
     tex.occlusionRgba = occlusionRgbaData;
-    tex.occlusionWidth = batch.occlusionTextureWidth;
-    tex.occlusionHeight = batch.occlusionTextureHeight;
-    tex.occlusionWrapS = batch.occlusionTextureWrapS;
-    tex.occlusionWrapT = batch.occlusionTextureWrapT;
-    tex.emissiveKey = batch.emissiveTextureKey.c_str();
+    tex.occlusionWidth = batch.occlusionTextureWidth > 0
+        ? batch.occlusionTextureWidth
+        : (templateBatch ? templateBatch->occlusionTextureWidth : batch.occlusionTextureWidth);
+    tex.occlusionHeight = batch.occlusionTextureHeight > 0
+        ? batch.occlusionTextureHeight
+        : (templateBatch ? templateBatch->occlusionTextureHeight : batch.occlusionTextureHeight);
+    tex.occlusionWrapS = (batch.occlusionTextureWidth > 0 && batch.occlusionTextureHeight > 0)
+        ? batch.occlusionTextureWrapS
+        : (templateBatch ? templateBatch->occlusionTextureWrapS : batch.occlusionTextureWrapS);
+    tex.occlusionWrapT = (batch.occlusionTextureWidth > 0 && batch.occlusionTextureHeight > 0)
+        ? batch.occlusionTextureWrapT
+        : (templateBatch ? templateBatch->occlusionTextureWrapT : batch.occlusionTextureWrapT);
+    tex.emissiveKey = resolveKey(
+        batch.emissiveTextureKey, templateBatch ? &templateBatch->emissiveTextureKey : nullptr);
     tex.emissiveRgba = emissiveRgbaData;
-    tex.emissiveWidth = batch.emissiveTextureWidth;
-    tex.emissiveHeight = batch.emissiveTextureHeight;
-    tex.emissiveWrapS = batch.emissiveTextureWrapS;
-    tex.emissiveWrapT = batch.emissiveTextureWrapT;
+    tex.emissiveWidth = batch.emissiveTextureWidth > 0
+        ? batch.emissiveTextureWidth
+        : (templateBatch ? templateBatch->emissiveTextureWidth : batch.emissiveTextureWidth);
+    tex.emissiveHeight = batch.emissiveTextureHeight > 0
+        ? batch.emissiveTextureHeight
+        : (templateBatch ? templateBatch->emissiveTextureHeight : batch.emissiveTextureHeight);
+    tex.emissiveWrapS = (batch.emissiveTextureWidth > 0 && batch.emissiveTextureHeight > 0)
+        ? batch.emissiveTextureWrapS
+        : (templateBatch ? templateBatch->emissiveTextureWrapS : batch.emissiveTextureWrapS);
+    tex.emissiveWrapT = (batch.emissiveTextureWidth > 0 && batch.emissiveTextureHeight > 0)
+        ? batch.emissiveTextureWrapT
+        : (templateBatch ? templateBatch->emissiveTextureWrapT : batch.emissiveTextureWrapT);
     tex.alphaMode = batch.alphaMode;
     tex.blendMode = batch.blendMode;
     tex.materialMode = batch.materialMode;

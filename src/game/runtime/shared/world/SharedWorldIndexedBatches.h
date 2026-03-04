@@ -10,6 +10,10 @@
 namespace game::runtime::shared_world_batches {
 
 struct WorldIndexedBatch {
+    // Optional shared/static material template for reducing per-frame metadata copies.
+    // When set, texture/material descriptors are sourced from this template while
+    // geometry/model/skin data remain per-batch.
+    const WorldIndexedBatch* sharedTemplate = nullptr;
     std::vector<IRenderBackend::WorldMeshVertex> vertices;
     std::vector<std::uint32_t> indices;
     // Optional shared/static geometry path for reducing per-frame CPU copies.
