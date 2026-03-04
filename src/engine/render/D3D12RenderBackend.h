@@ -126,6 +126,7 @@ private:
                                                   int wrapS,
                                                   int wrapT);
     SpriteTexture* ensureWorldTexture(const WorldTextureData* textureData);
+    void ensureWorldFallbackEnvTexture();
 #if defined(_WIN32)
     struct CachedWorldMesh {
         Microsoft::WRL::ComPtr<ID3D12Resource> vertexBuffer;
@@ -186,6 +187,7 @@ private:
     bool screenshotCaptured_ = false;
     std::uint64_t screenshotFrameTarget_ = 0u;
     std::uint64_t frameCounter_ = 0u;
+    bool worldFallbackEnvTextureReady_ = false;
     std::string screenshotPath_;
 
     float clearColor_[4] = {0.1f, 0.1f, 0.1f, 1.0f};

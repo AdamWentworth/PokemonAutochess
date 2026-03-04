@@ -25,6 +25,15 @@ std::string d3dCompileErrorMessage(ID3DBlob* errBlob) {
     const char* msg = static_cast<const char*>(errBlob->GetBufferPointer());
     return std::string(msg, msg + errBlob->GetBufferSize());
 }
+
+UINT d3dCompileFlags() {
+#if defined(_DEBUG)
+    // Debug builds prioritize compile speed to reduce startup stalls.
+    return D3DCOMPILE_SKIP_OPTIMIZATION | D3DCOMPILE_DEBUG;
+#else
+    return D3DCOMPILE_OPTIMIZATION_LEVEL3;
+#endif
+}
 } // namespace
 
 void D3D12RenderBackend::createDebugPipeline() {
@@ -41,14 +50,14 @@ void D3D12RenderBackend::createDebugPipeline() {
     Microsoft::WRL::ComPtr<ID3DBlob> psBlob;
     Microsoft::WRL::ComPtr<ID3DBlob> errBlob;
     if (FAILED(D3DCompile(kVsSource, sizeof(kVsSource) - 1, nullptr, nullptr, nullptr,
-                          "main", "vs_5_0", 0, 0, vsBlob.ReleaseAndGetAddressOf(),
+                          "main", "vs_5_0", d3dCompileFlags(), 0, vsBlob.ReleaseAndGetAddressOf(),
                           errBlob.ReleaseAndGetAddressOf())) ||
         !vsBlob) {
         throw std::runtime_error("D3DCompile failed for debug VS.");
     }
     errBlob.Reset();
     if (FAILED(D3DCompile(kPsSource, sizeof(kPsSource) - 1, nullptr, nullptr, nullptr,
-                          "main", "ps_5_0", 0, 0, psBlob.ReleaseAndGetAddressOf(),
+                          "main", "ps_5_0", d3dCompileFlags(), 0, psBlob.ReleaseAndGetAddressOf(),
                           errBlob.ReleaseAndGetAddressOf())) ||
         !psBlob) {
         throw std::runtime_error("D3DCompile failed for debug PS.");
@@ -887,7 +896,7 @@ float4 main(PSIn i, bool isFrontFace : SV_IsFrontFace) : SV_TARGET {
     Microsoft::WRL::ComPtr<ID3DBlob> psBlob;
     Microsoft::WRL::ComPtr<ID3DBlob> errBlob;
     if (FAILED(D3DCompile(kVsSource, sizeof(kVsSource) - 1, nullptr, nullptr, nullptr,
-                          "main", "vs_5_0", 0, 0, vsBlob.ReleaseAndGetAddressOf(),
+                          "main", "vs_5_0", d3dCompileFlags(), 0, vsBlob.ReleaseAndGetAddressOf(),
                           errBlob.ReleaseAndGetAddressOf())) ||
         !vsBlob) {
         throw std::runtime_error("D3DCompile failed for world VS.");
@@ -897,7 +906,7 @@ float4 main(PSIn i, bool isFrontFace : SV_IsFrontFace) : SV_TARGET {
             kPsSource, engine::render::world_pbr_shader_shared::ShaderLanguage::Hlsl);
     errBlob.Reset();
     if (FAILED(D3DCompile(worldPsSource.c_str(), worldPsSource.size(), nullptr, nullptr, nullptr,
-                          "main", "ps_5_0", 0, 0, psBlob.ReleaseAndGetAddressOf(),
+                          "main", "ps_5_0", d3dCompileFlags(), 0, psBlob.ReleaseAndGetAddressOf(),
                           errBlob.ReleaseAndGetAddressOf())) ||
         !psBlob) {
         const std::string details = d3dCompileErrorMessage(errBlob.Get());
@@ -1286,14 +1295,14 @@ void D3D12RenderBackend::createSpritePipeline() {
     Microsoft::WRL::ComPtr<ID3DBlob> psBlob;
     Microsoft::WRL::ComPtr<ID3DBlob> errBlob;
     if (FAILED(D3DCompile(kVsSource, sizeof(kVsSource) - 1, nullptr, nullptr, nullptr,
-                          "main", "vs_5_0", 0, 0, vsBlob.ReleaseAndGetAddressOf(),
+                          "main", "vs_5_0", d3dCompileFlags(), 0, vsBlob.ReleaseAndGetAddressOf(),
                           errBlob.ReleaseAndGetAddressOf())) ||
         !vsBlob) {
         throw std::runtime_error("D3DCompile failed for sprite VS.");
     }
     errBlob.Reset();
     if (FAILED(D3DCompile(kPsSource, sizeof(kPsSource) - 1, nullptr, nullptr, nullptr,
-                          "main", "ps_5_0", 0, 0, psBlob.ReleaseAndGetAddressOf(),
+                          "main", "ps_5_0", d3dCompileFlags(), 0, psBlob.ReleaseAndGetAddressOf(),
                           errBlob.ReleaseAndGetAddressOf())) ||
         !psBlob) {
         throw std::runtime_error("D3DCompile failed for sprite PS.");
@@ -1493,6 +1502,24 @@ void D3D12RenderBackend::createSpritePipeline() {
         kGlClampToEdge,
         kGlClampToEdge,
         /*srgb=*/true);
+    if (!fallbackBase || !fallbackNormal || !fallbackLinear || !fallbackEmissive) {
+        throw std::runtime_error("Failed to create fallback textures for D3D12 world pipeline.");
+    }
+    worldFallbackTextureDescriptorIndex_ = fallbackBase->descriptorIndex;
+    worldFallbackNormalTextureDescriptorIndex_ = fallbackNormal->descriptorIndex;
+    worldFallbackMetallicRoughnessTextureDescriptorIndex_ = fallbackLinear->descriptorIndex;
+    worldFallbackOcclusionTextureDescriptorIndex_ = fallbackLinear->descriptorIndex;
+    worldFallbackEmissiveTextureDescriptorIndex_ = fallbackEmissive->descriptorIndex;
+    // Keep startup fast: use a cheap 1x1 linear fallback at boot and lazily promote to PMREM.
+    worldFallbackEnvTextureDescriptorIndex_ = fallbackLinear->descriptorIndex;
+    worldFallbackEnvTextureReady_ = false;
+#endif
+}
+
+void D3D12RenderBackend::ensureWorldFallbackEnvTexture() {
+#if defined(_WIN32)
+    if (worldFallbackEnvTextureReady_) return;
+
     const auto& neutralPmremAtlas = engine::render::neutral_pmrem::getNeutralRoomPmremAtlas();
     SpriteTexture* fallbackEnv = !neutralPmremAtlas.rgba16f.empty()
         ? ensureWorldTextureRawHalfFloat(
@@ -1510,15 +1537,10 @@ void D3D12RenderBackend::createSpritePipeline() {
             kGlClampToEdge,
             kGlClampToEdge,
             /*srgb=*/false);
-    if (!fallbackBase || !fallbackNormal || !fallbackLinear || !fallbackEmissive || !fallbackEnv) {
-        throw std::runtime_error("Failed to create fallback textures for D3D12 world pipeline.");
-    }
-    worldFallbackTextureDescriptorIndex_ = fallbackBase->descriptorIndex;
-    worldFallbackNormalTextureDescriptorIndex_ = fallbackNormal->descriptorIndex;
-    worldFallbackMetallicRoughnessTextureDescriptorIndex_ = fallbackLinear->descriptorIndex;
-    worldFallbackOcclusionTextureDescriptorIndex_ = fallbackLinear->descriptorIndex;
-    worldFallbackEmissiveTextureDescriptorIndex_ = fallbackEmissive->descriptorIndex;
+    if (!fallbackEnv || !fallbackEnv->valid) return;
+
     worldFallbackEnvTextureDescriptorIndex_ = fallbackEnv->descriptorIndex;
+    worldFallbackEnvTextureReady_ = true;
 #endif
 }
 

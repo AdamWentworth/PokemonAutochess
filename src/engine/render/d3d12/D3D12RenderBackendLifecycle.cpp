@@ -430,6 +430,7 @@ void D3D12RenderBackend::shutdown() {
     worldFallbackOcclusionTextureDescriptorIndex_ = 0;
     worldFallbackEmissiveTextureDescriptorIndex_ = 0;
     worldFallbackEnvTextureDescriptorIndex_ = 0;
+    worldFallbackEnvTextureReady_ = false;
     worldPremultipliedBlendPipelineState_.Reset();
     worldAdditiveBlendPipelineState_.Reset();
     worldBlendPipelineState_.Reset();
@@ -637,11 +638,46 @@ void D3D12RenderBackend::initDeviceAndSwapchain(const std::string& preferredAdap
         throw std::runtime_error("CreateEvent failed for D3D12 fence.");
     }
 
+    const auto startupInitStart = std::chrono::steady_clock::now();
+
+    auto stageStart = std::chrono::steady_clock::now();
     createDebugPipeline();
+    auto stageEnd = std::chrono::steady_clock::now();
+    std::cout << "[Renderer][D3D12][Startup] createDebugPipeline="
+              << std::chrono::duration<double, std::milli>(stageEnd - stageStart).count()
+              << "ms\n";
+
+    stageStart = std::chrono::steady_clock::now();
     createWorldPipeline();
+    stageEnd = std::chrono::steady_clock::now();
+    std::cout << "[Renderer][D3D12][Startup] createWorldPipeline="
+              << std::chrono::duration<double, std::milli>(stageEnd - stageStart).count()
+              << "ms\n";
+
+    stageStart = std::chrono::steady_clock::now();
     createSpritePipeline();
+    stageEnd = std::chrono::steady_clock::now();
+    std::cout << "[Renderer][D3D12][Startup] createSpritePipeline="
+              << std::chrono::duration<double, std::milli>(stageEnd - stageStart).count()
+              << "ms\n";
+
+    stageStart = std::chrono::steady_clock::now();
     createRenderTargets();
+    stageEnd = std::chrono::steady_clock::now();
+    std::cout << "[Renderer][D3D12][Startup] createRenderTargets="
+              << std::chrono::duration<double, std::milli>(stageEnd - stageStart).count()
+              << "ms\n";
+
+    stageStart = std::chrono::steady_clock::now();
     createDepthResources();
+    stageEnd = std::chrono::steady_clock::now();
+    std::cout << "[Renderer][D3D12][Startup] createDepthResources="
+              << std::chrono::duration<double, std::milli>(stageEnd - stageStart).count()
+              << "ms\n";
+
+    std::cout << "[Renderer][D3D12][Startup] totalInit="
+              << std::chrono::duration<double, std::milli>(stageEnd - startupInitStart).count()
+              << "ms\n";
     initialized_ = true;
 #endif
 }

@@ -308,6 +308,7 @@ void D3D12RenderBackend::drawWorldIndexedMeshCachedInternal(const CachedWorldMes
         return;
     }
     if (!worldVsConstantMappedData_) return;
+    ensureWorldFallbackEnvTexture();
 
     D3D12_VIEWPORT vp{};
     vp.TopLeftX = 0.0f;

@@ -121,6 +121,7 @@ void D3D12RenderBackend::drawWorldTriangles(const WorldTriangle* triangles,
     if (surfaceWidth <= 0 || surfaceHeight <= 0) return;
     if (!worldPipelineState_ || !worldRootSignature_ || !worldVertexBuffer_ || !commandList_ || !srvHeap_) return;
     if (!worldVertexMappedData_ || !worldVsConstantMappedData_ || !worldSkinMatrixMappedData_) return;
+    ensureWorldFallbackEnvTexture();
 
     const std::size_t safeCount = (triangleCount > kMaxWorldTriangles) ? kMaxWorldTriangles : triangleCount;
     if (safeCount == 0) return;
@@ -250,6 +251,7 @@ void D3D12RenderBackend::drawWorldIndexedMesh(const WorldMeshVertex* vertices,
                                               int surfaceWidth,
                                               int surfaceHeight) {
 #if defined(_WIN32)
+    ensureWorldFallbackEnvTexture();
     drawWorldIndexedMeshInternal(
         vertices,
         vertexCount,
@@ -286,6 +288,7 @@ void D3D12RenderBackend::drawWorldIndexedMeshTextured(const WorldMeshVertex* ver
                                                       int surfaceWidth,
                                                       int surfaceHeight) {
 #if defined(_WIN32)
+    ensureWorldFallbackEnvTexture();
     SpriteTexture* worldTex = ensureWorldTexture(texture);
     const std::uint32_t baseDescriptorIndex =
         worldTex ? worldTex->descriptorIndex : worldFallbackTextureDescriptorIndex_;
