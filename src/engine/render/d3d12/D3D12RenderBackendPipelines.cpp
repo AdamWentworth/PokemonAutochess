@@ -194,12 +194,69 @@ void D3D12RenderBackend::createDebugPipeline() {
 void D3D12RenderBackend::createWorldPipeline() {
 #if defined(_WIN32)
     static constexpr char kVsSource[] =
-        "cbuffer VSConstants : register(b0) { float4x4 uViewProj; float4x4 uModel; };"
-        "struct VSIn { float3 pos : POSITION; float2 uv : TEXCOORD; float4 col : COLOR; float3 nrm : NORMAL; float4 tan : TANGENT; };"
+        "cbuffer VSConstants : register(b0) { float4x4 uViewProj; float4x4 uModel; float4 uSkinMeta; };"
+        "cbuffer VSSkinMatrices : register(b2) { float4x4 gSkinMatrices[64]; };"
+        "struct VSIn { float3 pos : POSITION; float2 uv : TEXCOORD; float4 col : COLOR; float3 nrm : NORMAL; float4 jnts : BLENDINDICES; float4 wgts : BLENDWEIGHT; float4 tan : TANGENT; };"
         "struct VSOut { float4 pos : SV_POSITION; float2 uv : TEXCOORD; float4 col : COLOR; float3 worldPos : TEXCOORD1; float3 worldNormal : TEXCOORD2; float4 worldTangent : TEXCOORD3; };"
+        "float3 applySkinningPos(VSIn i, float3 localPos) {"
+        "  if (uSkinMeta.x < 0.5f) return localPos;"
+        "  float4 blended = float4(0.0f, 0.0f, 0.0f, 0.0f);"
+        "  int c = (int)uSkinMeta.y;"
+        "  int j0 = (int)round(i.jnts.x); float w0 = i.wgts.x;"
+        "  int j1 = (int)round(i.jnts.y); float w1 = i.wgts.y;"
+        "  int j2 = (int)round(i.jnts.z); float w2 = i.wgts.z;"
+        "  int j3 = (int)round(i.jnts.w); float w3 = i.wgts.w;"
+        "  if (w0 > 0.00001f && j0 >= 0 && j0 < c && j0 < 64) blended += mul(gSkinMatrices[j0], float4(localPos, 1.0f)) * w0;"
+        "  if (w1 > 0.00001f && j1 >= 0 && j1 < c && j1 < 64) blended += mul(gSkinMatrices[j1], float4(localPos, 1.0f)) * w1;"
+        "  if (w2 > 0.00001f && j2 >= 0 && j2 < c && j2 < 64) blended += mul(gSkinMatrices[j2], float4(localPos, 1.0f)) * w2;"
+        "  if (w3 > 0.00001f && j3 >= 0 && j3 < c && j3 < 64) blended += mul(gSkinMatrices[j3], float4(localPos, 1.0f)) * w3;"
+        "  if (abs(blended.w) > 1e-5f) return blended.xyz / blended.w;"
+        "  return blended.xyz;"
+        "}"
+        "float3 applySkinningNormal(VSIn i, float3 localNormal) {"
+        "  if (uSkinMeta.x < 0.5f) return localNormal;"
+        "  float3 blended = float3(0.0f, 0.0f, 0.0f);"
+        "  int c = (int)uSkinMeta.y;"
+        "  int j0 = (int)round(i.jnts.x); float w0 = i.wgts.x;"
+        "  int j1 = (int)round(i.jnts.y); float w1 = i.wgts.y;"
+        "  int j2 = (int)round(i.jnts.z); float w2 = i.wgts.z;"
+        "  int j3 = (int)round(i.jnts.w); float w3 = i.wgts.w;"
+        "  if (w0 > 0.00001f && j0 >= 0 && j0 < c && j0 < 64) blended += mul((float3x3)gSkinMatrices[j0], localNormal) * w0;"
+        "  if (w1 > 0.00001f && j1 >= 0 && j1 < c && j1 < 64) blended += mul((float3x3)gSkinMatrices[j1], localNormal) * w1;"
+        "  if (w2 > 0.00001f && j2 >= 0 && j2 < c && j2 < 64) blended += mul((float3x3)gSkinMatrices[j2], localNormal) * w2;"
+        "  if (w3 > 0.00001f && j3 >= 0 && j3 < c && j3 < 64) blended += mul((float3x3)gSkinMatrices[j3], localNormal) * w3;"
+        "  float len2 = dot(blended, blended);"
+        "  return (len2 > 1e-8f) ? normalize(blended) : float3(0.0f, 1.0f, 0.0f);"
+        "}"
+        "float4 applySkinningTangent(VSIn i, float4 localTangent) {"
+        "  if (uSkinMeta.x < 0.5f) return localTangent;"
+        "  float3 tangent = localTangent.xyz;"
+        "  float3 blended = float3(0.0f, 0.0f, 0.0f);"
+        "  int c = (int)uSkinMeta.y;"
+        "  int j0 = (int)round(i.jnts.x); float w0 = i.wgts.x;"
+        "  int j1 = (int)round(i.jnts.y); float w1 = i.wgts.y;"
+        "  int j2 = (int)round(i.jnts.z); float w2 = i.wgts.z;"
+        "  int j3 = (int)round(i.jnts.w); float w3 = i.wgts.w;"
+        "  if (w0 > 0.00001f && j0 >= 0 && j0 < c && j0 < 64) blended += mul((float3x3)gSkinMatrices[j0], tangent) * w0;"
+        "  if (w1 > 0.00001f && j1 >= 0 && j1 < c && j1 < 64) blended += mul((float3x3)gSkinMatrices[j1], tangent) * w1;"
+        "  if (w2 > 0.00001f && j2 >= 0 && j2 < c && j2 < 64) blended += mul((float3x3)gSkinMatrices[j2], tangent) * w2;"
+        "  if (w3 > 0.00001f && j3 >= 0 && j3 < c && j3 < 64) blended += mul((float3x3)gSkinMatrices[j3], tangent) * w3;"
+        "  float len2 = dot(blended, blended);"
+        "  if (len2 > 1e-8f) blended = normalize(blended);"
+        "  else blended = tangent;"
+        "  return float4(blended, localTangent.w);"
+        "}"
         "VSOut main(VSIn i) {"
         "  VSOut o;"
-        "  float4 world = mul(uModel, float4(i.pos, 1.0f));"
+        "  float3 localPos = i.pos;"
+        "  float3 localNormal = i.nrm;"
+        "  float4 localTangent = i.tan;"
+        "  if (uSkinMeta.x > 0.5f) {"
+        "    localPos = applySkinningPos(i, localPos);"
+        "    localNormal = applySkinningNormal(i, localNormal);"
+        "    localTangent = applySkinningTangent(i, localTangent);"
+        "  }"
+        "  float4 world = mul(uModel, float4(localPos, 1.0f));"
         "  float4 clip = mul(uViewProj, world);"
         "  clip.z = clip.z * 0.5f + clip.w * 0.5f;"
         "  o.pos = clip;"
@@ -207,13 +264,13 @@ void D3D12RenderBackend::createWorldPipeline() {
         "  o.col = i.col;"
         "  o.worldPos = world.xyz;"
         "  float3x3 normalM = (float3x3)uModel;"
-        "  float3 wn = mul(normalM, i.nrm);"
+        "  float3 wn = mul(normalM, localNormal);"
         "  float wnLen2 = dot(wn, wn);"
         "  o.worldNormal = (wnLen2 > 1e-8f) ? normalize(wn) : float3(0.0f, 1.0f, 0.0f);"
-        "  float3 wt = mul(normalM, i.tan.xyz);"
+        "  float3 wt = mul(normalM, localTangent.xyz);"
         "  float wtLen2 = dot(wt, wt);"
         "  if (wtLen2 > 1e-8f) wt = normalize(wt);"
-        "  o.worldTangent = float4(wt, i.tan.w);"
+        "  o.worldTangent = float4(wt, localTangent.w);"
         "  return o;"
         "}";
     static constexpr char kPsSource[] = R"HLSL(
@@ -859,19 +916,22 @@ float4 main(PSIn i, bool isFrontFace : SV_IsFrontFace) : SV_TARGET {
         srvRanges[i].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
     }
 
-    D3D12_ROOT_PARAMETER rootParams[8]{};
-    rootParams[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_32BIT_CONSTANTS;
-    rootParams[0].Constants.Num32BitValues = 32;
-    rootParams[0].Constants.ShaderRegister = 0;
-    rootParams[0].Constants.RegisterSpace = 0;
+    D3D12_ROOT_PARAMETER rootParams[9]{};
+    rootParams[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
+    rootParams[0].Descriptor.ShaderRegister = 0;
+    rootParams[0].Descriptor.RegisterSpace = 0;
     rootParams[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX;
     rootParams[1].ParameterType = D3D12_ROOT_PARAMETER_TYPE_32BIT_CONSTANTS;
     rootParams[1].Constants.Num32BitValues = static_cast<UINT>(sizeof(WorldPsConstants) / sizeof(float));
     rootParams[1].Constants.ShaderRegister = 1;
     rootParams[1].Constants.RegisterSpace = 0;
     rootParams[1].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+    rootParams[2].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
+    rootParams[2].Descriptor.ShaderRegister = 2;
+    rootParams[2].Descriptor.RegisterSpace = 0;
+    rootParams[2].ShaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX;
     for (UINT i = 0; i < static_cast<UINT>(srvRanges.size()); ++i) {
-        const UINT rootIndex = 2u + i;
+        const UINT rootIndex = 3u + i;
         rootParams[rootIndex].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
         rootParams[rootIndex].DescriptorTable.NumDescriptorRanges = 1;
         rootParams[rootIndex].DescriptorTable.pDescriptorRanges = &srvRanges[i];
@@ -939,6 +999,8 @@ float4 main(PSIn i, bool isFrontFace : SV_IsFrontFace) : SV_TARGET {
         {"TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
         {"COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 20, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
         {"NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 36, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
+        {"BLENDINDICES", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 48, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
+        {"BLENDWEIGHT", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 64, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
         {"TANGENT", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 80, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
     };
 
@@ -1105,6 +1167,70 @@ float4 main(PSIn i, bool isFrontFace : SV_IsFrontFace) : SV_TARGET {
         throw std::runtime_error("Map failed for D3D12 world index buffer.");
     }
     worldIndexMappedData_ = static_cast<std::uint8_t*>(worldIndexMapped);
+
+    // Per-draw VS constant upload ring buffer (view-proj + model + skin meta).
+    const std::size_t kWorldVsConstantsBytesPerDraw = alignUp(36u * sizeof(float), 256u);
+    const std::size_t kMaxWorldDrawsPerFrame = 4096u;
+    const std::size_t kWorldVsConstantsBufferBytes =
+        kWorldVsConstantsBytesPerDraw * kMaxWorldDrawsPerFrame;
+    D3D12_RESOURCE_DESC worldVsConstantsDesc = bufferDesc;
+    worldVsConstantsDesc.Width = kWorldVsConstantsBufferBytes;
+    if (FAILED(device_->CreateCommittedResource(&heapProps,
+                                                D3D12_HEAP_FLAG_NONE,
+                                                &worldVsConstantsDesc,
+                                                D3D12_RESOURCE_STATE_GENERIC_READ,
+                                                nullptr,
+                                                IID_PPV_ARGS(worldVsConstantBuffer_.ReleaseAndGetAddressOf()))) ||
+        !worldVsConstantBuffer_) {
+        throw std::runtime_error("CreateCommittedResource failed for D3D12 world VS constants buffer.");
+    }
+    worldVsConstantBufferGpuAddress_ = worldVsConstantBuffer_->GetGPUVirtualAddress();
+    worldVsConstantBufferSize_ = static_cast<UINT>(kWorldVsConstantsBufferBytes);
+    worldVsConstantMappedData_ = nullptr;
+    void* worldVsMapped = nullptr;
+    D3D12_RANGE worldVsReadRange{0, 0};
+    if (FAILED(worldVsConstantBuffer_->Map(0, &worldVsReadRange, &worldVsMapped)) || !worldVsMapped) {
+        throw std::runtime_error("Map failed for D3D12 world VS constants buffer.");
+    }
+    worldVsConstantMappedData_ = static_cast<std::uint8_t*>(worldVsMapped);
+    std::memset(worldVsConstantMappedData_, 0, worldVsConstantBufferSize_);
+    worldVsConstantFrameOffset_ = 0u;
+
+    // Per-draw GPU clip-skinning matrix upload ring buffer.
+    const std::size_t kMaxGpuSkinMatrices = 64u;
+    const std::size_t kSkinMatrixBytesPerDraw = alignUp(
+        kMaxGpuSkinMatrices * 16u * sizeof(float), 256u);
+    const std::size_t kSkinMatrixBufferBytes =
+        kSkinMatrixBytesPerDraw * kMaxWorldDrawsPerFrame;
+    D3D12_RESOURCE_DESC skinMatrixBufferDesc = bufferDesc;
+    skinMatrixBufferDesc.Width = kSkinMatrixBufferBytes;
+    if (FAILED(device_->CreateCommittedResource(&heapProps,
+                                                D3D12_HEAP_FLAG_NONE,
+                                                &skinMatrixBufferDesc,
+                                                D3D12_RESOURCE_STATE_GENERIC_READ,
+                                                nullptr,
+                                                IID_PPV_ARGS(worldSkinMatrixBuffer_.ReleaseAndGetAddressOf()))) ||
+        !worldSkinMatrixBuffer_) {
+        throw std::runtime_error("CreateCommittedResource failed for D3D12 world skin-matrix buffer.");
+    }
+    worldSkinMatrixBufferGpuAddress_ = worldSkinMatrixBuffer_->GetGPUVirtualAddress();
+    worldSkinMatrixBufferSize_ = static_cast<UINT>(kSkinMatrixBufferBytes);
+    worldSkinMatrixMappedData_ = nullptr;
+    void* worldSkinMapped = nullptr;
+    D3D12_RANGE worldSkinReadRange{0, 0};
+    if (FAILED(worldSkinMatrixBuffer_->Map(0, &worldSkinReadRange, &worldSkinMapped)) || !worldSkinMapped) {
+        throw std::runtime_error("Map failed for D3D12 world skin-matrix buffer.");
+    }
+    worldSkinMatrixMappedData_ = static_cast<std::uint8_t*>(worldSkinMapped);
+    std::memset(worldSkinMatrixMappedData_, 0, worldSkinMatrixBufferSize_);
+    // Reserve identity at offset 0 for non-skinned draws.
+    constexpr float kIdentity[16] = {
+        1.0f, 0.0f, 0.0f, 0.0f,
+        0.0f, 1.0f, 0.0f, 0.0f,
+        0.0f, 0.0f, 1.0f, 0.0f,
+        0.0f, 0.0f, 0.0f, 1.0f};
+    std::memcpy(worldSkinMatrixMappedData_, kIdentity, sizeof(kIdentity));
+    worldSkinMatrixFrameOffset_ = 256u;
 #endif
 }
 

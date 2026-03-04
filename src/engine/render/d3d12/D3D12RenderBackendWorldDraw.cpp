@@ -23,8 +23,10 @@ using namespace engine::render::d3d12_internal;
 namespace {
 void packWorldVsConstants(const float* viewProjectionMatrix4x4,
                           const float* modelMatrix4x4,
-                          float* out32) {
-    if (!out32) return;
+                          bool skinningEnabled,
+                          std::uint32_t skinMatrixCount,
+                          float* out36) {
+    if (!out36) return;
     static constexpr float kIdentity[16] = {
         1.0f, 0.0f, 0.0f, 0.0f,
         0.0f, 1.0f, 0.0f, 0.0f,
@@ -32,8 +34,12 @@ void packWorldVsConstants(const float* viewProjectionMatrix4x4,
         0.0f, 0.0f, 0.0f, 1.0f};
     const float* vp = viewProjectionMatrix4x4 ? viewProjectionMatrix4x4 : kIdentity;
     const float* model = modelMatrix4x4 ? modelMatrix4x4 : kIdentity;
-    std::memcpy(out32, vp, sizeof(float) * 16u);
-    std::memcpy(out32 + 16u, model, sizeof(float) * 16u);
+    std::memcpy(out36, vp, sizeof(float) * 16u);
+    std::memcpy(out36 + 16u, model, sizeof(float) * 16u);
+    out36[32] = skinningEnabled ? 1.0f : 0.0f;
+    out36[33] = static_cast<float>(skinMatrixCount);
+    out36[34] = 0.0f;
+    out36[35] = 0.0f;
 }
 
 bool pbrBindingLogEnabled() {
@@ -114,14 +120,17 @@ void D3D12RenderBackend::drawWorldTriangles(const WorldTriangle* triangles,
     if (!recording_ || !triangles || triangleCount == 0 || !viewProjectionMatrix4x4) return;
     if (surfaceWidth <= 0 || surfaceHeight <= 0) return;
     if (!worldPipelineState_ || !worldRootSignature_ || !worldVertexBuffer_ || !commandList_ || !srvHeap_) return;
-    if (!worldVertexMappedData_) return;
+    if (!worldVertexMappedData_ || !worldVsConstantMappedData_ || !worldSkinMatrixMappedData_) return;
 
     const std::size_t safeCount = (triangleCount > kMaxWorldTriangles) ? kMaxWorldTriangles : triangleCount;
     if (safeCount == 0) return;
     const std::size_t vertexCount = safeCount * 3;
     const std::size_t neededBytes = vertexCount * sizeof(WorldVertex);
     const std::size_t writeOffset = alignUp(static_cast<std::size_t>(worldVertexFrameOffset_), 256u);
+    const std::size_t vsConstantsWriteOffset =
+        alignUp(static_cast<std::size_t>(worldVsConstantFrameOffset_), 256u);
     if (neededBytes == 0 || writeOffset + neededBytes > worldVertexBufferSize_) return;
+    if (vsConstantsWriteOffset + 256u > worldVsConstantBufferSize_) return;
 
     WorldVertex* out = reinterpret_cast<WorldVertex*>(worldVertexMappedData_ + writeOffset);
     for (std::size_t i = 0; i < safeCount; ++i) {
@@ -168,9 +177,16 @@ void D3D12RenderBackend::drawWorldTriangles(const WorldTriangle* triangles,
         commandList_->SetDescriptorHeaps(1, heaps);
     }
     commandList_->SetGraphicsRootSignature(worldRootSignature_.Get());
-    float vsConstants[32] = {};
-    packWorldVsConstants(viewProjectionMatrix4x4, nullptr, vsConstants);
-    commandList_->SetGraphicsRoot32BitConstants(0, 32, vsConstants, 0);
+    float vsConstants[36] = {};
+    packWorldVsConstants(viewProjectionMatrix4x4, nullptr, false, 0u, vsConstants);
+    std::memcpy(
+        worldVsConstantMappedData_ + vsConstantsWriteOffset,
+        vsConstants,
+        sizeof(vsConstants));
+    commandList_->SetGraphicsRootConstantBufferView(
+        0,
+        worldVsConstantBufferGpuAddress_ + static_cast<std::uint64_t>(vsConstantsWriteOffset));
+    commandList_->SetGraphicsRootConstantBufferView(2, worldSkinMatrixBufferGpuAddress_);
     const WorldPsConstants worldPs = makeWorldPsConstants(nullptr, 0.0f);
     commandList_->SetGraphicsRoot32BitConstants(
         1,
@@ -197,12 +213,12 @@ void D3D12RenderBackend::drawWorldTriangles(const WorldTriangle* triangles,
                                  static_cast<SIZE_T>(srvDescriptorSize_);
         srvEnvHandle.ptr += static_cast<SIZE_T>(worldFallbackEnvTextureDescriptorIndex_) *
                             static_cast<SIZE_T>(srvDescriptorSize_);
-        commandList_->SetGraphicsRootDescriptorTable(2, srvBaseHandle);
-        commandList_->SetGraphicsRootDescriptorTable(3, srvNormalHandle);
-        commandList_->SetGraphicsRootDescriptorTable(4, srvMetalRoughHandle);
-        commandList_->SetGraphicsRootDescriptorTable(5, srvOcclusionHandle);
-        commandList_->SetGraphicsRootDescriptorTable(6, srvEmissiveHandle);
-        commandList_->SetGraphicsRootDescriptorTable(7, srvEnvHandle);
+        commandList_->SetGraphicsRootDescriptorTable(3, srvBaseHandle);
+        commandList_->SetGraphicsRootDescriptorTable(4, srvNormalHandle);
+        commandList_->SetGraphicsRootDescriptorTable(5, srvMetalRoughHandle);
+        commandList_->SetGraphicsRootDescriptorTable(6, srvOcclusionHandle);
+        commandList_->SetGraphicsRootDescriptorTable(7, srvEmissiveHandle);
+        commandList_->SetGraphicsRootDescriptorTable(8, srvEnvHandle);
     }
     commandList_->SetPipelineState(worldPipelineState_.Get());
     commandList_->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
@@ -216,6 +232,7 @@ void D3D12RenderBackend::drawWorldTriangles(const WorldTriangle* triangles,
     ++frameDrawCalls_;
     frameTriangles_ += static_cast<std::uint64_t>(vertexCount / 3u);
     worldVertexFrameOffset_ = static_cast<UINT>(writeOffset + neededBytes);
+    worldVsConstantFrameOffset_ = static_cast<UINT>(vsConstantsWriteOffset + 256u);
 #else
     (void)triangles;
     (void)triangleCount;
@@ -380,11 +397,18 @@ void D3D12RenderBackend::drawWorldIndexedMeshInternal(const WorldMeshVertex* ver
         !worldRootSignature_ ||
         !worldVertexBuffer_ ||
         !worldIndexBuffer_ ||
+        !worldVsConstantBuffer_ ||
+        !worldSkinMatrixBuffer_ ||
         !commandList_ ||
         !srvHeap_) {
         return;
     }
-    if (!worldVertexMappedData_ || !worldIndexMappedData_) return;
+    if (!worldVertexMappedData_ ||
+        !worldIndexMappedData_ ||
+        !worldVsConstantMappedData_ ||
+        !worldSkinMatrixMappedData_) {
+        return;
+    }
 
     const std::size_t maxVertexCapacity = worldVertexBufferSize_ / sizeof(WorldVertex);
     const std::size_t maxIndexCapacity = worldIndexBufferSize_ / sizeof(std::uint32_t);
@@ -402,8 +426,11 @@ void D3D12RenderBackend::drawWorldIndexedMeshInternal(const WorldMeshVertex* ver
     if (vertexBytes == 0 || indexBytes == 0) return;
     const std::size_t vertexWriteOffset = alignUp(static_cast<std::size_t>(worldVertexFrameOffset_), 256u);
     const std::size_t indexWriteOffset = alignUp(static_cast<std::size_t>(worldIndexFrameOffset_), 256u);
+    const std::size_t vsConstantsWriteOffset =
+        alignUp(static_cast<std::size_t>(worldVsConstantFrameOffset_), 256u);
     if (vertexWriteOffset + vertexBytes > worldVertexBufferSize_ ||
-        indexWriteOffset + indexBytes > worldIndexBufferSize_) {
+        indexWriteOffset + indexBytes > worldIndexBufferSize_ ||
+        vsConstantsWriteOffset + 256u > worldVsConstantBufferSize_) {
         return;
     }
 
@@ -427,9 +454,49 @@ void D3D12RenderBackend::drawWorldIndexedMeshInternal(const WorldMeshVertex* ver
     commandList_->SetDescriptorHeaps(1, heaps);
     commandList_->SetGraphicsRootSignature(worldRootSignature_.Get());
     const float* modelMatrix = textureData ? textureData->modelMatrix.data() : nullptr;
-    float vsConstants[32] = {};
-    packWorldVsConstants(viewProjectionMatrix4x4, modelMatrix, vsConstants);
-    commandList_->SetGraphicsRoot32BitConstants(0, 32, vsConstants, 0);
+    constexpr std::uint32_t kMaxGpuSkinMatrices = 64u;
+    bool gpuSkinningEnabled =
+        textureData &&
+        textureData->gpuSkinning != 0u &&
+        textureData->skinMatrices != nullptr &&
+        textureData->skinMatrixCount > 0u &&
+        textureData->skinMatrixCount <= kMaxGpuSkinMatrices;
+    std::uint32_t gpuSkinMatrixCount = gpuSkinningEnabled ? textureData->skinMatrixCount : 0u;
+    D3D12_GPU_VIRTUAL_ADDRESS skinMatrixGpuAddress = worldSkinMatrixBufferGpuAddress_;
+    if (gpuSkinningEnabled) {
+        const std::size_t copyBytes =
+            static_cast<std::size_t>(gpuSkinMatrixCount) * 16u * sizeof(float);
+        const std::size_t skinWriteOffset =
+            alignUp(static_cast<std::size_t>(worldSkinMatrixFrameOffset_), 256u);
+        const std::size_t skinWriteEnd = skinWriteOffset + alignUp(copyBytes, 256u);
+        if (skinWriteEnd <= worldSkinMatrixBufferSize_) {
+            std::memcpy(
+                worldSkinMatrixMappedData_ + skinWriteOffset,
+                textureData->skinMatrices,
+                copyBytes);
+            skinMatrixGpuAddress += static_cast<std::uint64_t>(skinWriteOffset);
+            worldSkinMatrixFrameOffset_ = static_cast<UINT>(skinWriteEnd);
+        } else {
+            gpuSkinningEnabled = false;
+            gpuSkinMatrixCount = 0u;
+        }
+    }
+
+    float vsConstants[36] = {};
+    packWorldVsConstants(
+        viewProjectionMatrix4x4,
+        modelMatrix,
+        gpuSkinningEnabled,
+        gpuSkinMatrixCount,
+        vsConstants);
+    std::memcpy(
+        worldVsConstantMappedData_ + vsConstantsWriteOffset,
+        vsConstants,
+        sizeof(vsConstants));
+    commandList_->SetGraphicsRootConstantBufferView(
+        0,
+        worldVsConstantBufferGpuAddress_ + static_cast<std::uint64_t>(vsConstantsWriteOffset));
+    commandList_->SetGraphicsRootConstantBufferView(2, skinMatrixGpuAddress);
     WorldPsConstants worldPs = makeWorldPsConstants(textureData, useTexture);
     if (textureData && textureData->materialMode >= 2u) {
         // Reuse an unused packed slot in lit model mode for shader debug-view selection.
@@ -457,12 +524,12 @@ void D3D12RenderBackend::drawWorldIndexedMeshInternal(const WorldMeshVertex* ver
         static_cast<SIZE_T>(emissiveTextureDescriptorIndex) * static_cast<SIZE_T>(srvDescriptorSize_);
     srvEnvHandle.ptr +=
         static_cast<SIZE_T>(envTextureDescriptorIndex) * static_cast<SIZE_T>(srvDescriptorSize_);
-    commandList_->SetGraphicsRootDescriptorTable(2, srvBaseHandle);
-    commandList_->SetGraphicsRootDescriptorTable(3, srvNormalHandle);
-    commandList_->SetGraphicsRootDescriptorTable(4, srvMetalRoughHandle);
-    commandList_->SetGraphicsRootDescriptorTable(5, srvOcclusionHandle);
-    commandList_->SetGraphicsRootDescriptorTable(6, srvEmissiveHandle);
-    commandList_->SetGraphicsRootDescriptorTable(7, srvEnvHandle);
+    commandList_->SetGraphicsRootDescriptorTable(3, srvBaseHandle);
+    commandList_->SetGraphicsRootDescriptorTable(4, srvNormalHandle);
+    commandList_->SetGraphicsRootDescriptorTable(5, srvMetalRoughHandle);
+    commandList_->SetGraphicsRootDescriptorTable(6, srvOcclusionHandle);
+    commandList_->SetGraphicsRootDescriptorTable(7, srvEmissiveHandle);
+    commandList_->SetGraphicsRootDescriptorTable(8, srvEnvHandle);
     const bool blendMaterial = textureData && textureData->alphaMode == 2u;
     const std::uint8_t blendMode = textureData ? std::min<std::uint8_t>(2u, textureData->blendMode) : 0u;
     ID3D12PipelineState* pso = worldPipelineState_.Get();
@@ -496,6 +563,7 @@ void D3D12RenderBackend::drawWorldIndexedMeshInternal(const WorldMeshVertex* ver
 
     std::size_t nextVertexOffset = vertexWriteOffset + vertexBytes;
     std::size_t nextIndexOffset = indexWriteOffset + indexBytes;
+    std::size_t nextVsConstantOffset = vsConstantsWriteOffset + 256u;
 
     const bool drawCharacterOutline =
         textureData &&
@@ -505,8 +573,10 @@ void D3D12RenderBackend::drawWorldIndexedMeshInternal(const WorldMeshVertex* ver
     if (drawCharacterOutline) {
         const std::size_t outlineVertexWriteOffset = alignUp(nextVertexOffset, 256u);
         const std::size_t outlineIndexWriteOffset = alignUp(nextIndexOffset, 256u);
+        const std::size_t outlineVsConstantWriteOffset = alignUp(nextVsConstantOffset, 256u);
         if (outlineVertexWriteOffset + vertexBytes <= worldVertexBufferSize_ &&
-            outlineIndexWriteOffset + indexBytes <= worldIndexBufferSize_) {
+            outlineIndexWriteOffset + indexBytes <= worldIndexBufferSize_ &&
+            outlineVsConstantWriteOffset + 256u <= worldVsConstantBufferSize_) {
             auto* outlineVertices =
                 reinterpret_cast<WorldVertex*>(worldVertexMappedData_ + outlineVertexWriteOffset);
             const auto* srcVertices = reinterpret_cast<const WorldVertex*>(vertices);
@@ -546,6 +616,23 @@ void D3D12RenderBackend::drawWorldIndexedMeshInternal(const WorldMeshVertex* ver
             outlineIbv.SizeInBytes = static_cast<UINT>(indexBytes);
             commandList_->IASetIndexBuffer(&outlineIbv);
 
+            float outlineVsConstants[36] = {};
+            packWorldVsConstants(
+                viewProjectionMatrix4x4,
+                modelMatrix,
+                false,
+                0u,
+                outlineVsConstants);
+            std::memcpy(
+                worldVsConstantMappedData_ + outlineVsConstantWriteOffset,
+                outlineVsConstants,
+                sizeof(outlineVsConstants));
+            commandList_->SetGraphicsRootConstantBufferView(
+                0,
+                worldVsConstantBufferGpuAddress_ +
+                    static_cast<std::uint64_t>(outlineVsConstantWriteOffset));
+            commandList_->SetGraphicsRootConstantBufferView(2, worldSkinMatrixBufferGpuAddress_);
+
             WorldPsConstants outlinePs = makeWorldPsConstants(textureData, 0.0f);
             outlinePs.materialMode = 3.0f;
             commandList_->SetGraphicsRoot32BitConstants(
@@ -560,11 +647,13 @@ void D3D12RenderBackend::drawWorldIndexedMeshInternal(const WorldMeshVertex* ver
 
             nextVertexOffset = outlineVertexWriteOffset + vertexBytes;
             nextIndexOffset = outlineIndexWriteOffset + indexBytes;
+            nextVsConstantOffset = outlineVsConstantWriteOffset + 256u;
         }
     }
 
     worldVertexFrameOffset_ = static_cast<UINT>(nextVertexOffset);
     worldIndexFrameOffset_ = static_cast<UINT>(nextIndexOffset);
+    worldVsConstantFrameOffset_ = static_cast<UINT>(nextVsConstantOffset);
 #else
     (void)vertices;
     (void)vertexCount;

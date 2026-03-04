@@ -301,10 +301,13 @@ void D3D12RenderBackend::drawWorldIndexedMeshCachedInternal(const CachedWorldMes
     if (surfaceWidth <= 0 || surfaceHeight <= 0) return;
     if (!worldPipelineState_ ||
         !worldRootSignature_ ||
+        !worldVsConstantBuffer_ ||
+        !worldSkinMatrixBuffer_ ||
         !commandList_ ||
         !srvHeap_) {
         return;
     }
+    if (!worldVsConstantMappedData_) return;
 
     D3D12_VIEWPORT vp{};
     vp.TopLeftX = 0.0f;
@@ -326,10 +329,24 @@ void D3D12RenderBackend::drawWorldIndexedMeshCachedInternal(const CachedWorldMes
         0.0f, 1.0f, 0.0f, 0.0f,
         0.0f, 0.0f, 1.0f, 0.0f,
         0.0f, 0.0f, 0.0f, 1.0f};
-    float vsConstants[32] = {};
+    const std::size_t vsConstantsWriteOffset =
+        alignUp(static_cast<std::size_t>(worldVsConstantFrameOffset_), 256u);
+    if (vsConstantsWriteOffset + 256u > worldVsConstantBufferSize_) return;
+    float vsConstants[36] = {};
     std::memcpy(vsConstants, viewProjectionMatrix4x4, sizeof(float) * 16u);
     std::memcpy(vsConstants + 16u, kIdentity, sizeof(float) * 16u);
-    commandList_->SetGraphicsRoot32BitConstants(0, 32, vsConstants, 0);
+    vsConstants[32] = 0.0f;
+    vsConstants[33] = 0.0f;
+    vsConstants[34] = 0.0f;
+    vsConstants[35] = 0.0f;
+    std::memcpy(
+        worldVsConstantMappedData_ + vsConstantsWriteOffset,
+        vsConstants,
+        sizeof(vsConstants));
+    commandList_->SetGraphicsRootConstantBufferView(
+        0,
+        worldVsConstantBufferGpuAddress_ + static_cast<std::uint64_t>(vsConstantsWriteOffset));
+    commandList_->SetGraphicsRootConstantBufferView(2, worldSkinMatrixBufferGpuAddress_);
     const WorldPsConstants worldPs = makeWorldPsConstants(nullptr, 0.0f);
     commandList_->SetGraphicsRoot32BitConstants(
         1,
@@ -355,12 +372,12 @@ void D3D12RenderBackend::drawWorldIndexedMeshCachedInternal(const CachedWorldMes
                              static_cast<SIZE_T>(srvDescriptorSize_);
     srvEnvHandle.ptr += static_cast<SIZE_T>(worldFallbackEnvTextureDescriptorIndex_) *
                         static_cast<SIZE_T>(srvDescriptorSize_);
-    commandList_->SetGraphicsRootDescriptorTable(2, srvBaseHandle);
-    commandList_->SetGraphicsRootDescriptorTable(3, srvNormalHandle);
-    commandList_->SetGraphicsRootDescriptorTable(4, srvMetalRoughHandle);
-    commandList_->SetGraphicsRootDescriptorTable(5, srvOcclusionHandle);
-    commandList_->SetGraphicsRootDescriptorTable(6, srvEmissiveHandle);
-    commandList_->SetGraphicsRootDescriptorTable(7, srvEnvHandle);
+    commandList_->SetGraphicsRootDescriptorTable(3, srvBaseHandle);
+    commandList_->SetGraphicsRootDescriptorTable(4, srvNormalHandle);
+    commandList_->SetGraphicsRootDescriptorTable(5, srvMetalRoughHandle);
+    commandList_->SetGraphicsRootDescriptorTable(6, srvOcclusionHandle);
+    commandList_->SetGraphicsRootDescriptorTable(7, srvEmissiveHandle);
+    commandList_->SetGraphicsRootDescriptorTable(8, srvEnvHandle);
     commandList_->SetPipelineState(worldPipelineState_.Get());
     commandList_->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
@@ -378,6 +395,7 @@ void D3D12RenderBackend::drawWorldIndexedMeshCachedInternal(const CachedWorldMes
     commandList_->DrawIndexedInstanced(static_cast<UINT>(mesh.indexCount), 1, 0, 0, 0);
     ++frameDrawCalls_;
     frameTriangles_ += static_cast<std::uint64_t>(mesh.indexCount / 3u);
+    worldVsConstantFrameOffset_ = static_cast<UINT>(vsConstantsWriteOffset + 256u);
 #else
     (void)mesh;
     (void)viewProjectionMatrix4x4;

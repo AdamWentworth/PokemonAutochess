@@ -82,6 +82,8 @@ void D3D12RenderBackend::beginFrame(float r, float g, float b, float a) {
     debugVertexFrameOffset_ = 0;
     worldVertexFrameOffset_ = 0;
     worldIndexFrameOffset_ = 0;
+    worldVsConstantFrameOffset_ = 0;
+    worldSkinMatrixFrameOffset_ = 256u;
     spriteVertexFrameOffset_ = 0;
 
     if (timestampQueryHeap_) {
@@ -404,6 +406,24 @@ void D3D12RenderBackend::shutdown() {
     worldIndexBufferGpuAddress_ = 0;
     worldIndexBufferSize_ = 0;
     worldIndexFrameOffset_ = 0;
+    if (worldVsConstantBuffer_ && worldVsConstantMappedData_) {
+        D3D12_RANGE readRange{0, 0};
+        worldVsConstantBuffer_->Unmap(0, &readRange);
+    }
+    worldVsConstantMappedData_ = nullptr;
+    worldVsConstantBuffer_.Reset();
+    worldVsConstantBufferGpuAddress_ = 0;
+    worldVsConstantBufferSize_ = 0;
+    worldVsConstantFrameOffset_ = 0;
+    if (worldSkinMatrixBuffer_ && worldSkinMatrixMappedData_) {
+        D3D12_RANGE readRange{0, 0};
+        worldSkinMatrixBuffer_->Unmap(0, &readRange);
+    }
+    worldSkinMatrixMappedData_ = nullptr;
+    worldSkinMatrixBuffer_.Reset();
+    worldSkinMatrixBufferGpuAddress_ = 0;
+    worldSkinMatrixBufferSize_ = 0;
+    worldSkinMatrixFrameOffset_ = 0;
     worldFallbackTextureDescriptorIndex_ = 0;
     worldFallbackNormalTextureDescriptorIndex_ = 0;
     worldFallbackMetallicRoughnessTextureDescriptorIndex_ = 0;
