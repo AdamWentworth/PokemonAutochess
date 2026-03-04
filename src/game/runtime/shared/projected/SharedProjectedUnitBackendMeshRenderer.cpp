@@ -165,11 +165,23 @@ Result renderProjectedUnitBackendMesh(const Args& args) {
                 auto& nodeToBatch = gpuSkinBatchIndexBySubmesh[submeshIndex];
                 if (nodeToBatch.find(triNodeIndex) != nodeToBatch.end()) continue;
 
+                // Reuse the original submesh batch for the first node assignment to avoid
+                // unnecessary clones and to keep pre-reserved capacities from prep().
+                if (nodeToBatch.empty()) {
+                    nodeToBatch.emplace(triNodeIndex, submeshIndex);
+                    continue;
+                }
+
+                const auto& templateBatch = modelIndexedBatchesPerSubmesh[submeshIndex];
+                const std::size_t templateVertexReserve = templateBatch.vertices.capacity();
+                const std::size_t templateIndexReserve = templateBatch.indices.capacity();
                 const std::size_t newBatchIndex = modelIndexedBatchesPerSubmesh.size();
-                modelIndexedBatchesPerSubmesh.push_back(modelIndexedBatchesPerSubmesh[submeshIndex]);
+                modelIndexedBatchesPerSubmesh.push_back(templateBatch);
                 auto& newBatch = modelIndexedBatchesPerSubmesh.back();
                 newBatch.vertices.clear();
                 newBatch.indices.clear();
+                if (templateVertexReserve > 0u) newBatch.vertices.reserve(templateVertexReserve);
+                if (templateIndexReserve > 0u) newBatch.indices.reserve(templateIndexReserve);
                 newBatch.gpuSkinning = 0u;
                 newBatch.skinMatrixCount = 0u;
                 newBatch.skinMatrices.clear();
