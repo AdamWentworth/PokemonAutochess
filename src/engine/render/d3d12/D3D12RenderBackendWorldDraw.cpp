@@ -23,10 +23,8 @@ using namespace engine::render::d3d12_internal;
 namespace {
 void packWorldVsConstants(const float* viewProjectionMatrix4x4,
                           const float* modelMatrix4x4,
-                          bool skinningEnabled,
-                          std::uint32_t skinMatrixCount,
-                          float* out36) {
-    if (!out36) return;
+                          float* out32) {
+    if (!out32) return;
     static constexpr float kIdentity[16] = {
         1.0f, 0.0f, 0.0f, 0.0f,
         0.0f, 1.0f, 0.0f, 0.0f,
@@ -34,12 +32,8 @@ void packWorldVsConstants(const float* viewProjectionMatrix4x4,
         0.0f, 0.0f, 0.0f, 1.0f};
     const float* vp = viewProjectionMatrix4x4 ? viewProjectionMatrix4x4 : kIdentity;
     const float* model = modelMatrix4x4 ? modelMatrix4x4 : kIdentity;
-    std::memcpy(out36, vp, sizeof(float) * 16u);
-    std::memcpy(out36 + 16u, model, sizeof(float) * 16u);
-    out36[32] = skinningEnabled ? 1.0f : 0.0f;
-    out36[33] = static_cast<float>(skinMatrixCount);
-    out36[34] = 0.0f;
-    out36[35] = 0.0f;
+    std::memcpy(out32, vp, sizeof(float) * 16u);
+    std::memcpy(out32 + 16u, model, sizeof(float) * 16u);
 }
 
 bool pbrBindingLogEnabled() {
@@ -174,12 +168,9 @@ void D3D12RenderBackend::drawWorldTriangles(const WorldTriangle* triangles,
         commandList_->SetDescriptorHeaps(1, heaps);
     }
     commandList_->SetGraphicsRootSignature(worldRootSignature_.Get());
-    float vsConstants[36] = {};
-    packWorldVsConstants(viewProjectionMatrix4x4, nullptr, false, 0u, vsConstants);
-    commandList_->SetGraphicsRoot32BitConstants(0, 36, vsConstants, 0);
-    commandList_->SetGraphicsRootConstantBufferView(
-        2,
-        worldSkinMatrixBufferGpuAddress_);
+    float vsConstants[32] = {};
+    packWorldVsConstants(viewProjectionMatrix4x4, nullptr, vsConstants);
+    commandList_->SetGraphicsRoot32BitConstants(0, 32, vsConstants, 0);
     const WorldPsConstants worldPs = makeWorldPsConstants(nullptr, 0.0f);
     commandList_->SetGraphicsRoot32BitConstants(
         1,
@@ -206,12 +197,12 @@ void D3D12RenderBackend::drawWorldTriangles(const WorldTriangle* triangles,
                                  static_cast<SIZE_T>(srvDescriptorSize_);
         srvEnvHandle.ptr += static_cast<SIZE_T>(worldFallbackEnvTextureDescriptorIndex_) *
                             static_cast<SIZE_T>(srvDescriptorSize_);
-        commandList_->SetGraphicsRootDescriptorTable(3, srvBaseHandle);
-        commandList_->SetGraphicsRootDescriptorTable(4, srvNormalHandle);
-        commandList_->SetGraphicsRootDescriptorTable(5, srvMetalRoughHandle);
-        commandList_->SetGraphicsRootDescriptorTable(6, srvOcclusionHandle);
-        commandList_->SetGraphicsRootDescriptorTable(7, srvEmissiveHandle);
-        commandList_->SetGraphicsRootDescriptorTable(8, srvEnvHandle);
+        commandList_->SetGraphicsRootDescriptorTable(2, srvBaseHandle);
+        commandList_->SetGraphicsRootDescriptorTable(3, srvNormalHandle);
+        commandList_->SetGraphicsRootDescriptorTable(4, srvMetalRoughHandle);
+        commandList_->SetGraphicsRootDescriptorTable(5, srvOcclusionHandle);
+        commandList_->SetGraphicsRootDescriptorTable(6, srvEmissiveHandle);
+        commandList_->SetGraphicsRootDescriptorTable(7, srvEnvHandle);
     }
     commandList_->SetPipelineState(worldPipelineState_.Get());
     commandList_->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
@@ -436,48 +427,9 @@ void D3D12RenderBackend::drawWorldIndexedMeshInternal(const WorldMeshVertex* ver
     commandList_->SetDescriptorHeaps(1, heaps);
     commandList_->SetGraphicsRootSignature(worldRootSignature_.Get());
     const float* modelMatrix = textureData ? textureData->modelMatrix.data() : nullptr;
-    constexpr std::uint32_t kMaxGpuSkinMatrices = 64u;
-    bool gpuSkinningEnabled =
-        textureData &&
-        textureData->gpuSkinning != 0u &&
-        textureData->skinMatrices != nullptr &&
-        textureData->skinMatrixCount > 0u &&
-        textureData->skinMatrixCount <= kMaxGpuSkinMatrices &&
-        worldSkinMatrixBuffer_ &&
-        worldSkinMatrixMappedData_ &&
-        worldSkinMatrixBufferGpuAddress_ != 0 &&
-        worldSkinMatrixBufferSize_ > 0u;
-    std::uint32_t gpuSkinMatrixCount = gpuSkinningEnabled ? textureData->skinMatrixCount : 0u;
-    D3D12_GPU_VIRTUAL_ADDRESS skinMatrixGpuAddress = worldSkinMatrixBufferGpuAddress_;
-    if (gpuSkinningEnabled) {
-        const std::size_t copyBytes =
-            static_cast<std::size_t>(gpuSkinMatrixCount) * 16u * sizeof(float);
-        const std::size_t writeOffset =
-            alignUp(static_cast<std::size_t>(worldSkinMatrixFrameOffset_), 256u);
-        const std::size_t nextOffset =
-            writeOffset + alignUp(copyBytes, 256u);
-        if (nextOffset <= worldSkinMatrixBufferSize_) {
-            std::memcpy(
-                worldSkinMatrixMappedData_ + writeOffset,
-                textureData->skinMatrices,
-                copyBytes);
-            skinMatrixGpuAddress += static_cast<std::uint64_t>(writeOffset);
-            worldSkinMatrixFrameOffset_ = static_cast<UINT>(nextOffset);
-        } else {
-            gpuSkinningEnabled = false;
-            gpuSkinMatrixCount = 0u;
-        }
-    }
-
-    float vsConstants[36] = {};
-    packWorldVsConstants(
-        viewProjectionMatrix4x4,
-        modelMatrix,
-        gpuSkinningEnabled,
-        gpuSkinMatrixCount,
-        vsConstants);
-    commandList_->SetGraphicsRoot32BitConstants(0, 36, vsConstants, 0);
-    commandList_->SetGraphicsRootConstantBufferView(2, skinMatrixGpuAddress);
+    float vsConstants[32] = {};
+    packWorldVsConstants(viewProjectionMatrix4x4, modelMatrix, vsConstants);
+    commandList_->SetGraphicsRoot32BitConstants(0, 32, vsConstants, 0);
     WorldPsConstants worldPs = makeWorldPsConstants(textureData, useTexture);
     if (textureData && textureData->materialMode >= 2u) {
         // Reuse an unused packed slot in lit model mode for shader debug-view selection.
@@ -505,12 +457,12 @@ void D3D12RenderBackend::drawWorldIndexedMeshInternal(const WorldMeshVertex* ver
         static_cast<SIZE_T>(emissiveTextureDescriptorIndex) * static_cast<SIZE_T>(srvDescriptorSize_);
     srvEnvHandle.ptr +=
         static_cast<SIZE_T>(envTextureDescriptorIndex) * static_cast<SIZE_T>(srvDescriptorSize_);
-    commandList_->SetGraphicsRootDescriptorTable(3, srvBaseHandle);
-    commandList_->SetGraphicsRootDescriptorTable(4, srvNormalHandle);
-    commandList_->SetGraphicsRootDescriptorTable(5, srvMetalRoughHandle);
-    commandList_->SetGraphicsRootDescriptorTable(6, srvOcclusionHandle);
-    commandList_->SetGraphicsRootDescriptorTable(7, srvEmissiveHandle);
-    commandList_->SetGraphicsRootDescriptorTable(8, srvEnvHandle);
+    commandList_->SetGraphicsRootDescriptorTable(2, srvBaseHandle);
+    commandList_->SetGraphicsRootDescriptorTable(3, srvNormalHandle);
+    commandList_->SetGraphicsRootDescriptorTable(4, srvMetalRoughHandle);
+    commandList_->SetGraphicsRootDescriptorTable(5, srvOcclusionHandle);
+    commandList_->SetGraphicsRootDescriptorTable(6, srvEmissiveHandle);
+    commandList_->SetGraphicsRootDescriptorTable(7, srvEnvHandle);
     const bool blendMaterial = textureData && textureData->alphaMode == 2u;
     const std::uint8_t blendMode = textureData ? std::min<std::uint8_t>(2u, textureData->blendMode) : 0u;
     ID3D12PipelineState* pso = worldPipelineState_.Get();
@@ -593,16 +545,6 @@ void D3D12RenderBackend::drawWorldIndexedMeshInternal(const WorldMeshVertex* ver
             outlineIbv.Format = DXGI_FORMAT_R32_UINT;
             outlineIbv.SizeInBytes = static_cast<UINT>(indexBytes);
             commandList_->IASetIndexBuffer(&outlineIbv);
-
-            float outlineVsConstants[36] = {};
-            packWorldVsConstants(
-                viewProjectionMatrix4x4,
-                modelMatrix,
-                false,
-                0u,
-                outlineVsConstants);
-            commandList_->SetGraphicsRoot32BitConstants(0, 36, outlineVsConstants, 0);
-            commandList_->SetGraphicsRootConstantBufferView(2, worldSkinMatrixBufferGpuAddress_);
 
             WorldPsConstants outlinePs = makeWorldPsConstants(textureData, 0.0f);
             outlinePs.materialMode = 3.0f;

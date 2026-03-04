@@ -242,11 +242,6 @@ private:
     std::uint32_t worldIndexBufferSize_ = 0;
     std::uint32_t worldIndexFrameOffset_ = 0;
     std::uint8_t* worldIndexMappedData_ = nullptr;
-    Microsoft::WRL::ComPtr<ID3D12Resource> worldSkinMatrixBuffer_;
-    std::uint64_t worldSkinMatrixBufferGpuAddress_ = 0;
-    std::uint32_t worldSkinMatrixBufferSize_ = 0;
-    std::uint32_t worldSkinMatrixFrameOffset_ = 0;
-    std::uint8_t* worldSkinMatrixMappedData_ = nullptr;
     std::uint32_t worldFallbackTextureDescriptorIndex_ = 0;
     std::uint32_t worldFallbackNormalTextureDescriptorIndex_ = 0;
     std::uint32_t worldFallbackMetallicRoughnessTextureDescriptorIndex_ = 0;

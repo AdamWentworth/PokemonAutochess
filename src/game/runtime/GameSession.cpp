@@ -333,7 +333,7 @@ bool backendGpuClipSkinningEnabled(const IRenderBackend* renderer) {
         return parseFlag("PAC_BACKEND_GPU_CLIP_SKINNING_OPENGL", true);
     }
     if (backendId == "d3d12") {
-        return parseFlag("PAC_BACKEND_GPU_CLIP_SKINNING_D3D12", true);
+        return parseFlag("PAC_BACKEND_GPU_CLIP_SKINNING_D3D12", false);
     }
     return parseFlag("PAC_BACKEND_GPU_CLIP_SKINNING_OTHER", false);
 }
