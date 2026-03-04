@@ -94,6 +94,26 @@ int resolveSceneAnimIndexForUnit(const game::runtime::backend_model::MeshData& m
     return animIndex;
 }
 
+float canonicalSceneAnimTimeForKey(const game::runtime::backend_model::MeshData& mesh,
+                                   int animIndex,
+                                   float animTimeSec) {
+    if (animIndex < 0 || static_cast<std::size_t>(animIndex) >= mesh.animations.size()) {
+        return 0.0f;
+    }
+    const float durationSec = mesh.animations[static_cast<std::size_t>(animIndex)].durationSec;
+    if (!(durationSec > 0.0f)) {
+        return 0.0f;
+    }
+    float wrapped = std::fmod(animTimeSec, durationSec);
+    if (wrapped < 0.0f) {
+        wrapped += durationSec;
+    }
+    if (wrapped == 0.0f) {
+        return 0.0f;
+    }
+    return wrapped;
+}
+
 std::uint32_t floatToBits(float value) {
     std::uint32_t bits = 0u;
     static_assert(sizeof(bits) == sizeof(value));
@@ -263,10 +283,12 @@ for (const auto& unit : units) {
     bool scenePoseReady = false;
     if (meshForUnit) {
         const int animIndex = resolveSceneAnimIndexForUnit(*meshForUnit, unit);
+        const float canonicalAnimTimeSec =
+            canonicalSceneAnimTimeForKey(*meshForUnit, animIndex, unit.animTimeSec);
         const CachedScenePoseKey key{
             meshForUnit,
             animIndex,
-            floatToBits(unit.animTimeSec)};
+            floatToBits(canonicalAnimTimeSec)};
         auto it = g_cachedScenePoseBySignature.find(key);
         if (it == g_cachedScenePoseBySignature.end()) {
             CachedScenePoseEntry inserted;

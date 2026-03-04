@@ -614,6 +614,12 @@ glm::vec3 Resolver::resolveGpuSkinningInputPos(
     return outPos;
 }
 
+glm::vec3 Resolver::resolveDeformedLocalVertexPos(
+    std::uint32_t vertexIndex,
+    const runtime::backend_model::MeshVertex& vtx) {
+    return resolveLocalVertexPos(vertexIndex, vtx);
+}
+
 int Resolver::gpuSkinningCacheKeyForNode(int triNodeIndex) const {
     if (!mesh_ || triNodeIndex < 0) return -1;
     const std::size_t nodeIdx = static_cast<std::size_t>(triNodeIndex);

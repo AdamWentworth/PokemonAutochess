@@ -138,8 +138,10 @@ public:
 
     std::vector<TypeLineCount> getPlayerTypeLineCounts() const;
     bool buildGrowlWaveSnapshot(GrowlWaveVFX::RenderSnapshot& out) const;
+    std::uint32_t countActiveGrowlWaveVfx() const;
     bool buildParticleVfxSnapshots(ParticleVfxSnapshots& out) const;
     std::uint32_t countActiveParticleVfx() const;
+    std::uint32_t countActiveCaptureAttempts() const;
     bool buildCaptureAttemptRenderSnapshots(std::vector<CaptureAttemptRenderSnapshot>& out) const;
 
     glm::vec3 getNearestEnemyPosition(const PokemonInstance& unit) const;

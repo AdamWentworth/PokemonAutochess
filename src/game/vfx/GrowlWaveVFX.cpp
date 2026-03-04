@@ -5,6 +5,7 @@
 #include <cmath>
 #include <fstream>
 #include <iostream>
+#include <limits>
 #include <stdexcept>
 #include <unordered_map>
 
@@ -689,6 +690,12 @@ bool GrowlWaveVFX::buildRenderSnapshot(RenderSnapshot& out) const {
     }
 
     return !out.drawPasses.empty() && !out.rings.empty();
+}
+
+std::uint32_t GrowlWaveVFX::activeRingCount() const {
+    return static_cast<std::uint32_t>(std::min<std::size_t>(
+        rings.size(),
+        static_cast<std::size_t>(std::numeric_limits<std::uint32_t>::max())));
 }
 
 void GrowlWaveVFX::emitFrom(const glm::vec3& mouthWorldPos,

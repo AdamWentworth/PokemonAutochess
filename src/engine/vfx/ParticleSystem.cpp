@@ -10,6 +10,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstddef>
+#include <utility>
 
 #include <glad/glad.h>
 
@@ -180,21 +181,28 @@ void ParticleSystem::update(float dt) {
     dt = std::clamp(dt, 0.0f, 0.05f);
     timeSec += dt;
 
-    for (auto& p : particles) {
-        p.vel += (updateSettings.acceleration + p.accel) * dt;
+    if (particles.empty()) return;
 
-        float damp = std::pow(updateSettings.dampingBase, dt);
+    const glm::vec3 baseAccelDt = updateSettings.acceleration * dt;
+    const float damp = std::pow(updateSettings.dampingBase, dt);
+
+    // Update + compact in one pass to avoid a second remove_if walk.
+    std::size_t writeIndex = 0u;
+    for (std::size_t readIndex = 0u; readIndex < particles.size(); ++readIndex) {
+        Particle p = particles[readIndex];
+        p.vel += baseAccelDt + (p.accel * dt);
         p.vel *= damp;
-
         p.pos += p.vel * dt;
         p.lifeSec -= dt;
+        if (p.lifeSec <= 0.0f) continue;
+        if (writeIndex != readIndex) {
+            particles[writeIndex] = p;
+        } else {
+            particles[writeIndex] = std::move(p);
+        }
+        ++writeIndex;
     }
-
-    particles.erase(
-        std::remove_if(particles.begin(), particles.end(),
-                       [](const Particle& p) { return p.lifeSec <= 0.0f; }),
-        particles.end()
-    );
+    particles.resize(writeIndex);
 }
 
 static void applyBlendMode(ParticleSystem::BlendMode mode) {

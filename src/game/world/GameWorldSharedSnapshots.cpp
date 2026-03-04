@@ -10,17 +10,30 @@ bool GameWorld::buildGrowlWaveSnapshot(GrowlWaveVFX::RenderSnapshot& out) const 
     return growlWaveVfx.buildRenderSnapshot(out);
 }
 
+std::uint32_t GameWorld::countActiveGrowlWaveVfx() const {
+    return growlWaveVfx.activeRingCount();
+}
+
 bool GameWorld::buildParticleVfxSnapshots(ParticleVfxSnapshots& out) const {
+    const auto buildIfActive = [](const ParticleSystem& system,
+                                  ParticleSystem::RenderSnapshot& snapshot) -> bool {
+        if (system.particleCount() == 0u) {
+            snapshot = ParticleSystem::RenderSnapshot{};
+            return false;
+        }
+        return system.buildRenderSnapshot(snapshot);
+    };
+
     bool any = false;
-    any = tailFireVfx.getParticles().buildRenderSnapshot(out.tailFire) || any;
-    any = grassImpactVfx.getParticles().buildRenderSnapshot(out.grassImpact) || any;
-    any = tackleImpactVfx.getBurstParticles().buildRenderSnapshot(out.tackleBurst) || any;
-    any = tackleImpactVfx.getSparkParticles().buildRenderSnapshot(out.tackleSpark) || any;
-    any = leechSeedVfx.getParticles().buildRenderSnapshot(out.leechSeedProjectile) || any;
-    any = healPlusVfx.getParticles().buildRenderSnapshot(out.healPlus) || any;
-    any = leechSeedDrainVfx.getParticles().buildRenderSnapshot(out.leechSeedDrain) || any;
-    any = clawSwipeVfx.getParticles().buildRenderSnapshot(out.clawSwipe) || any;
-    any = aquaSwooshVfx.getParticles().buildRenderSnapshot(out.aquaSwoosh) || any;
+    any = buildIfActive(tailFireVfx.getParticles(), out.tailFire) || any;
+    any = buildIfActive(grassImpactVfx.getParticles(), out.grassImpact) || any;
+    any = buildIfActive(tackleImpactVfx.getBurstParticles(), out.tackleBurst) || any;
+    any = buildIfActive(tackleImpactVfx.getSparkParticles(), out.tackleSpark) || any;
+    any = buildIfActive(leechSeedVfx.getParticles(), out.leechSeedProjectile) || any;
+    any = buildIfActive(healPlusVfx.getParticles(), out.healPlus) || any;
+    any = buildIfActive(leechSeedDrainVfx.getParticles(), out.leechSeedDrain) || any;
+    any = buildIfActive(clawSwipeVfx.getParticles(), out.clawSwipe) || any;
+    any = buildIfActive(aquaSwooshVfx.getParticles(), out.aquaSwoosh) || any;
     return any;
 }
 
@@ -35,6 +48,18 @@ std::uint32_t GameWorld::countActiveParticleVfx() const {
         leechSeedDrainVfx.getParticles().particleCount() +
         clawSwipeVfx.getParticles().particleCount() +
         aquaSwooshVfx.getParticles().particleCount();
+    const std::size_t capped =
+        std::min(total, static_cast<std::size_t>(std::numeric_limits<std::uint32_t>::max()));
+    return static_cast<std::uint32_t>(capped);
+}
+
+std::uint32_t GameWorld::countActiveCaptureAttempts() const {
+    std::size_t total = 0u;
+    for (const auto& attempt : captureAttempts) {
+        if (attempt.timeLeftSec > 0.0f) {
+            ++total;
+        }
+    }
     const std::size_t capped =
         std::min(total, static_cast<std::size_t>(std::numeric_limits<std::uint32_t>::max()));
     return static_cast<std::uint32_t>(capped);

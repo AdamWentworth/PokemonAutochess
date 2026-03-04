@@ -159,6 +159,7 @@ public:
     void update(float dt);
     void render(const Camera3D& camera);
     bool buildRenderSnapshot(RenderSnapshot& out) const;
+    std::uint32_t activeRingCount() const;
 
     void emitFrom(const glm::vec3& mouthWorldPos,
                   const glm::vec3& forwardDir,

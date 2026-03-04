@@ -75,13 +75,26 @@ struct FastTexturedMeshTemplateCache {
 thread_local std::unordered_map<
     const game::runtime::backend_model::MeshData*,
     FastTexturedMeshTemplateCache> g_fastTexturedMeshTemplateCaches;
+thread_local std::vector<int> g_triNodeIndexByTriangleScratch;
+
+constexpr std::size_t kMaxGpuSkinMatrices = 64u;
 
 struct UnitSkinMatrixKey {
     int unitId = 0;
     int skinKey = -1;
+    std::uint32_t paletteSize = 0u;
+    std::array<std::uint16_t, kMaxGpuSkinMatrices> palette{};
 
     bool operator==(const UnitSkinMatrixKey& other) const {
-        return unitId == other.unitId && skinKey == other.skinKey;
+        if (unitId != other.unitId ||
+            skinKey != other.skinKey ||
+            paletteSize != other.paletteSize) {
+            return false;
+        }
+        for (std::size_t i = 0; i < paletteSize; ++i) {
+            if (palette[i] != other.palette[i]) return false;
+        }
+        return true;
     }
 };
 
@@ -89,13 +102,16 @@ struct UnitSkinMatrixKeyHash {
     std::size_t operator()(const UnitSkinMatrixKey& key) const noexcept {
         std::size_t h = static_cast<std::size_t>(static_cast<std::uint32_t>(key.unitId));
         h ^= (static_cast<std::size_t>(static_cast<std::uint32_t>(key.skinKey + 1)) << 1);
+        h ^= (static_cast<std::size_t>(key.paletteSize) << 17);
+        for (std::size_t i = 0; i < key.paletteSize; ++i) {
+            h ^= static_cast<std::size_t>(key.palette[i]) + 0x9e3779b9u + (h << 6) + (h >> 2);
+        }
         return h;
     }
 };
 
 thread_local std::unordered_map<UnitSkinMatrixKey, std::vector<float>, UnitSkinMatrixKeyHash>
     g_unitSkinMatrices;
-constexpr std::size_t kMaxGpuSkinMatrices = 64u;
 
 int resolveDefaultSkinNodeIndex(const game::runtime::backend_model::MeshData* mesh) {
     if (!mesh) return -1;
@@ -197,6 +213,97 @@ const FastTexturedMeshTemplateCache* ensureFastTexturedMeshTemplateCache(
         ++triangleCountByBatch[batchIndex];
         batchIndexByTriangle[triIdx] = batchIndex;
     }
+
+    // Split node/submesh batches further when the triangle joint union exceeds
+    // GPU palette limits, so skinned textured batches can remain on GPU.
+    std::vector<std::vector<std::size_t>> splitBatchCandidatesBySource(cache.batches.size());
+    std::vector<std::vector<std::uint16_t>> splitJointPaletteByBatch(cache.batches.size());
+    std::vector<std::size_t> splitBatchIndexByTriangle(triangleCount, 0u);
+    std::vector<std::size_t> splitTriangleCountByBatch(cache.batches.size(), 0u);
+    for (std::size_t bi = 0; bi < cache.batches.size(); ++bi) {
+        splitBatchCandidatesBySource[bi].push_back(bi);
+    }
+
+    constexpr float kJointWeightEpsilon = 0.00001f;
+    for (std::size_t triIdx = 0; triIdx < triangleCount; ++triIdx) {
+        std::size_t sourceBatchIndex = batchIndexByTriangle[triIdx];
+        if (sourceBatchIndex >= splitBatchCandidatesBySource.size()) sourceBatchIndex = 0u;
+
+        std::array<std::uint16_t, 12> triJoints{};
+        std::size_t triJointCount = 0u;
+        const std::size_t i = triIdx * 3u;
+        if (i + 2u < mesh->indices.size()) {
+            const std::uint32_t i0 = mesh->indices[i + 0u];
+            const std::uint32_t i1 = mesh->indices[i + 1u];
+            const std::uint32_t i2 = mesh->indices[i + 2u];
+            const auto appendWeightedJoints = [&](const game::runtime::backend_model::MeshVertex& v) {
+                const std::uint16_t joints[4] = {v.j0, v.j1, v.j2, v.j3};
+                const float weights[4] = {v.w0, v.w1, v.w2, v.w3};
+                for (int ji = 0; ji < 4; ++ji) {
+                    if (weights[ji] <= kJointWeightEpsilon) continue;
+                    bool seen = false;
+                    for (std::size_t existing = 0; existing < triJointCount; ++existing) {
+                        if (triJoints[existing] == joints[ji]) {
+                            seen = true;
+                            break;
+                        }
+                    }
+                    if (seen || triJointCount >= triJoints.size()) continue;
+                    triJoints[triJointCount++] = joints[ji];
+                }
+            };
+            if (i0 < mesh->vertices.size()) appendWeightedJoints(mesh->vertices[i0]);
+            if (i1 < mesh->vertices.size()) appendWeightedJoints(mesh->vertices[i1]);
+            if (i2 < mesh->vertices.size()) appendWeightedJoints(mesh->vertices[i2]);
+        }
+
+        std::size_t chosenBatchIndex = splitBatchCandidatesBySource[sourceBatchIndex][0];
+        bool foundCandidate = false;
+        for (const std::size_t candidateBatchIndex : splitBatchCandidatesBySource[sourceBatchIndex]) {
+            if (candidateBatchIndex >= splitJointPaletteByBatch.size()) continue;
+            const auto& candidatePalette = splitJointPaletteByBatch[candidateBatchIndex];
+            std::size_t addedJointCount = 0u;
+            for (std::size_t ji = 0; ji < triJointCount; ++ji) {
+                const bool exists = std::find(
+                    candidatePalette.begin(),
+                    candidatePalette.end(),
+                    triJoints[ji]) != candidatePalette.end();
+                if (!exists) ++addedJointCount;
+            }
+            if (candidatePalette.size() + addedJointCount <= kMaxGpuSkinMatrices) {
+                chosenBatchIndex = candidateBatchIndex;
+                foundCandidate = true;
+                break;
+            }
+        }
+
+        if (!foundCandidate) {
+            const auto& sourceBatch = cache.batches[sourceBatchIndex];
+            FastTexturedBatchTemplate splitBatch{};
+            splitBatch.baseSubmeshIndex = sourceBatch.baseSubmeshIndex;
+            splitBatch.triNodeIndex = sourceBatch.triNodeIndex;
+            cache.batches.push_back(std::move(splitBatch));
+            splitJointPaletteByBatch.emplace_back();
+            splitTriangleCountByBatch.push_back(0u);
+            chosenBatchIndex = cache.batches.size() - 1u;
+            splitBatchCandidatesBySource[sourceBatchIndex].push_back(chosenBatchIndex);
+        }
+
+        auto& chosenPalette = splitJointPaletteByBatch[chosenBatchIndex];
+        for (std::size_t ji = 0; ji < triJointCount; ++ji) {
+            const bool exists = std::find(
+                chosenPalette.begin(),
+                chosenPalette.end(),
+                triJoints[ji]) != chosenPalette.end();
+            if (!exists) chosenPalette.push_back(triJoints[ji]);
+        }
+
+        ++splitTriangleCountByBatch[chosenBatchIndex];
+        splitBatchIndexByTriangle[triIdx] = chosenBatchIndex;
+    }
+
+    batchIndexByTriangle.swap(splitBatchIndexByTriangle);
+    triangleCountByBatch.swap(splitTriangleCountByBatch);
 
     std::vector<std::vector<int>> remapByBatch(cache.batches.size());
     for (std::size_t bi = 0; bi < cache.batches.size(); ++bi) {
@@ -448,7 +555,8 @@ Result renderProjectedUnitBackendMesh(const Args& args) {
                 std::uint32_t skinMatrixCount = 0u;
                 const float* sharedSkinMatrices = nullptr;
             };
-            std::unordered_map<int, GpuSkinBatchState> gpuSkinBatchStateByKey;
+            std::unordered_map<UnitSkinMatrixKey, GpuSkinBatchState, UnitSkinMatrixKeyHash>
+                gpuSkinBatchStateByKey;
             for (std::size_t bi = 0; bi < fastCache.batches.size(); ++bi) {
                 if (bi >= modelIndexedBatchesPerSubmesh.size()) continue;
                 const auto& srcBatch = fastCache.batches[bi];
@@ -467,42 +575,41 @@ Result renderProjectedUnitBackendMesh(const Args& args) {
                         resolvedTriNodeIndex);
                     if (skinCacheKey >= 0) {
                         const bool hasJointPalette = !srcBatch.gpuJointPalette.empty();
+                        UnitSkinMatrixKey batchStateKey{};
+                        batchStateKey.unitId = unit.id;
+                        batchStateKey.skinKey = skinCacheKey;
                         if (hasJointPalette) {
+                            const std::size_t paletteCount = std::min(
+                                srcBatch.gpuJointPalette.size(),
+                                kMaxGpuSkinMatrices);
+                            batchStateKey.paletteSize =
+                                static_cast<std::uint32_t>(paletteCount);
+                            for (std::size_t pi = 0; pi < paletteCount; ++pi) {
+                                batchStateKey.palette[pi] = srcBatch.gpuJointPalette[pi];
+                            }
+                        }
+
+                        auto stateIt = gpuSkinBatchStateByKey.find(batchStateKey);
+                        if (stateIt == gpuSkinBatchStateByKey.end()) {
+                            GpuSkinBatchState newState{};
+                            auto& sharedSkinMatrices = g_unitSkinMatrices[batchStateKey];
                             if (transforms.configureGpuClipSkinningBatch(
                                     resolvedTriNodeIndex,
-                                    &srcBatch.gpuJointPalette,
-                                    dstBatch.modelMatrix,
-                                    dstBatch.skinMatrices,
-                                    dstBatch.skinMatrixCount)) {
-                                dstBatch.gpuSkinning = 1u;
-                                dstBatch.sharedSkinMatrices = nullptr;
+                                    hasJointPalette ? &srcBatch.gpuJointPalette : nullptr,
+                                    newState.modelMatrix,
+                                    sharedSkinMatrices,
+                                    newState.skinMatrixCount)) {
+                                newState.valid = true;
+                                newState.sharedSkinMatrices = sharedSkinMatrices.data();
                             }
-                        } else {
-                            auto stateIt = gpuSkinBatchStateByKey.find(skinCacheKey);
-                            if (stateIt == gpuSkinBatchStateByKey.end()) {
-                                GpuSkinBatchState newState{};
-                                UnitSkinMatrixKey key{};
-                                key.unitId = unit.id;
-                                key.skinKey = skinCacheKey;
-                                auto& sharedSkinMatrices = g_unitSkinMatrices[key];
-                                if (transforms.configureGpuClipSkinningBatch(
-                                        resolvedTriNodeIndex,
-                                        nullptr,
-                                        newState.modelMatrix,
-                                        sharedSkinMatrices,
-                                        newState.skinMatrixCount)) {
-                                    newState.valid = true;
-                                    newState.sharedSkinMatrices = sharedSkinMatrices.data();
-                                }
-                                stateIt = gpuSkinBatchStateByKey.emplace(skinCacheKey, newState).first;
-                            }
-                            if (stateIt->second.valid) {
-                                dstBatch.gpuSkinning = 1u;
-                                dstBatch.modelMatrix = stateIt->second.modelMatrix;
-                                dstBatch.skinMatrixCount = stateIt->second.skinMatrixCount;
-                                dstBatch.sharedSkinMatrices = stateIt->second.sharedSkinMatrices;
-                                dstBatch.skinMatrices.clear();
-                            }
+                            stateIt = gpuSkinBatchStateByKey.emplace(batchStateKey, newState).first;
+                        }
+                        if (stateIt->second.valid) {
+                            dstBatch.gpuSkinning = 1u;
+                            dstBatch.modelMatrix = stateIt->second.modelMatrix;
+                            dstBatch.skinMatrixCount = stateIt->second.skinMatrixCount;
+                            dstBatch.sharedSkinMatrices = stateIt->second.sharedSkinMatrices;
+                            dstBatch.skinMatrices.clear();
                         }
                     }
                 }
@@ -539,8 +646,19 @@ Result renderProjectedUnitBackendMesh(const Args& args) {
                     dstBatch.sharedVertices = nullptr;
                     dstBatch.sharedVertexCount = 0u;
                     dstBatch.sharedSkinMatrices = nullptr;
+                    const bool needsLitNormals = dstBatch.materialMode >= 2u;
+                    const bool hasNormalTexture =
+                        dstBatch.normalTextureRgba != nullptr &&
+                        dstBatch.normalTextureWidth > 0 &&
+                        dstBatch.normalTextureHeight > 0;
+                    const bool needsTangents = needsLitNormals && hasNormalTexture;
                     const bool canUseRigidNodeTransform =
                         prep.scenePose.hasClipPose &&
+                        srcBatch.gpuJointPalette.empty() &&
+                        !srcBatch.gpuTemplateVertices.empty() &&
+                        !srcBatch.indices.empty();
+                    const bool canUseDynamicLocalPosNoSkin =
+                        !prep.scenePose.hasClipPose &&
                         srcBatch.gpuJointPalette.empty() &&
                         !srcBatch.gpuTemplateVertices.empty() &&
                         !srcBatch.indices.empty();
@@ -551,6 +669,32 @@ Result renderProjectedUnitBackendMesh(const Args& args) {
                         dstBatch.sharedVertexCount = srcBatch.gpuTemplateVertices.size();
                         dstBatch.sharedIndices = srcBatch.indices.data();
                         dstBatch.sharedIndexCount = srcBatch.indices.size();
+
+                        glm::mat4 nodeGlobal(1.0f);
+                        if (resolvedTriNodeIndex >= 0 &&
+                            static_cast<std::size_t>(resolvedTriNodeIndex) < nodeGlobals.size()) {
+                            nodeGlobal = nodeGlobals[static_cast<std::size_t>(resolvedTriNodeIndex)];
+                        }
+                        const glm::mat4 batchModel = prep.modelM * nodeGlobal;
+                        const float* batchModelData = glm::value_ptr(batchModel);
+                        std::copy(batchModelData, batchModelData + 16, dstBatch.modelMatrix.begin());
+                    } else if (canUseDynamicLocalPosNoSkin) {
+                        dstBatch.indices.clear();
+                        dstBatch.sharedIndices = srcBatch.indices.data();
+                        dstBatch.sharedIndexCount = srcBatch.indices.size();
+                        dstBatch.vertices.resize(srcBatch.sourceVertexIndices.size());
+                        for (std::size_t vi = 0; vi < srcBatch.sourceVertexIndices.size(); ++vi) {
+                            const std::uint32_t srcIndex = srcBatch.sourceVertexIndices[vi];
+                            if (srcIndex >= mesh->vertices.size()) continue;
+                            const auto& srcVertex = mesh->vertices[srcIndex];
+                            IRenderBackend::WorldMeshVertex outVertex = srcBatch.gpuTemplateVertices[vi];
+                            const glm::vec3 localPos = transforms.resolveDeformedLocalVertexPos(
+                                srcIndex, srcVertex);
+                            outVertex.x = localPos.x;
+                            outVertex.y = localPos.y;
+                            outVertex.z = localPos.z;
+                            dstBatch.vertices[vi] = outVertex;
+                        }
 
                         glm::mat4 nodeGlobal(1.0f);
                         if (resolvedTriNodeIndex >= 0 &&
@@ -581,17 +725,21 @@ Result renderProjectedUnitBackendMesh(const Args& args) {
                             outVertex.x = pos.x;
                             outVertex.y = pos.y;
                             outVertex.z = pos.z;
-                            const glm::vec3 nrm = transforms.resolveModelVertexNormal(
-                                resolvedTriNodeIndex, srcIndex, srcVertex);
-                            outVertex.nx = nrm.x;
-                            outVertex.ny = nrm.y;
-                            outVertex.nz = nrm.z;
-                            const glm::vec4 tan = transforms.resolveModelVertexTangent(
-                                resolvedTriNodeIndex, srcIndex, srcVertex);
-                            outVertex.tx = tan.x;
-                            outVertex.ty = tan.y;
-                            outVertex.tz = tan.z;
-                            outVertex.tw = tan.w;
+                            if (needsLitNormals) {
+                                const glm::vec3 nrm = transforms.resolveModelVertexNormal(
+                                    resolvedTriNodeIndex, srcIndex, srcVertex);
+                                outVertex.nx = nrm.x;
+                                outVertex.ny = nrm.y;
+                                outVertex.nz = nrm.z;
+                            }
+                            if (needsTangents) {
+                                const glm::vec4 tan = transforms.resolveModelVertexTangent(
+                                    resolvedTriNodeIndex, srcIndex, srcVertex);
+                                outVertex.tx = tan.x;
+                                outVertex.ty = tan.y;
+                                outVertex.tz = tan.z;
+                                outVertex.tw = tan.w;
+                            }
                             dstBatch.vertices[vi] = outVertex;
                         }
                     }
@@ -684,7 +832,8 @@ Result renderProjectedUnitBackendMesh(const Args& args) {
                 }
             }
 
-            std::vector<int> triNodeIndexByTriangle(triangleCount, -1);
+            auto& triNodeIndexByTriangle = g_triNodeIndexByTriangleScratch;
+            triNodeIndexByTriangle.assign(triangleCount, -1);
             for (std::size_t triIdx = 0; triIdx < triangleCount; ++triIdx) {
                 int triNodeIndex =
                     (triIdx < mesh->triangleNodeIndex.size())
@@ -731,6 +880,21 @@ Result renderProjectedUnitBackendMesh(const Args& args) {
                 (triIdx < mesh->triangleSubmesh.size())
                     ? mesh->triangleSubmesh[triIdx]
                     : static_cast<std::uint16_t>(0u);
+            bool needsLitNormalsForSubmesh = true;
+            bool needsTangentsForSubmesh = true;
+            if (useIndexedWorldModelPath && !modelIndexedBatchesPerSubmesh.empty()) {
+                std::size_t submeshBatchIndex = static_cast<std::size_t>(triSubmeshIndex);
+                if (submeshBatchIndex >= modelIndexedBatchesPerSubmesh.size()) {
+                    submeshBatchIndex = 0u;
+                }
+                const auto& submeshBatch = modelIndexedBatchesPerSubmesh[submeshBatchIndex];
+                needsLitNormalsForSubmesh = submeshBatch.materialMode >= 2u;
+                const bool hasNormalTexture =
+                    submeshBatch.normalTextureRgba != nullptr &&
+                    submeshBatch.normalTextureWidth > 0 &&
+                    submeshBatch.normalTextureHeight > 0;
+                needsTangentsForSubmesh = needsLitNormalsForSubmesh && hasNormalTexture;
+            }
             const bool texturedSubmesh =
                 useIndexedWorldModelPath &&
                 static_cast<std::size_t>(triSubmeshIndex) <
@@ -789,26 +953,31 @@ Result renderProjectedUnitBackendMesh(const Args& args) {
                         outVertex.g = authoredVertexColor.g;
                         outVertex.b = authoredVertexColor.b;
                         outVertex.a = authoredVertexAlpha;
+                        outVertex.nx = srcVertex.normal.x;
+                        outVertex.ny = srcVertex.normal.y;
+                        outVertex.nz = srcVertex.normal.z;
+                        outVertex.tx = srcVertex.tangent.x;
+                        outVertex.ty = srcVertex.tangent.y;
+                        outVertex.tz = srcVertex.tangent.z;
+                        outVertex.tw = srcVertex.tangent.w;
                         if (useGpuSkinning) {
-                            outVertex.nx = srcVertex.normal.x;
-                            outVertex.ny = srcVertex.normal.y;
-                            outVertex.nz = srcVertex.normal.z;
-                            outVertex.tx = srcVertex.tangent.x;
-                            outVertex.ty = srcVertex.tangent.y;
-                            outVertex.tz = srcVertex.tangent.z;
-                            outVertex.tw = srcVertex.tangent.w;
+                            // Authored tangent frame is consumed by GPU skinning path.
                         } else {
+                            if (needsLitNormalsForSubmesh) {
                             const glm::vec3 nrm =
                                 transforms.resolveModelVertexNormal(triNodeIndex, src, srcVertex);
                             outVertex.nx = nrm.x;
                             outVertex.ny = nrm.y;
                             outVertex.nz = nrm.z;
+                            }
+                            if (needsTangentsForSubmesh) {
                             const glm::vec4 tan =
                                 transforms.resolveModelVertexTangent(triNodeIndex, src, srcVertex);
                             outVertex.tx = tan.x;
                             outVertex.ty = tan.y;
                             outVertex.tz = tan.z;
                             outVertex.tw = tan.w;
+                            }
                         }
                         if (useGpuSkinning) {
                             outVertex.joint0 = static_cast<float>(srcVertex.j0);
@@ -852,26 +1021,31 @@ Result renderProjectedUnitBackendMesh(const Args& args) {
                     outVertex.g = authoredVertexColor.g;
                     outVertex.b = authoredVertexColor.b;
                     outVertex.a = authoredVertexAlpha;
+                    outVertex.nx = srcVertex.normal.x;
+                    outVertex.ny = srcVertex.normal.y;
+                    outVertex.nz = srcVertex.normal.z;
+                    outVertex.tx = srcVertex.tangent.x;
+                    outVertex.ty = srcVertex.tangent.y;
+                    outVertex.tz = srcVertex.tangent.z;
+                    outVertex.tw = srcVertex.tangent.w;
                     if (useGpuSkinning) {
-                        outVertex.nx = srcVertex.normal.x;
-                        outVertex.ny = srcVertex.normal.y;
-                        outVertex.nz = srcVertex.normal.z;
-                        outVertex.tx = srcVertex.tangent.x;
-                        outVertex.ty = srcVertex.tangent.y;
-                        outVertex.tz = srcVertex.tangent.z;
-                        outVertex.tw = srcVertex.tangent.w;
+                        // Authored tangent frame is consumed by GPU skinning path.
                     } else {
+                        if (needsLitNormalsForSubmesh) {
                         const glm::vec3 nrm =
                             transforms.resolveModelVertexNormal(triNodeIndex, src, srcVertex);
                         outVertex.nx = nrm.x;
                         outVertex.ny = nrm.y;
                         outVertex.nz = nrm.z;
+                        }
+                        if (needsTangentsForSubmesh) {
                         const glm::vec4 tan =
                             transforms.resolveModelVertexTangent(triNodeIndex, src, srcVertex);
                         outVertex.tx = tan.x;
                         outVertex.ty = tan.y;
                         outVertex.tz = tan.z;
                         outVertex.tw = tan.w;
+                        }
                     }
                     if (useGpuSkinning) {
                         outVertex.joint0 = static_cast<float>(srcVertex.j0);
@@ -928,12 +1102,24 @@ Result renderProjectedUnitBackendMesh(const Args& args) {
                 a = transforms.resolveWorldVertexPos(triNodeIndex, i0, v0);
                 b = transforms.resolveWorldVertexPos(triNodeIndex, i1, v1);
                 c = transforms.resolveWorldVertexPos(triNodeIndex, i2, v2);
-                n0 = transforms.resolveModelVertexNormal(triNodeIndex, i0, v0);
-                n1 = transforms.resolveModelVertexNormal(triNodeIndex, i1, v1);
-                n2 = transforms.resolveModelVertexNormal(triNodeIndex, i2, v2);
-                t0 = transforms.resolveModelVertexTangent(triNodeIndex, i0, v0);
-                t1 = transforms.resolveModelVertexTangent(triNodeIndex, i1, v1);
-                t2 = transforms.resolveModelVertexTangent(triNodeIndex, i2, v2);
+                if (needsLitNormalsForSubmesh) {
+                    n0 = transforms.resolveModelVertexNormal(triNodeIndex, i0, v0);
+                    n1 = transforms.resolveModelVertexNormal(triNodeIndex, i1, v1);
+                    n2 = transforms.resolveModelVertexNormal(triNodeIndex, i2, v2);
+                } else {
+                    n0 = v0.normal;
+                    n1 = v1.normal;
+                    n2 = v2.normal;
+                }
+                if (needsTangentsForSubmesh) {
+                    t0 = transforms.resolveModelVertexTangent(triNodeIndex, i0, v0);
+                    t1 = transforms.resolveModelVertexTangent(triNodeIndex, i1, v1);
+                    t2 = transforms.resolveModelVertexTangent(triNodeIndex, i2, v2);
+                } else {
+                    t0 = v0.tangent;
+                    t1 = v1.tangent;
+                    t2 = v2.tangent;
+                }
             } else {
                 const auto sk0 = transforms.resolveWorldVertex(triNodeIndex, i0, v0);
                 const auto sk1 = transforms.resolveWorldVertex(triNodeIndex, i1, v1);

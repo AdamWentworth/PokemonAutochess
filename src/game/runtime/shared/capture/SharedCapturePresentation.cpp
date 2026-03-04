@@ -22,6 +22,7 @@ bool SnapshotCache::refresh(const GameWorld* gameWorld) {
     snaps.clear();
     byTargetId.clear();
     if (!gameWorld) return false;
+    if (gameWorld->countActiveCaptureAttempts() == 0u) return false;
     if (!gameWorld->buildCaptureAttemptRenderSnapshots(snaps)) return false;
     byTargetId.reserve(snaps.size());
     for (std::size_t i = 0; i < snaps.size(); ++i) {

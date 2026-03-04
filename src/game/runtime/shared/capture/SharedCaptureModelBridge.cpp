@@ -46,17 +46,13 @@ bool appendSharedCaptureAttemptModels(const Args& args) {
     if (isD3d12Backend) {
         d3d12CapturePrewarmRequested = (args.gameWorld->getSelectedItem() == "pokeball");
         if (!d3d12CapturePrewarmRequested) {
-            const auto ownedItems = args.gameWorld->listItems();
-            for (const auto& [itemId, count] : ownedItems) {
-                if (count > 0 && itemId == "pokeball") {
-                    d3d12CapturePrewarmRequested = true;
-                    break;
-                }
-            }
+            d3d12CapturePrewarmRequested = args.gameWorld->getItemCount("pokeball") > 0;
         }
     }
 
-    if (args.sharedCaptureAttemptCache->snaps.empty()) {
+    const bool hasActiveCaptureAttempts =
+        args.gameWorld->countActiveCaptureAttempts() > 0u;
+    if (args.sharedCaptureAttemptCache->snaps.empty() && hasActiveCaptureAttempts) {
         (void)args.sharedCaptureAttemptCache->refresh(args.gameWorld);
     }
     const auto& captureSnaps = args.sharedCaptureAttemptCache->snaps;

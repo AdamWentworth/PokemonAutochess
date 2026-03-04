@@ -1333,6 +1333,50 @@ struct GameSession::Impl {
             engine::paths::data("scripts/states/main_menu.lua")
         ));
 
+        if (worldLayerPrewarmFramesRemaining > 0 &&
+            ctx.drawableW > 0 &&
+            ctx.drawableH > 0 &&
+            usesBackendGameRenderPath() &&
+            renderer) {
+            while (worldLayerPrewarmFramesRemaining > 0) {
+                const int frameIndex =
+                    kWorldLayerPrewarmFrames - worldLayerPrewarmFramesRemaining + 1;
+                if (ctx.setTitle) {
+                    ctx.setTitle(
+                        std::string("PokemonAutochess - Loading world/board ") +
+                        std::to_string(frameIndex) + "/" +
+                        std::to_string(kWorldLayerPrewarmFrames));
+                }
+                if (ctx.renderBootLoading) {
+                    const float progress =
+                        0.98f +
+                        (static_cast<float>(frameIndex) /
+                         static_cast<float>(kWorldLayerPrewarmFrames)) * 0.02f;
+                    ctx.renderBootLoading(std::min(1.0f, progress));
+                }
+
+                std::cout << "[Init] World/board prewarm frame "
+                          << frameIndex << "/" << kWorldLayerPrewarmFrames
+                          << " begin\n";
+                const auto t0 = std::chrono::high_resolution_clock::now();
+                renderWorldLayer(ctx.drawableW, ctx.drawableH, /*renderWorld=*/true);
+                const auto t1 = std::chrono::high_resolution_clock::now();
+                const double ms =
+                    std::chrono::duration<double, std::milli>(t1 - t0).count();
+                std::ostringstream timing;
+                timing << std::fixed << std::setprecision(1) << ms;
+                std::cout << "[Init] World/board prewarm frame "
+                          << frameIndex << "/" << kWorldLayerPrewarmFrames
+                          << " complete: time=" << timing.str() << "ms\n";
+                --worldLayerPrewarmFramesRemaining;
+
+                if (ctx.pumpPreloadEvents && !ctx.pumpPreloadEvents()) {
+                    if (ctx.requestQuit) ctx.requestQuit();
+                    break;
+                }
+            }
+        }
+
         if (ctx.setTitle) {
             if (worldLayerPrewarmFramesRemaining > 0) {
                 ctx.setTitle("PokemonAutochess - Loading world/board...");
@@ -1539,6 +1583,8 @@ struct GameSession::Impl {
             std::vector<IRenderBackend::DebugLine> textLines;
             std::vector<IRenderBackend::DebugSprite> sprites;
             std::vector<BackendUnitLabel> unitLabels;
+            std::unordered_map<int, runtime::shared_tail_fire_fallback::Anchor> sharedTailFireAnchors;
+            runtime::shared_capture::SnapshotCache sharedCaptureAttemptCache;
         };
         static thread_local BackendRenderScratch scratch;
 
@@ -1552,6 +1598,8 @@ struct GameSession::Impl {
         auto& textLines = scratch.textLines;
         auto& sprites = scratch.sprites;
         auto& unitLabels = scratch.unitLabels;
+        auto& sharedTailFireAnchors = scratch.sharedTailFireAnchors;
+        auto& sharedCaptureAttemptCache = scratch.sharedCaptureAttemptCache;
 
         worldBackgroundQuads.clear();
         worldQuads.clear();
@@ -1563,6 +1611,9 @@ struct GameSession::Impl {
         textLines.clear();
         sprites.clear();
         unitLabels.clear();
+        sharedTailFireAnchors.clear();
+        sharedCaptureAttemptCache.snaps.clear();
+        sharedCaptureAttemptCache.byTargetId.clear();
 
         if (worldBackgroundQuads.capacity() < 1024u) worldBackgroundQuads.reserve(1024u);
         if (worldQuads.capacity() < 1024u) worldQuads.reserve(1024u);
@@ -1574,6 +1625,9 @@ struct GameSession::Impl {
         if (textLines.capacity() < 8192u) textLines.reserve(8192u);
         if (sprites.capacity() < 256u) sprites.reserve(256u);
         if (unitLabels.capacity() < 64u) unitLabels.reserve(64u);
+        if (sharedTailFireAnchors.bucket_count() < 16u) sharedTailFireAnchors.reserve(16u);
+        if (sharedCaptureAttemptCache.snaps.capacity() < 8u) sharedCaptureAttemptCache.snaps.reserve(8u);
+        if (sharedCaptureAttemptCache.byTargetId.bucket_count() < 8u) sharedCaptureAttemptCache.byTargetId.reserve(8u);
         std::uint32_t visibleAnimatedUnitsThisFrame = 0u;
         std::uint32_t particleCountThisFrame = 0u;
         float projectedUnitsMsThisFrame = 0.0f;
@@ -1655,9 +1709,6 @@ struct GameSession::Impl {
                     worldTriangles,
                     world3DTriangles,
                     lines);
-                using SharedTailFireAnchor = game::runtime::shared_tail_fire_fallback::Anchor;
-                std::unordered_map<int, SharedTailFireAnchor> sharedTailFireAnchors;
-                sharedTailFireAnchors.reserve(16u);
                 using DepthTri = game::runtime::shared_projected_scene::DepthTri;
                 using DepthWorldTri = game::runtime::shared_projected_scene::DepthWorldTri;
                 auto modelDepthBuffers =
@@ -1698,8 +1749,6 @@ struct GameSession::Impl {
 
                 using BackendPoseEval = game::runtime::shared_backend_pose::PoseEval;
 
-                runtime::shared_capture::SnapshotCache sharedCaptureAttemptCache =
-                    game::runtime::shared_projected_scene::makeSharedCaptureSnapshotCache(8u);
                 runtime::shared_projected_units::Args projectedUnitArgs;
                 projectedUnitArgs.dataDb = &dataDb;
                 projectedUnitArgs.gameWorld = gameWorld.get();
@@ -1768,17 +1817,34 @@ struct GameSession::Impl {
                 };
                 projectedUnitArgs.perfStats = &projectedUnitPerf;
 
-                (void)sharedCaptureAttemptCache.refresh(gameWorld.get());
-                game::runtime::shared_projected_units::drawProjectedUnits(
-                    projectedUnitArgs, gameWorld->getPokemons());
-                game::runtime::shared_projected_units::drawProjectedUnits(
-                    projectedUnitArgs, gameWorld->getBenchPokemons());
-                (void)game::runtime::shared_projected_scene::appendSharedCaptureAttemptModelsIfNeededForProjectedWorld(
-                    renderer, gameWorld.get(), supportsWorldIndexedMeshes, hasWorldViewProj, drawableW,
-                    drawableH, worldCellSize, worldViewProj, cameraWorldPos, sharedCaptureAttemptCache,
-                    worldIndexedBatches, backendTextureByPath,
-                    [&](const std::string& path) { return ensureBackendMeshLoaded(path); },
-                    [&](const std::string& path) { return ensureBackendTextureLoaded(path); });
+                const bool hasActiveCaptureAttempts =
+                    gameWorld->countActiveCaptureAttempts() > 0u;
+                if (hasActiveCaptureAttempts) {
+                    (void)sharedCaptureAttemptCache.refresh(gameWorld.get());
+                }
+                const auto& boardUnits = gameWorld->getPokemons();
+                if (!boardUnits.empty()) {
+                    game::runtime::shared_projected_units::drawProjectedUnits(
+                        projectedUnitArgs, boardUnits);
+                }
+                const auto& benchUnits = gameWorld->getBenchPokemons();
+                if (!benchUnits.empty()) {
+                    game::runtime::shared_projected_units::drawProjectedUnits(
+                        projectedUnitArgs, benchUnits);
+                }
+                const bool capturePrewarmRequested =
+                    gameWorld->getSelectedItem() == "pokeball" ||
+                    gameWorld->getItemCount("pokeball") > 0;
+                if (hasActiveCaptureAttempts ||
+                    capturePrewarmRequested ||
+                    !sharedCaptureAttemptCache.snaps.empty()) {
+                    (void)game::runtime::shared_projected_scene::appendSharedCaptureAttemptModelsIfNeededForProjectedWorld(
+                        renderer, gameWorld.get(), supportsWorldIndexedMeshes, hasWorldViewProj, drawableW,
+                        drawableH, worldCellSize, worldViewProj, cameraWorldPos, sharedCaptureAttemptCache,
+                        worldIndexedBatches, backendTextureByPath,
+                        [&](const std::string& path) { return ensureBackendMeshLoaded(path); },
+                        [&](const std::string& path) { return ensureBackendTextureLoaded(path); });
+                }
                 game::runtime::shared_projected_scene::appendSharedProjectedVfxBridgesSession(
                     useLegacyParticleVfxSnapshotBridge, useLegacyGrowlWaveVfx, supportsWorldIndexedMeshes,
                     hasWorldViewProj, backendUseExactTailFireCpuPathEnabled(), gameWorld.get(), viewProj,

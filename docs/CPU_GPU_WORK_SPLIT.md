@@ -145,9 +145,23 @@ This section is based on direct code parse of runtime and backend render paths.
 - World indexed batch payload now carries a per-draw vertex-color multiplier, and both OpenGL/D3D12 world shaders apply that multiplier; projected fast textured path uses this to reuse shared template geometry even with tint/fade, removing CPU-side per-vertex tint/alpha loops.
 - Shared world indexed batches now support mixed geometry sources (local vertices with shared static index buffers), and projected fast textured path uses shared indices to avoid per-frame CPU index memcpy in dynamic-vertex branches.
 - Projected fast textured path now detects rigid non-skinned split batches (with clip pose active) and reuses shared template vertices/indices with per-batch `modelM * nodeGlobal` transforms, moving rigid node transform work from CPU vertex loops to the GPU vertex shader.
+- For non-clip fast textured non-skinned split batches, projected path now CPU-updates only deformed local positions and applies node/world normal+tangent transforms on GPU via per-batch `modelM * nodeGlobal`, removing per-vertex CPU normal/tangent transform work in that branch.
+- CPU-skinned fast fallback path now conditionally skips per-vertex normal/tangent transform work when the batch shading mode does not require it (non-lit batches, and lit batches without normal maps skip tangent skinning), reducing CPU transform overhead in non-GPU-skin branches.
+- Fast fallback triangle loop now reuses a thread-local `triNodeIndex` scratch buffer instead of allocating a fresh vector per unit, trimming render-build allocator churn in CPU fallback frames.
 - Projected GPU clip-skin setup now canonicalizes skin payloads per skin key (not per node) and reuses that payload across split sub-batches, reducing redundant matrix build/copy work in the fast indexed path.
 - Fast textured projected path now auto-recovers missing triangle node bindings when the mesh has a single skin, promoting those batches onto GPU skinning instead of dropping to CPU vertex transform fallback.
 - Fast textured projected path now precomputes per-batch joint palettes (<=64) and remapped joint indices, enabling GPU clip skinning for batches even when full skeletons exceed shader joint limits that previously forced CPU fallback.
+- Fast textured projected path now auto-splits per-node/submesh batches again when their joint unions exceed 64, so oversized skin palettes no longer force whole batches back to CPU skinning.
+- Fast textured projected GPU-skin path now caches and shares palette-specific skin matrix payloads across batches (not only full-skin payloads), reducing repeated CPU matrix packing/copy work in split-batch cases.
+- World/board prewarm now executes during boot loading (before live menu interaction) instead of first interactive render frames, avoiding a visible first-frame hitch while keeping render-path warm-up behavior.
+- Shared particle snapshot bridge now skips full snapshot dispatch when active particle count is zero, and per-system snapshot builds now skip inactive emitters to avoid unnecessary CPU vector copies in projected world render build.
+- Shared projected scene path now caches static 3D board/bench geometry and reuses it across frames when board config/theme are unchanged, avoiding repeated CPU rebuild work in `appendBoardAndBench(...)` for world-triangle mode.
+- Shared growl-wave bridge now short-circuits snapshot build/dispatch when there are no active growl rings, removing avoidable per-frame CPU work in quiet frames.
+- Backend render scratch now retains and reuses capture snapshot caches and tail-fire anchor maps across frames instead of reconstructing them each frame, reducing CPU allocator/hash churn in projected world render build.
+- Shared capture snapshot refresh path now short-circuits when there are no active capture attempts (world/session/bridge path), avoiding per-frame capture snapshot rebuild overhead during normal gameplay frames.
+- Projected scene-pose cache keys now canonicalize animation time to wrapped clip time (and force zero when clip time is irrelevant), improving cache reuse across looped animation cycles and reducing redundant CPU pose evaluation/cache churn.
+- Particle system update now performs update+alive compaction in a single pass (instead of update + `remove_if` pass), reducing per-frame CPU work for larger particle counts.
+- Projected world render orchestration now skips projected-unit draw dispatch for empty unit collections and only enters capture model bridge when capture activity/prewarm conditions are relevant; D3D12 capture prewarm checks now use `getItemCount("pokeball")` instead of per-frame `listItems()` scans.
 
 ## Autobattler-Specific Guidance
 - Keep combat outcomes and RNG on CPU.
