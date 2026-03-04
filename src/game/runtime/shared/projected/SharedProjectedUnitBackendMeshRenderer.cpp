@@ -13,6 +13,7 @@
 #include <cstdint>
 #include <limits>
 #include <string>
+#include <unordered_map>
 
 #include <glm/gtc/matrix_transform.hpp>
 
@@ -147,56 +148,58 @@ Result renderProjectedUnitBackendMesh(const Args& args) {
             return triNodeIndex;
         };
 
+        std::vector<std::unordered_map<int, std::size_t>> gpuSkinBatchIndexBySubmesh;
         if (args.enableGpuClipSkinning && useFastTexturedFullMeshPath &&
             !modelIndexedBatchesPerSubmesh.empty()) {
-            std::vector<int> skinningNodeByBatch(
-                modelIndexedBatchesPerSubmesh.size(),
-                std::numeric_limits<int>::min());
-            std::vector<std::uint8_t> skinningEligibleByBatch(
-                modelIndexedBatchesPerSubmesh.size(),
-                1u);
+            const std::size_t baseBatchCount = modelIndexedBatchesPerSubmesh.size();
+            gpuSkinBatchIndexBySubmesh.resize(baseBatchCount);
 
             for (std::size_t triIdx = 0; triIdx < triangleCount; ++triIdx) {
                 if (triIdx >= mesh->triangleSubmesh.size()) continue;
-                const std::size_t batchIndex =
+                const std::size_t submeshIndex =
                     static_cast<std::size_t>(mesh->triangleSubmesh[triIdx]);
-                if (batchIndex >= modelIndexedBatchesPerSubmesh.size()) continue;
-                if (skinningEligibleByBatch[batchIndex] == 0u) continue;
+                if (submeshIndex >= baseBatchCount) continue;
 
                 const int triNodeIndex = resolveTriNodeIndex(triIdx);
-                if (triNodeIndex < 0) {
-                    skinningEligibleByBatch[batchIndex] = 0u;
-                    continue;
-                }
+                if (triNodeIndex < 0) continue;
+                auto& nodeToBatch = gpuSkinBatchIndexBySubmesh[submeshIndex];
+                if (nodeToBatch.find(triNodeIndex) != nodeToBatch.end()) continue;
 
-                const int existingNode = skinningNodeByBatch[batchIndex];
-                if (existingNode == std::numeric_limits<int>::min()) {
-                    skinningNodeByBatch[batchIndex] = triNodeIndex;
-                } else if (existingNode != triNodeIndex) {
-                    // Mixed-node batches are rare and currently not supported by this GPU skinning path.
-                    skinningEligibleByBatch[batchIndex] = 0u;
+                const std::size_t newBatchIndex = modelIndexedBatchesPerSubmesh.size();
+                modelIndexedBatchesPerSubmesh.push_back(modelIndexedBatchesPerSubmesh[submeshIndex]);
+                auto& newBatch = modelIndexedBatchesPerSubmesh.back();
+                newBatch.vertices.clear();
+                newBatch.indices.clear();
+                newBatch.gpuSkinning = 0u;
+                newBatch.skinMatrixCount = 0u;
+                newBatch.skinMatrices.clear();
+                if (fullIndexedMeshPath && !mesh->vertices.empty() &&
+                    !modelIndexedVertexRemap.empty()) {
+                    modelIndexedVertexRemap.emplace_back(mesh->vertices.size(), -1);
                 }
+                nodeToBatch.emplace(triNodeIndex, newBatchIndex);
             }
 
-            for (std::size_t batchIndex = 0; batchIndex < modelIndexedBatchesPerSubmesh.size();
-                 ++batchIndex) {
-                auto& batch = modelIndexedBatchesPerSubmesh[batchIndex];
+            for (auto& batch : modelIndexedBatchesPerSubmesh) {
                 batch.gpuSkinning = 0u;
                 batch.skinMatrixCount = 0u;
                 batch.skinMatrices.clear();
-                if (skinningEligibleByBatch[batchIndex] == 0u) continue;
+            }
 
-                const int nodeIndex = skinningNodeByBatch[batchIndex];
-                if (nodeIndex == std::numeric_limits<int>::min()) continue;
-
-                if (!transforms.configureGpuClipSkinningBatch(
-                        nodeIndex,
-                        batch.modelMatrix,
-                        batch.skinMatrices,
-                        batch.skinMatrixCount)) {
-                    continue;
+            for (std::size_t submeshIndex = 0; submeshIndex < gpuSkinBatchIndexBySubmesh.size();
+                 ++submeshIndex) {
+                for (const auto& [nodeIndex, batchIndex] : gpuSkinBatchIndexBySubmesh[submeshIndex]) {
+                    if (batchIndex >= modelIndexedBatchesPerSubmesh.size()) continue;
+                    auto& batch = modelIndexedBatchesPerSubmesh[batchIndex];
+                    if (!transforms.configureGpuClipSkinningBatch(
+                            nodeIndex,
+                            batch.modelMatrix,
+                            batch.skinMatrices,
+                            batch.skinMatrixCount)) {
+                        continue;
+                    }
+                    batch.gpuSkinning = 1u;
                 }
-                batch.gpuSkinning = 1u;
             }
         }
 
@@ -277,6 +280,13 @@ Result renderProjectedUnitBackendMesh(const Args& args) {
                         .textureHeight > 0;
             if (useFastTexturedFullMeshPath && texturedSubmesh) {
                 std::size_t fastBatchIndex = static_cast<std::size_t>(triSubmeshIndex);
+                if (fastBatchIndex < gpuSkinBatchIndexBySubmesh.size()) {
+                    const auto& nodeToBatch = gpuSkinBatchIndexBySubmesh[fastBatchIndex];
+                    const auto mapped = nodeToBatch.find(triNodeIndex);
+                    if (mapped != nodeToBatch.end()) {
+                        fastBatchIndex = mapped->second;
+                    }
+                }
                 if (fastBatchIndex >= modelIndexedBatchesPerSubmesh.size()) fastBatchIndex = 0u;
                 auto& fastBatch = modelIndexedBatchesPerSubmesh[fastBatchIndex];
                 const bool useGpuSkinning = (fastBatch.gpuSkinning != 0u);
