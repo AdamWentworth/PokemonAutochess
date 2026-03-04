@@ -73,25 +73,25 @@ thread_local std::unordered_map<
     const game::runtime::backend_model::MeshData*,
     FastTexturedMeshTemplateCache> g_fastTexturedMeshTemplateCaches;
 
-struct UnitNodeSkinMatrixKey {
+struct UnitSkinMatrixKey {
     int unitId = 0;
-    int nodeIndex = -1;
+    int skinKey = -1;
 
-    bool operator==(const UnitNodeSkinMatrixKey& other) const {
-        return unitId == other.unitId && nodeIndex == other.nodeIndex;
+    bool operator==(const UnitSkinMatrixKey& other) const {
+        return unitId == other.unitId && skinKey == other.skinKey;
     }
 };
 
-struct UnitNodeSkinMatrixKeyHash {
-    std::size_t operator()(const UnitNodeSkinMatrixKey& key) const noexcept {
+struct UnitSkinMatrixKeyHash {
+    std::size_t operator()(const UnitSkinMatrixKey& key) const noexcept {
         std::size_t h = static_cast<std::size_t>(static_cast<std::uint32_t>(key.unitId));
-        h ^= (static_cast<std::size_t>(static_cast<std::uint32_t>(key.nodeIndex + 1)) << 1);
+        h ^= (static_cast<std::size_t>(static_cast<std::uint32_t>(key.skinKey + 1)) << 1);
         return h;
     }
 };
 
-thread_local std::unordered_map<UnitNodeSkinMatrixKey, std::vector<float>, UnitNodeSkinMatrixKeyHash>
-    g_unitNodeSkinMatrices;
+thread_local std::unordered_map<UnitSkinMatrixKey, std::vector<float>, UnitSkinMatrixKeyHash>
+    g_unitSkinMatrices;
 
 bool nearlyOne(float v) {
     return std::abs(v - 1.0f) <= 1e-6f;
@@ -383,7 +383,7 @@ Result renderProjectedUnitBackendMesh(const Args& args) {
                 std::uint32_t skinMatrixCount = 0u;
                 const float* sharedSkinMatrices = nullptr;
             };
-            std::unordered_map<int, GpuSkinBatchState> gpuSkinBatchStateByNode;
+            std::unordered_map<int, GpuSkinBatchState> gpuSkinBatchStateByKey;
             for (std::size_t bi = 0; bi < fastCache.batches.size(); ++bi) {
                 if (bi >= modelIndexedBatchesPerSubmesh.size()) continue;
                 const auto& srcBatch = fastCache.batches[bi];
@@ -391,29 +391,32 @@ Result renderProjectedUnitBackendMesh(const Args& args) {
 
                 if (args.enableGpuClipSkinning) {
                     const int triNodeIndex = srcBatch.triNodeIndex;
-                    auto stateIt = gpuSkinBatchStateByNode.find(triNodeIndex);
-                    if (stateIt == gpuSkinBatchStateByNode.end()) {
-                        GpuSkinBatchState newState{};
-                        UnitNodeSkinMatrixKey key{};
-                        key.unitId = unit.id;
-                        key.nodeIndex = triNodeIndex;
-                        auto& sharedSkinMatrices = g_unitNodeSkinMatrices[key];
-                        if (transforms.configureGpuClipSkinningBatch(
-                                triNodeIndex,
-                                newState.modelMatrix,
-                                sharedSkinMatrices,
-                                newState.skinMatrixCount)) {
-                            newState.valid = true;
-                            newState.sharedSkinMatrices = sharedSkinMatrices.data();
+                    const int skinCacheKey = transforms.gpuSkinningCacheKeyForNode(triNodeIndex);
+                    if (skinCacheKey >= 0) {
+                        auto stateIt = gpuSkinBatchStateByKey.find(skinCacheKey);
+                        if (stateIt == gpuSkinBatchStateByKey.end()) {
+                            GpuSkinBatchState newState{};
+                            UnitSkinMatrixKey key{};
+                            key.unitId = unit.id;
+                            key.skinKey = skinCacheKey;
+                            auto& sharedSkinMatrices = g_unitSkinMatrices[key];
+                            if (transforms.configureGpuClipSkinningBatch(
+                                    triNodeIndex,
+                                    newState.modelMatrix,
+                                    sharedSkinMatrices,
+                                    newState.skinMatrixCount)) {
+                                newState.valid = true;
+                                newState.sharedSkinMatrices = sharedSkinMatrices.data();
+                            }
+                            stateIt = gpuSkinBatchStateByKey.emplace(skinCacheKey, newState).first;
                         }
-                        stateIt = gpuSkinBatchStateByNode.emplace(triNodeIndex, newState).first;
-                    }
-                    if (stateIt->second.valid) {
-                        dstBatch.gpuSkinning = 1u;
-                        dstBatch.modelMatrix = stateIt->second.modelMatrix;
-                        dstBatch.skinMatrixCount = stateIt->second.skinMatrixCount;
-                        dstBatch.sharedSkinMatrices = stateIt->second.sharedSkinMatrices;
-                        dstBatch.skinMatrices.clear();
+                        if (stateIt->second.valid) {
+                            dstBatch.gpuSkinning = 1u;
+                            dstBatch.modelMatrix = stateIt->second.modelMatrix;
+                            dstBatch.skinMatrixCount = stateIt->second.skinMatrixCount;
+                            dstBatch.sharedSkinMatrices = stateIt->second.sharedSkinMatrices;
+                            dstBatch.skinMatrices.clear();
+                        }
                     }
                 }
 

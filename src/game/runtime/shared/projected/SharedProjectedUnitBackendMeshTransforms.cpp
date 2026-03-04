@@ -48,6 +48,8 @@ struct TransformScratch {
 
     std::vector<std::vector<glm::mat4>> skinMatricesByNode;
     std::vector<std::uint8_t> skinMatricesReady;
+    std::vector<std::vector<float>> gpuSkinMatricesBySkin;
+    std::vector<std::uint8_t> gpuSkinMatricesReady;
     std::vector<glm::mat4> nodeGlobalInverseCache;
     std::vector<std::uint8_t> nodeGlobalInverseReady;
 
@@ -107,6 +109,20 @@ void Resolver::initialize(const shared_projected_unit_backend_mesh::Args& args,
 
     if (g_scratch.skinMatricesReady.size() < nodeCount_) g_scratch.skinMatricesReady.resize(nodeCount_, 0u);
     std::fill(g_scratch.skinMatricesReady.begin(), g_scratch.skinMatricesReady.begin() + nodeCount_, 0u);
+
+    const std::size_t skinCount = mesh_ ? mesh_->skins.size() : 0u;
+    if (g_scratch.gpuSkinMatricesBySkin.size() < skinCount) {
+        g_scratch.gpuSkinMatricesBySkin.resize(skinCount);
+    }
+    if (g_scratch.gpuSkinMatricesReady.size() < skinCount) {
+        g_scratch.gpuSkinMatricesReady.resize(skinCount, 0u);
+    }
+    if (skinCount > 0u) {
+        std::fill(
+            g_scratch.gpuSkinMatricesReady.begin(),
+            g_scratch.gpuSkinMatricesReady.begin() + skinCount,
+            0u);
+    }
 
     if (g_scratch.nodeGlobalInverseCache.size() < nodeCount_) {
         g_scratch.nodeGlobalInverseCache.resize(nodeCount_, glm::mat4(1.0f));
@@ -598,6 +614,15 @@ glm::vec3 Resolver::resolveGpuSkinningInputPos(
     return outPos;
 }
 
+int Resolver::gpuSkinningCacheKeyForNode(int triNodeIndex) const {
+    if (!mesh_ || triNodeIndex < 0) return -1;
+    const std::size_t nodeIdx = static_cast<std::size_t>(triNodeIndex);
+    if (nodeIdx >= mesh_->nodeSkin.size()) return -1;
+    const int skinIndex = mesh_->nodeSkin[nodeIdx];
+    if (skinIndex < 0 || static_cast<std::size_t>(skinIndex) >= mesh_->skins.size()) return -1;
+    return skinIndex;
+}
+
 bool Resolver::configureGpuClipSkinningBatch(
     int triNodeIndex,
     std::array<float, 16>& inOutModelMatrix,
@@ -610,25 +635,36 @@ bool Resolver::configureGpuClipSkinningBatch(
         return false;
     }
 
-    const auto* mats = ensureSkinMatricesForNode(triNodeIndex);
-    if (!mats || mats->empty() || mats->size() > kMaxGpuSkinMatrices) {
+    const int skinIndex = gpuSkinningCacheKeyForNode(triNodeIndex);
+    if (skinIndex < 0 || static_cast<std::size_t>(skinIndex) >= mesh_->skins.size()) {
         return false;
     }
+    const auto& skin = mesh_->skins[static_cast<std::size_t>(skinIndex)];
+    if (skin.joints.empty() || skin.joints.size() > kMaxGpuSkinMatrices) return false;
 
-    const glm::mat4 nodeGlobal =
-        (triNodeIndex >= 0 && static_cast<std::size_t>(triNodeIndex) < nodeGlobals_->size())
-            ? (*nodeGlobals_)[static_cast<std::size_t>(triNodeIndex)]
-            : glm::mat4(1.0f);
-    const glm::mat4 combinedModel = modelM_ * nodeGlobal;
-    const float* modelData = glm::value_ptr(combinedModel);
+    const std::size_t skinIdx = static_cast<std::size_t>(skinIndex);
+    if (g_scratch.gpuSkinMatricesReady[skinIdx] == 0u) {
+        auto& packed = g_scratch.gpuSkinMatricesBySkin[skinIdx];
+        packed.resize(skin.joints.size() * 16u);
+        for (std::size_t j = 0; j < skin.joints.size(); ++j) {
+            const int jointNode = skin.joints[j];
+            glm::mat4 jointM(1.0f);
+            if (jointNode >= 0 && static_cast<std::size_t>(jointNode) < nodeGlobals_->size()) {
+                const glm::mat4 invBind =
+                    (j < skin.inverseBind.size()) ? skin.inverseBind[j] : glm::mat4(1.0f);
+                jointM = (*nodeGlobals_)[static_cast<std::size_t>(jointNode)] * invBind;
+            }
+            const float* src = glm::value_ptr(jointM);
+            std::copy(src, src + 16, packed.data() + (j * 16u));
+        }
+        g_scratch.gpuSkinMatricesReady[skinIdx] = 1u;
+    }
+
+    const float* modelData = glm::value_ptr(modelM_);
     std::copy(modelData, modelData + 16, inOutModelMatrix.begin());
 
-    outSkinMatrices.resize(mats->size() * 16u);
-    for (std::size_t i = 0; i < mats->size(); ++i) {
-        const float* src = glm::value_ptr((*mats)[i]);
-        std::copy(src, src + 16, outSkinMatrices.data() + (i * 16u));
-    }
-    outSkinMatrixCount = static_cast<std::uint32_t>(mats->size());
+    outSkinMatrices = g_scratch.gpuSkinMatricesBySkin[skinIdx];
+    outSkinMatrixCount = static_cast<std::uint32_t>(skin.joints.size());
     return true;
 }
 
