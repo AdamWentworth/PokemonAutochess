@@ -485,12 +485,18 @@ void CombatState::drawShopHud(int uiW, int uiH, bool showSellOverlay) {
     shopUi->render(in);
 }
 
-CombatState::CombatState(GameStateManager* manager, GameWorld* world, GameServices& svc, const std::string& path)
+CombatState::CombatState(GameStateManager* manager,
+                         GameWorld* world,
+                         GameServices& svc,
+                         const std::string& path,
+                         bool resumeFromSnapshotMode)
     : stateManager(manager)
     , gameWorld(world)
     , services(svc)
     , script(world, manager, svc)
     , combatMessage()
+    , loadedScriptPath(path)
+    , resumeFromSnapshot(resumeFromSnapshotMode)
 {
     if (!script.loadScript(path)) {
         game::log::error(&services.log, std::string("[CombatState] Failed to load combat script: ") + path);
@@ -528,6 +534,32 @@ void CombatState::onEnter() {
     postCombatHoldActive = false;
     preCombatCountdownSec = kCombatStartCountdownSec;
     postCombatCountdownSec = 0.0f;
+
+    if (resumeFromSnapshot) {
+        combatStarted = true;
+        postCombatHoldActive = false;
+        preCombatCountdownSec = 0.0f;
+        postCombatCountdownSec = 0.0f;
+
+        if (gameWorld) {
+            gameWorld->resetCombatBalance();
+            if (!gameWorld->hasBattleStartPositions()) {
+                gameWorld->capturePlayerPositionsForBattle();
+            }
+            gameWorld->setBoardInteractionLocked(true);
+        }
+
+        setCombatActiveFlag(true);
+
+        sol::table S = script.getScriptTable();
+        if (const auto msg = game::scripting::callStringFunction(S, {"get_message"})) {
+            combatMessage = *msg;
+        }
+
+        script.onEnter();
+        ensureShopUi();
+        return;
+    }
 
     if (gameWorld) {
         gameWorld->resetCombatBalance();

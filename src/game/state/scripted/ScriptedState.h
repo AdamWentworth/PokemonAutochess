@@ -34,6 +34,7 @@ public:
     void update(float deltaTime) override;
     void render() override;
     bool shouldRenderWorld() const override { return renderWorld; }
+    const std::string& debugScriptPath() const { return scriptPath; }
 
 private:
     void ensureCardUI();

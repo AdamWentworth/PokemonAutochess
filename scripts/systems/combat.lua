@@ -2,6 +2,9 @@ local timers = {}
 local rng = function() return math.random() end
 local attack_stage = {}
 local defense_stage = {}
+local unit_snapshot_cache = {}
+local adjacent_enemy_ids_cache = {}
+local EMPTY_IDS = {}
 
 local MISS_CHANCE = 0.10
 local CRIT_CHANCE = 0.125
@@ -145,6 +148,28 @@ local function trlog(tag, payload)
   emit(tag, payload)
 end
 
+local COMBAT_LOG = { loaded = false, level = 1 }
+
+local function combat_log_level()
+  if COMBAT_LOG.loaded then return COMBAT_LOG.level end
+  COMBAT_LOG.loaded = true
+
+  local raw = (os and os.getenv) and os.getenv("PAC_COMBAT_LOG_LEVEL") or nil
+  local parsed = tonumber(raw)
+  if parsed == nil then
+    COMBAT_LOG.level = 1
+  else
+    COMBAT_LOG.level = clamp(math.floor(parsed), 0, 2)
+  end
+  return COMBAT_LOG.level
+end
+
+local function combat_emit(msg, min_level)
+  local level = tonumber(min_level) or 1
+  if combat_log_level() < level then return end
+  emit(msg)
+end
+
 local FAST_CD_MULT    = TUNING.FAST_CD_MULT
 local CHARGED_CD_MULT = TUNING.CHARGED_CD_MULT
 local MIN_FAST_REQUEST_SEC    = TUNING.MIN_FAST_REQUEST_SEC
@@ -162,6 +187,87 @@ local function move_speed_mult(move_name)
   return 1.0
 end
 
+local function clear_unit_snapshot_cache()
+  unit_snapshot_cache = {}
+end
+
+local function cache_unit_snapshot(snap)
+  if type(snap) ~= "table" or type(snap.id) ~= "number" then
+    return nil
+  end
+  unit_snapshot_cache[snap.id] = snap
+  return snap
+end
+
+local function seed_unit_snapshot_cache(units)
+  clear_unit_snapshot_cache()
+  if type(units) ~= "table" then return end
+  for i = 1, #units do
+    cache_unit_snapshot(units[i])
+  end
+end
+
+local function fetch_unit_snapshot(unit_id)
+  if type(unit_id) ~= "number" then return nil end
+  local cached = unit_snapshot_cache[unit_id]
+  if type(cached) == "table" then return cached end
+  if type(world_get_unit_snapshot) ~= "function" then return nil end
+  local snap = world_get_unit_snapshot(unit_id)
+  return cache_unit_snapshot(snap)
+end
+
+local function refresh_unit_snapshot(unit_id)
+  if type(unit_id) ~= "number" then return nil end
+  if type(world_get_unit_snapshot) ~= "function" then
+    unit_snapshot_cache[unit_id] = nil
+    return nil
+  end
+  local snap = world_get_unit_snapshot(unit_id)
+  if type(snap) ~= "table" or type(snap.id) ~= "number" then
+    unit_snapshot_cache[unit_id] = nil
+    return nil
+  end
+  unit_snapshot_cache[unit_id] = snap
+  return snap
+end
+
+local function rebuild_adjacent_enemy_cache(units)
+  adjacent_enemy_ids_cache = {}
+  if type(units) ~= "table" then return end
+
+  local active = {}
+  for i = 1, #units do
+    local u = units[i]
+    if u and u.alive and (not u.captureInProgress) then
+      active[#active + 1] = u
+      adjacent_enemy_ids_cache[u.id] = {}
+    end
+  end
+
+  local count = #active
+  for i = 1, count - 1 do
+    local a = active[i]
+    for j = i + 1, count do
+      local b = active[j]
+      if a.side ~= b.side then
+        local dx = math.abs((a.col or 0) - (b.col or 0))
+        local dy = math.abs((a.row or 0) - (b.row or 0))
+        if math.max(dx, dy) == 1 then
+          local listA = adjacent_enemy_ids_cache[a.id]
+          local listB = adjacent_enemy_ids_cache[b.id]
+          listA[#listA + 1] = b.id
+          listB[#listB + 1] = a.id
+        end
+      end
+    end
+  end
+end
+
+local function adjacent_enemy_ids(unit_id)
+  if type(unit_id) ~= "number" then return EMPTY_IDS end
+  return adjacent_enemy_ids_cache[unit_id] or EMPTY_IDS
+end
+
 -- Attack cadence is derived from unit speed stat, but can be globally scaled
 -- without changing movement behavior.
 local function unit_attack_speed_factor(unit_id)
@@ -172,8 +278,8 @@ local function unit_attack_speed_factor(unit_id)
     if type(v) == "number" then s = v end
   end
 
-  if s == nil and type(world_get_unit_snapshot) == "function" then
-    local u = world_get_unit_snapshot(unit_id)
+  if s == nil then
+    local u = fetch_unit_snapshot(unit_id)
     if u then
       if type(u.speed) == "number" then s = u.speed end
       if s == nil and type(u.movementSpeed) == "number" then s = u.movementSpeed end
@@ -194,18 +300,15 @@ end
 local function unit_attack_stat(unit_id)
   local s = nil
 
-  if type(world_get_unit_snapshot) == "function" then
-    local u = world_get_unit_snapshot(unit_id)
-    if u and type(u.attack) == "number" then s = u.attack end
-  end
+  local u = fetch_unit_snapshot(unit_id)
+  if u and type(u.attack) == "number" then s = u.attack end
 
   if type(s) ~= "number" then s = 0 end
   return s
 end
 
 local function unit_types(unit_id)
-  if type(world_get_unit_snapshot) ~= "function" then return nil end
-  local u = world_get_unit_snapshot(unit_id)
+  local u = fetch_unit_snapshot(unit_id)
   if u and type(u.types) == "table" then return u.types end
   return nil
 end
@@ -339,7 +442,7 @@ local function can_start_attack_now(id)
 end
 
 local function get_name(unit_id)
-  local u = world_get_unit_snapshot(unit_id)
+  local u = fetch_unit_snapshot(unit_id)
   if u and u.name and #u.name > 0 then
     local first = string.upper(string.sub(u.name, 1, 1))
     local rest  = string.sub(u.name, 2)
@@ -350,11 +453,10 @@ end
 
 local function adjacent_enemy_targets(attacker_id)
   local out = {}
-  if type(world_enemies_adjacent) ~= "function" then return out end
-  local enemies = world_enemies_adjacent(attacker_id)
+  local enemies = adjacent_enemy_ids(attacker_id)
   if type(enemies) ~= "table" then return out end
   for _, enemyId in ipairs(enemies) do
-    local e = world_get_unit_snapshot(enemyId)
+    local e = fetch_unit_snapshot(enemyId)
     if e and e.alive and (not e.captureInProgress) then
       out[#out + 1] = enemyId
     end
@@ -372,25 +474,25 @@ local function apply_stage_drop(effect, target_id, stageCount)
     local nxt = clamp(cur - drop, minStage, maxStage)
     if nxt == cur then return false end
     attack_stage[target_id] = nxt
-    emit(string.format("%s's Attack fell!", get_name(target_id)))
+    combat_emit(string.format("%s's Attack fell!", get_name(target_id)), 1)
     return true
   elseif effect == "defense_down" then
     local cur = defense_stage[target_id] or 0
     local nxt = clamp(cur - drop, minStage, maxStage)
     if nxt == cur then return false end
     defense_stage[target_id] = nxt
-    emit(string.format("%s's Defense fell!", get_name(target_id)))
+    combat_emit(string.format("%s's Defense fell!", get_name(target_id)), 1)
     return true
   end
   return false
 end
 
 local function find_adjacent_enemy(id)
-  local enemies = world_enemies_adjacent(id)
+  local enemies = adjacent_enemy_ids(id)
   if enemies and #enemies > 0 then
     local bestId, bestHP, bestTie = nil, math.huge, math.huge
     for _,eid in ipairs(enemies) do
-      local e = world_get_unit_snapshot(eid)
+      local e = fetch_unit_snapshot(eid)
       if e and e.alive then
         if e.hp < bestHP or (e.hp == bestHP and e.id < bestTie) then
           bestHP = e.hp; bestId = e.id; bestTie = e.id
@@ -414,9 +516,9 @@ local function effectiveness(move_name, move_type, target_id)
 end
 
 local function maybe_emit_effectiveness(tag)
-  if tag == "super" then emit("It's super effective!")
-  elseif tag == "not_very" then emit("It's not very effective…")
-  elseif tag == "immune" then emit("It doesn’t affect the target…")
+  if tag == "super" then combat_emit("It's super effective!", 2)
+  elseif tag == "not_very" then combat_emit("It's not very effective...", 2)
+  elseif tag == "immune" then combat_emit("It doesn't affect the target...", 2)
   end
 end
 
@@ -453,8 +555,7 @@ end
 
 local function target_exists_for_lock(target_id)
   if not target_id then return false end
-  if type(world_get_unit_snapshot) ~= "function" then return false end
-  local t = world_get_unit_snapshot(target_id)
+  local t = fetch_unit_snapshot(target_id)
   if type(t) ~= "table" or type(t.id) ~= "number" then return false end
   return t.alive or t.fainting or t.captureInProgress
 end
@@ -508,7 +609,7 @@ local function fire_charged(id, tgt)
   cd = math.max(cd, min_request_sec(id, name, "charged", MIN_CHARGED_REQUEST_SEC) / spd)
 
   world_set_energy(id, cur - need)
-  emit(string.format("%s used %s!", get_name(id), string.gsub(name, "_", " ")))
+  combat_emit(string.format("%s used %s!", get_name(id), string.gsub(name, "_", " ")), 1)
 
   local status = m and m.status or nil
   local statusEffect = (status and status.valid and status.effect) and tostring(status.effect) or ""
@@ -523,6 +624,7 @@ local function fire_charged(id, tgt)
     end
     if anchorTarget then
       world_apply_damage(id, anchorTarget, 0, cd, name, "charged")
+      refresh_unit_snapshot(anchorTarget)
     end
 
     local affected = 0
@@ -533,7 +635,7 @@ local function fire_charged(id, tgt)
       end
     end
     if affected <= 0 then
-      emit("But it failed!")
+      combat_emit("But it failed!", 2)
     end
 
     timers[id] = cd
@@ -542,20 +644,18 @@ local function fire_charged(id, tgt)
     return true
   end
 
-  local tSnap = world_get_unit_snapshot(tgt)
-  local hp_before = tSnap and tSnap.hp or 0
-
   local dmg = compute_damage(id, tgt, m.power)
   dmg = apply_type_multiplier(name, m.type, "charged", tgt, dmg)
   if rng() < CRIT_CHANCE then
     dmg = math.floor(dmg * CRIT_MULT + 0.5)
-    emit("A critical hit!")
+    combat_emit("A critical hit!", 2)
   end
 
   local rem = world_apply_damage(id, tgt, dmg, cd, name, "charged")
+  refresh_unit_snapshot(tgt)
   local eff = effectiveness(name, m.type, tgt)
   maybe_emit_effectiveness(eff)
-  if rem == 0 then emit(string.format("%s fainted!", get_name(tgt))) end
+  if rem == 0 then combat_emit(string.format("%s fainted!", get_name(tgt)), 1) end
 
   timers[id] = cd
   charged_pending[id] = false
@@ -571,8 +671,12 @@ function combat_init()
   locked_target = {}
   attack_stage = {}
   defense_stage = {}
+  clear_unit_snapshot_cache()
+  adjacent_enemy_ids_cache = {}
 
   local units = world_list_units() or {}
+  seed_unit_snapshot_cache(units)
+  rebuild_adjacent_enemy_cache(units)
   for i = 1, #units do
     local u = units[i]
     world_set_energy(u.id, 0)
@@ -591,6 +695,8 @@ function combat_update(dt)
 
   local units = world_list_units()
   if not units then return end
+  seed_unit_snapshot_cache(units)
+  rebuild_adjacent_enemy_cache(units)
 
   -- Update per-unit cooldown timers
   for i = 1, #units do
@@ -612,7 +718,7 @@ function combat_update(dt)
   for i = 1, #units do
     local u = units[i]
     if u.alive then
-      local adjacent = (type(world_is_adjacent_to_enemy) == "function") and world_is_adjacent_to_enemy(u.id) or false
+      local adjacent = #adjacent_enemy_ids(u.id) > 0
       local engaged = adjacent or is_attack_cycle_active(u.id)
       set_engaged(u.id, engaged)
       if not engaged then
@@ -629,7 +735,7 @@ function combat_update(dt)
   -- Combat resolution
   for i = 1, #units do
     local u = units[i]
-    local adjacent = u.alive and world_is_adjacent_to_enemy(u.id)
+    local adjacent = u.alive and (#adjacent_enemy_ids(u.id) > 0)
     local cycleLocked = is_attack_cycle_active(u.id)
     if u.alive and (adjacent or cycleLocked) then
       local tgt = nil
@@ -694,23 +800,25 @@ function combat_update(dt)
             trlog("[TRACE_FAST/fire]", string.format("start_fast_attack cd=%.3f timerSet=%.3f targetId=%d", cd, timers[u.id], tgt))
           end
 
-          emit(string.format("%s used %s!", get_name(u.id), string.gsub(fastName, "_", " ")))
+          combat_emit(string.format("%s used %s!", get_name(u.id), string.gsub(fastName, "_", " ")), 1)
 
           if rng() < MISS_CHANCE then
-            emit("It missed!")
+            combat_emit("It missed!", 2)
             world_apply_damage(u.id, tgt, 0, cd, fastName, "fast")
+            refresh_unit_snapshot(tgt)
           else
             local dmg = compute_damage(u.id, tgt, m.power)
             dmg = apply_type_multiplier(fastName, m.type, "fast", tgt, dmg)
             if rng() < CRIT_CHANCE then
               dmg = math.floor(dmg * CRIT_MULT + 0.5)
-              emit("A critical hit!")
+              combat_emit("A critical hit!", 2)
             end
             local rem = world_apply_damage(u.id, tgt, dmg, cd, fastName, "fast")
+            refresh_unit_snapshot(tgt)
             local onHit = compute_energy_gain(TUNING.ENERGY_GAIN_ON_HIT, TUNING.ENERGY_GAIN_ON_HIT_MULT)
             if onHit > 0 then world_add_energy(tgt, onHit) end
             local eff = effectiveness(fastName, m.type, tgt); maybe_emit_effectiveness(eff)
-            if rem == 0 then emit(string.format("%s fainted!", get_name(tgt))) end
+            if rem == 0 then combat_emit(string.format("%s fainted!", get_name(tgt)), 1) end
           end
 
           local gain = compute_energy_gain(m.energyGain or 0, TUNING.ENERGY_GAIN_MULT)

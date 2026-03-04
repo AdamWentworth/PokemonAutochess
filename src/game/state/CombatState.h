@@ -20,7 +20,11 @@ class TextRenderer;
 
 class CombatState : public GameState {
 public:
-    CombatState(GameStateManager* manager, GameWorld* world, GameServices& services, const std::string& scriptPath);
+    CombatState(GameStateManager* manager,
+                GameWorld* world,
+                GameServices& services,
+                const std::string& scriptPath,
+                bool resumeFromSnapshot = false);
     ~CombatState() override;
 
     void onEnter() override;
@@ -28,6 +32,7 @@ public:
     void handleInput(const InputEvent& event) override;
     void update(float deltaTime) override;
     void render() override;
+    const std::string& debugScriptPath() const { return loadedScriptPath; }
 
 private:
     bool shouldUseBackendShopUi() const;
@@ -69,5 +74,6 @@ private:
     float preCombatCountdownSec = 0.0f;
     float postCombatCountdownSec = 0.0f;
 
-    const std::string& scriptPath() const;
+    std::string loadedScriptPath;
+    bool resumeFromSnapshot = false;
 };

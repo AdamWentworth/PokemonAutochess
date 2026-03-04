@@ -15,6 +15,7 @@ public:
 
     void update(engine::ecs::World& world, float deltaTime) override;
     RoundPhase getCurrentPhase() const;
+    void debugSetPhase(RoundPhase phase, float timerSeconds = -1.0f);
 
 private:
     // The Lua script owns the timing/transition logic.

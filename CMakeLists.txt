@@ -248,6 +248,7 @@ add_library(PAC_GameObjects STATIC
     src/game/world/GameWorldQueries.cpp
     src/game/world/GameWorldRecovery.cpp
     src/game/world/GameWorldLeechSeed.cpp
+    src/game/world/GameWorldDebugSnapshot.cpp
     src/game/world/GameWorldSharedSnapshots.cpp
     src/game/world/GameWorldAnimation.cpp
     src/game/world/MoveImpactRouting.cpp

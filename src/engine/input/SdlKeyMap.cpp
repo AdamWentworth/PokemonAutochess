@@ -68,6 +68,19 @@ InputEvent::Key mapSdlKeyToEngineKey(int sdlKeycode) {
             case SDLK_UP:    return InputEvent::Key::Up;
             case SDLK_DOWN:  return InputEvent::Key::Down;
 
+            case SDLK_F1:  return InputEvent::Key::F1;
+            case SDLK_F2:  return InputEvent::Key::F2;
+            case SDLK_F3:  return InputEvent::Key::F3;
+            case SDLK_F4:  return InputEvent::Key::F4;
+            case SDLK_F5:  return InputEvent::Key::F5;
+            case SDLK_F6:  return InputEvent::Key::F6;
+            case SDLK_F7:  return InputEvent::Key::F7;
+            case SDLK_F8:  return InputEvent::Key::F8;
+            case SDLK_F9:  return InputEvent::Key::F9;
+            case SDLK_F10: return InputEvent::Key::F10;
+            case SDLK_F11: return InputEvent::Key::F11;
+            case SDLK_F12: return InputEvent::Key::F12;
+
             case SDLK_LSHIFT: return InputEvent::Key::LShift;
             case SDLK_RSHIFT: return InputEvent::Key::RShift;
             case SDLK_LCTRL:  return InputEvent::Key::LCtrl;

@@ -107,7 +107,10 @@ void GameWorld::capturePlayerPositionsForBattle() {
     auto capture = [&](const std::vector<PokemonInstance>& list) {
         for (const auto& u : list) {
             if (u.side != PokemonSide::Player) continue;
-            battleStartPositions[u.id] = u.position;
+            BattleStartPose pose;
+            pose.position = u.position;
+            pose.rotation = u.rotation;
+            battleStartPositions[u.id] = pose;
         }
     };
     capture(pokemons);
@@ -120,8 +123,8 @@ void GameWorld::restorePlayerPositionsAfterBattle() {
             if (u.side != PokemonSide::Player) continue;
             auto it = battleStartPositions.find(u.id);
             if (it == battleStartPositions.end()) continue;
-            u.position = it->second;
-            u.rotation.y = 180.0f;
+            u.position = it->second.position;
+            u.rotation = it->second.rotation;
             u.isMoving = false;
             u.moveT = 1.0f;
             u.committedDest = {-1, -1};

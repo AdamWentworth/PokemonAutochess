@@ -11,6 +11,7 @@ static const char* kRoundSystemScript = "scripts/systems/round_system.lua";
 static const char* kFnInit   = "rs_init";
 static const char* kFnUpdate = "rs_update";
 static const char* kFnPhase  = "rs_get_phase";
+static const char* kFnDebugSetState = "rs_debug_set_state";
 
 static std::string phaseName(RoundPhase p) {
     switch (p) {
@@ -93,4 +94,24 @@ void RoundSystem::update(engine::ecs::World& world, float deltaTime) {
 
 RoundPhase RoundSystem::getCurrentPhase() const {
     return currentPhase;
+}
+
+void RoundSystem::debugSetPhase(RoundPhase phase, float timerSeconds) {
+    currentPhase = phase;
+
+    sol::table S = script.getScriptTable();
+    sol::function fDebugSet;
+    if (S.valid()) fDebugSet = S.get<sol::function>(kFnDebugSetState);
+    if (!fDebugSet.valid()) fDebugSet = script.getState().get<sol::function>(kFnDebugSetState);
+
+    if (!fDebugSet.valid()) {
+        return;
+    }
+
+    const std::string phaseToken = phaseName(phase);
+    sol::protected_function_result r = fDebugSet(phaseToken, timerSeconds);
+    if (!r.valid()) {
+        // Keep currentPhase cache even if debug helper was not accepted by Lua.
+        return;
+    }
 }

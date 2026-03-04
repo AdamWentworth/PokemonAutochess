@@ -162,8 +162,8 @@ void GameWorld::reconcileBoardScaleFromRoster() {
     }
 
     for (auto& kv : battleStartPositions) {
-        const glm::ivec2 cell = worldToGridWithCellSize(kv.second, oldCell);
-        kv.second = gridToWorldWithCellSize(cell.x, cell.y, newCell);
+        const glm::ivec2 cell = worldToGridWithCellSize(kv.second.position, oldCell);
+        kv.second.position = gridToWorldWithCellSize(cell.x, cell.y, newCell);
     }
 
     boardScaleMul = 1.0f;

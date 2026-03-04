@@ -65,6 +65,48 @@ public:
         bool won = false;
     };
 
+    struct DebugUnitSnapshot {
+        std::string name;
+        PokemonSide side = PokemonSide::Player;
+        int level = 1;
+        int hp = 0;
+        int energy = 0;
+        int col = 0;
+        int row = 0;
+        int benchSlot = -1;
+        bool hasPosition = false;
+        float posX = 0.0f;
+        float posY = 0.0f;
+        float posZ = 0.0f;
+        bool hasRotation = false;
+        float rotX = 0.0f;
+        float rotY = 180.0f;
+        float rotZ = 0.0f;
+        bool hasBattleStartPose = false;
+        float battleStartX = 0.0f;
+        float battleStartY = 0.0f;
+        float battleStartZ = 0.0f;
+        bool hasBattleStartRotation = false;
+        float battleStartRotX = 0.0f;
+        float battleStartRotY = 180.0f;
+        float battleStartRotZ = 0.0f;
+        bool alive = true;
+        bool fainting = false;
+        bool captureInProgress = false;
+    };
+
+    struct DebugStateSnapshot {
+        int money = 0;
+        int classicWinStreak = 0;
+        int classicLossStreak = 0;
+        int classicRoundsCompleted = 0;
+        bool unitSellRewardsEnabled = true;
+        std::vector<DebugUnitSnapshot> boardUnits;
+        std::vector<DebugUnitSnapshot> benchUnits;
+        std::vector<std::pair<std::string, int>> items;
+        std::vector<ClassicShopCard> classicShopCards;
+    };
+
     struct TypeLineCount {
         std::string type;
         int uniqueLineCount = 0;
@@ -174,6 +216,10 @@ public:
     bool tryUseHealingItem(const std::string& itemId, int targetId);
     bool startCaptureAttempt(int targetId, float ballMult, const glm::vec3* throwOrigin = nullptr);
 
+    // Debug-only save/load support for rapid perf iteration loops.
+    bool buildDebugStateSnapshot(DebugStateSnapshot& out) const;
+    bool applyDebugStateSnapshot(const DebugStateSnapshot& in, std::string* outError = nullptr);
+
     // Impact VFX for grass-type attacks
     void emitGrassImpactAt(const PokemonInstance& target);
     // Impact VFX for tackle
@@ -192,6 +238,7 @@ public:
     ClassicRoundIncomeResult awardClassicRoundIncome(bool playerWon);
     void capturePlayerPositionsForBattle();
     void restorePlayerPositionsAfterBattle();
+    bool hasBattleStartPositions() const { return !battleStartPositions.empty(); }
     void setBoardInteractionLocked(bool locked) { boardInteractionLocked = locked; }
     bool isBoardInteractionLocked() const { return boardInteractionLocked; }
     bool isBoardResizePauseActive() const { return boardResizePauseSec > 0.0f; }
@@ -222,7 +269,11 @@ private:
     bool boardInteractionLocked = false;
     bool unitDragActive = false;
     int uiClickBlockFrames = 0;
-    std::unordered_map<int, glm::vec3> battleStartPositions;
+    struct BattleStartPose {
+        glm::vec3 position{0.0f};
+        glm::vec3 rotation{0.0f, 180.0f, 0.0f};
+    };
+    std::unordered_map<int, BattleStartPose> battleStartPositions;
     int money = 0;
     std::vector<ClassicShopCard> classicShopCards;
     int unitDropZoneCardCount = 0;

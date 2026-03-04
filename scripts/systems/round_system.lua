@@ -36,3 +36,25 @@ end
 function rs_get_phase()
     return current
 end
+
+function rs_debug_set_state(phase, override_timer)
+    if phase == "Planning" or phase == "Battle" or phase == "Resolution" then
+        current = phase
+    else
+        return false
+    end
+
+    local fallback = planningDuration
+    if current == "Battle" then
+        fallback = battleDuration
+    elseif current == "Resolution" then
+        fallback = resolutionDuration
+    end
+
+    if type(override_timer) == "number" and override_timer > 0.0 then
+        timer = override_timer
+    else
+        timer = fallback
+    end
+    return true
+end
