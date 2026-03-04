@@ -104,6 +104,30 @@ local function cycle_index(tbl, idx, dir)
     return next_idx
 end
 
+local function get_bool_pref(fn_name, fallback)
+    local fn = _G[fn_name]
+    if type(fn) ~= "function" then
+        return fallback == true
+    end
+    local ok, value = pcall(fn)
+    if not ok then
+        return fallback == true
+    end
+    return value == true
+end
+
+local function set_bool_pref(fn_name, value)
+    local fn = _G[fn_name]
+    if type(fn) ~= "function" then
+        return false
+    end
+    local ok, result = pcall(fn, value == true)
+    if not ok then
+        return false
+    end
+    return result == true
+end
+
 local function sync_gpu_adapter_options()
     video_cfg.gpu_adapters = { "auto" }
     local adapters = get_gpu_adapters()
@@ -155,9 +179,9 @@ local function sync_from_engine()
             end
         end
     end
-    video_cfg.vsync = get_vsync_pref() == true
-    video_cfg.require_discrete_gpu = get_require_discrete_gpu_pref() == true
-    video_cfg.character_inking = get_character_inking_pref() == true
+    video_cfg.vsync = get_bool_pref("get_vsync_pref", video_cfg.vsync)
+    video_cfg.require_discrete_gpu = get_bool_pref("get_require_discrete_gpu_pref", video_cfg.require_discrete_gpu)
+    video_cfg.character_inking = get_bool_pref("get_character_inking_pref", video_cfg.character_inking)
     sync_gpu_adapter_options()
 end
 
@@ -529,18 +553,18 @@ local function handle_video_click(entry_id)
 
     if entry_id == "video_vsync" then
         video_cfg.vsync = not video_cfg.vsync
-        local ok = set_vsync_pref(video_cfg.vsync)
+        local ok = set_bool_pref("set_vsync_pref", video_cfg.vsync)
         if ok then
             emit("Menu", "VSync: " .. bool_text(video_cfg.vsync) .. " (restart required)")
         else
             emit("Menu", "Failed to save VSync preference")
-            video_cfg.vsync = get_vsync_pref() == true
+            video_cfg.vsync = get_bool_pref("get_vsync_pref", video_cfg.vsync)
         end
         return true
     end
     if entry_id == "video_character_inking" then
         video_cfg.character_inking = not video_cfg.character_inking
-        local ok = set_character_inking_pref(video_cfg.character_inking)
+        local ok = set_bool_pref("set_character_inking_pref", video_cfg.character_inking)
         if ok then
             emit("Menu", "Character inking: " .. bool_text(video_cfg.character_inking))
         else

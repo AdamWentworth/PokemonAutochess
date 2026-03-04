@@ -1,14 +1,10 @@
-#include "ModelFastGltfTextures.h"
-
+﻿#include "ModelFastGltfTextures.h"
 #include "ModelFastGltfLoaderHelpers.h"
 #include "engine/core/Environment.h"
-
 #include <stb_image.h>
 #include <stb_image_write.h>
-
 #include <glad/glad.h>
 #include <fastgltf/glm_element_traits.hpp>
-
 #include <algorithm>
 #include <cctype>
 #include <cmath>
@@ -23,11 +19,8 @@
 #include <string>
 #include <string_view>
 #include <vector>
-
 namespace pac::model_fastgltf {
-
 namespace {
-
 GLint wrapToGL(fastgltf::Wrap w) {
     switch (w) {
         case fastgltf::Wrap::ClampToEdge:
@@ -39,7 +32,6 @@ GLint wrapToGL(fastgltf::Wrap w) {
             return GL_REPEAT;
     }
 }
-
 GLint filterToGLMin(int f) {
     switch (f) {
         case 9728:
@@ -58,7 +50,6 @@ GLint filterToGLMin(int f) {
             return GL_LINEAR_MIPMAP_LINEAR;
     }
 }
-
 GLint filterToGLMag(int f) {
     switch (f) {
         case 9728:
@@ -69,12 +60,10 @@ GLint filterToGLMag(int f) {
             return GL_LINEAR;
     }
 }
-
 struct EncodedImageBytes {
     std::vector<std::uint8_t> bytes;
     std::string debugName;
 };
-
 int b64Value(unsigned char c) {
     if (c >= 'A' && c <= 'Z') return c - 'A';
     if (c >= 'a' && c <= 'z') return c - 'a' + 26;
@@ -83,7 +72,6 @@ int b64Value(unsigned char c) {
     if (c == '/') return 63;
     return -1;
 }
-
 bool decodeBase64(std::string_view in, std::vector<std::uint8_t>& out) {
     out.clear();
     int val = 0;
@@ -101,33 +89,25 @@ bool decodeBase64(std::string_view in, std::vector<std::uint8_t>& out) {
     }
     return !out.empty();
 }
-
 std::optional<EncodedImageBytes> getEncodedImageBytes(const fastgltf::Asset& asset,
                                                       const std::filesystem::path& baseDir,
                                                       const fastgltf::Image& image) {
     EncodedImageBytes out{};
-
     if (const auto* uri = std::get_if<fastgltf::sources::URI>(&image.data)) {
         std::string u(uri->uri.string().begin(), uri->uri.string().end());
         out.debugName = u;
-
         if (u.rfind("data:", 0) == 0) {
             const size_t comma = u.find(',');
             if (comma == std::string::npos) return std::nullopt;
-
             std::string_view meta(u.data(), comma);
             std::string_view payload(u.data() + comma + 1, u.size() - (comma + 1));
-
             const bool isBase64 = (meta.find(";base64") != std::string_view::npos);
             if (!isBase64) return std::nullopt;
-
             if (!decodeBase64(payload, out.bytes)) return std::nullopt;
             return out;
         }
-
         std::filesystem::path p = baseDir / std::string(uri->uri.path().begin(), uri->uri.path().end());
         out.debugName = p.string();
-
         std::ifstream f(p, std::ios::binary);
         if (!f) return std::nullopt;
         f.seekg(0, std::ios::end);
@@ -138,7 +118,6 @@ std::optional<EncodedImageBytes> getEncodedImageBytes(const fastgltf::Asset& ass
         if (!f.read(reinterpret_cast<char*>(out.bytes.data()), size)) return std::nullopt;
         return out;
     }
-
     if (const auto* vec = std::get_if<fastgltf::sources::Vector>(&image.data)) {
         out.debugName = image.name.empty() ? "VectorImage" : std::string(image.name.begin(), image.name.end());
         out.bytes.resize(vec->bytes.size());
@@ -147,7 +126,6 @@ std::optional<EncodedImageBytes> getEncodedImageBytes(const fastgltf::Asset& ass
         }
         return out;
     }
-
     if (const auto* arr = std::get_if<fastgltf::sources::Array>(&image.data)) {
         out.debugName = image.name.empty() ? "ArrayImage" : std::string(image.name.begin(), image.name.end());
         out.bytes.resize(arr->bytes.size());
@@ -156,7 +134,6 @@ std::optional<EncodedImageBytes> getEncodedImageBytes(const fastgltf::Asset& ass
         }
         return out;
     }
-
     if (const auto* view = std::get_if<fastgltf::sources::ByteView>(&image.data)) {
         out.debugName = image.name.empty() ? "ByteViewImage" : std::string(image.name.begin(), image.name.end());
         out.bytes.resize(view->bytes.size());
@@ -165,16 +142,13 @@ std::optional<EncodedImageBytes> getEncodedImageBytes(const fastgltf::Asset& ass
         }
         return out;
     }
-
     if (const auto* bv = std::get_if<fastgltf::sources::BufferView>(&image.data)) {
         if (bv->bufferViewIndex >= asset.bufferViews.size()) return std::nullopt;
         const auto& bufferView = asset.bufferViews[bv->bufferViewIndex];
         if (bufferView.bufferIndex >= asset.buffers.size()) return std::nullopt;
         const auto& buffer = asset.buffers[bufferView.bufferIndex];
-
         const std::byte* bufPtr = nullptr;
         size_t bufSize = 0;
-
         if (const auto* bufVec = std::get_if<fastgltf::sources::Vector>(&buffer.data)) {
             bufPtr = bufVec->bytes.data();
             bufSize = bufVec->bytes.size();
@@ -187,11 +161,9 @@ std::optional<EncodedImageBytes> getEncodedImageBytes(const fastgltf::Asset& ass
         } else {
             return std::nullopt;
         }
-
         const size_t start = static_cast<size_t>(bufferView.byteOffset);
         const size_t size = static_cast<size_t>(bufferView.byteLength);
         if (start + size > bufSize) return std::nullopt;
-
         out.debugName = image.name.empty() ? "BufferViewImage" : std::string(image.name.begin(), image.name.end());
         out.bytes.resize(size);
         if (size > 0) {
@@ -199,10 +171,8 @@ std::optional<EncodedImageBytes> getEncodedImageBytes(const fastgltf::Asset& ass
         }
         return out;
     }
-
     return std::nullopt;
 }
-
 CPUTexture makeWhiteCPUTexture() {
     CPUTexture t;
     t.width = 1;
@@ -214,7 +184,6 @@ CPUTexture makeWhiteCPUTexture() {
     t.rgba = {255, 255, 255, 255};
     return t;
 }
-
 CPUTexture makeBlackCPUTexture() {
     CPUTexture t;
     t.width = 1;
@@ -226,7 +195,6 @@ CPUTexture makeBlackCPUTexture() {
     t.rgba = {0, 0, 0, 255};
     return t;
 }
-
 enum class TextureKind {
     BaseColor,
     Emissive,
@@ -234,7 +202,6 @@ enum class TextureKind {
     MetallicRoughness,
     Occlusion
 };
-
 CPUTexture makeFlatNormalCPUTexture() {
     CPUTexture t;
     t.width = 1;
@@ -246,7 +213,6 @@ CPUTexture makeFlatNormalCPUTexture() {
     t.rgba = {128, 128, 255, 255};
     return t;
 }
-
 CPUTexture makeMetallicRoughnessDefaultCPUTexture() {
     CPUTexture t;
     t.width = 1;
@@ -259,7 +225,6 @@ CPUTexture makeMetallicRoughnessDefaultCPUTexture() {
     t.rgba = {255, 255, 255, 255};
     return t;
 }
-
 const char* textureKindName(TextureKind kind) {
     switch (kind) {
         case TextureKind::BaseColor: return "BaseColor";
@@ -270,19 +235,14 @@ const char* textureKindName(TextureKind kind) {
         default: return "Unknown";
     }
 }
-
 const char* magicName(const std::vector<std::uint8_t>& bytes) {
     if (bytes.size() >= 12) {
         static const unsigned char pngSig[8] = {0x89, 'P', 'N', 'G', 0x0D, 0x0A, 0x1A, 0x0A};
         if (std::memcmp(bytes.data(), pngSig, 8) == 0) return "PNG";
-
         if (bytes[0] == 0xFF && bytes[1] == 0xD8) return "JPG";
-
         static const unsigned char ktx2Sig[12] = {0xAB, 'K', 'T', 'X', ' ', '2', '0', 0xBB, 0x0D, 0x0A, 0x1A, 0x0A};
         if (std::memcmp(bytes.data(), ktx2Sig, 12) == 0) return "KTX2";
-
         if (bytes[0] == 'D' && bytes[1] == 'D' && bytes[2] == 'S' && bytes[3] == ' ') return "DDS";
-
         if (bytes[0] == 'R' && bytes[1] == 'I' && bytes[2] == 'F' && bytes[3] == 'F' &&
             bytes[8] == 'W' && bytes[9] == 'E' && bytes[10] == 'B' && bytes[11] == 'P') {
             return "WEBP";
@@ -290,11 +250,9 @@ const char* magicName(const std::vector<std::uint8_t>& bytes) {
     }
     return "UNKNOWN";
 }
-
 void logTexDecode(const std::string& prefix, const std::string& msg) {
     std::cerr << prefix << msg << "\n";
 }
-
 std::string glEnumName(GLint e) {
     switch (e) {
         case GL_REPEAT:
@@ -319,7 +277,6 @@ std::string glEnumName(GLint e) {
             return "GL_ENUM(" + std::to_string(static_cast<int>(e)) + ")";
     }
 }
-
 void dumpRGBAtoPNG(const std::filesystem::path& outPath, const CPUTexture& t) {
     if (t.rgba.empty() || t.width == 0 || t.height == 0) return;
     try {
@@ -332,7 +289,6 @@ void dumpRGBAtoPNG(const std::filesystem::path& outPath, const CPUTexture& t) {
     stbi_write_png(outPath.string().c_str(), static_cast<int>(t.width), static_cast<int>(t.height), 4, t.rgba.data(),
                    static_cast<int>(t.width) * 4);
 }
-
 CPUTexture decodeTextureFast(const fastgltf::Asset& asset,
                              const std::filesystem::path& baseDir,
                              int materialIndex,
@@ -341,13 +297,10 @@ CPUTexture decodeTextureFast(const fastgltf::Asset& asset,
                              const std::string& modelPath,
                              int* outTexCoordIndex) {
     if (outTexCoordIndex) *outTexCoordIndex = 0;
-
     const bool forceDbg = dbg || envTruthy("PAC_GLTF_DEBUG_ALL");
     const std::string prefix = "[gltf][TEX] ";
-
     auto wantLog = [&]() {
         if (forceDbg) return true;
-
         const auto envMatch = [&](const char* envVar) -> bool {
             const auto v = engine::env::get(envVar);
             if (!v.has_value()) return false;
@@ -373,15 +326,12 @@ CPUTexture decodeTextureFast(const fastgltf::Asset& asset,
             }
             return false;
         };
-
         return envMatch("PAC_GLTF_DEBUG_MATCH");
     };
-
     const auto white = makeWhiteCPUTexture();
     const auto black = makeBlackCPUTexture();
     const auto flatNormal = makeFlatNormalCPUTexture();
     const auto mrDefault = makeMetallicRoughnessDefaultCPUTexture();
-
     const auto fallbackForKind = [&](TextureKind k) -> const CPUTexture& {
         switch (k) {
             case TextureKind::BaseColor: return white;
@@ -392,13 +342,10 @@ CPUTexture decodeTextureFast(const fastgltf::Asset& asset,
             default: return white;
         }
     };
-
     if (materialIndex < 0 || materialIndex >= static_cast<int>(asset.materials.size())) {
         return fallbackForKind(kind);
     }
-
     const auto& mat = asset.materials[static_cast<size_t>(materialIndex)];
-
     std::size_t texIndex = static_cast<std::size_t>(-1);
     int texCoord = 0;
     bool hasTexture = false;
@@ -434,7 +381,6 @@ CPUTexture decodeTextureFast(const fastgltf::Asset& asset,
         }
     }
     if (outTexCoordIndex) *outTexCoordIndex = texCoord;
-
     if (!hasTexture) {
         if (kind == TextureKind::BaseColor) {
             CPUTexture t;
@@ -444,14 +390,12 @@ CPUTexture decodeTextureFast(const fastgltf::Asset& asset,
             t.wrapT = GL_REPEAT;
             t.minF = GL_LINEAR;
             t.magF = GL_LINEAR;
-
             const auto f = mat.pbrData.baseColorFactor;
             auto toU8 = [](float x) -> std::uint8_t {
                 x = (std::max)(0.0f, (std::min)(1.0f, x));
                 return static_cast<std::uint8_t>(std::lround(x * 255.0f));
             };
             t.rgba = {toU8(f[0]), toU8(f[1]), toU8(f[2]), toU8(f[3])};
-
             if (wantLog()) {
                 logTexDecode(prefix, "mat[" + std::to_string(materialIndex) + "] '" +
                                          std::string(mat.name.begin(), mat.name.end()) +
@@ -467,7 +411,6 @@ CPUTexture decodeTextureFast(const fastgltf::Asset& asset,
         }
         return fallbackForKind(kind);
     }
-
     if (texIndex >= asset.textures.size()) {
         if (wantLog()) {
             logTexDecode(prefix, "mat[" + std::to_string(materialIndex) +
@@ -475,9 +418,7 @@ CPUTexture decodeTextureFast(const fastgltf::Asset& asset,
         }
         return fallbackForKind(kind);
     }
-
     const auto& tex = asset.textures[texIndex];
-
     fastgltf::Optional<std::size_t> imgIndexOpt = tex.imageIndex;
     const char* imgSlot = "imageIndex";
     if (!imgIndexOpt.has_value()) {
@@ -492,7 +433,6 @@ CPUTexture decodeTextureFast(const fastgltf::Asset& asset,
         imgIndexOpt = tex.ddsImageIndex;
         imgSlot = "ddsImageIndex";
     }
-
     if (!imgIndexOpt.has_value()) {
         if (wantLog()) {
             logTexDecode(prefix, "mat[" + std::to_string(materialIndex) + "] tex[" +
@@ -500,7 +440,6 @@ CPUTexture decodeTextureFast(const fastgltf::Asset& asset,
         }
         return fallbackForKind(kind);
     }
-
     const size_t imgIndex = imgIndexOpt.value();
     if (imgIndex >= asset.images.size()) {
         if (wantLog()) {
@@ -509,10 +448,8 @@ CPUTexture decodeTextureFast(const fastgltf::Asset& asset,
         }
         return fallbackForKind(kind);
     }
-
     const auto& img = asset.images[imgIndex];
     auto enc = getEncodedImageBytes(asset, baseDir, img);
-
     if (!enc.has_value() || enc->bytes.empty()) {
         if (wantLog()) {
             logTexDecode(prefix, "mat[" + std::to_string(materialIndex) + "] tex[" +
@@ -522,12 +459,10 @@ CPUTexture decodeTextureFast(const fastgltf::Asset& asset,
         }
         return (kind == TextureKind::BaseColor) ? white : black;
     }
-
     int w = 0;
     int h = 0;
     int comp = 0;
     stbi_uc* decoded = stbi_load_from_memory(enc->bytes.data(), static_cast<int>(enc->bytes.size()), &w, &h, &comp, 4);
-
     if (wantLog()) {
         const std::string matName(mat.name.begin(), mat.name.end());
         const char* fmt = magicName(enc->bytes);
@@ -550,12 +485,10 @@ CPUTexture decodeTextureFast(const fastgltf::Asset& asset,
         }
         logTexDecode(prefix, msg);
     }
-
     if (decoded == nullptr || w <= 0 || h <= 0) {
         if (decoded) stbi_image_free(decoded);
         return fallbackForKind(kind);
     }
-
     CPUTexture out;
     out.width = static_cast<std::uint32_t>(w);
     out.height = static_cast<std::uint32_t>(h);
@@ -563,7 +496,6 @@ CPUTexture decodeTextureFast(const fastgltf::Asset& asset,
     out.wrapT = GL_REPEAT;
     out.minF = GL_LINEAR_MIPMAP_LINEAR;
     out.magF = GL_LINEAR;
-
     if (tex.samplerIndex.has_value() && tex.samplerIndex.value() < asset.samplers.size()) {
         const auto& s = asset.samplers[tex.samplerIndex.value()];
         out.wrapS = wrapToGL(s.wrapS);
@@ -571,25 +503,21 @@ CPUTexture decodeTextureFast(const fastgltf::Asset& asset,
         if (s.minFilter.has_value()) out.minF = filterToGLMin(static_cast<int>(s.minFilter.value()));
         if (s.magFilter.has_value()) out.magF = filterToGLMag(static_cast<int>(s.magFilter.value()));
     }
-
     const size_t pxCount = static_cast<size_t>(w) * static_cast<size_t>(h);
     out.rgba.resize(pxCount * 4);
     std::memcpy(out.rgba.data(), decoded, pxCount * 4);
-
     if (kind == TextureKind::BaseColor) {
         const auto f = mat.pbrData.baseColorFactor;
         const float fr = f[0];
         const float fg = f[1];
         const float fb = f[2];
         const float fa = f[3];
-
         if (fr != 1.0f || fg != 1.0f || fb != 1.0f || fa != 1.0f) {
             auto mulClampU8 = [](std::uint8_t v, float factor) -> std::uint8_t {
                 float x = static_cast<float>(v) * factor;
                 x = (std::max)(0.0f, (std::min)(255.0f, x));
                 return static_cast<std::uint8_t>(std::lround(x));
             };
-
             for (size_t i = 0; i + 3 < out.rgba.size(); i += 4) {
                 out.rgba[i + 0] = mulClampU8(out.rgba[i + 0], fr);
                 out.rgba[i + 1] = mulClampU8(out.rgba[i + 1], fg);
@@ -598,9 +526,7 @@ CPUTexture decodeTextureFast(const fastgltf::Asset& asset,
             }
         }
     }
-
     stbi_image_free(decoded);
-
     if (wantLog() && envTruthy("PAC_GLTF_DUMP_TEXTURES")) {
         std::string kindStr = textureKindName(kind);
         std::transform(kindStr.begin(), kindStr.end(), kindStr.begin(), [](unsigned char c) {
@@ -616,12 +542,9 @@ CPUTexture decodeTextureFast(const fastgltf::Asset& asset,
                          std::to_string(out.height) + ", wrapS=" + glEnumName(out.wrapS) +
                          ", wrapT=" + glEnumName(out.wrapT) + ")");
     }
-
     return out;
 }
-
 }  // namespace
-
 CPUTexture decodeBaseColorTextureFast(const fastgltf::Asset& asset,
                                       const std::filesystem::path& baseDir,
                                       int materialIndex,
@@ -630,7 +553,6 @@ CPUTexture decodeBaseColorTextureFast(const fastgltf::Asset& asset,
                                       int* outTexCoordIndex) {
     return decodeTextureFast(asset, baseDir, materialIndex, TextureKind::BaseColor, dbg, modelPath, outTexCoordIndex);
 }
-
 CPUTexture decodeEmissiveTextureFast(const fastgltf::Asset& asset,
                                      const std::filesystem::path& baseDir,
                                      int materialIndex,
@@ -639,7 +561,6 @@ CPUTexture decodeEmissiveTextureFast(const fastgltf::Asset& asset,
                                      int* outTexCoordIndex) {
     return decodeTextureFast(asset, baseDir, materialIndex, TextureKind::Emissive, dbg, modelPath, outTexCoordIndex);
 }
-
 CPUTexture decodeNormalTextureFast(const fastgltf::Asset& asset,
                                    const std::filesystem::path& baseDir,
                                    int materialIndex,
@@ -648,7 +569,6 @@ CPUTexture decodeNormalTextureFast(const fastgltf::Asset& asset,
                                    int* outTexCoordIndex) {
     return decodeTextureFast(asset, baseDir, materialIndex, TextureKind::Normal, dbg, modelPath, outTexCoordIndex);
 }
-
 CPUTexture decodeMetallicRoughnessTextureFast(const fastgltf::Asset& asset,
                                               const std::filesystem::path& baseDir,
                                               int materialIndex,
@@ -664,7 +584,6 @@ CPUTexture decodeMetallicRoughnessTextureFast(const fastgltf::Asset& asset,
         modelPath,
         outTexCoordIndex);
 }
-
 CPUTexture decodeOcclusionTextureFast(const fastgltf::Asset& asset,
                                       const std::filesystem::path& baseDir,
                                       int materialIndex,
@@ -673,5 +592,4 @@ CPUTexture decodeOcclusionTextureFast(const fastgltf::Asset& asset,
                                       int* outTexCoordIndex) {
     return decodeTextureFast(asset, baseDir, materialIndex, TextureKind::Occlusion, dbg, modelPath, outTexCoordIndex);
 }
-
 }  // namespace pac::model_fastgltf

@@ -1,6 +1,5 @@
 // src/engine/render/gltf/ModelFastGltfLoader.cpp
 // Extracted from ModelFastGltfLoad.inl to keep Model.cpp small and testable.
-
 #include "engine/render/Model.h"
 #include "engine/render/ModelStartupLog.h"
 #include "FastGLTFLoader.h"
@@ -8,17 +7,13 @@
 #include "ModelFastGltfMaterial.h"
 #include "ModelFastGltfSceneData.h"
 #include "ModelFastGltfTextures.h"
-
 #include <fastgltf/tools.hpp>
 #include <fastgltf/glm_element_traits.hpp>
-
 #include <nlohmann/json.hpp>
-
 #include <glad/glad.h>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtx/quaternion.hpp>
 #include <glm/gtc/type_ptr.hpp>
-
 #include <algorithm>
 #include <cctype>
 #include <cstddef>
@@ -36,80 +31,6 @@
 #include <utility>
 #include <variant>
 #include <vector>
-
-namespace {
-
-glm::vec3 safeNormalizeVec3(const glm::vec3& v, const glm::vec3& fallback) {
-    const float lenSq = glm::dot(v, v);
-    if (lenSq > 1e-12f) return glm::normalize(v);
-    return fallback;
-}
-
-void computeTangentsFromGeometry(const std::vector<glm::vec3>& positions,
-                                 const std::vector<glm::vec2>& uvs,
-                                 const std::vector<glm::vec3>& normals,
-                                 const std::vector<std::uint32_t>& indices,
-                                 std::vector<glm::vec4>& outTangents) {
-    outTangents.assign(positions.size(), glm::vec4(0.0f, 0.0f, 0.0f, 1.0f));
-    if (positions.empty() || uvs.size() != positions.size() || normals.size() != positions.size()) {
-        return;
-    }
-
-    std::vector<glm::vec3> tan1(positions.size(), glm::vec3(0.0f));
-    std::vector<glm::vec3> tan2(positions.size(), glm::vec3(0.0f));
-
-    const std::size_t triCount = indices.size() / 3u;
-    for (std::size_t triIdx = 0; triIdx < triCount; ++triIdx) {
-        const std::size_t i = triIdx * 3u;
-        const std::uint32_t i0 = indices[i + 0u];
-        const std::uint32_t i1 = indices[i + 1u];
-        const std::uint32_t i2 = indices[i + 2u];
-        if (i0 >= positions.size() || i1 >= positions.size() || i2 >= positions.size()) continue;
-
-        const glm::vec3& p0 = positions[i0];
-        const glm::vec3& p1 = positions[i1];
-        const glm::vec3& p2 = positions[i2];
-        const glm::vec2& uv0 = uvs[i0];
-        const glm::vec2& uv1 = uvs[i1];
-        const glm::vec2& uv2 = uvs[i2];
-
-        const glm::vec3 e1 = p1 - p0;
-        const glm::vec3 e2 = p2 - p0;
-        const glm::vec2 dUV1 = uv1 - uv0;
-        const glm::vec2 dUV2 = uv2 - uv0;
-        const float det = dUV1.x * dUV2.y - dUV2.x * dUV1.y;
-        if (std::fabs(det) <= 1e-8f) continue;
-        const float invDet = 1.0f / det;
-
-        const glm::vec3 sdir = (e1 * dUV2.y - e2 * dUV1.y) * invDet;
-        const glm::vec3 tdir = (e2 * dUV1.x - e1 * dUV2.x) * invDet;
-        tan1[i0] += sdir;
-        tan1[i1] += sdir;
-        tan1[i2] += sdir;
-        tan2[i0] += tdir;
-        tan2[i1] += tdir;
-        tan2[i2] += tdir;
-    }
-
-    for (std::size_t vi = 0; vi < positions.size(); ++vi) {
-        const glm::vec3 n = safeNormalizeVec3(normals[vi], glm::vec3(0.0f, 1.0f, 0.0f));
-        glm::vec3 t = tan1[vi] - n * glm::dot(n, tan1[vi]);
-        const float tLenSq = glm::dot(t, t);
-        if (tLenSq <= 1e-10f) {
-            const glm::vec3 helper =
-                (std::fabs(n.y) < 0.999f) ? glm::vec3(0.0f, 1.0f, 0.0f) : glm::vec3(1.0f, 0.0f, 0.0f);
-            t = safeNormalizeVec3(glm::cross(helper, n), glm::vec3(1.0f, 0.0f, 0.0f));
-            outTangents[vi] = glm::vec4(t, 1.0f);
-            continue;
-        }
-        t = glm::normalize(t);
-        const float handedness = (glm::dot(glm::cross(n, t), tan2[vi]) < 0.0f) ? -1.0f : 1.0f;
-        outTangents[vi] = glm::vec4(t, handedness);
-    }
-}
-
-} // namespace
-
 void Model::loadGLTFFast(const std::string& filepath) {
 // ------------------------------------------------------------
 // FastGLTF load (full path)
@@ -119,15 +40,12 @@ void Model::loadGLTFFast(const std::string& filepath) {
         std::cerr << "[gltf][FASTGLTF] FAILED to parse: " << filepath << "\n";
         return;
     }
-
     const fastgltf::Asset& asset = fg->asset;
-
     const bool dbgThisModel = pac::model_fastgltf::envTruthy("PAC_GLTF_DEBUG") || pac::model_fastgltf::ciContains(filepath, "0019_rattata") || pac::model_fastgltf::ciContains(filepath, "rattata");
     if (dbgThisModel) {
         std::cerr << "[gltf][DEBUG] Extra logging ENABLED for: " << filepath << "\n";
         std::cerr << "[gltf][DEBUG] Env toggles: PAC_GLTF_DUMP_TEXTURES=1 will write debug PNGs; PAC_GLTF_RESPECT_TEXCOORD=1 will respect material texCoord indices.\n";
     }
-
     // Reset model state
     nodesDefault.clear();
     nodeChildren.clear();
@@ -137,9 +55,7 @@ void Model::loadGLTFFast(const std::string& filepath) {
     skins.clear();
     animations.clear();
     submeshes.clear();
-
     fastgltf::DefaultBufferDataAdapter adapter{};
-
     pac::model_fastgltf::buildSceneData(asset,
                                         adapter,
                                         nodesDefault,
@@ -149,44 +65,34 @@ void Model::loadGLTFFast(const std::string& filepath) {
                                         sceneRoots,
                                         skins,
                                         animations);
-
     std::cerr << "[gltf] fastgltf animations=" << animations.size()
               << " skins=" << skins.size()
               << " nodes=" << nodesDefault.size() << "\n";
-
     // ---- Meshes + textures ----
     std::vector<Vertex> vertices;
     std::vector<uint32_t> indices;
     vertices.reserve(20000);
     indices.reserve(60000);
-
     std::vector<pac::model_fastgltf::CPUTexture> baseColorTexturesCPU;
     std::vector<pac::model_fastgltf::CPUTexture> emissiveTexturesCPU;
     baseColorTexturesCPU.reserve(64);
     emissiveTexturesCPU.reserve(64);
-
     float minX = std::numeric_limits<float>::max(), minY = std::numeric_limits<float>::max(), minZ = std::numeric_limits<float>::max();
     float maxX = -minX, maxY = -minY, maxZ = -minZ;
-
     for (size_t meshIdx = 0; meshIdx < asset.meshes.size(); ++meshIdx) {
         const auto& mesh = asset.meshes[meshIdx];
-
         for (size_t primIdx = 0; primIdx < mesh.primitives.size(); ++primIdx) {
             const auto& p = mesh.primitives[primIdx];
             if (p.type != fastgltf::PrimitiveType::Triangles) continue;
-
-
             int materialIndex = -1;
             if (p.materialIndex.has_value()) {
                 materialIndex = static_cast<int>(p.materialIndex.value());
             }
-
             auto itPos = p.findAttribute("POSITION");
             if (itPos == p.attributes.end()) {
                 std::cerr << "[fastgltf] Missing POSITION in primitive\n";
                 continue;
             }
-
             // Determine which UV set this primitive *wants* based on the material texCoord indices.
             // Compatibility-safe behavior:
             // - If material wants TEXCOORD_0 -> use it (same as before)
@@ -299,7 +205,13 @@ void Model::loadGLTFFast(const std::string& filepath) {
                 fastgltf::iterateAccessorWithIndex<glm::vec4>(
                     asset, asset.accessors[tanAcc],
                     [&](glm::vec4 v, size_t) {
-                        const glm::vec3 xyz = safeNormalizeVec3(glm::vec3(v), glm::vec3(0.0f));
+                        glm::vec3 xyz = glm::vec3(v);
+                        const float lenSq = glm::dot(xyz, xyz);
+                        if (lenSq > 1e-12f) {
+                            xyz = glm::normalize(xyz);
+                        } else {
+                            xyz = glm::vec3(0.0f);
+                        }
                         tangents.emplace_back(xyz, (v.w < 0.0f) ? -1.0f : 1.0f);
                     },
                     adapter
@@ -450,31 +362,11 @@ void Model::loadGLTFFast(const std::string& filepath) {
             }
 
             if (!hasExplicitNormals) {
-                normals.assign(pos.size(), glm::vec3(0.0f));
-                const std::size_t triCount = primIdxU32.size() / 3u;
-                for (std::size_t triIdx = 0; triIdx < triCount; ++triIdx) {
-                    const std::size_t i = triIdx * 3u;
-                    const std::uint32_t i0 = primIdxU32[i + 0u];
-                    const std::uint32_t i1 = primIdxU32[i + 1u];
-                    const std::uint32_t i2 = primIdxU32[i + 2u];
-                    if (i0 >= pos.size() || i1 >= pos.size() || i2 >= pos.size()) continue;
-                    const glm::vec3 e1 = pos[i1] - pos[i0];
-                    const glm::vec3 e2 = pos[i2] - pos[i0];
-                    const glm::vec3 n = glm::cross(e1, e2);
-                    const float lenSq = glm::dot(n, n);
-                    if (lenSq <= 1e-12f) continue;
-                    normals[i0] += n;
-                    normals[i1] += n;
-                    normals[i2] += n;
-                }
-                for (auto& n : normals) {
-                    const float lenSq = glm::dot(n, n);
-                    n = (lenSq > 1e-12f) ? glm::normalize(n) : glm::vec3(0.0f, 1.0f, 0.0f);
-                }
+                pac::model_fastgltf::computeNormalsFromGeometry(pos, primIdxU32, normals);
             }
 
             if (!hasExplicitTangents) {
-                computeTangentsFromGeometry(pos, uv, normals, primIdxU32, tangents);
+                pac::model_fastgltf::computeTangentsFromGeometry(pos, uv, normals, primIdxU32, tangents);
                 // Mark generated tangents as non-authored so world shaders can
                 // select derivative-tangent normal mapping for viewer parity.
                 for (glm::vec4& t : tangents) t.w = 0.0f;
@@ -488,7 +380,7 @@ void Model::loadGLTFFast(const std::string& filepath) {
                 }
                 if (needsFallback) {
                     std::vector<glm::vec4> fallbackTangents;
-                    computeTangentsFromGeometry(pos, uv, normals, primIdxU32, fallbackTangents);
+                    pac::model_fastgltf::computeTangentsFromGeometry(pos, uv, normals, primIdxU32, fallbackTangents);
                     for (std::size_t vi = 0; vi < tangents.size(); ++vi) {
                         if (glm::dot(glm::vec3(tangents[vi]), glm::vec3(tangents[vi])) <= 1e-10f) {
                             tangents[vi] = fallbackTangents[vi];

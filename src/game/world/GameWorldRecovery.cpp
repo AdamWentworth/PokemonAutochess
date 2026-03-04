@@ -109,7 +109,8 @@ void GameWorld::capturePlayerPositionsForBattle() {
             if (u.side != PokemonSide::Player) continue;
             BattleStartPose pose;
             pose.position = u.position;
-            pose.rotation = u.rotation;
+            // Post-combat restore should return player units to bench/board-facing orientation.
+            pose.rotation = glm::vec3(0.0f, 180.0f, 0.0f);
             battleStartPositions[u.id] = pose;
         }
     };
