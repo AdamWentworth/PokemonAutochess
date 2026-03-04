@@ -129,6 +129,7 @@ This section is based on direct code parse of runtime and backend render paths.
 - GPU clip skinning infrastructure is active via backend-specific gates, now default-on on both APIs.
 - The biggest current render-build cost is still CPU projected model work (`projected_model_ms` / `render_build_ms`), not GPU saturation.
 - Strict glTF parity mode defaults enabled through `PAC_GLTF_PARITY_STRICT` in projected backend mesh prep/renderer.
+- Shared projected transform resolver now caches local deformed positions and per-node model-space normals/tangents, and uses direction-only skinning for normal/tangent evaluation to cut redundant CPU work.
 
 ## Autobattler-Specific Guidance
 - Keep combat outcomes and RNG on CPU.

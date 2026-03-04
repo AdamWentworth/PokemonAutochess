@@ -54,9 +54,15 @@ class Resolver {
                                 const runtime::backend_model::MeshVertex& vtx,
                                 const glm::vec3& localPos,
                                 const glm::vec3& localNormal);
+    glm::vec3 skinDirectionAtNode(int nodeIndex,
+                                  const runtime::backend_model::MeshVertex& vtx,
+                                  const glm::vec3& localDirection);
     glm::vec3 skinPositionAtNode(int nodeIndex,
                                  const runtime::backend_model::MeshVertex& vtx,
                                  const glm::vec3& localPos);
+    glm::vec3 resolveLocalVertexPos(std::uint32_t vertexIndex,
+                                    const runtime::backend_model::MeshVertex& vtx);
+    const glm::mat3& modelNormalMatrixForNode(int triNodeIndex);
 
     std::size_t nodeTransformIndexFor(int triNodeIndex) const;
 

@@ -52,6 +52,8 @@ struct TransformScratch {
     std::vector<NodeTransformCacheEntry> nodeTransformCache;
     std::vector<std::uint8_t> nodeTransformWorldReady;
     std::vector<std::uint8_t> nodeTransformNormalReady;
+    std::vector<glm::mat3> nodeModelNormalCache;
+    std::vector<std::uint8_t> nodeModelNormalReady;
 
     std::vector<game::runtime::shared_projected_unit_backend_mesh_transforms::WorldVertexSample>
         worldVertexCache;
@@ -61,6 +63,17 @@ struct TransformScratch {
     std::vector<glm::vec3> worldVertexPosCache;
     std::vector<int> worldVertexPosCacheNode;
     std::vector<std::uint8_t> worldVertexPosCacheValid;
+
+    std::vector<glm::vec3> localVertexPosCache;
+    std::vector<std::uint8_t> localVertexPosCacheValid;
+
+    std::vector<glm::vec3> modelVertexNormalCache;
+    std::vector<int> modelVertexNormalCacheNode;
+    std::vector<std::uint8_t> modelVertexNormalCacheValid;
+
+    std::vector<glm::vec4> modelVertexTangentCache;
+    std::vector<int> modelVertexTangentCacheNode;
+    std::vector<std::uint8_t> modelVertexTangentCacheValid;
 };
 
 thread_local TransformScratch g_scratch;
@@ -112,6 +125,12 @@ void Resolver::initialize(const shared_projected_unit_backend_mesh::Args& args,
     if (g_scratch.nodeTransformNormalReady.size() < nodeCacheCount) {
         g_scratch.nodeTransformNormalReady.resize(nodeCacheCount, 0u);
     }
+    if (g_scratch.nodeModelNormalCache.size() < nodeCacheCount) {
+        g_scratch.nodeModelNormalCache.resize(nodeCacheCount, glm::mat3(1.0f));
+    }
+    if (g_scratch.nodeModelNormalReady.size() < nodeCacheCount) {
+        g_scratch.nodeModelNormalReady.resize(nodeCacheCount, 0u);
+    }
     std::fill(
         g_scratch.nodeTransformWorldReady.begin(),
         g_scratch.nodeTransformWorldReady.begin() + nodeCacheCount,
@@ -120,8 +139,15 @@ void Resolver::initialize(const shared_projected_unit_backend_mesh::Args& args,
         g_scratch.nodeTransformNormalReady.begin(),
         g_scratch.nodeTransformNormalReady.begin() + nodeCacheCount,
         0u);
+    std::fill(
+        g_scratch.nodeModelNormalReady.begin(),
+        g_scratch.nodeModelNormalReady.begin() + nodeCacheCount,
+        0u);
 
     const std::size_t meshVertexCount = mesh_ ? mesh_->vertices.size() : 0u;
+    g_scratch.localVertexPosCache.resize(meshVertexCount);
+    g_scratch.localVertexPosCacheValid.assign(meshVertexCount, 0u);
+
     if (!usePositionOnlyVertexPath_) {
         g_scratch.worldVertexCache.resize(meshVertexCount);
         g_scratch.worldVertexCacheNode.assign(meshVertexCount, std::numeric_limits<int>::min());
@@ -134,6 +160,14 @@ void Resolver::initialize(const shared_projected_unit_backend_mesh::Args& args,
     g_scratch.worldVertexPosCache.resize(meshVertexCount);
     g_scratch.worldVertexPosCacheNode.assign(meshVertexCount, std::numeric_limits<int>::min());
     g_scratch.worldVertexPosCacheValid.assign(meshVertexCount, 0u);
+
+    g_scratch.modelVertexNormalCache.resize(meshVertexCount);
+    g_scratch.modelVertexNormalCacheNode.assign(meshVertexCount, std::numeric_limits<int>::min());
+    g_scratch.modelVertexNormalCacheValid.assign(meshVertexCount, 0u);
+
+    g_scratch.modelVertexTangentCache.resize(meshVertexCount);
+    g_scratch.modelVertexTangentCacheNode.assign(meshVertexCount, std::numeric_limits<int>::min());
+    g_scratch.modelVertexTangentCacheValid.assign(meshVertexCount, 0u);
 }
 
 std::size_t Resolver::nodeTransformIndexFor(int triNodeIndex) const {
@@ -142,6 +176,32 @@ std::size_t Resolver::nodeTransformIndexFor(int triNodeIndex) const {
         cacheIndex = static_cast<std::size_t>(triNodeIndex) + 1u;
     }
     return cacheIndex;
+}
+
+glm::vec3 Resolver::resolveLocalVertexPos(
+    std::uint32_t vertexIndex,
+    const runtime::backend_model::MeshVertex& vtx) {
+    if (vertexIndex < g_scratch.localVertexPosCache.size() &&
+        g_scratch.localVertexPosCacheValid[vertexIndex] != 0u) {
+        return g_scratch.localVertexPosCache[vertexIndex];
+    }
+
+    glm::vec3 local = vtx.position;
+    if (!hasClipPose_) {
+        local = runtime::backend_anim::deformLocalVertex(
+            *unit_,
+            *pose_,
+            local,
+            mesh_->boundsMin,
+            mesh_->boundsMax,
+            worldCellSize_);
+    }
+
+    if (vertexIndex < g_scratch.localVertexPosCache.size()) {
+        g_scratch.localVertexPosCache[vertexIndex] = local;
+        g_scratch.localVertexPosCacheValid[vertexIndex] = 1u;
+    }
+    return local;
 }
 
 const std::vector<glm::mat4>* Resolver::ensureSkinMatricesForNode(int nodeIndex) {
@@ -236,6 +296,49 @@ Resolver::SkinResult Resolver::skinVertexAtNode(
     return outSkin;
 }
 
+glm::vec3 Resolver::skinDirectionAtNode(
+    int nodeIndex,
+    const runtime::backend_model::MeshVertex& vtx,
+    const glm::vec3& localDirection) {
+    if (hasClipPose_ && !clipSkinningEnabled_) {
+        return localDirection;
+    }
+    const auto* matsPtr = ensureSkinMatricesForNode(nodeIndex);
+    if (!matsPtr) return localDirection;
+    const auto& mats = *matsPtr;
+
+    const std::uint16_t joints[4] = {vtx.j0, vtx.j1, vtx.j2, vtx.j3};
+    const float weights[4] = {vtx.w0, vtx.w1, vtx.w2, vtx.w3};
+    const bool rigidSingleJoint =
+        (weights[0] >= 0.999f) &&
+        (weights[1] <= 0.00001f) &&
+        (weights[2] <= 0.00001f) &&
+        (weights[3] <= 0.00001f) &&
+        (static_cast<std::size_t>(joints[0]) < mats.size());
+    if (rigidSingleJoint) {
+        return safeNormalizeVec3(
+            glm::mat3(mats[static_cast<std::size_t>(joints[0])]) * localDirection,
+            safeNormalizeVec3(localDirection));
+    }
+
+    glm::vec3 blendedDirection(0.0f);
+    float totalWeight = 0.0f;
+    for (int i = 0; i < 4; ++i) {
+        const float w = weights[i];
+        if (w <= 0.00001f) continue;
+        const std::size_t joint = static_cast<std::size_t>(joints[i]);
+        if (joint >= mats.size()) continue;
+        blendedDirection += (glm::mat3(mats[joint]) * localDirection) * w;
+        totalWeight += w;
+    }
+    if (totalWeight <= 0.00001f) return localDirection;
+    if (totalWeight < 0.999f) {
+        const float remain = 1.0f - totalWeight;
+        blendedDirection += localDirection * remain;
+    }
+    return safeNormalizeVec3(blendedDirection, safeNormalizeVec3(localDirection));
+}
+
 glm::vec3 Resolver::skinPositionAtNode(int nodeIndex,
                                        const runtime::backend_model::MeshVertex& vtx,
                                        const glm::vec3& localPos) {
@@ -310,6 +413,21 @@ const glm::mat3& Resolver::worldNormalMatrixForNode(int triNodeIndex) {
     return entry.worldNormalM;
 }
 
+const glm::mat3& Resolver::modelNormalMatrixForNode(int triNodeIndex) {
+    const std::size_t cacheIndex = nodeTransformIndexFor(triNodeIndex);
+    if (g_scratch.nodeModelNormalReady[cacheIndex] != 0u) {
+        return g_scratch.nodeModelNormalCache[cacheIndex];
+    }
+
+    const glm::mat4 nodeGlobal =
+        (triNodeIndex >= 0 && static_cast<std::size_t>(triNodeIndex) < nodeGlobals_->size())
+            ? (*nodeGlobals_)[static_cast<std::size_t>(triNodeIndex)]
+            : glm::mat4(1.0f);
+    g_scratch.nodeModelNormalCache[cacheIndex] = glm::transpose(glm::inverse(glm::mat3(nodeGlobal)));
+    g_scratch.nodeModelNormalReady[cacheIndex] = 1u;
+    return g_scratch.nodeModelNormalCache[cacheIndex];
+}
+
 WorldVertexSample Resolver::resolveWorldVertex(
     int triNodeIndex,
     std::uint32_t vertexIndex,
@@ -320,16 +438,7 @@ WorldVertexSample Resolver::resolveWorldVertex(
         return g_scratch.worldVertexCache[vertexIndex];
     }
 
-    glm::vec3 local = vtx.position;
-    if (!hasClipPose_) {
-        local = runtime::backend_anim::deformLocalVertex(
-            *unit_,
-            *pose_,
-            local,
-            mesh_->boundsMin,
-            mesh_->boundsMax,
-            worldCellSize_);
-    }
+    const glm::vec3 local = resolveLocalVertexPos(vertexIndex, vtx);
     const auto sk = skinVertexAtNode(triNodeIndex, vtx, local, vtx.normal);
     const glm::mat4& worldM = worldMatrixForNode(triNodeIndex);
     const glm::mat3& worldNormalM = worldNormalMatrixForNode(triNodeIndex);
@@ -356,16 +465,7 @@ glm::vec3 Resolver::resolveWorldVertexPos(
         return g_scratch.worldVertexPosCache[vertexIndex];
     }
 
-    glm::vec3 local = vtx.position;
-    if (!hasClipPose_) {
-        local = runtime::backend_anim::deformLocalVertex(
-            *unit_,
-            *pose_,
-            local,
-            mesh_->boundsMin,
-            mesh_->boundsMax,
-            worldCellSize_);
-    }
+    const glm::vec3 local = resolveLocalVertexPos(vertexIndex, vtx);
     const glm::vec3 skinnedPos = skinPositionAtNode(triNodeIndex, vtx, local);
     const glm::mat4 nodeGlobal =
         (triNodeIndex >= 0 && static_cast<std::size_t>(triNodeIndex) < nodeGlobals_->size())
@@ -385,44 +485,32 @@ glm::vec3 Resolver::resolveModelVertexNormal(
     int triNodeIndex,
     std::uint32_t vertexIndex,
     const runtime::backend_model::MeshVertex& vtx) {
-    // Reuse world-vertex cache when available and convert back into model space normal
-    // is not valid in general (requires inverse model), so compute directly.
-    (void)vertexIndex;
-
-    glm::vec3 local = vtx.position;
-    if (!hasClipPose_) {
-        local = runtime::backend_anim::deformLocalVertex(
-            *unit_,
-            *pose_,
-            local,
-            mesh_->boundsMin,
-            mesh_->boundsMax,
-            worldCellSize_);
+    if (vertexIndex < g_scratch.modelVertexNormalCache.size() &&
+        g_scratch.modelVertexNormalCacheValid[vertexIndex] != 0u &&
+        g_scratch.modelVertexNormalCacheNode[vertexIndex] == triNodeIndex) {
+        return g_scratch.modelVertexNormalCache[vertexIndex];
     }
-    const auto sk = skinVertexAtNode(triNodeIndex, vtx, local, vtx.normal);
-    const glm::mat4 nodeGlobal =
-        (triNodeIndex >= 0 && static_cast<std::size_t>(triNodeIndex) < nodeGlobals_->size())
-            ? (*nodeGlobals_)[static_cast<std::size_t>(triNodeIndex)]
-            : glm::mat4(1.0f);
-    const glm::mat3 nodeNormalM = glm::transpose(glm::inverse(glm::mat3(nodeGlobal)));
-    return safeNormalizeVec3(nodeNormalM * sk.normal);
+
+    const glm::vec3 skinnedNormal = skinDirectionAtNode(triNodeIndex, vtx, vtx.normal);
+    const glm::vec3 outNormal =
+        safeNormalizeVec3(modelNormalMatrixForNode(triNodeIndex) * skinnedNormal);
+
+    if (vertexIndex < g_scratch.modelVertexNormalCache.size()) {
+        g_scratch.modelVertexNormalCache[vertexIndex] = outNormal;
+        g_scratch.modelVertexNormalCacheNode[vertexIndex] = triNodeIndex;
+        g_scratch.modelVertexNormalCacheValid[vertexIndex] = 1u;
+    }
+    return outNormal;
 }
 
 glm::vec4 Resolver::resolveModelVertexTangent(
     int triNodeIndex,
     std::uint32_t vertexIndex,
     const runtime::backend_model::MeshVertex& vtx) {
-    (void)vertexIndex;
-
-    glm::vec3 local = vtx.position;
-    if (!hasClipPose_) {
-        local = runtime::backend_anim::deformLocalVertex(
-            *unit_,
-            *pose_,
-            local,
-            mesh_->boundsMin,
-            mesh_->boundsMax,
-            worldCellSize_);
+    if (vertexIndex < g_scratch.modelVertexTangentCache.size() &&
+        g_scratch.modelVertexTangentCacheValid[vertexIndex] != 0u &&
+        g_scratch.modelVertexTangentCacheNode[vertexIndex] == triNodeIndex) {
+        return g_scratch.modelVertexTangentCache[vertexIndex];
     }
 
     glm::vec3 localTangent(vtx.tangent.x, vtx.tangent.y, vtx.tangent.z);
@@ -434,15 +522,18 @@ glm::vec4 Resolver::resolveModelVertexTangent(
         localTangent = safeNormalizeVec3(glm::cross(helper, n), glm::vec3(1.0f, 0.0f, 0.0f));
     }
 
-    const auto sk = skinVertexAtNode(triNodeIndex, vtx, local, localTangent);
-    const glm::mat4 nodeGlobal =
-        (triNodeIndex >= 0 && static_cast<std::size_t>(triNodeIndex) < nodeGlobals_->size())
-            ? (*nodeGlobals_)[static_cast<std::size_t>(triNodeIndex)]
-            : glm::mat4(1.0f);
-    const glm::mat3 nodeNormalM = glm::transpose(glm::inverse(glm::mat3(nodeGlobal)));
-    const glm::vec3 tangent = safeNormalizeVec3(nodeNormalM * sk.normal, glm::vec3(1.0f, 0.0f, 0.0f));
+    const glm::vec3 skinnedTangent = skinDirectionAtNode(triNodeIndex, vtx, localTangent);
+    const glm::vec3 tangent = safeNormalizeVec3(
+        modelNormalMatrixForNode(triNodeIndex) * skinnedTangent,
+        glm::vec3(1.0f, 0.0f, 0.0f));
     const float sign = authoredTangentFrame ? ((vtx.tangent.w < 0.0f) ? -1.0f : 1.0f) : 0.0f;
-    return glm::vec4(tangent, sign);
+    const glm::vec4 outTangent(tangent, sign);
+    if (vertexIndex < g_scratch.modelVertexTangentCache.size()) {
+        g_scratch.modelVertexTangentCache[vertexIndex] = outTangent;
+        g_scratch.modelVertexTangentCacheNode[vertexIndex] = triNodeIndex;
+        g_scratch.modelVertexTangentCacheValid[vertexIndex] = 1u;
+    }
+    return outTangent;
 }
 
 glm::vec3 Resolver::resolveGpuSkinningInputPos(
