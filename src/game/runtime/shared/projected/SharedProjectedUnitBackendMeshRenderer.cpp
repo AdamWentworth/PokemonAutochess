@@ -417,28 +417,36 @@ Result renderProjectedUnitBackendMesh(const Args& args) {
                     }
                 }
 
-                dstBatch.indices.clear();
-                dstBatch.sharedIndices = nullptr;
-                dstBatch.sharedIndexCount = 0u;
-                dstBatch.indices.resize(srcBatch.indices.size());
-                if (!srcBatch.indices.empty()) {
-                    std::memcpy(
-                        dstBatch.indices.data(),
-                        srcBatch.indices.data(),
-                        srcBatch.indices.size() * sizeof(std::uint32_t));
-                }
                 if (dstBatch.gpuSkinning != 0u) {
-                    dstBatch.sharedVertices = nullptr;
-                    dstBatch.sharedVertexCount = 0u;
-                    dstBatch.vertices.resize(srcBatch.gpuTemplateVertices.size());
-                    if (!srcBatch.gpuTemplateVertices.empty()) {
-                        std::memcpy(
-                            dstBatch.vertices.data(),
-                            srcBatch.gpuTemplateVertices.data(),
-                            srcBatch.gpuTemplateVertices.size() *
-                                sizeof(IRenderBackend::WorldMeshVertex));
-                    }
-                    if (applyTintAlpha) {
+                    if (!applyTintAlpha &&
+                        !srcBatch.gpuTemplateVertices.empty() &&
+                        !srcBatch.indices.empty()) {
+                        dstBatch.vertices.clear();
+                        dstBatch.indices.clear();
+                        dstBatch.sharedVertices = srcBatch.gpuTemplateVertices.data();
+                        dstBatch.sharedVertexCount = srcBatch.gpuTemplateVertices.size();
+                        dstBatch.sharedIndices = srcBatch.indices.data();
+                        dstBatch.sharedIndexCount = srcBatch.indices.size();
+                    } else {
+                        dstBatch.sharedVertices = nullptr;
+                        dstBatch.sharedVertexCount = 0u;
+                        dstBatch.sharedIndices = nullptr;
+                        dstBatch.sharedIndexCount = 0u;
+                        dstBatch.indices.resize(srcBatch.indices.size());
+                        if (!srcBatch.indices.empty()) {
+                            std::memcpy(
+                                dstBatch.indices.data(),
+                                srcBatch.indices.data(),
+                                srcBatch.indices.size() * sizeof(std::uint32_t));
+                        }
+                        dstBatch.vertices.resize(srcBatch.gpuTemplateVertices.size());
+                        if (!srcBatch.gpuTemplateVertices.empty()) {
+                            std::memcpy(
+                                dstBatch.vertices.data(),
+                                srcBatch.gpuTemplateVertices.data(),
+                                srcBatch.gpuTemplateVertices.size() *
+                                    sizeof(IRenderBackend::WorldMeshVertex));
+                        }
                         for (auto& v : dstBatch.vertices) {
                             v.r *= fastTexturedTint.r;
                             v.g *= fastTexturedTint.g;
@@ -449,7 +457,16 @@ Result renderProjectedUnitBackendMesh(const Args& args) {
                 } else {
                     dstBatch.sharedVertices = nullptr;
                     dstBatch.sharedVertexCount = 0u;
+                    dstBatch.sharedIndices = nullptr;
+                    dstBatch.sharedIndexCount = 0u;
                     dstBatch.sharedSkinMatrices = nullptr;
+                    dstBatch.indices.resize(srcBatch.indices.size());
+                    if (!srcBatch.indices.empty()) {
+                        std::memcpy(
+                            dstBatch.indices.data(),
+                            srcBatch.indices.data(),
+                            srcBatch.indices.size() * sizeof(std::uint32_t));
+                    }
                     dstBatch.vertices.resize(srcBatch.sourceVertexIndices.size());
                     for (std::size_t vi = 0; vi < srcBatch.sourceVertexIndices.size(); ++vi) {
                         const std::uint32_t srcIndex = srcBatch.sourceVertexIndices[vi];

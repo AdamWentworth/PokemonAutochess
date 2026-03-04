@@ -141,6 +141,7 @@ This section is based on direct code parse of runtime and backend render paths.
 - Projected backend mesh renderer now defers triangle submitter setup and per-triangle node fallback table construction until fallback triangle paths are actually used, removing that overhead from the normal fast GPU-skin path.
 - Projected fast path now reuses one GPU skin-matrix payload per unit/node across split sub-batches via shared skin-matrix pointers, removing duplicate per-batch matrix vector copies while keeping model geometry ownership local for stability.
 - Projected indexed batch prep now binds per-frame batches to stable shared material templates (instead of copying full template vectors each frame), and submit resolves texture keys/payloads from that template path to preserve correctness while cutting CPU-side metadata copy churn.
+- Projected GPU-skin fast path now reuses cached template vertex/index buffers directly when tint/alpha are identity, avoiding per-frame memcpy of static skinned input geometry and reducing CPU render-build overhead.
 
 ## Autobattler-Specific Guidance
 - Keep combat outcomes and RNG on CPU.
