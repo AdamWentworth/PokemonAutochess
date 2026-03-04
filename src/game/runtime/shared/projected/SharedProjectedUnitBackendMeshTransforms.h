@@ -39,6 +39,7 @@ class Resolver {
                                          const runtime::backend_model::MeshVertex& vtx);
     int gpuSkinningCacheKeyForNode(int triNodeIndex) const;
     bool configureGpuClipSkinningBatch(int triNodeIndex,
+                                       const std::vector<std::uint16_t>* jointPalette,
                                        std::array<float, 16>& inOutModelMatrix,
                                        std::vector<float>& outSkinMatrices,
                                        std::uint32_t& outSkinMatrixCount);

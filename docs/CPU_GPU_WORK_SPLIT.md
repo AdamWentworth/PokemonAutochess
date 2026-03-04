@@ -143,6 +143,8 @@ This section is based on direct code parse of runtime and backend render paths.
 - Projected indexed batch prep now binds per-frame batches to stable shared material templates (instead of copying full template vectors each frame), and submit resolves texture keys/payloads from that template path to preserve correctness while cutting CPU-side metadata copy churn.
 - Projected GPU-skin fast path now reuses cached template vertex/index buffers directly when tint/alpha are identity, avoiding per-frame memcpy of static skinned input geometry and reducing CPU render-build overhead.
 - Projected GPU clip-skin setup now canonicalizes skin payloads per skin key (not per node) and reuses that payload across split sub-batches, reducing redundant matrix build/copy work in the fast indexed path.
+- Fast textured projected path now auto-recovers missing triangle node bindings when the mesh has a single skin, promoting those batches onto GPU skinning instead of dropping to CPU vertex transform fallback.
+- Fast textured projected path now precomputes per-batch joint palettes (<=64) and remapped joint indices, enabling GPU clip skinning for batches even when full skeletons exceed shader joint limits that previously forced CPU fallback.
 
 ## Autobattler-Specific Guidance
 - Keep combat outcomes and RNG on CPU.

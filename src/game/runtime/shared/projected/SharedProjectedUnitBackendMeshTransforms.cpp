@@ -625,6 +625,7 @@ int Resolver::gpuSkinningCacheKeyForNode(int triNodeIndex) const {
 
 bool Resolver::configureGpuClipSkinningBatch(
     int triNodeIndex,
+    const std::vector<std::uint16_t>* jointPalette,
     std::array<float, 16>& inOutModelMatrix,
     std::vector<float>& outSkinMatrices,
     std::uint32_t& outSkinMatrixCount) {
@@ -640,7 +641,13 @@ bool Resolver::configureGpuClipSkinningBatch(
         return false;
     }
     const auto& skin = mesh_->skins[static_cast<std::size_t>(skinIndex)];
-    if (skin.joints.empty() || skin.joints.size() > kMaxGpuSkinMatrices) return false;
+    if (skin.joints.empty()) return false;
+    const bool hasPalette = jointPalette && !jointPalette->empty();
+    if (hasPalette) {
+        if (jointPalette->size() > kMaxGpuSkinMatrices) return false;
+    } else if (skin.joints.size() > kMaxGpuSkinMatrices) {
+        return false;
+    }
 
     const std::size_t skinIdx = static_cast<std::size_t>(skinIndex);
     if (g_scratch.gpuSkinMatricesReady[skinIdx] == 0u) {
@@ -663,8 +670,20 @@ bool Resolver::configureGpuClipSkinningBatch(
     const float* modelData = glm::value_ptr(modelM_);
     std::copy(modelData, modelData + 16, inOutModelMatrix.begin());
 
-    outSkinMatrices = g_scratch.gpuSkinMatricesBySkin[skinIdx];
-    outSkinMatrixCount = static_cast<std::uint32_t>(skin.joints.size());
+    const auto& packedAll = g_scratch.gpuSkinMatricesBySkin[skinIdx];
+    if (hasPalette) {
+        outSkinMatrices.resize(jointPalette->size() * 16u);
+        for (std::size_t pi = 0; pi < jointPalette->size(); ++pi) {
+            const std::size_t srcJoint = static_cast<std::size_t>((*jointPalette)[pi]);
+            if (srcJoint >= skin.joints.size()) return false;
+            const float* src = packedAll.data() + (srcJoint * 16u);
+            std::copy(src, src + 16u, outSkinMatrices.data() + (pi * 16u));
+        }
+        outSkinMatrixCount = static_cast<std::uint32_t>(jointPalette->size());
+    } else {
+        outSkinMatrices = packedAll;
+        outSkinMatrixCount = static_cast<std::uint32_t>(skin.joints.size());
+    }
     return true;
 }
 
