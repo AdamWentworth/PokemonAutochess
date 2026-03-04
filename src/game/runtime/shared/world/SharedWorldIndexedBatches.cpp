@@ -239,12 +239,31 @@ void submitWorldIndexedBatches(IRenderBackend& renderer,
                                const float* cameraTarget3) {
     if (batches.empty() || !viewProjectionMatrix4x4 || surfaceWidth <= 0 || surfaceHeight <= 0) return;
 
+    static thread_local std::vector<const WorldIndexedBatch*> opaqueBatches;
+    static thread_local std::vector<const WorldIndexedBatch*> blendBatches;
+    opaqueBatches.clear();
+    blendBatches.clear();
+    if (opaqueBatches.capacity() < batches.size()) {
+        opaqueBatches.reserve(batches.size());
+    }
+    if (blendBatches.capacity() < batches.size()) {
+        blendBatches.reserve(batches.size());
+    }
+
     for (const WorldIndexedBatch& batch : batches) {
         if (!batch.hasGeometry()) continue;
-        if (batch.alphaMode == 2u) continue;
+        if (batch.alphaMode == 2u) {
+            blendBatches.push_back(&batch);
+        } else {
+            opaqueBatches.push_back(&batch);
+        }
+    }
+
+    for (const WorldIndexedBatch* batch : opaqueBatches) {
+        if (!batch) continue;
         drawOneBatch(
             renderer,
-            batch,
+            *batch,
             viewProjectionMatrix4x4,
             surfaceWidth,
             surfaceHeight,
@@ -253,22 +272,14 @@ void submitWorldIndexedBatches(IRenderBackend& renderer,
             cameraTarget3);
     }
 
-    static thread_local std::vector<const WorldIndexedBatch*> blendBatches;
-    blendBatches.clear();
-    if (blendBatches.capacity() < batches.size()) {
-        blendBatches.reserve(batches.size());
+    if (blendBatches.size() > 1u) {
+        std::stable_sort(
+            blendBatches.begin(),
+            blendBatches.end(),
+            [](const WorldIndexedBatch* lhs, const WorldIndexedBatch* rhs) {
+                return lhs->sortDepth > rhs->sortDepth;
+            });
     }
-    for (const WorldIndexedBatch& batch : batches) {
-        if (!batch.hasGeometry()) continue;
-        if (batch.alphaMode != 2u) continue;
-        blendBatches.push_back(&batch);
-    }
-    std::stable_sort(
-        blendBatches.begin(),
-        blendBatches.end(),
-        [](const WorldIndexedBatch* lhs, const WorldIndexedBatch* rhs) {
-            return lhs->sortDepth > rhs->sortDepth;
-        });
     for (const WorldIndexedBatch* batch : blendBatches) {
         if (!batch) continue;
         drawOneBatch(

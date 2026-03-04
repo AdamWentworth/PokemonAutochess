@@ -201,12 +201,10 @@ void drawProjectedUnits(const Args& args, const std::vector<PokemonInstance>& un
     const bool supportsWorldIndexedMeshes = args.supportsWorldIndexedMeshes;
     const bool characterInkingEnabled = args.characterInkingEnabled;
     const bool enableGpuClipSkinning = args.enableGpuClipSkinning;
-    const bool hasWorldViewProj = args.hasWorldViewProj;
     const bool allowPortraitFallback = args.allowPortraitFallback;
     const bool forcePortraitOverlay = args.forcePortraitOverlay;
     const bool useLegacyGrowlWaveVfx = args.useLegacyGrowlWaveVfx;
     const bool useLegacyParticleVfxSnapshotBridge = args.useLegacyParticleVfxSnapshotBridge;
-    const float* worldViewProj = args.worldViewProj;
     const int drawableW = args.drawableW;
     const int drawableH = args.drawableH;
     const glm::vec3 cameraWorldPos = args.cameraWorldPos;
@@ -215,7 +213,6 @@ void drawProjectedUnits(const Args& args, const std::vector<PokemonInstance>& un
     auto& sharedCaptureAttemptCache = *args.sharedCaptureAttemptCache;
     auto& sharedTailFireAnchors = *args.sharedTailFireAnchors;
     auto& worldIndexedBatches = *args.worldIndexedBatches;
-    auto& backendTextureByPath = *args.backendTextureByPath;
     auto& modelDepthTris = *args.modelDepthTris;
     auto& modelDepthWorldTris = *args.modelDepthWorldTris;
     auto& remainingModelTrianglesBudget = *args.remainingModelTrianglesBudget;
@@ -223,18 +220,15 @@ void drawProjectedUnits(const Args& args, const std::vector<PokemonInstance>& un
     auto& lines = *args.lines;
     auto& textLines = *args.textLines;
     auto& sprites = *args.sprites;
-    auto& worldTriangles = *args.worldTriangles;
     auto& world3DTriangles = *args.world3DTriangles;
     std::uint32_t* visibleAnimatedUnitCount = args.visibleAnimatedUnitCount;
     const auto& sharedUnitHudCfg = *args.sharedUnitHudCfg;
 
     const auto& resolveModelMesh = args.resolveModelMesh;
-    const auto& ensureBackendTextureLoaded = args.ensureBackendTextureLoaded;
     const auto& backendModelTriangleLimit = args.backendModelTriangleLimit;
     const auto& backendModelFullMeshEnabled = args.backendModelFullMeshEnabled;
     const auto& backendModelFastTexturedPathEnabled = args.backendModelFastTexturedPathEnabled;
     const auto& backendModelBackfaceCullingEnabled = args.backendModelBackfaceCullingEnabled;
-    const auto& getTailFireFallbackCfg = args.getTailFireFallbackCfg;
 
     using BackendPoseEval = game::runtime::shared_backend_pose::PoseEval;
     using WorldIndexedBatch = game::runtime::shared_world_batches::WorldIndexedBatch;
@@ -271,14 +265,42 @@ void drawProjectedUnits(const Args& args, const std::vector<PokemonInstance>& un
 
     const std::uint64_t poseCacheFrame = ++g_cachedScenePoseFrameCounter;
     pruneScenePoseCache(poseCacheFrame);
+    std::unordered_map<std::string, const runtime::backend_model::MeshData*> meshBySpecies;
+    meshBySpecies.reserve(units.size());
 
 for (const auto& unit : units) {
     if (!unit.alive && !unit.captureInProgress && !unit.fainting) continue;
     if (!unit.alive && unit.visualScale <= 0.0001f && !unit.captureInProgress) continue;
+    const glm::vec3 coarseWorldPos =
+        unit.position +
+        glm::vec3(
+            0.0f,
+            unit.visualYOffset + std::max(0.2f, worldCellSize * 0.22f),
+            0.0f);
+    float coarseCx = 0.0f;
+    float coarseCy = 0.0f;
+    float coarseCz = 0.0f;
+    if (!projectedDebug.projectWorld(coarseWorldPos, coarseCx, coarseCy, coarseCz)) continue;
+    if (coarseCz < -0.25f || coarseCz > 1.25f) continue;
+    const float coarseMarginX = std::max(96.0f, minDim * 0.18f);
+    const float coarseMarginY = std::max(96.0f, minDim * 0.18f);
+    if (coarseCx < -coarseMarginX ||
+        coarseCx > static_cast<float>(drawableW) + coarseMarginX ||
+        coarseCy < -coarseMarginY ||
+        coarseCy > static_cast<float>(drawableH) + coarseMarginY) {
+        continue;
+    }
     ++unitsProcessed;
 
     const auto poseEvalStart = Clock::now();
-    const runtime::backend_model::MeshData* meshForUnit = resolveModelMesh(unit);
+    const runtime::backend_model::MeshData* meshForUnit = nullptr;
+    auto meshIt = meshBySpecies.find(unit.name);
+    if (meshIt != meshBySpecies.end()) {
+        meshForUnit = meshIt->second;
+    } else {
+        meshForUnit = resolveModelMesh(unit);
+        meshBySpecies.emplace(unit.name, meshForUnit);
+    }
     const BackendPoseEval* scenePose = nullptr;
     bool scenePoseReady = false;
     if (meshForUnit) {

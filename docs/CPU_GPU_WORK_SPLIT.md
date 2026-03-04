@@ -162,6 +162,11 @@ This section is based on direct code parse of runtime and backend render paths.
 - Projected scene-pose cache keys now canonicalize animation time to wrapped clip time (and force zero when clip time is irrelevant), improving cache reuse across looped animation cycles and reducing redundant CPU pose evaluation/cache churn.
 - Particle system update now performs update+alive compaction in a single pass (instead of update + `remove_if` pass), reducing per-frame CPU work for larger particle counts.
 - Projected world render orchestration now skips projected-unit draw dispatch for empty unit collections and only enters capture model bridge when capture activity/prewarm conditions are relevant; D3D12 capture prewarm checks now use `getItemCount("pokeball")` instead of per-frame `listItems()` scans.
+- Projected unit renderer now performs coarse projected-screen culling before mesh resolve/pose evaluation work, and reuses per-species mesh resolves within a draw pass to reduce repeated model lookup overhead.
+- World indexed batch submit now partitions opaque/blend batches in a single pass and skips blend depth sort when blend batch count is <=1, reducing per-frame CPU submit overhead.
+- Particle simulation now runs with a fixed-step accumulator at high frame rates (with a small-system immediate path), reducing CPU update churn in uncapped rendering scenarios while preserving visual timing.
+- Main loop fixed-step catch-up now has a per-frame budget (`PAC_MAX_FIXED_TICKS_PER_FRAME`, default 4) and reports dropped catch-up ticks in perf output, preventing death-spiral stalls under heavy load.
+- Logger stdout echo now uses per-second rate limiting (`PAC_LOG_ECHO_MAX_LINES_PER_SEC`, default 72) so high-frequency combat chatter does not dominate CPU time during stress scenes.
 
 ## Autobattler-Specific Guidance
 - Keep combat outcomes and RNG on CPU.

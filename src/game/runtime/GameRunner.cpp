@@ -124,6 +124,17 @@ namespace {
         return false;
     }
 
+    int fixedTickBudgetPerFrame() {
+        static const int budget = []() -> int {
+            int parsed = 0;
+            if (parseEnvIntValue("PAC_MAX_FIXED_TICKS_PER_FRAME", parsed)) {
+                return std::clamp(parsed, 1, 120);
+            }
+            return 4;
+        }();
+        return budget;
+    }
+
     StartupVideoOverride readStartupVideoOverride() {
         StartupVideoOverride out;
         out.hasWidth = parseEnvIntValue("PAC_VIDEO_WIDTH", out.width);
@@ -723,6 +734,8 @@ namespace {
         if (!initialized) return 1;
 
         std::cout << "[Run] Main loop @ 60 Hz...\n";
+        const int maxFixedTicksPerFrame = fixedTickBudgetPerFrame();
+        std::cout << "[Run] Fixed tick budget: " << maxFixedTicksPerFrame << " ticks/frame\n";
 
         bool running = true;
         std::string stopReason;
@@ -787,6 +800,7 @@ namespace {
         double perfAccumProjectedModelUnits = 0.0;
         double perfAccumProjectedClipSkinnedUnits = 0.0;
         int perfAccumFixedTicks = 0;
+        int perfAccumFixedTicksDropped = 0;
         int renderedFrames = 0;
         double elapsedSeconds = 0.0;
         const game::runtime::auto_quit::Policy autoQuit = game::runtime::auto_quit::fromEnvironment();
@@ -847,10 +861,16 @@ namespace {
             const auto frameCpuStart = clock::now();
             const auto fixedStart = frameCpuStart;
             int fixedTicksThisFrame = 0;
-            while (accumulator >= TIME_STEP) {
+            int fixedTicksDroppedThisFrame = 0;
+            while (accumulator >= TIME_STEP && fixedTicksThisFrame < maxFixedTicksPerFrame) {
                 game.fixedUpdate(TIME_STEP);
                 accumulator -= TIME_STEP;
                 ++fixedTicksThisFrame;
+            }
+            if (accumulator >= TIME_STEP) {
+                fixedTicksDroppedThisFrame = static_cast<int>(std::floor(accumulator / TIME_STEP));
+                accumulator -= static_cast<double>(fixedTicksDroppedThisFrame) * TIME_STEP;
+                accumulator = std::max(0.0, accumulator);
             }
             const auto fixedEnd = clock::now();
 
@@ -956,6 +976,7 @@ namespace {
             perfAccumProjectedModelUnits += static_cast<double>(projectedModelUnitsThisFrame);
             perfAccumProjectedClipSkinnedUnits += static_cast<double>(projectedClipSkinnedUnitsThisFrame);
             perfAccumFixedTicks += fixedTicksThisFrame;
+            perfAccumFixedTicksDropped += fixedTicksDroppedThisFrame;
             if (fpsTimer >= 1.0) {
                 const double frames = std::max(1, frameCount);
                 const double fps = static_cast<double>(frameCount) / fpsTimer;
@@ -989,6 +1010,8 @@ namespace {
                 const std::uint32_t avgProjectedClipSkinnedUnits = static_cast<std::uint32_t>(
                     std::lround(perfAccumProjectedClipSkinnedUnits / frames));
                 const int avgFixedTicks = static_cast<int>(std::lround(static_cast<double>(perfAccumFixedTicks) / frames));
+                const int avgFixedTicksDropped =
+                    static_cast<int>(std::lround(static_cast<double>(perfAccumFixedTicksDropped) / frames));
 
                 services.framePerf.fps = static_cast<float>(fps);
                 services.framePerf.frameMs = static_cast<float>(avgFrameMs);
@@ -1012,6 +1035,7 @@ namespace {
                 services.framePerf.renderMs = static_cast<float>(avgLegacyRenderMs);
                 services.framePerf.swapMs = static_cast<float>(avgLegacySwapMs);
                 services.framePerf.fixedTicks = avgFixedTicks;
+                services.framePerf.fixedTicksDropped = avgFixedTicksDropped;
 
                 std::cout << std::fixed << std::setprecision(1)
                           << "[Perf] FPS=" << fps
@@ -1032,7 +1056,8 @@ namespace {
                           << " clipskin=" << avgProjectedClipSkinnedUnits
                           << " render=" << avgLegacyRenderMs << "ms"
                           << " swap=" << avgLegacySwapMs << "ms"
-                          << " ticks=" << avgFixedTicks << "\n";
+                          << " ticks=" << avgFixedTicks
+                          << " drop=" << avgFixedTicksDropped << "\n";
 
                 std::ostringstream perfJson;
                 perfJson << std::fixed << std::setprecision(3)
@@ -1059,6 +1084,7 @@ namespace {
                          << ",\"legacy_render_ms\":" << avgLegacyRenderMs
                          << ",\"legacy_swap_ms\":" << avgLegacySwapMs
                          << ",\"fixed_ticks\":" << avgFixedTicks
+                         << ",\"fixed_ticks_dropped\":" << avgFixedTicksDropped
                          << "}";
                 std::cout << perfJson.str() << "\n";
 
@@ -1085,6 +1111,7 @@ namespace {
                 perfAccumProjectedModelUnits = 0.0;
                 perfAccumProjectedClipSkinnedUnits = 0.0;
                 perfAccumFixedTicks = 0;
+                perfAccumFixedTicksDropped = 0;
             }
 
             if (autoQuit.enabled() &&

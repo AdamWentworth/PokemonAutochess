@@ -2,8 +2,31 @@
 #include "LogBus.h"
 
 #include "engine/ui/BattleFeed.h"
+#include "engine/core/Environment.h"
 #include <algorithm>
+#include <chrono>
 #include <iostream>
+
+namespace {
+
+int stdoutEchoLineCapPerSecond() {
+    static const int cap = []() -> int {
+        constexpr int kDefault = 72;
+        constexpr int kMin = 0;
+        constexpr int kMax = 2000;
+        const auto raw = engine::env::get("PAC_LOG_ECHO_MAX_LINES_PER_SEC");
+        if (!raw.has_value()) return kDefault;
+        try {
+            const int parsed = std::stoi(*raw);
+            return std::clamp(parsed, kMin, kMax);
+        } catch (...) {
+            return kDefault;
+        }
+    }();
+    return cap;
+}
+
+} // namespace
 
 namespace LogBus {
 
@@ -35,7 +58,7 @@ void Logger::push(const std::string& s, const glm::vec3& c, float life) {
     if (feed_enabled_ && feed_) {
         feed_->push(s, c, life);
     }
-    if (echo_) {
+    if (shouldEchoStdoutNow()) {
         std::cout << s << "\n";
     }
 }
@@ -45,7 +68,7 @@ void Logger::catchInfo(const std::string& s, const glm::vec3& c, float life) {
     if (feed_enabled_ && catch_feed_) {
         catch_feed_->push(s, c, life);
     }
-    if (echo_) {
+    if (shouldEchoStdoutNow()) {
         std::cout << s << "\n";
     }
 }
@@ -55,7 +78,7 @@ void Logger::economyInfo(const std::string& s, const glm::vec3& c, float life) {
     if (feed_enabled_ && economy_feed_) {
         economy_feed_->push(s, c, life);
     }
-    if (echo_) {
+    if (shouldEchoStdoutNow()) {
         std::cout << s << "\n";
     }
 }
@@ -74,6 +97,37 @@ std::vector<Logger::LineSnapshot> Logger::recentCatchLines(std::size_t maxCount)
 
 std::vector<Logger::LineSnapshot> Logger::recentEconomyLines(std::size_t maxCount) const {
     return snapshotRecent(recent_economy_, maxCount);
+}
+
+bool Logger::shouldEchoStdoutNow() {
+    if (!echo_) return false;
+
+    const int lineCap = stdoutEchoLineCapPerSecond();
+    if (lineCap <= 0) return false;
+
+    const auto now = std::chrono::steady_clock::now();
+    if (echoWindowStart_.time_since_epoch().count() == 0) {
+        echoWindowStart_ = now;
+    }
+
+    constexpr auto kWindowDuration = std::chrono::seconds(1);
+    if ((now - echoWindowStart_) >= kWindowDuration) {
+        if (echoWindowDroppedCount_ > 0) {
+            std::cout << "[LogBus] Suppressed " << echoWindowDroppedCount_
+                      << " stdout lines in last second\n";
+        }
+        echoWindowStart_ = now;
+        echoWindowLineCount_ = 0;
+        echoWindowDroppedCount_ = 0;
+    }
+
+    if (echoWindowLineCount_ >= lineCap) {
+        ++echoWindowDroppedCount_;
+        return false;
+    }
+
+    ++echoWindowLineCount_;
+    return true;
 }
 
 } // namespace LogBus

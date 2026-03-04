@@ -173,6 +173,7 @@ private:
     std::vector<GPUParticle> gpuBuffer;
 
     float timeSec = 0.0f;
+    float updateAccumulatorSec = 0.0f;
     float pointScale = 220.0f;
 
     RenderSettings renderSettings{};

@@ -1,6 +1,7 @@
 // src/game/logging/LogBus.h
 #pragma once
 
+#include <chrono>
 #include <string>
 #include <vector>
 #include <glm/glm.hpp>
@@ -56,6 +57,7 @@ private:
 
     static void pushRecent(std::vector<StoredLine>& bucket, const std::string& s, const glm::vec3& c);
     static std::vector<LineSnapshot> snapshotRecent(const std::vector<StoredLine>& bucket, std::size_t maxCount);
+    bool shouldEchoStdoutNow();
     void push(const std::string& s, const glm::vec3& c, float life = 3.f);
 
 private:
@@ -64,6 +66,9 @@ private:
     BattleFeed* economy_feed_ = nullptr;
     bool echo_ = true;
     bool feed_enabled_ = true;
+    std::chrono::steady_clock::time_point echoWindowStart_{};
+    int echoWindowLineCount_ = 0;
+    int echoWindowDroppedCount_ = 0;
     std::vector<StoredLine> recent_main_;
     std::vector<StoredLine> recent_catch_;
     std::vector<StoredLine> recent_economy_;

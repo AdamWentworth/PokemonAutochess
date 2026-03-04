@@ -162,6 +162,7 @@ void ParticleSystem::shutdown() {
 
     particles.clear();
     gpuBuffer.clear();
+    updateAccumulatorSec = 0.0f;
 
     initialized = false;
 }
@@ -183,26 +184,53 @@ void ParticleSystem::update(float dt) {
 
     if (particles.empty()) return;
 
-    const glm::vec3 baseAccelDt = updateSettings.acceleration * dt;
-    const float damp = std::pow(updateSettings.dampingBase, dt);
+    constexpr float kUpdateStepSec = 1.0f / 120.0f;
+    constexpr int kMaxUpdateStepsPerFrame = 8;
+    updateAccumulatorSec += dt;
 
-    // Update + compact in one pass to avoid a second remove_if walk.
-    std::size_t writeIndex = 0u;
-    for (std::size_t readIndex = 0u; readIndex < particles.size(); ++readIndex) {
-        Particle p = particles[readIndex];
-        p.vel += baseAccelDt + (p.accel * dt);
-        p.vel *= damp;
-        p.pos += p.vel * dt;
-        p.lifeSec -= dt;
-        if (p.lifeSec <= 0.0f) continue;
-        if (writeIndex != readIndex) {
-            particles[writeIndex] = p;
-        } else {
-            particles[writeIndex] = std::move(p);
+    auto simulateStep = [&](float stepDt) {
+        const glm::vec3 baseAccelDt = updateSettings.acceleration * stepDt;
+        const float damp = std::pow(updateSettings.dampingBase, stepDt);
+
+        // Update + compact in one pass to avoid a second remove_if walk.
+        std::size_t writeIndex = 0u;
+        for (std::size_t readIndex = 0u; readIndex < particles.size(); ++readIndex) {
+            Particle p = particles[readIndex];
+            p.vel += baseAccelDt + (p.accel * stepDt);
+            p.vel *= damp;
+            p.pos += p.vel * stepDt;
+            p.lifeSec -= stepDt;
+            if (p.lifeSec <= 0.0f) continue;
+            if (writeIndex != readIndex) {
+                particles[writeIndex] = p;
+            } else {
+                particles[writeIndex] = std::move(p);
+            }
+            ++writeIndex;
         }
-        ++writeIndex;
+        particles.resize(writeIndex);
+    };
+
+    int steps = 0;
+    while (updateAccumulatorSec >= kUpdateStepSec && steps < kMaxUpdateStepsPerFrame) {
+        simulateStep(kUpdateStepSec);
+        updateAccumulatorSec -= kUpdateStepSec;
+        ++steps;
     }
-    particles.resize(writeIndex);
+
+    if (steps == 0) {
+        // Keep small systems responsive even at very high FPS where dt < fixed step.
+        if (particles.size() <= 32u && updateAccumulatorSec > 0.0f) {
+            simulateStep(updateAccumulatorSec);
+            updateAccumulatorSec = 0.0f;
+        }
+    }
+
+    // Bound accumulated debt after hitches; visual simulation can recover gradually.
+    const float maxAccumulated = kUpdateStepSec * static_cast<float>(kMaxUpdateStepsPerFrame);
+    if (updateAccumulatorSec > maxAccumulated) {
+        updateAccumulatorSec = maxAccumulated;
+    }
 }
 
 static void applyBlendMode(ParticleSystem::BlendMode mode) {

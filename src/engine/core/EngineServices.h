@@ -36,6 +36,7 @@ struct EngineFramePerfStats {
     float renderMs = 0.0f;
     float swapMs = 0.0f;
     int fixedTicks = 0;
+    int fixedTicksDropped = 0;
 };
 
 struct EngineServices {
