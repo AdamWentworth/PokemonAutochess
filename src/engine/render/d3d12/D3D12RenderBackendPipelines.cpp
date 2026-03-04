@@ -4,8 +4,12 @@
 #include "engine/render/WorldPbrShaderShared.h"
 #include "engine/render/d3d12/D3D12RenderBackendInternal.h"
 
-#include <string>
+#include <filesystem>
+#include <iomanip>
+#include <cstring>
+#include <sstream>
 #include <stdexcept>
+#include <string>
 
 #if defined(_WIN32)
 #define NOMINMAX
@@ -34,6 +38,87 @@ UINT d3dCompileFlags() {
     return D3DCOMPILE_OPTIMIZATION_LEVEL3;
 #endif
 }
+
+#if defined(_WIN32)
+std::uint64_t fnv1a64Append(std::uint64_t hash, const void* data, std::size_t byteCount) {
+    static constexpr std::uint64_t kPrime = 1099511628211ull;
+    const auto* bytes = static_cast<const std::uint8_t*>(data);
+    for (std::size_t i = 0; i < byteCount; ++i) {
+        hash ^= static_cast<std::uint64_t>(bytes[i]);
+        hash *= kPrime;
+    }
+    return hash;
+}
+
+std::filesystem::path shaderBlobCachePath(std::uint64_t key) {
+    namespace fs = std::filesystem;
+    const fs::path dir = fs::path("cache") / "shaders" / "d3d12";
+    std::error_code ec;
+    fs::create_directories(dir, ec);
+
+    std::ostringstream name;
+    name << std::hex << std::setw(16) << std::setfill('0') << key << ".cso";
+    return dir / name.str();
+}
+
+bool tryLoadShaderBlobFromCache(std::uint64_t key, Microsoft::WRL::ComPtr<ID3DBlob>& outBlob) {
+    outBlob.Reset();
+    const std::filesystem::path path = shaderBlobCachePath(key);
+    if (!std::filesystem::exists(path)) return false;
+    const std::wstring widePath = path.wstring();
+    return SUCCEEDED(D3DReadFileToBlob(widePath.c_str(), outBlob.ReleaseAndGetAddressOf())) && outBlob;
+}
+
+void tryWriteShaderBlobToCache(std::uint64_t key, ID3DBlob* blob) {
+    if (!blob) return;
+    const std::filesystem::path path = shaderBlobCachePath(key);
+    const std::wstring widePath = path.wstring();
+    (void)D3DWriteBlobToFile(blob, widePath.c_str(), TRUE);
+}
+
+bool compileHlslWithCache(const void* sourceData,
+                          std::size_t sourceSize,
+                          const char* entryPoint,
+                          const char* target,
+                          UINT flags1,
+                          UINT flags2,
+                          Microsoft::WRL::ComPtr<ID3DBlob>& outBlob,
+                          Microsoft::WRL::ComPtr<ID3DBlob>& errBlob) {
+    outBlob.Reset();
+    errBlob.Reset();
+
+    static constexpr std::uint64_t kCacheSchemaVersion = 1ull;
+    std::uint64_t hash = 14695981039346656037ull; // FNV-1a offset basis
+    hash = fnv1a64Append(hash, &kCacheSchemaVersion, sizeof(kCacheSchemaVersion));
+    hash = fnv1a64Append(hash, &flags1, sizeof(flags1));
+    hash = fnv1a64Append(hash, &flags2, sizeof(flags2));
+    hash = fnv1a64Append(hash, entryPoint, std::strlen(entryPoint));
+    hash = fnv1a64Append(hash, target, std::strlen(target));
+    hash = fnv1a64Append(hash, sourceData, sourceSize);
+
+    if (tryLoadShaderBlobFromCache(hash, outBlob)) {
+        return true;
+    }
+
+    if (FAILED(D3DCompile(sourceData,
+                          sourceSize,
+                          nullptr,
+                          nullptr,
+                          nullptr,
+                          entryPoint,
+                          target,
+                          flags1,
+                          flags2,
+                          outBlob.ReleaseAndGetAddressOf(),
+                          errBlob.ReleaseAndGetAddressOf())) ||
+        !outBlob) {
+        return false;
+    }
+
+    tryWriteShaderBlobToCache(hash, outBlob.Get());
+    return true;
+}
+#endif
 } // namespace
 
 void D3D12RenderBackend::createDebugPipeline() {
@@ -49,16 +134,26 @@ void D3D12RenderBackend::createDebugPipeline() {
     Microsoft::WRL::ComPtr<ID3DBlob> vsBlob;
     Microsoft::WRL::ComPtr<ID3DBlob> psBlob;
     Microsoft::WRL::ComPtr<ID3DBlob> errBlob;
-    if (FAILED(D3DCompile(kVsSource, sizeof(kVsSource) - 1, nullptr, nullptr, nullptr,
-                          "main", "vs_5_0", d3dCompileFlags(), 0, vsBlob.ReleaseAndGetAddressOf(),
-                          errBlob.ReleaseAndGetAddressOf())) ||
+    if (!compileHlslWithCache(kVsSource,
+                              sizeof(kVsSource) - 1,
+                              "main",
+                              "vs_5_0",
+                              d3dCompileFlags(),
+                              0,
+                              vsBlob,
+                              errBlob) ||
         !vsBlob) {
         throw std::runtime_error("D3DCompile failed for debug VS.");
     }
     errBlob.Reset();
-    if (FAILED(D3DCompile(kPsSource, sizeof(kPsSource) - 1, nullptr, nullptr, nullptr,
-                          "main", "ps_5_0", d3dCompileFlags(), 0, psBlob.ReleaseAndGetAddressOf(),
-                          errBlob.ReleaseAndGetAddressOf())) ||
+    if (!compileHlslWithCache(kPsSource,
+                              sizeof(kPsSource) - 1,
+                              "main",
+                              "ps_5_0",
+                              d3dCompileFlags(),
+                              0,
+                              psBlob,
+                              errBlob) ||
         !psBlob) {
         throw std::runtime_error("D3DCompile failed for debug PS.");
     }
@@ -895,9 +990,14 @@ float4 main(PSIn i, bool isFrontFace : SV_IsFrontFace) : SV_TARGET {
     Microsoft::WRL::ComPtr<ID3DBlob> vsBlob;
     Microsoft::WRL::ComPtr<ID3DBlob> psBlob;
     Microsoft::WRL::ComPtr<ID3DBlob> errBlob;
-    if (FAILED(D3DCompile(kVsSource, sizeof(kVsSource) - 1, nullptr, nullptr, nullptr,
-                          "main", "vs_5_0", d3dCompileFlags(), 0, vsBlob.ReleaseAndGetAddressOf(),
-                          errBlob.ReleaseAndGetAddressOf())) ||
+    if (!compileHlslWithCache(kVsSource,
+                              sizeof(kVsSource) - 1,
+                              "main",
+                              "vs_5_0",
+                              d3dCompileFlags(),
+                              0,
+                              vsBlob,
+                              errBlob) ||
         !vsBlob) {
         throw std::runtime_error("D3DCompile failed for world VS.");
     }
@@ -905,9 +1005,14 @@ float4 main(PSIn i, bool isFrontFace : SV_IsFrontFace) : SV_TARGET {
         engine::render::world_pbr_shader_shared::injectSharedWorldPbr(
             kPsSource, engine::render::world_pbr_shader_shared::ShaderLanguage::Hlsl);
     errBlob.Reset();
-    if (FAILED(D3DCompile(worldPsSource.c_str(), worldPsSource.size(), nullptr, nullptr, nullptr,
-                          "main", "ps_5_0", d3dCompileFlags(), 0, psBlob.ReleaseAndGetAddressOf(),
-                          errBlob.ReleaseAndGetAddressOf())) ||
+    if (!compileHlslWithCache(worldPsSource.c_str(),
+                              worldPsSource.size(),
+                              "main",
+                              "ps_5_0",
+                              d3dCompileFlags(),
+                              0,
+                              psBlob,
+                              errBlob) ||
         !psBlob) {
         const std::string details = d3dCompileErrorMessage(errBlob.Get());
         if (!details.empty()) {
@@ -1294,16 +1399,26 @@ void D3D12RenderBackend::createSpritePipeline() {
     Microsoft::WRL::ComPtr<ID3DBlob> vsBlob;
     Microsoft::WRL::ComPtr<ID3DBlob> psBlob;
     Microsoft::WRL::ComPtr<ID3DBlob> errBlob;
-    if (FAILED(D3DCompile(kVsSource, sizeof(kVsSource) - 1, nullptr, nullptr, nullptr,
-                          "main", "vs_5_0", d3dCompileFlags(), 0, vsBlob.ReleaseAndGetAddressOf(),
-                          errBlob.ReleaseAndGetAddressOf())) ||
+    if (!compileHlslWithCache(kVsSource,
+                              sizeof(kVsSource) - 1,
+                              "main",
+                              "vs_5_0",
+                              d3dCompileFlags(),
+                              0,
+                              vsBlob,
+                              errBlob) ||
         !vsBlob) {
         throw std::runtime_error("D3DCompile failed for sprite VS.");
     }
     errBlob.Reset();
-    if (FAILED(D3DCompile(kPsSource, sizeof(kPsSource) - 1, nullptr, nullptr, nullptr,
-                          "main", "ps_5_0", d3dCompileFlags(), 0, psBlob.ReleaseAndGetAddressOf(),
-                          errBlob.ReleaseAndGetAddressOf())) ||
+    if (!compileHlslWithCache(kPsSource,
+                              sizeof(kPsSource) - 1,
+                              "main",
+                              "ps_5_0",
+                              d3dCompileFlags(),
+                              0,
+                              psBlob,
+                              errBlob) ||
         !psBlob) {
         throw std::runtime_error("D3DCompile failed for sprite PS.");
     }

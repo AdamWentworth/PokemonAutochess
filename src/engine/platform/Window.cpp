@@ -16,6 +16,9 @@ Window::Window(const std::string& title, int width, int height, GraphicsApi grap
         throw std::runtime_error(msg);
     }
 
+    // Allow the click that focuses the window to also propagate as a mouse click.
+    SDL_SetHint(SDL_HINT_MOUSE_FOCUS_CLICKTHROUGH, "1");
+
     Uint32 flags = SDL_WINDOW_SHOWN | SDL_WINDOW_ALLOW_HIGHDPI | SDL_WINDOW_RESIZABLE;
 
     if (graphicsApi == GraphicsApi::OpenGL) {

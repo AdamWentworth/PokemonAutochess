@@ -71,7 +71,9 @@ void ScriptedState::handleInput(const InputEvent& event) {
             return;
         }
     }
-    if (event.type == InputEvent::Type::MouseDown && gameWorld) {
+    const bool uiSelectionMode =
+        (cardMode == CardMode::TextMenu || cardMode == CardMode::Starter || cardMode == CardMode::Shop);
+    if (event.type == InputEvent::Type::MouseDown && gameWorld && !uiSelectionMode) {
         if (gameWorld->consumeUiClickBlocked()) return;
         if (gameWorld->isUnitDragActive()) return;
     }
