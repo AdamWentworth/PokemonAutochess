@@ -51,6 +51,17 @@ OpenGLRenderBackend::OpenGLRenderBackend()
         engine::render::parity_contract::makeBaselineConfig();
     parityCfg.framebufferSrgbEnabled = fbSrgbEnabled;
     engine::render::parity_contract::logValidation("OpenGL", parityCfg);
+
+    gpuTimingSupported_ = GLAD_GL_VERSION_3_3;
+    if (gpuTimingSupported_) {
+        glGenQueries(static_cast<GLsizei>(gpuTimerQueries_.size()), gpuTimerQueries_.data());
+        if (gpuTimerQueries_[0] == 0u || gpuTimerQueries_[1] == 0u) {
+            gpuTimingSupported_ = false;
+            gpuTimerQueries_[0] = 0u;
+            gpuTimerQueries_[1] = 0u;
+        }
+    }
+
     configureScreenshotCapture();
 }
 
@@ -69,11 +80,53 @@ void OpenGLRenderBackend::beginFrame(float r, float g, float b, float a) {
         glDisable(GL_FRAMEBUFFER_SRGB);
     }
 #endif
+    if (gpuTimingSupported_) {
+        const std::size_t idx = static_cast<std::size_t>(gpuTimerWriteIndex_ & 1u);
+        if (gpuTimerQueries_[idx] != 0u) {
+            glBeginQuery(GL_TIME_ELAPSED, gpuTimerQueries_[idx]);
+            gpuTimerIssued_[idx] = true;
+        }
+    }
     glClearColor(r, g, b, a);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 }
 
 void OpenGLRenderBackend::endFrame() {
+    if (gpuTimingSupported_) {
+        const std::size_t writeIdx = static_cast<std::size_t>(gpuTimerWriteIndex_ & 1u);
+        if (gpuTimerQueries_[writeIdx] != 0u && gpuTimerIssued_[writeIdx]) {
+            glEndQuery(GL_TIME_ELAPSED);
+        }
+
+        const std::size_t readIdx = static_cast<std::size_t>((gpuTimerWriteIndex_ ^ 1u) & 1u);
+        if (gpuTimerQueries_[readIdx] != 0u && gpuTimerIssued_[readIdx]) {
+            GLuint available = 0u;
+            glGetQueryObjectuiv(
+                gpuTimerQueries_[readIdx],
+                GL_QUERY_RESULT_AVAILABLE,
+                &available);
+            if (available != 0u) {
+                GLuint64 elapsedNs = 0u;
+                glGetQueryObjectui64v(
+                    gpuTimerQueries_[readIdx],
+                    GL_QUERY_RESULT,
+                    &elapsedNs);
+                lastGpuFrameMs_ = static_cast<float>(
+                    static_cast<double>(elapsedNs) * (1.0 / 1000000.0));
+                lastGpuFrameValid_ = true;
+                gpuTimerIssued_[readIdx] = false;
+            } else {
+                lastGpuFrameValid_ = false;
+            }
+        } else {
+            lastGpuFrameValid_ = false;
+        }
+
+        gpuTimerWriteIndex_ ^= 1u;
+    } else {
+        lastGpuFrameValid_ = false;
+    }
+
     captureScreenshotIfRequested();
     lastFrameDrawCalls_ = frameDrawCalls_;
     lastFrameTriangles_ = frameTriangles_;
@@ -102,7 +155,26 @@ bool OpenGLRenderBackend::getLastFrameStats(BackendFrameStats& outStats) const {
     return true;
 }
 
+bool OpenGLRenderBackend::getLastFrameTimings(BackendFrameTimings& outTimings) const {
+    outTimings.presentWaitMs = 0.0f;
+    outTimings.gpuFrameMs = lastGpuFrameMs_;
+    outTimings.gpuFrameValid = lastGpuFrameValid_;
+    return true;
+}
+
 void OpenGLRenderBackend::shutdown() {
+    if (gpuTimingSupported_) {
+        glDeleteQueries(static_cast<GLsizei>(gpuTimerQueries_.size()), gpuTimerQueries_.data());
+    }
+    gpuTimingSupported_ = false;
+    gpuTimerQueries_[0] = 0u;
+    gpuTimerQueries_[1] = 0u;
+    gpuTimerIssued_[0] = false;
+    gpuTimerIssued_[1] = false;
+    gpuTimerWriteIndex_ = 0u;
+    lastGpuFrameMs_ = 0.0f;
+    lastGpuFrameValid_ = false;
+
     destroyDebugPipeline();
     destroyWorldPipeline();
     destroySpritePipeline();

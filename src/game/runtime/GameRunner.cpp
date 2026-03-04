@@ -869,14 +869,15 @@ namespace {
 
             if (renderer) {
                 renderer->endFrame();
+                IRenderBackend::BackendFrameTimings backendTimings;
+                const bool hasBackendTimings = renderer->getLastFrameTimings(backendTimings);
+                if (hasBackendTimings && backendTimings.gpuFrameValid) {
+                    gpuFrameMs = std::max(0.0, static_cast<double>(backendTimings.gpuFrameMs));
+                    gpuFrameValid = true;
+                }
                 if (renderer->handlesPresentation()) {
-                    IRenderBackend::BackendFrameTimings backendTimings;
-                    if (renderer->getLastFrameTimings(backendTimings)) {
+                    if (hasBackendTimings) {
                         presentWaitMs = std::max(0.0, static_cast<double>(backendTimings.presentWaitMs));
-                        if (backendTimings.gpuFrameValid) {
-                            gpuFrameMs = std::max(0.0, static_cast<double>(backendTimings.gpuFrameMs));
-                            gpuFrameValid = true;
-                        }
                     }
                 } else {
                     const auto presentStart = clock::now();

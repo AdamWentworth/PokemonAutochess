@@ -1,5 +1,6 @@
 #pragma once
 
+#include <array>
 #include <cstdint>
 #include <memory>
 #include <string>
@@ -20,6 +21,7 @@ public:
     void onResize(int width, int height) override;
     bool requiresOpenGLContext() const override { return true; }
     bool handlesPresentation() const override { return false; }
+    bool getLastFrameTimings(BackendFrameTimings& outTimings) const override;
     bool getLastFrameStats(BackendFrameStats& outStats) const override;
     bool supportsWorldTriangles3D() const override { return true; }
     bool supportsWorldIndexedMeshes() const override { return true; }
@@ -177,6 +179,12 @@ private:
     std::uint64_t frameTriangles_ = 0u;
     std::uint32_t lastFrameDrawCalls_ = 0u;
     std::uint64_t lastFrameTriangles_ = 0u;
+    bool gpuTimingSupported_ = false;
+    std::array<unsigned int, 2> gpuTimerQueries_{0u, 0u};
+    std::array<bool, 2> gpuTimerIssued_{false, false};
+    std::uint8_t gpuTimerWriteIndex_ = 0u;
+    float lastGpuFrameMs_ = 0.0f;
+    bool lastGpuFrameValid_ = false;
 
     bool screenshotCaptureConfigured_ = false;
     bool screenshotCaptured_ = false;
