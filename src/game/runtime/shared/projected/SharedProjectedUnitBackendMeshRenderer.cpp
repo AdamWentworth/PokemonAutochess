@@ -18,6 +18,7 @@
 #include <vector>
 
 #include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/type_ptr.hpp>
 
 namespace {
 std::string toLowerCopy(std::string s) {
@@ -537,39 +538,62 @@ Result renderProjectedUnitBackendMesh(const Args& args) {
                 } else {
                     dstBatch.sharedVertices = nullptr;
                     dstBatch.sharedVertexCount = 0u;
-                    dstBatch.indices.clear();
-                    if (!srcBatch.indices.empty()) {
+                    dstBatch.sharedSkinMatrices = nullptr;
+                    const bool canUseRigidNodeTransform =
+                        prep.scenePose.hasClipPose &&
+                        srcBatch.gpuJointPalette.empty() &&
+                        !srcBatch.gpuTemplateVertices.empty() &&
+                        !srcBatch.indices.empty();
+                    if (canUseRigidNodeTransform) {
+                        dstBatch.vertices.clear();
+                        dstBatch.indices.clear();
+                        dstBatch.sharedVertices = srcBatch.gpuTemplateVertices.data();
+                        dstBatch.sharedVertexCount = srcBatch.gpuTemplateVertices.size();
                         dstBatch.sharedIndices = srcBatch.indices.data();
                         dstBatch.sharedIndexCount = srcBatch.indices.size();
-                    } else {
-                        dstBatch.sharedIndices = nullptr;
-                        dstBatch.sharedIndexCount = 0u;
-                    }
-                    dstBatch.sharedSkinMatrices = nullptr;
-                    dstBatch.vertices.resize(srcBatch.sourceVertexIndices.size());
-                    for (std::size_t vi = 0; vi < srcBatch.sourceVertexIndices.size(); ++vi) {
-                        const std::uint32_t srcIndex = srcBatch.sourceVertexIndices[vi];
-                        if (srcIndex >= mesh->vertices.size()) continue;
-                        const auto& srcVertex = mesh->vertices[srcIndex];
 
-                        IRenderBackend::WorldMeshVertex outVertex = srcBatch.gpuTemplateVertices[vi];
-                        const glm::vec3 pos = transforms.resolveWorldVertexPos(
-                            resolvedTriNodeIndex, srcIndex, srcVertex);
-                        outVertex.x = pos.x;
-                        outVertex.y = pos.y;
-                        outVertex.z = pos.z;
-                        const glm::vec3 nrm = transforms.resolveModelVertexNormal(
-                            resolvedTriNodeIndex, srcIndex, srcVertex);
-                        outVertex.nx = nrm.x;
-                        outVertex.ny = nrm.y;
-                        outVertex.nz = nrm.z;
-                        const glm::vec4 tan = transforms.resolveModelVertexTangent(
-                            resolvedTriNodeIndex, srcIndex, srcVertex);
-                        outVertex.tx = tan.x;
-                        outVertex.ty = tan.y;
-                        outVertex.tz = tan.z;
-                        outVertex.tw = tan.w;
-                        dstBatch.vertices[vi] = outVertex;
+                        glm::mat4 nodeGlobal(1.0f);
+                        if (resolvedTriNodeIndex >= 0 &&
+                            static_cast<std::size_t>(resolvedTriNodeIndex) < nodeGlobals.size()) {
+                            nodeGlobal = nodeGlobals[static_cast<std::size_t>(resolvedTriNodeIndex)];
+                        }
+                        const glm::mat4 batchModel = prep.modelM * nodeGlobal;
+                        const float* batchModelData = glm::value_ptr(batchModel);
+                        std::copy(batchModelData, batchModelData + 16, dstBatch.modelMatrix.begin());
+                    } else {
+                        dstBatch.indices.clear();
+                        if (!srcBatch.indices.empty()) {
+                            dstBatch.sharedIndices = srcBatch.indices.data();
+                            dstBatch.sharedIndexCount = srcBatch.indices.size();
+                        } else {
+                            dstBatch.sharedIndices = nullptr;
+                            dstBatch.sharedIndexCount = 0u;
+                        }
+                        dstBatch.vertices.resize(srcBatch.sourceVertexIndices.size());
+                        for (std::size_t vi = 0; vi < srcBatch.sourceVertexIndices.size(); ++vi) {
+                            const std::uint32_t srcIndex = srcBatch.sourceVertexIndices[vi];
+                            if (srcIndex >= mesh->vertices.size()) continue;
+                            const auto& srcVertex = mesh->vertices[srcIndex];
+
+                            IRenderBackend::WorldMeshVertex outVertex = srcBatch.gpuTemplateVertices[vi];
+                            const glm::vec3 pos = transforms.resolveWorldVertexPos(
+                                resolvedTriNodeIndex, srcIndex, srcVertex);
+                            outVertex.x = pos.x;
+                            outVertex.y = pos.y;
+                            outVertex.z = pos.z;
+                            const glm::vec3 nrm = transforms.resolveModelVertexNormal(
+                                resolvedTriNodeIndex, srcIndex, srcVertex);
+                            outVertex.nx = nrm.x;
+                            outVertex.ny = nrm.y;
+                            outVertex.nz = nrm.z;
+                            const glm::vec4 tan = transforms.resolveModelVertexTangent(
+                                resolvedTriNodeIndex, srcIndex, srcVertex);
+                            outVertex.tx = tan.x;
+                            outVertex.ty = tan.y;
+                            outVertex.tz = tan.z;
+                            outVertex.tw = tan.w;
+                            dstBatch.vertices[vi] = outVertex;
+                        }
                     }
                 }
             }
