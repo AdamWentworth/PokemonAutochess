@@ -135,6 +135,10 @@ This section is based on direct code parse of runtime and backend render paths.
 - Renderer hot loop now precomputes `triNodeIndex` and fast-batch routing per triangle for mixed-node GPU-skinning paths, removing repeated per-triangle hash lookups in the submit loop.
 - Fast position-only projected path is no longer blocked by "all submeshes textured"; fallback texture normalization now allows GPU clip-skinning coverage even when source assets have missing base textures.
 - Fast textured projected path now uses a cached per-mesh batch template (split topology + deduped vertex/index routing + GPU-skin static vertex payload) so frames stop rebuilding that routing work from scratch; frame work is reduced to dynamic pose/tint updates only.
+- World indexed batch submit path now supports shared/static geometry pointers, and projected GPU-skin fast path uses them to avoid per-frame vertex/index vector copies when tint/alpha are identity, further reducing CPU render-build overhead.
+- Transform resolver per-vertex caches now use an epoch-stamp scheme instead of per-unit full-array clears, cutting CPU memory churn for local/world position + normal/tangent cache state.
+- Projected mesh prep now skips full-mesh remap allocation and large per-batch reserve work when the fast textured full-mesh path is active; fallback paths allocate those structures lazily only when needed.
+- Projected backend mesh renderer now defers triangle submitter setup and per-triangle node fallback table construction until fallback triangle paths are actually used, removing that overhead from the normal fast GPU-skin path.
 
 ## Autobattler-Specific Guidance
 - Keep combat outcomes and RNG on CPU.

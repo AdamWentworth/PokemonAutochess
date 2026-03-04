@@ -44,6 +44,8 @@ struct NodeTransformCacheEntry {
 };
 
 struct TransformScratch {
+    std::uint32_t vertexCacheStamp = 1u;
+
     std::vector<std::vector<glm::mat4>> skinMatricesByNode;
     std::vector<std::uint8_t> skinMatricesReady;
     std::vector<glm::mat4> nodeGlobalInverseCache;
@@ -58,22 +60,22 @@ struct TransformScratch {
     std::vector<game::runtime::shared_projected_unit_backend_mesh_transforms::WorldVertexSample>
         worldVertexCache;
     std::vector<int> worldVertexCacheNode;
-    std::vector<std::uint8_t> worldVertexCacheValid;
+    std::vector<std::uint32_t> worldVertexCacheStamp;
 
     std::vector<glm::vec3> worldVertexPosCache;
     std::vector<int> worldVertexPosCacheNode;
-    std::vector<std::uint8_t> worldVertexPosCacheValid;
+    std::vector<std::uint32_t> worldVertexPosCacheStamp;
 
     std::vector<glm::vec3> localVertexPosCache;
-    std::vector<std::uint8_t> localVertexPosCacheValid;
+    std::vector<std::uint32_t> localVertexPosCacheStamp;
 
     std::vector<glm::vec3> modelVertexNormalCache;
     std::vector<int> modelVertexNormalCacheNode;
-    std::vector<std::uint8_t> modelVertexNormalCacheValid;
+    std::vector<std::uint32_t> modelVertexNormalCacheStamp;
 
     std::vector<glm::vec4> modelVertexTangentCache;
     std::vector<int> modelVertexTangentCacheNode;
-    std::vector<std::uint8_t> modelVertexTangentCacheValid;
+    std::vector<std::uint32_t> modelVertexTangentCacheStamp;
 };
 
 thread_local TransformScratch g_scratch;
@@ -144,30 +146,64 @@ void Resolver::initialize(const shared_projected_unit_backend_mesh::Args& args,
         g_scratch.nodeModelNormalReady.begin() + nodeCacheCount,
         0u);
 
+    ++g_scratch.vertexCacheStamp;
+    if (g_scratch.vertexCacheStamp == 0u) {
+        g_scratch.vertexCacheStamp = 1u;
+        std::fill(g_scratch.localVertexPosCacheStamp.begin(), g_scratch.localVertexPosCacheStamp.end(), 0u);
+        std::fill(g_scratch.worldVertexCacheStamp.begin(), g_scratch.worldVertexCacheStamp.end(), 0u);
+        std::fill(g_scratch.worldVertexPosCacheStamp.begin(), g_scratch.worldVertexPosCacheStamp.end(), 0u);
+        std::fill(g_scratch.modelVertexNormalCacheStamp.begin(), g_scratch.modelVertexNormalCacheStamp.end(), 0u);
+        std::fill(g_scratch.modelVertexTangentCacheStamp.begin(), g_scratch.modelVertexTangentCacheStamp.end(), 0u);
+    }
+
     const std::size_t meshVertexCount = mesh_ ? mesh_->vertices.size() : 0u;
-    g_scratch.localVertexPosCache.resize(meshVertexCount);
-    g_scratch.localVertexPosCacheValid.assign(meshVertexCount, 0u);
+    if (g_scratch.localVertexPosCache.size() < meshVertexCount) {
+        g_scratch.localVertexPosCache.resize(meshVertexCount);
+    }
+    if (g_scratch.localVertexPosCacheStamp.size() < meshVertexCount) {
+        g_scratch.localVertexPosCacheStamp.resize(meshVertexCount, 0u);
+    }
 
     if (!usePositionOnlyVertexPath_) {
-        g_scratch.worldVertexCache.resize(meshVertexCount);
-        g_scratch.worldVertexCacheNode.assign(meshVertexCount, std::numeric_limits<int>::min());
-        g_scratch.worldVertexCacheValid.assign(meshVertexCount, 0u);
-    } else {
-        g_scratch.worldVertexCache.clear();
-        g_scratch.worldVertexCacheNode.clear();
-        g_scratch.worldVertexCacheValid.clear();
+        if (g_scratch.worldVertexCache.size() < meshVertexCount) {
+            g_scratch.worldVertexCache.resize(meshVertexCount);
+        }
+        if (g_scratch.worldVertexCacheNode.size() < meshVertexCount) {
+            g_scratch.worldVertexCacheNode.resize(meshVertexCount, std::numeric_limits<int>::min());
+        }
+        if (g_scratch.worldVertexCacheStamp.size() < meshVertexCount) {
+            g_scratch.worldVertexCacheStamp.resize(meshVertexCount, 0u);
+        }
     }
-    g_scratch.worldVertexPosCache.resize(meshVertexCount);
-    g_scratch.worldVertexPosCacheNode.assign(meshVertexCount, std::numeric_limits<int>::min());
-    g_scratch.worldVertexPosCacheValid.assign(meshVertexCount, 0u);
+    if (g_scratch.worldVertexPosCache.size() < meshVertexCount) {
+        g_scratch.worldVertexPosCache.resize(meshVertexCount);
+    }
+    if (g_scratch.worldVertexPosCacheNode.size() < meshVertexCount) {
+        g_scratch.worldVertexPosCacheNode.resize(meshVertexCount, std::numeric_limits<int>::min());
+    }
+    if (g_scratch.worldVertexPosCacheStamp.size() < meshVertexCount) {
+        g_scratch.worldVertexPosCacheStamp.resize(meshVertexCount, 0u);
+    }
 
-    g_scratch.modelVertexNormalCache.resize(meshVertexCount);
-    g_scratch.modelVertexNormalCacheNode.assign(meshVertexCount, std::numeric_limits<int>::min());
-    g_scratch.modelVertexNormalCacheValid.assign(meshVertexCount, 0u);
+    if (g_scratch.modelVertexNormalCache.size() < meshVertexCount) {
+        g_scratch.modelVertexNormalCache.resize(meshVertexCount);
+    }
+    if (g_scratch.modelVertexNormalCacheNode.size() < meshVertexCount) {
+        g_scratch.modelVertexNormalCacheNode.resize(meshVertexCount, std::numeric_limits<int>::min());
+    }
+    if (g_scratch.modelVertexNormalCacheStamp.size() < meshVertexCount) {
+        g_scratch.modelVertexNormalCacheStamp.resize(meshVertexCount, 0u);
+    }
 
-    g_scratch.modelVertexTangentCache.resize(meshVertexCount);
-    g_scratch.modelVertexTangentCacheNode.assign(meshVertexCount, std::numeric_limits<int>::min());
-    g_scratch.modelVertexTangentCacheValid.assign(meshVertexCount, 0u);
+    if (g_scratch.modelVertexTangentCache.size() < meshVertexCount) {
+        g_scratch.modelVertexTangentCache.resize(meshVertexCount);
+    }
+    if (g_scratch.modelVertexTangentCacheNode.size() < meshVertexCount) {
+        g_scratch.modelVertexTangentCacheNode.resize(meshVertexCount, std::numeric_limits<int>::min());
+    }
+    if (g_scratch.modelVertexTangentCacheStamp.size() < meshVertexCount) {
+        g_scratch.modelVertexTangentCacheStamp.resize(meshVertexCount, 0u);
+    }
 }
 
 std::size_t Resolver::nodeTransformIndexFor(int triNodeIndex) const {
@@ -181,8 +217,9 @@ std::size_t Resolver::nodeTransformIndexFor(int triNodeIndex) const {
 glm::vec3 Resolver::resolveLocalVertexPos(
     std::uint32_t vertexIndex,
     const runtime::backend_model::MeshVertex& vtx) {
+    const std::uint32_t stamp = g_scratch.vertexCacheStamp;
     if (vertexIndex < g_scratch.localVertexPosCache.size() &&
-        g_scratch.localVertexPosCacheValid[vertexIndex] != 0u) {
+        g_scratch.localVertexPosCacheStamp[vertexIndex] == stamp) {
         return g_scratch.localVertexPosCache[vertexIndex];
     }
 
@@ -199,7 +236,7 @@ glm::vec3 Resolver::resolveLocalVertexPos(
 
     if (vertexIndex < g_scratch.localVertexPosCache.size()) {
         g_scratch.localVertexPosCache[vertexIndex] = local;
-        g_scratch.localVertexPosCacheValid[vertexIndex] = 1u;
+        g_scratch.localVertexPosCacheStamp[vertexIndex] = stamp;
     }
     return local;
 }
@@ -432,8 +469,9 @@ WorldVertexSample Resolver::resolveWorldVertex(
     int triNodeIndex,
     std::uint32_t vertexIndex,
     const runtime::backend_model::MeshVertex& vtx) {
+    const std::uint32_t stamp = g_scratch.vertexCacheStamp;
     if (vertexIndex < g_scratch.worldVertexCache.size() &&
-        g_scratch.worldVertexCacheValid[vertexIndex] != 0u &&
+        g_scratch.worldVertexCacheStamp[vertexIndex] == stamp &&
         g_scratch.worldVertexCacheNode[vertexIndex] == triNodeIndex) {
         return g_scratch.worldVertexCache[vertexIndex];
     }
@@ -450,7 +488,7 @@ WorldVertexSample Resolver::resolveWorldVertex(
     if (vertexIndex < g_scratch.worldVertexCache.size()) {
         g_scratch.worldVertexCache[vertexIndex] = out;
         g_scratch.worldVertexCacheNode[vertexIndex] = triNodeIndex;
-        g_scratch.worldVertexCacheValid[vertexIndex] = 1u;
+        g_scratch.worldVertexCacheStamp[vertexIndex] = stamp;
     }
     return out;
 }
@@ -459,8 +497,9 @@ glm::vec3 Resolver::resolveWorldVertexPos(
     int triNodeIndex,
     std::uint32_t vertexIndex,
     const runtime::backend_model::MeshVertex& vtx) {
+    const std::uint32_t stamp = g_scratch.vertexCacheStamp;
     if (vertexIndex < g_scratch.worldVertexPosCache.size() &&
-        g_scratch.worldVertexPosCacheValid[vertexIndex] != 0u &&
+        g_scratch.worldVertexPosCacheStamp[vertexIndex] == stamp &&
         g_scratch.worldVertexPosCacheNode[vertexIndex] == triNodeIndex) {
         return g_scratch.worldVertexPosCache[vertexIndex];
     }
@@ -476,7 +515,7 @@ glm::vec3 Resolver::resolveWorldVertexPos(
     if (vertexIndex < g_scratch.worldVertexPosCache.size()) {
         g_scratch.worldVertexPosCache[vertexIndex] = outPos;
         g_scratch.worldVertexPosCacheNode[vertexIndex] = triNodeIndex;
-        g_scratch.worldVertexPosCacheValid[vertexIndex] = 1u;
+        g_scratch.worldVertexPosCacheStamp[vertexIndex] = stamp;
     }
     return outPos;
 }
@@ -485,8 +524,9 @@ glm::vec3 Resolver::resolveModelVertexNormal(
     int triNodeIndex,
     std::uint32_t vertexIndex,
     const runtime::backend_model::MeshVertex& vtx) {
+    const std::uint32_t stamp = g_scratch.vertexCacheStamp;
     if (vertexIndex < g_scratch.modelVertexNormalCache.size() &&
-        g_scratch.modelVertexNormalCacheValid[vertexIndex] != 0u &&
+        g_scratch.modelVertexNormalCacheStamp[vertexIndex] == stamp &&
         g_scratch.modelVertexNormalCacheNode[vertexIndex] == triNodeIndex) {
         return g_scratch.modelVertexNormalCache[vertexIndex];
     }
@@ -498,7 +538,7 @@ glm::vec3 Resolver::resolveModelVertexNormal(
     if (vertexIndex < g_scratch.modelVertexNormalCache.size()) {
         g_scratch.modelVertexNormalCache[vertexIndex] = outNormal;
         g_scratch.modelVertexNormalCacheNode[vertexIndex] = triNodeIndex;
-        g_scratch.modelVertexNormalCacheValid[vertexIndex] = 1u;
+        g_scratch.modelVertexNormalCacheStamp[vertexIndex] = stamp;
     }
     return outNormal;
 }
@@ -507,8 +547,9 @@ glm::vec4 Resolver::resolveModelVertexTangent(
     int triNodeIndex,
     std::uint32_t vertexIndex,
     const runtime::backend_model::MeshVertex& vtx) {
+    const std::uint32_t stamp = g_scratch.vertexCacheStamp;
     if (vertexIndex < g_scratch.modelVertexTangentCache.size() &&
-        g_scratch.modelVertexTangentCacheValid[vertexIndex] != 0u &&
+        g_scratch.modelVertexTangentCacheStamp[vertexIndex] == stamp &&
         g_scratch.modelVertexTangentCacheNode[vertexIndex] == triNodeIndex) {
         return g_scratch.modelVertexTangentCache[vertexIndex];
     }
@@ -531,7 +572,7 @@ glm::vec4 Resolver::resolveModelVertexTangent(
     if (vertexIndex < g_scratch.modelVertexTangentCache.size()) {
         g_scratch.modelVertexTangentCache[vertexIndex] = outTangent;
         g_scratch.modelVertexTangentCacheNode[vertexIndex] = triNodeIndex;
-        g_scratch.modelVertexTangentCacheValid[vertexIndex] = 1u;
+        g_scratch.modelVertexTangentCacheStamp[vertexIndex] = stamp;
     }
     return outTangent;
 }
@@ -539,8 +580,9 @@ glm::vec4 Resolver::resolveModelVertexTangent(
 glm::vec3 Resolver::resolveGpuSkinningInputPos(
     std::uint32_t vertexIndex,
     const runtime::backend_model::MeshVertex& vtx) {
+    const std::uint32_t stamp = g_scratch.vertexCacheStamp;
     if (vertexIndex < g_scratch.worldVertexPosCache.size() &&
-        g_scratch.worldVertexPosCacheValid[vertexIndex] != 0u &&
+        g_scratch.worldVertexPosCacheStamp[vertexIndex] == stamp &&
         g_scratch.worldVertexPosCacheNode[vertexIndex] == std::numeric_limits<int>::min()) {
         return g_scratch.worldVertexPosCache[vertexIndex];
     }
@@ -551,7 +593,7 @@ glm::vec3 Resolver::resolveGpuSkinningInputPos(
     if (vertexIndex < g_scratch.worldVertexPosCache.size()) {
         g_scratch.worldVertexPosCache[vertexIndex] = outPos;
         g_scratch.worldVertexPosCacheNode[vertexIndex] = std::numeric_limits<int>::min();
-        g_scratch.worldVertexPosCacheValid[vertexIndex] = 1u;
+        g_scratch.worldVertexPosCacheStamp[vertexIndex] = stamp;
     }
     return outPos;
 }

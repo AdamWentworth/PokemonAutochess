@@ -7,6 +7,7 @@
 #include <cmath>
 #include <cstddef>
 #include <string>
+#include <vector>
 
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
@@ -20,6 +21,144 @@ std::string toLowerCopy(std::string s) {
 }
 
 constexpr unsigned char kFallbackWhiteRgba[4] = {255u, 255u, 255u, 255u};
+
+struct IndexedBatchTemplateCacheEntry {
+    const game::runtime::backend_model::MeshData* mesh = nullptr;
+    std::size_t meshVertexCount = 0u;
+    std::size_t meshIndexCount = 0u;
+    bool characterInkingEnabled = false;
+    std::string keyPrefix;
+    std::vector<game::runtime::shared_world_batches::WorldIndexedBatch> batches;
+};
+
+thread_local std::vector<IndexedBatchTemplateCacheEntry> g_indexedBatchTemplateCache;
+
+const std::vector<game::runtime::shared_world_batches::WorldIndexedBatch>* getIndexedBatchTemplates(
+    const game::runtime::backend_model::MeshData* mesh,
+    const std::string& keyPrefix,
+    bool characterInkingEnabled,
+    std::size_t batchCount) {
+    if (!mesh || batchCount == 0u) return nullptr;
+
+    for (auto& entry : g_indexedBatchTemplateCache) {
+        if (entry.mesh != mesh) continue;
+        if (entry.meshVertexCount != mesh->vertices.size()) continue;
+        if (entry.meshIndexCount != mesh->indices.size()) continue;
+        if (entry.characterInkingEnabled != characterInkingEnabled) continue;
+        if (entry.keyPrefix != keyPrefix) continue;
+        if (entry.batches.size() != batchCount) continue;
+        return &entry.batches;
+    }
+
+    IndexedBatchTemplateCacheEntry entry{};
+    entry.mesh = mesh;
+    entry.meshVertexCount = mesh->vertices.size();
+    entry.meshIndexCount = mesh->indices.size();
+    entry.characterInkingEnabled = characterInkingEnabled;
+    entry.keyPrefix = keyPrefix;
+    entry.batches.resize(batchCount);
+
+    for (std::size_t si = 0; si < batchCount; ++si) {
+        auto& batch = entry.batches[si];
+        if (si < mesh->submeshBaseTextures.size()) {
+            const auto& tex = mesh->submeshBaseTextures[si];
+            if (tex.hasPixels()) {
+                batch.textureKey = keyPrefix + "#submesh:" + std::to_string(si);
+                batch.textureRgba = tex.rgba.data();
+                batch.textureWidth = tex.width;
+                batch.textureHeight = tex.height;
+                batch.textureWrapS = tex.wrapS;
+                batch.textureWrapT = tex.wrapT;
+                if (si < mesh->submeshNormalTextures.size()) {
+                    const auto& normalTex = mesh->submeshNormalTextures[si];
+                    if (normalTex.hasPixels()) {
+                        batch.normalTextureKey =
+                            keyPrefix + "#submesh_normal:" + std::to_string(si);
+                        batch.normalTextureRgba = normalTex.rgba.data();
+                        batch.normalTextureWidth = normalTex.width;
+                        batch.normalTextureHeight = normalTex.height;
+                        batch.normalTextureWrapS = normalTex.wrapS;
+                        batch.normalTextureWrapT = normalTex.wrapT;
+                    }
+                }
+                if (si < mesh->submeshMetallicRoughnessTextures.size()) {
+                    const auto& metallicRoughnessTex = mesh->submeshMetallicRoughnessTextures[si];
+                    if (metallicRoughnessTex.hasPixels()) {
+                        batch.metallicRoughnessTextureKey =
+                            keyPrefix + "#submesh_mr:" + std::to_string(si);
+                        batch.metallicRoughnessTextureRgba = metallicRoughnessTex.rgba.data();
+                        batch.metallicRoughnessTextureWidth = metallicRoughnessTex.width;
+                        batch.metallicRoughnessTextureHeight = metallicRoughnessTex.height;
+                        batch.metallicRoughnessTextureWrapS = metallicRoughnessTex.wrapS;
+                        batch.metallicRoughnessTextureWrapT = metallicRoughnessTex.wrapT;
+                    }
+                }
+                if (si < mesh->submeshOcclusionTextures.size()) {
+                    const auto& occlusionTex = mesh->submeshOcclusionTextures[si];
+                    if (occlusionTex.hasPixels()) {
+                        batch.occlusionTextureKey =
+                            keyPrefix + "#submesh_occ:" + std::to_string(si);
+                        batch.occlusionTextureRgba = occlusionTex.rgba.data();
+                        batch.occlusionTextureWidth = occlusionTex.width;
+                        batch.occlusionTextureHeight = occlusionTex.height;
+                        batch.occlusionTextureWrapS = occlusionTex.wrapS;
+                        batch.occlusionTextureWrapT = occlusionTex.wrapT;
+                    }
+                }
+                if (si < mesh->submeshEmissiveTextures.size()) {
+                    const auto& emissiveTex = mesh->submeshEmissiveTextures[si];
+                    if (emissiveTex.hasPixels()) {
+                        batch.emissiveTextureKey =
+                            keyPrefix + "#submesh_emissive:" + std::to_string(si);
+                        batch.emissiveTextureRgba = emissiveTex.rgba.data();
+                        batch.emissiveTextureWidth = emissiveTex.width;
+                        batch.emissiveTextureHeight = emissiveTex.height;
+                        batch.emissiveTextureWrapS = emissiveTex.wrapS;
+                        batch.emissiveTextureWrapT = emissiveTex.wrapT;
+                    }
+                }
+            }
+        }
+        if (!batch.textureRgba || batch.textureWidth <= 0 || batch.textureHeight <= 0) {
+            batch.textureKey = "__fallback_white_1x1__";
+            batch.textureRgba = kFallbackWhiteRgba;
+            batch.textureWidth = 1;
+            batch.textureHeight = 1;
+            batch.textureWrapS = 33071; // GL_CLAMP_TO_EDGE
+            batch.textureWrapT = 33071; // GL_CLAMP_TO_EDGE
+        }
+        if (si < mesh->submeshAlphaMode.size()) {
+            batch.alphaMode = mesh->submeshAlphaMode[si];
+        }
+        if (si < mesh->submeshAlphaCutoff.size()) {
+            batch.alphaCutoff = mesh->submeshAlphaCutoff[si];
+        }
+        if (si < mesh->submeshNormalScale.size()) {
+            batch.normalScale = std::max(0.0f, mesh->submeshNormalScale[si]);
+        }
+        if (si < mesh->submeshMetallicFactor.size()) {
+            batch.metallicFactor = std::clamp(mesh->submeshMetallicFactor[si], 0.0f, 1.0f);
+        }
+        if (si < mesh->submeshRoughnessFactor.size()) {
+            batch.roughnessFactor = std::clamp(mesh->submeshRoughnessFactor[si], 0.0f, 1.0f);
+        }
+        if (si < mesh->submeshOcclusionStrength.size()) {
+            batch.occlusionStrength = std::clamp(mesh->submeshOcclusionStrength[si], 0.0f, 1.0f);
+        }
+        if (si < mesh->submeshEmissiveFactors.size()) {
+            const glm::vec3& e = mesh->submeshEmissiveFactors[si];
+            batch.emissiveFactorR = std::max(0.0f, e.r);
+            batch.emissiveFactorG = std::max(0.0f, e.g);
+            batch.emissiveFactorB = std::max(0.0f, e.b);
+        }
+        batch.characterInkingEnabled = characterInkingEnabled ? 1u : 0u;
+        // Material mode 2 routes model lighting to backend world shaders.
+        batch.materialMode = 2u;
+    }
+
+    g_indexedBatchTemplateCache.push_back(std::move(entry));
+    return &g_indexedBatchTemplateCache.back().batches;
+}
 
 bool strictGltfParityEnabled() {
     static const bool enabled = []() -> bool {
@@ -75,6 +214,9 @@ bool prepareProjectedUnitBackendMesh(const Args& args, Result& out, PreparedStat
         args.supportsWorldTriangles3D && args.supportsWorldIndexedMeshes;
     prepared.fullIndexedMeshPath =
         prepared.useIndexedWorldModelPath && args.backendModelFullMeshEnabled();
+    prepared.useFastTexturedFullMeshPath =
+        args.supportsWorldTriangles3D && prepared.useIndexedWorldModelPath &&
+        args.backendModelFastTexturedPathEnabled() && prepared.fullIndexedMeshPath;
 
     std::size_t effectiveUnitTriangleBudget = unitTriangleBudget;
     if (prepared.fullIndexedMeshPath) {
@@ -154,121 +296,46 @@ bool prepareProjectedUnitBackendMesh(const Args& args, Result& out, PreparedStat
     if (prepared.useIndexedWorldModelPath) {
         const std::size_t batchCount =
             std::max<std::size_t>(1u, mesh->submeshBaseTextures.size());
-        prepared.modelIndexedBatchesPerSubmesh.resize(batchCount);
-        if (prepared.fullIndexedMeshPath && !mesh->vertices.empty()) {
-            prepared.modelIndexedVertexRemap.resize(batchCount);
-            for (auto& remap : prepared.modelIndexedVertexRemap) {
-                remap.assign(mesh->vertices.size(), -1);
-            }
-        }
-
         std::string unitModelPath;
         if (const PokemonStats* stats = dataDb.pokemon.getStats(unit.name)) {
             if (!stats->model.empty()) {
                 unitModelPath = "assets/models/" + stats->model;
             }
         }
+        const std::string keyPrefix =
+            unitModelPath.empty() ? std::string("__runtime_model__") : unitModelPath;
+        const auto* templateBatches =
+            getIndexedBatchTemplates(mesh, keyPrefix, args.characterInkingEnabled, batchCount);
+        if (templateBatches && templateBatches->size() == batchCount) {
+            prepared.modelIndexedBatchesPerSubmesh = *templateBatches;
+        } else {
+            prepared.modelIndexedBatchesPerSubmesh.resize(batchCount);
+        }
+        if (prepared.fullIndexedMeshPath &&
+            !prepared.useFastTexturedFullMeshPath &&
+            !mesh->vertices.empty()) {
+            prepared.modelIndexedVertexRemap.resize(batchCount);
+            for (auto& remap : prepared.modelIndexedVertexRemap) {
+                remap.assign(mesh->vertices.size(), -1);
+            }
+        }
+
         for (std::size_t si = 0; si < prepared.modelIndexedBatchesPerSubmesh.size(); ++si) {
             auto& batch = prepared.modelIndexedBatchesPerSubmesh[si];
-            batch.vertices.reserve((effectiveUnitTriangleBudget * 3u) / batchCount + 64u);
-            batch.indices.reserve((effectiveUnitTriangleBudget * 3u) / batchCount + 64u);
+            batch.vertices.clear();
+            batch.indices.clear();
+            batch.sharedVertices = nullptr;
+            batch.sharedVertexCount = 0u;
+            batch.sharedIndices = nullptr;
+            batch.sharedIndexCount = 0u;
+            if (!prepared.useFastTexturedFullMeshPath) {
+                batch.vertices.reserve((effectiveUnitTriangleBudget * 3u) / batchCount + 64u);
+                batch.indices.reserve((effectiveUnitTriangleBudget * 3u) / batchCount + 64u);
+            }
             batch.sortDepth =
                 glm::dot(args.cameraWorldPos - args.proxyCenter, args.cameraWorldPos - args.proxyCenter);
             const float* modelM = glm::value_ptr(prepared.modelM);
             std::copy(modelM, modelM + 16, batch.modelMatrix.begin());
-            if (si < mesh->submeshBaseTextures.size()) {
-                const auto& tex = mesh->submeshBaseTextures[si];
-                if (tex.hasPixels()) {
-                    const std::string keyPrefix =
-                        unitModelPath.empty() ? std::string("__runtime_model__") : unitModelPath;
-                    batch.textureKey = keyPrefix + "#submesh:" + std::to_string(si);
-                    batch.textureRgba = tex.rgba.data();
-                    batch.textureWidth = tex.width;
-                    batch.textureHeight = tex.height;
-                    batch.textureWrapS = tex.wrapS;
-                    batch.textureWrapT = tex.wrapT;
-                    if (si < mesh->submeshNormalTextures.size()) {
-                        const auto& normalTex = mesh->submeshNormalTextures[si];
-                        if (normalTex.hasPixels()) {
-                            batch.normalTextureKey = keyPrefix + "#submesh_normal:" + std::to_string(si);
-                            batch.normalTextureRgba = normalTex.rgba.data();
-                            batch.normalTextureWidth = normalTex.width;
-                            batch.normalTextureHeight = normalTex.height;
-                            batch.normalTextureWrapS = normalTex.wrapS;
-                            batch.normalTextureWrapT = normalTex.wrapT;
-                        }
-                    }
-                    if (si < mesh->submeshMetallicRoughnessTextures.size()) {
-                        const auto& metallicRoughnessTex = mesh->submeshMetallicRoughnessTextures[si];
-                        if (metallicRoughnessTex.hasPixels()) {
-                            batch.metallicRoughnessTextureKey =
-                                keyPrefix + "#submesh_mr:" + std::to_string(si);
-                            batch.metallicRoughnessTextureRgba = metallicRoughnessTex.rgba.data();
-                            batch.metallicRoughnessTextureWidth = metallicRoughnessTex.width;
-                            batch.metallicRoughnessTextureHeight = metallicRoughnessTex.height;
-                            batch.metallicRoughnessTextureWrapS = metallicRoughnessTex.wrapS;
-                            batch.metallicRoughnessTextureWrapT = metallicRoughnessTex.wrapT;
-                        }
-                    }
-                    if (si < mesh->submeshOcclusionTextures.size()) {
-                        const auto& occlusionTex = mesh->submeshOcclusionTextures[si];
-                        if (occlusionTex.hasPixels()) {
-                            batch.occlusionTextureKey = keyPrefix + "#submesh_occ:" + std::to_string(si);
-                            batch.occlusionTextureRgba = occlusionTex.rgba.data();
-                            batch.occlusionTextureWidth = occlusionTex.width;
-                            batch.occlusionTextureHeight = occlusionTex.height;
-                            batch.occlusionTextureWrapS = occlusionTex.wrapS;
-                            batch.occlusionTextureWrapT = occlusionTex.wrapT;
-                        }
-                    }
-                    if (si < mesh->submeshEmissiveTextures.size()) {
-                        const auto& emissiveTex = mesh->submeshEmissiveTextures[si];
-                        if (emissiveTex.hasPixels()) {
-                            batch.emissiveTextureKey = keyPrefix + "#submesh_emissive:" + std::to_string(si);
-                            batch.emissiveTextureRgba = emissiveTex.rgba.data();
-                            batch.emissiveTextureWidth = emissiveTex.width;
-                            batch.emissiveTextureHeight = emissiveTex.height;
-                            batch.emissiveTextureWrapS = emissiveTex.wrapS;
-                            batch.emissiveTextureWrapT = emissiveTex.wrapT;
-                        }
-                    }
-                }
-            }
-            if (!batch.textureRgba || batch.textureWidth <= 0 || batch.textureHeight <= 0) {
-                batch.textureKey = "__fallback_white_1x1__";
-                batch.textureRgba = kFallbackWhiteRgba;
-                batch.textureWidth = 1;
-                batch.textureHeight = 1;
-                batch.textureWrapS = 33071; // GL_CLAMP_TO_EDGE
-                batch.textureWrapT = 33071; // GL_CLAMP_TO_EDGE
-            }
-            if (si < mesh->submeshAlphaMode.size()) {
-                batch.alphaMode = mesh->submeshAlphaMode[si];
-            }
-            if (si < mesh->submeshAlphaCutoff.size()) {
-                batch.alphaCutoff = mesh->submeshAlphaCutoff[si];
-            }
-            if (si < mesh->submeshNormalScale.size()) {
-                batch.normalScale = std::max(0.0f, mesh->submeshNormalScale[si]);
-            }
-            if (si < mesh->submeshMetallicFactor.size()) {
-                batch.metallicFactor = std::clamp(mesh->submeshMetallicFactor[si], 0.0f, 1.0f);
-            }
-            if (si < mesh->submeshRoughnessFactor.size()) {
-                batch.roughnessFactor = std::clamp(mesh->submeshRoughnessFactor[si], 0.0f, 1.0f);
-            }
-            if (si < mesh->submeshOcclusionStrength.size()) {
-                batch.occlusionStrength = std::clamp(mesh->submeshOcclusionStrength[si], 0.0f, 1.0f);
-            }
-            if (si < mesh->submeshEmissiveFactors.size()) {
-                const glm::vec3& e = mesh->submeshEmissiveFactors[si];
-                batch.emissiveFactorR = std::max(0.0f, e.r);
-                batch.emissiveFactorG = std::max(0.0f, e.g);
-                batch.emissiveFactorB = std::max(0.0f, e.b);
-            }
-            batch.characterInkingEnabled = args.characterInkingEnabled ? 1u : 0u;
-            // Material mode 2 routes model lighting to backend world shaders.
-            batch.materialMode = 2u;
             if (args.modelFadeAlpha < 0.999f) {
                 batch.alphaMode = 2u;
                 batch.blendMode = 0u;
@@ -283,9 +350,6 @@ bool prepareProjectedUnitBackendMesh(const Args& args, Result& out, PreparedStat
     }
     prepared.scenePose = std::move(scenePose);
 
-    prepared.useFastTexturedFullMeshPath =
-        args.supportsWorldTriangles3D && prepared.useIndexedWorldModelPath &&
-        args.backendModelFastTexturedPathEnabled() && prepared.fullIndexedMeshPath;
     // Do not gate fast position-only path on authored base textures.
     // Missing texture payloads are already normalized to fallback white in batch prep,
     // and this keeps GPU clip skinning coverage high instead of silently falling back

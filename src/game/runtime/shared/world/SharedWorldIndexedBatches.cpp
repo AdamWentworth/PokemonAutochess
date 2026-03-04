@@ -118,13 +118,27 @@ void drawOneBatch(IRenderBackend& renderer,
                   const float* cameraWorldPos3,
                   const float* cameraForward3,
                   const float* cameraTarget3) {
+    const IRenderBackend::WorldMeshVertex* vertices = batch.sharedVertices
+        ? batch.sharedVertices
+        : batch.vertices.data();
+    const std::size_t vertexCount = batch.sharedVertices
+        ? batch.sharedVertexCount
+        : batch.vertices.size();
+    const std::uint32_t* indices = batch.sharedIndices
+        ? batch.sharedIndices
+        : batch.indices.data();
+    const std::size_t indexCount = batch.sharedIndices
+        ? batch.sharedIndexCount
+        : batch.indices.size();
+    if (!vertices || !indices || vertexCount == 0u || indexCount == 0u) return;
+
     IRenderBackend::WorldTextureData tex =
         toWorldTextureData(batch, cameraWorldPos3, cameraForward3, cameraTarget3);
     renderer.drawWorldIndexedMeshTextured(
-        batch.vertices.data(),
-        batch.vertices.size(),
-        batch.indices.data(),
-        batch.indices.size(),
+        vertices,
+        vertexCount,
+        indices,
+        indexCount,
         &tex,
         viewProjectionMatrix4x4,
         surfaceWidth,
@@ -144,7 +158,7 @@ void submitWorldIndexedBatches(IRenderBackend& renderer,
     if (batches.empty() || !viewProjectionMatrix4x4 || surfaceWidth <= 0 || surfaceHeight <= 0) return;
 
     for (const WorldIndexedBatch& batch : batches) {
-        if (batch.vertices.empty() || batch.indices.empty()) continue;
+        if (!batch.hasGeometry()) continue;
         if (batch.alphaMode == 2u) continue;
         drawOneBatch(
             renderer,
@@ -163,7 +177,7 @@ void submitWorldIndexedBatches(IRenderBackend& renderer,
         blendBatches.reserve(batches.size());
     }
     for (const WorldIndexedBatch& batch : batches) {
-        if (batch.vertices.empty() || batch.indices.empty()) continue;
+        if (!batch.hasGeometry()) continue;
         if (batch.alphaMode != 2u) continue;
         blendBatches.push_back(&batch);
     }

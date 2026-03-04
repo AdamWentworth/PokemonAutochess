@@ -12,6 +12,12 @@ namespace game::runtime::shared_world_batches {
 struct WorldIndexedBatch {
     std::vector<IRenderBackend::WorldMeshVertex> vertices;
     std::vector<std::uint32_t> indices;
+    // Optional shared/static geometry path for reducing per-frame CPU copies.
+    // When set, submit path prefers these pointers over local vectors.
+    const IRenderBackend::WorldMeshVertex* sharedVertices = nullptr;
+    std::size_t sharedVertexCount = 0u;
+    const std::uint32_t* sharedIndices = nullptr;
+    std::size_t sharedIndexCount = 0u;
     std::string textureKey;
     std::vector<unsigned char> ownedTextureRgba;
     const unsigned char* textureRgba = nullptr;
@@ -88,6 +94,13 @@ struct WorldIndexedBatch {
     std::uint8_t gpuSkinning = 0u;
     std::uint32_t skinMatrixCount = 0u;
     std::vector<float> skinMatrices;
+
+    bool hasGeometry() const {
+        const bool local = !vertices.empty() && !indices.empty();
+        const bool shared = sharedVertices && sharedIndices &&
+                            sharedVertexCount > 0u && sharedIndexCount > 0u;
+        return local || shared;
+    }
 };
 
 void submitWorldIndexedBatches(IRenderBackend& renderer,
