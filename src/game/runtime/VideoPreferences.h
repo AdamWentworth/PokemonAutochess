@@ -14,6 +14,7 @@ enum class RendererBackend {
 
 struct Preferences {
     std::string rendererBackend = "opengl";
+    bool vsync = false;
     bool requireDiscreteGpu = false;
     std::string preferredGpuAdapter;
     bool characterInking = false;

@@ -150,6 +150,12 @@ void registerLuaBindings_Core(sol::state& lua, ScriptAPI& api) {
     lua.set_function("set_renderer_backend_pref", [&api](const std::string& backend) {
         return api.setRendererBackendPreference(backend);
     });
+    lua.set_function("get_vsync_pref", [&api]() {
+        return api.getVSyncPreference();
+    });
+    lua.set_function("set_vsync_pref", [&api](bool enabled) {
+        return api.setVSyncPreference(enabled);
+    });
     lua.set_function("get_require_discrete_gpu_pref", [&api]() {
         return api.getRequireDiscreteGpuPreference();
     });

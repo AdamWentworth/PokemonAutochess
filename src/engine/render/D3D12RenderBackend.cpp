@@ -31,10 +31,12 @@ using namespace engine::render::d3d12_internal;
 D3D12RenderBackend::D3D12RenderBackend(SDL_Window* window,
                                        int width,
                                        int height,
+                                       bool vsyncEnabled,
                                        const std::string& preferredAdapterName)
     : window_(window)
     , width_((width > 1) ? width : 1)
-    , height_((height > 1) ? height : 1) {
+    , height_((height > 1) ? height : 1)
+    , vsyncEnabled_(vsyncEnabled) {
     if (!window_) {
         throw std::runtime_error("D3D12RenderBackend requires a valid SDL_Window.");
     }

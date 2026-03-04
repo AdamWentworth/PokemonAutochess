@@ -1076,6 +1076,7 @@ struct GameSession::Impl {
             services->availableGpuAdapters = ctx.services->availableGpuAdapters;
             services->preferredGpuAdapter = ctx.services->preferredGpuAdapter;
             services->gpuDiscrete = ctx.services->gpuDiscrete;
+            services->vsyncEnabled = ctx.services->vsyncEnabled;
             services->requireDiscreteGpu = ctx.services->requireDiscreteGpu;
             services->characterInkingEnabled = ctx.services->characterInkingEnabled;
             services->bootMenuScreen = ctx.services->bootMenuScreen;

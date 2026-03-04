@@ -20,7 +20,7 @@ local resolutions = {
 local selected_res_index = 1
 
 local video_cfg = {
-    vsync = true,
+    vsync = false,
     fps_caps = { 30, 60, 120, 0 },
     fps_index = 2,
     ui_scales = { 75, 100, 125, 150 },
@@ -155,6 +155,7 @@ local function sync_from_engine()
             end
         end
     end
+    video_cfg.vsync = get_vsync_pref() == true
     video_cfg.require_discrete_gpu = get_require_discrete_gpu_pref() == true
     video_cfg.character_inking = get_character_inking_pref() == true
     sync_gpu_adapter_options()
@@ -296,7 +297,7 @@ local function build_video_entries(entries)
     if fps == 0 then fps_label = fps_label .. "Uncapped (placeholder)"
     else fps_label = fps_label .. tostring(fps) .. " (placeholder)" end
 
-    action(entries, "video_vsync", "VSync: " .. bool_text(video_cfg.vsync) .. " (placeholder)", 0.72, false)
+    action(entries, "video_vsync", "VSync: " .. bool_text(video_cfg.vsync) .. " (applies next launch)", 0.72, false)
     action(entries, "video_character_inking", "Character Inking: " .. bool_text(video_cfg.character_inking), 0.76, false)
     action(entries, "video_fps", fps_label, 0.80, false)
     action(entries, "video_ui_scale", "UI Scale: " .. tostring(video_cfg.ui_scales[video_cfg.ui_scale_index]) .. "% (placeholder)", 0.84, false)
@@ -528,7 +529,13 @@ local function handle_video_click(entry_id)
 
     if entry_id == "video_vsync" then
         video_cfg.vsync = not video_cfg.vsync
-        emit("Menu", "VSync changed (placeholder)")
+        local ok = set_vsync_pref(video_cfg.vsync)
+        if ok then
+            emit("Menu", "VSync: " .. bool_text(video_cfg.vsync) .. " (restart required)")
+        else
+            emit("Menu", "Failed to save VSync preference")
+            video_cfg.vsync = get_vsync_pref() == true
+        end
         return true
     end
     if entry_id == "video_character_inking" then

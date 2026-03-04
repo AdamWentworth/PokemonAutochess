@@ -54,6 +54,7 @@ struct GameServices {
     std::vector<std::string> availableGpuAdapters;
     std::string preferredGpuAdapter;
     bool gpuDiscrete = false;
+    bool vsyncEnabled = false;
     bool requireDiscreteGpu = false;
     bool characterInkingEnabled = false;
     std::string bootMenuScreen;

@@ -32,6 +32,7 @@ public:
     D3D12RenderBackend(SDL_Window* window,
                        int width,
                        int height,
+                       bool vsyncEnabled,
                        const std::string& preferredAdapterName = {});
     ~D3D12RenderBackend() override;
 
@@ -186,6 +187,8 @@ private:
     std::uint64_t lastFrameTriangles_ = 0u;
     bool screenshotCaptureConfigured_ = false;
     bool screenshotCaptured_ = false;
+    bool vsyncEnabled_ = true;
+    bool allowTearingSupported_ = false;
     std::uint64_t screenshotFrameTarget_ = 0u;
     std::uint64_t frameCounter_ = 0u;
     bool worldFallbackEnvTextureReady_ = false;

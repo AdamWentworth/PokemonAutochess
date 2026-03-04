@@ -257,7 +257,14 @@ void D3D12RenderBackend::endFrame() {
     ID3D12CommandList* commandLists[] = {commandList_.Get()};
     commandQueue_->ExecuteCommandLists(1, commandLists);
     const auto presentStart = std::chrono::high_resolution_clock::now();
-    swapChain_->Present(1, 0);
+    UINT presentFlags = 0;
+    if (!vsyncEnabled_ && allowTearingSupported_) {
+        BOOL dxgiFullscreen = FALSE;
+        if (SUCCEEDED(swapChain_->GetFullscreenState(&dxgiFullscreen, nullptr)) && !dxgiFullscreen) {
+            presentFlags = DXGI_PRESENT_ALLOW_TEARING;
+        }
+    }
+    swapChain_->Present(vsyncEnabled_ ? 1 : 0, presentFlags);
     const auto presentEnd = std::chrono::high_resolution_clock::now();
     lastPresentWaitMs_ = static_cast<float>(
         std::chrono::duration<double, std::milli>(presentEnd - presentStart).count());
@@ -359,7 +366,7 @@ void D3D12RenderBackend::onResize(int width, int height) {
             static_cast<UINT>(width_),
             static_cast<UINT>(height_),
             DXGI_FORMAT_R8G8B8A8_UNORM,
-            0))) {
+            allowTearingSupported_ ? DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING : 0))) {
         frameIndex_ = swapChain_->GetCurrentBackBufferIndex();
         createRenderTargets();
         createDepthResources();
@@ -498,6 +505,18 @@ void D3D12RenderBackend::initDeviceAndSwapchain(const std::string& preferredAdap
         throw std::runtime_error("CreateDXGIFactory1 failed for D3D12 backend.");
     }
 
+    allowTearingSupported_ = false;
+    Microsoft::WRL::ComPtr<IDXGIFactory5> factory5;
+    if (SUCCEEDED(factory_.As(&factory5)) && factory5) {
+        BOOL allowTearing = FALSE;
+        if (SUCCEEDED(factory5->CheckFeatureSupport(
+                DXGI_FEATURE_PRESENT_ALLOW_TEARING,
+                &allowTearing,
+                sizeof(allowTearing)))) {
+            allowTearingSupported_ = (allowTearing == TRUE);
+        }
+    }
+
     const auto selection = engine::render::dxgi::selectHardwareAdapter(factory_.Get(), preferredAdapterName);
     if (!selection.adapter) {
         throw std::runtime_error("No suitable DXGI adapter found for D3D12 backend.");
@@ -531,6 +550,7 @@ void D3D12RenderBackend::initDeviceAndSwapchain(const std::string& preferredAdap
     swapDesc.SampleDesc.Count = 1;
     swapDesc.AlphaMode = DXGI_ALPHA_MODE_UNSPECIFIED;
     swapDesc.Scaling = DXGI_SCALING_STRETCH;
+    swapDesc.Flags = allowTearingSupported_ ? DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING : 0;
 
     Microsoft::WRL::ComPtr<IDXGISwapChain1> swapChain1;
     if (FAILED(factory_->CreateSwapChainForHwnd(commandQueue_.Get(),
@@ -678,6 +698,8 @@ void D3D12RenderBackend::initDeviceAndSwapchain(const std::string& preferredAdap
     std::cout << "[Renderer][D3D12][Startup] totalInit="
               << std::chrono::duration<double, std::milli>(stageEnd - startupInitStart).count()
               << "ms\n";
+    std::cout << "[Renderer][D3D12][Startup] allowTearing="
+              << (allowTearingSupported_ ? "1" : "0") << "\n";
     initialized_ = true;
 #endif
 }

@@ -136,6 +136,7 @@ namespace {
                                                         SDL_Window* sdlWindow,
                                                         int width,
                                                         int height,
+                                                        bool vsyncEnabled,
                                                         const std::string& preferredAdapter,
                                                         std::string* outError) {
         try {
@@ -144,7 +145,12 @@ namespace {
             case game::video::RendererBackend::OpenGL:
                 return std::make_unique<OpenGLRenderBackend>();
             case game::video::RendererBackend::D3D12:
-                return std::make_unique<D3D12RenderBackend>(sdlWindow, width, height, preferredAdapter);
+                return std::make_unique<D3D12RenderBackend>(
+                    sdlWindow,
+                    width,
+                    height,
+                    vsyncEnabled,
+                    preferredAdapter);
             case game::video::RendererBackend::Vulkan:
                 if (outError) *outError = "Vulkan backend is not implemented.";
                 return nullptr;
@@ -316,6 +322,7 @@ namespace {
         }
         requestedBackend = game::video::parseRendererBackend(backendToken);
         services.requestedRendererBackend = game::video::rendererBackendName(requestedBackend);
+        services.vsyncEnabled = prefs.vsync;
         services.requireDiscreteGpu = prefs.requireDiscreteGpu;
         services.preferredGpuAdapter = prefs.preferredGpuAdapter;
         services.characterInkingEnabled = prefs.characterInking;
@@ -371,7 +378,8 @@ namespace {
                 "Pokemon Autochess",
                 static_cast<int>(START_W),
                 static_cast<int>(START_H),
-                graphicsApiForBackend(activeBackend));
+                graphicsApiForBackend(activeBackend),
+                services.vsyncEnabled);
         } catch (const std::exception& ex) {
             std::cerr << "[GameRunner] Window init failed: " << ex.what() << "\n";
             return false;
@@ -424,6 +432,7 @@ namespace {
                                        window ? window->getSDLWindow() : nullptr,
                                        drawableW,
                                        drawableH,
+                                       services.vsyncEnabled,
                                        services.preferredGpuAdapter,
                                        &backendCreateError);
         if (!renderer) {
@@ -442,7 +451,8 @@ namespace {
                         "Pokemon Autochess",
                         static_cast<int>(START_W),
                         static_cast<int>(START_H),
-                        Window::GraphicsApi::OpenGL);
+                        Window::GraphicsApi::OpenGL,
+                        services.vsyncEnabled);
                     windowHasOpenGLContext = true;
                     if (!gladLoadGLLoader((GLADloadproc)SDL_GL_GetProcAddress)) {
                         std::cerr << "[GameRunner] Failed to initialize GLAD after fallback\n";
@@ -455,6 +465,7 @@ namespace {
                                                    window ? window->getSDLWindow() : nullptr,
                                                    drawableW,
                                                    drawableH,
+                                                   services.vsyncEnabled,
                                                    services.preferredGpuAdapter,
                                                    &backendCreateError);
                 } catch (const std::exception& ex) {
@@ -496,6 +507,7 @@ namespace {
             std::cout << "[GPU] GLSL:     " << glStringOrUnknown(GL_SHADING_LANGUAGE_VERSION) << "\n";
         }
         std::cout << "[GPU] Class:    " << (services.gpuDiscrete ? "discrete" : "integrated") << "\n";
+        std::cout << "[Video] VSync:  " << (services.vsyncEnabled ? "On" : "Off") << "\n";
 
         if (!services.preferredGpuAdapter.empty() &&
             !containsCi(services.gpuRenderer, services.preferredGpuAdapter)) {

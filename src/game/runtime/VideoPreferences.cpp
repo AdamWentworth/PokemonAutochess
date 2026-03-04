@@ -117,6 +117,7 @@ Preferences loadPreferences(const std::string& path) {
     if (isKnownRendererBackendToken(backend)) {
         out.rendererBackend = rendererBackendName(parseRendererBackend(backend));
     }
+    out.vsync = j.value("vsync", out.vsync);
     out.requireDiscreteGpu = j.value("require_discrete_gpu", out.requireDiscreteGpu);
     out.preferredGpuAdapter = j.value("preferred_gpu_adapter", out.preferredGpuAdapter);
     out.characterInking = j.value("character_inking", out.characterInking);
@@ -130,6 +131,7 @@ Preferences loadPreferences(const std::string& path) {
 bool savePreferences(const Preferences& prefs, const std::string& path, std::string* outError) {
     nlohmann::json j = nlohmann::json::object();
     j["renderer_backend"] = rendererBackendName(parseRendererBackend(prefs.rendererBackend));
+    j["vsync"] = prefs.vsync;
     j["require_discrete_gpu"] = prefs.requireDiscreteGpu;
     j["preferred_gpu_adapter"] = prefs.preferredGpuAdapter;
     j["character_inking"] = prefs.characterInking;

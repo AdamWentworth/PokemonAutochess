@@ -13,7 +13,11 @@ public:
         Native
     };
 
-    Window(const std::string& title, int width, int height, GraphicsApi graphicsApi = GraphicsApi::OpenGL);
+    Window(const std::string& title,
+           int width,
+           int height,
+           GraphicsApi graphicsApi = GraphicsApi::OpenGL,
+           bool vsyncEnabled = true);
     ~Window();
 
     SDL_Window* getSDLWindow() const { return window; }
@@ -25,6 +29,7 @@ public:
 
 private:
     GraphicsApi graphicsApi = GraphicsApi::OpenGL;
+    bool vsyncEnabled = true;
     SDL_Window* window = nullptr;
     SDL_GLContext context = nullptr;
 };

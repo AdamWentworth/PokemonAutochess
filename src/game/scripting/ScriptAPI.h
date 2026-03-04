@@ -43,6 +43,8 @@ public:
     GameServices::VideoMode getVideoMode() const;
     std::string getRendererBackendPreference() const;
     bool setRendererBackendPreference(const std::string& backend);
+    bool getVSyncPreference() const;
+    bool setVSyncPreference(bool enabled);
     bool getRequireDiscreteGpuPreference() const;
     bool setRequireDiscreteGpuPreference(bool required);
     std::string getActiveRendererBackend() const;

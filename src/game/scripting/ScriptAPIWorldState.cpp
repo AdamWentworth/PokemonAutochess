@@ -19,6 +19,7 @@ namespace {
 bool saveVideoPreferencesFromServices(const GameServices& services, std::string* outError) {
     game::video::Preferences prefs = game::video::loadPreferences();
     prefs.rendererBackend = services.requestedRendererBackend;
+    prefs.vsync = services.vsyncEnabled;
     prefs.requireDiscreteGpu = services.requireDiscreteGpu;
     prefs.preferredGpuAdapter = services.preferredGpuAdapter;
     prefs.characterInking = services.characterInkingEnabled;
@@ -127,6 +128,21 @@ bool ScriptAPI::setRendererBackendPreference(const std::string& backend) {
     return true;
 }
 
+bool ScriptAPI::getVSyncPreference() const {
+    return services_.vsyncEnabled;
+}
+
+bool ScriptAPI::setVSyncPreference(bool enabled) {
+    services_.vsyncEnabled = enabled;
+
+    std::string err;
+    if (!saveVideoPreferencesFromServices(services_, &err)) {
+        game::log::warn(&services_.log, std::string("[Video] Failed to save VSync preference: ") + err);
+        return false;
+    }
+    return true;
+}
+
 bool ScriptAPI::getRequireDiscreteGpuPreference() const {
     return services_.requireDiscreteGpu;
 }
@@ -200,6 +216,7 @@ bool ScriptAPI::isActiveGpuDiscrete() const {
 bool ScriptAPI::requestRestartToMenu(const std::string& menuScreen) {
     game::video::Preferences prefs = game::video::loadPreferences();
     prefs.rendererBackend = services_.requestedRendererBackend;
+    prefs.vsync = services_.vsyncEnabled;
     prefs.requireDiscreteGpu = services_.requireDiscreteGpu;
     prefs.preferredGpuAdapter = services_.preferredGpuAdapter;
     prefs.characterInking = services_.characterInkingEnabled;

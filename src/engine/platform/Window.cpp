@@ -8,8 +8,13 @@
 #include <stdexcept>
 #include <string>
 
-Window::Window(const std::string& title, int width, int height, GraphicsApi graphicsApi_)
-    : graphicsApi(graphicsApi_) {
+Window::Window(const std::string& title,
+               int width,
+               int height,
+               GraphicsApi graphicsApi_,
+               bool vsyncEnabled_)
+    : graphicsApi(graphicsApi_)
+    , vsyncEnabled(vsyncEnabled_) {
     if (SDL_Init(SDL_INIT_VIDEO) != 0) {
         const std::string msg = std::string("SDL_Init failed: ") + SDL_GetError();
         std::cerr << msg << "\n";
@@ -58,7 +63,7 @@ Window::Window(const std::string& title, int width, int height, GraphicsApi grap
         }
 
         SDL_GL_MakeCurrent(window, context);
-        SDL_GL_SetSwapInterval(1);
+        SDL_GL_SetSwapInterval(vsyncEnabled ? 1 : 0);
     }
 
     // Request foreground/focus on startup so the first user click is less likely
