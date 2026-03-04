@@ -68,6 +68,10 @@ struct WorldIndexedBatch {
     float emissiveFactorR = 0.0f;
     float emissiveFactorG = 0.0f;
     float emissiveFactorB = 0.0f;
+    float vertexColorMulR = 1.0f;
+    float vertexColorMulG = 1.0f;
+    float vertexColorMulB = 1.0f;
+    float vertexColorMulA = 1.0f;
     std::uint8_t characterInkingEnabled = 0u;
     float sortDepth = 0.0f;
     float materialTimeSec = 0.0f;
@@ -101,10 +105,11 @@ struct WorldIndexedBatch {
     std::vector<float> skinMatrices;
 
     bool hasGeometry() const {
-        const bool local = !vertices.empty() && !indices.empty();
-        const bool shared = sharedVertices && sharedIndices &&
-                            sharedVertexCount > 0u && sharedIndexCount > 0u;
-        return local || shared;
+        const bool hasVertices =
+            (!vertices.empty()) || (sharedVertices && sharedVertexCount > 0u);
+        const bool hasIndices =
+            (!indices.empty()) || (sharedIndices && sharedIndexCount > 0u);
+        return hasVertices && hasIndices;
     }
 };
 

@@ -96,14 +96,6 @@ thread_local std::unordered_map<UnitSkinMatrixKey, std::vector<float>, UnitSkinM
     g_unitSkinMatrices;
 constexpr std::size_t kMaxGpuSkinMatrices = 64u;
 
-bool nearlyOne(float v) {
-    return std::abs(v - 1.0f) <= 1e-6f;
-}
-
-bool tintAlphaIdentity(const glm::vec3& tint, float alpha) {
-    return nearlyOne(tint.r) && nearlyOne(tint.g) && nearlyOne(tint.b) && nearlyOne(alpha);
-}
-
 int resolveDefaultSkinNodeIndex(const game::runtime::backend_model::MeshData* mesh) {
     if (!mesh) return -1;
     int selectedSkin = -1;
@@ -449,7 +441,6 @@ Result renderProjectedUnitBackendMesh(const Args& args) {
                 batch.sharedIndexCount = 0u;
             }
 
-            const bool applyTintAlpha = !tintAlphaIdentity(fastTexturedTint, fastTexturedAlpha);
             struct GpuSkinBatchState {
                 bool valid = false;
                 std::array<float, 16> modelMatrix{};
@@ -461,6 +452,10 @@ Result renderProjectedUnitBackendMesh(const Args& args) {
                 if (bi >= modelIndexedBatchesPerSubmesh.size()) continue;
                 const auto& srcBatch = fastCache.batches[bi];
                 auto& dstBatch = modelIndexedBatchesPerSubmesh[bi];
+                dstBatch.vertexColorMulR = fastTexturedTint.r;
+                dstBatch.vertexColorMulG = fastTexturedTint.g;
+                dstBatch.vertexColorMulB = fastTexturedTint.b;
+                dstBatch.vertexColorMulA = fastTexturedAlpha;
                 int resolvedTriNodeIndex = srcBatch.triNodeIndex;
                 if (resolvedTriNodeIndex < 0 && fastCache.defaultSkinNodeIndex >= 0) {
                     resolvedTriNodeIndex = fastCache.defaultSkinNodeIndex;
@@ -512,9 +507,7 @@ Result renderProjectedUnitBackendMesh(const Args& args) {
                 }
 
                 if (dstBatch.gpuSkinning != 0u) {
-                    if (!applyTintAlpha &&
-                        !srcBatch.gpuTemplateVertices.empty() &&
-                        !srcBatch.indices.empty()) {
+                    if (!srcBatch.gpuTemplateVertices.empty() && !srcBatch.indices.empty()) {
                         dstBatch.vertices.clear();
                         dstBatch.indices.clear();
                         dstBatch.sharedVertices = srcBatch.gpuTemplateVertices.data();
@@ -524,14 +517,13 @@ Result renderProjectedUnitBackendMesh(const Args& args) {
                     } else {
                         dstBatch.sharedVertices = nullptr;
                         dstBatch.sharedVertexCount = 0u;
-                        dstBatch.sharedIndices = nullptr;
-                        dstBatch.sharedIndexCount = 0u;
-                        dstBatch.indices.resize(srcBatch.indices.size());
+                        dstBatch.indices.clear();
                         if (!srcBatch.indices.empty()) {
-                            std::memcpy(
-                                dstBatch.indices.data(),
-                                srcBatch.indices.data(),
-                                srcBatch.indices.size() * sizeof(std::uint32_t));
+                            dstBatch.sharedIndices = srcBatch.indices.data();
+                            dstBatch.sharedIndexCount = srcBatch.indices.size();
+                        } else {
+                            dstBatch.sharedIndices = nullptr;
+                            dstBatch.sharedIndexCount = 0u;
                         }
                         dstBatch.vertices.resize(srcBatch.gpuTemplateVertices.size());
                         if (!srcBatch.gpuTemplateVertices.empty()) {
@@ -541,26 +533,19 @@ Result renderProjectedUnitBackendMesh(const Args& args) {
                                 srcBatch.gpuTemplateVertices.size() *
                                     sizeof(IRenderBackend::WorldMeshVertex));
                         }
-                        for (auto& v : dstBatch.vertices) {
-                            v.r *= fastTexturedTint.r;
-                            v.g *= fastTexturedTint.g;
-                            v.b *= fastTexturedTint.b;
-                            v.a *= fastTexturedAlpha;
-                        }
                     }
                 } else {
                     dstBatch.sharedVertices = nullptr;
                     dstBatch.sharedVertexCount = 0u;
-                    dstBatch.sharedIndices = nullptr;
-                    dstBatch.sharedIndexCount = 0u;
-                    dstBatch.sharedSkinMatrices = nullptr;
-                    dstBatch.indices.resize(srcBatch.indices.size());
+                    dstBatch.indices.clear();
                     if (!srcBatch.indices.empty()) {
-                        std::memcpy(
-                            dstBatch.indices.data(),
-                            srcBatch.indices.data(),
-                            srcBatch.indices.size() * sizeof(std::uint32_t));
+                        dstBatch.sharedIndices = srcBatch.indices.data();
+                        dstBatch.sharedIndexCount = srcBatch.indices.size();
+                    } else {
+                        dstBatch.sharedIndices = nullptr;
+                        dstBatch.sharedIndexCount = 0u;
                     }
+                    dstBatch.sharedSkinMatrices = nullptr;
                     dstBatch.vertices.resize(srcBatch.sourceVertexIndices.size());
                     for (std::size_t vi = 0; vi < srcBatch.sourceVertexIndices.size(); ++vi) {
                         const std::uint32_t srcIndex = srcBatch.sourceVertexIndices[vi];
@@ -584,12 +569,6 @@ Result renderProjectedUnitBackendMesh(const Args& args) {
                         outVertex.ty = tan.y;
                         outVertex.tz = tan.z;
                         outVertex.tw = tan.w;
-                        if (applyTintAlpha) {
-                            outVertex.r *= fastTexturedTint.r;
-                            outVertex.g *= fastTexturedTint.g;
-                            outVertex.b *= fastTexturedTint.b;
-                            outVertex.a *= fastTexturedAlpha;
-                        }
                         dstBatch.vertices[vi] = outVertex;
                     }
                 }
@@ -742,6 +721,10 @@ Result renderProjectedUnitBackendMesh(const Args& args) {
                 std::size_t fastBatchIndex = static_cast<std::size_t>(triSubmeshIndex);
                 if (fastBatchIndex >= modelIndexedBatchesPerSubmesh.size()) fastBatchIndex = 0u;
                 auto& fastBatch = modelIndexedBatchesPerSubmesh[fastBatchIndex];
+                fastBatch.vertexColorMulR = fastTexturedTint.r;
+                fastBatch.vertexColorMulG = fastTexturedTint.g;
+                fastBatch.vertexColorMulB = fastTexturedTint.b;
+                fastBatch.vertexColorMulA = fastTexturedAlpha;
                 const bool useGpuSkinning = (fastBatch.gpuSkinning != 0u);
                 const bool canReuseIndexedVertices =
                     fastBatchIndex < modelIndexedVertexRemap.size();
@@ -778,11 +761,10 @@ Result renderProjectedUnitBackendMesh(const Args& args) {
                         const float authoredVertexAlpha = mesh->hasVertexColor
                             ? std::clamp(srcVertex.color.a, 0.0f, 1.0f)
                             : 1.0f;
-                        const glm::vec3 finalVertexColor = authoredVertexColor * fastTexturedTint;
-                        outVertex.r = finalVertexColor.r;
-                        outVertex.g = finalVertexColor.g;
-                        outVertex.b = finalVertexColor.b;
-                        outVertex.a = fastTexturedAlpha * authoredVertexAlpha;
+                        outVertex.r = authoredVertexColor.r;
+                        outVertex.g = authoredVertexColor.g;
+                        outVertex.b = authoredVertexColor.b;
+                        outVertex.a = authoredVertexAlpha;
                         if (useGpuSkinning) {
                             outVertex.nx = srcVertex.normal.x;
                             outVertex.ny = srcVertex.normal.y;
@@ -842,11 +824,10 @@ Result renderProjectedUnitBackendMesh(const Args& args) {
                     const float authoredVertexAlpha = mesh->hasVertexColor
                         ? std::clamp(srcVertex.color.a, 0.0f, 1.0f)
                         : 1.0f;
-                    const glm::vec3 finalVertexColor = authoredVertexColor * fastTexturedTint;
-                    outVertex.r = finalVertexColor.r;
-                    outVertex.g = finalVertexColor.g;
-                    outVertex.b = finalVertexColor.b;
-                    outVertex.a = fastTexturedAlpha * authoredVertexAlpha;
+                    outVertex.r = authoredVertexColor.r;
+                    outVertex.g = authoredVertexColor.g;
+                    outVertex.b = authoredVertexColor.b;
+                    outVertex.a = authoredVertexAlpha;
                     if (useGpuSkinning) {
                         outVertex.nx = srcVertex.normal.x;
                         outVertex.ny = srcVertex.normal.y;

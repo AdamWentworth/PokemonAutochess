@@ -208,7 +208,8 @@ void OpenGLRenderBackend::drawWorldIndexedMeshTextured(const WorldMeshVertex* ve
     if (worldProgram_ == 0 || worldVao_ == 0 || worldVbo_ == 0 || worldIbo_ == 0 ||
         worldViewProjLoc_ < 0 || worldModelLoc_ < 0 ||
         worldUseTextureLoc_ < 0 || worldTextureSamplerLoc_ < 0 ||
-        worldWrapSLoc_ < 0 || worldWrapTLoc_ < 0 || worldAlphaModeLoc_ < 0 || worldAlphaCutoffLoc_ < 0 ||
+        worldWrapSLoc_ < 0 || worldWrapTLoc_ < 0 || worldVertexColorMulLoc_ < 0 ||
+        worldAlphaModeLoc_ < 0 || worldAlphaCutoffLoc_ < 0 ||
         worldCameraPosLoc_ < 0 || worldCameraForwardLoc_ < 0 ||
         worldMaterialModeLoc_ < 0 || worldMaterialTimeLoc_ < 0 || worldMaterialFlagsLoc_ < 0 ||
         worldMaterialAtlasSizeLoc_ < 0 || worldMaterialRect0Loc_ < 0 || worldMaterialRect1Loc_ < 0 ||
@@ -231,6 +232,10 @@ void OpenGLRenderBackend::drawWorldIndexedMeshTextured(const WorldMeshVertex* ve
     const std::uint8_t blendMode = texture ? std::min<std::uint8_t>(2u, texture->blendMode) : 0u;
     const float alphaCutoff = texture ? std::clamp(texture->alphaCutoff, 0.0f, 1.0f) : 0.5f;
     const std::uint8_t materialMode = texture ? texture->materialMode : 0u;
+    const float vertexColorMulR = texture ? texture->vertexColorMulR : 1.0f;
+    const float vertexColorMulG = texture ? texture->vertexColorMulG : 1.0f;
+    const float vertexColorMulB = texture ? texture->vertexColorMulB : 1.0f;
+    const float vertexColorMulA = texture ? texture->vertexColorMulA : 1.0f;
     const GLuint worldTexture = ensureWorldTexture(texture);
     const bool hasTexture = (worldTexture != 0u);
     static const unsigned char kFallbackWhiteRgba[4] = {255u, 255u, 255u, 255u};
@@ -434,6 +439,12 @@ void OpenGLRenderBackend::drawWorldIndexedMeshTextured(const WorldMeshVertex* ve
         glUniform3f(worldCameraTargetLoc_, cameraTargetX, cameraTargetY, cameraTargetZ);
     }
     glUniform1f(worldUseTextureLoc_, useTexture);
+    glUniform4f(
+        worldVertexColorMulLoc_,
+        vertexColorMulR,
+        vertexColorMulG,
+        vertexColorMulB,
+        vertexColorMulA);
     if (worldUseNormalTextureLoc_ >= 0) {
         glUniform1f(worldUseNormalTextureLoc_, hasNormalTexture ? 1.0f : 0.0f);
     }

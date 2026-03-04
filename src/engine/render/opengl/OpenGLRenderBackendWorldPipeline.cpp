@@ -12,7 +12,8 @@ void OpenGLRenderBackend::ensureWorldPipeline() {
     if (worldProgram_ != 0 && worldVao_ != 0 && worldVbo_ != 0 && worldIbo_ != 0 &&
         worldViewProjLoc_ >= 0 && worldModelLoc_ >= 0 &&
         worldUseTextureLoc_ >= 0 && worldTextureSamplerLoc_ >= 0 &&
-        worldWrapSLoc_ >= 0 && worldWrapTLoc_ >= 0 && worldAlphaModeLoc_ >= 0 && worldAlphaCutoffLoc_ >= 0 &&
+        worldWrapSLoc_ >= 0 && worldWrapTLoc_ >= 0 && worldVertexColorMulLoc_ >= 0 &&
+        worldAlphaModeLoc_ >= 0 && worldAlphaCutoffLoc_ >= 0 &&
         worldCameraPosLoc_ >= 0 && worldCameraForwardLoc_ >= 0 &&
         worldMaterialModeLoc_ >= 0 && worldMaterialTimeLoc_ >= 0 && worldMaterialFlagsLoc_ >= 0 &&
         worldMaterialAtlasSizeLoc_ >= 0 && worldMaterialRect0Loc_ >= 0 && worldMaterialRect1Loc_ >= 0 &&
@@ -205,6 +206,7 @@ void OpenGLRenderBackend::ensureWorldPipeline() {
         uniform sampler2D uOcclusionTexture;
         uniform sampler2D uEmissiveTexture;
         uniform sampler2D uEnvTexture;
+        uniform vec4 uVertexColorMul;
         uniform vec2 uEnvTexelSize;
         uniform float uEnvMaxMip;
         uniform float uEnvRgbmRange;
@@ -683,7 +685,7 @@ __PAC_SHARED_WORLD_PBR_SECTION__
                 return;
             }
             vec4 tex = vec4(1.0);
-            vec3 outLinear = clamp(vColor.rgb, 0.0, 1.0);
+            vec3 outLinear = clamp(vColor.rgb * uVertexColorMul.rgb, 0.0, 1.0);
             vec2 rawUv = vUv;
             vec2 wrappedUv = vec2(applyWrap(rawUv.x, uWrapS), applyWrap(rawUv.y, uWrapT));
             bool clampS = abs(uWrapS - 33071.0) < 0.5;
@@ -699,12 +701,12 @@ __PAC_SHARED_WORLD_PBR_SECTION__
                 tex = sampleTextureWithWrap(uTexture, wrappedUv, uvDx, uvDy);
                 outLinear = clamp(tex.rgb, 0.0, 1.0) * outLinear;
             }
-            float outA = clamp(vColor.a * tex.a, 0.0, 1.0);
+            float outA = clamp(vColor.a * uVertexColorMul.a * tex.a, 0.0, 1.0);
             if (uAlphaMode < 0.5) {
-                outA = clamp(vColor.a, 0.0, 1.0);
+                outA = clamp(vColor.a * uVertexColorMul.a, 0.0, 1.0);
             } else if (uAlphaMode < 1.5) {
                 if (outA < clamp(uAlphaCutoff, 0.0, 1.0)) discard;
-                outA = clamp(vColor.a, 0.0, 1.0);
+                outA = clamp(vColor.a * uVertexColorMul.a, 0.0, 1.0);
             }
             if (uMaterialMode >= 1.5 && pbrDebugView > 0.5) {
                 vec3 dbg = vec3(0.0);
@@ -782,6 +784,7 @@ __PAC_SHARED_WORLD_PBR_SECTION__
     worldEnvRgbmRangeLoc_ = glGetUniformLocation(worldProgram_, "uEnvRgbmRange");
     worldWrapSLoc_ = glGetUniformLocation(worldProgram_, "uWrapS");
     worldWrapTLoc_ = glGetUniformLocation(worldProgram_, "uWrapT");
+    worldVertexColorMulLoc_ = glGetUniformLocation(worldProgram_, "uVertexColorMul");
     worldAlphaModeLoc_ = glGetUniformLocation(worldProgram_, "uAlphaMode");
     worldAlphaCutoffLoc_ = glGetUniformLocation(worldProgram_, "uAlphaCutoff");
     worldCameraPosLoc_ = glGetUniformLocation(worldProgram_, "uCameraPos");
@@ -806,7 +809,8 @@ __PAC_SHARED_WORLD_PBR_SECTION__
     worldSkinMatricesLoc_ = glGetUniformLocation(worldProgram_, "uSkinMatrices[0]");
     if (worldViewProjLoc_ < 0 || worldModelLoc_ < 0 ||
         worldUseTextureLoc_ < 0 || worldTextureSamplerLoc_ < 0 ||
-        worldWrapSLoc_ < 0 || worldWrapTLoc_ < 0 || worldAlphaModeLoc_ < 0 || worldAlphaCutoffLoc_ < 0 ||
+        worldWrapSLoc_ < 0 || worldWrapTLoc_ < 0 || worldVertexColorMulLoc_ < 0 ||
+        worldAlphaModeLoc_ < 0 || worldAlphaCutoffLoc_ < 0 ||
         worldCameraPosLoc_ < 0 || worldCameraForwardLoc_ < 0 ||
         worldMaterialModeLoc_ < 0 || worldMaterialTimeLoc_ < 0 || worldMaterialFlagsLoc_ < 0 ||
         worldMaterialAtlasSizeLoc_ < 0 || worldMaterialRect0Loc_ < 0 || worldMaterialRect1Loc_ < 0 ||
@@ -885,6 +889,7 @@ void OpenGLRenderBackend::destroyWorldPipeline() {
     worldEnvRgbmRangeLoc_ = -1;
     worldWrapSLoc_ = -1;
     worldWrapTLoc_ = -1;
+    worldVertexColorMulLoc_ = -1;
     worldAlphaModeLoc_ = -1;
     worldAlphaCutoffLoc_ = -1;
     worldCameraPosLoc_ = -1;

@@ -90,6 +90,10 @@ void applyIndexedBatchTemplateShallow(
     dst.emissiveFactorR = src.emissiveFactorR;
     dst.emissiveFactorG = src.emissiveFactorG;
     dst.emissiveFactorB = src.emissiveFactorB;
+    dst.vertexColorMulR = src.vertexColorMulR;
+    dst.vertexColorMulG = src.vertexColorMulG;
+    dst.vertexColorMulB = src.vertexColorMulB;
+    dst.vertexColorMulA = src.vertexColorMulA;
     dst.characterInkingEnabled = src.characterInkingEnabled;
     dst.materialTimeSec = src.materialTimeSec;
     dst.materialFlags = src.materialFlags;

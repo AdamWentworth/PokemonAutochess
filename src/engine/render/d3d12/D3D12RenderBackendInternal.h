@@ -94,6 +94,10 @@ struct WorldPsConstants {
     float wrapT = static_cast<float>(kGlRepeat);
     float alphaMode = 0.0f;
     float alphaCutoff = 0.5f;
+    float vertexColorMulR = 1.0f;
+    float vertexColorMulG = 1.0f;
+    float vertexColorMulB = 1.0f;
+    float vertexColorMulA = 1.0f;
     float materialMode = 0.0f;
     float materialTimeSec = 0.0f;
     float materialFlags = 0.0f;
@@ -125,6 +129,10 @@ inline WorldPsConstants makeWorldPsConstants(const IRenderBackend::WorldTextureD
     constants.wrapT = sanitizeWrapMode(textureData->wrapT);
     constants.alphaMode = static_cast<float>(std::min<std::uint8_t>(2u, textureData->alphaMode));
     constants.alphaCutoff = std::clamp(textureData->alphaCutoff, 0.0f, 1.0f);
+    constants.vertexColorMulR = textureData->vertexColorMulR;
+    constants.vertexColorMulG = textureData->vertexColorMulG;
+    constants.vertexColorMulB = textureData->vertexColorMulB;
+    constants.vertexColorMulA = textureData->vertexColorMulA;
     constants.materialMode = static_cast<float>(textureData->materialMode);
     constants.materialTimeSec = textureData->materialTimeSec;
     constants.materialFlags = textureData->materialFlags;

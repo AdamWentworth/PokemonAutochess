@@ -147,6 +147,10 @@ IRenderBackend::WorldTextureData toWorldTextureData(const WorldIndexedBatch& bat
     tex.emissiveFactorR = batch.emissiveFactorR;
     tex.emissiveFactorG = batch.emissiveFactorG;
     tex.emissiveFactorB = batch.emissiveFactorB;
+    tex.vertexColorMulR = batch.vertexColorMulR;
+    tex.vertexColorMulG = batch.vertexColorMulG;
+    tex.vertexColorMulB = batch.vertexColorMulB;
+    tex.vertexColorMulA = batch.vertexColorMulA;
     tex.characterInkingEnabled = batch.characterInkingEnabled;
     tex.cameraPosX = (cameraWorldPos3 ? cameraWorldPos3[0] : tex.cameraPosX);
     tex.cameraPosY = (cameraWorldPos3 ? cameraWorldPos3[1] : tex.cameraPosY);
@@ -194,16 +198,18 @@ void drawOneBatch(IRenderBackend& renderer,
                   const float* cameraWorldPos3,
                   const float* cameraForward3,
                   const float* cameraTarget3) {
-    const IRenderBackend::WorldMeshVertex* vertices = batch.sharedVertices
+    const bool useSharedVertices = batch.sharedVertices && batch.sharedVertexCount > 0u;
+    const bool useSharedIndices = batch.sharedIndices && batch.sharedIndexCount > 0u;
+    const IRenderBackend::WorldMeshVertex* vertices = useSharedVertices
         ? batch.sharedVertices
         : batch.vertices.data();
-    const std::size_t vertexCount = batch.sharedVertices
+    const std::size_t vertexCount = useSharedVertices
         ? batch.sharedVertexCount
         : batch.vertices.size();
-    const std::uint32_t* indices = batch.sharedIndices
+    const std::uint32_t* indices = useSharedIndices
         ? batch.sharedIndices
         : batch.indices.data();
-    const std::size_t indexCount = batch.sharedIndices
+    const std::size_t indexCount = useSharedIndices
         ? batch.sharedIndexCount
         : batch.indices.size();
     if (!vertices || !indices || vertexCount == 0u || indexCount == 0u) return;

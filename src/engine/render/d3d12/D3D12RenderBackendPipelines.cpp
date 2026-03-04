@@ -384,6 +384,10 @@ cbuffer PSConstants : register(b1) {
   float uWrapT;
   float uAlphaMode;
   float uAlphaCutoff;
+  float uVertexColorMulR;
+  float uVertexColorMulG;
+  float uVertexColorMulB;
+  float uVertexColorMulA;
   float uMaterialMode;
   float uMaterialTimeSec;
   float uMaterialFlags;
@@ -895,7 +899,7 @@ float4 main(PSIn i, bool isFrontFace : SV_IsFrontFace) : SV_TARGET {
     return evalFireTailExact(i);
   }
   float4 tex = float4(1.0f, 1.0f, 1.0f, 1.0f);
-  float3 outLinear = saturate(i.col.rgb);
+  float3 outLinear = saturate(i.col.rgb * float3(uVertexColorMulR, uVertexColorMulG, uVertexColorMulB));
   float2 wrappedUv = float2(applyWrap(i.uv.x, uWrapS), applyWrap(i.uv.y, uWrapT));
   bool clampS = isClampWrap(uWrapS);
   bool clampT = isClampWrap(uWrapT);
@@ -908,12 +912,12 @@ float4 main(PSIn i, bool isFrontFace : SV_IsFrontFace) : SV_TARGET {
     tex = sampleWorldTextureWithWrap(wrappedUv, uvDx, uvDy);
     outLinear = saturate(tex.rgb) * outLinear;
   }
-  float outA = saturate(i.col.a * tex.a);
+  float outA = saturate(i.col.a * uVertexColorMulA * tex.a);
   if (uAlphaMode < 0.5f) {
-    outA = saturate(i.col.a);
+    outA = saturate(i.col.a * uVertexColorMulA);
   } else if (uAlphaMode < 1.5f) {
     if (outA < saturate(uAlphaCutoff)) discard;
-    outA = saturate(i.col.a);
+    outA = saturate(i.col.a * uVertexColorMulA);
   }
   const float pbrDebugView = uMaterialFlipbook1Fps;
   if (uMaterialMode >= 1.5f && pbrDebugView > 0.5f) {
