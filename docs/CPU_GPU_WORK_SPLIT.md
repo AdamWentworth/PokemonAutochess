@@ -132,6 +132,7 @@ This section is based on direct code parse of runtime and backend render paths.
 - Shared projected transform resolver now caches local deformed positions and per-node model-space normals/tangents, and uses direction-only skinning for normal/tangent evaluation to cut redundant CPU work.
 - Fast textured projected path now splits mixed-node submeshes into per-node indexed batches for GPU clip skinning, increasing GPU skinning eligibility instead of forcing whole submeshes back to CPU skinning.
 - Mixed-node split path now reuses the original submesh batch for the first node and preserves reserved vertex/index capacity on cloned batches to avoid per-frame allocator churn.
+- Renderer hot loop now precomputes `triNodeIndex` and fast-batch routing per triangle for mixed-node GPU-skinning paths, removing repeated per-triangle hash lookups in the submit loop.
 
 ## Autobattler-Specific Guidance
 - Keep combat outcomes and RNG on CPU.

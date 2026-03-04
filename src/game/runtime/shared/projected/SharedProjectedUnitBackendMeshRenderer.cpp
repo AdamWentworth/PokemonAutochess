@@ -49,6 +49,8 @@ bool strictGltfParityEnabled() {
     }();
     return enabled;
 }
+
+constexpr std::size_t kInvalidBatchIndex = std::numeric_limits<std::size_t>::max();
 } // namespace
 
 namespace game::runtime::shared_projected_unit_backend_mesh {
@@ -132,7 +134,8 @@ Result renderProjectedUnitBackendMesh(const Args& args) {
                 &modelDepthTris,
                 &world3DTriangles});
 
-        const auto resolveTriNodeIndex = [&](std::size_t triIdx) -> int {
+        std::vector<int> triNodeIndexByTriangle(triangleCount, -1);
+        for (std::size_t triIdx = 0; triIdx < triangleCount; ++triIdx) {
             int triNodeIndex =
                 (triIdx < mesh->triangleNodeIndex.size())
                     ? mesh->triangleNodeIndex[triIdx]
@@ -145,14 +148,16 @@ Result renderProjectedUnitBackendMesh(const Args& args) {
                     triNodeIndex = submeshNodeFallback[submeshIndex];
                 }
             }
-            return triNodeIndex;
-        };
+            triNodeIndexByTriangle[triIdx] = triNodeIndex;
+        }
 
         std::vector<std::unordered_map<int, std::size_t>> gpuSkinBatchIndexBySubmesh;
+        std::vector<std::size_t> fastBatchIndexByTriangle;
         if (args.enableGpuClipSkinning && useFastTexturedFullMeshPath &&
             !modelIndexedBatchesPerSubmesh.empty()) {
             const std::size_t baseBatchCount = modelIndexedBatchesPerSubmesh.size();
             gpuSkinBatchIndexBySubmesh.resize(baseBatchCount);
+            fastBatchIndexByTriangle.assign(triangleCount, kInvalidBatchIndex);
 
             for (std::size_t triIdx = 0; triIdx < triangleCount; ++triIdx) {
                 if (triIdx >= mesh->triangleSubmesh.size()) continue;
@@ -160,7 +165,7 @@ Result renderProjectedUnitBackendMesh(const Args& args) {
                     static_cast<std::size_t>(mesh->triangleSubmesh[triIdx]);
                 if (submeshIndex >= baseBatchCount) continue;
 
-                const int triNodeIndex = resolveTriNodeIndex(triIdx);
+                const int triNodeIndex = triNodeIndexByTriangle[triIdx];
                 if (triNodeIndex < 0) continue;
                 auto& nodeToBatch = gpuSkinBatchIndexBySubmesh[submeshIndex];
                 if (nodeToBatch.find(triNodeIndex) != nodeToBatch.end()) continue;
@@ -212,6 +217,24 @@ Result renderProjectedUnitBackendMesh(const Args& args) {
                     }
                     batch.gpuSkinning = 1u;
                 }
+            }
+
+            for (std::size_t triIdx = 0; triIdx < triangleCount; ++triIdx) {
+                if (triIdx >= mesh->triangleSubmesh.size()) continue;
+                const std::size_t submeshIndex =
+                    static_cast<std::size_t>(mesh->triangleSubmesh[triIdx]);
+                if (submeshIndex >= baseBatchCount) continue;
+
+                std::size_t batchIndex = submeshIndex;
+                const int triNodeIndex = triNodeIndexByTriangle[triIdx];
+                if (triNodeIndex >= 0) {
+                    const auto& nodeToBatch = gpuSkinBatchIndexBySubmesh[submeshIndex];
+                    const auto it = nodeToBatch.find(triNodeIndex);
+                    if (it != nodeToBatch.end()) {
+                        batchIndex = it->second;
+                    }
+                }
+                fastBatchIndexByTriangle[triIdx] = batchIndex;
             }
         }
 
@@ -274,7 +297,7 @@ Result renderProjectedUnitBackendMesh(const Args& args) {
             const auto& v1 = mesh->vertices[i1];
             const auto& v2 = mesh->vertices[i2];
 
-            const int triNodeIndex = resolveTriNodeIndex(triIdx);
+            const int triNodeIndex = triNodeIndexByTriangle[triIdx];
 
             const std::uint16_t triSubmeshIndex =
                 (triIdx < mesh->triangleSubmesh.size())
@@ -292,11 +315,10 @@ Result renderProjectedUnitBackendMesh(const Args& args) {
                         .textureHeight > 0;
             if (useFastTexturedFullMeshPath && texturedSubmesh) {
                 std::size_t fastBatchIndex = static_cast<std::size_t>(triSubmeshIndex);
-                if (fastBatchIndex < gpuSkinBatchIndexBySubmesh.size()) {
-                    const auto& nodeToBatch = gpuSkinBatchIndexBySubmesh[fastBatchIndex];
-                    const auto mapped = nodeToBatch.find(triNodeIndex);
-                    if (mapped != nodeToBatch.end()) {
-                        fastBatchIndex = mapped->second;
+                if (triIdx < fastBatchIndexByTriangle.size()) {
+                    const std::size_t mappedBatch = fastBatchIndexByTriangle[triIdx];
+                    if (mappedBatch != kInvalidBatchIndex) {
+                        fastBatchIndex = mappedBatch;
                     }
                 }
                 if (fastBatchIndex >= modelIndexedBatchesPerSubmesh.size()) fastBatchIndex = 0u;
