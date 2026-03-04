@@ -14,6 +14,7 @@
 #include <limits>
 #include <string>
 #include <unordered_map>
+#include <vector>
 
 #include <glm/gtc/matrix_transform.hpp>
 
@@ -51,6 +52,195 @@ bool strictGltfParityEnabled() {
 }
 
 constexpr std::size_t kInvalidBatchIndex = std::numeric_limits<std::size_t>::max();
+
+struct FastTexturedBatchTemplate {
+    std::size_t baseSubmeshIndex = 0u;
+    int triNodeIndex = -1;
+    std::vector<std::uint32_t> sourceVertexIndices;
+    std::vector<std::uint32_t> indices;
+    std::vector<IRenderBackend::WorldMeshVertex> gpuTemplateVertices;
+};
+
+struct FastTexturedMeshTemplateCache {
+    const game::runtime::backend_model::MeshData* mesh = nullptr;
+    std::size_t meshVertexCount = 0u;
+    std::size_t meshIndexCount = 0u;
+    std::size_t baseBatchCount = 0u;
+    std::vector<int> submeshNodeFallbackSnapshot;
+    std::vector<FastTexturedBatchTemplate> batches;
+};
+
+thread_local FastTexturedMeshTemplateCache g_fastTexturedMeshTemplateCache;
+
+bool nearlyOne(float v) {
+    return std::abs(v - 1.0f) <= 1e-6f;
+}
+
+bool tintAlphaIdentity(const glm::vec3& tint, float alpha) {
+    return nearlyOne(tint.r) && nearlyOne(tint.g) && nearlyOne(tint.b) && nearlyOne(alpha);
+}
+
+bool ensureFastTexturedMeshTemplateCache(
+    const game::runtime::backend_model::MeshData* mesh,
+    const std::vector<int>& submeshNodeFallback,
+    std::size_t baseBatchCount) {
+    if (!mesh || baseBatchCount == 0u) return false;
+
+    const bool cacheValid =
+        g_fastTexturedMeshTemplateCache.mesh == mesh &&
+        g_fastTexturedMeshTemplateCache.meshVertexCount == mesh->vertices.size() &&
+        g_fastTexturedMeshTemplateCache.meshIndexCount == mesh->indices.size() &&
+        g_fastTexturedMeshTemplateCache.baseBatchCount == baseBatchCount &&
+        g_fastTexturedMeshTemplateCache.submeshNodeFallbackSnapshot == submeshNodeFallback &&
+        !g_fastTexturedMeshTemplateCache.batches.empty();
+    if (cacheValid) return true;
+
+    g_fastTexturedMeshTemplateCache = {};
+    g_fastTexturedMeshTemplateCache.mesh = mesh;
+    g_fastTexturedMeshTemplateCache.meshVertexCount = mesh->vertices.size();
+    g_fastTexturedMeshTemplateCache.meshIndexCount = mesh->indices.size();
+    g_fastTexturedMeshTemplateCache.baseBatchCount = baseBatchCount;
+    g_fastTexturedMeshTemplateCache.submeshNodeFallbackSnapshot = submeshNodeFallback;
+
+    const std::size_t triangleCount = mesh->indices.size() / 3u;
+    if (triangleCount == 0u || mesh->vertices.empty()) return false;
+
+    g_fastTexturedMeshTemplateCache.batches.assign(baseBatchCount, FastTexturedBatchTemplate{});
+    for (std::size_t si = 0; si < baseBatchCount; ++si) {
+        g_fastTexturedMeshTemplateCache.batches[si].baseSubmeshIndex = si;
+    }
+
+    std::vector<std::unordered_map<int, std::size_t>> nodeToBatch(baseBatchCount);
+    std::vector<std::size_t> batchIndexByTriangle(triangleCount, 0u);
+    std::vector<std::size_t> triangleCountByBatch(baseBatchCount, 0u);
+
+    for (std::size_t triIdx = 0; triIdx < triangleCount; ++triIdx) {
+        std::size_t submeshIndex = 0u;
+        if (triIdx < mesh->triangleSubmesh.size()) {
+            submeshIndex = static_cast<std::size_t>(mesh->triangleSubmesh[triIdx]);
+            if (submeshIndex >= baseBatchCount) submeshIndex = 0u;
+        }
+
+        int triNodeIndex =
+            (triIdx < mesh->triangleNodeIndex.size()) ? mesh->triangleNodeIndex[triIdx] : -1;
+        if (triNodeIndex < 0 &&
+            triIdx < mesh->triangleSubmesh.size() &&
+            !submeshNodeFallback.empty()) {
+            const std::uint16_t fallbackSubmeshIndex = mesh->triangleSubmesh[triIdx];
+            if (fallbackSubmeshIndex < submeshNodeFallback.size()) {
+                triNodeIndex = submeshNodeFallback[fallbackSubmeshIndex];
+            }
+        }
+
+        std::size_t batchIndex = submeshIndex;
+        if (triNodeIndex >= 0) {
+            auto& mapForSubmesh = nodeToBatch[submeshIndex];
+            const auto found = mapForSubmesh.find(triNodeIndex);
+            if (found != mapForSubmesh.end()) {
+                batchIndex = found->second;
+            } else if (mapForSubmesh.empty()) {
+                mapForSubmesh.emplace(triNodeIndex, submeshIndex);
+                g_fastTexturedMeshTemplateCache.batches[submeshIndex].triNodeIndex = triNodeIndex;
+                batchIndex = submeshIndex;
+            } else {
+                batchIndex = g_fastTexturedMeshTemplateCache.batches.size();
+                mapForSubmesh.emplace(triNodeIndex, batchIndex);
+                FastTexturedBatchTemplate newBatch{};
+                newBatch.baseSubmeshIndex = submeshIndex;
+                newBatch.triNodeIndex = triNodeIndex;
+                g_fastTexturedMeshTemplateCache.batches.push_back(std::move(newBatch));
+                triangleCountByBatch.push_back(0u);
+            }
+        }
+
+        if (batchIndex >= triangleCountByBatch.size()) {
+            triangleCountByBatch.resize(batchIndex + 1u, 0u);
+        }
+        ++triangleCountByBatch[batchIndex];
+        batchIndexByTriangle[triIdx] = batchIndex;
+    }
+
+    std::vector<std::vector<int>> remapByBatch(g_fastTexturedMeshTemplateCache.batches.size());
+    for (std::size_t bi = 0; bi < g_fastTexturedMeshTemplateCache.batches.size(); ++bi) {
+        auto& batch = g_fastTexturedMeshTemplateCache.batches[bi];
+        const std::size_t triCountForBatch =
+            (bi < triangleCountByBatch.size()) ? triangleCountByBatch[bi] : 0u;
+        const std::size_t indexReserve = triCountForBatch * 3u;
+        batch.indices.reserve(indexReserve);
+        batch.sourceVertexIndices.reserve(std::min(mesh->vertices.size(), indexReserve));
+        remapByBatch[bi].assign(mesh->vertices.size(), -1);
+    }
+
+    for (std::size_t triIdx = 0; triIdx < triangleCount; ++triIdx) {
+        const std::size_t batchIndex = batchIndexByTriangle[triIdx];
+        if (batchIndex >= g_fastTexturedMeshTemplateCache.batches.size()) continue;
+        const std::size_t i = triIdx * 3u;
+        const std::uint32_t i0 = mesh->indices[i + 0];
+        const std::uint32_t i1 = mesh->indices[i + 1];
+        const std::uint32_t i2 = mesh->indices[i + 2];
+        if (i0 >= mesh->vertices.size() ||
+            i1 >= mesh->vertices.size() ||
+            i2 >= mesh->vertices.size()) {
+            continue;
+        }
+
+        auto& batch = g_fastTexturedMeshTemplateCache.batches[batchIndex];
+        auto& remap = remapByBatch[batchIndex];
+        const auto appendVertex = [&](std::uint32_t src) -> std::uint32_t {
+            int& mapped = remap[src];
+            if (mapped >= 0) return static_cast<std::uint32_t>(mapped);
+            mapped = static_cast<int>(batch.sourceVertexIndices.size());
+            batch.sourceVertexIndices.push_back(src);
+            return static_cast<std::uint32_t>(mapped);
+        };
+
+        batch.indices.push_back(appendVertex(i0));
+        batch.indices.push_back(appendVertex(i1));
+        batch.indices.push_back(appendVertex(i2));
+    }
+
+    for (auto& batch : g_fastTexturedMeshTemplateCache.batches) {
+        batch.gpuTemplateVertices.resize(batch.sourceVertexIndices.size());
+        for (std::size_t vi = 0; vi < batch.sourceVertexIndices.size(); ++vi) {
+            const std::uint32_t srcIndex = batch.sourceVertexIndices[vi];
+            const auto& src = mesh->vertices[srcIndex];
+            IRenderBackend::WorldMeshVertex outVertex{};
+            outVertex.x = src.position.x;
+            outVertex.y = src.position.y;
+            outVertex.z = src.position.z;
+            outVertex.u = src.uv.x;
+            outVertex.v = src.uv.y;
+            const glm::vec3 authoredColor = mesh->hasVertexColor
+                ? glm::clamp(glm::vec3(src.color.r, src.color.g, src.color.b), 0.0f, 1.0f)
+                : glm::vec3(1.0f);
+            const float authoredAlpha = mesh->hasVertexColor
+                ? std::clamp(src.color.a, 0.0f, 1.0f)
+                : 1.0f;
+            outVertex.r = authoredColor.r;
+            outVertex.g = authoredColor.g;
+            outVertex.b = authoredColor.b;
+            outVertex.a = authoredAlpha;
+            outVertex.nx = src.normal.x;
+            outVertex.ny = src.normal.y;
+            outVertex.nz = src.normal.z;
+            outVertex.tx = src.tangent.x;
+            outVertex.ty = src.tangent.y;
+            outVertex.tz = src.tangent.z;
+            outVertex.tw = src.tangent.w;
+            outVertex.joint0 = static_cast<float>(src.j0);
+            outVertex.joint1 = static_cast<float>(src.j1);
+            outVertex.joint2 = static_cast<float>(src.j2);
+            outVertex.joint3 = static_cast<float>(src.j3);
+            outVertex.weight0 = src.w0;
+            outVertex.weight1 = src.w1;
+            outVertex.weight2 = src.w2;
+            outVertex.weight3 = src.w3;
+            batch.gpuTemplateVertices[vi] = outVertex;
+        }
+    }
+
+    return true;
+}
 } // namespace
 
 namespace game::runtime::shared_projected_unit_backend_mesh {
@@ -150,51 +340,32 @@ Result renderProjectedUnitBackendMesh(const Args& args) {
             }
             triNodeIndexByTriangle[triIdx] = triNodeIndex;
         }
-
-        std::vector<std::unordered_map<int, std::size_t>> gpuSkinBatchIndexBySubmesh;
         std::vector<std::size_t> fastBatchIndexByTriangle;
-        if (args.enableGpuClipSkinning && useFastTexturedFullMeshPath &&
-            !modelIndexedBatchesPerSubmesh.empty()) {
-            const std::size_t baseBatchCount = modelIndexedBatchesPerSubmesh.size();
-            gpuSkinBatchIndexBySubmesh.resize(baseBatchCount);
-            fastBatchIndexByTriangle.assign(triangleCount, kInvalidBatchIndex);
 
-            for (std::size_t triIdx = 0; triIdx < triangleCount; ++triIdx) {
-                if (triIdx >= mesh->triangleSubmesh.size()) continue;
-                const std::size_t submeshIndex =
-                    static_cast<std::size_t>(mesh->triangleSubmesh[triIdx]);
-                if (submeshIndex >= baseBatchCount) continue;
+        bool handledFastTexturedPath = false;
+        if (useFastTexturedFullMeshPath && !modelIndexedBatchesPerSubmesh.empty() &&
+            ensureFastTexturedMeshTemplateCache(
+                mesh,
+                submeshNodeFallback,
+                modelIndexedBatchesPerSubmesh.size())) {
+            const auto& fastCache = g_fastTexturedMeshTemplateCache;
 
-                const int triNodeIndex = triNodeIndexByTriangle[triIdx];
-                if (triNodeIndex < 0) continue;
-                auto& nodeToBatch = gpuSkinBatchIndexBySubmesh[submeshIndex];
-                if (nodeToBatch.find(triNodeIndex) != nodeToBatch.end()) continue;
-
-                // Reuse the original submesh batch for the first node assignment to avoid
-                // unnecessary clones and to keep pre-reserved capacities from prep().
-                if (nodeToBatch.empty()) {
-                    nodeToBatch.emplace(triNodeIndex, submeshIndex);
-                    continue;
+            const std::size_t initialBatchCount = modelIndexedBatchesPerSubmesh.size();
+            if (fastCache.batches.size() > initialBatchCount) {
+                for (std::size_t bi = initialBatchCount; bi < fastCache.batches.size(); ++bi) {
+                    const std::size_t sourceBatchIndex = fastCache.batches[bi].baseSubmeshIndex;
+                    if (sourceBatchIndex >= initialBatchCount) continue;
+                    const auto& templateBatch = modelIndexedBatchesPerSubmesh[sourceBatchIndex];
+                    modelIndexedBatchesPerSubmesh.push_back(templateBatch);
+                    auto& newBatch = modelIndexedBatchesPerSubmesh.back();
+                    newBatch.vertices.clear();
+                    newBatch.indices.clear();
+                    newBatch.vertices.reserve(fastCache.batches[bi].sourceVertexIndices.size());
+                    newBatch.indices.reserve(fastCache.batches[bi].indices.size());
+                    newBatch.gpuSkinning = 0u;
+                    newBatch.skinMatrixCount = 0u;
+                    newBatch.skinMatrices.clear();
                 }
-
-                const auto& templateBatch = modelIndexedBatchesPerSubmesh[submeshIndex];
-                const std::size_t templateVertexReserve = templateBatch.vertices.capacity();
-                const std::size_t templateIndexReserve = templateBatch.indices.capacity();
-                const std::size_t newBatchIndex = modelIndexedBatchesPerSubmesh.size();
-                modelIndexedBatchesPerSubmesh.push_back(templateBatch);
-                auto& newBatch = modelIndexedBatchesPerSubmesh.back();
-                newBatch.vertices.clear();
-                newBatch.indices.clear();
-                if (templateVertexReserve > 0u) newBatch.vertices.reserve(templateVertexReserve);
-                if (templateIndexReserve > 0u) newBatch.indices.reserve(templateIndexReserve);
-                newBatch.gpuSkinning = 0u;
-                newBatch.skinMatrixCount = 0u;
-                newBatch.skinMatrices.clear();
-                if (fullIndexedMeshPath && !mesh->vertices.empty() &&
-                    !modelIndexedVertexRemap.empty()) {
-                    modelIndexedVertexRemap.emplace_back(mesh->vertices.size(), -1);
-                }
-                nodeToBatch.emplace(triNodeIndex, newBatchIndex);
             }
 
             for (auto& batch : modelIndexedBatchesPerSubmesh) {
@@ -203,39 +374,67 @@ Result renderProjectedUnitBackendMesh(const Args& args) {
                 batch.skinMatrices.clear();
             }
 
-            for (std::size_t submeshIndex = 0; submeshIndex < gpuSkinBatchIndexBySubmesh.size();
-                 ++submeshIndex) {
-                for (const auto& [nodeIndex, batchIndex] : gpuSkinBatchIndexBySubmesh[submeshIndex]) {
-                    if (batchIndex >= modelIndexedBatchesPerSubmesh.size()) continue;
-                    auto& batch = modelIndexedBatchesPerSubmesh[batchIndex];
-                    if (!transforms.configureGpuClipSkinningBatch(
-                            nodeIndex,
-                            batch.modelMatrix,
-                            batch.skinMatrices,
-                            batch.skinMatrixCount)) {
-                        continue;
+            const bool applyTintAlpha = !tintAlphaIdentity(fastTexturedTint, fastTexturedAlpha);
+            for (std::size_t bi = 0; bi < fastCache.batches.size(); ++bi) {
+                if (bi >= modelIndexedBatchesPerSubmesh.size()) continue;
+                const auto& srcBatch = fastCache.batches[bi];
+                auto& dstBatch = modelIndexedBatchesPerSubmesh[bi];
+
+                if (args.enableGpuClipSkinning &&
+                    transforms.configureGpuClipSkinningBatch(
+                        srcBatch.triNodeIndex,
+                        dstBatch.modelMatrix,
+                        dstBatch.skinMatrices,
+                        dstBatch.skinMatrixCount)) {
+                    dstBatch.gpuSkinning = 1u;
+                }
+
+                dstBatch.indices = srcBatch.indices;
+                if (dstBatch.gpuSkinning != 0u) {
+                    dstBatch.vertices = srcBatch.gpuTemplateVertices;
+                    if (applyTintAlpha) {
+                        for (auto& v : dstBatch.vertices) {
+                            v.r *= fastTexturedTint.r;
+                            v.g *= fastTexturedTint.g;
+                            v.b *= fastTexturedTint.b;
+                            v.a *= fastTexturedAlpha;
+                        }
                     }
-                    batch.gpuSkinning = 1u;
+                } else {
+                    dstBatch.vertices.resize(srcBatch.sourceVertexIndices.size());
+                    for (std::size_t vi = 0; vi < srcBatch.sourceVertexIndices.size(); ++vi) {
+                        const std::uint32_t srcIndex = srcBatch.sourceVertexIndices[vi];
+                        if (srcIndex >= mesh->vertices.size()) continue;
+                        const auto& srcVertex = mesh->vertices[srcIndex];
+
+                        IRenderBackend::WorldMeshVertex outVertex = srcBatch.gpuTemplateVertices[vi];
+                        const glm::vec3 pos = transforms.resolveWorldVertexPos(
+                            srcBatch.triNodeIndex, srcIndex, srcVertex);
+                        outVertex.x = pos.x;
+                        outVertex.y = pos.y;
+                        outVertex.z = pos.z;
+                        const glm::vec3 nrm = transforms.resolveModelVertexNormal(
+                            srcBatch.triNodeIndex, srcIndex, srcVertex);
+                        outVertex.nx = nrm.x;
+                        outVertex.ny = nrm.y;
+                        outVertex.nz = nrm.z;
+                        const glm::vec4 tan = transforms.resolveModelVertexTangent(
+                            srcBatch.triNodeIndex, srcIndex, srcVertex);
+                        outVertex.tx = tan.x;
+                        outVertex.ty = tan.y;
+                        outVertex.tz = tan.z;
+                        outVertex.tw = tan.w;
+                        if (applyTintAlpha) {
+                            outVertex.r *= fastTexturedTint.r;
+                            outVertex.g *= fastTexturedTint.g;
+                            outVertex.b *= fastTexturedTint.b;
+                            outVertex.a *= fastTexturedAlpha;
+                        }
+                        dstBatch.vertices[vi] = outVertex;
+                    }
                 }
             }
-
-            for (std::size_t triIdx = 0; triIdx < triangleCount; ++triIdx) {
-                if (triIdx >= mesh->triangleSubmesh.size()) continue;
-                const std::size_t submeshIndex =
-                    static_cast<std::size_t>(mesh->triangleSubmesh[triIdx]);
-                if (submeshIndex >= baseBatchCount) continue;
-
-                std::size_t batchIndex = submeshIndex;
-                const int triNodeIndex = triNodeIndexByTriangle[triIdx];
-                if (triNodeIndex >= 0) {
-                    const auto& nodeToBatch = gpuSkinBatchIndexBySubmesh[submeshIndex];
-                    const auto it = nodeToBatch.find(triNodeIndex);
-                    if (it != nodeToBatch.end()) {
-                        batchIndex = it->second;
-                    }
-                }
-                fastBatchIndexByTriangle[triIdx] = batchIndex;
-            }
+            handledFastTexturedPath = true;
         }
 
         if (unit.alive && !unit.fainting && toLowerCopy(unit.name) == "charmander") {
@@ -273,8 +472,9 @@ Result renderProjectedUnitBackendMesh(const Args& args) {
             }
         }
 
-        std::size_t previousTriSample = triangleCount;
-        for (std::size_t sampleIdx = 0; sampleIdx < effectiveUnitTriangleBudget; ++sampleIdx) {
+        if (!handledFastTexturedPath) {
+            std::size_t previousTriSample = triangleCount;
+            for (std::size_t sampleIdx = 0; sampleIdx < effectiveUnitTriangleBudget; ++sampleIdx) {
             std::size_t triIdx = sampleIdx;
             if (downsampleModelTriangles) {
                 triIdx =
@@ -589,6 +789,7 @@ Result renderProjectedUnitBackendMesh(const Args& args) {
                 triSubmeshIndex,
                 alpha,
                 triDoubleSided);
+            }
         }
         bool queuedIndexedBatch = false;
         if (useIndexedWorldModelPath && !modelIndexedBatchesPerSubmesh.empty()) {
