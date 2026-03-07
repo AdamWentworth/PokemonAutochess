@@ -213,6 +213,35 @@ CanonicalScenePoseSample canonicalSceneAnimTimeForKey(
     return {quantized, bucketIndex | 0x80000000u};
 }
 
+CanonicalScenePoseSample nextCanonicalSceneAnimTimeForKey(
+    const game::runtime::backend_model::MeshData& mesh,
+    int animIndex,
+    const CanonicalScenePoseSample& current,
+    float quantizeStepSec) {
+    if (!(quantizeStepSec > 0.0f)) {
+        return {};
+    }
+    if ((current.cacheKey & 0x80000000u) == 0u) {
+        return {};
+    }
+    if (animIndex < 0 || static_cast<std::size_t>(animIndex) >= mesh.animations.size()) {
+        return {};
+    }
+    const float durationSec = mesh.animations[static_cast<std::size_t>(animIndex)].durationSec;
+    if (!(durationSec > 0.0f)) {
+        return {};
+    }
+    const std::uint32_t bucketIndex = current.cacheKey & 0x7fffffffu;
+    if (bucketIndex == 0u) {
+        return {};
+    }
+    const float nextAnimTimeSec = current.animTimeSec + quantizeStepSec;
+    if (!(nextAnimTimeSec > 0.0f) || !(nextAnimTimeSec < durationSec)) {
+        return {};
+    }
+    return {nextAnimTimeSec, (bucketIndex + 1u) | 0x80000000u};
+}
+
 std::uint32_t floatToBits(float value) {
     std::uint32_t bits = 0u;
     static_assert(sizeof(bits) == sizeof(value));
@@ -420,6 +449,7 @@ for (const auto& unit : units) {
             animIndex,
             canonicalAnimSample.cacheKey};
         auto it = g_cachedScenePoseBySignature.find(key);
+        const bool scenePoseCacheHit = (it != g_cachedScenePoseBySignature.end());
         if (it == g_cachedScenePoseBySignature.end()) {
             CachedScenePoseEntry inserted;
             PokemonInstance quantizedUnit = unit;
@@ -431,6 +461,31 @@ for (const auto& unit : units) {
         } else {
             it->second.lastUsedFrame = poseCacheFrame;
         }
+        if (scenePoseCacheHit) {
+            const CanonicalScenePoseSample nextAnimSample =
+                nextCanonicalSceneAnimTimeForKey(
+                    *meshForUnit,
+                    animIndex,
+                    canonicalAnimSample,
+                    scenePoseCacheStepSec);
+            if (nextAnimSample.cacheKey != 0u) {
+                const CachedScenePoseKey nextKey{
+                    meshForUnit,
+                    animIndex,
+                    nextAnimSample.cacheKey};
+                if (g_cachedScenePoseBySignature.find(nextKey) ==
+                    g_cachedScenePoseBySignature.end()) {
+                    CachedScenePoseEntry nextInserted;
+                    PokemonInstance nextQuantizedUnit = unit;
+                    nextQuantizedUnit.animTimeSec = nextAnimSample.animTimeSec;
+                    game::runtime::shared_backend_pose::evaluateScenePose(
+                        *meshForUnit, nextQuantizedUnit, nextInserted.pose);
+                    nextInserted.lastUsedFrame = poseCacheFrame;
+                    g_cachedScenePoseBySignature.emplace(nextKey, std::move(nextInserted));
+                }
+            }
+        }
+        it = g_cachedScenePoseBySignature.find(key);
         scenePose = &it->second.pose;
         scenePoseReady = true;
     }
