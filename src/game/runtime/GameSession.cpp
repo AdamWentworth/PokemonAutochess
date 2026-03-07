@@ -49,6 +49,7 @@
 #include "game/runtime/routes/RenderFlowDecisions.h"
 #include "game/runtime/routes/StartupRenderRoutePolicy.h"
 #include "game/runtime/BackendDebugText.h"
+#include "game/runtime/BackendCardRenderer.h"
 #include "game/runtime/routes/GameServiceRenderRoutes.h"
 #include "game/runtime/BackendInventoryOverlay.h"
 #include "game/runtime/BackendInventoryPanel.h"
@@ -56,6 +57,7 @@
 #include "game/runtime/BackendStatusText.h"
 #include "game/runtime/BackendUiScale.h"
 #include "game/runtime/BackendHudFormatting.h"
+#include "game/runtime/BackendImagePath.h"
 #include "game/runtime/BackendWorldProjection.h"
 #include "game/runtime/BackendWorldProxyGeometry.h"
 #include "game/runtime/backend_model_cache/BackendModelCache.h"
@@ -112,6 +114,45 @@
 
 namespace {
 constexpr int kWorldLayerPrewarmFrames = 2;
+
+std::vector<std::string> collectBackendUiSpritePrewarmPaths(const GameDataDb& dataDb) {
+    std::vector<std::string> paths;
+    paths.reserve(32u);
+    std::unordered_set<std::string> seenPaths;
+    const auto addPath = [&](const std::string& path) {
+        if (path.empty()) return;
+        if (!seenPaths.insert(path).second) return;
+        paths.push_back(path);
+    };
+
+    addPath("assets/ui/frame_gold.png");
+    addPath("assets/images/item_placeholder.png");
+    addPath("assets/images/items_atlas.png");
+    addPath("assets/images/pokedollar.png");
+    addPath("assets/images/pokegold.png");
+
+    for (const auto& [speciesName, stats] : dataDb.pokemon.all()) {
+        (void)stats;
+        const std::string path =
+            game::runtime::backend_images::candidatePokemonPortraitPath(speciesName);
+        if (path.empty()) continue;
+        if (!game::runtime::backend_images::fileExistsCached(path)) continue;
+        addPath(path);
+    }
+
+    std::sort(paths.begin(), paths.end());
+    return paths;
+}
+
+std::string makeBackendCardPrewarmLabel(const std::string& texturePath) {
+    std::string label = std::filesystem::path(texturePath).stem().string();
+    if (label.empty()) return "Card";
+    std::replace(label.begin(), label.end(), '_', ' ');
+    if (!label.empty()) {
+        label[0] = static_cast<char>(std::toupper(static_cast<unsigned char>(label[0])));
+    }
+    return label;
+}
 
 std::size_t backendModelTriangleLimit() {
     static const std::size_t limit = []() -> std::size_t {
@@ -1890,34 +1931,24 @@ struct GameSession::Impl {
             (void)engineServices->resources->getModel("assets/models/pokeball.glb");
         }
 
+        std::vector<std::string> uiSpritePrewarmPaths;
         if (usesBackendGameRenderPath() &&
             renderer &&
             backendUiSpritePrewarmEnabled()) {
             if (ctx.setTitle) ctx.setTitle("PokemonAutochess - Loading UI sprites...");
             if (ctx.renderBootLoading) ctx.renderBootLoading(0.94f);
-            static constexpr const char* kUiSpritePrewarmPaths[] = {
-                "assets/ui/frame_gold.png",
-                "assets/images/item_placeholder.png",
-                "assets/images/pokedollar.png",
-                "assets/images/pokegold.png",
-                "assets/images/bulbasaur.png",
-                "assets/images/charmander.png",
-                "assets/images/squirtle.png",
-                "assets/images/pidgey.png",
-                "assets/images/rattata.png",
-            };
+            uiSpritePrewarmPaths = collectBackendUiSpritePrewarmPaths(dataDb);
             const auto t0 = std::chrono::high_resolution_clock::now();
             std::size_t requested = 0u;
-            const std::size_t totalSprites = std::size(kUiSpritePrewarmPaths);
-            for (const char* path : kUiSpritePrewarmPaths) {
-                if (!path || path[0] == '\0') continue;
+            const std::size_t totalSprites = uiSpritePrewarmPaths.size();
+            for (const std::string& path : uiSpritePrewarmPaths) {
                 if (ctx.setTitle) {
                     ctx.setTitle(
                         std::string("PokemonAutochess - Loading UI sprite ") +
                         std::to_string(requested + 1u) + "/" + std::to_string(totalSprites) +
                         "  " + path);
                 }
-                renderer->prewarmDebugSpriteTexture(path);
+                renderer->prewarmDebugSpriteTexture(path.c_str());
                 ++requested;
                 if (ctx.renderBootLoading) {
                     const float p = (totalSprites > 0u)
@@ -1937,6 +1968,29 @@ struct GameSession::Impl {
             prewarmTiming << std::fixed << std::setprecision(1) << ms;
             std::cout << "[Init] UI sprite prewarm complete: requested=" << requested
                       << " time=" << prewarmTiming.str() << "ms\n";
+        }
+
+        if (usesBackendGameRenderPath() &&
+            renderer &&
+            backendUiSpritePrewarmEnabled() &&
+            !uiSpritePrewarmPaths.empty() &&
+            ctx.drawableW > 0 &&
+            ctx.drawableH > 0) {
+            if (ctx.setTitle) ctx.setTitle("PokemonAutochess - Loading backend card UI...");
+            if (ctx.renderBootLoading) ctx.renderBootLoading(0.985f);
+            std::cout << "[Init] Backend card UI prewarm begin\n";
+            const auto t0 = std::chrono::high_resolution_clock::now();
+            prewarmBackendCardUiLayer(ctx.drawableW, ctx.drawableH, uiSpritePrewarmPaths);
+            const auto t1 = std::chrono::high_resolution_clock::now();
+            const double ms =
+                std::chrono::duration<double, std::milli>(t1 - t0).count();
+            std::ostringstream timing;
+            timing << std::fixed << std::setprecision(1) << ms;
+            std::cout << "[Init] Backend card UI prewarm complete: time="
+                      << timing.str() << "ms\n";
+            if (ctx.pumpPreloadEvents && !ctx.pumpPreloadEvents()) {
+                if (ctx.requestQuit) ctx.requestQuit();
+            }
         }
 
         if (usesBackendGameRenderPath() &&
@@ -2980,6 +3034,133 @@ struct GameSession::Impl {
         const runtime::render::RenderRoutes routes = activeRenderRoutes();
         if (routes.usesBackendRenderPath()) {
             renderBackendDebugView(drawableW, drawableH, renderWorld);
+        }
+    }
+
+    void prewarmBackendCardUiLayer(int drawableW,
+                                   int drawableH,
+                                   const std::vector<std::string>& uiSpritePrewarmPaths) {
+        if (!renderer || drawableW <= 0 || drawableH <= 0) return;
+        if (uiSpritePrewarmPaths.empty()) return;
+
+        std::vector<std::string> portraitPaths;
+        portraitPaths.reserve(uiSpritePrewarmPaths.size());
+        for (const std::string& path : uiSpritePrewarmPaths) {
+            if (path == "assets/ui/frame_gold.png" ||
+                path == "assets/images/item_placeholder.png" ||
+                path == "assets/images/items_atlas.png" ||
+                path == "assets/images/pokedollar.png" ||
+                path == "assets/images/pokegold.png") {
+                continue;
+            }
+            portraitPaths.push_back(path);
+        }
+        if (portraitPaths.empty()) return;
+
+        std::vector<IRenderBackend::DebugQuad> baseQuads;
+        std::vector<IRenderBackend::DebugLine> textLines;
+        std::vector<IRenderBackend::DebugSprite> sprites;
+        baseQuads.reserve(256u);
+        textLines.reserve(4096u);
+        sprites.reserve(64u);
+
+        const float uiScale = runtime::backend_ui::viewportScale(drawableW, drawableH);
+        const float edgePad = runtime::backend_ui::edgePad(drawableW, drawableH);
+        const float lineStep = runtime::backend_ui::lineStep(drawableW, drawableH);
+        const std::size_t cardCount = std::min<std::size_t>(portraitPaths.size(), 5u);
+        const float cardW = std::clamp(148.0f * uiScale, 120.0f, 210.0f);
+        const float cardH = std::clamp(cardW * 1.30f, 150.0f, 290.0f);
+        const float gap = std::max(10.0f, cardW * 0.10f);
+        const float totalW =
+            static_cast<float>(cardCount) * cardW + static_cast<float>(cardCount - 1u) * gap;
+        const float rowX = std::max(edgePad, (static_cast<float>(drawableW) - totalW) * 0.5f);
+        const float rowY = std::max(
+            64.0f,
+            static_cast<float>(drawableH) - cardH - lineStep * 4.5f);
+
+        runtime::backend_text::appendTextLines(
+            textLines,
+            edgePad,
+            std::max(10.0f, edgePad - lineStep * 0.15f),
+            "Shop",
+            std::clamp(2.6f * uiScale, 1.6f, 3.3f),
+            0.95f,
+            0.95f,
+            0.98f,
+            1.0f,
+            0.88f);
+
+        for (std::size_t i = 0; i < cardCount; ++i) {
+            game::runtime::backend_card_renderer::CardRenderInput input;
+            input.x = rowX + static_cast<float>(i) * (cardW + gap);
+            input.y = rowY;
+            input.w = cardW;
+            input.h = cardH;
+            input.displayName = makeBackendCardPrewarmLabel(portraitPaths[i]);
+            input.subtitle = "Lv5";
+            input.explicitImagePath = portraitPaths[i];
+            input.keyboardSlot = static_cast<int>(i + 1u);
+            input.textScale = std::clamp(1.0f * uiScale, 0.70f, 1.35f);
+            game::runtime::backend_card_renderer::appendCardLayered(
+                baseQuads,
+                nullptr,
+                &sprites,
+                input,
+                &textLines);
+        }
+
+        const auto addActionButton = [&](float x,
+                                         float y,
+                                         const std::string& label,
+                                         float r,
+                                         float g,
+                                         float b) {
+            const float textScale = 1.0f * 1.35f * uiScale;
+            const float textW = std::max(1.0f, runtime::backend_text::measureTextWidth(label, textScale));
+            const float textH = std::max(1.0f, runtime::backend_text::measureTextHeight(label, textScale));
+            const float padX = std::max(8.0f, textScale * 4.0f);
+            const float padY = std::max(5.0f, textScale * 2.5f);
+
+            IRenderBackend::DebugQuad bg;
+            bg.x = x - padX;
+            bg.y = y - padY;
+            bg.w = textW + padX * 2.0f;
+            bg.h = textH + padY * 2.0f;
+            bg.r = r;
+            bg.g = g;
+            bg.b = b;
+            bg.a = 0.92f;
+            baseQuads.push_back(bg);
+
+            runtime::backend_text::appendTextLines(
+                textLines,
+                x,
+                y,
+                label,
+                textScale,
+                0.98f,
+                0.98f,
+                0.98f,
+                1.0f,
+                0.88f);
+        };
+        addActionButton(edgePad + 88.0f * uiScale, rowY + cardH + lineStep * 1.1f, "[6] Reroll", 0.20f, 0.16f, 0.08f);
+        addActionButton(
+            static_cast<float>(drawableW) - edgePad - 160.0f * uiScale,
+            edgePad + lineStep * 0.95f,
+            "[7] Ready",
+            0.12f,
+            0.25f,
+            0.14f);
+
+        if (!baseQuads.empty()) {
+            renderer->drawDebugQuads(baseQuads.data(), baseQuads.size(), drawableW, drawableH);
+        }
+        if (!sprites.empty()) {
+            renderer->drawDebugSprites(sprites.data(), sprites.size(), drawableW, drawableH);
+        }
+        if (!textLines.empty()) {
+            renderer->drawDebugLines(textLines.data(), textLines.size(), drawableW, drawableH);
         }
     }
 
