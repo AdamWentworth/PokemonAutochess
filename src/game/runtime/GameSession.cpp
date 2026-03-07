@@ -2300,6 +2300,8 @@ struct GameSession::Impl {
         float projectedUnitsMsThisFrame = 0.0f;
         float projectedPoseEvalMsThisFrame = 0.0f;
         float projectedModelMsThisFrame = 0.0f;
+        float projectedModelPrepMsThisFrame = 0.0f;
+        float projectedModelGeometryMsThisFrame = 0.0f;
         float projectedOverlayMsThisFrame = 0.0f;
         std::uint32_t projectedUnitsProcessedThisFrame = 0u;
         std::uint32_t projectedModelUnitsThisFrame = 0u;
@@ -2529,6 +2531,8 @@ struct GameSession::Impl {
                 projectedUnitsMsThisFrame = static_cast<float>(projectedUnitPerf.totalMs);
                 projectedPoseEvalMsThisFrame = static_cast<float>(projectedUnitPerf.poseEvalMs);
                 projectedModelMsThisFrame = static_cast<float>(projectedUnitPerf.modelRenderMs);
+                projectedModelPrepMsThisFrame = static_cast<float>(projectedUnitPerf.modelPrepMs);
+                projectedModelGeometryMsThisFrame = static_cast<float>(projectedUnitPerf.modelGeometryMs);
                 projectedOverlayMsThisFrame = static_cast<float>(projectedUnitPerf.overlayMs);
                 projectedUnitsProcessedThisFrame = projectedUnitPerf.unitsProcessed;
                 projectedModelUnitsThisFrame = projectedUnitPerf.modelUnits;
@@ -2767,6 +2771,8 @@ struct GameSession::Impl {
             engineServices->frameProjectedUnitsMs = projectedUnitsMsThisFrame;
             engineServices->frameProjectedPoseEvalMs = projectedPoseEvalMsThisFrame;
             engineServices->frameProjectedModelMs = projectedModelMsThisFrame;
+            engineServices->frameProjectedModelPrepMs = projectedModelPrepMsThisFrame;
+            engineServices->frameProjectedModelGeometryMs = projectedModelGeometryMsThisFrame;
             engineServices->frameProjectedOverlayMs = projectedOverlayMsThisFrame;
             engineServices->frameProjectedUnitsProcessed = projectedUnitsProcessedThisFrame;
             engineServices->frameProjectedModelUnits = projectedModelUnitsThisFrame;

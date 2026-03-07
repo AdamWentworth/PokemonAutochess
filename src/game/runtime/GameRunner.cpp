@@ -781,6 +781,7 @@ namespace {
         double fpsTimer = 0.0;
         double perfAccumFrameMs = 0.0;
         double perfAccumFixedMs = 0.0;
+        double perfAccumFixedTickWorkMs = 0.0;
         double perfAccumRenderBuildMs = 0.0;
         double perfAccumRenderSubmitMs = 0.0;
         double perfAccumPresentWaitMs = 0.0;
@@ -795,6 +796,8 @@ namespace {
         double perfAccumProjectedUnitsMs = 0.0;
         double perfAccumProjectedPoseEvalMs = 0.0;
         double perfAccumProjectedModelMs = 0.0;
+        double perfAccumProjectedModelPrepMs = 0.0;
+        double perfAccumProjectedModelGeometryMs = 0.0;
         double perfAccumProjectedOverlayMs = 0.0;
         double perfAccumProjectedUnitsProcessed = 0.0;
         double perfAccumProjectedModelUnits = 0.0;
@@ -860,10 +863,14 @@ namespace {
 
             const auto frameCpuStart = clock::now();
             const auto fixedStart = frameCpuStart;
+            double fixedTickWorkMsThisFrame = 0.0;
             int fixedTicksThisFrame = 0;
             int fixedTicksDroppedThisFrame = 0;
             while (accumulator >= TIME_STEP && fixedTicksThisFrame < maxFixedTicksPerFrame) {
+                const auto fixedTickStart = clock::now();
                 game.fixedUpdate(TIME_STEP);
+                fixedTickWorkMsThisFrame +=
+                    std::chrono::duration<double, std::milli>(clock::now() - fixedTickStart).count();
                 accumulator -= TIME_STEP;
                 ++fixedTicksThisFrame;
             }
@@ -894,6 +901,8 @@ namespace {
             const float projectedUnitsMsThisFrame = services.frameProjectedUnitsMs;
             const float projectedPoseEvalMsThisFrame = services.frameProjectedPoseEvalMs;
             const float projectedModelMsThisFrame = services.frameProjectedModelMs;
+            const float projectedModelPrepMsThisFrame = services.frameProjectedModelPrepMs;
+            const float projectedModelGeometryMsThisFrame = services.frameProjectedModelGeometryMs;
             const float projectedOverlayMsThisFrame = services.frameProjectedOverlayMs;
             const std::uint32_t projectedUnitsProcessedThisFrame = services.frameProjectedUnitsProcessed;
             const std::uint32_t projectedModelUnitsThisFrame = services.frameProjectedModelUnits;
@@ -955,6 +964,7 @@ namespace {
             fpsTimer += frameDt;
             perfAccumFrameMs += frameCpuMs;
             perfAccumFixedMs += fixedMs;
+            perfAccumFixedTickWorkMs += fixedTickWorkMsThisFrame;
             perfAccumRenderBuildMs += renderBuildMs;
             perfAccumRenderSubmitMs += submitMs;
             perfAccumPresentWaitMs += totalPresentWaitMs;
@@ -971,6 +981,8 @@ namespace {
             perfAccumProjectedUnitsMs += static_cast<double>(projectedUnitsMsThisFrame);
             perfAccumProjectedPoseEvalMs += static_cast<double>(projectedPoseEvalMsThisFrame);
             perfAccumProjectedModelMs += static_cast<double>(projectedModelMsThisFrame);
+            perfAccumProjectedModelPrepMs += static_cast<double>(projectedModelPrepMsThisFrame);
+            perfAccumProjectedModelGeometryMs += static_cast<double>(projectedModelGeometryMsThisFrame);
             perfAccumProjectedOverlayMs += static_cast<double>(projectedOverlayMsThisFrame);
             perfAccumProjectedUnitsProcessed += static_cast<double>(projectedUnitsProcessedThisFrame);
             perfAccumProjectedModelUnits += static_cast<double>(projectedModelUnitsThisFrame);
@@ -1002,6 +1014,8 @@ namespace {
                 const double avgProjectedUnitsMs = perfAccumProjectedUnitsMs / frames;
                 const double avgProjectedPoseEvalMs = perfAccumProjectedPoseEvalMs / frames;
                 const double avgProjectedModelMs = perfAccumProjectedModelMs / frames;
+                const double avgProjectedModelPrepMs = perfAccumProjectedModelPrepMs / frames;
+                const double avgProjectedModelGeometryMs = perfAccumProjectedModelGeometryMs / frames;
                 const double avgProjectedOverlayMs = perfAccumProjectedOverlayMs / frames;
                 const std::uint32_t avgProjectedUnitsProcessed = static_cast<std::uint32_t>(
                     std::lround(perfAccumProjectedUnitsProcessed / frames));
@@ -1012,10 +1026,14 @@ namespace {
                 const int avgFixedTicks = static_cast<int>(std::lround(static_cast<double>(perfAccumFixedTicks) / frames));
                 const int avgFixedTicksDropped =
                     static_cast<int>(std::lround(static_cast<double>(perfAccumFixedTicksDropped) / frames));
+                const double avgFixedTickMs = perfAccumFixedTicks > 0
+                    ? (perfAccumFixedTickWorkMs / static_cast<double>(perfAccumFixedTicks))
+                    : 0.0;
 
                 services.framePerf.fps = static_cast<float>(fps);
                 services.framePerf.frameMs = static_cast<float>(avgFrameMs);
                 services.framePerf.fixedMs = static_cast<float>(avgFixedMs);
+                services.framePerf.fixedTickMs = static_cast<float>(avgFixedTickMs);
                 services.framePerf.renderBuildMs = static_cast<float>(avgRenderBuildMs);
                 services.framePerf.renderSubmitMs = static_cast<float>(avgRenderSubmitMs);
                 services.framePerf.presentWaitMs = static_cast<float>(avgPresentWaitMs);
@@ -1028,6 +1046,8 @@ namespace {
                 services.framePerf.projectedUnitsMs = static_cast<float>(avgProjectedUnitsMs);
                 services.framePerf.projectedPoseEvalMs = static_cast<float>(avgProjectedPoseEvalMs);
                 services.framePerf.projectedModelMs = static_cast<float>(avgProjectedModelMs);
+                services.framePerf.projectedModelPrepMs = static_cast<float>(avgProjectedModelPrepMs);
+                services.framePerf.projectedModelGeometryMs = static_cast<float>(avgProjectedModelGeometryMs);
                 services.framePerf.projectedOverlayMs = static_cast<float>(avgProjectedOverlayMs);
                 services.framePerf.projectedUnitsProcessed = avgProjectedUnitsProcessed;
                 services.framePerf.projectedModelUnits = avgProjectedModelUnits;
@@ -1041,6 +1061,7 @@ namespace {
                           << "[Perf] FPS=" << fps
                           << " frame=" << avgFrameMs << "ms"
                           << " fixed=" << avgFixedMs << "ms"
+                          << " ftick=" << avgFixedTickMs << "ms"
                           << " build=" << avgRenderBuildMs << "ms"
                           << " submit=" << avgRenderSubmitMs << "ms"
                           << " present=" << avgPresentWaitMs << "ms"
@@ -1052,6 +1073,8 @@ namespace {
                           << " proj=" << avgProjectedUnitsMs << "ms"
                           << " pose=" << avgProjectedPoseEvalMs << "ms"
                           << " model=" << avgProjectedModelMs << "ms"
+                          << " prep=" << avgProjectedModelPrepMs << "ms"
+                          << " geom=" << avgProjectedModelGeometryMs << "ms"
                           << " over=" << avgProjectedOverlayMs << "ms"
                           << " clipskin=" << avgProjectedClipSkinnedUnits
                           << " render=" << avgLegacyRenderMs << "ms"
@@ -1065,6 +1088,7 @@ namespace {
                          << "\"fps\":" << fps
                          << ",\"frame_cpu_ms\":" << avgFrameMs
                          << ",\"fixed_ms\":" << avgFixedMs
+                         << ",\"fixed_tick_ms\":" << avgFixedTickMs
                          << ",\"render_build_ms\":" << avgRenderBuildMs
                          << ",\"render_submit_ms\":" << avgRenderSubmitMs
                          << ",\"present_wait_ms\":" << avgPresentWaitMs
@@ -1077,6 +1101,8 @@ namespace {
                          << ",\"projected_units_ms\":" << avgProjectedUnitsMs
                          << ",\"projected_pose_eval_ms\":" << avgProjectedPoseEvalMs
                          << ",\"projected_model_ms\":" << avgProjectedModelMs
+                         << ",\"projected_model_prep_ms\":" << avgProjectedModelPrepMs
+                         << ",\"projected_model_geometry_ms\":" << avgProjectedModelGeometryMs
                          << ",\"projected_overlay_ms\":" << avgProjectedOverlayMs
                          << ",\"projected_units_processed\":" << avgProjectedUnitsProcessed
                          << ",\"projected_model_units\":" << avgProjectedModelUnits
@@ -1092,6 +1118,7 @@ namespace {
                 fpsTimer = 0.0;
                 perfAccumFrameMs = 0.0;
                 perfAccumFixedMs = 0.0;
+                perfAccumFixedTickWorkMs = 0.0;
                 perfAccumRenderBuildMs = 0.0;
                 perfAccumRenderSubmitMs = 0.0;
                 perfAccumPresentWaitMs = 0.0;
@@ -1106,6 +1133,8 @@ namespace {
                 perfAccumProjectedUnitsMs = 0.0;
                 perfAccumProjectedPoseEvalMs = 0.0;
                 perfAccumProjectedModelMs = 0.0;
+                perfAccumProjectedModelPrepMs = 0.0;
+                perfAccumProjectedModelGeometryMs = 0.0;
                 perfAccumProjectedOverlayMs = 0.0;
                 perfAccumProjectedUnitsProcessed = 0.0;
                 perfAccumProjectedModelUnits = 0.0;

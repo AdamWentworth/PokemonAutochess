@@ -17,6 +17,7 @@ struct EngineFramePerfStats {
     float fps = 0.0f;
     float frameMs = 0.0f;
     float fixedMs = 0.0f;
+    float fixedTickMs = 0.0f;
     float renderBuildMs = 0.0f;
     float renderSubmitMs = 0.0f;
     float presentWaitMs = 0.0f;
@@ -29,6 +30,8 @@ struct EngineFramePerfStats {
     float projectedUnitsMs = 0.0f;
     float projectedPoseEvalMs = 0.0f;
     float projectedModelMs = 0.0f;
+    float projectedModelPrepMs = 0.0f;
+    float projectedModelGeometryMs = 0.0f;
     float projectedOverlayMs = 0.0f;
     std::uint32_t projectedUnitsProcessed = 0u;
     std::uint32_t projectedModelUnits = 0u;
@@ -54,6 +57,8 @@ struct EngineServices {
     float frameProjectedUnitsMs = 0.0f;
     float frameProjectedPoseEvalMs = 0.0f;
     float frameProjectedModelMs = 0.0f;
+    float frameProjectedModelPrepMs = 0.0f;
+    float frameProjectedModelGeometryMs = 0.0f;
     float frameProjectedOverlayMs = 0.0f;
     std::uint32_t frameProjectedUnitsProcessed = 0u;
     std::uint32_t frameProjectedModelUnits = 0u;

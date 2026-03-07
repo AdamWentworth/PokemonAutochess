@@ -29,6 +29,8 @@ struct PerfStats {
     double totalMs = 0.0;
     double poseEvalMs = 0.0;
     double modelRenderMs = 0.0;
+    double modelPrepMs = 0.0;
+    double modelGeometryMs = 0.0;
     double overlayMs = 0.0;
     std::uint32_t unitsProcessed = 0u;
     std::uint32_t modelUnits = 0u;

@@ -191,7 +191,13 @@ void composeAndSubmit(const ComposeAndSubmitArgs& args) {
                 if (perf.projectedUnitsMs > 0.01f || perf.projectedUnitsProcessed > 0u) {
                     buildLine << " | Proj: " << perf.projectedUnitsMs << "ms"
                               << " (pose " << perf.projectedPoseEvalMs
-                              << ", model " << perf.projectedModelMs
+                              << ", model " << perf.projectedModelMs;
+                    if (perf.projectedModelPrepMs > 0.0f ||
+                        perf.projectedModelGeometryMs > 0.0f) {
+                        buildLine << " [prep " << perf.projectedModelPrepMs
+                                  << ", geom " << perf.projectedModelGeometryMs << "]";
+                    }
+                    buildLine
                               << ", overlay " << perf.projectedOverlayMs << ")";
                     if (perf.projectedUnitsProcessed > 0u) {
                         buildLine << " | Clip " << perf.projectedClipSkinnedUnits

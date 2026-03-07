@@ -25,6 +25,11 @@ struct Result {
     bool drewModelMesh = false;
 };
 
+struct PerfBreakdown {
+    double prepMs = 0.0;
+    double geometryMs = 0.0;
+};
+
 struct Args {
     const GameDataDb* dataDb = nullptr;
     const PokemonInstance* unit = nullptr;
@@ -67,6 +72,7 @@ struct Args {
     std::function<bool()> backendModelFullMeshEnabled;
     std::function<bool()> backendModelFastTexturedPathEnabled;
     std::function<bool()> backendModelBackfaceCullingEnabled;
+    PerfBreakdown* perfBreakdown = nullptr;
 };
 
 Result renderProjectedUnitModel(const Args& args);

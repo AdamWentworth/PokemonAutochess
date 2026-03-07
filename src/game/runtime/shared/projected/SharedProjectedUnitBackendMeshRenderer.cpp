@@ -9,6 +9,7 @@
 #include <algorithm>
 #include <array>
 #include <cctype>
+#include <chrono>
 #include <cmath>
 #include <cstring>
 #include <cstdint>
@@ -476,8 +477,14 @@ Result renderProjectedUnitBackendMesh(const Args& args) {
 
     bool drewModelMesh = false;
     if (meshForUnit) {
+        using Clock = std::chrono::high_resolution_clock;
+        const auto prepStart = Clock::now();
         shared_projected_unit_backend_mesh_prep::PreparedState prep;
         if (!shared_projected_unit_backend_mesh_prep::prepareProjectedUnitBackendMesh(args, out, prep)) {
+            if (args.perfBreakdown) {
+                args.perfBreakdown->prepMs +=
+                    std::chrono::duration<double, std::milli>(Clock::now() - prepStart).count();
+            }
             return out;
         }
 
@@ -503,6 +510,11 @@ Result renderProjectedUnitBackendMesh(const Args& args) {
         const glm::vec3& fastTexturedTint = prep.fastTexturedTint;
         shared_projected_unit_backend_mesh_transforms::Resolver transforms;
         transforms.initialize(args, prep);
+        const auto geometryStart = Clock::now();
+        if (args.perfBreakdown) {
+            args.perfBreakdown->prepMs +=
+                std::chrono::duration<double, std::milli>(geometryStart - prepStart).count();
+        }
 
         bool handledFastTexturedPath = false;
         const FastTexturedMeshTemplateCache* fastCachePtr = nullptr;
@@ -1217,6 +1229,10 @@ Result renderProjectedUnitBackendMesh(const Args& args) {
             modelDepthWorldTris.size()) ||
             (world3DTriangles.size() > world3DTriangleCountBefore) ||
             queuedIndexedBatch;
+        if (args.perfBreakdown) {
+            args.perfBreakdown->geometryMs +=
+                std::chrono::duration<double, std::milli>(Clock::now() - geometryStart).count();
+        }
     }
     out.drewModelMesh = drewModelMesh;
     return out;

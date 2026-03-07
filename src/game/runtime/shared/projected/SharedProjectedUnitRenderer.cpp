@@ -240,6 +240,8 @@ void drawProjectedUnits(const Args& args, const std::vector<PokemonInstance>& un
     const auto totalStart = Clock::now();
     double poseEvalMsAcc = 0.0;
     double modelRenderMsAcc = 0.0;
+    double modelPrepMsAcc = 0.0;
+    double modelGeometryMsAcc = 0.0;
     double overlayMsAcc = 0.0;
     std::uint32_t unitsProcessed = 0u;
     std::uint32_t modelUnits = 0u;
@@ -469,6 +471,7 @@ for (const auto& unit : units) {
     }    bool drewModelMesh = false;
     if (meshForUnit) {
         const auto modelStart = Clock::now();
+        runtime::shared_projected_unit_models::PerfBreakdown modelPerf{};
         const auto modelResult = runtime::shared_projected_unit_models::renderProjectedUnitModel(
             runtime::shared_projected_unit_models::Args{
                 .dataDb = &dataDb,
@@ -507,8 +510,11 @@ for (const auto& unit : units) {
                 .backendModelTriangleLimit = backendModelTriangleLimit,
                 .backendModelFullMeshEnabled = backendModelFullMeshEnabled,
                 .backendModelFastTexturedPathEnabled = backendModelFastTexturedPathEnabled,
-                .backendModelBackfaceCullingEnabled = backendModelBackfaceCullingEnabled});
+                .backendModelBackfaceCullingEnabled = backendModelBackfaceCullingEnabled,
+                .perfBreakdown = &modelPerf});
         modelRenderMsAcc += std::chrono::duration<double, std::milli>(Clock::now() - modelStart).count();
+        modelPrepMsAcc += modelPerf.prepMs;
+        modelGeometryMsAcc += modelPerf.geometryMs;
         if (modelResult.skipUnit) continue;
         drewModelMesh = modelResult.drewModelMesh;
         if (drewModelMesh) ++modelUnits;
@@ -597,6 +603,8 @@ if (perfStats) {
     perfStats->totalMs += std::chrono::duration<double, std::milli>(Clock::now() - totalStart).count();
     perfStats->poseEvalMs += poseEvalMsAcc;
     perfStats->modelRenderMs += modelRenderMsAcc;
+    perfStats->modelPrepMs += modelPrepMsAcc;
+    perfStats->modelGeometryMs += modelGeometryMsAcc;
     perfStats->overlayMs += overlayMsAcc;
     perfStats->unitsProcessed += unitsProcessed;
     perfStats->modelUnits += modelUnits;
