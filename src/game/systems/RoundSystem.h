@@ -13,6 +13,7 @@ class RoundSystem final : public engine::ecs::ISystem {
 public:
     RoundSystem(GameServices& services, engine::ecs::Entity phaseEntity);
 
+    const char* debugName() const override { return "round"; }
     void update(engine::ecs::World& world, float deltaTime) override;
     RoundPhase getCurrentPhase() const;
     void debugSetPhase(RoundPhase phase, float timerSeconds = -1.0f);

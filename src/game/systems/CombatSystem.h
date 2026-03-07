@@ -13,6 +13,7 @@ class CombatSystem : public engine::ecs::ISystem {
 public:
     explicit CombatSystem(GameWorld* world, GameServices& services, engine::ecs::Entity combatEntity);
     ~CombatSystem();
+    const char* debugName() const override { return "combat"; }
     void update(engine::ecs::World& world, float deltaTime) override;
 
 private:

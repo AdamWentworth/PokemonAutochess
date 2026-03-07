@@ -1569,8 +1569,16 @@ struct GameSession::Impl {
         }
         using Phase = engine::ecs::Scheduler::Phase;
 
-        if (cameraSystem) scheduler.add(std::make_unique<game::UpdatableSystemAdapter>(cameraSystem.get()), Phase::Update);
-        if (unitSystem)   scheduler.add(std::make_unique<game::UpdatableSystemAdapter>(unitSystem.get()), Phase::Update);
+        if (cameraSystem) {
+            scheduler.add(
+                std::make_unique<game::UpdatableSystemAdapter>(cameraSystem.get(), "camera"),
+                Phase::Update);
+        }
+        if (unitSystem) {
+            scheduler.add(
+                std::make_unique<game::UpdatableSystemAdapter>(unitSystem.get(), "unit_interaction"),
+                Phase::Update);
+        }
         auto shopSystemImpl = std::make_unique<ShopSystem>(services->rng);
         shopSystem = shopSystemImpl.get();
         scheduler.add(std::move(shopSystemImpl), Phase::Update);
@@ -1582,7 +1590,8 @@ struct GameSession::Impl {
 
         if (auto* stateMgr = stateManager.get()) {
             scheduler.add(std::make_unique<game::CallbackSystemAdapter>(
-                [stateMgr](float dt) { stateMgr->update(dt); }
+                [stateMgr](float dt) { stateMgr->update(dt); },
+                "state_manager"
             ), Phase::PostUpdate);
         }
         if (auto* worldPtr = gameWorld.get()) {
@@ -1594,7 +1603,8 @@ struct GameSession::Impl {
         }
         if (auto* worldPtr = gameWorld.get()) {
             scheduler.add(std::make_unique<game::CallbackSystemAdapter>(
-                [worldPtr](float dt) { worldPtr->update(dt); }
+                [worldPtr](float dt) { worldPtr->update(dt); },
+                "world"
             ), Phase::PostUpdate);
         }
 
@@ -1604,7 +1614,8 @@ struct GameSession::Impl {
             roundPhaseEntity,
             shopSystem,
             &log,
-            &scriptEvents
+            &scriptEvents,
+            engineServices
         });
 
         std::cout << "[Init] Shared gameplay render path: using backend model cache loader.\n";

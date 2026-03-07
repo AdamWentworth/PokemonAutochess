@@ -23,6 +23,7 @@ public:
     explicit ShopSystem(engine::IRandom& rng);
     ~ShopSystem() override = default;
 
+    const char* debugName() const override { return "shop"; }
     void update(engine::ecs::World& world, float dt) override;
 
     // Called when RoundSystem phase changes.

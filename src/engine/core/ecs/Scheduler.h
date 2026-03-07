@@ -2,6 +2,7 @@
 
 #pragma once
 #include "engine/core/ecs/ISystem.h"
+#include <chrono>
 #include <array>
 #include <cstddef>
 #include <memory>
@@ -35,6 +36,19 @@ public:
     void tickPhase(Phase phase, World& world, float dt) {
         auto& bucket = systemsByPhase_[static_cast<std::size_t>(phase)];
         for (auto& s : bucket) s->update(world, dt);
+    }
+
+    template <typename Observer>
+    void tickPhaseObserved(Phase phase, World& world, float dt, Observer&& observer) {
+        using Clock = std::chrono::high_resolution_clock;
+        auto& bucket = systemsByPhase_[static_cast<std::size_t>(phase)];
+        for (auto& s : bucket) {
+            const auto start = Clock::now();
+            s->update(world, dt);
+            const float elapsedMs = static_cast<float>(
+                std::chrono::duration<double, std::milli>(Clock::now() - start).count());
+            observer(*s, elapsedMs);
+        }
     }
 
     std::size_t size() const {

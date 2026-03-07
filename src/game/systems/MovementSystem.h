@@ -15,6 +15,7 @@ public:
     explicit MovementSystem(GameWorld* world, GameServices& services, engine::ecs::Entity combatEntity);
     ~MovementSystem();
 
+    const char* debugName() const override { return "movement"; }
     void update(engine::ecs::World& world, float deltaTime) override;
 
 private:

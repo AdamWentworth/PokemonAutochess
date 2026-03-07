@@ -42,6 +42,7 @@
 #include <glad/glad.h>
 
 #include <algorithm>
+#include <array>
 #include <cctype>
 #include <chrono>
 #include <cmath>
@@ -802,6 +803,7 @@ namespace {
         double perfAccumProjectedUnitsProcessed = 0.0;
         double perfAccumProjectedModelUnits = 0.0;
         double perfAccumProjectedClipSkinnedUnits = 0.0;
+        EngineFixedPerfBreakdown perfAccumFixedBreakdown{};
         int perfAccumFixedTicks = 0;
         int perfAccumFixedTicksDropped = 0;
         int renderedFrames = 0;
@@ -861,6 +863,7 @@ namespace {
 
             accumulator += frameDt;
 
+            services.frameFixedBreakdown = {};
             const auto frameCpuStart = clock::now();
             const auto fixedStart = frameCpuStart;
             double fixedTickWorkMsThisFrame = 0.0;
@@ -880,6 +883,7 @@ namespace {
                 accumulator = std::max(0.0, accumulator);
             }
             const auto fixedEnd = clock::now();
+            const EngineFixedPerfBreakdown fixedBreakdownThisFrame = services.frameFixedBreakdown;
 
             const auto beginFrameStart = fixedEnd;
             if (renderer) {
@@ -965,6 +969,17 @@ namespace {
             perfAccumFrameMs += frameCpuMs;
             perfAccumFixedMs += fixedMs;
             perfAccumFixedTickWorkMs += fixedTickWorkMsThisFrame;
+            perfAccumFixedBreakdown.preUpdateMs += fixedBreakdownThisFrame.preUpdateMs;
+            perfAccumFixedBreakdown.updatePhaseMs += fixedBreakdownThisFrame.updatePhaseMs;
+            perfAccumFixedBreakdown.postUpdateMs += fixedBreakdownThisFrame.postUpdateMs;
+            perfAccumFixedBreakdown.cameraMs += fixedBreakdownThisFrame.cameraMs;
+            perfAccumFixedBreakdown.unitInteractionMs += fixedBreakdownThisFrame.unitInteractionMs;
+            perfAccumFixedBreakdown.shopMs += fixedBreakdownThisFrame.shopMs;
+            perfAccumFixedBreakdown.roundMs += fixedBreakdownThisFrame.roundMs;
+            perfAccumFixedBreakdown.stateManagerMs += fixedBreakdownThisFrame.stateManagerMs;
+            perfAccumFixedBreakdown.movementMs += fixedBreakdownThisFrame.movementMs;
+            perfAccumFixedBreakdown.combatMs += fixedBreakdownThisFrame.combatMs;
+            perfAccumFixedBreakdown.worldMs += fixedBreakdownThisFrame.worldMs;
             perfAccumRenderBuildMs += renderBuildMs;
             perfAccumRenderSubmitMs += submitMs;
             perfAccumPresentWaitMs += totalPresentWaitMs;
@@ -1029,6 +1044,29 @@ namespace {
                 const double avgFixedTickMs = perfAccumFixedTicks > 0
                     ? (perfAccumFixedTickWorkMs / static_cast<double>(perfAccumFixedTicks))
                     : 0.0;
+                EngineFixedPerfBreakdown avgFixedBreakdown{};
+                avgFixedBreakdown.preUpdateMs =
+                    static_cast<float>(perfAccumFixedBreakdown.preUpdateMs / frames);
+                avgFixedBreakdown.updatePhaseMs =
+                    static_cast<float>(perfAccumFixedBreakdown.updatePhaseMs / frames);
+                avgFixedBreakdown.postUpdateMs =
+                    static_cast<float>(perfAccumFixedBreakdown.postUpdateMs / frames);
+                avgFixedBreakdown.cameraMs =
+                    static_cast<float>(perfAccumFixedBreakdown.cameraMs / frames);
+                avgFixedBreakdown.unitInteractionMs =
+                    static_cast<float>(perfAccumFixedBreakdown.unitInteractionMs / frames);
+                avgFixedBreakdown.shopMs =
+                    static_cast<float>(perfAccumFixedBreakdown.shopMs / frames);
+                avgFixedBreakdown.roundMs =
+                    static_cast<float>(perfAccumFixedBreakdown.roundMs / frames);
+                avgFixedBreakdown.stateManagerMs =
+                    static_cast<float>(perfAccumFixedBreakdown.stateManagerMs / frames);
+                avgFixedBreakdown.movementMs =
+                    static_cast<float>(perfAccumFixedBreakdown.movementMs / frames);
+                avgFixedBreakdown.combatMs =
+                    static_cast<float>(perfAccumFixedBreakdown.combatMs / frames);
+                avgFixedBreakdown.worldMs =
+                    static_cast<float>(perfAccumFixedBreakdown.worldMs / frames);
 
                 services.framePerf.fps = static_cast<float>(fps);
                 services.framePerf.frameMs = static_cast<float>(avgFrameMs);
@@ -1056,6 +1094,38 @@ namespace {
                 services.framePerf.swapMs = static_cast<float>(avgLegacySwapMs);
                 services.framePerf.fixedTicks = avgFixedTicks;
                 services.framePerf.fixedTicksDropped = avgFixedTicksDropped;
+                services.framePerf.fixedBreakdown = avgFixedBreakdown;
+
+                std::ostringstream fixedSystemsLine;
+                {
+                    struct FixedSystemEntry {
+                        const char* name;
+                        float ms;
+                    };
+                    std::array<FixedSystemEntry, 7> fixedSystemEntries{{
+                        {"combat", avgFixedBreakdown.combatMs},
+                        {"world", avgFixedBreakdown.worldMs},
+                        {"movement", avgFixedBreakdown.movementMs},
+                        {"round", avgFixedBreakdown.roundMs},
+                        {"state", avgFixedBreakdown.stateManagerMs},
+                        {"camera", avgFixedBreakdown.cameraMs},
+                        {"unit", avgFixedBreakdown.unitInteractionMs},
+                    }};
+                    std::sort(
+                        fixedSystemEntries.begin(),
+                        fixedSystemEntries.end(),
+                        [](const FixedSystemEntry& a, const FixedSystemEntry& b) {
+                            return a.ms > b.ms;
+                        });
+                    int emittedFixedSystems = 0;
+                    for (const auto& entry : fixedSystemEntries) {
+                        if (entry.ms < 0.05f) continue;
+                        fixedSystemsLine << (emittedFixedSystems == 0 ? " fsys=" : ",")
+                                         << entry.name << ":" << entry.ms << "ms";
+                        ++emittedFixedSystems;
+                        if (emittedFixedSystems >= 3) break;
+                    }
+                }
 
                 std::cout << std::fixed << std::setprecision(1)
                           << "[Perf] FPS=" << fps
@@ -1080,7 +1150,8 @@ namespace {
                           << " render=" << avgLegacyRenderMs << "ms"
                           << " swap=" << avgLegacySwapMs << "ms"
                           << " ticks=" << avgFixedTicks
-                          << " drop=" << avgFixedTicksDropped << "\n";
+                          << " drop=" << avgFixedTicksDropped
+                          << fixedSystemsLine.str() << "\n";
 
                 std::ostringstream perfJson;
                 perfJson << std::fixed << std::setprecision(3)
@@ -1110,6 +1181,17 @@ namespace {
                          << ",\"legacy_render_ms\":" << avgLegacyRenderMs
                          << ",\"legacy_swap_ms\":" << avgLegacySwapMs
                          << ",\"fixed_ticks\":" << avgFixedTicks
+                         << ",\"fixed_phase_pre_ms\":" << avgFixedBreakdown.preUpdateMs
+                         << ",\"fixed_phase_update_ms\":" << avgFixedBreakdown.updatePhaseMs
+                         << ",\"fixed_phase_post_ms\":" << avgFixedBreakdown.postUpdateMs
+                         << ",\"fixed_camera_ms\":" << avgFixedBreakdown.cameraMs
+                         << ",\"fixed_unit_interaction_ms\":" << avgFixedBreakdown.unitInteractionMs
+                         << ",\"fixed_shop_ms\":" << avgFixedBreakdown.shopMs
+                         << ",\"fixed_round_ms\":" << avgFixedBreakdown.roundMs
+                         << ",\"fixed_state_manager_ms\":" << avgFixedBreakdown.stateManagerMs
+                         << ",\"fixed_movement_ms\":" << avgFixedBreakdown.movementMs
+                         << ",\"fixed_combat_ms\":" << avgFixedBreakdown.combatMs
+                         << ",\"fixed_world_ms\":" << avgFixedBreakdown.worldMs
                          << ",\"fixed_ticks_dropped\":" << avgFixedTicksDropped
                          << "}";
                 std::cout << perfJson.str() << "\n";
@@ -1119,6 +1201,7 @@ namespace {
                 perfAccumFrameMs = 0.0;
                 perfAccumFixedMs = 0.0;
                 perfAccumFixedTickWorkMs = 0.0;
+                perfAccumFixedBreakdown = {};
                 perfAccumRenderBuildMs = 0.0;
                 perfAccumRenderSubmitMs = 0.0;
                 perfAccumPresentWaitMs = 0.0;

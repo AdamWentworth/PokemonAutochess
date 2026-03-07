@@ -3,7 +3,10 @@
 #include "game/runtime/GameUpdateGraph.h"
 
 #include <string>
+#include <string_view>
+#include <chrono>
 
+#include "engine/core/EngineServices.h"
 #include "engine/core/ecs/Scheduler.h"
 #include "engine/core/ecs/World.h"
 #include "game/ecs/RoundState.h"
@@ -19,6 +22,28 @@ const char* phaseName(RoundPhase p) {
         case RoundPhase::Battle:     return "Battle";
         case RoundPhase::Resolution: return "Resolution";
         default:                     return "Unknown";
+    }
+}
+
+void accumulateFixedSystemMs(EngineFixedPerfBreakdown& stats,
+                             std::string_view name,
+                             float elapsedMs) {
+    if (name == "camera") {
+        stats.cameraMs += elapsedMs;
+    } else if (name == "unit_interaction") {
+        stats.unitInteractionMs += elapsedMs;
+    } else if (name == "shop") {
+        stats.shopMs += elapsedMs;
+    } else if (name == "round") {
+        stats.roundMs += elapsedMs;
+    } else if (name == "state_manager") {
+        stats.stateManagerMs += elapsedMs;
+    } else if (name == "movement") {
+        stats.movementMs += elapsedMs;
+    } else if (name == "combat") {
+        stats.combatMs += elapsedMs;
+    } else if (name == "world") {
+        stats.worldMs += elapsedMs;
     }
 }
 } // namespace
@@ -40,16 +65,38 @@ void GameUpdateGraph::configure(Inputs inputs) {
 }
 
 void GameUpdateGraph::tick(float dt) {
-    if (inputs_.scheduler && inputs_.world) {
-        inputs_.scheduler->tickPhase(engine::ecs::Scheduler::Phase::PreUpdate, *inputs_.world, dt);
-        inputs_.scheduler->tickPhase(engine::ecs::Scheduler::Phase::Update, *inputs_.world, dt);
-    }
+    using Clock = std::chrono::high_resolution_clock;
+    EngineFixedPerfBreakdown* fixedBreakdown =
+        inputs_.engineServices ? &inputs_.engineServices->frameFixedBreakdown : nullptr;
+
+    const auto tickPhase = [&](engine::ecs::Scheduler::Phase phase, float* phaseTotalMs) {
+        if (!inputs_.scheduler || !inputs_.world) return;
+        if (!fixedBreakdown || !phaseTotalMs) {
+            inputs_.scheduler->tickPhase(phase, *inputs_.world, dt);
+            return;
+        }
+
+        const auto phaseStart = Clock::now();
+        inputs_.scheduler->tickPhaseObserved(
+            phase,
+            *inputs_.world,
+            dt,
+            [&](const engine::ecs::ISystem& system, float elapsedMs) {
+                accumulateFixedSystemMs(*fixedBreakdown, system.debugName(), elapsedMs);
+            });
+        *phaseTotalMs += static_cast<float>(
+            std::chrono::duration<double, std::milli>(Clock::now() - phaseStart).count());
+    };
+
+    tickPhase(engine::ecs::Scheduler::Phase::PreUpdate,
+              fixedBreakdown ? &fixedBreakdown->preUpdateMs : nullptr);
+    tickPhase(engine::ecs::Scheduler::Phase::Update,
+              fixedBreakdown ? &fixedBreakdown->updatePhaseMs : nullptr);
 
     handleRoundPhaseTransitions();
 
-    if (inputs_.scheduler && inputs_.world) {
-        inputs_.scheduler->tickPhase(engine::ecs::Scheduler::Phase::PostUpdate, *inputs_.world, dt);
-    }
+    tickPhase(engine::ecs::Scheduler::Phase::PostUpdate,
+              fixedBreakdown ? &fixedBreakdown->postUpdateMs : nullptr);
 }
 
 void GameUpdateGraph::handleRoundPhaseTransitions() {

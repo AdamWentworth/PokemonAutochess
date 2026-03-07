@@ -7,6 +7,7 @@
 class ShopSystem;
 namespace LogBus { class Logger; }
 class ScriptEventBus;
+struct EngineServices;
 namespace engine::ecs { class Scheduler; class World; }
 
 namespace game {
@@ -22,6 +23,7 @@ public:
         ShopSystem* shopSystem = nullptr;
         LogBus::Logger* log = nullptr;
         ScriptEventBus* events = nullptr;
+        EngineServices* engineServices = nullptr;
     };
 
     void configure(Inputs inputs);

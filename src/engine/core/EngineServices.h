@@ -13,6 +13,20 @@ class ResourceManager;
 class ShaderCache;
 class EventBus;
 
+struct EngineFixedPerfBreakdown {
+    float preUpdateMs = 0.0f;
+    float updatePhaseMs = 0.0f;
+    float postUpdateMs = 0.0f;
+    float cameraMs = 0.0f;
+    float unitInteractionMs = 0.0f;
+    float shopMs = 0.0f;
+    float roundMs = 0.0f;
+    float stateManagerMs = 0.0f;
+    float movementMs = 0.0f;
+    float combatMs = 0.0f;
+    float worldMs = 0.0f;
+};
+
 struct EngineFramePerfStats {
     float fps = 0.0f;
     float frameMs = 0.0f;
@@ -40,6 +54,7 @@ struct EngineFramePerfStats {
     float swapMs = 0.0f;
     int fixedTicks = 0;
     int fixedTicksDropped = 0;
+    EngineFixedPerfBreakdown fixedBreakdown{};
 };
 
 struct EngineServices {
@@ -54,6 +69,7 @@ struct EngineServices {
     // Updated by runtime each frame; host loop samples and aggregates.
     std::uint32_t frameVisibleAnimatedUnits = 0u;
     std::uint32_t frameParticleCount = 0u;
+    EngineFixedPerfBreakdown frameFixedBreakdown{};
     float frameProjectedUnitsMs = 0.0f;
     float frameProjectedPoseEvalMs = 0.0f;
     float frameProjectedModelMs = 0.0f;

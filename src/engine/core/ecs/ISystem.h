@@ -8,6 +8,7 @@ class World;
 class ISystem {
 public:
     virtual ~ISystem() = default;
+    virtual const char* debugName() const { return "system"; }
     virtual void update(World& world, float dt) = 0;
 };
 
