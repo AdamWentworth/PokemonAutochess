@@ -84,9 +84,9 @@ CameraSystem::CameraSystem(Camera3D* cam, GameServices& svc)
 }
 
 void CameraSystem::loadScript() {
-    std::string err;
-    if (!loadLuaFromStore(lua, kCameraLua, services.assets, err)) {
-        std::cerr << "[CameraSystem] load error: " << err << "\n";
+    std::string loadError;
+    if (!loadLuaFromStore(lua, kCameraLua, services.assets, loadError)) {
+        std::cerr << "[CameraSystem] load error: " << loadError << "\n";
         ok = false;
         return;
     }
@@ -94,8 +94,8 @@ void CameraSystem::loadScript() {
     if (sol::function init = lua["camera_init"]; init.valid()) {
         sol::protected_function_result ir = init();
         if (!ir.valid()) {
-            sol::error err = ir;
-            std::cerr << "[CameraSystem] camera_init error: " << err.what() << "\n";
+            sol::error initError = ir;
+            std::cerr << "[CameraSystem] camera_init error: " << initError.what() << "\n";
             ok = false;
             return;
         }

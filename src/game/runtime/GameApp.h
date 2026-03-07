@@ -10,7 +10,7 @@ struct GameContext;
 struct InputEvent;
 
 // Runtime (game)
-struct GameRuntime;
+class GameRuntime;
 
 /*
     GameApp (Game):

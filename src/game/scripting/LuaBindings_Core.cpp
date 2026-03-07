@@ -32,7 +32,6 @@
 #include "LuaBindings_Internal.h"
 
 void registerLuaBindings_Core(sol::state& lua, ScriptAPI& api) {
-    LogBus::Logger* logger = &api.logger();
     // Basic enums
     lua.new_enum("PokemonSide",
         "Player", PokemonSide::Player,

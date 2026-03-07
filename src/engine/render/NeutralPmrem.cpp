@@ -288,11 +288,9 @@ glm::vec3 roomRadiance(const glm::vec3& direction, const std::vector<SceneBox>& 
 
     float attenuation = 1.0f / std::max(std::pow(dist, 2.0f), 0.01f);
     const float cutoffDistance = 28.0f;
-    if (cutoffDistance > 0.0f) {
-        const float ratio = dist / cutoffDistance;
-        const float cutoff = std::max(1.0f - std::pow(ratio, 4.0f), 0.0f);
-        attenuation *= cutoff * cutoff;
-    }
+    const float ratio = dist / cutoffDistance;
+    const float cutoff = std::max(1.0f - std::pow(ratio, 4.0f), 0.0f);
+    attenuation *= cutoff * cutoff;
     const float irradiance = 900.0f * attenuation * nDotL;
     const float lambert = 1.0f / glm::pi<float>();
     const float bounce = 0.02f;

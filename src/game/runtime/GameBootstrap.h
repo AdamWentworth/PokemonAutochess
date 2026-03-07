@@ -2,7 +2,7 @@
 
 #include <memory>
 
-class GameContext;
+struct GameContext;
 
 namespace game {
 

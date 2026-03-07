@@ -54,7 +54,7 @@ public:
     // The shader must have an MVP uniform at locMVP and use the same vertex layout.
     void drawGeometryWithBoundShader(const Camera3D& camera,
                                      const glm::mat4& instanceTransform,
-                                     int locMVP,
+                                     int mvpUniformLoc,
                                      float animTimeSec = 0.0f,
                                      int animIndex = -1) const;
 

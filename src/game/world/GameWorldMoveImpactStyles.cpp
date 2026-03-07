@@ -4,8 +4,8 @@ void GameWorld::emitClawSwipeImpact(const PokemonInstance& target,
                                     const glm::vec3& forward,
                                     bool metallic) {
     if (!clawSwipeVfxInitialized) {
-        ClawSwipeVFX::Config config;
-        clawSwipeVfx.setConfig(config);
+        ClawSwipeVFX::Config defaultConfig;
+        clawSwipeVfx.setConfig(defaultConfig);
         clawSwipeVfxInitialized = true;
     }
 
@@ -19,8 +19,8 @@ void GameWorld::emitAquaSwooshImpact(const PokemonInstance& target,
                                      AquaSwooshVFX::Style style,
                                      bool originFromAttacker) {
     if (!aquaSwooshVfxInitialized) {
-        AquaSwooshVFX::Config config;
-        aquaSwooshVfx.setConfig(config);
+        AquaSwooshVFX::Config defaultConfig;
+        aquaSwooshVfx.setConfig(defaultConfig);
         aquaSwooshVfxInitialized = true;
     }
 

@@ -14,16 +14,13 @@ bool test_gltf_asset_smoke(std::string& outFail) {
         return false;
     }
 
-    std::string modelPath;
-    for (const auto& [name, stats] : pokemon.all()) {
-        modelPath = engine::paths::asset("models/" + stats.model);
-        break;
-    }
-
-    if (modelPath.empty()) {
+    const auto& allPokemon = pokemon.all();
+    const auto firstPokemon = allPokemon.begin();
+    if (firstPokemon == allPokemon.end()) {
         outFail = "No model paths found in pokemon config.";
         return false;
     }
+    const std::string modelPath = engine::paths::asset("models/" + firstPokemon->second.model);
     if (!std::filesystem::exists(modelPath)) {
         outFail = "Missing model file: " + modelPath;
         return false;

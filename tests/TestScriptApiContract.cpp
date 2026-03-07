@@ -161,12 +161,12 @@ bool test_script_api_contract(std::string& outFail) {
     const int idPlayer = units[0].id;
     const int idEnemy = units[1].id;
     {
-        GameWorld::CombatBalance b;
-        b.playerDamageMult = 1.5f;
-        b.enemyDamageTakenMult = 0.5f;
-        b.enemyDamageMult = 2.0f;
-        b.playerDamageTakenMult = 0.25f;
-        world.setCombatBalance(b);
+        GameWorld::CombatBalance balance;
+        balance.playerDamageMult = 1.5f;
+        balance.enemyDamageTakenMult = 0.5f;
+        balance.enemyDamageMult = 2.0f;
+        balance.playerDamageTakenMult = 0.25f;
+        world.setCombatBalance(balance);
     }
     if (!expect(std::fabs(api.getDamageMultiplier(idPlayer, idEnemy) - 0.75f) < 0.0001f,
                 "getDamageMultiplier mismatch for player -> enemy path.", outFail)) return false;
@@ -174,10 +174,10 @@ bool test_script_api_contract(std::string& outFail) {
                 "getDamageMultiplier mismatch for enemy -> player path.", outFail)) return false;
 
     {
-        GameWorld::CombatBalance b;
-        b.playerDamageMult = -2.0f;
-        b.enemyDamageTakenMult = 3.0f;
-        world.setCombatBalance(b);
+        GameWorld::CombatBalance balance;
+        balance.playerDamageMult = -2.0f;
+        balance.enemyDamageTakenMult = 3.0f;
+        world.setCombatBalance(balance);
     }
     if (!expect(std::fabs(api.getDamageMultiplier(idPlayer, idEnemy) - 0.0f) < 0.0001f,
                 "getDamageMultiplier should clamp negative multipliers to zero.", outFail)) return false;

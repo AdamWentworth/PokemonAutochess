@@ -7,6 +7,7 @@
 class ScriptAPI;
 namespace sol { class state; }
 struct GameConfigData;
+struct PokemonInstance;
 
 // PokemonSide is declared in game/PokemonInstance.h as a scoped enum (enum class).
 // Forward declare it with the same kind.
@@ -14,13 +15,13 @@ enum class PokemonSide;
 
 // ---- shared helpers (defined in LuaBindings_Util.cpp) ----
 std::string toLowerCopy(std::string s);
-int animIndexCached(class PokemonInstance& p, const std::string& clipName);
+int animIndexCached(PokemonInstance& p, const std::string& clipName);
 PokemonSide sideFromString(const std::string& s);
 
 glm::vec3 gridToWorld(const GameConfigData& cfg, int col, int row);
 glm::ivec2 worldToGrid(const GameConfigData& cfg, const glm::vec3& pos);
 
-bool attackerIsInAttackAnimation(const class PokemonInstance& A);
+bool attackerIsInAttackAnimation(const PokemonInstance& A);
 
 // ---- module registrars (defined in separate .cpp files) ----
 void registerLuaBindings_Core(sol::state& lua, ScriptAPI& api);

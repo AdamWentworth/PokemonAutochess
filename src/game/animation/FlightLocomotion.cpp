@@ -17,12 +17,6 @@ static float smoothstep01(float t) {
     return t * t * (3.0f - 2.0f * t);
 }
 
-static std::string toLower(std::string s) {
-    std::transform(s.begin(), s.end(), s.begin(),
-                   [](unsigned char c){ return (char)std::tolower(c); });
-    return s;
-}
-
 static bool isDebug(const PokemonInstance& p) {
     return p.debugAnimLogs;
 }

@@ -359,7 +359,6 @@ void Model::drawAnimated(const Camera3D& camera,
     drawScenePass(1);
 
     if (!hasNodeMesh) {
-        glm::mat4 vp  = camera.getProjectionMatrix() * camera.getViewMatrix();
         glm::mat4 mvp = vp * instanceTransform;
         glUniformMatrix4fv(locMVP, 1, GL_FALSE, glm::value_ptr(mvp));
         glUniform1i(locUseSkin, 0);
@@ -398,11 +397,11 @@ void Model::drawAnimated(const Camera3D& camera,
 
 void Model::drawGeometryWithBoundShader(const Camera3D& camera,
                                         const glm::mat4& instanceTransform,
-                                        int locMVP,
+                                        int mvpUniformLoc,
                                         float animTimeSec,
                                         int animIndex) const
 {
-    if (VAO == 0 || locMVP < 0) return;
+    if (VAO == 0 || mvpUniformLoc < 0) return;
 
     std::vector<NodeTRS> locals;
     std::vector<glm::mat4> globals;
@@ -422,7 +421,7 @@ void Model::drawGeometryWithBoundShader(const Camera3D& camera,
         hasNodeMesh = true;
 
         const glm::mat4 mvp = vp * instanceTransform * nodeGlobal;
-        glUniformMatrix4fv(locMVP, 1, GL_FALSE, glm::value_ptr(mvp));
+        glUniformMatrix4fv(mvpUniformLoc, 1, GL_FALSE, glm::value_ptr(mvp));
 
         for (const auto& sm : submeshes) {
             if (sm.meshIndex != meshIdx) continue;
@@ -454,7 +453,7 @@ void Model::drawGeometryWithBoundShader(const Camera3D& camera,
 
     if (!hasNodeMesh) {
         const glm::mat4 mvp = vp * instanceTransform;
-        glUniformMatrix4fv(locMVP, 1, GL_FALSE, glm::value_ptr(mvp));
+        glUniformMatrix4fv(mvpUniformLoc, 1, GL_FALSE, glm::value_ptr(mvp));
         for (const auto& sm : submeshes) {
             glDrawElements(GL_TRIANGLES,
                            (GLsizei)sm.indexCount,
