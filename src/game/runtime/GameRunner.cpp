@@ -972,13 +972,25 @@ namespace {
             perfAccumFixedBreakdown.preUpdateMs += fixedBreakdownThisFrame.preUpdateMs;
             perfAccumFixedBreakdown.updatePhaseMs += fixedBreakdownThisFrame.updatePhaseMs;
             perfAccumFixedBreakdown.postUpdateMs += fixedBreakdownThisFrame.postUpdateMs;
+            perfAccumFixedBreakdown.postOtherMs += fixedBreakdownThisFrame.postOtherMs;
+            perfAccumFixedBreakdown.phaseTransitionMs += fixedBreakdownThisFrame.phaseTransitionMs;
+            perfAccumFixedBreakdown.backendHydrateMs += fixedBreakdownThisFrame.backendHydrateMs;
             perfAccumFixedBreakdown.cameraMs += fixedBreakdownThisFrame.cameraMs;
             perfAccumFixedBreakdown.unitInteractionMs += fixedBreakdownThisFrame.unitInteractionMs;
             perfAccumFixedBreakdown.shopMs += fixedBreakdownThisFrame.shopMs;
             perfAccumFixedBreakdown.roundMs += fixedBreakdownThisFrame.roundMs;
             perfAccumFixedBreakdown.stateManagerMs += fixedBreakdownThisFrame.stateManagerMs;
+            perfAccumFixedBreakdown.stateUpdateMs += fixedBreakdownThisFrame.stateUpdateMs;
+            perfAccumFixedBreakdown.stateFlushMs += fixedBreakdownThisFrame.stateFlushMs;
             perfAccumFixedBreakdown.movementMs += fixedBreakdownThisFrame.movementMs;
+            perfAccumFixedBreakdown.movementPlanMs += fixedBreakdownThisFrame.movementPlanMs;
+            perfAccumFixedBreakdown.movementLuaMs += fixedBreakdownThisFrame.movementLuaMs;
+            perfAccumFixedBreakdown.movementFlushMs += fixedBreakdownThisFrame.movementFlushMs;
+            perfAccumFixedBreakdown.movementAdvanceMs += fixedBreakdownThisFrame.movementAdvanceMs;
             perfAccumFixedBreakdown.combatMs += fixedBreakdownThisFrame.combatMs;
+            perfAccumFixedBreakdown.combatPlanMs += fixedBreakdownThisFrame.combatPlanMs;
+            perfAccumFixedBreakdown.combatLuaMs += fixedBreakdownThisFrame.combatLuaMs;
+            perfAccumFixedBreakdown.combatFlushMs += fixedBreakdownThisFrame.combatFlushMs;
             perfAccumFixedBreakdown.worldMs += fixedBreakdownThisFrame.worldMs;
             perfAccumRenderBuildMs += renderBuildMs;
             perfAccumRenderSubmitMs += submitMs;
@@ -1051,6 +1063,12 @@ namespace {
                     static_cast<float>(perfAccumFixedBreakdown.updatePhaseMs / frames);
                 avgFixedBreakdown.postUpdateMs =
                     static_cast<float>(perfAccumFixedBreakdown.postUpdateMs / frames);
+                avgFixedBreakdown.postOtherMs =
+                    static_cast<float>(perfAccumFixedBreakdown.postOtherMs / frames);
+                avgFixedBreakdown.phaseTransitionMs =
+                    static_cast<float>(perfAccumFixedBreakdown.phaseTransitionMs / frames);
+                avgFixedBreakdown.backendHydrateMs =
+                    static_cast<float>(perfAccumFixedBreakdown.backendHydrateMs / frames);
                 avgFixedBreakdown.cameraMs =
                     static_cast<float>(perfAccumFixedBreakdown.cameraMs / frames);
                 avgFixedBreakdown.unitInteractionMs =
@@ -1061,10 +1079,28 @@ namespace {
                     static_cast<float>(perfAccumFixedBreakdown.roundMs / frames);
                 avgFixedBreakdown.stateManagerMs =
                     static_cast<float>(perfAccumFixedBreakdown.stateManagerMs / frames);
+                avgFixedBreakdown.stateUpdateMs =
+                    static_cast<float>(perfAccumFixedBreakdown.stateUpdateMs / frames);
+                avgFixedBreakdown.stateFlushMs =
+                    static_cast<float>(perfAccumFixedBreakdown.stateFlushMs / frames);
                 avgFixedBreakdown.movementMs =
                     static_cast<float>(perfAccumFixedBreakdown.movementMs / frames);
+                avgFixedBreakdown.movementPlanMs =
+                    static_cast<float>(perfAccumFixedBreakdown.movementPlanMs / frames);
+                avgFixedBreakdown.movementLuaMs =
+                    static_cast<float>(perfAccumFixedBreakdown.movementLuaMs / frames);
+                avgFixedBreakdown.movementFlushMs =
+                    static_cast<float>(perfAccumFixedBreakdown.movementFlushMs / frames);
+                avgFixedBreakdown.movementAdvanceMs =
+                    static_cast<float>(perfAccumFixedBreakdown.movementAdvanceMs / frames);
                 avgFixedBreakdown.combatMs =
                     static_cast<float>(perfAccumFixedBreakdown.combatMs / frames);
+                avgFixedBreakdown.combatPlanMs =
+                    static_cast<float>(perfAccumFixedBreakdown.combatPlanMs / frames);
+                avgFixedBreakdown.combatLuaMs =
+                    static_cast<float>(perfAccumFixedBreakdown.combatLuaMs / frames);
+                avgFixedBreakdown.combatFlushMs =
+                    static_cast<float>(perfAccumFixedBreakdown.combatFlushMs / frames);
                 avgFixedBreakdown.worldMs =
                     static_cast<float>(perfAccumFixedBreakdown.worldMs / frames);
 
@@ -1102,12 +1138,15 @@ namespace {
                         const char* name;
                         float ms;
                     };
-                    std::array<FixedSystemEntry, 7> fixedSystemEntries{{
+                    std::array<FixedSystemEntry, 10> fixedSystemEntries{{
+                        {"backend_hydrate", avgFixedBreakdown.backendHydrateMs},
                         {"combat", avgFixedBreakdown.combatMs},
                         {"world", avgFixedBreakdown.worldMs},
                         {"movement", avgFixedBreakdown.movementMs},
                         {"round", avgFixedBreakdown.roundMs},
                         {"state", avgFixedBreakdown.stateManagerMs},
+                        {"post_other", avgFixedBreakdown.postOtherMs},
+                        {"phasechg", avgFixedBreakdown.phaseTransitionMs},
                         {"camera", avgFixedBreakdown.cameraMs},
                         {"unit", avgFixedBreakdown.unitInteractionMs},
                     }};
@@ -1184,13 +1223,25 @@ namespace {
                          << ",\"fixed_phase_pre_ms\":" << avgFixedBreakdown.preUpdateMs
                          << ",\"fixed_phase_update_ms\":" << avgFixedBreakdown.updatePhaseMs
                          << ",\"fixed_phase_post_ms\":" << avgFixedBreakdown.postUpdateMs
+                         << ",\"fixed_phase_post_other_ms\":" << avgFixedBreakdown.postOtherMs
+                         << ",\"fixed_phase_transition_ms\":" << avgFixedBreakdown.phaseTransitionMs
+                         << ",\"fixed_backend_hydrate_ms\":" << avgFixedBreakdown.backendHydrateMs
                          << ",\"fixed_camera_ms\":" << avgFixedBreakdown.cameraMs
                          << ",\"fixed_unit_interaction_ms\":" << avgFixedBreakdown.unitInteractionMs
                          << ",\"fixed_shop_ms\":" << avgFixedBreakdown.shopMs
                          << ",\"fixed_round_ms\":" << avgFixedBreakdown.roundMs
                          << ",\"fixed_state_manager_ms\":" << avgFixedBreakdown.stateManagerMs
+                         << ",\"fixed_state_update_ms\":" << avgFixedBreakdown.stateUpdateMs
+                         << ",\"fixed_state_flush_ms\":" << avgFixedBreakdown.stateFlushMs
                          << ",\"fixed_movement_ms\":" << avgFixedBreakdown.movementMs
+                         << ",\"fixed_movement_plan_ms\":" << avgFixedBreakdown.movementPlanMs
+                         << ",\"fixed_movement_lua_ms\":" << avgFixedBreakdown.movementLuaMs
+                         << ",\"fixed_movement_flush_ms\":" << avgFixedBreakdown.movementFlushMs
+                         << ",\"fixed_movement_advance_ms\":" << avgFixedBreakdown.movementAdvanceMs
                          << ",\"fixed_combat_ms\":" << avgFixedBreakdown.combatMs
+                         << ",\"fixed_combat_plan_ms\":" << avgFixedBreakdown.combatPlanMs
+                         << ",\"fixed_combat_lua_ms\":" << avgFixedBreakdown.combatLuaMs
+                         << ",\"fixed_combat_flush_ms\":" << avgFixedBreakdown.combatFlushMs
                          << ",\"fixed_world_ms\":" << avgFixedBreakdown.worldMs
                          << ",\"fixed_ticks_dropped\":" << avgFixedTicksDropped
                          << "}";

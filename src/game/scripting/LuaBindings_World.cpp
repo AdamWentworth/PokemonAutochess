@@ -66,6 +66,40 @@ void registerLuaBindings_World(sol::state& lua, ScriptAPI& api) {
         return arr;
     });
 
+    lua.set_function("world_list_units_combat", [&api, &lua]() {
+        sol::state_view L(lua);
+        sol::table arr = L.create_table();
+        int i = 1;
+        for (const auto& u : api.listUnitsForCombat()) {
+            sol::table t = L.create_table();
+            t["id"] = u.id;
+            t["name"] = u.name;
+            t["side"] = (u.side == PokemonSide::Player) ? "Player" : "Enemy";
+            t["hp"] = u.hp;
+            t["attack"] = u.attack;
+            t["speed"] = u.speed;
+            t["energy"] = u.energy;
+            t["maxEnergy"] = u.maxEnergy;
+            t["col"] = u.col;
+            t["row"] = u.row;
+            t["alive"] = u.alive;
+            t["fainting"] = u.fainting;
+            t["captureInProgress"] = u.captureInProgress;
+            t["fastMove"] = u.fastMove;
+            t["chargedMove"] = u.chargedMove;
+            sol::table types = L.create_table();
+            int ti = 1;
+            for (const auto& ty : u.types) types[ti++] = ty;
+            t["types"] = types;
+            t["adjacentEnemyCount"] = u.adjacentEnemyCount;
+            t["bestAdjacentEnemyId"] = u.bestAdjacentEnemyId;
+            t["canAttack"] = u.canAttack;
+            t["attackReady"] = u.attackReady;
+            arr[i++] = t;
+        }
+        return arr;
+    });
+
     lua.set_function("world_get_unit_snapshot", [&api, &lua](int unitId) {
         sol::state_view L(lua);
         sol::table t = L.create_table();

@@ -9,6 +9,7 @@
 #include "engine/input/InputEvent.h"
 #include "engine/ui/Card.h"
 
+#include <optional>
 #include <memory>
 #include <string>
 #include <vector>
@@ -48,6 +49,10 @@ private:
     void drawShopHud(int uiW, int uiH, bool showSellOverlay);
     void setCombatActiveFlag(bool active);
     bool shouldDelayPostCombat() const;
+    void refreshNativeRouteFlowMetadata();
+    bool tryFinishNativeRouteFlow();
+    void emitScriptStyleLog(const std::string& tagOrMsg, const std::optional<std::string>& payload);
+    void emitGoldLog(const std::string& msg);
 
     GameStateManager* stateManager = nullptr;
     GameWorld* gameWorld = nullptr;
@@ -73,6 +78,11 @@ private:
     bool postCombatHoldActive = false;
     float preCombatCountdownSec = 0.0f;
     float postCombatCountdownSec = 0.0f;
+    bool nativeRouteFlowEnabled = false;
+    bool nativeRouteUsesClassicMode = false;
+    bool nativeRouteTransitionQueued = false;
+    std::string nativeRouteNextShopScriptPath;
+    std::string nativeRouteClearMessage;
 
     std::string loadedScriptPath;
     bool resumeFromSnapshot = false;

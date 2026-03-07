@@ -1461,9 +1461,30 @@ struct GameSession::Impl {
             if (!mesh) return;
 
             if (!unit.model) {
-                if (unit.animIndexCacheSourceModelPath != modelPath) {
+                if (unit.animIndexCacheSourceModelPath != modelPath || unit.animIndexCache.empty()) {
                     unit.animIndexCache.clear();
+                    unit.animIndexCache.reserve(std::max<std::size_t>(16u, mesh->animations.size() * 8u));
                     unit.animIndexCacheSourceModelPath = modelPath;
+                    const auto cacheAlias = [&](const std::string& clipName, int idx) {
+                        if (clipName.empty() || idx < 0) return;
+                        unit.animIndexCache[clipName] = idx;
+                        unit.animIndexCache[toLowerCopy(clipName)] = idx;
+                    };
+
+                    for (std::size_t i = 0; i < mesh->animations.size(); ++i) {
+                        const int idx = static_cast<int>(i);
+                        const std::string& raw = mesh->animations[i].name;
+                        cacheAlias(raw, idx);
+                        const std::string noGfbanm = stripSuffix(raw, ".gfbanm");
+                        cacheAlias(noGfbanm, idx);
+                        const std::string noStart = stripSuffix(raw, "__START");
+                        cacheAlias(noStart, idx);
+                        const std::string noEnd = stripSuffix(raw, "__END");
+                        cacheAlias(noEnd, idx);
+                        std::string compact = stripSuffix(noGfbanm, "__START");
+                        compact = stripSuffix(compact, "__END");
+                        cacheAlias(compact, idx);
+                    }
                 }
                 if (unit.backendAnimDurationsSourceModelPath != modelPath ||
                     unit.backendAnimDurationsSec.size() != mesh->animations.size()) {
@@ -1473,27 +1494,6 @@ struct GameSession::Impl {
                             std::max(0.0f, mesh->animations[i].durationSec);
                     }
                     unit.backendAnimDurationsSourceModelPath = modelPath;
-                }
-
-                const auto cacheAlias = [&](const std::string& clipName, int idx) {
-                    if (clipName.empty() || idx < 0) return;
-                    unit.animIndexCache[clipName] = idx;
-                    unit.animIndexCache[toLowerCopy(clipName)] = idx;
-                };
-
-                for (std::size_t i = 0; i < mesh->animations.size(); ++i) {
-                    const int idx = static_cast<int>(i);
-                    const std::string& raw = mesh->animations[i].name;
-                    cacheAlias(raw, idx);
-                    const std::string noGfbanm = stripSuffix(raw, ".gfbanm");
-                    cacheAlias(noGfbanm, idx);
-                    const std::string noStart = stripSuffix(raw, "__START");
-                    cacheAlias(noStart, idx);
-                    const std::string noEnd = stripSuffix(raw, "__END");
-                    cacheAlias(noEnd, idx);
-                    std::string compact = stripSuffix(noGfbanm, "__START");
-                    compact = stripSuffix(compact, "__END");
-                    cacheAlias(compact, idx);
                 }
             } else {
                 unit.animIndexCacheSourceModelPath.clear();
@@ -1634,6 +1634,7 @@ struct GameSession::Impl {
         services = std::make_unique<GameServices>(config, dataDb, log, scriptEvents, *assetStore, rng, timeSource,
                                                   &ecsWorld, roundPhaseEntity, &viewport, startupRoutes.hasRenderer);
         services->renderer = renderer;
+        services->engineServices = ctx.services;
         services->applyVideoMode = ctx.applyVideoMode;
         services->requestQuit = ctx.requestQuit;
         if (ctx.services) {
@@ -1702,7 +1703,14 @@ struct GameSession::Impl {
 
         if (auto* stateMgr = stateManager.get()) {
             scheduler.add(std::make_unique<game::CallbackSystemAdapter>(
-                [stateMgr](float dt) { stateMgr->update(dt); },
+                [stateMgr, engineServices = engineServices](float dt) {
+                    stateMgr->update(dt);
+                    if (engineServices) {
+                        const auto& timing = stateMgr->lastUpdateTiming();
+                        engineServices->frameFixedBreakdown.stateUpdateMs += timing.stateUpdateMs;
+                        engineServices->frameFixedBreakdown.stateFlushMs += timing.flushPendingMs;
+                    }
+                },
                 "state_manager"
             ), Phase::PostUpdate);
         }
@@ -2366,7 +2374,13 @@ struct GameSession::Impl {
         }
         timeSource.advance(dt);
         if (usesBackendGameRenderPath()) {
+            const auto hydrateStart = std::chrono::high_resolution_clock::now();
             hydrateBackendUnitAnimationAndScale();
+            if (engineServices) {
+                const auto hydrateEnd = std::chrono::high_resolution_clock::now();
+                engineServices->frameFixedBreakdown.backendHydrateMs += static_cast<float>(
+                    std::chrono::duration<double, std::milli>(hydrateEnd - hydrateStart).count());
+            }
         }
         updateGraph.tick(dt);
         if (devPauseWorld && devPauseStepTicks > 0) {

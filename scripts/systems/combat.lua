@@ -3,7 +3,6 @@ local rng = function() return math.random() end
 local attack_stage = {}
 local defense_stage = {}
 local unit_snapshot_cache = {}
-local adjacent_enemy_ids_cache = {}
 local EMPTY_IDS = {}
 
 local MISS_CHANCE = 0.10
@@ -231,41 +230,12 @@ local function refresh_unit_snapshot(unit_id)
   return snap
 end
 
-local function rebuild_adjacent_enemy_cache(units)
-  adjacent_enemy_ids_cache = {}
-  if type(units) ~= "table" then return end
-
-  local active = {}
-  for i = 1, #units do
-    local u = units[i]
-    if u and u.alive and (not u.captureInProgress) then
-      active[#active + 1] = u
-      adjacent_enemy_ids_cache[u.id] = {}
-    end
+local function adjacent_enemy_count(unit_id)
+  local u = fetch_unit_snapshot(unit_id)
+  if u and type(u.adjacentEnemyCount) == "number" then
+    return u.adjacentEnemyCount
   end
-
-  local count = #active
-  for i = 1, count - 1 do
-    local a = active[i]
-    for j = i + 1, count do
-      local b = active[j]
-      if a.side ~= b.side then
-        local dx = math.abs((a.col or 0) - (b.col or 0))
-        local dy = math.abs((a.row or 0) - (b.row or 0))
-        if math.max(dx, dy) == 1 then
-          local listA = adjacent_enemy_ids_cache[a.id]
-          local listB = adjacent_enemy_ids_cache[b.id]
-          listA[#listA + 1] = b.id
-          listB[#listB + 1] = a.id
-        end
-      end
-    end
-  end
-end
-
-local function adjacent_enemy_ids(unit_id)
-  if type(unit_id) ~= "number" then return EMPTY_IDS end
-  return adjacent_enemy_ids_cache[unit_id] or EMPTY_IDS
+  return 0
 end
 
 -- Attack cadence is derived from unit speed stat, but can be globally scaled
@@ -273,17 +243,15 @@ end
 local function unit_attack_speed_factor(unit_id)
   local s = nil
 
-  if type(world_get_unit_speed) == "function" then
-    local v = world_get_unit_speed(unit_id)
-    if type(v) == "number" then s = v end
+  local u = fetch_unit_snapshot(unit_id)
+  if u then
+    if type(u.speed) == "number" then s = u.speed end
+    if s == nil and type(u.movementSpeed) == "number" then s = u.movementSpeed end
   end
 
-  if s == nil then
-    local u = fetch_unit_snapshot(unit_id)
-    if u then
-      if type(u.speed) == "number" then s = u.speed end
-      if s == nil and type(u.movementSpeed) == "number" then s = u.movementSpeed end
-    end
+  if s == nil and type(world_get_unit_speed) == "function" then
+    local v = world_get_unit_speed(unit_id)
+    if type(v) == "number" then s = v end
   end
 
   if type(s) ~= "number" then s = TUNING.SPEED_BASELINE end
@@ -426,6 +394,10 @@ end
 
 -- attack gating helper (prevents spending cooldown/energy while airborne/landing)
 local function can_attack_now(id)
+  local u = fetch_unit_snapshot(id)
+  if u and u.canAttack ~= nil then
+    return u.canAttack == true
+  end
   if type(world_can_attack) == "function" then
     return world_can_attack(id)
   end
@@ -435,6 +407,10 @@ end
 -- stronger gating: only start a *new* attack cycle when engine is ready.
 -- (prevents charged from preempting and avoids loop restarts mid-cycle)
 local function can_start_attack_now(id)
+  local u = fetch_unit_snapshot(id)
+  if u and u.attackReady ~= nil then
+    return u.attackReady == true
+  end
   if type(world_attack_ready) == "function" then
     return world_attack_ready(id)
   end
@@ -453,10 +429,15 @@ end
 
 local function adjacent_enemy_targets(attacker_id)
   local out = {}
-  local enemies = adjacent_enemy_ids(attacker_id)
+  if type(world_enemies_adjacent) ~= "function" then return out end
+  local enemies = world_enemies_adjacent(attacker_id)
   if type(enemies) ~= "table" then return out end
-  for _, enemyId in ipairs(enemies) do
+  for i = 1, #enemies do
+    local enemyId = enemies[i]
     local e = fetch_unit_snapshot(enemyId)
+    if (not e) and type(refresh_unit_snapshot) == "function" then
+      e = refresh_unit_snapshot(enemyId)
+    end
     if e and e.alive and (not e.captureInProgress) then
       out[#out + 1] = enemyId
     end
@@ -488,18 +469,9 @@ local function apply_stage_drop(effect, target_id, stageCount)
 end
 
 local function find_adjacent_enemy(id)
-  local enemies = adjacent_enemy_ids(id)
-  if enemies and #enemies > 0 then
-    local bestId, bestHP, bestTie = nil, math.huge, math.huge
-    for _,eid in ipairs(enemies) do
-      local e = fetch_unit_snapshot(eid)
-      if e and e.alive then
-        if e.hp < bestHP or (e.hp == bestHP and e.id < bestTie) then
-          bestHP = e.hp; bestId = e.id; bestTie = e.id
-        end
-      end
-    end
-    return bestId
+  local u = fetch_unit_snapshot(id)
+  if u and type(u.bestAdjacentEnemyId) == "number" and u.bestAdjacentEnemyId >= 0 then
+    return u.bestAdjacentEnemyId
   end
   return nil
 end
@@ -563,6 +535,10 @@ end
 local function is_attack_cycle_active(id)
   local t = timers[id] or 0.0
   if t > 0.0001 then return true end
+  local u = fetch_unit_snapshot(id)
+  if u and u.attackReady ~= nil then
+    return not (u.attackReady == true)
+  end
   if type(world_attack_ready) == "function" then
     return not world_attack_ready(id)
   end
@@ -577,8 +553,9 @@ local function mark_charged_pending_if_ready(id)
   local name = unit_charged_move(id)
   if not name or name == "" then return end
   local m = move_get(name)
-  local cur = world_get_energy(id)
-  local cap = world_get_max_energy(id)
+  local u = fetch_unit_snapshot(id)
+  local cur = (u and u.energy) or world_get_energy(id)
+  local cap = (u and u.maxEnergy) or world_get_max_energy(id)
   -- Moves DB may store energyCost as 0 when unspecified.
   -- Treat missing/zero as "use maxEnergy".
   local need = m.energyCost
@@ -594,8 +571,9 @@ local function fire_charged(id, tgt)
   local name = unit_charged_move(id)
   if not name or name == "" then return false end
   local m = move_get(name)
-  local cur = world_get_energy(id)
-  local cap = world_get_max_energy(id)
+  local u = fetch_unit_snapshot(id)
+  local cur = (u and u.energy) or world_get_energy(id)
+  local cap = (u and u.maxEnergy) or world_get_max_energy(id)
   local need = m.energyCost
   if type(need) ~= "number" or need <= 0 then need = cap end
   if type(need) ~= "number" or need <= 0 then return false end
@@ -672,11 +650,9 @@ function combat_init()
   attack_stage = {}
   defense_stage = {}
   clear_unit_snapshot_cache()
-  adjacent_enemy_ids_cache = {}
 
-  local units = world_list_units() or {}
+  local units = (type(world_list_units_combat) == "function" and world_list_units_combat()) or world_list_units() or {}
   seed_unit_snapshot_cache(units)
-  rebuild_adjacent_enemy_cache(units)
   for i = 1, #units do
     local u = units[i]
     world_set_energy(u.id, 0)
@@ -693,10 +669,9 @@ end
 function combat_update(dt)
   dt = clamp(dt or 0.016, 0.0, 0.25)
 
-  local units = world_list_units()
+  local units = (type(world_list_units_combat) == "function" and world_list_units_combat()) or world_list_units()
   if not units then return end
   seed_unit_snapshot_cache(units)
-  rebuild_adjacent_enemy_cache(units)
 
   -- Update per-unit cooldown timers
   for i = 1, #units do
@@ -718,7 +693,7 @@ function combat_update(dt)
   for i = 1, #units do
     local u = units[i]
     if u.alive then
-      local adjacent = #adjacent_enemy_ids(u.id) > 0
+      local adjacent = (u.adjacentEnemyCount or 0) > 0
       local engaged = adjacent or is_attack_cycle_active(u.id)
       set_engaged(u.id, engaged)
       if not engaged then
@@ -735,7 +710,7 @@ function combat_update(dt)
   -- Combat resolution
   for i = 1, #units do
     local u = units[i]
-    local adjacent = u.alive and (#adjacent_enemy_ids(u.id) > 0)
+    local adjacent = u.alive and ((u.adjacentEnemyCount or 0) > 0)
     local cycleLocked = is_attack_cycle_active(u.id)
     if u.alive and (adjacent or cycleLocked) then
       local tgt = nil

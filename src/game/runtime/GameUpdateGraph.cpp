@@ -69,7 +69,9 @@ void GameUpdateGraph::tick(float dt) {
     EngineFixedPerfBreakdown* fixedBreakdown =
         inputs_.engineServices ? &inputs_.engineServices->frameFixedBreakdown : nullptr;
 
-    const auto tickPhase = [&](engine::ecs::Scheduler::Phase phase, float* phaseTotalMs) {
+    const auto tickPhase = [&](engine::ecs::Scheduler::Phase phase,
+                               float* phaseTotalMs,
+                               float* phaseOtherMs) {
         if (!inputs_.scheduler || !inputs_.world) return;
         if (!fixedBreakdown || !phaseTotalMs) {
             inputs_.scheduler->tickPhase(phase, *inputs_.world, dt);
@@ -77,26 +79,43 @@ void GameUpdateGraph::tick(float dt) {
         }
 
         const auto phaseStart = Clock::now();
+        float observedSystemMs = 0.0f;
         inputs_.scheduler->tickPhaseObserved(
             phase,
             *inputs_.world,
             dt,
             [&](const engine::ecs::ISystem& system, float elapsedMs) {
+                observedSystemMs += elapsedMs;
                 accumulateFixedSystemMs(*fixedBreakdown, system.debugName(), elapsedMs);
             });
-        *phaseTotalMs += static_cast<float>(
+        const float phaseElapsedMs = static_cast<float>(
             std::chrono::duration<double, std::milli>(Clock::now() - phaseStart).count());
+        *phaseTotalMs += phaseElapsedMs;
+        if (phaseOtherMs) {
+            const float otherMs = phaseElapsedMs - observedSystemMs;
+            if (otherMs > 0.0f) {
+                *phaseOtherMs += otherMs;
+            }
+        }
     };
 
     tickPhase(engine::ecs::Scheduler::Phase::PreUpdate,
-              fixedBreakdown ? &fixedBreakdown->preUpdateMs : nullptr);
+              fixedBreakdown ? &fixedBreakdown->preUpdateMs : nullptr,
+              nullptr);
     tickPhase(engine::ecs::Scheduler::Phase::Update,
-              fixedBreakdown ? &fixedBreakdown->updatePhaseMs : nullptr);
+              fixedBreakdown ? &fixedBreakdown->updatePhaseMs : nullptr,
+              nullptr);
 
+    const auto transitionStart = Clock::now();
     handleRoundPhaseTransitions();
+    if (fixedBreakdown) {
+        fixedBreakdown->phaseTransitionMs += static_cast<float>(
+            std::chrono::duration<double, std::milli>(Clock::now() - transitionStart).count());
+    }
 
     tickPhase(engine::ecs::Scheduler::Phase::PostUpdate,
-              fixedBreakdown ? &fixedBreakdown->postUpdateMs : nullptr);
+              fixedBreakdown ? &fixedBreakdown->postUpdateMs : nullptr,
+              fixedBreakdown ? &fixedBreakdown->postOtherMs : nullptr);
 }
 
 void GameUpdateGraph::handleRoundPhaseTransitions() {

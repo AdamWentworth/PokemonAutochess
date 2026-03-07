@@ -9,6 +9,11 @@ struct InputEvent;
 
 class GameStateManager {
 public:
+    struct UpdateTiming {
+        float stateUpdateMs = 0.0f;
+        float flushPendingMs = 0.0f;
+    };
+
     void pushState(std::unique_ptr<GameState> state);
     void popState();
     void clearAndPushState(std::unique_ptr<GameState> state);
@@ -16,6 +21,7 @@ public:
     void handleInput(const InputEvent& event);
     void update(float deltaTime);
     void render();
+    const UpdateTiming& lastUpdateTiming() const { return lastUpdateTiming_; }
 
 private:
     std::stack<std::unique_ptr<GameState>> stateStack;
@@ -27,6 +33,7 @@ private:
         std::unique_ptr<GameState> state;
     };
     std::vector<PendingOp> pendingOps;
+    UpdateTiming lastUpdateTiming_{};
 
     void flushPending();
 };

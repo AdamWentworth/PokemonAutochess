@@ -20,6 +20,7 @@ namespace engine { class IAssetStore; class IRandom; class ITimeSource; }
 namespace engine::ecs { class World; }
 namespace game::ui { struct UIViewport; }
 class IRenderBackend;
+struct EngineServices;
 
 struct GameServices {
     struct VideoMode {
@@ -39,6 +40,7 @@ struct GameServices {
     engine::ecs::Entity combatStateEntity{};
     game::ui::UIViewport* viewport = nullptr;
     IRenderBackend* renderer = nullptr;
+    EngineServices* engineServices = nullptr;
     bool renderEnabled = false;
     std::string gameMode = "classic";
     bool hasStartedGame = false;

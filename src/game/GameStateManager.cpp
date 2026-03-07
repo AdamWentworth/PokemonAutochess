@@ -2,6 +2,8 @@
 
 #include "GameStateManager.h"
 
+#include <chrono>
+
 void GameStateManager::pushState(std::unique_ptr<GameState> state) {
     if (!state) return;
     if (inUpdate) {
@@ -61,12 +63,22 @@ void GameStateManager::handleInput(const InputEvent& event) {
 }
 
 void GameStateManager::update(float deltaTime) {
+    using Clock = std::chrono::high_resolution_clock;
+
+    lastUpdateTiming_ = {};
     inUpdate = true;
+    const auto stateUpdateStart = Clock::now();
     if (GameState* state = getCurrentState()) {
         state->update(deltaTime);
     }
+    lastUpdateTiming_.stateUpdateMs = static_cast<float>(
+        std::chrono::duration<double, std::milli>(Clock::now() - stateUpdateStart).count());
     inUpdate = false;
+
+    const auto flushStart = Clock::now();
     flushPending();
+    lastUpdateTiming_.flushPendingMs = static_cast<float>(
+        std::chrono::duration<double, std::milli>(Clock::now() - flushStart).count());
 }
 
 void GameStateManager::render() {

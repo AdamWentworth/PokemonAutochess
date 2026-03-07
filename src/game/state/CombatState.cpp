@@ -1,5 +1,6 @@
 #include "CombatState.h"
 
+#include "game/GameStateManager.h"
 #include "game/GameWorld.h"
 #include "game/GameServices.h"
 #include "game/logging/LoggerUtil.h"
@@ -12,9 +13,11 @@
 #include "game/runtime/BackendUiScale.h"
 #include "game/scripting/LuaCardParser.h"
 #include "game/scripting/LuaScriptHelpers.h"
+#include "game/scripting/ScriptEventBus.h"
 #include "game/state/BackendInputSlots.h"
 #include "game/state/BackendUiPolicy.h"
 #include "game/state/ShopCardConversion.h"
+#include "game/state/scripted/ScriptedState.h"
 #include "game/ui/ShopLayout.h"
 #include "game/ui/SellOverlayUiPolicy.h"
 #include "game/ui/UIViewport.h"
@@ -529,11 +532,91 @@ bool CombatState::shouldDelayPostCombat() const {
     return anyPlayerAlive && !anyEnemyAlive;
 }
 
+void CombatState::refreshNativeRouteFlowMetadata() {
+    nativeRouteFlowEnabled = false;
+    nativeRouteUsesClassicMode = false;
+    nativeRouteTransitionQueued = false;
+    nativeRouteNextShopScriptPath.clear();
+    nativeRouteClearMessage.clear();
+
+    sol::table S = script.getScriptTable();
+    sol::function useNative = S["use_native_route_flow"];
+    if (!useNative.valid()) return;
+
+    sol::protected_function_result nativeResult = useNative();
+    if (!nativeResult.valid()) {
+        sol::error err = nativeResult;
+        game::log::error(&services.log, std::string("[CombatState] Failed to resolve native route flow flag: ") + err.what());
+        return;
+    }
+    if (!nativeResult.get<bool>()) return;
+
+    const auto nextShop = game::scripting::callStringFunction(S, {"get_next_shop_path"});
+    if (!nextShop || nextShop->empty()) return;
+
+    nativeRouteNextShopScriptPath = *nextShop;
+    if (const auto clearMsg = game::scripting::callStringFunction(S, {"get_clear_message"})) {
+        nativeRouteClearMessage = *clearMsg;
+    }
+
+    std::string routeMode = services.gameMode;
+    if (const auto scriptMode = game::scripting::callStringFunction(S, {"get_route_mode"})) {
+        routeMode = *scriptMode;
+    }
+
+    nativeRouteUsesClassicMode = (routeMode == "classic");
+    nativeRouteFlowEnabled = true;
+}
+
+void CombatState::emitScriptStyleLog(const std::string& tagOrMsg,
+                                     const std::optional<std::string>& payload) {
+    if (payload.has_value() && !payload->empty()) {
+        services.events.emit(tagOrMsg, payload);
+        const bool hasBrackets = !tagOrMsg.empty() && tagOrMsg.front() == '[' && tagOrMsg.back() == ']';
+        const std::string header = hasBrackets ? tagOrMsg : ("[" + tagOrMsg + "]");
+        game::log::infoTerminalOnly(&services.log, header + " " + *payload);
+        return;
+    }
+
+    services.events.emit("log", tagOrMsg);
+    game::log::info(&services.log, tagOrMsg);
+}
+
+void CombatState::emitGoldLog(const std::string& msg) {
+    if (msg.empty()) return;
+    services.log.economyInfo(msg);
+}
+
+bool CombatState::tryFinishNativeRouteFlow() {
+    if (!nativeRouteFlowEnabled || nativeRouteTransitionQueued) return false;
+    if (!stateManager || !gameWorld || nativeRouteNextShopScriptPath.empty()) return false;
+
+    if (nativeRouteUsesClassicMode) {
+        const auto income = gameWorld->awardClassicRoundIncome(true);
+        emitGoldLog("Earned +" + std::to_string(income.totalIncome) +
+                    "g. Gold: " + std::to_string(gameWorld->getMoney()) + "g.");
+        emitScriptStyleLog("Round", std::string("Round cleared!"));
+    } else if (!nativeRouteClearMessage.empty()) {
+        emitScriptStyleLog(nativeRouteClearMessage, std::nullopt);
+    }
+
+    nativeRouteTransitionQueued = true;
+    stateManager->popState();
+    stateManager->pushState(
+        std::make_unique<ScriptedState>(stateManager, gameWorld, services, nativeRouteNextShopScriptPath));
+    return true;
+}
+
 void CombatState::onEnter() {
     combatStarted = false;
     postCombatHoldActive = false;
     preCombatCountdownSec = kCombatStartCountdownSec;
     postCombatCountdownSec = 0.0f;
+    nativeRouteFlowEnabled = false;
+    nativeRouteUsesClassicMode = false;
+    nativeRouteTransitionQueued = false;
+    nativeRouteNextShopScriptPath.clear();
+    nativeRouteClearMessage.clear();
 
     if (resumeFromSnapshot) {
         combatStarted = true;
@@ -557,6 +640,7 @@ void CombatState::onEnter() {
         }
 
         script.onEnter();
+        refreshNativeRouteFlowMetadata();
         ensureShopUi();
         return;
     }
@@ -629,6 +713,7 @@ void CombatState::onEnter() {
     }
 
     script.onEnter();
+    refreshNativeRouteFlowMetadata();
     ensureShopUi();
 }
 
@@ -714,7 +799,9 @@ void CombatState::update(float dt) {
         return;
     }
 
-    if (shouldDelayPostCombat()) {
+    const bool shouldFinishCombat = shouldDelayPostCombat();
+
+    if (shouldFinishCombat) {
         if (!postCombatHoldActive) {
             postCombatHoldActive = true;
             postCombatCountdownSec = kCombatEndHoldSec;
@@ -729,6 +816,15 @@ void CombatState::update(float dt) {
             postCombatHoldActive = false;
             postCombatCountdownSec = 0.0f;
             setCombatActiveFlag(true);
+        }
+    }
+
+    if (nativeRouteFlowEnabled) {
+        if (!shouldFinishCombat) {
+            return;
+        }
+        if (tryFinishNativeRouteFlow()) {
+            return;
         }
     }
 

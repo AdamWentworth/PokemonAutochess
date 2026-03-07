@@ -1,6 +1,7 @@
 #include "game/runtime/shared/backend/SharedBackendPoseEval.h"
 
 #include <algorithm>
+#include <cstdint>
 #include <cmath>
 #include <unordered_map>
 #include <unordered_set>
@@ -11,10 +12,17 @@
 namespace game::runtime::shared_backend_pose {
 namespace {
 
+glm::quat normalizeQuatIfNeeded(const glm::quat& q) {
+    const float lenSq = glm::dot(q, q);
+    if (lenSq <= 0.0f) return glm::quat(1.0f, 0.0f, 0.0f, 0.0f);
+    if (std::abs(lenSq - 1.0f) <= 0.0001f) return q;
+    return q * glm::inversesqrt(lenSq);
+}
+
 glm::mat4 trsToMat4(const pac_model_types::NodeTRS& n) {
     if (n.hasMatrix) return n.matrix;
     const glm::mat4 t = glm::translate(glm::mat4(1.0f), n.t);
-    const glm::mat4 r = glm::mat4_cast(glm::normalize(n.r));
+    const glm::mat4 r = glm::mat4_cast(normalizeQuatIfNeeded(n.r));
     const glm::mat4 s = glm::scale(glm::mat4(1.0f), n.s);
     return t * r * s;
 }
@@ -49,9 +57,90 @@ glm::vec4 sampleVec4(const pac_model_types::AnimationSampler& sampler, float t) 
     return glm::mix(v0, v1, std::clamp(a, 0.0f, 1.0f));
 }
 
-glm::quat sampleQuat(const pac_model_types::AnimationSampler& sampler, float t) {
-    const glm::vec4 v = sampleVec4(sampler, t);
-    return glm::normalize(glm::quat(v.w, v.x, v.y, v.z));
+struct ScenePoseMeshCache {
+    std::vector<int> evalOrder;
+    std::vector<glm::mat4> defaultLocalMatrices;
+    std::vector<std::vector<std::uint8_t>> animatedNodeMaskByClip;
+    std::vector<std::vector<int>> animatedNodesByClip;
+};
+
+const ScenePoseMeshCache& scenePoseMeshCacheFor(const backend_model::MeshData& mesh) {
+    static std::unordered_map<const backend_model::MeshData*, ScenePoseMeshCache> cache;
+    const auto found = cache.find(&mesh);
+    if (found != cache.end()) {
+        return found->second;
+    }
+
+    ScenePoseMeshCache built;
+    const std::size_t nodeCount = mesh.nodesDefault.size();
+    built.defaultLocalMatrices.reserve(nodeCount);
+    for (const auto& node : mesh.nodesDefault) {
+        built.defaultLocalMatrices.push_back(trsToMat4(node));
+    }
+
+    built.evalOrder.reserve(nodeCount);
+    std::vector<std::uint8_t> visited(nodeCount, 0u);
+    std::vector<int> stack;
+    stack.reserve(nodeCount);
+    const auto visitRoot = [&](int root) {
+        if (root < 0 || static_cast<std::size_t>(root) >= nodeCount) return;
+        stack.clear();
+        stack.push_back(root);
+        while (!stack.empty()) {
+            const int node = stack.back();
+            stack.pop_back();
+            if (node < 0 || static_cast<std::size_t>(node) >= nodeCount) continue;
+            if (visited[static_cast<std::size_t>(node)] != 0u) continue;
+            visited[static_cast<std::size_t>(node)] = 1u;
+            built.evalOrder.push_back(node);
+            if (static_cast<std::size_t>(node) >= mesh.nodeChildren.size()) continue;
+            const auto& children = mesh.nodeChildren[static_cast<std::size_t>(node)];
+            for (auto it = children.rbegin(); it != children.rend(); ++it) {
+                stack.push_back(*it);
+            }
+        }
+    };
+
+    if (!mesh.sceneRoots.empty()) {
+        for (const int root : mesh.sceneRoots) {
+            visitRoot(root);
+        }
+    } else {
+        bool visitedAnyRoot = false;
+        for (std::size_t i = 0; i < mesh.nodeParent.size() && i < nodeCount; ++i) {
+            if (mesh.nodeParent[i] >= 0) continue;
+            visitRoot(static_cast<int>(i));
+            visitedAnyRoot = true;
+        }
+        if (!visitedAnyRoot && nodeCount > 0u) {
+            visitRoot(0);
+        }
+    }
+    for (std::size_t i = 0; i < nodeCount; ++i) {
+        if (visited[i] == 0u) {
+            visitRoot(static_cast<int>(i));
+        }
+    }
+
+    built.animatedNodeMaskByClip.resize(mesh.animations.size());
+    built.animatedNodesByClip.resize(mesh.animations.size());
+    for (std::size_t clipIndex = 0; clipIndex < mesh.animations.size(); ++clipIndex) {
+        auto& mask = built.animatedNodeMaskByClip[clipIndex];
+        auto& animatedNodes = built.animatedNodesByClip[clipIndex];
+        mask.assign(nodeCount, 0u);
+        for (const auto& channel : mesh.animations[clipIndex].channels) {
+            if (channel.targetNode < 0) continue;
+            const std::size_t nodeIndex = static_cast<std::size_t>(channel.targetNode);
+            if (nodeIndex >= nodeCount) continue;
+            if (mask[nodeIndex] == 0u) {
+                mask[nodeIndex] = 1u;
+                animatedNodes.push_back(channel.targetNode);
+            }
+        }
+    }
+
+    const auto inserted = cache.emplace(&mesh, std::move(built));
+    return inserted.first->second;
 }
 
 const std::vector<std::uint8_t>& rootMotionCarrierMaskForMesh(const backend_model::MeshData& mesh) {
@@ -86,29 +175,28 @@ const std::vector<std::uint8_t>& rootMotionCarrierMaskForMesh(const backend_mode
     return inserted.first->second;
 }
 
-void buildGlobals(const backend_model::MeshData& mesh, PoseEval& eval) {
-    const auto dfs = [&](const auto& self, int node, const glm::mat4& parentM) -> void {
-        if (node < 0 || static_cast<std::size_t>(node) >= eval.nodeLocals.size()) return;
-        const glm::mat4 global = parentM * trsToMat4(eval.nodeLocals[static_cast<std::size_t>(node)]);
-        eval.nodeGlobals[static_cast<std::size_t>(node)] = global;
-        if (static_cast<std::size_t>(node) >= mesh.nodeChildren.size()) return;
-        for (int child : mesh.nodeChildren[static_cast<std::size_t>(node)]) {
-            self(self, child, global);
-        }
-    };
+void buildGlobals(const backend_model::MeshData& mesh, PoseEval& eval, int animIndex) {
+    const auto& meshCache = scenePoseMeshCacheFor(mesh);
+    const std::vector<std::uint8_t>* animatedNodeMask = nullptr;
+    if (animIndex >= 0 && static_cast<std::size_t>(animIndex) < meshCache.animatedNodeMaskByClip.size()) {
+        animatedNodeMask = &meshCache.animatedNodeMaskByClip[static_cast<std::size_t>(animIndex)];
+    }
 
-    if (!mesh.sceneRoots.empty()) {
-        for (int root : mesh.sceneRoots) {
-            dfs(dfs, root, glm::mat4(1.0f));
+    for (const int node : meshCache.evalOrder) {
+        if (node < 0 || static_cast<std::size_t>(node) >= eval.nodeGlobals.size()) continue;
+        const std::size_t nodeIndex = static_cast<std::size_t>(node);
+        const glm::mat4 localM =
+            (animatedNodeMask && (*animatedNodeMask)[nodeIndex] != 0u)
+                ? trsToMat4(eval.nodeLocals[nodeIndex])
+                : meshCache.defaultLocalMatrices[nodeIndex];
+        const int parent =
+            (nodeIndex < mesh.nodeParent.size()) ? mesh.nodeParent[nodeIndex] : -1;
+        if (parent >= 0 && static_cast<std::size_t>(parent) < eval.nodeGlobals.size()) {
+            eval.nodeGlobals[nodeIndex] =
+                eval.nodeGlobals[static_cast<std::size_t>(parent)] * localM;
+        } else {
+            eval.nodeGlobals[nodeIndex] = localM;
         }
-    } else if (!eval.nodeLocals.empty()) {
-        bool drewAny = false;
-        for (std::size_t i = 0; i < mesh.nodeParent.size(); ++i) {
-            if (mesh.nodeParent[i] >= 0) continue;
-            dfs(dfs, static_cast<int>(i), glm::mat4(1.0f));
-            drewAny = true;
-        }
-        if (!drewAny) dfs(dfs, 0, glm::mat4(1.0f));
     }
 }
 
@@ -119,10 +207,39 @@ void applyClipPose(const backend_model::MeshData& mesh,
                   bool preserveRootMotionCarrierXZ) {
     if (animIndex < 0 || static_cast<std::size_t>(animIndex) >= mesh.animations.size()) return;
     const auto& clip = mesh.animations[static_cast<std::size_t>(animIndex)];
+    const auto& meshCache = scenePoseMeshCacheFor(mesh);
     const float clipTime = wrapTime(animTimeSec, clip.durationSec);
     const std::vector<std::uint8_t>* rootMask = nullptr;
     if (preserveRootMotionCarrierXZ) {
         rootMask = &rootMotionCarrierMaskForMesh(mesh);
+    }
+    const auto& animatedNodes = meshCache.animatedNodesByClip[static_cast<std::size_t>(animIndex)];
+    for (const int nodeIndex : animatedNodes) {
+        if (nodeIndex < 0 || static_cast<std::size_t>(nodeIndex) >= eval.nodeLocals.size()) continue;
+        eval.nodeLocals[static_cast<std::size_t>(nodeIndex)] =
+            mesh.nodesDefault[static_cast<std::size_t>(nodeIndex)];
+    }
+
+    thread_local std::vector<glm::vec4> sampledVec4BySampler;
+    thread_local std::vector<glm::quat> sampledQuatBySampler;
+    thread_local std::vector<std::uint8_t> sampledVec4ReadyBySampler;
+    thread_local std::vector<std::uint8_t> sampledQuatReadyBySampler;
+    const std::size_t samplerCount = clip.samplers.size();
+    if (sampledVec4BySampler.size() < samplerCount) {
+        sampledVec4BySampler.resize(samplerCount);
+    }
+    if (sampledQuatBySampler.size() < samplerCount) {
+        sampledQuatBySampler.resize(samplerCount);
+    }
+    if (sampledVec4ReadyBySampler.size() < samplerCount) {
+        sampledVec4ReadyBySampler.resize(samplerCount, 0u);
+    }
+    if (sampledQuatReadyBySampler.size() < samplerCount) {
+        sampledQuatReadyBySampler.resize(samplerCount, 0u);
+    }
+    if (samplerCount > 0u) {
+        std::fill(sampledVec4ReadyBySampler.begin(), sampledVec4ReadyBySampler.begin() + samplerCount, 0u);
+        std::fill(sampledQuatReadyBySampler.begin(), sampledQuatReadyBySampler.begin() + samplerCount, 0u);
     }
 
     for (const auto& channel : clip.channels) {
@@ -133,9 +250,14 @@ void applyClipPose(const backend_model::MeshData& mesh,
             continue;
         }
         auto& local = eval.nodeLocals[static_cast<std::size_t>(channel.targetNode)];
-        const auto& sampler = clip.samplers[static_cast<std::size_t>(channel.samplerIndex)];
+        const std::size_t samplerIndex = static_cast<std::size_t>(channel.samplerIndex);
+        const auto& sampler = clip.samplers[samplerIndex];
         if (channel.path == pac_model_types::ChannelPath::Translation) {
-            const glm::vec4 tr = sampleVec4(sampler, clipTime);
+            if (sampledVec4ReadyBySampler[samplerIndex] == 0u) {
+                sampledVec4BySampler[samplerIndex] = sampleVec4(sampler, clipTime);
+                sampledVec4ReadyBySampler[samplerIndex] = 1u;
+            }
+            const glm::vec4 tr = sampledVec4BySampler[samplerIndex];
             const bool rootMotionCarrier =
                 preserveRootMotionCarrierXZ &&
                 rootMask &&
@@ -160,11 +282,25 @@ void applyClipPose(const backend_model::MeshData& mesh,
                 local.hasMatrix = false;
             }
         } else if (channel.path == pac_model_types::ChannelPath::Scale) {
-            const glm::vec4 sc = sampleVec4(sampler, clipTime);
+            if (sampledVec4ReadyBySampler[samplerIndex] == 0u) {
+                sampledVec4BySampler[samplerIndex] = sampleVec4(sampler, clipTime);
+                sampledVec4ReadyBySampler[samplerIndex] = 1u;
+            }
+            const glm::vec4 sc = sampledVec4BySampler[samplerIndex];
             local.s = glm::vec3(sc.x, sc.y, sc.z);
             local.hasMatrix = false;
         } else if (channel.path == pac_model_types::ChannelPath::Rotation) {
-            local.r = sampleQuat(sampler, clipTime);
+            if (sampledQuatReadyBySampler[samplerIndex] == 0u) {
+                if (sampledVec4ReadyBySampler[samplerIndex] == 0u) {
+                    sampledVec4BySampler[samplerIndex] = sampleVec4(sampler, clipTime);
+                    sampledVec4ReadyBySampler[samplerIndex] = 1u;
+                }
+                const glm::vec4 v = sampledVec4BySampler[samplerIndex];
+                sampledQuatBySampler[samplerIndex] =
+                    normalizeQuatIfNeeded(glm::quat(v.w, v.x, v.y, v.z));
+                sampledQuatReadyBySampler[samplerIndex] = 1u;
+            }
+            local.r = sampledQuatBySampler[samplerIndex];
             local.hasMatrix = false;
         }
     }
@@ -196,12 +332,10 @@ void resetPoseEvalForMesh(const backend_model::MeshData& mesh, PoseEval& eval) {
     if (eval.nodeLocals.size() != nodeCount) {
         eval.nodeLocals.resize(nodeCount);
     }
-    std::copy(mesh.nodesDefault.begin(), mesh.nodesDefault.end(), eval.nodeLocals.begin());
 
     if (eval.nodeGlobals.size() != nodeCount) {
         eval.nodeGlobals.resize(nodeCount);
     }
-    std::fill(eval.nodeGlobals.begin(), eval.nodeGlobals.end(), glm::mat4(1.0f));
 }
 
 } // namespace
@@ -220,7 +354,7 @@ void evaluateScenePose(const backend_model::MeshData& mesh,
         applyClipPose(mesh, outPose, animIndex, unit.animTimeSec, true);
     }
 
-    buildGlobals(mesh, outPose);
+    buildGlobals(mesh, outPose, animIndex);
 }
 
 PoseEval evaluateScenePose(const backend_model::MeshData& mesh, const PokemonInstance& unit) {
@@ -243,7 +377,7 @@ void evaluateScenePoseForClipTime(const backend_model::MeshData& mesh,
         applyClipPose(mesh, outPose, animIndex, animTimeSec, false);
     }
 
-    buildGlobals(mesh, outPose);
+    buildGlobals(mesh, outPose, animIndex);
 }
 
 PoseEval evaluateScenePoseForClipTime(const backend_model::MeshData& mesh,

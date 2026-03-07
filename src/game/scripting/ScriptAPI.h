@@ -115,6 +115,29 @@ public:
         bool adjacentToEnemy = false;
     };
 
+    struct CombatUnitSnapshot {
+        int id = -1;
+        std::string name;
+        PokemonSide side = PokemonSide::Player;
+        int hp = 0;
+        int attack = 0;
+        float speed = 0.0f;
+        int energy = 0;
+        int maxEnergy = 0;
+        int col = 0;
+        int row = 0;
+        bool alive = false;
+        bool fainting = false;
+        bool captureInProgress = false;
+        std::string fastMove;
+        std::string chargedMove;
+        std::vector<std::string> types;
+        int adjacentEnemyCount = 0;
+        int bestAdjacentEnemyId = -1;
+        bool canAttack = false;
+        bool attackReady = false;
+    };
+
     struct MoveStatusSnapshot {
         std::string effect;
         float magnitude = 0.0f;
@@ -138,6 +161,7 @@ public:
     // ---- Query surface (value types only) ----
     std::vector<UnitSnapshot> listUnits() const;
     std::vector<MovementUnitSnapshot> listUnitsForMovement() const;
+    std::vector<CombatUnitSnapshot> listUnitsForCombat() const;
     std::optional<UnitSnapshot> getUnitSnapshot(int unitId) const;
     std::pair<int, int> nearestEnemyCell(int unitId) const;
     std::tuple<float, float, float> gridToWorldPos(int col, int row) const;

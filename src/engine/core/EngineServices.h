@@ -17,13 +17,25 @@ struct EngineFixedPerfBreakdown {
     float preUpdateMs = 0.0f;
     float updatePhaseMs = 0.0f;
     float postUpdateMs = 0.0f;
+    float postOtherMs = 0.0f;
+    float phaseTransitionMs = 0.0f;
+    float backendHydrateMs = 0.0f;
     float cameraMs = 0.0f;
     float unitInteractionMs = 0.0f;
     float shopMs = 0.0f;
     float roundMs = 0.0f;
     float stateManagerMs = 0.0f;
+    float stateUpdateMs = 0.0f;
+    float stateFlushMs = 0.0f;
     float movementMs = 0.0f;
+    float movementPlanMs = 0.0f;
+    float movementLuaMs = 0.0f;
+    float movementFlushMs = 0.0f;
+    float movementAdvanceMs = 0.0f;
     float combatMs = 0.0f;
+    float combatPlanMs = 0.0f;
+    float combatLuaMs = 0.0f;
+    float combatFlushMs = 0.0f;
     float worldMs = 0.0f;
 };
 

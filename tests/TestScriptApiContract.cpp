@@ -296,6 +296,26 @@ bool test_script_api_contract(std::string& outFail) {
     if (!expect(moveA["adjacentToEnemy"].get_or(false),
                 "world_list_units_movement expected adjacentToEnemy for unit_a.", outFail)) return false;
 
+    sol::function combatListFn = lua["world_list_units_combat"];
+    if (!expect(combatListFn.valid(), "world_list_units_combat binding missing.", outFail)) return false;
+    sol::table combatList = combatListFn();
+    std::unordered_map<int, sol::table> combatById;
+    for (auto& kv : combatList) {
+        sol::table t = kv.second.as<sol::table>();
+        const int id = t["id"];
+        combatById[id] = t;
+    }
+    if (!expect(combatById.size() == 3, "world_list_units_combat returned unexpected size.", outFail)) return false;
+    sol::table combatA = combatById[idA];
+    if (!expect(combatA["adjacentEnemyCount"].get_or(-1) == 1,
+                "world_list_units_combat expected one adjacent enemy for unit_a.", outFail)) return false;
+    if (!expect(combatA["bestAdjacentEnemyId"].get_or(-1) == idEnemy,
+                "world_list_units_combat bestAdjacentEnemyId mismatch.", outFail)) return false;
+    if (!expect(combatA["canAttack"].get_or(false),
+                "world_list_units_combat expected canAttack=true for active unit_a.", outFail)) return false;
+    if (!expect(combatA["attackReady"].get_or(false),
+                "world_list_units_combat expected attackReady=true for idle unit_a.", outFail)) return false;
+
     sol::function snapFn = lua["world_get_unit_snapshot"];
     if (!expect(snapFn.valid(), "world_get_unit_snapshot binding missing.", outFail)) return false;
     sol::table snapA = snapFn(idA);

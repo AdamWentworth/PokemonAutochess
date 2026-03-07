@@ -144,6 +144,84 @@ std::vector<ScriptAPI::MovementUnitSnapshot> ScriptAPI::listUnitsForMovement() c
     return out;
 }
 
+std::vector<ScriptAPI::CombatUnitSnapshot> ScriptAPI::listUnitsForCombat() const {
+    std::vector<CombatUnitSnapshot> out;
+    if (!world_) return out;
+
+    const auto& units = world_->getPokemons();
+    out.reserve(units.size());
+
+    struct CachedUnit {
+        glm::ivec2 cell{0, 0};
+        PokemonSide side = PokemonSide::Player;
+        bool active = false;
+        bool attackReady = false;
+        int hp = 0;
+    };
+
+    std::vector<CachedUnit> cached;
+    cached.reserve(units.size());
+    for (const auto& unit : units) {
+        CachedUnit item;
+        item.cell = world_->worldToGrid(unit.position);
+        item.side = unit.side;
+        item.active = isCombatActive(unit);
+        item.attackReady = canIssueAttack(unit) && unit.attackTimerSec <= kAttackReadyEps;
+        item.hp = unit.hp;
+        cached.push_back(item);
+    }
+
+    for (std::size_t i = 0; i < units.size(); ++i) {
+        CombatUnitSnapshot snapshot;
+        snapshot.id = units[i].id;
+        snapshot.name = units[i].name;
+        snapshot.side = units[i].side;
+        snapshot.hp = units[i].hp;
+        snapshot.attack = units[i].attack;
+        snapshot.speed = units[i].movementSpeed;
+        snapshot.energy = units[i].energy;
+        snapshot.maxEnergy = units[i].maxEnergy;
+        snapshot.col = cached[i].cell.x;
+        snapshot.row = cached[i].cell.y;
+        snapshot.alive = cached[i].active;
+        snapshot.fainting = units[i].fainting;
+        snapshot.captureInProgress = units[i].captureInProgress;
+        snapshot.fastMove = units[i].fastMove;
+        snapshot.chargedMove = units[i].chargedMove;
+        snapshot.types = units[i].types;
+        snapshot.canAttack = canIssueAttack(units[i]);
+        snapshot.attackReady = cached[i].attackReady;
+
+        if (cached[i].active) {
+            int adjacentCount = 0;
+            int bestAdjacentEnemyId = -1;
+            int bestAdjacentHp = std::numeric_limits<int>::max();
+            for (std::size_t j = 0; j < units.size(); ++j) {
+                if (i == j) continue;
+                if (!cached[j].active || cached[j].side == cached[i].side) continue;
+
+                const int dx = std::abs(cached[i].cell.x - cached[j].cell.x);
+                const int dy = std::abs(cached[i].cell.y - cached[j].cell.y);
+                if (std::max(dx, dy) != 1) continue;
+
+                ++adjacentCount;
+                if (cached[j].hp < bestAdjacentHp ||
+                    (cached[j].hp == bestAdjacentHp &&
+                     (bestAdjacentEnemyId < 0 || units[j].id < bestAdjacentEnemyId))) {
+                    bestAdjacentHp = cached[j].hp;
+                    bestAdjacentEnemyId = units[j].id;
+                }
+            }
+            snapshot.adjacentEnemyCount = adjacentCount;
+            snapshot.bestAdjacentEnemyId = bestAdjacentEnemyId;
+        }
+
+        out.push_back(std::move(snapshot));
+    }
+
+    return out;
+}
+
 std::optional<ScriptAPI::UnitSnapshot> ScriptAPI::getUnitSnapshot(int unitId) const {
     if (!world_) return std::nullopt;
     const auto* unit = world_->findUnitById(unitId);

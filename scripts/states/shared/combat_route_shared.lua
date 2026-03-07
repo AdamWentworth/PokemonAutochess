@@ -73,6 +73,22 @@ function M.install(route_id, mode, target)
         }
     end
 
+    target.use_native_route_flow = function()
+        return true
+    end
+
+    target.get_route_mode = function()
+        return resolved_mode
+    end
+
+    target.get_next_shop_path = function()
+        return next_shop_path
+    end
+
+    target.get_clear_message = function()
+        return route.clear_message
+    end
+
     target.on_update = function(dt)
         if transitioned then
             return

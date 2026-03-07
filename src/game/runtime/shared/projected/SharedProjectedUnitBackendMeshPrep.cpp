@@ -6,8 +6,10 @@
 #include <cctype>
 #include <cmath>
 #include <cstddef>
+#include <cstdint>
 #include <deque>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 #include <glm/gtc/matrix_transform.hpp>
@@ -33,88 +35,62 @@ struct IndexedBatchTemplateCacheEntry {
 };
 
 thread_local std::deque<IndexedBatchTemplateCacheEntry> g_indexedBatchTemplateCache;
+thread_local std::unordered_map<const game::runtime::backend_model::MeshData*, std::string>
+    g_indexedBatchKeyPrefixes;
+
+const std::string& getIndexedBatchKeyPrefix(
+    const game::runtime::backend_model::MeshData* mesh) {
+    static const std::string fallback = "__runtime_model__";
+    if (!mesh) return fallback;
+
+    const auto found = g_indexedBatchKeyPrefixes.find(mesh);
+    if (found != g_indexedBatchKeyPrefixes.end()) {
+        return found->second;
+    }
+
+    const auto inserted = g_indexedBatchKeyPrefixes.emplace(
+        mesh,
+        "__runtime_mesh__:" +
+            std::to_string(static_cast<unsigned long long>(
+                reinterpret_cast<std::uintptr_t>(mesh))));
+    return inserted.first->second;
+}
 
 void applyIndexedBatchTemplateShallow(
     const game::runtime::shared_world_batches::WorldIndexedBatch& src,
     game::runtime::shared_world_batches::WorldIndexedBatch& dst) {
     dst.sharedTemplate = &src;
+    dst.materialAlphaOverride = false;
 
     dst.textureKey.clear();
     dst.ownedTextureRgba.clear();
-    dst.textureRgba = src.textureRgba;
-    dst.textureWidth = src.textureWidth;
-    dst.textureHeight = src.textureHeight;
-    dst.textureWrapS = src.textureWrapS;
-    dst.textureWrapT = src.textureWrapT;
+    dst.textureRgba = nullptr;
+    dst.textureWidth = 0;
+    dst.textureHeight = 0;
 
     dst.normalTextureKey.clear();
     dst.ownedNormalTextureRgba.clear();
-    dst.normalTextureRgba = src.normalTextureRgba;
-    dst.normalTextureWidth = src.normalTextureWidth;
-    dst.normalTextureHeight = src.normalTextureHeight;
-    dst.normalTextureWrapS = src.normalTextureWrapS;
-    dst.normalTextureWrapT = src.normalTextureWrapT;
+    dst.normalTextureRgba = nullptr;
+    dst.normalTextureWidth = 0;
+    dst.normalTextureHeight = 0;
 
     dst.metallicRoughnessTextureKey.clear();
     dst.ownedMetallicRoughnessTextureRgba.clear();
-    dst.metallicRoughnessTextureRgba = src.metallicRoughnessTextureRgba;
-    dst.metallicRoughnessTextureWidth = src.metallicRoughnessTextureWidth;
-    dst.metallicRoughnessTextureHeight = src.metallicRoughnessTextureHeight;
-    dst.metallicRoughnessTextureWrapS = src.metallicRoughnessTextureWrapS;
-    dst.metallicRoughnessTextureWrapT = src.metallicRoughnessTextureWrapT;
+    dst.metallicRoughnessTextureRgba = nullptr;
+    dst.metallicRoughnessTextureWidth = 0;
+    dst.metallicRoughnessTextureHeight = 0;
 
     dst.occlusionTextureKey.clear();
     dst.ownedOcclusionTextureRgba.clear();
-    dst.occlusionTextureRgba = src.occlusionTextureRgba;
-    dst.occlusionTextureWidth = src.occlusionTextureWidth;
-    dst.occlusionTextureHeight = src.occlusionTextureHeight;
-    dst.occlusionTextureWrapS = src.occlusionTextureWrapS;
-    dst.occlusionTextureWrapT = src.occlusionTextureWrapT;
+    dst.occlusionTextureRgba = nullptr;
+    dst.occlusionTextureWidth = 0;
+    dst.occlusionTextureHeight = 0;
 
     dst.emissiveTextureKey.clear();
     dst.ownedEmissiveTextureRgba.clear();
-    dst.emissiveTextureRgba = src.emissiveTextureRgba;
-    dst.emissiveTextureWidth = src.emissiveTextureWidth;
-    dst.emissiveTextureHeight = src.emissiveTextureHeight;
-    dst.emissiveTextureWrapS = src.emissiveTextureWrapS;
-    dst.emissiveTextureWrapT = src.emissiveTextureWrapT;
-
-    dst.alphaMode = src.alphaMode;
-    dst.blendMode = src.blendMode;
-    dst.materialMode = src.materialMode;
-    dst.alphaCutoff = src.alphaCutoff;
-    dst.normalScale = src.normalScale;
-    dst.metallicFactor = src.metallicFactor;
-    dst.roughnessFactor = src.roughnessFactor;
-    dst.occlusionStrength = src.occlusionStrength;
-    dst.emissiveFactorR = src.emissiveFactorR;
-    dst.emissiveFactorG = src.emissiveFactorG;
-    dst.emissiveFactorB = src.emissiveFactorB;
-    dst.vertexColorMulR = src.vertexColorMulR;
-    dst.vertexColorMulG = src.vertexColorMulG;
-    dst.vertexColorMulB = src.vertexColorMulB;
-    dst.vertexColorMulA = src.vertexColorMulA;
-    dst.characterInkingEnabled = src.characterInkingEnabled;
-    dst.materialTimeSec = src.materialTimeSec;
-    dst.materialFlags = src.materialFlags;
-    dst.materialAtlasWidth = src.materialAtlasWidth;
-    dst.materialAtlasHeight = src.materialAtlasHeight;
-    dst.materialRect0U = src.materialRect0U;
-    dst.materialRect0V = src.materialRect0V;
-    dst.materialRect0W = src.materialRect0W;
-    dst.materialRect0H = src.materialRect0H;
-    dst.materialRect1U = src.materialRect1U;
-    dst.materialRect1V = src.materialRect1V;
-    dst.materialRect1W = src.materialRect1W;
-    dst.materialRect1H = src.materialRect1H;
-    dst.materialFlipbook0Cols = src.materialFlipbook0Cols;
-    dst.materialFlipbook0Rows = src.materialFlipbook0Rows;
-    dst.materialFlipbook0Frames = src.materialFlipbook0Frames;
-    dst.materialFlipbook0Fps = src.materialFlipbook0Fps;
-    dst.materialFlipbook1Cols = src.materialFlipbook1Cols;
-    dst.materialFlipbook1Rows = src.materialFlipbook1Rows;
-    dst.materialFlipbook1Frames = src.materialFlipbook1Frames;
-    dst.materialFlipbook1Fps = src.materialFlipbook1Fps;
+    dst.emissiveTextureRgba = nullptr;
+    dst.emissiveTextureWidth = 0;
+    dst.emissiveTextureHeight = 0;
 }
 
 const std::vector<game::runtime::shared_world_batches::WorldIndexedBatch>* getIndexedBatchTemplates(
@@ -261,7 +237,6 @@ bool strictGltfParityEnabled() {
 namespace game::runtime::shared_projected_unit_backend_mesh_prep {
 
 bool prepareProjectedUnitBackendMesh(const Args& args, Result& out, PreparedState& prepared) {
-    const auto& dataDb = *args.dataDb;
     const auto& unit = *args.unit;
     const auto* mesh = args.meshForUnit;
     auto scenePose = *args.scenePose;
@@ -324,18 +299,7 @@ bool prepareProjectedUnitBackendMesh(const Args& args, Result& out, PreparedStat
     prepared.effectiveUnitTriangleBudget = effectiveUnitTriangleBudget;
     prepared.downsampleModelTriangles = effectiveUnitTriangleBudget < triangleCount;
 
-    float resolvedScaleCorrection = std::max(0.05f, unit.modelScaleCorrection);
-    if (!unit.model) {
-        if (const PokemonStats* stats = dataDb.pokemon.getStats(unit.name)) {
-            const std::string mode = toLowerCopy(stats->modelScaleMode);
-            if (mode != "normalized") {
-                const float importerScale = std::max(0.0f, mesh->modelScaleFactor);
-                if (importerScale > 1e-6f) {
-                    resolvedScaleCorrection = std::max(0.05f, 1.0f / importerScale);
-                }
-            }
-        }
-    }
+    const float resolvedScaleCorrection = std::max(0.05f, unit.modelScaleCorrection);
     prepared.resolvedScaleCorrection = resolvedScaleCorrection;
 
     const float modelScale = std::max(0.01f, mesh->modelScaleFactor) * resolvedScaleCorrection *
@@ -380,16 +344,12 @@ bool prepareProjectedUnitBackendMesh(const Args& args, Result& out, PreparedStat
     if (prepared.useIndexedWorldModelPath) {
         const std::size_t batchCount =
             std::max<std::size_t>(1u, mesh->submeshBaseTextures.size());
-        std::string unitModelPath;
-        if (const PokemonStats* stats = dataDb.pokemon.getStats(unit.name)) {
-            if (!stats->model.empty()) {
-                unitModelPath = "assets/models/" + stats->model;
-            }
-        }
-        const std::string keyPrefix =
-            unitModelPath.empty() ? std::string("__runtime_model__") : unitModelPath;
         const auto* templateBatches =
-            getIndexedBatchTemplates(mesh, keyPrefix, args.characterInkingEnabled, batchCount);
+            getIndexedBatchTemplates(
+                mesh,
+                getIndexedBatchKeyPrefix(mesh),
+                args.characterInkingEnabled,
+                batchCount);
         const bool hasTemplateBatches =
             templateBatches && templateBatches->size() == batchCount;
         prepared.modelIndexedBatchesPerSubmesh.resize(batchCount);
@@ -433,9 +393,12 @@ bool prepareProjectedUnitBackendMesh(const Args& args, Result& out, PreparedStat
             const float* modelM = glm::value_ptr(prepared.modelM);
             std::copy(modelM, modelM + 16, batch.modelMatrix.begin());
             if (args.modelFadeAlpha < 0.999f) {
+                batch.materialAlphaOverride = true;
                 batch.alphaMode = 2u;
                 batch.blendMode = 0u;
                 batch.alphaCutoff = 0.0f;
+            } else {
+                batch.materialAlphaOverride = false;
             }
         }
     }

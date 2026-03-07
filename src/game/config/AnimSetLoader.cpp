@@ -294,6 +294,10 @@ void applyAnimSetOverrides(PokemonInstance& inst,
     inst.visualScale       = 1.0f;
 
     inst.animFps          = 24.0f;
+    inst.animIndexCache.clear();
+    inst.animIndexCacheSourceModelPath.clear();
+    inst.backendAnimDurationsSec.clear();
+    inst.backendAnimDurationsSourceModelPath.clear();
 
     inst.usesAirLocomotion = false;
     inst.animGroundIdleIndex = inst.animIdleIndex;

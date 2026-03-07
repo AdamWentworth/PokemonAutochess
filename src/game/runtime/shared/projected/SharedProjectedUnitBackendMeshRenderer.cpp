@@ -658,11 +658,11 @@ Result renderProjectedUnitBackendMesh(const Args& args) {
                     dstBatch.sharedVertices = nullptr;
                     dstBatch.sharedVertexCount = 0u;
                     dstBatch.sharedSkinMatrices = nullptr;
-                    const bool needsLitNormals = dstBatch.materialMode >= 2u;
+                    const auto& materialBatch =
+                        shared_world_batches::resolvedMaterialBatch(dstBatch);
+                    const bool needsLitNormals = materialBatch.materialMode >= 2u;
                     const bool hasNormalTexture =
-                        dstBatch.normalTextureRgba != nullptr &&
-                        dstBatch.normalTextureWidth > 0 &&
-                        dstBatch.normalTextureHeight > 0;
+                        shared_world_batches::resolvedHasNormalTexture(dstBatch);
                     const bool needsTangents = needsLitNormals && hasNormalTexture;
                     const bool canUseRigidNodeTransform =
                         prep.scenePose.hasClipPose &&
@@ -900,23 +900,19 @@ Result renderProjectedUnitBackendMesh(const Args& args) {
                     submeshBatchIndex = 0u;
                 }
                 const auto& submeshBatch = modelIndexedBatchesPerSubmesh[submeshBatchIndex];
-                needsLitNormalsForSubmesh = submeshBatch.materialMode >= 2u;
+                const auto& materialBatch =
+                    shared_world_batches::resolvedMaterialBatch(submeshBatch);
+                needsLitNormalsForSubmesh = materialBatch.materialMode >= 2u;
                 const bool hasNormalTexture =
-                    submeshBatch.normalTextureRgba != nullptr &&
-                    submeshBatch.normalTextureWidth > 0 &&
-                    submeshBatch.normalTextureHeight > 0;
+                    shared_world_batches::resolvedHasNormalTexture(submeshBatch);
                 needsTangentsForSubmesh = needsLitNormalsForSubmesh && hasNormalTexture;
             }
             const bool texturedSubmesh =
                 useIndexedWorldModelPath &&
                 static_cast<std::size_t>(triSubmeshIndex) <
                     modelIndexedBatchesPerSubmesh.size() &&
-                modelIndexedBatchesPerSubmesh[static_cast<std::size_t>(triSubmeshIndex)]
-                        .textureRgba != nullptr &&
-                modelIndexedBatchesPerSubmesh[static_cast<std::size_t>(triSubmeshIndex)]
-                        .textureWidth > 0 &&
-                modelIndexedBatchesPerSubmesh[static_cast<std::size_t>(triSubmeshIndex)]
-                        .textureHeight > 0;
+                shared_world_batches::resolvedHasBaseTexture(
+                    modelIndexedBatchesPerSubmesh[static_cast<std::size_t>(triSubmeshIndex)]);
             if (useFastTexturedFullMeshPath && texturedSubmesh) {
                 std::size_t fastBatchIndex = static_cast<std::size_t>(triSubmeshIndex);
                 if (fastBatchIndex >= modelIndexedBatchesPerSubmesh.size()) fastBatchIndex = 0u;
@@ -1239,5 +1235,4 @@ Result renderProjectedUnitBackendMesh(const Args& args) {
 }
 
 } // namespace game::runtime::shared_projected_unit_backend_mesh
-
 

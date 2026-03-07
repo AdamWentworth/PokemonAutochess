@@ -60,6 +60,7 @@ struct WorldIndexedBatch {
     std::uint8_t alphaMode = 0u;
     std::uint8_t blendMode = 0u;
     std::uint8_t materialMode = 0u;
+    bool materialAlphaOverride = false;
     float alphaCutoff = 0.5f;
     float normalScale = 1.0f;
     float metallicFactor = 1.0f;
@@ -112,6 +113,10 @@ struct WorldIndexedBatch {
         return hasVertices && hasIndices;
     }
 };
+
+const WorldIndexedBatch& resolvedMaterialBatch(const WorldIndexedBatch& batch);
+bool resolvedHasBaseTexture(const WorldIndexedBatch& batch);
+bool resolvedHasNormalTexture(const WorldIndexedBatch& batch);
 
 void submitWorldIndexedBatches(IRenderBackend& renderer,
                                const std::vector<WorldIndexedBatch>& batches,

@@ -6,11 +6,16 @@ namespace game::runtime::shared_world_batches {
 
 namespace {
 
+const WorldIndexedBatch& materialTemplateOrSelf(const WorldIndexedBatch& batch) {
+    return batch.sharedTemplate ? *batch.sharedTemplate : batch;
+}
+
 IRenderBackend::WorldTextureData toWorldTextureData(const WorldIndexedBatch& batch,
                                                     const float* cameraWorldPos3,
                                                     const float* cameraForward3,
                                                     const float* cameraTarget3) {
     const WorldIndexedBatch* templateBatch = batch.sharedTemplate;
+    const WorldIndexedBatch& materialBatch = materialTemplateOrSelf(batch);
     const auto resolveKey = [](const std::string& localKey, const std::string* templateKey) {
         if (!localKey.empty()) return localKey.c_str();
         if (templateKey && !templateKey->empty()) return templateKey->c_str();
@@ -136,22 +141,22 @@ IRenderBackend::WorldTextureData toWorldTextureData(const WorldIndexedBatch& bat
     tex.emissiveWrapT = (batch.emissiveTextureWidth > 0 && batch.emissiveTextureHeight > 0)
         ? batch.emissiveTextureWrapT
         : (templateBatch ? templateBatch->emissiveTextureWrapT : batch.emissiveTextureWrapT);
-    tex.alphaMode = batch.alphaMode;
-    tex.blendMode = batch.blendMode;
-    tex.materialMode = batch.materialMode;
-    tex.alphaCutoff = batch.alphaCutoff;
-    tex.normalScale = batch.normalScale;
-    tex.metallicFactor = batch.metallicFactor;
-    tex.roughnessFactor = batch.roughnessFactor;
-    tex.occlusionStrength = batch.occlusionStrength;
-    tex.emissiveFactorR = batch.emissiveFactorR;
-    tex.emissiveFactorG = batch.emissiveFactorG;
-    tex.emissiveFactorB = batch.emissiveFactorB;
+    tex.alphaMode = batch.materialAlphaOverride ? batch.alphaMode : materialBatch.alphaMode;
+    tex.blendMode = batch.materialAlphaOverride ? batch.blendMode : materialBatch.blendMode;
+    tex.materialMode = materialBatch.materialMode;
+    tex.alphaCutoff = batch.materialAlphaOverride ? batch.alphaCutoff : materialBatch.alphaCutoff;
+    tex.normalScale = materialBatch.normalScale;
+    tex.metallicFactor = materialBatch.metallicFactor;
+    tex.roughnessFactor = materialBatch.roughnessFactor;
+    tex.occlusionStrength = materialBatch.occlusionStrength;
+    tex.emissiveFactorR = materialBatch.emissiveFactorR;
+    tex.emissiveFactorG = materialBatch.emissiveFactorG;
+    tex.emissiveFactorB = materialBatch.emissiveFactorB;
     tex.vertexColorMulR = batch.vertexColorMulR;
     tex.vertexColorMulG = batch.vertexColorMulG;
     tex.vertexColorMulB = batch.vertexColorMulB;
     tex.vertexColorMulA = batch.vertexColorMulA;
-    tex.characterInkingEnabled = batch.characterInkingEnabled;
+    tex.characterInkingEnabled = materialBatch.characterInkingEnabled;
     tex.cameraPosX = (cameraWorldPos3 ? cameraWorldPos3[0] : tex.cameraPosX);
     tex.cameraPosY = (cameraWorldPos3 ? cameraWorldPos3[1] : tex.cameraPosY);
     tex.cameraPosZ = (cameraWorldPos3 ? cameraWorldPos3[2] : tex.cameraPosZ);
@@ -161,26 +166,26 @@ IRenderBackend::WorldTextureData toWorldTextureData(const WorldIndexedBatch& bat
     tex.cameraTargetX = (cameraTarget3 ? cameraTarget3[0] : tex.cameraTargetX);
     tex.cameraTargetY = (cameraTarget3 ? cameraTarget3[1] : tex.cameraTargetY);
     tex.cameraTargetZ = (cameraTarget3 ? cameraTarget3[2] : tex.cameraTargetZ);
-    tex.materialTimeSec = batch.materialTimeSec;
-    tex.materialFlags = batch.materialFlags;
-    tex.materialAtlasWidth = batch.materialAtlasWidth;
-    tex.materialAtlasHeight = batch.materialAtlasHeight;
-    tex.materialRect0U = batch.materialRect0U;
-    tex.materialRect0V = batch.materialRect0V;
-    tex.materialRect0W = batch.materialRect0W;
-    tex.materialRect0H = batch.materialRect0H;
-    tex.materialRect1U = batch.materialRect1U;
-    tex.materialRect1V = batch.materialRect1V;
-    tex.materialRect1W = batch.materialRect1W;
-    tex.materialRect1H = batch.materialRect1H;
-    tex.materialFlipbook0Cols = batch.materialFlipbook0Cols;
-    tex.materialFlipbook0Rows = batch.materialFlipbook0Rows;
-    tex.materialFlipbook0Frames = batch.materialFlipbook0Frames;
-    tex.materialFlipbook0Fps = batch.materialFlipbook0Fps;
-    tex.materialFlipbook1Cols = batch.materialFlipbook1Cols;
-    tex.materialFlipbook1Rows = batch.materialFlipbook1Rows;
-    tex.materialFlipbook1Frames = batch.materialFlipbook1Frames;
-    tex.materialFlipbook1Fps = batch.materialFlipbook1Fps;
+    tex.materialTimeSec = materialBatch.materialTimeSec;
+    tex.materialFlags = materialBatch.materialFlags;
+    tex.materialAtlasWidth = materialBatch.materialAtlasWidth;
+    tex.materialAtlasHeight = materialBatch.materialAtlasHeight;
+    tex.materialRect0U = materialBatch.materialRect0U;
+    tex.materialRect0V = materialBatch.materialRect0V;
+    tex.materialRect0W = materialBatch.materialRect0W;
+    tex.materialRect0H = materialBatch.materialRect0H;
+    tex.materialRect1U = materialBatch.materialRect1U;
+    tex.materialRect1V = materialBatch.materialRect1V;
+    tex.materialRect1W = materialBatch.materialRect1W;
+    tex.materialRect1H = materialBatch.materialRect1H;
+    tex.materialFlipbook0Cols = materialBatch.materialFlipbook0Cols;
+    tex.materialFlipbook0Rows = materialBatch.materialFlipbook0Rows;
+    tex.materialFlipbook0Frames = materialBatch.materialFlipbook0Frames;
+    tex.materialFlipbook0Fps = materialBatch.materialFlipbook0Fps;
+    tex.materialFlipbook1Cols = materialBatch.materialFlipbook1Cols;
+    tex.materialFlipbook1Rows = materialBatch.materialFlipbook1Rows;
+    tex.materialFlipbook1Frames = materialBatch.materialFlipbook1Frames;
+    tex.materialFlipbook1Fps = materialBatch.materialFlipbook1Fps;
     tex.modelMatrix = batch.modelMatrix;
     tex.gpuSkinning = batch.gpuSkinning;
     tex.skinMatrixCount = batch.skinMatrixCount;
@@ -228,6 +233,24 @@ void drawOneBatch(IRenderBackend& renderer,
 }
 
 } // namespace
+
+const WorldIndexedBatch& resolvedMaterialBatch(const WorldIndexedBatch& batch) {
+    return materialTemplateOrSelf(batch);
+}
+
+bool resolvedHasBaseTexture(const WorldIndexedBatch& batch) {
+    const WorldIndexedBatch& materialBatch = materialTemplateOrSelf(batch);
+    return materialBatch.textureRgba != nullptr &&
+           materialBatch.textureWidth > 0 &&
+           materialBatch.textureHeight > 0;
+}
+
+bool resolvedHasNormalTexture(const WorldIndexedBatch& batch) {
+    const WorldIndexedBatch& materialBatch = materialTemplateOrSelf(batch);
+    return materialBatch.normalTextureRgba != nullptr &&
+           materialBatch.normalTextureWidth > 0 &&
+           materialBatch.normalTextureHeight > 0;
+}
 
 void submitWorldIndexedBatches(IRenderBackend& renderer,
                                const std::vector<WorldIndexedBatch>& batches,

@@ -73,6 +73,7 @@ bool test_move_impact_math(std::string& outFail);
 bool test_render_pipeline_smoke(std::string& outFail);
 bool test_animset_glb_name_smoke(std::string& outFail);
 bool test_placement_to_combat_headless(std::string& outFail);
+bool test_combat_route_finishes_headless(std::string& outFail);
 bool test_animset_clip_name_smoke(std::string& outFail);
 bool test_layering_engine_no_game_includes(std::string& outFail);
 bool test_state_manager_input_deferral(std::string& outFail);
@@ -232,6 +233,7 @@ int main(int argc, char** argv) {
         {"render_pipeline_smoke", &test_render_pipeline_smoke},
         {"animset_glb_name_smoke", &test_animset_glb_name_smoke},
         {"placement_to_combat_headless", &test_placement_to_combat_headless},
+        {"combat_route_finishes_headless", &test_combat_route_finishes_headless},
         {"animset_clip_name_smoke", &test_animset_clip_name_smoke},
         {"layering_engine_no_game_includes", &test_layering_engine_no_game_includes},
         {"state_manager_input_deferral", &test_state_manager_input_deferral},
