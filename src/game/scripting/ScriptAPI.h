@@ -100,6 +100,21 @@ public:
         std::vector<std::string> types;
     };
 
+    struct MovementUnitSnapshot {
+        int id = -1;
+        int col = 0;
+        int row = 0;
+        float speed = 0.0f;
+        bool alive = false;
+        bool blocksTile = false;
+        bool isMoving = false;
+        int plannedCol = -1;
+        int plannedRow = -1;
+        int enemyCol = -1;
+        int enemyRow = -1;
+        bool adjacentToEnemy = false;
+    };
+
     struct MoveStatusSnapshot {
         std::string effect;
         float magnitude = 0.0f;
@@ -122,6 +137,7 @@ public:
 
     // ---- Query surface (value types only) ----
     std::vector<UnitSnapshot> listUnits() const;
+    std::vector<MovementUnitSnapshot> listUnitsForMovement() const;
     std::optional<UnitSnapshot> getUnitSnapshot(int unitId) const;
     std::pair<int, int> nearestEnemyCell(int unitId) const;
     std::tuple<float, float, float> gridToWorldPos(int col, int row) const;

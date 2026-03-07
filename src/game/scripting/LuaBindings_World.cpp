@@ -43,6 +43,29 @@ void registerLuaBindings_World(sol::state& lua, ScriptAPI& api) {
         return arr;
     });
 
+    lua.set_function("world_list_units_movement", [&api, &lua]() {
+        sol::state_view L(lua);
+        sol::table arr = L.create_table();
+        int i = 1;
+        for (const auto& u : api.listUnitsForMovement()) {
+            sol::table t = L.create_table();
+            t["id"] = u.id;
+            t["col"] = u.col;
+            t["row"] = u.row;
+            t["speed"] = u.speed;
+            t["alive"] = u.alive;
+            t["blocksTile"] = u.blocksTile;
+            t["isMoving"] = u.isMoving;
+            t["plannedCol"] = u.plannedCol;
+            t["plannedRow"] = u.plannedRow;
+            t["enemyCol"] = u.enemyCol;
+            t["enemyRow"] = u.enemyRow;
+            t["adjacentToEnemy"] = u.adjacentToEnemy;
+            arr[i++] = t;
+        }
+        return arr;
+    });
+
     lua.set_function("world_get_unit_snapshot", [&api, &lua](int unitId) {
         sol::state_view L(lua);
         sol::table t = L.create_table();

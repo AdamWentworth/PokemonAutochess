@@ -76,6 +76,84 @@ std::size_t backendClipSkinningMaxUnits() {
     return maxUnits;
 }
 
+float backendScenePoseCacheHz() {
+    static const float hz = []() -> float {
+        constexpr float kDefault = 30.0f;
+        constexpr float kMin = 0.0f;
+        constexpr float kMax = 240.0f;
+        const auto env = engine::env::get("PAC_BACKEND_SCENE_POSE_CACHE_HZ");
+        if (!env.has_value()) return kDefault;
+        try {
+            return std::clamp(std::stof(*env), kMin, kMax);
+        } catch (...) {
+            return kDefault;
+        }
+    }();
+    return hz;
+}
+
+float backendScenePoseCacheDenseHz() {
+    static const float hz = []() -> float {
+        constexpr float kDefault = 20.0f;
+        constexpr float kMin = 0.0f;
+        constexpr float kMax = 240.0f;
+        const auto env = engine::env::get("PAC_BACKEND_SCENE_POSE_CACHE_DENSE_HZ");
+        if (!env.has_value()) return kDefault;
+        try {
+            return std::clamp(std::stof(*env), kMin, kMax);
+        } catch (...) {
+            return kDefault;
+        }
+    }();
+    return hz;
+}
+
+std::size_t backendScenePoseCacheMinUnits() {
+    static const std::size_t minUnits = []() -> std::size_t {
+        constexpr std::size_t kDefault = 8u;
+        constexpr std::size_t kMin = 1u;
+        constexpr std::size_t kMax = 128u;
+        const auto env = engine::env::get("PAC_BACKEND_SCENE_POSE_CACHE_MIN_UNITS");
+        if (!env.has_value()) return kDefault;
+        try {
+            const std::size_t parsed = static_cast<std::size_t>(std::stoull(*env));
+            return std::clamp(parsed, kMin, kMax);
+        } catch (...) {
+            return kDefault;
+        }
+    }();
+    return minUnits;
+}
+
+std::size_t backendScenePoseCacheDenseMinUnits() {
+    static const std::size_t minUnits = []() -> std::size_t {
+        constexpr std::size_t kDefault = 12u;
+        constexpr std::size_t kMin = 1u;
+        constexpr std::size_t kMax = 128u;
+        const auto env = engine::env::get("PAC_BACKEND_SCENE_POSE_CACHE_DENSE_MIN_UNITS");
+        if (!env.has_value()) return kDefault;
+        try {
+            const std::size_t parsed = static_cast<std::size_t>(std::stoull(*env));
+            return std::clamp(parsed, kMin, kMax);
+        } catch (...) {
+            return kDefault;
+        }
+    }();
+    return minUnits;
+}
+
+float backendScenePoseCacheEffectiveHz(std::size_t unitCount) {
+    const float baseHz = backendScenePoseCacheHz();
+    if (!(baseHz > 0.0f) || unitCount < backendScenePoseCacheMinUnits()) {
+        return 0.0f;
+    }
+    const float denseHz = backendScenePoseCacheDenseHz();
+    if (unitCount >= backendScenePoseCacheDenseMinUnits() && denseHz > 0.0f) {
+        return std::min(baseHz, denseHz);
+    }
+    return baseHz;
+}
+
 int resolveSceneAnimIndexForUnit(const game::runtime::backend_model::MeshData& mesh,
                                  const ::PokemonInstance& unit) {
     int animIndex = unit.activeAnimIndex;
@@ -94,24 +172,45 @@ int resolveSceneAnimIndexForUnit(const game::runtime::backend_model::MeshData& m
     return animIndex;
 }
 
-float canonicalSceneAnimTimeForKey(const game::runtime::backend_model::MeshData& mesh,
-                                   int animIndex,
-                                   float animTimeSec) {
+struct CanonicalScenePoseSample {
+    float animTimeSec = 0.0f;
+    std::uint32_t cacheKey = 0u;
+};
+
+std::uint32_t floatToBits(float value);
+
+CanonicalScenePoseSample canonicalSceneAnimTimeForKey(
+    const game::runtime::backend_model::MeshData& mesh,
+    int animIndex,
+    float animTimeSec,
+    float quantizeStepSec) {
     if (animIndex < 0 || static_cast<std::size_t>(animIndex) >= mesh.animations.size()) {
-        return 0.0f;
+        return {};
     }
     const float durationSec = mesh.animations[static_cast<std::size_t>(animIndex)].durationSec;
     if (!(durationSec > 0.0f)) {
-        return 0.0f;
+        return {};
     }
     float wrapped = std::fmod(animTimeSec, durationSec);
     if (wrapped < 0.0f) {
         wrapped += durationSec;
     }
     if (wrapped == 0.0f) {
-        return 0.0f;
+        return {};
     }
-    return wrapped;
+    if (!(quantizeStepSec > 0.0f)) {
+        return {wrapped, floatToBits(wrapped)};
+    }
+    const float bucketFloat = std::round(wrapped / quantizeStepSec);
+    if (!(bucketFloat > 0.0f)) {
+        return {};
+    }
+    const float quantized = bucketFloat * quantizeStepSec;
+    if (!(quantized > 0.0f) || !(quantized < durationSec)) {
+        return {};
+    }
+    const std::uint32_t bucketIndex = static_cast<std::uint32_t>(bucketFloat);
+    return {quantized, bucketIndex | 0x80000000u};
 }
 
 std::uint32_t floatToBits(float value) {
@@ -124,12 +223,12 @@ std::uint32_t floatToBits(float value) {
 struct CachedScenePoseKey {
     const game::runtime::backend_model::MeshData* mesh = nullptr;
     int animIndex = -1;
-    std::uint32_t animTimeBits = 0u;
+    std::uint32_t animSampleKey = 0u;
 
     bool operator==(const CachedScenePoseKey& other) const {
         return mesh == other.mesh &&
                animIndex == other.animIndex &&
-               animTimeBits == other.animTimeBits;
+               animSampleKey == other.animSampleKey;
     }
 };
 
@@ -138,7 +237,7 @@ struct CachedScenePoseKeyHash {
         const std::size_t h0 =
             std::hash<const game::runtime::backend_model::MeshData*>{}(key.mesh);
         const std::size_t h1 = std::hash<int>{}(key.animIndex);
-        const std::size_t h2 = std::hash<std::uint32_t>{}(key.animTimeBits);
+        const std::size_t h2 = std::hash<std::uint32_t>{}(key.animSampleKey);
         return (h0 * 1315423911u) ^ (h1 + 0x9e3779b9u + (h2 << 6u) + (h2 >> 2u));
     }
 };
@@ -248,6 +347,9 @@ void drawProjectedUnits(const Args& args, const std::vector<PokemonInstance>& un
     std::uint32_t clipSkinnedUnits = 0u;
 
     const bool clipSkinningAdaptiveEnabled = backendClipSkinningAdaptiveEnabled();
+    const float scenePoseCacheHz = backendScenePoseCacheEffectiveHz(units.size());
+    const float scenePoseCacheStepSec =
+        (scenePoseCacheHz > 0.0f) ? (1.0f / scenePoseCacheHz) : 0.0f;
     std::unordered_map<int, bool> clipSkinningEnabledByUnitId;
     if (clipSkinningAdaptiveEnabled) {
         std::vector<int> eligibleUnitIds;
@@ -307,17 +409,23 @@ for (const auto& unit : units) {
     bool scenePoseReady = false;
     if (meshForUnit) {
         const int animIndex = resolveSceneAnimIndexForUnit(*meshForUnit, unit);
-        const float canonicalAnimTimeSec =
-            canonicalSceneAnimTimeForKey(*meshForUnit, animIndex, unit.animTimeSec);
+        const CanonicalScenePoseSample canonicalAnimSample =
+            canonicalSceneAnimTimeForKey(
+                *meshForUnit,
+                animIndex,
+                unit.animTimeSec,
+                scenePoseCacheStepSec);
         const CachedScenePoseKey key{
             meshForUnit,
             animIndex,
-            floatToBits(canonicalAnimTimeSec)};
+            canonicalAnimSample.cacheKey};
         auto it = g_cachedScenePoseBySignature.find(key);
         if (it == g_cachedScenePoseBySignature.end()) {
             CachedScenePoseEntry inserted;
+            PokemonInstance quantizedUnit = unit;
+            quantizedUnit.animTimeSec = canonicalAnimSample.animTimeSec;
             game::runtime::shared_backend_pose::evaluateScenePose(
-                *meshForUnit, unit, inserted.pose);
+                *meshForUnit, quantizedUnit, inserted.pose);
             inserted.lastUsedFrame = poseCacheFrame;
             it = g_cachedScenePoseBySignature.emplace(key, std::move(inserted)).first;
         } else {

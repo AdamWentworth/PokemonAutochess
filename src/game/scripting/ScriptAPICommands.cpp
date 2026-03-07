@@ -4,6 +4,7 @@
 #include <cmath>
 #include <limits>
 #include <memory>
+#include <unordered_map>
 #include <utility>
 
 #include <glm/glm.hpp>
@@ -58,8 +59,198 @@ void ScriptAPI::flush() {
             "commands=" + std::to_string(queue_.size()) +
             " start_new_game=" + std::to_string(startNewGameCount));
     }
+
+    struct FlushLookup {
+        std::unordered_map<int, PokemonInstance*> unitsById;
+        std::vector<PokemonInstance*> boardUnits;
+        std::unordered_map<std::uint32_t, int> occupiedByCell;
+        std::unordered_map<std::uint32_t, int> reservedByCell;
+        std::unordered_map<int, std::uint32_t> reservedCellByUnit;
+    };
+
+    auto cellKey = [](int col, int row) -> std::uint32_t {
+        return (static_cast<std::uint32_t>(row) << 16u) |
+               (static_cast<std::uint32_t>(col) & 0xFFFFu);
+    };
+
+    FlushLookup lookup;
+    bool lookupValid = false;
+
+    auto ensureLookup = [&]() {
+        if (lookupValid || !world_) return;
+        lookup = {};
+
+        auto& board = world_->getPokemons();
+        lookup.boardUnits.reserve(board.size());
+        lookup.unitsById.reserve(board.size() + world_->getBenchPokemons().size());
+        for (auto& unit : board) {
+            lookup.unitsById[unit.id] = &unit;
+            lookup.boardUnits.push_back(&unit);
+
+            const bool blocksTile =
+                unit.alive || unit.captureInProgress || (unit.fainting && config().faintBlockTiles);
+            if (!blocksTile) continue;
+
+            const auto cell = world_->worldToGrid(unit.position);
+            lookup.occupiedByCell[cellKey(cell.x, cell.y)] = unit.id;
+            if (unit.committedDest.x >= 0 && unit.committedDest.y >= 0) {
+                const std::uint32_t reservedKey = cellKey(unit.committedDest.x, unit.committedDest.y);
+                lookup.reservedByCell[reservedKey] = unit.id;
+                lookup.reservedCellByUnit[unit.id] = reservedKey;
+            }
+        }
+
+        for (auto& unit : world_->getBenchPokemons()) {
+            lookup.unitsById[unit.id] = &unit;
+        }
+
+        lookupValid = true;
+    };
+
+    auto invalidateLookup = [&]() {
+        lookupValid = false;
+    };
+
+    auto updateCurrentCell = [&](PokemonInstance& unit) {
+        if (!world_) return;
+        const bool blocksTile =
+            unit.alive || unit.captureInProgress || (unit.fainting && config().faintBlockTiles);
+        for (auto it = lookup.occupiedByCell.begin(); it != lookup.occupiedByCell.end();) {
+            if (it->second == unit.id) {
+                it = lookup.occupiedByCell.erase(it);
+            } else {
+                ++it;
+            }
+        }
+        if (blocksTile) {
+            const auto cell = world_->worldToGrid(unit.position);
+            lookup.occupiedByCell[cellKey(cell.x, cell.y)] = unit.id;
+        }
+    };
+
+    auto clearReservation = [&](int unitId) {
+        auto reservedIt = lookup.reservedCellByUnit.find(unitId);
+        if (reservedIt != lookup.reservedCellByUnit.end()) {
+            lookup.reservedByCell.erase(reservedIt->second);
+            lookup.reservedCellByUnit.erase(reservedIt);
+        }
+    };
+
     for (const auto& cmd : queue_) {
+        if (world_) {
+            if (const auto* c = std::get_if<ApplyMoveCommand>(&cmd)) {
+                ensureLookup();
+                auto found = lookup.unitsById.find(c->unitId);
+                if (found != lookup.unitsById.end()) {
+                    auto* u = found->second;
+                    if (u && isCombatActive(*u)) {
+                        u->position = world_->gridToWorld(c->col, c->row);
+                        u->isMoving = false;
+                        u->moveT = 1.0f;
+                        u->committedDest = {-1, -1};
+                        clearReservation(u->id);
+                        updateCurrentCell(*u);
+                    }
+                }
+                continue;
+            }
+
+            if (const auto* c = std::get_if<CommitMoveCommand>(&cmd)) {
+                ensureLookup();
+                auto found = lookup.unitsById.find(c->unitId);
+                if (found != lookup.unitsById.end()) {
+                    auto* u = found->second;
+                    if (u && isCombatActive(*u)) {
+                        const std::uint32_t targetKey = cellKey(c->col, c->row);
+                        const auto occupiedIt = lookup.occupiedByCell.find(targetKey);
+                        if (occupiedIt != lookup.occupiedByCell.end() && occupiedIt->second != u->id) {
+                            continue;
+                        }
+                        const auto reservedIt = lookup.reservedByCell.find(targetKey);
+                        if (reservedIt != lookup.reservedByCell.end() && reservedIt->second != u->id) {
+                            continue;
+                        }
+
+                        clearReservation(u->id);
+                        u->committedDest = {c->col, c->row};
+                        u->moveFrom = u->position;
+                        u->moveTo = world_->gridToWorld(c->col, c->row);
+                        u->moveT = 0.0f;
+                        u->isMoving = true;
+
+                        lookup.reservedByCell[targetKey] = u->id;
+                        lookup.reservedCellByUnit[u->id] = targetKey;
+                    }
+                }
+                continue;
+            }
+
+            if (const auto* c = std::get_if<FaceEnemyCommand>(&cmd)) {
+                ensureLookup();
+                auto found = lookup.unitsById.find(c->unitId);
+                if (found != lookup.unitsById.end()) {
+                    auto* unit = found->second;
+                    if (!unit) continue;
+
+                    glm::vec3 target = unit->position;
+                    if (c->hasTarget) {
+                        target = world_->gridToWorld(c->col, c->row);
+                    } else {
+                        float best = std::numeric_limits<float>::max();
+                        for (PokemonInstance* other : lookup.boardUnits) {
+                            if (!other || !isCombatActive(*other) || other->side == unit->side) continue;
+                            const float d = glm::distance(unit->position, other->position);
+                            if (d < best) {
+                                best = d;
+                                target = other->position;
+                            }
+                        }
+                    }
+                    setFacingToTarget(*unit, target);
+                }
+                continue;
+            }
+
+            if (const auto* c = std::get_if<FaceTargetCommand>(&cmd)) {
+                ensureLookup();
+                auto unitIt = lookup.unitsById.find(c->unitId);
+                auto targetIt = lookup.unitsById.find(c->targetId);
+                if (unitIt != lookup.unitsById.end() && targetIt != lookup.unitsById.end() &&
+                    unitIt->second && targetIt->second) {
+                    setFacingToTarget(*unitIt->second, targetIt->second->position);
+                }
+                continue;
+            }
+
+            if (const auto* c = std::get_if<SetEnergyCommand>(&cmd)) {
+                ensureLookup();
+                auto found = lookup.unitsById.find(c->unitId);
+                if (found != lookup.unitsById.end() && found->second) {
+                    auto* u = found->second;
+                    u->energy = std::max(0, std::min(c->value, u->maxEnergy));
+                }
+                continue;
+            }
+
+            if (const auto* c = std::get_if<AddEnergyCommand>(&cmd)) {
+                ensureLookup();
+                auto found = lookup.unitsById.find(c->unitId);
+                if (found != lookup.unitsById.end() && found->second) {
+                    auto* u = found->second;
+                    u->energy = std::max(0, std::min(u->energy + c->delta, u->maxEnergy));
+                }
+                continue;
+            }
+        }
+
         applyCommand(cmd);
+
+        if (std::holds_alternative<SpawnCommand>(cmd) ||
+            std::holds_alternative<SpawnOnGridCommand>(cmd) ||
+            std::holds_alternative<AddToBenchCommand>(cmd) ||
+            std::holds_alternative<StartNewGameCommand>(cmd)) {
+            invalidateLookup();
+        }
     }
     queue_.clear();
     if (startNewGameCount > 0) {

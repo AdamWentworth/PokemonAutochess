@@ -64,6 +64,7 @@ bool test_lua_bindings_smoke(std::string& outFail) {
         "request_restart_to_menu",
         "consume_boot_menu_screen",
         "world_list_units",
+        "world_list_units_movement",
         "world_get_unit_snapshot",
         "world_apply_move",
         "world_commit_move",

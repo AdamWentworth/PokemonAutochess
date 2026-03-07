@@ -273,6 +273,29 @@ bool test_script_api_contract(std::string& outFail) {
     if (!expect(col == 1 && row == 1, "world_list_units grid mismatch.", outFail)) return false;
     if (!expect(!api.getUnitSnapshot(-999).has_value(), "getUnitSnapshot should return nullopt for unknown unit.", outFail)) return false;
 
+    sol::function movementListFn = lua["world_list_units_movement"];
+    if (!expect(movementListFn.valid(), "world_list_units_movement binding missing.", outFail)) return false;
+    sol::table movementList = movementListFn();
+    std::unordered_map<int, sol::table> movementById;
+    for (auto& kv : movementList) {
+        sol::table t = kv.second.as<sol::table>();
+        const int id = t["id"];
+        movementById[id] = t;
+    }
+    if (!expect(movementById.size() == 3, "world_list_units_movement returned unexpected size.", outFail)) return false;
+    if (!expect(movementById.count(idA) == 1, "world_list_units_movement missing unit_a.", outFail)) return false;
+    sol::table moveA = movementById[idA];
+    if (!expect(moveA["col"].get_or(-1) == 1 && moveA["row"].get_or(-1) == 1,
+                "world_list_units_movement grid mismatch.", outFail)) return false;
+    if (!expect(!moveA["isMoving"].get_or(true),
+                "world_list_units_movement expected isMoving=false for idle unit_a.", outFail)) return false;
+    if (!expect(moveA["plannedCol"].get_or(99) == -1 && moveA["plannedRow"].get_or(99) == -1,
+                "world_list_units_movement expected unset planned destination for idle unit_a.", outFail)) return false;
+    if (!expect(moveA["enemyCol"].get_or(-1) == 2 && moveA["enemyRow"].get_or(-1) == 1,
+                "world_list_units_movement nearest enemy mismatch.", outFail)) return false;
+    if (!expect(moveA["adjacentToEnemy"].get_or(false),
+                "world_list_units_movement expected adjacentToEnemy for unit_a.", outFail)) return false;
+
     sol::function snapFn = lua["world_get_unit_snapshot"];
     if (!expect(snapFn.valid(), "world_get_unit_snapshot binding missing.", outFail)) return false;
     sol::table snapA = snapFn(idA);
@@ -330,6 +353,17 @@ bool test_script_api_contract(std::string& outFail) {
     if (!expect(units[0].isMoving, "commit_move did not mark unit as moving.", outFail)) return false;
     if (!expect(units[0].committedDest.x == 1 && units[0].committedDest.y == 2,
                 "commit_move did not set committedDest.", outFail)) return false;
+    movementList = movementListFn();
+    movementById.clear();
+    for (auto& kv : movementList) {
+        sol::table t = kv.second.as<sol::table>();
+        movementById[t["id"]] = t;
+    }
+    moveA = movementById[idA];
+    if (!expect(moveA["isMoving"].get_or(false),
+                "world_list_units_movement should expose isMoving after commit_move.", outFail)) return false;
+    if (!expect(moveA["plannedCol"].get_or(-1) == 1 && moveA["plannedRow"].get_or(-1) == 2,
+                "world_list_units_movement should expose committed destination after commit_move.", outFail)) return false;
 
     // Apply move should snap to target and clear moving state.
     sol::function applyFn = lua["world_apply_move"];

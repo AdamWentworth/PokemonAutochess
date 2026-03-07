@@ -76,6 +76,74 @@ std::vector<ScriptAPI::UnitSnapshot> ScriptAPI::listUnits() const {
     return out;
 }
 
+std::vector<ScriptAPI::MovementUnitSnapshot> ScriptAPI::listUnitsForMovement() const {
+    std::vector<MovementUnitSnapshot> out;
+    if (!world_) return out;
+
+    const auto& units = world_->getPokemons();
+    out.reserve(units.size());
+
+    struct CachedUnit {
+        glm::ivec2 cell{0, 0};
+        PokemonSide side = PokemonSide::Player;
+        float speed = 0.0f;
+        bool active = false;
+        bool blocksTile = false;
+    };
+
+    std::vector<CachedUnit> cached;
+    cached.reserve(units.size());
+    for (const auto& unit : units) {
+        CachedUnit item;
+        item.cell = world_->worldToGrid(unit.position);
+        item.side = unit.side;
+        item.speed = unit.movementSpeed;
+        item.active = isCombatActive(unit);
+        item.blocksTile = item.active || unit.captureInProgress || (unit.fainting && config().faintBlockTiles);
+        cached.push_back(item);
+    }
+
+    for (std::size_t i = 0; i < units.size(); ++i) {
+        MovementUnitSnapshot snapshot;
+        snapshot.id = units[i].id;
+        snapshot.col = cached[i].cell.x;
+        snapshot.row = cached[i].cell.y;
+        snapshot.speed = cached[i].speed;
+        snapshot.alive = cached[i].active;
+        snapshot.blocksTile = cached[i].blocksTile;
+        snapshot.isMoving = units[i].isMoving;
+        if (units[i].committedDest.x >= 0 && units[i].committedDest.y >= 0) {
+            snapshot.plannedCol = units[i].committedDest.x;
+            snapshot.plannedRow = units[i].committedDest.y;
+        }
+
+        if (cached[i].active) {
+            int bestDistance = std::numeric_limits<int>::max();
+            glm::ivec2 bestCell(-1, -1);
+            for (std::size_t j = 0; j < units.size(); ++j) {
+                if (i == j) continue;
+                if (!cached[j].active || cached[j].side == cached[i].side) continue;
+
+                const int dx = std::abs(cached[i].cell.x - cached[j].cell.x);
+                const int dy = std::abs(cached[i].cell.y - cached[j].cell.y);
+                const int d = std::max(dx, dy);
+                if (d < bestDistance) {
+                    bestDistance = d;
+                    bestCell = cached[j].cell;
+                }
+            }
+
+            snapshot.enemyCol = bestCell.x;
+            snapshot.enemyRow = bestCell.y;
+            snapshot.adjacentToEnemy = (bestDistance == 1);
+        }
+
+        out.push_back(snapshot);
+    }
+
+    return out;
+}
+
 std::optional<ScriptAPI::UnitSnapshot> ScriptAPI::getUnitSnapshot(int unitId) const {
     if (!world_) return std::nullopt;
     const auto* unit = world_->findUnitById(unitId);

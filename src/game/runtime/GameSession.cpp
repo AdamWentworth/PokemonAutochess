@@ -2003,6 +2003,14 @@ struct GameSession::Impl {
             }
         }
         std::cout << "[Init] Game initialized.\n";
+
+        // Keep startup/perf stdout intact, but stop mirroring gameplay feed spam
+        // to the terminal unless explicitly requested.
+        if (engine::env::get("PAC_LOG_ECHO_STDOUT").has_value()) {
+            log.setEchoToStdout(engine::env::flagEnabled("PAC_LOG_ECHO_STDOUT"));
+        } else {
+            log.setEchoToStdout(false);
+        }
     }
 
     bool selectBackendInventoryItem(const std::string& itemId) {
