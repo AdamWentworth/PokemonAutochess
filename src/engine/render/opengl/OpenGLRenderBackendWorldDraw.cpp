@@ -194,6 +194,54 @@ void OpenGLRenderBackend::prewarmWorldIndexedMeshCached(const char* geometryKey,
     (void)indexCount;
 }
 
+void OpenGLRenderBackend::prewarmWorldTextureData(const WorldTextureData* texture) {
+    if (!texture) return;
+
+    (void)ensureWorldTexture(texture);
+    if (texture->normalRgba && texture->normalWidth > 0 && texture->normalHeight > 0) {
+        (void)ensureWorldTextureRaw(
+            texture->normalKey,
+            texture->normalRgba,
+            texture->normalWidth,
+            texture->normalHeight,
+            texture->normalWrapS,
+            texture->normalWrapT,
+            /*srgb=*/false);
+    }
+    if (texture->metallicRoughnessRgba &&
+        texture->metallicRoughnessWidth > 0 &&
+        texture->metallicRoughnessHeight > 0) {
+        (void)ensureWorldTextureRaw(
+            texture->metallicRoughnessKey,
+            texture->metallicRoughnessRgba,
+            texture->metallicRoughnessWidth,
+            texture->metallicRoughnessHeight,
+            texture->metallicRoughnessWrapS,
+            texture->metallicRoughnessWrapT,
+            /*srgb=*/false);
+    }
+    if (texture->occlusionRgba && texture->occlusionWidth > 0 && texture->occlusionHeight > 0) {
+        (void)ensureWorldTextureRaw(
+            texture->occlusionKey,
+            texture->occlusionRgba,
+            texture->occlusionWidth,
+            texture->occlusionHeight,
+            texture->occlusionWrapS,
+            texture->occlusionWrapT,
+            /*srgb=*/false);
+    }
+    if (texture->emissiveRgba && texture->emissiveWidth > 0 && texture->emissiveHeight > 0) {
+        (void)ensureWorldTextureRaw(
+            texture->emissiveKey,
+            texture->emissiveRgba,
+            texture->emissiveWidth,
+            texture->emissiveHeight,
+            texture->emissiveWrapS,
+            texture->emissiveWrapT,
+            /*srgb=*/true);
+    }
+}
+
 void OpenGLRenderBackend::drawWorldIndexedMeshTextured(const WorldMeshVertex* vertices,
                                                        std::size_t vertexCount,
                                                        const std::uint32_t* indices,

@@ -94,6 +94,59 @@ void D3D12RenderBackend::prewarmWorldIndexedMeshCached(const char* geometryKey,
 #endif
 }
 
+void D3D12RenderBackend::prewarmWorldTextureData(const WorldTextureData* texture) {
+#if defined(_WIN32)
+    if (!texture) return;
+
+    ensureWorldFallbackEnvTexture();
+    (void)ensureWorldTexture(texture);
+    if (texture->normalRgba && texture->normalWidth > 0 && texture->normalHeight > 0) {
+        (void)ensureWorldTextureRaw(
+            texture->normalKey,
+            texture->normalRgba,
+            texture->normalWidth,
+            texture->normalHeight,
+            texture->normalWrapS,
+            texture->normalWrapT,
+            /*srgb=*/false);
+    }
+    if (texture->metallicRoughnessRgba &&
+        texture->metallicRoughnessWidth > 0 &&
+        texture->metallicRoughnessHeight > 0) {
+        (void)ensureWorldTextureRaw(
+            texture->metallicRoughnessKey,
+            texture->metallicRoughnessRgba,
+            texture->metallicRoughnessWidth,
+            texture->metallicRoughnessHeight,
+            texture->metallicRoughnessWrapS,
+            texture->metallicRoughnessWrapT,
+            /*srgb=*/false);
+    }
+    if (texture->occlusionRgba && texture->occlusionWidth > 0 && texture->occlusionHeight > 0) {
+        (void)ensureWorldTextureRaw(
+            texture->occlusionKey,
+            texture->occlusionRgba,
+            texture->occlusionWidth,
+            texture->occlusionHeight,
+            texture->occlusionWrapS,
+            texture->occlusionWrapT,
+            /*srgb=*/false);
+    }
+    if (texture->emissiveRgba && texture->emissiveWidth > 0 && texture->emissiveHeight > 0) {
+        (void)ensureWorldTextureRaw(
+            texture->emissiveKey,
+            texture->emissiveRgba,
+            texture->emissiveWidth,
+            texture->emissiveHeight,
+            texture->emissiveWrapS,
+            texture->emissiveWrapT,
+            /*srgb=*/true);
+    }
+#else
+    (void)texture;
+#endif
+}
+
 // Cache immutable world meshes in dedicated upload buffers so repeated draws
 // (e.g. D3D12 shared capture pokeball shake phases) avoid re-memcpying the
 // same large vertex/index data through the per-frame dynamic world buffers.

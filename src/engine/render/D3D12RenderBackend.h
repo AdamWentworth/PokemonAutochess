@@ -73,6 +73,7 @@ public:
                                        std::size_t vertexCount,
                                        const std::uint32_t* indices,
                                        std::size_t indexCount) override;
+    void prewarmWorldTextureData(const WorldTextureData* texture) override;
     void drawWorldIndexedMeshTextured(const WorldMeshVertex* vertices,
                                       std::size_t vertexCount,
                                       const std::uint32_t* indices,

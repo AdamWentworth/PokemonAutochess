@@ -100,6 +100,26 @@ When running from `dist/Release` during development, sync runtime content first 
 
 ---
 
+## Debug State Snapshots
+Use the debug snapshot hotkeys during gameplay:
+
+- `F5` saves the current debug state snapshot
+- `F9` loads the current debug state snapshot
+
+By default the snapshot is written to:
+
+```text
+data/config/user/debug_state_snapshot.json
+```
+
+Override the snapshot path with:
+
+```powershell
+$env:PAC_DEBUG_STATE_PATH="C:\path\to\debug_state_snapshot.json"
+```
+
+---
+
 ## Tests
 Build and run the test executable:
 

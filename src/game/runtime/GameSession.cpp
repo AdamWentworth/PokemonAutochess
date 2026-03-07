@@ -293,6 +293,19 @@ bool backendPrewarmAnimRolesEnabled() {
     return enabled;
 }
 
+bool backendPrewarmModelTexturesEnabled() {
+    static const bool enabled = []() -> bool {
+        const auto env = engine::env::get("PAC_BACKEND_PREWARM_MODEL_TEXTURES");
+        if (!env.has_value()) return true;
+        const std::string raw = *env;
+        if (raw == "0" || raw == "false" || raw == "FALSE" || raw == "off" || raw == "OFF") {
+            return false;
+        }
+        return true;
+    }();
+    return enabled;
+}
+
 bool backendModelFullMeshEnabled() {
     static const bool enabled = []() -> bool {
         const auto env = engine::env::get("PAC_BACKEND_MODEL_FULL_MESH");
@@ -356,6 +369,105 @@ bool backendWorldLayerPrewarmEnabled() {
         return true;
     }();
     return enabled;
+}
+
+std::size_t prewarmBackendWorldTexturesForMesh(
+    IRenderBackend* renderer,
+    const std::string& modelPath,
+    const game::runtime::backend_model::MeshData* mesh) {
+    if (!renderer || !mesh) return 0u;
+
+    const std::size_t batchCount = (std::max)(
+        (std::max)(
+            (std::max)(mesh->submeshBaseTextures.size(), mesh->submeshNormalTextures.size()),
+            (std::max)(
+                mesh->submeshMetallicRoughnessTextures.size(),
+                mesh->submeshOcclusionTextures.size())),
+        mesh->submeshEmissiveTextures.size());
+    if (batchCount == 0u) return 0u;
+
+    std::size_t warmed = 0u;
+    for (std::size_t si = 0; si < batchCount; ++si) {
+        IRenderBackend::WorldTextureData tex{};
+        std::string baseKey;
+        std::string normalKey;
+        std::string mrKey;
+        std::string occlusionKey;
+        std::string emissiveKey;
+        bool hasAnyTexture = false;
+
+        if (si < mesh->submeshBaseTextures.size()) {
+            const auto& src = mesh->submeshBaseTextures[si];
+            if (src.hasPixels()) {
+                baseKey = modelPath + "#submesh:" + std::to_string(si);
+                tex.key = baseKey.c_str();
+                tex.rgba = src.rgba.data();
+                tex.width = src.width;
+                tex.height = src.height;
+                tex.wrapS = src.wrapS;
+                tex.wrapT = src.wrapT;
+                hasAnyTexture = true;
+            }
+        }
+        if (si < mesh->submeshNormalTextures.size()) {
+            const auto& src = mesh->submeshNormalTextures[si];
+            if (src.hasPixels()) {
+                normalKey = modelPath + "#submesh_normal:" + std::to_string(si);
+                tex.normalKey = normalKey.c_str();
+                tex.normalRgba = src.rgba.data();
+                tex.normalWidth = src.width;
+                tex.normalHeight = src.height;
+                tex.normalWrapS = src.wrapS;
+                tex.normalWrapT = src.wrapT;
+                hasAnyTexture = true;
+            }
+        }
+        if (si < mesh->submeshMetallicRoughnessTextures.size()) {
+            const auto& src = mesh->submeshMetallicRoughnessTextures[si];
+            if (src.hasPixels()) {
+                mrKey = modelPath + "#submesh_mr:" + std::to_string(si);
+                tex.metallicRoughnessKey = mrKey.c_str();
+                tex.metallicRoughnessRgba = src.rgba.data();
+                tex.metallicRoughnessWidth = src.width;
+                tex.metallicRoughnessHeight = src.height;
+                tex.metallicRoughnessWrapS = src.wrapS;
+                tex.metallicRoughnessWrapT = src.wrapT;
+                hasAnyTexture = true;
+            }
+        }
+        if (si < mesh->submeshOcclusionTextures.size()) {
+            const auto& src = mesh->submeshOcclusionTextures[si];
+            if (src.hasPixels()) {
+                occlusionKey = modelPath + "#submesh_occ:" + std::to_string(si);
+                tex.occlusionKey = occlusionKey.c_str();
+                tex.occlusionRgba = src.rgba.data();
+                tex.occlusionWidth = src.width;
+                tex.occlusionHeight = src.height;
+                tex.occlusionWrapS = src.wrapS;
+                tex.occlusionWrapT = src.wrapT;
+                hasAnyTexture = true;
+            }
+        }
+        if (si < mesh->submeshEmissiveTextures.size()) {
+            const auto& src = mesh->submeshEmissiveTextures[si];
+            if (src.hasPixels()) {
+                emissiveKey = modelPath + "#submesh_emissive:" + std::to_string(si);
+                tex.emissiveKey = emissiveKey.c_str();
+                tex.emissiveRgba = src.rgba.data();
+                tex.emissiveWidth = src.width;
+                tex.emissiveHeight = src.height;
+                tex.emissiveWrapS = src.wrapS;
+                tex.emissiveWrapT = src.wrapT;
+                hasAnyTexture = true;
+            }
+        }
+
+        if (!hasAnyTexture) continue;
+        renderer->prewarmWorldTextureData(&tex);
+        ++warmed;
+    }
+
+    return warmed;
 }
 
 bool backendGpuClipSkinningEnabled(const IRenderBackend* renderer) {
@@ -1623,6 +1735,11 @@ struct GameSession::Impl {
             std::cout << "[Init] Shared gameplay render path: preloading backend model cache...\n";
             const bool verboseModelCacheLog = backendModelVerboseLoggingEnabled();
             const bool prewarmAnimRoles = backendPrewarmAnimRolesEnabled();
+            const bool prewarmModelTextures =
+                usesBackendGameRenderPath() &&
+                renderer &&
+                renderer->supportsWorldIndexedMeshes() &&
+                backendPrewarmModelTexturesEnabled();
             std::vector<std::string> modelPathsToPreload;
             modelPathsToPreload.reserve(dataDb.pokemon.all().size());
             std::unordered_set<std::string> seenModelPaths;
@@ -1655,6 +1772,7 @@ struct GameSession::Impl {
             std::size_t loaded = 0u;
             std::size_t failed = 0u;
             std::size_t animRolesWarmed = 0u;
+            std::size_t modelTextureMaterialsWarmed = 0u;
             std::vector<std::string> failedSamples;
             failedSamples.reserve(8);
             const auto prewarmAnimRolesForModel = [&](const std::string& modelPath,
@@ -1666,6 +1784,12 @@ struct GameSession::Impl {
                 if (!alreadyResolved && roles.attemptedResolve) {
                     ++animRolesWarmed;
                 }
+            };
+            const auto prewarmTexturesForModel = [&](const std::string& modelPath,
+                                                     const runtime::backend_model::MeshData* mesh) {
+                if (!prewarmModelTextures || !mesh) return;
+                modelTextureMaterialsWarmed +=
+                    prewarmBackendWorldTexturesForMesh(renderer, modelPath, mesh);
             };
             const std::size_t totalModels = modelPathsToPreload.size();
             for (std::size_t i = 0; i < totalModels; ++i) {
@@ -1685,6 +1809,7 @@ struct GameSession::Impl {
                 if (cacheEntry.attemptedLoad) {
                     if (cacheEntry.error.empty()) {
                         prewarmAnimRolesForModel(modelPath, &cacheEntry.mesh);
+                        prewarmTexturesForModel(modelPath, &cacheEntry.mesh);
                     }
                     const float progress = totalModels > 0u
                         ? static_cast<float>(i + 1u) / static_cast<float>(totalModels)
@@ -1708,6 +1833,7 @@ struct GameSession::Impl {
                 } else {
                     ++loaded;
                     prewarmAnimRolesForModel(modelPath, &cacheEntry.mesh);
+                    prewarmTexturesForModel(modelPath, &cacheEntry.mesh);
                     if (verboseModelCacheLog) {
                         std::cout << "[Init][ModelCache][OK] " << modelPath
                                   << " vtx=" << cacheEntry.mesh.vertices.size()
@@ -1724,6 +1850,10 @@ struct GameSession::Impl {
                       << " failed=" << failed << "\n";
             if (prewarmAnimRoles) {
                 std::cout << "[Init] Backend anim role prewarm complete: warmed=" << animRolesWarmed << "\n";
+            }
+            if (prewarmModelTextures) {
+                std::cout << "[Init] Backend model texture prewarm complete: materials="
+                          << modelTextureMaterialsWarmed << "\n";
             }
             if (failed > 0u && !failedSamples.empty() && !verboseModelCacheLog) {
                 std::cout << "[Init][ModelCache] Sample failures:\n";

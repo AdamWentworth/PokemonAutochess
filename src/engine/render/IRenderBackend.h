@@ -307,6 +307,9 @@ public:
         (void)indices;
         (void)indexCount;
     }
+    virtual void prewarmWorldTextureData(const WorldTextureData* texture) {
+        (void)texture;
+    }
     virtual void drawWorldIndexedMeshTextured(const WorldMeshVertex* vertices,
                                               std::size_t vertexCount,
                                               const std::uint32_t* indices,
