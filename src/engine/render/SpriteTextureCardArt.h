@@ -4,9 +4,14 @@
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
+#include <filesystem>
+#include <iomanip>
+#include <sstream>
 #include <string>
 #include <string_view>
 #include <vector>
+
+#include "engine/core/Paths.h"
 
 #ifdef max
 #undef max
@@ -38,6 +43,64 @@ inline std::string sourcePathFromProxy(std::string_view path) {
     if (!isProxyPath(path)) return std::string(path);
     constexpr std::size_t kPrefixLen = 21u;
     return std::string(path.substr(kPrefixLen));
+}
+
+inline std::string hexHash64(std::uint64_t v) {
+    std::ostringstream oss;
+    oss << std::hex << std::setfill('0') << std::setw(16) << v;
+    return oss.str();
+}
+
+inline std::uint64_t fnv1a64(std::string_view s) {
+    std::uint64_t h = 14695981039346656037ull;
+    for (const unsigned char c : s) {
+        h ^= static_cast<std::uint64_t>(c);
+        h *= 1099511628211ull;
+    }
+    return h;
+}
+
+inline std::filesystem::path resolveExistingPath(std::string_view sourcePath) {
+    std::error_code ec;
+    std::filesystem::path direct{std::string(sourcePath)};
+    if (std::filesystem::exists(direct, ec) && !ec) return direct;
+    std::string alt(sourcePath);
+    std::replace(alt.begin(), alt.end(), '\\', '/');
+    std::filesystem::path normalized{alt};
+    ec.clear();
+    if (std::filesystem::exists(normalized, ec) && !ec) return normalized;
+    return direct;
+}
+
+inline std::string proxyCacheFingerprint(const std::filesystem::path& sourcePath, int maxDim) {
+    std::error_code ec;
+    std::string fingerprint;
+    fingerprint.reserve(192u);
+    fingerprint += "backend_card_art|cap=";
+    fingerprint += std::to_string(maxDim);
+    fingerprint += "|";
+    fingerprint += sourcePath.generic_string();
+    fingerprint += "|size=";
+    fingerprint +=
+        std::to_string(std::filesystem::exists(sourcePath, ec) && !ec
+                           ? std::filesystem::file_size(sourcePath, ec)
+                           : 0ull);
+    fingerprint += "|mtime=";
+    ec.clear();
+    if (std::filesystem::exists(sourcePath, ec) && !ec) {
+        fingerprint +=
+            std::to_string(std::filesystem::last_write_time(sourcePath, ec).time_since_epoch().count());
+    } else {
+        fingerprint += "0";
+    }
+    return fingerprint;
+}
+
+inline std::filesystem::path proxyCachePath(std::string_view sourcePath, int maxDim) {
+    const std::filesystem::path resolved = resolveExistingPath(sourcePath);
+    const std::string fingerprint = proxyCacheFingerprint(resolved, maxDim);
+    return std::filesystem::path(engine::paths::data("cache/card_art")) /
+           ("proxy_" + hexHash64(fnv1a64(fingerprint)) + ".png");
 }
 
 inline int scaledDimension(int sourceWidth, int sourceHeight, int maxDim, bool widthAxis) {

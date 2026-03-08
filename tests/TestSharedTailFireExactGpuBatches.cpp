@@ -93,8 +93,8 @@ bool test_shared_tail_fire_exact_gpu_batches_contract(std::string& outFail) {
                 outFail)) {
         return false;
     }
-    if (!expect(batch.textureKey == "particle:tail_fire:tail_fire_exact_gpu:__tailfire_combined_exact__:a|b",
-                "appendBatch should build a stable exact tail-fire cache key.",
+    if (!expect(batch.textureKey == atlas.cacheKey,
+                "appendBatch should reuse the atlas cache key so startup prewarm and runtime rendering share the same backend texture entry.",
                 outFail)) {
         return false;
     }

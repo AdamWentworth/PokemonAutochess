@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <chrono>
 #include <cmath>
+#include <filesystem>
 #include <iostream>
 #include <memory>
 #include <string>
@@ -12,6 +13,7 @@
 
 #include <glad/glad.h>
 #include <stb_image.h>
+#include <stb_image_write.h>
 
 namespace {
 
@@ -59,6 +61,7 @@ int backendCardArtMaxDim() {
 }
 
 struct LoadedSpritePixels {
+    std::string sourcePath;
     std::string altCacheKey;
     int width = 0;
     int height = 0;
@@ -67,20 +70,67 @@ struct LoadedSpritePixels {
     const unsigned char* rgba = nullptr;
 };
 
-bool loadSpritePixels(const std::string& texturePath, LoadedSpritePixels& out) {
-    out = {};
-    const std::string sourcePath = engine::render::sprite_card_art::sourcePathFromProxy(texturePath);
+bool loadCachedProxyPixels(const std::filesystem::path& cachePath, LoadedSpritePixels& out) {
+    std::error_code ec;
+    if (!std::filesystem::exists(cachePath, ec) || ec) return false;
 
     int width = 0;
     int height = 0;
     int channels = 0;
     stbi_set_flip_vertically_on_load(false);
-    unsigned char* loaded = stbi_load(sourcePath.c_str(), &width, &height, &channels, 4);
+    unsigned char* loaded = stbi_load(cachePath.string().c_str(), &width, &height, &channels, 4);
+    if (!loaded || width <= 0 || height <= 0) {
+        if (loaded) stbi_image_free(loaded);
+        return false;
+    }
+
+    out.pixels.reset(loaded);
+    out.width = width;
+    out.height = height;
+    out.rgba = out.pixels.get();
+    return true;
+}
+
+void writeCachedProxyPixels(const std::filesystem::path& cachePath, const LoadedSpritePixels& loaded) {
+    if (!loaded.rgba || loaded.width <= 0 || loaded.height <= 0) return;
+
+    std::error_code ec;
+    std::filesystem::create_directories(cachePath.parent_path(), ec);
+    (void)stbi_write_png(cachePath.string().c_str(),
+                         loaded.width,
+                         loaded.height,
+                         4,
+                         loaded.rgba,
+                         loaded.width * 4);
+}
+
+bool loadSpritePixels(const std::string& texturePath, LoadedSpritePixels& out) {
+    out = {};
+    out.sourcePath = engine::render::sprite_card_art::sourcePathFromProxy(texturePath);
+    if (engine::render::sprite_card_art::isProxyPath(texturePath)) {
+        const std::string normalizedSource =
+            engine::render::sprite_card_art::resolveExistingPath(out.sourcePath).generic_string();
+        if (!normalizedSource.empty() && normalizedSource != out.sourcePath) {
+            out.altCacheKey = engine::render::sprite_card_art::makeProxyPath(normalizedSource);
+        }
+
+        const int maxDim = backendCardArtMaxDim();
+        const auto cachePath = engine::render::sprite_card_art::proxyCachePath(out.sourcePath, maxDim);
+        if (loadCachedProxyPixels(cachePath, out)) {
+            return true;
+        }
+    }
+
+    int width = 0;
+    int height = 0;
+    int channels = 0;
+    stbi_set_flip_vertically_on_load(false);
+    unsigned char* loaded = stbi_load(out.sourcePath.c_str(), &width, &height, &channels, 4);
     std::string altPath;
     if (!loaded) {
-        altPath = sourcePath;
+        altPath = out.sourcePath;
         std::replace(altPath.begin(), altPath.end(), '\\', '/');
-        if (altPath != sourcePath) {
+        if (altPath != out.sourcePath) {
             stbi_set_flip_vertically_on_load(false);
             loaded = stbi_load(altPath.c_str(), &width, &height, &channels, 4);
         }
@@ -95,7 +145,7 @@ bool loadSpritePixels(const std::string& texturePath, LoadedSpritePixels& out) {
     out.width = width;
     out.height = height;
     out.rgba = out.pixels.get();
-    if (!altPath.empty() && altPath != sourcePath) {
+    if (out.altCacheKey.empty() && !altPath.empty() && altPath != out.sourcePath) {
         if (engine::render::sprite_card_art::isProxyPath(texturePath)) {
             out.altCacheKey = engine::render::sprite_card_art::makeProxyPath(altPath);
         } else {
@@ -120,6 +170,8 @@ bool loadSpritePixels(const std::string& texturePath, LoadedSpritePixels& out) {
                 out.width = scaledW;
                 out.height = scaledH;
                 out.rgba = out.resizedPixels.data();
+                writeCachedProxyPixels(
+                    engine::render::sprite_card_art::proxyCachePath(out.sourcePath, maxDim), out);
             }
         }
     }
