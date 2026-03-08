@@ -1988,6 +1988,7 @@ struct GameSession::Impl {
             timing << std::fixed << std::setprecision(1) << ms;
             std::cout << "[Init] Backend card UI prewarm complete: time="
                       << timing.str() << "ms\n";
+            if (ctx.renderBootLoading) ctx.renderBootLoading(0.985f);
             if (ctx.pumpPreloadEvents && !ctx.pumpPreloadEvents()) {
                 if (ctx.requestQuit) ctx.requestQuit();
             }
@@ -3153,6 +3154,11 @@ struct GameSession::Impl {
             0.25f,
             0.14f);
 
+        if (baseQuads.empty() && sprites.empty() && textLines.empty()) return;
+
+        // D3D12 debug/UI draws are ignored unless they happen during an active frame.
+        // Warm the real card UI path here so the first shop entry does not pay lazy setup cost.
+        renderer->beginFrame(0.05f, 0.05f, 0.07f, 1.0f);
         if (!baseQuads.empty()) {
             renderer->drawDebugQuads(baseQuads.data(), baseQuads.size(), drawableW, drawableH);
         }
@@ -3162,6 +3168,7 @@ struct GameSession::Impl {
         if (!textLines.empty()) {
             renderer->drawDebugLines(textLines.data(), textLines.size(), drawableW, drawableH);
         }
+        renderer->endFrame();
     }
 
     void renderStateLayer() {
