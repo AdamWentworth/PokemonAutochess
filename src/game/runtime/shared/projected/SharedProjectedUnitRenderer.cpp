@@ -452,10 +452,12 @@ for (const auto& unit : units) {
         const bool scenePoseCacheHit = (it != g_cachedScenePoseBySignature.end());
         if (it == g_cachedScenePoseBySignature.end()) {
             CachedScenePoseEntry inserted;
-            PokemonInstance quantizedUnit = unit;
-            quantizedUnit.animTimeSec = canonicalAnimSample.animTimeSec;
-            game::runtime::shared_backend_pose::evaluateScenePose(
-                *meshForUnit, quantizedUnit, inserted.pose);
+            game::runtime::shared_backend_pose::evaluateScenePoseForResolvedClipTime(
+                *meshForUnit,
+                animIndex,
+                canonicalAnimSample.animTimeSec,
+                true,
+                inserted.pose);
             inserted.lastUsedFrame = poseCacheFrame;
             it = g_cachedScenePoseBySignature.emplace(key, std::move(inserted)).first;
         } else {
@@ -476,10 +478,12 @@ for (const auto& unit : units) {
                 if (g_cachedScenePoseBySignature.find(nextKey) ==
                     g_cachedScenePoseBySignature.end()) {
                     CachedScenePoseEntry nextInserted;
-                    PokemonInstance nextQuantizedUnit = unit;
-                    nextQuantizedUnit.animTimeSec = nextAnimSample.animTimeSec;
-                    game::runtime::shared_backend_pose::evaluateScenePose(
-                        *meshForUnit, nextQuantizedUnit, nextInserted.pose);
+                    game::runtime::shared_backend_pose::evaluateScenePoseForResolvedClipTime(
+                        *meshForUnit,
+                        animIndex,
+                        nextAnimSample.animTimeSec,
+                        true,
+                        nextInserted.pose);
                     nextInserted.lastUsedFrame = poseCacheFrame;
                     g_cachedScenePoseBySignature.emplace(nextKey, std::move(nextInserted));
                 }

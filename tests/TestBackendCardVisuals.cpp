@@ -1,4 +1,5 @@
 #include "game/runtime/BackendCardVisuals.h"
+#include "engine/render/SpriteTextureCardArt.h"
 
 #include <string>
 #include <vector>
@@ -12,6 +13,8 @@ bool test_backend_card_visuals_contract(std::string& outFail) {
     using game::runtime::backend_cards::makeCardArtSprite;
     using game::runtime::backend_cards::makeCardFrameSprite;
     using game::runtime::backend_cards::resolveCardImagePath;
+    using engine::render::sprite_card_art::isProxyPath;
+    using engine::render::sprite_card_art::sourcePathFromProxy;
 
     if (fnv1aHash("charmander") != fnv1aHash("charmander")) {
         outFail = "fnv1aHash should be deterministic for identical input";
@@ -54,8 +57,9 @@ bool test_backend_card_visuals_contract(std::string& outFail) {
             in,
             resolveCardImagePath("", "charmander", false),
             1.0f);
-        if (sprite.texturePath != "assets/images/charmander.png") {
-            outFail = "card sprite path should resolve to pokemon portrait path";
+        if (!isProxyPath(sprite.texturePath) ||
+            sourcePathFromProxy(sprite.texturePath) != "assets/images/charmander.png") {
+            outFail = "card sprite path should resolve to backend card art proxy";
             return false;
         }
         if (sprite.w <= 0.0f || sprite.h <= 0.0f) {
@@ -176,8 +180,9 @@ bool test_backend_card_visuals_contract(std::string& outFail) {
         }
         const std::string explicitPath =
             resolveCardImagePath("assets/images/charmander.png", "pikachu", false);
-        if (explicitPath != "assets/images/charmander.png") {
-            outFail = "existing explicit card image path should take precedence";
+        if (!isProxyPath(explicitPath) ||
+            sourcePathFromProxy(explicitPath) != "assets/images/charmander.png") {
+            outFail = "existing explicit card image path should map to backend card art proxy";
             return false;
         }
 

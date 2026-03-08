@@ -79,11 +79,13 @@
 #include "game/runtime/shared/vfx/tail_fire/SharedTailFireFallbackEmitter.h"
 #include "game/runtime/shared/vfx/tail_fire/SharedTailFireExactGpuBatches.h"
 #include "game/runtime/shared/vfx/tail_fire/SharedTailFireAtlasHelpers.h"
+#include "game/runtime/shared/vfx/tail_fire/SharedTailFireSnapshotAtlasCache.h"
 #include "game/runtime/shared/vfx/growl/SharedGrowlVfxHelpers.h"
 #include "game/runtime/shared/vfx/growl/SharedGrowlWaveBridge.h"
 #include "game/runtime/shared/vfx/growl/SharedGrowlWaveBatches.h"
 #include "game/runtime/shared/ui/SharedUnitHudBatches.h"
 #include "game/runtime/shared/world/SharedWorldIndexedBatches.h"
+#include "engine/render/SpriteTextureCardArt.h"
 #include "game/GameServices.h"
 #include "game/GameConfig.h"
 #include "game/runtime/GameUpdateGraph.h"
@@ -152,6 +154,72 @@ std::string makeBackendCardPrewarmLabel(const std::string& texturePath) {
         label[0] = static_cast<char>(std::toupper(static_cast<unsigned char>(label[0])));
     }
     return label;
+}
+
+std::vector<const char*> makeCStrView(const std::vector<std::string>& paths) {
+    std::vector<const char*> raw;
+    raw.reserve(paths.size());
+    for (const std::string& path : paths) {
+        raw.push_back(path.c_str());
+    }
+    return raw;
+}
+
+std::uintmax_t backendCardArtEagerPrewarmBytes() {
+    static const std::uintmax_t limit = []() -> std::uintmax_t {
+        constexpr std::uintmax_t kDefault = 1000000u;
+        constexpr std::uintmax_t kMin = 0u;
+        constexpr std::uintmax_t kMax = 16u * 1024u * 1024u;
+        const auto env = engine::env::get("PAC_BACKEND_CARD_ART_EAGER_BYTES");
+        if (!env.has_value()) return kDefault;
+        try {
+            return std::clamp<std::uintmax_t>(
+                static_cast<std::uintmax_t>(std::stoull(*env)),
+                kMin,
+                kMax);
+        } catch (...) {
+            return kDefault;
+        }
+    }();
+    return limit;
+}
+
+std::vector<std::string> collectBackendCardArtProxyPrewarmPaths(
+    const std::vector<std::string>& uiSpritePrewarmPaths) {
+    std::vector<std::string> out;
+    out.reserve(uiSpritePrewarmPaths.size() + 4u);
+    std::unordered_set<std::string> seen;
+    seen.reserve(uiSpritePrewarmPaths.size() + 4u);
+    const auto addIfWanted = [&](const std::string& path) {
+        const bool placeholderOrHudSprite =
+            path == "assets/ui/frame_gold.png" ||
+            path == "assets/images/item_placeholder.png" ||
+            path == "assets/images/items_atlas.png" ||
+            path == "assets/images/pokedollar.png" ||
+            path == "assets/images/pokegold.png";
+        if (placeholderOrHudSprite) return;
+        const bool classicStarterPortrait =
+            path == "assets/images/bulbasaur.png" ||
+            path == "assets/images/charmander.png" ||
+            path == "assets/images/squirtle.png";
+        std::error_code ec;
+        const std::uintmax_t bytes = std::filesystem::file_size(path, ec);
+        if (ec) return;
+        if (!classicStarterPortrait && bytes < backendCardArtEagerPrewarmBytes()) return;
+        if (!seen.insert(path).second) return;
+        out.push_back(engine::render::sprite_card_art::makeProxyPath(path));
+    };
+
+    for (const std::string& path : uiSpritePrewarmPaths) {
+        addIfWanted(path);
+    }
+
+    // Classic shop starters can appear before any shop row has caused their art
+    // to be discovered through other paths, so keep them explicit.
+    addIfWanted("assets/images/bulbasaur.png");
+    addIfWanted("assets/images/charmander.png");
+    addIfWanted("assets/images/squirtle.png");
+    return out;
 }
 
 std::size_t backendModelTriangleLimit() {
@@ -566,6 +634,19 @@ bool backendUseLegacyParticleVfxSnapshotBridgeEnabled() {
 bool backendUseExactTailFireCpuPathEnabled() {
     static const bool enabled = []() -> bool {
         const auto env = engine::env::get("PAC_BACKEND_TAIL_FIRE_EXACT_CPU");
+        if (!env.has_value()) return false;
+        const std::string raw = *env;
+        if (raw == "0" || raw == "false" || raw == "FALSE" || raw == "off" || raw == "OFF") {
+            return false;
+        }
+        return true;
+    }();
+    return enabled;
+}
+
+bool backendPrewarmLegacyTailFirePremulEnabled() {
+    static const bool enabled = []() -> bool {
+        const auto env = engine::env::get("PAC_BACKEND_TAIL_FIRE_PREWARM_PREMUL");
         if (!env.has_value()) return false;
         const std::string raw = *env;
         if (raw == "0" || raw == "false" || raw == "FALSE" || raw == "off" || raw == "OFF") {
@@ -1348,6 +1429,89 @@ struct GameSession::Impl {
         return &cacheEntry;
     }
 
+    std::size_t prewarmSharedTailFireAssets() {
+        if (!renderer) return 0u;
+
+        const TailFireVFX::Config& cfg =
+            game::runtime::shared_projected_scene::getTailFireFallbackCfg();
+        if (!cfg.useFlipbook || cfg.flipbookPath.empty()) return 0u;
+
+        ParticleSystem::RenderSnapshot snapshot{};
+        snapshot.useFlipbook = cfg.useFlipbook;
+        snapshot.flipbookPath = cfg.flipbookPath;
+        snapshot.flipbookCols = cfg.flipbookCols;
+        snapshot.flipbookRows = cfg.flipbookRows;
+        snapshot.flipbookFrames = cfg.flipbookFrames;
+        snapshot.flipbookFps = cfg.flipbookFps;
+        snapshot.useSecondaryFlipbook = cfg.useFlipbook2 && !cfg.flipbook2Path.empty();
+        snapshot.flipbookPath2 = cfg.flipbook2Path;
+        snapshot.flipbookCols2 = cfg.flipbook2Cols;
+        snapshot.flipbookRows2 = cfg.flipbook2Rows;
+        snapshot.flipbookFrames2 = cfg.flipbook2Frames;
+        snapshot.flipbookFps2 = cfg.flipbook2Fps;
+
+        auto ensureTextureFn =
+            [&](const std::string& path, bool flip) -> BackendTextureCacheEntry* {
+                return ensureBackendTextureLoaded(path, flip);
+            };
+
+        std::size_t warmed = 0u;
+        const auto prewarmAtlas = [&](const std::string& key,
+                                      const BackendTextureCacheEntry* atlas) {
+            if (!atlas || !atlas->valid || atlas->rgba.empty() ||
+                atlas->width <= 0 || atlas->height <= 0) {
+                return;
+            }
+
+            IRenderBackend::WorldTextureData tex{};
+            tex.key = key.c_str();
+            tex.rgba = atlas->rgba.data();
+            tex.width = atlas->width;
+            tex.height = atlas->height;
+            tex.wrapS = 33071; // GL_CLAMP_TO_EDGE
+            tex.wrapT = 33071; // GL_CLAMP_TO_EDGE
+            tex.alphaMode = 2u;
+            tex.blendMode = 2u;
+            renderer->prewarmWorldTextureData(&tex);
+            ++warmed;
+        };
+
+        const auto combined =
+            game::runtime::shared_tail_fire_snapshot_billboards::resolveTailFireCombinedAtlas(
+                snapshot,
+                backendTextureByPath,
+                ensureTextureFn);
+        if (!combined.cacheKey.empty()) {
+            prewarmAtlas(combined.cacheKey, combined.atlas);
+        }
+
+        const bool prewarmLegacyPremul =
+            backendPrewarmLegacyTailFirePremulEnabled() || !(combined.atlas && combined.atlas->valid);
+        if (prewarmLegacyPremul) {
+            const std::string primaryPremulKey =
+                std::string("__tailfire_premul:") + snapshot.flipbookPath;
+            BackendTextureCacheEntry* primaryPremul =
+                game::runtime::shared_tail_fire_snapshot_billboards::resolveTailFirePremulAtlas(
+                    snapshot.flipbookPath,
+                    backendTextureByPath,
+                    ensureTextureFn);
+            prewarmAtlas(primaryPremulKey, primaryPremul);
+
+            if (snapshot.useSecondaryFlipbook && !snapshot.flipbookPath2.empty()) {
+                const std::string secondaryPremulKey =
+                    std::string("__tailfire_premul:") + snapshot.flipbookPath2;
+                BackendTextureCacheEntry* secondaryPremul =
+                    game::runtime::shared_tail_fire_snapshot_billboards::resolveTailFirePremulAtlas(
+                        snapshot.flipbookPath2,
+                        backendTextureByPath,
+                        ensureTextureFn);
+                prewarmAtlas(secondaryPremulKey, secondaryPremul);
+            }
+        }
+
+        return warmed;
+    }
+
     BackendAnimRoleEntry& ensureBackendAnimRoles(const std::string& modelPath,
                                                  const runtime::backend_model::MeshData* mesh) {
         auto& entry = backendAnimByModelPath[modelPath];
@@ -1931,6 +2095,41 @@ struct GameSession::Impl {
             (void)engineServices->resources->getModel("assets/models/pokeball.glb");
         }
 
+        if (usesBackendGameRenderPath() && renderer) {
+            if (ctx.setTitle) ctx.setTitle("PokemonAutochess - Loading world shading...");
+            if (ctx.renderBootLoading) ctx.renderBootLoading(0.92f);
+            const auto t0 = std::chrono::high_resolution_clock::now();
+            renderer->prewarmWorldRenderAssets();
+            const auto t1 = std::chrono::high_resolution_clock::now();
+            const double ms =
+                std::chrono::duration<double, std::milli>(t1 - t0).count();
+            std::ostringstream timing;
+            timing << std::fixed << std::setprecision(1) << ms;
+            std::cout << "[Init] Backend world shading prewarm complete: time="
+                      << timing.str() << "ms\n";
+            if (ctx.pumpPreloadEvents && !ctx.pumpPreloadEvents()) {
+                if (ctx.requestQuit) ctx.requestQuit();
+            }
+        }
+
+        if (usesBackendGameRenderPath() && renderer) {
+            if (ctx.setTitle) ctx.setTitle("PokemonAutochess - Loading tail fire...");
+            if (ctx.renderBootLoading) ctx.renderBootLoading(0.93f);
+            const auto t0 = std::chrono::high_resolution_clock::now();
+            const std::size_t warmedTailFireAtlases = prewarmSharedTailFireAssets();
+            const auto t1 = std::chrono::high_resolution_clock::now();
+            const double ms =
+                std::chrono::duration<double, std::milli>(t1 - t0).count();
+            std::ostringstream timing;
+            timing << std::fixed << std::setprecision(1) << ms;
+            std::cout << "[Init] Backend tail fire prewarm complete: atlases="
+                      << warmedTailFireAtlases
+                      << " time=" << timing.str() << "ms\n";
+            if (ctx.pumpPreloadEvents && !ctx.pumpPreloadEvents()) {
+                if (ctx.requestQuit) ctx.requestQuit();
+            }
+        }
+
         std::vector<std::string> uiSpritePrewarmPaths;
         if (usesBackendGameRenderPath() &&
             renderer &&
@@ -1938,28 +2137,35 @@ struct GameSession::Impl {
             if (ctx.setTitle) ctx.setTitle("PokemonAutochess - Loading UI sprites...");
             if (ctx.renderBootLoading) ctx.renderBootLoading(0.94f);
             uiSpritePrewarmPaths = collectBackendUiSpritePrewarmPaths(dataDb);
+            const bool backendCardUiWillPrewarm =
+                ctx.drawableW > 0 && ctx.drawableH > 0;
             const auto t0 = std::chrono::high_resolution_clock::now();
-            std::size_t requested = 0u;
-            const std::size_t totalSprites = uiSpritePrewarmPaths.size();
+            std::vector<std::string> genericUiSpritePrewarmPaths;
+            genericUiSpritePrewarmPaths.reserve(uiSpritePrewarmPaths.size());
             for (const std::string& path : uiSpritePrewarmPaths) {
-                if (ctx.setTitle) {
-                    ctx.setTitle(
-                        std::string("PokemonAutochess - Loading UI sprite ") +
-                        std::to_string(requested + 1u) + "/" + std::to_string(totalSprites) +
-                        "  " + path);
+                const bool placeholderOrHudSprite =
+                    path == "assets/images/item_placeholder.png" ||
+                    path == "assets/images/items_atlas.png" ||
+                    path == "assets/images/pokedollar.png" ||
+                    path == "assets/images/pokegold.png";
+                if (backendCardUiWillPrewarm && !placeholderOrHudSprite) {
+                    continue;
                 }
-                renderer->prewarmDebugSpriteTexture(path.c_str());
-                ++requested;
-                if (ctx.renderBootLoading) {
-                    const float p = (totalSprites > 0u)
-                        ? (0.94f + (static_cast<float>(requested) / static_cast<float>(totalSprites)) * 0.04f)
-                        : 0.98f;
-                    ctx.renderBootLoading(std::min(0.98f, p));
-                }
-                if (ctx.pumpPreloadEvents && !ctx.pumpPreloadEvents()) {
-                    if (ctx.requestQuit) ctx.requestQuit();
-                    break;
-                }
+                genericUiSpritePrewarmPaths.push_back(path);
+            }
+            const std::size_t requested = genericUiSpritePrewarmPaths.size();
+            if (ctx.setTitle && requested > 0u) {
+                ctx.setTitle(
+                    std::string("PokemonAutochess - Loading UI sprites (") +
+                    std::to_string(requested) + ")");
+            }
+            if (!genericUiSpritePrewarmPaths.empty()) {
+                const std::vector<const char*> rawPaths = makeCStrView(genericUiSpritePrewarmPaths);
+                renderer->prewarmDebugSpriteTextures(rawPaths.data(), rawPaths.size());
+            }
+            if (ctx.renderBootLoading) ctx.renderBootLoading(0.98f);
+            if (ctx.pumpPreloadEvents && !ctx.pumpPreloadEvents()) {
+                if (ctx.requestQuit) ctx.requestQuit();
             }
             const auto t1 = std::chrono::high_resolution_clock::now();
             const double ms =
@@ -1968,6 +2174,29 @@ struct GameSession::Impl {
             prewarmTiming << std::fixed << std::setprecision(1) << ms;
             std::cout << "[Init] UI sprite prewarm complete: requested=" << requested
                       << " time=" << prewarmTiming.str() << "ms\n";
+
+            if (backendCardUiWillPrewarm) {
+                if (ctx.setTitle) ctx.setTitle("PokemonAutochess - Loading card art...");
+                if (ctx.renderBootLoading) ctx.renderBootLoading(0.975f);
+                const std::vector<std::string> cardArtProxyPaths =
+                    collectBackendCardArtProxyPrewarmPaths(uiSpritePrewarmPaths);
+                const auto tArt0 = std::chrono::high_resolution_clock::now();
+                if (!cardArtProxyPaths.empty()) {
+                    const std::vector<const char*> rawPaths = makeCStrView(cardArtProxyPaths);
+                    renderer->prewarmDebugSpriteTextures(rawPaths.data(), rawPaths.size());
+                }
+                if (ctx.pumpPreloadEvents && !ctx.pumpPreloadEvents()) {
+                    if (ctx.requestQuit) ctx.requestQuit();
+                }
+                const auto tArt1 = std::chrono::high_resolution_clock::now();
+                const double artMs =
+                    std::chrono::duration<double, std::milli>(tArt1 - tArt0).count();
+                std::ostringstream cardArtTiming;
+                cardArtTiming << std::fixed << std::setprecision(1) << artMs;
+                std::cout << "[Init] Backend card art prewarm complete: requested="
+                          << cardArtProxyPaths.size()
+                          << " time=" << cardArtTiming.str() << "ms\n";
+            }
         }
 
         if (usesBackendGameRenderPath() &&
@@ -3042,7 +3271,6 @@ struct GameSession::Impl {
                                    int drawableH,
                                    const std::vector<std::string>& uiSpritePrewarmPaths) {
         if (!renderer || drawableW <= 0 || drawableH <= 0) return;
-        if (uiSpritePrewarmPaths.empty()) return;
 
         std::vector<std::string> portraitPaths;
         portraitPaths.reserve(uiSpritePrewarmPaths.size());
@@ -3056,7 +3284,6 @@ struct GameSession::Impl {
             }
             portraitPaths.push_back(path);
         }
-        if (portraitPaths.empty()) return;
 
         std::vector<IRenderBackend::DebugQuad> baseQuads;
         std::vector<IRenderBackend::DebugLine> textLines;
@@ -3068,7 +3295,7 @@ struct GameSession::Impl {
         const float uiScale = runtime::backend_ui::viewportScale(drawableW, drawableH);
         const float edgePad = runtime::backend_ui::edgePad(drawableW, drawableH);
         const float lineStep = runtime::backend_ui::lineStep(drawableW, drawableH);
-        const std::size_t cardCount = std::min<std::size_t>(portraitPaths.size(), 5u);
+        const std::size_t cardCount = std::max<std::size_t>(1u, std::min<std::size_t>(portraitPaths.size(), 5u));
         const float cardW = std::clamp(148.0f * uiScale, 120.0f, 210.0f);
         const float cardH = std::clamp(cardW * 1.30f, 150.0f, 290.0f);
         const float gap = std::max(10.0f, cardW * 0.10f);
@@ -3097,10 +3324,15 @@ struct GameSession::Impl {
             input.y = rowY;
             input.w = cardW;
             input.h = cardH;
-            input.displayName = makeBackendCardPrewarmLabel(portraitPaths[i]);
+            if (i < portraitPaths.size()) {
+                input.displayName = makeBackendCardPrewarmLabel(portraitPaths[i]);
+            } else {
+                input.displayName = "Card " + std::to_string(i + 1u);
+            }
             input.subtitle = "Lv5";
-            input.explicitImagePath = portraitPaths[i];
+            input.explicitImagePath = "assets/images/item_placeholder.png";
             input.keyboardSlot = static_cast<int>(i + 1u);
+            input.item = true;
             input.textScale = std::clamp(1.0f * uiScale, 0.70f, 1.35f);
             game::runtime::backend_card_renderer::appendCardLayered(
                 baseQuads,

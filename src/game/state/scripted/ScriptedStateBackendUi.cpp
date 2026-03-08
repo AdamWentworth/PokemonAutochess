@@ -155,8 +155,15 @@ void ScriptedState::layoutBackendTextMenu(int uiW, int uiH) {
 }
 
 void ScriptedState::rebuildBackendCardUi(const std::vector<CardData>& cards, int uiW, int uiH, bool isItemRow) {
+    std::vector<CardData> preparedCards = cards;
+    game::runtime::backend_card_renderer::prepareCardDataForBackendRender(preparedCards, isItemRow);
+    game::runtime::backend_card_renderer::prewarmCardDataTextures(
+        services.renderer,
+        preparedCards,
+        isItemRow);
+
     game::state::backend_cards::BuildInput in;
-    in.cards = cards;
+    in.cards = std::move(preparedCards);
     in.uiW = uiW;
     in.uiH = uiH;
     in.mode = (cardMode == CardMode::Shop)

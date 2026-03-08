@@ -1,11 +1,16 @@
 #include "engine/render/NeutralPmrem.h"
 
+#include "engine/core/Environment.h"
+#include "engine/core/Paths.h"
+
 #include <algorithm>
 #include <array>
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
+#include <filesystem>
+#include <fstream>
 #include <limits>
 
 #include <glm/glm.hpp>
@@ -14,10 +19,29 @@
 namespace engine::render::neutral_pmrem {
 namespace {
 
+namespace fs = std::filesystem;
+
 constexpr int kLodMin = 4;
 constexpr std::array<float, 6> kExtraLodSigma = {0.125f, 0.215f, 0.35f, 0.446f, 0.526f, 0.582f};
 constexpr int kMaxBlurSamples = 20;
 constexpr float kRgbmRange = 16.0f;
+constexpr std::uint32_t kNeutralPmremCacheMagic = 0x504d524du; // PMRM
+constexpr std::uint32_t kNeutralPmremCacheVersion = 1u;
+
+struct CacheHeader {
+    std::uint32_t magic = 0u;
+    std::uint32_t version = 0u;
+    std::int32_t width = 0;
+    std::int32_t height = 0;
+    std::int32_t cubeSize = 0;
+    std::int32_t lodMax = 0;
+    float texelWidth = 0.0f;
+    float texelHeight = 0.0f;
+    float maxMip = 0.0f;
+    float rgbmRange = 0.0f;
+    std::uint64_t rgbaSize = 0u;
+    std::uint64_t rgba16fSize = 0u;
+};
 
 struct LodData {
     int lodMax = 0;
@@ -48,6 +72,107 @@ struct HitInfo {
     bool emissive = false;
     float emissiveIntensity = 0.0f;
 };
+
+template <typename T>
+bool writePod(std::ostream& out, const T& value) {
+    out.write(reinterpret_cast<const char*>(&value), sizeof(T));
+    return out.good();
+}
+
+template <typename T>
+bool readPod(std::istream& in, T& value) {
+    in.read(reinterpret_cast<char*>(&value), sizeof(T));
+    return in.good();
+}
+
+bool neutralPmremDiskCacheEnabled() {
+    return !engine::env::flagEnabled("PAC_DISABLE_NEUTRAL_PMREM_CACHE");
+}
+
+bool neutralPmremForceRebuild() {
+    return engine::env::flagEnabled("PAC_REBUILD_NEUTRAL_PMREM_CACHE");
+}
+
+fs::path neutralPmremCachePath() {
+    return fs::path(engine::paths::data("cache/neutral_pmrem")) / "neutral_room_pmrem_v1.bin";
+}
+
+bool validateCacheHeader(const CacheHeader& header) {
+    if (header.magic != kNeutralPmremCacheMagic) return false;
+    if (header.version != kNeutralPmremCacheVersion) return false;
+    if (header.width <= 0 || header.height <= 0) return false;
+    if (header.cubeSize <= 0 || header.lodMax < 0) return false;
+
+    const std::uint64_t pixelCount =
+        static_cast<std::uint64_t>(header.width) * static_cast<std::uint64_t>(header.height);
+    if (header.rgbaSize != pixelCount * 4u) return false;
+    if (header.rgba16fSize != pixelCount * 4u) return false;
+    return true;
+}
+
+bool tryLoadNeutralRoomPmremAtlasFromCache(Atlas& out) {
+    if (!neutralPmremDiskCacheEnabled() || neutralPmremForceRebuild()) return false;
+
+    std::ifstream in(neutralPmremCachePath(), std::ios::binary);
+    if (!in.is_open()) return false;
+
+    CacheHeader header{};
+    if (!readPod(in, header) || !validateCacheHeader(header)) return false;
+
+    std::vector<std::uint8_t> rgba(static_cast<std::size_t>(header.rgbaSize), 0u);
+    std::vector<std::uint16_t> rgba16f(static_cast<std::size_t>(header.rgba16fSize), 0u);
+    in.read(reinterpret_cast<char*>(rgba.data()), static_cast<std::streamsize>(rgba.size()));
+    if (!in.good()) return false;
+    in.read(
+        reinterpret_cast<char*>(rgba16f.data()),
+        static_cast<std::streamsize>(rgba16f.size() * sizeof(std::uint16_t)));
+    if (!in.good()) return false;
+
+    out.width = header.width;
+    out.height = header.height;
+    out.cubeSize = header.cubeSize;
+    out.lodMax = header.lodMax;
+    out.texelWidth = header.texelWidth;
+    out.texelHeight = header.texelHeight;
+    out.maxMip = header.maxMip;
+    out.rgbmRange = header.rgbmRange;
+    out.rgba = std::move(rgba);
+    out.rgba16f = std::move(rgba16f);
+    return true;
+}
+
+void tryStoreNeutralRoomPmremAtlasToCache(const Atlas& atlas) {
+    if (!neutralPmremDiskCacheEnabled()) return;
+
+    const fs::path cachePath = neutralPmremCachePath();
+    std::error_code ec;
+    fs::create_directories(cachePath.parent_path(), ec);
+    if (ec) return;
+
+    std::ofstream out(cachePath, std::ios::binary | std::ios::trunc);
+    if (!out.is_open()) return;
+
+    CacheHeader header{};
+    header.magic = kNeutralPmremCacheMagic;
+    header.version = kNeutralPmremCacheVersion;
+    header.width = atlas.width;
+    header.height = atlas.height;
+    header.cubeSize = atlas.cubeSize;
+    header.lodMax = atlas.lodMax;
+    header.texelWidth = atlas.texelWidth;
+    header.texelHeight = atlas.texelHeight;
+    header.maxMip = atlas.maxMip;
+    header.rgbmRange = atlas.rgbmRange;
+    header.rgbaSize = static_cast<std::uint64_t>(atlas.rgba.size());
+    header.rgba16fSize = static_cast<std::uint64_t>(atlas.rgba16f.size());
+
+    if (!writePod(out, header)) return;
+    out.write(reinterpret_cast<const char*>(atlas.rgba.data()), static_cast<std::streamsize>(atlas.rgba.size()));
+    if (!out.good()) return;
+    out.write(
+        reinterpret_cast<const char*>(atlas.rgba16f.data()),
+        static_cast<std::streamsize>(atlas.rgba16f.size() * sizeof(std::uint16_t)));
+}
 
 glm::vec3 rotateY(const glm::vec3& v, float angle) {
     const float c = std::cos(angle);
@@ -593,7 +718,15 @@ Atlas buildNeutralRoomPmremAtlas() {
 } // namespace
 
 const Atlas& getNeutralRoomPmremAtlas() {
-    static const Atlas kAtlas = buildNeutralRoomPmremAtlas();
+    static const Atlas kAtlas = []() {
+        Atlas atlas;
+        if (tryLoadNeutralRoomPmremAtlasFromCache(atlas)) {
+            return atlas;
+        }
+        atlas = buildNeutralRoomPmremAtlas();
+        tryStoreNeutralRoomPmremAtlasToCache(atlas);
+        return atlas;
+    }();
     return kAtlas;
 }
 

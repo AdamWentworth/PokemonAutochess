@@ -1,6 +1,8 @@
 #include "game/runtime/shared/vfx/tail_fire/SharedTailFireSnapshotAtlasCache.h"
 
 #include <algorithm>
+#include <chrono>
+#include <iostream>
 
 #include "game/runtime/shared/vfx/tail_fire/SharedTailFireAtlasHelpers.h"
 #include "game/runtime/shared/vfx/tail_fire/SharedTailFireExactGpuBatches.h"
@@ -21,31 +23,61 @@ BackendTextureCacheEntry* resolveTailFirePremulAtlas(
     if (atlasPath.empty()) return nullptr;
     if (!ensureTextureFn) return nullptr;
 
-    // Legacy ParticleSystem loads VFX flipbooks with stb vertical flip enabled.
-    // Match that texture orientation here so the shared fire_tail UV logic aligns.
-    BackendTextureCacheEntry* src = ensureTextureFn(atlasPath, true);
-    if (!src || !src->valid || src->rgba.empty() || src->width <= 0 || src->height <= 0) {
-        return nullptr;
-    }
-
     const std::string key = std::string("__tailfire_premul:") + atlasPath;
     if (backendTextureByPath.empty()) backendTextureByPath.reserve(64u);
     auto& baked = backendTextureByPath[key];
     if (baked.attemptedLoad) return baked.valid ? &baked : nullptr;
 
+    // Legacy ParticleSystem loads VFX flipbooks with stb vertical flip enabled.
+    // Match that texture orientation here so the shared fire_tail UV logic aligns.
+    const auto rawLoadStart = std::chrono::steady_clock::now();
+    BackendTextureCacheEntry* src = ensureTextureFn(atlasPath, true);
+    const auto rawLoadEnd = std::chrono::steady_clock::now();
+    if (!src || !src->valid || src->rgba.empty() || src->width <= 0 || src->height <= 0) {
+        std::cout << "[TailFire][CPU] premul_atlas path="
+                  << atlasPath
+                  << " raw_load_ms="
+                  << std::chrono::duration<double, std::milli>(rawLoadEnd - rawLoadStart).count()
+                  << " result=raw_load_failed\n";
+        return nullptr;
+    }
+
     baked.attemptedLoad = true;
     baked.valid = false;
+    const auto bakeStart = std::chrono::steady_clock::now();
     game::runtime::shared_tail_fire_atlas::RgbaTextureOwned premul;
     const game::runtime::shared_tail_fire_atlas::RgbaTextureView srcView{
         src->rgba.data(), src->width, src->height};
     if (!game::runtime::shared_tail_fire_atlas::buildPremultipliedAtlas(srcView, premul)) {
+        const auto bakeEnd = std::chrono::steady_clock::now();
+        std::cout << "[TailFire][CPU] premul_atlas path="
+                  << atlasPath
+                  << " raw_load_ms="
+                  << std::chrono::duration<double, std::milli>(rawLoadEnd - rawLoadStart).count()
+                  << " bake_ms="
+                  << std::chrono::duration<double, std::milli>(bakeEnd - bakeStart).count()
+                  << " result=bake_failed\n";
         return nullptr;
     }
+    const auto bakeEnd = std::chrono::steady_clock::now();
 
     baked.width = premul.width;
     baked.height = premul.height;
     baked.rgba = std::move(premul.rgba);
     baked.valid = (baked.width > 0 && baked.height > 0 && !baked.rgba.empty());
+    std::cout << "[TailFire][CPU] premul_atlas path="
+              << atlasPath
+              << " raw_load_ms="
+              << std::chrono::duration<double, std::milli>(rawLoadEnd - rawLoadStart).count()
+              << " bake_ms="
+              << std::chrono::duration<double, std::milli>(bakeEnd - bakeStart).count()
+              << " size="
+              << baked.width
+              << "x"
+              << baked.height
+              << " result="
+              << (baked.valid ? "ok" : "invalid")
+              << "\n";
     return &baked;
 }
 
@@ -57,15 +89,29 @@ TailFireCombinedAtlasInfo resolveTailFireCombinedAtlas(
     if (!snapshot.useFlipbook || snapshot.flipbookPath.empty()) return out;
     if (!ensureTextureFn) return out;
 
+    const auto primaryLoadStart = std::chrono::steady_clock::now();
     BackendTextureCacheEntry* primaryRaw = ensureTextureFn(snapshot.flipbookPath, true);
+    const auto primaryLoadEnd = std::chrono::steady_clock::now();
     if (!primaryRaw || !primaryRaw->valid || primaryRaw->rgba.empty() ||
         primaryRaw->width <= 0 || primaryRaw->height <= 0) {
+        std::cout << "[TailFire][CPU] combined_atlas primary="
+                  << snapshot.flipbookPath
+                  << " secondary="
+                  << (snapshot.useSecondaryFlipbook ? snapshot.flipbookPath2 : std::string("<disabled>"))
+                  << " raw_primary_ms="
+                  << std::chrono::duration<double, std::milli>(primaryLoadEnd - primaryLoadStart).count()
+                  << " raw_secondary_ms=0 result=primary_raw_load_failed\n";
         return out;
     }
 
     BackendTextureCacheEntry* secondaryRaw = nullptr;
+    double secondaryLoadMs = 0.0;
     if (snapshot.useSecondaryFlipbook && !snapshot.flipbookPath2.empty()) {
+        const auto secondaryLoadStart = std::chrono::steady_clock::now();
         secondaryRaw = ensureTextureFn(snapshot.flipbookPath2, true);
+        const auto secondaryLoadEnd = std::chrono::steady_clock::now();
+        secondaryLoadMs =
+            std::chrono::duration<double, std::milli>(secondaryLoadEnd - secondaryLoadStart).count();
         if (!(secondaryRaw && secondaryRaw->valid && !secondaryRaw->rgba.empty() &&
               secondaryRaw->width > 0 && secondaryRaw->height > 0)) {
             secondaryRaw = nullptr;
@@ -82,6 +128,7 @@ TailFireCombinedAtlasInfo resolveTailFireCombinedAtlas(
     if (!combined.attemptedLoad) {
         combined.attemptedLoad = true;
         combined.valid = false;
+        const auto bakeStart = std::chrono::steady_clock::now();
         game::runtime::shared_tail_fire_atlas::RgbaTextureOwned builtAtlas;
         game::runtime::shared_tail_fire_atlas::CombinedAtlasInfo builtInfo;
         const game::runtime::shared_tail_fire_atlas::RgbaTextureView primaryView{
@@ -102,6 +149,24 @@ TailFireCombinedAtlasInfo resolveTailFireCombinedAtlas(
             out.rect0 = builtInfo.rect0;
             out.rect1 = builtInfo.rect1;
         }
+        const auto bakeEnd = std::chrono::steady_clock::now();
+        std::cout << "[TailFire][CPU] combined_atlas primary="
+                  << snapshot.flipbookPath
+                  << " secondary="
+                  << (snapshot.useSecondaryFlipbook ? snapshot.flipbookPath2 : std::string("<disabled>"))
+                  << " raw_primary_ms="
+                  << std::chrono::duration<double, std::milli>(primaryLoadEnd - primaryLoadStart).count()
+                  << " raw_secondary_ms="
+                  << secondaryLoadMs
+                  << " bake_ms="
+                  << std::chrono::duration<double, std::milli>(bakeEnd - bakeStart).count()
+                  << " size="
+                  << combined.width
+                  << "x"
+                  << combined.height
+                  << " result="
+                  << (combined.valid ? "ok" : "invalid")
+                  << "\n";
     }
 
     if (!combined.valid || combined.rgba.empty() || combined.width <= 0 || combined.height <= 0) {

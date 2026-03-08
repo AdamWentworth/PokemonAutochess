@@ -343,18 +343,13 @@ void resetPoseEvalForMesh(const backend_model::MeshData& mesh, PoseEval& eval) {
 void evaluateScenePose(const backend_model::MeshData& mesh,
                        const PokemonInstance& unit,
                        PoseEval& outPose) {
-    if (mesh.nodesDefault.empty()) {
-        outPose = PoseEval{};
-        return;
-    }
-    resetPoseEvalForMesh(mesh, outPose);
-
     const int animIndex = resolveSceneAnimIndex(mesh, unit);
-    if (animIndex >= 0) {
-        applyClipPose(mesh, outPose, animIndex, unit.animTimeSec, true);
-    }
-
-    buildGlobals(mesh, outPose, animIndex);
+    evaluateScenePoseForResolvedClipTime(
+        mesh,
+        animIndex,
+        unit.animTimeSec,
+        true,
+        outPose);
 }
 
 PoseEval evaluateScenePose(const backend_model::MeshData& mesh, const PokemonInstance& unit) {
@@ -363,10 +358,11 @@ PoseEval evaluateScenePose(const backend_model::MeshData& mesh, const PokemonIns
     return eval;
 }
 
-void evaluateScenePoseForClipTime(const backend_model::MeshData& mesh,
-                                  int animIndex,
-                                  float animTimeSec,
-                                  PoseEval& outPose) {
+void evaluateScenePoseForResolvedClipTime(const backend_model::MeshData& mesh,
+                                          int animIndex,
+                                          float animTimeSec,
+                                          bool preserveRootMotionCarrierXZ,
+                                          PoseEval& outPose) {
     if (mesh.nodesDefault.empty()) {
         outPose = PoseEval{};
         return;
@@ -374,18 +370,46 @@ void evaluateScenePoseForClipTime(const backend_model::MeshData& mesh,
     resetPoseEvalForMesh(mesh, outPose);
 
     if (animIndex >= 0) {
-        applyClipPose(mesh, outPose, animIndex, animTimeSec, false);
+        applyClipPose(mesh, outPose, animIndex, animTimeSec, preserveRootMotionCarrierXZ);
     }
 
     buildGlobals(mesh, outPose, animIndex);
 }
 
+PoseEval evaluateScenePoseForResolvedClipTime(const backend_model::MeshData& mesh,
+                                              int animIndex,
+                                              float animTimeSec,
+                                              bool preserveRootMotionCarrierXZ) {
+    PoseEval eval;
+    evaluateScenePoseForResolvedClipTime(
+        mesh,
+        animIndex,
+        animTimeSec,
+        preserveRootMotionCarrierXZ,
+        eval);
+    return eval;
+}
+
+void evaluateScenePoseForClipTime(const backend_model::MeshData& mesh,
+                                  int animIndex,
+                                  float animTimeSec,
+                                  PoseEval& outPose) {
+    evaluateScenePoseForResolvedClipTime(
+        mesh,
+        animIndex,
+        animTimeSec,
+        false,
+        outPose);
+}
+
 PoseEval evaluateScenePoseForClipTime(const backend_model::MeshData& mesh,
                                       int animIndex,
                                       float animTimeSec) {
-    PoseEval eval;
-    evaluateScenePoseForClipTime(mesh, animIndex, animTimeSec, eval);
-    return eval;
+    return evaluateScenePoseForResolvedClipTime(
+        mesh,
+        animIndex,
+        animTimeSec,
+        false);
 }
 
 } // namespace game::runtime::shared_backend_pose

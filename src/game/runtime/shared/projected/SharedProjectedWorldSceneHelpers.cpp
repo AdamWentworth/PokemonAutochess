@@ -9,7 +9,9 @@
 #include "game/vfx/TailFireVFXConfigDB.h"
 
 #include <algorithm>
+#include <chrono>
 #include <cctype>
+#include <iostream>
 #include <utility>
 
 namespace game::runtime::shared_projected_scene {
@@ -311,11 +313,25 @@ const TailFireVFX::Config& getTailFireFallbackCfg() {
     static TailFireVFX::Config sTailFireFallbackCfg{};
     static bool sTailFireFallbackCfgLoaded = false;
     if (!sTailFireFallbackCfgLoaded) {
+        const auto start = std::chrono::steady_clock::now();
         TailFireVFX::Config cfg;
         TailFireVFXConfigDB::get().ensureLoaded();
         TailFireVFXConfigDB::get().applyIfAny("charmander", cfg);
         sTailFireFallbackCfg = cfg;
         sTailFireFallbackCfgLoaded = true;
+
+        const auto end = std::chrono::steady_clock::now();
+        const double totalMs =
+            std::chrono::duration<double, std::milli>(end - start).count();
+        std::cout << "[TailFire][CPU] fallback_config species=charmander total="
+                  << totalMs
+                  << "ms flipbook0="
+                  << sTailFireFallbackCfg.flipbookPath
+                  << " flipbook1="
+                  << (sTailFireFallbackCfg.useFlipbook2
+                          ? sTailFireFallbackCfg.flipbook2Path
+                          : std::string("<disabled>"))
+                  << "\n";
     }
     return sTailFireFallbackCfg;
 }

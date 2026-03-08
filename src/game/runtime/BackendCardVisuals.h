@@ -1,6 +1,7 @@
 #pragma once
 
 #include "engine/render/IRenderBackend.h"
+#include "engine/render/SpriteTextureCardArt.h"
 #include "game/runtime/BackendDebugText.h"
 #include "game/runtime/BackendImagePath.h"
 
@@ -42,12 +43,18 @@ inline std::uint32_t fnv1aHash(const std::string& text) {
 inline std::string resolveCardImagePath(const std::string& explicitImagePath,
                                         const std::string& cardName,
                                         bool itemCard) {
-    (void)itemCard;
+    if (engine::render::sprite_card_art::isProxyPath(explicitImagePath)) {
+        return explicitImagePath;
+    }
     const std::string fallback = "assets/images/item_placeholder.png";
-    return runtime::backend_images::resolvePokemonPortraitPath(
+    const std::string resolved = runtime::backend_images::resolvePokemonPortraitPath(
         explicitImagePath,
         cardName,
         fallback);
+    if (itemCard || resolved.empty() || resolved == fallback) {
+        return resolved;
+    }
+    return engine::render::sprite_card_art::makeProxyPath(resolved);
 }
 
 inline CardVisualLayout computeCardVisualLayout(const CardVisualInput& input) {

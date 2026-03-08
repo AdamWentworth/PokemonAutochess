@@ -1,12 +1,209 @@
 #include "engine/render/OpenGLRenderBackend.h"
+#include "engine/core/Environment.h"
+#include "engine/core/Paths.h"
 #include "engine/render/WorldPbrShaderShared.h"
 #include "engine/render/opengl/OpenGLRenderBackendShaderUtils.h"
 
 #include <algorithm>
 #include <cstddef>
+#include <cstdint>
+#include <filesystem>
+#include <fstream>
 #include <string>
+#include <string_view>
+#include <vector>
 
 #include <glad/glad.h>
+
+namespace {
+
+namespace fs = std::filesystem;
+
+constexpr std::uint32_t kWorldProgramBinaryCacheMagic = 0x4f475042u; // OGPB
+constexpr std::uint32_t kWorldProgramBinaryCacheVersion = 1u;
+
+struct ProgramBinaryCacheHeader {
+    std::uint32_t magic = 0u;
+    std::uint32_t version = 0u;
+    std::uint32_t format = 0u;
+    std::uint32_t reserved = 0u;
+    std::uint64_t binarySize = 0u;
+};
+
+template <typename T>
+bool writePod(std::ostream& out, const T& value) {
+    out.write(reinterpret_cast<const char*>(&value), sizeof(T));
+    return out.good();
+}
+
+template <typename T>
+bool readPod(std::istream& in, T& value) {
+    in.read(reinterpret_cast<char*>(&value), sizeof(T));
+    return in.good();
+}
+
+std::uint64_t fnv1a64(std::string_view payload) {
+    std::uint64_t hash = 14695981039346656037ull;
+    for (const unsigned char c : payload) {
+        hash ^= static_cast<std::uint64_t>(c);
+        hash *= 1099511628211ull;
+    }
+    return hash;
+}
+
+std::string hexHash64(std::uint64_t value) {
+    static constexpr char kHex[] = "0123456789abcdef";
+    std::string out(16u, '0');
+    for (int i = 15; i >= 0; --i) {
+        out[static_cast<std::size_t>(i)] = kHex[value & 0x0full];
+        value >>= 4u;
+    }
+    return out;
+}
+
+bool worldProgramBinaryCacheEnabled() {
+    return !engine::env::flagEnabled("PAC_DISABLE_OPENGL_WORLD_PROGRAM_CACHE");
+}
+
+bool worldProgramBinaryForceRebuild() {
+    return engine::env::flagEnabled("PAC_REBUILD_OPENGL_WORLD_PROGRAM_CACHE");
+}
+
+bool worldProgramBinarySupported() {
+    if (!worldProgramBinaryCacheEnabled()) return false;
+    if (glad_glGetProgramBinary == nullptr ||
+        glad_glProgramBinary == nullptr ||
+        glad_glProgramParameteri == nullptr) {
+        return false;
+    }
+    GLint binaryFormatCount = 0;
+    glGetIntegerv(GL_NUM_PROGRAM_BINARY_FORMATS, &binaryFormatCount);
+    return binaryFormatCount > 0;
+}
+
+fs::path worldProgramBinaryCachePath(const char* vsSource, std::string_view fsSource) {
+    std::string payload;
+    payload.reserve(std::char_traits<char>::length(vsSource) + fsSource.size() + 256u);
+    if (const GLubyte* vendor = glGetString(GL_VENDOR)) {
+        payload.append(reinterpret_cast<const char*>(vendor));
+    }
+    payload.push_back('|');
+    if (const GLubyte* renderer = glGetString(GL_RENDERER)) {
+        payload.append(reinterpret_cast<const char*>(renderer));
+    }
+    payload.push_back('|');
+    if (const GLubyte* version = glGetString(GL_VERSION)) {
+        payload.append(reinterpret_cast<const char*>(version));
+    }
+    payload.push_back('|');
+    payload.append(vsSource);
+    payload.push_back('|');
+    payload.append(fsSource.data(), fsSource.size());
+
+    return fs::path(engine::paths::data("cache/shaders/opengl")) /
+           ("world_pbr_" + hexHash64(fnv1a64(payload)) + ".glbin");
+}
+
+unsigned int tryLoadWorldProgramBinaryCache(const char* vsSource, std::string_view fsSource) {
+    if (!worldProgramBinarySupported() || worldProgramBinaryForceRebuild()) return 0u;
+
+    std::ifstream in(worldProgramBinaryCachePath(vsSource, fsSource), std::ios::binary);
+    if (!in.is_open()) return 0u;
+
+    ProgramBinaryCacheHeader header{};
+    if (!readPod(in, header)) return 0u;
+    if (header.magic != kWorldProgramBinaryCacheMagic ||
+        header.version != kWorldProgramBinaryCacheVersion ||
+        header.binarySize == 0u ||
+        header.format == 0u) {
+        return 0u;
+    }
+
+    std::vector<unsigned char> binary(static_cast<std::size_t>(header.binarySize), 0u);
+    in.read(reinterpret_cast<char*>(binary.data()), static_cast<std::streamsize>(binary.size()));
+    if (!in.good()) return 0u;
+
+    const unsigned int program = glCreateProgram();
+    if (program == 0u) return 0u;
+
+    glProgramBinary(
+        program,
+        static_cast<GLenum>(header.format),
+        binary.data(),
+        static_cast<GLsizei>(binary.size()));
+    GLint ok = 0;
+    glGetProgramiv(program, GL_LINK_STATUS, &ok);
+    if (!ok) {
+        glDeleteProgram(program);
+        return 0u;
+    }
+    return program;
+}
+
+void tryStoreWorldProgramBinaryCache(unsigned int program,
+                                     const char* vsSource,
+                                     std::string_view fsSource) {
+    if (!worldProgramBinarySupported()) return;
+
+    GLint binaryLength = 0;
+    glGetProgramiv(program, GL_PROGRAM_BINARY_LENGTH, &binaryLength);
+    if (binaryLength <= 0) return;
+
+    std::vector<unsigned char> binary(static_cast<std::size_t>(binaryLength), 0u);
+    GLenum binaryFormat = 0u;
+    GLsizei actualLength = 0;
+    glGetProgramBinary(program,
+                       binaryLength,
+                       &actualLength,
+                       &binaryFormat,
+                       binary.data());
+    if (actualLength <= 0 || binaryFormat == 0u) return;
+    binary.resize(static_cast<std::size_t>(actualLength));
+
+    const fs::path cachePath = worldProgramBinaryCachePath(vsSource, fsSource);
+    std::error_code ec;
+    fs::create_directories(cachePath.parent_path(), ec);
+    if (ec) return;
+
+    std::ofstream out(cachePath, std::ios::binary | std::ios::trunc);
+    if (!out.is_open()) return;
+
+    ProgramBinaryCacheHeader header{};
+    header.magic = kWorldProgramBinaryCacheMagic;
+    header.version = kWorldProgramBinaryCacheVersion;
+    header.format = static_cast<std::uint32_t>(binaryFormat);
+    header.binarySize = static_cast<std::uint64_t>(binary.size());
+    if (!writePod(out, header)) return;
+    out.write(reinterpret_cast<const char*>(binary.data()), static_cast<std::streamsize>(binary.size()));
+}
+
+unsigned int linkWorldProgramWithCache(unsigned int vs,
+                                       unsigned int fs,
+                                       const char* vsSource,
+                                       std::string_view fsSource) {
+    if (vs == 0u || fs == 0u) return 0u;
+
+    const unsigned int program = glCreateProgram();
+    if (program == 0u) return 0u;
+    if (worldProgramBinarySupported()) {
+        glProgramParameteri(program, GL_PROGRAM_BINARY_RETRIEVABLE_HINT, GL_TRUE);
+    }
+    glAttachShader(program, vs);
+    glAttachShader(program, fs);
+    glLinkProgram(program);
+
+    GLint ok = 0;
+    glGetProgramiv(program, GL_LINK_STATUS, &ok);
+    if (!ok) {
+        glDeleteProgram(program);
+        return 0u;
+    }
+
+    tryStoreWorldProgramBinaryCache(program, vsSource, fsSource);
+    return program;
+}
+
+} // namespace
 
 void OpenGLRenderBackend::ensureWorldPipeline() {
     if (worldProgram_ != 0 && worldVao_ != 0 && worldVbo_ != 0 && worldIbo_ != 0 &&
@@ -747,22 +944,25 @@ __PAC_SHARED_WORLD_PBR_SECTION__
         }
     )GLSL";
 
-    const unsigned int vs = opengl_backend_shader_utils::compileShader(GL_VERTEX_SHADER, kVs);
     const std::string fsSource =
         engine::render::world_pbr_shader_shared::injectSharedWorldPbr(
             kFs, engine::render::world_pbr_shader_shared::ShaderLanguage::Glsl);
-    const unsigned int fs =
-        opengl_backend_shader_utils::compileShader(GL_FRAGMENT_SHADER, fsSource.c_str());
-    if (vs == 0 || fs == 0) {
-        if (vs != 0) glDeleteShader(vs);
-        if (fs != 0) glDeleteShader(fs);
-        return;
-    }
+    worldProgram_ = tryLoadWorldProgramBinaryCache(kVs, fsSource);
+    if (worldProgram_ == 0u) {
+        const unsigned int vs = opengl_backend_shader_utils::compileShader(GL_VERTEX_SHADER, kVs);
+        const unsigned int fs =
+            opengl_backend_shader_utils::compileShader(GL_FRAGMENT_SHADER, fsSource.c_str());
+        if (vs == 0 || fs == 0) {
+            if (vs != 0) glDeleteShader(vs);
+            if (fs != 0) glDeleteShader(fs);
+            return;
+        }
 
-    worldProgram_ = opengl_backend_shader_utils::linkProgram(vs, fs);
-    glDeleteShader(vs);
-    glDeleteShader(fs);
-    if (worldProgram_ == 0) return;
+        worldProgram_ = linkWorldProgramWithCache(vs, fs, kVs, fsSource);
+        glDeleteShader(vs);
+        glDeleteShader(fs);
+        if (worldProgram_ == 0) return;
+    }
 
     worldViewProjLoc_ = glGetUniformLocation(worldProgram_, "uViewProj");
     worldModelLoc_ = glGetUniformLocation(worldProgram_, "uModel");

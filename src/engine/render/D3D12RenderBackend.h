@@ -74,6 +74,7 @@ public:
                                        const std::uint32_t* indices,
                                        std::size_t indexCount) override;
     void prewarmWorldTextureData(const WorldTextureData* texture) override;
+    void prewarmWorldRenderAssets() override;
     void drawWorldIndexedMeshTextured(const WorldMeshVertex* vertices,
                                       std::size_t vertexCount,
                                       const std::uint32_t* indices,
@@ -99,6 +100,8 @@ public:
                           int surfaceWidth,
                           int surfaceHeight) override;
     void prewarmDebugSpriteTexture(const char* texturePath) override;
+    void prewarmDebugSpriteTextures(const char* const* texturePaths,
+                                    std::size_t textureCount) override;
     void shutdown() override;
 
 private:

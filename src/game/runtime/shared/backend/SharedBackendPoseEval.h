@@ -20,6 +20,15 @@ void evaluateScenePose(const backend_model::MeshData& mesh,
                        const PokemonInstance& unit,
                        PoseEval& outPose);
 PoseEval evaluateScenePose(const backend_model::MeshData& mesh, const PokemonInstance& unit);
+void evaluateScenePoseForResolvedClipTime(const backend_model::MeshData& mesh,
+                                          int animIndex,
+                                          float animTimeSec,
+                                          bool preserveRootMotionCarrierXZ,
+                                          PoseEval& outPose);
+PoseEval evaluateScenePoseForResolvedClipTime(const backend_model::MeshData& mesh,
+                                              int animIndex,
+                                              float animTimeSec,
+                                              bool preserveRootMotionCarrierXZ);
 void evaluateScenePoseForClipTime(const backend_model::MeshData& mesh,
                                   int animIndex,
                                   float animTimeSec,

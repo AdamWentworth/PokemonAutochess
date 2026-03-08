@@ -1,9 +1,11 @@
 #pragma once
 
 #include "engine/render/IRenderBackend.h"
+#include "engine/ui/Card.h"
 #include "game/runtime/BackendCardVisuals.h"
 
 #include <string>
+#include <unordered_set>
 #include <utility>
 #include <vector>
 
@@ -27,6 +29,50 @@ struct CardRenderInput {
     float textScale = 0.74f;
     float spriteAlpha = 1.0f;
 };
+
+inline std::string resolveCardImagePath(const CardData& card, bool forceItemRow = false) {
+    const bool itemCard = forceItemRow || card.type == CardType::Item;
+    return runtime::backend_cards::resolveCardImagePath(
+        card.imagePath,
+        card.pokemonName.empty() ? card.label : card.pokemonName,
+        itemCard);
+}
+
+inline void prepareCardDataForBackendRender(std::vector<CardData>& cards, bool forceItemRow = false) {
+    for (CardData& card : cards) {
+        const std::string resolved = resolveCardImagePath(card, forceItemRow);
+        if (!resolved.empty()) {
+            card.imagePath = resolved;
+        }
+    }
+}
+
+inline void prewarmCardDataTextures(IRenderBackend* renderer,
+                                    const std::vector<CardData>& cards,
+                                    bool forceItemRow = false) {
+    if (!renderer) return;
+
+    std::vector<std::string> paths;
+    paths.reserve(cards.size() + 1u);
+    paths.push_back("assets/ui/frame_gold.png");
+    std::unordered_set<std::string> seenPaths;
+    seenPaths.reserve(cards.size());
+    for (const CardData& card : cards) {
+        const std::string resolved = resolveCardImagePath(card, forceItemRow);
+        if (resolved.empty()) continue;
+        if (!seenPaths.insert(resolved).second) continue;
+        paths.push_back(resolved);
+    }
+
+    std::vector<const char*> rawPaths;
+    rawPaths.reserve(paths.size());
+    for (const std::string& path : paths) {
+        rawPaths.push_back(path.c_str());
+    }
+    if (!rawPaths.empty()) {
+        renderer->prewarmDebugSpriteTextures(rawPaths.data(), rawPaths.size());
+    }
+}
 
 inline void appendCardLayered(std::vector<IRenderBackend::DebugQuad>& baseQuads,
                               std::vector<IRenderBackend::DebugQuad>* textQuads,

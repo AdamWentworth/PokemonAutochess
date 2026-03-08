@@ -1663,4 +1663,10 @@ void D3D12RenderBackend::ensureWorldFallbackEnvTexture() {
 #endif
 }
 
+void D3D12RenderBackend::prewarmWorldRenderAssets() {
+#if defined(_WIN32)
+    ensureWorldFallbackEnvTexture();
+#endif
+}
+
 

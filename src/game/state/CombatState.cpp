@@ -67,8 +67,16 @@ void CombatState::clearBackendShopUiCache() {
 
 void CombatState::rebuildBackendShopUi(const std::vector<CardData>& cards, int uiW, int uiH) {
     clearBackendShopUiCache();
+
+    std::vector<CardData> preparedCards = cards;
+    game::runtime::backend_card_renderer::prepareCardDataForBackendRender(preparedCards, /*forceItemRow=*/false);
+    game::runtime::backend_card_renderer::prewarmCardDataTextures(
+        services.renderer,
+        preparedCards,
+        /*forceItemRow=*/false);
+
     game::state::backend_cards::BuildInput in;
-    in.cards = cards;
+    in.cards = std::move(preparedCards);
     in.uiW = uiW;
     in.uiH = uiH;
     in.mode = game::state::backend_cards::LayoutMode::Shop;

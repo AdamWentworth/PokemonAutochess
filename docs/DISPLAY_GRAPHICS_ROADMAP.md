@@ -25,6 +25,7 @@ Date: 2026-03-07
 
 ### Important technical context
 - The project is currently a shared gameplay render path with `OpenGL` and `D3D12`.
+- New display and graphics work should target both active backends wherever shared implementation is viable. Backend-only behavior should be the exception and should be documented when unavoidable.
 - `Vulkan` is still placeholder, not an active implementation target.
 - Recent perf work moved the main gameplay hot paths out of Lua and reduced fixed-step cost substantially.
 - Current bottlenecks are mostly in render build / projected unit rendering, not in raw GPU saturation.

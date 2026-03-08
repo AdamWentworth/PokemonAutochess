@@ -310,6 +310,7 @@ public:
     virtual void prewarmWorldTextureData(const WorldTextureData* texture) {
         (void)texture;
     }
+    virtual void prewarmWorldRenderAssets() {}
     virtual void drawWorldIndexedMeshTextured(const WorldMeshVertex* vertices,
                                               std::size_t vertexCount,
                                               const std::uint32_t* indices,
@@ -365,6 +366,13 @@ public:
     }
     virtual void prewarmDebugSpriteTexture(const char* texturePath) {
         (void)texturePath;
+    }
+    virtual void prewarmDebugSpriteTextures(const char* const* texturePaths,
+                                           std::size_t textureCount) {
+        if (!texturePaths) return;
+        for (std::size_t i = 0; i < textureCount; ++i) {
+            prewarmDebugSpriteTexture(texturePaths[i]);
+        }
     }
     virtual void shutdown() = 0;
 };

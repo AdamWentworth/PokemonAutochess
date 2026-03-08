@@ -4,6 +4,12 @@ Date: 2026-02-28
 
 This is the authoritative pre-merge plan for the D3D12 branch.
 
+## Working Policy
+- Shared-path improvements are the default. If an optimization or behavior change can live in shared runtime/render code, implement it there first so `OpenGL` and `D3D12` both benefit.
+- Backend-specific work is acceptable only when required by API capability, driver/runtime behavior, or instrumentation gaps. When that happens, document why it is backend-specific.
+- Do not let one backend accumulate ongoing quality or performance work while the other quietly drifts. Any intentional asymmetry should be treated as explicit debt, not as the default operating mode.
+- Changes that affect shared render behavior, perf instrumentation, or user-facing graphics behavior should be checked on both backends before being treated as complete.
+
 ## Scope
 In scope:
 - OpenGL/D3D12 parity and performance readiness.

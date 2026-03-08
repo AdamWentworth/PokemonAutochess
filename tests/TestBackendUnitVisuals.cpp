@@ -1,8 +1,11 @@
 #include "game/runtime/BackendUnitVisuals.h"
+#include "engine/render/SpriteTextureCardArt.h"
 
 #include <string>
 
 bool test_backend_unit_visuals_contract(std::string& outFail) {
+    using engine::render::sprite_card_art::isProxyPath;
+    using engine::render::sprite_card_art::sourcePathFromProxy;
     using game::runtime::backend_units::applyWorldUnitTint;
     using game::runtime::backend_units::makeBenchUnitSprite;
     using game::runtime::backend_units::makeWorldUnitSprite;
@@ -79,8 +82,9 @@ bool test_backend_unit_visuals_contract(std::string& outFail) {
 
     {
         const std::string image = resolveWorldUnitImagePath("charmander");
-        if (image != "assets/images/charmander.png") {
-            outFail = "resolveWorldUnitImagePath should resolve known portrait assets";
+        if (!isProxyPath(image) ||
+            sourcePathFromProxy(image) != "assets/images/charmander.png") {
+            outFail = "resolveWorldUnitImagePath should resolve known portrait assets through proxy textures";
             return false;
         }
     }
@@ -97,8 +101,9 @@ bool test_backend_unit_visuals_contract(std::string& outFail) {
             80.0f,
             40.0f,
             50.0f,
-            "assets/images/charmander.png");
-        if (sprite.texturePath != "assets/images/charmander.png") {
+            resolveWorldUnitImagePath("charmander"));
+        if (!isProxyPath(sprite.texturePath) ||
+            sourcePathFromProxy(sprite.texturePath) != "assets/images/charmander.png") {
             outFail = "world sprite should preserve texture path";
             return false;
         }
@@ -114,8 +119,9 @@ bool test_backend_unit_visuals_contract(std::string& outFail) {
             20.0f,
             50.0f,
             40.0f,
-            "assets/images/charmander.png");
-        if (bench.texturePath != "assets/images/charmander.png") {
+            resolveWorldUnitImagePath("charmander"));
+        if (!isProxyPath(bench.texturePath) ||
+            sourcePathFromProxy(bench.texturePath) != "assets/images/charmander.png") {
             outFail = "bench sprite should preserve texture path";
             return false;
         }

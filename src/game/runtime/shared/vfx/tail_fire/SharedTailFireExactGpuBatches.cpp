@@ -32,7 +32,9 @@ bool appendBatch(const char* label,
 
     using shared_world_batches::WorldIndexedBatch;
     WorldIndexedBatch batch;
-    batch.textureKey = std::string("particle:") + label + ":tail_fire_exact_gpu:" + atlas.cacheKey;
+    // Reuse the atlas cache key directly so startup prewarm and runtime exact-fire batches
+    // hit the same backend world-texture cache entry instead of uploading the atlas twice.
+    batch.textureKey = atlas.cacheKey;
     batch.textureRgba = atlas.rgba;
     batch.textureWidth = atlas.width;
     batch.textureHeight = atlas.height;

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "engine/render/IRenderBackend.h"
+#include "engine/render/SpriteTextureCardArt.h"
 #include "game/PokemonInstance.h"
 #include "game/runtime/BackendImagePath.h"
 
@@ -11,10 +12,12 @@
 namespace game::runtime::backend_units {
 
 inline std::string resolveWorldUnitImagePath(const std::string& unitName) {
-    return runtime::backend_images::resolvePokemonPortraitPath(
+    const std::string resolved = runtime::backend_images::resolvePokemonPortraitPath(
         "",
         unitName,
         "");
+    if (resolved.empty()) return resolved;
+    return engine::render::sprite_card_art::makeProxyPath(resolved);
 }
 
 inline bool shouldRenderWorldUnitPortrait(bool drewModelMesh,

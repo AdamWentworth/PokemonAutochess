@@ -1,9 +1,12 @@
 #include "game/runtime/BackendCardRenderer.h"
+#include "engine/render/SpriteTextureCardArt.h"
 
 #include <string>
 #include <vector>
 
 bool test_backend_card_renderer_contract(std::string& outFail) {
+    using engine::render::sprite_card_art::isProxyPath;
+    using engine::render::sprite_card_art::sourcePathFromProxy;
     std::vector<IRenderBackend::DebugQuad> quads;
     std::vector<IRenderBackend::DebugSprite> sprites;
 
@@ -34,8 +37,9 @@ bool test_backend_card_renderer_contract(std::string& outFail) {
     }
 
     const auto& artSprite = sprites.front();
-    if (artSprite.texturePath != "assets/images/charmander.png") {
-        outFail = "appendCard should preserve explicit art image path";
+    if (!isProxyPath(artSprite.texturePath) ||
+        sourcePathFromProxy(artSprite.texturePath) != "assets/images/charmander.png") {
+        outFail = "appendCard should map explicit art image path to backend card art proxy";
         return false;
     }
     if (artSprite.u0 != 0.20f || artSprite.v0 != 0.10f ||

@@ -1,8 +1,12 @@
 #include "engine/render/OpenGLRenderBackend.h"
+#include "engine/render/SpriteTextureCardArt.h"
 #include "engine/core/Environment.h"
 
 #include <algorithm>
+#include <chrono>
 #include <cmath>
+#include <iostream>
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -10,6 +14,11 @@
 #include <stb_image.h>
 
 namespace {
+
+bool isTailFireWorldTextureKey(const char* key) {
+    if (!key || key[0] == '\0') return false;
+    return std::string(key).find("__tailfire_") != std::string::npos;
+}
 
 bool worldTextureMipChainEnabled() {
     static const bool enabled = []() -> bool {
@@ -31,6 +40,91 @@ GLint sanitizeWrapMode(int wrap) {
     case 10497: return GL_REPEAT;
     default: return GL_REPEAT;
     }
+}
+
+int backendCardArtMaxDim() {
+    static const int dim = []() -> int {
+        constexpr int kDefault = 256;
+        constexpr int kMin = 64;
+        constexpr int kMax = 512;
+        const auto env = engine::env::get("PAC_BACKEND_CARD_ART_MAX_DIM");
+        if (!env.has_value()) return kDefault;
+        try {
+            return std::clamp(std::stoi(*env), kMin, kMax);
+        } catch (...) {
+            return kDefault;
+        }
+    }();
+    return dim;
+}
+
+struct LoadedSpritePixels {
+    std::string altCacheKey;
+    int width = 0;
+    int height = 0;
+    std::unique_ptr<unsigned char, decltype(&stbi_image_free)> pixels{nullptr, stbi_image_free};
+    std::vector<unsigned char> resizedPixels;
+    const unsigned char* rgba = nullptr;
+};
+
+bool loadSpritePixels(const std::string& texturePath, LoadedSpritePixels& out) {
+    out = {};
+    const std::string sourcePath = engine::render::sprite_card_art::sourcePathFromProxy(texturePath);
+
+    int width = 0;
+    int height = 0;
+    int channels = 0;
+    stbi_set_flip_vertically_on_load(false);
+    unsigned char* loaded = stbi_load(sourcePath.c_str(), &width, &height, &channels, 4);
+    std::string altPath;
+    if (!loaded) {
+        altPath = sourcePath;
+        std::replace(altPath.begin(), altPath.end(), '\\', '/');
+        if (altPath != sourcePath) {
+            stbi_set_flip_vertically_on_load(false);
+            loaded = stbi_load(altPath.c_str(), &width, &height, &channels, 4);
+        }
+    }
+
+    if (!loaded || width <= 0 || height <= 0) {
+        if (loaded) stbi_image_free(loaded);
+        return false;
+    }
+
+    out.pixels.reset(loaded);
+    out.width = width;
+    out.height = height;
+    out.rgba = out.pixels.get();
+    if (!altPath.empty() && altPath != sourcePath) {
+        if (engine::render::sprite_card_art::isProxyPath(texturePath)) {
+            out.altCacheKey = engine::render::sprite_card_art::makeProxyPath(altPath);
+        } else {
+            out.altCacheKey = altPath;
+        }
+    }
+
+    if (engine::render::sprite_card_art::isProxyPath(texturePath)) {
+        const int maxDim = backendCardArtMaxDim();
+        const int scaledW =
+            engine::render::sprite_card_art::scaledDimension(width, height, maxDim, true);
+        const int scaledH =
+            engine::render::sprite_card_art::scaledDimension(width, height, maxDim, false);
+        if (scaledW > 0 && scaledH > 0 && (scaledW != width || scaledH != height)) {
+            out.resizedPixels = engine::render::sprite_card_art::resizeRgbaBilinear(
+                out.pixels.get(),
+                width,
+                height,
+                scaledW,
+                scaledH);
+            if (!out.resizedPixels.empty()) {
+                out.width = scaledW;
+                out.height = scaledH;
+                out.rgba = out.resizedPixels.data();
+            }
+        }
+    }
+
+    return true;
 }
 
 constexpr const char* kFallbackSpriteTextureKey = "__fallback_sprite_texture__";
@@ -205,6 +299,9 @@ unsigned int OpenGLRenderBackend::ensureWorldTextureRaw(const char* keyCStr,
     glGenTextures(1, &textureId);
     if (textureId == 0) return 0;
 
+    const bool tailFireTexture = isTailFireWorldTextureKey(keyCStr);
+    const auto uploadStart = tailFireTexture ? std::chrono::steady_clock::now()
+                                             : std::chrono::steady_clock::time_point{};
     const GLint wrapS = sanitizeWrapMode(wrapSIn);
     const GLint wrapT = sanitizeWrapMode(wrapTIn);
     const bool generateMipChain = worldTextureMipChainEnabled();
@@ -264,6 +361,22 @@ unsigned int OpenGLRenderBackend::ensureWorldTextureRaw(const char* keyCStr,
     entry.wrapS = wrapSIn;
     entry.wrapT = wrapTIn;
     worldTextures_.emplace(cacheKey, entry);
+    if (tailFireTexture) {
+        const auto uploadEnd = std::chrono::steady_clock::now();
+        std::cout << "[TailFire][OpenGL][Upload] key="
+                  << keyCStr
+                  << " size="
+                  << width
+                  << "x"
+                  << height
+                  << " srgb="
+                  << (srgb ? 1 : 0)
+                  << " mips="
+                  << (generateMipChain ? 1 : 0)
+                  << " wall_ms="
+                  << std::chrono::duration<double, std::milli>(uploadEnd - uploadStart).count()
+                  << " result=ok\n";
+    }
     return textureId;
 }
 
@@ -331,34 +444,25 @@ unsigned int OpenGLRenderBackend::ensureSpriteTexture(const std::string& texture
     auto existing = spriteTextures_.find(texturePath);
     if (existing != spriteTextures_.end()) return existing->second;
 
-    int width = 0;
-    int height = 0;
-    int channels = 0;
-    stbi_set_flip_vertically_on_load(false);
-    unsigned char* pixels = stbi_load(texturePath.c_str(), &width, &height, &channels, 4);
-    std::string altPath;
-    if (!pixels) {
-        altPath = texturePath;
-        std::replace(altPath.begin(), altPath.end(), '\\', '/');
-        if (altPath != texturePath) {
-            stbi_set_flip_vertically_on_load(false);
-            pixels = stbi_load(altPath.c_str(), &width, &height, &channels, 4);
-        }
-    }
-
-    if (!pixels || width <= 0 || height <= 0) {
-        if (pixels) stbi_image_free(pixels);
+    LoadedSpritePixels loaded;
+    if (!loadSpritePixels(texturePath, loaded)) {
         spriteTextures_[texturePath] = spriteFallbackTexture_;
-        if (!altPath.empty() && altPath != texturePath) {
-            spriteTextures_[altPath] = spriteFallbackTexture_;
+        if (!loaded.altCacheKey.empty() && loaded.altCacheKey != texturePath) {
+            spriteTextures_[loaded.altCacheKey] = spriteFallbackTexture_;
         }
         return spriteFallbackTexture_;
+    }
+    if (!loaded.altCacheKey.empty()) {
+        auto altExisting = spriteTextures_.find(loaded.altCacheKey);
+        if (altExisting != spriteTextures_.end()) {
+            spriteTextures_[texturePath] = altExisting->second;
+            return altExisting->second;
+        }
     }
 
     unsigned int textureId = 0;
     glGenTextures(1, &textureId);
     if (textureId == 0) {
-        stbi_image_free(pixels);
         return spriteFallbackTexture_;
     }
 
@@ -371,17 +475,16 @@ unsigned int OpenGLRenderBackend::ensureSpriteTexture(const std::string& texture
     glTexImage2D(GL_TEXTURE_2D,
                  0,
                  GL_RGBA8,
-                 width,
-                 height,
+                 loaded.width,
+                 loaded.height,
                  0,
                  GL_RGBA,
                  GL_UNSIGNED_BYTE,
-                 pixels);
-    stbi_image_free(pixels);
+                 loaded.rgba);
 
     spriteTextures_[texturePath] = textureId;
-    if (!altPath.empty() && altPath != texturePath) {
-        spriteTextures_[altPath] = textureId;
+    if (!loaded.altCacheKey.empty() && loaded.altCacheKey != texturePath) {
+        spriteTextures_[loaded.altCacheKey] = textureId;
     }
     return textureId;
 }
