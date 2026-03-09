@@ -1658,10 +1658,17 @@ struct GameSession::Impl {
         if (!usesBackendGameRenderPath() || !gameWorld) return;
 
         auto hydrate = [&](PokemonInstance& unit) {
-            const PokemonStats* stats = dataDb.pokemon.getStats(unit.name);
-            if (!stats || stats->model.empty()) return;
-
-            const std::string modelPath = "assets/models/" + stats->model;
+            const PokemonStats* stats = nullptr;
+            std::string modelPath = unit.backendModelPath;
+            if (modelPath.empty()) {
+                stats = dataDb.pokemon.getStats(unit.name);
+                if (!stats || stats->model.empty()) {
+                    unit.backendModelPath.clear();
+                    return;
+                }
+                modelPath = "assets/models/" + stats->model;
+                unit.backendModelPath = modelPath;
+            }
             runtime::backend_model::MeshData* mesh = ensureBackendMeshLoaded(modelPath);
             if (!mesh) return;
 
@@ -1764,11 +1771,13 @@ struct GameSession::Impl {
                 unit.currentAttackAnimIndex = unit.animAttack1Index;
             }
 
-            const std::string scaleMode = toLowerCopy(stats->modelScaleMode);
-            if (!unit.model && scaleMode != "normalized") {
-                const float importerScale = std::max(0.0f, mesh->modelScaleFactor);
-                if (importerScale > 1e-6f) {
-                    unit.modelScaleCorrection = 1.0f / importerScale;
+            if (stats) {
+                const std::string scaleMode = toLowerCopy(stats->modelScaleMode);
+                if (!unit.model && scaleMode != "normalized") {
+                    const float importerScale = std::max(0.0f, mesh->modelScaleFactor);
+                    if (importerScale > 1e-6f) {
+                        unit.modelScaleCorrection = 1.0f / importerScale;
+                    }
                 }
             }
         };

@@ -37,6 +37,7 @@ bool test_backend_model_cache_contract(std::string& outFail);
 bool test_backend_world_projection_contract(std::string& outFail);
 bool test_backend_world_proxy_geometry_contract(std::string& outFail);
 bool test_backend_unit_visuals_contract(std::string& outFail);
+bool test_shared_projected_world_scene_helpers_contract(std::string& outFail);
 bool test_backend_inventory_overlay_contract(std::string& outFail);
 bool test_backend_inventory_panel_contract(std::string& outFail);
 bool test_backend_card_layout_model_contract(std::string& outFail);
@@ -197,6 +198,7 @@ int main(int argc, char** argv) {
         {"backend_world_projection_contract", &test_backend_world_projection_contract},
         {"backend_world_proxy_geometry_contract", &test_backend_world_proxy_geometry_contract},
         {"backend_unit_visuals_contract", &test_backend_unit_visuals_contract},
+        {"shared_projected_world_scene_helpers_contract", &test_shared_projected_world_scene_helpers_contract},
         {"backend_inventory_overlay_contract", &test_backend_inventory_overlay_contract},
         {"backend_inventory_panel_contract", &test_backend_inventory_panel_contract},
         {"backend_card_layout_model_contract", &test_backend_card_layout_model_contract},

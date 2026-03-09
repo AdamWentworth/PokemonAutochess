@@ -1,6 +1,6 @@
 # CI
 
-Date: 2026-03-03
+Date: 2026-03-08
 
 CI is correctness-first and Windows-first.
 
@@ -17,14 +17,14 @@ Optional runtime smoke tests (`PAC_ENABLE_RUNTIME_SMOKE_TESTS`):
 - `PAC_RuntimeSmoke.parity_contract`
 
 ## What CI Does Not Yet Run
-- Release benchmark matrix for backend performance.
+- Release benchmark matrix for renderer performance.
 - Screenshot/image-diff parity harness (`tools/render_parity_screenshot_diff.ps1`).
 - Installer end-to-end smoke.
 
-## Required Local Supplement Before D3D12 Merge
+## Required Local Supplement For Perf-Sensitive Renderer Changes
 1. Run full Debug CTest locally.
-2. Run Release benchmark matrix from `docs/TEST_PLAN.md`.
-3. Record benchmark outputs in merge notes.
+2. Run the Release benchmark protocol from `docs/TEST_PLAN.md` when the change can affect frame time or startup cost.
+3. Record benchmark outputs in commit notes, PR notes, or local engineering notes.
 
 ## Local Equivalent
 ```powershell

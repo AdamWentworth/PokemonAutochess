@@ -1,43 +1,39 @@
 # Tech Debt
 
-Date: 2026-02-28
+Date: 2026-03-08
 
-This list is intentionally short and prioritized by impact on renderer merge readiness.
+This file is intentionally short. It should track active debt that still has
+real engineering value, not old blocker language that has already been retired.
 
 ## Highest Priority Debt
-1. D3D12 end-of-frame synchronization is too strict.
-- `src/engine/render/d3d12/D3D12RenderBackendLifecycle.cpp` calls `waitForGpu()` each frame after `Present(1, 0)`.
-- Impact: limits CPU/GPU overlap and can mask true backend performance potential.
+1. No automated performance regression gate.
+- Local benchmark tooling exists.
+- CI still does not enforce perf baselines or fail on benchmark regressions.
 
-2. Perf telemetry is not yet decision-grade.
-- `GameRunner` now logs `render_build_ms`, `render_submit_ms`, `present_wait_ms`, `gpu_frame_ms`,
-  `draw_calls`, `triangles`, `visible_animated_units`, and `particle_count`.
-- Remaining gap: OpenGL GPU timestamps (`gpu_frame_valid` remains `0` on OpenGL).
+2. Shared projected render/build CPU is still the main steady-state hotspot.
+- The current biggest remaining performance returns are in dense combat render-build work, not gameplay scripting and not generic startup work.
 
-3. Display settings expose placeholders as if active controls.
-- `scripts/states/main_menu.lua` still labels VSync/FPS/UI scale/quality as placeholders.
-- Impact: unreliable test conditions and user confusion during backend comparison.
+3. Display/settings honesty is still incomplete.
+- Placeholder controls and visible-but-unimplemented options should not remain user-facing ambiguity.
 
-4. Local benchmark output still needs baseline comparison logic.
-- `tools/benchmark_render_matrix.ps1` produces repeatable artifacts, but it does not yet auto-compare
-  against a stored baseline with pass/fail thresholds.
-
-5. No automated backend perf regression guard.
-- `tools/benchmark_render_matrix.ps1` provides repeatable local matrix runs and artifacts.
-- CI still verifies correctness only; no perf-threshold enforcement on dedicated benchmark hardware yet.
+4. Documentation drift risk is real.
+- Perf/parity docs were allowed to describe outdated blockers.
+- This should stay cleaned up going forward.
 
 ## Important Secondary Debt
-1. CPU-heavy render workload under combat still needs targeted profiling.
-- Need per-feature cost attribution (submission, skinning, overdraw-heavy VFX).
+1. Startup/cold-path caches add complexity and should stay justified.
+- Tail-fire and card-art caches are worth keeping because they removed visible stalls.
+- Future startup complexity should be held to the same standard.
 
-2. Remaining large files are still high-churn risk.
-- `src/engine/render/D3D12RenderBackend.cpp` family
-- `src/game/runtime/GameSession.cpp` and shared runtime render modules
+2. Large high-churn files remain risky.
+- `src/game/runtime/GameSession.cpp`
+- backend render implementation families
+- shared projected runtime render modules
 
-3. Vulkan remains visible in menu while unimplemented.
-- Keep as placeholder only; do not treat as active roadmap work until OpenGL/D3D12 gates are complete.
+3. No dedicated benchmark hardware baseline policy yet.
+- Local numbers are useful, but long-term regression decisions still need a clearer baseline process.
 
-## Recent Positive Changes
-- Shared rendering route structure is significantly cleaner than earlier parity phases.
-- D3D12 and OpenGL runtime smoke coverage exists in CMake (opt-in).
-- Backend selection/preference parsing is explicit and tested.
+## Things That Are No Longer Good Debt Entries
+- Old claims that D3D12 blocks every frame with a normal-path `waitForGpu()`.
+- Old claims that OpenGL has no GPU frame timing path.
+- Old "pre-merge D3D12 blocker" wording when the repo is now operating beyond that phase.

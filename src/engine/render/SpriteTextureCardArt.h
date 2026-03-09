@@ -96,11 +96,23 @@ inline std::string proxyCacheFingerprint(const std::filesystem::path& sourcePath
     return fingerprint;
 }
 
-inline std::filesystem::path proxyCachePath(std::string_view sourcePath, int maxDim) {
+inline std::filesystem::path proxyCacheBasePath(std::string_view sourcePath, int maxDim) {
     const std::filesystem::path resolved = resolveExistingPath(sourcePath);
     const std::string fingerprint = proxyCacheFingerprint(resolved, maxDim);
     return std::filesystem::path(engine::paths::data("cache/card_art")) /
-           ("proxy_" + hexHash64(fnv1a64(fingerprint)) + ".png");
+           ("proxy_" + hexHash64(fnv1a64(fingerprint)));
+}
+
+inline std::filesystem::path proxyCachePath(std::string_view sourcePath, int maxDim) {
+    auto path = proxyCacheBasePath(sourcePath, maxDim);
+    path += ".tga";
+    return path;
+}
+
+inline std::filesystem::path legacyProxyCachePath(std::string_view sourcePath, int maxDim) {
+    auto path = proxyCacheBasePath(sourcePath, maxDim);
+    path += ".png";
+    return path;
 }
 
 inline int scaledDimension(int sourceWidth, int sourceHeight, int maxDim, bool widthAxis) {

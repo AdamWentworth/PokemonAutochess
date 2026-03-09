@@ -256,9 +256,10 @@ Examples:
 
 ## Roadmap (Suggested)
 Near-term:
-- Close D3D12 merge gates with Release benchmark evidence (`docs/RENDERER_PARITY_ROADMAP.md`)
+- Keep steady-state renderer work focused on shared runtime frame cost (`docs/RENDERER_PARITY_ROADMAP.md`)
 - Improve renderer instrumentation (CPU build/submit/present plus GPU frame timing)
 - Reduce heavy combat render cost on target laptop hardware
+- Remove user-visible first-use stalls without hurting runtime performance
 - Increase test coverage for scripting and config ingestion
 
 Longer-term:

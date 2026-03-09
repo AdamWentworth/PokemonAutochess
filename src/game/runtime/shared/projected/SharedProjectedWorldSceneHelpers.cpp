@@ -340,10 +340,19 @@ const runtime::backend_model::MeshData* resolveModelMesh(
     const PokemonInstance& unit,
     const ::GameDataDb& dataDb,
     const std::function<runtime::backend_model::MeshData*(const std::string&)>& ensureBackendMeshLoaded) {
-    const PokemonStats* stats = dataDb.pokemon.getStats(unit.name);
-    if (!stats || stats->model.empty()) return nullptr;
+    std::string modelPath = unit.backendModelPath;
+    if (modelPath.empty()) {
+        if (!unit.animIndexCacheSourceModelPath.empty()) {
+            modelPath = unit.animIndexCacheSourceModelPath;
+        } else if (!unit.backendAnimDurationsSourceModelPath.empty()) {
+            modelPath = unit.backendAnimDurationsSourceModelPath;
+        } else {
+            const PokemonStats* stats = dataDb.pokemon.getStats(unit.name);
+            if (!stats || stats->model.empty()) return nullptr;
+            modelPath = "assets/models/" + stats->model;
+        }
+    }
 
-    const std::string modelPath = "assets/models/" + stats->model;
     runtime::backend_model::MeshData* mesh = ensureBackendMeshLoaded(modelPath);
     if (!mesh || mesh->indices.size() < 3u) {
         return nullptr;

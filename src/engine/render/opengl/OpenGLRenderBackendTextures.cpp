@@ -8,6 +8,7 @@
 #include <filesystem>
 #include <iostream>
 #include <memory>
+#include <mutex>
 #include <string>
 #include <vector>
 
@@ -77,7 +78,7 @@ bool loadCachedProxyPixels(const std::filesystem::path& cachePath, LoadedSpriteP
     int width = 0;
     int height = 0;
     int channels = 0;
-    stbi_set_flip_vertically_on_load(false);
+    stbi_set_flip_vertically_on_load_thread(false);
     unsigned char* loaded = stbi_load(cachePath.string().c_str(), &width, &height, &channels, 4);
     if (!loaded || width <= 0 || height <= 0) {
         if (loaded) stbi_image_free(loaded);
@@ -94,14 +95,15 @@ bool loadCachedProxyPixels(const std::filesystem::path& cachePath, LoadedSpriteP
 void writeCachedProxyPixels(const std::filesystem::path& cachePath, const LoadedSpritePixels& loaded) {
     if (!loaded.rgba || loaded.width <= 0 || loaded.height <= 0) return;
 
+    static std::mutex s_proxyCacheWriteMutex;
+    std::lock_guard<std::mutex> lock(s_proxyCacheWriteMutex);
     std::error_code ec;
     std::filesystem::create_directories(cachePath.parent_path(), ec);
-    (void)stbi_write_png(cachePath.string().c_str(),
-                         loaded.width,
-                         loaded.height,
-                         4,
-                         loaded.rgba,
-                         loaded.width * 4);
+    const int prevTgaRle = stbi_write_tga_with_rle;
+    stbi_write_tga_with_rle = 0;
+    (void)stbi_write_tga(
+        cachePath.string().c_str(), loaded.width, loaded.height, 4, loaded.rgba);
+    stbi_write_tga_with_rle = prevTgaRle;
 }
 
 bool loadSpritePixels(const std::string& texturePath, LoadedSpritePixels& out) {
@@ -116,7 +118,9 @@ bool loadSpritePixels(const std::string& texturePath, LoadedSpritePixels& out) {
 
         const int maxDim = backendCardArtMaxDim();
         const auto cachePath = engine::render::sprite_card_art::proxyCachePath(out.sourcePath, maxDim);
-        if (loadCachedProxyPixels(cachePath, out)) {
+        if (loadCachedProxyPixels(cachePath, out) ||
+            loadCachedProxyPixels(
+                engine::render::sprite_card_art::legacyProxyCachePath(out.sourcePath, maxDim), out)) {
             return true;
         }
     }
@@ -124,14 +128,14 @@ bool loadSpritePixels(const std::string& texturePath, LoadedSpritePixels& out) {
     int width = 0;
     int height = 0;
     int channels = 0;
-    stbi_set_flip_vertically_on_load(false);
+    stbi_set_flip_vertically_on_load_thread(false);
     unsigned char* loaded = stbi_load(out.sourcePath.c_str(), &width, &height, &channels, 4);
     std::string altPath;
     if (!loaded) {
         altPath = out.sourcePath;
         std::replace(altPath.begin(), altPath.end(), '\\', '/');
         if (altPath != out.sourcePath) {
-            stbi_set_flip_vertically_on_load(false);
+            stbi_set_flip_vertically_on_load_thread(false);
             loaded = stbi_load(altPath.c_str(), &width, &height, &channels, 4);
         }
     }

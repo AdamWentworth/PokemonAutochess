@@ -436,6 +436,7 @@ if (BUILD_TESTING)
         tests/TestBackendWorldProjection.cpp
         tests/TestBackendWorldProxyGeometry.cpp
         tests/TestBackendUnitVisuals.cpp
+        tests/TestSharedProjectedWorldSceneHelpers.cpp
         tests/TestBackendInventoryOverlay.cpp
         tests/TestBackendInventoryPanel.cpp
         tests/TestBackendCardLayoutModel.cpp
