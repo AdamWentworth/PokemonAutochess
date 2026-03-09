@@ -57,6 +57,7 @@ bool strictGltfParityEnabled() {
 struct FastTexturedBatchTemplate {
     std::size_t baseSubmeshIndex = 0u;
     int triNodeIndex = -1;
+    std::string geometryCacheKey;
     std::vector<std::uint32_t> sourceVertexIndices;
     std::vector<std::uint32_t> indices;
     std::vector<std::uint16_t> gpuJointPalette;
@@ -77,6 +78,8 @@ thread_local std::unordered_map<
     const game::runtime::backend_model::MeshData*,
     FastTexturedMeshTemplateCache> g_fastTexturedMeshTemplateCaches;
 thread_local std::vector<int> g_triNodeIndexByTriangleScratch;
+thread_local game::runtime::shared_projected_unit_backend_mesh_prep::PreparedState
+    g_preparedMeshState;
 
 constexpr std::size_t kMaxGpuSkinMatrices = 64u;
 
@@ -148,6 +151,20 @@ struct UnitSkinMatrixKeyHash {
 thread_local std::unordered_map<UnitSkinMatrixKey, std::vector<float>, UnitSkinMatrixKeyHash>
     g_unitSkinMatrices;
 
+struct GpuSkinBatchState {
+    bool valid = false;
+    std::array<float, 16> modelMatrix{};
+    std::uint32_t skinMatrixCount = 0u;
+    const float* sharedSkinMatrices = nullptr;
+};
+
+struct GpuSkinBatchStateEntry {
+    UnitSkinMatrixKey key{};
+    GpuSkinBatchState state{};
+};
+
+thread_local std::vector<GpuSkinBatchStateEntry> g_gpuSkinBatchStateEntries;
+
 int resolveDefaultSkinNodeIndex(const game::runtime::backend_model::MeshData* mesh) {
     if (!mesh) return -1;
     int selectedSkin = -1;
@@ -190,6 +207,7 @@ const FastTexturedMeshTemplateCache* ensureFastTexturedMeshTemplateCache(
     cache.baseBatchCount = baseBatchCount;
     cache.defaultSkinNodeIndex = resolveDefaultSkinNodeIndex(mesh);
     cache.submeshNodeFallbackSnapshot = submeshNodeFallback;
+    const std::string keyPrefix = makeIndexedBatchKeyPrefix(*mesh);
 
     const std::size_t triangleCount = mesh->indices.size() / 3u;
     if (triangleCount == 0u || mesh->vertices.empty()) return nullptr;
@@ -197,6 +215,8 @@ const FastTexturedMeshTemplateCache* ensureFastTexturedMeshTemplateCache(
     cache.batches.assign(baseBatchCount, FastTexturedBatchTemplate{});
     for (std::size_t si = 0; si < baseBatchCount; ++si) {
         cache.batches[si].baseSubmeshIndex = si;
+        cache.batches[si].geometryCacheKey =
+            makeIndexedGeometryCacheKey(keyPrefix, si, si, baseBatchCount);
     }
 
     std::vector<std::unordered_map<int, std::size_t>> nodeToBatch(baseBatchCount);
@@ -237,6 +257,8 @@ const FastTexturedMeshTemplateCache* ensureFastTexturedMeshTemplateCache(
                 FastTexturedBatchTemplate newBatch{};
                 newBatch.baseSubmeshIndex = submeshIndex;
                 newBatch.triNodeIndex = triNodeIndex;
+                newBatch.geometryCacheKey = makeIndexedGeometryCacheKey(
+                    keyPrefix, submeshIndex, batchIndex, baseBatchCount);
                 cache.batches.push_back(std::move(newBatch));
                 triangleCountByBatch.push_back(0u);
             }
@@ -317,6 +339,11 @@ const FastTexturedMeshTemplateCache* ensureFastTexturedMeshTemplateCache(
             FastTexturedBatchTemplate splitBatch{};
             splitBatch.baseSubmeshIndex = sourceBatch.baseSubmeshIndex;
             splitBatch.triNodeIndex = sourceBatch.triNodeIndex;
+            splitBatch.geometryCacheKey = makeIndexedGeometryCacheKey(
+                keyPrefix,
+                sourceBatch.baseSubmeshIndex,
+                cache.batches.size(),
+                baseBatchCount);
             cache.batches.push_back(std::move(splitBatch));
             splitJointPaletteByBatch.emplace_back();
             splitTriangleCountByBatch.push_back(0u);
@@ -488,18 +515,12 @@ std::size_t prewarmProjectedUnitBackendMeshGeometryCache(
         ensureFastTexturedMeshTemplateCache(&mesh, submeshNodeFallback, baseBatchCount);
     if (!fastCache) return 0u;
 
-    const std::string keyPrefix = makeIndexedBatchKeyPrefix(mesh);
     std::size_t warmed = 0u;
     for (std::size_t bi = 0; bi < fastCache->batches.size(); ++bi) {
         const auto& batch = fastCache->batches[bi];
         if (batch.gpuTemplateVertices.empty() || batch.indices.size() < 3u) continue;
-        const std::string geometryKey = makeIndexedGeometryCacheKey(
-            keyPrefix,
-            batch.baseSubmeshIndex,
-            bi,
-            baseBatchCount);
         renderer.prewarmWorldIndexedMeshCached(
-            geometryKey.c_str(),
+            batch.geometryCacheKey.c_str(),
             batch.gpuTemplateVertices.data(),
             batch.gpuTemplateVertices.size(),
             batch.indices.data(),
@@ -547,7 +568,7 @@ Result renderProjectedUnitBackendMesh(const Args& args) {
     if (meshForUnit) {
         using Clock = std::chrono::high_resolution_clock;
         const auto prepStart = Clock::now();
-        shared_projected_unit_backend_mesh_prep::PreparedState prep;
+        auto& prep = g_preparedMeshState;
         if (!shared_projected_unit_backend_mesh_prep::prepareProjectedUnitBackendMesh(args, out, prep)) {
             if (args.perfBreakdown) {
                 args.perfBreakdown->prepMs +=
@@ -566,7 +587,7 @@ Result renderProjectedUnitBackendMesh(const Args& args) {
         const std::size_t modelDepthCountBefore = prep.modelDepthCountBefore;
         const std::size_t modelDepthWorldCountBefore = prep.modelDepthWorldCountBefore;
         const std::size_t world3DTriangleCountBefore = prep.world3DTriangleCountBefore;
-        auto& submeshNodeFallback = prep.submeshNodeFallback;
+        const auto& submeshNodeFallback = *prep.submeshNodeFallback;
         auto& modelIndexedBatchesPerSubmesh = prep.modelIndexedBatchesPerSubmesh;
         auto& modelIndexedVertexRemap = prep.modelIndexedVertexRemap;
         const auto& nodeGlobals =
@@ -603,11 +624,7 @@ Result renderProjectedUnitBackendMesh(const Args& args) {
                     const auto& templateBatch = modelIndexedBatchesPerSubmesh[sourceBatchIndex];
                     modelIndexedBatchesPerSubmesh.push_back(templateBatch);
                     auto& newBatch = modelIndexedBatchesPerSubmesh.back();
-                    newBatch.geometryCacheKey = makeIndexedGeometryCacheKey(
-                        makeIndexedBatchKeyPrefix(*mesh),
-                        sourceBatchIndex,
-                        bi,
-                        initialBatchCount);
+                    newBatch.geometryCacheKey = fastCache.batches[bi].geometryCacheKey;
                     newBatch.vertices.clear();
                     newBatch.indices.clear();
                     newBatch.vertices.reserve(fastCache.batches[bi].sourceVertexIndices.size());
@@ -634,14 +651,11 @@ Result renderProjectedUnitBackendMesh(const Args& args) {
                 batch.sharedIndexCount = 0u;
             }
 
-            struct GpuSkinBatchState {
-                bool valid = false;
-                std::array<float, 16> modelMatrix{};
-                std::uint32_t skinMatrixCount = 0u;
-                const float* sharedSkinMatrices = nullptr;
-            };
-            std::unordered_map<UnitSkinMatrixKey, GpuSkinBatchState, UnitSkinMatrixKeyHash>
-                gpuSkinBatchStateByKey;
+            auto& gpuSkinBatchStates = g_gpuSkinBatchStateEntries;
+            gpuSkinBatchStates.clear();
+            if (gpuSkinBatchStates.capacity() < fastCache.batches.size()) {
+                gpuSkinBatchStates.reserve(fastCache.batches.size());
+            }
             for (std::size_t bi = 0; bi < fastCache.batches.size(); ++bi) {
                 if (bi >= modelIndexedBatchesPerSubmesh.size()) continue;
                 const auto& srcBatch = fastCache.batches[bi];
@@ -674,8 +688,13 @@ Result renderProjectedUnitBackendMesh(const Args& args) {
                             }
                         }
 
-                        auto stateIt = gpuSkinBatchStateByKey.find(batchStateKey);
-                        if (stateIt == gpuSkinBatchStateByKey.end()) {
+                        auto stateIt = std::find_if(
+                            gpuSkinBatchStates.begin(),
+                            gpuSkinBatchStates.end(),
+                            [&](const GpuSkinBatchStateEntry& entry) {
+                                return entry.key == batchStateKey;
+                            });
+                        if (stateIt == gpuSkinBatchStates.end()) {
                             GpuSkinBatchState newState{};
                             auto& sharedSkinMatrices = g_unitSkinMatrices[batchStateKey];
                             if (transforms.configureGpuClipSkinningBatch(
@@ -687,13 +706,15 @@ Result renderProjectedUnitBackendMesh(const Args& args) {
                                 newState.valid = true;
                                 newState.sharedSkinMatrices = sharedSkinMatrices.data();
                             }
-                            stateIt = gpuSkinBatchStateByKey.emplace(batchStateKey, newState).first;
+                            gpuSkinBatchStates.push_back(
+                                GpuSkinBatchStateEntry{batchStateKey, newState});
+                            stateIt = std::prev(gpuSkinBatchStates.end());
                         }
-                        if (stateIt->second.valid) {
+                        if (stateIt->state.valid) {
                             dstBatch.gpuSkinning = 1u;
-                            dstBatch.modelMatrix = stateIt->second.modelMatrix;
-                            dstBatch.skinMatrixCount = stateIt->second.skinMatrixCount;
-                            dstBatch.sharedSkinMatrices = stateIt->second.sharedSkinMatrices;
+                            dstBatch.modelMatrix = stateIt->state.modelMatrix;
+                            dstBatch.skinMatrixCount = stateIt->state.skinMatrixCount;
+                            dstBatch.sharedSkinMatrices = stateIt->state.sharedSkinMatrices;
                             dstBatch.skinMatrices.clear();
                         }
                     }

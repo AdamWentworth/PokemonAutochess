@@ -25,12 +25,18 @@ real engineering value, not old blocker language that has already been retired.
 - Tail-fire and card-art caches are worth keeping because they removed visible stalls.
 - Future startup complexity should be held to the same standard.
 
-2. Large high-churn files remain risky.
+2. Render submission still rebuilds too much unchanged work.
+- The next sensible structural step is retained/dirty submission for UI and overlay layers instead of rebuilding the full draw-prep path every frame.
+
+3. Projected-unit submission is still more per-unit than ideal.
+- The next bigger render-side rework is to lean harder on shared prepared geometry/material state and reduce per-unit submission churn.
+
+4. Large high-churn files remain risky.
 - `src/game/runtime/GameSession.cpp`
 - backend render implementation families
 - shared projected runtime render modules
 
-3. No dedicated benchmark hardware baseline policy yet.
+5. No dedicated benchmark hardware baseline policy yet.
 - Local numbers are useful, but long-term regression decisions still need a clearer baseline process.
 
 ## Things That Are No Longer Good Debt Entries

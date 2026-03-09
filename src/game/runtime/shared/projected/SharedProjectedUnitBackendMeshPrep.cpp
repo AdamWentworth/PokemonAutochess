@@ -37,6 +37,15 @@ struct IndexedBatchTemplateCacheEntry {
 thread_local std::deque<IndexedBatchTemplateCacheEntry> g_indexedBatchTemplateCache;
 thread_local std::unordered_map<const game::runtime::backend_model::MeshData*, std::string>
     g_indexedBatchKeyPrefixes;
+struct SubmeshNodeFallbackCacheEntry {
+    std::size_t submeshMeshIndexCount = 0u;
+    std::size_t meshIndexToNodeCount = 0u;
+    std::vector<int> fallback;
+};
+thread_local std::unordered_map<
+    const game::runtime::backend_model::MeshData*,
+    SubmeshNodeFallbackCacheEntry>
+    g_submeshNodeFallbackCache;
 
 const std::string& getIndexedBatchKeyPrefix(
     const game::runtime::backend_model::MeshData* mesh) {
@@ -74,6 +83,36 @@ std::string buildWorldTextureCacheKey(const std::string& key,
     cacheKey += std::to_string(wrapT);
     cacheKey += srgb ? "|srgb" : "|lin";
     return cacheKey;
+}
+
+const std::vector<int>& getCachedSubmeshNodeFallback(
+    const game::runtime::backend_model::MeshData& mesh) {
+    static const std::vector<int> empty;
+
+    auto& entry = g_submeshNodeFallbackCache[&mesh];
+    const bool cacheValid =
+        entry.submeshMeshIndexCount == mesh.submeshMeshIndex.size() &&
+        entry.meshIndexToNodeCount == mesh.meshIndexToNode.size();
+    if (cacheValid) {
+        return entry.fallback;
+    }
+
+    entry = {};
+    entry.submeshMeshIndexCount = mesh.submeshMeshIndex.size();
+    entry.meshIndexToNodeCount = mesh.meshIndexToNode.size();
+    if (mesh.submeshMeshIndex.empty()) {
+        return entry.fallback;
+    }
+
+    entry.fallback.assign(mesh.submeshMeshIndex.size(), -1);
+    for (std::size_t si = 0; si < mesh.submeshMeshIndex.size(); ++si) {
+        const int meshIndex = mesh.submeshMeshIndex[si];
+        if (meshIndex >= 0 &&
+            static_cast<std::size_t>(meshIndex) < mesh.meshIndexToNode.size()) {
+            entry.fallback[si] = mesh.meshIndexToNode[static_cast<std::size_t>(meshIndex)];
+        }
+    }
+    return entry.fallback.empty() ? empty : entry.fallback;
 }
 
 void applyIndexedBatchTemplateShallow(
@@ -300,6 +339,35 @@ bool strictGltfParityEnabled() {
 
 namespace game::runtime::shared_projected_unit_backend_mesh_prep {
 
+void PreparedState::reset() {
+    mesh = nullptr;
+    triangleCount = 0u;
+    effectiveUnitTriangleBudget = 0u;
+
+    useIndexedWorldModelPath = false;
+    fullIndexedMeshPath = false;
+    useFastTexturedFullMeshPath = false;
+    usePositionOnlyVertexPath = false;
+    downsampleModelTriangles = false;
+
+    resolvedScaleCorrection = 1.0f;
+    fastTexturedAlpha = 1.0f;
+    fastTexturedTint = glm::vec3(1.0f);
+    lightDir = glm::vec3(0.0f, 1.0f, 0.0f);
+    fallbackBase = glm::vec3(1.0f);
+
+    modelM = glm::mat4(1.0f);
+
+    modelDepthCountBefore = 0u;
+    modelDepthWorldCountBefore = 0u;
+    world3DTriangleCountBefore = 0u;
+
+    scenePose.hasScenePose = false;
+    scenePose.hasClipPose = false;
+
+    submeshNodeFallback = nullptr;
+}
+
 bool prepareProjectedUnitBackendMesh(const Args& args, Result& out, PreparedState& prepared) {
     const auto& unit = *args.unit;
     const auto* mesh = args.meshForUnit;
@@ -312,7 +380,7 @@ bool prepareProjectedUnitBackendMesh(const Args& args, Result& out, PreparedStat
     auto& world3DTriangles = *args.world3DTriangles;
     auto& remainingModelTrianglesBudget = *args.remainingModelTrianglesBudget;
 
-    prepared = PreparedState{};
+    prepared.reset();
     prepared.mesh = mesh;
 
     const std::size_t triangleCount = mesh->indices.size() / 3u;
@@ -390,21 +458,8 @@ bool prepareProjectedUnitBackendMesh(const Args& args, Result& out, PreparedStat
     prepared.modelDepthWorldCountBefore = modelDepthWorldTris.size();
     prepared.world3DTriangleCountBefore = world3DTriangles.size();
 
-    prepared.submeshNodeFallback.clear();
-    if (!mesh->submeshMeshIndex.empty()) {
-        prepared.submeshNodeFallback.assign(mesh->submeshMeshIndex.size(), -1);
-        for (std::size_t si = 0; si < mesh->submeshMeshIndex.size(); ++si) {
-            const int meshIndex = mesh->submeshMeshIndex[si];
-            if (meshIndex >= 0 &&
-                static_cast<std::size_t>(meshIndex) < mesh->meshIndexToNode.size()) {
-                prepared.submeshNodeFallback[si] =
-                    mesh->meshIndexToNode[static_cast<std::size_t>(meshIndex)];
-            }
-        }
-    }
+    prepared.submeshNodeFallback = &getCachedSubmeshNodeFallback(*mesh);
 
-    prepared.modelIndexedBatchesPerSubmesh.clear();
-    prepared.modelIndexedVertexRemap.clear();
     if (prepared.useIndexedWorldModelPath) {
         const std::size_t batchCount =
             std::max<std::size_t>(1u, mesh->submeshBaseTextures.size());
@@ -432,8 +487,13 @@ bool prepareProjectedUnitBackendMesh(const Args& args, Result& out, PreparedStat
             !mesh->vertices.empty()) {
             prepared.modelIndexedVertexRemap.resize(batchCount);
             for (auto& remap : prepared.modelIndexedVertexRemap) {
-                remap.assign(mesh->vertices.size(), -1);
+                if (remap.size() != mesh->vertices.size()) {
+                    remap.resize(mesh->vertices.size(), -1);
+                }
+                std::fill(remap.begin(), remap.end(), -1);
             }
+        } else {
+            prepared.modelIndexedVertexRemap.clear();
         }
 
         for (std::size_t si = 0; si < prepared.modelIndexedBatchesPerSubmesh.size(); ++si) {

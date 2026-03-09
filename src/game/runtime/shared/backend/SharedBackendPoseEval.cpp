@@ -60,8 +60,10 @@ glm::vec4 sampleVec4(const pac_model_types::AnimationSampler& sampler, float t) 
 struct ScenePoseMeshCache {
     std::vector<int> evalOrder;
     std::vector<glm::mat4> defaultLocalMatrices;
+    std::vector<glm::mat4> defaultGlobalMatrices;
     std::vector<std::vector<std::uint8_t>> animatedNodeMaskByClip;
     std::vector<std::vector<int>> animatedNodesByClip;
+    std::vector<std::vector<int>> affectedEvalOrderByClip;
 };
 
 const ScenePoseMeshCache& scenePoseMeshCacheFor(const backend_model::MeshData& mesh) {
@@ -122,12 +124,31 @@ const ScenePoseMeshCache& scenePoseMeshCacheFor(const backend_model::MeshData& m
         }
     }
 
+    built.defaultGlobalMatrices.resize(nodeCount, glm::mat4(1.0f));
+    for (const int node : built.evalOrder) {
+        if (node < 0 || static_cast<std::size_t>(node) >= nodeCount) continue;
+        const std::size_t nodeIndex = static_cast<std::size_t>(node);
+        const int parent =
+            (nodeIndex < mesh.nodeParent.size()) ? mesh.nodeParent[nodeIndex] : -1;
+        if (parent >= 0 && static_cast<std::size_t>(parent) < built.defaultGlobalMatrices.size()) {
+            built.defaultGlobalMatrices[nodeIndex] =
+                built.defaultGlobalMatrices[static_cast<std::size_t>(parent)] *
+                built.defaultLocalMatrices[nodeIndex];
+        } else {
+            built.defaultGlobalMatrices[nodeIndex] = built.defaultLocalMatrices[nodeIndex];
+        }
+    }
+
     built.animatedNodeMaskByClip.resize(mesh.animations.size());
     built.animatedNodesByClip.resize(mesh.animations.size());
+    built.affectedEvalOrderByClip.resize(mesh.animations.size());
     for (std::size_t clipIndex = 0; clipIndex < mesh.animations.size(); ++clipIndex) {
         auto& mask = built.animatedNodeMaskByClip[clipIndex];
         auto& animatedNodes = built.animatedNodesByClip[clipIndex];
+        auto& affectedEvalOrder = built.affectedEvalOrderByClip[clipIndex];
         mask.assign(nodeCount, 0u);
+        std::vector<std::uint8_t> affectedMask(nodeCount, 0u);
+        stack.clear();
         for (const auto& channel : mesh.animations[clipIndex].channels) {
             if (channel.targetNode < 0) continue;
             const std::size_t nodeIndex = static_cast<std::size_t>(channel.targetNode);
@@ -135,6 +156,27 @@ const ScenePoseMeshCache& scenePoseMeshCacheFor(const backend_model::MeshData& m
             if (mask[nodeIndex] == 0u) {
                 mask[nodeIndex] = 1u;
                 animatedNodes.push_back(channel.targetNode);
+                affectedMask[nodeIndex] = 1u;
+                stack.push_back(channel.targetNode);
+            }
+        }
+        while (!stack.empty()) {
+            const int node = stack.back();
+            stack.pop_back();
+            if (node < 0 || static_cast<std::size_t>(node) >= mesh.nodeChildren.size()) continue;
+            for (const int child : mesh.nodeChildren[static_cast<std::size_t>(node)]) {
+                if (child < 0 || static_cast<std::size_t>(child) >= nodeCount) continue;
+                const std::size_t childIndex = static_cast<std::size_t>(child);
+                if (affectedMask[childIndex] != 0u) continue;
+                affectedMask[childIndex] = 1u;
+                stack.push_back(child);
+            }
+        }
+        affectedEvalOrder.reserve(animatedNodes.size());
+        for (const int node : built.evalOrder) {
+            if (node < 0 || static_cast<std::size_t>(node) >= nodeCount) continue;
+            if (affectedMask[static_cast<std::size_t>(node)] != 0u) {
+                affectedEvalOrder.push_back(node);
             }
         }
     }
@@ -177,16 +219,21 @@ const std::vector<std::uint8_t>& rootMotionCarrierMaskForMesh(const backend_mode
 
 void buildGlobals(const backend_model::MeshData& mesh, PoseEval& eval, int animIndex) {
     const auto& meshCache = scenePoseMeshCacheFor(mesh);
-    const std::vector<std::uint8_t>* animatedNodeMask = nullptr;
-    if (animIndex >= 0 && static_cast<std::size_t>(animIndex) < meshCache.animatedNodeMaskByClip.size()) {
-        animatedNodeMask = &meshCache.animatedNodeMaskByClip[static_cast<std::size_t>(animIndex)];
-    }
+    if (meshCache.defaultGlobalMatrices.size() != eval.nodeGlobals.size()) return;
+    std::copy(meshCache.defaultGlobalMatrices.begin(),
+              meshCache.defaultGlobalMatrices.end(),
+              eval.nodeGlobals.begin());
 
-    for (const int node : meshCache.evalOrder) {
+    if (animIndex < 0 || static_cast<std::size_t>(animIndex) >= meshCache.animatedNodeMaskByClip.size()) {
+        return;
+    }
+    const auto& animatedNodeMask = meshCache.animatedNodeMaskByClip[static_cast<std::size_t>(animIndex)];
+    const auto& affectedEvalOrder = meshCache.affectedEvalOrderByClip[static_cast<std::size_t>(animIndex)];
+    for (const int node : affectedEvalOrder) {
         if (node < 0 || static_cast<std::size_t>(node) >= eval.nodeGlobals.size()) continue;
         const std::size_t nodeIndex = static_cast<std::size_t>(node);
         const glm::mat4 localM =
-            (animatedNodeMask && (*animatedNodeMask)[nodeIndex] != 0u)
+            (animatedNodeMask[nodeIndex] != 0u)
                 ? trsToMat4(eval.nodeLocals[nodeIndex])
                 : meshCache.defaultLocalMatrices[nodeIndex];
         const int parent =

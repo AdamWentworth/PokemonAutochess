@@ -187,6 +187,21 @@ void appendCachedBoardAndBench3D(const shared_board_grid::Config& cfg,
     }
 }
 
+bool isCharmanderUnit(const PokemonInstance& unit) {
+    const std::string species = unit.name;
+    if (species.size() != 10u) return false;
+    return std::tolower(static_cast<unsigned char>(species[0])) == 'c' &&
+           std::tolower(static_cast<unsigned char>(species[1])) == 'h' &&
+           std::tolower(static_cast<unsigned char>(species[2])) == 'a' &&
+           std::tolower(static_cast<unsigned char>(species[3])) == 'r' &&
+           std::tolower(static_cast<unsigned char>(species[4])) == 'm' &&
+           std::tolower(static_cast<unsigned char>(species[5])) == 'a' &&
+           std::tolower(static_cast<unsigned char>(species[6])) == 'n' &&
+           std::tolower(static_cast<unsigned char>(species[7])) == 'd' &&
+           std::tolower(static_cast<unsigned char>(species[8])) == 'e' &&
+           std::tolower(static_cast<unsigned char>(species[9])) == 'r';
+}
+
 } // namespace
 
 ModelDepthBuffers acquireModelDepthBuffers(std::size_t reserveCount) {
@@ -527,29 +542,20 @@ void appendSharedParticleVfx(const ParticleVfxArgs& args) {
             appendedTailFireBillboards;
     }
 
-    if (!appendedTailFireBillboards ||
-        (!appendedLeechDrainBillboards && !args.useLegacyParticleVfxSnapshotBridge)) {
+    if (!appendedTailFireBillboards) {
         for (const auto& unit : args.gameWorld->getPokemons()) {
+            if (!isCharmanderUnit(unit)) continue;
             const auto extents =
                 game::runtime::backend_proxy::computeUnitProxyExtents(unit, args.worldCellSize);
             const glm::vec3 proxyCenter =
                 unit.position + glm::vec3(0.0f, unit.visualYOffset, 0.0f);
 
-            if (!appendedTailFireBillboards) {
-                args.projectedDebug->appendProjectedTailFire(
-                    unit,
-                    proxyCenter,
-                    extents,
-                    unit.rotation.y,
-                    std::max(1.0f, args.lineThickness * 0.92f));
-            }
-            if (!appendedLeechDrainBillboards && !args.useLegacyParticleVfxSnapshotBridge) {
-                args.projectedDebug->appendProjectedLeechDrain(
-                    args.gameWorld,
-                    unit,
-                    std::max(0.12f, args.worldCellSize * 0.24f),
-                    std::max(1.0f, args.lineThickness));
-            }
+            args.projectedDebug->appendProjectedTailFire(
+                unit,
+                proxyCenter,
+                extents,
+                unit.rotation.y,
+                std::max(1.0f, args.lineThickness * 0.92f));
         }
     }
 }

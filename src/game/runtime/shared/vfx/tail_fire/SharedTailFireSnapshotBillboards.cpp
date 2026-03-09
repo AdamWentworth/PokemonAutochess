@@ -29,6 +29,35 @@ bool safeUnprojectClip(const glm::mat4& invViewProj,
            std::isfinite(outWorld.z);
 }
 
+bool computeBillboardAxes(const glm::mat4& invViewProj,
+                          const glm::vec3& centerWorld,
+                          const glm::vec4& clip,
+                          float halfNdcX,
+                          float halfNdcY,
+                          glm::vec3& outRight,
+                          glm::vec3& outUp) {
+    const float ndcX = clip.x / clip.w;
+    const float ndcY = clip.y / clip.w;
+    glm::vec3 rightWorld;
+    glm::vec3 upWorld;
+    if (!safeUnprojectClip(
+            invViewProj,
+            glm::vec4((ndcX + halfNdcX) * clip.w, ndcY * clip.w, clip.z, clip.w),
+            rightWorld) ||
+        !safeUnprojectClip(
+            invViewProj,
+            glm::vec4(ndcX * clip.w, (ndcY + halfNdcY) * clip.w, clip.z, clip.w),
+            upWorld)) {
+        return false;
+    }
+
+    outRight = rightWorld - centerWorld;
+    outUp = upWorld - centerWorld;
+    return std::isfinite(outRight.x) && std::isfinite(outRight.y) &&
+           std::isfinite(outRight.z) && std::isfinite(outUp.x) &&
+           std::isfinite(outUp.y) && std::isfinite(outUp.z);
+}
+
 float hashFrac01(float x) {
     const float s = std::sin(x * 12.9898f) * 43758.5453f;
     return s - std::floor(s);
@@ -179,35 +208,18 @@ bool appendTailFireSnapshotBillboards(
         const float halfNdcY = px / std::max(1, ctx.drawableH);
         if (halfNdcX <= 0.000001f || halfNdcY <= 0.000001f) return false;
 
-        const float ndcX = clip.x / clip.w;
-        const float ndcY = clip.y / clip.w;
-        glm::vec3 corners[4];
-        if (!safeUnprojectClip(ctx.invViewProj,
-                               glm::vec4((ndcX - halfNdcX) * clip.w,
-                                         (ndcY - halfNdcY) * clip.w,
-                                         clip.z,
-                                         clip.w),
-                               corners[0]) ||
-            !safeUnprojectClip(ctx.invViewProj,
-                               glm::vec4((ndcX + halfNdcX) * clip.w,
-                                         (ndcY - halfNdcY) * clip.w,
-                                         clip.z,
-                                         clip.w),
-                               corners[1]) ||
-            !safeUnprojectClip(ctx.invViewProj,
-                               glm::vec4((ndcX + halfNdcX) * clip.w,
-                                         (ndcY + halfNdcY) * clip.w,
-                                         clip.z,
-                                         clip.w),
-                               corners[2]) ||
-            !safeUnprojectClip(ctx.invViewProj,
-                               glm::vec4((ndcX - halfNdcX) * clip.w,
-                                         (ndcY + halfNdcY) * clip.w,
-                                         clip.z,
-                                         clip.w),
-                               corners[3])) {
+        glm::vec3 rightAxis;
+        glm::vec3 upAxis;
+        if (!computeBillboardAxes(
+                ctx.invViewProj, particlePos, clip, halfNdcX, halfNdcY, rightAxis, upAxis)) {
             return false;
         }
+        const glm::vec3 corners[4] = {
+            particlePos - rightAxis - upAxis,
+            particlePos + rightAxis - upAxis,
+            particlePos + rightAxis + upAxis,
+            particlePos - rightAxis + upAxis,
+        };
 
         float u0 = 0.0f, v0 = 0.0f, u1 = 1.0f, v1 = 1.0f;
         computeTailFireFrameUv(particle, secondaryAtlas, u0, v0, u1, v1);

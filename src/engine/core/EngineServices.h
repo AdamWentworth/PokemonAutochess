@@ -40,6 +40,10 @@ struct EngineFixedPerfBreakdown {
 };
 
 struct EngineRenderBuildBreakdown {
+    float worldComposeMs = 0.0f;
+    float worldBackdropMs = 0.0f;
+    float worldVfxMs = 0.0f;
+    float worldDepthFlushMs = 0.0f;
     float overlayPrepMs = 0.0f;
     float worldBackgroundMs = 0.0f;
     float worldTriangles3dMs = 0.0f;

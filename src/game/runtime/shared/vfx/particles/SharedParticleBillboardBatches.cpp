@@ -23,6 +23,35 @@ bool safeUnprojectClip(const glm::mat4& invViewProj,
            std::isfinite(outWorld.z);
 }
 
+bool computeBillboardAxes(const glm::mat4& invViewProj,
+                          const glm::vec3& centerWorld,
+                          const glm::vec4& clip,
+                          float halfNdcX,
+                          float halfNdcY,
+                          glm::vec3& outRight,
+                          glm::vec3& outUp) {
+    const float ndcX = clip.x / clip.w;
+    const float ndcY = clip.y / clip.w;
+    glm::vec3 rightWorld;
+    glm::vec3 upWorld;
+    if (!safeUnprojectClip(
+            invViewProj,
+            glm::vec4((ndcX + halfNdcX) * clip.w, ndcY * clip.w, clip.z, clip.w),
+            rightWorld) ||
+        !safeUnprojectClip(
+            invViewProj,
+            glm::vec4(ndcX * clip.w, (ndcY + halfNdcY) * clip.w, clip.z, clip.w),
+            upWorld)) {
+        return false;
+    }
+
+    outRight = rightWorld - centerWorld;
+    outUp = upWorld - centerWorld;
+    return std::isfinite(outRight.x) && std::isfinite(outRight.y) &&
+           std::isfinite(outRight.z) && std::isfinite(outUp.x) &&
+           std::isfinite(outUp.y) && std::isfinite(outUp.z);
+}
+
 } // namespace
 
 bool appendGenericBatch(const ParticleSystem::RenderSnapshot& snapshot,
@@ -68,27 +97,18 @@ bool appendGenericBatch(const ParticleSystem::RenderSnapshot& snapshot,
         const float halfNdcY = pxSize / std::max(1, ctx.drawableH);
         if (halfNdcX <= 0.000001f || halfNdcY <= 0.000001f) continue;
 
-        const float ndcX = clip.x / clip.w;
-        const float ndcY = clip.y / clip.w;
-        glm::vec3 corners[4];
-        if (!safeUnprojectClip(
-                ctx.invViewProj,
-                glm::vec4((ndcX - halfNdcX) * clip.w, (ndcY - halfNdcY) * clip.w, clip.z, clip.w),
-                corners[0]) ||
-            !safeUnprojectClip(
-                ctx.invViewProj,
-                glm::vec4((ndcX + halfNdcX) * clip.w, (ndcY - halfNdcY) * clip.w, clip.z, clip.w),
-                corners[1]) ||
-            !safeUnprojectClip(
-                ctx.invViewProj,
-                glm::vec4((ndcX + halfNdcX) * clip.w, (ndcY + halfNdcY) * clip.w, clip.z, clip.w),
-                corners[2]) ||
-            !safeUnprojectClip(
-                ctx.invViewProj,
-                glm::vec4((ndcX - halfNdcX) * clip.w, (ndcY + halfNdcY) * clip.w, clip.z, clip.w),
-                corners[3])) {
+        glm::vec3 rightAxis;
+        glm::vec3 upAxis;
+        if (!computeBillboardAxes(
+                ctx.invViewProj, particle.pos, clip, halfNdcX, halfNdcY, rightAxis, upAxis)) {
             continue;
         }
+        const glm::vec3 corners[4] = {
+            particle.pos - rightAxis - upAxis,
+            particle.pos + rightAxis - upAxis,
+            particle.pos + rightAxis + upAxis,
+            particle.pos - rightAxis + upAxis,
+        };
 
         float u0 = 0.0f;
         float v0 = 0.0f;

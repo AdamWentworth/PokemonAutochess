@@ -73,6 +73,15 @@ It supersedes the old roles of:
    - first-VFX-use
 5. Clean up user-facing graphics/settings behavior so menus and logs reflect reality.
 
+## Deferred Next Iteration Candidates
+- Retained/dirty overlay submission.
+  - Goal: stop rebuilding unchanged UI and overlay draw data every frame.
+  - Primary buckets to watch: `render_overlay_prep_ms`, `render_ui_submit_ms`.
+- More fundamental projected-unit submission redesign.
+  - Goal: move farther away from per-unit rebuild/submit work and toward shared prepared data plus smaller per-unit deltas.
+  - Primary buckets to watch: `projected_model_prep_ms`, `projected_model_geometry_ms`, `render_world_indexed_ms`.
+- Tail-fire path changes are intentionally deferred until there is a clearer product/visual direction.
+
 ## Current Engineering Guidance
 - If work scales with triangle count or per-vertex visual math, prefer pushing it toward GPU/shader-side handling.
 - If work is deterministic gameplay truth, keep it on CPU.

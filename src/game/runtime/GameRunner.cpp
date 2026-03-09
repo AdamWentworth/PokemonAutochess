@@ -956,6 +956,7 @@ namespace {
                 std::chrono::duration<double, std::milli>(renderBuildEnd - renderBuildStart).count();
             const float renderAttributedMs =
                 projectedUnitsMsThisFrame +
+                renderBreakdownThisFrame.worldComposeMs +
                 renderBreakdownThisFrame.overlayPrepMs +
                 renderBreakdownThisFrame.worldBackgroundMs +
                 renderBreakdownThisFrame.worldTriangles3dMs +
@@ -1028,6 +1029,10 @@ namespace {
             perfAccumProjectedUnitsProcessed += static_cast<double>(projectedUnitsProcessedThisFrame);
             perfAccumProjectedModelUnits += static_cast<double>(projectedModelUnitsThisFrame);
             perfAccumProjectedClipSkinnedUnits += static_cast<double>(projectedClipSkinnedUnitsThisFrame);
+            perfAccumRenderBreakdown.worldComposeMs += renderBreakdownThisFrame.worldComposeMs;
+            perfAccumRenderBreakdown.worldBackdropMs += renderBreakdownThisFrame.worldBackdropMs;
+            perfAccumRenderBreakdown.worldVfxMs += renderBreakdownThisFrame.worldVfxMs;
+            perfAccumRenderBreakdown.worldDepthFlushMs += renderBreakdownThisFrame.worldDepthFlushMs;
             perfAccumRenderBreakdown.overlayPrepMs += renderBreakdownThisFrame.overlayPrepMs;
             perfAccumRenderBreakdown.worldBackgroundMs += renderBreakdownThisFrame.worldBackgroundMs;
             perfAccumRenderBreakdown.worldTriangles3dMs += renderBreakdownThisFrame.worldTriangles3dMs;
@@ -1073,6 +1078,14 @@ namespace {
                 const std::uint32_t avgProjectedClipSkinnedUnits = static_cast<std::uint32_t>(
                     std::lround(perfAccumProjectedClipSkinnedUnits / frames));
                 EngineRenderBuildBreakdown avgRenderBreakdown{};
+                avgRenderBreakdown.worldComposeMs =
+                    static_cast<float>(perfAccumRenderBreakdown.worldComposeMs / frames);
+                avgRenderBreakdown.worldBackdropMs =
+                    static_cast<float>(perfAccumRenderBreakdown.worldBackdropMs / frames);
+                avgRenderBreakdown.worldVfxMs =
+                    static_cast<float>(perfAccumRenderBreakdown.worldVfxMs / frames);
+                avgRenderBreakdown.worldDepthFlushMs =
+                    static_cast<float>(perfAccumRenderBreakdown.worldDepthFlushMs / frames);
                 avgRenderBreakdown.overlayPrepMs =
                     static_cast<float>(perfAccumRenderBreakdown.overlayPrepMs / frames);
                 avgRenderBreakdown.worldBackgroundMs =
@@ -1257,6 +1270,10 @@ namespace {
                           << ",\"projected_units_processed\":" << avgProjectedUnitsProcessed
                           << ",\"projected_model_units\":" << avgProjectedModelUnits
                           << ",\"projected_clip_skinned_units\":" << avgProjectedClipSkinnedUnits
+                          << ",\"render_world_compose_ms\":" << avgRenderBreakdown.worldComposeMs
+                          << ",\"render_world_backdrop_ms\":" << avgRenderBreakdown.worldBackdropMs
+                          << ",\"render_world_vfx_ms\":" << avgRenderBreakdown.worldVfxMs
+                          << ",\"render_world_depth_flush_ms\":" << avgRenderBreakdown.worldDepthFlushMs
                           << ",\"render_overlay_prep_ms\":" << avgRenderBreakdown.overlayPrepMs
                           << ",\"render_world_background_ms\":" << avgRenderBreakdown.worldBackgroundMs
                           << ",\"render_world_triangles_3d_ms\":" << avgRenderBreakdown.worldTriangles3dMs

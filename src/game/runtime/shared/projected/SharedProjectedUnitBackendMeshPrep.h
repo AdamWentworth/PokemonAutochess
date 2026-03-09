@@ -40,9 +40,11 @@ struct PreparedState {
 
     runtime::shared_backend_pose::PoseEval scenePose{};
 
-    std::vector<int> submeshNodeFallback;
+    const std::vector<int>* submeshNodeFallback = nullptr;
     std::vector<shared_world_batches::WorldIndexedBatch> modelIndexedBatchesPerSubmesh;
     std::vector<std::vector<int>> modelIndexedVertexRemap;
+
+    void reset();
 };
 
 // Returns false when rendering should stop immediately (for example triangleCount==0 sets skipUnit).

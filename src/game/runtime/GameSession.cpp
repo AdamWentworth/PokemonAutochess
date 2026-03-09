@@ -2913,6 +2913,8 @@ struct GameSession::Impl {
                                        bool renderWorld,
                                        bool prewarmWorldIndexedOnly = false) {
         if (!renderer || drawableW <= 0 || drawableH <= 0) return 0u;
+        using RenderBuildClock = std::chrono::steady_clock;
+        const auto worldComposeStart = RenderBuildClock::now();
         const bool useLegacyGrowlWaveVfx = backendUseLegacyGrowlWaveVfxEnabled();
         const bool useLegacyParticleVfxSnapshotBridge = backendUseLegacyParticleVfxSnapshotBridgeEnabled();
 
@@ -2924,6 +2926,43 @@ struct GameSession::Impl {
             float y = 0.0f;
             std::string text;
             glm::vec3 color{1.0f, 1.0f, 1.0f};
+        };
+        struct ProjectedBackdropCacheKey {
+            bool supportsWorldTriangles3D = false;
+            int rows = 0;
+            int cols = 0;
+            int benchSlots = 0;
+            float worldCellSize = 0.0f;
+            float boardMinX = 0.0f;
+            float boardMinZ = 0.0f;
+            float boardMaxX = 0.0f;
+            float boardMaxZ = 0.0f;
+            float boardX = 0.0f;
+            float boardY = 0.0f;
+            float boardW = 0.0f;
+            float boardH = 0.0f;
+            float cellW = 0.0f;
+            float cellH = 0.0f;
+            float line = 0.0f;
+
+            bool operator==(const ProjectedBackdropCacheKey& other) const {
+                return supportsWorldTriangles3D == other.supportsWorldTriangles3D &&
+                       rows == other.rows &&
+                       cols == other.cols &&
+                       benchSlots == other.benchSlots &&
+                       worldCellSize == other.worldCellSize &&
+                       boardMinX == other.boardMinX &&
+                       boardMinZ == other.boardMinZ &&
+                       boardMaxX == other.boardMaxX &&
+                       boardMaxZ == other.boardMaxZ &&
+                       boardX == other.boardX &&
+                       boardY == other.boardY &&
+                       boardW == other.boardW &&
+                       boardH == other.boardH &&
+                       cellW == other.cellW &&
+                       cellH == other.cellH &&
+                       line == other.line;
+            }
         };
         struct BackendRenderScratch {
             std::vector<IRenderBackend::DebugQuad> worldBackgroundQuads;
@@ -2938,6 +2977,12 @@ struct GameSession::Impl {
             std::vector<BackendUnitLabel> unitLabels;
             std::unordered_map<int, runtime::shared_tail_fire_fallback::Anchor> sharedTailFireAnchors;
             runtime::shared_capture::SnapshotCache sharedCaptureAttemptCache;
+            bool projectedBackdropValid = false;
+            ProjectedBackdropCacheKey projectedBackdropKey{};
+            std::size_t projectedBackdropWorldBackgroundQuadsCount = 0u;
+            std::size_t projectedBackdropWorldTrianglesCount = 0u;
+            std::size_t projectedBackdropWorld3DTrianglesCount = 0u;
+            std::size_t projectedBackdropLinesCount = 0u;
         };
         static thread_local BackendRenderScratch scratch;
 
@@ -2953,20 +2998,6 @@ struct GameSession::Impl {
         auto& unitLabels = scratch.unitLabels;
         auto& sharedTailFireAnchors = scratch.sharedTailFireAnchors;
         auto& sharedCaptureAttemptCache = scratch.sharedCaptureAttemptCache;
-
-        worldBackgroundQuads.clear();
-        worldQuads.clear();
-        worldTriangles.clear();
-        world3DTriangles.clear();
-        worldIndexedBatches.clear();
-        overlayQuads.clear();
-        lines.clear();
-        textLines.clear();
-        sprites.clear();
-        unitLabels.clear();
-        sharedTailFireAnchors.clear();
-        sharedCaptureAttemptCache.snaps.clear();
-        sharedCaptureAttemptCache.byTargetId.clear();
 
         if (worldBackgroundQuads.capacity() < 1024u) worldBackgroundQuads.reserve(1024u);
         if (worldQuads.capacity() < 1024u) worldQuads.reserve(1024u);
@@ -2992,6 +3023,9 @@ struct GameSession::Impl {
         std::uint32_t projectedUnitsProcessedThisFrame = 0u;
         std::uint32_t projectedModelUnitsThisFrame = 0u;
         std::uint32_t projectedClipSkinnedUnitsThisFrame = 0u;
+        float worldBackdropComposeMsThisFrame = 0.0f;
+        float worldVfxBridgeMsThisFrame = 0.0f;
+        float worldDepthFlushMsThisFrame = 0.0f;
 
         const bool supportsWorldTriangles3D = renderer->supportsWorldTriangles3D();
         const bool supportsWorldIndexedMeshes = renderer->supportsWorldIndexedMeshes();
@@ -3024,8 +3058,37 @@ struct GameSession::Impl {
             routes,
             renderWorld,
             allowBackendMenuBackdrop);
+        const bool useProjectedWorldLayout =
+            showWorldBackdrop && renderWorld && gameWorld && (camera != nullptr);
+
+        worldQuads.clear();
+        worldIndexedBatches.clear();
+        overlayQuads.clear();
+        textLines.clear();
+        sprites.clear();
+        unitLabels.clear();
+        sharedTailFireAnchors.clear();
+        sharedCaptureAttemptCache.snaps.clear();
+        sharedCaptureAttemptCache.byTargetId.clear();
+        if (useProjectedWorldLayout && scratch.projectedBackdropValid) {
+            worldBackgroundQuads.resize(scratch.projectedBackdropWorldBackgroundQuadsCount);
+            worldTriangles.resize(scratch.projectedBackdropWorldTrianglesCount);
+            world3DTriangles.resize(scratch.projectedBackdropWorld3DTrianglesCount);
+            lines.resize(scratch.projectedBackdropLinesCount);
+        } else {
+            worldBackgroundQuads.clear();
+            worldTriangles.clear();
+            world3DTriangles.clear();
+            lines.clear();
+            if (!useProjectedWorldLayout) {
+                scratch.projectedBackdropValid = false;
+                scratch.projectedBackdropWorldBackgroundQuadsCount = 0u;
+                scratch.projectedBackdropWorldTrianglesCount = 0u;
+                scratch.projectedBackdropWorld3DTrianglesCount = 0u;
+                scratch.projectedBackdropLinesCount = 0u;
+            }
+        }
         if (showWorldBackdrop) {
-            const bool useProjectedWorldLayout = renderWorld && gameWorld && (camera != nullptr);
             if (useProjectedWorldLayout) {
                 const float worldCellSize = std::max(0.05f, gameWorld->getBoardCellSize());
                 const runtime::backendview::BoardBounds boardBounds =
@@ -3069,6 +3132,24 @@ struct GameSession::Impl {
                     static_cast<float>(drawableH));
                 const float line = std::max(1.0f, minDim * 0.0019f);
 
+                ProjectedBackdropCacheKey projectedBackdropKey{};
+                projectedBackdropKey.supportsWorldTriangles3D = supportsWorldTriangles3D;
+                projectedBackdropKey.rows = rows;
+                projectedBackdropKey.cols = cols;
+                projectedBackdropKey.benchSlots = config.benchSlots;
+                projectedBackdropKey.worldCellSize = worldCellSize;
+                projectedBackdropKey.boardMinX = boardMinX;
+                projectedBackdropKey.boardMinZ = boardMinZ;
+                projectedBackdropKey.boardMaxX = boardMaxX;
+                projectedBackdropKey.boardMaxZ = boardMaxZ;
+                projectedBackdropKey.boardX = boardX;
+                projectedBackdropKey.boardY = boardY;
+                projectedBackdropKey.boardW = boardW;
+                projectedBackdropKey.boardH = boardH;
+                projectedBackdropKey.cellW = cellW;
+                projectedBackdropKey.cellH = cellH;
+                projectedBackdropKey.line = line;
+
                 game::runtime::shared_projected_debug::ProjectedDebugVfxBuilder projectedDebug(
                     supportsWorldTriangles3D,
                     view,
@@ -3078,6 +3159,60 @@ struct GameSession::Impl {
                     worldTriangles,
                     world3DTriangles,
                     lines);
+                const bool canCacheProjectedBackdrop = supportsWorldTriangles3D;
+                const auto backdropComposeStart = RenderBuildClock::now();
+                if (canCacheProjectedBackdrop) {
+                    if (!scratch.projectedBackdropValid ||
+                        !(scratch.projectedBackdropKey == projectedBackdropKey)) {
+                        worldBackgroundQuads.clear();
+                        worldTriangles.clear();
+                        world3DTriangles.clear();
+                        lines.clear();
+
+                        const game::runtime::shared_board_grid::Config boardGridCfg =
+                            game::runtime::shared_projected_scene::makeBoardGridConfig(
+                                supportsWorldTriangles3D,
+                                rows,
+                                cols,
+                                config.benchSlots,
+                                worldCellSize,
+                                boardMinX,
+                                boardMinZ,
+                                boardMaxX,
+                                boardMaxZ,
+                                boardX,
+                                boardY,
+                                boardW,
+                                boardH,
+                                cellW,
+                                cellH,
+                                line);
+                        game::runtime::shared_projected_scene::appendBoardAndBench(
+                            boardGridCfg,
+                            worldTriangles,
+                            world3DTriangles,
+                            worldBackgroundQuads,
+                            lines,
+                            projectedDebug);
+                        scratch.projectedBackdropValid = true;
+                        scratch.projectedBackdropKey = projectedBackdropKey;
+                        scratch.projectedBackdropWorldBackgroundQuadsCount =
+                            worldBackgroundQuads.size();
+                        scratch.projectedBackdropWorldTrianglesCount =
+                            worldTriangles.size();
+                        scratch.projectedBackdropWorld3DTrianglesCount =
+                            world3DTriangles.size();
+                        scratch.projectedBackdropLinesCount =
+                            lines.size();
+                    } else {
+                        worldBackgroundQuads.resize(
+                            scratch.projectedBackdropWorldBackgroundQuadsCount);
+                        worldTriangles.resize(scratch.projectedBackdropWorldTrianglesCount);
+                        world3DTriangles.resize(
+                            scratch.projectedBackdropWorld3DTrianglesCount);
+                        lines.resize(scratch.projectedBackdropLinesCount);
+                    }
+                }
                 using DepthTri = game::runtime::shared_projected_scene::DepthTri;
                 using DepthWorldTri = game::runtime::shared_projected_scene::DepthWorldTri;
                 auto modelDepthBuffers =
@@ -3087,7 +3222,7 @@ struct GameSession::Impl {
                 std::size_t remainingModelTrianglesBudget = backendModelTriangleFrameBudget();
                 runtime::shared_projected_units::PerfStats projectedUnitPerf{};
 
-                {
+                if (!canCacheProjectedBackdrop) {
                     const game::runtime::shared_board_grid::Config boardGridCfg =
                         game::runtime::shared_projected_scene::makeBoardGridConfig(
                             supportsWorldTriangles3D,
@@ -3114,6 +3249,10 @@ struct GameSession::Impl {
                         lines,
                         projectedDebug);
                 }
+                const auto backdropComposeEnd = RenderBuildClock::now();
+                worldBackdropComposeMsThisFrame = static_cast<float>(
+                    std::chrono::duration<double, std::milli>(
+                        backdropComposeEnd - backdropComposeStart).count());
                 const float boardSurfaceY = 0.006f;
 
                 using BackendPoseEval = game::runtime::shared_backend_pose::PoseEval;
@@ -3214,6 +3353,7 @@ struct GameSession::Impl {
                         [&](const std::string& path) { return ensureBackendMeshLoaded(path); },
                         [&](const std::string& path) { return ensureBackendTextureLoaded(path); });
                 }
+                const auto worldVfxStart = RenderBuildClock::now();
                 game::runtime::shared_projected_scene::appendSharedProjectedVfxBridgesSession(
                     useLegacyParticleVfxSnapshotBridge, useLegacyGrowlWaveVfx, supportsWorldIndexedMeshes,
                     hasWorldViewProj, backendUseExactTailFireCpuPathEnabled(), gameWorld.get(), viewProj,
@@ -3223,11 +3363,20 @@ struct GameSession::Impl {
                     [&](const std::string& texturePath, bool flipVertical) {
                         return ensureBackendTextureLoaded(texturePath, flipVertical);
                     });
+                const auto worldVfxEnd = RenderBuildClock::now();
+                worldVfxBridgeMsThisFrame = static_cast<float>(
+                    std::chrono::duration<double, std::milli>(
+                        worldVfxEnd - worldVfxStart).count());
+                const auto depthFlushStart = RenderBuildClock::now();
                 game::runtime::shared_projected_scene::flushModelDepthBuffers(
                     modelDepthTris,
                     modelDepthWorldTris,
                     worldTriangles,
                     world3DTriangles);
+                const auto depthFlushEnd = RenderBuildClock::now();
+                worldDepthFlushMsThisFrame = static_cast<float>(
+                    std::chrono::duration<double, std::milli>(
+                        depthFlushEnd - depthFlushStart).count());
                 projectedUnitsMsThisFrame = static_cast<float>(projectedUnitPerf.totalMs);
                 projectedPoseEvalMsThisFrame = static_cast<float>(projectedUnitPerf.poseEvalMs);
                 projectedModelMsThisFrame = static_cast<float>(projectedUnitPerf.modelRenderMs);
@@ -3476,6 +3625,7 @@ struct GameSession::Impl {
             }
             return 0u;
         }
+        const auto worldComposeEnd = RenderBuildClock::now();
         if (engineServices) {
             engineServices->frameVisibleAnimatedUnits = visibleAnimatedUnitsThisFrame;
             engineServices->frameParticleCount = particleCountThisFrame;
@@ -3489,6 +3639,17 @@ struct GameSession::Impl {
             engineServices->frameProjectedModelUnits = projectedModelUnitsThisFrame;
             engineServices->frameProjectedClipSkinnedUnits = projectedClipSkinnedUnitsThisFrame;
             engineServices->frameRenderBuildBreakdown = {};
+            const float totalWorldComposeMs = static_cast<float>(
+                std::chrono::duration<double, std::milli>(
+                    worldComposeEnd - worldComposeStart).count());
+            engineServices->frameRenderBuildBreakdown.worldComposeMs =
+                std::max(0.0f, totalWorldComposeMs - projectedUnitsMsThisFrame);
+            engineServices->frameRenderBuildBreakdown.worldBackdropMs =
+                worldBackdropComposeMsThisFrame;
+            engineServices->frameRenderBuildBreakdown.worldVfxMs =
+                worldVfxBridgeMsThisFrame;
+            engineServices->frameRenderBuildBreakdown.worldDepthFlushMs =
+                worldDepthFlushMsThisFrame;
         }
 
         runtime::shared_backend_debug_view::ComposeAndSubmitArgs overlayArgs;

@@ -1,5 +1,6 @@
 #include "game/runtime/shared/vfx/tail_fire/SharedTailFireFallbackEmitter.h"
 
+#include "engine/core/Environment.h"
 #include "game/runtime/BackendWorldProxyGeometry.h"
 
 #include <algorithm>
@@ -11,16 +12,49 @@
 namespace game::runtime::shared_tail_fire_fallback {
 namespace {
 
-std::string toLowerAscii(std::string s) {
-    std::transform(s.begin(), s.end(), s.begin(), [](unsigned char c) {
-        if (c >= 'A' && c <= 'Z') return static_cast<char>(c - 'A' + 'a');
-        return static_cast<char>(c);
-    });
-    return s;
+float tailFireFallbackEmitScale() {
+    static const float kValue = []() {
+        const auto env = engine::env::get("PAC_BACKEND_TAIL_FIRE_FALLBACK_EMIT_SCALE");
+        if (!env || env->empty()) return 0.65f;
+        try {
+            return std::clamp(std::stof(*env), 0.10f, 2.00f);
+        } catch (...) {
+            return 0.65f;
+        }
+    }();
+    return kValue;
+}
+
+float tailFireFallbackSizeScale() {
+    static const float kValue = []() {
+        const auto env = engine::env::get("PAC_BACKEND_TAIL_FIRE_FALLBACK_SIZE_SCALE");
+        if (!env || env->empty()) return 1.10f;
+        try {
+            return std::clamp(std::stof(*env), 0.50f, 3.00f);
+        } catch (...) {
+            return 1.10f;
+        }
+    }();
+    return kValue;
+}
+
+bool isCharmanderName(const std::string& s) {
+    if (s.size() != 10u) return false;
+    return (s[0] == 'c' || s[0] == 'C') &&
+           (s[1] == 'h' || s[1] == 'H') &&
+           (s[2] == 'a' || s[2] == 'A') &&
+           (s[3] == 'r' || s[3] == 'R') &&
+           (s[4] == 'm' || s[4] == 'M') &&
+           (s[5] == 'a' || s[5] == 'A') &&
+           (s[6] == 'n' || s[6] == 'N') &&
+           (s[7] == 'd' || s[7] == 'D') &&
+           (s[8] == 'e' || s[8] == 'E') &&
+           (s[9] == 'r' || s[9] == 'R');
 }
 
 struct EmitterState {
     ParticleSystem particles;
+    ParticleSystem::RenderSnapshot snapshot;
     bool configured = false;
     double lastSimTimeSec = -1.0;
     std::unordered_map<int, float> emitAccumulator;
@@ -98,6 +132,14 @@ glm::vec3 safeNormOr(glm::vec3 v, const glm::vec3& fallback) {
     return v * (1.0f / std::sqrt(len2));
 }
 
+bool hasLiveCharmander(const std::vector<PokemonInstance>& list) {
+    for (const auto& unit : list) {
+        if (!unit.alive) continue;
+        if (isCharmanderName(unit.name)) return true;
+    }
+    return false;
+}
+
 void emitForList(
     float dt,
     const std::vector<PokemonInstance>& list,
@@ -106,13 +148,17 @@ void emitForList(
     const std::unordered_map<int, Anchor>* anchors) {
     dt = std::clamp(dt, 0.0f, 0.05f);
     if (dt <= 0.0f) return;
+    const float emitScale = tailFireFallbackEmitScale();
+    const float fallbackSizeScale = tailFireFallbackSizeScale();
+    const float emitRatePerSec = std::max(0.0f, cfg.emitRatePerSec * emitScale);
+    if (emitRatePerSec <= 0.0f) return;
 
     for (const auto& unit : list) {
-        if (toLowerAscii(unit.name) != "charmander") continue;
         if (!unit.alive) continue;
+        if (!isCharmanderName(unit.name)) continue;
 
         float& acc = gState.emitAccumulator[unit.id];
-        acc += dt * cfg.emitRatePerSec;
+        acc += dt * emitRatePerSec;
         int emitCount = static_cast<int>(std::floor(acc));
         if (emitCount <= 0) continue;
         acc -= static_cast<float>(emitCount);
@@ -241,8 +287,10 @@ void emitForList(
 
             p.maxLifeSec = 0.14f + hash01(base + 7.0f) * 0.10f;
             p.lifeSec = p.maxLifeSec;
-            const float sizeScale = hasTailAnchor ? tailAnchorData.particleSizeScale : scaleMul;
-            p.sizePx = (0.22f + hash01(base + 8.0f) * 0.10f) * sizeScale;
+            const float particleSizeScale =
+                hasTailAnchor ? tailAnchorData.particleSizeScale : scaleMul;
+            p.sizePx =
+                (0.22f + hash01(base + 8.0f) * 0.10f) * particleSizeScale * fallbackSizeScale;
             p.seed = hash01(base + 9.0f);
             gState.particles.emit(p);
         }
@@ -258,6 +306,12 @@ bool appendSyntheticTailFire(const Args& args) {
 
     double simNowSec = args.simNowSec;
     if (!std::isfinite(simNowSec)) simNowSec = 0.0;
+    const bool hasLiveSource =
+        hasLiveCharmander(*args.pokemons) || hasLiveCharmander(*args.benchPokemons);
+    if (!hasLiveSource && gState.particles.particleCount() == 0u) {
+        gState.lastSimTimeSec = simNowSec;
+        return false;
+    }
     if (gState.lastSimTimeSec < 0.0 ||
         simNowSec + 1e-6 < gState.lastSimTimeSec ||
         (simNowSec - gState.lastSimTimeSec) > 2.0) {
@@ -278,10 +332,9 @@ bool appendSyntheticTailFire(const Args& args) {
         simDeltaSec -= static_cast<double>(step);
     }
 
-    ParticleSystem::RenderSnapshot syntheticTailFire;
-    if (!gState.particles.buildRenderSnapshot(syntheticTailFire)) return false;
-    syntheticTailFire.timeSec = static_cast<float>(simNowSec);
-    return args.appendSnapshot("tail_fire_synth", syntheticTailFire);
+    if (!gState.particles.buildRenderSnapshot(gState.snapshot)) return false;
+    gState.snapshot.timeSec = static_cast<float>(simNowSec);
+    return args.appendSnapshot("tail_fire_synth", gState.snapshot);
 }
 
 } // namespace game::runtime::shared_tail_fire_fallback

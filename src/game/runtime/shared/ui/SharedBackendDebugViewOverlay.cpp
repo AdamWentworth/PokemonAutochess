@@ -130,7 +130,15 @@ void composeAndSubmit(const ComposeAndSubmitArgs& args) {
     EngineRenderBuildBreakdown localRenderBreakdown{};
     EngineRenderBuildBreakdown* renderBuildBreakdown =
         args.renderBuildBreakdown ? args.renderBuildBreakdown : &localRenderBreakdown;
+    const float precomposedWorldMs = renderBuildBreakdown->worldComposeMs;
+    const float precomposedWorldBackdropMs = renderBuildBreakdown->worldBackdropMs;
+    const float precomposedWorldVfxMs = renderBuildBreakdown->worldVfxMs;
+    const float precomposedWorldDepthFlushMs = renderBuildBreakdown->worldDepthFlushMs;
     *renderBuildBreakdown = {};
+    renderBuildBreakdown->worldComposeMs = precomposedWorldMs;
+    renderBuildBreakdown->worldBackdropMs = precomposedWorldBackdropMs;
+    renderBuildBreakdown->worldVfxMs = precomposedWorldVfxMs;
+    renderBuildBreakdown->worldDepthFlushMs = precomposedWorldDepthFlushMs;
     using clock = std::chrono::steady_clock;
     const auto toMs = [](const clock::time_point& start, const clock::time_point& end) {
         return static_cast<float>(
