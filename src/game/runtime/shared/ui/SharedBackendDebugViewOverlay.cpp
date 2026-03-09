@@ -17,6 +17,8 @@
 #include <algorithm>
 #include <chrono>
 #include <cctype>
+#include <cmath>
+#include <cstdint>
 #include <iomanip>
 #include <sstream>
 #include <string>
@@ -85,6 +87,66 @@ std::string toLowerCopy(std::string s) {
         [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
     return s;
 }
+
+using OverlayHash = std::uint64_t;
+
+constexpr OverlayHash kOverlayHashOffset = 1469598103934665603ull;
+constexpr OverlayHash kOverlayHashPrime = 1099511628211ull;
+
+void hashBytes(OverlayHash& hash, const void* data, std::size_t size) {
+    const auto* bytes = static_cast<const unsigned char*>(data);
+    for (std::size_t i = 0; i < size; ++i) {
+        hash ^= static_cast<OverlayHash>(bytes[i]);
+        hash *= kOverlayHashPrime;
+    }
+}
+
+void hashInt(OverlayHash& hash, int value) {
+    hashBytes(hash, &value, sizeof(value));
+}
+
+void hashSize(OverlayHash& hash, std::size_t value) {
+    hashBytes(hash, &value, sizeof(value));
+}
+
+void hashBool(OverlayHash& hash, bool value) {
+    const unsigned char byte = value ? 1u : 0u;
+    hashBytes(hash, &byte, sizeof(byte));
+}
+
+void hashFloatQuantized(OverlayHash& hash, float value, float scale = 1000.0f) {
+    const int quantized = static_cast<int>(std::lround(static_cast<double>(value) * scale));
+    hashInt(hash, quantized);
+}
+
+void hashString(OverlayHash& hash, const std::string& value) {
+    hashSize(hash, value.size());
+    if (!value.empty()) {
+        hashBytes(hash, value.data(), value.size());
+    }
+}
+
+void hashVec3(OverlayHash& hash, const glm::vec3& value) {
+    hashFloatQuantized(hash, value.r);
+    hashFloatQuantized(hash, value.g);
+    hashFloatQuantized(hash, value.b);
+}
+
+template <typename T>
+void appendCachedVector(std::vector<T>& dst, const std::vector<T>& src) {
+    if (src.empty()) return;
+    dst.insert(dst.end(), src.begin(), src.end());
+}
+
+struct RetainedOverlayCache {
+    OverlayHash key = 0;
+    std::vector<IRenderBackend::DebugQuad> worldQuads;
+    std::vector<IRenderBackend::DebugQuad> overlayQuads;
+    std::vector<IRenderBackend::DebugLine> lines;
+    std::vector<IRenderBackend::DebugLine> textLines;
+    std::vector<IRenderBackend::DebugSprite> sprites;
+    std::vector<game::runtime::backend_inventory_panel::HitRegion> hitRegions;
+};
 } // namespace
 
 namespace game::runtime::shared_backend_debug_view {
@@ -230,64 +292,250 @@ void composeAndSubmit(const ComposeAndSubmitArgs& args) {
             }
         }
 
-        const std::string mode = (services ? services->gameMode : std::string("classic"));
-        appendRightText(edgePad + lineStep * 1.1f,
-                        runtime::backend_status_text::modeLine(mode),
-                        std::clamp(1.2f * uiScale, 0.95f, 1.7f),
-                        glm::vec3(0.93f, 0.95f, 0.99f));
-        if (services) {
-            appendRightText(edgePad + lineStep * 2.2f,
-                            runtime::backend_status_text::backendLine(
-                                services->activeRendererBackend,
-                                services->gpuRenderer),
-                            std::clamp(1.0f * uiScale, 0.80f, 1.35f),
-                            glm::vec3(0.68f, 0.80f, 0.94f));
-        }
-
-        RoundPhase roundPhase = RoundPhase::Planning;
-        bool combatActive = false;
+        const std::string cachedMode = (services ? services->gameMode : std::string("classic"));
+        RoundPhase cachedRoundPhase = RoundPhase::Planning;
+        bool cachedCombatActive = false;
         if (ecsWorld.alive(roundPhaseEntity)) {
             if (const auto* roundState = ecsWorld.get<game::RoundState>(roundPhaseEntity)) {
-                roundPhase = roundState->phase;
+                cachedRoundPhase = roundState->phase;
             }
             if (const auto* combatState = ecsWorld.get<game::CombatActive>(roundPhaseEntity)) {
-                combatActive = combatState->active;
+                cachedCombatActive = combatState->active;
             }
         }
-        appendRightText(edgePad + lineStep * 3.3f,
-                        runtime::backend_status_text::roundLine(roundPhase, combatActive),
-                        std::clamp(1.0f * uiScale, 0.80f, 1.35f),
-                        glm::vec3(0.83f, 0.91f, 0.98f));
 
-        int playerAlive = 0;
-        int enemyAlive = 0;
+        int cachedPlayerAlive = 0;
+        int cachedEnemyAlive = 0;
         if (gameWorld) {
             for (const auto& unit : gameWorld->getPokemons()) {
                 if (!unit.alive && !unit.captureInProgress) continue;
-                if (unit.side == PokemonSide::Player) ++playerAlive;
-                else ++enemyAlive;
+                if (unit.side == PokemonSide::Player) ++cachedPlayerAlive;
+                else ++cachedEnemyAlive;
             }
+        }
+
+        const int cachedMoney = gameWorld ? gameWorld->getMoney() : 0;
+        const std::string cachedSelectedItem = gameWorld ? gameWorld->getSelectedItem() : std::string();
+        if (refreshBackendInventoryFromWorld) {
+            refreshBackendInventoryFromWorld();
+        }
+        const auto& cachedInventoryModel = backendInventoryPanel.model;
+        const bool cachedAdventureInventoryIcons = (cachedMode == "adventure");
+        auto cachedTypeCounts = gameWorld ? gameWorld->getPlayerTypeLineCounts()
+                                          : std::vector<GameWorld::TypeLineCount>{};
+        if (!cachedTypeCounts.empty()) {
+            std::sort(cachedTypeCounts.begin(), cachedTypeCounts.end(),
+                      [](const GameWorld::TypeLineCount& a, const GameWorld::TypeLineCount& b) {
+                          if (a.uniqueLineCount != b.uniqueLineCount) {
+                              return a.uniqueLineCount > b.uniqueLineCount;
+                          }
+                          return a.type < b.type;
+                      });
+        }
+        const auto* cachedBenchUnits = gameWorld ? &gameWorld->getBenchPokemons() : nullptr;
+        const auto* cachedShopCards = gameWorld ? &gameWorld->getClassicShopCards() : nullptr;
+        const auto cachedRecentMain = log.recentMainLines(7);
+        const bool cachedClassicMode = (cachedMode == "classic");
+        const auto cachedSideLogLines =
+            cachedClassicMode ? log.recentEconomyLines(5) : log.recentCatchLines(5);
+
+        const std::string cachedBackend =
+            services ? services->activeRendererBackend : std::string();
+        const std::string cachedGpuRenderer =
+            services ? services->gpuRenderer : std::string();
+
+        const auto hashLayoutKeyBase = [&](OverlayHash& key) {
+            hashInt(key, drawableW);
+            hashInt(key, drawableH);
+            hashFloatQuantized(key, edgePad);
+            hashFloatQuantized(key, lineStep);
+            hashFloatQuantized(key, uiScale);
+        };
+        const auto appendRetainedRegion = [&](const RetainedOverlayCache& cache) {
+            appendCachedVector(worldQuads, cache.worldQuads);
+            appendCachedVector(overlayQuads, cache.overlayQuads);
+            appendCachedVector(lines, cache.lines);
+            appendCachedVector(textLines, cache.textLines);
+            appendCachedVector(sprites, cache.sprites);
+            appendCachedVector(backendInventoryPanel.hitRegions, cache.hitRegions);
+        };
+        const auto captureRetainedRegion =
+            [&](RetainedOverlayCache& cache,
+                OverlayHash key,
+                std::size_t worldQuadsStart,
+                std::size_t overlayQuadsStart,
+                std::size_t linesStart,
+                std::size_t textLinesStart,
+                std::size_t spritesStart,
+                std::size_t hitRegionsStart) {
+                cache.key = key;
+                cache.worldQuads.assign(
+                    worldQuads.begin() + static_cast<std::ptrdiff_t>(worldQuadsStart),
+                    worldQuads.end());
+                cache.overlayQuads.assign(
+                    overlayQuads.begin() + static_cast<std::ptrdiff_t>(overlayQuadsStart),
+                    overlayQuads.end());
+                cache.lines.assign(
+                    lines.begin() + static_cast<std::ptrdiff_t>(linesStart),
+                    lines.end());
+                cache.textLines.assign(
+                    textLines.begin() + static_cast<std::ptrdiff_t>(textLinesStart),
+                    textLines.end());
+                cache.sprites.assign(
+                    sprites.begin() + static_cast<std::ptrdiff_t>(spritesStart),
+                    sprites.end());
+                cache.hitRegions.assign(
+                    backendInventoryPanel.hitRegions.begin() +
+                        static_cast<std::ptrdiff_t>(hitRegionsStart),
+                    backendInventoryPanel.hitRegions.end());
+            };
+
+        OverlayHash statusKey = kOverlayHashOffset;
+        hashLayoutKeyBase(statusKey);
+        hashString(statusKey, cachedMode);
+        hashString(statusKey, cachedBackend);
+        hashString(statusKey, cachedGpuRenderer);
+        hashInt(statusKey, static_cast<int>(cachedRoundPhase));
+        hashBool(statusKey, cachedCombatActive);
+        hashInt(statusKey, cachedPlayerAlive);
+        hashInt(statusKey, cachedEnemyAlive);
+        hashInt(statusKey, cachedMoney);
+        hashString(statusKey, cachedSelectedItem);
+
+        OverlayHash inventoryKey = kOverlayHashOffset;
+        hashLayoutKeyBase(inventoryKey);
+        hashString(inventoryKey, cachedMode);
+        hashBool(inventoryKey, cachedAdventureInventoryIcons);
+        hashInt(inventoryKey, cachedInventoryModel.offset);
+        hashSize(inventoryKey, cachedInventoryModel.totalCount);
+        hashString(inventoryKey, cachedSelectedItem);
+        hashSize(inventoryKey, cachedInventoryModel.visibleEntries.size());
+        for (const auto& entry : cachedInventoryModel.visibleEntries) {
+            hashString(inventoryKey, entry.id);
+            hashInt(inventoryKey, entry.count);
+        }
+        hashSize(inventoryKey, cachedInventoryModel.rows.size());
+        for (const auto& row : cachedInventoryModel.rows) {
+            hashString(inventoryKey, row.itemId);
+            hashString(inventoryKey, row.line);
+            hashBool(inventoryKey, row.selected);
+        }
+
+        OverlayHash rosterKey = kOverlayHashOffset;
+        hashLayoutKeyBase(rosterKey);
+        hashString(rosterKey, cachedMode);
+        const std::size_t cachedTypeRows = std::min<std::size_t>(6u, cachedTypeCounts.size());
+        hashSize(rosterKey, cachedTypeRows);
+        for (std::size_t i = 0; i < cachedTypeRows; ++i) {
+            hashString(rosterKey, cachedTypeCounts[i].type);
+            hashInt(rosterKey, cachedTypeCounts[i].uniqueLineCount);
+        }
+        const std::size_t cachedBenchRows =
+            (cachedBenchUnits != nullptr) ? std::min<std::size_t>(5u, cachedBenchUnits->size()) : 0u;
+        hashSize(rosterKey, cachedBenchRows);
+        for (std::size_t i = 0; i < cachedBenchRows; ++i) {
+            hashString(rosterKey, (*cachedBenchUnits)[i].name);
+            hashInt(rosterKey, (*cachedBenchUnits)[i].level);
+        }
+        const std::size_t cachedShopRows =
+            (cachedShopCards != nullptr) ? std::min<std::size_t>(5u, cachedShopCards->size()) : 0u;
+        hashSize(rosterKey, cachedShopRows);
+        for (std::size_t i = 0; i < cachedShopRows; ++i) {
+            hashString(rosterKey, (*cachedShopCards)[i].name);
+            hashInt(rosterKey, (*cachedShopCards)[i].level);
+            hashInt(rosterKey, (*cachedShopCards)[i].cost);
+        }
+
+        OverlayHash logKey = kOverlayHashOffset;
+        hashLayoutKeyBase(logKey);
+        hashBool(logKey, cachedClassicMode);
+        hashSize(logKey, cachedRecentMain.size());
+        for (const auto& line : cachedRecentMain) {
+            hashString(logKey, trimDebugLine(line.text, 84));
+            hashVec3(logKey, line.color);
+        }
+        hashSize(logKey, cachedSideLogLines.size());
+        for (const auto& line : cachedSideLogLines) {
+            hashString(logKey, trimDebugLine(line.text, 54));
+            hashVec3(logKey, line.color);
+        }
+
+        thread_local RetainedOverlayCache statusCache;
+        thread_local RetainedOverlayCache inventoryCache;
+        thread_local RetainedOverlayCache rosterCache;
+        thread_local RetainedOverlayCache logCache;
+
+        if (statusCache.key == statusKey) {
+            appendRetainedRegion(statusCache);
+        } else {
+            const std::size_t worldQuadsStart = worldQuads.size();
+            const std::size_t overlayQuadsStart = overlayQuads.size();
+            const std::size_t linesStart = lines.size();
+            const std::size_t textLinesStart = textLines.size();
+            const std::size_t spritesStart = sprites.size();
+            const std::size_t hitRegionsStart = backendInventoryPanel.hitRegions.size();
+
+            appendRightText(edgePad + lineStep * 1.1f,
+                            runtime::backend_status_text::modeLine(cachedMode),
+                            std::clamp(1.2f * uiScale, 0.95f, 1.7f),
+                            glm::vec3(0.93f, 0.95f, 0.99f));
+            if (services) {
+                appendRightText(edgePad + lineStep * 2.2f,
+                                runtime::backend_status_text::backendLine(
+                                    cachedBackend,
+                                    cachedGpuRenderer),
+                                std::clamp(1.0f * uiScale, 0.80f, 1.35f),
+                                glm::vec3(0.68f, 0.80f, 0.94f));
+            }
+            appendRightText(edgePad + lineStep * 3.3f,
+                            runtime::backend_status_text::roundLine(
+                                cachedRoundPhase,
+                                cachedCombatActive),
+                            std::clamp(1.0f * uiScale, 0.80f, 1.35f),
+                            glm::vec3(0.83f, 0.91f, 0.98f));
             appendRightText(edgePad + lineStep * 4.4f,
-                            runtime::backend_status_text::unitsLine(playerAlive, enemyAlive),
+                            runtime::backend_status_text::unitsLine(
+                                cachedPlayerAlive,
+                                cachedEnemyAlive),
                             std::clamp(1.0f * uiScale, 0.80f, 1.35f),
                             glm::vec3(0.72f, 0.90f, 0.84f));
             appendRightText(edgePad + lineStep * 5.5f,
-                            runtime::backend_status_text::goldLine(gameWorld->getMoney()),
+                            runtime::backend_status_text::goldLine(cachedMoney),
                             std::clamp(1.0f * uiScale, 0.80f, 1.35f),
                             glm::vec3(0.96f, 0.88f, 0.56f));
-            const std::string selectedItem = gameWorld->getSelectedItem();
-            if (!selectedItem.empty()) {
+            if (!cachedSelectedItem.empty()) {
                 appendRightText(edgePad + lineStep * 6.6f,
-                                runtime::backend_status_text::selectedItemLine(selectedItem),
+                                runtime::backend_status_text::selectedItemLine(cachedSelectedItem),
                                 std::clamp(1.0f * uiScale, 0.80f, 1.35f),
                                 glm::vec3(0.84f, 0.90f, 0.98f));
             }
 
-            refreshBackendInventoryFromWorld();
-            const auto& inventoryModel = backendInventoryPanel.model;
+            captureRetainedRegion(
+                statusCache,
+                statusKey,
+                worldQuadsStart,
+                overlayQuadsStart,
+                linesStart,
+                textLinesStart,
+                spritesStart,
+                hitRegionsStart);
+        }
+
+        if (inventoryCache.key == inventoryKey) {
+            appendRetainedRegion(inventoryCache);
+        } else {
+            const std::size_t worldQuadsStart = worldQuads.size();
+            const std::size_t overlayQuadsStart = overlayQuads.size();
+            const std::size_t linesStart = lines.size();
+            const std::size_t textLinesStart = textLines.size();
+            const std::size_t spritesStart = sprites.size();
+            const std::size_t hitRegionsStart = backendInventoryPanel.hitRegions.size();
+
+            const auto& inventoryModel = cachedInventoryModel;
             const float leftX = edgePad;
             const float invStartY = edgePad + lineStep * 7.7f;
-            const bool adventureModeInventoryIcons = services && services->gameMode == "adventure";
+            const bool adventureModeInventoryIcons = cachedAdventureInventoryIcons;
+            const std::string& selectedItem = cachedSelectedItem;
 
             if (inventoryModel.totalCount > 0 || !selectedItem.empty()) {
                 if (adventureModeInventoryIcons) {
@@ -592,101 +840,149 @@ void composeAndSubmit(const ComposeAndSubmitArgs& args) {
                 }
             }
 
-            auto typeCounts = gameWorld->getPlayerTypeLineCounts();
-            if (!typeCounts.empty()) {
-                std::sort(typeCounts.begin(), typeCounts.end(),
-                          [](const GameWorld::TypeLineCount& a, const GameWorld::TypeLineCount& b) {
-                              if (a.uniqueLineCount != b.uniqueLineCount) {
-                                  return a.uniqueLineCount > b.uniqueLineCount;
-                              }
-                              return a.type < b.type;
-                          });
+            captureRetainedRegion(
+                inventoryCache,
+                inventoryKey,
+                worldQuadsStart,
+                overlayQuadsStart,
+                linesStart,
+                textLinesStart,
+                spritesStart,
+                hitRegionsStart);
+        }
 
+        if (rosterCache.key == rosterKey) {
+            appendRetainedRegion(rosterCache);
+        } else {
+            const std::size_t worldQuadsStart = worldQuads.size();
+            const std::size_t overlayQuadsStart = overlayQuads.size();
+            const std::size_t linesStart = lines.size();
+            const std::size_t textLinesStart = textLines.size();
+            const std::size_t spritesStart = sprites.size();
+            const std::size_t hitRegionsStart = backendInventoryPanel.hitRegions.size();
+
+            if (!cachedTypeCounts.empty()) {
                 float typeY = edgePad + lineStep * 6.6f;
                 appendText(edgePad, typeY, "Type Lines", std::clamp(1.0f * uiScale, 0.80f, 1.30f), glm::vec3(0.98f, 0.90f, 0.60f));
                 typeY += lineStep;
-                const std::size_t maxRows = std::min<std::size_t>(6, typeCounts.size());
-                for (std::size_t i = 0; i < maxRows; ++i) {
+                for (std::size_t i = 0; i < cachedTypeRows; ++i) {
                     appendText(edgePad,
                                typeY,
-                               runtime::hud::formatTypeLineEntry(typeCounts[i].type, typeCounts[i].uniqueLineCount),
+                               runtime::hud::formatTypeLineEntry(
+                                   cachedTypeCounts[i].type,
+                                   cachedTypeCounts[i].uniqueLineCount),
                                0.95f,
                                glm::vec3(0.92f, 0.94f, 0.98f));
                     typeY += lineStep * 0.93f;
                 }
             }
 
-            const auto& benchUnits = gameWorld->getBenchPokemons();
-            if (!benchUnits.empty()) {
+            if (cachedBenchUnits != nullptr && !cachedBenchUnits->empty()) {
                 float benchY = edgePad + lineStep * 13.6f;
                 appendText(edgePad, benchY, "Bench", std::clamp(1.0f * uiScale, 0.80f, 1.30f), glm::vec3(0.86f, 0.94f, 0.98f));
                 benchY += lineStep;
-                const std::size_t maxRows = std::min<std::size_t>(5, benchUnits.size());
-                for (std::size_t i = 0; i < maxRows; ++i) {
+                for (std::size_t i = 0; i < cachedBenchRows; ++i) {
                     appendText(edgePad,
                                benchY,
-                               runtime::hud::formatUnitEntry(benchUnits[i].name, benchUnits[i].level),
+                               runtime::hud::formatUnitEntry(
+                                   (*cachedBenchUnits)[i].name,
+                                   (*cachedBenchUnits)[i].level),
                                0.95f,
                                glm::vec3(0.80f, 0.88f, 0.96f));
                     benchY += lineStep * 0.93f;
                 }
             }
 
-            const auto& shopCards = gameWorld->getClassicShopCards();
-            if (!shopCards.empty()) {
+            if (cachedShopCards != nullptr && !cachedShopCards->empty()) {
                 float shopY = edgePad + lineStep * 13.6f;
                 appendRightText(shopY, "Shop Offers", std::clamp(1.0f * uiScale, 0.80f, 1.30f), glm::vec3(0.98f, 0.90f, 0.60f));
                 shopY += lineStep;
-                const std::size_t maxRows = std::min<std::size_t>(5, shopCards.size());
-                for (std::size_t i = 0; i < maxRows; ++i) {
+                for (std::size_t i = 0; i < cachedShopRows; ++i) {
                     appendRightText(shopY,
-                                    runtime::hud::formatShopCardEntry(shopCards[i].name,
-                                                                      shopCards[i].level,
-                                                                      shopCards[i].cost),
+                                    runtime::hud::formatShopCardEntry(
+                                        (*cachedShopCards)[i].name,
+                                        (*cachedShopCards)[i].level,
+                                        (*cachedShopCards)[i].cost),
                                     0.95f,
                                     glm::vec3(0.92f, 0.94f, 0.98f));
                     shopY += lineStep * 0.93f;
                 }
             }
+
+            captureRetainedRegion(
+                rosterCache,
+                rosterKey,
+                worldQuadsStart,
+                overlayQuadsStart,
+                linesStart,
+                textLinesStart,
+                spritesStart,
+                hitRegionsStart);
         }
 
-        const auto recentMain = log.recentMainLines(7);
-        if (!recentMain.empty()) {
-            float y = std::max(edgePad + lineStep * 7.0f, static_cast<float>(drawableH) - lineStep * 11.0f);
-            for (const auto& line : recentMain) {
-                const std::string text = trimDebugLine(line.text, 84);
-                const float scale = 1.0f;
-                const float textW = std::max(1.0f, runtime::backend_text::measureTextWidth(text, scale));
-                const float x = std::max(edgePad, static_cast<float>(drawableW) - textW - edgePad);
-                appendText(x,
-                           y,
-                           text,
-                           scale,
-                           glm::vec3(
-                               std::clamp(line.color.r, 0.0f, 1.0f),
-                               std::clamp(line.color.g, 0.0f, 1.0f),
-                               std::clamp(line.color.b, 0.0f, 1.0f)));
-                y += lineStep;
-            }
-        }
+        if (logCache.key == logKey) {
+            appendRetainedRegion(logCache);
+        } else {
+            const std::size_t worldQuadsStart = worldQuads.size();
+            const std::size_t overlayQuadsStart = overlayQuads.size();
+            const std::size_t linesStart = lines.size();
+            const std::size_t textLinesStart = textLines.size();
+            const std::size_t spritesStart = sprites.size();
+            const std::size_t hitRegionsStart = backendInventoryPanel.hitRegions.size();
 
-        const bool classicMode = (mode == "classic");
-        const auto sideLines = classicMode ? log.recentEconomyLines(5) : log.recentCatchLines(5);
-        if (!sideLines.empty()) {
-            float y = std::max(edgePad + lineStep * 7.0f, static_cast<float>(drawableH) - lineStep * 11.0f);
-            for (const auto& line : sideLines) {
-                const std::string text = trimDebugLine(line.text, 54);
-                const float scale = 1.0f;
-                appendText(edgePad,
-                           y,
-                           text,
-                           scale,
-                           glm::vec3(
-                               std::clamp(line.color.r, 0.0f, 1.0f),
-                               std::clamp(line.color.g, 0.0f, 1.0f),
-                               std::clamp(line.color.b, 0.0f, 1.0f)));
-                y += lineStep;
+            if (!cachedRecentMain.empty()) {
+                float y = std::max(
+                    edgePad + lineStep * 7.0f,
+                    static_cast<float>(drawableH) - lineStep * 11.0f);
+                for (const auto& line : cachedRecentMain) {
+                    const std::string text = trimDebugLine(line.text, 84);
+                    const float scale = 1.0f;
+                    const float textW = std::max(
+                        1.0f,
+                        runtime::backend_text::measureTextWidth(text, scale));
+                    const float x = std::max(
+                        edgePad,
+                        static_cast<float>(drawableW) - textW - edgePad);
+                    appendText(x,
+                               y,
+                               text,
+                               scale,
+                               glm::vec3(
+                                   std::clamp(line.color.r, 0.0f, 1.0f),
+                                   std::clamp(line.color.g, 0.0f, 1.0f),
+                                   std::clamp(line.color.b, 0.0f, 1.0f)));
+                    y += lineStep;
+                }
             }
+
+            if (!cachedSideLogLines.empty()) {
+                float y = std::max(
+                    edgePad + lineStep * 7.0f,
+                    static_cast<float>(drawableH) - lineStep * 11.0f);
+                for (const auto& line : cachedSideLogLines) {
+                    const std::string text = trimDebugLine(line.text, 54);
+                    const float scale = 1.0f;
+                    appendText(edgePad,
+                               y,
+                               text,
+                               scale,
+                               glm::vec3(
+                                   std::clamp(line.color.r, 0.0f, 1.0f),
+                                   std::clamp(line.color.g, 0.0f, 1.0f),
+                                   std::clamp(line.color.b, 0.0f, 1.0f)));
+                    y += lineStep;
+                }
+            }
+
+            captureRetainedRegion(
+                logCache,
+                logKey,
+                worldQuadsStart,
+                overlayQuadsStart,
+                linesStart,
+                textLinesStart,
+                spritesStart,
+                hitRegionsStart);
         }
 
         const auto submitStart = clock::now();
