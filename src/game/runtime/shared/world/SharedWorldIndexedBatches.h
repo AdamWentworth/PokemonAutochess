@@ -22,7 +22,9 @@ struct WorldIndexedBatch {
     std::size_t sharedVertexCount = 0u;
     const std::uint32_t* sharedIndices = nullptr;
     std::size_t sharedIndexCount = 0u;
+    std::string geometryCacheKey;
     std::string textureKey;
+    std::string textureCacheKey;
     std::vector<unsigned char> ownedTextureRgba;
     const unsigned char* textureRgba = nullptr;
     int textureWidth = 0;
@@ -30,6 +32,7 @@ struct WorldIndexedBatch {
     int textureWrapS = 10497;
     int textureWrapT = 10497;
     std::string normalTextureKey;
+    std::string normalTextureCacheKey;
     std::vector<unsigned char> ownedNormalTextureRgba;
     const unsigned char* normalTextureRgba = nullptr;
     int normalTextureWidth = 0;
@@ -37,6 +40,7 @@ struct WorldIndexedBatch {
     int normalTextureWrapS = 10497;
     int normalTextureWrapT = 10497;
     std::string metallicRoughnessTextureKey;
+    std::string metallicRoughnessTextureCacheKey;
     std::vector<unsigned char> ownedMetallicRoughnessTextureRgba;
     const unsigned char* metallicRoughnessTextureRgba = nullptr;
     int metallicRoughnessTextureWidth = 0;
@@ -44,6 +48,7 @@ struct WorldIndexedBatch {
     int metallicRoughnessTextureWrapS = 10497;
     int metallicRoughnessTextureWrapT = 10497;
     std::string occlusionTextureKey;
+    std::string occlusionTextureCacheKey;
     std::vector<unsigned char> ownedOcclusionTextureRgba;
     const unsigned char* occlusionTextureRgba = nullptr;
     int occlusionTextureWidth = 0;
@@ -51,6 +56,7 @@ struct WorldIndexedBatch {
     int occlusionTextureWrapS = 10497;
     int occlusionTextureWrapT = 10497;
     std::string emissiveTextureKey;
+    std::string emissiveTextureCacheKey;
     std::vector<unsigned char> ownedEmissiveTextureRgba;
     const unsigned char* emissiveTextureRgba = nullptr;
     int emissiveTextureWidth = 0;
@@ -117,6 +123,11 @@ struct WorldIndexedBatch {
 const WorldIndexedBatch& resolvedMaterialBatch(const WorldIndexedBatch& batch);
 bool resolvedHasBaseTexture(const WorldIndexedBatch& batch);
 bool resolvedHasNormalTexture(const WorldIndexedBatch& batch);
+std::size_t prewarmWorldIndexedBatches(IRenderBackend& renderer,
+                                       const std::vector<WorldIndexedBatch>& batches,
+                                       const float* cameraWorldPos3 = nullptr,
+                                       const float* cameraForward3 = nullptr,
+                                       const float* cameraTarget3 = nullptr);
 
 void submitWorldIndexedBatches(IRenderBackend& renderer,
                                const std::vector<WorldIndexedBatch>& batches,

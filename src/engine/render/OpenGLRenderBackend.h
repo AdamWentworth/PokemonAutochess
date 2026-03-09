@@ -62,6 +62,15 @@ public:
                                       const float* viewProjectionMatrix4x4,
                                       int surfaceWidth,
                                       int surfaceHeight) override;
+    void drawWorldIndexedMeshTexturedCached(const char* geometryKey,
+                                            const WorldMeshVertex* vertices,
+                                            std::size_t vertexCount,
+                                            const std::uint32_t* indices,
+                                            std::size_t indexCount,
+                                            const WorldTextureData* texture,
+                                            const float* viewProjectionMatrix4x4,
+                                            int surfaceWidth,
+                                            int surfaceHeight) override;
     void drawDebugQuads(const DebugQuad* quads,
                         std::size_t quadCount,
                         int surfaceWidth,
@@ -93,6 +102,16 @@ private:
     void destroySpritePipeline();
     unsigned int ensureWorldTexture(const WorldTextureData* textureData);
     unsigned int ensureWorldTextureRaw(const char* key,
+                                       const unsigned char* rgba,
+                                       int width,
+                                       int height,
+                                       int wrapS,
+                                       int wrapT,
+                                       bool srgb) {
+        return ensureWorldTextureRaw(key, nullptr, rgba, width, height, wrapS, wrapT, srgb);
+    }
+    unsigned int ensureWorldTextureRaw(const char* key,
+                                       const char* cacheKey,
                                        const unsigned char* rgba,
                                        int width,
                                        int height,

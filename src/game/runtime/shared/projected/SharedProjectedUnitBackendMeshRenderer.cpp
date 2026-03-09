@@ -80,6 +80,40 @@ thread_local std::vector<int> g_triNodeIndexByTriangleScratch;
 
 constexpr std::size_t kMaxGpuSkinMatrices = 64u;
 
+std::vector<int> buildSubmeshNodeFallback(
+    const game::runtime::backend_model::MeshData& mesh) {
+    std::vector<int> submeshNodeFallback;
+    if (mesh.submeshMeshIndex.empty()) return submeshNodeFallback;
+    submeshNodeFallback.assign(mesh.submeshMeshIndex.size(), -1);
+    for (std::size_t si = 0; si < mesh.submeshMeshIndex.size(); ++si) {
+        const int meshIndex = mesh.submeshMeshIndex[si];
+        if (meshIndex >= 0 &&
+            static_cast<std::size_t>(meshIndex) < mesh.meshIndexToNode.size()) {
+            submeshNodeFallback[si] =
+                mesh.meshIndexToNode[static_cast<std::size_t>(meshIndex)];
+        }
+    }
+    return submeshNodeFallback;
+}
+
+std::string makeIndexedGeometryCacheKey(const std::string& keyPrefix,
+                                        std::size_t baseSubmeshIndex,
+                                        std::size_t batchIndex,
+                                        std::size_t baseBatchCount) {
+    std::string key = keyPrefix + "#submesh_geom:" + std::to_string(baseSubmeshIndex);
+    if (batchIndex >= baseBatchCount) {
+        key += "#split:" + std::to_string(batchIndex);
+    }
+    return key;
+}
+
+std::string makeIndexedBatchKeyPrefix(
+    const game::runtime::backend_model::MeshData& mesh) {
+    return "__runtime_mesh__:" +
+           std::to_string(static_cast<unsigned long long>(
+               reinterpret_cast<std::uintptr_t>(&mesh)));
+}
+
 struct UnitSkinMatrixKey {
     int unitId = 0;
     int skinKey = -1;
@@ -441,6 +475,40 @@ const FastTexturedMeshTemplateCache* ensureFastTexturedMeshTemplateCache(
 
 namespace game::runtime::shared_projected_unit_backend_mesh {
 
+std::size_t prewarmProjectedUnitBackendMeshGeometryCache(
+    IRenderBackend& renderer,
+    const runtime::backend_model::MeshData& mesh) {
+    if (!renderer.supportsWorldIndexedMeshes()) return 0u;
+    if (mesh.vertices.empty() || mesh.indices.size() < 3u) return 0u;
+
+    const std::size_t baseBatchCount =
+        std::max<std::size_t>(1u, mesh.submeshBaseTextures.size());
+    const std::vector<int> submeshNodeFallback = buildSubmeshNodeFallback(mesh);
+    const FastTexturedMeshTemplateCache* fastCache =
+        ensureFastTexturedMeshTemplateCache(&mesh, submeshNodeFallback, baseBatchCount);
+    if (!fastCache) return 0u;
+
+    const std::string keyPrefix = makeIndexedBatchKeyPrefix(mesh);
+    std::size_t warmed = 0u;
+    for (std::size_t bi = 0; bi < fastCache->batches.size(); ++bi) {
+        const auto& batch = fastCache->batches[bi];
+        if (batch.gpuTemplateVertices.empty() || batch.indices.size() < 3u) continue;
+        const std::string geometryKey = makeIndexedGeometryCacheKey(
+            keyPrefix,
+            batch.baseSubmeshIndex,
+            bi,
+            baseBatchCount);
+        renderer.prewarmWorldIndexedMeshCached(
+            geometryKey.c_str(),
+            batch.gpuTemplateVertices.data(),
+            batch.gpuTemplateVertices.size(),
+            batch.indices.data(),
+            batch.indices.size());
+        ++warmed;
+    }
+    return warmed;
+}
+
 Result renderProjectedUnitBackendMesh(const Args& args) {
     Result out{};
     if (!args.dataDb || !args.unit || !args.pose || !args.meshForUnit || !args.scenePose ||
@@ -535,6 +603,11 @@ Result renderProjectedUnitBackendMesh(const Args& args) {
                     const auto& templateBatch = modelIndexedBatchesPerSubmesh[sourceBatchIndex];
                     modelIndexedBatchesPerSubmesh.push_back(templateBatch);
                     auto& newBatch = modelIndexedBatchesPerSubmesh.back();
+                    newBatch.geometryCacheKey = makeIndexedGeometryCacheKey(
+                        makeIndexedBatchKeyPrefix(*mesh),
+                        sourceBatchIndex,
+                        bi,
+                        initialBatchCount);
                     newBatch.vertices.clear();
                     newBatch.indices.clear();
                     newBatch.vertices.reserve(fastCache.batches[bi].sourceVertexIndices.size());
@@ -635,6 +708,7 @@ Result renderProjectedUnitBackendMesh(const Args& args) {
                         dstBatch.sharedIndices = srcBatch.indices.data();
                         dstBatch.sharedIndexCount = srcBatch.indices.size();
                     } else {
+                        dstBatch.geometryCacheKey.clear();
                         dstBatch.sharedVertices = nullptr;
                         dstBatch.sharedVertexCount = 0u;
                         dstBatch.indices.clear();
@@ -691,6 +765,7 @@ Result renderProjectedUnitBackendMesh(const Args& args) {
                         const float* batchModelData = glm::value_ptr(batchModel);
                         std::copy(batchModelData, batchModelData + 16, dstBatch.modelMatrix.begin());
                     } else if (canUseDynamicLocalPosNoSkin) {
+                        dstBatch.geometryCacheKey.clear();
                         dstBatch.indices.clear();
                         dstBatch.sharedIndices = srcBatch.indices.data();
                         dstBatch.sharedIndexCount = srcBatch.indices.size();
@@ -717,6 +792,7 @@ Result renderProjectedUnitBackendMesh(const Args& args) {
                         const float* batchModelData = glm::value_ptr(batchModel);
                         std::copy(batchModelData, batchModelData + 16, dstBatch.modelMatrix.begin());
                     } else {
+                        dstBatch.geometryCacheKey.clear();
                         dstBatch.indices.clear();
                         if (!srcBatch.indices.empty()) {
                             dstBatch.sharedIndices = srcBatch.indices.data();
@@ -770,6 +846,7 @@ Result renderProjectedUnitBackendMesh(const Args& args) {
                 for (auto& batch : modelIndexedBatchesPerSubmesh) {
                     batch.vertices.clear();
                     batch.indices.clear();
+                    batch.geometryCacheKey.clear();
                     batch.sharedVertices = nullptr;
                     batch.sharedVertexCount = 0u;
                     batch.sharedIndices = nullptr;
@@ -1235,4 +1312,3 @@ Result renderProjectedUnitBackendMesh(const Args& args) {
 }
 
 } // namespace game::runtime::shared_projected_unit_backend_mesh
-

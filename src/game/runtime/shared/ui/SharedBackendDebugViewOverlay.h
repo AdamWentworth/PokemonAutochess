@@ -10,6 +10,7 @@
 
 class Camera3D;
 struct EngineServices;
+struct EngineRenderBuildBreakdown;
 struct GameServices;
 class GameWorld;
 
@@ -47,6 +48,7 @@ struct ComposeAndSubmitArgs {
     float lineStep = 0.0f;
     float uiScale = 1.0f;
     const float* worldViewProj = nullptr;
+    EngineRenderBuildBreakdown* renderBuildBreakdown = nullptr;
 
     std::vector<IRenderBackend::DebugQuad>* worldBackgroundQuads = nullptr;
     std::vector<IRenderBackend::DebugQuad>* worldQuads = nullptr;

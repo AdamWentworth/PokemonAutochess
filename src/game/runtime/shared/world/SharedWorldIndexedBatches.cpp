@@ -21,6 +21,12 @@ IRenderBackend::WorldTextureData toWorldTextureData(const WorldIndexedBatch& bat
         if (templateKey && !templateKey->empty()) return templateKey->c_str();
         return "";
     };
+    const auto resolveCacheKey = [](const std::string& localKey,
+                                    const std::string* templateKey) {
+        if (!localKey.empty()) return localKey.c_str();
+        if (templateKey && !templateKey->empty()) return templateKey->c_str();
+        return static_cast<const char*>(nullptr);
+    };
     const auto resolveRgba = [](const unsigned char* localPtr,
                                 const std::vector<unsigned char>& localOwned,
                                 const unsigned char* templatePtr,
@@ -61,6 +67,8 @@ IRenderBackend::WorldTextureData toWorldTextureData(const WorldIndexedBatch& bat
     IRenderBackend::WorldTextureData tex;
     tex.key = resolveKey(
         batch.textureKey, templateBatch ? &templateBatch->textureKey : nullptr);
+    tex.cacheKey = resolveCacheKey(
+        batch.textureCacheKey, templateBatch ? &templateBatch->textureCacheKey : nullptr);
     tex.rgba = rgbaData;
     tex.width = batch.textureWidth > 0
         ? batch.textureWidth
@@ -76,6 +84,9 @@ IRenderBackend::WorldTextureData toWorldTextureData(const WorldIndexedBatch& bat
         : (templateBatch ? templateBatch->textureWrapT : batch.textureWrapT);
     tex.normalKey = resolveKey(
         batch.normalTextureKey, templateBatch ? &templateBatch->normalTextureKey : nullptr);
+    tex.normalCacheKey = resolveCacheKey(
+        batch.normalTextureCacheKey,
+        templateBatch ? &templateBatch->normalTextureCacheKey : nullptr);
     tex.normalRgba = normalRgbaData;
     tex.normalWidth = batch.normalTextureWidth > 0
         ? batch.normalTextureWidth
@@ -92,6 +103,9 @@ IRenderBackend::WorldTextureData toWorldTextureData(const WorldIndexedBatch& bat
     tex.metallicRoughnessKey = resolveKey(
         batch.metallicRoughnessTextureKey,
         templateBatch ? &templateBatch->metallicRoughnessTextureKey : nullptr);
+    tex.metallicRoughnessCacheKey = resolveCacheKey(
+        batch.metallicRoughnessTextureCacheKey,
+        templateBatch ? &templateBatch->metallicRoughnessTextureCacheKey : nullptr);
     tex.metallicRoughnessRgba = mrRgbaData;
     tex.metallicRoughnessWidth = batch.metallicRoughnessTextureWidth > 0
         ? batch.metallicRoughnessTextureWidth
@@ -113,6 +127,9 @@ IRenderBackend::WorldTextureData toWorldTextureData(const WorldIndexedBatch& bat
                          : batch.metallicRoughnessTextureWrapT);
     tex.occlusionKey = resolveKey(
         batch.occlusionTextureKey, templateBatch ? &templateBatch->occlusionTextureKey : nullptr);
+    tex.occlusionCacheKey = resolveCacheKey(
+        batch.occlusionTextureCacheKey,
+        templateBatch ? &templateBatch->occlusionTextureCacheKey : nullptr);
     tex.occlusionRgba = occlusionRgbaData;
     tex.occlusionWidth = batch.occlusionTextureWidth > 0
         ? batch.occlusionTextureWidth
@@ -128,6 +145,9 @@ IRenderBackend::WorldTextureData toWorldTextureData(const WorldIndexedBatch& bat
         : (templateBatch ? templateBatch->occlusionTextureWrapT : batch.occlusionTextureWrapT);
     tex.emissiveKey = resolveKey(
         batch.emissiveTextureKey, templateBatch ? &templateBatch->emissiveTextureKey : nullptr);
+    tex.emissiveCacheKey = resolveCacheKey(
+        batch.emissiveTextureCacheKey,
+        templateBatch ? &templateBatch->emissiveTextureCacheKey : nullptr);
     tex.emissiveRgba = emissiveRgbaData;
     tex.emissiveWidth = batch.emissiveTextureWidth > 0
         ? batch.emissiveTextureWidth
@@ -221,15 +241,28 @@ void drawOneBatch(IRenderBackend& renderer,
 
     IRenderBackend::WorldTextureData tex =
         toWorldTextureData(batch, cameraWorldPos3, cameraForward3, cameraTarget3);
-    renderer.drawWorldIndexedMeshTextured(
-        vertices,
-        vertexCount,
-        indices,
-        indexCount,
-        &tex,
-        viewProjectionMatrix4x4,
-        surfaceWidth,
-        surfaceHeight);
+    if (!batch.geometryCacheKey.empty()) {
+        renderer.drawWorldIndexedMeshTexturedCached(
+            batch.geometryCacheKey.c_str(),
+            vertices,
+            vertexCount,
+            indices,
+            indexCount,
+            &tex,
+            viewProjectionMatrix4x4,
+            surfaceWidth,
+            surfaceHeight);
+    } else {
+        renderer.drawWorldIndexedMeshTextured(
+            vertices,
+            vertexCount,
+            indices,
+            indexCount,
+            &tex,
+            viewProjectionMatrix4x4,
+            surfaceWidth,
+            surfaceHeight);
+    }
 }
 
 } // namespace
@@ -250,6 +283,45 @@ bool resolvedHasNormalTexture(const WorldIndexedBatch& batch) {
     return materialBatch.normalTextureRgba != nullptr &&
            materialBatch.normalTextureWidth > 0 &&
            materialBatch.normalTextureHeight > 0;
+}
+
+std::size_t prewarmWorldIndexedBatches(IRenderBackend& renderer,
+                                       const std::vector<WorldIndexedBatch>& batches,
+                                       const float* cameraWorldPos3,
+                                       const float* cameraForward3,
+                                       const float* cameraTarget3) {
+    std::size_t warmed = 0u;
+    for (const WorldIndexedBatch& batch : batches) {
+        const bool useSharedVertices = batch.sharedVertices && batch.sharedVertexCount > 0u;
+        const bool useSharedIndices = batch.sharedIndices && batch.sharedIndexCount > 0u;
+        const IRenderBackend::WorldMeshVertex* vertices = useSharedVertices
+            ? batch.sharedVertices
+            : batch.vertices.data();
+        const std::size_t vertexCount = useSharedVertices
+            ? batch.sharedVertexCount
+            : batch.vertices.size();
+        const std::uint32_t* indices = useSharedIndices
+            ? batch.sharedIndices
+            : batch.indices.data();
+        const std::size_t indexCount = useSharedIndices
+            ? batch.sharedIndexCount
+            : batch.indices.size();
+        if (!vertices || !indices || vertexCount == 0u || indexCount == 0u) continue;
+
+        IRenderBackend::WorldTextureData tex =
+            toWorldTextureData(batch, cameraWorldPos3, cameraForward3, cameraTarget3);
+        renderer.prewarmWorldTextureData(&tex);
+        if (!batch.geometryCacheKey.empty()) {
+            renderer.prewarmWorldIndexedMeshCached(
+                batch.geometryCacheKey.c_str(),
+                vertices,
+                vertexCount,
+                indices,
+                indexCount);
+        }
+        ++warmed;
+    }
+    return warmed;
 }
 
 void submitWorldIndexedBatches(IRenderBackend& renderer,

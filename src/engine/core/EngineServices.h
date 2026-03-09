@@ -39,6 +39,17 @@ struct EngineFixedPerfBreakdown {
     float worldMs = 0.0f;
 };
 
+struct EngineRenderBuildBreakdown {
+    float overlayPrepMs = 0.0f;
+    float worldBackgroundMs = 0.0f;
+    float worldTriangles3dMs = 0.0f;
+    float worldIndexedMs = 0.0f;
+    float worldDebugMs = 0.0f;
+    float spriteMs = 0.0f;
+    float uiMs = 0.0f;
+    float otherMs = 0.0f;
+};
+
 struct EngineFramePerfStats {
     float fps = 0.0f;
     float frameMs = 0.0f;
@@ -62,6 +73,7 @@ struct EngineFramePerfStats {
     std::uint32_t projectedUnitsProcessed = 0u;
     std::uint32_t projectedModelUnits = 0u;
     std::uint32_t projectedClipSkinnedUnits = 0u;
+    EngineRenderBuildBreakdown renderBreakdown{};
     float renderMs = 0.0f;
     float swapMs = 0.0f;
     int fixedTicks = 0;
@@ -91,6 +103,7 @@ struct EngineServices {
     std::uint32_t frameProjectedUnitsProcessed = 0u;
     std::uint32_t frameProjectedModelUnits = 0u;
     std::uint32_t frameProjectedClipSkinnedUnits = 0u;
+    EngineRenderBuildBreakdown frameRenderBuildBreakdown{};
 
     // Render backend + GPU diagnostics.
     std::string requestedRendererBackend = "auto";

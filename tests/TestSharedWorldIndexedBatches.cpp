@@ -3,6 +3,8 @@
 #include <vector>
 
 #include "engine/render/IRenderBackend.h"
+#include "game/runtime/shared/projected/SharedProjectedDebugVfx.h"
+#include "game/runtime/shared/projected/SharedProjectedUnitBackendMeshTriangleSubmit.h"
 #include "game/runtime/shared/world/SharedWorldIndexedBatches.h"
 
 namespace {
@@ -127,6 +129,109 @@ bool test_shared_world_indexed_batches_contract(std::string& outFail) {
     if (!expect(backend.calls[1].rgbaNonNull && backend.calls[1].width == 1 && backend.calls[1].height == 1,
                 "submitWorldIndexedBatches should pass ownedTextureRgba data to the backend when textureRgba is null.",
                 outFail)) {
+        return false;
+    }
+
+    return true;
+}
+
+bool test_projected_triangle_submit_clears_geometry_cache_key(std::string& outFail) {
+    using game::runtime::shared_projected_debug::ProjectedDebugVfxBuilder;
+    using game::runtime::shared_projected_scene::DepthTri;
+    using game::runtime::shared_projected_unit_backend_mesh_submit::TriangleSubmitter;
+    using game::runtime::shared_world_batches::WorldIndexedBatch;
+
+    std::vector<IRenderBackend::DebugTriangle> debugTriangles;
+    std::vector<IRenderBackend::WorldTriangle> worldTriangles3D;
+    std::vector<IRenderBackend::DebugLine> debugLines;
+    const glm::mat4 identity(1.0f);
+    const glm::vec4 viewport(0.0f, 0.0f, 1280.0f, 720.0f);
+    ProjectedDebugVfxBuilder projectedDebug(
+        /*supportsWorldTriangles3D=*/true,
+        identity,
+        identity,
+        720,
+        viewport,
+        debugTriangles,
+        worldTriangles3D,
+        debugLines);
+
+    const auto runCase = [&](bool textured, const std::string& keySuffix) -> bool {
+        std::vector<WorldIndexedBatch> batches(1);
+        WorldIndexedBatch& batch = batches[0];
+        batch.geometryCacheKey = "cached_geom_" + keySuffix;
+        static const IRenderBackend::WorldMeshVertex kSharedVertices[3] = {};
+        static const std::uint32_t kSharedIndices[3] = {0u, 1u, 2u};
+        batch.sharedVertices = kSharedVertices;
+        batch.sharedVertexCount = 3u;
+        batch.sharedIndices = kSharedIndices;
+        batch.sharedIndexCount = 3u;
+        if (textured) {
+            static const unsigned char kTex[4] = {255u, 255u, 255u, 255u};
+            batch.textureRgba = kTex;
+            batch.textureWidth = 1;
+            batch.textureHeight = 1;
+        }
+
+        std::vector<std::vector<int>> remap(1);
+        std::vector<DepthTri> modelDepthTris;
+        TriangleSubmitter submitter;
+        submitter.initialize(TriangleSubmitter::Args{
+            .supportsWorldTriangles3D = true,
+            .useIndexedWorldModelPath = true,
+            .fullIndexedMeshPath = true,
+            .fastTexturedPathEnabled = false,
+            .backfaceCullingEnabled = false,
+            .cameraWorldPos = glm::vec3(0.0f, 5.0f, 8.0f),
+            .lightDir = glm::vec3(0.0f, 1.0f, 0.0f),
+            .projectedDebug = &projectedDebug,
+            .modelIndexedBatchesPerSubmesh = &batches,
+            .modelIndexedVertexRemap = &remap,
+            .modelDepthTris = &modelDepthTris,
+            .world3DTriangles = &worldTriangles3D});
+        submitter.pushTriangle(
+            glm::vec3(0.0f, 0.0f, 0.0f),
+            glm::vec3(1.0f, 0.0f, 0.0f),
+            glm::vec3(0.0f, 1.0f, 0.0f),
+            0u,
+            1u,
+            2u,
+            glm::vec2(0.0f, 0.0f),
+            glm::vec2(1.0f, 0.0f),
+            glm::vec2(0.0f, 1.0f),
+            glm::vec3(0.0f, 0.0f, 1.0f),
+            glm::vec3(0.0f, 0.0f, 1.0f),
+            glm::vec3(0.0f, 0.0f, 1.0f),
+            glm::vec4(1.0f, 0.0f, 0.0f, 1.0f),
+            glm::vec4(1.0f, 0.0f, 0.0f, 1.0f),
+            glm::vec4(1.0f, 0.0f, 0.0f, 1.0f),
+            glm::vec3(1.0f),
+            glm::vec3(1.0f),
+            glm::vec3(1.0f),
+            0u,
+            1.0f,
+            false);
+
+        return batch.geometryCacheKey.empty() &&
+               batch.sharedVertices == nullptr &&
+               batch.sharedVertexCount == 0u &&
+               batch.sharedIndices == nullptr &&
+               batch.sharedIndexCount == 0u &&
+               !batch.vertices.empty() &&
+               !batch.indices.empty();
+    };
+
+    if (!expect(
+            runCase(/*textured=*/true, "textured"),
+            "triangle submit should clear cached geometry on textured indexed batches before mutating vertices.",
+            outFail)) {
+        return false;
+    }
+
+    if (!expect(
+            runCase(/*textured=*/false, "flat"),
+            "triangle submit should clear cached geometry on untextured indexed batches before mutating vertices.",
+            outFail)) {
         return false;
     }
 

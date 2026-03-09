@@ -83,6 +83,15 @@ public:
                                       const float* viewProjectionMatrix4x4,
                                       int surfaceWidth,
                                       int surfaceHeight) override;
+    void drawWorldIndexedMeshTexturedCached(const char* geometryKey,
+                                            const WorldMeshVertex* vertices,
+                                            std::size_t vertexCount,
+                                            const std::uint32_t* indices,
+                                            std::size_t indexCount,
+                                            const WorldTextureData* texture,
+                                            const float* viewProjectionMatrix4x4,
+                                            int surfaceWidth,
+                                            int surfaceHeight) override;
     void drawDebugQuads(const DebugQuad* quads,
                         std::size_t quadCount,
                         int surfaceWidth,
@@ -124,6 +133,16 @@ private:
                                          int height,
                                          int wrapS,
                                          int wrapT,
+                                         bool srgb) {
+        return ensureWorldTextureRaw(key, nullptr, rgba, width, height, wrapS, wrapT, srgb);
+    }
+    SpriteTexture* ensureWorldTextureRaw(const char* key,
+                                         const char* cacheKey,
+                                         const unsigned char* rgba,
+                                         int width,
+                                         int height,
+                                         int wrapS,
+                                         int wrapT,
                                          bool srgb);
     SpriteTexture* ensureWorldTextureRawHalfFloat(const char* key,
                                                   const std::uint16_t* rgba16f,
@@ -154,6 +173,22 @@ private:
                                             const float* viewProjectionMatrix4x4,
                                             int surfaceWidth,
                                             int surfaceHeight);
+    void drawWorldIndexedMeshTexturedCachedInternal(const CachedWorldMesh& mesh,
+                                                    const WorldMeshVertex* vertices,
+                                                    std::size_t vertexCount,
+                                                    const std::uint32_t* indices,
+                                                    std::size_t indexCount,
+                                                    std::uint32_t baseTextureDescriptorIndex,
+                                                    std::uint32_t normalTextureDescriptorIndex,
+                                                    std::uint32_t metallicRoughnessTextureDescriptorIndex,
+                                                    std::uint32_t occlusionTextureDescriptorIndex,
+                                                    std::uint32_t emissiveTextureDescriptorIndex,
+                                                    std::uint32_t envTextureDescriptorIndex,
+                                                    const WorldTextureData* textureData,
+                                                    float useTexture,
+                                                    const float* viewProjectionMatrix4x4,
+                                                    int surfaceWidth,
+                                                    int surfaceHeight);
 #endif
     void drawWorldIndexedMeshInternal(const WorldMeshVertex* vertices,
                                       std::size_t vertexCount,

@@ -803,6 +803,7 @@ namespace {
         double perfAccumProjectedUnitsProcessed = 0.0;
         double perfAccumProjectedModelUnits = 0.0;
         double perfAccumProjectedClipSkinnedUnits = 0.0;
+        EngineRenderBuildBreakdown perfAccumRenderBreakdown{};
         EngineFixedPerfBreakdown perfAccumFixedBreakdown{};
         int perfAccumFixedTicks = 0;
         int perfAccumFixedTicksDropped = 0;
@@ -911,6 +912,7 @@ namespace {
             const std::uint32_t projectedUnitsProcessedThisFrame = services.frameProjectedUnitsProcessed;
             const std::uint32_t projectedModelUnitsThisFrame = services.frameProjectedModelUnits;
             const std::uint32_t projectedClipSkinnedUnitsThisFrame = services.frameProjectedClipSkinnedUnits;
+            EngineRenderBuildBreakdown renderBreakdownThisFrame = services.frameRenderBuildBreakdown;
 
             if (renderer) {
                 renderer->endFrame();
@@ -952,6 +954,18 @@ namespace {
                 std::chrono::duration<double, std::milli>(renderBuildStart - beginFrameStart).count();
             const double renderBuildMs =
                 std::chrono::duration<double, std::milli>(renderBuildEnd - renderBuildStart).count();
+            const float renderAttributedMs =
+                projectedUnitsMsThisFrame +
+                renderBreakdownThisFrame.overlayPrepMs +
+                renderBreakdownThisFrame.worldBackgroundMs +
+                renderBreakdownThisFrame.worldTriangles3dMs +
+                renderBreakdownThisFrame.worldIndexedMs +
+                renderBreakdownThisFrame.worldDebugMs +
+                renderBreakdownThisFrame.spriteMs +
+                renderBreakdownThisFrame.uiMs;
+            renderBreakdownThisFrame.otherMs = std::max(
+                0.0f,
+                static_cast<float>(renderBuildMs) - renderAttributedMs);
             const double submitRawMs =
                 std::chrono::duration<double, std::milli>(frameCpuEnd - submitStart).count();
             const double submitMs = std::max(0.0, submitRawMs - presentWaitMs);
@@ -1014,6 +1028,14 @@ namespace {
             perfAccumProjectedUnitsProcessed += static_cast<double>(projectedUnitsProcessedThisFrame);
             perfAccumProjectedModelUnits += static_cast<double>(projectedModelUnitsThisFrame);
             perfAccumProjectedClipSkinnedUnits += static_cast<double>(projectedClipSkinnedUnitsThisFrame);
+            perfAccumRenderBreakdown.overlayPrepMs += renderBreakdownThisFrame.overlayPrepMs;
+            perfAccumRenderBreakdown.worldBackgroundMs += renderBreakdownThisFrame.worldBackgroundMs;
+            perfAccumRenderBreakdown.worldTriangles3dMs += renderBreakdownThisFrame.worldTriangles3dMs;
+            perfAccumRenderBreakdown.worldIndexedMs += renderBreakdownThisFrame.worldIndexedMs;
+            perfAccumRenderBreakdown.worldDebugMs += renderBreakdownThisFrame.worldDebugMs;
+            perfAccumRenderBreakdown.spriteMs += renderBreakdownThisFrame.spriteMs;
+            perfAccumRenderBreakdown.uiMs += renderBreakdownThisFrame.uiMs;
+            perfAccumRenderBreakdown.otherMs += renderBreakdownThisFrame.otherMs;
             perfAccumFixedTicks += fixedTicksThisFrame;
             perfAccumFixedTicksDropped += fixedTicksDroppedThisFrame;
             if (fpsTimer >= 1.0) {
@@ -1050,6 +1072,23 @@ namespace {
                     std::lround(perfAccumProjectedModelUnits / frames));
                 const std::uint32_t avgProjectedClipSkinnedUnits = static_cast<std::uint32_t>(
                     std::lround(perfAccumProjectedClipSkinnedUnits / frames));
+                EngineRenderBuildBreakdown avgRenderBreakdown{};
+                avgRenderBreakdown.overlayPrepMs =
+                    static_cast<float>(perfAccumRenderBreakdown.overlayPrepMs / frames);
+                avgRenderBreakdown.worldBackgroundMs =
+                    static_cast<float>(perfAccumRenderBreakdown.worldBackgroundMs / frames);
+                avgRenderBreakdown.worldTriangles3dMs =
+                    static_cast<float>(perfAccumRenderBreakdown.worldTriangles3dMs / frames);
+                avgRenderBreakdown.worldIndexedMs =
+                    static_cast<float>(perfAccumRenderBreakdown.worldIndexedMs / frames);
+                avgRenderBreakdown.worldDebugMs =
+                    static_cast<float>(perfAccumRenderBreakdown.worldDebugMs / frames);
+                avgRenderBreakdown.spriteMs =
+                    static_cast<float>(perfAccumRenderBreakdown.spriteMs / frames);
+                avgRenderBreakdown.uiMs =
+                    static_cast<float>(perfAccumRenderBreakdown.uiMs / frames);
+                avgRenderBreakdown.otherMs =
+                    static_cast<float>(perfAccumRenderBreakdown.otherMs / frames);
                 const int avgFixedTicks = static_cast<int>(std::lround(static_cast<double>(perfAccumFixedTicks) / frames));
                 const int avgFixedTicksDropped =
                     static_cast<int>(std::lround(static_cast<double>(perfAccumFixedTicksDropped) / frames));
@@ -1126,6 +1165,7 @@ namespace {
                 services.framePerf.projectedUnitsProcessed = avgProjectedUnitsProcessed;
                 services.framePerf.projectedModelUnits = avgProjectedModelUnits;
                 services.framePerf.projectedClipSkinnedUnits = avgProjectedClipSkinnedUnits;
+                services.framePerf.renderBreakdown = avgRenderBreakdown;
                 services.framePerf.renderMs = static_cast<float>(avgLegacyRenderMs);
                 services.framePerf.swapMs = static_cast<float>(avgLegacySwapMs);
                 services.framePerf.fixedTicks = avgFixedTicks;
@@ -1212,14 +1252,22 @@ namespace {
                          << ",\"projected_pose_eval_ms\":" << avgProjectedPoseEvalMs
                          << ",\"projected_model_ms\":" << avgProjectedModelMs
                          << ",\"projected_model_prep_ms\":" << avgProjectedModelPrepMs
-                         << ",\"projected_model_geometry_ms\":" << avgProjectedModelGeometryMs
-                         << ",\"projected_overlay_ms\":" << avgProjectedOverlayMs
-                         << ",\"projected_units_processed\":" << avgProjectedUnitsProcessed
-                         << ",\"projected_model_units\":" << avgProjectedModelUnits
-                         << ",\"projected_clip_skinned_units\":" << avgProjectedClipSkinnedUnits
-                         << ",\"legacy_render_ms\":" << avgLegacyRenderMs
-                         << ",\"legacy_swap_ms\":" << avgLegacySwapMs
-                         << ",\"fixed_ticks\":" << avgFixedTicks
+                          << ",\"projected_model_geometry_ms\":" << avgProjectedModelGeometryMs
+                          << ",\"projected_overlay_ms\":" << avgProjectedOverlayMs
+                          << ",\"projected_units_processed\":" << avgProjectedUnitsProcessed
+                          << ",\"projected_model_units\":" << avgProjectedModelUnits
+                          << ",\"projected_clip_skinned_units\":" << avgProjectedClipSkinnedUnits
+                          << ",\"render_overlay_prep_ms\":" << avgRenderBreakdown.overlayPrepMs
+                          << ",\"render_world_background_ms\":" << avgRenderBreakdown.worldBackgroundMs
+                          << ",\"render_world_triangles_3d_ms\":" << avgRenderBreakdown.worldTriangles3dMs
+                          << ",\"render_world_indexed_ms\":" << avgRenderBreakdown.worldIndexedMs
+                          << ",\"render_world_debug_ms\":" << avgRenderBreakdown.worldDebugMs
+                          << ",\"render_sprite_submit_ms\":" << avgRenderBreakdown.spriteMs
+                          << ",\"render_ui_submit_ms\":" << avgRenderBreakdown.uiMs
+                          << ",\"render_other_ms\":" << avgRenderBreakdown.otherMs
+                          << ",\"legacy_render_ms\":" << avgLegacyRenderMs
+                          << ",\"legacy_swap_ms\":" << avgLegacySwapMs
+                          << ",\"fixed_ticks\":" << avgFixedTicks
                          << ",\"fixed_phase_pre_ms\":" << avgFixedBreakdown.preUpdateMs
                          << ",\"fixed_phase_update_ms\":" << avgFixedBreakdown.updatePhaseMs
                          << ",\"fixed_phase_post_ms\":" << avgFixedBreakdown.postUpdateMs
@@ -1273,6 +1321,7 @@ namespace {
                 perfAccumProjectedUnitsProcessed = 0.0;
                 perfAccumProjectedModelUnits = 0.0;
                 perfAccumProjectedClipSkinnedUnits = 0.0;
+                perfAccumRenderBreakdown = {};
                 perfAccumFixedTicks = 0;
                 perfAccumFixedTicksDropped = 0;
             }

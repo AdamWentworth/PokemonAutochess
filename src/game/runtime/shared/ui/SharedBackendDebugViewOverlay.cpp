@@ -15,6 +15,7 @@
 #include "game/runtime/shared/capture/SharedCapturePresentation.h"
 
 #include <algorithm>
+#include <chrono>
 #include <cctype>
 #include <iomanip>
 #include <sstream>
@@ -126,6 +127,16 @@ void composeAndSubmit(const ComposeAndSubmitArgs& args) {
     auto& lines = *args.lines;
     auto& textLines = *args.textLines;
     auto& sprites = *args.sprites;
+    EngineRenderBuildBreakdown localRenderBreakdown{};
+    EngineRenderBuildBreakdown* renderBuildBreakdown =
+        args.renderBuildBreakdown ? args.renderBuildBreakdown : &localRenderBreakdown;
+    *renderBuildBreakdown = {};
+    using clock = std::chrono::steady_clock;
+    const auto toMs = [](const clock::time_point& start, const clock::time_point& end) {
+        return static_cast<float>(
+            std::chrono::duration<double, std::milli>(end - start).count());
+    };
+    const auto composeStart = clock::now();
         if (showPerfOverlay && engineServices) {
             const EngineFramePerfStats& perf = engineServices->framePerf;
             if (perf.fps > 0.0f) {
@@ -670,16 +681,23 @@ void composeAndSubmit(const ComposeAndSubmitArgs& args) {
             }
         }
 
+        const auto submitStart = clock::now();
+        renderBuildBreakdown->overlayPrepMs = toMs(composeStart, submitStart);
+
         if (!worldBackgroundQuads.empty()) {
+            const auto stageStart = clock::now();
             renderer->drawDebugQuads(worldBackgroundQuads.data(), worldBackgroundQuads.size(), drawableW, drawableH);
+            renderBuildBreakdown->worldBackgroundMs += toMs(stageStart, clock::now());
         }
         if (!world3DTriangles.empty() && hasWorldViewProj && supportsWorldTriangles3D) {
+            const auto stageStart = clock::now();
             renderer->drawWorldTriangles(
                 world3DTriangles.data(),
                 world3DTriangles.size(),
                 worldViewProj,
                 drawableW,
                 drawableH);
+            renderBuildBreakdown->worldTriangles3dMs += toMs(stageStart, clock::now());
         }
         if (!worldIndexedBatches.empty() && hasWorldViewProj && supportsWorldIndexedMeshes) {
             float cameraWorldPos3[3] = {0.0f, 7.0f, 9.0f};
@@ -699,6 +717,7 @@ void composeAndSubmit(const ComposeAndSubmitArgs& args) {
                 cameraTarget3[1] = camTarget.y;
                 cameraTarget3[2] = camTarget.z;
             }
+            const auto stageStart = clock::now();
             runtime::shared_world_batches::submitWorldIndexedBatches(
                 *renderer,
                 worldIndexedBatches,
@@ -708,6 +727,7 @@ void composeAndSubmit(const ComposeAndSubmitArgs& args) {
                 cameraWorldPos3,
                 cameraForward3,
                 cameraTarget3);
+            renderBuildBreakdown->worldIndexedMs += toMs(stageStart, clock::now());
         }
         if (renderWorld && hasWorldViewProj && supportsWorldIndexedMeshes &&
             renderer && renderer->backendId() &&
@@ -719,22 +739,34 @@ void composeAndSubmit(const ComposeAndSubmitArgs& args) {
                 camera);
         }
         if (!worldTriangles.empty()) {
+            const auto stageStart = clock::now();
             renderer->drawDebugTriangles(worldTriangles.data(), worldTriangles.size(), drawableW, drawableH);
+            renderBuildBreakdown->worldDebugMs += toMs(stageStart, clock::now());
         }
         if (!worldQuads.empty()) {
+            const auto stageStart = clock::now();
             renderer->drawDebugQuads(worldQuads.data(), worldQuads.size(), drawableW, drawableH);
+            renderBuildBreakdown->worldDebugMs += toMs(stageStart, clock::now());
         }
         if (!sprites.empty()) {
+            const auto stageStart = clock::now();
             renderer->drawDebugSprites(sprites.data(), sprites.size(), drawableW, drawableH);
+            renderBuildBreakdown->spriteMs += toMs(stageStart, clock::now());
         }
         if (!lines.empty()) {
+            const auto stageStart = clock::now();
             renderer->drawDebugLines(lines.data(), lines.size(), drawableW, drawableH);
+            renderBuildBreakdown->uiMs += toMs(stageStart, clock::now());
         }
         if (!overlayQuads.empty()) {
+            const auto stageStart = clock::now();
             renderer->drawDebugQuads(overlayQuads.data(), overlayQuads.size(), drawableW, drawableH);
+            renderBuildBreakdown->uiMs += toMs(stageStart, clock::now());
         }
         if (!textLines.empty()) {
+            const auto stageStart = clock::now();
             renderer->drawDebugLines(textLines.data(), textLines.size(), drawableW, drawableH);
+            renderBuildBreakdown->uiMs += toMs(stageStart, clock::now());
         }
 }
 

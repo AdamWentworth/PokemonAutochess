@@ -315,6 +315,7 @@ unsigned int OpenGLRenderBackend::ensureWorldTexture(const WorldTextureData* tex
     if (!textureData) return 0;
     return ensureWorldTextureRaw(
         textureData->key,
+        textureData->cacheKey,
         textureData->rgba,
         textureData->width,
         textureData->height,
@@ -324,6 +325,7 @@ unsigned int OpenGLRenderBackend::ensureWorldTexture(const WorldTextureData* tex
 }
 
 unsigned int OpenGLRenderBackend::ensureWorldTextureRaw(const char* keyCStr,
+                                                        const char* cacheKeyCStr,
                                                         const unsigned char* rgba,
                                                         int width,
                                                         int height,
@@ -336,16 +338,21 @@ unsigned int OpenGLRenderBackend::ensureWorldTextureRaw(const char* keyCStr,
 
     // Match D3D12 cache-key strictness to avoid accidental texture aliasing across
     // reused key strings with different dimensions/wrap modes.
-    std::string cacheKey(keyCStr);
-    cacheKey += "|";
-    cacheKey += std::to_string(width);
-    cacheKey += "x";
-    cacheKey += std::to_string(height);
-    cacheKey += "|ws=";
-    cacheKey += std::to_string(wrapSIn);
-    cacheKey += "|wt=";
-    cacheKey += std::to_string(wrapTIn);
-    cacheKey += srgb ? "|srgb" : "|lin";
+    std::string cacheKey;
+    if (cacheKeyCStr && cacheKeyCStr[0] != '\0') {
+        cacheKey = cacheKeyCStr;
+    } else {
+        cacheKey = keyCStr;
+        cacheKey += "|";
+        cacheKey += std::to_string(width);
+        cacheKey += "x";
+        cacheKey += std::to_string(height);
+        cacheKey += "|ws=";
+        cacheKey += std::to_string(wrapSIn);
+        cacheKey += "|wt=";
+        cacheKey += std::to_string(wrapTIn);
+        cacheKey += srgb ? "|srgb" : "|lin";
+    }
     auto existing = worldTextures_.find(cacheKey);
     if (existing != worldTextures_.end()) {
         return existing->second.textureId;

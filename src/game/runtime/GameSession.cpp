@@ -70,6 +70,7 @@
 #include "game/runtime/shared/capture/SharedCaptureModelBridge.h"
 #include "game/runtime/shared/world/SharedBoardGridBatches.h"
 #include "game/runtime/shared/projected/SharedProjectedDebugVfx.h"
+#include "game/runtime/shared/projected/SharedProjectedUnitBackendMeshRenderer.h"
 #include "game/runtime/shared/ui/SharedBackendDebugViewOverlay.h"
 #include "game/runtime/shared/projected/SharedProjectedWorldSceneHelpers.h"
 #include "game/runtime/shared/projected/SharedProjectedUnitRenderer.h"
@@ -415,6 +416,32 @@ bool backendPrewarmModelTexturesEnabled() {
     return enabled;
 }
 
+bool backendPrewarmModelGeometryEnabled() {
+    static const bool enabled = []() -> bool {
+        const auto env = engine::env::get("PAC_BACKEND_PREWARM_MODEL_GEOMETRY");
+        if (!env.has_value()) return true;
+        const std::string raw = *env;
+        if (raw == "0" || raw == "false" || raw == "FALSE" || raw == "off" || raw == "OFF") {
+            return false;
+        }
+        return true;
+    }();
+    return enabled;
+}
+
+bool snapshotPrewarmRestoreRenderEnabled() {
+    static const bool enabled = []() -> bool {
+        const auto env = engine::env::get("PAC_STATE_SNAPSHOT_PREWARM_RENDER");
+        if (!env.has_value()) return true;
+        const std::string raw = *env;
+        if (raw == "0" || raw == "false" || raw == "FALSE" || raw == "off" || raw == "OFF") {
+            return false;
+        }
+        return true;
+    }();
+    return enabled;
+}
+
 bool backendModelFullMeshEnabled() {
     static const bool enabled = []() -> bool {
         const auto env = engine::env::get("PAC_BACKEND_MODEL_FULL_MESH");
@@ -480,9 +507,36 @@ bool backendWorldLayerPrewarmEnabled() {
     return enabled;
 }
 
+std::string buildRuntimeMeshTextureKeyPrefix(
+    const game::runtime::backend_model::MeshData* mesh) {
+    if (!mesh) return "__runtime_mesh__";
+    return "__runtime_mesh__:" +
+           std::to_string(static_cast<unsigned long long>(
+               reinterpret_cast<std::uintptr_t>(mesh)));
+}
+
+std::string buildWorldTextureCacheKey(const std::string& key,
+                                      int width,
+                                      int height,
+                                      int wrapS,
+                                      int wrapT,
+                                      bool srgb) {
+    if (key.empty() || width <= 0 || height <= 0) return {};
+    std::string cacheKey = key;
+    cacheKey += "|";
+    cacheKey += std::to_string(width);
+    cacheKey += "x";
+    cacheKey += std::to_string(height);
+    cacheKey += "|ws=";
+    cacheKey += std::to_string(wrapS);
+    cacheKey += "|wt=";
+    cacheKey += std::to_string(wrapT);
+    cacheKey += srgb ? "|srgb" : "|lin";
+    return cacheKey;
+}
+
 std::size_t prewarmBackendWorldTexturesForMesh(
     IRenderBackend* renderer,
-    const std::string& modelPath,
     const game::runtime::backend_model::MeshData* mesh) {
     if (!renderer || !mesh) return 0u;
 
@@ -495,21 +549,30 @@ std::size_t prewarmBackendWorldTexturesForMesh(
         mesh->submeshEmissiveTextures.size());
     if (batchCount == 0u) return 0u;
 
+    const std::string keyPrefix = buildRuntimeMeshTextureKeyPrefix(mesh);
     std::size_t warmed = 0u;
     for (std::size_t si = 0; si < batchCount; ++si) {
         IRenderBackend::WorldTextureData tex{};
         std::string baseKey;
+        std::string baseCacheKey;
         std::string normalKey;
+        std::string normalCacheKey;
         std::string mrKey;
+        std::string mrCacheKey;
         std::string occlusionKey;
+        std::string occlusionCacheKey;
         std::string emissiveKey;
+        std::string emissiveCacheKey;
         bool hasAnyTexture = false;
 
         if (si < mesh->submeshBaseTextures.size()) {
             const auto& src = mesh->submeshBaseTextures[si];
             if (src.hasPixels()) {
-                baseKey = modelPath + "#submesh:" + std::to_string(si);
+                baseKey = keyPrefix + "#submesh:" + std::to_string(si);
+                baseCacheKey = buildWorldTextureCacheKey(
+                    baseKey, src.width, src.height, src.wrapS, src.wrapT, true);
                 tex.key = baseKey.c_str();
+                tex.cacheKey = baseCacheKey.c_str();
                 tex.rgba = src.rgba.data();
                 tex.width = src.width;
                 tex.height = src.height;
@@ -521,8 +584,11 @@ std::size_t prewarmBackendWorldTexturesForMesh(
         if (si < mesh->submeshNormalTextures.size()) {
             const auto& src = mesh->submeshNormalTextures[si];
             if (src.hasPixels()) {
-                normalKey = modelPath + "#submesh_normal:" + std::to_string(si);
+                normalKey = keyPrefix + "#submesh_normal:" + std::to_string(si);
+                normalCacheKey = buildWorldTextureCacheKey(
+                    normalKey, src.width, src.height, src.wrapS, src.wrapT, false);
                 tex.normalKey = normalKey.c_str();
+                tex.normalCacheKey = normalCacheKey.c_str();
                 tex.normalRgba = src.rgba.data();
                 tex.normalWidth = src.width;
                 tex.normalHeight = src.height;
@@ -534,8 +600,11 @@ std::size_t prewarmBackendWorldTexturesForMesh(
         if (si < mesh->submeshMetallicRoughnessTextures.size()) {
             const auto& src = mesh->submeshMetallicRoughnessTextures[si];
             if (src.hasPixels()) {
-                mrKey = modelPath + "#submesh_mr:" + std::to_string(si);
+                mrKey = keyPrefix + "#submesh_mr:" + std::to_string(si);
+                mrCacheKey = buildWorldTextureCacheKey(
+                    mrKey, src.width, src.height, src.wrapS, src.wrapT, false);
                 tex.metallicRoughnessKey = mrKey.c_str();
+                tex.metallicRoughnessCacheKey = mrCacheKey.c_str();
                 tex.metallicRoughnessRgba = src.rgba.data();
                 tex.metallicRoughnessWidth = src.width;
                 tex.metallicRoughnessHeight = src.height;
@@ -547,8 +616,11 @@ std::size_t prewarmBackendWorldTexturesForMesh(
         if (si < mesh->submeshOcclusionTextures.size()) {
             const auto& src = mesh->submeshOcclusionTextures[si];
             if (src.hasPixels()) {
-                occlusionKey = modelPath + "#submesh_occ:" + std::to_string(si);
+                occlusionKey = keyPrefix + "#submesh_occ:" + std::to_string(si);
+                occlusionCacheKey = buildWorldTextureCacheKey(
+                    occlusionKey, src.width, src.height, src.wrapS, src.wrapT, false);
                 tex.occlusionKey = occlusionKey.c_str();
+                tex.occlusionCacheKey = occlusionCacheKey.c_str();
                 tex.occlusionRgba = src.rgba.data();
                 tex.occlusionWidth = src.width;
                 tex.occlusionHeight = src.height;
@@ -560,8 +632,11 @@ std::size_t prewarmBackendWorldTexturesForMesh(
         if (si < mesh->submeshEmissiveTextures.size()) {
             const auto& src = mesh->submeshEmissiveTextures[si];
             if (src.hasPixels()) {
-                emissiveKey = modelPath + "#submesh_emissive:" + std::to_string(si);
+                emissiveKey = keyPrefix + "#submesh_emissive:" + std::to_string(si);
+                emissiveCacheKey = buildWorldTextureCacheKey(
+                    emissiveKey, src.width, src.height, src.wrapS, src.wrapT, true);
                 tex.emissiveKey = emissiveKey.c_str();
+                tex.emissiveCacheKey = emissiveCacheKey.c_str();
                 tex.emissiveRgba = src.rgba.data();
                 tex.emissiveWidth = src.width;
                 tex.emissiveHeight = src.height;
@@ -702,6 +777,51 @@ RoundPhase roundPhaseFromToken(const std::string& token) {
     if (token == "Battle") return RoundPhase::Battle;
     if (token == "Resolution") return RoundPhase::Resolution;
     return RoundPhase::Planning;
+}
+
+std::string summarizeDebugStateSnapshot(const GameWorld::DebugStateSnapshot& snapshot) {
+    std::size_t playerBoardUnits = 0;
+    std::size_t enemyBoardUnits = 0;
+    for (const auto& unit : snapshot.boardUnits) {
+        if (unit.side == PokemonSide::Enemy) {
+            ++enemyBoardUnits;
+        } else {
+            ++playerBoardUnits;
+        }
+    }
+
+    std::ostringstream oss;
+    oss << "board=" << snapshot.boardUnits.size()
+        << " (player=" << playerBoardUnits
+        << ", enemy=" << enemyBoardUnits
+        << ") bench=" << snapshot.benchUnits.size()
+        << " shop=" << snapshot.classicShopCards.size()
+        << " items=" << snapshot.items.size()
+        << " money=" << snapshot.money
+        << " rounds=" << snapshot.classicRoundsCompleted;
+    return oss.str();
+}
+
+std::string summarizeDebugSessionSnapshot(const DebugSessionSnapshot& session) {
+    std::ostringstream oss;
+    oss << "state=" << (session.stateKind.empty() ? "<none>" : session.stateKind);
+    if (!session.stateScriptPath.empty()) {
+        oss << " script="
+            << std::filesystem::path(session.stateScriptPath).filename().string();
+    }
+    if (session.hasRoundPhase) {
+        oss << " round=" << roundPhaseToToken(session.roundPhase);
+    }
+    if (session.hasCombatActive) {
+        oss << " combat=" << (session.combatActive ? 1 : 0);
+    }
+    return oss.str();
+}
+
+std::string formatMillis(double ms) {
+    std::ostringstream oss;
+    oss << std::fixed << std::setprecision(2) << ms << "ms";
+    return oss.str();
 }
 
 nlohmann::json encodeDebugUnitSnapshot(const GameWorld::DebugUnitSnapshot& snap) {
@@ -1962,6 +2082,13 @@ struct GameSession::Impl {
                 renderer &&
                 renderer->supportsWorldIndexedMeshes() &&
                 backendPrewarmModelTexturesEnabled();
+            const bool prewarmModelGeometry =
+                usesBackendGameRenderPath() &&
+                renderer &&
+                renderer->supportsWorldIndexedMeshes() &&
+                backendModelFullMeshEnabled() &&
+                backendModelFastTexturedPathEnabled() &&
+                backendPrewarmModelGeometryEnabled();
             std::vector<std::string> modelPathsToPreload;
             modelPathsToPreload.reserve(dataDb.pokemon.all().size());
             std::unordered_set<std::string> seenModelPaths;
@@ -1995,6 +2122,7 @@ struct GameSession::Impl {
             std::size_t failed = 0u;
             std::size_t animRolesWarmed = 0u;
             std::size_t modelTextureMaterialsWarmed = 0u;
+            std::size_t modelGeometryBatchesWarmed = 0u;
             std::vector<std::string> failedSamples;
             failedSamples.reserve(8);
             const auto prewarmAnimRolesForModel = [&](const std::string& modelPath,
@@ -2007,11 +2135,17 @@ struct GameSession::Impl {
                     ++animRolesWarmed;
                 }
             };
-            const auto prewarmTexturesForModel = [&](const std::string& modelPath,
+            const auto prewarmTexturesForModel = [&](const std::string&,
                                                      const runtime::backend_model::MeshData* mesh) {
                 if (!prewarmModelTextures || !mesh) return;
                 modelTextureMaterialsWarmed +=
-                    prewarmBackendWorldTexturesForMesh(renderer, modelPath, mesh);
+                    prewarmBackendWorldTexturesForMesh(renderer, mesh);
+            };
+            const auto prewarmGeometryForModel = [&](const runtime::backend_model::MeshData* mesh) {
+                if (!prewarmModelGeometry || !mesh) return;
+                modelGeometryBatchesWarmed +=
+                    game::runtime::shared_projected_unit_backend_mesh::
+                        prewarmProjectedUnitBackendMeshGeometryCache(*renderer, *mesh);
             };
             const std::size_t totalModels = modelPathsToPreload.size();
             for (std::size_t i = 0; i < totalModels; ++i) {
@@ -2032,6 +2166,7 @@ struct GameSession::Impl {
                     if (cacheEntry.error.empty()) {
                         prewarmAnimRolesForModel(modelPath, &cacheEntry.mesh);
                         prewarmTexturesForModel(modelPath, &cacheEntry.mesh);
+                        prewarmGeometryForModel(&cacheEntry.mesh);
                     }
                     const float progress = totalModels > 0u
                         ? static_cast<float>(i + 1u) / static_cast<float>(totalModels)
@@ -2056,6 +2191,7 @@ struct GameSession::Impl {
                     ++loaded;
                     prewarmAnimRolesForModel(modelPath, &cacheEntry.mesh);
                     prewarmTexturesForModel(modelPath, &cacheEntry.mesh);
+                    prewarmGeometryForModel(&cacheEntry.mesh);
                     if (verboseModelCacheLog) {
                         std::cout << "[Init][ModelCache][OK] " << modelPath
                                   << " vtx=" << cacheEntry.mesh.vertices.size()
@@ -2076,6 +2212,10 @@ struct GameSession::Impl {
             if (prewarmModelTextures) {
                 std::cout << "[Init] Backend model texture prewarm complete: materials="
                           << modelTextureMaterialsWarmed << "\n";
+            }
+            if (prewarmModelGeometry) {
+                std::cout << "[Init] Backend model geometry prewarm complete: cached_batches="
+                          << modelGeometryBatchesWarmed << "\n";
             }
             if (failed > 0u && !failedSamples.empty() && !verboseModelCacheLog) {
                 std::cout << "[Init][ModelCache] Sample failures:\n";
@@ -2303,6 +2443,11 @@ struct GameSession::Impl {
                 ctx.setTitle("Pokemon Autochess");
             }
         }
+        const std::string snapshotPath = debugStateSnapshotPath();
+        if (std::filesystem::exists(snapshotPath)) {
+            std::cout << "[StateSnapshot] Snapshot present but not auto-loaded: "
+                      << snapshotPath << " (press F9 to restore)\n";
+        }
         std::cout << "[Init] Game initialized.\n";
 
         // Keep startup/perf stdout intact, but stop mirroring gameplay feed spam
@@ -2526,12 +2671,15 @@ struct GameSession::Impl {
     void saveDebugStateSnapshot() {
         if (!gameWorld) {
             game::log::warn(&log, "[StateSnapshot] Save skipped: world is not ready.");
+            log.infoTerminalOnly("[StateSnapshot] Save skipped: world is not ready.");
             return;
         }
 
         GameWorld::DebugStateSnapshot snapshot;
         if (!gameWorld->buildDebugStateSnapshot(snapshot)) {
             game::log::warn(&log, "[StateSnapshot] Save failed: could not build world snapshot.");
+            log.infoTerminalOnly(
+                "[StateSnapshot] Save failed: could not build world snapshot.");
             return;
         }
 
@@ -2542,36 +2690,97 @@ struct GameSession::Impl {
             game::log::warn(
                 &log,
                 std::string("[StateSnapshot] Save failed: ") + err + " (" + path + ")");
+            log.infoTerminalOnly(
+                std::string("[StateSnapshot] Save failed: ") + err + " (" + path + ")");
             return;
         }
 
         game::log::info(&log, std::string("[StateSnapshot] Saved: ") + path);
+        log.infoTerminalOnly(
+            std::string("[StateSnapshot] Saved: ") + path + " "
+            + summarizeDebugSessionSnapshot(session) + " "
+            + summarizeDebugStateSnapshot(snapshot));
     }
 
     void loadDebugStateSnapshot() {
         if (!gameWorld) {
             game::log::warn(&log, "[StateSnapshot] Load skipped: world is not ready.");
+            log.infoTerminalOnly("[StateSnapshot] Load skipped: world is not ready.");
             return;
         }
 
+        using SnapshotClock = std::chrono::high_resolution_clock;
+        const auto loadStart = SnapshotClock::now();
         const std::string path = debugStateSnapshotPath();
+        log.infoTerminalOnly(std::string("[StateSnapshot] Load requested: ") + path);
         GameWorld::DebugStateSnapshot snapshot;
         DebugSessionSnapshot session;
         std::string err;
+        const auto readStart = SnapshotClock::now();
         if (!readDebugStateSnapshotFile(path, snapshot, &session, &err)) {
+            const auto readEnd = SnapshotClock::now();
             game::log::warn(
                 &log,
                 std::string("[StateSnapshot] Load failed: ") + err + " (" + path + ")");
+            log.infoTerminalOnly(
+                std::string("[StateSnapshot] Load failed: ") + err + " (" + path + ")"
+                + " read=" + formatMillis(
+                    std::chrono::duration<double, std::milli>(readEnd - readStart).count()));
             return;
         }
+        const auto readEnd = SnapshotClock::now();
 
         const bool preferCombatState = snapshotHasActiveEnemyUnits(snapshot);
+        const auto stateRestoreStart = SnapshotClock::now();
         restoreStateStackForSnapshot(session, preferCombatState);
+        const auto stateRestoreEnd = SnapshotClock::now();
 
         std::string worldErr;
+        const auto worldApplyStart = SnapshotClock::now();
         const bool exact = gameWorld->applyDebugStateSnapshot(snapshot, &worldErr);
+        const auto worldApplyEnd = SnapshotClock::now();
+        const auto flagsStart = SnapshotClock::now();
         applyRuntimeFlagsForSnapshot(session, preferCombatState);
+        const auto flagsEnd = SnapshotClock::now();
+        const auto inventoryStart = SnapshotClock::now();
         refreshBackendInventoryFromWorld();
+        const auto inventoryEnd = SnapshotClock::now();
+        double prewarmIndexedMs = 0.0;
+        std::size_t prewarmIndexedBatches = 0u;
+        if (snapshotPrewarmRestoreRenderEnabled() &&
+            renderer &&
+            usesBackendGameRenderPath() &&
+            renderer->supportsWorldIndexedMeshes() &&
+            viewport.width > 0 &&
+            viewport.height > 0) {
+            bool renderWorld = true;
+            if (stateManager) {
+                if (auto* state = stateManager->getCurrentState()) {
+                    renderWorld = state->shouldRenderWorld();
+                }
+            }
+            const auto indexedPrewarmStart = SnapshotClock::now();
+            prewarmIndexedBatches =
+                prewarmWorldIndexedLayer(viewport.width, viewport.height, renderWorld);
+            const auto indexedPrewarmEnd = SnapshotClock::now();
+            prewarmIndexedMs =
+                std::chrono::duration<double, std::milli>(
+                    indexedPrewarmEnd - indexedPrewarmStart).count();
+        }
+        const auto loadEnd = SnapshotClock::now();
+
+        const double readMs =
+            std::chrono::duration<double, std::milli>(readEnd - readStart).count();
+        const double stateRestoreMs =
+            std::chrono::duration<double, std::milli>(stateRestoreEnd - stateRestoreStart).count();
+        const double worldApplyMs =
+            std::chrono::duration<double, std::milli>(worldApplyEnd - worldApplyStart).count();
+        const double flagsMs =
+            std::chrono::duration<double, std::milli>(flagsEnd - flagsStart).count();
+        const double inventoryMs =
+            std::chrono::duration<double, std::milli>(inventoryEnd - inventoryStart).count();
+        const double totalMs =
+            std::chrono::duration<double, std::milli>(loadEnd - loadStart).count();
 
         if (!exact) {
             if (worldErr.empty()) {
@@ -2580,9 +2789,27 @@ struct GameSession::Impl {
             game::log::warn(
                 &log,
                 std::string("[StateSnapshot] Loaded with warnings: ") + worldErr);
+            log.infoTerminalOnly(
+                std::string("[StateSnapshot] Loaded with warnings: ") + worldErr);
         }
 
         game::log::info(&log, std::string("[StateSnapshot] Loaded: ") + path);
+        log.infoTerminalOnly(
+            std::string("[StateSnapshot] Loaded: ") + path
+            + " exact=" + (exact ? "1" : "0")
+            + " preferCombat=" + (preferCombatState ? std::string("1") : std::string("0"))
+            + " " + summarizeDebugSessionSnapshot(session)
+            + " " + summarizeDebugStateSnapshot(snapshot));
+        log.infoTerminalOnly(
+            std::string("[StateSnapshot] Load phases: ")
+            + "read=" + formatMillis(readMs)
+            + " state=" + formatMillis(stateRestoreMs)
+            + " apply=" + formatMillis(worldApplyMs)
+            + " flags=" + formatMillis(flagsMs)
+            + " inventory=" + formatMillis(inventoryMs)
+            + " prewarm_indexed=" + formatMillis(prewarmIndexedMs)
+            + " prewarm_batches=" + std::to_string(prewarmIndexedBatches)
+            + " total=" + formatMillis(totalMs));
     }
 
     void handleEvent(const InputEvent& event) {
@@ -2681,8 +2908,11 @@ struct GameSession::Impl {
         }
     }
 
-    void renderBackendDebugView(int drawableW, int drawableH, bool renderWorld) {
-        if (!renderer || drawableW <= 0 || drawableH <= 0) return;
+    std::size_t renderBackendDebugView(int drawableW,
+                                       int drawableH,
+                                       bool renderWorld,
+                                       bool prewarmWorldIndexedOnly = false) {
+        if (!renderer || drawableW <= 0 || drawableH <= 0) return 0u;
         const bool useLegacyGrowlWaveVfx = backendUseLegacyGrowlWaveVfxEnabled();
         const bool useLegacyParticleVfxSnapshotBridge = backendUseLegacyParticleVfxSnapshotBridgeEnabled();
 
@@ -2769,6 +2999,9 @@ struct GameSession::Impl {
         const bool forcePortraitOverlay = backendWorldPortraitOverlayForced();
         float worldViewProj[16] = {};
         bool hasWorldViewProj = false;
+        float cameraWorldPos3[3] = {0.0f, 7.0f, 9.0f};
+        float cameraForward3[3] = {0.0f, -0.6139406f, -0.7893522f};
+        float cameraTarget3[3] = {0.0f, -1.0f, 0.0f};
         const runtime::shared_unit_hud::Config sharedUnitHudCfg{
             config.xpLevelBase,
             config.xpLevelGrowth};
@@ -2818,6 +3051,17 @@ struct GameSession::Impl {
                     !std::isfinite(cameraWorldPos.z)) {
                     cameraWorldPos = glm::vec3(0.0f, 6.0f, -6.0f);
                 }
+                cameraWorldPos3[0] = cameraWorldPos.x;
+                cameraWorldPos3[1] = cameraWorldPos.y;
+                cameraWorldPos3[2] = cameraWorldPos.z;
+                const glm::vec3 cameraForward = camera->getDirection();
+                cameraForward3[0] = cameraForward.x;
+                cameraForward3[1] = cameraForward.y;
+                cameraForward3[2] = cameraForward.z;
+                const glm::vec3 cameraTarget = camera->getTarget();
+                cameraTarget3[0] = cameraTarget.x;
+                cameraTarget3[1] = cameraTarget.y;
+                cameraTarget3[2] = cameraTarget.z;
                 const glm::vec4 screenViewport(
                     0.0f,
                     0.0f,
@@ -3221,6 +3465,17 @@ struct GameSession::Impl {
         if (renderWorld && gameWorld) {
             particleCountThisFrame = gameWorld->countActiveParticleVfx();
         }
+        if (prewarmWorldIndexedOnly) {
+            if (!worldIndexedBatches.empty() && hasWorldViewProj && supportsWorldIndexedMeshes) {
+                return runtime::shared_world_batches::prewarmWorldIndexedBatches(
+                    *renderer,
+                    worldIndexedBatches,
+                    cameraWorldPos3,
+                    cameraForward3,
+                    cameraTarget3);
+            }
+            return 0u;
+        }
         if (engineServices) {
             engineServices->frameVisibleAnimatedUnits = visibleAnimatedUnitsThisFrame;
             engineServices->frameParticleCount = particleCountThisFrame;
@@ -3233,6 +3488,7 @@ struct GameSession::Impl {
             engineServices->frameProjectedUnitsProcessed = projectedUnitsProcessedThisFrame;
             engineServices->frameProjectedModelUnits = projectedModelUnitsThisFrame;
             engineServices->frameProjectedClipSkinnedUnits = projectedClipSkinnedUnitsThisFrame;
+            engineServices->frameRenderBuildBreakdown = {};
         }
 
         runtime::shared_backend_debug_view::ComposeAndSubmitArgs overlayArgs;
@@ -3257,6 +3513,8 @@ struct GameSession::Impl {
         overlayArgs.lineStep = lineStep;
         overlayArgs.uiScale = uiScale;
         overlayArgs.worldViewProj = hasWorldViewProj ? worldViewProj : nullptr;
+        overlayArgs.renderBuildBreakdown =
+            engineServices ? &engineServices->frameRenderBuildBreakdown : nullptr;
         overlayArgs.worldBackgroundQuads = &worldBackgroundQuads;
         overlayArgs.worldQuads = &worldQuads;
         overlayArgs.worldTriangles = &worldTriangles;
@@ -3267,13 +3525,24 @@ struct GameSession::Impl {
         overlayArgs.textLines = &textLines;
         overlayArgs.sprites = &sprites;
         runtime::shared_backend_debug_view::composeAndSubmit(overlayArgs);
+        return 0u;
     }
 
     void renderWorldLayer(int drawableW, int drawableH, bool renderWorld) {
         const runtime::render::RenderRoutes routes = activeRenderRoutes();
         if (routes.usesBackendRenderPath()) {
-            renderBackendDebugView(drawableW, drawableH, renderWorld);
+            (void)renderBackendDebugView(drawableW, drawableH, renderWorld);
         }
+    }
+
+    std::size_t prewarmWorldIndexedLayer(int drawableW, int drawableH, bool renderWorld) {
+        const runtime::render::RenderRoutes routes = activeRenderRoutes();
+        if (!routes.usesBackendRenderPath()) return 0u;
+        return renderBackendDebugView(
+            drawableW,
+            drawableH,
+            renderWorld,
+            /*prewarmWorldIndexedOnly=*/true);
     }
 
     void prewarmBackendCardUiLayer(int drawableW,

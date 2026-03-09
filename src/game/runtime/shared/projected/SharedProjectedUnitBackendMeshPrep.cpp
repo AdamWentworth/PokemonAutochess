@@ -56,37 +56,63 @@ const std::string& getIndexedBatchKeyPrefix(
     return inserted.first->second;
 }
 
+std::string buildWorldTextureCacheKey(const std::string& key,
+                                      int width,
+                                      int height,
+                                      int wrapS,
+                                      int wrapT,
+                                      bool srgb) {
+    if (key.empty() || width <= 0 || height <= 0) return {};
+    std::string cacheKey = key;
+    cacheKey += "|";
+    cacheKey += std::to_string(width);
+    cacheKey += "x";
+    cacheKey += std::to_string(height);
+    cacheKey += "|ws=";
+    cacheKey += std::to_string(wrapS);
+    cacheKey += "|wt=";
+    cacheKey += std::to_string(wrapT);
+    cacheKey += srgb ? "|srgb" : "|lin";
+    return cacheKey;
+}
+
 void applyIndexedBatchTemplateShallow(
     const game::runtime::shared_world_batches::WorldIndexedBatch& src,
     game::runtime::shared_world_batches::WorldIndexedBatch& dst) {
     dst.sharedTemplate = &src;
+    dst.geometryCacheKey = src.geometryCacheKey;
     dst.materialAlphaOverride = false;
 
     dst.textureKey.clear();
+    dst.textureCacheKey.clear();
     dst.ownedTextureRgba.clear();
     dst.textureRgba = nullptr;
     dst.textureWidth = 0;
     dst.textureHeight = 0;
 
     dst.normalTextureKey.clear();
+    dst.normalTextureCacheKey.clear();
     dst.ownedNormalTextureRgba.clear();
     dst.normalTextureRgba = nullptr;
     dst.normalTextureWidth = 0;
     dst.normalTextureHeight = 0;
 
     dst.metallicRoughnessTextureKey.clear();
+    dst.metallicRoughnessTextureCacheKey.clear();
     dst.ownedMetallicRoughnessTextureRgba.clear();
     dst.metallicRoughnessTextureRgba = nullptr;
     dst.metallicRoughnessTextureWidth = 0;
     dst.metallicRoughnessTextureHeight = 0;
 
     dst.occlusionTextureKey.clear();
+    dst.occlusionTextureCacheKey.clear();
     dst.ownedOcclusionTextureRgba.clear();
     dst.occlusionTextureRgba = nullptr;
     dst.occlusionTextureWidth = 0;
     dst.occlusionTextureHeight = 0;
 
     dst.emissiveTextureKey.clear();
+    dst.emissiveTextureCacheKey.clear();
     dst.ownedEmissiveTextureRgba.clear();
     dst.emissiveTextureRgba = nullptr;
     dst.emissiveTextureWidth = 0;
@@ -120,10 +146,18 @@ const std::vector<game::runtime::shared_world_batches::WorldIndexedBatch>* getIn
 
     for (std::size_t si = 0; si < batchCount; ++si) {
         auto& batch = entry.batches[si];
+        batch.geometryCacheKey = keyPrefix + "#submesh_geom:" + std::to_string(si);
         if (si < mesh->submeshBaseTextures.size()) {
             const auto& tex = mesh->submeshBaseTextures[si];
             if (tex.hasPixels()) {
                 batch.textureKey = keyPrefix + "#submesh:" + std::to_string(si);
+                batch.textureCacheKey = buildWorldTextureCacheKey(
+                    batch.textureKey,
+                    tex.width,
+                    tex.height,
+                    tex.wrapS,
+                    tex.wrapT,
+                    true);
                 batch.textureRgba = tex.rgba.data();
                 batch.textureWidth = tex.width;
                 batch.textureHeight = tex.height;
@@ -134,6 +168,13 @@ const std::vector<game::runtime::shared_world_batches::WorldIndexedBatch>* getIn
                     if (normalTex.hasPixels()) {
                         batch.normalTextureKey =
                             keyPrefix + "#submesh_normal:" + std::to_string(si);
+                        batch.normalTextureCacheKey = buildWorldTextureCacheKey(
+                            batch.normalTextureKey,
+                            normalTex.width,
+                            normalTex.height,
+                            normalTex.wrapS,
+                            normalTex.wrapT,
+                            false);
                         batch.normalTextureRgba = normalTex.rgba.data();
                         batch.normalTextureWidth = normalTex.width;
                         batch.normalTextureHeight = normalTex.height;
@@ -146,6 +187,13 @@ const std::vector<game::runtime::shared_world_batches::WorldIndexedBatch>* getIn
                     if (metallicRoughnessTex.hasPixels()) {
                         batch.metallicRoughnessTextureKey =
                             keyPrefix + "#submesh_mr:" + std::to_string(si);
+                        batch.metallicRoughnessTextureCacheKey = buildWorldTextureCacheKey(
+                            batch.metallicRoughnessTextureKey,
+                            metallicRoughnessTex.width,
+                            metallicRoughnessTex.height,
+                            metallicRoughnessTex.wrapS,
+                            metallicRoughnessTex.wrapT,
+                            false);
                         batch.metallicRoughnessTextureRgba = metallicRoughnessTex.rgba.data();
                         batch.metallicRoughnessTextureWidth = metallicRoughnessTex.width;
                         batch.metallicRoughnessTextureHeight = metallicRoughnessTex.height;
@@ -158,6 +206,13 @@ const std::vector<game::runtime::shared_world_batches::WorldIndexedBatch>* getIn
                     if (occlusionTex.hasPixels()) {
                         batch.occlusionTextureKey =
                             keyPrefix + "#submesh_occ:" + std::to_string(si);
+                        batch.occlusionTextureCacheKey = buildWorldTextureCacheKey(
+                            batch.occlusionTextureKey,
+                            occlusionTex.width,
+                            occlusionTex.height,
+                            occlusionTex.wrapS,
+                            occlusionTex.wrapT,
+                            false);
                         batch.occlusionTextureRgba = occlusionTex.rgba.data();
                         batch.occlusionTextureWidth = occlusionTex.width;
                         batch.occlusionTextureHeight = occlusionTex.height;
@@ -170,6 +225,13 @@ const std::vector<game::runtime::shared_world_batches::WorldIndexedBatch>* getIn
                     if (emissiveTex.hasPixels()) {
                         batch.emissiveTextureKey =
                             keyPrefix + "#submesh_emissive:" + std::to_string(si);
+                        batch.emissiveTextureCacheKey = buildWorldTextureCacheKey(
+                            batch.emissiveTextureKey,
+                            emissiveTex.width,
+                            emissiveTex.height,
+                            emissiveTex.wrapS,
+                            emissiveTex.wrapT,
+                            true);
                         batch.emissiveTextureRgba = emissiveTex.rgba.data();
                         batch.emissiveTextureWidth = emissiveTex.width;
                         batch.emissiveTextureHeight = emissiveTex.height;
@@ -181,6 +243,8 @@ const std::vector<game::runtime::shared_world_batches::WorldIndexedBatch>* getIn
         }
         if (!batch.textureRgba || batch.textureWidth <= 0 || batch.textureHeight <= 0) {
             batch.textureKey = "__fallback_white_1x1__";
+            batch.textureCacheKey = buildWorldTextureCacheKey(
+                batch.textureKey, 1, 1, 33071, 33071, true);
             batch.textureRgba = kFallbackWhiteRgba;
             batch.textureWidth = 1;
             batch.textureHeight = 1;

@@ -183,6 +183,27 @@ void OpenGLRenderBackend::drawWorldIndexedMeshCached(const char* geometryKey,
         surfaceHeight);
 }
 
+void OpenGLRenderBackend::drawWorldIndexedMeshTexturedCached(const char* geometryKey,
+                                                             const WorldMeshVertex* vertices,
+                                                             std::size_t vertexCount,
+                                                             const std::uint32_t* indices,
+                                                             std::size_t indexCount,
+                                                             const WorldTextureData* texture,
+                                                             const float* viewProjectionMatrix4x4,
+                                                             int surfaceWidth,
+                                                             int surfaceHeight) {
+    (void)geometryKey;
+    drawWorldIndexedMeshTextured(
+        vertices,
+        vertexCount,
+        indices,
+        indexCount,
+        texture,
+        viewProjectionMatrix4x4,
+        surfaceWidth,
+        surfaceHeight);
+}
+
 void OpenGLRenderBackend::prewarmWorldIndexedMeshCached(const char* geometryKey,
                                                         const WorldMeshVertex* vertices,
                                                         std::size_t vertexCount,
@@ -383,6 +404,7 @@ void OpenGLRenderBackend::drawWorldIndexedMeshTextured(const WorldMeshVertex* ve
     const GLuint normalTexture = texture
         ? ensureWorldTextureRaw(
             texture->normalKey,
+            texture->normalCacheKey,
             texture->normalRgba,
             texture->normalWidth,
             texture->normalHeight,
@@ -395,6 +417,7 @@ void OpenGLRenderBackend::drawWorldIndexedMeshTextured(const WorldMeshVertex* ve
     const GLuint metallicRoughnessTexture = texture
         ? ensureWorldTextureRaw(
             texture->metallicRoughnessKey,
+            texture->metallicRoughnessCacheKey,
             texture->metallicRoughnessRgba,
             texture->metallicRoughnessWidth,
             texture->metallicRoughnessHeight,
@@ -408,6 +431,7 @@ void OpenGLRenderBackend::drawWorldIndexedMeshTextured(const WorldMeshVertex* ve
     const GLuint occlusionTexture = texture
         ? ensureWorldTextureRaw(
             texture->occlusionKey,
+            texture->occlusionCacheKey,
             texture->occlusionRgba,
             texture->occlusionWidth,
             texture->occlusionHeight,
@@ -420,6 +444,7 @@ void OpenGLRenderBackend::drawWorldIndexedMeshTextured(const WorldMeshVertex* ve
     const GLuint emissiveTexture = texture
         ? ensureWorldTextureRaw(
             texture->emissiveKey,
+            texture->emissiveCacheKey,
             texture->emissiveRgba,
             texture->emissiveWidth,
             texture->emissiveHeight,

@@ -53,6 +53,16 @@ void TriangleSubmitter::pushTriangle(const glm::vec3& a,
     auto& modelIndexedVertexRemap = *args_.modelIndexedVertexRemap;
     auto& modelDepthTris = *args_.modelDepthTris;
     auto& world3DTriangles = *args_.world3DTriangles;
+    const auto prepareMutableIndexedBatch =
+        [](shared_world_batches::WorldIndexedBatch& batch) {
+            // Triangle-submit path rebuilds per-unit/per-pose vertex data, so any
+            // previously assigned shared-geometry cache key is no longer valid.
+            batch.geometryCacheKey.clear();
+            batch.sharedVertices = nullptr;
+            batch.sharedVertexCount = 0u;
+            batch.sharedIndices = nullptr;
+            batch.sharedIndexCount = 0u;
+        };
 
     float x1 = 0.0f;
     float y1 = 0.0f;
@@ -88,6 +98,7 @@ void TriangleSubmitter::pushTriangle(const glm::vec3& a,
             fastBatch.textureWidth > 0 &&
             fastBatch.textureHeight > 0;
         if (fastTexturedBatch) {
+            prepareMutableIndexedBatch(fastBatch);
             const glm::vec3 flatTint(1.0f, 1.0f, 1.0f);
             const bool canReuseIndexedVertices =
                 args_.fullIndexedMeshPath &&
@@ -202,6 +213,7 @@ void TriangleSubmitter::pushTriangle(const glm::vec3& a,
             batch.textureHeight > 0;
 
         if (texturedBatch) {
+            prepareMutableIndexedBatch(batch);
             const glm::vec3 outC0 = baseColor0;
             const glm::vec3 outC1 = baseColor1;
             const glm::vec3 outC2 = baseColor2;
@@ -292,6 +304,7 @@ void TriangleSubmitter::pushTriangle(const glm::vec3& a,
         const glm::vec3 shaded0 = baseColor0;
         const glm::vec3 shaded1 = baseColor1;
         const glm::vec3 shaded2 = baseColor2;
+        prepareMutableIndexedBatch(batch);
         const std::size_t nextVertexCount = batch.vertices.size() + 3u;
         if (nextVertexCount >=
             static_cast<std::size_t>(std::numeric_limits<std::uint32_t>::max())) {

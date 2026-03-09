@@ -454,6 +454,7 @@ D3D12RenderBackend::SpriteTexture* D3D12RenderBackend::ensureWorldTexture(const 
     if (!textureData) return nullptr;
     return ensureWorldTextureRaw(
         textureData->key,
+        textureData->cacheKey,
         textureData->rgba,
         textureData->width,
         textureData->height,
@@ -467,6 +468,7 @@ D3D12RenderBackend::SpriteTexture* D3D12RenderBackend::ensureWorldTexture(const 
 }
 
 D3D12RenderBackend::SpriteTexture* D3D12RenderBackend::ensureWorldTextureRaw(const char* key,
+                                                                              const char* cacheKey,
                                                                               const unsigned char* rgba,
                                                                               int width,
                                                                               int height,
@@ -481,18 +483,23 @@ D3D12RenderBackend::SpriteTexture* D3D12RenderBackend::ensureWorldTextureRaw(con
     if (nextSrvDescriptorIndex_ >= kMaxSrvDescriptors) return nullptr;
 
     // Include wrap + dimensions to avoid accidental cache aliasing for reused key strings.
-    std::string cacheKey = key;
-    cacheKey += "|";
-    cacheKey += std::to_string(width);
-    cacheKey += "x";
-    cacheKey += std::to_string(height);
-    cacheKey += "|ws=";
-    cacheKey += std::to_string(wrapS);
-    cacheKey += "|wt=";
-    cacheKey += std::to_string(wrapT);
-    cacheKey += srgb ? "|srgb" : "|lin";
+    std::string resolvedCacheKey;
+    if (cacheKey && cacheKey[0] != '\0') {
+        resolvedCacheKey = cacheKey;
+    } else {
+        resolvedCacheKey = key;
+        resolvedCacheKey += "|";
+        resolvedCacheKey += std::to_string(width);
+        resolvedCacheKey += "x";
+        resolvedCacheKey += std::to_string(height);
+        resolvedCacheKey += "|ws=";
+        resolvedCacheKey += std::to_string(wrapS);
+        resolvedCacheKey += "|wt=";
+        resolvedCacheKey += std::to_string(wrapT);
+        resolvedCacheKey += srgb ? "|srgb" : "|lin";
+    }
 
-    auto it = worldTextures_.find(cacheKey);
+    auto it = worldTextures_.find(resolvedCacheKey);
     if (it != worldTextures_.end()) {
         return &it->second;
     }
@@ -541,7 +548,7 @@ D3D12RenderBackend::SpriteTexture* D3D12RenderBackend::ensureWorldTextureRaw(con
 
     texture.valid = true;
     ++nextSrvDescriptorIndex_;
-    auto [insertedIt, _] = worldTextures_.emplace(cacheKey, std::move(texture));
+    auto [insertedIt, _] = worldTextures_.emplace(resolvedCacheKey, std::move(texture));
     return &insertedIt->second;
 #else
     (void)key;

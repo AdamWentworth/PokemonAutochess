@@ -53,30 +53,35 @@ public:
 
     struct WorldTextureData {
         const char* key = nullptr;
+        const char* cacheKey = nullptr;
         const unsigned char* rgba = nullptr;
         int width = 0;
         int height = 0;
         int wrapS = 10497; // GL_REPEAT
         int wrapT = 10497; // GL_REPEAT
         const char* normalKey = nullptr;
+        const char* normalCacheKey = nullptr;
         const unsigned char* normalRgba = nullptr;
         int normalWidth = 0;
         int normalHeight = 0;
         int normalWrapS = 10497; // GL_REPEAT
         int normalWrapT = 10497; // GL_REPEAT
         const char* metallicRoughnessKey = nullptr;
+        const char* metallicRoughnessCacheKey = nullptr;
         const unsigned char* metallicRoughnessRgba = nullptr;
         int metallicRoughnessWidth = 0;
         int metallicRoughnessHeight = 0;
         int metallicRoughnessWrapS = 10497; // GL_REPEAT
         int metallicRoughnessWrapT = 10497; // GL_REPEAT
         const char* occlusionKey = nullptr;
+        const char* occlusionCacheKey = nullptr;
         const unsigned char* occlusionRgba = nullptr;
         int occlusionWidth = 0;
         int occlusionHeight = 0;
         int occlusionWrapS = 10497; // GL_REPEAT
         int occlusionWrapT = 10497; // GL_REPEAT
         const char* emissiveKey = nullptr;
+        const char* emissiveCacheKey = nullptr;
         const unsigned char* emissiveRgba = nullptr;
         int emissiveWidth = 0;
         int emissiveHeight = 0;
@@ -327,6 +332,26 @@ public:
         (void)viewProjectionMatrix4x4;
         (void)surfaceWidth;
         (void)surfaceHeight;
+    }
+    virtual void drawWorldIndexedMeshTexturedCached(const char* geometryKey,
+                                                    const WorldMeshVertex* vertices,
+                                                    std::size_t vertexCount,
+                                                    const std::uint32_t* indices,
+                                                    std::size_t indexCount,
+                                                    const WorldTextureData* texture,
+                                                    const float* viewProjectionMatrix4x4,
+                                                    int surfaceWidth,
+                                                    int surfaceHeight) {
+        (void)geometryKey;
+        drawWorldIndexedMeshTextured(
+            vertices,
+            vertexCount,
+            indices,
+            indexCount,
+            texture,
+            viewProjectionMatrix4x4,
+            surfaceWidth,
+            surfaceHeight);
     }
     virtual void drawDebugQuads(const DebugQuad* quads,
                                 std::size_t quadCount,
