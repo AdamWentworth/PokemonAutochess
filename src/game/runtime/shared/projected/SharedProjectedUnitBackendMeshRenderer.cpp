@@ -2,8 +2,10 @@
 #include "game/runtime/shared/projected/SharedProjectedUnitBackendMeshPrep.h"
 #include "game/runtime/shared/projected/SharedProjectedUnitBackendMeshTriangleSubmit.h"
 #include "game/runtime/shared/projected/SharedProjectedUnitBackendMeshTransforms.h"
+#include "game/runtime/shared/vfx/tail_fire/SharedTailFireSnapshotAtlasCache.h"
 
 #include "engine/core/Environment.h"
+#include "engine/render/Model.h"
 #include "game/runtime/BackendUnitVisuals.h"
 
 #include <algorithm>
@@ -13,6 +15,7 @@
 #include <cmath>
 #include <cstring>
 #include <cstdint>
+#include <iostream>
 #include <limits>
 #include <string>
 #include <unordered_map>
@@ -52,6 +55,24 @@ bool strictGltfParityEnabled() {
         return true;
     }();
     return enabled;
+}
+
+bool tailFireDebugEnabled() {
+    static const bool enabled = engine::env::flagEnabled("PAC_TAIL_FIRE_DEBUG");
+    return enabled;
+}
+
+bool tailFireDebugShouldLogAnchor(int unitId) {
+    if (!tailFireDebugEnabled()) return false;
+    static std::unordered_map<int, std::chrono::steady_clock::time_point> sLastLogByUnit;
+    const auto now = std::chrono::steady_clock::now();
+    auto it = sLastLogByUnit.find(unitId);
+    if (it != sLastLogByUnit.end() &&
+        (now - it->second) < std::chrono::milliseconds(750)) {
+        return false;
+    }
+    sLastLogByUnit[unitId] = now;
+    return true;
 }
 
 struct FastTexturedBatchTemplate {
@@ -115,6 +136,173 @@ std::string makeIndexedBatchKeyPrefix(
     return "__runtime_mesh__:" +
            std::to_string(static_cast<unsigned long long>(
                reinterpret_cast<std::uintptr_t>(&mesh)));
+}
+
+bool containsInsensitive(const std::string& haystack, const char* needle) {
+    if (!needle || !*needle) return true;
+    return toLowerCopy(haystack).find(toLowerCopy(std::string(needle))) != std::string::npos;
+}
+
+bool nodeNameLooksLikeFireMesh(const std::string& nodeName) {
+    return containsInsensitive(nodeName, "fire_mesh");
+}
+
+constexpr const char* kCharmanderFireUvFlipbookPath =
+    "assets/textures/charmander_fire_uv_flipbook.png";
+constexpr float kCharmanderFireUvFlipbookCols = 8.0f;
+constexpr float kCharmanderFireUvFlipbookRows = 8.0f;
+constexpr float kCharmanderFireUvFlipbookFrames = 62.0f;
+constexpr float kCharmanderFireUvFlipbookFps = 24.0f;
+constexpr float kCharmanderFireUvFlipbookAtlasWidth = 4096.0f;
+constexpr float kCharmanderFireUvFlipbookAtlasHeight = 4096.0f;
+constexpr int kClampToEdge = 33071;
+
+std::size_t resolveBatchBaseSubmeshIndex(
+    const game::runtime::shared_world_batches::WorldIndexedBatch& batch,
+    std::size_t fallback) {
+    const auto parseFromKey = [](const std::string& key, std::size_t fallbackValue) {
+        const std::string marker = "#submesh_geom:";
+        const std::size_t pos = key.find(marker);
+        if (pos == std::string::npos) return fallbackValue;
+        std::size_t cur = pos + marker.size();
+        std::size_t value = 0u;
+        bool sawDigit = false;
+        while (cur < key.size() && std::isdigit(static_cast<unsigned char>(key[cur]))) {
+            sawDigit = true;
+            value = value * 10u + static_cast<std::size_t>(key[cur] - '0');
+            ++cur;
+        }
+        return sawDigit ? value : fallbackValue;
+    };
+
+    std::size_t out = parseFromKey(batch.geometryCacheKey, fallback);
+    if (out != fallback) return out;
+    if (batch.sharedTemplate) {
+        out = parseFromKey(batch.sharedTemplate->geometryCacheKey, fallback);
+    }
+    return out;
+}
+
+bool applyCharmanderFireMeshFlipbookOverride(
+    const game::runtime::shared_projected_unit_backend_mesh::Args& args,
+    const game::runtime::backend_model::MeshData& mesh,
+    std::vector<game::runtime::shared_world_batches::WorldIndexedBatch>& batches) {
+    if (!args.unit || !args.sharedTailFireAnchors) {
+        return false;
+    }
+    if (toLowerCopy(args.unit->name) != "charmander") return false;
+
+    std::vector<std::uint8_t> fireSubmeshMask(
+        std::max<std::size_t>(mesh.submeshMeshIndex.size(), batches.size()), 0u);
+    std::vector<std::uint8_t> fireMeshIndexMask(mesh.meshIndexToNode.size(), 0u);
+    for (std::size_t ni = 0; ni < mesh.nodeNames.size(); ++ni) {
+        if (!nodeNameLooksLikeFireMesh(mesh.nodeNames[ni])) continue;
+        if (ni >= mesh.nodeMesh.size()) continue;
+        const int meshIndex = mesh.nodeMesh[ni];
+        if (meshIndex < 0 ||
+            static_cast<std::size_t>(meshIndex) >= fireMeshIndexMask.size()) {
+            continue;
+        }
+        fireMeshIndexMask[static_cast<std::size_t>(meshIndex)] = 1u;
+    }
+    for (std::size_t si = 0; si < mesh.submeshMeshIndex.size(); ++si) {
+        const int meshIndex = mesh.submeshMeshIndex[si];
+        if (meshIndex < 0 ||
+            static_cast<std::size_t>(meshIndex) >= fireMeshIndexMask.size()) {
+            continue;
+        }
+        if (fireMeshIndexMask[static_cast<std::size_t>(meshIndex)] != 0u) {
+            fireSubmeshMask[si] = 1u;
+        }
+    }
+
+    if (!args.ensureBackendTextureLoaded) {
+        return false;
+    }
+    game::runtime::SharedBackendTextureCacheEntry* atlas =
+        args.ensureBackendTextureLoaded(kCharmanderFireUvFlipbookPath, false);
+    if (!atlas || !atlas->valid || atlas->width <= 0 || atlas->height <= 0 ||
+        atlas->rgba.empty()) {
+        return false;
+    }
+
+    bool applied = false;
+    for (std::size_t bi = 0; bi < batches.size(); ++bi) {
+        auto& batch = batches[bi];
+        const std::size_t baseSubmeshIndex = resolveBatchBaseSubmeshIndex(batch, bi);
+        if (baseSubmeshIndex >= fireSubmeshMask.size() ||
+            fireSubmeshMask[baseSubmeshIndex] == 0u) {
+            continue;
+        }
+
+        batch.sharedTemplate = nullptr;
+        batch.textureKey = kCharmanderFireUvFlipbookPath;
+        batch.textureCacheKey = kCharmanderFireUvFlipbookPath;
+        batch.textureRgba = atlas->rgba.data();
+        batch.textureWidth = atlas->width;
+        batch.textureHeight = atlas->height;
+        batch.textureWrapS = kClampToEdge;
+        batch.textureWrapT = kClampToEdge;
+
+        batch.normalTextureKey.clear();
+        batch.normalTextureCacheKey.clear();
+        batch.normalTextureRgba = nullptr;
+        batch.normalTextureWidth = 0;
+        batch.normalTextureHeight = 0;
+        batch.normalTextureWrapS = 10497;
+        batch.normalTextureWrapT = 10497;
+        batch.metallicRoughnessTextureKey.clear();
+        batch.metallicRoughnessTextureCacheKey.clear();
+        batch.metallicRoughnessTextureRgba = nullptr;
+        batch.metallicRoughnessTextureWidth = 0;
+        batch.metallicRoughnessTextureHeight = 0;
+        batch.occlusionTextureKey.clear();
+        batch.occlusionTextureCacheKey.clear();
+        batch.occlusionTextureRgba = nullptr;
+        batch.occlusionTextureWidth = 0;
+        batch.occlusionTextureHeight = 0;
+        batch.emissiveTextureKey.clear();
+        batch.emissiveTextureCacheKey.clear();
+        batch.emissiveTextureRgba = nullptr;
+        batch.emissiveTextureWidth = 0;
+        batch.emissiveTextureHeight = 0;
+
+        batch.materialAlphaOverride = true;
+        batch.alphaMode = 1u;
+        batch.blendMode = 0u;
+        batch.alphaCutoff = 0.08f;
+        batch.materialMode = 1u;
+        batch.characterInkingEnabled = 0u;
+        batch.materialTimeSec = args.materialTimeSec;
+        batch.materialFlags = 8.0f; // authoredFireMesh
+        batch.materialAtlasWidth = kCharmanderFireUvFlipbookAtlasWidth;
+        batch.materialAtlasHeight = kCharmanderFireUvFlipbookAtlasHeight;
+        batch.materialRect0U = 0.0f;
+        batch.materialRect0V = 0.0f;
+        batch.materialRect0W = 1.0f;
+        batch.materialRect0H = 1.0f;
+        batch.materialRect1U = 0.0f;
+        batch.materialRect1V = 0.0f;
+        batch.materialRect1W = 1.0f;
+        batch.materialRect1H = 1.0f;
+        batch.materialFlipbook0Cols = kCharmanderFireUvFlipbookCols;
+        batch.materialFlipbook0Rows = kCharmanderFireUvFlipbookRows;
+        batch.materialFlipbook0Frames = kCharmanderFireUvFlipbookFrames;
+        batch.materialFlipbook0Fps = kCharmanderFireUvFlipbookFps;
+        batch.materialFlipbook1Cols = 1.0f;
+        batch.materialFlipbook1Rows = 1.0f;
+        batch.materialFlipbook1Frames = 1.0f;
+        batch.materialFlipbook1Fps = 0.0f;
+        applied = true;
+    }
+
+    if (applied) {
+        auto it = args.sharedTailFireAnchors->find(args.unit->id);
+        if (it != args.sharedTailFireAnchors->end()) {
+            it->second.meshCarrierActive = true;
+        }
+    }
+    return applied;
 }
 
 struct UnitSkinMatrixKey {
@@ -883,16 +1071,110 @@ Result renderProjectedUnitBackendMesh(const Args& args) {
         if (unit.alive && !unit.fainting && toLowerCopy(unit.name) == "charmander") {
             const TailFireVFX::Config& tailCfg =
                 game::runtime::shared_projected_scene::getTailFireFallbackCfg();
-            const int tailNodeIndex = tailCfg.tailTipNodeIndex;
-            if (tailNodeIndex >= 0 &&
-                static_cast<std::size_t>(tailNodeIndex) < nodeGlobals.size()) {
-                const glm::mat4& tailWorldM = transforms.worldMatrixForNode(tailNodeIndex);
+            auto resolveNodeIndex = [&](const std::string& nodeName, int fallbackIndex) {
+                int idx = fallbackIndex;
+                if (!nodeName.empty()) {
+                    bool resolvedByName = false;
+                    if (!mesh->nodeNames.empty()) {
+                        for (std::size_t ni = 0; ni < mesh->nodeNames.size(); ++ni) {
+                            if (mesh->nodeNames[ni] == nodeName) {
+                                idx = static_cast<int>(ni);
+                                resolvedByName = true;
+                                break;
+                            }
+                        }
+                    } else if (unit.model) {
+                        int namedNodeIndex = -1;
+                        if (unit.model->getNodeIndexByName(nodeName, namedNodeIndex)) {
+                            idx = namedNodeIndex;
+                            resolvedByName = true;
+                        }
+                    }
 
-                auto safeNorm = [](glm::vec3 v, const glm::vec3& fallback) {
-                    const float len2 = glm::dot(v, v);
-                    if (len2 <= 1e-10f) return fallback;
-                    return v * (1.0f / std::sqrt(len2));
-                };
+                    if (!resolvedByName && fallbackIndex < 0) {
+                        idx = -1;
+                    }
+                }
+                return idx;
+            };
+            auto safeNorm = [](glm::vec3 v, const glm::vec3& fallback) {
+                const float len2 = glm::dot(v, v);
+                if (len2 <= 1e-10f) return fallback;
+                return v * (1.0f / std::sqrt(len2));
+            };
+            auto buildFireAnchorBasis = [&](const glm::mat4& baseWorldM,
+                                            const glm::vec3& basePosWorld,
+                                            const glm::vec3& tipPosWorld) {
+                const glm::vec3 upAxis =
+                    safeNorm(tipPosWorld - basePosWorld,
+                             safeNorm(glm::vec3(baseWorldM[1]), glm::vec3(0.0f, 1.0f, 0.0f)));
+
+                glm::vec3 xHint = glm::vec3(baseWorldM[0]);
+                xHint -= upAxis * glm::dot(xHint, upAxis);
+                if (glm::dot(xHint, xHint) <= 1e-10f) {
+                    xHint = glm::vec3(baseWorldM[2]);
+                    xHint -= upAxis * glm::dot(xHint, upAxis);
+                }
+
+                glm::vec3 xFallback = (std::fabs(upAxis.y) < 0.95f)
+                    ? safeNorm(glm::cross(glm::vec3(0.0f, 1.0f, 0.0f), upAxis), glm::vec3(1.0f, 0.0f, 0.0f))
+                    : glm::vec3(1.0f, 0.0f, 0.0f);
+                glm::vec3 xAxis = safeNorm(xHint, xFallback);
+                glm::vec3 zAxis = safeNorm(glm::cross(xAxis, upAxis), glm::vec3(0.0f, 0.0f, 1.0f));
+                xAxis = safeNorm(glm::cross(upAxis, zAxis), xAxis);
+                if (glm::dot(glm::cross(xAxis, upAxis), zAxis) < 0.0f) {
+                    zAxis = -zAxis;
+                }
+                return glm::mat3(xAxis, upAxis, zAxis);
+            };
+
+            const int tailNodeIndex = resolveNodeIndex(tailCfg.tailTipNodeName, tailCfg.tailTipNodeIndex);
+            const int fireAnchorBaseNodeIndex = resolveNodeIndex(tailCfg.fireAnchorBaseNodeName, -1);
+            const int fireAnchorTipNodeIndex = resolveNodeIndex(tailCfg.fireAnchorTipNodeName, -1);
+
+            SharedTailFireAnchor& anchor = sharedTailFireAnchors[unit.id];
+            anchor.valid = false;
+            anchor.meshCarrierActive = false;
+
+            const bool hasExactFireAnchorNodes =
+                fireAnchorBaseNodeIndex >= 0 &&
+                fireAnchorTipNodeIndex >= 0 &&
+                static_cast<std::size_t>(fireAnchorBaseNodeIndex) < nodeGlobals.size() &&
+                static_cast<std::size_t>(fireAnchorTipNodeIndex) < nodeGlobals.size();
+            if (hasExactFireAnchorNodes) {
+                const glm::mat4& baseWorldM = transforms.worldMatrixForNode(fireAnchorBaseNodeIndex);
+                const glm::mat4& tipWorldM = transforms.worldMatrixForNode(fireAnchorTipNodeIndex);
+                const glm::vec3 basePosWorld = glm::vec3(baseWorldM[3]);
+                const glm::vec3 tipPosWorld = glm::vec3(tipWorldM[3]);
+                const glm::mat3 fireBasis = buildFireAnchorBasis(baseWorldM, basePosWorld, tipPosWorld);
+                glm::vec3 backDirWorld = fireBasis * tailCfg.backDir;
+                backDirWorld = safeNorm(backDirWorld, glm::vec3(0.0f, 1.0f, 0.0f));
+
+                anchor.valid = true;
+                anchor.exactFireAnchor = true;
+                anchor.pos = basePosWorld;
+                anchor.tipPos = tipPosWorld;
+                anchor.basis = fireBasis;
+                anchor.backDir = backDirWorld;
+                anchor.particleSizeScale =
+                    std::max(0.01f, std::max(0.01f, mesh->modelScaleFactor) * resolvedScaleCorrection);
+                if (tailFireDebugShouldLogAnchor(unit.id)) {
+                    std::cout
+                        << "[TailFire][Debug][Anchor] unit=" << unit.id
+                        << " exact=1"
+                        << " tailNode=" << tailNodeIndex
+                        << " baseNode=" << fireAnchorBaseNodeIndex
+                        << " tipNode=" << fireAnchorTipNodeIndex
+                        << " basePos=(" << basePosWorld.x << "," << basePosWorld.y << "," << basePosWorld.z << ")"
+                        << " tipPos=(" << tipPosWorld.x << "," << tipPosWorld.y << "," << tipPosWorld.z << ")"
+                        << " up=(" << fireBasis[1].x << "," << fireBasis[1].y << "," << fireBasis[1].z << ")"
+                        << " back=(" << backDirWorld.x << "," << backDirWorld.y << "," << backDirWorld.z << ")"
+                        << " scale=" << anchor.particleSizeScale
+                        << "\n";
+                }
+            } else if (tailNodeIndex >= 0 &&
+                       static_cast<std::size_t>(tailNodeIndex) < nodeGlobals.size()) {
+                const glm::mat4& tailWorldM = transforms.worldMatrixForNode(tailNodeIndex);
                 glm::vec3 bx = safeNorm(glm::vec3(tailWorldM[0]), glm::vec3(1.0f, 0.0f, 0.0f));
                 glm::vec3 by = glm::vec3(tailWorldM[1]);
                 by = by - bx * glm::dot(by, bx);
@@ -905,13 +1187,27 @@ Result renderProjectedUnitBackendMesh(const Args& args) {
                 glm::vec3 backDirWorld = tailBasis * tailCfg.backDir;
                 backDirWorld = safeNorm(backDirWorld, glm::vec3(0.0f, 1.0f, 0.0f));
 
-                SharedTailFireAnchor& anchor = sharedTailFireAnchors[unit.id];
                 anchor.valid = true;
-                anchor.pos = glm::vec3(tailWorldM[3]) + glm::vec3(0.0f, tailCfg.tailWorldYOffset, 0.0f);
+                anchor.exactFireAnchor = false;
+                anchor.pos = glm::vec3(tailWorldM[3]);
+                anchor.tipPos = anchor.pos;
                 anchor.basis = tailBasis;
                 anchor.backDir = backDirWorld;
                 anchor.particleSizeScale =
                     std::max(0.01f, std::max(0.01f, mesh->modelScaleFactor) * resolvedScaleCorrection);
+                if (tailFireDebugShouldLogAnchor(unit.id)) {
+                    std::cout
+                        << "[TailFire][Debug][Anchor] unit=" << unit.id
+                        << " exact=0"
+                        << " tailNode=" << tailNodeIndex
+                        << " baseNode=" << fireAnchorBaseNodeIndex
+                        << " tipNode=" << fireAnchorTipNodeIndex
+                        << " tailPos=(" << anchor.pos.x << "," << anchor.pos.y << "," << anchor.pos.z << ")"
+                        << " up=(" << tailBasis[1].x << "," << tailBasis[1].y << "," << tailBasis[1].z << ")"
+                        << " back=(" << backDirWorld.x << "," << backDirWorld.y << "," << backDirWorld.z << ")"
+                        << " scale=" << anchor.particleSizeScale
+                        << "\n";
+                }
             }
         }
 
@@ -1309,6 +1605,7 @@ Result renderProjectedUnitBackendMesh(const Args& args) {
         }
         bool queuedIndexedBatch = false;
         if (useIndexedWorldModelPath && !modelIndexedBatchesPerSubmesh.empty()) {
+            (void)applyCharmanderFireMeshFlipbookOverride(args, *mesh, modelIndexedBatchesPerSubmesh);
             for (auto& batch : modelIndexedBatchesPerSubmesh) {
                 if (!batch.hasGeometry()) continue;
                 worldIndexedBatches.push_back(std::move(batch));

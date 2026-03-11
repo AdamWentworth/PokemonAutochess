@@ -10,6 +10,7 @@
 
 #include "engine/vfx/ParticleSystem.h"
 #include "game/runtime/shared/backend/SharedBackendTextureCache.h"
+#include "game/runtime/shared/vfx/tail_fire/SharedTailFireFallbackEmitter.h"
 #include "game/runtime/shared/world/SharedWorldIndexedBatches.h"
 
 namespace game::runtime::shared_tail_fire_snapshot_billboards {
@@ -22,6 +23,7 @@ struct AppendContext {
     int drawableH;
     std::unordered_map<std::string, SharedBackendTextureCacheEntry>& backendTextureByPath;
     const std::function<SharedBackendTextureCacheEntry*(const std::string&, bool)>& ensureTextureFn;
+    const std::unordered_map<int, shared_tail_fire_fallback::Anchor>* tailFireAnchors = nullptr;
     bool tailFireExactCpuEnabled = false;
 };
 

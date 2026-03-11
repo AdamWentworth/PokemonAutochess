@@ -231,6 +231,8 @@ void OpenGLRenderBackend::ensureWorldPipeline() {
         layout (location = 6) in vec4 aTangent;
         uniform mat4 uViewProj;
         uniform mat4 uModel;
+        uniform vec4 uMaterialRect0;
+        uniform vec4 uMaterialRect1;
         uniform float uSkinningEnabled;
         uniform int uSkinMatrixCount;
         const int kMaxSkinMatrices = 64;
@@ -240,6 +242,7 @@ void OpenGLRenderBackend::ensureWorldPipeline() {
         out vec3 vWorldPos;
         out vec3 vWorldNormal;
         out vec4 vWorldTangent;
+        out vec3 vGenerated;
         vec3 applySkinningPos(vec3 localPos) {
             vec4 blended = vec4(0.0);
             float totalWeight = 0.0;
@@ -362,6 +365,8 @@ void OpenGLRenderBackend::ensureWorldPipeline() {
             gl_Position = uViewProj * worldPos;
             vUv = aUv;
             vColor = aColor;
+            vec3 genDen = max(uMaterialRect1.xyz - uMaterialRect0.xyz, vec3(1e-5));
+            vGenerated = clamp((aPos - uMaterialRect0.xyz) / genDen, vec3(0.0), vec3(1.0));
             vWorldPos = worldPos.xyz;
             // Keep world normal/tangent transform behavior aligned with D3D12 path.
             // This improves cross-backend parity for authored tangent-space normal detail.
@@ -381,6 +386,7 @@ void OpenGLRenderBackend::ensureWorldPipeline() {
         in vec3 vWorldPos;
         in vec3 vWorldNormal;
         in vec4 vWorldTangent;
+        in vec3 vGenerated;
         uniform float uUseTexture;
         uniform float uWrapS;
         uniform float uWrapT;
@@ -497,9 +503,10 @@ void OpenGLRenderBackend::ensureWorldPipeline() {
             vec2 regionUv = rectUv.xy + uv * rectUv.zw;
             return rectUv.xy + clamp(regionUv - rectUv.xy, minPx, maxPx);
         }
-        vec4 sampleAtlasCombined(vec4 rectUv, vec2 grid, float frames, float fps, vec2 localUV01, float seed, float t) {
-            float speed = mix(0.85, 1.10, hash11(seed * 31.7 + 2.3));
-            float f = floor(t * fps * speed + seed * frames);
+        vec4 sampleAtlasCombined(vec4 rectUv, vec2 grid, float frames, float fps, vec2 localUV01, float seed, float t, bool coherent) {
+            float speed = coherent ? 1.0 : mix(0.85, 1.10, hash11(seed * 31.7 + 2.3));
+            float phase = coherent ? 0.0 : (seed * frames);
+            float f = floor(t * fps * speed + phase);
             float frame = mod(f, max(1.0, frames));
             float cols = max(1.0, grid.x);
             float rows = max(1.0, grid.y);
@@ -509,6 +516,87 @@ void OpenGLRenderBackend::ensureWorldPipeline() {
             vec2 cellUVLocal = (vec2(col, row) + localUV01) / vec2(cols, rows);
             vec2 cellUv = clampUvToRegionPixels(cellUVLocal, rectUv);
             return texture(uTexture, cellUv);
+        }
+        vec4 sampleFireDirect0(vec2 uvLocal, float seed, float t) {
+            return sampleAtlasCombined(
+                uMaterialRect0,
+                uMaterialFlipbook0.xy,
+                uMaterialFlipbook0.z,
+                uMaterialFlipbook0.w,
+                uvLocal,
+                seed,
+                t,
+                true);
+        }
+        vec4 sampleAtlasCombinedTopLeft(vec4 rectUv, vec2 grid, float frames, float fps, vec2 localUV01, float t) {
+            float f = floor(t * fps);
+            float frame = mod(f, max(1.0, frames));
+            float cols = max(1.0, grid.x);
+            float rows = max(1.0, grid.y);
+            float col = mod(frame, cols);
+            float row = floor(frame / cols);
+            vec2 cellUVLocal = (vec2(col, row) + localUV01) / vec2(cols, rows);
+            vec2 cellUv = clampUvToRegionPixels(cellUVLocal, rectUv);
+            return texture(uTexture, cellUv);
+        }
+    )GLSL"
+    R"GLSL(
+        float hash41(vec4 p) {
+            return fract(sin(dot(p, vec4(127.1, 311.7, 74.7, 269.5))) * 43758.5453123);
+        }
+        float valueNoise4D(vec4 p) {
+            vec4 i = floor(p);
+            vec4 f = fract(p);
+            vec4 u = f * f * f * (f * (f * 6.0 - 15.0) + 10.0);
+            float accum = 0.0;
+            for (int dw = 0; dw < 2; ++dw) {
+                for (int dz = 0; dz < 2; ++dz) {
+                    for (int dy = 0; dy < 2; ++dy) {
+                        for (int dx = 0; dx < 2; ++dx) {
+                            vec4 corner = vec4(float(dx), float(dy), float(dz), float(dw));
+                            float wx = mix(1.0 - u.x, u.x, corner.x);
+                            float wy = mix(1.0 - u.y, u.y, corner.y);
+                            float wz = mix(1.0 - u.z, u.z, corner.z);
+                            float ww = mix(1.0 - u.w, u.w, corner.w);
+                            accum += hash41(i + corner) * wx * wy * wz * ww;
+                        }
+                    }
+                }
+            }
+            return accum;
+        }
+        float authoredFireNoise(vec4 p) {
+            float value = 0.0;
+            float amplitude = 1.0;
+            float amplitudeSum = 0.0;
+            for (int octave = 0; octave < 2; ++octave) {
+                value += amplitude * valueNoise4D(p);
+                amplitudeSum += amplitude;
+                p *= 2.0;
+                amplitude *= 0.5;
+            }
+            return value / max(amplitudeSum, 1e-5);
+        }
+        vec4 evalAuthoredFireMesh() {
+            vec2 uv = clamp(vUv, vec2(0.0), vec2(1.0));
+            vec4 baked = sampleAtlasCombinedTopLeft(
+                uMaterialRect0,
+                uMaterialFlipbook0.xy,
+                uMaterialFlipbook0.z,
+                uMaterialFlipbook0.w,
+                uv,
+                uMaterialTimeSec);
+            float baseEngulf = 1.0 - smoothstep(0.0, 0.28, clamp(vGenerated.y, 0.0, 1.0));
+            vec2 centerXZ = vGenerated.xz - vec2(0.5, 0.5);
+            float centerDist = length(centerXZ * vec2(1.2, 1.0));
+            float coreMask = 1.0 - smoothstep(0.0, 0.23, centerDist);
+            float tipHideMask = baseEngulf * coreMask;
+            baked.rgb = mix(baked.rgb, vec3(1.0, 0.82, 0.30), tipHideMask * 0.55);
+            baked.a = max(baked.a, baseEngulf * 0.95);
+            baked.a = max(baked.a, tipHideMask);
+            if (baked.a <= 0.08) discard;
+            baked.a = 1.0;
+            return baked;
         }
         float lickBlobs(float x, float y, vec2 advP, float flowY, float seed) {
             float k = y * 6.6 + flowY * 0.55;
@@ -558,26 +646,45 @@ void OpenGLRenderBackend::ensureWorldPipeline() {
                 smoothFlicker(t * 0.9, vSeed + 0.17),
                 smoothFlicker(t * 1.1, vSeed + 0.73)
             ) - 0.5;
-            vec2 local1 = uv + wobble * 0.010;
-            vec2 local2 = uv + wobble * 0.002;
-
             vec4 fb1 = vec4(1.0);
             vec4 fb2 = vec4(1.0);
-            int has1 = (uMaterialFlags >= 0.5) ? 1 : 0;
-            int has2 = (uMaterialFlags >= 2.5) ? 1 : 0;
+            int fireFlags = int(uMaterialFlags + 0.5);
+            int has1 = ((fireFlags & 1) != 0) ? 1 : 0;
+            int has2 = ((fireFlags & 2) != 0) ? 1 : 0;
+            int authoredFireMesh = ((fireFlags & 8) != 0) ? 1 : 0;
+            if (authoredFireMesh == 1) {
+                return evalAuthoredFireMesh();
+            }
+            float wobbleScale1 = (has2 == 1) ? 0.010 : 0.0009;
+            float wobbleScale2 = (has2 == 1) ? 0.002 : 0.0002;
+            vec2 local1 = uv + wobble * wobbleScale1;
+            vec2 local2 = uv + wobble * wobbleScale2;
             if (has1 == 1) {
-                fb1 = sampleAtlasCombined(uMaterialRect0, uMaterialFlipbook0.xy, uMaterialFlipbook0.z, uMaterialFlipbook0.w, local1, vSeed, t);
+                fb1 = sampleAtlasCombined(uMaterialRect0, uMaterialFlipbook0.xy, uMaterialFlipbook0.z, uMaterialFlipbook0.w, local1, vSeed, t, has2 != 1);
                 if (has2 == 1) {
-                    fb2 = sampleAtlasCombined(uMaterialRect1, uMaterialFlipbook1.xy, uMaterialFlipbook1.z, uMaterialFlipbook1.w, local2, vSeed, t);
+                    fb2 = sampleAtlasCombined(uMaterialRect1, uMaterialFlipbook1.xy, uMaterialFlipbook1.z, uMaterialFlipbook1.w, local2, vSeed, t, false);
                 } else {
                     fb2 = fb1;
                 }
             }
 
+            if (has1 == 1 && has2 == 0) {
+                vec2 directUv = vec2(uv.x, 1.0 - uv.y);
+                vec4 fbDirect = sampleFireDirect0(directUv, vSeed, t);
+                float alpha = clamp(fbDirect.a, 0.0, 1.0);
+                vec3 rgb = clamp(fbDirect.rgb * 1.15, 0.0, 1.0);
+                alpha *= bottomFade;
+                alpha *= fade;
+                alpha = clamp(alpha, 0.0, 0.985);
+                if (alpha < 0.003) discard;
+                rgb *= alpha;
+                return vec4(rgb, alpha);
+            }
+
             float fb1A   = clamp(fb1.a, 0.0, 1.0);
             float fb1Lum = clamp(dot(fb1.rgb, vec3(0.3333)), 0.0, 1.0);
 
-            float speed = mix(0.95, 1.10, hash11(vSeed * 19.31));
+            float speed = (has2 == 1) ? mix(0.95, 1.10, hash11(vSeed * 19.31)) : 1.0;
             float flow  = t * 1.55 * speed;
             float flowY = flow * mix(0.75, 1.55, y * y);
             float width = mix(0.30, 0.055, pow(y, 2.35));
@@ -589,7 +696,7 @@ void OpenGLRenderBackend::ensureWorldPipeline() {
             vec2 p = vec2(x / widthHybrid, yy);
             p *= 1.22;
             float sway = fbm2D(vec2(x * 1.7, y * 3.8) + vec2(0.0, -flowY * 0.65) + vSeed * 7.0);
-            p.x += (sway - 0.5) * 0.015 * (1.0 - y);
+            p.x += (sway - 0.5) * ((has2 == 1) ? 0.015 : 0.004) * (1.0 - y);
             float d0 = length(p);
             vec2 advP = advect(p * vec2(1.20, 1.0) + vSeed * 6.0, flowY, 0.25);
             float n = fbm2D(advP * vec2(2.7, 4.5) + vSeed * 11.0);
@@ -600,7 +707,8 @@ void OpenGLRenderBackend::ensureWorldPipeline() {
             float body  = clamp(smoothstep(0.92, 0.12, d), 0.0, 1.0);
 
             float procAlpha = body * (0.60 + 0.55 * blobs);
-            procAlpha *= (0.92 + 0.15 * smoothFlicker(t * 1.2, vSeed));
+            float calmFlicker = smoothFlicker(t * 1.2, vSeed);
+            procAlpha *= (has2 == 1) ? (0.92 + 0.15 * calmFlicker) : (0.985 + 0.03 * calmFlicker);
             procAlpha *= bottomFade;
             procAlpha *= fade;
             procAlpha = 1.0 - exp(-procAlpha * 1.85);

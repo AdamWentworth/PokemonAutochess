@@ -34,6 +34,7 @@ struct SourceSubmeshRecord {
 struct SourceCacheBuildData {
     float modelScaleFactor = 1.0f;
     std::vector<pac_model_types::NodeTRS> nodesDefault;
+    std::vector<std::string> nodeNames;
     std::vector<std::vector<int>> nodeChildren;
     std::vector<int> nodeMesh;
     std::vector<int> nodeSkin;

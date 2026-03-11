@@ -1,5 +1,6 @@
 #pragma once
 
+#include <string>
 #include <vector>
 
 #include <fastgltf/tools.hpp>
@@ -11,6 +12,7 @@ namespace pac::model_fastgltf {
 void buildSceneData(const fastgltf::Asset& asset,
                     fastgltf::DefaultBufferDataAdapter& adapter,
                     std::vector<pac_model_types::NodeTRS>& outNodesDefault,
+                    std::vector<std::string>* outNodeNames,
                     std::vector<std::vector<int>>& outNodeChildren,
                     std::vector<int>& outNodeMesh,
                     std::vector<int>& outNodeSkin,

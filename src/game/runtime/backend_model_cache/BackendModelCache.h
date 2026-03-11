@@ -73,6 +73,7 @@ struct MeshData {
     std::vector<int> triangleSkinIndex;
     std::vector<glm::vec3> vertexBaseColors;
     std::vector<pac_model_types::NodeTRS> nodesDefault;
+    std::vector<std::string> nodeNames;
     std::vector<std::vector<int>> nodeChildren;
     std::vector<int> nodeParent;
     std::vector<int> nodeMesh;

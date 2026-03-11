@@ -185,6 +185,7 @@ public:
     std::uint32_t countActiveParticleVfx() const;
     std::uint32_t countActiveCaptureAttempts() const;
     bool buildCaptureAttemptRenderSnapshots(std::vector<CaptureAttemptRenderSnapshot>& out) const;
+    float getSharedLoopAnimTimeSec() const { return sharedLoopAnimTimeSec; }
 
     glm::vec3 getNearestEnemyPosition(const PokemonInstance& unit) const;
 

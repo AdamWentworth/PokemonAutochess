@@ -106,6 +106,8 @@ bool TailFireVFXConfigDB::ensureLoaded(const std::string& path) {
         auto& cfg = entries[currentSection].cfg;
 
         if (key == "tailtipnodename") cfg.tailTipNodeName = val;
+        else if (key == "fireanchorbasenodename") cfg.fireAnchorBaseNodeName = val;
+        else if (key == "fireanchortipnodename") cfg.fireAnchorTipNodeName = val;
         else if (key == "tailtipnodeindex") parseInt(val, cfg.tailTipNodeIndex);
         else if (key == "tailworldyoffset") parseFloat(val, cfg.tailWorldYOffset);
         else if (key == "emitratepersec") parseFloat(val, cfg.emitRatePerSec);
@@ -117,6 +119,7 @@ bool TailFireVFXConfigDB::ensureLoaded(const std::string& path) {
         else if (key == "dampingbase") parseFloat(val, cfg.dampingBase);
         else if (key == "pointscale") parseFloat(val, cfg.pointScale);
         else if (key == "useflipbook") parseBool(val, cfg.useFlipbook);
+        else if (key == "useflipbook2") parseBool(val, cfg.useFlipbook2);
         // Add more keys only if you actually need them.
     }
 

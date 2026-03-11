@@ -24,9 +24,10 @@ uniform vec2      u_FlipbookGrid2;
 uniform float     u_FrameCount2;
 uniform float     u_Fps2;
 
-vec4 sampleAtlas(sampler2D tex, vec2 grid, float frames, float fps, vec2 localUV01, float seed, float t) {
-    float speed = mix(0.85, 1.10, hash11(seed * 31.7 + 2.3));
-    float f = floor(t * fps * speed + seed * frames);
+vec4 sampleAtlas(sampler2D tex, vec2 grid, float frames, float fps, vec2 localUV01, float seed, float t, int coherent) {
+    float speed = (coherent == 1) ? 1.0 : mix(0.85, 1.10, hash11(seed * 31.7 + 2.3));
+    float phase = (coherent == 1) ? 0.0 : (seed * frames);
+    float f = floor(t * fps * speed + phase);
     float frame = mod(f, max(1.0, frames));
 
     float cols = max(1.0, grid.x);
@@ -103,24 +104,25 @@ void main() {
         smoothFlicker(t * 1.1, vSeed + 0.73)
     ) - 0.5;
 
-    vec2 local1 = uv + wobble * 0.010;
-    vec2 local2 = uv + wobble * 0.002;
-
     vec4 fb1 = vec4(1.0);
     vec4 fb2 = vec4(1.0);
     int has1 = (u_UseFlipbook == 1) ? 1 : 0;
     int has2 = (u_UseFlipbook == 1 && u_HasFlipbook2 == 1) ? 1 : 0;
+    float wobbleScale1 = (has2 == 1) ? 0.010 : 0.0009;
+    float wobbleScale2 = (has2 == 1) ? 0.002 : 0.0002;
+    vec2 local1 = uv + wobble * wobbleScale1;
+    vec2 local2 = uv + wobble * wobbleScale2;
 
     if (has1 == 1) {
-        fb1 = sampleAtlas(u_Flipbook, u_FlipbookGrid, u_FrameCount, u_Fps, local1, vSeed, t);
-        if (has2 == 1) fb2 = sampleAtlas(u_Flipbook2, u_FlipbookGrid2, u_FrameCount2, u_Fps2, local2, vSeed, t);
+        fb1 = sampleAtlas(u_Flipbook, u_FlipbookGrid, u_FrameCount, u_Fps, local1, vSeed, t, (has2 == 1) ? 0 : 1);
+        if (has2 == 1) fb2 = sampleAtlas(u_Flipbook2, u_FlipbookGrid2, u_FrameCount2, u_Fps2, local2, vSeed, t, 0);
         else fb2 = fb1;
     }
 
     float fb1A   = clamp(fb1.a, 0.0, 1.0);
     float fb1Lum = clamp(dot(fb1.rgb, vec3(0.3333)), 0.0, 1.0);
 
-    float speed = mix(0.95, 1.10, hash11(vSeed * 19.31));
+    float speed = (has2 == 1) ? mix(0.95, 1.10, hash11(vSeed * 19.31)) : 1.0;
     float flow  = t * 1.55 * speed;
     float flowY = flow * mix(0.75, 1.55, y * y);
 
@@ -141,7 +143,7 @@ void main() {
     p *= 1.22;
 
     float sway = fbm2D(vec2(x * 1.7, y * 3.8) + vec2(0.0, -flowY * 0.65) + vSeed * 7.0);
-    p.x += (sway - 0.5) * 0.015 * (1.0 - y);
+    p.x += (sway - 0.5) * ((has2 == 1) ? 0.015 : 0.004) * (1.0 - y);
 
     float d0 = length(p);
 
@@ -156,7 +158,8 @@ void main() {
     float body  = clamp(smoothstep(0.92, 0.12, d), 0.0, 1.0);
 
     float procAlpha = body * (0.60 + 0.55 * blobs);
-    procAlpha *= (0.92 + 0.15 * smoothFlicker(t * 1.2, vSeed));
+    float calmFlicker = smoothFlicker(t * 1.2, vSeed);
+    procAlpha *= (has2 == 1) ? (0.92 + 0.15 * calmFlicker) : (0.985 + 0.03 * calmFlicker);
     procAlpha *= bottomFade;
     procAlpha *= fade;
 

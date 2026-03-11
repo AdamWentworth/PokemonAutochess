@@ -23,6 +23,11 @@ public:
         // Preferred: stable across GLB node reordering.
         std::string tailTipNodeName;
 
+        // Optional exact fire attachment helpers. When both exist, the flipbook
+        // follows the authored fire rig instead of approximating from the tail tip.
+        std::string fireAnchorBaseNodeName;
+        std::string fireAnchorTipNodeName;
+
         // Legacy fallback (keep for transition).
         int tailTipNodeIndex = 45;
 
@@ -79,6 +84,8 @@ public:
 
         // important if node name changes
         tailNodeIndexCache.clear();
+        fireAnchorBaseNodeIndexCache.clear();
+        fireAnchorTipNodeIndexCache.clear();
 
         // motion history depends on attachment points + config feel
         prevTailWorld.clear();
@@ -107,6 +114,9 @@ private:
 
     // Resolve name->index once per Model* (cached). Uses cfg.tailTipNodeIndex as fallback.
     int resolveTailTipNodeIndex(const Model& model) const;
+    int resolveOptionalNodeIndex(const Model& model,
+                                 const std::string& nodeName,
+                                 std::unordered_map<const Model*, int>& cache) const;
 
 private:
     ParticleSystem particles;
@@ -133,4 +143,6 @@ private:
     bool configured = false;
 
     mutable std::unordered_map<const Model*, int> tailNodeIndexCache;
+    mutable std::unordered_map<const Model*, int> fireAnchorBaseNodeIndexCache;
+    mutable std::unordered_map<const Model*, int> fireAnchorTipNodeIndexCache;
 };

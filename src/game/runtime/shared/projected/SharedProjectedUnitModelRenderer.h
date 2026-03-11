@@ -6,6 +6,7 @@
 #include "game/runtime/backend_model_cache/BackendModelCache.h"
 #include "game/runtime/BackendProceduralPose.h"
 #include "game/runtime/shared/backend/SharedBackendPoseEval.h"
+#include "game/runtime/shared/backend/SharedBackendTextureCache.h"
 #include "game/runtime/shared/projected/SharedProjectedDebugVfx.h"
 #include "game/runtime/shared/projected/SharedProjectedWorldSceneHelpers.h"
 #include "game/runtime/shared/vfx/tail_fire/SharedTailFireFallbackEmitter.h"
@@ -48,6 +49,7 @@ struct Args {
     float animYaw = 0.0f;
     float animRoll = 0.0f;
     float attackPulse = 1.0f;
+    float materialTimeSec = 0.0f;
     float renderVisualScale = 1.0f;
     float renderCaptureScale = 1.0f;
     float captureVisualTintStrength = 0.0f;
@@ -63,11 +65,13 @@ struct Args {
     shared_projected_debug::ProjectedDebugVfxBuilder* projectedDebug = nullptr;
     std::unordered_map<int, shared_tail_fire_fallback::Anchor>* sharedTailFireAnchors = nullptr;
     std::vector<shared_world_batches::WorldIndexedBatch>* worldIndexedBatches = nullptr;
+    std::unordered_map<std::string, SharedBackendTextureCacheEntry>* backendTextureByPath = nullptr;
     std::vector<shared_projected_scene::DepthTri>* modelDepthTris = nullptr;
     std::vector<shared_projected_scene::DepthWorldTri>* modelDepthWorldTris = nullptr;
     std::size_t* remainingModelTrianglesBudget = nullptr;
     std::vector<IRenderBackend::WorldTriangle>* world3DTriangles = nullptr;
 
+    std::function<SharedBackendTextureCacheEntry*(const std::string&, bool)> ensureBackendTextureLoaded;
     std::function<std::size_t()> backendModelTriangleLimit;
     std::function<bool()> backendModelFullMeshEnabled;
     std::function<bool()> backendModelFastTexturedPathEnabled;

@@ -181,7 +181,8 @@ bool appendExactBatchWithTileBake(
                                             float fps,
                                             const glm::vec2& localUV01,
                                             float seed,
-                                            float t) -> glm::vec4 {
+                                            float t,
+                                            bool coherent) -> glm::vec4 {
                                         const int safeCols = std::max(1, cols);
                                         const int safeRows = std::max(1, rows);
                                         const int maxFrames = std::max(1, safeCols * safeRows);
@@ -190,8 +191,9 @@ bool appendExactBatchWithTileBake(
                                         if (frames <= 1 || safeFps <= 0.0f) {
                                             return sampleTextureLinear(tex, glm::clamp(localUV01, glm::vec2(0.0f), glm::vec2(1.0f)));
                                         }
-                                        const float speed = glm::mix(0.85f, 1.10f, hash11(seed * 31.7f + 2.3f));
-                                        const float f = std::floor(t * safeFps * speed + seed * static_cast<float>(frames));
+                                        const float speed = coherent ? 1.0f : glm::mix(0.85f, 1.10f, hash11(seed * 31.7f + 2.3f));
+                                        const float phase = coherent ? 0.0f : (seed * static_cast<float>(frames));
+                                        const float f = std::floor(t * safeFps * speed + phase);
                                         float frameF = std::fmod(f, static_cast<float>(frames));
                                         if (frameF < 0.0f) frameF += static_cast<float>(frames);
                                         const int frame = std::clamp(static_cast<int>(frameF), 0, frames - 1);
@@ -255,12 +257,13 @@ bool appendExactBatchWithTileBake(
                                             smoothFlicker(t * 1.1f, seed + 0.73f));
                                         wobble -= 0.5f;
 
-                                        const glm::vec2 local1 = uv + wobble * 0.010f;
-                                        const glm::vec2 local2 = uv + wobble * 0.002f;
-
                                         glm::vec4 fb1(1.0f), fb2(1.0f);
                                         const bool has1 = rawAtlasValid(primaryRawTex);
                                         const bool has2 = has1 && rawAtlasValid(secondaryRawTex);
+                                        const float wobbleScale1 = has2 ? 0.010f : 0.0009f;
+                                        const float wobbleScale2 = has2 ? 0.002f : 0.0002f;
+                                        const glm::vec2 local1 = uv + wobble * wobbleScale1;
+                                        const glm::vec2 local2 = uv + wobble * wobbleScale2;
                                         if (has1) {
                                             fb1 = sampleAtlasLegacy(*primaryRawTex,
                                                                     snapshot.flipbookCols,
@@ -269,7 +272,8 @@ bool appendExactBatchWithTileBake(
                                                                     snapshot.flipbookFps,
                                                                     local1,
                                                                     seed,
-                                                                    t);
+                                                                    t,
+                                                                    !has2);
                                             if (has2) {
                                                 fb2 = sampleAtlasLegacy(*secondaryRawTex,
                                                                         snapshot.flipbookCols2,
@@ -278,16 +282,40 @@ bool appendExactBatchWithTileBake(
                                                                         snapshot.flipbookFps2,
                                                                         local2,
                                                                         seed,
-                                                                        t);
+                                                                        t,
+                                                                        false);
                                             } else {
                                                 fb2 = fb1;
                                             }
                                         }
 
+                                        if (has1 && !has2) {
+                                            const glm::vec2 directUv(uv.x, 1.0f - uv.y);
+                                            const glm::vec4 fbDirect = sampleAtlasLegacy(*primaryRawTex,
+                                                                                        snapshot.flipbookCols,
+                                                                                        snapshot.flipbookRows,
+                                                                                        snapshot.flipbookFrames,
+                                                                                        snapshot.flipbookFps,
+                                                                                        directUv,
+                                                                                        seed,
+                                                                                        t,
+                                                                                        true);
+                                            float alpha = clamp01(fbDirect.a);
+                                            alpha *= bottomFade;
+                                            alpha *= fade;
+                                            alpha = glm::clamp(alpha, 0.0f, 0.985f);
+                                            if (alpha < 0.003f) return glm::vec4(0.0f);
+                                            glm::vec3 rgb = glm::clamp(glm::vec3(fbDirect) * 1.15f,
+                                                                       glm::vec3(0.0f),
+                                                                       glm::vec3(1.0f));
+                                            rgb *= alpha;
+                                            return glm::vec4(rgb, alpha);
+                                        }
+
                                         const float fb1A = clamp01(fb1.a);
                                         const float fb1Lum = clamp01(glm::dot(glm::vec3(fb1), glm::vec3(0.3333f)));
 
-                                        const float speed = glm::mix(0.95f, 1.10f, hash11(seed * 19.31f));
+                                        const float speed = has2 ? glm::mix(0.95f, 1.10f, hash11(seed * 19.31f)) : 1.0f;
                                         const float flow = t * 1.55f * speed;
                                         const float flowY = flow * glm::mix(0.75f, 1.55f, y * y);
 
@@ -303,7 +331,7 @@ bool appendExactBatchWithTileBake(
                                         const float sway = fbm2D(glm::vec2(x * 1.7f, y * 3.8f) +
                                                                  glm::vec2(0.0f, -flowY * 0.65f) +
                                                                  seed * 7.0f);
-                                        p.x += (sway - 0.5f) * 0.015f * (1.0f - y);
+                                        p.x += (sway - 0.5f) * (has2 ? 0.015f : 0.004f) * (1.0f - y);
 
                                         const float d0 = glm::length(p);
                                         const glm::vec2 advP = advect2D(p * glm::vec2(1.20f, 1.0f) + seed * 6.0f,
@@ -318,7 +346,9 @@ bool appendExactBatchWithTileBake(
                                         const float body = clamp01(smoothstepf(0.92f, 0.12f, d));
 
                                         float procAlpha = body * (0.60f + 0.55f * blobs);
-                                        procAlpha *= (0.92f + 0.15f * smoothFlicker(t * 1.2f, seed));
+                                        const float calmFlicker = smoothFlicker(t * 1.2f, seed);
+                                        procAlpha *= has2 ? (0.92f + 0.15f * calmFlicker)
+                                                          : (0.985f + 0.03f * calmFlicker);
                                         procAlpha *= bottomFade;
                                         procAlpha *= fade;
                                         procAlpha = 1.0f - std::exp(-procAlpha * 1.85f);

@@ -126,6 +126,14 @@ bool writeBackendCacheFromSourceData(const std::string& filepath,
             return false;
         }
     }
+    for (std::uint32_t i = 0; i < hdr.nodeCount; ++i) {
+        const std::string& nodeName =
+            (i < data.nodeNames.size()) ? data.nodeNames[static_cast<std::size_t>(i)] : std::string{};
+        if (!writeString(out, nodeName)) {
+            if (outError) *outError = "failed to write cache node names";
+            return false;
+        }
+    }
     for (const auto& children : data.nodeChildren) {
         const std::uint32_t cc = static_cast<std::uint32_t>(children.size());
         if (!writePod(out, cc)) {

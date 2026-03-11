@@ -8,8 +8,10 @@ Result renderProjectedUnitModel(const Args& args) {
     Result out{};
     if (!args.dataDb || !args.unit || !args.pose || !args.meshForUnit || !args.scenePose ||
         !args.tint || !args.projectedDebug || !args.sharedTailFireAnchors ||
-        !args.worldIndexedBatches || !args.modelDepthTris || !args.modelDepthWorldTris ||
+        !args.worldIndexedBatches || !args.backendTextureByPath ||
+        !args.modelDepthTris || !args.modelDepthWorldTris ||
         !args.remainingModelTrianglesBudget || !args.world3DTriangles ||
+        !args.ensureBackendTextureLoaded ||
         !args.backendModelTriangleLimit || !args.backendModelFullMeshEnabled ||
         !args.backendModelFastTexturedPathEnabled || !args.backendModelBackfaceCullingEnabled) {
         return out;

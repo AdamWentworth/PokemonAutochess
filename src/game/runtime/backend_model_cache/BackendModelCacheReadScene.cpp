@@ -85,6 +85,7 @@ bool readSceneData(std::istream& in,
                    std::uint32_t skinCount,
                    std::uint32_t animCount,
                    std::vector<pac_model_types::NodeTRS>& outNodesDefault,
+                   std::vector<std::string>& outNodeNames,
                    std::vector<std::vector<int>>& outNodeChildren,
                    std::vector<int>& outNodeParent,
                    std::vector<int>& outNodeMesh,
@@ -93,6 +94,7 @@ bool readSceneData(std::istream& in,
                    std::vector<pac_model_types::SkinData>& outSkins,
                    std::vector<pac_model_types::AnimationClip>& outAnimations) {
     outNodesDefault.assign(nodeCount, pac_model_types::NodeTRS{});
+    outNodeNames.assign(nodeCount, std::string{});
     outNodeChildren.assign(nodeCount, {});
     outNodeMesh.assign(nodeCount, -1);
     outNodeSkin.assign(nodeCount, -1);
@@ -109,6 +111,10 @@ bool readSceneData(std::istream& in,
         }
         n.r = glm::normalize(n.r);
         n.hasMatrix = (hasMatrix != 0u);
+    }
+
+    for (std::uint32_t i = 0; i < nodeCount; ++i) {
+        if (!readString(in, outNodeNames[static_cast<std::size_t>(i)])) return false;
     }
 
     for (std::uint32_t i = 0; i < nodeCount; ++i) {
@@ -233,6 +239,7 @@ bool readSceneFromValidatedCacheStream(std::istream& in,
                        hdr.skinCount,
                        hdr.animCount,
                        out.nodesDefault,
+                       out.nodeNames,
                        out.nodeChildren,
                        out.nodeParent,
                        out.nodeMesh,

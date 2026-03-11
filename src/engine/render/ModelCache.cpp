@@ -71,7 +71,7 @@ static bool envTruthy(const char* name) {
 
 // Cache format constants
 static constexpr uint64_t kModelCacheMagic = 0x4C444D434150554FULL; // "PACMDML" in little-endian-ish
-static constexpr uint32_t kModelCacheVersion = 7;
+static constexpr uint32_t kModelCacheVersion = 8;
 
 #pragma pack(push, 1)
 struct CacheHeader {
@@ -148,6 +148,7 @@ bool Model::tryLoadCache(const std::string& filepath)
 
             // Read animation/node/skin state first (so drawAnimated works)
             nodesDefault.clear();
+            nodeNames.clear();
             nodeChildren.clear();
             nodeMesh.clear();
             nodeSkin.clear();
@@ -155,9 +156,12 @@ bool Model::tryLoadCache(const std::string& filepath)
             skins.clear();
             animations.clear();
             submeshes.clear();
+            nodeNameMapBuilt = false;
+            nodeNameToIndex.clear();
 
             // Nodes
             nodesDefault.resize(hdr.nodeCount);
+            nodeNames.resize(hdr.nodeCount);
             nodeChildren.resize(hdr.nodeCount);
             nodeMesh.resize(hdr.nodeCount, -1);
             nodeSkin.resize(hdr.nodeCount, -1);
@@ -172,6 +176,10 @@ bool Model::tryLoadCache(const std::string& filepath)
                 n.hasMatrix = (hm != 0);
                 if (!readPod(in, n.matrix)) return false;
                 nodesDefault[i] = n;
+            }
+
+            for (uint32_t i = 0; i < hdr.nodeCount; ++i) {
+                if (!readString(in, nodeNames[i])) return false;
             }
 
             for (uint32_t i = 0; i < hdr.nodeCount; ++i) {
@@ -557,6 +565,12 @@ void Model::writeCache(const std::string& filepath,
             uint8_t hm = n.hasMatrix ? 1u : 0u;
             if (!writePod(out, hm)) { warn("writePod failed"); return; }
             if (!writePod(out, n.matrix)) { warn("writePod failed"); return; }
+        }
+
+        for (uint32_t i = 0; i < hdr.nodeCount; ++i) {
+            const std::string& nodeName =
+                (i < nodeNames.size()) ? nodeNames[static_cast<std::size_t>(i)] : std::string{};
+            if (!writeString(out, nodeName)) { warn("writeString failed"); return; }
         }
 
         for (const auto& ch : nodeChildren) {

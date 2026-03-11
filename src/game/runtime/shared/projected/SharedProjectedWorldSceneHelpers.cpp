@@ -11,6 +11,7 @@
 #include <algorithm>
 #include <chrono>
 #include <cctype>
+#include <cstring>
 #include <iostream>
 #include <utility>
 
@@ -351,6 +352,77 @@ const TailFireVFX::Config& getTailFireFallbackCfg() {
     return sTailFireFallbackCfg;
 }
 
+bool hasValidTailFireAnchor(
+    const std::unordered_map<int, shared_tail_fire_fallback::Anchor>& anchors) {
+    for (const auto& [unitId, anchor] : anchors) {
+        (void)unitId;
+        if (anchor.valid && !anchor.meshCarrierActive) return true;
+    }
+    return false;
+}
+
+bool hasMeshCarrierTailFire(
+    const std::unordered_map<int, shared_tail_fire_fallback::Anchor>& anchors) {
+    for (const auto& [unitId, anchor] : anchors) {
+        (void)unitId;
+        if (anchor.valid && anchor.meshCarrierActive) return true;
+    }
+    return false;
+}
+
+bool appendAnchoredSingleFlipbookTailFire(const ParticleVfxArgs& args,
+                                          const TailFireVFX::Config& cfg) {
+    if (!args.sharedTailFireAnchors || !args.backendTextureByPath ||
+        !args.worldIndexedBatches || !args.ensureBackendTextureLoaded) {
+        return false;
+    }
+    if (!cfg.useFlipbook || cfg.flipbookPath.empty() || cfg.useFlipbook2) {
+        return false;
+    }
+    if (!hasValidTailFireAnchor(*args.sharedTailFireAnchors)) {
+        return false;
+    }
+
+    ParticleSystem::RenderSnapshot snapshot{};
+    snapshot.renderSettings.blend = cfg.blend;
+    snapshot.renderSettings.depthTest = cfg.depthTest;
+    snapshot.renderSettings.depthWrite = cfg.depthWrite;
+    snapshot.pointScale = cfg.pointScale;
+    snapshot.timeSec = static_cast<float>(args.simNowSec);
+    snapshot.shaderVertPath = cfg.vertShaderPath;
+    snapshot.shaderFragPath = cfg.fragShaderPath;
+    snapshot.useFlipbook = true;
+    snapshot.flipbookPath = cfg.flipbookPath;
+    snapshot.flipbookCols = cfg.flipbookCols;
+    snapshot.flipbookRows = cfg.flipbookRows;
+    snapshot.flipbookFrames = cfg.flipbookFrames;
+    snapshot.flipbookFps = cfg.flipbookFps;
+    snapshot.useSecondaryFlipbook = false;
+
+    ParticleSystem::Particle marker{};
+    marker.lifeSec = 1.0f;
+    marker.maxLifeSec = 1.0f;
+    marker.sizePx = 0.30f;
+    marker.seed = 0.0f;
+    snapshot.particles.push_back(marker);
+
+    return game::runtime::shared_particle_snapshot_billboards::appendSnapshotAsBillboards(
+        "tail_fire_single",
+        snapshot,
+        args.viewProj,
+        args.invViewProj,
+        args.cameraWorldPos,
+        args.drawableW,
+        args.drawableH,
+        *args.backendTextureByPath,
+        [&](const std::string& texturePath, bool flipVertical) -> SharedBackendTextureCacheEntry* {
+            return args.ensureBackendTextureLoaded(texturePath, flipVertical);
+        },
+        args.sharedTailFireAnchors,
+        args.useExactTailFireCpuPath,
+        *args.worldIndexedBatches);
+}
+
 const runtime::backend_model::MeshData* resolveModelMesh(
     const PokemonInstance& unit,
     const ::GameDataDb& dataDb,
@@ -482,12 +554,28 @@ void appendSharedParticleVfx(const ParticleVfxArgs& args) {
 
     bool appendedTailFireBillboards = false;
     bool appendedLeechDrainBillboards = false;
+    const TailFireVFX::Config& tailFireFallbackCfg = getTailFireFallbackCfg();
+    const bool wantsAnchoredSingleFlipbook =
+        tailFireFallbackCfg.useFlipbook &&
+        !tailFireFallbackCfg.flipbookPath.empty() &&
+        !tailFireFallbackCfg.useFlipbook2;
+    if (wantsAnchoredSingleFlipbook) {
+        appendedTailFireBillboards =
+            appendAnchoredSingleFlipbookTailFire(args, tailFireFallbackCfg);
+    }
+
     if (args.gameWorld->countActiveParticleVfx() > 0u) {
         GameWorld::ParticleVfxSnapshots vfxSnapshots;
         (void)args.gameWorld->buildParticleVfxSnapshots(vfxSnapshots);
 
         const auto appendSnapshotAsBillboards =
             [&](const char* label, const ParticleSystem::RenderSnapshot& snapshot) -> bool {
+            if (wantsAnchoredSingleFlipbook &&
+                appendedTailFireBillboards &&
+                label != nullptr &&
+                std::strcmp(label, "tail_fire") == 0) {
+                return true;
+            }
             return game::runtime::shared_particle_snapshot_billboards::appendSnapshotAsBillboards(
                 label,
                 snapshot,
@@ -500,6 +588,7 @@ void appendSharedParticleVfx(const ParticleVfxArgs& args) {
                 [&](const std::string& texturePath, bool flipVertical) -> SharedBackendTextureCacheEntry* {
                     return args.ensureBackendTextureLoaded(texturePath, flipVertical);
                 },
+                args.sharedTailFireAnchors,
                 args.useExactTailFireCpuPath,
                 *args.worldIndexedBatches);
         };
@@ -512,7 +601,6 @@ void appendSharedParticleVfx(const ParticleVfxArgs& args) {
     }
 
     if (!appendedTailFireBillboards && args.gameWorld) {
-        const TailFireVFX::Config& tailFireFallbackCfg = getTailFireFallbackCfg();
         game::runtime::shared_tail_fire_fallback::Args tailFireArgs;
         tailFireArgs.worldCellSize = args.worldCellSize;
         tailFireArgs.simNowSec = args.simNowSec;
@@ -534,6 +622,7 @@ void appendSharedParticleVfx(const ParticleVfxArgs& args) {
                     [&](const std::string& texturePath, bool flipVertical) -> SharedBackendTextureCacheEntry* {
                         return args.ensureBackendTextureLoaded(texturePath, flipVertical);
                     },
+                    args.sharedTailFireAnchors,
                     args.useExactTailFireCpuPath,
                     *args.worldIndexedBatches);
             };
@@ -542,7 +631,8 @@ void appendSharedParticleVfx(const ParticleVfxArgs& args) {
             appendedTailFireBillboards;
     }
 
-    if (!appendedTailFireBillboards) {
+    if (!appendedTailFireBillboards &&
+        !(args.sharedTailFireAnchors && hasMeshCarrierTailFire(*args.sharedTailFireAnchors))) {
         for (const auto& unit : args.gameWorld->getPokemons()) {
             if (!isCharmanderUnit(unit)) continue;
             const auto extents =

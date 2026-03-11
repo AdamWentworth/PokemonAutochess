@@ -299,9 +299,10 @@ void D3D12RenderBackend::createWorldPipeline() {
 #if defined(_WIN32)
     static constexpr char kVsSource[] =
         "cbuffer VSConstants : register(b0) { float4x4 uViewProj; float4x4 uModel; float4 uSkinMeta; };"
+        "cbuffer MaterialVsConstants : register(b1) { float _m0,_m1,_m2,_m3,_m4,_m5,_m6,_m7,_m8,_m9,_m10,_m11,_m12,_m13; float4 uGeneratedBoundsMin; float4 uGeneratedBoundsMax; };"
         "cbuffer VSSkinMatrices : register(b2) { float4x4 gSkinMatrices[64]; };"
         "struct VSIn { float3 pos : POSITION; float2 uv : TEXCOORD; float4 col : COLOR; float3 nrm : NORMAL; float4 jnts : BLENDINDICES; float4 wgts : BLENDWEIGHT; float4 tan : TANGENT; };"
-        "struct VSOut { float4 pos : SV_POSITION; float2 uv : TEXCOORD; float4 col : COLOR; float3 worldPos : TEXCOORD1; float3 worldNormal : TEXCOORD2; float4 worldTangent : TEXCOORD3; };"
+        "struct VSOut { float4 pos : SV_POSITION; float2 uv : TEXCOORD; float4 col : COLOR; float3 worldPos : TEXCOORD1; float3 worldNormal : TEXCOORD2; float4 worldTangent : TEXCOORD3; float3 generated : TEXCOORD4; };"
         "float3 applySkinningPos(VSIn i, float3 localPos) {"
         "  if (uSkinMeta.x < 0.5f) return localPos;"
         "  float4 blended = float4(0.0f, 0.0f, 0.0f, 0.0f);"
@@ -366,6 +367,8 @@ void D3D12RenderBackend::createWorldPipeline() {
         "  o.pos = clip;"
         "  o.uv = i.uv;"
         "  o.col = i.col;"
+        "  float3 genDen = max(uGeneratedBoundsMax.xyz - uGeneratedBoundsMin.xyz, float3(1e-5f, 1e-5f, 1e-5f));"
+        "  o.generated = saturate((i.pos - uGeneratedBoundsMin.xyz) / genDen);"
         "  o.worldPos = world.xyz;"
         "  float3x3 normalM = (float3x3)uModel;"
         "  float3 wn = mul(normalM, localNormal);"
@@ -425,7 +428,7 @@ SamplerState gSampRM : register(s5);
 SamplerState gSampMM : register(s6);
 SamplerState gSampCM : register(s7);
 SamplerState gSampMC : register(s8);
-struct PSIn { float4 pos : SV_POSITION; float2 uv : TEXCOORD; float4 col : COLOR; float3 worldPos : TEXCOORD1; float3 worldNormal : TEXCOORD2; float4 worldTangent : TEXCOORD3; };
+struct PSIn { float4 pos : SV_POSITION; float2 uv : TEXCOORD; float4 col : COLOR; float3 worldPos : TEXCOORD1; float3 worldNormal : TEXCOORD2; float4 worldTangent : TEXCOORD3; float3 generated : TEXCOORD4; };
 
 float applyWrap(float coord, float mode) {
   if (abs(mode - 33071.0f) < 0.5f) return saturate(coord);
@@ -546,9 +549,10 @@ float2 clampUvToRegionPixels(float2 localUV01, float4 rectUv) {
   return rectUv.xy + clamp(regionUv - rectUv.xy, minPx, maxPx);
 }
 
-float4 sampleAtlasCombined(float4 rectUv, float2 grid, float frames, float fps, float2 localUV01, float seed, float t) {
-  float speed = lerp(0.85f, 1.10f, hash11(seed * 31.7f + 2.3f));
-  float f = floor(t * fps * speed + seed * frames);
+float4 sampleAtlasCombined(float4 rectUv, float2 grid, float frames, float fps, float2 localUV01, float seed, float t, bool coherent) {
+  float speed = coherent ? 1.0f : lerp(0.85f, 1.10f, hash11(seed * 31.7f + 2.3f));
+  float phase = coherent ? 0.0f : (seed * frames);
+  float f = floor(t * fps * speed + phase);
   float frame = fmod(f, max(1.0f, frames));
   if (frame < 0.0f) frame += max(1.0f, frames);
   float cols = max(1.0f, grid.x);
@@ -559,6 +563,93 @@ float4 sampleAtlasCombined(float4 rectUv, float2 grid, float frames, float fps, 
   float2 cellUVLocal = (float2(col, row) + localUV01) / float2(cols, rows);
   float2 cellUv = clampUvToRegionPixels(cellUVLocal, rectUv);
   return gTex.Sample(gSampCC, cellUv);
+}
+
+float4 sampleFireDirect0(float2 uvLocal, float seed, float t) {
+  return sampleAtlasCombined(float4(uMaterialRect0U, uMaterialRect0V, uMaterialRect0W, uMaterialRect0H),
+                             float2(uMaterialFlipbook0Cols, uMaterialFlipbook0Rows),
+                             uMaterialFlipbook0Frames, uMaterialFlipbook0Fps, uvLocal, seed, t, true);
+}
+
+float4 sampleAtlasCombinedTopLeft(float4 rectUv, float2 grid, float frames, float fps, float2 localUV01, float t) {
+  float f = floor(t * fps);
+  float frame = fmod(f, max(1.0f, frames));
+  if (frame < 0.0f) frame += max(1.0f, frames);
+  float cols = max(1.0f, grid.x);
+  float rows = max(1.0f, grid.y);
+  float col = fmod(frame, cols);
+  float row = floor(frame / cols);
+  float2 cellUVLocal = (float2(col, row) + localUV01) / float2(cols, rows);
+  float2 cellUv = clampUvToRegionPixels(cellUVLocal, rectUv);
+  return gTex.Sample(gSampCC, cellUv);
+}
+)HLSL"
+R"HLSL(
+
+float hash41(float4 p) {
+  return frac(sin(dot(p, float4(127.1f, 311.7f, 74.7f, 269.5f))) * 43758.5453123f);
+}
+
+float valueNoise4D(float4 p) {
+  float4 i = floor(p);
+  float4 f = frac(p);
+  float4 u = f * f * f * (f * (f * 6.0f - 15.0f) + 10.0f);
+  float accum = 0.0f;
+  [unroll]
+  for (int dw = 0; dw < 2; ++dw) {
+    [unroll]
+    for (int dz = 0; dz < 2; ++dz) {
+      [unroll]
+      for (int dy = 0; dy < 2; ++dy) {
+        [unroll]
+        for (int dx = 0; dx < 2; ++dx) {
+          float4 corner = float4((float)dx, (float)dy, (float)dz, (float)dw);
+          float wx = lerp(1.0f - u.x, u.x, corner.x);
+          float wy = lerp(1.0f - u.y, u.y, corner.y);
+          float wz = lerp(1.0f - u.z, u.z, corner.z);
+          float ww = lerp(1.0f - u.w, u.w, corner.w);
+          accum += hash41(i + corner) * wx * wy * wz * ww;
+        }
+      }
+    }
+  }
+  return accum;
+}
+
+float authoredFireNoise(float4 p) {
+  float value = 0.0f;
+  float amplitude = 1.0f;
+  float amplitudeSum = 0.0f;
+  [unroll]
+  for (int octave = 0; octave < 2; ++octave) {
+    value += amplitude * valueNoise4D(p);
+    amplitudeSum += amplitude;
+    p *= 2.0f;
+    amplitude *= 0.5f;
+  }
+  return value / max(amplitudeSum, 1e-5f);
+}
+
+float4 evalAuthoredFireMesh(PSIn i) {
+  float2 uv = saturate(i.uv);
+  float4 baked = sampleAtlasCombinedTopLeft(
+      float4(uMaterialRect0U, uMaterialRect0V, uMaterialRect0W, uMaterialRect0H),
+      float2(uMaterialFlipbook0Cols, uMaterialFlipbook0Rows),
+      uMaterialFlipbook0Frames,
+      uMaterialFlipbook0Fps,
+      uv,
+      uMaterialTimeSec);
+  float baseEngulf = 1.0f - smoothstep(0.0f, 0.28f, saturate(i.generated.y));
+  float2 centerXZ = i.generated.xz - float2(0.5f, 0.5f);
+  float centerDist = length(centerXZ * float2(1.2f, 1.0f));
+  float coreMask = 1.0f - smoothstep(0.0f, 0.23f, centerDist);
+  float tipHideMask = baseEngulf * coreMask;
+  baked.rgb = lerp(baked.rgb, float3(1.0f, 0.82f, 0.30f), tipHideMask * 0.55f);
+  baked.a = max(baked.a, baseEngulf * 0.95f);
+  baked.a = max(baked.a, tipHideMask);
+  if (baked.a <= 0.08f) discard;
+  baked.a = 1.0f;
+  return baked;
 }
 
 float lickBlobs(float x, float y, float2 advP, float flowY, float seed) {
@@ -606,29 +697,48 @@ float4 evalFireTailExact(PSIn i) {
     smoothFlicker(t * 0.9f, vSeed + 0.17f),
     smoothFlicker(t * 1.1f, vSeed + 0.73f)
   ) - 0.5f;
-  float2 local1 = uv + wobble * 0.010f;
-  float2 local2 = uv + wobble * 0.002f;
-
   float4 fb1 = float4(1,1,1,1);
   float4 fb2 = float4(1,1,1,1);
-  bool has1 = (uMaterialFlags >= 0.5f);
-  bool has2 = (uMaterialFlags >= 2.5f);
+  int fireFlags = (int)(uMaterialFlags + 0.5f);
+  bool has1 = (fireFlags & 1) != 0;
+  bool has2 = (fireFlags & 2) != 0;
+  bool authoredFireMesh = (fireFlags & 8) != 0;
+  if (authoredFireMesh) {
+    return evalAuthoredFireMesh(i);
+  }
+  float wobbleScale1 = has2 ? 0.010f : 0.0009f;
+  float wobbleScale2 = has2 ? 0.002f : 0.0002f;
+  float2 local1 = uv + wobble * wobbleScale1;
+  float2 local2 = uv + wobble * wobbleScale2;
   if (has1) {
     fb1 = sampleAtlasCombined(float4(uMaterialRect0U, uMaterialRect0V, uMaterialRect0W, uMaterialRect0H),
                               float2(uMaterialFlipbook0Cols, uMaterialFlipbook0Rows),
-                              uMaterialFlipbook0Frames, uMaterialFlipbook0Fps, local1, vSeed, t);
+                              uMaterialFlipbook0Frames, uMaterialFlipbook0Fps, local1, vSeed, t, !has2);
     if (has2) {
       fb2 = sampleAtlasCombined(float4(uMaterialRect1U, uMaterialRect1V, uMaterialRect1W, uMaterialRect1H),
                                 float2(uMaterialFlipbook1Cols, uMaterialFlipbook1Rows),
-                                uMaterialFlipbook1Frames, uMaterialFlipbook1Fps, local2, vSeed, t);
+                                uMaterialFlipbook1Frames, uMaterialFlipbook1Fps, local2, vSeed, t, false);
     } else {
       fb2 = fb1;
     }
   }
 
+  if (has1 && !has2) {
+    float2 directUv = float2(uv.x, 1.0f - uv.y);
+    float4 fbDirect = sampleFireDirect0(directUv, vSeed, t);
+    float alpha = saturate(fbDirect.a);
+    float3 rgb = saturate(fbDirect.rgb * 1.15f);
+    alpha *= bottomFade;
+    alpha *= fade;
+    alpha = clamp(alpha, 0.0f, 0.985f);
+    if (alpha < 0.003f) discard;
+    rgb *= alpha;
+    return float4(rgb, alpha);
+  }
+
   float fb1A = saturate(fb1.a);
   float fb1Lum = saturate(dot(fb1.rgb, float3(0.3333f, 0.3333f, 0.3333f)));
-  float speed = lerp(0.95f, 1.10f, hash11(vSeed * 19.31f));
+  float speed = has2 ? lerp(0.95f, 1.10f, hash11(vSeed * 19.31f)) : 1.0f;
   float flow = t * 1.55f * speed;
   float flowY = flow * lerp(0.75f, 1.55f, y * y);
   float width = lerp(0.30f, 0.055f, pow(y, 2.35f));
@@ -638,7 +748,7 @@ float4 evalFireTailExact(PSIn i) {
   yy /= 1.12f;
   float2 p = float2(x / widthHybrid, yy) * 1.22f;
   float sway = fbm2D(float2(x * 1.7f, y * 3.8f) + float2(0.0f, -flowY * 0.65f) + vSeed * 7.0f);
-  p.x += (sway - 0.5f) * 0.015f * (1.0f - y);
+  p.x += (sway - 0.5f) * (has2 ? 0.015f : 0.004f) * (1.0f - y);
   float d0 = length(p);
   float2 advP = advect2D(p * float2(1.20f, 1.0f) + vSeed * 6.0f, flowY, 0.25f);
   float n = fbm2D(advP * float2(2.7f, 4.5f) + vSeed * 11.0f);
@@ -648,7 +758,8 @@ float4 evalFireTailExact(PSIn i) {
   float blobs = lickBlobs(x, y, advP, flowY, vSeed);
   float body = saturate(smoothstep(0.92f, 0.12f, d));
   float procAlpha = body * (0.60f + 0.55f * blobs);
-  procAlpha *= (0.92f + 0.15f * smoothFlicker(t * 1.2f, vSeed));
+  float calmFlicker = smoothFlicker(t * 1.2f, vSeed);
+  procAlpha *= has2 ? (0.92f + 0.15f * calmFlicker) : (0.985f + 0.03f * calmFlicker);
   procAlpha *= bottomFade;
   procAlpha *= fade;
   procAlpha = 1.0f - exp(-procAlpha * 1.85f);
@@ -701,8 +812,9 @@ float4 evalFireTailExact(PSIn i) {
 
   float hybridMaskedA = hybridAlpha * radialMaskLoose * bottomFade;
   float fb2MaskedA = fb2Alpha * radialMaskBase;
-  float3 rgb = lerp(hybridRgb, fb2Rgb, 0.50f);
-  float alpha = lerp(hybridMaskedA, fb2MaskedA, 0.50f);
+  float mixW = 0.50f;
+  float3 rgb = lerp(hybridRgb, fb2Rgb, mixW);
+  float alpha = lerp(hybridMaskedA, fb2MaskedA, mixW);
   alpha *= fade;
   alpha = clamp(alpha + 0.10f * outer * fade, 0.0f, 0.985f);
   rgb *= 2.60f;
@@ -1043,7 +1155,7 @@ float4 main(PSIn i, bool isFrontFace : SV_IsFrontFace) : SV_TARGET {
     rootParams[1].Constants.Num32BitValues = static_cast<UINT>(sizeof(WorldPsConstants) / sizeof(float));
     rootParams[1].Constants.ShaderRegister = 1;
     rootParams[1].Constants.RegisterSpace = 0;
-    rootParams[1].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+    rootParams[1].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
     rootParams[2].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
     rootParams[2].Descriptor.ShaderRegister = 2;
     rootParams[2].Descriptor.RegisterSpace = 0;

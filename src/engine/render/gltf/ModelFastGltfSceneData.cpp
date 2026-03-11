@@ -78,6 +78,7 @@ namespace pac::model_fastgltf {
 void buildSceneData(const fastgltf::Asset& asset,
                     fastgltf::DefaultBufferDataAdapter& adapter,
                     std::vector<pac_model_types::NodeTRS>& outNodesDefault,
+                    std::vector<std::string>* outNodeNames,
                     std::vector<std::vector<int>>& outNodeChildren,
                     std::vector<int>& outNodeMesh,
                     std::vector<int>& outNodeSkin,
@@ -91,9 +92,11 @@ void buildSceneData(const fastgltf::Asset& asset,
     outSceneRoots.clear();
     outSkins.clear();
     outAnimations.clear();
+    if (outNodeNames) outNodeNames->clear();
 
     // ---- Nodes + scene roots ----
     outNodesDefault.resize(asset.nodes.size());
+    if (outNodeNames) outNodeNames->resize(asset.nodes.size());
     outNodeChildren.resize(asset.nodes.size());
     outNodeMesh.assign(asset.nodes.size(), -1);
     outNodeSkin.assign(asset.nodes.size(), -1);
@@ -111,6 +114,9 @@ void buildSceneData(const fastgltf::Asset& asset,
 
     for (size_t i = 0; i < asset.nodes.size(); ++i) {
         const auto& n = asset.nodes[i];
+        if (outNodeNames) {
+            (*outNodeNames)[i] = std::string(n.name.begin(), n.name.end());
+        }
 
         outNodeChildren[i].clear();
         outNodeChildren[i].reserve(n.children.size());

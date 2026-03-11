@@ -51,21 +51,64 @@ static glm::mat3 orthonormalBasis(const glm::mat4& m) {
     return glm::mat3(x, y, z);
 }
 
+static glm::vec3 safeNormOr(glm::vec3 v, const glm::vec3& fallback) {
+    const float len2 = glm::dot(v, v);
+    if (len2 <= 1e-10f) return fallback;
+    return v * (1.0f / std::sqrt(len2));
+}
+
+static glm::mat3 buildFireAnchorBasis(const glm::mat4& baseWorldM,
+                                      const glm::vec3& basePosWorld,
+                                      const glm::vec3& tipPosWorld) {
+    const glm::vec3 upAxis =
+        safeNormOr(tipPosWorld - basePosWorld,
+                   safeNormOr(glm::vec3(baseWorldM[1]), glm::vec3(0.0f, 1.0f, 0.0f)));
+
+    glm::vec3 xHint = glm::vec3(baseWorldM[0]);
+    xHint -= upAxis * glm::dot(xHint, upAxis);
+    if (glm::dot(xHint, xHint) <= 1e-10f) {
+        xHint = glm::vec3(baseWorldM[2]);
+        xHint -= upAxis * glm::dot(xHint, upAxis);
+    }
+
+    glm::vec3 xFallback = (std::fabs(upAxis.y) < 0.95f)
+        ? safeNormOr(glm::cross(glm::vec3(0.0f, 1.0f, 0.0f), upAxis), glm::vec3(1.0f, 0.0f, 0.0f))
+        : glm::vec3(1.0f, 0.0f, 0.0f);
+    glm::vec3 xAxis = safeNormOr(xHint, xFallback);
+    glm::vec3 zAxis = safeNormOr(glm::cross(xAxis, upAxis), glm::vec3(0.0f, 0.0f, 1.0f));
+    xAxis = safeNormOr(glm::cross(upAxis, zAxis), xAxis);
+
+    if (glm::dot(glm::cross(xAxis, upAxis), zAxis) < 0.0f) {
+        zAxis = -zAxis;
+    }
+    return glm::mat3(xAxis, upAxis, zAxis);
+}
+
+int TailFireVFX::resolveOptionalNodeIndex(const Model& model,
+                                          const std::string& nodeName,
+                                          std::unordered_map<const Model*, int>& cache) const {
+    auto it = cache.find(&model);
+    if (it != cache.end()) return it->second;
+
+    int idx = -1;
+    if (!nodeName.empty()) {
+        (void)model.getNodeIndexByName(nodeName, idx);
+    }
+    cache[&model] = idx;
+    return idx;
+}
+
 int TailFireVFX::resolveTailTipNodeIndex(const Model& model) const {
     auto it = tailNodeIndexCache.find(&model);
     if (it != tailNodeIndexCache.end()) return it->second;
 
-    int idx = -1;
-
-    if (!cfg.tailTipNodeName.empty()) {
-        if (model.getNodeIndexByName(cfg.tailTipNodeName, idx)) {
-            tailNodeIndexCache[&model] = idx;
-            return idx;
-        }
-        // If name missing/wrong, fall back to index below.
+    const int idxByName = resolveOptionalNodeIndex(model, cfg.tailTipNodeName, tailNodeIndexCache);
+    if (idxByName >= 0) {
+        tailNodeIndexCache[&model] = idxByName;
+        return idxByName;
     }
 
-    idx = cfg.tailTipNodeIndex;
+    const int idx = cfg.tailTipNodeIndex;
     tailNodeIndexCache[&model] = idx;
     return idx;
 }
@@ -151,8 +194,10 @@ void TailFireVFX::emitForList(float dt, const std::vector<PokemonInstance>& list
         if (!u.alive || !u.model) continue;
         if (filter && !filter(u)) continue;
 
+        const bool calmerSingleFlipbook = !cfg.useFlipbook2;
+        const float singleFlipbookEmitScale = calmerSingleFlipbook ? 0.45f : 1.0f;
         float& acc = emitAccumulator[u.id];
-        acc += dt * cfg.emitRatePerSec;
+        acc += dt * cfg.emitRatePerSec * singleFlipbookEmitScale;
 
         int emitCount = (int)std::floor(acc);
         if (emitCount <= 0) continue;
@@ -192,25 +237,52 @@ void TailFireVFX::emitForList(float dt, const std::vector<PokemonInstance>& list
             filteredTailVel.erase(u.id);
         }
 
-        const int tailNodeIndex = resolveTailTipNodeIndex(*u.model);
-
-        glm::mat4 tailNodeGlobal(1.0f);
-        if (!u.model->getNodeGlobalTransformByIndex(u.animTimeSec, animIdx, tailNodeIndex, tailNodeGlobal)) {
-            // If the requested anim index fails, try idle as a fallback.
-            if (!u.model->getNodeGlobalTransformByIndex(u.animTimeSec, u.animIdleIndex, tailNodeIndex, tailNodeGlobal)) {
-                continue;
+        auto getNodeGlobal = [&](int nodeIndex, glm::mat4& outNodeGlobal) -> bool {
+            if (nodeIndex < 0) return false;
+            if (u.model->getNodeGlobalTransformByIndex(u.animTimeSec, animIdx, nodeIndex, outNodeGlobal)) {
+                return true;
             }
-        }
+            return u.model->getNodeGlobalTransformByIndex(
+                u.animTimeSec, u.animIdleIndex, nodeIndex, outNodeGlobal);
+        };
+
+        const int tailNodeIndex = resolveTailTipNodeIndex(*u.model);
+        const int fireAnchorBaseNodeIndex =
+            resolveOptionalNodeIndex(*u.model, cfg.fireAnchorBaseNodeName, fireAnchorBaseNodeIndexCache);
+        const int fireAnchorTipNodeIndex =
+            resolveOptionalNodeIndex(*u.model, cfg.fireAnchorTipNodeName, fireAnchorTipNodeIndexCache);
 
         // Model -> world
-        glm::mat4 instM = computeInstanceTransform(u);
-        glm::mat4 tailWorldM = instM * tailNodeGlobal;
+        const glm::mat4 instM = computeInstanceTransform(u);
 
-        glm::vec3 tailPosWorld = glm::vec3(tailWorldM[3]);
-        tailPosWorld.y += cfg.tailWorldYOffset;
+        glm::vec3 tailPosWorld(0.0f);
+        glm::mat3 tailBasis(1.0f);
+        glm::mat4 baseNodeGlobal(1.0f);
+        glm::mat4 tipNodeGlobal(1.0f);
+        if (fireAnchorBaseNodeIndex >= 0 &&
+            fireAnchorTipNodeIndex >= 0 &&
+            getNodeGlobal(fireAnchorBaseNodeIndex, baseNodeGlobal) &&
+            getNodeGlobal(fireAnchorTipNodeIndex, tipNodeGlobal)) {
+            const glm::mat4 baseWorldM = instM * baseNodeGlobal;
+            const glm::mat4 tipWorldM = instM * tipNodeGlobal;
+            const glm::vec3 basePosWorld = glm::vec3(baseWorldM[3]);
+            const glm::vec3 tipPosWorld = glm::vec3(tipWorldM[3]);
+            tailBasis = buildFireAnchorBasis(baseWorldM, basePosWorld, tipPosWorld);
+            const float fireAxisLength = glm::length(tipPosWorld - basePosWorld);
+            const glm::vec3 fireUp =
+                safeNormOr(glm::vec3(tailBasis[1]), glm::vec3(0.0f, 1.0f, 0.0f));
+            tailPosWorld = basePosWorld - fireUp * (fireAxisLength * 0.06f);
+        } else {
+            glm::mat4 tailNodeGlobal(1.0f);
+            if (!getNodeGlobal(tailNodeIndex, tailNodeGlobal)) {
+                continue;
+            }
 
-        // Stable orientation basis at the tail
-        glm::mat3 tailBasis = orthonormalBasis(tailWorldM);
+            const glm::mat4 tailWorldM = instM * tailNodeGlobal;
+            tailPosWorld = glm::vec3(tailWorldM[3]);
+            tailPosWorld.y += cfg.tailWorldYOffset;
+            tailBasis = orthonormalBasis(tailWorldM);
+        }
 
         // Rotate the "back direction" with the tail
         glm::vec3 backDirWorld = tailBasis * cfg.backDir;
@@ -273,12 +345,15 @@ void TailFireVFX::emitForList(float dt, const std::vector<PokemonInstance>& list
         // Emit particles
         uint32_t& serial = spawnSerial[u.id];
 
+        const float unitSeed = hash01(static_cast<float>(u.id) * 13.137f + 0.417f);
+
         for (int k = 0; k < emitCount; ++k) {
             const float base = (float)(serial++);
 
-            float rx = hashSigned(base + 1.0f) * cfg.spawnRadius;
-            float ry = hashSigned(base + 2.0f) * cfg.spawnRadius;
-            float rz = hashSigned(base + 3.0f) * cfg.spawnRadius;
+            const float jitterScale = calmerSingleFlipbook ? 0.14f : 1.0f;
+            float rx = hashSigned(base + 1.0f) * cfg.spawnRadius * jitterScale;
+            float ry = hashSigned(base + 2.0f) * cfg.spawnRadius * jitterScale;
+            float rz = hashSigned(base + 3.0f) * cfg.spawnRadius * jitterScale;
 
             glm::vec3 localJitter(rx, ry, rz);
             glm::vec3 worldJitter = tailBasis * localJitter;
@@ -286,15 +361,20 @@ void TailFireVFX::emitForList(float dt, const std::vector<PokemonInstance>& list
             ParticleSystem::Particle p;
             p.pos = anchor + worldJitter;
 
-            float up   = 0.055f + hash01(base + 5.0f) * 0.095f;
-            float back = 0.050f + hash01(base + 6.0f) * 0.050f;
+            float up =
+                (calmerSingleFlipbook ? 0.006f : 0.055f) +
+                hash01(base + 5.0f) * (calmerSingleFlipbook ? 0.010f : 0.095f);
+            float back =
+                (calmerSingleFlipbook ? 0.002f : 0.050f) +
+                hash01(base + 6.0f) * (calmerSingleFlipbook ? 0.006f : 0.050f);
 
             // base motion + rotate back-dir with tail
             p.vel = glm::vec3(0.0f, up, 0.0f) + backDirWorld * back;
 
             // inherit tail tip motion, but clamp the inherited component
-            if (cfg.inheritVelocity != 0.0f) {
-                glm::vec3 inh = tailVel * cfg.inheritVelocity;
+            const float inheritVelocity = calmerSingleFlipbook ? 0.0f : cfg.inheritVelocity;
+            if (inheritVelocity != 0.0f) {
+                glm::vec3 inh = tailVel * inheritVelocity;
 
                 const float maxInherit = 2.5f;
                 float inh2 = glm::dot(inh, inh);
@@ -305,15 +385,17 @@ void TailFireVFX::emitForList(float dt, const std::vector<PokemonInstance>& list
                 p.vel += inh;
             }
 
-            p.maxLifeSec = 0.14f + hash01(base + 7.0f) * 0.10f;
+            p.maxLifeSec =
+                (calmerSingleFlipbook ? 0.045f : 0.14f) +
+                hash01(base + 7.0f) * (calmerSingleFlipbook ? 0.020f : 0.10f);
             p.lifeSec = p.maxLifeSec;
 
             float scaleFactor = u.model ? u.model->getScaleFactor() : 1.0f;
-            float sizeBase = 0.22f * scaleFactor;
-            float sizeJit  = 0.10f * scaleFactor;
+            float sizeBase = (calmerSingleFlipbook ? 0.30f : 0.22f) * scaleFactor;
+            float sizeJit  = (calmerSingleFlipbook ? 0.015f : 0.10f) * scaleFactor;
             p.sizePx = sizeBase + hash01(base + 8.0f) * sizeJit;
 
-            p.seed = hash01(base + 9.0f);
+            p.seed = calmerSingleFlipbook ? unitSeed : hash01(base + 9.0f);
 
             particles.emit(p);
         }

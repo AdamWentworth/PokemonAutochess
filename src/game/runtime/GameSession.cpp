@@ -1606,7 +1606,9 @@ struct GameSession::Impl {
         }
 
         const bool prewarmLegacyPremul =
-            backendPrewarmLegacyTailFirePremulEnabled() || !(combined.atlas && combined.atlas->valid);
+            backendPrewarmLegacyTailFirePremulEnabled() ||
+            !snapshot.useSecondaryFlipbook ||
+            !(combined.atlas && combined.atlas->valid);
         if (prewarmLegacyPremul) {
             const std::string primaryPremulKey =
                 std::string("__tailfire_premul:") + snapshot.flipbookPath;

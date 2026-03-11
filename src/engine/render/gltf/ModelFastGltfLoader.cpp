@@ -48,6 +48,7 @@ void Model::loadGLTFFast(const std::string& filepath) {
     }
     // Reset model state
     nodesDefault.clear();
+    nodeNames.clear();
     nodeChildren.clear();
     nodeMesh.clear();
     nodeSkin.clear();
@@ -55,10 +56,13 @@ void Model::loadGLTFFast(const std::string& filepath) {
     skins.clear();
     animations.clear();
     submeshes.clear();
+    nodeNameMapBuilt = false;
+    nodeNameToIndex.clear();
     fastgltf::DefaultBufferDataAdapter adapter{};
     pac::model_fastgltf::buildSceneData(asset,
                                         adapter,
                                         nodesDefault,
+                                        &nodeNames,
                                         nodeChildren,
                                         nodeMesh,
                                         nodeSkin,

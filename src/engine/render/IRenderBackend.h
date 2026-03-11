@@ -120,7 +120,7 @@ public:
         // Optional exact material payload used by world textured draws.
         // Currently interpreted when materialMode == 1 (FireTailExact).
         float materialTimeSec = 0.0f;
-        float materialFlags = 0.0f; // bit0=useFlipbook, bit1=hasFlipbook2
+        float materialFlags = 0.0f; // bit0=useFlipbook, bit1=hasFlipbook2, bit2=meshCarrier, bit3=authoredFireMesh
         float materialAtlasWidth = 0.0f;
         float materialAtlasHeight = 0.0f;
 

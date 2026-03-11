@@ -150,7 +150,10 @@ void emitForList(
     if (dt <= 0.0f) return;
     const float emitScale = tailFireFallbackEmitScale();
     const float fallbackSizeScale = tailFireFallbackSizeScale();
-    const float emitRatePerSec = std::max(0.0f, cfg.emitRatePerSec * emitScale);
+    const bool calmerSingleFlipbook = !cfg.useFlipbook2;
+    const float singleFlipbookEmitScale = calmerSingleFlipbook ? 0.45f : 1.0f;
+    const float emitRatePerSec =
+        std::max(0.0f, cfg.emitRatePerSec * emitScale * singleFlipbookEmitScale);
     if (emitRatePerSec <= 0.0f) return;
 
     for (const auto& unit : list) {
@@ -196,6 +199,12 @@ void emitForList(
         const auto anchorIt = anchors ? anchors->find(unit.id) : std::unordered_map<int, Anchor>::const_iterator{};
         const bool hasTailAnchor = anchors && (anchorIt != anchors->end()) && anchorIt->second.valid;
         const Anchor tailAnchorData = hasTailAnchor ? anchorIt->second : Anchor{};
+        if (hasTailAnchor && tailAnchorData.meshCarrierActive) {
+            continue;
+        }
+        const bool hasExactFireAnchorNodes =
+            !cfg.fireAnchorBaseNodeName.empty() &&
+            !cfg.fireAnchorTipNodeName.empty();
 
         const glm::vec3 center = unit.position + glm::vec3(0.0f, unit.visualYOffset, 0.0f);
         const glm::vec3 up(0.0f, 1.0f, 0.0f);
@@ -209,7 +218,8 @@ void emitForList(
             std::max(0.03f, extents.halfDepth * 0.82f + cfg.spawnRadius * 2.5f);
         const glm::vec3 proxyTailDir = safeNormOr((-fwd * 0.85f) + (up * 0.52f), glm::vec3(0.0f, 1.0f, 0.0f));
         const glm::vec3 tailPosWorld = hasTailAnchor
-            ? tailAnchorData.pos
+            ? (tailAnchorData.pos +
+               (hasExactFireAnchorNodes ? glm::vec3(0.0f) : glm::vec3(0.0f, cfg.tailWorldYOffset, 0.0f)))
             : (center - fwd * tailBackOffset +
                up * std::max(0.02f, cfg.tailWorldYOffset) +
                proxyTailDir * std::max(0.003f, spawnRadius * 0.8f));
@@ -260,23 +270,30 @@ void emitForList(
         gState.prevTailWorld[unit.id] = tailPosWorld;
 
         std::uint32_t& serial = gState.spawnSerial[unit.id];
+        const float unitSeed = hash01(static_cast<float>(unit.id) * 13.137f + 0.417f);
         for (int k = 0; k < emitCount; ++k) {
             const float base = static_cast<float>(serial++);
+            const float jitterScale = calmerSingleFlipbook ? 0.14f : 1.0f;
             const glm::vec3 localJitter(
-                hashSigned(base + 1.0f) * spawnRadius,
-                hashSigned(base + 2.0f) * spawnRadius,
-                hashSigned(base + 3.0f) * spawnRadius);
+                hashSigned(base + 1.0f) * spawnRadius * jitterScale,
+                hashSigned(base + 2.0f) * spawnRadius * jitterScale,
+                hashSigned(base + 3.0f) * spawnRadius * jitterScale);
             const glm::vec3 worldJitter = tailBasis * localJitter;
 
             ParticleSystem::Particle p;
             p.pos = anchor + worldJitter;
 
-            const float upVel = 0.055f + hash01(base + 5.0f) * 0.095f;
-            const float backVel = 0.050f + hash01(base + 6.0f) * 0.050f;
+            const float upVel =
+                (calmerSingleFlipbook ? 0.006f : 0.055f) +
+                hash01(base + 5.0f) * (calmerSingleFlipbook ? 0.010f : 0.095f);
+            const float backVel =
+                (calmerSingleFlipbook ? 0.002f : 0.050f) +
+                hash01(base + 6.0f) * (calmerSingleFlipbook ? 0.006f : 0.050f);
             p.vel = glm::vec3(0.0f, upVel, 0.0f) + backDirWorld * backVel;
 
-            if (cfg.inheritVelocity != 0.0f) {
-                glm::vec3 inh = tailVel * cfg.inheritVelocity;
+            const float inheritVelocity = calmerSingleFlipbook ? 0.0f : cfg.inheritVelocity;
+            if (inheritVelocity != 0.0f) {
+                glm::vec3 inh = tailVel * inheritVelocity;
                 const float maxInherit = 2.5f;
                 const float inh2 = glm::dot(inh, inh);
                 if (inh2 > maxInherit * maxInherit) {
@@ -285,13 +302,17 @@ void emitForList(
                 p.vel += inh;
             }
 
-            p.maxLifeSec = 0.14f + hash01(base + 7.0f) * 0.10f;
+            p.maxLifeSec =
+                (calmerSingleFlipbook ? 0.045f : 0.14f) +
+                hash01(base + 7.0f) * (calmerSingleFlipbook ? 0.020f : 0.10f);
             p.lifeSec = p.maxLifeSec;
             const float particleSizeScale =
                 hasTailAnchor ? tailAnchorData.particleSizeScale : scaleMul;
             p.sizePx =
-                (0.22f + hash01(base + 8.0f) * 0.10f) * particleSizeScale * fallbackSizeScale;
-            p.seed = hash01(base + 9.0f);
+                ((calmerSingleFlipbook ? 0.30f : 0.22f) +
+                 hash01(base + 8.0f) * (calmerSingleFlipbook ? 0.015f : 0.10f)) *
+                particleSizeScale * fallbackSizeScale;
+            p.seed = calmerSingleFlipbook ? unitSeed : hash01(base + 9.0f);
             gState.particles.emit(p);
         }
     }
