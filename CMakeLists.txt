@@ -263,6 +263,7 @@ add_library(PAC_GameObjects STATIC
     src/game/runtime/GameBootstrap.cpp
     src/game/runtime/RendererBackendBootstrap.cpp
     src/game/runtime/RendererStartupDiagnostics.cpp
+    src/game/runtime/RuntimeStartupConfig.cpp
     src/game/runtime/GameSession.cpp
     src/game/runtime/shared/backend/SharedBackendPoseEval.cpp
     src/game/runtime/shared/capture/SharedCapturePresentation.cpp
@@ -463,6 +464,7 @@ if (BUILD_TESTING)
         tests/TestVideoPreferences.cpp
         tests/TestRendererBackendBootstrap.cpp
         tests/TestRendererStartupDiagnostics.cpp
+        tests/TestRuntimeStartupConfig.cpp
         tests/TestDxgiAdapterSelectionPolicy.cpp
         tests/TestD3D12Probe.cpp
         tests/TestContentValidation.cpp

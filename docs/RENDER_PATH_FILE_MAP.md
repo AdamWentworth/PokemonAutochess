@@ -21,6 +21,10 @@ Use this file to find ownership quickly when working on parity/performance tasks
 - `src/game/runtime/RendererStartupDiagnostics.*`
   - GPU adapter inventory logging
   - backend startup summary logging
+- `src/game/runtime/RuntimeStartupConfig.*`
+  - startup preference/env resolution
+  - one-shot boot-menu consumption
+  - startup video override parsing
 
 ### 2) Runtime Route Policy
 - `src/game/runtime/routes/RenderRoutes.h`

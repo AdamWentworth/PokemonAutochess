@@ -22,6 +22,7 @@
 #include "game/runtime/AutoQuitPolicy.h"
 #include "game/runtime/RendererBackendBootstrap.h"
 #include "game/runtime/RendererStartupDiagnostics.h"
+#include "game/runtime/RuntimeStartupConfig.h"
 #include "game/runtime/VideoInitGuards.h"
 #include "game/runtime/VideoPreferences.h"
 
@@ -43,7 +44,6 @@
 
 #include <algorithm>
 #include <array>
-#include <cctype>
 #include <chrono>
 #include <cmath>
 #include <exception>
@@ -62,29 +62,11 @@ namespace {
     int scaledMouseX(int x, float s) { return (int)std::lround((float)x * s); }
     int scaledMouseY(int y, float s) { return (int)std::lround((float)y * s); }
 
-    std::string toLowerCopy(std::string s) {
-        for (char& c : s) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
-        return s;
-    }
-
     bool looksIntegratedGpu(const std::string& vendor, const std::string& renderer) {
         // Heuristic: Intel OpenGL contexts on hybrid laptops are typically iGPU.
         return game::runtime::startup_diag::activeRendererMatchesPreferredAdapter(vendor, "intel") ||
             game::runtime::startup_diag::activeRendererMatchesPreferredAdapter(renderer, "intel");
     }
-
-    struct StartupVideoOverride {
-        bool hasWidth = false;
-        bool hasHeight = false;
-        bool hasFullscreen = false;
-        int width = 0;
-        int height = 0;
-        bool fullscreen = false;
-
-        bool enabled() const {
-            return hasWidth || hasHeight || hasFullscreen;
-        }
-    };
 
     bool parseEnvIntValue(const char* envName, int& outValue) {
         const auto raw = engine::env::get(envName);
@@ -104,22 +86,6 @@ namespace {
         }
     }
 
-    bool parseEnvBoolValue(const char* envName, bool& outValue) {
-        const auto raw = engine::env::get(envName);
-        if (!raw.has_value()) return false;
-        const std::string token = toLowerCopy(*raw);
-        if (token == "1" || token == "true" || token == "on" || token == "yes") {
-            outValue = true;
-            return true;
-        }
-        if (token == "0" || token == "false" || token == "off" || token == "no") {
-            outValue = false;
-            return true;
-        }
-        std::cerr << "[Video] Ignoring invalid " << envName << " value: " << *raw << "\n";
-        return false;
-    }
-
     int fixedTickBudgetPerFrame() {
         static const int budget = []() -> int {
             int parsed = 0;
@@ -129,14 +95,6 @@ namespace {
             return 4;
         }();
         return budget;
-    }
-
-    StartupVideoOverride readStartupVideoOverride() {
-        StartupVideoOverride out;
-        out.hasWidth = parseEnvIntValue("PAC_VIDEO_WIDTH", out.width);
-        out.hasHeight = parseEnvIntValue("PAC_VIDEO_HEIGHT", out.height);
-        out.hasFullscreen = parseEnvBoolValue("PAC_VIDEO_FULLSCREEN", out.fullscreen);
-        return out;
     }
 
     const char* glStringOrUnknown(GLenum token) {
@@ -265,24 +223,24 @@ namespace {
         const std::string prefsPath = game::video::defaultPreferencesPath();
         game::video::Preferences prefs = game::video::loadPreferences(prefsPath);
 
-        services.bootMenuScreen = prefs.bootMenuScreen;
-        if (!prefs.bootMenuScreen.empty()) {
-            prefs.bootMenuScreen.clear();
+        services.bootMenuScreen = game::runtime::startup_config::consumeBootMenuScreen(prefs);
+        if (!services.bootMenuScreen.empty()) {
             std::string consumeErr;
             if (!game::video::savePreferences(prefs, prefsPath, &consumeErr)) {
                 std::cerr << "[Video] Failed to clear one-shot boot menu screen: " << consumeErr << "\n";
             }
         }
 
-        std::string backendToken = prefs.rendererBackend;
-        if (const auto envBackend = engine::env::get("PAC_RENDER_BACKEND")) {
-            backendToken = *envBackend;
-            std::cout << "[Renderer] PAC_RENDER_BACKEND override: " << backendToken << "\n";
+        const auto resolvedRendererPref = game::runtime::startup_config::resolveRendererPreference(
+            prefs,
+            engine::env::get("PAC_RENDER_BACKEND"));
+        if (resolvedRendererPref.overriddenByEnv) {
+            std::cout << "[Renderer] PAC_RENDER_BACKEND override: " << resolvedRendererPref.backendToken << "\n";
             std::cout << "[Renderer] Note: env override is active; saved Display settings "
                          "(Render API) are ignored until PAC_RENDER_BACKEND is unset.\n";
         }
-        requestedBackend = game::video::parseRendererBackend(backendToken);
-        services.requestedRendererBackend = game::video::rendererBackendName(requestedBackend);
+        requestedBackend = resolvedRendererPref.requestedBackend;
+        services.requestedRendererBackend = resolvedRendererPref.requestedBackendName;
         services.vsyncEnabled = prefs.vsync;
         services.requireDiscreteGpu = prefs.requireDiscreteGpu;
         services.preferredGpuAdapter = prefs.preferredGpuAdapter;
@@ -330,14 +288,15 @@ namespace {
         const Uint32 flags = SDL_GetWindowFlags(window->getSDLWindow());
         fullscreen = (flags & SDL_WINDOW_FULLSCREEN) != 0 || (flags & SDL_WINDOW_FULLSCREEN_DESKTOP) != 0;
 
-        const StartupVideoOverride startupVideoOverride = readStartupVideoOverride();
+        const auto startupVideoOverride =
+            game::runtime::startup_config::readStartupVideoOverride(std::cerr);
         if (startupVideoOverride.enabled()) {
-            const int overrideW = startupVideoOverride.hasWidth ? startupVideoOverride.width : windowW;
-            const int overrideH = startupVideoOverride.hasHeight ? startupVideoOverride.height : windowH;
-            const bool overrideFullscreen = startupVideoOverride.hasFullscreen
-                ? startupVideoOverride.fullscreen
-                : fullscreen;
-            if (applyVideoMode(overrideW, overrideH, overrideFullscreen)) {
+            const auto overrideMode = game::runtime::startup_config::resolveStartupVideoMode(
+                startupVideoOverride,
+                windowW,
+                windowH,
+                fullscreen);
+            if (applyVideoMode(overrideMode.width, overrideMode.height, overrideMode.fullscreen)) {
                 std::cout << "[Video] Startup override applied: "
                           << (fullscreen ? "Fullscreen" : "Windowed")
                           << " " << drawableW << "x" << drawableH << "\n";
