@@ -97,10 +97,18 @@ Use this file to find ownership quickly when working on parity/performance tasks
 ### 3) Shared Gameplay Presentation Path
 - `src/game/runtime/GameSession.cpp`
 - `src/game/runtime/shared/projected/SharedProjected*.*`
+- `src/game/runtime/shared/projected/SharedProjectedUnitBackendMeshRenderer.cpp`
+  - authored fire-mesh UV flipbook override for the Charmander line
+  - per-unit fire mesh batch texture/material rewrites
 - `src/game/runtime/shared/capture/SharedCapture*.*`
 - `src/game/runtime/shared/vfx/growl/SharedGrowl*.*`
 - `src/game/runtime/shared/vfx/particles/SharedParticle*.*`
+- `src/game/runtime/shared/vfx/tail_fire/SharedTailFireMeshPlayback*.*`
+  - authored fire-mesh flipbook spec selection
+  - cached fire-submesh detection and startup prewarm inputs
 - `src/game/runtime/shared/vfx/tail_fire/SharedTailFire*.*`
+- `src/game/world/GameWorldVfx.cpp`
+  - legacy tail-fire emitter config and current species filter
 - `src/game/runtime/shared/ui/Shared*.*`
 - `src/game/runtime/shared/world/Shared*.*`
 - `src/game/runtime/backend_model_cache/BackendModelCache*.*`

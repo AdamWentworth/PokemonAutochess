@@ -2,6 +2,7 @@
 #include "game/runtime/shared/projected/SharedProjectedUnitBackendMeshPrep.h"
 #include "game/runtime/shared/projected/SharedProjectedUnitBackendMeshTriangleSubmit.h"
 #include "game/runtime/shared/projected/SharedProjectedUnitBackendMeshTransforms.h"
+#include "game/runtime/shared/vfx/tail_fire/SharedTailFireMeshPlayback.h"
 #include "game/runtime/shared/vfx/tail_fire/SharedTailFireSnapshotAtlasCache.h"
 
 #include "engine/core/Environment.h"
@@ -25,13 +26,6 @@
 #include <glm/gtc/type_ptr.hpp>
 
 namespace {
-std::string toLowerCopy(std::string s) {
-    std::transform(s.begin(), s.end(), s.begin(), [](unsigned char c) {
-        return static_cast<char>(std::tolower(c));
-    });
-    return s;
-}
-
 std::size_t selectUniformTriangleIndex(std::size_t sampleIndex,
                                        std::size_t sampleCount,
                                        std::size_t triangleCount) {
@@ -138,119 +132,7 @@ std::string makeIndexedBatchKeyPrefix(
                reinterpret_cast<std::uintptr_t>(&mesh)));
 }
 
-bool containsInsensitive(const std::string& haystack, const char* needle) {
-    if (!needle || !*needle) return true;
-    return toLowerCopy(haystack).find(toLowerCopy(std::string(needle))) != std::string::npos;
-}
-
-bool nodeNameLooksLikeFireMesh(const std::string& nodeName) {
-    return containsInsensitive(nodeName, "fire_mesh");
-}
-
-constexpr const char* kCharmanderFireUvFlipbookPath =
-    "assets/textures/charmander_fire_uv_flipbook.png";
-constexpr float kCharmanderFireUvFlipbookCols = 8.0f;
-constexpr float kCharmanderFireUvFlipbookRows = 8.0f;
-constexpr float kCharmanderFireUvFlipbookFrames = 62.0f;
-constexpr float kCharmanderFireUvFlipbookFps = 24.0f;
-constexpr float kCharmanderFireUvFlipbookAtlasWidth = 4096.0f;
-constexpr float kCharmanderFireUvFlipbookAtlasHeight = 4096.0f;
-constexpr const char* kCharmeleonFireUvFlipbookPath =
-    "assets/textures/CharmeleonFireUVFlipbook.png";
-constexpr float kCharmeleonFireUvFlipbookCols = 8.0f;
-constexpr float kCharmeleonFireUvFlipbookRows = 5.0f;
-constexpr float kCharmeleonFireUvFlipbookFrames = 40.0f;
-constexpr float kCharmeleonFireUvFlipbookFps = 24.0f;
-constexpr float kCharmeleonFireUvFlipbookAtlasWidth = 4096.0f;
-constexpr float kCharmeleonFireUvFlipbookAtlasHeight = 2560.0f;
-constexpr const char* kCharizardFireUvFlipbookPath =
-    "assets/textures/CharizardFireUVFlipbook.png";
-constexpr float kCharizardFireUvFlipbookCols = 16.0f;
-constexpr float kCharizardFireUvFlipbookRows = 6.0f;
-constexpr float kCharizardFireUvFlipbookFrames = 81.0f;
-constexpr float kCharizardFireUvFlipbookFps = 24.0f;
-constexpr float kCharizardFireUvFlipbookAtlasWidth = 8192.0f;
-constexpr float kCharizardFireUvFlipbookAtlasHeight = 3072.0f;
 constexpr int kClampToEdge = 33071;
-
-struct FireUvFlipbookSpec {
-    const char* path = nullptr;
-    float cols = 1.0f;
-    float rows = 1.0f;
-    float frames = 1.0f;
-    float fps = 0.0f;
-    float atlasWidth = 0.0f;
-    float atlasHeight = 0.0f;
-};
-
-bool meshLooksLikeCharmeleon(const game::runtime::backend_model::MeshData& mesh) {
-    for (const std::string& nodeName : mesh.nodeNames) {
-        if (containsInsensitive(nodeName, "pm0005") ||
-            containsInsensitive(nodeName, "charmeleon")) {
-            return true;
-        }
-    }
-    return false;
-}
-
-bool meshLooksLikeCharizard(const game::runtime::backend_model::MeshData& mesh) {
-    for (const std::string& nodeName : mesh.nodeNames) {
-        if (containsInsensitive(nodeName, "pm0006") ||
-            containsInsensitive(nodeName, "charizard")) {
-            return true;
-        }
-    }
-    return false;
-}
-
-FireUvFlipbookSpec selectFireUvFlipbookSpec(
-    const game::runtime::backend_model::MeshData& mesh) {
-    if (meshLooksLikeCharizard(mesh)) {
-        return FireUvFlipbookSpec{
-            kCharizardFireUvFlipbookPath,
-            kCharizardFireUvFlipbookCols,
-            kCharizardFireUvFlipbookRows,
-            kCharizardFireUvFlipbookFrames,
-            kCharizardFireUvFlipbookFps,
-            kCharizardFireUvFlipbookAtlasWidth,
-            kCharizardFireUvFlipbookAtlasHeight,
-        };
-    }
-    if (meshLooksLikeCharmeleon(mesh)) {
-        return FireUvFlipbookSpec{
-            kCharmeleonFireUvFlipbookPath,
-            kCharmeleonFireUvFlipbookCols,
-            kCharmeleonFireUvFlipbookRows,
-            kCharmeleonFireUvFlipbookFrames,
-            kCharmeleonFireUvFlipbookFps,
-            kCharmeleonFireUvFlipbookAtlasWidth,
-            kCharmeleonFireUvFlipbookAtlasHeight,
-        };
-    }
-    return FireUvFlipbookSpec{
-        kCharmanderFireUvFlipbookPath,
-        kCharmanderFireUvFlipbookCols,
-        kCharmanderFireUvFlipbookRows,
-        kCharmanderFireUvFlipbookFrames,
-        kCharmanderFireUvFlipbookFps,
-        kCharmanderFireUvFlipbookAtlasWidth,
-        kCharmanderFireUvFlipbookAtlasHeight,
-    };
-}
-
-glm::vec2 computeFireUvUnitTileShift(
-    const game::runtime::backend_model::MeshData& mesh) {
-    if (mesh.vertices.empty()) return glm::vec2(0.0f, 0.0f);
-    float minU = std::numeric_limits<float>::infinity();
-    float minV = std::numeric_limits<float>::infinity();
-    for (const auto& vertex : mesh.vertices) {
-        minU = (std::min)(minU, vertex.uv.x);
-        minV = (std::min)(minV, vertex.uv.y);
-    }
-    return glm::vec2(
-        -std::floor(minU),
-        -std::floor(minV));
-}
 
 std::size_t resolveBatchBaseSubmeshIndex(
     const game::runtime::shared_world_batches::WorldIndexedBatch& batch,
@@ -278,45 +160,29 @@ std::size_t resolveBatchBaseSubmeshIndex(
     return out;
 }
 
-bool applyCharmanderFireMeshFlipbookOverride(
+bool applyTailFireMeshFlipbookOverride(
     const game::runtime::shared_projected_unit_backend_mesh::Args& args,
     const game::runtime::backend_model::MeshData& mesh,
     std::vector<game::runtime::shared_world_batches::WorldIndexedBatch>& batches) {
     if (!args.unit || !args.sharedTailFireAnchors) {
         return false;
     }
-    if (toLowerCopy(args.unit->name) != "charmander") return false;
-
-    std::vector<std::uint8_t> fireSubmeshMask(
-        std::max<std::size_t>(mesh.submeshMeshIndex.size(), batches.size()), 0u);
-    std::vector<std::uint8_t> fireMeshIndexMask(mesh.meshIndexToNode.size(), 0u);
-    for (std::size_t ni = 0; ni < mesh.nodeNames.size(); ++ni) {
-        if (!nodeNameLooksLikeFireMesh(mesh.nodeNames[ni])) continue;
-        if (ni >= mesh.nodeMesh.size()) continue;
-        const int meshIndex = mesh.nodeMesh[ni];
-        if (meshIndex < 0 ||
-            static_cast<std::size_t>(meshIndex) >= fireMeshIndexMask.size()) {
-            continue;
-        }
-        fireMeshIndexMask[static_cast<std::size_t>(meshIndex)] = 1u;
+    if (!game::runtime::shared_tail_fire_mesh_playback::isTailFireMeshPlaybackSpecies(
+            args.unit->name)) {
+        return false;
     }
-    for (std::size_t si = 0; si < mesh.submeshMeshIndex.size(); ++si) {
-        const int meshIndex = mesh.submeshMeshIndex[si];
-        if (meshIndex < 0 ||
-            static_cast<std::size_t>(meshIndex) >= fireMeshIndexMask.size()) {
-            continue;
-        }
-        if (fireMeshIndexMask[static_cast<std::size_t>(meshIndex)] != 0u) {
-            fireSubmeshMask[si] = 1u;
-        }
+
+    const auto& profile =
+        game::runtime::shared_tail_fire_mesh_playback::resolveProfile(mesh);
+    if (!profile.hasFireSubmesh || profile.spec.path == nullptr) {
+        return false;
     }
 
     if (!args.ensureBackendTextureLoaded) {
         return false;
     }
-    const FireUvFlipbookSpec spec = selectFireUvFlipbookSpec(mesh);
     game::runtime::SharedBackendTextureCacheEntry* atlas =
-        args.ensureBackendTextureLoaded(spec.path, false);
+        args.ensureBackendTextureLoaded(profile.spec.path, false);
     if (!atlas || !atlas->valid || atlas->width <= 0 || atlas->height <= 0 ||
         atlas->rgba.empty()) {
         return false;
@@ -326,14 +192,14 @@ bool applyCharmanderFireMeshFlipbookOverride(
     for (std::size_t bi = 0; bi < batches.size(); ++bi) {
         auto& batch = batches[bi];
         const std::size_t baseSubmeshIndex = resolveBatchBaseSubmeshIndex(batch, bi);
-        if (baseSubmeshIndex >= fireSubmeshMask.size() ||
-            fireSubmeshMask[baseSubmeshIndex] == 0u) {
+        if (baseSubmeshIndex >= profile.fireSubmeshMask.size() ||
+            profile.fireSubmeshMask[baseSubmeshIndex] == 0u) {
             continue;
         }
 
         batch.sharedTemplate = nullptr;
-        batch.textureKey = spec.path;
-        batch.textureCacheKey = spec.path;
+        batch.textureKey = profile.spec.path;
+        batch.textureCacheKey = profile.spec.path;
         batch.textureRgba = atlas->rgba.data();
         batch.textureWidth = atlas->width;
         batch.textureHeight = atlas->height;
@@ -371,8 +237,8 @@ bool applyCharmanderFireMeshFlipbookOverride(
         batch.characterInkingEnabled = 0u;
         batch.materialTimeSec = args.materialTimeSec;
         batch.materialFlags = 8.0f; // authoredFireMesh
-        batch.materialAtlasWidth = spec.atlasWidth;
-        batch.materialAtlasHeight = spec.atlasHeight;
+        batch.materialAtlasWidth = profile.spec.atlasWidth;
+        batch.materialAtlasHeight = profile.spec.atlasHeight;
         batch.materialRect0U = 0.0f;
         batch.materialRect0V = 0.0f;
         batch.materialRect0W = 1.0f;
@@ -381,15 +247,12 @@ bool applyCharmanderFireMeshFlipbookOverride(
         batch.materialRect1V = 0.0f;
         batch.materialRect1W = 1.0f;
         batch.materialRect1H = 1.0f;
-        batch.materialFlipbook0Cols = spec.cols;
-        batch.materialFlipbook0Rows = spec.rows;
-        batch.materialFlipbook0Frames = spec.frames;
-        batch.materialFlipbook0Fps = spec.fps;
-        const glm::vec2 uvShift = meshLooksLikeCharizard(mesh)
-                                      ? computeFireUvUnitTileShift(mesh)
-                                      : glm::vec2(0.0f, 0.0f);
-        batch.materialFlipbook1Cols = uvShift.x;
-        batch.materialFlipbook1Rows = uvShift.y;
+        batch.materialFlipbook0Cols = profile.spec.cols;
+        batch.materialFlipbook0Rows = profile.spec.rows;
+        batch.materialFlipbook0Frames = profile.spec.frames;
+        batch.materialFlipbook0Fps = profile.spec.fps;
+        batch.materialFlipbook1Cols = profile.uvShift.x;
+        batch.materialFlipbook1Rows = profile.uvShift.y;
         batch.materialFlipbook1Frames = 1.0f;
         batch.materialFlipbook1Fps = 0.0f;
         applied = true;
@@ -1166,7 +1029,10 @@ Result renderProjectedUnitBackendMesh(const Args& args) {
             }
         }
 
-        if (unit.alive && !unit.fainting && toLowerCopy(unit.name) == "charmander") {
+        if (unit.alive &&
+            !unit.fainting &&
+            game::runtime::shared_tail_fire_mesh_playback::isTailFireMeshPlaybackSpecies(
+                unit.name)) {
             const TailFireVFX::Config& tailCfg =
                 game::runtime::shared_projected_scene::getTailFireFallbackCfg();
             auto resolveNodeIndex = [&](const std::string& nodeName, int fallbackIndex) {
@@ -1703,7 +1569,7 @@ Result renderProjectedUnitBackendMesh(const Args& args) {
         }
         bool queuedIndexedBatch = false;
         if (useIndexedWorldModelPath && !modelIndexedBatchesPerSubmesh.empty()) {
-            (void)applyCharmanderFireMeshFlipbookOverride(args, *mesh, modelIndexedBatchesPerSubmesh);
+            (void)applyTailFireMeshFlipbookOverride(args, *mesh, modelIndexedBatchesPerSubmesh);
             for (auto& batch : modelIndexedBatchesPerSubmesh) {
                 if (!batch.hasGeometry()) continue;
                 worldIndexedBatches.push_back(std::move(batch));

@@ -77,6 +77,7 @@
 #include "game/runtime/shared/vfx/particles/SharedParticleBillboardBatches.h"
 #include "game/runtime/shared/vfx/particles/SharedParticleSnapshotBillboards.h"
 #include "game/runtime/shared/vfx/particles/SharedParticleVfxBridgeDispatch.h"
+#include "game/runtime/shared/vfx/tail_fire/SharedTailFireMeshPlayback.h"
 #include "game/runtime/shared/vfx/tail_fire/SharedTailFireFallbackEmitter.h"
 #include "game/runtime/shared/vfx/tail_fire/SharedTailFireExactGpuBatches.h"
 #include "game/runtime/shared/vfx/tail_fire/SharedTailFireAtlasHelpers.h"
@@ -1549,12 +1550,17 @@ struct GameSession::Impl {
         return &cacheEntry;
     }
 
-    std::size_t prewarmSharedTailFireAssets() {
-        if (!renderer) return 0u;
+    struct TailFirePrewarmStats {
+        std::size_t legacyAtlases = 0u;
+        std::size_t meshFlipbooks = 0u;
+    };
+
+    TailFirePrewarmStats prewarmSharedTailFireAssets() {
+        if (!renderer) return {};
 
         const TailFireVFX::Config& cfg =
             game::runtime::shared_projected_scene::getTailFireFallbackCfg();
-        if (!cfg.useFlipbook || cfg.flipbookPath.empty()) return 0u;
+        if (!cfg.useFlipbook || cfg.flipbookPath.empty()) return {};
 
         ParticleSystem::RenderSnapshot snapshot{};
         snapshot.useFlipbook = cfg.useFlipbook;
@@ -1575,7 +1581,7 @@ struct GameSession::Impl {
                 return ensureBackendTextureLoaded(path, flip);
             };
 
-        std::size_t warmed = 0u;
+        TailFirePrewarmStats warmed{};
         const auto prewarmAtlas = [&](const std::string& key,
                                       const BackendTextureCacheEntry* atlas) {
             if (!atlas || !atlas->valid || atlas->rgba.empty() ||
@@ -1593,7 +1599,7 @@ struct GameSession::Impl {
             tex.alphaMode = 2u;
             tex.blendMode = 2u;
             renderer->prewarmWorldTextureData(&tex);
-            ++warmed;
+            ++warmed.legacyAtlases;
         };
 
         const auto combined =
@@ -1629,6 +1635,29 @@ struct GameSession::Impl {
                         ensureTextureFn);
                 prewarmAtlas(secondaryPremulKey, secondaryPremul);
             }
+        }
+
+        for (const auto& spec :
+             game::runtime::shared_tail_fire_mesh_playback::authoredFlipbookSpecs()) {
+            if (!spec.path || spec.path[0] == '\0') continue;
+            BackendTextureCacheEntry* authored =
+                ensureBackendTextureLoaded(spec.path, false);
+            if (!authored || !authored->valid || authored->rgba.empty() ||
+                authored->width <= 0 || authored->height <= 0) {
+                continue;
+            }
+
+            IRenderBackend::WorldTextureData tex{};
+            tex.key = spec.path;
+            tex.rgba = authored->rgba.data();
+            tex.width = authored->width;
+            tex.height = authored->height;
+            tex.wrapS = 33071; // GL_CLAMP_TO_EDGE
+            tex.wrapT = 33071; // GL_CLAMP_TO_EDGE
+            tex.alphaMode = 1u;
+            tex.blendMode = 0u;
+            renderer->prewarmWorldTextureData(&tex);
+            ++warmed.meshFlipbooks;
         }
 
         return warmed;
@@ -2267,14 +2296,15 @@ struct GameSession::Impl {
             if (ctx.setTitle) ctx.setTitle("PokemonAutochess - Loading tail fire...");
             if (ctx.renderBootLoading) ctx.renderBootLoading(0.93f);
             const auto t0 = std::chrono::high_resolution_clock::now();
-            const std::size_t warmedTailFireAtlases = prewarmSharedTailFireAssets();
+            const TailFirePrewarmStats warmedTailFire = prewarmSharedTailFireAssets();
             const auto t1 = std::chrono::high_resolution_clock::now();
             const double ms =
                 std::chrono::duration<double, std::milli>(t1 - t0).count();
             std::ostringstream timing;
             timing << std::fixed << std::setprecision(1) << ms;
             std::cout << "[Init] Backend tail fire prewarm complete: atlases="
-                      << warmedTailFireAtlases
+                      << warmedTailFire.legacyAtlases
+                      << " mesh_flipbooks=" << warmedTailFire.meshFlipbooks
                       << " time=" << timing.str() << "ms\n";
             if (ctx.pumpPreloadEvents && !ctx.pumpPreloadEvents()) {
                 if (ctx.requestQuit) ctx.requestQuit();

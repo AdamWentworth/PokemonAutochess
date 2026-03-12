@@ -311,6 +311,7 @@ add_library(PAC_GameObjects STATIC
     src/game/runtime/shared/vfx/tail_fire/SharedTailFireSnapshotAtlasCache.cpp
     src/game/runtime/shared/vfx/tail_fire/SharedTailFireFallbackEmitter.cpp
     src/game/runtime/shared/vfx/tail_fire/SharedTailFireAtlasHelpers.cpp
+    src/game/runtime/shared/vfx/tail_fire/SharedTailFireMeshPlayback.cpp
     src/game/runtime/shared/vfx/tail_fire/SharedTailFireExactCpuSnapshotBatches.cpp
     src/game/runtime/shared/vfx/tail_fire/SharedTailFireExactCpuTileBake.cpp
     src/game/runtime/shared/vfx/tail_fire/SharedTailFireExactGpuBatches.cpp
@@ -549,6 +550,7 @@ if (BUILD_TESTING)
         tests/TestSharedParticleVfxStyles.cpp
         tests/TestSharedTailFireAtlasHelpers.cpp
         tests/TestSharedTailFireExactGpuBatches.cpp
+        tests/TestSharedTailFireMeshPlayback.cpp
         tests/TestSharedGrowlVfxHelpers.cpp
         tests/TestSharedGrowlWaveBridge.cpp
         tests/TestSharedGrowlWaveBatches.cpp
