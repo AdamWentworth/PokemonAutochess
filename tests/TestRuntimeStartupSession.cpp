@@ -3,7 +3,7 @@
 #include <string>
 
 #include "engine/core/EngineServices.h"
-#include "game/runtime/RuntimeStartupSession.h"
+#include "game/runtime/startup/RuntimeStartupSession.h"
 #include "game/runtime/VideoPreferences.h"
 
 bool test_runtime_startup_session_contract(std::string& outFail) {

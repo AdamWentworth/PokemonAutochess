@@ -2,7 +2,7 @@
 #include <string>
 #include <vector>
 
-#include "game/runtime/RuntimeBackendModelPrewarm.h"
+#include "game/runtime/startup/RuntimeBackendModelPrewarm.h"
 
 bool test_runtime_backend_model_prewarm_contract(std::string& outFail) {
     using game::runtime::backend_model::MeshData;

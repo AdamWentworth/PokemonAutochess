@@ -261,7 +261,7 @@ add_library(PAC_GameObjects STATIC
     src/game/runtime/GamePreload.cpp
     src/game/runtime/GameRuntime.cpp
     src/game/runtime/GameBootstrap.cpp
-    src/game/runtime/RuntimeBackendModelPrewarm.cpp
+    src/game/runtime/startup/RuntimeBackendModelPrewarm.cpp
     src/game/runtime/RuntimeBootLoading.cpp
     src/game/runtime/RendererBackendBootstrap.cpp
     src/game/runtime/RuntimeFixedStepPhase.cpp
@@ -281,10 +281,10 @@ add_library(PAC_GameObjects STATIC
     src/game/runtime/RuntimeSdlEventDispatch.cpp
     src/game/runtime/RuntimeSdlInput.cpp
     src/game/runtime/RuntimeSdlVideoMode.cpp
-    src/game/runtime/RuntimeStartupConfig.cpp
-    src/game/runtime/RuntimeStartupPresentation.cpp
-    src/game/runtime/RuntimeStartupSession.cpp
-    src/game/runtime/RuntimeStartupVideoOverride.cpp
+    src/game/runtime/startup/RuntimeStartupConfig.cpp
+    src/game/runtime/startup/RuntimeStartupPresentation.cpp
+    src/game/runtime/startup/RuntimeStartupSession.cpp
+    src/game/runtime/startup/RuntimeStartupVideoOverride.cpp
     src/game/runtime/RuntimeWindowBootstrap.cpp
     src/game/runtime/GameSession.cpp
     src/game/runtime/shared/backend/SharedBackendPoseEval.cpp

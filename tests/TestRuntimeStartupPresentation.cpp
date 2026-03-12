@@ -3,7 +3,7 @@
 #include <string>
 
 #include "engine/render/IRenderBackend.h"
-#include "game/runtime/RuntimeStartupPresentation.h"
+#include "game/runtime/startup/RuntimeStartupPresentation.h"
 
 namespace {
 

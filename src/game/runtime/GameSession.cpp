@@ -64,7 +64,7 @@
 #include "game/runtime/BackendMaterialShading.h"
 #include "game/runtime/BackendProceduralPose.h"
 #include "game/runtime/BackendUnitVisuals.h"
-#include "game/runtime/RuntimeBackendModelPrewarm.h"
+#include "game/runtime/startup/RuntimeBackendModelPrewarm.h"
 #include "game/runtime/shared/backend/SharedBackendTextureCache.h"
 #include "game/runtime/shared/backend/SharedBackendPoseEval.h"
 #include "game/runtime/shared/capture/SharedCapturePresentation.h"

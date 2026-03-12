@@ -4,7 +4,7 @@
 #include <sstream>
 #include <string>
 
-#include "game/runtime/RuntimeStartupConfig.h"
+#include "game/runtime/startup/RuntimeStartupConfig.h"
 
 namespace {
 

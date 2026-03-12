@@ -1,7 +1,7 @@
 #include <string>
 
-#include "game/runtime/RuntimeStartupConfig.h"
-#include "game/runtime/RuntimeStartupVideoOverride.h"
+#include "game/runtime/startup/RuntimeStartupConfig.h"
+#include "game/runtime/startup/RuntimeStartupVideoOverride.h"
 
 bool test_runtime_startup_video_override_contract(std::string& outFail) {
     using game::runtime::startup_config::StartupVideoOverride;
