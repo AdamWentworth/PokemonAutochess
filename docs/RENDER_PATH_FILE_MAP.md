@@ -18,6 +18,9 @@ Use this file to find ownership quickly when working on parity/performance tasks
 - `src/game/runtime/RendererBackendBootstrap.*`
   - Backend creation/fallback
   - Backend capability-to-window API mapping
+- `src/game/runtime/RendererStartupDiagnostics.*`
+  - GPU adapter inventory logging
+  - backend startup summary logging
 
 ### 2) Runtime Route Policy
 - `src/game/runtime/routes/RenderRoutes.h`

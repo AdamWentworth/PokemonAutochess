@@ -21,6 +21,7 @@
 #include "game/runtime/GpuAdapters.h"
 #include "game/runtime/AutoQuitPolicy.h"
 #include "game/runtime/RendererBackendBootstrap.h"
+#include "game/runtime/RendererStartupDiagnostics.h"
 #include "game/runtime/VideoInitGuards.h"
 #include "game/runtime/VideoPreferences.h"
 
@@ -66,15 +67,10 @@ namespace {
         return s;
     }
 
-    bool containsCi(const std::string& haystack, const std::string& needle) {
-        const std::string h = toLowerCopy(haystack);
-        const std::string n = toLowerCopy(needle);
-        return h.find(n) != std::string::npos;
-    }
-
     bool looksIntegratedGpu(const std::string& vendor, const std::string& renderer) {
         // Heuristic: Intel OpenGL contexts on hybrid laptops are typically iGPU.
-        return containsCi(vendor, "intel") || containsCi(renderer, "intel");
+        return game::runtime::startup_diag::activeRendererMatchesPreferredAdapter(vendor, "intel") ||
+            game::runtime::startup_diag::activeRendererMatchesPreferredAdapter(renderer, "intel");
     }
 
     struct StartupVideoOverride {
@@ -294,34 +290,12 @@ namespace {
 
         {
             const auto adapters = game::video::enumerateSystemGpuAdapters();
-            services.availableGpuAdapters.clear();
-            services.availableGpuAdapters.reserve(adapters.size());
-            for (const auto& adapter : adapters) {
-                services.availableGpuAdapters.push_back(adapter.name);
-            }
-
-            if (!adapters.empty()) {
-                std::cout << "[GPU] Adapters detected: " << adapters.size() << "\n";
-                for (std::size_t i = 0; i < adapters.size(); ++i) {
-                    std::cout << "  [" << i << "] " << adapters[i].name
-                              << " (" << (adapters[i].discrete ? "discrete" : "integrated") << ")\n";
-                }
-            } else {
-                std::cout << "[GPU] Adapter enumeration unavailable for this platform/runtime.\n";
-            }
-
-            if (!services.preferredGpuAdapter.empty()) {
-                const auto it = std::find_if(adapters.begin(), adapters.end(),
-                    [this](const game::video::SystemGpuAdapter& adapter) {
-                        return adapter.name == services.preferredGpuAdapter;
-                    });
-                if (it != adapters.end()) {
-                    std::cout << "[GPU] Preferred adapter setting: " << services.preferredGpuAdapter << "\n";
-                } else {
-                    std::cout << "[GPU] Preferred adapter setting not found on this machine: "
-                              << services.preferredGpuAdapter << "\n";
-                }
-            }
+            services.availableGpuAdapters =
+                game::runtime::startup_diag::collectGpuAdapterNames(adapters);
+            game::runtime::startup_diag::logGpuAdapterInventory(
+                adapters,
+                services.preferredGpuAdapter,
+                std::cout);
         }
 
         {
@@ -464,22 +438,23 @@ namespace {
             std::cout << "[Renderer] D3D12 backend initialized with shared gameplay render path.\n";
         }
 
-        std::cout << "[Renderer] Requested: " << services.requestedRendererBackend << "\n";
-        std::cout << "[Renderer] Active:    " << services.activeRendererBackend << "\n";
-        std::cout << "[GPU] Vendor:   " << services.gpuVendor << "\n";
-        std::cout << "[GPU] Renderer: " << services.gpuRenderer << "\n";
-        if (renderer->requiresOpenGLContext()) {
-            std::cout << "[GPU] OpenGL:   " << glStringOrUnknown(GL_VERSION) << "\n";
-            std::cout << "[GPU] GLSL:     " << glStringOrUnknown(GL_SHADING_LANGUAGE_VERSION) << "\n";
+        game::runtime::startup_diag::ActiveRendererSummary startupSummary;
+        startupSummary.requestedBackend = services.requestedRendererBackend;
+        startupSummary.activeBackend = services.activeRendererBackend;
+        startupSummary.gpuVendor = services.gpuVendor;
+        startupSummary.gpuRenderer = services.gpuRenderer;
+        startupSummary.gpuDiscrete = services.gpuDiscrete;
+        startupSummary.vsyncEnabled = services.vsyncEnabled;
+        startupSummary.hasOpenGlStrings = renderer->requiresOpenGLContext();
+        if (startupSummary.hasOpenGlStrings) {
+            startupSummary.glVersion = glStringOrUnknown(GL_VERSION);
+            startupSummary.glslVersion = glStringOrUnknown(GL_SHADING_LANGUAGE_VERSION);
         }
-        std::cout << "[GPU] Class:    " << (services.gpuDiscrete ? "discrete" : "integrated") << "\n";
-        std::cout << "[Video] VSync:  " << (services.vsyncEnabled ? "On" : "Off") << "\n";
-
-        if (!services.preferredGpuAdapter.empty() &&
-            !containsCi(services.gpuRenderer, services.preferredGpuAdapter)) {
-            std::cout << "[GPU] Preferred adapter '" << services.preferredGpuAdapter
-                      << "' was not selected by active backend.\n";
-        }
+        game::runtime::startup_diag::logActiveRendererSummary(startupSummary, std::cout);
+        game::runtime::startup_diag::logPreferredActiveAdapterMismatch(
+            services.preferredGpuAdapter,
+            services.gpuRenderer,
+            std::cout);
 
         if (services.requireDiscreteGpu && !services.gpuDiscrete) {
             std::cerr << "[GPU] Discrete GPU required by settings, but integrated GPU is active.\n";
