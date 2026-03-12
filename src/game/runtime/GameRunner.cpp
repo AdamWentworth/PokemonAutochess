@@ -11,7 +11,6 @@
 #include "engine/core/Paths.h"
 #include "engine/events/EventBus.h"
 #include "engine/input/InputEvent.h"
-#include "engine/input/SdlKeyMap.h"
 #include "engine/platform/Window.h"
 #include "engine/render/Camera3D.h"
 #include "engine/render/IRenderBackend.h"
@@ -21,7 +20,10 @@
 #include "game/runtime/GpuAdapters.h"
 #include "game/runtime/AutoQuitPolicy.h"
 #include "game/runtime/RendererBackendBootstrap.h"
+#include "game/runtime/RuntimeBootLoading.h"
+#include "game/runtime/RuntimeLoopConfig.h"
 #include "game/runtime/RuntimeRestartPolicy.h"
+#include "game/runtime/RuntimeSdlInput.h"
 #include "game/runtime/RuntimeSdlVideoMode.h"
 #include "game/runtime/RendererStartupDiagnostics.h"
 #include "game/runtime/RuntimeStartupConfig.h"
@@ -51,7 +53,6 @@
 #include <exception>
 #include <iomanip>
 #include <iostream>
-#include <limits>
 #include <memory>
 #include <sstream>
 #include <string>
@@ -61,117 +62,15 @@ namespace {
     constexpr unsigned int START_H  = 720;
     constexpr float TIME_STEP = 1.0f / 60.0f;
 
-    int scaledMouseX(int x, float s) { return (int)std::lround((float)x * s); }
-    int scaledMouseY(int y, float s) { return (int)std::lround((float)y * s); }
-
     bool looksIntegratedGpu(const std::string& vendor, const std::string& renderer) {
         // Heuristic: Intel OpenGL contexts on hybrid laptops are typically iGPU.
         return game::runtime::startup_diag::activeRendererMatchesPreferredAdapter(vendor, "intel") ||
             game::runtime::startup_diag::activeRendererMatchesPreferredAdapter(renderer, "intel");
     }
 
-    bool parseEnvIntValue(const char* envName, int& outValue) {
-        const auto raw = engine::env::get(envName);
-        if (!raw.has_value()) return false;
-        try {
-            const long long parsed = std::stoll(*raw);
-            if (parsed < static_cast<long long>(std::numeric_limits<int>::min()) ||
-                parsed > static_cast<long long>(std::numeric_limits<int>::max())) {
-                std::cerr << "[Video] Ignoring out-of-range " << envName << " value: " << *raw << "\n";
-                return false;
-            }
-            outValue = static_cast<int>(parsed);
-            return true;
-        } catch (...) {
-            std::cerr << "[Video] Ignoring invalid " << envName << " value: " << *raw << "\n";
-            return false;
-        }
-    }
-
-    int fixedTickBudgetPerFrame() {
-        static const int budget = []() -> int {
-            int parsed = 0;
-            if (parseEnvIntValue("PAC_MAX_FIXED_TICKS_PER_FRAME", parsed)) {
-                return std::clamp(parsed, 1, 120);
-            }
-            return 4;
-        }();
-        return budget;
-    }
-
     const char* glStringOrUnknown(GLenum token) {
         const GLubyte* s = glGetString(token);
         return s ? reinterpret_cast<const char*>(s) : "<unknown>";
-    }
-
-    InputEvent::MouseButton mapSdlMouseButtonToEngineButton(int sdlButton) {
-        switch (sdlButton) {
-            case SDL_BUTTON_LEFT:   return InputEvent::MouseButton::Left;
-            case SDL_BUTTON_MIDDLE: return InputEvent::MouseButton::Middle;
-            case SDL_BUTTON_RIGHT:  return InputEvent::MouseButton::Right;
-            case SDL_BUTTON_X1:     return InputEvent::MouseButton::X1;
-            case SDL_BUTTON_X2:     return InputEvent::MouseButton::X2;
-            default:
-                return InputEvent::MouseButton::Unknown;
-        }
-    }
-
-    bool translateSdlToInputEvent(
-        const SDL_Event& sdl,
-        float mouseScaleX, float mouseScaleY,
-        int windowW, int windowH,
-        int drawableW, int drawableH,
-        InputEvent& out
-    ) {
-        switch (sdl.type) {
-            case SDL_QUIT:
-                out = InputEvent::QuitEvent();
-                return true;
-
-            case SDL_WINDOWEVENT:
-                if (sdl.window.event == SDL_WINDOWEVENT_SIZE_CHANGED ||
-                    sdl.window.event == SDL_WINDOWEVENT_RESIZED) {
-                    out = InputEvent::ResizeEvent(windowW, windowH, drawableW, drawableH);
-                    return true;
-                }
-                return false;
-
-            case SDL_KEYDOWN:
-                out = InputEvent::KeyDownEvent(engine::input::mapSdlKeyToEngineKey((int)sdl.key.keysym.sym), sdl.key.repeat != 0);
-                return true;
-
-            case SDL_KEYUP:
-                out = InputEvent::KeyUpEvent(engine::input::mapSdlKeyToEngineKey((int)sdl.key.keysym.sym));
-                return true;
-
-            case SDL_MOUSEMOTION: {
-                int mx = scaledMouseX(sdl.motion.x, mouseScaleX);
-                int my = scaledMouseY(sdl.motion.y, mouseScaleY);
-                out = InputEvent::MouseMoveEvent(mx, my);
-                return true;
-            }
-
-            case SDL_MOUSEBUTTONDOWN: {
-                int mx = scaledMouseX(sdl.button.x, mouseScaleX);
-                int my = scaledMouseY(sdl.button.y, mouseScaleY);
-                out = InputEvent::MouseDownEvent(mx, my, mapSdlMouseButtonToEngineButton((int)sdl.button.button));
-                return true;
-            }
-
-            case SDL_MOUSEBUTTONUP: {
-                int mx = scaledMouseX(sdl.button.x, mouseScaleX);
-                int my = scaledMouseY(sdl.button.y, mouseScaleY);
-                out = InputEvent::MouseUpEvent(mx, my, mapSdlMouseButtonToEngineButton((int)sdl.button.button));
-                return true;
-            }
-
-            case SDL_MOUSEWHEEL:
-                out = InputEvent::MouseWheelEvent((int)sdl.wheel.x, (int)sdl.wheel.y);
-                return true;
-
-            default:
-                return false;
-        }
     }
 
     class GameRunner {
@@ -541,14 +440,10 @@ namespace {
     bool GameRunner::pumpPreloadEvents() {
         SDL_Event e;
         while (SDL_PollEvent(&e)) {
-            if (e.type == SDL_QUIT) return false;
-            if (e.type == SDL_KEYDOWN && e.key.keysym.sym == SDLK_ESCAPE) return false;
+            if (game::runtime::boot_loading::shouldAbortPreloadEvent(e)) return false;
 
-            if (e.type == SDL_WINDOWEVENT) {
-                if (e.window.event == SDL_WINDOWEVENT_SIZE_CHANGED ||
-                    e.window.event == SDL_WINDOWEVENT_RESIZED) {
-                    syncVideoModeState();
-                }
+            if (game::runtime::sdl_input::isResizeWindowEvent(e)) {
+                syncVideoModeState();
             }
         }
         return true;
@@ -560,38 +455,18 @@ namespace {
             bootLoadingView->render(progress01, drawableW, drawableH);
             swapBuffers();
         } else if (renderer) {
-            const float progress = std::clamp(progress01, 0.0f, 1.0f);
             renderer->beginFrame(0.05f, 0.05f, 0.07f, 1.0f);
-            if (drawableW > 0 && drawableH > 0) {
-                const float sw = static_cast<float>(drawableW);
-                const float sh = static_cast<float>(drawableH);
-                const float panelW = std::max(280.0f, sw * 0.42f);
-                const float panelH = std::max(120.0f, sh * 0.20f);
-                const float panelX = (sw - panelW) * 0.5f;
-                const float panelY = (sh - panelH) * 0.5f;
-                const float pad = std::max(10.0f, panelH * 0.16f);
-                const float barW = std::max(120.0f, panelW - pad * 2.0f);
-                const float barH = std::max(12.0f, panelH * 0.22f);
-                const float barX = panelX + pad;
-                const float barY = panelY + panelH - pad - barH;
-
-                IRenderBackend::DebugQuad quads[5];
-                quads[0] = IRenderBackend::DebugQuad{0.0f, 0.0f, sw, sh, 0.03f, 0.03f, 0.04f, 1.0f};
-                quads[1] = IRenderBackend::DebugQuad{
-                    panelX, panelY, panelW, panelH, 0.10f, 0.10f, 0.12f, 0.97f};
-                quads[2] = IRenderBackend::DebugQuad{
-                    panelX + 2.0f, panelY + 2.0f, panelW - 4.0f, panelH - 4.0f, 0.14f, 0.14f, 0.17f, 0.98f};
-                quads[3] = IRenderBackend::DebugQuad{barX, barY, barW, barH, 0.22f, 0.22f, 0.26f, 1.0f};
-                quads[4] = IRenderBackend::DebugQuad{
-                    barX + 2.0f,
-                    barY + 2.0f,
-                    std::max(0.0f, (barW - 4.0f) * progress),
-                    std::max(0.0f, barH - 4.0f),
-                    0.77f,
-                    0.77f,
-                    0.81f,
-                    1.0f};
-                renderer->drawDebugQuads(quads, 5, drawableW, drawableH);
+            std::array<IRenderBackend::DebugQuad, game::runtime::boot_loading::kFallbackLoadingQuadCount> quads{};
+            if (game::runtime::boot_loading::buildFallbackLoadingQuads(
+                    drawableW,
+                    drawableH,
+                    progress01,
+                    quads)) {
+                renderer->drawDebugQuads(
+                    quads.data(),
+                    static_cast<int>(quads.size()),
+                    drawableW,
+                    drawableH);
             }
             renderer->endFrame();
         }
@@ -601,7 +476,8 @@ namespace {
         if (!initialized) return 1;
 
         std::cout << "[Run] Main loop @ 60 Hz...\n";
-        const int maxFixedTicksPerFrame = fixedTickBudgetPerFrame();
+        static const int maxFixedTicksPerFrame =
+            game::runtime::loop_config::readMaxFixedTicksPerFrameFromEnvironment(std::cerr);
         std::cout << "[Run] Fixed tick budget: " << maxFixedTicksPerFrame << " ticks/frame\n";
 
         bool running = true;
@@ -696,36 +572,28 @@ namespace {
                     if (stopReason.empty()) stopReason = "SDL_QUIT event";
                 }
 
-                if (sdlEvent.type == SDL_WINDOWEVENT) {
-                    if (sdlEvent.window.event == SDL_WINDOWEVENT_SIZE_CHANGED ||
-                        sdlEvent.window.event == SDL_WINDOWEVENT_RESIZED) {
-                        updateDrawableSizeAndViewport();
-                        updateMouseScale();
-                        updateCameraAspect();
-                        if (renderer) {
-                            renderer->onResize(drawableW, drawableH);
-                        }
-
-                        ctx.drawableW = drawableW;
-                        ctx.drawableH = drawableH;
-                    }
+                if (game::runtime::sdl_input::isResizeWindowEvent(sdlEvent)) {
+                    syncVideoModeState();
+                    ctx.drawableW = drawableW;
+                    ctx.drawableH = drawableH;
                 }
 
                 InputEvent e;
-                if (translateSdlToInputEvent(
-                        sdlEvent,
-                        mouseScaleX, mouseScaleY,
-                        windowW, windowH,
-                        drawableW, drawableH,
-                        e
-                    )) {
+                game::runtime::sdl_input::TranslationContext inputContext;
+                inputContext.mouseScaleX = mouseScaleX;
+                inputContext.mouseScaleY = mouseScaleY;
+                inputContext.windowW = windowW;
+                inputContext.windowH = windowH;
+                inputContext.drawableW = drawableW;
+                inputContext.drawableH = drawableH;
+                if (game::runtime::sdl_input::translateEvent(sdlEvent, inputContext, e)) {
                     game.handleEvent(e);
                 }
             }
 
             auto now = clock::now();
             double frameDt = std::chrono::duration<double>(now - previous).count();
-            frameDt = std::min(frameDt, 0.25);
+            frameDt = game::runtime::loop_config::clampFrameDeltaSeconds(frameDt);
             previous = now;
 
             accumulator += frameDt;
@@ -745,9 +613,8 @@ namespace {
                 ++fixedTicksThisFrame;
             }
             if (accumulator >= TIME_STEP) {
-                fixedTicksDroppedThisFrame = static_cast<int>(std::floor(accumulator / TIME_STEP));
-                accumulator -= static_cast<double>(fixedTicksDroppedThisFrame) * TIME_STEP;
-                accumulator = std::max(0.0, accumulator);
+                fixedTicksDroppedThisFrame =
+                    game::runtime::loop_config::dropExcessFixedTicks(accumulator, TIME_STEP);
             }
             const auto fixedEnd = clock::now();
             const EngineFixedPerfBreakdown fixedBreakdownThisFrame = services.frameFixedBreakdown;

@@ -261,9 +261,12 @@ add_library(PAC_GameObjects STATIC
     src/game/runtime/GamePreload.cpp
     src/game/runtime/GameRuntime.cpp
     src/game/runtime/GameBootstrap.cpp
+    src/game/runtime/RuntimeBootLoading.cpp
     src/game/runtime/RendererBackendBootstrap.cpp
     src/game/runtime/RendererStartupDiagnostics.cpp
+    src/game/runtime/RuntimeLoopConfig.cpp
     src/game/runtime/RuntimeRestartPolicy.cpp
+    src/game/runtime/RuntimeSdlInput.cpp
     src/game/runtime/RuntimeSdlVideoMode.cpp
     src/game/runtime/RuntimeStartupConfig.cpp
     src/game/runtime/GameSession.cpp
@@ -464,9 +467,12 @@ if (BUILD_TESTING)
         tests/TestDebugGeometry.cpp
         tests/TestVideoInitGuards.cpp
         tests/TestVideoPreferences.cpp
+        tests/TestRuntimeBootLoading.cpp
         tests/TestRendererBackendBootstrap.cpp
         tests/TestRendererStartupDiagnostics.cpp
+        tests/TestRuntimeLoopConfig.cpp
         tests/TestRuntimeRestartPolicy.cpp
+        tests/TestRuntimeSdlInput.cpp
         tests/TestRuntimeSdlVideoMode.cpp
         tests/TestRuntimeStartupConfig.cpp
         tests/TestDxgiAdapterSelectionPolicy.cpp
