@@ -23,6 +23,7 @@
 #include "game/runtime/RuntimeFramePerfCapture.h"
 #include "game/runtime/RuntimeLoopConfig.h"
 #include "game/runtime/RuntimeLoopControl.h"
+#include "game/runtime/RuntimeOpenGlBootstrap.h"
 #include "game/runtime/RuntimePerfAccumulator.h"
 #include "game/runtime/RuntimePerfLogging.h"
 #include "game/runtime/RuntimeRelaunchLoop.h"
@@ -34,6 +35,7 @@
 #include "game/runtime/RuntimeStartupConfig.h"
 #include "game/runtime/RuntimeStartupSession.h"
 #include "game/runtime/RuntimeStartupVideoOverride.h"
+#include "game/runtime/RuntimeWindowBootstrap.h"
 #include "game/runtime/VideoInitGuards.h"
 #include "game/runtime/VideoPreferences.h"
 
@@ -128,19 +130,27 @@ namespace {
         activeBackend = startupSession.activeBackend;
         game::runtime::startup_session::applyToServices(startupSession, services);
 
-        try {
-            window = std::make_unique<Window>(
-                "Pokemon Autochess",
-                static_cast<int>(START_W),
-                static_cast<int>(START_H),
+        const auto initialWindow = game::runtime::window_bootstrap::openWindow(
+            game::runtime::window_bootstrap::OpenRequest{
                 game::runtime::backend_bootstrap::graphicsApiForBackend(activeBackend),
-                services.vsyncEnabled);
-        } catch (const std::exception& ex) {
-            std::cerr << "[GameRunner] Window init failed: " << ex.what() << "\n";
+                services.vsyncEnabled},
+            [this](Window::GraphicsApi graphicsApi, bool vsyncEnabled) {
+                window = std::make_unique<Window>(
+                    "Pokemon Autochess",
+                    static_cast<int>(START_W),
+                    static_cast<int>(START_H),
+                    graphicsApi,
+                    vsyncEnabled);
+            },
+            [this]() {
+                return window && window->hasOpenGLContext();
+            });
+        if (!initialWindow.success) {
+            std::cerr << "[GameRunner] Window init failed: " << initialWindow.error << "\n";
             return false;
         }
-        windowHasOpenGLContext = window->hasOpenGLContext();
-        glFunctionsReady = false;
+        windowHasOpenGLContext = initialWindow.hasOpenGlContext;
+        glFunctionsReady = initialWindow.glFunctionsReady;
 
         updateDrawableSizeAndViewport();
         updateMouseScale();
@@ -157,24 +167,38 @@ namespace {
             (startupOverrideResult.applied ? std::cout : std::cerr) << startupOverrideResult.message << "\n";
         }
 
-        if (windowHasOpenGLContext) {
-            if (!gladLoadGLLoader((GLADloadproc)SDL_GL_GetProcAddress)) {
-                std::cerr << "[GameRunner] Failed to initialize GLAD\n";
-                return false;
+        const auto preloadBootstrap = game::runtime::opengl_bootstrap::bootstrapLoadingPresentation(
+            windowHasOpenGLContext,
+            game::runtime::opengl_bootstrap::PreloadCallbacks{
+                [this](std::string* outError) {
+                    if (!gladLoadGLLoader((GLADloadproc)SDL_GL_GetProcAddress)) {
+                        if (outError) *outError = "gladLoadGLLoader failed";
+                        return false;
+                    }
+                    return true;
+                },
+                [this]() {
+                    bootLoadingView = std::make_unique<BootLoadingView>();
+                    bootLoadingView->init(shaderCache);
+                },
+                [this](std::string_view title) {
+                    this->setTitle(std::string(title));
+                },
+                [this](float r, float g, float b, float a) {
+                    glClearColor(r, g, b, a);
+                    glClear(GL_COLOR_BUFFER_BIT);
+                    swapBuffers();
+                },
+                [this]() { return this->pumpPreloadEvents(); }});
+        if (!preloadBootstrap.success) {
+            std::cerr << "[GameRunner] Failed to initialize GLAD";
+            if (!preloadBootstrap.error.empty()) {
+                std::cerr << ": " << preloadBootstrap.error;
             }
-            glFunctionsReady = true;
-
-            bootLoadingView = std::make_unique<BootLoadingView>();
-            bootLoadingView->init(shaderCache);
-
-            setTitle("PokemonAutochess - Loading...");
-            glClearColor(0.05f, 0.05f, 0.07f, 1.0f);
-            glClear(GL_COLOR_BUFFER_BIT);
-            swapBuffers();
-            pumpPreloadEvents();
-        } else {
-            pumpPreloadEvents();
+            std::cerr << "\n";
+            return false;
         }
+        glFunctionsReady = preloadBootstrap.glFunctionsReady;
 
         auto rendererResult = game::runtime::renderer_recovery::createWithOpenGlFallback(
             game::runtime::renderer_recovery::Inputs{activeBackend, services.activeRendererBackend},
@@ -190,27 +214,39 @@ namespace {
             },
             [this]() {
                 window.reset();
-                try {
-                    window = std::make_unique<Window>(
-                        "Pokemon Autochess",
-                        static_cast<int>(START_W),
-                        static_cast<int>(START_H),
+                const auto fallbackWindow = game::runtime::window_bootstrap::openWindow(
+                    game::runtime::window_bootstrap::OpenRequest{
                         Window::GraphicsApi::OpenGL,
-                        services.vsyncEnabled);
-                    windowHasOpenGLContext = window->hasOpenGLContext();
-                    glFunctionsReady = false;
-                    return game::runtime::renderer_recovery::OpenGlWindowResult{true, {}};
-                } catch (const std::exception& ex) {
-                    return game::runtime::renderer_recovery::OpenGlWindowResult{false, ex.what()};
-                }
+                        services.vsyncEnabled},
+                    [this](Window::GraphicsApi graphicsApi, bool vsyncEnabled) {
+                        window = std::make_unique<Window>(
+                            "Pokemon Autochess",
+                            static_cast<int>(START_W),
+                            static_cast<int>(START_H),
+                            graphicsApi,
+                            vsyncEnabled);
+                    },
+                    [this]() {
+                        return window && window->hasOpenGLContext();
+                    });
+                windowHasOpenGLContext = fallbackWindow.hasOpenGlContext;
+                glFunctionsReady = fallbackWindow.glFunctionsReady;
+                return game::runtime::renderer_recovery::OpenGlWindowResult{
+                    fallbackWindow.success,
+                    fallbackWindow.error};
             },
             [this](std::string* outError) {
-                if (!gladLoadGLLoader((GLADloadproc)SDL_GL_GetProcAddress)) {
-                    if (outError) *outError = "gladLoadGLLoader failed";
-                    return false;
-                }
-                glFunctionsReady = true;
-                return true;
+                const bool ok = game::runtime::opengl_bootstrap::initializeOpenGlFunctions(
+                    [this](std::string* loaderError) {
+                        if (!gladLoadGLLoader((GLADloadproc)SDL_GL_GetProcAddress)) {
+                            if (loaderError) *loaderError = "gladLoadGLLoader failed";
+                            return false;
+                        }
+                        return true;
+                    },
+                    outError);
+                glFunctionsReady = ok;
+                return ok;
             },
             [this]() {
                 updateDrawableSizeAndViewport();

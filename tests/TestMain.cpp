@@ -63,6 +63,7 @@ bool test_renderer_backend_bootstrap_policy(std::string& outFail);
 bool test_renderer_startup_diagnostics_contract(std::string& outFail);
 bool test_runtime_loop_config_contract(std::string& outFail);
 bool test_runtime_loop_control_contract(std::string& outFail);
+bool test_runtime_opengl_bootstrap_contract(std::string& outFail);
 bool test_runtime_perf_accumulator_contract(std::string& outFail);
 bool test_runtime_perf_logging_contract(std::string& outFail);
 bool test_runtime_relaunch_loop_contract(std::string& outFail);
@@ -75,6 +76,7 @@ bool test_runtime_sdl_video_mode_contract(std::string& outFail);
 bool test_runtime_startup_config_contract(std::string& outFail);
 bool test_runtime_startup_session_contract(std::string& outFail);
 bool test_runtime_startup_video_override_contract(std::string& outFail);
+bool test_runtime_window_bootstrap_contract(std::string& outFail);
 bool test_dxgi_adapter_selection_policy(std::string& outFail);
 bool test_d3d12_probe_contract(std::string& outFail);
 bool test_content_invariants(std::string& outFail);
@@ -245,6 +247,7 @@ int main(int argc, char** argv) {
         {"renderer_startup_diagnostics_contract", &test_renderer_startup_diagnostics_contract},
         {"runtime_loop_config_contract", &test_runtime_loop_config_contract},
         {"runtime_loop_control_contract", &test_runtime_loop_control_contract},
+        {"runtime_opengl_bootstrap_contract", &test_runtime_opengl_bootstrap_contract},
         {"runtime_perf_accumulator_contract", &test_runtime_perf_accumulator_contract},
         {"runtime_perf_logging_contract", &test_runtime_perf_logging_contract},
         {"runtime_relaunch_loop_contract", &test_runtime_relaunch_loop_contract},
@@ -257,6 +260,7 @@ int main(int argc, char** argv) {
         {"runtime_startup_config_contract", &test_runtime_startup_config_contract},
         {"runtime_startup_session_contract", &test_runtime_startup_session_contract},
         {"runtime_startup_video_override_contract", &test_runtime_startup_video_override_contract},
+        {"runtime_window_bootstrap_contract", &test_runtime_window_bootstrap_contract},
         {"dxgi_adapter_selection_policy", &test_dxgi_adapter_selection_policy},
         {"d3d12_probe_contract", &test_d3d12_probe_contract},
         {"content_invariants", &test_content_invariants},

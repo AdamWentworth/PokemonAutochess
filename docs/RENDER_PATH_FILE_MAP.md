@@ -37,6 +37,9 @@ Use this file to find ownership quickly when working on parity/performance tasks
 - `src/game/runtime/RuntimeStartupVideoOverride.*`
   - startup video override application policy
   - startup video override success/failure messaging
+- `src/game/runtime/RuntimeWindowBootstrap.*`
+  - initial/fallback window open orchestration
+  - startup window GL-context state capture
 - `src/game/runtime/RuntimeRestartPolicy.*`
   - launch-time stale restart cleanup
   - post-run restart request consumption
@@ -56,6 +59,9 @@ Use this file to find ownership quickly when working on parity/performance tasks
 - `src/game/runtime/RuntimeLoopControl.*`
   - stop-reason ownership for the main loop
   - SDL quit and auto-quit bookkeeping
+- `src/game/runtime/RuntimeOpenGlBootstrap.*`
+  - OpenGL function bootstrap for loading/preload paths
+  - initial loading-frame presentation and preload pump sequencing
 - `src/game/runtime/RuntimeSdlEventDispatch.*`
   - SDL event dispatch orchestration
   - resize sync and translated input delivery policy

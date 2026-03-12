@@ -269,6 +269,7 @@ add_library(PAC_GameObjects STATIC
     src/game/runtime/RuntimeFramePerfCapture.cpp
     src/game/runtime/RuntimeLoopConfig.cpp
     src/game/runtime/RuntimeLoopControl.cpp
+    src/game/runtime/RuntimeOpenGlBootstrap.cpp
     src/game/runtime/RuntimePerfAccumulator.cpp
     src/game/runtime/RuntimePerfLogging.cpp
     src/game/runtime/RuntimeRelaunchLoop.cpp
@@ -281,6 +282,7 @@ add_library(PAC_GameObjects STATIC
     src/game/runtime/RuntimeStartupConfig.cpp
     src/game/runtime/RuntimeStartupSession.cpp
     src/game/runtime/RuntimeStartupVideoOverride.cpp
+    src/game/runtime/RuntimeWindowBootstrap.cpp
     src/game/runtime/GameSession.cpp
     src/game/runtime/shared/backend/SharedBackendPoseEval.cpp
     src/game/runtime/shared/capture/SharedCapturePresentation.cpp
@@ -487,6 +489,7 @@ if (BUILD_TESTING)
         tests/TestRendererStartupDiagnostics.cpp
         tests/TestRuntimeLoopConfig.cpp
         tests/TestRuntimeLoopControl.cpp
+        tests/TestRuntimeOpenGlBootstrap.cpp
         tests/TestRuntimePerfAccumulator.cpp
         tests/TestRuntimePerfLogging.cpp
         tests/TestRuntimeRelaunchLoop.cpp
@@ -499,6 +502,7 @@ if (BUILD_TESTING)
         tests/TestRuntimeStartupConfig.cpp
         tests/TestRuntimeStartupSession.cpp
         tests/TestRuntimeStartupVideoOverride.cpp
+        tests/TestRuntimeWindowBootstrap.cpp
         tests/TestDxgiAdapterSelectionPolicy.cpp
         tests/TestD3D12Probe.cpp
         tests/TestContentValidation.cpp
