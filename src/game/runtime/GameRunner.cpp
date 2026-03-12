@@ -20,8 +20,11 @@
 #include "game/runtime/GpuAdapters.h"
 #include "game/runtime/AutoQuitPolicy.h"
 #include "game/runtime/RendererBackendBootstrap.h"
+#include "game/runtime/RuntimeFramePerfCapture.h"
 #include "game/runtime/RuntimeBootLoading.h"
 #include "game/runtime/RuntimeLoopConfig.h"
+#include "game/runtime/RuntimePerfAccumulator.h"
+#include "game/runtime/RuntimePerfLogging.h"
 #include "game/runtime/RuntimeRestartPolicy.h"
 #include "game/runtime/RuntimeSdlInput.h"
 #include "game/runtime/RuntimeSdlVideoMode.h"
@@ -51,10 +54,8 @@
 #include <chrono>
 #include <cmath>
 #include <exception>
-#include <iomanip>
 #include <iostream>
 #include <memory>
-#include <sstream>
 #include <string>
 
 namespace {
@@ -520,35 +521,7 @@ namespace {
         auto previous = clock::now();
         double accumulator = 0.0;
 
-        int frameCount = 0;
-        double fpsTimer = 0.0;
-        double perfAccumFrameMs = 0.0;
-        double perfAccumFixedMs = 0.0;
-        double perfAccumFixedTickWorkMs = 0.0;
-        double perfAccumRenderBuildMs = 0.0;
-        double perfAccumRenderSubmitMs = 0.0;
-        double perfAccumPresentWaitMs = 0.0;
-        double perfAccumLegacyRenderMs = 0.0;
-        double perfAccumLegacySwapMs = 0.0;
-        double perfAccumGpuFrameMs = 0.0;
-        int perfAccumGpuFrameSamples = 0;
-        double perfAccumDrawCalls = 0.0;
-        double perfAccumTriangles = 0.0;
-        double perfAccumVisibleAnimatedUnits = 0.0;
-        double perfAccumParticleCount = 0.0;
-        double perfAccumProjectedUnitsMs = 0.0;
-        double perfAccumProjectedPoseEvalMs = 0.0;
-        double perfAccumProjectedModelMs = 0.0;
-        double perfAccumProjectedModelPrepMs = 0.0;
-        double perfAccumProjectedModelGeometryMs = 0.0;
-        double perfAccumProjectedOverlayMs = 0.0;
-        double perfAccumProjectedUnitsProcessed = 0.0;
-        double perfAccumProjectedModelUnits = 0.0;
-        double perfAccumProjectedClipSkinnedUnits = 0.0;
-        EngineRenderBuildBreakdown perfAccumRenderBreakdown{};
-        EngineFixedPerfBreakdown perfAccumFixedBreakdown{};
-        int perfAccumFixedTicks = 0;
-        int perfAccumFixedTicksDropped = 0;
+        game::runtime::perf_accum::RollingAccumulator perfAccumulator;
         int renderedFrames = 0;
         double elapsedSeconds = 0.0;
         const game::runtime::auto_quit::Policy autoQuit = game::runtime::auto_quit::fromEnvironment();
@@ -629,11 +602,6 @@ namespace {
             const auto renderBuildEnd = clock::now();
             const auto submitStart = renderBuildEnd;
 
-            double presentWaitMs = 0.0;
-            double gpuFrameMs = 0.0;
-            bool gpuFrameValid = false;
-            std::uint32_t drawCallsThisFrame = 0u;
-            std::uint64_t trianglesThisFrame = 0u;
             std::uint32_t visibleAnimatedUnitsThisFrame = services.frameVisibleAnimatedUnits;
             std::uint32_t particleCountThisFrame = services.frameParticleCount;
             const float projectedUnitsMsThisFrame = services.frameProjectedUnitsMs;
@@ -645,41 +613,35 @@ namespace {
             const std::uint32_t projectedUnitsProcessedThisFrame = services.frameProjectedUnitsProcessed;
             const std::uint32_t projectedModelUnitsThisFrame = services.frameProjectedModelUnits;
             const std::uint32_t projectedClipSkinnedUnitsThisFrame = services.frameProjectedClipSkinnedUnits;
-            EngineRenderBuildBreakdown renderBreakdownThisFrame = services.frameRenderBuildBreakdown;
+            const EngineRenderBuildBreakdown rawRenderBreakdownThisFrame = services.frameRenderBuildBreakdown;
 
+            game::runtime::frame_perf_capture::BackendFrameInputs backendPerfInputs;
             if (renderer) {
                 renderer->endFrame();
                 IRenderBackend::BackendFrameTimings backendTimings;
-                const bool hasBackendTimings = renderer->getLastFrameTimings(backendTimings);
-                if (hasBackendTimings && backendTimings.gpuFrameValid) {
-                    gpuFrameMs = std::max(0.0, static_cast<double>(backendTimings.gpuFrameMs));
-                    gpuFrameValid = true;
-                }
+                backendPerfInputs.rendererHandlesPresentation = renderer->handlesPresentation();
+                backendPerfInputs.hasBackendTimings = renderer->getLastFrameTimings(backendTimings);
+                backendPerfInputs.backendTimings = backendTimings;
                 if (renderer->handlesPresentation()) {
-                    if (hasBackendTimings) {
-                        presentWaitMs = std::max(0.0, static_cast<double>(backendTimings.presentWaitMs));
-                    }
                 } else {
                     const auto presentStart = clock::now();
                     swapBuffers();
                     const auto presentEnd = clock::now();
-                    presentWaitMs =
+                    backendPerfInputs.measuredPresentWaitMs =
                         std::chrono::duration<double, std::milli>(presentEnd - presentStart).count();
                 }
+                IRenderBackend::BackendFrameStats backendStats;
+                backendPerfInputs.hasBackendStats = renderer->getLastFrameStats(backendStats);
+                backendPerfInputs.backendStats = backendStats;
             } else {
                 const auto presentStart = clock::now();
                 swapBuffers();
                 const auto presentEnd = clock::now();
-                presentWaitMs =
+                backendPerfInputs.measuredPresentWaitMs =
                     std::chrono::duration<double, std::milli>(presentEnd - presentStart).count();
             }
-            if (renderer) {
-                IRenderBackend::BackendFrameStats backendStats;
-                if (renderer->getLastFrameStats(backendStats)) {
-                    drawCallsThisFrame = backendStats.drawCalls;
-                    trianglesThisFrame = backendStats.triangles;
-                }
-            }
+            const auto backendPerf =
+                game::runtime::frame_perf_capture::resolveBackendFrameOutputs(backendPerfInputs);
             const auto frameCpuEnd = clock::now();
 
             const double fixedMs = std::chrono::duration<double, std::milli>(fixedEnd - fixedStart).count();
@@ -687,393 +649,63 @@ namespace {
                 std::chrono::duration<double, std::milli>(renderBuildStart - beginFrameStart).count();
             const double renderBuildMs =
                 std::chrono::duration<double, std::milli>(renderBuildEnd - renderBuildStart).count();
-            const float renderAttributedMs =
-                projectedUnitsMsThisFrame +
-                renderBreakdownThisFrame.worldComposeMs +
-                renderBreakdownThisFrame.overlayPrepMs +
-                renderBreakdownThisFrame.worldBackgroundMs +
-                renderBreakdownThisFrame.worldTriangles3dMs +
-                renderBreakdownThisFrame.worldIndexedMs +
-                renderBreakdownThisFrame.worldDebugMs +
-                renderBreakdownThisFrame.spriteMs +
-                renderBreakdownThisFrame.uiMs;
-            renderBreakdownThisFrame.otherMs = std::max(
-                0.0f,
-                static_cast<float>(renderBuildMs) - renderAttributedMs);
+            const auto renderBreakdownThisFrame =
+                game::runtime::frame_perf_capture::finalizeRenderBreakdown(
+                    renderBuildMs,
+                    projectedUnitsMsThisFrame,
+                    rawRenderBreakdownThisFrame);
             const double submitRawMs =
                 std::chrono::duration<double, std::milli>(frameCpuEnd - submitStart).count();
-            const double submitMs = std::max(0.0, submitRawMs - presentWaitMs);
-            const bool backendHandlesPresentation = renderer && renderer->handlesPresentation();
+            const double submitMs =
+                game::runtime::frame_perf_capture::computeSubmitMs(
+                    submitRawMs,
+                    backendPerf.presentWaitMs);
             const double totalPresentWaitMs =
-                presentWaitMs + (backendHandlesPresentation ? beginFrameMs : 0.0);
+                game::runtime::frame_perf_capture::computeTotalPresentWaitMs(
+                    backendPerfInputs.rendererHandlesPresentation,
+                    beginFrameMs,
+                    backendPerf.presentWaitMs);
             const double legacyRenderMs = beginFrameMs + renderBuildMs;
             const double legacySwapMs = std::max(0.0, submitRawMs);
             const double frameCpuMs = std::chrono::duration<double, std::milli>(frameCpuEnd - frameCpuStart).count();
             ++renderedFrames;
             elapsedSeconds += frameDt;
 
-            frameCount++;
-            fpsTimer += frameDt;
-            perfAccumFrameMs += frameCpuMs;
-            perfAccumFixedMs += fixedMs;
-            perfAccumFixedTickWorkMs += fixedTickWorkMsThisFrame;
-            perfAccumFixedBreakdown.preUpdateMs += fixedBreakdownThisFrame.preUpdateMs;
-            perfAccumFixedBreakdown.updatePhaseMs += fixedBreakdownThisFrame.updatePhaseMs;
-            perfAccumFixedBreakdown.postUpdateMs += fixedBreakdownThisFrame.postUpdateMs;
-            perfAccumFixedBreakdown.postOtherMs += fixedBreakdownThisFrame.postOtherMs;
-            perfAccumFixedBreakdown.phaseTransitionMs += fixedBreakdownThisFrame.phaseTransitionMs;
-            perfAccumFixedBreakdown.backendHydrateMs += fixedBreakdownThisFrame.backendHydrateMs;
-            perfAccumFixedBreakdown.cameraMs += fixedBreakdownThisFrame.cameraMs;
-            perfAccumFixedBreakdown.unitInteractionMs += fixedBreakdownThisFrame.unitInteractionMs;
-            perfAccumFixedBreakdown.shopMs += fixedBreakdownThisFrame.shopMs;
-            perfAccumFixedBreakdown.roundMs += fixedBreakdownThisFrame.roundMs;
-            perfAccumFixedBreakdown.stateManagerMs += fixedBreakdownThisFrame.stateManagerMs;
-            perfAccumFixedBreakdown.stateUpdateMs += fixedBreakdownThisFrame.stateUpdateMs;
-            perfAccumFixedBreakdown.stateFlushMs += fixedBreakdownThisFrame.stateFlushMs;
-            perfAccumFixedBreakdown.movementMs += fixedBreakdownThisFrame.movementMs;
-            perfAccumFixedBreakdown.movementPlanMs += fixedBreakdownThisFrame.movementPlanMs;
-            perfAccumFixedBreakdown.movementLuaMs += fixedBreakdownThisFrame.movementLuaMs;
-            perfAccumFixedBreakdown.movementFlushMs += fixedBreakdownThisFrame.movementFlushMs;
-            perfAccumFixedBreakdown.movementAdvanceMs += fixedBreakdownThisFrame.movementAdvanceMs;
-            perfAccumFixedBreakdown.combatMs += fixedBreakdownThisFrame.combatMs;
-            perfAccumFixedBreakdown.combatPlanMs += fixedBreakdownThisFrame.combatPlanMs;
-            perfAccumFixedBreakdown.combatLuaMs += fixedBreakdownThisFrame.combatLuaMs;
-            perfAccumFixedBreakdown.combatFlushMs += fixedBreakdownThisFrame.combatFlushMs;
-            perfAccumFixedBreakdown.worldMs += fixedBreakdownThisFrame.worldMs;
-            perfAccumRenderBuildMs += renderBuildMs;
-            perfAccumRenderSubmitMs += submitMs;
-            perfAccumPresentWaitMs += totalPresentWaitMs;
-            perfAccumLegacyRenderMs += legacyRenderMs;
-            perfAccumLegacySwapMs += legacySwapMs;
-            if (gpuFrameValid) {
-                perfAccumGpuFrameMs += gpuFrameMs;
-                ++perfAccumGpuFrameSamples;
-            }
-            perfAccumDrawCalls += static_cast<double>(drawCallsThisFrame);
-            perfAccumTriangles += static_cast<double>(trianglesThisFrame);
-            perfAccumVisibleAnimatedUnits += static_cast<double>(visibleAnimatedUnitsThisFrame);
-            perfAccumParticleCount += static_cast<double>(particleCountThisFrame);
-            perfAccumProjectedUnitsMs += static_cast<double>(projectedUnitsMsThisFrame);
-            perfAccumProjectedPoseEvalMs += static_cast<double>(projectedPoseEvalMsThisFrame);
-            perfAccumProjectedModelMs += static_cast<double>(projectedModelMsThisFrame);
-            perfAccumProjectedModelPrepMs += static_cast<double>(projectedModelPrepMsThisFrame);
-            perfAccumProjectedModelGeometryMs += static_cast<double>(projectedModelGeometryMsThisFrame);
-            perfAccumProjectedOverlayMs += static_cast<double>(projectedOverlayMsThisFrame);
-            perfAccumProjectedUnitsProcessed += static_cast<double>(projectedUnitsProcessedThisFrame);
-            perfAccumProjectedModelUnits += static_cast<double>(projectedModelUnitsThisFrame);
-            perfAccumProjectedClipSkinnedUnits += static_cast<double>(projectedClipSkinnedUnitsThisFrame);
-            perfAccumRenderBreakdown.worldComposeMs += renderBreakdownThisFrame.worldComposeMs;
-            perfAccumRenderBreakdown.worldBackdropMs += renderBreakdownThisFrame.worldBackdropMs;
-            perfAccumRenderBreakdown.worldVfxMs += renderBreakdownThisFrame.worldVfxMs;
-            perfAccumRenderBreakdown.worldDepthFlushMs += renderBreakdownThisFrame.worldDepthFlushMs;
-            perfAccumRenderBreakdown.overlayPrepMs += renderBreakdownThisFrame.overlayPrepMs;
-            perfAccumRenderBreakdown.worldBackgroundMs += renderBreakdownThisFrame.worldBackgroundMs;
-            perfAccumRenderBreakdown.worldTriangles3dMs += renderBreakdownThisFrame.worldTriangles3dMs;
-            perfAccumRenderBreakdown.worldIndexedMs += renderBreakdownThisFrame.worldIndexedMs;
-            perfAccumRenderBreakdown.worldDebugMs += renderBreakdownThisFrame.worldDebugMs;
-            perfAccumRenderBreakdown.spriteMs += renderBreakdownThisFrame.spriteMs;
-            perfAccumRenderBreakdown.uiMs += renderBreakdownThisFrame.uiMs;
-            perfAccumRenderBreakdown.otherMs += renderBreakdownThisFrame.otherMs;
-            perfAccumFixedTicks += fixedTicksThisFrame;
-            perfAccumFixedTicksDropped += fixedTicksDroppedThisFrame;
-            if (fpsTimer >= 1.0) {
-                const double frames = std::max(1, frameCount);
-                const double fps = static_cast<double>(frameCount) / fpsTimer;
-                const double avgFrameMs = perfAccumFrameMs / frames;
-                const double avgFixedMs = perfAccumFixedMs / frames;
-                const double avgRenderBuildMs = perfAccumRenderBuildMs / frames;
-                const double avgRenderSubmitMs = perfAccumRenderSubmitMs / frames;
-                const double avgPresentWaitMs = perfAccumPresentWaitMs / frames;
-                const double avgLegacyRenderMs = perfAccumLegacyRenderMs / frames;
-                const double avgLegacySwapMs = perfAccumLegacySwapMs / frames;
-                const bool hasGpuFrameAverage = perfAccumGpuFrameSamples > 0;
-                const double avgGpuFrameMs = hasGpuFrameAverage
-                    ? (perfAccumGpuFrameMs / static_cast<double>(perfAccumGpuFrameSamples))
-                    : 0.0;
-                const std::uint32_t avgDrawCalls = static_cast<std::uint32_t>(
-                    std::lround(perfAccumDrawCalls / frames));
-                const std::uint64_t avgTriangles = static_cast<std::uint64_t>(
-                    std::llround(perfAccumTriangles / frames));
-                const std::uint32_t avgVisibleAnimatedUnits = static_cast<std::uint32_t>(
-                    std::lround(perfAccumVisibleAnimatedUnits / frames));
-                const std::uint32_t avgParticleCount = static_cast<std::uint32_t>(
-                    std::lround(perfAccumParticleCount / frames));
-                const double avgProjectedUnitsMs = perfAccumProjectedUnitsMs / frames;
-                const double avgProjectedPoseEvalMs = perfAccumProjectedPoseEvalMs / frames;
-                const double avgProjectedModelMs = perfAccumProjectedModelMs / frames;
-                const double avgProjectedModelPrepMs = perfAccumProjectedModelPrepMs / frames;
-                const double avgProjectedModelGeometryMs = perfAccumProjectedModelGeometryMs / frames;
-                const double avgProjectedOverlayMs = perfAccumProjectedOverlayMs / frames;
-                const std::uint32_t avgProjectedUnitsProcessed = static_cast<std::uint32_t>(
-                    std::lround(perfAccumProjectedUnitsProcessed / frames));
-                const std::uint32_t avgProjectedModelUnits = static_cast<std::uint32_t>(
-                    std::lround(perfAccumProjectedModelUnits / frames));
-                const std::uint32_t avgProjectedClipSkinnedUnits = static_cast<std::uint32_t>(
-                    std::lround(perfAccumProjectedClipSkinnedUnits / frames));
-                EngineRenderBuildBreakdown avgRenderBreakdown{};
-                avgRenderBreakdown.worldComposeMs =
-                    static_cast<float>(perfAccumRenderBreakdown.worldComposeMs / frames);
-                avgRenderBreakdown.worldBackdropMs =
-                    static_cast<float>(perfAccumRenderBreakdown.worldBackdropMs / frames);
-                avgRenderBreakdown.worldVfxMs =
-                    static_cast<float>(perfAccumRenderBreakdown.worldVfxMs / frames);
-                avgRenderBreakdown.worldDepthFlushMs =
-                    static_cast<float>(perfAccumRenderBreakdown.worldDepthFlushMs / frames);
-                avgRenderBreakdown.overlayPrepMs =
-                    static_cast<float>(perfAccumRenderBreakdown.overlayPrepMs / frames);
-                avgRenderBreakdown.worldBackgroundMs =
-                    static_cast<float>(perfAccumRenderBreakdown.worldBackgroundMs / frames);
-                avgRenderBreakdown.worldTriangles3dMs =
-                    static_cast<float>(perfAccumRenderBreakdown.worldTriangles3dMs / frames);
-                avgRenderBreakdown.worldIndexedMs =
-                    static_cast<float>(perfAccumRenderBreakdown.worldIndexedMs / frames);
-                avgRenderBreakdown.worldDebugMs =
-                    static_cast<float>(perfAccumRenderBreakdown.worldDebugMs / frames);
-                avgRenderBreakdown.spriteMs =
-                    static_cast<float>(perfAccumRenderBreakdown.spriteMs / frames);
-                avgRenderBreakdown.uiMs =
-                    static_cast<float>(perfAccumRenderBreakdown.uiMs / frames);
-                avgRenderBreakdown.otherMs =
-                    static_cast<float>(perfAccumRenderBreakdown.otherMs / frames);
-                const int avgFixedTicks = static_cast<int>(std::lround(static_cast<double>(perfAccumFixedTicks) / frames));
-                const int avgFixedTicksDropped =
-                    static_cast<int>(std::lround(static_cast<double>(perfAccumFixedTicksDropped) / frames));
-                const double avgFixedTickMs = perfAccumFixedTicks > 0
-                    ? (perfAccumFixedTickWorkMs / static_cast<double>(perfAccumFixedTicks))
-                    : 0.0;
-                EngineFixedPerfBreakdown avgFixedBreakdown{};
-                avgFixedBreakdown.preUpdateMs =
-                    static_cast<float>(perfAccumFixedBreakdown.preUpdateMs / frames);
-                avgFixedBreakdown.updatePhaseMs =
-                    static_cast<float>(perfAccumFixedBreakdown.updatePhaseMs / frames);
-                avgFixedBreakdown.postUpdateMs =
-                    static_cast<float>(perfAccumFixedBreakdown.postUpdateMs / frames);
-                avgFixedBreakdown.postOtherMs =
-                    static_cast<float>(perfAccumFixedBreakdown.postOtherMs / frames);
-                avgFixedBreakdown.phaseTransitionMs =
-                    static_cast<float>(perfAccumFixedBreakdown.phaseTransitionMs / frames);
-                avgFixedBreakdown.backendHydrateMs =
-                    static_cast<float>(perfAccumFixedBreakdown.backendHydrateMs / frames);
-                avgFixedBreakdown.cameraMs =
-                    static_cast<float>(perfAccumFixedBreakdown.cameraMs / frames);
-                avgFixedBreakdown.unitInteractionMs =
-                    static_cast<float>(perfAccumFixedBreakdown.unitInteractionMs / frames);
-                avgFixedBreakdown.shopMs =
-                    static_cast<float>(perfAccumFixedBreakdown.shopMs / frames);
-                avgFixedBreakdown.roundMs =
-                    static_cast<float>(perfAccumFixedBreakdown.roundMs / frames);
-                avgFixedBreakdown.stateManagerMs =
-                    static_cast<float>(perfAccumFixedBreakdown.stateManagerMs / frames);
-                avgFixedBreakdown.stateUpdateMs =
-                    static_cast<float>(perfAccumFixedBreakdown.stateUpdateMs / frames);
-                avgFixedBreakdown.stateFlushMs =
-                    static_cast<float>(perfAccumFixedBreakdown.stateFlushMs / frames);
-                avgFixedBreakdown.movementMs =
-                    static_cast<float>(perfAccumFixedBreakdown.movementMs / frames);
-                avgFixedBreakdown.movementPlanMs =
-                    static_cast<float>(perfAccumFixedBreakdown.movementPlanMs / frames);
-                avgFixedBreakdown.movementLuaMs =
-                    static_cast<float>(perfAccumFixedBreakdown.movementLuaMs / frames);
-                avgFixedBreakdown.movementFlushMs =
-                    static_cast<float>(perfAccumFixedBreakdown.movementFlushMs / frames);
-                avgFixedBreakdown.movementAdvanceMs =
-                    static_cast<float>(perfAccumFixedBreakdown.movementAdvanceMs / frames);
-                avgFixedBreakdown.combatMs =
-                    static_cast<float>(perfAccumFixedBreakdown.combatMs / frames);
-                avgFixedBreakdown.combatPlanMs =
-                    static_cast<float>(perfAccumFixedBreakdown.combatPlanMs / frames);
-                avgFixedBreakdown.combatLuaMs =
-                    static_cast<float>(perfAccumFixedBreakdown.combatLuaMs / frames);
-                avgFixedBreakdown.combatFlushMs =
-                    static_cast<float>(perfAccumFixedBreakdown.combatFlushMs / frames);
-                avgFixedBreakdown.worldMs =
-                    static_cast<float>(perfAccumFixedBreakdown.worldMs / frames);
-
-                services.framePerf.fps = static_cast<float>(fps);
-                services.framePerf.frameMs = static_cast<float>(avgFrameMs);
-                services.framePerf.fixedMs = static_cast<float>(avgFixedMs);
-                services.framePerf.fixedTickMs = static_cast<float>(avgFixedTickMs);
-                services.framePerf.renderBuildMs = static_cast<float>(avgRenderBuildMs);
-                services.framePerf.renderSubmitMs = static_cast<float>(avgRenderSubmitMs);
-                services.framePerf.presentWaitMs = static_cast<float>(avgPresentWaitMs);
-                services.framePerf.gpuFrameMs = static_cast<float>(avgGpuFrameMs);
-                services.framePerf.gpuFrameValid = hasGpuFrameAverage;
-                services.framePerf.drawCalls = avgDrawCalls;
-                services.framePerf.triangles = avgTriangles;
-                services.framePerf.visibleAnimatedUnits = avgVisibleAnimatedUnits;
-                services.framePerf.particleCount = avgParticleCount;
-                services.framePerf.projectedUnitsMs = static_cast<float>(avgProjectedUnitsMs);
-                services.framePerf.projectedPoseEvalMs = static_cast<float>(avgProjectedPoseEvalMs);
-                services.framePerf.projectedModelMs = static_cast<float>(avgProjectedModelMs);
-                services.framePerf.projectedModelPrepMs = static_cast<float>(avgProjectedModelPrepMs);
-                services.framePerf.projectedModelGeometryMs = static_cast<float>(avgProjectedModelGeometryMs);
-                services.framePerf.projectedOverlayMs = static_cast<float>(avgProjectedOverlayMs);
-                services.framePerf.projectedUnitsProcessed = avgProjectedUnitsProcessed;
-                services.framePerf.projectedModelUnits = avgProjectedModelUnits;
-                services.framePerf.projectedClipSkinnedUnits = avgProjectedClipSkinnedUnits;
-                services.framePerf.renderBreakdown = avgRenderBreakdown;
-                services.framePerf.renderMs = static_cast<float>(avgLegacyRenderMs);
-                services.framePerf.swapMs = static_cast<float>(avgLegacySwapMs);
-                services.framePerf.fixedTicks = avgFixedTicks;
-                services.framePerf.fixedTicksDropped = avgFixedTicksDropped;
-                services.framePerf.fixedBreakdown = avgFixedBreakdown;
-
-                std::ostringstream fixedSystemsLine;
-                {
-                    struct FixedSystemEntry {
-                        const char* name;
-                        float ms;
-                    };
-                    std::array<FixedSystemEntry, 10> fixedSystemEntries{{
-                        {"backend_hydrate", avgFixedBreakdown.backendHydrateMs},
-                        {"combat", avgFixedBreakdown.combatMs},
-                        {"world", avgFixedBreakdown.worldMs},
-                        {"movement", avgFixedBreakdown.movementMs},
-                        {"round", avgFixedBreakdown.roundMs},
-                        {"state", avgFixedBreakdown.stateManagerMs},
-                        {"post_other", avgFixedBreakdown.postOtherMs},
-                        {"phasechg", avgFixedBreakdown.phaseTransitionMs},
-                        {"camera", avgFixedBreakdown.cameraMs},
-                        {"unit", avgFixedBreakdown.unitInteractionMs},
-                    }};
-                    std::sort(
-                        fixedSystemEntries.begin(),
-                        fixedSystemEntries.end(),
-                        [](const FixedSystemEntry& a, const FixedSystemEntry& b) {
-                            return a.ms > b.ms;
-                        });
-                    int emittedFixedSystems = 0;
-                    for (const auto& entry : fixedSystemEntries) {
-                        if (entry.ms < 0.05f) continue;
-                        fixedSystemsLine << (emittedFixedSystems == 0 ? " fsys=" : ",")
-                                         << entry.name << ":" << entry.ms << "ms";
-                        ++emittedFixedSystems;
-                        if (emittedFixedSystems >= 3) break;
-                    }
-                }
-
-                std::cout << std::fixed << std::setprecision(1)
-                          << "[Perf] FPS=" << fps
-                          << " frame=" << avgFrameMs << "ms"
-                          << " fixed=" << avgFixedMs << "ms"
-                          << " ftick=" << avgFixedTickMs << "ms"
-                          << " build=" << avgRenderBuildMs << "ms"
-                          << " submit=" << avgRenderSubmitMs << "ms"
-                          << " present=" << avgPresentWaitMs << "ms"
-                          << " gpu=" << (hasGpuFrameAverage ? avgGpuFrameMs : -1.0) << "ms"
-                          << " draws=" << avgDrawCalls
-                          << " tris=" << avgTriangles
-                          << " units=" << avgVisibleAnimatedUnits
-                          << " particles=" << avgParticleCount
-                          << " proj=" << avgProjectedUnitsMs << "ms"
-                          << " pose=" << avgProjectedPoseEvalMs << "ms"
-                          << " model=" << avgProjectedModelMs << "ms"
-                          << " prep=" << avgProjectedModelPrepMs << "ms"
-                          << " geom=" << avgProjectedModelGeometryMs << "ms"
-                          << " over=" << avgProjectedOverlayMs << "ms"
-                          << " clipskin=" << avgProjectedClipSkinnedUnits
-                          << " render=" << avgLegacyRenderMs << "ms"
-                          << " swap=" << avgLegacySwapMs << "ms"
-                          << " ticks=" << avgFixedTicks
-                          << " drop=" << avgFixedTicksDropped
-                          << fixedSystemsLine.str() << "\n";
-
-                std::ostringstream perfJson;
-                perfJson << std::fixed << std::setprecision(3)
-                         << "[PerfJSON] {"
-                         << "\"fps\":" << fps
-                         << ",\"frame_cpu_ms\":" << avgFrameMs
-                         << ",\"fixed_ms\":" << avgFixedMs
-                         << ",\"fixed_tick_ms\":" << avgFixedTickMs
-                         << ",\"render_build_ms\":" << avgRenderBuildMs
-                         << ",\"render_submit_ms\":" << avgRenderSubmitMs
-                         << ",\"present_wait_ms\":" << avgPresentWaitMs
-                         << ",\"gpu_frame_ms\":" << (hasGpuFrameAverage ? avgGpuFrameMs : -1.0)
-                         << ",\"gpu_frame_valid\":" << (hasGpuFrameAverage ? 1 : 0)
-                         << ",\"draw_calls\":" << avgDrawCalls
-                         << ",\"triangles\":" << avgTriangles
-                         << ",\"visible_animated_units\":" << avgVisibleAnimatedUnits
-                         << ",\"particle_count\":" << avgParticleCount
-                         << ",\"projected_units_ms\":" << avgProjectedUnitsMs
-                         << ",\"projected_pose_eval_ms\":" << avgProjectedPoseEvalMs
-                         << ",\"projected_model_ms\":" << avgProjectedModelMs
-                         << ",\"projected_model_prep_ms\":" << avgProjectedModelPrepMs
-                          << ",\"projected_model_geometry_ms\":" << avgProjectedModelGeometryMs
-                          << ",\"projected_overlay_ms\":" << avgProjectedOverlayMs
-                          << ",\"projected_units_processed\":" << avgProjectedUnitsProcessed
-                          << ",\"projected_model_units\":" << avgProjectedModelUnits
-                          << ",\"projected_clip_skinned_units\":" << avgProjectedClipSkinnedUnits
-                          << ",\"render_world_compose_ms\":" << avgRenderBreakdown.worldComposeMs
-                          << ",\"render_world_backdrop_ms\":" << avgRenderBreakdown.worldBackdropMs
-                          << ",\"render_world_vfx_ms\":" << avgRenderBreakdown.worldVfxMs
-                          << ",\"render_world_depth_flush_ms\":" << avgRenderBreakdown.worldDepthFlushMs
-                          << ",\"render_overlay_prep_ms\":" << avgRenderBreakdown.overlayPrepMs
-                          << ",\"render_world_background_ms\":" << avgRenderBreakdown.worldBackgroundMs
-                          << ",\"render_world_triangles_3d_ms\":" << avgRenderBreakdown.worldTriangles3dMs
-                          << ",\"render_world_indexed_ms\":" << avgRenderBreakdown.worldIndexedMs
-                          << ",\"render_world_debug_ms\":" << avgRenderBreakdown.worldDebugMs
-                          << ",\"render_sprite_submit_ms\":" << avgRenderBreakdown.spriteMs
-                          << ",\"render_ui_submit_ms\":" << avgRenderBreakdown.uiMs
-                          << ",\"render_other_ms\":" << avgRenderBreakdown.otherMs
-                          << ",\"legacy_render_ms\":" << avgLegacyRenderMs
-                          << ",\"legacy_swap_ms\":" << avgLegacySwapMs
-                          << ",\"fixed_ticks\":" << avgFixedTicks
-                         << ",\"fixed_phase_pre_ms\":" << avgFixedBreakdown.preUpdateMs
-                         << ",\"fixed_phase_update_ms\":" << avgFixedBreakdown.updatePhaseMs
-                         << ",\"fixed_phase_post_ms\":" << avgFixedBreakdown.postUpdateMs
-                         << ",\"fixed_phase_post_other_ms\":" << avgFixedBreakdown.postOtherMs
-                         << ",\"fixed_phase_transition_ms\":" << avgFixedBreakdown.phaseTransitionMs
-                         << ",\"fixed_backend_hydrate_ms\":" << avgFixedBreakdown.backendHydrateMs
-                         << ",\"fixed_camera_ms\":" << avgFixedBreakdown.cameraMs
-                         << ",\"fixed_unit_interaction_ms\":" << avgFixedBreakdown.unitInteractionMs
-                         << ",\"fixed_shop_ms\":" << avgFixedBreakdown.shopMs
-                         << ",\"fixed_round_ms\":" << avgFixedBreakdown.roundMs
-                         << ",\"fixed_state_manager_ms\":" << avgFixedBreakdown.stateManagerMs
-                         << ",\"fixed_state_update_ms\":" << avgFixedBreakdown.stateUpdateMs
-                         << ",\"fixed_state_flush_ms\":" << avgFixedBreakdown.stateFlushMs
-                         << ",\"fixed_movement_ms\":" << avgFixedBreakdown.movementMs
-                         << ",\"fixed_movement_plan_ms\":" << avgFixedBreakdown.movementPlanMs
-                         << ",\"fixed_movement_lua_ms\":" << avgFixedBreakdown.movementLuaMs
-                         << ",\"fixed_movement_flush_ms\":" << avgFixedBreakdown.movementFlushMs
-                         << ",\"fixed_movement_advance_ms\":" << avgFixedBreakdown.movementAdvanceMs
-                         << ",\"fixed_combat_ms\":" << avgFixedBreakdown.combatMs
-                         << ",\"fixed_combat_plan_ms\":" << avgFixedBreakdown.combatPlanMs
-                         << ",\"fixed_combat_lua_ms\":" << avgFixedBreakdown.combatLuaMs
-                         << ",\"fixed_combat_flush_ms\":" << avgFixedBreakdown.combatFlushMs
-                         << ",\"fixed_world_ms\":" << avgFixedBreakdown.worldMs
-                         << ",\"fixed_ticks_dropped\":" << avgFixedTicksDropped
-                         << "}";
-                std::cout << perfJson.str() << "\n";
-
-                frameCount = 0;
-                fpsTimer = 0.0;
-                perfAccumFrameMs = 0.0;
-                perfAccumFixedMs = 0.0;
-                perfAccumFixedTickWorkMs = 0.0;
-                perfAccumFixedBreakdown = {};
-                perfAccumRenderBuildMs = 0.0;
-                perfAccumRenderSubmitMs = 0.0;
-                perfAccumPresentWaitMs = 0.0;
-                perfAccumLegacyRenderMs = 0.0;
-                perfAccumLegacySwapMs = 0.0;
-                perfAccumGpuFrameMs = 0.0;
-                perfAccumGpuFrameSamples = 0;
-                perfAccumDrawCalls = 0.0;
-                perfAccumTriangles = 0.0;
-                perfAccumVisibleAnimatedUnits = 0.0;
-                perfAccumParticleCount = 0.0;
-                perfAccumProjectedUnitsMs = 0.0;
-                perfAccumProjectedPoseEvalMs = 0.0;
-                perfAccumProjectedModelMs = 0.0;
-                perfAccumProjectedModelPrepMs = 0.0;
-                perfAccumProjectedModelGeometryMs = 0.0;
-                perfAccumProjectedOverlayMs = 0.0;
-                perfAccumProjectedUnitsProcessed = 0.0;
-                perfAccumProjectedModelUnits = 0.0;
-                perfAccumProjectedClipSkinnedUnits = 0.0;
-                perfAccumRenderBreakdown = {};
-                perfAccumFixedTicks = 0;
-                perfAccumFixedTicksDropped = 0;
+            game::runtime::perf_accum::FrameSample perfSample;
+            perfSample.frameDt = frameDt;
+            perfSample.frameCpuMs = frameCpuMs;
+            perfSample.fixedMs = fixedMs;
+            perfSample.fixedTickWorkMs = fixedTickWorkMsThisFrame;
+            perfSample.renderBuildMs = renderBuildMs;
+            perfSample.renderSubmitMs = submitMs;
+            perfSample.presentWaitMs = totalPresentWaitMs;
+            perfSample.legacyRenderMs = legacyRenderMs;
+            perfSample.legacySwapMs = legacySwapMs;
+            perfSample.gpuFrameMs = backendPerf.gpuFrameMs;
+            perfSample.gpuFrameValid = backendPerf.gpuFrameValid;
+            perfSample.drawCalls = backendPerf.drawCalls;
+            perfSample.triangles = backendPerf.triangles;
+            perfSample.visibleAnimatedUnits = visibleAnimatedUnitsThisFrame;
+            perfSample.particleCount = particleCountThisFrame;
+            perfSample.projectedUnitsMs = projectedUnitsMsThisFrame;
+            perfSample.projectedPoseEvalMs = projectedPoseEvalMsThisFrame;
+            perfSample.projectedModelMs = projectedModelMsThisFrame;
+            perfSample.projectedModelPrepMs = projectedModelPrepMsThisFrame;
+            perfSample.projectedModelGeometryMs = projectedModelGeometryMsThisFrame;
+            perfSample.projectedOverlayMs = projectedOverlayMsThisFrame;
+            perfSample.projectedUnitsProcessed = projectedUnitsProcessedThisFrame;
+            perfSample.projectedModelUnits = projectedModelUnitsThisFrame;
+            perfSample.projectedClipSkinnedUnits = projectedClipSkinnedUnitsThisFrame;
+            perfSample.renderBreakdown = renderBreakdownThisFrame;
+            perfSample.fixedBreakdown = fixedBreakdownThisFrame;
+            perfSample.fixedTicks = fixedTicksThisFrame;
+            perfSample.fixedTicksDropped = fixedTicksDroppedThisFrame;
+            perfAccumulator.addFrame(perfSample);
+            if (perfAccumulator.readyToEmit()) {
+                const auto perfSummary = perfAccumulator.makeSummaryAndReset();
+                services.framePerf = perfSummary.framePerf;
+                std::cout << game::runtime::perf_logging::formatPerfLine(services.framePerf) << "\n";
+                std::cout << game::runtime::perf_logging::formatPerfJson(services.framePerf) << "\n";
             }
 
             if (autoQuit.enabled() &&

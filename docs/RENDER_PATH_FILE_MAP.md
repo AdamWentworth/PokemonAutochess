@@ -32,6 +32,13 @@ Use this file to find ownership quickly when working on parity/performance tasks
 - `src/game/runtime/RuntimeLoopConfig.*`
   - fixed tick budget env parsing
   - frame-delta clamping and dropped-tick policy
+- `src/game/runtime/RuntimeFramePerfCapture.*`
+  - backend timing/stat interpretation
+  - per-frame render/perf metric derivation
+- `src/game/runtime/RuntimePerfAccumulator.*`
+  - rolling perf-window accumulation and averaging
+- `src/game/runtime/RuntimePerfLogging.*`
+  - `[Perf]` and `[PerfJSON]` formatting
 - `src/game/runtime/RuntimeBootLoading.*`
   - preload-abort event policy
   - fallback loading-screen quad layout for backend boot frames

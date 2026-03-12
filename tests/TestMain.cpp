@@ -56,9 +56,12 @@ bool test_sell_overlay_ui_policy_contract(std::string& outFail);
 bool test_video_init_gl_viewport_guard(std::string& outFail);
 bool test_video_preferences_parse_and_roundtrip(std::string& outFail);
 bool test_runtime_boot_loading_contract(std::string& outFail);
+bool test_runtime_frame_perf_capture_contract(std::string& outFail);
 bool test_renderer_backend_bootstrap_policy(std::string& outFail);
 bool test_renderer_startup_diagnostics_contract(std::string& outFail);
 bool test_runtime_loop_config_contract(std::string& outFail);
+bool test_runtime_perf_accumulator_contract(std::string& outFail);
+bool test_runtime_perf_logging_contract(std::string& outFail);
 bool test_runtime_restart_policy_contract(std::string& outFail);
 bool test_runtime_sdl_input_contract(std::string& outFail);
 bool test_runtime_sdl_video_mode_contract(std::string& outFail);
@@ -226,9 +229,12 @@ int main(int argc, char** argv) {
         {"video_init_gl_viewport_guard", &test_video_init_gl_viewport_guard},
         {"video_preferences_parse_and_roundtrip", &test_video_preferences_parse_and_roundtrip},
         {"runtime_boot_loading_contract", &test_runtime_boot_loading_contract},
+        {"runtime_frame_perf_capture_contract", &test_runtime_frame_perf_capture_contract},
         {"renderer_backend_bootstrap_policy", &test_renderer_backend_bootstrap_policy},
         {"renderer_startup_diagnostics_contract", &test_renderer_startup_diagnostics_contract},
         {"runtime_loop_config_contract", &test_runtime_loop_config_contract},
+        {"runtime_perf_accumulator_contract", &test_runtime_perf_accumulator_contract},
+        {"runtime_perf_logging_contract", &test_runtime_perf_logging_contract},
         {"runtime_restart_policy_contract", &test_runtime_restart_policy_contract},
         {"runtime_sdl_input_contract", &test_runtime_sdl_input_contract},
         {"runtime_sdl_video_mode_contract", &test_runtime_sdl_video_mode_contract},
