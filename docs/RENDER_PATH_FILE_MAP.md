@@ -25,6 +25,10 @@ Use this file to find ownership quickly when working on parity/performance tasks
   - startup preference/env resolution
   - one-shot boot-menu consumption
   - startup video override parsing
+- `src/game/runtime/RuntimeRestartPolicy.*`
+  - launch-time stale restart cleanup
+  - post-run restart request consumption
+  - restart preference persistence semantics
 
 ### 2) Runtime Route Policy
 - `src/game/runtime/routes/RenderRoutes.h`

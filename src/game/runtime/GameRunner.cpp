@@ -21,6 +21,7 @@
 #include "game/runtime/GpuAdapters.h"
 #include "game/runtime/AutoQuitPolicy.h"
 #include "game/runtime/RendererBackendBootstrap.h"
+#include "game/runtime/RuntimeRestartPolicy.h"
 #include "game/runtime/RendererStartupDiagnostics.h"
 #include "game/runtime/RuntimeStartupConfig.h"
 #include "game/runtime/VideoInitGuards.h"
@@ -1255,16 +1256,8 @@ int runGame() {
     const std::string prefsPath = game::video::defaultPreferencesPath();
     int lastResult = 0;
     for (;;) {
-        {
-            game::video::Preferences startupPrefs = game::video::loadPreferences(prefsPath);
-            if (startupPrefs.restartOnExit) {
-                startupPrefs.restartOnExit = false;
-                startupPrefs.bootMenuScreen.clear();
-                std::string clearErr;
-                if (!game::video::savePreferences(startupPrefs, prefsPath, &clearErr)) {
-                    std::cerr << "[Video] Failed to clear stale restart request: " << clearErr << "\n";
-                }
-            }
+        if (!game::runtime::restart_policy::clearStaleRestartRequest(prefsPath, std::cerr)) {
+            return 1;
         }
 
         GameRunner runner;
@@ -1278,15 +1271,14 @@ int runGame() {
 
         runner.shutdown();
 
-        game::video::Preferences prefsAfterRun = game::video::loadPreferences(prefsPath);
-        if (!prefsAfterRun.restartOnExit) {
+        bool shouldRelaunch = false;
+        if (!game::runtime::restart_policy::consumeRestartRequestForRelaunch(
+                prefsPath,
+                std::cerr,
+                shouldRelaunch)) {
             return lastResult;
         }
-
-        prefsAfterRun.restartOnExit = false;
-        std::string err;
-        if (!game::video::savePreferences(prefsAfterRun, prefsPath, &err)) {
-            std::cerr << "[Video] Failed to consume restart request: " << err << "\n";
+        if (!shouldRelaunch) {
             return lastResult;
         }
 
