@@ -17,12 +17,15 @@
 #include "engine/ui/BootLoadingView.h"
 #include "engine/utils/ResourceManager.h"
 #include "engine/utils/ShaderCache.h"
-#include "game/runtime/GpuAdapters.h"
 #include "game/runtime/AutoQuitPolicy.h"
+#include "game/runtime/GpuAdapters.h"
 #include "game/runtime/RendererBackendBootstrap.h"
-#include "game/runtime/RuntimeFramePerfCapture.h"
 #include "game/runtime/RuntimeBootLoading.h"
+#include "game/runtime/RuntimeFixedStepPhase.h"
+#include "game/runtime/RuntimeFrameObservation.h"
+#include "game/runtime/RuntimeFramePerfCapture.h"
 #include "game/runtime/RuntimeLoopConfig.h"
+#include "game/runtime/RuntimeLoopControl.h"
 #include "game/runtime/RuntimePerfAccumulator.h"
 #include "game/runtime/RuntimePerfLogging.h"
 #include "game/runtime/RuntimeRestartPolicy.h"
@@ -481,8 +484,7 @@ namespace {
             game::runtime::loop_config::readMaxFixedTicksPerFrameFromEnvironment(std::cerr);
         std::cout << "[Run] Fixed tick budget: " << maxFixedTicksPerFrame << " ticks/frame\n";
 
-        bool running = true;
-        std::string stopReason;
+        game::runtime::loop_control::State loopState;
         services.resources = &resourceManager;
         services.shaders = &shaderCache;
         services.events = &eventBus;
@@ -496,9 +498,8 @@ namespace {
 
         ctx.setTitle = [this](const std::string& t) { this->setTitle(t); };
         ctx.swapBuffers = [this]() { this->swapBuffers(); };
-        ctx.requestQuit = [&running, &stopReason]() {
-            running = false;
-            if (stopReason.empty()) stopReason = "requestQuit() callback invoked";
+        ctx.requestQuit = [&loopState]() {
+            game::runtime::loop_control::requestStop(loopState, "requestQuit() callback invoked");
         };
         ctx.pumpPreloadEvents = [this]() { return this->pumpPreloadEvents(); };
         ctx.renderBootLoading = [this](float p) { this->renderBootLoading(p); };
@@ -512,7 +513,7 @@ namespace {
 
         game.init(ctx);
 
-        if (!running) {
+        if (!game::runtime::loop_control::isRunning(loopState)) {
             game.shutdown();
             return 0;
         }
@@ -522,8 +523,6 @@ namespace {
         double accumulator = 0.0;
 
         game::runtime::perf_accum::RollingAccumulator perfAccumulator;
-        int renderedFrames = 0;
-        double elapsedSeconds = 0.0;
         const game::runtime::auto_quit::Policy autoQuit = game::runtime::auto_quit::fromEnvironment();
         if (autoQuit.enabled()) {
             std::cout << "[Run] Auto-quit policy enabled:";
@@ -536,14 +535,11 @@ namespace {
             std::cout << "\n";
         }
 
-        while (running) {
+        while (game::runtime::loop_control::isRunning(loopState)) {
             SDL_Event sdlEvent;
 
             while (SDL_PollEvent(&sdlEvent)) {
-                if (sdlEvent.type == SDL_QUIT) {
-                    running = false;
-                    if (stopReason.empty()) stopReason = "SDL_QUIT event";
-                }
+                game::runtime::loop_control::handleSdlQuitEvent(sdlEvent, loopState);
 
                 if (game::runtime::sdl_input::isResizeWindowEvent(sdlEvent)) {
                     syncVideoModeState();
@@ -571,28 +567,15 @@ namespace {
 
             accumulator += frameDt;
 
-            services.frameFixedBreakdown = {};
             const auto frameCpuStart = clock::now();
-            const auto fixedStart = frameCpuStart;
-            double fixedTickWorkMsThisFrame = 0.0;
-            int fixedTicksThisFrame = 0;
-            int fixedTicksDroppedThisFrame = 0;
-            while (accumulator >= TIME_STEP && fixedTicksThisFrame < maxFixedTicksPerFrame) {
-                const auto fixedTickStart = clock::now();
-                game.fixedUpdate(TIME_STEP);
-                fixedTickWorkMsThisFrame +=
-                    std::chrono::duration<double, std::milli>(clock::now() - fixedTickStart).count();
-                accumulator -= TIME_STEP;
-                ++fixedTicksThisFrame;
-            }
-            if (accumulator >= TIME_STEP) {
-                fixedTicksDroppedThisFrame =
-                    game::runtime::loop_config::dropExcessFixedTicks(accumulator, TIME_STEP);
-            }
-            const auto fixedEnd = clock::now();
-            const EngineFixedPerfBreakdown fixedBreakdownThisFrame = services.frameFixedBreakdown;
-
-            const auto beginFrameStart = fixedEnd;
+            const auto fixedPhase = game::runtime::fixed_step_phase::execute(
+                accumulator,
+                TIME_STEP,
+                maxFixedTicksPerFrame,
+                services,
+                [&game](float dt) { game.fixedUpdate(dt); });
+            accumulator = fixedPhase.accumulator;
+            const auto beginFrameStart = clock::now();
             if (renderer) {
                 renderer->beginFrame(0.1f, 0.1f, 0.1f, 1.0f);
             }
@@ -601,19 +584,7 @@ namespace {
             game.render(drawableW, drawableH);
             const auto renderBuildEnd = clock::now();
             const auto submitStart = renderBuildEnd;
-
-            std::uint32_t visibleAnimatedUnitsThisFrame = services.frameVisibleAnimatedUnits;
-            std::uint32_t particleCountThisFrame = services.frameParticleCount;
-            const float projectedUnitsMsThisFrame = services.frameProjectedUnitsMs;
-            const float projectedPoseEvalMsThisFrame = services.frameProjectedPoseEvalMs;
-            const float projectedModelMsThisFrame = services.frameProjectedModelMs;
-            const float projectedModelPrepMsThisFrame = services.frameProjectedModelPrepMs;
-            const float projectedModelGeometryMsThisFrame = services.frameProjectedModelGeometryMs;
-            const float projectedOverlayMsThisFrame = services.frameProjectedOverlayMs;
-            const std::uint32_t projectedUnitsProcessedThisFrame = services.frameProjectedUnitsProcessed;
-            const std::uint32_t projectedModelUnitsThisFrame = services.frameProjectedModelUnits;
-            const std::uint32_t projectedClipSkinnedUnitsThisFrame = services.frameProjectedClipSkinnedUnits;
-            const EngineRenderBuildBreakdown rawRenderBreakdownThisFrame = services.frameRenderBuildBreakdown;
+            const auto serviceSnapshot = game::runtime::frame_observation::captureServiceSnapshot(services);
 
             game::runtime::frame_perf_capture::BackendFrameInputs backendPerfInputs;
             if (renderer) {
@@ -644,16 +615,11 @@ namespace {
                 game::runtime::frame_perf_capture::resolveBackendFrameOutputs(backendPerfInputs);
             const auto frameCpuEnd = clock::now();
 
-            const double fixedMs = std::chrono::duration<double, std::milli>(fixedEnd - fixedStart).count();
             const double beginFrameMs =
                 std::chrono::duration<double, std::milli>(renderBuildStart - beginFrameStart).count();
-            const double renderBuildMs =
-                std::chrono::duration<double, std::milli>(renderBuildEnd - renderBuildStart).count();
-            const auto renderBreakdownThisFrame =
-                game::runtime::frame_perf_capture::finalizeRenderBreakdown(
-                    renderBuildMs,
-                    projectedUnitsMsThisFrame,
-                    rawRenderBreakdownThisFrame);
+            const double renderBuildMs = std::chrono::duration<double, std::milli>(
+                                             renderBuildEnd - renderBuildStart)
+                                             .count();
             const double submitRawMs =
                 std::chrono::duration<double, std::milli>(frameCpuEnd - submitStart).count();
             const double submitMs =
@@ -668,39 +634,27 @@ namespace {
             const double legacyRenderMs = beginFrameMs + renderBuildMs;
             const double legacySwapMs = std::max(0.0, submitRawMs);
             const double frameCpuMs = std::chrono::duration<double, std::milli>(frameCpuEnd - frameCpuStart).count();
-            ++renderedFrames;
-            elapsedSeconds += frameDt;
+            game::runtime::loop_control::notePresentedFrame(loopState, frameDt);
 
-            game::runtime::perf_accum::FrameSample perfSample;
-            perfSample.frameDt = frameDt;
-            perfSample.frameCpuMs = frameCpuMs;
-            perfSample.fixedMs = fixedMs;
-            perfSample.fixedTickWorkMs = fixedTickWorkMsThisFrame;
-            perfSample.renderBuildMs = renderBuildMs;
-            perfSample.renderSubmitMs = submitMs;
-            perfSample.presentWaitMs = totalPresentWaitMs;
-            perfSample.legacyRenderMs = legacyRenderMs;
-            perfSample.legacySwapMs = legacySwapMs;
-            perfSample.gpuFrameMs = backendPerf.gpuFrameMs;
-            perfSample.gpuFrameValid = backendPerf.gpuFrameValid;
-            perfSample.drawCalls = backendPerf.drawCalls;
-            perfSample.triangles = backendPerf.triangles;
-            perfSample.visibleAnimatedUnits = visibleAnimatedUnitsThisFrame;
-            perfSample.particleCount = particleCountThisFrame;
-            perfSample.projectedUnitsMs = projectedUnitsMsThisFrame;
-            perfSample.projectedPoseEvalMs = projectedPoseEvalMsThisFrame;
-            perfSample.projectedModelMs = projectedModelMsThisFrame;
-            perfSample.projectedModelPrepMs = projectedModelPrepMsThisFrame;
-            perfSample.projectedModelGeometryMs = projectedModelGeometryMsThisFrame;
-            perfSample.projectedOverlayMs = projectedOverlayMsThisFrame;
-            perfSample.projectedUnitsProcessed = projectedUnitsProcessedThisFrame;
-            perfSample.projectedModelUnits = projectedModelUnitsThisFrame;
-            perfSample.projectedClipSkinnedUnits = projectedClipSkinnedUnitsThisFrame;
-            perfSample.renderBreakdown = renderBreakdownThisFrame;
-            perfSample.fixedBreakdown = fixedBreakdownThisFrame;
-            perfSample.fixedTicks = fixedTicksThisFrame;
-            perfSample.fixedTicksDropped = fixedTicksDroppedThisFrame;
-            perfAccumulator.addFrame(perfSample);
+            game::runtime::frame_observation::SampleInputs sampleInputs;
+            sampleInputs.frameDt = frameDt;
+            sampleInputs.frameCpuMs = frameCpuMs;
+            sampleInputs.fixedMs = fixedPhase.fixedMs;
+            sampleInputs.fixedTickWorkMs = fixedPhase.fixedTickWorkMs;
+            sampleInputs.renderBuildMs = renderBuildMs;
+            sampleInputs.renderSubmitMs = submitMs;
+            sampleInputs.presentWaitMs = totalPresentWaitMs;
+            sampleInputs.legacyRenderMs = legacyRenderMs;
+            sampleInputs.legacySwapMs = legacySwapMs;
+            sampleInputs.gpuFrameMs = backendPerf.gpuFrameMs;
+            sampleInputs.gpuFrameValid = backendPerf.gpuFrameValid;
+            sampleInputs.drawCalls = backendPerf.drawCalls;
+            sampleInputs.triangles = backendPerf.triangles;
+            sampleInputs.fixedBreakdown = fixedPhase.fixedBreakdown;
+            sampleInputs.fixedTicks = fixedPhase.fixedTicks;
+            sampleInputs.fixedTicksDropped = fixedPhase.fixedTicksDropped;
+            perfAccumulator.addFrame(
+                game::runtime::frame_observation::makePerfSample(sampleInputs, serviceSnapshot));
             if (perfAccumulator.readyToEmit()) {
                 const auto perfSummary = perfAccumulator.makeSummaryAndReset();
                 services.framePerf = perfSummary.framePerf;
@@ -708,19 +662,13 @@ namespace {
                 std::cout << game::runtime::perf_logging::formatPerfJson(services.framePerf) << "\n";
             }
 
-            if (autoQuit.enabled() &&
-                game::runtime::auto_quit::shouldTrigger(autoQuit, elapsedSeconds, renderedFrames)) {
-                running = false;
-                if (stopReason.empty()) {
-                    stopReason = "PAC_AUTO_QUIT policy reached";
-                }
+            if (autoQuit.enabled()) {
+                game::runtime::loop_control::applyAutoQuit(autoQuit, loopState);
             }
         }
 
-        if (stopReason.empty()) {
-            stopReason = "main loop ended";
-        }
-        std::cout << "[Run] Exiting main loop: " << stopReason << "\n";
+        std::cout << "[Run] Exiting main loop: "
+                  << game::runtime::loop_control::effectiveStopReason(loopState) << "\n";
         game.shutdown();
         return 0;
     }

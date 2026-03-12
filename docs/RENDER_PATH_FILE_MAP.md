@@ -32,9 +32,18 @@ Use this file to find ownership quickly when working on parity/performance tasks
 - `src/game/runtime/RuntimeLoopConfig.*`
   - fixed tick budget env parsing
   - frame-delta clamping and dropped-tick policy
+- `src/game/runtime/RuntimeFixedStepPhase.*`
+  - fixed-step execution and dropped-tick enforcement
+  - per-frame fixed-update breakdown capture
+- `src/game/runtime/RuntimeFrameObservation.*`
+  - engine-service frame snapshot capture
+  - perf sample assembly from frame timings and service counters
 - `src/game/runtime/RuntimeFramePerfCapture.*`
   - backend timing/stat interpretation
   - per-frame render/perf metric derivation
+- `src/game/runtime/RuntimeLoopControl.*`
+  - stop-reason ownership for the main loop
+  - SDL quit and auto-quit bookkeeping
 - `src/game/runtime/RuntimePerfAccumulator.*`
   - rolling perf-window accumulation and averaging
 - `src/game/runtime/RuntimePerfLogging.*`
