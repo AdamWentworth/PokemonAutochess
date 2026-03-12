@@ -65,7 +65,10 @@ bool test_runtime_loop_config_contract(std::string& outFail);
 bool test_runtime_loop_control_contract(std::string& outFail);
 bool test_runtime_perf_accumulator_contract(std::string& outFail);
 bool test_runtime_perf_logging_contract(std::string& outFail);
+bool test_runtime_relaunch_loop_contract(std::string& outFail);
+bool test_runtime_renderer_activation_contract(std::string& outFail);
 bool test_runtime_restart_policy_contract(std::string& outFail);
+bool test_runtime_sdl_event_dispatch_contract(std::string& outFail);
 bool test_runtime_sdl_input_contract(std::string& outFail);
 bool test_runtime_sdl_video_mode_contract(std::string& outFail);
 bool test_runtime_startup_config_contract(std::string& outFail);
@@ -241,7 +244,10 @@ int main(int argc, char** argv) {
         {"runtime_loop_control_contract", &test_runtime_loop_control_contract},
         {"runtime_perf_accumulator_contract", &test_runtime_perf_accumulator_contract},
         {"runtime_perf_logging_contract", &test_runtime_perf_logging_contract},
+        {"runtime_relaunch_loop_contract", &test_runtime_relaunch_loop_contract},
+        {"runtime_renderer_activation_contract", &test_runtime_renderer_activation_contract},
         {"runtime_restart_policy_contract", &test_runtime_restart_policy_contract},
+        {"runtime_sdl_event_dispatch_contract", &test_runtime_sdl_event_dispatch_contract},
         {"runtime_sdl_input_contract", &test_runtime_sdl_input_contract},
         {"runtime_sdl_video_mode_contract", &test_runtime_sdl_video_mode_contract},
         {"runtime_startup_config_contract", &test_runtime_startup_config_contract},

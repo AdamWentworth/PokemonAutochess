@@ -21,6 +21,9 @@ Use this file to find ownership quickly when working on parity/performance tasks
 - `src/game/runtime/RendererStartupDiagnostics.*`
   - GPU adapter inventory logging
   - backend startup summary logging
+- `src/game/runtime/RuntimeRendererActivation.*`
+  - active renderer/GPU identity resolution after backend creation
+  - startup summary emission and discrete-GPU requirement evaluation
 - `src/game/runtime/RuntimeStartupConfig.*`
   - startup preference/env resolution
   - one-shot boot-menu consumption
@@ -44,10 +47,16 @@ Use this file to find ownership quickly when working on parity/performance tasks
 - `src/game/runtime/RuntimeLoopControl.*`
   - stop-reason ownership for the main loop
   - SDL quit and auto-quit bookkeeping
+- `src/game/runtime/RuntimeSdlEventDispatch.*`
+  - SDL event dispatch orchestration
+  - resize sync and translated input delivery policy
 - `src/game/runtime/RuntimePerfAccumulator.*`
   - rolling perf-window accumulation and averaging
 - `src/game/runtime/RuntimePerfLogging.*`
   - `[Perf]` and `[PerfJSON]` formatting
+- `src/game/runtime/RuntimeRelaunchLoop.*`
+  - outer relaunch loop around restart-on-exit preferences
+  - session re-entry ownership outside `GameRunner`
 - `src/game/runtime/RuntimeBootLoading.*`
   - preload-abort event policy
   - fallback loading-screen quad layout for backend boot frames

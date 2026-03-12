@@ -271,7 +271,10 @@ add_library(PAC_GameObjects STATIC
     src/game/runtime/RuntimeLoopControl.cpp
     src/game/runtime/RuntimePerfAccumulator.cpp
     src/game/runtime/RuntimePerfLogging.cpp
+    src/game/runtime/RuntimeRelaunchLoop.cpp
+    src/game/runtime/RuntimeRendererActivation.cpp
     src/game/runtime/RuntimeRestartPolicy.cpp
+    src/game/runtime/RuntimeSdlEventDispatch.cpp
     src/game/runtime/RuntimeSdlInput.cpp
     src/game/runtime/RuntimeSdlVideoMode.cpp
     src/game/runtime/RuntimeStartupConfig.cpp
@@ -483,7 +486,10 @@ if (BUILD_TESTING)
         tests/TestRuntimeLoopControl.cpp
         tests/TestRuntimePerfAccumulator.cpp
         tests/TestRuntimePerfLogging.cpp
+        tests/TestRuntimeRelaunchLoop.cpp
+        tests/TestRuntimeRendererActivation.cpp
         tests/TestRuntimeRestartPolicy.cpp
+        tests/TestRuntimeSdlEventDispatch.cpp
         tests/TestRuntimeSdlInput.cpp
         tests/TestRuntimeSdlVideoMode.cpp
         tests/TestRuntimeStartupConfig.cpp

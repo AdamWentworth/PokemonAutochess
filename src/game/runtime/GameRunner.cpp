@@ -28,7 +28,10 @@
 #include "game/runtime/RuntimeLoopControl.h"
 #include "game/runtime/RuntimePerfAccumulator.h"
 #include "game/runtime/RuntimePerfLogging.h"
+#include "game/runtime/RuntimeRelaunchLoop.h"
+#include "game/runtime/RuntimeRendererActivation.h"
 #include "game/runtime/RuntimeRestartPolicy.h"
+#include "game/runtime/RuntimeSdlEventDispatch.h"
 #include "game/runtime/RuntimeSdlInput.h"
 #include "game/runtime/RuntimeSdlVideoMode.h"
 #include "game/runtime/RendererStartupDiagnostics.h"
@@ -65,12 +68,6 @@ namespace {
     constexpr unsigned int START_W  = 1280;
     constexpr unsigned int START_H  = 720;
     constexpr float TIME_STEP = 1.0f / 60.0f;
-
-    bool looksIntegratedGpu(const std::string& vendor, const std::string& renderer) {
-        // Heuristic: Intel OpenGL contexts on hybrid laptops are typically iGPU.
-        return game::runtime::startup_diag::activeRendererMatchesPreferredAdapter(vendor, "intel") ||
-            game::runtime::startup_diag::activeRendererMatchesPreferredAdapter(renderer, "intel");
-    }
 
     const char* glStringOrUnknown(GLenum token) {
         const GLubyte* s = glGetString(token);
@@ -285,43 +282,34 @@ namespace {
             }
         }
 
-        services.activeRendererBackend = renderer->backendId();
-        services.gpuRenderer = renderer->activeGpuName();
-        services.gpuDiscrete = renderer->activeGpuIsDiscrete();
-
-        if (renderer->requiresOpenGLContext()) {
-            services.gpuVendor = glStringOrUnknown(GL_VENDOR);
-            if (services.gpuRenderer.empty()) {
-                services.gpuRenderer = glStringOrUnknown(GL_RENDERER);
-            }
-            services.gpuDiscrete = !looksIntegratedGpu(services.gpuVendor, services.gpuRenderer);
-        } else {
-            services.gpuVendor = "d3d12";
-            if (services.gpuRenderer.empty()) {
-                services.gpuRenderer = "<unknown d3d12 adapter>";
-            }
-            std::cout << "[Renderer] D3D12 backend initialized with shared gameplay render path.\n";
+        game::runtime::renderer_activation::Inputs activationInputs;
+        activationInputs.requestedBackend = services.requestedRendererBackend;
+        activationInputs.preferredGpuAdapter = services.preferredGpuAdapter;
+        activationInputs.vsyncEnabled = services.vsyncEnabled;
+        activationInputs.requireDiscreteGpu = services.requireDiscreteGpu;
+        activationInputs.rendererRequiresOpenGlContext = renderer->requiresOpenGLContext();
+        activationInputs.rendererBackendId = renderer->backendId();
+        activationInputs.activeGpuName = renderer->activeGpuName();
+        activationInputs.activeGpuIsDiscrete = renderer->activeGpuIsDiscrete();
+        if (activationInputs.rendererRequiresOpenGlContext) {
+            activationInputs.glVendor = glStringOrUnknown(GL_VENDOR);
+            activationInputs.glRenderer = glStringOrUnknown(GL_RENDERER);
+            activationInputs.glVersion = glStringOrUnknown(GL_VERSION);
+            activationInputs.glslVersion = glStringOrUnknown(GL_SHADING_LANGUAGE_VERSION);
         }
 
-        game::runtime::startup_diag::ActiveRendererSummary startupSummary;
-        startupSummary.requestedBackend = services.requestedRendererBackend;
-        startupSummary.activeBackend = services.activeRendererBackend;
-        startupSummary.gpuVendor = services.gpuVendor;
-        startupSummary.gpuRenderer = services.gpuRenderer;
-        startupSummary.gpuDiscrete = services.gpuDiscrete;
-        startupSummary.vsyncEnabled = services.vsyncEnabled;
-        startupSummary.hasOpenGlStrings = renderer->requiresOpenGLContext();
-        if (startupSummary.hasOpenGlStrings) {
-            startupSummary.glVersion = glStringOrUnknown(GL_VERSION);
-            startupSummary.glslVersion = glStringOrUnknown(GL_SHADING_LANGUAGE_VERSION);
-        }
-        game::runtime::startup_diag::logActiveRendererSummary(startupSummary, std::cout);
-        game::runtime::startup_diag::logPreferredActiveAdapterMismatch(
-            services.preferredGpuAdapter,
-            services.gpuRenderer,
+        const auto activation = game::runtime::renderer_activation::resolve(activationInputs);
+        services.activeRendererBackend = activation.activeBackend;
+        services.gpuVendor = activation.gpuVendor;
+        services.gpuRenderer = activation.gpuRenderer;
+        services.gpuDiscrete = activation.gpuDiscrete;
+        game::runtime::renderer_activation::logStartupSummary(activationInputs, activation, std::cout);
+        game::runtime::renderer_activation::logPreferredAdapterMismatch(
+            activationInputs,
+            activation,
             std::cout);
 
-        if (services.requireDiscreteGpu && !services.gpuDiscrete) {
+        if (!activation.discreteRequirementSatisfied) {
             std::cerr << "[GPU] Discrete GPU required by settings, but integrated GPU is active.\n";
             std::cerr << "[GPU] Change Graphics preference to high performance or choose a discrete adapter.\n";
             return false;
@@ -539,25 +527,26 @@ namespace {
             SDL_Event sdlEvent;
 
             while (SDL_PollEvent(&sdlEvent)) {
-                game::runtime::loop_control::handleSdlQuitEvent(sdlEvent, loopState);
-
-                if (game::runtime::sdl_input::isResizeWindowEvent(sdlEvent)) {
+                game::runtime::sdl_event_dispatch::Callbacks eventCallbacks;
+                eventCallbacks.onResize = [this, &ctx]() {
                     syncVideoModeState();
                     ctx.drawableW = drawableW;
                     ctx.drawableH = drawableH;
-                }
-
-                InputEvent e;
-                game::runtime::sdl_input::TranslationContext inputContext;
-                inputContext.mouseScaleX = mouseScaleX;
-                inputContext.mouseScaleY = mouseScaleY;
-                inputContext.windowW = windowW;
-                inputContext.windowH = windowH;
-                inputContext.drawableW = drawableW;
-                inputContext.drawableH = drawableH;
-                if (game::runtime::sdl_input::translateEvent(sdlEvent, inputContext, e)) {
-                    game.handleEvent(e);
-                }
+                };
+                eventCallbacks.onInputEvent = [&game](const InputEvent& event) {
+                    game.handleEvent(event);
+                };
+                eventCallbacks.makeTranslationContext = [this]() {
+                    game::runtime::sdl_input::TranslationContext inputContext;
+                    inputContext.mouseScaleX = mouseScaleX;
+                    inputContext.mouseScaleY = mouseScaleY;
+                    inputContext.windowW = windowW;
+                    inputContext.windowH = windowH;
+                    inputContext.drawableW = drawableW;
+                    inputContext.drawableH = drawableH;
+                    return inputContext;
+                };
+                game::runtime::sdl_event_dispatch::dispatch(sdlEvent, loopState, eventCallbacks);
             }
 
             auto now = clock::now();
@@ -678,12 +667,9 @@ namespace game {
 
 int runGame() {
     const std::string prefsPath = game::video::defaultPreferencesPath();
-    int lastResult = 0;
-    for (;;) {
-        if (!game::runtime::restart_policy::clearStaleRestartRequest(prefsPath, std::cerr)) {
-            return 1;
-        }
-
+    return game::runtime::relaunch_loop::runWithRestartPolicy(
+        prefsPath,
+        []() {
         GameRunner runner;
         if (!runner.init()) {
             runner.shutdown();
@@ -691,23 +677,13 @@ int runGame() {
         }
 
         GameApp app;
-        lastResult = runner.run(app);
+            const int lastResult = runner.run(app);
 
         runner.shutdown();
-
-        bool shouldRelaunch = false;
-        if (!game::runtime::restart_policy::consumeRestartRequestForRelaunch(
-                prefsPath,
-                std::cerr,
-                shouldRelaunch)) {
             return lastResult;
-        }
-        if (!shouldRelaunch) {
-            return lastResult;
-        }
-
-        std::cout << "[Run] Restart requested. Re-launching game session...\n";
-    }
+        },
+        std::cout,
+        std::cerr);
 }
 
 } // namespace game
