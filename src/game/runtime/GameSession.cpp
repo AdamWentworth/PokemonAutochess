@@ -77,7 +77,6 @@
 #include "game/runtime/shared/vfx/particles/SharedParticleBillboardBatches.h"
 #include "game/runtime/shared/vfx/particles/SharedParticleSnapshotBillboards.h"
 #include "game/runtime/shared/vfx/particles/SharedParticleVfxBridgeDispatch.h"
-#include "game/runtime/shared/vfx/tail_fire/SharedTailFireMeshPlayback.h"
 #include "game/runtime/shared/vfx/tail_fire/SharedTailFireFallbackEmitter.h"
 #include "game/runtime/shared/vfx/tail_fire/SharedTailFireExactGpuBatches.h"
 #include "game/runtime/shared/vfx/tail_fire/SharedTailFireAtlasHelpers.h"
@@ -1635,29 +1634,6 @@ struct GameSession::Impl {
                         ensureTextureFn);
                 prewarmAtlas(secondaryPremulKey, secondaryPremul);
             }
-        }
-
-        for (const auto& spec :
-             game::runtime::shared_tail_fire_mesh_playback::authoredFlipbookSpecs()) {
-            if (!spec.path || spec.path[0] == '\0') continue;
-            BackendTextureCacheEntry* authored =
-                ensureBackendTextureLoaded(spec.path, false);
-            if (!authored || !authored->valid || authored->rgba.empty() ||
-                authored->width <= 0 || authored->height <= 0) {
-                continue;
-            }
-
-            IRenderBackend::WorldTextureData tex{};
-            tex.key = spec.path;
-            tex.rgba = authored->rgba.data();
-            tex.width = authored->width;
-            tex.height = authored->height;
-            tex.wrapS = 33071; // GL_CLAMP_TO_EDGE
-            tex.wrapT = 33071; // GL_CLAMP_TO_EDGE
-            tex.alphaMode = 1u;
-            tex.blendMode = 0u;
-            renderer->prewarmWorldTextureData(&tex);
-            ++warmed.meshFlipbooks;
         }
 
         return warmed;
