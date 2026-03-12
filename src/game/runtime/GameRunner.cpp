@@ -5,10 +5,8 @@
 #include "game/runtime/GameApp.h"
 
 #include "engine/core/EngineServices.h"
-#include "engine/core/Environment.h"
 #include "engine/core/GameContext.h"
 #include "engine/core/GameLoop.h"
-#include "engine/core/Paths.h"
 #include "engine/events/EventBus.h"
 #include "engine/input/InputEvent.h"
 #include "engine/platform/Window.h"
@@ -18,7 +16,6 @@
 #include "engine/utils/ResourceManager.h"
 #include "engine/utils/ShaderCache.h"
 #include "game/runtime/AutoQuitPolicy.h"
-#include "game/runtime/GpuAdapters.h"
 #include "game/runtime/RendererBackendBootstrap.h"
 #include "game/runtime/RuntimeBootLoading.h"
 #include "game/runtime/RuntimeFixedStepPhase.h"
@@ -30,12 +27,13 @@
 #include "game/runtime/RuntimePerfLogging.h"
 #include "game/runtime/RuntimeRelaunchLoop.h"
 #include "game/runtime/RuntimeRendererActivation.h"
-#include "game/runtime/RuntimeRestartPolicy.h"
+#include "game/runtime/RuntimeRendererRecovery.h"
 #include "game/runtime/RuntimeSdlEventDispatch.h"
 #include "game/runtime/RuntimeSdlInput.h"
 #include "game/runtime/RuntimeSdlVideoMode.h"
-#include "game/runtime/RendererStartupDiagnostics.h"
 #include "game/runtime/RuntimeStartupConfig.h"
+#include "game/runtime/RuntimeStartupSession.h"
+#include "game/runtime/RuntimeStartupVideoOverride.h"
 #include "game/runtime/VideoInitGuards.h"
 #include "game/runtime/VideoPreferences.h"
 
@@ -124,53 +122,11 @@ namespace {
 
     bool GameRunner::init() {
         const std::string prefsPath = game::video::defaultPreferencesPath();
-        game::video::Preferences prefs = game::video::loadPreferences(prefsPath);
-
-        services.bootMenuScreen = game::runtime::startup_config::consumeBootMenuScreen(prefs);
-        if (!services.bootMenuScreen.empty()) {
-            std::string consumeErr;
-            if (!game::video::savePreferences(prefs, prefsPath, &consumeErr)) {
-                std::cerr << "[Video] Failed to clear one-shot boot menu screen: " << consumeErr << "\n";
-            }
-        }
-
-        const auto resolvedRendererPref = game::runtime::startup_config::resolveRendererPreference(
-            prefs,
-            engine::env::get("PAC_RENDER_BACKEND"));
-        if (resolvedRendererPref.overriddenByEnv) {
-            std::cout << "[Renderer] PAC_RENDER_BACKEND override: " << resolvedRendererPref.backendToken << "\n";
-            std::cout << "[Renderer] Note: env override is active; saved Display settings "
-                         "(Render API) are ignored until PAC_RENDER_BACKEND is unset.\n";
-        }
-        requestedBackend = resolvedRendererPref.requestedBackend;
-        services.requestedRendererBackend = resolvedRendererPref.requestedBackendName;
-        services.vsyncEnabled = prefs.vsync;
-        services.requireDiscreteGpu = prefs.requireDiscreteGpu;
-        services.preferredGpuAdapter = prefs.preferredGpuAdapter;
-        services.characterInkingEnabled = prefs.characterInking;
-
-        {
-            const auto adapters = game::video::enumerateSystemGpuAdapters();
-            services.availableGpuAdapters =
-                game::runtime::startup_diag::collectGpuAdapterNames(adapters);
-            game::runtime::startup_diag::logGpuAdapterInventory(
-                adapters,
-                services.preferredGpuAdapter,
-                std::cout);
-        }
-
-        {
-            const auto backendSelection = game::runtime::backend_bootstrap::selectStartupBackend(
-                requestedBackend,
-                services.requestedRendererBackend);
-            activeBackend = backendSelection.activeBackend;
-            services.rendererBackendFallback = backendSelection.fallback;
-            services.rendererBackendFallbackReason = backendSelection.fallbackReason;
-        }
-        if (services.rendererBackendFallback) {
-            std::cout << "[Renderer] " << services.rendererBackendFallbackReason << "\n";
-        }
-        services.activeRendererBackend = game::video::rendererBackendName(activeBackend);
+        const auto startupSession =
+            game::runtime::startup_session::prepareFromEnvironment(prefsPath, std::cout, std::cerr);
+        requestedBackend = startupSession.requestedBackend;
+        activeBackend = startupSession.activeBackend;
+        game::runtime::startup_session::applyToServices(startupSession, services);
 
         try {
             window = std::make_unique<Window>(
@@ -191,21 +147,14 @@ namespace {
         const Uint32 flags = SDL_GetWindowFlags(window->getSDLWindow());
         fullscreen = (flags & SDL_WINDOW_FULLSCREEN) != 0 || (flags & SDL_WINDOW_FULLSCREEN_DESKTOP) != 0;
 
-        const auto startupVideoOverride =
-            game::runtime::startup_config::readStartupVideoOverride(std::cerr);
-        if (startupVideoOverride.enabled()) {
-            const auto overrideMode = game::runtime::startup_config::resolveStartupVideoMode(
-                startupVideoOverride,
-                windowW,
-                windowH,
-                fullscreen);
-            if (applyVideoMode(overrideMode.width, overrideMode.height, overrideMode.fullscreen)) {
-                std::cout << "[Video] Startup override applied: "
-                          << (fullscreen ? "Fullscreen" : "Windowed")
-                          << " " << drawableW << "x" << drawableH << "\n";
-            } else {
-                std::cerr << "[Video] Failed to apply startup override video mode.\n";
-            }
+        const auto startupOverrideResult = game::runtime::startup_video_override::apply(
+            game::runtime::startup_config::readStartupVideoOverride(std::cerr),
+            [this]() { return this->queryVideoMode(); },
+            [this](int width, int height, bool isFullscreen) {
+                return this->applyVideoMode(width, height, isFullscreen);
+            });
+        if (startupOverrideResult.attempted) {
+            (startupOverrideResult.applied ? std::cout : std::cerr) << startupOverrideResult.message << "\n";
         }
 
         if (windowHasOpenGLContext) {
@@ -227,57 +176,76 @@ namespace {
             pumpPreloadEvents();
         }
 
-        std::string backendCreateError;
-        renderer = game::runtime::backend_bootstrap::createRenderBackend(activeBackend,
-                                                                         window ? window->getSDLWindow() : nullptr,
-                                                                         drawableW,
-                                                                         drawableH,
-                                                                         services.vsyncEnabled,
-                                                                         services.preferredGpuAdapter,
-                                                                         &backendCreateError);
-        if (!renderer) {
-            if (activeBackend != game::video::RendererBackend::OpenGL) {
-                services.rendererBackendFallback = true;
-                services.rendererBackendFallbackReason =
-                    game::runtime::backend_bootstrap::makeBackendInitFallbackReason(
-                        services.activeRendererBackend,
-                        backendCreateError);
-                std::cout << "[Renderer] " << services.rendererBackendFallbackReason << "\n";
-
+        auto rendererResult = game::runtime::renderer_recovery::createWithOpenGlFallback(
+            game::runtime::renderer_recovery::Inputs{activeBackend, services.activeRendererBackend},
+            [this](game::video::RendererBackend backend, std::string* outError) {
+                return game::runtime::backend_bootstrap::createRenderBackend(
+                    backend,
+                    window ? window->getSDLWindow() : nullptr,
+                    drawableW,
+                    drawableH,
+                    services.vsyncEnabled,
+                    services.preferredGpuAdapter,
+                    outError);
+            },
+            [this]() {
                 window.reset();
                 try {
-                    activeBackend = game::video::RendererBackend::OpenGL;
-                    services.activeRendererBackend = game::video::rendererBackendName(activeBackend);
                     window = std::make_unique<Window>(
                         "Pokemon Autochess",
                         static_cast<int>(START_W),
                         static_cast<int>(START_H),
                         Window::GraphicsApi::OpenGL,
                         services.vsyncEnabled);
-                    windowHasOpenGLContext = true;
-                    if (!gladLoadGLLoader((GLADloadproc)SDL_GL_GetProcAddress)) {
-                        std::cerr << "[GameRunner] Failed to initialize GLAD after fallback\n";
-                        return false;
-                    }
-                    glFunctionsReady = true;
-                    updateDrawableSizeAndViewport();
-                    updateMouseScale();
-                    renderer = game::runtime::backend_bootstrap::createRenderBackend(
-                        activeBackend,
-                        window ? window->getSDLWindow() : nullptr,
-                        drawableW,
-                        drawableH,
-                        services.vsyncEnabled,
-                        services.preferredGpuAdapter,
-                        &backendCreateError);
+                    windowHasOpenGLContext = window->hasOpenGLContext();
+                    glFunctionsReady = false;
+                    return game::runtime::renderer_recovery::OpenGlWindowResult{true, {}};
                 } catch (const std::exception& ex) {
-                    std::cerr << "[Renderer] OpenGL fallback window init failed: " << ex.what() << "\n";
+                    return game::runtime::renderer_recovery::OpenGlWindowResult{false, ex.what()};
+                }
+            },
+            [this](std::string* outError) {
+                if (!gladLoadGLLoader((GLADloadproc)SDL_GL_GetProcAddress)) {
+                    if (outError) *outError = "gladLoadGLLoader failed";
                     return false;
                 }
-            }
-            if (!renderer) {
+                glFunctionsReady = true;
+                return true;
+            },
+            [this]() {
+                updateDrawableSizeAndViewport();
+                updateMouseScale();
+            });
+        if (rendererResult.rendererBackendFallback) {
+            services.rendererBackendFallback = true;
+            services.rendererBackendFallbackReason = rendererResult.rendererBackendFallbackReason;
+            std::cout << "[Renderer] " << services.rendererBackendFallbackReason << "\n";
+        }
+        activeBackend = rendererResult.activeBackend;
+        services.activeRendererBackend = rendererResult.activeBackendName;
+        renderer = std::move(rendererResult.renderer);
+        if (!renderer) {
+            switch (rendererResult.failureStage) {
+            case game::runtime::renderer_recovery::FailureStage::FallbackWindowOpen:
+                std::cerr << "[Renderer] OpenGL fallback window init failed: "
+                          << rendererResult.error << "\n";
+                return false;
+            case game::runtime::renderer_recovery::FailureStage::FallbackOpenGlInit:
+                std::cerr << "[GameRunner] Failed to initialize GLAD after fallback";
+                if (!rendererResult.error.empty()) {
+                    std::cerr << ": " << rendererResult.error;
+                }
+                std::cerr << "\n";
+                return false;
+            case game::runtime::renderer_recovery::FailureStage::InitialBackendCreate:
+            case game::runtime::renderer_recovery::FailureStage::FallbackBackendCreate:
                 std::cerr << "[Renderer] Failed to create backend '" << services.activeRendererBackend
-                          << "' (" << backendCreateError << ").\n";
+                          << "' (" << rendererResult.error << ").\n";
+                return false;
+            case game::runtime::renderer_recovery::FailureStage::None:
+            default:
+                std::cerr << "[Renderer] Failed to create backend '" << services.activeRendererBackend
+                          << "'.\n";
                 return false;
             }
         }

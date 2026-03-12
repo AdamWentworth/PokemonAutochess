@@ -273,11 +273,14 @@ add_library(PAC_GameObjects STATIC
     src/game/runtime/RuntimePerfLogging.cpp
     src/game/runtime/RuntimeRelaunchLoop.cpp
     src/game/runtime/RuntimeRendererActivation.cpp
+    src/game/runtime/RuntimeRendererRecovery.cpp
     src/game/runtime/RuntimeRestartPolicy.cpp
     src/game/runtime/RuntimeSdlEventDispatch.cpp
     src/game/runtime/RuntimeSdlInput.cpp
     src/game/runtime/RuntimeSdlVideoMode.cpp
     src/game/runtime/RuntimeStartupConfig.cpp
+    src/game/runtime/RuntimeStartupSession.cpp
+    src/game/runtime/RuntimeStartupVideoOverride.cpp
     src/game/runtime/GameSession.cpp
     src/game/runtime/shared/backend/SharedBackendPoseEval.cpp
     src/game/runtime/shared/capture/SharedCapturePresentation.cpp
@@ -488,11 +491,14 @@ if (BUILD_TESTING)
         tests/TestRuntimePerfLogging.cpp
         tests/TestRuntimeRelaunchLoop.cpp
         tests/TestRuntimeRendererActivation.cpp
+        tests/TestRuntimeRendererRecovery.cpp
         tests/TestRuntimeRestartPolicy.cpp
         tests/TestRuntimeSdlEventDispatch.cpp
         tests/TestRuntimeSdlInput.cpp
         tests/TestRuntimeSdlVideoMode.cpp
         tests/TestRuntimeStartupConfig.cpp
+        tests/TestRuntimeStartupSession.cpp
+        tests/TestRuntimeStartupVideoOverride.cpp
         tests/TestDxgiAdapterSelectionPolicy.cpp
         tests/TestD3D12Probe.cpp
         tests/TestContentValidation.cpp

@@ -24,10 +24,19 @@ Use this file to find ownership quickly when working on parity/performance tasks
 - `src/game/runtime/RuntimeRendererActivation.*`
   - active renderer/GPU identity resolution after backend creation
   - startup summary emission and discrete-GPU requirement evaluation
+- `src/game/runtime/RuntimeRendererRecovery.*`
+  - backend creation and OpenGL fallback recovery
+  - init-time failure-stage ownership for fallback diagnostics
 - `src/game/runtime/RuntimeStartupConfig.*`
   - startup preference/env resolution
   - one-shot boot-menu consumption
   - startup video override parsing
+- `src/game/runtime/RuntimeStartupSession.*`
+  - preference load/consume flow for startup
+  - startup service state population and adapter inventory capture
+- `src/game/runtime/RuntimeStartupVideoOverride.*`
+  - startup video override application policy
+  - startup video override success/failure messaging
 - `src/game/runtime/RuntimeRestartPolicy.*`
   - launch-time stale restart cleanup
   - post-run restart request consumption
