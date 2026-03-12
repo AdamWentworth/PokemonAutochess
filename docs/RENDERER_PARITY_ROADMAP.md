@@ -65,13 +65,18 @@ It supersedes the old roles of:
    - `render_build_ms`
    - projected pose/model/prep/geometry buckets
    - draw submission overhead
-3. Continue GPU offloading only where it removes CPU render-build work.
-4. Keep cold-path fixes surgical:
+3. Add a targeted Charmander-line tail-fire perf pass:
+   - keep the first-use hitch gone on authored fire-mesh playback
+   - reduce startup CPU bake/decode cost for tail-fire assets
+   - measure steady-state board cost in both `OpenGL` and `D3D12`
+   - preserve the current visual result unless there is a deliberate art change
+4. Continue GPU offloading only where it removes CPU render-build work.
+5. Keep cold-path fixes surgical:
    - startup
    - first-shop-entry
    - first-species-use
    - first-VFX-use
-5. Clean up user-facing graphics/settings behavior so menus and logs reflect reality.
+6. Clean up user-facing graphics/settings behavior so menus and logs reflect reality.
 
 ## Deferred Next Iteration Candidates
 - Retained/dirty overlay submission.
@@ -80,7 +85,18 @@ It supersedes the old roles of:
 - More fundamental projected-unit submission redesign.
   - Goal: move farther away from per-unit rebuild/submit work and toward shared prepared data plus smaller per-unit deltas.
   - Primary buckets to watch: `projected_model_prep_ms`, `projected_model_geometry_ms`, `render_world_indexed_ms`.
-- Tail-fire path changes are intentionally deferred until there is a clearer product/visual direction.
+- Tail-fire authored fire-mesh follow-up.
+  - Goal: keep the current look while shrinking tail-fire cold-start CPU work and any remaining unnecessary steady-state cost.
+  - Start in shared-path ownership before backend-specific tuning:
+    - `SharedProjectedUnitBackendMeshRenderer.cpp`
+    - `SharedTailFire*.*`
+    - `GameWorldVfx.cpp`
+  - Primary buckets/signals to watch:
+    - startup prewarm time
+    - `render_build_ms`
+    - `projected_model_prep_ms`
+    - `projected_model_geometry_ms`
+    - `gpu_frame_ms`
 
 ## Current Engineering Guidance
 - If work scales with triangle count or per-vertex visual math, prefer pushing it toward GPU/shader-side handling.

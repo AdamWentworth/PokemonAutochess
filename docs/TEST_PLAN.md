@@ -66,6 +66,15 @@ Rows to capture (same scene each time):
 - OpenGL at 1280x720 / 1600x900 / 1920x1080
 - D3D12 at 1280x720 / 1600x900 / 1920x1080
 
+### Species/VFX Spot Checks
+Required when a change touches species-specific rendering or shared VFX hot paths.
+
+- Add one manual or scripted capture that exercises the Charmander line with tail fire visible on board.
+- Record any first-use hitch separately from steady-state samples; do not bury it inside averaged benchmark rows.
+- If the hitch has already been removed by prewarm changes, record startup tail-fire prewarm timings separately so cold-path regressions stay visible.
+- Compare `render_build_ms`, `projected_model_prep_ms`, `projected_model_geometry_ms`, `gpu_frame_ms`, and FPS with and without the fire-tail unit present.
+- Run the spot check in both `OpenGL` and `D3D12` if the touched code is in the shared path.
+
 Example launch command template:
 ```powershell
 $env:PAC_RENDER_BACKEND='opengl'   # or d3d12

@@ -64,6 +64,7 @@
 #include "game/runtime/BackendMaterialShading.h"
 #include "game/runtime/BackendProceduralPose.h"
 #include "game/runtime/BackendUnitVisuals.h"
+#include "game/runtime/RuntimeBackendModelPrewarm.h"
 #include "game/runtime/shared/backend/SharedBackendTextureCache.h"
 #include "game/runtime/shared/backend/SharedBackendPoseEval.h"
 #include "game/runtime/shared/capture/SharedCapturePresentation.h"
@@ -2122,8 +2123,6 @@ struct GameSession::Impl {
         std::cout << "[Init] Shared gameplay render path: using backend model cache loader.\n";
         if (backendPreloadModelCacheEnabled()) {
             std::cout << "[Init] Shared gameplay render path: preloading backend model cache...\n";
-            const bool verboseModelCacheLog = backendModelVerboseLoggingEnabled();
-            const bool prewarmAnimRoles = backendPrewarmAnimRolesEnabled();
             const bool prewarmModelTextures =
                 usesBackendGameRenderPath() &&
                 renderer &&
@@ -2156,126 +2155,72 @@ struct GameSession::Impl {
                     modelPathsToPreload.push_back(sharedCapturePokeballPath);
                 }
             }
-
-            if (ctx.setTitle) ctx.setTitle("PokemonAutochess - Loading.");
-            if (ctx.renderBootLoading) ctx.renderBootLoading(0.0f);
-            bool preloadInterrupted = false;
-            if (ctx.pumpPreloadEvents && !ctx.pumpPreloadEvents()) {
-                if (ctx.requestQuit) ctx.requestQuit();
-                preloadInterrupted = true;
-            }
-
-            std::size_t loaded = 0u;
-            std::size_t failed = 0u;
-            std::size_t animRolesWarmed = 0u;
-            std::size_t modelTextureMaterialsWarmed = 0u;
-            std::size_t modelGeometryBatchesWarmed = 0u;
-            std::vector<std::string> failedSamples;
-            failedSamples.reserve(8);
-            const auto prewarmAnimRolesForModel = [&](const std::string& modelPath,
-                                                      const runtime::backend_model::MeshData* mesh) {
-                if (!prewarmAnimRoles || !mesh) return;
-                auto it = backendAnimByModelPath.find(modelPath);
-                const bool alreadyResolved = (it != backendAnimByModelPath.end()) && it->second.attemptedResolve;
-                BackendAnimRoleEntry& roles = ensureBackendAnimRoles(modelPath, mesh);
-                if (!alreadyResolved && roles.attemptedResolve) {
-                    ++animRolesWarmed;
-                }
+            const game::runtime::backend_model_prewarm::Options prewarmOptions{
+                .verboseModelCacheLog = backendModelVerboseLoggingEnabled(),
+                .prewarmAnimRoles = backendPrewarmAnimRolesEnabled(),
+                .prewarmModelTextures = prewarmModelTextures,
+                .prewarmModelGeometry = prewarmModelGeometry,
+                .maxFailureSamples = 8u,
             };
-            const auto prewarmTexturesForModel = [&](const std::string&,
-                                                     const runtime::backend_model::MeshData* mesh) {
-                if (!prewarmModelTextures || !mesh) return;
-                modelTextureMaterialsWarmed +=
-                    prewarmBackendWorldTexturesForMesh(renderer, mesh);
-            };
-            const auto prewarmGeometryForModel = [&](const runtime::backend_model::MeshData* mesh) {
-                if (!prewarmModelGeometry || !mesh) return;
-                modelGeometryBatchesWarmed +=
-                    game::runtime::shared_projected_unit_backend_mesh::
-                        prewarmProjectedUnitBackendMeshGeometryCache(*renderer, *mesh);
-            };
-            const std::size_t totalModels = modelPathsToPreload.size();
-            for (std::size_t i = 0; i < totalModels; ++i) {
-                const std::string& modelPath = modelPathsToPreload[i];
-                if (ctx.setTitle) {
-                    ctx.setTitle(
-                        std::string("PokemonAutochess - Loading ") +
-                        std::to_string(i + 1u) + "/" + std::to_string(totalModels) + "  " + modelPath);
-                }
-                if (ctx.pumpPreloadEvents && !ctx.pumpPreloadEvents()) {
-                    if (ctx.requestQuit) ctx.requestQuit();
-                    preloadInterrupted = true;
-                    break;
-                }
+            (void)game::runtime::backend_model_prewarm::run(
+                modelPathsToPreload,
+                prewarmOptions,
+                game::runtime::backend_model_prewarm::Callbacks{
+                    .setTitle = ctx.setTitle,
+                    .renderBootLoading = ctx.renderBootLoading,
+                    .pumpPreloadEvents = ctx.pumpPreloadEvents,
+                    .requestQuit = ctx.requestQuit,
+                    .loadModel =
+                        [&](const std::string& modelPath) {
+                            auto& cacheEntry = backendMeshByModelPath[modelPath];
+                            if (cacheEntry.attemptedLoad) {
+                                return game::runtime::backend_model_prewarm::ModelLoadResult{
+                                    false,
+                                    cacheEntry.error.empty() ? &cacheEntry.mesh : nullptr,
+                                    cacheEntry.error,
+                                };
+                            }
 
-                auto& cacheEntry = backendMeshByModelPath[modelPath];
-                if (cacheEntry.attemptedLoad) {
-                    if (cacheEntry.error.empty()) {
-                        prewarmAnimRolesForModel(modelPath, &cacheEntry.mesh);
-                        prewarmTexturesForModel(modelPath, &cacheEntry.mesh);
-                        prewarmGeometryForModel(&cacheEntry.mesh);
-                    }
-                    const float progress = totalModels > 0u
-                        ? static_cast<float>(i + 1u) / static_cast<float>(totalModels)
-                        : 1.0f;
-                    if (ctx.renderBootLoading) ctx.renderBootLoading(progress);
-                    continue;
-                }
-                cacheEntry.attemptedLoad = true;
-                std::string err;
-                if (!runtime::backend_model::loadMeshFromCache(modelPath, cacheEntry.mesh, &err)) {
-                    cacheEntry.error = std::move(err);
-                    cacheEntry.mesh = {};
-                    ++failed;
-                    if (failedSamples.size() < 8u) {
-                        failedSamples.push_back(modelPath + " (" + cacheEntry.error + ")");
-                    }
-                    if (verboseModelCacheLog) {
-                        std::cout << "[Init][ModelCache][MISS] " << modelPath
-                                  << " reason=" << cacheEntry.error << "\n";
-                    }
-                } else {
-                    ++loaded;
-                    prewarmAnimRolesForModel(modelPath, &cacheEntry.mesh);
-                    prewarmTexturesForModel(modelPath, &cacheEntry.mesh);
-                    prewarmGeometryForModel(&cacheEntry.mesh);
-                    if (verboseModelCacheLog) {
-                        std::cout << "[Init][ModelCache][OK] " << modelPath
-                                  << " vtx=" << cacheEntry.mesh.vertices.size()
-                                  << " idx=" << cacheEntry.mesh.indices.size()
-                                  << " submesh=" << cacheEntry.mesh.submeshBaseTextures.size() << "\n";
-                    }
-                }
-                const float progress = totalModels > 0u
-                    ? static_cast<float>(i + 1u) / static_cast<float>(totalModels)
-                    : 1.0f;
-                if (ctx.renderBootLoading) ctx.renderBootLoading(progress);
-            }
-            std::cout << "[Init] Backend model cache preload complete: loaded=" << loaded
-                      << " failed=" << failed << "\n";
-            if (prewarmAnimRoles) {
-                std::cout << "[Init] Backend anim role prewarm complete: warmed=" << animRolesWarmed << "\n";
-            }
-            if (prewarmModelTextures) {
-                std::cout << "[Init] Backend model texture prewarm complete: materials="
-                          << modelTextureMaterialsWarmed << "\n";
-            }
-            if (prewarmModelGeometry) {
-                std::cout << "[Init] Backend model geometry prewarm complete: cached_batches="
-                          << modelGeometryBatchesWarmed << "\n";
-            }
-            if (failed > 0u && !failedSamples.empty() && !verboseModelCacheLog) {
-                std::cout << "[Init][ModelCache] Sample failures:\n";
-                for (const std::string& item : failedSamples) {
-                    std::cout << "  - " << item << "\n";
-                }
-                std::cout << "[Init][ModelCache] Set PAC_BACKEND_MODEL_VERBOSE=1 for full per-model cache logs.\n";
-            }
-            if (preloadInterrupted) {
-                std::cout << "[Init][ModelCache] Preload interrupted by window close or quit request.\n";
-            }
-            if (ctx.setTitle) ctx.setTitle("Pokemon Autochess");
-            if (ctx.pumpPreloadEvents) ctx.pumpPreloadEvents();
+                            cacheEntry.attemptedLoad = true;
+                            std::string err;
+                            if (!runtime::backend_model::loadMeshFromCache(
+                                    modelPath, cacheEntry.mesh, &err)) {
+                                cacheEntry.error = std::move(err);
+                                cacheEntry.mesh = {};
+                                return game::runtime::backend_model_prewarm::ModelLoadResult{
+                                    true,
+                                    nullptr,
+                                    cacheEntry.error,
+                                };
+                            }
+
+                            return game::runtime::backend_model_prewarm::ModelLoadResult{
+                                true,
+                                &cacheEntry.mesh,
+                                {},
+                            };
+                        },
+                    .prewarmAnimRoles =
+                        [&](const std::string& modelPath,
+                            const runtime::backend_model::MeshData& mesh) {
+                            auto it = backendAnimByModelPath.find(modelPath);
+                            const bool alreadyResolved =
+                                (it != backendAnimByModelPath.end()) && it->second.attemptedResolve;
+                            BackendAnimRoleEntry& roles =
+                                ensureBackendAnimRoles(modelPath, &mesh);
+                            return !alreadyResolved && roles.attemptedResolve;
+                        },
+                    .prewarmTextures =
+                        [&](const std::string&, const runtime::backend_model::MeshData& mesh) {
+                            return prewarmBackendWorldTexturesForMesh(renderer, &mesh);
+                        },
+                    .prewarmGeometry =
+                        [&](const runtime::backend_model::MeshData& mesh) {
+                            return game::runtime::shared_projected_unit_backend_mesh::
+                                prewarmProjectedUnitBackendMeshGeometryCache(*renderer, mesh);
+                        },
+                },
+                std::cout);
         } else {
             std::cout << "[Init] Shared gameplay render path: backend model cache preload disabled.\n";
         }

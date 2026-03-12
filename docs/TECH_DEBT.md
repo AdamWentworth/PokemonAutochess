@@ -33,23 +33,28 @@ real engineering value, not old blocker language that has already been retired.
 - Tail-fire and card-art caches are worth keeping because they removed visible stalls.
 - Future startup complexity should be held to the same standard.
 
-3. Render submission still rebuilds too much unchanged work.
+3. Fire-tail rendering now deserves a targeted perf pass.
+- The current Charmander-line fire path mixes authored fire-mesh flipbooks with the legacy tail-fire fallback/emitter flow.
+- The visible first-use Charmander hitch is substantially improved now that startup prewarms the authored flipbook upload too.
+- The remaining debt has shifted to cold-start CPU work: legacy premultiplied atlas bake plus authored flipbook decode still add noticeable startup cost.
+
+4. Render submission still rebuilds too much unchanged work.
 - The next sensible structural step is retained/dirty submission for UI and overlay layers instead of rebuilding the full draw-prep path every frame.
 
-4. Projected-unit submission is still more per-unit than ideal.
+5. Projected-unit submission is still more per-unit than ideal.
 - The next bigger render-side rework is to lean harder on shared prepared geometry/material state and reduce per-unit submission churn.
 
-5. Large high-churn files remain risky.
+6. Large high-churn files remain risky.
 - `src/game/runtime/GameSession.cpp`
 - `src/game/runtime/GameRunner.cpp`
 - backend render implementation families
 - shared projected runtime render modules
 
-6. Duplicate startup/data-store wiring should be reduced.
+7. Duplicate startup/data-store wiring should be reduced.
 - Packed/dev asset-store fallback and related startup wiring are split between `GameBootstrap.cpp` and `GameSession.cpp`.
 - That increases drift risk in content-loading behavior.
 
-7. No dedicated benchmark hardware baseline policy yet.
+8. No dedicated benchmark hardware baseline policy yet.
 - Local numbers are useful, but long-term regression decisions still need a clearer baseline process.
 
 ## Things That Are No Longer Good Debt Entries

@@ -261,6 +261,7 @@ add_library(PAC_GameObjects STATIC
     src/game/runtime/GamePreload.cpp
     src/game/runtime/GameRuntime.cpp
     src/game/runtime/GameBootstrap.cpp
+    src/game/runtime/RuntimeBackendModelPrewarm.cpp
     src/game/runtime/RuntimeBootLoading.cpp
     src/game/runtime/RendererBackendBootstrap.cpp
     src/game/runtime/RuntimeFixedStepPhase.cpp
@@ -484,6 +485,7 @@ if (BUILD_TESTING)
         tests/TestDebugGeometry.cpp
         tests/TestVideoInitGuards.cpp
         tests/TestVideoPreferences.cpp
+        tests/TestRuntimeBackendModelPrewarm.cpp
         tests/TestRuntimeBootLoading.cpp
         tests/TestRuntimeFixedStepPhase.cpp
         tests/TestRuntimeFrameObservation.cpp
