@@ -631,7 +631,7 @@ float authoredFireNoise(float4 p) {
 }
 
 float4 evalAuthoredFireMesh(PSIn i) {
-  float2 uv = saturate(i.uv);
+  float2 uv = saturate(i.uv + float2(uMaterialFlipbook1Cols, uMaterialFlipbook1Rows));
   float4 baked = sampleAtlasCombinedTopLeft(
       float4(uMaterialRect0U, uMaterialRect0V, uMaterialRect0W, uMaterialRect0H),
       float2(uMaterialFlipbook0Cols, uMaterialFlipbook0Rows),
@@ -639,6 +639,11 @@ float4 evalAuthoredFireMesh(PSIn i) {
       uMaterialFlipbook0Fps,
       uv,
       uMaterialTimeSec);
+  float rgbCoverage = smoothstep(
+      0.03f,
+      0.20f,
+      max(baked.r, max(baked.g, baked.b)));
+  baked.a = max(baked.a, rgbCoverage);
   float baseEngulf = 1.0f - smoothstep(0.0f, 0.28f, saturate(i.generated.y));
   float2 centerXZ = i.generated.xz - float2(0.5f, 0.5f);
   float centerDist = length(centerXZ * float2(1.2f, 1.0f));

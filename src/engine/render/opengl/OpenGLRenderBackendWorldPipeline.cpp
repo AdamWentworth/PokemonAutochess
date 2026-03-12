@@ -578,7 +578,10 @@ void OpenGLRenderBackend::ensureWorldPipeline() {
             return value / max(amplitudeSum, 1e-5);
         }
         vec4 evalAuthoredFireMesh() {
-            vec2 uv = clamp(vUv, vec2(0.0), vec2(1.0));
+            vec2 uv = clamp(
+                vUv + vec2(uMaterialFlipbook1.x, uMaterialFlipbook1.y),
+                vec2(0.0),
+                vec2(1.0));
             vec4 baked = sampleAtlasCombinedTopLeft(
                 uMaterialRect0,
                 uMaterialFlipbook0.xy,
@@ -586,6 +589,11 @@ void OpenGLRenderBackend::ensureWorldPipeline() {
                 uMaterialFlipbook0.w,
                 uv,
                 uMaterialTimeSec);
+            float rgbCoverage = smoothstep(
+                0.03,
+                0.20,
+                max(baked.r, max(baked.g, baked.b)));
+            baked.a = max(baked.a, rgbCoverage);
             float baseEngulf = 1.0 - smoothstep(0.0, 0.28, clamp(vGenerated.y, 0.0, 1.0));
             vec2 centerXZ = vGenerated.xz - vec2(0.5, 0.5);
             float centerDist = length(centerXZ * vec2(1.2, 1.0));
