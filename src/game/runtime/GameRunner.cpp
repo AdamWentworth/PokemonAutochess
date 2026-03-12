@@ -22,6 +22,7 @@
 #include "game/runtime/AutoQuitPolicy.h"
 #include "game/runtime/RendererBackendBootstrap.h"
 #include "game/runtime/RuntimeRestartPolicy.h"
+#include "game/runtime/RuntimeSdlVideoMode.h"
 #include "game/runtime/RendererStartupDiagnostics.h"
 #include "game/runtime/RuntimeStartupConfig.h"
 #include "game/runtime/VideoInitGuards.h"
@@ -183,6 +184,7 @@ namespace {
         void updateDrawableSizeAndViewport();
         void updateMouseScale();
         void updateCameraAspect();
+        void syncVideoModeState();
         bool applyVideoMode(int width, int height, bool fullscreenWanted);
         GameContext::VideoMode queryVideoMode() const;
 
@@ -499,56 +501,33 @@ namespace {
         }
     }
 
-    bool GameRunner::applyVideoMode(int width, int height, bool fullscreenWanted) {
-        if (!window || !window->getSDLWindow()) return false;
-        SDL_Window* sdlWindow = window->getSDLWindow();
-
-        width = std::max(640, width);
-        height = std::max(360, height);
-
-        if (fullscreenWanted) {
-            SDL_DisplayMode mode{};
-            mode.w = width;
-            mode.h = height;
-            mode.format = SDL_PIXELFORMAT_UNKNOWN;
-            mode.refresh_rate = 0;
-            mode.driverdata = nullptr;
-            if (SDL_SetWindowDisplayMode(sdlWindow, &mode) != 0) {
-                std::cerr << "[Video] SDL_SetWindowDisplayMode failed: " << SDL_GetError() << "\n";
-            }
-            if (SDL_SetWindowFullscreen(sdlWindow, SDL_WINDOW_FULLSCREEN) != 0) {
-                std::cerr << "[Video] SDL_WINDOW_FULLSCREEN failed, trying desktop: " << SDL_GetError() << "\n";
-                if (SDL_SetWindowFullscreen(sdlWindow, SDL_WINDOW_FULLSCREEN_DESKTOP) != 0) {
-                    std::cerr << "[Video] SDL_WINDOW_FULLSCREEN_DESKTOP failed: " << SDL_GetError() << "\n";
-                    return false;
-                }
-            }
-            fullscreen = true;
-        } else {
-            if (SDL_SetWindowFullscreen(sdlWindow, 0) != 0) {
-                std::cerr << "[Video] Exiting fullscreen failed: " << SDL_GetError() << "\n";
-                return false;
-            }
-            SDL_SetWindowSize(sdlWindow, width, height);
-            SDL_SetWindowPosition(sdlWindow, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED);
-            fullscreen = false;
-        }
-
+    void GameRunner::syncVideoModeState() {
         updateDrawableSizeAndViewport();
         updateMouseScale();
         updateCameraAspect();
         if (renderer) {
             renderer->onResize(drawableW, drawableH);
         }
+    }
+
+    bool GameRunner::applyVideoMode(int width, int height, bool fullscreenWanted) {
+        if (!window || !window->getSDLWindow()) return false;
+        const auto requested =
+            game::runtime::video_mode::sanitizeRequestedVideoMode(width, height, fullscreenWanted);
+        const auto result = game::runtime::video_mode::applyRequestedVideoMode(
+            window->getSDLWindow(),
+            requested,
+            std::cerr);
+        if (!result.success) {
+            return false;
+        }
+        fullscreen = result.fullscreen;
+        syncVideoModeState();
         return true;
     }
 
     GameContext::VideoMode GameRunner::queryVideoMode() const {
-        GameContext::VideoMode mode;
-        mode.width = std::max(1, drawableW);
-        mode.height = std::max(1, drawableH);
-        mode.fullscreen = fullscreen;
-        return mode;
+        return game::runtime::video_mode::makeCurrentVideoMode(drawableW, drawableH, fullscreen);
     }
 
     void GameRunner::setTitle(const std::string& title) {
@@ -568,9 +547,7 @@ namespace {
             if (e.type == SDL_WINDOWEVENT) {
                 if (e.window.event == SDL_WINDOWEVENT_SIZE_CHANGED ||
                     e.window.event == SDL_WINDOWEVENT_RESIZED) {
-                    updateDrawableSizeAndViewport();
-                    updateMouseScale();
-                    updateCameraAspect();
+                    syncVideoModeState();
                 }
             }
         }

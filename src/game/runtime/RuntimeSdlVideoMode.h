@@ -1,0 +1,41 @@
+#pragma once
+
+#include <iosfwd>
+
+#include <SDL2/SDL.h>
+
+#include "engine/core/GameContext.h"
+
+namespace game::runtime::video_mode {
+
+struct RequestedVideoMode {
+    int width = 640;
+    int height = 360;
+    bool fullscreen = false;
+};
+
+struct ApplyVideoModeResult {
+    bool success = false;
+    bool fullscreen = false;
+};
+
+struct SdlApi {
+    int (*setWindowDisplayMode)(SDL_Window*, const SDL_DisplayMode*) = SDL_SetWindowDisplayMode;
+    int (*setWindowFullscreen)(SDL_Window*, Uint32) = SDL_SetWindowFullscreen;
+    void (*setWindowSize)(SDL_Window*, int, int) = SDL_SetWindowSize;
+    void (*setWindowPosition)(SDL_Window*, int, int) = SDL_SetWindowPosition;
+    const char* (*getError)() = SDL_GetError;
+};
+
+RequestedVideoMode sanitizeRequestedVideoMode(int width, int height, bool fullscreen);
+
+ApplyVideoModeResult applyRequestedVideoMode(SDL_Window* window,
+                                             const RequestedVideoMode& requested,
+                                             std::ostream& err,
+                                             const SdlApi& api = {});
+
+GameContext::VideoMode makeCurrentVideoMode(int drawableWidth,
+                                            int drawableHeight,
+                                            bool fullscreen);
+
+} // namespace game::runtime::video_mode

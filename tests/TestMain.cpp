@@ -58,6 +58,7 @@ bool test_video_preferences_parse_and_roundtrip(std::string& outFail);
 bool test_renderer_backend_bootstrap_policy(std::string& outFail);
 bool test_renderer_startup_diagnostics_contract(std::string& outFail);
 bool test_runtime_restart_policy_contract(std::string& outFail);
+bool test_runtime_sdl_video_mode_contract(std::string& outFail);
 bool test_runtime_startup_config_contract(std::string& outFail);
 bool test_dxgi_adapter_selection_policy(std::string& outFail);
 bool test_d3d12_probe_contract(std::string& outFail);
@@ -224,6 +225,7 @@ int main(int argc, char** argv) {
         {"renderer_backend_bootstrap_policy", &test_renderer_backend_bootstrap_policy},
         {"renderer_startup_diagnostics_contract", &test_renderer_startup_diagnostics_contract},
         {"runtime_restart_policy_contract", &test_runtime_restart_policy_contract},
+        {"runtime_sdl_video_mode_contract", &test_runtime_sdl_video_mode_contract},
         {"runtime_startup_config_contract", &test_runtime_startup_config_contract},
         {"dxgi_adapter_selection_policy", &test_dxgi_adapter_selection_policy},
         {"d3d12_probe_contract", &test_d3d12_probe_contract},

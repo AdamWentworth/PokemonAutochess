@@ -29,6 +29,10 @@ Use this file to find ownership quickly when working on parity/performance tasks
   - launch-time stale restart cleanup
   - post-run restart request consumption
   - restart preference persistence semantics
+- `src/game/runtime/RuntimeSdlVideoMode.*`
+  - SDL fullscreen/windowed transition policy
+  - video mode sanitization and current-mode snapshots
+  - SDL error/fallback handling for window mode changes
 
 ### 2) Runtime Route Policy
 - `src/game/runtime/routes/RenderRoutes.h`
