@@ -69,11 +69,13 @@ bool test_runtime_perf_logging_contract(std::string& outFail);
 bool test_runtime_relaunch_loop_contract(std::string& outFail);
 bool test_runtime_renderer_activation_contract(std::string& outFail);
 bool test_runtime_renderer_recovery_contract(std::string& outFail);
+bool test_runtime_renderer_startup_state_contract(std::string& outFail);
 bool test_runtime_restart_policy_contract(std::string& outFail);
 bool test_runtime_sdl_event_dispatch_contract(std::string& outFail);
 bool test_runtime_sdl_input_contract(std::string& outFail);
 bool test_runtime_sdl_video_mode_contract(std::string& outFail);
 bool test_runtime_startup_config_contract(std::string& outFail);
+bool test_runtime_startup_presentation_contract(std::string& outFail);
 bool test_runtime_startup_session_contract(std::string& outFail);
 bool test_runtime_startup_video_override_contract(std::string& outFail);
 bool test_runtime_window_bootstrap_contract(std::string& outFail);
@@ -253,11 +255,13 @@ int main(int argc, char** argv) {
         {"runtime_relaunch_loop_contract", &test_runtime_relaunch_loop_contract},
         {"runtime_renderer_activation_contract", &test_runtime_renderer_activation_contract},
         {"runtime_renderer_recovery_contract", &test_runtime_renderer_recovery_contract},
+        {"runtime_renderer_startup_state_contract", &test_runtime_renderer_startup_state_contract},
         {"runtime_restart_policy_contract", &test_runtime_restart_policy_contract},
         {"runtime_sdl_event_dispatch_contract", &test_runtime_sdl_event_dispatch_contract},
         {"runtime_sdl_input_contract", &test_runtime_sdl_input_contract},
         {"runtime_sdl_video_mode_contract", &test_runtime_sdl_video_mode_contract},
         {"runtime_startup_config_contract", &test_runtime_startup_config_contract},
+        {"runtime_startup_presentation_contract", &test_runtime_startup_presentation_contract},
         {"runtime_startup_session_contract", &test_runtime_startup_session_contract},
         {"runtime_startup_video_override_contract", &test_runtime_startup_video_override_contract},
         {"runtime_window_bootstrap_contract", &test_runtime_window_bootstrap_contract},

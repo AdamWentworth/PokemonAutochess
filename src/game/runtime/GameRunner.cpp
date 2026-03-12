@@ -29,10 +29,12 @@
 #include "game/runtime/RuntimeRelaunchLoop.h"
 #include "game/runtime/RuntimeRendererActivation.h"
 #include "game/runtime/RuntimeRendererRecovery.h"
+#include "game/runtime/RuntimeRendererStartupState.h"
 #include "game/runtime/RuntimeSdlEventDispatch.h"
 #include "game/runtime/RuntimeSdlInput.h"
 #include "game/runtime/RuntimeSdlVideoMode.h"
 #include "game/runtime/RuntimeStartupConfig.h"
+#include "game/runtime/RuntimeStartupPresentation.h"
 #include "game/runtime/RuntimeStartupSession.h"
 #include "game/runtime/RuntimeStartupVideoOverride.h"
 #include "game/runtime/RuntimeWindowBootstrap.h"
@@ -286,32 +288,20 @@ namespace {
             }
         }
 
-        game::runtime::renderer_activation::Inputs activationInputs;
-        activationInputs.requestedBackend = services.requestedRendererBackend;
-        activationInputs.preferredGpuAdapter = services.preferredGpuAdapter;
-        activationInputs.vsyncEnabled = services.vsyncEnabled;
-        activationInputs.requireDiscreteGpu = services.requireDiscreteGpu;
-        activationInputs.rendererRequiresOpenGlContext = renderer->requiresOpenGLContext();
-        activationInputs.rendererBackendId = renderer->backendId();
-        activationInputs.activeGpuName = renderer->activeGpuName();
-        activationInputs.activeGpuIsDiscrete = renderer->activeGpuIsDiscrete();
-        if (activationInputs.rendererRequiresOpenGlContext) {
-            activationInputs.glVendor = glStringOrUnknown(GL_VENDOR);
-            activationInputs.glRenderer = glStringOrUnknown(GL_RENDERER);
-            activationInputs.glVersion = glStringOrUnknown(GL_VERSION);
-            activationInputs.glslVersion = glStringOrUnknown(GL_SHADING_LANGUAGE_VERSION);
+        game::runtime::renderer_startup_state::OpenGlStrings openGlStrings;
+        if (renderer->requiresOpenGLContext()) {
+            openGlStrings.vendor = glStringOrUnknown(GL_VENDOR);
+            openGlStrings.renderer = glStringOrUnknown(GL_RENDERER);
+            openGlStrings.version = glStringOrUnknown(GL_VERSION);
+            openGlStrings.glslVersion = glStringOrUnknown(GL_SHADING_LANGUAGE_VERSION);
         }
-
-        const auto activation = game::runtime::renderer_activation::resolve(activationInputs);
-        services.activeRendererBackend = activation.activeBackend;
-        services.gpuVendor = activation.gpuVendor;
-        services.gpuRenderer = activation.gpuRenderer;
-        services.gpuDiscrete = activation.gpuDiscrete;
-        game::runtime::renderer_activation::logStartupSummary(activationInputs, activation, std::cout);
-        game::runtime::renderer_activation::logPreferredAdapterMismatch(
-            activationInputs,
-            activation,
-            std::cout);
+        const auto activationInputs =
+            game::runtime::renderer_startup_state::makeActivationInputs(
+                services,
+                *renderer,
+                openGlStrings);
+        const auto activation =
+            game::runtime::renderer_startup_state::applyAndLog(services, activationInputs, std::cout);
 
         if (!activation.discreteRequirementSatisfied) {
             std::cerr << "[GPU] Discrete GPU required by settings, but integrated GPU is active.\n";
@@ -319,17 +309,23 @@ namespace {
             return false;
         }
 
-        if (TTF_Init() == -1) {
-            std::cerr << "[GameRunner] TTF_Init error: " << TTF_GetError() << "\n";
+        const auto fontInit = game::runtime::startup_presentation::initializeFonts(
+            []() { return TTF_Init(); },
+            []() { return std::string(TTF_GetError()); });
+        if (!fontInit.succeeded) {
+            std::cerr << "[GameRunner] TTF_Init error: " << fontInit.error << "\n";
         }
 
-        camera   = std::make_unique<Camera3D>(45.0f, float(drawableW) / float(drawableH), 0.1f, 100.0f);
-        if (renderer) {
-            renderer->onResize(drawableW, drawableH);
-            // Ensure native backends show the same dark loading frame immediately,
-            // avoiding a temporary OS white window before preload UI starts updating.
-            renderBootLoading(0.0f);
-        }
+        camera = game::runtime::startup_presentation::createDefaultCamera(drawableW, drawableH);
+        game::runtime::startup_presentation::primeInitialLoadingFrame(
+            renderer.get(),
+            drawableW,
+            drawableH,
+            [this](float progress01) {
+                // Ensure native backends show the same dark loading frame immediately,
+                // avoiding a temporary OS white window before preload UI starts updating.
+                renderBootLoading(progress01);
+            });
 
         initialized = true;
         std::cout << "[Init] Game runner initialized.\n";
