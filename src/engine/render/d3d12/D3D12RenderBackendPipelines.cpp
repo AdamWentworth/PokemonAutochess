@@ -649,6 +649,11 @@ float4 evalAuthoredFireMesh(PSIn i) {
   float centerDist = length(centerXZ * float2(1.2f, 1.0f));
   float coreMask = 1.0f - smoothstep(0.0f, 0.23f, centerDist);
   float tipHideMask = baseEngulf * coreMask;
+  float warmMask =
+      smoothstep(0.68f, 0.98f, baked.r) *
+      smoothstep(0.56f, 0.90f, baked.g) *
+      (1.0f - smoothstep(0.22f, 0.58f, baked.b));
+  baked.rgb = lerp(baked.rgb, float3(1.0f, 0.76f, 0.22f), warmMask * 0.28f);
   baked.rgb = lerp(baked.rgb, float3(1.0f, 0.82f, 0.30f), tipHideMask * 0.55f);
   baked.a = max(baked.a, baseEngulf * 0.95f);
   baked.a = max(baked.a, tipHideMask);

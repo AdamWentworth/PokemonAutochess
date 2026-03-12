@@ -385,7 +385,9 @@ bool applyCharmanderFireMeshFlipbookOverride(
         batch.materialFlipbook0Rows = spec.rows;
         batch.materialFlipbook0Frames = spec.frames;
         batch.materialFlipbook0Fps = spec.fps;
-        const glm::vec2 uvShift = computeFireUvUnitTileShift(mesh);
+        const glm::vec2 uvShift = meshLooksLikeCharizard(mesh)
+                                      ? computeFireUvUnitTileShift(mesh)
+                                      : glm::vec2(0.0f, 0.0f);
         batch.materialFlipbook1Cols = uvShift.x;
         batch.materialFlipbook1Rows = uvShift.y;
         batch.materialFlipbook1Frames = 1.0f;

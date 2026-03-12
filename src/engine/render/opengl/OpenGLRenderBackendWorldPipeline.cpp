@@ -599,6 +599,11 @@ void OpenGLRenderBackend::ensureWorldPipeline() {
             float centerDist = length(centerXZ * vec2(1.2, 1.0));
             float coreMask = 1.0 - smoothstep(0.0, 0.23, centerDist);
             float tipHideMask = baseEngulf * coreMask;
+            float warmMask =
+                smoothstep(0.68, 0.98, baked.r) *
+                smoothstep(0.56, 0.90, baked.g) *
+                (1.0 - smoothstep(0.22, 0.58, baked.b));
+            baked.rgb = mix(baked.rgb, vec3(1.0, 0.76, 0.22), warmMask * 0.28);
             baked.rgb = mix(baked.rgb, vec3(1.0, 0.82, 0.30), tipHideMask * 0.55);
             baked.a = max(baked.a, baseEngulf * 0.95);
             baked.a = max(baked.a, tipHideMask);
