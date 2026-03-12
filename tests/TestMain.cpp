@@ -55,6 +55,7 @@ bool test_backend_input_slots_contract(std::string& outFail);
 bool test_sell_overlay_ui_policy_contract(std::string& outFail);
 bool test_video_init_gl_viewport_guard(std::string& outFail);
 bool test_video_preferences_parse_and_roundtrip(std::string& outFail);
+bool test_renderer_backend_bootstrap_policy(std::string& outFail);
 bool test_dxgi_adapter_selection_policy(std::string& outFail);
 bool test_d3d12_probe_contract(std::string& outFail);
 bool test_content_invariants(std::string& outFail);
@@ -217,6 +218,7 @@ int main(int argc, char** argv) {
         {"sell_overlay_ui_policy_contract", &test_sell_overlay_ui_policy_contract},
         {"video_init_gl_viewport_guard", &test_video_init_gl_viewport_guard},
         {"video_preferences_parse_and_roundtrip", &test_video_preferences_parse_and_roundtrip},
+        {"renderer_backend_bootstrap_policy", &test_renderer_backend_bootstrap_policy},
         {"dxgi_adapter_selection_policy", &test_dxgi_adapter_selection_policy},
         {"d3d12_probe_contract", &test_d3d12_probe_contract},
         {"content_invariants", &test_content_invariants},

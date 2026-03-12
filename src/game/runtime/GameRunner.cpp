@@ -14,14 +14,13 @@
 #include "engine/input/SdlKeyMap.h"
 #include "engine/platform/Window.h"
 #include "engine/render/Camera3D.h"
-#include "engine/render/D3D12RenderBackend.h"
 #include "engine/render/IRenderBackend.h"
-#include "engine/render/OpenGLRenderBackend.h"
 #include "engine/ui/BootLoadingView.h"
 #include "engine/utils/ResourceManager.h"
 #include "engine/utils/ShaderCache.h"
 #include "game/runtime/GpuAdapters.h"
 #include "game/runtime/AutoQuitPolicy.h"
+#include "game/runtime/RendererBackendBootstrap.h"
 #include "game/runtime/VideoInitGuards.h"
 #include "game/runtime/VideoPreferences.h"
 
@@ -142,52 +141,6 @@ namespace {
         out.hasHeight = parseEnvIntValue("PAC_VIDEO_HEIGHT", out.height);
         out.hasFullscreen = parseEnvBoolValue("PAC_VIDEO_FULLSCREEN", out.fullscreen);
         return out;
-    }
-
-    std::unique_ptr<IRenderBackend> createRenderBackend(game::video::RendererBackend backend,
-                                                        SDL_Window* sdlWindow,
-                                                        int width,
-                                                        int height,
-                                                        bool vsyncEnabled,
-                                                        const std::string& preferredAdapter,
-                                                        std::string* outError) {
-        try {
-            switch (backend) {
-            case game::video::RendererBackend::Auto:
-            case game::video::RendererBackend::OpenGL:
-                return std::make_unique<OpenGLRenderBackend>();
-            case game::video::RendererBackend::D3D12:
-                return std::make_unique<D3D12RenderBackend>(
-                    sdlWindow,
-                    width,
-                    height,
-                    vsyncEnabled,
-                    preferredAdapter);
-            case game::video::RendererBackend::Vulkan:
-                if (outError) *outError = "Vulkan backend is not implemented.";
-                return nullptr;
-            default:
-                if (outError) *outError = "Unknown renderer backend.";
-                return nullptr;
-            }
-        } catch (const std::exception& e) {
-            if (outError) *outError = e.what();
-            return nullptr;
-        }
-    }
-
-    Window::GraphicsApi graphicsApiForBackend(game::video::RendererBackend backend) {
-        switch (backend) {
-        case game::video::RendererBackend::Auto:
-        case game::video::RendererBackend::OpenGL:
-            return Window::GraphicsApi::OpenGL;
-        case game::video::RendererBackend::D3D12:
-            return Window::GraphicsApi::Native;
-        case game::video::RendererBackend::Vulkan:
-            return Window::GraphicsApi::Native;
-        default:
-            return Window::GraphicsApi::OpenGL;
-        }
     }
 
     const char* glStringOrUnknown(GLenum token) {
@@ -371,17 +324,16 @@ namespace {
             }
         }
 
-        if (!game::video::isRendererBackendImplemented(requestedBackend)) {
-            activeBackend = game::video::RendererBackend::OpenGL;
-            services.rendererBackendFallback = true;
-            services.rendererBackendFallbackReason =
-                std::string("requested backend '") + services.requestedRendererBackend +
-                "' is not implemented; falling back to OpenGL.";
+        {
+            const auto backendSelection = game::runtime::backend_bootstrap::selectStartupBackend(
+                requestedBackend,
+                services.requestedRendererBackend);
+            activeBackend = backendSelection.activeBackend;
+            services.rendererBackendFallback = backendSelection.fallback;
+            services.rendererBackendFallbackReason = backendSelection.fallbackReason;
+        }
+        if (services.rendererBackendFallback) {
             std::cout << "[Renderer] " << services.rendererBackendFallbackReason << "\n";
-        } else if (requestedBackend == game::video::RendererBackend::Auto) {
-            activeBackend = game::video::RendererBackend::OpenGL;
-        } else {
-            activeBackend = requestedBackend;
         }
         services.activeRendererBackend = game::video::rendererBackendName(activeBackend);
 
@@ -390,7 +342,7 @@ namespace {
                 "Pokemon Autochess",
                 static_cast<int>(START_W),
                 static_cast<int>(START_H),
-                graphicsApiForBackend(activeBackend),
+                game::runtime::backend_bootstrap::graphicsApiForBackend(activeBackend),
                 services.vsyncEnabled);
         } catch (const std::exception& ex) {
             std::cerr << "[GameRunner] Window init failed: " << ex.what() << "\n";
@@ -440,19 +392,20 @@ namespace {
         }
 
         std::string backendCreateError;
-        renderer = createRenderBackend(activeBackend,
-                                       window ? window->getSDLWindow() : nullptr,
-                                       drawableW,
-                                       drawableH,
-                                       services.vsyncEnabled,
-                                       services.preferredGpuAdapter,
-                                       &backendCreateError);
+        renderer = game::runtime::backend_bootstrap::createRenderBackend(activeBackend,
+                                                                         window ? window->getSDLWindow() : nullptr,
+                                                                         drawableW,
+                                                                         drawableH,
+                                                                         services.vsyncEnabled,
+                                                                         services.preferredGpuAdapter,
+                                                                         &backendCreateError);
         if (!renderer) {
             if (activeBackend != game::video::RendererBackend::OpenGL) {
                 services.rendererBackendFallback = true;
                 services.rendererBackendFallbackReason =
-                    "backend '" + services.activeRendererBackend + "' failed to initialize (" + backendCreateError +
-                    "); falling back to OpenGL.";
+                    game::runtime::backend_bootstrap::makeBackendInitFallbackReason(
+                        services.activeRendererBackend,
+                        backendCreateError);
                 std::cout << "[Renderer] " << services.rendererBackendFallbackReason << "\n";
 
                 window.reset();
@@ -473,13 +426,14 @@ namespace {
                     glFunctionsReady = true;
                     updateDrawableSizeAndViewport();
                     updateMouseScale();
-                    renderer = createRenderBackend(activeBackend,
-                                                   window ? window->getSDLWindow() : nullptr,
-                                                   drawableW,
-                                                   drawableH,
-                                                   services.vsyncEnabled,
-                                                   services.preferredGpuAdapter,
-                                                   &backendCreateError);
+                    renderer = game::runtime::backend_bootstrap::createRenderBackend(
+                        activeBackend,
+                        window ? window->getSDLWindow() : nullptr,
+                        drawableW,
+                        drawableH,
+                        services.vsyncEnabled,
+                        services.preferredGpuAdapter,
+                        &backendCreateError);
                 } catch (const std::exception& ex) {
                     std::cerr << "[Renderer] OpenGL fallback window init failed: " << ex.what() << "\n";
                     return false;

@@ -13,9 +13,11 @@ Use this file to find ownership quickly when working on parity/performance tasks
 
 ### 1) App + Frame Loop + Perf Logging
 - `src/game/runtime/GameRunner.cpp`
-  - Backend creation/fallback
   - Main loop timing (`fixed`, `render`, `swap`)
   - Perf log line emission (`[Perf]`)
+- `src/game/runtime/RendererBackendBootstrap.*`
+  - Backend creation/fallback
+  - Backend capability-to-window API mapping
 
 ### 2) Runtime Route Policy
 - `src/game/runtime/routes/RenderRoutes.h`
