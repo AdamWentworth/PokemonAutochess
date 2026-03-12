@@ -77,6 +77,7 @@
 #include "game/runtime/shared/vfx/particles/SharedParticleBillboardBatches.h"
 #include "game/runtime/shared/vfx/particles/SharedParticleSnapshotBillboards.h"
 #include "game/runtime/shared/vfx/particles/SharedParticleVfxBridgeDispatch.h"
+#include "game/runtime/shared/vfx/tail_fire/SharedTailFireMeshPlayback.h"
 #include "game/runtime/shared/vfx/tail_fire/SharedTailFireFallbackEmitter.h"
 #include "game/runtime/shared/vfx/tail_fire/SharedTailFireExactGpuBatches.h"
 #include "game/runtime/shared/vfx/tail_fire/SharedTailFireAtlasHelpers.h"
@@ -1551,7 +1552,8 @@ struct GameSession::Impl {
 
     struct TailFirePrewarmStats {
         std::size_t legacyAtlases = 0u;
-        std::size_t meshFlipbooks = 0u;
+        std::size_t meshFlipbookCpu = 0u;
+        std::size_t meshFlipbookGpu = 0u;
     };
 
     TailFirePrewarmStats prewarmSharedTailFireAssets() {
@@ -1633,6 +1635,44 @@ struct GameSession::Impl {
                         backendTextureByPath,
                         ensureTextureFn);
                 prewarmAtlas(secondaryPremulKey, secondaryPremul);
+            }
+        }
+
+        const auto& authoredSpecs =
+            game::runtime::shared_tail_fire_mesh_playback::authoredFlipbookSpecs();
+        if (!authoredSpecs.empty()) {
+            const auto& charmanderSpec = authoredSpecs.front();
+            if (charmanderSpec.path && charmanderSpec.path[0] != '\0') {
+                const auto cpuLoadStart = std::chrono::steady_clock::now();
+                BackendTextureCacheEntry* authoredCpuTexture =
+                    ensureBackendTextureLoaded(charmanderSpec.path, false);
+                const auto cpuLoadEnd = std::chrono::steady_clock::now();
+                std::cout << "[TailFire][CPU] authored_mesh_flipbook path="
+                          << charmanderSpec.path
+                          << " load_ms="
+                          << std::chrono::duration<double, std::milli>(cpuLoadEnd - cpuLoadStart).count()
+                          << " size="
+                          << ((authoredCpuTexture && authoredCpuTexture->valid) ? authoredCpuTexture->width : 0)
+                          << "x"
+                          << ((authoredCpuTexture && authoredCpuTexture->valid) ? authoredCpuTexture->height : 0)
+                          << " result="
+                          << ((authoredCpuTexture && authoredCpuTexture->valid) ? "ok" : "failed")
+                          << "\n";
+                if (authoredCpuTexture && authoredCpuTexture->valid) {
+                    ++warmed.meshFlipbookCpu;
+                    IRenderBackend::WorldTextureData tex{};
+                    tex.key = charmanderSpec.path;
+                    tex.cacheKey = charmanderSpec.path;
+                    tex.rgba = authoredCpuTexture->rgba.data();
+                    tex.width = authoredCpuTexture->width;
+                    tex.height = authoredCpuTexture->height;
+                    tex.wrapS = 33071; // GL_CLAMP_TO_EDGE
+                    tex.wrapT = 33071; // GL_CLAMP_TO_EDGE
+                    tex.alphaMode = 1u;
+                    tex.blendMode = 0u;
+                    renderer->prewarmWorldTextureData(&tex);
+                    ++warmed.meshFlipbookGpu;
+                }
             }
         }
 
@@ -2280,7 +2320,8 @@ struct GameSession::Impl {
             timing << std::fixed << std::setprecision(1) << ms;
             std::cout << "[Init] Backend tail fire prewarm complete: atlases="
                       << warmedTailFire.legacyAtlases
-                      << " mesh_flipbooks=" << warmedTailFire.meshFlipbooks
+                      << " mesh_flipbook_cpu=" << warmedTailFire.meshFlipbookCpu
+                      << " mesh_flipbook_gpu=" << warmedTailFire.meshFlipbookGpu
                       << " time=" << timing.str() << "ms\n";
             if (ctx.pumpPreloadEvents && !ctx.pumpPreloadEvents()) {
                 if (ctx.requestQuit) ctx.requestQuit();

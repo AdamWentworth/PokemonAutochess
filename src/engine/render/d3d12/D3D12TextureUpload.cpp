@@ -65,7 +65,8 @@ std::vector<CpuMipLevel> buildRgbaMipChain(const unsigned char* rgbaPixels,
                                            int height,
                                            int wrapS,
                                            int wrapT,
-                                           bool srgbColorData) {
+                                           bool srgbColorData,
+                                           bool generateMipChain) {
     std::vector<CpuMipLevel> chain;
     if (!rgbaPixels || width <= 0 || height <= 0) return chain;
 
@@ -76,6 +77,10 @@ std::vector<CpuMipLevel> buildRgbaMipChain(const unsigned char* rgbaPixels,
         rgbaPixels,
         rgbaPixels + static_cast<std::size_t>(width) * static_cast<std::size_t>(height) * 4u);
     chain.push_back(std::move(base));
+
+    if (!generateMipChain) {
+        return chain;
+    }
 
     while (chain.back().width > 1 || chain.back().height > 1) {
         const CpuMipLevel& prev = chain.back();
@@ -179,11 +184,14 @@ bool createTextureResourcesFromRgbaBatch(ID3D12Device* device,
 
         PreparedTexture& dst = prepared[i];
         dst.mipChain = buildRgbaMipChain(
-            req.rgbaPixels, req.width, req.height, req.wrapS, req.wrapT, req.srgbColorData);
+            req.rgbaPixels,
+            req.width,
+            req.height,
+            req.wrapS,
+            req.wrapT,
+            req.srgbColorData,
+            req.generateMipChain);
         if (dst.mipChain.empty()) return false;
-        if (!req.generateMipChain && dst.mipChain.size() > 1u) {
-            dst.mipChain.resize(1u);
-        }
         dst.mipLevels = static_cast<UINT>(dst.mipChain.size());
 
         D3D12_HEAP_PROPERTIES defaultHeap{};
@@ -403,11 +411,9 @@ bool createTextureResourceFromRgba(ID3D12Device* device,
         return false;
     }
     std::vector<CpuMipLevel> mipChain =
-        buildRgbaMipChain(rgbaPixels, width, height, wrapS, wrapT, srgbColorData);
+        buildRgbaMipChain(
+            rgbaPixels, width, height, wrapS, wrapT, srgbColorData, generateMipChain);
     if (mipChain.empty()) return false;
-    if (!generateMipChain && mipChain.size() > 1u) {
-        mipChain.resize(1u);
-    }
     const UINT mipLevels = static_cast<UINT>(mipChain.size());
 
     D3D12_HEAP_PROPERTIES defaultHeap{};

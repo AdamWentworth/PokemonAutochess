@@ -31,7 +31,13 @@ namespace {
 
 bool isTailFireWorldTextureKey(const char* key) {
     if (!key || key[0] == '\0') return false;
-    return std::string(key).find("__tailfire_") != std::string::npos;
+    std::string lower(key);
+    std::transform(lower.begin(), lower.end(), lower.begin(), [](unsigned char c) {
+        return static_cast<char>(std::tolower(c));
+    });
+    return lower.find("__tailfire_") != std::string::npos ||
+           lower.find("fire_uv_flipbook") != std::string::npos ||
+           lower.find("fireuvflipbook") != std::string::npos;
 }
 
 bool worldTextureMipChainEnabled() {
