@@ -1,13 +1,13 @@
 # Render Path File Map
 
-Date: 2026-02-28
+Date: 2026-03-12
 
 Use this file to find ownership quickly when working on parity/performance tasks.
 
 ## Runtime Route Model
 - Gameplay rendering routes are shared-path based for active renderers.
 - Legacy `opengl_shared` remains a backward-compat token in preference parsing, canonicalized to `opengl` (`src/game/runtime/VideoPreferences.cpp`).
-- Menu still exposes `vulkan` as a selectable placeholder token, but Vulkan backend is not implemented.
+- Preference parsing still recognizes `vulkan`, but the menu no longer exposes it because the backend is not implemented.
 
 ## Ownership Map
 

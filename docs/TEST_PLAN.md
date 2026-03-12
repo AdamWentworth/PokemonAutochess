@@ -52,6 +52,7 @@ Artifacts written to `benchmark/`:
 - CSV summary per matrix row.
 - JSON summary + metadata.
 - Raw stdout logs per row.
+- Discard any row with `sample_count == 0` or `sample_count_scored < min_scored_samples`; those artifacts are invalid evidence, not baselines.
 
 ### Test Controls
 - Keep AC power connected.

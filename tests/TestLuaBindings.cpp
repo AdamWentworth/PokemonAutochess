@@ -57,6 +57,7 @@ bool test_lua_bindings_smoke(std::string& outFail) {
         "push_state",
         "pop_state",
         "get_renderer_backend_pref",
+        "is_renderer_backend_implemented",
         "set_renderer_backend_pref",
         "get_gpu_adapters",
         "get_preferred_gpu_adapter_pref",

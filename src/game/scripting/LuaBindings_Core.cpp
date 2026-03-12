@@ -146,6 +146,9 @@ void registerLuaBindings_Core(sol::state& lua, ScriptAPI& api) {
     lua.set_function("get_renderer_backend_pref", [&api]() {
         return api.getRendererBackendPreference();
     });
+    lua.set_function("is_renderer_backend_implemented", [&api](const std::string& backend) {
+        return api.isRendererBackendImplemented(backend);
+    });
     lua.set_function("set_renderer_backend_pref", [&api](const std::string& backend) {
         return api.setRendererBackendPreference(backend);
     });

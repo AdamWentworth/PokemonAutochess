@@ -27,13 +27,14 @@ local video_cfg = {
     ui_scale_index = 2,
     quality = { "Low", "Medium", "High", "Ultra" },
     quality_index = 3,
-    renderer_backends = { "opengl", "vulkan", "d3d12" },
+    renderer_backends = {},
     renderer_index = 1,
     require_discrete_gpu = false,
     character_inking = false,
     gpu_adapters = { "auto" },
     gpu_adapter_index = 1
 }
+local renderer_backend_catalog = { "opengl", "vulkan", "d3d12" }
 
 local audio_cfg = {
     master = 80,
@@ -128,6 +129,41 @@ local function set_bool_pref(fn_name, value)
     return result == true
 end
 
+local function is_renderer_backend_implemented(backend)
+    local fn = _G["is_renderer_backend_implemented"]
+    if type(fn) ~= "function" then
+        return true
+    end
+    local ok, result = pcall(fn, backend)
+    if not ok then
+        return true
+    end
+    return result == true
+end
+
+local function sync_renderer_backend_options(preferred_backend)
+    local filtered = {}
+    for _, backend in ipairs(renderer_backend_catalog) do
+        if is_renderer_backend_implemented(backend) then
+            table.insert(filtered, backend)
+        end
+    end
+    if #filtered == 0 then
+        filtered = { "opengl" }
+    end
+
+    video_cfg.renderer_backends = filtered
+    video_cfg.renderer_index = 1
+    if preferred_backend then
+        for i, backend in ipairs(video_cfg.renderer_backends) do
+            if backend == preferred_backend then
+                video_cfg.renderer_index = i
+                break
+            end
+        end
+    end
+end
+
 local function sync_gpu_adapter_options()
     video_cfg.gpu_adapters = { "auto" }
     local adapters = get_gpu_adapters()
@@ -171,14 +207,7 @@ local function sync_from_engine()
     end
 
     local pref = get_renderer_backend_pref()
-    if pref then
-        for i, backend in ipairs(video_cfg.renderer_backends) do
-            if backend == pref then
-                video_cfg.renderer_index = i
-                break
-            end
-        end
-    end
+    sync_renderer_backend_options(pref)
     video_cfg.vsync = get_bool_pref("get_vsync_pref", video_cfg.vsync)
     video_cfg.require_discrete_gpu = get_bool_pref("get_require_discrete_gpu_pref", video_cfg.require_discrete_gpu)
     video_cfg.character_inking = get_bool_pref("get_character_inking_pref", video_cfg.character_inking)

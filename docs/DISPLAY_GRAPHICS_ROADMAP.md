@@ -1,6 +1,6 @@
 # Display And Graphics Roadmap
 
-Date: 2026-03-07
+Date: 2026-03-12
 
 ## Purpose
 - Define what the project should eventually ship for display and graphics settings.
@@ -12,7 +12,7 @@ Date: 2026-03-07
 ### What is actually implemented today
 - Windowed and fullscreen switching.
 - Resolution switching for the exposed presets.
-- Renderer backend preference for next launch (`OpenGL`, `D3D12`, `Vulkan` placeholder).
+- Renderer backend preference for next launch (`OpenGL`, `D3D12`).
 - VSync preference for next launch.
 - Preferred GPU / discrete GPU preference for next launch.
 - Character inking toggle.

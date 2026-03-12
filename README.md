@@ -221,7 +221,7 @@ Lua is used for gameplay logic and is bound host-side via sol2.
 
 Notable scripts:
 - `scripts/systems/combat.lua` for combat timing and tuning hooks
-- `scripts/systems/shop.lua` for shop roll logic and UI/debug events
+- `scripts/systems/card_shop.lua` for classic shop roll logic and UI/debug events
 - `scripts/states/` for state flow and phase transitions
 
 Tuning:

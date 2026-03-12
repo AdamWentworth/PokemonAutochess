@@ -16,6 +16,19 @@ static bool hasEntry(sol::table entries, const char* id) {
     return false;
 }
 
+static std::string entryLabel(sol::table entries, const char* id) {
+    const std::string want = id ? id : "";
+    for (auto&& kv : entries) {
+        const sol::object value = kv.second;
+        if (!value.is<sol::table>()) continue;
+        const sol::table entry = value.as<sol::table>();
+        if (entry["id"].get_or(std::string()) == want) {
+            return entry["label"].get_or(std::string());
+        }
+    }
+    return {};
+}
+
 bool test_mode_split_flow(std::string& outFail) {
     sol::state lua;
     lua.open_libraries(sol::lib::base, sol::lib::math, sol::lib::table, sol::lib::string);
@@ -80,6 +93,7 @@ bool test_mode_split_menu_entries(std::string& outFail) {
     bool started = false;
     std::string requestedNewGameMode;
     std::string restartMenuScreen;
+    std::string requestedRendererBackend;
     int restartRequests = 0;
 
     lua.set_function("get_game_mode", []() { return std::string("classic"); });
@@ -99,7 +113,13 @@ bool test_mode_split_menu_entries(std::string& outFail) {
     lua.set_function("emit", [](const std::string&, const std::string&) {});
     lua.set_function("set_video_mode", [](int, int, bool) { return true; });
     lua.set_function("get_renderer_backend_pref", []() { return std::string("auto"); });
-    lua.set_function("set_renderer_backend_pref", [](const std::string&) { return true; });
+    lua.set_function("is_renderer_backend_implemented", [](const std::string& backend) {
+        return backend == "opengl" || backend == "d3d12";
+    });
+    lua.set_function("set_renderer_backend_pref", [&requestedRendererBackend](const std::string& backend) {
+        requestedRendererBackend = backend;
+        return true;
+    });
     lua.set_function("get_require_discrete_gpu_pref", []() { return false; });
     lua.set_function("set_require_discrete_gpu_pref", [](bool) { return true; });
     lua.set_function("get_active_renderer_backend", []() { return std::string("opengl"); });
@@ -185,6 +205,17 @@ bool test_mode_split_menu_entries(std::string& outFail) {
         const sol::table videoEntries = videoRes.get<sol::table>();
         if (!hasEntry(videoEntries, "video_apply_restart")) {
             outFail = "video menu should expose Apply + Restart entry.";
+            return false;
+        }
+        const std::string rendererLabel = entryLabel(videoEntries, "video_renderer_backend");
+        if (rendererLabel.find("Vulkan") != std::string::npos) {
+            outFail = "video menu should not expose unimplemented Vulkan backend.";
+            return false;
+        }
+        requestedRendererBackend.clear();
+        onClick("video_renderer_backend");
+        if (requestedRendererBackend != "d3d12") {
+            outFail = "video backend cycling should skip unimplemented Vulkan and move to d3d12.";
             return false;
         }
         onClick("video_apply_restart");

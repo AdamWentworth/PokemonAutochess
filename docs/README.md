@@ -8,6 +8,7 @@ short enough to stay useful.
 | --- | --- |
 | `GOALS.md` | Stable project goals and success criteria. |
 | `ENGINE_RULES.md` | Non-negotiable architecture guardrails. |
+| `REPO_ASSESSMENT.md` | Current repo-wide quality snapshot and rating. |
 | `RENDERER_PARITY_ROADMAP.md` | Current renderer parity/performance roadmap and priority order. |
 | `RENDER_PATH_FILE_MAP.md` | Where rendering behavior lives in code. |
 | `RENDERER_PARITY_CONTRACT.md` | Backend render-state and color-pipeline contract. |

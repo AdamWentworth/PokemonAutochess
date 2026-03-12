@@ -42,6 +42,7 @@ public:
     bool setVideoMode(int width, int height, bool fullscreen);
     GameServices::VideoMode getVideoMode() const;
     std::string getRendererBackendPreference() const;
+    bool isRendererBackendImplemented(const std::string& backend) const;
     bool setRendererBackendPreference(const std::string& backend);
     bool getVSyncPreference() const;
     bool setVSyncPreference(bool enabled);

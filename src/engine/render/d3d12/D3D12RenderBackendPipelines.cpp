@@ -653,7 +653,7 @@ float4 evalAuthoredFireMesh(PSIn i) {
       smoothstep(0.68f, 0.98f, baked.r) *
       smoothstep(0.56f, 0.90f, baked.g) *
       (1.0f - smoothstep(0.22f, 0.58f, baked.b));
-  baked.rgb = lerp(baked.rgb, float3(1.0f, 0.76f, 0.22f), warmMask * 0.28f);
+  baked.rgb = lerp(baked.rgb, float3(1.0f, 0.68f, 0.16f), warmMask * 0.44f);
   baked.rgb = lerp(baked.rgb, float3(1.0f, 0.82f, 0.30f), tipHideMask * 0.55f);
   baked.a = max(baked.a, baseEngulf * 0.95f);
   baked.a = max(baked.a, tipHideMask);

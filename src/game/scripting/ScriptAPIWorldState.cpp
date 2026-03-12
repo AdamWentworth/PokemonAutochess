@@ -114,8 +114,15 @@ std::string ScriptAPI::getRendererBackendPreference() const {
     return services_.requestedRendererBackend;
 }
 
+bool ScriptAPI::isRendererBackendImplemented(const std::string& backend) const {
+    if (!game::video::isKnownRendererBackendToken(backend)) return false;
+    return game::video::isRendererBackendImplemented(
+        game::video::parseRendererBackend(backend));
+}
+
 bool ScriptAPI::setRendererBackendPreference(const std::string& backend) {
     if (!game::video::isKnownRendererBackendToken(backend)) return false;
+    if (!isRendererBackendImplemented(backend)) return false;
 
     services_.requestedRendererBackend =
         game::video::rendererBackendName(game::video::parseRendererBackend(backend));
