@@ -1,4 +1,5 @@
 #include "game/runtime/shared/ui/SharedBackendDebugViewOverlay.h"
+#include "game/runtime/shared/ui/SharedBackendDebugViewSupport.h"
 
 #include "engine/core/EngineServices.h"
 #include "engine/core/ecs/World.h"
@@ -23,130 +24,7 @@
 #include <string>
 #include <utility>
 
-namespace {
-std::string trimDebugLine(std::string s, std::size_t maxChars) {
-    if (s.size() <= maxChars) return s;
-    if (maxChars <= 3) return s.substr(0, maxChars);
-    return s.substr(0, maxChars - 3) + "...";
-}
-
-struct BackendItemAtlasIcon {
-    const char* id;
-    int row;
-    int col;
-};
-
-const BackendItemAtlasIcon* findBackendItemAtlasIcon(const std::string& id) {
-    static const BackendItemAtlasIcon kIcons[] = {
-        {"pokeball", 1, 4},
-        {"potion", 2, 4},
-        {"burn_heal", 2, 6},
-        {"antidote", 2, 5},
-        {"paralyze_heal", 2, 9},
-    };
-    for (const auto& icon : kIcons) {
-        if (id == icon.id) return &icon;
-    }
-    return nullptr;
-}
-
-glm::vec2 backendItemAtlasUvMin(int row, int col) {
-    constexpr int kCols = 13;
-    constexpr int kRows = 14;
-    constexpr float kPadU = 0.08f;
-    constexpr float kPadV = 0.08f;
-    const int c = std::max(1, col);
-    const int r = std::max(1, row);
-    float u0 = static_cast<float>(c - 1) / static_cast<float>(kCols);
-    float v0 = static_cast<float>(r - 1) / static_cast<float>(kRows);
-    u0 += (kPadU / static_cast<float>(kCols));
-    v0 += (kPadV / static_cast<float>(kRows));
-    return {u0, v0};
-}
-
-glm::vec2 backendItemAtlasUvMax(int row, int col) {
-    constexpr int kCols = 13;
-    constexpr int kRows = 14;
-    constexpr float kPadURight = 0.06f;
-    constexpr float kPadVBottom = 0.06f;
-    const int c = std::max(1, col);
-    const int r = std::max(1, row);
-    float u1 = static_cast<float>(c) / static_cast<float>(kCols);
-    float v1 = static_cast<float>(r) / static_cast<float>(kRows);
-    u1 -= (kPadURight / static_cast<float>(kCols));
-    v1 -= (kPadVBottom / static_cast<float>(kRows));
-    return {u1, v1};
-}
-
-std::string toLowerCopy(std::string s) {
-    std::transform(
-        s.begin(),
-        s.end(),
-        s.begin(),
-        [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
-    return s;
-}
-
-using OverlayHash = std::uint64_t;
-
-constexpr OverlayHash kOverlayHashOffset = 1469598103934665603ull;
-constexpr OverlayHash kOverlayHashPrime = 1099511628211ull;
-
-void hashBytes(OverlayHash& hash, const void* data, std::size_t size) {
-    const auto* bytes = static_cast<const unsigned char*>(data);
-    for (std::size_t i = 0; i < size; ++i) {
-        hash ^= static_cast<OverlayHash>(bytes[i]);
-        hash *= kOverlayHashPrime;
-    }
-}
-
-void hashInt(OverlayHash& hash, int value) {
-    hashBytes(hash, &value, sizeof(value));
-}
-
-void hashSize(OverlayHash& hash, std::size_t value) {
-    hashBytes(hash, &value, sizeof(value));
-}
-
-void hashBool(OverlayHash& hash, bool value) {
-    const unsigned char byte = value ? 1u : 0u;
-    hashBytes(hash, &byte, sizeof(byte));
-}
-
-void hashFloatQuantized(OverlayHash& hash, float value, float scale = 1000.0f) {
-    const int quantized = static_cast<int>(std::lround(static_cast<double>(value) * scale));
-    hashInt(hash, quantized);
-}
-
-void hashString(OverlayHash& hash, const std::string& value) {
-    hashSize(hash, value.size());
-    if (!value.empty()) {
-        hashBytes(hash, value.data(), value.size());
-    }
-}
-
-void hashVec3(OverlayHash& hash, const glm::vec3& value) {
-    hashFloatQuantized(hash, value.r);
-    hashFloatQuantized(hash, value.g);
-    hashFloatQuantized(hash, value.b);
-}
-
-template <typename T>
-void appendCachedVector(std::vector<T>& dst, const std::vector<T>& src) {
-    if (src.empty()) return;
-    dst.insert(dst.end(), src.begin(), src.end());
-}
-
-struct RetainedOverlayCache {
-    OverlayHash key = 0;
-    std::vector<IRenderBackend::DebugQuad> worldQuads;
-    std::vector<IRenderBackend::DebugQuad> overlayQuads;
-    std::vector<IRenderBackend::DebugLine> lines;
-    std::vector<IRenderBackend::DebugLine> textLines;
-    std::vector<IRenderBackend::DebugSprite> sprites;
-    std::vector<game::runtime::ui_inventory_panel::HitRegion> hitRegions;
-};
-} // namespace
+namespace support = game::runtime::shared_backend_debug_view_support;
 
 namespace game::runtime::shared_backend_debug_view {
 
@@ -343,24 +221,24 @@ void composeAndSubmit(const ComposeAndSubmitArgs& args) {
         const std::string cachedGpuRenderer =
             services ? services->gpuRenderer : std::string();
 
-        const auto hashLayoutKeyBase = [&](OverlayHash& key) {
-            hashInt(key, drawableW);
-            hashInt(key, drawableH);
-            hashFloatQuantized(key, edgePad);
-            hashFloatQuantized(key, lineStep);
-            hashFloatQuantized(key, uiScale);
+        const auto hashLayoutKeyBase = [&](support::OverlayHash& key) {
+            support::hashInt(key, drawableW);
+            support::hashInt(key, drawableH);
+            support::hashFloatQuantized(key, edgePad);
+            support::hashFloatQuantized(key, lineStep);
+            support::hashFloatQuantized(key, uiScale);
         };
-        const auto appendRetainedRegion = [&](const RetainedOverlayCache& cache) {
-            appendCachedVector(worldQuads, cache.worldQuads);
-            appendCachedVector(overlayQuads, cache.overlayQuads);
-            appendCachedVector(lines, cache.lines);
-            appendCachedVector(textLines, cache.textLines);
-            appendCachedVector(sprites, cache.sprites);
-            appendCachedVector(backendInventoryPanel.hitRegions, cache.hitRegions);
+        const auto appendRetainedRegion = [&](const support::RetainedOverlayCache& cache) {
+            support::appendCachedVector(worldQuads, cache.worldQuads);
+            support::appendCachedVector(overlayQuads, cache.overlayQuads);
+            support::appendCachedVector(lines, cache.lines);
+            support::appendCachedVector(textLines, cache.textLines);
+            support::appendCachedVector(sprites, cache.sprites);
+            support::appendCachedVector(backendInventoryPanel.hitRegions, cache.hitRegions);
         };
         const auto captureRetainedRegion =
-            [&](RetainedOverlayCache& cache,
-                OverlayHash key,
+            [&](support::RetainedOverlayCache& cache,
+                support::OverlayHash key,
                 std::size_t worldQuadsStart,
                 std::size_t overlayQuadsStart,
                 std::size_t linesStart,
@@ -389,80 +267,80 @@ void composeAndSubmit(const ComposeAndSubmitArgs& args) {
                     backendInventoryPanel.hitRegions.end());
             };
 
-        OverlayHash statusKey = kOverlayHashOffset;
+        support::OverlayHash statusKey = support::kOverlayHashOffset;
         hashLayoutKeyBase(statusKey);
-        hashString(statusKey, cachedMode);
-        hashString(statusKey, cachedBackend);
-        hashString(statusKey, cachedGpuRenderer);
-        hashInt(statusKey, static_cast<int>(cachedRoundPhase));
-        hashBool(statusKey, cachedCombatActive);
-        hashInt(statusKey, cachedPlayerAlive);
-        hashInt(statusKey, cachedEnemyAlive);
-        hashInt(statusKey, cachedMoney);
-        hashString(statusKey, cachedSelectedItem);
+        support::hashString(statusKey, cachedMode);
+        support::hashString(statusKey, cachedBackend);
+        support::hashString(statusKey, cachedGpuRenderer);
+        support::hashInt(statusKey, static_cast<int>(cachedRoundPhase));
+        support::hashBool(statusKey, cachedCombatActive);
+        support::hashInt(statusKey, cachedPlayerAlive);
+        support::hashInt(statusKey, cachedEnemyAlive);
+        support::hashInt(statusKey, cachedMoney);
+        support::hashString(statusKey, cachedSelectedItem);
 
-        OverlayHash inventoryKey = kOverlayHashOffset;
+        support::OverlayHash inventoryKey = support::kOverlayHashOffset;
         hashLayoutKeyBase(inventoryKey);
-        hashString(inventoryKey, cachedMode);
-        hashBool(inventoryKey, cachedAdventureInventoryIcons);
-        hashInt(inventoryKey, cachedInventoryModel.offset);
-        hashSize(inventoryKey, cachedInventoryModel.totalCount);
-        hashString(inventoryKey, cachedSelectedItem);
-        hashSize(inventoryKey, cachedInventoryModel.visibleEntries.size());
+        support::hashString(inventoryKey, cachedMode);
+        support::hashBool(inventoryKey, cachedAdventureInventoryIcons);
+        support::hashInt(inventoryKey, cachedInventoryModel.offset);
+        support::hashSize(inventoryKey, cachedInventoryModel.totalCount);
+        support::hashString(inventoryKey, cachedSelectedItem);
+        support::hashSize(inventoryKey, cachedInventoryModel.visibleEntries.size());
         for (const auto& entry : cachedInventoryModel.visibleEntries) {
-            hashString(inventoryKey, entry.id);
-            hashInt(inventoryKey, entry.count);
+            support::hashString(inventoryKey, entry.id);
+            support::hashInt(inventoryKey, entry.count);
         }
-        hashSize(inventoryKey, cachedInventoryModel.rows.size());
+        support::hashSize(inventoryKey, cachedInventoryModel.rows.size());
         for (const auto& row : cachedInventoryModel.rows) {
-            hashString(inventoryKey, row.itemId);
-            hashString(inventoryKey, row.line);
-            hashBool(inventoryKey, row.selected);
+            support::hashString(inventoryKey, row.itemId);
+            support::hashString(inventoryKey, row.line);
+            support::hashBool(inventoryKey, row.selected);
         }
 
-        OverlayHash rosterKey = kOverlayHashOffset;
+        support::OverlayHash rosterKey = support::kOverlayHashOffset;
         hashLayoutKeyBase(rosterKey);
-        hashString(rosterKey, cachedMode);
+        support::hashString(rosterKey, cachedMode);
         const std::size_t cachedTypeRows = std::min<std::size_t>(6u, cachedTypeCounts.size());
-        hashSize(rosterKey, cachedTypeRows);
+        support::hashSize(rosterKey, cachedTypeRows);
         for (std::size_t i = 0; i < cachedTypeRows; ++i) {
-            hashString(rosterKey, cachedTypeCounts[i].type);
-            hashInt(rosterKey, cachedTypeCounts[i].uniqueLineCount);
+            support::hashString(rosterKey, cachedTypeCounts[i].type);
+            support::hashInt(rosterKey, cachedTypeCounts[i].uniqueLineCount);
         }
         const std::size_t cachedBenchRows =
             (cachedBenchUnits != nullptr) ? std::min<std::size_t>(5u, cachedBenchUnits->size()) : 0u;
-        hashSize(rosterKey, cachedBenchRows);
+        support::hashSize(rosterKey, cachedBenchRows);
         for (std::size_t i = 0; i < cachedBenchRows; ++i) {
-            hashString(rosterKey, (*cachedBenchUnits)[i].name);
-            hashInt(rosterKey, (*cachedBenchUnits)[i].level);
+            support::hashString(rosterKey, (*cachedBenchUnits)[i].name);
+            support::hashInt(rosterKey, (*cachedBenchUnits)[i].level);
         }
         const std::size_t cachedShopRows =
             (cachedShopCards != nullptr) ? std::min<std::size_t>(5u, cachedShopCards->size()) : 0u;
-        hashSize(rosterKey, cachedShopRows);
+        support::hashSize(rosterKey, cachedShopRows);
         for (std::size_t i = 0; i < cachedShopRows; ++i) {
-            hashString(rosterKey, (*cachedShopCards)[i].name);
-            hashInt(rosterKey, (*cachedShopCards)[i].level);
-            hashInt(rosterKey, (*cachedShopCards)[i].cost);
+            support::hashString(rosterKey, (*cachedShopCards)[i].name);
+            support::hashInt(rosterKey, (*cachedShopCards)[i].level);
+            support::hashInt(rosterKey, (*cachedShopCards)[i].cost);
         }
 
-        OverlayHash logKey = kOverlayHashOffset;
+        support::OverlayHash logKey = support::kOverlayHashOffset;
         hashLayoutKeyBase(logKey);
-        hashBool(logKey, cachedClassicMode);
-        hashSize(logKey, cachedRecentMain.size());
+        support::hashBool(logKey, cachedClassicMode);
+        support::hashSize(logKey, cachedRecentMain.size());
         for (const auto& line : cachedRecentMain) {
-            hashString(logKey, trimDebugLine(line.text, 84));
-            hashVec3(logKey, line.color);
+            support::hashString(logKey, support::trimDebugLine(line.text, 84));
+            support::hashVec3(logKey, line.color);
         }
-        hashSize(logKey, cachedSideLogLines.size());
+        support::hashSize(logKey, cachedSideLogLines.size());
         for (const auto& line : cachedSideLogLines) {
-            hashString(logKey, trimDebugLine(line.text, 54));
-            hashVec3(logKey, line.color);
+            support::hashString(logKey, support::trimDebugLine(line.text, 54));
+            support::hashVec3(logKey, line.color);
         }
 
-        thread_local RetainedOverlayCache statusCache;
-        thread_local RetainedOverlayCache inventoryCache;
-        thread_local RetainedOverlayCache rosterCache;
-        thread_local RetainedOverlayCache logCache;
+        thread_local support::RetainedOverlayCache statusCache;
+        thread_local support::RetainedOverlayCache inventoryCache;
+        thread_local support::RetainedOverlayCache rosterCache;
+        thread_local support::RetainedOverlayCache logCache;
 
         if (statusCache.key == statusKey) {
             appendRetainedRegion(statusCache);
@@ -662,10 +540,10 @@ void composeAndSubmit(const ComposeAndSubmitArgs& args) {
                         addBorderQuad(cardX, cardY + border, border, std::max(0.0f, cardH - border * 2.0f), borderColor);
                         addBorderQuad(cardX + cardW - border, cardY + border, border, std::max(0.0f, cardH - border * 2.0f), borderColor);
 
-                        const BackendItemAtlasIcon* itemIcon = findBackendItemAtlasIcon(entry.id);
+                        const support::ItemAtlasIcon* itemIcon = support::findItemAtlasIcon(entry.id);
                         if (itemIcon) {
-                            const glm::vec2 uvMin = backendItemAtlasUvMin(itemIcon->row, itemIcon->col);
-                            const glm::vec2 uvMax = backendItemAtlasUvMax(itemIcon->row, itemIcon->col);
+                            const glm::vec2 uvMin = support::itemAtlasUvMin(itemIcon->row, itemIcon->col);
+                            const glm::vec2 uvMax = support::itemAtlasUvMax(itemIcon->row, itemIcon->col);
                             IRenderBackend::DebugSprite sprite;
                             const float pad = std::clamp(cardW * 0.10f, 6.0f, 10.0f);
                             sprite.x = cardX + pad;
@@ -934,7 +812,7 @@ void composeAndSubmit(const ComposeAndSubmitArgs& args) {
                     edgePad + lineStep * 7.0f,
                     static_cast<float>(drawableH) - lineStep * 11.0f);
                 for (const auto& line : cachedRecentMain) {
-                    const std::string text = trimDebugLine(line.text, 84);
+                    const std::string text = support::trimDebugLine(line.text, 84);
                     const float scale = 1.0f;
                     const float textW = std::max(
                         1.0f,
@@ -959,7 +837,7 @@ void composeAndSubmit(const ComposeAndSubmitArgs& args) {
                     edgePad + lineStep * 7.0f,
                     static_cast<float>(drawableH) - lineStep * 11.0f);
                 for (const auto& line : cachedSideLogLines) {
-                    const std::string text = trimDebugLine(line.text, 54);
+                    const std::string text = support::trimDebugLine(line.text, 54);
                     const float scale = 1.0f;
                     appendText(edgePad,
                                y,
@@ -1034,7 +912,7 @@ void composeAndSubmit(const ComposeAndSubmitArgs& args) {
         }
         if (renderWorld && hasWorldViewProj && supportsWorldIndexedMeshes &&
             renderer && renderer->backendId() &&
-            toLowerCopy(renderer->backendId()) == "opengl" &&
+            support::toLowerCopy(renderer->backendId()) == "opengl" &&
             gameWorld && camera && engineServices && engineServices->resources) {
             (void)runtime::shared_capture::drawOpenGlSharedCapturePokeballModels(
                 gameWorld,
@@ -1074,6 +952,7 @@ void composeAndSubmit(const ComposeAndSubmitArgs& args) {
 }
 
 } // namespace game::runtime::shared_backend_debug_view
+
 
 
 

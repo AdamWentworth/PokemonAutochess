@@ -149,9 +149,11 @@ bool test_gameworld_leechseed_dt_clamp(std::string& outFail);
 bool test_gameworld_leechseed_clears_for_invalid_state(std::string& outFail);
 bool test_shared_capture_presentation_contract(std::string& outFail);
 bool test_shared_capture_overlay_vfx_contract(std::string& outFail);
+bool test_shared_backend_debug_view_support_contract(std::string& outFail);
 bool test_shared_particle_billboard_batches_contract(std::string& outFail);
 bool test_shared_particle_vfx_bridge_dispatch_contract(std::string& outFail);
 bool test_shared_particle_vfx_styles_contract(std::string& outFail);
+bool test_shared_projected_unit_backend_mesh_support_contract(std::string& outFail);
 bool test_shared_tail_fire_atlas_helpers_contract(std::string& outFail);
 bool test_shared_tail_fire_exact_gpu_batches_contract(std::string& outFail);
 bool test_shared_tail_fire_mesh_playback_contract(std::string& outFail);
@@ -355,9 +357,11 @@ int main(int argc, char** argv) {
         {"gameworld_leechseed_clears_for_invalid_state", &test_gameworld_leechseed_clears_for_invalid_state},
         {"shared_capture_presentation_contract", &test_shared_capture_presentation_contract},
         {"shared_capture_overlay_vfx_contract", &test_shared_capture_overlay_vfx_contract},
+        {"shared_backend_debug_view_support_contract", &test_shared_backend_debug_view_support_contract},
         {"shared_particle_billboard_batches_contract", &test_shared_particle_billboard_batches_contract},
         {"shared_particle_vfx_bridge_dispatch_contract", &test_shared_particle_vfx_bridge_dispatch_contract},
         {"shared_particle_vfx_styles_contract", &test_shared_particle_vfx_styles_contract},
+        {"shared_projected_unit_backend_mesh_support_contract", &test_shared_projected_unit_backend_mesh_support_contract},
         {"shared_tail_fire_atlas_helpers_contract", &test_shared_tail_fire_atlas_helpers_contract},
         {"shared_tail_fire_exact_gpu_batches_contract", &test_shared_tail_fire_exact_gpu_batches_contract},
         {"shared_tail_fire_mesh_playback_contract", &test_shared_tail_fire_mesh_playback_contract},

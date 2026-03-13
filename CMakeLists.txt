@@ -317,6 +317,7 @@ add_library(PAC_GameObjects STATIC
     src/game/runtime/shared/world/SharedBoardGridBatches.cpp
     src/game/runtime/shared/projected/SharedProjectedDebugVfx.cpp
     src/game/runtime/shared/projected/SharedProjectedUnitBackendMeshRenderer.cpp
+    src/game/runtime/shared/projected/SharedProjectedUnitBackendMeshSupport.cpp
     src/game/runtime/shared/projected/SharedProjectedUnitBackendMeshPrep.cpp
     src/game/runtime/shared/projected/SharedProjectedUnitBackendMeshTriangleSubmit.cpp
     src/game/runtime/shared/projected/SharedProjectedUnitBackendMeshTransforms.cpp
@@ -324,6 +325,7 @@ add_library(PAC_GameObjects STATIC
     src/game/runtime/shared/projected/SharedProjectedUnitRenderer.cpp
     src/game/runtime/shared/projected/SharedProjectedUnitOverlays.cpp
     src/game/runtime/shared/ui/SharedBackendDebugViewOverlay.cpp
+    src/game/runtime/shared/ui/SharedBackendDebugViewSupport.cpp
     src/game/runtime/shared/projected/SharedProjectedWorldSceneHelpers.cpp
     src/game/runtime/shared/vfx/particles/SharedParticleBillboardBatches.cpp
     src/game/runtime/shared/vfx/particles/SharedParticleSnapshotBillboards.cpp
@@ -586,9 +588,11 @@ if (BUILD_TESTING)
         tests/TestGameWorldLeechSeed.cpp
         tests/TestSharedCapturePresentation.cpp
         tests/TestSharedCaptureOverlayVfx.cpp
+        tests/TestSharedBackendDebugViewSupport.cpp
         tests/TestSharedParticleBillboardBatches.cpp
         tests/TestSharedParticleVfxBridgeDispatch.cpp
         tests/TestSharedParticleVfxStyles.cpp
+        tests/TestSharedProjectedUnitBackendMeshSupport.cpp
         tests/TestSharedTailFireAtlasHelpers.cpp
         tests/TestSharedTailFireExactGpuBatches.cpp
         tests/TestSharedTailFireMeshPlayback.cpp

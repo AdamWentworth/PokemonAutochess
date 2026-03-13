@@ -188,6 +188,9 @@ Use this file to find ownership quickly when working on parity/performance tasks
 - `src/game/runtime/shared/projected/SharedProjectedUnitBackendMeshRenderer.cpp`
   - authored fire-mesh UV flipbook override for the Charmander line
   - per-unit fire mesh batch texture/material rewrites
+- `src/game/runtime/shared/projected/SharedProjectedUnitBackendMeshSupport.*`
+  - reusable projected mesh batching support extracted from the renderer body
+  - fast-textured mesh template cache, GPU skin batch state, and fire-mesh override helpers
 - `src/game/runtime/shared/capture/SharedCapture*.*`
 - `src/game/runtime/shared/vfx/growl/SharedGrowl*.*`
 - `src/game/runtime/shared/vfx/particles/SharedParticle*.*`
@@ -198,6 +201,9 @@ Use this file to find ownership quickly when working on parity/performance tasks
 - `src/game/world/GameWorldVfx.cpp`
   - legacy tail-fire emitter config and current species filter
 - `src/game/runtime/shared/ui/Shared*.*`
+- `src/game/runtime/shared/ui/SharedBackendDebugViewSupport.*`
+  - retained overlay cache/hash helpers and item-atlas lookup support for the shared debug overlay
+  - debug line trimming, icon UV lookup, and reusable retained-region support types
 - `src/game/runtime/shared/world/Shared*.*`
 - `src/game/runtime/render_model_cache/RenderModelCache*.*`
 
