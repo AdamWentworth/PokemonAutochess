@@ -289,6 +289,7 @@ add_library(PAC_GameObjects STATIC
     src/game/runtime/startup/RuntimeWorldLayerPrewarm.cpp
     src/game/runtime/RuntimeWindowBootstrap.cpp
     src/game/runtime/session/GameSession.cpp
+    src/game/runtime/session/SessionDebugSnapshot.cpp
     src/game/runtime/shared/backend/SharedBackendPoseEval.cpp
     src/game/runtime/shared/capture/SharedCapturePresentation.cpp
     src/game/runtime/shared/capture/SharedCaptureOverlayVfx.cpp
@@ -525,6 +526,7 @@ if (BUILD_TESTING)
         tests/TestGltfAsset.cpp
         tests/TestCombatAnimIndexCache.cpp
         tests/TestScriptApiContract.cpp
+        tests/TestSessionDebugSnapshot.cpp
         tests/TestRoundFlow.cpp
         tests/TestAnimsetRoles.cpp
         tests/TestCombatSlice.cpp
