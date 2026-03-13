@@ -129,6 +129,9 @@ Use this file to find ownership quickly when working on parity/performance tasks
 - `src/game/runtime/video/GpuAdapters.*`
   - SDL/DXGI adapter inventory helpers and discrete/integrated classification support
   - preferred GPU matching utilities shared by startup and settings
+- `src/game/runtime/video/D3D12Probe.*`
+  - startup/settings D3D12 device probe against the selected DXGI adapter
+  - preflight capability check used before committing to a D3D12 launch path
 - `src/game/runtime/video/VideoPreferences.*`
   - persistent display/backend preference parsing and serialization
   - restart-required display settings contract used by startup and the menu

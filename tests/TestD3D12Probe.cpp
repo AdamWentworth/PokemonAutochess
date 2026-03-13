@@ -1,6 +1,6 @@
 #include <string>
 
-#include "game/runtime/d3d12/D3D12Probe.h"
+#include "game/runtime/video/D3D12Probe.h"
 
 bool test_d3d12_probe_contract(std::string& outFail) {
     const game::video::D3D12ProbeResult result = game::video::probeD3D12Adapter("");

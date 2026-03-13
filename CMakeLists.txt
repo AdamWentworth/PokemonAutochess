@@ -332,7 +332,7 @@ add_library(PAC_GameObjects STATIC
     src/game/runtime/session/GameUpdateGraph.cpp
     src/game/runtime/video/VideoPreferences.cpp
     src/game/runtime/video/GpuAdapters.cpp
-    src/game/runtime/d3d12/D3D12Probe.cpp
+    src/game/runtime/video/D3D12Probe.cpp
     src/game/runtime/render_model_cache/RenderModelCache.cpp
     src/game/runtime/render_model_cache/RenderModelCacheReadDecode.cpp
     src/game/runtime/render_model_cache/RenderModelCacheReadScene.cpp
