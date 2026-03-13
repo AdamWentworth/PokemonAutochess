@@ -101,8 +101,7 @@
 #include "game/config/AnimSetLoader.h"
 #include "game/assets/DevAssetStore.h"
 #include "game/assets/PackedAssetStore.h"
-#include "game/ecs/RoundState.h"
-#include "game/ecs/CombatActive.h"
+#include "game/PhaseState.h"
 
 #include "game/systems/CameraSystem.h"
 #include "game/systems/UnitInteractionSystem.h"

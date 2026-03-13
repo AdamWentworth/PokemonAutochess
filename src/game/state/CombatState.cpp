@@ -22,7 +22,7 @@
 #include "game/ui/SellOverlayUiPolicy.h"
 #include "game/ui/UIViewport.h"
 
-#include "game/ecs/CombatActive.h"
+#include "game/PhaseState.h"
 #include "engine/core/ecs/World.h"
 #include "engine/input/InputEvent.h"
 #include "engine/render/IRenderBackend.h"

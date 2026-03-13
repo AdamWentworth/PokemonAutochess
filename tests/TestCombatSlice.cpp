@@ -11,7 +11,7 @@
 #include "game/GameServices.h"
 #include "game/GameWorld.h"
 #include "game/PokemonInstance.h"
-#include "game/ecs/CombatActive.h"
+#include "game/PhaseState.h"
 #include "game/assets/DevAssetStore.h"
 #include "game/config/GameDataDb.h"
 #include "game/config/MovesConfigLoader.h"

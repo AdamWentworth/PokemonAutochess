@@ -9,7 +9,7 @@
 #include "game/animation/FlightLocomotion.h"
 #include "game/config/GameDataDb.h"
 #include "game/config/MovesConfigLoader.h"
-#include "game/ecs/CombatActive.h"
+#include "game/PhaseState.h"
 #include "game/scripting/LuaBindings_Internal.h"
 
 #include <sol/sol.hpp>

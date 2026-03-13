@@ -3,7 +3,7 @@
 
 #include "engine/core/EngineServices.h"
 #include "engine/core/ecs/World.h"
-#include "game/ecs/CombatActive.h"
+#include "game/PhaseState.h"
 
 #include <algorithm>
 #include <chrono>

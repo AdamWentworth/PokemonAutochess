@@ -9,7 +9,7 @@
 #include "engine/core/EngineServices.h"
 #include "engine/core/ecs/Scheduler.h"
 #include "engine/core/ecs/World.h"
-#include "game/ecs/RoundState.h"
+#include "game/PhaseState.h"
 
 #include "game/systems/ShopSystem.h"
 #include "game/logging/LogBus.h"

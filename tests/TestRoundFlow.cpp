@@ -11,7 +11,7 @@
 #include "game/GameConfig.h"
 #include "game/GameServices.h"
 #include "game/runtime/session/GameUpdateGraph.h"
-#include "game/ecs/RoundState.h"
+#include "game/PhaseState.h"
 #include "game/scripting/ScriptEventBus.h"
 #include "game/assets/DevAssetStore.h"
 #include "game/config/GameDataDb.h"
