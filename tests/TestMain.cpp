@@ -57,6 +57,7 @@ bool test_video_init_gl_viewport_guard(std::string& outFail);
 bool test_video_preferences_parse_and_roundtrip(std::string& outFail);
 bool test_runtime_boot_loading_contract(std::string& outFail);
 bool test_runtime_backend_model_prewarm_contract(std::string& outFail);
+bool test_runtime_backend_card_ui_prewarm_contract(std::string& outFail);
 bool test_runtime_startup_asset_prewarm_contract(std::string& outFail);
 bool test_runtime_fixed_step_phase_contract(std::string& outFail);
 bool test_runtime_frame_observation_contract(std::string& outFail);
@@ -94,6 +95,8 @@ bool test_gltf_asset_smoke(std::string& outFail);
 bool test_combat_anim_index_cache_contract(std::string& outFail);
 bool test_script_api_contract(std::string& outFail);
 bool test_session_backend_render_helpers_contract(std::string& outFail);
+bool test_session_backend_inventory_ui_contract(std::string& outFail);
+bool test_session_backend_unit_hydration_contract(std::string& outFail);
 bool test_session_debug_snapshot_contract(std::string& outFail);
 bool test_session_render_config_contract(std::string& outFail);
 bool test_round_flow_headless(std::string& outFail);
@@ -250,6 +253,7 @@ int main(int argc, char** argv) {
         {"video_preferences_parse_and_roundtrip", &test_video_preferences_parse_and_roundtrip},
         {"runtime_boot_loading_contract", &test_runtime_boot_loading_contract},
         {"runtime_backend_model_prewarm_contract", &test_runtime_backend_model_prewarm_contract},
+        {"runtime_backend_card_ui_prewarm_contract", &test_runtime_backend_card_ui_prewarm_contract},
         {"runtime_startup_asset_prewarm_contract", &test_runtime_startup_asset_prewarm_contract},
         {"runtime_fixed_step_phase_contract", &test_runtime_fixed_step_phase_contract},
         {"runtime_frame_observation_contract", &test_runtime_frame_observation_contract},
@@ -287,6 +291,8 @@ int main(int argc, char** argv) {
         {"combat_anim_index_cache_contract", &test_combat_anim_index_cache_contract},
         {"script_api_contract", &test_script_api_contract},
         {"session_backend_render_helpers_contract", &test_session_backend_render_helpers_contract},
+        {"session_backend_inventory_ui_contract", &test_session_backend_inventory_ui_contract},
+        {"session_backend_unit_hydration_contract", &test_session_backend_unit_hydration_contract},
         {"session_debug_snapshot_contract", &test_session_debug_snapshot_contract},
         {"session_render_config_contract", &test_session_render_config_contract},
         {"round_flow_headless", &test_round_flow_headless},

@@ -262,6 +262,7 @@ add_library(PAC_GameObjects STATIC
     src/game/runtime/GameRuntime.cpp
     src/game/runtime/GameBootstrap.cpp
     src/game/runtime/startup/RuntimeBackendModelPrewarm.cpp
+    src/game/runtime/startup/RuntimeBackendCardUiPrewarm.cpp
     src/game/runtime/startup/RuntimeStartupAssetPrewarm.cpp
     src/game/runtime/RuntimeBootLoading.cpp
     src/game/runtime/RendererBackendBootstrap.cpp
@@ -289,6 +290,8 @@ add_library(PAC_GameObjects STATIC
     src/game/runtime/startup/RuntimeWorldLayerPrewarm.cpp
     src/game/runtime/RuntimeWindowBootstrap.cpp
     src/game/runtime/session/GameSession.cpp
+    src/game/runtime/session/SessionBackendInventoryUi.cpp
+    src/game/runtime/session/SessionBackendUnitHydration.cpp
     src/game/runtime/session/SessionBackendRenderHelpers.cpp
     src/game/runtime/session/SessionDebugSnapshot.cpp
     src/game/runtime/session/SessionRenderConfig.cpp
@@ -491,6 +494,7 @@ if (BUILD_TESTING)
         tests/TestVideoInitGuards.cpp
         tests/TestVideoPreferences.cpp
         tests/TestRuntimeBackendModelPrewarm.cpp
+        tests/TestRuntimeBackendCardUiPrewarm.cpp
         tests/TestRuntimeStartupAssetPrewarm.cpp
         tests/TestRuntimeBootLoading.cpp
         tests/TestRuntimeFixedStepPhase.cpp
@@ -529,6 +533,8 @@ if (BUILD_TESTING)
         tests/TestCombatAnimIndexCache.cpp
         tests/TestScriptApiContract.cpp
         tests/TestSessionBackendRenderHelpers.cpp
+        tests/TestSessionBackendInventoryUi.cpp
+        tests/TestSessionBackendUnitHydration.cpp
         tests/TestSessionDebugSnapshot.cpp
         tests/TestSessionRenderConfig.cpp
         tests/TestRoundFlow.cpp

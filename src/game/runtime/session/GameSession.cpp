@@ -20,7 +20,6 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/quaternion.hpp>
 #include <glm/gtc/type_ptr.hpp>
-#include <nlohmann/json.hpp>
 #include <stb_image.h>
 
 #include "engine/core/GameContext.h"
@@ -47,7 +46,6 @@
 #include "game/runtime/routes/RenderFlowDecisions.h"
 #include "game/runtime/routes/StartupRenderRoutePolicy.h"
 #include "game/runtime/BackendDebugText.h"
-#include "game/runtime/BackendCardRenderer.h"
 #include "game/runtime/routes/GameServiceRenderRoutes.h"
 #include "game/runtime/BackendInventoryOverlay.h"
 #include "game/runtime/BackendInventoryPanel.h"
@@ -62,8 +60,10 @@
 #include "game/runtime/BackendProceduralPose.h"
 #include "game/runtime/BackendUnitVisuals.h"
 #include "game/runtime/startup/RuntimeBackendModelPrewarm.h"
+#include "game/runtime/startup/RuntimeBackendCardUiPrewarm.h"
 #include "game/runtime/startup/RuntimeStartupAssetPrewarm.h"
 #include "game/runtime/startup/RuntimeWorldLayerPrewarm.h"
+#include "game/runtime/session/SessionBackendUnitHydration.h"
 #include "game/runtime/shared/backend/SharedBackendTextureCache.h"
 #include "game/runtime/shared/backend/SharedBackendPoseEval.h"
 #include "game/runtime/shared/capture/SharedCapturePresentation.h"
@@ -90,6 +90,7 @@
 #include "game/GameServices.h"
 #include "game/GameConfig.h"
 #include "game/runtime/session/GameUpdateGraph.h"
+#include "game/runtime/session/SessionBackendInventoryUi.h"
 #include "game/runtime/session/SessionBackendRenderHelpers.h"
 #include "game/runtime/session/SessionDebugSnapshot.h"
 #include "game/runtime/session/SessionRenderConfig.h"
@@ -223,27 +224,9 @@ struct GameSession::Impl {
         std::string error;
     };
     std::unordered_map<std::string, BackendMeshCacheEntry> backendMeshByModelPath;
-    struct BackendAnimRoleEntry {
-        bool attemptedResolve = false;
-        int idleIndex = -1;
-        int moveIndex = -1;
-        int attackIndex = -1;
-        int groundIdleIndex = -1;
-        int airIdleIndex = -1;
-        int takeoffIndex = -1;
-        int landIndex = -1;
-        int landAIndex = -1;
-        int landBIndex = -1;
-        int landCIndex = -1;
-        int faintIndex = -1;
-        float attackDurationSec = 0.0f;
-        float faintDurationSec = 0.0f;
-        bool usesAirLocomotion = false;
-        float airLiftY = 0.0f;
-        float takeoffSec = 0.0f;
-        float landingSec = 0.0f;
-    };
-    std::unordered_map<std::string, BackendAnimRoleEntry> backendAnimByModelPath;
+    using BackendAnimRoleEntry = game::runtime::session_backend_unit_hydration::BackendAnimRoleEntry;
+    using BackendAnimRoleCache = game::runtime::session_backend_unit_hydration::BackendAnimRoleCache;
+    BackendAnimRoleCache backendAnimByModelPath;
     using BackendTextureCacheEntry = game::runtime::SharedBackendTextureCacheEntry;
     std::unordered_map<std::string, BackendTextureCacheEntry> backendTextureByPath;
 
@@ -583,282 +566,16 @@ struct GameSession::Impl {
         return warmed;
     }
 
-    BackendAnimRoleEntry& ensureBackendAnimRoles(const std::string& modelPath,
-                                                 const runtime::backend_model::MeshData* mesh) {
-        auto& entry = backendAnimByModelPath[modelPath];
-        if (entry.attemptedResolve) return entry;
-        entry.attemptedResolve = true;
-        if (!mesh) return entry;
-
-        const int fallbackLoop = mesh->animations.empty() ? -1 : 0;
-        entry.idleIndex = fallbackLoop;
-        entry.moveIndex = fallbackLoop;
-        entry.attackIndex = fallbackLoop;
-        entry.groundIdleIndex = fallbackLoop;
-        entry.airIdleIndex = fallbackLoop;
-
-        nlohmann::json animSetJson;
-        if (AnimSet::loadAnimSetJson(AnimSet::animSetPathFromModelPath(modelPath), animSetJson)) {
-            const auto idlePick = AnimSet::resolveRoleClip(
-                animSetJson, "idle", "idle", {"battlewait", "defaultwait", "idle", "wait"}, true);
-            const auto movePick = AnimSet::resolveRoleClip(
-                animSetJson, "move", "move", {"run", "dash", "move"}, true);
-
-            auto attackPick = AnimSet::resolveRoleClip(
-                animSetJson, "attack1", "attack", {"attack01", "attack1", "attack"}, true);
-            if (!attackPick.valid || attackPick.clipName.empty()) {
-                attackPick =
-                    AnimSet::resolveRoleClip(animSetJson, "attack1", "misc", {"buturi", "ba20_buturi", "ba20"}, false);
-            }
-
-            auto faintPick = AnimSet::resolveRoleClip(
-                animSetJson, "faint", "status", {"down01_start", "down_start", "down01", "down"}, true);
-            if (!faintPick.valid || faintPick.clipName.empty()) {
-                faintPick = AnimSet::resolveRoleClip(
-                    animSetJson, "down", "status", {"down01_start", "down_start", "down01", "down"}, true);
-            }
-
-            const auto groundIdlePick = AnimSet::resolveRoleClip(
-                animSetJson, "ground_idle", "idle", {"ba10_wait", "battlewait", "ba10", "wait", "idle"}, true);
-            const auto airIdlePick = AnimSet::resolveRoleClip(
-                animSetJson, "air_idle", "idle", {"fi01_wait", "fly", "air", "hover"}, true);
-            const auto takeoffPick = AnimSet::resolveRoleClip(
-                animSetJson, "takeoff", "misc", {"take_flight", "takeflight", "takeoff"}, false);
-            const auto landPick = AnimSet::resolveRoleClip(
-                animSetJson, "land", "misc", {"land"}, false);
-            const auto landAPick = AnimSet::resolveRoleClip(
-                animSetJson, "land_a", "misc", {"landa"}, false);
-            const auto landBPick = AnimSet::resolveRoleClip(
-                animSetJson, "land_b", "misc", {"landb"}, false);
-            const auto landCPick = AnimSet::resolveRoleClip(
-                animSetJson, "land_c", "misc", {"landc"}, false);
-
-            auto resolvePick = [&](const AnimSet::RolePick& pick) -> int {
-                if (!pick.valid || pick.clipName.empty()) return -1;
-                return game::runtime::session_backend_render_helpers::resolveBackendAnimIndexByName(mesh->animations, pick.clipName);
-            };
-
-            const int idleIdx = resolvePick(idlePick);
-            if (idleIdx >= 0) entry.idleIndex = idleIdx;
-
-            const int moveIdx = resolvePick(movePick);
-            if (moveIdx >= 0) entry.moveIndex = moveIdx;
-
-            const int attackIdx = resolvePick(attackPick);
-            if (attackIdx >= 0) {
-                entry.attackIndex = attackIdx;
-                entry.attackDurationSec = attackPick.durationSec;
-            }
-
-            const int faintIdx = resolvePick(faintPick);
-            if (faintIdx >= 0) {
-                entry.faintIndex = faintIdx;
-                entry.faintDurationSec = faintPick.durationSec;
-            }
-
-            const int groundIdleIdx = resolvePick(groundIdlePick);
-            if (groundIdleIdx >= 0) entry.groundIdleIndex = groundIdleIdx;
-            const int airIdleIdx = resolvePick(airIdlePick);
-            if (airIdleIdx >= 0) entry.airIdleIndex = airIdleIdx;
-            entry.takeoffIndex = resolvePick(takeoffPick);
-            entry.landIndex = resolvePick(landPick);
-            entry.landAIndex = resolvePick(landAPick);
-            entry.landBIndex = resolvePick(landBPick);
-            entry.landCIndex = resolvePick(landCPick);
-
-            if (animSetJson.contains("meta") && animSetJson["meta"].is_object()) {
-                const auto& meta = animSetJson["meta"];
-                if (meta.contains("movementMode") && meta["movementMode"].is_string()) {
-                    const std::string mode = game::runtime::session_backend_render_helpers::toLowerCopy(meta["movementMode"].get<std::string>());
-                    entry.usesAirLocomotion =
-                        (mode == "airborne" || mode == "air" || mode == "flying" || mode == "fly");
-                }
-                if (meta.contains("airLiftY") && meta["airLiftY"].is_number()) {
-                    entry.airLiftY = meta["airLiftY"].get<float>();
-                }
-                if (meta.contains("takeoffSec") && meta["takeoffSec"].is_number()) {
-                    entry.takeoffSec = meta["takeoffSec"].get<float>();
-                }
-                if (meta.contains("landingSec") && meta["landingSec"].is_number()) {
-                    entry.landingSec = meta["landingSec"].get<float>();
-                }
-            }
-        }
-
-        if (entry.idleIndex < 0) {
-            entry.idleIndex = game::runtime::session_backend_render_helpers::findBackendAnimIndexBySubstring(mesh->animations, {"wait", "idle", "ba10"});
-        }
-        if (entry.moveIndex < 0) {
-            entry.moveIndex = game::runtime::session_backend_render_helpers::findBackendAnimIndexBySubstring(mesh->animations, {"move", "run", "walk", "fly"});
-        }
-        if (entry.attackIndex < 0) {
-            entry.attackIndex =
-                game::runtime::session_backend_render_helpers::findBackendAnimIndexBySubstring(mesh->animations, {"attack", "ba20", "buturi", "strike"});
-        }
-        if (entry.faintIndex < 0) {
-            entry.faintIndex = game::runtime::session_backend_render_helpers::findBackendAnimIndexBySubstring(mesh->animations, {"down", "faint", "death", "ko"});
-        }
-
-        if (entry.groundIdleIndex < 0) entry.groundIdleIndex = entry.idleIndex;
-        if (entry.airIdleIndex < 0) entry.airIdleIndex = entry.idleIndex;
-
-        if (entry.attackDurationSec <= 0.0f &&
-            entry.attackIndex >= 0 &&
-            static_cast<std::size_t>(entry.attackIndex) < mesh->animations.size()) {
-            entry.attackDurationSec = mesh->animations[static_cast<std::size_t>(entry.attackIndex)].durationSec;
-        }
-        if (entry.faintDurationSec <= 0.0f &&
-            entry.faintIndex >= 0 &&
-            static_cast<std::size_t>(entry.faintIndex) < mesh->animations.size()) {
-            entry.faintDurationSec = mesh->animations[static_cast<std::size_t>(entry.faintIndex)].durationSec;
-        }
-
-        const bool hasTakeoff = entry.takeoffIndex >= 0;
-        const bool hasSeqLanding = (entry.landCIndex >= 0) && (entry.landAIndex >= 0 || entry.landBIndex >= 0);
-        const bool hasSingleLanding = entry.landIndex >= 0;
-        const bool hasDistinctLand =
-            hasSeqLanding || (hasTakeoff && hasSingleLanding && entry.takeoffIndex != entry.landIndex);
-        if (hasTakeoff && hasDistinctLand) {
-            entry.usesAirLocomotion = true;
-        }
-
-        return entry;
-    }
-
     void hydrateBackendUnitAnimationAndScale() {
         if (!usesBackendGameRenderPath() || !gameWorld) return;
-
-        auto hydrate = [&](PokemonInstance& unit) {
-            const PokemonStats* stats = nullptr;
-            std::string modelPath = unit.backendModelPath;
-            if (modelPath.empty()) {
-                stats = dataDb.pokemon.getStats(unit.name);
-                if (!stats || stats->model.empty()) {
-                    unit.backendModelPath.clear();
-                    return;
-                }
-                modelPath = "assets/models/" + stats->model;
-                unit.backendModelPath = modelPath;
-            }
-            runtime::backend_model::MeshData* mesh = ensureBackendMeshLoaded(modelPath);
-            if (!mesh) return;
-
-            if (!unit.model) {
-                if (unit.animIndexCacheSourceModelPath != modelPath || unit.animIndexCache.empty()) {
-                    unit.animIndexCache.clear();
-                    unit.animIndexCache.reserve(std::max<std::size_t>(16u, mesh->animations.size() * 8u));
-                    unit.animIndexCacheSourceModelPath = modelPath;
-                    const auto cacheAlias = [&](const std::string& clipName, int idx) {
-                        if (clipName.empty() || idx < 0) return;
-                        unit.animIndexCache[clipName] = idx;
-                        unit.animIndexCache[game::runtime::session_backend_render_helpers::toLowerCopy(clipName)] = idx;
-                    };
-
-                    for (std::size_t i = 0; i < mesh->animations.size(); ++i) {
-                        const int idx = static_cast<int>(i);
-                        const std::string& raw = mesh->animations[i].name;
-                        cacheAlias(raw, idx);
-                        const std::string noGfbanm = game::runtime::session_backend_render_helpers::stripSuffix(raw, ".gfbanm");
-                        cacheAlias(noGfbanm, idx);
-                        const std::string noStart = game::runtime::session_backend_render_helpers::stripSuffix(raw, "__START");
-                        cacheAlias(noStart, idx);
-                        const std::string noEnd = game::runtime::session_backend_render_helpers::stripSuffix(raw, "__END");
-                        cacheAlias(noEnd, idx);
-                        std::string compact = game::runtime::session_backend_render_helpers::stripSuffix(noGfbanm, "__START");
-                        compact = game::runtime::session_backend_render_helpers::stripSuffix(compact, "__END");
-                        cacheAlias(compact, idx);
-                    }
-                }
-                if (unit.backendAnimDurationsSourceModelPath != modelPath ||
-                    unit.backendAnimDurationsSec.size() != mesh->animations.size()) {
-                    unit.backendAnimDurationsSec.assign(mesh->animations.size(), 0.0f);
-                    for (std::size_t i = 0; i < mesh->animations.size(); ++i) {
-                        unit.backendAnimDurationsSec[i] =
-                            std::max(0.0f, mesh->animations[i].durationSec);
-                    }
-                    unit.backendAnimDurationsSourceModelPath = modelPath;
-                }
-            } else {
-                unit.animIndexCacheSourceModelPath.clear();
-                unit.backendAnimDurationsSourceModelPath.clear();
-                unit.backendAnimDurationsSec.clear();
-            }
-
-            BackendAnimRoleEntry& roles = ensureBackendAnimRoles(modelPath, mesh);
-
-            if (unit.animIdleIndex < 0) unit.animIdleIndex = roles.idleIndex;
-            if (unit.animMoveIndex < 0) unit.animMoveIndex = roles.moveIndex;
-            if (unit.animAttack1Index < 0) unit.animAttack1Index = roles.attackIndex;
-            if (unit.animFaintIndex < 0) unit.animFaintIndex = roles.faintIndex;
-            if (unit.animGroundIdleIndex < 0) unit.animGroundIdleIndex = roles.groundIdleIndex;
-            if (unit.animAirIdleIndex < 0) unit.animAirIdleIndex = roles.airIdleIndex;
-            if (unit.animTakeoffIndex < 0) unit.animTakeoffIndex = roles.takeoffIndex;
-            if (unit.animLandIndex < 0) unit.animLandIndex = roles.landIndex;
-            if (unit.animLandAIndex < 0) unit.animLandAIndex = roles.landAIndex;
-            if (unit.animLandBIndex < 0) unit.animLandBIndex = roles.landBIndex;
-            if (unit.animLandCIndex < 0) unit.animLandCIndex = roles.landCIndex;
-
-            if (unit.attackDurationSec <= 0.0f && roles.attackDurationSec > 0.0f) {
-                unit.attackDurationSec = roles.attackDurationSec;
-            }
-            if (unit.faintAnimDurationSec <= 0.0f && roles.faintDurationSec > 0.0f) {
-                unit.faintAnimDurationSec = roles.faintDurationSec;
-            }
-
-            const bool speciesListedFlyer = dataDb.flyers.isFlyer(unit.name);
-            if ((roles.usesAirLocomotion || speciesListedFlyer) && !unit.usesAirLocomotion) {
-                unit.usesAirLocomotion = true;
-            }
-            if (unit.usesAirLocomotion) {
-                if (unit.airLiftY <= 0.0f && roles.airLiftY > 0.0f) unit.airLiftY = roles.airLiftY;
-                if (unit.takeoffSec <= 0.0f && roles.takeoffSec > 0.0f) unit.takeoffSec = roles.takeoffSec;
-                if (unit.landingSec <= 0.0f && roles.landingSec > 0.0f) unit.landingSec = roles.landingSec;
-                if (const auto* d = dataDb.flyers.getAirLocomotionDefaults(unit.name)) {
-                    if (unit.airLiftY <= 0.0f && d->airLiftY.has_value()) {
-                        unit.airLiftY = *d->airLiftY;
-                    }
-                    if (unit.takeoffSec <= 0.0f && d->takeoffSec.has_value()) {
-                        unit.takeoffSec = *d->takeoffSec;
-                    }
-                    if (unit.landingSec <= 0.0f && d->landingSec.has_value()) {
-                        unit.landingSec = *d->landingSec;
-                    }
-                    if (d->takeoffAnimSpeed.has_value()) {
-                        unit.takeoffAnimSpeed = *d->takeoffAnimSpeed;
-                    }
-                    if (d->landAnimSpeed.has_value()) {
-                        unit.landAnimSpeed = *d->landAnimSpeed;
-                    }
-                }
-            }
-
-            if (unit.activeAnimIndex < 0) {
-                unit.activeAnimIndex = unit.isMoving ? unit.animMoveIndex : unit.animIdleIndex;
-            }
-            if (unit.activeAnimIndex < 0 && !mesh->animations.empty()) {
-                unit.activeAnimIndex = 0;
-            }
-            if (unit.currentAttackAnimIndex < 0) {
-                unit.currentAttackAnimIndex = unit.animAttack1Index;
-            }
-
-            if (stats) {
-                const std::string scaleMode = game::runtime::session_backend_render_helpers::toLowerCopy(stats->modelScaleMode);
-                if (!unit.model && scaleMode != "normalized") {
-                    const float importerScale = std::max(0.0f, mesh->modelScaleFactor);
-                    if (importerScale > 1e-6f) {
-                        unit.modelScaleCorrection = 1.0f / importerScale;
-                    }
-                }
-            }
-        };
-
-        for (auto& unit : gameWorld->getPokemons()) {
-            hydrate(unit);
-        }
-        for (auto& unit : gameWorld->getBenchPokemons()) {
-            hydrate(unit);
-        }
+        game::runtime::session_backend_unit_hydration::hydrateBackendUnits(
+            gameWorld->getPokemons(),
+            gameWorld->getBenchPokemons(),
+            dataDb,
+            backendAnimByModelPath,
+            [&](const std::string& modelPath) {
+                return ensureBackendMeshLoaded(modelPath);
+            });
     }
 
     void init(GameContext& ctx) {
@@ -1110,7 +827,10 @@ struct GameSession::Impl {
                             const bool alreadyResolved =
                                 (it != backendAnimByModelPath.end()) && it->second.attemptedResolve;
                             BackendAnimRoleEntry& roles =
-                                ensureBackendAnimRoles(modelPath, &mesh);
+                                game::runtime::session_backend_unit_hydration::ensureBackendAnimRoles(
+                                    modelPath,
+                                    &mesh,
+                                    backendAnimByModelPath);
                             return !alreadyResolved && roles.attemptedResolve;
                         },
                     .prewarmTextures =
@@ -1183,7 +903,11 @@ struct GameSession::Impl {
                     [&](int drawableW,
                         int drawableH,
                         const std::vector<std::string>& texturePaths) {
-                        prewarmBackendCardUiLayer(drawableW, drawableH, texturePaths);
+                        (void)game::runtime::backend_card_ui_prewarm::run(
+                            renderer,
+                            drawableW,
+                            drawableH,
+                            texturePaths);
                     },
             },
             std::cout);
@@ -1258,93 +982,25 @@ struct GameSession::Impl {
         }
     }
 
-    bool selectBackendInventoryItem(const std::string& itemId) {
-        if (!gameWorld || itemId.empty()) return false;
-        if (gameWorld->getSelectedItem() == itemId) return true;
-        gameWorld->setSelectedItem(itemId);
-        log.catchInfo("Selected " + runtime::hud::humanizeToken(itemId) + ". Click a target.");
-        return true;
-    }
-
-    bool clearBackendInventorySelection() {
-        if (!gameWorld) return false;
-        if (gameWorld->getSelectedItem().empty()) return false;
-        gameWorld->setSelectedItem("");
-        log.catchInfo("Cleared selected item.");
-        return true;
-    }
-
-    void refreshBackendInventoryFromWorld() {
-        if (!gameWorld) {
-            backendInventoryPanel = {};
-            return;
-        }
-
-        runtime::backend_inventory_panel::refreshPanelState(
-            backendInventoryPanel,
-            gameWorld->listItems(),
-            kBackendInventoryVisibleCount,
-            gameWorld->getSelectedItem());
-    }
-
-    bool applyBackendInventoryOffsetDelta(int delta) {
-        if (delta == 0 || !gameWorld) return false;
-
-        refreshBackendInventoryFromWorld();
-        return runtime::backend_inventory_panel::applyOffsetDelta(
-            backendInventoryPanel,
-            delta,
-            kBackendInventoryVisibleCount,
-            gameWorld->getSelectedItem());
-    }
-
-    bool handleBackendInventoryUiInput(const InputEvent& event) {
-        if (event.type == InputEvent::Type::KeyDown && !event.repeat) {
-            const int offsetDelta = runtime::backend_input::inventoryOffsetDeltaFromKey(
-                event.keyId,
-                static_cast<int>(kBackendInventoryVisibleCount));
-            if (applyBackendInventoryOffsetDelta(offsetDelta)) {
-                return true; // consume nav key when inventory paging changed.
-            }
-
-            refreshBackendInventoryFromWorld();
-            const int slot = runtime::backend_input::slotFromNumberKey(event.keyId);
-            const auto itemId = runtime::backend_inventory_panel::visibleItemForSlot(
-                backendInventoryPanel,
-                slot);
-            if (itemId && selectBackendInventoryItem(*itemId)) {
-                return true; // consume key to avoid accidental board interactions.
-            }
-            return false;
-        }
-
-        if (event.type == InputEvent::Type::MouseWheel) {
-            const int wheelDelta = runtime::backend_inventory_panel::offsetDeltaFromWheel(event.wheelY);
-            return applyBackendInventoryOffsetDelta(wheelDelta);
-        }
-
-        if (event.type != InputEvent::Type::MouseDown ||
-            event.mouseButtonId != InputEvent::MouseButton::Left) {
-            return false;
-        }
-
-        const float mx = static_cast<float>(event.mouseX);
-        const float my = static_cast<float>(event.mouseY);
-        const auto* hit = runtime::backend_inventory_panel::findHit(backendInventoryPanel, mx, my);
-        if (!hit) return false;
-
-        if (hit->action == runtime::backend_inventory_panel::HitAction::ClearSelection) {
-            clearBackendInventorySelection();
-            return true;
-        }
-        if (hit->action == runtime::backend_inventory_panel::HitAction::ScrollOffset) {
-            applyBackendInventoryOffsetDelta(hit->offsetDelta);
-            return true;
-        }
-        if (selectBackendInventoryItem(hit->itemId)) {
-            return true;
-        }
-        return false;
+    game::runtime::session_backend_inventory_ui::Dependencies backendInventoryUiDependencies() {
+        return game::runtime::session_backend_inventory_ui::Dependencies{
+            .getSelectedItem =
+                [&]() -> std::string {
+                    return gameWorld ? gameWorld->getSelectedItem() : std::string{};
+                },
+            .setSelectedItem =
+                [&](const std::string& itemId) {
+                    if (gameWorld) {
+                        gameWorld->setSelectedItem(itemId);
+                    }
+                },
+            .listItems =
+                [&]() -> std::vector<std::pair<std::string, int>> {
+                    return gameWorld ? gameWorld->listItems()
+                                     : std::vector<std::pair<std::string, int>>{};
+                },
+            .logInfo = [&](const std::string& message) { log.catchInfo(message); },
+        };
     }
 
     DebugSessionSnapshot captureDebugSessionSnapshot() const {
@@ -1533,7 +1189,10 @@ struct GameSession::Impl {
         applyRuntimeFlagsForSnapshot(session, preferCombatState);
         const auto flagsEnd = SnapshotClock::now();
         const auto inventoryStart = SnapshotClock::now();
-        refreshBackendInventoryFromWorld();
+        game::runtime::session_backend_inventory_ui::refreshPanel(
+            backendInventoryPanel,
+            kBackendInventoryVisibleCount,
+            backendInventoryUiDependencies());
         const auto inventoryEnd = SnapshotClock::now();
         double prewarmIndexedMs = 0.0;
         std::size_t prewarmIndexedBatches = 0u;
@@ -1663,13 +1322,18 @@ struct GameSession::Impl {
             event.type == InputEvent::Type::KeyDown &&
             !event.repeat &&
             runtime::backend_input::isClearSelectionKey(event.keyId)) {
-            if (clearBackendInventorySelection()) {
+            if (game::runtime::session_backend_inventory_ui::clearSelection(
+                    backendInventoryUiDependencies())) {
                 return; // consume key so gameplay actions do not fire simultaneously.
             }
         }
 
         if (renderWorldForInput && usesBackendGameUiPath()) {
-            if (handleBackendInventoryUiInput(event)) {
+            if (game::runtime::session_backend_inventory_ui::handleInput(
+                    backendInventoryPanel,
+                    event,
+                    kBackendInventoryVisibleCount,
+                    backendInventoryUiDependencies())) {
                 return;
             }
         }
@@ -2452,7 +2116,12 @@ struct GameSession::Impl {
         overlayArgs.roundPhaseEntity = roundPhaseEntity;
         overlayArgs.log = &log;
         overlayArgs.backendInventoryPanel = &backendInventoryPanel;
-        overlayArgs.refreshBackendInventoryFromWorld = [&]() { refreshBackendInventoryFromWorld(); };
+        overlayArgs.refreshBackendInventoryFromWorld = [&]() {
+            game::runtime::session_backend_inventory_ui::refreshPanel(
+                backendInventoryPanel,
+                kBackendInventoryVisibleCount,
+                backendInventoryUiDependencies());
+        };
         overlayArgs.showPerfOverlay = showPerfOverlay;
         overlayArgs.renderWorld = renderWorld;
         overlayArgs.hasWorldViewProj = hasWorldViewProj;
@@ -2494,142 +2163,6 @@ struct GameSession::Impl {
             drawableH,
             renderWorld,
             /*prewarmWorldIndexedOnly=*/true);
-    }
-
-    void prewarmBackendCardUiLayer(int drawableW,
-                                   int drawableH,
-                                   const std::vector<std::string>& uiSpritePrewarmPaths) {
-        if (!renderer || drawableW <= 0 || drawableH <= 0) return;
-
-        std::vector<std::string> portraitPaths;
-        portraitPaths.reserve(uiSpritePrewarmPaths.size());
-        for (const std::string& path : uiSpritePrewarmPaths) {
-            if (path == "assets/ui/frame_gold.png" ||
-                path == "assets/images/item_placeholder.png" ||
-                path == "assets/images/items_atlas.png" ||
-                path == "assets/images/pokedollar.png" ||
-                path == "assets/images/pokegold.png") {
-                continue;
-            }
-            portraitPaths.push_back(path);
-        }
-
-        std::vector<IRenderBackend::DebugQuad> baseQuads;
-        std::vector<IRenderBackend::DebugLine> textLines;
-        std::vector<IRenderBackend::DebugSprite> sprites;
-        baseQuads.reserve(256u);
-        textLines.reserve(4096u);
-        sprites.reserve(64u);
-
-        const float uiScale = runtime::backend_ui::viewportScale(drawableW, drawableH);
-        const float edgePad = runtime::backend_ui::edgePad(drawableW, drawableH);
-        const float lineStep = runtime::backend_ui::lineStep(drawableW, drawableH);
-        const std::size_t cardCount = std::max<std::size_t>(1u, std::min<std::size_t>(portraitPaths.size(), 5u));
-        const float cardW = std::clamp(148.0f * uiScale, 120.0f, 210.0f);
-        const float cardH = std::clamp(cardW * 1.30f, 150.0f, 290.0f);
-        const float gap = std::max(10.0f, cardW * 0.10f);
-        const float totalW =
-            static_cast<float>(cardCount) * cardW + static_cast<float>(cardCount - 1u) * gap;
-        const float rowX = std::max(edgePad, (static_cast<float>(drawableW) - totalW) * 0.5f);
-        const float rowY = std::max(
-            64.0f,
-            static_cast<float>(drawableH) - cardH - lineStep * 4.5f);
-
-        runtime::backend_text::appendTextLines(
-            textLines,
-            edgePad,
-            std::max(10.0f, edgePad - lineStep * 0.15f),
-            "Shop",
-            std::clamp(2.6f * uiScale, 1.6f, 3.3f),
-            0.95f,
-            0.95f,
-            0.98f,
-            1.0f,
-            0.88f);
-
-        for (std::size_t i = 0; i < cardCount; ++i) {
-            game::runtime::backend_card_renderer::CardRenderInput input;
-            input.x = rowX + static_cast<float>(i) * (cardW + gap);
-            input.y = rowY;
-            input.w = cardW;
-            input.h = cardH;
-            if (i < portraitPaths.size()) {
-                input.displayName = game::runtime::session_backend_render_helpers::makeBackendCardPrewarmLabel(portraitPaths[i]);
-            } else {
-                input.displayName = "Card " + std::to_string(i + 1u);
-            }
-            input.subtitle = "Lv5";
-            input.explicitImagePath = "assets/images/item_placeholder.png";
-            input.keyboardSlot = static_cast<int>(i + 1u);
-            input.item = true;
-            input.textScale = std::clamp(1.0f * uiScale, 0.70f, 1.35f);
-            game::runtime::backend_card_renderer::appendCardLayered(
-                baseQuads,
-                nullptr,
-                &sprites,
-                input,
-                &textLines);
-        }
-
-        const auto addActionButton = [&](float x,
-                                         float y,
-                                         const std::string& label,
-                                         float r,
-                                         float g,
-                                         float b) {
-            const float textScale = 1.0f * 1.35f * uiScale;
-            const float textW = std::max(1.0f, runtime::backend_text::measureTextWidth(label, textScale));
-            const float textH = std::max(1.0f, runtime::backend_text::measureTextHeight(label, textScale));
-            const float padX = std::max(8.0f, textScale * 4.0f);
-            const float padY = std::max(5.0f, textScale * 2.5f);
-
-            IRenderBackend::DebugQuad bg;
-            bg.x = x - padX;
-            bg.y = y - padY;
-            bg.w = textW + padX * 2.0f;
-            bg.h = textH + padY * 2.0f;
-            bg.r = r;
-            bg.g = g;
-            bg.b = b;
-            bg.a = 0.92f;
-            baseQuads.push_back(bg);
-
-            runtime::backend_text::appendTextLines(
-                textLines,
-                x,
-                y,
-                label,
-                textScale,
-                0.98f,
-                0.98f,
-                0.98f,
-                1.0f,
-                0.88f);
-        };
-        addActionButton(edgePad + 88.0f * uiScale, rowY + cardH + lineStep * 1.1f, "[6] Reroll", 0.20f, 0.16f, 0.08f);
-        addActionButton(
-            static_cast<float>(drawableW) - edgePad - 160.0f * uiScale,
-            edgePad + lineStep * 0.95f,
-            "[7] Ready",
-            0.12f,
-            0.25f,
-            0.14f);
-
-        if (baseQuads.empty() && sprites.empty() && textLines.empty()) return;
-
-        // D3D12 debug/UI draws are ignored unless they happen during an active frame.
-        // Warm the real card UI path here so the first shop entry does not pay lazy setup cost.
-        renderer->beginFrame(0.05f, 0.05f, 0.07f, 1.0f);
-        if (!baseQuads.empty()) {
-            renderer->drawDebugQuads(baseQuads.data(), baseQuads.size(), drawableW, drawableH);
-        }
-        if (!sprites.empty()) {
-            renderer->drawDebugSprites(sprites.data(), sprites.size(), drawableW, drawableH);
-        }
-        if (!textLines.empty()) {
-            renderer->drawDebugLines(textLines.data(), textLines.size(), drawableW, drawableH);
-        }
-        renderer->endFrame();
     }
 
     void renderStateLayer() {

@@ -24,6 +24,12 @@ Use this file to find ownership quickly when working on parity/performance tasks
 - `src/game/runtime/session/SessionBackendRenderHelpers.*`
   - backend-model animation lookup fallbacks, card-label formatting, and world-texture prewarm payload generation
   - shared session-side helpers used by startup model prewarm and backend shop card UI
+- `src/game/runtime/session/SessionBackendInventoryUi.*`
+  - backend inventory panel refresh, paging, selection, and hit/input routing
+  - session-side adapter between world inventory state and backend UI controls
+- `src/game/runtime/session/SessionBackendUnitHydration.*`
+  - backend unit model-path hydration, animation-role cache population, and importer-scale correction
+  - flyer default application and per-unit backend animation cache setup
 - `src/game/runtime/session/SessionDebugSnapshot.*`
   - debug snapshot path resolution, JSON file IO, and summary formatting
   - session/world snapshot metadata parsing for save/load
@@ -61,6 +67,9 @@ Use this file to find ownership quickly when working on parity/performance tasks
 - `src/game/runtime/startup/RuntimeStartupAssetPrewarm.*`
   - world shading, tail-fire, UI sprite, card-art, and backend card-UI startup prewarm orchestration
   - backend card-art proxy selection for eager startup warming
+- `src/game/runtime/startup/RuntimeBackendCardUiPrewarm.*`
+  - one-frame backend shop-card UI warmup used during startup prewarm
+  - portrait filtering and debug/UI submission ownership for first-shop-entry hitch avoidance
 - `src/game/runtime/startup/RuntimeWorldLayerPrewarm.*`
   - world/board prewarm scheduling, startup drain, and deferred frame completion
   - init title/progress ownership for world-layer warmup
