@@ -1,4 +1,4 @@
-#include "game/runtime/BackendHudFormatting.h"
+#include "game/runtime/backend_ui/BackendHudFormatting.h"
 
 #include <string>
 #include <utility>
@@ -110,3 +110,4 @@ bool test_backend_hud_formatting_contract(std::string& outFail) {
 
     return true;
 }
+

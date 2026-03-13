@@ -1,6 +1,6 @@
 #pragma once
 
-#include "game/runtime/BackendInputSlots.h"
+#include "game/runtime/backend_ui/BackendInputSlots.h"
 
 namespace game::state::backend_input {
 
@@ -9,3 +9,4 @@ inline int slotFromNumberKey(InputEvent::Key keyId) {
 }
 
 } // namespace game::state::backend_input
+

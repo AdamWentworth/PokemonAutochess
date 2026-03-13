@@ -1,6 +1,6 @@
 #pragma once
 
-#include "game/runtime/BackendHudFormatting.h"
+#include "game/runtime/backend_ui/BackendHudFormatting.h"
 
 #include <cstddef>
 #include <string>
@@ -90,4 +90,5 @@ inline std::string hintLabel() {
 }
 
 } // namespace game::runtime::backend_inventory
+
 

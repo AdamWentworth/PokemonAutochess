@@ -1,4 +1,4 @@
-#include "game/runtime/BackendImagePath.h"
+#include "game/runtime/backend_ui/BackendImagePath.h"
 
 #include <string>
 
@@ -61,3 +61,4 @@ bool test_backend_image_path_contract(std::string& outFail) {
 
     return true;
 }
+

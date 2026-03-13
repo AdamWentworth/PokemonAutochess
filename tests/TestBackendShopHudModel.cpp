@@ -1,4 +1,4 @@
-#include "game/runtime/BackendShopHudModel.h"
+#include "game/runtime/backend_ui/BackendShopHudModel.h"
 
 #include <string>
 
@@ -78,4 +78,5 @@ bool test_backend_shop_hud_model_contract(std::string& outFail) {
 
     return true;
 }
+
 

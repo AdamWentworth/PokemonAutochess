@@ -2,7 +2,7 @@
 
 #include "engine/core/ecs/Entity.h"
 #include "engine/render/IRenderBackend.h"
-#include "game/runtime/BackendInventoryPanel.h"
+#include "game/runtime/backend_ui/BackendInventoryPanel.h"
 #include "game/runtime/shared/world/SharedWorldIndexedBatches.h"
 
 #include <functional>
@@ -64,3 +64,4 @@ struct ComposeAndSubmitArgs {
 void composeAndSubmit(const ComposeAndSubmitArgs& args);
 
 } // namespace game::runtime::shared_backend_debug_view
+

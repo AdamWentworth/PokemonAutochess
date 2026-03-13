@@ -1,4 +1,4 @@
-#include "game/runtime/BackendCardVisuals.h"
+#include "game/runtime/backend_ui/BackendCardVisuals.h"
 #include "engine/render/SpriteTextureCardArt.h"
 
 #include <string>
@@ -196,3 +196,4 @@ bool test_backend_card_visuals_contract(std::string& outFail) {
 
     return true;
 }
+

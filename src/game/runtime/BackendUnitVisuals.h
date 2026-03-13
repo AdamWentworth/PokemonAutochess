@@ -3,7 +3,7 @@
 #include "engine/render/IRenderBackend.h"
 #include "engine/render/SpriteTextureCardArt.h"
 #include "game/PokemonInstance.h"
-#include "game/runtime/BackendImagePath.h"
+#include "game/runtime/backend_ui/BackendImagePath.h"
 
 #include <algorithm>
 #include <cstddef>
@@ -116,3 +116,4 @@ inline IRenderBackend::DebugSprite makeBenchUnitSprite(float x,
 }
 
 } // namespace game::runtime::backend_units
+

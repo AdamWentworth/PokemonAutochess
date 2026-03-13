@@ -45,14 +45,14 @@
 #include "game/runtime/routes/BackendRenderPolicy.h"
 #include "game/runtime/routes/RenderFlowDecisions.h"
 #include "game/runtime/routes/StartupRenderRoutePolicy.h"
-#include "game/runtime/BackendDebugText.h"
+#include "game/runtime/backend_ui/BackendDebugText.h"
 #include "game/runtime/routes/GameServiceRenderRoutes.h"
-#include "game/runtime/BackendInventoryOverlay.h"
-#include "game/runtime/BackendInventoryPanel.h"
-#include "game/runtime/BackendInputSlots.h"
-#include "game/runtime/BackendStatusText.h"
-#include "game/runtime/BackendUiScale.h"
-#include "game/runtime/BackendHudFormatting.h"
+#include "game/runtime/backend_ui/BackendInventoryOverlay.h"
+#include "game/runtime/backend_ui/BackendInventoryPanel.h"
+#include "game/runtime/backend_ui/BackendInputSlots.h"
+#include "game/runtime/backend_ui/BackendStatusText.h"
+#include "game/runtime/backend_ui/BackendUiScale.h"
+#include "game/runtime/backend_ui/BackendHudFormatting.h"
 #include "game/runtime/BackendWorldProjection.h"
 #include "game/runtime/BackendWorldProxyGeometry.h"
 #include "game/runtime/backend_model_cache/BackendModelCache.h"
@@ -2249,5 +2249,6 @@ void GameSession::render(int drawableW, int drawableH) { impl_->render(drawableW
 void GameSession::shutdown() { impl_->shutdown(); }
 
 } // namespace game
+
 
 

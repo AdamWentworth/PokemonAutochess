@@ -6,8 +6,8 @@
 #include "game/GameWorld.h"
 #include "game/GameServices.h"
 #include "game/logging/FlowTrace.h"
-#include "game/runtime/BackendDebugText.h"
-#include "game/runtime/BackendTopBanner.h"
+#include "game/runtime/backend_ui/BackendDebugText.h"
+#include "game/runtime/backend_ui/BackendTopBanner.h"
 #include "game/runtime/routes/GameServiceRenderRoutes.h"
 #include "game/state/BackendUiPolicy.h"
 #include "game/ui/UIViewport.h"
@@ -226,3 +226,4 @@ void PlacementState::placeOnValidGridPosition(PokemonInstance& starter) {
     starter.position.z = boardOriginZ + row * cellSize;
     starter.position.y = 0.0f;
 }
+

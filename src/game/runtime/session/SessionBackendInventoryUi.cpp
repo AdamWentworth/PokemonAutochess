@@ -1,7 +1,7 @@
 #include "game/runtime/session/SessionBackendInventoryUi.h"
 
-#include "game/runtime/BackendHudFormatting.h"
-#include "game/runtime/BackendInputSlots.h"
+#include "game/runtime/backend_ui/BackendHudFormatting.h"
+#include "game/runtime/backend_ui/BackendInputSlots.h"
 
 namespace game::runtime::session_backend_inventory_ui {
 
@@ -100,3 +100,4 @@ bool handleInput(backend_inventory_panel::PanelState& panel,
 }
 
 } // namespace game::runtime::session_backend_inventory_ui
+

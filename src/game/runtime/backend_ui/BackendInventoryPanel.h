@@ -1,7 +1,7 @@
 #pragma once
 
-#include "game/runtime/BackendHudFormatting.h"
-#include "game/runtime/BackendInventoryOverlay.h"
+#include "game/runtime/backend_ui/BackendHudFormatting.h"
+#include "game/runtime/backend_ui/BackendInventoryOverlay.h"
 
 #include <optional>
 #include <string>
@@ -97,4 +97,5 @@ inline const HitRegion* findHit(const PanelState& panel, float x, float y) {
 }
 
 } // namespace game::runtime::backend_inventory_panel
+
 

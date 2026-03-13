@@ -1,4 +1,4 @@
-#include "game/runtime/BackendInventoryPanel.h"
+#include "game/runtime/backend_ui/BackendInventoryPanel.h"
 
 #include <string>
 #include <vector>
@@ -106,3 +106,4 @@ bool test_backend_inventory_panel_contract(std::string& outFail) {
 
     return true;
 }
+

@@ -1,7 +1,7 @@
 #pragma once
 
 #include "engine/render/IRenderBackend.h"
-#include "game/runtime/BackendDebugText.h"
+#include "game/runtime/backend_ui/BackendDebugText.h"
 
 #include <algorithm>
 #include <cmath>
@@ -97,4 +97,5 @@ inline void appendBackendBanner(std::vector<IRenderBackend::DebugQuad>& quads,
 }
 
 } // namespace game::runtime::top_banner
+
 

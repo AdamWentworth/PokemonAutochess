@@ -1,7 +1,7 @@
 #pragma once
 
 #include "game/PhaseState.h"
-#include "game/runtime/BackendHudFormatting.h"
+#include "game/runtime/backend_ui/BackendHudFormatting.h"
 
 #include <algorithm>
 #include <string>
@@ -44,4 +44,5 @@ inline std::string selectedItemLine(const std::string& itemId) {
 }
 
 } // namespace game::runtime::backend_status_text
+
 

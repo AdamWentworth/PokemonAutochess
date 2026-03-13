@@ -3,7 +3,7 @@
 #include "engine/core/Environment.h"
 #include "engine/render/SpriteTextureCardArt.h"
 #include "game/config/GameDataDb.h"
-#include "game/runtime/BackendImagePath.h"
+#include "game/runtime/backend_ui/BackendImagePath.h"
 
 #include <algorithm>
 #include <chrono>
@@ -254,3 +254,4 @@ Summary run(const Options& options,
 }
 
 } // namespace game::runtime::startup_asset_prewarm
+

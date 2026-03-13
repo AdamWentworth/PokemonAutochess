@@ -2,8 +2,8 @@
 
 #include "engine/render/IRenderBackend.h"
 #include "engine/render/SpriteTextureCardArt.h"
-#include "game/runtime/BackendDebugText.h"
-#include "game/runtime/BackendImagePath.h"
+#include "game/runtime/backend_ui/BackendDebugText.h"
+#include "game/runtime/backend_ui/BackendImagePath.h"
 
 #include <algorithm>
 #include <cstdint>
@@ -224,3 +224,4 @@ inline void appendStylizedCard(std::vector<IRenderBackend::DebugQuad>& quads,
 }
 
 } // namespace game::runtime::backend_cards
+

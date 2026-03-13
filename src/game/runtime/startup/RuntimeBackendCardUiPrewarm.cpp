@@ -5,8 +5,8 @@
 #include <vector>
 
 #include "engine/render/IRenderBackend.h"
-#include "game/runtime/BackendCardRenderer.h"
-#include "game/runtime/BackendUiScale.h"
+#include "game/runtime/backend_ui/BackendCardRenderer.h"
+#include "game/runtime/backend_ui/BackendUiScale.h"
 #include "game/runtime/shared/ui/SharedBackendDebugViewOverlay.h"
 #include "game/runtime/session/SessionBackendRenderHelpers.h"
 
@@ -153,3 +153,4 @@ Summary run(IRenderBackend* renderer,
 }
 
 } // namespace game::runtime::backend_card_ui_prewarm
+

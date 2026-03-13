@@ -1,5 +1,5 @@
 #include "game/state/BackendInputSlots.h"
-#include "game/runtime/BackendInputSlots.h"
+#include "game/runtime/backend_ui/BackendInputSlots.h"
 
 #include <string>
 
@@ -73,3 +73,4 @@ bool test_backend_input_slots_contract(std::string& outFail) {
 
     return true;
 }
+

@@ -6,7 +6,7 @@
 #include <vector>
 
 #include "engine/input/InputEvent.h"
-#include "game/runtime/BackendInventoryPanel.h"
+#include "game/runtime/backend_ui/BackendInventoryPanel.h"
 
 namespace game::runtime::session_backend_inventory_ui {
 
@@ -32,3 +32,4 @@ bool handleInput(backend_inventory_panel::PanelState& panel,
                  const Dependencies& deps);
 
 } // namespace game::runtime::session_backend_inventory_ui
+

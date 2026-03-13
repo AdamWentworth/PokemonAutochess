@@ -27,6 +27,9 @@ Use this file to find ownership quickly when working on parity/performance tasks
 - `src/game/runtime/session/SessionBackendInventoryUi.*`
   - backend inventory panel refresh, paging, selection, and hit/input routing
   - session-side adapter between world inventory state and backend UI controls
+- `src/game/runtime/backend_ui/*.h`
+  - backend menu, HUD, card, inventory, text, and scaling helpers used by game-side UI presentation
+  - game-facing backend presentation utilities, distinct from render API backends under `src/engine/render/*`
 - `src/game/runtime/session/SessionBackendUnitHydration.*`
   - backend unit model-path hydration, animation-role cache population, and importer-scale correction
   - flyer default application and per-unit backend animation cache setup

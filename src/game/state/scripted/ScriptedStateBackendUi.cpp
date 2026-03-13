@@ -4,12 +4,12 @@
 #include "game/scripting/LuaCardParser.h"
 #include "game/scripting/LuaScriptHelpers.h"
 #include "game/scripting/LuaTextMenuParser.h"
-#include "game/runtime/BackendCardRenderer.h"
-#include "game/runtime/BackendDebugText.h"
+#include "game/runtime/backend_ui/BackendCardRenderer.h"
+#include "game/runtime/backend_ui/BackendDebugText.h"
 #include "game/runtime/routes/GameServiceRenderRoutes.h"
-#include "game/runtime/BackendSellOverlayModel.h"
-#include "game/runtime/BackendShopHudModel.h"
-#include "game/runtime/BackendUiScale.h"
+#include "game/runtime/backend_ui/BackendSellOverlayModel.h"
+#include "game/runtime/backend_ui/BackendShopHudModel.h"
+#include "game/runtime/backend_ui/BackendUiScale.h"
 #include "game/state/BackendInputSlots.h"
 #include "game/state/PlacementState.h"
 #include "game/state/BackendUiPolicy.h"
@@ -887,4 +887,5 @@ bool ScriptedState::tryHandleHeadlessTextMenuKey(InputEvent::Key keyId) {
     std::cout << "[Menu][BackendUI] No menu option mapped to key " << targetOption << ".\n";
     return false;
 }
+
 

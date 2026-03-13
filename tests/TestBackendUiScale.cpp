@@ -1,4 +1,4 @@
-#include "game/runtime/BackendUiScale.h"
+#include "game/runtime/backend_ui/BackendUiScale.h"
 
 #include <cmath>
 #include <string>
@@ -54,4 +54,5 @@ bool test_backend_ui_scale_contract(std::string& outFail) {
 
     return true;
 }
+
 

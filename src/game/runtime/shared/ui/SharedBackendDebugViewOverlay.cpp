@@ -7,10 +7,10 @@
 #include "game/GameWorld.h"
 #include "game/PhaseState.h"
 #include "game/logging/LogBus.h"
-#include "game/runtime/BackendDebugText.h"
-#include "game/runtime/BackendHudFormatting.h"
-#include "game/runtime/BackendInventoryOverlay.h"
-#include "game/runtime/BackendStatusText.h"
+#include "game/runtime/backend_ui/BackendDebugText.h"
+#include "game/runtime/backend_ui/BackendHudFormatting.h"
+#include "game/runtime/backend_ui/BackendInventoryOverlay.h"
+#include "game/runtime/backend_ui/BackendStatusText.h"
 #include "game/runtime/shared/capture/SharedCapturePresentation.h"
 
 #include <algorithm>
@@ -1074,3 +1074,4 @@ void composeAndSubmit(const ComposeAndSubmitArgs& args) {
 }
 
 } // namespace game::runtime::shared_backend_debug_view
+
