@@ -41,6 +41,9 @@ Use this file to find ownership quickly when working on parity/performance tasks
 - `src/game/runtime/session/SessionDebugSnapshot.*`
   - debug snapshot path resolution, JSON file IO, and summary formatting
   - session/world snapshot metadata parsing for save/load
+- `src/game/runtime/session/SessionLoopRuntime.*`
+  - session input/dev-pause/fixed-step orchestration extracted from `GameSession`
+  - routes resize, hotkeys, backend inventory UI input, and fixed-step backend hydrate timing
 - `src/game/runtime/session/SessionSnapshotRuntime.*`
   - live session save/load orchestration for debug snapshots
   - state-stack restore, runtime flag restore, inventory refresh, and restore-time indexed-world prewarm

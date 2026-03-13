@@ -93,6 +93,7 @@
 #include "game/runtime/session/SessionBackendInventoryUi.h"
 #include "game/runtime/session/SessionBackendRenderHelpers.h"
 #include "game/runtime/session/SessionDebugSnapshot.h"
+#include "game/runtime/session/SessionLoopRuntime.h"
 #include "game/runtime/session/SessionSnapshotRuntime.h"
 #include "game/runtime/session/SessionRenderConfig.h"
 #include "game/ui/UIViewport.h"
@@ -113,7 +114,6 @@
 #include "game/systems/LegacySystemAdapters.h"
 
 #include "game/state/scripted/ScriptedState.h"
-#include "game/state/CombatState.h"
 #include "game/logging/LogBus.h"
 #include "game/logging/LoggerUtil.h"
 #include "game/scripting/ScriptEventBus.h"
@@ -210,8 +210,7 @@ struct GameSession::Impl {
     bool showPerfOverlay = false;
     int worldLayerPrewarmFramesRemaining = 0;
     std::function<void(const std::string&)> setTitleCallback;
-    bool devPauseWorld = false;
-    int devPauseStepTicks = 0;
+    game::runtime::session_loop_runtime::PauseState pauseState;
 
     static constexpr std::size_t kBackendInventoryVisibleCount = 6;
     runtime::ui_inventory_panel::PanelState backendInventoryPanel;
@@ -1051,104 +1050,79 @@ struct GameSession::Impl {
     }
 
     void handleEvent(const InputEvent& event) {
-        if (event.type == InputEvent::Type::Resize) {
-            viewport.set(event.drawableW, event.drawableH);
-            if (unitSystem) {
-                unitSystem->setScreenSize(
-                    static_cast<unsigned int>(std::max(1, event.drawableW)),
-                    static_cast<unsigned int>(std::max(1, event.drawableH)));
-            }
-        }
-
-        if (event.type == InputEvent::Type::KeyDown && !event.repeat) {
-            if (event.keyId == InputEvent::Key::P) {
-                devPauseWorld = !devPauseWorld;
-                devPauseStepTicks = 0;
-                game::log::info(
-                    &log,
-                    devPauseWorld
-                        ? "[DevPause] ON (P resumes, O steps one frame)"
-                        : "[DevPause] OFF");
-                return;
-            }
-            if (event.keyId == InputEvent::Key::O && devPauseWorld) {
-                devPauseStepTicks = 1;
-                game::log::info(&log, "[DevPause] Step 1 frame");
-                return;
-            }
-            if (event.keyId == InputEvent::Key::F5) {
-                saveDebugStateSnapshot();
-                return;
-            }
-            if (event.keyId == InputEvent::Key::F9) {
-                loadDebugStateSnapshot();
-                return;
-            }
-        }
-
-        bool renderWorldForInput = true;
-        if (stateManager) {
-            if (auto* state = stateManager->getCurrentState()) {
-                renderWorldForInput = state->shouldRenderWorld();
-            }
-        }
-
-        if (event.type == InputEvent::Type::KeyDown &&
-            event.keyId == InputEvent::Key::Escape &&
-            !event.repeat) {
-            if (renderWorldForInput && stateManager) {
-                stateManager->pushState(std::make_unique<ScriptedState>(
-                    stateManager.get(),
-                    gameWorld.get(),
-                    *services,
-                    engine::paths::data("scripts/states/main_menu.lua")
-                ));
-                return;
-            }
-        }
-
-        if (renderWorldForInput &&
-            event.type == InputEvent::Type::KeyDown &&
-            !event.repeat &&
-            runtime::ui_input::isClearSelectionKey(event.keyId)) {
-            if (game::runtime::session_backend_inventory_ui::clearSelection(
-                    backendInventoryUiDependencies())) {
-                return; // consume key so gameplay actions do not fire simultaneously.
-            }
-        }
-
-        if (renderWorldForInput && usesBackendGameUiPath()) {
-            if (game::runtime::session_backend_inventory_ui::handleInput(
-                    backendInventoryPanel,
-                    event,
-                    kBackendInventoryVisibleCount,
-                    backendInventoryUiDependencies())) {
-                return;
-            }
-        }
-        if (renderWorldForInput && cameraSystem) cameraSystem->handleInput(event);
-        if (renderWorldForInput && unitSystem)   unitSystem->handleInput(event);
-        if (stateManager) stateManager->handleInput(event);
+        game::runtime::session_loop_runtime::handleEvent(
+            event,
+            pauseState,
+            {
+                .log = &log,
+                .renderWorldForInput =
+                    game::runtime::session_loop_runtime::renderWorldForInput(stateManager.get()),
+                .usesBackendGameUiPath = usesBackendGameUiPath(),
+                .onResize =
+                    [&](int drawableW, int drawableH) {
+                        viewport.set(drawableW, drawableH);
+                        if (unitSystem) {
+                            unitSystem->setScreenSize(
+                                static_cast<unsigned int>(std::max(1, drawableW)),
+                                static_cast<unsigned int>(std::max(1, drawableH)));
+                        }
+                    },
+                .saveDebugSnapshot = [&]() { saveDebugStateSnapshot(); },
+                .loadDebugSnapshot = [&]() { loadDebugStateSnapshot(); },
+                .openMainMenu =
+                    [&]() {
+                        if (!stateManager) return;
+                        stateManager->pushState(std::make_unique<ScriptedState>(
+                            stateManager.get(),
+                            gameWorld.get(),
+                            *services,
+                            engine::paths::data("scripts/states/main_menu.lua")
+                        ));
+                    },
+                .clearSelection =
+                    [&]() {
+                        return game::runtime::session_backend_inventory_ui::clearSelection(
+                            backendInventoryUiDependencies());
+                    },
+                .handleInventoryInput =
+                    [&](const InputEvent& inputEvent) {
+                        return game::runtime::session_backend_inventory_ui::handleInput(
+                            backendInventoryPanel,
+                            inputEvent,
+                            kBackendInventoryVisibleCount,
+                            backendInventoryUiDependencies());
+                    },
+                .handleCameraInput =
+                    [&](const InputEvent& inputEvent) {
+                        if (cameraSystem) cameraSystem->handleInput(inputEvent);
+                    },
+                .handleUnitInput =
+                    [&](const InputEvent& inputEvent) {
+                        if (unitSystem) unitSystem->handleInput(inputEvent);
+                    },
+                .handleStateInput =
+                    [&](const InputEvent& inputEvent) {
+                        if (stateManager) stateManager->handleInput(inputEvent);
+                    },
+            });
     }
 
     void fixedUpdate(float dt) {
-        if (devPauseWorld && devPauseStepTicks <= 0) {
-            return;
-        }
-        timeSource.advance(dt);
-        if (usesBackendGameRenderPath()) {
-            const auto hydrateStart = std::chrono::high_resolution_clock::now();
-            hydrateBackendUnitAnimationAndScale();
-            if (engineServices) {
-                const auto hydrateEnd = std::chrono::high_resolution_clock::now();
-                engineServices->frameFixedBreakdown.backendHydrateMs += static_cast<float>(
-                    std::chrono::duration<double, std::milli>(hydrateEnd - hydrateStart).count());
-            }
-        }
-        updateGraph.tick(dt);
-        if (devPauseWorld && devPauseStepTicks > 0) {
-            --devPauseStepTicks;
-        }
+        game::runtime::session_loop_runtime::fixedUpdate(
+            dt,
+            pauseState,
+            {
+                .usesBackendGameRenderPath = usesBackendGameRenderPath(),
+                .advanceTime = [&](float deltaTime) { timeSource.advance(deltaTime); },
+                .hydrateBackend = [&]() { hydrateBackendUnitAnimationAndScale(); },
+                .addBackendHydrateMs =
+                    [&](float ms) {
+                        if (engineServices) {
+                            engineServices->frameFixedBreakdown.backendHydrateMs += ms;
+                        }
+                    },
+                .tickUpdateGraph = [&](float deltaTime) { updateGraph.tick(deltaTime); },
+            });
     }
 
     std::size_t renderBackendDebugView(int drawableW,
