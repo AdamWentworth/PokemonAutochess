@@ -5,8 +5,8 @@
 #include <vector>
 
 #include "engine/render/IRenderBackend.h"
-#include "game/runtime/backend_ui/BackendCardRenderer.h"
-#include "game/runtime/backend_ui/BackendUiScale.h"
+#include "game/runtime/backend_ui/CardRenderer.h"
+#include "game/runtime/backend_ui/UiScale.h"
 #include "game/runtime/shared/ui/SharedBackendDebugViewOverlay.h"
 #include "game/runtime/session/SessionBackendRenderHelpers.h"
 
@@ -40,9 +40,9 @@ Summary run(IRenderBackend* renderer,
     textLines.reserve(4096u);
     sprites.reserve(64u);
 
-    const float uiScale = runtime::backend_ui::viewportScale(drawableW, drawableH);
-    const float edgePad = runtime::backend_ui::edgePad(drawableW, drawableH);
-    const float lineStep = runtime::backend_ui::lineStep(drawableW, drawableH);
+    const float uiScale = runtime::ui_scale::viewportScale(drawableW, drawableH);
+    const float edgePad = runtime::ui_scale::edgePad(drawableW, drawableH);
+    const float lineStep = runtime::ui_scale::lineStep(drawableW, drawableH);
     const std::size_t cardCount = std::max<std::size_t>(1u, std::min<std::size_t>(portraitPaths.size(), 5u));
     summary.renderedCardCount = cardCount;
     const float cardW = std::clamp(148.0f * uiScale, 120.0f, 210.0f);
@@ -55,7 +55,7 @@ Summary run(IRenderBackend* renderer,
         64.0f,
         static_cast<float>(drawableH) - cardH - lineStep * 4.5f);
 
-    runtime::backend_text::appendTextLines(
+    runtime::ui_text::appendTextLines(
         textLines,
         edgePad,
         std::max(10.0f, edgePad - lineStep * 0.15f),
@@ -68,7 +68,7 @@ Summary run(IRenderBackend* renderer,
         0.88f);
 
     for (std::size_t i = 0; i < cardCount; ++i) {
-        game::runtime::backend_card_renderer::CardRenderInput input;
+        game::runtime::ui_card_renderer::CardRenderInput input;
         input.x = rowX + static_cast<float>(i) * (cardW + gap);
         input.y = rowY;
         input.w = cardW;
@@ -83,7 +83,7 @@ Summary run(IRenderBackend* renderer,
         input.keyboardSlot = static_cast<int>(i + 1u);
         input.item = true;
         input.textScale = std::clamp(1.0f * uiScale, 0.70f, 1.35f);
-        game::runtime::backend_card_renderer::appendCardLayered(
+        game::runtime::ui_card_renderer::appendCardLayered(
             baseQuads,
             nullptr,
             &sprites,
@@ -98,8 +98,8 @@ Summary run(IRenderBackend* renderer,
                                      float g,
                                      float b) {
         const float textScale = 1.0f * 1.35f * uiScale;
-        const float textW = std::max(1.0f, runtime::backend_text::measureTextWidth(label, textScale));
-        const float textH = std::max(1.0f, runtime::backend_text::measureTextHeight(label, textScale));
+        const float textW = std::max(1.0f, runtime::ui_text::measureTextWidth(label, textScale));
+        const float textH = std::max(1.0f, runtime::ui_text::measureTextHeight(label, textScale));
         const float padX = std::max(8.0f, textScale * 4.0f);
         const float padY = std::max(5.0f, textScale * 2.5f);
 
@@ -114,7 +114,7 @@ Summary run(IRenderBackend* renderer,
         bg.a = 0.92f;
         baseQuads.push_back(bg);
 
-        runtime::backend_text::appendTextLines(
+        runtime::ui_text::appendTextLines(
             textLines,
             x,
             y,
@@ -153,4 +153,6 @@ Summary run(IRenderBackend* renderer,
 }
 
 } // namespace game::runtime::backend_card_ui_prewarm
+
+
 

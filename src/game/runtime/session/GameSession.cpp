@@ -45,14 +45,14 @@
 #include "game/runtime/routes/BackendRenderPolicy.h"
 #include "game/runtime/routes/RenderFlowDecisions.h"
 #include "game/runtime/routes/StartupRenderRoutePolicy.h"
-#include "game/runtime/backend_ui/BackendDebugText.h"
+#include "game/runtime/backend_ui/DebugText.h"
 #include "game/runtime/routes/GameServiceRenderRoutes.h"
-#include "game/runtime/backend_ui/BackendInventoryOverlay.h"
-#include "game/runtime/backend_ui/BackendInventoryPanel.h"
-#include "game/runtime/backend_ui/BackendInputSlots.h"
-#include "game/runtime/backend_ui/BackendStatusText.h"
-#include "game/runtime/backend_ui/BackendUiScale.h"
-#include "game/runtime/backend_ui/BackendHudFormatting.h"
+#include "game/runtime/backend_ui/InventoryOverlay.h"
+#include "game/runtime/backend_ui/InventoryPanel.h"
+#include "game/runtime/backend_ui/InputSlots.h"
+#include "game/runtime/backend_ui/StatusText.h"
+#include "game/runtime/backend_ui/UiScale.h"
+#include "game/runtime/backend_ui/HudFormatting.h"
 #include "game/runtime/render_prep/WorldProjection.h"
 #include "game/runtime/render_prep/WorldProxyGeometry.h"
 #include "game/runtime/backend_model_cache/BackendModelCache.h"
@@ -215,7 +215,7 @@ struct GameSession::Impl {
     int devPauseStepTicks = 0;
 
     static constexpr std::size_t kBackendInventoryVisibleCount = 6;
-    runtime::backend_inventory_panel::PanelState backendInventoryPanel;
+    runtime::ui_inventory_panel::PanelState backendInventoryPanel;
     struct BackendMeshCacheEntry {
         bool attemptedLoad = false;
         bool reportedFailure = false;
@@ -1320,7 +1320,7 @@ struct GameSession::Impl {
         if (renderWorldForInput &&
             event.type == InputEvent::Type::KeyDown &&
             !event.repeat &&
-            runtime::backend_input::isClearSelectionKey(event.keyId)) {
+            runtime::ui_input::isClearSelectionKey(event.keyId)) {
             if (game::runtime::session_backend_inventory_ui::clearSelection(
                     backendInventoryUiDependencies())) {
                 return; // consume key so gameplay actions do not fire simultaneously.
@@ -1371,7 +1371,7 @@ struct GameSession::Impl {
         const bool useLegacyGrowlWaveVfx = game::runtime::session_render_config::backendUseLegacyGrowlWaveVfxEnabled();
         const bool useLegacyParticleVfxSnapshotBridge = game::runtime::session_render_config::backendUseLegacyParticleVfxSnapshotBridgeEnabled();
 
-        runtime::backend_inventory_panel::clearHitRegions(backendInventoryPanel);
+        runtime::ui_inventory_panel::clearHitRegions(backendInventoryPanel);
 
         using WorldIndexedBatch = runtime::shared_world_batches::WorldIndexedBatch;
         struct BackendUnitLabel {
@@ -1496,9 +1496,9 @@ struct GameSession::Impl {
         const int rows = std::max(1, config.rows);
         const int cols = std::max(1, config.cols);
         const float minDim = static_cast<float>(std::min(drawableW, drawableH));
-        const float uiScale = runtime::backend_ui::viewportScale(drawableW, drawableH);
-        const float edgePad = runtime::backend_ui::edgePad(drawableW, drawableH);
-        const float lineStep = runtime::backend_ui::lineStep(drawableW, drawableH);
+        const float uiScale = runtime::ui_scale::viewportScale(drawableW, drawableH);
+        const float edgePad = runtime::ui_scale::edgePad(drawableW, drawableH);
+        const float lineStep = runtime::ui_scale::lineStep(drawableW, drawableH);
         const float boardW = std::max(240.0f, minDim * 0.78f);
         const float boardH = std::max(180.0f, minDim * 0.58f);
         const float boardX = (static_cast<float>(drawableW) - boardW) * 0.5f;
@@ -2249,6 +2249,8 @@ void GameSession::render(int drawableW, int drawableH) { impl_->render(drawableW
 void GameSession::shutdown() { impl_->shutdown(); }
 
 } // namespace game
+
+
 
 
 

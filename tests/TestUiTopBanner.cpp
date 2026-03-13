@@ -1,9 +1,9 @@
-#include "game/runtime/backend_ui/BackendTopBanner.h"
+#include "game/runtime/backend_ui/TopBanner.h"
 
 #include <string>
 #include <vector>
 
-bool test_backend_top_banner_contract(std::string& outFail) {
+bool test_ui_top_banner_contract(std::string& outFail) {
     using game::runtime::top_banner::Style;
     using game::runtime::top_banner::appendBackendBanner;
     using game::runtime::top_banner::computeLayout;
@@ -44,5 +44,7 @@ bool test_backend_top_banner_contract(std::string& outFail) {
 
     return true;
 }
+
+
 
 

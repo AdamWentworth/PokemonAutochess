@@ -1,12 +1,12 @@
 #pragma once
 
 #include "game/PhaseState.h"
-#include "game/runtime/backend_ui/BackendHudFormatting.h"
+#include "game/runtime/backend_ui/HudFormatting.h"
 
 #include <algorithm>
 #include <string>
 
-namespace game::runtime::backend_status_text {
+namespace game::runtime::ui_status_text {
 
 inline std::string roundPhaseLabel(RoundPhase phase) {
     switch (phase) {
@@ -43,6 +43,8 @@ inline std::string selectedItemLine(const std::string& itemId) {
     return "Selected item: " + hud::humanizeToken(itemId);
 }
 
-} // namespace game::runtime::backend_status_text
+} // namespace game::runtime::ui_status_text
+
+
 
 

@@ -2,14 +2,14 @@
 
 #include "engine/render/IRenderBackend.h"
 #include "engine/ui/Card.h"
-#include "game/runtime/backend_ui/BackendCardVisuals.h"
+#include "game/runtime/backend_ui/CardVisuals.h"
 
 #include <string>
 #include <unordered_set>
 #include <utility>
 #include <vector>
 
-namespace game::runtime::backend_card_renderer {
+namespace game::runtime::ui_card_renderer {
 
 struct CardRenderInput {
     float x = 0.0f;
@@ -32,7 +32,7 @@ struct CardRenderInput {
 
 inline std::string resolveCardImagePath(const CardData& card, bool forceItemRow = false) {
     const bool itemCard = forceItemRow || card.type == CardType::Item;
-    return runtime::backend_cards::resolveCardImagePath(
+    return runtime::ui_cards::resolveCardImagePath(
         card.imagePath,
         card.pokemonName.empty() ? card.label : card.pokemonName,
         itemCard);
@@ -79,7 +79,7 @@ inline void appendCardLayered(std::vector<IRenderBackend::DebugQuad>& baseQuads,
                               std::vector<IRenderBackend::DebugSprite>* sprites,
                               const CardRenderInput& input,
                               std::vector<IRenderBackend::DebugLine>* textLines = nullptr) {
-    runtime::backend_cards::CardVisualInput visual;
+    runtime::ui_cards::CardVisualInput visual;
     visual.x = input.x;
     visual.y = input.y;
     visual.w = input.w;
@@ -88,15 +88,15 @@ inline void appendCardLayered(std::vector<IRenderBackend::DebugQuad>& baseQuads,
     visual.subtitle = input.subtitle;
     visual.keyboardSlot = input.keyboardSlot;
     visual.item = input.item;
-    runtime::backend_cards::appendStylizedCardLayered(baseQuads, textQuads, visual, input.textScale, textLines);
+    runtime::ui_cards::appendStylizedCardLayered(baseQuads, textQuads, visual, input.textScale, textLines);
 
     if (!sprites) return;
-    const std::string imagePath = runtime::backend_cards::resolveCardImagePath(
+    const std::string imagePath = runtime::ui_cards::resolveCardImagePath(
         input.explicitImagePath,
         input.speciesName.empty() ? input.displayName : input.speciesName,
         input.item);
     IRenderBackend::DebugSprite sprite =
-        runtime::backend_cards::makeCardArtSprite(
+        runtime::ui_cards::makeCardArtSprite(
             visual,
             imagePath,
             input.spriteAlpha,
@@ -109,7 +109,7 @@ inline void appendCardLayered(std::vector<IRenderBackend::DebugQuad>& baseQuads,
     }
 
     IRenderBackend::DebugSprite frameSprite =
-        runtime::backend_cards::makeCardFrameSprite(visual, 1.0f);
+        runtime::ui_cards::makeCardFrameSprite(visual, 1.0f);
     if (!frameSprite.texturePath.empty()) {
         sprites->push_back(std::move(frameSprite));
     }
@@ -121,5 +121,7 @@ inline void appendCard(std::vector<IRenderBackend::DebugQuad>& quads,
     appendCardLayered(quads, &quads, sprites, input);
 }
 
-} // namespace game::runtime::backend_card_renderer
+} // namespace game::runtime::ui_card_renderer
+
+
 

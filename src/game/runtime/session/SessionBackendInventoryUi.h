@@ -6,7 +6,7 @@
 #include <vector>
 
 #include "engine/input/InputEvent.h"
-#include "game/runtime/backend_ui/BackendInventoryPanel.h"
+#include "game/runtime/backend_ui/InventoryPanel.h"
 
 namespace game::runtime::session_backend_inventory_ui {
 
@@ -19,17 +19,19 @@ struct Dependencies {
 
 bool selectItem(const std::string& itemId, const Dependencies& deps);
 bool clearSelection(const Dependencies& deps);
-void refreshPanel(backend_inventory_panel::PanelState& panel,
+void refreshPanel(ui_inventory_panel::PanelState& panel,
                   std::size_t visibleCount,
                   const Dependencies& deps);
-bool applyOffsetDelta(backend_inventory_panel::PanelState& panel,
+bool applyOffsetDelta(ui_inventory_panel::PanelState& panel,
                       int delta,
                       std::size_t visibleCount,
                       const Dependencies& deps);
-bool handleInput(backend_inventory_panel::PanelState& panel,
+bool handleInput(ui_inventory_panel::PanelState& panel,
                  const InputEvent& event,
                  std::size_t visibleCount,
                  const Dependencies& deps);
 
 } // namespace game::runtime::session_backend_inventory_ui
+
+
 

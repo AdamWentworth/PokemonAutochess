@@ -1,10 +1,10 @@
-#include "game/runtime/backend_ui/BackendHudFormatting.h"
+#include "game/runtime/backend_ui/HudFormatting.h"
 
 #include <string>
 #include <utility>
 #include <vector>
 
-bool test_backend_hud_formatting_contract(std::string& outFail) {
+bool test_ui_hud_formatting_contract(std::string& outFail) {
     using game::runtime::hud::formatInventoryEntry;
     using game::runtime::hud::formatShopCardEntry;
     using game::runtime::hud::formatTypeLineEntry;
@@ -110,4 +110,6 @@ bool test_backend_hud_formatting_contract(std::string& outFail) {
 
     return true;
 }
+
+
 

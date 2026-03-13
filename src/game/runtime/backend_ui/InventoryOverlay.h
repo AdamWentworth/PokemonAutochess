@@ -1,12 +1,12 @@
 #pragma once
 
-#include "game/runtime/backend_ui/BackendHudFormatting.h"
+#include "game/runtime/backend_ui/HudFormatting.h"
 
 #include <cstddef>
 #include <string>
 #include <vector>
 
-namespace game::runtime::backend_inventory {
+namespace game::runtime::ui_inventory {
 
 struct OverlayRow {
     std::string itemId;
@@ -89,6 +89,8 @@ inline std::string hintLabel() {
     return "Wheel scroll, arrows page, 1-9 select, 0 clear";
 }
 
-} // namespace game::runtime::backend_inventory
+} // namespace game::runtime::ui_inventory
+
+
 
 

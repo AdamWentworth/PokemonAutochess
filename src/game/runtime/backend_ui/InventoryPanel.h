@@ -1,14 +1,14 @@
 #pragma once
 
-#include "game/runtime/backend_ui/BackendHudFormatting.h"
-#include "game/runtime/backend_ui/BackendInventoryOverlay.h"
+#include "game/runtime/backend_ui/HudFormatting.h"
+#include "game/runtime/backend_ui/InventoryOverlay.h"
 
 #include <optional>
 #include <string>
 #include <utility>
 #include <vector>
 
-namespace game::runtime::backend_inventory_panel {
+namespace game::runtime::ui_inventory_panel {
 
 enum class HitAction {
     SelectItem,
@@ -29,7 +29,7 @@ struct HitRegion {
 struct PanelState {
     int offset = 0;
     std::vector<hud::InventoryEntry> allEntries;
-    backend_inventory::OverlayModel model;
+    ui_inventory::OverlayModel model;
     std::vector<HitRegion> hitRegions;
 };
 
@@ -48,7 +48,7 @@ inline void refreshPanelState(PanelState& panel,
                               std::size_t visibleCount,
                               const std::string& selectedItem) {
     panel.allEntries = hud::normalizeInventoryEntries(rawItems, 0);
-    panel.model = backend_inventory::buildOverlayModel(
+    panel.model = ui_inventory::buildOverlayModel(
         panel.allEntries,
         panel.offset,
         visibleCount,
@@ -70,7 +70,7 @@ inline bool applyOffsetDelta(PanelState& panel,
     if (nextOffset == panel.offset) return false;
 
     panel.offset = nextOffset;
-    panel.model = backend_inventory::buildOverlayModel(
+    panel.model = ui_inventory::buildOverlayModel(
         panel.allEntries,
         panel.offset,
         visibleCount,
@@ -96,6 +96,9 @@ inline const HitRegion* findHit(const PanelState& panel, float x, float y) {
     return nullptr;
 }
 
-} // namespace game::runtime::backend_inventory_panel
+} // namespace game::runtime::ui_inventory_panel
+
+
+
 
 

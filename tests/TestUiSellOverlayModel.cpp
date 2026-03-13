@@ -1,10 +1,10 @@
-#include "game/runtime/backend_ui/BackendSellOverlayModel.h"
+#include "game/runtime/backend_ui/SellOverlayModel.h"
 #include "game/ui/SellOverlayUiPolicy.h"
 
 #include <string>
 
-bool test_backend_sell_overlay_model_contract(std::string& outFail) {
-    using game::runtime::backend_sell_overlay::buildModel;
+bool test_ui_sell_overlay_model_contract(std::string& outFail) {
+    using game::runtime::ui_sell_overlay::buildModel;
 
     const auto hidden = buildModel(false, 1280, 720, 3, false, true);
     if (hidden.visible) {
@@ -56,4 +56,6 @@ bool test_backend_sell_overlay_model_contract(std::string& outFail) {
 
     return true;
 }
+
+
 

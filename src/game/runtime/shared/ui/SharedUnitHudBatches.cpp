@@ -1,6 +1,6 @@
 #include "game/runtime/shared/ui/SharedUnitHudBatches.h"
 
-#include "game/runtime/backend_ui/BackendDebugText.h"
+#include "game/runtime/backend_ui/DebugText.h"
 
 #include <algorithm>
 #include <cmath>
@@ -156,19 +156,19 @@ void appendLegacyUnitHud(std::vector<IRenderBackend::DebugQuad>& worldQuads,
     }
 
     const std::string levelText = std::to_string(std::max(1, unit.level));
-    const float baseLevelH = std::max(1.0f, runtime::backend_text::measureTextHeight(levelText, 1.0f));
+    const float baseLevelH = std::max(1.0f, runtime::ui_text::measureTextHeight(levelText, 1.0f));
     const float levelScale = std::clamp((ringInner * 1.55f) / baseLevelH, 0.72f, 1.05f);
-    const runtime::backend_text::TextBounds levelBounds =
-        runtime::backend_text::measureTextBounds(levelText, levelScale);
+    const runtime::ui_text::TextBounds levelBounds =
+        runtime::ui_text::measureTextBounds(levelText, levelScale);
     const float levelCenterOffsetX = levelBounds.valid
         ? (levelBounds.minX + levelBounds.maxX) * 0.5f
-        : (std::max(1.0f, runtime::backend_text::measureTextWidth(levelText, levelScale)) * 0.5f);
+        : (std::max(1.0f, runtime::ui_text::measureTextWidth(levelText, levelScale)) * 0.5f);
     const float levelCenterOffsetY = levelBounds.valid
         ? (levelBounds.minY + levelBounds.maxY) * 0.5f
-        : (std::max(1.0f, runtime::backend_text::measureTextHeight(levelText, levelScale)) * 0.5f);
+        : (std::max(1.0f, runtime::ui_text::measureTextHeight(levelText, levelScale)) * 0.5f);
     const float textX = levelCenter.x - levelCenterOffsetX;
     const float textY = levelCenter.y - levelCenterOffsetY;
-    runtime::backend_text::appendTextLines(
+    runtime::ui_text::appendTextLines(
         textLines,
         textX,
         textY,
@@ -182,5 +182,7 @@ void appendLegacyUnitHud(std::vector<IRenderBackend::DebugQuad>& worldQuads,
 }
 
 } // namespace game::runtime::shared_unit_hud
+
+
 
 

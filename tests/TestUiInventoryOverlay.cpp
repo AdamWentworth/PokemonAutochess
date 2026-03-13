@@ -1,18 +1,18 @@
-#include "game/runtime/backend_ui/BackendInventoryOverlay.h"
+#include "game/runtime/backend_ui/InventoryOverlay.h"
 
 #include <string>
 #include <vector>
 
-bool test_backend_inventory_overlay_contract(std::string& outFail) {
-    using game::runtime::backend_inventory::OverlayModel;
-    using game::runtime::backend_inventory::buildOverlayModel;
-    using game::runtime::backend_inventory::canScrollNext;
-    using game::runtime::backend_inventory::canScrollPrev;
-    using game::runtime::backend_inventory::clearSelectionLabel;
-    using game::runtime::backend_inventory::hintLabel;
-    using game::runtime::backend_inventory::makeTitleLabel;
-    using game::runtime::backend_inventory::nextPageLabel;
-    using game::runtime::backend_inventory::prevPageLabel;
+bool test_ui_inventory_overlay_contract(std::string& outFail) {
+    using game::runtime::ui_inventory::OverlayModel;
+    using game::runtime::ui_inventory::buildOverlayModel;
+    using game::runtime::ui_inventory::canScrollNext;
+    using game::runtime::ui_inventory::canScrollPrev;
+    using game::runtime::ui_inventory::clearSelectionLabel;
+    using game::runtime::ui_inventory::hintLabel;
+    using game::runtime::ui_inventory::makeTitleLabel;
+    using game::runtime::ui_inventory::nextPageLabel;
+    using game::runtime::ui_inventory::prevPageLabel;
     using game::runtime::hud::InventoryEntry;
 
     const std::vector<InventoryEntry> all = {
@@ -104,5 +104,7 @@ bool test_backend_inventory_overlay_contract(std::string& outFail) {
 
     return true;
 }
+
+
 
 

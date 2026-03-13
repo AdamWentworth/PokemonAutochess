@@ -2,15 +2,15 @@
 
 #include "engine/render/IRenderBackend.h"
 #include "engine/render/SpriteTextureCardArt.h"
-#include "game/runtime/backend_ui/BackendDebugText.h"
-#include "game/runtime/backend_ui/BackendImagePath.h"
+#include "game/runtime/backend_ui/DebugText.h"
+#include "game/runtime/backend_ui/ImagePath.h"
 
 #include <algorithm>
 #include <cstdint>
 #include <string>
 #include <vector>
 
-namespace game::runtime::backend_cards {
+namespace game::runtime::ui_cards {
 
 struct CardVisualInput {
     float x = 0.0f;
@@ -47,7 +47,7 @@ inline std::string resolveCardImagePath(const std::string& explicitImagePath,
         return explicitImagePath;
     }
     const std::string fallback = "assets/images/item_placeholder.png";
-    const std::string resolved = runtime::backend_images::resolvePokemonPortraitPath(
+    const std::string resolved = runtime::ui_images::resolvePokemonPortraitPath(
         explicitImagePath,
         cardName,
         fallback);
@@ -190,12 +190,12 @@ inline void appendStylizedCardLayered(std::vector<IRenderBackend::DebugQuad>& ba
                                 float a) {
         if (text.empty()) return;
         if (textLines) {
-            runtime::backend_text::appendTextLines(
+            runtime::ui_text::appendTextLines(
                 *textLines, x, y, text, scale, r, g, b, a, 0.88f);
             return;
         }
         if (textQuads) {
-            runtime::backend_text::appendTextQuads(
+            runtime::ui_text::appendTextQuads(
                 *textQuads, x, y, text, scale, r, g, b, a);
         }
     };
@@ -210,7 +210,7 @@ inline void appendStylizedCardLayered(std::vector<IRenderBackend::DebugQuad>& ba
 
     if (!input.title.empty()) {
         const float labelScale = std::max(0.1f, textScale * 0.80f);
-        const float labelW = runtime::backend_text::measureTextWidth(input.title, labelScale);
+        const float labelW = runtime::ui_text::measureTextWidth(input.title, labelScale);
         const float x = input.x + (input.w - labelW) * 0.5f;
         const float y = input.y + input.h + 6.0f;
         appendText(x, y, input.title, labelScale, 1.0f, 1.0f, 1.0f, 1.0f);
@@ -223,5 +223,7 @@ inline void appendStylizedCard(std::vector<IRenderBackend::DebugQuad>& quads,
     appendStylizedCardLayered(quads, &quads, input, textScale);
 }
 
-} // namespace game::runtime::backend_cards
+} // namespace game::runtime::ui_cards
+
+
 

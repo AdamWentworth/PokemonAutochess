@@ -8,7 +8,7 @@
 
 #include <stb_easy_font.h>
 
-namespace game::runtime::backend_text {
+namespace game::runtime::ui_text {
 
 struct EasyFontVertex {
     float x = 0.0f;
@@ -239,6 +239,7 @@ inline void appendTextLines(std::vector<IRenderBackend::DebugLine>& out,
     }
 }
 
-} // namespace game::runtime::backend_text
+} // namespace game::runtime::ui_text
+
 
 

@@ -6,7 +6,7 @@
 #include <cmath>
 #include <string>
 
-namespace game::runtime::backend_shop_hud {
+namespace game::runtime::ui_shop_hud {
 
 inline std::string keyboardPrefixedLabel(int slot, const std::string& label) {
     if (slot > 0 && slot <= 9) {
@@ -68,5 +68,6 @@ inline game::ui::ClassicHudLayout computeLayout(const LayoutInput& in) {
     return game::ui::computeClassicHudLayout(hudIn);
 }
 
-} // namespace game::runtime::backend_shop_hud
+} // namespace game::runtime::ui_shop_hud
+
 

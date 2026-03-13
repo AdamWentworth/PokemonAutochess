@@ -5,9 +5,9 @@
 #include "game/runtime/session/SessionBackendInventoryUi.h"
 
 bool test_session_backend_inventory_ui_contract(std::string& outFail) {
-    using game::runtime::backend_inventory_panel::HitAction;
-    using game::runtime::backend_inventory_panel::HitRegion;
-    using game::runtime::backend_inventory_panel::PanelState;
+    using game::runtime::ui_inventory_panel::HitAction;
+    using game::runtime::ui_inventory_panel::HitRegion;
+    using game::runtime::ui_inventory_panel::PanelState;
     using game::runtime::session_backend_inventory_ui::Dependencies;
 
     std::vector<std::pair<std::string, int>> items{
@@ -31,7 +31,7 @@ bool test_session_backend_inventory_ui_contract(std::string& outFail) {
         outFail = "SessionBackendInventoryUi should build the visible panel window from world items.";
         return false;
     }
-    const auto visibleSlot2 = game::runtime::backend_inventory_panel::visibleItemForSlot(panel, 2);
+    const auto visibleSlot2 = game::runtime::ui_inventory_panel::visibleItemForSlot(panel, 2);
     if (!visibleSlot2) {
         outFail = "SessionBackendInventoryUi test setup expected a visible item in slot 2.";
         return false;
@@ -81,3 +81,4 @@ bool test_session_backend_inventory_ui_contract(std::string& outFail) {
 
     return true;
 }
+

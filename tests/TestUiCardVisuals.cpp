@@ -1,18 +1,18 @@
-#include "game/runtime/backend_ui/BackendCardVisuals.h"
+#include "game/runtime/backend_ui/CardVisuals.h"
 #include "engine/render/SpriteTextureCardArt.h"
 
 #include <string>
 #include <vector>
 
-bool test_backend_card_visuals_contract(std::string& outFail) {
-    using game::runtime::backend_cards::CardVisualInput;
-    using game::runtime::backend_cards::appendStylizedCard;
-    using game::runtime::backend_cards::appendStylizedCardLayered;
-    using game::runtime::backend_cards::computeCardVisualLayout;
-    using game::runtime::backend_cards::fnv1aHash;
-    using game::runtime::backend_cards::makeCardArtSprite;
-    using game::runtime::backend_cards::makeCardFrameSprite;
-    using game::runtime::backend_cards::resolveCardImagePath;
+bool test_ui_card_visuals_contract(std::string& outFail) {
+    using game::runtime::ui_cards::CardVisualInput;
+    using game::runtime::ui_cards::appendStylizedCard;
+    using game::runtime::ui_cards::appendStylizedCardLayered;
+    using game::runtime::ui_cards::computeCardVisualLayout;
+    using game::runtime::ui_cards::fnv1aHash;
+    using game::runtime::ui_cards::makeCardArtSprite;
+    using game::runtime::ui_cards::makeCardFrameSprite;
+    using game::runtime::ui_cards::resolveCardImagePath;
     using engine::render::sprite_card_art::isProxyPath;
     using engine::render::sprite_card_art::sourcePathFromProxy;
 
@@ -196,4 +196,6 @@ bool test_backend_card_visuals_contract(std::string& outFail) {
 
     return true;
 }
+
+
 

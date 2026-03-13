@@ -1,4 +1,4 @@
-#include "game/runtime/backend_ui/BackendUiScale.h"
+#include "game/runtime/backend_ui/UiScale.h"
 
 #include <cmath>
 #include <string>
@@ -11,11 +11,11 @@ bool approx(float a, float b, float eps = 0.001f) {
 
 } // namespace
 
-bool test_backend_ui_scale_contract(std::string& outFail) {
-    using game::runtime::backend_ui::edgePad;
-    using game::runtime::backend_ui::lineStep;
-    using game::runtime::backend_ui::scaled;
-    using game::runtime::backend_ui::viewportScale;
+bool test_ui_scale_contract(std::string& outFail) {
+    using game::runtime::ui_scale::edgePad;
+    using game::runtime::ui_scale::lineStep;
+    using game::runtime::ui_scale::scaled;
+    using game::runtime::ui_scale::viewportScale;
 
     if (!approx(viewportScale(1280, 720), 1.0f)) {
         outFail = "viewportScale should be 1.0 at 1280x720 baseline";
@@ -54,5 +54,7 @@ bool test_backend_ui_scale_contract(std::string& outFail) {
 
     return true;
 }
+
+
 
 

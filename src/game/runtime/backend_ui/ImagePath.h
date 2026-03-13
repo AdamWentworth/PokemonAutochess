@@ -6,7 +6,7 @@
 #include <string>
 #include <unordered_map>
 
-namespace game::runtime::backend_images {
+namespace game::runtime::ui_images {
 
 inline bool fileExists(const std::string& path) {
     if (path.empty()) return false;
@@ -104,4 +104,5 @@ inline std::string resolvePokemonPortraitPath(const std::string& explicitImagePa
     return resolved;
 }
 
-} // namespace game::runtime::backend_images
+} // namespace game::runtime::ui_images
+

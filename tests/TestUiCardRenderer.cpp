@@ -1,16 +1,16 @@
-#include "game/runtime/backend_ui/BackendCardRenderer.h"
+#include "game/runtime/backend_ui/CardRenderer.h"
 #include "engine/render/SpriteTextureCardArt.h"
 
 #include <string>
 #include <vector>
 
-bool test_backend_card_renderer_contract(std::string& outFail) {
+bool test_ui_card_renderer_contract(std::string& outFail) {
     using engine::render::sprite_card_art::isProxyPath;
     using engine::render::sprite_card_art::sourcePathFromProxy;
     std::vector<IRenderBackend::DebugQuad> quads;
     std::vector<IRenderBackend::DebugSprite> sprites;
 
-    game::runtime::backend_card_renderer::CardRenderInput in;
+    game::runtime::ui_card_renderer::CardRenderInput in;
     in.x = 24.0f;
     in.y = 32.0f;
     in.w = 220.0f;
@@ -25,7 +25,7 @@ bool test_backend_card_renderer_contract(std::string& outFail) {
     in.v1 = 0.90f;
     in.keyboardSlot = 1;
 
-    game::runtime::backend_card_renderer::appendCard(quads, &sprites, in);
+    game::runtime::ui_card_renderer::appendCard(quads, &sprites, in);
 
     if (quads.empty()) {
         outFail = "appendCard should emit visual quads";
@@ -62,7 +62,7 @@ bool test_backend_card_renderer_contract(std::string& outFail) {
         std::vector<IRenderBackend::DebugQuad> textQuads;
         std::vector<IRenderBackend::DebugLine> textLines;
         std::vector<IRenderBackend::DebugSprite> layeredSprites;
-        game::runtime::backend_card_renderer::appendCardLayered(
+        game::runtime::ui_card_renderer::appendCardLayered(
             baseQuads,
             &textQuads,
             &layeredSprites,
@@ -90,7 +90,7 @@ bool test_backend_card_renderer_contract(std::string& outFail) {
         std::vector<IRenderBackend::DebugQuad> baseQuads;
         std::vector<IRenderBackend::DebugLine> textLines;
         std::vector<IRenderBackend::DebugSprite> layeredSprites;
-        game::runtime::backend_card_renderer::appendCardLayered(
+        game::runtime::ui_card_renderer::appendCardLayered(
             baseQuads,
             nullptr,
             &layeredSprites,
@@ -112,4 +112,6 @@ bool test_backend_card_renderer_contract(std::string& outFail) {
 
     return true;
 }
+
+
 

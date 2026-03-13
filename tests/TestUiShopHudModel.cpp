@@ -1,17 +1,17 @@
-#include "game/runtime/backend_ui/BackendShopHudModel.h"
+#include "game/runtime/backend_ui/ShopHudModel.h"
 
 #include <string>
 
-bool test_backend_shop_hud_model_contract(std::string& outFail) {
-    using game::runtime::backend_shop_hud::LayoutInput;
-    using game::runtime::backend_shop_hud::cardsAnchorH;
-    using game::runtime::backend_shop_hud::cardsAnchorX;
-    using game::runtime::backend_shop_hud::cardsAnchorY;
-    using game::runtime::backend_shop_hud::computeLayout;
-    using game::runtime::backend_shop_hud::interactionHint;
-    using game::runtime::backend_shop_hud::keyboardPrefixedLabel;
-    using game::runtime::backend_shop_hud::moneyLabel;
-    using game::runtime::backend_shop_hud::rerollLabel;
+bool test_ui_shop_hud_model_contract(std::string& outFail) {
+    using game::runtime::ui_shop_hud::LayoutInput;
+    using game::runtime::ui_shop_hud::cardsAnchorH;
+    using game::runtime::ui_shop_hud::cardsAnchorX;
+    using game::runtime::ui_shop_hud::cardsAnchorY;
+    using game::runtime::ui_shop_hud::computeLayout;
+    using game::runtime::ui_shop_hud::interactionHint;
+    using game::runtime::ui_shop_hud::keyboardPrefixedLabel;
+    using game::runtime::ui_shop_hud::moneyLabel;
+    using game::runtime::ui_shop_hud::rerollLabel;
 
     if (keyboardPrefixedLabel(1, "Ready") != "[1] Ready") {
         outFail = "keyboard label prefix mismatch";
@@ -78,5 +78,7 @@ bool test_backend_shop_hud_model_contract(std::string& outFail) {
 
     return true;
 }
+
+
 
 

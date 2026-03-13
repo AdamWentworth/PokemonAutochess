@@ -29,6 +29,7 @@ Use this file to find ownership quickly when working on parity/performance tasks
   - session-side adapter between world inventory state and backend UI controls
 - `src/game/runtime/backend_ui/*.h`
   - backend menu, HUD, card, inventory, text, and scaling helpers used by game-side UI presentation
+  - examples: `CardRenderer.h`, `CardVisuals.h`, `DebugText.h`, `InventoryPanel.h`, `StatusText.h`, `UiScale.h`
   - game-facing backend presentation utilities, distinct from render API backends under `src/engine/render/*`
 - `src/game/runtime/render_prep/*.h`
   - API-agnostic render-prep helpers shared by `GameSession`, backend model cache decode, and the shared projected path

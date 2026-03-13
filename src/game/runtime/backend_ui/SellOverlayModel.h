@@ -3,7 +3,7 @@
 #include "game/ui/ShopLayout.h"
 #include "game/ui/SellOverlayUiPolicy.h"
 
-namespace game::runtime::backend_sell_overlay {
+namespace game::runtime::ui_sell_overlay {
 
 struct Model {
     bool visible = false;
@@ -36,5 +36,6 @@ inline Model buildModel(bool showOverlay,
     return out;
 }
 
-} // namespace game::runtime::backend_sell_overlay
+} // namespace game::runtime::ui_sell_overlay
+
 

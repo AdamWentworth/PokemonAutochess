@@ -5,7 +5,7 @@
 #include <algorithm>
 #include <cstddef>
 
-namespace game::runtime::backend_input {
+namespace game::runtime::ui_input {
 
 inline int slotFromNumberKey(InputEvent::Key keyId) {
     switch (keyId) {
@@ -46,4 +46,5 @@ inline int inventoryOffsetDeltaFromKey(InputEvent::Key keyId, int pageSize) {
     }
 }
 
-} // namespace game::runtime::backend_input
+} // namespace game::runtime::ui_input
+

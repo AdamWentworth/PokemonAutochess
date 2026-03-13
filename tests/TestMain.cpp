@@ -27,9 +27,9 @@ bool test_backend_render_policy_contract(std::string& outFail);
 bool test_renderer_parity_contract_baseline(std::string& outFail);
 bool test_renderer_parity_contract_detects_drift(std::string& outFail);
 bool test_debug_geometry_line_raster_contract(std::string& outFail);
-bool test_backend_hud_formatting_contract(std::string& outFail);
-bool test_backend_debug_text_quads_contract(std::string& outFail);
-bool test_backend_image_path_contract(std::string& outFail);
+bool test_ui_hud_formatting_contract(std::string& outFail);
+bool test_ui_debug_text_quads_contract(std::string& outFail);
+bool test_ui_image_path_contract(std::string& outFail);
 bool test_render_prep_material_shading_contract(std::string& outFail);
 bool test_render_prep_mesh_normals_contract(std::string& outFail);
 bool test_render_prep_procedural_pose_contract(std::string& outFail);
@@ -38,20 +38,20 @@ bool test_render_prep_world_projection_contract(std::string& outFail);
 bool test_render_prep_world_proxy_geometry_contract(std::string& outFail);
 bool test_render_prep_unit_visuals_contract(std::string& outFail);
 bool test_shared_projected_world_scene_helpers_contract(std::string& outFail);
-bool test_backend_inventory_overlay_contract(std::string& outFail);
-bool test_backend_inventory_panel_contract(std::string& outFail);
+bool test_ui_inventory_overlay_contract(std::string& outFail);
+bool test_ui_inventory_panel_contract(std::string& outFail);
 bool test_backend_card_layout_model_contract(std::string& outFail);
-bool test_backend_card_visuals_contract(std::string& outFail);
-bool test_backend_card_renderer_contract(std::string& outFail);
-bool test_backend_shop_hud_model_contract(std::string& outFail);
-bool test_backend_sell_overlay_model_contract(std::string& outFail);
-bool test_backend_status_text_contract(std::string& outFail);
-bool test_backend_ui_scale_contract(std::string& outFail);
-bool test_backend_top_banner_contract(std::string& outFail);
+bool test_ui_card_visuals_contract(std::string& outFail);
+bool test_ui_card_renderer_contract(std::string& outFail);
+bool test_ui_shop_hud_model_contract(std::string& outFail);
+bool test_ui_sell_overlay_model_contract(std::string& outFail);
+bool test_ui_status_text_contract(std::string& outFail);
+bool test_ui_scale_contract(std::string& outFail);
+bool test_ui_top_banner_contract(std::string& outFail);
 bool test_backend_ui_sell_overlay_policy(std::string& outFail);
 bool test_backend_shop_snapshot_contract(std::string& outFail);
 bool test_shop_card_conversion_contract(std::string& outFail);
-bool test_backend_input_slots_contract(std::string& outFail);
+bool test_ui_input_slots_contract(std::string& outFail);
 bool test_sell_overlay_ui_policy_contract(std::string& outFail);
 bool test_video_init_gl_viewport_guard(std::string& outFail);
 bool test_video_preferences_parse_and_roundtrip(std::string& outFail);
@@ -223,9 +223,9 @@ int main(int argc, char** argv) {
         {"renderer_parity_contract_baseline", &test_renderer_parity_contract_baseline},
         {"renderer_parity_contract_detects_drift", &test_renderer_parity_contract_detects_drift},
         {"debug_geometry_line_raster_contract", &test_debug_geometry_line_raster_contract},
-        {"backend_hud_formatting_contract", &test_backend_hud_formatting_contract},
-        {"backend_debug_text_quads_contract", &test_backend_debug_text_quads_contract},
-        {"backend_image_path_contract", &test_backend_image_path_contract},
+        {"ui_hud_formatting_contract", &test_ui_hud_formatting_contract},
+        {"ui_debug_text_quads_contract", &test_ui_debug_text_quads_contract},
+        {"ui_image_path_contract", &test_ui_image_path_contract},
         {"render_prep_material_shading_contract", &test_render_prep_material_shading_contract},
         {"render_prep_mesh_normals_contract", &test_render_prep_mesh_normals_contract},
         {"render_prep_procedural_pose_contract", &test_render_prep_procedural_pose_contract},
@@ -234,20 +234,20 @@ int main(int argc, char** argv) {
         {"render_prep_world_proxy_geometry_contract", &test_render_prep_world_proxy_geometry_contract},
         {"render_prep_unit_visuals_contract", &test_render_prep_unit_visuals_contract},
         {"shared_projected_world_scene_helpers_contract", &test_shared_projected_world_scene_helpers_contract},
-        {"backend_inventory_overlay_contract", &test_backend_inventory_overlay_contract},
-        {"backend_inventory_panel_contract", &test_backend_inventory_panel_contract},
+        {"ui_inventory_overlay_contract", &test_ui_inventory_overlay_contract},
+        {"ui_inventory_panel_contract", &test_ui_inventory_panel_contract},
         {"backend_card_layout_model_contract", &test_backend_card_layout_model_contract},
-        {"backend_card_visuals_contract", &test_backend_card_visuals_contract},
-        {"backend_card_renderer_contract", &test_backend_card_renderer_contract},
-        {"backend_shop_hud_model_contract", &test_backend_shop_hud_model_contract},
-        {"backend_sell_overlay_model_contract", &test_backend_sell_overlay_model_contract},
-        {"backend_status_text_contract", &test_backend_status_text_contract},
-        {"backend_ui_scale_contract", &test_backend_ui_scale_contract},
-        {"backend_top_banner_contract", &test_backend_top_banner_contract},
+        {"ui_card_visuals_contract", &test_ui_card_visuals_contract},
+        {"ui_card_renderer_contract", &test_ui_card_renderer_contract},
+        {"ui_shop_hud_model_contract", &test_ui_shop_hud_model_contract},
+        {"ui_sell_overlay_model_contract", &test_ui_sell_overlay_model_contract},
+        {"ui_status_text_contract", &test_ui_status_text_contract},
+        {"ui_scale_contract", &test_ui_scale_contract},
+        {"ui_top_banner_contract", &test_ui_top_banner_contract},
         {"backend_ui_sell_overlay_policy", &test_backend_ui_sell_overlay_policy},
         {"backend_shop_snapshot_contract", &test_backend_shop_snapshot_contract},
         {"shop_card_conversion_contract", &test_shop_card_conversion_contract},
-        {"backend_input_slots_contract", &test_backend_input_slots_contract},
+        {"ui_input_slots_contract", &test_ui_input_slots_contract},
         {"sell_overlay_ui_policy_contract", &test_sell_overlay_ui_policy_contract},
         {"video_init_gl_viewport_guard", &test_video_init_gl_viewport_guard},
         {"video_preferences_parse_and_roundtrip", &test_video_preferences_parse_and_roundtrip},
@@ -376,5 +376,6 @@ int main(int argc, char** argv) {
     std::cerr << "[PAC_Tests] " << fails << " test(s) failed.\n";
     return 1;
 }
+
 
 

@@ -1,15 +1,15 @@
-#include "game/runtime/backend_ui/BackendStatusText.h"
+#include "game/runtime/backend_ui/StatusText.h"
 
 #include <string>
 
-bool test_backend_status_text_contract(std::string& outFail) {
-    using game::runtime::backend_status_text::backendLine;
-    using game::runtime::backend_status_text::goldLine;
-    using game::runtime::backend_status_text::modeLine;
-    using game::runtime::backend_status_text::roundLine;
-    using game::runtime::backend_status_text::roundPhaseLabel;
-    using game::runtime::backend_status_text::selectedItemLine;
-    using game::runtime::backend_status_text::unitsLine;
+bool test_ui_status_text_contract(std::string& outFail) {
+    using game::runtime::ui_status_text::backendLine;
+    using game::runtime::ui_status_text::goldLine;
+    using game::runtime::ui_status_text::modeLine;
+    using game::runtime::ui_status_text::roundLine;
+    using game::runtime::ui_status_text::roundPhaseLabel;
+    using game::runtime::ui_status_text::selectedItemLine;
+    using game::runtime::ui_status_text::unitsLine;
 
     if (roundPhaseLabel(RoundPhase::Planning) != "Planning") {
         outFail = "round phase label mismatch for planning";
@@ -66,5 +66,7 @@ bool test_backend_status_text_contract(std::string& outFail) {
 
     return true;
 }
+
+
 
 

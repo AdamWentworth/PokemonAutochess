@@ -1,10 +1,10 @@
-#include "game/runtime/backend_ui/BackendImagePath.h"
+#include "game/runtime/backend_ui/ImagePath.h"
 
 #include <string>
 
-bool test_backend_image_path_contract(std::string& outFail) {
-    using game::runtime::backend_images::normalizeNameForImage;
-    using game::runtime::backend_images::resolvePokemonPortraitPath;
+bool test_ui_image_path_contract(std::string& outFail) {
+    using game::runtime::ui_images::normalizeNameForImage;
+    using game::runtime::ui_images::resolvePokemonPortraitPath;
 
     if (normalizeNameForImage("Nidoran F") != "nidoran_f") {
         outFail = "normalizeNameForImage should lowercase and underscore spaces";
@@ -61,4 +61,6 @@ bool test_backend_image_path_contract(std::string& outFail) {
 
     return true;
 }
+
+
 

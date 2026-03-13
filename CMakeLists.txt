@@ -460,9 +460,9 @@ if (BUILD_TESTING)
         tests/TestStateUiRoutePolicy.cpp
         tests/TestRenderRoutes.cpp
         tests/TestRenderPolicyApi.cpp
-        tests/TestBackendHudFormatting.cpp
-        tests/TestBackendDebugText.cpp
-        tests/TestBackendImagePath.cpp
+        tests/TestUiHudFormatting.cpp
+        tests/TestUiDebugText.cpp
+        tests/TestUiImagePath.cpp
         tests/TestRenderPrepMaterialShading.cpp
         tests/TestRenderPrepMeshNormals.cpp
         tests/TestRenderPrepProceduralPose.cpp
@@ -471,20 +471,20 @@ if (BUILD_TESTING)
         tests/TestRenderPrepWorldProxyGeometry.cpp
         tests/TestRenderPrepUnitVisuals.cpp
         tests/TestSharedProjectedWorldSceneHelpers.cpp
-        tests/TestBackendInventoryOverlay.cpp
-        tests/TestBackendInventoryPanel.cpp
+        tests/TestUiInventoryOverlay.cpp
+        tests/TestUiInventoryPanel.cpp
         tests/TestBackendCardLayoutModel.cpp
-        tests/TestBackendCardVisuals.cpp
-        tests/TestBackendCardRenderer.cpp
-        tests/TestBackendShopHudModel.cpp
-        tests/TestBackendSellOverlayModel.cpp
-        tests/TestBackendStatusText.cpp
-        tests/TestBackendUiScale.cpp
-        tests/TestBackendTopBanner.cpp
+        tests/TestUiCardVisuals.cpp
+        tests/TestUiCardRenderer.cpp
+        tests/TestUiShopHudModel.cpp
+        tests/TestUiSellOverlayModel.cpp
+        tests/TestUiStatusText.cpp
+        tests/TestUiScale.cpp
+        tests/TestUiTopBanner.cpp
         tests/TestBackendUiPolicy.cpp
         tests/TestBackendShopSnapshot.cpp
         tests/TestShopCardConversion.cpp
-        tests/TestBackendInputSlots.cpp
+        tests/TestUiInputSlots.cpp
         tests/TestSellOverlayUiPolicy.cpp
         tests/TestLogBus.cpp
         tests/TestRenderFlowDecisions.cpp
@@ -708,6 +708,7 @@ if (PAC_BUILD_TOOLS)
         DEPENDS PAC_DataCooker
     )
 endif()
+
 
 
 

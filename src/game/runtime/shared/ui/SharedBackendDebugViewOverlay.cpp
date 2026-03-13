@@ -7,10 +7,10 @@
 #include "game/GameWorld.h"
 #include "game/PhaseState.h"
 #include "game/logging/LogBus.h"
-#include "game/runtime/backend_ui/BackendDebugText.h"
-#include "game/runtime/backend_ui/BackendHudFormatting.h"
-#include "game/runtime/backend_ui/BackendInventoryOverlay.h"
-#include "game/runtime/backend_ui/BackendStatusText.h"
+#include "game/runtime/backend_ui/DebugText.h"
+#include "game/runtime/backend_ui/HudFormatting.h"
+#include "game/runtime/backend_ui/InventoryOverlay.h"
+#include "game/runtime/backend_ui/StatusText.h"
 #include "game/runtime/shared/capture/SharedCapturePresentation.h"
 
 #include <algorithm>
@@ -144,7 +144,7 @@ struct RetainedOverlayCache {
     std::vector<IRenderBackend::DebugLine> lines;
     std::vector<IRenderBackend::DebugLine> textLines;
     std::vector<IRenderBackend::DebugSprite> sprites;
-    std::vector<game::runtime::backend_inventory_panel::HitRegion> hitRegions;
+    std::vector<game::runtime::ui_inventory_panel::HitRegion> hitRegions;
 };
 } // namespace
 
@@ -235,14 +235,14 @@ void composeAndSubmit(const ComposeAndSubmitArgs& args) {
                                     const std::string& text,
                                     float scale,
                                     const glm::vec3& color) {
-            runtime::backend_text::appendTextLines(
+            runtime::ui_text::appendTextLines(
                 textLines, x, y, text, scale, color.r, color.g, color.b, 1.0f, 0.88f);
         };
         const auto appendRightText = [&](float y,
                                          const std::string& text,
                                          float scale,
                                          const glm::vec3& color) {
-            const float textW = std::max(1.0f, runtime::backend_text::measureTextWidth(text, scale));
+            const float textW = std::max(1.0f, runtime::ui_text::measureTextWidth(text, scale));
             const float x = std::max(edgePad, static_cast<float>(drawableW) - textW - edgePad);
             appendText(x, y, text, scale, color);
         };
@@ -475,36 +475,36 @@ void composeAndSubmit(const ComposeAndSubmitArgs& args) {
             const std::size_t hitRegionsStart = backendInventoryPanel.hitRegions.size();
 
             appendRightText(edgePad + lineStep * 1.1f,
-                            runtime::backend_status_text::modeLine(cachedMode),
+                            runtime::ui_status_text::modeLine(cachedMode),
                             std::clamp(1.2f * uiScale, 0.95f, 1.7f),
                             glm::vec3(0.93f, 0.95f, 0.99f));
             if (services) {
                 appendRightText(edgePad + lineStep * 2.2f,
-                                runtime::backend_status_text::backendLine(
+                                runtime::ui_status_text::backendLine(
                                     cachedBackend,
                                     cachedGpuRenderer),
                                 std::clamp(1.0f * uiScale, 0.80f, 1.35f),
                                 glm::vec3(0.68f, 0.80f, 0.94f));
             }
             appendRightText(edgePad + lineStep * 3.3f,
-                            runtime::backend_status_text::roundLine(
+                            runtime::ui_status_text::roundLine(
                                 cachedRoundPhase,
                                 cachedCombatActive),
                             std::clamp(1.0f * uiScale, 0.80f, 1.35f),
                             glm::vec3(0.83f, 0.91f, 0.98f));
             appendRightText(edgePad + lineStep * 4.4f,
-                            runtime::backend_status_text::unitsLine(
+                            runtime::ui_status_text::unitsLine(
                                 cachedPlayerAlive,
                                 cachedEnemyAlive),
                             std::clamp(1.0f * uiScale, 0.80f, 1.35f),
                             glm::vec3(0.72f, 0.90f, 0.84f));
             appendRightText(edgePad + lineStep * 5.5f,
-                            runtime::backend_status_text::goldLine(cachedMoney),
+                            runtime::ui_status_text::goldLine(cachedMoney),
                             std::clamp(1.0f * uiScale, 0.80f, 1.35f),
                             glm::vec3(0.96f, 0.88f, 0.56f));
             if (!cachedSelectedItem.empty()) {
                 appendRightText(edgePad + lineStep * 6.6f,
-                                runtime::backend_status_text::selectedItemLine(cachedSelectedItem),
+                                runtime::ui_status_text::selectedItemLine(cachedSelectedItem),
                                 std::clamp(1.0f * uiScale, 0.80f, 1.35f),
                                 glm::vec3(0.84f, 0.90f, 0.98f));
             }
@@ -546,11 +546,11 @@ void composeAndSubmit(const ComposeAndSubmitArgs& args) {
                     const float labelScale = std::clamp(0.78f * panelScale, 0.68f, 0.95f);
                     const float navScale = std::clamp(0.80f * panelScale, 0.68f, 0.95f);
                     const float titleH =
-                        std::max(12.0f, runtime::backend_text::measureTextHeight("Items", titleScale));
+                        std::max(12.0f, runtime::ui_text::measureTextHeight("Items", titleScale));
                     const float countH =
-                        std::max(10.0f, runtime::backend_text::measureTextHeight("x99", countScale));
+                        std::max(10.0f, runtime::ui_text::measureTextHeight("x99", countScale));
                     const float nameH =
-                        std::max(10.0f, runtime::backend_text::measureTextHeight("Pokeball", labelScale));
+                        std::max(10.0f, runtime::ui_text::measureTextHeight("Pokeball", labelScale));
                     const float rowPitch = cardH + std::max(6.0f, countH + 4.0f) + std::max(8.0f, nameH + 8.0f);
                     const float rightInset = std::round(std::max(edgePad, 24.0f * panelScale));
                     const float panelX = std::round(static_cast<float>(drawableW) - rightInset - cardW);
@@ -558,8 +558,8 @@ void composeAndSubmit(const ComposeAndSubmitArgs& args) {
                         invStartY,
                         std::max(110.0f, static_cast<float>(drawableH) * 0.16f)));
 
-                    const std::string title = runtime::backend_inventory::makeTitleLabel(inventoryModel);
-                    const float titleW = std::max(1.0f, runtime::backend_text::measureTextWidth(title, titleScale));
+                    const std::string title = runtime::ui_inventory::makeTitleLabel(inventoryModel);
+                    const float titleW = std::max(1.0f, runtime::ui_text::measureTextWidth(title, titleScale));
                     appendText(std::max(edgePad, panelX + cardW - titleW),
                                panelTop,
                                title,
@@ -567,8 +567,8 @@ void composeAndSubmit(const ComposeAndSubmitArgs& args) {
                                glm::vec3(0.92f, 0.95f, 0.99f));
 
                     float navY = panelTop + titleH + std::max(4.0f, lineStep * 0.20f);
-                    const bool hasPrev = runtime::backend_inventory::canScrollPrev(inventoryModel);
-                    const bool hasNext = runtime::backend_inventory::canScrollNext(inventoryModel);
+                    const bool hasPrev = runtime::ui_inventory::canScrollPrev(inventoryModel);
+                    const bool hasNext = runtime::ui_inventory::canScrollNext(inventoryModel);
                     if (hasPrev || hasNext) {
                         const std::string prevLabel = "[Up] Prev";
                         const std::string nextLabel = "[Down] Next";
@@ -579,18 +579,18 @@ void composeAndSubmit(const ComposeAndSubmitArgs& args) {
                                    hasPrev ? glm::vec3(0.75f, 0.87f, 0.96f)
                                            : glm::vec3(0.42f, 0.48f, 0.55f));
                         if (hasPrev) {
-                            runtime::backend_inventory_panel::HitRegion prevHit;
-                            prevHit.action = runtime::backend_inventory_panel::HitAction::ScrollOffset;
+                            runtime::ui_inventory_panel::HitRegion prevHit;
+                            prevHit.action = runtime::ui_inventory_panel::HitAction::ScrollOffset;
                             prevHit.offsetDelta = -1;
                             prevHit.x = panelX;
                             prevHit.y = navY;
-                            prevHit.w = std::max(1.0f, runtime::backend_text::measureTextWidth(prevLabel, navScale));
-                            prevHit.h = std::max(1.0f, runtime::backend_text::measureTextHeight(prevLabel, navScale));
+                            prevHit.w = std::max(1.0f, runtime::ui_text::measureTextWidth(prevLabel, navScale));
+                            prevHit.h = std::max(1.0f, runtime::ui_text::measureTextHeight(prevLabel, navScale));
                             backendInventoryPanel.hitRegions.push_back(std::move(prevHit));
                         }
 
                         const float nextW =
-                            std::max(1.0f, runtime::backend_text::measureTextWidth(nextLabel, navScale));
+                            std::max(1.0f, runtime::ui_text::measureTextWidth(nextLabel, navScale));
                         const float nextX = panelX + cardW - nextW;
                         appendText(nextX,
                                    navY,
@@ -599,16 +599,16 @@ void composeAndSubmit(const ComposeAndSubmitArgs& args) {
                                    hasNext ? glm::vec3(0.75f, 0.87f, 0.96f)
                                            : glm::vec3(0.42f, 0.48f, 0.55f));
                         if (hasNext) {
-                            runtime::backend_inventory_panel::HitRegion nextHit;
-                            nextHit.action = runtime::backend_inventory_panel::HitAction::ScrollOffset;
+                            runtime::ui_inventory_panel::HitRegion nextHit;
+                            nextHit.action = runtime::ui_inventory_panel::HitAction::ScrollOffset;
                             nextHit.offsetDelta = 1;
                             nextHit.x = nextX;
                             nextHit.y = navY;
                             nextHit.w = nextW;
-                            nextHit.h = std::max(1.0f, runtime::backend_text::measureTextHeight(nextLabel, navScale));
+                            nextHit.h = std::max(1.0f, runtime::ui_text::measureTextHeight(nextLabel, navScale));
                             backendInventoryPanel.hitRegions.push_back(std::move(nextHit));
                         }
-                        navY += std::max(12.0f, runtime::backend_text::measureTextHeight(prevLabel, navScale)) +
+                        navY += std::max(12.0f, runtime::ui_text::measureTextHeight(prevLabel, navScale)) +
                                 std::max(6.0f, lineStep * 0.12f);
                     }
 
@@ -692,7 +692,7 @@ void composeAndSubmit(const ComposeAndSubmitArgs& args) {
 
                         const std::string countText = "x" + std::to_string(std::max(0, entry.count));
                         const float countW =
-                            std::max(1.0f, runtime::backend_text::measureTextWidth(countText, countScale));
+                            std::max(1.0f, runtime::ui_text::measureTextWidth(countText, countScale));
                         appendText(cardX + std::max(0.0f, (cardW - countW) * 0.5f),
                                    cardY + cardH + 2.0f,
                                    countText,
@@ -702,15 +702,15 @@ void composeAndSubmit(const ComposeAndSubmitArgs& args) {
 
                         const std::string nameText = runtime::hud::humanizeToken(entry.id);
                         const float nameW =
-                            std::max(1.0f, runtime::backend_text::measureTextWidth(nameText, labelScale));
+                            std::max(1.0f, runtime::ui_text::measureTextWidth(nameText, labelScale));
                         appendText(cardX + std::max(0.0f, (cardW - nameW) * 0.5f),
                                    cardY + cardH + 2.0f + countH + 2.0f,
                                    nameText,
                                    labelScale,
                                    glm::vec3(0.76f, 0.84f, 0.92f));
 
-                        runtime::backend_inventory_panel::HitRegion hit;
-                        hit.action = runtime::backend_inventory_panel::HitAction::SelectItem;
+                        runtime::ui_inventory_panel::HitRegion hit;
+                        hit.action = runtime::ui_inventory_panel::HitAction::SelectItem;
                         hit.itemId = entry.id;
                         hit.x = cardX;
                         hit.y = cardY;
@@ -720,7 +720,7 @@ void composeAndSubmit(const ComposeAndSubmitArgs& args) {
                     }
 
                     const float footerY = navY + static_cast<float>(inventoryModel.visibleEntries.size()) * rowPitch;
-                    const std::string clearLine = runtime::backend_inventory::clearSelectionLabel();
+                    const std::string clearLine = runtime::ui_inventory::clearSelectionLabel();
                     appendText(panelX,
                                footerY + 1.0f,
                                clearLine,
@@ -728,13 +728,13 @@ void composeAndSubmit(const ComposeAndSubmitArgs& args) {
                                selectedItem.empty()
                                    ? glm::vec3(0.62f, 0.68f, 0.76f)
                                    : glm::vec3(0.95f, 0.78f, 0.66f));
-                    runtime::backend_inventory_panel::HitRegion clearHit;
-                    clearHit.action = runtime::backend_inventory_panel::HitAction::ClearSelection;
+                    runtime::ui_inventory_panel::HitRegion clearHit;
+                    clearHit.action = runtime::ui_inventory_panel::HitAction::ClearSelection;
                     clearHit.itemId.clear();
                     clearHit.x = panelX;
                     clearHit.y = footerY + 1.0f;
-                    clearHit.w = std::max(1.0f, runtime::backend_text::measureTextWidth(clearLine, 0.90f));
-                    clearHit.h = std::max(1.0f, runtime::backend_text::measureTextHeight(clearLine, 0.90f));
+                    clearHit.w = std::max(1.0f, runtime::ui_text::measureTextWidth(clearLine, 0.90f));
+                    clearHit.h = std::max(1.0f, runtime::ui_text::measureTextHeight(clearLine, 0.90f));
                     backendInventoryPanel.hitRegions.push_back(std::move(clearHit));
 
                     appendText(panelX,
@@ -746,17 +746,17 @@ void composeAndSubmit(const ComposeAndSubmitArgs& args) {
                 float invY = invStartY;
                 appendText(leftX,
                            invY,
-                           runtime::backend_inventory::makeTitleLabel(inventoryModel),
+                           runtime::ui_inventory::makeTitleLabel(inventoryModel),
                            std::clamp(1.0f * uiScale, 0.80f, 1.30f),
                            glm::vec3(0.92f, 0.95f, 0.99f));
                 invY += lineStep;
 
-                const bool hasPrev = runtime::backend_inventory::canScrollPrev(inventoryModel);
-                const bool hasNext = runtime::backend_inventory::canScrollNext(inventoryModel);
+                const bool hasPrev = runtime::ui_inventory::canScrollPrev(inventoryModel);
+                const bool hasNext = runtime::ui_inventory::canScrollNext(inventoryModel);
                 if (hasPrev || hasNext) {
                     constexpr float kNavScale = 0.84f;
-                    const std::string prevLabel = runtime::backend_inventory::prevPageLabel();
-                    const std::string nextLabel = runtime::backend_inventory::nextPageLabel();
+                    const std::string prevLabel = runtime::ui_inventory::prevPageLabel();
+                    const std::string nextLabel = runtime::ui_inventory::nextPageLabel();
                     appendText(leftX,
                                invY,
                                prevLabel,
@@ -764,17 +764,17 @@ void composeAndSubmit(const ComposeAndSubmitArgs& args) {
                                hasPrev ? glm::vec3(0.75f, 0.87f, 0.96f)
                                        : glm::vec3(0.42f, 0.48f, 0.55f));
                     if (hasPrev) {
-                        runtime::backend_inventory_panel::HitRegion prevHit;
-                        prevHit.action = runtime::backend_inventory_panel::HitAction::ScrollOffset;
+                        runtime::ui_inventory_panel::HitRegion prevHit;
+                        prevHit.action = runtime::ui_inventory_panel::HitAction::ScrollOffset;
                         prevHit.offsetDelta = -1;
                         prevHit.x = leftX;
                         prevHit.y = invY;
-                        prevHit.w = std::max(1.0f, runtime::backend_text::measureTextWidth(prevLabel, kNavScale));
-                        prevHit.h = std::max(1.0f, runtime::backend_text::measureTextHeight(prevLabel, kNavScale));
+                        prevHit.w = std::max(1.0f, runtime::ui_text::measureTextWidth(prevLabel, kNavScale));
+                        prevHit.h = std::max(1.0f, runtime::ui_text::measureTextHeight(prevLabel, kNavScale));
                         backendInventoryPanel.hitRegions.push_back(std::move(prevHit));
                     }
 
-                    const float nextX = leftX + std::max(1.0f, runtime::backend_text::measureTextWidth(prevLabel, kNavScale)) + std::max(10.0f, lineStep * 0.75f);
+                    const float nextX = leftX + std::max(1.0f, runtime::ui_text::measureTextWidth(prevLabel, kNavScale)) + std::max(10.0f, lineStep * 0.75f);
                     appendText(nextX,
                                invY,
                                nextLabel,
@@ -782,13 +782,13 @@ void composeAndSubmit(const ComposeAndSubmitArgs& args) {
                                hasNext ? glm::vec3(0.75f, 0.87f, 0.96f)
                                        : glm::vec3(0.42f, 0.48f, 0.55f));
                     if (hasNext) {
-                        runtime::backend_inventory_panel::HitRegion nextHit;
-                        nextHit.action = runtime::backend_inventory_panel::HitAction::ScrollOffset;
+                        runtime::ui_inventory_panel::HitRegion nextHit;
+                        nextHit.action = runtime::ui_inventory_panel::HitAction::ScrollOffset;
                         nextHit.offsetDelta = 1;
                         nextHit.x = nextX;
                         nextHit.y = invY;
-                        nextHit.w = std::max(1.0f, runtime::backend_text::measureTextWidth(nextLabel, kNavScale));
-                        nextHit.h = std::max(1.0f, runtime::backend_text::measureTextHeight(nextLabel, kNavScale));
+                        nextHit.w = std::max(1.0f, runtime::ui_text::measureTextWidth(nextLabel, kNavScale));
+                        nextHit.h = std::max(1.0f, runtime::ui_text::measureTextHeight(nextLabel, kNavScale));
                         backendInventoryPanel.hitRegions.push_back(std::move(nextHit));
                     }
                     invY += lineStep * 0.88f;
@@ -803,18 +803,18 @@ void composeAndSubmit(const ComposeAndSubmitArgs& args) {
                                row.selected
                                    ? glm::vec3(0.98f, 0.90f, 0.58f)
                                    : glm::vec3(0.84f, 0.90f, 0.97f));
-                    runtime::backend_inventory_panel::HitRegion hit;
-                    hit.action = runtime::backend_inventory_panel::HitAction::SelectItem;
+                    runtime::ui_inventory_panel::HitRegion hit;
+                    hit.action = runtime::ui_inventory_panel::HitAction::SelectItem;
                     hit.itemId = row.itemId;
                     hit.x = leftX;
                     hit.y = invY;
-                    hit.w = std::max(1.0f, runtime::backend_text::measureTextWidth(row.line, kItemScale));
-                    hit.h = std::max(1.0f, runtime::backend_text::measureTextHeight(row.line, kItemScale));
+                    hit.w = std::max(1.0f, runtime::ui_text::measureTextWidth(row.line, kItemScale));
+                    hit.h = std::max(1.0f, runtime::ui_text::measureTextHeight(row.line, kItemScale));
                     backendInventoryPanel.hitRegions.push_back(std::move(hit));
                     invY += lineStep * 0.93f;
                 }
 
-                const std::string clearLine = runtime::backend_inventory::clearSelectionLabel();
+                const std::string clearLine = runtime::ui_inventory::clearSelectionLabel();
                 appendText(leftX,
                            invY + 1.0f,
                            clearLine,
@@ -822,18 +822,18 @@ void composeAndSubmit(const ComposeAndSubmitArgs& args) {
                            selectedItem.empty()
                                ? glm::vec3(0.62f, 0.68f, 0.76f)
                                : glm::vec3(0.95f, 0.78f, 0.66f));
-                runtime::backend_inventory_panel::HitRegion clearHit;
-                clearHit.action = runtime::backend_inventory_panel::HitAction::ClearSelection;
+                runtime::ui_inventory_panel::HitRegion clearHit;
+                clearHit.action = runtime::ui_inventory_panel::HitAction::ClearSelection;
                 clearHit.itemId.clear();
                 clearHit.x = leftX;
                 clearHit.y = invY + 1.0f;
-                clearHit.w = std::max(1.0f, runtime::backend_text::measureTextWidth(clearLine, 0.90f));
-                clearHit.h = std::max(1.0f, runtime::backend_text::measureTextHeight(clearLine, 0.90f));
+                clearHit.w = std::max(1.0f, runtime::ui_text::measureTextWidth(clearLine, 0.90f));
+                clearHit.h = std::max(1.0f, runtime::ui_text::measureTextHeight(clearLine, 0.90f));
                 backendInventoryPanel.hitRegions.push_back(std::move(clearHit));
                 invY += lineStep;
                 appendText(leftX,
                            invY + 2.0f,
-                           runtime::backend_inventory::hintLabel(),
+                           runtime::ui_inventory::hintLabel(),
                            0.82f,
                            glm::vec3(0.66f, 0.76f, 0.90f));
                 }
@@ -938,7 +938,7 @@ void composeAndSubmit(const ComposeAndSubmitArgs& args) {
                     const float scale = 1.0f;
                     const float textW = std::max(
                         1.0f,
-                        runtime::backend_text::measureTextWidth(text, scale));
+                        runtime::ui_text::measureTextWidth(text, scale));
                     const float x = std::max(
                         edgePad,
                         static_cast<float>(drawableW) - textW - edgePad);
@@ -1074,4 +1074,6 @@ void composeAndSubmit(const ComposeAndSubmitArgs& args) {
 }
 
 } // namespace game::runtime::shared_backend_debug_view
+
+
 

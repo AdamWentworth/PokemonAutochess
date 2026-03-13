@@ -3,7 +3,7 @@
 #include "engine/render/IRenderBackend.h"
 #include "engine/render/SpriteTextureCardArt.h"
 #include "game/PokemonInstance.h"
-#include "game/runtime/backend_ui/BackendImagePath.h"
+#include "game/runtime/backend_ui/ImagePath.h"
 
 #include <algorithm>
 #include <cstddef>
@@ -12,7 +12,7 @@
 namespace game::runtime::render_prep_units {
 
 inline std::string resolveWorldUnitImagePath(const std::string& unitName) {
-    const std::string resolved = runtime::backend_images::resolvePokemonPortraitPath(
+    const std::string resolved = runtime::ui_images::resolvePokemonPortraitPath(
         "",
         unitName,
         "");
@@ -116,5 +116,7 @@ inline IRenderBackend::DebugSprite makeBenchUnitSprite(float x,
 }
 
 } // namespace game::runtime::render_prep_units
+
+
 
 

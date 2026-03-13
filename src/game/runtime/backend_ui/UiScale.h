@@ -3,7 +3,7 @@
 #include <algorithm>
 #include <cmath>
 
-namespace game::runtime::backend_ui {
+namespace game::runtime::ui_scale {
 
 inline float viewportScale(int uiW, int uiH) {
     if (uiW <= 0 || uiH <= 0) return 1.0f;
@@ -27,5 +27,6 @@ inline float lineStep(int uiW, int uiH, float base = 16.0f) {
     return scaled(base, scale, 12.0f, 28.0f);
 }
 
-} // namespace game::runtime::backend_ui
+} // namespace game::runtime::ui_scale
+
 

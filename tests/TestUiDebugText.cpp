@@ -1,14 +1,14 @@
-#include "game/runtime/backend_ui/BackendDebugText.h"
+#include "game/runtime/backend_ui/DebugText.h"
 
 #include <cmath>
 #include <string>
 #include <vector>
 
-bool test_backend_debug_text_quads_contract(std::string& outFail) {
-    using game::runtime::backend_text::appendTextQuads;
-    using game::runtime::backend_text::appendTextLines;
-    using game::runtime::backend_text::measureTextHeight;
-    using game::runtime::backend_text::measureTextWidth;
+bool test_ui_debug_text_quads_contract(std::string& outFail) {
+    using game::runtime::ui_text::appendTextQuads;
+    using game::runtime::ui_text::appendTextLines;
+    using game::runtime::ui_text::measureTextHeight;
+    using game::runtime::ui_text::measureTextWidth;
 
     const std::string sample = "Backend HUD";
     const float w1 = measureTextWidth(sample, 1.0f);
@@ -80,5 +80,7 @@ bool test_backend_debug_text_quads_contract(std::string& outFail) {
 
     return true;
 }
+
+
 
 

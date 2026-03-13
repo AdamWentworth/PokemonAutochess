@@ -4,13 +4,13 @@
 #include "game/GameWorld.h"
 #include "game/GameServices.h"
 #include "game/logging/LoggerUtil.h"
-#include "game/runtime/backend_ui/BackendCardRenderer.h"
-#include "game/runtime/backend_ui/BackendDebugText.h"
-#include "game/runtime/backend_ui/BackendTopBanner.h"
+#include "game/runtime/backend_ui/CardRenderer.h"
+#include "game/runtime/backend_ui/DebugText.h"
+#include "game/runtime/backend_ui/TopBanner.h"
 #include "game/runtime/routes/GameServiceRenderRoutes.h"
-#include "game/runtime/backend_ui/BackendSellOverlayModel.h"
-#include "game/runtime/backend_ui/BackendShopHudModel.h"
-#include "game/runtime/backend_ui/BackendUiScale.h"
+#include "game/runtime/backend_ui/SellOverlayModel.h"
+#include "game/runtime/backend_ui/ShopHudModel.h"
+#include "game/runtime/backend_ui/UiScale.h"
 #include "game/scripting/LuaCardParser.h"
 #include "game/scripting/LuaScriptHelpers.h"
 #include "game/scripting/ScriptEventBus.h"
@@ -69,8 +69,8 @@ void CombatState::rebuildBackendShopUi(const std::vector<CardData>& cards, int u
     clearBackendShopUiCache();
 
     std::vector<CardData> preparedCards = cards;
-    game::runtime::backend_card_renderer::prepareCardDataForBackendRender(preparedCards, /*forceItemRow=*/false);
-    game::runtime::backend_card_renderer::prewarmCardDataTextures(
+    game::runtime::ui_card_renderer::prepareCardDataForBackendRender(preparedCards, /*forceItemRow=*/false);
+    game::runtime::ui_card_renderer::prewarmCardDataTextures(
         services.renderer,
         preparedCards,
         /*forceItemRow=*/false);
@@ -165,9 +165,9 @@ bool CombatState::handleBackendShopMouseClick(int mouseX, int mouseY) {
 
 void CombatState::renderBackendShopUi(int uiW, int uiH, bool showSellOverlay, const std::string& header) {
     if (!services.renderer) return;
-    const float uiScale = game::runtime::backend_ui::viewportScale(uiW, uiH);
-    const float edgePad = game::runtime::backend_ui::edgePad(uiW, uiH);
-    const float lineStep = game::runtime::backend_ui::lineStep(uiW, uiH);
+    const float uiScale = game::runtime::ui_scale::viewportScale(uiW, uiH);
+    const float edgePad = game::runtime::ui_scale::edgePad(uiW, uiH);
+    const float lineStep = game::runtime::ui_scale::lineStep(uiW, uiH);
 
     std::vector<IRenderBackend::DebugQuad> baseQuads;
     baseQuads.reserve(4096);
@@ -183,7 +183,7 @@ void CombatState::renderBackendShopUi(int uiW, int uiH, bool showSellOverlay, co
                                 float r,
                                 float g,
                                 float b) {
-        game::runtime::backend_text::appendTextLines(
+        game::runtime::ui_text::appendTextLines(
             textLines,
             x,
             y,
@@ -223,7 +223,7 @@ void CombatState::renderBackendShopUi(int uiW, int uiH, bool showSellOverlay, co
                 backendShopSnapshot,
                 game::state::backend_shop::ActionType::ShopCard,
                 i);
-            game::runtime::backend_card_renderer::CardRenderInput renderIn;
+            game::runtime::ui_card_renderer::CardRenderInput renderIn;
             renderIn.x = button.x;
             renderIn.y = button.y;
             renderIn.w = button.w;
@@ -242,7 +242,7 @@ void CombatState::renderBackendShopUi(int uiW, int uiH, bool showSellOverlay, co
             renderIn.item = (button.data.type == CardType::Item);
             renderIn.textScale = std::clamp(1.0f * uiScale, 0.70f, 1.35f);
             renderIn.spriteAlpha = 1.0f;
-            game::runtime::backend_card_renderer::appendCardLayered(
+            game::runtime::ui_card_renderer::appendCardLayered(
                 baseQuads,
                 nullptr,
                 &sprites,
@@ -251,9 +251,9 @@ void CombatState::renderBackendShopUi(int uiW, int uiH, bool showSellOverlay, co
         }
     }
 
-    const std::string moneyLabel = game::runtime::backend_shop_hud::moneyLabel(
+    const std::string moneyLabel = game::runtime::ui_shop_hud::moneyLabel(
         gameWorld ? gameWorld->getMoney() : 0);
-    const std::string rerollLabel = game::runtime::backend_shop_hud::rerollLabel(
+    const std::string rerollLabel = game::runtime::ui_shop_hud::rerollLabel(
         game::state::backend_shop::keyboardSlotFor(
             backendShopSnapshot,
             game::state::backend_shop::ActionType::ShopReroll,
@@ -261,21 +261,21 @@ void CombatState::renderBackendShopUi(int uiW, int uiH, bool showSellOverlay, co
 
     const float moneyScale = 1.0f * kBackendTextScaleBase * uiScale;
     const float rerollScale = 0.78f * kBackendTextScaleBase * uiScale;
-    const float moneyW = game::runtime::backend_text::measureTextWidth(moneyLabel, moneyScale);
-    const float moneyH = game::runtime::backend_text::measureTextHeight(moneyLabel, moneyScale);
-    const float rerollW = game::runtime::backend_text::measureTextWidth(rerollLabel, rerollScale);
-    const float rerollH = game::runtime::backend_text::measureTextHeight(rerollLabel, rerollScale);
+    const float moneyW = game::runtime::ui_text::measureTextWidth(moneyLabel, moneyScale);
+    const float moneyH = game::runtime::ui_text::measureTextHeight(moneyLabel, moneyScale);
+    const float rerollW = game::runtime::ui_text::measureTextWidth(rerollLabel, rerollScale);
+    const float rerollH = game::runtime::ui_text::measureTextHeight(rerollLabel, rerollScale);
 
     int cardsX = 18;
     int cardsY = std::max(0, uiH - 120);
     int cardsH = 96;
     if (!backendShopButtons.empty()) {
-        cardsX = game::runtime::backend_shop_hud::cardsAnchorX(backendShopButtons.front().x);
-        cardsY = game::runtime::backend_shop_hud::cardsAnchorY(backendShopButtons.front().y, uiH);
-        cardsH = game::runtime::backend_shop_hud::cardsAnchorH(backendShopButtons.front().h);
+        cardsX = game::runtime::ui_shop_hud::cardsAnchorX(backendShopButtons.front().x);
+        cardsY = game::runtime::ui_shop_hud::cardsAnchorY(backendShopButtons.front().y, uiH);
+        cardsH = game::runtime::ui_shop_hud::cardsAnchorH(backendShopButtons.front().h);
     }
 
-    game::runtime::backend_shop_hud::LayoutInput hudIn;
+    game::runtime::ui_shop_hud::LayoutInput hudIn;
     hudIn.uiW = uiW;
     hudIn.uiH = uiH;
     hudIn.cardsX = cardsX;
@@ -286,7 +286,7 @@ void CombatState::renderBackendShopUi(int uiW, int uiH, bool showSellOverlay, co
     hudIn.rerollTextW = rerollW;
     hudIn.rerollTextH = rerollH;
     hudIn.showReroll = hasShopRerollButton;
-    const game::ui::ClassicHudLayout hud = game::runtime::backend_shop_hud::computeLayout(hudIn);
+    const game::ui::ClassicHudLayout hud = game::runtime::ui_shop_hud::computeLayout(hudIn);
 
     {
         IRenderBackend::DebugQuad moneyPanel;
@@ -322,7 +322,7 @@ void CombatState::renderBackendShopUi(int uiW, int uiH, bool showSellOverlay, co
         backendRerollH = rerollPanel.h;
     }
 
-    const auto sellOverlay = game::runtime::backend_sell_overlay::buildModel(
+    const auto sellOverlay = game::runtime::ui_sell_overlay::buildModel(
         showSellOverlay && gameWorld != nullptr,
         uiW,
         uiH,
@@ -356,9 +356,9 @@ void CombatState::renderBackendShopUi(int uiW, int uiH, bool showSellOverlay, co
                 baseQuads.push_back(hitBg);
             }
 
-            const float titleW = game::runtime::backend_text::measureTextWidth(
+            const float titleW = game::runtime::ui_text::measureTextWidth(
                 sellOverlay.copy.title, sellOverlay.copy.titleScale * kBackendTextScaleBase);
-            const float hintW = game::runtime::backend_text::measureTextWidth(
+            const float hintW = game::runtime::ui_text::measureTextWidth(
                 sellOverlay.copy.hint, sellOverlay.copy.hintScale * kBackendTextScaleBase);
             appendText(
                 sellOverlay.centerX - titleW * 0.5f,
@@ -381,7 +381,7 @@ void CombatState::renderBackendShopUi(int uiW, int uiH, bool showSellOverlay, co
     refreshBackendShopSnapshot();
     appendText(edgePad,
                std::max(4.0f, static_cast<float>(uiH) - edgePad - lineStep * 0.8f),
-               game::runtime::backend_shop_hud::interactionHint(),
+               game::runtime::ui_shop_hud::interactionHint(),
                0.74f,
                0.72f,
                0.82f,
@@ -880,4 +880,6 @@ void CombatState::render() {
         services.renderer->drawDebugLines(lines.data(), lines.size(), uiW, uiH);
     }
 }
+
+
 

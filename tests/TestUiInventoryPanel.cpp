@@ -1,17 +1,17 @@
-#include "game/runtime/backend_ui/BackendInventoryPanel.h"
+#include "game/runtime/backend_ui/InventoryPanel.h"
 
 #include <string>
 #include <vector>
 
-bool test_backend_inventory_panel_contract(std::string& outFail) {
-    using game::runtime::backend_inventory_panel::HitAction;
-    using game::runtime::backend_inventory_panel::HitRegion;
-    using game::runtime::backend_inventory_panel::PanelState;
-    using game::runtime::backend_inventory_panel::applyOffsetDelta;
-    using game::runtime::backend_inventory_panel::findHit;
-    using game::runtime::backend_inventory_panel::offsetDeltaFromWheel;
-    using game::runtime::backend_inventory_panel::refreshPanelState;
-    using game::runtime::backend_inventory_panel::visibleItemForSlot;
+bool test_ui_inventory_panel_contract(std::string& outFail) {
+    using game::runtime::ui_inventory_panel::HitAction;
+    using game::runtime::ui_inventory_panel::HitRegion;
+    using game::runtime::ui_inventory_panel::PanelState;
+    using game::runtime::ui_inventory_panel::applyOffsetDelta;
+    using game::runtime::ui_inventory_panel::findHit;
+    using game::runtime::ui_inventory_panel::offsetDeltaFromWheel;
+    using game::runtime::ui_inventory_panel::refreshPanelState;
+    using game::runtime::ui_inventory_panel::visibleItemForSlot;
 
     if (offsetDeltaFromWheel(1) != -1) {
         outFail = "wheel up should map to -1 offset delta";
@@ -106,4 +106,6 @@ bool test_backend_inventory_panel_contract(std::string& outFail) {
 
     return true;
 }
+
+
 

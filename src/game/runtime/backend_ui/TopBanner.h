@@ -1,7 +1,7 @@
 #pragma once
 
 #include "engine/render/IRenderBackend.h"
-#include "game/runtime/backend_ui/BackendDebugText.h"
+#include "game/runtime/backend_ui/DebugText.h"
 
 #include <algorithm>
 #include <cmath>
@@ -78,12 +78,12 @@ inline void appendBackendBanner(std::vector<IRenderBackend::DebugQuad>& quads,
                                 float textB,
                                 const Style& style = {}) {
     const float scale = std::max(0.1f, style.textScale);
-    const float textW = backend_text::measureTextWidth(text, scale);
-    const float textH = backend_text::measureTextHeight(text, scale);
+    const float textW = ui_text::measureTextWidth(text, scale);
+    const float textH = ui_text::measureTextHeight(text, scale);
     const Layout layout = computeLayout(uiW, uiH, textW, textH, style);
 
     quads.push_back(layout.panel);
-    backend_text::appendTextLines(
+    ui_text::appendTextLines(
         lines,
         layout.textX,
         layout.textY,
@@ -97,5 +97,7 @@ inline void appendBackendBanner(std::vector<IRenderBackend::DebugQuad>& quads,
 }
 
 } // namespace game::runtime::top_banner
+
+
 
 

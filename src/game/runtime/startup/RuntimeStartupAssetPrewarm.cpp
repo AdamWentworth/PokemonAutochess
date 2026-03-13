@@ -3,7 +3,7 @@
 #include "engine/core/Environment.h"
 #include "engine/render/SpriteTextureCardArt.h"
 #include "game/config/GameDataDb.h"
-#include "game/runtime/backend_ui/BackendImagePath.h"
+#include "game/runtime/backend_ui/ImagePath.h"
 
 #include <algorithm>
 #include <chrono>
@@ -116,9 +116,9 @@ std::vector<std::string> collectUiSpritePrewarmPaths(const GameDataDb& dataDb) {
     for (const auto& [speciesName, stats] : dataDb.pokemon.all()) {
         (void)stats;
         const std::string path =
-            game::runtime::backend_images::candidatePokemonPortraitPath(speciesName);
+            game::runtime::ui_images::candidatePokemonPortraitPath(speciesName);
         if (path.empty()) continue;
-        if (!game::runtime::backend_images::fileExistsCached(path)) continue;
+        if (!game::runtime::ui_images::fileExistsCached(path)) continue;
         addPath(path);
     }
 
@@ -254,4 +254,6 @@ Summary run(const Options& options,
 }
 
 } // namespace game::runtime::startup_asset_prewarm
+
+
 
