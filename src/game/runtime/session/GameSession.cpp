@@ -1,4 +1,4 @@
-#include "game/runtime/GameSession.h"
+#include "game/runtime/session/GameSession.h"
 
 // Heavy includes live here (not in headers).
 #include <iostream>
@@ -91,7 +91,7 @@
 #include "game/runtime/shared/world/SharedWorldIndexedBatches.h"
 #include "game/GameServices.h"
 #include "game/GameConfig.h"
-#include "game/runtime/GameUpdateGraph.h"
+#include "game/runtime/session/GameUpdateGraph.h"
 #include "game/ui/UIViewport.h"
 #include "game/ui/ShopLayout.h"
 

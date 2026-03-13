@@ -11,7 +11,7 @@
 #include "game/GameConfig.h"
 #include "game/GameServices.h"
 #include "game/GameStateManager.h"
-#include "game/runtime/GameUpdateGraph.h"
+#include "game/runtime/session/GameUpdateGraph.h"
 #include "game/GameWorld.h"
 #include "game/PokemonInstance.h"
 #include "game/assets/DevAssetStore.h"

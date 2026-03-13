@@ -33,7 +33,7 @@ small number of very large files.
   high-churn risk areas.
 
 ## Gaps Not Fully Called Out Before
-- `src/game/runtime/GameSession.cpp` is still the repo's main god-object seam.
+- `src/game/runtime/session/GameSession.cpp` is still the repo's main god-object seam.
   - It owns startup, asset prewarm, runtime wiring, input handling, snapshot IO,
     backend debug rendering, overlay composition, and shutdown coordination.
 - `src/game/runtime/GameRunner.cpp` also centralizes too much:
@@ -54,7 +54,7 @@ small number of very large files.
   - route/policy helpers under `src/game/runtime/routes/`
   - many backend/shared helper modules with focused contract tests
 - Risky:
-  - `src/game/runtime/GameSession.cpp`
+  - `src/game/runtime/session/GameSession.cpp`
   - `src/game/runtime/GameRunner.cpp`
   - backend render pipeline/draw families
 

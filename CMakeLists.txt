@@ -53,7 +53,7 @@ if (PAC_OPTIMIZE_RENDER_HOTPATHS_IN_DEBUG)
     endif()
 
     set(_pac_hotpath_sources
-        "${CMAKE_SOURCE_DIR}/src/game/runtime/GameSession.cpp"
+        "${CMAKE_SOURCE_DIR}/src/game/runtime/session/GameSession.cpp"
         "${CMAKE_SOURCE_DIR}/src/engine/render/D3D12RenderBackend.cpp"
     )
     if (MSVC)
@@ -288,7 +288,7 @@ add_library(PAC_GameObjects STATIC
     src/game/runtime/startup/RuntimeStartupVideoOverride.cpp
     src/game/runtime/startup/RuntimeWorldLayerPrewarm.cpp
     src/game/runtime/RuntimeWindowBootstrap.cpp
-    src/game/runtime/GameSession.cpp
+    src/game/runtime/session/GameSession.cpp
     src/game/runtime/shared/backend/SharedBackendPoseEval.cpp
     src/game/runtime/shared/capture/SharedCapturePresentation.cpp
     src/game/runtime/shared/capture/SharedCaptureOverlayVfx.cpp
@@ -323,7 +323,7 @@ add_library(PAC_GameObjects STATIC
     src/game/runtime/shared/vfx/growl/SharedGrowlWaveBatches.cpp
     src/game/runtime/shared/ui/SharedUnitHudBatches.cpp
     src/game/runtime/shared/world/SharedWorldIndexedBatches.cpp
-    src/game/runtime/GameUpdateGraph.cpp
+    src/game/runtime/session/GameUpdateGraph.cpp
     src/game/runtime/VideoPreferences.cpp
     src/game/runtime/GpuAdapters.cpp
     src/game/runtime/d3d12/D3D12Probe.cpp

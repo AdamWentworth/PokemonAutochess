@@ -1,4 +1,4 @@
-// src/game/runtime/GameUpdateGraph.h
+// src/game/runtime/session/GameUpdateGraph.h
 #pragma once
 
 #include "game/systems/RoundPhase.h"

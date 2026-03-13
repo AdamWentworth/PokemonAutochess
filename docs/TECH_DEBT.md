@@ -14,7 +14,7 @@ real engineering value, not old blocker language that has already been retired.
 - The current biggest remaining performance returns are in dense combat render-build work, not gameplay scripting and not generic startup work.
 
 3. Runtime/session composition is still too centralized.
-- `src/game/runtime/GameSession.cpp` and `src/game/runtime/GameRunner.cpp` still combine too many concerns.
+- `src/game/runtime/session/GameSession.cpp` and `src/game/runtime/GameRunner.cpp` still combine too many concerns.
 - Startup, prewarm, render-path routing, input, restart flow, debug snapshotting, and diagnostics need cleaner seams.
 
 4. Display/settings honesty is still incomplete.
@@ -45,7 +45,7 @@ real engineering value, not old blocker language that has already been retired.
 - The next bigger render-side rework is to lean harder on shared prepared geometry/material state and reduce per-unit submission churn.
 
 6. Large high-churn files remain risky.
-- `src/game/runtime/GameSession.cpp`
+- `src/game/runtime/session/GameSession.cpp`
 - `src/game/runtime/GameRunner.cpp`
 - backend render implementation families
 - shared projected runtime render modules

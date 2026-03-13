@@ -36,7 +36,7 @@ or future networking correctness matters.
 
 ### CPU-owned now
 - Gameplay truth and fixed-step orchestration:
-  - `src/game/runtime/GameSession.cpp`
+  - `src/game/runtime/session/GameSession.cpp`
   - `src/game/runtime/GameRunner.cpp`
 - Shared projected render orchestration and draw-list assembly:
   - `src/game/runtime/shared/projected/SharedProjectedUnitRenderer.cpp`

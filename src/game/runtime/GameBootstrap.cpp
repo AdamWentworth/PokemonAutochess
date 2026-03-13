@@ -7,7 +7,7 @@
 #include "engine/core/GameContext.h"
 #include "engine/core/Paths.h"
 
-#include "game/runtime/GameSession.h"
+#include "game/runtime/session/GameSession.h"
 #include "game/assets/DevAssetStore.h"
 #include "game/assets/PackedAssetStore.h"
 #include "game/config/GameDataDb.h"

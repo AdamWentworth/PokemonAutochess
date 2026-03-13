@@ -10,7 +10,7 @@
 #include "engine/input/InputEvent.h"
 
 #include "game/runtime/GameBootstrap.h"
-#include "game/runtime/GameSession.h"
+#include "game/runtime/session/GameSession.h"
 
 struct GameRuntime::Impl {
     std::unique_ptr<game::GameSession> session;

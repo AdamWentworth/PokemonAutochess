@@ -1,6 +1,6 @@
-// src/game/GameUpdateGraph.cpp
+// src/game/runtime/session/GameUpdateGraph.cpp
 
-#include "game/runtime/GameUpdateGraph.h"
+#include "game/runtime/session/GameUpdateGraph.h"
 
 #include <string>
 #include <string_view>

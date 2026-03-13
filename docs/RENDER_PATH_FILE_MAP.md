@@ -15,6 +15,12 @@ Use this file to find ownership quickly when working on parity/performance tasks
 - `src/game/runtime/GameRunner.cpp`
   - Main loop timing (`fixed`, `render`, `swap`)
   - Perf log line emission (`[Perf]`)
+- `src/game/runtime/session/GameSession.*`
+  - owns the running gameplay session, render delegation, state stack, and session-local caches
+  - main remaining large cleanup target after startup extraction
+- `src/game/runtime/session/GameUpdateGraph.*`
+  - fixed-step update ordering policy inside the gameplay session
+  - phase transition side effects between gameplay systems
 - `src/game/runtime/RendererBackendBootstrap.*`
   - Backend creation/fallback
   - Backend capability-to-window API mapping
@@ -101,7 +107,7 @@ Use this file to find ownership quickly when working on parity/performance tasks
 - `src/game/runtime/routes/RenderFlowDecisions.h`
 
 ### 3) Shared Gameplay Presentation Path
-- `src/game/runtime/GameSession.cpp`
+- `src/game/runtime/session/GameSession.cpp`
 - `src/game/runtime/shared/projected/SharedProjected*.*`
 - `src/game/runtime/shared/projected/SharedProjectedUnitBackendMeshRenderer.cpp`
   - authored fire-mesh UV flipbook override for the Charmander line
