@@ -107,6 +107,7 @@ bool test_session_render_scratch_contract(std::string& outFail);
 bool test_session_world_backdrop_contract(std::string& outFail);
 bool test_session_snapshot_runtime_contract(std::string& outFail);
 bool test_session_render_config_contract(std::string& outFail);
+bool test_session_world_render_runtime_contract(std::string& outFail);
 bool test_session_texture_cache_contract(std::string& outFail);
 bool test_round_flow_headless(std::string& outFail);
 bool test_animset_roles_smoke(std::string& outFail);
@@ -312,6 +313,7 @@ int main(int argc, char** argv) {
         {"session_world_backdrop_contract", &test_session_world_backdrop_contract},
         {"session_snapshot_runtime_contract", &test_session_snapshot_runtime_contract},
         {"session_render_config_contract", &test_session_render_config_contract},
+        {"session_world_render_runtime_contract", &test_session_world_render_runtime_contract},
         {"session_texture_cache_contract", &test_session_texture_cache_contract},
         {"round_flow_headless", &test_round_flow_headless},
         {"animset_roles_smoke", &test_animset_roles_smoke},

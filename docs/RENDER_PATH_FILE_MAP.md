@@ -24,6 +24,9 @@ Use this file to find ownership quickly when working on parity/performance tasks
 - `src/game/runtime/session/SessionBackendRenderHelpers.*`
   - backend-model animation lookup fallbacks, card-label formatting, and world-texture prewarm payload generation
   - shared session-side helpers used by startup model prewarm and backend shop card UI
+- `src/game/runtime/session/SessionCoreBootstrapRuntime.*`
+  - core session bootstrap extracted from `GameSession`
+  - asset-store selection, RNG seed setup, services/world/state creation, scheduler wiring, and update-graph configuration
 - `src/game/runtime/session/SessionBackendInventoryUi.*`
   - backend inventory panel refresh, paging, selection, and hit/input routing
   - session-side adapter between world inventory state and backend UI controls
@@ -62,6 +65,12 @@ Use this file to find ownership quickly when working on parity/performance tasks
 - `src/game/runtime/session/SessionSnapshotRuntime.*`
   - live session save/load orchestration for debug snapshots
   - state-stack restore, runtime flag restore, inventory refresh, and restore-time indexed-world prewarm
+- `src/game/runtime/session/SessionStartupRuntime.*`
+  - post-bootstrap session startup orchestration extracted from `GameSession`
+  - render-model preload, startup asset prewarm, world-layer warmup scheduling/drain, initial menu push, and final init logging
+- `src/game/runtime/session/SessionTailFirePrewarm.*`
+  - session-side startup prewarm for legacy and authored tail-fire texture assets
+  - resolves combined/premultiplied atlases and authored mesh flipbook uploads before first use
 - `src/game/runtime/session/SessionTextureCache.*`
   - session-local runtime texture cache population for world/UI/debug paths
   - white fallback texture, procedural sprite atlases, and on-demand image decode/caching
@@ -71,6 +80,9 @@ Use this file to find ownership quickly when working on parity/performance tasks
 - `src/game/runtime/session/SessionRenderLayout.*`
   - viewport-derived board/UI layout used by `GameSession` render routing
   - board bounds, cell sizing, UI padding, and shared HUD config packaging
+- `src/game/runtime/session/SessionWorldRenderRuntime.*`
+  - session-side backend world render orchestration extracted from `GameSession`
+  - projected vs legacy world path selection, prewarm-only indexed-layer path, frame-metric publication, and shared overlay submit wiring
 - `src/game/runtime/renderer/RendererBackendBootstrap.*`
   - Backend creation/fallback
   - Backend capability-to-window API mapping
