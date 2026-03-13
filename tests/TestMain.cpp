@@ -93,7 +93,9 @@ bool test_model_loader_source_modularity(std::string& outFail);
 bool test_gltf_asset_smoke(std::string& outFail);
 bool test_combat_anim_index_cache_contract(std::string& outFail);
 bool test_script_api_contract(std::string& outFail);
+bool test_session_backend_render_helpers_contract(std::string& outFail);
 bool test_session_debug_snapshot_contract(std::string& outFail);
+bool test_session_render_config_contract(std::string& outFail);
 bool test_round_flow_headless(std::string& outFail);
 bool test_animset_roles_smoke(std::string& outFail);
 bool test_combat_slice_headless(std::string& outFail);
@@ -284,7 +286,9 @@ int main(int argc, char** argv) {
         {"gltf_asset_smoke", &test_gltf_asset_smoke},
         {"combat_anim_index_cache_contract", &test_combat_anim_index_cache_contract},
         {"script_api_contract", &test_script_api_contract},
+        {"session_backend_render_helpers_contract", &test_session_backend_render_helpers_contract},
         {"session_debug_snapshot_contract", &test_session_debug_snapshot_contract},
+        {"session_render_config_contract", &test_session_render_config_contract},
         {"round_flow_headless", &test_round_flow_headless},
         {"animset_roles_smoke", &test_animset_roles_smoke},
         {"combat_slice_headless", &test_combat_slice_headless},
@@ -366,3 +370,4 @@ int main(int argc, char** argv) {
     std::cerr << "[PAC_Tests] " << fails << " test(s) failed.\n";
     return 1;
 }
+

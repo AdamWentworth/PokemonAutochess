@@ -4,7 +4,6 @@
 #include <iostream>
 #include <string>
 #include <utility>
-#include <cctype>
 #include <cstdint>
 #include <cstring>
 #include <chrono>
@@ -91,7 +90,9 @@
 #include "game/GameServices.h"
 #include "game/GameConfig.h"
 #include "game/runtime/session/GameUpdateGraph.h"
+#include "game/runtime/session/SessionBackendRenderHelpers.h"
 #include "game/runtime/session/SessionDebugSnapshot.h"
+#include "game/runtime/session/SessionRenderConfig.h"
 #include "game/ui/UIViewport.h"
 #include "game/ui/ShopLayout.h"
 
@@ -119,525 +120,6 @@
 
 namespace {
 constexpr int kWorldLayerPrewarmFrames = 2;
-
-std::string makeBackendCardPrewarmLabel(const std::string& texturePath) {
-    std::string label = std::filesystem::path(texturePath).stem().string();
-    if (label.empty()) return "Card";
-    std::replace(label.begin(), label.end(), '_', ' ');
-    if (!label.empty()) {
-        label[0] = static_cast<char>(std::toupper(static_cast<unsigned char>(label[0])));
-    }
-    return label;
-}
-
-std::size_t backendModelTriangleLimit() {
-    static const std::size_t limit = []() -> std::size_t {
-        constexpr std::size_t kDefault = 42000u;
-        constexpr std::size_t kMin = 512u;
-        constexpr std::size_t kMax = 360000u;
-        const auto env = engine::env::get("PAC_BACKEND_MODEL_TRI_LIMIT");
-        if (!env.has_value()) return kDefault;
-        try {
-            const std::size_t parsed = static_cast<std::size_t>(std::stoull(*env));
-            return std::clamp(parsed, kMin, kMax);
-        } catch (...) {
-            return kDefault;
-        }
-    }();
-    return limit;
-}
-
-std::string toLowerCopy(std::string s) {
-    std::transform(
-        s.begin(),
-        s.end(),
-        s.begin(),
-        [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
-    return s;
-}
-
-std::string stripSuffix(const std::string& s, const std::string& suffix) {
-    if (s.size() >= suffix.size() && s.compare(s.size() - suffix.size(), suffix.size(), suffix) == 0) {
-        return s.substr(0, s.size() - suffix.size());
-    }
-    return s;
-}
-
-int resolveBackendAnimIndexByName(const std::vector<pac_model_types::AnimationClip>& animations,
-                                  const std::string& requestedName) {
-    if (animations.empty() || requestedName.empty()) return -1;
-
-    auto findExact = [&](const std::string& candidate) -> int {
-        for (std::size_t i = 0; i < animations.size(); ++i) {
-            if (animations[i].name == candidate) return static_cast<int>(i);
-        }
-        return -1;
-    };
-    auto findCaseInsensitive = [&](const std::string& candidate) -> int {
-        if (candidate.empty()) return -1;
-        const std::string needle = toLowerCopy(candidate);
-        for (std::size_t i = 0; i < animations.size(); ++i) {
-            if (toLowerCopy(animations[i].name) == needle) return static_cast<int>(i);
-        }
-        return -1;
-    };
-
-    int idx = findExact(requestedName);
-    if (idx >= 0) return idx;
-
-    const std::string noGfbanm = stripSuffix(requestedName, ".gfbanm");
-    idx = findExact(noGfbanm);
-    if (idx >= 0) return idx;
-
-    const std::string noStart = stripSuffix(requestedName, "__START");
-    idx = findExact(noStart);
-    if (idx >= 0) return idx;
-
-    const std::string noEnd = stripSuffix(requestedName, "__END");
-    idx = findExact(noEnd);
-    if (idx >= 0) return idx;
-
-    std::string compact = stripSuffix(noGfbanm, "__START");
-    compact = stripSuffix(compact, "__END");
-    idx = findExact(compact);
-    if (idx >= 0) return idx;
-
-    idx = findCaseInsensitive(requestedName);
-    if (idx >= 0) return idx;
-    idx = findCaseInsensitive(noGfbanm);
-    if (idx >= 0) return idx;
-    idx = findCaseInsensitive(noStart);
-    if (idx >= 0) return idx;
-    idx = findCaseInsensitive(noEnd);
-    if (idx >= 0) return idx;
-    return findCaseInsensitive(compact);
-}
-
-int findBackendAnimIndexBySubstring(const std::vector<pac_model_types::AnimationClip>& animations,
-                                    const std::vector<std::string>& needles) {
-    if (animations.empty() || needles.empty()) return -1;
-    for (std::size_t i = 0; i < animations.size(); ++i) {
-        const std::string lowerName = toLowerCopy(animations[i].name);
-        for (const std::string& needle : needles) {
-            if (needle.empty()) continue;
-            if (lowerName.find(toLowerCopy(needle)) != std::string::npos) {
-                return static_cast<int>(i);
-            }
-        }
-    }
-    return -1;
-}
-
-std::size_t backendModelTriangleFrameBudget() {
-    static const std::size_t budget = []() -> std::size_t {
-        constexpr std::size_t kDefault = 126000u;
-        constexpr std::size_t kMin = 1024u;
-        constexpr std::size_t kMax = 720000u;
-        const auto env = engine::env::get("PAC_BACKEND_MODEL_TRI_FRAME_BUDGET");
-        if (!env.has_value()) return kDefault;
-        try {
-            const std::size_t parsed = static_cast<std::size_t>(std::stoull(*env));
-            return std::clamp(parsed, kMin, kMax);
-        } catch (...) {
-            return kDefault;
-        }
-    }();
-    return budget;
-}
-
-bool backendModelBackfaceCullingEnabled() {
-    static const bool enabled = []() -> bool {
-        const auto env = engine::env::get("PAC_BACKEND_MODEL_CULL");
-        if (!env.has_value()) return false;
-        const std::string raw = *env;
-        if (raw == "0" || raw == "false" || raw == "FALSE" || raw == "off" || raw == "OFF") {
-            return false;
-        }
-        return true;
-    }();
-    return enabled;
-}
-
-bool backendWorldPortraitFallbackEnabled() {
-    static const bool enabled = []() -> bool {
-        const auto env = engine::env::get("PAC_BACKEND_WORLD_PORTRAITS");
-        if (!env.has_value()) return true;
-        const std::string raw = *env;
-        if (raw == "0" || raw == "false" || raw == "FALSE" || raw == "off" || raw == "OFF") {
-            return false;
-        }
-        return true;
-    }();
-    return enabled;
-}
-
-bool backendWorldPortraitOverlayForced() {
-    static const bool enabled = []() -> bool {
-        const auto env = engine::env::get("PAC_BACKEND_WORLD_PORTRAIT_OVERLAY");
-        if (!env.has_value()) return false;
-        const std::string raw = *env;
-        if (raw == "0" || raw == "false" || raw == "FALSE" || raw == "off" || raw == "OFF") {
-            return false;
-        }
-        return true;
-    }();
-    return enabled;
-}
-
-bool backendPreloadModelCacheEnabled() {
-    static const bool enabled = []() -> bool {
-        const auto env = engine::env::get("PAC_BACKEND_PRELOAD_MODELS");
-        if (!env.has_value()) return true;
-        const std::string raw = *env;
-        if (raw == "0" || raw == "false" || raw == "FALSE" || raw == "off" || raw == "OFF") {
-            return false;
-        }
-        return true;
-    }();
-    return enabled;
-}
-
-bool backendPrewarmAnimRolesEnabled() {
-    static const bool enabled = []() -> bool {
-        const auto env = engine::env::get("PAC_BACKEND_PREWARM_ANIM_ROLES");
-        if (!env.has_value()) return true;
-        const std::string raw = *env;
-        if (raw == "0" || raw == "false" || raw == "FALSE" || raw == "off" || raw == "OFF") {
-            return false;
-        }
-        return true;
-    }();
-    return enabled;
-}
-
-bool backendPrewarmModelTexturesEnabled() {
-    static const bool enabled = []() -> bool {
-        const auto env = engine::env::get("PAC_BACKEND_PREWARM_MODEL_TEXTURES");
-        if (!env.has_value()) return true;
-        const std::string raw = *env;
-        if (raw == "0" || raw == "false" || raw == "FALSE" || raw == "off" || raw == "OFF") {
-            return false;
-        }
-        return true;
-    }();
-    return enabled;
-}
-
-bool backendPrewarmModelGeometryEnabled() {
-    static const bool enabled = []() -> bool {
-        const auto env = engine::env::get("PAC_BACKEND_PREWARM_MODEL_GEOMETRY");
-        if (!env.has_value()) return true;
-        const std::string raw = *env;
-        if (raw == "0" || raw == "false" || raw == "FALSE" || raw == "off" || raw == "OFF") {
-            return false;
-        }
-        return true;
-    }();
-    return enabled;
-}
-
-bool snapshotPrewarmRestoreRenderEnabled() {
-    static const bool enabled = []() -> bool {
-        const auto env = engine::env::get("PAC_STATE_SNAPSHOT_PREWARM_RENDER");
-        if (!env.has_value()) return true;
-        const std::string raw = *env;
-        if (raw == "0" || raw == "false" || raw == "FALSE" || raw == "off" || raw == "OFF") {
-            return false;
-        }
-        return true;
-    }();
-    return enabled;
-}
-
-bool backendModelFullMeshEnabled() {
-    static const bool enabled = []() -> bool {
-        const auto env = engine::env::get("PAC_BACKEND_MODEL_FULL_MESH");
-        if (!env.has_value()) return true;
-        const std::string raw = *env;
-        if (raw == "0" || raw == "false" || raw == "FALSE" || raw == "off" || raw == "OFF") {
-            return false;
-        }
-        return true;
-    }();
-    return enabled;
-}
-
-bool backendModelVerboseLoggingEnabled() {
-    static const bool enabled = []() -> bool {
-        const auto env = engine::env::get("PAC_BACKEND_MODEL_VERBOSE");
-        if (!env.has_value()) return false;
-        const std::string raw = *env;
-        if (raw == "0" || raw == "false" || raw == "FALSE" || raw == "off" || raw == "OFF") {
-            return false;
-        }
-        return true;
-    }();
-    return enabled;
-}
-
-bool backendModelFastTexturedPathEnabled() {
-    static const bool enabled = []() -> bool {
-        const auto env = engine::env::get("PAC_BACKEND_MODEL_FAST_TEXTURED");
-        if (!env.has_value()) return true;
-        const std::string raw = *env;
-        if (raw == "0" || raw == "false" || raw == "FALSE" || raw == "off" || raw == "OFF") {
-            return false;
-        }
-        return true;
-    }();
-    return enabled;
-}
-
-bool backendUiSpritePrewarmEnabled() {
-    static const bool enabled = []() -> bool {
-        const auto env = engine::env::get("PAC_BACKEND_PREWARM_UI_SPRITES");
-        if (!env.has_value()) return true;
-        const std::string raw = *env;
-        if (raw == "0" || raw == "false" || raw == "FALSE" || raw == "off" || raw == "OFF") {
-            return false;
-        }
-        return true;
-    }();
-    return enabled;
-}
-
-bool backendWorldLayerPrewarmEnabled() {
-    static const bool enabled = []() -> bool {
-        const auto env = engine::env::get("PAC_BACKEND_PREWARM_WORLD_LAYER");
-        if (!env.has_value()) return true;
-        const std::string raw = *env;
-        if (raw == "0" || raw == "false" || raw == "FALSE" || raw == "off" || raw == "OFF") {
-            return false;
-        }
-        return true;
-    }();
-    return enabled;
-}
-
-std::string buildRuntimeMeshTextureKeyPrefix(
-    const game::runtime::backend_model::MeshData* mesh) {
-    if (!mesh) return "__runtime_mesh__";
-    return "__runtime_mesh__:" +
-           std::to_string(static_cast<unsigned long long>(
-               reinterpret_cast<std::uintptr_t>(mesh)));
-}
-
-std::string buildWorldTextureCacheKey(const std::string& key,
-                                      int width,
-                                      int height,
-                                      int wrapS,
-                                      int wrapT,
-                                      bool srgb) {
-    if (key.empty() || width <= 0 || height <= 0) return {};
-    std::string cacheKey = key;
-    cacheKey += "|";
-    cacheKey += std::to_string(width);
-    cacheKey += "x";
-    cacheKey += std::to_string(height);
-    cacheKey += "|ws=";
-    cacheKey += std::to_string(wrapS);
-    cacheKey += "|wt=";
-    cacheKey += std::to_string(wrapT);
-    cacheKey += srgb ? "|srgb" : "|lin";
-    return cacheKey;
-}
-
-std::size_t prewarmBackendWorldTexturesForMesh(
-    IRenderBackend* renderer,
-    const game::runtime::backend_model::MeshData* mesh) {
-    if (!renderer || !mesh) return 0u;
-
-    const std::size_t batchCount = (std::max)(
-        (std::max)(
-            (std::max)(mesh->submeshBaseTextures.size(), mesh->submeshNormalTextures.size()),
-            (std::max)(
-                mesh->submeshMetallicRoughnessTextures.size(),
-                mesh->submeshOcclusionTextures.size())),
-        mesh->submeshEmissiveTextures.size());
-    if (batchCount == 0u) return 0u;
-
-    const std::string keyPrefix = buildRuntimeMeshTextureKeyPrefix(mesh);
-    std::size_t warmed = 0u;
-    for (std::size_t si = 0; si < batchCount; ++si) {
-        IRenderBackend::WorldTextureData tex{};
-        std::string baseKey;
-        std::string baseCacheKey;
-        std::string normalKey;
-        std::string normalCacheKey;
-        std::string mrKey;
-        std::string mrCacheKey;
-        std::string occlusionKey;
-        std::string occlusionCacheKey;
-        std::string emissiveKey;
-        std::string emissiveCacheKey;
-        bool hasAnyTexture = false;
-
-        if (si < mesh->submeshBaseTextures.size()) {
-            const auto& src = mesh->submeshBaseTextures[si];
-            if (src.hasPixels()) {
-                baseKey = keyPrefix + "#submesh:" + std::to_string(si);
-                baseCacheKey = buildWorldTextureCacheKey(
-                    baseKey, src.width, src.height, src.wrapS, src.wrapT, true);
-                tex.key = baseKey.c_str();
-                tex.cacheKey = baseCacheKey.c_str();
-                tex.rgba = src.rgba.data();
-                tex.width = src.width;
-                tex.height = src.height;
-                tex.wrapS = src.wrapS;
-                tex.wrapT = src.wrapT;
-                hasAnyTexture = true;
-            }
-        }
-        if (si < mesh->submeshNormalTextures.size()) {
-            const auto& src = mesh->submeshNormalTextures[si];
-            if (src.hasPixels()) {
-                normalKey = keyPrefix + "#submesh_normal:" + std::to_string(si);
-                normalCacheKey = buildWorldTextureCacheKey(
-                    normalKey, src.width, src.height, src.wrapS, src.wrapT, false);
-                tex.normalKey = normalKey.c_str();
-                tex.normalCacheKey = normalCacheKey.c_str();
-                tex.normalRgba = src.rgba.data();
-                tex.normalWidth = src.width;
-                tex.normalHeight = src.height;
-                tex.normalWrapS = src.wrapS;
-                tex.normalWrapT = src.wrapT;
-                hasAnyTexture = true;
-            }
-        }
-        if (si < mesh->submeshMetallicRoughnessTextures.size()) {
-            const auto& src = mesh->submeshMetallicRoughnessTextures[si];
-            if (src.hasPixels()) {
-                mrKey = keyPrefix + "#submesh_mr:" + std::to_string(si);
-                mrCacheKey = buildWorldTextureCacheKey(
-                    mrKey, src.width, src.height, src.wrapS, src.wrapT, false);
-                tex.metallicRoughnessKey = mrKey.c_str();
-                tex.metallicRoughnessCacheKey = mrCacheKey.c_str();
-                tex.metallicRoughnessRgba = src.rgba.data();
-                tex.metallicRoughnessWidth = src.width;
-                tex.metallicRoughnessHeight = src.height;
-                tex.metallicRoughnessWrapS = src.wrapS;
-                tex.metallicRoughnessWrapT = src.wrapT;
-                hasAnyTexture = true;
-            }
-        }
-        if (si < mesh->submeshOcclusionTextures.size()) {
-            const auto& src = mesh->submeshOcclusionTextures[si];
-            if (src.hasPixels()) {
-                occlusionKey = keyPrefix + "#submesh_occ:" + std::to_string(si);
-                occlusionCacheKey = buildWorldTextureCacheKey(
-                    occlusionKey, src.width, src.height, src.wrapS, src.wrapT, false);
-                tex.occlusionKey = occlusionKey.c_str();
-                tex.occlusionCacheKey = occlusionCacheKey.c_str();
-                tex.occlusionRgba = src.rgba.data();
-                tex.occlusionWidth = src.width;
-                tex.occlusionHeight = src.height;
-                tex.occlusionWrapS = src.wrapS;
-                tex.occlusionWrapT = src.wrapT;
-                hasAnyTexture = true;
-            }
-        }
-        if (si < mesh->submeshEmissiveTextures.size()) {
-            const auto& src = mesh->submeshEmissiveTextures[si];
-            if (src.hasPixels()) {
-                emissiveKey = keyPrefix + "#submesh_emissive:" + std::to_string(si);
-                emissiveCacheKey = buildWorldTextureCacheKey(
-                    emissiveKey, src.width, src.height, src.wrapS, src.wrapT, true);
-                tex.emissiveKey = emissiveKey.c_str();
-                tex.emissiveCacheKey = emissiveCacheKey.c_str();
-                tex.emissiveRgba = src.rgba.data();
-                tex.emissiveWidth = src.width;
-                tex.emissiveHeight = src.height;
-                tex.emissiveWrapS = src.wrapS;
-                tex.emissiveWrapT = src.wrapT;
-                hasAnyTexture = true;
-            }
-        }
-
-        if (!hasAnyTexture) continue;
-        renderer->prewarmWorldTextureData(&tex);
-        ++warmed;
-    }
-
-    return warmed;
-}
-
-bool backendGpuClipSkinningEnabled(const IRenderBackend* renderer) {
-    if (!renderer) return false;
-    const auto parseFlag = [](const char* key, bool defaultValue) {
-        const auto env = engine::env::get(key);
-        if (!env.has_value()) return defaultValue;
-        const std::string raw = *env;
-        if (raw == "0" || raw == "false" || raw == "FALSE" || raw == "off" || raw == "OFF") {
-            return false;
-        }
-        return true;
-    };
-
-    // Global gate for GPU clip skinning.
-    if (!parseFlag("PAC_BACKEND_GPU_CLIP_SKINNING", true)) return false;
-
-    const std::string backendId = toLowerCopy(renderer->backendId());
-    if (backendId == "opengl") {
-        // OpenGL world shader path supports GPU clip skinning payload.
-        return parseFlag("PAC_BACKEND_GPU_CLIP_SKINNING_OPENGL", true);
-    }
-    if (backendId == "d3d12") {
-        return parseFlag("PAC_BACKEND_GPU_CLIP_SKINNING_D3D12", true);
-    }
-    return parseFlag("PAC_BACKEND_GPU_CLIP_SKINNING_OTHER", false);
-}
-
-bool backendUseLegacyGrowlWaveVfxEnabled() {
-    static const bool enabled = []() -> bool {
-        const auto env = engine::env::get("PAC_BACKEND_GROWL_LEGACY_VFX");
-        if (!env.has_value()) return true;
-        const std::string raw = *env;
-        if (raw == "0" || raw == "false" || raw == "FALSE" || raw == "off" || raw == "OFF") {
-            return false;
-        }
-        return true;
-    }();
-    return enabled;
-}
-
-bool backendUseLegacyParticleVfxSnapshotBridgeEnabled() {
-    static const bool enabled = []() -> bool {
-        const auto env = engine::env::get("PAC_BACKEND_PARTICLE_LEGACY_VFX");
-        if (!env.has_value()) return true;
-        const std::string raw = *env;
-        if (raw == "0" || raw == "false" || raw == "FALSE" || raw == "off" || raw == "OFF") {
-            return false;
-        }
-        return true;
-    }();
-    return enabled;
-}
-
-bool backendUseExactTailFireCpuPathEnabled() {
-    static const bool enabled = []() -> bool {
-        const auto env = engine::env::get("PAC_BACKEND_TAIL_FIRE_EXACT_CPU");
-        if (!env.has_value()) return false;
-        const std::string raw = *env;
-        if (raw == "0" || raw == "false" || raw == "FALSE" || raw == "off" || raw == "OFF") {
-            return false;
-        }
-        return true;
-    }();
-    return enabled;
-}
-
-bool backendPrewarmLegacyTailFirePremulEnabled() {
-    static const bool enabled = []() -> bool {
-        const auto env = engine::env::get("PAC_BACKEND_TAIL_FIRE_PREWARM_PREMUL");
-        if (!env.has_value()) return false;
-        const std::string raw = *env;
-        if (raw == "0" || raw == "false" || raw == "FALSE" || raw == "off" || raw == "OFF") {
-            return false;
-        }
-        return true;
-    }();
-    return enabled;
-}
 
 std::string debugStateSnapshotPath() {
     return game::runtime::session_debug_snapshot::snapshotPath();
@@ -1035,7 +517,7 @@ struct GameSession::Impl {
         }
 
         const bool prewarmLegacyPremul =
-            backendPrewarmLegacyTailFirePremulEnabled() ||
+            game::runtime::session_render_config::backendPrewarmLegacyTailFirePremulEnabled() ||
             !snapshot.useSecondaryFlipbook ||
             !(combined.atlas && combined.atlas->valid);
         if (prewarmLegacyPremul) {
@@ -1153,7 +635,7 @@ struct GameSession::Impl {
 
             auto resolvePick = [&](const AnimSet::RolePick& pick) -> int {
                 if (!pick.valid || pick.clipName.empty()) return -1;
-                return resolveBackendAnimIndexByName(mesh->animations, pick.clipName);
+                return game::runtime::session_backend_render_helpers::resolveBackendAnimIndexByName(mesh->animations, pick.clipName);
             };
 
             const int idleIdx = resolvePick(idlePick);
@@ -1187,7 +669,7 @@ struct GameSession::Impl {
             if (animSetJson.contains("meta") && animSetJson["meta"].is_object()) {
                 const auto& meta = animSetJson["meta"];
                 if (meta.contains("movementMode") && meta["movementMode"].is_string()) {
-                    const std::string mode = toLowerCopy(meta["movementMode"].get<std::string>());
+                    const std::string mode = game::runtime::session_backend_render_helpers::toLowerCopy(meta["movementMode"].get<std::string>());
                     entry.usesAirLocomotion =
                         (mode == "airborne" || mode == "air" || mode == "flying" || mode == "fly");
                 }
@@ -1204,17 +686,17 @@ struct GameSession::Impl {
         }
 
         if (entry.idleIndex < 0) {
-            entry.idleIndex = findBackendAnimIndexBySubstring(mesh->animations, {"wait", "idle", "ba10"});
+            entry.idleIndex = game::runtime::session_backend_render_helpers::findBackendAnimIndexBySubstring(mesh->animations, {"wait", "idle", "ba10"});
         }
         if (entry.moveIndex < 0) {
-            entry.moveIndex = findBackendAnimIndexBySubstring(mesh->animations, {"move", "run", "walk", "fly"});
+            entry.moveIndex = game::runtime::session_backend_render_helpers::findBackendAnimIndexBySubstring(mesh->animations, {"move", "run", "walk", "fly"});
         }
         if (entry.attackIndex < 0) {
             entry.attackIndex =
-                findBackendAnimIndexBySubstring(mesh->animations, {"attack", "ba20", "buturi", "strike"});
+                game::runtime::session_backend_render_helpers::findBackendAnimIndexBySubstring(mesh->animations, {"attack", "ba20", "buturi", "strike"});
         }
         if (entry.faintIndex < 0) {
-            entry.faintIndex = findBackendAnimIndexBySubstring(mesh->animations, {"down", "faint", "death", "ko"});
+            entry.faintIndex = game::runtime::session_backend_render_helpers::findBackendAnimIndexBySubstring(mesh->animations, {"down", "faint", "death", "ko"});
         }
 
         if (entry.groundIdleIndex < 0) entry.groundIdleIndex = entry.idleIndex;
@@ -1269,21 +751,21 @@ struct GameSession::Impl {
                     const auto cacheAlias = [&](const std::string& clipName, int idx) {
                         if (clipName.empty() || idx < 0) return;
                         unit.animIndexCache[clipName] = idx;
-                        unit.animIndexCache[toLowerCopy(clipName)] = idx;
+                        unit.animIndexCache[game::runtime::session_backend_render_helpers::toLowerCopy(clipName)] = idx;
                     };
 
                     for (std::size_t i = 0; i < mesh->animations.size(); ++i) {
                         const int idx = static_cast<int>(i);
                         const std::string& raw = mesh->animations[i].name;
                         cacheAlias(raw, idx);
-                        const std::string noGfbanm = stripSuffix(raw, ".gfbanm");
+                        const std::string noGfbanm = game::runtime::session_backend_render_helpers::stripSuffix(raw, ".gfbanm");
                         cacheAlias(noGfbanm, idx);
-                        const std::string noStart = stripSuffix(raw, "__START");
+                        const std::string noStart = game::runtime::session_backend_render_helpers::stripSuffix(raw, "__START");
                         cacheAlias(noStart, idx);
-                        const std::string noEnd = stripSuffix(raw, "__END");
+                        const std::string noEnd = game::runtime::session_backend_render_helpers::stripSuffix(raw, "__END");
                         cacheAlias(noEnd, idx);
-                        std::string compact = stripSuffix(noGfbanm, "__START");
-                        compact = stripSuffix(compact, "__END");
+                        std::string compact = game::runtime::session_backend_render_helpers::stripSuffix(noGfbanm, "__START");
+                        compact = game::runtime::session_backend_render_helpers::stripSuffix(compact, "__END");
                         cacheAlias(compact, idx);
                     }
                 }
@@ -1361,7 +843,7 @@ struct GameSession::Impl {
             }
 
             if (stats) {
-                const std::string scaleMode = toLowerCopy(stats->modelScaleMode);
+                const std::string scaleMode = game::runtime::session_backend_render_helpers::toLowerCopy(stats->modelScaleMode);
                 if (!unit.model && scaleMode != "normalized") {
                     const float importerScale = std::max(0.0f, mesh->modelScaleFactor);
                     if (importerScale > 1e-6f) {
@@ -1542,20 +1024,20 @@ struct GameSession::Impl {
         });
 
         std::cout << "[Init] Shared gameplay render path: using backend model cache loader.\n";
-        if (backendPreloadModelCacheEnabled()) {
+        if (game::runtime::session_render_config::backendPreloadModelCacheEnabled()) {
             std::cout << "[Init] Shared gameplay render path: preloading backend model cache...\n";
             const bool prewarmModelTextures =
                 usesBackendGameRenderPath() &&
                 renderer &&
                 renderer->supportsWorldIndexedMeshes() &&
-                backendPrewarmModelTexturesEnabled();
+                game::runtime::session_render_config::backendPrewarmModelTexturesEnabled();
             const bool prewarmModelGeometry =
                 usesBackendGameRenderPath() &&
                 renderer &&
                 renderer->supportsWorldIndexedMeshes() &&
-                backendModelFullMeshEnabled() &&
-                backendModelFastTexturedPathEnabled() &&
-                backendPrewarmModelGeometryEnabled();
+                game::runtime::session_render_config::backendModelFullMeshEnabled() &&
+                game::runtime::session_render_config::backendModelFastTexturedPathEnabled() &&
+                game::runtime::session_render_config::backendPrewarmModelGeometryEnabled();
             std::vector<std::string> modelPathsToPreload;
             modelPathsToPreload.reserve(dataDb.pokemon.all().size());
             std::unordered_set<std::string> seenModelPaths;
@@ -1577,8 +1059,8 @@ struct GameSession::Impl {
                 }
             }
             const game::runtime::backend_model_prewarm::Options prewarmOptions{
-                .verboseModelCacheLog = backendModelVerboseLoggingEnabled(),
-                .prewarmAnimRoles = backendPrewarmAnimRolesEnabled(),
+                .verboseModelCacheLog = game::runtime::session_render_config::backendModelVerboseLoggingEnabled(),
+                .prewarmAnimRoles = game::runtime::session_render_config::backendPrewarmAnimRolesEnabled(),
                 .prewarmModelTextures = prewarmModelTextures,
                 .prewarmModelGeometry = prewarmModelGeometry,
                 .maxFailureSamples = 8u,
@@ -1633,7 +1115,7 @@ struct GameSession::Impl {
                         },
                     .prewarmTextures =
                         [&](const std::string&, const runtime::backend_model::MeshData& mesh) {
-                            return prewarmBackendWorldTexturesForMesh(renderer, &mesh);
+                            return game::runtime::session_backend_render_helpers::prewarmBackendWorldTexturesForMesh(renderer, &mesh);
                         },
                     .prewarmGeometry =
                         [&](const runtime::backend_model::MeshData& mesh) {
@@ -1659,7 +1141,7 @@ struct GameSession::Impl {
 
         const bool usesBackendPathForStartupPrewarm = usesBackendGameRenderPath() && renderer;
         std::vector<std::string> uiSpritePrewarmPaths;
-        if (usesBackendPathForStartupPrewarm && backendUiSpritePrewarmEnabled()) {
+        if (usesBackendPathForStartupPrewarm && game::runtime::session_render_config::backendUiSpritePrewarmEnabled()) {
             uiSpritePrewarmPaths =
                 game::runtime::startup_asset_prewarm::collectUiSpritePrewarmPaths(dataDb);
         }
@@ -1667,7 +1149,7 @@ struct GameSession::Impl {
         (void)game::runtime::startup_asset_prewarm::run(
             game::runtime::startup_asset_prewarm::Options{
                 .usesBackendRenderPath = usesBackendPathForStartupPrewarm,
-                .uiSpritePrewarmEnabled = backendUiSpritePrewarmEnabled(),
+                .uiSpritePrewarmEnabled = game::runtime::session_render_config::backendUiSpritePrewarmEnabled(),
                 .drawableW = ctx.drawableW,
                 .drawableH = ctx.drawableH,
             },
@@ -1708,7 +1190,7 @@ struct GameSession::Impl {
 
         if (usesBackendGameRenderPath() &&
             renderer &&
-            backendWorldLayerPrewarmEnabled()) {
+            game::runtime::session_render_config::backendWorldLayerPrewarmEnabled()) {
             game::runtime::world_layer_prewarm::schedule(
                 worldLayerPrewarmFramesRemaining,
                 kWorldLayerPrewarmFrames,
@@ -2055,7 +1537,7 @@ struct GameSession::Impl {
         const auto inventoryEnd = SnapshotClock::now();
         double prewarmIndexedMs = 0.0;
         std::size_t prewarmIndexedBatches = 0u;
-        if (snapshotPrewarmRestoreRenderEnabled() &&
+        if (game::runtime::session_render_config::snapshotPrewarmRestoreRenderEnabled() &&
             renderer &&
             usesBackendGameRenderPath() &&
             renderer->supportsWorldIndexedMeshes() &&
@@ -2223,8 +1705,8 @@ struct GameSession::Impl {
         if (!renderer || drawableW <= 0 || drawableH <= 0) return 0u;
         using RenderBuildClock = std::chrono::steady_clock;
         const auto worldComposeStart = RenderBuildClock::now();
-        const bool useLegacyGrowlWaveVfx = backendUseLegacyGrowlWaveVfxEnabled();
-        const bool useLegacyParticleVfxSnapshotBridge = backendUseLegacyParticleVfxSnapshotBridgeEnabled();
+        const bool useLegacyGrowlWaveVfx = game::runtime::session_render_config::backendUseLegacyGrowlWaveVfxEnabled();
+        const bool useLegacyParticleVfxSnapshotBridge = game::runtime::session_render_config::backendUseLegacyParticleVfxSnapshotBridgeEnabled();
 
         runtime::backend_inventory_panel::clearHitRegions(backendInventoryPanel);
 
@@ -2337,8 +1819,8 @@ struct GameSession::Impl {
 
         const bool supportsWorldTriangles3D = renderer->supportsWorldTriangles3D();
         const bool supportsWorldIndexedMeshes = renderer->supportsWorldIndexedMeshes();
-        const bool allowPortraitFallback = backendWorldPortraitFallbackEnabled();
-        const bool forcePortraitOverlay = backendWorldPortraitOverlayForced();
+        const bool allowPortraitFallback = game::runtime::session_render_config::backendWorldPortraitFallbackEnabled();
+        const bool forcePortraitOverlay = game::runtime::session_render_config::backendWorldPortraitOverlayForced();
         float worldViewProj[16] = {};
         bool hasWorldViewProj = false;
         float cameraWorldPos3[3] = {0.0f, 7.0f, 9.0f};
@@ -2527,7 +2009,7 @@ struct GameSession::Impl {
                     game::runtime::shared_projected_scene::acquireModelDepthBuffers(12000u);
                 auto& modelDepthTris = modelDepthBuffers.modelDepthTris;
                 auto& modelDepthWorldTris = modelDepthBuffers.modelDepthWorldTris;
-                std::size_t remainingModelTrianglesBudget = backendModelTriangleFrameBudget();
+                std::size_t remainingModelTrianglesBudget = game::runtime::session_render_config::backendModelTriangleFrameBudget();
                 runtime::shared_projected_units::PerfStats projectedUnitPerf{};
 
                 if (!canCacheProjectedBackdrop) {
@@ -2576,7 +2058,7 @@ struct GameSession::Impl {
                 projectedUnitArgs.supportsWorldIndexedMeshes = supportsWorldIndexedMeshes;
                 projectedUnitArgs.characterInkingEnabled =
                     (services ? services->characterInkingEnabled : false);
-                projectedUnitArgs.enableGpuClipSkinning = backendGpuClipSkinningEnabled(renderer);
+                projectedUnitArgs.enableGpuClipSkinning = game::runtime::session_render_config::backendGpuClipSkinningEnabled(renderer);
                 projectedUnitArgs.hasWorldViewProj = hasWorldViewProj;
                 projectedUnitArgs.allowPortraitFallback = allowPortraitFallback;
                 projectedUnitArgs.forcePortraitOverlay = forcePortraitOverlay;
@@ -2617,16 +2099,16 @@ struct GameSession::Impl {
                         return ensureBackendTextureLoaded(texturePath, flipVertical);
                     };
                 projectedUnitArgs.backendModelTriangleLimit = [&]() {
-                    return backendModelTriangleLimit();
+                    return game::runtime::session_render_config::backendModelTriangleLimit();
                 };
                 projectedUnitArgs.backendModelFullMeshEnabled = [&]() {
-                    return backendModelFullMeshEnabled();
+                    return game::runtime::session_render_config::backendModelFullMeshEnabled();
                 };
                 projectedUnitArgs.backendModelFastTexturedPathEnabled = [&]() {
-                    return backendModelFastTexturedPathEnabled();
+                    return game::runtime::session_render_config::backendModelFastTexturedPathEnabled();
                 };
                 projectedUnitArgs.backendModelBackfaceCullingEnabled = [&]() {
-                    return backendModelBackfaceCullingEnabled();
+                    return game::runtime::session_render_config::backendModelBackfaceCullingEnabled();
                 };
                 projectedUnitArgs.getTailFireFallbackCfg = [&]() -> const TailFireVFX::Config& {
                     return game::runtime::shared_projected_scene::getTailFireFallbackCfg();
@@ -2664,7 +2146,7 @@ struct GameSession::Impl {
                 const auto worldVfxStart = RenderBuildClock::now();
                 game::runtime::shared_projected_scene::appendSharedProjectedVfxBridgesSession(
                     useLegacyParticleVfxSnapshotBridge, useLegacyGrowlWaveVfx, supportsWorldIndexedMeshes,
-                    hasWorldViewProj, backendUseExactTailFireCpuPathEnabled(), gameWorld.get(), viewProj,
+                    hasWorldViewProj, game::runtime::session_render_config::backendUseExactTailFireCpuPathEnabled(), gameWorld.get(), viewProj,
                     invViewProj, cameraWorldPos, drawableW, drawableH, worldCellSize, timeSource.nowSeconds(),
                     line, sharedTailFireAnchors, backendTextureByPath, worldIndexedBatches, projectedDebug,
                     [&](const std::string& meshPath) { return ensureBackendMeshLoaded(meshPath); },
@@ -3072,7 +2554,7 @@ struct GameSession::Impl {
             input.w = cardW;
             input.h = cardH;
             if (i < portraitPaths.size()) {
-                input.displayName = makeBackendCardPrewarmLabel(portraitPaths[i]);
+                input.displayName = game::runtime::session_backend_render_helpers::makeBackendCardPrewarmLabel(portraitPaths[i]);
             } else {
                 input.displayName = "Card " + std::to_string(i + 1u);
             }
@@ -3235,4 +2717,5 @@ void GameSession::render(int drawableW, int drawableH) { impl_->render(drawableW
 void GameSession::shutdown() { impl_->shutdown(); }
 
 } // namespace game
+
 

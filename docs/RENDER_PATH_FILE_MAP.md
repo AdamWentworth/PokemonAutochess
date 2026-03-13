@@ -21,9 +21,15 @@ Use this file to find ownership quickly when working on parity/performance tasks
 - `src/game/runtime/session/GameUpdateGraph.*`
   - fixed-step update ordering policy inside the gameplay session
   - phase transition side effects between gameplay systems
+- `src/game/runtime/session/SessionBackendRenderHelpers.*`
+  - backend-model animation lookup fallbacks, card-label formatting, and world-texture prewarm payload generation
+  - shared session-side helpers used by startup model prewarm and backend shop card UI
 - `src/game/runtime/session/SessionDebugSnapshot.*`
   - debug snapshot path resolution, JSON file IO, and summary formatting
   - session/world snapshot metadata parsing for save/load
+- `src/game/runtime/session/SessionRenderConfig.*`
+  - session-local env/config gates for backend prewarm, projected rendering, and snapshot render restore
+  - backend model triangle limits and GPU clip-skinning policy used by GameSession render flow
 - `src/game/runtime/RendererBackendBootstrap.*`
   - Backend creation/fallback
   - Backend capability-to-window API mapping
@@ -161,3 +167,4 @@ D3D12:
 ## Rule of Thumb
 - Shared rendering behavior changes should start in shared runtime modules, not backend-specific branches.
 - Backend files should only own API-specific resource/pipeline/submission mechanics.
+
