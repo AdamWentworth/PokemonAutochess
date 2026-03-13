@@ -7,7 +7,7 @@
 
 #include "engine/core/Environment.h"
 #include "engine/render/Model.h"
-#include "game/runtime/BackendUnitVisuals.h"
+#include "game/runtime/render_prep/BackendUnitVisuals.h"
 
 #include <algorithm>
 #include <array>
@@ -1594,3 +1594,4 @@ Result renderProjectedUnitBackendMesh(const Args& args) {
 }
 
 } // namespace game::runtime::shared_projected_unit_backend_mesh
+

@@ -30,6 +30,9 @@ Use this file to find ownership quickly when working on parity/performance tasks
 - `src/game/runtime/backend_ui/*.h`
   - backend menu, HUD, card, inventory, text, and scaling helpers used by game-side UI presentation
   - game-facing backend presentation utilities, distinct from render API backends under `src/engine/render/*`
+- `src/game/runtime/render_prep/*.h`
+  - API-agnostic render-prep helpers shared by `GameSession`, backend model cache decode, and the shared projected path
+  - material shading math, procedural pose/deformation, world proxy geometry, board projection, mesh-normal generation, and portrait/tint decisions
 - `src/game/runtime/session/SessionBackendUnitHydration.*`
   - backend unit model-path hydration, animation-role cache population, and importer-scale correction
   - flyer default application and per-unit backend animation cache setup

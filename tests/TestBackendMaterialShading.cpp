@@ -1,4 +1,4 @@
-#include "game/runtime/BackendMaterialShading.h"
+#include "game/runtime/render_prep/BackendMaterialShading.h"
 
 #include <cmath>
 #include <string>
@@ -115,3 +115,4 @@ bool test_backend_material_shading_contract(std::string& outFail) {
 
     return true;
 }
+

@@ -1,6 +1,6 @@
 #include "game/runtime/shared/projected/SharedProjectedUnitOverlays.h"
 
-#include "game/runtime/BackendUnitVisuals.h"
+#include "game/runtime/render_prep/BackendUnitVisuals.h"
 #include "game/world/MoveImpactRouting.h"
 
 #include <algorithm>
@@ -339,3 +339,4 @@ void appendProjectedUnitOverlays(const Args& args) {
 }
 
 } // namespace game::runtime::shared_projected_unit_overlays
+

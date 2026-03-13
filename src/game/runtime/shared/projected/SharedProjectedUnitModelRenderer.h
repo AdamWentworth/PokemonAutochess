@@ -4,7 +4,7 @@
 #include "game/PokemonInstance.h"
 #include "game/config/GameDataDb.h"
 #include "game/runtime/backend_model_cache/BackendModelCache.h"
-#include "game/runtime/BackendProceduralPose.h"
+#include "game/runtime/render_prep/BackendProceduralPose.h"
 #include "game/runtime/shared/backend/SharedBackendPoseEval.h"
 #include "game/runtime/shared/backend/SharedBackendTextureCache.h"
 #include "game/runtime/shared/projected/SharedProjectedDebugVfx.h"
@@ -82,3 +82,4 @@ struct Args {
 Result renderProjectedUnitModel(const Args& args);
 
 } // namespace game::runtime::shared_projected_unit_models
+

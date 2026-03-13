@@ -1,4 +1,4 @@
-#include "game/runtime/BackendWorldProxyGeometry.h"
+#include "game/runtime/render_prep/BackendWorldProxyGeometry.h"
 
 #include <cmath>
 #include <string>
@@ -72,3 +72,4 @@ bool test_backend_world_proxy_geometry_contract(std::string& outFail) {
 
     return true;
 }
+

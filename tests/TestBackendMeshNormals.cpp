@@ -1,4 +1,4 @@
-#include "game/runtime/BackendMeshNormals.h"
+#include "game/runtime/render_prep/BackendMeshNormals.h"
 
 #include <cmath>
 #include <string>
@@ -66,4 +66,5 @@ bool test_backend_mesh_normals_contract(std::string& outFail) {
 
     return true;
 }
+
 

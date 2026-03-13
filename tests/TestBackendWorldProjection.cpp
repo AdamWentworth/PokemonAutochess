@@ -1,4 +1,4 @@
-#include "game/runtime/BackendWorldProjection.h"
+#include "game/runtime/render_prep/BackendWorldProjection.h"
 
 #include <cmath>
 #include <string>
@@ -72,3 +72,4 @@ bool test_backend_world_projection_contract(std::string& outFail) {
 
     return true;
 }
+

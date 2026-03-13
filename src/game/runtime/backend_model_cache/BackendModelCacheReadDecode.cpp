@@ -11,8 +11,8 @@
 #include <unordered_map>
 #include <vector>
 
-#include "game/runtime/BackendMaterialShading.h"
-#include "game/runtime/BackendMeshNormals.h"
+#include "game/runtime/render_prep/BackendMaterialShading.h"
+#include "game/runtime/render_prep/BackendMeshNormals.h"
 #include "engine/render/ModelMeshTypes.h"
 
 namespace {
@@ -662,3 +662,4 @@ bool decodeMeshFromValidatedCacheStream(std::istream& in,
 }
 
 } // namespace game::runtime::backend_model::detail
+

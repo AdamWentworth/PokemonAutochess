@@ -53,12 +53,12 @@
 #include "game/runtime/backend_ui/BackendStatusText.h"
 #include "game/runtime/backend_ui/BackendUiScale.h"
 #include "game/runtime/backend_ui/BackendHudFormatting.h"
-#include "game/runtime/BackendWorldProjection.h"
-#include "game/runtime/BackendWorldProxyGeometry.h"
+#include "game/runtime/render_prep/BackendWorldProjection.h"
+#include "game/runtime/render_prep/BackendWorldProxyGeometry.h"
 #include "game/runtime/backend_model_cache/BackendModelCache.h"
-#include "game/runtime/BackendMaterialShading.h"
-#include "game/runtime/BackendProceduralPose.h"
-#include "game/runtime/BackendUnitVisuals.h"
+#include "game/runtime/render_prep/BackendMaterialShading.h"
+#include "game/runtime/render_prep/BackendProceduralPose.h"
+#include "game/runtime/render_prep/BackendUnitVisuals.h"
 #include "game/runtime/startup/RuntimeBackendModelPrewarm.h"
 #include "game/runtime/startup/RuntimeBackendCardUiPrewarm.h"
 #include "game/runtime/startup/RuntimeStartupAssetPrewarm.h"
@@ -2249,6 +2249,7 @@ void GameSession::render(int drawableW, int drawableH) { impl_->render(drawableW
 void GameSession::shutdown() { impl_->shutdown(); }
 
 } // namespace game
+
 
 
 

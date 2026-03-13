@@ -1,7 +1,7 @@
 #include "game/runtime/shared/vfx/tail_fire/SharedTailFireFallbackEmitter.h"
 
 #include "engine/core/Environment.h"
-#include "game/runtime/BackendWorldProxyGeometry.h"
+#include "game/runtime/render_prep/BackendWorldProxyGeometry.h"
 
 #include <algorithm>
 #include <cmath>
@@ -359,4 +359,5 @@ bool appendSyntheticTailFire(const Args& args) {
 }
 
 } // namespace game::runtime::shared_tail_fire_fallback
+
 

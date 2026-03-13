@@ -2,7 +2,7 @@
 
 #include "engine/render/IRenderBackend.h"
 #include "game/PokemonInstance.h"
-#include "game/runtime/BackendWorldProxyGeometry.h"
+#include "game/runtime/render_prep/BackendWorldProxyGeometry.h"
 
 #include <vector>
 
@@ -103,4 +103,5 @@ private:
 };
 
 } // namespace game::runtime::shared_projected_debug
+
 

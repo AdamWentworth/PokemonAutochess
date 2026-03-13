@@ -1,4 +1,4 @@
-#include "game/runtime/BackendUnitVisuals.h"
+#include "game/runtime/render_prep/BackendUnitVisuals.h"
 #include "engine/render/SpriteTextureCardArt.h"
 
 #include <string>
@@ -133,3 +133,4 @@ bool test_backend_unit_visuals_contract(std::string& outFail) {
 
     return true;
 }
+

@@ -1,4 +1,4 @@
-#include "game/runtime/BackendProceduralPose.h"
+#include "game/runtime/render_prep/BackendProceduralPose.h"
 
 #include <string>
 
@@ -94,3 +94,4 @@ bool test_backend_procedural_pose_contract(std::string& outFail) {
 
     return true;
 }
+

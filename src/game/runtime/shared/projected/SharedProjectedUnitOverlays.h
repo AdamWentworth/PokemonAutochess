@@ -2,7 +2,7 @@
 
 #include "engine/render/IRenderBackend.h"
 #include "game/PokemonInstance.h"
-#include "game/runtime/BackendWorldProxyGeometry.h"
+#include "game/runtime/render_prep/BackendWorldProxyGeometry.h"
 #include "game/runtime/shared/projected/SharedProjectedDebugVfx.h"
 #include "game/runtime/shared/ui/SharedUnitHudBatches.h"
 #include "game/world/GameWorld.h"
@@ -44,3 +44,4 @@ struct Args {
 void appendProjectedUnitOverlays(const Args& args);
 
 } // namespace game::runtime::shared_projected_unit_overlays
+
