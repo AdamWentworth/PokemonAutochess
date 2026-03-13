@@ -30,13 +30,13 @@ bool test_debug_geometry_line_raster_contract(std::string& outFail);
 bool test_backend_hud_formatting_contract(std::string& outFail);
 bool test_backend_debug_text_quads_contract(std::string& outFail);
 bool test_backend_image_path_contract(std::string& outFail);
-bool test_backend_material_shading_contract(std::string& outFail);
-bool test_backend_mesh_normals_contract(std::string& outFail);
-bool test_backend_procedural_pose_contract(std::string& outFail);
+bool test_render_prep_material_shading_contract(std::string& outFail);
+bool test_render_prep_mesh_normals_contract(std::string& outFail);
+bool test_render_prep_procedural_pose_contract(std::string& outFail);
 bool test_backend_model_cache_contract(std::string& outFail);
-bool test_backend_world_projection_contract(std::string& outFail);
-bool test_backend_world_proxy_geometry_contract(std::string& outFail);
-bool test_backend_unit_visuals_contract(std::string& outFail);
+bool test_render_prep_world_projection_contract(std::string& outFail);
+bool test_render_prep_world_proxy_geometry_contract(std::string& outFail);
+bool test_render_prep_unit_visuals_contract(std::string& outFail);
 bool test_shared_projected_world_scene_helpers_contract(std::string& outFail);
 bool test_backend_inventory_overlay_contract(std::string& outFail);
 bool test_backend_inventory_panel_contract(std::string& outFail);
@@ -226,13 +226,13 @@ int main(int argc, char** argv) {
         {"backend_hud_formatting_contract", &test_backend_hud_formatting_contract},
         {"backend_debug_text_quads_contract", &test_backend_debug_text_quads_contract},
         {"backend_image_path_contract", &test_backend_image_path_contract},
-        {"backend_material_shading_contract", &test_backend_material_shading_contract},
-        {"backend_mesh_normals_contract", &test_backend_mesh_normals_contract},
-        {"backend_procedural_pose_contract", &test_backend_procedural_pose_contract},
+        {"render_prep_material_shading_contract", &test_render_prep_material_shading_contract},
+        {"render_prep_mesh_normals_contract", &test_render_prep_mesh_normals_contract},
+        {"render_prep_procedural_pose_contract", &test_render_prep_procedural_pose_contract},
         {"backend_model_cache_contract", &test_backend_model_cache_contract},
-        {"backend_world_projection_contract", &test_backend_world_projection_contract},
-        {"backend_world_proxy_geometry_contract", &test_backend_world_proxy_geometry_contract},
-        {"backend_unit_visuals_contract", &test_backend_unit_visuals_contract},
+        {"render_prep_world_projection_contract", &test_render_prep_world_projection_contract},
+        {"render_prep_world_proxy_geometry_contract", &test_render_prep_world_proxy_geometry_contract},
+        {"render_prep_unit_visuals_contract", &test_render_prep_unit_visuals_contract},
         {"shared_projected_world_scene_helpers_contract", &test_shared_projected_world_scene_helpers_contract},
         {"backend_inventory_overlay_contract", &test_backend_inventory_overlay_contract},
         {"backend_inventory_panel_contract", &test_backend_inventory_panel_contract},
@@ -376,4 +376,5 @@ int main(int argc, char** argv) {
     std::cerr << "[PAC_Tests] " << fails << " test(s) failed.\n";
     return 1;
 }
+
 

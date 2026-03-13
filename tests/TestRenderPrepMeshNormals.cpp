@@ -1,4 +1,4 @@
-#include "game/runtime/render_prep/BackendMeshNormals.h"
+#include "game/runtime/render_prep/MeshNormals.h"
 
 #include <cmath>
 #include <string>
@@ -12,9 +12,9 @@ bool approx(float a, float b, float eps = 0.001f) {
 
 } // namespace
 
-bool test_backend_mesh_normals_contract(std::string& outFail) {
+bool test_render_prep_mesh_normals_contract(std::string& outFail) {
     using game::runtime::backend_model::MeshVertex;
-    using game::runtime::backend_model::computeVertexNormals;
+    using game::runtime::render_prep_mesh::computeVertexNormals;
 
     {
         std::vector<MeshVertex> vertices(4);
@@ -66,5 +66,8 @@ bool test_backend_mesh_normals_contract(std::string& outFail) {
 
     return true;
 }
+
+
+
 
 

@@ -6,7 +6,7 @@
 
 #include <glm/glm.hpp>
 
-namespace game::runtime::backend_material {
+namespace game::runtime::render_prep_material {
 
 enum class AlphaMode : std::uint8_t {
     Opaque = 0u,
@@ -118,4 +118,5 @@ inline glm::vec3 shadeVertexLitColor(const glm::vec3& baseColorSrgb,
     return glm::clamp(baseColorSrgb * (diffuse + hemi) + glm::vec3(rim), 0.0f, 1.0f);
 }
 
-} // namespace game::runtime::backend_material
+} // namespace game::runtime::render_prep_material
+

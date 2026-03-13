@@ -1,4 +1,4 @@
-#include "game/runtime/render_prep/BackendWorldProxyGeometry.h"
+#include "game/runtime/render_prep/WorldProxyGeometry.h"
 
 #include <cmath>
 #include <string>
@@ -11,13 +11,13 @@ bool approx(float a, float b, float eps = 0.001f) {
 
 } // namespace
 
-bool test_backend_world_proxy_geometry_contract(std::string& outFail) {
-    using game::runtime::backend_proxy::UnitProxyExtents;
-    using game::runtime::backend_proxy::computeShadowQuad;
-    using game::runtime::backend_proxy::computeUnitProxyCorners;
-    using game::runtime::backend_proxy::computeUnitProxyExtents;
-    using game::runtime::backend_proxy::yawForward;
-    using game::runtime::backend_proxy::yawRight;
+bool test_render_prep_world_proxy_geometry_contract(std::string& outFail) {
+    using game::runtime::render_prep_proxy::UnitProxyExtents;
+    using game::runtime::render_prep_proxy::computeShadowQuad;
+    using game::runtime::render_prep_proxy::computeUnitProxyCorners;
+    using game::runtime::render_prep_proxy::computeUnitProxyExtents;
+    using game::runtime::render_prep_proxy::yawForward;
+    using game::runtime::render_prep_proxy::yawRight;
 
     {
         PokemonInstance unit;
@@ -72,4 +72,7 @@ bool test_backend_world_proxy_geometry_contract(std::string& outFail) {
 
     return true;
 }
+
+
+
 

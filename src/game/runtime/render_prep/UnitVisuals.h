@@ -9,7 +9,7 @@
 #include <cstddef>
 #include <string>
 
-namespace game::runtime::backend_units {
+namespace game::runtime::render_prep_units {
 
 inline std::string resolveWorldUnitImagePath(const std::string& unitName) {
     const std::string resolved = runtime::backend_images::resolvePokemonPortraitPath(
@@ -115,5 +115,6 @@ inline IRenderBackend::DebugSprite makeBenchUnitSprite(float x,
     return sprite;
 }
 
-} // namespace game::runtime::backend_units
+} // namespace game::runtime::render_prep_units
+
 

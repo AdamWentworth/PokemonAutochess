@@ -4,7 +4,7 @@
 #include <cmath>
 #include <utility>
 
-namespace game::runtime::backendview {
+namespace game::runtime::render_prep_projection {
 
 struct BoardBounds {
     float minX = 0.0f;
@@ -72,4 +72,5 @@ inline int worldToBenchSlot(float worldX, int benchSlots, float cellSize) {
     return slot;
 }
 
-} // namespace game::runtime::backendview
+} // namespace game::runtime::render_prep_projection
+

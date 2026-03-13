@@ -463,13 +463,13 @@ if (BUILD_TESTING)
         tests/TestBackendHudFormatting.cpp
         tests/TestBackendDebugText.cpp
         tests/TestBackendImagePath.cpp
-        tests/TestBackendMaterialShading.cpp
-        tests/TestBackendMeshNormals.cpp
-        tests/TestBackendProceduralPose.cpp
+        tests/TestRenderPrepMaterialShading.cpp
+        tests/TestRenderPrepMeshNormals.cpp
+        tests/TestRenderPrepProceduralPose.cpp
         tests/TestBackendModelCache.cpp
-        tests/TestBackendWorldProjection.cpp
-        tests/TestBackendWorldProxyGeometry.cpp
-        tests/TestBackendUnitVisuals.cpp
+        tests/TestRenderPrepWorldProjection.cpp
+        tests/TestRenderPrepWorldProxyGeometry.cpp
+        tests/TestRenderPrepUnitVisuals.cpp
         tests/TestSharedProjectedWorldSceneHelpers.cpp
         tests/TestBackendInventoryOverlay.cpp
         tests/TestBackendInventoryPanel.cpp
@@ -708,6 +708,7 @@ if (PAC_BUILD_TOOLS)
         DEPENDS PAC_DataCooker
     )
 endif()
+
 
 
 

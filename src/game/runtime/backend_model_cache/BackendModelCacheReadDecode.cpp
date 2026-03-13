@@ -11,8 +11,8 @@
 #include <unordered_map>
 #include <vector>
 
-#include "game/runtime/render_prep/BackendMaterialShading.h"
-#include "game/runtime/render_prep/BackendMeshNormals.h"
+#include "game/runtime/render_prep/MaterialShading.h"
+#include "game/runtime/render_prep/MeshNormals.h"
 #include "engine/render/ModelMeshTypes.h"
 
 namespace {
@@ -294,7 +294,7 @@ bool decodeMeshFromValidatedCacheStream(std::istream& in,
     }
     out.hasVertexColor = anyNonWhiteColor;
     if (!anySourceNormal) {
-        computeVertexNormals(out.vertices, out.indices);
+        render_prep_mesh::computeVertexNormals(out.vertices, out.indices);
     }
 
     struct SubmeshRange {
@@ -307,7 +307,7 @@ bool decodeMeshFromValidatedCacheStream(std::istream& in,
         float metallicFactor = 1.0f;
         float roughnessFactor = 1.0f;
         float occlusionStrength = 1.0f;
-        backend_material::AlphaMode alphaMode = backend_material::AlphaMode::Opaque;
+        render_prep_material::AlphaMode alphaMode = render_prep_material::AlphaMode::Opaque;
         float alphaCutoff = 0.5f;
         bool doubleSided = false;
         DecodedTexture baseTexture;
@@ -393,7 +393,7 @@ bool decodeMeshFromValidatedCacheStream(std::istream& in,
         range.metallicFactor = std::clamp(metallicFactor, 0.0f, 1.0f);
         range.roughnessFactor = std::clamp(roughnessFactor, 0.0f, 1.0f);
         range.occlusionStrength = std::clamp(occlusionStrength, 0.0f, 1.0f);
-        range.alphaMode = backend_material::alphaModeFromByte(alphaModeRaw);
+        range.alphaMode = render_prep_material::alphaModeFromByte(alphaModeRaw);
         range.alphaCutoff = alphaCutoff;
         range.doubleSided = (doubleSided != 0u);
         range.baseTexture = std::move(baseTexture);
@@ -518,18 +518,18 @@ bool decodeMeshFromValidatedCacheStream(std::istream& in,
                 (range.emissiveTexture.width <= 1 && range.emissiveTexture.height <= 1);
             const bool useConstantMaterialFastPath = baseTexIsConstant && emissiveTexIsConstant;
             glm::vec3 constantTriColor =
-                backend_material::composeGltfLikeColor(baseRgb, glm::vec3(0.0f), range.emissiveFactor);
+                render_prep_material::composeGltfLikeColor(baseRgb, glm::vec3(0.0f), range.emissiveFactor);
             float constantTriOpacity = 1.0f;
             if (useConstantMaterialFastPath) {
                 const glm::vec4 texel = range.baseTexture.average;
                 const glm::vec4 emixel = range.emissiveTexture.hasPixels()
                     ? range.emissiveTexture.average
                     : glm::vec4(0.0f);
-                constantTriColor = backend_material::composeGltfLikeColor(
-                    backend_material::modulateBaseAndTexture(baseRgb, glm::vec3(texel.r, texel.g, texel.b)),
+                constantTriColor = render_prep_material::composeGltfLikeColor(
+                    render_prep_material::modulateBaseAndTexture(baseRgb, glm::vec3(texel.r, texel.g, texel.b)),
                     glm::vec3(emixel.r, emixel.g, emixel.b),
                     range.emissiveFactor);
-                constantTriOpacity = backend_material::opacityFromAlphaMode(
+                constantTriOpacity = render_prep_material::opacityFromAlphaMode(
                     range.alphaMode,
                     texel.a,
                     range.alphaCutoff);
@@ -583,18 +583,18 @@ bool decodeMeshFromValidatedCacheStream(std::istream& in,
                             ? sampleTextureBilinear(range.emissiveTexture, uvc)
                             : glm::vec4(0.0f);
 
-                        const glm::vec3 base0 = backend_material::modulateBaseAndTexture(
+                        const glm::vec3 base0 = render_prep_material::modulateBaseAndTexture(
                             baseRgb, glm::vec3(tex0.r, tex0.g, tex0.b));
-                        const glm::vec3 base1 = backend_material::modulateBaseAndTexture(
+                        const glm::vec3 base1 = render_prep_material::modulateBaseAndTexture(
                             baseRgb, glm::vec3(tex1.r, tex1.g, tex1.b));
-                        const glm::vec3 base2 = backend_material::modulateBaseAndTexture(
+                        const glm::vec3 base2 = render_prep_material::modulateBaseAndTexture(
                             baseRgb, glm::vec3(tex2.r, tex2.g, tex2.b));
 
-                        const glm::vec3 c0 = backend_material::composeGltfLikeColor(
+                        const glm::vec3 c0 = render_prep_material::composeGltfLikeColor(
                             base0, glm::vec3(emi0.r, emi0.g, emi0.b), range.emissiveFactor);
-                        const glm::vec3 c1 = backend_material::composeGltfLikeColor(
+                        const glm::vec3 c1 = render_prep_material::composeGltfLikeColor(
                             base1, glm::vec3(emi1.r, emi1.g, emi1.b), range.emissiveFactor);
-                        const glm::vec3 c2 = backend_material::composeGltfLikeColor(
+                        const glm::vec3 c2 = render_prep_material::composeGltfLikeColor(
                             base2, glm::vec3(emi2.r, emi2.g, emi2.b), range.emissiveFactor);
                         vertexColorAccum[i0] += c0;
                         vertexColorAccum[i1] += c1;
@@ -602,11 +602,11 @@ bool decodeMeshFromValidatedCacheStream(std::istream& in,
                         const glm::vec4 texel = (tex0 + tex1 + tex2 + texc) * 0.25f;
                         const glm::vec4 emixel = (emi0 + emi1 + emi2 + emic) * 0.25f;
                         const glm::vec3 texelRgb(texel.r, texel.g, texel.b);
-                        triColor = backend_material::composeGltfLikeColor(
-                            backend_material::modulateBaseAndTexture(baseRgb, texelRgb),
+                        triColor = render_prep_material::composeGltfLikeColor(
+                            render_prep_material::modulateBaseAndTexture(baseRgb, texelRgb),
                             glm::vec3(emixel.r, emixel.g, emixel.b),
                             range.emissiveFactor);
-                        triOpacity = backend_material::opacityFromAlphaMode(
+                        triOpacity = render_prep_material::opacityFromAlphaMode(
                             range.alphaMode,
                             texel.a,
                             range.alphaCutoff);
@@ -626,7 +626,7 @@ bool decodeMeshFromValidatedCacheStream(std::istream& in,
         out.submeshMetallicRoughnessTextures.push_back(CachedTextureRgba{});
         out.submeshOcclusionTextures.push_back(CachedTextureRgba{});
         out.submeshEmissiveTextures.push_back(CachedTextureRgba{});
-        out.submeshAlphaMode.push_back(static_cast<std::uint8_t>(backend_material::AlphaMode::Opaque));
+        out.submeshAlphaMode.push_back(static_cast<std::uint8_t>(render_prep_material::AlphaMode::Opaque));
         out.submeshAlphaCutoff.push_back(0.5f);
         out.submeshNormalScale.push_back(1.0f);
         out.submeshMetallicFactor.push_back(1.0f);
@@ -662,4 +662,7 @@ bool decodeMeshFromValidatedCacheStream(std::istream& in,
 }
 
 } // namespace game::runtime::backend_model::detail
+
+
+
 

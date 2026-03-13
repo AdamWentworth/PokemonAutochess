@@ -2,7 +2,7 @@
 
 #include "engine/render/IRenderBackend.h"
 #include "game/PokemonInstance.h"
-#include "game/runtime/render_prep/BackendWorldProxyGeometry.h"
+#include "game/runtime/render_prep/WorldProxyGeometry.h"
 
 #include <vector>
 
@@ -81,7 +81,7 @@ public:
                               int spokes = 8);
     void appendProjectedTailFire(const PokemonInstance& unit,
                                  const glm::vec3& center,
-                                 const game::runtime::backend_proxy::UnitProxyExtents& extents,
+                                 const game::runtime::render_prep_proxy::UnitProxyExtents& extents,
                                  float yawDeg,
                                  float thickness);
     void appendProjectedLeechDrain(const GameWorld* gameWorld,
@@ -103,5 +103,7 @@ private:
 };
 
 } // namespace game::runtime::shared_projected_debug
+
+
 
 

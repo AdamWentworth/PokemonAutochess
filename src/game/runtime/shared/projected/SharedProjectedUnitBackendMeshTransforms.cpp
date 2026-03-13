@@ -241,7 +241,7 @@ glm::vec3 Resolver::resolveLocalVertexPos(
 
     glm::vec3 local = vtx.position;
     if (!hasClipPose_) {
-        local = runtime::backend_anim::deformLocalVertex(
+        local = runtime::render_prep_pose::deformLocalVertex(
             *unit_,
             *pose_,
             local,
@@ -694,3 +694,4 @@ bool Resolver::configureGpuClipSkinningBatch(
 }
 
 } // namespace game::runtime::shared_projected_unit_backend_mesh_transforms
+

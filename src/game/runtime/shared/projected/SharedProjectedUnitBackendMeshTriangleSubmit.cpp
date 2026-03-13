@@ -1,6 +1,6 @@
 #include "game/runtime/shared/projected/SharedProjectedUnitBackendMeshTriangleSubmit.h"
 
-#include "game/runtime/render_prep/BackendMaterialShading.h"
+#include "game/runtime/render_prep/MaterialShading.h"
 
 #include <algorithm>
 #include <cmath>
@@ -342,7 +342,7 @@ void TriangleSubmitter::pushTriangle(const glm::vec3& a,
     const auto shadeColor = [&](const glm::vec3& baseColor,
                                 const glm::vec3& normal,
                                 const glm::vec3& worldPos) {
-        return runtime::backend_material::shadeVertexLitColor(
+        return runtime::render_prep_material::shadeVertexLitColor(
             baseColor,
             normal,
             args_.lightDir,
@@ -401,4 +401,6 @@ void TriangleSubmitter::pushTriangle(const glm::vec3& a,
 }
 
 } // namespace game::runtime::shared_projected_unit_backend_mesh_submit
+
+
 

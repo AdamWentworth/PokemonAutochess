@@ -53,12 +53,12 @@
 #include "game/runtime/backend_ui/BackendStatusText.h"
 #include "game/runtime/backend_ui/BackendUiScale.h"
 #include "game/runtime/backend_ui/BackendHudFormatting.h"
-#include "game/runtime/render_prep/BackendWorldProjection.h"
-#include "game/runtime/render_prep/BackendWorldProxyGeometry.h"
+#include "game/runtime/render_prep/WorldProjection.h"
+#include "game/runtime/render_prep/WorldProxyGeometry.h"
 #include "game/runtime/backend_model_cache/BackendModelCache.h"
-#include "game/runtime/render_prep/BackendMaterialShading.h"
-#include "game/runtime/render_prep/BackendProceduralPose.h"
-#include "game/runtime/render_prep/BackendUnitVisuals.h"
+#include "game/runtime/render_prep/MaterialShading.h"
+#include "game/runtime/render_prep/ProceduralPose.h"
+#include "game/runtime/render_prep/UnitVisuals.h"
 #include "game/runtime/startup/RuntimeBackendModelPrewarm.h"
 #include "game/runtime/startup/RuntimeBackendCardUiPrewarm.h"
 #include "game/runtime/startup/RuntimeStartupAssetPrewarm.h"
@@ -1544,8 +1544,8 @@ struct GameSession::Impl {
         if (showWorldBackdrop) {
             if (useProjectedWorldLayout) {
                 const float worldCellSize = std::max(0.05f, gameWorld->getBoardCellSize());
-                const runtime::backendview::BoardBounds boardBounds =
-                    runtime::backendview::computeBoardBounds(cols, rows, worldCellSize);
+                const runtime::render_prep_projection::BoardBounds boardBounds =
+                    runtime::render_prep_projection::computeBoardBounds(cols, rows, worldCellSize);
                 const float boardMinX = boardBounds.minX;
                 const float boardMinZ = boardBounds.minZ;
                 const float boardMaxX = boardBounds.maxX;
@@ -1907,7 +1907,7 @@ struct GameSession::Impl {
                 const auto& units = gameWorld->getPokemons();
                 for (const auto& unit : units) {
                     if (!unit.alive && !unit.captureInProgress && !unit.fainting) continue;
-                    const auto uv = runtime::backendview::worldToBoardUv(
+                    const auto uv = runtime::render_prep_projection::worldToBoardUv(
                         unit.position.x,
                         unit.position.z,
                         cols,
@@ -1923,12 +1923,12 @@ struct GameSession::Impl {
                     u.h = cellH * 0.60f;
                     u.x = centerX - u.w * 0.5f;
                     u.y = centerY - u.h * 0.5f;
-                    runtime::backend_units::applyWorldUnitTint(u, unit);
+                    runtime::render_prep_units::applyWorldUnitTint(u, unit);
 
                     const std::string unitImagePath =
-                        runtime::backend_units::resolveWorldUnitImagePath(unit.name);
+                        runtime::render_prep_units::resolveWorldUnitImagePath(unit.name);
                     IRenderBackend::DebugSprite unitSprite =
-                        runtime::backend_units::makeWorldUnitSprite(
+                        runtime::render_prep_units::makeWorldUnitSprite(
                             centerX,
                             centerY,
                             cellW,
@@ -1936,7 +1936,7 @@ struct GameSession::Impl {
                             unitImagePath,
                             unit.alive ? 0.96f : 0.70f);
                     const bool hasUnitSprite = !unitSprite.texturePath.empty();
-                    if (runtime::backend_units::shouldRenderTintUnderPortrait(hasUnitSprite)) {
+                    if (runtime::render_prep_units::shouldRenderTintUnderPortrait(hasUnitSprite)) {
                         worldQuads.push_back(u);
                     }
                     if (hasUnitSprite) {
@@ -2028,7 +2028,7 @@ struct GameSession::Impl {
 
                     for (const auto& unit : benchUnits) {
                         ++visibleAnimatedUnitsThisFrame;
-                        const int slot = runtime::backendview::worldToBenchSlot(
+                        const int slot = runtime::render_prep_projection::worldToBenchSlot(
                             unit.position.x,
                             benchSlots,
                             worldCellSize);
@@ -2043,9 +2043,9 @@ struct GameSession::Impl {
                         benchUnit.a = 0.24f;
 
                         const std::string benchImagePath =
-                            runtime::backend_units::resolveWorldUnitImagePath(unit.name);
+                            runtime::render_prep_units::resolveWorldUnitImagePath(unit.name);
                         IRenderBackend::DebugSprite benchSprite =
-                            runtime::backend_units::makeBenchUnitSprite(
+                            runtime::render_prep_units::makeBenchUnitSprite(
                                 benchUnit.x,
                                 benchUnit.y,
                                 benchUnit.w,
@@ -2053,7 +2053,7 @@ struct GameSession::Impl {
                                 benchImagePath,
                                 0.92f);
                         const bool hasBenchSprite = !benchSprite.texturePath.empty();
-                        if (runtime::backend_units::shouldRenderTintUnderPortrait(hasBenchSprite)) {
+                        if (runtime::render_prep_units::shouldRenderTintUnderPortrait(hasBenchSprite)) {
                             worldQuads.push_back(benchUnit);
                         }
                         if (hasBenchSprite) {
@@ -2249,6 +2249,8 @@ void GameSession::render(int drawableW, int drawableH) { impl_->render(drawableW
 void GameSession::shutdown() { impl_->shutdown(); }
 
 } // namespace game
+
+
 
 
 

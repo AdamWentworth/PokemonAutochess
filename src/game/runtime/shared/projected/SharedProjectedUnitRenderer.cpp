@@ -1,9 +1,9 @@
 #include "game/runtime/shared/projected/SharedProjectedUnitRenderer.h"
 
-#include "game/runtime/render_prep/BackendProceduralPose.h"
-#include "game/runtime/render_prep/BackendMaterialShading.h"
-#include "game/runtime/render_prep/BackendUnitVisuals.h"
-#include "game/runtime/render_prep/BackendWorldProxyGeometry.h"
+#include "game/runtime/render_prep/ProceduralPose.h"
+#include "game/runtime/render_prep/MaterialShading.h"
+#include "game/runtime/render_prep/UnitVisuals.h"
+#include "game/runtime/render_prep/WorldProxyGeometry.h"
 #include "game/runtime/shared/projected/SharedProjectedUnitModelRenderer.h"
 #include "game/runtime/shared/projected/SharedProjectedUnitOverlays.h"
 #include "game/world/MoveImpactRouting.h"
@@ -494,9 +494,9 @@ for (const auto& unit : units) {
         scenePoseReady = true;
     }
     const bool hasClipPoseDrivenModel = scenePoseReady && scenePose && scenePose->hasClipPose;
-    runtime::backend_anim::ProceduralPose pose{};
+    runtime::render_prep_pose::ProceduralPose pose{};
     if (!hasClipPoseDrivenModel) {
-        pose = runtime::backend_anim::computeProceduralPose(unit, worldCellSize);
+        pose = runtime::render_prep_pose::computeProceduralPose(unit, worldCellSize);
     }
     poseEvalMsAcc += std::chrono::duration<double, std::milli>(Clock::now() - poseEvalStart).count();
     const bool unitClipSkinningEnabled =
@@ -507,7 +507,7 @@ for (const auto& unit : units) {
     }
     const bool applyProceduralModelMotion = !hasClipPoseDrivenModel;
     const glm::vec3 attackOffset = applyProceduralModelMotion
-        ? (game::runtime::backend_proxy::yawForward(unit.rotation.y) * pose.attackLunge)
+        ? (game::runtime::render_prep_proxy::yawForward(unit.rotation.y) * pose.attackLunge)
         : glm::vec3(0.0f);
     const float animYaw = applyProceduralModelMotion ? pose.yawDeg : unit.rotation.y;
     const float animPitch = applyProceduralModelMotion ? pose.pitchDeg : unit.rotation.x;
@@ -542,8 +542,8 @@ for (const auto& unit : units) {
         cellPx = std::max(14.0f, minDim * 0.035f);
     }
     const float unitSize = std::clamp(cellPx * 0.75f, 10.0f, 84.0f);
-    const game::runtime::backend_proxy::UnitProxyExtents extents =
-        game::runtime::backend_proxy::computeUnitProxyExtents(unit, worldCellSize);
+    const game::runtime::render_prep_proxy::UnitProxyExtents extents =
+        game::runtime::render_prep_proxy::computeUnitProxyExtents(unit, worldCellSize);
     const glm::vec3 proxyCenter = animatedCenter;
     const GameWorld::CaptureAttemptRenderSnapshot* captureSnapForUnit =
         unit.captureInProgress ? sharedCaptureAttemptCache.findByTarget(unit.id) : nullptr;
@@ -580,7 +580,7 @@ for (const auto& unit : units) {
     }
 
     IRenderBackend::DebugQuad tint;
-    runtime::backend_units::applyWorldUnitTint(tint, unit);
+    runtime::render_prep_units::applyWorldUnitTint(tint, unit);
     float topR = std::clamp(tint.r * 0.86f + 0.12f, 0.0f, 1.0f);
     float topG = std::clamp(tint.g * 0.86f + 0.12f, 0.0f, 1.0f);
     float topB = std::clamp(tint.b * 0.86f + 0.12f, 0.0f, 1.0f);
@@ -608,7 +608,7 @@ for (const auto& unit : units) {
         sideAlpha *= captureVisualAlphaScale;
     }
     if (!meshForUnit) {
-        const auto shadow = game::runtime::backend_proxy::computeShadowQuad(
+        const auto shadow = game::runtime::render_prep_proxy::computeShadowQuad(
             proxyCenter,
             extents.halfWidth * 1.15f,
             extents.halfDepth * 1.15f,
@@ -690,8 +690,8 @@ for (const auto& unit : units) {
         if (drewModelMesh) ++modelUnits;
     }
 
-    const game::runtime::backend_proxy::UnitProxyCorners corners =
-        game::runtime::backend_proxy::computeUnitProxyCorners(
+    const game::runtime::render_prep_proxy::UnitProxyCorners corners =
+        game::runtime::render_prep_proxy::computeUnitProxyCorners(
             proxyCenter,
             extents,
             animYaw);
@@ -784,6 +784,8 @@ if (perfStats) {
 }
 
 } // namespace game::runtime::shared_projected_units
+
+
 
 
 

@@ -9,7 +9,7 @@
 #include <string>
 #include <glm/glm.hpp>
 
-namespace game::runtime::backend_anim {
+namespace game::runtime::render_prep_pose {
 
 inline bool backendVertexDeformEnabled() {
     static const bool enabled = []() {
@@ -194,4 +194,5 @@ inline glm::vec3 deformLocalVertex(const PokemonInstance& unit,
     return p;
 }
 
-} // namespace game::runtime::backend_anim
+} // namespace game::runtime::render_prep_pose
+

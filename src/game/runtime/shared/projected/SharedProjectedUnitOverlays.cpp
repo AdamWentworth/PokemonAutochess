@@ -1,6 +1,6 @@
 #include "game/runtime/shared/projected/SharedProjectedUnitOverlays.h"
 
-#include "game/runtime/render_prep/BackendUnitVisuals.h"
+#include "game/runtime/render_prep/UnitVisuals.h"
 #include "game/world/MoveImpactRouting.h"
 
 #include <algorithm>
@@ -45,15 +45,15 @@ void appendProjectedUnitOverlays(const Args& args) {
     const auto& extents = args.extents;
     const float animYaw = args.animYaw;
 
-    const bool shouldShowPortrait = runtime::backend_units::shouldRenderWorldUnitPortrait(
+    const bool shouldShowPortrait = runtime::render_prep_units::shouldRenderWorldUnitPortrait(
         args.drewModelMesh,
         args.forcePortraitOverlay,
         args.allowPortraitFallback);
     if (shouldShowPortrait) {
         const std::string unitImagePath =
-            runtime::backend_units::resolveWorldUnitImagePath(unit.name);
+            runtime::render_prep_units::resolveWorldUnitImagePath(unit.name);
         IRenderBackend::DebugSprite unitSprite =
-            runtime::backend_units::makeWorldUnitSprite(
+            runtime::render_prep_units::makeWorldUnitSprite(
                 cx,
                 cy,
                 unitSize * 1.20f,
@@ -77,8 +77,8 @@ void appendProjectedUnitOverlays(const Args& args) {
         routeMoveLower.find("leech") != std::string::npos ||
         routeMoveLower.find("seed") != std::string::npos;
     const bool pendingGrass = (impactRoute == MoveImpactRoute::GrassImpact) || pendingLeechSeed;
-    const glm::vec3 forward = game::runtime::backend_proxy::yawForward(animYaw);
-    const glm::vec3 right = game::runtime::backend_proxy::yawRight(animYaw);
+    const glm::vec3 forward = game::runtime::render_prep_proxy::yawForward(animYaw);
+    const glm::vec3 right = game::runtime::render_prep_proxy::yawRight(animYaw);
     const glm::vec3 up(0.0f, 1.0f, 0.0f);
 
     if (!args.useLegacyParticleVfxSnapshotBridge) {
@@ -339,4 +339,6 @@ void appendProjectedUnitOverlays(const Args& args) {
 }
 
 } // namespace game::runtime::shared_projected_unit_overlays
+
+
 

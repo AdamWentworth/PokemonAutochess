@@ -1,10 +1,10 @@
-#include "game/runtime/render_prep/BackendProceduralPose.h"
+#include "game/runtime/render_prep/ProceduralPose.h"
 
 #include <string>
 
-bool test_backend_procedural_pose_contract(std::string& outFail) {
-    using game::runtime::backend_anim::computeProceduralPose;
-    using game::runtime::backend_anim::deformLocalVertex;
+bool test_render_prep_procedural_pose_contract(std::string& outFail) {
+    using game::runtime::render_prep_pose::computeProceduralPose;
+    using game::runtime::render_prep_pose::deformLocalVertex;
     const glm::vec3 boundsMin(-0.5f, 0.0f, -0.5f);
     const glm::vec3 boundsMax(0.5f, 1.0f, 0.5f);
 
@@ -94,4 +94,7 @@ bool test_backend_procedural_pose_contract(std::string& outFail) {
 
     return true;
 }
+
+
+
 

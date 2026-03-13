@@ -74,7 +74,7 @@ class Resolver {
     const shared_projected_unit_backend_mesh_prep::PreparedState* prep_ = nullptr;
     const runtime::backend_model::MeshData* mesh_ = nullptr;
     const PokemonInstance* unit_ = nullptr;
-    const runtime::backend_anim::ProceduralPose* pose_ = nullptr;
+    const runtime::render_prep_pose::ProceduralPose* pose_ = nullptr;
     const std::vector<glm::mat4>* nodeGlobals_ = nullptr;
 
     glm::mat4 modelM_{1.0f};
@@ -87,3 +87,4 @@ class Resolver {
 };
 
 } // namespace game::runtime::shared_projected_unit_backend_mesh_transforms
+

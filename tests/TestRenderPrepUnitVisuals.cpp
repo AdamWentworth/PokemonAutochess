@@ -1,18 +1,18 @@
-#include "game/runtime/render_prep/BackendUnitVisuals.h"
+#include "game/runtime/render_prep/UnitVisuals.h"
 #include "engine/render/SpriteTextureCardArt.h"
 
 #include <string>
 
-bool test_backend_unit_visuals_contract(std::string& outFail) {
+bool test_render_prep_unit_visuals_contract(std::string& outFail) {
     using engine::render::sprite_card_art::isProxyPath;
     using engine::render::sprite_card_art::sourcePathFromProxy;
-    using game::runtime::backend_units::applyWorldUnitTint;
-    using game::runtime::backend_units::makeBenchUnitSprite;
-    using game::runtime::backend_units::makeWorldUnitSprite;
-    using game::runtime::backend_units::didAccumulateModelGeometry;
-    using game::runtime::backend_units::resolveWorldUnitImagePath;
-    using game::runtime::backend_units::shouldRenderTintUnderPortrait;
-    using game::runtime::backend_units::shouldRenderWorldUnitPortrait;
+    using game::runtime::render_prep_units::applyWorldUnitTint;
+    using game::runtime::render_prep_units::makeBenchUnitSprite;
+    using game::runtime::render_prep_units::makeWorldUnitSprite;
+    using game::runtime::render_prep_units::didAccumulateModelGeometry;
+    using game::runtime::render_prep_units::resolveWorldUnitImagePath;
+    using game::runtime::render_prep_units::shouldRenderTintUnderPortrait;
+    using game::runtime::render_prep_units::shouldRenderWorldUnitPortrait;
 
     {
         IRenderBackend::DebugQuad q;
@@ -133,4 +133,7 @@ bool test_backend_unit_visuals_contract(std::string& outFail) {
 
     return true;
 }
+
+
+
 

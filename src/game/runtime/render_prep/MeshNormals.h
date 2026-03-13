@@ -8,9 +8,9 @@
 
 #include <glm/glm.hpp>
 
-namespace game::runtime::backend_model {
+namespace game::runtime::render_prep_mesh {
 
-inline void computeVertexNormals(std::vector<MeshVertex>& vertices,
+inline void computeVertexNormals(std::vector<backend_model::MeshVertex>& vertices,
                                  const std::vector<std::uint32_t>& indices) {
     if (vertices.empty()) return;
 
@@ -46,5 +46,5 @@ inline void computeVertexNormals(std::vector<MeshVertex>& vertices,
     }
 }
 
-} // namespace game::runtime::backend_model
+} // namespace game::runtime::render_prep_mesh
 

@@ -1,4 +1,4 @@
-#include "game/runtime/render_prep/BackendWorldProjection.h"
+#include "game/runtime/render_prep/WorldProjection.h"
 
 #include <cmath>
 #include <string>
@@ -11,10 +11,10 @@ bool approx(float a, float b, float eps = 0.0005f) {
 
 } // namespace
 
-bool test_backend_world_projection_contract(std::string& outFail) {
-    using game::runtime::backendview::computeBoardBounds;
-    using game::runtime::backendview::worldToBenchSlot;
-    using game::runtime::backendview::worldToBoardUv;
+bool test_render_prep_world_projection_contract(std::string& outFail) {
+    using game::runtime::render_prep_projection::computeBoardBounds;
+    using game::runtime::render_prep_projection::worldToBenchSlot;
+    using game::runtime::render_prep_projection::worldToBoardUv;
 
     const int cols = 8;
     const int rows = 4;
@@ -72,4 +72,7 @@ bool test_backend_world_projection_contract(std::string& outFail) {
 
     return true;
 }
+
+
+
 

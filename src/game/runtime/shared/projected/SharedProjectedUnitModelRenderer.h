@@ -4,7 +4,7 @@
 #include "game/PokemonInstance.h"
 #include "game/config/GameDataDb.h"
 #include "game/runtime/backend_model_cache/BackendModelCache.h"
-#include "game/runtime/render_prep/BackendProceduralPose.h"
+#include "game/runtime/render_prep/ProceduralPose.h"
 #include "game/runtime/shared/backend/SharedBackendPoseEval.h"
 #include "game/runtime/shared/backend/SharedBackendTextureCache.h"
 #include "game/runtime/shared/projected/SharedProjectedDebugVfx.h"
@@ -34,7 +34,7 @@ struct PerfBreakdown {
 struct Args {
     const GameDataDb* dataDb = nullptr;
     const PokemonInstance* unit = nullptr;
-    const runtime::backend_anim::ProceduralPose* pose = nullptr;
+    const runtime::render_prep_pose::ProceduralPose* pose = nullptr;
     const runtime::backend_model::MeshData* meshForUnit = nullptr;
     const runtime::shared_backend_pose::PoseEval* scenePose = nullptr;
     bool scenePoseReady = false;
@@ -82,4 +82,6 @@ struct Args {
 Result renderProjectedUnitModel(const Args& args);
 
 } // namespace game::runtime::shared_projected_unit_models
+
+
 

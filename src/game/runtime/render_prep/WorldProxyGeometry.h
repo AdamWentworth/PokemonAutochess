@@ -6,7 +6,7 @@
 #include <array>
 #include <cmath>
 
-namespace game::runtime::backend_proxy {
+namespace game::runtime::render_prep_proxy {
 
 struct UnitProxyExtents {
     float halfWidth = 0.12f;
@@ -99,4 +99,5 @@ inline std::array<glm::vec3, 4> computeShadowQuad(const glm::vec3& center,
     };
 }
 
-} // namespace game::runtime::backend_proxy
+} // namespace game::runtime::render_prep_proxy
+

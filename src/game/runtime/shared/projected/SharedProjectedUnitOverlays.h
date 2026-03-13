@@ -2,7 +2,7 @@
 
 #include "engine/render/IRenderBackend.h"
 #include "game/PokemonInstance.h"
-#include "game/runtime/render_prep/BackendWorldProxyGeometry.h"
+#include "game/runtime/render_prep/WorldProxyGeometry.h"
 #include "game/runtime/shared/projected/SharedProjectedDebugVfx.h"
 #include "game/runtime/shared/ui/SharedUnitHudBatches.h"
 #include "game/world/GameWorld.h"
@@ -38,10 +38,12 @@ struct Args {
     float worldCellSize = 1.0f;
     float animYaw = 0.0f;
     glm::vec3 proxyCenter{0.0f};
-    backend_proxy::UnitProxyExtents extents{};
+    render_prep_proxy::UnitProxyExtents extents{};
 };
 
 void appendProjectedUnitOverlays(const Args& args);
 
 } // namespace game::runtime::shared_projected_unit_overlays
+
+
 

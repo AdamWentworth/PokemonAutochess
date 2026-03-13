@@ -1,7 +1,7 @@
 #include "game/runtime/shared/vfx/tail_fire/SharedTailFireFallbackEmitter.h"
 
 #include "engine/core/Environment.h"
-#include "game/runtime/render_prep/BackendWorldProxyGeometry.h"
+#include "game/runtime/render_prep/WorldProxyGeometry.h"
 
 #include <algorithm>
 #include <cmath>
@@ -193,7 +193,7 @@ void emitForList(
             gState.filteredTailVel.erase(unit.id);
         }
 
-        const auto extents = game::runtime::backend_proxy::computeUnitProxyExtents(unit, worldCellSize);
+        const auto extents = game::runtime::render_prep_proxy::computeUnitProxyExtents(unit, worldCellSize);
         if (extents.height <= 0.0001f) continue;
 
         const auto anchorIt = anchors ? anchors->find(unit.id) : std::unordered_map<int, Anchor>::const_iterator{};
@@ -208,8 +208,8 @@ void emitForList(
 
         const glm::vec3 center = unit.position + glm::vec3(0.0f, unit.visualYOffset, 0.0f);
         const glm::vec3 up(0.0f, 1.0f, 0.0f);
-        const glm::vec3 fwd = game::runtime::backend_proxy::yawForward(unit.rotation.y);
-        const glm::vec3 right = game::runtime::backend_proxy::yawRight(unit.rotation.y);
+        const glm::vec3 fwd = game::runtime::render_prep_proxy::yawForward(unit.rotation.y);
+        const glm::vec3 right = game::runtime::render_prep_proxy::yawRight(unit.rotation.y);
         const float scaleMul = std::clamp(extents.height / std::max(0.05f, worldCellSize * 0.72f), 0.80f, 2.40f);
         const float spawnRadius = std::max(
             0.004f,
@@ -359,5 +359,7 @@ bool appendSyntheticTailFire(const Args& args) {
 }
 
 } // namespace game::runtime::shared_tail_fire_fallback
+
+
 
 

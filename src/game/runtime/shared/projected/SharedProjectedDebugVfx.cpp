@@ -208,7 +208,7 @@ void ProjectedDebugVfxBuilder::appendProjectedBurst(const glm::vec3& center,
 void ProjectedDebugVfxBuilder::appendProjectedTailFire(
     const PokemonInstance& unit,
     const glm::vec3& center,
-    const game::runtime::backend_proxy::UnitProxyExtents& extents,
+    const game::runtime::render_prep_proxy::UnitProxyExtents& extents,
     float yawDeg,
     float thickness) {
     const std::string species = toLowerCopy(unit.name);
@@ -216,8 +216,8 @@ void ProjectedDebugVfxBuilder::appendProjectedTailFire(
     if (!unit.alive || unit.fainting) return;
 
     const glm::vec3 up(0.0f, 1.0f, 0.0f);
-    const glm::vec3 fwd = game::runtime::backend_proxy::yawForward(yawDeg);
-    const glm::vec3 right = game::runtime::backend_proxy::yawRight(yawDeg);
+    const glm::vec3 fwd = game::runtime::render_prep_proxy::yawForward(yawDeg);
+    const glm::vec3 right = game::runtime::render_prep_proxy::yawRight(yawDeg);
     const glm::vec3 tailBase =
         center - fwd * std::max(0.03f, extents.halfDepth * 0.95f) +
         up * std::max(0.02f, extents.height * 0.22f);
@@ -283,3 +283,4 @@ void ProjectedDebugVfxBuilder::appendProjectedLeechDrain(const GameWorld* gameWo
 }
 
 } // namespace game::runtime::shared_projected_debug
+

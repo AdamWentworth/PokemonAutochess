@@ -1,4 +1,4 @@
-#include "game/runtime/render_prep/BackendMaterialShading.h"
+#include "game/runtime/render_prep/MaterialShading.h"
 
 #include <cmath>
 #include <string>
@@ -11,16 +11,16 @@ bool approx(float a, float b, float eps = 0.0005f) {
 
 } // namespace
 
-bool test_backend_material_shading_contract(std::string& outFail) {
-    using game::runtime::backend_material::AlphaMode;
-    using game::runtime::backend_material::alphaModeFromByte;
-    using game::runtime::backend_material::blendBaseAndTexture;
-    using game::runtime::backend_material::composeGltfLikeColor;
-    using game::runtime::backend_material::linearToSrgb;
-    using game::runtime::backend_material::modulateBaseAndTexture;
-    using game::runtime::backend_material::opacityFromAlphaMode;
-    using game::runtime::backend_material::shadeVertexLitColor;
-    using game::runtime::backend_material::srgbToLinear;
+bool test_render_prep_material_shading_contract(std::string& outFail) {
+    using game::runtime::render_prep_material::AlphaMode;
+    using game::runtime::render_prep_material::alphaModeFromByte;
+    using game::runtime::render_prep_material::blendBaseAndTexture;
+    using game::runtime::render_prep_material::composeGltfLikeColor;
+    using game::runtime::render_prep_material::linearToSrgb;
+    using game::runtime::render_prep_material::modulateBaseAndTexture;
+    using game::runtime::render_prep_material::opacityFromAlphaMode;
+    using game::runtime::render_prep_material::shadeVertexLitColor;
+    using game::runtime::render_prep_material::srgbToLinear;
 
     if (alphaModeFromByte(0u) != AlphaMode::Opaque ||
         alphaModeFromByte(1u) != AlphaMode::Mask ||
@@ -115,4 +115,7 @@ bool test_backend_material_shading_contract(std::string& outFail) {
 
     return true;
 }
+
+
+
 

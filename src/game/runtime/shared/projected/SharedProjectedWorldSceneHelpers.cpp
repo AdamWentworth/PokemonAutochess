@@ -636,7 +636,7 @@ void appendSharedParticleVfx(const ParticleVfxArgs& args) {
         for (const auto& unit : args.gameWorld->getPokemons()) {
             if (!isCharmanderUnit(unit)) continue;
             const auto extents =
-                game::runtime::backend_proxy::computeUnitProxyExtents(unit, args.worldCellSize);
+                game::runtime::render_prep_proxy::computeUnitProxyExtents(unit, args.worldCellSize);
             const glm::vec3 proxyCenter =
                 unit.position + glm::vec3(0.0f, unit.visualYOffset, 0.0f);
 
@@ -850,3 +850,4 @@ bool appendSharedCaptureAttemptModelsIfNeededForProjectedWorld(
 }
 
 } // namespace game::runtime::shared_projected_scene
+
