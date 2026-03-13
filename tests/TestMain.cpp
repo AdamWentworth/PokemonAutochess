@@ -153,6 +153,7 @@ bool test_shared_backend_debug_view_support_contract(std::string& outFail);
 bool test_shared_particle_billboard_batches_contract(std::string& outFail);
 bool test_shared_particle_vfx_bridge_dispatch_contract(std::string& outFail);
 bool test_shared_particle_vfx_styles_contract(std::string& outFail);
+bool test_shared_projected_unit_backend_mesh_indexed_path_contract(std::string& outFail);
 bool test_shared_projected_unit_backend_mesh_support_contract(std::string& outFail);
 bool test_shared_tail_fire_atlas_helpers_contract(std::string& outFail);
 bool test_shared_tail_fire_exact_gpu_batches_contract(std::string& outFail);
@@ -361,6 +362,7 @@ int main(int argc, char** argv) {
         {"shared_particle_billboard_batches_contract", &test_shared_particle_billboard_batches_contract},
         {"shared_particle_vfx_bridge_dispatch_contract", &test_shared_particle_vfx_bridge_dispatch_contract},
         {"shared_particle_vfx_styles_contract", &test_shared_particle_vfx_styles_contract},
+        {"shared_projected_unit_backend_mesh_indexed_path_contract", &test_shared_projected_unit_backend_mesh_indexed_path_contract},
         {"shared_projected_unit_backend_mesh_support_contract", &test_shared_projected_unit_backend_mesh_support_contract},
         {"shared_tail_fire_atlas_helpers_contract", &test_shared_tail_fire_atlas_helpers_contract},
         {"shared_tail_fire_exact_gpu_batches_contract", &test_shared_tail_fire_exact_gpu_batches_contract},

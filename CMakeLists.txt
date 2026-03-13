@@ -317,6 +317,7 @@ add_library(PAC_GameObjects STATIC
     src/game/runtime/shared/world/SharedBoardGridBatches.cpp
     src/game/runtime/shared/projected/SharedProjectedDebugVfx.cpp
     src/game/runtime/shared/projected/SharedProjectedUnitBackendMeshRenderer.cpp
+    src/game/runtime/shared/projected/SharedProjectedUnitBackendMeshIndexedPath.cpp
     src/game/runtime/shared/projected/SharedProjectedUnitBackendMeshSupport.cpp
     src/game/runtime/shared/projected/SharedProjectedUnitBackendMeshPrep.cpp
     src/game/runtime/shared/projected/SharedProjectedUnitBackendMeshTriangleSubmit.cpp
@@ -592,6 +593,7 @@ if (BUILD_TESTING)
         tests/TestSharedParticleBillboardBatches.cpp
         tests/TestSharedParticleVfxBridgeDispatch.cpp
         tests/TestSharedParticleVfxStyles.cpp
+        tests/TestSharedProjectedUnitBackendMeshIndexedPath.cpp
         tests/TestSharedProjectedUnitBackendMeshSupport.cpp
         tests/TestSharedTailFireAtlasHelpers.cpp
         tests/TestSharedTailFireExactGpuBatches.cpp

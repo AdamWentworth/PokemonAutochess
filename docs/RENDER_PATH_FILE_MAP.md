@@ -188,6 +188,9 @@ Use this file to find ownership quickly when working on parity/performance tasks
 - `src/game/runtime/shared/projected/SharedProjectedUnitBackendMeshRenderer.cpp`
   - authored fire-mesh UV flipbook override for the Charmander line
   - per-unit fire mesh batch texture/material rewrites
+- `src/game/runtime/shared/projected/SharedProjectedUnitBackendMeshIndexedPath.*`
+  - indexed-batch fast path extraction for projected mesh rendering
+  - indexed world-batch queueing and invalidation helpers
 - `src/game/runtime/shared/projected/SharedProjectedUnitBackendMeshSupport.*`
   - reusable projected mesh batching support extracted from the renderer body
   - fast-textured mesh template cache, GPU skin batch state, and fire-mesh override helpers
