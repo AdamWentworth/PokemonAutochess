@@ -262,6 +262,7 @@ add_library(PAC_GameObjects STATIC
     src/game/runtime/GameRuntime.cpp
     src/game/runtime/GameBootstrap.cpp
     src/game/runtime/startup/RuntimeBackendModelPrewarm.cpp
+    src/game/runtime/startup/RuntimeStartupAssetPrewarm.cpp
     src/game/runtime/RuntimeBootLoading.cpp
     src/game/runtime/RendererBackendBootstrap.cpp
     src/game/runtime/RuntimeFixedStepPhase.cpp
@@ -285,6 +286,7 @@ add_library(PAC_GameObjects STATIC
     src/game/runtime/startup/RuntimeStartupPresentation.cpp
     src/game/runtime/startup/RuntimeStartupSession.cpp
     src/game/runtime/startup/RuntimeStartupVideoOverride.cpp
+    src/game/runtime/startup/RuntimeWorldLayerPrewarm.cpp
     src/game/runtime/RuntimeWindowBootstrap.cpp
     src/game/runtime/GameSession.cpp
     src/game/runtime/shared/backend/SharedBackendPoseEval.cpp
@@ -486,6 +488,7 @@ if (BUILD_TESTING)
         tests/TestVideoInitGuards.cpp
         tests/TestVideoPreferences.cpp
         tests/TestRuntimeBackendModelPrewarm.cpp
+        tests/TestRuntimeStartupAssetPrewarm.cpp
         tests/TestRuntimeBootLoading.cpp
         tests/TestRuntimeFixedStepPhase.cpp
         tests/TestRuntimeFrameObservation.cpp
@@ -509,6 +512,7 @@ if (BUILD_TESTING)
         tests/TestRuntimeStartupPresentation.cpp
         tests/TestRuntimeStartupSession.cpp
         tests/TestRuntimeStartupVideoOverride.cpp
+        tests/TestRuntimeWorldLayerPrewarm.cpp
         tests/TestRuntimeWindowBootstrap.cpp
         tests/TestDxgiAdapterSelectionPolicy.cpp
         tests/TestD3D12Probe.cpp

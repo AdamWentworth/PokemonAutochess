@@ -30,19 +30,25 @@ Use this file to find ownership quickly when working on parity/performance tasks
 - `src/game/runtime/RuntimeRendererStartupState.*`
   - renderer identity capture from backend + GL strings
   - startup GPU/service finalization and summary logging
-- `src/game/runtime/RuntimeStartupConfig.*`
+- `src/game/runtime/startup/RuntimeStartupConfig.*`
   - startup preference/env resolution
   - one-shot boot-menu consumption
   - startup video override parsing
-- `src/game/runtime/RuntimeStartupPresentation.*`
+- `src/game/runtime/startup/RuntimeStartupPresentation.*`
   - font subsystem startup result handling
   - default camera creation and initial loading-frame handoff
-- `src/game/runtime/RuntimeStartupSession.*`
+- `src/game/runtime/startup/RuntimeStartupSession.*`
   - preference load/consume flow for startup
   - startup service state population and adapter inventory capture
-- `src/game/runtime/RuntimeStartupVideoOverride.*`
+- `src/game/runtime/startup/RuntimeStartupVideoOverride.*`
   - startup video override application policy
   - startup video override success/failure messaging
+- `src/game/runtime/startup/RuntimeStartupAssetPrewarm.*`
+  - world shading, tail-fire, UI sprite, card-art, and backend card-UI startup prewarm orchestration
+  - backend card-art proxy selection for eager startup warming
+- `src/game/runtime/startup/RuntimeWorldLayerPrewarm.*`
+  - world/board prewarm scheduling, startup drain, and deferred frame completion
+  - init title/progress ownership for world-layer warmup
 - `src/game/runtime/RuntimeWindowBootstrap.*`
   - initial/fallback window open orchestration
   - startup window GL-context state capture
