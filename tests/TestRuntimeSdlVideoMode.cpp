@@ -5,7 +5,7 @@
 
 #include <SDL2/SDL.h>
 
-#include "game/runtime/RuntimeSdlVideoMode.h"
+#include "game/runtime/video/RuntimeSdlVideoMode.h"
 
 namespace {
 
@@ -232,3 +232,4 @@ bool test_runtime_sdl_video_mode_contract(std::string& outFail) {
 
     return true;
 }
+

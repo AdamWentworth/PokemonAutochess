@@ -1,4 +1,4 @@
-#include "game/runtime/RuntimeLoopConfig.h"
+#include "game/runtime/loop/RuntimeLoopConfig.h"
 
 #include <algorithm>
 #include <cmath>
@@ -50,3 +50,4 @@ int dropExcessFixedTicks(double& accumulator, double timeStep) {
 }
 
 } // namespace game::runtime::loop_config
+

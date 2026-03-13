@@ -1,4 +1,4 @@
-#include "game/runtime/RuntimeRendererStartupState.h"
+#include "game/runtime/renderer/RuntimeRendererStartupState.h"
 
 #include "engine/render/IRenderBackend.h"
 
@@ -39,3 +39,4 @@ game::runtime::renderer_activation::Outputs applyAndLog(EngineServices& services
 }
 
 } // namespace game::runtime::renderer_startup_state
+

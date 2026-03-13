@@ -1,6 +1,6 @@
 #include <string>
 
-#include "game/runtime/RuntimePerfLogging.h"
+#include "game/runtime/loop/RuntimePerfLogging.h"
 
 bool test_runtime_perf_logging_contract(std::string& outFail) {
     EngineFramePerfStats perf;
@@ -68,3 +68,4 @@ bool test_runtime_perf_logging_contract(std::string& outFail) {
 
     return true;
 }
+

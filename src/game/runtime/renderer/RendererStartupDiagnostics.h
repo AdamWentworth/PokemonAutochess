@@ -5,7 +5,7 @@
 #include <string_view>
 #include <vector>
 
-#include "game/runtime/GpuAdapters.h"
+#include "game/runtime/video/GpuAdapters.h"
 
 namespace game::runtime::startup_diag {
 
@@ -41,3 +41,4 @@ void logPreferredActiveAdapterMismatch(std::string_view preferredAdapter,
                                        std::ostream& out);
 
 } // namespace game::runtime::startup_diag
+

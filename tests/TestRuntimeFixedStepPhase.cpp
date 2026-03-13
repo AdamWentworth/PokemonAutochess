@@ -2,7 +2,7 @@
 #include <string>
 
 #include "engine/core/EngineServices.h"
-#include "game/runtime/RuntimeFixedStepPhase.h"
+#include "game/runtime/loop/RuntimeFixedStepPhase.h"
 
 bool test_runtime_fixed_step_phase_contract(std::string& outFail) {
     EngineServices services;
@@ -50,3 +50,4 @@ bool test_runtime_fixed_step_phase_contract(std::string& outFail) {
 
     return true;
 }
+

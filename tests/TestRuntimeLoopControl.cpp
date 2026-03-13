@@ -2,7 +2,7 @@
 
 #include <SDL2/SDL.h>
 
-#include "game/runtime/RuntimeLoopControl.h"
+#include "game/runtime/loop/RuntimeLoopControl.h"
 
 bool test_runtime_loop_control_contract(std::string& outFail) {
     using game::runtime::auto_quit::Policy;
@@ -68,3 +68,4 @@ bool test_runtime_loop_control_contract(std::string& outFail) {
 
     return true;
 }
+

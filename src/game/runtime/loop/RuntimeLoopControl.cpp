@@ -1,4 +1,4 @@
-#include "game/runtime/RuntimeLoopControl.h"
+#include "game/runtime/loop/RuntimeLoopControl.h"
 
 namespace game::runtime::loop_control {
 
@@ -38,3 +38,4 @@ std::string effectiveStopReason(const State& state) {
 }
 
 } // namespace game::runtime::loop_control
+

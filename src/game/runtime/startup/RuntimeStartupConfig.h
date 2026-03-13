@@ -4,7 +4,7 @@
 #include <optional>
 #include <string>
 
-#include "game/runtime/VideoPreferences.h"
+#include "game/runtime/video/VideoPreferences.h"
 
 namespace game::runtime::startup_config {
 
@@ -48,3 +48,4 @@ StartupVideoMode resolveStartupVideoMode(const StartupVideoOverride& overrideVal
                                          bool currentFullscreen);
 
 } // namespace game::runtime::startup_config
+

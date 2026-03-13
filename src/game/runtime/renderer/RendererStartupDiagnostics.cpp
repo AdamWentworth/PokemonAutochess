@@ -1,4 +1,4 @@
-#include "game/runtime/RendererStartupDiagnostics.h"
+#include "game/runtime/renderer/RendererStartupDiagnostics.h"
 
 #include <algorithm>
 #include <cctype>
@@ -96,3 +96,4 @@ void logPreferredActiveAdapterMismatch(std::string_view preferredAdapter,
 }
 
 } // namespace game::runtime::startup_diag
+

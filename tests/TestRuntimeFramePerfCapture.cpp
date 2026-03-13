@@ -1,7 +1,7 @@
 #include <cmath>
 #include <string>
 
-#include "game/runtime/RuntimeFramePerfCapture.h"
+#include "game/runtime/loop/RuntimeFramePerfCapture.h"
 
 bool test_runtime_frame_perf_capture_contract(std::string& outFail) {
     using game::runtime::frame_perf_capture::BackendFrameInputs;
@@ -83,3 +83,4 @@ bool test_runtime_frame_perf_capture_contract(std::string& outFail) {
 
     return true;
 }
+

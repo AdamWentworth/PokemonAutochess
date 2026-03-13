@@ -1,4 +1,4 @@
-#include "game/runtime/RuntimeWindowBootstrap.h"
+#include "game/runtime/video/RuntimeWindowBootstrap.h"
 
 #include <exception>
 
@@ -22,3 +22,4 @@ OpenResult openWindow(const OpenRequest& request,
 }
 
 } // namespace game::runtime::window_bootstrap
+

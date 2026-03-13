@@ -2,7 +2,7 @@
 #include <string>
 
 #include "engine/render/IRenderBackend.h"
-#include "game/runtime/RuntimeRendererRecovery.h"
+#include "game/runtime/renderer/RuntimeRendererRecovery.h"
 
 namespace {
 
@@ -139,3 +139,4 @@ bool test_runtime_renderer_recovery_contract(std::string& outFail) {
 
     return true;
 }
+

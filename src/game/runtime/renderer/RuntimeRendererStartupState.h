@@ -1,7 +1,7 @@
 #pragma once
 
 #include "engine/core/EngineServices.h"
-#include "game/runtime/RuntimeRendererActivation.h"
+#include "game/runtime/renderer/RuntimeRendererActivation.h"
 
 #include <iosfwd>
 #include <string>
@@ -26,3 +26,4 @@ game::runtime::renderer_activation::Outputs applyAndLog(EngineServices& services
                                                         std::ostream& logOut);
 
 } // namespace game::runtime::renderer_startup_state
+

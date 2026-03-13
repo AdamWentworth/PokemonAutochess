@@ -1,7 +1,7 @@
-#include "game/runtime/RuntimeRendererRecovery.h"
+#include "game/runtime/renderer/RuntimeRendererRecovery.h"
 
 #include "engine/render/IRenderBackend.h"
-#include "game/runtime/RendererBackendBootstrap.h"
+#include "game/runtime/renderer/RendererBackendBootstrap.h"
 
 namespace game::runtime::renderer_recovery {
 
@@ -66,3 +66,4 @@ Result createWithOpenGlFallback(const Inputs& inputs,
 }
 
 } // namespace game::runtime::renderer_recovery
+

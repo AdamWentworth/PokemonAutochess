@@ -1,6 +1,6 @@
-#include "game/runtime/RuntimeFixedStepPhase.h"
+#include "game/runtime/loop/RuntimeFixedStepPhase.h"
 
-#include "game/runtime/RuntimeLoopConfig.h"
+#include "game/runtime/loop/RuntimeLoopConfig.h"
 
 #include <chrono>
 
@@ -37,3 +37,4 @@ Result execute(double accumulator,
 }
 
 } // namespace game::runtime::fixed_step_phase
+

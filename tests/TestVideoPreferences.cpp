@@ -1,4 +1,4 @@
-#include "game/runtime/VideoPreferences.h"
+#include "game/runtime/video/VideoPreferences.h"
 
 #include <filesystem>
 #include <string>
@@ -102,3 +102,4 @@ bool test_video_preferences_parse_and_roundtrip(std::string& outFail) {
 
     return true;
 }
+

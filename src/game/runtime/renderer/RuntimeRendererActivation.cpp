@@ -1,6 +1,6 @@
-#include "game/runtime/RuntimeRendererActivation.h"
+#include "game/runtime/renderer/RuntimeRendererActivation.h"
 
-#include "game/runtime/RendererStartupDiagnostics.h"
+#include "game/runtime/renderer/RendererStartupDiagnostics.h"
 
 #include <ostream>
 
@@ -64,3 +64,4 @@ void logPreferredAdapterMismatch(const Inputs& inputs, const Outputs& outputs, s
 }
 
 } // namespace game::runtime::renderer_activation
+

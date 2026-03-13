@@ -3,7 +3,7 @@
 #include <SDL2/SDL.h>
 
 #include "engine/input/InputEvent.h"
-#include "game/runtime/RuntimeSdlEventDispatch.h"
+#include "game/runtime/video/RuntimeSdlEventDispatch.h"
 
 bool test_runtime_sdl_event_dispatch_contract(std::string& outFail) {
     using game::runtime::loop_control::State;
@@ -69,3 +69,4 @@ bool test_runtime_sdl_event_dispatch_contract(std::string& outFail) {
 
     return true;
 }
+

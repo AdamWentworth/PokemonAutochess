@@ -1,9 +1,9 @@
 #include "game/runtime/startup/RuntimeStartupSession.h"
 
 #include "engine/core/Environment.h"
-#include "game/runtime/GpuAdapters.h"
-#include "game/runtime/RendererBackendBootstrap.h"
-#include "game/runtime/RendererStartupDiagnostics.h"
+#include "game/runtime/video/GpuAdapters.h"
+#include "game/runtime/renderer/RendererBackendBootstrap.h"
+#include "game/runtime/renderer/RendererStartupDiagnostics.h"
 #include "game/runtime/startup/RuntimeStartupConfig.h"
 
 #include <ostream>
@@ -81,3 +81,4 @@ void applyToServices(const PreparedSession& session, EngineServices& services) {
 }
 
 } // namespace game::runtime::startup_session
+

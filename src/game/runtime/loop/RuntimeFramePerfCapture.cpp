@@ -1,4 +1,4 @@
-#include "game/runtime/RuntimeFramePerfCapture.h"
+#include "game/runtime/loop/RuntimeFramePerfCapture.h"
 
 #include <algorithm>
 
@@ -55,3 +55,4 @@ EngineRenderBuildBreakdown finalizeRenderBreakdown(double renderBuildMs,
 }
 
 } // namespace game::runtime::frame_perf_capture
+

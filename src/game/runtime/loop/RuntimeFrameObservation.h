@@ -1,7 +1,7 @@
 #pragma once
 
 #include "engine/core/EngineServices.h"
-#include "game/runtime/RuntimePerfAccumulator.h"
+#include "game/runtime/loop/RuntimePerfAccumulator.h"
 
 namespace game::runtime::frame_observation {
 
@@ -45,3 +45,4 @@ game::runtime::perf_accum::FrameSample makePerfSample(const SampleInputs& inputs
                                                       const ServiceSnapshot& snapshot);
 
 } // namespace game::runtime::frame_observation
+

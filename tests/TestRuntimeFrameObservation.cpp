@@ -2,7 +2,7 @@
 #include <string>
 
 #include "engine/core/EngineServices.h"
-#include "game/runtime/RuntimeFrameObservation.h"
+#include "game/runtime/loop/RuntimeFrameObservation.h"
 
 bool test_runtime_frame_observation_contract(std::string& outFail) {
     EngineServices services;
@@ -66,3 +66,4 @@ bool test_runtime_frame_observation_contract(std::string& outFail) {
 
     return true;
 }
+

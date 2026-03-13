@@ -3,7 +3,7 @@
 #include <sstream>
 #include <string>
 
-#include "game/runtime/RuntimeLoopConfig.h"
+#include "game/runtime/loop/RuntimeLoopConfig.h"
 
 bool test_runtime_loop_config_contract(std::string& outFail) {
     using game::runtime::loop_config::clampFrameDeltaSeconds;
@@ -81,3 +81,4 @@ bool test_runtime_loop_config_contract(std::string& outFail) {
 
     return true;
 }
+

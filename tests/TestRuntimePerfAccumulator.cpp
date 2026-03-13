@@ -1,7 +1,7 @@
 #include <cmath>
 #include <string>
 
-#include "game/runtime/RuntimePerfAccumulator.h"
+#include "game/runtime/loop/RuntimePerfAccumulator.h"
 
 bool test_runtime_perf_accumulator_contract(std::string& outFail) {
     using game::runtime::perf_accum::FrameSample;
@@ -112,3 +112,4 @@ bool test_runtime_perf_accumulator_contract(std::string& outFail) {
 
     return true;
 }
+

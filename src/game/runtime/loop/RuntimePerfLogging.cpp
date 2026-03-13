@@ -1,4 +1,4 @@
-#include "game/runtime/RuntimePerfLogging.h"
+#include "game/runtime/loop/RuntimePerfLogging.h"
 
 #include <algorithm>
 #include <array>
@@ -141,3 +141,4 @@ std::string formatPerfJson(const EngineFramePerfStats& framePerf) {
 }
 
 } // namespace game::runtime::perf_logging
+

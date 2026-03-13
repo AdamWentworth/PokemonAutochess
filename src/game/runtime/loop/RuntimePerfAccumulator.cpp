@@ -1,4 +1,4 @@
-#include "game/runtime/RuntimePerfAccumulator.h"
+#include "game/runtime/loop/RuntimePerfAccumulator.h"
 
 #include <algorithm>
 #include <cmath>
@@ -180,3 +180,4 @@ WindowSummary RollingAccumulator::makeSummaryAndReset() {
 }
 
 } // namespace game::runtime::perf_accum
+

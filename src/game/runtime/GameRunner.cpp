@@ -16,30 +16,30 @@
 #include "engine/utils/ResourceManager.h"
 #include "engine/utils/ShaderCache.h"
 #include "game/runtime/AutoQuitPolicy.h"
-#include "game/runtime/RendererBackendBootstrap.h"
+#include "game/runtime/renderer/RendererBackendBootstrap.h"
 #include "game/runtime/RuntimeBootLoading.h"
-#include "game/runtime/RuntimeFixedStepPhase.h"
-#include "game/runtime/RuntimeFrameObservation.h"
-#include "game/runtime/RuntimeFramePerfCapture.h"
-#include "game/runtime/RuntimeLoopConfig.h"
-#include "game/runtime/RuntimeLoopControl.h"
+#include "game/runtime/loop/RuntimeFixedStepPhase.h"
+#include "game/runtime/loop/RuntimeFrameObservation.h"
+#include "game/runtime/loop/RuntimeFramePerfCapture.h"
+#include "game/runtime/loop/RuntimeLoopConfig.h"
+#include "game/runtime/loop/RuntimeLoopControl.h"
 #include "game/runtime/RuntimeOpenGlBootstrap.h"
-#include "game/runtime/RuntimePerfAccumulator.h"
-#include "game/runtime/RuntimePerfLogging.h"
+#include "game/runtime/loop/RuntimePerfAccumulator.h"
+#include "game/runtime/loop/RuntimePerfLogging.h"
 #include "game/runtime/RuntimeRelaunchLoop.h"
-#include "game/runtime/RuntimeRendererActivation.h"
-#include "game/runtime/RuntimeRendererRecovery.h"
-#include "game/runtime/RuntimeRendererStartupState.h"
-#include "game/runtime/RuntimeSdlEventDispatch.h"
-#include "game/runtime/RuntimeSdlInput.h"
-#include "game/runtime/RuntimeSdlVideoMode.h"
+#include "game/runtime/renderer/RuntimeRendererActivation.h"
+#include "game/runtime/renderer/RuntimeRendererRecovery.h"
+#include "game/runtime/renderer/RuntimeRendererStartupState.h"
+#include "game/runtime/video/RuntimeSdlEventDispatch.h"
+#include "game/runtime/video/RuntimeSdlInput.h"
+#include "game/runtime/video/RuntimeSdlVideoMode.h"
 #include "game/runtime/startup/RuntimeStartupConfig.h"
 #include "game/runtime/startup/RuntimeStartupPresentation.h"
 #include "game/runtime/startup/RuntimeStartupSession.h"
 #include "game/runtime/startup/RuntimeStartupVideoOverride.h"
-#include "game/runtime/RuntimeWindowBootstrap.h"
-#include "game/runtime/VideoInitGuards.h"
-#include "game/runtime/VideoPreferences.h"
+#include "game/runtime/video/RuntimeWindowBootstrap.h"
+#include "game/runtime/video/VideoInitGuards.h"
+#include "game/runtime/video/VideoPreferences.h"
 
 #define NOMINMAX
 #ifdef _WIN32
@@ -687,4 +687,5 @@ int runGame() {
 }
 
 } // namespace game
+
 

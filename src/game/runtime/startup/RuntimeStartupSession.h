@@ -1,7 +1,7 @@
 #pragma once
 
 #include "engine/core/EngineServices.h"
-#include "game/runtime/VideoPreferences.h"
+#include "game/runtime/video/VideoPreferences.h"
 
 #include <iosfwd>
 #include <optional>
@@ -36,3 +36,4 @@ PreparedSession prepareFromEnvironment(const std::string& prefsPath,
 void applyToServices(const PreparedSession& session, EngineServices& services);
 
 } // namespace game::runtime::startup_session
+

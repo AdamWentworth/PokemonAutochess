@@ -2,7 +2,7 @@
 #include <string>
 #include <vector>
 
-#include "game/runtime/RendererStartupDiagnostics.h"
+#include "game/runtime/renderer/RendererStartupDiagnostics.h"
 
 bool test_renderer_startup_diagnostics_contract(std::string& outFail) {
     using game::runtime::startup_diag::ActiveRendererSummary;
@@ -112,3 +112,4 @@ bool test_renderer_startup_diagnostics_contract(std::string& outFail) {
 
     return true;
 }
+

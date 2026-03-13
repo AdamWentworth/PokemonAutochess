@@ -3,7 +3,7 @@
 
 #include "engine/core/EngineServices.h"
 #include "engine/render/IRenderBackend.h"
-#include "game/runtime/RuntimeRendererStartupState.h"
+#include "game/runtime/renderer/RuntimeRendererStartupState.h"
 
 namespace {
 
@@ -103,3 +103,4 @@ bool test_runtime_renderer_startup_state_contract(std::string& outFail) {
 
     return true;
 }
+

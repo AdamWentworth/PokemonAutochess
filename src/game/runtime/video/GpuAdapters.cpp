@@ -1,4 +1,4 @@
-#include "game/runtime/GpuAdapters.h"
+#include "game/runtime/video/GpuAdapters.h"
 #include "engine/render/DxgiAdapterSelection.h"
 
 #include <vector>
@@ -35,3 +35,4 @@ std::vector<SystemGpuAdapter> enumerateSystemGpuAdapters() {
 }
 
 } // namespace game::video
+

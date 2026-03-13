@@ -265,30 +265,30 @@ add_library(PAC_GameObjects STATIC
     src/game/runtime/startup/RuntimeBackendCardUiPrewarm.cpp
     src/game/runtime/startup/RuntimeStartupAssetPrewarm.cpp
     src/game/runtime/RuntimeBootLoading.cpp
-    src/game/runtime/RendererBackendBootstrap.cpp
-    src/game/runtime/RuntimeFixedStepPhase.cpp
-    src/game/runtime/RuntimeFrameObservation.cpp
-    src/game/runtime/RendererStartupDiagnostics.cpp
-    src/game/runtime/RuntimeFramePerfCapture.cpp
-    src/game/runtime/RuntimeLoopConfig.cpp
-    src/game/runtime/RuntimeLoopControl.cpp
+    src/game/runtime/renderer/RendererBackendBootstrap.cpp
+    src/game/runtime/loop/RuntimeFixedStepPhase.cpp
+    src/game/runtime/loop/RuntimeFrameObservation.cpp
+    src/game/runtime/renderer/RendererStartupDiagnostics.cpp
+    src/game/runtime/loop/RuntimeFramePerfCapture.cpp
+    src/game/runtime/loop/RuntimeLoopConfig.cpp
+    src/game/runtime/loop/RuntimeLoopControl.cpp
     src/game/runtime/RuntimeOpenGlBootstrap.cpp
-    src/game/runtime/RuntimePerfAccumulator.cpp
-    src/game/runtime/RuntimePerfLogging.cpp
+    src/game/runtime/loop/RuntimePerfAccumulator.cpp
+    src/game/runtime/loop/RuntimePerfLogging.cpp
     src/game/runtime/RuntimeRelaunchLoop.cpp
-    src/game/runtime/RuntimeRendererActivation.cpp
-    src/game/runtime/RuntimeRendererRecovery.cpp
-    src/game/runtime/RuntimeRendererStartupState.cpp
+    src/game/runtime/renderer/RuntimeRendererActivation.cpp
+    src/game/runtime/renderer/RuntimeRendererRecovery.cpp
+    src/game/runtime/renderer/RuntimeRendererStartupState.cpp
     src/game/runtime/RuntimeRestartPolicy.cpp
-    src/game/runtime/RuntimeSdlEventDispatch.cpp
-    src/game/runtime/RuntimeSdlInput.cpp
-    src/game/runtime/RuntimeSdlVideoMode.cpp
+    src/game/runtime/video/RuntimeSdlEventDispatch.cpp
+    src/game/runtime/video/RuntimeSdlInput.cpp
+    src/game/runtime/video/RuntimeSdlVideoMode.cpp
     src/game/runtime/startup/RuntimeStartupConfig.cpp
     src/game/runtime/startup/RuntimeStartupPresentation.cpp
     src/game/runtime/startup/RuntimeStartupSession.cpp
     src/game/runtime/startup/RuntimeStartupVideoOverride.cpp
     src/game/runtime/startup/RuntimeWorldLayerPrewarm.cpp
-    src/game/runtime/RuntimeWindowBootstrap.cpp
+    src/game/runtime/video/RuntimeWindowBootstrap.cpp
     src/game/runtime/session/GameSession.cpp
     src/game/runtime/session/SessionBackendInventoryUi.cpp
     src/game/runtime/session/SessionBackendUnitHydration.cpp
@@ -330,8 +330,8 @@ add_library(PAC_GameObjects STATIC
     src/game/runtime/shared/ui/SharedUnitHudBatches.cpp
     src/game/runtime/shared/world/SharedWorldIndexedBatches.cpp
     src/game/runtime/session/GameUpdateGraph.cpp
-    src/game/runtime/VideoPreferences.cpp
-    src/game/runtime/GpuAdapters.cpp
+    src/game/runtime/video/VideoPreferences.cpp
+    src/game/runtime/video/GpuAdapters.cpp
     src/game/runtime/d3d12/D3D12Probe.cpp
     src/game/runtime/backend_model_cache/BackendModelCache.cpp
     src/game/runtime/backend_model_cache/BackendModelCacheReadDecode.cpp
@@ -708,5 +708,6 @@ if (PAC_BUILD_TOOLS)
         DEPENDS PAC_DataCooker
     )
 endif()
+
 
 

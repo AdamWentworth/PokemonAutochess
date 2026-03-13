@@ -1,7 +1,7 @@
 #include <sstream>
 #include <string>
 
-#include "game/runtime/RuntimeRendererActivation.h"
+#include "game/runtime/renderer/RuntimeRendererActivation.h"
 
 bool test_runtime_renderer_activation_contract(std::string& outFail) {
     {
@@ -64,3 +64,4 @@ bool test_runtime_renderer_activation_contract(std::string& outFail) {
 
     return true;
 }
+

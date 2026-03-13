@@ -1,8 +1,8 @@
 #pragma once
 
 #include "engine/input/InputEvent.h"
-#include "game/runtime/RuntimeLoopControl.h"
-#include "game/runtime/RuntimeSdlInput.h"
+#include "game/runtime/loop/RuntimeLoopControl.h"
+#include "game/runtime/video/RuntimeSdlInput.h"
 
 #include <SDL2/SDL.h>
 
@@ -21,3 +21,4 @@ void dispatch(const SDL_Event& event,
               const Callbacks& callbacks);
 
 } // namespace game::runtime::sdl_event_dispatch
+

@@ -6,7 +6,7 @@ Use this file to find ownership quickly when working on parity/performance tasks
 
 ## Runtime Route Model
 - Gameplay rendering routes are shared-path based for active renderers.
-- Legacy `opengl_shared` remains a backward-compat token in preference parsing, canonicalized to `opengl` (`src/game/runtime/VideoPreferences.cpp`).
+- Legacy `opengl_shared` remains a backward-compat token in preference parsing, canonicalized to `opengl` (`src/game/runtime/video/VideoPreferences.cpp`).
 - Preference parsing still recognizes `vulkan`, but the menu no longer exposes it because the backend is not implemented.
 
 ## Ownership Map
@@ -39,19 +39,19 @@ Use this file to find ownership quickly when working on parity/performance tasks
 - `src/game/runtime/session/SessionRenderConfig.*`
   - session-local env/config gates for backend prewarm, projected rendering, and snapshot render restore
   - backend model triangle limits and GPU clip-skinning policy used by GameSession render flow
-- `src/game/runtime/RendererBackendBootstrap.*`
+- `src/game/runtime/renderer/RendererBackendBootstrap.*`
   - Backend creation/fallback
   - Backend capability-to-window API mapping
-- `src/game/runtime/RendererStartupDiagnostics.*`
+- `src/game/runtime/renderer/RendererStartupDiagnostics.*`
   - GPU adapter inventory logging
   - backend startup summary logging
-- `src/game/runtime/RuntimeRendererActivation.*`
+- `src/game/runtime/renderer/RuntimeRendererActivation.*`
   - active renderer/GPU identity resolution after backend creation
   - startup summary emission and discrete-GPU requirement evaluation
-- `src/game/runtime/RuntimeRendererRecovery.*`
+- `src/game/runtime/renderer/RuntimeRendererRecovery.*`
   - backend creation and OpenGL fallback recovery
   - init-time failure-stage ownership for fallback diagnostics
-- `src/game/runtime/RuntimeRendererStartupState.*`
+- `src/game/runtime/renderer/RuntimeRendererStartupState.*`
   - renderer identity capture from backend + GL strings
   - startup GPU/service finalization and summary logging
 - `src/game/runtime/startup/RuntimeStartupConfig.*`
@@ -76,37 +76,37 @@ Use this file to find ownership quickly when working on parity/performance tasks
 - `src/game/runtime/startup/RuntimeWorldLayerPrewarm.*`
   - world/board prewarm scheduling, startup drain, and deferred frame completion
   - init title/progress ownership for world-layer warmup
-- `src/game/runtime/RuntimeWindowBootstrap.*`
+- `src/game/runtime/video/RuntimeWindowBootstrap.*`
   - initial/fallback window open orchestration
   - startup window GL-context state capture
 - `src/game/runtime/RuntimeRestartPolicy.*`
   - launch-time stale restart cleanup
   - post-run restart request consumption
   - restart preference persistence semantics
-- `src/game/runtime/RuntimeLoopConfig.*`
+- `src/game/runtime/loop/RuntimeLoopConfig.*`
   - fixed tick budget env parsing
   - frame-delta clamping and dropped-tick policy
-- `src/game/runtime/RuntimeFixedStepPhase.*`
+- `src/game/runtime/loop/RuntimeFixedStepPhase.*`
   - fixed-step execution and dropped-tick enforcement
   - per-frame fixed-update breakdown capture
-- `src/game/runtime/RuntimeFrameObservation.*`
+- `src/game/runtime/loop/RuntimeFrameObservation.*`
   - engine-service frame snapshot capture
   - perf sample assembly from frame timings and service counters
-- `src/game/runtime/RuntimeFramePerfCapture.*`
+- `src/game/runtime/loop/RuntimeFramePerfCapture.*`
   - backend timing/stat interpretation
   - per-frame render/perf metric derivation
-- `src/game/runtime/RuntimeLoopControl.*`
+- `src/game/runtime/loop/RuntimeLoopControl.*`
   - stop-reason ownership for the main loop
   - SDL quit and auto-quit bookkeeping
 - `src/game/runtime/RuntimeOpenGlBootstrap.*`
   - OpenGL function bootstrap for loading/preload paths
   - initial loading-frame presentation and preload pump sequencing
-- `src/game/runtime/RuntimeSdlEventDispatch.*`
+- `src/game/runtime/video/RuntimeSdlEventDispatch.*`
   - SDL event dispatch orchestration
   - resize sync and translated input delivery policy
-- `src/game/runtime/RuntimePerfAccumulator.*`
+- `src/game/runtime/loop/RuntimePerfAccumulator.*`
   - rolling perf-window accumulation and averaging
-- `src/game/runtime/RuntimePerfLogging.*`
+- `src/game/runtime/loop/RuntimePerfLogging.*`
   - `[Perf]` and `[PerfJSON]` formatting
 - `src/game/runtime/RuntimeRelaunchLoop.*`
   - outer relaunch loop around restart-on-exit preferences
@@ -114,13 +114,21 @@ Use this file to find ownership quickly when working on parity/performance tasks
 - `src/game/runtime/RuntimeBootLoading.*`
   - preload-abort event policy
   - fallback loading-screen quad layout for backend boot frames
-- `src/game/runtime/RuntimeSdlInput.*`
+- `src/game/runtime/video/RuntimeSdlInput.*`
   - SDL event translation into `InputEvent`
   - resize-event detection and mouse-coordinate scaling
-- `src/game/runtime/RuntimeSdlVideoMode.*`
+- `src/game/runtime/video/RuntimeSdlVideoMode.*`
   - SDL fullscreen/windowed transition policy
   - video mode sanitization and current-mode snapshots
   - SDL error/fallback handling for window mode changes
+- `src/game/runtime/video/GpuAdapters.*`
+  - SDL/DXGI adapter inventory helpers and discrete/integrated classification support
+  - preferred GPU matching utilities shared by startup and settings
+- `src/game/runtime/video/VideoPreferences.*`
+  - persistent display/backend preference parsing and serialization
+  - restart-required display settings contract used by startup and the menu
+- `src/game/runtime/video/VideoInitGuards.h`
+  - SDL/TTF/window lifecycle guard helpers for video/bootstrap code
 
 ### 2) Runtime Route Policy
 - `src/game/runtime/routes/RenderRoutes.h`
@@ -157,7 +165,7 @@ D3D12:
 
 ### 5) Display Settings and Backend Selection UX
 - `scripts/states/main_menu.lua`
-- `src/game/runtime/VideoPreferences.*`
+- `src/game/runtime/video/VideoPreferences.*`
 - `config/user/video_settings.json` (runtime preference file)
 
 ## High-Impact Touch Points (Current Program)
@@ -170,7 +178,7 @@ D3D12:
 
 3. Settings clarity work:
 - `scripts/states/main_menu.lua`
-- `VideoPreferences.*`
+- `src/game/runtime/video/VideoPreferences.*`
 
 4. Parity/perf test wiring:
 - `tests/TestMain.cpp`
@@ -179,4 +187,5 @@ D3D12:
 ## Rule of Thumb
 - Shared rendering behavior changes should start in shared runtime modules, not backend-specific branches.
 - Backend files should only own API-specific resource/pipeline/submission mechanics.
+
 

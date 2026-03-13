@@ -2,7 +2,7 @@
 #include <string>
 
 #include "engine/platform/Window.h"
-#include "game/runtime/RuntimeWindowBootstrap.h"
+#include "game/runtime/video/RuntimeWindowBootstrap.h"
 
 bool test_runtime_window_bootstrap_contract(std::string& outFail) {
     using game::runtime::window_bootstrap::OpenRequest;
@@ -54,3 +54,4 @@ bool test_runtime_window_bootstrap_contract(std::string& outFail) {
 
     return true;
 }
+

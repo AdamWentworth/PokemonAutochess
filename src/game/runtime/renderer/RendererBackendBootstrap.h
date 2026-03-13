@@ -5,7 +5,7 @@
 #include <string_view>
 
 #include "engine/platform/Window.h"
-#include "game/runtime/VideoPreferences.h"
+#include "game/runtime/video/VideoPreferences.h"
 
 struct SDL_Window;
 class IRenderBackend;
@@ -35,3 +35,4 @@ std::unique_ptr<IRenderBackend> createRenderBackend(game::video::RendererBackend
                                                     std::string* outError);
 
 } // namespace game::runtime::backend_bootstrap
+

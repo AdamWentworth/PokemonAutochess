@@ -1,6 +1,6 @@
-#include "game/runtime/RuntimeFrameObservation.h"
+#include "game/runtime/loop/RuntimeFrameObservation.h"
 
-#include "game/runtime/RuntimeFramePerfCapture.h"
+#include "game/runtime/loop/RuntimeFramePerfCapture.h"
 
 namespace game::runtime::frame_observation {
 
@@ -59,3 +59,4 @@ game::runtime::perf_accum::FrameSample makePerfSample(const SampleInputs& inputs
 }
 
 } // namespace game::runtime::frame_observation
+

@@ -3,7 +3,7 @@
 #include <iosfwd>
 #include <string>
 
-#include "game/runtime/VideoPreferences.h"
+#include "game/runtime/video/VideoPreferences.h"
 
 namespace game::runtime::restart_policy {
 
@@ -18,3 +18,4 @@ bool consumeRestartRequestForRelaunch(const std::string& prefsPath,
                                       bool& outShouldRelaunch);
 
 } // namespace game::runtime::restart_policy
+

@@ -3,7 +3,7 @@
 #include <SDL2/SDL.h>
 
 #include "engine/input/InputEvent.h"
-#include "game/runtime/RuntimeSdlInput.h"
+#include "game/runtime/video/RuntimeSdlInput.h"
 
 bool test_runtime_sdl_input_contract(std::string& outFail) {
     using game::runtime::sdl_input::TranslationContext;
@@ -164,3 +164,4 @@ bool test_runtime_sdl_input_contract(std::string& outFail) {
 
     return true;
 }
+

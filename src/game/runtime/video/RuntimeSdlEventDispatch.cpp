@@ -1,4 +1,4 @@
-#include "game/runtime/RuntimeSdlEventDispatch.h"
+#include "game/runtime/video/RuntimeSdlEventDispatch.h"
 
 namespace game::runtime::sdl_event_dispatch {
 
@@ -23,3 +23,4 @@ void dispatch(const SDL_Event& event,
 }
 
 } // namespace game::runtime::sdl_event_dispatch
+

@@ -1,4 +1,4 @@
-#include "game/runtime/VideoInitGuards.h"
+#include "game/runtime/video/VideoInitGuards.h"
 
 #include <string>
 
@@ -23,3 +23,4 @@ bool test_video_init_gl_viewport_guard(std::string& outFail) {
     }
     return true;
 }
+

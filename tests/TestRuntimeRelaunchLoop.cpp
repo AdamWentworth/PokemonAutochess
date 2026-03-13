@@ -3,7 +3,7 @@
 #include <string>
 
 #include "game/runtime/RuntimeRelaunchLoop.h"
-#include "game/runtime/VideoPreferences.h"
+#include "game/runtime/video/VideoPreferences.h"
 
 bool test_runtime_relaunch_loop_contract(std::string& outFail) {
     namespace fs = std::filesystem;
@@ -59,3 +59,4 @@ bool test_runtime_relaunch_loop_contract(std::string& outFail) {
 
     return true;
 }
+

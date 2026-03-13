@@ -8,7 +8,7 @@
 
 #include "game/config/GameDataDb.h"
 #include "game/config/PokemonConfigLoader.h"
-#include "game/runtime/VideoPreferences.h"
+#include "game/runtime/video/VideoPreferences.h"
 #include "game/logging/FlowTrace.h"
 #include "game/logging/LoggerUtil.h"
 
@@ -314,3 +314,4 @@ void ScriptAPI::startNewGame(const std::string& mode) {
     cmd.mode = mode;
     enqueue(cmd);
 }
+

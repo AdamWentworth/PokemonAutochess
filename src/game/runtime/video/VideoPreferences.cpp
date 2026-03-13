@@ -1,4 +1,4 @@
-#include "game/runtime/VideoPreferences.h"
+#include "game/runtime/video/VideoPreferences.h"
 
 #include <algorithm>
 #include <cctype>
@@ -162,3 +162,4 @@ bool savePreferences(const Preferences& prefs, const std::string& path, std::str
 }
 
 } // namespace game::video
+

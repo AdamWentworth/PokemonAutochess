@@ -4,7 +4,7 @@
 
 #include "engine/core/EngineServices.h"
 #include "game/runtime/startup/RuntimeStartupSession.h"
-#include "game/runtime/VideoPreferences.h"
+#include "game/runtime/video/VideoPreferences.h"
 
 bool test_runtime_startup_session_contract(std::string& outFail) {
     namespace fs = std::filesystem;
@@ -105,3 +105,4 @@ bool test_runtime_startup_session_contract(std::string& outFail) {
     fs::remove(prefsPath, removeError);
     return true;
 }
+

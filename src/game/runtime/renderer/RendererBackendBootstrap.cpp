@@ -1,4 +1,4 @@
-#include "game/runtime/RendererBackendBootstrap.h"
+#include "game/runtime/renderer/RendererBackendBootstrap.h"
 
 #include <exception>
 #include <memory>
@@ -82,3 +82,4 @@ std::unique_ptr<IRenderBackend> createRenderBackend(game::video::RendererBackend
 }
 
 } // namespace game::runtime::backend_bootstrap
+

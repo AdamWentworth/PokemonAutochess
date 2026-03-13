@@ -1,4 +1,4 @@
-#include "game/runtime/RuntimeSdlVideoMode.h"
+#include "game/runtime/video/RuntimeSdlVideoMode.h"
 
 #include <algorithm>
 #include <ostream>
@@ -66,3 +66,4 @@ GameContext::VideoMode makeCurrentVideoMode(int drawableWidth,
 }
 
 } // namespace game::runtime::video_mode
+

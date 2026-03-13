@@ -1,4 +1,4 @@
-#include "game/runtime/RuntimeSdlInput.h"
+#include "game/runtime/video/RuntimeSdlInput.h"
 
 #include <cmath>
 
@@ -94,3 +94,4 @@ bool translateEvent(const SDL_Event& sdl,
 }
 
 } // namespace game::runtime::sdl_input
+

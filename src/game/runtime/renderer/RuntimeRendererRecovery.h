@@ -1,6 +1,6 @@
 #pragma once
 
-#include "game/runtime/VideoPreferences.h"
+#include "game/runtime/video/VideoPreferences.h"
 
 #include <functional>
 #include <memory>
@@ -50,3 +50,4 @@ Result createWithOpenGlFallback(const Inputs& inputs,
                                 const WindowStateSync& syncWindowState);
 
 } // namespace game::runtime::renderer_recovery
+

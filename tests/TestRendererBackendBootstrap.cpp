@@ -1,7 +1,7 @@
 #include <string>
 
 #include "engine/platform/Window.h"
-#include "game/runtime/RendererBackendBootstrap.h"
+#include "game/runtime/renderer/RendererBackendBootstrap.h"
 
 bool test_renderer_backend_bootstrap_policy(std::string& outFail) {
     using game::runtime::backend_bootstrap::graphicsApiForBackend;
@@ -65,3 +65,4 @@ bool test_renderer_backend_bootstrap_policy(std::string& outFail) {
 
     return true;
 }
+
