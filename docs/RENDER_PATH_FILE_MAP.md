@@ -41,12 +41,18 @@ Use this file to find ownership quickly when working on parity/performance tasks
 - `src/game/runtime/session/SessionDebugSnapshot.*`
   - debug snapshot path resolution, JSON file IO, and summary formatting
   - session/world snapshot metadata parsing for save/load
+- `src/game/runtime/session/SessionFrameMetrics.*`
+  - session-side publication of per-frame projected/world metrics into `EngineServices`
+  - render build breakdown writeback before the shared overlay submit path
 - `src/game/runtime/session/SessionLegacyWorldView.*`
   - legacy non-projected board/bench/unit composition used when backend world projection is unavailable
   - board grid, bench panel, fallback portrait sprites, and legacy unit HUD overlay assembly
 - `src/game/runtime/session/SessionLoopRuntime.*`
   - session input/dev-pause/fixed-step orchestration extracted from `GameSession`
   - routes resize, hotkeys, backend inventory UI input, and fixed-step backend hydrate timing
+- `src/game/runtime/session/SessionProjectedWorldView.*`
+  - projected board/bench world composition for the backend world path
+  - camera/view-proj setup, projected unit draw dispatch, capture-model bridge, VFX bridge, and depth flush timing
 - `src/game/runtime/session/SessionRenderScratch.*`
   - frame-local render scratch ownership for backend debug/world rendering
   - projected-backdrop cache keys, scratch-capacity policy, and per-frame scratch reset/reuse
@@ -56,9 +62,15 @@ Use this file to find ownership quickly when working on parity/performance tasks
 - `src/game/runtime/session/SessionSnapshotRuntime.*`
   - live session save/load orchestration for debug snapshots
   - state-stack restore, runtime flag restore, inventory refresh, and restore-time indexed-world prewarm
+- `src/game/runtime/session/SessionTextureCache.*`
+  - session-local runtime texture cache population for world/UI/debug paths
+  - white fallback texture, procedural sprite atlases, and on-demand image decode/caching
 - `src/game/runtime/session/SessionRenderConfig.*`
   - session-local env/config gates for backend prewarm, projected rendering, and snapshot render restore
   - backend model triangle limits and GPU clip-skinning policy used by GameSession render flow
+- `src/game/runtime/session/SessionRenderLayout.*`
+  - viewport-derived board/UI layout used by `GameSession` render routing
+  - board bounds, cell sizing, UI padding, and shared HUD config packaging
 - `src/game/runtime/renderer/RendererBackendBootstrap.*`
   - Backend creation/fallback
   - Backend capability-to-window API mapping

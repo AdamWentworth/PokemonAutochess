@@ -19,8 +19,6 @@
 #include <vector>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/quaternion.hpp>
-#include <glm/gtc/type_ptr.hpp>
-#include <stb_image.h>
 
 #include "engine/core/GameContext.h"
 #include "engine/core/EngineServices.h"
@@ -93,11 +91,15 @@
 #include "game/runtime/session/SessionBackendInventoryUi.h"
 #include "game/runtime/session/SessionBackendRenderHelpers.h"
 #include "game/runtime/session/SessionDebugSnapshot.h"
+#include "game/runtime/session/SessionFrameMetrics.h"
 #include "game/runtime/session/SessionLegacyWorldView.h"
 #include "game/runtime/session/SessionLoopRuntime.h"
+#include "game/runtime/session/SessionProjectedWorldView.h"
+#include "game/runtime/session/SessionRenderLayout.h"
 #include "game/runtime/session/SessionRenderConfig.h"
 #include "game/runtime/session/SessionRenderScratch.h"
 #include "game/runtime/session/SessionSnapshotRuntime.h"
+#include "game/runtime/session/SessionTextureCache.h"
 #include "game/runtime/session/SessionWorldBackdrop.h"
 #include "game/ui/UIViewport.h"
 #include "game/ui/ShopLayout.h"
@@ -127,48 +129,6 @@ constexpr int kWorldLayerPrewarmFrames = 2;
 
 std::string debugStateSnapshotPath() {
     return game::runtime::session_debug_snapshot::snapshotPath();
-}
-
-float hash01(std::uint32_t x) {
-    x ^= x >> 16;
-    x *= 0x7feb352du;
-    x ^= x >> 15;
-    x *= 0x846ca68bu;
-    x ^= x >> 16;
-    const std::uint32_t v = x >> 8;
-    return static_cast<float>(v) * (1.0f / 16777216.0f);
-}
-
-glm::quat rotationFromToSafe(const glm::vec3& from, const glm::vec3& to) {
-    glm::vec3 a = from;
-    glm::vec3 b = to;
-    const float la = glm::length(a);
-    const float lb = glm::length(b);
-    if (la <= 0.0001f || lb <= 0.0001f) return glm::quat(1.0f, 0.0f, 0.0f, 0.0f);
-    a /= la;
-    b /= lb;
-    const float d = glm::clamp(glm::dot(a, b), -1.0f, 1.0f);
-    if (d > 0.9999f) return glm::quat(1.0f, 0.0f, 0.0f, 0.0f);
-    if (d < -0.9999f) {
-        glm::vec3 ortho = glm::cross(a, glm::vec3(1.0f, 0.0f, 0.0f));
-        if (glm::dot(ortho, ortho) <= 0.0001f) ortho = glm::cross(a, glm::vec3(0.0f, 1.0f, 0.0f));
-        ortho = glm::normalize(ortho);
-        return glm::angleAxis(3.14159265f, ortho);
-    }
-    const glm::vec3 axis = glm::normalize(glm::cross(a, b));
-    return glm::angleAxis(std::acos(d), axis);
-}
-
-std::size_t selectUniformTriangleIndex(std::size_t sampleIndex,
-                                       std::size_t sampleCount,
-                                       std::size_t triangleCount) {
-    if (sampleCount == 0u || triangleCount == 0u) return 0u;
-    if (sampleCount >= triangleCount) return std::min(sampleIndex, triangleCount - 1u);
-    const double span = static_cast<double>(triangleCount) / static_cast<double>(sampleCount);
-    const double center = (static_cast<double>(sampleIndex) + 0.5) * span;
-    const std::size_t tri =
-        std::min(triangleCount - 1u, static_cast<std::size_t>(std::floor(center)));
-    return tri;
 }
 } // namespace
 
@@ -298,149 +258,10 @@ struct GameSession::Impl {
 
     BackendTextureCacheEntry* ensureBackendTextureLoaded(const std::string& texturePath,
                                                          bool flipVertical = false) {
-        if (backendTextureByPath.empty()) {
-            backendTextureByPath.reserve(64u);
-        }
-        const std::string key = texturePath.empty()
-            ? "__white__"
-            : ((flipVertical ? "__flipv__:" : "__noflip__:" ) + texturePath);
-        auto& cacheEntry = backendTextureByPath[key];
-        if (cacheEntry.attemptedLoad) {
-            return cacheEntry.valid ? &cacheEntry : nullptr;
-        }
-
-        cacheEntry.attemptedLoad = true;
-        cacheEntry.valid = false;
-        cacheEntry.width = 0;
-        cacheEntry.height = 0;
-        cacheEntry.rgba.clear();
-
-        if (texturePath.empty()) {
-            cacheEntry.width = 1;
-            cacheEntry.height = 1;
-            cacheEntry.rgba = {255u, 255u, 255u, 255u};
-            cacheEntry.valid = true;
-            return &cacheEntry;
-        }
-
-        if (texturePath.rfind("__proc:", 0) == 0) {
-            const std::string procId = texturePath.substr(7);
-            const int width = 64;
-            const int height = 64;
-            cacheEntry.width = width;
-            cacheEntry.height = height;
-            cacheEntry.rgba.resize(static_cast<std::size_t>(width) * static_cast<std::size_t>(height) * 4u, 0u);
-
-            auto putPixel = [&](int x, int y, float alpha) {
-                alpha = std::clamp(alpha, 0.0f, 1.0f);
-                const std::size_t idx =
-                    (static_cast<std::size_t>(y) * static_cast<std::size_t>(width) +
-                     static_cast<std::size_t>(x)) *
-                    4u;
-                cacheEntry.rgba[idx + 0] = 255u;
-                cacheEntry.rgba[idx + 1] = 255u;
-                cacheEntry.rgba[idx + 2] = 255u;
-                cacheEntry.rgba[idx + 3] = static_cast<unsigned char>(std::round(alpha * 255.0f));
-            };
-
-            auto smooth = [](float e0, float e1, float x) {
-                const float t = std::clamp((x - e0) / std::max(0.0001f, (e1 - e0)), 0.0f, 1.0f);
-                return t * t * (3.0f - 2.0f * t);
-            };
-
-            for (int y = 0; y < height; ++y) {
-                for (int x = 0; x < width; ++x) {
-                    const float fx = ((static_cast<float>(x) + 0.5f) / static_cast<float>(width)) * 2.0f - 1.0f;
-                    const float fy = ((static_cast<float>(y) + 0.5f) / static_cast<float>(height)) * 2.0f - 1.0f;
-                    const float r = std::sqrt(fx * fx + fy * fy);
-                    float alpha = 0.0f;
-
-                    if (procId == "soft_circle" || procId == "dot") {
-                        alpha = 1.0f - smooth(0.55f, 1.0f, r);
-                    } else if (procId == "plus") {
-                        const float h = (1.0f - smooth(0.18f, 0.26f, std::fabs(fy))) *
-                                        (1.0f - smooth(0.78f, 0.98f, std::fabs(fx)));
-                        const float v = (1.0f - smooth(0.18f, 0.26f, std::fabs(fx))) *
-                                        (1.0f - smooth(0.78f, 0.98f, std::fabs(fy)));
-                        alpha = std::max(h, v);
-                    } else if (procId == "leaf" || procId == "seed") {
-                        float px = fx;
-                        float py = fy * 1.12f + 0.03f;
-                        const float t = std::clamp((py + 1.0f) * 0.5f, 0.0f, 1.0f);
-                        const float widthScale = (procId == "seed")
-                            ? std::max(0.20f, (0.85f - 0.60f * t))
-                            : std::max(0.20f, (0.95f - 0.70f * t));
-                        const float d = std::sqrt((px / widthScale) * (px / widthScale) + py * py);
-                        alpha = 1.0f - smooth(0.82f, 1.02f, d);
-                        alpha *= smooth(-1.0f, -0.68f, py);
-                    } else if (procId == "starburst") {
-                        const float ang = std::atan2(fy, fx);
-                        const float spikes = std::pow(std::fabs(std::sin(ang * 11.0f)), 0.75f);
-                        const float core = 1.0f - smooth(0.0f, 0.74f, r);
-                        const float streak = (1.0f - smooth(0.0f, 0.92f, r)) * spikes;
-                        alpha = std::max(core * 0.9f, streak);
-                    } else if (procId == "claw") {
-                        const float ca = std::cos(-0.60f);
-                        const float sa = std::sin(-0.60f);
-                        const float qx = ca * fx - sa * fy;
-                        const float qy = sa * fx + ca * fy;
-                        auto stroke = [&](float xOff, float halfLen, float width0) {
-                            const float lx = std::fabs(qx - xOff);
-                            const float ly = std::fabs(qy);
-                            const float tipT = std::clamp(ly / std::max(0.0001f, halfLen), 0.0f, 1.0f);
-                            const float tipNarrow = 1.0f - smooth(0.58f, 1.0f, tipT) * 0.96f;
-                            const float localWidth = width0 * tipNarrow;
-                            const float core = 1.0f - smooth(localWidth, localWidth + 0.02f, lx);
-                            const float lenMask = 1.0f - smooth(halfLen, halfLen + 0.05f, ly);
-                            return core * lenMask;
-                        };
-                        const float s1 = stroke(-0.34f, 0.90f, 0.075f);
-                        const float s2 = stroke(0.00f, 0.90f, 0.075f);
-                        const float s3 = stroke(0.34f, 0.90f, 0.075f);
-                        alpha = std::max(s1, std::max(s2, s3));
-                    } else if (procId == "swoosh") {
-                        const float band = std::fabs(fy - 0.6f * fx);
-                        const float arc = (1.0f - smooth(0.0f, 0.36f, band)) * (1.0f - smooth(0.32f, 1.0f, r));
-                        const float core = 1.0f - smooth(0.0f, 0.62f, r);
-                        alpha = std::max(arc, core * 0.35f);
-                    } else {
-                        alpha = 1.0f - smooth(0.55f, 1.0f, r);
-                    }
-
-                    putPixel(x, y, alpha);
-                }
-            }
-
-            cacheEntry.valid = true;
-            return &cacheEntry;
-        }
-
-        int width = 0;
-        int height = 0;
-        int channels = 0;
-        stbi_set_flip_vertically_on_load(flipVertical ? 1 : 0);
-        unsigned char* pixels = stbi_load(texturePath.c_str(), &width, &height, &channels, 4);
-        if (!pixels) {
-            const std::string dataPath = engine::paths::data(texturePath);
-            if (dataPath != texturePath) {
-                stbi_set_flip_vertically_on_load(flipVertical ? 1 : 0);
-                pixels = stbi_load(dataPath.c_str(), &width, &height, &channels, 4);
-            }
-        }
-        stbi_set_flip_vertically_on_load(false);
-        if (!pixels || width <= 0 || height <= 0) {
-            if (pixels) stbi_image_free(pixels);
-            return nullptr;
-        }
-
-        const std::size_t rgbaSize = static_cast<std::size_t>(width) * static_cast<std::size_t>(height) * 4u;
-        cacheEntry.rgba.resize(rgbaSize);
-        std::memcpy(cacheEntry.rgba.data(), pixels, rgbaSize);
-        stbi_image_free(pixels);
-        cacheEntry.width = width;
-        cacheEntry.height = height;
-        cacheEntry.valid = true;
-        return &cacheEntry;
+        return game::runtime::session_texture_cache::ensureTextureLoaded(
+            backendTextureByPath,
+            texturePath,
+            flipVertical);
     }
 
     game::runtime::startup_asset_prewarm::TailFireStats prewarmSharedTailFireAssets() {
@@ -1151,8 +972,6 @@ struct GameSession::Impl {
         auto& lines = scratch.lines;
         auto& textLines = scratch.textLines;
         auto& sprites = scratch.sprites;
-        auto& sharedTailFireAnchors = scratch.sharedTailFireAnchors;
-        auto& sharedCaptureAttemptCache = scratch.sharedCaptureAttemptCache;
         std::uint32_t visibleAnimatedUnitsThisFrame = 0u;
         std::uint32_t particleCountThisFrame = 0u;
         float projectedUnitsMsThisFrame = 0.0f;
@@ -1177,22 +996,8 @@ struct GameSession::Impl {
         float cameraWorldPos3[3] = {0.0f, 7.0f, 9.0f};
         float cameraForward3[3] = {0.0f, -0.6139406f, -0.7893522f};
         float cameraTarget3[3] = {0.0f, -1.0f, 0.0f};
-        const runtime::shared_unit_hud::Config sharedUnitHudCfg{
-            config.xpLevelBase,
-            config.xpLevelGrowth};
-
-        const int rows = std::max(1, config.rows);
-        const int cols = std::max(1, config.cols);
-        const float minDim = static_cast<float>(std::min(drawableW, drawableH));
-        const float uiScale = runtime::ui_scale::viewportScale(drawableW, drawableH);
-        const float edgePad = runtime::ui_scale::edgePad(drawableW, drawableH);
-        const float lineStep = runtime::ui_scale::lineStep(drawableW, drawableH);
-        const float boardW = std::max(240.0f, minDim * 0.78f);
-        const float boardH = std::max(180.0f, minDim * 0.58f);
-        const float boardX = (static_cast<float>(drawableW) - boardW) * 0.5f;
-        const float boardY = (static_cast<float>(drawableH) - boardH) * 0.5f;
-        const float cellW = boardW / static_cast<float>(cols);
-        const float cellH = boardH / static_cast<float>(rows);
+        const auto layout =
+            game::runtime::session_render_layout::build(config, drawableW, drawableH);
 
         const runtime::render::RenderRoutes routes = activeRenderRoutes();
         const bool showWorldBackdrop = runtime::render::shouldRenderBackendWorldBackdrop(
@@ -1205,220 +1010,85 @@ struct GameSession::Impl {
         game::runtime::session_render_scratch::beginFrame(scratch, useProjectedWorldLayout);
         if (showWorldBackdrop) {
             if (useProjectedWorldLayout) {
-                const float worldCellSize = std::max(0.05f, gameWorld->getBoardCellSize());
-                const runtime::render_prep_projection::BoardBounds boardBounds =
-                    runtime::render_prep_projection::computeBoardBounds(cols, rows, worldCellSize);
-                const float boardMinX = boardBounds.minX;
-                const float boardMinZ = boardBounds.minZ;
-                const float boardMaxX = boardBounds.maxX;
-                const float boardMaxZ = boardBounds.maxZ;
-
-                const glm::mat4 view = camera->getViewMatrix();
-                const glm::mat4 proj = camera->getProjectionMatrix();
-                const glm::mat4 viewProj = proj * view;
-                const glm::mat4 invViewProj = glm::inverse(viewProj);
-                if (supportsWorldTriangles3D) {
-                    const float* vp = glm::value_ptr(viewProj);
-                    std::copy(vp, vp + 16, worldViewProj);
-                    hasWorldViewProj = true;
-                }
-                const glm::mat4 invView = glm::inverse(view);
-                glm::vec3 cameraWorldPos(invView[3].x, invView[3].y, invView[3].z);
-                if (!std::isfinite(cameraWorldPos.x) ||
-                    !std::isfinite(cameraWorldPos.y) ||
-                    !std::isfinite(cameraWorldPos.z)) {
-                    cameraWorldPos = glm::vec3(0.0f, 6.0f, -6.0f);
-                }
-                cameraWorldPos3[0] = cameraWorldPos.x;
-                cameraWorldPos3[1] = cameraWorldPos.y;
-                cameraWorldPos3[2] = cameraWorldPos.z;
-                const glm::vec3 cameraForward = camera->getDirection();
-                cameraForward3[0] = cameraForward.x;
-                cameraForward3[1] = cameraForward.y;
-                cameraForward3[2] = cameraForward.z;
-                const glm::vec3 cameraTarget = camera->getTarget();
-                cameraTarget3[0] = cameraTarget.x;
-                cameraTarget3[1] = cameraTarget.y;
-                cameraTarget3[2] = cameraTarget.z;
-                const glm::vec4 screenViewport(
-                    0.0f,
-                    0.0f,
-                    static_cast<float>(drawableW),
-                    static_cast<float>(drawableH));
-                const float line = std::max(1.0f, minDim * 0.0019f);
-
-                game::runtime::shared_projected_debug::ProjectedDebugVfxBuilder projectedDebug(
-                    supportsWorldTriangles3D,
-                    view,
-                    proj,
-                    drawableH,
-                    screenViewport,
-                    worldTriangles,
-                    world3DTriangles,
-                    lines);
-                using DepthTri = game::runtime::shared_projected_scene::DepthTri;
-                using DepthWorldTri = game::runtime::shared_projected_scene::DepthWorldTri;
-                auto modelDepthBuffers =
-                    game::runtime::shared_projected_scene::acquireModelDepthBuffers(12000u);
-                auto& modelDepthTris = modelDepthBuffers.modelDepthTris;
-                auto& modelDepthWorldTris = modelDepthBuffers.modelDepthWorldTris;
-                std::size_t remainingModelTrianglesBudget = game::runtime::session_render_config::backendModelTriangleFrameBudget();
-                runtime::shared_projected_units::PerfStats projectedUnitPerf{};
-                worldBackdropComposeMsThisFrame =
-                    game::runtime::session_world_backdrop::composeProjectedBackdrop(
+                const auto projectedWorld =
+                    game::runtime::session_projected_world_view::appendProjectedWorldView(
                         {
+                            .renderer = renderer,
+                            .gameWorld = gameWorld.get(),
+                            .camera = camera,
+                            .dataDb = &dataDb,
+                            .scratch = &scratch,
+                            .backendTextureByPath = &backendTextureByPath,
+                            .sharedUnitHudCfg = layout.sharedUnitHudCfg,
                             .supportsWorldTriangles3D = supportsWorldTriangles3D,
-                            .rows = rows,
-                            .cols = cols,
+                            .supportsWorldIndexedMeshes = supportsWorldIndexedMeshes,
+                            .characterInkingEnabled =
+                                (services ? services->characterInkingEnabled : false),
+                            .enableGpuClipSkinning =
+                                game::runtime::session_render_config::backendGpuClipSkinningEnabled(renderer),
+                            .allowPortraitFallback = allowPortraitFallback,
+                            .forcePortraitOverlay = forcePortraitOverlay,
+                            .useLegacyGrowlWaveVfx = useLegacyGrowlWaveVfx,
+                            .useLegacyParticleVfxSnapshotBridge =
+                                useLegacyParticleVfxSnapshotBridge,
+                            .useExactTailFireCpuPath =
+                                game::runtime::session_render_config::backendUseExactTailFireCpuPathEnabled(),
+                            .drawableW = drawableW,
+                            .drawableH = drawableH,
+                            .rows = layout.rows,
+                            .cols = layout.cols,
                             .benchSlots = config.benchSlots,
-                            .worldCellSize = worldCellSize,
-                            .boardMinX = boardMinX,
-                            .boardMinZ = boardMinZ,
-                            .boardMaxX = boardMaxX,
-                            .boardMaxZ = boardMaxZ,
-                            .boardX = boardX,
-                            .boardY = boardY,
-                            .boardW = boardW,
-                            .boardH = boardH,
-                            .cellW = cellW,
-                            .cellH = cellH,
-                            .line = line,
-                        },
-                        projectedDebug,
-                        scratch);
-                const float boardSurfaceY = 0.006f;
-
-                using BackendPoseEval = game::runtime::shared_backend_pose::PoseEval;
-
-                runtime::shared_projected_units::Args projectedUnitArgs;
-                projectedUnitArgs.dataDb = &dataDb;
-                projectedUnitArgs.gameWorld = gameWorld.get();
-                projectedUnitArgs.worldCellSize = worldCellSize;
-                projectedUnitArgs.minDim = minDim;
-                projectedUnitArgs.boardSurfaceY = boardSurfaceY;
-                projectedUnitArgs.lineThickness = line;
-                projectedUnitArgs.supportsWorldTriangles3D = supportsWorldTriangles3D;
-                projectedUnitArgs.supportsWorldIndexedMeshes = supportsWorldIndexedMeshes;
-                projectedUnitArgs.characterInkingEnabled =
-                    (services ? services->characterInkingEnabled : false);
-                projectedUnitArgs.enableGpuClipSkinning = game::runtime::session_render_config::backendGpuClipSkinningEnabled(renderer);
-                projectedUnitArgs.hasWorldViewProj = hasWorldViewProj;
-                projectedUnitArgs.allowPortraitFallback = allowPortraitFallback;
-                projectedUnitArgs.forcePortraitOverlay = forcePortraitOverlay;
-                projectedUnitArgs.useLegacyGrowlWaveVfx = useLegacyGrowlWaveVfx;
-                projectedUnitArgs.useLegacyParticleVfxSnapshotBridge =
-                    useLegacyParticleVfxSnapshotBridge;
-                projectedUnitArgs.worldViewProj = hasWorldViewProj ? worldViewProj : nullptr;
-                projectedUnitArgs.drawableW = drawableW;
-                projectedUnitArgs.drawableH = drawableH;
-                projectedUnitArgs.cameraWorldPos = cameraWorldPos;
-                projectedUnitArgs.projectedDebug = &projectedDebug;
-                projectedUnitArgs.sharedCaptureAttemptCache = &sharedCaptureAttemptCache;
-                projectedUnitArgs.sharedTailFireAnchors = &sharedTailFireAnchors;
-                projectedUnitArgs.worldIndexedBatches = &worldIndexedBatches;
-                projectedUnitArgs.backendTextureByPath = &backendTextureByPath;
-                projectedUnitArgs.modelDepthTris = &modelDepthTris;
-                projectedUnitArgs.modelDepthWorldTris = &modelDepthWorldTris;
-                projectedUnitArgs.remainingModelTrianglesBudget = &remainingModelTrianglesBudget;
-                projectedUnitArgs.worldQuads = &worldQuads;
-                projectedUnitArgs.lines = &lines;
-                projectedUnitArgs.textLines = &textLines;
-                projectedUnitArgs.sprites = &sprites;
-                projectedUnitArgs.worldTriangles = &worldTriangles;
-                projectedUnitArgs.world3DTriangles = &world3DTriangles;
-                projectedUnitArgs.visibleAnimatedUnitCount = &visibleAnimatedUnitsThisFrame;
-                projectedUnitArgs.sharedUnitHudCfg = &sharedUnitHudCfg;
-                projectedUnitArgs.resolveModelMesh = [&](const PokemonInstance& unit)
-                    -> const runtime::render_model::MeshData* {
-                    return game::runtime::shared_projected_scene::resolveModelMesh(
-                        unit,
-                        dataDb,
-                        [&](const std::string& modelPath) {
-                            return ensureBackendMeshLoaded(modelPath);
+                            .minDim = layout.minDim,
+                            .boardX = layout.boardX,
+                            .boardY = layout.boardY,
+                            .boardW = layout.boardW,
+                            .boardH = layout.boardH,
+                            .cellW = layout.cellW,
+                            .cellH = layout.cellH,
+                            .simNowSec = timeSource.nowSeconds(),
+                            .ensureBackendMeshLoaded =
+                                [&](const std::string& modelPath) {
+                                    return ensureBackendMeshLoaded(modelPath);
+                                },
+                            .ensureBackendTextureLoaded =
+                                [&](const std::string& texturePath, bool flipVertical) {
+                                    return ensureBackendTextureLoaded(texturePath, flipVertical);
+                                },
                         });
-                };
-                projectedUnitArgs.ensureBackendTextureLoaded =
-                    [&](const std::string& texturePath, bool flipVertical) {
-                        return ensureBackendTextureLoaded(texturePath, flipVertical);
-                    };
-                projectedUnitArgs.backendModelTriangleLimit = [&]() {
-                    return game::runtime::session_render_config::backendModelTriangleLimit();
-                };
-                projectedUnitArgs.backendModelFullMeshEnabled = [&]() {
-                    return game::runtime::session_render_config::backendModelFullMeshEnabled();
-                };
-                projectedUnitArgs.backendModelFastTexturedPathEnabled = [&]() {
-                    return game::runtime::session_render_config::backendModelFastTexturedPathEnabled();
-                };
-                projectedUnitArgs.backendModelBackfaceCullingEnabled = [&]() {
-                    return game::runtime::session_render_config::backendModelBackfaceCullingEnabled();
-                };
-                projectedUnitArgs.getTailFireFallbackCfg = [&]() -> const TailFireVFX::Config& {
-                    return game::runtime::shared_projected_scene::getTailFireFallbackCfg();
-                };
-                projectedUnitArgs.perfStats = &projectedUnitPerf;
-
-                const bool hasActiveCaptureAttempts =
-                    gameWorld->countActiveCaptureAttempts() > 0u;
-                if (hasActiveCaptureAttempts) {
-                    (void)sharedCaptureAttemptCache.refresh(gameWorld.get());
-                }
-                const auto& boardUnits = gameWorld->getPokemons();
-                if (!boardUnits.empty()) {
-                    game::runtime::shared_projected_units::drawProjectedUnits(
-                        projectedUnitArgs, boardUnits);
-                }
-                const auto& benchUnits = gameWorld->getBenchPokemons();
-                if (!benchUnits.empty()) {
-                    game::runtime::shared_projected_units::drawProjectedUnits(
-                        projectedUnitArgs, benchUnits);
-                }
-                const bool capturePrewarmRequested =
-                    gameWorld->getSelectedItem() == "pokeball" ||
-                    gameWorld->getItemCount("pokeball") > 0;
-                if (hasActiveCaptureAttempts ||
-                    capturePrewarmRequested ||
-                    !sharedCaptureAttemptCache.snaps.empty()) {
-                    (void)game::runtime::shared_projected_scene::appendSharedCaptureAttemptModelsIfNeededForProjectedWorld(
-                        renderer, gameWorld.get(), supportsWorldIndexedMeshes, hasWorldViewProj, drawableW,
-                        drawableH, worldCellSize, worldViewProj, cameraWorldPos, sharedCaptureAttemptCache,
-                        worldIndexedBatches, backendTextureByPath,
-                        [&](const std::string& path) { return ensureBackendMeshLoaded(path); },
-                        [&](const std::string& path) { return ensureBackendTextureLoaded(path); });
-                }
-                const auto worldVfxStart = RenderBuildClock::now();
-                game::runtime::shared_projected_scene::appendSharedProjectedVfxBridgesSession(
-                    useLegacyParticleVfxSnapshotBridge, useLegacyGrowlWaveVfx, supportsWorldIndexedMeshes,
-                    hasWorldViewProj, game::runtime::session_render_config::backendUseExactTailFireCpuPathEnabled(), gameWorld.get(), viewProj,
-                    invViewProj, cameraWorldPos, drawableW, drawableH, worldCellSize, timeSource.nowSeconds(),
-                    line, sharedTailFireAnchors, backendTextureByPath, worldIndexedBatches, projectedDebug,
-                    [&](const std::string& meshPath) { return ensureBackendMeshLoaded(meshPath); },
-                    [&](const std::string& texturePath, bool flipVertical) {
-                        return ensureBackendTextureLoaded(texturePath, flipVertical);
-                    });
-                const auto worldVfxEnd = RenderBuildClock::now();
-                worldVfxBridgeMsThisFrame = static_cast<float>(
-                    std::chrono::duration<double, std::milli>(
-                        worldVfxEnd - worldVfxStart).count());
-                const auto depthFlushStart = RenderBuildClock::now();
-                game::runtime::shared_projected_scene::flushModelDepthBuffers(
-                    modelDepthTris,
-                    modelDepthWorldTris,
-                    worldTriangles,
-                    world3DTriangles);
-                const auto depthFlushEnd = RenderBuildClock::now();
-                worldDepthFlushMsThisFrame = static_cast<float>(
-                    std::chrono::duration<double, std::milli>(
-                        depthFlushEnd - depthFlushStart).count());
-                projectedUnitsMsThisFrame = static_cast<float>(projectedUnitPerf.totalMs);
-                projectedPoseEvalMsThisFrame = static_cast<float>(projectedUnitPerf.poseEvalMs);
-                projectedModelMsThisFrame = static_cast<float>(projectedUnitPerf.modelRenderMs);
-                projectedModelPrepMsThisFrame = static_cast<float>(projectedUnitPerf.modelPrepMs);
-                projectedModelGeometryMsThisFrame = static_cast<float>(projectedUnitPerf.modelGeometryMs);
-                projectedOverlayMsThisFrame = static_cast<float>(projectedUnitPerf.overlayMs);
-                projectedUnitsProcessedThisFrame = projectedUnitPerf.unitsProcessed;
-                projectedModelUnitsThisFrame = projectedUnitPerf.modelUnits;
-                projectedClipSkinnedUnitsThisFrame = projectedUnitPerf.clipSkinnedUnits;
+                hasWorldViewProj = projectedWorld.hasWorldViewProj;
+                std::copy(
+                    projectedWorld.worldViewProj.begin(),
+                    projectedWorld.worldViewProj.end(),
+                    worldViewProj);
+                std::copy(
+                    projectedWorld.cameraWorldPos.begin(),
+                    projectedWorld.cameraWorldPos.end(),
+                    cameraWorldPos3);
+                std::copy(
+                    projectedWorld.cameraForward.begin(),
+                    projectedWorld.cameraForward.end(),
+                    cameraForward3);
+                std::copy(
+                    projectedWorld.cameraTarget.begin(),
+                    projectedWorld.cameraTarget.end(),
+                    cameraTarget3);
+                visibleAnimatedUnitsThisFrame += projectedWorld.visibleAnimatedUnits;
+                projectedUnitsMsThisFrame = projectedWorld.projectedUnitsMs;
+                projectedPoseEvalMsThisFrame = projectedWorld.projectedPoseEvalMs;
+                projectedModelMsThisFrame = projectedWorld.projectedModelMs;
+                projectedModelPrepMsThisFrame = projectedWorld.projectedModelPrepMs;
+                projectedModelGeometryMsThisFrame =
+                    projectedWorld.projectedModelGeometryMs;
+                projectedOverlayMsThisFrame = projectedWorld.projectedOverlayMs;
+                projectedUnitsProcessedThisFrame =
+                    projectedWorld.projectedUnitsProcessed;
+                projectedModelUnitsThisFrame = projectedWorld.projectedModelUnits;
+                projectedClipSkinnedUnitsThisFrame =
+                    projectedWorld.projectedClipSkinnedUnits;
+                worldBackdropComposeMsThisFrame =
+                    projectedWorld.worldBackdropComposeMs;
+                worldVfxBridgeMsThisFrame = projectedWorld.worldVfxBridgeMs;
+                worldDepthFlushMsThisFrame = projectedWorld.worldDepthFlushMs;
             } else {
                 visibleAnimatedUnitsThisFrame +=
                     game::runtime::session_legacy_world_view::appendLegacyWorldView(
@@ -1427,17 +1097,17 @@ struct GameSession::Impl {
                             .gameWorld = gameWorld.get(),
                             .drawableW = drawableW,
                             .drawableH = drawableH,
-                            .rows = rows,
-                            .cols = cols,
+                            .rows = layout.rows,
+                            .cols = layout.cols,
                             .benchSlots = config.benchSlots,
-                            .minDim = minDim,
-                            .boardX = boardX,
-                            .boardY = boardY,
-                            .boardW = boardW,
-                            .boardH = boardH,
-                            .cellW = cellW,
-                            .cellH = cellH,
-                            .sharedUnitHudCfg = sharedUnitHudCfg,
+                            .minDim = layout.minDim,
+                            .boardX = layout.boardX,
+                            .boardY = layout.boardY,
+                            .boardW = layout.boardW,
+                            .boardH = layout.boardH,
+                            .cellW = layout.cellW,
+                            .cellH = layout.cellH,
+                            .sharedUnitHudCfg = layout.sharedUnitHudCfg,
                         },
                         scratch).visibleAnimatedUnits;
             }
@@ -1457,31 +1127,27 @@ struct GameSession::Impl {
             return 0u;
         }
         const auto worldComposeEnd = RenderBuildClock::now();
-        if (engineServices) {
-            engineServices->frameVisibleAnimatedUnits = visibleAnimatedUnitsThisFrame;
-            engineServices->frameParticleCount = particleCountThisFrame;
-            engineServices->frameProjectedUnitsMs = projectedUnitsMsThisFrame;
-            engineServices->frameProjectedPoseEvalMs = projectedPoseEvalMsThisFrame;
-            engineServices->frameProjectedModelMs = projectedModelMsThisFrame;
-            engineServices->frameProjectedModelPrepMs = projectedModelPrepMsThisFrame;
-            engineServices->frameProjectedModelGeometryMs = projectedModelGeometryMsThisFrame;
-            engineServices->frameProjectedOverlayMs = projectedOverlayMsThisFrame;
-            engineServices->frameProjectedUnitsProcessed = projectedUnitsProcessedThisFrame;
-            engineServices->frameProjectedModelUnits = projectedModelUnitsThisFrame;
-            engineServices->frameProjectedClipSkinnedUnits = projectedClipSkinnedUnitsThisFrame;
-            engineServices->frameRenderBuildBreakdown = {};
-            const float totalWorldComposeMs = static_cast<float>(
-                std::chrono::duration<double, std::milli>(
-                    worldComposeEnd - worldComposeStart).count());
-            engineServices->frameRenderBuildBreakdown.worldComposeMs =
-                std::max(0.0f, totalWorldComposeMs - projectedUnitsMsThisFrame);
-            engineServices->frameRenderBuildBreakdown.worldBackdropMs =
-                worldBackdropComposeMsThisFrame;
-            engineServices->frameRenderBuildBreakdown.worldVfxMs =
-                worldVfxBridgeMsThisFrame;
-            engineServices->frameRenderBuildBreakdown.worldDepthFlushMs =
-                worldDepthFlushMsThisFrame;
-        }
+        game::runtime::session_frame_metrics::publish(
+            engineServices,
+            {
+                .visibleAnimatedUnits = visibleAnimatedUnitsThisFrame,
+                .particleCount = particleCountThisFrame,
+                .projectedUnitsMs = projectedUnitsMsThisFrame,
+                .projectedPoseEvalMs = projectedPoseEvalMsThisFrame,
+                .projectedModelMs = projectedModelMsThisFrame,
+                .projectedModelPrepMs = projectedModelPrepMsThisFrame,
+                .projectedModelGeometryMs = projectedModelGeometryMsThisFrame,
+                .projectedOverlayMs = projectedOverlayMsThisFrame,
+                .projectedUnitsProcessed = projectedUnitsProcessedThisFrame,
+                .projectedModelUnits = projectedModelUnitsThisFrame,
+                .projectedClipSkinnedUnits = projectedClipSkinnedUnitsThisFrame,
+                .worldComposeMs = static_cast<float>(
+                    std::chrono::duration<double, std::milli>(
+                        worldComposeEnd - worldComposeStart).count()),
+                .worldBackdropMs = worldBackdropComposeMsThisFrame,
+                .worldVfxMs = worldVfxBridgeMsThisFrame,
+                .worldDepthFlushMs = worldDepthFlushMsThisFrame,
+            });
 
         runtime::shared_backend_debug_view::ComposeAndSubmitArgs overlayArgs;
         overlayArgs.renderer = renderer;
@@ -1506,9 +1172,9 @@ struct GameSession::Impl {
         overlayArgs.supportsWorldIndexedMeshes = supportsWorldIndexedMeshes;
         overlayArgs.drawableW = drawableW;
         overlayArgs.drawableH = drawableH;
-        overlayArgs.edgePad = edgePad;
-        overlayArgs.lineStep = lineStep;
-        overlayArgs.uiScale = uiScale;
+        overlayArgs.edgePad = layout.edgePad;
+        overlayArgs.lineStep = layout.lineStep;
+        overlayArgs.uiScale = layout.uiScale;
         overlayArgs.worldViewProj = hasWorldViewProj ? worldViewProj : nullptr;
         overlayArgs.renderBuildBreakdown =
             engineServices ? &engineServices->frameRenderBuildBreakdown : nullptr;

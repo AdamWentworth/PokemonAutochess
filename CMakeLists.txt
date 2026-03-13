@@ -295,10 +295,14 @@ add_library(PAC_GameObjects STATIC
     src/game/runtime/session/SessionBackendRenderHelpers.cpp
     src/game/runtime/session/SessionDebugSnapshot.cpp
     src/game/runtime/session/SessionLegacyWorldView.cpp
+    src/game/runtime/session/SessionFrameMetrics.cpp
     src/game/runtime/session/SessionLoopRuntime.cpp
+    src/game/runtime/session/SessionProjectedWorldView.cpp
+    src/game/runtime/session/SessionRenderLayout.cpp
     src/game/runtime/session/SessionRenderScratch.cpp
     src/game/runtime/session/SessionRenderConfig.cpp
     src/game/runtime/session/SessionSnapshotRuntime.cpp
+    src/game/runtime/session/SessionTextureCache.cpp
     src/game/runtime/session/SessionWorldBackdrop.cpp
     src/game/runtime/shared/backend/SharedBackendPoseEval.cpp
     src/game/runtime/shared/capture/SharedCapturePresentation.cpp
@@ -542,10 +546,14 @@ if (BUILD_TESTING)
         tests/TestSessionBackendUnitHydration.cpp
         tests/TestSessionDebugSnapshot.cpp
         tests/TestSessionLegacyWorldView.cpp
+        tests/TestSessionFrameMetrics.cpp
         tests/TestSessionLoopRuntime.cpp
+        tests/TestSessionProjectedWorldView.cpp
+        tests/TestSessionRenderLayout.cpp
         tests/TestSessionRenderScratch.cpp
         tests/TestSessionRenderConfig.cpp
         tests/TestSessionSnapshotRuntime.cpp
+        tests/TestSessionTextureCache.cpp
         tests/TestSessionWorldBackdrop.cpp
         tests/TestRoundFlow.cpp
         tests/TestAnimsetRoles.cpp
