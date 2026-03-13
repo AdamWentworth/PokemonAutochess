@@ -296,8 +296,9 @@ add_library(PAC_GameObjects STATIC
     src/game/runtime/session/SessionDebugSnapshot.cpp
     src/game/runtime/session/SessionLoopRuntime.cpp
     src/game/runtime/session/SessionRenderScratch.cpp
-    src/game/runtime/session/SessionSnapshotRuntime.cpp
     src/game/runtime/session/SessionRenderConfig.cpp
+    src/game/runtime/session/SessionSnapshotRuntime.cpp
+    src/game/runtime/session/SessionWorldBackdrop.cpp
     src/game/runtime/shared/backend/SharedBackendPoseEval.cpp
     src/game/runtime/shared/capture/SharedCapturePresentation.cpp
     src/game/runtime/shared/capture/SharedCaptureOverlayVfx.cpp
@@ -541,8 +542,9 @@ if (BUILD_TESTING)
         tests/TestSessionDebugSnapshot.cpp
         tests/TestSessionLoopRuntime.cpp
         tests/TestSessionRenderScratch.cpp
-        tests/TestSessionSnapshotRuntime.cpp
         tests/TestSessionRenderConfig.cpp
+        tests/TestSessionSnapshotRuntime.cpp
+        tests/TestSessionWorldBackdrop.cpp
         tests/TestRoundFlow.cpp
         tests/TestAnimsetRoles.cpp
         tests/TestCombatSlice.cpp

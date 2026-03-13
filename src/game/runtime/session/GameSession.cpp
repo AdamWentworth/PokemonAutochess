@@ -94,9 +94,10 @@
 #include "game/runtime/session/SessionBackendRenderHelpers.h"
 #include "game/runtime/session/SessionDebugSnapshot.h"
 #include "game/runtime/session/SessionLoopRuntime.h"
+#include "game/runtime/session/SessionRenderConfig.h"
 #include "game/runtime/session/SessionRenderScratch.h"
 #include "game/runtime/session/SessionSnapshotRuntime.h"
-#include "game/runtime/session/SessionRenderConfig.h"
+#include "game/runtime/session/SessionWorldBackdrop.h"
 #include "game/ui/UIViewport.h"
 #include "game/ui/ShopLayout.h"
 
@@ -1245,24 +1246,6 @@ struct GameSession::Impl {
                     static_cast<float>(drawableH));
                 const float line = std::max(1.0f, minDim * 0.0019f);
 
-                game::runtime::session_render_scratch::ProjectedBackdropCacheKey projectedBackdropKey{};
-                projectedBackdropKey.supportsWorldTriangles3D = supportsWorldTriangles3D;
-                projectedBackdropKey.rows = rows;
-                projectedBackdropKey.cols = cols;
-                projectedBackdropKey.benchSlots = config.benchSlots;
-                projectedBackdropKey.worldCellSize = worldCellSize;
-                projectedBackdropKey.boardMinX = boardMinX;
-                projectedBackdropKey.boardMinZ = boardMinZ;
-                projectedBackdropKey.boardMaxX = boardMaxX;
-                projectedBackdropKey.boardMaxZ = boardMaxZ;
-                projectedBackdropKey.boardX = boardX;
-                projectedBackdropKey.boardY = boardY;
-                projectedBackdropKey.boardW = boardW;
-                projectedBackdropKey.boardH = boardH;
-                projectedBackdropKey.cellW = cellW;
-                projectedBackdropKey.cellH = cellH;
-                projectedBackdropKey.line = line;
-
                 game::runtime::shared_projected_debug::ProjectedDebugVfxBuilder projectedDebug(
                     supportsWorldTriangles3D,
                     view,
@@ -1272,60 +1255,6 @@ struct GameSession::Impl {
                     worldTriangles,
                     world3DTriangles,
                     lines);
-                const bool canCacheProjectedBackdrop = supportsWorldTriangles3D;
-                const auto backdropComposeStart = RenderBuildClock::now();
-                if (canCacheProjectedBackdrop) {
-                    if (!scratch.projectedBackdropValid ||
-                        !(scratch.projectedBackdropKey == projectedBackdropKey)) {
-                        worldBackgroundQuads.clear();
-                        worldTriangles.clear();
-                        world3DTriangles.clear();
-                        lines.clear();
-
-                        const game::runtime::shared_board_grid::Config boardGridCfg =
-                            game::runtime::shared_projected_scene::makeBoardGridConfig(
-                                supportsWorldTriangles3D,
-                                rows,
-                                cols,
-                                config.benchSlots,
-                                worldCellSize,
-                                boardMinX,
-                                boardMinZ,
-                                boardMaxX,
-                                boardMaxZ,
-                                boardX,
-                                boardY,
-                                boardW,
-                                boardH,
-                                cellW,
-                                cellH,
-                                line);
-                        game::runtime::shared_projected_scene::appendBoardAndBench(
-                            boardGridCfg,
-                            worldTriangles,
-                            world3DTriangles,
-                            worldBackgroundQuads,
-                            lines,
-                            projectedDebug);
-                        scratch.projectedBackdropValid = true;
-                        scratch.projectedBackdropKey = projectedBackdropKey;
-                        scratch.projectedBackdropWorldBackgroundQuadsCount =
-                            worldBackgroundQuads.size();
-                        scratch.projectedBackdropWorldTrianglesCount =
-                            worldTriangles.size();
-                        scratch.projectedBackdropWorld3DTrianglesCount =
-                            world3DTriangles.size();
-                        scratch.projectedBackdropLinesCount =
-                            lines.size();
-                    } else {
-                        worldBackgroundQuads.resize(
-                            scratch.projectedBackdropWorldBackgroundQuadsCount);
-                        worldTriangles.resize(scratch.projectedBackdropWorldTrianglesCount);
-                        world3DTriangles.resize(
-                            scratch.projectedBackdropWorld3DTrianglesCount);
-                        lines.resize(scratch.projectedBackdropLinesCount);
-                    }
-                }
                 using DepthTri = game::runtime::shared_projected_scene::DepthTri;
                 using DepthWorldTri = game::runtime::shared_projected_scene::DepthWorldTri;
                 auto modelDepthBuffers =
@@ -1334,38 +1263,28 @@ struct GameSession::Impl {
                 auto& modelDepthWorldTris = modelDepthBuffers.modelDepthWorldTris;
                 std::size_t remainingModelTrianglesBudget = game::runtime::session_render_config::backendModelTriangleFrameBudget();
                 runtime::shared_projected_units::PerfStats projectedUnitPerf{};
-
-                if (!canCacheProjectedBackdrop) {
-                    const game::runtime::shared_board_grid::Config boardGridCfg =
-                        game::runtime::shared_projected_scene::makeBoardGridConfig(
-                            supportsWorldTriangles3D,
-                            rows,
-                            cols,
-                            config.benchSlots,
-                            worldCellSize,
-                            boardMinX,
-                            boardMinZ,
-                            boardMaxX,
-                            boardMaxZ,
-                            boardX,
-                            boardY,
-                            boardW,
-                            boardH,
-                            cellW,
-                            cellH,
-                            line);
-                    game::runtime::shared_projected_scene::appendBoardAndBench(
-                        boardGridCfg,
-                        worldTriangles,
-                        world3DTriangles,
-                        worldBackgroundQuads,
-                        lines,
-                        projectedDebug);
-                }
-                const auto backdropComposeEnd = RenderBuildClock::now();
-                worldBackdropComposeMsThisFrame = static_cast<float>(
-                    std::chrono::duration<double, std::milli>(
-                        backdropComposeEnd - backdropComposeStart).count());
+                worldBackdropComposeMsThisFrame =
+                    game::runtime::session_world_backdrop::composeProjectedBackdrop(
+                        {
+                            .supportsWorldTriangles3D = supportsWorldTriangles3D,
+                            .rows = rows,
+                            .cols = cols,
+                            .benchSlots = config.benchSlots,
+                            .worldCellSize = worldCellSize,
+                            .boardMinX = boardMinX,
+                            .boardMinZ = boardMinZ,
+                            .boardMaxX = boardMaxX,
+                            .boardMaxZ = boardMaxZ,
+                            .boardX = boardX,
+                            .boardY = boardY,
+                            .boardW = boardW,
+                            .boardH = boardH,
+                            .cellW = cellW,
+                            .cellH = cellH,
+                            .line = line,
+                        },
+                        projectedDebug,
+                        scratch);
                 const float boardSurfaceY = 0.006f;
 
                 using BackendPoseEval = game::runtime::shared_backend_pose::PoseEval;

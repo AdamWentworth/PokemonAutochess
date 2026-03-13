@@ -47,6 +47,9 @@ Use this file to find ownership quickly when working on parity/performance tasks
 - `src/game/runtime/session/SessionRenderScratch.*`
   - frame-local render scratch ownership for backend debug/world rendering
   - projected-backdrop cache keys, scratch-capacity policy, and per-frame scratch reset/reuse
+- `src/game/runtime/session/SessionWorldBackdrop.*`
+  - projected board/bench backdrop composition for the backend world view
+  - cache-aware backdrop rebuild and reuse policy for projected board geometry
 - `src/game/runtime/session/SessionSnapshotRuntime.*`
   - live session save/load orchestration for debug snapshots
   - state-stack restore, runtime flag restore, inventory refresh, and restore-time indexed-world prewarm

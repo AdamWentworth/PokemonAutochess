@@ -100,6 +100,7 @@ bool test_session_backend_unit_hydration_contract(std::string& outFail);
 bool test_session_debug_snapshot_contract(std::string& outFail);
 bool test_session_loop_runtime_contract(std::string& outFail);
 bool test_session_render_scratch_contract(std::string& outFail);
+bool test_session_world_backdrop_contract(std::string& outFail);
 bool test_session_snapshot_runtime_contract(std::string& outFail);
 bool test_session_render_config_contract(std::string& outFail);
 bool test_round_flow_headless(std::string& outFail);
@@ -299,6 +300,7 @@ int main(int argc, char** argv) {
         {"session_debug_snapshot_contract", &test_session_debug_snapshot_contract},
         {"session_loop_runtime_contract", &test_session_loop_runtime_contract},
         {"session_render_scratch_contract", &test_session_render_scratch_contract},
+        {"session_world_backdrop_contract", &test_session_world_backdrop_contract},
         {"session_snapshot_runtime_contract", &test_session_snapshot_runtime_contract},
         {"session_render_config_contract", &test_session_render_config_contract},
         {"round_flow_headless", &test_round_flow_headless},
