@@ -94,6 +94,7 @@
 #include "game/runtime/session/SessionBackendRenderHelpers.h"
 #include "game/runtime/session/SessionDebugSnapshot.h"
 #include "game/runtime/session/SessionLoopRuntime.h"
+#include "game/runtime/session/SessionRenderScratch.h"
 #include "game/runtime/session/SessionSnapshotRuntime.h"
 #include "game/runtime/session/SessionRenderConfig.h"
 #include "game/ui/UIViewport.h"
@@ -1137,72 +1138,8 @@ struct GameSession::Impl {
 
         runtime::ui_inventory_panel::clearHitRegions(backendInventoryPanel);
 
-        using WorldIndexedBatch = runtime::shared_world_batches::WorldIndexedBatch;
-        struct BackendUnitLabel {
-            float x = 0.0f;
-            float y = 0.0f;
-            std::string text;
-            glm::vec3 color{1.0f, 1.0f, 1.0f};
-        };
-        struct ProjectedBackdropCacheKey {
-            bool supportsWorldTriangles3D = false;
-            int rows = 0;
-            int cols = 0;
-            int benchSlots = 0;
-            float worldCellSize = 0.0f;
-            float boardMinX = 0.0f;
-            float boardMinZ = 0.0f;
-            float boardMaxX = 0.0f;
-            float boardMaxZ = 0.0f;
-            float boardX = 0.0f;
-            float boardY = 0.0f;
-            float boardW = 0.0f;
-            float boardH = 0.0f;
-            float cellW = 0.0f;
-            float cellH = 0.0f;
-            float line = 0.0f;
-
-            bool operator==(const ProjectedBackdropCacheKey& other) const {
-                return supportsWorldTriangles3D == other.supportsWorldTriangles3D &&
-                       rows == other.rows &&
-                       cols == other.cols &&
-                       benchSlots == other.benchSlots &&
-                       worldCellSize == other.worldCellSize &&
-                       boardMinX == other.boardMinX &&
-                       boardMinZ == other.boardMinZ &&
-                       boardMaxX == other.boardMaxX &&
-                       boardMaxZ == other.boardMaxZ &&
-                       boardX == other.boardX &&
-                       boardY == other.boardY &&
-                       boardW == other.boardW &&
-                       boardH == other.boardH &&
-                       cellW == other.cellW &&
-                       cellH == other.cellH &&
-                       line == other.line;
-            }
-        };
-        struct BackendRenderScratch {
-            std::vector<IRenderBackend::DebugQuad> worldBackgroundQuads;
-            std::vector<IRenderBackend::DebugQuad> worldQuads;
-            std::vector<IRenderBackend::DebugTriangle> worldTriangles;
-            std::vector<IRenderBackend::WorldTriangle> world3DTriangles;
-            std::vector<WorldIndexedBatch> worldIndexedBatches;
-            std::vector<IRenderBackend::DebugQuad> overlayQuads;
-            std::vector<IRenderBackend::DebugLine> lines;
-            std::vector<IRenderBackend::DebugLine> textLines;
-            std::vector<IRenderBackend::DebugSprite> sprites;
-            std::vector<BackendUnitLabel> unitLabels;
-            std::unordered_map<int, runtime::shared_tail_fire_fallback::Anchor> sharedTailFireAnchors;
-            runtime::shared_capture::SnapshotCache sharedCaptureAttemptCache;
-            bool projectedBackdropValid = false;
-            ProjectedBackdropCacheKey projectedBackdropKey{};
-            std::size_t projectedBackdropWorldBackgroundQuadsCount = 0u;
-            std::size_t projectedBackdropWorldTrianglesCount = 0u;
-            std::size_t projectedBackdropWorld3DTrianglesCount = 0u;
-            std::size_t projectedBackdropLinesCount = 0u;
-        };
-        static thread_local BackendRenderScratch scratch;
-
+        auto& scratch = game::runtime::session_render_scratch::threadScratch();
+        game::runtime::session_render_scratch::ensureCapacity(scratch);
         auto& worldBackgroundQuads = scratch.worldBackgroundQuads;
         auto& worldQuads = scratch.worldQuads;
         auto& worldTriangles = scratch.worldTriangles;
@@ -1212,23 +1149,8 @@ struct GameSession::Impl {
         auto& lines = scratch.lines;
         auto& textLines = scratch.textLines;
         auto& sprites = scratch.sprites;
-        auto& unitLabels = scratch.unitLabels;
         auto& sharedTailFireAnchors = scratch.sharedTailFireAnchors;
         auto& sharedCaptureAttemptCache = scratch.sharedCaptureAttemptCache;
-
-        if (worldBackgroundQuads.capacity() < 1024u) worldBackgroundQuads.reserve(1024u);
-        if (worldQuads.capacity() < 1024u) worldQuads.reserve(1024u);
-        if (worldTriangles.capacity() < 4096u) worldTriangles.reserve(4096u);
-        if (world3DTriangles.capacity() < 120000u) world3DTriangles.reserve(120000u);
-        if (worldIndexedBatches.capacity() < 64u) worldIndexedBatches.reserve(64u);
-        if (overlayQuads.capacity() < 1024u) overlayQuads.reserve(1024u);
-        if (lines.capacity() < 512u) lines.reserve(512u);
-        if (textLines.capacity() < 8192u) textLines.reserve(8192u);
-        if (sprites.capacity() < 256u) sprites.reserve(256u);
-        if (unitLabels.capacity() < 64u) unitLabels.reserve(64u);
-        if (sharedTailFireAnchors.bucket_count() < 16u) sharedTailFireAnchors.reserve(16u);
-        if (sharedCaptureAttemptCache.snaps.capacity() < 8u) sharedCaptureAttemptCache.snaps.reserve(8u);
-        if (sharedCaptureAttemptCache.byTargetId.bucket_count() < 8u) sharedCaptureAttemptCache.byTargetId.reserve(8u);
         std::uint32_t visibleAnimatedUnitsThisFrame = 0u;
         std::uint32_t particleCountThisFrame = 0u;
         float projectedUnitsMsThisFrame = 0.0f;
@@ -1278,33 +1200,7 @@ struct GameSession::Impl {
         const bool useProjectedWorldLayout =
             showWorldBackdrop && renderWorld && gameWorld && (camera != nullptr);
 
-        worldQuads.clear();
-        worldIndexedBatches.clear();
-        overlayQuads.clear();
-        textLines.clear();
-        sprites.clear();
-        unitLabels.clear();
-        sharedTailFireAnchors.clear();
-        sharedCaptureAttemptCache.snaps.clear();
-        sharedCaptureAttemptCache.byTargetId.clear();
-        if (useProjectedWorldLayout && scratch.projectedBackdropValid) {
-            worldBackgroundQuads.resize(scratch.projectedBackdropWorldBackgroundQuadsCount);
-            worldTriangles.resize(scratch.projectedBackdropWorldTrianglesCount);
-            world3DTriangles.resize(scratch.projectedBackdropWorld3DTrianglesCount);
-            lines.resize(scratch.projectedBackdropLinesCount);
-        } else {
-            worldBackgroundQuads.clear();
-            worldTriangles.clear();
-            world3DTriangles.clear();
-            lines.clear();
-            if (!useProjectedWorldLayout) {
-                scratch.projectedBackdropValid = false;
-                scratch.projectedBackdropWorldBackgroundQuadsCount = 0u;
-                scratch.projectedBackdropWorldTrianglesCount = 0u;
-                scratch.projectedBackdropWorld3DTrianglesCount = 0u;
-                scratch.projectedBackdropLinesCount = 0u;
-            }
-        }
+        game::runtime::session_render_scratch::beginFrame(scratch, useProjectedWorldLayout);
         if (showWorldBackdrop) {
             if (useProjectedWorldLayout) {
                 const float worldCellSize = std::max(0.05f, gameWorld->getBoardCellSize());
@@ -1349,7 +1245,7 @@ struct GameSession::Impl {
                     static_cast<float>(drawableH));
                 const float line = std::max(1.0f, minDim * 0.0019f);
 
-                ProjectedBackdropCacheKey projectedBackdropKey{};
+                game::runtime::session_render_scratch::ProjectedBackdropCacheKey projectedBackdropKey{};
                 projectedBackdropKey.supportsWorldTriangles3D = supportsWorldTriangles3D;
                 projectedBackdropKey.rows = rows;
                 projectedBackdropKey.cols = cols;
