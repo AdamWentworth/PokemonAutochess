@@ -98,6 +98,7 @@ bool test_session_backend_render_helpers_contract(std::string& outFail);
 bool test_session_backend_inventory_ui_contract(std::string& outFail);
 bool test_session_backend_unit_hydration_contract(std::string& outFail);
 bool test_session_debug_snapshot_contract(std::string& outFail);
+bool test_session_snapshot_runtime_contract(std::string& outFail);
 bool test_session_render_config_contract(std::string& outFail);
 bool test_round_flow_headless(std::string& outFail);
 bool test_animset_roles_smoke(std::string& outFail);
@@ -294,6 +295,7 @@ int main(int argc, char** argv) {
         {"session_backend_inventory_ui_contract", &test_session_backend_inventory_ui_contract},
         {"session_backend_unit_hydration_contract", &test_session_backend_unit_hydration_contract},
         {"session_debug_snapshot_contract", &test_session_debug_snapshot_contract},
+        {"session_snapshot_runtime_contract", &test_session_snapshot_runtime_contract},
         {"session_render_config_contract", &test_session_render_config_contract},
         {"round_flow_headless", &test_round_flow_headless},
         {"animset_roles_smoke", &test_animset_roles_smoke},

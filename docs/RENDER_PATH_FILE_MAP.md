@@ -41,6 +41,9 @@ Use this file to find ownership quickly when working on parity/performance tasks
 - `src/game/runtime/session/SessionDebugSnapshot.*`
   - debug snapshot path resolution, JSON file IO, and summary formatting
   - session/world snapshot metadata parsing for save/load
+- `src/game/runtime/session/SessionSnapshotRuntime.*`
+  - live session save/load orchestration for debug snapshots
+  - state-stack restore, runtime flag restore, inventory refresh, and restore-time indexed-world prewarm
 - `src/game/runtime/session/SessionRenderConfig.*`
   - session-local env/config gates for backend prewarm, projected rendering, and snapshot render restore
   - backend model triangle limits and GPU clip-skinning policy used by GameSession render flow

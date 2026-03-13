@@ -93,6 +93,7 @@
 #include "game/runtime/session/SessionBackendInventoryUi.h"
 #include "game/runtime/session/SessionBackendRenderHelpers.h"
 #include "game/runtime/session/SessionDebugSnapshot.h"
+#include "game/runtime/session/SessionSnapshotRuntime.h"
 #include "game/runtime/session/SessionRenderConfig.h"
 #include "game/ui/UIViewport.h"
 #include "game/ui/ShopLayout.h"
@@ -124,8 +125,6 @@ constexpr int kWorldLayerPrewarmFrames = 2;
 std::string debugStateSnapshotPath() {
     return game::runtime::session_debug_snapshot::snapshotPath();
 }
-
-using DebugSessionSnapshot = game::runtime::session_debug_snapshot::SessionSnapshotMetadata;
 
 float hash01(std::uint32_t x) {
     x ^= x >> 16;
@@ -1002,262 +1001,53 @@ struct GameSession::Impl {
         };
     }
 
-    DebugSessionSnapshot captureDebugSessionSnapshot() const {
-        DebugSessionSnapshot out;
-
-        if (stateManager) {
-            if (GameState* current = stateManager->getCurrentState()) {
-                if (const auto* combat = dynamic_cast<const CombatState*>(current)) {
-                    out.stateKind = "combat";
-                    out.stateScriptPath = combat->debugScriptPath();
-                } else if (const auto* scripted = dynamic_cast<const ScriptedState*>(current)) {
-                    out.stateKind = "scripted";
-                    out.stateScriptPath = scripted->debugScriptPath();
-                }
-            }
-        }
-
-        if (services && services->ecsWorld && services->ecsWorld->alive(services->combatStateEntity)) {
-            if (const auto* combatState = services->ecsWorld->get<game::CombatActive>(services->combatStateEntity)) {
-                out.hasCombatActive = true;
-                out.combatActive = combatState->active;
-            }
-            if (const auto* roundState = services->ecsWorld->get<game::RoundState>(services->combatStateEntity)) {
-                out.hasRoundPhase = true;
-                out.roundPhase = roundState->phase;
-            }
-        }
-
-        return out;
-    }
-
-    void restoreStateStackForSnapshot(const DebugSessionSnapshot& session, bool preferCombatState) {
-        if (!stateManager || !gameWorld || !services) return;
-
-        if (preferCombatState || session.stateKind == "combat") {
-            if (dynamic_cast<CombatState*>(stateManager->getCurrentState())) {
-                return;
-            }
-
-            std::string combatScript = session.stateScriptPath;
-            if (combatScript.empty()) {
-                game::log::warn(
-                    &log,
-                    "[StateSnapshot] Missing combat script path; keeping current state stack.");
-                return;
-            }
-
-            stateManager->clearAndPushState(std::make_unique<CombatState>(
-                stateManager.get(),
-                gameWorld.get(),
-                *services,
-                combatScript,
-                true));
-            return;
-        }
-
-        if (session.stateKind == "scripted" && !session.stateScriptPath.empty()) {
-            const auto* scripted = dynamic_cast<ScriptedState*>(stateManager->getCurrentState());
-            if (scripted && scripted->debugScriptPath() == session.stateScriptPath) {
-                return;
-            }
-            stateManager->clearAndPushState(std::make_unique<ScriptedState>(
-                stateManager.get(),
-                gameWorld.get(),
-                *services,
-                session.stateScriptPath));
-        }
-    }
-
-    void applyRuntimeFlagsForSnapshot(const DebugSessionSnapshot& session, bool preferCombatState) {
-        if (!services || !services->ecsWorld || !services->ecsWorld->alive(services->combatStateEntity)) return;
-
-        bool combatActive = preferCombatState;
-        if (!preferCombatState && session.hasCombatActive) {
-            combatActive = session.combatActive;
-        }
-
-        RoundPhase phase = combatActive ? RoundPhase::Battle : RoundPhase::Planning;
-        if (!preferCombatState && session.hasRoundPhase) {
-            phase = session.roundPhase;
-        }
-
-        if (auto* combatState = services->ecsWorld->get<game::CombatActive>(services->combatStateEntity)) {
-            combatState->active = combatActive;
-        } else {
-            services->ecsWorld->add<game::CombatActive>(services->combatStateEntity, game::CombatActive{combatActive});
-        }
-        if (auto* roundState = services->ecsWorld->get<game::RoundState>(services->combatStateEntity)) {
-            roundState->phase = phase;
-        } else {
-            services->ecsWorld->add<game::RoundState>(services->combatStateEntity, game::RoundState{phase});
-        }
-
-        if (roundSystem) {
-            float timer = 30.0f;
-            if (phase == RoundPhase::Battle) timer = 10.0f;
-            else if (phase == RoundPhase::Resolution) timer = 5.0f;
-            roundSystem->debugSetPhase(phase, timer);
-        }
-
-        if (gameWorld) {
-            gameWorld->setBoardInteractionLocked(combatActive);
-            if (combatActive) {
-                if (!gameWorld->hasBattleStartPositions()) {
-                    gameWorld->capturePlayerPositionsForBattle();
-                }
-                gameWorld->clearClassicShopCards();
-                gameWorld->setUnitDropZoneLayoutHint(0, false);
-            }
-        }
-    }
-
     void saveDebugStateSnapshot() {
-        if (!gameWorld) {
-            game::log::warn(&log, "[StateSnapshot] Save skipped: world is not ready.");
-            log.infoTerminalOnly("[StateSnapshot] Save skipped: world is not ready.");
-            return;
-        }
-
-        GameWorld::DebugStateSnapshot snapshot;
-        if (!gameWorld->buildDebugStateSnapshot(snapshot)) {
-            game::log::warn(&log, "[StateSnapshot] Save failed: could not build world snapshot.");
-            log.infoTerminalOnly(
-                "[StateSnapshot] Save failed: could not build world snapshot.");
-            return;
-        }
-
-        const DebugSessionSnapshot session = captureDebugSessionSnapshot();
-        const std::string path = debugStateSnapshotPath();
-        std::string err;
-        if (!game::runtime::session_debug_snapshot::writeFile(snapshot, path, &session, &err)) {
-            game::log::warn(
-                &log,
-                std::string("[StateSnapshot] Save failed: ") + err + " (" + path + ")");
-            log.infoTerminalOnly(
-                std::string("[StateSnapshot] Save failed: ") + err + " (" + path + ")");
-            return;
-        }
-
-        game::log::info(&log, std::string("[StateSnapshot] Saved: ") + path);
-        log.infoTerminalOnly(
-            std::string("[StateSnapshot] Saved: ") + path + " "
-            + game::runtime::session_debug_snapshot::summarizeSessionSnapshot(session) + " "
-            + game::runtime::session_debug_snapshot::summarizeWorldSnapshot(snapshot));
+        game::runtime::session_snapshot_runtime::saveSnapshot(
+            debugStateSnapshotPath(),
+            {
+                .stateManager = stateManager.get(),
+                .gameWorld = gameWorld.get(),
+                .services = services.get(),
+                .log = &log,
+            });
     }
 
     void loadDebugStateSnapshot() {
-        if (!gameWorld) {
-            game::log::warn(&log, "[StateSnapshot] Load skipped: world is not ready.");
-            log.infoTerminalOnly("[StateSnapshot] Load skipped: world is not ready.");
-            return;
-        }
-
-        using SnapshotClock = std::chrono::high_resolution_clock;
-        const auto loadStart = SnapshotClock::now();
-        const std::string path = debugStateSnapshotPath();
-        log.infoTerminalOnly(std::string("[StateSnapshot] Load requested: ") + path);
-        GameWorld::DebugStateSnapshot snapshot;
-        DebugSessionSnapshot session;
-        std::string err;
-        const auto readStart = SnapshotClock::now();
-        if (!game::runtime::session_debug_snapshot::readFile(path, snapshot, &session, &err)) {
-            const auto readEnd = SnapshotClock::now();
-            game::log::warn(
-                &log,
-                std::string("[StateSnapshot] Load failed: ") + err + " (" + path + ")");
-            log.infoTerminalOnly(
-                std::string("[StateSnapshot] Load failed: ") + err + " (" + path + ")"
-                + " read=" + game::runtime::session_debug_snapshot::formatMillis(
-                    std::chrono::duration<double, std::milli>(readEnd - readStart).count()));
-            return;
-        }
-        const auto readEnd = SnapshotClock::now();
-
-        const bool preferCombatState =
-            game::runtime::session_debug_snapshot::hasActiveEnemyUnits(snapshot);
-        const auto stateRestoreStart = SnapshotClock::now();
-        restoreStateStackForSnapshot(session, preferCombatState);
-        const auto stateRestoreEnd = SnapshotClock::now();
-
-        std::string worldErr;
-        const auto worldApplyStart = SnapshotClock::now();
-        const bool exact = gameWorld->applyDebugStateSnapshot(snapshot, &worldErr);
-        const auto worldApplyEnd = SnapshotClock::now();
-        const auto flagsStart = SnapshotClock::now();
-        applyRuntimeFlagsForSnapshot(session, preferCombatState);
-        const auto flagsEnd = SnapshotClock::now();
-        const auto inventoryStart = SnapshotClock::now();
-        game::runtime::session_backend_inventory_ui::refreshPanel(
-            backendInventoryPanel,
-            kBackendInventoryVisibleCount,
-            backendInventoryUiDependencies());
-        const auto inventoryEnd = SnapshotClock::now();
-        double prewarmIndexedMs = 0.0;
-        std::size_t prewarmIndexedBatches = 0u;
-        if (game::runtime::session_render_config::snapshotPrewarmRestoreRenderEnabled() &&
-            renderer &&
-            usesBackendGameRenderPath() &&
-            renderer->supportsWorldIndexedMeshes() &&
-            viewport.width > 0 &&
-            viewport.height > 0) {
-            bool renderWorld = true;
-            if (stateManager) {
-                if (auto* state = stateManager->getCurrentState()) {
-                    renderWorld = state->shouldRenderWorld();
-                }
-            }
-            const auto indexedPrewarmStart = SnapshotClock::now();
-            prewarmIndexedBatches =
-                prewarmWorldIndexedLayer(viewport.width, viewport.height, renderWorld);
-            const auto indexedPrewarmEnd = SnapshotClock::now();
-            prewarmIndexedMs =
-                std::chrono::duration<double, std::milli>(
-                    indexedPrewarmEnd - indexedPrewarmStart).count();
-        }
-        const auto loadEnd = SnapshotClock::now();
-
-        const double readMs =
-            std::chrono::duration<double, std::milli>(readEnd - readStart).count();
-        const double stateRestoreMs =
-            std::chrono::duration<double, std::milli>(stateRestoreEnd - stateRestoreStart).count();
-        const double worldApplyMs =
-            std::chrono::duration<double, std::milli>(worldApplyEnd - worldApplyStart).count();
-        const double flagsMs =
-            std::chrono::duration<double, std::milli>(flagsEnd - flagsStart).count();
-        const double inventoryMs =
-            std::chrono::duration<double, std::milli>(inventoryEnd - inventoryStart).count();
-        const double totalMs =
-            std::chrono::duration<double, std::milli>(loadEnd - loadStart).count();
-
-        if (!exact) {
-            if (worldErr.empty()) {
-                worldErr = "snapshot applied with missing units";
-            }
-            game::log::warn(
-                &log,
-                std::string("[StateSnapshot] Loaded with warnings: ") + worldErr);
-            log.infoTerminalOnly(
-                std::string("[StateSnapshot] Loaded with warnings: ") + worldErr);
-        }
-
-        game::log::info(&log, std::string("[StateSnapshot] Loaded: ") + path);
-        log.infoTerminalOnly(
-            std::string("[StateSnapshot] Loaded: ") + path
-            + " exact=" + (exact ? "1" : "0")
-            + " preferCombat=" + (preferCombatState ? std::string("1") : std::string("0"))
-            + " " + game::runtime::session_debug_snapshot::summarizeSessionSnapshot(session)
-            + " " + game::runtime::session_debug_snapshot::summarizeWorldSnapshot(snapshot));
-        log.infoTerminalOnly(
-            std::string("[StateSnapshot] Load phases: ")
-            + "read=" + game::runtime::session_debug_snapshot::formatMillis(readMs)
-            + " state=" + game::runtime::session_debug_snapshot::formatMillis(stateRestoreMs)
-            + " apply=" + game::runtime::session_debug_snapshot::formatMillis(worldApplyMs)
-            + " flags=" + game::runtime::session_debug_snapshot::formatMillis(flagsMs)
-            + " inventory=" + game::runtime::session_debug_snapshot::formatMillis(inventoryMs)
-            + " prewarm_indexed=" + game::runtime::session_debug_snapshot::formatMillis(prewarmIndexedMs)
-            + " prewarm_batches=" + std::to_string(prewarmIndexedBatches)
-            + " total=" + game::runtime::session_debug_snapshot::formatMillis(totalMs));
+        game::runtime::session_snapshot_runtime::loadSnapshot(
+            debugStateSnapshotPath(),
+            {
+                .stateManager = stateManager.get(),
+                .gameWorld = gameWorld.get(),
+                .services = services.get(),
+                .roundSystem = roundSystem,
+                .log = &log,
+                .refreshInventoryPanel =
+                    [&]() {
+                        game::runtime::session_backend_inventory_ui::refreshPanel(
+                            backendInventoryPanel,
+                            kBackendInventoryVisibleCount,
+                            backendInventoryUiDependencies());
+                    },
+                .shouldPrewarmIndexedLayer =
+                    [&]() {
+                        return game::runtime::session_render_config::snapshotPrewarmRestoreRenderEnabled() &&
+                            renderer &&
+                            usesBackendGameRenderPath() &&
+                            renderer->supportsWorldIndexedMeshes() &&
+                            viewport.width > 0 &&
+                            viewport.height > 0;
+                    },
+                .prewarmIndexedLayer =
+                    [&]() -> std::size_t {
+                        bool renderWorld = true;
+                        if (stateManager) {
+                            if (auto* state = stateManager->getCurrentState()) {
+                                renderWorld = state->shouldRenderWorld();
+                            }
+                        }
+                        return prewarmWorldIndexedLayer(viewport.width, viewport.height, renderWorld);
+                    },
+            });
     }
 
     void handleEvent(const InputEvent& event) {
