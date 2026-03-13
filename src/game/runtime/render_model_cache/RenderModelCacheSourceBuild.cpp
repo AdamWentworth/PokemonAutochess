@@ -1,4 +1,4 @@
-#include "game/runtime/backend_model_cache/BackendModelCacheSourceBuild.h"
+#include "game/runtime/render_model_cache/RenderModelCacheSourceBuild.h"
 
 #include <algorithm>
 #include <cmath>
@@ -91,11 +91,11 @@ void computeTangentsFromGeometry(const std::vector<glm::vec3>& positions,
 
 } // namespace
 
-namespace game::runtime::backend_model::detail {
+namespace game::runtime::render_model::detail {
 
-bool buildBackendCacheSourceData(const std::string& filepath,
-                                 SourceCacheBuildData& outData,
-                                 std::string* outError) {
+bool buildRenderCacheSourceData(const std::string& filepath,
+                                SourceCacheBuildData& outData,
+                                std::string* outError) {
     outData = SourceCacheBuildData{};
     auto fg = pac::fastgltf_loader::tryLoad(filepath);
     if (!fg.has_value()) {
@@ -459,4 +459,4 @@ bool buildBackendCacheSourceData(const std::string& filepath,
     return true;
 }
 
-} // namespace game::runtime::backend_model::detail
+} // namespace game::runtime::render_model::detail

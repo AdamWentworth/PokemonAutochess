@@ -1,6 +1,6 @@
 #pragma once
 
-#include "game/runtime/backend_model_cache/BackendModelCache.h"
+#include "game/runtime/render_model_cache/RenderModelCache.h"
 #include "game/runtime/shared/backend/SharedBackendPoseEval.h"
 #include "game/runtime/shared/backend/SharedBackendTextureCache.h"
 #include "game/runtime/shared/capture/SharedCapturePresentation.h"
@@ -30,9 +30,9 @@ struct Args {
     IRenderBackend* renderer = nullptr;
     std::vector<shared_world_batches::WorldIndexedBatch>* worldIndexedBatches = nullptr;
     std::unordered_map<std::string, SharedBackendTextureCacheEntry>* backendTextureByPath = nullptr;
-    std::function<runtime::backend_model::MeshData*(const std::string&)> ensureBackendMeshLoaded;
+    std::function<runtime::render_model::MeshData*(const std::string&)> ensureBackendMeshLoaded;
     std::function<SharedBackendTextureCacheEntry*(const std::string&)> ensureBackendTextureLoaded;
-    std::function<shared_backend_pose::PoseEval(const runtime::backend_model::MeshData&, int, float)>
+    std::function<shared_backend_pose::PoseEval(const runtime::render_model::MeshData&, int, float)>
         evaluateScenePoseForClipTime;
 };
 

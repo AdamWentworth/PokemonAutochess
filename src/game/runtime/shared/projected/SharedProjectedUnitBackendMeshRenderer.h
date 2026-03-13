@@ -4,7 +4,7 @@
 
 class IRenderBackend;
 
-namespace game::runtime::backend_model {
+namespace game::runtime::render_model {
 struct MeshData;
 }
 
@@ -16,6 +16,6 @@ using Result = shared_projected_unit_models::Result;
 Result renderProjectedUnitBackendMesh(const Args& args);
 std::size_t prewarmProjectedUnitBackendMeshGeometryCache(
     IRenderBackend& renderer,
-    const runtime::backend_model::MeshData& mesh);
+    const runtime::render_model::MeshData& mesh);
 
 } // namespace game::runtime::shared_projected_unit_backend_mesh

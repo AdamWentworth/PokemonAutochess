@@ -16,7 +16,7 @@ using Args = shared_projected_unit_backend_mesh::Args;
 using Result = shared_projected_unit_backend_mesh::Result;
 
 struct PreparedState {
-    const runtime::backend_model::MeshData* mesh = nullptr;
+    const runtime::render_model::MeshData* mesh = nullptr;
     std::size_t triangleCount = 0u;
     std::size_t effectiveUnitTriangleBudget = 0u;
 

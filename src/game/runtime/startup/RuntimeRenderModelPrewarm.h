@@ -1,6 +1,6 @@
 #pragma once
 
-#include "game/runtime/backend_model_cache/BackendModelCache.h"
+#include "game/runtime/render_model_cache/RenderModelCache.h"
 
 #include <cstddef>
 #include <functional>
@@ -8,7 +8,7 @@
 #include <string>
 #include <vector>
 
-namespace game::runtime::backend_model_prewarm {
+namespace game::runtime::render_model_prewarm {
 
 struct Options {
     bool verboseModelCacheLog = false;
@@ -20,7 +20,7 @@ struct Options {
 
 struct ModelLoadResult {
     bool loadedFresh = false;
-    const backend_model::MeshData* mesh = nullptr;
+    const render_model::MeshData* mesh = nullptr;
     std::string error;
 };
 
@@ -40,9 +40,9 @@ struct Callbacks {
     std::function<bool()> pumpPreloadEvents;
     std::function<void()> requestQuit;
     std::function<ModelLoadResult(const std::string&)> loadModel;
-    std::function<bool(const std::string&, const backend_model::MeshData&)> prewarmAnimRoles;
-    std::function<std::size_t(const std::string&, const backend_model::MeshData&)> prewarmTextures;
-    std::function<std::size_t(const backend_model::MeshData&)> prewarmGeometry;
+    std::function<bool(const std::string&, const render_model::MeshData&)> prewarmAnimRoles;
+    std::function<std::size_t(const std::string&, const render_model::MeshData&)> prewarmTextures;
+    std::function<std::size_t(const render_model::MeshData&)> prewarmGeometry;
 };
 
 Summary run(const std::vector<std::string>& modelPathsToPreload,
@@ -50,4 +50,4 @@ Summary run(const std::vector<std::string>& modelPathsToPreload,
             const Callbacks& callbacks,
             std::ostream& out);
 
-} // namespace game::runtime::backend_model_prewarm
+} // namespace game::runtime::render_model_prewarm

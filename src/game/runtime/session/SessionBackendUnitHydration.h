@@ -7,7 +7,7 @@
 
 #include "game/PokemonInstance.h"
 #include "game/config/GameDataDb.h"
-#include "game/runtime/backend_model_cache/BackendModelCache.h"
+#include "game/runtime/render_model_cache/RenderModelCache.h"
 
 namespace game::runtime::session_backend_unit_hydration {
 
@@ -33,10 +33,10 @@ struct BackendAnimRoleEntry {
 };
 
 using BackendAnimRoleCache = std::unordered_map<std::string, BackendAnimRoleEntry>;
-using EnsureBackendMeshLoadedFn = std::function<game::runtime::backend_model::MeshData*(const std::string&)>;
+using EnsureBackendMeshLoadedFn = std::function<game::runtime::render_model::MeshData*(const std::string&)>;
 
 BackendAnimRoleEntry& ensureBackendAnimRoles(const std::string& modelPath,
-                                             const game::runtime::backend_model::MeshData* mesh,
+                                             const game::runtime::render_model::MeshData* mesh,
                                              BackendAnimRoleCache& cache);
 
 void hydrateBackendUnits(std::vector<PokemonInstance>& boardUnits,

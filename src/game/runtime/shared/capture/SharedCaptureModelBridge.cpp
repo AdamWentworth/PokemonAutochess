@@ -58,7 +58,7 @@ bool appendSharedCaptureAttemptModels(const Args& args) {
     const auto& captureSnaps = args.sharedCaptureAttemptCache->snaps;
     if (captureSnaps.empty() && !d3d12CapturePrewarmRequested) return false;
 
-    runtime::backend_model::MeshData* mesh =
+    runtime::render_model::MeshData* mesh =
         args.ensureBackendMeshLoaded("assets/models/pokeball.glb");
 
     if (!mesh || mesh->vertices.empty() || mesh->indices.empty()) {

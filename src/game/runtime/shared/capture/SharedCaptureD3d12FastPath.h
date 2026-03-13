@@ -2,7 +2,7 @@
 
 #include "engine/render/IRenderBackend.h"
 #include "game/GameWorld.h"
-#include "game/runtime/backend_model_cache/BackendModelCache.h"
+#include "game/runtime/render_model_cache/RenderModelCache.h"
 #include "game/runtime/shared/backend/SharedBackendPoseEval.h"
 
 #include <functional>
@@ -21,7 +21,7 @@ Result tryAppend(
     const float* worldViewProj,
     int drawableW,
     int drawableH,
-    const runtime::backend_model::MeshData& mesh,
+    const runtime::render_model::MeshData& mesh,
     const std::vector<GameWorld::CaptureAttemptRenderSnapshot>& captureSnaps,
     bool d3d12CapturePrewarmRequested,
     bool treatPokeballAsUntextured,

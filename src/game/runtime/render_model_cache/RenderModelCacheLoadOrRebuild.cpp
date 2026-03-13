@@ -1,4 +1,4 @@
-#include "game/runtime/backend_model_cache/BackendModelCacheLoadOrRebuild.h"
+#include "game/runtime/render_model_cache/RenderModelCacheLoadOrRebuild.h"
 
 #include <filesystem>
 #include <fstream>
@@ -7,9 +7,9 @@
 namespace {
 namespace fs = std::filesystem;
 
-using game::runtime::backend_model::detail::CacheHeader;
-constexpr std::uint64_t kModelCacheMagic = game::runtime::backend_model::detail::kModelCacheMagic;
-constexpr std::uint32_t kModelCacheVersion = game::runtime::backend_model::detail::kModelCacheVersion;
+using game::runtime::render_model::detail::CacheHeader;
+constexpr std::uint64_t kModelCacheMagic = game::runtime::render_model::detail::kModelCacheMagic;
+constexpr std::uint32_t kModelCacheVersion = game::runtime::render_model::detail::kModelCacheVersion;
 
 template <typename T>
 bool readPod(std::istream& in, T& out) {
@@ -36,7 +36,7 @@ bool cacheHeaderMatchesSource(const std::string& modelPath, const CacheHeader& h
 
 } // namespace
 
-namespace game::runtime::backend_model::detail {
+namespace game::runtime::render_model::detail {
 
 bool openValidatedCacheStreamForModel(const std::string& modelPath,
                                       CachePathForModelFn cachePathForModelFn,
@@ -111,4 +111,4 @@ retry_read:
     return true;
 }
 
-} // namespace game::runtime::backend_model::detail
+} // namespace game::runtime::render_model::detail

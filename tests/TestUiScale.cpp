@@ -1,4 +1,4 @@
-#include "game/runtime/backend_ui/UiScale.h"
+#include "game/runtime/ui/UiScale.h"
 
 #include <cmath>
 #include <string>

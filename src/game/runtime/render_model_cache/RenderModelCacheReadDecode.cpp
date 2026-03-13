@@ -1,5 +1,5 @@
-#include "game/runtime/backend_model_cache/BackendModelCacheReadDecode.h"
-#include "game/runtime/backend_model_cache/BackendModelCacheReadScene.h"
+#include "game/runtime/render_model_cache/RenderModelCacheReadDecode.h"
+#include "game/runtime/render_model_cache/RenderModelCacheReadScene.h"
 
 #include <algorithm>
 #include <cmath>
@@ -21,8 +21,8 @@ bool readPod(std::istream& in, T& out) {
     return static_cast<bool>(in.read(reinterpret_cast<char*>(&out), sizeof(T)));
 }
 
-using game::runtime::backend_model::detail::CacheHeader;
-using game::runtime::backend_model::detail::CacheTextureHeader;
+using game::runtime::render_model::detail::CacheHeader;
+using game::runtime::render_model::detail::CacheTextureHeader;
 
 struct DecodedTexture {
     int width = 0;
@@ -207,7 +207,7 @@ glm::vec4 sampleTextureBilinear(const DecodedTexture& tex, const glm::vec2& uv) 
 }
 } // namespace
 
-namespace game::runtime::backend_model::detail {
+namespace game::runtime::render_model::detail {
 
 bool decodeMeshFromValidatedCacheStream(std::istream& in,
                                         const CacheHeader& hdr,
@@ -661,7 +661,7 @@ bool decodeMeshFromValidatedCacheStream(std::istream& in,
     return true;
 }
 
-} // namespace game::runtime::backend_model::detail
+} // namespace game::runtime::render_model::detail
 
 
 

@@ -6,7 +6,7 @@
 
 class IRenderBackend;
 
-namespace game::runtime::backend_card_ui_prewarm {
+namespace game::runtime::ui_card_prewarm {
 
 struct Summary {
     std::size_t portraitCount = 0u;
@@ -19,4 +19,4 @@ Summary run(IRenderBackend* renderer,
             int drawableH,
             const std::vector<std::string>& uiSpritePrewarmPaths);
 
-} // namespace game::runtime::backend_card_ui_prewarm
+} // namespace game::runtime::ui_card_prewarm

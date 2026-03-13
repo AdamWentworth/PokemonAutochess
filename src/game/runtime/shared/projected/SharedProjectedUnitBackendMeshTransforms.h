@@ -25,20 +25,20 @@ class Resolver {
 
     WorldVertexSample resolveWorldVertex(int triNodeIndex,
                                          std::uint32_t vertexIndex,
-                                         const runtime::backend_model::MeshVertex& vtx);
+                                         const runtime::render_model::MeshVertex& vtx);
     glm::vec3 resolveWorldVertexPos(int triNodeIndex,
                                     std::uint32_t vertexIndex,
-                                    const runtime::backend_model::MeshVertex& vtx);
+                                    const runtime::render_model::MeshVertex& vtx);
     glm::vec3 resolveModelVertexNormal(int triNodeIndex,
                                        std::uint32_t vertexIndex,
-                                       const runtime::backend_model::MeshVertex& vtx);
+                                       const runtime::render_model::MeshVertex& vtx);
     glm::vec4 resolveModelVertexTangent(int triNodeIndex,
                                         std::uint32_t vertexIndex,
-                                        const runtime::backend_model::MeshVertex& vtx);
+                                        const runtime::render_model::MeshVertex& vtx);
     glm::vec3 resolveGpuSkinningInputPos(std::uint32_t vertexIndex,
-                                         const runtime::backend_model::MeshVertex& vtx);
+                                         const runtime::render_model::MeshVertex& vtx);
     glm::vec3 resolveDeformedLocalVertexPos(std::uint32_t vertexIndex,
-                                            const runtime::backend_model::MeshVertex& vtx);
+                                            const runtime::render_model::MeshVertex& vtx);
     int gpuSkinningCacheKeyForNode(int triNodeIndex) const;
     bool configureGpuClipSkinningBatch(int triNodeIndex,
                                        const std::vector<std::uint16_t>* jointPalette,
@@ -55,24 +55,24 @@ class Resolver {
 
     const std::vector<glm::mat4>* ensureSkinMatricesForNode(int nodeIndex);
     SkinResult skinVertexAtNode(int nodeIndex,
-                                const runtime::backend_model::MeshVertex& vtx,
+                                const runtime::render_model::MeshVertex& vtx,
                                 const glm::vec3& localPos,
                                 const glm::vec3& localNormal);
     glm::vec3 skinDirectionAtNode(int nodeIndex,
-                                  const runtime::backend_model::MeshVertex& vtx,
+                                  const runtime::render_model::MeshVertex& vtx,
                                   const glm::vec3& localDirection);
     glm::vec3 skinPositionAtNode(int nodeIndex,
-                                 const runtime::backend_model::MeshVertex& vtx,
+                                 const runtime::render_model::MeshVertex& vtx,
                                  const glm::vec3& localPos);
     glm::vec3 resolveLocalVertexPos(std::uint32_t vertexIndex,
-                                    const runtime::backend_model::MeshVertex& vtx);
+                                    const runtime::render_model::MeshVertex& vtx);
     const glm::mat3& modelNormalMatrixForNode(int triNodeIndex);
 
     std::size_t nodeTransformIndexFor(int triNodeIndex) const;
 
     const shared_projected_unit_backend_mesh::Args* renderArgs_ = nullptr;
     const shared_projected_unit_backend_mesh_prep::PreparedState* prep_ = nullptr;
-    const runtime::backend_model::MeshData* mesh_ = nullptr;
+    const runtime::render_model::MeshData* mesh_ = nullptr;
     const PokemonInstance* unit_ = nullptr;
     const runtime::render_prep_pose::ProceduralPose* pose_ = nullptr;
     const std::vector<glm::mat4>* nodeGlobals_ = nullptr;

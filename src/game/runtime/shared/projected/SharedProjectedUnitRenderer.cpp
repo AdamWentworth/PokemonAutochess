@@ -154,7 +154,7 @@ float backendScenePoseCacheEffectiveHz(std::size_t unitCount) {
     return baseHz;
 }
 
-int resolveSceneAnimIndexForUnit(const game::runtime::backend_model::MeshData& mesh,
+int resolveSceneAnimIndexForUnit(const game::runtime::render_model::MeshData& mesh,
                                  const ::PokemonInstance& unit) {
     int animIndex = unit.activeAnimIndex;
     if (animIndex < 0 || static_cast<std::size_t>(animIndex) >= mesh.animations.size()) {
@@ -180,7 +180,7 @@ struct CanonicalScenePoseSample {
 std::uint32_t floatToBits(float value);
 
 CanonicalScenePoseSample canonicalSceneAnimTimeForKey(
-    const game::runtime::backend_model::MeshData& mesh,
+    const game::runtime::render_model::MeshData& mesh,
     int animIndex,
     float animTimeSec,
     float quantizeStepSec) {
@@ -214,7 +214,7 @@ CanonicalScenePoseSample canonicalSceneAnimTimeForKey(
 }
 
 CanonicalScenePoseSample nextCanonicalSceneAnimTimeForKey(
-    const game::runtime::backend_model::MeshData& mesh,
+    const game::runtime::render_model::MeshData& mesh,
     int animIndex,
     const CanonicalScenePoseSample& current,
     float quantizeStepSec) {
@@ -250,7 +250,7 @@ std::uint32_t floatToBits(float value) {
 }
 
 struct CachedScenePoseKey {
-    const game::runtime::backend_model::MeshData* mesh = nullptr;
+    const game::runtime::render_model::MeshData* mesh = nullptr;
     int animIndex = -1;
     std::uint32_t animSampleKey = 0u;
 
@@ -264,7 +264,7 @@ struct CachedScenePoseKey {
 struct CachedScenePoseKeyHash {
     std::size_t operator()(const CachedScenePoseKey& key) const noexcept {
         const std::size_t h0 =
-            std::hash<const game::runtime::backend_model::MeshData*>{}(key.mesh);
+            std::hash<const game::runtime::render_model::MeshData*>{}(key.mesh);
         const std::size_t h1 = std::hash<int>{}(key.animIndex);
         const std::size_t h2 = std::hash<std::uint32_t>{}(key.animSampleKey);
         return (h0 * 1315423911u) ^ (h1 + 0x9e3779b9u + (h2 << 6u) + (h2 >> 2u));
@@ -398,7 +398,7 @@ void drawProjectedUnits(const Args& args, const std::vector<PokemonInstance>& un
 
     const std::uint64_t poseCacheFrame = ++g_cachedScenePoseFrameCounter;
     pruneScenePoseCache(poseCacheFrame);
-    std::unordered_map<std::string, const runtime::backend_model::MeshData*> meshBySpecies;
+    std::unordered_map<std::string, const runtime::render_model::MeshData*> meshBySpecies;
     meshBySpecies.reserve(units.size());
 
 for (const auto& unit : units) {
@@ -426,7 +426,7 @@ for (const auto& unit : units) {
     ++unitsProcessed;
 
     const auto poseEvalStart = Clock::now();
-    const runtime::backend_model::MeshData* meshForUnit = nullptr;
+    const runtime::render_model::MeshData* meshForUnit = nullptr;
     auto meshIt = meshBySpecies.find(unit.name);
     if (meshIt != meshBySpecies.end()) {
         meshForUnit = meshIt->second;

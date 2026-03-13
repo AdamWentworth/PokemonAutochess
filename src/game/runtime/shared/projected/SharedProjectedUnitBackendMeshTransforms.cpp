@@ -232,7 +232,7 @@ std::size_t Resolver::nodeTransformIndexFor(int triNodeIndex) const {
 
 glm::vec3 Resolver::resolveLocalVertexPos(
     std::uint32_t vertexIndex,
-    const runtime::backend_model::MeshVertex& vtx) {
+    const runtime::render_model::MeshVertex& vtx) {
     const std::uint32_t stamp = g_scratch.vertexCacheStamp;
     if (vertexIndex < g_scratch.localVertexPosCache.size() &&
         g_scratch.localVertexPosCacheStamp[vertexIndex] == stamp) {
@@ -298,7 +298,7 @@ const std::vector<glm::mat4>* Resolver::ensureSkinMatricesForNode(int nodeIndex)
 
 Resolver::SkinResult Resolver::skinVertexAtNode(
     int nodeIndex,
-    const runtime::backend_model::MeshVertex& vtx,
+    const runtime::render_model::MeshVertex& vtx,
     const glm::vec3& localPos,
     const glm::vec3& localNormal) {
     SkinResult outSkin{localPos, localNormal, false};
@@ -351,7 +351,7 @@ Resolver::SkinResult Resolver::skinVertexAtNode(
 
 glm::vec3 Resolver::skinDirectionAtNode(
     int nodeIndex,
-    const runtime::backend_model::MeshVertex& vtx,
+    const runtime::render_model::MeshVertex& vtx,
     const glm::vec3& localDirection) {
     if (hasClipPose_ && !clipSkinningEnabled_) {
         return localDirection;
@@ -393,7 +393,7 @@ glm::vec3 Resolver::skinDirectionAtNode(
 }
 
 glm::vec3 Resolver::skinPositionAtNode(int nodeIndex,
-                                       const runtime::backend_model::MeshVertex& vtx,
+                                       const runtime::render_model::MeshVertex& vtx,
                                        const glm::vec3& localPos) {
     glm::vec3 outPos = localPos;
     if (hasClipPose_ && !clipSkinningEnabled_) {
@@ -484,7 +484,7 @@ const glm::mat3& Resolver::modelNormalMatrixForNode(int triNodeIndex) {
 WorldVertexSample Resolver::resolveWorldVertex(
     int triNodeIndex,
     std::uint32_t vertexIndex,
-    const runtime::backend_model::MeshVertex& vtx) {
+    const runtime::render_model::MeshVertex& vtx) {
     const std::uint32_t stamp = g_scratch.vertexCacheStamp;
     if (vertexIndex < g_scratch.worldVertexCache.size() &&
         g_scratch.worldVertexCacheStamp[vertexIndex] == stamp &&
@@ -512,7 +512,7 @@ WorldVertexSample Resolver::resolveWorldVertex(
 glm::vec3 Resolver::resolveWorldVertexPos(
     int triNodeIndex,
     std::uint32_t vertexIndex,
-    const runtime::backend_model::MeshVertex& vtx) {
+    const runtime::render_model::MeshVertex& vtx) {
     const std::uint32_t stamp = g_scratch.vertexCacheStamp;
     if (vertexIndex < g_scratch.worldVertexPosCache.size() &&
         g_scratch.worldVertexPosCacheStamp[vertexIndex] == stamp &&
@@ -539,7 +539,7 @@ glm::vec3 Resolver::resolveWorldVertexPos(
 glm::vec3 Resolver::resolveModelVertexNormal(
     int triNodeIndex,
     std::uint32_t vertexIndex,
-    const runtime::backend_model::MeshVertex& vtx) {
+    const runtime::render_model::MeshVertex& vtx) {
     const std::uint32_t stamp = g_scratch.vertexCacheStamp;
     if (vertexIndex < g_scratch.modelVertexNormalCache.size() &&
         g_scratch.modelVertexNormalCacheStamp[vertexIndex] == stamp &&
@@ -562,7 +562,7 @@ glm::vec3 Resolver::resolveModelVertexNormal(
 glm::vec4 Resolver::resolveModelVertexTangent(
     int triNodeIndex,
     std::uint32_t vertexIndex,
-    const runtime::backend_model::MeshVertex& vtx) {
+    const runtime::render_model::MeshVertex& vtx) {
     const std::uint32_t stamp = g_scratch.vertexCacheStamp;
     if (vertexIndex < g_scratch.modelVertexTangentCache.size() &&
         g_scratch.modelVertexTangentCacheStamp[vertexIndex] == stamp &&
@@ -595,7 +595,7 @@ glm::vec4 Resolver::resolveModelVertexTangent(
 
 glm::vec3 Resolver::resolveGpuSkinningInputPos(
     std::uint32_t vertexIndex,
-    const runtime::backend_model::MeshVertex& vtx) {
+    const runtime::render_model::MeshVertex& vtx) {
     const std::uint32_t stamp = g_scratch.vertexCacheStamp;
     if (vertexIndex < g_scratch.worldVertexPosCache.size() &&
         g_scratch.worldVertexPosCacheStamp[vertexIndex] == stamp &&
@@ -616,7 +616,7 @@ glm::vec3 Resolver::resolveGpuSkinningInputPos(
 
 glm::vec3 Resolver::resolveDeformedLocalVertexPos(
     std::uint32_t vertexIndex,
-    const runtime::backend_model::MeshVertex& vtx) {
+    const runtime::render_model::MeshVertex& vtx) {
     return resolveLocalVertexPos(vertexIndex, vtx);
 }
 

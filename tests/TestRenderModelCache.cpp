@@ -1,4 +1,4 @@
-#include "game/runtime/backend_model_cache/BackendModelCache.h"
+#include "game/runtime/render_model_cache/RenderModelCache.h"
 
 #include <filesystem>
 #include <fstream>
@@ -12,10 +12,10 @@ bool contains(const std::string& haystack, const std::string& needle) {
 
 } // namespace
 
-bool test_backend_model_cache_contract(std::string& outFail) {
-    using game::runtime::backend_model::MeshData;
-    using game::runtime::backend_model::cachePathForModel;
-    using game::runtime::backend_model::loadMeshFromCache;
+bool test_render_model_cache_contract(std::string& outFail) {
+    using game::runtime::render_model::MeshData;
+    using game::runtime::render_model::cachePathForModel;
+    using game::runtime::render_model::loadMeshFromCache;
 
     const std::string pathA = cachePathForModel("assets/models/0004_Charmander.glb");
     const std::string pathB = cachePathForModel("assets/models/0004_Charmander.glb");

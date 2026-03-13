@@ -26,7 +26,7 @@ std::string toLowerCopy(std::string s) {
 constexpr unsigned char kFallbackWhiteRgba[4] = {255u, 255u, 255u, 255u};
 
 struct IndexedBatchTemplateCacheEntry {
-    const game::runtime::backend_model::MeshData* mesh = nullptr;
+    const game::runtime::render_model::MeshData* mesh = nullptr;
     std::size_t meshVertexCount = 0u;
     std::size_t meshIndexCount = 0u;
     bool characterInkingEnabled = false;
@@ -35,7 +35,7 @@ struct IndexedBatchTemplateCacheEntry {
 };
 
 thread_local std::deque<IndexedBatchTemplateCacheEntry> g_indexedBatchTemplateCache;
-thread_local std::unordered_map<const game::runtime::backend_model::MeshData*, std::string>
+thread_local std::unordered_map<const game::runtime::render_model::MeshData*, std::string>
     g_indexedBatchKeyPrefixes;
 struct SubmeshNodeFallbackCacheEntry {
     std::size_t submeshMeshIndexCount = 0u;
@@ -43,12 +43,12 @@ struct SubmeshNodeFallbackCacheEntry {
     std::vector<int> fallback;
 };
 thread_local std::unordered_map<
-    const game::runtime::backend_model::MeshData*,
+    const game::runtime::render_model::MeshData*,
     SubmeshNodeFallbackCacheEntry>
     g_submeshNodeFallbackCache;
 
 const std::string& getIndexedBatchKeyPrefix(
-    const game::runtime::backend_model::MeshData* mesh) {
+    const game::runtime::render_model::MeshData* mesh) {
     static const std::string fallback = "__runtime_model__";
     if (!mesh) return fallback;
 
@@ -86,7 +86,7 @@ std::string buildWorldTextureCacheKey(const std::string& key,
 }
 
 const std::vector<int>& getCachedSubmeshNodeFallback(
-    const game::runtime::backend_model::MeshData& mesh) {
+    const game::runtime::render_model::MeshData& mesh) {
     static const std::vector<int> empty;
 
     auto& entry = g_submeshNodeFallbackCache[&mesh];
@@ -159,7 +159,7 @@ void applyIndexedBatchTemplateShallow(
 }
 
 const std::vector<game::runtime::shared_world_batches::WorldIndexedBatch>* getIndexedBatchTemplates(
-    const game::runtime::backend_model::MeshData* mesh,
+    const game::runtime::render_model::MeshData* mesh,
     const std::string& keyPrefix,
     bool characterInkingEnabled,
     std::size_t batchCount) {

@@ -1,4 +1,4 @@
-#include "game/runtime/backend_ui/DebugText.h"
+#include "game/runtime/ui/DebugText.h"
 
 #include <cmath>
 #include <string>

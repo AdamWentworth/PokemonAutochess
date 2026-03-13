@@ -2,7 +2,7 @@
 
 #include "engine/core/ecs/Entity.h"
 #include "engine/render/IRenderBackend.h"
-#include "game/runtime/backend_ui/InventoryPanel.h"
+#include "game/runtime/ui/InventoryPanel.h"
 #include "game/runtime/shared/world/SharedWorldIndexedBatches.h"
 
 #include <functional>

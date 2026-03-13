@@ -49,7 +49,7 @@ glm::vec3 safeNormalize3Local(const glm::vec3& v, const glm::vec3& fallback) {
 }
 
 void appendTransformedMeshLocal(shared_world_batches::WorldIndexedBatch& batch,
-                                const backend_model::MeshData& mesh,
+                                const render_model::MeshData& mesh,
                                 const glm::mat4& world,
                                 const glm::vec4& color,
                                 bool quantizeLineAlpha,
@@ -126,7 +126,7 @@ bool appendPassBatch(std::vector<shared_world_batches::WorldIndexedBatch>& outBa
                      const GrowlWaveVFX::RenderSnapshot& snapshot,
                      const GrowlWaveVFX::Config::DrawPass& pass,
                      const shared_growl::TevState& passTev,
-                     const backend_model::MeshData* passMesh,
+                     const render_model::MeshData* passMesh,
                      const TextureView& texture,
                      const glm::vec3& cameraWorldPos) {
     if (!pass.enabled) return false;

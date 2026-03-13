@@ -2,7 +2,7 @@
 #include <vector>
 
 #include "engine/render/IRenderBackend.h"
-#include "game/runtime/backend_model_cache/BackendModelCache.h"
+#include "game/runtime/render_model_cache/RenderModelCache.h"
 #include "game/runtime/session/SessionBackendRenderHelpers.h"
 
 namespace {
@@ -38,8 +38,8 @@ public:
     std::vector<TextureCall> calls;
 };
 
-game::runtime::backend_model::CachedTextureRgba makeTexture(int width, int height) {
-    game::runtime::backend_model::CachedTextureRgba tex;
+game::runtime::render_model::CachedTextureRgba makeTexture(int width, int height) {
+    game::runtime::render_model::CachedTextureRgba tex;
     tex.width = width;
     tex.height = height;
     tex.rgba.resize(static_cast<std::size_t>(width * height * 4), 255u);
@@ -79,7 +79,7 @@ bool test_session_backend_render_helpers_contract(std::string& outFail) {
 
     {
         RecordingBackend backend;
-        game::runtime::backend_model::MeshData mesh;
+        game::runtime::render_model::MeshData mesh;
         mesh.submeshBaseTextures.push_back(makeTexture(2, 2));
         mesh.submeshBaseTextures.push_back({});
         mesh.submeshNormalTextures.push_back(makeTexture(2, 2));

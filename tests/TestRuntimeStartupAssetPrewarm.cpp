@@ -136,8 +136,8 @@ bool test_runtime_startup_asset_prewarm_contract(std::string& outFail) {
         if (logText.find("Backend world shading prewarm complete") == std::string::npos ||
             logText.find("Backend tail fire prewarm complete: atlases=2 mesh_flipbook_cpu=1 mesh_flipbook_gpu=1") == std::string::npos ||
             logText.find("UI sprite prewarm complete: requested=2") == std::string::npos ||
-            logText.find("Backend card art prewarm complete: requested=") == std::string::npos ||
-            logText.find("Backend card UI prewarm complete") == std::string::npos) {
+            logText.find("UI card art prewarm complete: requested=") == std::string::npos ||
+            logText.find("UI card prewarm complete") == std::string::npos) {
             outFail = "run should preserve the startup asset prewarm summary logs.";
             return false;
         }

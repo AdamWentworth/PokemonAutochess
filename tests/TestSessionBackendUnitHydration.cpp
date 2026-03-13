@@ -125,7 +125,7 @@ bool test_session_backend_unit_hydration_contract(std::string& outFail) {
         return false;
     }
 
-    std::unordered_map<std::string, game::runtime::backend_model::MeshData> meshes;
+    std::unordered_map<std::string, game::runtime::render_model::MeshData> meshes;
     auto& testMesh = meshes["assets/models/Testmon.glb"];
     testMesh.modelScaleFactor = 2.0f;
     testMesh.animations = {
@@ -176,7 +176,7 @@ bool test_session_backend_unit_hydration_contract(std::string& outFail) {
         benchUnits,
         db,
         cache,
-        [&](const std::string& modelPath) -> game::runtime::backend_model::MeshData* {
+        [&](const std::string& modelPath) -> game::runtime::render_model::MeshData* {
             auto it = meshes.find(modelPath);
             return it == meshes.end() ? nullptr : &it->second;
         });

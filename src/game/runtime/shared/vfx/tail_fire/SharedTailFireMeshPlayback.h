@@ -7,7 +7,7 @@
 
 #include <glm/vec2.hpp>
 
-namespace game::runtime::backend_model {
+namespace game::runtime::render_model {
 struct MeshData;
 }
 
@@ -32,6 +32,6 @@ struct Profile {
 
 bool isTailFireMeshPlaybackSpecies(std::string_view species);
 const std::array<FlipbookSpec, 3>& authoredFlipbookSpecs();
-const Profile& resolveProfile(const backend_model::MeshData& mesh);
+const Profile& resolveProfile(const render_model::MeshData& mesh);
 
 } // namespace game::runtime::shared_tail_fire_mesh_playback

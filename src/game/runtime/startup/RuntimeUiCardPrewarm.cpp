@@ -1,16 +1,16 @@
-#include "game/runtime/startup/RuntimeBackendCardUiPrewarm.h"
+#include "game/runtime/startup/RuntimeUiCardPrewarm.h"
 
 #include <algorithm>
 #include <string>
 #include <vector>
 
 #include "engine/render/IRenderBackend.h"
-#include "game/runtime/backend_ui/CardRenderer.h"
-#include "game/runtime/backend_ui/UiScale.h"
+#include "game/runtime/ui/CardRenderer.h"
+#include "game/runtime/ui/UiScale.h"
 #include "game/runtime/shared/ui/SharedBackendDebugViewOverlay.h"
 #include "game/runtime/session/SessionBackendRenderHelpers.h"
 
-namespace game::runtime::backend_card_ui_prewarm {
+namespace game::runtime::ui_card_prewarm {
 
 Summary run(IRenderBackend* renderer,
             int drawableW,
@@ -152,7 +152,7 @@ Summary run(IRenderBackend* renderer,
     return summary;
 }
 
-} // namespace game::runtime::backend_card_ui_prewarm
+} // namespace game::runtime::ui_card_prewarm
 
 
 

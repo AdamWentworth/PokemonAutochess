@@ -1,6 +1,6 @@
 #pragma once
 
-#include "game/runtime/backend_ui/HudFormatting.h"
+#include "game/runtime/ui/HudFormatting.h"
 
 #include <cstddef>
 #include <string>

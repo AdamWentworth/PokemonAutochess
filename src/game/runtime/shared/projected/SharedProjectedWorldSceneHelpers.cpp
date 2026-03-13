@@ -423,10 +423,10 @@ bool appendAnchoredSingleFlipbookTailFire(const ParticleVfxArgs& args,
         *args.worldIndexedBatches);
 }
 
-const runtime::backend_model::MeshData* resolveModelMesh(
+const runtime::render_model::MeshData* resolveModelMesh(
     const PokemonInstance& unit,
     const ::GameDataDb& dataDb,
-    const std::function<runtime::backend_model::MeshData*(const std::string&)>& ensureBackendMeshLoaded) {
+    const std::function<runtime::render_model::MeshData*(const std::string&)>& ensureBackendMeshLoaded) {
     std::string modelPath = unit.backendModelPath;
     if (modelPath.empty()) {
         if (!unit.animIndexCacheSourceModelPath.empty()) {
@@ -440,7 +440,7 @@ const runtime::backend_model::MeshData* resolveModelMesh(
         }
     }
 
-    runtime::backend_model::MeshData* mesh = ensureBackendMeshLoaded(modelPath);
+    runtime::render_model::MeshData* mesh = ensureBackendMeshLoaded(modelPath);
     if (!mesh || mesh->indices.size() < 3u) {
         return nullptr;
     }
@@ -528,7 +528,7 @@ void appendSharedGrowlWaveVfxSession(
     const glm::vec3& cameraWorldPos,
     std::unordered_map<std::string, SharedBackendTextureCacheEntry>& backendTextureByPath,
     std::vector<shared_world_batches::WorldIndexedBatch>& worldIndexedBatches,
-    const std::function<runtime::backend_model::MeshData*(const std::string&)>& ensureBackendMeshLoaded,
+    const std::function<runtime::render_model::MeshData*(const std::string&)>& ensureBackendMeshLoaded,
     const std::function<SharedBackendTextureCacheEntry*(const std::string&, bool)>& ensureBackendTextureLoaded) {
     GrowlWaveVfxArgs args{};
     args.useLegacyGrowlWaveVfx = useLegacyGrowlWaveVfx;
@@ -710,7 +710,7 @@ void appendSharedProjectedVfxBridgesSession(
     std::unordered_map<std::string, SharedBackendTextureCacheEntry>& backendTextureByPath,
     std::vector<shared_world_batches::WorldIndexedBatch>& worldIndexedBatches,
     shared_projected_debug::ProjectedDebugVfxBuilder& projectedDebug,
-    const std::function<runtime::backend_model::MeshData*(const std::string&)>& ensureBackendMeshLoaded,
+    const std::function<runtime::render_model::MeshData*(const std::string&)>& ensureBackendMeshLoaded,
     const std::function<SharedBackendTextureCacheEntry*(const std::string&, bool)>& ensureBackendTextureLoaded) {
     appendSharedParticleVfxSession(
         useLegacyParticleVfxSnapshotBridge,
@@ -767,7 +767,7 @@ bool appendSharedCaptureAttemptModels(const CaptureModelBridgeArgs& args) {
     bridgeArgs.ensureBackendMeshLoaded = args.ensureBackendMeshLoaded;
     bridgeArgs.ensureBackendTextureLoaded = args.ensureBackendTextureLoaded;
     bridgeArgs.evaluateScenePoseForClipTime =
-        [](const runtime::backend_model::MeshData& mesh, int animIndex, float animTimeSec) {
+        [](const runtime::render_model::MeshData& mesh, int animIndex, float animTimeSec) {
             return game::runtime::shared_backend_pose::evaluateScenePoseForClipTime(
                 mesh, animIndex, animTimeSec);
         };
@@ -787,7 +787,7 @@ bool appendSharedCaptureAttemptModelsSession(
     IRenderBackend* renderer,
     std::vector<shared_world_batches::WorldIndexedBatch>& worldIndexedBatches,
     std::unordered_map<std::string, SharedBackendTextureCacheEntry>& backendTextureByPath,
-    const std::function<runtime::backend_model::MeshData*(const std::string&)>& ensureBackendMeshLoaded,
+    const std::function<runtime::render_model::MeshData*(const std::string&)>& ensureBackendMeshLoaded,
     const std::function<SharedBackendTextureCacheEntry*(const std::string&)>& ensureBackendTextureLoaded) {
     CaptureModelBridgeArgs args{};
     args.gameWorld = gameWorld;
@@ -820,7 +820,7 @@ bool appendSharedCaptureAttemptModelsIfNeededForProjectedWorld(
     runtime::shared_capture::SnapshotCache& sharedCaptureAttemptCache,
     std::vector<shared_world_batches::WorldIndexedBatch>& worldIndexedBatches,
     std::unordered_map<std::string, SharedBackendTextureCacheEntry>& backendTextureByPath,
-    const std::function<runtime::backend_model::MeshData*(const std::string&)>& ensureBackendMeshLoaded,
+    const std::function<runtime::render_model::MeshData*(const std::string&)>& ensureBackendMeshLoaded,
     const std::function<SharedBackendTextureCacheEntry*(const std::string&)>& ensureBackendTextureLoaded) {
     const char* backendId = (renderer ? renderer->backendId() : nullptr);
     if (backendId != nullptr) {

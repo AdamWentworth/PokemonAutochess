@@ -11,14 +11,14 @@ bool test_shared_projected_world_scene_helpers_contract(std::string& outFail) {
         unit.name = "missingno";
         unit.backendModelPath = "assets/models/cached_backend_path.glb";
 
-        game::runtime::backend_model::MeshData mesh;
+        game::runtime::render_model::MeshData mesh;
         mesh.indices = {0u, 1u, 2u};
 
         std::string seenPath;
         const auto* resolved = resolveModelMesh(
             unit,
             dataDb,
-            [&](const std::string& modelPath) -> game::runtime::backend_model::MeshData* {
+            [&](const std::string& modelPath) -> game::runtime::render_model::MeshData* {
                 seenPath = modelPath;
                 return &mesh;
             });
@@ -34,14 +34,14 @@ bool test_shared_projected_world_scene_helpers_contract(std::string& outFail) {
         unit.name = "missingno";
         unit.animIndexCacheSourceModelPath = "assets/models/cached_anim_source.glb";
 
-        game::runtime::backend_model::MeshData mesh;
+        game::runtime::render_model::MeshData mesh;
         mesh.indices = {0u, 1u, 2u};
 
         std::string seenPath;
         const auto* resolved = resolveModelMesh(
             unit,
             dataDb,
-            [&](const std::string& modelPath) -> game::runtime::backend_model::MeshData* {
+            [&](const std::string& modelPath) -> game::runtime::render_model::MeshData* {
                 seenPath = modelPath;
                 return &mesh;
             });
@@ -57,14 +57,14 @@ bool test_shared_projected_world_scene_helpers_contract(std::string& outFail) {
         unit.name = "missingno";
         unit.backendAnimDurationsSourceModelPath = "assets/models/cached_duration_source.glb";
 
-        game::runtime::backend_model::MeshData mesh;
+        game::runtime::render_model::MeshData mesh;
         mesh.indices = {0u, 1u, 2u};
 
         std::string seenPath;
         const auto* resolved = resolveModelMesh(
             unit,
             dataDb,
-            [&](const std::string& modelPath) -> game::runtime::backend_model::MeshData* {
+            [&](const std::string& modelPath) -> game::runtime::render_model::MeshData* {
                 seenPath = modelPath;
                 return &mesh;
             });

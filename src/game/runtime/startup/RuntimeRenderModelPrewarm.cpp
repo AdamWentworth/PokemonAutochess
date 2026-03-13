@@ -1,9 +1,9 @@
-#include "game/runtime/startup/RuntimeBackendModelPrewarm.h"
+#include "game/runtime/startup/RuntimeRenderModelPrewarm.h"
 
 #include <algorithm>
 #include <ostream>
 
-namespace game::runtime::backend_model_prewarm {
+namespace game::runtime::render_model_prewarm {
 
 namespace {
 
@@ -115,7 +115,7 @@ Summary run(const std::vector<std::string>& modelPathsToPreload,
         maybeRenderBootProgress(callbacks, progressForIndex(i, totalModels));
     }
 
-    out << "[Init] Backend model cache preload complete: loaded=" << summary.loaded
+    out << "[Init] Render model cache preload complete: loaded=" << summary.loaded
         << " failed=" << summary.failed << "\n";
     if (options.prewarmAnimRoles) {
         out << "[Init] Backend anim role prewarm complete: warmed="
@@ -150,4 +150,4 @@ Summary run(const std::vector<std::string>& modelPathsToPreload,
     return summary;
 }
 
-} // namespace game::runtime::backend_model_prewarm
+} // namespace game::runtime::render_model_prewarm

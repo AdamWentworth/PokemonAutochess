@@ -3,7 +3,7 @@
 #include "engine/core/Environment.h"
 #include "engine/render/SpriteTextureCardArt.h"
 #include "game/config/GameDataDb.h"
-#include "game/runtime/backend_ui/ImagePath.h"
+#include "game/runtime/ui/ImagePath.h"
 
 #include <algorithm>
 #include <chrono>
@@ -226,21 +226,21 @@ Summary run(const Options& options,
         const auto tArt1 = std::chrono::high_resolution_clock::now();
         const double cardArtMs =
             std::chrono::duration<double, std::milli>(tArt1 - tArt0).count();
-        out << "[Init] Backend card art prewarm complete: requested="
+        out << "[Init] UI card art prewarm complete: requested="
             << summary.cardArtRequested
             << " time=" << formatMs(cardArtMs) << "ms\n";
     }
 
     if (!uiSpritePrewarmPaths.empty() && backendCardUiWillPrewarm) {
-        if (callbacks.setTitle) callbacks.setTitle("PokemonAutochess - Loading backend card UI...");
+        if (callbacks.setTitle) callbacks.setTitle("PokemonAutochess - Loading UI cards...");
         if (callbacks.renderBootLoading) callbacks.renderBootLoading(0.985f);
-        out << "[Init] Backend card UI prewarm begin\n";
+        out << "[Init] UI card prewarm begin\n";
         const auto tCardUi0 = std::chrono::high_resolution_clock::now();
         callbacks.prewarmBackendCardUi(options.drawableW, options.drawableH, uiSpritePrewarmPaths);
         const auto tCardUi1 = std::chrono::high_resolution_clock::now();
         const double cardUiMs =
             std::chrono::duration<double, std::milli>(tCardUi1 - tCardUi0).count();
-        out << "[Init] Backend card UI prewarm complete: time="
+        out << "[Init] UI card prewarm complete: time="
             << formatMs(cardUiMs) << "ms\n";
         if (callbacks.renderBootLoading) callbacks.renderBootLoading(0.985f);
         if (!pumpPreloadEventsOrQuit(callbacks)) {

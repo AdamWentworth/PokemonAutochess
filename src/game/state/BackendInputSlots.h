@@ -1,6 +1,6 @@
 #pragma once
 
-#include "game/runtime/backend_ui/InputSlots.h"
+#include "game/runtime/ui/InputSlots.h"
 
 namespace game::state::backend_input {
 

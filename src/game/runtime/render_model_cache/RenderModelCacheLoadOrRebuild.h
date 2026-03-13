@@ -3,9 +3,9 @@
 #include <fstream>
 #include <string>
 
-#include "game/runtime/backend_model_cache/BackendModelCacheFormat.h"
+#include "game/runtime/render_model_cache/RenderModelCacheFormat.h"
 
-namespace game::runtime::backend_model::detail {
+namespace game::runtime::render_model::detail {
 
 using CachePathForModelFn = std::string (*)(const std::string&);
 using RebuildCacheFromSourceFn = bool (*)(const std::string&, std::string*);
@@ -17,4 +17,4 @@ bool openValidatedCacheStreamForModel(const std::string& modelPath,
                                       CacheHeader& outHeader,
                                       std::string* outError);
 
-} // namespace game::runtime::backend_model::detail
+} // namespace game::runtime::render_model::detail

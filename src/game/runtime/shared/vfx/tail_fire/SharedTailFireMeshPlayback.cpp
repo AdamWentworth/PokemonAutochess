@@ -1,6 +1,6 @@
 #include "game/runtime/shared/vfx/tail_fire/SharedTailFireMeshPlayback.h"
 
-#include "game/runtime/backend_model_cache/BackendModelCache.h"
+#include "game/runtime/render_model_cache/RenderModelCache.h"
 
 #include <algorithm>
 #include <array>
@@ -79,7 +79,7 @@ const std::array<FlipbookSpec, 3> kFlipbookSpecs{{
     },
 }};
 
-int selectFlipbookIndex(const backend_model::MeshData& mesh) {
+int selectFlipbookIndex(const render_model::MeshData& mesh) {
     for (const std::string& nodeName : mesh.nodeNames) {
         if (containsInsensitive(nodeName, "pm0006") ||
             containsInsensitive(nodeName, "charizard")) {
@@ -95,7 +95,7 @@ int selectFlipbookIndex(const backend_model::MeshData& mesh) {
     return kCharmanderFlipbookIndex;
 }
 
-glm::vec2 computeUvShift(const backend_model::MeshData& mesh, int flipbookIndex) {
+glm::vec2 computeUvShift(const render_model::MeshData& mesh, int flipbookIndex) {
     if (flipbookIndex != kCharizardFlipbookIndex || mesh.vertices.empty()) {
         return glm::vec2(0.0f, 0.0f);
     }
@@ -110,7 +110,7 @@ glm::vec2 computeUvShift(const backend_model::MeshData& mesh, int flipbookIndex)
     return glm::vec2(-std::floor(minU), -std::floor(minV));
 }
 
-Profile buildProfile(const backend_model::MeshData& mesh) {
+Profile buildProfile(const render_model::MeshData& mesh) {
     Profile out;
     const int flipbookIndex = selectFlipbookIndex(mesh);
     out.spec = kFlipbookSpecs[static_cast<std::size_t>(flipbookIndex)];
@@ -158,7 +158,7 @@ struct CachedProfile {
     Profile profile{};
 };
 
-thread_local std::unordered_map<const backend_model::MeshData*, CachedProfile> g_profiles;
+thread_local std::unordered_map<const render_model::MeshData*, CachedProfile> g_profiles;
 
 } // namespace
 
@@ -170,7 +170,7 @@ const std::array<FlipbookSpec, 3>& authoredFlipbookSpecs() {
     return kFlipbookSpecs;
 }
 
-const Profile& resolveProfile(const backend_model::MeshData& mesh) {
+const Profile& resolveProfile(const render_model::MeshData& mesh) {
     auto& cached = g_profiles[&mesh];
     if (cached.vertexCount == mesh.vertices.size() &&
         cached.nodeNameCount == mesh.nodeNames.size() &&

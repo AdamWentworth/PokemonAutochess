@@ -13,7 +13,7 @@ bool approx(float a, float b, float eps = 0.001f) {
 } // namespace
 
 bool test_render_prep_mesh_normals_contract(std::string& outFail) {
-    using game::runtime::backend_model::MeshVertex;
+    using game::runtime::render_model::MeshVertex;
     using game::runtime::render_prep_mesh::computeVertexNormals;
 
     {

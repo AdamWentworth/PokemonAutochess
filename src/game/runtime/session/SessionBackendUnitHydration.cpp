@@ -26,7 +26,7 @@ void hydrateUnit(PokemonInstance& unit,
         modelPath = "assets/models/" + stats->model;
         unit.backendModelPath = modelPath;
     }
-    game::runtime::backend_model::MeshData* mesh = ensureBackendMeshLoaded(modelPath);
+    game::runtime::render_model::MeshData* mesh = ensureBackendMeshLoaded(modelPath);
     if (!mesh) return;
 
     if (!unit.model) {
@@ -144,7 +144,7 @@ void hydrateUnit(PokemonInstance& unit,
 namespace game::runtime::session_backend_unit_hydration {
 
 BackendAnimRoleEntry& ensureBackendAnimRoles(const std::string& modelPath,
-                                             const game::runtime::backend_model::MeshData* mesh,
+                                             const game::runtime::render_model::MeshData* mesh,
                                              BackendAnimRoleCache& cache) {
     auto& entry = cache[modelPath];
     if (entry.attemptedResolve) return entry;

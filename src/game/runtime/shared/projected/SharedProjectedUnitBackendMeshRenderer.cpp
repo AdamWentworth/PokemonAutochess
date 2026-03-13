@@ -80,7 +80,7 @@ struct FastTexturedBatchTemplate {
 };
 
 struct FastTexturedMeshTemplateCache {
-    const game::runtime::backend_model::MeshData* mesh = nullptr;
+    const game::runtime::render_model::MeshData* mesh = nullptr;
     std::size_t meshVertexCount = 0u;
     std::size_t meshIndexCount = 0u;
     std::size_t baseBatchCount = 0u;
@@ -90,7 +90,7 @@ struct FastTexturedMeshTemplateCache {
 };
 
 thread_local std::unordered_map<
-    const game::runtime::backend_model::MeshData*,
+    const game::runtime::render_model::MeshData*,
     FastTexturedMeshTemplateCache> g_fastTexturedMeshTemplateCaches;
 thread_local std::vector<int> g_triNodeIndexByTriangleScratch;
 thread_local game::runtime::shared_projected_unit_backend_mesh_prep::PreparedState
@@ -99,7 +99,7 @@ thread_local game::runtime::shared_projected_unit_backend_mesh_prep::PreparedSta
 constexpr std::size_t kMaxGpuSkinMatrices = 64u;
 
 std::vector<int> buildSubmeshNodeFallback(
-    const game::runtime::backend_model::MeshData& mesh) {
+    const game::runtime::render_model::MeshData& mesh) {
     std::vector<int> submeshNodeFallback;
     if (mesh.submeshMeshIndex.empty()) return submeshNodeFallback;
     submeshNodeFallback.assign(mesh.submeshMeshIndex.size(), -1);
@@ -126,7 +126,7 @@ std::string makeIndexedGeometryCacheKey(const std::string& keyPrefix,
 }
 
 std::string makeIndexedBatchKeyPrefix(
-    const game::runtime::backend_model::MeshData& mesh) {
+    const game::runtime::render_model::MeshData& mesh) {
     return "__runtime_mesh__:" +
            std::to_string(static_cast<unsigned long long>(
                reinterpret_cast<std::uintptr_t>(&mesh)));
@@ -162,7 +162,7 @@ std::size_t resolveBatchBaseSubmeshIndex(
 
 bool applyTailFireMeshFlipbookOverride(
     const game::runtime::shared_projected_unit_backend_mesh::Args& args,
-    const game::runtime::backend_model::MeshData& mesh,
+    const game::runtime::render_model::MeshData& mesh,
     std::vector<game::runtime::shared_world_batches::WorldIndexedBatch>& batches) {
     if (!args.unit || !args.sharedTailFireAnchors) {
         return false;
@@ -314,7 +314,7 @@ struct GpuSkinBatchStateEntry {
 
 thread_local std::vector<GpuSkinBatchStateEntry> g_gpuSkinBatchStateEntries;
 
-int resolveDefaultSkinNodeIndex(const game::runtime::backend_model::MeshData* mesh) {
+int resolveDefaultSkinNodeIndex(const game::runtime::render_model::MeshData* mesh) {
     if (!mesh) return -1;
     int selectedSkin = -1;
     int selectedNode = -1;
@@ -334,7 +334,7 @@ int resolveDefaultSkinNodeIndex(const game::runtime::backend_model::MeshData* me
 }
 
 const FastTexturedMeshTemplateCache* ensureFastTexturedMeshTemplateCache(
-    const game::runtime::backend_model::MeshData* mesh,
+    const game::runtime::render_model::MeshData* mesh,
     const std::vector<int>& submeshNodeFallback,
     std::size_t baseBatchCount) {
     if (!mesh || baseBatchCount == 0u) return nullptr;
@@ -442,7 +442,7 @@ const FastTexturedMeshTemplateCache* ensureFastTexturedMeshTemplateCache(
             const std::uint32_t i0 = mesh->indices[i + 0u];
             const std::uint32_t i1 = mesh->indices[i + 1u];
             const std::uint32_t i2 = mesh->indices[i + 2u];
-            const auto appendWeightedJoints = [&](const game::runtime::backend_model::MeshVertex& v) {
+            const auto appendWeightedJoints = [&](const game::runtime::render_model::MeshVertex& v) {
                 const std::uint16_t joints[4] = {v.j0, v.j1, v.j2, v.j3};
                 const float weights[4] = {v.w0, v.w1, v.w2, v.w3};
                 for (int ji = 0; ji < 4; ++ji) {
@@ -653,7 +653,7 @@ namespace game::runtime::shared_projected_unit_backend_mesh {
 
 std::size_t prewarmProjectedUnitBackendMeshGeometryCache(
     IRenderBackend& renderer,
-    const runtime::backend_model::MeshData& mesh) {
+    const runtime::render_model::MeshData& mesh) {
     if (!renderer.supportsWorldIndexedMeshes()) return 0u;
     if (mesh.vertices.empty() || mesh.indices.size() < 3u) return 0u;
 
@@ -726,7 +726,7 @@ Result renderProjectedUnitBackendMesh(const Args& args) {
             return out;
         }
 
-        const runtime::backend_model::MeshData* mesh = prep.mesh;
+        const runtime::render_model::MeshData* mesh = prep.mesh;
         const std::size_t triangleCount = prep.triangleCount;
         const std::size_t effectiveUnitTriangleBudget = prep.effectiveUnitTriangleBudget;
         const bool useIndexedWorldModelPath = prep.useIndexedWorldModelPath;
@@ -1283,7 +1283,7 @@ Result renderProjectedUnitBackendMesh(const Args& args) {
                 const bool canReuseIndexedVertices =
                     fastBatchIndex < modelIndexedVertexRemap.size();
                 const auto appendFastVertex = [&](std::uint32_t src,
-                                                  const runtime::backend_model::MeshVertex& srcVertex)
+                                                  const runtime::render_model::MeshVertex& srcVertex)
                     -> std::uint32_t {
                     if (canReuseIndexedVertices &&
                         src < modelIndexedVertexRemap[fastBatchIndex].size()) {
@@ -1505,7 +1505,7 @@ Result renderProjectedUnitBackendMesh(const Args& args) {
             glm::vec3 baseColor1 = fallbackBase;
             glm::vec3 baseColor2 = fallbackBase;
             auto resolveVertexBase = [&](std::uint32_t vi,
-                                         const runtime::backend_model::MeshVertex& v) {
+                                         const runtime::render_model::MeshVertex& v) {
                 if (texturedSubmesh) {
                     // For textured glTF submeshes, preserve texture albedo.
                     // Use authored vertex color only when it exists in source.

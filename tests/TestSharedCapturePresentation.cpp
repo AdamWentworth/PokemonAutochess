@@ -11,7 +11,7 @@
 #include "game/GameWorld.h"
 #include "game/PokemonInstance.h"
 #include "game/config/GameDataDb.h"
-#include "game/runtime/backend_model_cache/BackendModelCache.h"
+#include "game/runtime/render_model_cache/RenderModelCache.h"
 #include "game/runtime/shared/capture/SharedCapturePresentation.h"
 
 namespace {
@@ -122,7 +122,7 @@ bool test_shared_capture_presentation_contract(std::string& outFail) {
     }
 
     {
-        game::runtime::backend_model::MeshData mesh;
+        game::runtime::render_model::MeshData mesh;
         if (!expect(findPokeballAnimIndex(mesh) == -1,
                     "findPokeballAnimIndex(mesh) should return -1 when no animations exist.",
                     outFail)) {

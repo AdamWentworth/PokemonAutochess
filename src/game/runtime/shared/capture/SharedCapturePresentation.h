@@ -12,7 +12,7 @@ class Model;
 class Camera3D;
 class ResourceManager;
 
-namespace game::runtime::backend_model {
+namespace game::runtime::render_model {
 struct MeshData;
 }
 
@@ -30,7 +30,7 @@ float ballClipTimeSec(const GameWorld::CaptureAttemptRenderSnapshot& snap, float
 glm::mat4 buildBallModelMatrix(const glm::vec3& pos, float yawDeg, float uniformScale);
 glm::mat4 buildBallModelMatrix(const GameWorld::CaptureAttemptRenderSnapshot& snap, float uniformScale);
 int findPokeballAnimIndex(const std::shared_ptr<Model>& model);
-int findPokeballAnimIndex(const backend_model::MeshData& mesh);
+int findPokeballAnimIndex(const render_model::MeshData& mesh);
 bool drawOpenGlSharedCapturePokeballModels(const GameWorld* gameWorld,
                                            ResourceManager* resources,
                                            const Camera3D* camera);

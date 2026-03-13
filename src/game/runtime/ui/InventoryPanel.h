@@ -1,7 +1,7 @@
 #pragma once
 
-#include "game/runtime/backend_ui/HudFormatting.h"
-#include "game/runtime/backend_ui/InventoryOverlay.h"
+#include "game/runtime/ui/HudFormatting.h"
+#include "game/runtime/ui/InventoryOverlay.h"
 
 #include <optional>
 #include <string>

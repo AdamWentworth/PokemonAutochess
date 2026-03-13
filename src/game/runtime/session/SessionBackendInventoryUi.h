@@ -6,7 +6,7 @@
 #include <vector>
 
 #include "engine/input/InputEvent.h"
-#include "game/runtime/backend_ui/InventoryPanel.h"
+#include "game/runtime/ui/InventoryPanel.h"
 
 namespace game::runtime::session_backend_inventory_ui {
 

@@ -3,7 +3,7 @@
 #include "engine/render/IRenderBackend.h"
 #include "game/PokemonInstance.h"
 #include "game/config/GameDataDb.h"
-#include "game/runtime/backend_model_cache/BackendModelCache.h"
+#include "game/runtime/render_model_cache/RenderModelCache.h"
 #include "game/runtime/render_prep/ProceduralPose.h"
 #include "game/runtime/shared/backend/SharedBackendPoseEval.h"
 #include "game/runtime/shared/backend/SharedBackendTextureCache.h"
@@ -35,7 +35,7 @@ struct Args {
     const GameDataDb* dataDb = nullptr;
     const PokemonInstance* unit = nullptr;
     const runtime::render_prep_pose::ProceduralPose* pose = nullptr;
-    const runtime::backend_model::MeshData* meshForUnit = nullptr;
+    const runtime::render_model::MeshData* meshForUnit = nullptr;
     const runtime::shared_backend_pose::PoseEval* scenePose = nullptr;
     bool scenePoseReady = false;
     bool enableClipSkinning = true;

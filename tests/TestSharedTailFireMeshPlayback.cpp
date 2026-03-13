@@ -4,7 +4,7 @@
 
 #include <glm/glm.hpp>
 
-#include "game/runtime/backend_model_cache/BackendModelCache.h"
+#include "game/runtime/render_model_cache/RenderModelCache.h"
 #include "game/runtime/shared/vfx/tail_fire/SharedTailFireMeshPlayback.h"
 
 namespace {
@@ -44,7 +44,7 @@ bool test_shared_tail_fire_mesh_playback_contract(std::string& outFail) {
         return false;
     }
 
-    game::runtime::backend_model::MeshData charizardMesh;
+    game::runtime::render_model::MeshData charizardMesh;
     charizardMesh.nodeNames = {"root", "PM0006_Charizard", "tail_fire_mesh"};
     charizardMesh.nodeMesh = {-1, 0, 1};
     charizardMesh.meshIndexToNode = {1, 2};
@@ -86,7 +86,7 @@ bool test_shared_tail_fire_mesh_playback_contract(std::string& outFail) {
         return false;
     }
 
-    game::runtime::backend_model::MeshData charmanderMesh;
+    game::runtime::render_model::MeshData charmanderMesh;
     charmanderMesh.nodeNames = {"root", "PM0004_Charmander"};
     charmanderMesh.nodeMesh = {-1, 0};
     charmanderMesh.meshIndexToNode = {1};

@@ -2,13 +2,13 @@
 #include <string>
 #include <vector>
 
-#include "game/runtime/startup/RuntimeBackendModelPrewarm.h"
+#include "game/runtime/startup/RuntimeRenderModelPrewarm.h"
 
-bool test_runtime_backend_model_prewarm_contract(std::string& outFail) {
-    using game::runtime::backend_model::MeshData;
-    using game::runtime::backend_model_prewarm::Callbacks;
-    using game::runtime::backend_model_prewarm::ModelLoadResult;
-    using game::runtime::backend_model_prewarm::Options;
+bool test_runtime_render_model_prewarm_contract(std::string& outFail) {
+    using game::runtime::render_model::MeshData;
+    using game::runtime::render_model_prewarm::Callbacks;
+    using game::runtime::render_model_prewarm::ModelLoadResult;
+    using game::runtime::render_model_prewarm::Options;
 
     {
         MeshData mesh;
@@ -22,7 +22,7 @@ bool test_runtime_backend_model_prewarm_contract(std::string& outFail) {
         int loadCalls = 0;
         std::ostringstream logs;
 
-        const auto summary = game::runtime::backend_model_prewarm::run(
+        const auto summary = game::runtime::render_model_prewarm::run(
             {"assets/models/a.glb", "assets/models/b.glb", "assets/models/c.glb"},
             Options{
                 .verboseModelCacheLog = false,
@@ -95,7 +95,7 @@ bool test_runtime_backend_model_prewarm_contract(std::string& outFail) {
         }
 
         const std::string logText = logs.str();
-        if (logText.find("Backend model cache preload complete: loaded=1 failed=1") == std::string::npos ||
+        if (logText.find("Render model cache preload complete: loaded=1 failed=1") == std::string::npos ||
             logText.find("Backend anim role prewarm complete: warmed=1") == std::string::npos ||
             logText.find("Backend model texture prewarm complete: materials=6") == std::string::npos ||
             logText.find("Backend model geometry prewarm complete: cached_batches=8") == std::string::npos ||
@@ -109,7 +109,7 @@ bool test_runtime_backend_model_prewarm_contract(std::string& outFail) {
         int requestQuitCalls = 0;
         int loadCalls = 0;
         std::ostringstream logs;
-        const auto summary = game::runtime::backend_model_prewarm::run(
+        const auto summary = game::runtime::render_model_prewarm::run(
             {"assets/models/a.glb", "assets/models/b.glb"},
             Options{},
             Callbacks{

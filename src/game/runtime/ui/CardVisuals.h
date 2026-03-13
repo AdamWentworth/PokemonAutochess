@@ -2,8 +2,8 @@
 
 #include "engine/render/IRenderBackend.h"
 #include "engine/render/SpriteTextureCardArt.h"
-#include "game/runtime/backend_ui/DebugText.h"
-#include "game/runtime/backend_ui/ImagePath.h"
+#include "game/runtime/ui/DebugText.h"
+#include "game/runtime/ui/ImagePath.h"
 
 #include <algorithm>
 #include <cstdint>

@@ -66,8 +66,8 @@ struct ScenePoseMeshCache {
     std::vector<std::vector<int>> affectedEvalOrderByClip;
 };
 
-const ScenePoseMeshCache& scenePoseMeshCacheFor(const backend_model::MeshData& mesh) {
-    static std::unordered_map<const backend_model::MeshData*, ScenePoseMeshCache> cache;
+const ScenePoseMeshCache& scenePoseMeshCacheFor(const render_model::MeshData& mesh) {
+    static std::unordered_map<const render_model::MeshData*, ScenePoseMeshCache> cache;
     const auto found = cache.find(&mesh);
     if (found != cache.end()) {
         return found->second;
@@ -185,8 +185,8 @@ const ScenePoseMeshCache& scenePoseMeshCacheFor(const backend_model::MeshData& m
     return inserted.first->second;
 }
 
-const std::vector<std::uint8_t>& rootMotionCarrierMaskForMesh(const backend_model::MeshData& mesh) {
-    static std::unordered_map<const backend_model::MeshData*, std::vector<std::uint8_t>> cache;
+const std::vector<std::uint8_t>& rootMotionCarrierMaskForMesh(const render_model::MeshData& mesh) {
+    static std::unordered_map<const render_model::MeshData*, std::vector<std::uint8_t>> cache;
     const auto found = cache.find(&mesh);
     if (found != cache.end()) {
         return found->second;
@@ -217,7 +217,7 @@ const std::vector<std::uint8_t>& rootMotionCarrierMaskForMesh(const backend_mode
     return inserted.first->second;
 }
 
-void buildGlobals(const backend_model::MeshData& mesh, PoseEval& eval, int animIndex) {
+void buildGlobals(const render_model::MeshData& mesh, PoseEval& eval, int animIndex) {
     const auto& meshCache = scenePoseMeshCacheFor(mesh);
     if (meshCache.defaultGlobalMatrices.size() != eval.nodeGlobals.size()) return;
     std::copy(meshCache.defaultGlobalMatrices.begin(),
@@ -247,7 +247,7 @@ void buildGlobals(const backend_model::MeshData& mesh, PoseEval& eval, int animI
     }
 }
 
-void applyClipPose(const backend_model::MeshData& mesh,
+void applyClipPose(const render_model::MeshData& mesh,
                   PoseEval& eval,
                   int animIndex,
                   float animTimeSec,
@@ -354,7 +354,7 @@ void applyClipPose(const backend_model::MeshData& mesh,
     eval.hasClipPose = true;
 }
 
-int resolveSceneAnimIndex(const backend_model::MeshData& mesh, const PokemonInstance& unit) {
+int resolveSceneAnimIndex(const render_model::MeshData& mesh, const PokemonInstance& unit) {
     int animIndex = unit.activeAnimIndex;
     if (animIndex < 0 || static_cast<std::size_t>(animIndex) >= mesh.animations.size()) {
         animIndex = unit.currentAttackAnimIndex;
@@ -371,7 +371,7 @@ int resolveSceneAnimIndex(const backend_model::MeshData& mesh, const PokemonInst
     return animIndex;
 }
 
-void resetPoseEvalForMesh(const backend_model::MeshData& mesh, PoseEval& eval) {
+void resetPoseEvalForMesh(const render_model::MeshData& mesh, PoseEval& eval) {
     eval.hasScenePose = true;
     eval.hasClipPose = false;
     const std::size_t nodeCount = mesh.nodesDefault.size();
@@ -387,7 +387,7 @@ void resetPoseEvalForMesh(const backend_model::MeshData& mesh, PoseEval& eval) {
 
 } // namespace
 
-void evaluateScenePose(const backend_model::MeshData& mesh,
+void evaluateScenePose(const render_model::MeshData& mesh,
                        const PokemonInstance& unit,
                        PoseEval& outPose) {
     const int animIndex = resolveSceneAnimIndex(mesh, unit);
@@ -399,13 +399,13 @@ void evaluateScenePose(const backend_model::MeshData& mesh,
         outPose);
 }
 
-PoseEval evaluateScenePose(const backend_model::MeshData& mesh, const PokemonInstance& unit) {
+PoseEval evaluateScenePose(const render_model::MeshData& mesh, const PokemonInstance& unit) {
     PoseEval eval;
     evaluateScenePose(mesh, unit, eval);
     return eval;
 }
 
-void evaluateScenePoseForResolvedClipTime(const backend_model::MeshData& mesh,
+void evaluateScenePoseForResolvedClipTime(const render_model::MeshData& mesh,
                                           int animIndex,
                                           float animTimeSec,
                                           bool preserveRootMotionCarrierXZ,
@@ -423,7 +423,7 @@ void evaluateScenePoseForResolvedClipTime(const backend_model::MeshData& mesh,
     buildGlobals(mesh, outPose, animIndex);
 }
 
-PoseEval evaluateScenePoseForResolvedClipTime(const backend_model::MeshData& mesh,
+PoseEval evaluateScenePoseForResolvedClipTime(const render_model::MeshData& mesh,
                                               int animIndex,
                                               float animTimeSec,
                                               bool preserveRootMotionCarrierXZ) {
@@ -437,7 +437,7 @@ PoseEval evaluateScenePoseForResolvedClipTime(const backend_model::MeshData& mes
     return eval;
 }
 
-void evaluateScenePoseForClipTime(const backend_model::MeshData& mesh,
+void evaluateScenePoseForClipTime(const render_model::MeshData& mesh,
                                   int animIndex,
                                   float animTimeSec,
                                   PoseEval& outPose) {
@@ -449,7 +449,7 @@ void evaluateScenePoseForClipTime(const backend_model::MeshData& mesh,
         outPose);
 }
 
-PoseEval evaluateScenePoseForClipTime(const backend_model::MeshData& mesh,
+PoseEval evaluateScenePoseForClipTime(const render_model::MeshData& mesh,
                                       int animIndex,
                                       float animTimeSec) {
     return evaluateScenePoseForResolvedClipTime(

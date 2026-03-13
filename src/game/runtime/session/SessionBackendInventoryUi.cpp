@@ -1,7 +1,7 @@
 #include "game/runtime/session/SessionBackendInventoryUi.h"
 
-#include "game/runtime/backend_ui/HudFormatting.h"
-#include "game/runtime/backend_ui/InputSlots.h"
+#include "game/runtime/ui/HudFormatting.h"
+#include "game/runtime/ui/InputSlots.h"
 
 namespace game::runtime::session_backend_inventory_ui {
 

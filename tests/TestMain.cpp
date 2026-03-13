@@ -33,7 +33,7 @@ bool test_ui_image_path_contract(std::string& outFail);
 bool test_render_prep_material_shading_contract(std::string& outFail);
 bool test_render_prep_mesh_normals_contract(std::string& outFail);
 bool test_render_prep_procedural_pose_contract(std::string& outFail);
-bool test_backend_model_cache_contract(std::string& outFail);
+bool test_render_model_cache_contract(std::string& outFail);
 bool test_render_prep_world_projection_contract(std::string& outFail);
 bool test_render_prep_world_proxy_geometry_contract(std::string& outFail);
 bool test_render_prep_unit_visuals_contract(std::string& outFail);
@@ -56,8 +56,8 @@ bool test_sell_overlay_ui_policy_contract(std::string& outFail);
 bool test_video_init_gl_viewport_guard(std::string& outFail);
 bool test_video_preferences_parse_and_roundtrip(std::string& outFail);
 bool test_runtime_boot_loading_contract(std::string& outFail);
-bool test_runtime_backend_model_prewarm_contract(std::string& outFail);
-bool test_runtime_backend_card_ui_prewarm_contract(std::string& outFail);
+bool test_runtime_render_model_prewarm_contract(std::string& outFail);
+bool test_runtime_ui_card_prewarm_contract(std::string& outFail);
 bool test_runtime_startup_asset_prewarm_contract(std::string& outFail);
 bool test_runtime_fixed_step_phase_contract(std::string& outFail);
 bool test_runtime_frame_observation_contract(std::string& outFail);
@@ -229,7 +229,7 @@ int main(int argc, char** argv) {
         {"render_prep_material_shading_contract", &test_render_prep_material_shading_contract},
         {"render_prep_mesh_normals_contract", &test_render_prep_mesh_normals_contract},
         {"render_prep_procedural_pose_contract", &test_render_prep_procedural_pose_contract},
-        {"backend_model_cache_contract", &test_backend_model_cache_contract},
+        {"render_model_cache_contract", &test_render_model_cache_contract},
         {"render_prep_world_projection_contract", &test_render_prep_world_projection_contract},
         {"render_prep_world_proxy_geometry_contract", &test_render_prep_world_proxy_geometry_contract},
         {"render_prep_unit_visuals_contract", &test_render_prep_unit_visuals_contract},
@@ -252,8 +252,8 @@ int main(int argc, char** argv) {
         {"video_init_gl_viewport_guard", &test_video_init_gl_viewport_guard},
         {"video_preferences_parse_and_roundtrip", &test_video_preferences_parse_and_roundtrip},
         {"runtime_boot_loading_contract", &test_runtime_boot_loading_contract},
-        {"runtime_backend_model_prewarm_contract", &test_runtime_backend_model_prewarm_contract},
-        {"runtime_backend_card_ui_prewarm_contract", &test_runtime_backend_card_ui_prewarm_contract},
+        {"runtime_render_model_prewarm_contract", &test_runtime_render_model_prewarm_contract},
+        {"runtime_ui_card_prewarm_contract", &test_runtime_ui_card_prewarm_contract},
         {"runtime_startup_asset_prewarm_contract", &test_runtime_startup_asset_prewarm_contract},
         {"runtime_fixed_step_phase_contract", &test_runtime_fixed_step_phase_contract},
         {"runtime_frame_observation_contract", &test_runtime_frame_observation_contract},

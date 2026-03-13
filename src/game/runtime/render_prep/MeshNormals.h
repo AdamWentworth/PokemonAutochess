@@ -1,6 +1,6 @@
 #pragma once
 
-#include "game/runtime/backend_model_cache/BackendModelCache.h"
+#include "game/runtime/render_model_cache/RenderModelCache.h"
 
 #include <algorithm>
 #include <cstddef>
@@ -10,7 +10,7 @@
 
 namespace game::runtime::render_prep_mesh {
 
-inline void computeVertexNormals(std::vector<backend_model::MeshVertex>& vertices,
+inline void computeVertexNormals(std::vector<render_model::MeshVertex>& vertices,
                                  const std::vector<std::uint32_t>& indices) {
     if (vertices.empty()) return;
 

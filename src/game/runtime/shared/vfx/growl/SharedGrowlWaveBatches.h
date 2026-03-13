@@ -4,7 +4,7 @@
 
 #include <glm/glm.hpp>
 
-#include "game/runtime/backend_model_cache/BackendModelCache.h"
+#include "game/runtime/render_model_cache/RenderModelCache.h"
 #include "game/runtime/shared/vfx/growl/SharedGrowlVfxHelpers.h"
 #include "game/runtime/shared/world/SharedWorldIndexedBatches.h"
 #include "game/vfx/GrowlWaveVFX.h"
@@ -21,7 +21,7 @@ bool appendPassBatch(std::vector<shared_world_batches::WorldIndexedBatch>& outBa
                      const GrowlWaveVFX::RenderSnapshot& snapshot,
                      const GrowlWaveVFX::Config::DrawPass& pass,
                      const shared_growl::TevState& passTev,
-                     const backend_model::MeshData* passMesh,
+                     const render_model::MeshData* passMesh,
                      const TextureView& texture,
                      const glm::vec3& cameraWorldPos);
 

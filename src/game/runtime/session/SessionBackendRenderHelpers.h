@@ -4,7 +4,7 @@
 #include <vector>
 
 #include "engine/render/ModelAnimationTypes.h"
-#include "game/runtime/backend_model_cache/BackendModelCache.h"
+#include "game/runtime/render_model_cache/RenderModelCache.h"
 
 class IRenderBackend;
 
@@ -21,6 +21,6 @@ int findBackendAnimIndexBySubstring(const std::vector<pac_model_types::Animation
 
 std::size_t prewarmBackendWorldTexturesForMesh(
     IRenderBackend* renderer,
-    const game::runtime::backend_model::MeshData* mesh);
+    const game::runtime::render_model::MeshData* mesh);
 
 } // namespace game::runtime::session_backend_render_helpers

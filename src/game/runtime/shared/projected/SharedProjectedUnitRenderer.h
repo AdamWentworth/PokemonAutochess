@@ -3,7 +3,7 @@
 #include "engine/render/IRenderBackend.h"
 #include "game/PokemonInstance.h"
 #include "game/config/GameDataDb.h"
-#include "game/runtime/backend_model_cache/BackendModelCache.h"
+#include "game/runtime/render_model_cache/RenderModelCache.h"
 #include "game/runtime/shared/backend/SharedBackendPoseEval.h"
 #include "game/runtime/shared/backend/SharedBackendTextureCache.h"
 #include "game/runtime/shared/capture/SharedCapturePresentation.h"
@@ -75,7 +75,7 @@ struct Args {
     std::uint32_t* visibleAnimatedUnitCount = nullptr;
     const shared_unit_hud::Config* sharedUnitHudCfg = nullptr;
 
-    std::function<const runtime::backend_model::MeshData*(const PokemonInstance&)> resolveModelMesh;
+    std::function<const runtime::render_model::MeshData*(const PokemonInstance&)> resolveModelMesh;
     std::function<SharedBackendTextureCacheEntry*(const std::string&, bool)> ensureBackendTextureLoaded;
     std::function<std::size_t()> backendModelTriangleLimit;
     std::function<bool()> backendModelFullMeshEnabled;

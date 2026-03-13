@@ -1,4 +1,4 @@
-#include "game/runtime/backend_ui/InventoryPanel.h"
+#include "game/runtime/ui/InventoryPanel.h"
 
 #include <string>
 #include <vector>

@@ -261,8 +261,8 @@ add_library(PAC_GameObjects STATIC
     src/game/runtime/GamePreload.cpp
     src/game/runtime/GameRuntime.cpp
     src/game/runtime/GameBootstrap.cpp
-    src/game/runtime/startup/RuntimeBackendModelPrewarm.cpp
-    src/game/runtime/startup/RuntimeBackendCardUiPrewarm.cpp
+    src/game/runtime/startup/RuntimeRenderModelPrewarm.cpp
+    src/game/runtime/startup/RuntimeUiCardPrewarm.cpp
     src/game/runtime/startup/RuntimeStartupAssetPrewarm.cpp
     src/game/runtime/RuntimeBootLoading.cpp
     src/game/runtime/renderer/RendererBackendBootstrap.cpp
@@ -333,12 +333,12 @@ add_library(PAC_GameObjects STATIC
     src/game/runtime/video/VideoPreferences.cpp
     src/game/runtime/video/GpuAdapters.cpp
     src/game/runtime/d3d12/D3D12Probe.cpp
-    src/game/runtime/backend_model_cache/BackendModelCache.cpp
-    src/game/runtime/backend_model_cache/BackendModelCacheReadDecode.cpp
-    src/game/runtime/backend_model_cache/BackendModelCacheReadScene.cpp
-    src/game/runtime/backend_model_cache/BackendModelCacheLoadOrRebuild.cpp
-    src/game/runtime/backend_model_cache/BackendModelCacheWrite.cpp
-    src/game/runtime/backend_model_cache/BackendModelCacheSourceBuild.cpp
+    src/game/runtime/render_model_cache/RenderModelCache.cpp
+    src/game/runtime/render_model_cache/RenderModelCacheReadDecode.cpp
+    src/game/runtime/render_model_cache/RenderModelCacheReadScene.cpp
+    src/game/runtime/render_model_cache/RenderModelCacheLoadOrRebuild.cpp
+    src/game/runtime/render_model_cache/RenderModelCacheWrite.cpp
+    src/game/runtime/render_model_cache/RenderModelCacheSourceBuild.cpp
 
     # Game Config
     src/game/config/PokemonConfigLoader.cpp
@@ -466,7 +466,7 @@ if (BUILD_TESTING)
         tests/TestRenderPrepMaterialShading.cpp
         tests/TestRenderPrepMeshNormals.cpp
         tests/TestRenderPrepProceduralPose.cpp
-        tests/TestBackendModelCache.cpp
+        tests/TestRenderModelCache.cpp
         tests/TestRenderPrepWorldProjection.cpp
         tests/TestRenderPrepWorldProxyGeometry.cpp
         tests/TestRenderPrepUnitVisuals.cpp
@@ -493,8 +493,8 @@ if (BUILD_TESTING)
         tests/TestDebugGeometry.cpp
         tests/TestVideoInitGuards.cpp
         tests/TestVideoPreferences.cpp
-        tests/TestRuntimeBackendModelPrewarm.cpp
-        tests/TestRuntimeBackendCardUiPrewarm.cpp
+        tests/TestRuntimeRenderModelPrewarm.cpp
+        tests/TestRuntimeUiCardPrewarm.cpp
         tests/TestRuntimeStartupAssetPrewarm.cpp
         tests/TestRuntimeBootLoading.cpp
         tests/TestRuntimeFixedStepPhase.cpp

@@ -1,7 +1,7 @@
-#include "game/runtime/backend_model_cache/BackendModelCacheWrite.h"
+#include "game/runtime/render_model_cache/RenderModelCacheWrite.h"
 
-#include "game/runtime/backend_model_cache/BackendModelCache.h"
-#include "game/runtime/backend_model_cache/BackendModelCacheFormat.h"
+#include "game/runtime/render_model_cache/RenderModelCache.h"
+#include "game/runtime/render_model_cache/RenderModelCacheFormat.h"
 
 #include <filesystem>
 #include <fstream>
@@ -11,8 +11,8 @@
 namespace {
 namespace fs = std::filesystem;
 
-using game::runtime::backend_model::detail::CacheHeader;
-using game::runtime::backend_model::detail::CacheTextureHeader;
+using game::runtime::render_model::detail::CacheHeader;
+using game::runtime::render_model::detail::CacheTextureHeader;
 
 template <typename T>
 bool writePod(std::ostream& out, const T& value) {
@@ -63,11 +63,11 @@ bool sourceMetadataForModel(const std::string& modelPath,
 
 } // namespace
 
-namespace game::runtime::backend_model::detail {
+namespace game::runtime::render_model::detail {
 
-bool writeBackendCacheFromSourceData(const std::string& filepath,
-                                     const SourceCacheBuildData& data,
-                                     std::string* outError) {
+bool writeRenderCacheFromSourceData(const std::string& filepath,
+                                    const SourceCacheBuildData& data,
+                                    std::string* outError) {
     if (data.submeshes.size() > std::numeric_limits<std::uint32_t>::max()) {
         if (outError) *outError = "too many submeshes for cache";
         return false;
@@ -297,4 +297,4 @@ bool writeBackendCacheFromSourceData(const std::string& filepath,
     return true;
 }
 
-} // namespace game::runtime::backend_model::detail
+} // namespace game::runtime::render_model::detail

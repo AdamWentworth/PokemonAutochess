@@ -19,7 +19,7 @@ Result tryAppend(
     const float* worldViewProj,
     int drawableW,
     int drawableH,
-    const runtime::backend_model::MeshData& mesh,
+    const runtime::render_model::MeshData& mesh,
     const std::vector<GameWorld::CaptureAttemptRenderSnapshot>& captureSnaps,
     bool d3d12CapturePrewarmRequested,
     bool treatPokeballAsUntextured,
@@ -42,7 +42,7 @@ Result tryAppend(
         std::string geomKey;
     };
     struct D3d12CaptureFastCache {
-        const runtime::backend_model::MeshData* sourceMesh = nullptr;
+        const runtime::render_model::MeshData* sourceMesh = nullptr;
         std::size_t sourceVertexCount = 0u;
         std::size_t sourceIndexCount = 0u;
         std::vector<D3d12CaptureSubmeshCache> submeshes;

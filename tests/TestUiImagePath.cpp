@@ -1,4 +1,4 @@
-#include "game/runtime/backend_ui/ImagePath.h"
+#include "game/runtime/ui/ImagePath.h"
 
 #include <string>
 

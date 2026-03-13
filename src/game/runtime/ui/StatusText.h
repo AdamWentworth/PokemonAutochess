@@ -1,7 +1,7 @@
 #pragma once
 
 #include "game/PhaseState.h"
-#include "game/runtime/backend_ui/HudFormatting.h"
+#include "game/runtime/ui/HudFormatting.h"
 
 #include <algorithm>
 #include <string>

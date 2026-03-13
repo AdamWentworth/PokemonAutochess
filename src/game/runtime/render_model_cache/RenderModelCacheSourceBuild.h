@@ -10,7 +10,7 @@
 #include "engine/render/ModelAnimationTypes.h"
 #include "engine/render/ModelMeshTypes.h"
 
-namespace game::runtime::backend_model::detail {
+namespace game::runtime::render_model::detail {
 
 struct SourceSubmeshRecord {
     std::size_t indexOffset = 0u;
@@ -46,8 +46,8 @@ struct SourceCacheBuildData {
     std::vector<SourceSubmeshRecord> submeshes;
 };
 
-bool buildBackendCacheSourceData(const std::string& filepath,
-                                 SourceCacheBuildData& outData,
-                                 std::string* outError);
+bool buildRenderCacheSourceData(const std::string& filepath,
+                                SourceCacheBuildData& outData,
+                                std::string* outError);
 
-} // namespace game::runtime::backend_model::detail
+} // namespace game::runtime::render_model::detail

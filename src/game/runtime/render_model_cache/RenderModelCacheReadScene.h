@@ -3,15 +3,15 @@
 #include <iosfwd>
 #include <string>
 
-#include "game/runtime/backend_model_cache/BackendModelCache.h"
-#include "game/runtime/backend_model_cache/BackendModelCacheFormat.h"
+#include "game/runtime/render_model_cache/RenderModelCache.h"
+#include "game/runtime/render_model_cache/RenderModelCacheFormat.h"
 
-namespace game::runtime::backend_model::detail {
+namespace game::runtime::render_model::detail {
 
 bool readSceneFromValidatedCacheStream(std::istream& in,
                                        const CacheHeader& hdr,
                                        MeshData& out,
                                        std::string* outError);
 
-} // namespace game::runtime::backend_model::detail
+} // namespace game::runtime::render_model::detail
 

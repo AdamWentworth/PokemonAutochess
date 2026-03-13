@@ -1,4 +1,4 @@
-#include "game/runtime/backend_ui/InventoryOverlay.h"
+#include "game/runtime/ui/InventoryOverlay.h"
 
 #include <string>
 #include <vector>

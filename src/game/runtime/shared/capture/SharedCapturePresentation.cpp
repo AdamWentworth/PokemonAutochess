@@ -7,7 +7,7 @@
 #include "engine/render/Camera3D.h"
 #include "engine/render/Model.h"
 #include "engine/utils/ResourceManager.h"
-#include "game/runtime/backend_model_cache/BackendModelCache.h"
+#include "game/runtime/render_model_cache/RenderModelCache.h"
 
 namespace game::runtime::shared_capture {
 
@@ -89,7 +89,7 @@ int findPokeballAnimIndex(const std::shared_ptr<Model>& model) {
     return animIndex;
 }
 
-int findPokeballAnimIndex(const backend_model::MeshData& mesh) {
+int findPokeballAnimIndex(const render_model::MeshData& mesh) {
     if (mesh.animations.empty()) return -1;
     for (std::size_t ai = 0; ai < mesh.animations.size(); ++ai) {
         if (mesh.animations[ai].name == "Hinge_TopAction") return static_cast<int>(ai);

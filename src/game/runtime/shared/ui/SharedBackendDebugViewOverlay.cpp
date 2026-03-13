@@ -7,10 +7,10 @@
 #include "game/GameWorld.h"
 #include "game/PhaseState.h"
 #include "game/logging/LogBus.h"
-#include "game/runtime/backend_ui/DebugText.h"
-#include "game/runtime/backend_ui/HudFormatting.h"
-#include "game/runtime/backend_ui/InventoryOverlay.h"
-#include "game/runtime/backend_ui/StatusText.h"
+#include "game/runtime/ui/DebugText.h"
+#include "game/runtime/ui/HudFormatting.h"
+#include "game/runtime/ui/InventoryOverlay.h"
+#include "game/runtime/ui/StatusText.h"
 #include "game/runtime/shared/capture/SharedCapturePresentation.h"
 
 #include <algorithm>

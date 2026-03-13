@@ -1,7 +1,7 @@
 #pragma once
 
 #include "engine/render/IRenderBackend.h"
-#include "game/runtime/backend_model_cache/BackendModelCache.h"
+#include "game/runtime/render_model_cache/RenderModelCache.h"
 
 #include <cstddef>
 #include <cstdint>
@@ -40,7 +40,7 @@ struct PreparedCaptureSubmesh {
 };
 
 struct PreparedCaptureMeshCache {
-    const runtime::backend_model::MeshData* sourceMesh = nullptr;
+    const runtime::render_model::MeshData* sourceMesh = nullptr;
     std::size_t sourceVertexCount = 0u;
     std::size_t sourceIndexCount = 0u;
     std::vector<glm::mat4> bindNodeGlobalInv;
@@ -59,7 +59,7 @@ struct PrepareResult {
 };
 
 PrepareResult preparePokeballCaptureMeshCache(
-    const runtime::backend_model::MeshData& mesh,
+    const runtime::render_model::MeshData& mesh,
     bool captureSnapsEmpty,
     bool d3d12CapturePrewarmRequested,
     bool treatPokeballAsUntextured,

@@ -1,4 +1,4 @@
-#include "game/runtime/backend_model_cache/BackendModelCacheReadScene.h"
+#include "game/runtime/render_model_cache/RenderModelCacheReadScene.h"
 
 #include <istream>
 #include <vector>
@@ -220,7 +220,7 @@ bool readSceneData(std::istream& in,
 
 } // namespace
 
-namespace game::runtime::backend_model::detail {
+namespace game::runtime::render_model::detail {
 
 bool readSceneFromValidatedCacheStream(std::istream& in,
                                        const CacheHeader& hdr,
@@ -255,5 +255,5 @@ bool readSceneFromValidatedCacheStream(std::istream& in,
     return true;
 }
 
-} // namespace game::runtime::backend_model::detail
+} // namespace game::runtime::render_model::detail
 

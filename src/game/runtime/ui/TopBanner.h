@@ -1,7 +1,7 @@
 #pragma once
 
 #include "engine/render/IRenderBackend.h"
-#include "game/runtime/backend_ui/DebugText.h"
+#include "game/runtime/ui/DebugText.h"
 
 #include <algorithm>
 #include <cmath>

@@ -11,7 +11,7 @@
 namespace {
 
 std::string buildRuntimeMeshTextureKeyPrefix(
-    const game::runtime::backend_model::MeshData* mesh) {
+    const game::runtime::render_model::MeshData* mesh) {
     if (!mesh) return "__runtime_mesh__";
     return "__runtime_mesh__:" +
            std::to_string(static_cast<unsigned long long>(
@@ -133,7 +133,7 @@ int findBackendAnimIndexBySubstring(const std::vector<pac_model_types::Animation
 
 std::size_t prewarmBackendWorldTexturesForMesh(
     IRenderBackend* renderer,
-    const game::runtime::backend_model::MeshData* mesh) {
+    const game::runtime::render_model::MeshData* mesh) {
     if (!renderer || !mesh) return 0u;
 
     const std::size_t batchCount = (std::max)(

@@ -1,6 +1,6 @@
 #include "game/runtime/shared/ui/SharedUnitHudBatches.h"
 
-#include "game/runtime/backend_ui/DebugText.h"
+#include "game/runtime/ui/DebugText.h"
 
 #include <algorithm>
 #include <cmath>

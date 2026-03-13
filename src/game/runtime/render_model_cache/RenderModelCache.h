@@ -7,7 +7,7 @@
 #include <glm/glm.hpp>
 #include "engine/render/ModelAnimationTypes.h"
 
-namespace game::runtime::backend_model {
+namespace game::runtime::render_model {
 
 struct MeshVertex {
     glm::vec3 position{0.0f};
@@ -89,4 +89,4 @@ struct MeshData {
 std::string cachePathForModel(const std::string& modelPath);
 bool loadMeshFromCache(const std::string& modelPath, MeshData& out, std::string* outError = nullptr);
 
-} // namespace game::runtime::backend_model
+} // namespace game::runtime::render_model

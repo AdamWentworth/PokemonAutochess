@@ -3,7 +3,7 @@
 #include "engine/render/IRenderBackend.h"
 #include "game/PokemonInstance.h"
 #include "game/config/GameDataDb.h"
-#include "game/runtime/backend_model_cache/BackendModelCache.h"
+#include "game/runtime/render_model_cache/RenderModelCache.h"
 #include "game/runtime/shared/backend/SharedBackendTextureCache.h"
 #include "game/runtime/shared/world/SharedBoardGridBatches.h"
 #include "game/runtime/shared/capture/SharedCaptureModelBridge.h"
@@ -70,10 +70,10 @@ void appendBoardAndBench(const shared_board_grid::Config& cfg,
 
 const TailFireVFX::Config& getTailFireFallbackCfg();
 
-const runtime::backend_model::MeshData* resolveModelMesh(
+const runtime::render_model::MeshData* resolveModelMesh(
     const PokemonInstance& unit,
     const ::GameDataDb& dataDb,
-    const std::function<runtime::backend_model::MeshData*(const std::string&)>& ensureBackendMeshLoaded);
+    const std::function<runtime::render_model::MeshData*(const std::string&)>& ensureBackendMeshLoaded);
 
 struct GrowlWaveVfxArgs {
     bool useLegacyGrowlWaveVfx = false;
@@ -83,7 +83,7 @@ struct GrowlWaveVfxArgs {
     glm::vec3 cameraWorldPos{0.0f};
     std::unordered_map<std::string, SharedBackendTextureCacheEntry>* backendTextureByPath = nullptr;
     std::vector<shared_world_batches::WorldIndexedBatch>* worldIndexedBatches = nullptr;
-    std::function<runtime::backend_model::MeshData*(const std::string&)> ensureBackendMeshLoaded;
+    std::function<runtime::render_model::MeshData*(const std::string&)> ensureBackendMeshLoaded;
     std::function<SharedBackendTextureCacheEntry*(const std::string&, bool)> ensureBackendTextureLoaded;
 };
 
@@ -97,7 +97,7 @@ void appendSharedGrowlWaveVfxSession(
     const glm::vec3& cameraWorldPos,
     std::unordered_map<std::string, SharedBackendTextureCacheEntry>& backendTextureByPath,
     std::vector<shared_world_batches::WorldIndexedBatch>& worldIndexedBatches,
-    const std::function<runtime::backend_model::MeshData*(const std::string&)>& ensureBackendMeshLoaded,
+    const std::function<runtime::render_model::MeshData*(const std::string&)>& ensureBackendMeshLoaded,
     const std::function<SharedBackendTextureCacheEntry*(const std::string&, bool)>& ensureBackendTextureLoaded);
 
 struct ParticleVfxArgs {
@@ -162,7 +162,7 @@ void appendSharedProjectedVfxBridgesSession(
     std::unordered_map<std::string, SharedBackendTextureCacheEntry>& backendTextureByPath,
     std::vector<shared_world_batches::WorldIndexedBatch>& worldIndexedBatches,
     shared_projected_debug::ProjectedDebugVfxBuilder& projectedDebug,
-    const std::function<runtime::backend_model::MeshData*(const std::string&)>& ensureBackendMeshLoaded,
+    const std::function<runtime::render_model::MeshData*(const std::string&)>& ensureBackendMeshLoaded,
     const std::function<SharedBackendTextureCacheEntry*(const std::string&, bool)>& ensureBackendTextureLoaded);
 
 runtime::shared_capture::SnapshotCache makeSharedCaptureSnapshotCache(std::size_t reserveCount = 8u);
@@ -180,7 +180,7 @@ struct CaptureModelBridgeArgs {
     IRenderBackend* renderer = nullptr;
     std::vector<shared_world_batches::WorldIndexedBatch>* worldIndexedBatches = nullptr;
     std::unordered_map<std::string, SharedBackendTextureCacheEntry>* backendTextureByPath = nullptr;
-    std::function<runtime::backend_model::MeshData*(const std::string&)> ensureBackendMeshLoaded;
+    std::function<runtime::render_model::MeshData*(const std::string&)> ensureBackendMeshLoaded;
     std::function<SharedBackendTextureCacheEntry*(const std::string&)> ensureBackendTextureLoaded;
 };
 
@@ -199,7 +199,7 @@ bool appendSharedCaptureAttemptModelsSession(
     IRenderBackend* renderer,
     std::vector<shared_world_batches::WorldIndexedBatch>& worldIndexedBatches,
     std::unordered_map<std::string, SharedBackendTextureCacheEntry>& backendTextureByPath,
-    const std::function<runtime::backend_model::MeshData*(const std::string&)>& ensureBackendMeshLoaded,
+    const std::function<runtime::render_model::MeshData*(const std::string&)>& ensureBackendMeshLoaded,
     const std::function<SharedBackendTextureCacheEntry*(const std::string&)>& ensureBackendTextureLoaded);
 
 bool appendSharedCaptureAttemptModelsIfNeededForProjectedWorld(
@@ -215,7 +215,7 @@ bool appendSharedCaptureAttemptModelsIfNeededForProjectedWorld(
     runtime::shared_capture::SnapshotCache& sharedCaptureAttemptCache,
     std::vector<shared_world_batches::WorldIndexedBatch>& worldIndexedBatches,
     std::unordered_map<std::string, SharedBackendTextureCacheEntry>& backendTextureByPath,
-    const std::function<runtime::backend_model::MeshData*(const std::string&)>& ensureBackendMeshLoaded,
+    const std::function<runtime::render_model::MeshData*(const std::string&)>& ensureBackendMeshLoaded,
     const std::function<SharedBackendTextureCacheEntry*(const std::string&)>& ensureBackendTextureLoaded);
 
 } // namespace game::runtime::shared_projected_scene

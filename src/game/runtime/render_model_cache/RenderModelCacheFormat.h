@@ -2,7 +2,7 @@
 
 #include <cstdint>
 
-namespace game::runtime::backend_model::detail {
+namespace game::runtime::render_model::detail {
 
 inline constexpr std::uint64_t kModelCacheMagic = 0x4C444D434150554FULL;
 inline constexpr std::uint32_t kModelCacheVersion = 9;
@@ -33,4 +33,4 @@ struct CacheTextureHeader {
     std::uint32_t bytes = 0;
 };
 
-} // namespace game::runtime::backend_model::detail
+} // namespace game::runtime::render_model::detail

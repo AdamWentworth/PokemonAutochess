@@ -1,9 +1,9 @@
-#include "game/runtime/backend_model_cache/BackendModelCache.h"
-#include "game/runtime/backend_model_cache/BackendModelCacheFormat.h"
-#include "game/runtime/backend_model_cache/BackendModelCacheLoadOrRebuild.h"
-#include "game/runtime/backend_model_cache/BackendModelCacheReadDecode.h"
-#include "game/runtime/backend_model_cache/BackendModelCacheSourceBuild.h"
-#include "game/runtime/backend_model_cache/BackendModelCacheWrite.h"
+#include "game/runtime/render_model_cache/RenderModelCache.h"
+#include "game/runtime/render_model_cache/RenderModelCacheFormat.h"
+#include "game/runtime/render_model_cache/RenderModelCacheLoadOrRebuild.h"
+#include "game/runtime/render_model_cache/RenderModelCacheReadDecode.h"
+#include "game/runtime/render_model_cache/RenderModelCacheSourceBuild.h"
+#include "game/runtime/render_model_cache/RenderModelCacheWrite.h"
 
 #include <filesystem>
 #include <fstream>
@@ -32,13 +32,13 @@ std::string hexHash64(std::uint64_t v) {
 }
 
 bool rebuildCacheFromSource(const std::string& modelPath, std::string* outError) {
-    game::runtime::backend_model::detail::SourceCacheBuildData data;
+    game::runtime::render_model::detail::SourceCacheBuildData data;
     std::string err;
-    if (!game::runtime::backend_model::detail::buildBackendCacheSourceData(modelPath, data, &err)) {
+    if (!game::runtime::render_model::detail::buildRenderCacheSourceData(modelPath, data, &err)) {
         if (outError) *outError = err;
         return false;
     }
-    if (!game::runtime::backend_model::detail::writeBackendCacheFromSourceData(modelPath, data, &err)) {
+    if (!game::runtime::render_model::detail::writeRenderCacheFromSourceData(modelPath, data, &err)) {
         if (outError) *outError = err;
         return false;
     }
@@ -47,7 +47,7 @@ bool rebuildCacheFromSource(const std::string& modelPath, std::string* outError)
 
 } // namespace
 
-namespace game::runtime::backend_model {
+namespace game::runtime::render_model {
 
 std::string cachePathForModel(const std::string& modelPath) {
     const fs::path out = fs::path("cache") / "models" / (hexHash64(fnv1a64(modelPath)) + ".pacmdl");
@@ -79,4 +79,4 @@ bool loadMeshFromCache(const std::string& modelPath, MeshData& out, std::string*
     return detail::decodeMeshFromValidatedCacheStream(in, hdr, out, outError);
 }
 
-} // namespace game::runtime::backend_model
+} // namespace game::runtime::render_model

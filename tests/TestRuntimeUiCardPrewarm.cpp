@@ -2,7 +2,7 @@
 #include <vector>
 
 #include "engine/render/IRenderBackend.h"
-#include "game/runtime/startup/RuntimeBackendCardUiPrewarm.h"
+#include "game/runtime/startup/RuntimeUiCardPrewarm.h"
 
 namespace {
 
@@ -35,10 +35,10 @@ public:
 
 } // namespace
 
-bool test_runtime_backend_card_ui_prewarm_contract(std::string& outFail) {
+bool test_runtime_ui_card_prewarm_contract(std::string& outFail) {
     {
         RecordingBackend backend;
-        const auto summary = game::runtime::backend_card_ui_prewarm::run(
+        const auto summary = game::runtime::ui_card_prewarm::run(
             &backend,
             1920,
             1080,
@@ -57,20 +57,20 @@ bool test_runtime_backend_card_ui_prewarm_contract(std::string& outFail) {
             backend.endFrameCalls != 1 ||
             backend.totalQuadCount == 0u ||
             backend.totalLineCount == 0u) {
-            outFail = "RuntimeBackendCardUiPrewarm should filter shared assets, render the remaining card UI once, and submit a frame.";
+            outFail = "RuntimeUiCardPrewarm should filter shared assets, render the remaining card UI once, and submit a frame.";
             return false;
         }
     }
 
     {
         RecordingBackend backend;
-        const auto summary = game::runtime::backend_card_ui_prewarm::run(
+        const auto summary = game::runtime::ui_card_prewarm::run(
             &backend,
             0,
             1080,
             {"assets/portraits/charmander_card.png"});
         if (summary.submittedFrame || backend.beginFrameCalls != 0 || backend.endFrameCalls != 0) {
-            outFail = "RuntimeBackendCardUiPrewarm should skip submission when drawable dimensions are invalid.";
+            outFail = "RuntimeUiCardPrewarm should skip submission when drawable dimensions are invalid.";
             return false;
         }
     }

@@ -45,22 +45,22 @@
 #include "game/runtime/routes/BackendRenderPolicy.h"
 #include "game/runtime/routes/RenderFlowDecisions.h"
 #include "game/runtime/routes/StartupRenderRoutePolicy.h"
-#include "game/runtime/backend_ui/DebugText.h"
+#include "game/runtime/ui/DebugText.h"
 #include "game/runtime/routes/GameServiceRenderRoutes.h"
-#include "game/runtime/backend_ui/InventoryOverlay.h"
-#include "game/runtime/backend_ui/InventoryPanel.h"
-#include "game/runtime/backend_ui/InputSlots.h"
-#include "game/runtime/backend_ui/StatusText.h"
-#include "game/runtime/backend_ui/UiScale.h"
-#include "game/runtime/backend_ui/HudFormatting.h"
+#include "game/runtime/ui/InventoryOverlay.h"
+#include "game/runtime/ui/InventoryPanel.h"
+#include "game/runtime/ui/InputSlots.h"
+#include "game/runtime/ui/StatusText.h"
+#include "game/runtime/ui/UiScale.h"
+#include "game/runtime/ui/HudFormatting.h"
 #include "game/runtime/render_prep/WorldProjection.h"
 #include "game/runtime/render_prep/WorldProxyGeometry.h"
-#include "game/runtime/backend_model_cache/BackendModelCache.h"
+#include "game/runtime/render_model_cache/RenderModelCache.h"
 #include "game/runtime/render_prep/MaterialShading.h"
 #include "game/runtime/render_prep/ProceduralPose.h"
 #include "game/runtime/render_prep/UnitVisuals.h"
-#include "game/runtime/startup/RuntimeBackendModelPrewarm.h"
-#include "game/runtime/startup/RuntimeBackendCardUiPrewarm.h"
+#include "game/runtime/startup/RuntimeRenderModelPrewarm.h"
+#include "game/runtime/startup/RuntimeUiCardPrewarm.h"
 #include "game/runtime/startup/RuntimeStartupAssetPrewarm.h"
 #include "game/runtime/startup/RuntimeWorldLayerPrewarm.h"
 #include "game/runtime/session/SessionBackendUnitHydration.h"
@@ -219,7 +219,7 @@ struct GameSession::Impl {
     struct BackendMeshCacheEntry {
         bool attemptedLoad = false;
         bool reportedFailure = false;
-        runtime::backend_model::MeshData mesh;
+        runtime::render_model::MeshData mesh;
         std::string error;
     };
     std::unordered_map<std::string, BackendMeshCacheEntry> backendMeshByModelPath;
@@ -270,12 +270,12 @@ struct GameSession::Impl {
             allowBackendMenuBackdrop);
     }
 
-    runtime::backend_model::MeshData* ensureBackendMeshLoaded(const std::string& modelPath) {
+    runtime::render_model::MeshData* ensureBackendMeshLoaded(const std::string& modelPath) {
         auto& cacheEntry = backendMeshByModelPath[modelPath];
         if (!cacheEntry.attemptedLoad) {
             cacheEntry.attemptedLoad = true;
             std::string err;
-            if (!runtime::backend_model::loadMeshFromCache(modelPath, cacheEntry.mesh, &err)) {
+            if (!runtime::render_model::loadMeshFromCache(modelPath, cacheEntry.mesh, &err)) {
                 cacheEntry.error = std::move(err);
                 cacheEntry.mesh = {};
             }
@@ -739,9 +739,9 @@ struct GameSession::Impl {
             engineServices
         });
 
-        std::cout << "[Init] Shared gameplay render path: using backend model cache loader.\n";
+        std::cout << "[Init] Shared gameplay render path: using render model cache loader.\n";
         if (game::runtime::session_render_config::backendPreloadModelCacheEnabled()) {
-            std::cout << "[Init] Shared gameplay render path: preloading backend model cache...\n";
+            std::cout << "[Init] Shared gameplay render path: preloading render model cache...\n";
             const bool prewarmModelTextures =
                 usesBackendGameRenderPath() &&
                 renderer &&
@@ -774,17 +774,17 @@ struct GameSession::Impl {
                     modelPathsToPreload.push_back(sharedCapturePokeballPath);
                 }
             }
-            const game::runtime::backend_model_prewarm::Options prewarmOptions{
+            const game::runtime::render_model_prewarm::Options prewarmOptions{
                 .verboseModelCacheLog = game::runtime::session_render_config::backendModelVerboseLoggingEnabled(),
                 .prewarmAnimRoles = game::runtime::session_render_config::backendPrewarmAnimRolesEnabled(),
                 .prewarmModelTextures = prewarmModelTextures,
                 .prewarmModelGeometry = prewarmModelGeometry,
                 .maxFailureSamples = 8u,
             };
-            (void)game::runtime::backend_model_prewarm::run(
+            (void)game::runtime::render_model_prewarm::run(
                 modelPathsToPreload,
                 prewarmOptions,
-                game::runtime::backend_model_prewarm::Callbacks{
+                game::runtime::render_model_prewarm::Callbacks{
                     .setTitle = ctx.setTitle,
                     .renderBootLoading = ctx.renderBootLoading,
                     .pumpPreloadEvents = ctx.pumpPreloadEvents,
@@ -793,7 +793,7 @@ struct GameSession::Impl {
                         [&](const std::string& modelPath) {
                             auto& cacheEntry = backendMeshByModelPath[modelPath];
                             if (cacheEntry.attemptedLoad) {
-                                return game::runtime::backend_model_prewarm::ModelLoadResult{
+                                return game::runtime::render_model_prewarm::ModelLoadResult{
                                     false,
                                     cacheEntry.error.empty() ? &cacheEntry.mesh : nullptr,
                                     cacheEntry.error,
@@ -802,18 +802,18 @@ struct GameSession::Impl {
 
                             cacheEntry.attemptedLoad = true;
                             std::string err;
-                            if (!runtime::backend_model::loadMeshFromCache(
+                            if (!runtime::render_model::loadMeshFromCache(
                                     modelPath, cacheEntry.mesh, &err)) {
                                 cacheEntry.error = std::move(err);
                                 cacheEntry.mesh = {};
-                                return game::runtime::backend_model_prewarm::ModelLoadResult{
+                                return game::runtime::render_model_prewarm::ModelLoadResult{
                                     true,
                                     nullptr,
                                     cacheEntry.error,
                                 };
                             }
 
-                            return game::runtime::backend_model_prewarm::ModelLoadResult{
+                            return game::runtime::render_model_prewarm::ModelLoadResult{
                                 true,
                                 &cacheEntry.mesh,
                                 {},
@@ -821,7 +821,7 @@ struct GameSession::Impl {
                         },
                     .prewarmAnimRoles =
                         [&](const std::string& modelPath,
-                            const runtime::backend_model::MeshData& mesh) {
+                            const runtime::render_model::MeshData& mesh) {
                             auto it = backendAnimByModelPath.find(modelPath);
                             const bool alreadyResolved =
                                 (it != backendAnimByModelPath.end()) && it->second.attemptedResolve;
@@ -833,18 +833,18 @@ struct GameSession::Impl {
                             return !alreadyResolved && roles.attemptedResolve;
                         },
                     .prewarmTextures =
-                        [&](const std::string&, const runtime::backend_model::MeshData& mesh) {
+                        [&](const std::string&, const runtime::render_model::MeshData& mesh) {
                             return game::runtime::session_backend_render_helpers::prewarmBackendWorldTexturesForMesh(renderer, &mesh);
                         },
                     .prewarmGeometry =
-                        [&](const runtime::backend_model::MeshData& mesh) {
+                        [&](const runtime::render_model::MeshData& mesh) {
                             return game::runtime::shared_projected_unit_backend_mesh::
                                 prewarmProjectedUnitBackendMeshGeometryCache(*renderer, mesh);
                         },
                 },
                 std::cout);
         } else {
-            std::cout << "[Init] Shared gameplay render path: backend model cache preload disabled.\n";
+            std::cout << "[Init] Shared gameplay render path: render model cache preload disabled.\n";
         }
 
         // OpenGL shared route renders capture pokeball via the OpenGL Model path (ResourceManager),
@@ -902,7 +902,7 @@ struct GameSession::Impl {
                     [&](int drawableW,
                         int drawableH,
                         const std::vector<std::string>& texturePaths) {
-                        (void)game::runtime::backend_card_ui_prewarm::run(
+                        (void)game::runtime::ui_card_prewarm::run(
                             renderer,
                             drawableW,
                             drawableH,
@@ -1749,7 +1749,7 @@ struct GameSession::Impl {
                 projectedUnitArgs.visibleAnimatedUnitCount = &visibleAnimatedUnitsThisFrame;
                 projectedUnitArgs.sharedUnitHudCfg = &sharedUnitHudCfg;
                 projectedUnitArgs.resolveModelMesh = [&](const PokemonInstance& unit)
-                    -> const runtime::backend_model::MeshData* {
+                    -> const runtime::render_model::MeshData* {
                     return game::runtime::shared_projected_scene::resolveModelMesh(
                         unit,
                         dataDb,

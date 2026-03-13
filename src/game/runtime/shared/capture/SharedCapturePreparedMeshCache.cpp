@@ -10,7 +10,7 @@
 namespace game::runtime::shared_capture_mesh_cache {
 
 PrepareResult preparePokeballCaptureMeshCache(
-    const runtime::backend_model::MeshData& mesh,
+    const runtime::render_model::MeshData& mesh,
     bool captureSnapsEmpty,
     bool d3d12CapturePrewarmRequested,
     bool treatPokeballAsUntextured,

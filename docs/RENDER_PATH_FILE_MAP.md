@@ -27,12 +27,12 @@ Use this file to find ownership quickly when working on parity/performance tasks
 - `src/game/runtime/session/SessionBackendInventoryUi.*`
   - backend inventory panel refresh, paging, selection, and hit/input routing
   - session-side adapter between world inventory state and backend UI controls
-- `src/game/runtime/backend_ui/*.h`
+- `src/game/runtime/ui/*.h`
   - backend menu, HUD, card, inventory, text, and scaling helpers used by game-side UI presentation
   - examples: `CardRenderer.h`, `CardVisuals.h`, `DebugText.h`, `InventoryPanel.h`, `StatusText.h`, `UiScale.h`
   - game-facing backend presentation utilities, distinct from render API backends under `src/engine/render/*`
 - `src/game/runtime/render_prep/*.h`
-  - API-agnostic render-prep helpers shared by `GameSession`, backend model cache decode, and the shared projected path
+  - API-agnostic render-prep helpers shared by `GameSession`, render model cache decode, and the shared projected path
   - examples: `MaterialShading.h`, `ProceduralPose.h`, `UnitVisuals.h`, `WorldProjection.h`, `WorldProxyGeometry.h`, `MeshNormals.h`
   - material shading math, procedural pose/deformation, world proxy geometry, board projection, mesh-normal generation, and portrait/tint decisions
 - `src/game/runtime/session/SessionBackendUnitHydration.*`
@@ -75,7 +75,7 @@ Use this file to find ownership quickly when working on parity/performance tasks
 - `src/game/runtime/startup/RuntimeStartupAssetPrewarm.*`
   - world shading, tail-fire, UI sprite, card-art, and backend card-UI startup prewarm orchestration
   - backend card-art proxy selection for eager startup warming
-- `src/game/runtime/startup/RuntimeBackendCardUiPrewarm.*`
+- `src/game/runtime/startup/RuntimeUiCardPrewarm.*`
   - one-frame backend shop-card UI warmup used during startup prewarm
   - portrait filtering and debug/UI submission ownership for first-shop-entry hitch avoidance
 - `src/game/runtime/startup/RuntimeWorldLayerPrewarm.*`
@@ -157,7 +157,7 @@ Use this file to find ownership quickly when working on parity/performance tasks
   - legacy tail-fire emitter config and current species filter
 - `src/game/runtime/shared/ui/Shared*.*`
 - `src/game/runtime/shared/world/Shared*.*`
-- `src/game/runtime/backend_model_cache/BackendModelCache*.*`
+- `src/game/runtime/render_model_cache/RenderModelCache*.*`
 
 ### 4) Backend Implementations
 OpenGL:
