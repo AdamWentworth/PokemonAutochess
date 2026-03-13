@@ -294,6 +294,7 @@ add_library(PAC_GameObjects STATIC
     src/game/runtime/session/SessionBackendUnitHydration.cpp
     src/game/runtime/session/SessionBackendRenderHelpers.cpp
     src/game/runtime/session/SessionDebugSnapshot.cpp
+    src/game/runtime/session/SessionLegacyWorldView.cpp
     src/game/runtime/session/SessionLoopRuntime.cpp
     src/game/runtime/session/SessionRenderScratch.cpp
     src/game/runtime/session/SessionRenderConfig.cpp
@@ -540,6 +541,7 @@ if (BUILD_TESTING)
         tests/TestSessionBackendInventoryUi.cpp
         tests/TestSessionBackendUnitHydration.cpp
         tests/TestSessionDebugSnapshot.cpp
+        tests/TestSessionLegacyWorldView.cpp
         tests/TestSessionLoopRuntime.cpp
         tests/TestSessionRenderScratch.cpp
         tests/TestSessionRenderConfig.cpp

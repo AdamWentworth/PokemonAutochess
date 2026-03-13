@@ -93,6 +93,7 @@
 #include "game/runtime/session/SessionBackendInventoryUi.h"
 #include "game/runtime/session/SessionBackendRenderHelpers.h"
 #include "game/runtime/session/SessionDebugSnapshot.h"
+#include "game/runtime/session/SessionLegacyWorldView.h"
 #include "game/runtime/session/SessionLoopRuntime.h"
 #include "game/runtime/session/SessionRenderConfig.h"
 #include "game/runtime/session/SessionRenderScratch.h"
@@ -1419,228 +1420,26 @@ struct GameSession::Impl {
                 projectedModelUnitsThisFrame = projectedUnitPerf.modelUnits;
                 projectedClipSkinnedUnitsThisFrame = projectedUnitPerf.clipSkinnedUnits;
             } else {
-            IRenderBackend::DebugQuad boardBg;
-            boardBg.x = boardX;
-            boardBg.y = boardY;
-            boardBg.w = boardW;
-            boardBg.h = boardH;
-            boardBg.r = renderWorld ? 0.08f : 0.07f;
-            boardBg.g = renderWorld ? 0.09f : 0.08f;
-            boardBg.b = renderWorld ? 0.10f : 0.09f;
-            boardBg.a = renderWorld ? 1.0f : 0.90f;
-            worldBackgroundQuads.push_back(boardBg);
-
-            const float line = std::max(1.0f, minDim * 0.002f);
-            for (int r = 0; r < rows; ++r) {
-                for (int c = 0; c < cols; ++c) {
-                    IRenderBackend::DebugQuad cell;
-                    cell.x = boardX + cellW * static_cast<float>(c);
-                    cell.y = boardY + cellH * static_cast<float>(r);
-                    cell.w = cellW;
-                    cell.h = cellH;
-                    const bool darkCell = ((r + c) % 2) == 0;
-                    if (darkCell) {
-                        cell.r = renderWorld ? 0.08f : 0.07f;
-                        cell.g = renderWorld ? 0.09f : 0.08f;
-                        cell.b = renderWorld ? 0.10f : 0.09f;
-                        cell.a = renderWorld ? 0.24f : 0.20f;
-                    } else {
-                        cell.r = renderWorld ? 0.11f : 0.09f;
-                        cell.g = renderWorld ? 0.12f : 0.10f;
-                        cell.b = renderWorld ? 0.13f : 0.11f;
-                        cell.a = renderWorld ? 0.18f : 0.14f;
-                    }
-                    worldBackgroundQuads.push_back(cell);
-                }
-            }
-
-            for (int c = 0; c <= cols; ++c) {
-                IRenderBackend::DebugLine vLine;
-                vLine.x1 = boardX + cellW * static_cast<float>(c);
-                vLine.y1 = boardY;
-                vLine.x2 = vLine.x1;
-                vLine.y2 = boardY + boardH;
-                vLine.thickness = line;
-                vLine.r = renderWorld ? 0.74f : 0.62f;
-                vLine.g = renderWorld ? 0.75f : 0.63f;
-                vLine.b = renderWorld ? 0.77f : 0.65f;
-                vLine.a = 1.0f;
-                lines.push_back(vLine);
-            }
-            for (int r = 0; r <= rows; ++r) {
-                IRenderBackend::DebugLine hLine;
-                hLine.x1 = boardX;
-                hLine.y1 = boardY + cellH * static_cast<float>(r);
-                hLine.x2 = boardX + boardW;
-                hLine.y2 = hLine.y1;
-                hLine.thickness = line;
-                hLine.r = renderWorld ? 0.74f : 0.62f;
-                hLine.g = renderWorld ? 0.75f : 0.63f;
-                hLine.b = renderWorld ? 0.77f : 0.65f;
-                hLine.a = 1.0f;
-                lines.push_back(hLine);
-            }
-
-            if (renderWorld && gameWorld) {
-                const float worldCellSize = gameWorld->getBoardCellSize();
-                const auto& units = gameWorld->getPokemons();
-                for (const auto& unit : units) {
-                    if (!unit.alive && !unit.captureInProgress && !unit.fainting) continue;
-                    const auto uv = runtime::render_prep_projection::worldToBoardUv(
-                        unit.position.x,
-                        unit.position.z,
-                        cols,
-                        rows,
-                        worldCellSize);
-                    if (uv.first < 0.0f || uv.first > 1.0f || uv.second < 0.0f || uv.second > 1.0f) continue;
-                    ++visibleAnimatedUnitsThisFrame;
-
-                    IRenderBackend::DebugQuad u;
-                    const float centerX = boardX + uv.first * boardW;
-                    const float centerY = boardY + uv.second * boardH;
-                    u.w = cellW * 0.60f;
-                    u.h = cellH * 0.60f;
-                    u.x = centerX - u.w * 0.5f;
-                    u.y = centerY - u.h * 0.5f;
-                    runtime::render_prep_units::applyWorldUnitTint(u, unit);
-
-                    const std::string unitImagePath =
-                        runtime::render_prep_units::resolveWorldUnitImagePath(unit.name);
-                    IRenderBackend::DebugSprite unitSprite =
-                        runtime::render_prep_units::makeWorldUnitSprite(
-                            centerX,
-                            centerY,
-                            cellW,
-                            cellH,
-                            unitImagePath,
-                            unit.alive ? 0.96f : 0.70f);
-                    const bool hasUnitSprite = !unitSprite.texturePath.empty();
-                    if (runtime::render_prep_units::shouldRenderTintUnderPortrait(hasUnitSprite)) {
-                        worldQuads.push_back(u);
-                    }
-                    if (hasUnitSprite) {
-                        sprites.push_back(std::move(unitSprite));
-                    }
-
-                    const float hudCellPx = std::clamp(minDim * 0.070f, 38.0f, 58.0f);
-                    if (unit.alive) {
-                        runtime::shared_unit_hud::appendLegacyUnitHud(
-                            worldQuads,
-                            lines,
-                            textLines,
-                            sharedUnitHudCfg,
-                            unit,
-                            centerX,
-                            centerY,
-                            hudCellPx);
-                    }
-                }
-
-                const auto& benchUnits = gameWorld->getBenchPokemons();
-                {
-                    const int benchSlots = std::max(1, config.benchSlots);
-                    const float benchGap = std::max(12.0f, minDim * 0.02f);
-                    const float benchH = std::max(26.0f, minDim * 0.085f);
-                    const float benchW = std::max(160.0f, std::min(boardW, static_cast<float>(drawableW) - 40.0f));
-                    const float benchX = (static_cast<float>(drawableW) - benchW) * 0.5f;
-                    const float desiredBenchY = boardY + boardH + benchGap;
-                    const float benchY = std::min(desiredBenchY, static_cast<float>(drawableH) - benchH - 24.0f);
-
-                    const bool benchOverlapsBoard = (benchY <= boardY + boardH + 3.0f);
-                    IRenderBackend::DebugQuad benchBg;
-                    benchBg.x = benchX;
-                    benchBg.y = benchY;
-                    benchBg.w = benchW;
-                    benchBg.h = benchH;
-                    benchBg.r = 0.09f;
-                    benchBg.g = 0.12f;
-                    benchBg.b = 0.15f;
-                    benchBg.a = benchOverlapsBoard ? 0.90f : 0.96f;
-                    worldQuads.push_back(benchBg);
-
-                    const float benchCellW = benchW / static_cast<float>(benchSlots);
-                    const float benchLineThickness = std::max(1.0f, line * 0.95f);
-                    for (int slot = 0; slot < benchSlots; ++slot) {
-                        IRenderBackend::DebugQuad cellBg;
-                        cellBg.x = benchX + benchCellW * static_cast<float>(slot);
-                        cellBg.y = benchY;
-                        cellBg.w = benchCellW;
-                        cellBg.h = benchH;
-                        const bool dark = (slot % 2) == 0;
-                        cellBg.r = dark ? 0.10f : 0.13f;
-                        cellBg.g = dark ? 0.13f : 0.16f;
-                        cellBg.b = dark ? 0.17f : 0.20f;
-                        cellBg.a = benchOverlapsBoard ? 0.14f : 0.20f;
-                        worldQuads.push_back(cellBg);
-                    }
-
-                    for (int slot = 0; slot <= benchSlots; ++slot) {
-                        IRenderBackend::DebugLine slotLine;
-                        slotLine.x1 = benchX + benchCellW * static_cast<float>(slot);
-                        slotLine.y1 = benchY;
-                        slotLine.x2 = slotLine.x1;
-                        slotLine.y2 = benchY + benchH;
-                        slotLine.thickness = benchLineThickness;
-                        slotLine.r = 0.58f;
-                        slotLine.g = 0.66f;
-                        slotLine.b = 0.74f;
-                        slotLine.a = 0.96f;
-                        lines.push_back(slotLine);
-                    }
-
-                    IRenderBackend::DebugLine top;
-                    top.x1 = benchX;
-                    top.y1 = benchY;
-                    top.x2 = benchX + benchW;
-                    top.y2 = benchY;
-                    top.thickness = benchLineThickness;
-                    top.r = 0.64f;
-                    top.g = 0.71f;
-                    top.b = 0.79f;
-                    top.a = 0.98f;
-                    lines.push_back(top);
-
-                    IRenderBackend::DebugLine bottom = top;
-                    bottom.y1 = benchY + benchH;
-                    bottom.y2 = benchY + benchH;
-                    lines.push_back(bottom);
-
-                    for (const auto& unit : benchUnits) {
-                        ++visibleAnimatedUnitsThisFrame;
-                        const int slot = runtime::render_prep_projection::worldToBenchSlot(
-                            unit.position.x,
-                            benchSlots,
-                            worldCellSize);
-                        IRenderBackend::DebugQuad benchUnit;
-                        benchUnit.x = benchX + benchCellW * static_cast<float>(slot) + benchCellW * 0.20f;
-                        benchUnit.y = benchY + benchH * 0.20f;
-                        benchUnit.w = benchCellW * 0.60f;
-                        benchUnit.h = benchH * 0.60f;
-                        benchUnit.r = 0.34f;
-                        benchUnit.g = 0.73f;
-                        benchUnit.b = 0.96f;
-                        benchUnit.a = 0.24f;
-
-                        const std::string benchImagePath =
-                            runtime::render_prep_units::resolveWorldUnitImagePath(unit.name);
-                        IRenderBackend::DebugSprite benchSprite =
-                            runtime::render_prep_units::makeBenchUnitSprite(
-                                benchUnit.x,
-                                benchUnit.y,
-                                benchUnit.w,
-                                benchUnit.h,
-                                benchImagePath,
-                                0.92f);
-                        const bool hasBenchSprite = !benchSprite.texturePath.empty();
-                        if (runtime::render_prep_units::shouldRenderTintUnderPortrait(hasBenchSprite)) {
-                            worldQuads.push_back(benchUnit);
-                        }
-                        if (hasBenchSprite) {
-                            sprites.push_back(std::move(benchSprite));
-                        }
-                    }
-                }
-            }
+                visibleAnimatedUnitsThisFrame +=
+                    game::runtime::session_legacy_world_view::appendLegacyWorldView(
+                        {
+                            .renderWorld = renderWorld,
+                            .gameWorld = gameWorld.get(),
+                            .drawableW = drawableW,
+                            .drawableH = drawableH,
+                            .rows = rows,
+                            .cols = cols,
+                            .benchSlots = config.benchSlots,
+                            .minDim = minDim,
+                            .boardX = boardX,
+                            .boardY = boardY,
+                            .boardW = boardW,
+                            .boardH = boardH,
+                            .cellW = cellW,
+                            .cellH = cellH,
+                            .sharedUnitHudCfg = sharedUnitHudCfg,
+                        },
+                        scratch).visibleAnimatedUnits;
             }
         }
         if (renderWorld && gameWorld) {
