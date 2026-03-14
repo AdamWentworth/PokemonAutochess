@@ -14,6 +14,42 @@ without the same context.
 
 ## Current Notes
 
+### 2026-03-14: OpenGL dynamic indexed geometry upload stream was a miss
+- Hypothesis:
+  - replace per-draw `glBufferData` churn for dynamic indexed world vertex and
+    index uploads with capacity-managed streaming plus `glBufferSubData`
+- Expected win:
+  - reduce `render_world_indexed_ms`
+  - reduce steady-state `render_build_ms`
+  - possibly lower `projected_model_geometry_ms` in indexed gameplay scenes
+- What the workload showed:
+  - the target bucket did not materially improve in the measured capture
+  - `OpenGL` 1-unit indexed frames were basically flat:
+    - before: `render_world_indexed_ms ~0.24-0.25`,
+      `render_build_ms ~1.8`,
+      `projected_model_geometry_ms ~0.18-0.19`
+    - streamed-upload run: `render_world_indexed_ms ~0.24-0.27`,
+      `render_build_ms ~1.8`,
+      `projected_model_geometry_ms ~0.19-0.20`
+  - `OpenGL` 3-unit indexed frames were also flat to worse:
+    - before: `render_world_indexed_ms ~0.64-0.66`,
+      `render_build_ms ~2.6-2.7`,
+      `projected_model_geometry_ms ~0.45`
+    - streamed-upload run: `render_world_indexed_ms ~0.65-0.72`,
+      `render_build_ms ~2.6-3.1`,
+      `projected_model_geometry_ms ~0.45-0.52`
+  - the likely reason is workload coverage:
+    the hot scene mostly exercised cached indexed meshes, so dynamic geometry
+    upload churn was not the dominant path
+- Decision:
+  - revert; do not keep dynamic-upload complexity when the measured scene does
+    not show a real indexed-path gain
+- Re-entry conditions:
+  - instrument cached-vs-dynamic indexed draw share in the hot scene
+  - only revisit if uncached indexed geometry is a meaningful share of the
+    measured workload
+  - prefer attacking cached-mesh or instance-buffer upload churn first
+
 ### 2026-03-14: OpenGL indexed material-uniform cache was a miss
 - Hypothesis:
   - cache the last OpenGL indexed world-program uniform payload across batched

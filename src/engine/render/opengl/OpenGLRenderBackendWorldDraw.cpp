@@ -176,8 +176,6 @@ void OpenGLRenderBackend::beginWorldIndexedBatchSubmission() {
     state.currentBlendEqRgb = state.prevBlendEqRgb;
     state.currentBlendEqAlpha = state.prevBlendEqAlpha;
     state.worldProgramStaticUniformsApplied = false;
-    worldDynamicVertexBufferNeedsOrphan_ = true;
-    worldDynamicIndexBufferNeedsOrphan_ = true;
 }
 
 void OpenGLRenderBackend::endWorldIndexedBatchSubmission() {
@@ -958,125 +956,6 @@ void OpenGLRenderBackend::drawWorldIndexedMeshTexturedInternal(unsigned int vao,
             }
         }
     };
-    const auto alignUp = [](std::size_t value, std::size_t alignment) -> std::size_t {
-        if (alignment <= 1u) return value;
-        const std::size_t remainder = value % alignment;
-        return (remainder == 0u) ? value : (value + alignment - remainder);
-    };
-    const auto growStreamCapacity = [](std::size_t currentCapacity,
-                                       std::size_t requiredBytes) -> std::size_t {
-        std::size_t capacity = (std::max)(currentCapacity, static_cast<std::size_t>(1024u));
-        while (capacity < requiredBytes) {
-            capacity *= 2u;
-        }
-        return capacity;
-    };
-    const auto reserveArrayBufferUploadRange =
-        [&](GLuint bufferId,
-            std::size_t requiredBytes,
-            std::size_t alignment,
-            std::size_t& capacityBytes,
-            std::size_t& writeOffsetBytes,
-            bool& needsOrphan) -> std::size_t {
-        if (requiredBytes == 0u) return 0u;
-        const std::size_t grownCapacity = growStreamCapacity(capacityBytes, requiredBytes);
-        const bool needsGrow = (grownCapacity != capacityBytes);
-        const std::size_t alignedOffset = needsGrow ? 0u : alignUp(writeOffsetBytes, alignment);
-        const bool needsWrap = !needsGrow && (alignedOffset + requiredBytes > capacityBytes);
-        if (needsGrow) {
-            capacityBytes = grownCapacity;
-        }
-        if (needsGrow || needsWrap || needsOrphan) {
-            bindArrayBuffer(bufferId);
-            glBufferData(
-                GL_ARRAY_BUFFER, static_cast<GLsizeiptr>(capacityBytes), nullptr, GL_STREAM_DRAW);
-            writeOffsetBytes = 0u;
-            needsOrphan = false;
-        } else {
-            bindArrayBuffer(bufferId);
-        }
-        const std::size_t uploadOffset = alignUp(writeOffsetBytes, alignment);
-        writeOffsetBytes = alignUp(uploadOffset + requiredBytes, alignment);
-        return uploadOffset;
-    };
-    const auto reserveElementArrayBufferUploadRange =
-        [&](GLuint bufferId,
-            std::size_t requiredBytes,
-            std::size_t alignment,
-            std::size_t& capacityBytes,
-            std::size_t& writeOffsetBytes,
-            bool& needsOrphan) -> std::size_t {
-        if (requiredBytes == 0u) return 0u;
-        const std::size_t grownCapacity = growStreamCapacity(capacityBytes, requiredBytes);
-        const bool needsGrow = (grownCapacity != capacityBytes);
-        const std::size_t alignedOffset = needsGrow ? 0u : alignUp(writeOffsetBytes, alignment);
-        const bool needsWrap = !needsGrow && (alignedOffset + requiredBytes > capacityBytes);
-        if (needsGrow) {
-            capacityBytes = grownCapacity;
-        }
-        if (needsGrow || needsWrap || needsOrphan) {
-            bindElementArrayBuffer(bufferId);
-            glBufferData(
-                GL_ELEMENT_ARRAY_BUFFER, static_cast<GLsizeiptr>(capacityBytes), nullptr, GL_STREAM_DRAW);
-            writeOffsetBytes = 0u;
-            needsOrphan = false;
-        } else {
-            bindElementArrayBuffer(bufferId);
-        }
-        const std::size_t uploadOffset = alignUp(writeOffsetBytes, alignment);
-        writeOffsetBytes = alignUp(uploadOffset + requiredBytes, alignment);
-        return uploadOffset;
-    };
-    const auto configureDynamicWorldGeometryVertexOffset =
-        [&](std::size_t vertexOffsetBytes) {
-        constexpr GLsizei vertexStride = static_cast<GLsizei>(sizeof(WorldMeshVertex));
-        const auto ptr = [](std::size_t byteOffset) -> const void* {
-            return reinterpret_cast<const void*>(static_cast<std::uintptr_t>(byteOffset));
-        };
-        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, vertexStride, ptr(vertexOffsetBytes));
-        glVertexAttribPointer(
-            1,
-            2,
-            GL_FLOAT,
-            GL_FALSE,
-            vertexStride,
-            ptr(vertexOffsetBytes + sizeof(float) * 3u));
-        glVertexAttribPointer(
-            2,
-            4,
-            GL_FLOAT,
-            GL_FALSE,
-            vertexStride,
-            ptr(vertexOffsetBytes + offsetof(WorldMeshVertex, r)));
-        glVertexAttribPointer(
-            3,
-            3,
-            GL_FLOAT,
-            GL_FALSE,
-            vertexStride,
-            ptr(vertexOffsetBytes + offsetof(WorldMeshVertex, nx)));
-        glVertexAttribPointer(
-            4,
-            4,
-            GL_FLOAT,
-            GL_FALSE,
-            vertexStride,
-            ptr(vertexOffsetBytes + offsetof(WorldMeshVertex, joint0)));
-        glVertexAttribPointer(
-            5,
-            4,
-            GL_FLOAT,
-            GL_FALSE,
-            vertexStride,
-            ptr(vertexOffsetBytes + offsetof(WorldMeshVertex, weight0)));
-        glVertexAttribPointer(
-            6,
-            4,
-            GL_FLOAT,
-            GL_FALSE,
-            vertexStride,
-            ptr(vertexOffsetBytes + offsetof(WorldMeshVertex, tx)));
-    };
     GLint prevProgram = 0;
     GLint prevVao = 0;
     GLint prevArrayBuffer = 0;
@@ -1358,39 +1237,22 @@ void OpenGLRenderBackend::drawWorldIndexedMeshTexturedInternal(unsigned int vao,
                  GL_STREAM_DRAW);
 
     bindVertexArray(vao);
-    std::size_t dynamicIndexBufferOffsetBytes = 0u;
     if (uploadGeometry) {
-        const std::size_t vertexUploadBytes = safeVertexCount * sizeof(WorldMeshVertex);
-        const std::size_t indexUploadBytes = safeIndexCount * sizeof(std::uint32_t);
-        const std::size_t dynamicVertexBufferOffsetBytes =
-            reserveArrayBufferUploadRange(vertexBuffer,
-                                          vertexUploadBytes,
-                                          16u,
-                                          worldDynamicVertexBufferCapacityBytes_,
-                                          worldDynamicVertexWriteOffsetBytes_,
-                                          worldDynamicVertexBufferNeedsOrphan_);
-        glBufferSubData(GL_ARRAY_BUFFER,
-                        static_cast<GLintptr>(dynamicVertexBufferOffsetBytes),
-                        static_cast<GLsizeiptr>(vertexUploadBytes),
-                        vertices);
-        dynamicIndexBufferOffsetBytes =
-            reserveElementArrayBufferUploadRange(indexBuffer,
-                                                 indexUploadBytes,
-                                                 sizeof(std::uint32_t),
-                                                 worldDynamicIndexBufferCapacityBytes_,
-                                                 worldDynamicIndexWriteOffsetBytes_,
-                                                 worldDynamicIndexBufferNeedsOrphan_);
-        glBufferSubData(GL_ELEMENT_ARRAY_BUFFER,
-                        static_cast<GLintptr>(dynamicIndexBufferOffsetBytes),
-                        static_cast<GLsizeiptr>(indexUploadBytes),
-                        indices);
-        configureDynamicWorldGeometryVertexOffset(dynamicVertexBufferOffsetBytes);
+        bindArrayBuffer(vertexBuffer);
+        glBufferData(GL_ARRAY_BUFFER,
+                     static_cast<GLsizeiptr>(safeVertexCount * sizeof(WorldMeshVertex)),
+                     vertices,
+                     GL_STREAM_DRAW);
+        bindElementArrayBuffer(indexBuffer);
+        glBufferData(GL_ELEMENT_ARRAY_BUFFER,
+                     static_cast<GLsizeiptr>(safeIndexCount * sizeof(std::uint32_t)),
+                     indices,
+                     GL_STREAM_DRAW);
     }
     glDrawElementsInstanced(GL_TRIANGLES,
                             static_cast<GLsizei>(safeIndexCount),
                             GL_UNSIGNED_INT,
-                            reinterpret_cast<const void*>(
-                                static_cast<std::uintptr_t>(dynamicIndexBufferOffsetBytes)),
+                            nullptr,
                             static_cast<GLsizei>(effectiveInstanceCount));
     ++frameDrawCalls_;
     frameTriangles_ += static_cast<std::uint64_t>(safeIndexCount / 3u) *
@@ -1427,36 +1289,20 @@ void OpenGLRenderBackend::drawWorldIndexedMeshTexturedInternal(unsigned int vao,
         setDepthMask(false);
 
         bindVertexArray(worldVao_);
-        const std::size_t outlineVertexUploadBytes = safeVertexCount * sizeof(WorldMeshVertex);
-        const std::size_t outlineIndexUploadBytes = safeIndexCount * sizeof(std::uint32_t);
-        const std::size_t outlineVertexBufferOffsetBytes =
-            reserveArrayBufferUploadRange(worldVbo_,
-                                          outlineVertexUploadBytes,
-                                          16u,
-                                          worldDynamicVertexBufferCapacityBytes_,
-                                          worldDynamicVertexWriteOffsetBytes_,
-                                          worldDynamicVertexBufferNeedsOrphan_);
-        glBufferSubData(GL_ARRAY_BUFFER,
-                        static_cast<GLintptr>(outlineVertexBufferOffsetBytes),
-                        static_cast<GLsizeiptr>(outlineVertexUploadBytes),
-                        outlineVertices.data());
-        const std::size_t outlineIndexBufferOffsetBytes =
-            reserveElementArrayBufferUploadRange(worldIbo_,
-                                                 outlineIndexUploadBytes,
-                                                 sizeof(std::uint32_t),
-                                                 worldDynamicIndexBufferCapacityBytes_,
-                                                 worldDynamicIndexWriteOffsetBytes_,
-                                                 worldDynamicIndexBufferNeedsOrphan_);
-        glBufferSubData(GL_ELEMENT_ARRAY_BUFFER,
-                        static_cast<GLintptr>(outlineIndexBufferOffsetBytes),
-                        static_cast<GLsizeiptr>(outlineIndexUploadBytes),
-                        indices);
-        configureDynamicWorldGeometryVertexOffset(outlineVertexBufferOffsetBytes);
+        bindArrayBuffer(worldVbo_);
+        glBufferData(GL_ARRAY_BUFFER,
+                     static_cast<GLsizeiptr>(safeVertexCount * sizeof(WorldMeshVertex)),
+                     outlineVertices.data(),
+                     GL_STREAM_DRAW);
+        bindElementArrayBuffer(worldIbo_);
+        glBufferData(GL_ELEMENT_ARRAY_BUFFER,
+                     static_cast<GLsizeiptr>(safeIndexCount * sizeof(std::uint32_t)),
+                     indices,
+                     GL_STREAM_DRAW);
         glDrawElementsInstanced(GL_TRIANGLES,
                                 static_cast<GLsizei>(safeIndexCount),
                                 GL_UNSIGNED_INT,
-                                reinterpret_cast<const void*>(
-                                    static_cast<std::uintptr_t>(outlineIndexBufferOffsetBytes)),
+                                nullptr,
                                 static_cast<GLsizei>(effectiveInstanceCount));
         ++frameDrawCalls_;
         frameTriangles_ += static_cast<std::uint64_t>(safeIndexCount / 3u) *

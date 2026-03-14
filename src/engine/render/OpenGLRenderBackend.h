@@ -178,12 +178,6 @@ private:
     unsigned int worldVbo_ = 0;
     unsigned int worldIbo_ = 0;
     unsigned int worldInstanceVbo_ = 0;
-    std::size_t worldDynamicVertexBufferCapacityBytes_ = 0u;
-    std::size_t worldDynamicIndexBufferCapacityBytes_ = 0u;
-    std::size_t worldDynamicVertexWriteOffsetBytes_ = 0u;
-    std::size_t worldDynamicIndexWriteOffsetBytes_ = 0u;
-    bool worldDynamicVertexBufferNeedsOrphan_ = false;
-    bool worldDynamicIndexBufferNeedsOrphan_ = false;
     int worldViewProjLoc_ = -1;
     int worldModelLoc_ = -1;
     int worldUseTextureLoc_ = -1;
