@@ -18,7 +18,6 @@
 #include <cstdint>
 #include <cstring>
 #include <string>
-#include <string_view>
 #include <unordered_map>
 #include <vector>
 
@@ -299,15 +298,9 @@ struct CachedScenePoseEntry {
     game::runtime::shared_backend_pose::PoseEval pose;
 };
 
-struct CachedResolvedMeshEntry {
-    std::string key;
-    const game::runtime::render_model::MeshData* mesh = nullptr;
-};
-
 thread_local std::unordered_map<CachedScenePoseKey, CachedScenePoseEntry, CachedScenePoseKeyHash>
     g_cachedScenePoseBySignature;
 thread_local std::uint64_t g_cachedScenePoseFrameCounter = 0u;
-thread_local std::vector<CachedResolvedMeshEntry> g_cachedResolvedProjectedMeshes;
 
 void pruneScenePoseCache(std::uint64_t frameCounter) {
     constexpr std::size_t kSoftMaxEntries = 8192u;
@@ -329,39 +322,6 @@ void pruneScenePoseCache(std::uint64_t frameCounter) {
     if (g_cachedScenePoseBySignature.size() > kHardMaxEntries) {
         g_cachedScenePoseBySignature.clear();
     }
-}
-
-std::string_view sceneMeshResolveKeyForUnit(const ::PokemonInstance& unit) {
-    if (!unit.backendModelPath.empty()) return unit.backendModelPath;
-    if (!unit.animIndexCacheSourceModelPath.empty()) return unit.animIndexCacheSourceModelPath;
-    if (!unit.backendAnimDurationsSourceModelPath.empty()) {
-        return unit.backendAnimDurationsSourceModelPath;
-    }
-    return unit.name;
-}
-
-const game::runtime::render_model::MeshData* resolveProjectedSceneMeshCached(
-    const ::PokemonInstance& unit,
-    const std::function<const game::runtime::render_model::MeshData*(const ::PokemonInstance&)>&
-        resolveModelMesh) {
-    const std::string_view key = sceneMeshResolveKeyForUnit(unit);
-    if (key.empty()) {
-        return resolveModelMesh(unit);
-    }
-
-    const auto cachedIt =
-        std::find_if(g_cachedResolvedProjectedMeshes.begin(),
-                     g_cachedResolvedProjectedMeshes.end(),
-                     [&](const CachedResolvedMeshEntry& entry) { return entry.key == key; });
-    if (cachedIt != g_cachedResolvedProjectedMeshes.end()) {
-        return cachedIt->mesh;
-    }
-
-    const auto* mesh = resolveModelMesh(unit);
-    if (mesh != nullptr) {
-        g_cachedResolvedProjectedMeshes.push_back({std::string(key), mesh});
-    }
-    return mesh;
 }
 
 bool shouldPrewarmNextScenePoseSample(std::size_t unitCount, float scenePoseCacheStepSec) {
@@ -477,6 +437,8 @@ void drawProjectedUnits(const Args& args, const std::vector<PokemonInstance>& un
 
     const std::uint64_t poseCacheFrame = ++g_cachedScenePoseFrameCounter;
     pruneScenePoseCache(poseCacheFrame);
+    std::unordered_map<std::string, const runtime::render_model::MeshData*> meshBySpecies;
+    meshBySpecies.reserve(units.size());
 
 for (const auto& unit : units) {
     if (!unit.alive && !unit.captureInProgress && !unit.fainting) continue;
@@ -503,8 +465,14 @@ for (const auto& unit : units) {
     ++unitsProcessed;
 
     const auto poseEvalStart = Clock::now();
-    const runtime::render_model::MeshData* meshForUnit =
-        resolveProjectedSceneMeshCached(unit, resolveModelMesh);
+    const runtime::render_model::MeshData* meshForUnit = nullptr;
+    auto meshIt = meshBySpecies.find(unit.name);
+    if (meshIt != meshBySpecies.end()) {
+        meshForUnit = meshIt->second;
+    } else {
+        meshForUnit = resolveModelMesh(unit);
+        meshBySpecies.emplace(unit.name, meshForUnit);
+    }
     const BackendPoseEval* scenePose = nullptr;
     bool scenePoseReady = false;
     if (meshForUnit) {
