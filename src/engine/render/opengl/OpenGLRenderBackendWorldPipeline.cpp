@@ -1172,6 +1172,9 @@ __PAC_SHARED_WORLD_PBR_SECTION__
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, 1024, nullptr, GL_STREAM_DRAW);
     glBindBuffer(GL_ARRAY_BUFFER, worldInstanceVbo_);
     glBufferData(GL_ARRAY_BUFFER, static_cast<GLsizeiptr>(sizeof(float) * 20u), nullptr, GL_STREAM_DRAW);
+    worldInstanceBufferCapacityBytes_ = sizeof(float) * 20u;
+    worldInstanceWriteOffsetBytes_ = 0u;
+    worldInstanceBufferNeedsOrphan_ = false;
     configureWorldMeshVertexLayout(worldVao_, worldVbo_, worldIbo_);
     glBindVertexArray(0);
     glBindBuffer(GL_ARRAY_BUFFER, 0);
@@ -1228,6 +1231,9 @@ void OpenGLRenderBackend::destroyWorldPipeline() {
         glDeleteBuffers(1, &worldInstanceVbo_);
         worldInstanceVbo_ = 0;
     }
+    worldInstanceBufferCapacityBytes_ = 0u;
+    worldInstanceWriteOffsetBytes_ = 0u;
+    worldInstanceBufferNeedsOrphan_ = false;
     if (worldIbo_ != 0) {
         glDeleteBuffers(1, &worldIbo_);
         worldIbo_ = 0;
