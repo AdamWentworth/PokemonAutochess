@@ -223,6 +223,20 @@ private:
     unsigned int spriteVbo_ = 0;
     int spriteSurfaceSizeLoc_ = -1;
     int spriteSamplerLoc_ = -1;
+    struct SpriteInstanceData {
+        float x;
+        float y;
+        float w;
+        float h;
+        float u0;
+        float v0;
+        float u1;
+        float v1;
+        float r;
+        float g;
+        float b;
+        float a;
+    };
 
     struct TextureCacheEntry {
         unsigned int textureId = 0;

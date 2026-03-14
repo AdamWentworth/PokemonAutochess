@@ -182,25 +182,20 @@ void OpenGLRenderBackend::drawDebugSprites(const DebugSprite* sprites,
         return;
     }
 
-    struct SpriteVertex {
-        float x;
-        float y;
-        float u;
-        float v;
-        float r;
-        float g;
-        float b;
-        float a;
+    struct SpriteDrawRun {
+        unsigned int textureId = 0;
+        std::uint32_t firstInstance = 0;
+        std::uint32_t instanceCount = 0;
     };
 
     constexpr std::size_t kMaxSpriteQuads = 2048;
     const std::size_t safeCount = std::min(spriteCount, kMaxSpriteQuads);
-    static thread_local std::vector<SpriteVertex> vertices;
-    static thread_local std::vector<unsigned int> textureIds;
-    vertices.clear();
-    textureIds.clear();
-    vertices.reserve(safeCount * 6u);
-    textureIds.reserve(safeCount);
+    static thread_local std::vector<SpriteInstanceData> instances;
+    static thread_local std::vector<SpriteDrawRun> runs;
+    instances.clear();
+    runs.clear();
+    instances.reserve(safeCount);
+    runs.reserve(safeCount);
 
     for (std::size_t i = 0; i < safeCount; ++i) {
         const DebugSprite& sprite = sprites[i];
@@ -208,20 +203,17 @@ void OpenGLRenderBackend::drawDebugSprites(const DebugSprite* sprites,
         const unsigned int textureId = ensureSpriteTexture(sprite.texturePath);
         if (textureId == 0u) continue;
 
-        const float x0 = sprite.x;
-        const float y0 = sprite.y;
-        const float x1 = sprite.x + sprite.w;
-        const float y1 = sprite.y + sprite.h;
+        const std::uint32_t instanceIndex = static_cast<std::uint32_t>(instances.size());
+        instances.push_back(
+            {sprite.x, sprite.y, sprite.w, sprite.h, sprite.u0, sprite.v0, sprite.u1, sprite.v1, sprite.r, sprite.g, sprite.b, sprite.a});
 
-        vertices.push_back({x0, y0, sprite.u0, sprite.v0, sprite.r, sprite.g, sprite.b, sprite.a});
-        vertices.push_back({x1, y0, sprite.u1, sprite.v0, sprite.r, sprite.g, sprite.b, sprite.a});
-        vertices.push_back({x1, y1, sprite.u1, sprite.v1, sprite.r, sprite.g, sprite.b, sprite.a});
-        vertices.push_back({x0, y0, sprite.u0, sprite.v0, sprite.r, sprite.g, sprite.b, sprite.a});
-        vertices.push_back({x1, y1, sprite.u1, sprite.v1, sprite.r, sprite.g, sprite.b, sprite.a});
-        vertices.push_back({x0, y1, sprite.u0, sprite.v1, sprite.r, sprite.g, sprite.b, sprite.a});
-        textureIds.push_back(textureId);
+        if (!runs.empty() && runs.back().textureId == textureId) {
+            ++runs.back().instanceCount;
+        } else {
+            runs.push_back({textureId, instanceIndex, 1u});
+        }
     }
-    if (vertices.empty() || textureIds.empty()) return;
+    if (instances.empty() || runs.empty()) return;
 
     GLint prevProgram = 0;
     GLint prevVao = 0;
@@ -255,15 +247,30 @@ void OpenGLRenderBackend::drawDebugSprites(const DebugSprite* sprites,
     glBindVertexArray(spriteVao_);
     glBindBuffer(GL_ARRAY_BUFFER, spriteVbo_);
     glBufferData(GL_ARRAY_BUFFER,
-                 static_cast<GLsizeiptr>(vertices.size() * sizeof(SpriteVertex)),
-                 vertices.data(),
+                 static_cast<GLsizeiptr>(instances.size() * sizeof(SpriteInstanceData)),
+                 instances.data(),
                  GL_STREAM_DRAW);
-    for (std::size_t i = 0; i < textureIds.size(); ++i) {
-        glBindTexture(GL_TEXTURE_2D, textureIds[i]);
-        glDrawArrays(GL_TRIANGLES, static_cast<GLint>(i * 6u), 6);
+    constexpr GLsizei stride = static_cast<GLsizei>(sizeof(SpriteInstanceData));
+    for (const SpriteDrawRun& run : runs) {
+        const std::uintptr_t baseOffset = static_cast<std::uintptr_t>(run.firstInstance) * sizeof(SpriteInstanceData);
+        glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, stride, reinterpret_cast<void*>(baseOffset));
+        glVertexAttribPointer(1,
+                              4,
+                              GL_FLOAT,
+                              GL_FALSE,
+                              stride,
+                              reinterpret_cast<void*>(baseOffset + sizeof(float) * 4));
+        glVertexAttribPointer(2,
+                              4,
+                              GL_FLOAT,
+                              GL_FALSE,
+                              stride,
+                              reinterpret_cast<void*>(baseOffset + sizeof(float) * 8));
+        glBindTexture(GL_TEXTURE_2D, run.textureId);
+        glDrawArraysInstanced(GL_TRIANGLES, 0, 6, static_cast<GLsizei>(run.instanceCount));
     }
-    frameDrawCalls_ += static_cast<std::uint32_t>(textureIds.size());
-    frameTriangles_ += static_cast<std::uint64_t>(textureIds.size() * 2u);
+    frameDrawCalls_ += static_cast<std::uint32_t>(runs.size());
+    frameTriangles_ += static_cast<std::uint64_t>(instances.size() * 2u);
 
     glBindBuffer(GL_ARRAY_BUFFER, static_cast<GLuint>(prevArrayBuffer));
     glBindVertexArray(static_cast<GLuint>(prevVao));

@@ -122,18 +122,28 @@ void OpenGLRenderBackend::ensureSpritePipeline() {
 
     static constexpr const char* kVs = R"GLSL(
         #version 330 core
-        layout (location = 0) in vec2 aPos;
-        layout (location = 1) in vec2 aUv;
+        layout (location = 0) in vec4 aRect;
+        layout (location = 1) in vec4 aUvRect;
         layout (location = 2) in vec4 aColor;
         uniform vec2 uSurfaceSize;
         out vec2 vUv;
         out vec4 vColor;
         void main() {
+            const vec2 kCorners[6] = vec2[6](
+                vec2(0.0, 0.0),
+                vec2(1.0, 0.0),
+                vec2(1.0, 1.0),
+                vec2(0.0, 0.0),
+                vec2(1.0, 1.0),
+                vec2(0.0, 1.0)
+            );
+            vec2 corner = kCorners[gl_VertexID];
+            vec2 posPx = aRect.xy + aRect.zw * corner;
             vec2 ndc;
-            ndc.x = (aPos.x / max(uSurfaceSize.x, 1.0)) * 2.0 - 1.0;
-            ndc.y = 1.0 - (aPos.y / max(uSurfaceSize.y, 1.0)) * 2.0;
+            ndc.x = (posPx.x / max(uSurfaceSize.x, 1.0)) * 2.0 - 1.0;
+            ndc.y = 1.0 - (posPx.y / max(uSurfaceSize.y, 1.0)) * 2.0;
             gl_Position = vec4(ndc, 0.0, 1.0);
-            vUv = aUv;
+            vUv = mix(aUvRect.xy, aUvRect.zw, corner);
             vColor = aColor;
         }
     )GLSL";
@@ -177,15 +187,21 @@ void OpenGLRenderBackend::ensureSpritePipeline() {
 
     glBindVertexArray(spriteVao_);
     glBindBuffer(GL_ARRAY_BUFFER, spriteVbo_);
-    glBufferData(GL_ARRAY_BUFFER, 1024, nullptr, GL_STREAM_DRAW);
+    glBufferData(GL_ARRAY_BUFFER,
+                 static_cast<GLsizeiptr>(2048u * sizeof(SpriteInstanceData)),
+                 nullptr,
+                 GL_STREAM_DRAW);
 
-    constexpr GLsizei stride = static_cast<GLsizei>(sizeof(float) * 8);
+    constexpr GLsizei stride = static_cast<GLsizei>(sizeof(SpriteInstanceData));
     glEnableVertexAttribArray(0);
-    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, stride, reinterpret_cast<void*>(0));
+    glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, stride, reinterpret_cast<void*>(0));
+    glVertexAttribDivisor(0, 1);
     glEnableVertexAttribArray(1);
-    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, stride, reinterpret_cast<void*>(sizeof(float) * 2));
+    glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, stride, reinterpret_cast<void*>(sizeof(float) * 4));
+    glVertexAttribDivisor(1, 1);
     glEnableVertexAttribArray(2);
-    glVertexAttribPointer(2, 4, GL_FLOAT, GL_FALSE, stride, reinterpret_cast<void*>(sizeof(float) * 4));
+    glVertexAttribPointer(2, 4, GL_FLOAT, GL_FALSE, stride, reinterpret_cast<void*>(sizeof(float) * 8));
+    glVertexAttribDivisor(2, 1);
 
     glBindBuffer(GL_ARRAY_BUFFER, 0);
     glBindVertexArray(0);

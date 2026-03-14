@@ -235,12 +235,18 @@ void D3D12RenderBackend::drawDebugSprites(const DebugSprite* sprites,
 
     const std::size_t safeCount = (spriteCount > kMaxSpriteQuads) ? kMaxSpriteQuads : spriteCount;
 
-    static thread_local std::vector<SpriteVertex> vertices;
-    vertices.clear();
-    vertices.reserve(safeCount * 6);
-    static thread_local std::vector<std::uint32_t> descriptorIndices;
-    descriptorIndices.clear();
-    descriptorIndices.reserve(safeCount);
+    struct SpriteDrawRun {
+        std::uint32_t descriptorIndex = 0;
+        std::uint32_t firstInstance = 0;
+        std::uint32_t instanceCount = 0;
+    };
+
+    static thread_local std::vector<SpriteInstanceData> instances;
+    instances.clear();
+    instances.reserve(safeCount);
+    static thread_local std::vector<SpriteDrawRun> runs;
+    runs.clear();
+    runs.reserve(safeCount);
 
     for (std::size_t i = 0; i < safeCount; ++i) {
         const DebugSprite& sprite = sprites[i];
@@ -249,34 +255,23 @@ void D3D12RenderBackend::drawDebugSprites(const DebugSprite* sprites,
         SpriteTexture* texture = ensureSpriteTexture(sprite.texturePath);
         if (!texture || !texture->valid) continue;
 
-        const float x0 = sprite.x;
-        const float y0 = sprite.y;
-        const float x1 = sprite.x + sprite.w;
-        const float y1 = sprite.y + sprite.h;
-        const float r = sprite.r;
-        const float g = sprite.g;
-        const float b = sprite.b;
-        const float a = sprite.a;
-        const float u0 = sprite.u0;
-        const float v0 = sprite.v0;
-        const float u1 = sprite.u1;
-        const float v1 = sprite.v1;
+        const std::uint32_t instanceIndex = static_cast<std::uint32_t>(instances.size());
+        instances.push_back(
+            {sprite.x, sprite.y, sprite.w, sprite.h, sprite.u0, sprite.v0, sprite.u1, sprite.v1, sprite.r, sprite.g, sprite.b, sprite.a});
 
-        vertices.push_back({x0, y0, u0, v0, r, g, b, a});
-        vertices.push_back({x1, y0, u1, v0, r, g, b, a});
-        vertices.push_back({x1, y1, u1, v1, r, g, b, a});
-        vertices.push_back({x0, y0, u0, v0, r, g, b, a});
-        vertices.push_back({x1, y1, u1, v1, r, g, b, a});
-        vertices.push_back({x0, y1, u0, v1, r, g, b, a});
-        descriptorIndices.push_back(texture->descriptorIndex);
+        if (!runs.empty() && runs.back().descriptorIndex == texture->descriptorIndex) {
+            ++runs.back().instanceCount;
+        } else {
+            runs.push_back({texture->descriptorIndex, instanceIndex, 1u});
+        }
     }
-    if (vertices.empty() || descriptorIndices.empty()) return;
+    if (instances.empty() || runs.empty()) return;
 
-    const std::size_t neededBytes = vertices.size() * sizeof(SpriteVertex);
+    const std::size_t neededBytes = instances.size() * sizeof(SpriteInstanceData);
     const std::size_t writeOffset = alignUp(static_cast<std::size_t>(spriteVertexFrameOffset_), 256u);
     if (neededBytes == 0 || writeOffset + neededBytes > spriteVertexBufferSize_) return;
 
-    std::memcpy(spriteVertexMappedData_ + writeOffset, vertices.data(), neededBytes);
+    std::memcpy(spriteVertexMappedData_ + writeOffset, instances.data(), neededBytes);
 
     D3D12_VIEWPORT vp{};
     vp.TopLeftX = 0.0f;
@@ -307,14 +302,14 @@ void D3D12RenderBackend::drawDebugSprites(const DebugSprite* sprites,
     commandList_->IASetVertexBuffers(0, 1, &vbv);
 
     D3D12_GPU_DESCRIPTOR_HANDLE baseSrv = srvHeap_->GetGPUDescriptorHandleForHeapStart();
-    for (std::size_t i = 0; i < descriptorIndices.size(); ++i) {
+    for (const SpriteDrawRun& run : runs) {
         D3D12_GPU_DESCRIPTOR_HANDLE srvHandle = baseSrv;
-        srvHandle.ptr += static_cast<SIZE_T>(descriptorIndices[i]) * static_cast<SIZE_T>(srvDescriptorSize_);
+        srvHandle.ptr += static_cast<SIZE_T>(run.descriptorIndex) * static_cast<SIZE_T>(srvDescriptorSize_);
         commandList_->SetGraphicsRootDescriptorTable(1, srvHandle);
-        commandList_->DrawInstanced(6, 1, static_cast<UINT>(i * 6), 0);
+        commandList_->DrawInstanced(6u, run.instanceCount, 0u, run.firstInstance);
     }
-    frameDrawCalls_ += static_cast<std::uint32_t>(descriptorIndices.size());
-    frameTriangles_ += static_cast<std::uint64_t>(descriptorIndices.size() * 2u);
+    frameDrawCalls_ += static_cast<std::uint32_t>(runs.size());
+    frameTriangles_ += static_cast<std::uint64_t>(instances.size() * 2u);
     spriteVertexFrameOffset_ = static_cast<std::uint32_t>(writeOffset + neededBytes);
 #else
     (void)sprites;

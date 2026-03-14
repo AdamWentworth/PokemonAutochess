@@ -1545,15 +1545,25 @@ void D3D12RenderBackend::createSpritePipeline() {
 
     static constexpr char kVsSource[] =
         "cbuffer VSConstants : register(b0) { float2 uSurfaceSize; };"
-        "struct VSIn { float2 pos : POSITION; float2 uv : TEXCOORD; float4 col : COLOR; };"
+        "struct VSIn { float4 rect : RECT; float4 uvRect : UVRECT; float4 col : COLOR; uint vertexId : SV_VertexID; };"
         "struct VSOut { float4 pos : SV_POSITION; float2 uv : TEXCOORD; float4 col : COLOR; };"
         "VSOut main(VSIn i) {"
         "  VSOut o;"
+        "  static const float2 kCorners[6] = {"
+        "      float2(0.0f, 0.0f),"
+        "      float2(1.0f, 0.0f),"
+        "      float2(1.0f, 1.0f),"
+        "      float2(0.0f, 0.0f),"
+        "      float2(1.0f, 1.0f),"
+        "      float2(0.0f, 1.0f)"
+        "  };"
+        "  float2 corner = kCorners[i.vertexId];"
+        "  float2 posPx = i.rect.xy + i.rect.zw * corner;"
         "  float2 ndc;"
-        "  ndc.x = (i.pos.x / max(uSurfaceSize.x, 1.0f)) * 2.0f - 1.0f;"
-        "  ndc.y = 1.0f - (i.pos.y / max(uSurfaceSize.y, 1.0f)) * 2.0f;"
+        "  ndc.x = (posPx.x / max(uSurfaceSize.x, 1.0f)) * 2.0f - 1.0f;"
+        "  ndc.y = 1.0f - (posPx.y / max(uSurfaceSize.y, 1.0f)) * 2.0f;"
         "  o.pos = float4(ndc, 0.0f, 1.0f);"
-        "  o.uv = i.uv;"
+        "  o.uv = lerp(i.uvRect.xy, i.uvRect.zw, corner);"
         "  o.col = i.col;"
         "  return o;"
         "}";
@@ -1660,9 +1670,9 @@ void D3D12RenderBackend::createSpritePipeline() {
     }
 
     D3D12_INPUT_ELEMENT_DESC layout[] = {
-        {"POSITION", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
-        {"TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 8, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
-        {"COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 16, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
+        {"RECT", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_INSTANCE_DATA, 1},
+        {"UVRECT", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 16, D3D12_INPUT_CLASSIFICATION_PER_INSTANCE_DATA, 1},
+        {"COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 32, D3D12_INPUT_CLASSIFICATION_PER_INSTANCE_DATA, 1},
     };
 
     D3D12_GRAPHICS_PIPELINE_STATE_DESC pso{};
@@ -1720,7 +1730,7 @@ void D3D12RenderBackend::createSpritePipeline() {
         throw std::runtime_error("CreateGraphicsPipelineState failed for D3D12 sprite pipeline.");
     }
 
-    constexpr std::size_t kBufferBytes = kMaxSpriteVertices * sizeof(SpriteVertex);
+    constexpr std::size_t kBufferBytes = kMaxSpriteQuads * sizeof(SpriteInstanceData);
     D3D12_HEAP_PROPERTIES heapProps{};
     heapProps.Type = D3D12_HEAP_TYPE_UPLOAD;
     heapProps.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
@@ -1751,7 +1761,7 @@ void D3D12RenderBackend::createSpritePipeline() {
         throw std::runtime_error("CreateCommittedResource failed for D3D12 sprite vertex buffer.");
     }
     spriteVertexBufferGpuAddress_ = spriteVertexBuffer_->GetGPUVirtualAddress();
-    spriteVertexStride_ = sizeof(SpriteVertex);
+    spriteVertexStride_ = sizeof(SpriteInstanceData);
     spriteVertexBufferSize_ = static_cast<UINT>(kBufferBytes);
     spriteVertexMappedData_ = nullptr;
     void* spriteMapped = nullptr;

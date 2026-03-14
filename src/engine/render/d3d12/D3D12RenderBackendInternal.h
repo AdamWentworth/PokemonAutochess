@@ -12,11 +12,15 @@ namespace engine::render::d3d12_internal {
 
 using DebugVertex = engine::render::debug::Vertex2D;
 
-struct SpriteVertex {
+struct SpriteInstanceData {
     float x;
     float y;
-    float u;
-    float v;
+    float w;
+    float h;
+    float u0;
+    float v0;
+    float u1;
+    float v1;
     float r;
     float g;
     float b;
@@ -81,8 +85,9 @@ static_assert(
     std::is_trivially_copyable_v<IRenderBackend::WorldMeshVertex>,
     "WorldMeshVertex must be trivially copyable.");
 
+static_assert(std::is_trivially_copyable_v<SpriteInstanceData>, "SpriteInstanceData must be trivially copyable.");
+
 inline constexpr std::size_t kMaxSpriteQuads = 2048;
-inline constexpr std::size_t kMaxSpriteVertices = kMaxSpriteQuads * 6;
 inline constexpr std::size_t kMaxDebugQuads = 4096;
 inline constexpr std::size_t kMaxDebugLines = 8192;
 inline constexpr std::size_t kMaxDebugTriangles = 65536;
