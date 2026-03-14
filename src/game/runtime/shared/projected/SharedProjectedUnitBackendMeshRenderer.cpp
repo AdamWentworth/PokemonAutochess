@@ -191,8 +191,7 @@ Result renderProjectedUnitBackendMesh(const Args& args) {
                     resolvedTriNodeIndex = fastCache.defaultSkinNodeIndex;
                 }
 
-                if (args.enableGpuClipSkinning &&
-                    srcBatch.rigidJointIndex == support::kInvalidRigidJointIndex) {
+                if (args.enableGpuClipSkinning) {
                     const int skinCacheKey = transforms.gpuSkinningCacheKeyForNode(
                         resolvedTriNodeIndex);
                     if (skinCacheKey >= 0) {
@@ -277,23 +276,11 @@ Result renderProjectedUnitBackendMesh(const Args& args) {
                     const bool hasNormalTexture =
                         shared_world_batches::resolvedHasNormalTexture(dstBatch);
                     const bool needsTangents = needsLitNormals && hasNormalTexture;
-                    const bool hasSharedTemplateGeometry =
-                        !srcBatch.gpuTemplateVertices.empty() &&
-                        !srcBatch.indices.empty();
                     const bool canUseSharedNodeTransform =
                         srcBatch.gpuJointPalette.empty() &&
-                        hasSharedTemplateGeometry;
-                    bool usedRigidJointTransform = false;
-                    if (!canUseSharedNodeTransform &&
-                        srcBatch.rigidJointIndex != support::kInvalidRigidJointIndex &&
-                        hasSharedTemplateGeometry) {
-                        // Rigid single-joint batches only need one joint-derived matrix.
-                        usedRigidJointTransform = transforms.resolveRigidSkinningModelMatrix(
-                            resolvedTriNodeIndex,
-                            srcBatch.rigidJointIndex,
-                            dstBatch.modelMatrix);
-                    }
-                    if (canUseSharedNodeTransform || usedRigidJointTransform) {
+                        !srcBatch.gpuTemplateVertices.empty() &&
+                        !srcBatch.indices.empty();
+                    if (canUseSharedNodeTransform) {
                         // Non-skinned submeshes already have stable local-space template
                         // vertices. Let the backend apply the node/model transform instead
                         // of rewriting every vertex on the CPU.
@@ -304,20 +291,14 @@ Result renderProjectedUnitBackendMesh(const Args& args) {
                         dstBatch.sharedIndices = srcBatch.indices.data();
                         dstBatch.sharedIndexCount = srcBatch.indices.size();
 
-                        if (!usedRigidJointTransform) {
-                            glm::mat4 nodeGlobal(1.0f);
-                            if (resolvedTriNodeIndex >= 0 &&
-                                static_cast<std::size_t>(resolvedTriNodeIndex) < nodeGlobals.size()) {
-                                nodeGlobal =
-                                    nodeGlobals[static_cast<std::size_t>(resolvedTriNodeIndex)];
-                            }
-                            const glm::mat4 batchModel = prep.modelM * nodeGlobal;
-                            const float* batchModelData = glm::value_ptr(batchModel);
-                            std::copy(
-                                batchModelData,
-                                batchModelData + 16,
-                                dstBatch.modelMatrix.begin());
+                        glm::mat4 nodeGlobal(1.0f);
+                        if (resolvedTriNodeIndex >= 0 &&
+                            static_cast<std::size_t>(resolvedTriNodeIndex) < nodeGlobals.size()) {
+                            nodeGlobal = nodeGlobals[static_cast<std::size_t>(resolvedTriNodeIndex)];
                         }
+                        const glm::mat4 batchModel = prep.modelM * nodeGlobal;
+                        const float* batchModelData = glm::value_ptr(batchModel);
+                        std::copy(batchModelData, batchModelData + 16, dstBatch.modelMatrix.begin());
                     } else {
                         dstBatch.geometryCacheKey.clear();
                         dstBatch.indices.clear();
