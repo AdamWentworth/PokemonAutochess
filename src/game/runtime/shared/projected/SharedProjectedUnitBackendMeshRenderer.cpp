@@ -377,6 +377,8 @@ Result renderProjectedUnitBackendMesh(const Args& args) {
                     }
                 }
             }
+            // Keep the indexed fast path inline here. Splitting it into another
+            // translation unit caused a measurable Debug perf regression.
             handledFastTexturedPath = true;
             bool fastPathHasGeometry = false;
             for (const auto& batch : modelIndexedBatchesPerSubmesh) {

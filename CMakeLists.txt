@@ -544,6 +544,7 @@ if (BUILD_TESTING)
         tests/TestMovementSystem.cpp
         tests/TestModelParse.cpp
         tests/TestModelLoaderStructure.cpp
+        tests/TestProjectedMeshRendererHotPath.cpp
         tests/TestGltfAsset.cpp
         tests/TestCombatAnimIndexCache.cpp
         tests/TestScriptApiContract.cpp

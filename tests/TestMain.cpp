@@ -91,6 +91,7 @@ bool test_end_to_end_headless(std::string& outFail);
 bool test_movement_invariants(std::string& outFail);
 bool test_model_parse_smoke(std::string& outFail);
 bool test_model_loader_source_modularity(std::string& outFail);
+bool test_projected_mesh_renderer_hot_path_contract(std::string& outFail);
 bool test_gltf_asset_smoke(std::string& outFail);
 bool test_combat_anim_index_cache_contract(std::string& outFail);
 bool test_script_api_contract(std::string& outFail);
@@ -299,6 +300,7 @@ int main(int argc, char** argv) {
         {"movement_invariants", &test_movement_invariants},
         {"model_parse_smoke", &test_model_parse_smoke},
         {"model_loader_source_modularity", &test_model_loader_source_modularity},
+        {"projected_mesh_renderer_hot_path_contract", &test_projected_mesh_renderer_hot_path_contract},
         {"gltf_asset_smoke", &test_gltf_asset_smoke},
         {"combat_anim_index_cache_contract", &test_combat_anim_index_cache_contract},
         {"script_api_contract", &test_script_api_contract},
