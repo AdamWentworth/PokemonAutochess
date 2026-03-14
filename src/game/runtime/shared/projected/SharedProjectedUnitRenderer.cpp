@@ -92,6 +92,24 @@ float backendScenePoseCacheHz() {
     return hz;
 }
 
+float backendScenePoseCacheSparseHz() {
+    static const float hz = []() -> float {
+        // Small battles spend proportionally more CPU per visible unit, so keep
+        // pose sampling cached at a higher cadence instead of evaluating every frame.
+        constexpr float kDefault = 120.0f;
+        constexpr float kMin = 0.0f;
+        constexpr float kMax = 240.0f;
+        const auto env = engine::env::get("PAC_BACKEND_SCENE_POSE_CACHE_SPARSE_HZ");
+        if (!env.has_value()) return kDefault;
+        try {
+            return std::clamp(std::stof(*env), kMin, kMax);
+        } catch (...) {
+            return kDefault;
+        }
+    }();
+    return hz;
+}
+
 float backendScenePoseCacheDenseHz() {
     static const float hz = []() -> float {
         constexpr float kDefault = 20.0f;
@@ -143,8 +161,16 @@ std::size_t backendScenePoseCacheDenseMinUnits() {
 }
 
 float backendScenePoseCacheEffectiveHz(std::size_t unitCount) {
+    if (unitCount == 0u) {
+        return 0.0f;
+    }
+    const std::size_t minUnits = backendScenePoseCacheMinUnits();
+    if (unitCount < minUnits) {
+        const float sparseHz = backendScenePoseCacheSparseHz();
+        return (sparseHz > 0.0f) ? sparseHz : 0.0f;
+    }
     const float baseHz = backendScenePoseCacheHz();
-    if (!(baseHz > 0.0f) || unitCount < backendScenePoseCacheMinUnits()) {
+    if (!(baseHz > 0.0f)) {
         return 0.0f;
     }
     const float denseHz = backendScenePoseCacheDenseHz();
@@ -581,32 +607,6 @@ for (const auto& unit : units) {
 
     IRenderBackend::DebugQuad tint;
     runtime::render_prep_units::applyWorldUnitTint(tint, unit);
-    float topR = std::clamp(tint.r * 0.86f + 0.12f, 0.0f, 1.0f);
-    float topG = std::clamp(tint.g * 0.86f + 0.12f, 0.0f, 1.0f);
-    float topB = std::clamp(tint.b * 0.86f + 0.12f, 0.0f, 1.0f);
-    float sideR = std::clamp(tint.r * 0.72f, 0.0f, 1.0f);
-    float sideG = std::clamp(tint.g * 0.72f, 0.0f, 1.0f);
-    float sideB = std::clamp(tint.b * 0.72f, 0.0f, 1.0f);
-    float topAlpha = unit.alive ? 0.96f : 0.78f;
-    float sideAlpha = unit.alive ? 0.88f : 0.70f;
-    if (captureVisualTintStrength > 0.001f) {
-        const glm::vec3 topTinted = glm::mix(
-            glm::vec3(topR, topG, topB),
-            captureTintColor,
-            captureVisualTintStrength);
-        const glm::vec3 sideTinted = glm::mix(
-            glm::vec3(sideR, sideG, sideB),
-            captureTintColor,
-            captureVisualTintStrength);
-        topR = topTinted.r;
-        topG = topTinted.g;
-        topB = topTinted.b;
-        sideR = sideTinted.r;
-        sideG = sideTinted.g;
-        sideB = sideTinted.b;
-        topAlpha *= captureVisualAlphaScale;
-        sideAlpha *= captureVisualAlphaScale;
-    }
     if (!meshForUnit) {
         const auto shadow = game::runtime::render_prep_proxy::computeShadowQuad(
             proxyCenter,
@@ -690,12 +690,38 @@ for (const auto& unit : units) {
         if (drewModelMesh) ++modelUnits;
     }
 
-    const game::runtime::render_prep_proxy::UnitProxyCorners corners =
-        game::runtime::render_prep_proxy::computeUnitProxyCorners(
-            proxyCenter,
-            extents,
-            animYaw);
     if (!drewModelMesh) {
+        float topR = std::clamp(tint.r * 0.86f + 0.12f, 0.0f, 1.0f);
+        float topG = std::clamp(tint.g * 0.86f + 0.12f, 0.0f, 1.0f);
+        float topB = std::clamp(tint.b * 0.86f + 0.12f, 0.0f, 1.0f);
+        float sideR = std::clamp(tint.r * 0.72f, 0.0f, 1.0f);
+        float sideG = std::clamp(tint.g * 0.72f, 0.0f, 1.0f);
+        float sideB = std::clamp(tint.b * 0.72f, 0.0f, 1.0f);
+        float topAlpha = unit.alive ? 0.96f : 0.78f;
+        float sideAlpha = unit.alive ? 0.88f : 0.70f;
+        if (captureVisualTintStrength > 0.001f) {
+            const glm::vec3 topTinted = glm::mix(
+                glm::vec3(topR, topG, topB),
+                captureTintColor,
+                captureVisualTintStrength);
+            const glm::vec3 sideTinted = glm::mix(
+                glm::vec3(sideR, sideG, sideB),
+                captureTintColor,
+                captureVisualTintStrength);
+            topR = topTinted.r;
+            topG = topTinted.g;
+            topB = topTinted.b;
+            sideR = sideTinted.r;
+            sideG = sideTinted.g;
+            sideB = sideTinted.b;
+            topAlpha *= captureVisualAlphaScale;
+            sideAlpha *= captureVisualAlphaScale;
+        }
+        const game::runtime::render_prep_proxy::UnitProxyCorners corners =
+            game::runtime::render_prep_proxy::computeUnitProxyCorners(
+                proxyCenter,
+                extents,
+                animYaw);
         if (supportsWorldTriangles3D) {
             projectedDebug.appendWorldQuad(
                 corners.top[0],

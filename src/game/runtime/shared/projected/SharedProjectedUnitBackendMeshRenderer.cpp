@@ -174,11 +174,10 @@ Result renderProjectedUnitBackendMesh(const Args& args) {
                 batch.sharedIndexCount = 0u;
             }
 
-            auto& gpuSkinBatchStates = support::gpuSkinBatchStateEntries();
+            (void)support::gpuSkinBatchStateEntries();
+            auto& gpuSkinBatchStates = support::gpuSkinBatchStateMap();
             gpuSkinBatchStates.clear();
-            if (gpuSkinBatchStates.capacity() < fastCache.batches.size()) {
-                gpuSkinBatchStates.reserve(fastCache.batches.size());
-            }
+            gpuSkinBatchStates.reserve(fastCache.batches.size());
             for (std::size_t bi = 0; bi < fastCache.batches.size(); ++bi) {
                 if (bi >= modelIndexedBatchesPerSubmesh.size()) continue;
                 const auto& srcBatch = fastCache.batches[bi];
@@ -211,12 +210,7 @@ Result renderProjectedUnitBackendMesh(const Args& args) {
                             }
                         }
 
-                        auto stateIt = std::find_if(
-                            gpuSkinBatchStates.begin(),
-                            gpuSkinBatchStates.end(),
-                            [&](const support::GpuSkinBatchStateEntry& entry) {
-                                return entry.key == batchStateKey;
-                            });
+                        auto stateIt = gpuSkinBatchStates.find(batchStateKey);
                         if (stateIt == gpuSkinBatchStates.end()) {
                             support::GpuSkinBatchState newState{};
                             auto& sharedSkinMatrices = support::unitSkinMatrices()[batchStateKey];
@@ -229,15 +223,15 @@ Result renderProjectedUnitBackendMesh(const Args& args) {
                                 newState.valid = true;
                                 newState.sharedSkinMatrices = sharedSkinMatrices.data();
                             }
-                            gpuSkinBatchStates.push_back(
-                                support::GpuSkinBatchStateEntry{batchStateKey, newState});
-                            stateIt = std::prev(gpuSkinBatchStates.end());
+                            stateIt = gpuSkinBatchStates
+                                          .emplace(std::move(batchStateKey), std::move(newState))
+                                          .first;
                         }
-                        if (stateIt->state.valid) {
+                        if (stateIt->second.valid) {
                             dstBatch.gpuSkinning = 1u;
-                            dstBatch.modelMatrix = stateIt->state.modelMatrix;
-                            dstBatch.skinMatrixCount = stateIt->state.skinMatrixCount;
-                            dstBatch.sharedSkinMatrices = stateIt->state.sharedSkinMatrices;
+                            dstBatch.modelMatrix = stateIt->second.modelMatrix;
+                            dstBatch.skinMatrixCount = stateIt->second.skinMatrixCount;
+                            dstBatch.sharedSkinMatrices = stateIt->second.sharedSkinMatrices;
                             dstBatch.skinMatrices.clear();
                         }
                     }

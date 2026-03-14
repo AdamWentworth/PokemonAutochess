@@ -108,6 +108,8 @@ shared_projected_unit_backend_mesh_prep::PreparedState& preparedMeshState();
 std::vector<int>& triNodeIndexByTriangleScratch();
 std::unordered_map<UnitSkinMatrixKey, std::vector<float>, UnitSkinMatrixKeyHash>&
 unitSkinMatrices();
+std::unordered_map<UnitSkinMatrixKey, GpuSkinBatchState, UnitSkinMatrixKeyHash>&
+gpuSkinBatchStateMap();
 std::vector<GpuSkinBatchStateEntry>& gpuSkinBatchStateEntries();
 
 } // namespace game::runtime::shared_projected_unit_backend_mesh_support

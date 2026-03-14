@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <cmath>
 #include <string>
+#include <unordered_map>
 
 #include <glm/glm.hpp>
 
@@ -18,6 +19,42 @@ int xpToNextLevel(const Config& config, int level) {
     const float raw =
         static_cast<float>(config.xpLevelBase) * std::pow(growth, static_cast<float>(useLevel - 1));
     return std::max(1, static_cast<int>(std::round(raw)));
+}
+
+struct CachedTextMetrics {
+    bool boundsValid = false;
+    float minX = 0.0f;
+    float minY = 0.0f;
+    float maxX = 0.0f;
+    float maxY = 0.0f;
+    float width = 0.0f;
+    float height = 0.0f;
+};
+
+const CachedTextMetrics& cachedTextMetrics(const std::string& text) {
+    static thread_local std::unordered_map<std::string, CachedTextMetrics> cache;
+
+    auto it = cache.find(text);
+    if (it != cache.end()) {
+        return it->second;
+    }
+
+    CachedTextMetrics metrics{};
+    const runtime::ui_text::TextBounds bounds =
+        runtime::ui_text::measureTextBounds(text, 1.0f);
+    metrics.boundsValid = bounds.valid;
+    metrics.minX = bounds.minX;
+    metrics.minY = bounds.minY;
+    metrics.maxX = bounds.maxX;
+    metrics.maxY = bounds.maxY;
+    if (bounds.valid) {
+        metrics.width = std::max(0.0f, bounds.maxX - bounds.minX);
+        metrics.height = std::max(0.0f, bounds.maxY - bounds.minY);
+    } else {
+        metrics.width = std::max(0.0f, runtime::ui_text::measureTextWidth(text, 1.0f));
+        metrics.height = std::max(0.0f, runtime::ui_text::measureTextHeight(text, 1.0f));
+    }
+    return cache.emplace(text, metrics).first->second;
 }
 
 void appendRingArc(std::vector<IRenderBackend::DebugLine>& lines,
@@ -156,16 +193,15 @@ void appendLegacyUnitHud(std::vector<IRenderBackend::DebugQuad>& worldQuads,
     }
 
     const std::string levelText = std::to_string(std::max(1, unit.level));
-    const float baseLevelH = std::max(1.0f, runtime::ui_text::measureTextHeight(levelText, 1.0f));
+    const CachedTextMetrics& levelMetrics = cachedTextMetrics(levelText);
+    const float baseLevelH = std::max(1.0f, levelMetrics.height);
     const float levelScale = std::clamp((ringInner * 1.55f) / baseLevelH, 0.72f, 1.05f);
-    const runtime::ui_text::TextBounds levelBounds =
-        runtime::ui_text::measureTextBounds(levelText, levelScale);
-    const float levelCenterOffsetX = levelBounds.valid
-        ? (levelBounds.minX + levelBounds.maxX) * 0.5f
-        : (std::max(1.0f, runtime::ui_text::measureTextWidth(levelText, levelScale)) * 0.5f);
-    const float levelCenterOffsetY = levelBounds.valid
-        ? (levelBounds.minY + levelBounds.maxY) * 0.5f
-        : (std::max(1.0f, runtime::ui_text::measureTextHeight(levelText, levelScale)) * 0.5f);
+    const float levelCenterOffsetX = levelMetrics.boundsValid
+        ? ((levelMetrics.minX + levelMetrics.maxX) * 0.5f * levelScale)
+        : (std::max(1.0f, levelMetrics.width * levelScale) * 0.5f);
+    const float levelCenterOffsetY = levelMetrics.boundsValid
+        ? ((levelMetrics.minY + levelMetrics.maxY) * 0.5f * levelScale)
+        : (std::max(1.0f, levelMetrics.height * levelScale) * 0.5f);
     const float textX = levelCenter.x - levelCenterOffsetX;
     const float textY = levelCenter.y - levelCenterOffsetY;
     runtime::ui_text::appendTextLines(

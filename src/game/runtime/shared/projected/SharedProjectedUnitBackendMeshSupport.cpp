@@ -588,6 +588,15 @@ unitSkinMatrices() {
     return matrices;
 }
 
+std::unordered_map<UnitSkinMatrixKey, GpuSkinBatchState, UnitSkinMatrixKeyHash>&
+gpuSkinBatchStateMap() {
+    static thread_local std::unordered_map<UnitSkinMatrixKey,
+                                           GpuSkinBatchState,
+                                           UnitSkinMatrixKeyHash>
+        states;
+    return states;
+}
+
 std::vector<GpuSkinBatchStateEntry>& gpuSkinBatchStateEntries() {
     static thread_local std::vector<GpuSkinBatchStateEntry> entries;
     return entries;
