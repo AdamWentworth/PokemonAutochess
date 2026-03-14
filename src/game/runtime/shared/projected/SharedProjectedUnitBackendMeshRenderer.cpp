@@ -356,25 +356,25 @@ Result renderProjectedUnitBackendMesh(const Args& args) {
                             const auto& srcVertex = mesh->vertices[srcIndex];
 
                             IRenderBackend::WorldMeshVertex outVertex = srcBatch.gpuTemplateVertices[vi];
-                            const glm::vec3 pos = transforms.resolveWorldVertexPos(
-                                resolvedTriNodeIndex, srcIndex, srcVertex);
-                            outVertex.x = pos.x;
-                            outVertex.y = pos.y;
-                            outVertex.z = pos.z;
+                            const auto surface = transforms.resolveModelVertexSurface(
+                                resolvedTriNodeIndex,
+                                srcIndex,
+                                srcVertex,
+                                needsLitNormals,
+                                needsTangents);
+                            outVertex.x = surface.pos.x;
+                            outVertex.y = surface.pos.y;
+                            outVertex.z = surface.pos.z;
                             if (needsLitNormals) {
-                                const glm::vec3 nrm = transforms.resolveModelVertexNormal(
-                                    resolvedTriNodeIndex, srcIndex, srcVertex);
-                                outVertex.nx = nrm.x;
-                                outVertex.ny = nrm.y;
-                                outVertex.nz = nrm.z;
+                                outVertex.nx = surface.normal.x;
+                                outVertex.ny = surface.normal.y;
+                                outVertex.nz = surface.normal.z;
                             }
                             if (needsTangents) {
-                                const glm::vec4 tan = transforms.resolveModelVertexTangent(
-                                    resolvedTriNodeIndex, srcIndex, srcVertex);
-                                outVertex.tx = tan.x;
-                                outVertex.ty = tan.y;
-                                outVertex.tz = tan.z;
-                                outVertex.tw = tan.w;
+                                outVertex.tx = surface.tangent.x;
+                                outVertex.ty = surface.tangent.y;
+                                outVertex.tz = surface.tangent.z;
+                                outVertex.tw = surface.tangent.w;
                             }
                             dstBatch.vertices[vi] = outVertex;
                         }
@@ -679,9 +679,17 @@ Result renderProjectedUnitBackendMesh(const Args& args) {
                             static_cast<std::size_t>(std::numeric_limits<std::uint32_t>::max())) {
                             return std::numeric_limits<std::uint32_t>::max();
                         }
+                        const auto surface = useGpuSkinning
+                            ? shared_projected_unit_backend_mesh_transforms::ModelVertexSurfaceSample{}
+                            : transforms.resolveModelVertexSurface(
+                                  triNodeIndex,
+                                  src,
+                                  srcVertex,
+                                  needsLitNormalsForSubmesh,
+                                  needsTangentsForSubmesh);
                         const glm::vec3 pos = useGpuSkinning
                             ? transforms.resolveGpuSkinningInputPos(src, srcVertex)
-                            : transforms.resolveWorldVertexPos(triNodeIndex, src, srcVertex);
+                            : surface.pos;
                         const std::uint32_t next =
                             static_cast<std::uint32_t>(fastBatch.vertices.size());
                         IRenderBackend::WorldMeshVertex outVertex{};
@@ -714,19 +722,15 @@ Result renderProjectedUnitBackendMesh(const Args& args) {
                             // Authored tangent frame is consumed by GPU skinning path.
                         } else {
                             if (needsLitNormalsForSubmesh) {
-                            const glm::vec3 nrm =
-                                transforms.resolveModelVertexNormal(triNodeIndex, src, srcVertex);
-                            outVertex.nx = nrm.x;
-                            outVertex.ny = nrm.y;
-                            outVertex.nz = nrm.z;
+                                outVertex.nx = surface.normal.x;
+                                outVertex.ny = surface.normal.y;
+                                outVertex.nz = surface.normal.z;
                             }
                             if (needsTangentsForSubmesh) {
-                            const glm::vec4 tan =
-                                transforms.resolveModelVertexTangent(triNodeIndex, src, srcVertex);
-                            outVertex.tx = tan.x;
-                            outVertex.ty = tan.y;
-                            outVertex.tz = tan.z;
-                            outVertex.tw = tan.w;
+                                outVertex.tx = surface.tangent.x;
+                                outVertex.ty = surface.tangent.y;
+                                outVertex.tz = surface.tangent.z;
+                                outVertex.tw = surface.tangent.w;
                             }
                         }
                         if (useGpuSkinning) {
@@ -747,9 +751,17 @@ Result renderProjectedUnitBackendMesh(const Args& args) {
                         static_cast<std::size_t>(std::numeric_limits<std::uint32_t>::max())) {
                         return std::numeric_limits<std::uint32_t>::max();
                     }
+                    const auto surface = useGpuSkinning
+                        ? shared_projected_unit_backend_mesh_transforms::ModelVertexSurfaceSample{}
+                        : transforms.resolveModelVertexSurface(
+                              triNodeIndex,
+                              src,
+                              srcVertex,
+                              needsLitNormalsForSubmesh,
+                              needsTangentsForSubmesh);
                     const glm::vec3 pos = useGpuSkinning
                         ? transforms.resolveGpuSkinningInputPos(src, srcVertex)
-                        : transforms.resolveWorldVertexPos(triNodeIndex, src, srcVertex);
+                        : surface.pos;
                     const std::uint32_t next =
                         static_cast<std::uint32_t>(fastBatch.vertices.size());
                     IRenderBackend::WorldMeshVertex outVertex{};
@@ -782,19 +794,15 @@ Result renderProjectedUnitBackendMesh(const Args& args) {
                         // Authored tangent frame is consumed by GPU skinning path.
                     } else {
                         if (needsLitNormalsForSubmesh) {
-                        const glm::vec3 nrm =
-                            transforms.resolveModelVertexNormal(triNodeIndex, src, srcVertex);
-                        outVertex.nx = nrm.x;
-                        outVertex.ny = nrm.y;
-                        outVertex.nz = nrm.z;
+                            outVertex.nx = surface.normal.x;
+                            outVertex.ny = surface.normal.y;
+                            outVertex.nz = surface.normal.z;
                         }
                         if (needsTangentsForSubmesh) {
-                        const glm::vec4 tan =
-                            transforms.resolveModelVertexTangent(triNodeIndex, src, srcVertex);
-                        outVertex.tx = tan.x;
-                        outVertex.ty = tan.y;
-                        outVertex.tz = tan.z;
-                        outVertex.tw = tan.w;
+                            outVertex.tx = surface.tangent.x;
+                            outVertex.ty = surface.tangent.y;
+                            outVertex.tz = surface.tangent.z;
+                            outVertex.tw = surface.tangent.w;
                         }
                     }
                     if (useGpuSkinning) {
@@ -849,22 +857,40 @@ Result renderProjectedUnitBackendMesh(const Args& args) {
             glm::vec4 t1(0.0f, 0.0f, 0.0f, 1.0f);
             glm::vec4 t2(0.0f, 0.0f, 0.0f, 1.0f);
             if (useIndexedWorldModelPath) {
-                a = transforms.resolveWorldVertexPos(triNodeIndex, i0, v0);
-                b = transforms.resolveWorldVertexPos(triNodeIndex, i1, v1);
-                c = transforms.resolveWorldVertexPos(triNodeIndex, i2, v2);
+                const auto s0 = transforms.resolveModelVertexSurface(
+                    triNodeIndex,
+                    i0,
+                    v0,
+                    needsLitNormalsForSubmesh,
+                    needsTangentsForSubmesh);
+                const auto s1 = transforms.resolveModelVertexSurface(
+                    triNodeIndex,
+                    i1,
+                    v1,
+                    needsLitNormalsForSubmesh,
+                    needsTangentsForSubmesh);
+                const auto s2 = transforms.resolveModelVertexSurface(
+                    triNodeIndex,
+                    i2,
+                    v2,
+                    needsLitNormalsForSubmesh,
+                    needsTangentsForSubmesh);
+                a = s0.pos;
+                b = s1.pos;
+                c = s2.pos;
                 if (needsLitNormalsForSubmesh) {
-                    n0 = transforms.resolveModelVertexNormal(triNodeIndex, i0, v0);
-                    n1 = transforms.resolveModelVertexNormal(triNodeIndex, i1, v1);
-                    n2 = transforms.resolveModelVertexNormal(triNodeIndex, i2, v2);
+                    n0 = s0.normal;
+                    n1 = s1.normal;
+                    n2 = s2.normal;
                 } else {
                     n0 = v0.normal;
                     n1 = v1.normal;
                     n2 = v2.normal;
                 }
                 if (needsTangentsForSubmesh) {
-                    t0 = transforms.resolveModelVertexTangent(triNodeIndex, i0, v0);
-                    t1 = transforms.resolveModelVertexTangent(triNodeIndex, i1, v1);
-                    t2 = transforms.resolveModelVertexTangent(triNodeIndex, i2, v2);
+                    t0 = s0.tangent;
+                    t1 = s1.tangent;
+                    t2 = s2.tangent;
                 } else {
                     t0 = v0.tangent;
                     t1 = v1.tangent;

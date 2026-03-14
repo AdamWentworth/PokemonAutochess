@@ -561,6 +561,118 @@ glm::vec3 Resolver::resolveModelVertexNormal(
     return outNormal;
 }
 
+ModelVertexSurfaceSample Resolver::resolveModelVertexSurface(
+    int triNodeIndex,
+    std::uint32_t vertexIndex,
+    const runtime::render_model::MeshVertex& vtx,
+    bool needNormal,
+    bool needTangent) {
+    ModelVertexSurfaceSample out;
+    const std::uint32_t stamp = g_scratch.vertexCacheStamp;
+    const bool posCached =
+        vertexIndex < g_scratch.worldVertexPosCache.size() &&
+        g_scratch.worldVertexPosCacheStamp[vertexIndex] == stamp &&
+        g_scratch.worldVertexPosCacheNode[vertexIndex] == triNodeIndex;
+    const bool normalCached =
+        needNormal &&
+        vertexIndex < g_scratch.modelVertexNormalCache.size() &&
+        g_scratch.modelVertexNormalCacheStamp[vertexIndex] == stamp &&
+        g_scratch.modelVertexNormalCacheNode[vertexIndex] == triNodeIndex;
+    const bool tangentCached =
+        needTangent &&
+        vertexIndex < g_scratch.modelVertexTangentCache.size() &&
+        g_scratch.modelVertexTangentCacheStamp[vertexIndex] == stamp &&
+        g_scratch.modelVertexTangentCacheNode[vertexIndex] == triNodeIndex;
+
+    if (posCached) {
+        out.pos = g_scratch.worldVertexPosCache[vertexIndex];
+    }
+    if (normalCached) {
+        out.normal = g_scratch.modelVertexNormalCache[vertexIndex];
+    } else if (!needNormal) {
+        out.normal = vtx.normal;
+    }
+    if (tangentCached) {
+        out.tangent = g_scratch.modelVertexTangentCache[vertexIndex];
+    } else if (!needTangent) {
+        out.tangent = vtx.tangent;
+    }
+    if (posCached &&
+        (!needNormal || normalCached) &&
+        (!needTangent || tangentCached)) {
+        return out;
+    }
+
+    const glm::vec3 local = resolveLocalVertexPos(vertexIndex, vtx);
+    const bool needPosComputation = !posCached;
+    const bool needNormalComputation = needNormal && !normalCached;
+    const bool needTangentComputation = needTangent && !tangentCached;
+
+    glm::mat4 nodeGlobal(1.0f);
+    if (needPosComputation) {
+        nodeGlobal =
+            (triNodeIndex >= 0 && static_cast<std::size_t>(triNodeIndex) < nodeGlobals_->size())
+                ? (*nodeGlobals_)[static_cast<std::size_t>(triNodeIndex)]
+                : glm::mat4(1.0f);
+    }
+
+    const glm::mat3* modelNormalM = nullptr;
+    if (needNormalComputation || needTangentComputation) {
+        modelNormalM = &modelNormalMatrixForNode(triNodeIndex);
+    }
+
+    if (needPosComputation || needNormalComputation) {
+        if (needNormalComputation) {
+            const auto skinned = skinVertexAtNode(triNodeIndex, vtx, local, vtx.normal);
+            if (needPosComputation) {
+                out.pos = glm::vec3(nodeGlobal * glm::vec4(skinned.pos, 1.0f));
+            }
+            out.normal = safeNormalizeVec3((*modelNormalM) * skinned.normal);
+        } else {
+            const glm::vec3 skinnedPos = skinPositionAtNode(triNodeIndex, vtx, local);
+            out.pos = glm::vec3(nodeGlobal * glm::vec4(skinnedPos, 1.0f));
+        }
+    }
+
+    if (needTangentComputation) {
+        glm::vec3 localTangent(vtx.tangent.x, vtx.tangent.y, vtx.tangent.z);
+        const bool authoredTangentFrame = std::fabs(vtx.tangent.w) > 0.5f;
+        if (glm::dot(localTangent, localTangent) <= 1e-10f) {
+            const glm::vec3 n = safeNormalizeVec3(vtx.normal, glm::vec3(0.0f, 1.0f, 0.0f));
+            const glm::vec3 helper =
+                (std::fabs(n.y) < 0.999f) ? glm::vec3(0.0f, 1.0f, 0.0f)
+                                          : glm::vec3(1.0f, 0.0f, 0.0f);
+            localTangent =
+                safeNormalizeVec3(glm::cross(helper, n), glm::vec3(1.0f, 0.0f, 0.0f));
+        }
+
+        const glm::vec3 skinnedTangent = skinDirectionAtNode(triNodeIndex, vtx, localTangent);
+        const glm::vec3 tangent =
+            safeNormalizeVec3((*modelNormalM) * skinnedTangent, glm::vec3(1.0f, 0.0f, 0.0f));
+        const float sign =
+            authoredTangentFrame ? ((vtx.tangent.w < 0.0f) ? -1.0f : 1.0f) : 0.0f;
+        out.tangent = glm::vec4(tangent, sign);
+    }
+
+    if (vertexIndex < g_scratch.worldVertexPosCache.size() && needPosComputation) {
+        g_scratch.worldVertexPosCache[vertexIndex] = out.pos;
+        g_scratch.worldVertexPosCacheNode[vertexIndex] = triNodeIndex;
+        g_scratch.worldVertexPosCacheStamp[vertexIndex] = stamp;
+    }
+    if (vertexIndex < g_scratch.modelVertexNormalCache.size() && needNormalComputation) {
+        g_scratch.modelVertexNormalCache[vertexIndex] = out.normal;
+        g_scratch.modelVertexNormalCacheNode[vertexIndex] = triNodeIndex;
+        g_scratch.modelVertexNormalCacheStamp[vertexIndex] = stamp;
+    }
+    if (vertexIndex < g_scratch.modelVertexTangentCache.size() && needTangentComputation) {
+        g_scratch.modelVertexTangentCache[vertexIndex] = out.tangent;
+        g_scratch.modelVertexTangentCacheNode[vertexIndex] = triNodeIndex;
+        g_scratch.modelVertexTangentCacheStamp[vertexIndex] = stamp;
+    }
+
+    return out;
+}
+
 glm::vec4 Resolver::resolveModelVertexTangent(
     int triNodeIndex,
     std::uint32_t vertexIndex,

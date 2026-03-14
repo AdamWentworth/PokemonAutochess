@@ -15,6 +15,12 @@ struct WorldVertexSample {
     glm::vec3 normal{0.0f, 1.0f, 0.0f};
 };
 
+struct ModelVertexSurfaceSample {
+    glm::vec3 pos{0.0f};
+    glm::vec3 normal{0.0f, 1.0f, 0.0f};
+    glm::vec4 tangent{1.0f, 0.0f, 0.0f, 0.0f};
+};
+
 class Resolver {
   public:
     void initialize(const shared_projected_unit_backend_mesh::Args& args,
@@ -35,6 +41,12 @@ class Resolver {
     glm::vec4 resolveModelVertexTangent(int triNodeIndex,
                                         std::uint32_t vertexIndex,
                                         const runtime::render_model::MeshVertex& vtx);
+    ModelVertexSurfaceSample resolveModelVertexSurface(
+        int triNodeIndex,
+        std::uint32_t vertexIndex,
+        const runtime::render_model::MeshVertex& vtx,
+        bool needNormal,
+        bool needTangent);
     glm::vec3 resolveGpuSkinningInputPos(std::uint32_t vertexIndex,
                                          const runtime::render_model::MeshVertex& vtx);
     glm::vec3 resolveDeformedLocalVertexPos(std::uint32_t vertexIndex,
