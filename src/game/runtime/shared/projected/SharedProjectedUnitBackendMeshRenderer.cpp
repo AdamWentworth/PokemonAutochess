@@ -276,50 +276,20 @@ Result renderProjectedUnitBackendMesh(const Args& args) {
                     const bool hasNormalTexture =
                         shared_world_batches::resolvedHasNormalTexture(dstBatch);
                     const bool needsTangents = needsLitNormals && hasNormalTexture;
-                    const bool canUseRigidNodeTransform =
-                        prep.scenePose.hasClipPose &&
+                    const bool canUseSharedNodeTransform =
                         srcBatch.gpuJointPalette.empty() &&
                         !srcBatch.gpuTemplateVertices.empty() &&
                         !srcBatch.indices.empty();
-                    const bool canUseDynamicLocalPosNoSkin =
-                        !prep.scenePose.hasClipPose &&
-                        srcBatch.gpuJointPalette.empty() &&
-                        !srcBatch.gpuTemplateVertices.empty() &&
-                        !srcBatch.indices.empty();
-                    if (canUseRigidNodeTransform) {
+                    if (canUseSharedNodeTransform) {
+                        // Non-skinned submeshes already have stable local-space template
+                        // vertices. Let the backend apply the node/model transform instead
+                        // of rewriting every vertex on the CPU.
                         dstBatch.vertices.clear();
                         dstBatch.indices.clear();
                         dstBatch.sharedVertices = srcBatch.gpuTemplateVertices.data();
                         dstBatch.sharedVertexCount = srcBatch.gpuTemplateVertices.size();
                         dstBatch.sharedIndices = srcBatch.indices.data();
                         dstBatch.sharedIndexCount = srcBatch.indices.size();
-
-                        glm::mat4 nodeGlobal(1.0f);
-                        if (resolvedTriNodeIndex >= 0 &&
-                            static_cast<std::size_t>(resolvedTriNodeIndex) < nodeGlobals.size()) {
-                            nodeGlobal = nodeGlobals[static_cast<std::size_t>(resolvedTriNodeIndex)];
-                        }
-                        const glm::mat4 batchModel = prep.modelM * nodeGlobal;
-                        const float* batchModelData = glm::value_ptr(batchModel);
-                        std::copy(batchModelData, batchModelData + 16, dstBatch.modelMatrix.begin());
-                    } else if (canUseDynamicLocalPosNoSkin) {
-                        dstBatch.geometryCacheKey.clear();
-                        dstBatch.indices.clear();
-                        dstBatch.sharedIndices = srcBatch.indices.data();
-                        dstBatch.sharedIndexCount = srcBatch.indices.size();
-                        dstBatch.vertices.resize(srcBatch.sourceVertexIndices.size());
-                        for (std::size_t vi = 0; vi < srcBatch.sourceVertexIndices.size(); ++vi) {
-                            const std::uint32_t srcIndex = srcBatch.sourceVertexIndices[vi];
-                            if (srcIndex >= mesh->vertices.size()) continue;
-                            const auto& srcVertex = mesh->vertices[srcIndex];
-                            IRenderBackend::WorldMeshVertex outVertex = srcBatch.gpuTemplateVertices[vi];
-                            const glm::vec3 localPos = transforms.resolveDeformedLocalVertexPos(
-                                srcIndex, srcVertex);
-                            outVertex.x = localPos.x;
-                            outVertex.y = localPos.y;
-                            outVertex.z = localPos.z;
-                            dstBatch.vertices[vi] = outVertex;
-                        }
 
                         glm::mat4 nodeGlobal(1.0f);
                         if (resolvedTriNodeIndex >= 0 &&
