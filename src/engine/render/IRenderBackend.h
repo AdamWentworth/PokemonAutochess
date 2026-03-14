@@ -270,6 +270,8 @@ public:
     virtual bool supportsWorldTriangles3D() const { return false; }
     virtual bool supportsWorldIndexedMeshes() const { return false; }
     virtual bool supportsWorldIndexedMeshInstancing() const { return false; }
+    virtual void beginWorldIndexedBatchSubmission() {}
+    virtual void endWorldIndexedBatchSubmission() {}
     virtual void drawWorldTriangles(const WorldTriangle* triangles,
                                     std::size_t triangleCount,
                                     const float* viewProjectionMatrix4x4,

@@ -459,6 +459,8 @@ void submitWorldIndexedBatches(IRenderBackend& renderer,
     }
     autoInstanceBatchIndex.reserve(batches.size());
 
+    renderer.beginWorldIndexedBatchSubmission();
+
     for (const WorldIndexedBatch& batch : batches) {
         if (!batch.hasGeometry()) continue;
         if (batch.alphaMode == 2u) {
@@ -531,6 +533,8 @@ void submitWorldIndexedBatches(IRenderBackend& renderer,
             cameraForward3,
             cameraTarget3);
     }
+
+    renderer.endWorldIndexedBatchSubmission();
 }
 
 } // namespace game::runtime::shared_world_batches

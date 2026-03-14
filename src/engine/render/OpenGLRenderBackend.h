@@ -29,6 +29,8 @@ public:
     bool supportsWorldIndexedMeshInstancing() const override { return true; }
     std::string activeGpuName() const override;
     bool activeGpuIsDiscrete() const override;
+    void beginWorldIndexedBatchSubmission() override;
+    void endWorldIndexedBatchSubmission() override;
     void drawWorldTriangles(const WorldTriangle* triangles,
                             std::size_t triangleCount,
                             const float* viewProjectionMatrix4x4,
@@ -266,6 +268,30 @@ private:
     std::uint64_t frameTriangles_ = 0u;
     std::uint32_t lastFrameDrawCalls_ = 0u;
     std::uint64_t lastFrameTriangles_ = 0u;
+    struct WorldIndexedBatchSubmissionState {
+        bool active = false;
+        int depth = 0;
+        int prevProgram = 0;
+        int prevVao = 0;
+        int prevArrayBuffer = 0;
+        int prevElementArrayBuffer = 0;
+        int prevActiveTexture = 0;
+        int prevTexture2DOnActive = 0;
+        std::array<int, 6> prevTexture2DOnUnit{0, 0, 0, 0, 0, 0};
+        bool depthEnabled = false;
+        bool blendEnabled = false;
+        bool cullEnabled = false;
+        int prevFrontFace = 0;
+        bool prevDepthMask = true;
+        int prevDepthFunc = 0;
+        int prevBlendSrcRgb = 0;
+        int prevBlendDstRgb = 0;
+        int prevBlendSrcAlpha = 0;
+        int prevBlendDstAlpha = 0;
+        int prevBlendEqRgb = 0;
+        int prevBlendEqAlpha = 0;
+    };
+    WorldIndexedBatchSubmissionState worldIndexedBatchSubmissionState_{};
     bool gpuTimingSupported_ = false;
     std::array<unsigned int, 2> gpuTimerQueries_{0u, 0u};
     std::array<bool, 2> gpuTimerIssued_{false, false};

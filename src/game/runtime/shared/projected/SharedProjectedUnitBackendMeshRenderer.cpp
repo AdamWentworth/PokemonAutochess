@@ -184,6 +184,7 @@ Result renderProjectedUnitBackendMesh(const Args& args) {
             auto& gpuSkinBatchStates = support::gpuSkinBatchStateEntries();
             gpuSkinBatchStates.clear();
             gpuSkinBatchStates.reserve(fastCache.batches.size());
+            support::GpuSkinBatchStateEntry* lastGpuSkinBatchState = nullptr;
             for (std::size_t bi = 0; bi < fastCache.batches.size(); ++bi) {
                 if (bi >= modelIndexedBatchesPerSubmesh.size()) continue;
                 const auto& srcBatch = fastCache.batches[bi];
@@ -202,27 +203,49 @@ Result renderProjectedUnitBackendMesh(const Args& args) {
                         resolvedTriNodeIndex);
                     if (skinCacheKey >= 0) {
                         const bool hasJointPalette = !srcBatch.gpuJointPalette.empty();
-                        support::UnitSkinMatrixKey batchStateKey{};
-                        batchStateKey.unitId = unit.id;
-                        batchStateKey.skinKey = skinCacheKey;
-                        if (hasJointPalette) {
-                            const std::size_t paletteCount = std::min(
-                                srcBatch.gpuJointPalette.size(),
-                                support::kMaxGpuSkinMatrices);
-                            batchStateKey.paletteSize =
-                                static_cast<std::uint32_t>(paletteCount);
-                            for (std::size_t pi = 0; pi < paletteCount; ++pi) {
-                                batchStateKey.palette[pi] = srcBatch.gpuJointPalette[pi];
+                        const std::size_t paletteCount = hasJointPalette
+                            ? std::min(srcBatch.gpuJointPalette.size(), support::kMaxGpuSkinMatrices)
+                            : 0u;
+                        const auto matchesBatchStateKey =
+                            [&](const support::UnitSkinMatrixKey& key) {
+                                if (key.unitId != unit.id ||
+                                    key.skinKey != skinCacheKey ||
+                                    key.paletteSize != static_cast<std::uint32_t>(paletteCount)) {
+                                    return false;
+                                }
+                                if (paletteCount == 0u) return true;
+                                return std::memcmp(
+                                           key.palette.data(),
+                                           srcBatch.gpuJointPalette.data(),
+                                           paletteCount * sizeof(std::uint16_t)) == 0;
+                            };
+
+                        support::GpuSkinBatchStateEntry* matchedEntry = nullptr;
+                        if (lastGpuSkinBatchState &&
+                            matchesBatchStateKey(lastGpuSkinBatchState->key)) {
+                            matchedEntry = lastGpuSkinBatchState;
+                        } else {
+                            auto stateIt = std::find_if(
+                                gpuSkinBatchStates.begin(),
+                                gpuSkinBatchStates.end(),
+                                [&](const support::GpuSkinBatchStateEntry& entry) {
+                                    return matchesBatchStateKey(entry.key);
+                                });
+                            if (stateIt != gpuSkinBatchStates.end()) {
+                                matchedEntry = &(*stateIt);
                             }
                         }
-
-                        auto stateIt = std::find_if(
-                            gpuSkinBatchStates.begin(),
-                            gpuSkinBatchStates.end(),
-                            [&](const support::GpuSkinBatchStateEntry& entry) {
-                                return entry.key == batchStateKey;
-                            });
-                        if (stateIt == gpuSkinBatchStates.end()) {
+                        if (!matchedEntry) {
+                            support::UnitSkinMatrixKey batchStateKey{};
+                            batchStateKey.unitId = unit.id;
+                            batchStateKey.skinKey = skinCacheKey;
+                            batchStateKey.paletteSize =
+                                static_cast<std::uint32_t>(paletteCount);
+                            if (paletteCount > 0u) {
+                                std::memcpy(batchStateKey.palette.data(),
+                                            srcBatch.gpuJointPalette.data(),
+                                            paletteCount * sizeof(std::uint16_t));
+                            }
                             support::GpuSkinBatchStateEntry newEntry{};
                             newEntry.key = batchStateKey;
                             auto& sharedSkinMatrices = support::unitSkinMatrices()[batchStateKey];
@@ -237,13 +260,14 @@ Result renderProjectedUnitBackendMesh(const Args& args) {
                                     sharedSkinMatrices.empty() ? nullptr : sharedSkinMatrices.data();
                             }
                             gpuSkinBatchStates.emplace_back(std::move(newEntry));
-                            stateIt = gpuSkinBatchStates.end() - 1;
+                            matchedEntry = &gpuSkinBatchStates.back();
                         }
-                        if (stateIt->state.valid) {
+                        lastGpuSkinBatchState = matchedEntry;
+                        if (matchedEntry->state.valid) {
                             dstBatch.gpuSkinning = 1u;
-                            dstBatch.modelMatrix = stateIt->state.modelMatrix;
-                            dstBatch.skinMatrixCount = stateIt->state.skinMatrixCount;
-                            dstBatch.sharedSkinMatrices = stateIt->state.sharedSkinMatrices;
+                            dstBatch.modelMatrix = matchedEntry->state.modelMatrix;
+                            dstBatch.skinMatrixCount = matchedEntry->state.skinMatrixCount;
+                            dstBatch.sharedSkinMatrices = matchedEntry->state.sharedSkinMatrices;
                             dstBatch.skinMatrices.clear();
                             if (hasJointPalette && bi < batchUsesGpuClipPalette.size()) {
                                 batchUsesGpuClipPalette[bi] = 1u;
