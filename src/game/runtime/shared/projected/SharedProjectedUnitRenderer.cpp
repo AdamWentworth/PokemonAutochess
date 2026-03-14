@@ -8,6 +8,7 @@
 #include "game/runtime/shared/projected/SharedProjectedUnitOverlays.h"
 #include "game/world/MoveImpactRouting.h"
 #include "engine/core/Environment.h"
+#include "engine/runtime/FixedStep.h"
 
 #include <algorithm>
 #include <array>
@@ -24,8 +25,6 @@
 #include <glm/gtc/type_ptr.hpp>
 
 namespace {
-constexpr float kSimulationFixedStepSec = 1.0f / 60.0f;
-
 std::string toLowerCopy(std::string s) {
     std::transform(s.begin(), s.end(), s.begin(), [](unsigned char c) {
         return static_cast<char>(std::tolower(c));
@@ -256,8 +255,8 @@ CanonicalScenePoseSample nextCanonicalSceneAnimTimeForKey(
     }
     const float prewarmStepSec =
         (quantizeStepSec > 0.0f)
-            ? std::max(quantizeStepSec, kSimulationFixedStepSec)
-            : kSimulationFixedStepSec;
+            ? std::max(quantizeStepSec, engine::runtime::fixed_step::kSeconds)
+            : engine::runtime::fixed_step::kSeconds;
     const float nextAnimTimeSec = current.animTimeSec + prewarmStepSec;
     if (!(nextAnimTimeSec > 0.0f) || !(nextAnimTimeSec < durationSec)) {
         return {};

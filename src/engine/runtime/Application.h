@@ -46,8 +46,6 @@ private:
     void updateDrawableSizeAndViewport();
     void updateMouseScale();
 
-    static constexpr float TIME_STEP = 1.0f / 60.0f;
-
 private:
     std::unique_ptr<Window>   window;
     std::unique_ptr<IRenderBackend> renderer;

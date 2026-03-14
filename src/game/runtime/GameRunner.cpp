@@ -5,6 +5,7 @@
 #include "game/runtime/GameApp.h"
 
 #include "engine/core/EngineServices.h"
+#include "engine/runtime/FixedStep.h"
 #include "engine/core/GameContext.h"
 #include "engine/core/GameLoop.h"
 #include "engine/events/EventBus.h"
@@ -69,7 +70,6 @@
 namespace {
     constexpr unsigned int START_W  = 1280;
     constexpr unsigned int START_H  = 720;
-    constexpr float TIME_STEP = 1.0f / 60.0f;
 
     const char* glStringOrUnknown(GLenum token) {
         const GLubyte* s = glGetString(token);
@@ -467,7 +467,9 @@ namespace {
     int GameRunner::run(GameLoop& game) {
         if (!initialized) return 1;
 
-        std::cout << "[Run] Main loop @ 60 Hz...\n";
+        std::cout << "[Run] Main loop @ "
+                  << static_cast<int>(engine::runtime::fixed_step::kHz)
+                  << " Hz...\n";
         static const int maxFixedTicksPerFrame =
             game::runtime::loop_config::readMaxFixedTicksPerFrameFromEnvironment(std::cerr);
         std::cout << "[Run] Fixed tick budget: " << maxFixedTicksPerFrame << " ticks/frame\n";
@@ -559,7 +561,7 @@ namespace {
             const auto frameCpuStart = clock::now();
             const auto fixedPhase = game::runtime::fixed_step_phase::execute(
                 accumulator,
-                TIME_STEP,
+                engine::runtime::fixed_step::kSeconds,
                 maxFixedTicksPerFrame,
                 services,
                 [&game](float dt) { game.fixedUpdate(dt); });

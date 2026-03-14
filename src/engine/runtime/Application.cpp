@@ -1,6 +1,7 @@
 // src/engine/runtime/Application.cpp
 
 #include "engine/runtime/Application.h"
+#include "engine/runtime/FixedStep.h"
 #include "engine/platform/Window.h"
 
 #include "engine/core/GameLoop.h"
@@ -249,7 +250,9 @@ void Application::renderBootLoading(float progress01) {
 }
 
 void Application::run(GameLoop& game) {
-    std::cout << "[Run] Main loop @ 60 Hz...\n";
+    std::cout << "[Run] Main loop @ "
+              << static_cast<int>(engine::runtime::fixed_step::kHz)
+              << " Hz...\n";
 
     bool running = true;
     // Wire engine-owned services bundle (lifetime: Application)
@@ -330,9 +333,9 @@ void Application::run(GameLoop& game) {
 
         accumulator += frameDt;
 
-        while (accumulator >= TIME_STEP) {
-            game.fixedUpdate(TIME_STEP);
-            accumulator -= TIME_STEP;
+        while (accumulator >= engine::runtime::fixed_step::kSeconds) {
+            game.fixedUpdate(engine::runtime::fixed_step::kSeconds);
+            accumulator -= engine::runtime::fixed_step::kSeconds;
         }
 
         if (renderer) {
