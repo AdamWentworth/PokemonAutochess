@@ -14,6 +14,43 @@ without the same context.
 
 ## Current Notes
 
+### 2026-03-14: OpenGL indexed material-uniform cache was a miss
+- Hypothesis:
+  - cache the last OpenGL indexed world-program uniform payload across batched
+    draws so repeated submesh submissions stop re-sending the same material,
+    camera, transform, and skinning uniforms
+- Expected win:
+  - reduce `render_world_indexed_ms`
+  - reduce steady-state `render_build_ms`
+  - possibly lower `projected_model_ms` in multi-submesh unit scenes
+- What the workload showed:
+  - the target bucket did not improve in the comparable gameplay captures
+  - `OpenGL` 1-unit indexed frames were slightly worse instead of better:
+    - before: `render_world_indexed_ms ~0.24`,
+      `render_build_ms ~1.7-1.9`,
+      `projected_model_geometry_ms ~0.18-0.19`
+    - cached-uniform run: `render_world_indexed_ms ~0.25-0.28`,
+      `render_build_ms ~1.8`,
+      `projected_model_geometry_ms ~0.18-0.21`
+  - `OpenGL` 3-unit indexed frames were also flat to worse:
+    - before: `render_world_indexed_ms ~0.64-0.66`,
+      `render_build_ms ~2.6-2.7`,
+      `projected_model_geometry_ms ~0.45`
+    - cached-uniform run: `render_world_indexed_ms ~0.67-0.70`,
+      `render_build_ms ~2.7-2.9`,
+      `projected_model_geometry_ms ~0.45`
+  - the extra compare/copy work for the cached uniform payload did not earn
+    back enough driver cost to matter on this scene
+- Decision:
+  - revert; do not assume uniform submission is the dominant OpenGL indexed
+    cost without evidence from the measured workload
+- Re-entry conditions:
+  - instrument or sample whether uniform traffic is actually a larger cost than
+    instance/geometry buffer upload churn in the hot scene
+  - only revisit if a capture shows repeated identical materials dominating the
+    indexed draw path
+  - prefer attacking per-draw buffer upload churn first
+
 ### 2026-03-14: hashed projected skin-batch lookup was a miss
 - Hypothesis:
   - replace the projected GPU skin batch-state linear scan with a hashed lookup
