@@ -13,6 +13,7 @@ short enough to stay useful.
 | `RENDER_PATH_FILE_MAP.md` | Where rendering behavior lives in code. |
 | `RENDERER_PARITY_CONTRACT.md` | Backend render-state and color-pipeline contract. |
 | `CPU_GPU_WORK_SPLIT.md` | Stable CPU vs GPU responsibility guide. |
+| `PERF_EXPERIMENT_NOTES.md` | Short log of validated and rejected perf hypotheses. |
 | `TEST_PLAN.md` | Validation and benchmark protocol. |
 | `TECH_DEBT.md` | Active high-value debt list. |
 | `DISPLAY_GRAPHICS_ROADMAP.md` | User-facing display/graphics settings roadmap. |

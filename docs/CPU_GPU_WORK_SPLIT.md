@@ -71,6 +71,8 @@ or future networking correctness matters.
 ## Current Performance Guidance
 - If work scales with triangle count or per-vertex visual math, prefer GPU.
 - If work scales with gameplay entities and must remain deterministic, prefer CPU.
+- Prefer workload-proven offloads over theory-only offloads; first verify that
+  the measured scene actually spends time in the path you are trying to move.
 - Prefer removing steady-state `render_build_ms` over shaving small startup-only costs.
 - Prefer shared-path improvements over backend-specific ones unless API behavior forces otherwise.
 - If a startup optimization risks reintroducing a runtime hitch, keep runtime smoothness.
@@ -115,5 +117,5 @@ Major completed shifts that matter for interpreting the current architecture:
 - first-use hitch work introduced targeted prewarm and persistent caches for
   card art and tail-fire assets
 
-Detailed optimization history belongs in git history and perf notes, not in the
-main body of this doc.
+Detailed optimization history belongs in git history and
+`docs/PERF_EXPERIMENT_NOTES.md`, not in the main body of this doc.

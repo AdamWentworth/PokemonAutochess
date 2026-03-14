@@ -57,6 +57,9 @@ It supersedes the old roles of:
 - Shared-path improvements are the default.
 - Backend-specific work is justified only when API/runtime behavior requires it.
 - Performance work should be guided by measured frame-time buckets, not by generic GPU/CPU slogans.
+- Treat "move work to GPU" as a hypothesis, not as an automatic win; keep it
+  only when the measured hot path actually uses the new path and target buckets
+  improve.
 - Cold-path work is worth prioritizing only when it removes an obvious user-visible stall.
 
 ## Near-Term Roadmap
@@ -65,18 +68,21 @@ It supersedes the old roles of:
    - `render_build_ms`
    - projected pose/model/prep/geometry buckets
    - draw submission overhead
-3. Add a targeted Charmander-line tail-fire perf pass:
+3. Add projected-path attribution for perf experiments:
+   - count shared rigid, clip-skinned, CPU-rewritten, and cached-indexed paths
+   - use that evidence before landing more projected GPU-offload changes
+4. Add a targeted Charmander-line tail-fire perf pass:
    - keep the first-use hitch gone on authored fire-mesh playback
    - reduce startup CPU bake/decode cost for tail-fire assets
    - measure steady-state board cost in both `OpenGL` and `D3D12`
    - preserve the current visual result unless there is a deliberate art change
-4. Continue GPU offloading only where it removes CPU render-build work.
-5. Keep cold-path fixes surgical:
+5. Continue GPU offloading only where it removes CPU render-build work.
+6. Keep cold-path fixes surgical:
    - startup
    - first-shop-entry
    - first-species-use
    - first-VFX-use
-6. Clean up user-facing graphics/settings behavior so menus and logs reflect reality.
+7. Clean up user-facing graphics/settings behavior so menus and logs reflect reality.
 
 ## Deferred Next Iteration Candidates
 - Retained/dirty overlay submission.
@@ -113,6 +119,7 @@ It supersedes the old roles of:
 ## Related Docs
 - `docs/TEST_PLAN.md`
 - `docs/CPU_GPU_WORK_SPLIT.md`
+- `docs/PERF_EXPERIMENT_NOTES.md`
 - `docs/RENDER_PATH_FILE_MAP.md`
 - `docs/TECH_DEBT.md`
 - `docs/DISPLAY_GRAPHICS_ROADMAP.md`
