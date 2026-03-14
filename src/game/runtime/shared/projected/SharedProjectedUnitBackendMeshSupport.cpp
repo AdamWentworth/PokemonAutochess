@@ -478,17 +478,26 @@ const FastTexturedMeshTemplateCache* ensureFastTexturedMeshTemplateCache(
     }
 
     for (auto& batch : cache.batches) {
+        batch.rigidJointIndex = kInvalidRigidJointIndex;
         batch.gpuJointPalette.clear();
         std::unordered_map<std::uint16_t, std::uint16_t> jointRemap;
         jointRemap.reserve(16u);
         bool jointPaletteOverflow = false;
+        bool rigidSingleJointBatch = !batch.sourceVertexIndices.empty();
+        std::uint16_t rigidJointIndex = kInvalidRigidJointIndex;
         for (const std::uint32_t srcIndex : batch.sourceVertexIndices) {
             if (srcIndex >= mesh->vertices.size()) continue;
             const auto& src = mesh->vertices[srcIndex];
             const std::uint16_t joints[4] = {src.j0, src.j1, src.j2, src.j3};
             const float weights[4] = {src.w0, src.w1, src.w2, src.w3};
+            int rigidInfluenceCount = 0;
+            std::uint16_t rigidInfluenceJoint = 0u;
+            float rigidInfluenceWeight = 0.0f;
             for (int ji = 0; ji < 4; ++ji) {
                 if (weights[ji] <= 0.00001f) continue;
+                ++rigidInfluenceCount;
+                rigidInfluenceJoint = joints[ji];
+                rigidInfluenceWeight = weights[ji];
                 if (jointRemap.find(joints[ji]) != jointRemap.end()) continue;
                 if (jointRemap.size() >= kMaxGpuSkinMatrices) {
                     jointPaletteOverflow = true;
@@ -498,11 +507,34 @@ const FastTexturedMeshTemplateCache* ensureFastTexturedMeshTemplateCache(
                 jointRemap.emplace(joints[ji], next);
                 batch.gpuJointPalette.push_back(joints[ji]);
             }
+            if (rigidSingleJointBatch) {
+                if (rigidInfluenceCount != 1 || rigidInfluenceWeight < 0.999f) {
+                    rigidSingleJointBatch = false;
+                } else if (rigidJointIndex == kInvalidRigidJointIndex) {
+                    rigidJointIndex = rigidInfluenceJoint;
+                } else if (rigidJointIndex != rigidInfluenceJoint) {
+                    rigidSingleJointBatch = false;
+                }
+            }
             if (jointPaletteOverflow) break;
         }
         if (jointPaletteOverflow) {
             jointRemap.clear();
             batch.gpuJointPalette.clear();
+        }
+        if (rigidSingleJointBatch && rigidJointIndex != kInvalidRigidJointIndex) {
+            const int skinNodeIndex =
+                (batch.triNodeIndex >= 0) ? batch.triNodeIndex : cache.defaultSkinNodeIndex;
+            if (skinNodeIndex >= 0 &&
+                static_cast<std::size_t>(skinNodeIndex) < mesh->nodeSkin.size()) {
+                const int skinIndex = mesh->nodeSkin[static_cast<std::size_t>(skinNodeIndex)];
+                if (skinIndex >= 0 &&
+                    static_cast<std::size_t>(skinIndex) < mesh->skins.size() &&
+                    static_cast<std::size_t>(rigidJointIndex) <
+                        mesh->skins[static_cast<std::size_t>(skinIndex)].joints.size()) {
+                    batch.rigidJointIndex = rigidJointIndex;
+                }
+            }
         }
 
         batch.gpuTemplateVertices.resize(batch.sourceVertexIndices.size());

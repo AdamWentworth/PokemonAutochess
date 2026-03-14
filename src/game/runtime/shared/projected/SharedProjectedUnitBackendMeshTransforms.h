@@ -40,6 +40,9 @@ class Resolver {
     glm::vec3 resolveDeformedLocalVertexPos(std::uint32_t vertexIndex,
                                             const runtime::render_model::MeshVertex& vtx);
     int gpuSkinningCacheKeyForNode(int triNodeIndex) const;
+    bool resolveRigidSkinningModelMatrix(int triNodeIndex,
+                                         std::uint16_t jointIndex,
+                                         std::array<float, 16>& outModelMatrix);
     bool configureGpuClipSkinningBatch(int triNodeIndex,
                                        const std::vector<std::uint16_t>* jointPalette,
                                        std::array<float, 16>& inOutModelMatrix,

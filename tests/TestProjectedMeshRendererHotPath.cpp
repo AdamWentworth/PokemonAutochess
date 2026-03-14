@@ -27,6 +27,7 @@ bool test_projected_mesh_renderer_hot_path_contract(std::string& outFail) {
     };
     const std::vector<std::string> requiredTokens = {
         "support::gpuSkinBatchStateEntries()",
+        "resolveRigidSkinningModelMatrix(",
         "handledFastTexturedPath = true;",
         "bool fastPathHasGeometry = false;",
         "worldIndexedBatches.push_back(std::move(batch));",

@@ -629,6 +629,35 @@ int Resolver::gpuSkinningCacheKeyForNode(int triNodeIndex) const {
     return skinIndex;
 }
 
+bool Resolver::resolveRigidSkinningModelMatrix(int triNodeIndex,
+                                               std::uint16_t jointIndex,
+                                               std::array<float, 16>& outModelMatrix) {
+    if (!mesh_ || !nodeGlobals_) return false;
+    const int skinIndex = gpuSkinningCacheKeyForNode(triNodeIndex);
+    if (skinIndex < 0 || static_cast<std::size_t>(skinIndex) >= mesh_->skins.size()) {
+        return false;
+    }
+
+    const auto& skin = mesh_->skins[static_cast<std::size_t>(skinIndex)];
+    const std::size_t rigidJointIndex = static_cast<std::size_t>(jointIndex);
+    if (rigidJointIndex >= skin.joints.size()) return false;
+
+    const int jointNode = skin.joints[rigidJointIndex];
+    if (jointNode < 0 || static_cast<std::size_t>(jointNode) >= nodeGlobals_->size()) {
+        return false;
+    }
+
+    const glm::mat4 invBind =
+        (rigidJointIndex < skin.inverseBind.size())
+            ? skin.inverseBind[rigidJointIndex]
+            : glm::mat4(1.0f);
+    const glm::mat4 rigidModelM =
+        modelM_ * (*nodeGlobals_)[static_cast<std::size_t>(jointNode)] * invBind;
+    const float* src = glm::value_ptr(rigidModelM);
+    std::copy(src, src + 16, outModelMatrix.begin());
+    return true;
+}
+
 bool Resolver::configureGpuClipSkinningBatch(
     int triNodeIndex,
     const std::vector<std::uint16_t>* jointPalette,

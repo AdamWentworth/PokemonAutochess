@@ -5,6 +5,7 @@
 #include <array>
 #include <cstddef>
 #include <cstdint>
+#include <limits>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -22,6 +23,7 @@ bool tailFireDebugShouldLogAnchor(int unitId);
 struct FastTexturedBatchTemplate {
     std::size_t baseSubmeshIndex = 0u;
     int triNodeIndex = -1;
+    std::uint16_t rigidJointIndex = std::numeric_limits<std::uint16_t>::max();
     std::string geometryCacheKey;
     std::vector<std::uint32_t> sourceVertexIndices;
     std::vector<std::uint32_t> indices;
@@ -54,6 +56,8 @@ bool applyTailFireMeshFlipbookOverride(
     std::vector<game::runtime::shared_world_batches::WorldIndexedBatch>& batches);
 
 inline constexpr std::size_t kMaxGpuSkinMatrices = 64u;
+inline constexpr std::uint16_t kInvalidRigidJointIndex =
+    std::numeric_limits<std::uint16_t>::max();
 
 struct UnitSkinMatrixKey {
     int unitId = 0;
