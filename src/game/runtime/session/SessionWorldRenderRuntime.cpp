@@ -62,6 +62,11 @@ std::size_t render(const Args& args) {
     std::uint32_t projectedUnitsProcessedThisFrame = 0u;
     std::uint32_t projectedModelUnitsThisFrame = 0u;
     std::uint32_t projectedClipSkinnedUnitsThisFrame = 0u;
+    std::uint32_t projectedSharedRigidBatchesThisFrame = 0u;
+    std::uint32_t projectedGpuClipSkinBatchesThisFrame = 0u;
+    std::uint32_t projectedGpuClipPaletteBatchesThisFrame = 0u;
+    std::uint32_t projectedCpuRewriteBatchesThisFrame = 0u;
+    std::uint32_t projectedIndexedBatchesQueuedThisFrame = 0u;
     float worldBackdropComposeMsThisFrame = 0.0f;
     float worldVfxBridgeMsThisFrame = 0.0f;
     float worldDepthFlushMsThisFrame = 0.0f;
@@ -156,6 +161,13 @@ std::size_t render(const Args& args) {
             projectedUnitsProcessedThisFrame = projectedWorld.projectedUnitsProcessed;
             projectedModelUnitsThisFrame = projectedWorld.projectedModelUnits;
             projectedClipSkinnedUnitsThisFrame = projectedWorld.projectedClipSkinnedUnits;
+            projectedSharedRigidBatchesThisFrame = projectedWorld.projectedSharedRigidBatches;
+            projectedGpuClipSkinBatchesThisFrame = projectedWorld.projectedGpuClipSkinBatches;
+            projectedGpuClipPaletteBatchesThisFrame =
+                projectedWorld.projectedGpuClipPaletteBatches;
+            projectedCpuRewriteBatchesThisFrame = projectedWorld.projectedCpuRewriteBatches;
+            projectedIndexedBatchesQueuedThisFrame =
+                projectedWorld.projectedIndexedBatchesQueued;
             worldBackdropComposeMsThisFrame = projectedWorld.worldBackdropComposeMs;
             worldVfxBridgeMsThisFrame = projectedWorld.worldVfxBridgeMs;
             worldDepthFlushMsThisFrame = projectedWorld.worldDepthFlushMs;
@@ -212,6 +224,11 @@ std::size_t render(const Args& args) {
             .projectedUnitsProcessed = projectedUnitsProcessedThisFrame,
             .projectedModelUnits = projectedModelUnitsThisFrame,
             .projectedClipSkinnedUnits = projectedClipSkinnedUnitsThisFrame,
+            .projectedSharedRigidBatches = projectedSharedRigidBatchesThisFrame,
+            .projectedGpuClipSkinBatches = projectedGpuClipSkinBatchesThisFrame,
+            .projectedGpuClipPaletteBatches = projectedGpuClipPaletteBatchesThisFrame,
+            .projectedCpuRewriteBatches = projectedCpuRewriteBatchesThisFrame,
+            .projectedIndexedBatchesQueued = projectedIndexedBatchesQueuedThisFrame,
             .worldComposeMs = static_cast<float>(
                 std::chrono::duration<double, std::milli>(worldComposeEnd - worldComposeStart).count()),
             .worldBackdropMs = worldBackdropComposeMsThisFrame,

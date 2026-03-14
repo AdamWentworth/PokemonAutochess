@@ -74,6 +74,11 @@ struct Result {
     std::uint32_t projectedUnitsProcessed = 0u;
     std::uint32_t projectedModelUnits = 0u;
     std::uint32_t projectedClipSkinnedUnits = 0u;
+    std::uint32_t projectedSharedRigidBatches = 0u;
+    std::uint32_t projectedGpuClipSkinBatches = 0u;
+    std::uint32_t projectedGpuClipPaletteBatches = 0u;
+    std::uint32_t projectedCpuRewriteBatches = 0u;
+    std::uint32_t projectedIndexedBatchesQueued = 0u;
     float worldBackdropComposeMs = 0.0f;
     float worldVfxBridgeMs = 0.0f;
     float worldDepthFlushMs = 0.0f;

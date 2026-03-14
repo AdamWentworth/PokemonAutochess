@@ -18,6 +18,13 @@ void publish(EngineServices* engineServices, const FrameMetrics& metrics) {
     engineServices->frameProjectedUnitsProcessed = metrics.projectedUnitsProcessed;
     engineServices->frameProjectedModelUnits = metrics.projectedModelUnits;
     engineServices->frameProjectedClipSkinnedUnits = metrics.projectedClipSkinnedUnits;
+    engineServices->frameProjectedSharedRigidBatches = metrics.projectedSharedRigidBatches;
+    engineServices->frameProjectedGpuClipSkinBatches = metrics.projectedGpuClipSkinBatches;
+    engineServices->frameProjectedGpuClipPaletteBatches =
+        metrics.projectedGpuClipPaletteBatches;
+    engineServices->frameProjectedCpuRewriteBatches = metrics.projectedCpuRewriteBatches;
+    engineServices->frameProjectedIndexedBatchesQueued =
+        metrics.projectedIndexedBatchesQueued;
     engineServices->frameRenderBuildBreakdown = {};
     engineServices->frameRenderBuildBreakdown.worldComposeMs =
         std::max(0.0f, metrics.worldComposeMs - metrics.projectedUnitsMs);

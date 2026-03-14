@@ -29,6 +29,11 @@ struct Result {
 struct PerfBreakdown {
     double prepMs = 0.0;
     double geometryMs = 0.0;
+    std::uint32_t sharedRigidBatches = 0u;
+    std::uint32_t gpuClipSkinBatches = 0u;
+    std::uint32_t gpuClipPaletteBatches = 0u;
+    std::uint32_t cpuRewriteBatches = 0u;
+    std::uint32_t indexedBatchesQueued = 0u;
 };
 
 struct Args {

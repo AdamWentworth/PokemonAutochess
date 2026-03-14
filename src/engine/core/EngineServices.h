@@ -77,6 +77,11 @@ struct EngineFramePerfStats {
     std::uint32_t projectedUnitsProcessed = 0u;
     std::uint32_t projectedModelUnits = 0u;
     std::uint32_t projectedClipSkinnedUnits = 0u;
+    std::uint32_t projectedSharedRigidBatches = 0u;
+    std::uint32_t projectedGpuClipSkinBatches = 0u;
+    std::uint32_t projectedGpuClipPaletteBatches = 0u;
+    std::uint32_t projectedCpuRewriteBatches = 0u;
+    std::uint32_t projectedIndexedBatchesQueued = 0u;
     EngineRenderBuildBreakdown renderBreakdown{};
     float renderMs = 0.0f;
     float swapMs = 0.0f;
@@ -107,6 +112,11 @@ struct EngineServices {
     std::uint32_t frameProjectedUnitsProcessed = 0u;
     std::uint32_t frameProjectedModelUnits = 0u;
     std::uint32_t frameProjectedClipSkinnedUnits = 0u;
+    std::uint32_t frameProjectedSharedRigidBatches = 0u;
+    std::uint32_t frameProjectedGpuClipSkinBatches = 0u;
+    std::uint32_t frameProjectedGpuClipPaletteBatches = 0u;
+    std::uint32_t frameProjectedCpuRewriteBatches = 0u;
+    std::uint32_t frameProjectedIndexedBatchesQueued = 0u;
     EngineRenderBuildBreakdown frameRenderBuildBreakdown{};
 
     // Render backend + GPU diagnostics.

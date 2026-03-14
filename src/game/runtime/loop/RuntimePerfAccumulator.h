@@ -31,6 +31,11 @@ struct FrameSample {
     std::uint32_t projectedUnitsProcessed = 0u;
     std::uint32_t projectedModelUnits = 0u;
     std::uint32_t projectedClipSkinnedUnits = 0u;
+    std::uint32_t projectedSharedRigidBatches = 0u;
+    std::uint32_t projectedGpuClipSkinBatches = 0u;
+    std::uint32_t projectedGpuClipPaletteBatches = 0u;
+    std::uint32_t projectedCpuRewriteBatches = 0u;
+    std::uint32_t projectedIndexedBatchesQueued = 0u;
     EngineRenderBuildBreakdown renderBreakdown{};
     EngineFixedPerfBreakdown fixedBreakdown{};
     int fixedTicks = 0;
@@ -73,6 +78,11 @@ private:
     double projectedUnitsProcessed_ = 0.0;
     double projectedModelUnits_ = 0.0;
     double projectedClipSkinnedUnits_ = 0.0;
+    double projectedSharedRigidBatches_ = 0.0;
+    double projectedGpuClipSkinBatches_ = 0.0;
+    double projectedGpuClipPaletteBatches_ = 0.0;
+    double projectedCpuRewriteBatches_ = 0.0;
+    double projectedIndexedBatchesQueued_ = 0.0;
     EngineRenderBuildBreakdown renderBreakdown_{};
     EngineFixedPerfBreakdown fixedBreakdown_{};
     int fixedTicks_ = 0;

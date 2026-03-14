@@ -35,6 +35,11 @@ struct PerfStats {
     std::uint32_t unitsProcessed = 0u;
     std::uint32_t modelUnits = 0u;
     std::uint32_t clipSkinnedUnits = 0u;
+    std::uint32_t sharedRigidBatches = 0u;
+    std::uint32_t gpuClipSkinBatches = 0u;
+    std::uint32_t gpuClipPaletteBatches = 0u;
+    std::uint32_t cpuRewriteBatches = 0u;
+    std::uint32_t indexedBatchesQueued = 0u;
 };
 
 struct Args {

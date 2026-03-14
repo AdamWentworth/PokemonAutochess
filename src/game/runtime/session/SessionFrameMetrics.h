@@ -18,6 +18,11 @@ struct FrameMetrics {
     std::uint32_t projectedUnitsProcessed = 0u;
     std::uint32_t projectedModelUnits = 0u;
     std::uint32_t projectedClipSkinnedUnits = 0u;
+    std::uint32_t projectedSharedRigidBatches = 0u;
+    std::uint32_t projectedGpuClipSkinBatches = 0u;
+    std::uint32_t projectedGpuClipPaletteBatches = 0u;
+    std::uint32_t projectedCpuRewriteBatches = 0u;
+    std::uint32_t projectedIndexedBatchesQueued = 0u;
     float worldComposeMs = 0.0f;
     float worldBackdropMs = 0.0f;
     float worldVfxMs = 0.0f;

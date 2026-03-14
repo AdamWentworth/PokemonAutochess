@@ -63,6 +63,11 @@ std::string formatPerfLine(const EngineFramePerfStats& framePerf) {
         << " geom=" << framePerf.projectedModelGeometryMs << "ms"
         << " over=" << framePerf.projectedOverlayMs << "ms"
         << " clipskin=" << framePerf.projectedClipSkinnedUnits
+        << " path=r" << framePerf.projectedSharedRigidBatches
+        << "/g" << framePerf.projectedGpuClipSkinBatches
+        << "/p" << framePerf.projectedGpuClipPaletteBatches
+        << "/c" << framePerf.projectedCpuRewriteBatches
+        << "/i" << framePerf.projectedIndexedBatchesQueued
         << " render=" << framePerf.renderMs << "ms"
         << " swap=" << framePerf.swapMs << "ms"
         << " ticks=" << framePerf.fixedTicks
@@ -97,6 +102,13 @@ std::string formatPerfJson(const EngineFramePerfStats& framePerf) {
         << ",\"projected_units_processed\":" << framePerf.projectedUnitsProcessed
         << ",\"projected_model_units\":" << framePerf.projectedModelUnits
         << ",\"projected_clip_skinned_units\":" << framePerf.projectedClipSkinnedUnits
+        << ",\"projected_shared_rigid_batches\":" << framePerf.projectedSharedRigidBatches
+        << ",\"projected_gpu_clip_skin_batches\":" << framePerf.projectedGpuClipSkinBatches
+        << ",\"projected_gpu_clip_palette_batches\":"
+        << framePerf.projectedGpuClipPaletteBatches
+        << ",\"projected_cpu_rewrite_batches\":" << framePerf.projectedCpuRewriteBatches
+        << ",\"projected_indexed_batches_queued\":"
+        << framePerf.projectedIndexedBatchesQueued
         << ",\"render_world_compose_ms\":" << framePerf.renderBreakdown.worldComposeMs
         << ",\"render_world_backdrop_ms\":" << framePerf.renderBreakdown.worldBackdropMs
         << ",\"render_world_vfx_ms\":" << framePerf.renderBreakdown.worldVfxMs

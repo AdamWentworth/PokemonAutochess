@@ -89,6 +89,11 @@ Result renderProjectedUnitBackendMesh(const Args& args) {
 
     bool drewModelMesh = false;
     if (meshForUnit) {
+        std::uint32_t sharedRigidBatches = 0u;
+        std::uint32_t gpuClipSkinBatches = 0u;
+        std::uint32_t gpuClipPaletteBatches = 0u;
+        std::uint32_t cpuRewriteBatches = 0u;
+        std::uint32_t indexedBatchesQueued = 0u;
         using Clock = std::chrono::high_resolution_clock;
         const auto prepStart = Clock::now();
         auto& prep = support::preparedMeshState();
@@ -130,6 +135,7 @@ Result renderProjectedUnitBackendMesh(const Args& args) {
 
         bool handledFastTexturedPath = false;
         const support::FastTexturedMeshTemplateCache* fastCachePtr = nullptr;
+        std::vector<std::uint8_t> batchUsesGpuClipPalette;
         if (useFastTexturedFullMeshPath && !modelIndexedBatchesPerSubmesh.empty()) {
             fastCachePtr = support::ensureFastTexturedMeshTemplateCache(
                 mesh,
@@ -162,6 +168,7 @@ Result renderProjectedUnitBackendMesh(const Args& args) {
                     newBatch.skinMatrices.clear();
                 }
             }
+            batchUsesGpuClipPalette.assign(modelIndexedBatchesPerSubmesh.size(), 0u);
 
             for (auto& batch : modelIndexedBatchesPerSubmesh) {
                 batch.gpuSkinning = 0u;
@@ -174,8 +181,7 @@ Result renderProjectedUnitBackendMesh(const Args& args) {
                 batch.sharedIndexCount = 0u;
             }
 
-            (void)support::gpuSkinBatchStateEntries();
-            auto& gpuSkinBatchStates = support::gpuSkinBatchStateMap();
+            auto& gpuSkinBatchStates = support::gpuSkinBatchStateEntries();
             gpuSkinBatchStates.clear();
             gpuSkinBatchStates.reserve(fastCache.batches.size());
             for (std::size_t bi = 0; bi < fastCache.batches.size(); ++bi) {
@@ -210,29 +216,38 @@ Result renderProjectedUnitBackendMesh(const Args& args) {
                             }
                         }
 
-                        auto stateIt = gpuSkinBatchStates.find(batchStateKey);
+                        auto stateIt = std::find_if(
+                            gpuSkinBatchStates.begin(),
+                            gpuSkinBatchStates.end(),
+                            [&](const support::GpuSkinBatchStateEntry& entry) {
+                                return entry.key == batchStateKey;
+                            });
                         if (stateIt == gpuSkinBatchStates.end()) {
-                            support::GpuSkinBatchState newState{};
+                            support::GpuSkinBatchStateEntry newEntry{};
+                            newEntry.key = batchStateKey;
                             auto& sharedSkinMatrices = support::unitSkinMatrices()[batchStateKey];
                             if (transforms.configureGpuClipSkinningBatch(
                                     resolvedTriNodeIndex,
                                     hasJointPalette ? &srcBatch.gpuJointPalette : nullptr,
-                                    newState.modelMatrix,
+                                    newEntry.state.modelMatrix,
                                     sharedSkinMatrices,
-                                    newState.skinMatrixCount)) {
-                                newState.valid = true;
-                                newState.sharedSkinMatrices = sharedSkinMatrices.data();
+                                    newEntry.state.skinMatrixCount)) {
+                                newEntry.state.valid = true;
+                                newEntry.state.sharedSkinMatrices =
+                                    sharedSkinMatrices.empty() ? nullptr : sharedSkinMatrices.data();
                             }
-                            stateIt = gpuSkinBatchStates
-                                          .emplace(std::move(batchStateKey), std::move(newState))
-                                          .first;
+                            gpuSkinBatchStates.emplace_back(std::move(newEntry));
+                            stateIt = gpuSkinBatchStates.end() - 1;
                         }
-                        if (stateIt->second.valid) {
+                        if (stateIt->state.valid) {
                             dstBatch.gpuSkinning = 1u;
-                            dstBatch.modelMatrix = stateIt->second.modelMatrix;
-                            dstBatch.skinMatrixCount = stateIt->second.skinMatrixCount;
-                            dstBatch.sharedSkinMatrices = stateIt->second.sharedSkinMatrices;
+                            dstBatch.modelMatrix = stateIt->state.modelMatrix;
+                            dstBatch.skinMatrixCount = stateIt->state.skinMatrixCount;
+                            dstBatch.sharedSkinMatrices = stateIt->state.sharedSkinMatrices;
                             dstBatch.skinMatrices.clear();
+                            if (hasJointPalette && bi < batchUsesGpuClipPalette.size()) {
+                                batchUsesGpuClipPalette[bi] = 1u;
+                            }
                         }
                     }
                 }
@@ -353,6 +368,7 @@ Result renderProjectedUnitBackendMesh(const Args& args) {
             }
             if (!fastPathHasGeometry) {
                 handledFastTexturedPath = false;
+                batchUsesGpuClipPalette.clear();
                 for (auto& batch : modelIndexedBatchesPerSubmesh) {
                     batch.vertices.clear();
                     batch.indices.clear();
@@ -913,10 +929,26 @@ Result renderProjectedUnitBackendMesh(const Args& args) {
         bool queuedIndexedBatch = false;
         if (useIndexedWorldModelPath && !modelIndexedBatchesPerSubmesh.empty()) {
             (void)support::applyTailFireMeshFlipbookOverride(args, *mesh, modelIndexedBatchesPerSubmesh);
-            for (auto& batch : modelIndexedBatchesPerSubmesh) {
+            for (std::size_t bi = 0; bi < modelIndexedBatchesPerSubmesh.size(); ++bi) {
+                auto& batch = modelIndexedBatchesPerSubmesh[bi];
                 if (!batch.hasGeometry()) continue;
+                if (batch.gpuSkinning != 0u) {
+                    ++gpuClipSkinBatches;
+                    if (bi < batchUsesGpuClipPalette.size() &&
+                        batchUsesGpuClipPalette[bi] != 0u) {
+                        ++gpuClipPaletteBatches;
+                    }
+                } else if (batch.sharedVertices != nullptr &&
+                           batch.sharedVertexCount > 0u &&
+                           batch.sharedIndices != nullptr &&
+                           batch.sharedIndexCount > 0u) {
+                    ++sharedRigidBatches;
+                } else {
+                    ++cpuRewriteBatches;
+                }
                 worldIndexedBatches.push_back(std::move(batch));
                 queuedIndexedBatch = true;
+                ++indexedBatchesQueued;
             }
         }
 
@@ -930,6 +962,11 @@ Result renderProjectedUnitBackendMesh(const Args& args) {
         if (args.perfBreakdown) {
             args.perfBreakdown->geometryMs +=
                 std::chrono::duration<double, std::milli>(Clock::now() - geometryStart).count();
+            args.perfBreakdown->sharedRigidBatches += sharedRigidBatches;
+            args.perfBreakdown->gpuClipSkinBatches += gpuClipSkinBatches;
+            args.perfBreakdown->gpuClipPaletteBatches += gpuClipPaletteBatches;
+            args.perfBreakdown->cpuRewriteBatches += cpuRewriteBatches;
+            args.perfBreakdown->indexedBatchesQueued += indexedBatchesQueued;
         }
     }
     out.drewModelMesh = drewModelMesh;

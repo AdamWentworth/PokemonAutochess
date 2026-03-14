@@ -127,6 +127,13 @@ void RollingAccumulator::addFrame(const FrameSample& sample) {
     projectedUnitsProcessed_ += static_cast<double>(sample.projectedUnitsProcessed);
     projectedModelUnits_ += static_cast<double>(sample.projectedModelUnits);
     projectedClipSkinnedUnits_ += static_cast<double>(sample.projectedClipSkinnedUnits);
+    projectedSharedRigidBatches_ += static_cast<double>(sample.projectedSharedRigidBatches);
+    projectedGpuClipSkinBatches_ += static_cast<double>(sample.projectedGpuClipSkinBatches);
+    projectedGpuClipPaletteBatches_ +=
+        static_cast<double>(sample.projectedGpuClipPaletteBatches);
+    projectedCpuRewriteBatches_ += static_cast<double>(sample.projectedCpuRewriteBatches);
+    projectedIndexedBatchesQueued_ +=
+        static_cast<double>(sample.projectedIndexedBatchesQueued);
     accumulateRenderBreakdown(renderBreakdown_, sample.renderBreakdown);
     accumulateFixedBreakdown(fixedBreakdown_, sample.fixedBreakdown);
     fixedTicks_ += sample.fixedTicks;
@@ -168,6 +175,16 @@ WindowSummary RollingAccumulator::makeSummaryAndReset() {
     out.projectedModelUnits = static_cast<std::uint32_t>(std::lround(projectedModelUnits_ / frames));
     out.projectedClipSkinnedUnits =
         static_cast<std::uint32_t>(std::lround(projectedClipSkinnedUnits_ / frames));
+    out.projectedSharedRigidBatches =
+        static_cast<std::uint32_t>(std::lround(projectedSharedRigidBatches_ / frames));
+    out.projectedGpuClipSkinBatches =
+        static_cast<std::uint32_t>(std::lround(projectedGpuClipSkinBatches_ / frames));
+    out.projectedGpuClipPaletteBatches =
+        static_cast<std::uint32_t>(std::lround(projectedGpuClipPaletteBatches_ / frames));
+    out.projectedCpuRewriteBatches =
+        static_cast<std::uint32_t>(std::lround(projectedCpuRewriteBatches_ / frames));
+    out.projectedIndexedBatchesQueued =
+        static_cast<std::uint32_t>(std::lround(projectedIndexedBatchesQueued_ / frames));
     out.renderBreakdown = averageRenderBreakdown(renderBreakdown_, frames);
     out.renderMs = static_cast<float>(legacyRenderMs_ / frames);
     out.swapMs = static_cast<float>(legacySwapMs_ / frames);

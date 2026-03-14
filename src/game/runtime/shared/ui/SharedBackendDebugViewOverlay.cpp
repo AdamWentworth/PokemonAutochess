@@ -160,6 +160,11 @@ void composeAndSubmit(const ComposeAndSubmitArgs& args) {
                     if (perf.projectedUnitsProcessed > 0u) {
                         buildLine << " | Clip " << perf.projectedClipSkinnedUnits
                                   << "/" << perf.projectedUnitsProcessed;
+                        buildLine << " | Path r" << perf.projectedSharedRigidBatches
+                                  << " g" << perf.projectedGpuClipSkinBatches
+                                  << " p" << perf.projectedGpuClipPaletteBatches
+                                  << " c" << perf.projectedCpuRewriteBatches
+                                  << " i" << perf.projectedIndexedBatchesQueued;
                     }
                 }
                 appendRightText(edgePad + lineStep * 0.55f,

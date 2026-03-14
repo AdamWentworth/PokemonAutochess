@@ -400,6 +400,11 @@ void drawProjectedUnits(const Args& args, const std::vector<PokemonInstance>& un
     std::uint32_t unitsProcessed = 0u;
     std::uint32_t modelUnits = 0u;
     std::uint32_t clipSkinnedUnits = 0u;
+    std::uint32_t sharedRigidBatches = 0u;
+    std::uint32_t gpuClipSkinBatches = 0u;
+    std::uint32_t gpuClipPaletteBatches = 0u;
+    std::uint32_t cpuRewriteBatches = 0u;
+    std::uint32_t indexedBatchesQueued = 0u;
 
     const bool clipSkinningAdaptiveEnabled = backendClipSkinningAdaptiveEnabled();
     const float scenePoseCacheHz = backendScenePoseCacheEffectiveHz(units.size());
@@ -685,6 +690,11 @@ for (const auto& unit : units) {
         modelRenderMsAcc += std::chrono::duration<double, std::milli>(Clock::now() - modelStart).count();
         modelPrepMsAcc += modelPerf.prepMs;
         modelGeometryMsAcc += modelPerf.geometryMs;
+        sharedRigidBatches += modelPerf.sharedRigidBatches;
+        gpuClipSkinBatches += modelPerf.gpuClipSkinBatches;
+        gpuClipPaletteBatches += modelPerf.gpuClipPaletteBatches;
+        cpuRewriteBatches += modelPerf.cpuRewriteBatches;
+        indexedBatchesQueued += modelPerf.indexedBatchesQueued;
         if (modelResult.skipUnit) continue;
         drewModelMesh = modelResult.drewModelMesh;
         if (drewModelMesh) ++modelUnits;
@@ -805,6 +815,11 @@ if (perfStats) {
     perfStats->unitsProcessed += unitsProcessed;
     perfStats->modelUnits += modelUnits;
     perfStats->clipSkinnedUnits += clipSkinnedUnits;
+    perfStats->sharedRigidBatches += sharedRigidBatches;
+    perfStats->gpuClipSkinBatches += gpuClipSkinBatches;
+    perfStats->gpuClipPaletteBatches += gpuClipPaletteBatches;
+    perfStats->cpuRewriteBatches += cpuRewriteBatches;
+    perfStats->indexedBatchesQueued += indexedBatchesQueued;
 }
 
 }

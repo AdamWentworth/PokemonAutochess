@@ -17,6 +17,11 @@ ServiceSnapshot captureServiceSnapshot(const EngineServices& services) {
     out.projectedUnitsProcessed = services.frameProjectedUnitsProcessed;
     out.projectedModelUnits = services.frameProjectedModelUnits;
     out.projectedClipSkinnedUnits = services.frameProjectedClipSkinnedUnits;
+    out.projectedSharedRigidBatches = services.frameProjectedSharedRigidBatches;
+    out.projectedGpuClipSkinBatches = services.frameProjectedGpuClipSkinBatches;
+    out.projectedGpuClipPaletteBatches = services.frameProjectedGpuClipPaletteBatches;
+    out.projectedCpuRewriteBatches = services.frameProjectedCpuRewriteBatches;
+    out.projectedIndexedBatchesQueued = services.frameProjectedIndexedBatchesQueued;
     out.rawRenderBreakdown = services.frameRenderBuildBreakdown;
     return out;
 }
@@ -48,6 +53,11 @@ game::runtime::perf_accum::FrameSample makePerfSample(const SampleInputs& inputs
     sample.projectedUnitsProcessed = snapshot.projectedUnitsProcessed;
     sample.projectedModelUnits = snapshot.projectedModelUnits;
     sample.projectedClipSkinnedUnits = snapshot.projectedClipSkinnedUnits;
+    sample.projectedSharedRigidBatches = snapshot.projectedSharedRigidBatches;
+    sample.projectedGpuClipSkinBatches = snapshot.projectedGpuClipSkinBatches;
+    sample.projectedGpuClipPaletteBatches = snapshot.projectedGpuClipPaletteBatches;
+    sample.projectedCpuRewriteBatches = snapshot.projectedCpuRewriteBatches;
+    sample.projectedIndexedBatchesQueued = snapshot.projectedIndexedBatchesQueued;
     sample.renderBreakdown = game::runtime::frame_perf_capture::finalizeRenderBreakdown(
         inputs.renderBuildMs,
         snapshot.projectedUnitsMs,

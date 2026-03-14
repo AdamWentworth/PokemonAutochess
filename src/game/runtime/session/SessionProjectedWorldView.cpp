@@ -269,6 +269,11 @@ Result appendProjectedWorldView(const Args& args) {
     out.projectedUnitsProcessed = projectedUnitPerf.unitsProcessed;
     out.projectedModelUnits = projectedUnitPerf.modelUnits;
     out.projectedClipSkinnedUnits = projectedUnitPerf.clipSkinnedUnits;
+    out.projectedSharedRigidBatches = projectedUnitPerf.sharedRigidBatches;
+    out.projectedGpuClipSkinBatches = projectedUnitPerf.gpuClipSkinBatches;
+    out.projectedGpuClipPaletteBatches = projectedUnitPerf.gpuClipPaletteBatches;
+    out.projectedCpuRewriteBatches = projectedUnitPerf.cpuRewriteBatches;
+    out.projectedIndexedBatchesQueued = projectedUnitPerf.indexedBatchesQueued;
     return out;
 }
 
