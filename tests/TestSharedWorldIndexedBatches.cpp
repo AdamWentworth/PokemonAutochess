@@ -24,6 +24,8 @@ struct RecordingBackend final : public IRenderBackend {
         int height = 0;
         std::size_t vertexCount = 0u;
         std::size_t indexCount = 0u;
+        std::size_t instanceCount = 0u;
+        bool instanced = false;
     };
 
     std::vector<DrawCall> calls;
@@ -56,6 +58,39 @@ struct RecordingBackend final : public IRenderBackend {
         }
         call.vertexCount = vertexCount;
         call.indexCount = indexCount;
+        calls.push_back(std::move(call));
+    }
+
+    bool supportsWorldIndexedMeshInstancing() const override { return true; }
+
+    void drawWorldIndexedMeshTexturedCachedInstanced(const char* geometryKey,
+                                                     const WorldMeshVertex* vertices,
+                                                     std::size_t vertexCount,
+                                                     const std::uint32_t* indices,
+                                                     std::size_t indexCount,
+                                                     const WorldTextureData* texture,
+                                                     const WorldMeshInstance* instances,
+                                                     std::size_t instanceCount,
+                                                     const float* viewProjectionMatrix4x4,
+                                                     int surfaceWidth,
+                                                     int surfaceHeight) override {
+        (void)geometryKey;
+        (void)instances;
+        (void)viewProjectionMatrix4x4;
+        (void)surfaceWidth;
+        (void)surfaceHeight;
+        DrawCall call;
+        if (texture && texture->key) call.key = texture->key;
+        if (texture) {
+            call.alphaMode = texture->alphaMode;
+            call.rgbaNonNull = (texture->rgba != nullptr);
+            call.width = texture->width;
+            call.height = texture->height;
+        }
+        call.vertexCount = vertexCount;
+        call.indexCount = indexCount;
+        call.instanceCount = instanceCount;
+        call.instanced = true;
         calls.push_back(std::move(call));
     }
 };
@@ -128,6 +163,28 @@ bool test_shared_world_indexed_batches_contract(std::string& outFail) {
 
     if (!expect(backend.calls[1].rgbaNonNull && backend.calls[1].width == 1 && backend.calls[1].height == 1,
                 "submitWorldIndexedBatches should pass ownedTextureRgba data to the backend when textureRgba is null.",
+                outFail)) {
+        return false;
+    }
+
+    backend.calls.clear();
+    WorldIndexedBatch instancedBatch = makeBatch("instanced_growl", 2u, 5.0f, false);
+    instancedBatch.geometryCacheKey = "__growl_geom_line_v1__:test";
+    instancedBatch.vertices.clear();
+    instancedBatch.indices.clear();
+    static const IRenderBackend::WorldMeshVertex kSharedVertices[3] = {};
+    static const std::uint32_t kSharedIndices[3] = {0u, 1u, 2u};
+    instancedBatch.sharedVertices = kSharedVertices;
+    instancedBatch.sharedVertexCount = 3u;
+    instancedBatch.sharedIndices = kSharedIndices;
+    instancedBatch.sharedIndexCount = 3u;
+    instancedBatch.instances.resize(2u);
+    submitWorldIndexedBatches(backend, {instancedBatch}, viewProj, 1280, 720);
+
+    if (!expect(backend.calls.size() == 1u &&
+                    backend.calls.front().instanced &&
+                    backend.calls.front().instanceCount == 2u,
+                "submitWorldIndexedBatches should route batches with per-instance payloads through the instanced cached-mesh backend path.",
                 outFail)) {
         return false;
     }

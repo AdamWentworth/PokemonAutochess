@@ -23,6 +23,7 @@ struct WorldIndexedBatch {
     const std::uint32_t* sharedIndices = nullptr;
     std::size_t sharedIndexCount = 0u;
     std::string geometryCacheKey;
+    std::vector<IRenderBackend::WorldMeshInstance> instances;
     std::string textureKey;
     std::string textureCacheKey;
     std::vector<unsigned char> ownedTextureRgba;

@@ -48,6 +48,7 @@ public:
     bool activeGpuIsDiscrete() const override { return discreteAdapter_; }
     bool supportsWorldTriangles3D() const override { return true; }
     bool supportsWorldIndexedMeshes() const override { return true; }
+    bool supportsWorldIndexedMeshInstancing() const override { return true; }
     void drawWorldTriangles(const WorldTriangle* triangles,
                             std::size_t triangleCount,
                             const float* viewProjectionMatrix4x4,
@@ -92,6 +93,17 @@ public:
                                             const float* viewProjectionMatrix4x4,
                                             int surfaceWidth,
                                             int surfaceHeight) override;
+    void drawWorldIndexedMeshTexturedCachedInstanced(const char* geometryKey,
+                                                     const WorldMeshVertex* vertices,
+                                                     std::size_t vertexCount,
+                                                     const std::uint32_t* indices,
+                                                     std::size_t indexCount,
+                                                     const WorldTextureData* texture,
+                                                     const WorldMeshInstance* instances,
+                                                     std::size_t instanceCount,
+                                                     const float* viewProjectionMatrix4x4,
+                                                     int surfaceWidth,
+                                                     int surfaceHeight) override;
     void drawDebugQuads(const DebugQuad* quads,
                         std::size_t quadCount,
                         int surfaceWidth,
@@ -187,6 +199,8 @@ private:
                                                     const WorldTextureData* textureData,
                                                     float useTexture,
                                                     const float* viewProjectionMatrix4x4,
+                                                    std::uint64_t instanceDataGpuAddress,
+                                                    std::uint32_t instanceCount,
                                                     int surfaceWidth,
                                                     int surfaceHeight);
 #endif
@@ -297,6 +311,11 @@ private:
     std::uint32_t worldSkinMatrixBufferSize_ = 0;
     std::uint32_t worldSkinMatrixFrameOffset_ = 0;
     std::uint8_t* worldSkinMatrixMappedData_ = nullptr;
+    Microsoft::WRL::ComPtr<ID3D12Resource> worldInstanceBuffer_;
+    std::uint64_t worldInstanceBufferGpuAddress_ = 0;
+    std::uint32_t worldInstanceBufferSize_ = 0;
+    std::uint32_t worldInstanceFrameOffset_ = 0;
+    std::uint8_t* worldInstanceMappedData_ = nullptr;
     std::uint32_t worldFallbackTextureDescriptorIndex_ = 0;
     std::uint32_t worldFallbackNormalTextureDescriptorIndex_ = 0;
     std::uint32_t worldFallbackMetallicRoughnessTextureDescriptorIndex_ = 0;

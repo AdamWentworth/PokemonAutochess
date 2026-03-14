@@ -241,7 +241,20 @@ void drawOneBatch(IRenderBackend& renderer,
 
     IRenderBackend::WorldTextureData tex =
         toWorldTextureData(batch, cameraWorldPos3, cameraForward3, cameraTarget3);
-    if (!batch.geometryCacheKey.empty()) {
+    if (!batch.instances.empty()) {
+        renderer.drawWorldIndexedMeshTexturedCachedInstanced(
+            batch.geometryCacheKey.empty() ? nullptr : batch.geometryCacheKey.c_str(),
+            vertices,
+            vertexCount,
+            indices,
+            indexCount,
+            &tex,
+            batch.instances.data(),
+            batch.instances.size(),
+            viewProjectionMatrix4x4,
+            surfaceWidth,
+            surfaceHeight);
+    } else if (!batch.geometryCacheKey.empty()) {
         renderer.drawWorldIndexedMeshTexturedCached(
             batch.geometryCacheKey.c_str(),
             vertices,

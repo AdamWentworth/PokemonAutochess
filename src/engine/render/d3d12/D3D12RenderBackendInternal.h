@@ -50,6 +50,29 @@ struct WorldVertex {
     float tw;
 };
 
+struct WorldInstanceVertexData {
+    float model0x;
+    float model0y;
+    float model0z;
+    float model0w;
+    float model1x;
+    float model1y;
+    float model1z;
+    float model1w;
+    float model2x;
+    float model2y;
+    float model2z;
+    float model2w;
+    float model3x;
+    float model3y;
+    float model3z;
+    float model3w;
+    float colorR;
+    float colorG;
+    float colorB;
+    float colorA;
+};
+
 static_assert(
     sizeof(WorldVertex) == sizeof(IRenderBackend::WorldMeshVertex),
     "WorldVertex and WorldMeshVertex layout must match for fast memcpy upload path.");

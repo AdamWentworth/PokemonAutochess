@@ -7,6 +7,7 @@
 #include <cstring>
 #include <cstdlib>
 #include <iostream>
+#include <limits>
 #include <string>
 
 #if defined(_WIN32)
@@ -109,6 +110,30 @@ void maybeLogPbrBindingD3D12(const IRenderBackend::WorldTextureData* texture,
         << " occF=" << texture->occlusionStrength
         << "\n";
 }
+
+void packWorldInstanceVertexData(const IRenderBackend::WorldMeshInstance& instance,
+                                 WorldInstanceVertexData& out) {
+    out.model0x = instance.modelMatrix[0];
+    out.model0y = instance.modelMatrix[1];
+    out.model0z = instance.modelMatrix[2];
+    out.model0w = instance.modelMatrix[3];
+    out.model1x = instance.modelMatrix[4];
+    out.model1y = instance.modelMatrix[5];
+    out.model1z = instance.modelMatrix[6];
+    out.model1w = instance.modelMatrix[7];
+    out.model2x = instance.modelMatrix[8];
+    out.model2y = instance.modelMatrix[9];
+    out.model2z = instance.modelMatrix[10];
+    out.model2w = instance.modelMatrix[11];
+    out.model3x = instance.modelMatrix[12];
+    out.model3y = instance.modelMatrix[13];
+    out.model3z = instance.modelMatrix[14];
+    out.model3w = instance.modelMatrix[15];
+    out.colorR = instance.vertexColorMulR;
+    out.colorG = instance.vertexColorMulG;
+    out.colorB = instance.vertexColorMulB;
+    out.colorA = instance.vertexColorMulA;
+}
 } // namespace
 
 void D3D12RenderBackend::drawWorldTriangles(const WorldTriangle* triangles,
@@ -188,6 +213,7 @@ void D3D12RenderBackend::drawWorldTriangles(const WorldTriangle* triangles,
         0,
         worldVsConstantBufferGpuAddress_ + static_cast<std::uint64_t>(vsConstantsWriteOffset));
     commandList_->SetGraphicsRootConstantBufferView(2, worldSkinMatrixBufferGpuAddress_);
+    commandList_->SetGraphicsRootShaderResourceView(9, worldInstanceBufferGpuAddress_);
     const WorldPsConstants worldPs = makeWorldPsConstants(nullptr, 0.0f);
     commandList_->SetGraphicsRoot32BitConstants(
         1,
@@ -497,6 +523,8 @@ void D3D12RenderBackend::drawWorldIndexedMeshTexturedCached(const char* geometry
         texture,
         useTexture,
         viewProjectionMatrix4x4,
+        worldInstanceBufferGpuAddress_,
+        1u,
         surfaceWidth,
         surfaceHeight);
 #else
@@ -506,6 +534,208 @@ void D3D12RenderBackend::drawWorldIndexedMeshTexturedCached(const char* geometry
     (void)indices;
     (void)indexCount;
     (void)texture;
+    (void)viewProjectionMatrix4x4;
+    (void)surfaceWidth;
+    (void)surfaceHeight;
+#endif
+}
+
+void D3D12RenderBackend::drawWorldIndexedMeshTexturedCachedInstanced(
+    const char* geometryKey,
+    const WorldMeshVertex* vertices,
+    std::size_t vertexCount,
+    const std::uint32_t* indices,
+    std::size_t indexCount,
+    const WorldTextureData* texture,
+    const WorldMeshInstance* instances,
+    std::size_t instanceCount,
+    const float* viewProjectionMatrix4x4,
+    int surfaceWidth,
+    int surfaceHeight) {
+#if defined(_WIN32)
+    if (!instances || instanceCount == 0u) {
+        drawWorldIndexedMeshTexturedCached(
+            geometryKey,
+            vertices,
+            vertexCount,
+            indices,
+            indexCount,
+            texture,
+            viewProjectionMatrix4x4,
+            surfaceWidth,
+            surfaceHeight);
+        return;
+    }
+    if (!geometryKey || geometryKey[0] == '\0' || !worldInstanceBuffer_ || !worldInstanceMappedData_) {
+        IRenderBackend::drawWorldIndexedMeshTexturedCachedInstanced(
+            geometryKey,
+            vertices,
+            vertexCount,
+            indices,
+            indexCount,
+            texture,
+            instances,
+            instanceCount,
+            viewProjectionMatrix4x4,
+            surfaceWidth,
+            surfaceHeight);
+        return;
+    }
+
+    CachedWorldMesh* cached =
+        ensureCachedWorldMesh(geometryKey, vertices, vertexCount, indices, indexCount);
+    if (!cached || !cached->valid) {
+        IRenderBackend::drawWorldIndexedMeshTexturedCachedInstanced(
+            geometryKey,
+            vertices,
+            vertexCount,
+            indices,
+            indexCount,
+            texture,
+            instances,
+            instanceCount,
+            viewProjectionMatrix4x4,
+            surfaceWidth,
+            surfaceHeight);
+        return;
+    }
+
+    if (instanceCount > static_cast<std::size_t>((std::numeric_limits<std::uint32_t>::max)())) {
+        IRenderBackend::drawWorldIndexedMeshTexturedCachedInstanced(
+            geometryKey,
+            vertices,
+            vertexCount,
+            indices,
+            indexCount,
+            texture,
+            instances,
+            instanceCount,
+            viewProjectionMatrix4x4,
+            surfaceWidth,
+            surfaceHeight);
+        return;
+    }
+
+    const std::size_t instanceBytes = instanceCount * sizeof(WorldInstanceVertexData);
+    const std::size_t instanceWriteOffset = static_cast<std::size_t>(worldInstanceFrameOffset_);
+    if (instanceWriteOffset + instanceBytes > worldInstanceBufferSize_) {
+        IRenderBackend::drawWorldIndexedMeshTexturedCachedInstanced(
+            geometryKey,
+            vertices,
+            vertexCount,
+            indices,
+            indexCount,
+            texture,
+            instances,
+            instanceCount,
+            viewProjectionMatrix4x4,
+            surfaceWidth,
+            surfaceHeight);
+        return;
+    }
+
+    auto* instanceData =
+        reinterpret_cast<WorldInstanceVertexData*>(worldInstanceMappedData_ + instanceWriteOffset);
+    for (std::size_t i = 0; i < instanceCount; ++i) {
+        packWorldInstanceVertexData(instances[i], instanceData[i]);
+    }
+    const D3D12_GPU_VIRTUAL_ADDRESS instanceDataGpuAddress =
+        worldInstanceBufferGpuAddress_ + static_cast<std::uint64_t>(instanceWriteOffset);
+    worldInstanceFrameOffset_ =
+        static_cast<std::uint32_t>(instanceWriteOffset + instanceBytes);
+
+    ensureWorldFallbackEnvTexture();
+    SpriteTexture* worldTex = ensureWorldTexture(texture);
+    const std::uint32_t baseDescriptorIndex =
+        worldTex ? worldTex->descriptorIndex : worldFallbackTextureDescriptorIndex_;
+    const float useTexture = (worldTex && worldTex->valid) ? 1.0f : 0.0f;
+
+    SpriteTexture* normalTex = texture ? ensureWorldTextureRaw(
+        texture->normalKey,
+        texture->normalCacheKey,
+        texture->normalRgba,
+        texture->normalWidth,
+        texture->normalHeight,
+        texture->normalWrapS,
+        texture->normalWrapT,
+        /*srgb=*/false) : nullptr;
+    const std::uint32_t normalDescriptorIndex =
+        normalTex ? normalTex->descriptorIndex : worldFallbackNormalTextureDescriptorIndex_;
+
+    SpriteTexture* metallicRoughnessTex = texture ? ensureWorldTextureRaw(
+        texture->metallicRoughnessKey,
+        texture->metallicRoughnessCacheKey,
+        texture->metallicRoughnessRgba,
+        texture->metallicRoughnessWidth,
+        texture->metallicRoughnessHeight,
+        texture->metallicRoughnessWrapS,
+        texture->metallicRoughnessWrapT,
+        /*srgb=*/false) : nullptr;
+    const std::uint32_t metallicRoughnessDescriptorIndex =
+        metallicRoughnessTex
+            ? metallicRoughnessTex->descriptorIndex
+            : worldFallbackMetallicRoughnessTextureDescriptorIndex_;
+
+    SpriteTexture* occlusionTex = texture ? ensureWorldTextureRaw(
+        texture->occlusionKey,
+        texture->occlusionCacheKey,
+        texture->occlusionRgba,
+        texture->occlusionWidth,
+        texture->occlusionHeight,
+        texture->occlusionWrapS,
+        texture->occlusionWrapT,
+        /*srgb=*/false) : nullptr;
+    const std::uint32_t occlusionDescriptorIndex =
+        occlusionTex ? occlusionTex->descriptorIndex : worldFallbackOcclusionTextureDescriptorIndex_;
+
+    SpriteTexture* emissiveTex = texture ? ensureWorldTextureRaw(
+        texture->emissiveKey,
+        texture->emissiveCacheKey,
+        texture->emissiveRgba,
+        texture->emissiveWidth,
+        texture->emissiveHeight,
+        texture->emissiveWrapS,
+        texture->emissiveWrapT,
+        /*srgb=*/true) : nullptr;
+    const std::uint32_t emissiveDescriptorIndex =
+        emissiveTex ? emissiveTex->descriptorIndex : worldFallbackEmissiveTextureDescriptorIndex_;
+
+    maybeLogPbrBindingD3D12(
+        texture,
+        worldTex != nullptr,
+        normalTex != nullptr,
+        metallicRoughnessTex != nullptr,
+        occlusionTex != nullptr,
+        emissiveTex != nullptr);
+
+    drawWorldIndexedMeshTexturedCachedInternal(
+        *cached,
+        vertices,
+        vertexCount,
+        indices,
+        indexCount,
+        baseDescriptorIndex,
+        normalDescriptorIndex,
+        metallicRoughnessDescriptorIndex,
+        occlusionDescriptorIndex,
+        emissiveDescriptorIndex,
+        worldFallbackEnvTextureDescriptorIndex_,
+        texture,
+        useTexture,
+        viewProjectionMatrix4x4,
+        instanceDataGpuAddress,
+        static_cast<std::uint32_t>(instanceCount),
+        surfaceWidth,
+        surfaceHeight);
+#else
+    (void)geometryKey;
+    (void)vertices;
+    (void)vertexCount;
+    (void)indices;
+    (void)indexCount;
+    (void)texture;
+    (void)instances;
+    (void)instanceCount;
     (void)viewProjectionMatrix4x4;
     (void)surfaceWidth;
     (void)surfaceHeight;
@@ -636,6 +866,7 @@ void D3D12RenderBackend::drawWorldIndexedMeshInternal(const WorldMeshVertex* ver
         0,
         worldVsConstantBufferGpuAddress_ + static_cast<std::uint64_t>(vsConstantsWriteOffset));
     commandList_->SetGraphicsRootConstantBufferView(2, skinMatrixGpuAddress);
+    commandList_->SetGraphicsRootShaderResourceView(9, worldInstanceBufferGpuAddress_);
     WorldPsConstants worldPs = makeWorldPsConstants(textureData, useTexture);
     if (textureData && textureData->materialMode >= 2u) {
         // Reuse an unused packed slot in lit model mode for shader debug-view selection.
@@ -827,11 +1058,14 @@ void D3D12RenderBackend::drawWorldIndexedMeshTexturedCachedInternal(
     const WorldTextureData* textureData,
     float useTexture,
     const float* viewProjectionMatrix4x4,
+    D3D12_GPU_VIRTUAL_ADDRESS instanceDataGpuAddress,
+    std::uint32_t instanceCount,
     int surfaceWidth,
     int surfaceHeight) {
 #if defined(_WIN32)
     if (!recording_ || !viewProjectionMatrix4x4) return;
     if (!mesh.valid || !mesh.vertexBuffer || !mesh.indexBuffer || mesh.indexCount < 3u) return;
+    if (instanceCount == 0u || instanceDataGpuAddress == 0u) return;
     if (surfaceWidth <= 0 || surfaceHeight <= 0) return;
     if (!worldPipelineState_ ||
         !worldRootSignature_ ||
@@ -907,6 +1141,7 @@ void D3D12RenderBackend::drawWorldIndexedMeshTexturedCachedInternal(
         0,
         worldVsConstantBufferGpuAddress_ + static_cast<std::uint64_t>(vsConstantsWriteOffset));
     commandList_->SetGraphicsRootConstantBufferView(2, skinMatrixGpuAddress);
+    commandList_->SetGraphicsRootShaderResourceView(9, instanceDataGpuAddress);
     WorldPsConstants worldPs = makeWorldPsConstants(textureData, useTexture);
     if (textureData && textureData->materialMode >= 2u) {
         worldPs.materialFlipbook1Fps = static_cast<float>(pbrDebugViewMode());
@@ -968,9 +1203,10 @@ void D3D12RenderBackend::drawWorldIndexedMeshTexturedCachedInternal(
     ibv.SizeInBytes = static_cast<UINT>(mesh.indexBytes);
     commandList_->IASetIndexBuffer(&ibv);
 
-    commandList_->DrawIndexedInstanced(static_cast<UINT>(mesh.indexCount), 1, 0, 0, 0);
+    commandList_->DrawIndexedInstanced(static_cast<UINT>(mesh.indexCount), instanceCount, 0, 0, 0);
     ++frameDrawCalls_;
-    frameTriangles_ += static_cast<std::uint64_t>(mesh.indexCount / 3u);
+    frameTriangles_ += static_cast<std::uint64_t>(mesh.indexCount / 3u) *
+                      static_cast<std::uint64_t>(instanceCount);
 
     worldVsConstantFrameOffset_ = static_cast<UINT>(vsConstantsWriteOffset + 256u);
 
@@ -1076,9 +1312,10 @@ void D3D12RenderBackend::drawWorldIndexedMeshTexturedCachedInternal(
         &outlinePs,
         0);
     commandList_->SetPipelineState(worldPipelineState_.Get());
-    commandList_->DrawIndexedInstanced(static_cast<UINT>(safeIndexCount), 1, 0, 0, 0);
+    commandList_->DrawIndexedInstanced(static_cast<UINT>(safeIndexCount), instanceCount, 0, 0, 0);
     ++frameDrawCalls_;
-    frameTriangles_ += static_cast<std::uint64_t>(safeIndexCount / 3u);
+    frameTriangles_ += static_cast<std::uint64_t>(safeIndexCount / 3u) *
+                      static_cast<std::uint64_t>(instanceCount);
 
     worldVertexFrameOffset_ = static_cast<UINT>(outlineVertexWriteOffset + vertexBytes);
     worldIndexFrameOffset_ = static_cast<UINT>(outlineIndexWriteOffset + indexBytes);
@@ -1098,6 +1335,8 @@ void D3D12RenderBackend::drawWorldIndexedMeshTexturedCachedInternal(
     (void)textureData;
     (void)useTexture;
     (void)viewProjectionMatrix4x4;
+    (void)instanceDataGpuAddress;
+    (void)instanceCount;
     (void)surfaceWidth;
     (void)surfaceHeight;
 #endif

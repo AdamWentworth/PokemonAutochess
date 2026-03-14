@@ -301,6 +301,8 @@ void D3D12RenderBackend::createWorldPipeline() {
         "cbuffer VSConstants : register(b0) { float4x4 uViewProj; float4x4 uModel; float4 uSkinMeta; };"
         "cbuffer MaterialVsConstants : register(b1) { float _m0,_m1,_m2,_m3,_m4,_m5,_m6,_m7,_m8,_m9,_m10,_m11,_m12,_m13; float4 uGeneratedBoundsMin; float4 uGeneratedBoundsMax; };"
         "cbuffer VSSkinMatrices : register(b2) { float4x4 gSkinMatrices[64]; };"
+        "struct InstanceData { float4 model0; float4 model1; float4 model2; float4 model3; float4 color; };"
+        "StructuredBuffer<InstanceData> gInstances : register(t6);"
         "struct VSIn { float3 pos : POSITION; float2 uv : TEXCOORD; float4 col : COLOR; float3 nrm : NORMAL; float4 jnts : BLENDINDICES; float4 wgts : BLENDWEIGHT; float4 tan : TANGENT; };"
         "struct VSOut { float4 pos : SV_POSITION; float2 uv : TEXCOORD; float4 col : COLOR; float3 worldPos : TEXCOORD1; float3 worldNormal : TEXCOORD2; float4 worldTangent : TEXCOORD3; float3 generated : TEXCOORD4; };"
         "float3 applySkinningPos(VSIn i, float3 localPos) {"
@@ -351,8 +353,15 @@ void D3D12RenderBackend::createWorldPipeline() {
         "  else blended = tangent;"
         "  return float4(blended, localTangent.w);"
         "}"
-        "VSOut main(VSIn i) {"
+        "float4 applyInstancePos(InstanceData inst, float3 localPos) {"
+        "  return inst.model0 * localPos.x + inst.model1 * localPos.y + inst.model2 * localPos.z + inst.model3;"
+        "}"
+        "float3 applyInstanceLinear(InstanceData inst, float3 localDir) {"
+        "  return inst.model0.xyz * localDir.x + inst.model1.xyz * localDir.y + inst.model2.xyz * localDir.z;"
+        "}"
+        "VSOut main(VSIn i, uint instanceId : SV_InstanceID) {"
         "  VSOut o;"
+        "  InstanceData inst = gInstances[instanceId];"
         "  float3 localPos = i.pos;"
         "  float3 localNormal = i.nrm;"
         "  float4 localTangent = i.tan;"
@@ -361,20 +370,23 @@ void D3D12RenderBackend::createWorldPipeline() {
         "    localNormal = applySkinningNormal(i, localNormal);"
         "    localTangent = applySkinningTangent(i, localTangent);"
         "  }"
-        "  float4 world = mul(uModel, float4(localPos, 1.0f));"
+        "  float4 instanceWorld = applyInstancePos(inst, localPos);"
+        "  float4 world = mul(uModel, instanceWorld);"
         "  float4 clip = mul(uViewProj, world);"
         "  clip.z = clip.z * 0.5f + clip.w * 0.5f;"
         "  o.pos = clip;"
         "  o.uv = i.uv;"
-        "  o.col = i.col;"
+        "  o.col = i.col * inst.color;"
         "  float3 genDen = max(uGeneratedBoundsMax.xyz - uGeneratedBoundsMin.xyz, float3(1e-5f, 1e-5f, 1e-5f));"
         "  o.generated = saturate((i.pos - uGeneratedBoundsMin.xyz) / genDen);"
         "  o.worldPos = world.xyz;"
         "  float3x3 normalM = (float3x3)uModel;"
-        "  float3 wn = mul(normalM, localNormal);"
+        "  float3 instanceNormal = applyInstanceLinear(inst, localNormal);"
+        "  float3 wn = mul(normalM, instanceNormal);"
         "  float wnLen2 = dot(wn, wn);"
         "  o.worldNormal = (wnLen2 > 1e-8f) ? normalize(wn) : float3(0.0f, 1.0f, 0.0f);"
-        "  float3 wt = mul(normalM, localTangent.xyz);"
+        "  float3 instanceTangent = applyInstanceLinear(inst, localTangent.xyz);"
+        "  float3 wt = mul(normalM, instanceTangent);"
         "  float wtLen2 = dot(wt, wt);"
         "  if (wtLen2 > 1e-8f) wt = normalize(wt);"
         "  o.worldTangent = float4(wt, localTangent.w);"
@@ -1156,7 +1168,7 @@ float4 main(PSIn i, bool isFrontFace : SV_IsFrontFace) : SV_TARGET {
         srvRanges[i].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
     }
 
-    D3D12_ROOT_PARAMETER rootParams[9]{};
+    D3D12_ROOT_PARAMETER rootParams[10]{};
     rootParams[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
     rootParams[0].Descriptor.ShaderRegister = 0;
     rootParams[0].Descriptor.RegisterSpace = 0;
@@ -1177,6 +1189,10 @@ float4 main(PSIn i, bool isFrontFace : SV_IsFrontFace) : SV_TARGET {
         rootParams[rootIndex].DescriptorTable.pDescriptorRanges = &srvRanges[i];
         rootParams[rootIndex].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
     }
+    rootParams[9].ParameterType = D3D12_ROOT_PARAMETER_TYPE_SRV;
+    rootParams[9].Descriptor.ShaderRegister = 6;
+    rootParams[9].Descriptor.RegisterSpace = 0;
+    rootParams[9].ShaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX;
 
     auto makeStaticWorldSampler = [](UINT shaderRegister,
                                      D3D12_TEXTURE_ADDRESS_MODE addressU,
@@ -1471,6 +1487,42 @@ float4 main(PSIn i, bool isFrontFace : SV_IsFrontFace) : SV_TARGET {
         0.0f, 0.0f, 0.0f, 1.0f};
     std::memcpy(worldSkinMatrixMappedData_, kIdentity, sizeof(kIdentity));
     worldSkinMatrixFrameOffset_ = 256u;
+
+    constexpr std::size_t kMaxWorldInstancesPerFrame = 65536u;
+    const std::size_t kWorldInstanceBufferBytes =
+        kMaxWorldInstancesPerFrame * sizeof(WorldInstanceVertexData);
+    D3D12_RESOURCE_DESC worldInstanceDesc = bufferDesc;
+    worldInstanceDesc.Width = kWorldInstanceBufferBytes;
+    if (FAILED(device_->CreateCommittedResource(&heapProps,
+                                                D3D12_HEAP_FLAG_NONE,
+                                                &worldInstanceDesc,
+                                                D3D12_RESOURCE_STATE_GENERIC_READ,
+                                                nullptr,
+                                                IID_PPV_ARGS(worldInstanceBuffer_.ReleaseAndGetAddressOf()))) ||
+        !worldInstanceBuffer_) {
+        throw std::runtime_error("CreateCommittedResource failed for D3D12 world instance buffer.");
+    }
+    worldInstanceBufferGpuAddress_ = worldInstanceBuffer_->GetGPUVirtualAddress();
+    worldInstanceBufferSize_ = static_cast<UINT>(kWorldInstanceBufferBytes);
+    worldInstanceMappedData_ = nullptr;
+    void* worldInstanceMapped = nullptr;
+    D3D12_RANGE worldInstanceReadRange{0, 0};
+    if (FAILED(worldInstanceBuffer_->Map(0, &worldInstanceReadRange, &worldInstanceMapped)) || !worldInstanceMapped) {
+        throw std::runtime_error("Map failed for D3D12 world instance buffer.");
+    }
+    worldInstanceMappedData_ = static_cast<std::uint8_t*>(worldInstanceMapped);
+    std::memset(worldInstanceMappedData_, 0, worldInstanceBufferSize_);
+    WorldInstanceVertexData* identityInstance =
+        reinterpret_cast<WorldInstanceVertexData*>(worldInstanceMappedData_);
+    identityInstance->model0x = 1.0f;
+    identityInstance->model1y = 1.0f;
+    identityInstance->model2z = 1.0f;
+    identityInstance->model3w = 1.0f;
+    identityInstance->colorR = 1.0f;
+    identityInstance->colorG = 1.0f;
+    identityInstance->colorB = 1.0f;
+    identityInstance->colorA = 1.0f;
+    worldInstanceFrameOffset_ = static_cast<UINT>(sizeof(WorldInstanceVertexData));
 #endif
 }
 

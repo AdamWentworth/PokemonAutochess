@@ -157,6 +157,18 @@ public:
         const float* skinMatrices = nullptr; // 16 * skinMatrixCount floats (column-major mat4)
     };
 
+    struct WorldMeshInstance {
+        std::array<float, 16> modelMatrix{
+            1.0f, 0.0f, 0.0f, 0.0f,
+            0.0f, 1.0f, 0.0f, 0.0f,
+            0.0f, 0.0f, 1.0f, 0.0f,
+            0.0f, 0.0f, 0.0f, 1.0f};
+        float vertexColorMulR = 1.0f;
+        float vertexColorMulG = 1.0f;
+        float vertexColorMulB = 1.0f;
+        float vertexColorMulA = 1.0f;
+    };
+
     struct WorldTriangle {
         float x1 = 0.0f;
         float y1 = 0.0f;
@@ -257,6 +269,7 @@ public:
     virtual bool activeGpuIsDiscrete() const { return false; }
     virtual bool supportsWorldTriangles3D() const { return false; }
     virtual bool supportsWorldIndexedMeshes() const { return false; }
+    virtual bool supportsWorldIndexedMeshInstancing() const { return false; }
     virtual void drawWorldTriangles(const WorldTriangle* triangles,
                                     std::size_t triangleCount,
                                     const float* viewProjectionMatrix4x4,
@@ -352,6 +365,83 @@ public:
             viewProjectionMatrix4x4,
             surfaceWidth,
             surfaceHeight);
+    }
+    virtual void drawWorldIndexedMeshTexturedCachedInstanced(
+        const char* geometryKey,
+        const WorldMeshVertex* vertices,
+        std::size_t vertexCount,
+        const std::uint32_t* indices,
+        std::size_t indexCount,
+        const WorldTextureData* texture,
+        const WorldMeshInstance* instances,
+        std::size_t instanceCount,
+        const float* viewProjectionMatrix4x4,
+        int surfaceWidth,
+        int surfaceHeight) {
+        if (!instances || instanceCount == 0u) {
+            drawWorldIndexedMeshTexturedCached(
+                geometryKey,
+                vertices,
+                vertexCount,
+                indices,
+                indexCount,
+                texture,
+                viewProjectionMatrix4x4,
+                surfaceWidth,
+                surfaceHeight);
+            return;
+        }
+
+        const auto mulColumnMajor = [](const std::array<float, 16>& lhs,
+                                       const std::array<float, 16>& rhs) {
+            std::array<float, 16> out{};
+            for (int col = 0; col < 4; ++col) {
+                for (int row = 0; row < 4; ++row) {
+                    float sum = 0.0f;
+                    for (int k = 0; k < 4; ++k) {
+                        sum += lhs[static_cast<std::size_t>(k) * 4u + static_cast<std::size_t>(row)] *
+                               rhs[static_cast<std::size_t>(col) * 4u + static_cast<std::size_t>(k)];
+                    }
+                    out[static_cast<std::size_t>(col) * 4u + static_cast<std::size_t>(row)] = sum;
+                }
+            }
+            return out;
+        };
+
+        static const std::array<float, 16> kIdentity{
+            1.0f, 0.0f, 0.0f, 0.0f,
+            0.0f, 1.0f, 0.0f, 0.0f,
+            0.0f, 0.0f, 1.0f, 0.0f,
+            0.0f, 0.0f, 0.0f, 1.0f};
+
+        for (std::size_t i = 0; i < instanceCount; ++i) {
+            WorldTextureData instancedTexture = texture ? *texture : WorldTextureData{};
+            const WorldMeshInstance& instance = instances[i];
+            instancedTexture.modelMatrix = texture
+                ? mulColumnMajor(texture->modelMatrix, instance.modelMatrix)
+                : instance.modelMatrix;
+            instancedTexture.vertexColorMulR =
+                (texture ? texture->vertexColorMulR : 1.0f) * instance.vertexColorMulR;
+            instancedTexture.vertexColorMulG =
+                (texture ? texture->vertexColorMulG : 1.0f) * instance.vertexColorMulG;
+            instancedTexture.vertexColorMulB =
+                (texture ? texture->vertexColorMulB : 1.0f) * instance.vertexColorMulB;
+            instancedTexture.vertexColorMulA =
+                (texture ? texture->vertexColorMulA : 1.0f) * instance.vertexColorMulA;
+            if (!texture) {
+                instancedTexture.modelMatrix = mulColumnMajor(kIdentity, instance.modelMatrix);
+            }
+            drawWorldIndexedMeshTexturedCached(
+                geometryKey,
+                vertices,
+                vertexCount,
+                indices,
+                indexCount,
+                texture ? &instancedTexture : nullptr,
+                viewProjectionMatrix4x4,
+                surfaceWidth,
+                surfaceHeight);
+        }
     }
     virtual void drawDebugQuads(const DebugQuad* quads,
                                 std::size_t quadCount,
