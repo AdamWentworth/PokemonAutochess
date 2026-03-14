@@ -28,7 +28,9 @@ std::filesystem::path makeTempFile(const std::filesystem::path& path, std::size_
 
 bool test_runtime_startup_asset_prewarm_contract(std::string& outFail) {
     using game::runtime::startup_asset_prewarm::Callbacks;
+    using game::runtime::startup_asset_prewarm::GrowlStats;
     using game::runtime::startup_asset_prewarm::Options;
+    using game::runtime::startup_asset_prewarm::ParticleVfxStats;
     using game::runtime::startup_asset_prewarm::TailFireStats;
 
     {
@@ -48,6 +50,8 @@ bool test_runtime_startup_asset_prewarm_contract(std::string& outFail) {
         int requestQuitCalls = 0;
         int worldShadingCalls = 0;
         int tailFireCalls = 0;
+        int growlCalls = 0;
+        int particleVfxCalls = 0;
         std::ostringstream logs;
 
         const auto summary = game::runtime::startup_asset_prewarm::run(
@@ -74,6 +78,16 @@ bool test_runtime_startup_asset_prewarm_contract(std::string& outFail) {
                         ++tailFireCalls;
                         return TailFireStats{2u, 1u, 1u};
                     },
+                .prewarmGrowlVfx =
+                    [&]() {
+                        ++growlCalls;
+                        return GrowlStats{8u, 7u, 8u};
+                    },
+                .prewarmParticleVfx =
+                    [&]() {
+                        ++particleVfxCalls;
+                        return ParticleVfxStats{8u, 8u};
+                    },
                 .prewarmSpriteTextures =
                     [&](const std::vector<std::string>& paths) { spritePrewarmCalls.push_back(paths); },
                 .prewarmBackendCardUi =
@@ -87,15 +101,21 @@ bool test_runtime_startup_asset_prewarm_contract(std::string& outFail) {
             summary.tailFire.legacyAtlases != 2u ||
             summary.tailFire.meshFlipbookCpu != 1u ||
             summary.tailFire.meshFlipbookGpu != 1u ||
+            summary.growl.drawPasses != 8u ||
+            summary.growl.bakedTextures != 7u ||
+            summary.growl.warmedBatches != 8u ||
+            summary.particleVfx.textures != 8u ||
+            summary.particleVfx.warmedBatches != 8u ||
             summary.uiSpritesRequested != 2u ||
             summary.cardArtRequested < 1u ||
             !summary.cardUiPrewarmed) {
-            outFail = "run should preserve tail-fire counts and UI/card prewarm summary fields.";
+            outFail = "run should preserve tail-fire, growl, particle-VFX, and UI/card prewarm summary fields.";
             return false;
         }
 
-        if (requestQuitCalls != 0 || worldShadingCalls != 1 || tailFireCalls != 1) {
-            outFail = "run should execute world-shading and tail-fire prewarm once without requesting quit.";
+        if (requestQuitCalls != 0 || worldShadingCalls != 1 || tailFireCalls != 1 ||
+            growlCalls != 1 || particleVfxCalls != 1) {
+            outFail = "run should execute world-shading, tail-fire, growl, and particle-VFX prewarm once without requesting quit.";
             return false;
         }
 
@@ -115,26 +135,32 @@ bool test_runtime_startup_asset_prewarm_contract(std::string& outFail) {
             return false;
         }
 
-        if (titles.size() < 4u ||
+        if (titles.size() < 5u ||
             titles.front() != "PokemonAutochess - Loading world shading..." ||
             titles[1] != "PokemonAutochess - Loading tail fire..." ||
-            titles[2].find("Loading UI sprites") == std::string::npos) {
+            titles[2] != "PokemonAutochess - Loading growl VFX..." ||
+            titles[3] != "PokemonAutochess - Loading particle VFX..." ||
+            titles[4].find("Loading UI sprites") == std::string::npos) {
             outFail = "run should drive startup title updates for each asset prewarm stage.";
             return false;
         }
 
-        if (progressValues.size() < 5u ||
+        if (progressValues.size() < 7u ||
             progressValues.front() != 0.92f ||
             progressValues[1] != 0.93f ||
-            progressValues[2] != 0.94f ||
+            progressValues[2] != 0.935f ||
+            progressValues[3] != 0.937f ||
+            progressValues[4] != 0.94f ||
             progressValues.back() != 0.985f) {
-            outFail = "run should emit boot-loading progress across world, tail-fire, and UI stages.";
+            outFail = "run should emit boot-loading progress across world, tail-fire, growl, particle-VFX, and UI stages.";
             return false;
         }
 
         const std::string logText = logs.str();
         if (logText.find("Backend world shading prewarm complete") == std::string::npos ||
             logText.find("Backend tail fire prewarm complete: atlases=2 mesh_flipbook_cpu=1 mesh_flipbook_gpu=1") == std::string::npos ||
+            logText.find("Backend growl VFX prewarm complete: passes=8 baked_textures=7 warmed_batches=8") == std::string::npos ||
+            logText.find("Backend particle VFX prewarm complete: textures=8 warmed_batches=8") == std::string::npos ||
             logText.find("UI sprite prewarm complete: requested=2") == std::string::npos ||
             logText.find("UI card art prewarm complete: requested=") == std::string::npos ||
             logText.find("UI card prewarm complete") == std::string::npos) {
@@ -147,6 +173,8 @@ bool test_runtime_startup_asset_prewarm_contract(std::string& outFail) {
         int requestQuitCalls = 0;
         int worldShadingCalls = 0;
         int tailFireCalls = 0;
+        int growlCalls = 0;
+        int particleVfxCalls = 0;
         int spritePrewarmCalls = 0;
         std::ostringstream logs;
         const auto summary = game::runtime::startup_asset_prewarm::run(
@@ -170,6 +198,16 @@ bool test_runtime_startup_asset_prewarm_contract(std::string& outFail) {
                         ++tailFireCalls;
                         return TailFireStats{};
                     },
+                .prewarmGrowlVfx =
+                    [&]() {
+                        ++growlCalls;
+                        return GrowlStats{};
+                    },
+                .prewarmParticleVfx =
+                    [&]() {
+                        ++particleVfxCalls;
+                        return ParticleVfxStats{};
+                    },
                 .prewarmSpriteTextures =
                     [&](const std::vector<std::string>&) { ++spritePrewarmCalls; },
             },
@@ -179,6 +217,8 @@ bool test_runtime_startup_asset_prewarm_contract(std::string& outFail) {
             requestQuitCalls != 1 ||
             worldShadingCalls != 1 ||
             tailFireCalls != 0 ||
+            growlCalls != 0 ||
+            particleVfxCalls != 0 ||
             spritePrewarmCalls != 0) {
             outFail = "run should stop after the first stage when preload event pumping requests quit.";
             return false;

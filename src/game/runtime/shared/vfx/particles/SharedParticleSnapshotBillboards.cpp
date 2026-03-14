@@ -11,6 +11,17 @@
 namespace game::runtime::shared_particle_snapshot_billboards {
 namespace {
 
+const std::vector<std::string> kCommonParticleTexturePaths{
+    "__proc:soft_circle",
+    "__proc:leaf",
+    "__proc:starburst",
+    "__proc:dot",
+    "__proc:claw",
+    "__proc:swoosh",
+    "__proc:seed",
+    "__proc:plus",
+};
+
 std::string toLowerCopyLocal(std::string s) {
     std::transform(s.begin(), s.end(), s.begin(), [](unsigned char c) {
         return static_cast<char>(std::tolower(c));
@@ -31,6 +42,14 @@ std::uint8_t toBackendBlendMode(ParticleSystem::BlendMode mode) {
 }
 
 } // namespace
+
+std::string makeSharedParticleTextureCacheKey(const std::string& texturePath) {
+    return "__particle_shared__:" + texturePath;
+}
+
+const std::vector<std::string>& commonParticleTexturePaths() {
+    return kCommonParticleTexturePaths;
+}
 
 bool appendSnapshotAsBillboards(
     const char* label,
@@ -98,6 +117,7 @@ bool appendSnapshotAsBillboards(
 
     WorldIndexedBatch batch;
     batch.textureKey = std::string("particle:") + label + ":" + texturePath;
+    batch.textureCacheKey = makeSharedParticleTextureCacheKey(texturePath);
     batch.textureRgba = tex->rgba.data();
     batch.textureWidth = tex->width;
     batch.textureHeight = tex->height;

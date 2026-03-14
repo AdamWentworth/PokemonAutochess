@@ -168,6 +168,41 @@ Summary run(const Options& options,
         }
     }
 
+    if (callbacks.prewarmGrowlVfx) {
+        if (callbacks.setTitle) callbacks.setTitle("PokemonAutochess - Loading growl VFX...");
+        if (callbacks.renderBootLoading) callbacks.renderBootLoading(0.935f);
+        const auto t0 = std::chrono::high_resolution_clock::now();
+        summary.growl = callbacks.prewarmGrowlVfx();
+        const auto t1 = std::chrono::high_resolution_clock::now();
+        const double ms = std::chrono::duration<double, std::milli>(t1 - t0).count();
+        out << "[Init] Backend growl VFX prewarm complete: passes="
+            << summary.growl.drawPasses
+            << " baked_textures=" << summary.growl.bakedTextures
+            << " warmed_batches=" << summary.growl.warmedBatches
+            << " time=" << formatMs(ms) << "ms\n";
+        if (!pumpPreloadEventsOrQuit(callbacks)) {
+            summary.interrupted = true;
+            return summary;
+        }
+    }
+
+    if (callbacks.prewarmParticleVfx) {
+        if (callbacks.setTitle) callbacks.setTitle("PokemonAutochess - Loading particle VFX...");
+        if (callbacks.renderBootLoading) callbacks.renderBootLoading(0.937f);
+        const auto t0 = std::chrono::high_resolution_clock::now();
+        summary.particleVfx = callbacks.prewarmParticleVfx();
+        const auto t1 = std::chrono::high_resolution_clock::now();
+        const double ms = std::chrono::duration<double, std::milli>(t1 - t0).count();
+        out << "[Init] Backend particle VFX prewarm complete: textures="
+            << summary.particleVfx.textures
+            << " warmed_batches=" << summary.particleVfx.warmedBatches
+            << " time=" << formatMs(ms) << "ms\n";
+        if (!pumpPreloadEventsOrQuit(callbacks)) {
+            summary.interrupted = true;
+            return summary;
+        }
+    }
+
     if (!options.uiSpritePrewarmEnabled || !callbacks.prewarmSpriteTextures) {
         return summary;
     }

@@ -61,7 +61,9 @@
 #include "game/runtime/session/SessionBackendInventoryUi.h"
 #include "game/runtime/session/SessionBackendRenderHelpers.h"
 #include "game/runtime/session/SessionDebugSnapshot.h"
+#include "game/runtime/session/SessionGrowlPrewarm.h"
 #include "game/runtime/session/SessionLoopRuntime.h"
+#include "game/runtime/session/SessionParticleVfxPrewarm.h"
 #include "game/runtime/session/SessionRenderConfig.h"
 #include "game/runtime/session/SessionSnapshotRuntime.h"
 #include "game/runtime/session/SessionStartupRuntime.h"
@@ -360,6 +362,33 @@ struct GameSession::Impl {
                             {
                                 .renderer = renderer,
                                 .backendTextureByPath = &backendTextureByPath,
+                                .ensureBackendTextureLoaded =
+                                    [&](const std::string& texturePath, bool flipVertical) {
+                                        return ensureBackendTextureLoaded(texturePath, flipVertical);
+                                    },
+                            });
+                    },
+                .prewarmGrowlVfx =
+                    [&]() {
+                        return game::runtime::session_growl_prewarm::prewarm(
+                            {
+                                .renderer = renderer,
+                                .backendTextureByPath = &backendTextureByPath,
+                                .ensureBackendMeshLoaded =
+                                    [&](const std::string& modelPath) {
+                                        return ensureBackendMeshLoaded(modelPath);
+                                    },
+                                .ensureBackendTextureLoaded =
+                                    [&](const std::string& texturePath, bool flipVertical) {
+                                        return ensureBackendTextureLoaded(texturePath, flipVertical);
+                                    },
+                            });
+                    },
+                .prewarmParticleVfx =
+                    [&]() {
+                        return game::runtime::session_particle_vfx_prewarm::prewarm(
+                            {
+                                .renderer = renderer,
                                 .ensureBackendTextureLoaded =
                                     [&](const std::string& texturePath, bool flipVertical) {
                                         return ensureBackendTextureLoaded(texturePath, flipVertical);

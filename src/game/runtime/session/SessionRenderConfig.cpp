@@ -26,6 +26,8 @@ struct CacheState {
     std::optional<bool> modelFastTexturedPath;
     std::optional<bool> uiSpritePrewarm;
     std::optional<bool> worldLayerPrewarm;
+    std::optional<bool> growlVfxPrewarm;
+    std::optional<bool> particleVfxPrewarm;
     std::optional<bool> gpuClipSkinningGlobal;
     std::optional<bool> gpuClipSkinningOpenGl;
     std::optional<bool> gpuClipSkinningD3d12;
@@ -159,6 +161,14 @@ bool backendUiSpritePrewarmEnabled() {
 
 bool backendWorldLayerPrewarmEnabled() {
     return cachedFlag(gCache.worldLayerPrewarm, "PAC_BACKEND_PREWARM_WORLD_LAYER", true);
+}
+
+bool backendPrewarmGrowlVfxEnabled() {
+    return cachedFlag(gCache.growlVfxPrewarm, "PAC_BACKEND_PREWARM_GROWL_VFX", true);
+}
+
+bool backendPrewarmParticleVfxEnabled() {
+    return cachedFlag(gCache.particleVfxPrewarm, "PAC_BACKEND_PREWARM_PARTICLE_VFX", true);
 }
 
 bool backendGpuClipSkinningEnabled(const IRenderBackend* renderer) {

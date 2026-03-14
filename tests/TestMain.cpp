@@ -100,8 +100,10 @@ bool test_session_backend_inventory_ui_contract(std::string& outFail);
 bool test_session_backend_unit_hydration_contract(std::string& outFail);
 bool test_session_debug_snapshot_contract(std::string& outFail);
 bool test_session_frame_metrics_contract(std::string& outFail);
+bool test_session_growl_prewarm_contract(std::string& outFail);
 bool test_session_legacy_world_view_contract(std::string& outFail);
 bool test_session_loop_runtime_contract(std::string& outFail);
+bool test_session_particle_vfx_prewarm_contract(std::string& outFail);
 bool test_session_projected_world_view_contract(std::string& outFail);
 bool test_session_render_layout_contract(std::string& outFail);
 bool test_session_render_scratch_contract(std::string& outFail);
@@ -152,6 +154,7 @@ bool test_shared_capture_presentation_contract(std::string& outFail);
 bool test_shared_capture_overlay_vfx_contract(std::string& outFail);
 bool test_shared_backend_debug_view_support_contract(std::string& outFail);
 bool test_shared_particle_billboard_batches_contract(std::string& outFail);
+bool test_shared_particle_snapshot_billboards_contract(std::string& outFail);
 bool test_shared_particle_vfx_bridge_dispatch_contract(std::string& outFail);
 bool test_shared_particle_vfx_styles_contract(std::string& outFail);
 bool test_shared_projected_unit_backend_mesh_support_contract(std::string& outFail);
@@ -309,8 +312,10 @@ int main(int argc, char** argv) {
         {"session_backend_unit_hydration_contract", &test_session_backend_unit_hydration_contract},
         {"session_debug_snapshot_contract", &test_session_debug_snapshot_contract},
         {"session_frame_metrics_contract", &test_session_frame_metrics_contract},
+        {"session_growl_prewarm_contract", &test_session_growl_prewarm_contract},
         {"session_legacy_world_view_contract", &test_session_legacy_world_view_contract},
         {"session_loop_runtime_contract", &test_session_loop_runtime_contract},
+        {"session_particle_vfx_prewarm_contract", &test_session_particle_vfx_prewarm_contract},
         {"session_projected_world_view_contract", &test_session_projected_world_view_contract},
         {"session_render_layout_contract", &test_session_render_layout_contract},
         {"session_render_scratch_contract", &test_session_render_scratch_contract},
@@ -361,6 +366,7 @@ int main(int argc, char** argv) {
         {"shared_capture_overlay_vfx_contract", &test_shared_capture_overlay_vfx_contract},
         {"shared_backend_debug_view_support_contract", &test_shared_backend_debug_view_support_contract},
         {"shared_particle_billboard_batches_contract", &test_shared_particle_billboard_batches_contract},
+        {"shared_particle_snapshot_billboards_contract", &test_shared_particle_snapshot_billboards_contract},
         {"shared_particle_vfx_bridge_dispatch_contract", &test_shared_particle_vfx_bridge_dispatch_contract},
         {"shared_particle_vfx_styles_contract", &test_shared_particle_vfx_styles_contract},
         {"shared_projected_unit_backend_mesh_support_contract", &test_shared_projected_unit_backend_mesh_support_contract},

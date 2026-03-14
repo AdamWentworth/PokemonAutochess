@@ -127,6 +127,14 @@ void run(const Args& args) {
                     }
                 },
             .prewarmTailFire = args.prewarmTailFire,
+            .prewarmGrowlVfx =
+                game::runtime::session_render_config::backendPrewarmGrowlVfxEnabled()
+                ? args.prewarmGrowlVfx
+                : std::function<startup_asset_prewarm::GrowlStats()>{},
+            .prewarmParticleVfx =
+                game::runtime::session_render_config::backendPrewarmParticleVfxEnabled()
+                ? args.prewarmParticleVfx
+                : std::function<startup_asset_prewarm::ParticleVfxStats()>{},
             .prewarmSpriteTextures =
                 [&](const std::vector<std::string>& texturePaths) {
                     if (!args.renderer || texturePaths.empty()) return;

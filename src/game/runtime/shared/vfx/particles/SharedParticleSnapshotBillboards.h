@@ -14,6 +14,9 @@
 
 namespace game::runtime::shared_particle_snapshot_billboards {
 
+std::string makeSharedParticleTextureCacheKey(const std::string& texturePath);
+const std::vector<std::string>& commonParticleTexturePaths();
+
 bool appendSnapshotAsBillboards(
     const char* label,
     const ParticleSystem::RenderSnapshot& snapshot,
