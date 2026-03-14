@@ -164,6 +164,81 @@ bool test_shared_growl_wave_batches_contract(std::string& outFail) {
         return false;
     }
 
+    GrowlWaveVFX::Config::DrawPass linePass;
+    linePass.id = "growl_test_line";
+    linePass.eid = 1128;
+    linePass.enabled = true;
+    linePass.meshPath = "assets/meshes/test_line.glb";
+    linePass.texturePath.clear();
+    linePass.fragShaderPath = "assets/shaders/vfx/moves/growl/growl_line_shared.frag";
+    linePass.meshForwardAxis = glm::vec3(0.0f, 0.0f, -1.0f);
+    linePass.overrideMeshForwardAxis = true;
+    linePass.scaleMul = 0.44f;
+    linePass.alphaMul = 0.3f;
+    linePass.heightOffset = 0.25f;
+    linePass.startRadiusMul = 0.25f;
+    linePass.radiusMul = 0.5f;
+    linePass.thicknessMul = 0.48f;
+    linePass.directionSpacingJitterDeg = 12.0f;
+    linePass.lineAlphaMin = 0.55f;
+    linePass.lineAlphaMax = 1.45f;
+    linePass.tintColor = glm::vec3(0.8f, 0.6f, 0.4f);
+    linePass.directionsLocal = {
+        glm::vec3(1.1f, 0.0f, 1.0f),
+        glm::vec3(0.0f, 1.1f, 1.0f),
+        glm::vec3(-1.1f, 0.0f, 1.0f),
+        glm::vec3(0.0f, -1.1f, 1.0f),
+    };
+
+    const auto lineTev = game::runtime::shared_growl::resolveTevState(snapshot.config, linePass);
+    std::vector<game::runtime::shared_world_batches::WorldIndexedBatch> lineBatches;
+    const bool lineAppended =
+        appendPassBatch(lineBatches,
+                        snapshot,
+                        linePass,
+                        lineTev,
+                        &mesh,
+                        tex,
+                        glm::vec3(0.0f, 1.0f, 4.0f));
+
+    if (!expect(lineAppended && lineBatches.size() == linePass.directionsLocal.size(),
+                "Single-ring growl line passes should append one cached shared-geometry batch per direction.",
+                outFail)) {
+        return false;
+    }
+
+    const std::string expectedLineGeometryKey = "__growl_geom_line_v1__:growl_test_line:assets/meshes/test_line.glb:1000";
+    for (const auto& lineBatch : lineBatches) {
+        if (!expect(lineBatch.vertices.empty() && lineBatch.indices.empty(),
+                    "Cached growl line batches should not rebuild transformed mesh vertices every frame.",
+                    outFail)) {
+            return false;
+        }
+        if (!expect(lineBatch.sharedVertexCount == 3u && lineBatch.sharedIndexCount == 3u,
+                    "Cached growl line batches should reference the source mesh geometry.",
+                    outFail)) {
+            return false;
+        }
+        if (!expect(lineBatch.geometryCacheKey == expectedLineGeometryKey,
+                    "Cached growl line batches should use a stable geometry cache key that includes the pass and quantized TEV alpha.",
+                    outFail)) {
+            return false;
+        }
+        if (!expect(lineBatch.textureCacheKey == "__growl_white__",
+                    "Cached growl line batches should share the white texture cache entry.",
+                    outFail)) {
+            return false;
+        }
+        if (!expect(lineBatch.vertexColorMulR > 0.0f &&
+                        lineBatch.vertexColorMulG > 0.0f &&
+                        lineBatch.vertexColorMulB > 0.0f &&
+                        lineBatch.vertexColorMulA > 0.0f,
+                    "Cached growl line batches should carry tint and fade in the vertex color multipliers.",
+                    outFail)) {
+            return false;
+        }
+    }
+
     pass.enabled = false;
     if (!expect(!appendPassBatch(batches, snapshot, pass, tev, nullptr, tex, glm::vec3(0.0f)),
                 "appendPassBatch should no-op for disabled draw passes.",
