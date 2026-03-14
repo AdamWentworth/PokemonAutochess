@@ -157,6 +157,25 @@ void OpenGLRenderBackend::beginWorldIndexedBatchSubmission() {
     glGetIntegerv(GL_BLEND_DST_ALPHA, &state.prevBlendDstAlpha);
     glGetIntegerv(GL_BLEND_EQUATION_RGB, &state.prevBlendEqRgb);
     glGetIntegerv(GL_BLEND_EQUATION_ALPHA, &state.prevBlendEqAlpha);
+    state.currentProgram = state.prevProgram;
+    state.currentVao = state.prevVao;
+    state.currentArrayBuffer = state.prevArrayBuffer;
+    state.currentElementArrayBuffer = state.prevElementArrayBuffer;
+    state.currentActiveTexture = state.prevActiveTexture;
+    state.currentTexture2DOnUnit = state.prevTexture2DOnUnit;
+    state.currentDepthEnabled = state.depthEnabled;
+    state.currentBlendEnabled = state.blendEnabled;
+    state.currentCullEnabled = state.cullEnabled;
+    state.currentFrontFace = state.prevFrontFace;
+    state.currentDepthMask = state.prevDepthMask;
+    state.currentDepthFunc = state.prevDepthFunc;
+    state.currentBlendSrcRgb = state.prevBlendSrcRgb;
+    state.currentBlendDstRgb = state.prevBlendDstRgb;
+    state.currentBlendSrcAlpha = state.prevBlendSrcAlpha;
+    state.currentBlendDstAlpha = state.prevBlendDstAlpha;
+    state.currentBlendEqRgb = state.prevBlendEqRgb;
+    state.currentBlendEqAlpha = state.prevBlendEqAlpha;
+    state.worldProgramStaticUniformsApplied = false;
 }
 
 void OpenGLRenderBackend::endWorldIndexedBatchSubmission() {
@@ -793,6 +812,150 @@ void OpenGLRenderBackend::drawWorldIndexedMeshTexturedInternal(unsigned int vao,
         hasEmissiveTexture);
 
     const bool preserveState = !worldIndexedBatchSubmissionState_.active;
+    auto* batchState = preserveState ? nullptr : &worldIndexedBatchSubmissionState_;
+    const auto bindProgram = [&](GLuint program) {
+        if (!batchState || batchState->currentProgram != static_cast<int>(program)) {
+            glUseProgram(program);
+            if (batchState) {
+                batchState->currentProgram = static_cast<int>(program);
+                batchState->worldProgramStaticUniformsApplied = false;
+            }
+        }
+    };
+    const auto bindVertexArray = [&](GLuint vaoId) {
+        if (!batchState || batchState->currentVao != static_cast<int>(vaoId)) {
+            glBindVertexArray(vaoId);
+            if (batchState) {
+                batchState->currentVao = static_cast<int>(vaoId);
+                batchState->currentElementArrayBuffer = -1;
+            }
+        }
+    };
+    const auto bindArrayBuffer = [&](GLuint bufferId) {
+        if (!batchState || batchState->currentArrayBuffer != static_cast<int>(bufferId)) {
+            glBindBuffer(GL_ARRAY_BUFFER, bufferId);
+            if (batchState) {
+                batchState->currentArrayBuffer = static_cast<int>(bufferId);
+            }
+        }
+    };
+    const auto bindElementArrayBuffer = [&](GLuint bufferId) {
+        if (!batchState || batchState->currentElementArrayBuffer != static_cast<int>(bufferId)) {
+            glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, bufferId);
+            if (batchState) {
+                batchState->currentElementArrayBuffer = static_cast<int>(bufferId);
+            }
+        }
+    };
+    const auto setActiveTextureUnit = [&](int unit) {
+        const GLint glUnit = static_cast<GLint>(GL_TEXTURE0 + unit);
+        if (!batchState || batchState->currentActiveTexture != glUnit) {
+            glActiveTexture(GL_TEXTURE0 + unit);
+            if (batchState) {
+                batchState->currentActiveTexture = glUnit;
+            }
+        }
+    };
+    const auto bindTextureUnit2D = [&](int unit, GLuint textureId) {
+        setActiveTextureUnit(unit);
+        if (!batchState ||
+            batchState->currentTexture2DOnUnit[static_cast<std::size_t>(unit)] != static_cast<int>(textureId)) {
+            glBindTexture(GL_TEXTURE_2D, textureId);
+            if (batchState) {
+                batchState->currentTexture2DOnUnit[static_cast<std::size_t>(unit)] =
+                    static_cast<int>(textureId);
+            }
+        }
+    };
+    const auto setDepthEnabled = [&](bool enabled) {
+        if (!batchState || batchState->currentDepthEnabled != enabled) {
+            if (enabled) {
+                glEnable(GL_DEPTH_TEST);
+            } else {
+                glDisable(GL_DEPTH_TEST);
+            }
+            if (batchState) {
+                batchState->currentDepthEnabled = enabled;
+            }
+        }
+    };
+    const auto setBlendEnabled = [&](bool enabled) {
+        if (!batchState || batchState->currentBlendEnabled != enabled) {
+            if (enabled) {
+                glEnable(GL_BLEND);
+            } else {
+                glDisable(GL_BLEND);
+            }
+            if (batchState) {
+                batchState->currentBlendEnabled = enabled;
+            }
+        }
+    };
+    const auto setCullEnabled = [&](bool enabled) {
+        if (!batchState || batchState->currentCullEnabled != enabled) {
+            if (enabled) {
+                glEnable(GL_CULL_FACE);
+            } else {
+                glDisable(GL_CULL_FACE);
+            }
+            if (batchState) {
+                batchState->currentCullEnabled = enabled;
+            }
+        }
+    };
+    const auto setFrontFace = [&](GLenum frontFace) {
+        if (!batchState || batchState->currentFrontFace != static_cast<int>(frontFace)) {
+            glFrontFace(frontFace);
+            if (batchState) {
+                batchState->currentFrontFace = static_cast<int>(frontFace);
+            }
+        }
+    };
+    const auto setDepthMask = [&](bool enabled) {
+        if (!batchState || batchState->currentDepthMask != enabled) {
+            glDepthMask(enabled ? GL_TRUE : GL_FALSE);
+            if (batchState) {
+                batchState->currentDepthMask = enabled;
+            }
+        }
+    };
+    const auto setDepthFunc = [&](GLenum func) {
+        if (!batchState || batchState->currentDepthFunc != static_cast<int>(func)) {
+            glDepthFunc(func);
+            if (batchState) {
+                batchState->currentDepthFunc = static_cast<int>(func);
+            }
+        }
+    };
+    const auto setBlendEquationSeparate = [&](GLenum rgb, GLenum alpha) {
+        if (!batchState ||
+            batchState->currentBlendEqRgb != static_cast<int>(rgb) ||
+            batchState->currentBlendEqAlpha != static_cast<int>(alpha)) {
+            glBlendEquationSeparate(rgb, alpha);
+            if (batchState) {
+                batchState->currentBlendEqRgb = static_cast<int>(rgb);
+                batchState->currentBlendEqAlpha = static_cast<int>(alpha);
+            }
+        }
+    };
+    const auto setBlendFuncSeparate = [&](GLenum srcRgb,
+                                          GLenum dstRgb,
+                                          GLenum srcAlpha,
+                                          GLenum dstAlpha) {
+        if (!batchState ||
+            batchState->currentBlendSrcRgb != static_cast<int>(srcRgb) ||
+            batchState->currentBlendDstRgb != static_cast<int>(dstRgb) ||
+            batchState->currentBlendSrcAlpha != static_cast<int>(srcAlpha) ||
+            batchState->currentBlendDstAlpha != static_cast<int>(dstAlpha)) {
+            glBlendFuncSeparate(srcRgb, dstRgb, srcAlpha, dstAlpha);
+            if (batchState) {
+                batchState->currentBlendSrcRgb = static_cast<int>(srcRgb);
+                batchState->currentBlendDstRgb = static_cast<int>(dstRgb);
+                batchState->currentBlendSrcAlpha = static_cast<int>(srcAlpha);
+                batchState->currentBlendDstAlpha = static_cast<int>(dstAlpha);
+            }
+        }
+    };
     GLint prevProgram = 0;
     GLint prevVao = 0;
     GLint prevArrayBuffer = 0;
@@ -840,35 +1003,35 @@ void OpenGLRenderBackend::drawWorldIndexedMeshTexturedInternal(unsigned int vao,
     }
 
     glViewport(0, 0, std::max(1, surfaceWidth), std::max(1, surfaceHeight));
-    glEnable(GL_DEPTH_TEST);
-    glFrontFace(engine::render::parity_contract::kWorldFrontFaceClockwise ? GL_CW : GL_CCW);
-    glDepthFunc(engine::render::parity_contract::kWorldDepthFuncLessEqual ? GL_LEQUAL : GL_LESS);
-    if (engine::render::parity_contract::kWorldCullEnabled) {
-        glEnable(GL_CULL_FACE);
-    } else {
-        glDisable(GL_CULL_FACE);
-    }
+    setDepthEnabled(true);
+    setFrontFace(engine::render::parity_contract::kWorldFrontFaceClockwise ? GL_CW : GL_CCW);
+    setDepthFunc(engine::render::parity_contract::kWorldDepthFuncLessEqual ? GL_LEQUAL : GL_LESS);
+    setCullEnabled(engine::render::parity_contract::kWorldCullEnabled);
     if (blendAlpha) {
-        glEnable(GL_BLEND);
-        glBlendEquationSeparate(GL_FUNC_ADD, GL_FUNC_ADD);
+        setBlendEnabled(true);
+        setBlendEquationSeparate(GL_FUNC_ADD, GL_FUNC_ADD);
         switch (blendMode) {
         case 1u:
-            glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE, GL_ONE, GL_ONE);
+            setBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE, GL_ONE, GL_ONE);
             break;
         case 2u:
-            glBlendFuncSeparate(GL_ONE, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
+            setBlendFuncSeparate(GL_ONE, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
             break;
         case 0u:
         default:
-            glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+            setBlendFuncSeparate(
+                GL_SRC_ALPHA,
+                GL_ONE_MINUS_SRC_ALPHA,
+                GL_SRC_ALPHA,
+                GL_ONE_MINUS_SRC_ALPHA);
             break;
         }
     } else {
-        glDisable(GL_BLEND);
+        setBlendEnabled(false);
     }
-    glDepthMask(blendAlpha ? GL_FALSE : GL_TRUE);
+    setDepthMask(!blendAlpha);
 
-    glUseProgram(worldProgram_);
+    bindProgram(worldProgram_);
     glUniformMatrix4fv(worldViewProjLoc_, 1, GL_FALSE, viewProjectionMatrix4x4);
     static constexpr float kIdentityModel[16] = {
         1.0f, 0.0f, 0.0f, 0.0f,
@@ -985,34 +1148,36 @@ void OpenGLRenderBackend::drawWorldIndexedMeshTexturedInternal(unsigned int vao,
     if (gpuSkinMatrixCount > 0) {
         glUniformMatrix4fv(worldSkinMatricesLoc_, gpuSkinMatrixCount, GL_FALSE, texture->skinMatrices);
     }
-    glUniform1i(worldTextureSamplerLoc_, 0);
-    if (worldNormalTextureSamplerLoc_ >= 0) glUniform1i(worldNormalTextureSamplerLoc_, 1);
-    if (worldMetallicRoughnessTextureSamplerLoc_ >= 0) glUniform1i(worldMetallicRoughnessTextureSamplerLoc_, 2);
-    if (worldOcclusionTextureSamplerLoc_ >= 0) glUniform1i(worldOcclusionTextureSamplerLoc_, 3);
-    if (worldEmissiveTextureSamplerLoc_ >= 0) glUniform1i(worldEmissiveTextureSamplerLoc_, 4);
-    if (worldEnvTextureSamplerLoc_ >= 0) glUniform1i(worldEnvTextureSamplerLoc_, 5);
-    if (worldEnvTexelSizeLoc_ >= 0) {
-        glUniform2f(worldEnvTexelSizeLoc_, neutralPmremAtlas.texelWidth, neutralPmremAtlas.texelHeight);
-    }
-    if (worldEnvMaxMipLoc_ >= 0) {
-        glUniform1f(worldEnvMaxMipLoc_, neutralPmremAtlas.maxMip);
-    }
-    if (worldEnvRgbmRangeLoc_ >= 0) {
-        glUniform1f(worldEnvRgbmRangeLoc_, neutralPmremAtlas.rgbmRange);
+    if (!batchState || !batchState->worldProgramStaticUniformsApplied) {
+        glUniform1i(worldTextureSamplerLoc_, 0);
+        if (worldNormalTextureSamplerLoc_ >= 0) glUniform1i(worldNormalTextureSamplerLoc_, 1);
+        if (worldMetallicRoughnessTextureSamplerLoc_ >= 0) glUniform1i(worldMetallicRoughnessTextureSamplerLoc_, 2);
+        if (worldOcclusionTextureSamplerLoc_ >= 0) glUniform1i(worldOcclusionTextureSamplerLoc_, 3);
+        if (worldEmissiveTextureSamplerLoc_ >= 0) glUniform1i(worldEmissiveTextureSamplerLoc_, 4);
+        if (worldEnvTextureSamplerLoc_ >= 0) glUniform1i(worldEnvTextureSamplerLoc_, 5);
+        if (worldEnvTexelSizeLoc_ >= 0) {
+            glUniform2f(
+                worldEnvTexelSizeLoc_,
+                neutralPmremAtlas.texelWidth,
+                neutralPmremAtlas.texelHeight);
+        }
+        if (worldEnvMaxMipLoc_ >= 0) {
+            glUniform1f(worldEnvMaxMipLoc_, neutralPmremAtlas.maxMip);
+        }
+        if (worldEnvRgbmRangeLoc_ >= 0) {
+            glUniform1f(worldEnvRgbmRangeLoc_, neutralPmremAtlas.rgbmRange);
+        }
+        if (batchState) {
+            batchState->worldProgramStaticUniformsApplied = true;
+        }
     }
 
-    glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, boundTexture);
-    glActiveTexture(GL_TEXTURE1);
-    glBindTexture(GL_TEXTURE_2D, boundNormalTexture);
-    glActiveTexture(GL_TEXTURE2);
-    glBindTexture(GL_TEXTURE_2D, boundMetallicRoughnessTexture);
-    glActiveTexture(GL_TEXTURE3);
-    glBindTexture(GL_TEXTURE_2D, boundOcclusionTexture);
-    glActiveTexture(GL_TEXTURE4);
-    glBindTexture(GL_TEXTURE_2D, boundEmissiveTexture);
-    glActiveTexture(GL_TEXTURE5);
-    glBindTexture(GL_TEXTURE_2D, boundEnvTexture);
+    bindTextureUnit2D(0, boundTexture);
+    bindTextureUnit2D(1, boundNormalTexture);
+    bindTextureUnit2D(2, boundMetallicRoughnessTexture);
+    bindTextureUnit2D(3, boundOcclusionTexture);
+    bindTextureUnit2D(4, boundEmissiveTexture);
+    bindTextureUnit2D(5, boundEnvTexture);
 
     const std::size_t effectiveInstanceCount =
         (instances && instanceCount > 0u) ? instanceCount : 1u;
@@ -1065,20 +1230,20 @@ void OpenGLRenderBackend::drawWorldIndexedMeshTexturedInternal(unsigned int vao,
         instanceData[0] = makeIdentityInstanceData();
     }
 
-    glBindBuffer(GL_ARRAY_BUFFER, worldInstanceVbo_);
+    bindArrayBuffer(worldInstanceVbo_);
     glBufferData(GL_ARRAY_BUFFER,
                  static_cast<GLsizeiptr>(instanceData.size() * sizeof(OpenGLWorldInstanceVertexData)),
                  instanceData.data(),
                  GL_STREAM_DRAW);
 
-    glBindVertexArray(vao);
+    bindVertexArray(vao);
     if (uploadGeometry) {
-        glBindBuffer(GL_ARRAY_BUFFER, vertexBuffer);
+        bindArrayBuffer(vertexBuffer);
         glBufferData(GL_ARRAY_BUFFER,
                      static_cast<GLsizeiptr>(safeVertexCount * sizeof(WorldMeshVertex)),
                      vertices,
                      GL_STREAM_DRAW);
-        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, indexBuffer);
+        bindElementArrayBuffer(indexBuffer);
         glBufferData(GL_ELEMENT_ARRAY_BUFFER,
                      static_cast<GLsizeiptr>(safeIndexCount * sizeof(std::uint32_t)),
                      indices,
@@ -1121,15 +1286,15 @@ void OpenGLRenderBackend::drawWorldIndexedMeshTexturedInternal(unsigned int vao,
 
         glUniform1f(worldUseTextureLoc_, 0.0f);
         glUniform1f(worldMaterialModeLoc_, 3.0f);
-        glDepthMask(GL_FALSE);
+        setDepthMask(false);
 
-        glBindVertexArray(worldVao_);
-        glBindBuffer(GL_ARRAY_BUFFER, worldVbo_);
+        bindVertexArray(worldVao_);
+        bindArrayBuffer(worldVbo_);
         glBufferData(GL_ARRAY_BUFFER,
                      static_cast<GLsizeiptr>(safeVertexCount * sizeof(WorldMeshVertex)),
                      outlineVertices.data(),
                      GL_STREAM_DRAW);
-        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, worldIbo_);
+        bindElementArrayBuffer(worldIbo_);
         glBufferData(GL_ELEMENT_ARRAY_BUFFER,
                      static_cast<GLsizeiptr>(safeIndexCount * sizeof(std::uint32_t)),
                      indices,
