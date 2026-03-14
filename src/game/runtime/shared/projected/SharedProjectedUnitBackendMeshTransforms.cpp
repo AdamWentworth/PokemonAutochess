@@ -96,12 +96,14 @@ void Resolver::initialize(const shared_projected_unit_backend_mesh::Args& args,
     pose_ = args.pose;
     modelM_ = prep.modelM;
     worldCellSize_ = args.worldCellSize;
-    hasClipPose_ = prep.scenePose.hasClipPose;
+    hasClipPose_ = prep.scenePose && prep.scenePose->hasClipPose;
     usePositionOnlyVertexPath_ = prep.usePositionOnlyVertexPath;
     clipSkinningEnabled_ = backendClipSkinningEnabled() && args.enableClipSkinning;
     gpuClipSkinningRequested_ = args.enableGpuClipSkinning;
 
-    nodeGlobals_ = prep.scenePose.hasScenePose ? &prep.scenePose.nodeGlobals : &mesh_->bindNodeGlobals;
+    nodeGlobals_ =
+        (prep.scenePose && prep.scenePose->hasScenePose) ? &prep.scenePose->nodeGlobals
+                                                         : &mesh_->bindNodeGlobals;
     nodeCount_ = nodeGlobals_->size();
 
     if (g_scratch.skinMatricesByNode.size() < nodeCount_) g_scratch.skinMatricesByNode.resize(nodeCount_);

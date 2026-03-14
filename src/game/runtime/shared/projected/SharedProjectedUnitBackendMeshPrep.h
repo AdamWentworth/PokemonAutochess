@@ -38,7 +38,8 @@ struct PreparedState {
     std::size_t modelDepthWorldCountBefore = 0u;
     std::size_t world3DTriangleCountBefore = 0u;
 
-    runtime::shared_backend_pose::PoseEval scenePose{};
+    const runtime::shared_backend_pose::PoseEval* scenePose = nullptr;
+    runtime::shared_backend_pose::PoseEval ownedScenePose{};
 
     const std::vector<int>* submeshNodeFallback = nullptr;
     std::vector<shared_world_batches::WorldIndexedBatch> modelIndexedBatchesPerSubmesh;

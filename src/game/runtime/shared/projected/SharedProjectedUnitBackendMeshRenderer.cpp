@@ -119,7 +119,8 @@ Result renderProjectedUnitBackendMesh(const Args& args) {
         auto& modelIndexedBatchesPerSubmesh = prep.modelIndexedBatchesPerSubmesh;
         auto& modelIndexedVertexRemap = prep.modelIndexedVertexRemap;
         const auto& nodeGlobals =
-            prep.scenePose.hasScenePose ? prep.scenePose.nodeGlobals : mesh->bindNodeGlobals;
+            (prep.scenePose && prep.scenePose->hasScenePose) ? prep.scenePose->nodeGlobals
+                                                             : mesh->bindNodeGlobals;
         const glm::vec3& lightDir = prep.lightDir;
         const glm::vec3& fallbackBase = prep.fallbackBase;
         const bool downsampleModelTriangles = prep.downsampleModelTriangles;

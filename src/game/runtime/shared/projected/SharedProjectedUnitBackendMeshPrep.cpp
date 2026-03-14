@@ -362,8 +362,11 @@ void PreparedState::reset() {
     modelDepthWorldCountBefore = 0u;
     world3DTriangleCountBefore = 0u;
 
-    scenePose.hasScenePose = false;
-    scenePose.hasClipPose = false;
+    scenePose = nullptr;
+    ownedScenePose.hasScenePose = false;
+    ownedScenePose.hasClipPose = false;
+    ownedScenePose.nodeLocals.clear();
+    ownedScenePose.nodeGlobals.clear();
 
     submeshNodeFallback = nullptr;
 }
@@ -371,7 +374,7 @@ void PreparedState::reset() {
 bool prepareProjectedUnitBackendMesh(const Args& args, Result& out, PreparedState& prepared) {
     const auto& unit = *args.unit;
     const auto* mesh = args.meshForUnit;
-    auto scenePose = *args.scenePose;
+    const auto* scenePose = args.scenePose;
     bool scenePoseReady = args.scenePoseReady;
     const auto& tint = *args.tint;
 
@@ -528,10 +531,14 @@ bool prepareProjectedUnitBackendMesh(const Args& args, Result& out, PreparedStat
     }
 
     if (!scenePoseReady) {
-        scenePose = game::runtime::shared_backend_pose::evaluateScenePose(*mesh, unit);
+        game::runtime::shared_backend_pose::evaluateScenePose(
+            *mesh,
+            unit,
+            prepared.ownedScenePose);
+        scenePose = &prepared.ownedScenePose;
         scenePoseReady = true;
     }
-    prepared.scenePose = std::move(scenePose);
+    prepared.scenePose = scenePose;
 
     // Do not gate fast position-only path on authored base textures.
     // Missing texture payloads are already normalized to fallback white in batch prep,
