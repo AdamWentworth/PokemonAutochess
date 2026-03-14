@@ -176,6 +176,7 @@ void OpenGLRenderBackend::beginWorldIndexedBatchSubmission() {
     state.currentBlendEqRgb = state.prevBlendEqRgb;
     state.currentBlendEqAlpha = state.prevBlendEqAlpha;
     state.worldProgramStaticUniformsApplied = false;
+    state.worldProgramDynamicUniforms = {};
 }
 
 void OpenGLRenderBackend::endWorldIndexedBatchSubmission() {
@@ -813,12 +814,14 @@ void OpenGLRenderBackend::drawWorldIndexedMeshTexturedInternal(unsigned int vao,
 
     const bool preserveState = !worldIndexedBatchSubmissionState_.active;
     auto* batchState = preserveState ? nullptr : &worldIndexedBatchSubmissionState_;
+    auto* dynamicUniformState = batchState ? &batchState->worldProgramDynamicUniforms : nullptr;
     const auto bindProgram = [&](GLuint program) {
         if (!batchState || batchState->currentProgram != static_cast<int>(program)) {
             glUseProgram(program);
             if (batchState) {
                 batchState->currentProgram = static_cast<int>(program);
                 batchState->worldProgramStaticUniformsApplied = false;
+                batchState->worldProgramDynamicUniforms.valid = false;
             }
         }
     };
@@ -1032,14 +1035,12 @@ void OpenGLRenderBackend::drawWorldIndexedMeshTexturedInternal(unsigned int vao,
     setDepthMask(!blendAlpha);
 
     bindProgram(worldProgram_);
-    glUniformMatrix4fv(worldViewProjLoc_, 1, GL_FALSE, viewProjectionMatrix4x4);
     static constexpr float kIdentityModel[16] = {
         1.0f, 0.0f, 0.0f, 0.0f,
         0.0f, 1.0f, 0.0f, 0.0f,
         0.0f, 0.0f, 1.0f, 0.0f,
         0.0f, 0.0f, 0.0f, 1.0f};
     const float* modelMatrix = texture ? texture->modelMatrix.data() : kIdentityModel;
-    glUniformMatrix4fv(worldModelLoc_, 1, GL_FALSE, modelMatrix);
     const float cameraPosX = texture ? texture->cameraPosX : 0.0f;
     const float cameraPosY = texture ? texture->cameraPosY : 7.0f;
     const float cameraPosZ = texture ? texture->cameraPosZ : 9.0f;
@@ -1049,91 +1050,38 @@ void OpenGLRenderBackend::drawWorldIndexedMeshTexturedInternal(unsigned int vao,
     const float cameraTargetX = texture ? texture->cameraTargetX : 0.0f;
     const float cameraTargetY = texture ? texture->cameraTargetY : -1.0f;
     const float cameraTargetZ = texture ? texture->cameraTargetZ : 0.0f;
-    glUniform3f(worldCameraPosLoc_, cameraPosX, cameraPosY, cameraPosZ);
-    glUniform3f(worldCameraForwardLoc_, cameraForwardX, cameraForwardY, cameraForwardZ);
-    if (worldCameraTargetLoc_ >= 0) {
-        glUniform3f(worldCameraTargetLoc_, cameraTargetX, cameraTargetY, cameraTargetZ);
-    }
-    glUniform1f(worldUseTextureLoc_, useTexture);
-    glUniform4f(
-        worldVertexColorMulLoc_,
-        vertexColorMulR,
-        vertexColorMulG,
-        vertexColorMulB,
-        vertexColorMulA);
-    if (worldUseNormalTextureLoc_ >= 0) {
-        glUniform1f(worldUseNormalTextureLoc_, hasNormalTexture ? 1.0f : 0.0f);
-    }
-    if (worldUseMetallicRoughnessTextureLoc_ >= 0) {
-        glUniform1f(worldUseMetallicRoughnessTextureLoc_, hasMetallicRoughnessTexture ? 1.0f : 0.0f);
-    }
-    if (worldUseOcclusionTextureLoc_ >= 0) {
-        glUniform1f(worldUseOcclusionTextureLoc_, hasOcclusionTexture ? 1.0f : 0.0f);
-    }
-    if (worldUseEmissiveTextureLoc_ >= 0) {
-        glUniform1f(worldUseEmissiveTextureLoc_, hasEmissiveTexture ? 1.0f : 0.0f);
-    }
-    glUniform1f(worldWrapSLoc_, wrapS);
-    glUniform1f(worldWrapTLoc_, wrapT);
-    glUniform1f(worldAlphaModeLoc_, static_cast<GLfloat>(alphaMode));
-    glUniform1f(worldAlphaCutoffLoc_, alphaCutoff);
-    if (worldNormalScaleLoc_ >= 0) {
-        glUniform1f(worldNormalScaleLoc_, texture ? std::max(0.0f, texture->normalScale) : 1.0f);
-    }
-    if (worldMetallicFactorLoc_ >= 0) {
-        glUniform1f(
-            worldMetallicFactorLoc_,
-            texture ? std::clamp(texture->metallicFactor, 0.0f, 1.0f) : 1.0f);
-    }
-    if (worldRoughnessFactorLoc_ >= 0) {
-        glUniform1f(
-            worldRoughnessFactorLoc_,
-            texture ? std::clamp(texture->roughnessFactor, 0.0f, 1.0f) : 1.0f);
-    }
-    if (worldOcclusionStrengthLoc_ >= 0) {
-        glUniform1f(
-            worldOcclusionStrengthLoc_,
-            texture ? std::clamp(texture->occlusionStrength, 0.0f, 1.0f) : 1.0f);
-    }
-    if (worldEmissiveFactorLoc_ >= 0) {
-        glUniform3f(worldEmissiveFactorLoc_,
-                    texture ? std::max(0.0f, texture->emissiveFactorR) : 0.0f,
-                    texture ? std::max(0.0f, texture->emissiveFactorG) : 0.0f,
-                    texture ? std::max(0.0f, texture->emissiveFactorB) : 0.0f);
-    }
-    if (worldCharacterInkingEnabledLoc_ >= 0) {
-        glUniform1f(
-            worldCharacterInkingEnabledLoc_,
-            (texture && texture->characterInkingEnabled != 0u) ? 1.0f : 0.0f);
-    }
-    glUniform1f(worldMaterialModeLoc_, static_cast<GLfloat>(materialMode));
-    glUniform1f(worldMaterialTimeLoc_, texture ? texture->materialTimeSec : 0.0f);
-    glUniform1f(worldMaterialFlagsLoc_, texture ? texture->materialFlags : 0.0f);
-    glUniform2f(worldMaterialAtlasSizeLoc_,
-                texture ? texture->materialAtlasWidth : 0.0f,
-                texture ? texture->materialAtlasHeight : 0.0f);
-    glUniform4f(worldMaterialRect0Loc_,
-                texture ? texture->materialRect0U : 0.0f,
-                texture ? texture->materialRect0V : 0.0f,
-                texture ? texture->materialRect0W : 1.0f,
-                texture ? texture->materialRect0H : 1.0f);
-    glUniform4f(worldMaterialRect1Loc_,
-                texture ? texture->materialRect1U : 0.0f,
-                texture ? texture->materialRect1V : 0.0f,
-                texture ? texture->materialRect1W : 1.0f,
-                texture ? texture->materialRect1H : 1.0f);
-    glUniform4f(worldMaterialFlipbook0Loc_,
-                texture ? texture->materialFlipbook0Cols : 1.0f,
-                texture ? texture->materialFlipbook0Rows : 1.0f,
-                texture ? texture->materialFlipbook0Frames : 1.0f,
-                texture ? texture->materialFlipbook0Fps : 0.0f);
-    glUniform4f(worldMaterialFlipbook1Loc_,
-                texture ? texture->materialFlipbook1Cols : 1.0f,
-                texture ? texture->materialFlipbook1Rows : 1.0f,
-                texture ? texture->materialFlipbook1Frames : 1.0f,
-                (texture && materialMode >= 2u)
-                    ? static_cast<float>(pbrDebugViewMode())
-                    : (texture ? texture->materialFlipbook1Fps : 0.0f));
+    const float normalScale = texture ? std::max(0.0f, texture->normalScale) : 1.0f;
+    const float metallicFactor = texture ? std::clamp(texture->metallicFactor, 0.0f, 1.0f) : 1.0f;
+    const float roughnessFactor = texture ? std::clamp(texture->roughnessFactor, 0.0f, 1.0f) : 1.0f;
+    const float occlusionStrength = texture ? std::clamp(texture->occlusionStrength, 0.0f, 1.0f) : 1.0f;
+    const float emissiveFactorR = texture ? std::max(0.0f, texture->emissiveFactorR) : 0.0f;
+    const float emissiveFactorG = texture ? std::max(0.0f, texture->emissiveFactorG) : 0.0f;
+    const float emissiveFactorB = texture ? std::max(0.0f, texture->emissiveFactorB) : 0.0f;
+    const float characterInkingEnabled =
+        (texture && texture->characterInkingEnabled != 0u) ? 1.0f : 0.0f;
+    const float materialTime = texture ? texture->materialTimeSec : 0.0f;
+    const float materialFlags = texture ? texture->materialFlags : 0.0f;
+    const float materialAtlasWidth = texture ? texture->materialAtlasWidth : 0.0f;
+    const float materialAtlasHeight = texture ? texture->materialAtlasHeight : 0.0f;
+    const float materialRect0U = texture ? texture->materialRect0U : 0.0f;
+    const float materialRect0V = texture ? texture->materialRect0V : 0.0f;
+    const float materialRect0W = texture ? texture->materialRect0W : 1.0f;
+    const float materialRect0H = texture ? texture->materialRect0H : 1.0f;
+    const float materialRect1U = texture ? texture->materialRect1U : 0.0f;
+    const float materialRect1V = texture ? texture->materialRect1V : 0.0f;
+    const float materialRect1W = texture ? texture->materialRect1W : 1.0f;
+    const float materialRect1H = texture ? texture->materialRect1H : 1.0f;
+    const float materialFlipbook0Cols = texture ? texture->materialFlipbook0Cols : 1.0f;
+    const float materialFlipbook0Rows = texture ? texture->materialFlipbook0Rows : 1.0f;
+    const float materialFlipbook0Frames = texture ? texture->materialFlipbook0Frames : 1.0f;
+    const float materialFlipbook0Fps = texture ? texture->materialFlipbook0Fps : 0.0f;
+    const float materialFlipbook1Cols = texture ? texture->materialFlipbook1Cols : 1.0f;
+    const float materialFlipbook1Rows = texture ? texture->materialFlipbook1Rows : 1.0f;
+    const float materialFlipbook1Frames = texture ? texture->materialFlipbook1Frames : 1.0f;
+    const float materialFlipbook1Fps =
+        (texture && materialMode >= 2u)
+            ? static_cast<float>(pbrDebugViewMode())
+            : (texture ? texture->materialFlipbook1Fps : 0.0f);
     constexpr int kMaxGpuSkinMatrices = 64;
     const bool gpuSkinningEnabled =
         texture &&
@@ -1143,10 +1091,263 @@ void OpenGLRenderBackend::drawWorldIndexedMeshTexturedInternal(unsigned int vao,
     const int gpuSkinMatrixCount = gpuSkinningEnabled
         ? std::min<int>(static_cast<int>(texture->skinMatrixCount), kMaxGpuSkinMatrices)
         : 0;
-    glUniform1f(worldSkinningEnabledLoc_, gpuSkinningEnabled ? 1.0f : 0.0f);
-    glUniform1i(worldSkinMatrixCountLoc_, gpuSkinMatrixCount);
+    const std::array<float, 16> viewProjection = [&]() {
+        std::array<float, 16> value{};
+        std::copy_n(viewProjectionMatrix4x4, value.size(), value.begin());
+        return value;
+    }();
+    const std::array<float, 16> modelMatrixValues = [&]() {
+        std::array<float, 16> value{};
+        std::copy_n(modelMatrix, value.size(), value.begin());
+        return value;
+    }();
+    const std::array<float, 3> cameraPos = {cameraPosX, cameraPosY, cameraPosZ};
+    const std::array<float, 3> cameraForward = {cameraForwardX, cameraForwardY, cameraForwardZ};
+    const std::array<float, 3> cameraTarget = {cameraTargetX, cameraTargetY, cameraTargetZ};
+    const std::array<float, 4> vertexColorMul = {
+        vertexColorMulR, vertexColorMulG, vertexColorMulB, vertexColorMulA};
+    const std::array<float, 3> emissiveFactor = {
+        emissiveFactorR, emissiveFactorG, emissiveFactorB};
+    const std::array<float, 2> materialAtlasSize = {materialAtlasWidth, materialAtlasHeight};
+    const std::array<float, 4> materialRect0 = {
+        materialRect0U, materialRect0V, materialRect0W, materialRect0H};
+    const std::array<float, 4> materialRect1 = {
+        materialRect1U, materialRect1V, materialRect1W, materialRect1H};
+    const std::array<float, 4> materialFlipbook0 = {
+        materialFlipbook0Cols, materialFlipbook0Rows, materialFlipbook0Frames, materialFlipbook0Fps};
+    const std::array<float, 4> materialFlipbook1 = {
+        materialFlipbook1Cols, materialFlipbook1Rows, materialFlipbook1Frames, materialFlipbook1Fps};
+    const float hasNormalTextureValue = hasNormalTexture ? 1.0f : 0.0f;
+    const float hasMetallicRoughnessTextureValue = hasMetallicRoughnessTexture ? 1.0f : 0.0f;
+    const float hasOcclusionTextureValue = hasOcclusionTexture ? 1.0f : 0.0f;
+    const float hasEmissiveTextureValue = hasEmissiveTexture ? 1.0f : 0.0f;
+    const float alphaModeValue = static_cast<float>(alphaMode);
+    const float materialModeValue = static_cast<float>(materialMode);
+    const float gpuSkinningEnabledValue = gpuSkinningEnabled ? 1.0f : 0.0f;
+
+    const auto setUniform1fCached = [&](int location, float value, float* cachedValue) {
+        if (!dynamicUniformState || !dynamicUniformState->valid || !cachedValue || *cachedValue != value) {
+            glUniform1f(location, value);
+            if (cachedValue) {
+                *cachedValue = value;
+            }
+        }
+    };
+    const auto setUniform1iCached = [&](int location, int value, int* cachedValue) {
+        if (!dynamicUniformState || !dynamicUniformState->valid || !cachedValue || *cachedValue != value) {
+            glUniform1i(location, value);
+            if (cachedValue) {
+                *cachedValue = value;
+            }
+        }
+    };
+    const auto setUniform2fCached = [&](int location,
+                                        const std::array<float, 2>& value,
+                                        std::array<float, 2>* cachedValue) {
+        if (!dynamicUniformState || !dynamicUniformState->valid || !cachedValue || *cachedValue != value) {
+            glUniform2f(location, value[0], value[1]);
+            if (cachedValue) {
+                *cachedValue = value;
+            }
+        }
+    };
+    const auto setUniform3fCached = [&](int location,
+                                        const std::array<float, 3>& value,
+                                        std::array<float, 3>* cachedValue) {
+        if (!dynamicUniformState || !dynamicUniformState->valid || !cachedValue || *cachedValue != value) {
+            glUniform3f(location, value[0], value[1], value[2]);
+            if (cachedValue) {
+                *cachedValue = value;
+            }
+        }
+    };
+    const auto setUniform4fCached = [&](int location,
+                                        const std::array<float, 4>& value,
+                                        std::array<float, 4>* cachedValue) {
+        if (!dynamicUniformState || !dynamicUniformState->valid || !cachedValue || *cachedValue != value) {
+            glUniform4f(location, value[0], value[1], value[2], value[3]);
+            if (cachedValue) {
+                *cachedValue = value;
+            }
+        }
+    };
+    const auto setUniformMatrix4Cached = [&](int location,
+                                             const std::array<float, 16>& value,
+                                             std::array<float, 16>* cachedValue) {
+        if (!dynamicUniformState || !dynamicUniformState->valid || !cachedValue || *cachedValue != value) {
+            glUniformMatrix4fv(location, 1, GL_FALSE, value.data());
+            if (cachedValue) {
+                *cachedValue = value;
+            }
+        }
+    };
+
+    setUniformMatrix4Cached(
+        worldViewProjLoc_,
+        viewProjection,
+        dynamicUniformState ? &dynamicUniformState->viewProjection : nullptr);
+    setUniformMatrix4Cached(
+        worldModelLoc_,
+        modelMatrixValues,
+        dynamicUniformState ? &dynamicUniformState->model : nullptr);
+    setUniform3fCached(
+        worldCameraPosLoc_,
+        cameraPos,
+        dynamicUniformState ? &dynamicUniformState->cameraPos : nullptr);
+    setUniform3fCached(
+        worldCameraForwardLoc_,
+        cameraForward,
+        dynamicUniformState ? &dynamicUniformState->cameraForward : nullptr);
+    if (worldCameraTargetLoc_ >= 0) {
+        setUniform3fCached(
+            worldCameraTargetLoc_,
+            cameraTarget,
+            dynamicUniformState ? &dynamicUniformState->cameraTarget : nullptr);
+    }
+    setUniform1fCached(
+        worldUseTextureLoc_,
+        useTexture,
+        dynamicUniformState ? &dynamicUniformState->useTexture : nullptr);
+    setUniform4fCached(
+        worldVertexColorMulLoc_,
+        vertexColorMul,
+        dynamicUniformState ? &dynamicUniformState->vertexColorMul : nullptr);
+    if (worldUseNormalTextureLoc_ >= 0) {
+        setUniform1fCached(
+            worldUseNormalTextureLoc_,
+            hasNormalTextureValue,
+            dynamicUniformState ? &dynamicUniformState->useNormalTexture : nullptr);
+    }
+    if (worldUseMetallicRoughnessTextureLoc_ >= 0) {
+        setUniform1fCached(
+            worldUseMetallicRoughnessTextureLoc_,
+            hasMetallicRoughnessTextureValue,
+            dynamicUniformState ? &dynamicUniformState->useMetallicRoughnessTexture : nullptr);
+    }
+    if (worldUseOcclusionTextureLoc_ >= 0) {
+        setUniform1fCached(
+            worldUseOcclusionTextureLoc_,
+            hasOcclusionTextureValue,
+            dynamicUniformState ? &dynamicUniformState->useOcclusionTexture : nullptr);
+    }
+    if (worldUseEmissiveTextureLoc_ >= 0) {
+        setUniform1fCached(
+            worldUseEmissiveTextureLoc_,
+            hasEmissiveTextureValue,
+            dynamicUniformState ? &dynamicUniformState->useEmissiveTexture : nullptr);
+    }
+    setUniform1fCached(
+        worldWrapSLoc_,
+        wrapS,
+        dynamicUniformState ? &dynamicUniformState->wrapS : nullptr);
+    setUniform1fCached(
+        worldWrapTLoc_,
+        wrapT,
+        dynamicUniformState ? &dynamicUniformState->wrapT : nullptr);
+    setUniform1fCached(
+        worldAlphaModeLoc_,
+        alphaModeValue,
+        dynamicUniformState ? &dynamicUniformState->alphaMode : nullptr);
+    setUniform1fCached(
+        worldAlphaCutoffLoc_,
+        alphaCutoff,
+        dynamicUniformState ? &dynamicUniformState->alphaCutoff : nullptr);
+    if (worldNormalScaleLoc_ >= 0) {
+        setUniform1fCached(
+            worldNormalScaleLoc_,
+            normalScale,
+            dynamicUniformState ? &dynamicUniformState->normalScale : nullptr);
+    }
+    if (worldMetallicFactorLoc_ >= 0) {
+        setUniform1fCached(
+            worldMetallicFactorLoc_,
+            metallicFactor,
+            dynamicUniformState ? &dynamicUniformState->metallicFactor : nullptr);
+    }
+    if (worldRoughnessFactorLoc_ >= 0) {
+        setUniform1fCached(
+            worldRoughnessFactorLoc_,
+            roughnessFactor,
+            dynamicUniformState ? &dynamicUniformState->roughnessFactor : nullptr);
+    }
+    if (worldOcclusionStrengthLoc_ >= 0) {
+        setUniform1fCached(
+            worldOcclusionStrengthLoc_,
+            occlusionStrength,
+            dynamicUniformState ? &dynamicUniformState->occlusionStrength : nullptr);
+    }
+    if (worldEmissiveFactorLoc_ >= 0) {
+        setUniform3fCached(
+            worldEmissiveFactorLoc_,
+            emissiveFactor,
+            dynamicUniformState ? &dynamicUniformState->emissiveFactor : nullptr);
+    }
+    if (worldCharacterInkingEnabledLoc_ >= 0) {
+        setUniform1fCached(
+            worldCharacterInkingEnabledLoc_,
+            characterInkingEnabled,
+            dynamicUniformState ? &dynamicUniformState->characterInkingEnabled : nullptr);
+    }
+    setUniform1fCached(
+        worldMaterialModeLoc_,
+        materialModeValue,
+        dynamicUniformState ? &dynamicUniformState->materialMode : nullptr);
+    setUniform1fCached(
+        worldMaterialTimeLoc_,
+        materialTime,
+        dynamicUniformState ? &dynamicUniformState->materialTime : nullptr);
+    setUniform1fCached(
+        worldMaterialFlagsLoc_,
+        materialFlags,
+        dynamicUniformState ? &dynamicUniformState->materialFlags : nullptr);
+    setUniform2fCached(
+        worldMaterialAtlasSizeLoc_,
+        materialAtlasSize,
+        dynamicUniformState ? &dynamicUniformState->materialAtlasSize : nullptr);
+    setUniform4fCached(
+        worldMaterialRect0Loc_,
+        materialRect0,
+        dynamicUniformState ? &dynamicUniformState->materialRect0 : nullptr);
+    setUniform4fCached(
+        worldMaterialRect1Loc_,
+        materialRect1,
+        dynamicUniformState ? &dynamicUniformState->materialRect1 : nullptr);
+    setUniform4fCached(
+        worldMaterialFlipbook0Loc_,
+        materialFlipbook0,
+        dynamicUniformState ? &dynamicUniformState->materialFlipbook0 : nullptr);
+    setUniform4fCached(
+        worldMaterialFlipbook1Loc_,
+        materialFlipbook1,
+        dynamicUniformState ? &dynamicUniformState->materialFlipbook1 : nullptr);
+    setUniform1fCached(
+        worldSkinningEnabledLoc_,
+        gpuSkinningEnabledValue,
+        dynamicUniformState ? &dynamicUniformState->skinningEnabled : nullptr);
+    setUniform1iCached(
+        worldSkinMatrixCountLoc_,
+        gpuSkinMatrixCount,
+        dynamicUniformState ? &dynamicUniformState->skinMatrixCount : nullptr);
     if (gpuSkinMatrixCount > 0) {
-        glUniformMatrix4fv(worldSkinMatricesLoc_, gpuSkinMatrixCount, GL_FALSE, texture->skinMatrices);
+        const std::size_t gpuSkinMatrixFloatCount =
+            static_cast<std::size_t>(gpuSkinMatrixCount) * 16u;
+        const bool skinMatricesDirty =
+            !dynamicUniformState ||
+            !dynamicUniformState->valid ||
+            !std::equal(dynamicUniformState->skinMatrices.begin(),
+                        dynamicUniformState->skinMatrices.begin() + gpuSkinMatrixFloatCount,
+                        texture->skinMatrices);
+        if (skinMatricesDirty) {
+            glUniformMatrix4fv(worldSkinMatricesLoc_, gpuSkinMatrixCount, GL_FALSE, texture->skinMatrices);
+            if (dynamicUniformState) {
+                std::copy_n(texture->skinMatrices,
+                            gpuSkinMatrixFloatCount,
+                            dynamicUniformState->skinMatrices.begin());
+            }
+        }
+    }
+    if (dynamicUniformState) {
+        dynamicUniformState->valid = true;
     }
     if (!batchState || !batchState->worldProgramStaticUniformsApplied) {
         glUniform1i(worldTextureSamplerLoc_, 0);
@@ -1286,6 +1487,9 @@ void OpenGLRenderBackend::drawWorldIndexedMeshTexturedInternal(unsigned int vao,
 
         glUniform1f(worldUseTextureLoc_, 0.0f);
         glUniform1f(worldMaterialModeLoc_, 3.0f);
+        if (dynamicUniformState) {
+            dynamicUniformState->valid = false;
+        }
         setDepthMask(false);
 
         bindVertexArray(worldVao_);

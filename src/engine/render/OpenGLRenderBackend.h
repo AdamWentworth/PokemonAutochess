@@ -269,6 +269,42 @@ private:
     std::uint32_t lastFrameDrawCalls_ = 0u;
     std::uint64_t lastFrameTriangles_ = 0u;
     struct WorldIndexedBatchSubmissionState {
+        struct WorldProgramDynamicUniformState {
+            bool valid = false;
+            std::array<float, 16> viewProjection{};
+            std::array<float, 16> model{};
+            std::array<float, 3> cameraPos{};
+            std::array<float, 3> cameraForward{};
+            std::array<float, 3> cameraTarget{};
+            float useTexture = 0.0f;
+            std::array<float, 4> vertexColorMul{};
+            float useNormalTexture = 0.0f;
+            float useMetallicRoughnessTexture = 0.0f;
+            float useOcclusionTexture = 0.0f;
+            float useEmissiveTexture = 0.0f;
+            float wrapS = 0.0f;
+            float wrapT = 0.0f;
+            float alphaMode = 0.0f;
+            float alphaCutoff = 0.0f;
+            float normalScale = 0.0f;
+            float metallicFactor = 0.0f;
+            float roughnessFactor = 0.0f;
+            float occlusionStrength = 0.0f;
+            std::array<float, 3> emissiveFactor{};
+            float characterInkingEnabled = 0.0f;
+            float materialMode = 0.0f;
+            float materialTime = 0.0f;
+            float materialFlags = 0.0f;
+            std::array<float, 2> materialAtlasSize{};
+            std::array<float, 4> materialRect0{};
+            std::array<float, 4> materialRect1{};
+            std::array<float, 4> materialFlipbook0{};
+            std::array<float, 4> materialFlipbook1{};
+            float skinningEnabled = 0.0f;
+            int skinMatrixCount = 0;
+            std::array<float, 16 * 64> skinMatrices{};
+        };
+
         bool active = false;
         int depth = 0;
         int prevProgram = 0;
@@ -309,6 +345,7 @@ private:
         int currentBlendEqRgb = 0;
         int currentBlendEqAlpha = 0;
         bool worldProgramStaticUniformsApplied = false;
+        WorldProgramDynamicUniformState worldProgramDynamicUniforms{};
     };
     WorldIndexedBatchSubmissionState worldIndexedBatchSubmissionState_{};
     bool gpuTimingSupported_ = false;
