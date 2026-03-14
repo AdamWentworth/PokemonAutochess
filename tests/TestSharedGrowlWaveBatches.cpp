@@ -56,45 +56,51 @@ bool test_shared_growl_wave_batches_contract(std::string& outFail) {
     const bool appended =
         appendPassBatch(batches, snapshot, pass, tev, nullptr, tex, glm::vec3(0.0f, 1.0f, 4.0f));
 
-    if (!expect(appended && batches.size() == 2u,
-                "appendPassBatch should append one cached quarter-ring batch per quarter for a valid pass/ring/texture.",
+    if (!expect(appended && batches.size() == 1u,
+                "appendPassBatch should combine quarter-ring growl variants into one batch for a valid pass/ring/texture.",
                 outFail)) {
         return false;
     }
 
-    for (const auto& batch : batches) {
-        if (!expect(batch.vertices.empty() && batch.indices.empty(),
-                    "Quarter-ring cached growl batches should not rebuild local vertices every frame.",
-                    outFail)) {
-            return false;
-        }
-        if (!expect(batch.sharedVertexCount == 4u && batch.sharedIndexCount == 6u,
-                    "Quarter-ring cached growl batches should reference the shared unit quad geometry.",
-                    outFail)) {
-            return false;
-        }
-        if (!expect(batch.alphaMode == 2u && batch.blendMode == 1u,
-                    "Growl batches should keep additive blended alpha-mode payload.",
-                    outFail)) {
-            return false;
-        }
-        if (!expect(batch.textureKey.find("growl:growl_test_quarter:") == 0,
-                    "Growl batch texture key should be prefixed with growl pass id.",
-                    outFail)) {
-            return false;
-        }
-        if (!expect(batch.textureCacheKey == "__growl_baked:growl_test_quarter:q:assets/textures/test.png",
-                    "Growl batch should carry a stable texture cache key so startup prewarm and runtime rendering reuse the same backend texture.",
-                    outFail)) {
-            return false;
-        }
-        if (!expect(batch.geometryCacheKey == "__growl_geom_quarter_unit_v1__",
-                    "Quarter-ring growl batches should use the shared geometry cache key.",
-                    outFail)) {
-            return false;
-        }
-        if (!expect(batch.sortDepth > 0.0f,
-                    "Growl batch should compute a positive sort depth from ring/camera distance.",
+    const auto& quarterBatch = batches.front();
+    if (!expect(quarterBatch.vertices.size() == 8u && quarterBatch.indices.size() == 12u,
+                "Quarter-ring growl batching should collapse all quarters into one local batch.",
+                outFail)) {
+        return false;
+    }
+    if (!expect(quarterBatch.sharedVertexCount == 0u && quarterBatch.sharedIndexCount == 0u,
+                "Combined quarter-ring growl batching should no longer submit one cached draw per quarter.",
+                outFail)) {
+        return false;
+    }
+    if (!expect(quarterBatch.alphaMode == 2u && quarterBatch.blendMode == 1u,
+                "Growl batches should keep additive blended alpha-mode payload.",
+                outFail)) {
+        return false;
+    }
+    if (!expect(quarterBatch.textureKey.find("growl:growl_test_quarter:") == 0,
+                "Growl batch texture key should be prefixed with growl pass id.",
+                outFail)) {
+        return false;
+    }
+    if (!expect(quarterBatch.textureCacheKey == "__growl_baked:growl_test_quarter:q:assets/textures/test.png",
+                "Growl batch should carry a stable texture cache key so startup prewarm and runtime rendering reuse the same backend texture.",
+                outFail)) {
+        return false;
+    }
+    if (!expect(quarterBatch.geometryCacheKey.empty(),
+                "Combined quarter-ring growl batching should not rely on per-quarter cached draw keys.",
+                outFail)) {
+        return false;
+    }
+    if (!expect(quarterBatch.sortDepth > 0.0f,
+                "Growl batch should compute a positive sort depth from ring/camera distance.",
+                outFail)) {
+        return false;
+    }
+    for (const auto& vertex : quarterBatch.vertices) {
+        if (!expect(vertex.a > 0.0f,
+                    "Combined quarter-ring growl batching should preserve per-vertex alpha in the rebuilt batch.",
                     outFail)) {
             return false;
         }
@@ -201,42 +207,42 @@ bool test_shared_growl_wave_batches_contract(std::string& outFail) {
                         tex,
                         glm::vec3(0.0f, 1.0f, 4.0f));
 
-    if (!expect(lineAppended && lineBatches.size() == linePass.directionsLocal.size(),
-                "Single-ring growl line passes should append one cached shared-geometry batch per direction.",
+    if (!expect(lineAppended && lineBatches.size() == 1u,
+                "Single-ring growl line passes should collapse repeated directions into one combined batch.",
                 outFail)) {
         return false;
     }
 
-    const std::string expectedLineGeometryKey = "__growl_geom_line_v1__:growl_test_line:assets/meshes/test_line.glb:1000";
-    for (const auto& lineBatch : lineBatches) {
-        if (!expect(lineBatch.vertices.empty() && lineBatch.indices.empty(),
-                    "Cached growl line batches should not rebuild transformed mesh vertices every frame.",
-                    outFail)) {
-            return false;
-        }
-        if (!expect(lineBatch.sharedVertexCount == 3u && lineBatch.sharedIndexCount == 3u,
-                    "Cached growl line batches should reference the source mesh geometry.",
-                    outFail)) {
-            return false;
-        }
-        if (!expect(lineBatch.geometryCacheKey == expectedLineGeometryKey,
-                    "Cached growl line batches should use a stable geometry cache key that includes the pass and quantized TEV alpha.",
-                    outFail)) {
-            return false;
-        }
-        if (!expect(lineBatch.textureCacheKey == "__growl_white__",
-                    "Cached growl line batches should share the white texture cache entry.",
-                    outFail)) {
-            return false;
-        }
-        if (!expect(lineBatch.vertexColorMulR > 0.0f &&
-                        lineBatch.vertexColorMulG > 0.0f &&
-                        lineBatch.vertexColorMulB > 0.0f &&
-                        lineBatch.vertexColorMulA > 0.0f,
-                    "Cached growl line batches should carry tint and fade in the vertex color multipliers.",
-                    outFail)) {
-            return false;
-        }
+    const auto& lineBatch = lineBatches.front();
+    if (!expect(lineBatch.vertices.size() == mesh.vertices.size() * linePass.directionsLocal.size() &&
+                    lineBatch.indices.size() == mesh.indices.size() * linePass.directionsLocal.size(),
+                "Combined growl line batching should contain one transformed mesh copy per direction.",
+                outFail)) {
+        return false;
+    }
+    if (!expect(lineBatch.sharedVertexCount == 0u && lineBatch.sharedIndexCount == 0u,
+                "Combined growl line batching should replace the one-draw-per-direction cached path.",
+                outFail)) {
+        return false;
+    }
+    if (!expect(lineBatch.geometryCacheKey.empty(),
+                "Combined growl line batching should not rely on per-direction cached draw keys.",
+                outFail)) {
+        return false;
+    }
+    if (!expect(lineBatch.textureCacheKey == "__growl_white__",
+                "Combined growl line batches should share the white texture cache entry.",
+                outFail)) {
+        return false;
+    }
+    bool sawTintedVertex = false;
+    for (const auto& vertex : lineBatch.vertices) {
+        sawTintedVertex = sawTintedVertex || (vertex.r > 0.0f && vertex.g > 0.0f && vertex.b > 0.0f && vertex.a > 0.0f);
+    }
+    if (!expect(sawTintedVertex,
+                "Combined growl line batching should bake tint and fade into the rebuilt local vertices.",
+                outFail)) {
+        return false;
     }
 
     pass.enabled = false;

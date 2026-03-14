@@ -202,10 +202,6 @@ std::string makeLineGeometryCacheKeyLocal(const GrowlWaveVFX::Config::DrawPass& 
     return std::string("__growl_geom_line_v1__:") + pass.id + ":" + pass.meshPath + ":" + std::to_string(k1aMilli);
 }
 
-const char* quarterGeometryCacheKeyLocal() {
-    return "__growl_geom_quarter_unit_v1__";
-}
-
 shared_world_batches::WorldIndexedBatch makeBaseBatchLocal(
     const GrowlWaveVFX::RenderSnapshot& snapshot,
     const GrowlWaveVFX::Config::DrawPass& pass,
@@ -281,6 +277,35 @@ void appendQuarterRingLocal(shared_world_batches::WorldIndexedBatch& batch,
         batch.vertices.push_back(vtx);
     }
     for (std::uint32_t idx : kIndices) {
+        batch.indices.push_back(baseVertex + idx);
+    }
+}
+
+void appendSharedGeometryLocal(shared_world_batches::WorldIndexedBatch& batch,
+                               const SharedMeshGeometry& geometry,
+                               const glm::mat4& world,
+                               const glm::vec4& color) {
+    if (geometry.vertices.empty() || geometry.indices.size() < 3u) return;
+
+    const std::uint32_t baseVertex = static_cast<std::uint32_t>(batch.vertices.size());
+    batch.vertices.reserve(batch.vertices.size() + geometry.vertices.size());
+    batch.indices.reserve(batch.indices.size() + geometry.indices.size());
+
+    for (const auto& src : geometry.vertices) {
+        const glm::vec4 wp = world * glm::vec4(src.x, src.y, src.z, 1.0f);
+        IRenderBackend::WorldMeshVertex vtx;
+        vtx.x = wp.x;
+        vtx.y = wp.y;
+        vtx.z = wp.z;
+        vtx.u = src.u;
+        vtx.v = src.v;
+        vtx.r = std::clamp(src.r * color.r, 0.0f, 1.0f);
+        vtx.g = std::clamp(src.g * color.g, 0.0f, 1.0f);
+        vtx.b = std::clamp(src.b * color.b, 0.0f, 1.0f);
+        vtx.a = std::clamp(src.a * color.a, 0.0f, 1.0f);
+        batch.vertices.push_back(vtx);
+    }
+    for (std::uint32_t idx : geometry.indices) {
         batch.indices.push_back(baseVertex + idx);
     }
 }
@@ -462,30 +487,26 @@ bool appendSharedQuarterPassSingleRingLocal(
     const auto& sharedVertices = quarterVerticesLocal();
     const auto& sharedIndices = quarterIndicesLocal();
     const int quarterCount = std::max(1, pass.quarterCount);
+    shared_world_batches::WorldIndexedBatch batch = makeBaseBatchLocal(snapshot, pass, texture);
+    batch.vertices.reserve(static_cast<std::size_t>(quarterCount) * sharedVertices.size());
+    batch.indices.reserve(static_cast<std::size_t>(quarterCount) * sharedIndices.size());
     bool appendedAny = false;
     for (int i = 0; i < quarterCount; ++i) {
         const float quarterDeg =
             pass.quarterStartDeg + pass.quarterStepDeg * static_cast<float>(i);
         const glm::quat quarterRot = glm::angleAxis(glm::radians(quarterDeg), meshForwardLocal);
 
-        shared_world_batches::WorldIndexedBatch batch = makeBaseBatchLocal(snapshot, pass, texture);
-        batch.sharedVertices = sharedVertices.data();
-        batch.sharedVertexCount = sharedVertices.size();
-        batch.sharedIndices = sharedIndices.data();
-        batch.sharedIndexCount = sharedIndices.size();
-        batch.geometryCacheKey = quarterGeometryCacheKeyLocal();
-        batch.vertexColorMulR = 1.0f;
-        batch.vertexColorMulG = 1.0f;
-        batch.vertexColorMulB = 1.0f;
-        batch.vertexColorMulA = passAlpha;
-        batch.modelMatrix = toModelMatrixArrayLocal(
+        appendQuarterRingLocal(
+            batch,
             glm::translate(glm::mat4(1.0f), passPos) *
-            glm::mat4_cast(passRot * quarterRot) *
-            glm::scale(glm::mat4(1.0f), finalScale));
-        batch.sortDepth = distSq;
-        outBatches.push_back(std::move(batch));
+                glm::mat4_cast(passRot * quarterRot) *
+                glm::scale(glm::mat4(1.0f), finalScale),
+            glm::vec4(1.0f, 1.0f, 1.0f, passAlpha));
         appendedAny = true;
     }
+    if (!appendedAny || batch.vertices.empty() || batch.indices.empty()) return false;
+    batch.sortDepth = distSq;
+    outBatches.push_back(std::move(batch));
     return appendedAny;
 }
 
@@ -554,6 +575,13 @@ bool appendSharedLinePassSingleRingLocal(
         getSharedLineMeshGeometryLocal(passMesh, geometryCacheKey, passTev.k1a);
     if (sharedGeometry.vertices.empty() || sharedGeometry.indices.size() < 3u) return false;
 
+    // The cached-geometry path removed vertex rebuild cost, but the line pass still fanned out
+    // into many tiny additive draws. Rebatch the shared local geometry here so Growl spends a
+    // little CPU transforming vertices once and saves much more CPU in per-draw backend setup.
+    shared_world_batches::WorldIndexedBatch batch = makeBaseBatchLocal(snapshot, pass, texture);
+    batch.vertices.reserve(localDirections->size() * sharedGeometry.vertices.size());
+    batch.indices.reserve(localDirections->size() * sharedGeometry.indices.size());
+    float sortDepth = 0.0f;
     bool appendedAny = false;
     for (std::size_t dirIndex = 0; dirIndex < localDirections->size(); ++dirIndex) {
         glm::vec3 localDirBasisRaw = (*localDirections)[dirIndex];
@@ -596,26 +624,20 @@ bool appendSharedLinePassSingleRingLocal(
             (right * localDirBasisRaw.x + up * localDirBasisRaw.y) * radialRadius;
         const glm::vec3 passPos = ring.pos + passForward * pass.forwardOffset + radialStartOffset;
         const float distSq = glm::dot(passPos - cameraWorldPos, passPos - cameraWorldPos);
-
-        shared_world_batches::WorldIndexedBatch batch = makeBaseBatchLocal(snapshot, pass, texture);
-        batch.sharedVertices = sharedGeometry.vertices.data();
-        batch.sharedVertexCount = sharedGeometry.vertices.size();
-        batch.sharedIndices = sharedGeometry.indices.data();
-        batch.sharedIndexCount = sharedGeometry.indices.size();
-        batch.geometryCacheKey = geometryCacheKey;
-        batch.vertexColorMulR = passTint.r;
-        batch.vertexColorMulG = passTint.g;
-        batch.vertexColorMulB = passTint.b;
-        batch.vertexColorMulA = passAlpha;
-        batch.modelMatrix = toModelMatrixArrayLocal(
+        sortDepth = std::max(sortDepth, distSq);
+        appendSharedGeometryLocal(
+            batch,
+            sharedGeometry,
             glm::translate(glm::mat4(1.0f), passPos) *
-            glm::mat4_cast(passRot) *
-            glm::scale(glm::mat4(1.0f), finalScale));
-        batch.sortDepth = distSq;
-        outBatches.push_back(std::move(batch));
+                glm::mat4_cast(passRot) *
+                glm::scale(glm::mat4(1.0f), finalScale),
+            glm::vec4(passTint, passAlpha));
         appendedAny = true;
     }
 
+    if (!appendedAny || batch.vertices.empty() || batch.indices.empty()) return false;
+    batch.sortDepth = sortDepth;
+    outBatches.push_back(std::move(batch));
     return appendedAny;
 }
 
