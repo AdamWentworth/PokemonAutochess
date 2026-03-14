@@ -1172,6 +1172,12 @@ __PAC_SHARED_WORLD_PBR_SECTION__
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, 1024, nullptr, GL_STREAM_DRAW);
     glBindBuffer(GL_ARRAY_BUFFER, worldInstanceVbo_);
     glBufferData(GL_ARRAY_BUFFER, static_cast<GLsizeiptr>(sizeof(float) * 20u), nullptr, GL_STREAM_DRAW);
+    worldDynamicVertexBufferCapacityBytes_ = 1024u;
+    worldDynamicIndexBufferCapacityBytes_ = 1024u;
+    worldDynamicVertexWriteOffsetBytes_ = 0u;
+    worldDynamicIndexWriteOffsetBytes_ = 0u;
+    worldDynamicVertexBufferNeedsOrphan_ = false;
+    worldDynamicIndexBufferNeedsOrphan_ = false;
     configureWorldMeshVertexLayout(worldVao_, worldVbo_, worldIbo_);
     glBindVertexArray(0);
     glBindBuffer(GL_ARRAY_BUFFER, 0);
@@ -1236,6 +1242,12 @@ void OpenGLRenderBackend::destroyWorldPipeline() {
         glDeleteBuffers(1, &worldVbo_);
         worldVbo_ = 0;
     }
+    worldDynamicVertexBufferCapacityBytes_ = 0u;
+    worldDynamicIndexBufferCapacityBytes_ = 0u;
+    worldDynamicVertexWriteOffsetBytes_ = 0u;
+    worldDynamicIndexWriteOffsetBytes_ = 0u;
+    worldDynamicVertexBufferNeedsOrphan_ = false;
+    worldDynamicIndexBufferNeedsOrphan_ = false;
     if (worldVao_ != 0) {
         glDeleteVertexArrays(1, &worldVao_);
         worldVao_ = 0;
