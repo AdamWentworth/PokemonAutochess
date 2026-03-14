@@ -1,6 +1,7 @@
 #pragma once
 
 #include <array>
+#include <cstddef>
 #include <cstdint>
 #include <memory>
 #include <string>
@@ -25,6 +26,7 @@ public:
     bool getLastFrameStats(BackendFrameStats& outStats) const override;
     bool supportsWorldTriangles3D() const override { return true; }
     bool supportsWorldIndexedMeshes() const override { return true; }
+    bool supportsWorldIndexedMeshInstancing() const override { return true; }
     std::string activeGpuName() const override;
     bool activeGpuIsDiscrete() const override;
     void drawWorldTriangles(const WorldTriangle* triangles,
@@ -71,6 +73,18 @@ public:
                                             const float* viewProjectionMatrix4x4,
                                             int surfaceWidth,
                                             int surfaceHeight) override;
+    void drawWorldIndexedMeshTexturedCachedInstanced(
+        const char* geometryKey,
+        const WorldMeshVertex* vertices,
+        std::size_t vertexCount,
+        const std::uint32_t* indices,
+        std::size_t indexCount,
+        const WorldTextureData* texture,
+        const WorldMeshInstance* instances,
+        std::size_t instanceCount,
+        const float* viewProjectionMatrix4x4,
+        int surfaceWidth,
+        int surfaceHeight) override;
     void drawDebugQuads(const DebugQuad* quads,
                         std::size_t quadCount,
                         int surfaceWidth,
@@ -98,6 +112,30 @@ private:
     void destroyDebugPipeline();
     void ensureWorldPipeline();
     void destroyWorldPipeline();
+    void destroyCachedWorldMeshes();
+    void configureWorldMeshVertexLayout(unsigned int vao,
+                                        unsigned int vertexBuffer,
+                                        unsigned int indexBuffer);
+    struct CachedWorldMesh;
+    CachedWorldMesh* ensureCachedWorldMesh(const char* geometryKey,
+                                           const WorldMeshVertex* vertices,
+                                           std::size_t vertexCount,
+                                           const std::uint32_t* indices,
+                                           std::size_t indexCount);
+    void drawWorldIndexedMeshTexturedInternal(unsigned int vao,
+                                              unsigned int vertexBuffer,
+                                              unsigned int indexBuffer,
+                                              const WorldMeshVertex* vertices,
+                                              std::size_t vertexCount,
+                                              const std::uint32_t* indices,
+                                              std::size_t indexCount,
+                                              bool uploadGeometry,
+                                              const WorldTextureData* texture,
+                                              const WorldMeshInstance* instances,
+                                              std::size_t instanceCount,
+                                              const float* viewProjectionMatrix4x4,
+                                              int surfaceWidth,
+                                              int surfaceHeight);
     void ensureSpritePipeline();
     void destroySpritePipeline();
     unsigned int ensureWorldTexture(const WorldTextureData* textureData);
@@ -137,6 +175,7 @@ private:
     unsigned int worldVao_ = 0;
     unsigned int worldVbo_ = 0;
     unsigned int worldIbo_ = 0;
+    unsigned int worldInstanceVbo_ = 0;
     int worldViewProjLoc_ = -1;
     int worldModelLoc_ = -1;
     int worldUseTextureLoc_ = -1;
@@ -195,6 +234,17 @@ private:
 
     std::unordered_map<std::string, TextureCacheEntry> worldTextures_;
     std::unordered_map<std::string, unsigned int> spriteTextures_;
+    struct CachedWorldMesh {
+        unsigned int vao = 0;
+        unsigned int vertexBuffer = 0;
+        unsigned int indexBuffer = 0;
+        std::size_t vertexCount = 0;
+        std::size_t indexCount = 0;
+        std::size_t vertexBytes = 0;
+        std::size_t indexBytes = 0;
+        bool valid = false;
+    };
+    std::unordered_map<std::string, CachedWorldMesh> cachedWorldMeshes_;
     unsigned int worldFallbackTexture_ = 0;
     unsigned int spriteFallbackTexture_ = 0;
 

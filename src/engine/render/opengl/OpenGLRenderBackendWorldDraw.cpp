@@ -9,6 +9,7 @@
 #include <cstdint>
 #include <cstdlib>
 #include <iostream>
+#include <limits>
 #include <string>
 #include <vector>
 
@@ -88,7 +89,122 @@ void maybeLogPbrBindingOpenGL(const IRenderBackend::WorldTextureData* texture,
         << "\n";
 }
 
+struct OpenGLWorldInstanceVertexData {
+    float model[16];
+    float color[4];
+};
+
+static_assert(sizeof(OpenGLWorldInstanceVertexData) == sizeof(float) * 20u);
+
+void packWorldInstanceVertexData(const IRenderBackend::WorldMeshInstance& instance,
+                                 OpenGLWorldInstanceVertexData& out) {
+    for (std::size_t i = 0; i < 16u; ++i) {
+        out.model[i] = instance.modelMatrix[i];
+    }
+    out.color[0] = instance.vertexColorMulR;
+    out.color[1] = instance.vertexColorMulG;
+    out.color[2] = instance.vertexColorMulB;
+    out.color[3] = instance.vertexColorMulA;
+}
+
+OpenGLWorldInstanceVertexData makeIdentityInstanceData() {
+    OpenGLWorldInstanceVertexData out{};
+    out.model[0] = 1.0f;
+    out.model[5] = 1.0f;
+    out.model[10] = 1.0f;
+    out.model[15] = 1.0f;
+    out.color[0] = 1.0f;
+    out.color[1] = 1.0f;
+    out.color[2] = 1.0f;
+    out.color[3] = 1.0f;
+    return out;
+}
+
 } // namespace
+
+OpenGLRenderBackend::CachedWorldMesh* OpenGLRenderBackend::ensureCachedWorldMesh(
+    const char* geometryKey,
+    const WorldMeshVertex* vertices,
+    std::size_t vertexCount,
+    const std::uint32_t* indices,
+    std::size_t indexCount) {
+    if (!geometryKey || geometryKey[0] == '\0' || !vertices || !indices || vertexCount == 0u || indexCount < 3u) {
+        return nullptr;
+    }
+    ensureWorldPipeline();
+    if (worldInstanceVbo_ == 0u) return nullptr;
+
+    constexpr std::size_t kMaxWorldVertices = 540000u;
+    constexpr std::size_t kMaxWorldIndices = 900000u;
+    const std::size_t safeVertexCount = std::min(vertexCount, kMaxWorldVertices);
+    const std::size_t safeIndexCount = std::min(indexCount, kMaxWorldIndices);
+    if (safeVertexCount == 0u || safeIndexCount < 3u) return nullptr;
+    for (std::size_t i = 0; i < safeIndexCount; ++i) {
+        if (indices[i] >= safeVertexCount) return nullptr;
+    }
+
+    const std::string key(geometryKey);
+    const std::size_t vertexBytes = safeVertexCount * sizeof(WorldMeshVertex);
+    const std::size_t indexBytes = safeIndexCount * sizeof(std::uint32_t);
+
+    auto existing = cachedWorldMeshes_.find(key);
+    if (existing != cachedWorldMeshes_.end()) {
+        CachedWorldMesh& mesh = existing->second;
+        if (mesh.valid &&
+            mesh.vertexCount == safeVertexCount &&
+            mesh.indexCount == safeIndexCount &&
+            mesh.vertexBytes == vertexBytes &&
+            mesh.indexBytes == indexBytes) {
+            return &mesh;
+        }
+        if (mesh.indexBuffer != 0u) glDeleteBuffers(1, &mesh.indexBuffer);
+        if (mesh.vertexBuffer != 0u) glDeleteBuffers(1, &mesh.vertexBuffer);
+        if (mesh.vao != 0u) glDeleteVertexArrays(1, &mesh.vao);
+        cachedWorldMeshes_.erase(existing);
+    }
+
+    GLint prevVao = 0;
+    GLint prevArrayBuffer = 0;
+    glGetIntegerv(GL_VERTEX_ARRAY_BINDING, &prevVao);
+    glGetIntegerv(GL_ARRAY_BUFFER_BINDING, &prevArrayBuffer);
+
+    CachedWorldMesh mesh{};
+    glGenVertexArrays(1, &mesh.vao);
+    glGenBuffers(1, &mesh.vertexBuffer);
+    glGenBuffers(1, &mesh.indexBuffer);
+    if (mesh.vao == 0u || mesh.vertexBuffer == 0u || mesh.indexBuffer == 0u) {
+        if (mesh.indexBuffer != 0u) glDeleteBuffers(1, &mesh.indexBuffer);
+        if (mesh.vertexBuffer != 0u) glDeleteBuffers(1, &mesh.vertexBuffer);
+        if (mesh.vao != 0u) glDeleteVertexArrays(1, &mesh.vao);
+        glBindVertexArray(static_cast<GLuint>(prevVao));
+        glBindBuffer(GL_ARRAY_BUFFER, static_cast<GLuint>(prevArrayBuffer));
+        return nullptr;
+    }
+
+    configureWorldMeshVertexLayout(mesh.vao, mesh.vertexBuffer, mesh.indexBuffer);
+    glBindBuffer(GL_ARRAY_BUFFER, mesh.vertexBuffer);
+    glBufferData(GL_ARRAY_BUFFER,
+                 static_cast<GLsizeiptr>(vertexBytes),
+                 vertices,
+                 GL_STATIC_DRAW);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, mesh.indexBuffer);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER,
+                 static_cast<GLsizeiptr>(indexBytes),
+                 indices,
+                 GL_STATIC_DRAW);
+
+    mesh.vertexCount = safeVertexCount;
+    mesh.indexCount = safeIndexCount;
+    mesh.vertexBytes = vertexBytes;
+    mesh.indexBytes = indexBytes;
+    mesh.valid = true;
+
+    glBindVertexArray(static_cast<GLuint>(prevVao));
+    glBindBuffer(GL_ARRAY_BUFFER, static_cast<GLuint>(prevArrayBuffer));
+
+    auto [it, _] = cachedWorldMeshes_.emplace(key, std::move(mesh));
+    return &it->second;
+}
 
 void OpenGLRenderBackend::drawWorldTriangles(const WorldTriangle* triangles,
                                              std::size_t triangleCount,
@@ -172,15 +288,33 @@ void OpenGLRenderBackend::drawWorldIndexedMeshCached(const char* geometryKey,
                                                      const float* viewProjectionMatrix4x4,
                                                      int surfaceWidth,
                                                      int surfaceHeight) {
-    (void)geometryKey;
-    drawWorldIndexedMesh(
-        vertices,
-        vertexCount,
-        indices,
-        indexCount,
-        viewProjectionMatrix4x4,
-        surfaceWidth,
-        surfaceHeight);
+    ensureWorldPipeline();
+    if (CachedWorldMesh* cached =
+            ensureCachedWorldMesh(geometryKey, vertices, vertexCount, indices, indexCount)) {
+        drawWorldIndexedMeshTexturedInternal(cached->vao,
+                                             cached->vertexBuffer,
+                                             cached->indexBuffer,
+                                             vertices,
+                                             vertexCount,
+                                             indices,
+                                             indexCount,
+                                             false,
+                                             nullptr,
+                                             nullptr,
+                                             0u,
+                                             viewProjectionMatrix4x4,
+                                             surfaceWidth,
+                                             surfaceHeight);
+        return;
+    }
+
+    drawWorldIndexedMesh(vertices,
+                         vertexCount,
+                         indices,
+                         indexCount,
+                         viewProjectionMatrix4x4,
+                         surfaceWidth,
+                         surfaceHeight);
 }
 
 void OpenGLRenderBackend::drawWorldIndexedMeshTexturedCached(const char* geometryKey,
@@ -192,16 +326,79 @@ void OpenGLRenderBackend::drawWorldIndexedMeshTexturedCached(const char* geometr
                                                              const float* viewProjectionMatrix4x4,
                                                              int surfaceWidth,
                                                              int surfaceHeight) {
-    (void)geometryKey;
-    drawWorldIndexedMeshTextured(
-        vertices,
-        vertexCount,
-        indices,
-        indexCount,
-        texture,
-        viewProjectionMatrix4x4,
-        surfaceWidth,
-        surfaceHeight);
+    ensureWorldPipeline();
+    if (CachedWorldMesh* cached =
+            ensureCachedWorldMesh(geometryKey, vertices, vertexCount, indices, indexCount)) {
+        drawWorldIndexedMeshTexturedInternal(cached->vao,
+                                             cached->vertexBuffer,
+                                             cached->indexBuffer,
+                                             vertices,
+                                             vertexCount,
+                                             indices,
+                                             indexCount,
+                                             false,
+                                             texture,
+                                             nullptr,
+                                             0u,
+                                             viewProjectionMatrix4x4,
+                                             surfaceWidth,
+                                             surfaceHeight);
+        return;
+    }
+
+    drawWorldIndexedMeshTextured(vertices,
+                                 vertexCount,
+                                 indices,
+                                 indexCount,
+                                 texture,
+                                 viewProjectionMatrix4x4,
+                                 surfaceWidth,
+                                 surfaceHeight);
+}
+
+void OpenGLRenderBackend::drawWorldIndexedMeshTexturedCachedInstanced(
+    const char* geometryKey,
+    const WorldMeshVertex* vertices,
+    std::size_t vertexCount,
+    const std::uint32_t* indices,
+    std::size_t indexCount,
+    const WorldTextureData* texture,
+    const WorldMeshInstance* instances,
+    std::size_t instanceCount,
+    const float* viewProjectionMatrix4x4,
+    int surfaceWidth,
+    int surfaceHeight) {
+    ensureWorldPipeline();
+    if (CachedWorldMesh* cached =
+            ensureCachedWorldMesh(geometryKey, vertices, vertexCount, indices, indexCount)) {
+        drawWorldIndexedMeshTexturedInternal(cached->vao,
+                                             cached->vertexBuffer,
+                                             cached->indexBuffer,
+                                             vertices,
+                                             vertexCount,
+                                             indices,
+                                             indexCount,
+                                             false,
+                                             texture,
+                                             instances,
+                                             instanceCount,
+                                             viewProjectionMatrix4x4,
+                                             surfaceWidth,
+                                             surfaceHeight);
+        return;
+    }
+
+    IRenderBackend::drawWorldIndexedMeshTexturedCachedInstanced(geometryKey,
+                                                                vertices,
+                                                                vertexCount,
+                                                                indices,
+                                                                indexCount,
+                                                                texture,
+                                                                instances,
+                                                                instanceCount,
+                                                                viewProjectionMatrix4x4,
+                                                                surfaceWidth,
+                                                                surfaceHeight);
 }
 
 void OpenGLRenderBackend::prewarmWorldIndexedMeshCached(const char* geometryKey,
@@ -209,11 +406,8 @@ void OpenGLRenderBackend::prewarmWorldIndexedMeshCached(const char* geometryKey,
                                                         std::size_t vertexCount,
                                                         const std::uint32_t* indices,
                                                         std::size_t indexCount) {
-    (void)geometryKey;
-    (void)vertices;
-    (void)vertexCount;
-    (void)indices;
-    (void)indexCount;
+    ensureWorldPipeline();
+    (void)ensureCachedWorldMesh(geometryKey, vertices, vertexCount, indices, indexCount);
 }
 
 void OpenGLRenderBackend::prewarmWorldTextureData(const WorldTextureData* texture) {
@@ -337,10 +531,40 @@ void OpenGLRenderBackend::drawWorldIndexedMeshTextured(const WorldMeshVertex* ve
                                                        const float* viewProjectionMatrix4x4,
                                                        int surfaceWidth,
                                                        int surfaceHeight) {
+    drawWorldIndexedMeshTexturedInternal(worldVao_,
+                                         worldVbo_,
+                                         worldIbo_,
+                                         vertices,
+                                         vertexCount,
+                                         indices,
+                                         indexCount,
+                                         true,
+                                         texture,
+                                         nullptr,
+                                         0u,
+                                         viewProjectionMatrix4x4,
+                                         surfaceWidth,
+                                         surfaceHeight);
+}
+
+void OpenGLRenderBackend::drawWorldIndexedMeshTexturedInternal(unsigned int vao,
+                                                               unsigned int vertexBuffer,
+                                                               unsigned int indexBuffer,
+                                                               const WorldMeshVertex* vertices,
+                                                               std::size_t vertexCount,
+                                                               const std::uint32_t* indices,
+                                                               std::size_t indexCount,
+                                                               bool uploadGeometry,
+                                                               const WorldTextureData* texture,
+                                                               const WorldMeshInstance* instances,
+                                                               std::size_t instanceCount,
+                                                               const float* viewProjectionMatrix4x4,
+                                                               int surfaceWidth,
+                                                               int surfaceHeight) {
     if (!vertices || !indices || vertexCount == 0 || indexCount < 3 || !viewProjectionMatrix4x4) return;
     if (surfaceWidth <= 0 || surfaceHeight <= 0) return;
     ensureWorldPipeline();
-    if (worldProgram_ == 0 || worldVao_ == 0 || worldVbo_ == 0 || worldIbo_ == 0 ||
+    if (worldProgram_ == 0 || vao == 0u || vertexBuffer == 0u || indexBuffer == 0u || worldInstanceVbo_ == 0u ||
         worldViewProjLoc_ < 0 || worldModelLoc_ < 0 ||
         worldUseTextureLoc_ < 0 || worldTextureSamplerLoc_ < 0 ||
         worldWrapSLoc_ < 0 || worldWrapTLoc_ < 0 || worldVertexColorMulLoc_ < 0 ||
@@ -700,20 +924,70 @@ void OpenGLRenderBackend::drawWorldIndexedMeshTextured(const WorldMeshVertex* ve
     glActiveTexture(GL_TEXTURE5);
     glBindTexture(GL_TEXTURE_2D, boundEnvTexture);
 
-    glBindVertexArray(worldVao_);
-    glBindBuffer(GL_ARRAY_BUFFER, worldVbo_);
+    const std::size_t effectiveInstanceCount =
+        (instances && instanceCount > 0u) ? instanceCount : 1u;
+    if (effectiveInstanceCount > static_cast<std::size_t>((std::numeric_limits<GLsizei>::max)())) {
+        glBindVertexArray(static_cast<GLuint>(prevVao));
+        glBindBuffer(GL_ARRAY_BUFFER, static_cast<GLuint>(prevArrayBuffer));
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, static_cast<GLuint>(prevElementArrayBuffer));
+        glUseProgram(static_cast<GLuint>(prevProgram));
+        for (int unit = 0; unit < 6; ++unit) {
+            glActiveTexture(GL_TEXTURE0 + unit);
+            glBindTexture(GL_TEXTURE_2D, static_cast<GLuint>(prevTexture2DOnUnit[unit]));
+        }
+        glActiveTexture(static_cast<GLenum>(prevActiveTexture));
+        glBindTexture(GL_TEXTURE_2D, static_cast<GLuint>(prevTexture2DOnActive));
+        glDepthMask(previousDepthMask);
+        glDepthFunc(static_cast<GLenum>(previousDepthFunc));
+        glBlendEquationSeparate(static_cast<GLenum>(prevBlendEqRgb), static_cast<GLenum>(prevBlendEqAlpha));
+        glBlendFuncSeparate(static_cast<GLenum>(prevBlendSrcRgb),
+                            static_cast<GLenum>(prevBlendDstRgb),
+                            static_cast<GLenum>(prevBlendSrcAlpha),
+                            static_cast<GLenum>(prevBlendDstAlpha));
+        if (!blendEnabled) glDisable(GL_BLEND);
+        glFrontFace(static_cast<GLenum>(prevFrontFace));
+        if (cullEnabled) glEnable(GL_CULL_FACE);
+        if (!depthEnabled) glDisable(GL_DEPTH_TEST);
+        return;
+    }
+
+    static thread_local std::vector<OpenGLWorldInstanceVertexData> instanceData;
+    instanceData.resize(effectiveInstanceCount);
+    if (instances && instanceCount > 0u) {
+        for (std::size_t i = 0; i < effectiveInstanceCount; ++i) {
+            packWorldInstanceVertexData(instances[i], instanceData[i]);
+        }
+    } else {
+        instanceData[0] = makeIdentityInstanceData();
+    }
+
+    glBindBuffer(GL_ARRAY_BUFFER, worldInstanceVbo_);
     glBufferData(GL_ARRAY_BUFFER,
-                 static_cast<GLsizeiptr>(safeVertexCount * sizeof(WorldMeshVertex)),
-                 vertices,
+                 static_cast<GLsizeiptr>(instanceData.size() * sizeof(OpenGLWorldInstanceVertexData)),
+                 instanceData.data(),
                  GL_STREAM_DRAW);
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, worldIbo_);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER,
-                 static_cast<GLsizeiptr>(safeIndexCount * sizeof(std::uint32_t)),
-                 indices,
-                 GL_STREAM_DRAW);
-    glDrawElements(GL_TRIANGLES, static_cast<GLsizei>(safeIndexCount), GL_UNSIGNED_INT, nullptr);
+
+    glBindVertexArray(vao);
+    if (uploadGeometry) {
+        glBindBuffer(GL_ARRAY_BUFFER, vertexBuffer);
+        glBufferData(GL_ARRAY_BUFFER,
+                     static_cast<GLsizeiptr>(safeVertexCount * sizeof(WorldMeshVertex)),
+                     vertices,
+                     GL_STREAM_DRAW);
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, indexBuffer);
+        glBufferData(GL_ELEMENT_ARRAY_BUFFER,
+                     static_cast<GLsizeiptr>(safeIndexCount * sizeof(std::uint32_t)),
+                     indices,
+                     GL_STREAM_DRAW);
+    }
+    glDrawElementsInstanced(GL_TRIANGLES,
+                            static_cast<GLsizei>(safeIndexCount),
+                            GL_UNSIGNED_INT,
+                            nullptr,
+                            static_cast<GLsizei>(effectiveInstanceCount));
     ++frameDrawCalls_;
-    frameTriangles_ += static_cast<std::uint64_t>(safeIndexCount / 3u);
+    frameTriangles_ += static_cast<std::uint64_t>(safeIndexCount / 3u) *
+                       static_cast<std::uint64_t>(effectiveInstanceCount);
 
     const bool drawCharacterOutline =
         texture &&
@@ -745,14 +1019,25 @@ void OpenGLRenderBackend::drawWorldIndexedMeshTextured(const WorldMeshVertex* ve
         glUniform1f(worldMaterialModeLoc_, 3.0f);
         glDepthMask(GL_FALSE);
 
+        glBindVertexArray(worldVao_);
         glBindBuffer(GL_ARRAY_BUFFER, worldVbo_);
         glBufferData(GL_ARRAY_BUFFER,
                      static_cast<GLsizeiptr>(safeVertexCount * sizeof(WorldMeshVertex)),
                      outlineVertices.data(),
                      GL_STREAM_DRAW);
-        glDrawElements(GL_TRIANGLES, static_cast<GLsizei>(safeIndexCount), GL_UNSIGNED_INT, nullptr);
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, worldIbo_);
+        glBufferData(GL_ELEMENT_ARRAY_BUFFER,
+                     static_cast<GLsizeiptr>(safeIndexCount * sizeof(std::uint32_t)),
+                     indices,
+                     GL_STREAM_DRAW);
+        glDrawElementsInstanced(GL_TRIANGLES,
+                                static_cast<GLsizei>(safeIndexCount),
+                                GL_UNSIGNED_INT,
+                                nullptr,
+                                static_cast<GLsizei>(effectiveInstanceCount));
         ++frameDrawCalls_;
-        frameTriangles_ += static_cast<std::uint64_t>(safeIndexCount / 3u);
+        frameTriangles_ += static_cast<std::uint64_t>(safeIndexCount / 3u) *
+                           static_cast<std::uint64_t>(effectiveInstanceCount);
     }
 
     glBindVertexArray(static_cast<GLuint>(prevVao));

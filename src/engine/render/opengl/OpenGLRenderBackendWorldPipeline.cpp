@@ -207,6 +207,7 @@ unsigned int linkWorldProgramWithCache(unsigned int vs,
 
 void OpenGLRenderBackend::ensureWorldPipeline() {
     if (worldProgram_ != 0 && worldVao_ != 0 && worldVbo_ != 0 && worldIbo_ != 0 &&
+        worldInstanceVbo_ != 0 &&
         worldViewProjLoc_ >= 0 && worldModelLoc_ >= 0 &&
         worldUseTextureLoc_ >= 0 && worldTextureSamplerLoc_ >= 0 &&
         worldWrapSLoc_ >= 0 && worldWrapTLoc_ >= 0 && worldVertexColorMulLoc_ >= 0 &&
@@ -229,6 +230,11 @@ void OpenGLRenderBackend::ensureWorldPipeline() {
         layout (location = 4) in vec4 aJoints;
         layout (location = 5) in vec4 aWeights;
         layout (location = 6) in vec4 aTangent;
+        layout (location = 7) in vec4 aInstanceModel0;
+        layout (location = 8) in vec4 aInstanceModel1;
+        layout (location = 9) in vec4 aInstanceModel2;
+        layout (location = 10) in vec4 aInstanceModel3;
+        layout (location = 11) in vec4 aInstanceColor;
         uniform mat4 uViewProj;
         uniform mat4 uModel;
         uniform vec4 uMaterialRect0;
@@ -361,18 +367,28 @@ void OpenGLRenderBackend::ensureWorldPipeline() {
                 localNormal = applySkinningNormal(localNormal);
                 localTangent = applySkinningTangent(localTangent);
             }
-            vec4 worldPos = uModel * vec4(localPos, 1.0);
+            mat4 instanceModel = mat4(
+                aInstanceModel0,
+                aInstanceModel1,
+                aInstanceModel2,
+                aInstanceModel3);
+            mat3 instanceLinear = mat3(
+                aInstanceModel0.xyz,
+                aInstanceModel1.xyz,
+                aInstanceModel2.xyz);
+            vec4 instanceWorld = instanceModel * vec4(localPos, 1.0);
+            vec4 worldPos = uModel * instanceWorld;
             gl_Position = uViewProj * worldPos;
             vUv = aUv;
-            vColor = aColor;
+            vColor = aColor * aInstanceColor;
             vec3 genDen = max(uMaterialRect1.xyz - uMaterialRect0.xyz, vec3(1e-5));
             vGenerated = clamp((aPos - uMaterialRect0.xyz) / genDen, vec3(0.0), vec3(1.0));
             vWorldPos = worldPos.xyz;
             // Keep world normal/tangent transform behavior aligned with D3D12 path.
             // This improves cross-backend parity for authored tangent-space normal detail.
             mat3 normalM = mat3(uModel);
-            vWorldNormal = normalize(normalM * localNormal);
-            vec3 worldTangent = normalM * localTangent.xyz;
+            vWorldNormal = normalize(normalM * (instanceLinear * localNormal));
+            vec3 worldTangent = normalM * (instanceLinear * localTangent.xyz);
             float tangentLenSq = dot(worldTangent, worldTangent);
             if (tangentLenSq > 1e-10) worldTangent *= inversesqrt(tangentLenSq);
             vWorldTangent = vec4(worldTangent, localTangent.w);
@@ -1144,38 +1160,74 @@ __PAC_SHARED_WORLD_PBR_SECTION__
     glGenVertexArrays(1, &worldVao_);
     glGenBuffers(1, &worldVbo_);
     glGenBuffers(1, &worldIbo_);
-    if (worldVao_ == 0 || worldVbo_ == 0 || worldIbo_ == 0) {
+    glGenBuffers(1, &worldInstanceVbo_);
+    if (worldVao_ == 0 || worldVbo_ == 0 || worldIbo_ == 0 || worldInstanceVbo_ == 0) {
         destroyWorldPipeline();
         return;
     }
 
-    glBindVertexArray(worldVao_);
     glBindBuffer(GL_ARRAY_BUFFER, worldVbo_);
     glBufferData(GL_ARRAY_BUFFER, 1024, nullptr, GL_STREAM_DRAW);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, worldIbo_);
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, 1024, nullptr, GL_STREAM_DRAW);
-
-    constexpr GLsizei stride = static_cast<GLsizei>(sizeof(WorldMeshVertex));
-    glEnableVertexAttribArray(0);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, stride, reinterpret_cast<void*>(0));
-    glEnableVertexAttribArray(1);
-    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, stride, reinterpret_cast<void*>(sizeof(float) * 3));
-    glEnableVertexAttribArray(2);
-    glVertexAttribPointer(2, 4, GL_FLOAT, GL_FALSE, stride, reinterpret_cast<void*>(offsetof(WorldMeshVertex, r)));
-    glEnableVertexAttribArray(3);
-    glVertexAttribPointer(3, 3, GL_FLOAT, GL_FALSE, stride, reinterpret_cast<void*>(offsetof(WorldMeshVertex, nx)));
-    glEnableVertexAttribArray(4);
-    glVertexAttribPointer(4, 4, GL_FLOAT, GL_FALSE, stride, reinterpret_cast<void*>(offsetof(WorldMeshVertex, joint0)));
-    glEnableVertexAttribArray(5);
-    glVertexAttribPointer(5, 4, GL_FLOAT, GL_FALSE, stride, reinterpret_cast<void*>(offsetof(WorldMeshVertex, weight0)));
-    glEnableVertexAttribArray(6);
-    glVertexAttribPointer(6, 4, GL_FLOAT, GL_FALSE, stride, reinterpret_cast<void*>(offsetof(WorldMeshVertex, tx)));
-
+    glBindBuffer(GL_ARRAY_BUFFER, worldInstanceVbo_);
+    glBufferData(GL_ARRAY_BUFFER, static_cast<GLsizeiptr>(sizeof(float) * 20u), nullptr, GL_STREAM_DRAW);
+    configureWorldMeshVertexLayout(worldVao_, worldVbo_, worldIbo_);
     glBindVertexArray(0);
     glBindBuffer(GL_ARRAY_BUFFER, 0);
 }
 
+void OpenGLRenderBackend::configureWorldMeshVertexLayout(unsigned int vao,
+                                                         unsigned int vertexBuffer,
+                                                         unsigned int indexBuffer) {
+    if (vao == 0u || vertexBuffer == 0u || indexBuffer == 0u || worldInstanceVbo_ == 0u) return;
+
+    constexpr GLsizei vertexStride = static_cast<GLsizei>(sizeof(WorldMeshVertex));
+    constexpr GLsizei instanceStride = static_cast<GLsizei>(sizeof(float) * 20u);
+
+    glBindVertexArray(vao);
+    glBindBuffer(GL_ARRAY_BUFFER, vertexBuffer);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, indexBuffer);
+
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, vertexStride, reinterpret_cast<void*>(0));
+    glEnableVertexAttribArray(1);
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, vertexStride, reinterpret_cast<void*>(sizeof(float) * 3));
+    glEnableVertexAttribArray(2);
+    glVertexAttribPointer(2, 4, GL_FLOAT, GL_FALSE, vertexStride, reinterpret_cast<void*>(offsetof(WorldMeshVertex, r)));
+    glEnableVertexAttribArray(3);
+    glVertexAttribPointer(3, 3, GL_FLOAT, GL_FALSE, vertexStride, reinterpret_cast<void*>(offsetof(WorldMeshVertex, nx)));
+    glEnableVertexAttribArray(4);
+    glVertexAttribPointer(4, 4, GL_FLOAT, GL_FALSE, vertexStride, reinterpret_cast<void*>(offsetof(WorldMeshVertex, joint0)));
+    glEnableVertexAttribArray(5);
+    glVertexAttribPointer(5, 4, GL_FLOAT, GL_FALSE, vertexStride, reinterpret_cast<void*>(offsetof(WorldMeshVertex, weight0)));
+    glEnableVertexAttribArray(6);
+    glVertexAttribPointer(6, 4, GL_FLOAT, GL_FALSE, vertexStride, reinterpret_cast<void*>(offsetof(WorldMeshVertex, tx)));
+
+    glBindBuffer(GL_ARRAY_BUFFER, worldInstanceVbo_);
+    glEnableVertexAttribArray(7);
+    glVertexAttribPointer(7, 4, GL_FLOAT, GL_FALSE, instanceStride, reinterpret_cast<void*>(0));
+    glVertexAttribDivisor(7, 1);
+    glEnableVertexAttribArray(8);
+    glVertexAttribPointer(8, 4, GL_FLOAT, GL_FALSE, instanceStride, reinterpret_cast<void*>(sizeof(float) * 4));
+    glVertexAttribDivisor(8, 1);
+    glEnableVertexAttribArray(9);
+    glVertexAttribPointer(9, 4, GL_FLOAT, GL_FALSE, instanceStride, reinterpret_cast<void*>(sizeof(float) * 8));
+    glVertexAttribDivisor(9, 1);
+    glEnableVertexAttribArray(10);
+    glVertexAttribPointer(10, 4, GL_FLOAT, GL_FALSE, instanceStride, reinterpret_cast<void*>(sizeof(float) * 12));
+    glVertexAttribDivisor(10, 1);
+    glEnableVertexAttribArray(11);
+    glVertexAttribPointer(11, 4, GL_FLOAT, GL_FALSE, instanceStride, reinterpret_cast<void*>(sizeof(float) * 16));
+    glVertexAttribDivisor(11, 1);
+}
+
 void OpenGLRenderBackend::destroyWorldPipeline() {
+    destroyCachedWorldMeshes();
+    if (worldInstanceVbo_ != 0) {
+        glDeleteBuffers(1, &worldInstanceVbo_);
+        worldInstanceVbo_ = 0;
+    }
     if (worldIbo_ != 0) {
         glDeleteBuffers(1, &worldIbo_);
         worldIbo_ = 0;
@@ -1233,6 +1285,25 @@ void OpenGLRenderBackend::destroyWorldPipeline() {
     worldSkinningEnabledLoc_ = -1;
     worldSkinMatrixCountLoc_ = -1;
     worldSkinMatricesLoc_ = -1;
+}
+
+void OpenGLRenderBackend::destroyCachedWorldMeshes() {
+    for (auto& [_, mesh] : cachedWorldMeshes_) {
+        if (mesh.indexBuffer != 0u) {
+            glDeleteBuffers(1, &mesh.indexBuffer);
+            mesh.indexBuffer = 0u;
+        }
+        if (mesh.vertexBuffer != 0u) {
+            glDeleteBuffers(1, &mesh.vertexBuffer);
+            mesh.vertexBuffer = 0u;
+        }
+        if (mesh.vao != 0u) {
+            glDeleteVertexArrays(1, &mesh.vao);
+            mesh.vao = 0u;
+        }
+        mesh.valid = false;
+    }
+    cachedWorldMeshes_.clear();
 }
 
 
