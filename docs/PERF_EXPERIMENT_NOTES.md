@@ -14,6 +14,41 @@ without the same context.
 
 ## Current Notes
 
+### 2026-03-14: hashed projected skin-batch lookup was a miss
+- Hypothesis:
+  - replace the projected GPU skin batch-state linear scan with a hashed lookup
+    keyed by `(unit, skin, palette)` to cut hot-path search cost
+- Expected win:
+  - reduce `projected_model_geometry_ms`
+  - reduce `projected_units_ms`
+  - lower steady-state `render_build_ms`
+- What the workload showed:
+  - the hot scene only carried a tiny projected skin-batch working set
+  - the extra hash/key construction cost was worse than the previous
+    small-vector scan plus adjacent-batch fast path
+  - both backends regressed:
+    - `OpenGL` before: `render_build_ms ~2.7-2.9`,
+      `projected_model_geometry_ms ~0.45-0.46`,
+      `render_world_indexed_ms ~0.66-0.69`
+    - `OpenGL` regressed run: `render_build_ms ~3.3-3.7`,
+      `projected_model_geometry_ms ~0.54-0.60`,
+      `render_world_indexed_ms ~0.81-0.88`
+    - `D3D12` before: `render_build_ms ~2.3-2.5`,
+      `projected_model_geometry_ms ~0.43-0.46`,
+      `render_submit_ms ~0.09-0.10`
+    - `D3D12` regressed run: `render_build_ms ~2.9-3.2`,
+      `projected_model_geometry_ms ~0.58-0.62`,
+      `render_submit_ms ~0.17-0.19`
+- Decision:
+  - revert; do not replace tiny hot-set scans with heavier lookup structures
+    unless the measured scene proves the set is large enough
+- Re-entry conditions:
+  - instrument actual projected skin-batch working-set size in the measured scene
+  - only revisit hashed lookup if the hot set is materially larger than the
+    current `~12`-batch combat path
+  - compare against the existing adjacent-batch fast path, not against a
+    theoretical baseline
+
 ### 2026-03-14: projected rigid-single-joint shortcut was a miss
 - Hypothesis:
   - some projected "skinned" batches are effectively rigidly attached to one
