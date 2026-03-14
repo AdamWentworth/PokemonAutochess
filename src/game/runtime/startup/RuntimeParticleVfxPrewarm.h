@@ -8,7 +8,7 @@
 
 class IRenderBackend;
 
-namespace game::runtime::session_particle_vfx_prewarm {
+namespace game::runtime::particle_vfx_prewarm {
 
 struct Args {
     IRenderBackend* renderer = nullptr;
@@ -17,4 +17,4 @@ struct Args {
 
 startup_asset_prewarm::ParticleVfxStats prewarm(const Args& args);
 
-} // namespace game::runtime::session_particle_vfx_prewarm
+} // namespace game::runtime::particle_vfx_prewarm

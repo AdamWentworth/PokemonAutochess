@@ -4,7 +4,7 @@
 
 #include "engine/render/IRenderBackend.h"
 #include "game/runtime/render_model_cache/RenderModelCache.h"
-#include "game/runtime/session/SessionGrowlPrewarm.h"
+#include "game/runtime/startup/RuntimeGrowlVfxPrewarm.h"
 #include "game/runtime/shared/backend/SharedBackendTextureCache.h"
 
 namespace {
@@ -24,9 +24,13 @@ public:
         if (texture && texture->key) {
             prewarmedTextureKeys.emplace_back(texture->key);
         }
+        if (texture && texture->cacheKey) {
+            prewarmedTextureCacheKeys.emplace_back(texture->cacheKey);
+        }
     }
 
     std::vector<std::string> prewarmedTextureKeys;
+    std::vector<std::string> prewarmedTextureCacheKeys;
 };
 
 game::runtime::render_model::MeshData makeTriangleMesh() {
@@ -64,14 +68,23 @@ bool hasGrowlTextureKeyPrefix(const std::vector<std::string>& keys) {
     return false;
 }
 
+bool hasGrowlTextureCacheKeyPrefix(const std::vector<std::string>& keys) {
+    for (const std::string& key : keys) {
+        if (key.find("__growl_") == 0) {
+            return true;
+        }
+    }
+    return false;
+}
+
 } // namespace
 
-bool test_session_growl_prewarm_contract(std::string& outFail) {
+bool test_runtime_growl_vfx_prewarm_contract(std::string& outFail) {
     RecordingBackend backend;
     std::unordered_map<std::string, game::runtime::SharedBackendTextureCacheEntry> cache;
     game::runtime::render_model::MeshData mesh = makeTriangleMesh();
 
-    const auto stats = game::runtime::session_growl_prewarm::prewarm(
+    const auto stats = game::runtime::growl_vfx_prewarm::prewarm(
         {
             .renderer = &backend,
             .backendTextureByPath = &cache,
@@ -91,22 +104,28 @@ bool test_session_growl_prewarm_contract(std::string& outFail) {
         });
 
     if (stats.drawPasses == 0u || stats.bakedTextures == 0u || stats.warmedBatches == 0u) {
-        outFail = "SessionGrowlPrewarm should build growl batches, bake pass textures, and prewarm renderer batches.";
+        outFail = "RuntimeGrowlVfxPrewarm should build growl batches, bake pass textures, and prewarm renderer batches.";
         return false;
     }
 
     if (stats.warmedBatches != backend.prewarmedTextureKeys.size()) {
-        outFail = "SessionGrowlPrewarm should prewarm one backend texture payload per generated growl batch.";
+        outFail = "RuntimeGrowlVfxPrewarm should prewarm one backend texture payload per generated growl batch.";
         return false;
     }
 
     if (!hasGrowlTextureKeyPrefix(backend.prewarmedTextureKeys)) {
-        outFail = "SessionGrowlPrewarm should prewarm growl batch texture keys rather than only raw source textures.";
+        outFail = "RuntimeGrowlVfxPrewarm should prewarm growl batch texture keys rather than only raw source textures.";
+        return false;
+    }
+
+    if (backend.prewarmedTextureCacheKeys.size() != stats.warmedBatches ||
+        !hasGrowlTextureCacheKeyPrefix(backend.prewarmedTextureCacheKeys)) {
+        outFail = "RuntimeGrowlVfxPrewarm should prewarm stable growl texture cache keys for backend reuse.";
         return false;
     }
 
     if (cache.find("__growl_baked:growl_eid_1076:m:assets/textures/moves/growl/Texture3918.png") == cache.end()) {
-        outFail = "SessionGrowlPrewarm should populate baked growl texture entries in the shared backend texture cache.";
+        outFail = "RuntimeGrowlVfxPrewarm should populate baked growl texture entries in the shared backend texture cache.";
         return false;
     }
 

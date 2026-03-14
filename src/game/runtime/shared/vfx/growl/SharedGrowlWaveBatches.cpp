@@ -147,6 +147,7 @@ bool appendPassBatch(std::vector<shared_world_batches::WorldIndexedBatch>& outBa
     batch.textureKey =
         std::string("growl:") + pass.id + ":" +
         (pass.texturePath.empty() ? std::string("__white__") : pass.texturePath);
+    batch.textureCacheKey = shared_growl::makeTextureCacheKey(snapshot.config, pass);
     batch.textureRgba = texture.rgba;
     batch.textureWidth = texture.width;
     batch.textureHeight = texture.height;

@@ -262,6 +262,8 @@ add_library(PAC_GameObjects STATIC
     src/game/runtime/GameRuntime.cpp
     src/game/runtime/GameBootstrap.cpp
     src/game/runtime/startup/RuntimeRenderModelPrewarm.cpp
+    src/game/runtime/startup/RuntimeGrowlVfxPrewarm.cpp
+    src/game/runtime/startup/RuntimeParticleVfxPrewarm.cpp
     src/game/runtime/startup/RuntimeUiCardPrewarm.cpp
     src/game/runtime/startup/RuntimeStartupAssetPrewarm.cpp
     src/game/runtime/RuntimeBootLoading.cpp
@@ -297,9 +299,7 @@ add_library(PAC_GameObjects STATIC
     src/game/runtime/session/SessionDebugSnapshot.cpp
     src/game/runtime/session/SessionLegacyWorldView.cpp
     src/game/runtime/session/SessionFrameMetrics.cpp
-    src/game/runtime/session/SessionGrowlPrewarm.cpp
     src/game/runtime/session/SessionLoopRuntime.cpp
-    src/game/runtime/session/SessionParticleVfxPrewarm.cpp
     src/game/runtime/session/SessionProjectedWorldView.cpp
     src/game/runtime/session/SessionRenderLayout.cpp
     src/game/runtime/session/SessionRenderScratch.cpp
@@ -554,11 +554,11 @@ if (BUILD_TESTING)
         tests/TestSessionBackendInventoryUi.cpp
         tests/TestSessionBackendUnitHydration.cpp
         tests/TestSessionDebugSnapshot.cpp
-        tests/TestSessionGrowlPrewarm.cpp
+        tests/TestRuntimeGrowlVfxPrewarm.cpp
         tests/TestSessionLegacyWorldView.cpp
         tests/TestSessionFrameMetrics.cpp
         tests/TestSessionLoopRuntime.cpp
-        tests/TestSessionParticleVfxPrewarm.cpp
+        tests/TestRuntimeParticleVfxPrewarm.cpp
         tests/TestSessionProjectedWorldView.cpp
         tests/TestSessionRenderLayout.cpp
         tests/TestSessionRenderScratch.cpp

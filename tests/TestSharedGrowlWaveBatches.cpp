@@ -78,6 +78,11 @@ bool test_shared_growl_wave_batches_contract(std::string& outFail) {
                 outFail)) {
         return false;
     }
+    if (!expect(batch.textureCacheKey == "__growl_baked:growl_test_quarter:q:assets/textures/test.png",
+                "Growl batch should carry a stable texture cache key so startup prewarm and runtime rendering reuse the same backend texture.",
+                outFail)) {
+        return false;
+    }
     if (!expect(batch.sortDepth > 0.0f,
                 "Growl batch should compute a positive sort depth from ring/camera distance.",
                 outFail)) {

@@ -75,6 +75,14 @@ std::string makeBakedTextureKey(const GrowlWaveVFX::Config::DrawPass& pass, bool
            (pass.texturePath.empty() ? std::string("__white__") : pass.texturePath);
 }
 
+std::string makeTextureCacheKey(const GrowlWaveVFX::Config& config,
+                                const GrowlWaveVFX::Config::DrawPass& pass) {
+    if (isLinePass(config, pass) || pass.texturePath.empty()) {
+        return "__growl_white__";
+    }
+    return makeBakedTextureKey(pass, isQuarterRingPass(config, pass));
+}
+
 bool bakePassTextureRgba(const GrowlWaveVFX::Config::DrawPass& pass,
                         const TevState& tev,
                         bool quarterPass,

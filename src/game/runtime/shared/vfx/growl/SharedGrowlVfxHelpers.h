@@ -27,6 +27,8 @@ bool isQuarterRingPass(const GrowlWaveVFX::Config& config,
                        const GrowlWaveVFX::Config::DrawPass& pass);
 
 std::string makeBakedTextureKey(const GrowlWaveVFX::Config::DrawPass& pass, bool quarterPass);
+std::string makeTextureCacheKey(const GrowlWaveVFX::Config& config,
+                                const GrowlWaveVFX::Config::DrawPass& pass);
 
 bool bakePassTextureRgba(const GrowlWaveVFX::Config::DrawPass& pass,
                         const TevState& tev,

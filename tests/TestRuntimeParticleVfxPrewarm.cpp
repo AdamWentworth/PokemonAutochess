@@ -3,7 +3,7 @@
 #include <vector>
 
 #include "engine/render/IRenderBackend.h"
-#include "game/runtime/session/SessionParticleVfxPrewarm.h"
+#include "game/runtime/startup/RuntimeParticleVfxPrewarm.h"
 #include "game/runtime/shared/vfx/particles/SharedParticleSnapshotBillboards.h"
 
 namespace {
@@ -52,11 +52,11 @@ bool allSharedParticleCacheKeys(const std::vector<std::string>& keys) {
 
 } // namespace
 
-bool test_session_particle_vfx_prewarm_contract(std::string& outFail) {
+bool test_runtime_particle_vfx_prewarm_contract(std::string& outFail) {
     RecordingBackend backend;
     std::unordered_map<std::string, game::runtime::SharedBackendTextureCacheEntry> cache;
 
-    const auto stats = game::runtime::session_particle_vfx_prewarm::prewarm(
+    const auto stats = game::runtime::particle_vfx_prewarm::prewarm(
         {
             .renderer = &backend,
             .ensureBackendTextureLoaded =
@@ -72,18 +72,18 @@ bool test_session_particle_vfx_prewarm_contract(std::string& outFail) {
     const std::size_t expectedCount =
         game::runtime::shared_particle_snapshot_billboards::commonParticleTexturePaths().size();
     if (stats.textures != expectedCount || stats.warmedBatches != expectedCount) {
-        outFail = "SessionParticleVfxPrewarm should warm every common shared particle texture.";
+        outFail = "RuntimeParticleVfxPrewarm should warm every common shared particle texture.";
         return false;
     }
 
     if (backend.prewarmedTextureKeys.size() != expectedCount ||
         backend.prewarmedTextureCacheKeys.size() != expectedCount) {
-        outFail = "SessionParticleVfxPrewarm should prewarm one backend texture payload per shared particle texture.";
+        outFail = "RuntimeParticleVfxPrewarm should prewarm one backend texture payload per shared particle texture.";
         return false;
     }
 
     if (!allSharedParticleCacheKeys(backend.prewarmedTextureCacheKeys)) {
-        outFail = "SessionParticleVfxPrewarm should use shared particle cache keys for backend texture uploads.";
+        outFail = "RuntimeParticleVfxPrewarm should use shared particle cache keys for backend texture uploads.";
         return false;
     }
 

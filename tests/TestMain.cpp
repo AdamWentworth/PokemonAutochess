@@ -58,6 +58,8 @@ bool test_video_preferences_parse_and_roundtrip(std::string& outFail);
 bool test_runtime_boot_loading_contract(std::string& outFail);
 bool test_runtime_render_model_prewarm_contract(std::string& outFail);
 bool test_runtime_ui_card_prewarm_contract(std::string& outFail);
+bool test_runtime_growl_vfx_prewarm_contract(std::string& outFail);
+bool test_runtime_particle_vfx_prewarm_contract(std::string& outFail);
 bool test_runtime_startup_asset_prewarm_contract(std::string& outFail);
 bool test_runtime_fixed_step_phase_contract(std::string& outFail);
 bool test_runtime_frame_observation_contract(std::string& outFail);
@@ -100,10 +102,8 @@ bool test_session_backend_inventory_ui_contract(std::string& outFail);
 bool test_session_backend_unit_hydration_contract(std::string& outFail);
 bool test_session_debug_snapshot_contract(std::string& outFail);
 bool test_session_frame_metrics_contract(std::string& outFail);
-bool test_session_growl_prewarm_contract(std::string& outFail);
 bool test_session_legacy_world_view_contract(std::string& outFail);
 bool test_session_loop_runtime_contract(std::string& outFail);
-bool test_session_particle_vfx_prewarm_contract(std::string& outFail);
 bool test_session_projected_world_view_contract(std::string& outFail);
 bool test_session_render_layout_contract(std::string& outFail);
 bool test_session_render_scratch_contract(std::string& outFail);
@@ -270,6 +270,8 @@ int main(int argc, char** argv) {
         {"runtime_boot_loading_contract", &test_runtime_boot_loading_contract},
         {"runtime_render_model_prewarm_contract", &test_runtime_render_model_prewarm_contract},
         {"runtime_ui_card_prewarm_contract", &test_runtime_ui_card_prewarm_contract},
+        {"runtime_growl_vfx_prewarm_contract", &test_runtime_growl_vfx_prewarm_contract},
+        {"runtime_particle_vfx_prewarm_contract", &test_runtime_particle_vfx_prewarm_contract},
         {"runtime_startup_asset_prewarm_contract", &test_runtime_startup_asset_prewarm_contract},
         {"runtime_fixed_step_phase_contract", &test_runtime_fixed_step_phase_contract},
         {"runtime_frame_observation_contract", &test_runtime_frame_observation_contract},
@@ -312,10 +314,8 @@ int main(int argc, char** argv) {
         {"session_backend_unit_hydration_contract", &test_session_backend_unit_hydration_contract},
         {"session_debug_snapshot_contract", &test_session_debug_snapshot_contract},
         {"session_frame_metrics_contract", &test_session_frame_metrics_contract},
-        {"session_growl_prewarm_contract", &test_session_growl_prewarm_contract},
         {"session_legacy_world_view_contract", &test_session_legacy_world_view_contract},
         {"session_loop_runtime_contract", &test_session_loop_runtime_contract},
-        {"session_particle_vfx_prewarm_contract", &test_session_particle_vfx_prewarm_contract},
         {"session_projected_world_view_contract", &test_session_projected_world_view_contract},
         {"session_render_layout_contract", &test_session_render_layout_contract},
         {"session_render_scratch_contract", &test_session_render_scratch_contract},

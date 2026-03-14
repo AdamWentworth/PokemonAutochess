@@ -1,4 +1,4 @@
-#include "game/runtime/session/SessionGrowlPrewarm.h"
+#include "game/runtime/startup/RuntimeGrowlVfxPrewarm.h"
 
 #include "engine/render/Model.h"
 #include "game/runtime/shared/vfx/growl/SharedGrowlVfxHelpers.h"
@@ -11,7 +11,7 @@
 
 #include <glm/glm.hpp>
 
-namespace game::runtime::session_growl_prewarm {
+namespace game::runtime::growl_vfx_prewarm {
 
 namespace {
 
@@ -135,4 +135,4 @@ startup_asset_prewarm::GrowlStats prewarm(const Args& args) {
     return stats;
 }
 
-} // namespace game::runtime::session_growl_prewarm
+} // namespace game::runtime::growl_vfx_prewarm

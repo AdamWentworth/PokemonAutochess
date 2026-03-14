@@ -48,6 +48,8 @@
 #include "game/runtime/ui/InputSlots.h"
 #include "game/runtime/render_model_cache/RenderModelCache.h"
 #include "game/runtime/startup/RuntimeRenderModelPrewarm.h"
+#include "game/runtime/startup/RuntimeGrowlVfxPrewarm.h"
+#include "game/runtime/startup/RuntimeParticleVfxPrewarm.h"
 #include "game/runtime/startup/RuntimeUiCardPrewarm.h"
 #include "game/runtime/startup/RuntimeStartupAssetPrewarm.h"
 #include "game/runtime/startup/RuntimeWorldLayerPrewarm.h"
@@ -61,9 +63,7 @@
 #include "game/runtime/session/SessionBackendInventoryUi.h"
 #include "game/runtime/session/SessionBackendRenderHelpers.h"
 #include "game/runtime/session/SessionDebugSnapshot.h"
-#include "game/runtime/session/SessionGrowlPrewarm.h"
 #include "game/runtime/session/SessionLoopRuntime.h"
-#include "game/runtime/session/SessionParticleVfxPrewarm.h"
 #include "game/runtime/session/SessionRenderConfig.h"
 #include "game/runtime/session/SessionSnapshotRuntime.h"
 #include "game/runtime/session/SessionStartupRuntime.h"
@@ -370,7 +370,7 @@ struct GameSession::Impl {
                     },
                 .prewarmGrowlVfx =
                     [&]() {
-                        return game::runtime::session_growl_prewarm::prewarm(
+                        return game::runtime::growl_vfx_prewarm::prewarm(
                             {
                                 .renderer = renderer,
                                 .backendTextureByPath = &backendTextureByPath,
@@ -386,7 +386,7 @@ struct GameSession::Impl {
                     },
                 .prewarmParticleVfx =
                     [&]() {
-                        return game::runtime::session_particle_vfx_prewarm::prewarm(
+                        return game::runtime::particle_vfx_prewarm::prewarm(
                             {
                                 .renderer = renderer,
                                 .ensureBackendTextureLoaded =

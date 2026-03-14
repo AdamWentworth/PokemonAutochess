@@ -1,4 +1,4 @@
-#include "game/runtime/session/SessionParticleVfxPrewarm.h"
+#include "game/runtime/startup/RuntimeParticleVfxPrewarm.h"
 
 #include "engine/render/IRenderBackend.h"
 #include "game/runtime/shared/vfx/particles/SharedParticleSnapshotBillboards.h"
@@ -6,7 +6,7 @@
 
 #include <vector>
 
-namespace game::runtime::session_particle_vfx_prewarm {
+namespace game::runtime::particle_vfx_prewarm {
 
 namespace {
 
@@ -74,4 +74,4 @@ startup_asset_prewarm::ParticleVfxStats prewarm(const Args& args) {
     return stats;
 }
 
-} // namespace game::runtime::session_particle_vfx_prewarm
+} // namespace game::runtime::particle_vfx_prewarm

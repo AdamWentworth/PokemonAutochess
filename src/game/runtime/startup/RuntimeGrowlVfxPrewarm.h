@@ -15,7 +15,7 @@ struct MeshData;
 }
 }
 
-namespace game::runtime::session_growl_prewarm {
+namespace game::runtime::growl_vfx_prewarm {
 
 struct Args {
     IRenderBackend* renderer = nullptr;
@@ -26,4 +26,4 @@ struct Args {
 
 startup_asset_prewarm::GrowlStats prewarm(const Args& args);
 
-} // namespace game::runtime::session_growl_prewarm
+} // namespace game::runtime::growl_vfx_prewarm

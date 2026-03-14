@@ -112,6 +112,23 @@ bool test_shared_growl_vfx_helpers_contract(std::string& outFail) {
         return false;
     }
 
+    pass.fragShaderPath = "assets/shaders/vfx/moves/growl/growl_line_shared.frag";
+    pass.texturePath.clear();
+    if (!expect(makeTextureCacheKey(config, pass) == "__growl_white__",
+                "makeTextureCacheKey should share a single white cache entry for line/white growl passes.",
+                outFail)) {
+        return false;
+    }
+
+    pass.fragShaderPath = "assets/shaders/vfx/moves/growl/growl_quarter_ring_shared.frag";
+    pass.texturePath = "assets/textures/moves/growl/Texture3918.png";
+    pass.textureQuarterRing = true;
+    if (!expect(makeTextureCacheKey(config, pass) == quarterKey,
+                "makeTextureCacheKey should reuse baked-texture cache keys for textured growl passes.",
+                outFail)) {
+        return false;
+    }
+
     TevState tev{};
     tev.c0 = glm::vec3(0.9f, 0.8f, 0.7f);
     tev.c1 = glm::vec3(0.1f, 0.2f, 0.3f);
