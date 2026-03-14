@@ -189,8 +189,54 @@ bool test_shared_world_indexed_batches_contract(std::string& outFail) {
         return false;
     }
 
+    backend.calls.clear();
+    game::runtime::shared_world_batches::WorldIndexedBatch sharedTemplate = makeBatch(
+        "auto_instanced_model",
+        0u,
+        0.0f,
+        false);
+    sharedTemplate.geometryCacheKey = "__auto_instance_geom__:test";
+    static const IRenderBackend::WorldMeshVertex kModelVertices[3] = {};
+    static const std::uint32_t kModelIndices[3] = {0u, 1u, 2u};
+    sharedTemplate.sharedVertices = kModelVertices;
+    sharedTemplate.sharedVertexCount = 3u;
+    sharedTemplate.sharedIndices = kModelIndices;
+    sharedTemplate.sharedIndexCount = 3u;
+    sharedTemplate.vertices.clear();
+    sharedTemplate.indices.clear();
+
+    WorldIndexedBatch autoInstanceA;
+    autoInstanceA.sharedTemplate = &sharedTemplate;
+    autoInstanceA.geometryCacheKey = sharedTemplate.geometryCacheKey;
+    autoInstanceA.sharedVertices = sharedTemplate.sharedVertices;
+    autoInstanceA.sharedVertexCount = sharedTemplate.sharedVertexCount;
+    autoInstanceA.sharedIndices = sharedTemplate.sharedIndices;
+    autoInstanceA.sharedIndexCount = sharedTemplate.sharedIndexCount;
+    autoInstanceA.modelMatrix[12] = 1.0f;
+    autoInstanceA.vertexColorMulR = 0.8f;
+
+    WorldIndexedBatch autoInstanceB = autoInstanceA;
+    autoInstanceB.modelMatrix[12] = 2.0f;
+    autoInstanceB.vertexColorMulR = 0.6f;
+
+    submitWorldIndexedBatches(
+        backend,
+        {autoInstanceA, autoInstanceB},
+        viewProj,
+        1280,
+        720);
+
+    if (!expect(backend.calls.size() == 1u &&
+                    backend.calls.front().instanced &&
+                    backend.calls.front().instanceCount == 2u,
+                "submitWorldIndexedBatches should auto-merge compatible opaque cached batches into a single instanced draw.",
+                outFail)) {
+        return false;
+    }
+
     return true;
 }
+
 
 bool test_projected_triangle_submit_clears_geometry_cache_key(std::string& outFail) {
     using game::runtime::shared_projected_debug::ProjectedDebugVfxBuilder;
@@ -294,4 +340,3 @@ bool test_projected_triangle_submit_clears_geometry_cache_key(std::string& outFa
 
     return true;
 }
-

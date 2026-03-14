@@ -1,10 +1,102 @@
 #include "game/runtime/shared/world/SharedWorldIndexedBatches.h"
 
 #include <algorithm>
+#include <cstring>
+#include <string_view>
+#include <unordered_map>
 
 namespace game::runtime::shared_world_batches {
 
 namespace {
+
+struct AutoInstanceKey {
+    const WorldIndexedBatch* sharedTemplate = nullptr;
+    std::string_view geometryCacheKey{};
+    bool materialAlphaOverride = false;
+    std::uint8_t alphaMode = 0u;
+    std::uint8_t blendMode = 0u;
+    float alphaCutoff = 0.0f;
+
+    bool operator==(const AutoInstanceKey& other) const {
+        return sharedTemplate == other.sharedTemplate &&
+               geometryCacheKey == other.geometryCacheKey &&
+               materialAlphaOverride == other.materialAlphaOverride &&
+               alphaMode == other.alphaMode &&
+               blendMode == other.blendMode &&
+               alphaCutoff == other.alphaCutoff;
+    }
+};
+
+struct AutoInstanceKeyHash {
+    std::size_t operator()(const AutoInstanceKey& key) const {
+        std::size_t h = std::hash<const WorldIndexedBatch*>{}(key.sharedTemplate);
+        h ^= std::hash<std::string_view>{}(key.geometryCacheKey) + 0x9e3779b9u + (h << 6) + (h >> 2);
+        h ^= std::hash<bool>{}(key.materialAlphaOverride) + 0x9e3779b9u + (h << 6) + (h >> 2);
+        h ^= std::hash<std::uint8_t>{}(key.alphaMode) + 0x9e3779b9u + (h << 6) + (h >> 2);
+        h ^= std::hash<std::uint8_t>{}(key.blendMode) + 0x9e3779b9u + (h << 6) + (h >> 2);
+        std::uint32_t alphaBits = 0u;
+        static_assert(sizeof(alphaBits) == sizeof(key.alphaCutoff));
+        std::memcpy(&alphaBits, &key.alphaCutoff, sizeof(alphaBits));
+        h ^= std::hash<std::uint32_t>{}(alphaBits) + 0x9e3779b9u + (h << 6) + (h >> 2);
+        return h;
+    }
+};
+
+bool hasLocalMaterialPayload(const WorldIndexedBatch& batch) {
+    return !batch.textureKey.empty() ||
+           !batch.textureCacheKey.empty() ||
+           !batch.ownedTextureRgba.empty() ||
+           batch.textureRgba != nullptr ||
+           batch.textureWidth > 0 ||
+           batch.textureHeight > 0 ||
+           !batch.normalTextureKey.empty() ||
+           !batch.normalTextureCacheKey.empty() ||
+           !batch.ownedNormalTextureRgba.empty() ||
+           batch.normalTextureRgba != nullptr ||
+           batch.normalTextureWidth > 0 ||
+           batch.normalTextureHeight > 0 ||
+           !batch.metallicRoughnessTextureKey.empty() ||
+           !batch.metallicRoughnessTextureCacheKey.empty() ||
+           !batch.ownedMetallicRoughnessTextureRgba.empty() ||
+           batch.metallicRoughnessTextureRgba != nullptr ||
+           batch.metallicRoughnessTextureWidth > 0 ||
+           batch.metallicRoughnessTextureHeight > 0 ||
+           !batch.occlusionTextureKey.empty() ||
+           !batch.occlusionTextureCacheKey.empty() ||
+           !batch.ownedOcclusionTextureRgba.empty() ||
+           batch.occlusionTextureRgba != nullptr ||
+           batch.occlusionTextureWidth > 0 ||
+           batch.occlusionTextureHeight > 0 ||
+           !batch.emissiveTextureKey.empty() ||
+           !batch.emissiveTextureCacheKey.empty() ||
+           !batch.ownedEmissiveTextureRgba.empty() ||
+           batch.emissiveTextureRgba != nullptr ||
+           batch.emissiveTextureWidth > 0 ||
+           batch.emissiveTextureHeight > 0;
+}
+
+bool canAutoInstance(const IRenderBackend& renderer, const WorldIndexedBatch& batch) {
+    if (!renderer.supportsWorldIndexedMeshInstancing()) return false;
+    if (!batch.instances.empty()) return false;
+    if (batch.sharedTemplate == nullptr) return false;
+    if (batch.geometryCacheKey.empty()) return false;
+    if (batch.gpuSkinning != 0u) return false;
+    if (batch.skinMatrixCount != 0u || batch.sharedSkinMatrices != nullptr || !batch.skinMatrices.empty()) {
+        return false;
+    }
+    if (hasLocalMaterialPayload(batch)) return false;
+    return batch.hasGeometry();
+}
+
+IRenderBackend::WorldMeshInstance makeWorldMeshInstance(const WorldIndexedBatch& batch) {
+    IRenderBackend::WorldMeshInstance instance{};
+    instance.modelMatrix = batch.modelMatrix;
+    instance.vertexColorMulR = batch.vertexColorMulR;
+    instance.vertexColorMulG = batch.vertexColorMulG;
+    instance.vertexColorMulB = batch.vertexColorMulB;
+    instance.vertexColorMulA = batch.vertexColorMulA;
+    return instance;
+}
 
 const WorldIndexedBatch& materialTemplateOrSelf(const WorldIndexedBatch& batch) {
     return batch.sharedTemplate ? *batch.sharedTemplate : batch;
@@ -349,19 +441,58 @@ void submitWorldIndexedBatches(IRenderBackend& renderer,
 
     static thread_local std::vector<const WorldIndexedBatch*> opaqueBatches;
     static thread_local std::vector<const WorldIndexedBatch*> blendBatches;
+    static thread_local std::vector<WorldIndexedBatch> autoInstancedOpaqueBatches;
+    static thread_local std::unordered_map<AutoInstanceKey, std::size_t, AutoInstanceKeyHash>
+        autoInstanceBatchIndex;
     opaqueBatches.clear();
     blendBatches.clear();
+    autoInstancedOpaqueBatches.clear();
+    autoInstanceBatchIndex.clear();
     if (opaqueBatches.capacity() < batches.size()) {
         opaqueBatches.reserve(batches.size());
     }
     if (blendBatches.capacity() < batches.size()) {
         blendBatches.reserve(batches.size());
     }
+    if (autoInstancedOpaqueBatches.capacity() < batches.size()) {
+        autoInstancedOpaqueBatches.reserve(batches.size());
+    }
+    autoInstanceBatchIndex.reserve(batches.size());
 
     for (const WorldIndexedBatch& batch : batches) {
         if (!batch.hasGeometry()) continue;
         if (batch.alphaMode == 2u) {
             blendBatches.push_back(&batch);
+        } else if (canAutoInstance(renderer, batch)) {
+            AutoInstanceKey key{};
+            key.sharedTemplate = batch.sharedTemplate;
+            key.geometryCacheKey = batch.geometryCacheKey;
+            key.materialAlphaOverride = batch.materialAlphaOverride;
+            key.alphaMode = batch.alphaMode;
+            key.blendMode = batch.blendMode;
+            key.alphaCutoff = batch.alphaCutoff;
+            auto it = autoInstanceBatchIndex.find(key);
+            if (it == autoInstanceBatchIndex.end()) {
+                autoInstancedOpaqueBatches.push_back(batch);
+                WorldIndexedBatch& instancedBatch = autoInstancedOpaqueBatches.back();
+                instancedBatch.instances.clear();
+                instancedBatch.instances.push_back(makeWorldMeshInstance(batch));
+                instancedBatch.vertexColorMulR = 1.0f;
+                instancedBatch.vertexColorMulG = 1.0f;
+                instancedBatch.vertexColorMulB = 1.0f;
+                instancedBatch.vertexColorMulA = 1.0f;
+                instancedBatch.modelMatrix = {
+                    1.0f, 0.0f, 0.0f, 0.0f,
+                    0.0f, 1.0f, 0.0f, 0.0f,
+                    0.0f, 0.0f, 1.0f, 0.0f,
+                    0.0f, 0.0f, 0.0f, 1.0f};
+                const std::size_t index = autoInstancedOpaqueBatches.size() - 1u;
+                autoInstanceBatchIndex.emplace(key, index);
+                opaqueBatches.push_back(&autoInstancedOpaqueBatches.back());
+            } else {
+                autoInstancedOpaqueBatches[it->second].instances.push_back(
+                    makeWorldMeshInstance(batch));
+            }
         } else {
             opaqueBatches.push_back(&batch);
         }
