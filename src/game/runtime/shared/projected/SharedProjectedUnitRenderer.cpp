@@ -24,6 +24,8 @@
 #include <glm/gtc/type_ptr.hpp>
 
 namespace {
+constexpr float kSimulationFixedStepSec = 1.0f / 60.0f;
+
 std::string toLowerCopy(std::string s) {
     std::transform(s.begin(), s.end(), s.begin(), [](unsigned char c) {
         return static_cast<char>(std::tolower(c));
@@ -94,9 +96,10 @@ float backendScenePoseCacheHz() {
 
 float backendScenePoseCacheSparseHz() {
     static const float hz = []() -> float {
-        // Small battles spend proportionally more CPU per visible unit, so keep
-        // pose sampling cached at a higher cadence instead of evaluating every frame.
-        constexpr float kDefault = 120.0f;
+        // Align sparse-battle pose caching with the 60 Hz simulation step.
+        // Higher defaults fragment the cache into intermediate buckets the scene
+        // never requests because unit animTimeSec only advances on fixed ticks.
+        constexpr float kDefault = 60.0f;
         constexpr float kMin = 0.0f;
         constexpr float kMax = 240.0f;
         const auto env = engine::env::get("PAC_BACKEND_SCENE_POSE_CACHE_SPARSE_HZ");
@@ -244,12 +247,6 @@ CanonicalScenePoseSample nextCanonicalSceneAnimTimeForKey(
     int animIndex,
     const CanonicalScenePoseSample& current,
     float quantizeStepSec) {
-    if (!(quantizeStepSec > 0.0f)) {
-        return {};
-    }
-    if ((current.cacheKey & 0x80000000u) == 0u) {
-        return {};
-    }
     if (animIndex < 0 || static_cast<std::size_t>(animIndex) >= mesh.animations.size()) {
         return {};
     }
@@ -257,15 +254,15 @@ CanonicalScenePoseSample nextCanonicalSceneAnimTimeForKey(
     if (!(durationSec > 0.0f)) {
         return {};
     }
-    const std::uint32_t bucketIndex = current.cacheKey & 0x7fffffffu;
-    if (bucketIndex == 0u) {
-        return {};
-    }
-    const float nextAnimTimeSec = current.animTimeSec + quantizeStepSec;
+    const float prewarmStepSec =
+        (quantizeStepSec > 0.0f)
+            ? std::max(quantizeStepSec, kSimulationFixedStepSec)
+            : kSimulationFixedStepSec;
+    const float nextAnimTimeSec = current.animTimeSec + prewarmStepSec;
     if (!(nextAnimTimeSec > 0.0f) || !(nextAnimTimeSec < durationSec)) {
         return {};
     }
-    return {nextAnimTimeSec, (bucketIndex + 1u) | 0x80000000u};
+    return canonicalSceneAnimTimeForKey(mesh, animIndex, nextAnimTimeSec, quantizeStepSec);
 }
 
 std::uint32_t floatToBits(float value) {
@@ -480,7 +477,6 @@ for (const auto& unit : units) {
             animIndex,
             canonicalAnimSample.cacheKey};
         auto it = g_cachedScenePoseBySignature.find(key);
-        const bool scenePoseCacheHit = (it != g_cachedScenePoseBySignature.end());
         if (it == g_cachedScenePoseBySignature.end()) {
             CachedScenePoseEntry inserted;
             game::runtime::shared_backend_pose::evaluateScenePoseForResolvedClipTime(
@@ -494,14 +490,18 @@ for (const auto& unit : units) {
         } else {
             it->second.lastUsedFrame = poseCacheFrame;
         }
-        if (scenePoseCacheHit) {
+        scenePose = &it->second.pose;
+        scenePoseReady = true;
+
+        if (scenePose->hasClipPose) {
             const CanonicalScenePoseSample nextAnimSample =
                 nextCanonicalSceneAnimTimeForKey(
                     *meshForUnit,
                     animIndex,
                     canonicalAnimSample,
                     scenePoseCacheStepSec);
-            if (nextAnimSample.cacheKey != 0u) {
+            if (nextAnimSample.cacheKey != 0u &&
+                nextAnimSample.cacheKey != canonicalAnimSample.cacheKey) {
                 const CachedScenePoseKey nextKey{
                     meshForUnit,
                     animIndex,
@@ -520,9 +520,6 @@ for (const auto& unit : units) {
                 }
             }
         }
-        it = g_cachedScenePoseBySignature.find(key);
-        scenePose = &it->second.pose;
-        scenePoseReady = true;
     }
     const bool hasClipPoseDrivenModel = scenePoseReady && scenePose && scenePose->hasClipPose;
     runtime::render_prep_pose::ProceduralPose pose{};
