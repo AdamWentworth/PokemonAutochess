@@ -49,8 +49,6 @@ public:
     bool supportsWorldTriangles3D() const override { return true; }
     bool supportsWorldIndexedMeshes() const override { return true; }
     bool supportsWorldIndexedMeshInstancing() const override { return true; }
-    void beginWorldIndexedBatchSubmission() override;
-    void endWorldIndexedBatchSubmission() override;
     void recordWorldIndexedSubmissionStats(const WorldIndexedSubmissionStats& stats) override;
     void drawWorldTriangles(const WorldTriangle* triangles,
                             std::size_t triangleCount,
@@ -283,36 +281,6 @@ private:
     std::array<std::uint64_t, kFrameCount> frameFenceValues_{};
 
 #if defined(_WIN32)
-    struct WorldIndexedBatchSubmissionState {
-        bool active = false;
-        std::uint32_t depth = 0u;
-        bool viewportScissorBound = false;
-        int boundSurfaceWidth = 0;
-        int boundSurfaceHeight = 0;
-        bool srvHeapBound = false;
-        bool rootSignatureBound = false;
-        bool primitiveTopologyBound = false;
-        std::uint32_t currentPrimitiveTopology = 0u;
-        ID3D12PipelineState* currentPso = nullptr;
-        std::array<std::uint32_t, 6> currentDescriptorIndices{
-            0xffffffffu,
-            0xffffffffu,
-            0xffffffffu,
-            0xffffffffu,
-            0xffffffffu,
-            0xffffffffu};
-    };
-
-    void bindWorldIndexedCommonState(int surfaceWidth, int surfaceHeight);
-    void bindWorldIndexedDescriptorTables(std::uint32_t baseTextureDescriptorIndex,
-                                          std::uint32_t normalTextureDescriptorIndex,
-                                          std::uint32_t metallicRoughnessTextureDescriptorIndex,
-                                          std::uint32_t occlusionTextureDescriptorIndex,
-                                          std::uint32_t emissiveTextureDescriptorIndex,
-                                          std::uint32_t envTextureDescriptorIndex);
-    void bindWorldIndexedPipelineState(ID3D12PipelineState* pso);
-    void bindWorldIndexedPrimitiveTopology();
-
     void* hwnd_ = nullptr;
 
     Microsoft::WRL::ComPtr<IDXGIFactory4> factory_;
@@ -397,6 +365,5 @@ private:
     std::unordered_map<std::string, SpriteTexture> spriteTextures_;
     std::unordered_map<std::string, SpriteTexture> worldTextures_;
     std::unordered_map<std::string, CachedWorldMesh> cachedWorldMeshes_;
-    WorldIndexedBatchSubmissionState worldIndexedBatchSubmissionState_{};
 #endif
 };

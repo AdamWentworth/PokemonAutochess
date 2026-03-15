@@ -14,6 +14,51 @@ without the same context.
 
 ## Current Notes
 
+### 2026-03-14: D3D12 indexed binding-state reuse was a miss
+- Hypothesis:
+  - reuse D3D12 indexed-world root state across batched draws so cached opaque
+    scenes stop rebinding the same PSO and the same descriptor tables on every
+    indexed submission
+- Expected win:
+  - reduce `render_world_indexed_ms`
+  - reduce `render_submit_ms`
+  - possibly lower steady-state `render_build_ms`
+- What the workload showed:
+  - the change reduced the intended counters but did not improve the measured
+    hot buckets
+  - `D3D12` 1-unit indexed frames regressed:
+    - before: `render_world_indexed_ms ~0.08`,
+      `render_submit_ms ~0.08-0.10`,
+      `render_build_ms ~1.5-1.6`
+    - binding-reuse run: `render_world_indexed_ms ~0.10`,
+      `render_submit_ms ~0.12-0.15`,
+      `render_build_ms ~1.8-1.9`
+  - `D3D12` 3-unit indexed frames also regressed:
+    - before: `render_world_indexed_ms ~0.18-0.20`,
+      `render_submit_ms ~0.08-0.10`,
+      `render_build_ms ~2.1-2.3`
+    - binding-reuse run: `render_world_indexed_ms ~0.25-0.28`,
+      `render_submit_ms ~0.13-0.15`,
+      `render_build_ms ~2.5-3.1`
+  - the counters confirmed the optimization worked mechanically:
+    - `backend_d3d12_pso_sets` dropped from roughly `1 per indexed draw` to
+      about `1 per batch submission`
+    - `backend_d3d12_descriptor_table_sets` dropped from about `6 * indexed draws`
+      to a lower but still significant value
+  - the counters also showed why the win did not materialize:
+    - geometry switches still tracked almost `1 per draw`
+    - texture switches still tracked almost `1 per draw`
+    - reducing backend bind calls did not touch the larger indexed submit costs
+      in this workload
+- Decision:
+  - revert; do not keep D3D12 indexed bind-cache complexity without a real
+    indexed-path gain
+- Re-entry conditions:
+  - only revisit if a capture shows PSO or descriptor binding churn dominating
+    over geometry and texture churn
+  - prefer attacking fewer indexed draws, fewer geometry switches, and fewer
+    texture switches in the shared batch path first
+
 ### 2026-03-14: OpenGL indexed instance-buffer streaming was a miss
 - Hypothesis:
   - replace per-draw `glBufferData` churn on the shared indexed instance buffer
