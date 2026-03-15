@@ -9,6 +9,20 @@ namespace game::runtime::shared_world_batches {
 
 namespace {
 
+template <typename T>
+int compareOrdered(const T& lhs, const T& rhs) {
+    if (lhs < rhs) return -1;
+    if (rhs < lhs) return 1;
+    return 0;
+}
+
+int compareStringViews(std::string_view lhs, std::string_view rhs) {
+    const int cmp = lhs.compare(rhs);
+    if (cmp < 0) return -1;
+    if (cmp > 0) return 1;
+    return 0;
+}
+
 struct AutoInstanceKey {
     const WorldIndexedBatch* sharedTemplate = nullptr;
     std::string_view geometryCacheKey{};
@@ -100,6 +114,195 @@ IRenderBackend::WorldMeshInstance makeWorldMeshInstance(const WorldIndexedBatch&
 
 const WorldIndexedBatch& materialTemplateOrSelf(const WorldIndexedBatch& batch) {
     return batch.sharedTemplate ? *batch.sharedTemplate : batch;
+}
+
+std::string_view resolvedStringMember(const WorldIndexedBatch& batch,
+                                      const std::string WorldIndexedBatch::*member) {
+    if (!(batch.*member).empty()) return batch.*member;
+    if (batch.sharedTemplate && !((batch.sharedTemplate->*member).empty())) {
+        return batch.sharedTemplate->*member;
+    }
+    return {};
+}
+
+bool resolvedTexturePresent(const WorldIndexedBatch& batch,
+                            const unsigned char* WorldIndexedBatch::*rgbaMember,
+                            const std::vector<unsigned char> WorldIndexedBatch::*ownedMember,
+                            int WorldIndexedBatch::*widthMember,
+                            int WorldIndexedBatch::*heightMember) {
+    const auto hasLocal = [&]() {
+        return (batch.*rgbaMember) != nullptr ||
+               !(batch.*ownedMember).empty() ||
+               (batch.*widthMember) > 0 ||
+               (batch.*heightMember) > 0;
+    };
+    if (hasLocal()) {
+        return ((batch.*rgbaMember) != nullptr || !(batch.*ownedMember).empty()) &&
+               (batch.*widthMember) > 0 &&
+               (batch.*heightMember) > 0;
+    }
+    if (!batch.sharedTemplate) return false;
+    const WorldIndexedBatch& templ = *batch.sharedTemplate;
+    return ((templ.*rgbaMember) != nullptr || !(templ.*ownedMember).empty()) &&
+           (templ.*widthMember) > 0 &&
+           (templ.*heightMember) > 0;
+}
+
+bool opaqueBatchLess(const WorldIndexedBatch& lhs, const WorldIndexedBatch& rhs) {
+    const WorldIndexedBatch& lhsMaterial = materialTemplateOrSelf(lhs);
+    const WorldIndexedBatch& rhsMaterial = materialTemplateOrSelf(rhs);
+
+    int cmp = compareOrdered(lhs.alphaMode, rhs.alphaMode);
+    if (cmp != 0) return cmp < 0;
+    cmp = compareOrdered(lhs.blendMode, rhs.blendMode);
+    if (cmp != 0) return cmp < 0;
+    cmp = compareOrdered(lhsMaterial.materialMode, rhsMaterial.materialMode);
+    if (cmp != 0) return cmp < 0;
+    cmp = compareOrdered(lhsMaterial.characterInkingEnabled, rhsMaterial.characterInkingEnabled);
+    if (cmp != 0) return cmp < 0;
+
+    const bool lhsInstanced = !lhs.instances.empty();
+    const bool rhsInstanced = !rhs.instances.empty();
+    cmp = compareOrdered(lhsInstanced, rhsInstanced);
+    if (cmp != 0) return cmp < 0;
+
+    const bool lhsCachedGeometry = !lhs.geometryCacheKey.empty();
+    const bool rhsCachedGeometry = !rhs.geometryCacheKey.empty();
+    cmp = compareOrdered(!lhsCachedGeometry, !rhsCachedGeometry);
+    if (cmp != 0) return cmp < 0;
+
+    cmp = compareOrdered(lhs.gpuSkinning, rhs.gpuSkinning);
+    if (cmp != 0) return cmp < 0;
+    cmp = compareOrdered(lhs.skinMatrixCount, rhs.skinMatrixCount);
+    if (cmp != 0) return cmp < 0;
+
+    const bool lhsHasBaseTexture = resolvedTexturePresent(
+        lhs,
+        &WorldIndexedBatch::textureRgba,
+        &WorldIndexedBatch::ownedTextureRgba,
+        &WorldIndexedBatch::textureWidth,
+        &WorldIndexedBatch::textureHeight);
+    const bool rhsHasBaseTexture = resolvedTexturePresent(
+        rhs,
+        &WorldIndexedBatch::textureRgba,
+        &WorldIndexedBatch::ownedTextureRgba,
+        &WorldIndexedBatch::textureWidth,
+        &WorldIndexedBatch::textureHeight);
+    cmp = compareOrdered(!lhsHasBaseTexture, !rhsHasBaseTexture);
+    if (cmp != 0) return cmp < 0;
+
+    const bool lhsHasNormalTexture = resolvedTexturePresent(
+        lhs,
+        &WorldIndexedBatch::normalTextureRgba,
+        &WorldIndexedBatch::ownedNormalTextureRgba,
+        &WorldIndexedBatch::normalTextureWidth,
+        &WorldIndexedBatch::normalTextureHeight);
+    const bool rhsHasNormalTexture = resolvedTexturePresent(
+        rhs,
+        &WorldIndexedBatch::normalTextureRgba,
+        &WorldIndexedBatch::ownedNormalTextureRgba,
+        &WorldIndexedBatch::normalTextureWidth,
+        &WorldIndexedBatch::normalTextureHeight);
+    cmp = compareOrdered(!lhsHasNormalTexture, !rhsHasNormalTexture);
+    if (cmp != 0) return cmp < 0;
+
+    const bool lhsHasMetallicRoughnessTexture = resolvedTexturePresent(
+        lhs,
+        &WorldIndexedBatch::metallicRoughnessTextureRgba,
+        &WorldIndexedBatch::ownedMetallicRoughnessTextureRgba,
+        &WorldIndexedBatch::metallicRoughnessTextureWidth,
+        &WorldIndexedBatch::metallicRoughnessTextureHeight);
+    const bool rhsHasMetallicRoughnessTexture = resolvedTexturePresent(
+        rhs,
+        &WorldIndexedBatch::metallicRoughnessTextureRgba,
+        &WorldIndexedBatch::ownedMetallicRoughnessTextureRgba,
+        &WorldIndexedBatch::metallicRoughnessTextureWidth,
+        &WorldIndexedBatch::metallicRoughnessTextureHeight);
+    cmp = compareOrdered(!lhsHasMetallicRoughnessTexture, !rhsHasMetallicRoughnessTexture);
+    if (cmp != 0) return cmp < 0;
+
+    const bool lhsHasOcclusionTexture = resolvedTexturePresent(
+        lhs,
+        &WorldIndexedBatch::occlusionTextureRgba,
+        &WorldIndexedBatch::ownedOcclusionTextureRgba,
+        &WorldIndexedBatch::occlusionTextureWidth,
+        &WorldIndexedBatch::occlusionTextureHeight);
+    const bool rhsHasOcclusionTexture = resolvedTexturePresent(
+        rhs,
+        &WorldIndexedBatch::occlusionTextureRgba,
+        &WorldIndexedBatch::ownedOcclusionTextureRgba,
+        &WorldIndexedBatch::occlusionTextureWidth,
+        &WorldIndexedBatch::occlusionTextureHeight);
+    cmp = compareOrdered(!lhsHasOcclusionTexture, !rhsHasOcclusionTexture);
+    if (cmp != 0) return cmp < 0;
+
+    const bool lhsHasEmissiveTexture = resolvedTexturePresent(
+        lhs,
+        &WorldIndexedBatch::emissiveTextureRgba,
+        &WorldIndexedBatch::ownedEmissiveTextureRgba,
+        &WorldIndexedBatch::emissiveTextureWidth,
+        &WorldIndexedBatch::emissiveTextureHeight);
+    const bool rhsHasEmissiveTexture = resolvedTexturePresent(
+        rhs,
+        &WorldIndexedBatch::emissiveTextureRgba,
+        &WorldIndexedBatch::ownedEmissiveTextureRgba,
+        &WorldIndexedBatch::emissiveTextureWidth,
+        &WorldIndexedBatch::emissiveTextureHeight);
+    cmp = compareOrdered(!lhsHasEmissiveTexture, !rhsHasEmissiveTexture);
+    if (cmp != 0) return cmp < 0;
+
+    const auto compareResolvedStringMember = [&](const std::string WorldIndexedBatch::*member) {
+        return compareStringViews(
+            resolvedStringMember(lhsMaterial, member),
+            resolvedStringMember(rhsMaterial, member));
+    };
+    cmp = compareResolvedStringMember(&WorldIndexedBatch::textureCacheKey);
+    if (cmp != 0) return cmp < 0;
+    cmp = compareResolvedStringMember(&WorldIndexedBatch::textureKey);
+    if (cmp != 0) return cmp < 0;
+    cmp = compareResolvedStringMember(&WorldIndexedBatch::normalTextureCacheKey);
+    if (cmp != 0) return cmp < 0;
+    cmp = compareResolvedStringMember(&WorldIndexedBatch::normalTextureKey);
+    if (cmp != 0) return cmp < 0;
+    cmp = compareResolvedStringMember(&WorldIndexedBatch::metallicRoughnessTextureCacheKey);
+    if (cmp != 0) return cmp < 0;
+    cmp = compareResolvedStringMember(&WorldIndexedBatch::metallicRoughnessTextureKey);
+    if (cmp != 0) return cmp < 0;
+    cmp = compareResolvedStringMember(&WorldIndexedBatch::occlusionTextureCacheKey);
+    if (cmp != 0) return cmp < 0;
+    cmp = compareResolvedStringMember(&WorldIndexedBatch::occlusionTextureKey);
+    if (cmp != 0) return cmp < 0;
+    cmp = compareResolvedStringMember(&WorldIndexedBatch::emissiveTextureCacheKey);
+    if (cmp != 0) return cmp < 0;
+    cmp = compareResolvedStringMember(&WorldIndexedBatch::emissiveTextureKey);
+    if (cmp != 0) return cmp < 0;
+
+    cmp = compareOrdered(lhs.alphaCutoff, rhs.alphaCutoff);
+    if (cmp != 0) return cmp < 0;
+    cmp = compareOrdered(lhsMaterial.normalScale, rhsMaterial.normalScale);
+    if (cmp != 0) return cmp < 0;
+    cmp = compareOrdered(lhsMaterial.metallicFactor, rhsMaterial.metallicFactor);
+    if (cmp != 0) return cmp < 0;
+    cmp = compareOrdered(lhsMaterial.roughnessFactor, rhsMaterial.roughnessFactor);
+    if (cmp != 0) return cmp < 0;
+    cmp = compareOrdered(lhsMaterial.occlusionStrength, rhsMaterial.occlusionStrength);
+    if (cmp != 0) return cmp < 0;
+    cmp = compareOrdered(lhsMaterial.emissiveFactorR, rhsMaterial.emissiveFactorR);
+    if (cmp != 0) return cmp < 0;
+    cmp = compareOrdered(lhsMaterial.emissiveFactorG, rhsMaterial.emissiveFactorG);
+    if (cmp != 0) return cmp < 0;
+    cmp = compareOrdered(lhsMaterial.emissiveFactorB, rhsMaterial.emissiveFactorB);
+    if (cmp != 0) return cmp < 0;
+    cmp = compareOrdered(lhsMaterial.materialFlags, rhsMaterial.materialFlags);
+    if (cmp != 0) return cmp < 0;
+
+    cmp = compareStringViews(lhs.geometryCacheKey, rhs.geometryCacheKey);
+    if (cmp != 0) return cmp < 0;
+
+    cmp = compareOrdered(lhs.sortDepth, rhs.sortDepth);
+    if (cmp != 0) return cmp < 0;
+
+    return std::less<const WorldIndexedBatch*>{}(&lhs, &rhs);
 }
 
 IRenderBackend::WorldTextureData toWorldTextureData(const WorldIndexedBatch& batch,
@@ -498,6 +701,16 @@ void submitWorldIndexedBatches(IRenderBackend& renderer,
         } else {
             opaqueBatches.push_back(&batch);
         }
+    }
+
+    if (opaqueBatches.size() > 1u) {
+        std::stable_sort(
+            opaqueBatches.begin(),
+            opaqueBatches.end(),
+            [](const WorldIndexedBatch* lhs, const WorldIndexedBatch* rhs) {
+                if (lhs == nullptr || rhs == nullptr) return lhs < rhs;
+                return opaqueBatchLess(*lhs, *rhs);
+            });
     }
 
     for (const WorldIndexedBatch* batch : opaqueBatches) {
