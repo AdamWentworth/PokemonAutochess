@@ -148,161 +148,283 @@ bool resolvedTexturePresent(const WorldIndexedBatch& batch,
            (templ.*heightMember) > 0;
 }
 
-bool opaqueBatchLess(const WorldIndexedBatch& lhs, const WorldIndexedBatch& rhs) {
-    const WorldIndexedBatch& lhsMaterial = materialTemplateOrSelf(lhs);
-    const WorldIndexedBatch& rhsMaterial = materialTemplateOrSelf(rhs);
+std::uint8_t effectiveAlphaMode(const WorldIndexedBatch& batch) {
+    const WorldIndexedBatch& materialBatch = materialTemplateOrSelf(batch);
+    return batch.materialAlphaOverride ? batch.alphaMode : materialBatch.alphaMode;
+}
 
-    int cmp = compareOrdered(lhs.alphaMode, rhs.alphaMode);
-    if (cmp != 0) return cmp < 0;
-    cmp = compareOrdered(lhs.blendMode, rhs.blendMode);
-    if (cmp != 0) return cmp < 0;
-    cmp = compareOrdered(lhsMaterial.materialMode, rhsMaterial.materialMode);
-    if (cmp != 0) return cmp < 0;
-    cmp = compareOrdered(lhsMaterial.characterInkingEnabled, rhsMaterial.characterInkingEnabled);
-    if (cmp != 0) return cmp < 0;
+std::uint8_t effectiveBlendMode(const WorldIndexedBatch& batch) {
+    const WorldIndexedBatch& materialBatch = materialTemplateOrSelf(batch);
+    return batch.materialAlphaOverride ? batch.blendMode : materialBatch.blendMode;
+}
 
-    const bool lhsInstanced = !lhs.instances.empty();
-    const bool rhsInstanced = !rhs.instances.empty();
-    cmp = compareOrdered(lhsInstanced, rhsInstanced);
-    if (cmp != 0) return cmp < 0;
+float effectiveAlphaCutoff(const WorldIndexedBatch& batch) {
+    const WorldIndexedBatch& materialBatch = materialTemplateOrSelf(batch);
+    return batch.materialAlphaOverride ? batch.alphaCutoff : materialBatch.alphaCutoff;
+}
 
-    const bool lhsCachedGeometry = !lhs.geometryCacheKey.empty();
-    const bool rhsCachedGeometry = !rhs.geometryCacheKey.empty();
-    cmp = compareOrdered(!lhsCachedGeometry, !rhsCachedGeometry);
-    if (cmp != 0) return cmp < 0;
+struct SubmissionMaterialStateKey {
+    std::uint8_t alphaMode = 0u;
+    std::uint8_t blendMode = 0u;
+    std::uint8_t materialMode = 0u;
+    std::uint8_t characterInkingEnabled = 0u;
+    bool instanced = false;
+    std::uint8_t gpuSkinning = 0u;
+    std::uint32_t skinMatrixCount = 0u;
+    float alphaCutoff = 0.0f;
+    float normalScale = 1.0f;
+    float metallicFactor = 1.0f;
+    float roughnessFactor = 1.0f;
+    float occlusionStrength = 1.0f;
+    float emissiveFactorR = 0.0f;
+    float emissiveFactorG = 0.0f;
+    float emissiveFactorB = 0.0f;
+    float materialFlags = 0.0f;
+    bool outlineEligible = false;
+};
 
-    cmp = compareOrdered(lhs.gpuSkinning, rhs.gpuSkinning);
-    if (cmp != 0) return cmp < 0;
-    cmp = compareOrdered(lhs.skinMatrixCount, rhs.skinMatrixCount);
-    if (cmp != 0) return cmp < 0;
+struct SubmissionTextureStateKey {
+    bool hasBaseTexture = false;
+    bool hasNormalTexture = false;
+    bool hasMetallicRoughnessTexture = false;
+    bool hasOcclusionTexture = false;
+    bool hasEmissiveTexture = false;
+    std::string_view textureCacheKey{};
+    std::string_view textureKey{};
+    std::string_view normalTextureCacheKey{};
+    std::string_view normalTextureKey{};
+    std::string_view metallicRoughnessTextureCacheKey{};
+    std::string_view metallicRoughnessTextureKey{};
+    std::string_view occlusionTextureCacheKey{};
+    std::string_view occlusionTextureKey{};
+    std::string_view emissiveTextureCacheKey{};
+    std::string_view emissiveTextureKey{};
+};
 
-    const bool lhsHasBaseTexture = resolvedTexturePresent(
-        lhs,
+struct SubmissionGeometryStateKey {
+    bool cachedGeometry = false;
+    std::string_view geometryCacheKey{};
+};
+
+struct SubmissionSortKey {
+    SubmissionMaterialStateKey material{};
+    SubmissionTextureStateKey textures{};
+    SubmissionGeometryStateKey geometry{};
+    float sortDepth = 0.0f;
+};
+
+struct OpaqueBatchEntry {
+    const WorldIndexedBatch* batch = nullptr;
+    SubmissionSortKey key{};
+};
+
+SubmissionSortKey makeSubmissionSortKey(const WorldIndexedBatch& batch) {
+    const WorldIndexedBatch& materialBatch = materialTemplateOrSelf(batch);
+    SubmissionSortKey key{};
+    key.material.alphaMode = effectiveAlphaMode(batch);
+    key.material.blendMode = effectiveBlendMode(batch);
+    key.material.materialMode = materialBatch.materialMode;
+    key.material.characterInkingEnabled = materialBatch.characterInkingEnabled;
+    key.material.instanced = !batch.instances.empty();
+    key.material.gpuSkinning = batch.gpuSkinning;
+    key.material.skinMatrixCount = batch.skinMatrixCount;
+    key.material.alphaCutoff = effectiveAlphaCutoff(batch);
+    key.material.normalScale = materialBatch.normalScale;
+    key.material.metallicFactor = materialBatch.metallicFactor;
+    key.material.roughnessFactor = materialBatch.roughnessFactor;
+    key.material.occlusionStrength = materialBatch.occlusionStrength;
+    key.material.emissiveFactorR = materialBatch.emissiveFactorR;
+    key.material.emissiveFactorG = materialBatch.emissiveFactorG;
+    key.material.emissiveFactorB = materialBatch.emissiveFactorB;
+    key.material.materialFlags = materialBatch.materialFlags;
+    key.material.outlineEligible =
+        materialBatch.characterInkingEnabled != 0u && materialBatch.materialMode >= 2u;
+
+    key.textures.hasBaseTexture = resolvedTexturePresent(
+        batch,
         &WorldIndexedBatch::textureRgba,
         &WorldIndexedBatch::ownedTextureRgba,
         &WorldIndexedBatch::textureWidth,
         &WorldIndexedBatch::textureHeight);
-    const bool rhsHasBaseTexture = resolvedTexturePresent(
-        rhs,
-        &WorldIndexedBatch::textureRgba,
-        &WorldIndexedBatch::ownedTextureRgba,
-        &WorldIndexedBatch::textureWidth,
-        &WorldIndexedBatch::textureHeight);
-    cmp = compareOrdered(!lhsHasBaseTexture, !rhsHasBaseTexture);
-    if (cmp != 0) return cmp < 0;
-
-    const bool lhsHasNormalTexture = resolvedTexturePresent(
-        lhs,
+    key.textures.hasNormalTexture = resolvedTexturePresent(
+        batch,
         &WorldIndexedBatch::normalTextureRgba,
         &WorldIndexedBatch::ownedNormalTextureRgba,
         &WorldIndexedBatch::normalTextureWidth,
         &WorldIndexedBatch::normalTextureHeight);
-    const bool rhsHasNormalTexture = resolvedTexturePresent(
-        rhs,
-        &WorldIndexedBatch::normalTextureRgba,
-        &WorldIndexedBatch::ownedNormalTextureRgba,
-        &WorldIndexedBatch::normalTextureWidth,
-        &WorldIndexedBatch::normalTextureHeight);
-    cmp = compareOrdered(!lhsHasNormalTexture, !rhsHasNormalTexture);
-    if (cmp != 0) return cmp < 0;
-
-    const bool lhsHasMetallicRoughnessTexture = resolvedTexturePresent(
-        lhs,
+    key.textures.hasMetallicRoughnessTexture = resolvedTexturePresent(
+        batch,
         &WorldIndexedBatch::metallicRoughnessTextureRgba,
         &WorldIndexedBatch::ownedMetallicRoughnessTextureRgba,
         &WorldIndexedBatch::metallicRoughnessTextureWidth,
         &WorldIndexedBatch::metallicRoughnessTextureHeight);
-    const bool rhsHasMetallicRoughnessTexture = resolvedTexturePresent(
-        rhs,
-        &WorldIndexedBatch::metallicRoughnessTextureRgba,
-        &WorldIndexedBatch::ownedMetallicRoughnessTextureRgba,
-        &WorldIndexedBatch::metallicRoughnessTextureWidth,
-        &WorldIndexedBatch::metallicRoughnessTextureHeight);
-    cmp = compareOrdered(!lhsHasMetallicRoughnessTexture, !rhsHasMetallicRoughnessTexture);
-    if (cmp != 0) return cmp < 0;
-
-    const bool lhsHasOcclusionTexture = resolvedTexturePresent(
-        lhs,
+    key.textures.hasOcclusionTexture = resolvedTexturePresent(
+        batch,
         &WorldIndexedBatch::occlusionTextureRgba,
         &WorldIndexedBatch::ownedOcclusionTextureRgba,
         &WorldIndexedBatch::occlusionTextureWidth,
         &WorldIndexedBatch::occlusionTextureHeight);
-    const bool rhsHasOcclusionTexture = resolvedTexturePresent(
-        rhs,
-        &WorldIndexedBatch::occlusionTextureRgba,
-        &WorldIndexedBatch::ownedOcclusionTextureRgba,
-        &WorldIndexedBatch::occlusionTextureWidth,
-        &WorldIndexedBatch::occlusionTextureHeight);
-    cmp = compareOrdered(!lhsHasOcclusionTexture, !rhsHasOcclusionTexture);
-    if (cmp != 0) return cmp < 0;
-
-    const bool lhsHasEmissiveTexture = resolvedTexturePresent(
-        lhs,
+    key.textures.hasEmissiveTexture = resolvedTexturePresent(
+        batch,
         &WorldIndexedBatch::emissiveTextureRgba,
         &WorldIndexedBatch::ownedEmissiveTextureRgba,
         &WorldIndexedBatch::emissiveTextureWidth,
         &WorldIndexedBatch::emissiveTextureHeight);
-    const bool rhsHasEmissiveTexture = resolvedTexturePresent(
-        rhs,
-        &WorldIndexedBatch::emissiveTextureRgba,
-        &WorldIndexedBatch::ownedEmissiveTextureRgba,
-        &WorldIndexedBatch::emissiveTextureWidth,
-        &WorldIndexedBatch::emissiveTextureHeight);
-    cmp = compareOrdered(!lhsHasEmissiveTexture, !rhsHasEmissiveTexture);
-    if (cmp != 0) return cmp < 0;
+    key.textures.textureCacheKey =
+        resolvedStringMember(batch, &WorldIndexedBatch::textureCacheKey);
+    key.textures.textureKey = resolvedStringMember(batch, &WorldIndexedBatch::textureKey);
+    key.textures.normalTextureCacheKey =
+        resolvedStringMember(batch, &WorldIndexedBatch::normalTextureCacheKey);
+    key.textures.normalTextureKey =
+        resolvedStringMember(batch, &WorldIndexedBatch::normalTextureKey);
+    key.textures.metallicRoughnessTextureCacheKey =
+        resolvedStringMember(batch, &WorldIndexedBatch::metallicRoughnessTextureCacheKey);
+    key.textures.metallicRoughnessTextureKey =
+        resolvedStringMember(batch, &WorldIndexedBatch::metallicRoughnessTextureKey);
+    key.textures.occlusionTextureCacheKey =
+        resolvedStringMember(batch, &WorldIndexedBatch::occlusionTextureCacheKey);
+    key.textures.occlusionTextureKey =
+        resolvedStringMember(batch, &WorldIndexedBatch::occlusionTextureKey);
+    key.textures.emissiveTextureCacheKey =
+        resolvedStringMember(batch, &WorldIndexedBatch::emissiveTextureCacheKey);
+    key.textures.emissiveTextureKey =
+        resolvedStringMember(batch, &WorldIndexedBatch::emissiveTextureKey);
 
-    const auto compareResolvedStringMember = [&](const std::string WorldIndexedBatch::*member) {
-        return compareStringViews(
-            resolvedStringMember(lhsMaterial, member),
-            resolvedStringMember(rhsMaterial, member));
-    };
-    cmp = compareResolvedStringMember(&WorldIndexedBatch::textureCacheKey);
-    if (cmp != 0) return cmp < 0;
-    cmp = compareResolvedStringMember(&WorldIndexedBatch::textureKey);
-    if (cmp != 0) return cmp < 0;
-    cmp = compareResolvedStringMember(&WorldIndexedBatch::normalTextureCacheKey);
-    if (cmp != 0) return cmp < 0;
-    cmp = compareResolvedStringMember(&WorldIndexedBatch::normalTextureKey);
-    if (cmp != 0) return cmp < 0;
-    cmp = compareResolvedStringMember(&WorldIndexedBatch::metallicRoughnessTextureCacheKey);
-    if (cmp != 0) return cmp < 0;
-    cmp = compareResolvedStringMember(&WorldIndexedBatch::metallicRoughnessTextureKey);
-    if (cmp != 0) return cmp < 0;
-    cmp = compareResolvedStringMember(&WorldIndexedBatch::occlusionTextureCacheKey);
-    if (cmp != 0) return cmp < 0;
-    cmp = compareResolvedStringMember(&WorldIndexedBatch::occlusionTextureKey);
-    if (cmp != 0) return cmp < 0;
-    cmp = compareResolvedStringMember(&WorldIndexedBatch::emissiveTextureCacheKey);
-    if (cmp != 0) return cmp < 0;
-    cmp = compareResolvedStringMember(&WorldIndexedBatch::emissiveTextureKey);
-    if (cmp != 0) return cmp < 0;
+    key.geometry.cachedGeometry = !batch.geometryCacheKey.empty();
+    key.geometry.geometryCacheKey = batch.geometryCacheKey;
+    key.sortDepth = batch.sortDepth;
+    return key;
+}
 
-    cmp = compareOrdered(lhs.alphaCutoff, rhs.alphaCutoff);
+bool submissionSortKeyLess(const SubmissionSortKey& lhs, const SubmissionSortKey& rhs) {
+    int cmp = compareOrdered(lhs.material.alphaMode, rhs.material.alphaMode);
     if (cmp != 0) return cmp < 0;
-    cmp = compareOrdered(lhsMaterial.normalScale, rhsMaterial.normalScale);
+    cmp = compareOrdered(lhs.material.blendMode, rhs.material.blendMode);
     if (cmp != 0) return cmp < 0;
-    cmp = compareOrdered(lhsMaterial.metallicFactor, rhsMaterial.metallicFactor);
+    cmp = compareOrdered(lhs.material.materialMode, rhs.material.materialMode);
     if (cmp != 0) return cmp < 0;
-    cmp = compareOrdered(lhsMaterial.roughnessFactor, rhsMaterial.roughnessFactor);
+    cmp = compareOrdered(
+        lhs.material.characterInkingEnabled,
+        rhs.material.characterInkingEnabled);
     if (cmp != 0) return cmp < 0;
-    cmp = compareOrdered(lhsMaterial.occlusionStrength, rhsMaterial.occlusionStrength);
+    cmp = compareOrdered(lhs.material.instanced, rhs.material.instanced);
     if (cmp != 0) return cmp < 0;
-    cmp = compareOrdered(lhsMaterial.emissiveFactorR, rhsMaterial.emissiveFactorR);
+    cmp = compareOrdered(!lhs.geometry.cachedGeometry, !rhs.geometry.cachedGeometry);
     if (cmp != 0) return cmp < 0;
-    cmp = compareOrdered(lhsMaterial.emissiveFactorG, rhsMaterial.emissiveFactorG);
+    cmp = compareOrdered(lhs.material.gpuSkinning, rhs.material.gpuSkinning);
     if (cmp != 0) return cmp < 0;
-    cmp = compareOrdered(lhsMaterial.emissiveFactorB, rhsMaterial.emissiveFactorB);
+    cmp = compareOrdered(lhs.material.skinMatrixCount, rhs.material.skinMatrixCount);
     if (cmp != 0) return cmp < 0;
-    cmp = compareOrdered(lhsMaterial.materialFlags, rhsMaterial.materialFlags);
+    cmp = compareOrdered(!lhs.textures.hasBaseTexture, !rhs.textures.hasBaseTexture);
     if (cmp != 0) return cmp < 0;
-
-    cmp = compareStringViews(lhs.geometryCacheKey, rhs.geometryCacheKey);
+    cmp = compareOrdered(!lhs.textures.hasNormalTexture, !rhs.textures.hasNormalTexture);
     if (cmp != 0) return cmp < 0;
-
+    cmp = compareOrdered(
+        !lhs.textures.hasMetallicRoughnessTexture,
+        !rhs.textures.hasMetallicRoughnessTexture);
+    if (cmp != 0) return cmp < 0;
+    cmp = compareOrdered(!lhs.textures.hasOcclusionTexture, !rhs.textures.hasOcclusionTexture);
+    if (cmp != 0) return cmp < 0;
+    cmp = compareOrdered(!lhs.textures.hasEmissiveTexture, !rhs.textures.hasEmissiveTexture);
+    if (cmp != 0) return cmp < 0;
+    cmp = compareStringViews(lhs.textures.textureCacheKey, rhs.textures.textureCacheKey);
+    if (cmp != 0) return cmp < 0;
+    cmp = compareStringViews(lhs.textures.textureKey, rhs.textures.textureKey);
+    if (cmp != 0) return cmp < 0;
+    cmp = compareStringViews(
+        lhs.textures.normalTextureCacheKey,
+        rhs.textures.normalTextureCacheKey);
+    if (cmp != 0) return cmp < 0;
+    cmp = compareStringViews(lhs.textures.normalTextureKey, rhs.textures.normalTextureKey);
+    if (cmp != 0) return cmp < 0;
+    cmp = compareStringViews(
+        lhs.textures.metallicRoughnessTextureCacheKey,
+        rhs.textures.metallicRoughnessTextureCacheKey);
+    if (cmp != 0) return cmp < 0;
+    cmp = compareStringViews(
+        lhs.textures.metallicRoughnessTextureKey,
+        rhs.textures.metallicRoughnessTextureKey);
+    if (cmp != 0) return cmp < 0;
+    cmp = compareStringViews(
+        lhs.textures.occlusionTextureCacheKey,
+        rhs.textures.occlusionTextureCacheKey);
+    if (cmp != 0) return cmp < 0;
+    cmp = compareStringViews(lhs.textures.occlusionTextureKey, rhs.textures.occlusionTextureKey);
+    if (cmp != 0) return cmp < 0;
+    cmp = compareStringViews(
+        lhs.textures.emissiveTextureCacheKey,
+        rhs.textures.emissiveTextureCacheKey);
+    if (cmp != 0) return cmp < 0;
+    cmp = compareStringViews(lhs.textures.emissiveTextureKey, rhs.textures.emissiveTextureKey);
+    if (cmp != 0) return cmp < 0;
+    cmp = compareOrdered(lhs.material.alphaCutoff, rhs.material.alphaCutoff);
+    if (cmp != 0) return cmp < 0;
+    cmp = compareOrdered(lhs.material.normalScale, rhs.material.normalScale);
+    if (cmp != 0) return cmp < 0;
+    cmp = compareOrdered(lhs.material.metallicFactor, rhs.material.metallicFactor);
+    if (cmp != 0) return cmp < 0;
+    cmp = compareOrdered(lhs.material.roughnessFactor, rhs.material.roughnessFactor);
+    if (cmp != 0) return cmp < 0;
+    cmp = compareOrdered(lhs.material.occlusionStrength, rhs.material.occlusionStrength);
+    if (cmp != 0) return cmp < 0;
+    cmp = compareOrdered(lhs.material.emissiveFactorR, rhs.material.emissiveFactorR);
+    if (cmp != 0) return cmp < 0;
+    cmp = compareOrdered(lhs.material.emissiveFactorG, rhs.material.emissiveFactorG);
+    if (cmp != 0) return cmp < 0;
+    cmp = compareOrdered(lhs.material.emissiveFactorB, rhs.material.emissiveFactorB);
+    if (cmp != 0) return cmp < 0;
+    cmp = compareOrdered(lhs.material.materialFlags, rhs.material.materialFlags);
+    if (cmp != 0) return cmp < 0;
+    cmp = compareStringViews(lhs.geometry.geometryCacheKey, rhs.geometry.geometryCacheKey);
+    if (cmp != 0) return cmp < 0;
     cmp = compareOrdered(lhs.sortDepth, rhs.sortDepth);
     if (cmp != 0) return cmp < 0;
+    return false;
+}
 
-    return std::less<const WorldIndexedBatch*>{}(&lhs, &rhs);
+bool sameMaterialState(const SubmissionSortKey& lhs, const SubmissionSortKey& rhs) {
+    return lhs.material.alphaMode == rhs.material.alphaMode &&
+           lhs.material.blendMode == rhs.material.blendMode &&
+           lhs.material.materialMode == rhs.material.materialMode &&
+           lhs.material.characterInkingEnabled == rhs.material.characterInkingEnabled &&
+           lhs.material.instanced == rhs.material.instanced &&
+           lhs.material.gpuSkinning == rhs.material.gpuSkinning &&
+           lhs.material.skinMatrixCount == rhs.material.skinMatrixCount &&
+           lhs.material.alphaCutoff == rhs.material.alphaCutoff &&
+           lhs.material.normalScale == rhs.material.normalScale &&
+           lhs.material.metallicFactor == rhs.material.metallicFactor &&
+           lhs.material.roughnessFactor == rhs.material.roughnessFactor &&
+           lhs.material.occlusionStrength == rhs.material.occlusionStrength &&
+           lhs.material.emissiveFactorR == rhs.material.emissiveFactorR &&
+           lhs.material.emissiveFactorG == rhs.material.emissiveFactorG &&
+           lhs.material.emissiveFactorB == rhs.material.emissiveFactorB &&
+           lhs.material.materialFlags == rhs.material.materialFlags;
+}
+
+bool sameTextureState(const SubmissionSortKey& lhs, const SubmissionSortKey& rhs) {
+    return lhs.textures.hasBaseTexture == rhs.textures.hasBaseTexture &&
+           lhs.textures.hasNormalTexture == rhs.textures.hasNormalTexture &&
+           lhs.textures.hasMetallicRoughnessTexture == rhs.textures.hasMetallicRoughnessTexture &&
+           lhs.textures.hasOcclusionTexture == rhs.textures.hasOcclusionTexture &&
+           lhs.textures.hasEmissiveTexture == rhs.textures.hasEmissiveTexture &&
+           lhs.textures.textureCacheKey == rhs.textures.textureCacheKey &&
+           lhs.textures.textureKey == rhs.textures.textureKey &&
+           lhs.textures.normalTextureCacheKey == rhs.textures.normalTextureCacheKey &&
+           lhs.textures.normalTextureKey == rhs.textures.normalTextureKey &&
+           lhs.textures.metallicRoughnessTextureCacheKey ==
+               rhs.textures.metallicRoughnessTextureCacheKey &&
+           lhs.textures.metallicRoughnessTextureKey ==
+               rhs.textures.metallicRoughnessTextureKey &&
+           lhs.textures.occlusionTextureCacheKey == rhs.textures.occlusionTextureCacheKey &&
+           lhs.textures.occlusionTextureKey == rhs.textures.occlusionTextureKey &&
+           lhs.textures.emissiveTextureCacheKey == rhs.textures.emissiveTextureCacheKey &&
+           lhs.textures.emissiveTextureKey == rhs.textures.emissiveTextureKey;
+}
+
+bool sameGeometryState(const SubmissionSortKey& lhs, const SubmissionSortKey& rhs) {
+    return lhs.geometry.cachedGeometry &&
+           rhs.geometry.cachedGeometry &&
+           lhs.geometry.geometryCacheKey == rhs.geometry.geometryCacheKey;
 }
 
 IRenderBackend::WorldTextureData toWorldTextureData(const WorldIndexedBatch& batch,
@@ -580,17 +702,21 @@ const WorldIndexedBatch& resolvedMaterialBatch(const WorldIndexedBatch& batch) {
 }
 
 bool resolvedHasBaseTexture(const WorldIndexedBatch& batch) {
-    const WorldIndexedBatch& materialBatch = materialTemplateOrSelf(batch);
-    return materialBatch.textureRgba != nullptr &&
-           materialBatch.textureWidth > 0 &&
-           materialBatch.textureHeight > 0;
+    return resolvedTexturePresent(
+        batch,
+        &WorldIndexedBatch::textureRgba,
+        &WorldIndexedBatch::ownedTextureRgba,
+        &WorldIndexedBatch::textureWidth,
+        &WorldIndexedBatch::textureHeight);
 }
 
 bool resolvedHasNormalTexture(const WorldIndexedBatch& batch) {
-    const WorldIndexedBatch& materialBatch = materialTemplateOrSelf(batch);
-    return materialBatch.normalTextureRgba != nullptr &&
-           materialBatch.normalTextureWidth > 0 &&
-           materialBatch.normalTextureHeight > 0;
+    return resolvedTexturePresent(
+        batch,
+        &WorldIndexedBatch::normalTextureRgba,
+        &WorldIndexedBatch::ownedNormalTextureRgba,
+        &WorldIndexedBatch::normalTextureWidth,
+        &WorldIndexedBatch::normalTextureHeight);
 }
 
 std::size_t prewarmWorldIndexedBatches(IRenderBackend& renderer,
@@ -642,7 +768,7 @@ void submitWorldIndexedBatches(IRenderBackend& renderer,
                                const float* cameraTarget3) {
     if (batches.empty() || !viewProjectionMatrix4x4 || surfaceWidth <= 0 || surfaceHeight <= 0) return;
 
-    static thread_local std::vector<const WorldIndexedBatch*> opaqueBatches;
+    static thread_local std::vector<OpaqueBatchEntry> opaqueBatches;
     static thread_local std::vector<const WorldIndexedBatch*> blendBatches;
     static thread_local std::vector<WorldIndexedBatch> autoInstancedOpaqueBatches;
     static thread_local std::unordered_map<AutoInstanceKey, std::size_t, AutoInstanceKeyHash>
@@ -693,13 +819,15 @@ void submitWorldIndexedBatches(IRenderBackend& renderer,
                     0.0f, 0.0f, 0.0f, 1.0f};
                 const std::size_t index = autoInstancedOpaqueBatches.size() - 1u;
                 autoInstanceBatchIndex.emplace(key, index);
-                opaqueBatches.push_back(&autoInstancedOpaqueBatches.back());
+                opaqueBatches.push_back(
+                    OpaqueBatchEntry{&autoInstancedOpaqueBatches.back(),
+                                     makeSubmissionSortKey(autoInstancedOpaqueBatches.back())});
             } else {
                 autoInstancedOpaqueBatches[it->second].instances.push_back(
                     makeWorldMeshInstance(batch));
             }
         } else {
-            opaqueBatches.push_back(&batch);
+            opaqueBatches.push_back(OpaqueBatchEntry{&batch, makeSubmissionSortKey(batch)});
         }
     }
 
@@ -707,23 +835,12 @@ void submitWorldIndexedBatches(IRenderBackend& renderer,
         std::stable_sort(
             opaqueBatches.begin(),
             opaqueBatches.end(),
-            [](const WorldIndexedBatch* lhs, const WorldIndexedBatch* rhs) {
-                if (lhs == nullptr || rhs == nullptr) return lhs < rhs;
-                return opaqueBatchLess(*lhs, *rhs);
+            [](const OpaqueBatchEntry& lhs, const OpaqueBatchEntry& rhs) {
+                if (lhs.batch == nullptr || rhs.batch == nullptr) return lhs.batch < rhs.batch;
+                if (submissionSortKeyLess(lhs.key, rhs.key)) return true;
+                if (submissionSortKeyLess(rhs.key, lhs.key)) return false;
+                return lhs.batch < rhs.batch;
             });
-    }
-
-    for (const WorldIndexedBatch* batch : opaqueBatches) {
-        if (!batch) continue;
-        drawOneBatch(
-            renderer,
-            *batch,
-            viewProjectionMatrix4x4,
-            surfaceWidth,
-            surfaceHeight,
-            cameraWorldPos3,
-            cameraForward3,
-            cameraTarget3);
     }
 
     if (blendBatches.size() > 1u) {
@@ -734,19 +851,61 @@ void submitWorldIndexedBatches(IRenderBackend& renderer,
                 return lhs->sortDepth > rhs->sortDepth;
             });
     }
-    for (const WorldIndexedBatch* batch : blendBatches) {
-        if (!batch) continue;
+
+    IRenderBackend::WorldIndexedSubmissionStats submissionStats{};
+    bool havePreviousSubmissionKey = false;
+    SubmissionSortKey previousSubmissionKey{};
+    const auto recordAndDraw = [&](const WorldIndexedBatch& batch,
+                                   const SubmissionSortKey& key,
+                                   bool opaquePass) {
+        if (opaquePass) {
+            ++submissionStats.opaqueDraws;
+        } else {
+            ++submissionStats.blendDraws;
+        }
+        if (key.geometry.cachedGeometry) {
+            ++submissionStats.cachedDraws;
+        } else {
+            ++submissionStats.dynamicDraws;
+        }
+        if (key.material.instanced) {
+            ++submissionStats.instancedDraws;
+        }
+        if (key.material.outlineEligible) {
+            ++submissionStats.outlineBatches;
+        }
+        if (!havePreviousSubmissionKey || !sameGeometryState(previousSubmissionKey, key)) {
+            ++submissionStats.geometrySwitches;
+        }
+        if (!havePreviousSubmissionKey || !sameMaterialState(previousSubmissionKey, key)) {
+            ++submissionStats.materialSwitches;
+        }
+        if (!havePreviousSubmissionKey || !sameTextureState(previousSubmissionKey, key)) {
+            ++submissionStats.textureSwitches;
+        }
+        previousSubmissionKey = key;
+        havePreviousSubmissionKey = true;
         drawOneBatch(
             renderer,
-            *batch,
+            batch,
             viewProjectionMatrix4x4,
             surfaceWidth,
             surfaceHeight,
             cameraWorldPos3,
             cameraForward3,
             cameraTarget3);
+    };
+
+    for (const OpaqueBatchEntry& entry : opaqueBatches) {
+        if (!entry.batch) continue;
+        recordAndDraw(*entry.batch, entry.key, true);
+    }
+    for (const WorldIndexedBatch* batch : blendBatches) {
+        if (!batch) continue;
+        recordAndDraw(*batch, makeSubmissionSortKey(*batch), false);
     }
 
+    renderer.recordWorldIndexedSubmissionStats(submissionStats);
     renderer.endWorldIndexedBatchSubmission();
 }
 

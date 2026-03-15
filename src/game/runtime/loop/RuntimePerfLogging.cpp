@@ -91,6 +91,19 @@ std::string formatPerfJson(const EngineFramePerfStats& framePerf) {
         << ",\"gpu_frame_valid\":" << (framePerf.gpuFrameValid ? 1 : 0)
         << ",\"draw_calls\":" << framePerf.drawCalls
         << ",\"triangles\":" << framePerf.triangles
+        << ",\"backend_indexed_opaque_draws\":" << framePerf.indexedOpaqueDraws
+        << ",\"backend_indexed_blend_draws\":" << framePerf.indexedBlendDraws
+        << ",\"backend_indexed_cached_draws\":" << framePerf.indexedCachedDraws
+        << ",\"backend_indexed_dynamic_draws\":" << framePerf.indexedDynamicDraws
+        << ",\"backend_indexed_instanced_draws\":" << framePerf.indexedInstancedDraws
+        << ",\"backend_indexed_outline_batches\":" << framePerf.indexedOutlineBatches
+        << ",\"backend_indexed_geometry_switches\":" << framePerf.indexedGeometrySwitches
+        << ",\"backend_indexed_material_switches\":" << framePerf.indexedMaterialSwitches
+        << ",\"backend_indexed_texture_switches\":" << framePerf.indexedTextureSwitches
+        << ",\"backend_gl_texture_bind_calls\":" << framePerf.indexedGlTextureBindCalls
+        << ",\"backend_d3d12_pso_sets\":" << framePerf.indexedD3d12PsoSets
+        << ",\"backend_d3d12_descriptor_table_sets\":"
+        << framePerf.indexedD3d12DescriptorTableSets
         << ",\"visible_animated_units\":" << framePerf.visibleAnimatedUnits
         << ",\"particle_count\":" << framePerf.particleCount
         << ",\"projected_units_ms\":" << framePerf.projectedUnitsMs

@@ -18,6 +18,30 @@ public:
     struct BackendFrameStats {
         std::uint32_t drawCalls = 0u;
         std::uint64_t triangles = 0u;
+        std::uint32_t indexedOpaqueDraws = 0u;
+        std::uint32_t indexedBlendDraws = 0u;
+        std::uint32_t indexedCachedDraws = 0u;
+        std::uint32_t indexedDynamicDraws = 0u;
+        std::uint32_t indexedInstancedDraws = 0u;
+        std::uint32_t indexedOutlineBatches = 0u;
+        std::uint32_t indexedGeometrySwitches = 0u;
+        std::uint32_t indexedMaterialSwitches = 0u;
+        std::uint32_t indexedTextureSwitches = 0u;
+        std::uint32_t indexedGlTextureBindCalls = 0u;
+        std::uint32_t indexedD3d12PsoSets = 0u;
+        std::uint32_t indexedD3d12DescriptorTableSets = 0u;
+    };
+
+    struct WorldIndexedSubmissionStats {
+        std::uint32_t opaqueDraws = 0u;
+        std::uint32_t blendDraws = 0u;
+        std::uint32_t cachedDraws = 0u;
+        std::uint32_t dynamicDraws = 0u;
+        std::uint32_t instancedDraws = 0u;
+        std::uint32_t outlineBatches = 0u;
+        std::uint32_t geometrySwitches = 0u;
+        std::uint32_t materialSwitches = 0u;
+        std::uint32_t textureSwitches = 0u;
     };
 
     struct WorldMeshVertex {
@@ -272,6 +296,9 @@ public:
     virtual bool supportsWorldIndexedMeshInstancing() const { return false; }
     virtual void beginWorldIndexedBatchSubmission() {}
     virtual void endWorldIndexedBatchSubmission() {}
+    virtual void recordWorldIndexedSubmissionStats(const WorldIndexedSubmissionStats& stats) {
+        (void)stats;
+    }
     virtual void drawWorldTriangles(const WorldTriangle* triangles,
                                     std::size_t triangleCount,
                                     const float* viewProjectionMatrix4x4,

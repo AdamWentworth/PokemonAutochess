@@ -23,6 +23,9 @@ bool test_runtime_perf_accumulator_contract(std::string& outFail) {
     a.gpuFrameValid = true;
     a.drawCalls = 100;
     a.triangles = 2000;
+    a.indexedCachedDraws = 6;
+    a.indexedMaterialSwitches = 4;
+    a.indexedD3d12PsoSets = 9;
     a.visibleAnimatedUnits = 8;
     a.particleCount = 30;
     a.projectedUnitsMs = 2.0f;
@@ -58,6 +61,9 @@ bool test_runtime_perf_accumulator_contract(std::string& outFail) {
     b.gpuFrameValid = false;
     b.drawCalls = 300;
     b.triangles = 4000;
+    b.indexedCachedDraws = 10;
+    b.indexedMaterialSwitches = 6;
+    b.indexedD3d12PsoSets = 15;
     b.visibleAnimatedUnits = 12;
     b.particleCount = 50;
     b.projectedUnitsMs = 4.0f;
@@ -92,6 +98,9 @@ bool test_runtime_perf_accumulator_contract(std::string& outFail) {
         std::fabs(perf.gpuFrameMs - 7.0f) > 0.001f ||
         perf.drawCalls != 200 ||
         perf.triangles != 3000 ||
+        perf.indexedCachedDraws != 8 ||
+        perf.indexedMaterialSwitches != 5 ||
+        perf.indexedD3d12PsoSets != 12 ||
         perf.visibleAnimatedUnits != 10 ||
         perf.particleCount != 40 ||
         perf.projectedUnitsProcessed != 15 ||

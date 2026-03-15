@@ -29,6 +29,8 @@ struct RecordingBackend final : public IRenderBackend {
     };
 
     std::vector<DrawCall> calls;
+    WorldIndexedSubmissionStats submissionStats{};
+    bool sawSubmissionStats = false;
 
     const char* backendId() const override { return "test"; }
     void beginFrame(float, float, float, float) override {}
@@ -37,6 +39,18 @@ struct RecordingBackend final : public IRenderBackend {
     bool requiresOpenGLContext() const override { return false; }
     bool handlesPresentation() const override { return false; }
     void shutdown() override {}
+    void recordWorldIndexedSubmissionStats(const WorldIndexedSubmissionStats& stats) override {
+        submissionStats.opaqueDraws += stats.opaqueDraws;
+        submissionStats.blendDraws += stats.blendDraws;
+        submissionStats.cachedDraws += stats.cachedDraws;
+        submissionStats.dynamicDraws += stats.dynamicDraws;
+        submissionStats.instancedDraws += stats.instancedDraws;
+        submissionStats.outlineBatches += stats.outlineBatches;
+        submissionStats.geometrySwitches += stats.geometrySwitches;
+        submissionStats.materialSwitches += stats.materialSwitches;
+        submissionStats.textureSwitches += stats.textureSwitches;
+        sawSubmissionStats = true;
+    }
 
     void drawWorldIndexedMeshTextured(const WorldMeshVertex* vertices,
                                       std::size_t vertexCount,
@@ -167,7 +181,20 @@ bool test_shared_world_indexed_batches_contract(std::string& outFail) {
         return false;
     }
 
+    if (!expect(backend.sawSubmissionStats &&
+                    backend.submissionStats.opaqueDraws == 2u &&
+                    backend.submissionStats.blendDraws == 3u &&
+                    backend.submissionStats.dynamicDraws == 5u &&
+                    backend.submissionStats.cachedDraws == 0u &&
+                    backend.submissionStats.textureSwitches == 5u,
+                "submitWorldIndexedBatches should publish indexed submit-path counters for the emitted draw order.",
+                outFail)) {
+        return false;
+    }
+
     backend.calls.clear();
+    backend.submissionStats = {};
+    backend.sawSubmissionStats = false;
     WorldIndexedBatch instancedBatch = makeBatch("instanced_growl", 2u, 5.0f, false);
     instancedBatch.geometryCacheKey = "__growl_geom_line_v1__:test";
     instancedBatch.vertices.clear();
@@ -189,7 +216,17 @@ bool test_shared_world_indexed_batches_contract(std::string& outFail) {
         return false;
     }
 
+    if (!expect(backend.sawSubmissionStats &&
+                    backend.submissionStats.cachedDraws == 1u &&
+                    backend.submissionStats.instancedDraws == 1u,
+                "submitWorldIndexedBatches should mark cached instanced submissions in the shared indexed counters.",
+                outFail)) {
+        return false;
+    }
+
     backend.calls.clear();
+    backend.submissionStats = {};
+    backend.sawSubmissionStats = false;
     game::runtime::shared_world_batches::WorldIndexedBatch sharedTemplate = makeBatch(
         "auto_instanced_model",
         0u,

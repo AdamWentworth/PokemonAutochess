@@ -861,6 +861,7 @@ void OpenGLRenderBackend::drawWorldIndexedMeshTexturedInternal(unsigned int vao,
         if (!batchState ||
             batchState->currentTexture2DOnUnit[static_cast<std::size_t>(unit)] != static_cast<int>(textureId)) {
             glBindTexture(GL_TEXTURE_2D, textureId);
+            ++frameIndexedGlTextureBindCalls_;
             if (batchState) {
                 batchState->currentTexture2DOnUnit[static_cast<std::size_t>(unit)] =
                     static_cast<int>(textureId);

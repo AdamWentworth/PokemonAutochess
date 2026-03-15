@@ -900,6 +900,7 @@ void D3D12RenderBackend::drawWorldIndexedMeshInternal(const WorldMeshVertex* ver
     commandList_->SetGraphicsRootDescriptorTable(6, srvOcclusionHandle);
     commandList_->SetGraphicsRootDescriptorTable(7, srvEmissiveHandle);
     commandList_->SetGraphicsRootDescriptorTable(8, srvEnvHandle);
+    frameIndexedD3d12DescriptorTableSets_ += 6u;
     const bool blendMaterial = textureData && textureData->alphaMode == 2u;
     const std::uint8_t blendMode = textureData ? std::min<std::uint8_t>(2u, textureData->blendMode) : 0u;
     ID3D12PipelineState* pso = worldPipelineState_.Get();
@@ -913,6 +914,7 @@ void D3D12RenderBackend::drawWorldIndexedMeshInternal(const WorldMeshVertex* ver
         }
     }
     commandList_->SetPipelineState(pso);
+    ++frameIndexedD3d12PsoSets_;
     commandList_->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
     D3D12_VERTEX_BUFFER_VIEW vbv{};
@@ -1011,6 +1013,7 @@ void D3D12RenderBackend::drawWorldIndexedMeshInternal(const WorldMeshVertex* ver
                 &outlinePs,
                 0);
             commandList_->SetPipelineState(worldPipelineState_.Get());
+            ++frameIndexedD3d12PsoSets_;
             commandList_->DrawIndexedInstanced(static_cast<UINT>(safeIndexCount), 1, 0, 0, 0);
             ++frameDrawCalls_;
             frameTriangles_ += static_cast<std::uint64_t>(safeIndexCount / 3u);
@@ -1175,6 +1178,7 @@ void D3D12RenderBackend::drawWorldIndexedMeshTexturedCachedInternal(
     commandList_->SetGraphicsRootDescriptorTable(6, srvOcclusionHandle);
     commandList_->SetGraphicsRootDescriptorTable(7, srvEmissiveHandle);
     commandList_->SetGraphicsRootDescriptorTable(8, srvEnvHandle);
+    frameIndexedD3d12DescriptorTableSets_ += 6u;
 
     const bool blendMaterial = textureData && textureData->alphaMode == 2u;
     const std::uint8_t blendMode = textureData ? std::min<std::uint8_t>(2u, textureData->blendMode) : 0u;
@@ -1189,6 +1193,7 @@ void D3D12RenderBackend::drawWorldIndexedMeshTexturedCachedInternal(
         }
     }
     commandList_->SetPipelineState(pso);
+    ++frameIndexedD3d12PsoSets_;
     commandList_->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
     D3D12_VERTEX_BUFFER_VIEW vbv{};
@@ -1312,6 +1317,7 @@ void D3D12RenderBackend::drawWorldIndexedMeshTexturedCachedInternal(
         &outlinePs,
         0);
     commandList_->SetPipelineState(worldPipelineState_.Get());
+    ++frameIndexedD3d12PsoSets_;
     commandList_->DrawIndexedInstanced(static_cast<UINT>(safeIndexCount), instanceCount, 0, 0, 0);
     ++frameDrawCalls_;
     frameTriangles_ += static_cast<std::uint64_t>(safeIndexCount / 3u) *

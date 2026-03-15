@@ -46,6 +46,9 @@ bool test_runtime_frame_observation_contract(std::string& outFail) {
     inputs.gpuFrameValid = true;
     inputs.drawCalls = 123u;
     inputs.triangles = 4567u;
+    inputs.indexedCachedDraws = 8u;
+    inputs.indexedMaterialSwitches = 5u;
+    inputs.indexedGlTextureBindCalls = 11u;
     inputs.fixedBreakdown.combatMs = 2.5f;
     inputs.fixedTicks = 3;
     inputs.fixedTicksDropped = 1;
@@ -56,6 +59,9 @@ bool test_runtime_frame_observation_contract(std::string& outFail) {
         sample.particleCount != 34u ||
         sample.drawCalls != 123u ||
         sample.triangles != 4567u ||
+        sample.indexedCachedDraws != 8u ||
+        sample.indexedMaterialSwitches != 5u ||
+        sample.indexedGlTextureBindCalls != 11u ||
         sample.fixedTicks != 3 ||
         sample.fixedTicksDropped != 1 ||
         std::fabs(sample.fixedBreakdown.combatMs - 2.5f) > 0.0001f ||

@@ -37,6 +37,17 @@ void D3D12RenderBackend::beginFrame(float r, float g, float b, float a) {
     clearColor_[3] = a;
     frameDrawCalls_ = 0u;
     frameTriangles_ = 0u;
+    frameIndexedOpaqueDraws_ = 0u;
+    frameIndexedBlendDraws_ = 0u;
+    frameIndexedCachedDraws_ = 0u;
+    frameIndexedDynamicDraws_ = 0u;
+    frameIndexedInstancedDraws_ = 0u;
+    frameIndexedOutlineBatches_ = 0u;
+    frameIndexedGeometrySwitches_ = 0u;
+    frameIndexedMaterialSwitches_ = 0u;
+    frameIndexedTextureSwitches_ = 0u;
+    frameIndexedD3d12PsoSets_ = 0u;
+    frameIndexedD3d12DescriptorTableSets_ = 0u;
 
 #if defined(_WIN32)
     if (!initialized_ || !device_ || !swapChain_ || !commandList_) return;
@@ -342,6 +353,17 @@ void D3D12RenderBackend::endFrame() {
 
     lastFrameDrawCalls_ = frameDrawCalls_;
     lastFrameTriangles_ = frameTriangles_;
+    lastFrameIndexedOpaqueDraws_ = frameIndexedOpaqueDraws_;
+    lastFrameIndexedBlendDraws_ = frameIndexedBlendDraws_;
+    lastFrameIndexedCachedDraws_ = frameIndexedCachedDraws_;
+    lastFrameIndexedDynamicDraws_ = frameIndexedDynamicDraws_;
+    lastFrameIndexedInstancedDraws_ = frameIndexedInstancedDraws_;
+    lastFrameIndexedOutlineBatches_ = frameIndexedOutlineBatches_;
+    lastFrameIndexedGeometrySwitches_ = frameIndexedGeometrySwitches_;
+    lastFrameIndexedMaterialSwitches_ = frameIndexedMaterialSwitches_;
+    lastFrameIndexedTextureSwitches_ = frameIndexedTextureSwitches_;
+    lastFrameIndexedD3d12PsoSets_ = frameIndexedD3d12PsoSets_;
+    lastFrameIndexedD3d12DescriptorTableSets_ = frameIndexedD3d12DescriptorTableSets_;
 
     recording_ = false;
 #endif

@@ -641,6 +641,19 @@ namespace {
             sampleInputs.gpuFrameValid = backendPerf.gpuFrameValid;
             sampleInputs.drawCalls = backendPerf.drawCalls;
             sampleInputs.triangles = backendPerf.triangles;
+            sampleInputs.indexedOpaqueDraws = backendPerf.indexedOpaqueDraws;
+            sampleInputs.indexedBlendDraws = backendPerf.indexedBlendDraws;
+            sampleInputs.indexedCachedDraws = backendPerf.indexedCachedDraws;
+            sampleInputs.indexedDynamicDraws = backendPerf.indexedDynamicDraws;
+            sampleInputs.indexedInstancedDraws = backendPerf.indexedInstancedDraws;
+            sampleInputs.indexedOutlineBatches = backendPerf.indexedOutlineBatches;
+            sampleInputs.indexedGeometrySwitches = backendPerf.indexedGeometrySwitches;
+            sampleInputs.indexedMaterialSwitches = backendPerf.indexedMaterialSwitches;
+            sampleInputs.indexedTextureSwitches = backendPerf.indexedTextureSwitches;
+            sampleInputs.indexedGlTextureBindCalls = backendPerf.indexedGlTextureBindCalls;
+            sampleInputs.indexedD3d12PsoSets = backendPerf.indexedD3d12PsoSets;
+            sampleInputs.indexedD3d12DescriptorTableSets =
+                backendPerf.indexedD3d12DescriptorTableSets;
             sampleInputs.fixedBreakdown = fixedPhase.fixedBreakdown;
             sampleInputs.fixedTicks = fixedPhase.fixedTicks;
             sampleInputs.fixedTicksDropped = fixedPhase.fixedTicksDropped;

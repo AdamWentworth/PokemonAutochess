@@ -73,6 +73,16 @@ void OpenGLRenderBackend::beginFrame(float r, float g, float b, float a) {
     ++frameCounter_;
     frameDrawCalls_ = 0u;
     frameTriangles_ = 0u;
+    frameIndexedOpaqueDraws_ = 0u;
+    frameIndexedBlendDraws_ = 0u;
+    frameIndexedCachedDraws_ = 0u;
+    frameIndexedDynamicDraws_ = 0u;
+    frameIndexedInstancedDraws_ = 0u;
+    frameIndexedOutlineBatches_ = 0u;
+    frameIndexedGeometrySwitches_ = 0u;
+    frameIndexedMaterialSwitches_ = 0u;
+    frameIndexedTextureSwitches_ = 0u;
+    frameIndexedGlTextureBindCalls_ = 0u;
 #ifdef GL_FRAMEBUFFER_SRGB
     if (engine::render::parity_contract::kFramebufferSrgbEnabled) {
         glEnable(GL_FRAMEBUFFER_SRGB);
@@ -130,6 +140,16 @@ void OpenGLRenderBackend::endFrame() {
     captureScreenshotIfRequested();
     lastFrameDrawCalls_ = frameDrawCalls_;
     lastFrameTriangles_ = frameTriangles_;
+    lastFrameIndexedOpaqueDraws_ = frameIndexedOpaqueDraws_;
+    lastFrameIndexedBlendDraws_ = frameIndexedBlendDraws_;
+    lastFrameIndexedCachedDraws_ = frameIndexedCachedDraws_;
+    lastFrameIndexedDynamicDraws_ = frameIndexedDynamicDraws_;
+    lastFrameIndexedInstancedDraws_ = frameIndexedInstancedDraws_;
+    lastFrameIndexedOutlineBatches_ = frameIndexedOutlineBatches_;
+    lastFrameIndexedGeometrySwitches_ = frameIndexedGeometrySwitches_;
+    lastFrameIndexedMaterialSwitches_ = frameIndexedMaterialSwitches_;
+    lastFrameIndexedTextureSwitches_ = frameIndexedTextureSwitches_;
+    lastFrameIndexedGlTextureBindCalls_ = frameIndexedGlTextureBindCalls_;
 }
 
 void OpenGLRenderBackend::onResize(int width, int height) {
@@ -150,9 +170,33 @@ bool OpenGLRenderBackend::activeGpuIsDiscrete() const {
 }
 
 bool OpenGLRenderBackend::getLastFrameStats(BackendFrameStats& outStats) const {
+    outStats = BackendFrameStats{};
     outStats.drawCalls = lastFrameDrawCalls_;
     outStats.triangles = lastFrameTriangles_;
+    outStats.indexedOpaqueDraws = lastFrameIndexedOpaqueDraws_;
+    outStats.indexedBlendDraws = lastFrameIndexedBlendDraws_;
+    outStats.indexedCachedDraws = lastFrameIndexedCachedDraws_;
+    outStats.indexedDynamicDraws = lastFrameIndexedDynamicDraws_;
+    outStats.indexedInstancedDraws = lastFrameIndexedInstancedDraws_;
+    outStats.indexedOutlineBatches = lastFrameIndexedOutlineBatches_;
+    outStats.indexedGeometrySwitches = lastFrameIndexedGeometrySwitches_;
+    outStats.indexedMaterialSwitches = lastFrameIndexedMaterialSwitches_;
+    outStats.indexedTextureSwitches = lastFrameIndexedTextureSwitches_;
+    outStats.indexedGlTextureBindCalls = lastFrameIndexedGlTextureBindCalls_;
     return true;
+}
+
+void OpenGLRenderBackend::recordWorldIndexedSubmissionStats(
+    const WorldIndexedSubmissionStats& stats) {
+    frameIndexedOpaqueDraws_ += stats.opaqueDraws;
+    frameIndexedBlendDraws_ += stats.blendDraws;
+    frameIndexedCachedDraws_ += stats.cachedDraws;
+    frameIndexedDynamicDraws_ += stats.dynamicDraws;
+    frameIndexedInstancedDraws_ += stats.instancedDraws;
+    frameIndexedOutlineBatches_ += stats.outlineBatches;
+    frameIndexedGeometrySwitches_ += stats.geometrySwitches;
+    frameIndexedMaterialSwitches_ += stats.materialSwitches;
+    frameIndexedTextureSwitches_ += stats.textureSwitches;
 }
 
 bool OpenGLRenderBackend::getLastFrameTimings(BackendFrameTimings& outTimings) const {
@@ -187,6 +231,26 @@ void OpenGLRenderBackend::shutdown() {
     frameTriangles_ = 0u;
     lastFrameDrawCalls_ = 0u;
     lastFrameTriangles_ = 0u;
+    frameIndexedOpaqueDraws_ = 0u;
+    frameIndexedBlendDraws_ = 0u;
+    frameIndexedCachedDraws_ = 0u;
+    frameIndexedDynamicDraws_ = 0u;
+    frameIndexedInstancedDraws_ = 0u;
+    frameIndexedOutlineBatches_ = 0u;
+    frameIndexedGeometrySwitches_ = 0u;
+    frameIndexedMaterialSwitches_ = 0u;
+    frameIndexedTextureSwitches_ = 0u;
+    frameIndexedGlTextureBindCalls_ = 0u;
+    lastFrameIndexedOpaqueDraws_ = 0u;
+    lastFrameIndexedBlendDraws_ = 0u;
+    lastFrameIndexedCachedDraws_ = 0u;
+    lastFrameIndexedDynamicDraws_ = 0u;
+    lastFrameIndexedInstancedDraws_ = 0u;
+    lastFrameIndexedOutlineBatches_ = 0u;
+    lastFrameIndexedGeometrySwitches_ = 0u;
+    lastFrameIndexedMaterialSwitches_ = 0u;
+    lastFrameIndexedTextureSwitches_ = 0u;
+    lastFrameIndexedGlTextureBindCalls_ = 0u;
 }
 
 void OpenGLRenderBackend::configureScreenshotCapture() {

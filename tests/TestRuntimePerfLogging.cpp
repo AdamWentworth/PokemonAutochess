@@ -53,12 +53,18 @@ bool test_runtime_perf_logging_contract(std::string& outFail) {
 
     perf.gpuFrameValid = true;
     perf.gpuFrameMs = 8.9f;
+    perf.indexedCachedDraws = 4u;
+    perf.indexedMaterialSwitches = 3u;
+    perf.indexedGlTextureBindCalls = 12u;
     perf.renderBreakdown.worldComposeMs = 1.1f;
     perf.fixedBreakdown.preUpdateMs = 0.2f;
     const std::string json = game::runtime::perf_logging::formatPerfJson(perf);
     if (json.find("[PerfJSON] {") != 0 ||
         json.find("\"gpu_frame_valid\":1") == std::string::npos ||
         json.find("\"gpu_frame_ms\":8.900") == std::string::npos ||
+        json.find("\"backend_indexed_cached_draws\":4") == std::string::npos ||
+        json.find("\"backend_indexed_material_switches\":3") == std::string::npos ||
+        json.find("\"backend_gl_texture_bind_calls\":12") == std::string::npos ||
         json.find("\"render_world_compose_ms\":1.100") == std::string::npos ||
         json.find("\"fixed_phase_pre_ms\":0.200") == std::string::npos ||
         json.find("\"fixed_ticks_dropped\":1") == std::string::npos) {

@@ -39,6 +39,18 @@ struct SampleInputs {
     bool gpuFrameValid = false;
     std::uint32_t drawCalls = 0u;
     std::uint64_t triangles = 0u;
+    std::uint32_t indexedOpaqueDraws = 0u;
+    std::uint32_t indexedBlendDraws = 0u;
+    std::uint32_t indexedCachedDraws = 0u;
+    std::uint32_t indexedDynamicDraws = 0u;
+    std::uint32_t indexedInstancedDraws = 0u;
+    std::uint32_t indexedOutlineBatches = 0u;
+    std::uint32_t indexedGeometrySwitches = 0u;
+    std::uint32_t indexedMaterialSwitches = 0u;
+    std::uint32_t indexedTextureSwitches = 0u;
+    std::uint32_t indexedGlTextureBindCalls = 0u;
+    std::uint32_t indexedD3d12PsoSets = 0u;
+    std::uint32_t indexedD3d12DescriptorTableSets = 0u;
     EngineFixedPerfBreakdown fixedBreakdown{};
     int fixedTicks = 0;
     int fixedTicksDropped = 0;

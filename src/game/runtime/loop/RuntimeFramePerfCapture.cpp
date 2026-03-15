@@ -22,6 +22,19 @@ BackendFrameOutputs resolveBackendFrameOutputs(const BackendFrameInputs& inputs)
     if (inputs.hasBackendStats) {
         out.drawCalls = inputs.backendStats.drawCalls;
         out.triangles = inputs.backendStats.triangles;
+        out.indexedOpaqueDraws = inputs.backendStats.indexedOpaqueDraws;
+        out.indexedBlendDraws = inputs.backendStats.indexedBlendDraws;
+        out.indexedCachedDraws = inputs.backendStats.indexedCachedDraws;
+        out.indexedDynamicDraws = inputs.backendStats.indexedDynamicDraws;
+        out.indexedInstancedDraws = inputs.backendStats.indexedInstancedDraws;
+        out.indexedOutlineBatches = inputs.backendStats.indexedOutlineBatches;
+        out.indexedGeometrySwitches = inputs.backendStats.indexedGeometrySwitches;
+        out.indexedMaterialSwitches = inputs.backendStats.indexedMaterialSwitches;
+        out.indexedTextureSwitches = inputs.backendStats.indexedTextureSwitches;
+        out.indexedGlTextureBindCalls = inputs.backendStats.indexedGlTextureBindCalls;
+        out.indexedD3d12PsoSets = inputs.backendStats.indexedD3d12PsoSets;
+        out.indexedD3d12DescriptorTableSets =
+            inputs.backendStats.indexedD3d12DescriptorTableSets;
     }
     return out;
 }

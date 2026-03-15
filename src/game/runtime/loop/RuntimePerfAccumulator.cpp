@@ -116,6 +116,19 @@ void RollingAccumulator::addFrame(const FrameSample& sample) {
     }
     drawCalls_ += static_cast<double>(sample.drawCalls);
     triangles_ += static_cast<double>(sample.triangles);
+    indexedOpaqueDraws_ += static_cast<double>(sample.indexedOpaqueDraws);
+    indexedBlendDraws_ += static_cast<double>(sample.indexedBlendDraws);
+    indexedCachedDraws_ += static_cast<double>(sample.indexedCachedDraws);
+    indexedDynamicDraws_ += static_cast<double>(sample.indexedDynamicDraws);
+    indexedInstancedDraws_ += static_cast<double>(sample.indexedInstancedDraws);
+    indexedOutlineBatches_ += static_cast<double>(sample.indexedOutlineBatches);
+    indexedGeometrySwitches_ += static_cast<double>(sample.indexedGeometrySwitches);
+    indexedMaterialSwitches_ += static_cast<double>(sample.indexedMaterialSwitches);
+    indexedTextureSwitches_ += static_cast<double>(sample.indexedTextureSwitches);
+    indexedGlTextureBindCalls_ += static_cast<double>(sample.indexedGlTextureBindCalls);
+    indexedD3d12PsoSets_ += static_cast<double>(sample.indexedD3d12PsoSets);
+    indexedD3d12DescriptorTableSets_ +=
+        static_cast<double>(sample.indexedD3d12DescriptorTableSets);
     visibleAnimatedUnits_ += static_cast<double>(sample.visibleAnimatedUnits);
     particleCount_ += static_cast<double>(sample.particleCount);
     projectedUnitsMs_ += static_cast<double>(sample.projectedUnitsMs);
@@ -163,6 +176,30 @@ WindowSummary RollingAccumulator::makeSummaryAndReset() {
         : 0.0);
     out.drawCalls = static_cast<std::uint32_t>(std::lround(drawCalls_ / frames));
     out.triangles = static_cast<std::uint64_t>(std::llround(triangles_ / frames));
+    out.indexedOpaqueDraws =
+        static_cast<std::uint32_t>(std::lround(indexedOpaqueDraws_ / frames));
+    out.indexedBlendDraws =
+        static_cast<std::uint32_t>(std::lround(indexedBlendDraws_ / frames));
+    out.indexedCachedDraws =
+        static_cast<std::uint32_t>(std::lround(indexedCachedDraws_ / frames));
+    out.indexedDynamicDraws =
+        static_cast<std::uint32_t>(std::lround(indexedDynamicDraws_ / frames));
+    out.indexedInstancedDraws =
+        static_cast<std::uint32_t>(std::lround(indexedInstancedDraws_ / frames));
+    out.indexedOutlineBatches =
+        static_cast<std::uint32_t>(std::lround(indexedOutlineBatches_ / frames));
+    out.indexedGeometrySwitches =
+        static_cast<std::uint32_t>(std::lround(indexedGeometrySwitches_ / frames));
+    out.indexedMaterialSwitches =
+        static_cast<std::uint32_t>(std::lround(indexedMaterialSwitches_ / frames));
+    out.indexedTextureSwitches =
+        static_cast<std::uint32_t>(std::lround(indexedTextureSwitches_ / frames));
+    out.indexedGlTextureBindCalls =
+        static_cast<std::uint32_t>(std::lround(indexedGlTextureBindCalls_ / frames));
+    out.indexedD3d12PsoSets =
+        static_cast<std::uint32_t>(std::lround(indexedD3d12PsoSets_ / frames));
+    out.indexedD3d12DescriptorTableSets = static_cast<std::uint32_t>(
+        std::lround(indexedD3d12DescriptorTableSets_ / frames));
     out.visibleAnimatedUnits = static_cast<std::uint32_t>(std::lround(visibleAnimatedUnits_ / frames));
     out.particleCount = static_cast<std::uint32_t>(std::lround(particleCount_ / frames));
     out.projectedUnitsMs = static_cast<float>(projectedUnitsMs_ / frames);

@@ -60,9 +60,35 @@ bool D3D12RenderBackend::getLastFrameTimings(BackendFrameTimings& outTimings) co
 }
 
 bool D3D12RenderBackend::getLastFrameStats(BackendFrameStats& outStats) const {
+    outStats = BackendFrameStats{};
     outStats.drawCalls = lastFrameDrawCalls_;
     outStats.triangles = lastFrameTriangles_;
+    outStats.indexedOpaqueDraws = lastFrameIndexedOpaqueDraws_;
+    outStats.indexedBlendDraws = lastFrameIndexedBlendDraws_;
+    outStats.indexedCachedDraws = lastFrameIndexedCachedDraws_;
+    outStats.indexedDynamicDraws = lastFrameIndexedDynamicDraws_;
+    outStats.indexedInstancedDraws = lastFrameIndexedInstancedDraws_;
+    outStats.indexedOutlineBatches = lastFrameIndexedOutlineBatches_;
+    outStats.indexedGeometrySwitches = lastFrameIndexedGeometrySwitches_;
+    outStats.indexedMaterialSwitches = lastFrameIndexedMaterialSwitches_;
+    outStats.indexedTextureSwitches = lastFrameIndexedTextureSwitches_;
+    outStats.indexedD3d12PsoSets = lastFrameIndexedD3d12PsoSets_;
+    outStats.indexedD3d12DescriptorTableSets =
+        lastFrameIndexedD3d12DescriptorTableSets_;
     return true;
+}
+
+void D3D12RenderBackend::recordWorldIndexedSubmissionStats(
+    const WorldIndexedSubmissionStats& stats) {
+    frameIndexedOpaqueDraws_ += stats.opaqueDraws;
+    frameIndexedBlendDraws_ += stats.blendDraws;
+    frameIndexedCachedDraws_ += stats.cachedDraws;
+    frameIndexedDynamicDraws_ += stats.dynamicDraws;
+    frameIndexedInstancedDraws_ += stats.instancedDraws;
+    frameIndexedOutlineBatches_ += stats.outlineBatches;
+    frameIndexedGeometrySwitches_ += stats.geometrySwitches;
+    frameIndexedMaterialSwitches_ += stats.materialSwitches;
+    frameIndexedTextureSwitches_ += stats.textureSwitches;
 }
 
 void D3D12RenderBackend::configureScreenshotCapture() {

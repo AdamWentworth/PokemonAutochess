@@ -31,6 +31,7 @@ public:
     bool activeGpuIsDiscrete() const override;
     void beginWorldIndexedBatchSubmission() override;
     void endWorldIndexedBatchSubmission() override;
+    void recordWorldIndexedSubmissionStats(const WorldIndexedSubmissionStats& stats) override;
     void drawWorldTriangles(const WorldTriangle* triangles,
                             std::size_t triangleCount,
                             const float* viewProjectionMatrix4x4,
@@ -268,6 +269,26 @@ private:
     std::uint64_t frameTriangles_ = 0u;
     std::uint32_t lastFrameDrawCalls_ = 0u;
     std::uint64_t lastFrameTriangles_ = 0u;
+    std::uint32_t frameIndexedOpaqueDraws_ = 0u;
+    std::uint32_t frameIndexedBlendDraws_ = 0u;
+    std::uint32_t frameIndexedCachedDraws_ = 0u;
+    std::uint32_t frameIndexedDynamicDraws_ = 0u;
+    std::uint32_t frameIndexedInstancedDraws_ = 0u;
+    std::uint32_t frameIndexedOutlineBatches_ = 0u;
+    std::uint32_t frameIndexedGeometrySwitches_ = 0u;
+    std::uint32_t frameIndexedMaterialSwitches_ = 0u;
+    std::uint32_t frameIndexedTextureSwitches_ = 0u;
+    std::uint32_t frameIndexedGlTextureBindCalls_ = 0u;
+    std::uint32_t lastFrameIndexedOpaqueDraws_ = 0u;
+    std::uint32_t lastFrameIndexedBlendDraws_ = 0u;
+    std::uint32_t lastFrameIndexedCachedDraws_ = 0u;
+    std::uint32_t lastFrameIndexedDynamicDraws_ = 0u;
+    std::uint32_t lastFrameIndexedInstancedDraws_ = 0u;
+    std::uint32_t lastFrameIndexedOutlineBatches_ = 0u;
+    std::uint32_t lastFrameIndexedGeometrySwitches_ = 0u;
+    std::uint32_t lastFrameIndexedMaterialSwitches_ = 0u;
+    std::uint32_t lastFrameIndexedTextureSwitches_ = 0u;
+    std::uint32_t lastFrameIndexedGlTextureBindCalls_ = 0u;
     struct WorldIndexedBatchSubmissionState {
         bool active = false;
         int depth = 0;
