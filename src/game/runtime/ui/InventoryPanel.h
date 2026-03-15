@@ -4,6 +4,7 @@
 #include "game/runtime/ui/InventoryOverlay.h"
 
 #include <optional>
+#include <cstdint>
 #include <string>
 #include <utility>
 #include <vector>
@@ -28,6 +29,7 @@ struct HitRegion {
 
 struct PanelState {
     int offset = 0;
+    std::uint64_t sourceRevision = 0;
     std::vector<hud::InventoryEntry> allEntries;
     ui_inventory::OverlayModel model;
     std::vector<HitRegion> hitRegions;

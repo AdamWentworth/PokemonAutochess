@@ -55,6 +55,7 @@ std::vector<Logger::LineSnapshot> Logger::snapshotRecent(const std::vector<Store
 
 void Logger::push(const std::string& s, const glm::vec3& c, float life) {
     pushRecent(recent_main_, s, c);
+    ++recent_main_revision_;
     if (feed_enabled_ && feed_) {
         feed_->push(s, c, life);
     }
@@ -65,6 +66,7 @@ void Logger::push(const std::string& s, const glm::vec3& c, float life) {
 
 void Logger::catchInfo(const std::string& s, const glm::vec3& c, float life) {
     pushRecent(recent_catch_, s, c);
+    ++recent_catch_revision_;
     if (feed_enabled_ && catch_feed_) {
         catch_feed_->push(s, c, life);
     }
@@ -75,6 +77,7 @@ void Logger::catchInfo(const std::string& s, const glm::vec3& c, float life) {
 
 void Logger::economyInfo(const std::string& s, const glm::vec3& c, float life) {
     pushRecent(recent_economy_, s, c);
+    ++recent_economy_revision_;
     if (feed_enabled_ && economy_feed_) {
         economy_feed_->push(s, c, life);
     }

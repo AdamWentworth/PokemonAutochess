@@ -33,11 +33,27 @@ void refreshPanel(ui_inventory_panel::PanelState& panel,
         return;
     }
 
+    if (deps.getInventoryRevision) {
+        const std::uint64_t revision = deps.getInventoryRevision();
+        if (panel.sourceRevision == revision) {
+            return;
+        }
+
+        ui_inventory_panel::refreshPanelState(
+            panel,
+            deps.listItems(),
+            visibleCount,
+            deps.getSelectedItem());
+        panel.sourceRevision = revision;
+        return;
+    }
+
     ui_inventory_panel::refreshPanelState(
         panel,
         deps.listItems(),
         visibleCount,
         deps.getSelectedItem());
+    panel.sourceRevision = 0;
 }
 
 bool applyOffsetDelta(ui_inventory_panel::PanelState& panel,

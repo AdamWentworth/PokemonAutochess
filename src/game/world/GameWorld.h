@@ -179,6 +179,8 @@ public:
     void mergeTriplesForPlayer();
 
     std::vector<TypeLineCount> getPlayerTypeLineCounts() const;
+    const std::vector<TypeLineCount>& getPlayerTypeLineCountsCached() const;
+    std::uint64_t getOverlayRosterRevision() const { return overlayRosterRevision_; }
     bool buildGrowlWaveSnapshot(GrowlWaveVFX::RenderSnapshot& out) const;
     std::uint32_t countActiveGrowlWaveVfx() const;
     bool buildParticleVfxSnapshots(ParticleVfxSnapshots& out) const;
@@ -209,6 +211,7 @@ public:
     void addItem(const std::string& item, int amount = 1);
     bool consumeItem(const std::string& item, int amount = 1);
     std::vector<std::pair<std::string, int>> listItems() const;
+    std::uint64_t getInventoryUiRevision() const { return inventoryUiRevision_; }
 
     void setSelectedItem(const std::string& itemId);
     const std::string& getSelectedItem() const { return selectedItemId; }
@@ -282,6 +285,10 @@ private:
     bool unitSellRewardsEnabled = true;
     std::unordered_map<std::string, int> items;
     std::string selectedItemId;
+    std::uint64_t overlayRosterRevision_ = 1;
+    std::uint64_t inventoryUiRevision_ = 1;
+    mutable std::uint64_t cachedPlayerTypeLineRevision_ = 0;
+    mutable std::vector<TypeLineCount> cachedPlayerTypeLines_;
 
     struct CaptureAttempt {
         int targetId = -1;
@@ -391,6 +398,8 @@ private:
     void updateLeechSeedStatus(float dt);
     void ensureLeechSeedConfigLoaded();
     void updateCaptureAttempts(float dt);
+    void bumpOverlayRosterRevision();
+    void bumpInventoryUiRevision();
     bool buildPokemonInstance(const std::string& pokemonName,
                               PokemonSide side,
                               int level,

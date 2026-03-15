@@ -1,6 +1,7 @@
 #pragma once
 
 #include <functional>
+#include <cstdint>
 #include <string>
 #include <utility>
 #include <vector>
@@ -14,6 +15,7 @@ struct Dependencies {
     std::function<std::string()> getSelectedItem;
     std::function<void(const std::string&)> setSelectedItem;
     std::function<std::vector<std::pair<std::string, int>>()> listItems;
+    std::function<std::uint64_t()> getInventoryRevision;
     std::function<void(const std::string&)> logInfo;
 };
 

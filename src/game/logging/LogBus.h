@@ -2,6 +2,7 @@
 #pragma once
 
 #include <chrono>
+#include <cstdint>
 #include <string>
 #include <vector>
 #include <glm/glm.hpp>
@@ -46,6 +47,9 @@ public:
     std::vector<LineSnapshot> recentMainLines(std::size_t maxCount) const;
     std::vector<LineSnapshot> recentCatchLines(std::size_t maxCount) const;
     std::vector<LineSnapshot> recentEconomyLines(std::size_t maxCount) const;
+    std::uint64_t recentMainRevision() const { return recent_main_revision_; }
+    std::uint64_t recentCatchRevision() const { return recent_catch_revision_; }
+    std::uint64_t recentEconomyRevision() const { return recent_economy_revision_; }
 
 private:
     struct StoredLine {
@@ -72,6 +76,9 @@ private:
     std::vector<StoredLine> recent_main_;
     std::vector<StoredLine> recent_catch_;
     std::vector<StoredLine> recent_economy_;
+    std::uint64_t recent_main_revision_ = 1;
+    std::uint64_t recent_catch_revision_ = 1;
+    std::uint64_t recent_economy_revision_ = 1;
 };
 
 } // namespace LogBus

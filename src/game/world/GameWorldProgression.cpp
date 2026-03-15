@@ -214,6 +214,7 @@ bool GameWorld::mergeOneTripleForPlayer() {
     if (log) {
         game::log::info(log, "Merged 3x " + capitalize(species) + " -> Lv" + std::to_string(keeper->level));
     }
+    bumpOverlayRosterRevision();
     return true;
 }
 

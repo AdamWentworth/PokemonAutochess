@@ -84,6 +84,7 @@ void GameWorld::spawnPokemon(const std::string& pokemonName,
     if (side == PokemonSide::Player) {
         mergeTriplesForPlayer();
     }
+    bumpOverlayRosterRevision();
 
     std::cout << "[GameWorld] Spawned " << pokemonName
               << " (ID: " << inst.id
@@ -129,6 +130,7 @@ void GameWorld::addToBench(const std::string& pokemonName, int level) {
 
     benchPokemons.push_back(inst);
     mergeTriplesForPlayer();
+    bumpOverlayRosterRevision();
 
     std::cout << "[GameWorld] Benched " << pokemonName
               << " (ID: " << inst.id

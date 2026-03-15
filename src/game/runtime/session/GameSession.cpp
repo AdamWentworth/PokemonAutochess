@@ -419,6 +419,10 @@ struct GameSession::Impl {
                     return gameWorld ? gameWorld->listItems()
                                      : std::vector<std::pair<std::string, int>>{};
                 },
+            .getInventoryRevision =
+                [&]() -> std::uint64_t {
+                    return gameWorld ? gameWorld->getInventoryUiRevision() : 0u;
+                },
             .logInfo = [&](const std::string& message) { log.catchInfo(message); },
         };
     }

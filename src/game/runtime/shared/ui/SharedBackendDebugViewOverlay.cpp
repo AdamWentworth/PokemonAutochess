@@ -198,28 +198,44 @@ void composeAndSubmit(const ComposeAndSubmitArgs& args) {
 
         const int cachedMoney = gameWorld ? gameWorld->getMoney() : 0;
         const std::string cachedSelectedItem = gameWorld ? gameWorld->getSelectedItem() : std::string();
+        const std::uint64_t inventoryRevision =
+            gameWorld ? gameWorld->getInventoryUiRevision() : 0u;
         if (refreshBackendInventoryFromWorld) {
             refreshBackendInventoryFromWorld();
         }
         const auto& cachedInventoryModel = backendInventoryPanel.model;
         const bool cachedAdventureInventoryIcons = (cachedMode == "adventure");
-        auto cachedTypeCounts = gameWorld ? gameWorld->getPlayerTypeLineCounts()
-                                          : std::vector<GameWorld::TypeLineCount>{};
-        if (!cachedTypeCounts.empty()) {
-            std::sort(cachedTypeCounts.begin(), cachedTypeCounts.end(),
-                      [](const GameWorld::TypeLineCount& a, const GameWorld::TypeLineCount& b) {
-                          if (a.uniqueLineCount != b.uniqueLineCount) {
-                              return a.uniqueLineCount > b.uniqueLineCount;
-                          }
-                          return a.type < b.type;
-                      });
-        }
+        const std::uint64_t rosterRevision =
+            gameWorld ? gameWorld->getOverlayRosterRevision() : 0u;
+        static const std::vector<GameWorld::TypeLineCount> kEmptyTypeCounts;
+        const auto& cachedTypeCounts =
+            gameWorld ? gameWorld->getPlayerTypeLineCountsCached() : kEmptyTypeCounts;
         const auto* cachedBenchUnits = gameWorld ? &gameWorld->getBenchPokemons() : nullptr;
         const auto* cachedShopCards = gameWorld ? &gameWorld->getClassicShopCards() : nullptr;
-        const auto cachedRecentMain = log.recentMainLines(7);
         const bool cachedClassicMode = (cachedMode == "classic");
-        const auto cachedSideLogLines =
-            cachedClassicMode ? log.recentEconomyLines(5) : log.recentCatchLines(5);
+        const std::uint64_t recentMainRevision = log.recentMainRevision();
+        const std::uint64_t recentCatchRevision = log.recentCatchRevision();
+        const std::uint64_t recentEconomyRevision = log.recentEconomyRevision();
+        thread_local std::uint64_t cachedRecentMainRevision = 0u;
+        thread_local std::vector<LogBus::Logger::LineSnapshot> cachedRecentMain;
+        if (cachedRecentMainRevision != recentMainRevision) {
+            cachedRecentMain = log.recentMainLines(7);
+            cachedRecentMainRevision = recentMainRevision;
+        }
+        thread_local std::uint64_t cachedRecentCatchRevision = 0u;
+        thread_local std::vector<LogBus::Logger::LineSnapshot> cachedRecentCatch;
+        if (cachedRecentCatchRevision != recentCatchRevision) {
+            cachedRecentCatch = log.recentCatchLines(5);
+            cachedRecentCatchRevision = recentCatchRevision;
+        }
+        thread_local std::uint64_t cachedRecentEconomyRevision = 0u;
+        thread_local std::vector<LogBus::Logger::LineSnapshot> cachedRecentEconomy;
+        if (cachedRecentEconomyRevision != recentEconomyRevision) {
+            cachedRecentEconomy = log.recentEconomyLines(5);
+            cachedRecentEconomyRevision = recentEconomyRevision;
+        }
+        const auto& cachedSideLogLines =
+            cachedClassicMode ? cachedRecentEconomy : cachedRecentCatch;
 
         const std::string cachedBackend =
             services ? services->activeRendererBackend : std::string();
@@ -322,59 +338,26 @@ void composeAndSubmit(const ComposeAndSubmitArgs& args) {
         hashLayoutKeyBase(inventoryKey);
         support::hashString(inventoryKey, cachedMode);
         support::hashBool(inventoryKey, cachedAdventureInventoryIcons);
+        support::hashBytes(inventoryKey, &inventoryRevision, sizeof(inventoryRevision));
         support::hashInt(inventoryKey, cachedInventoryModel.offset);
-        support::hashSize(inventoryKey, cachedInventoryModel.totalCount);
-        support::hashString(inventoryKey, cachedSelectedItem);
-        support::hashSize(inventoryKey, cachedInventoryModel.visibleEntries.size());
-        for (const auto& entry : cachedInventoryModel.visibleEntries) {
-            support::hashString(inventoryKey, entry.id);
-            support::hashInt(inventoryKey, entry.count);
-        }
-        support::hashSize(inventoryKey, cachedInventoryModel.rows.size());
-        for (const auto& row : cachedInventoryModel.rows) {
-            support::hashString(inventoryKey, row.itemId);
-            support::hashString(inventoryKey, row.line);
-            support::hashBool(inventoryKey, row.selected);
-        }
 
         support::OverlayHash rosterKey = support::kOverlayHashOffset;
         hashLayoutKeyBase(rosterKey);
         support::hashString(rosterKey, cachedMode);
+        support::hashBytes(rosterKey, &rosterRevision, sizeof(rosterRevision));
         const std::size_t cachedTypeRows = std::min<std::size_t>(6u, cachedTypeCounts.size());
-        support::hashSize(rosterKey, cachedTypeRows);
-        for (std::size_t i = 0; i < cachedTypeRows; ++i) {
-            support::hashString(rosterKey, cachedTypeCounts[i].type);
-            support::hashInt(rosterKey, cachedTypeCounts[i].uniqueLineCount);
-        }
         const std::size_t cachedBenchRows =
             (cachedBenchUnits != nullptr) ? std::min<std::size_t>(5u, cachedBenchUnits->size()) : 0u;
-        support::hashSize(rosterKey, cachedBenchRows);
-        for (std::size_t i = 0; i < cachedBenchRows; ++i) {
-            support::hashString(rosterKey, (*cachedBenchUnits)[i].name);
-            support::hashInt(rosterKey, (*cachedBenchUnits)[i].level);
-        }
         const std::size_t cachedShopRows =
             (cachedShopCards != nullptr) ? std::min<std::size_t>(5u, cachedShopCards->size()) : 0u;
-        support::hashSize(rosterKey, cachedShopRows);
-        for (std::size_t i = 0; i < cachedShopRows; ++i) {
-            support::hashString(rosterKey, (*cachedShopCards)[i].name);
-            support::hashInt(rosterKey, (*cachedShopCards)[i].level);
-            support::hashInt(rosterKey, (*cachedShopCards)[i].cost);
-        }
 
         support::OverlayHash logKey = support::kOverlayHashOffset;
         hashLayoutKeyBase(logKey);
         support::hashBool(logKey, cachedClassicMode);
-        support::hashSize(logKey, cachedRecentMain.size());
-        for (const auto& line : cachedRecentMain) {
-            support::hashString(logKey, support::trimDebugLine(line.text, 84));
-            support::hashVec3(logKey, line.color);
-        }
-        support::hashSize(logKey, cachedSideLogLines.size());
-        for (const auto& line : cachedSideLogLines) {
-            support::hashString(logKey, support::trimDebugLine(line.text, 54));
-            support::hashVec3(logKey, line.color);
-        }
+        support::hashBytes(logKey, &recentMainRevision, sizeof(recentMainRevision));
+        const std::uint64_t sideLogRevision =
+            cachedClassicMode ? recentEconomyRevision : recentCatchRevision;
+        support::hashBytes(logKey, &sideLogRevision, sizeof(sideLogRevision));
 
         thread_local support::RetainedOverlayCache statusCache;
         thread_local support::RetainedOverlayCache inventoryCache;

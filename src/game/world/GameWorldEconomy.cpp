@@ -24,6 +24,14 @@ std::string capitalize(std::string s) {
 
 }  // namespace
 
+void GameWorld::bumpOverlayRosterRevision() {
+    ++overlayRosterRevision_;
+}
+
+void GameWorld::bumpInventoryUiRevision() {
+    ++inventoryUiRevision_;
+}
+
 void GameWorld::resetForNewGame(int startingMoney) {
     pokemons.clear();
     benchPokemons.clear();
@@ -52,6 +60,8 @@ void GameWorld::resetForNewGame(int startingMoney) {
     resetCombatBalance();
 
     sharedLoopAnimTimeSec = 0.0f;
+    bumpOverlayRosterRevision();
+    bumpInventoryUiRevision();
 }
 
 GameWorld::ClassicRoundIncomeResult GameWorld::awardClassicRoundIncome(bool playerWon) {
@@ -122,10 +132,12 @@ void GameWorld::setClassicShopCards(const std::vector<ClassicShopCard>& cards) {
         out.cost = std::max(0, out.cost);
         classicShopCards.push_back(std::move(out));
     }
+    bumpOverlayRosterRevision();
 }
 
 void GameWorld::clearClassicShopCards() {
     classicShopCards.clear();
+    bumpOverlayRosterRevision();
 }
 
 void GameWorld::setUnitDropZoneLayoutHint(int cardCount, bool allItems) {
@@ -142,6 +154,7 @@ int GameWorld::getItemCount(const std::string& item) const {
 void GameWorld::addItem(const std::string& item, int amount) {
     if (item.empty() || amount <= 0) return;
     items[item] = std::max(0, items[item] + amount);
+    bumpInventoryUiRevision();
 }
 
 bool GameWorld::consumeItem(const std::string& item, int amount) {
@@ -149,6 +162,7 @@ bool GameWorld::consumeItem(const std::string& item, int amount) {
     auto it = items.find(item);
     if (it == items.end() || it->second < amount) return false;
     it->second -= amount;
+    bumpInventoryUiRevision();
     return true;
 }
 
@@ -166,11 +180,15 @@ std::vector<std::pair<std::string, int>> GameWorld::listItems() const {
 }
 
 void GameWorld::setSelectedItem(const std::string& itemId) {
+    if (selectedItemId == itemId) return;
     selectedItemId = itemId;
+    bumpInventoryUiRevision();
 }
 
 void GameWorld::clearSelectedItem() {
+    if (selectedItemId.empty()) return;
     selectedItemId.clear();
+    bumpInventoryUiRevision();
 }
 
 bool GameWorld::tryUseHealingItem(const std::string& itemId, int targetId) {

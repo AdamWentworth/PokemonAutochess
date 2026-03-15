@@ -60,12 +60,19 @@ void GameWorld::handleUnitFaint(PokemonInstance& target) {
 
     beginFaint(target);
     awardXpForFaint(target);
+    if (target.side == PokemonSide::Player) {
+        bumpOverlayRosterRevision();
+    }
 }
 
 void GameWorld::healPlayerUnitsToFull() {
+    bool revivedPlayerUnit = false;
     auto healList = [&](std::vector<PokemonInstance>& list) {
         for (auto& u : list) {
             if (u.side != PokemonSide::Player) continue;
+            if (!u.alive || u.fainting || u.captureInProgress) {
+                revivedPlayerUnit = true;
+            }
 
             // Between rounds, allied units are restored and ready again.
             u.alive = true;
@@ -100,6 +107,9 @@ void GameWorld::healPlayerUnitsToFull() {
 
     healList(pokemons);
     healList(benchPokemons);
+    if (revivedPlayerUnit) {
+        bumpOverlayRosterRevision();
+    }
 }
 
 void GameWorld::capturePlayerPositionsForBattle() {

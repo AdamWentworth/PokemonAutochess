@@ -37,9 +37,16 @@ std::string GameWorld::resolveEvolutionLineRoot(const std::string& species) cons
     return current;
 }
 
-std::vector<GameWorld::TypeLineCount> GameWorld::getPlayerTypeLineCounts() const {
-    std::vector<TypeLineCount> out;
-    if (!data) return out;
+const std::vector<GameWorld::TypeLineCount>& GameWorld::getPlayerTypeLineCountsCached() const {
+    if (cachedPlayerTypeLineRevision_ == overlayRosterRevision_) {
+        return cachedPlayerTypeLines_;
+    }
+
+    cachedPlayerTypeLines_.clear();
+    if (!data) {
+        cachedPlayerTypeLineRevision_ = overlayRosterRevision_;
+        return cachedPlayerTypeLines_;
+    }
 
     std::unordered_map<std::string, std::unordered_set<std::string>> typeToRoots;
     typeToRoots.reserve(16);
@@ -67,19 +74,27 @@ std::vector<GameWorld::TypeLineCount> GameWorld::getPlayerTypeLineCounts() const
     for (const auto& u : pokemons) ingest(u);
     for (const auto& u : benchPokemons) ingest(u);
 
-    out.reserve(typeToRoots.size());
+    cachedPlayerTypeLines_.reserve(typeToRoots.size());
     for (const auto& kv : typeToRoots) {
         const int count = static_cast<int>(kv.second.size());
         if (count <= 0) continue;
-        out.push_back(TypeLineCount{kv.first, count});
+        cachedPlayerTypeLines_.push_back(TypeLineCount{kv.first, count});
     }
 
-    std::sort(out.begin(), out.end(), [](const TypeLineCount& a, const TypeLineCount& b) {
+    std::sort(
+        cachedPlayerTypeLines_.begin(),
+        cachedPlayerTypeLines_.end(),
+        [](const TypeLineCount& a, const TypeLineCount& b) {
         if (a.uniqueLineCount != b.uniqueLineCount) return a.uniqueLineCount > b.uniqueLineCount;
         return a.type < b.type;
     });
 
-    return out;
+    cachedPlayerTypeLineRevision_ = overlayRosterRevision_;
+    return cachedPlayerTypeLines_;
+}
+
+std::vector<GameWorld::TypeLineCount> GameWorld::getPlayerTypeLineCounts() const {
+    return getPlayerTypeLineCountsCached();
 }
 
 glm::vec3 GameWorld::getNearestEnemyPosition(const PokemonInstance& unit) const {
