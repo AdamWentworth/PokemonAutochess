@@ -24,81 +24,181 @@ int compareStringViews(std::string_view lhs, std::string_view rhs) {
 }
 
 struct AutoInstanceKey {
-    const WorldIndexedBatch* sharedTemplate = nullptr;
     std::string_view geometryCacheKey{};
-    bool materialAlphaOverride = false;
+    bool hasBaseTexture = false;
+    bool hasNormalTexture = false;
+    bool hasMetallicRoughnessTexture = false;
+    bool hasOcclusionTexture = false;
+    bool hasEmissiveTexture = false;
+    std::string_view textureCacheKey{};
+    std::string_view textureKey{};
+    std::string_view normalTextureCacheKey{};
+    std::string_view normalTextureKey{};
+    std::string_view metallicRoughnessTextureCacheKey{};
+    std::string_view metallicRoughnessTextureKey{};
+    std::string_view occlusionTextureCacheKey{};
+    std::string_view occlusionTextureKey{};
+    std::string_view emissiveTextureCacheKey{};
+    std::string_view emissiveTextureKey{};
     std::uint8_t alphaMode = 0u;
     std::uint8_t blendMode = 0u;
+    std::uint8_t materialMode = 0u;
+    std::uint8_t characterInkingEnabled = 0u;
     float alphaCutoff = 0.0f;
+    float normalScale = 1.0f;
+    float metallicFactor = 1.0f;
+    float roughnessFactor = 1.0f;
+    float occlusionStrength = 1.0f;
+    float emissiveFactorR = 0.0f;
+    float emissiveFactorG = 0.0f;
+    float emissiveFactorB = 0.0f;
+    float materialTimeSec = 0.0f;
+    float materialFlags = 0.0f;
+    float materialAtlasWidth = 0.0f;
+    float materialAtlasHeight = 0.0f;
+    float materialRect0U = 0.0f;
+    float materialRect0V = 0.0f;
+    float materialRect0W = 1.0f;
+    float materialRect0H = 1.0f;
+    float materialRect1U = 0.0f;
+    float materialRect1V = 0.0f;
+    float materialRect1W = 1.0f;
+    float materialRect1H = 1.0f;
+    float materialFlipbook0Cols = 1.0f;
+    float materialFlipbook0Rows = 1.0f;
+    float materialFlipbook0Frames = 1.0f;
+    float materialFlipbook0Fps = 0.0f;
+    float materialFlipbook1Cols = 1.0f;
+    float materialFlipbook1Rows = 1.0f;
+    float materialFlipbook1Frames = 1.0f;
+    float materialFlipbook1Fps = 0.0f;
 
     bool operator==(const AutoInstanceKey& other) const {
-        return sharedTemplate == other.sharedTemplate &&
-               geometryCacheKey == other.geometryCacheKey &&
-               materialAlphaOverride == other.materialAlphaOverride &&
+        return geometryCacheKey == other.geometryCacheKey &&
+               hasBaseTexture == other.hasBaseTexture &&
+               hasNormalTexture == other.hasNormalTexture &&
+               hasMetallicRoughnessTexture == other.hasMetallicRoughnessTexture &&
+               hasOcclusionTexture == other.hasOcclusionTexture &&
+               hasEmissiveTexture == other.hasEmissiveTexture &&
+               textureCacheKey == other.textureCacheKey &&
+               textureKey == other.textureKey &&
+               normalTextureCacheKey == other.normalTextureCacheKey &&
+               normalTextureKey == other.normalTextureKey &&
+               metallicRoughnessTextureCacheKey == other.metallicRoughnessTextureCacheKey &&
+               metallicRoughnessTextureKey == other.metallicRoughnessTextureKey &&
+               occlusionTextureCacheKey == other.occlusionTextureCacheKey &&
+               occlusionTextureKey == other.occlusionTextureKey &&
+               emissiveTextureCacheKey == other.emissiveTextureCacheKey &&
+               emissiveTextureKey == other.emissiveTextureKey &&
                alphaMode == other.alphaMode &&
                blendMode == other.blendMode &&
-               alphaCutoff == other.alphaCutoff;
+               materialMode == other.materialMode &&
+               characterInkingEnabled == other.characterInkingEnabled &&
+               alphaCutoff == other.alphaCutoff &&
+               normalScale == other.normalScale &&
+               metallicFactor == other.metallicFactor &&
+               roughnessFactor == other.roughnessFactor &&
+               occlusionStrength == other.occlusionStrength &&
+               emissiveFactorR == other.emissiveFactorR &&
+               emissiveFactorG == other.emissiveFactorG &&
+               emissiveFactorB == other.emissiveFactorB &&
+               materialTimeSec == other.materialTimeSec &&
+               materialFlags == other.materialFlags &&
+               materialAtlasWidth == other.materialAtlasWidth &&
+               materialAtlasHeight == other.materialAtlasHeight &&
+               materialRect0U == other.materialRect0U &&
+               materialRect0V == other.materialRect0V &&
+               materialRect0W == other.materialRect0W &&
+               materialRect0H == other.materialRect0H &&
+               materialRect1U == other.materialRect1U &&
+               materialRect1V == other.materialRect1V &&
+               materialRect1W == other.materialRect1W &&
+               materialRect1H == other.materialRect1H &&
+               materialFlipbook0Cols == other.materialFlipbook0Cols &&
+               materialFlipbook0Rows == other.materialFlipbook0Rows &&
+               materialFlipbook0Frames == other.materialFlipbook0Frames &&
+               materialFlipbook0Fps == other.materialFlipbook0Fps &&
+               materialFlipbook1Cols == other.materialFlipbook1Cols &&
+               materialFlipbook1Rows == other.materialFlipbook1Rows &&
+               materialFlipbook1Frames == other.materialFlipbook1Frames &&
+               materialFlipbook1Fps == other.materialFlipbook1Fps;
     }
 };
 
+void hashCombine(std::size_t& hash, std::size_t value) {
+    hash ^= value + 0x9e3779b9u + (hash << 6) + (hash >> 2);
+}
+
+std::size_t hashFloat(float value) {
+    std::uint32_t bits = 0u;
+    static_assert(sizeof(bits) == sizeof(value));
+    std::memcpy(&bits, &value, sizeof(bits));
+    return std::hash<std::uint32_t>{}(bits);
+}
+
 struct AutoInstanceKeyHash {
     std::size_t operator()(const AutoInstanceKey& key) const {
-        std::size_t h = std::hash<const WorldIndexedBatch*>{}(key.sharedTemplate);
-        h ^= std::hash<std::string_view>{}(key.geometryCacheKey) + 0x9e3779b9u + (h << 6) + (h >> 2);
-        h ^= std::hash<bool>{}(key.materialAlphaOverride) + 0x9e3779b9u + (h << 6) + (h >> 2);
-        h ^= std::hash<std::uint8_t>{}(key.alphaMode) + 0x9e3779b9u + (h << 6) + (h >> 2);
-        h ^= std::hash<std::uint8_t>{}(key.blendMode) + 0x9e3779b9u + (h << 6) + (h >> 2);
-        std::uint32_t alphaBits = 0u;
-        static_assert(sizeof(alphaBits) == sizeof(key.alphaCutoff));
-        std::memcpy(&alphaBits, &key.alphaCutoff, sizeof(alphaBits));
-        h ^= std::hash<std::uint32_t>{}(alphaBits) + 0x9e3779b9u + (h << 6) + (h >> 2);
+        std::size_t h = 0u;
+        hashCombine(h, std::hash<std::string_view>{}(key.geometryCacheKey));
+        hashCombine(h, std::hash<bool>{}(key.hasBaseTexture));
+        hashCombine(h, std::hash<bool>{}(key.hasNormalTexture));
+        hashCombine(h, std::hash<bool>{}(key.hasMetallicRoughnessTexture));
+        hashCombine(h, std::hash<bool>{}(key.hasOcclusionTexture));
+        hashCombine(h, std::hash<bool>{}(key.hasEmissiveTexture));
+        hashCombine(h, std::hash<std::string_view>{}(key.textureCacheKey));
+        hashCombine(h, std::hash<std::string_view>{}(key.textureKey));
+        hashCombine(h, std::hash<std::string_view>{}(key.normalTextureCacheKey));
+        hashCombine(h, std::hash<std::string_view>{}(key.normalTextureKey));
+        hashCombine(h, std::hash<std::string_view>{}(key.metallicRoughnessTextureCacheKey));
+        hashCombine(h, std::hash<std::string_view>{}(key.metallicRoughnessTextureKey));
+        hashCombine(h, std::hash<std::string_view>{}(key.occlusionTextureCacheKey));
+        hashCombine(h, std::hash<std::string_view>{}(key.occlusionTextureKey));
+        hashCombine(h, std::hash<std::string_view>{}(key.emissiveTextureCacheKey));
+        hashCombine(h, std::hash<std::string_view>{}(key.emissiveTextureKey));
+        hashCombine(h, std::hash<std::uint8_t>{}(key.alphaMode));
+        hashCombine(h, std::hash<std::uint8_t>{}(key.blendMode));
+        hashCombine(h, std::hash<std::uint8_t>{}(key.materialMode));
+        hashCombine(h, std::hash<std::uint8_t>{}(key.characterInkingEnabled));
+        hashCombine(h, hashFloat(key.alphaCutoff));
+        hashCombine(h, hashFloat(key.normalScale));
+        hashCombine(h, hashFloat(key.metallicFactor));
+        hashCombine(h, hashFloat(key.roughnessFactor));
+        hashCombine(h, hashFloat(key.occlusionStrength));
+        hashCombine(h, hashFloat(key.emissiveFactorR));
+        hashCombine(h, hashFloat(key.emissiveFactorG));
+        hashCombine(h, hashFloat(key.emissiveFactorB));
+        hashCombine(h, hashFloat(key.materialTimeSec));
+        hashCombine(h, hashFloat(key.materialFlags));
+        hashCombine(h, hashFloat(key.materialAtlasWidth));
+        hashCombine(h, hashFloat(key.materialAtlasHeight));
+        hashCombine(h, hashFloat(key.materialRect0U));
+        hashCombine(h, hashFloat(key.materialRect0V));
+        hashCombine(h, hashFloat(key.materialRect0W));
+        hashCombine(h, hashFloat(key.materialRect0H));
+        hashCombine(h, hashFloat(key.materialRect1U));
+        hashCombine(h, hashFloat(key.materialRect1V));
+        hashCombine(h, hashFloat(key.materialRect1W));
+        hashCombine(h, hashFloat(key.materialRect1H));
+        hashCombine(h, hashFloat(key.materialFlipbook0Cols));
+        hashCombine(h, hashFloat(key.materialFlipbook0Rows));
+        hashCombine(h, hashFloat(key.materialFlipbook0Frames));
+        hashCombine(h, hashFloat(key.materialFlipbook0Fps));
+        hashCombine(h, hashFloat(key.materialFlipbook1Cols));
+        hashCombine(h, hashFloat(key.materialFlipbook1Rows));
+        hashCombine(h, hashFloat(key.materialFlipbook1Frames));
+        hashCombine(h, hashFloat(key.materialFlipbook1Fps));
         return h;
     }
 };
 
-bool hasLocalMaterialPayload(const WorldIndexedBatch& batch) {
-    return !batch.textureKey.empty() ||
-           !batch.textureCacheKey.empty() ||
-           !batch.ownedTextureRgba.empty() ||
-           batch.textureRgba != nullptr ||
-           batch.textureWidth > 0 ||
-           batch.textureHeight > 0 ||
-           !batch.normalTextureKey.empty() ||
-           !batch.normalTextureCacheKey.empty() ||
-           !batch.ownedNormalTextureRgba.empty() ||
-           batch.normalTextureRgba != nullptr ||
-           batch.normalTextureWidth > 0 ||
-           batch.normalTextureHeight > 0 ||
-           !batch.metallicRoughnessTextureKey.empty() ||
-           !batch.metallicRoughnessTextureCacheKey.empty() ||
-           !batch.ownedMetallicRoughnessTextureRgba.empty() ||
-           batch.metallicRoughnessTextureRgba != nullptr ||
-           batch.metallicRoughnessTextureWidth > 0 ||
-           batch.metallicRoughnessTextureHeight > 0 ||
-           !batch.occlusionTextureKey.empty() ||
-           !batch.occlusionTextureCacheKey.empty() ||
-           !batch.ownedOcclusionTextureRgba.empty() ||
-           batch.occlusionTextureRgba != nullptr ||
-           batch.occlusionTextureWidth > 0 ||
-           batch.occlusionTextureHeight > 0 ||
-           !batch.emissiveTextureKey.empty() ||
-           !batch.emissiveTextureCacheKey.empty() ||
-           !batch.ownedEmissiveTextureRgba.empty() ||
-           batch.emissiveTextureRgba != nullptr ||
-           batch.emissiveTextureWidth > 0 ||
-           batch.emissiveTextureHeight > 0;
-}
-
 bool canAutoInstance(const IRenderBackend& renderer, const WorldIndexedBatch& batch) {
     if (!renderer.supportsWorldIndexedMeshInstancing()) return false;
     if (!batch.instances.empty()) return false;
-    if (batch.sharedTemplate == nullptr) return false;
     if (batch.geometryCacheKey.empty()) return false;
     if (batch.gpuSkinning != 0u) return false;
     if (batch.skinMatrixCount != 0u || batch.sharedSkinMatrices != nullptr || !batch.skinMatrices.empty()) {
         return false;
     }
-    if (hasLocalMaterialPayload(batch)) return false;
     return batch.hasGeometry();
 }
 
@@ -161,6 +261,150 @@ std::uint8_t effectiveBlendMode(const WorldIndexedBatch& batch) {
 float effectiveAlphaCutoff(const WorldIndexedBatch& batch) {
     const WorldIndexedBatch& materialBatch = materialTemplateOrSelf(batch);
     return batch.materialAlphaOverride ? batch.alphaCutoff : materialBatch.alphaCutoff;
+}
+
+bool resolvedTextureHasStableIdentity(const WorldIndexedBatch& batch,
+                                      const std::string WorldIndexedBatch::*keyMember,
+                                      const std::string WorldIndexedBatch::*cacheKeyMember,
+                                      const unsigned char* WorldIndexedBatch::*rgbaMember,
+                                      const std::vector<unsigned char> WorldIndexedBatch::*ownedMember,
+                                      int WorldIndexedBatch::*widthMember,
+                                      int WorldIndexedBatch::*heightMember) {
+    if (!resolvedTexturePresent(batch, rgbaMember, ownedMember, widthMember, heightMember)) {
+        return true;
+    }
+    return !resolvedStringMember(batch, cacheKeyMember).empty() ||
+           !resolvedStringMember(batch, keyMember).empty();
+}
+
+AutoInstanceKey makeAutoInstanceKey(const WorldIndexedBatch& batch) {
+    const WorldIndexedBatch& materialBatch = materialTemplateOrSelf(batch);
+    AutoInstanceKey key{};
+    key.geometryCacheKey = batch.geometryCacheKey;
+    key.hasBaseTexture = resolvedTexturePresent(
+        batch,
+        &WorldIndexedBatch::textureRgba,
+        &WorldIndexedBatch::ownedTextureRgba,
+        &WorldIndexedBatch::textureWidth,
+        &WorldIndexedBatch::textureHeight);
+    key.hasNormalTexture = resolvedTexturePresent(
+        batch,
+        &WorldIndexedBatch::normalTextureRgba,
+        &WorldIndexedBatch::ownedNormalTextureRgba,
+        &WorldIndexedBatch::normalTextureWidth,
+        &WorldIndexedBatch::normalTextureHeight);
+    key.hasMetallicRoughnessTexture = resolvedTexturePresent(
+        batch,
+        &WorldIndexedBatch::metallicRoughnessTextureRgba,
+        &WorldIndexedBatch::ownedMetallicRoughnessTextureRgba,
+        &WorldIndexedBatch::metallicRoughnessTextureWidth,
+        &WorldIndexedBatch::metallicRoughnessTextureHeight);
+    key.hasOcclusionTexture = resolvedTexturePresent(
+        batch,
+        &WorldIndexedBatch::occlusionTextureRgba,
+        &WorldIndexedBatch::ownedOcclusionTextureRgba,
+        &WorldIndexedBatch::occlusionTextureWidth,
+        &WorldIndexedBatch::occlusionTextureHeight);
+    key.hasEmissiveTexture = resolvedTexturePresent(
+        batch,
+        &WorldIndexedBatch::emissiveTextureRgba,
+        &WorldIndexedBatch::ownedEmissiveTextureRgba,
+        &WorldIndexedBatch::emissiveTextureWidth,
+        &WorldIndexedBatch::emissiveTextureHeight);
+    key.textureCacheKey = resolvedStringMember(batch, &WorldIndexedBatch::textureCacheKey);
+    key.textureKey = resolvedStringMember(batch, &WorldIndexedBatch::textureKey);
+    key.normalTextureCacheKey = resolvedStringMember(
+        batch, &WorldIndexedBatch::normalTextureCacheKey);
+    key.normalTextureKey = resolvedStringMember(batch, &WorldIndexedBatch::normalTextureKey);
+    key.metallicRoughnessTextureCacheKey = resolvedStringMember(
+        batch, &WorldIndexedBatch::metallicRoughnessTextureCacheKey);
+    key.metallicRoughnessTextureKey = resolvedStringMember(
+        batch, &WorldIndexedBatch::metallicRoughnessTextureKey);
+    key.occlusionTextureCacheKey = resolvedStringMember(
+        batch, &WorldIndexedBatch::occlusionTextureCacheKey);
+    key.occlusionTextureKey = resolvedStringMember(batch, &WorldIndexedBatch::occlusionTextureKey);
+    key.emissiveTextureCacheKey = resolvedStringMember(
+        batch, &WorldIndexedBatch::emissiveTextureCacheKey);
+    key.emissiveTextureKey = resolvedStringMember(batch, &WorldIndexedBatch::emissiveTextureKey);
+    key.alphaMode = effectiveAlphaMode(batch);
+    key.blendMode = effectiveBlendMode(batch);
+    key.materialMode = materialBatch.materialMode;
+    key.characterInkingEnabled = materialBatch.characterInkingEnabled;
+    key.alphaCutoff = effectiveAlphaCutoff(batch);
+    key.normalScale = materialBatch.normalScale;
+    key.metallicFactor = materialBatch.metallicFactor;
+    key.roughnessFactor = materialBatch.roughnessFactor;
+    key.occlusionStrength = materialBatch.occlusionStrength;
+    key.emissiveFactorR = materialBatch.emissiveFactorR;
+    key.emissiveFactorG = materialBatch.emissiveFactorG;
+    key.emissiveFactorB = materialBatch.emissiveFactorB;
+    key.materialTimeSec = materialBatch.materialTimeSec;
+    key.materialFlags = materialBatch.materialFlags;
+    key.materialAtlasWidth = materialBatch.materialAtlasWidth;
+    key.materialAtlasHeight = materialBatch.materialAtlasHeight;
+    key.materialRect0U = materialBatch.materialRect0U;
+    key.materialRect0V = materialBatch.materialRect0V;
+    key.materialRect0W = materialBatch.materialRect0W;
+    key.materialRect0H = materialBatch.materialRect0H;
+    key.materialRect1U = materialBatch.materialRect1U;
+    key.materialRect1V = materialBatch.materialRect1V;
+    key.materialRect1W = materialBatch.materialRect1W;
+    key.materialRect1H = materialBatch.materialRect1H;
+    key.materialFlipbook0Cols = materialBatch.materialFlipbook0Cols;
+    key.materialFlipbook0Rows = materialBatch.materialFlipbook0Rows;
+    key.materialFlipbook0Frames = materialBatch.materialFlipbook0Frames;
+    key.materialFlipbook0Fps = materialBatch.materialFlipbook0Fps;
+    key.materialFlipbook1Cols = materialBatch.materialFlipbook1Cols;
+    key.materialFlipbook1Rows = materialBatch.materialFlipbook1Rows;
+    key.materialFlipbook1Frames = materialBatch.materialFlipbook1Frames;
+    key.materialFlipbook1Fps = materialBatch.materialFlipbook1Fps;
+    return key;
+}
+
+bool canAutoInstanceWithResolvedPayload(const IRenderBackend& renderer, const WorldIndexedBatch& batch) {
+    if (!canAutoInstance(renderer, batch)) {
+        return false;
+    }
+    return resolvedTextureHasStableIdentity(
+               batch,
+               &WorldIndexedBatch::textureKey,
+               &WorldIndexedBatch::textureCacheKey,
+               &WorldIndexedBatch::textureRgba,
+               &WorldIndexedBatch::ownedTextureRgba,
+               &WorldIndexedBatch::textureWidth,
+               &WorldIndexedBatch::textureHeight) &&
+           resolvedTextureHasStableIdentity(
+               batch,
+               &WorldIndexedBatch::normalTextureKey,
+               &WorldIndexedBatch::normalTextureCacheKey,
+               &WorldIndexedBatch::normalTextureRgba,
+               &WorldIndexedBatch::ownedNormalTextureRgba,
+               &WorldIndexedBatch::normalTextureWidth,
+               &WorldIndexedBatch::normalTextureHeight) &&
+           resolvedTextureHasStableIdentity(
+               batch,
+               &WorldIndexedBatch::metallicRoughnessTextureKey,
+               &WorldIndexedBatch::metallicRoughnessTextureCacheKey,
+               &WorldIndexedBatch::metallicRoughnessTextureRgba,
+               &WorldIndexedBatch::ownedMetallicRoughnessTextureRgba,
+               &WorldIndexedBatch::metallicRoughnessTextureWidth,
+               &WorldIndexedBatch::metallicRoughnessTextureHeight) &&
+           resolvedTextureHasStableIdentity(
+               batch,
+               &WorldIndexedBatch::occlusionTextureKey,
+               &WorldIndexedBatch::occlusionTextureCacheKey,
+               &WorldIndexedBatch::occlusionTextureRgba,
+               &WorldIndexedBatch::ownedOcclusionTextureRgba,
+               &WorldIndexedBatch::occlusionTextureWidth,
+               &WorldIndexedBatch::occlusionTextureHeight) &&
+           resolvedTextureHasStableIdentity(
+               batch,
+               &WorldIndexedBatch::emissiveTextureKey,
+               &WorldIndexedBatch::emissiveTextureCacheKey,
+               &WorldIndexedBatch::emissiveTextureRgba,
+               &WorldIndexedBatch::ownedEmissiveTextureRgba,
+               &WorldIndexedBatch::emissiveTextureWidth,
+               &WorldIndexedBatch::emissiveTextureHeight);
 }
 
 struct SubmissionMaterialStateKey {
@@ -794,14 +1038,8 @@ void submitWorldIndexedBatches(IRenderBackend& renderer,
         if (!batch.hasGeometry()) continue;
         if (batch.alphaMode == 2u) {
             blendBatches.push_back(&batch);
-        } else if (canAutoInstance(renderer, batch)) {
-            AutoInstanceKey key{};
-            key.sharedTemplate = batch.sharedTemplate;
-            key.geometryCacheKey = batch.geometryCacheKey;
-            key.materialAlphaOverride = batch.materialAlphaOverride;
-            key.alphaMode = batch.alphaMode;
-            key.blendMode = batch.blendMode;
-            key.alphaCutoff = batch.alphaCutoff;
+        } else if (canAutoInstanceWithResolvedPayload(renderer, batch)) {
+            const AutoInstanceKey key = makeAutoInstanceKey(batch);
             auto it = autoInstanceBatchIndex.find(key);
             if (it == autoInstanceBatchIndex.end()) {
                 autoInstancedOpaqueBatches.push_back(batch);

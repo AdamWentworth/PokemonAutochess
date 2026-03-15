@@ -271,6 +271,53 @@ bool test_shared_world_indexed_batches_contract(std::string& outFail) {
         return false;
     }
 
+    backend.calls.clear();
+    backend.submissionStats = {};
+    backend.sawSubmissionStats = false;
+
+    WorldIndexedBatch localAutoInstanceA = makeBatch(
+        "local_auto_instanced_model",
+        0u,
+        0.0f,
+        false);
+    localAutoInstanceA.geometryCacheKey = "__local_auto_instance_geom__:test";
+    localAutoInstanceA.sharedVertices = kModelVertices;
+    localAutoInstanceA.sharedVertexCount = 3u;
+    localAutoInstanceA.sharedIndices = kModelIndices;
+    localAutoInstanceA.sharedIndexCount = 3u;
+    localAutoInstanceA.vertices.clear();
+    localAutoInstanceA.indices.clear();
+    localAutoInstanceA.modelMatrix[12] = 3.0f;
+    localAutoInstanceA.vertexColorMulG = 0.7f;
+
+    WorldIndexedBatch localAutoInstanceB = localAutoInstanceA;
+    localAutoInstanceB.modelMatrix[12] = 4.0f;
+    localAutoInstanceB.vertexColorMulG = 0.5f;
+
+    submitWorldIndexedBatches(
+        backend,
+        {localAutoInstanceA, localAutoInstanceB},
+        viewProj,
+        1280,
+        720);
+
+    if (!expect(backend.calls.size() == 1u &&
+                    backend.calls.front().instanced &&
+                    backend.calls.front().instanceCount == 2u &&
+                    backend.calls.front().key == "local_auto_instanced_model",
+                "submitWorldIndexedBatches should auto-merge compatible opaque cached batches by resolved local material state, not only by shared template pointer.",
+                outFail)) {
+        return false;
+    }
+
+    if (!expect(backend.sawSubmissionStats &&
+                    backend.submissionStats.cachedDraws == 1u &&
+                    backend.submissionStats.instancedDraws == 1u,
+                "submitWorldIndexedBatches should preserve cached/instanced submission counters for resolved-state auto-instancing.",
+                outFail)) {
+        return false;
+    }
+
     return true;
 }
 
