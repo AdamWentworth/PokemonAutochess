@@ -92,10 +92,20 @@ public:
                         std::size_t quadCount,
                         int surfaceWidth,
                         int surfaceHeight) override;
+    void drawDebugQuadsCached(const char* cacheKey,
+                              const DebugQuad* quads,
+                              std::size_t quadCount,
+                              int surfaceWidth,
+                              int surfaceHeight) override;
     void drawDebugLines(const DebugLine* lines,
                         std::size_t lineCount,
                         int surfaceWidth,
                         int surfaceHeight) override;
+    void drawDebugLinesCached(const char* cacheKey,
+                              const DebugLine* lines,
+                              std::size_t lineCount,
+                              int surfaceWidth,
+                              int surfaceHeight) override;
     void drawDebugTriangles(const DebugTriangle* triangles,
                             std::size_t triangleCount,
                             int surfaceWidth,
@@ -113,6 +123,7 @@ private:
 
     void ensureDebugPipeline();
     void destroyDebugPipeline();
+    void destroyCachedDebugGeometry();
     void ensureWorldPipeline();
     void destroyWorldPipeline();
     void destroyCachedWorldMeshes();
@@ -173,6 +184,15 @@ private:
     unsigned int debugVao_ = 0;
     unsigned int debugVbo_ = 0;
     int debugSurfaceSizeLoc_ = -1;
+    struct CachedDebugGeometry {
+        unsigned int vao = 0;
+        unsigned int vertexBuffer = 0;
+        std::size_t vertexCount = 0u;
+        std::size_t vertexBytes = 0u;
+        bool valid = false;
+    };
+    std::unordered_map<std::string, CachedDebugGeometry> cachedDebugQuads_;
+    std::unordered_map<std::string, CachedDebugGeometry> cachedDebugLines_;
 
     unsigned int worldProgram_ = 0;
     unsigned int worldVao_ = 0;

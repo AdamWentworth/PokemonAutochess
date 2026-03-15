@@ -481,6 +481,14 @@ public:
         (void)surfaceWidth;
         (void)surfaceHeight;
     }
+    virtual void drawDebugQuadsCached(const char* cacheKey,
+                                      const DebugQuad* quads,
+                                      std::size_t quadCount,
+                                      int surfaceWidth,
+                                      int surfaceHeight) {
+        (void)cacheKey;
+        drawDebugQuads(quads, quadCount, surfaceWidth, surfaceHeight);
+    }
     virtual void drawDebugLines(const DebugLine* lines,
                                 std::size_t lineCount,
                                 int surfaceWidth,
@@ -489,6 +497,14 @@ public:
         (void)lineCount;
         (void)surfaceWidth;
         (void)surfaceHeight;
+    }
+    virtual void drawDebugLinesCached(const char* cacheKey,
+                                      const DebugLine* lines,
+                                      std::size_t lineCount,
+                                      int surfaceWidth,
+                                      int surfaceHeight) {
+        (void)cacheKey;
+        drawDebugLines(lines, lineCount, surfaceWidth, surfaceHeight);
     }
     virtual void drawDebugTriangles(const DebugTriangle* triangles,
                                     std::size_t triangleCount,

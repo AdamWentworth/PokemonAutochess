@@ -98,6 +98,7 @@ void OpenGLRenderBackend::ensureDebugPipeline() {
 }
 
 void OpenGLRenderBackend::destroyDebugPipeline() {
+    destroyCachedDebugGeometry();
     if (debugVbo_ != 0) {
         glDeleteBuffers(1, &debugVbo_);
         debugVbo_ = 0;
@@ -111,6 +112,26 @@ void OpenGLRenderBackend::destroyDebugPipeline() {
         debugProgram_ = 0;
     }
     debugSurfaceSizeLoc_ = -1;
+}
+
+void OpenGLRenderBackend::destroyCachedDebugGeometry() {
+    auto destroyCache = [](auto& cache) {
+        for (auto& [_, geometry] : cache) {
+            if (geometry.vertexBuffer != 0u) {
+                glDeleteBuffers(1, &geometry.vertexBuffer);
+                geometry.vertexBuffer = 0u;
+            }
+            if (geometry.vao != 0u) {
+                glDeleteVertexArrays(1, &geometry.vao);
+                geometry.vao = 0u;
+            }
+            geometry.valid = false;
+        }
+        cache.clear();
+    };
+
+    destroyCache(cachedDebugQuads_);
+    destroyCache(cachedDebugLines_);
 }
 
 void OpenGLRenderBackend::ensureSpritePipeline() {

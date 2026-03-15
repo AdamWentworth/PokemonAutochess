@@ -109,10 +109,20 @@ public:
                         std::size_t quadCount,
                         int surfaceWidth,
                         int surfaceHeight) override;
+    void drawDebugQuadsCached(const char* cacheKey,
+                              const DebugQuad* quads,
+                              std::size_t quadCount,
+                              int surfaceWidth,
+                              int surfaceHeight) override;
     void drawDebugLines(const DebugLine* lines,
                         std::size_t lineCount,
                         int surfaceWidth,
                         int surfaceHeight) override;
+    void drawDebugLinesCached(const char* cacheKey,
+                              const DebugLine* lines,
+                              std::size_t lineCount,
+                              int surfaceWidth,
+                              int surfaceHeight) override;
     void drawDebugTriangles(const DebugTriangle* triangles,
                             std::size_t triangleCount,
                             int surfaceWidth,
@@ -166,6 +176,13 @@ private:
     SpriteTexture* ensureWorldTexture(const WorldTextureData* textureData);
     void ensureWorldFallbackEnvTexture();
 #if defined(_WIN32)
+    struct CachedDebugGeometry {
+        Microsoft::WRL::ComPtr<ID3D12Resource> vertexBuffer;
+        std::uint64_t gpuAddress = 0u;
+        std::size_t vertexCount = 0u;
+        std::size_t vertexBytes = 0u;
+        bool valid = false;
+    };
     struct CachedWorldMesh {
         Microsoft::WRL::ComPtr<ID3D12Resource> vertexBuffer;
         Microsoft::WRL::ComPtr<ID3D12Resource> indexBuffer;
@@ -308,6 +325,8 @@ private:
     std::uint32_t debugVertexBufferSize_ = 0;
     std::uint32_t debugVertexFrameOffset_ = 0;
     std::uint8_t* debugVertexMappedData_ = nullptr;
+    std::unordered_map<std::string, CachedDebugGeometry> cachedDebugQuads_;
+    std::unordered_map<std::string, CachedDebugGeometry> cachedDebugLines_;
     Microsoft::WRL::ComPtr<ID3D12RootSignature> worldRootSignature_;
     Microsoft::WRL::ComPtr<ID3D12PipelineState> worldPipelineState_;
     Microsoft::WRL::ComPtr<ID3D12PipelineState> worldBlendPipelineState_;

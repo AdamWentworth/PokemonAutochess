@@ -233,14 +233,48 @@ void composeAndSubmit(const ComposeAndSubmitArgs& args) {
             support::hashFloatQuantized(key, lineStep);
             support::hashFloatQuantized(key, uiScale);
         };
-        const auto appendRetainedRegion = [&](const support::RetainedOverlayCache& cache) {
-            support::appendCachedVector(worldQuads, cache.worldQuads);
-            support::appendCachedVector(overlayQuads, cache.overlayQuads);
-            support::appendCachedVector(lines, cache.lines);
-            support::appendCachedVector(textLines, cache.textLines);
-            support::appendCachedVector(sprites, cache.sprites);
-            support::appendCachedVector(backendInventoryPanel.hitRegions, cache.hitRegions);
+        struct CachedQuadSubmit {
+            std::string key;
+            const std::vector<IRenderBackend::DebugQuad>* quads = nullptr;
         };
+        struct CachedLineSubmit {
+            std::string key;
+            const std::vector<IRenderBackend::DebugLine>* lines = nullptr;
+        };
+        std::vector<CachedQuadSubmit> retainedWorldQuadSubmits;
+        std::vector<CachedQuadSubmit> retainedOverlayQuadSubmits;
+        std::vector<CachedLineSubmit> retainedLineSubmits;
+        std::vector<CachedLineSubmit> retainedTextLineSubmits;
+        retainedWorldQuadSubmits.reserve(4u);
+        retainedOverlayQuadSubmits.reserve(4u);
+        retainedLineSubmits.reserve(4u);
+        retainedTextLineSubmits.reserve(4u);
+        const auto makeRetainedSubmitKey = [](support::OverlayHash key, const char* suffix) {
+            return std::string("retained_ui:") +
+                   std::to_string(static_cast<unsigned long long>(key)) +
+                   suffix;
+        };
+        const auto queueRetainedRegion =
+            [&](const support::RetainedOverlayCache& cache, support::OverlayHash key) {
+                if (!cache.worldQuads.empty()) {
+                    retainedWorldQuadSubmits.push_back(
+                        {makeRetainedSubmitKey(key, ":world_quads"), &cache.worldQuads});
+                }
+                if (!cache.overlayQuads.empty()) {
+                    retainedOverlayQuadSubmits.push_back(
+                        {makeRetainedSubmitKey(key, ":overlay_quads"), &cache.overlayQuads});
+                }
+                if (!cache.lines.empty()) {
+                    retainedLineSubmits.push_back(
+                        {makeRetainedSubmitKey(key, ":lines"), &cache.lines});
+                }
+                if (!cache.textLines.empty()) {
+                    retainedTextLineSubmits.push_back(
+                        {makeRetainedSubmitKey(key, ":text_lines"), &cache.textLines});
+                }
+                support::appendCachedVector(sprites, cache.sprites);
+                support::appendCachedVector(backendInventoryPanel.hitRegions, cache.hitRegions);
+            };
         const auto captureRetainedRegion =
             [&](support::RetainedOverlayCache& cache,
                 support::OverlayHash key,
@@ -348,7 +382,7 @@ void composeAndSubmit(const ComposeAndSubmitArgs& args) {
         thread_local support::RetainedOverlayCache logCache;
 
         if (statusCache.key == statusKey) {
-            appendRetainedRegion(statusCache);
+            queueRetainedRegion(statusCache, statusKey);
         } else {
             const std::size_t worldQuadsStart = worldQuads.size();
             const std::size_t overlayQuadsStart = overlayQuads.size();
@@ -404,7 +438,7 @@ void composeAndSubmit(const ComposeAndSubmitArgs& args) {
         }
 
         if (inventoryCache.key == inventoryKey) {
-            appendRetainedRegion(inventoryCache);
+            queueRetainedRegion(inventoryCache, inventoryKey);
         } else {
             const std::size_t worldQuadsStart = worldQuads.size();
             const std::size_t overlayQuadsStart = overlayQuads.size();
@@ -734,7 +768,7 @@ void composeAndSubmit(const ComposeAndSubmitArgs& args) {
         }
 
         if (rosterCache.key == rosterKey) {
-            appendRetainedRegion(rosterCache);
+            queueRetainedRegion(rosterCache, rosterKey);
         } else {
             const std::size_t worldQuadsStart = worldQuads.size();
             const std::size_t overlayQuadsStart = overlayQuads.size();
@@ -803,7 +837,7 @@ void composeAndSubmit(const ComposeAndSubmitArgs& args) {
         }
 
         if (logCache.key == logKey) {
-            appendRetainedRegion(logCache);
+            queueRetainedRegion(logCache, logKey);
         } else {
             const std::size_t worldQuadsStart = worldQuads.size();
             const std::size_t overlayQuadsStart = overlayQuads.size();
@@ -934,6 +968,17 @@ void composeAndSubmit(const ComposeAndSubmitArgs& args) {
             renderer->drawDebugQuads(worldQuads.data(), worldQuads.size(), drawableW, drawableH);
             renderBuildBreakdown->worldDebugMs += toMs(stageStart, clock::now());
         }
+        for (const auto& submit : retainedWorldQuadSubmits) {
+            if (!submit.quads || submit.quads->empty()) continue;
+            const auto stageStart = clock::now();
+            renderer->drawDebugQuadsCached(
+                submit.key.c_str(),
+                submit.quads->data(),
+                submit.quads->size(),
+                drawableW,
+                drawableH);
+            renderBuildBreakdown->worldDebugMs += toMs(stageStart, clock::now());
+        }
         if (!sprites.empty()) {
             const auto stageStart = clock::now();
             renderer->drawDebugSprites(sprites.data(), sprites.size(), drawableW, drawableH);
@@ -944,14 +989,47 @@ void composeAndSubmit(const ComposeAndSubmitArgs& args) {
             renderer->drawDebugLines(lines.data(), lines.size(), drawableW, drawableH);
             renderBuildBreakdown->uiMs += toMs(stageStart, clock::now());
         }
+        for (const auto& submit : retainedLineSubmits) {
+            if (!submit.lines || submit.lines->empty()) continue;
+            const auto stageStart = clock::now();
+            renderer->drawDebugLinesCached(
+                submit.key.c_str(),
+                submit.lines->data(),
+                submit.lines->size(),
+                drawableW,
+                drawableH);
+            renderBuildBreakdown->uiMs += toMs(stageStart, clock::now());
+        }
         if (!overlayQuads.empty()) {
             const auto stageStart = clock::now();
             renderer->drawDebugQuads(overlayQuads.data(), overlayQuads.size(), drawableW, drawableH);
             renderBuildBreakdown->uiMs += toMs(stageStart, clock::now());
         }
+        for (const auto& submit : retainedOverlayQuadSubmits) {
+            if (!submit.quads || submit.quads->empty()) continue;
+            const auto stageStart = clock::now();
+            renderer->drawDebugQuadsCached(
+                submit.key.c_str(),
+                submit.quads->data(),
+                submit.quads->size(),
+                drawableW,
+                drawableH);
+            renderBuildBreakdown->uiMs += toMs(stageStart, clock::now());
+        }
         if (!textLines.empty()) {
             const auto stageStart = clock::now();
             renderer->drawDebugLines(textLines.data(), textLines.size(), drawableW, drawableH);
+            renderBuildBreakdown->uiMs += toMs(stageStart, clock::now());
+        }
+        for (const auto& submit : retainedTextLineSubmits) {
+            if (!submit.lines || submit.lines->empty()) continue;
+            const auto stageStart = clock::now();
+            renderer->drawDebugLinesCached(
+                submit.key.c_str(),
+                submit.lines->data(),
+                submit.lines->size(),
+                drawableW,
+                drawableH);
             renderBuildBreakdown->uiMs += toMs(stageStart, clock::now());
         }
 }

@@ -417,6 +417,8 @@ void D3D12RenderBackend::shutdown() {
     debugVertexStride_ = 0;
     debugVertexBufferSize_ = 0;
     debugVertexFrameOffset_ = 0;
+    cachedDebugQuads_.clear();
+    cachedDebugLines_.clear();
     if (worldVertexBuffer_ && worldVertexMappedData_) {
         D3D12_RANGE readRange{0, 0};
         worldVertexBuffer_->Unmap(0, &readRange);
