@@ -807,21 +807,7 @@ void D3D12RenderBackend::drawWorldIndexedMeshInternal(const WorldMeshVertex* ver
     auto* outIndices = reinterpret_cast<std::uint32_t*>(worldIndexMappedData_ + indexWriteOffset);
     std::memcpy(outIndices, indices, indexBytes);
 
-    D3D12_VIEWPORT vp{};
-    vp.TopLeftX = 0.0f;
-    vp.TopLeftY = 0.0f;
-    vp.Width = static_cast<float>(surfaceWidth);
-    vp.Height = static_cast<float>(surfaceHeight);
-    vp.MinDepth = 0.0f;
-    vp.MaxDepth = 1.0f;
-    D3D12_RECT scissor{0, 0, surfaceWidth, surfaceHeight};
-
-    commandList_->RSSetViewports(1, &vp);
-    commandList_->RSSetScissorRects(1, &scissor);
-
-    ID3D12DescriptorHeap* heaps[] = {srvHeap_.Get()};
-    commandList_->SetDescriptorHeaps(1, heaps);
-    commandList_->SetGraphicsRootSignature(worldRootSignature_.Get());
+    bindWorldIndexedCommonState(surfaceWidth, surfaceHeight);
     const float* modelMatrix = textureData ? textureData->modelMatrix.data() : nullptr;
     constexpr std::uint32_t kMaxGpuSkinMatrices = 64u;
     bool gpuSkinningEnabled =
@@ -877,30 +863,13 @@ void D3D12RenderBackend::drawWorldIndexedMeshInternal(const WorldMeshVertex* ver
         static_cast<UINT>(sizeof(WorldPsConstants) / sizeof(float)),
         &worldPs,
         0);
-    D3D12_GPU_DESCRIPTOR_HANDLE srvBaseHandle = srvHeap_->GetGPUDescriptorHandleForHeapStart();
-    D3D12_GPU_DESCRIPTOR_HANDLE srvNormalHandle = srvBaseHandle;
-    D3D12_GPU_DESCRIPTOR_HANDLE srvMetalRoughHandle = srvBaseHandle;
-    D3D12_GPU_DESCRIPTOR_HANDLE srvOcclusionHandle = srvBaseHandle;
-    D3D12_GPU_DESCRIPTOR_HANDLE srvEmissiveHandle = srvBaseHandle;
-    D3D12_GPU_DESCRIPTOR_HANDLE srvEnvHandle = srvBaseHandle;
-    srvBaseHandle.ptr += static_cast<SIZE_T>(baseTextureDescriptorIndex) * static_cast<SIZE_T>(srvDescriptorSize_);
-    srvNormalHandle.ptr +=
-        static_cast<SIZE_T>(normalTextureDescriptorIndex) * static_cast<SIZE_T>(srvDescriptorSize_);
-    srvMetalRoughHandle.ptr += static_cast<SIZE_T>(metallicRoughnessTextureDescriptorIndex) *
-                               static_cast<SIZE_T>(srvDescriptorSize_);
-    srvOcclusionHandle.ptr +=
-        static_cast<SIZE_T>(occlusionTextureDescriptorIndex) * static_cast<SIZE_T>(srvDescriptorSize_);
-    srvEmissiveHandle.ptr +=
-        static_cast<SIZE_T>(emissiveTextureDescriptorIndex) * static_cast<SIZE_T>(srvDescriptorSize_);
-    srvEnvHandle.ptr +=
-        static_cast<SIZE_T>(envTextureDescriptorIndex) * static_cast<SIZE_T>(srvDescriptorSize_);
-    commandList_->SetGraphicsRootDescriptorTable(3, srvBaseHandle);
-    commandList_->SetGraphicsRootDescriptorTable(4, srvNormalHandle);
-    commandList_->SetGraphicsRootDescriptorTable(5, srvMetalRoughHandle);
-    commandList_->SetGraphicsRootDescriptorTable(6, srvOcclusionHandle);
-    commandList_->SetGraphicsRootDescriptorTable(7, srvEmissiveHandle);
-    commandList_->SetGraphicsRootDescriptorTable(8, srvEnvHandle);
-    frameIndexedD3d12DescriptorTableSets_ += 6u;
+    bindWorldIndexedDescriptorTables(
+        baseTextureDescriptorIndex,
+        normalTextureDescriptorIndex,
+        metallicRoughnessTextureDescriptorIndex,
+        occlusionTextureDescriptorIndex,
+        emissiveTextureDescriptorIndex,
+        envTextureDescriptorIndex);
     const bool blendMaterial = textureData && textureData->alphaMode == 2u;
     const std::uint8_t blendMode = textureData ? std::min<std::uint8_t>(2u, textureData->blendMode) : 0u;
     ID3D12PipelineState* pso = worldPipelineState_.Get();
@@ -913,9 +882,8 @@ void D3D12RenderBackend::drawWorldIndexedMeshInternal(const WorldMeshVertex* ver
             pso = worldBlendPipelineState_.Get();
         }
     }
-    commandList_->SetPipelineState(pso);
-    ++frameIndexedD3d12PsoSets_;
-    commandList_->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+    bindWorldIndexedPipelineState(pso);
+    bindWorldIndexedPrimitiveTopology();
 
     D3D12_VERTEX_BUFFER_VIEW vbv{};
     vbv.BufferLocation = worldVertexBufferGpuAddress_ + static_cast<std::uint64_t>(vertexWriteOffset);
@@ -1012,8 +980,7 @@ void D3D12RenderBackend::drawWorldIndexedMeshInternal(const WorldMeshVertex* ver
                 static_cast<UINT>(sizeof(WorldPsConstants) / sizeof(float)),
                 &outlinePs,
                 0);
-            commandList_->SetPipelineState(worldPipelineState_.Get());
-            ++frameIndexedD3d12PsoSets_;
+            bindWorldIndexedPipelineState(worldPipelineState_.Get());
             commandList_->DrawIndexedInstanced(static_cast<UINT>(safeIndexCount), 1, 0, 0, 0);
             ++frameDrawCalls_;
             frameTriangles_ += static_cast<std::uint64_t>(safeIndexCount / 3u);
@@ -1080,21 +1047,7 @@ void D3D12RenderBackend::drawWorldIndexedMeshTexturedCachedInternal(
     }
     if (!worldVsConstantMappedData_ || !worldSkinMatrixMappedData_) return;
 
-    D3D12_VIEWPORT vp{};
-    vp.TopLeftX = 0.0f;
-    vp.TopLeftY = 0.0f;
-    vp.Width = static_cast<float>(surfaceWidth);
-    vp.Height = static_cast<float>(surfaceHeight);
-    vp.MinDepth = 0.0f;
-    vp.MaxDepth = 1.0f;
-    D3D12_RECT scissor{0, 0, surfaceWidth, surfaceHeight};
-
-    commandList_->RSSetViewports(1, &vp);
-    commandList_->RSSetScissorRects(1, &scissor);
-
-    ID3D12DescriptorHeap* heaps[] = {srvHeap_.Get()};
-    commandList_->SetDescriptorHeaps(1, heaps);
-    commandList_->SetGraphicsRootSignature(worldRootSignature_.Get());
+    bindWorldIndexedCommonState(surfaceWidth, surfaceHeight);
 
     const float* modelMatrix = textureData ? textureData->modelMatrix.data() : nullptr;
     constexpr std::uint32_t kMaxGpuSkinMatrices = 64u;
@@ -1155,30 +1108,13 @@ void D3D12RenderBackend::drawWorldIndexedMeshTexturedCachedInternal(
         &worldPs,
         0);
 
-    D3D12_GPU_DESCRIPTOR_HANDLE srvBaseHandle = srvHeap_->GetGPUDescriptorHandleForHeapStart();
-    D3D12_GPU_DESCRIPTOR_HANDLE srvNormalHandle = srvBaseHandle;
-    D3D12_GPU_DESCRIPTOR_HANDLE srvMetalRoughHandle = srvBaseHandle;
-    D3D12_GPU_DESCRIPTOR_HANDLE srvOcclusionHandle = srvBaseHandle;
-    D3D12_GPU_DESCRIPTOR_HANDLE srvEmissiveHandle = srvBaseHandle;
-    D3D12_GPU_DESCRIPTOR_HANDLE srvEnvHandle = srvBaseHandle;
-    srvBaseHandle.ptr += static_cast<SIZE_T>(baseTextureDescriptorIndex) * static_cast<SIZE_T>(srvDescriptorSize_);
-    srvNormalHandle.ptr +=
-        static_cast<SIZE_T>(normalTextureDescriptorIndex) * static_cast<SIZE_T>(srvDescriptorSize_);
-    srvMetalRoughHandle.ptr += static_cast<SIZE_T>(metallicRoughnessTextureDescriptorIndex) *
-                               static_cast<SIZE_T>(srvDescriptorSize_);
-    srvOcclusionHandle.ptr +=
-        static_cast<SIZE_T>(occlusionTextureDescriptorIndex) * static_cast<SIZE_T>(srvDescriptorSize_);
-    srvEmissiveHandle.ptr +=
-        static_cast<SIZE_T>(emissiveTextureDescriptorIndex) * static_cast<SIZE_T>(srvDescriptorSize_);
-    srvEnvHandle.ptr +=
-        static_cast<SIZE_T>(envTextureDescriptorIndex) * static_cast<SIZE_T>(srvDescriptorSize_);
-    commandList_->SetGraphicsRootDescriptorTable(3, srvBaseHandle);
-    commandList_->SetGraphicsRootDescriptorTable(4, srvNormalHandle);
-    commandList_->SetGraphicsRootDescriptorTable(5, srvMetalRoughHandle);
-    commandList_->SetGraphicsRootDescriptorTable(6, srvOcclusionHandle);
-    commandList_->SetGraphicsRootDescriptorTable(7, srvEmissiveHandle);
-    commandList_->SetGraphicsRootDescriptorTable(8, srvEnvHandle);
-    frameIndexedD3d12DescriptorTableSets_ += 6u;
+    bindWorldIndexedDescriptorTables(
+        baseTextureDescriptorIndex,
+        normalTextureDescriptorIndex,
+        metallicRoughnessTextureDescriptorIndex,
+        occlusionTextureDescriptorIndex,
+        emissiveTextureDescriptorIndex,
+        envTextureDescriptorIndex);
 
     const bool blendMaterial = textureData && textureData->alphaMode == 2u;
     const std::uint8_t blendMode = textureData ? std::min<std::uint8_t>(2u, textureData->blendMode) : 0u;
@@ -1192,9 +1128,8 @@ void D3D12RenderBackend::drawWorldIndexedMeshTexturedCachedInternal(
             pso = worldBlendPipelineState_.Get();
         }
     }
-    commandList_->SetPipelineState(pso);
-    ++frameIndexedD3d12PsoSets_;
-    commandList_->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+    bindWorldIndexedPipelineState(pso);
+    bindWorldIndexedPrimitiveTopology();
 
     D3D12_VERTEX_BUFFER_VIEW vbv{};
     vbv.BufferLocation = mesh.vertexGpuAddress;
@@ -1316,8 +1251,7 @@ void D3D12RenderBackend::drawWorldIndexedMeshTexturedCachedInternal(
         static_cast<UINT>(sizeof(WorldPsConstants) / sizeof(float)),
         &outlinePs,
         0);
-    commandList_->SetPipelineState(worldPipelineState_.Get());
-    ++frameIndexedD3d12PsoSets_;
+    bindWorldIndexedPipelineState(worldPipelineState_.Get());
     commandList_->DrawIndexedInstanced(static_cast<UINT>(safeIndexCount), instanceCount, 0, 0, 0);
     ++frameDrawCalls_;
     frameTriangles_ += static_cast<std::uint64_t>(safeIndexCount / 3u) *

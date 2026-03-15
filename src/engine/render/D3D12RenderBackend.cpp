@@ -78,6 +78,33 @@ bool D3D12RenderBackend::getLastFrameStats(BackendFrameStats& outStats) const {
     return true;
 }
 
+void D3D12RenderBackend::beginWorldIndexedBatchSubmission() {
+#if defined(_WIN32)
+    auto& state = worldIndexedBatchSubmissionState_;
+    if (state.active) {
+        ++state.depth;
+        return;
+    }
+    state = WorldIndexedBatchSubmissionState{};
+    state.active = true;
+    state.depth = 1u;
+#endif
+}
+
+void D3D12RenderBackend::endWorldIndexedBatchSubmission() {
+#if defined(_WIN32)
+    auto& state = worldIndexedBatchSubmissionState_;
+    if (!state.active) {
+        return;
+    }
+    if (state.depth > 1u) {
+        --state.depth;
+        return;
+    }
+    state = WorldIndexedBatchSubmissionState{};
+#endif
+}
+
 void D3D12RenderBackend::recordWorldIndexedSubmissionStats(
     const WorldIndexedSubmissionStats& stats) {
     frameIndexedOpaqueDraws_ += stats.opaqueDraws;
@@ -90,6 +117,133 @@ void D3D12RenderBackend::recordWorldIndexedSubmissionStats(
     frameIndexedMaterialSwitches_ += stats.materialSwitches;
     frameIndexedTextureSwitches_ += stats.textureSwitches;
 }
+
+#if defined(_WIN32)
+void D3D12RenderBackend::bindWorldIndexedCommonState(int surfaceWidth, int surfaceHeight) {
+    if (!commandList_ || !srvHeap_ || !worldRootSignature_) {
+        return;
+    }
+
+    auto& state = worldIndexedBatchSubmissionState_;
+    const bool reuseBindings = state.active;
+    if (!reuseBindings ||
+        !state.viewportScissorBound ||
+        state.boundSurfaceWidth != surfaceWidth ||
+        state.boundSurfaceHeight != surfaceHeight) {
+        D3D12_VIEWPORT vp{};
+        vp.TopLeftX = 0.0f;
+        vp.TopLeftY = 0.0f;
+        vp.Width = static_cast<float>(surfaceWidth);
+        vp.Height = static_cast<float>(surfaceHeight);
+        vp.MinDepth = 0.0f;
+        vp.MaxDepth = 1.0f;
+        D3D12_RECT scissor{0, 0, surfaceWidth, surfaceHeight};
+        commandList_->RSSetViewports(1, &vp);
+        commandList_->RSSetScissorRects(1, &scissor);
+        if (reuseBindings) {
+            state.viewportScissorBound = true;
+            state.boundSurfaceWidth = surfaceWidth;
+            state.boundSurfaceHeight = surfaceHeight;
+        }
+    }
+
+    bool invalidateDescriptorTables = false;
+    if (!reuseBindings || !state.srvHeapBound) {
+        ID3D12DescriptorHeap* heaps[] = {srvHeap_.Get()};
+        commandList_->SetDescriptorHeaps(1, heaps);
+        if (reuseBindings) {
+            state.srvHeapBound = true;
+            invalidateDescriptorTables = true;
+        }
+    }
+
+    if (!reuseBindings || !state.rootSignatureBound) {
+        commandList_->SetGraphicsRootSignature(worldRootSignature_.Get());
+        if (reuseBindings) {
+            state.rootSignatureBound = true;
+            invalidateDescriptorTables = true;
+        }
+    }
+
+    if (reuseBindings && invalidateDescriptorTables) {
+        state.currentDescriptorIndices.fill(0xffffffffu);
+    }
+}
+
+void D3D12RenderBackend::bindWorldIndexedDescriptorTables(
+    std::uint32_t baseTextureDescriptorIndex,
+    std::uint32_t normalTextureDescriptorIndex,
+    std::uint32_t metallicRoughnessTextureDescriptorIndex,
+    std::uint32_t occlusionTextureDescriptorIndex,
+    std::uint32_t emissiveTextureDescriptorIndex,
+    std::uint32_t envTextureDescriptorIndex) {
+    if (!commandList_ || !srvHeap_) {
+        return;
+    }
+
+    const std::uint32_t descriptorIndices[6] = {
+        baseTextureDescriptorIndex,
+        normalTextureDescriptorIndex,
+        metallicRoughnessTextureDescriptorIndex,
+        occlusionTextureDescriptorIndex,
+        emissiveTextureDescriptorIndex,
+        envTextureDescriptorIndex};
+    auto& state = worldIndexedBatchSubmissionState_;
+    const bool reuseBindings = state.active;
+    const D3D12_GPU_DESCRIPTOR_HANDLE heapStart = srvHeap_->GetGPUDescriptorHandleForHeapStart();
+    for (UINT i = 0; i < 6u; ++i) {
+        if (reuseBindings && state.currentDescriptorIndices[i] == descriptorIndices[i]) {
+            continue;
+        }
+        D3D12_GPU_DESCRIPTOR_HANDLE handle = heapStart;
+        handle.ptr += static_cast<SIZE_T>(descriptorIndices[i]) *
+                      static_cast<SIZE_T>(srvDescriptorSize_);
+        commandList_->SetGraphicsRootDescriptorTable(3u + i, handle);
+        ++frameIndexedD3d12DescriptorTableSets_;
+        if (reuseBindings) {
+            state.currentDescriptorIndices[i] = descriptorIndices[i];
+        }
+    }
+}
+
+void D3D12RenderBackend::bindWorldIndexedPipelineState(ID3D12PipelineState* pso) {
+    if (!commandList_ || !pso) {
+        return;
+    }
+
+    auto& state = worldIndexedBatchSubmissionState_;
+    if (state.active && state.currentPso == pso) {
+        return;
+    }
+
+    commandList_->SetPipelineState(pso);
+    ++frameIndexedD3d12PsoSets_;
+    if (state.active) {
+        state.currentPso = pso;
+    }
+}
+
+void D3D12RenderBackend::bindWorldIndexedPrimitiveTopology() {
+    if (!commandList_) {
+        return;
+    }
+
+    auto& state = worldIndexedBatchSubmissionState_;
+    constexpr std::uint32_t kTriangleListTopology =
+        static_cast<std::uint32_t>(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+    if (state.active &&
+        state.primitiveTopologyBound &&
+        state.currentPrimitiveTopology == kTriangleListTopology) {
+        return;
+    }
+
+    commandList_->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+    if (state.active) {
+        state.primitiveTopologyBound = true;
+        state.currentPrimitiveTopology = kTriangleListTopology;
+    }
+}
+#endif
 
 void D3D12RenderBackend::configureScreenshotCapture() {
     const auto path = engine::env::get("PAC_BACKEND_SCREENSHOT_PATH");

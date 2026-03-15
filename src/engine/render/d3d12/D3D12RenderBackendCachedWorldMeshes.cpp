@@ -382,21 +382,7 @@ void D3D12RenderBackend::drawWorldIndexedMeshCachedInternal(const CachedWorldMes
     if (!worldVsConstantMappedData_) return;
     ensureWorldFallbackEnvTexture();
 
-    D3D12_VIEWPORT vp{};
-    vp.TopLeftX = 0.0f;
-    vp.TopLeftY = 0.0f;
-    vp.Width = static_cast<float>(surfaceWidth);
-    vp.Height = static_cast<float>(surfaceHeight);
-    vp.MinDepth = 0.0f;
-    vp.MaxDepth = 1.0f;
-    D3D12_RECT scissor{0, 0, surfaceWidth, surfaceHeight};
-
-    commandList_->RSSetViewports(1, &vp);
-    commandList_->RSSetScissorRects(1, &scissor);
-
-    ID3D12DescriptorHeap* heaps[] = {srvHeap_.Get()};
-    commandList_->SetDescriptorHeaps(1, heaps);
-    commandList_->SetGraphicsRootSignature(worldRootSignature_.Get());
+    bindWorldIndexedCommonState(surfaceWidth, surfaceHeight);
     static constexpr float kIdentity[16] = {
         1.0f, 0.0f, 0.0f, 0.0f,
         0.0f, 1.0f, 0.0f, 0.0f,
@@ -427,33 +413,15 @@ void D3D12RenderBackend::drawWorldIndexedMeshCachedInternal(const CachedWorldMes
         static_cast<UINT>(sizeof(WorldPsConstants) / sizeof(float)),
         &worldPs,
         0);
-    D3D12_GPU_DESCRIPTOR_HANDLE srvBaseHandle = srvHeap_->GetGPUDescriptorHandleForHeapStart();
-    D3D12_GPU_DESCRIPTOR_HANDLE srvNormalHandle = srvBaseHandle;
-    D3D12_GPU_DESCRIPTOR_HANDLE srvMetalRoughHandle = srvBaseHandle;
-    D3D12_GPU_DESCRIPTOR_HANDLE srvOcclusionHandle = srvBaseHandle;
-    D3D12_GPU_DESCRIPTOR_HANDLE srvEmissiveHandle = srvBaseHandle;
-    D3D12_GPU_DESCRIPTOR_HANDLE srvEnvHandle = srvBaseHandle;
-    srvBaseHandle.ptr += static_cast<SIZE_T>(worldFallbackTextureDescriptorIndex_) *
-                         static_cast<SIZE_T>(srvDescriptorSize_);
-    srvNormalHandle.ptr += static_cast<SIZE_T>(worldFallbackNormalTextureDescriptorIndex_) *
-                           static_cast<SIZE_T>(srvDescriptorSize_);
-    srvMetalRoughHandle.ptr +=
-        static_cast<SIZE_T>(worldFallbackMetallicRoughnessTextureDescriptorIndex_) *
-        static_cast<SIZE_T>(srvDescriptorSize_);
-    srvOcclusionHandle.ptr += static_cast<SIZE_T>(worldFallbackOcclusionTextureDescriptorIndex_) *
-                              static_cast<SIZE_T>(srvDescriptorSize_);
-    srvEmissiveHandle.ptr += static_cast<SIZE_T>(worldFallbackEmissiveTextureDescriptorIndex_) *
-                             static_cast<SIZE_T>(srvDescriptorSize_);
-    srvEnvHandle.ptr += static_cast<SIZE_T>(worldFallbackEnvTextureDescriptorIndex_) *
-                        static_cast<SIZE_T>(srvDescriptorSize_);
-    commandList_->SetGraphicsRootDescriptorTable(3, srvBaseHandle);
-    commandList_->SetGraphicsRootDescriptorTable(4, srvNormalHandle);
-    commandList_->SetGraphicsRootDescriptorTable(5, srvMetalRoughHandle);
-    commandList_->SetGraphicsRootDescriptorTable(6, srvOcclusionHandle);
-    commandList_->SetGraphicsRootDescriptorTable(7, srvEmissiveHandle);
-    commandList_->SetGraphicsRootDescriptorTable(8, srvEnvHandle);
-    commandList_->SetPipelineState(worldPipelineState_.Get());
-    commandList_->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+    bindWorldIndexedDescriptorTables(
+        worldFallbackTextureDescriptorIndex_,
+        worldFallbackNormalTextureDescriptorIndex_,
+        worldFallbackMetallicRoughnessTextureDescriptorIndex_,
+        worldFallbackOcclusionTextureDescriptorIndex_,
+        worldFallbackEmissiveTextureDescriptorIndex_,
+        worldFallbackEnvTextureDescriptorIndex_);
+    bindWorldIndexedPipelineState(worldPipelineState_.Get());
+    bindWorldIndexedPrimitiveTopology();
 
     D3D12_VERTEX_BUFFER_VIEW vbv{};
     vbv.BufferLocation = mesh.vertexGpuAddress;
