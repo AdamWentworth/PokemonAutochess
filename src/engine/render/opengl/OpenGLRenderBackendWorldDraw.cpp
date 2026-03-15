@@ -956,58 +956,6 @@ void OpenGLRenderBackend::drawWorldIndexedMeshTexturedInternal(unsigned int vao,
             }
         }
     };
-    const auto alignUp = [](std::size_t value, std::size_t alignment) -> std::size_t {
-        if (alignment <= 1u) return value;
-        const std::size_t remainder = value % alignment;
-        return (remainder == 0u) ? value : (value + alignment - remainder);
-    };
-    const auto growStreamCapacity = [](std::size_t currentCapacity,
-                                       std::size_t requiredBytes) -> std::size_t {
-        std::size_t capacity = (std::max)(currentCapacity, static_cast<std::size_t>(sizeof(float) * 20u));
-        while (capacity < requiredBytes) {
-            capacity *= 2u;
-        }
-        return capacity;
-    };
-    const auto reserveInstanceUploadRange = [&](std::size_t requiredBytes) -> std::size_t {
-        if (requiredBytes == 0u) return 0u;
-        const std::size_t grownCapacity =
-            growStreamCapacity(worldInstanceBufferCapacityBytes_, requiredBytes);
-        const bool needsGrow = (grownCapacity != worldInstanceBufferCapacityBytes_);
-        const std::size_t alignedOffset =
-            needsGrow ? 0u : alignUp(worldInstanceWriteOffsetBytes_, 16u);
-        const bool needsWrap =
-            !needsGrow && (alignedOffset + requiredBytes > worldInstanceBufferCapacityBytes_);
-        if (needsGrow) {
-            worldInstanceBufferCapacityBytes_ = grownCapacity;
-        }
-        bindArrayBuffer(worldInstanceVbo_);
-        if (needsGrow || needsWrap || worldInstanceBufferNeedsOrphan_) {
-            glBufferData(GL_ARRAY_BUFFER,
-                         static_cast<GLsizeiptr>(worldInstanceBufferCapacityBytes_),
-                         nullptr,
-                         GL_STREAM_DRAW);
-            worldInstanceWriteOffsetBytes_ = 0u;
-            worldInstanceBufferNeedsOrphan_ = false;
-        }
-        const std::size_t uploadOffset = alignUp(worldInstanceWriteOffsetBytes_, 16u);
-        worldInstanceWriteOffsetBytes_ = alignUp(uploadOffset + requiredBytes, 16u);
-        return uploadOffset;
-    };
-    const auto configureWorldInstanceVertexOffset = [&](std::size_t instanceOffsetBytes) {
-        constexpr GLsizei instanceStride =
-            static_cast<GLsizei>(sizeof(OpenGLWorldInstanceVertexData));
-        const auto ptr = [&](std::size_t byteOffset) -> const void* {
-            return reinterpret_cast<const void*>(
-                static_cast<std::uintptr_t>(instanceOffsetBytes + byteOffset));
-        };
-        bindArrayBuffer(worldInstanceVbo_);
-        glVertexAttribPointer(7, 4, GL_FLOAT, GL_FALSE, instanceStride, ptr(0u));
-        glVertexAttribPointer(8, 4, GL_FLOAT, GL_FALSE, instanceStride, ptr(sizeof(float) * 4u));
-        glVertexAttribPointer(9, 4, GL_FLOAT, GL_FALSE, instanceStride, ptr(sizeof(float) * 8u));
-        glVertexAttribPointer(10, 4, GL_FLOAT, GL_FALSE, instanceStride, ptr(sizeof(float) * 12u));
-        glVertexAttribPointer(11, 4, GL_FLOAT, GL_FALSE, instanceStride, ptr(sizeof(float) * 16u));
-    };
     GLint prevProgram = 0;
     GLint prevVao = 0;
     GLint prevArrayBuffer = 0;
@@ -1282,16 +1230,13 @@ void OpenGLRenderBackend::drawWorldIndexedMeshTexturedInternal(unsigned int vao,
         instanceData[0] = makeIdentityInstanceData();
     }
 
-    const std::size_t instanceUploadBytes =
-        instanceData.size() * sizeof(OpenGLWorldInstanceVertexData);
-    const std::size_t instanceBufferOffsetBytes = reserveInstanceUploadRange(instanceUploadBytes);
-    glBufferSubData(GL_ARRAY_BUFFER,
-                    static_cast<GLintptr>(instanceBufferOffsetBytes),
-                    static_cast<GLsizeiptr>(instanceUploadBytes),
-                    instanceData.data());
+    bindArrayBuffer(worldInstanceVbo_);
+    glBufferData(GL_ARRAY_BUFFER,
+                 static_cast<GLsizeiptr>(instanceData.size() * sizeof(OpenGLWorldInstanceVertexData)),
+                 instanceData.data(),
+                 GL_STREAM_DRAW);
 
     bindVertexArray(vao);
-    configureWorldInstanceVertexOffset(instanceBufferOffsetBytes);
     if (uploadGeometry) {
         bindArrayBuffer(vertexBuffer);
         glBufferData(GL_ARRAY_BUFFER,
@@ -1344,7 +1289,6 @@ void OpenGLRenderBackend::drawWorldIndexedMeshTexturedInternal(unsigned int vao,
         setDepthMask(false);
 
         bindVertexArray(worldVao_);
-        configureWorldInstanceVertexOffset(instanceBufferOffsetBytes);
         bindArrayBuffer(worldVbo_);
         glBufferData(GL_ARRAY_BUFFER,
                      static_cast<GLsizeiptr>(safeVertexCount * sizeof(WorldMeshVertex)),

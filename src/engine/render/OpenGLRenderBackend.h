@@ -178,9 +178,6 @@ private:
     unsigned int worldVbo_ = 0;
     unsigned int worldIbo_ = 0;
     unsigned int worldInstanceVbo_ = 0;
-    std::size_t worldInstanceBufferCapacityBytes_ = 0u;
-    std::size_t worldInstanceWriteOffsetBytes_ = 0u;
-    bool worldInstanceBufferNeedsOrphan_ = false;
     int worldViewProjLoc_ = -1;
     int worldModelLoc_ = -1;
     int worldUseTextureLoc_ = -1;

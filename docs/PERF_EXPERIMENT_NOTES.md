@@ -14,6 +14,42 @@ without the same context.
 
 ## Current Notes
 
+### 2026-03-14: OpenGL indexed instance-buffer streaming was a miss
+- Hypothesis:
+  - replace per-draw `glBufferData` churn on the shared indexed instance buffer
+    with frame-reset streaming plus `glBufferSubData`
+- Expected win:
+  - reduce `render_world_indexed_ms`
+  - reduce steady-state `render_build_ms`
+  - possibly lower `projected_model_ms` in cached indexed scenes
+- What the workload showed:
+  - the target bucket did not materially improve in the measured gameplay capture
+  - `OpenGL` 1-unit indexed frames were flat to slightly worse:
+    - before: `render_world_indexed_ms ~0.24-0.25`,
+      `render_build_ms ~1.8`,
+      `projected_model_ms ~0.22-0.23`
+    - instance-stream run: `render_world_indexed_ms ~0.25-0.26`,
+      `render_build_ms ~1.8-1.9`,
+      `projected_model_ms ~0.22-0.25`
+  - `OpenGL` 3-unit indexed frames were also flat to slightly worse:
+    - before: `render_world_indexed_ms ~0.65-0.69`,
+      `render_build_ms ~2.6-2.9`,
+      `projected_model_ms ~0.53-0.56`
+    - instance-stream run: `render_world_indexed_ms ~0.66-0.72`,
+      `render_build_ms ~2.6-3.0`,
+      `projected_model_ms ~0.53-0.58`
+  - the measured scene clearly exercised cached indexed meshes, but reducing
+    instance upload churn still did not move the hot bucket enough to justify
+    the extra stream-offset and VAO-rebind logic
+- Decision:
+  - revert; do not keep instance-buffer streaming complexity without a measured
+    indexed-path win
+- Re-entry conditions:
+  - instrument whether instance upload bytes are large enough to matter relative
+    to texture binding, uniform updates, and cached draw-state churn
+  - revisit only if a capture shows large instance payloads per indexed draw
+  - prefer attacking cached indexed draw-state churn or batch ordering first
+
 ### 2026-03-14: OpenGL dynamic indexed geometry upload stream was a miss
 - Hypothesis:
   - replace per-draw `glBufferData` churn for dynamic indexed world vertex and

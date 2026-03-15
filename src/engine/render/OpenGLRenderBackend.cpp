@@ -73,8 +73,6 @@ void OpenGLRenderBackend::beginFrame(float r, float g, float b, float a) {
     ++frameCounter_;
     frameDrawCalls_ = 0u;
     frameTriangles_ = 0u;
-    worldInstanceWriteOffsetBytes_ = 0u;
-    worldInstanceBufferNeedsOrphan_ = true;
 #ifdef GL_FRAMEBUFFER_SRGB
     if (engine::render::parity_contract::kFramebufferSrgbEnabled) {
         glEnable(GL_FRAMEBUFFER_SRGB);
