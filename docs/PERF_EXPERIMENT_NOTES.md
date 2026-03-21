@@ -14,6 +14,57 @@ without the same context.
 
 ## Current Notes
 
+### 2026-03-21: preserved prepared projected batches were a miss
+- Status:
+  - uncommitted experiment; reverted after live capture regression
+- Files:
+  - `src/game/runtime/shared/projected/SharedProjectedUnitBackendMeshPrep.cpp`
+  - `src/game/runtime/shared/projected/SharedProjectedUnitBackendMeshRenderer.cpp`
+- Hypothesis:
+  - keep template-backed projected indexed batches "warm" across frames by
+    skipping repeated shallow template application when metadata already
+    matched, and preserve those prepared batches by copying them into
+    `worldIndexedBatches` instead of moving them out
+- Expected win:
+  - reduce `projected_model_prep_ms`
+  - reduce `render_build_ms`
+  - possibly reduce `render_submit_ms`
+- What the workload showed:
+  - the saved template-refresh work was too small, and the added hot-path copy
+    cost was worse than the work it removed
+  - `D3D12` 1-unit frames regressed versus `d668a7d`:
+    - `d668a7d`: `render_build_ms ~1.26-1.34`,
+      `render_submit_ms ~0.093-0.100`,
+      `projected_model_prep_ms ~0.032-0.035`,
+      `projected_model_geometry_ms ~0.188-0.196`
+    - preserved-batch run: `render_build_ms ~1.67-1.93`,
+      `render_submit_ms ~0.173-0.187`,
+      `projected_model_prep_ms ~0.043-0.050`,
+      `projected_model_geometry_ms ~0.243-0.273`
+  - `D3D12` 3-unit frames regressed the same way:
+    - `d668a7d`: `render_build_ms ~1.78-1.91`,
+      `render_submit_ms ~0.096-0.100`,
+      `projected_model_prep_ms ~0.084-0.086`,
+      `projected_model_geometry_ms ~0.454-0.465`
+    - preserved-batch run: `render_build_ms ~2.37-2.61`,
+      `render_submit_ms ~0.179-0.187`,
+      `projected_model_prep_ms ~0.111-0.114`,
+      `projected_model_geometry_ms ~0.605-0.610`
+  - `OpenGL` regressed too:
+    - `d668a7d` 1-unit: `render_build_ms ~1.59-1.68`
+    - preserved-batch run 1-unit: `render_build_ms ~1.86-2.03`
+    - `d668a7d` 3-unit: `render_build_ms ~2.45-2.80`
+    - preserved-batch run 3-unit: `render_build_ms ~2.94-3.45`
+  - conclusion:
+    `WorldIndexedBatch` is too large for this copy-based preservation approach
+    to be a win in the measured scene
+- Decision:
+  - revert and do not retry this exact preserved-batch approach
+- Re-entry conditions:
+  - only revisit if prepared projected batches can stay move-only
+  - if this area is revisited later, prefer a lightweight view/handle design
+    over copying whole `WorldIndexedBatch` structs on the hot path
+
 ### 2026-03-20: retained debug-geometry GPU caching was a real win
 - Commit:
   - `f4b5eb3` `Cache retained debug geometry on GPU`
