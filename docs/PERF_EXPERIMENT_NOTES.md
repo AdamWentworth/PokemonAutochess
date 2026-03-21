@@ -14,6 +14,49 @@ without the same context.
 
 ## Current Notes
 
+### 2026-03-21: transform-ready stamp invalidation was a miss
+- Status:
+  - uncommitted experiment; reverted after live capture regression
+- File:
+  - `src/game/runtime/shared/projected/SharedProjectedUnitBackendMeshTransforms.cpp`
+- Hypothesis:
+  - per-frame clears of projected transform-ready arrays were wasting CPU on the
+    GPU-skinned fast path, so switching those caches to stamp-based invalidation
+    would reduce projected prep cost
+- Expected win:
+  - reduce `projected_model_prep_ms`
+  - reduce steady-state `render_build_ms`
+- What the workload showed:
+  - the target bucket barely moved, and overall frame cost regressed on both
+    backends
+  - `D3D12` 1-unit frames regressed versus `d668a7d`:
+    - `d668a7d`: `render_build_ms ~1.26-1.34`,
+      `render_submit_ms ~0.093-0.100`,
+      `projected_model_prep_ms ~0.032-0.035`
+    - transform-stamp run: `render_build_ms ~1.54-1.66`,
+      `render_submit_ms ~0.157-0.202`,
+      `projected_model_prep_ms ~0.038-0.039`
+  - `D3D12` 3-unit frames regressed the same way:
+    - `d668a7d`: `render_build_ms ~1.78-1.91`,
+      `render_submit_ms ~0.096-0.100`,
+      `projected_model_prep_ms ~0.084-0.086`
+    - transform-stamp run: `render_build_ms ~2.18-2.43`,
+      `render_submit_ms ~0.171-0.176`,
+      `projected_model_prep_ms ~0.091-0.094`
+  - `OpenGL` also regressed:
+    - `d668a7d` 1-unit: `render_build_ms ~1.59-1.68`
+    - transform-stamp run 1-unit: `render_build_ms ~1.92-2.07`
+    - `d668a7d` 3-unit: `render_build_ms ~2.45-2.80`
+    - transform-stamp run 3-unit: `render_build_ms ~2.98-3.16`
+  - conclusion:
+    the cleared ready-arrays were not a meaningful hot cost in the measured
+    scene, so removing those clears did not pay for its added complexity
+- Decision:
+  - revert and do not revisit this exact stamp-based ready-array scheme
+- Re-entry conditions:
+  - only revisit after instrumenting a much larger transform-cache footprint
+    than the current `4/8/12` GPU-skinned batch scene
+
 ### 2026-03-21: preserved prepared projected batches were a miss
 - Status:
   - uncommitted experiment; reverted after live capture regression
