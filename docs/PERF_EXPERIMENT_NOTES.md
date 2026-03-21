@@ -14,6 +14,76 @@ without the same context.
 
 ## Current Notes
 
+### 2026-03-20: retained debug-geometry GPU caching was a real win
+- Commit:
+  - `f4b5eb3` `Cache retained debug geometry on GPU`
+- Hypothesis:
+  - cached retained debug/UI overlay regions were still paying too much per-frame
+    submit cost because stable quad and line geometry was being re-expanded and
+    re-uploaded every frame
+- Expected win:
+  - reduce `render_ui_submit_ms`
+  - reduce steady-state `render_build_ms`
+- What the workload showed:
+  - this was a real, repeatable win in comparable live captures
+  - `D3D12` 1-unit frames improved:
+    - before: `render_ui_submit_ms ~0.55-0.58`,
+      `render_build_ms ~1.5-1.6`
+    - retained-geometry run: `render_ui_submit_ms ~0.26-0.31`,
+      `render_build_ms ~1.25-1.32`
+  - `D3D12` 3-unit frames improved:
+    - before: `render_ui_submit_ms ~0.65-0.68`,
+      `render_build_ms ~2.1-2.3`
+    - retained-geometry run: `render_ui_submit_ms ~0.29-0.31`,
+      `render_build_ms ~1.76-1.90`
+  - `OpenGL` improved in the same direction
+  - `render_world_indexed_ms` stayed mostly flat, which matched the hypothesis:
+    this change helped retained UI/debug submission, not indexed world work
+- Decision:
+  - keep; this is a confirmed perf win
+
+### 2026-03-20: revision-gated overlay prep was a miss after the retained-geometry win
+- Commit:
+  - `f4afd43` `Gate overlay prep on source revisions`
+- Hypothesis:
+  - remaining `render_overlay_prep_ms` cost came from re-deriving retained
+    inventory/log/roster source state every frame, so revision-gating those
+    sources would lower overlay prep and total build time
+- Expected win:
+  - reduce `render_overlay_prep_ms`
+  - reduce steady-state `render_build_ms`
+- What the workload showed:
+  - `render_overlay_prep_ms` improved slightly, but not enough to matter
+  - overall frame build cost was flat to worse in the comparable gameplay scene
+  - `D3D12` 1-unit frames regressed versus the retained-geometry baseline:
+    - retained-geometry baseline: `render_build_ms ~1.25-1.32`,
+      `render_overlay_prep_ms ~0.27-0.30`,
+      `render_ui_submit_ms ~0.26-0.31`
+    - revision-gated run: `render_build_ms ~1.39-1.47`,
+      `render_overlay_prep_ms ~0.29-0.31`,
+      `render_ui_submit_ms ~0.33-0.35`
+  - `D3D12` 3-unit frames showed the same pattern:
+    - retained-geometry baseline: `render_build_ms ~1.76-1.90`,
+      `render_overlay_prep_ms ~0.33`,
+      `render_ui_submit_ms ~0.29-0.31`
+    - revision-gated run: `render_build_ms ~1.92-2.11`,
+      `render_overlay_prep_ms ~0.29-0.30`,
+      `render_ui_submit_ms ~0.33-0.34`
+  - `OpenGL` did not show a clear end-to-end win either
+  - conclusion:
+    some CPU overlay-prep work was removed, but the remaining dynamic work and
+    the added invalidation/caching machinery did not pay back enough in this
+    workload
+- Decision:
+  - revert if the goal is a clean perf branch; do not keep this complexity on
+    theory alone
+- Re-entry conditions:
+  - only revisit after breaking `render_overlay_prep_ms` down by source/region
+  - only revisit if a measured scene shows overlay prep as a materially larger
+    bucket than `~0.3ms`
+  - separate dynamic perf-overlay cost from retained-region cost before trying
+    more invalidation plumbing
+
 ### 2026-03-14: D3D12 indexed binding-state reuse was a miss
 - Hypothesis:
   - reuse D3D12 indexed-world root state across batched draws so cached opaque
