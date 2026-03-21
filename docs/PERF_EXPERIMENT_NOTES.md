@@ -14,6 +14,54 @@ without the same context.
 
 ## Current Notes
 
+### 2026-03-21: GPU skin batch-state map lookup was a miss
+- Status:
+  - uncommitted experiment; reverted after live capture regression
+- File:
+  - `src/game/runtime/shared/projected/SharedProjectedUnitBackendMeshRenderer.cpp`
+- Hypothesis:
+  - replace the per-batch linear scan of `gpuSkinBatchStateEntries()` with
+    direct `gpuSkinBatchStateMap()` lookups in the GPU-skinned fast path
+- Expected win:
+  - reduce `projected_model_prep_ms`
+  - reduce steady-state `render_build_ms`
+  - possibly reduce `render_submit_ms`
+- What the workload showed:
+  - the run was functionally correct, but the hot-path structure did not change
+  - `projected_gpu_clip_skin_batches` stayed at `4` for 1-unit scenes and `12`
+    for 3-unit scenes, so the experiment did not remove meaningful work from
+    the measured board
+  - `D3D12` 1-unit frames still regressed versus `d668a7d`:
+    - `d668a7d`: `render_build_ms ~1.26-1.34`,
+      `render_submit_ms ~0.093-0.100`,
+      `projected_model_prep_ms ~0.032-0.035`
+    - map-lookup run: `render_build_ms ~1.55-1.63`,
+      `render_submit_ms ~0.143-0.154`,
+      `projected_model_prep_ms ~0.041-0.044`
+  - `D3D12` 3-unit frames regressed too:
+    - `d668a7d`: `render_build_ms ~1.78-1.91`,
+      `render_submit_ms ~0.096-0.100`,
+      `projected_model_prep_ms ~0.084-0.086`,
+      `projected_model_geometry_ms ~0.454-0.465`
+    - map-lookup run: `render_build_ms ~2.20-2.32`,
+      `render_submit_ms ~0.153-0.155`,
+      `projected_model_prep_ms ~0.114-0.115`,
+      `projected_model_geometry_ms ~0.605-0.623`
+  - `OpenGL` also regressed:
+    - `d668a7d` 1-unit: `render_build_ms ~1.59-1.68`
+    - map-lookup run 1-unit: `render_build_ms ~1.95-2.03`
+    - `d668a7d` 3-unit: `render_build_ms ~2.45-2.80`
+    - map-lookup run 3-unit: `render_build_ms ~3.06-3.18`
+  - conclusion:
+    the lookup swap alone did not buy enough to offset its cost, and it did not
+    move the counters that matter in this workload
+- Decision:
+  - revert and do not keep this exact map-lookup-only change
+- Re-entry conditions:
+  - only revisit if it is paired with a change that measurably reduces
+    clip-skinned batch count, indexed submit work, or other structural hot-path
+    cost in the same scene
+
 ### 2026-03-21: vector-owned GPU skin matrix scratch was a miss
 - Status:
   - uncommitted experiment; reverted after live capture regression
