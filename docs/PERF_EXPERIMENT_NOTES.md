@@ -14,6 +14,67 @@ without the same context.
 
 ## Current Notes
 
+### 2026-03-21: vector-owned GPU skin matrix scratch was a miss
+- Status:
+  - uncommitted experiment; reverted after live capture regression
+- Files:
+  - `src/game/runtime/shared/projected/SharedProjectedUnitBackendMeshSupport.h`
+  - `src/game/runtime/shared/projected/SharedProjectedUnitBackendMeshSupport.cpp`
+  - `src/game/runtime/shared/projected/SharedProjectedUnitBackendMeshRenderer.cpp`
+  - `src/game/runtime/session/SessionRenderScratch.cpp`
+- Hypothesis:
+  - replace thread-local `unitSkinMatrices()` hash-map ownership with a small
+    vector-owned scratch path that better matches the measured `4/8/12`
+    GPU-skinned batch working set
+- Expected win:
+  - reduce `projected_model_prep_ms`
+  - reduce steady-state `render_build_ms`
+  - possibly reduce `render_submit_ms`
+- What the workload showed:
+  - the first version of this experiment was functionally wrong:
+    vector-owned skin matrices were cleared per unit while
+    `worldIndexedBatches` still held pointers to that data for the rest of the
+    frame, which caused cross-unit visual corruption once later units spawned
+  - a follow-up fix moved that scratch lifetime to the frame boundary, which
+    resolved the corruption, but the corrected run still regressed versus
+    `d668a7d`
+  - `D3D12` 1-unit frames regressed versus `d668a7d`:
+    - `d668a7d`: `render_build_ms ~1.26-1.34`,
+      `render_submit_ms ~0.093-0.100`,
+      `projected_model_prep_ms ~0.032-0.035`
+    - corrected vector-scratch run: `render_build_ms ~1.56-1.67`,
+      `render_submit_ms ~0.152-0.165`,
+      `projected_model_prep_ms ~0.044-0.047`
+  - `D3D12` 3-unit frames also regressed:
+    - `d668a7d`: `render_build_ms ~1.78-1.91`,
+      `render_submit_ms ~0.096-0.100`,
+      `projected_model_prep_ms ~0.084-0.086`,
+      `projected_model_geometry_ms ~0.454-0.465`
+    - corrected vector-scratch run: `render_build_ms ~2.13-2.36`,
+      `render_submit_ms ~0.155-0.158`,
+      `projected_model_prep_ms ~0.109-0.111`,
+      `projected_model_geometry_ms ~0.542-0.584`
+  - `OpenGL` regressed too:
+    - `d668a7d` 1-unit: `render_build_ms ~1.59-1.68`
+    - corrected vector-scratch run 1-unit: `render_build_ms ~1.88-2.14`
+    - `d668a7d` 3-unit: `render_build_ms ~2.45-2.80`
+    - corrected vector-scratch run 3-unit: `render_build_ms ~2.96-3.31`
+  - draw counts and `projected_gpu_clip_skin_batches` stayed effectively the
+    same, so the experiment did not reduce the structural work that dominates
+    the scene
+  - conclusion:
+    this ownership swap added risk and complexity, and even the corrected
+    frame-lived version did not beat the existing map-backed path
+- Decision:
+  - revert and do not retry this exact vector-owned GPU skin matrix ownership
+    scheme
+- Re-entry conditions:
+  - only revisit if a later experiment can keep correct frame lifetime without
+    changing ownership semantics visible to `worldIndexedBatches`
+  - if this area is revisited later, prefer proving a measurable reduction in
+    batch count or indexed submit work instead of just swapping scratch
+    containers
+
 ### 2026-03-21: transform-ready stamp invalidation was a miss
 - Status:
   - uncommitted experiment; reverted after live capture regression
