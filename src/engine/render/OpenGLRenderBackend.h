@@ -350,6 +350,9 @@ private:
         int currentBlendEqRgb = 0;
         int currentBlendEqAlpha = 0;
         bool worldProgramStaticUniformsApplied = false;
+        bool lastWorldSkinningEnabled = false;
+        std::uint32_t lastWorldSkinMatrixCount = 0u;
+        const float* lastWorldSkinMatrices = nullptr;
     };
     WorldIndexedBatchSubmissionState worldIndexedBatchSubmissionState_{};
     bool gpuTimingSupported_ = false;

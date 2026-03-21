@@ -353,6 +353,9 @@ private:
     std::uint32_t worldSkinMatrixBufferSize_ = 0;
     std::uint32_t worldSkinMatrixFrameOffset_ = 0;
     std::uint8_t* worldSkinMatrixMappedData_ = nullptr;
+    const float* lastWorldSkinMatrices_ = nullptr;
+    std::uint32_t lastWorldSkinMatrixCount_ = 0u;
+    std::uint64_t lastWorldSkinMatrixGpuAddress_ = 0u;
     Microsoft::WRL::ComPtr<ID3D12Resource> worldInstanceBuffer_;
     std::uint64_t worldInstanceBufferGpuAddress_ = 0;
     std::uint32_t worldInstanceBufferSize_ = 0;

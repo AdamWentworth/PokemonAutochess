@@ -95,6 +95,9 @@ void D3D12RenderBackend::beginFrame(float r, float g, float b, float a) {
     worldIndexFrameOffset_ = 0;
     worldVsConstantFrameOffset_ = 0;
     worldSkinMatrixFrameOffset_ = 256u;
+    lastWorldSkinMatrices_ = nullptr;
+    lastWorldSkinMatrixCount_ = 0u;
+    lastWorldSkinMatrixGpuAddress_ = worldSkinMatrixBufferGpuAddress_;
     worldInstanceFrameOffset_ = static_cast<UINT>(sizeof(WorldInstanceVertexData));
     spriteVertexFrameOffset_ = 0;
 

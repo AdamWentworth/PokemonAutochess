@@ -833,21 +833,29 @@ void D3D12RenderBackend::drawWorldIndexedMeshInternal(const WorldMeshVertex* ver
     std::uint32_t gpuSkinMatrixCount = gpuSkinningEnabled ? textureData->skinMatrixCount : 0u;
     D3D12_GPU_VIRTUAL_ADDRESS skinMatrixGpuAddress = worldSkinMatrixBufferGpuAddress_;
     if (gpuSkinningEnabled) {
-        const std::size_t copyBytes =
-            static_cast<std::size_t>(gpuSkinMatrixCount) * 16u * sizeof(float);
-        const std::size_t skinWriteOffset =
-            alignUp(static_cast<std::size_t>(worldSkinMatrixFrameOffset_), 256u);
-        const std::size_t skinWriteEnd = skinWriteOffset + alignUp(copyBytes, 256u);
-        if (skinWriteEnd <= worldSkinMatrixBufferSize_) {
-            std::memcpy(
-                worldSkinMatrixMappedData_ + skinWriteOffset,
-                textureData->skinMatrices,
-                copyBytes);
-            skinMatrixGpuAddress += static_cast<std::uint64_t>(skinWriteOffset);
-            worldSkinMatrixFrameOffset_ = static_cast<UINT>(skinWriteEnd);
+        if (textureData->skinMatrices == lastWorldSkinMatrices_ &&
+            gpuSkinMatrixCount == lastWorldSkinMatrixCount_) {
+            skinMatrixGpuAddress = lastWorldSkinMatrixGpuAddress_;
         } else {
-            gpuSkinningEnabled = false;
-            gpuSkinMatrixCount = 0u;
+            const std::size_t copyBytes =
+                static_cast<std::size_t>(gpuSkinMatrixCount) * 16u * sizeof(float);
+            const std::size_t skinWriteOffset =
+                alignUp(static_cast<std::size_t>(worldSkinMatrixFrameOffset_), 256u);
+            const std::size_t skinWriteEnd = skinWriteOffset + alignUp(copyBytes, 256u);
+            if (skinWriteEnd <= worldSkinMatrixBufferSize_) {
+                std::memcpy(
+                    worldSkinMatrixMappedData_ + skinWriteOffset,
+                    textureData->skinMatrices,
+                    copyBytes);
+                skinMatrixGpuAddress += static_cast<std::uint64_t>(skinWriteOffset);
+                worldSkinMatrixFrameOffset_ = static_cast<UINT>(skinWriteEnd);
+                lastWorldSkinMatrices_ = textureData->skinMatrices;
+                lastWorldSkinMatrixCount_ = gpuSkinMatrixCount;
+                lastWorldSkinMatrixGpuAddress_ = skinMatrixGpuAddress;
+            } else {
+                gpuSkinningEnabled = false;
+                gpuSkinMatrixCount = 0u;
+            }
         }
     }
 
@@ -1107,21 +1115,29 @@ void D3D12RenderBackend::drawWorldIndexedMeshTexturedCachedInternal(
     std::uint32_t gpuSkinMatrixCount = gpuSkinningEnabled ? textureData->skinMatrixCount : 0u;
     D3D12_GPU_VIRTUAL_ADDRESS skinMatrixGpuAddress = worldSkinMatrixBufferGpuAddress_;
     if (gpuSkinningEnabled) {
-        const std::size_t copyBytes =
-            static_cast<std::size_t>(gpuSkinMatrixCount) * 16u * sizeof(float);
-        const std::size_t skinWriteOffset =
-            alignUp(static_cast<std::size_t>(worldSkinMatrixFrameOffset_), 256u);
-        const std::size_t skinWriteEnd = skinWriteOffset + alignUp(copyBytes, 256u);
-        if (skinWriteEnd <= worldSkinMatrixBufferSize_) {
-            std::memcpy(
-                worldSkinMatrixMappedData_ + skinWriteOffset,
-                textureData->skinMatrices,
-                copyBytes);
-            skinMatrixGpuAddress += static_cast<std::uint64_t>(skinWriteOffset);
-            worldSkinMatrixFrameOffset_ = static_cast<UINT>(skinWriteEnd);
+        if (textureData->skinMatrices == lastWorldSkinMatrices_ &&
+            gpuSkinMatrixCount == lastWorldSkinMatrixCount_) {
+            skinMatrixGpuAddress = lastWorldSkinMatrixGpuAddress_;
         } else {
-            gpuSkinningEnabled = false;
-            gpuSkinMatrixCount = 0u;
+            const std::size_t copyBytes =
+                static_cast<std::size_t>(gpuSkinMatrixCount) * 16u * sizeof(float);
+            const std::size_t skinWriteOffset =
+                alignUp(static_cast<std::size_t>(worldSkinMatrixFrameOffset_), 256u);
+            const std::size_t skinWriteEnd = skinWriteOffset + alignUp(copyBytes, 256u);
+            if (skinWriteEnd <= worldSkinMatrixBufferSize_) {
+                std::memcpy(
+                    worldSkinMatrixMappedData_ + skinWriteOffset,
+                    textureData->skinMatrices,
+                    copyBytes);
+                skinMatrixGpuAddress += static_cast<std::uint64_t>(skinWriteOffset);
+                worldSkinMatrixFrameOffset_ = static_cast<UINT>(skinWriteEnd);
+                lastWorldSkinMatrices_ = textureData->skinMatrices;
+                lastWorldSkinMatrixCount_ = gpuSkinMatrixCount;
+                lastWorldSkinMatrixGpuAddress_ = skinMatrixGpuAddress;
+            } else {
+                gpuSkinningEnabled = false;
+                gpuSkinMatrixCount = 0u;
+            }
         }
     }
 
