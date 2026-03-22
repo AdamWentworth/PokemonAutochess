@@ -300,11 +300,15 @@ void D3D12RenderBackend::createWorldPipeline() {
     static constexpr char kVsSource[] =
         "cbuffer VSConstants : register(b0) { float4x4 uViewProj; float4x4 uModel; float4 uSkinMeta; };"
         "cbuffer MaterialVsConstants : register(b1) { float _m0,_m1,_m2,_m3,_m4,_m5,_m6,_m7,_m8,_m9,_m10,_m11,_m12,_m13; float4 uGeneratedBoundsMin; float4 uGeneratedBoundsMax; };"
-        "cbuffer VSSkinMatrices : register(b2) { float4x4 gSkinMatrices[64]; };"
+        "cbuffer VSSkinMatrices : register(b2) { float4x4 gSkinMatrices[128]; };"
         "struct InstanceData { float4 model0; float4 model1; float4 model2; float4 model3; float4 color; };"
         "StructuredBuffer<InstanceData> gInstances : register(t6);"
         "struct VSIn { float3 pos : POSITION; float2 uv : TEXCOORD; float4 col : COLOR; float3 nrm : NORMAL; float4 jnts : BLENDINDICES; float4 wgts : BLENDWEIGHT; float4 tan : TANGENT; };"
         "struct VSOut { float4 pos : SV_POSITION; float2 uv : TEXCOORD; float4 col : COLOR; float3 worldPos : TEXCOORD1; float3 worldNormal : TEXCOORD2; float4 worldTangent : TEXCOORD3; float3 generated : TEXCOORD4; };"
+        "float4x4 loadSkinMatrix(int jointIndex, int c) {"
+        "  if (uSkinMeta.z > 0.5f) return mul(gSkinMatrices[jointIndex], gSkinMatrices[jointIndex + c]);"
+        "  return gSkinMatrices[jointIndex];"
+        "}"
         "float3 applySkinningPos(VSIn i, float3 localPos) {"
         "  if (uSkinMeta.x < 0.5f) return localPos;"
         "  float4 blended = float4(0.0f, 0.0f, 0.0f, 0.0f);"
@@ -313,10 +317,10 @@ void D3D12RenderBackend::createWorldPipeline() {
         "  int j1 = (int)round(i.jnts.y); float w1 = i.wgts.y;"
         "  int j2 = (int)round(i.jnts.z); float w2 = i.wgts.z;"
         "  int j3 = (int)round(i.jnts.w); float w3 = i.wgts.w;"
-        "  if (w0 > 0.00001f && j0 >= 0 && j0 < c && j0 < 64) blended += mul(gSkinMatrices[j0], float4(localPos, 1.0f)) * w0;"
-        "  if (w1 > 0.00001f && j1 >= 0 && j1 < c && j1 < 64) blended += mul(gSkinMatrices[j1], float4(localPos, 1.0f)) * w1;"
-        "  if (w2 > 0.00001f && j2 >= 0 && j2 < c && j2 < 64) blended += mul(gSkinMatrices[j2], float4(localPos, 1.0f)) * w2;"
-        "  if (w3 > 0.00001f && j3 >= 0 && j3 < c && j3 < 64) blended += mul(gSkinMatrices[j3], float4(localPos, 1.0f)) * w3;"
+        "  if (w0 > 0.00001f && j0 >= 0 && j0 < c && j0 < 64) blended += mul(loadSkinMatrix(j0, c), float4(localPos, 1.0f)) * w0;"
+        "  if (w1 > 0.00001f && j1 >= 0 && j1 < c && j1 < 64) blended += mul(loadSkinMatrix(j1, c), float4(localPos, 1.0f)) * w1;"
+        "  if (w2 > 0.00001f && j2 >= 0 && j2 < c && j2 < 64) blended += mul(loadSkinMatrix(j2, c), float4(localPos, 1.0f)) * w2;"
+        "  if (w3 > 0.00001f && j3 >= 0 && j3 < c && j3 < 64) blended += mul(loadSkinMatrix(j3, c), float4(localPos, 1.0f)) * w3;"
         "  if (abs(blended.w) > 1e-5f) return blended.xyz / blended.w;"
         "  return blended.xyz;"
         "}"
@@ -328,10 +332,10 @@ void D3D12RenderBackend::createWorldPipeline() {
         "  int j1 = (int)round(i.jnts.y); float w1 = i.wgts.y;"
         "  int j2 = (int)round(i.jnts.z); float w2 = i.wgts.z;"
         "  int j3 = (int)round(i.jnts.w); float w3 = i.wgts.w;"
-        "  if (w0 > 0.00001f && j0 >= 0 && j0 < c && j0 < 64) blended += mul((float3x3)gSkinMatrices[j0], localNormal) * w0;"
-        "  if (w1 > 0.00001f && j1 >= 0 && j1 < c && j1 < 64) blended += mul((float3x3)gSkinMatrices[j1], localNormal) * w1;"
-        "  if (w2 > 0.00001f && j2 >= 0 && j2 < c && j2 < 64) blended += mul((float3x3)gSkinMatrices[j2], localNormal) * w2;"
-        "  if (w3 > 0.00001f && j3 >= 0 && j3 < c && j3 < 64) blended += mul((float3x3)gSkinMatrices[j3], localNormal) * w3;"
+        "  if (w0 > 0.00001f && j0 >= 0 && j0 < c && j0 < 64) blended += mul((float3x3)loadSkinMatrix(j0, c), localNormal) * w0;"
+        "  if (w1 > 0.00001f && j1 >= 0 && j1 < c && j1 < 64) blended += mul((float3x3)loadSkinMatrix(j1, c), localNormal) * w1;"
+        "  if (w2 > 0.00001f && j2 >= 0 && j2 < c && j2 < 64) blended += mul((float3x3)loadSkinMatrix(j2, c), localNormal) * w2;"
+        "  if (w3 > 0.00001f && j3 >= 0 && j3 < c && j3 < 64) blended += mul((float3x3)loadSkinMatrix(j3, c), localNormal) * w3;"
         "  float len2 = dot(blended, blended);"
         "  return (len2 > 1e-8f) ? normalize(blended) : float3(0.0f, 1.0f, 0.0f);"
         "}"
@@ -344,10 +348,10 @@ void D3D12RenderBackend::createWorldPipeline() {
         "  int j1 = (int)round(i.jnts.y); float w1 = i.wgts.y;"
         "  int j2 = (int)round(i.jnts.z); float w2 = i.wgts.z;"
         "  int j3 = (int)round(i.jnts.w); float w3 = i.wgts.w;"
-        "  if (w0 > 0.00001f && j0 >= 0 && j0 < c && j0 < 64) blended += mul((float3x3)gSkinMatrices[j0], tangent) * w0;"
-        "  if (w1 > 0.00001f && j1 >= 0 && j1 < c && j1 < 64) blended += mul((float3x3)gSkinMatrices[j1], tangent) * w1;"
-        "  if (w2 > 0.00001f && j2 >= 0 && j2 < c && j2 < 64) blended += mul((float3x3)gSkinMatrices[j2], tangent) * w2;"
-        "  if (w3 > 0.00001f && j3 >= 0 && j3 < c && j3 < 64) blended += mul((float3x3)gSkinMatrices[j3], tangent) * w3;"
+        "  if (w0 > 0.00001f && j0 >= 0 && j0 < c && j0 < 64) blended += mul((float3x3)loadSkinMatrix(j0, c), tangent) * w0;"
+        "  if (w1 > 0.00001f && j1 >= 0 && j1 < c && j1 < 64) blended += mul((float3x3)loadSkinMatrix(j1, c), tangent) * w1;"
+        "  if (w2 > 0.00001f && j2 >= 0 && j2 < c && j2 < 64) blended += mul((float3x3)loadSkinMatrix(j2, c), tangent) * w2;"
+        "  if (w3 > 0.00001f && j3 >= 0 && j3 < c && j3 < 64) blended += mul((float3x3)loadSkinMatrix(j3, c), tangent) * w3;"
         "  float len2 = dot(blended, blended);"
         "  if (len2 > 1e-8f) blended = normalize(blended);"
         "  else blended = tangent;"
@@ -1455,7 +1459,7 @@ float4 main(PSIn i, bool isFrontFace : SV_IsFrontFace) : SV_TARGET {
     // Per-draw GPU clip-skinning matrix upload ring buffer.
     const std::size_t kMaxGpuSkinMatrices = 64u;
     const std::size_t kSkinMatrixBytesPerDraw = alignUp(
-        kMaxGpuSkinMatrices * 16u * sizeof(float), 256u);
+        kMaxGpuSkinMatrices * 2u * 16u * sizeof(float), 256u);
     const std::size_t kSkinMatrixBufferBytes =
         kSkinMatrixBytesPerDraw * kMaxWorldDrawsPerFrame;
     D3D12_RESOURCE_DESC skinMatrixBufferDesc = bufferDesc;

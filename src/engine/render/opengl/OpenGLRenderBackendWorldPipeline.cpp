@@ -207,7 +207,7 @@ unsigned int linkWorldProgramWithCache(unsigned int vs,
 
 void OpenGLRenderBackend::ensureWorldPipeline() {
     if (worldProgram_ != 0 && worldVao_ != 0 && worldVbo_ != 0 && worldIbo_ != 0 &&
-        worldInstanceVbo_ != 0 &&
+        worldInstanceVbo_ != 0 && worldSkinUbo_ != 0 &&
         worldViewProjLoc_ >= 0 && worldModelLoc_ >= 0 &&
         worldUseTextureLoc_ >= 0 && worldTextureSamplerLoc_ >= 0 &&
         worldWrapSLoc_ >= 0 && worldWrapTLoc_ >= 0 && worldVertexColorMulLoc_ >= 0 &&
@@ -216,7 +216,7 @@ void OpenGLRenderBackend::ensureWorldPipeline() {
         worldMaterialModeLoc_ >= 0 && worldMaterialTimeLoc_ >= 0 && worldMaterialFlagsLoc_ >= 0 &&
         worldMaterialAtlasSizeLoc_ >= 0 && worldMaterialRect0Loc_ >= 0 && worldMaterialRect1Loc_ >= 0 &&
         worldMaterialFlipbook0Loc_ >= 0 && worldMaterialFlipbook1Loc_ >= 0 &&
-        worldSkinningEnabledLoc_ >= 0 && worldSkinMatrixCountLoc_ >= 0 && worldSkinMatricesLoc_ >= 0) {
+        worldSkinningEnabledLoc_ >= 0 && worldSkinningModeLoc_ >= 0 && worldSkinMatrixCountLoc_ >= 0) {
         return;
     }
     if (!GLAD_GL_VERSION_3_3) return;
@@ -240,15 +240,24 @@ void OpenGLRenderBackend::ensureWorldPipeline() {
         uniform vec4 uMaterialRect0;
         uniform vec4 uMaterialRect1;
         uniform float uSkinningEnabled;
+        uniform float uSkinningMode;
         uniform int uSkinMatrixCount;
         const int kMaxSkinMatrices = 64;
-        uniform mat4 uSkinMatrices[kMaxSkinMatrices];
+        layout (std140) uniform SkinMatricesBlock {
+            mat4 uSkinMatrices[kMaxSkinMatrices * 2];
+        };
         out vec2 vUv;
         out vec4 vColor;
         out vec3 vWorldPos;
         out vec3 vWorldNormal;
         out vec4 vWorldTangent;
         out vec3 vGenerated;
+        mat4 loadSkinMatrix(int jointIndex) {
+            if (uSkinningMode > 0.5) {
+                return uSkinMatrices[jointIndex] * uSkinMatrices[jointIndex + uSkinMatrixCount];
+            }
+            return uSkinMatrices[jointIndex];
+        }
         vec3 applySkinningPos(vec3 localPos) {
             vec4 blended = vec4(0.0);
             float totalWeight = 0.0;
@@ -263,19 +272,19 @@ void OpenGLRenderBackend::ensureWorldPipeline() {
             float w3 = aWeights.w;
 
             if (w0 > 0.00001 && j0 >= 0 && j0 < uSkinMatrixCount && j0 < kMaxSkinMatrices) {
-                blended += (uSkinMatrices[j0] * vec4(localPos, 1.0)) * w0;
+                blended += (loadSkinMatrix(j0) * vec4(localPos, 1.0)) * w0;
                 totalWeight += w0;
             }
             if (w1 > 0.00001 && j1 >= 0 && j1 < uSkinMatrixCount && j1 < kMaxSkinMatrices) {
-                blended += (uSkinMatrices[j1] * vec4(localPos, 1.0)) * w1;
+                blended += (loadSkinMatrix(j1) * vec4(localPos, 1.0)) * w1;
                 totalWeight += w1;
             }
             if (w2 > 0.00001 && j2 >= 0 && j2 < uSkinMatrixCount && j2 < kMaxSkinMatrices) {
-                blended += (uSkinMatrices[j2] * vec4(localPos, 1.0)) * w2;
+                blended += (loadSkinMatrix(j2) * vec4(localPos, 1.0)) * w2;
                 totalWeight += w2;
             }
             if (w3 > 0.00001 && j3 >= 0 && j3 < uSkinMatrixCount && j3 < kMaxSkinMatrices) {
-                blended += (uSkinMatrices[j3] * vec4(localPos, 1.0)) * w3;
+                blended += (loadSkinMatrix(j3) * vec4(localPos, 1.0)) * w3;
                 totalWeight += w3;
             }
 
@@ -299,19 +308,19 @@ void OpenGLRenderBackend::ensureWorldPipeline() {
             float w3 = aWeights.w;
 
             if (w0 > 0.00001 && j0 >= 0 && j0 < uSkinMatrixCount && j0 < kMaxSkinMatrices) {
-                blended += (mat3(uSkinMatrices[j0]) * localNormal) * w0;
+                blended += (mat3(loadSkinMatrix(j0)) * localNormal) * w0;
                 totalWeight += w0;
             }
             if (w1 > 0.00001 && j1 >= 0 && j1 < uSkinMatrixCount && j1 < kMaxSkinMatrices) {
-                blended += (mat3(uSkinMatrices[j1]) * localNormal) * w1;
+                blended += (mat3(loadSkinMatrix(j1)) * localNormal) * w1;
                 totalWeight += w1;
             }
             if (w2 > 0.00001 && j2 >= 0 && j2 < uSkinMatrixCount && j2 < kMaxSkinMatrices) {
-                blended += (mat3(uSkinMatrices[j2]) * localNormal) * w2;
+                blended += (mat3(loadSkinMatrix(j2)) * localNormal) * w2;
                 totalWeight += w2;
             }
             if (w3 > 0.00001 && j3 >= 0 && j3 < uSkinMatrixCount && j3 < kMaxSkinMatrices) {
-                blended += (mat3(uSkinMatrices[j3]) * localNormal) * w3;
+                blended += (mat3(loadSkinMatrix(j3)) * localNormal) * w3;
                 totalWeight += w3;
             }
 
@@ -336,19 +345,19 @@ void OpenGLRenderBackend::ensureWorldPipeline() {
             float w3 = aWeights.w;
 
             if (w0 > 0.00001 && j0 >= 0 && j0 < uSkinMatrixCount && j0 < kMaxSkinMatrices) {
-                blended += (mat3(uSkinMatrices[j0]) * tangent) * w0;
+                blended += (mat3(loadSkinMatrix(j0)) * tangent) * w0;
                 totalWeight += w0;
             }
             if (w1 > 0.00001 && j1 >= 0 && j1 < uSkinMatrixCount && j1 < kMaxSkinMatrices) {
-                blended += (mat3(uSkinMatrices[j1]) * tangent) * w1;
+                blended += (mat3(loadSkinMatrix(j1)) * tangent) * w1;
                 totalWeight += w1;
             }
             if (w2 > 0.00001 && j2 >= 0 && j2 < uSkinMatrixCount && j2 < kMaxSkinMatrices) {
-                blended += (mat3(uSkinMatrices[j2]) * tangent) * w2;
+                blended += (mat3(loadSkinMatrix(j2)) * tangent) * w2;
                 totalWeight += w2;
             }
             if (w3 > 0.00001 && j3 >= 0 && j3 < uSkinMatrixCount && j3 < kMaxSkinMatrices) {
-                blended += (mat3(uSkinMatrices[j3]) * tangent) * w3;
+                blended += (mat3(loadSkinMatrix(j3)) * tangent) * w3;
                 totalWeight += w3;
             }
 
@@ -1142,8 +1151,9 @@ __PAC_SHARED_WORLD_PBR_SECTION__
     worldMaterialFlipbook0Loc_ = glGetUniformLocation(worldProgram_, "uMaterialFlipbook0");
     worldMaterialFlipbook1Loc_ = glGetUniformLocation(worldProgram_, "uMaterialFlipbook1");
     worldSkinningEnabledLoc_ = glGetUniformLocation(worldProgram_, "uSkinningEnabled");
+    worldSkinningModeLoc_ = glGetUniformLocation(worldProgram_, "uSkinningMode");
     worldSkinMatrixCountLoc_ = glGetUniformLocation(worldProgram_, "uSkinMatrixCount");
-    worldSkinMatricesLoc_ = glGetUniformLocation(worldProgram_, "uSkinMatrices[0]");
+    const GLuint worldSkinBlockIndex = glGetUniformBlockIndex(worldProgram_, "SkinMatricesBlock");
     if (worldViewProjLoc_ < 0 || worldModelLoc_ < 0 ||
         worldUseTextureLoc_ < 0 || worldTextureSamplerLoc_ < 0 ||
         worldWrapSLoc_ < 0 || worldWrapTLoc_ < 0 || worldVertexColorMulLoc_ < 0 ||
@@ -1152,16 +1162,21 @@ __PAC_SHARED_WORLD_PBR_SECTION__
         worldMaterialModeLoc_ < 0 || worldMaterialTimeLoc_ < 0 || worldMaterialFlagsLoc_ < 0 ||
         worldMaterialAtlasSizeLoc_ < 0 || worldMaterialRect0Loc_ < 0 || worldMaterialRect1Loc_ < 0 ||
         worldMaterialFlipbook0Loc_ < 0 || worldMaterialFlipbook1Loc_ < 0 ||
-        worldSkinningEnabledLoc_ < 0 || worldSkinMatrixCountLoc_ < 0 || worldSkinMatricesLoc_ < 0) {
+        worldSkinningEnabledLoc_ < 0 || worldSkinningModeLoc_ < 0 || worldSkinMatrixCountLoc_ < 0 ||
+        worldSkinBlockIndex == GL_INVALID_INDEX) {
         destroyWorldPipeline();
         return;
     }
+    constexpr GLuint kWorldSkinBlockBinding = 0u;
+    glUniformBlockBinding(worldProgram_, worldSkinBlockIndex, kWorldSkinBlockBinding);
 
     glGenVertexArrays(1, &worldVao_);
     glGenBuffers(1, &worldVbo_);
     glGenBuffers(1, &worldIbo_);
     glGenBuffers(1, &worldInstanceVbo_);
-    if (worldVao_ == 0 || worldVbo_ == 0 || worldIbo_ == 0 || worldInstanceVbo_ == 0) {
+    glGenBuffers(1, &worldSkinUbo_);
+    if (worldVao_ == 0 || worldVbo_ == 0 || worldIbo_ == 0 || worldInstanceVbo_ == 0 ||
+        worldSkinUbo_ == 0) {
         destroyWorldPipeline();
         return;
     }
@@ -1172,9 +1187,17 @@ __PAC_SHARED_WORLD_PBR_SECTION__
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, 1024, nullptr, GL_STREAM_DRAW);
     glBindBuffer(GL_ARRAY_BUFFER, worldInstanceVbo_);
     glBufferData(GL_ARRAY_BUFFER, static_cast<GLsizeiptr>(sizeof(float) * 20u), nullptr, GL_STREAM_DRAW);
+    glBindBuffer(GL_UNIFORM_BUFFER, worldSkinUbo_);
+    glBufferData(
+        GL_UNIFORM_BUFFER,
+        static_cast<GLsizeiptr>(sizeof(float) * 16u * 128u),
+        nullptr,
+        GL_STREAM_DRAW);
+    glBindBufferBase(GL_UNIFORM_BUFFER, kWorldSkinBlockBinding, worldSkinUbo_);
     configureWorldMeshVertexLayout(worldVao_, worldVbo_, worldIbo_);
     glBindVertexArray(0);
     glBindBuffer(GL_ARRAY_BUFFER, 0);
+    glBindBuffer(GL_UNIFORM_BUFFER, 0);
 }
 
 void OpenGLRenderBackend::configureWorldMeshVertexLayout(unsigned int vao,
@@ -1224,6 +1247,10 @@ void OpenGLRenderBackend::configureWorldMeshVertexLayout(unsigned int vao,
 
 void OpenGLRenderBackend::destroyWorldPipeline() {
     destroyCachedWorldMeshes();
+    if (worldSkinUbo_ != 0) {
+        glDeleteBuffers(1, &worldSkinUbo_);
+        worldSkinUbo_ = 0;
+    }
     if (worldInstanceVbo_ != 0) {
         glDeleteBuffers(1, &worldInstanceVbo_);
         worldInstanceVbo_ = 0;
@@ -1283,8 +1310,8 @@ void OpenGLRenderBackend::destroyWorldPipeline() {
     worldMaterialFlipbook0Loc_ = -1;
     worldMaterialFlipbook1Loc_ = -1;
     worldSkinningEnabledLoc_ = -1;
+    worldSkinningModeLoc_ = -1;
     worldSkinMatrixCountLoc_ = -1;
-    worldSkinMatricesLoc_ = -1;
 }
 
 void OpenGLRenderBackend::destroyCachedWorldMeshes() {

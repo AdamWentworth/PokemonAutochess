@@ -55,6 +55,7 @@ class Resolver {
     bool configureGpuClipSkinningBatch(int triNodeIndex,
                                        const std::vector<std::uint16_t>* jointPalette,
                                        std::array<float, 16>& inOutModelMatrix,
+                                       std::uint8_t& outSkinningMode,
                                        std::vector<float>& outSkinMatrices,
                                        std::uint32_t& outSkinMatrixCount);
 
@@ -95,6 +96,7 @@ class Resolver {
     bool usePositionOnlyVertexPath_ = false;
     bool clipSkinningEnabled_ = true;
     bool gpuClipSkinningRequested_ = false;
+    bool backendGpuSkinNodeGlobalsEnabled_ = false;
     std::size_t nodeCount_ = 0u;
 };
 

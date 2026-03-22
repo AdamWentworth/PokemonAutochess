@@ -89,6 +89,7 @@ struct UnitSkinMatrixKeyHash {
 struct GpuSkinBatchState {
     bool valid = false;
     std::array<float, 16> modelMatrix{};
+    std::uint8_t gpuSkinningMode = 0u;
     std::uint32_t skinMatrixCount = 0u;
     const float* sharedSkinMatrices = nullptr;
 };

@@ -668,6 +668,7 @@ void OpenGLRenderBackend::drawWorldIndexedMeshTexturedInternal(unsigned int vao,
     if (surfaceWidth <= 0 || surfaceHeight <= 0) return;
     ensureWorldPipeline();
     if (worldProgram_ == 0 || vao == 0u || vertexBuffer == 0u || indexBuffer == 0u || worldInstanceVbo_ == 0u ||
+        worldSkinUbo_ == 0u ||
         worldViewProjLoc_ < 0 || worldModelLoc_ < 0 ||
         worldUseTextureLoc_ < 0 || worldTextureSamplerLoc_ < 0 ||
         worldWrapSLoc_ < 0 || worldWrapTLoc_ < 0 || worldVertexColorMulLoc_ < 0 ||
@@ -676,7 +677,7 @@ void OpenGLRenderBackend::drawWorldIndexedMeshTexturedInternal(unsigned int vao,
         worldMaterialModeLoc_ < 0 || worldMaterialTimeLoc_ < 0 || worldMaterialFlagsLoc_ < 0 ||
         worldMaterialAtlasSizeLoc_ < 0 || worldMaterialRect0Loc_ < 0 || worldMaterialRect1Loc_ < 0 ||
         worldMaterialFlipbook0Loc_ < 0 || worldMaterialFlipbook1Loc_ < 0 ||
-        worldSkinningEnabledLoc_ < 0 || worldSkinMatrixCountLoc_ < 0 || worldSkinMatricesLoc_ < 0) {
+        worldSkinningEnabledLoc_ < 0 || worldSkinningModeLoc_ < 0 || worldSkinMatrixCountLoc_ < 0) {
         return;
     }
 
@@ -1141,6 +1142,9 @@ void OpenGLRenderBackend::drawWorldIndexedMeshTexturedInternal(unsigned int vao,
         texture->gpuSkinning != 0u &&
         texture->skinMatrices != nullptr &&
         texture->skinMatrixCount > 0u;
+    const std::uint8_t gpuSkinningMode = gpuSkinningEnabled
+        ? static_cast<std::uint8_t>(std::min<std::uint32_t>(texture->gpuSkinningMode, 1u))
+        : 0u;
     const int gpuSkinMatrixCount = gpuSkinningEnabled
         ? std::min<int>(static_cast<int>(texture->skinMatrixCount), kMaxGpuSkinMatrices)
         : 0;
@@ -1149,16 +1153,28 @@ void OpenGLRenderBackend::drawWorldIndexedMeshTexturedInternal(unsigned int vao,
     const bool canReuseSkinUniforms =
         batchState &&
         batchState->lastWorldSkinningEnabled == gpuSkinningEnabled &&
+        batchState->lastWorldSkinningMode == gpuSkinningMode &&
         batchState->lastWorldSkinMatrixCount == static_cast<std::uint32_t>(gpuSkinMatrixCount) &&
         batchState->lastWorldSkinMatrices == skinMatrices;
     if (!canReuseSkinUniforms) {
         glUniform1f(worldSkinningEnabledLoc_, gpuSkinningEnabled ? 1.0f : 0.0f);
+        glUniform1f(worldSkinningModeLoc_, gpuSkinningMode != 0u ? 1.0f : 0.0f);
         glUniform1i(worldSkinMatrixCountLoc_, gpuSkinMatrixCount);
         if (gpuSkinMatrixCount > 0) {
-            glUniformMatrix4fv(worldSkinMatricesLoc_, gpuSkinMatrixCount, GL_FALSE, skinMatrices);
+            const std::size_t skinFloatCount =
+                static_cast<std::size_t>(gpuSkinMatrixCount) *
+                (gpuSkinningMode != 0u ? 32u : 16u);
+            glBindBuffer(GL_UNIFORM_BUFFER, worldSkinUbo_);
+            glBufferSubData(
+                GL_UNIFORM_BUFFER,
+                0,
+                static_cast<GLsizeiptr>(skinFloatCount * sizeof(float)),
+                skinMatrices);
+            glBindBuffer(GL_UNIFORM_BUFFER, 0);
         }
         if (batchState) {
             batchState->lastWorldSkinningEnabled = gpuSkinningEnabled;
+            batchState->lastWorldSkinningMode = gpuSkinningMode;
             batchState->lastWorldSkinMatrixCount =
                 static_cast<std::uint32_t>(gpuSkinMatrixCount);
             batchState->lastWorldSkinMatrices = skinMatrices;

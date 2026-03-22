@@ -199,6 +199,7 @@ private:
     unsigned int worldVbo_ = 0;
     unsigned int worldIbo_ = 0;
     unsigned int worldInstanceVbo_ = 0;
+    unsigned int worldSkinUbo_ = 0;
     int worldViewProjLoc_ = -1;
     int worldModelLoc_ = -1;
     int worldUseTextureLoc_ = -1;
@@ -238,8 +239,8 @@ private:
     int worldMaterialFlipbook0Loc_ = -1;
     int worldMaterialFlipbook1Loc_ = -1;
     int worldSkinningEnabledLoc_ = -1;
+    int worldSkinningModeLoc_ = -1;
     int worldSkinMatrixCountLoc_ = -1;
-    int worldSkinMatricesLoc_ = -1;
 
     unsigned int spriteProgram_ = 0;
     unsigned int spriteVao_ = 0;
@@ -351,6 +352,7 @@ private:
         int currentBlendEqAlpha = 0;
         bool worldProgramStaticUniformsApplied = false;
         bool lastWorldSkinningEnabled = false;
+        std::uint8_t lastWorldSkinningMode = 0u;
         std::uint32_t lastWorldSkinMatrixCount = 0u;
         const float* lastWorldSkinMatrices = nullptr;
     };

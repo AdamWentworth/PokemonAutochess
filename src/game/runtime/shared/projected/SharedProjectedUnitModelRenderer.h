@@ -42,6 +42,7 @@ struct Args {
     const runtime::render_prep_pose::ProceduralPose* pose = nullptr;
     const runtime::render_model::MeshData* meshForUnit = nullptr;
     const runtime::shared_backend_pose::PoseEval* scenePose = nullptr;
+    const char* backendId = nullptr;
     bool scenePoseReady = false;
     bool enableClipSkinning = true;
     bool enableGpuClipSkinning = false;

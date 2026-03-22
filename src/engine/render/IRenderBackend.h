@@ -177,8 +177,13 @@ public:
         // Optional GPU skinning payload for world indexed mesh draws.
         // Backend should ignore when gpuSkinning == 0.
         std::uint8_t gpuSkinning = 0u;
+        // 0 = precomputed joint matrices, 1 = paired joint globals +
+        // inverse-bind matrices packed as [globals..., inverseBinds...].
+        std::uint8_t gpuSkinningMode = 0u;
         std::uint32_t skinMatrixCount = 0u;
-        const float* skinMatrices = nullptr; // 16 * skinMatrixCount floats (column-major mat4)
+        // Mode 0: 16 * skinMatrixCount floats (precomputed skin matrices).
+        // Mode 1: 32 * skinMatrixCount floats packed as [jointGlobals..., inverseBinds...].
+        const float* skinMatrices = nullptr;
     };
 
     struct WorldMeshInstance {

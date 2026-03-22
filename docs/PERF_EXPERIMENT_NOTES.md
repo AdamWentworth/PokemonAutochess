@@ -217,6 +217,160 @@ without the same context.
   - if this area is revisited later, prefer a lightweight view/handle design
     over copying whole `WorldIndexedBatch` structs on the hot path
 
+### 2026-03-21: D3D12 per-instance skin-palette instancing was a miss
+- Status:
+  - uncommitted experiment; reverted after automated heavy-scene regression
+- Files:
+  - `src/engine/render/IRenderBackend.h`
+  - `src/engine/render/D3D12RenderBackend.h`
+  - `src/engine/render/d3d12/D3D12RenderBackendCachedWorldMeshes.cpp`
+  - `src/engine/render/d3d12/D3D12RenderBackendLifecycle.cpp`
+  - `src/engine/render/d3d12/D3D12RenderBackendPipelines.cpp`
+  - `src/engine/render/d3d12/D3D12RenderBackendWorldDraw.cpp`
+  - `src/game/runtime/shared/projected/SharedProjectedUnitBackendMeshRenderer.cpp`
+  - `src/game/runtime/shared/projected/SharedProjectedUnitBackendMeshSupport.cpp`
+  - `src/game/runtime/shared/projected/SharedProjectedUnitBackendMeshSupport.h`
+  - `src/game/runtime/shared/world/SharedWorldIndexedBatches.cpp`
+- Hypothesis:
+  - collapse repeated D3D12 clip-skinned draws by batching compatible units
+    behind a shared instanced path while keeping skin palettes on the GPU
+- Expected win:
+  - reduce `render_build_ms`
+  - reduce draw-call and descriptor-table churn in dense heavy-board scenes
+  - possibly trade a little GPU time for a larger CPU win
+- What the workload showed:
+  - the path was materially present: `backend_indexed_instanced_draws` lit up
+    in the heavy-scene capture
+  - repeated-unit draws fell in some heavy frames, but total draw/state work
+    did not collapse enough to matter
+  - retained heavy-scene baseline:
+    - `avg_fps 145.592`
+    - `avg_render_build_ms 5.804`
+    - `avg_gpu_frame_ms 0.448`
+  - instanced skin-palette run:
+    - `avg_fps 124.611`
+    - `avg_render_build_ms 6.980`
+    - `avg_gpu_frame_ms 1.049`
+  - conclusion:
+    this changed where cost landed, but it did not remove enough upstream CPU
+    structure to pay for the added GPU/setup work
+- Decision:
+  - revert and do not keep this exact D3D12 skin-palette instancing path
+- Re-entry conditions:
+  - only revisit if it is paired with a larger cut in upstream animation,
+    pose, or batch-setup work
+
+### 2026-03-21: D3D12 GPU skin node-global composition was a real win
+- Status:
+  - local experiment; retained
+- Files:
+  - `src/engine/render/IRenderBackend.h`
+  - `src/engine/render/D3D12RenderBackend.h`
+  - `src/engine/render/d3d12/D3D12RenderBackendLifecycle.cpp`
+  - `src/engine/render/d3d12/D3D12RenderBackendPipelines.cpp`
+  - `src/engine/render/d3d12/D3D12RenderBackendWorldDraw.cpp`
+  - `src/game/runtime/session/SessionProjectedWorldView.cpp`
+  - `src/game/runtime/shared/projected/SharedProjectedUnitBackendMeshRenderer.cpp`
+  - `src/game/runtime/shared/projected/SharedProjectedUnitBackendMeshSupport.h`
+  - `src/game/runtime/shared/projected/SharedProjectedUnitBackendMeshTransforms.cpp`
+  - `src/game/runtime/shared/projected/SharedProjectedUnitBackendMeshTransforms.h`
+  - `src/game/runtime/shared/projected/SharedProjectedUnitModelRenderer.h`
+  - `src/game/runtime/shared/projected/SharedProjectedUnitRenderer.cpp`
+  - `src/game/runtime/shared/projected/SharedProjectedUnitRenderer.h`
+  - `src/game/runtime/shared/world/SharedWorldIndexedBatches.cpp`
+  - `src/game/runtime/shared/world/SharedWorldIndexedBatches.h`
+- Hypothesis:
+  - stop precomputing final skin matrices on the CPU for D3D12 clip-skinned
+    batches, and instead upload paired `jointGlobal` and `inverseBind`
+    matrices so the vertex shader can compose them on the GPU
+- Expected win:
+  - reduce `projected_units_ms`
+  - reduce `projected_model_ms`
+  - reduce `render_build_ms` in dense heavy-board scenes without materially
+    increasing GPU time
+- What the workload showed:
+  - the D3D12 heavy-scene benchmark improved materially versus the retained
+    pre-change baseline
+  - retained baseline:
+    - `avg_fps 145.592`
+    - `avg_frame_cpu_ms 6.831`
+    - `avg_render_build_ms 5.804`
+    - `avg_gpu_frame_ms 0.448`
+    - `avg_projected_units_ms 2.683`
+  - paired global/inverse-bind run:
+    - `avg_fps 176.060`
+    - `avg_frame_cpu_ms 5.614`
+    - `avg_render_build_ms 4.701`
+    - `avg_gpu_frame_ms 0.524`
+    - `avg_projected_units_ms 1.720`
+  - the shorter confirmation run pointed the same way:
+    - `benchmark/render_matrix_20260321_212742.json`
+      `avg_fps 179.421`, `avg_render_build_ms 4.570`
+  - conclusion:
+    this is the first GPU-offload change in this area that clearly reduced CPU
+    hot-path work enough to justify the trade
+- Decision:
+  - keep
+- Follow-up:
+  - if we revisit GPU animation offload again, extend from this paired
+    upload/composition path rather than retrying per-instance palette
+    instancing first
+
+### 2026-03-21: OpenGL GPU skin node-global composition via skin UBO was a real win
+- Status:
+  - local experiment; retained
+- Files:
+  - `src/engine/render/OpenGLRenderBackend.h`
+  - `src/engine/render/opengl/OpenGLRenderBackendWorldDraw.cpp`
+  - `src/engine/render/opengl/OpenGLRenderBackendWorldPipeline.cpp`
+  - `src/game/runtime/session/SessionProjectedWorldView.cpp`
+  - `src/game/runtime/shared/projected/SharedProjectedUnitBackendMeshRenderer.cpp`
+  - `src/game/runtime/shared/projected/SharedProjectedUnitBackendMeshSupport.h`
+  - `src/game/runtime/shared/projected/SharedProjectedUnitBackendMeshTransforms.cpp`
+  - `src/game/runtime/shared/projected/SharedProjectedUnitBackendMeshTransforms.h`
+  - `src/game/runtime/shared/projected/SharedProjectedUnitModelRenderer.h`
+  - `src/game/runtime/shared/projected/SharedProjectedUnitRenderer.cpp`
+  - `src/game/runtime/shared/projected/SharedProjectedUnitRenderer.h`
+  - `src/game/runtime/shared/world/SharedWorldIndexedBatches.cpp`
+  - `src/game/runtime/shared/world/SharedWorldIndexedBatches.h`
+- Hypothesis:
+  - bring the D3D12 paired `jointGlobal` / `inverseBind` composition idea to
+    OpenGL, but use a dedicated skin UBO instead of pushing a doubled payload
+    through plain matrix uniforms
+- Expected win:
+  - reduce `projected_units_ms`
+  - reduce `projected_model_ms`
+  - reduce `render_build_ms` in the heavy auto-loaded board snapshot
+- What the workload showed:
+  - OpenGL remained CPU-heavy enough to benefit from the same offload direction
+  - baseline 20s run:
+    - `benchmark/render_matrix_20260321_213705.json`
+    - `avg_fps 129.883`
+    - `avg_frame_cpu_ms 7.565`
+    - `avg_render_build_ms 6.585`
+    - `avg_projected_units_ms 2.173`
+    - `avg_projected_model_ms 1.792`
+  - paired node-global + skin-UBO run:
+    - `benchmark/render_matrix_20260321_214551.json`
+    - `avg_fps 141.897`
+    - `avg_frame_cpu_ms 7.001`
+    - `avg_render_build_ms 6.049`
+    - `avg_projected_units_ms 1.465`
+    - `avg_projected_model_ms 1.081`
+  - longer confirmation run stayed ahead of the prior OpenGL 35s capture too:
+    - `benchmark/render_matrix_20260321_214635.json`
+    - `avg_fps 138.006`
+    - `avg_frame_cpu_ms 7.184`
+    - `avg_render_build_ms 6.249`
+    - `avg_projected_units_ms 1.597`
+  - GPU time rose somewhat versus the shorter baseline capture, but the trade
+    still favored the CPU-heavy scene we care about
+- Decision:
+  - keep
+- Follow-up:
+  - if OpenGL needs another pass later, continue from the skin-UBO path instead
+    of returning to `glUniformMatrix4fv` uploads for skinned world meshes
+
 ### 2026-03-20: retained debug-geometry GPU caching was a real win
 - Commit:
   - `f4b5eb3` `Cache retained debug geometry on GPU`

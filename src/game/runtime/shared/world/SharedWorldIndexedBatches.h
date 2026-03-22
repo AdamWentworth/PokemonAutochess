@@ -108,6 +108,7 @@ struct WorldIndexedBatch {
         0.0f, 0.0f, 1.0f, 0.0f,
         0.0f, 0.0f, 0.0f, 1.0f};
     std::uint8_t gpuSkinning = 0u;
+    std::uint8_t gpuSkinningMode = 0u;
     std::uint32_t skinMatrixCount = 0u;
     const float* sharedSkinMatrices = nullptr;
     std::vector<float> skinMatrices;

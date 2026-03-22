@@ -162,6 +162,21 @@ std::size_t backendScenePoseCacheDenseMinUnits() {
     return minUnits;
 }
 
+bool backendScenePoseCachePrewarmEnabled() {
+    static const bool enabled = []() -> bool {
+        const auto env = engine::env::get("PAC_BACKEND_SCENE_POSE_CACHE_PREWARM");
+        // Default off: dense combat scenes were paying the next-sample evaluation
+        // cost immediately, which inflated pose-eval spikes more than it helped.
+        if (!env.has_value()) return false;
+        const std::string raw = *env;
+        if (raw == "0" || raw == "false" || raw == "FALSE" || raw == "off" || raw == "OFF") {
+            return false;
+        }
+        return true;
+    }();
+    return enabled;
+}
+
 float backendScenePoseCacheEffectiveHz(std::size_t unitCount) {
     if (unitCount == 0u) {
         return 0.0f;
@@ -325,6 +340,9 @@ void pruneScenePoseCache(std::uint64_t frameCounter) {
 }
 
 bool shouldPrewarmNextScenePoseSample(std::size_t unitCount, float scenePoseCacheStepSec) {
+    if (!backendScenePoseCachePrewarmEnabled()) {
+        return false;
+    }
     // In sparse scenes the sim already advances on the same 60 Hz cadence as the
     // default pose cache buckets, so prewarming the next bucket mostly adds cache
     // churn instead of turning future misses into hits.
@@ -659,6 +677,7 @@ for (const auto& unit : units) {
                 .pose = &pose,
                 .meshForUnit = meshForUnit,
                 .scenePose = scenePose,
+                .backendId = args.rendererBackendId,
                 .scenePoseReady = scenePoseReady,
                 .enableClipSkinning = unitClipSkinningEnabled,
                 .enableGpuClipSkinning = enableGpuClipSkinning,

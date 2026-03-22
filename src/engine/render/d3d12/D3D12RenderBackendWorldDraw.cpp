@@ -26,6 +26,7 @@ void packWorldVsConstants(const float* viewProjectionMatrix4x4,
                           const float* modelMatrix4x4,
                           bool skinningEnabled,
                           std::uint32_t skinMatrixCount,
+                          std::uint32_t skinningMode,
                           float* out36) {
     if (!out36) return;
     static constexpr float kIdentity[16] = {
@@ -39,7 +40,7 @@ void packWorldVsConstants(const float* viewProjectionMatrix4x4,
     std::memcpy(out36 + 16u, model, sizeof(float) * 16u);
     out36[32] = skinningEnabled ? 1.0f : 0.0f;
     out36[33] = static_cast<float>(skinMatrixCount);
-    out36[34] = 0.0f;
+    out36[34] = static_cast<float>(skinningMode);
     out36[35] = 0.0f;
 }
 
@@ -204,7 +205,7 @@ void D3D12RenderBackend::drawWorldTriangles(const WorldTriangle* triangles,
     }
     commandList_->SetGraphicsRootSignature(worldRootSignature_.Get());
     float vsConstants[36] = {};
-    packWorldVsConstants(viewProjectionMatrix4x4, nullptr, false, 0u, vsConstants);
+    packWorldVsConstants(viewProjectionMatrix4x4, nullptr, false, 0u, 0u, vsConstants);
     std::memcpy(
         worldVsConstantMappedData_ + vsConstantsWriteOffset,
         vsConstants,
@@ -830,15 +831,19 @@ void D3D12RenderBackend::drawWorldIndexedMeshInternal(const WorldMeshVertex* ver
         textureData->skinMatrices != nullptr &&
         textureData->skinMatrixCount > 0u &&
         textureData->skinMatrixCount <= kMaxGpuSkinMatrices;
+    const std::uint32_t gpuSkinningMode =
+        gpuSkinningEnabled ? std::min<std::uint32_t>(textureData->gpuSkinningMode, 1u) : 0u;
     std::uint32_t gpuSkinMatrixCount = gpuSkinningEnabled ? textureData->skinMatrixCount : 0u;
     D3D12_GPU_VIRTUAL_ADDRESS skinMatrixGpuAddress = worldSkinMatrixBufferGpuAddress_;
     if (gpuSkinningEnabled) {
         if (textureData->skinMatrices == lastWorldSkinMatrices_ &&
+            gpuSkinningMode == lastWorldSkinningMode_ &&
             gpuSkinMatrixCount == lastWorldSkinMatrixCount_) {
             skinMatrixGpuAddress = lastWorldSkinMatrixGpuAddress_;
         } else {
             const std::size_t copyBytes =
-                static_cast<std::size_t>(gpuSkinMatrixCount) * 16u * sizeof(float);
+                static_cast<std::size_t>(gpuSkinMatrixCount) *
+                (gpuSkinningMode == 1u ? 32u : 16u) * sizeof(float);
             const std::size_t skinWriteOffset =
                 alignUp(static_cast<std::size_t>(worldSkinMatrixFrameOffset_), 256u);
             const std::size_t skinWriteEnd = skinWriteOffset + alignUp(copyBytes, 256u);
@@ -850,6 +855,7 @@ void D3D12RenderBackend::drawWorldIndexedMeshInternal(const WorldMeshVertex* ver
                 skinMatrixGpuAddress += static_cast<std::uint64_t>(skinWriteOffset);
                 worldSkinMatrixFrameOffset_ = static_cast<UINT>(skinWriteEnd);
                 lastWorldSkinMatrices_ = textureData->skinMatrices;
+                lastWorldSkinningMode_ = static_cast<std::uint8_t>(gpuSkinningMode);
                 lastWorldSkinMatrixCount_ = gpuSkinMatrixCount;
                 lastWorldSkinMatrixGpuAddress_ = skinMatrixGpuAddress;
             } else {
@@ -865,6 +871,7 @@ void D3D12RenderBackend::drawWorldIndexedMeshInternal(const WorldMeshVertex* ver
         modelMatrix,
         gpuSkinningEnabled,
         gpuSkinMatrixCount,
+        gpuSkinningMode,
         vsConstants);
     std::memcpy(
         worldVsConstantMappedData_ + vsConstantsWriteOffset,
@@ -997,12 +1004,13 @@ void D3D12RenderBackend::drawWorldIndexedMeshInternal(const WorldMeshVertex* ver
             commandList_->IASetIndexBuffer(&outlineIbv);
 
             float outlineVsConstants[36] = {};
-            packWorldVsConstants(
-                viewProjectionMatrix4x4,
-                modelMatrix,
-                false,
-                0u,
-                outlineVsConstants);
+    packWorldVsConstants(
+        viewProjectionMatrix4x4,
+        modelMatrix,
+        false,
+        0u,
+        0u,
+        outlineVsConstants);
             std::memcpy(
                 worldVsConstantMappedData_ + outlineVsConstantWriteOffset,
                 outlineVsConstants,
@@ -1112,15 +1120,19 @@ void D3D12RenderBackend::drawWorldIndexedMeshTexturedCachedInternal(
         textureData->skinMatrices != nullptr &&
         textureData->skinMatrixCount > 0u &&
         textureData->skinMatrixCount <= kMaxGpuSkinMatrices;
+    const std::uint32_t gpuSkinningMode =
+        gpuSkinningEnabled ? std::min<std::uint32_t>(textureData->gpuSkinningMode, 1u) : 0u;
     std::uint32_t gpuSkinMatrixCount = gpuSkinningEnabled ? textureData->skinMatrixCount : 0u;
     D3D12_GPU_VIRTUAL_ADDRESS skinMatrixGpuAddress = worldSkinMatrixBufferGpuAddress_;
     if (gpuSkinningEnabled) {
         if (textureData->skinMatrices == lastWorldSkinMatrices_ &&
+            gpuSkinningMode == lastWorldSkinningMode_ &&
             gpuSkinMatrixCount == lastWorldSkinMatrixCount_) {
             skinMatrixGpuAddress = lastWorldSkinMatrixGpuAddress_;
         } else {
             const std::size_t copyBytes =
-                static_cast<std::size_t>(gpuSkinMatrixCount) * 16u * sizeof(float);
+                static_cast<std::size_t>(gpuSkinMatrixCount) *
+                (gpuSkinningMode == 1u ? 32u : 16u) * sizeof(float);
             const std::size_t skinWriteOffset =
                 alignUp(static_cast<std::size_t>(worldSkinMatrixFrameOffset_), 256u);
             const std::size_t skinWriteEnd = skinWriteOffset + alignUp(copyBytes, 256u);
@@ -1132,6 +1144,7 @@ void D3D12RenderBackend::drawWorldIndexedMeshTexturedCachedInternal(
                 skinMatrixGpuAddress += static_cast<std::uint64_t>(skinWriteOffset);
                 worldSkinMatrixFrameOffset_ = static_cast<UINT>(skinWriteEnd);
                 lastWorldSkinMatrices_ = textureData->skinMatrices;
+                lastWorldSkinningMode_ = static_cast<std::uint8_t>(gpuSkinningMode);
                 lastWorldSkinMatrixCount_ = gpuSkinMatrixCount;
                 lastWorldSkinMatrixGpuAddress_ = skinMatrixGpuAddress;
             } else {
@@ -1151,6 +1164,7 @@ void D3D12RenderBackend::drawWorldIndexedMeshTexturedCachedInternal(
         modelMatrix,
         gpuSkinningEnabled,
         gpuSkinMatrixCount,
+        gpuSkinningMode,
         vsConstants);
     std::memcpy(
         worldVsConstantMappedData_ + vsConstantsWriteOffset,
@@ -1309,12 +1323,13 @@ void D3D12RenderBackend::drawWorldIndexedMeshTexturedCachedInternal(
     commandList_->IASetIndexBuffer(&outlineIbv);
 
     float outlineVsConstants[36] = {};
-    packWorldVsConstants(
-        viewProjectionMatrix4x4,
-        modelMatrix,
-        false,
-        0u,
-        outlineVsConstants);
+            packWorldVsConstants(
+                viewProjectionMatrix4x4,
+                modelMatrix,
+                false,
+                0u,
+                0u,
+                outlineVsConstants);
     std::memcpy(
         worldVsConstantMappedData_ + outlineVsConstantWriteOffset,
         outlineVsConstants,

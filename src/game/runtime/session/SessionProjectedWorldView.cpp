@@ -125,6 +125,7 @@ Result appendProjectedWorldView(const Args& args) {
     projectedUnitArgs.supportsWorldIndexedMeshes = args.supportsWorldIndexedMeshes;
     projectedUnitArgs.characterInkingEnabled = args.characterInkingEnabled;
     projectedUnitArgs.enableGpuClipSkinning = args.enableGpuClipSkinning;
+    projectedUnitArgs.rendererBackendId = args.renderer ? args.renderer->backendId() : nullptr;
     projectedUnitArgs.hasWorldViewProj = out.hasWorldViewProj;
     projectedUnitArgs.allowPortraitFallback = args.allowPortraitFallback;
     projectedUnitArgs.forcePortraitOverlay = args.forcePortraitOverlay;

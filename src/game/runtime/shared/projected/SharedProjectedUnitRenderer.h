@@ -53,6 +53,7 @@ struct Args {
     bool supportsWorldIndexedMeshes = false;
     bool characterInkingEnabled = false;
     bool enableGpuClipSkinning = false;
+    const char* rendererBackendId = nullptr;
     bool hasWorldViewProj = false;
     bool allowPortraitFallback = false;
     bool forcePortraitOverlay = false;

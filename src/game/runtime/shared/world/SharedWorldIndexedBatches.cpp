@@ -196,7 +196,9 @@ bool canAutoInstance(const IRenderBackend& renderer, const WorldIndexedBatch& ba
     if (!batch.instances.empty()) return false;
     if (batch.geometryCacheKey.empty()) return false;
     if (batch.gpuSkinning != 0u) return false;
-    if (batch.skinMatrixCount != 0u || batch.sharedSkinMatrices != nullptr || !batch.skinMatrices.empty()) {
+    if (batch.skinMatrixCount != 0u ||
+        batch.sharedSkinMatrices != nullptr ||
+        !batch.skinMatrices.empty()) {
         return false;
     }
     return batch.hasGeometry();
@@ -414,6 +416,7 @@ struct SubmissionMaterialStateKey {
     std::uint8_t characterInkingEnabled = 0u;
     bool instanced = false;
     std::uint8_t gpuSkinning = 0u;
+    std::uint8_t gpuSkinningMode = 0u;
     std::uint32_t skinMatrixCount = 0u;
     float alphaCutoff = 0.0f;
     float normalScale = 1.0f;
@@ -471,6 +474,7 @@ SubmissionSortKey makeSubmissionSortKey(const WorldIndexedBatch& batch) {
     key.material.characterInkingEnabled = materialBatch.characterInkingEnabled;
     key.material.instanced = !batch.instances.empty();
     key.material.gpuSkinning = batch.gpuSkinning;
+    key.material.gpuSkinningMode = batch.gpuSkinningMode;
     key.material.skinMatrixCount = batch.skinMatrixCount;
     key.material.alphaCutoff = effectiveAlphaCutoff(batch);
     key.material.normalScale = materialBatch.normalScale;
@@ -557,6 +561,8 @@ bool submissionSortKeyLess(const SubmissionSortKey& lhs, const SubmissionSortKey
     if (cmp != 0) return cmp < 0;
     cmp = compareOrdered(lhs.material.gpuSkinning, rhs.material.gpuSkinning);
     if (cmp != 0) return cmp < 0;
+    cmp = compareOrdered(lhs.material.gpuSkinningMode, rhs.material.gpuSkinningMode);
+    if (cmp != 0) return cmp < 0;
     cmp = compareOrdered(lhs.material.skinMatrixCount, rhs.material.skinMatrixCount);
     if (cmp != 0) return cmp < 0;
     cmp = compareOrdered(!lhs.textures.hasBaseTexture, !rhs.textures.hasBaseTexture);
@@ -633,6 +639,7 @@ bool sameMaterialState(const SubmissionSortKey& lhs, const SubmissionSortKey& rh
            lhs.material.characterInkingEnabled == rhs.material.characterInkingEnabled &&
            lhs.material.instanced == rhs.material.instanced &&
            lhs.material.gpuSkinning == rhs.material.gpuSkinning &&
+           lhs.material.gpuSkinningMode == rhs.material.gpuSkinningMode &&
            lhs.material.skinMatrixCount == rhs.material.skinMatrixCount &&
            lhs.material.alphaCutoff == rhs.material.alphaCutoff &&
            lhs.material.normalScale == rhs.material.normalScale &&
@@ -869,6 +876,7 @@ IRenderBackend::WorldTextureData toWorldTextureData(const WorldIndexedBatch& bat
     tex.materialFlipbook1Fps = materialBatch.materialFlipbook1Fps;
     tex.modelMatrix = batch.modelMatrix;
     tex.gpuSkinning = batch.gpuSkinning;
+    tex.gpuSkinningMode = batch.gpuSkinningMode;
     tex.skinMatrixCount = batch.skinMatrixCount;
     tex.skinMatrices = batch.sharedSkinMatrices
         ? batch.sharedSkinMatrices

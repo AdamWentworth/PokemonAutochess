@@ -38,6 +38,38 @@ bool backendClipSkinningEnabled() {
     return enabled;
 }
 
+bool backendD3D12GpuSkinNodeGlobalsEnabled() {
+    static const bool enabled = []() -> bool {
+        const auto env = engine::env::get("PAC_BACKEND_D3D12_GPU_SKIN_NODE_GLOBALS");
+        // Default on for D3D12: this path lets the vertex shader compose
+        // jointGlobal * inverseBind so the CPU can stop building final joint
+        // matrices for every clip-skinned batch.
+        if (!env.has_value()) return true;
+        const std::string raw = *env;
+        if (raw == "0" || raw == "false" || raw == "FALSE" || raw == "off" || raw == "OFF") {
+            return false;
+        }
+        return true;
+    }();
+    return enabled;
+}
+
+bool backendOpenGLGpuSkinNodeGlobalsEnabled() {
+    static const bool enabled = []() -> bool {
+        const auto env = engine::env::get("PAC_BACKEND_OPENGL_GPU_SKIN_NODE_GLOBALS");
+        // Default on for OpenGL too, but the transport differs from D3D12: the
+        // paired payload is uploaded via a world skin UBO instead of plain
+        // matrix uniforms.
+        if (!env.has_value()) return true;
+        const std::string raw = *env;
+        if (raw == "0" || raw == "false" || raw == "FALSE" || raw == "off" || raw == "OFF") {
+            return false;
+        }
+        return true;
+    }();
+    return enabled;
+}
+
 struct NodeTransformCacheEntry {
     glm::mat4 worldM{1.0f};
     glm::mat3 worldNormalM{1.0f};
@@ -100,6 +132,15 @@ void Resolver::initialize(const shared_projected_unit_backend_mesh::Args& args,
     usePositionOnlyVertexPath_ = prep.usePositionOnlyVertexPath;
     clipSkinningEnabled_ = backendClipSkinningEnabled() && args.enableClipSkinning;
     gpuClipSkinningRequested_ = args.enableGpuClipSkinning;
+    backendGpuSkinNodeGlobalsEnabled_ = false;
+    if (gpuClipSkinningRequested_ && args.backendId) {
+        const std::string backendId = args.backendId;
+        if (backendId == "d3d12") {
+            backendGpuSkinNodeGlobalsEnabled_ = backendD3D12GpuSkinNodeGlobalsEnabled();
+        } else if (backendId == "opengl") {
+            backendGpuSkinNodeGlobalsEnabled_ = backendOpenGLGpuSkinNodeGlobalsEnabled();
+        }
+    }
 
     nodeGlobals_ =
         (prep.scenePose && prep.scenePose->hasScenePose) ? &prep.scenePose->nodeGlobals
@@ -747,9 +788,11 @@ bool Resolver::configureGpuClipSkinningBatch(
     int triNodeIndex,
     const std::vector<std::uint16_t>* jointPalette,
     std::array<float, 16>& inOutModelMatrix,
+    std::uint8_t& outSkinningMode,
     std::vector<float>& outSkinMatrices,
     std::uint32_t& outSkinMatrixCount) {
     outSkinMatrices.clear();
+    outSkinningMode = 0u;
     outSkinMatrixCount = 0u;
     if (!gpuClipSkinningRequested_ || !clipSkinningEnabled_ || !hasClipPose_ ||
         !usePositionOnlyVertexPath_) {
@@ -772,17 +815,38 @@ bool Resolver::configureGpuClipSkinningBatch(
     const std::size_t skinIdx = static_cast<std::size_t>(skinIndex);
     if (g_scratch.gpuSkinMatricesReady[skinIdx] == 0u) {
         auto& packed = g_scratch.gpuSkinMatricesBySkin[skinIdx];
-        packed.resize(skin.joints.size() * 16u);
-        for (std::size_t j = 0; j < skin.joints.size(); ++j) {
-            const int jointNode = skin.joints[j];
-            glm::mat4 jointM(1.0f);
-            if (jointNode >= 0 && static_cast<std::size_t>(jointNode) < nodeGlobals_->size()) {
+        if (backendGpuSkinNodeGlobalsEnabled_) {
+            packed.resize(skin.joints.size() * 32u);
+            const std::size_t inverseBindOffset = skin.joints.size() * 16u;
+            for (std::size_t j = 0; j < skin.joints.size(); ++j) {
+                glm::mat4 jointGlobal(1.0f);
+                const int jointNode = skin.joints[j];
+                if (jointNode >= 0 && static_cast<std::size_t>(jointNode) < nodeGlobals_->size()) {
+                    jointGlobal = (*nodeGlobals_)[static_cast<std::size_t>(jointNode)];
+                }
                 const glm::mat4 invBind =
                     (j < skin.inverseBind.size()) ? skin.inverseBind[j] : glm::mat4(1.0f);
-                jointM = (*nodeGlobals_)[static_cast<std::size_t>(jointNode)] * invBind;
+                const float* jointGlobalSrc = glm::value_ptr(jointGlobal);
+                const float* invBindSrc = glm::value_ptr(invBind);
+                std::copy(jointGlobalSrc, jointGlobalSrc + 16, packed.data() + (j * 16u));
+                std::copy(
+                    invBindSrc,
+                    invBindSrc + 16,
+                    packed.data() + inverseBindOffset + (j * 16u));
             }
-            const float* src = glm::value_ptr(jointM);
-            std::copy(src, src + 16, packed.data() + (j * 16u));
+        } else {
+            packed.resize(skin.joints.size() * 16u);
+            for (std::size_t j = 0; j < skin.joints.size(); ++j) {
+                const int jointNode = skin.joints[j];
+                glm::mat4 jointM(1.0f);
+                if (jointNode >= 0 && static_cast<std::size_t>(jointNode) < nodeGlobals_->size()) {
+                    const glm::mat4 invBind =
+                        (j < skin.inverseBind.size()) ? skin.inverseBind[j] : glm::mat4(1.0f);
+                    jointM = (*nodeGlobals_)[static_cast<std::size_t>(jointNode)] * invBind;
+                }
+                const float* src = glm::value_ptr(jointM);
+                std::copy(src, src + 16, packed.data() + (j * 16u));
+            }
         }
         g_scratch.gpuSkinMatricesReady[skinIdx] = 1u;
     }
@@ -791,7 +855,33 @@ bool Resolver::configureGpuClipSkinningBatch(
     std::copy(modelData, modelData + 16, inOutModelMatrix.begin());
 
     const auto& packedAll = g_scratch.gpuSkinMatricesBySkin[skinIdx];
-    if (hasPalette) {
+    if (backendGpuSkinNodeGlobalsEnabled_) {
+        outSkinningMode = 1u;
+        if (hasPalette) {
+            const std::size_t paletteSize = jointPalette->size();
+            const std::size_t srcInverseBindOffset = skin.joints.size() * 16u;
+            const std::size_t dstInverseBindOffset = paletteSize * 16u;
+            outSkinMatrices.resize(paletteSize * 32u);
+            for (std::size_t pi = 0; pi < paletteSize; ++pi) {
+                const std::size_t srcJoint = static_cast<std::size_t>((*jointPalette)[pi]);
+                if (srcJoint >= skin.joints.size()) return false;
+                const float* jointGlobalSrc = packedAll.data() + (srcJoint * 16u);
+                const float* invBindSrc = packedAll.data() + srcInverseBindOffset + (srcJoint * 16u);
+                std::copy(
+                    jointGlobalSrc,
+                    jointGlobalSrc + 16u,
+                    outSkinMatrices.data() + (pi * 16u));
+                std::copy(
+                    invBindSrc,
+                    invBindSrc + 16u,
+                    outSkinMatrices.data() + dstInverseBindOffset + (pi * 16u));
+            }
+            outSkinMatrixCount = static_cast<std::uint32_t>(paletteSize);
+        } else {
+            outSkinMatrices = packedAll;
+            outSkinMatrixCount = static_cast<std::uint32_t>(skin.joints.size());
+        }
+    } else if (hasPalette) {
         outSkinMatrices.resize(jointPalette->size() * 16u);
         for (std::size_t pi = 0; pi < jointPalette->size(); ++pi) {
             const std::size_t srcJoint = static_cast<std::size_t>((*jointPalette)[pi]);
