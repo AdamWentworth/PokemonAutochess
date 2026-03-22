@@ -118,6 +118,15 @@ Override the snapshot path with:
 $env:PAC_DEBUG_STATE_PATH="C:\path\to\debug_state_snapshot.json"
 ```
 
+Auto-load that snapshot on startup with:
+
+```powershell
+$env:PAC_AUTO_LOAD_DEBUG_SNAPSHOT="1"
+```
+
+This is useful for automated benchmark runs that need to start from a fixed
+gameplay scene without manual menu input.
+
 ---
 
 ## Tests

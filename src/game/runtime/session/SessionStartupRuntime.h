@@ -35,6 +35,7 @@ struct Args {
     int* worldLayerPrewarmFramesRemaining = nullptr;
     int worldLayerPrewarmFrameCount = 0;
     std::string snapshotPath;
+    bool autoLoadSnapshotOnStartup = false;
 
     std::function<bool()> usesBackendGameRenderPath;
     std::function<render_model_prewarm::ModelLoadResult(const std::string&)> loadModel;

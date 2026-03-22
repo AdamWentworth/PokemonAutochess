@@ -9,6 +9,8 @@ param(
     [int]$MinScoredSamples = 10,
     [string]$OutDir = "benchmark",
     [string]$Tag = "",
+    [string]$SnapshotPath = "",
+    [switch]$AutoLoadSnapshot,
     [switch]$NoBuild,
     [switch]$AllowEmptySamples,
     [string]$BackendVertexDeform = "",
@@ -105,6 +107,13 @@ function Round-OrNull {
     return [Math]::Round([double]$Value, $Digits)
 }
 
+if (-not [string]::IsNullOrWhiteSpace($SnapshotPath)) {
+    if (-not (Test-Path -Path $SnapshotPath -PathType Leaf)) {
+        throw "Snapshot file not found: $SnapshotPath"
+    }
+    $SnapshotPath = (Resolve-Path -Path $SnapshotPath).Path
+}
+
 if (-not $NoBuild) {
     cmake --build $BuildDir --config $Config --target PokemonAutochess
 }
@@ -116,6 +125,16 @@ Write-Host "Executable last write time: $($exeInfo.LastWriteTime.ToString("yyyy-
 Write-Host "Benchmark config: $Config"
 Write-Host "Warmup samples: $WarmupSamples"
 Write-Host "Minimum scored samples: $MinScoredSamples"
+if (-not [string]::IsNullOrWhiteSpace($SnapshotPath)) {
+    Write-Host "Snapshot path: $SnapshotPath"
+}
+if ($AutoLoadSnapshot) {
+    if ([string]::IsNullOrWhiteSpace($SnapshotPath)) {
+        Write-Host "Snapshot auto-load: enabled (runtime default snapshot path)"
+    } else {
+        Write-Host "Snapshot auto-load: enabled"
+    }
+}
 
 New-Item -ItemType Directory -Path $OutDir -Force | Out-Null
 $timestamp = Get-Date -Format "yyyyMMdd_HHmmss"
@@ -137,6 +156,8 @@ $envKeys = @(
     "PAC_VIDEO_WIDTH",
     "PAC_VIDEO_HEIGHT",
     "PAC_VIDEO_FULLSCREEN",
+    "PAC_DEBUG_STATE_PATH",
+    "PAC_AUTO_LOAD_DEBUG_SNAPSHOT",
     "PAC_BACKEND_VERTEX_DEFORM",
     "PAC_BACKEND_CLIP_SKINNING",
     "PAC_BACKEND_CLIP_SKINNING_ADAPTIVE",
@@ -166,6 +187,16 @@ try {
             $env:PAC_VIDEO_WIDTH = "$($res.Width)"
             $env:PAC_VIDEO_HEIGHT = "$($res.Height)"
             $env:PAC_VIDEO_FULLSCREEN = "0"
+            if ([string]::IsNullOrWhiteSpace($SnapshotPath)) {
+                Remove-Item "Env:PAC_DEBUG_STATE_PATH" -ErrorAction SilentlyContinue
+            } else {
+                $env:PAC_DEBUG_STATE_PATH = $SnapshotPath
+            }
+            if ($AutoLoadSnapshot) {
+                $env:PAC_AUTO_LOAD_DEBUG_SNAPSHOT = "1"
+            } else {
+                Remove-Item "Env:PAC_AUTO_LOAD_DEBUG_SNAPSHOT" -ErrorAction SilentlyContinue
+            }
             if ([string]::IsNullOrWhiteSpace($BackendVertexDeform)) {
                 Remove-Item "Env:PAC_BACKEND_VERTEX_DEFORM" -ErrorAction SilentlyContinue
             } else {
@@ -294,6 +325,8 @@ try {
                 backend_clip_skinning = if ([string]::IsNullOrWhiteSpace($BackendClipSkinning)) { "default" } else { $BackendClipSkinning }
                 backend_clip_skinning_adaptive = if ([string]::IsNullOrWhiteSpace($BackendClipSkinningAdaptive)) { "default" } else { $BackendClipSkinningAdaptive }
                 backend_clip_skinning_max_units = if ([string]::IsNullOrWhiteSpace($BackendClipSkinningMaxUnits)) { "default" } else { $BackendClipSkinningMaxUnits }
+                snapshot_path = if ([string]::IsNullOrWhiteSpace($SnapshotPath)) { "" } else { $SnapshotPath }
+                auto_load_snapshot = [bool]$AutoLoadSnapshot
                 seed = $Seed
                 duration_seconds = $DurationSeconds
                 raw_log_path = $rawPath
@@ -325,6 +358,8 @@ $payload = [ordered]@{
     min_scored_samples = $MinScoredSamples
     backends = $Backends
     resolutions = $Resolutions
+    snapshot_path = if ([string]::IsNullOrWhiteSpace($SnapshotPath)) { "" } else { $SnapshotPath }
+    auto_load_snapshot = [bool]$AutoLoadSnapshot
     rows = $rows
 }
 $payload | ConvertTo-Json -Depth 6 | Set-Content -Path $jsonPath -Encoding UTF8

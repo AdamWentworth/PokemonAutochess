@@ -69,6 +69,21 @@ bool test_session_debug_snapshot_contract(std::string& outFail) {
     }
 
     {
+        ScopedEnvVar guard("PAC_AUTO_LOAD_DEBUG_SNAPSHOT");
+        setEnvVar("PAC_AUTO_LOAD_DEBUG_SNAPSHOT", "1");
+        if (!game::runtime::session_debug_snapshot::autoLoadSnapshotEnabled()) {
+            outFail = "autoLoadSnapshotEnabled should honor truthy PAC_AUTO_LOAD_DEBUG_SNAPSHOT.";
+            return false;
+        }
+
+        setEnvVar("PAC_AUTO_LOAD_DEBUG_SNAPSHOT", "0");
+        if (game::runtime::session_debug_snapshot::autoLoadSnapshotEnabled()) {
+            outFail = "autoLoadSnapshotEnabled should honor falsy PAC_AUTO_LOAD_DEBUG_SNAPSHOT.";
+            return false;
+        }
+    }
+
+    {
         GameWorld::DebugStateSnapshot snapshot;
         snapshot.money = 17;
         snapshot.classicRoundsCompleted = 3;

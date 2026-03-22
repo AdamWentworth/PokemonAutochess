@@ -213,8 +213,13 @@ void run(const Args& args) {
             .setTitle = args.ctx->setTitle,
         });
     if (!args.snapshotPath.empty() && std::filesystem::exists(args.snapshotPath)) {
-        std::cout << "[StateSnapshot] Snapshot present but not auto-loaded: "
-                  << args.snapshotPath << " (press F9 to restore)\n";
+        if (args.autoLoadSnapshotOnStartup) {
+            std::cout << "[StateSnapshot] Snapshot present and will auto-load on startup: "
+                      << args.snapshotPath << "\n";
+        } else {
+            std::cout << "[StateSnapshot] Snapshot present but not auto-loaded: "
+                      << args.snapshotPath << " (press F9 to restore)\n";
+        }
     }
     std::cout << "[Init] Game initialized.\n";
 

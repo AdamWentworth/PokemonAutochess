@@ -47,6 +47,11 @@ Notes:
   - `avg_render_build_ms`, `avg_render_submit_ms`
   - `avg_projected_units_ms`, `avg_projected_pose_eval_ms`, `avg_projected_model_ms`, `avg_projected_overlay_ms`
   - `avg_projected_units_processed`, `avg_projected_model_units`, `avg_projected_clip_skinned_units`
+- For fixed-scene runs, the runner can auto-load a saved debug snapshot:
+```powershell
+.\tools\benchmark_render_matrix.ps1 -BuildDir build -Config Release -DurationSeconds 35 -Seed 12345 `
+  -SnapshotPath data/config/user/debug_state_snapshot.json -AutoLoadSnapshot
+```
 
 Artifacts written to `benchmark/`:
 - CSV summary per matrix row.

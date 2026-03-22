@@ -352,6 +352,13 @@ std::string snapshotPath() {
     return engine::paths::data("config/user/debug_state_snapshot.json");
 }
 
+bool autoLoadSnapshotEnabled() {
+    if (!engine::env::get("PAC_AUTO_LOAD_DEBUG_SNAPSHOT").has_value()) {
+        return false;
+    }
+    return engine::env::flagEnabled("PAC_AUTO_LOAD_DEBUG_SNAPSHOT");
+}
+
 bool hasActiveEnemyUnits(const GameWorld::DebugStateSnapshot& snapshot) {
     for (const auto& unit : snapshot.boardUnits) {
         if (unit.side != PokemonSide::Enemy) continue;

@@ -303,6 +303,8 @@ struct GameSession::Impl {
                 .worldLayerPrewarmFramesRemaining = &worldLayerPrewarmFramesRemaining,
                 .worldLayerPrewarmFrameCount = kWorldLayerPrewarmFrames,
                 .snapshotPath = debugStateSnapshotPath(),
+                .autoLoadSnapshotOnStartup =
+                    game::runtime::session_debug_snapshot::autoLoadSnapshotEnabled(),
                 .usesBackendGameRenderPath = [&]() { return usesBackendGameRenderPath(); },
                 .loadModel =
                     [&](const std::string& modelPath) {
@@ -400,6 +402,8 @@ struct GameSession::Impl {
                         renderWorldLayer(drawableW, drawableH, /*renderWorld=*/true);
                     },
             });
+
+        maybeAutoLoadDebugStateSnapshot();
     }
 
     game::runtime::session_backend_inventory_ui::Dependencies backendInventoryUiDependencies() {
@@ -474,6 +478,24 @@ struct GameSession::Impl {
                         return prewarmWorldIndexedLayer(viewport.width, viewport.height, renderWorld);
                     },
             });
+    }
+
+    void maybeAutoLoadDebugStateSnapshot() {
+        if (!game::runtime::session_debug_snapshot::autoLoadSnapshotEnabled()) {
+            return;
+        }
+
+        const std::string path = debugStateSnapshotPath();
+        if (!std::filesystem::exists(path)) {
+            const std::string message =
+                std::string("[StateSnapshot] Auto-load requested but snapshot file was not found: ")
+                + path;
+            game::log::warn(&log, message);
+            game::log::infoTerminalOnly(&log, message);
+            return;
+        }
+
+        loadDebugStateSnapshot();
     }
 
     void handleEvent(const InputEvent& event) {
