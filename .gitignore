@@ -11,6 +11,7 @@ cache
 *.pdb
 .vs
 benchmark/
+benchmark_smoke/
 
 config/user/*
 
