@@ -16,6 +16,7 @@
 #include <iostream>
 #include <limits>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 #include <glm/gtc/matrix_transform.hpp>
@@ -808,6 +809,98 @@ Result renderProjectedUnitBackendMesh(const Args& args) {
                 triNodeIndexByTriangle[triIdx] = triNodeIndex;
             }
 
+            std::vector<std::uint8_t> fastBatchUsesRigidNodeGpuSkin;
+            std::vector<std::vector<int>> fastBatchRigidNodePaletteNodes;
+            std::vector<std::unordered_map<int, std::uint16_t>> fastBatchRigidNodePaletteIndex;
+            std::vector<std::unordered_map<std::uint64_t, std::uint32_t>>
+                fastBatchRigidVertexRemap;
+            if (useFastTexturedFullMeshPath &&
+                args.enableGpuClipSkinning &&
+                !modelIndexedBatchesPerSubmesh.empty()) {
+                fastBatchUsesRigidNodeGpuSkin.assign(
+                    modelIndexedBatchesPerSubmesh.size(), 0u);
+                fastBatchRigidNodePaletteNodes.resize(modelIndexedBatchesPerSubmesh.size());
+                fastBatchRigidNodePaletteIndex.resize(modelIndexedBatchesPerSubmesh.size());
+                fastBatchRigidVertexRemap.resize(modelIndexedBatchesPerSubmesh.size());
+                std::vector<std::uint8_t> fastBatchRigidNodeOverflow(
+                    modelIndexedBatchesPerSubmesh.size(), 0u);
+
+                for (std::size_t triIdx = 0; triIdx < triangleCount; ++triIdx) {
+                    const std::uint16_t triSubmeshIndex =
+                        (triIdx < mesh->triangleSubmesh.size())
+                            ? mesh->triangleSubmesh[triIdx]
+                            : static_cast<std::uint16_t>(0u);
+                    std::size_t batchIndex = static_cast<std::size_t>(triSubmeshIndex);
+                    if (batchIndex >= modelIndexedBatchesPerSubmesh.size()) {
+                        batchIndex = 0u;
+                    }
+                    if (fastBatchRigidNodeOverflow[batchIndex] != 0u) continue;
+
+                    const auto& batch = modelIndexedBatchesPerSubmesh[batchIndex];
+                    if (batch.gpuSkinning != 0u) continue;
+                    if (!shared_world_batches::resolvedHasBaseTexture(batch)) continue;
+
+                    const int triNodeIndex = triNodeIndexByTriangle[triIdx];
+                    if (triNodeIndex < 0 ||
+                        static_cast<std::size_t>(triNodeIndex) >= nodeGlobals.size()) {
+                        fastBatchRigidNodeOverflow[batchIndex] = 1u;
+                        fastBatchRigidNodePaletteNodes[batchIndex].clear();
+                        continue;
+                    }
+
+                    auto& nodePalette = fastBatchRigidNodePaletteNodes[batchIndex];
+                    const bool alreadyPresent =
+                        std::find(nodePalette.begin(), nodePalette.end(), triNodeIndex) !=
+                        nodePalette.end();
+                    if (alreadyPresent) continue;
+                    if (nodePalette.size() >= support::kMaxGpuSkinMatrices) {
+                        fastBatchRigidNodeOverflow[batchIndex] = 1u;
+                        nodePalette.clear();
+                        continue;
+                    }
+                    nodePalette.push_back(triNodeIndex);
+                }
+
+                for (std::size_t batchIndex = 0u;
+                     batchIndex < modelIndexedBatchesPerSubmesh.size();
+                     ++batchIndex) {
+                    if (fastBatchRigidNodeOverflow[batchIndex] != 0u) continue;
+
+                    auto& batch = modelIndexedBatchesPerSubmesh[batchIndex];
+                    if (batch.gpuSkinning != 0u) continue;
+                    if (!shared_world_batches::resolvedHasBaseTexture(batch)) continue;
+
+                    const auto& nodePalette = fastBatchRigidNodePaletteNodes[batchIndex];
+                    if (nodePalette.empty()) continue;
+
+                    batch.gpuSkinning = 1u;
+                    batch.gpuSkinningMode = 0u;
+                    batch.sharedSkinMatrices = nullptr;
+                    batch.skinMatrixCount =
+                        static_cast<std::uint32_t>(nodePalette.size());
+                    batch.skinMatrices.resize(nodePalette.size() * 16u);
+                    const float* modelM = glm::value_ptr(prep.modelM);
+                    std::copy(modelM, modelM + 16, batch.modelMatrix.begin());
+
+                    auto& nodeToPaletteIndex = fastBatchRigidNodePaletteIndex[batchIndex];
+                    nodeToPaletteIndex.reserve(nodePalette.size());
+                    for (std::size_t paletteIndex = 0u;
+                         paletteIndex < nodePalette.size();
+                         ++paletteIndex) {
+                        const int nodeIndex = nodePalette[paletteIndex];
+                        nodeToPaletteIndex.emplace(
+                            nodeIndex, static_cast<std::uint16_t>(paletteIndex));
+                        const float* nodeGlobalData = glm::value_ptr(
+                            nodeGlobals[static_cast<std::size_t>(nodeIndex)]);
+                        std::copy(
+                            nodeGlobalData,
+                            nodeGlobalData + 16,
+                            batch.skinMatrices.data() + (paletteIndex * 16u));
+                    }
+                    fastBatchUsesRigidNodeGpuSkin[batchIndex] = 1u;
+                }
+            }
+
             std::size_t previousTriSample = triangleCount;
             for (std::size_t sampleIdx = 0; sampleIdx < effectiveUnitTriangleBudget;
                  ++sampleIdx) {
@@ -871,11 +964,84 @@ Result renderProjectedUnitBackendMesh(const Args& args) {
                 fastBatch.vertexColorMulB = fastTexturedTint.b;
                 fastBatch.vertexColorMulA = fastTexturedAlpha;
                 const bool useGpuSkinning = (fastBatch.gpuSkinning != 0u);
+                const bool useRigidNodeGpuSkinning =
+                    fastBatchIndex < fastBatchUsesRigidNodeGpuSkin.size() &&
+                    fastBatchUsesRigidNodeGpuSkin[fastBatchIndex] != 0u;
                 const bool canReuseIndexedVertices =
-                    fastBatchIndex < modelIndexedVertexRemap.size();
+                    fastBatchIndex < modelIndexedVertexRemap.size() &&
+                    !useRigidNodeGpuSkinning;
                 const auto appendFastVertex = [&](std::uint32_t src,
                                                   const runtime::render_model::MeshVertex& srcVertex)
                     -> std::uint32_t {
+                    std::uint16_t rigidPaletteIndex = 0u;
+                    if (useRigidNodeGpuSkinning) {
+                        if (fastBatchIndex >= fastBatchRigidNodePaletteIndex.size()) {
+                            return std::numeric_limits<std::uint32_t>::max();
+                        }
+                        const auto paletteIt =
+                            fastBatchRigidNodePaletteIndex[fastBatchIndex].find(triNodeIndex);
+                        if (paletteIt ==
+                            fastBatchRigidNodePaletteIndex[fastBatchIndex].end()) {
+                            return std::numeric_limits<std::uint32_t>::max();
+                        }
+                        rigidPaletteIndex = paletteIt->second;
+
+                        std::uint64_t rigidVertexKey =
+                            (static_cast<std::uint64_t>(src) << 32u) |
+                            static_cast<std::uint64_t>(rigidPaletteIndex);
+                        auto& rigidVertexRemap = fastBatchRigidVertexRemap[fastBatchIndex];
+                        const auto existing = rigidVertexRemap.find(rigidVertexKey);
+                        if (existing != rigidVertexRemap.end()) {
+                            return existing->second;
+                        }
+                        if (fastBatch.vertices.size() >=
+                            static_cast<std::size_t>(std::numeric_limits<std::uint32_t>::max())) {
+                            return std::numeric_limits<std::uint32_t>::max();
+                        }
+
+                        const glm::vec3 pos =
+                            transforms.resolveDeformedLocalVertexPos(src, srcVertex);
+                        const std::uint32_t next =
+                            static_cast<std::uint32_t>(fastBatch.vertices.size());
+                        IRenderBackend::WorldMeshVertex outVertex{};
+                        outVertex.x = pos.x;
+                        outVertex.y = pos.y;
+                        outVertex.z = pos.z;
+                        outVertex.u = srcVertex.uv.x;
+                        outVertex.v = srcVertex.uv.y;
+                        const glm::vec3 authoredVertexColor = mesh->hasVertexColor
+                            ? glm::clamp(
+                                glm::vec3(srcVertex.color.r, srcVertex.color.g, srcVertex.color.b),
+                                0.0f,
+                                1.0f)
+                            : glm::vec3(1.0f);
+                        const float authoredVertexAlpha = mesh->hasVertexColor
+                            ? std::clamp(srcVertex.color.a, 0.0f, 1.0f)
+                            : 1.0f;
+                        outVertex.r = authoredVertexColor.r;
+                        outVertex.g = authoredVertexColor.g;
+                        outVertex.b = authoredVertexColor.b;
+                        outVertex.a = authoredVertexAlpha;
+                        outVertex.nx = srcVertex.normal.x;
+                        outVertex.ny = srcVertex.normal.y;
+                        outVertex.nz = srcVertex.normal.z;
+                        outVertex.tx = srcVertex.tangent.x;
+                        outVertex.ty = srcVertex.tangent.y;
+                        outVertex.tz = srcVertex.tangent.z;
+                        outVertex.tw = srcVertex.tangent.w;
+                        outVertex.joint0 = static_cast<float>(rigidPaletteIndex);
+                        outVertex.weight0 = 1.0f;
+                        outVertex.joint1 = 0.0f;
+                        outVertex.joint2 = 0.0f;
+                        outVertex.joint3 = 0.0f;
+                        outVertex.weight1 = 0.0f;
+                        outVertex.weight2 = 0.0f;
+                        outVertex.weight3 = 0.0f;
+                        fastBatch.vertices.push_back(outVertex);
+                        rigidVertexRemap.emplace(rigidVertexKey, next);
+                        return next;
+                    }
+
                     if (canReuseIndexedVertices &&
                         src < modelIndexedVertexRemap[fastBatchIndex].size()) {
                         int& mapped = modelIndexedVertexRemap[fastBatchIndex][src];

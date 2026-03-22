@@ -712,6 +712,73 @@ without the same context.
   - if we later find assets with more than `64` live skin joints in the hot
     path, remeasure because this change should matter more there
 
+### 2026-03-22: indexed rigid-node GPU transform reuse was a real win
+- Status:
+  - local experiment; retained for now
+- Files:
+  - `src/game/runtime/shared/projected/SharedProjectedUnitBackendMeshRenderer.cpp`
+- Hypothesis:
+  - the fast indexed textured path was still paying CPU cost to rewrite
+    rigidly attached submesh vertices into transformed space even though both
+    backends already have a shared GPU skin-matrix path
+  - if we reuse that path for rigid-node transforms by treating the owning node
+    as a one-joint palette entry, we can keep the same indexed submission shape
+    while moving more per-vertex transform work onto the GPU
+- Expected win:
+  - reduce `projected_model_geometry_ms`
+  - reduce `projected_model_ms`
+  - reduce `projected_units_ms`
+  - reduce steady-state `render_build_ms`
+- What the workload showed:
+  - heavy-scene benchmark improved on both backends for the current local
+    snapshot while keeping the same broad draw/batch shape
+  - `D3D12` improved clearly over the previous retained baseline:
+    - baseline:
+      - `benchmark/render_matrix_20260321_232904.json`
+      - `avg_fps 160.221`
+      - `avg_frame_cpu_ms 6.135`
+      - `avg_render_build_ms 5.204`
+      - `avg_projected_units_ms 1.755`
+      - `avg_projected_model_ms 1.241`
+    - confirmation:
+      - `benchmark/render_matrix_20260322_115900.json`
+      - `avg_fps 206.514`
+      - `avg_frame_cpu_ms 4.769`
+      - `avg_render_build_ms 4.092`
+      - `avg_projected_units_ms 1.439`
+      - `avg_projected_model_ms 1.017`
+  - `OpenGL` moved in the same direction from the fresh current-snapshot
+    baseline:
+    - baseline:
+      - `benchmark/render_matrix_20260321_230951.json`
+      - `avg_fps 145.068`
+      - `avg_frame_cpu_ms 6.906`
+      - `avg_render_build_ms 5.904`
+      - `avg_projected_units_ms 1.691`
+      - `avg_projected_model_ms 1.268`
+    - confirmation:
+      - `benchmark/render_matrix_20260322_115900.json`
+      - `avg_fps 168.517`
+      - `avg_frame_cpu_ms 5.857`
+      - `avg_render_build_ms 4.961`
+      - `avg_projected_units_ms 1.525`
+      - `avg_projected_model_ms 1.096`
+  - draw-call and indexed-batch counts stayed essentially flat, which matches
+    the intent: this was not a draw-count reduction, it was a per-batch
+    transform-offload win inside the existing indexed path
+  - current perf counters still report this reused path under the existing
+    GPU-skin batch metrics, so `projected_gpu_clip_skin_batches` /
+    `projected_gpu_clip_palette_batches` now cover both authored clip-skin work
+    and this rigid-node GPU-transform offload
+- Decision:
+  - keep; this is a meaningful CPU-to-GPU offload on the hot indexed path and
+    it measured as a clear win on both retained backends
+- Follow-up:
+  - add a distinct rigid-node GPU-transform counter later if we want cleaner
+    perf attribution than the existing clip-skin metrics provide
+  - do a quick manual visual pass before treating this as a long-lived baseline
+    commit
+
 ### 2026-03-20: retained debug-geometry GPU caching was a real win
 - Commit:
   - `f4b5eb3` `Cache retained debug geometry on GPU`
