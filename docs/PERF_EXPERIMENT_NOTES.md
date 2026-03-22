@@ -890,6 +890,97 @@ without the same context.
     split such as static inverse-bind resources plus dynamic joint globals,
     rather than caching repeated copies of the current packed upload
 
+### 2026-03-22: D3D12 static inverse-bind buffer split was a miss
+- Status:
+  - local experiment; reverted
+- Files:
+  - `src/engine/render/D3D12RenderBackend.h`
+  - `src/engine/render/d3d12/D3D12RenderBackendCachedWorldMeshes.cpp`
+  - `src/engine/render/d3d12/D3D12RenderBackendPipelines.cpp`
+  - `src/engine/render/d3d12/D3D12RenderBackendWorldDraw.cpp`
+  - `src/game/runtime/shared/projected/SharedProjectedUnitBackendMeshSupport.cpp`
+  - `src/game/runtime/shared/projected/SharedProjectedUnitBackendMeshSupport.h`
+- Hypothesis:
+  - keep inverse-bind data resident in a static GPU buffer and upload only
+    dynamic joint globals each frame for D3D12 clip-skinned batches
+  - this should reduce repeated skin payload upload work without changing the
+    higher-level batch structure
+- Expected win:
+  - reduce `avg_render_submit_ms`
+  - slightly reduce `avg_frame_cpu_ms`
+  - keep `avg_render_build_ms` flat or slightly lower
+- What the workload showed:
+  - this did not outperform the protected Phase 1 checkpoint on the current
+    heavy snapshot
+  - patched runs:
+    - `benchmark/render_matrix_20260322_144511.json`
+      - `avg_fps 170.824`
+      - `avg_frame_cpu_ms 5.770`
+      - `avg_render_build_ms 4.877`
+    - `benchmark/render_matrix_20260322_144610.json`
+      - `avg_fps 170.372`
+      - `avg_frame_cpu_ms 5.791`
+      - `avg_render_build_ms 4.910`
+  - conclusion:
+    inverse-bind transport is not the remaining big lever; moving that data to
+    a static GPU resource did not remove enough real CPU work in this renderer
+- Decision:
+  - revert; do not keep the D3D12 static inverse-bind split
+- Follow-up:
+  - target a different structural bottleneck next, likely indexed submission
+    work rather than skin payload transport
+
+### 2026-03-22: projected submission-identity cache was a mixed miss
+- Status:
+  - local experiment; reverted
+- Files:
+  - `src/game/runtime/shared/projected/SharedProjectedRenderItems.cpp`
+  - `src/game/runtime/shared/projected/SharedProjectedRenderItems.h`
+  - `src/game/runtime/shared/projected/SharedProjectedUnitBackendMeshRenderer.cpp`
+  - `src/game/runtime/shared/world/SharedWorldIndexedBatches.cpp`
+  - `src/game/runtime/shared/world/SharedWorldIndexedBatches.h`
+- Hypothesis:
+  - projected render items already persist stable material, texture, and
+    geometry identity, so indexed submission should be able to consume that
+    cached identity instead of rebuilding `SubmissionSortKey` state from
+    `WorldIndexedBatch` every frame
+- Expected win:
+  - reduce `avg_render_build_ms`
+  - reduce CPU time in indexed submission
+  - help both backends by removing repeated string-resolution and sort-key
+    reconstruction work on projected model batches
+- What the workload showed:
+  - checkpoint baseline on the same snapshot/settings:
+    - `benchmark/render_matrix_20260322_153004.json`
+      - `OpenGL`: `avg_fps 164.716`, `avg_frame_cpu_ms 6.023`,
+        `avg_render_build_ms 5.097`
+      - `D3D12`: `avg_fps 198.691`, `avg_frame_cpu_ms 4.953`,
+        `avg_render_build_ms 4.188`
+  - broad submission-cache slice:
+    - `benchmark/render_matrix_20260322_153343.json`
+      - `OpenGL`: `avg_fps 169.896`, `avg_frame_cpu_ms 5.833`,
+        `avg_render_build_ms 4.963`
+      - `D3D12`: `avg_fps 185.385`, `avg_frame_cpu_ms 5.320`,
+        `avg_render_build_ms 4.519`
+  - OpenGL-only salvage attempt:
+    - `benchmark/render_matrix_20260322_153819.json`
+      - `OpenGL`: `avg_fps 154.205`, `avg_frame_cpu_ms 6.432`,
+        `avg_render_build_ms 5.494`
+      - `D3D12`: `avg_fps 189.603`, `avg_frame_cpu_ms 5.200`,
+        `avg_render_build_ms 4.443`
+  - conclusion:
+    the broad version gave OpenGL a small win but clearly hurt D3D12, and the
+    backend-gated salvage was worse overall
+  - the direction still makes sense conceptually, but this implementation did
+    not pay back enough real submission work to justify the extra cache upkeep
+- Decision:
+  - revert; do not keep the projected submission-identity cache in its current
+    form
+- Follow-up:
+  - if we revisit submission-side restructuring, target the actual opaque
+    grouping/sort mechanics first rather than only changing how submission
+    identity is reconstructed
+
 ### 2026-03-20: retained debug-geometry GPU caching was a real win
 - Commit:
   - `f4b5eb3` `Cache retained debug geometry on GPU`
