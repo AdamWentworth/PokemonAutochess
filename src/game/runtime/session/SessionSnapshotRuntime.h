@@ -36,6 +36,7 @@ struct LoadOptions {
     RoundSystem* roundSystem = nullptr;
     LogBus::Logger* log = nullptr;
     std::function<void()> refreshInventoryPanel;
+    std::function<void()> resetRenderCaches;
     std::function<bool()> shouldPrewarmIndexedLayer;
     std::function<std::size_t()> prewarmIndexedLayer;
 };

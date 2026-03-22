@@ -23,6 +23,12 @@ bool test_runtime_perf_logging_contract(std::string& outFail) {
     perf.projectedModelGeometryMs = 0.2f;
     perf.projectedOverlayMs = 0.6f;
     perf.projectedClipSkinnedUnits = 3;
+    perf.fastSceneInstances = 24u;
+    perf.fastSceneDrawClasses = 6u;
+    perf.fastSceneVisibleSkeletons = 2u;
+    perf.fastScenePaletteUploadBytes = 4096u;
+    perf.fastSceneMaterialTableBinds = 5u;
+    perf.fastSceneIndirectCommands = 7u;
     perf.renderMs = 6.5f;
     perf.swapMs = 2.1f;
     perf.fixedTicks = 3;
@@ -46,6 +52,7 @@ bool test_runtime_perf_logging_contract(std::string& outFail) {
         line.find("frame=16.7ms") == std::string::npos ||
         line.find("gpu=-1.0ms") == std::string::npos ||
         line.find("draws=123") == std::string::npos ||
+        line.find("fscene=i24/d6/s2/b5") == std::string::npos ||
         line.find("drop=1") == std::string::npos) {
         outFail = "formatPerfLine should emit the expected human-readable perf fields.";
         return false;
@@ -65,6 +72,9 @@ bool test_runtime_perf_logging_contract(std::string& outFail) {
         json.find("\"backend_indexed_cached_draws\":4") == std::string::npos ||
         json.find("\"backend_indexed_material_switches\":3") == std::string::npos ||
         json.find("\"backend_gl_texture_bind_calls\":12") == std::string::npos ||
+        json.find("\"backend_fast_scene_instances\":24") == std::string::npos ||
+        json.find("\"backend_fast_scene_draw_classes\":6") == std::string::npos ||
+        json.find("\"backend_fast_scene_palette_upload_bytes\":4096") == std::string::npos ||
         json.find("\"render_world_compose_ms\":1.100") == std::string::npos ||
         json.find("\"fixed_phase_pre_ms\":0.200") == std::string::npos ||
         json.find("\"fixed_ticks_dropped\":1") == std::string::npos) {

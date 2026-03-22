@@ -48,6 +48,12 @@ void D3D12RenderBackend::beginFrame(float r, float g, float b, float a) {
     frameIndexedTextureSwitches_ = 0u;
     frameIndexedD3d12PsoSets_ = 0u;
     frameIndexedD3d12DescriptorTableSets_ = 0u;
+    frameFastSceneInstances_ = 0u;
+    frameFastSceneDrawClasses_ = 0u;
+    frameFastSceneVisibleSkeletons_ = 0u;
+    frameFastScenePaletteUploadBytes_ = 0u;
+    frameFastSceneMaterialTableBinds_ = 0u;
+    frameFastSceneIndirectCommands_ = 0u;
 
 #if defined(_WIN32)
     if (!initialized_ || !device_ || !swapChain_ || !commandList_) return;
@@ -368,6 +374,12 @@ void D3D12RenderBackend::endFrame() {
     lastFrameIndexedTextureSwitches_ = frameIndexedTextureSwitches_;
     lastFrameIndexedD3d12PsoSets_ = frameIndexedD3d12PsoSets_;
     lastFrameIndexedD3d12DescriptorTableSets_ = frameIndexedD3d12DescriptorTableSets_;
+    lastFrameFastSceneInstances_ = frameFastSceneInstances_;
+    lastFrameFastSceneDrawClasses_ = frameFastSceneDrawClasses_;
+    lastFrameFastSceneVisibleSkeletons_ = frameFastSceneVisibleSkeletons_;
+    lastFrameFastScenePaletteUploadBytes_ = frameFastScenePaletteUploadBytes_;
+    lastFrameFastSceneMaterialTableBinds_ = frameFastSceneMaterialTableBinds_;
+    lastFrameFastSceneIndirectCommands_ = frameFastSceneIndirectCommands_;
 
     recording_ = false;
 #endif

@@ -654,6 +654,16 @@ namespace {
             sampleInputs.indexedD3d12PsoSets = backendPerf.indexedD3d12PsoSets;
             sampleInputs.indexedD3d12DescriptorTableSets =
                 backendPerf.indexedD3d12DescriptorTableSets;
+            sampleInputs.fastSceneInstances = backendPerf.fastSceneInstances;
+            sampleInputs.fastSceneDrawClasses = backendPerf.fastSceneDrawClasses;
+            sampleInputs.fastSceneVisibleSkeletons =
+                backendPerf.fastSceneVisibleSkeletons;
+            sampleInputs.fastScenePaletteUploadBytes =
+                backendPerf.fastScenePaletteUploadBytes;
+            sampleInputs.fastSceneMaterialTableBinds =
+                backendPerf.fastSceneMaterialTableBinds;
+            sampleInputs.fastSceneIndirectCommands =
+                backendPerf.fastSceneIndirectCommands;
             sampleInputs.fixedBreakdown = fixedPhase.fixedBreakdown;
             sampleInputs.fixedTicks = fixedPhase.fixedTicks;
             sampleInputs.fixedTicksDropped = fixedPhase.fixedTicksDropped;

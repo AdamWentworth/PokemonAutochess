@@ -46,6 +46,7 @@ D3D12RenderBackend::D3D12RenderBackend(SDL_Window* window,
     parityCfg.framebufferSrgbEnabled = false;
     engine::render::parity_contract::logValidation("D3D12", parityCfg);
     configureScreenshotCapture();
+    initializeWorldSceneFastPathCaps();
 }
 
 D3D12RenderBackend::~D3D12RenderBackend() {
@@ -75,7 +76,19 @@ bool D3D12RenderBackend::getLastFrameStats(BackendFrameStats& outStats) const {
     outStats.indexedD3d12PsoSets = lastFrameIndexedD3d12PsoSets_;
     outStats.indexedD3d12DescriptorTableSets =
         lastFrameIndexedD3d12DescriptorTableSets_;
+    outStats.fastSceneInstances = lastFrameFastSceneInstances_;
+    outStats.fastSceneDrawClasses = lastFrameFastSceneDrawClasses_;
+    outStats.fastSceneVisibleSkeletons = lastFrameFastSceneVisibleSkeletons_;
+    outStats.fastScenePaletteUploadBytes = lastFrameFastScenePaletteUploadBytes_;
+    outStats.fastSceneMaterialTableBinds = lastFrameFastSceneMaterialTableBinds_;
+    outStats.fastSceneIndirectCommands = lastFrameFastSceneIndirectCommands_;
     return true;
+}
+
+bool D3D12RenderBackend::getWorldSceneFastPathCaps(
+    WorldSceneFastPathCaps& outCaps) const {
+    outCaps = worldSceneFastPathCaps_;
+    return outCaps.supported;
 }
 
 void D3D12RenderBackend::recordWorldIndexedSubmissionStats(
@@ -108,5 +121,19 @@ void D3D12RenderBackend::configureScreenshotCapture() {
             screenshotFrameTarget_ = 0u;
         }
     }
+}
+
+void D3D12RenderBackend::initializeWorldSceneFastPathCaps() {
+    worldSceneFastPathCaps_ = WorldSceneFastPathCaps{};
+#if defined(_WIN32)
+    worldSceneFastPathCaps_.supported = initialized_ && device_ != nullptr;
+    worldSceneFastPathCaps_.prefersD3d12SpecializedPath =
+        worldSceneFastPathCaps_.supported;
+    worldSceneFastPathCaps_.supportsComputeSkinning =
+        worldSceneFastPathCaps_.supported;
+    worldSceneFastPathCaps_.supportsExecuteIndirect =
+        worldSceneFastPathCaps_.supported;
+    worldSceneFastPathCaps_.supportsSkinnedInstancing = false;
+#endif
 }
 

@@ -3,6 +3,7 @@
 #include "engine/render/IRenderBackend.h"
 #include "game/runtime/shared/capture/SharedCapturePresentation.h"
 #include "game/runtime/shared/projected/SharedProjectedRenderItems.h"
+#include "game/runtime/shared/scene/SharedWorldScene.h"
 #include "game/runtime/shared/vfx/tail_fire/SharedTailFireFallbackEmitter.h"
 #include "game/runtime/shared/world/SharedWorldIndexedBatches.h"
 
@@ -52,6 +53,8 @@ struct RenderScratch {
     std::vector<IRenderBackend::DebugSprite> sprites;
     std::vector<BackendUnitLabel> unitLabels;
     shared_projected_render_items::ProjectedRenderItemRegistry projectedRenderItems;
+    shared_world_scene::WorldSceneRegistry worldSceneRegistry;
+    IRenderBackend::WorldSceneFrame worldSceneFrame;
     std::unordered_map<int, shared_tail_fire_fallback::Anchor> sharedTailFireAnchors;
     shared_capture::SnapshotCache sharedCaptureAttemptCache;
     bool projectedBackdropValid = false;
@@ -65,6 +68,9 @@ struct RenderScratch {
 RenderScratch& threadScratch();
 void ensureCapacity(RenderScratch& scratch);
 void invalidateProjectedBackdrop(RenderScratch& scratch);
-void beginFrame(RenderScratch& scratch, bool useProjectedWorldLayout);
+void resetSceneCaches(RenderScratch& scratch);
+void beginFrame(RenderScratch& scratch,
+                bool useProjectedWorldLayout,
+                IRenderBackend* renderer = nullptr);
 
 } // namespace game::runtime::session_render_scratch

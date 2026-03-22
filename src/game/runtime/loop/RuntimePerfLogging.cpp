@@ -62,6 +62,10 @@ std::string formatPerfLine(const EngineFramePerfStats& framePerf) {
         << " prep=" << framePerf.projectedModelPrepMs << "ms"
         << " geom=" << framePerf.projectedModelGeometryMs << "ms"
         << " over=" << framePerf.projectedOverlayMs << "ms"
+        << " fscene=i" << framePerf.fastSceneInstances
+        << "/d" << framePerf.fastSceneDrawClasses
+        << "/s" << framePerf.fastSceneVisibleSkeletons
+        << "/b" << framePerf.fastSceneMaterialTableBinds
         << " clipskin=" << framePerf.projectedClipSkinnedUnits
         << " path=r" << framePerf.projectedSharedRigidBatches
         << "/g" << framePerf.projectedGpuClipSkinBatches
@@ -104,6 +108,16 @@ std::string formatPerfJson(const EngineFramePerfStats& framePerf) {
         << ",\"backend_d3d12_pso_sets\":" << framePerf.indexedD3d12PsoSets
         << ",\"backend_d3d12_descriptor_table_sets\":"
         << framePerf.indexedD3d12DescriptorTableSets
+        << ",\"backend_fast_scene_instances\":" << framePerf.fastSceneInstances
+        << ",\"backend_fast_scene_draw_classes\":" << framePerf.fastSceneDrawClasses
+        << ",\"backend_fast_scene_visible_skeletons\":"
+        << framePerf.fastSceneVisibleSkeletons
+        << ",\"backend_fast_scene_palette_upload_bytes\":"
+        << framePerf.fastScenePaletteUploadBytes
+        << ",\"backend_fast_scene_material_table_binds\":"
+        << framePerf.fastSceneMaterialTableBinds
+        << ",\"backend_fast_scene_indirect_commands\":"
+        << framePerf.fastSceneIndirectCommands
         << ",\"visible_animated_units\":" << framePerf.visibleAnimatedUnits
         << ",\"particle_count\":" << framePerf.particleCount
         << ",\"projected_units_ms\":" << framePerf.projectedUnitsMs

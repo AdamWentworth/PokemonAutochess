@@ -35,6 +35,14 @@ BackendFrameOutputs resolveBackendFrameOutputs(const BackendFrameInputs& inputs)
         out.indexedD3d12PsoSets = inputs.backendStats.indexedD3d12PsoSets;
         out.indexedD3d12DescriptorTableSets =
             inputs.backendStats.indexedD3d12DescriptorTableSets;
+        out.fastSceneInstances = inputs.backendStats.fastSceneInstances;
+        out.fastSceneDrawClasses = inputs.backendStats.fastSceneDrawClasses;
+        out.fastSceneVisibleSkeletons = inputs.backendStats.fastSceneVisibleSkeletons;
+        out.fastScenePaletteUploadBytes =
+            inputs.backendStats.fastScenePaletteUploadBytes;
+        out.fastSceneMaterialTableBinds =
+            inputs.backendStats.fastSceneMaterialTableBinds;
+        out.fastSceneIndirectCommands = inputs.backendStats.fastSceneIndirectCommands;
     }
     return out;
 }

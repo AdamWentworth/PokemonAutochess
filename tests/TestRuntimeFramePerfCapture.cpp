@@ -20,12 +20,24 @@ bool test_runtime_frame_perf_capture_contract(std::string& outFail) {
         inputs.hasBackendStats = true;
         inputs.backendStats.drawCalls = 42;
         inputs.backendStats.triangles = 1337;
+        inputs.backendStats.fastSceneInstances = 15;
+        inputs.backendStats.fastSceneDrawClasses = 3;
+        inputs.backendStats.fastSceneVisibleSkeletons = 2;
+        inputs.backendStats.fastScenePaletteUploadBytes = 4096;
+        inputs.backendStats.fastSceneMaterialTableBinds = 4;
+        inputs.backendStats.fastSceneIndirectCommands = 6;
         const auto out = resolveBackendFrameOutputs(inputs);
         if (std::fabs(out.presentWaitMs - 2.5) > 0.0001 ||
             std::fabs(out.gpuFrameMs - 5.0) > 0.0001 ||
             !out.gpuFrameValid ||
             out.drawCalls != 42 ||
-            out.triangles != 1337) {
+            out.triangles != 1337 ||
+            out.fastSceneInstances != 15 ||
+            out.fastSceneDrawClasses != 3 ||
+            out.fastSceneVisibleSkeletons != 2 ||
+            out.fastScenePaletteUploadBytes != 4096u ||
+            out.fastSceneMaterialTableBinds != 4 ||
+            out.fastSceneIndirectCommands != 6) {
             outFail = "resolveBackendFrameOutputs should honor backend timings and stats.";
             return false;
         }

@@ -129,6 +129,16 @@ void RollingAccumulator::addFrame(const FrameSample& sample) {
     indexedD3d12PsoSets_ += static_cast<double>(sample.indexedD3d12PsoSets);
     indexedD3d12DescriptorTableSets_ +=
         static_cast<double>(sample.indexedD3d12DescriptorTableSets);
+    fastSceneInstances_ += static_cast<double>(sample.fastSceneInstances);
+    fastSceneDrawClasses_ += static_cast<double>(sample.fastSceneDrawClasses);
+    fastSceneVisibleSkeletons_ +=
+        static_cast<double>(sample.fastSceneVisibleSkeletons);
+    fastScenePaletteUploadBytes_ +=
+        static_cast<double>(sample.fastScenePaletteUploadBytes);
+    fastSceneMaterialTableBinds_ +=
+        static_cast<double>(sample.fastSceneMaterialTableBinds);
+    fastSceneIndirectCommands_ +=
+        static_cast<double>(sample.fastSceneIndirectCommands);
     visibleAnimatedUnits_ += static_cast<double>(sample.visibleAnimatedUnits);
     particleCount_ += static_cast<double>(sample.particleCount);
     projectedUnitsMs_ += static_cast<double>(sample.projectedUnitsMs);
@@ -200,6 +210,18 @@ WindowSummary RollingAccumulator::makeSummaryAndReset() {
         static_cast<std::uint32_t>(std::lround(indexedD3d12PsoSets_ / frames));
     out.indexedD3d12DescriptorTableSets = static_cast<std::uint32_t>(
         std::lround(indexedD3d12DescriptorTableSets_ / frames));
+    out.fastSceneInstances =
+        static_cast<std::uint32_t>(std::lround(fastSceneInstances_ / frames));
+    out.fastSceneDrawClasses =
+        static_cast<std::uint32_t>(std::lround(fastSceneDrawClasses_ / frames));
+    out.fastSceneVisibleSkeletons = static_cast<std::uint32_t>(
+        std::lround(fastSceneVisibleSkeletons_ / frames));
+    out.fastScenePaletteUploadBytes = static_cast<std::uint64_t>(
+        std::llround(fastScenePaletteUploadBytes_ / frames));
+    out.fastSceneMaterialTableBinds = static_cast<std::uint32_t>(
+        std::lround(fastSceneMaterialTableBinds_ / frames));
+    out.fastSceneIndirectCommands = static_cast<std::uint32_t>(
+        std::lround(fastSceneIndirectCommands_ / frames));
     out.visibleAnimatedUnits = static_cast<std::uint32_t>(std::lround(visibleAnimatedUnits_ / frames));
     out.particleCount = static_cast<std::uint32_t>(std::lround(particleCount_ / frames));
     out.projectedUnitsMs = static_cast<float>(projectedUnitsMs_ / frames);

@@ -77,5 +77,28 @@ bool test_session_render_scratch_contract(std::string& outFail) {
         }
     }
 
+    {
+        RenderScratch scratch;
+        scratch.worldSceneRegistry.geometries.push_back(IRenderBackend::WorldSceneGeometry{});
+        scratch.worldSceneRegistry.materials.push_back(IRenderBackend::WorldSceneMaterial{});
+        scratch.worldSceneRegistry.renderObjects.push_back(IRenderBackend::WorldSceneRenderObject{});
+        scratch.projectedRenderItems.entries.emplace(
+            game::runtime::shared_projected_render_items::ProjectedRenderItemKey{},
+            game::runtime::shared_projected_render_items::ProjectedRenderItemEntry{});
+        scratch.worldSceneFrame.drawClasses.push_back(IRenderBackend::WorldSceneDrawClass{});
+        const std::uint32_t previousGeneration = scratch.worldSceneRegistry.generation;
+
+        game::runtime::session_render_scratch::resetSceneCaches(scratch);
+        if (!scratch.worldSceneRegistry.geometries.empty() ||
+            !scratch.worldSceneRegistry.materials.empty() ||
+            !scratch.worldSceneRegistry.renderObjects.empty() ||
+            !scratch.projectedRenderItems.entries.empty() ||
+            !scratch.worldSceneFrame.drawClasses.empty() ||
+            scratch.worldSceneRegistry.generation == previousGeneration) {
+            outFail = "SessionRenderScratch should hard-reset persistent scene caches together.";
+            return false;
+        }
+    }
+
     return true;
 }

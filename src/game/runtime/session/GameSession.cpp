@@ -64,6 +64,7 @@
 #include "game/runtime/session/SessionBackendRenderHelpers.h"
 #include "game/runtime/session/SessionDebugSnapshot.h"
 #include "game/runtime/session/SessionLoopRuntime.h"
+#include "game/runtime/session/SessionRenderScratch.h"
 #include "game/runtime/session/SessionRenderConfig.h"
 #include "game/runtime/session/SessionSnapshotRuntime.h"
 #include "game/runtime/session/SessionStartupRuntime.h"
@@ -457,6 +458,11 @@ struct GameSession::Impl {
                             backendInventoryPanel,
                             kBackendInventoryVisibleCount,
                             backendInventoryUiDependencies());
+                    },
+                .resetRenderCaches =
+                    [&]() {
+                        game::runtime::session_render_scratch::resetSceneCaches(
+                            game::runtime::session_render_scratch::threadScratch());
                     },
                 .shouldPrewarmIndexedLayer =
                     [&]() {

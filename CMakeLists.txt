@@ -167,6 +167,7 @@ add_library(engine_render STATIC
     src/engine/render/d3d12/D3D12RenderBackendDebugDraw.cpp
     src/engine/render/d3d12/D3D12RenderBackendTextures.cpp
     src/engine/render/d3d12/D3D12RenderBackendCachedWorldMeshes.cpp
+    src/engine/render/d3d12/D3D12RenderBackendWorldScene.cpp
     src/engine/render/d3d12/D3D12RenderBackendWorldDraw.cpp
     src/engine/render/d3d12/D3D12RenderBackendLifecycle.cpp
     src/engine/render/d3d12/D3D12TextureUpload.cpp
@@ -325,11 +326,13 @@ add_library(PAC_GameObjects STATIC
     src/game/runtime/shared/projected/SharedProjectedUnitBackendMeshTriangleSubmit.cpp
     src/game/runtime/shared/projected/SharedProjectedUnitBackendMeshTransforms.cpp
     src/game/runtime/shared/projected/SharedProjectedUnitModelRenderer.cpp
+    src/game/runtime/shared/projected/SharedProjectedUnitWorldSceneRenderer.cpp
     src/game/runtime/shared/projected/SharedProjectedUnitRenderer.cpp
     src/game/runtime/shared/projected/SharedProjectedUnitOverlays.cpp
     src/game/runtime/shared/ui/SharedBackendDebugViewOverlay.cpp
     src/game/runtime/shared/ui/SharedBackendDebugViewSupport.cpp
     src/game/runtime/shared/projected/SharedProjectedWorldSceneHelpers.cpp
+    src/game/runtime/shared/scene/SharedWorldScene.cpp
     src/game/runtime/shared/vfx/particles/SharedParticleBillboardBatches.cpp
     src/game/runtime/shared/vfx/particles/SharedParticleSnapshotBillboards.cpp
     src/game/runtime/shared/vfx/particles/SharedParticleVfxBridgeDispatch.cpp
@@ -606,6 +609,7 @@ if (BUILD_TESTING)
         tests/TestSharedGrowlVfxHelpers.cpp
         tests/TestSharedGrowlWaveBridge.cpp
         tests/TestSharedGrowlWaveBatches.cpp
+        tests/TestSharedWorldScene.cpp
         tests/TestSharedWorldIndexedBatches.cpp
         tests/TestD3D12WorldMaterialConstants.cpp
         tests/TestConfigLoaders.cpp

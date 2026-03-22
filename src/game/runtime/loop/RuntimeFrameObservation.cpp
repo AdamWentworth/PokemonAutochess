@@ -54,6 +54,12 @@ game::runtime::perf_accum::FrameSample makePerfSample(const SampleInputs& inputs
     sample.indexedGlTextureBindCalls = inputs.indexedGlTextureBindCalls;
     sample.indexedD3d12PsoSets = inputs.indexedD3d12PsoSets;
     sample.indexedD3d12DescriptorTableSets = inputs.indexedD3d12DescriptorTableSets;
+    sample.fastSceneInstances = inputs.fastSceneInstances;
+    sample.fastSceneDrawClasses = inputs.fastSceneDrawClasses;
+    sample.fastSceneVisibleSkeletons = inputs.fastSceneVisibleSkeletons;
+    sample.fastScenePaletteUploadBytes = inputs.fastScenePaletteUploadBytes;
+    sample.fastSceneMaterialTableBinds = inputs.fastSceneMaterialTableBinds;
+    sample.fastSceneIndirectCommands = inputs.fastSceneIndirectCommands;
     sample.visibleAnimatedUnits = snapshot.visibleAnimatedUnits;
     sample.particleCount = snapshot.particleCount;
     sample.projectedUnitsMs = snapshot.projectedUnitsMs;

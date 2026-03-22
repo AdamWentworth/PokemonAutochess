@@ -61,6 +61,8 @@ void composeAndSubmit(const ComposeAndSubmitArgs& args) {
     auto& worldQuads = *args.worldQuads;
     auto& worldTriangles = *args.worldTriangles;
     auto& world3DTriangles = *args.world3DTriangles;
+    const auto* worldSceneView = args.worldSceneView;
+    const auto* worldSceneFrame = args.worldSceneFrame;
     auto& worldIndexedBatches = *args.worldIndexedBatches;
     auto& overlayQuads = *args.overlayQuads;
     auto& lines = *args.lines;
@@ -901,6 +903,15 @@ void composeAndSubmit(const ComposeAndSubmitArgs& args) {
                 drawableW,
                 drawableH);
             renderBuildBreakdown->worldTriangles3dMs += toMs(stageStart, clock::now());
+        }
+        if (worldSceneView &&
+            worldSceneFrame &&
+            !worldSceneFrame->drawClasses.empty() &&
+            hasWorldViewProj &&
+            renderer->supportsWorldSceneFastPath()) {
+            const auto stageStart = clock::now();
+            renderer->submitWorldScene(*worldSceneFrame, *worldSceneView);
+            renderBuildBreakdown->worldIndexedMs += toMs(stageStart, clock::now());
         }
         if (!worldIndexedBatches.empty() && hasWorldViewProj && supportsWorldIndexedMeshes) {
             float cameraWorldPos3[3] = {0.0f, 7.0f, 9.0f};

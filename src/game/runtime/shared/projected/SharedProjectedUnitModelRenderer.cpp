@@ -1,6 +1,7 @@
 #include "game/runtime/shared/projected/SharedProjectedUnitModelRenderer.h"
 
 #include "game/runtime/shared/projected/SharedProjectedUnitBackendMeshRenderer.h"
+#include "game/runtime/shared/projected/SharedProjectedUnitWorldSceneRenderer.h"
 
 namespace game::runtime::shared_projected_unit_models {
 
@@ -14,6 +15,9 @@ Result renderProjectedUnitModel(const Args& args) {
         !args.ensureBackendTextureLoaded ||
         !args.backendModelTriangleLimit || !args.backendModelFullMeshEnabled ||
         !args.backendModelFastTexturedPathEnabled || !args.backendModelBackfaceCullingEnabled) {
+        return out;
+    }
+    if (shared_projected_unit_world_scene::tryRenderProjectedUnitModelWorldScene(args, out)) {
         return out;
     }
     return shared_projected_unit_backend_mesh::renderProjectedUnitBackendMesh(args);

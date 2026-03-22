@@ -54,6 +54,8 @@ struct ComposeAndSubmitArgs {
     std::vector<IRenderBackend::DebugQuad>* worldQuads = nullptr;
     std::vector<IRenderBackend::DebugTriangle>* worldTriangles = nullptr;
     std::vector<IRenderBackend::WorldTriangle>* world3DTriangles = nullptr;
+    const IRenderBackend::WorldSceneView* worldSceneView = nullptr;
+    const IRenderBackend::WorldSceneFrame* worldSceneFrame = nullptr;
     std::vector<shared_world_batches::WorldIndexedBatch>* worldIndexedBatches = nullptr;
     std::vector<IRenderBackend::DebugQuad>* overlayQuads = nullptr;
     std::vector<IRenderBackend::DebugLine>* lines = nullptr;

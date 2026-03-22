@@ -96,6 +96,8 @@ struct ProjectedRenderItemEntry {
     ProjectedRenderItemDynamicData dynamicData{};
     std::uint32_t dirtyBits = 0u;
     std::uint32_t lastTouchedFrame = 0u;
+    IRenderBackend::WorldSceneRenderObjectHandle worldSceneObjectHandle{};
+    std::uint32_t worldSceneRegistryGeneration = 0u;
 };
 
 struct ProjectedRenderItemRegistry {

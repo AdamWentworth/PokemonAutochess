@@ -16,6 +16,7 @@
 #include "game/runtime/session/SessionRenderConfig.h"
 #include "game/runtime/session/SessionRenderLayout.h"
 #include "game/runtime/session/SessionRenderScratch.h"
+#include "game/runtime/shared/scene/SharedWorldScene.h"
 #include "game/runtime/shared/ui/SharedBackendDebugViewOverlay.h"
 #include "game/runtime/shared/world/SharedWorldIndexedBatches.h"
 #include "game/runtime/ui/InventoryPanel.h"
@@ -92,7 +93,10 @@ std::size_t render(const Args& args) {
     const bool useProjectedWorldLayout =
         showWorldBackdrop && args.renderWorld && args.gameWorld && (args.camera != nullptr);
 
-    game::runtime::session_render_scratch::beginFrame(scratch, useProjectedWorldLayout);
+    game::runtime::session_render_scratch::beginFrame(
+        scratch,
+        useProjectedWorldLayout,
+        args.renderer);
     if (showWorldBackdrop) {
         if (useProjectedWorldLayout) {
             const auto projectedWorld =
@@ -264,6 +268,16 @@ std::size_t render(const Args& args) {
     overlayArgs.worldQuads = &worldQuads;
     overlayArgs.worldTriangles = &worldTriangles;
     overlayArgs.world3DTriangles = &world3DTriangles;
+    const auto worldSceneView = game::runtime::shared_world_scene::buildWorldSceneView(
+        scratch.worldSceneRegistry,
+        hasWorldViewProj ? worldViewProj : nullptr,
+        args.drawableW,
+        args.drawableH,
+        cameraWorldPos3,
+        cameraForward3,
+        cameraTarget3);
+    overlayArgs.worldSceneView = &worldSceneView;
+    overlayArgs.worldSceneFrame = &scratch.worldSceneFrame;
     overlayArgs.worldIndexedBatches = &worldIndexedBatches;
     overlayArgs.overlayQuads = &overlayQuads;
     overlayArgs.lines = &lines;

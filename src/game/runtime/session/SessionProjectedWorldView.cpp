@@ -115,6 +115,7 @@ Result appendProjectedWorldView(const Args& args) {
 
     const float boardSurfaceY = 0.006f;
     shared_projected_units::Args projectedUnitArgs;
+    projectedUnitArgs.renderer = args.renderer;
     projectedUnitArgs.dataDb = args.dataDb;
     projectedUnitArgs.gameWorld = args.gameWorld;
     projectedUnitArgs.worldCellSize = worldCellSize;
@@ -140,6 +141,8 @@ Result appendProjectedWorldView(const Args& args) {
         glm::vec3(out.cameraWorldPos[0], out.cameraWorldPos[1], out.cameraWorldPos[2]);
     projectedUnitArgs.projectedDebug = &projectedDebug;
     projectedUnitArgs.projectedRenderItems = &args.scratch->projectedRenderItems;
+    projectedUnitArgs.worldSceneRegistry = &args.scratch->worldSceneRegistry;
+    projectedUnitArgs.worldSceneFrame = &args.scratch->worldSceneFrame;
     projectedUnitArgs.sharedCaptureAttemptCache = &args.scratch->sharedCaptureAttemptCache;
     projectedUnitArgs.sharedTailFireAnchors = &args.scratch->sharedTailFireAnchors;
     projectedUnitArgs.worldIndexedBatches = &args.scratch->worldIndexedBatches;

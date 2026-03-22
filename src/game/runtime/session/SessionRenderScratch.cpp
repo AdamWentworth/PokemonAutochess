@@ -40,6 +40,24 @@ void ensureCapacity(RenderScratch& scratch) {
     if (scratch.projectedRenderItems.entries.bucket_count() < 256u) {
         scratch.projectedRenderItems.entries.reserve(256u);
     }
+    if (scratch.worldSceneRegistry.geometries.capacity() < 64u) {
+        scratch.worldSceneRegistry.geometries.reserve(64u);
+    }
+    if (scratch.worldSceneRegistry.materials.capacity() < 64u) {
+        scratch.worldSceneRegistry.materials.reserve(64u);
+    }
+    if (scratch.worldSceneRegistry.renderObjects.capacity() < 64u) {
+        scratch.worldSceneRegistry.renderObjects.reserve(64u);
+    }
+    if (scratch.worldSceneRegistry.geometryByIdentity.bucket_count() < 128u) {
+        scratch.worldSceneRegistry.geometryByIdentity.reserve(128u);
+    }
+    if (scratch.worldSceneRegistry.materialByIdentity.bucket_count() < 128u) {
+        scratch.worldSceneRegistry.materialByIdentity.reserve(128u);
+    }
+    if (scratch.worldSceneFrame.drawClasses.capacity() < 32u) {
+        scratch.worldSceneFrame.drawClasses.reserve(32u);
+    }
     if (scratch.sharedTailFireAnchors.bucket_count() < 16u) scratch.sharedTailFireAnchors.reserve(16u);
     if (scratch.sharedCaptureAttemptCache.snaps.capacity() < 8u) scratch.sharedCaptureAttemptCache.snaps.reserve(8u);
     if (scratch.sharedCaptureAttemptCache.byTargetId.bucket_count() < 8u) {
@@ -55,9 +73,19 @@ void invalidateProjectedBackdrop(RenderScratch& scratch) {
     scratch.projectedBackdropLinesCount = 0u;
 }
 
-void beginFrame(RenderScratch& scratch, bool useProjectedWorldLayout) {
+void resetSceneCaches(RenderScratch& scratch) {
+    shared_projected_render_items::resetProjectedRenderItems(
+        scratch.projectedRenderItems);
+    shared_world_scene::resetWorldSceneRegistry(scratch.worldSceneRegistry);
+    shared_world_scene::beginWorldSceneFrame(scratch.worldSceneFrame);
+}
+
+void beginFrame(RenderScratch& scratch,
+                bool useProjectedWorldLayout,
+                IRenderBackend* renderer) {
     shared_projected_render_items::beginProjectedRenderItemsFrame(
         scratch.projectedRenderItems);
+    shared_world_scene::beginWorldSceneFrame(scratch.worldSceneFrame);
     scratch.worldQuads.clear();
     scratch.worldIndexedBatches.clear();
     scratch.overlayQuads.clear();
@@ -73,6 +101,9 @@ void beginFrame(RenderScratch& scratch, bool useProjectedWorldLayout) {
         scratch.worldTriangles.resize(scratch.projectedBackdropWorldTrianglesCount);
         scratch.world3DTriangles.resize(scratch.projectedBackdropWorld3DTrianglesCount);
         scratch.lines.resize(scratch.projectedBackdropLinesCount);
+        if (!renderer || !renderer->supportsWorldSceneFastPath()) {
+            shared_world_scene::resetWorldSceneRegistry(scratch.worldSceneRegistry);
+        }
         return;
     }
 
@@ -82,8 +113,9 @@ void beginFrame(RenderScratch& scratch, bool useProjectedWorldLayout) {
     scratch.lines.clear();
     if (!useProjectedWorldLayout) {
         invalidateProjectedBackdrop(scratch);
-        shared_projected_render_items::resetProjectedRenderItems(
-            scratch.projectedRenderItems);
+        resetSceneCaches(scratch);
+    } else if (!renderer || !renderer->supportsWorldSceneFastPath()) {
+        shared_world_scene::resetWorldSceneRegistry(scratch.worldSceneRegistry);
     }
 }
 

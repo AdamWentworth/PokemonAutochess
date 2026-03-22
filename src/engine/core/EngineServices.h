@@ -78,6 +78,12 @@ struct EngineFramePerfStats {
     std::uint32_t indexedGlTextureBindCalls = 0u;
     std::uint32_t indexedD3d12PsoSets = 0u;
     std::uint32_t indexedD3d12DescriptorTableSets = 0u;
+    std::uint32_t fastSceneInstances = 0u;
+    std::uint32_t fastSceneDrawClasses = 0u;
+    std::uint32_t fastSceneVisibleSkeletons = 0u;
+    std::uint64_t fastScenePaletteUploadBytes = 0u;
+    std::uint32_t fastSceneMaterialTableBinds = 0u;
+    std::uint32_t fastSceneIndirectCommands = 0u;
     std::uint32_t visibleAnimatedUnits = 0u;
     std::uint32_t particleCount = 0u;
     float projectedUnitsMs = 0.0f;

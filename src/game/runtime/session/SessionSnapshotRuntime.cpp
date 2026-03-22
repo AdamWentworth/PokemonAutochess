@@ -217,6 +217,10 @@ void loadSnapshot(const std::string& path, const LoadOptions& options) {
     }
     const auto readEnd = SnapshotClock::now();
 
+    if (options.resetRenderCaches) {
+        options.resetRenderCaches();
+    }
+
     const bool preferCombatState =
         game::runtime::session_debug_snapshot::hasActiveEnemyUnits(snapshot);
     const auto stateRestoreStart = SnapshotClock::now();

@@ -10,6 +10,7 @@
 #include "game/runtime/shared/projected/SharedProjectedDebugVfx.h"
 #include "game/runtime/shared/projected/SharedProjectedRenderItems.h"
 #include "game/runtime/shared/projected/SharedProjectedWorldSceneHelpers.h"
+#include "game/runtime/shared/scene/SharedWorldScene.h"
 #include "game/runtime/shared/vfx/tail_fire/SharedTailFireFallbackEmitter.h"
 #include "game/runtime/shared/ui/SharedUnitHudBatches.h"
 #include "game/runtime/shared/world/SharedWorldIndexedBatches.h"
@@ -44,6 +45,7 @@ struct PerfStats {
 };
 
 struct Args {
+    IRenderBackend* renderer = nullptr;
     const GameDataDb* dataDb = nullptr;
     GameWorld* gameWorld = nullptr;
     float worldCellSize = 1.0f;
@@ -67,6 +69,8 @@ struct Args {
 
     shared_projected_debug::ProjectedDebugVfxBuilder* projectedDebug = nullptr;
     shared_projected_render_items::ProjectedRenderItemRegistry* projectedRenderItems = nullptr;
+    shared_world_scene::WorldSceneRegistry* worldSceneRegistry = nullptr;
+    IRenderBackend::WorldSceneFrame* worldSceneFrame = nullptr;
     runtime::shared_capture::SnapshotCache* sharedCaptureAttemptCache = nullptr;
     std::unordered_map<int, shared_tail_fire_fallback::Anchor>* sharedTailFireAnchors = nullptr;
     std::vector<shared_world_batches::WorldIndexedBatch>* worldIndexedBatches = nullptr;

@@ -49,6 +49,12 @@ bool test_runtime_frame_observation_contract(std::string& outFail) {
     inputs.indexedCachedDraws = 8u;
     inputs.indexedMaterialSwitches = 5u;
     inputs.indexedGlTextureBindCalls = 11u;
+    inputs.fastSceneInstances = 14u;
+    inputs.fastSceneDrawClasses = 4u;
+    inputs.fastSceneVisibleSkeletons = 2u;
+    inputs.fastScenePaletteUploadBytes = 2048u;
+    inputs.fastSceneMaterialTableBinds = 5u;
+    inputs.fastSceneIndirectCommands = 7u;
     inputs.fixedBreakdown.combatMs = 2.5f;
     inputs.fixedTicks = 3;
     inputs.fixedTicksDropped = 1;
@@ -62,6 +68,12 @@ bool test_runtime_frame_observation_contract(std::string& outFail) {
         sample.indexedCachedDraws != 8u ||
         sample.indexedMaterialSwitches != 5u ||
         sample.indexedGlTextureBindCalls != 11u ||
+        sample.fastSceneInstances != 14u ||
+        sample.fastSceneDrawClasses != 4u ||
+        sample.fastSceneVisibleSkeletons != 2u ||
+        sample.fastScenePaletteUploadBytes != 2048u ||
+        sample.fastSceneMaterialTableBinds != 5u ||
+        sample.fastSceneIndirectCommands != 7u ||
         sample.fixedTicks != 3 ||
         sample.fixedTicksDropped != 1 ||
         std::fabs(sample.fixedBreakdown.combatMs - 2.5f) > 0.0001f ||

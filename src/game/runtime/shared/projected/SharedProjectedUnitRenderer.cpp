@@ -672,6 +672,7 @@ for (const auto& unit : units) {
         runtime::shared_projected_unit_models::PerfBreakdown modelPerf{};
         const auto modelResult = runtime::shared_projected_unit_models::renderProjectedUnitModel(
             runtime::shared_projected_unit_models::Args{
+                .renderer = args.renderer,
                 .dataDb = &dataDb,
                 .unit = &unit,
                 .pose = &pose,
@@ -702,6 +703,8 @@ for (const auto& unit : units) {
                 .characterInkingEnabled = characterInkingEnabled,
                 .projectedDebug = &projectedDebug,
                 .projectedRenderItems = args.projectedRenderItems,
+                .worldSceneRegistry = args.worldSceneRegistry,
+                .worldSceneFrame = args.worldSceneFrame,
                 .sharedTailFireAnchors = &sharedTailFireAnchors,
                 .worldIndexedBatches = &worldIndexedBatches,
                 .backendTextureByPath = args.backendTextureByPath,

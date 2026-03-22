@@ -49,7 +49,11 @@ public:
     bool supportsWorldTriangles3D() const override { return true; }
     bool supportsWorldIndexedMeshes() const override { return true; }
     bool supportsWorldIndexedMeshInstancing() const override { return true; }
+    bool supportsWorldSceneFastPath() const override { return true; }
+    bool getWorldSceneFastPathCaps(WorldSceneFastPathCaps& outCaps) const override;
     void recordWorldIndexedSubmissionStats(const WorldIndexedSubmissionStats& stats) override;
+    void submitWorldScene(const WorldSceneFrame& frame,
+                          const WorldSceneView& view) override;
     void drawWorldTriangles(const WorldTriangle* triangles,
                             std::size_t triangleCount,
                             const float* viewProjectionMatrix4x4,
@@ -240,6 +244,7 @@ private:
     void waitForGpu();
     bool waitForFenceValue(std::uint64_t fenceValue);
     void ensureWindowHandle();
+    void initializeWorldSceneFastPathCaps();
 
 private:
     SDL_Window* window_ = nullptr;
@@ -267,6 +272,12 @@ private:
     std::uint32_t frameIndexedTextureSwitches_ = 0u;
     std::uint32_t frameIndexedD3d12PsoSets_ = 0u;
     std::uint32_t frameIndexedD3d12DescriptorTableSets_ = 0u;
+    std::uint32_t frameFastSceneInstances_ = 0u;
+    std::uint32_t frameFastSceneDrawClasses_ = 0u;
+    std::uint32_t frameFastSceneVisibleSkeletons_ = 0u;
+    std::uint64_t frameFastScenePaletteUploadBytes_ = 0u;
+    std::uint32_t frameFastSceneMaterialTableBinds_ = 0u;
+    std::uint32_t frameFastSceneIndirectCommands_ = 0u;
     std::uint32_t lastFrameIndexedOpaqueDraws_ = 0u;
     std::uint32_t lastFrameIndexedBlendDraws_ = 0u;
     std::uint32_t lastFrameIndexedCachedDraws_ = 0u;
@@ -278,6 +289,13 @@ private:
     std::uint32_t lastFrameIndexedTextureSwitches_ = 0u;
     std::uint32_t lastFrameIndexedD3d12PsoSets_ = 0u;
     std::uint32_t lastFrameIndexedD3d12DescriptorTableSets_ = 0u;
+    std::uint32_t lastFrameFastSceneInstances_ = 0u;
+    std::uint32_t lastFrameFastSceneDrawClasses_ = 0u;
+    std::uint32_t lastFrameFastSceneVisibleSkeletons_ = 0u;
+    std::uint64_t lastFrameFastScenePaletteUploadBytes_ = 0u;
+    std::uint32_t lastFrameFastSceneMaterialTableBinds_ = 0u;
+    std::uint32_t lastFrameFastSceneIndirectCommands_ = 0u;
+    WorldSceneFastPathCaps worldSceneFastPathCaps_{};
     bool screenshotCaptureConfigured_ = false;
     bool screenshotCaptured_ = false;
     bool vsyncEnabled_ = true;
