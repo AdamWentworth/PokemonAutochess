@@ -1136,7 +1136,7 @@ void OpenGLRenderBackend::drawWorldIndexedMeshTexturedInternal(unsigned int vao,
                 (texture && materialMode >= 2u)
                     ? static_cast<float>(pbrDebugViewMode())
                     : (texture ? texture->materialFlipbook1Fps : 0.0f));
-    constexpr int kMaxGpuSkinMatrices = 64;
+    constexpr int kMaxGpuSkinMatrices = 128;
     const bool gpuSkinningEnabled =
         texture &&
         texture->gpuSkinning != 0u &&

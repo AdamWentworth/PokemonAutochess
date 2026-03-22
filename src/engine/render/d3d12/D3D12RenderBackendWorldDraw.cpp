@@ -824,7 +824,7 @@ void D3D12RenderBackend::drawWorldIndexedMeshInternal(const WorldMeshVertex* ver
     commandList_->SetDescriptorHeaps(1, heaps);
     commandList_->SetGraphicsRootSignature(worldRootSignature_.Get());
     const float* modelMatrix = textureData ? textureData->modelMatrix.data() : nullptr;
-    constexpr std::uint32_t kMaxGpuSkinMatrices = 64u;
+    constexpr std::uint32_t kMaxGpuSkinMatrices = 128u;
     bool gpuSkinningEnabled =
         textureData &&
         textureData->gpuSkinning != 0u &&
@@ -1113,7 +1113,7 @@ void D3D12RenderBackend::drawWorldIndexedMeshTexturedCachedInternal(
     commandList_->SetGraphicsRootSignature(worldRootSignature_.Get());
 
     const float* modelMatrix = textureData ? textureData->modelMatrix.data() : nullptr;
-    constexpr std::uint32_t kMaxGpuSkinMatrices = 64u;
+    constexpr std::uint32_t kMaxGpuSkinMatrices = 128u;
     bool gpuSkinningEnabled =
         textureData &&
         textureData->gpuSkinning != 0u &&

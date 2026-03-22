@@ -113,7 +113,7 @@ struct TransformScratch {
 };
 
 thread_local TransformScratch g_scratch;
-constexpr std::size_t kMaxGpuSkinMatrices = 64u;
+constexpr std::size_t kMaxGpuSkinMatrices = 128u;
 
 } // namespace
 

@@ -22,6 +22,7 @@ bool tailFireDebugShouldLogAnchor(int unitId);
 struct FastTexturedBatchTemplate {
     std::size_t baseSubmeshIndex = 0u;
     int triNodeIndex = -1;
+    bool skinnedBatch = false;
     std::string geometryCacheKey;
     std::vector<std::uint32_t> sourceVertexIndices;
     std::vector<std::uint32_t> indices;
@@ -34,6 +35,7 @@ struct FastTexturedMeshTemplateCache {
     std::size_t meshVertexCount = 0u;
     std::size_t meshIndexCount = 0u;
     std::size_t baseBatchCount = 0u;
+    bool preferFullGpuSkinning = false;
     int defaultSkinNodeIndex = -1;
     std::vector<int> submeshNodeFallbackSnapshot;
     std::vector<FastTexturedBatchTemplate> batches;
@@ -53,7 +55,7 @@ bool applyTailFireMeshFlipbookOverride(
     const game::runtime::render_model::MeshData& mesh,
     std::vector<game::runtime::shared_world_batches::WorldIndexedBatch>& batches);
 
-inline constexpr std::size_t kMaxGpuSkinMatrices = 64u;
+inline constexpr std::size_t kMaxGpuSkinMatrices = 128u;
 
 struct UnitSkinMatrixKey {
     int unitId = 0;
@@ -100,10 +102,12 @@ struct GpuSkinBatchStateEntry {
 };
 
 int resolveDefaultSkinNodeIndex(const game::runtime::render_model::MeshData* mesh);
+bool backendPrefersFullGpuSkinning(const char* backendId);
 const FastTexturedMeshTemplateCache* ensureFastTexturedMeshTemplateCache(
     const game::runtime::render_model::MeshData* mesh,
     const std::vector<int>& submeshNodeFallback,
-    std::size_t baseBatchCount);
+    std::size_t baseBatchCount,
+    bool preferFullGpuSkinning);
 
 shared_projected_unit_backend_mesh_prep::PreparedState& preparedMeshState();
 std::vector<int>& triNodeIndexByTriangleScratch();

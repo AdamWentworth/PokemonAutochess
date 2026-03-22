@@ -300,7 +300,7 @@ void D3D12RenderBackend::createWorldPipeline() {
     static constexpr char kVsSource[] =
         "cbuffer VSConstants : register(b0) { float4x4 uViewProj; float4x4 uModel; float4 uSkinMeta; };"
         "cbuffer MaterialVsConstants : register(b1) { float _m0,_m1,_m2,_m3,_m4,_m5,_m6,_m7,_m8,_m9,_m10,_m11,_m12,_m13; float4 uGeneratedBoundsMin; float4 uGeneratedBoundsMax; };"
-        "cbuffer VSSkinMatrices : register(b2) { float4x4 gSkinMatrices[128]; };"
+        "cbuffer VSSkinMatrices : register(b2) { float4x4 gSkinMatrices[256]; };"
         "struct InstanceData { float4 model0; float4 model1; float4 model2; float4 model3; float4 color; };"
         "StructuredBuffer<InstanceData> gInstances : register(t6);"
         "struct VSIn { float3 pos : POSITION; float2 uv : TEXCOORD; float4 col : COLOR; float3 nrm : NORMAL; float4 jnts : BLENDINDICES; float4 wgts : BLENDWEIGHT; float4 tan : TANGENT; };"
@@ -1457,7 +1457,7 @@ float4 main(PSIn i, bool isFrontFace : SV_IsFrontFace) : SV_TARGET {
     worldVsConstantFrameOffset_ = 0u;
 
     // Per-draw GPU clip-skinning matrix upload ring buffer.
-    const std::size_t kMaxGpuSkinMatrices = 64u;
+    const std::size_t kMaxGpuSkinMatrices = 128u;
     const std::size_t kSkinMatrixBytesPerDraw = alignUp(
         kMaxGpuSkinMatrices * 2u * 16u * sizeof(float), 256u);
     const std::size_t kSkinMatrixBufferBytes =

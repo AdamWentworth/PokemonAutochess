@@ -371,6 +371,91 @@ without the same context.
   - if OpenGL needs another pass later, continue from the skin-UBO path instead
     of returning to `glUniformMatrix4fv` uploads for skinned world meshes
 
+### 2026-03-21: backend-agnostic full-skin shared GPU upload was mixed
+- Status:
+  - local experiment; not retained as-is
+- Hypothesis:
+  - stop rebuilding per-batch skin palettes when a whole skin already fits on
+    the GPU, let all batches for that unit/skin share one full skin payload,
+    and raise the clip-skin matrix ceiling from `64` to `128`
+- Expected win:
+  - reduce `projected_model_prep_ms`
+  - reduce `projected_model_geometry_ms`
+  - reduce steady-state `render_build_ms`
+- What the workload showed:
+  - the broad version clearly helped `D3D12`, but the same setting was not a
+    clean win on `OpenGL`
+  - short `D3D12` run moved in the right direction:
+    - `benchmark/render_matrix_20260321_220010.json`
+    - `avg_fps 186.579`
+    - `avg_frame_cpu_ms 5.298`
+    - `avg_render_build_ms 4.486`
+    - `avg_projected_units_ms 1.511`
+  - matching short `OpenGL` run was only mixed versus the retained OpenGL
+    node-global baseline:
+    - `benchmark/render_matrix_20260321_220011.json`
+    - `avg_fps 137.688`
+    - `avg_frame_cpu_ms 7.239`
+    - `avg_render_build_ms 6.234`
+    - `avg_projected_units_ms 1.444`
+  - conclusion:
+    the "share full skin everywhere" idea was worth keeping for the stronger
+    backend, but not worth forcing onto `OpenGL` without a clearer measured win
+- Decision:
+  - do not keep the backend-agnostic version
+  - narrow the retained change to the backend where it clearly pays
+
+### 2026-03-21: D3D12-preferred full-skin shared GPU upload was a real win
+- Status:
+  - local experiment; retained
+- Files:
+  - `src/game/runtime/shared/projected/SharedProjectedUnitBackendMeshSupport.h`
+  - `src/game/runtime/shared/projected/SharedProjectedUnitBackendMeshSupport.cpp`
+  - `src/game/runtime/shared/projected/SharedProjectedUnitBackendMeshRenderer.cpp`
+  - `src/game/runtime/shared/projected/SharedProjectedUnitBackendMeshTransforms.cpp`
+  - `src/engine/render/d3d12/D3D12RenderBackendPipelines.cpp`
+  - `src/engine/render/d3d12/D3D12RenderBackendWorldDraw.cpp`
+  - `src/engine/render/opengl/OpenGLRenderBackendWorldPipeline.cpp`
+  - `src/engine/render/opengl/OpenGLRenderBackendWorldDraw.cpp`
+- Hypothesis:
+  - if a skinned node fits the GPU clip-skin limit, keep authored joint indices
+    intact, upload one full skin payload per unit/skin, and let all matching
+    batches share that payload instead of repacking palette subsets on the CPU
+- Expected win:
+  - reduce `projected_model_prep_ms`
+  - reduce `projected_model_geometry_ms`
+  - reduce `projected_units_ms`
+  - lower `render_build_ms` further on the heavy auto-loaded board snapshot
+- What the workload showed:
+  - `D3D12` improved clearly over the previous retained GPU node-global baseline
+  - previous retained `D3D12` baseline:
+    - `benchmark/render_matrix_20260321_212834.json`
+    - `avg_fps 176.060`
+    - `avg_frame_cpu_ms 5.614`
+    - `avg_render_build_ms 4.701`
+    - `avg_projected_units_ms 1.720`
+  - retained full-skin run:
+    - `benchmark/render_matrix_20260321_220350.json`
+    - `avg_fps 203.560`
+    - `avg_frame_cpu_ms 4.838`
+    - `avg_render_build_ms 4.125`
+    - `avg_projected_units_ms 1.369`
+    - `avg_projected_model_ms 0.934`
+  - the narrowed version kept `OpenGL` in-family instead of regressing it:
+    - `benchmark/render_matrix_20260321_220442.json`
+    - `avg_fps 141.132`
+    - `avg_frame_cpu_ms 7.001`
+    - `avg_render_build_ms 6.040`
+    - `avg_projected_units_ms 1.500`
+- Decision:
+  - keep
+- Follow-up:
+  - if we want another GPU-first pass after this, the next logical step is to
+    attack the remaining per-batch/model-prep work or move more animation
+    sampling itself onto the GPU
+  - keep validating `OpenGL` separately when we widen any future D3D12-focused
+    clip-skin changes
+
 ### 2026-03-20: retained debug-geometry GPU caching was a real win
 - Commit:
   - `f4b5eb3` `Cache retained debug geometry on GPU`

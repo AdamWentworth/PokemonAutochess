@@ -242,7 +242,7 @@ void OpenGLRenderBackend::ensureWorldPipeline() {
         uniform float uSkinningEnabled;
         uniform float uSkinningMode;
         uniform int uSkinMatrixCount;
-        const int kMaxSkinMatrices = 64;
+        const int kMaxSkinMatrices = 128;
         layout (std140) uniform SkinMatricesBlock {
             mat4 uSkinMatrices[kMaxSkinMatrices * 2];
         };
@@ -1190,7 +1190,7 @@ __PAC_SHARED_WORLD_PBR_SECTION__
     glBindBuffer(GL_UNIFORM_BUFFER, worldSkinUbo_);
     glBufferData(
         GL_UNIFORM_BUFFER,
-        static_cast<GLsizeiptr>(sizeof(float) * 16u * 128u),
+        static_cast<GLsizeiptr>(sizeof(float) * 16u * 256u),
         nullptr,
         GL_STREAM_DRAW);
     glBindBufferBase(GL_UNIFORM_BUFFER, kWorldSkinBlockBinding, worldSkinUbo_);

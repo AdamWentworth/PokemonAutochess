@@ -258,10 +258,28 @@ int resolveDefaultSkinNodeIndex(const game::runtime::render_model::MeshData* mes
     return selectedNode;
 }
 
+bool nodeUsesGpuFullSkinning(const game::runtime::render_model::MeshData* mesh,
+                             int triNodeIndex,
+                             bool preferFullGpuSkinning) {
+    if (!preferFullGpuSkinning) return false;
+    if (!mesh || triNodeIndex < 0) return false;
+    const std::size_t nodeIndex = static_cast<std::size_t>(triNodeIndex);
+    if (nodeIndex >= mesh->nodeSkin.size()) return false;
+    const int skinIndex = mesh->nodeSkin[nodeIndex];
+    if (skinIndex < 0 || static_cast<std::size_t>(skinIndex) >= mesh->skins.size()) return false;
+    const auto& skin = mesh->skins[static_cast<std::size_t>(skinIndex)];
+    return !skin.joints.empty() && skin.joints.size() <= kMaxGpuSkinMatrices;
+}
+
+bool backendPrefersFullGpuSkinning(const char* backendId) {
+    return backendId && std::string_view(backendId) == "d3d12";
+}
+
 const FastTexturedMeshTemplateCache* ensureFastTexturedMeshTemplateCache(
     const game::runtime::render_model::MeshData* mesh,
     const std::vector<int>& submeshNodeFallback,
-    std::size_t baseBatchCount) {
+    std::size_t baseBatchCount,
+    bool preferFullGpuSkinning) {
     if (!mesh || baseBatchCount == 0u) return nullptr;
 
     auto& cache = fastTexturedMeshTemplateCaches()[mesh];
@@ -270,6 +288,7 @@ const FastTexturedMeshTemplateCache* ensureFastTexturedMeshTemplateCache(
         cache.meshVertexCount == mesh->vertices.size() &&
         cache.meshIndexCount == mesh->indices.size() &&
         cache.baseBatchCount == baseBatchCount &&
+        cache.preferFullGpuSkinning == preferFullGpuSkinning &&
         cache.submeshNodeFallbackSnapshot == submeshNodeFallback &&
         !cache.batches.empty();
     if (cacheValid) return &cache;
@@ -279,6 +298,7 @@ const FastTexturedMeshTemplateCache* ensureFastTexturedMeshTemplateCache(
     cache.meshVertexCount = mesh->vertices.size();
     cache.meshIndexCount = mesh->indices.size();
     cache.baseBatchCount = baseBatchCount;
+    cache.preferFullGpuSkinning = preferFullGpuSkinning;
     cache.defaultSkinNodeIndex = resolveDefaultSkinNodeIndex(mesh);
     cache.submeshNodeFallbackSnapshot = submeshNodeFallback;
     const std::string keyPrefix = makeIndexedBatchKeyPrefix(*mesh);
@@ -331,6 +351,8 @@ const FastTexturedMeshTemplateCache* ensureFastTexturedMeshTemplateCache(
                 FastTexturedBatchTemplate newBatch{};
                 newBatch.baseSubmeshIndex = submeshIndex;
                 newBatch.triNodeIndex = triNodeIndex;
+                newBatch.skinnedBatch =
+                    nodeUsesGpuFullSkinning(mesh, triNodeIndex, preferFullGpuSkinning);
                 newBatch.geometryCacheKey = makeIndexedGeometryCacheKey(
                     keyPrefix, submeshIndex, batchIndex, baseBatchCount);
                 cache.batches.push_back(std::move(newBatch));
@@ -347,9 +369,18 @@ const FastTexturedMeshTemplateCache* ensureFastTexturedMeshTemplateCache(
 
     std::vector<std::vector<std::size_t>> splitBatchCandidatesBySource(cache.batches.size());
     std::vector<std::vector<std::uint16_t>> splitJointPaletteByBatch(cache.batches.size());
+    std::vector<std::uint8_t> fullSkinBatchBySource(cache.batches.size(), 0u);
     std::vector<std::size_t> splitBatchIndexByTriangle(triangleCount, 0u);
     std::vector<std::size_t> splitTriangleCountByBatch(cache.batches.size(), 0u);
     for (std::size_t bi = 0; bi < cache.batches.size(); ++bi) {
+        auto& batch = cache.batches[bi];
+        if (batch.triNodeIndex >= 0) {
+            batch.skinnedBatch =
+                nodeUsesGpuFullSkinning(mesh, batch.triNodeIndex, preferFullGpuSkinning);
+        } else {
+            batch.skinnedBatch = false;
+        }
+        fullSkinBatchBySource[bi] = batch.skinnedBatch ? 1u : 0u;
         splitBatchCandidatesBySource[bi].push_back(bi);
     }
 
@@ -357,6 +388,12 @@ const FastTexturedMeshTemplateCache* ensureFastTexturedMeshTemplateCache(
     for (std::size_t triIdx = 0; triIdx < triangleCount; ++triIdx) {
         std::size_t sourceBatchIndex = batchIndexByTriangle[triIdx];
         if (sourceBatchIndex >= splitBatchCandidatesBySource.size()) sourceBatchIndex = 0u;
+
+        if (fullSkinBatchBySource[sourceBatchIndex] != 0u) {
+            ++splitTriangleCountByBatch[sourceBatchIndex];
+            splitBatchIndexByTriangle[triIdx] = sourceBatchIndex;
+            continue;
+        }
 
         std::array<std::uint16_t, 12> triJoints{};
         std::size_t triJointCount = 0u;
@@ -411,6 +448,7 @@ const FastTexturedMeshTemplateCache* ensureFastTexturedMeshTemplateCache(
             FastTexturedBatchTemplate splitBatch{};
             splitBatch.baseSubmeshIndex = sourceBatch.baseSubmeshIndex;
             splitBatch.triNodeIndex = sourceBatch.triNodeIndex;
+            splitBatch.skinnedBatch = false;
             splitBatch.geometryCacheKey = makeIndexedGeometryCacheKey(
                 keyPrefix,
                 sourceBatch.baseSubmeshIndex,
@@ -419,6 +457,7 @@ const FastTexturedMeshTemplateCache* ensureFastTexturedMeshTemplateCache(
             cache.batches.push_back(std::move(splitBatch));
             splitJointPaletteByBatch.emplace_back();
             splitTriangleCountByBatch.push_back(0u);
+            fullSkinBatchBySource.push_back(0u);
             chosenBatchIndex = cache.batches.size() - 1u;
             splitBatchCandidatesBySource[sourceBatchIndex].push_back(chosenBatchIndex);
         }
@@ -481,28 +520,31 @@ const FastTexturedMeshTemplateCache* ensureFastTexturedMeshTemplateCache(
         batch.gpuJointPalette.clear();
         std::unordered_map<std::uint16_t, std::uint16_t> jointRemap;
         jointRemap.reserve(16u);
-        bool jointPaletteOverflow = false;
-        for (const std::uint32_t srcIndex : batch.sourceVertexIndices) {
-            if (srcIndex >= mesh->vertices.size()) continue;
-            const auto& src = mesh->vertices[srcIndex];
-            const std::uint16_t joints[4] = {src.j0, src.j1, src.j2, src.j3};
-            const float weights[4] = {src.w0, src.w1, src.w2, src.w3};
-            for (int ji = 0; ji < 4; ++ji) {
-                if (weights[ji] <= 0.00001f) continue;
-                if (jointRemap.find(joints[ji]) != jointRemap.end()) continue;
-                if (jointRemap.size() >= kMaxGpuSkinMatrices) {
-                    jointPaletteOverflow = true;
-                    break;
+        const bool useFullSkinning = batch.skinnedBatch;
+        if (!useFullSkinning) {
+            bool jointPaletteOverflow = false;
+            for (const std::uint32_t srcIndex : batch.sourceVertexIndices) {
+                if (srcIndex >= mesh->vertices.size()) continue;
+                const auto& src = mesh->vertices[srcIndex];
+                const std::uint16_t joints[4] = {src.j0, src.j1, src.j2, src.j3};
+                const float weights[4] = {src.w0, src.w1, src.w2, src.w3};
+                for (int ji = 0; ji < 4; ++ji) {
+                    if (weights[ji] <= 0.00001f) continue;
+                    if (jointRemap.find(joints[ji]) != jointRemap.end()) continue;
+                    if (jointRemap.size() >= kMaxGpuSkinMatrices) {
+                        jointPaletteOverflow = true;
+                        break;
+                    }
+                    const std::uint16_t next = static_cast<std::uint16_t>(jointRemap.size());
+                    jointRemap.emplace(joints[ji], next);
+                    batch.gpuJointPalette.push_back(joints[ji]);
                 }
-                const std::uint16_t next = static_cast<std::uint16_t>(jointRemap.size());
-                jointRemap.emplace(joints[ji], next);
-                batch.gpuJointPalette.push_back(joints[ji]);
+                if (jointPaletteOverflow) break;
             }
-            if (jointPaletteOverflow) break;
-        }
-        if (jointPaletteOverflow) {
-            jointRemap.clear();
-            batch.gpuJointPalette.clear();
+            if (jointPaletteOverflow) {
+                jointRemap.clear();
+                batch.gpuJointPalette.clear();
+            }
         }
 
         batch.gpuTemplateVertices.resize(batch.sourceVertexIndices.size());
@@ -536,7 +578,7 @@ const FastTexturedMeshTemplateCache* ensureFastTexturedMeshTemplateCache(
             std::uint16_t mappedJ1 = src.j1;
             std::uint16_t mappedJ2 = src.j2;
             std::uint16_t mappedJ3 = src.j3;
-            if (!jointRemap.empty()) {
+            if (!useFullSkinning && !jointRemap.empty()) {
                 if (src.w0 > 0.00001f) {
                     const auto it = jointRemap.find(src.j0);
                     if (it != jointRemap.end()) mappedJ0 = it->second;

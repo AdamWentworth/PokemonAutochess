@@ -34,8 +34,14 @@ std::size_t prewarmProjectedUnitBackendMeshGeometryCache(
     const std::size_t baseBatchCount =
         std::max<std::size_t>(1u, mesh.submeshBaseTextures.size());
     const std::vector<int> submeshNodeFallback = support::buildSubmeshNodeFallback(mesh);
+    const bool preferFullGpuSkinning =
+        support::backendPrefersFullGpuSkinning(renderer.backendId());
     const support::FastTexturedMeshTemplateCache* fastCache =
-        support::ensureFastTexturedMeshTemplateCache(&mesh, submeshNodeFallback, baseBatchCount);
+        support::ensureFastTexturedMeshTemplateCache(
+            &mesh,
+            submeshNodeFallback,
+            baseBatchCount,
+            preferFullGpuSkinning);
     if (!fastCache) return 0u;
 
     std::size_t warmed = 0u;
@@ -139,10 +145,13 @@ Result renderProjectedUnitBackendMesh(const Args& args) {
         const support::FastTexturedMeshTemplateCache* fastCachePtr = nullptr;
         std::vector<std::uint8_t> batchUsesGpuClipPalette;
         if (useFastTexturedFullMeshPath && !modelIndexedBatchesPerSubmesh.empty()) {
+            const bool preferFullGpuSkinning =
+                support::backendPrefersFullGpuSkinning(args.backendId);
             fastCachePtr = support::ensureFastTexturedMeshTemplateCache(
                 mesh,
                 submeshNodeFallback,
-                modelIndexedBatchesPerSubmesh.size());
+                modelIndexedBatchesPerSubmesh.size(),
+                preferFullGpuSkinning);
         }
         const bool tailFireMeshPlaybackSpecies =
             unit.alive &&
@@ -293,7 +302,7 @@ Result renderProjectedUnitBackendMesh(const Args& args) {
 
                 if (!configuredBatch) {
                     const bool canUseSharedNodeTransform =
-                        srcBatch.gpuJointPalette.empty() &&
+                        !srcBatch.skinnedBatch &&
                         !srcBatch.gpuTemplateVertices.empty() &&
                         !srcBatch.indices.empty();
                     if (canUseSharedNodeTransform) {
@@ -514,7 +523,7 @@ Result renderProjectedUnitBackendMesh(const Args& args) {
                         shared_world_batches::resolvedHasNormalTexture(dstBatch);
                     const bool needsTangents = needsLitNormals && hasNormalTexture;
                     const bool canUseSharedNodeTransform =
-                        srcBatch.gpuJointPalette.empty() &&
+                        !srcBatch.skinnedBatch &&
                         !srcBatch.gpuTemplateVertices.empty() &&
                         !srcBatch.indices.empty();
                     if (canUseSharedNodeTransform) {
