@@ -5,6 +5,7 @@
 #include <cstdint>
 #include <memory>
 #include <string>
+#include <string_view>
 #include <unordered_map>
 
 #include "engine/render/IRenderBackend.h"
@@ -270,7 +271,48 @@ private:
         int wrapT = 10497;
     };
 
-    std::unordered_map<std::string, TextureCacheEntry> worldTextures_;
+    struct TransparentStringHash {
+        using is_transparent = void;
+
+        std::size_t operator()(std::string_view value) const noexcept {
+            return std::hash<std::string_view>{}(value);
+        }
+
+        std::size_t operator()(const std::string& value) const noexcept {
+            return (*this)(std::string_view(value));
+        }
+
+        std::size_t operator()(const char* value) const noexcept {
+            return (*this)(std::string_view(value ? value : ""));
+        }
+    };
+
+    struct TransparentStringEqual {
+        using is_transparent = void;
+
+        bool operator()(std::string_view lhs, std::string_view rhs) const noexcept {
+            return lhs == rhs;
+        }
+
+        bool operator()(const std::string& lhs, const std::string& rhs) const noexcept {
+            return lhs == rhs;
+        }
+
+        bool operator()(const std::string& lhs, const char* rhs) const noexcept {
+            return std::string_view(lhs) == std::string_view(rhs ? rhs : "");
+        }
+
+        bool operator()(const char* lhs, const std::string& rhs) const noexcept {
+            return std::string_view(lhs ? lhs : "") == std::string_view(rhs);
+        }
+
+        bool operator()(const char* lhs, const char* rhs) const noexcept {
+            return std::string_view(lhs ? lhs : "") == std::string_view(rhs ? rhs : "");
+        }
+    };
+
+    std::unordered_map<std::string, TextureCacheEntry, TransparentStringHash, TransparentStringEqual>
+        worldTextures_;
     std::unordered_map<std::string, unsigned int> spriteTextures_;
     struct CachedWorldMesh {
         unsigned int vao = 0;
@@ -284,6 +326,9 @@ private:
     };
     std::unordered_map<std::string, CachedWorldMesh> cachedWorldMeshes_;
     unsigned int worldFallbackTexture_ = 0;
+    unsigned int worldFallbackLinearTexture_ = 0;
+    unsigned int worldFallbackFlatNormalTexture_ = 0;
+    unsigned int worldNeutralPmremTexture_ = 0;
     unsigned int spriteFallbackTexture_ = 0;
 
     std::uint32_t frameDrawCalls_ = 0u;

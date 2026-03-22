@@ -346,6 +346,10 @@ unsigned int OpenGLRenderBackend::ensureWorldTextureRaw(const char* keyCStr,
     // reused key strings with different dimensions/wrap modes.
     std::string cacheKey;
     if (cacheKeyCStr && cacheKeyCStr[0] != '\0') {
+        auto existing = worldTextures_.find(cacheKeyCStr);
+        if (existing != worldTextures_.end()) {
+            return existing->second.textureId;
+        }
         cacheKey = cacheKeyCStr;
     } else {
         cacheKey = keyCStr;
@@ -358,10 +362,10 @@ unsigned int OpenGLRenderBackend::ensureWorldTextureRaw(const char* keyCStr,
         cacheKey += "|wt=";
         cacheKey += std::to_string(wrapTIn);
         cacheKey += srgb ? "|srgb" : "|lin";
-    }
-    auto existing = worldTextures_.find(cacheKey);
-    if (existing != worldTextures_.end()) {
-        return existing->second.textureId;
+        auto existing = worldTextures_.find(cacheKey);
+        if (existing != worldTextures_.end()) {
+            return existing->second.textureId;
+        }
     }
 
     unsigned int textureId = 0;
@@ -582,5 +586,8 @@ void OpenGLRenderBackend::clearTextureCaches() {
     worldTextures_.clear();
     spriteTextures_.clear();
     worldFallbackTexture_ = 0;
+    worldFallbackLinearTexture_ = 0;
+    worldFallbackFlatNormalTexture_ = 0;
+    worldNeutralPmremTexture_ = 0;
     spriteFallbackTexture_ = 0;
 }

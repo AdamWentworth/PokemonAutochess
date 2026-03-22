@@ -703,30 +703,39 @@ void OpenGLRenderBackend::drawWorldIndexedMeshTexturedInternal(unsigned int vao,
     const bool hasTexture = (worldTexture != 0u);
     static const unsigned char kFallbackWhiteRgba[4] = {255u, 255u, 255u, 255u};
     static const unsigned char kFallbackFlatNormalRgba[4] = {128u, 128u, 255u, 255u};
-    const GLuint fallbackWhiteSrgbTexture = ensureWorldTextureRaw(
-        "__world_fallback_white_srgb_1x1__",
-        kFallbackWhiteRgba,
-        1,
-        1,
-        33071,
-        33071,
-        /*srgb=*/true);
-    const GLuint fallbackWhiteLinearTexture = ensureWorldTextureRaw(
-        "__world_fallback_white_linear_1x1__",
-        kFallbackWhiteRgba,
-        1,
-        1,
-        33071,
-        33071,
-        /*srgb=*/false);
-    const GLuint fallbackFlatNormalTexture = ensureWorldTextureRaw(
-        "__world_fallback_flat_normal_1x1__",
-        kFallbackFlatNormalRgba,
-        1,
-        1,
-        33071,
-        33071,
-        /*srgb=*/false);
+    if (worldFallbackTexture_ == 0u) {
+        worldFallbackTexture_ = ensureWorldTextureRaw(
+            "__world_fallback_white_srgb_1x1__",
+            kFallbackWhiteRgba,
+            1,
+            1,
+            33071,
+            33071,
+            /*srgb=*/true);
+    }
+    if (worldFallbackLinearTexture_ == 0u) {
+        worldFallbackLinearTexture_ = ensureWorldTextureRaw(
+            "__world_fallback_white_linear_1x1__",
+            kFallbackWhiteRgba,
+            1,
+            1,
+            33071,
+            33071,
+            /*srgb=*/false);
+    }
+    if (worldFallbackFlatNormalTexture_ == 0u) {
+        worldFallbackFlatNormalTexture_ = ensureWorldTextureRaw(
+            "__world_fallback_flat_normal_1x1__",
+            kFallbackFlatNormalRgba,
+            1,
+            1,
+            33071,
+            33071,
+            /*srgb=*/false);
+    }
+    const GLuint fallbackWhiteSrgbTexture = worldFallbackTexture_;
+    const GLuint fallbackWhiteLinearTexture = worldFallbackLinearTexture_;
+    const GLuint fallbackFlatNormalTexture = worldFallbackFlatNormalTexture_;
     const GLuint boundTexture = hasTexture ? worldTexture : fallbackWhiteSrgbTexture;
     const float useTexture = hasTexture ? 1.0f : 0.0f;
     const GLuint normalTexture = texture
@@ -783,22 +792,25 @@ void OpenGLRenderBackend::drawWorldIndexedMeshTexturedInternal(unsigned int vao,
     const bool hasEmissiveTexture = (emissiveTexture != 0u);
     const GLuint boundEmissiveTexture = hasEmissiveTexture ? emissiveTexture : fallbackWhiteSrgbTexture;
     const auto& neutralPmremAtlas = engine::render::neutral_pmrem::getNeutralRoomPmremAtlas();
-    const GLuint neutralPmremTexture = !neutralPmremAtlas.rgba16f.empty()
-        ? ensureWorldTextureRawHalfFloat(
-            "__neutral_room_pmrem_rgba16f_v1__",
-            neutralPmremAtlas.rgba16f.data(),
-            neutralPmremAtlas.width,
-            neutralPmremAtlas.height,
-            33071,
-            33071)
-        : ensureWorldTextureRaw(
-            "__neutral_room_pmrem_rgbm_v1__",
-            neutralPmremAtlas.rgba.data(),
-            neutralPmremAtlas.width,
-            neutralPmremAtlas.height,
-            33071,
-            33071,
-            /*srgb=*/false);
+    if (worldNeutralPmremTexture_ == 0u) {
+        worldNeutralPmremTexture_ = !neutralPmremAtlas.rgba16f.empty()
+            ? ensureWorldTextureRawHalfFloat(
+                "__neutral_room_pmrem_rgba16f_v1__",
+                neutralPmremAtlas.rgba16f.data(),
+                neutralPmremAtlas.width,
+                neutralPmremAtlas.height,
+                33071,
+                33071)
+            : ensureWorldTextureRaw(
+                "__neutral_room_pmrem_rgbm_v1__",
+                neutralPmremAtlas.rgba.data(),
+                neutralPmremAtlas.width,
+                neutralPmremAtlas.height,
+                33071,
+                33071,
+                /*srgb=*/false);
+    }
+    const GLuint neutralPmremTexture = worldNeutralPmremTexture_;
     const GLuint boundEnvTexture = (neutralPmremTexture != 0u) ? neutralPmremTexture : fallbackWhiteLinearTexture;
     const GLfloat wrapS = static_cast<GLfloat>(texture ? texture->wrapS : 10497);
     const GLfloat wrapT = static_cast<GLfloat>(texture ? texture->wrapT : 10497);

@@ -456,6 +456,87 @@ without the same context.
   - keep validating `OpenGL` separately when we widen any future D3D12-focused
     clip-skin changes
 
+### 2026-03-21: OpenGL indexed dynamic-uniform payload caching was a miss
+- Hypothesis:
+  - OpenGL heavy-scene indexed world draws were still paying too much repeated
+    `glUniform*` cost for camera/material state, so caching the last dynamic
+    world-program payload across sorted indexed draws would lower
+    `render_world_indexed_ms` and total `render_build_ms`
+- Expected win:
+  - reduce `render_world_indexed_ms`
+  - reduce `render_build_ms`
+  - keep `OpenGL` closer to the retained `D3D12` direction without touching the
+    already-kept skin-UBO path
+- What the workload showed:
+  - the extra compare/copy work was worse than just reissuing the uniforms on
+    this scene
+  - retained `OpenGL` baseline:
+    - `benchmark/render_matrix_20260321_220442.json`
+    - `avg_fps 141.132`
+    - `avg_frame_cpu_ms 7.001`
+    - `avg_render_build_ms 6.040`
+    - `avg_gpu_frame_ms 0.559`
+    - `avg_projected_units_ms 1.500`
+    - `avg_projected_model_ms 1.118`
+  - cached-uniform run:
+    - `benchmark/render_matrix_20260321_221450.json`
+    - `avg_fps 125.583`
+    - `avg_frame_cpu_ms 7.919`
+    - `avg_render_build_ms 6.859`
+    - `avg_gpu_frame_ms 0.652`
+    - `avg_projected_units_ms 1.676`
+    - `avg_projected_model_ms 1.238`
+  - the indexed draw count stayed effectively identical, so the additional CPU
+    bookkeeping did not buy enough driver-side savings to matter
+- Decision:
+  - revert; do not assume repeated OpenGL dynamic uniform uploads are the next
+    dominant cost in the heavy snapshot
+- Follow-up:
+  - prefer attacking OpenGL work that can actually remove per-draw submission or
+    resource churn rather than adding another CPU-side state cache
+  - keep future OpenGL passes focused on measured hot buckets like indexed
+    submission structure or texture/buffer churn
+
+### 2026-03-21: OpenGL world-texture lookup and fallback/env handle caching was a real win
+- Hypothesis:
+  - the heavy OpenGL indexed path was still spending too much CPU time resolving
+    cached texture handles and re-running fallback / neutral-PMREM texture
+    lookup work every draw, even when the actual GL bind count was unchanged
+- Expected win:
+  - reduce `render_world_indexed_ms`
+  - reduce `render_build_ms`
+  - reduce steady-state frame CPU cost on the heavy auto-loaded board snapshot
+- What the workload showed:
+  - this was a clear retained win
+  - retained `OpenGL` baseline:
+    - `benchmark/render_matrix_20260321_220442.json`
+    - `avg_fps 141.132`
+    - `avg_frame_cpu_ms 7.001`
+    - `avg_render_build_ms 6.040`
+    - `avg_gpu_frame_ms 0.559`
+    - `avg_projected_units_ms 1.500`
+    - `avg_projected_model_ms 1.118`
+  - new cached-handle run:
+    - `benchmark/render_matrix_20260321_222447.json`
+    - `avg_fps 172.848`
+    - `low_1pct_fps 157.912`
+    - `avg_frame_cpu_ms 5.748`
+    - `avg_render_build_ms 4.909`
+    - `avg_gpu_frame_ms 1.158`
+    - `avg_projected_units_ms 1.422`
+    - `avg_projected_model_ms 1.058`
+  - representative scored samples moved `render_world_indexed_ms` from roughly
+    `2.33-2.43` down to roughly `1.40-1.60`
+  - `backend_gl_texture_bind_calls` stayed effectively unchanged at `202`, so
+    the win came from removing CPU-side texture resolution / fallback lookup
+    churn rather than from reducing GL bind count directly
+- Decision:
+  - keep
+- Follow-up:
+  - if we want another OpenGL pass after this, keep targeting the indexed hot
+    path, but prefer changes that remove repeated CPU-side resource resolution
+    or submission work rather than caching large dynamic uniform payloads
+
 ### 2026-03-20: retained debug-geometry GPU caching was a real win
 - Commit:
   - `f4b5eb3` `Cache retained debug geometry on GPU`
