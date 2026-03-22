@@ -537,6 +537,181 @@ without the same context.
     path, but prefer changes that remove repeated CPU-side resource resolution
     or submission work rather than caching large dynamic uniform payloads
 
+### 2026-03-21: OpenGL per-material texture resolve-entry caching was a miss
+- Status:
+  - uncommitted experiment; reverted after heavy-scene regression
+- Files:
+  - `src/engine/render/OpenGLRenderBackend.h`
+  - `src/engine/render/opengl/OpenGLRenderBackendWorldDraw.cpp`
+- Hypothesis:
+  - after the retained OpenGL world-texture handle caching win, the indexed hot
+    path might still be spending too much CPU time repeatedly resolving the
+    same per-material texture IDs across adjacent sorted draws
+- Expected win:
+  - reduce `render_world_indexed_ms`
+  - reduce `render_build_ms`
+  - hold draw counts and bind counts roughly flat while trimming remaining
+    CPU-side texture-cache lookup work
+- What the workload showed:
+  - the extra resolver/cache bookkeeping cost more than the saved lookups in
+    the heavy snapshot
+  - retained `OpenGL` baseline:
+    - `benchmark/render_matrix_20260321_222447.json`
+    - `avg_fps 172.848`
+    - `avg_frame_cpu_ms 5.748`
+    - `avg_render_build_ms 4.909`
+    - `avg_gpu_frame_ms 1.158`
+    - `avg_projected_units_ms 1.422`
+    - `avg_projected_model_ms 1.058`
+  - regressed resolve-cache run:
+    - `benchmark/render_matrix_20260321_223512.json`
+    - `avg_fps 122.847`
+    - `avg_frame_cpu_ms 8.067`
+    - `avg_render_build_ms 6.830`
+    - `avg_gpu_frame_ms 0.924`
+    - `avg_projected_units_ms 1.976`
+    - `avg_projected_model_ms 1.449`
+  - `backend_gl_texture_bind_calls` stayed at `202`, and
+    `render_world_indexed_ms` was still roughly `1.9-2.3 ms`, so the extra
+    CPU-side cache logic did not remove enough real indexed submission work
+- Decision:
+  - revert; do not keep another OpenGL texture-resolution cache layer on top of
+    the retained handle/fallback/env caching win
+- Follow-up:
+  - keep future OpenGL passes focused on work that can remove per-draw state
+    submission or uniform setup rather than adding more lookup bookkeeping
+
+### 2026-03-21: OpenGL indexed frame/camera UBO migration was a miss
+- Status:
+  - uncommitted experiment; reverted after a controlled heavy-scene retry
+- Files:
+  - `src/engine/render/OpenGLRenderBackend.h`
+  - `src/engine/render/opengl/OpenGLRenderBackendWorldPipeline.cpp`
+  - `src/engine/render/opengl/OpenGLRenderBackendWorldDraw.cpp`
+- Hypothesis:
+  - after the broken frame+material UBO pass, a smaller OpenGL change that
+    moved only indexed frame/camera data into a shared `WorldFrameBlock` UBO
+    might trim repeated uniform submission without disturbing the retained
+    material path
+- Expected win:
+  - reduce indexed uniform setup cost
+  - reduce `render_build_ms`
+  - keep draw counts and texture-bind behavior aligned with the retained
+    OpenGL baseline
+- What the workload showed:
+  - this retry was visually stable, but still slower than the retained
+    baseline
+  - retained `OpenGL` baseline:
+    - `benchmark/render_matrix_20260321_222447.json`
+    - `avg_fps 172.848`
+    - `low_1pct_fps 157.912`
+    - `avg_frame_cpu_ms 5.748`
+    - `avg_render_build_ms 4.909`
+    - `avg_gpu_frame_ms 1.158`
+    - `avg_projected_units_ms 1.422`
+    - `avg_projected_model_ms 1.058`
+  - controlled frame-block retry:
+    - `benchmark/render_matrix_20260321_230211.json`
+    - `avg_fps 149.732`
+    - `low_1pct_fps 112.621`
+    - `avg_frame_cpu_ms 6.629`
+    - `avg_render_build_ms 5.611`
+    - `avg_gpu_frame_ms 0.540`
+    - `avg_projected_units_ms 1.680`
+    - `avg_projected_model_ms 1.238`
+  - unlike the earlier broken UBO pass, the indexed path stayed healthy here:
+    - `avg_draw_calls 58`
+    - `backend_gl_texture_bind_calls 202`
+  - so this was a clean perf miss, not another rendering failure
+- Decision:
+  - revert; do not keep the frame/camera UBO migration on the current OpenGL
+    path
+- Follow-up:
+  - treat this as evidence that OpenGL uniform transport is not the next
+    attractive bottleneck
+  - prefer future OpenGL work that removes real indexed submission, state
+    churn, or texture/buffer work instead of repackaging already-cheap frame
+    uniforms
+
+### 2026-03-21: OpenGL full-skin shared GPU upload retry was a miss
+- Status:
+  - local experiment; not retained
+- Files:
+  - `src/game/runtime/shared/projected/SharedProjectedUnitBackendMeshSupport.cpp`
+- Hypothesis:
+  - now that the OpenGL path has the retained skin-UBO and texture-handle
+    caching wins, retry the earlier "prefer full shared GPU skin payloads"
+    policy on OpenGL and see if it now pays back
+- Expected win:
+  - reduce `projected_model_prep_ms`
+  - reduce `projected_model_geometry_ms`
+  - reduce steady-state `render_build_ms`
+- What the workload showed:
+  - the retry still moved the current heavy snapshot in the wrong direction
+  - fresh retained OpenGL baseline for the current local snapshot:
+    - `benchmark/render_matrix_20260321_230951.json`
+    - `avg_fps 145.068`
+    - `avg_frame_cpu_ms 6.906`
+    - `avg_render_build_ms 5.904`
+    - `avg_projected_units_ms 1.691`
+    - `avg_projected_model_ms 1.240`
+  - retry run:
+    - `benchmark/render_matrix_20260321_232349.json`
+    - `avg_fps 134.533`
+    - `avg_frame_cpu_ms 7.375`
+    - `avg_render_build_ms 6.216`
+    - `avg_projected_units_ms 1.784`
+    - `avg_projected_model_ms 1.281`
+- Decision:
+  - revert; do not widen the full-skin shared upload policy to OpenGL on the
+    current path
+- Follow-up:
+  - keep OpenGL on the retained skin-UBO path only
+  - if we revisit OpenGL full-skin sharing later, require a stronger measured
+    scene-specific reason than "it helped D3D12"
+
+### 2026-03-21: D3D12 world-shader skin ceiling alignment was a small win
+- Status:
+  - local experiment; retained for now
+- Files:
+  - `src/engine/render/d3d12/D3D12RenderBackendPipelines.cpp`
+- Hypothesis:
+  - the D3D12 shared world vertex shader was still clamping joint indices to
+    `64` even though the retained shared upload path and CPU-side limits
+    already support `128`, so aligning the shader ceiling might keep more
+    authored skin data on the intended GPU path
+- Expected win:
+  - reduce `projected_units_ms`
+  - reduce `render_build_ms`
+  - stay correctness-aligned with the existing `128`-joint CPU/shared-upload
+    path
+- What the workload showed:
+  - the change did not alter aggregate batch counts on the current heavy scene,
+    so this is not a dramatic coverage expansion
+  - it still stayed ahead of the fresh retained D3D12 baseline in the longer
+    confirmation run:
+    - baseline:
+      - `benchmark/render_matrix_20260321_231107.json`
+      - `avg_fps 153.169`
+      - `avg_frame_cpu_ms 6.413`
+      - `avg_render_build_ms 5.419`
+      - `avg_projected_units_ms 1.871`
+      - `avg_projected_model_ms 1.336`
+    - confirmation:
+      - `benchmark/render_matrix_20260321_232904.json`
+      - `avg_fps 160.221`
+      - `avg_frame_cpu_ms 6.135`
+      - `avg_render_build_ms 5.204`
+      - `avg_projected_units_ms 1.755`
+      - `avg_projected_model_ms 1.241`
+- Decision:
+  - keep; this removes a backend mismatch and measured as a modest positive on
+    the current heavy snapshot
+- Follow-up:
+  - treat this as a small D3D12-only cleanup, not a major new baseline shift
+  - if we later find assets with more than `64` live skin joints in the hot
+    path, remeasure because this change should matter more there
+
 ### 2026-03-20: retained debug-geometry GPU caching was a real win
 - Commit:
   - `f4b5eb3` `Cache retained debug geometry on GPU`
