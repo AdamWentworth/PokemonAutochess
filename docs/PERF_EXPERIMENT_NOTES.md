@@ -779,6 +779,117 @@ without the same context.
   - do a quick manual visual pass before treating this as a long-lived baseline
     commit
 
+### 2026-03-22: cached rigid-node GPU template reuse was a miss
+- Status:
+  - local experiment; reverted
+- Files:
+  - `src/game/runtime/shared/projected/SharedProjectedUnitBackendMeshSupport.h`
+  - `src/game/runtime/shared/projected/SharedProjectedUnitBackendMeshSupport.cpp`
+  - `src/game/runtime/shared/projected/SharedProjectedUnitBackendMeshRenderer.cpp`
+- Hypothesis:
+  - after moving rigid-node transforms onto the GPU, the remaining CPU work on
+    that path might be the per-frame rebuild of rigid-node vertex buffers
+  - if the fast textured cache also carried a prebuilt rigid-node GPU template,
+    clip-driven units could reuse shared vertices and only upload the current
+    node transform
+- Expected win:
+  - reduce `projected_model_prep_ms`
+  - reduce `projected_model_geometry_ms`
+  - reduce steady-state `render_build_ms`
+- What the workload showed:
+  - this went the wrong way on both backends in the current heavy snapshot
+  - the batch shape stayed flat, but the cached rigid-GPU-template path was not
+    cheaper than the retained shared-node-transform submission it displaced
+  - retained baseline before this retry:
+    - `benchmark/render_matrix_20260322_115900.json`
+    - `OpenGL`: `avg_fps 168.517`, `avg_frame_cpu_ms 5.857`,
+      `avg_render_build_ms 4.961`
+    - `D3D12`: `avg_fps 206.514`, `avg_frame_cpu_ms 4.769`,
+      `avg_render_build_ms 4.092`
+  - regressed retry:
+    - `benchmark/render_matrix_20260322_121017.json`
+    - `OpenGL`: `avg_fps 133.036`, `avg_frame_cpu_ms 7.389`,
+      `avg_render_build_ms 6.273`
+    - `D3D12`: `avg_fps 160.106`, `avg_frame_cpu_ms 6.156`,
+      `avg_render_build_ms 5.192`
+- Decision:
+  - revert; do not keep the cached rigid-node GPU template path
+- Follow-up:
+  - treat the retained rigid-node GPU-transform win as good enough by itself
+  - if we revisit this area, instrument why the shared-node-transform path is
+    still cheaper than the cached rigid-GPU-template variant before changing it
+
+### 2026-03-22: revisiting full GPU skin sharing on OpenGL was still a miss
+- Status:
+  - local experiment; reverted
+- Files:
+  - `src/game/runtime/shared/projected/SharedProjectedUnitBackendMeshSupport.cpp`
+- Hypothesis:
+  - now that OpenGL is on the retained skin-UBO path, it might finally benefit
+    from the same "full skin on GPU" policy D3D12 keeps instead of rebuilding
+    per-batch joint palettes on the CPU
+- Expected win:
+  - reduce `projected_model_prep_ms`
+  - reduce `render_build_ms`
+  - collapse `projected_gpu_clip_palette_batches` toward zero on OpenGL
+- What the workload showed:
+  - the policy change did remove palette batches, but the indexed path still got
+    slower overall
+  - current-snapshot baseline before the retry:
+    - `benchmark/render_matrix_20260322_121843.json`
+    - `OpenGL`: `avg_fps 138.053`, `avg_frame_cpu_ms 7.153`,
+      `avg_render_build_ms 6.002`, `avg_projected_model_ms 1.296`
+  - regressed retry:
+    - `benchmark/render_matrix_20260322_121948.json`
+    - `OpenGL`: `avg_fps 134.091`, `avg_frame_cpu_ms 7.319`,
+      `avg_render_build_ms 6.121`, `avg_projected_model_ms 1.198`
+  - detailed counter check from `benchmark/render_matrix_20260322_121948_raw/opengl_1280x720.log`:
+    - `projected_gpu_clip_palette_batches` did fall to `0`
+    - but `render_world_indexed_ms` climbed into the `~1.74-1.87 ms` range and
+      outweighed the smaller prep-side savings
+- Decision:
+  - revert; keep full-GPU-skin preference D3D12-only for now
+- Follow-up:
+  - if we want another OpenGL-specific offload, it should target the indexed
+    submit path directly instead of just replacing palette packing with larger
+    skin uploads
+
+### 2026-03-22: D3D12 frame-local skin upload reuse was a miss
+- Status:
+  - local experiment; reverted
+- Files:
+  - `src/engine/render/D3D12RenderBackend.h`
+  - `src/engine/render/d3d12/D3D12RenderBackendLifecycle.cpp`
+  - `src/engine/render/d3d12/D3D12RenderBackendWorldDraw.cpp`
+- Hypothesis:
+  - the heavy scene already shares full GPU skin payloads logically, but the
+    D3D12 draw path only reused an uploaded skin buffer when matching batches
+    were consecutive
+  - a frame-local cache keyed by the existing skin payload pointer, mode, and
+    count should let non-consecutive matching batches reuse the same GPU upload
+    and avoid repeated CPU-side copies during submit
+- Expected win:
+  - reduce `avg_render_submit_ms`
+  - slightly reduce `avg_frame_cpu_ms`
+  - keep `avg_render_build_ms` flat
+- What the workload showed:
+  - this did not help on the current heavy snapshot
+  - A/B on the same machine state:
+    - patched run:
+      - `benchmark/render_matrix_20260322_122737.json`
+      - `D3D12`: `avg_fps 180.993`, `avg_frame_cpu_ms 5.420`,
+        `avg_render_build_ms 4.613`, `avg_projected_units_ms 1.492`
+    - reverted run:
+      - `benchmark/render_matrix_20260322_122944.json`
+      - `D3D12`: `avg_fps 183.033`, `avg_frame_cpu_ms 5.346`,
+        `avg_render_build_ms 4.562`, `avg_projected_units_ms 1.427`
+- Decision:
+  - revert; do not keep the frame-local D3D12 skin upload cache
+- Follow-up:
+  - if we revisit D3D12 skin uploads, the next step should be a larger payload
+    split such as static inverse-bind resources plus dynamic joint globals,
+    rather than caching repeated copies of the current packed upload
+
 ### 2026-03-20: retained debug-geometry GPU caching was a real win
 - Commit:
   - `f4b5eb3` `Cache retained debug geometry on GPU`
