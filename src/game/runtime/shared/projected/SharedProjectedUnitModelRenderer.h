@@ -8,6 +8,7 @@
 #include "game/runtime/shared/backend/SharedBackendPoseEval.h"
 #include "game/runtime/shared/backend/SharedBackendTextureCache.h"
 #include "game/runtime/shared/projected/SharedProjectedDebugVfx.h"
+#include "game/runtime/shared/projected/SharedProjectedRenderItems.h"
 #include "game/runtime/shared/projected/SharedProjectedWorldSceneHelpers.h"
 #include "game/runtime/shared/vfx/tail_fire/SharedTailFireFallbackEmitter.h"
 #include "game/runtime/shared/world/SharedWorldIndexedBatches.h"
@@ -69,6 +70,7 @@ struct Args {
     bool characterInkingEnabled = false;
 
     shared_projected_debug::ProjectedDebugVfxBuilder* projectedDebug = nullptr;
+    shared_projected_render_items::ProjectedRenderItemRegistry* projectedRenderItems = nullptr;
     std::unordered_map<int, shared_tail_fire_fallback::Anchor>* sharedTailFireAnchors = nullptr;
     std::vector<shared_world_batches::WorldIndexedBatch>* worldIndexedBatches = nullptr;
     std::unordered_map<std::string, SharedBackendTextureCacheEntry>* backendTextureByPath = nullptr;

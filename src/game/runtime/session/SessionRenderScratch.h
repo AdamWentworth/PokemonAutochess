@@ -2,6 +2,7 @@
 
 #include "engine/render/IRenderBackend.h"
 #include "game/runtime/shared/capture/SharedCapturePresentation.h"
+#include "game/runtime/shared/projected/SharedProjectedRenderItems.h"
 #include "game/runtime/shared/vfx/tail_fire/SharedTailFireFallbackEmitter.h"
 #include "game/runtime/shared/world/SharedWorldIndexedBatches.h"
 
@@ -50,6 +51,7 @@ struct RenderScratch {
     std::vector<IRenderBackend::DebugLine> textLines;
     std::vector<IRenderBackend::DebugSprite> sprites;
     std::vector<BackendUnitLabel> unitLabels;
+    shared_projected_render_items::ProjectedRenderItemRegistry projectedRenderItems;
     std::unordered_map<int, shared_tail_fire_fallback::Anchor> sharedTailFireAnchors;
     shared_capture::SnapshotCache sharedCaptureAttemptCache;
     bool projectedBackdropValid = false;

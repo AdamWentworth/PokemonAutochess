@@ -139,6 +139,7 @@ Result appendProjectedWorldView(const Args& args) {
     projectedUnitArgs.cameraWorldPos =
         glm::vec3(out.cameraWorldPos[0], out.cameraWorldPos[1], out.cameraWorldPos[2]);
     projectedUnitArgs.projectedDebug = &projectedDebug;
+    projectedUnitArgs.projectedRenderItems = &args.scratch->projectedRenderItems;
     projectedUnitArgs.sharedCaptureAttemptCache = &args.scratch->sharedCaptureAttemptCache;
     projectedUnitArgs.sharedTailFireAnchors = &args.scratch->sharedTailFireAnchors;
     projectedUnitArgs.worldIndexedBatches = &args.scratch->worldIndexedBatches;

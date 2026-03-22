@@ -701,6 +701,7 @@ for (const auto& unit : units) {
                 .supportsWorldIndexedMeshes = supportsWorldIndexedMeshes,
                 .characterInkingEnabled = characterInkingEnabled,
                 .projectedDebug = &projectedDebug,
+                .projectedRenderItems = args.projectedRenderItems,
                 .sharedTailFireAnchors = &sharedTailFireAnchors,
                 .worldIndexedBatches = &worldIndexedBatches,
                 .backendTextureByPath = args.backendTextureByPath,

@@ -318,6 +318,7 @@ add_library(PAC_GameObjects STATIC
     src/game/runtime/shared/capture/SharedCapturePreparedMeshCache.cpp
     src/game/runtime/shared/world/SharedBoardGridBatches.cpp
     src/game/runtime/shared/projected/SharedProjectedDebugVfx.cpp
+    src/game/runtime/shared/projected/SharedProjectedRenderItems.cpp
     src/game/runtime/shared/projected/SharedProjectedUnitBackendMeshRenderer.cpp
     src/game/runtime/shared/projected/SharedProjectedUnitBackendMeshSupport.cpp
     src/game/runtime/shared/projected/SharedProjectedUnitBackendMeshPrep.cpp

@@ -1,5 +1,6 @@
 #include "game/runtime/shared/projected/SharedProjectedUnitBackendMeshRenderer.h"
 #include "game/runtime/shared/projected/SharedProjectedUnitBackendMeshPrep.h"
+#include "game/runtime/shared/projected/SharedProjectedRenderItems.h"
 #include "game/runtime/shared/projected/SharedProjectedUnitBackendMeshSupport.h"
 #include "game/runtime/shared/projected/SharedProjectedUnitBackendMeshTriangleSubmit.h"
 #include "game/runtime/shared/projected/SharedProjectedUnitBackendMeshTransforms.h"
@@ -23,6 +24,7 @@
 #include <glm/gtc/type_ptr.hpp>
 
 namespace support = game::runtime::shared_projected_unit_backend_mesh_support;
+namespace persistent = game::runtime::shared_projected_render_items;
 
 namespace game::runtime::shared_projected_unit_backend_mesh {
 
@@ -73,6 +75,7 @@ Result renderProjectedUnitBackendMesh(const Args& args) {
 
     const auto& unit = *args.unit;
     const auto* meshForUnit = args.meshForUnit;
+    auto* projectedRenderItems = args.projectedRenderItems;
 
     const float captureVisualTintStrength = args.captureVisualTintStrength;
     const float modelFadeAlpha = args.modelFadeAlpha;
@@ -133,6 +136,41 @@ Result renderProjectedUnitBackendMesh(const Args& args) {
         const bool downsampleModelTriangles = prep.downsampleModelTriangles;
         const float fastTexturedAlpha = prep.fastTexturedAlpha;
         const glm::vec3& fastTexturedTint = prep.fastTexturedTint;
+        const std::uint32_t projectedRenderFrameStamp =
+            projectedRenderItems ? projectedRenderItems->currentFrameId : 0u;
+        auto syncPersistentRenderItem =
+            [&](std::uint32_t itemIndex,
+                const shared_world_batches::WorldIndexedBatch& batch,
+                std::uint32_t baseSubmeshIndex,
+                int triNodeIndex,
+                int meshNodeIndex,
+                bool skinnedBatch,
+                bool canUseSharedNodeTransform,
+                bool hasStableGpuTemplate,
+                const void* geometryTemplateIdentity) {
+                if (!projectedRenderItems || !mesh) return;
+                persistent::ProjectedRenderItemKey key{};
+                key.unitId = unit.id;
+                key.mesh = mesh;
+                key.itemIndex = itemIndex;
+                auto& entry =
+                    persistent::ensureProjectedRenderItem(*projectedRenderItems, key);
+                persistent::touchProjectedRenderItem(*projectedRenderItems, entry);
+                persistent::syncProjectedRenderItemStaticTemplate(
+                    entry,
+                    batch,
+                    baseSubmeshIndex,
+                    triNodeIndex,
+                    meshNodeIndex,
+                    skinnedBatch,
+                    canUseSharedNodeTransform,
+                    hasStableGpuTemplate,
+                    geometryTemplateIdentity);
+                persistent::syncProjectedRenderItemDynamicState(
+                    entry,
+                    batch,
+                    projectedRenderFrameStamp);
+            };
         shared_projected_unit_backend_mesh_transforms::Resolver transforms;
         transforms.initialize(args, prep);
         const auto geometryStart = Clock::now();
@@ -181,7 +219,9 @@ Result renderProjectedUnitBackendMesh(const Args& args) {
             gpuSkinBatchStates.reserve(fastCache.batches.size());
             support::GpuSkinBatchStateEntry* lastGpuSkinBatchState = nullptr;
 
-            for (const auto& srcBatch : fastCache.batches) {
+            for (std::size_t fastBatchIndex = 0; fastBatchIndex < fastCache.batches.size();
+                 ++fastBatchIndex) {
+                const auto& srcBatch = fastCache.batches[fastBatchIndex];
                 const bool hasSharedTemplate =
                     srcBatch.baseSubmeshIndex < modelIndexedBatchesPerSubmesh.size() &&
                     modelIndexedBatchesPerSubmesh[srcBatch.baseSubmeshIndex].sharedTemplate != nullptr;
@@ -213,6 +253,7 @@ Result renderProjectedUnitBackendMesh(const Args& args) {
                 }
 
                 bool configuredBatch = false;
+                bool canUseSharedNodeTransform = false;
                 if (args.enableGpuClipSkinning) {
                     const int skinCacheKey = transforms.gpuSkinningCacheKeyForNode(
                         resolvedTriNodeIndex);
@@ -302,7 +343,7 @@ Result renderProjectedUnitBackendMesh(const Args& args) {
                 }
 
                 if (!configuredBatch) {
-                    const bool canUseSharedNodeTransform =
+                    canUseSharedNodeTransform =
                         !srcBatch.skinnedBatch &&
                         !srcBatch.gpuTemplateVertices.empty() &&
                         !srcBatch.indices.empty();
@@ -330,6 +371,19 @@ Result renderProjectedUnitBackendMesh(const Args& args) {
                     directFastPathFallbackNeeded = true;
                     break;
                 }
+
+                syncPersistentRenderItem(
+                    static_cast<std::uint32_t>(fastBatchIndex),
+                    dstBatch,
+                    static_cast<std::uint32_t>(srcBatch.baseSubmeshIndex),
+                    resolvedTriNodeIndex,
+                    resolvedTriNodeIndex,
+                    srcBatch.skinnedBatch,
+                    canUseSharedNodeTransform,
+                    !srcBatch.gpuTemplateVertices.empty() && !srcBatch.indices.empty(),
+                    !srcBatch.gpuTemplateVertices.empty() && !srcBatch.indices.empty()
+                        ? static_cast<const void*>(&srcBatch)
+                        : nullptr);
 
                 ++directIndexedBatchesQueued;
             }
@@ -1355,6 +1409,43 @@ Result renderProjectedUnitBackendMesh(const Args& args) {
             for (std::size_t bi = 0; bi < modelIndexedBatchesPerSubmesh.size(); ++bi) {
                 auto& batch = modelIndexedBatchesPerSubmesh[bi];
                 if (!batch.hasGeometry()) continue;
+                std::size_t baseSubmeshIndex = support::resolveBatchBaseSubmeshIndex(batch, bi);
+                int triNodeIndex = -1;
+                bool skinnedBatch = false;
+                bool hasStableGpuTemplate =
+                    batch.sharedVertices != nullptr &&
+                    batch.sharedVertexCount > 0u &&
+                    batch.sharedIndices != nullptr &&
+                    batch.sharedIndexCount > 0u;
+                if (fastCachePtr && bi < fastCachePtr->batches.size()) {
+                    const auto& srcBatch = fastCachePtr->batches[bi];
+                    baseSubmeshIndex = srcBatch.baseSubmeshIndex;
+                    triNodeIndex = srcBatch.triNodeIndex;
+                    skinnedBatch = srcBatch.skinnedBatch;
+                    hasStableGpuTemplate =
+                        !srcBatch.gpuTemplateVertices.empty() && !srcBatch.indices.empty();
+                } else if (baseSubmeshIndex < submeshNodeFallback.size()) {
+                    triNodeIndex = submeshNodeFallback[baseSubmeshIndex];
+                }
+                const bool canUseSharedNodeTransform =
+                    !skinnedBatch &&
+                    batch.gpuSkinning == 0u &&
+                    batch.sharedVertices != nullptr &&
+                    batch.sharedVertexCount > 0u &&
+                    batch.sharedIndices != nullptr &&
+                    batch.sharedIndexCount > 0u;
+                syncPersistentRenderItem(
+                    static_cast<std::uint32_t>(bi),
+                    batch,
+                    static_cast<std::uint32_t>(baseSubmeshIndex),
+                    triNodeIndex,
+                    triNodeIndex,
+                    skinnedBatch,
+                    canUseSharedNodeTransform,
+                    hasStableGpuTemplate,
+                    (fastCachePtr && bi < fastCachePtr->batches.size() && hasStableGpuTemplate)
+                        ? static_cast<const void*>(&fastCachePtr->batches[bi])
+                        : nullptr);
                 if (batch.gpuSkinning != 0u) {
                     ++gpuClipSkinBatches;
                     if (bi < batchUsesGpuClipPalette.size() &&

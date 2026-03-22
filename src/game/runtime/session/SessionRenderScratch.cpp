@@ -37,6 +37,9 @@ void ensureCapacity(RenderScratch& scratch) {
     if (scratch.textLines.capacity() < 8192u) scratch.textLines.reserve(8192u);
     if (scratch.sprites.capacity() < 256u) scratch.sprites.reserve(256u);
     if (scratch.unitLabels.capacity() < 64u) scratch.unitLabels.reserve(64u);
+    if (scratch.projectedRenderItems.entries.bucket_count() < 256u) {
+        scratch.projectedRenderItems.entries.reserve(256u);
+    }
     if (scratch.sharedTailFireAnchors.bucket_count() < 16u) scratch.sharedTailFireAnchors.reserve(16u);
     if (scratch.sharedCaptureAttemptCache.snaps.capacity() < 8u) scratch.sharedCaptureAttemptCache.snaps.reserve(8u);
     if (scratch.sharedCaptureAttemptCache.byTargetId.bucket_count() < 8u) {
@@ -53,6 +56,8 @@ void invalidateProjectedBackdrop(RenderScratch& scratch) {
 }
 
 void beginFrame(RenderScratch& scratch, bool useProjectedWorldLayout) {
+    shared_projected_render_items::beginProjectedRenderItemsFrame(
+        scratch.projectedRenderItems);
     scratch.worldQuads.clear();
     scratch.worldIndexedBatches.clear();
     scratch.overlayQuads.clear();
@@ -77,6 +82,8 @@ void beginFrame(RenderScratch& scratch, bool useProjectedWorldLayout) {
     scratch.lines.clear();
     if (!useProjectedWorldLayout) {
         invalidateProjectedBackdrop(scratch);
+        shared_projected_render_items::resetProjectedRenderItems(
+            scratch.projectedRenderItems);
     }
 }
 
