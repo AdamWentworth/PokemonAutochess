@@ -5,6 +5,7 @@
 #include "game/runtime/shared/backend/SharedBackendPoseEval.h"
 #include "game/runtime/shared/world/SharedWorldIndexedBatches.h"
 
+#include <array>
 #include <cstddef>
 #include <vector>
 
@@ -19,6 +20,7 @@ struct PreparedState {
     const runtime::render_model::MeshData* mesh = nullptr;
     std::size_t triangleCount = 0u;
     std::size_t effectiveUnitTriangleBudget = 0u;
+    std::size_t modelIndexedBatchCount = 0u;
 
     bool useIndexedWorldModelPath = false;
     bool fullIndexedMeshPath = false;
@@ -33,6 +35,8 @@ struct PreparedState {
     glm::vec3 fallbackBase{1.0f};
 
     glm::mat4 modelM{1.0f};
+    std::array<float, 16> modelMatrix{};
+    float indexedBatchSortDepth = 0.0f;
 
     std::size_t modelDepthCountBefore = 0u;
     std::size_t modelDepthWorldCountBefore = 0u;
@@ -42,6 +46,7 @@ struct PreparedState {
     runtime::shared_backend_pose::PoseEval ownedScenePose{};
 
     const std::vector<int>* submeshNodeFallback = nullptr;
+    const std::vector<shared_world_batches::WorldIndexedBatch>* modelIndexedBatchTemplates = nullptr;
     std::vector<shared_world_batches::WorldIndexedBatch> modelIndexedBatchesPerSubmesh;
     std::vector<std::vector<int>> modelIndexedVertexRemap;
 
@@ -50,5 +55,8 @@ struct PreparedState {
 
 // Returns false when rendering should stop immediately (for example triangleCount==0 sets skipUnit).
 bool prepareProjectedUnitBackendMesh(const Args& args, Result& out, PreparedState& prepared);
+bool prepareProjectedUnitBackendMeshWorldScene(const Args& args,
+                                               Result& out,
+                                               PreparedState& prepared);
 
 } // namespace game::runtime::shared_projected_unit_backend_mesh_prep

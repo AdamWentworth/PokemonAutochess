@@ -71,7 +71,7 @@ bool tryRenderProjectedUnitModelWorldScene(
     const auto prepStart = Clock::now();
 
     prep::PreparedState prepared;
-    if (!prep::prepareProjectedUnitBackendMesh(args, out, prepared)) {
+    if (!prep::prepareProjectedUnitBackendMeshWorldScene(args, out, prepared)) {
         if (args.perfBreakdown) {
             args.perfBreakdown->prepMs +=
                 std::chrono::duration<double, std::milli>(Clock::now() - prepStart).count();
@@ -83,7 +83,8 @@ bool tryRenderProjectedUnitModelWorldScene(
         !prepared.fullIndexedMeshPath ||
         !prepared.mesh ||
         !prepared.submeshNodeFallback ||
-        prepared.modelIndexedBatchesPerSubmesh.empty()) {
+        !prepared.modelIndexedBatchTemplates ||
+        prepared.modelIndexedBatchCount == 0u) {
         if (args.perfBreakdown) {
             args.perfBreakdown->prepMs +=
                 std::chrono::duration<double, std::milli>(Clock::now() - prepStart).count();
@@ -97,7 +98,7 @@ bool tryRenderProjectedUnitModelWorldScene(
         support::ensureFastTexturedMeshTemplateCache(
             prepared.mesh,
             *prepared.submeshNodeFallback,
-            prepared.modelIndexedBatchesPerSubmesh.size(),
+            prepared.modelIndexedBatchCount,
             preferFullGpuSkinning);
     if (!fastCache || fastCache->batches.empty()) {
         if (args.perfBreakdown) {
@@ -114,7 +115,7 @@ bool tryRenderProjectedUnitModelWorldScene(
         const auto& batchTemplate = fastCache->batches[fastBatchIndex];
         if (batchTemplate.gpuTemplateVertices.empty() ||
             batchTemplate.indices.size() < 3u ||
-            batchTemplate.baseSubmeshIndex >= prepared.modelIndexedBatchesPerSubmesh.size()) {
+            batchTemplate.baseSubmeshIndex >= prepared.modelIndexedBatchTemplates->size()) {
             if (args.perfBreakdown) {
                 args.perfBreakdown->prepMs +=
                     std::chrono::duration<double, std::milli>(Clock::now() - prepStart).count();
@@ -122,14 +123,12 @@ bool tryRenderProjectedUnitModelWorldScene(
             return false;
         }
 
-        const auto& runtimeBatch =
-            prepared.modelIndexedBatchesPerSubmesh[batchTemplate.baseSubmeshIndex];
-        const auto* materialTemplate = runtimeBatch.sharedTemplate;
-        if (!materialTemplate ||
-            runtimeBatch.materialAlphaOverride ||
-            materialTemplate->blendMode != 0u ||
-            materialTemplate->materialMode != 2u ||
-            materialTemplate->alphaMode == 2u) {
+        const auto& materialTemplate =
+            (*prepared.modelIndexedBatchTemplates)[batchTemplate.baseSubmeshIndex];
+        if (prepared.fastTexturedAlpha < 0.999f ||
+            materialTemplate.blendMode != 0u ||
+            materialTemplate.materialMode != 2u ||
+            materialTemplate.alphaMode == 2u) {
             if (args.perfBreakdown) {
                 args.perfBreakdown->prepMs +=
                     std::chrono::duration<double, std::milli>(Clock::now() - prepStart).count();
@@ -277,9 +276,8 @@ bool tryRenderProjectedUnitModelWorldScene(
 
     for (std::size_t fastBatchIndex = 0; fastBatchIndex < fastCache->batches.size(); ++fastBatchIndex) {
         const auto& batchTemplate = fastCache->batches[fastBatchIndex];
-        const auto& runtimeBatch =
-            prepared.modelIndexedBatchesPerSubmesh[batchTemplate.baseSubmeshIndex];
-        const auto* materialTemplate = runtimeBatch.sharedTemplate;
+        const auto& materialTemplate =
+            (*prepared.modelIndexedBatchTemplates)[batchTemplate.baseSubmeshIndex];
 
         persistent::ProjectedRenderItemKey itemKey{};
         itemKey.unitId = args.unit->id;
@@ -301,8 +299,8 @@ bool tryRenderProjectedUnitModelWorldScene(
                 batchTemplate.indices.size());
             const auto materialHandle = shared_world_scene::ensureMaterialFromBatchTemplate(
                 *args.worldSceneRegistry,
-                materialTemplate,
-                *materialTemplate);
+                &materialTemplate,
+                materialTemplate);
             itemEntry.worldSceneObjectHandle = shared_world_scene::ensureRenderObject(
                 *args.worldSceneRegistry,
                 geometryHandle,
@@ -328,7 +326,7 @@ bool tryRenderProjectedUnitModelWorldScene(
                 sceneColor.g,
                 sceneColor.b,
                 sceneAlpha,
-                runtimeBatch.sortDepth,
+                prepared.indexedBatchSortDepth,
                 skinState.gpuSkinningMode,
                 skinState.skinMatrixCount,
                 skinState.sharedSkinMatrices);
@@ -337,12 +335,12 @@ bool tryRenderProjectedUnitModelWorldScene(
                 *args.worldSceneFrame,
                 itemEntry.worldSceneObjectHandle,
                 instanceHandle,
-                runtimeBatch.modelMatrix,
+                prepared.modelMatrix,
                 sceneColor.r,
                 sceneColor.g,
                 sceneColor.b,
                 sceneAlpha,
-                runtimeBatch.sortDepth);
+                prepared.indexedBatchSortDepth);
         }
     }
 

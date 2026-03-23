@@ -343,6 +343,7 @@ void PreparedState::reset() {
     mesh = nullptr;
     triangleCount = 0u;
     effectiveUnitTriangleBudget = 0u;
+    modelIndexedBatchCount = 0u;
 
     useIndexedWorldModelPath = false;
     fullIndexedMeshPath = false;
@@ -357,6 +358,12 @@ void PreparedState::reset() {
     fallbackBase = glm::vec3(1.0f);
 
     modelM = glm::mat4(1.0f);
+    modelMatrix = {
+        1.0f, 0.0f, 0.0f, 0.0f,
+        0.0f, 1.0f, 0.0f, 0.0f,
+        0.0f, 0.0f, 1.0f, 0.0f,
+        0.0f, 0.0f, 0.0f, 1.0f};
+    indexedBatchSortDepth = 0.0f;
 
     modelDepthCountBefore = 0u;
     modelDepthWorldCountBefore = 0u;
@@ -369,9 +376,17 @@ void PreparedState::reset() {
     ownedScenePose.nodeGlobals.clear();
 
     submeshNodeFallback = nullptr;
+    modelIndexedBatchTemplates = nullptr;
+    modelIndexedBatchesPerSubmesh.clear();
+    modelIndexedVertexRemap.clear();
 }
 
-bool prepareProjectedUnitBackendMesh(const Args& args, Result& out, PreparedState& prepared) {
+namespace {
+
+bool prepareProjectedUnitBackendMeshCommon(const Args& args,
+                                           Result& out,
+                                           PreparedState& prepared,
+                                           bool materializeIndexedBatches) {
     const auto& unit = *args.unit;
     const auto* mesh = args.meshForUnit;
     const auto* scenePose = args.scenePose;
@@ -456,6 +471,8 @@ bool prepareProjectedUnitBackendMesh(const Args& args, Result& out, PreparedStat
         glm::rotate(glm::mat4(1.0f), glm::radians(args.animRoll), glm::vec3(0, 0, 1));
     const glm::mat4 translation = glm::translate(glm::mat4(1.0f), renderPos);
     prepared.modelM = translation * rotationY * rotationX * rotationZ * scale;
+    const float* modelM = glm::value_ptr(prepared.modelM);
+    std::copy(modelM, modelM + 16, prepared.modelMatrix.begin());
 
     prepared.modelDepthCountBefore = modelDepthTris.size();
     prepared.modelDepthWorldCountBefore = modelDepthWorldTris.size();
@@ -466,6 +483,7 @@ bool prepareProjectedUnitBackendMesh(const Args& args, Result& out, PreparedStat
     if (prepared.useIndexedWorldModelPath) {
         const std::size_t batchCount =
             std::max<std::size_t>(1u, mesh->submeshBaseTextures.size());
+        prepared.modelIndexedBatchCount = batchCount;
         const auto* templateBatches =
             getIndexedBatchTemplates(
                 mesh,
@@ -474,58 +492,62 @@ bool prepareProjectedUnitBackendMesh(const Args& args, Result& out, PreparedStat
                 batchCount);
         const bool hasTemplateBatches =
             templateBatches && templateBatches->size() == batchCount;
-        prepared.modelIndexedBatchesPerSubmesh.resize(batchCount);
-        if (hasTemplateBatches) {
-            for (std::size_t si = 0; si < batchCount; ++si) {
-                applyIndexedBatchTemplateShallow(
-                    (*templateBatches)[si], prepared.modelIndexedBatchesPerSubmesh[si]);
-            }
-        } else {
-            for (auto& batch : prepared.modelIndexedBatchesPerSubmesh) {
-                batch.sharedTemplate = nullptr;
-            }
-        }
-        if (prepared.fullIndexedMeshPath &&
-            !prepared.useFastTexturedFullMeshPath &&
-            !mesh->vertices.empty()) {
-            prepared.modelIndexedVertexRemap.resize(batchCount);
-            for (auto& remap : prepared.modelIndexedVertexRemap) {
-                if (remap.size() != mesh->vertices.size()) {
-                    remap.resize(mesh->vertices.size(), -1);
-                }
-                std::fill(remap.begin(), remap.end(), -1);
-            }
-        } else {
-            prepared.modelIndexedVertexRemap.clear();
-        }
+        prepared.modelIndexedBatchTemplates = hasTemplateBatches ? templateBatches : nullptr;
+        prepared.indexedBatchSortDepth =
+            glm::dot(args.cameraWorldPos - args.proxyCenter, args.cameraWorldPos - args.proxyCenter);
 
-        for (std::size_t si = 0; si < prepared.modelIndexedBatchesPerSubmesh.size(); ++si) {
-            auto& batch = prepared.modelIndexedBatchesPerSubmesh[si];
-            batch.vertices.clear();
-            batch.indices.clear();
-            batch.sharedVertices = nullptr;
-            batch.sharedVertexCount = 0u;
-            batch.sharedIndices = nullptr;
-            batch.sharedIndexCount = 0u;
-            batch.gpuSkinning = 0u;
-            batch.skinMatrixCount = 0u;
-            batch.sharedSkinMatrices = nullptr;
-            batch.skinMatrices.clear();
-            if (!prepared.useFastTexturedFullMeshPath) {
-                batch.vertices.reserve((effectiveUnitTriangleBudget * 3u) / batchCount + 64u);
-                batch.indices.reserve((effectiveUnitTriangleBudget * 3u) / batchCount + 64u);
-            }
-            batch.sortDepth =
-                glm::dot(args.cameraWorldPos - args.proxyCenter, args.cameraWorldPos - args.proxyCenter);
-            const float* modelM = glm::value_ptr(prepared.modelM);
-            std::copy(modelM, modelM + 16, batch.modelMatrix.begin());
-            if (args.modelFadeAlpha < 0.999f) {
-                batch.materialAlphaOverride = true;
-                batch.alphaMode = 2u;
-                batch.blendMode = 0u;
-                batch.alphaCutoff = 0.0f;
+        if (materializeIndexedBatches) {
+            prepared.modelIndexedBatchesPerSubmesh.resize(batchCount);
+            if (hasTemplateBatches) {
+                for (std::size_t si = 0; si < batchCount; ++si) {
+                    applyIndexedBatchTemplateShallow(
+                        (*templateBatches)[si], prepared.modelIndexedBatchesPerSubmesh[si]);
+                }
             } else {
-                batch.materialAlphaOverride = false;
+                for (auto& batch : prepared.modelIndexedBatchesPerSubmesh) {
+                    batch.sharedTemplate = nullptr;
+                }
+            }
+            if (prepared.fullIndexedMeshPath &&
+                !prepared.useFastTexturedFullMeshPath &&
+                !mesh->vertices.empty()) {
+                prepared.modelIndexedVertexRemap.resize(batchCount);
+                for (auto& remap : prepared.modelIndexedVertexRemap) {
+                    if (remap.size() != mesh->vertices.size()) {
+                        remap.resize(mesh->vertices.size(), -1);
+                    }
+                    std::fill(remap.begin(), remap.end(), -1);
+                }
+            } else {
+                prepared.modelIndexedVertexRemap.clear();
+            }
+
+            for (std::size_t si = 0; si < prepared.modelIndexedBatchesPerSubmesh.size(); ++si) {
+                auto& batch = prepared.modelIndexedBatchesPerSubmesh[si];
+                batch.vertices.clear();
+                batch.indices.clear();
+                batch.sharedVertices = nullptr;
+                batch.sharedVertexCount = 0u;
+                batch.sharedIndices = nullptr;
+                batch.sharedIndexCount = 0u;
+                batch.gpuSkinning = 0u;
+                batch.skinMatrixCount = 0u;
+                batch.sharedSkinMatrices = nullptr;
+                batch.skinMatrices.clear();
+                if (!prepared.useFastTexturedFullMeshPath) {
+                    batch.vertices.reserve((effectiveUnitTriangleBudget * 3u) / batchCount + 64u);
+                    batch.indices.reserve((effectiveUnitTriangleBudget * 3u) / batchCount + 64u);
+                }
+                batch.sortDepth = prepared.indexedBatchSortDepth;
+                batch.modelMatrix = prepared.modelMatrix;
+                if (args.modelFadeAlpha < 0.999f) {
+                    batch.materialAlphaOverride = true;
+                    batch.alphaMode = 2u;
+                    batch.blendMode = 0u;
+                    batch.alphaCutoff = 0.0f;
+                } else {
+                    batch.materialAlphaOverride = false;
+                }
             }
         }
     }
@@ -563,6 +585,18 @@ bool prepareProjectedUnitBackendMesh(const Args& args, Result& out, PreparedStat
     }
 
     return true;
+}
+
+} // namespace
+
+bool prepareProjectedUnitBackendMesh(const Args& args, Result& out, PreparedState& prepared) {
+    return prepareProjectedUnitBackendMeshCommon(args, out, prepared, true);
+}
+
+bool prepareProjectedUnitBackendMeshWorldScene(const Args& args,
+                                               Result& out,
+                                               PreparedState& prepared) {
+    return prepareProjectedUnitBackendMeshCommon(args, out, prepared, false);
 }
 
 } // namespace game::runtime::shared_projected_unit_backend_mesh_prep
