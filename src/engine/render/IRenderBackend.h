@@ -397,6 +397,7 @@ public:
         const std::vector<WorldSceneSkeletonLayout>* skeletonLayouts = nullptr;
         const std::vector<WorldSceneAnimationClip>* animationClips = nullptr;
         const std::vector<WorldSceneRenderObject>* renderObjects = nullptr;
+        std::uint32_t registryGeneration = 0u;
         const float* viewProjectionMatrix4x4 = nullptr;
         int surfaceWidth = 0;
         int surfaceHeight = 0;

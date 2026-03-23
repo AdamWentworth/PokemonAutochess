@@ -497,6 +497,8 @@ void D3D12RenderBackend::shutdown() {
     spriteTextures_.clear();
     worldTextures_.clear();
     worldMaterialDescriptorBlocks_.clear();
+    worldSceneMaterialBindingCache_.clear();
+    worldSceneMaterialBindingCacheGeneration_ = 0u;
     if (spriteVertexBuffer_ && spriteVertexMappedData_) {
         D3D12_RANGE readRange{0, 0};
         spriteVertexBuffer_->Unmap(0, &readRange);

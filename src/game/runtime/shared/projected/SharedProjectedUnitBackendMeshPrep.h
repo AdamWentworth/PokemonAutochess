@@ -46,7 +46,6 @@ struct PreparedState {
     runtime::shared_backend_pose::PoseEval ownedScenePose{};
 
     const std::vector<int>* submeshNodeFallback = nullptr;
-    const std::vector<shared_world_batches::WorldIndexedBatch>* modelIndexedBatchTemplates = nullptr;
     std::vector<shared_world_batches::WorldIndexedBatch> modelIndexedBatchesPerSubmesh;
     std::vector<std::vector<int>> modelIndexedVertexRemap;
 

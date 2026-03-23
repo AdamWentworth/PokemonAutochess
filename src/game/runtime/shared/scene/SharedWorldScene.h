@@ -42,6 +42,10 @@ IRenderBackend::WorldSceneMaterialHandle ensureMaterialFromBatchTemplate(
     WorldSceneRegistry& registry,
     const void* identity,
     const shared_world_batches::WorldIndexedBatch& batchTemplate);
+IRenderBackend::WorldSceneMaterialHandle ensureMaterial(
+    WorldSceneRegistry& registry,
+    const void* identity,
+    const IRenderBackend::WorldSceneMaterial& materialTemplate);
 
 IRenderBackend::WorldSceneRenderObjectHandle ensureRenderObject(
     WorldSceneRegistry& registry,

@@ -443,6 +443,60 @@ void D3D12RenderBackend::drawWorldIndexedMeshTexturedCachedInstanced(
     int surfaceWidth,
     int surfaceHeight) {
 #if defined(_WIN32)
+    std::uint32_t materialDescriptorBlockIndex = 0u;
+    float useTexture = 0.0f;
+    if (!prepareWorldMaterialDescriptorBlock(
+            texture,
+            /*logPbrBinding=*/false,
+            materialDescriptorBlockIndex,
+            useTexture)) {
+        return;
+    }
+
+    drawWorldIndexedMeshTexturedCachedPreparedInstanced(
+        geometryKey,
+        vertices,
+        vertexCount,
+        indices,
+        indexCount,
+        materialDescriptorBlockIndex,
+        texture,
+        useTexture,
+        instances,
+        instanceCount,
+        viewProjectionMatrix4x4,
+        surfaceWidth,
+        surfaceHeight);
+#else
+    (void)geometryKey;
+    (void)vertices;
+    (void)vertexCount;
+    (void)indices;
+    (void)indexCount;
+    (void)texture;
+    (void)instances;
+    (void)instanceCount;
+    (void)viewProjectionMatrix4x4;
+    (void)surfaceWidth;
+    (void)surfaceHeight;
+#endif
+}
+
+void D3D12RenderBackend::drawWorldIndexedMeshTexturedCachedPreparedInstanced(
+    const char* geometryKey,
+    const WorldMeshVertex* vertices,
+    std::size_t vertexCount,
+    const std::uint32_t* indices,
+    std::size_t indexCount,
+    std::uint32_t materialDescriptorBlockIndex,
+    const WorldTextureData* texture,
+    float useTexture,
+    const WorldMeshInstance* instances,
+    std::size_t instanceCount,
+    const float* viewProjectionMatrix4x4,
+    int surfaceWidth,
+    int surfaceHeight) {
+#if defined(_WIN32)
     if (!instances || instanceCount == 0u) {
         drawWorldIndexedMeshTexturedCached(
             geometryKey,
@@ -623,7 +677,8 @@ void D3D12RenderBackend::drawWorldIndexedMeshTexturedCachedInstanced(
         }
         const WorldMeshInstance& instance = instances[i];
         const std::uint8_t gpuSkinningMode = std::min<std::uint8_t>(instance.gpuSkinningMode, 1u);
-        const std::size_t floatCount = skinMatrixFloatCount(instance.skinMatrixCount, gpuSkinningMode);
+        const std::size_t floatCount =
+            skinMatrixFloatCount(instance.skinMatrixCount, gpuSkinningMode);
         std::memcpy(instanceSkinData + instanceSkinFloatOffset,
                     instance.skinMatrices,
                     floatCount * sizeof(float));
@@ -654,16 +709,6 @@ void D3D12RenderBackend::drawWorldIndexedMeshTexturedCachedInstanced(
         drawTexture = &perInstanceTexture;
     }
 
-    std::uint32_t materialDescriptorBlockIndex = 0u;
-    float useTexture = 0.0f;
-    if (!prepareWorldMaterialDescriptorBlock(
-            drawTexture,
-            /*logPbrBinding=*/false,
-            materialDescriptorBlockIndex,
-            useTexture)) {
-        return;
-    }
-
     drawWorldIndexedMeshTexturedCachedInternal(
         *cached,
         vertices,
@@ -684,7 +729,9 @@ void D3D12RenderBackend::drawWorldIndexedMeshTexturedCachedInstanced(
     (void)vertexCount;
     (void)indices;
     (void)indexCount;
+    (void)materialDescriptorBlockIndex;
     (void)texture;
+    (void)useTexture;
     (void)instances;
     (void)instanceCount;
     (void)viewProjectionMatrix4x4;

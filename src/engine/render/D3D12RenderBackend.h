@@ -268,6 +268,20 @@ private:
                                                     std::uint32_t instanceCount,
                                                     int surfaceWidth,
                                                     int surfaceHeight);
+    void drawWorldIndexedMeshTexturedCachedPreparedInstanced(
+        const char* geometryKey,
+        const WorldMeshVertex* vertices,
+        std::size_t vertexCount,
+        const std::uint32_t* indices,
+        std::size_t indexCount,
+        std::uint32_t materialDescriptorBlockIndex,
+        const WorldTextureData* texture,
+        float useTexture,
+        const WorldMeshInstance* instances,
+        std::size_t instanceCount,
+        const float* viewProjectionMatrix4x4,
+        int surfaceWidth,
+        int surfaceHeight);
 #endif
     void drawWorldIndexedMeshInternal(const WorldMeshVertex* vertices,
                                       std::size_t vertexCount,
@@ -452,6 +466,13 @@ private:
                        std::uint32_t,
                        WorldMaterialDescriptorBlockKeyHash>
         worldMaterialDescriptorBlocks_;
+    struct WorldSceneMaterialBindingCacheEntry {
+        std::uint32_t descriptorBlockIndex = 0xffffffffu;
+        float useTexture = 0.0f;
+        bool valid = false;
+    };
+    std::vector<WorldSceneMaterialBindingCacheEntry> worldSceneMaterialBindingCache_;
+    std::uint32_t worldSceneMaterialBindingCacheGeneration_ = 0u;
     std::unordered_map<std::string, CachedWorldMesh> cachedWorldMeshes_;
 #endif
 };

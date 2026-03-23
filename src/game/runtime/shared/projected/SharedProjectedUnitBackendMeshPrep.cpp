@@ -376,7 +376,6 @@ void PreparedState::reset() {
     ownedScenePose.nodeGlobals.clear();
 
     submeshNodeFallback = nullptr;
-    modelIndexedBatchTemplates = nullptr;
     modelIndexedBatchesPerSubmesh.clear();
     modelIndexedVertexRemap.clear();
 }
@@ -484,19 +483,18 @@ bool prepareProjectedUnitBackendMeshCommon(const Args& args,
         const std::size_t batchCount =
             std::max<std::size_t>(1u, mesh->submeshBaseTextures.size());
         prepared.modelIndexedBatchCount = batchCount;
-        const auto* templateBatches =
-            getIndexedBatchTemplates(
-                mesh,
-                getIndexedBatchKeyPrefix(mesh),
-                args.characterInkingEnabled,
-                batchCount);
-        const bool hasTemplateBatches =
-            templateBatches && templateBatches->size() == batchCount;
-        prepared.modelIndexedBatchTemplates = hasTemplateBatches ? templateBatches : nullptr;
         prepared.indexedBatchSortDepth =
             glm::dot(args.cameraWorldPos - args.proxyCenter, args.cameraWorldPos - args.proxyCenter);
 
         if (materializeIndexedBatches) {
+            const auto* templateBatches =
+                getIndexedBatchTemplates(
+                    mesh,
+                    getIndexedBatchKeyPrefix(mesh),
+                    args.characterInkingEnabled,
+                    batchCount);
+            const bool hasTemplateBatches =
+                templateBatches && templateBatches->size() == batchCount;
             prepared.modelIndexedBatchesPerSubmesh.resize(batchCount);
             if (hasTemplateBatches) {
                 for (std::size_t si = 0; si < batchCount; ++si) {

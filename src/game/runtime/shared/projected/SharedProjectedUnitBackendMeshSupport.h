@@ -30,6 +30,15 @@ struct FastTexturedBatchTemplate {
     std::vector<IRenderBackend::WorldMeshVertex> gpuTemplateVertices;
 };
 
+struct FastTexturedMaterialTemplateCache {
+    const game::runtime::render_model::MeshData* mesh = nullptr;
+    std::size_t meshVertexCount = 0u;
+    std::size_t meshIndexCount = 0u;
+    std::size_t baseBatchCount = 0u;
+    bool characterInkingEnabled = false;
+    std::vector<IRenderBackend::WorldSceneMaterial> materials;
+};
+
 struct FastTexturedMeshTemplateCache {
     const game::runtime::render_model::MeshData* mesh = nullptr;
     std::size_t meshVertexCount = 0u;
@@ -103,6 +112,10 @@ struct GpuSkinBatchStateEntry {
 
 int resolveDefaultSkinNodeIndex(const game::runtime::render_model::MeshData* mesh);
 bool backendPrefersFullGpuSkinning(const char* backendId);
+const FastTexturedMaterialTemplateCache* ensureFastTexturedMaterialTemplateCache(
+    const game::runtime::render_model::MeshData* mesh,
+    std::size_t baseBatchCount,
+    bool characterInkingEnabled);
 const FastTexturedMeshTemplateCache* ensureFastTexturedMeshTemplateCache(
     const game::runtime::render_model::MeshData* mesh,
     const std::vector<int>& submeshNodeFallback,

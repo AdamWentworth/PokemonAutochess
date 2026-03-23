@@ -1565,6 +1565,8 @@ void D3D12RenderBackend::createSpritePipeline() {
     spriteTextures_.clear();
     worldTextures_.clear();
     worldMaterialDescriptorBlocks_.clear();
+    worldSceneMaterialBindingCache_.clear();
+    worldSceneMaterialBindingCacheGeneration_ = 0u;
     worldFallbackMaterialDescriptorBlockIndex_ = 0xffffffffu;
 
     static constexpr char kVsSource[] =

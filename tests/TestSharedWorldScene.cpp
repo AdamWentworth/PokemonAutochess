@@ -64,6 +64,28 @@ bool test_shared_world_scene_contract(std::string& outFail) {
         return false;
     }
 
+    IRenderBackend::WorldSceneMaterial directMaterialTemplate;
+    directMaterialTemplate.textureKey = "direct_diffuse";
+    directMaterialTemplate.textureCacheKey = "direct_cache";
+    directMaterialTemplate.textureRgba = kTexture;
+    directMaterialTemplate.textureWidth = 1;
+    directMaterialTemplate.textureHeight = 1;
+    directMaterialTemplate.materialMode = 2u;
+    const auto directMaterialHandle =
+        game::runtime::shared_world_scene::ensureMaterial(
+            registry,
+            &directMaterialTemplate,
+            directMaterialTemplate);
+    const auto directMaterialHandle2 =
+        game::runtime::shared_world_scene::ensureMaterial(
+            registry,
+            &directMaterialTemplate,
+            directMaterialTemplate);
+    if (directMaterialHandle != directMaterialHandle2 || registry.materials.size() != 2u) {
+        outFail = "SharedWorldScene should reuse direct scene-material handles by identity.";
+        return false;
+    }
+
     const auto objectHandle = game::runtime::shared_world_scene::ensureRenderObject(
         registry,
         geometryHandle,

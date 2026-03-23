@@ -119,6 +119,10 @@ void D3D12RenderBackend::submitWorldScene(const WorldSceneFrame& frame,
     }
 
     static thread_local std::vector<WorldMeshInstance> instances;
+    if (worldSceneMaterialBindingCacheGeneration_ != view.registryGeneration) {
+        worldSceneMaterialBindingCache_.clear();
+        worldSceneMaterialBindingCacheGeneration_ = view.registryGeneration;
+    }
     std::uint32_t previousGeometryId = 0u;
     std::uint32_t previousMaterialId = 0u;
     bool havePreviousDrawClass = false;
@@ -170,13 +174,30 @@ void D3D12RenderBackend::submitWorldScene(const WorldSceneFrame& frame,
         }
 
         WorldTextureData textureData = makeWorldSceneTextureData(material, view);
-        drawWorldIndexedMeshTexturedCachedInstanced(
+        if (worldSceneMaterialBindingCache_.size() <= materialIndex) {
+            worldSceneMaterialBindingCache_.resize(materialIndex + 1u);
+        }
+        auto& materialBinding = worldSceneMaterialBindingCache_[materialIndex];
+        if (!materialBinding.valid) {
+            if (!prepareWorldMaterialDescriptorBlock(
+                    &textureData,
+                    /*logPbrBinding=*/false,
+                    materialBinding.descriptorBlockIndex,
+                    materialBinding.useTexture)) {
+                continue;
+            }
+            materialBinding.valid = true;
+        }
+
+        drawWorldIndexedMeshTexturedCachedPreparedInstanced(
             geometry.geometryCacheKey.empty() ? nullptr : geometry.geometryCacheKey.c_str(),
             geometry.vertices,
             geometry.vertexCount,
             geometry.indices,
             geometry.indexCount,
+            materialBinding.descriptorBlockIndex,
             &textureData,
+            materialBinding.useTexture,
             instances.data(),
             instances.size(),
             view.viewProjectionMatrix4x4,

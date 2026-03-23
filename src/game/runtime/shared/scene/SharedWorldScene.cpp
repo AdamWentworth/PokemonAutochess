@@ -81,6 +81,159 @@ void assignIfPositive(const shared_world_batches::WorldIndexedBatch& batch,
     }
 }
 
+IRenderBackend::WorldSceneMaterial makeMaterialFromBatchTemplate(
+    const shared_world_batches::WorldIndexedBatch& batchTemplate) {
+    const auto& batch = batchTemplateOrSelf(batchTemplate);
+
+    IRenderBackend::WorldSceneMaterial material{};
+    material.textureKey = std::string(
+        resolvedStringMember(batchTemplate, &shared_world_batches::WorldIndexedBatch::textureKey));
+    material.textureCacheKey = std::string(
+        resolvedStringMember(
+            batchTemplate,
+            &shared_world_batches::WorldIndexedBatch::textureCacheKey));
+    assignIfPresent(
+        batchTemplate,
+        material.textureRgba,
+        &shared_world_batches::WorldIndexedBatch::textureRgba);
+    assignIfPositive(
+        batchTemplate,
+        material.textureWidth,
+        &shared_world_batches::WorldIndexedBatch::textureWidth);
+    assignIfPositive(
+        batchTemplate,
+        material.textureHeight,
+        &shared_world_batches::WorldIndexedBatch::textureHeight);
+    material.textureWrapS = batch.textureWrapS;
+    material.textureWrapT = batch.textureWrapT;
+
+    material.normalTextureKey = std::string(
+        resolvedStringMember(
+            batchTemplate,
+            &shared_world_batches::WorldIndexedBatch::normalTextureKey));
+    material.normalTextureCacheKey = std::string(
+        resolvedStringMember(
+            batchTemplate,
+            &shared_world_batches::WorldIndexedBatch::normalTextureCacheKey));
+    assignIfPresent(
+        batchTemplate,
+        material.normalTextureRgba,
+        &shared_world_batches::WorldIndexedBatch::normalTextureRgba);
+    assignIfPositive(
+        batchTemplate,
+        material.normalTextureWidth,
+        &shared_world_batches::WorldIndexedBatch::normalTextureWidth);
+    assignIfPositive(
+        batchTemplate,
+        material.normalTextureHeight,
+        &shared_world_batches::WorldIndexedBatch::normalTextureHeight);
+    material.normalTextureWrapS = batch.normalTextureWrapS;
+    material.normalTextureWrapT = batch.normalTextureWrapT;
+
+    material.metallicRoughnessTextureKey = std::string(
+        resolvedStringMember(
+            batchTemplate,
+            &shared_world_batches::WorldIndexedBatch::metallicRoughnessTextureKey));
+    material.metallicRoughnessTextureCacheKey = std::string(
+        resolvedStringMember(
+            batchTemplate,
+            &shared_world_batches::WorldIndexedBatch::metallicRoughnessTextureCacheKey));
+    assignIfPresent(
+        batchTemplate,
+        material.metallicRoughnessTextureRgba,
+        &shared_world_batches::WorldIndexedBatch::metallicRoughnessTextureRgba);
+    assignIfPositive(
+        batchTemplate,
+        material.metallicRoughnessTextureWidth,
+        &shared_world_batches::WorldIndexedBatch::metallicRoughnessTextureWidth);
+    assignIfPositive(
+        batchTemplate,
+        material.metallicRoughnessTextureHeight,
+        &shared_world_batches::WorldIndexedBatch::metallicRoughnessTextureHeight);
+    material.metallicRoughnessTextureWrapS = batch.metallicRoughnessTextureWrapS;
+    material.metallicRoughnessTextureWrapT = batch.metallicRoughnessTextureWrapT;
+
+    material.occlusionTextureKey = std::string(
+        resolvedStringMember(
+            batchTemplate,
+            &shared_world_batches::WorldIndexedBatch::occlusionTextureKey));
+    material.occlusionTextureCacheKey = std::string(
+        resolvedStringMember(
+            batchTemplate,
+            &shared_world_batches::WorldIndexedBatch::occlusionTextureCacheKey));
+    assignIfPresent(
+        batchTemplate,
+        material.occlusionTextureRgba,
+        &shared_world_batches::WorldIndexedBatch::occlusionTextureRgba);
+    assignIfPositive(
+        batchTemplate,
+        material.occlusionTextureWidth,
+        &shared_world_batches::WorldIndexedBatch::occlusionTextureWidth);
+    assignIfPositive(
+        batchTemplate,
+        material.occlusionTextureHeight,
+        &shared_world_batches::WorldIndexedBatch::occlusionTextureHeight);
+    material.occlusionTextureWrapS = batch.occlusionTextureWrapS;
+    material.occlusionTextureWrapT = batch.occlusionTextureWrapT;
+
+    material.emissiveTextureKey = std::string(
+        resolvedStringMember(
+            batchTemplate,
+            &shared_world_batches::WorldIndexedBatch::emissiveTextureKey));
+    material.emissiveTextureCacheKey = std::string(
+        resolvedStringMember(
+            batchTemplate,
+            &shared_world_batches::WorldIndexedBatch::emissiveTextureCacheKey));
+    assignIfPresent(
+        batchTemplate,
+        material.emissiveTextureRgba,
+        &shared_world_batches::WorldIndexedBatch::emissiveTextureRgba);
+    assignIfPositive(
+        batchTemplate,
+        material.emissiveTextureWidth,
+        &shared_world_batches::WorldIndexedBatch::emissiveTextureWidth);
+    assignIfPositive(
+        batchTemplate,
+        material.emissiveTextureHeight,
+        &shared_world_batches::WorldIndexedBatch::emissiveTextureHeight);
+    material.emissiveTextureWrapS = batch.emissiveTextureWrapS;
+    material.emissiveTextureWrapT = batch.emissiveTextureWrapT;
+
+    material.alphaMode = batch.alphaMode;
+    material.blendMode = batch.blendMode;
+    material.materialMode = batch.materialMode;
+    material.alphaCutoff = batch.alphaCutoff;
+    material.normalScale = batch.normalScale;
+    material.metallicFactor = batch.metallicFactor;
+    material.roughnessFactor = batch.roughnessFactor;
+    material.occlusionStrength = batch.occlusionStrength;
+    material.emissiveFactorR = batch.emissiveFactorR;
+    material.emissiveFactorG = batch.emissiveFactorG;
+    material.emissiveFactorB = batch.emissiveFactorB;
+    material.characterInkingEnabled = batch.characterInkingEnabled;
+    material.materialTimeSec = batch.materialTimeSec;
+    material.materialFlags = batch.materialFlags;
+    material.materialAtlasWidth = batch.materialAtlasWidth;
+    material.materialAtlasHeight = batch.materialAtlasHeight;
+    material.materialRect0U = batch.materialRect0U;
+    material.materialRect0V = batch.materialRect0V;
+    material.materialRect0W = batch.materialRect0W;
+    material.materialRect0H = batch.materialRect0H;
+    material.materialRect1U = batch.materialRect1U;
+    material.materialRect1V = batch.materialRect1V;
+    material.materialRect1W = batch.materialRect1W;
+    material.materialRect1H = batch.materialRect1H;
+    material.materialFlipbook0Cols = batch.materialFlipbook0Cols;
+    material.materialFlipbook0Rows = batch.materialFlipbook0Rows;
+    material.materialFlipbook0Frames = batch.materialFlipbook0Frames;
+    material.materialFlipbook0Fps = batch.materialFlipbook0Fps;
+    material.materialFlipbook1Cols = batch.materialFlipbook1Cols;
+    material.materialFlipbook1Rows = batch.materialFlipbook1Rows;
+    material.materialFlipbook1Frames = batch.materialFlipbook1Frames;
+    material.materialFlipbook1Fps = batch.materialFlipbook1Fps;
+    return material;
+}
+
 IRenderBackend::WorldSceneDrawClass& findOrCreateDrawClass(
     IRenderBackend::WorldSceneFrame& frame,
     IRenderBackend::WorldSceneRenderObjectHandle objectHandle) {
@@ -163,6 +316,13 @@ IRenderBackend::WorldSceneMaterialHandle ensureMaterialFromBatchTemplate(
     WorldSceneRegistry& registry,
     const void* identity,
     const shared_world_batches::WorldIndexedBatch& batchTemplate) {
+    return ensureMaterial(registry, identity, makeMaterialFromBatchTemplate(batchTemplate));
+}
+
+IRenderBackend::WorldSceneMaterialHandle ensureMaterial(
+    WorldSceneRegistry& registry,
+    const void* identity,
+    const IRenderBackend::WorldSceneMaterial& materialTemplate) {
     if (identity) {
         const auto found = registry.materialByIdentity.find(identity);
         if (found != registry.materialByIdentity.end()) {
@@ -170,107 +330,10 @@ IRenderBackend::WorldSceneMaterialHandle ensureMaterialFromBatchTemplate(
         }
     }
 
-    const auto& batch = batchTemplateOrSelf(batchTemplate);
     IRenderBackend::WorldSceneMaterialHandle handle{};
     handle.id = static_cast<std::uint32_t>(registry.materials.size() + 1u);
-
-    IRenderBackend::WorldSceneMaterial material{};
+    IRenderBackend::WorldSceneMaterial material = materialTemplate;
     material.handle = handle;
-    material.textureKey = std::string(
-        resolvedStringMember(batchTemplate, &shared_world_batches::WorldIndexedBatch::textureKey));
-    material.textureCacheKey = std::string(
-        resolvedStringMember(batchTemplate, &shared_world_batches::WorldIndexedBatch::textureCacheKey));
-    assignIfPresent(batchTemplate, material.textureRgba, &shared_world_batches::WorldIndexedBatch::textureRgba);
-    assignIfPositive(batchTemplate, material.textureWidth, &shared_world_batches::WorldIndexedBatch::textureWidth);
-    assignIfPositive(batchTemplate, material.textureHeight, &shared_world_batches::WorldIndexedBatch::textureHeight);
-    material.textureWrapS = batch.textureWrapS;
-    material.textureWrapT = batch.textureWrapT;
-
-    material.normalTextureKey = std::string(
-        resolvedStringMember(batchTemplate, &shared_world_batches::WorldIndexedBatch::normalTextureKey));
-    material.normalTextureCacheKey = std::string(
-        resolvedStringMember(batchTemplate, &shared_world_batches::WorldIndexedBatch::normalTextureCacheKey));
-    assignIfPresent(batchTemplate, material.normalTextureRgba, &shared_world_batches::WorldIndexedBatch::normalTextureRgba);
-    assignIfPositive(batchTemplate, material.normalTextureWidth, &shared_world_batches::WorldIndexedBatch::normalTextureWidth);
-    assignIfPositive(batchTemplate, material.normalTextureHeight, &shared_world_batches::WorldIndexedBatch::normalTextureHeight);
-    material.normalTextureWrapS = batch.normalTextureWrapS;
-    material.normalTextureWrapT = batch.normalTextureWrapT;
-
-    material.metallicRoughnessTextureKey = std::string(
-        resolvedStringMember(
-            batchTemplate,
-            &shared_world_batches::WorldIndexedBatch::metallicRoughnessTextureKey));
-    material.metallicRoughnessTextureCacheKey = std::string(
-        resolvedStringMember(
-            batchTemplate,
-            &shared_world_batches::WorldIndexedBatch::metallicRoughnessTextureCacheKey));
-    assignIfPresent(
-        batchTemplate,
-        material.metallicRoughnessTextureRgba,
-        &shared_world_batches::WorldIndexedBatch::metallicRoughnessTextureRgba);
-    assignIfPositive(
-        batchTemplate,
-        material.metallicRoughnessTextureWidth,
-        &shared_world_batches::WorldIndexedBatch::metallicRoughnessTextureWidth);
-    assignIfPositive(
-        batchTemplate,
-        material.metallicRoughnessTextureHeight,
-        &shared_world_batches::WorldIndexedBatch::metallicRoughnessTextureHeight);
-    material.metallicRoughnessTextureWrapS = batch.metallicRoughnessTextureWrapS;
-    material.metallicRoughnessTextureWrapT = batch.metallicRoughnessTextureWrapT;
-
-    material.occlusionTextureKey = std::string(
-        resolvedStringMember(batchTemplate, &shared_world_batches::WorldIndexedBatch::occlusionTextureKey));
-    material.occlusionTextureCacheKey = std::string(
-        resolvedStringMember(batchTemplate, &shared_world_batches::WorldIndexedBatch::occlusionTextureCacheKey));
-    assignIfPresent(batchTemplate, material.occlusionTextureRgba, &shared_world_batches::WorldIndexedBatch::occlusionTextureRgba);
-    assignIfPositive(batchTemplate, material.occlusionTextureWidth, &shared_world_batches::WorldIndexedBatch::occlusionTextureWidth);
-    assignIfPositive(batchTemplate, material.occlusionTextureHeight, &shared_world_batches::WorldIndexedBatch::occlusionTextureHeight);
-    material.occlusionTextureWrapS = batch.occlusionTextureWrapS;
-    material.occlusionTextureWrapT = batch.occlusionTextureWrapT;
-
-    material.emissiveTextureKey = std::string(
-        resolvedStringMember(batchTemplate, &shared_world_batches::WorldIndexedBatch::emissiveTextureKey));
-    material.emissiveTextureCacheKey = std::string(
-        resolvedStringMember(batchTemplate, &shared_world_batches::WorldIndexedBatch::emissiveTextureCacheKey));
-    assignIfPresent(batchTemplate, material.emissiveTextureRgba, &shared_world_batches::WorldIndexedBatch::emissiveTextureRgba);
-    assignIfPositive(batchTemplate, material.emissiveTextureWidth, &shared_world_batches::WorldIndexedBatch::emissiveTextureWidth);
-    assignIfPositive(batchTemplate, material.emissiveTextureHeight, &shared_world_batches::WorldIndexedBatch::emissiveTextureHeight);
-    material.emissiveTextureWrapS = batch.emissiveTextureWrapS;
-    material.emissiveTextureWrapT = batch.emissiveTextureWrapT;
-
-    material.alphaMode = batch.alphaMode;
-    material.blendMode = batch.blendMode;
-    material.materialMode = batch.materialMode;
-    material.alphaCutoff = batch.alphaCutoff;
-    material.normalScale = batch.normalScale;
-    material.metallicFactor = batch.metallicFactor;
-    material.roughnessFactor = batch.roughnessFactor;
-    material.occlusionStrength = batch.occlusionStrength;
-    material.emissiveFactorR = batch.emissiveFactorR;
-    material.emissiveFactorG = batch.emissiveFactorG;
-    material.emissiveFactorB = batch.emissiveFactorB;
-    material.characterInkingEnabled = batch.characterInkingEnabled;
-    material.materialTimeSec = batch.materialTimeSec;
-    material.materialFlags = batch.materialFlags;
-    material.materialAtlasWidth = batch.materialAtlasWidth;
-    material.materialAtlasHeight = batch.materialAtlasHeight;
-    material.materialRect0U = batch.materialRect0U;
-    material.materialRect0V = batch.materialRect0V;
-    material.materialRect0W = batch.materialRect0W;
-    material.materialRect0H = batch.materialRect0H;
-    material.materialRect1U = batch.materialRect1U;
-    material.materialRect1V = batch.materialRect1V;
-    material.materialRect1W = batch.materialRect1W;
-    material.materialRect1H = batch.materialRect1H;
-    material.materialFlipbook0Cols = batch.materialFlipbook0Cols;
-    material.materialFlipbook0Rows = batch.materialFlipbook0Rows;
-    material.materialFlipbook0Frames = batch.materialFlipbook0Frames;
-    material.materialFlipbook0Fps = batch.materialFlipbook0Fps;
-    material.materialFlipbook1Cols = batch.materialFlipbook1Cols;
-    material.materialFlipbook1Rows = batch.materialFlipbook1Rows;
-    material.materialFlipbook1Frames = batch.materialFlipbook1Frames;
-    material.materialFlipbook1Fps = batch.materialFlipbook1Fps;
 
     registry.materials.push_back(std::move(material));
     if (identity) {
@@ -402,6 +465,7 @@ IRenderBackend::WorldSceneView buildWorldSceneView(
     out.skeletonLayouts = &registry.skeletonLayouts;
     out.animationClips = &registry.animationClips;
     out.renderObjects = &registry.renderObjects;
+    out.registryGeneration = registry.generation;
     out.viewProjectionMatrix4x4 = viewProjectionMatrix4x4;
     out.surfaceWidth = surfaceWidth;
     out.surfaceHeight = surfaceHeight;
