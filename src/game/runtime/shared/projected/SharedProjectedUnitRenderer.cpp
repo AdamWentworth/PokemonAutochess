@@ -79,7 +79,7 @@ std::size_t backendClipSkinningMaxUnits() {
 
 float backendScenePoseCacheHz() {
     static const float hz = []() -> float {
-        constexpr float kDefault = 30.0f;
+        constexpr float kDefault = engine::runtime::fixed_step::kHz;
         constexpr float kMin = 0.0f;
         constexpr float kMax = 240.0f;
         const auto env = engine::env::get("PAC_BACKEND_SCENE_POSE_CACHE_HZ");
@@ -95,10 +95,10 @@ float backendScenePoseCacheHz() {
 
 float backendScenePoseCacheSparseHz() {
     static const float hz = []() -> float {
-        // Align sparse-battle pose caching with the 60 Hz simulation step.
-        // Higher defaults fragment the cache into intermediate buckets the scene
-        // never requests because unit animTimeSec only advances on fixed ticks.
-        constexpr float kDefault = 60.0f;
+        // Align sparse-battle pose caching with the simulation step. Higher
+        // defaults fragment the cache into intermediate buckets the scene never
+        // requests because unit animTimeSec only advances on fixed ticks.
+        constexpr float kDefault = engine::runtime::fixed_step::kHz;
         constexpr float kMin = 0.0f;
         constexpr float kMax = 240.0f;
         const auto env = engine::env::get("PAC_BACKEND_SCENE_POSE_CACHE_SPARSE_HZ");
@@ -114,7 +114,9 @@ float backendScenePoseCacheSparseHz() {
 
 float backendScenePoseCacheDenseHz() {
     static const float hz = []() -> float {
-        constexpr float kDefault = 20.0f;
+        // Keep dense scenes on the same cadence as the fixed-step animation
+        // clock so visible clip motion does not devolve into a 20-30 Hz look.
+        constexpr float kDefault = engine::runtime::fixed_step::kHz;
         constexpr float kMin = 0.0f;
         constexpr float kMax = 240.0f;
         const auto env = engine::env::get("PAC_BACKEND_SCENE_POSE_CACHE_DENSE_HZ");
@@ -215,14 +217,9 @@ int resolveSceneAnimIndexForUnit(const game::runtime::render_model::MeshData& me
     return animIndex;
 }
 
-struct CanonicalScenePoseSample {
-    float animTimeSec = 0.0f;
-    std::uint32_t cacheKey = 0u;
-};
-
 std::uint32_t floatToBits(float value);
 
-CanonicalScenePoseSample canonicalSceneAnimTimeForKey(
+game::runtime::shared_projected_units::detail::CanonicalScenePoseSample canonicalSceneAnimTimeForKey(
     const game::runtime::render_model::MeshData& mesh,
     int animIndex,
     float animTimeSec,
@@ -241,14 +238,20 @@ CanonicalScenePoseSample canonicalSceneAnimTimeForKey(
     if (wrapped == 0.0f) {
         return {};
     }
-    if (!(quantizeStepSec > 0.0f)) {
+    if (!(quantizeStepSec > 0.0f) || !(quantizeStepSec < durationSec)) {
         return {wrapped, floatToBits(wrapped)};
     }
     const float bucketFloat = std::round(wrapped / quantizeStepSec);
     if (!(bucketFloat > 0.0f)) {
         return {};
     }
-    const float quantized = bucketFloat * quantizeStepSec;
+    float quantized = bucketFloat * quantizeStepSec;
+    if (!(quantized > 0.0f)) {
+        return {};
+    }
+    if (!(quantized < durationSec)) {
+        quantized = std::nextafter(durationSec, 0.0f);
+    }
     if (!(quantized > 0.0f) || !(quantized < durationSec)) {
         return {};
     }
@@ -256,10 +259,10 @@ CanonicalScenePoseSample canonicalSceneAnimTimeForKey(
     return {quantized, bucketIndex | 0x80000000u};
 }
 
-CanonicalScenePoseSample nextCanonicalSceneAnimTimeForKey(
+game::runtime::shared_projected_units::detail::CanonicalScenePoseSample nextCanonicalSceneAnimTimeForKey(
     const game::runtime::render_model::MeshData& mesh,
     int animIndex,
-    const CanonicalScenePoseSample& current,
+    const game::runtime::shared_projected_units::detail::CanonicalScenePoseSample& current,
     float quantizeStepSec) {
     if (animIndex < 0 || static_cast<std::size_t>(animIndex) >= mesh.animations.size()) {
         return {};
@@ -355,6 +358,18 @@ bool shouldPrewarmNextScenePoseSample(std::size_t unitCount, float scenePoseCach
 } // namespace
 
 namespace game::runtime::shared_projected_units {
+
+namespace detail {
+
+CanonicalScenePoseSample canonicalSceneAnimTimeForCacheKey(
+    const runtime::render_model::MeshData& mesh,
+    int animIndex,
+    float animTimeSec,
+    float quantizeStepSec) {
+    return canonicalSceneAnimTimeForKey(mesh, animIndex, animTimeSec, quantizeStepSec);
+}
+
+} // namespace detail
 
 void drawProjectedUnits(const Args& args, const std::vector<PokemonInstance>& units) {
     if (!args.dataDb || !args.gameWorld || !args.projectedDebug || !args.sharedCaptureAttemptCache ||
@@ -495,7 +510,7 @@ for (const auto& unit : units) {
     bool scenePoseReady = false;
     if (meshForUnit) {
         const int animIndex = resolveSceneAnimIndexForUnit(*meshForUnit, unit);
-        const CanonicalScenePoseSample canonicalAnimSample =
+        const detail::CanonicalScenePoseSample canonicalAnimSample =
             canonicalSceneAnimTimeForKey(
                 *meshForUnit,
                 animIndex,
@@ -523,7 +538,7 @@ for (const auto& unit : units) {
         scenePoseReady = true;
 
         if (prewarmNextScenePoseSample && scenePose->hasClipPose) {
-            const CanonicalScenePoseSample nextAnimSample =
+            const detail::CanonicalScenePoseSample nextAnimSample =
                 nextCanonicalSceneAnimTimeForKey(
                     *meshForUnit,
                     animIndex,

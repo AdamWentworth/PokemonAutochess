@@ -27,6 +27,21 @@
 
 namespace game::runtime::shared_projected_units {
 
+namespace detail {
+
+struct CanonicalScenePoseSample {
+    float animTimeSec = 0.0f;
+    std::uint32_t cacheKey = 0u;
+};
+
+CanonicalScenePoseSample canonicalSceneAnimTimeForCacheKey(
+    const runtime::render_model::MeshData& mesh,
+    int animIndex,
+    float animTimeSec,
+    float quantizeStepSec);
+
+} // namespace detail
+
 struct PerfStats {
     double totalMs = 0.0;
     double poseEvalMs = 0.0;

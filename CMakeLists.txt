@@ -631,6 +631,7 @@ if (BUILD_TESTING)
         tests/TestSharedParticleVfxBridgeDispatch.cpp
         tests/TestSharedParticleVfxStyles.cpp
         tests/TestSharedProjectedUnitBackendMeshSupport.cpp
+        tests/TestSharedProjectedUnitRenderer.cpp
         tests/TestSharedProjectedUnitWorldSceneRenderer.cpp
         tests/TestSharedTailFireAtlasHelpers.cpp
         tests/TestSharedTailFireExactGpuBatches.cpp
