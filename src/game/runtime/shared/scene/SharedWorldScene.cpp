@@ -84,18 +84,27 @@ void assignIfPositive(const shared_world_batches::WorldIndexedBatch& batch,
 IRenderBackend::WorldSceneDrawClass& findOrCreateDrawClass(
     IRenderBackend::WorldSceneFrame& frame,
     IRenderBackend::WorldSceneRenderObjectHandle objectHandle) {
-    auto it = std::find_if(
-        frame.drawClasses.begin(),
-        frame.drawClasses.end(),
-        [&](const IRenderBackend::WorldSceneDrawClass& entry) {
-            return entry.objectHandle == objectHandle;
-        });
-    if (it == frame.drawClasses.end()) {
+    if (objectHandle.id != 0u) {
+        if (frame.drawClassIndexByObjectId.size() < objectHandle.id) {
+            frame.drawClassIndexByObjectId.resize(objectHandle.id, 0u);
+        }
+        std::uint32_t& cachedIndex =
+            frame.drawClassIndexByObjectId[static_cast<std::size_t>(objectHandle.id - 1u)];
+        if (cachedIndex != 0u) {
+            return frame.drawClasses[static_cast<std::size_t>(cachedIndex - 1u)];
+        }
+
         frame.drawClasses.push_back(IRenderBackend::WorldSceneDrawClass{});
-        it = std::prev(frame.drawClasses.end());
-        it->objectHandle = objectHandle;
+        auto& drawClass = frame.drawClasses.back();
+        drawClass.objectHandle = objectHandle;
+        cachedIndex = static_cast<std::uint32_t>(frame.drawClasses.size());
+        return drawClass;
     }
-    return *it;
+
+    frame.drawClasses.push_back(IRenderBackend::WorldSceneDrawClass{});
+    auto& drawClass = frame.drawClasses.back();
+    drawClass.objectHandle = objectHandle;
+    return drawClass;
 }
 
 } // namespace

@@ -17,6 +17,20 @@ namespace persistent = game::runtime::shared_projected_render_items;
 
 namespace game::runtime::shared_projected_unit_world_scene {
 
+namespace {
+
+std::vector<support::GpuSkinBatchState>& batchSkinStateScratch() {
+    static thread_local std::vector<support::GpuSkinBatchState> scratch;
+    return scratch;
+}
+
+std::vector<std::uint8_t>& batchUsesSceneSkinningScratch() {
+    static thread_local std::vector<std::uint8_t> scratch;
+    return scratch;
+}
+
+} // namespace
+
 bool tryRenderProjectedUnitModelWorldScene(
     const shared_projected_unit_models::Args& args,
     shared_projected_unit_models::Result& out) {
@@ -124,8 +138,10 @@ bool tryRenderProjectedUnitModelWorldScene(
         }
     }
 
-    std::vector<support::GpuSkinBatchState> batchSkinStates(fastCache->batches.size());
-    std::vector<std::uint8_t> batchUsesSceneSkinning(fastCache->batches.size(), 0u);
+    auto& batchSkinStates = batchSkinStateScratch();
+    batchSkinStates.assign(fastCache->batches.size(), support::GpuSkinBatchState{});
+    auto& batchUsesSceneSkinning = batchUsesSceneSkinningScratch();
+    batchUsesSceneSkinning.assign(fastCache->batches.size(), 0u);
     shared_projected_unit_backend_mesh_transforms::Resolver transforms;
     bool transformsInitialized = false;
     auto& gpuSkinBatchStates = support::gpuSkinBatchStateEntries();
@@ -256,8 +272,6 @@ bool tryRenderProjectedUnitModelWorldScene(
             std::chrono::duration<double, std::milli>(Clock::now() - prepStart).count();
     }
 
-    const std::uint32_t frameStamp =
-        args.projectedRenderItems ? args.projectedRenderItems->currentFrameId : 0u;
     const auto sceneColor = prepared.fastTexturedTint;
     const float sceneAlpha = prepared.fastTexturedAlpha;
 
@@ -274,16 +288,6 @@ bool tryRenderProjectedUnitModelWorldScene(
         auto& itemEntry =
             persistent::ensureProjectedRenderItem(*args.projectedRenderItems, itemKey);
         persistent::touchProjectedRenderItem(*args.projectedRenderItems, itemEntry);
-        auto sceneBatch = runtimeBatch;
-        if (batchUsesSceneSkinning[fastBatchIndex] != 0u) {
-            const auto& skinState = batchSkinStates[fastBatchIndex];
-            sceneBatch.modelMatrix = skinState.modelMatrix;
-            sceneBatch.gpuSkinning = 1u;
-            sceneBatch.gpuSkinningMode = skinState.gpuSkinningMode;
-            sceneBatch.skinMatrixCount = skinState.skinMatrixCount;
-            sceneBatch.sharedSkinMatrices = skinState.sharedSkinMatrices;
-        }
-        persistent::syncProjectedRenderItemDynamicState(itemEntry, sceneBatch, frameStamp);
 
         if (!itemEntry.worldSceneObjectHandle ||
             itemEntry.worldSceneRegistryGeneration != args.worldSceneRegistry->generation) {

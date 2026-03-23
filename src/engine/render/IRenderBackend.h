@@ -1,5 +1,6 @@
 #pragma once
 
+#include <algorithm>
 #include <array>
 #include <cstddef>
 #include <cstdint>
@@ -376,12 +377,14 @@ public:
 
     struct WorldSceneFrame {
         std::vector<WorldSceneDrawClass> drawClasses;
+        std::vector<std::uint32_t> drawClassIndexByObjectId;
         std::uint32_t visibleSkeletons = 0u;
         std::uint64_t paletteUploadBytes = 0u;
         std::uint32_t indirectCommandCount = 0u;
 
         void clear() {
             drawClasses.clear();
+            std::fill(drawClassIndexByObjectId.begin(), drawClassIndexByObjectId.end(), 0u);
             visibleSkeletons = 0u;
             paletteUploadBytes = 0u;
             indirectCommandCount = 0u;

@@ -152,6 +152,22 @@ bool test_shared_world_scene_contract(std::string& outFail) {
         return false;
     }
 
+    frame.clear();
+    game::runtime::shared_world_scene::appendRigidInstance(
+        frame,
+        objectHandle,
+        a,
+        {},
+        1.0f,
+        1.0f,
+        1.0f,
+        1.0f,
+        2.0f);
+    if (frame.drawClasses.size() != 1u || frame.drawClasses.front().instances.size() != 1u) {
+        outFail = "SharedWorldScene should rebuild draw-class lookup cleanly after frame reset.";
+        return false;
+    }
+
     game::runtime::shared_world_scene::resetWorldSceneRegistry(registry);
     if (!registry.geometries.empty() ||
         !registry.materials.empty() ||
