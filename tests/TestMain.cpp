@@ -114,6 +114,7 @@ bool test_session_world_render_runtime_contract(std::string& outFail);
 bool test_session_texture_cache_contract(std::string& outFail);
 bool test_round_flow_headless(std::string& outFail);
 bool test_animset_roles_smoke(std::string& outFail);
+bool test_animset_roles_prefer_best_idle_match(std::string& outFail);
 bool test_combat_slice_headless(std::string& outFail);
 bool test_move_impact_routing(std::string& outFail);
 bool test_move_impact_math(std::string& outFail);
@@ -159,6 +160,8 @@ bool test_shared_particle_vfx_bridge_dispatch_contract(std::string& outFail);
 bool test_shared_particle_vfx_styles_contract(std::string& outFail);
 bool test_shared_projected_unit_backend_mesh_support_contract(std::string& outFail);
 bool test_shared_projected_unit_renderer_scene_pose_cache_contract(std::string& outFail);
+bool test_shared_projected_unit_renderer_idle_clip_loop_closure_contract(std::string& outFail);
+bool test_shared_projected_unit_renderer_idle_fixed_step_wrap_contract(std::string& outFail);
 bool test_shared_projected_unit_world_scene_tail_fire_fallback(std::string& outFail);
 bool test_shared_tail_fire_atlas_helpers_contract(std::string& outFail);
 bool test_shared_tail_fire_exact_gpu_batches_contract(std::string& outFail);
@@ -329,6 +332,7 @@ int main(int argc, char** argv) {
         {"session_texture_cache_contract", &test_session_texture_cache_contract},
         {"round_flow_headless", &test_round_flow_headless},
         {"animset_roles_smoke", &test_animset_roles_smoke},
+        {"animset_roles_prefer_best_idle_match", &test_animset_roles_prefer_best_idle_match},
         {"combat_slice_headless", &test_combat_slice_headless},
         {"move_impact_routing", &test_move_impact_routing},
         {"move_impact_math", &test_move_impact_math},
@@ -374,6 +378,8 @@ int main(int argc, char** argv) {
         {"shared_particle_vfx_styles_contract", &test_shared_particle_vfx_styles_contract},
         {"shared_projected_unit_backend_mesh_support_contract", &test_shared_projected_unit_backend_mesh_support_contract},
         {"shared_projected_unit_renderer_scene_pose_cache_contract", &test_shared_projected_unit_renderer_scene_pose_cache_contract},
+        {"shared_projected_unit_renderer_idle_clip_loop_closure_contract", &test_shared_projected_unit_renderer_idle_clip_loop_closure_contract},
+        {"shared_projected_unit_renderer_idle_fixed_step_wrap_contract", &test_shared_projected_unit_renderer_idle_fixed_step_wrap_contract},
         {"shared_projected_unit_world_scene_tail_fire_fallback", &test_shared_projected_unit_world_scene_tail_fire_fallback},
         {"shared_tail_fire_atlas_helpers_contract", &test_shared_tail_fire_atlas_helpers_contract},
         {"shared_tail_fire_exact_gpu_batches_contract", &test_shared_tail_fire_exact_gpu_batches_contract},

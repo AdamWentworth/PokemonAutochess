@@ -6,6 +6,7 @@
 #include <filesystem>
 #include <algorithm>
 #include <cctype>
+#include <limits>
 
 // Keep includes compatible with your project include layout:
 #include "engine/render/Model.h"
@@ -178,6 +179,7 @@ static RolePick pickFromClipsByCategory(const nlohmann::json& j,
     std::string firstName;
     float firstDur = 0.0f;
     bool firstLoop = false;
+    std::size_t bestRank = std::numeric_limits<std::size_t>::max();
 
     for (const auto& clip : j["clips"]) {
         if (!clip.is_object()) continue;
@@ -198,16 +200,22 @@ static RolePick pickFromClipsByCategory(const nlohmann::json& j,
             firstLoop = loop;
         }
 
-        for (const auto& sub : preferredSubstrings) {
-            if (!sub.empty() && toLower(name).find(toLower(sub)) != std::string::npos) {
-                out.clipName = name;
-                out.durationSec = dur;
-                out.isLoop = loop;
-                out.valid = true;
-                return out;
-            }
+        const std::string lowerName = toLower(name);
+        for (std::size_t i = 0; i < preferredSubstrings.size(); ++i) {
+            const auto& sub = preferredSubstrings[i];
+            if (sub.empty()) continue;
+            if (lowerName.find(toLower(sub)) == std::string::npos) continue;
+            if (i >= bestRank) break;
+            bestRank = i;
+            out.clipName = name;
+            out.durationSec = dur;
+            out.isLoop = loop;
+            out.valid = true;
+            break;
         }
     }
+
+    if (out.valid) return out;
 
     if (allowFallbackToFirst && !firstName.empty()) {
         out.clipName = firstName;
@@ -365,7 +373,12 @@ void applyAnimSetOverrides(PokemonInstance& inst,
             metaDebugSpecified = true;
         }
     }
-    const RolePick idlePick = resolveRoleClip(j, "idle", "idle", {"battlewait", "defaultwait", "idle", "wait"}, true);
+    const RolePick idlePick = resolveRoleClip(
+        j,
+        "idle",
+        "idle",
+        {"battlewait", "defaultwait", "kw01_wait", "idle", "wait"},
+        true);
     const RolePick movePick = resolveRoleClip(j, "move", "move", {"run", "dash", "move"}, true);
 
     RolePick atkPick  = resolveRoleClip(j, "attack1", "attack", {"attack01", "attack1", "attack"}, true);

@@ -161,9 +161,11 @@ bool test_session_backend_unit_hydration_contract(std::string& outFail) {
 
     PokemonInstance birdmon = testmon;
     birdmon.name = "birdmon";
+    PokemonInstance defaultedBackendUnit;
+    defaultedBackendUnit.name = "testmon";
 
     std::vector<PokemonInstance> boardUnits{testmon};
-    std::vector<PokemonInstance> benchUnits{birdmon};
+    std::vector<PokemonInstance> benchUnits{birdmon, defaultedBackendUnit};
     game::runtime::session_backend_unit_hydration::BackendAnimRoleCache cache;
     std::filesystem::current_path(tempDir, ec);
     if (ec) {
@@ -227,6 +229,28 @@ bool test_session_backend_unit_hydration_contract(std::string& outFail) {
         !nearFloat(hydratedBird.takeoffAnimSpeed, 1.2f) ||
         !nearFloat(hydratedBird.landAnimSpeed, 0.9f)) {
         outFail = "SessionBackendUnitHydration should apply flyer-based air locomotion defaults when role metadata is absent.";
+        std::filesystem::current_path(originalCwd, ec);
+        removeTempDir(tempDir);
+        return false;
+    }
+
+    const PokemonInstance& hydratedDefaultedBackendUnit = benchUnits[1];
+    if (hydratedDefaultedBackendUnit.animIdleIndex != 0 ||
+        hydratedDefaultedBackendUnit.animMoveIndex != 1 ||
+        hydratedDefaultedBackendUnit.animAttack1Index != 2 ||
+        hydratedDefaultedBackendUnit.animFaintIndex != 3 ||
+        hydratedDefaultedBackendUnit.animGroundIdleIndex != 0 ||
+        hydratedDefaultedBackendUnit.animAirIdleIndex != 0 ||
+        hydratedDefaultedBackendUnit.activeAnimIndex != 0) {
+        std::ostringstream oss;
+        oss << "backend default role mismatch: idle=" << hydratedDefaultedBackendUnit.animIdleIndex
+            << " move=" << hydratedDefaultedBackendUnit.animMoveIndex
+            << " attack=" << hydratedDefaultedBackendUnit.animAttack1Index
+            << " faint=" << hydratedDefaultedBackendUnit.animFaintIndex
+            << " groundIdle=" << hydratedDefaultedBackendUnit.animGroundIdleIndex
+            << " airIdle=" << hydratedDefaultedBackendUnit.animAirIdleIndex
+            << " active=" << hydratedDefaultedBackendUnit.activeAnimIndex;
+        outFail = oss.str();
         std::filesystem::current_path(originalCwd, ec);
         removeTempDir(tempDir);
         return false;

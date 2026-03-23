@@ -68,6 +68,9 @@ static float wrapTime(float t, float duration)
     if (duration <= 0.0f) return 0.0f;
     float x = std::fmod(t, duration);
     if (x < 0.0f) x += duration;
+    if (x == 0.0f && t > 0.0f) {
+        return std::nextafter(duration, 0.0f);
+    }
     return x;
 }
 
@@ -138,29 +141,93 @@ void Model::buildPoseMatrices(float timeSec,
         }
     }
 
-    auto sampleVec4 = [&](const AnimationSampler& s, float t)->glm::vec4 {
+    auto sampleVec4 = [&](const AnimationSampler& s, float t, float duration)->glm::vec4 {
         if (s.inputs.empty() || s.outputs.empty()) return glm::vec4(0.0f);
+        const auto valueAt = [&](size_t index) {
+            return s.outputs[(std::min)(index, s.outputs.size() - 1)];
+        };
+        if (s.inputs.size() == 1u || s.outputs.size() == 1u) {
+            return valueAt(0u);
+        }
+
+        const float firstTime = s.inputs.front();
+        const float lastTime = s.inputs.back();
+        const glm::vec4 firstValue = valueAt(0u);
+        const glm::vec4 lastValue = valueAt(s.inputs.size() - 1u);
+        const bool outsideKeyRange = t < firstTime || t > lastTime;
+        if (outsideKeyRange) {
+            if (s.interpolation == "STEP") return lastValue;
+            const float wrappedSpan = (duration - lastTime) + firstTime;
+            if (!(wrappedSpan > 0.0f)) return lastValue;
+            const float wrappedT =
+                (t >= lastTime) ? (t - lastTime) : (t + duration - lastTime);
+            const float a = std::clamp(wrappedT / wrappedSpan, 0.0f, 1.0f);
+            return glm::mix(lastValue, firstValue, a);
+        }
 
         size_t i = findKeyframe(s.inputs, t);
         if (i >= s.inputs.size() - 1) {
-            return s.outputs[(std::min)(i, s.outputs.size() - 1)];
+            if (s.interpolation == "STEP") return lastValue;
+            const float wrappedSpan = (duration - lastTime) + firstTime;
+            if (!(wrappedSpan > 0.0f)) return lastValue;
+            const float a = std::clamp((t - lastTime) / wrappedSpan, 0.0f, 1.0f);
+            return glm::mix(lastValue, firstValue, a);
         }
 
         float t0 = s.inputs[i];
         float t1 = s.inputs[i + 1];
         float a = (t1 > t0) ? ((t - t0) / (t1 - t0)) : 0.0f;
 
-        glm::vec4 v0 = s.outputs[(std::min)(i, s.outputs.size() - 1)];
-        glm::vec4 v1 = s.outputs[(std::min)(i + 1, s.outputs.size() - 1)];
+        glm::vec4 v0 = valueAt(i);
+        glm::vec4 v1 = valueAt(i + 1u);
 
         if (s.interpolation == "STEP") return v0;
         return glm::mix(v0, v1, a);
     };
 
-    auto sampleQuat = [&](const AnimationSampler& s, float t)->glm::quat {
-        glm::vec4 v = sampleVec4(s, t);
-        glm::quat q(v.w, v.x, v.y, v.z);
-        return glm::normalize(q);
+    auto sampleQuat = [&](const AnimationSampler& s, float t, float duration)->glm::quat {
+        if (s.inputs.empty() || s.outputs.empty()) {
+            return glm::quat(1.0f, 0.0f, 0.0f, 0.0f);
+        }
+        const auto quatAt = [&](size_t index) {
+            const glm::vec4 v = s.outputs[(std::min)(index, s.outputs.size() - 1)];
+            return glm::normalize(glm::quat(v.w, v.x, v.y, v.z));
+        };
+        if (s.inputs.size() == 1u || s.outputs.size() == 1u) {
+            return quatAt(0u);
+        }
+
+        const float firstTime = s.inputs.front();
+        const float lastTime = s.inputs.back();
+        const glm::quat firstValue = quatAt(0u);
+        const glm::quat lastValue = quatAt(s.inputs.size() - 1u);
+        const bool outsideKeyRange = t < firstTime || t > lastTime;
+        if (outsideKeyRange) {
+            if (s.interpolation == "STEP") return lastValue;
+            const float wrappedSpan = (duration - lastTime) + firstTime;
+            if (!(wrappedSpan > 0.0f)) return lastValue;
+            const float wrappedT =
+                (t >= lastTime) ? (t - lastTime) : (t + duration - lastTime);
+            const float a = std::clamp(wrappedT / wrappedSpan, 0.0f, 1.0f);
+            return glm::normalize(glm::slerp(lastValue, firstValue, a));
+        }
+
+        size_t i = findKeyframe(s.inputs, t);
+        if (i >= s.inputs.size() - 1) {
+            if (s.interpolation == "STEP") return lastValue;
+            const float wrappedSpan = (duration - lastTime) + firstTime;
+            if (!(wrappedSpan > 0.0f)) return lastValue;
+            const float a = std::clamp((t - lastTime) / wrappedSpan, 0.0f, 1.0f);
+            return glm::normalize(glm::slerp(lastValue, firstValue, a));
+        }
+
+        float t0 = s.inputs[i];
+        float t1 = s.inputs[i + 1];
+        float a = (t1 > t0) ? ((t - t0) / (t1 - t0)) : 0.0f;
+        const glm::quat q0 = quatAt(i);
+        const glm::quat q1 = quatAt(i + 1u);
+        if (s.interpolation == "STEP") return q0;
+        return glm::normalize(glm::slerp(q0, q1, std::clamp(a, 0.0f, 1.0f)));
     };
 
     if (animIndex >= 0 && animIndex < (int)animations.size()) {
@@ -174,7 +241,7 @@ void Model::buildPoseMatrices(float timeSec,
             const auto& s = clip.samplers[ch.samplerIndex];
 
             if (ch.path == ChannelPath::Translation) {
-                glm::vec4 v = sampleVec4(s, t);
+                glm::vec4 v = sampleVec4(s, t, clip.durationSec);
                 glm::vec3 animT(v.x, v.y, v.z);
 
                 if (rmNodes.find(ch.targetNode) != rmNodes.end()) {
@@ -207,12 +274,12 @@ void Model::buildPoseMatrices(float timeSec,
             }
 
             else if (ch.path == ChannelPath::Scale) {
-                glm::vec4 v = sampleVec4(s, t);
+                glm::vec4 v = sampleVec4(s, t, clip.durationSec);
                 outLocal[ch.targetNode].s = glm::vec3(v.x, v.y, v.z);
                 outLocal[ch.targetNode].hasMatrix = false;
             }
             else if (ch.path == ChannelPath::Rotation) {
-                outLocal[ch.targetNode].r = sampleQuat(s, t);
+                outLocal[ch.targetNode].r = sampleQuat(s, t, clip.durationSec);
                 outLocal[ch.targetNode].hasMatrix = false;
             }
         }

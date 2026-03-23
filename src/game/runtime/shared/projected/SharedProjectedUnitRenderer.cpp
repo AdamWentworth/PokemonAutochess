@@ -217,6 +217,10 @@ int resolveSceneAnimIndexForUnit(const game::runtime::render_model::MeshData& me
     return animIndex;
 }
 
+bool shouldLoopSceneAnimForUnit(const ::PokemonInstance& unit, int animIndex) {
+    return game::runtime::shared_backend_pose::shouldTreatSceneClipAsLooping(unit, animIndex);
+}
+
 std::uint32_t floatToBits(float value);
 
 game::runtime::shared_projected_units::detail::CanonicalScenePoseSample canonicalSceneAnimTimeForKey(
@@ -234,6 +238,9 @@ game::runtime::shared_projected_units::detail::CanonicalScenePoseSample canonica
     float wrapped = std::fmod(animTimeSec, durationSec);
     if (wrapped < 0.0f) {
         wrapped += durationSec;
+    }
+    if (wrapped == 0.0f && animTimeSec > 0.0f) {
+        wrapped = std::nextafter(durationSec, 0.0f);
     }
     if (wrapped == 0.0f) {
         return {};
@@ -510,6 +517,7 @@ for (const auto& unit : units) {
     bool scenePoseReady = false;
     if (meshForUnit) {
         const int animIndex = resolveSceneAnimIndexForUnit(*meshForUnit, unit);
+        const bool loopingClip = shouldLoopSceneAnimForUnit(unit, animIndex);
         const detail::CanonicalScenePoseSample canonicalAnimSample =
             canonicalSceneAnimTimeForKey(
                 *meshForUnit,
@@ -528,6 +536,7 @@ for (const auto& unit : units) {
                 animIndex,
                 canonicalAnimSample.animTimeSec,
                 true,
+                loopingClip,
                 inserted.pose);
             inserted.lastUsedFrame = poseCacheFrame;
             it = g_cachedScenePoseBySignature.emplace(key, std::move(inserted)).first;
@@ -558,6 +567,7 @@ for (const auto& unit : units) {
                         animIndex,
                         nextAnimSample.animTimeSec,
                         true,
+                        loopingClip,
                         nextInserted.pose);
                     nextInserted.lastUsedFrame = poseCacheFrame;
                     g_cachedScenePoseBySignature.emplace(nextKey, std::move(nextInserted));

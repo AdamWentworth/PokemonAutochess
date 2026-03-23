@@ -72,22 +72,29 @@ void hydrateUnit(PokemonInstance& unit,
 
     auto& roles = game::runtime::session_backend_unit_hydration::ensureBackendAnimRoles(modelPath, mesh, cache);
 
-    if (unit.animIdleIndex < 0) unit.animIdleIndex = roles.idleIndex;
-    if (unit.animMoveIndex < 0) unit.animMoveIndex = roles.moveIndex;
-    if (unit.animAttack1Index < 0) unit.animAttack1Index = roles.attackIndex;
-    if (unit.animFaintIndex < 0) unit.animFaintIndex = roles.faintIndex;
-    if (unit.animGroundIdleIndex < 0) unit.animGroundIdleIndex = roles.groundIdleIndex;
-    if (unit.animAirIdleIndex < 0) unit.animAirIdleIndex = roles.airIdleIndex;
-    if (unit.animTakeoffIndex < 0) unit.animTakeoffIndex = roles.takeoffIndex;
-    if (unit.animLandIndex < 0) unit.animLandIndex = roles.landIndex;
-    if (unit.animLandAIndex < 0) unit.animLandAIndex = roles.landAIndex;
-    if (unit.animLandBIndex < 0) unit.animLandBIndex = roles.landBIndex;
-    if (unit.animLandCIndex < 0) unit.animLandCIndex = roles.landCIndex;
+    const bool backendOnlyUnit = !unit.model;
+    const auto assignRoleIndex = [&](int& dst, int src) {
+        if (backendOnlyUnit || dst < 0) {
+            dst = src;
+        }
+    };
 
-    if (unit.attackDurationSec <= 0.0f && roles.attackDurationSec > 0.0f) {
+    assignRoleIndex(unit.animIdleIndex, roles.idleIndex);
+    assignRoleIndex(unit.animMoveIndex, roles.moveIndex);
+    assignRoleIndex(unit.animAttack1Index, roles.attackIndex);
+    assignRoleIndex(unit.animFaintIndex, roles.faintIndex);
+    assignRoleIndex(unit.animGroundIdleIndex, roles.groundIdleIndex);
+    assignRoleIndex(unit.animAirIdleIndex, roles.airIdleIndex);
+    assignRoleIndex(unit.animTakeoffIndex, roles.takeoffIndex);
+    assignRoleIndex(unit.animLandIndex, roles.landIndex);
+    assignRoleIndex(unit.animLandAIndex, roles.landAIndex);
+    assignRoleIndex(unit.animLandBIndex, roles.landBIndex);
+    assignRoleIndex(unit.animLandCIndex, roles.landCIndex);
+
+    if ((backendOnlyUnit || unit.attackDurationSec <= 0.0f) && roles.attackDurationSec > 0.0f) {
         unit.attackDurationSec = roles.attackDurationSec;
     }
-    if (unit.faintAnimDurationSec <= 0.0f && roles.faintDurationSec > 0.0f) {
+    if ((backendOnlyUnit || unit.faintAnimDurationSec <= 0.0f) && roles.faintDurationSec > 0.0f) {
         unit.faintAnimDurationSec = roles.faintDurationSec;
     }
 
@@ -118,7 +125,11 @@ void hydrateUnit(PokemonInstance& unit,
         }
     }
 
-    if (unit.activeAnimIndex < 0) {
+    const bool unresolvedBackendActiveAnim =
+        backendOnlyUnit &&
+        unit.activeAnimIndex == 1 &&
+        unit.animIdleIndex != 1;
+    if (unit.activeAnimIndex < 0 || unresolvedBackendActiveAnim) {
         unit.activeAnimIndex = unit.isMoving ? unit.animMoveIndex : unit.animIdleIndex;
     }
     if (unit.activeAnimIndex < 0 && !mesh->animations.empty()) {
@@ -161,7 +172,11 @@ BackendAnimRoleEntry& ensureBackendAnimRoles(const std::string& modelPath,
     nlohmann::json animSetJson;
     if (AnimSet::loadAnimSetJson(AnimSet::animSetPathFromModelPath(modelPath), animSetJson)) {
         const auto idlePick = AnimSet::resolveRoleClip(
-            animSetJson, "idle", "idle", {"battlewait", "defaultwait", "idle", "wait"}, true);
+            animSetJson,
+            "idle",
+            "idle",
+            {"battlewait", "defaultwait", "kw01_wait", "idle", "wait"},
+            true);
         const auto movePick = AnimSet::resolveRoleClip(
             animSetJson, "move", "move", {"run", "dash", "move"}, true);
 

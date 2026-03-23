@@ -125,3 +125,77 @@ bool test_animset_roles_smoke(std::string& outFail) {
 
     return true;
 }
+
+bool test_animset_roles_prefer_best_idle_match(std::string& outFail) {
+    struct RoleExpectation {
+        std::string animsetPath;
+        std::string roleKey;
+        std::string fallbackCategory;
+        std::vector<std::string> preferredSubstrings;
+        std::string expectedClip;
+    };
+
+    const std::vector<RoleExpectation> expectations = {
+        {
+            engine::paths::asset("models/0025_Pikachu.animset.json"),
+            "idle",
+            "idle",
+            {"battlewait", "defaultwait", "kw01_wait", "idle", "wait"},
+            "pm0025_00_00_00000_defaultwait01_loop.gfbanm",
+        },
+        {
+            engine::paths::asset("models/0021_Spearow.animset.json"),
+            "ground_idle",
+            "idle",
+            {"ba10_wait", "battlewait", "ba10", "wait", "idle"},
+            "pm0021_00_ba10_waitA01.gfbanm",
+        },
+        {
+            engine::paths::asset("models/0021_Spearow.animset.json"),
+            "air_idle",
+            "idle",
+            {"fi01_wait", "fly", "air", "hover"},
+            "pm0021_00_fi01_wait01.gfbanm",
+        },
+        {
+            engine::paths::asset("models/0056_Mankey.animset.json"),
+            "idle",
+            "idle",
+            {"battlewait", "defaultwait", "kw01_wait", "idle", "wait"},
+            "pm0056_00_00_00001_battlewait01_loop.gfbanm",
+        },
+        {
+            engine::paths::asset("models/0014_Kakuna.animset.json"),
+            "idle",
+            "idle",
+            {"battlewait", "defaultwait", "kw01_wait", "idle", "wait"},
+            "pm0014_00_kw01_wait01.gfbanm",
+        },
+    };
+
+    for (const auto& expectation : expectations) {
+        nlohmann::json j;
+        if (!readJson(expectation.animsetPath, j, outFail)) return false;
+
+        const auto pick = AnimSet::resolveRoleClip(
+            j,
+            expectation.roleKey,
+            expectation.fallbackCategory,
+            expectation.preferredSubstrings,
+            true);
+        if (!pick.valid || pick.clipName.empty()) {
+            outFail = "Expected a valid role pick for animset: " + expectation.animsetPath;
+            return false;
+        }
+        if (pick.clipName != expectation.expectedClip) {
+            outFail =
+                "Unexpected clip for role '" + expectation.roleKey + "' in " +
+                expectation.animsetPath +
+                ": expected '" + expectation.expectedClip +
+                "', got '" + pick.clipName + "'";
+            return false;
+        }
+    }
+
+    return true;
+}

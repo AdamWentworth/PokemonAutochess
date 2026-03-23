@@ -6,8 +6,14 @@
 #include <unordered_map>
 #include <unordered_set>
 
+#ifndef GLM_ENABLE_EXPERIMENTAL
+#define GLM_ENABLE_EXPERIMENTAL
+#endif
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/quaternion.hpp>
+#include <glm/gtx/quaternion.hpp>
+
+#include "engine/runtime/FixedStep.h"
 
 namespace game::runtime::shared_backend_pose {
 namespace {
@@ -31,6 +37,9 @@ float wrapTime(float t, float duration) {
     if (duration <= 0.0f) return 0.0f;
     float wrapped = std::fmod(t, duration);
     if (wrapped < 0.0f) wrapped += duration;
+    if (wrapped == 0.0f && t > 0.0f) {
+        return std::nextafter(duration, 0.0f);
+    }
     return wrapped;
 }
 
@@ -42,19 +51,218 @@ std::size_t findKeyframe(const std::vector<float>& times, float t) {
     return (it == times.begin()) ? 0u : static_cast<std::size_t>((it - times.begin()) - 1u);
 }
 
-glm::vec4 sampleVec4(const pac_model_types::AnimationSampler& sampler, float t) {
+float sceneLoopClosureBlendWindowSec(float duration) {
+    if (!(duration > 0.0f)) return 0.0f;
+    constexpr float kDefaultWindowSec = engine::runtime::fixed_step::kSeconds;
+    return std::min(kDefaultWindowSec, duration * 0.25f);
+}
+
+glm::vec4 sampleVec4NoLoop(const pac_model_types::AnimationSampler& sampler, float t) {
     if (sampler.inputs.empty() || sampler.outputs.empty()) return glm::vec4(0.0f);
+    const auto valueAt = [&](std::size_t index) {
+        return sampler.outputs[std::min(index, sampler.outputs.size() - 1u)];
+    };
+    if (sampler.inputs.size() == 1u || sampler.outputs.size() == 1u) {
+        return valueAt(0u);
+    }
+
+    const float firstTime = sampler.inputs.front();
+    const float lastTime = sampler.inputs.back();
+    const glm::vec4 lastValue = valueAt(sampler.inputs.size() - 1u);
+    if (t <= firstTime) return valueAt(0u);
+    if (t >= lastTime) return lastValue;
+
+    const std::size_t i = findKeyframe(sampler.inputs, t);
+    if (i >= sampler.inputs.size() - 1u) return lastValue;
+    const float t0 = sampler.inputs[i];
+    const float t1 = sampler.inputs[i + 1u];
+    const float a = (t1 > t0) ? ((t - t0) / (t1 - t0)) : 0.0f;
+    const glm::vec4 v0 = valueAt(i);
+    const glm::vec4 v1 = valueAt(i + 1u);
+    if (sampler.interpolation == "STEP") return v0;
+    return glm::mix(v0, v1, std::clamp(a, 0.0f, 1.0f));
+}
+
+glm::vec4 sampleVec4LoopBase(const pac_model_types::AnimationSampler& sampler,
+                             float t,
+                             float duration) {
+    if (sampler.inputs.empty() || sampler.outputs.empty()) return glm::vec4(0.0f);
+    const auto valueAt = [&](std::size_t index) {
+        return sampler.outputs[std::min(index, sampler.outputs.size() - 1u)];
+    };
+    if (sampler.inputs.size() == 1u || sampler.outputs.size() == 1u) {
+        return valueAt(0u);
+    }
+
+    const float firstTime = sampler.inputs.front();
+    const float lastTime = sampler.inputs.back();
+    const glm::vec4 firstValue = valueAt(0u);
+    const glm::vec4 lastValue = valueAt(sampler.inputs.size() - 1u);
+    const bool outsideKeyRange = t < firstTime || t > lastTime;
+    if (outsideKeyRange) {
+        if (sampler.interpolation == "STEP") return lastValue;
+        const float wrappedSpan = (duration - lastTime) + firstTime;
+        if (!(wrappedSpan > 0.0f)) return lastValue;
+        const float wrappedT =
+            (t >= lastTime) ? (t - lastTime) : (t + duration - lastTime);
+        const float a = std::clamp(wrappedT / wrappedSpan, 0.0f, 1.0f);
+        return glm::mix(lastValue, firstValue, a);
+    }
+
     const std::size_t i = findKeyframe(sampler.inputs, t);
     if (i >= sampler.inputs.size() - 1u) {
-        return sampler.outputs[std::min(i, sampler.outputs.size() - 1u)];
+        if (sampler.interpolation == "STEP") return lastValue;
+        const float wrappedSpan = (duration - lastTime) + firstTime;
+        if (!(wrappedSpan > 0.0f)) return lastValue;
+        const float a = std::clamp((t - lastTime) / wrappedSpan, 0.0f, 1.0f);
+        return glm::mix(lastValue, firstValue, a);
     }
     const float t0 = sampler.inputs[i];
     const float t1 = sampler.inputs[i + 1u];
     const float a = (t1 > t0) ? ((t - t0) / (t1 - t0)) : 0.0f;
-    const glm::vec4 v0 = sampler.outputs[std::min(i, sampler.outputs.size() - 1u)];
-    const glm::vec4 v1 = sampler.outputs[std::min(i + 1u, sampler.outputs.size() - 1u)];
+    const glm::vec4 v0 = valueAt(i);
+    const glm::vec4 v1 = valueAt(i + 1u);
     if (sampler.interpolation == "STEP") return v0;
     return glm::mix(v0, v1, std::clamp(a, 0.0f, 1.0f));
+}
+
+glm::vec4 sampleVec4(const pac_model_types::AnimationSampler& sampler,
+                     float t,
+                     float duration,
+                     bool loopingClip) {
+    if (!loopingClip) {
+        return sampleVec4NoLoop(sampler, t);
+    }
+
+    const glm::vec4 baseValue = sampleVec4LoopBase(sampler, t, duration);
+    const float blendWindowSec = sceneLoopClosureBlendWindowSec(duration);
+    if (!(blendWindowSec > 0.0f) || !(blendWindowSec < duration)) {
+        return baseValue;
+    }
+
+    if (t < blendWindowSec) {
+        const float alpha = std::clamp(t / blendWindowSec, 0.0f, 1.0f);
+        const float endTime = duration - blendWindowSec + t;
+        const glm::vec4 endValue = sampleVec4LoopBase(sampler, endTime, duration);
+        return glm::mix(endValue, baseValue, alpha);
+    }
+    if (t > duration - blendWindowSec) {
+        const float alpha =
+            std::clamp((t - (duration - blendWindowSec)) / blendWindowSec, 0.0f, 1.0f);
+        const float startTime = t - (duration - blendWindowSec);
+        const glm::vec4 startValue = sampleVec4LoopBase(sampler, startTime, duration);
+        return glm::mix(baseValue, startValue, alpha);
+    }
+
+    return baseValue;
+}
+
+glm::quat sampleQuatNoLoop(const pac_model_types::AnimationSampler& sampler, float t) {
+    if (sampler.inputs.empty() || sampler.outputs.empty()) {
+        return glm::quat(1.0f, 0.0f, 0.0f, 0.0f);
+    }
+    const auto quatAt = [&](std::size_t index) {
+        const glm::vec4 v = sampler.outputs[std::min(index, sampler.outputs.size() - 1u)];
+        return normalizeQuatIfNeeded(glm::quat(v.w, v.x, v.y, v.z));
+    };
+    if (sampler.inputs.size() == 1u || sampler.outputs.size() == 1u) {
+        return quatAt(0u);
+    }
+
+    const float firstTime = sampler.inputs.front();
+    const float lastTime = sampler.inputs.back();
+    const glm::quat lastValue = quatAt(sampler.inputs.size() - 1u);
+    if (t <= firstTime) return quatAt(0u);
+    if (t >= lastTime) return lastValue;
+
+    const std::size_t i = findKeyframe(sampler.inputs, t);
+    if (i >= sampler.inputs.size() - 1u) return lastValue;
+
+    const float t0 = sampler.inputs[i];
+    const float t1 = sampler.inputs[i + 1u];
+    const float a = (t1 > t0) ? ((t - t0) / (t1 - t0)) : 0.0f;
+    const glm::quat q0 = quatAt(i);
+    const glm::quat q1 = quatAt(i + 1u);
+    if (sampler.interpolation == "STEP") return q0;
+    return normalizeQuatIfNeeded(glm::slerp(q0, q1, std::clamp(a, 0.0f, 1.0f)));
+}
+
+glm::quat sampleQuatLoopBase(const pac_model_types::AnimationSampler& sampler,
+                             float t,
+                             float duration) {
+    if (sampler.inputs.empty() || sampler.outputs.empty()) {
+        return glm::quat(1.0f, 0.0f, 0.0f, 0.0f);
+    }
+    const auto quatAt = [&](std::size_t index) {
+        const glm::vec4 v = sampler.outputs[std::min(index, sampler.outputs.size() - 1u)];
+        return normalizeQuatIfNeeded(glm::quat(v.w, v.x, v.y, v.z));
+    };
+    if (sampler.inputs.size() == 1u || sampler.outputs.size() == 1u) {
+        return quatAt(0u);
+    }
+
+    const float firstTime = sampler.inputs.front();
+    const float lastTime = sampler.inputs.back();
+    const glm::quat firstValue = quatAt(0u);
+    const glm::quat lastValue = quatAt(sampler.inputs.size() - 1u);
+    const bool outsideKeyRange = t < firstTime || t > lastTime;
+    if (outsideKeyRange) {
+        if (sampler.interpolation == "STEP") return lastValue;
+        const float wrappedSpan = (duration - lastTime) + firstTime;
+        if (!(wrappedSpan > 0.0f)) return lastValue;
+        const float wrappedT =
+            (t >= lastTime) ? (t - lastTime) : (t + duration - lastTime);
+        const float a = std::clamp(wrappedT / wrappedSpan, 0.0f, 1.0f);
+        return normalizeQuatIfNeeded(glm::slerp(lastValue, firstValue, a));
+    }
+
+    const std::size_t i = findKeyframe(sampler.inputs, t);
+    if (i >= sampler.inputs.size() - 1u) {
+        if (sampler.interpolation == "STEP") return lastValue;
+        const float wrappedSpan = (duration - lastTime) + firstTime;
+        if (!(wrappedSpan > 0.0f)) return lastValue;
+        const float a = std::clamp((t - lastTime) / wrappedSpan, 0.0f, 1.0f);
+        return normalizeQuatIfNeeded(glm::slerp(lastValue, firstValue, a));
+    }
+
+    const float t0 = sampler.inputs[i];
+    const float t1 = sampler.inputs[i + 1u];
+    const float a = (t1 > t0) ? ((t - t0) / (t1 - t0)) : 0.0f;
+    const glm::quat q0 = quatAt(i);
+    const glm::quat q1 = quatAt(i + 1u);
+    if (sampler.interpolation == "STEP") return q0;
+    return normalizeQuatIfNeeded(glm::slerp(q0, q1, std::clamp(a, 0.0f, 1.0f)));
+}
+
+glm::quat sampleQuat(const pac_model_types::AnimationSampler& sampler,
+                     float t,
+                     float duration,
+                     bool loopingClip) {
+    if (!loopingClip) {
+        return sampleQuatNoLoop(sampler, t);
+    }
+
+    const glm::quat baseValue = sampleQuatLoopBase(sampler, t, duration);
+    const float blendWindowSec = sceneLoopClosureBlendWindowSec(duration);
+    if (!(blendWindowSec > 0.0f) || !(blendWindowSec < duration)) {
+        return baseValue;
+    }
+
+    if (t < blendWindowSec) {
+        const float alpha = std::clamp(t / blendWindowSec, 0.0f, 1.0f);
+        const float endTime = duration - blendWindowSec + t;
+        const glm::quat endValue = sampleQuatLoopBase(sampler, endTime, duration);
+        return normalizeQuatIfNeeded(glm::slerp(endValue, baseValue, alpha));
+    }
+    if (t > duration - blendWindowSec) {
+        const float alpha =
+            std::clamp((t - (duration - blendWindowSec)) / blendWindowSec, 0.0f, 1.0f);
+        const float startTime = t - (duration - blendWindowSec);
+        const glm::quat startValue = sampleQuatLoopBase(sampler, startTime, duration);
+        return normalizeQuatIfNeeded(glm::slerp(baseValue, startValue, alpha));
+    }
+
+    return baseValue;
 }
 
 struct ScenePoseMeshCache {
@@ -251,7 +459,8 @@ void applyClipPose(const render_model::MeshData& mesh,
                   PoseEval& eval,
                   int animIndex,
                   float animTimeSec,
-                  bool preserveRootMotionCarrierXZ) {
+                  bool preserveRootMotionCarrierXZ,
+                  bool loopingClip) {
     if (animIndex < 0 || static_cast<std::size_t>(animIndex) >= mesh.animations.size()) return;
     const auto& clip = mesh.animations[static_cast<std::size_t>(animIndex)];
     const auto& meshCache = scenePoseMeshCacheFor(mesh);
@@ -301,7 +510,8 @@ void applyClipPose(const render_model::MeshData& mesh,
         const auto& sampler = clip.samplers[samplerIndex];
         if (channel.path == pac_model_types::ChannelPath::Translation) {
             if (sampledVec4ReadyBySampler[samplerIndex] == 0u) {
-                sampledVec4BySampler[samplerIndex] = sampleVec4(sampler, clipTime);
+                sampledVec4BySampler[samplerIndex] =
+                    sampleVec4(sampler, clipTime, clip.durationSec, loopingClip);
                 sampledVec4ReadyBySampler[samplerIndex] = 1u;
             }
             const glm::vec4 tr = sampledVec4BySampler[samplerIndex];
@@ -330,7 +540,8 @@ void applyClipPose(const render_model::MeshData& mesh,
             }
         } else if (channel.path == pac_model_types::ChannelPath::Scale) {
             if (sampledVec4ReadyBySampler[samplerIndex] == 0u) {
-                sampledVec4BySampler[samplerIndex] = sampleVec4(sampler, clipTime);
+                sampledVec4BySampler[samplerIndex] =
+                    sampleVec4(sampler, clipTime, clip.durationSec, loopingClip);
                 sampledVec4ReadyBySampler[samplerIndex] = 1u;
             }
             const glm::vec4 sc = sampledVec4BySampler[samplerIndex];
@@ -338,13 +549,8 @@ void applyClipPose(const render_model::MeshData& mesh,
             local.hasMatrix = false;
         } else if (channel.path == pac_model_types::ChannelPath::Rotation) {
             if (sampledQuatReadyBySampler[samplerIndex] == 0u) {
-                if (sampledVec4ReadyBySampler[samplerIndex] == 0u) {
-                    sampledVec4BySampler[samplerIndex] = sampleVec4(sampler, clipTime);
-                    sampledVec4ReadyBySampler[samplerIndex] = 1u;
-                }
-                const glm::vec4 v = sampledVec4BySampler[samplerIndex];
                 sampledQuatBySampler[samplerIndex] =
-                    normalizeQuatIfNeeded(glm::quat(v.w, v.x, v.y, v.z));
+                    sampleQuat(sampler, clipTime, clip.durationSec, loopingClip);
                 sampledQuatReadyBySampler[samplerIndex] = 1u;
             }
             local.r = sampledQuatBySampler[samplerIndex];
@@ -371,6 +577,23 @@ int resolveSceneAnimIndex(const render_model::MeshData& mesh, const PokemonInsta
     return animIndex;
 }
 
+bool isSceneLoopingClipForUnit(const PokemonInstance& unit, int animIndex) {
+    if (animIndex < 0) return false;
+    if (unit.attackTimerSec > 0.0f) return false;
+    if (animIndex == unit.animFaintIndex) return false;
+    if (animIndex == unit.animTakeoffIndex ||
+        animIndex == unit.animLandIndex ||
+        animIndex == unit.animLandAIndex ||
+        animIndex == unit.animLandCIndex) {
+        return false;
+    }
+    return animIndex == unit.animIdleIndex ||
+           animIndex == unit.animMoveIndex ||
+           animIndex == unit.animGroundIdleIndex ||
+           animIndex == unit.animAirIdleIndex ||
+           animIndex == unit.animLandBIndex;
+}
+
 void resetPoseEvalForMesh(const render_model::MeshData& mesh, PoseEval& eval) {
     eval.hasScenePose = true;
     eval.hasClipPose = false;
@@ -387,6 +610,10 @@ void resetPoseEvalForMesh(const render_model::MeshData& mesh, PoseEval& eval) {
 
 } // namespace
 
+bool shouldTreatSceneClipAsLooping(const PokemonInstance& unit, int animIndex) {
+    return isSceneLoopingClipForUnit(unit, animIndex);
+}
+
 void evaluateScenePose(const render_model::MeshData& mesh,
                        const PokemonInstance& unit,
                        PoseEval& outPose) {
@@ -396,6 +623,7 @@ void evaluateScenePose(const render_model::MeshData& mesh,
         animIndex,
         unit.animTimeSec,
         true,
+        isSceneLoopingClipForUnit(unit, animIndex),
         outPose);
 }
 
@@ -410,6 +638,21 @@ void evaluateScenePoseForResolvedClipTime(const render_model::MeshData& mesh,
                                           float animTimeSec,
                                           bool preserveRootMotionCarrierXZ,
                                           PoseEval& outPose) {
+    evaluateScenePoseForResolvedClipTime(
+        mesh,
+        animIndex,
+        animTimeSec,
+        preserveRootMotionCarrierXZ,
+        false,
+        outPose);
+}
+
+void evaluateScenePoseForResolvedClipTime(const render_model::MeshData& mesh,
+                                          int animIndex,
+                                          float animTimeSec,
+                                          bool preserveRootMotionCarrierXZ,
+                                          bool loopingClip,
+                                          PoseEval& outPose) {
     if (mesh.nodesDefault.empty()) {
         outPose = PoseEval{};
         return;
@@ -417,7 +660,13 @@ void evaluateScenePoseForResolvedClipTime(const render_model::MeshData& mesh,
     resetPoseEvalForMesh(mesh, outPose);
 
     if (animIndex >= 0) {
-        applyClipPose(mesh, outPose, animIndex, animTimeSec, preserveRootMotionCarrierXZ);
+        applyClipPose(
+            mesh,
+            outPose,
+            animIndex,
+            animTimeSec,
+            preserveRootMotionCarrierXZ,
+            loopingClip);
     }
 
     buildGlobals(mesh, outPose, animIndex);
@@ -427,12 +676,26 @@ PoseEval evaluateScenePoseForResolvedClipTime(const render_model::MeshData& mesh
                                               int animIndex,
                                               float animTimeSec,
                                               bool preserveRootMotionCarrierXZ) {
+    return evaluateScenePoseForResolvedClipTime(
+        mesh,
+        animIndex,
+        animTimeSec,
+        preserveRootMotionCarrierXZ,
+        false);
+}
+
+PoseEval evaluateScenePoseForResolvedClipTime(const render_model::MeshData& mesh,
+                                              int animIndex,
+                                              float animTimeSec,
+                                              bool preserveRootMotionCarrierXZ,
+                                              bool loopingClip) {
     PoseEval eval;
     evaluateScenePoseForResolvedClipTime(
         mesh,
         animIndex,
         animTimeSec,
         preserveRootMotionCarrierXZ,
+        loopingClip,
         eval);
     return eval;
 }
