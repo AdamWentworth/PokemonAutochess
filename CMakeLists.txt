@@ -16,6 +16,9 @@ option(PAC_ENABLE_RUNTIME_SMOKE_TESTS "Run short executable startup smoke tests 
 option(PAC_OPTIMIZE_RENDER_HOTPATHS_IN_DEBUG
     "Compile selected render/runtime hotpath files with optimization in Debug"
     ON)
+option(PAC_OPTIMIZE_D3D12_SHADERS_IN_DEBUG
+    "Compile D3D12 shaders with optimization plus debug info in Debug"
+    ON)
 
 include(CTest)
 
@@ -55,6 +58,28 @@ if (PAC_OPTIMIZE_RENDER_HOTPATHS_IN_DEBUG)
     set(_pac_hotpath_sources
         "${CMAKE_SOURCE_DIR}/src/game/runtime/session/GameSession.cpp"
         "${CMAKE_SOURCE_DIR}/src/engine/render/D3D12RenderBackend.cpp"
+        "${CMAKE_SOURCE_DIR}/src/engine/render/d3d12/D3D12RenderBackendCachedWorldMeshes.cpp"
+        "${CMAKE_SOURCE_DIR}/src/engine/render/d3d12/D3D12RenderBackendPipelines.cpp"
+        "${CMAKE_SOURCE_DIR}/src/engine/render/d3d12/D3D12RenderBackendTextures.cpp"
+        "${CMAKE_SOURCE_DIR}/src/engine/render/d3d12/D3D12RenderBackendWorldDraw.cpp"
+        "${CMAKE_SOURCE_DIR}/src/engine/render/d3d12/D3D12RenderBackendWorldScene.cpp"
+        "${CMAKE_SOURCE_DIR}/src/engine/render/d3d12/D3D12TextureUpload.cpp"
+        "${CMAKE_SOURCE_DIR}/src/game/runtime/session/SessionProjectedWorldView.cpp"
+        "${CMAKE_SOURCE_DIR}/src/game/runtime/session/SessionBackendRenderHelpers.cpp"
+        "${CMAKE_SOURCE_DIR}/src/game/runtime/session/SessionRenderScratch.cpp"
+        "${CMAKE_SOURCE_DIR}/src/game/runtime/session/SessionWorldRenderRuntime.cpp"
+        "${CMAKE_SOURCE_DIR}/src/game/runtime/shared/projected/SharedProjectedUnitBackendMeshPrep.cpp"
+        "${CMAKE_SOURCE_DIR}/src/game/runtime/shared/projected/SharedProjectedRenderItems.cpp"
+        "${CMAKE_SOURCE_DIR}/src/game/runtime/shared/projected/SharedProjectedUnitBackendMeshRenderer.cpp"
+        "${CMAKE_SOURCE_DIR}/src/game/runtime/shared/projected/SharedProjectedUnitBackendMeshSupport.cpp"
+        "${CMAKE_SOURCE_DIR}/src/game/runtime/shared/projected/SharedProjectedUnitBackendMeshTriangleSubmit.cpp"
+        "${CMAKE_SOURCE_DIR}/src/game/runtime/shared/projected/SharedProjectedUnitBackendMeshTransforms.cpp"
+        "${CMAKE_SOURCE_DIR}/src/game/runtime/shared/projected/SharedProjectedUnitModelRenderer.cpp"
+        "${CMAKE_SOURCE_DIR}/src/game/runtime/shared/projected/SharedProjectedUnitOverlays.cpp"
+        "${CMAKE_SOURCE_DIR}/src/game/runtime/shared/projected/SharedProjectedWorldSceneHelpers.cpp"
+        "${CMAKE_SOURCE_DIR}/src/game/runtime/shared/projected/SharedProjectedUnitWorldSceneRenderer.cpp"
+        "${CMAKE_SOURCE_DIR}/src/game/runtime/shared/projected/SharedProjectedUnitRenderer.cpp"
+        "${CMAKE_SOURCE_DIR}/src/game/runtime/shared/scene/SharedWorldScene.cpp"
     )
     if (MSVC)
         foreach(_src IN LISTS _pac_hotpath_sources)
@@ -221,6 +246,9 @@ target_link_libraries(engine_render
 )
 if (WIN32)
     target_link_libraries(engine_render PRIVATE d3d12 dxgi d3dcompiler)
+endif()
+if (PAC_OPTIMIZE_D3D12_SHADERS_IN_DEBUG)
+    target_compile_definitions(engine_render PRIVATE "$<$<CONFIG:Debug>:PAC_OPTIMIZE_D3D12_SHADERS_IN_DEBUG=1>")
 endif()
 pac_apply_common_target_settings(engine_render)
 

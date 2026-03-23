@@ -32,8 +32,13 @@ std::string d3dCompileErrorMessage(ID3DBlob* errBlob) {
 
 UINT d3dCompileFlags() {
 #if defined(_DEBUG)
-    // Debug builds prioritize compile speed to reduce startup stalls.
+    // Keep shader symbols in Debug, but allow opt-in optimized shader code so
+    // renderer perf tracks Release more closely during day-to-day testing.
+#if defined(PAC_OPTIMIZE_D3D12_SHADERS_IN_DEBUG)
+    return D3DCOMPILE_OPTIMIZATION_LEVEL3 | D3DCOMPILE_DEBUG;
+#else
     return D3DCOMPILE_SKIP_OPTIMIZATION | D3DCOMPILE_DEBUG;
+#endif
 #else
     return D3DCOMPILE_OPTIMIZATION_LEVEL3;
 #endif
