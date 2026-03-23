@@ -203,6 +203,12 @@ public:
         float vertexColorMulG = 1.0f;
         float vertexColorMulB = 1.0f;
         float vertexColorMulA = 1.0f;
+        // Optional per-instance GPU skinning payload used by instanced world draws.
+        // Backend should ignore when gpuSkinning == 0.
+        std::uint8_t gpuSkinning = 0u;
+        std::uint8_t gpuSkinningMode = 0u;
+        std::uint32_t skinMatrixCount = 0u;
+        const float* skinMatrices = nullptr;
     };
 
     template <typename Tag>
@@ -354,6 +360,10 @@ public:
         float vertexColorMulA = 1.0f;
         std::uint32_t skeletonInstanceIndex = 0u;
         std::uint32_t animationStateIndex = 0u;
+        std::uint8_t gpuSkinning = 0u;
+        std::uint8_t gpuSkinningMode = 0u;
+        std::uint32_t skinMatrixCount = 0u;
+        const float* skinMatrices = nullptr;
         float sortDepth = 0.0f;
     };
 
@@ -666,6 +676,14 @@ public:
                 (texture ? texture->vertexColorMulB : 1.0f) * instance.vertexColorMulB;
             instancedTexture.vertexColorMulA =
                 (texture ? texture->vertexColorMulA : 1.0f) * instance.vertexColorMulA;
+            if (instance.gpuSkinning != 0u &&
+                instance.skinMatrices != nullptr &&
+                instance.skinMatrixCount > 0u) {
+                instancedTexture.gpuSkinning = 1u;
+                instancedTexture.gpuSkinningMode = instance.gpuSkinningMode;
+                instancedTexture.skinMatrixCount = instance.skinMatrixCount;
+                instancedTexture.skinMatrices = instance.skinMatrices;
+            }
             if (!texture) {
                 instancedTexture.modelMatrix = mulColumnMajor(kIdentity, instance.modelMatrix);
             }

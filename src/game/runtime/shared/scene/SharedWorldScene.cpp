@@ -12,12 +12,14 @@ struct RenderObjectKey {
     std::uint32_t materialId = 0u;
     std::uint8_t pipelineVariant = 0u;
     std::uint32_t cookedDrawSlot = 0u;
+    bool skinned = false;
 
     bool operator==(const RenderObjectKey& other) const {
         return geometryId == other.geometryId &&
                materialId == other.materialId &&
                pipelineVariant == other.pipelineVariant &&
-               cookedDrawSlot == other.cookedDrawSlot;
+               cookedDrawSlot == other.cookedDrawSlot &&
+               skinned == other.skinned;
     }
 };
 
@@ -27,6 +29,7 @@ struct RenderObjectKeyHash {
         h ^= static_cast<std::size_t>(key.materialId) + 0x9e3779b9u + (h << 6) + (h >> 2);
         h ^= static_cast<std::size_t>(key.pipelineVariant) + 0x9e3779b9u + (h << 6) + (h >> 2);
         h ^= static_cast<std::size_t>(key.cookedDrawSlot) + 0x9e3779b9u + (h << 6) + (h >> 2);
+        h ^= static_cast<std::size_t>(key.skinned ? 1u : 0u) + 0x9e3779b9u + (h << 6) + (h >> 2);
         return h;
     }
 };
@@ -76,6 +79,23 @@ void assignIfPositive(const shared_world_batches::WorldIndexedBatch& batch,
     } else if (batch.sharedTemplate) {
         outValue = batch.sharedTemplate->*member;
     }
+}
+
+IRenderBackend::WorldSceneDrawClass& findOrCreateDrawClass(
+    IRenderBackend::WorldSceneFrame& frame,
+    IRenderBackend::WorldSceneRenderObjectHandle objectHandle) {
+    auto it = std::find_if(
+        frame.drawClasses.begin(),
+        frame.drawClasses.end(),
+        [&](const IRenderBackend::WorldSceneDrawClass& entry) {
+            return entry.objectHandle == objectHandle;
+        });
+    if (it == frame.drawClasses.end()) {
+        frame.drawClasses.push_back(IRenderBackend::WorldSceneDrawClass{});
+        it = std::prev(frame.drawClasses.end());
+        it->objectHandle = objectHandle;
+    }
+    return *it;
 }
 
 } // namespace
@@ -255,13 +275,15 @@ IRenderBackend::WorldSceneRenderObjectHandle ensureRenderObject(
     IRenderBackend::WorldSceneGeometryHandle geometryHandle,
     IRenderBackend::WorldSceneMaterialHandle materialHandle,
     PipelineVariant pipelineVariant,
-    std::uint32_t cookedDrawSlot) {
+    std::uint32_t cookedDrawSlot,
+    bool skinned) {
     auto& cache = renderObjectByKey()[&registry];
     const RenderObjectKey key{
         geometryHandle.id,
         materialHandle.id,
         static_cast<std::uint8_t>(pipelineVariant),
-        cookedDrawSlot};
+        cookedDrawSlot,
+        skinned};
     const auto found = cache.find(key);
     if (found != cache.end()) {
         return found->second;
@@ -276,7 +298,7 @@ IRenderBackend::WorldSceneRenderObjectHandle ensureRenderObject(
     object.pipelineVariant = static_cast<std::uint8_t>(pipelineVariant);
     object.cookedDrawSlot = cookedDrawSlot;
     object.opaque = true;
-    object.skinned = false;
+    object.skinned = skinned;
     registry.renderObjects.push_back(std::move(object));
     cache.emplace(key, handle);
     return handle;
@@ -291,17 +313,7 @@ void appendRigidInstance(IRenderBackend::WorldSceneFrame& frame,
                          float vertexColorMulB,
                          float vertexColorMulA,
                          float sortDepth) {
-    auto it = std::find_if(
-        frame.drawClasses.begin(),
-        frame.drawClasses.end(),
-        [&](const IRenderBackend::WorldSceneDrawClass& entry) {
-            return entry.objectHandle == objectHandle;
-        });
-    if (it == frame.drawClasses.end()) {
-        frame.drawClasses.push_back(IRenderBackend::WorldSceneDrawClass{});
-        it = std::prev(frame.drawClasses.end());
-        it->objectHandle = objectHandle;
-    }
+    auto& drawClass = findOrCreateDrawClass(frame, objectHandle);
 
     IRenderBackend::WorldSceneInstance instance{};
     instance.handle = instanceHandle;
@@ -312,7 +324,59 @@ void appendRigidInstance(IRenderBackend::WorldSceneFrame& frame,
     instance.vertexColorMulB = vertexColorMulB;
     instance.vertexColorMulA = vertexColorMulA;
     instance.sortDepth = sortDepth;
-    it->instances.push_back(std::move(instance));
+    drawClass.instances.push_back(std::move(instance));
+}
+
+void appendSkinnedInstance(IRenderBackend::WorldSceneFrame& frame,
+                           IRenderBackend::WorldSceneRenderObjectHandle objectHandle,
+                           IRenderBackend::WorldSceneRenderInstanceHandle instanceHandle,
+                           const std::array<float, 16>& modelMatrix,
+                           float vertexColorMulR,
+                           float vertexColorMulG,
+                           float vertexColorMulB,
+                           float vertexColorMulA,
+                           float sortDepth,
+                           std::uint8_t gpuSkinningMode,
+                           std::uint32_t skinMatrixCount,
+                           const float* skinMatrices) {
+    if (!skinMatrices || skinMatrixCount == 0u) {
+        appendRigidInstance(frame,
+                            objectHandle,
+                            instanceHandle,
+                            modelMatrix,
+                            vertexColorMulR,
+                            vertexColorMulG,
+                            vertexColorMulB,
+                            vertexColorMulA,
+                            sortDepth);
+        return;
+    }
+
+    auto& drawClass = findOrCreateDrawClass(frame, objectHandle);
+
+    IRenderBackend::WorldSceneInstance instance{};
+    instance.handle = instanceHandle;
+    instance.objectHandle = objectHandle;
+    instance.modelMatrix = modelMatrix;
+    instance.vertexColorMulR = vertexColorMulR;
+    instance.vertexColorMulG = vertexColorMulG;
+    instance.vertexColorMulB = vertexColorMulB;
+    instance.vertexColorMulA = vertexColorMulA;
+    instance.gpuSkinning = 1u;
+    instance.gpuSkinningMode = std::min<std::uint8_t>(gpuSkinningMode, 1u);
+    instance.skinMatrixCount = skinMatrixCount;
+    instance.skinMatrices = skinMatrices;
+    instance.sortDepth = sortDepth;
+    drawClass.instances.push_back(std::move(instance));
+
+    const std::uint32_t floatsPerSkinMatrix =
+        instance.gpuSkinningMode == 1u ? 32u : 16u;
+    const std::uint32_t uploadBytes =
+        skinMatrixCount * floatsPerSkinMatrix * static_cast<std::uint32_t>(sizeof(float));
+    ++drawClass.visibleSkeletons;
+    drawClass.paletteUploadBytes += uploadBytes;
+    ++frame.visibleSkeletons;
+    frame.paletteUploadBytes += uploadBytes;
 }
 
 IRenderBackend::WorldSceneView buildWorldSceneView(

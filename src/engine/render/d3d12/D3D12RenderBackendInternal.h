@@ -75,6 +75,10 @@ struct WorldInstanceVertexData {
     float colorG;
     float colorB;
     float colorA;
+    std::uint32_t skinEnabled;
+    std::uint32_t skinMatrixCount;
+    std::uint32_t skinningMode;
+    std::uint32_t skinFloat4Offset;
 };
 
 static_assert(

@@ -133,7 +133,8 @@ void D3D12RenderBackend::initializeWorldSceneFastPathCaps() {
         worldSceneFastPathCaps_.supported;
     worldSceneFastPathCaps_.supportsExecuteIndirect =
         worldSceneFastPathCaps_.supported;
-    worldSceneFastPathCaps_.supportsSkinnedInstancing = false;
+    worldSceneFastPathCaps_.supportsSkinnedInstancing =
+        worldSceneFastPathCaps_.supported;
 #endif
 }
 

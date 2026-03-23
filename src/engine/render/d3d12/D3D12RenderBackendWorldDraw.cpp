@@ -83,6 +83,19 @@ int pbrBindingLogMaxEntries() {
     return maxEntries;
 }
 
+constexpr std::uint32_t kMaxGpuSkinMatrices = 128u;
+
+bool hasPerInstanceSkinning(const IRenderBackend::WorldMeshInstance& instance) {
+    return instance.gpuSkinning != 0u &&
+           instance.skinMatrices != nullptr &&
+           instance.skinMatrixCount > 0u;
+}
+
+std::size_t skinMatrixFloatCount(std::uint32_t skinMatrixCount, std::uint8_t gpuSkinningMode) {
+    return static_cast<std::size_t>(skinMatrixCount) *
+           static_cast<std::size_t>(gpuSkinningMode == 1u ? 32u : 16u);
+}
+
 void maybeLogPbrBindingD3D12(const IRenderBackend::WorldTextureData* texture,
                              bool hasBase,
                              bool hasNormal,
@@ -134,6 +147,10 @@ void packWorldInstanceVertexData(const IRenderBackend::WorldMeshInstance& instan
     out.colorG = instance.vertexColorMulG;
     out.colorB = instance.vertexColorMulB;
     out.colorA = instance.vertexColorMulA;
+    out.skinEnabled = 0u;
+    out.skinMatrixCount = 0u;
+    out.skinningMode = 0u;
+    out.skinFloat4Offset = 0u;
 }
 } // namespace
 
@@ -213,7 +230,7 @@ void D3D12RenderBackend::drawWorldTriangles(const WorldTriangle* triangles,
     commandList_->SetGraphicsRootConstantBufferView(
         0,
         worldVsConstantBufferGpuAddress_ + static_cast<std::uint64_t>(vsConstantsWriteOffset));
-    commandList_->SetGraphicsRootConstantBufferView(2, worldSkinMatrixBufferGpuAddress_);
+    commandList_->SetGraphicsRootShaderResourceView(2, worldSkinMatrixBufferGpuAddress_);
     commandList_->SetGraphicsRootShaderResourceView(9, worldInstanceBufferGpuAddress_);
     const WorldPsConstants worldPs = makeWorldPsConstants(nullptr, 0.0f);
     commandList_->SetGraphicsRoot32BitConstants(
@@ -617,6 +634,68 @@ void D3D12RenderBackend::drawWorldIndexedMeshTexturedCachedInstanced(
         return;
     }
 
+    bool anyPerInstanceSkinning = false;
+    bool allInstancesCarrySkinning = true;
+    std::size_t instanceSkinFloatCountTotal = 0u;
+    for (std::size_t i = 0; i < instanceCount; ++i) {
+        const WorldMeshInstance& instance = instances[i];
+        const bool instanceHasSkinning = hasPerInstanceSkinning(instance);
+        if (instance.gpuSkinning != 0u && !instanceHasSkinning) {
+            IRenderBackend::drawWorldIndexedMeshTexturedCachedInstanced(
+                geometryKey,
+                vertices,
+                vertexCount,
+                indices,
+                indexCount,
+                texture,
+                instances,
+                instanceCount,
+                viewProjectionMatrix4x4,
+                surfaceWidth,
+                surfaceHeight);
+            return;
+        }
+        anyPerInstanceSkinning |= instanceHasSkinning;
+        allInstancesCarrySkinning &= instanceHasSkinning;
+        if (!instanceHasSkinning) {
+            continue;
+        }
+        if (instance.skinMatrixCount > kMaxGpuSkinMatrices ||
+            instance.gpuSkinningMode > 1u) {
+            IRenderBackend::drawWorldIndexedMeshTexturedCachedInstanced(
+                geometryKey,
+                vertices,
+                vertexCount,
+                indices,
+                indexCount,
+                texture,
+                instances,
+                instanceCount,
+                viewProjectionMatrix4x4,
+                surfaceWidth,
+                surfaceHeight);
+            return;
+        }
+        instanceSkinFloatCountTotal +=
+            skinMatrixFloatCount(instance.skinMatrixCount, instance.gpuSkinningMode);
+    }
+    if (anyPerInstanceSkinning &&
+        (!allInstancesCarrySkinning || (texture && texture->gpuSkinning != 0u))) {
+        IRenderBackend::drawWorldIndexedMeshTexturedCachedInstanced(
+            geometryKey,
+            vertices,
+            vertexCount,
+            indices,
+            indexCount,
+            texture,
+            instances,
+            instanceCount,
+            viewProjectionMatrix4x4,
+            surfaceWidth,
+            surfaceHeight);
+        return;
+    }
+
     const std::size_t instanceBytes = instanceCount * sizeof(WorldInstanceVertexData);
     const std::size_t instanceWriteOffset = static_cast<std::size_t>(worldInstanceFrameOffset_);
     if (instanceWriteOffset + instanceBytes > worldInstanceBufferSize_) {
@@ -635,74 +714,132 @@ void D3D12RenderBackend::drawWorldIndexedMeshTexturedCachedInstanced(
         return;
     }
 
+    const std::size_t instanceSkinBytes =
+        instanceSkinFloatCountTotal * sizeof(float);
+    const std::size_t skinWriteOffset = anyPerInstanceSkinning
+        ? alignUp(static_cast<std::size_t>(worldSkinMatrixFrameOffset_), 256u)
+        : 0u;
+    const std::size_t skinWriteEnd = anyPerInstanceSkinning
+        ? (skinWriteOffset + alignUp(instanceSkinBytes, 256u))
+        : static_cast<std::size_t>(worldSkinMatrixFrameOffset_);
+    if (anyPerInstanceSkinning && skinWriteEnd > worldSkinMatrixBufferSize_) {
+        IRenderBackend::drawWorldIndexedMeshTexturedCachedInstanced(
+            geometryKey,
+            vertices,
+            vertexCount,
+            indices,
+            indexCount,
+            texture,
+            instances,
+            instanceCount,
+            viewProjectionMatrix4x4,
+            surfaceWidth,
+            surfaceHeight);
+        return;
+    }
+
     auto* instanceData =
         reinterpret_cast<WorldInstanceVertexData*>(worldInstanceMappedData_ + instanceWriteOffset);
+    float* instanceSkinData = anyPerInstanceSkinning
+        ? reinterpret_cast<float*>(worldSkinMatrixMappedData_ + skinWriteOffset)
+        : nullptr;
+    std::size_t instanceSkinFloatOffset = 0u;
     for (std::size_t i = 0; i < instanceCount; ++i) {
         packWorldInstanceVertexData(instances[i], instanceData[i]);
+        if (!anyPerInstanceSkinning) {
+            continue;
+        }
+        const WorldMeshInstance& instance = instances[i];
+        const std::uint8_t gpuSkinningMode = std::min<std::uint8_t>(instance.gpuSkinningMode, 1u);
+        const std::size_t floatCount = skinMatrixFloatCount(instance.skinMatrixCount, gpuSkinningMode);
+        std::memcpy(instanceSkinData + instanceSkinFloatOffset,
+                    instance.skinMatrices,
+                    floatCount * sizeof(float));
+        instanceData[i].skinEnabled = 1u;
+        instanceData[i].skinMatrixCount = instance.skinMatrixCount;
+        instanceData[i].skinningMode = gpuSkinningMode;
+        instanceData[i].skinFloat4Offset =
+            static_cast<std::uint32_t>((skinWriteOffset / (sizeof(float) * 4u)) +
+                                       (instanceSkinFloatOffset / 4u));
+        instanceSkinFloatOffset += floatCount;
     }
     const D3D12_GPU_VIRTUAL_ADDRESS instanceDataGpuAddress =
         worldInstanceBufferGpuAddress_ + static_cast<std::uint64_t>(instanceWriteOffset);
     worldInstanceFrameOffset_ =
         static_cast<std::uint32_t>(instanceWriteOffset + instanceBytes);
+    if (anyPerInstanceSkinning) {
+        worldSkinMatrixFrameOffset_ = static_cast<std::uint32_t>(skinWriteEnd);
+    }
 
     ensureWorldFallbackEnvTexture();
-    SpriteTexture* worldTex = ensureWorldTexture(texture);
+    IRenderBackend::WorldTextureData perInstanceTexture{};
+    const WorldTextureData* drawTexture = texture;
+    if (anyPerInstanceSkinning && texture) {
+        perInstanceTexture = *texture;
+        perInstanceTexture.gpuSkinning = 0u;
+        perInstanceTexture.gpuSkinningMode = 0u;
+        perInstanceTexture.skinMatrixCount = 0u;
+        perInstanceTexture.skinMatrices = nullptr;
+        drawTexture = &perInstanceTexture;
+    }
+
+    SpriteTexture* worldTex = ensureWorldTexture(drawTexture);
     const std::uint32_t baseDescriptorIndex =
         worldTex ? worldTex->descriptorIndex : worldFallbackTextureDescriptorIndex_;
     const float useTexture = (worldTex && worldTex->valid) ? 1.0f : 0.0f;
 
-    SpriteTexture* normalTex = texture ? ensureWorldTextureRaw(
-        texture->normalKey,
-        texture->normalCacheKey,
-        texture->normalRgba,
-        texture->normalWidth,
-        texture->normalHeight,
-        texture->normalWrapS,
-        texture->normalWrapT,
+    SpriteTexture* normalTex = drawTexture ? ensureWorldTextureRaw(
+        drawTexture->normalKey,
+        drawTexture->normalCacheKey,
+        drawTexture->normalRgba,
+        drawTexture->normalWidth,
+        drawTexture->normalHeight,
+        drawTexture->normalWrapS,
+        drawTexture->normalWrapT,
         /*srgb=*/false) : nullptr;
     const std::uint32_t normalDescriptorIndex =
         normalTex ? normalTex->descriptorIndex : worldFallbackNormalTextureDescriptorIndex_;
 
-    SpriteTexture* metallicRoughnessTex = texture ? ensureWorldTextureRaw(
-        texture->metallicRoughnessKey,
-        texture->metallicRoughnessCacheKey,
-        texture->metallicRoughnessRgba,
-        texture->metallicRoughnessWidth,
-        texture->metallicRoughnessHeight,
-        texture->metallicRoughnessWrapS,
-        texture->metallicRoughnessWrapT,
+    SpriteTexture* metallicRoughnessTex = drawTexture ? ensureWorldTextureRaw(
+        drawTexture->metallicRoughnessKey,
+        drawTexture->metallicRoughnessCacheKey,
+        drawTexture->metallicRoughnessRgba,
+        drawTexture->metallicRoughnessWidth,
+        drawTexture->metallicRoughnessHeight,
+        drawTexture->metallicRoughnessWrapS,
+        drawTexture->metallicRoughnessWrapT,
         /*srgb=*/false) : nullptr;
     const std::uint32_t metallicRoughnessDescriptorIndex =
         metallicRoughnessTex
             ? metallicRoughnessTex->descriptorIndex
             : worldFallbackMetallicRoughnessTextureDescriptorIndex_;
 
-    SpriteTexture* occlusionTex = texture ? ensureWorldTextureRaw(
-        texture->occlusionKey,
-        texture->occlusionCacheKey,
-        texture->occlusionRgba,
-        texture->occlusionWidth,
-        texture->occlusionHeight,
-        texture->occlusionWrapS,
-        texture->occlusionWrapT,
+    SpriteTexture* occlusionTex = drawTexture ? ensureWorldTextureRaw(
+        drawTexture->occlusionKey,
+        drawTexture->occlusionCacheKey,
+        drawTexture->occlusionRgba,
+        drawTexture->occlusionWidth,
+        drawTexture->occlusionHeight,
+        drawTexture->occlusionWrapS,
+        drawTexture->occlusionWrapT,
         /*srgb=*/false) : nullptr;
     const std::uint32_t occlusionDescriptorIndex =
         occlusionTex ? occlusionTex->descriptorIndex : worldFallbackOcclusionTextureDescriptorIndex_;
 
-    SpriteTexture* emissiveTex = texture ? ensureWorldTextureRaw(
-        texture->emissiveKey,
-        texture->emissiveCacheKey,
-        texture->emissiveRgba,
-        texture->emissiveWidth,
-        texture->emissiveHeight,
-        texture->emissiveWrapS,
-        texture->emissiveWrapT,
+    SpriteTexture* emissiveTex = drawTexture ? ensureWorldTextureRaw(
+        drawTexture->emissiveKey,
+        drawTexture->emissiveCacheKey,
+        drawTexture->emissiveRgba,
+        drawTexture->emissiveWidth,
+        drawTexture->emissiveHeight,
+        drawTexture->emissiveWrapS,
+        drawTexture->emissiveWrapT,
         /*srgb=*/true) : nullptr;
     const std::uint32_t emissiveDescriptorIndex =
         emissiveTex ? emissiveTex->descriptorIndex : worldFallbackEmissiveTextureDescriptorIndex_;
 
     maybeLogPbrBindingD3D12(
-        texture,
+        drawTexture,
         worldTex != nullptr,
         normalTex != nullptr,
         metallicRoughnessTex != nullptr,
@@ -721,7 +858,7 @@ void D3D12RenderBackend::drawWorldIndexedMeshTexturedCachedInstanced(
         occlusionDescriptorIndex,
         emissiveDescriptorIndex,
         worldFallbackEnvTextureDescriptorIndex_,
-        texture,
+        drawTexture,
         useTexture,
         viewProjectionMatrix4x4,
         instanceDataGpuAddress,
@@ -824,7 +961,6 @@ void D3D12RenderBackend::drawWorldIndexedMeshInternal(const WorldMeshVertex* ver
     commandList_->SetDescriptorHeaps(1, heaps);
     commandList_->SetGraphicsRootSignature(worldRootSignature_.Get());
     const float* modelMatrix = textureData ? textureData->modelMatrix.data() : nullptr;
-    constexpr std::uint32_t kMaxGpuSkinMatrices = 128u;
     bool gpuSkinningEnabled =
         textureData &&
         textureData->gpuSkinning != 0u &&
@@ -880,7 +1016,7 @@ void D3D12RenderBackend::drawWorldIndexedMeshInternal(const WorldMeshVertex* ver
     commandList_->SetGraphicsRootConstantBufferView(
         0,
         worldVsConstantBufferGpuAddress_ + static_cast<std::uint64_t>(vsConstantsWriteOffset));
-    commandList_->SetGraphicsRootConstantBufferView(2, skinMatrixGpuAddress);
+    commandList_->SetGraphicsRootShaderResourceView(2, skinMatrixGpuAddress);
     commandList_->SetGraphicsRootShaderResourceView(9, worldInstanceBufferGpuAddress_);
     WorldPsConstants worldPs = makeWorldPsConstants(textureData, useTexture);
     if (textureData && textureData->materialMode >= 2u) {
@@ -1019,7 +1155,7 @@ void D3D12RenderBackend::drawWorldIndexedMeshInternal(const WorldMeshVertex* ver
                 0,
                 worldVsConstantBufferGpuAddress_ +
                     static_cast<std::uint64_t>(outlineVsConstantWriteOffset));
-            commandList_->SetGraphicsRootConstantBufferView(2, worldSkinMatrixBufferGpuAddress_);
+            commandList_->SetGraphicsRootShaderResourceView(2, worldSkinMatrixBufferGpuAddress_);
 
             WorldPsConstants outlinePs = makeWorldPsConstants(textureData, 0.0f);
             outlinePs.materialMode = 3.0f;
@@ -1113,7 +1249,6 @@ void D3D12RenderBackend::drawWorldIndexedMeshTexturedCachedInternal(
     commandList_->SetGraphicsRootSignature(worldRootSignature_.Get());
 
     const float* modelMatrix = textureData ? textureData->modelMatrix.data() : nullptr;
-    constexpr std::uint32_t kMaxGpuSkinMatrices = 128u;
     bool gpuSkinningEnabled =
         textureData &&
         textureData->gpuSkinning != 0u &&
@@ -1173,7 +1308,7 @@ void D3D12RenderBackend::drawWorldIndexedMeshTexturedCachedInternal(
     commandList_->SetGraphicsRootConstantBufferView(
         0,
         worldVsConstantBufferGpuAddress_ + static_cast<std::uint64_t>(vsConstantsWriteOffset));
-    commandList_->SetGraphicsRootConstantBufferView(2, skinMatrixGpuAddress);
+    commandList_->SetGraphicsRootShaderResourceView(2, skinMatrixGpuAddress);
     commandList_->SetGraphicsRootShaderResourceView(9, instanceDataGpuAddress);
     WorldPsConstants worldPs = makeWorldPsConstants(textureData, useTexture);
     if (textureData && textureData->materialMode >= 2u) {
@@ -1338,7 +1473,7 @@ void D3D12RenderBackend::drawWorldIndexedMeshTexturedCachedInternal(
         0,
         worldVsConstantBufferGpuAddress_ +
             static_cast<std::uint64_t>(outlineVsConstantWriteOffset));
-    commandList_->SetGraphicsRootConstantBufferView(2, worldSkinMatrixBufferGpuAddress_);
+    commandList_->SetGraphicsRootShaderResourceView(2, worldSkinMatrixBufferGpuAddress_);
 
     WorldPsConstants outlinePs = makeWorldPsConstants(textureData, 0.0f);
     outlinePs.materialMode = 3.0f;

@@ -3,9 +3,13 @@
 #include "game/runtime/shared/projected/SharedProjectedRenderItems.h"
 #include "game/runtime/shared/projected/SharedProjectedUnitBackendMeshPrep.h"
 #include "game/runtime/shared/projected/SharedProjectedUnitBackendMeshSupport.h"
+#include "game/runtime/shared/projected/SharedProjectedUnitBackendMeshTransforms.h"
 #include "game/runtime/shared/scene/SharedWorldScene.h"
+#include "game/runtime/shared/vfx/tail_fire/SharedTailFireMeshPlayback.h"
 
+#include <algorithm>
 #include <chrono>
+#include <cstring>
 
 namespace support = game::runtime::shared_projected_unit_backend_mesh_support;
 namespace prep = game::runtime::shared_projected_unit_backend_mesh_prep;
@@ -33,6 +37,19 @@ bool tryRenderProjectedUnitModelWorldScene(
         !args.backendModelFullMeshEnabled ||
         !args.backendModelFastTexturedPathEnabled ||
         !args.backendModelBackfaceCullingEnabled) {
+        return false;
+    }
+
+    // Charmander's authored tail-fire mesh still relies on the legacy projected-model
+    // path, which patches the fire submesh material/atlas and marks the mesh carrier
+    // anchor. Until the world-scene path learns that same override, keep this species
+    // on the proven fallback path.
+    const bool tailFireMeshPlaybackSpecies =
+        args.unit->alive &&
+        !args.unit->fainting &&
+        game::runtime::shared_tail_fire_mesh_playback::isTailFireMeshPlaybackSpecies(
+            args.unit->name);
+    if (tailFireMeshPlaybackSpecies) {
         return false;
     }
 
@@ -76,10 +93,12 @@ bool tryRenderProjectedUnitModelWorldScene(
         return false;
     }
 
+    IRenderBackend::WorldSceneFastPathCaps fastPathCaps{};
+    (void)args.renderer->getWorldSceneFastPathCaps(fastPathCaps);
+
     for (std::size_t fastBatchIndex = 0; fastBatchIndex < fastCache->batches.size(); ++fastBatchIndex) {
         const auto& batchTemplate = fastCache->batches[fastBatchIndex];
-        if (batchTemplate.skinnedBatch ||
-            batchTemplate.gpuTemplateVertices.empty() ||
+        if (batchTemplate.gpuTemplateVertices.empty() ||
             batchTemplate.indices.size() < 3u ||
             batchTemplate.baseSubmeshIndex >= prepared.modelIndexedBatchesPerSubmesh.size()) {
             if (args.perfBreakdown) {
@@ -105,6 +124,133 @@ bool tryRenderProjectedUnitModelWorldScene(
         }
     }
 
+    std::vector<support::GpuSkinBatchState> batchSkinStates(fastCache->batches.size());
+    std::vector<std::uint8_t> batchUsesSceneSkinning(fastCache->batches.size(), 0u);
+    shared_projected_unit_backend_mesh_transforms::Resolver transforms;
+    bool transformsInitialized = false;
+    auto& gpuSkinBatchStates = support::gpuSkinBatchStateEntries();
+    gpuSkinBatchStates.clear();
+    gpuSkinBatchStates.reserve(fastCache->batches.size());
+    support::GpuSkinBatchStateEntry* lastGpuSkinBatchState = nullptr;
+
+    auto ensureTransformsInitialized = [&]() {
+        if (!transformsInitialized) {
+            transforms.initialize(args, prepared);
+            transformsInitialized = true;
+        }
+    };
+
+    auto tryResolveSkinnedBatchState =
+        [&](const support::FastTexturedBatchTemplate& batchTemplate,
+            int resolvedTriNodeIndex,
+            support::GpuSkinBatchState& outState) -> bool {
+            if (!fastPathCaps.supportsSkinnedInstancing || !args.enableGpuClipSkinning) {
+                return false;
+            }
+
+            ensureTransformsInitialized();
+            const int skinCacheKey = transforms.gpuSkinningCacheKeyForNode(resolvedTriNodeIndex);
+            if (skinCacheKey < 0) {
+                return false;
+            }
+
+            const bool hasJointPalette = !batchTemplate.gpuJointPalette.empty();
+            const std::size_t paletteCount = hasJointPalette
+                ? std::min(batchTemplate.gpuJointPalette.size(), support::kMaxGpuSkinMatrices)
+                : 0u;
+            const auto matchesBatchStateKey =
+                [&](const support::UnitSkinMatrixKey& key) {
+                    if (key.unitId != args.unit->id ||
+                        key.skinKey != skinCacheKey ||
+                        key.paletteSize != static_cast<std::uint32_t>(paletteCount)) {
+                        return false;
+                    }
+                    if (paletteCount == 0u) {
+                        return true;
+                    }
+                    return std::memcmp(key.palette.data(),
+                                       batchTemplate.gpuJointPalette.data(),
+                                       paletteCount * sizeof(std::uint16_t)) == 0;
+                };
+
+            support::GpuSkinBatchStateEntry* matchedEntry = nullptr;
+            if (lastGpuSkinBatchState && matchesBatchStateKey(lastGpuSkinBatchState->key)) {
+                matchedEntry = lastGpuSkinBatchState;
+            } else {
+                auto stateIt = std::find_if(
+                    gpuSkinBatchStates.begin(),
+                    gpuSkinBatchStates.end(),
+                    [&](const support::GpuSkinBatchStateEntry& entry) {
+                        return matchesBatchStateKey(entry.key);
+                    });
+                if (stateIt != gpuSkinBatchStates.end()) {
+                    matchedEntry = &(*stateIt);
+                }
+            }
+
+            if (!matchedEntry) {
+                support::UnitSkinMatrixKey batchStateKey{};
+                batchStateKey.unitId = args.unit->id;
+                batchStateKey.skinKey = skinCacheKey;
+                batchStateKey.paletteSize = static_cast<std::uint32_t>(paletteCount);
+                if (paletteCount > 0u) {
+                    std::memcpy(batchStateKey.palette.data(),
+                                batchTemplate.gpuJointPalette.data(),
+                                paletteCount * sizeof(std::uint16_t));
+                }
+
+                support::GpuSkinBatchStateEntry newEntry{};
+                newEntry.key = batchStateKey;
+                auto& sharedSkinMatrices = support::unitSkinMatrices()[batchStateKey];
+                if (transforms.configureGpuClipSkinningBatch(
+                        resolvedTriNodeIndex,
+                        hasJointPalette ? &batchTemplate.gpuJointPalette : nullptr,
+                        newEntry.state.modelMatrix,
+                        newEntry.state.gpuSkinningMode,
+                        sharedSkinMatrices,
+                        newEntry.state.skinMatrixCount)) {
+                    newEntry.state.valid = true;
+                    newEntry.state.sharedSkinMatrices =
+                        sharedSkinMatrices.empty() ? nullptr : sharedSkinMatrices.data();
+                }
+                gpuSkinBatchStates.emplace_back(std::move(newEntry));
+                matchedEntry = &gpuSkinBatchStates.back();
+            }
+
+            lastGpuSkinBatchState = matchedEntry;
+            if (!matchedEntry->state.valid ||
+                matchedEntry->state.sharedSkinMatrices == nullptr ||
+                matchedEntry->state.skinMatrixCount == 0u) {
+                return false;
+            }
+
+            outState = matchedEntry->state;
+            return true;
+        };
+
+    for (std::size_t fastBatchIndex = 0; fastBatchIndex < fastCache->batches.size(); ++fastBatchIndex) {
+        const auto& batchTemplate = fastCache->batches[fastBatchIndex];
+        if (!batchTemplate.skinnedBatch) {
+            continue;
+        }
+
+        int resolvedTriNodeIndex = batchTemplate.triNodeIndex;
+        if (resolvedTriNodeIndex < 0 && fastCache->defaultSkinNodeIndex >= 0) {
+            resolvedTriNodeIndex = fastCache->defaultSkinNodeIndex;
+        }
+        if (!tryResolveSkinnedBatchState(
+                batchTemplate,
+                resolvedTriNodeIndex,
+                batchSkinStates[fastBatchIndex])) {
+            if (args.perfBreakdown) {
+                args.perfBreakdown->prepMs +=
+                    std::chrono::duration<double, std::milli>(Clock::now() - prepStart).count();
+            }
+            return false;
+        }
+        batchUsesSceneSkinning[fastBatchIndex] = 1u;
+    }
+
     if (args.perfBreakdown) {
         args.perfBreakdown->prepMs +=
             std::chrono::duration<double, std::milli>(Clock::now() - prepStart).count();
@@ -128,7 +274,16 @@ bool tryRenderProjectedUnitModelWorldScene(
         auto& itemEntry =
             persistent::ensureProjectedRenderItem(*args.projectedRenderItems, itemKey);
         persistent::touchProjectedRenderItem(*args.projectedRenderItems, itemEntry);
-        persistent::syncProjectedRenderItemDynamicState(itemEntry, runtimeBatch, frameStamp);
+        auto sceneBatch = runtimeBatch;
+        if (batchUsesSceneSkinning[fastBatchIndex] != 0u) {
+            const auto& skinState = batchSkinStates[fastBatchIndex];
+            sceneBatch.modelMatrix = skinState.modelMatrix;
+            sceneBatch.gpuSkinning = 1u;
+            sceneBatch.gpuSkinningMode = skinState.gpuSkinningMode;
+            sceneBatch.skinMatrixCount = skinState.skinMatrixCount;
+            sceneBatch.sharedSkinMatrices = skinState.sharedSkinMatrices;
+        }
+        persistent::syncProjectedRenderItemDynamicState(itemEntry, sceneBatch, frameStamp);
 
         if (!itemEntry.worldSceneObjectHandle ||
             itemEntry.worldSceneRegistryGeneration != args.worldSceneRegistry->generation) {
@@ -149,7 +304,8 @@ bool tryRenderProjectedUnitModelWorldScene(
                 geometryHandle,
                 materialHandle,
                 shared_world_scene::PipelineVariant::OpaqueLit,
-                static_cast<std::uint32_t>(fastBatchIndex));
+                static_cast<std::uint32_t>(fastBatchIndex),
+                batchTemplate.skinnedBatch);
             itemEntry.worldSceneRegistryGeneration = args.worldSceneRegistry->generation;
         }
 
@@ -157,16 +313,33 @@ bool tryRenderProjectedUnitModelWorldScene(
         instanceHandle.id =
             (static_cast<std::uint32_t>(args.unit->id) << 16u) ^
             static_cast<std::uint32_t>(fastBatchIndex + 1u);
-        shared_world_scene::appendRigidInstance(
-            *args.worldSceneFrame,
-            itemEntry.worldSceneObjectHandle,
-            instanceHandle,
-            runtimeBatch.modelMatrix,
-            sceneColor.r,
-            sceneColor.g,
-            sceneColor.b,
-            sceneAlpha,
-            runtimeBatch.sortDepth);
+        if (batchUsesSceneSkinning[fastBatchIndex] != 0u) {
+            const auto& skinState = batchSkinStates[fastBatchIndex];
+            shared_world_scene::appendSkinnedInstance(
+                *args.worldSceneFrame,
+                itemEntry.worldSceneObjectHandle,
+                instanceHandle,
+                skinState.modelMatrix,
+                sceneColor.r,
+                sceneColor.g,
+                sceneColor.b,
+                sceneAlpha,
+                runtimeBatch.sortDepth,
+                skinState.gpuSkinningMode,
+                skinState.skinMatrixCount,
+                skinState.sharedSkinMatrices);
+        } else {
+            shared_world_scene::appendRigidInstance(
+                *args.worldSceneFrame,
+                itemEntry.worldSceneObjectHandle,
+                instanceHandle,
+                runtimeBatch.modelMatrix,
+                sceneColor.r,
+                sceneColor.g,
+                sceneColor.b,
+                sceneAlpha,
+                runtimeBatch.sortDepth);
+        }
     }
 
     out.drewModelMesh = true;

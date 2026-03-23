@@ -603,6 +603,7 @@ if (BUILD_TESTING)
         tests/TestSharedParticleVfxBridgeDispatch.cpp
         tests/TestSharedParticleVfxStyles.cpp
         tests/TestSharedProjectedUnitBackendMeshSupport.cpp
+        tests/TestSharedProjectedUnitWorldSceneRenderer.cpp
         tests/TestSharedTailFireAtlasHelpers.cpp
         tests/TestSharedTailFireExactGpuBatches.cpp
         tests/TestSharedTailFireMeshPlayback.cpp

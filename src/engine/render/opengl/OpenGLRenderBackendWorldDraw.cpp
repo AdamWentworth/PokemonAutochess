@@ -471,6 +471,33 @@ void OpenGLRenderBackend::drawWorldIndexedMeshTexturedCachedInstanced(
     const float* viewProjectionMatrix4x4,
     int surfaceWidth,
     int surfaceHeight) {
+    const bool hasPerInstanceSkinning = [&]() {
+        if (!instances) return false;
+        for (std::size_t i = 0; i < instanceCount; ++i) {
+            const WorldMeshInstance& instance = instances[i];
+            if (instance.gpuSkinning != 0u &&
+                instance.skinMatrices != nullptr &&
+                instance.skinMatrixCount > 0u) {
+                return true;
+            }
+        }
+        return false;
+    }();
+    if (hasPerInstanceSkinning) {
+        IRenderBackend::drawWorldIndexedMeshTexturedCachedInstanced(geometryKey,
+                                                                    vertices,
+                                                                    vertexCount,
+                                                                    indices,
+                                                                    indexCount,
+                                                                    texture,
+                                                                    instances,
+                                                                    instanceCount,
+                                                                    viewProjectionMatrix4x4,
+                                                                    surfaceWidth,
+                                                                    surfaceHeight);
+        return;
+    }
+
     ensureWorldPipeline();
     if (CachedWorldMesh* cached =
             ensureCachedWorldMesh(geometryKey, vertices, vertexCount, indices, indexCount)) {

@@ -48,7 +48,8 @@ IRenderBackend::WorldSceneRenderObjectHandle ensureRenderObject(
     IRenderBackend::WorldSceneGeometryHandle geometryHandle,
     IRenderBackend::WorldSceneMaterialHandle materialHandle,
     PipelineVariant pipelineVariant,
-    std::uint32_t cookedDrawSlot = 0u);
+    std::uint32_t cookedDrawSlot = 0u,
+    bool skinned = false);
 
 void appendRigidInstance(IRenderBackend::WorldSceneFrame& frame,
                          IRenderBackend::WorldSceneRenderObjectHandle objectHandle,
@@ -59,6 +60,19 @@ void appendRigidInstance(IRenderBackend::WorldSceneFrame& frame,
                          float vertexColorMulB,
                          float vertexColorMulA,
                          float sortDepth);
+
+void appendSkinnedInstance(IRenderBackend::WorldSceneFrame& frame,
+                           IRenderBackend::WorldSceneRenderObjectHandle objectHandle,
+                           IRenderBackend::WorldSceneRenderInstanceHandle instanceHandle,
+                           const std::array<float, 16>& modelMatrix,
+                           float vertexColorMulR,
+                           float vertexColorMulG,
+                           float vertexColorMulB,
+                           float vertexColorMulA,
+                           float sortDepth,
+                           std::uint8_t gpuSkinningMode,
+                           std::uint32_t skinMatrixCount,
+                           const float* skinMatrices);
 
 IRenderBackend::WorldSceneView buildWorldSceneView(
     const WorldSceneRegistry& registry,

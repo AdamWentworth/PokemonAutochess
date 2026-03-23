@@ -162,6 +162,10 @@ void D3D12RenderBackend::submitWorldScene(const WorldSceneFrame& frame,
             outInstance.vertexColorMulG = instance.vertexColorMulG;
             outInstance.vertexColorMulB = instance.vertexColorMulB;
             outInstance.vertexColorMulA = instance.vertexColorMulA;
+            outInstance.gpuSkinning = instance.gpuSkinning;
+            outInstance.gpuSkinningMode = instance.gpuSkinningMode;
+            outInstance.skinMatrixCount = instance.skinMatrixCount;
+            outInstance.skinMatrices = instance.skinMatrices;
             instances.push_back(std::move(outInstance));
         }
 

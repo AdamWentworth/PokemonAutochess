@@ -80,6 +80,17 @@ bool test_shared_world_scene_contract(std::string& outFail) {
         outFail = "SharedWorldScene should reuse render-object handles for the same draw class.";
         return false;
     }
+    const auto skinnedObjectHandle = game::runtime::shared_world_scene::ensureRenderObject(
+        registry,
+        geometryHandle,
+        materialHandle,
+        PipelineVariant::OpaqueLit,
+        7u,
+        true);
+    if (skinnedObjectHandle == objectHandle || registry.renderObjects.size() != 2u) {
+        outFail = "SharedWorldScene should keep skinned and rigid draw classes separate.";
+        return false;
+    }
 
     IRenderBackend::WorldSceneRenderInstanceHandle a{};
     a.id = 1u;
@@ -108,6 +119,36 @@ bool test_shared_world_scene_contract(std::string& outFail) {
 
     if (frame.drawClasses.size() != 1u || frame.drawClasses.front().instances.size() != 2u) {
         outFail = "SharedWorldScene should group rigid instances by render-object draw class.";
+        return false;
+    }
+
+    IRenderBackend::WorldSceneRenderInstanceHandle c{};
+    c.id = 3u;
+    static const float kSkinMatrices[16] = {
+        1.0f, 0.0f, 0.0f, 0.0f,
+        0.0f, 1.0f, 0.0f, 0.0f,
+        0.0f, 0.0f, 1.0f, 0.0f,
+        0.0f, 0.0f, 0.0f, 1.0f,
+    };
+    game::runtime::shared_world_scene::appendSkinnedInstance(
+        frame,
+        skinnedObjectHandle,
+        c,
+        {},
+        1.0f,
+        0.9f,
+        0.8f,
+        0.7f,
+        7.0f,
+        0u,
+        1u,
+        kSkinMatrices);
+    if (frame.drawClasses.size() != 2u ||
+        frame.drawClasses.back().instances.size() != 1u ||
+        frame.drawClasses.back().visibleSkeletons != 1u ||
+        frame.visibleSkeletons != 1u ||
+        frame.paletteUploadBytes != sizeof(kSkinMatrices)) {
+        outFail = "SharedWorldScene should track skinned-instance counters on the fast scene frame.";
         return false;
     }
 
