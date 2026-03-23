@@ -4,6 +4,7 @@
 #include "engine/render/d3d12/D3D12TextureUpload.h"
 #include "engine/core/Environment.h"
 
+#include <array>
 #include <algorithm>
 #include <chrono>
 #include <filesystem>
@@ -193,6 +194,23 @@ bool loadSpritePixels(const std::string& texturePath, LoadedSpritePixels& out) {
     return true;
 }
 
+#if defined(_WIN32)
+void fillSrvDescFromTextureResource(ID3D12Resource* resource,
+                                    D3D12_SHADER_RESOURCE_VIEW_DESC& outDesc) {
+    outDesc = {};
+    if (!resource) return;
+
+    const D3D12_RESOURCE_DESC resourceDesc = resource->GetDesc();
+    outDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+    outDesc.Format = resourceDesc.Format;
+    outDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+    outDesc.Texture2D.MostDetailedMip = 0;
+    outDesc.Texture2D.MipLevels = resourceDesc.MipLevels;
+    outDesc.Texture2D.PlaneSlice = 0;
+    outDesc.Texture2D.ResourceMinLODClamp = 0.0f;
+}
+#endif
+
 } // namespace
 
 D3D12RenderBackend::SpriteTexture* D3D12RenderBackend::ensureFallbackSpriteTexture() {
@@ -231,6 +249,8 @@ D3D12RenderBackend::SpriteTexture* D3D12RenderBackend::ensureFallbackSpriteTextu
                                                               texture.resource)) {
         return nullptr;
     }
+    fillSrvDescFromTextureResource(texture.resource.Get(), texture.srvDesc);
+    texture.hasSrvDesc = texture.resource != nullptr;
     texture.valid = true;
     ++nextSrvDescriptorIndex_;
     auto [insertedIt, _] = spriteTextures_.emplace(kFallbackSpriteTextureKey, std::move(texture));
@@ -291,6 +311,8 @@ D3D12RenderBackend::SpriteTexture* D3D12RenderBackend::ensureSpriteTexture(const
         return ensureFallbackSpriteTexture();
     }
 
+    fillSrvDescFromTextureResource(texture.resource.Get(), texture.srvDesc);
+    texture.hasSrvDesc = texture.resource != nullptr;
     texture.valid = true;
     ++nextSrvDescriptorIndex_;
     auto [insertedIt, _] = spriteTextures_.emplace(texturePath, texture);
@@ -442,6 +464,8 @@ void D3D12RenderBackend::prewarmDebugSpriteTextures(const char* const* texturePa
         SpriteTexture texture;
         texture.resource = upload.resource;
         texture.descriptorIndex = upload.descriptorIndex;
+        fillSrvDescFromTextureResource(texture.resource.Get(), texture.srvDesc);
+        texture.hasSrvDesc = texture.resource != nullptr;
         texture.valid = true;
         auto [insertedIt, _] = spriteTextures_.emplace(upload.originalPath, texture);
         if (!upload.altCacheKey.empty() && upload.altCacheKey != upload.originalPath) {
@@ -470,6 +494,200 @@ D3D12RenderBackend::SpriteTexture* D3D12RenderBackend::ensureWorldTexture(const 
 #else
     (void)textureData;
     return nullptr;
+#endif
+}
+
+const D3D12RenderBackend::SpriteTexture* D3D12RenderBackend::findWorldTextureByDescriptorIndex(
+    std::uint32_t descriptorIndex) const {
+#if defined(_WIN32)
+    for (const auto& [key, texture] : worldTextures_) {
+        (void)key;
+        if (texture.valid && texture.descriptorIndex == descriptorIndex) {
+            return &texture;
+        }
+    }
+    return nullptr;
+#else
+    (void)descriptorIndex;
+    return nullptr;
+#endif
+}
+
+std::uint32_t D3D12RenderBackend::ensureWorldMaterialDescriptorBlock(
+    std::uint32_t baseTextureDescriptorIndex,
+    std::uint32_t normalTextureDescriptorIndex,
+    std::uint32_t metallicRoughnessTextureDescriptorIndex,
+    std::uint32_t occlusionTextureDescriptorIndex,
+    std::uint32_t emissiveTextureDescriptorIndex,
+    std::uint32_t envTextureDescriptorIndex) {
+#if defined(_WIN32)
+    const bool alreadyContiguous =
+        normalTextureDescriptorIndex == baseTextureDescriptorIndex + 1u &&
+        metallicRoughnessTextureDescriptorIndex == baseTextureDescriptorIndex + 2u &&
+        occlusionTextureDescriptorIndex == baseTextureDescriptorIndex + 3u &&
+        emissiveTextureDescriptorIndex == baseTextureDescriptorIndex + 4u &&
+        envTextureDescriptorIndex == baseTextureDescriptorIndex + 5u;
+    if (alreadyContiguous) {
+        return baseTextureDescriptorIndex;
+    }
+
+    const WorldMaterialDescriptorBlockKey key{
+        baseTextureDescriptorIndex,
+        normalTextureDescriptorIndex,
+        metallicRoughnessTextureDescriptorIndex,
+        occlusionTextureDescriptorIndex,
+        emissiveTextureDescriptorIndex,
+        envTextureDescriptorIndex};
+    const auto found = worldMaterialDescriptorBlocks_.find(key);
+    if (found != worldMaterialDescriptorBlocks_.end()) {
+        return found->second;
+    }
+
+    if (!device_ || !srvHeap_ || srvDescriptorSize_ == 0u) {
+        return 0xffffffffu;
+    }
+    if (nextSrvDescriptorIndex_ + 6u > static_cast<std::uint32_t>(kMaxSrvDescriptors)) {
+        return 0xffffffffu;
+    }
+
+    const std::array<std::uint32_t, 6> sourceDescriptorIndices = {
+        baseTextureDescriptorIndex,
+        normalTextureDescriptorIndex,
+        metallicRoughnessTextureDescriptorIndex,
+        occlusionTextureDescriptorIndex,
+        emissiveTextureDescriptorIndex,
+        envTextureDescriptorIndex};
+    std::array<const SpriteTexture*, 6> sourceTextures{};
+    for (std::size_t i = 0; i < sourceDescriptorIndices.size(); ++i) {
+        sourceTextures[i] = findWorldTextureByDescriptorIndex(sourceDescriptorIndices[i]);
+        if (!sourceTextures[i] ||
+            !sourceTextures[i]->valid ||
+            !sourceTextures[i]->resource ||
+            !sourceTextures[i]->hasSrvDesc) {
+            return 0xffffffffu;
+        }
+    }
+
+    const std::uint32_t blockBaseDescriptorIndex = nextSrvDescriptorIndex_;
+    D3D12_CPU_DESCRIPTOR_HANDLE heapCpuBase = srvHeap_->GetCPUDescriptorHandleForHeapStart();
+    for (std::size_t i = 0; i < sourceTextures.size(); ++i) {
+        D3D12_CPU_DESCRIPTOR_HANDLE dstHandle = heapCpuBase;
+        dstHandle.ptr += static_cast<SIZE_T>(blockBaseDescriptorIndex + i) *
+                         static_cast<SIZE_T>(srvDescriptorSize_);
+        device_->CreateShaderResourceView(
+            sourceTextures[i]->resource.Get(),
+            &sourceTextures[i]->srvDesc,
+            dstHandle);
+    }
+
+    nextSrvDescriptorIndex_ += 6u;
+    worldMaterialDescriptorBlocks_.emplace(key, blockBaseDescriptorIndex);
+    return blockBaseDescriptorIndex;
+#else
+    (void)baseTextureDescriptorIndex;
+    (void)normalTextureDescriptorIndex;
+    (void)metallicRoughnessTextureDescriptorIndex;
+    (void)occlusionTextureDescriptorIndex;
+    (void)emissiveTextureDescriptorIndex;
+    (void)envTextureDescriptorIndex;
+    return 0xffffffffu;
+#endif
+}
+
+bool D3D12RenderBackend::prepareWorldMaterialDescriptorBlock(
+    const WorldTextureData* textureData,
+    bool logPbrBinding,
+    std::uint32_t& outDescriptorBlockIndex,
+    float& outUseTexture) {
+#if defined(_WIN32)
+    ensureWorldFallbackEnvTexture();
+    if (worldFallbackMaterialDescriptorBlockIndex_ == 0xffffffffu) {
+        worldFallbackMaterialDescriptorBlockIndex_ = ensureWorldMaterialDescriptorBlock(
+            worldFallbackTextureDescriptorIndex_,
+            worldFallbackNormalTextureDescriptorIndex_,
+            worldFallbackMetallicRoughnessTextureDescriptorIndex_,
+            worldFallbackOcclusionTextureDescriptorIndex_,
+            worldFallbackEmissiveTextureDescriptorIndex_,
+            worldFallbackEnvTextureDescriptorIndex_);
+    }
+
+    if (!textureData) {
+        outDescriptorBlockIndex = worldFallbackMaterialDescriptorBlockIndex_;
+        outUseTexture = 0.0f;
+        return outDescriptorBlockIndex != 0xffffffffu;
+    }
+
+    SpriteTexture* worldTex = ensureWorldTexture(textureData);
+    const std::uint32_t baseDescriptorIndex =
+        worldTex ? worldTex->descriptorIndex : worldFallbackTextureDescriptorIndex_;
+    outUseTexture = (worldTex && worldTex->valid) ? 1.0f : 0.0f;
+
+    SpriteTexture* normalTex = ensureWorldTextureRaw(
+        textureData->normalKey,
+        textureData->normalCacheKey,
+        textureData->normalRgba,
+        textureData->normalWidth,
+        textureData->normalHeight,
+        textureData->normalWrapS,
+        textureData->normalWrapT,
+        /*srgb=*/false);
+    const std::uint32_t normalDescriptorIndex =
+        normalTex ? normalTex->descriptorIndex : worldFallbackNormalTextureDescriptorIndex_;
+
+    SpriteTexture* metallicRoughnessTex = ensureWorldTextureRaw(
+        textureData->metallicRoughnessKey,
+        textureData->metallicRoughnessCacheKey,
+        textureData->metallicRoughnessRgba,
+        textureData->metallicRoughnessWidth,
+        textureData->metallicRoughnessHeight,
+        textureData->metallicRoughnessWrapS,
+        textureData->metallicRoughnessWrapT,
+        /*srgb=*/false);
+    const std::uint32_t metallicRoughnessDescriptorIndex =
+        metallicRoughnessTex
+            ? metallicRoughnessTex->descriptorIndex
+            : worldFallbackMetallicRoughnessTextureDescriptorIndex_;
+
+    SpriteTexture* occlusionTex = ensureWorldTextureRaw(
+        textureData->occlusionKey,
+        textureData->occlusionCacheKey,
+        textureData->occlusionRgba,
+        textureData->occlusionWidth,
+        textureData->occlusionHeight,
+        textureData->occlusionWrapS,
+        textureData->occlusionWrapT,
+        /*srgb=*/false);
+    const std::uint32_t occlusionDescriptorIndex =
+        occlusionTex ? occlusionTex->descriptorIndex : worldFallbackOcclusionTextureDescriptorIndex_;
+
+    SpriteTexture* emissiveTex = ensureWorldTextureRaw(
+        textureData->emissiveKey,
+        textureData->emissiveCacheKey,
+        textureData->emissiveRgba,
+        textureData->emissiveWidth,
+        textureData->emissiveHeight,
+        textureData->emissiveWrapS,
+        textureData->emissiveWrapT,
+        /*srgb=*/true);
+    const std::uint32_t emissiveDescriptorIndex =
+        emissiveTex ? emissiveTex->descriptorIndex : worldFallbackEmissiveTextureDescriptorIndex_;
+
+    (void)logPbrBinding;
+
+    outDescriptorBlockIndex = ensureWorldMaterialDescriptorBlock(
+        baseDescriptorIndex,
+        normalDescriptorIndex,
+        metallicRoughnessDescriptorIndex,
+        occlusionDescriptorIndex,
+        emissiveDescriptorIndex,
+        worldFallbackEnvTextureDescriptorIndex_);
+    return outDescriptorBlockIndex != 0xffffffffu;
+#else
+    (void)textureData;
+    (void)logPbrBinding;
+    outDescriptorBlockIndex = 0u;
+    outUseTexture = 0.0f;
+    return false;
 #endif
 }
 
@@ -552,6 +770,8 @@ D3D12RenderBackend::SpriteTexture* D3D12RenderBackend::ensureWorldTextureRaw(con
     }
     if (!ok) return nullptr;
 
+    fillSrvDescFromTextureResource(texture.resource.Get(), texture.srvDesc);
+    texture.hasSrvDesc = texture.resource != nullptr;
     texture.valid = true;
     ++nextSrvDescriptorIndex_;
     auto [insertedIt, _] = worldTextures_.emplace(resolvedCacheKey, std::move(texture));
@@ -615,6 +835,8 @@ D3D12RenderBackend::SpriteTexture* D3D12RenderBackend::ensureWorldTextureRawHalf
         texture.resource);
     if (!ok) return nullptr;
 
+    fillSrvDescFromTextureResource(texture.resource.Get(), texture.srvDesc);
+    texture.hasSrvDesc = texture.resource != nullptr;
     texture.valid = true;
     ++nextSrvDescriptorIndex_;
     auto [insertedIt, _] = worldTextures_.emplace(cacheKey, std::move(texture));

@@ -98,50 +98,13 @@ void D3D12RenderBackend::prewarmWorldTextureData(const WorldTextureData* texture
 #if defined(_WIN32)
     if (!texture) return;
 
-    ensureWorldFallbackEnvTexture();
-    (void)ensureWorldTexture(texture);
-    if (texture->normalRgba && texture->normalWidth > 0 && texture->normalHeight > 0) {
-        (void)ensureWorldTextureRaw(
-            texture->normalKey,
-            texture->normalRgba,
-            texture->normalWidth,
-            texture->normalHeight,
-            texture->normalWrapS,
-            texture->normalWrapT,
-            /*srgb=*/false);
-    }
-    if (texture->metallicRoughnessRgba &&
-        texture->metallicRoughnessWidth > 0 &&
-        texture->metallicRoughnessHeight > 0) {
-        (void)ensureWorldTextureRaw(
-            texture->metallicRoughnessKey,
-            texture->metallicRoughnessRgba,
-            texture->metallicRoughnessWidth,
-            texture->metallicRoughnessHeight,
-            texture->metallicRoughnessWrapS,
-            texture->metallicRoughnessWrapT,
-            /*srgb=*/false);
-    }
-    if (texture->occlusionRgba && texture->occlusionWidth > 0 && texture->occlusionHeight > 0) {
-        (void)ensureWorldTextureRaw(
-            texture->occlusionKey,
-            texture->occlusionRgba,
-            texture->occlusionWidth,
-            texture->occlusionHeight,
-            texture->occlusionWrapS,
-            texture->occlusionWrapT,
-            /*srgb=*/false);
-    }
-    if (texture->emissiveRgba && texture->emissiveWidth > 0 && texture->emissiveHeight > 0) {
-        (void)ensureWorldTextureRaw(
-            texture->emissiveKey,
-            texture->emissiveRgba,
-            texture->emissiveWidth,
-            texture->emissiveHeight,
-            texture->emissiveWrapS,
-            texture->emissiveWrapT,
-            /*srgb=*/true);
-    }
+    std::uint32_t descriptorBlockIndex = 0u;
+    float useTexture = 0.0f;
+    (void)prepareWorldMaterialDescriptorBlock(
+        texture,
+        /*logPbrBinding=*/false,
+        descriptorBlockIndex,
+        useTexture);
 #else
     (void)texture;
 #endif
@@ -380,7 +343,15 @@ void D3D12RenderBackend::drawWorldIndexedMeshCachedInternal(const CachedWorldMes
         return;
     }
     if (!worldVsConstantMappedData_) return;
-    ensureWorldFallbackEnvTexture();
+    std::uint32_t materialDescriptorBlockIndex = 0u;
+    float useTexture = 0.0f;
+    if (!prepareWorldMaterialDescriptorBlock(
+            nullptr,
+            /*logPbrBinding=*/false,
+            materialDescriptorBlockIndex,
+            useTexture)) {
+        return;
+    }
 
     D3D12_VIEWPORT vp{};
     vp.TopLeftX = 0.0f;
@@ -420,39 +391,20 @@ void D3D12RenderBackend::drawWorldIndexedMeshCachedInternal(const CachedWorldMes
         0,
         worldVsConstantBufferGpuAddress_ + static_cast<std::uint64_t>(vsConstantsWriteOffset));
     commandList_->SetGraphicsRootShaderResourceView(2, worldSkinMatrixBufferGpuAddress_);
-    commandList_->SetGraphicsRootShaderResourceView(9, worldInstanceBufferGpuAddress_);
-    const WorldPsConstants worldPs = makeWorldPsConstants(nullptr, 0.0f);
+    commandList_->SetGraphicsRootShaderResourceView(4, worldInstanceBufferGpuAddress_);
+    const WorldPsConstants worldPs = makeWorldPsConstants(nullptr, useTexture);
     commandList_->SetGraphicsRoot32BitConstants(
         1,
         static_cast<UINT>(sizeof(WorldPsConstants) / sizeof(float)),
         &worldPs,
         0);
-    D3D12_GPU_DESCRIPTOR_HANDLE srvBaseHandle = srvHeap_->GetGPUDescriptorHandleForHeapStart();
-    D3D12_GPU_DESCRIPTOR_HANDLE srvNormalHandle = srvBaseHandle;
-    D3D12_GPU_DESCRIPTOR_HANDLE srvMetalRoughHandle = srvBaseHandle;
-    D3D12_GPU_DESCRIPTOR_HANDLE srvOcclusionHandle = srvBaseHandle;
-    D3D12_GPU_DESCRIPTOR_HANDLE srvEmissiveHandle = srvBaseHandle;
-    D3D12_GPU_DESCRIPTOR_HANDLE srvEnvHandle = srvBaseHandle;
-    srvBaseHandle.ptr += static_cast<SIZE_T>(worldFallbackTextureDescriptorIndex_) *
-                         static_cast<SIZE_T>(srvDescriptorSize_);
-    srvNormalHandle.ptr += static_cast<SIZE_T>(worldFallbackNormalTextureDescriptorIndex_) *
-                           static_cast<SIZE_T>(srvDescriptorSize_);
-    srvMetalRoughHandle.ptr +=
-        static_cast<SIZE_T>(worldFallbackMetallicRoughnessTextureDescriptorIndex_) *
-        static_cast<SIZE_T>(srvDescriptorSize_);
-    srvOcclusionHandle.ptr += static_cast<SIZE_T>(worldFallbackOcclusionTextureDescriptorIndex_) *
-                              static_cast<SIZE_T>(srvDescriptorSize_);
-    srvEmissiveHandle.ptr += static_cast<SIZE_T>(worldFallbackEmissiveTextureDescriptorIndex_) *
-                             static_cast<SIZE_T>(srvDescriptorSize_);
-    srvEnvHandle.ptr += static_cast<SIZE_T>(worldFallbackEnvTextureDescriptorIndex_) *
-                        static_cast<SIZE_T>(srvDescriptorSize_);
-    commandList_->SetGraphicsRootDescriptorTable(3, srvBaseHandle);
-    commandList_->SetGraphicsRootDescriptorTable(4, srvNormalHandle);
-    commandList_->SetGraphicsRootDescriptorTable(5, srvMetalRoughHandle);
-    commandList_->SetGraphicsRootDescriptorTable(6, srvOcclusionHandle);
-    commandList_->SetGraphicsRootDescriptorTable(7, srvEmissiveHandle);
-    commandList_->SetGraphicsRootDescriptorTable(8, srvEnvHandle);
+    D3D12_GPU_DESCRIPTOR_HANDLE materialHandle = srvHeap_->GetGPUDescriptorHandleForHeapStart();
+    materialHandle.ptr += static_cast<SIZE_T>(materialDescriptorBlockIndex) *
+                          static_cast<SIZE_T>(srvDescriptorSize_);
+    commandList_->SetGraphicsRootDescriptorTable(3, materialHandle);
+    frameIndexedD3d12DescriptorTableSets_ += 1u;
     commandList_->SetPipelineState(worldPipelineState_.Get());
+    ++frameIndexedD3d12PsoSets_;
     commandList_->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
     D3D12_VERTEX_BUFFER_VIEW vbv{};

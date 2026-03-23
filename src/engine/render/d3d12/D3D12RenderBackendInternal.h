@@ -101,7 +101,10 @@ inline constexpr std::size_t kMaxDebugVertices = kMaxDebugTriangles * 3;
 inline constexpr std::size_t kMaxWorldTriangles = 900000;
 inline constexpr std::size_t kMaxWorldVertices = kMaxWorldTriangles * 3;
 inline constexpr std::size_t kMaxWorldIndices = kMaxWorldTriangles * 3;
-inline constexpr std::size_t kMaxSrvDescriptors = 2048;
+// D3D12 world-material descriptor blocks consume additional shader-visible SRVs
+// beyond the raw texture descriptors, so keep extra headroom for prewarmed
+// world materials plus runtime-loaded effects.
+inline constexpr std::size_t kMaxSrvDescriptors = 4096;
 inline constexpr const char* kFallbackSpriteTextureKey = "__fallback_sprite_texture__";
 inline constexpr int kGlRepeat = 10497;
 inline constexpr int kGlMirroredRepeat = 33648;

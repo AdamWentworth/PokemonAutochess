@@ -487,6 +487,7 @@ void D3D12RenderBackend::shutdown() {
     worldFallbackOcclusionTextureDescriptorIndex_ = 0;
     worldFallbackEmissiveTextureDescriptorIndex_ = 0;
     worldFallbackEnvTextureDescriptorIndex_ = 0;
+    worldFallbackMaterialDescriptorBlockIndex_ = 0xffffffffu;
     worldFallbackEnvTextureReady_ = false;
     worldPremultipliedBlendPipelineState_.Reset();
     worldAdditiveBlendPipelineState_.Reset();
@@ -495,6 +496,7 @@ void D3D12RenderBackend::shutdown() {
     worldRootSignature_.Reset();
     spriteTextures_.clear();
     worldTextures_.clear();
+    worldMaterialDescriptorBlocks_.clear();
     if (spriteVertexBuffer_ && spriteVertexMappedData_) {
         D3D12_RANGE readRange{0, 0};
         spriteVertexBuffer_->Unmap(0, &readRange);

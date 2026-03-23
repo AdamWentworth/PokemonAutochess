@@ -10,6 +10,7 @@
 struct SDL_Window;
 
 #if defined(_WIN32)
+#include <d3d12.h>
 #include <wrl/client.h>
 
 struct IDXGIAdapter1;
@@ -179,7 +180,54 @@ private:
                                                   int wrapT);
     SpriteTexture* ensureWorldTexture(const WorldTextureData* textureData);
     void ensureWorldFallbackEnvTexture();
+    const SpriteTexture* findWorldTextureByDescriptorIndex(
+        std::uint32_t descriptorIndex) const;
+    bool prepareWorldMaterialDescriptorBlock(const WorldTextureData* textureData,
+                                             bool logPbrBinding,
+                                             std::uint32_t& outDescriptorBlockIndex,
+                                             float& outUseTexture);
+    std::uint32_t ensureWorldMaterialDescriptorBlock(
+        std::uint32_t baseTextureDescriptorIndex,
+        std::uint32_t normalTextureDescriptorIndex,
+        std::uint32_t metallicRoughnessTextureDescriptorIndex,
+        std::uint32_t occlusionTextureDescriptorIndex,
+        std::uint32_t emissiveTextureDescriptorIndex,
+        std::uint32_t envTextureDescriptorIndex);
 #if defined(_WIN32)
+    struct WorldMaterialDescriptorBlockKey {
+        std::uint32_t baseTextureDescriptorIndex = 0u;
+        std::uint32_t normalTextureDescriptorIndex = 0u;
+        std::uint32_t metallicRoughnessTextureDescriptorIndex = 0u;
+        std::uint32_t occlusionTextureDescriptorIndex = 0u;
+        std::uint32_t emissiveTextureDescriptorIndex = 0u;
+        std::uint32_t envTextureDescriptorIndex = 0u;
+
+        bool operator==(const WorldMaterialDescriptorBlockKey& other) const {
+            return baseTextureDescriptorIndex == other.baseTextureDescriptorIndex &&
+                   normalTextureDescriptorIndex == other.normalTextureDescriptorIndex &&
+                   metallicRoughnessTextureDescriptorIndex ==
+                       other.metallicRoughnessTextureDescriptorIndex &&
+                   occlusionTextureDescriptorIndex == other.occlusionTextureDescriptorIndex &&
+                   emissiveTextureDescriptorIndex == other.emissiveTextureDescriptorIndex &&
+                   envTextureDescriptorIndex == other.envTextureDescriptorIndex;
+        }
+    };
+    struct WorldMaterialDescriptorBlockKeyHash {
+        std::size_t operator()(const WorldMaterialDescriptorBlockKey& key) const noexcept {
+            std::size_t h = static_cast<std::size_t>(key.baseTextureDescriptorIndex);
+            h ^= static_cast<std::size_t>(key.normalTextureDescriptorIndex) + 0x9e3779b9u +
+                 (h << 6) + (h >> 2);
+            h ^= static_cast<std::size_t>(key.metallicRoughnessTextureDescriptorIndex) +
+                 0x9e3779b9u + (h << 6) + (h >> 2);
+            h ^= static_cast<std::size_t>(key.occlusionTextureDescriptorIndex) + 0x9e3779b9u +
+                 (h << 6) + (h >> 2);
+            h ^= static_cast<std::size_t>(key.emissiveTextureDescriptorIndex) + 0x9e3779b9u +
+                 (h << 6) + (h >> 2);
+            h ^= static_cast<std::size_t>(key.envTextureDescriptorIndex) + 0x9e3779b9u +
+                 (h << 6) + (h >> 2);
+            return h;
+        }
+    };
     struct CachedDebugGeometry {
         Microsoft::WRL::ComPtr<ID3D12Resource> vertexBuffer;
         std::uint64_t gpuAddress = 0u;
@@ -212,12 +260,7 @@ private:
                                                     std::size_t vertexCount,
                                                     const std::uint32_t* indices,
                                                     std::size_t indexCount,
-                                                    std::uint32_t baseTextureDescriptorIndex,
-                                                    std::uint32_t normalTextureDescriptorIndex,
-                                                    std::uint32_t metallicRoughnessTextureDescriptorIndex,
-                                                    std::uint32_t occlusionTextureDescriptorIndex,
-                                                    std::uint32_t emissiveTextureDescriptorIndex,
-                                                    std::uint32_t envTextureDescriptorIndex,
+                                                    std::uint32_t materialDescriptorBlockIndex,
                                                     const WorldTextureData* textureData,
                                                     float useTexture,
                                                     const float* viewProjectionMatrix4x4,
@@ -230,12 +273,7 @@ private:
                                       std::size_t vertexCount,
                                       const std::uint32_t* indices,
                                       std::size_t indexCount,
-                                      std::uint32_t baseTextureDescriptorIndex,
-                                      std::uint32_t normalTextureDescriptorIndex,
-                                      std::uint32_t metallicRoughnessTextureDescriptorIndex,
-                                      std::uint32_t occlusionTextureDescriptorIndex,
-                                      std::uint32_t emissiveTextureDescriptorIndex,
-                                      std::uint32_t envTextureDescriptorIndex,
+                                      std::uint32_t materialDescriptorBlockIndex,
                                       const WorldTextureData* textureData,
                                       float useTexture,
                                       const float* viewProjectionMatrix4x4,
@@ -386,10 +424,15 @@ private:
     std::uint32_t worldFallbackOcclusionTextureDescriptorIndex_ = 0;
     std::uint32_t worldFallbackEmissiveTextureDescriptorIndex_ = 0;
     std::uint32_t worldFallbackEnvTextureDescriptorIndex_ = 0;
+    std::uint32_t worldFallbackMaterialDescriptorBlockIndex_ = 0xffffffffu;
 
     struct SpriteTexture {
         Microsoft::WRL::ComPtr<ID3D12Resource> resource;
         std::uint32_t descriptorIndex = 0;
+#if defined(_WIN32)
+        D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc{};
+        bool hasSrvDesc = false;
+#endif
         bool valid = false;
     };
     Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> srvHeap_;
@@ -405,6 +448,10 @@ private:
     std::uint8_t* spriteVertexMappedData_ = nullptr;
     std::unordered_map<std::string, SpriteTexture> spriteTextures_;
     std::unordered_map<std::string, SpriteTexture> worldTextures_;
+    std::unordered_map<WorldMaterialDescriptorBlockKey,
+                       std::uint32_t,
+                       WorldMaterialDescriptorBlockKeyHash>
+        worldMaterialDescriptorBlocks_;
     std::unordered_map<std::string, CachedWorldMesh> cachedWorldMeshes_;
 #endif
 };

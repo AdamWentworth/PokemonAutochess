@@ -1180,16 +1180,15 @@ float4 main(PSIn i, bool isFrontFace : SV_IsFrontFace) : SV_TARGET {
         throw std::runtime_error("D3DCompile failed for world PS.");
     }
 
-    std::array<D3D12_DESCRIPTOR_RANGE, 6> srvRanges{};
-    for (UINT i = 0; i < static_cast<UINT>(srvRanges.size()); ++i) {
-        srvRanges[i].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
-        srvRanges[i].NumDescriptors = 1;
-        srvRanges[i].BaseShaderRegister = i;
-        srvRanges[i].RegisterSpace = 0;
-        srvRanges[i].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
-    }
+    D3D12_DESCRIPTOR_RANGE materialSrvRange{};
+    materialSrvRange.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
+    materialSrvRange.NumDescriptors = 6;
+    materialSrvRange.BaseShaderRegister = 0;
+    materialSrvRange.RegisterSpace = 0;
+    materialSrvRange.OffsetInDescriptorsFromTableStart =
+        D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
 
-    D3D12_ROOT_PARAMETER rootParams[10]{};
+    D3D12_ROOT_PARAMETER rootParams[5]{};
     rootParams[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
     rootParams[0].Descriptor.ShaderRegister = 0;
     rootParams[0].Descriptor.RegisterSpace = 0;
@@ -1203,17 +1202,14 @@ float4 main(PSIn i, bool isFrontFace : SV_IsFrontFace) : SV_TARGET {
     rootParams[2].Descriptor.ShaderRegister = 7;
     rootParams[2].Descriptor.RegisterSpace = 0;
     rootParams[2].ShaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX;
-    for (UINT i = 0; i < static_cast<UINT>(srvRanges.size()); ++i) {
-        const UINT rootIndex = 3u + i;
-        rootParams[rootIndex].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
-        rootParams[rootIndex].DescriptorTable.NumDescriptorRanges = 1;
-        rootParams[rootIndex].DescriptorTable.pDescriptorRanges = &srvRanges[i];
-        rootParams[rootIndex].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
-    }
-    rootParams[9].ParameterType = D3D12_ROOT_PARAMETER_TYPE_SRV;
-    rootParams[9].Descriptor.ShaderRegister = 6;
-    rootParams[9].Descriptor.RegisterSpace = 0;
-    rootParams[9].ShaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX;
+    rootParams[3].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+    rootParams[3].DescriptorTable.NumDescriptorRanges = 1;
+    rootParams[3].DescriptorTable.pDescriptorRanges = &materialSrvRange;
+    rootParams[3].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+    rootParams[4].ParameterType = D3D12_ROOT_PARAMETER_TYPE_SRV;
+    rootParams[4].Descriptor.ShaderRegister = 6;
+    rootParams[4].Descriptor.RegisterSpace = 0;
+    rootParams[4].ShaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX;
 
     auto makeStaticWorldSampler = [](UINT shaderRegister,
                                      D3D12_TEXTURE_ADDRESS_MODE addressU,
@@ -1563,6 +1559,8 @@ void D3D12RenderBackend::createSpritePipeline() {
     nextSrvDescriptorIndex_ = 0;
     spriteTextures_.clear();
     worldTextures_.clear();
+    worldMaterialDescriptorBlocks_.clear();
+    worldFallbackMaterialDescriptorBlockIndex_ = 0xffffffffu;
 
     static constexpr char kVsSource[] =
         "cbuffer VSConstants : register(b0) { float2 uSurfaceSize; };"
@@ -1870,7 +1868,13 @@ void D3D12RenderBackend::ensureWorldFallbackEnvTexture() {
 
 void D3D12RenderBackend::prewarmWorldRenderAssets() {
 #if defined(_WIN32)
-    ensureWorldFallbackEnvTexture();
+    std::uint32_t descriptorBlockIndex = 0u;
+    float useTexture = 0.0f;
+    (void)prepareWorldMaterialDescriptorBlock(
+        nullptr,
+        /*logPbrBinding=*/false,
+        descriptorBlockIndex,
+        useTexture);
 #endif
 }
 
