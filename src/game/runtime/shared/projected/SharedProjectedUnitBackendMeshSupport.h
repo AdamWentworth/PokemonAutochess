@@ -18,6 +18,8 @@ std::size_t selectUniformTriangleIndex(std::size_t sampleIndex,
                                        std::size_t triangleCount);
 bool strictGltfParityEnabled();
 bool tailFireDebugShouldLogAnchor(int unitId);
+bool backendUsesAuthoredTailFireMeshPlayback(const char* backendId);
+bool backendUsesGpuClipSkinningForUnit(const char* backendId, std::string_view species);
 
 struct FastTexturedBatchTemplate {
     std::size_t baseSubmeshIndex = 0u;

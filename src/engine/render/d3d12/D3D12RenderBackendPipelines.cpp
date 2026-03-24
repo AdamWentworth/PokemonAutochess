@@ -333,30 +333,35 @@ void D3D12RenderBackend::createWorldPipeline() {
         "float3 applySkinningPos(VSIn i, float3 localPos, float4 skinMeta) {"
         "  if (skinMeta.x < 0.5f) return localPos;"
         "  float4 blended = float4(0.0f, 0.0f, 0.0f, 0.0f);"
+        "  float totalWeight = 0.0f;"
         "  int c = (int)skinMeta.y;"
         "  int j0 = (int)round(i.jnts.x); float w0 = i.wgts.x;"
         "  int j1 = (int)round(i.jnts.y); float w1 = i.wgts.y;"
         "  int j2 = (int)round(i.jnts.z); float w2 = i.wgts.z;"
         "  int j3 = (int)round(i.jnts.w); float w3 = i.wgts.w;"
-        "  if (w0 > 0.00001f && j0 >= 0 && j0 < c && j0 < kMaxSkinMatrices) blended += mul(loadSkinMatrix(skinMeta, j0, c), float4(localPos, 1.0f)) * w0;"
-        "  if (w1 > 0.00001f && j1 >= 0 && j1 < c && j1 < kMaxSkinMatrices) blended += mul(loadSkinMatrix(skinMeta, j1, c), float4(localPos, 1.0f)) * w1;"
-        "  if (w2 > 0.00001f && j2 >= 0 && j2 < c && j2 < kMaxSkinMatrices) blended += mul(loadSkinMatrix(skinMeta, j2, c), float4(localPos, 1.0f)) * w2;"
-        "  if (w3 > 0.00001f && j3 >= 0 && j3 < c && j3 < kMaxSkinMatrices) blended += mul(loadSkinMatrix(skinMeta, j3, c), float4(localPos, 1.0f)) * w3;"
-        "  if (abs(blended.w) > 1e-5f) return blended.xyz / blended.w;"
+        "  if (w0 > 0.00001f && j0 >= 0 && j0 < c && j0 < kMaxSkinMatrices) { blended += mul(loadSkinMatrix(skinMeta, j0, c), float4(localPos, 1.0f)) * w0; totalWeight += w0; }"
+        "  if (w1 > 0.00001f && j1 >= 0 && j1 < c && j1 < kMaxSkinMatrices) { blended += mul(loadSkinMatrix(skinMeta, j1, c), float4(localPos, 1.0f)) * w1; totalWeight += w1; }"
+        "  if (w2 > 0.00001f && j2 >= 0 && j2 < c && j2 < kMaxSkinMatrices) { blended += mul(loadSkinMatrix(skinMeta, j2, c), float4(localPos, 1.0f)) * w2; totalWeight += w2; }"
+        "  if (w3 > 0.00001f && j3 >= 0 && j3 < c && j3 < kMaxSkinMatrices) { blended += mul(loadSkinMatrix(skinMeta, j3, c), float4(localPos, 1.0f)) * w3; totalWeight += w3; }"
+        "  if (totalWeight <= 0.00001f) return localPos;"
+        "  if (totalWeight < 0.999f) blended += float4(localPos, 1.0f) * (1.0f - totalWeight);"
         "  return blended.xyz;"
         "}"
         "float3 applySkinningNormal(VSIn i, float3 localNormal, float4 skinMeta) {"
         "  if (skinMeta.x < 0.5f) return localNormal;"
         "  float3 blended = float3(0.0f, 0.0f, 0.0f);"
+        "  float totalWeight = 0.0f;"
         "  int c = (int)skinMeta.y;"
         "  int j0 = (int)round(i.jnts.x); float w0 = i.wgts.x;"
         "  int j1 = (int)round(i.jnts.y); float w1 = i.wgts.y;"
         "  int j2 = (int)round(i.jnts.z); float w2 = i.wgts.z;"
         "  int j3 = (int)round(i.jnts.w); float w3 = i.wgts.w;"
-        "  if (w0 > 0.00001f && j0 >= 0 && j0 < c && j0 < kMaxSkinMatrices) blended += mul((float3x3)loadSkinMatrix(skinMeta, j0, c), localNormal) * w0;"
-        "  if (w1 > 0.00001f && j1 >= 0 && j1 < c && j1 < kMaxSkinMatrices) blended += mul((float3x3)loadSkinMatrix(skinMeta, j1, c), localNormal) * w1;"
-        "  if (w2 > 0.00001f && j2 >= 0 && j2 < c && j2 < kMaxSkinMatrices) blended += mul((float3x3)loadSkinMatrix(skinMeta, j2, c), localNormal) * w2;"
-        "  if (w3 > 0.00001f && j3 >= 0 && j3 < c && j3 < kMaxSkinMatrices) blended += mul((float3x3)loadSkinMatrix(skinMeta, j3, c), localNormal) * w3;"
+        "  if (w0 > 0.00001f && j0 >= 0 && j0 < c && j0 < kMaxSkinMatrices) { blended += mul((float3x3)loadSkinMatrix(skinMeta, j0, c), localNormal) * w0; totalWeight += w0; }"
+        "  if (w1 > 0.00001f && j1 >= 0 && j1 < c && j1 < kMaxSkinMatrices) { blended += mul((float3x3)loadSkinMatrix(skinMeta, j1, c), localNormal) * w1; totalWeight += w1; }"
+        "  if (w2 > 0.00001f && j2 >= 0 && j2 < c && j2 < kMaxSkinMatrices) { blended += mul((float3x3)loadSkinMatrix(skinMeta, j2, c), localNormal) * w2; totalWeight += w2; }"
+        "  if (w3 > 0.00001f && j3 >= 0 && j3 < c && j3 < kMaxSkinMatrices) { blended += mul((float3x3)loadSkinMatrix(skinMeta, j3, c), localNormal) * w3; totalWeight += w3; }"
+        "  if (totalWeight <= 0.00001f) return localNormal;"
+        "  if (totalWeight < 0.999f) blended += localNormal * (1.0f - totalWeight);"
         "  float len2 = dot(blended, blended);"
         "  return (len2 > 1e-8f) ? normalize(blended) : float3(0.0f, 1.0f, 0.0f);"
         "}"
@@ -364,15 +369,18 @@ void D3D12RenderBackend::createWorldPipeline() {
         "  if (skinMeta.x < 0.5f) return localTangent;"
         "  float3 tangent = localTangent.xyz;"
         "  float3 blended = float3(0.0f, 0.0f, 0.0f);"
+        "  float totalWeight = 0.0f;"
         "  int c = (int)skinMeta.y;"
         "  int j0 = (int)round(i.jnts.x); float w0 = i.wgts.x;"
         "  int j1 = (int)round(i.jnts.y); float w1 = i.wgts.y;"
         "  int j2 = (int)round(i.jnts.z); float w2 = i.wgts.z;"
         "  int j3 = (int)round(i.jnts.w); float w3 = i.wgts.w;"
-        "  if (w0 > 0.00001f && j0 >= 0 && j0 < c && j0 < kMaxSkinMatrices) blended += mul((float3x3)loadSkinMatrix(skinMeta, j0, c), tangent) * w0;"
-        "  if (w1 > 0.00001f && j1 >= 0 && j1 < c && j1 < kMaxSkinMatrices) blended += mul((float3x3)loadSkinMatrix(skinMeta, j1, c), tangent) * w1;"
-        "  if (w2 > 0.00001f && j2 >= 0 && j2 < c && j2 < kMaxSkinMatrices) blended += mul((float3x3)loadSkinMatrix(skinMeta, j2, c), tangent) * w2;"
-        "  if (w3 > 0.00001f && j3 >= 0 && j3 < c && j3 < kMaxSkinMatrices) blended += mul((float3x3)loadSkinMatrix(skinMeta, j3, c), tangent) * w3;"
+        "  if (w0 > 0.00001f && j0 >= 0 && j0 < c && j0 < kMaxSkinMatrices) { blended += mul((float3x3)loadSkinMatrix(skinMeta, j0, c), tangent) * w0; totalWeight += w0; }"
+        "  if (w1 > 0.00001f && j1 >= 0 && j1 < c && j1 < kMaxSkinMatrices) { blended += mul((float3x3)loadSkinMatrix(skinMeta, j1, c), tangent) * w1; totalWeight += w1; }"
+        "  if (w2 > 0.00001f && j2 >= 0 && j2 < c && j2 < kMaxSkinMatrices) { blended += mul((float3x3)loadSkinMatrix(skinMeta, j2, c), tangent) * w2; totalWeight += w2; }"
+        "  if (w3 > 0.00001f && j3 >= 0 && j3 < c && j3 < kMaxSkinMatrices) { blended += mul((float3x3)loadSkinMatrix(skinMeta, j3, c), tangent) * w3; totalWeight += w3; }"
+        "  if (totalWeight <= 0.00001f) return localTangent;"
+        "  if (totalWeight < 0.999f) blended += tangent * (1.0f - totalWeight);"
         "  float len2 = dot(blended, blended);"
         "  if (len2 > 1e-8f) blended = normalize(blended);"
         "  else blended = tangent;"
@@ -1382,7 +1390,10 @@ float4 main(PSIn i, bool isFrontFace : SV_IsFrontFace) : SV_TARGET {
         throw std::runtime_error("CreateGraphicsPipelineState failed for D3D12 world premultiplied blend pipeline.");
     }
 
-    constexpr std::size_t kBufferBytes = kMaxWorldVertices * sizeof(WorldVertex);
+    constexpr std::size_t kWorldVertexBufferBytesPerFrame =
+        kMaxWorldVertices * sizeof(WorldVertex);
+    constexpr std::size_t kBufferBytes =
+        kWorldVertexBufferBytesPerFrame * kFrameCount;
     D3D12_HEAP_PROPERTIES heapProps{};
     heapProps.Type = D3D12_HEAP_TYPE_UPLOAD;
     heapProps.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
@@ -1416,6 +1427,7 @@ float4 main(PSIn i, bool isFrontFace : SV_IsFrontFace) : SV_TARGET {
     worldVertexBufferGpuAddress_ = worldVertexBuffer_->GetGPUVirtualAddress();
     worldVertexStride_ = sizeof(WorldVertex);
     worldVertexBufferSize_ = static_cast<UINT>(kBufferBytes);
+    worldVertexBufferBytesPerFrame_ = static_cast<UINT>(kWorldVertexBufferBytesPerFrame);
     worldVertexMappedData_ = nullptr;
     void* worldVertexMapped = nullptr;
     D3D12_RANGE worldVertexReadRange{0, 0};
@@ -1424,7 +1436,9 @@ float4 main(PSIn i, bool isFrontFace : SV_IsFrontFace) : SV_TARGET {
     }
     worldVertexMappedData_ = static_cast<std::uint8_t*>(worldVertexMapped);
 
-    const std::size_t indexBufferBytes = kMaxWorldIndices * sizeof(std::uint32_t);
+    const std::size_t indexBufferBytesPerFrame =
+        kMaxWorldIndices * sizeof(std::uint32_t);
+    const std::size_t indexBufferBytes = indexBufferBytesPerFrame * kFrameCount;
     D3D12_RESOURCE_DESC indexBufferDesc = bufferDesc;
     indexBufferDesc.Width = indexBufferBytes;
     if (FAILED(device_->CreateCommittedResource(&heapProps,
@@ -1438,6 +1452,7 @@ float4 main(PSIn i, bool isFrontFace : SV_IsFrontFace) : SV_TARGET {
     }
     worldIndexBufferGpuAddress_ = worldIndexBuffer_->GetGPUVirtualAddress();
     worldIndexBufferSize_ = static_cast<UINT>(indexBufferBytes);
+    worldIndexBufferBytesPerFrame_ = static_cast<UINT>(indexBufferBytesPerFrame);
     worldIndexMappedData_ = nullptr;
     void* worldIndexMapped = nullptr;
     D3D12_RANGE worldIndexReadRange{0, 0};
@@ -1449,8 +1464,10 @@ float4 main(PSIn i, bool isFrontFace : SV_IsFrontFace) : SV_TARGET {
     // Per-draw VS constant upload ring buffer (view-proj + model + skin meta).
     const std::size_t kWorldVsConstantsBytesPerDraw = alignUp(36u * sizeof(float), 256u);
     const std::size_t kMaxWorldDrawsPerFrame = 4096u;
-    const std::size_t kWorldVsConstantsBufferBytes =
+    const std::size_t kWorldVsConstantsBufferBytesPerFrame =
         kWorldVsConstantsBytesPerDraw * kMaxWorldDrawsPerFrame;
+    const std::size_t kWorldVsConstantsBufferBytes =
+        kWorldVsConstantsBufferBytesPerFrame * kFrameCount;
     D3D12_RESOURCE_DESC worldVsConstantsDesc = bufferDesc;
     worldVsConstantsDesc.Width = kWorldVsConstantsBufferBytes;
     if (FAILED(device_->CreateCommittedResource(&heapProps,
@@ -1464,6 +1481,8 @@ float4 main(PSIn i, bool isFrontFace : SV_IsFrontFace) : SV_TARGET {
     }
     worldVsConstantBufferGpuAddress_ = worldVsConstantBuffer_->GetGPUVirtualAddress();
     worldVsConstantBufferSize_ = static_cast<UINT>(kWorldVsConstantsBufferBytes);
+    worldVsConstantBufferBytesPerFrame_ =
+        static_cast<UINT>(kWorldVsConstantsBufferBytesPerFrame);
     worldVsConstantMappedData_ = nullptr;
     void* worldVsMapped = nullptr;
     D3D12_RANGE worldVsReadRange{0, 0};
@@ -1478,8 +1497,10 @@ float4 main(PSIn i, bool isFrontFace : SV_IsFrontFace) : SV_TARGET {
     const std::size_t kMaxGpuSkinMatrices = 128u;
     const std::size_t kSkinMatrixBytesPerDraw = alignUp(
         kMaxGpuSkinMatrices * 2u * 16u * sizeof(float), 256u);
-    const std::size_t kSkinMatrixBufferBytes =
+    const std::size_t kSkinMatrixBufferBytesPerFrame =
         kSkinMatrixBytesPerDraw * kMaxWorldDrawsPerFrame;
+    const std::size_t kSkinMatrixBufferBytes =
+        kSkinMatrixBufferBytesPerFrame * kFrameCount;
     D3D12_RESOURCE_DESC skinMatrixBufferDesc = bufferDesc;
     skinMatrixBufferDesc.Width = kSkinMatrixBufferBytes;
     if (FAILED(device_->CreateCommittedResource(&heapProps,
@@ -1493,6 +1514,8 @@ float4 main(PSIn i, bool isFrontFace : SV_IsFrontFace) : SV_TARGET {
     }
     worldSkinMatrixBufferGpuAddress_ = worldSkinMatrixBuffer_->GetGPUVirtualAddress();
     worldSkinMatrixBufferSize_ = static_cast<UINT>(kSkinMatrixBufferBytes);
+    worldSkinMatrixBufferBytesPerFrame_ =
+        static_cast<UINT>(kSkinMatrixBufferBytesPerFrame);
     worldSkinMatrixMappedData_ = nullptr;
     void* worldSkinMapped = nullptr;
     D3D12_RANGE worldSkinReadRange{0, 0};
@@ -1507,12 +1530,18 @@ float4 main(PSIn i, bool isFrontFace : SV_IsFrontFace) : SV_TARGET {
         0.0f, 1.0f, 0.0f, 0.0f,
         0.0f, 0.0f, 1.0f, 0.0f,
         0.0f, 0.0f, 0.0f, 1.0f};
-    std::memcpy(worldSkinMatrixMappedData_, kIdentity, sizeof(kIdentity));
+    for (std::uint32_t frame = 0; frame < kFrameCount; ++frame) {
+        const std::size_t frameOffset =
+            static_cast<std::size_t>(frame) * kSkinMatrixBufferBytesPerFrame;
+        std::memcpy(worldSkinMatrixMappedData_ + frameOffset, kIdentity, sizeof(kIdentity));
+    }
     worldSkinMatrixFrameOffset_ = 256u;
 
     constexpr std::size_t kMaxWorldInstancesPerFrame = 65536u;
-    const std::size_t kWorldInstanceBufferBytes =
+    const std::size_t kWorldInstanceBufferBytesPerFrame =
         kMaxWorldInstancesPerFrame * sizeof(WorldInstanceVertexData);
+    const std::size_t kWorldInstanceBufferBytes =
+        kWorldInstanceBufferBytesPerFrame * kFrameCount;
     D3D12_RESOURCE_DESC worldInstanceDesc = bufferDesc;
     worldInstanceDesc.Width = kWorldInstanceBufferBytes;
     if (FAILED(device_->CreateCommittedResource(&heapProps,
@@ -1526,6 +1555,8 @@ float4 main(PSIn i, bool isFrontFace : SV_IsFrontFace) : SV_TARGET {
     }
     worldInstanceBufferGpuAddress_ = worldInstanceBuffer_->GetGPUVirtualAddress();
     worldInstanceBufferSize_ = static_cast<UINT>(kWorldInstanceBufferBytes);
+    worldInstanceBufferBytesPerFrame_ =
+        static_cast<UINT>(kWorldInstanceBufferBytesPerFrame);
     worldInstanceMappedData_ = nullptr;
     void* worldInstanceMapped = nullptr;
     D3D12_RANGE worldInstanceReadRange{0, 0};
@@ -1534,16 +1565,19 @@ float4 main(PSIn i, bool isFrontFace : SV_IsFrontFace) : SV_TARGET {
     }
     worldInstanceMappedData_ = static_cast<std::uint8_t*>(worldInstanceMapped);
     std::memset(worldInstanceMappedData_, 0, worldInstanceBufferSize_);
-    WorldInstanceVertexData* identityInstance =
-        reinterpret_cast<WorldInstanceVertexData*>(worldInstanceMappedData_);
-    identityInstance->model0x = 1.0f;
-    identityInstance->model1y = 1.0f;
-    identityInstance->model2z = 1.0f;
-    identityInstance->model3w = 1.0f;
-    identityInstance->colorR = 1.0f;
-    identityInstance->colorG = 1.0f;
-    identityInstance->colorB = 1.0f;
-    identityInstance->colorA = 1.0f;
+    for (std::uint32_t frame = 0; frame < kFrameCount; ++frame) {
+        auto* identityInstance = reinterpret_cast<WorldInstanceVertexData*>(
+            worldInstanceMappedData_ +
+            static_cast<std::size_t>(frame) * kWorldInstanceBufferBytesPerFrame);
+        identityInstance->model0x = 1.0f;
+        identityInstance->model1y = 1.0f;
+        identityInstance->model2z = 1.0f;
+        identityInstance->model3w = 1.0f;
+        identityInstance->colorR = 1.0f;
+        identityInstance->colorG = 1.0f;
+        identityInstance->colorB = 1.0f;
+        identityInstance->colorA = 1.0f;
+    }
     worldInstanceFrameOffset_ = static_cast<UINT>(sizeof(WorldInstanceVertexData));
 #endif
 }

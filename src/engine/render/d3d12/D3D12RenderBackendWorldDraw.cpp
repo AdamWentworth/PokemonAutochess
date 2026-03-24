@@ -181,8 +181,14 @@ void D3D12RenderBackend::drawWorldTriangles(const WorldTriangle* triangles,
     const std::size_t writeOffset = alignUp(static_cast<std::size_t>(worldVertexFrameOffset_), 256u);
     const std::size_t vsConstantsWriteOffset =
         alignUp(static_cast<std::size_t>(worldVsConstantFrameOffset_), 256u);
-    if (neededBytes == 0 || writeOffset + neededBytes > worldVertexBufferSize_) return;
-    if (vsConstantsWriteOffset + 256u > worldVsConstantBufferSize_) return;
+    const std::size_t vertexFrameEnd =
+        static_cast<std::size_t>(worldVertexFrameBaseOffset_) +
+        static_cast<std::size_t>(worldVertexBufferBytesPerFrame_);
+    const std::size_t vsConstantsFrameEnd =
+        static_cast<std::size_t>(worldVsConstantFrameBaseOffset_) +
+        static_cast<std::size_t>(worldVsConstantBufferBytesPerFrame_);
+    if (neededBytes == 0 || writeOffset + neededBytes > vertexFrameEnd) return;
+    if (vsConstantsWriteOffset + 256u > vsConstantsFrameEnd) return;
 
     WorldVertex* out = reinterpret_cast<WorldVertex*>(worldVertexMappedData_ + writeOffset);
     for (std::size_t i = 0; i < safeCount; ++i) {
@@ -238,8 +244,14 @@ void D3D12RenderBackend::drawWorldTriangles(const WorldTriangle* triangles,
     commandList_->SetGraphicsRootConstantBufferView(
         0,
         worldVsConstantBufferGpuAddress_ + static_cast<std::uint64_t>(vsConstantsWriteOffset));
-    commandList_->SetGraphicsRootShaderResourceView(2, worldSkinMatrixBufferGpuAddress_);
-    commandList_->SetGraphicsRootShaderResourceView(4, worldInstanceBufferGpuAddress_);
+    commandList_->SetGraphicsRootShaderResourceView(
+        2,
+        worldSkinMatrixBufferGpuAddress_ +
+            static_cast<std::uint64_t>(worldSkinMatrixFrameBaseOffset_));
+    commandList_->SetGraphicsRootShaderResourceView(
+        4,
+        worldInstanceBufferGpuAddress_ +
+            static_cast<std::uint64_t>(worldInstanceFrameBaseOffset_));
     const WorldPsConstants worldPs = makeWorldPsConstants(nullptr, useTexture);
     commandList_->SetGraphicsRoot32BitConstants(
         1,
@@ -413,7 +425,8 @@ void D3D12RenderBackend::drawWorldIndexedMeshTexturedCached(const char* geometry
         texture,
         useTexture,
         viewProjectionMatrix4x4,
-        worldInstanceBufferGpuAddress_,
+        worldInstanceBufferGpuAddress_ +
+            static_cast<std::uint64_t>(worldInstanceFrameBaseOffset_),
         1u,
         surfaceWidth,
         surfaceHeight);
@@ -624,7 +637,10 @@ void D3D12RenderBackend::drawWorldIndexedMeshTexturedCachedPreparedInstanced(
 
     const std::size_t instanceBytes = instanceCount * sizeof(WorldInstanceVertexData);
     const std::size_t instanceWriteOffset = static_cast<std::size_t>(worldInstanceFrameOffset_);
-    if (instanceWriteOffset + instanceBytes > worldInstanceBufferSize_) {
+    const std::size_t instanceFrameEnd =
+        static_cast<std::size_t>(worldInstanceFrameBaseOffset_) +
+        static_cast<std::size_t>(worldInstanceBufferBytesPerFrame_);
+    if (instanceWriteOffset + instanceBytes > instanceFrameEnd) {
         IRenderBackend::drawWorldIndexedMeshTexturedCachedInstanced(
             geometryKey,
             vertices,
@@ -648,7 +664,10 @@ void D3D12RenderBackend::drawWorldIndexedMeshTexturedCachedPreparedInstanced(
     const std::size_t skinWriteEnd = anyPerInstanceSkinning
         ? (skinWriteOffset + alignUp(instanceSkinBytes, 256u))
         : static_cast<std::size_t>(worldSkinMatrixFrameOffset_);
-    if (anyPerInstanceSkinning && skinWriteEnd > worldSkinMatrixBufferSize_) {
+    const std::size_t skinFrameEnd =
+        static_cast<std::size_t>(worldSkinMatrixFrameBaseOffset_) +
+        static_cast<std::size_t>(worldSkinMatrixBufferBytesPerFrame_);
+    if (anyPerInstanceSkinning && skinWriteEnd > skinFrameEnd) {
         IRenderBackend::drawWorldIndexedMeshTexturedCachedInstanced(
             geometryKey,
             vertices,
@@ -686,7 +705,9 @@ void D3D12RenderBackend::drawWorldIndexedMeshTexturedCachedPreparedInstanced(
         instanceData[i].skinMatrixCount = instance.skinMatrixCount;
         instanceData[i].skinningMode = gpuSkinningMode;
         instanceData[i].skinFloat4Offset =
-            static_cast<std::uint32_t>((skinWriteOffset / (sizeof(float) * 4u)) +
+            static_cast<std::uint32_t>(((skinWriteOffset -
+                                         static_cast<std::size_t>(worldSkinMatrixFrameBaseOffset_)) /
+                                        (sizeof(float) * 4u)) +
                                        (instanceSkinFloatOffset / 4u));
         instanceSkinFloatOffset += floatCount;
     }
@@ -772,8 +793,22 @@ void D3D12RenderBackend::drawWorldIndexedMeshInternal(const WorldMeshVertex* ver
         return;
     }
 
-    const std::size_t maxVertexCapacity = worldVertexBufferSize_ / sizeof(WorldVertex);
-    const std::size_t maxIndexCapacity = worldIndexBufferSize_ / sizeof(std::uint32_t);
+    const std::size_t maxVertexCapacity =
+        static_cast<std::size_t>(worldVertexBufferBytesPerFrame_) / sizeof(WorldVertex);
+    const std::size_t maxIndexCapacity =
+        static_cast<std::size_t>(worldIndexBufferBytesPerFrame_) / sizeof(std::uint32_t);
+    const std::size_t vertexFrameEnd =
+        static_cast<std::size_t>(worldVertexFrameBaseOffset_) +
+        static_cast<std::size_t>(worldVertexBufferBytesPerFrame_);
+    const std::size_t indexFrameEnd =
+        static_cast<std::size_t>(worldIndexFrameBaseOffset_) +
+        static_cast<std::size_t>(worldIndexBufferBytesPerFrame_);
+    const std::size_t vsConstantsFrameEnd =
+        static_cast<std::size_t>(worldVsConstantFrameBaseOffset_) +
+        static_cast<std::size_t>(worldVsConstantBufferBytesPerFrame_);
+    const std::size_t skinFrameEnd =
+        static_cast<std::size_t>(worldSkinMatrixFrameBaseOffset_) +
+        static_cast<std::size_t>(worldSkinMatrixBufferBytesPerFrame_);
     const std::size_t safeVertexCount = (std::min)(vertexCount, maxVertexCapacity);
     const std::size_t safeIndexCount = (std::min)(indexCount, maxIndexCapacity);
     if (safeVertexCount == 0 || safeIndexCount < 3u) return;
@@ -790,9 +825,9 @@ void D3D12RenderBackend::drawWorldIndexedMeshInternal(const WorldMeshVertex* ver
     const std::size_t indexWriteOffset = alignUp(static_cast<std::size_t>(worldIndexFrameOffset_), 256u);
     const std::size_t vsConstantsWriteOffset =
         alignUp(static_cast<std::size_t>(worldVsConstantFrameOffset_), 256u);
-    if (vertexWriteOffset + vertexBytes > worldVertexBufferSize_ ||
-        indexWriteOffset + indexBytes > worldIndexBufferSize_ ||
-        vsConstantsWriteOffset + 256u > worldVsConstantBufferSize_) {
+    if (vertexWriteOffset + vertexBytes > vertexFrameEnd ||
+        indexWriteOffset + indexBytes > indexFrameEnd ||
+        vsConstantsWriteOffset + 256u > vsConstantsFrameEnd) {
         return;
     }
 
@@ -825,7 +860,9 @@ void D3D12RenderBackend::drawWorldIndexedMeshInternal(const WorldMeshVertex* ver
     const std::uint32_t gpuSkinningMode =
         gpuSkinningEnabled ? std::min<std::uint32_t>(textureData->gpuSkinningMode, 1u) : 0u;
     std::uint32_t gpuSkinMatrixCount = gpuSkinningEnabled ? textureData->skinMatrixCount : 0u;
-    D3D12_GPU_VIRTUAL_ADDRESS skinMatrixGpuAddress = worldSkinMatrixBufferGpuAddress_;
+    D3D12_GPU_VIRTUAL_ADDRESS skinMatrixGpuAddress =
+        worldSkinMatrixBufferGpuAddress_ +
+        static_cast<std::uint64_t>(worldSkinMatrixFrameBaseOffset_);
     if (gpuSkinningEnabled) {
         if (textureData->skinMatrices == lastWorldSkinMatrices_ &&
             gpuSkinningMode == lastWorldSkinningMode_ &&
@@ -838,7 +875,7 @@ void D3D12RenderBackend::drawWorldIndexedMeshInternal(const WorldMeshVertex* ver
             const std::size_t skinWriteOffset =
                 alignUp(static_cast<std::size_t>(worldSkinMatrixFrameOffset_), 256u);
             const std::size_t skinWriteEnd = skinWriteOffset + alignUp(copyBytes, 256u);
-            if (skinWriteEnd <= worldSkinMatrixBufferSize_) {
+            if (skinWriteEnd <= skinFrameEnd) {
                 std::memcpy(
                     worldSkinMatrixMappedData_ + skinWriteOffset,
                     textureData->skinMatrices,
@@ -872,7 +909,10 @@ void D3D12RenderBackend::drawWorldIndexedMeshInternal(const WorldMeshVertex* ver
         0,
         worldVsConstantBufferGpuAddress_ + static_cast<std::uint64_t>(vsConstantsWriteOffset));
     commandList_->SetGraphicsRootShaderResourceView(2, skinMatrixGpuAddress);
-    commandList_->SetGraphicsRootShaderResourceView(4, worldInstanceBufferGpuAddress_);
+    commandList_->SetGraphicsRootShaderResourceView(
+        4,
+        worldInstanceBufferGpuAddress_ +
+            static_cast<std::uint64_t>(worldInstanceFrameBaseOffset_));
     WorldPsConstants worldPs = makeWorldPsConstants(textureData, useTexture);
     if (textureData && textureData->materialMode >= 2u) {
         // Reuse an unused packed slot in lit model mode for shader debug-view selection.
@@ -933,9 +973,9 @@ void D3D12RenderBackend::drawWorldIndexedMeshInternal(const WorldMeshVertex* ver
         const std::size_t outlineVertexWriteOffset = alignUp(nextVertexOffset, 256u);
         const std::size_t outlineIndexWriteOffset = alignUp(nextIndexOffset, 256u);
         const std::size_t outlineVsConstantWriteOffset = alignUp(nextVsConstantOffset, 256u);
-        if (outlineVertexWriteOffset + vertexBytes <= worldVertexBufferSize_ &&
-            outlineIndexWriteOffset + indexBytes <= worldIndexBufferSize_ &&
-            outlineVsConstantWriteOffset + 256u <= worldVsConstantBufferSize_) {
+        if (outlineVertexWriteOffset + vertexBytes <= vertexFrameEnd &&
+            outlineIndexWriteOffset + indexBytes <= indexFrameEnd &&
+            outlineVsConstantWriteOffset + 256u <= vsConstantsFrameEnd) {
             auto* outlineVertices =
                 reinterpret_cast<WorldVertex*>(worldVertexMappedData_ + outlineVertexWriteOffset);
             const auto* srcVertices = reinterpret_cast<const WorldVertex*>(vertices);
@@ -976,13 +1016,16 @@ void D3D12RenderBackend::drawWorldIndexedMeshInternal(const WorldMeshVertex* ver
             commandList_->IASetIndexBuffer(&outlineIbv);
 
             float outlineVsConstants[36] = {};
-    packWorldVsConstants(
-        viewProjectionMatrix4x4,
-        modelMatrix,
-        false,
-        0u,
-        0u,
-        outlineVsConstants);
+            // Keep the outline replay on the same skinning state as the base draw.
+            // OpenGL already does this; disabling skinning here causes D3D12-only
+            // pose mismatches that read like one-frame flicker on animated idles.
+            packWorldVsConstants(
+                viewProjectionMatrix4x4,
+                modelMatrix,
+                gpuSkinningEnabled,
+                gpuSkinMatrixCount,
+                gpuSkinningMode,
+                outlineVsConstants);
             std::memcpy(
                 worldVsConstantMappedData_ + outlineVsConstantWriteOffset,
                 outlineVsConstants,
@@ -991,7 +1034,7 @@ void D3D12RenderBackend::drawWorldIndexedMeshInternal(const WorldMeshVertex* ver
                 0,
                 worldVsConstantBufferGpuAddress_ +
                     static_cast<std::uint64_t>(outlineVsConstantWriteOffset));
-            commandList_->SetGraphicsRootShaderResourceView(2, worldSkinMatrixBufferGpuAddress_);
+            commandList_->SetGraphicsRootShaderResourceView(2, skinMatrixGpuAddress);
 
             WorldPsConstants outlinePs = makeWorldPsConstants(textureData, 0.0f);
             outlinePs.materialMode = 3.0f;
@@ -1073,6 +1116,12 @@ void D3D12RenderBackend::drawWorldIndexedMeshTexturedCachedInternal(
     ID3D12DescriptorHeap* heaps[] = {srvHeap_.Get()};
     commandList_->SetDescriptorHeaps(1, heaps);
     commandList_->SetGraphicsRootSignature(worldRootSignature_.Get());
+    const std::size_t vsConstantsFrameEnd =
+        static_cast<std::size_t>(worldVsConstantFrameBaseOffset_) +
+        static_cast<std::size_t>(worldVsConstantBufferBytesPerFrame_);
+    const std::size_t skinFrameEnd =
+        static_cast<std::size_t>(worldSkinMatrixFrameBaseOffset_) +
+        static_cast<std::size_t>(worldSkinMatrixBufferBytesPerFrame_);
 
     const float* modelMatrix = textureData ? textureData->modelMatrix.data() : nullptr;
     bool gpuSkinningEnabled =
@@ -1084,7 +1133,9 @@ void D3D12RenderBackend::drawWorldIndexedMeshTexturedCachedInternal(
     const std::uint32_t gpuSkinningMode =
         gpuSkinningEnabled ? std::min<std::uint32_t>(textureData->gpuSkinningMode, 1u) : 0u;
     std::uint32_t gpuSkinMatrixCount = gpuSkinningEnabled ? textureData->skinMatrixCount : 0u;
-    D3D12_GPU_VIRTUAL_ADDRESS skinMatrixGpuAddress = worldSkinMatrixBufferGpuAddress_;
+    D3D12_GPU_VIRTUAL_ADDRESS skinMatrixGpuAddress =
+        worldSkinMatrixBufferGpuAddress_ +
+        static_cast<std::uint64_t>(worldSkinMatrixFrameBaseOffset_);
     if (gpuSkinningEnabled) {
         if (textureData->skinMatrices == lastWorldSkinMatrices_ &&
             gpuSkinningMode == lastWorldSkinningMode_ &&
@@ -1097,7 +1148,7 @@ void D3D12RenderBackend::drawWorldIndexedMeshTexturedCachedInternal(
             const std::size_t skinWriteOffset =
                 alignUp(static_cast<std::size_t>(worldSkinMatrixFrameOffset_), 256u);
             const std::size_t skinWriteEnd = skinWriteOffset + alignUp(copyBytes, 256u);
-            if (skinWriteEnd <= worldSkinMatrixBufferSize_) {
+            if (skinWriteEnd <= skinFrameEnd) {
                 std::memcpy(
                     worldSkinMatrixMappedData_ + skinWriteOffset,
                     textureData->skinMatrices,
@@ -1117,7 +1168,7 @@ void D3D12RenderBackend::drawWorldIndexedMeshTexturedCachedInternal(
 
     const std::size_t vsConstantsWriteOffset =
         alignUp(static_cast<std::size_t>(worldVsConstantFrameOffset_), 256u);
-    if (vsConstantsWriteOffset + 256u > worldVsConstantBufferSize_) return;
+    if (vsConstantsWriteOffset + 256u > vsConstantsFrameEnd) return;
 
     float vsConstants[36] = {};
     packWorldVsConstants(
@@ -1202,8 +1253,16 @@ void D3D12RenderBackend::drawWorldIndexedMeshTexturedCachedInternal(
         return;
     }
 
-    const std::size_t maxVertexCapacity = worldVertexBufferSize_ / sizeof(WorldVertex);
-    const std::size_t maxIndexCapacity = worldIndexBufferSize_ / sizeof(std::uint32_t);
+    const std::size_t maxVertexCapacity =
+        static_cast<std::size_t>(worldVertexBufferBytesPerFrame_) / sizeof(WorldVertex);
+    const std::size_t maxIndexCapacity =
+        static_cast<std::size_t>(worldIndexBufferBytesPerFrame_) / sizeof(std::uint32_t);
+    const std::size_t vertexFrameEnd =
+        static_cast<std::size_t>(worldVertexFrameBaseOffset_) +
+        static_cast<std::size_t>(worldVertexBufferBytesPerFrame_);
+    const std::size_t indexFrameEnd =
+        static_cast<std::size_t>(worldIndexFrameBaseOffset_) +
+        static_cast<std::size_t>(worldIndexBufferBytesPerFrame_);
     const std::size_t safeVertexCount = (std::min)(vertexCount, maxVertexCapacity);
     const std::size_t safeIndexCount = (std::min)(indexCount, maxIndexCapacity);
     if (safeVertexCount != vertexCount || safeIndexCount != indexCount || safeIndexCount < 3u) {
@@ -1218,9 +1277,9 @@ void D3D12RenderBackend::drawWorldIndexedMeshTexturedCachedInternal(
         alignUp(static_cast<std::size_t>(worldIndexFrameOffset_), 256u);
     const std::size_t outlineVsConstantWriteOffset =
         alignUp(static_cast<std::size_t>(worldVsConstantFrameOffset_), 256u);
-    if (outlineVertexWriteOffset + vertexBytes > worldVertexBufferSize_ ||
-        outlineIndexWriteOffset + indexBytes > worldIndexBufferSize_ ||
-        outlineVsConstantWriteOffset + 256u > worldVsConstantBufferSize_) {
+    if (outlineVertexWriteOffset + vertexBytes > vertexFrameEnd ||
+        outlineIndexWriteOffset + indexBytes > indexFrameEnd ||
+        outlineVsConstantWriteOffset + 256u > vsConstantsFrameEnd) {
         return;
     }
 
@@ -1264,13 +1323,14 @@ void D3D12RenderBackend::drawWorldIndexedMeshTexturedCachedInternal(
     commandList_->IASetIndexBuffer(&outlineIbv);
 
     float outlineVsConstants[36] = {};
-            packWorldVsConstants(
-                viewProjectionMatrix4x4,
-                modelMatrix,
-                false,
-                0u,
-                0u,
-                outlineVsConstants);
+    // Match the base draw's skinning inputs for the outline replay too.
+    packWorldVsConstants(
+        viewProjectionMatrix4x4,
+        modelMatrix,
+        gpuSkinningEnabled,
+        gpuSkinMatrixCount,
+        gpuSkinningMode,
+        outlineVsConstants);
     std::memcpy(
         worldVsConstantMappedData_ + outlineVsConstantWriteOffset,
         outlineVsConstants,
@@ -1279,7 +1339,7 @@ void D3D12RenderBackend::drawWorldIndexedMeshTexturedCachedInternal(
         0,
         worldVsConstantBufferGpuAddress_ +
             static_cast<std::uint64_t>(outlineVsConstantWriteOffset));
-    commandList_->SetGraphicsRootShaderResourceView(2, worldSkinMatrixBufferGpuAddress_);
+    commandList_->SetGraphicsRootShaderResourceView(2, skinMatrixGpuAddress);
 
     WorldPsConstants outlinePs = makeWorldPsConstants(textureData, 0.0f);
     outlinePs.materialMode = 3.0f;

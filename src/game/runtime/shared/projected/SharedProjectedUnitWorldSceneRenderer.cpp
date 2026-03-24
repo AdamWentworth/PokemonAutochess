@@ -6,10 +6,22 @@
 #include "game/runtime/shared/projected/SharedProjectedUnitBackendMeshTransforms.h"
 #include "game/runtime/shared/scene/SharedWorldScene.h"
 #include "game/runtime/shared/vfx/tail_fire/SharedTailFireMeshPlayback.h"
+#include "engine/core/Environment.h"
 
 #include <algorithm>
 #include <chrono>
+#include <cstdint>
 #include <cstring>
+#include <filesystem>
+#include <fstream>
+#include <iostream>
+#include <mutex>
+#include <sstream>
+#include <string>
+#include <string_view>
+#include <vector>
+
+#include <glm/gtc/type_ptr.hpp>
 
 namespace support = game::runtime::shared_projected_unit_backend_mesh_support;
 namespace prep = game::runtime::shared_projected_unit_backend_mesh_prep;
@@ -29,7 +41,252 @@ std::vector<std::uint8_t>& batchUsesSceneSkinningScratch() {
     return scratch;
 }
 
+std::vector<int>& resolvedTriNodeIndexScratch() {
+    static thread_local std::vector<int> scratch;
+    return scratch;
+}
+
+bool batchNeedsSceneSkinning(const support::FastTexturedBatchTemplate& batchTemplate) {
+    return batchTemplate.skinnedBatch || !batchTemplate.gpuJointPalette.empty();
+}
+
+std::array<float, 16> buildRigidBatchModelMatrix(
+    const prep::PreparedState& prepared,
+    const game::runtime::shared_backend_pose::PoseEval* scenePose,
+    int resolvedTriNodeIndex) {
+    std::array<float, 16> outModelMatrix = prepared.modelMatrix;
+    if (!scenePose ||
+        !scenePose->hasScenePose ||
+        resolvedTriNodeIndex < 0 ||
+        static_cast<std::size_t>(resolvedTriNodeIndex) >= scenePose->nodeGlobals.size()) {
+        return outModelMatrix;
+    }
+
+    const glm::mat4 batchModel =
+        prepared.modelM * scenePose->nodeGlobals[static_cast<std::size_t>(resolvedTriNodeIndex)];
+    const float* batchModelData = glm::value_ptr(batchModel);
+    std::copy(batchModelData, batchModelData + 16u, outModelMatrix.begin());
+    return outModelMatrix;
+}
+
+std::string toLowerCopy(std::string_view value) {
+    std::string out;
+    out.reserve(value.size());
+    for (const char c : value) {
+        out.push_back(static_cast<char>(std::tolower(static_cast<unsigned char>(c))));
+    }
+    return out;
+}
+
+const std::vector<std::string>& worldSceneTraceTokens() {
+    static const std::vector<std::string> tokens = [] {
+        std::vector<std::string> out;
+        const auto env = engine::env::get("PAC_TRACE_PROJECTED_WORLD_SCENE");
+        if (!env.has_value()) return out;
+
+        std::string current;
+        auto flush = [&]() {
+            if (current.empty()) return;
+            out.push_back(toLowerCopy(current));
+            current.clear();
+        };
+        for (const char c : *env) {
+            if (c == ',' || c == ';' || std::isspace(static_cast<unsigned char>(c))) {
+                flush();
+            } else {
+                current.push_back(c);
+            }
+        }
+        flush();
+        return out;
+    }();
+    return tokens;
+}
+
+const std::vector<std::string>& worldSceneDisableTokens() {
+    static const std::vector<std::string> tokens = [] {
+        std::vector<std::string> out;
+        const auto env = engine::env::get("PAC_DISABLE_PROJECTED_WORLD_SCENE");
+        if (!env.has_value()) return out;
+
+        std::string current;
+        auto flush = [&]() {
+            if (current.empty()) return;
+            out.push_back(toLowerCopy(current));
+            current.clear();
+        };
+        for (const char c : *env) {
+            if (c == ',' || c == ';' || std::isspace(static_cast<unsigned char>(c))) {
+                flush();
+            } else {
+                current.push_back(c);
+            }
+        }
+        flush();
+        return out;
+    }();
+    return tokens;
+}
+
+const std::string& worldSceneTraceFilePath() {
+    static const std::string path = []() {
+        const auto env = engine::env::get("PAC_TRACE_PROJECTED_WORLD_SCENE_FILE");
+        if (env.has_value() && !env->empty()) {
+            return *env;
+        }
+        return std::string("debug_projected_world_scene_trace.log");
+    }();
+    return path;
+}
+
+void appendWorldSceneTraceLineImpl(std::string_view line) {
+    if (line.empty()) {
+        return;
+    }
+
+    std::cout << line << "\n" << std::flush;
+
+    const std::string& path = worldSceneTraceFilePath();
+    if (path.empty()) {
+        return;
+    }
+
+    static std::mutex traceFileMutex;
+    std::lock_guard<std::mutex> lock(traceFileMutex);
+    std::error_code ec;
+    const std::filesystem::path fsPath(path);
+    if (!fsPath.parent_path().empty()) {
+        std::filesystem::create_directories(fsPath.parent_path(), ec);
+    }
+    std::ofstream out(fsPath, std::ios::app);
+    if (!out.is_open()) {
+        return;
+    }
+    out << line << "\n";
+    out.flush();
+}
+
+bool tokenListMatchesUnit(const std::vector<std::string>& tokens, const PokemonInstance& unit) {
+    if (tokens.empty()) return false;
+    const std::string unitName = toLowerCopy(unit.name);
+    const std::string unitId = std::to_string(unit.id);
+    for (const std::string& token : tokens) {
+        if (token == "*" || token == unitName || token == unitId) {
+            return true;
+        }
+    }
+    return false;
+}
+
+bool shouldTraceWorldSceneUnit(const PokemonInstance& unit) {
+    return tokenListMatchesUnit(worldSceneTraceTokens(), unit);
+}
+
+bool shouldDisableWorldSceneUnit(const PokemonInstance& unit) {
+    return tokenListMatchesUnit(worldSceneDisableTokens(), unit);
+}
+
+std::uint64_t fnv1a64Append(std::uint64_t hash, const void* data, std::size_t byteCount) {
+    static constexpr std::uint64_t kPrime = 1099511628211ull;
+    const auto* bytes = static_cast<const std::uint8_t*>(data);
+    for (std::size_t i = 0; i < byteCount; ++i) {
+        hash ^= static_cast<std::uint64_t>(bytes[i]);
+        hash *= kPrime;
+    }
+    return hash;
+}
+
+std::uint64_t hashPoseEval(const game::runtime::shared_backend_pose::PoseEval* scenePose) {
+    if (!scenePose || !scenePose->hasScenePose || scenePose->nodeGlobals.empty()) {
+        return 0ull;
+    }
+    std::uint64_t hash = 14695981039346656037ull;
+    for (const glm::mat4& nodeGlobal : scenePose->nodeGlobals) {
+        hash = fnv1a64Append(hash, glm::value_ptr(nodeGlobal), sizeof(float) * 16u);
+    }
+    return hash;
+}
+
+std::uint64_t hashSkinPayload(const support::GpuSkinBatchState& state) {
+    if (!state.sharedSkinMatrices || state.skinMatrixCount == 0u) {
+        return 0ull;
+    }
+    const std::size_t floatCount =
+        static_cast<std::size_t>(state.skinMatrixCount) *
+        static_cast<std::size_t>(state.gpuSkinningMode == 1u ? 32u : 16u);
+    std::uint64_t hash = 14695981039346656037ull;
+    hash = fnv1a64Append(hash, state.sharedSkinMatrices, floatCount * sizeof(float));
+    hash = fnv1a64Append(hash, &state.skinMatrixCount, sizeof(state.skinMatrixCount));
+    hash = fnv1a64Append(hash, &state.gpuSkinningMode, sizeof(state.gpuSkinningMode));
+    return hash;
+}
+
+void traceWorldSceneFrameSummary(
+    const shared_projected_unit_models::Args& args,
+    const prep::PreparedState& prepared,
+    std::size_t rigidBatchCount,
+    std::size_t skinnedBatchCount,
+    std::uint64_t batchHash,
+    std::uint64_t poseHash) {
+    if (!args.unit || !shouldTraceWorldSceneUnit(*args.unit)) {
+        return;
+    }
+
+    std::ostringstream line;
+    line
+        << "[ProjectedTrace][WorldScene] unit=" << args.unit->name
+        << " id=" << args.unit->id
+        << " active=" << args.unit->activeAnimIndex
+        << " idle=" << args.unit->animIdleIndex
+        << " time=" << args.unit->animTimeSec
+        << " batches=" << (rigidBatchCount + skinnedBatchCount)
+        << " rigid=" << rigidBatchCount
+        << " skinned=" << skinnedBatchCount
+        << " poseHash=0x" << std::hex << poseHash
+        << " batchHash=0x" << batchHash << std::dec
+        << " sortDepth=" << prepared.indexedBatchSortDepth;
+    appendWorldSceneTraceLineImpl(line.str());
+}
+
+void traceWorldSceneSkip(const shared_projected_unit_models::Args& args, const char* reason) {
+    if (!args.unit || !shouldTraceWorldSceneUnit(*args.unit)) {
+        return;
+    }
+    std::ostringstream line;
+    line
+        << "[ProjectedTrace][WorldScene][Skip] unit=" << args.unit->name
+        << " id=" << args.unit->id
+        << " active=" << args.unit->activeAnimIndex
+        << " idle=" << args.unit->animIdleIndex
+        << " time=" << args.unit->animTimeSec
+        << " reason=" << (reason ? reason : "unknown");
+    appendWorldSceneTraceLineImpl(line.str());
+}
+
+void traceWorldSceneEnter(const shared_projected_unit_models::Args& args) {
+    if (!args.unit || !shouldTraceWorldSceneUnit(*args.unit)) {
+        return;
+    }
+    std::ostringstream line;
+    line
+        << "[ProjectedTrace][WorldScene][Enter] unit=" << args.unit->name
+        << " id=" << args.unit->id
+        << " active=" << args.unit->activeAnimIndex
+        << " idle=" << args.unit->animIdleIndex
+        << " time=" << args.unit->animTimeSec
+        << " renderer=" << (args.backendId ? args.backendId : "<null>");
+    appendWorldSceneTraceLineImpl(line.str());
+}
+
 } // namespace
+
+bool shouldTraceProjectedUnitWorldScene(const PokemonInstance& unit) {
+    return shouldTraceWorldSceneUnit(unit);
+}
+
+void appendProjectedUnitWorldSceneTraceLine(std::string_view line) {
+    appendWorldSceneTraceLineImpl(line);
+}
 
 bool tryRenderProjectedUnitModelWorldScene(
     const shared_projected_unit_models::Args& args,
@@ -54,6 +311,13 @@ bool tryRenderProjectedUnitModelWorldScene(
         return false;
     }
 
+    traceWorldSceneEnter(args);
+
+    if (shouldDisableWorldSceneUnit(*args.unit)) {
+        traceWorldSceneSkip(args, "disabled_by_env");
+        return false;
+    }
+
     // Charmander's authored tail-fire mesh still relies on the legacy projected-model
     // path, which patches the fire submesh material/atlas and marks the mesh carrier
     // anchor. Until the world-scene path learns that same override, keep this species
@@ -74,8 +338,9 @@ bool tryRenderProjectedUnitModelWorldScene(
     if (!prep::prepareProjectedUnitBackendMeshWorldScene(args, out, prepared)) {
         if (args.perfBreakdown) {
             args.perfBreakdown->prepMs +=
-                std::chrono::duration<double, std::milli>(Clock::now() - prepStart).count();
+            std::chrono::duration<double, std::milli>(Clock::now() - prepStart).count();
         }
+        traceWorldSceneSkip(args, "prepare_failed");
         return out.skipUnit;
     }
 
@@ -88,6 +353,7 @@ bool tryRenderProjectedUnitModelWorldScene(
             args.perfBreakdown->prepMs +=
                 std::chrono::duration<double, std::milli>(Clock::now() - prepStart).count();
         }
+        traceWorldSceneSkip(args, "prepared_not_world_scene_eligible");
         return false;
     }
 
@@ -104,6 +370,7 @@ bool tryRenderProjectedUnitModelWorldScene(
             args.perfBreakdown->prepMs +=
                 std::chrono::duration<double, std::milli>(Clock::now() - prepStart).count();
         }
+        traceWorldSceneSkip(args, "fast_cache_empty");
         return false;
     }
     const support::FastTexturedMaterialTemplateCache* materialCache =
@@ -117,6 +384,7 @@ bool tryRenderProjectedUnitModelWorldScene(
             args.perfBreakdown->prepMs +=
                 std::chrono::duration<double, std::milli>(Clock::now() - prepStart).count();
         }
+        traceWorldSceneSkip(args, "material_cache_mismatch");
         return false;
     }
 
@@ -132,6 +400,7 @@ bool tryRenderProjectedUnitModelWorldScene(
                 args.perfBreakdown->prepMs +=
                     std::chrono::duration<double, std::milli>(Clock::now() - prepStart).count();
             }
+            traceWorldSceneSkip(args, "batch_validation_failed");
             return false;
         }
 
@@ -145,6 +414,7 @@ bool tryRenderProjectedUnitModelWorldScene(
                 args.perfBreakdown->prepMs +=
                     std::chrono::duration<double, std::milli>(Clock::now() - prepStart).count();
             }
+            traceWorldSceneSkip(args, "material_validation_failed");
             return false;
         }
     }
@@ -153,6 +423,8 @@ bool tryRenderProjectedUnitModelWorldScene(
     batchSkinStates.assign(fastCache->batches.size(), support::GpuSkinBatchState{});
     auto& batchUsesSceneSkinning = batchUsesSceneSkinningScratch();
     batchUsesSceneSkinning.assign(fastCache->batches.size(), 0u);
+    auto& resolvedTriNodeIndices = resolvedTriNodeIndexScratch();
+    resolvedTriNodeIndices.assign(fastCache->batches.size(), -1);
     shared_projected_unit_backend_mesh_transforms::Resolver transforms;
     bool transformsInitialized = false;
     auto& gpuSkinBatchStates = support::gpuSkinBatchStateEntries();
@@ -257,23 +529,26 @@ bool tryRenderProjectedUnitModelWorldScene(
 
     for (std::size_t fastBatchIndex = 0; fastBatchIndex < fastCache->batches.size(); ++fastBatchIndex) {
         const auto& batchTemplate = fastCache->batches[fastBatchIndex];
-        if (!batchTemplate.skinnedBatch) {
-            continue;
-        }
-
         int resolvedTriNodeIndex = batchTemplate.triNodeIndex;
         if (resolvedTriNodeIndex < 0 && fastCache->defaultSkinNodeIndex >= 0) {
             resolvedTriNodeIndex = fastCache->defaultSkinNodeIndex;
         }
+        resolvedTriNodeIndices[fastBatchIndex] = resolvedTriNodeIndex;
+
+        const bool needsSceneSkinning = batchNeedsSceneSkinning(batchTemplate);
         if (!tryResolveSkinnedBatchState(
                 batchTemplate,
                 resolvedTriNodeIndex,
                 batchSkinStates[fastBatchIndex])) {
-            if (args.perfBreakdown) {
-                args.perfBreakdown->prepMs +=
-                    std::chrono::duration<double, std::milli>(Clock::now() - prepStart).count();
+            if (needsSceneSkinning) {
+                if (args.perfBreakdown) {
+                    args.perfBreakdown->prepMs +=
+                        std::chrono::duration<double, std::milli>(Clock::now() - prepStart).count();
+                }
+                traceWorldSceneSkip(args, "skinned_batch_state_unavailable");
+                return false;
             }
-            return false;
+            continue;
         }
         batchUsesSceneSkinning[fastBatchIndex] = 1u;
     }
@@ -285,6 +560,10 @@ bool tryRenderProjectedUnitModelWorldScene(
 
     const auto sceneColor = prepared.fastTexturedTint;
     const float sceneAlpha = prepared.fastTexturedAlpha;
+    const std::uint64_t poseHash = hashPoseEval(args.scenePose);
+    std::uint64_t batchHash = 14695981039346656037ull;
+    std::size_t rigidBatchCount = 0u;
+    std::size_t skinnedBatchCount = 0u;
 
     for (std::size_t fastBatchIndex = 0; fastBatchIndex < fastCache->batches.size(); ++fastBatchIndex) {
         const auto& batchTemplate = fastCache->batches[fastBatchIndex];
@@ -301,6 +580,7 @@ bool tryRenderProjectedUnitModelWorldScene(
 
         if (!itemEntry.worldSceneObjectHandle ||
             itemEntry.worldSceneRegistryGeneration != args.worldSceneRegistry->generation) {
+            const bool needsSceneSkinning = batchNeedsSceneSkinning(batchTemplate);
             const auto geometryHandle = shared_world_scene::ensureRigidGeometry(
                 *args.worldSceneRegistry,
                 &batchTemplate,
@@ -319,7 +599,7 @@ bool tryRenderProjectedUnitModelWorldScene(
                 materialHandle,
                 shared_world_scene::PipelineVariant::OpaqueLit,
                 static_cast<std::uint32_t>(fastBatchIndex),
-                batchTemplate.skinnedBatch);
+                needsSceneSkinning);
             itemEntry.worldSceneRegistryGeneration = args.worldSceneRegistry->generation;
         }
 
@@ -329,6 +609,10 @@ bool tryRenderProjectedUnitModelWorldScene(
             static_cast<std::uint32_t>(fastBatchIndex + 1u);
         if (batchUsesSceneSkinning[fastBatchIndex] != 0u) {
             const auto& skinState = batchSkinStates[fastBatchIndex];
+            const std::uint64_t skinHash = hashSkinPayload(skinState);
+            batchHash = fnv1a64Append(batchHash, &skinHash, sizeof(skinHash));
+            batchHash = fnv1a64Append(batchHash, &batchTemplate.baseSubmeshIndex, sizeof(batchTemplate.baseSubmeshIndex));
+            ++skinnedBatchCount;
             shared_world_scene::appendSkinnedInstance(
                 *args.worldSceneFrame,
                 itemEntry.worldSceneObjectHandle,
@@ -343,11 +627,18 @@ bool tryRenderProjectedUnitModelWorldScene(
                 skinState.skinMatrixCount,
                 skinState.sharedSkinMatrices);
         } else {
+            const std::array<float, 16> batchModelMatrix = buildRigidBatchModelMatrix(
+                prepared,
+                args.scenePose,
+                resolvedTriNodeIndices[fastBatchIndex]);
+            batchHash = fnv1a64Append(batchHash, batchModelMatrix.data(), batchModelMatrix.size() * sizeof(float));
+            batchHash = fnv1a64Append(batchHash, &batchTemplate.baseSubmeshIndex, sizeof(batchTemplate.baseSubmeshIndex));
+            ++rigidBatchCount;
             shared_world_scene::appendRigidInstance(
                 *args.worldSceneFrame,
                 itemEntry.worldSceneObjectHandle,
                 instanceHandle,
-                prepared.modelMatrix,
+                batchModelMatrix,
                 sceneColor.r,
                 sceneColor.g,
                 sceneColor.b,
@@ -356,6 +647,13 @@ bool tryRenderProjectedUnitModelWorldScene(
         }
     }
 
+    traceWorldSceneFrameSummary(
+        args,
+        prepared,
+        rigidBatchCount,
+        skinnedBatchCount,
+        batchHash,
+        poseHash);
     out.drewModelMesh = true;
     return true;
 }

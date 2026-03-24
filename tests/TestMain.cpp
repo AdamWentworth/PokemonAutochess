@@ -163,6 +163,8 @@ bool test_shared_projected_unit_renderer_scene_pose_cache_contract(std::string& 
 bool test_shared_projected_unit_renderer_idle_clip_loop_closure_contract(std::string& outFail);
 bool test_shared_projected_unit_renderer_idle_fixed_step_wrap_contract(std::string& outFail);
 bool test_shared_projected_unit_world_scene_tail_fire_fallback(std::string& outFail);
+bool test_shared_projected_unit_world_scene_rigid_under_skin_transform(std::string& outFail);
+bool test_shared_projected_unit_world_scene_rigid_node_transform(std::string& outFail);
 bool test_shared_tail_fire_atlas_helpers_contract(std::string& outFail);
 bool test_shared_tail_fire_exact_gpu_batches_contract(std::string& outFail);
 bool test_shared_tail_fire_mesh_playback_contract(std::string& outFail);
@@ -381,6 +383,8 @@ int main(int argc, char** argv) {
         {"shared_projected_unit_renderer_idle_clip_loop_closure_contract", &test_shared_projected_unit_renderer_idle_clip_loop_closure_contract},
         {"shared_projected_unit_renderer_idle_fixed_step_wrap_contract", &test_shared_projected_unit_renderer_idle_fixed_step_wrap_contract},
         {"shared_projected_unit_world_scene_tail_fire_fallback", &test_shared_projected_unit_world_scene_tail_fire_fallback},
+        {"shared_projected_unit_world_scene_rigid_under_skin_transform", &test_shared_projected_unit_world_scene_rigid_under_skin_transform},
+        {"shared_projected_unit_world_scene_rigid_node_transform", &test_shared_projected_unit_world_scene_rigid_node_transform},
         {"shared_tail_fire_atlas_helpers_contract", &test_shared_tail_fire_atlas_helpers_contract},
         {"shared_tail_fire_exact_gpu_batches_contract", &test_shared_tail_fire_exact_gpu_batches_contract},
         {"shared_tail_fire_mesh_playback_contract", &test_shared_tail_fire_mesh_playback_contract},

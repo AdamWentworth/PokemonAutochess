@@ -94,6 +94,9 @@ Result renderProjectedUnitBackendMesh(const Args& args) {
     const auto& backendModelFastTexturedPathEnabled = args.backendModelFastTexturedPathEnabled;
     const auto& backendModelBackfaceCullingEnabled = args.backendModelBackfaceCullingEnabled;
     const bool strictGltfParity = support::strictGltfParityEnabled();
+    const bool enableGpuClipSkinning =
+        args.enableGpuClipSkinning &&
+        support::backendUsesGpuClipSkinningForUnit(args.backendId, unit.name);
 
     using SharedTailFireAnchor = game::runtime::shared_tail_fire_fallback::Anchor;
 
@@ -254,7 +257,7 @@ Result renderProjectedUnitBackendMesh(const Args& args) {
 
                 bool configuredBatch = false;
                 bool canUseSharedNodeTransform = false;
-                if (args.enableGpuClipSkinning) {
+                if (enableGpuClipSkinning) {
                     const int skinCacheKey = transforms.gpuSkinningCacheKeyForNode(
                         resolvedTriNodeIndex);
                     if (skinCacheKey >= 0) {
@@ -457,7 +460,7 @@ Result renderProjectedUnitBackendMesh(const Args& args) {
                     resolvedTriNodeIndex = fastCache.defaultSkinNodeIndex;
                 }
 
-                if (args.enableGpuClipSkinning) {
+                if (enableGpuClipSkinning) {
                     const int skinCacheKey = transforms.gpuSkinningCacheKeyForNode(
                         resolvedTriNodeIndex);
                     if (skinCacheKey >= 0) {
@@ -869,7 +872,7 @@ Result renderProjectedUnitBackendMesh(const Args& args) {
             std::vector<std::unordered_map<std::uint64_t, std::uint32_t>>
                 fastBatchRigidVertexRemap;
             if (useFastTexturedFullMeshPath &&
-                args.enableGpuClipSkinning &&
+                enableGpuClipSkinning &&
                 !modelIndexedBatchesPerSubmesh.empty()) {
                 fastBatchUsesRigidNodeGpuSkin.assign(
                     modelIndexedBatchesPerSubmesh.size(), 0u);

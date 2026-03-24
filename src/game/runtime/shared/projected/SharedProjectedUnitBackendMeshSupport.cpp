@@ -8,6 +8,7 @@
 #include <array>
 #include <cctype>
 #include <chrono>
+#include <limits>
 #include <cmath>
 #include <string>
 #include <unordered_map>
@@ -110,6 +111,20 @@ bool tailFireDebugShouldLogAnchor(int unitId) {
     return true;
 }
 
+bool backendUsesAuthoredTailFireMeshPlayback(const char* backendId) {
+    (void)backendId;
+    return true;
+}
+
+bool backendUsesGpuClipSkinningForUnit(const char* backendId, std::string_view species) {
+    if (backendId &&
+        std::string_view(backendId) == "d3d12" &&
+        game::runtime::shared_tail_fire_mesh_playback::isTailFireMeshPlaybackSpecies(species)) {
+        return false;
+    }
+    return true;
+}
+
 std::vector<int> buildSubmeshNodeFallback(
     const game::runtime::render_model::MeshData& mesh) {
     std::vector<int> submeshNodeFallback;
@@ -192,11 +207,32 @@ bool applyTailFireMeshFlipbookOverride(
     }
 
     bool applied = false;
+    bool suppressedForFallback = false;
+    const bool useAuthoredMeshPlayback =
+        backendUsesAuthoredTailFireMeshPlayback(args.backendId);
     for (std::size_t bi = 0; bi < batches.size(); ++bi) {
         auto& batch = batches[bi];
         const std::size_t baseSubmeshIndex = resolveBatchBaseSubmeshIndex(batch, bi);
         if (baseSubmeshIndex >= profile.fireSubmeshMask.size() ||
             profile.fireSubmeshMask[baseSubmeshIndex] == 0u) {
+            continue;
+        }
+
+        if (!useAuthoredMeshPlayback) {
+            batch.sharedTemplate = nullptr;
+            batch.geometryCacheKey.clear();
+            batch.vertices.clear();
+            batch.indices.clear();
+            batch.sharedVertices = nullptr;
+            batch.sharedVertexCount = 0u;
+            batch.sharedIndices = nullptr;
+            batch.sharedIndexCount = 0u;
+            batch.gpuSkinning = 0u;
+            batch.gpuSkinningMode = 0u;
+            batch.skinMatrixCount = 0u;
+            batch.sharedSkinMatrices = nullptr;
+            batch.skinMatrices.clear();
+            suppressedForFallback = true;
             continue;
         }
 
@@ -266,7 +302,7 @@ bool applyTailFireMeshFlipbookOverride(
         anchor.valid = true;
         anchor.meshCarrierActive = true;
     }
-    return applied;
+    return applied || suppressedForFallback;
 }
 
 int resolveDefaultSkinNodeIndex(const game::runtime::render_model::MeshData* mesh) {
@@ -567,6 +603,9 @@ const FastTexturedMeshTemplateCache* ensureFastTexturedMeshTemplateCache(
     std::vector<std::vector<std::size_t>> splitBatchCandidatesBySource(cache.batches.size());
     std::vector<std::vector<std::uint16_t>> splitJointPaletteByBatch(cache.batches.size());
     std::vector<std::uint8_t> fullSkinBatchBySource(cache.batches.size(), 0u);
+    std::vector<std::size_t> rigidNoWeightBatchBySource(
+        cache.batches.size(),
+        std::numeric_limits<std::size_t>::max());
     std::vector<std::size_t> splitBatchIndexByTriangle(triangleCount, 0u);
     std::vector<std::size_t> splitTriangleCountByBatch(cache.batches.size(), 0u);
     for (std::size_t bi = 0; bi < cache.batches.size(); ++bi) {
@@ -582,15 +621,37 @@ const FastTexturedMeshTemplateCache* ensureFastTexturedMeshTemplateCache(
     }
 
     constexpr float kJointWeightEpsilon = 0.00001f;
+    const auto ensureRigidNoWeightBatch =
+        [&](std::size_t sourceBatchIndex) -> std::size_t {
+            if (sourceBatchIndex >= rigidNoWeightBatchBySource.size()) {
+                rigidNoWeightBatchBySource.resize(
+                    sourceBatchIndex + 1u,
+                    std::numeric_limits<std::size_t>::max());
+            }
+            std::size_t& cachedBatchIndex = rigidNoWeightBatchBySource[sourceBatchIndex];
+            if (cachedBatchIndex != std::numeric_limits<std::size_t>::max()) {
+                return cachedBatchIndex;
+            }
+
+            const auto& sourceBatch = cache.batches[sourceBatchIndex];
+            FastTexturedBatchTemplate rigidBatch{};
+            rigidBatch.baseSubmeshIndex = sourceBatch.baseSubmeshIndex;
+            rigidBatch.triNodeIndex = sourceBatch.triNodeIndex;
+            rigidBatch.skinnedBatch = false;
+            rigidBatch.geometryCacheKey = makeIndexedGeometryCacheKey(
+                keyPrefix, sourceBatch.baseSubmeshIndex, cache.batches.size(), baseBatchCount);
+            cache.batches.push_back(std::move(rigidBatch));
+            splitBatchCandidatesBySource.emplace_back();
+            splitJointPaletteByBatch.emplace_back();
+            splitTriangleCountByBatch.push_back(0u);
+            fullSkinBatchBySource.push_back(0u);
+            rigidNoWeightBatchBySource.push_back(std::numeric_limits<std::size_t>::max());
+            cachedBatchIndex = cache.batches.size() - 1u;
+            return cachedBatchIndex;
+        };
     for (std::size_t triIdx = 0; triIdx < triangleCount; ++triIdx) {
         std::size_t sourceBatchIndex = batchIndexByTriangle[triIdx];
         if (sourceBatchIndex >= splitBatchCandidatesBySource.size()) sourceBatchIndex = 0u;
-
-        if (fullSkinBatchBySource[sourceBatchIndex] != 0u) {
-            ++splitTriangleCountByBatch[sourceBatchIndex];
-            splitBatchIndexByTriangle[triIdx] = sourceBatchIndex;
-            continue;
-        }
 
         std::array<std::uint16_t, 12> triJoints{};
         std::size_t triJointCount = 0u;
@@ -618,6 +679,18 @@ const FastTexturedMeshTemplateCache* ensureFastTexturedMeshTemplateCache(
             if (i0 < mesh->vertices.size()) appendWeightedJoints(mesh->vertices[i0]);
             if (i1 < mesh->vertices.size()) appendWeightedJoints(mesh->vertices[i1]);
             if (i2 < mesh->vertices.size()) appendWeightedJoints(mesh->vertices[i2]);
+        }
+
+        if (fullSkinBatchBySource[sourceBatchIndex] != 0u) {
+            const std::size_t chosenBatchIndex = triJointCount > 0u
+                ? sourceBatchIndex
+                : ensureRigidNoWeightBatch(sourceBatchIndex);
+            if (chosenBatchIndex >= splitTriangleCountByBatch.size()) {
+                splitTriangleCountByBatch.resize(chosenBatchIndex + 1u, 0u);
+            }
+            ++splitTriangleCountByBatch[chosenBatchIndex];
+            splitBatchIndexByTriangle[triIdx] = chosenBatchIndex;
+            continue;
         }
 
         std::size_t chosenBatchIndex = splitBatchCandidatesBySource[sourceBatchIndex][0];
@@ -804,6 +877,15 @@ const FastTexturedMeshTemplateCache* ensureFastTexturedMeshTemplateCache(
             batch.gpuTemplateVertices[vi] = outVertex;
         }
     }
+
+    cache.batches.erase(
+        std::remove_if(
+            cache.batches.begin(),
+            cache.batches.end(),
+            [](const FastTexturedBatchTemplate& batch) {
+                return batch.indices.empty() || batch.gpuTemplateVertices.empty();
+            }),
+        cache.batches.end());
 
     return cache.batches.empty() ? nullptr : &cache;
 }
