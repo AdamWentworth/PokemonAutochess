@@ -312,6 +312,7 @@ bool tryRenderProjectedUnitModelWorldScene(
     }
 
     traceWorldSceneEnter(args);
+    const bool traceThisUnit = args.unit && shouldTraceWorldSceneUnit(*args.unit);
 
     if (shouldDisableWorldSceneUnit(*args.unit)) {
         traceWorldSceneSkip(args, "disabled_by_env");
@@ -560,8 +561,8 @@ bool tryRenderProjectedUnitModelWorldScene(
 
     const auto sceneColor = prepared.fastTexturedTint;
     const float sceneAlpha = prepared.fastTexturedAlpha;
-    const std::uint64_t poseHash = hashPoseEval(args.scenePose);
-    std::uint64_t batchHash = 14695981039346656037ull;
+    const std::uint64_t poseHash = traceThisUnit ? hashPoseEval(args.scenePose) : 0ull;
+    std::uint64_t batchHash = traceThisUnit ? 14695981039346656037ull : 0ull;
     std::size_t rigidBatchCount = 0u;
     std::size_t skinnedBatchCount = 0u;
 
@@ -609,9 +610,14 @@ bool tryRenderProjectedUnitModelWorldScene(
             static_cast<std::uint32_t>(fastBatchIndex + 1u);
         if (batchUsesSceneSkinning[fastBatchIndex] != 0u) {
             const auto& skinState = batchSkinStates[fastBatchIndex];
-            const std::uint64_t skinHash = hashSkinPayload(skinState);
-            batchHash = fnv1a64Append(batchHash, &skinHash, sizeof(skinHash));
-            batchHash = fnv1a64Append(batchHash, &batchTemplate.baseSubmeshIndex, sizeof(batchTemplate.baseSubmeshIndex));
+            if (traceThisUnit) {
+                const std::uint64_t skinHash = hashSkinPayload(skinState);
+                batchHash = fnv1a64Append(batchHash, &skinHash, sizeof(skinHash));
+                batchHash = fnv1a64Append(
+                    batchHash,
+                    &batchTemplate.baseSubmeshIndex,
+                    sizeof(batchTemplate.baseSubmeshIndex));
+            }
             ++skinnedBatchCount;
             shared_world_scene::appendSkinnedInstance(
                 *args.worldSceneFrame,
@@ -631,8 +637,16 @@ bool tryRenderProjectedUnitModelWorldScene(
                 prepared,
                 args.scenePose,
                 resolvedTriNodeIndices[fastBatchIndex]);
-            batchHash = fnv1a64Append(batchHash, batchModelMatrix.data(), batchModelMatrix.size() * sizeof(float));
-            batchHash = fnv1a64Append(batchHash, &batchTemplate.baseSubmeshIndex, sizeof(batchTemplate.baseSubmeshIndex));
+            if (traceThisUnit) {
+                batchHash = fnv1a64Append(
+                    batchHash,
+                    batchModelMatrix.data(),
+                    batchModelMatrix.size() * sizeof(float));
+                batchHash = fnv1a64Append(
+                    batchHash,
+                    &batchTemplate.baseSubmeshIndex,
+                    sizeof(batchTemplate.baseSubmeshIndex));
+            }
             ++rigidBatchCount;
             shared_world_scene::appendRigidInstance(
                 *args.worldSceneFrame,
