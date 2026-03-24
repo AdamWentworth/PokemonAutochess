@@ -6,6 +6,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <string>
+#include <string_view>
 #include <unordered_map>
 #include <vector>
 
@@ -20,6 +21,12 @@ bool strictGltfParityEnabled();
 bool tailFireDebugShouldLogAnchor(int unitId);
 bool backendUsesAuthoredTailFireMeshPlayback(const char* backendId);
 bool backendUsesGpuClipSkinningForUnit(const char* backendId, std::string_view species);
+void applyGraphicsQualityToBatchTemplate(
+    shared_world_batches::WorldIndexedBatch& batch,
+    int graphicsQuality);
+void applyGraphicsQualityToWorldSceneMaterial(
+    IRenderBackend::WorldSceneMaterial& material,
+    int graphicsQuality);
 
 struct FastTexturedBatchTemplate {
     std::size_t baseSubmeshIndex = 0u;
@@ -38,6 +45,7 @@ struct FastTexturedMaterialTemplateCache {
     std::size_t meshIndexCount = 0u;
     std::size_t baseBatchCount = 0u;
     bool characterInkingEnabled = false;
+    int graphicsQuality = 3;
     std::vector<IRenderBackend::WorldSceneMaterial> materials;
 };
 
@@ -117,7 +125,8 @@ bool backendPrefersFullGpuSkinning(const char* backendId);
 const FastTexturedMaterialTemplateCache* ensureFastTexturedMaterialTemplateCache(
     const game::runtime::render_model::MeshData* mesh,
     std::size_t baseBatchCount,
-    bool characterInkingEnabled);
+    bool characterInkingEnabled,
+    int graphicsQuality);
 const FastTexturedMeshTemplateCache* ensureFastTexturedMeshTemplateCache(
     const game::runtime::render_model::MeshData* mesh,
     const std::vector<int>& submeshNodeFallback,

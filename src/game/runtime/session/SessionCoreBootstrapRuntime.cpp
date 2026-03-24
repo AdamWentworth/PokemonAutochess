@@ -115,6 +115,11 @@ void run(const Args& args) {
         (*args.services)->gpuDiscrete = args.ctx->services->gpuDiscrete;
         (*args.services)->vsyncEnabled = args.ctx->services->vsyncEnabled;
         (*args.services)->fpsCap = args.ctx->services->fpsCap;
+        (*args.services)->graphicsQuality = args.ctx->services->graphicsQuality;
+        (*args.services)->graphicsQualityGeneration =
+            args.ctx->services->graphicsQualityGeneration == 0u
+                ? 1u
+                : args.ctx->services->graphicsQualityGeneration;
         (*args.services)->requireDiscreteGpu = args.ctx->services->requireDiscreteGpu;
         (*args.services)->characterInkingEnabled = args.ctx->services->characterInkingEnabled;
         (*args.services)->audioMasterVolume = args.ctx->services->audioMasterVolume;

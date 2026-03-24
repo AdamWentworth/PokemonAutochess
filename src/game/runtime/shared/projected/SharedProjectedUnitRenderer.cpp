@@ -726,6 +726,7 @@ for (const auto& unit : units) {
                 .supportsWorldTriangles3D = supportsWorldTriangles3D,
                 .supportsWorldIndexedMeshes = supportsWorldIndexedMeshes,
                 .characterInkingEnabled = characterInkingEnabled,
+                .graphicsQuality = args.graphicsQuality,
                 .projectedDebug = &projectedDebug,
                 .projectedRenderItems = args.projectedRenderItems,
                 .worldSceneRegistry = args.worldSceneRegistry,

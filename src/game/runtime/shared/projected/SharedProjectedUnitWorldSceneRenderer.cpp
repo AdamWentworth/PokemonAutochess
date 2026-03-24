@@ -378,7 +378,8 @@ bool tryRenderProjectedUnitModelWorldScene(
         support::ensureFastTexturedMaterialTemplateCache(
             prepared.mesh,
             prepared.modelIndexedBatchCount,
-            args.characterInkingEnabled);
+            args.characterInkingEnabled,
+            args.graphicsQuality);
     if (!materialCache ||
         materialCache->materials.size() != prepared.modelIndexedBatchCount) {
         if (args.perfBreakdown) {

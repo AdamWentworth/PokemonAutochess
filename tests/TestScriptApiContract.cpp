@@ -21,6 +21,7 @@
 #include "game/scripting/ScriptAPI.h"
 #include "game/scripting/ScriptEventBus.h"
 #include "game/scripting/LuaBindings_Internal.h"
+#include "game/runtime/video/VideoPreferences.h"
 
 namespace {
 PokemonInstance makeUnit(const GameConfigData& cfg,
@@ -226,6 +227,8 @@ bool test_script_api_contract(std::string& outFail) {
     services.engineServices = &engineServices;
     services.engineServices->vsyncEnabled = false;
     services.engineServices->fpsCap = 0;
+    services.engineServices->graphicsQuality = static_cast<int>(game::video::GraphicsQuality::Ultra);
+    services.engineServices->graphicsQualityGeneration = 1u;
     services.engineServices->audioMasterVolume = 100;
     services.engineServices->audioMusicVolume = 100;
     services.engineServices->audioSfxVolume = 100;
@@ -241,6 +244,18 @@ bool test_script_api_contract(std::string& outFail) {
     if (!expect(services.engineServices->fpsCap == 144, "setFpsCapPreference should mirror to EngineServices.", outFail)) return false;
     if (!expect(api.setFpsCapPreference(-30), "setFpsCapPreference should sanitize negative input.", outFail)) return false;
     if (!expect(api.getFpsCapPreference() == 0, "negative FPS cap should sanitize to uncapped.", outFail)) return false;
+
+    const std::uint32_t graphicsGenerationBefore = services.graphicsQualityGeneration;
+    if (!expect(api.setGraphicsQualityPreference(1), "setGraphicsQualityPreference should succeed.", outFail)) return false;
+    if (!expect(api.getGraphicsQualityPreference() == 1, "getGraphicsQualityPreference mismatch.", outFail)) return false;
+    if (!expect(services.engineServices->graphicsQuality == 1,
+                "setGraphicsQualityPreference should mirror graphics quality to EngineServices.", outFail)) return false;
+    if (!expect(services.graphicsQualityGeneration != graphicsGenerationBefore &&
+                services.engineServices->graphicsQualityGeneration == services.graphicsQualityGeneration,
+                "setGraphicsQualityPreference should bump and mirror the quality generation.", outFail)) return false;
+    if (!expect(api.setGraphicsQualityPreference(99), "setGraphicsQualityPreference should sanitize high input.", outFail)) return false;
+    if (!expect(api.getGraphicsQualityPreference() == static_cast<int>(game::video::GraphicsQuality::Ultra),
+                "graphics quality should sanitize high input to Ultra.", outFail)) return false;
 
     if (!expect(api.setAudioMasterVolumePreference(65), "setAudioMasterVolumePreference should succeed.", outFail)) return false;
     if (!expect(api.setAudioMusicVolumePreference(55), "setAudioMusicVolumePreference should succeed.", outFail)) return false;

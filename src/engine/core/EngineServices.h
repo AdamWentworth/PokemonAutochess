@@ -149,6 +149,8 @@ struct EngineServices {
     bool gpuDiscrete = false;
     bool vsyncEnabled = false;
     int fpsCap = 0;
+    int graphicsQuality = 3;
+    std::uint32_t graphicsQualityGeneration = 1u;
     bool requireDiscreteGpu = false;
     bool characterInkingEnabled = false;
     int audioMasterVolume = 100;

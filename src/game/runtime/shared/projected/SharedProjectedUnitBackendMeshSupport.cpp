@@ -1,6 +1,7 @@
 #include "game/runtime/shared/projected/SharedProjectedUnitBackendMeshSupport.h"
 
 #include "game/runtime/shared/vfx/tail_fire/SharedTailFireMeshPlayback.h"
+#include "game/runtime/video/VideoPreferences.h"
 
 #include "engine/core/Environment.h"
 
@@ -123,6 +124,102 @@ bool backendUsesGpuClipSkinningForUnit(const char* backendId, std::string_view s
         return false;
     }
     return true;
+}
+
+void applyGraphicsQualityToBatchTemplate(
+    game::runtime::shared_world_batches::WorldIndexedBatch& batch,
+    int graphicsQuality) {
+    const int sanitizedQuality = game::video::sanitizeGraphicsQuality(graphicsQuality);
+    if (sanitizedQuality >= static_cast<int>(game::video::GraphicsQuality::Ultra)) {
+        return;
+    }
+
+    batch.occlusionTextureKey.clear();
+    batch.occlusionTextureCacheKey.clear();
+    batch.occlusionTextureRgba = nullptr;
+    batch.occlusionTextureWidth = 0;
+    batch.occlusionTextureHeight = 0;
+    batch.occlusionStrength = 1.0f;
+
+    batch.emissiveTextureKey.clear();
+    batch.emissiveTextureCacheKey.clear();
+    batch.emissiveTextureRgba = nullptr;
+    batch.emissiveTextureWidth = 0;
+    batch.emissiveTextureHeight = 0;
+    batch.emissiveFactorR = 0.0f;
+    batch.emissiveFactorG = 0.0f;
+    batch.emissiveFactorB = 0.0f;
+
+    if (sanitizedQuality >= static_cast<int>(game::video::GraphicsQuality::High)) {
+        return;
+    }
+
+    batch.normalTextureKey.clear();
+    batch.normalTextureCacheKey.clear();
+    batch.normalTextureRgba = nullptr;
+    batch.normalTextureWidth = 0;
+    batch.normalTextureHeight = 0;
+    batch.normalScale = 0.0f;
+
+    if (sanitizedQuality >= static_cast<int>(game::video::GraphicsQuality::Medium)) {
+        return;
+    }
+
+    batch.metallicRoughnessTextureKey.clear();
+    batch.metallicRoughnessTextureCacheKey.clear();
+    batch.metallicRoughnessTextureRgba = nullptr;
+    batch.metallicRoughnessTextureWidth = 0;
+    batch.metallicRoughnessTextureHeight = 0;
+    batch.metallicFactor = 0.0f;
+    batch.roughnessFactor = 1.0f;
+}
+
+void applyGraphicsQualityToWorldSceneMaterial(
+    IRenderBackend::WorldSceneMaterial& material,
+    int graphicsQuality) {
+    const int sanitizedQuality = game::video::sanitizeGraphicsQuality(graphicsQuality);
+    if (sanitizedQuality >= static_cast<int>(game::video::GraphicsQuality::Ultra)) {
+        return;
+    }
+
+    material.occlusionTextureKey.clear();
+    material.occlusionTextureCacheKey.clear();
+    material.occlusionTextureRgba = nullptr;
+    material.occlusionTextureWidth = 0;
+    material.occlusionTextureHeight = 0;
+    material.occlusionStrength = 1.0f;
+
+    material.emissiveTextureKey.clear();
+    material.emissiveTextureCacheKey.clear();
+    material.emissiveTextureRgba = nullptr;
+    material.emissiveTextureWidth = 0;
+    material.emissiveTextureHeight = 0;
+    material.emissiveFactorR = 0.0f;
+    material.emissiveFactorG = 0.0f;
+    material.emissiveFactorB = 0.0f;
+
+    if (sanitizedQuality >= static_cast<int>(game::video::GraphicsQuality::High)) {
+        return;
+    }
+
+    material.normalTextureKey.clear();
+    material.normalTextureCacheKey.clear();
+    material.normalTextureRgba = nullptr;
+    material.normalTextureWidth = 0;
+    material.normalTextureHeight = 0;
+    material.normalScale = 0.0f;
+
+    if (sanitizedQuality >= static_cast<int>(game::video::GraphicsQuality::Medium)) {
+        return;
+    }
+
+    material.metallicRoughnessTextureKey.clear();
+    material.metallicRoughnessTextureCacheKey.clear();
+    material.metallicRoughnessTextureRgba = nullptr;
+    material.metallicRoughnessTextureWidth = 0;
+    material.metallicRoughnessTextureHeight = 0;
+    material.metallicFactor = 0.0f;
+    material.roughnessFactor = 1.0f;
 }
 
 std::vector<int> buildSubmeshNodeFallback(
@@ -344,7 +441,8 @@ bool backendPrefersFullGpuSkinning(const char* backendId) {
 const FastTexturedMaterialTemplateCache* ensureFastTexturedMaterialTemplateCache(
     const game::runtime::render_model::MeshData* mesh,
     std::size_t baseBatchCount,
-    bool characterInkingEnabled) {
+    bool characterInkingEnabled,
+    int graphicsQuality) {
     if (!mesh || baseBatchCount == 0u) return nullptr;
 
     auto& cache = fastTexturedMaterialTemplateCaches()[mesh];
@@ -354,6 +452,7 @@ const FastTexturedMaterialTemplateCache* ensureFastTexturedMaterialTemplateCache
         cache.meshIndexCount == mesh->indices.size() &&
         cache.baseBatchCount == baseBatchCount &&
         cache.characterInkingEnabled == characterInkingEnabled &&
+        cache.graphicsQuality == graphicsQuality &&
         cache.materials.size() == baseBatchCount;
     if (cacheValid) return &cache;
 
@@ -363,6 +462,7 @@ const FastTexturedMaterialTemplateCache* ensureFastTexturedMaterialTemplateCache
     cache.meshIndexCount = mesh->indices.size();
     cache.baseBatchCount = baseBatchCount;
     cache.characterInkingEnabled = characterInkingEnabled;
+    cache.graphicsQuality = graphicsQuality;
     cache.materials.resize(baseBatchCount);
     const std::string keyPrefix = makeIndexedBatchKeyPrefix(*mesh);
 
@@ -503,6 +603,7 @@ const FastTexturedMaterialTemplateCache* ensureFastTexturedMaterialTemplateCache
         }
         material.characterInkingEnabled = characterInkingEnabled ? 1u : 0u;
         material.materialMode = 2u;
+        applyGraphicsQualityToWorldSceneMaterial(material, graphicsQuality);
     }
 
     return &cache;

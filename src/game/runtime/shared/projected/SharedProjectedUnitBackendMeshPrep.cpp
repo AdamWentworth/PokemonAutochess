@@ -1,4 +1,5 @@
 #include "game/runtime/shared/projected/SharedProjectedUnitBackendMeshPrep.h"
+#include "game/runtime/shared/projected/SharedProjectedUnitBackendMeshSupport.h"
 
 #include "engine/core/Environment.h"
 
@@ -30,6 +31,7 @@ struct IndexedBatchTemplateCacheEntry {
     std::size_t meshVertexCount = 0u;
     std::size_t meshIndexCount = 0u;
     bool characterInkingEnabled = false;
+    int graphicsQuality = 3;
     std::string keyPrefix;
     std::vector<game::runtime::shared_world_batches::WorldIndexedBatch> batches;
 };
@@ -162,6 +164,7 @@ const std::vector<game::runtime::shared_world_batches::WorldIndexedBatch>* getIn
     const game::runtime::render_model::MeshData* mesh,
     const std::string& keyPrefix,
     bool characterInkingEnabled,
+    int graphicsQuality,
     std::size_t batchCount) {
     if (!mesh || batchCount == 0u) return nullptr;
 
@@ -170,6 +173,7 @@ const std::vector<game::runtime::shared_world_batches::WorldIndexedBatch>* getIn
         if (entry.meshVertexCount != mesh->vertices.size()) continue;
         if (entry.meshIndexCount != mesh->indices.size()) continue;
         if (entry.characterInkingEnabled != characterInkingEnabled) continue;
+        if (entry.graphicsQuality != graphicsQuality) continue;
         if (entry.keyPrefix != keyPrefix) continue;
         if (entry.batches.size() != batchCount) continue;
         return &entry.batches;
@@ -180,6 +184,7 @@ const std::vector<game::runtime::shared_world_batches::WorldIndexedBatch>* getIn
     entry.meshVertexCount = mesh->vertices.size();
     entry.meshIndexCount = mesh->indices.size();
     entry.characterInkingEnabled = characterInkingEnabled;
+    entry.graphicsQuality = graphicsQuality;
     entry.keyPrefix = keyPrefix;
     entry.batches.resize(batchCount);
 
@@ -317,6 +322,8 @@ const std::vector<game::runtime::shared_world_batches::WorldIndexedBatch>* getIn
         batch.characterInkingEnabled = characterInkingEnabled ? 1u : 0u;
         // Material mode 2 routes model lighting to backend world shaders.
         batch.materialMode = 2u;
+        game::runtime::shared_projected_unit_backend_mesh_support::
+            applyGraphicsQualityToBatchTemplate(batch, graphicsQuality);
     }
 
     g_indexedBatchTemplateCache.push_back(std::move(entry));
@@ -492,6 +499,7 @@ bool prepareProjectedUnitBackendMeshCommon(const Args& args,
                     mesh,
                     getIndexedBatchKeyPrefix(mesh),
                     args.characterInkingEnabled,
+                    args.graphicsQuality,
                     batchCount);
             const bool hasTemplateBatches =
                 templateBatches && templateBatches->size() == batchCount;

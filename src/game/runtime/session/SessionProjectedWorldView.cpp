@@ -125,6 +125,7 @@ Result appendProjectedWorldView(const Args& args) {
     projectedUnitArgs.supportsWorldTriangles3D = args.supportsWorldTriangles3D;
     projectedUnitArgs.supportsWorldIndexedMeshes = args.supportsWorldIndexedMeshes;
     projectedUnitArgs.characterInkingEnabled = args.characterInkingEnabled;
+    projectedUnitArgs.graphicsQuality = args.graphicsQuality;
     projectedUnitArgs.enableGpuClipSkinning = args.enableGpuClipSkinning;
     projectedUnitArgs.rendererBackendId = args.renderer ? args.renderer->backendId() : nullptr;
     projectedUnitArgs.hasWorldViewProj = out.hasWorldViewProj;

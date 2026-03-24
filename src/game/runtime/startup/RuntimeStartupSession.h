@@ -19,6 +19,7 @@ struct PreparedSession {
     std::string rendererBackendFallbackReason;
     bool vsyncEnabled = false;
     int fpsCap = 0;
+    int graphicsQuality = static_cast<int>(game::video::GraphicsQuality::Ultra);
     bool requireDiscreteGpu = false;
     std::string preferredGpuAdapter;
     bool characterInkingEnabled = false;

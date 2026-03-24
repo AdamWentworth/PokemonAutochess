@@ -48,6 +48,8 @@ public:
     bool setVSyncPreference(bool enabled);
     int getFpsCapPreference() const;
     bool setFpsCapPreference(int fpsCap);
+    int getGraphicsQualityPreference() const;
+    bool setGraphicsQualityPreference(int quality);
     bool getRequireDiscreteGpuPreference() const;
     bool setRequireDiscreteGpuPreference(bool required);
     std::string getActiveRendererBackend() const;

@@ -57,6 +57,7 @@ struct RenderScratch {
     IRenderBackend::WorldSceneFrame worldSceneFrame;
     std::unordered_map<int, shared_tail_fire_fallback::Anchor> sharedTailFireAnchors;
     shared_capture::SnapshotCache sharedCaptureAttemptCache;
+    std::uint32_t lastGraphicsQualityGeneration = 0u;
     bool projectedBackdropValid = false;
     ProjectedBackdropCacheKey projectedBackdropKey{};
     std::size_t projectedBackdropWorldBackgroundQuadsCount = 0u;

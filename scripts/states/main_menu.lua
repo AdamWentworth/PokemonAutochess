@@ -21,7 +21,7 @@ local video_cfg = {
     ui_scales = { 75, 100, 125, 150 },
     ui_scale_index = 2,
     quality = { "Low", "Medium", "High", "Ultra" },
-    quality_index = 3,
+    quality_index = 4,
     renderer_backends = {},
     renderer_index = 1,
     require_discrete_gpu = false,
@@ -121,6 +121,13 @@ local function clamp_percent(value)
     n = math.floor(n + 0.5)
     if n < 0 then n = 0 end
     if n > 100 then n = 100 end
+    return n
+end
+
+local function clamp_index(value, min_value, max_value)
+    local n = math.floor(tonumber(value) or min_value or 1)
+    if n < min_value then n = min_value end
+    if n > max_value then n = max_value end
     return n
 end
 
@@ -250,6 +257,8 @@ local function sync_from_engine()
     sync_renderer_backend_options(pref)
     video_cfg.vsync = get_bool_pref("get_vsync_pref", video_cfg.vsync)
     video_cfg.fps_cap = get_int_pref("get_fps_cap_pref", video_cfg.fps_cap)
+    video_cfg.quality_index =
+        clamp_index(get_int_pref("get_graphics_quality_pref", video_cfg.quality_index - 1) + 1, 1, #video_cfg.quality)
     video_cfg.require_discrete_gpu = get_bool_pref("get_require_discrete_gpu_pref", video_cfg.require_discrete_gpu)
     video_cfg.character_inking = get_bool_pref("get_character_inking_pref", video_cfg.character_inking)
     audio_cfg.master = get_int_pref("get_audio_master_volume_pref", audio_cfg.master)
@@ -410,9 +419,10 @@ end
 
 local function build_graphics_entries(entries)
     heading(entries, "Graphics", 0.22)
-    action(entries, "graphics_quality", "Quality: " .. video_cfg.quality[video_cfg.quality_index] .. " (placeholder)", 0.40, false)
+    action(entries, "graphics_quality", "Quality: " .. video_cfg.quality[video_cfg.quality_index], 0.40, false)
     action(entries, "graphics_character_inking", "Character Inking: " .. bool_text(video_cfg.character_inking), 0.50, false)
-    info(entries, "Window mode, VSync, and frame pacing live in Display.", 0.64)
+    info(entries, "Ultra keeps the current full textured look. Lower tiers trim material maps live.", 0.64)
+    info(entries, "Window mode, VSync, and frame pacing live in Display.", 0.70)
     action(entries, "settings_back", "Back", 0.84, false)
 end
 
@@ -677,8 +687,16 @@ local function handle_graphics_click(entry_id)
         return true
     end
     if entry_id == "graphics_quality" then
-        video_cfg.quality_index = cycle_index(video_cfg.quality, video_cfg.quality_index, 1)
-        emit("Menu", "Quality changed (placeholder)")
+        local next_index = cycle_index(video_cfg.quality, video_cfg.quality_index, 1)
+        local ok = set_int_pref("set_graphics_quality_pref", next_index - 1)
+        if ok then
+            video_cfg.quality_index = next_index
+            emit("Menu", "Graphics quality: " .. video_cfg.quality[video_cfg.quality_index])
+        else
+            emit("Menu", "Failed to save graphics quality preference")
+            video_cfg.quality_index =
+                clamp_index(get_int_pref("get_graphics_quality_pref", video_cfg.quality_index - 1) + 1, 1, #video_cfg.quality)
+        end
         return true
     end
     if entry_id == "settings_back" then

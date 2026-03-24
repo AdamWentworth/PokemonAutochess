@@ -107,6 +107,7 @@ bool test_mode_split_menu_entries(std::string& outFail) {
     std::string requestedNewGameMode;
     std::string restartMenuScreen;
     std::string requestedRendererBackend;
+    int requestedGraphicsQuality = 3;
     int restartRequests = 0;
 
     lua.set_function("get_game_mode", []() { return std::string("classic"); });
@@ -131,6 +132,13 @@ bool test_mode_split_menu_entries(std::string& outFail) {
     });
     lua.set_function("set_renderer_backend_pref", [&requestedRendererBackend](const std::string& backend) {
         requestedRendererBackend = backend;
+        return true;
+    });
+    lua.set_function("get_graphics_quality_pref", [&requestedGraphicsQuality]() {
+        return requestedGraphicsQuality;
+    });
+    lua.set_function("set_graphics_quality_pref", [&requestedGraphicsQuality](int quality) {
+        requestedGraphicsQuality = quality;
         return true;
     });
     lua.set_function("get_require_discrete_gpu_pref", []() { return false; });
@@ -247,6 +255,26 @@ bool test_mode_split_menu_entries(std::string& outFail) {
         onClick("advanced_apply_restart");
         if (restartRequests != 1 || restartMenuScreen != "advanced") {
             outFail = "advanced_apply_restart should request restart to advanced screen when no run is active.";
+            return false;
+        }
+        onBack();
+        onClick("open_graphics");
+        sol::protected_function_result graphicsRes = getEntries();
+        if (!graphicsRes.valid()) {
+            sol::error e = graphicsRes;
+            outFail = std::string("main_menu graphics entries (not-started) failed: ") + e.what();
+            return false;
+        }
+        const sol::table graphicsEntries = graphicsRes.get<sol::table>();
+        const std::string qualityLabel = entryLabel(graphicsEntries, "graphics_quality");
+        if (qualityLabel.find("placeholder") != std::string::npos ||
+            qualityLabel.find("Ultra") == std::string::npos) {
+            outFail = "graphics menu should expose a real graphics quality label with Ultra default.";
+            return false;
+        }
+        onClick("graphics_quality");
+        if (requestedGraphicsQuality != 0) {
+            outFail = "graphics quality click should cycle from Ultra to Low and save the preference.";
             return false;
         }
         onBack();

@@ -1,10 +1,12 @@
 #include "game/runtime/video/VideoPreferences.h"
 
 #include <filesystem>
+#include <fstream>
 #include <string>
 
 bool test_video_preferences_parse_and_roundtrip(std::string& outFail) {
     using game::video::RendererBackend;
+    using game::video::GraphicsQuality;
 
     if (game::video::parseRendererBackend("opengl") != RendererBackend::OpenGL) {
         outFail = "parseRendererBackend(opengl) failed";
@@ -30,6 +32,18 @@ bool test_video_preferences_parse_and_roundtrip(std::string& outFail) {
         outFail = "known renderer token check failed for opengl_shared";
         return false;
     }
+    if (game::video::parseGraphicsQuality("high") != GraphicsQuality::High) {
+        outFail = "parseGraphicsQuality(high) failed";
+        return false;
+    }
+    if (!game::video::isKnownGraphicsQualityToken("maximum")) {
+        outFail = "known graphics quality token check failed for maximum alias";
+        return false;
+    }
+    if (game::video::sanitizeGraphicsQuality(99) != static_cast<int>(GraphicsQuality::Ultra)) {
+        outFail = "sanitizeGraphicsQuality should clamp high values to Ultra";
+        return false;
+    }
 #if defined(_WIN32)
     if (!game::video::isRendererBackendImplemented(RendererBackend::D3D12)) {
         outFail = "D3D12 backend should be marked implemented on Windows";
@@ -49,6 +63,7 @@ bool test_video_preferences_parse_and_roundtrip(std::string& outFail) {
     game::video::Preferences prefs;
     prefs.rendererBackend = "vulkan";
     prefs.fpsCap = 144;
+    prefs.graphicsQuality = static_cast<int>(GraphicsQuality::Medium);
     prefs.requireDiscreteGpu = true;
     prefs.preferredGpuAdapter = "NVIDIA GeForce GTX 1050";
     prefs.audioMasterVolume = 95;
@@ -89,6 +104,10 @@ bool test_video_preferences_parse_and_roundtrip(std::string& outFail) {
         outFail = "roundtrip fpsCap mismatch";
         return false;
     }
+    if (loaded.graphicsQuality != static_cast<int>(GraphicsQuality::Medium)) {
+        outFail = "roundtrip graphicsQuality mismatch";
+        return false;
+    }
     if (loaded.audioMasterVolume != 95 ||
         loaded.audioMusicVolume != 65 ||
         loaded.audioSfxVolume != 70 ||
@@ -115,6 +134,7 @@ bool test_video_preferences_parse_and_roundtrip(std::string& outFail) {
 
     prefs.rendererBackend = "opengl_shared"; // backward-compat alias should canonicalize to opengl
     prefs.fpsCap = -12;
+    prefs.graphicsQuality = -7;
     prefs.requireDiscreteGpu = false;
     prefs.preferredGpuAdapter.clear();
     prefs.audioMasterVolume = 101;
@@ -142,6 +162,10 @@ bool test_video_preferences_parse_and_roundtrip(std::string& outFail) {
         outFail = "fpsCap should sanitize negative values to uncapped";
         return false;
     }
+    if (loadedShared.graphicsQuality != static_cast<int>(GraphicsQuality::Low)) {
+        outFail = "graphicsQuality should sanitize negative values to Low";
+        return false;
+    }
     if (loadedShared.audioMasterVolume != 100 ||
         loadedShared.audioMusicVolume != 0 ||
         loadedShared.audioSfxVolume != 44 ||
@@ -161,6 +185,21 @@ bool test_video_preferences_parse_and_roundtrip(std::string& outFail) {
     if (loadedAdvanced.bootMenuScreen != "advanced") {
         outFail = "roundtrip bootMenuScreen mismatch for advanced screen";
         return false;
+    }
+
+    {
+        std::ofstream raw(path, std::ios::trunc);
+        raw << "{\n"
+               "  \"graphics_quality\": \"high\"\n"
+               "}\n";
+        raw.close();
+        const game::video::Preferences loadedStringQuality =
+            game::video::loadPreferences(path);
+        std::filesystem::remove(tempPath, ec);
+        if (loadedStringQuality.graphicsQuality != static_cast<int>(GraphicsQuality::High)) {
+            outFail = "graphics_quality string token should parse to High";
+            return false;
+        }
     }
 
     return true;

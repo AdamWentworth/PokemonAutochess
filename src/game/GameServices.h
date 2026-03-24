@@ -7,6 +7,7 @@
 
 #include "game/GameConfig.h"
 #include "engine/core/ecs/Entity.h"
+#include <cstdint>
 #include <functional>
 #include <string>
 #include <vector>
@@ -58,6 +59,8 @@ struct GameServices {
     bool gpuDiscrete = false;
     bool vsyncEnabled = false;
     int fpsCap = 0;
+    int graphicsQuality = 3;
+    std::uint32_t graphicsQualityGeneration = 1u;
     bool requireDiscreteGpu = false;
     bool characterInkingEnabled = false;
     int audioMasterVolume = 100;

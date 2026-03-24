@@ -93,6 +93,12 @@ std::size_t render(const Args& args) {
     const bool useProjectedWorldLayout =
         showWorldBackdrop && args.renderWorld && args.gameWorld && (args.camera != nullptr);
 
+    if (args.services &&
+        scratch.lastGraphicsQualityGeneration != args.services->graphicsQualityGeneration) {
+        game::runtime::session_render_scratch::resetSceneCaches(scratch);
+        scratch.lastGraphicsQualityGeneration = args.services->graphicsQualityGeneration;
+    }
+
     game::runtime::session_render_scratch::beginFrame(
         scratch,
         useProjectedWorldLayout,
@@ -113,6 +119,8 @@ std::size_t render(const Args& args) {
                         .supportsWorldIndexedMeshes = supportsWorldIndexedMeshes,
                         .characterInkingEnabled =
                             (args.services ? args.services->characterInkingEnabled : false),
+                        .graphicsQuality =
+                            (args.services ? args.services->graphicsQuality : 3),
                         .enableGpuClipSkinning =
                             game::runtime::session_render_config::backendGpuClipSkinningEnabled(args.renderer),
                         .allowPortraitFallback = allowPortraitFallback,

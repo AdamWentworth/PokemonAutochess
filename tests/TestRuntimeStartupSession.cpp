@@ -18,6 +18,7 @@ bool test_runtime_startup_session_contract(std::string& outFail) {
         game::video::Preferences prefs;
         prefs.rendererBackend = "opengl";
         prefs.vsync = true;
+        prefs.graphicsQuality = static_cast<int>(game::video::GraphicsQuality::High);
         prefs.requireDiscreteGpu = true;
         prefs.preferredGpuAdapter = "RTX";
         prefs.characterInking = true;
@@ -41,6 +42,7 @@ bool test_runtime_startup_session_contract(std::string& outFail) {
             session.requestedBackend != game::video::RendererBackend::D3D12 ||
             session.activeBackend != game::video::RendererBackend::D3D12 ||
             !session.vsyncEnabled ||
+            session.graphicsQuality != static_cast<int>(game::video::GraphicsQuality::High) ||
             !session.requireDiscreteGpu ||
             session.preferredGpuAdapter != "RTX" ||
             !session.characterInkingEnabled ||
@@ -57,6 +59,7 @@ bool test_runtime_startup_session_contract(std::string& outFail) {
             services.requestedRendererBackend != "d3d12" ||
             services.activeRendererBackend != "d3d12" ||
             !services.vsyncEnabled ||
+            services.graphicsQuality != static_cast<int>(game::video::GraphicsQuality::High) ||
             !services.requireDiscreteGpu ||
             services.preferredGpuAdapter != "RTX" ||
             !services.characterInkingEnabled ||

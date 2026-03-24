@@ -22,6 +22,7 @@ bool saveVideoPreferencesFromServices(const GameServices& services, std::string*
     prefs.rendererBackend = services.requestedRendererBackend;
     prefs.vsync = services.vsyncEnabled;
     prefs.fpsCap = game::video::sanitizeFpsCap(services.fpsCap);
+    prefs.graphicsQuality = game::video::sanitizeGraphicsQuality(services.graphicsQuality);
     prefs.requireDiscreteGpu = services.requireDiscreteGpu;
     prefs.preferredGpuAdapter = services.preferredGpuAdapter;
     prefs.characterInking = services.characterInkingEnabled;
@@ -38,6 +39,8 @@ void mirrorRuntimePreferencesToEngineServices(const GameServices& services) {
     services.engineServices->requestedRendererBackend = services.requestedRendererBackend;
     services.engineServices->vsyncEnabled = services.vsyncEnabled;
     services.engineServices->fpsCap = services.fpsCap;
+    services.engineServices->graphicsQuality = services.graphicsQuality;
+    services.engineServices->graphicsQualityGeneration = services.graphicsQualityGeneration;
     services.engineServices->requireDiscreteGpu = services.requireDiscreteGpu;
     services.engineServices->preferredGpuAdapter = services.preferredGpuAdapter;
     services.engineServices->characterInkingEnabled = services.characterInkingEnabled;
@@ -46,6 +49,13 @@ void mirrorRuntimePreferencesToEngineServices(const GameServices& services) {
     services.engineServices->audioSfxVolume = services.audioSfxVolume;
     services.engineServices->audioVoiceVolume = services.audioVoiceVolume;
     services.engineServices->audioMute = services.audioMute;
+}
+
+void bumpGraphicsQualityGeneration(GameServices& services) {
+    ++services.graphicsQualityGeneration;
+    if (services.graphicsQualityGeneration == 0u) {
+        services.graphicsQualityGeneration = 1u;
+    }
 }
 
 std::string sanitizeMenuScreenToken(const std::string& token) {
@@ -190,6 +200,26 @@ bool ScriptAPI::setFpsCapPreference(int fpsCap) {
     std::string err;
     if (!saveVideoPreferencesFromServices(services_, &err)) {
         game::log::warn(&services_.log, std::string("[Video] Failed to save FPS cap preference: ") + err);
+        return false;
+    }
+    return true;
+}
+
+int ScriptAPI::getGraphicsQualityPreference() const {
+    return game::video::sanitizeGraphicsQuality(services_.graphicsQuality);
+}
+
+bool ScriptAPI::setGraphicsQualityPreference(int quality) {
+    const int sanitizedQuality = game::video::sanitizeGraphicsQuality(quality);
+    if (services_.graphicsQuality != sanitizedQuality) {
+        services_.graphicsQuality = sanitizedQuality;
+        bumpGraphicsQualityGeneration(services_);
+    }
+    mirrorRuntimePreferencesToEngineServices(services_);
+
+    std::string err;
+    if (!saveVideoPreferencesFromServices(services_, &err)) {
+        game::log::warn(&services_.log, std::string("[Video] Failed to save graphics quality preference: ") + err);
         return false;
     }
     return true;
@@ -353,6 +383,7 @@ bool ScriptAPI::requestRestartToMenu(const std::string& menuScreen) {
     prefs.rendererBackend = services_.requestedRendererBackend;
     prefs.vsync = services_.vsyncEnabled;
     prefs.fpsCap = game::video::sanitizeFpsCap(services_.fpsCap);
+    prefs.graphicsQuality = game::video::sanitizeGraphicsQuality(services_.graphicsQuality);
     prefs.requireDiscreteGpu = services_.requireDiscreteGpu;
     prefs.preferredGpuAdapter = services_.preferredGpuAdapter;
     prefs.characterInking = services_.characterInkingEnabled;

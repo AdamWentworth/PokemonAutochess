@@ -38,6 +38,7 @@ PreparedSession prepare(const std::string& prefsPath,
     out.requestedBackendName = resolvedRendererPref.requestedBackendName;
     out.vsyncEnabled = mutablePrefs.vsync;
     out.fpsCap = mutablePrefs.fpsCap;
+    out.graphicsQuality = game::video::sanitizeGraphicsQuality(mutablePrefs.graphicsQuality);
     out.requireDiscreteGpu = mutablePrefs.requireDiscreteGpu;
     out.preferredGpuAdapter = mutablePrefs.preferredGpuAdapter;
     out.characterInkingEnabled = mutablePrefs.characterInking;
@@ -81,6 +82,8 @@ void applyToServices(const PreparedSession& session, EngineServices& services) {
     services.rendererBackendFallbackReason = session.rendererBackendFallbackReason;
     services.vsyncEnabled = session.vsyncEnabled;
     services.fpsCap = session.fpsCap;
+    services.graphicsQuality = game::video::sanitizeGraphicsQuality(session.graphicsQuality);
+    services.graphicsQualityGeneration = 1u;
     services.requireDiscreteGpu = session.requireDiscreteGpu;
     services.preferredGpuAdapter = session.preferredGpuAdapter;
     services.characterInkingEnabled = session.characterInkingEnabled;

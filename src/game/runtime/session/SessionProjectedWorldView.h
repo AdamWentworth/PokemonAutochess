@@ -31,6 +31,7 @@ struct Args {
     bool supportsWorldTriangles3D = false;
     bool supportsWorldIndexedMeshes = false;
     bool characterInkingEnabled = false;
+    int graphicsQuality = 3;
     bool enableGpuClipSkinning = false;
     bool allowPortraitFallback = false;
     bool forcePortraitOverlay = false;

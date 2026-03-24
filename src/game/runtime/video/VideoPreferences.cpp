@@ -62,6 +62,17 @@ RendererBackend parseRendererBackend(std::string_view tokenView) {
     return RendererBackend::Auto;
 }
 
+GraphicsQuality parseGraphicsQuality(std::string_view tokenView) {
+    const std::string token = normalizeToken(std::string(tokenView));
+    if (token.empty() || token == "ultra" || token == "max" || token == "maximum") {
+        return GraphicsQuality::Ultra;
+    }
+    if (token == "high") return GraphicsQuality::High;
+    if (token == "medium" || token == "med") return GraphicsQuality::Medium;
+    if (token == "low") return GraphicsQuality::Low;
+    return GraphicsQuality::Ultra;
+}
+
 bool isKnownRendererBackendToken(std::string_view tokenView) {
     const std::string token = normalizeToken(std::string(tokenView));
     if (token.empty()) return true;
@@ -70,6 +81,18 @@ bool isKnownRendererBackendToken(std::string_view tokenView) {
            token == "opengl_contracts" || token == "gl_contracts" ||
            token == "vulkan" || token == "vk" ||
            token == "d3d12" || token == "dx12" || token == "direct3d12";
+}
+
+bool isKnownGraphicsQualityToken(std::string_view tokenView) {
+    const std::string token = normalizeToken(std::string(tokenView));
+    if (token.empty()) return true;
+    return token == "low" ||
+           token == "medium" ||
+           token == "med" ||
+           token == "high" ||
+           token == "ultra" ||
+           token == "max" ||
+           token == "maximum";
 }
 
 const char* rendererBackendName(RendererBackend backend) {
@@ -87,6 +110,21 @@ const char* rendererBackendName(RendererBackend backend) {
     }
 }
 
+const char* graphicsQualityName(GraphicsQuality quality) {
+    switch (quality) {
+    case GraphicsQuality::Low:
+        return "low";
+    case GraphicsQuality::Medium:
+        return "medium";
+    case GraphicsQuality::High:
+        return "high";
+    case GraphicsQuality::Ultra:
+        return "ultra";
+    default:
+        return "ultra";
+    }
+}
+
 bool isRendererBackendImplemented(RendererBackend backend) {
     if (backend == RendererBackend::Auto ||
         backend == RendererBackend::OpenGL) {
@@ -98,6 +136,13 @@ bool isRendererBackendImplemented(RendererBackend backend) {
     }
 #endif
     return false;
+}
+
+int sanitizeGraphicsQuality(int quality) {
+    return std::clamp(
+        quality,
+        static_cast<int>(GraphicsQuality::Low),
+        static_cast<int>(GraphicsQuality::Ultra));
 }
 
 int sanitizeFpsCap(int fpsCap) {
@@ -130,6 +175,17 @@ Preferences loadPreferences(const std::string& path) {
     }
     out.vsync = j.value("vsync", out.vsync);
     out.fpsCap = sanitizeFpsCap(j.value("fps_cap", out.fpsCap));
+    if (const auto it = j.find("graphics_quality"); it != j.end()) {
+        if (it->is_string()) {
+            const std::string qualityToken = it->get<std::string>();
+            if (isKnownGraphicsQualityToken(qualityToken)) {
+                out.graphicsQuality = static_cast<int>(
+                    parseGraphicsQuality(qualityToken));
+            }
+        } else if (it->is_number_integer()) {
+            out.graphicsQuality = sanitizeGraphicsQuality(it->get<int>());
+        }
+    }
     out.requireDiscreteGpu = j.value("require_discrete_gpu", out.requireDiscreteGpu);
     out.preferredGpuAdapter = j.value("preferred_gpu_adapter", out.preferredGpuAdapter);
     out.characterInking = j.value("character_inking", out.characterInking);
@@ -158,6 +214,8 @@ bool savePreferences(const Preferences& prefs, const std::string& path, std::str
     j["renderer_backend"] = rendererBackendName(parseRendererBackend(prefs.rendererBackend));
     j["vsync"] = prefs.vsync;
     j["fps_cap"] = sanitizeFpsCap(prefs.fpsCap);
+    j["graphics_quality"] = graphicsQualityName(static_cast<GraphicsQuality>(
+        sanitizeGraphicsQuality(prefs.graphicsQuality)));
     j["require_discrete_gpu"] = prefs.requireDiscreteGpu;
     j["preferred_gpu_adapter"] = prefs.preferredGpuAdapter;
     j["character_inking"] = prefs.characterInking;

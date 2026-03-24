@@ -164,6 +164,12 @@ void registerLuaBindings_Core(sol::state& lua, ScriptAPI& api) {
     lua.set_function("set_fps_cap_pref", [&api](int fpsCap) {
         return api.setFpsCapPreference(fpsCap);
     });
+    lua.set_function("get_graphics_quality_pref", [&api]() {
+        return api.getGraphicsQualityPreference();
+    });
+    lua.set_function("set_graphics_quality_pref", [&api](int quality) {
+        return api.setGraphicsQualityPreference(quality);
+    });
     lua.set_function("get_require_discrete_gpu_pref", [&api]() {
         return api.getRequireDiscreteGpuPreference();
     });
