@@ -115,6 +115,18 @@ bool test_video_preferences_parse_and_roundtrip(std::string& outFail) {
         return false;
     }
 
+    prefs.bootMenuScreen = "advanced";
+    if (!game::video::savePreferences(prefs, path, &err)) {
+        outFail = "savePreferences failed for advanced boot screen: " + err;
+        return false;
+    }
+    const game::video::Preferences loadedAdvanced = game::video::loadPreferences(path);
+    std::filesystem::remove(tempPath, ec);
+    if (loadedAdvanced.bootMenuScreen != "advanced") {
+        outFail = "roundtrip bootMenuScreen mismatch for advanced screen";
+        return false;
+    }
+
     return true;
 }
 

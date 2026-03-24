@@ -29,6 +29,8 @@ std::string normalizeMenuScreenToken(std::string token) {
         return "video";
     }
     if (token == "video" ||
+        token == "graphics" ||
+        token == "advanced" ||
         token == "settings" ||
         token == "audio" ||
         token == "controls" ||

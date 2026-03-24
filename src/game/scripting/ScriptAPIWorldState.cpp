@@ -30,6 +30,8 @@ std::string sanitizeMenuScreenToken(const std::string& token) {
     const std::string lower = toLowerCopy(token);
     if (lower == "display") return "video";
     if (lower == "video" ||
+        lower == "graphics" ||
+        lower == "advanced" ||
         lower == "settings" ||
         lower == "audio" ||
         lower == "controls" ||

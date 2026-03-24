@@ -203,24 +203,37 @@ bool test_mode_split_menu_entries(std::string& outFail) {
             return false;
         }
         const sol::table videoEntries = videoRes.get<sol::table>();
-        if (!hasEntry(videoEntries, "video_apply_restart")) {
-            outFail = "video menu should expose Apply + Restart entry.";
+        if (!hasEntry(videoEntries, "video_vsync") || hasEntry(videoEntries, "advanced_apply_restart")) {
+            outFail = "display menu should expose display settings and keep restart-required advanced settings elsewhere.";
             return false;
         }
-        const std::string rendererLabel = entryLabel(videoEntries, "video_renderer_backend");
+        onClick("settings_back");
+        onClick("open_advanced");
+        sol::protected_function_result advancedRes = getEntries();
+        if (!advancedRes.valid()) {
+            sol::error e = advancedRes;
+            outFail = std::string("main_menu advanced entries (not-started) failed: ") + e.what();
+            return false;
+        }
+        const sol::table advancedEntries = advancedRes.get<sol::table>();
+        if (!hasEntry(advancedEntries, "advanced_apply_restart")) {
+            outFail = "advanced menu should expose Apply + Restart entry.";
+            return false;
+        }
+        const std::string rendererLabel = entryLabel(advancedEntries, "advanced_renderer_backend");
         if (rendererLabel.find("Vulkan") != std::string::npos) {
-            outFail = "video menu should not expose unimplemented Vulkan backend.";
+            outFail = "advanced menu should not expose unimplemented Vulkan backend.";
             return false;
         }
         requestedRendererBackend.clear();
-        onClick("video_renderer_backend");
+        onClick("advanced_renderer_backend");
         if (requestedRendererBackend != "d3d12") {
-            outFail = "video backend cycling should skip unimplemented Vulkan and move to d3d12.";
+            outFail = "advanced backend cycling should skip unimplemented Vulkan and move to d3d12.";
             return false;
         }
-        onClick("video_apply_restart");
-        if (restartRequests != 1 || restartMenuScreen != "video") {
-            outFail = "video_apply_restart should request restart to video screen when no run is active.";
+        onClick("advanced_apply_restart");
+        if (restartRequests != 1 || restartMenuScreen != "advanced") {
+            outFail = "advanced_apply_restart should request restart to advanced screen when no run is active.";
             return false;
         }
         onClick("open_settings");
@@ -290,10 +303,10 @@ bool test_mode_split_menu_entries(std::string& outFail) {
         }
 
         onClick("open_settings");
-        onClick("open_video");
-        onClick("video_apply_restart");
+        onClick("open_advanced");
+        onClick("advanced_apply_restart");
         if (restartRequests != 0) {
-            outFail = "video_apply_restart should show confirmation before restart during active run.";
+            outFail = "advanced_apply_restart should show confirmation before restart during active run.";
             return false;
         }
         sol::protected_function_result confirmRes = getEntries();
@@ -303,14 +316,14 @@ bool test_mode_split_menu_entries(std::string& outFail) {
             return false;
         }
         const sol::table confirmEntries = confirmRes.get<sol::table>();
-        if (!hasEntry(confirmEntries, "video_restart_confirm_yes") ||
-            !hasEntry(confirmEntries, "video_restart_confirm_no")) {
-            outFail = "video restart confirm screen entries missing.";
+        if (!hasEntry(confirmEntries, "advanced_restart_confirm_yes") ||
+            !hasEntry(confirmEntries, "advanced_restart_confirm_no")) {
+            outFail = "advanced restart confirm screen entries missing.";
             return false;
         }
-        onClick("video_restart_confirm_yes");
-        if (restartRequests != 1 || restartMenuScreen != "video") {
-            outFail = "video restart confirmation should request restart to video screen.";
+        onClick("advanced_restart_confirm_yes");
+        if (restartRequests != 1 || restartMenuScreen != "advanced") {
+            outFail = "advanced restart confirmation should request restart to advanced screen.";
             return false;
         }
     }

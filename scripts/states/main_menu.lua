@@ -1,7 +1,7 @@
 -- scripts/states/main_menu.lua
 
 local selected_mode = "classic"
-local screen = "main" -- main | starting | settings | video | video_restart_confirm | audio | controls | gameplay | accessibility
+local screen = "main" -- main | starting | settings | video | graphics | advanced | advanced_restart_confirm | audio | controls | gameplay | accessibility
 local fullscreen = false
 local started = false
 hide_world = true
@@ -293,16 +293,15 @@ end
 
 local function build_settings_entries(entries)
     heading(entries, "Settings", 0.22)
-    info(entries, "Most options are placeholders for tuning.", 0.27)
-
-    segmented(entries, "open_video", "Display", 0.35, 0.38, false)
-    segmented(entries, "open_audio", "Audio", 0.50, 0.38, false)
-    segmented(entries, "open_controls", "Controls", 0.65, 0.38, false)
-
-    segmented(entries, "open_gameplay", "Gameplay", 0.42, 0.50, false)
-    segmented(entries, "open_accessibility", "Accessibility", 0.58, 0.50, false)
-
-    action(entries, "settings_back_to_main", "Back", 0.72, false)
+    info(entries, "Display handles screen behavior. Renderer and GPU tweaks live in Advanced.", 0.28)
+    action(entries, "open_video", "Display", 0.38, false)
+    action(entries, "open_graphics", "Graphics", 0.46, false)
+    action(entries, "open_audio", "Audio", 0.54, false)
+    action(entries, "open_controls", "Controls", 0.62, false)
+    action(entries, "open_gameplay", "Gameplay", 0.70, false)
+    action(entries, "open_accessibility", "Accessibility", 0.78, false)
+    action(entries, "open_advanced", "Advanced", 0.86, false)
+    action(entries, "settings_back_to_main", "Back", 0.94, false)
 end
 
 local function build_video_entries(entries)
@@ -318,48 +317,61 @@ local function build_video_entries(entries)
         info(entries, "Drag the window edges to resize. Size saves automatically.", 0.44)
     end
 
-    local backend = video_cfg.renderer_backends[video_cfg.renderer_index]
-    local active_backend = get_active_renderer_backend()
-    local active_gpu = get_active_gpu_renderer()
-    local gpu_class = is_active_gpu_discrete() and "Discrete" or "Integrated"
-
-    action(entries, "video_renderer_backend",
-        "Render API Pref: " .. renderer_label(backend) .. " (next launch)", 0.50, false)
-    action(entries, "video_require_discrete",
-        "Require Discrete GPU: " .. bool_text(video_cfg.require_discrete_gpu) .. " (applies next launch)", 0.54, false)
-    local adapter_pref = video_cfg.gpu_adapters[video_cfg.gpu_adapter_index]
-    action(entries, "video_gpu_adapter",
-        "Preferred GPU: " .. gpu_adapter_label(adapter_pref) .. " (applies next launch)", 0.58, false)
-    info(entries, "Current API: " .. renderer_label(active_backend), 0.62)
-    info(entries, "Active GPU: " .. tostring(active_gpu) .. " (" .. gpu_class .. ")", 0.66)
-    if not backend_pref_matches_active(backend, active_backend) then
-        info(entries, "Current API differs from preference (env override or fallback).", 0.68)
-    end
-
     local fps = video_cfg.fps_caps[video_cfg.fps_index]
     local fps_label = "FPS Cap: "
     if fps == 0 then fps_label = fps_label .. "Uncapped (placeholder)"
     else fps_label = fps_label .. tostring(fps) .. " (placeholder)" end
 
-    action(entries, "video_vsync", "VSync: " .. bool_text(video_cfg.vsync) .. " (applies next launch)", 0.72, false)
-    action(entries, "video_character_inking", "Character Inking: " .. bool_text(video_cfg.character_inking), 0.76, false)
-    action(entries, "video_fps", fps_label, 0.80, false)
-    action(entries, "video_ui_scale", "UI Scale: " .. tostring(video_cfg.ui_scales[video_cfg.ui_scale_index]) .. "% (placeholder)", 0.84, false)
-    action(entries, "video_quality", "Quality: " .. video_cfg.quality[video_cfg.quality_index] .. " (placeholder)", 0.88, false)
-    action(entries, "video_apply_restart", "Apply + Restart", 0.92, true)
-    action(entries, "settings_back", "Back", 0.95, false)
+    action(entries, "video_vsync", "VSync: " .. bool_text(video_cfg.vsync) .. " (applies next launch)", 0.58, false)
+    action(entries, "video_fps", fps_label, 0.66, false)
+    info(entries, "Graphics quality and style options live in Graphics.", 0.76)
+    info(entries, "Renderer and GPU selection live in Advanced.", 0.80)
+    action(entries, "settings_back", "Back", 0.92, false)
 end
 
-local function build_video_restart_confirm_entries(entries)
+local function build_graphics_entries(entries)
+    heading(entries, "Graphics", 0.22)
+    action(entries, "graphics_quality", "Quality: " .. video_cfg.quality[video_cfg.quality_index] .. " (placeholder)", 0.40, false)
+    action(entries, "graphics_character_inking", "Character Inking: " .. bool_text(video_cfg.character_inking), 0.50, false)
+    info(entries, "Window mode, VSync, and frame pacing live in Display.", 0.64)
+    action(entries, "settings_back", "Back", 0.84, false)
+end
+
+local function build_advanced_entries(entries)
+    heading(entries, "Advanced", 0.22)
+
+    local backend = video_cfg.renderer_backends[video_cfg.renderer_index]
+    local active_backend = get_active_renderer_backend()
+    local active_gpu = get_active_gpu_renderer()
+    local gpu_class = is_active_gpu_discrete() and "Discrete" or "Integrated"
+    local adapter_pref = video_cfg.gpu_adapters[video_cfg.gpu_adapter_index]
+
+    action(entries, "advanced_renderer_backend",
+        "Render API Pref: " .. renderer_label(backend) .. " (next launch)", 0.38, false)
+    action(entries, "advanced_require_discrete",
+        "Require Discrete GPU: " .. bool_text(video_cfg.require_discrete_gpu) .. " (next launch)", 0.46, false)
+    action(entries, "advanced_gpu_adapter",
+        "Preferred GPU: " .. gpu_adapter_label(adapter_pref) .. " (next launch)", 0.54, false)
+    info(entries, "Current API: " .. renderer_label(active_backend), 0.62)
+    info(entries, "Active GPU: " .. tostring(active_gpu) .. " (" .. gpu_class .. ")", 0.66)
+    if not backend_pref_matches_active(backend, active_backend) then
+        info(entries, "Current API differs from preference (env override or fallback).", 0.70)
+    end
+    info(entries, "Use this screen only for backend/GPU troubleshooting.", 0.76)
+    action(entries, "advanced_apply_restart", "Apply + Restart", 0.86, true)
+    action(entries, "settings_back", "Back", 0.94, false)
+end
+
+local function build_advanced_restart_confirm_entries(entries)
     heading(entries, "Apply + Restart", 0.22)
     info(entries, "Renderer/GPU changes need a full restart to take effect.", 0.34)
     if started then
         info(entries, "Warning: restarting now will drop your current run progress.", 0.40)
     else
-        info(entries, "You will return to Display settings after restart.", 0.40)
+        info(entries, "You will return to Advanced settings after restart.", 0.40)
     end
-    action(entries, "video_restart_confirm_yes", "Restart Now", 0.56, true)
-    action(entries, "video_restart_confirm_no", "Cancel", 0.64, false)
+    action(entries, "advanced_restart_confirm_yes", "Restart Now", 0.56, true)
+    action(entries, "advanced_restart_confirm_no", "Cancel", 0.64, false)
 end
 
 local function build_audio_entries(entries)
@@ -391,17 +403,19 @@ end
 
 local function build_access_entries(entries)
     heading(entries, "Accessibility", 0.22)
+    action(entries, "access_ui_scale",
+        "UI Scale: " .. tostring(video_cfg.ui_scales[video_cfg.ui_scale_index]) .. "% (placeholder)", 0.30, false)
     action(entries, "access_text_scale",
-        "Text Scale: " .. tostring(access_cfg.text_scales[access_cfg.text_scale_index]) .. "% (placeholder)", 0.34, false)
+        "Text Scale: " .. tostring(access_cfg.text_scales[access_cfg.text_scale_index]) .. "% (placeholder)", 0.40, false)
     action(entries, "access_high_contrast",
-        "High Contrast UI: " .. bool_text(access_cfg.high_contrast) .. " (placeholder)", 0.44, false)
+        "High Contrast UI: " .. bool_text(access_cfg.high_contrast) .. " (placeholder)", 0.50, false)
     action(entries, "access_color_filter",
-        "Color Filter: " .. access_cfg.color_filters[access_cfg.color_filter_index] .. " (placeholder)", 0.54, false)
+        "Color Filter: " .. access_cfg.color_filters[access_cfg.color_filter_index] .. " (placeholder)", 0.60, false)
     action(entries, "access_reduce_motion",
-        "Reduce Motion: " .. bool_text(access_cfg.reduce_motion) .. " (placeholder)", 0.64, false)
+        "Reduce Motion: " .. bool_text(access_cfg.reduce_motion) .. " (placeholder)", 0.70, false)
     action(entries, "access_captions",
-        "Captions: " .. bool_text(access_cfg.captions) .. " (placeholder)", 0.74, false)
-    action(entries, "settings_back", "Back", 0.84, false)
+        "Captions: " .. bool_text(access_cfg.captions) .. " (placeholder)", 0.80, false)
+    action(entries, "settings_back", "Back", 0.90, false)
 end
 
 function on_enter()
@@ -413,6 +427,8 @@ function on_enter()
     end
     if boot_screen == "settings" or
        boot_screen == "video" or
+       boot_screen == "graphics" or
+       boot_screen == "advanced" or
        boot_screen == "audio" or
        boot_screen == "controls" or
        boot_screen == "gameplay" or
@@ -427,7 +443,9 @@ function get_message()
     if screen == "starting" then return "Starting" end
     if screen == "settings" then return "Settings" end
     if screen == "video" then return "Display" end
-    if screen == "video_restart_confirm" then return "Apply Display Changes" end
+    if screen == "graphics" then return "Graphics" end
+    if screen == "advanced" then return "Advanced" end
+    if screen == "advanced_restart_confirm" then return "Apply Advanced Changes" end
     if screen == "audio" then return "Audio" end
     if screen == "controls" then return "Controls" end
     if screen == "gameplay" then return "Gameplay" end
@@ -445,8 +463,12 @@ function get_text_menu_entries()
         build_settings_entries(entries)
     elseif screen == "video" then
         build_video_entries(entries)
-    elseif screen == "video_restart_confirm" then
-        build_video_restart_confirm_entries(entries)
+    elseif screen == "graphics" then
+        build_graphics_entries(entries)
+    elseif screen == "advanced" then
+        build_advanced_entries(entries)
+    elseif screen == "advanced_restart_confirm" then
+        build_advanced_restart_confirm_entries(entries)
     elseif screen == "audio" then
         build_audio_entries(entries)
     elseif screen == "controls" then
@@ -508,10 +530,12 @@ end
 
 local function handle_settings_click(entry_id)
     if entry_id == "open_video" then screen = "video"; return true end
+    if entry_id == "open_graphics" then screen = "graphics"; return true end
     if entry_id == "open_audio" then screen = "audio"; return true end
     if entry_id == "open_controls" then screen = "controls"; return true end
     if entry_id == "open_gameplay" then screen = "gameplay"; return true end
     if entry_id == "open_accessibility" then screen = "accessibility"; return true end
+    if entry_id == "open_advanced" then screen = "advanced"; return true end
     if entry_id == "settings_back_to_main" then screen = "main"; return true end
     return false
 end
@@ -526,7 +550,54 @@ local function handle_video_click(entry_id)
         return true
     end
 
-    if entry_id == "video_renderer_backend" then
+    if entry_id == "video_vsync" then
+        video_cfg.vsync = not video_cfg.vsync
+        local ok = set_bool_pref("set_vsync_pref", video_cfg.vsync)
+        if ok then
+            emit("Menu", "VSync: " .. bool_text(video_cfg.vsync) .. " (restart recommended)")
+        else
+            emit("Menu", "Failed to save VSync preference")
+            video_cfg.vsync = get_bool_pref("get_vsync_pref", video_cfg.vsync)
+        end
+        return true
+    end
+    if entry_id == "video_fps" then
+        video_cfg.fps_index = cycle_index(video_cfg.fps_caps, video_cfg.fps_index, 1)
+        emit("Menu", "FPS cap changed (placeholder)")
+        return true
+    end
+    if entry_id == "settings_back" then
+        screen = "settings"
+        return true
+    end
+    return false
+end
+
+local function handle_graphics_click(entry_id)
+    if entry_id == "graphics_character_inking" then
+        video_cfg.character_inking = not video_cfg.character_inking
+        local ok = set_bool_pref("set_character_inking_pref", video_cfg.character_inking)
+        if ok then
+            emit("Menu", "Character inking: " .. bool_text(video_cfg.character_inking))
+        else
+            emit("Menu", "Failed to save character inking preference")
+        end
+        return true
+    end
+    if entry_id == "graphics_quality" then
+        video_cfg.quality_index = cycle_index(video_cfg.quality, video_cfg.quality_index, 1)
+        emit("Menu", "Quality changed (placeholder)")
+        return true
+    end
+    if entry_id == "settings_back" then
+        screen = "settings"
+        return true
+    end
+    return false
+end
+
+local function handle_advanced_click(entry_id)
+    if entry_id == "advanced_renderer_backend" then
         video_cfg.renderer_index = cycle_index(video_cfg.renderer_backends, video_cfg.renderer_index, 1)
         local backend = video_cfg.renderer_backends[video_cfg.renderer_index]
         local ok = set_renderer_backend_pref(backend)
@@ -537,7 +608,7 @@ local function handle_video_click(entry_id)
         end
         return true
     end
-    if entry_id == "video_require_discrete" then
+    if entry_id == "advanced_require_discrete" then
         video_cfg.require_discrete_gpu = not video_cfg.require_discrete_gpu
         local ok = set_require_discrete_gpu_pref(video_cfg.require_discrete_gpu)
         if ok then
@@ -547,7 +618,7 @@ local function handle_video_click(entry_id)
         end
         return true
     end
-    if entry_id == "video_gpu_adapter" then
+    if entry_id == "advanced_gpu_adapter" then
         video_cfg.gpu_adapter_index = cycle_index(video_cfg.gpu_adapters, video_cfg.gpu_adapter_index, 1)
         local selected = video_cfg.gpu_adapters[video_cfg.gpu_adapter_index]
         local requested = selected
@@ -560,54 +631,17 @@ local function handle_video_click(entry_id)
         end
         return true
     end
-
-    if entry_id == "video_vsync" then
-        video_cfg.vsync = not video_cfg.vsync
-        local ok = set_bool_pref("set_vsync_pref", video_cfg.vsync)
-        if ok then
-            emit("Menu", "VSync: " .. bool_text(video_cfg.vsync) .. " (restart required)")
-        else
-            emit("Menu", "Failed to save VSync preference")
-            video_cfg.vsync = get_bool_pref("get_vsync_pref", video_cfg.vsync)
-        end
-        return true
-    end
-    if entry_id == "video_character_inking" then
-        video_cfg.character_inking = not video_cfg.character_inking
-        local ok = set_bool_pref("set_character_inking_pref", video_cfg.character_inking)
-        if ok then
-            emit("Menu", "Character inking: " .. bool_text(video_cfg.character_inking))
-        else
-            emit("Menu", "Failed to save character inking preference")
-        end
-        return true
-    end
-    if entry_id == "video_fps" then
-        video_cfg.fps_index = cycle_index(video_cfg.fps_caps, video_cfg.fps_index, 1)
-        emit("Menu", "FPS cap changed (placeholder)")
-        return true
-    end
-    if entry_id == "video_ui_scale" then
-        video_cfg.ui_scale_index = cycle_index(video_cfg.ui_scales, video_cfg.ui_scale_index, 1)
-        emit("Menu", "UI scale changed (placeholder)")
-        return true
-    end
-    if entry_id == "video_quality" then
-        video_cfg.quality_index = cycle_index(video_cfg.quality, video_cfg.quality_index, 1)
-        emit("Menu", "Quality changed (placeholder)")
-        return true
-    end
     if entry_id == "settings_back" then
         screen = "settings"
         return true
     end
-    if entry_id == "video_apply_restart" then
+    if entry_id == "advanced_apply_restart" then
         if started then
-            screen = "video_restart_confirm"
+            screen = "advanced_restart_confirm"
             return true
         end
-        if request_restart_to_menu and request_restart_to_menu("video") then
-            emit("Menu", "Applying display settings and restarting...")
+        if request_restart_to_menu and request_restart_to_menu("advanced") then
+            emit("Menu", "Applying advanced graphics settings and restarting...")
         else
             emit("Menu", "Failed to restart game")
         end
@@ -616,17 +650,17 @@ local function handle_video_click(entry_id)
     return false
 end
 
-local function handle_video_restart_confirm_click(entry_id)
-    if entry_id == "video_restart_confirm_yes" then
-        if request_restart_to_menu and request_restart_to_menu("video") then
-            emit("Menu", "Applying display settings and restarting...")
+local function handle_advanced_restart_confirm_click(entry_id)
+    if entry_id == "advanced_restart_confirm_yes" then
+        if request_restart_to_menu and request_restart_to_menu("advanced") then
+            emit("Menu", "Applying advanced graphics settings and restarting...")
         else
             emit("Menu", "Failed to restart game")
         end
         return true
     end
-    if entry_id == "video_restart_confirm_no" then
-        screen = "video"
+    if entry_id == "advanced_restart_confirm_no" then
+        screen = "advanced"
         return true
     end
     return false
@@ -698,6 +732,11 @@ local function handle_gameplay_click(entry_id)
 end
 
 local function handle_access_click(entry_id)
+    if entry_id == "access_ui_scale" then
+        video_cfg.ui_scale_index = cycle_index(video_cfg.ui_scales, video_cfg.ui_scale_index, 1)
+        emit("Menu", "UI scale changed (placeholder)")
+        return true
+    end
     if entry_id == "access_text_scale" then
         access_cfg.text_scale_index = cycle_index(access_cfg.text_scales, access_cfg.text_scale_index, 1)
         emit("Menu", "Text scale changed (placeholder)")
@@ -743,8 +782,16 @@ function on_text_menu_click(entry_id)
         handle_video_click(entry_id)
         return
     end
-    if screen == "video_restart_confirm" then
-        handle_video_restart_confirm_click(entry_id)
+    if screen == "graphics" then
+        handle_graphics_click(entry_id)
+        return
+    end
+    if screen == "advanced" then
+        handle_advanced_click(entry_id)
+        return
+    end
+    if screen == "advanced_restart_confirm" then
+        handle_advanced_restart_confirm_click(entry_id)
         return
     end
     if screen == "audio" then
@@ -775,11 +822,13 @@ function on_update(dt)
 end
 
 function on_text_menu_back()
-    if screen == "video_restart_confirm" then
-        screen = "video"
+    if screen == "advanced_restart_confirm" then
+        screen = "advanced"
         return true
     end
     if screen == "video" or
+       screen == "graphics" or
+       screen == "advanced" or
        screen == "audio" or
        screen == "controls" or
        screen == "gameplay" or
