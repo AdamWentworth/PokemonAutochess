@@ -28,6 +28,32 @@ namespace persistent = game::runtime::shared_projected_render_items;
 
 namespace game::runtime::shared_projected_unit_backend_mesh {
 
+namespace {
+
+std::uint64_t fnv1a64Append(std::uint64_t hash, const void* data, std::size_t byteCount) {
+    static constexpr std::uint64_t kPrime = 1099511628211ull;
+    const auto* bytes = static_cast<const std::uint8_t*>(data);
+    for (std::size_t i = 0; i < byteCount; ++i) {
+        hash ^= static_cast<std::uint64_t>(bytes[i]);
+        hash *= kPrime;
+    }
+    return hash;
+}
+
+std::uint64_t hashScenePoseEval(
+    const game::runtime::shared_backend_pose::PoseEval* scenePose) {
+    if (!scenePose || !scenePose->hasScenePose || scenePose->nodeGlobals.empty()) {
+        return 0ull;
+    }
+    std::uint64_t hash = 14695981039346656037ull;
+    for (const glm::mat4& nodeGlobal : scenePose->nodeGlobals) {
+        hash = fnv1a64Append(hash, glm::value_ptr(nodeGlobal), sizeof(float) * 16u);
+    }
+    return hash;
+}
+
+} // namespace
+
 std::size_t prewarmProjectedUnitBackendMeshGeometryCache(
     IRenderBackend& renderer,
     const runtime::render_model::MeshData& mesh) {
@@ -141,6 +167,17 @@ Result renderProjectedUnitBackendMesh(const Args& args) {
         const glm::vec3& fastTexturedTint = prep.fastTexturedTint;
         const std::uint32_t projectedRenderFrameStamp =
             projectedRenderItems ? projectedRenderItems->currentFrameId : 0u;
+        auto ensurePersistentRenderItem =
+            [&](std::uint32_t itemIndex) -> persistent::ProjectedRenderItemEntry* {
+                if (!projectedRenderItems || !mesh) {
+                    return nullptr;
+                }
+                persistent::ProjectedRenderItemKey key{};
+                key.unitId = unit.id;
+                key.mesh = mesh;
+                key.itemIndex = itemIndex;
+                return &persistent::ensureProjectedRenderItem(*projectedRenderItems, key);
+            };
         auto syncPersistentRenderItem =
             [&](std::uint32_t itemIndex,
                 const shared_world_batches::WorldIndexedBatch& batch,
@@ -174,6 +211,15 @@ Result renderProjectedUnitBackendMesh(const Args& args) {
                     batch,
                     projectedRenderFrameStamp);
             };
+        bool cpuRewritePoseHashReady = false;
+        std::uint64_t cpuRewritePoseHash = 0ull;
+        const auto resolveCpuRewritePoseHash = [&]() {
+            if (!cpuRewritePoseHashReady) {
+                cpuRewritePoseHash = hashScenePoseEval(prep.scenePose);
+                cpuRewritePoseHashReady = true;
+            }
+            return cpuRewritePoseHash;
+        };
         shared_projected_unit_backend_mesh_transforms::Resolver transforms;
         transforms.initialize(args, prep);
         const auto geometryStart = Clock::now();
@@ -613,34 +659,84 @@ Result renderProjectedUnitBackendMesh(const Args& args) {
                             dstBatch.sharedIndices = nullptr;
                             dstBatch.sharedIndexCount = 0u;
                         }
-                        dstBatch.vertices.resize(srcBatch.sourceVertexIndices.size());
-                        for (std::size_t vi = 0; vi < srcBatch.sourceVertexIndices.size(); ++vi) {
-                            const std::uint32_t srcIndex = srcBatch.sourceVertexIndices[vi];
-                            if (srcIndex >= mesh->vertices.size()) continue;
-                            const auto& srcVertex = mesh->vertices[srcIndex];
+                        const bool canCacheCpuRewrite =
+                            prep.scenePose && prep.scenePose->hasScenePose;
+                        persistent::ProjectedRenderItemEntry* cachedItem =
+                            canCacheCpuRewrite
+                                ? ensurePersistentRenderItem(static_cast<std::uint32_t>(bi))
+                                : nullptr;
+                        const std::uint64_t poseHash =
+                            canCacheCpuRewrite ? resolveCpuRewritePoseHash() : 0ull;
+                        const bool reuseCpuRewriteVertices =
+                            cachedItem &&
+                            cachedItem->cpuRewriteGeometryTemplateIdentity ==
+                                static_cast<const void*>(&srcBatch) &&
+                            cachedItem->cpuRewritePoseHash == poseHash &&
+                            cachedItem->cpuRewriteNeedsLitNormals ==
+                                static_cast<std::uint8_t>(needsLitNormals ? 1u : 0u) &&
+                            cachedItem->cpuRewriteNeedsTangents ==
+                                static_cast<std::uint8_t>(needsTangents ? 1u : 0u) &&
+                            cachedItem->cpuRewriteVertices.size() ==
+                                srcBatch.sourceVertexIndices.size();
 
-                            IRenderBackend::WorldMeshVertex outVertex = srcBatch.gpuTemplateVertices[vi];
-                            const auto surface = transforms.resolveModelVertexSurface(
-                                resolvedTriNodeIndex,
-                                srcIndex,
-                                srcVertex,
-                                needsLitNormals,
-                                needsTangents);
-                            outVertex.x = surface.pos.x;
-                            outVertex.y = surface.pos.y;
-                            outVertex.z = surface.pos.z;
-                            if (needsLitNormals) {
-                                outVertex.nx = surface.normal.x;
-                                outVertex.ny = surface.normal.y;
-                                outVertex.nz = surface.normal.z;
+                        std::vector<IRenderBackend::WorldMeshVertex>* rewrittenVertices = nullptr;
+                        if (reuseCpuRewriteVertices) {
+                            dstBatch.vertices.clear();
+                            dstBatch.sharedVertices = cachedItem->cpuRewriteVertices.data();
+                            dstBatch.sharedVertexCount =
+                                cachedItem->cpuRewriteVertices.size();
+                        } else if (cachedItem) {
+                            cachedItem->cpuRewriteVertices.resize(
+                                srcBatch.sourceVertexIndices.size());
+                            rewrittenVertices = &cachedItem->cpuRewriteVertices;
+                        } else {
+                            dstBatch.vertices.resize(srcBatch.sourceVertexIndices.size());
+                            rewrittenVertices = &dstBatch.vertices;
+                        }
+
+                        if (rewrittenVertices) {
+                            for (std::size_t vi = 0; vi < srcBatch.sourceVertexIndices.size(); ++vi) {
+                                const std::uint32_t srcIndex = srcBatch.sourceVertexIndices[vi];
+                                if (srcIndex >= mesh->vertices.size()) continue;
+                                const auto& srcVertex = mesh->vertices[srcIndex];
+
+                                IRenderBackend::WorldMeshVertex outVertex =
+                                    srcBatch.gpuTemplateVertices[vi];
+                                const auto surface = transforms.resolveModelVertexSurface(
+                                    resolvedTriNodeIndex,
+                                    srcIndex,
+                                    srcVertex,
+                                    needsLitNormals,
+                                    needsTangents);
+                                outVertex.x = surface.pos.x;
+                                outVertex.y = surface.pos.y;
+                                outVertex.z = surface.pos.z;
+                                if (needsLitNormals) {
+                                    outVertex.nx = surface.normal.x;
+                                    outVertex.ny = surface.normal.y;
+                                    outVertex.nz = surface.normal.z;
+                                }
+                                if (needsTangents) {
+                                    outVertex.tx = surface.tangent.x;
+                                    outVertex.ty = surface.tangent.y;
+                                    outVertex.tz = surface.tangent.z;
+                                    outVertex.tw = surface.tangent.w;
+                                }
+                                (*rewrittenVertices)[vi] = outVertex;
                             }
-                            if (needsTangents) {
-                                outVertex.tx = surface.tangent.x;
-                                outVertex.ty = surface.tangent.y;
-                                outVertex.tz = surface.tangent.z;
-                                outVertex.tw = surface.tangent.w;
-                            }
-                            dstBatch.vertices[vi] = outVertex;
+                        }
+
+                        if (cachedItem) {
+                            cachedItem->cpuRewriteGeometryTemplateIdentity =
+                                static_cast<const void*>(&srcBatch);
+                            cachedItem->cpuRewritePoseHash = poseHash;
+                            cachedItem->cpuRewriteNeedsLitNormals =
+                                static_cast<std::uint8_t>(needsLitNormals ? 1u : 0u);
+                            cachedItem->cpuRewriteNeedsTangents =
+                                static_cast<std::uint8_t>(needsTangents ? 1u : 0u);
+                            dstBatch.vertices.clear();
+                            dstBatch.sharedVertices = cachedItem->cpuRewriteVertices.data();
+                            dstBatch.sharedVertexCount = cachedItem->cpuRewriteVertices.size();
                         }
                     }
                 }

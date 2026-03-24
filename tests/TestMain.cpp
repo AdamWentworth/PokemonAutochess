@@ -158,6 +158,7 @@ bool test_shared_particle_billboard_batches_contract(std::string& outFail);
 bool test_shared_particle_snapshot_billboards_contract(std::string& outFail);
 bool test_shared_particle_vfx_bridge_dispatch_contract(std::string& outFail);
 bool test_shared_particle_vfx_styles_contract(std::string& outFail);
+bool test_shared_projected_render_items_cpu_rewrite_cache_contract(std::string& outFail);
 bool test_shared_projected_unit_backend_mesh_support_contract(std::string& outFail);
 bool test_shared_projected_unit_renderer_scene_pose_cache_contract(std::string& outFail);
 bool test_shared_projected_unit_renderer_idle_clip_loop_closure_contract(std::string& outFail);
@@ -378,6 +379,7 @@ int main(int argc, char** argv) {
         {"shared_particle_snapshot_billboards_contract", &test_shared_particle_snapshot_billboards_contract},
         {"shared_particle_vfx_bridge_dispatch_contract", &test_shared_particle_vfx_bridge_dispatch_contract},
         {"shared_particle_vfx_styles_contract", &test_shared_particle_vfx_styles_contract},
+        {"shared_projected_render_items_cpu_rewrite_cache_contract", &test_shared_projected_render_items_cpu_rewrite_cache_contract},
         {"shared_projected_unit_backend_mesh_support_contract", &test_shared_projected_unit_backend_mesh_support_contract},
         {"shared_projected_unit_renderer_scene_pose_cache_contract", &test_shared_projected_unit_renderer_scene_pose_cache_contract},
         {"shared_projected_unit_renderer_idle_clip_loop_closure_contract", &test_shared_projected_unit_renderer_idle_clip_loop_closure_contract},

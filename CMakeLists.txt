@@ -593,6 +593,7 @@ if (BUILD_TESTING)
         tests/TestRuntimeParticleVfxPrewarm.cpp
         tests/TestSessionProjectedWorldView.cpp
         tests/TestSessionRenderLayout.cpp
+        tests/TestSharedProjectedRenderItems.cpp
         tests/TestSessionRenderScratch.cpp
         tests/TestSessionRenderConfig.cpp
         tests/TestSessionSnapshotRuntime.cpp

@@ -94,6 +94,11 @@ struct ProjectedRenderItemEntry {
     ProjectedRenderItemKey key{};
     ProjectedRenderItemStaticData staticData{};
     ProjectedRenderItemDynamicData dynamicData{};
+    const void* cpuRewriteGeometryTemplateIdentity = nullptr;
+    std::uint64_t cpuRewritePoseHash = 0ull;
+    std::uint8_t cpuRewriteNeedsLitNormals = 0u;
+    std::uint8_t cpuRewriteNeedsTangents = 0u;
+    std::vector<IRenderBackend::WorldMeshVertex> cpuRewriteVertices;
     std::uint32_t dirtyBits = 0u;
     std::uint32_t lastTouchedFrame = 0u;
     IRenderBackend::WorldSceneRenderObjectHandle worldSceneObjectHandle{};
