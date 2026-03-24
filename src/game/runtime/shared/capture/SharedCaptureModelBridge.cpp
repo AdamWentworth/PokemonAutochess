@@ -196,17 +196,19 @@ bool appendSharedCaptureAttemptModels(const Args& args) {
                     std::string worldGeomKey =
                         "assets/models/pokeball.glb#geomsubmesh:" + std::to_string(si);
                     bool hasRealTexture = false;
-                    if (!kCapturePokeballTreatAsUntextured && si < mesh->submeshBaseTextures.size()) {
-                        const auto& srcTex = mesh->submeshBaseTextures[si];
-                        if (srcTex.hasPixels()) {
-                            hasRealTexture = true;
-                            worldTexKey = "assets/models/pokeball.glb#submesh:" + std::to_string(si);
-                            tex.rgba = srcTex.rgba.data();
-                            tex.width = srcTex.width;
-                            tex.height = srcTex.height;
-                            tex.wrapS = srcTex.wrapS;
-                            tex.wrapT = srcTex.wrapT;
-                            tex.key = worldTexKey.c_str();
+                    if constexpr (!kCapturePokeballTreatAsUntextured) {
+                        if (si < mesh->submeshBaseTextures.size()) {
+                            const auto& srcTex = mesh->submeshBaseTextures[si];
+                            if (srcTex.hasPixels()) {
+                                hasRealTexture = true;
+                                worldTexKey = "assets/models/pokeball.glb#submesh:" + std::to_string(si);
+                                tex.rgba = srcTex.rgba.data();
+                                tex.width = srcTex.width;
+                                tex.height = srcTex.height;
+                                tex.wrapS = srcTex.wrapS;
+                                tex.wrapT = srcTex.wrapT;
+                                tex.key = worldTexKey.c_str();
+                            }
                         }
                     }
                     tex.alphaMode = prepared.alphaMode;
@@ -363,16 +365,17 @@ bool appendSharedCaptureAttemptModels(const Args& args) {
                 batch.vertices.reserve(prepared.vertices.size());
                 batch.indices.reserve(prepared.indices.size());
                 batch.sortDepth = glm::dot(args.cameraWorldPos - renderPos, args.cameraWorldPos - renderPos);
-                if (!kCapturePokeballTreatAsUntextured &&
-                    si < mesh->submeshBaseTextures.size()) {
-                    const auto& tex = mesh->submeshBaseTextures[si];
-                    if (tex.hasPixels()) {
-                        batch.textureKey = "assets/models/pokeball.glb#submesh:" + std::to_string(si);
-                        batch.textureRgba = tex.rgba.data();
-                        batch.textureWidth = tex.width;
-                        batch.textureHeight = tex.height;
-                        batch.textureWrapS = tex.wrapS;
-                        batch.textureWrapT = tex.wrapT;
+                if constexpr (!kCapturePokeballTreatAsUntextured) {
+                    if (si < mesh->submeshBaseTextures.size()) {
+                        const auto& tex = mesh->submeshBaseTextures[si];
+                        if (tex.hasPixels()) {
+                            batch.textureKey = "assets/models/pokeball.glb#submesh:" + std::to_string(si);
+                            batch.textureRgba = tex.rgba.data();
+                            batch.textureWidth = tex.width;
+                            batch.textureHeight = tex.height;
+                            batch.textureWrapS = tex.wrapS;
+                            batch.textureWrapT = tex.wrapT;
+                        }
                     }
                 }
                 if ((!batch.textureRgba || batch.textureWidth <= 0 || batch.textureHeight <= 0)) {
