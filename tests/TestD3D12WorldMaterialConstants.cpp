@@ -69,6 +69,8 @@ bool test_d3d12_world_material_constants_contract(std::string& outFail) {
         tex.materialFlipbook0Rows = 5.0f;
         tex.materialFlipbook0Frames = 6.0f;
         tex.materialFlipbook0Fps = 7.0f;
+        tex.materialFlipbook1Frames = 8.0f;
+        tex.materialFlipbook1Fps = 9.0f;
 
         const auto c = d3d12i::makeWorldPsConstants(&tex, 1.0f);
         if (!expect(nearf(c.useTexture, 1.0f) &&
@@ -88,7 +90,9 @@ bool test_d3d12_world_material_constants_contract(std::string& outFail) {
                         nearf(c.materialFlipbook0Cols, 4.0f) &&
                         nearf(c.materialFlipbook0Rows, 5.0f) &&
                         nearf(c.materialFlipbook0Frames, 6.0f) &&
-                        nearf(c.materialFlipbook0Fps, 7.0f),
+                        nearf(c.materialFlipbook0Fps, 7.0f) &&
+                        nearf(c.materialFlipbook1Frames, 8.0f) &&
+                        nearf(c.materialFlipbook1Fps, 9.0f),
                     "makeWorldPsConstants should sanitize/clamp wrap+alpha values while forwarding material payload fields.",
                     outFail)) {
             return false;

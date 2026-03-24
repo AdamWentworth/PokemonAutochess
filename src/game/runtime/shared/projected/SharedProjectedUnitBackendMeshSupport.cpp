@@ -126,10 +126,28 @@ bool backendUsesGpuClipSkinningForUnit(const char* backendId, std::string_view s
     return true;
 }
 
+float textureDetailLodBiasForGraphicsQuality(int graphicsQuality) {
+    switch (static_cast<game::video::GraphicsQuality>(
+        game::video::sanitizeGraphicsQuality(graphicsQuality))) {
+    case game::video::GraphicsQuality::Low:
+        return 0.90f;
+    case game::video::GraphicsQuality::Medium:
+        return 0.45f;
+    case game::video::GraphicsQuality::High:
+        return 0.00f;
+    case game::video::GraphicsQuality::Ultra:
+    default:
+        return -0.40f;
+    }
+}
+
 void applyGraphicsQualityToBatchTemplate(
     game::runtime::shared_world_batches::WorldIndexedBatch& batch,
     int graphicsQuality) {
     const int sanitizedQuality = game::video::sanitizeGraphicsQuality(graphicsQuality);
+    // For lit model materials, reuse the second flipbook frame slot as an extra
+    // texture-detail LOD bias. Fire-tail materials still own this field normally.
+    batch.materialFlipbook1Frames = textureDetailLodBiasForGraphicsQuality(sanitizedQuality);
     if (sanitizedQuality >= static_cast<int>(game::video::GraphicsQuality::Ultra)) {
         return;
     }
@@ -178,6 +196,9 @@ void applyGraphicsQualityToWorldSceneMaterial(
     IRenderBackend::WorldSceneMaterial& material,
     int graphicsQuality) {
     const int sanitizedQuality = game::video::sanitizeGraphicsQuality(graphicsQuality);
+    // For lit model materials, reuse the second flipbook frame slot as an extra
+    // texture-detail LOD bias. Fire-tail materials still own this field normally.
+    material.materialFlipbook1Frames = textureDetailLodBiasForGraphicsQuality(sanitizedQuality);
     if (sanitizedQuality >= static_cast<int>(game::video::GraphicsQuality::Ultra)) {
         return;
     }

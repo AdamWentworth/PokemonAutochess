@@ -1,6 +1,7 @@
 #include "game/runtime/shared/projected/SharedProjectedUnitBackendMeshSupport.h"
 
 #include "game/runtime/render_model_cache/RenderModelCache.h"
+#include "game/runtime/video/VideoPreferences.h"
 
 #include <string_view>
 #include <string>
@@ -76,6 +77,103 @@ bool test_shared_projected_unit_backend_mesh_support_contract(std::string& outFa
             support::backendUsesGpuClipSkinningForUnit("d3d12", std::string_view("charmander")) ||
             !support::backendUsesGpuClipSkinningForUnit("d3d12", std::string_view("pikachu"))) {
             outFail = "Projected mesh support should disable GPU clip skinning only for D3D12 tail-fire playback species.";
+            return false;
+        }
+    }
+
+    {
+        using game::video::GraphicsQuality;
+        if (support::textureDetailLodBiasForGraphicsQuality(static_cast<int>(GraphicsQuality::Low)) <=
+                support::textureDetailLodBiasForGraphicsQuality(static_cast<int>(GraphicsQuality::Medium)) ||
+            support::textureDetailLodBiasForGraphicsQuality(static_cast<int>(GraphicsQuality::Medium)) <=
+                support::textureDetailLodBiasForGraphicsQuality(static_cast<int>(GraphicsQuality::High)) ||
+            support::textureDetailLodBiasForGraphicsQuality(static_cast<int>(GraphicsQuality::High)) <=
+                support::textureDetailLodBiasForGraphicsQuality(static_cast<int>(GraphicsQuality::Ultra))) {
+            outFail = "Projected mesh support should make lower quality tiers progressively softer than Ultra.";
+            return false;
+        }
+    }
+
+    {
+        using game::video::GraphicsQuality;
+        game::runtime::shared_world_batches::WorldIndexedBatch batch;
+        batch.materialFlipbook1Frames = 1.0f;
+        batch.normalTextureKey = "normal";
+        batch.normalTextureCacheKey = "normal_cache";
+        batch.normalTextureRgba = reinterpret_cast<const unsigned char*>(0x1);
+        batch.normalTextureWidth = 64;
+        batch.normalTextureHeight = 64;
+        batch.metallicRoughnessTextureKey = "mr";
+        batch.metallicRoughnessTextureCacheKey = "mr_cache";
+        batch.metallicRoughnessTextureRgba = reinterpret_cast<const unsigned char*>(0x1);
+        batch.metallicRoughnessTextureWidth = 64;
+        batch.metallicRoughnessTextureHeight = 64;
+        batch.occlusionTextureKey = "occ";
+        batch.occlusionTextureCacheKey = "occ_cache";
+        batch.occlusionTextureRgba = reinterpret_cast<const unsigned char*>(0x1);
+        batch.occlusionTextureWidth = 64;
+        batch.occlusionTextureHeight = 64;
+        batch.emissiveTextureKey = "emi";
+        batch.emissiveTextureCacheKey = "emi_cache";
+        batch.emissiveTextureRgba = reinterpret_cast<const unsigned char*>(0x1);
+        batch.emissiveTextureWidth = 64;
+        batch.emissiveTextureHeight = 64;
+
+        support::applyGraphicsQualityToBatchTemplate(
+            batch,
+            static_cast<int>(GraphicsQuality::Ultra));
+        if (batch.materialFlipbook1Frames >= 0.0f ||
+            batch.normalTextureRgba == nullptr ||
+            batch.metallicRoughnessTextureRgba == nullptr ||
+            batch.occlusionTextureRgba == nullptr ||
+            batch.emissiveTextureRgba == nullptr) {
+            outFail = "Projected mesh support should keep Ultra fully textured while biasing it toward sharper texture detail.";
+            return false;
+        }
+
+        support::applyGraphicsQualityToBatchTemplate(
+            batch,
+            static_cast<int>(GraphicsQuality::Medium));
+        if (batch.materialFlipbook1Frames <= 0.0f ||
+            batch.normalTextureRgba != nullptr ||
+            batch.metallicRoughnessTextureRgba == nullptr ||
+            batch.occlusionTextureRgba != nullptr ||
+            batch.emissiveTextureRgba != nullptr) {
+            outFail = "Projected mesh support should keep Medium softer and drop normal/occlusion/emissive maps while preserving base PBR response.";
+            return false;
+        }
+
+        IRenderBackend::WorldSceneMaterial material;
+        material.materialFlipbook1Frames = 1.0f;
+        material.normalTextureKey = "normal";
+        material.normalTextureCacheKey = "normal_cache";
+        material.normalTextureRgba = reinterpret_cast<const unsigned char*>(0x1);
+        material.normalTextureWidth = 64;
+        material.normalTextureHeight = 64;
+        material.metallicRoughnessTextureKey = "mr";
+        material.metallicRoughnessTextureCacheKey = "mr_cache";
+        material.metallicRoughnessTextureRgba = reinterpret_cast<const unsigned char*>(0x1);
+        material.metallicRoughnessTextureWidth = 64;
+        material.metallicRoughnessTextureHeight = 64;
+        material.occlusionTextureKey = "occ";
+        material.occlusionTextureCacheKey = "occ_cache";
+        material.occlusionTextureRgba = reinterpret_cast<const unsigned char*>(0x1);
+        material.occlusionTextureWidth = 64;
+        material.occlusionTextureHeight = 64;
+        material.emissiveTextureKey = "emi";
+        material.emissiveTextureCacheKey = "emi_cache";
+        material.emissiveTextureRgba = reinterpret_cast<const unsigned char*>(0x1);
+        material.emissiveTextureWidth = 64;
+        material.emissiveTextureHeight = 64;
+        support::applyGraphicsQualityToWorldSceneMaterial(
+            material,
+            static_cast<int>(GraphicsQuality::Low));
+        if (material.materialFlipbook1Frames <= 0.0f ||
+            material.normalTextureRgba != nullptr ||
+            material.metallicRoughnessTextureRgba != nullptr ||
+            material.occlusionTextureRgba != nullptr ||
+            material.emissiveTextureRgba != nullptr) {
+            outFail = "Projected mesh support should mirror texture-detail and map reductions on world-scene materials.";
             return false;
         }
     }

@@ -465,8 +465,13 @@ void OpenGLRenderBackend::ensureWorldPipeline() {
             vec2 halfTexel = vec2(0.5) / texSize;
             return clamp(uv, halfTexel, vec2(1.0) - halfTexel);
         }
+        float litTextureDetailLodBias() {
+            if (uMaterialMode < 1.5 || uMaterialMode >= 2.5) return 0.0;
+            return clamp(uMaterialFlipbook1.z, -0.75, 1.25);
+        }
         vec4 sampleTextureWithWrap(sampler2D tex, vec2 uv, vec2 uvDx, vec2 uvDy) {
-            return textureGrad(tex, uv, uvDx, uvDy);
+            float lodScale = exp2(litTextureDetailLodBias());
+            return textureGrad(tex, uv, uvDx * lodScale, uvDy * lodScale);
         }
 
         float hash11(float x) { return fract(sin(x * 12.9898) * 43758.5453); }

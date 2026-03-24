@@ -21,6 +21,7 @@ bool strictGltfParityEnabled();
 bool tailFireDebugShouldLogAnchor(int unitId);
 bool backendUsesAuthoredTailFireMeshPlayback(const char* backendId);
 bool backendUsesGpuClipSkinningForUnit(const char* backendId, std::string_view species);
+float textureDetailLodBiasForGraphicsQuality(int graphicsQuality);
 void applyGraphicsQualityToBatchTemplate(
     shared_world_batches::WorldIndexedBatch& batch,
     int graphicsQuality);

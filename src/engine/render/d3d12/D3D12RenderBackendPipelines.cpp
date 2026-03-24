@@ -495,12 +495,19 @@ float2 clampWrappedUvToTexelCenter(float2 uv) {
 }
 bool isClampWrap(float mode) { return abs(mode - 33071.0f) < 0.5f; }
 bool isMirrorWrap(float mode) { return abs(mode - 33648.0f) < 0.5f; }
+float litTextureDetailLodBias() {
+  if (uMaterialMode < 1.5f || uMaterialMode >= 2.5f) return 0.0f;
+  return clamp(uMaterialFlipbook1Frames, -0.75f, 1.25f);
+}
 float4 sampleTextureWithWrap(Texture2D tex,
                              float2 uv,
                              float2 uvDx,
                              float2 uvDy,
                              float wrapS,
                              float wrapT) {
+  const float lodScale = exp2(litTextureDetailLodBias());
+  uvDx *= lodScale;
+  uvDy *= lodScale;
   bool sClamp = isClampWrap(wrapS);
   bool tClamp = isClampWrap(wrapT);
   bool sMirror = isMirrorWrap(wrapS);

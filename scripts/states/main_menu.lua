@@ -421,7 +421,7 @@ local function build_graphics_entries(entries)
     heading(entries, "Graphics", 0.22)
     action(entries, "graphics_quality", "Quality: " .. video_cfg.quality[video_cfg.quality_index], 0.40, false)
     action(entries, "graphics_character_inking", "Character Inking: " .. bool_text(video_cfg.character_inking), 0.50, false)
-    info(entries, "Ultra keeps the current full textured look. Lower tiers trim material maps live.", 0.64)
+    info(entries, "Ultra keeps the sharpest full textured look. Lower tiers trim material maps and soften texture detail live.", 0.64)
     info(entries, "Window mode, VSync, and frame pacing live in Display.", 0.70)
     action(entries, "settings_back", "Back", 0.84, false)
 end
