@@ -625,7 +625,7 @@ void OpenGLRenderBackend::prewarmWorldRenderAssets() {
     const auto t3 = std::chrono::high_resolution_clock::now();
     if (!neutralPmremAtlas.rgba16f.empty()) {
         (void)ensureWorldTextureRawHalfFloat(
-            "__neutral_room_pmrem_rgba16f_v1__",
+            "__neutral_room_pmrem_rgba16f_v2__",
             neutralPmremAtlas.rgba16f.data(),
             neutralPmremAtlas.width,
             neutralPmremAtlas.height,
@@ -633,7 +633,7 @@ void OpenGLRenderBackend::prewarmWorldRenderAssets() {
             33071);
     } else if (!neutralPmremAtlas.rgba.empty()) {
         (void)ensureWorldTextureRaw(
-            "__neutral_room_pmrem_rgbm_v1__",
+            "__neutral_room_pmrem_rgbm_v2__",
             neutralPmremAtlas.rgba.data(),
             neutralPmremAtlas.width,
             neutralPmremAtlas.height,
@@ -822,14 +822,14 @@ void OpenGLRenderBackend::drawWorldIndexedMeshTexturedInternal(unsigned int vao,
     if (worldNeutralPmremTexture_ == 0u) {
         worldNeutralPmremTexture_ = !neutralPmremAtlas.rgba16f.empty()
             ? ensureWorldTextureRawHalfFloat(
-                "__neutral_room_pmrem_rgba16f_v1__",
+                "__neutral_room_pmrem_rgba16f_v2__",
                 neutralPmremAtlas.rgba16f.data(),
                 neutralPmremAtlas.width,
                 neutralPmremAtlas.height,
                 33071,
                 33071)
             : ensureWorldTextureRaw(
-                "__neutral_room_pmrem_rgbm_v1__",
+                "__neutral_room_pmrem_rgbm_v2__",
                 neutralPmremAtlas.rgba.data(),
                 neutralPmremAtlas.width,
                 neutralPmremAtlas.height,

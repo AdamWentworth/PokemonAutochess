@@ -1893,14 +1893,14 @@ void D3D12RenderBackend::ensureWorldFallbackEnvTexture() {
     const auto& neutralPmremAtlas = engine::render::neutral_pmrem::getNeutralRoomPmremAtlas();
     SpriteTexture* fallbackEnv = !neutralPmremAtlas.rgba16f.empty()
         ? ensureWorldTextureRawHalfFloat(
-            "__neutral_room_pmrem_rgba16f_v1__",
+            "__neutral_room_pmrem_rgba16f_v2__",
             neutralPmremAtlas.rgba16f.data(),
             neutralPmremAtlas.width,
             neutralPmremAtlas.height,
             kGlClampToEdge,
             kGlClampToEdge)
         : ensureWorldTextureRaw(
-            "__neutral_room_pmrem_rgbm_v1__",
+            "__neutral_room_pmrem_rgbm_v2__",
             neutralPmremAtlas.rgba.data(),
             neutralPmremAtlas.width,
             neutralPmremAtlas.height,

@@ -13,8 +13,8 @@ inline constexpr bool kWorldBlendPipelineEnabled = true;
 inline constexpr bool kDebugBlendEnabled = true;
 inline constexpr bool kFramebufferSrgbEnabled = false;
 inline constexpr int kWorldSamplerAnisotropy = 16;
-inline constexpr const char* kNeutralPmremAtlasKey = "__neutral_room_pmrem_rgba16f_v1__";
-inline constexpr const char* kExpectedBaselineSignature = "a30e1ca79f60f2d3";
+inline constexpr const char* kNeutralPmremAtlasKey = "__neutral_room_pmrem_rgba16f_v2__";
+inline constexpr const char* kExpectedBaselineSignature = "872ea1a78f0e2d92";
 
 struct RuntimeConfig {
     float pbrDirectIntensity = 0.0f;

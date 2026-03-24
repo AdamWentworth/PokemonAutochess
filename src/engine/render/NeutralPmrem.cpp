@@ -26,7 +26,7 @@ constexpr std::array<float, 6> kExtraLodSigma = {0.125f, 0.215f, 0.35f, 0.446f, 
 constexpr int kMaxBlurSamples = 20;
 constexpr float kRgbmRange = 16.0f;
 constexpr std::uint32_t kNeutralPmremCacheMagic = 0x504d524du; // PMRM
-constexpr std::uint32_t kNeutralPmremCacheVersion = 1u;
+constexpr std::uint32_t kNeutralPmremCacheVersion = 2u;
 
 struct CacheHeader {
     std::uint32_t magic = 0u;
@@ -94,7 +94,7 @@ bool neutralPmremForceRebuild() {
 }
 
 fs::path neutralPmremCachePath() {
-    return fs::path(engine::paths::data("cache/neutral_pmrem")) / "neutral_room_pmrem_v1.bin";
+    return fs::path(engine::paths::data("cache/neutral_pmrem")) / "neutral_room_pmrem_v2.bin";
 }
 
 bool validateCacheHeader(const CacheHeader& header) {
@@ -351,6 +351,37 @@ bool intersectAabbLocal(const glm::vec3& ro,
     return tFar > 0.0f;
 }
 
+bool intersectEmissivePanelLocal(const glm::vec3& ro,
+                                 const glm::vec3& rd,
+                                 const glm::vec3& half,
+                                 float& tHit,
+                                 glm::vec3& nLocal) {
+    int thinAxis = 0;
+    if (half.y < half[thinAxis]) thinAxis = 1;
+    if (half.z < half[thinAxis]) thinAxis = 2;
+    if (std::abs(rd[thinAxis]) <= 1e-6f) return false;
+
+    tHit = std::numeric_limits<float>::max();
+    nLocal = glm::vec3(0.0f, 1.0f, 0.0f);
+    bool hit = false;
+    const int axisA = (thinAxis + 1) % 3;
+    const int axisB = (thinAxis + 2) % 3;
+    for (float sign : {-1.0f, 1.0f}) {
+        const float planeCoord = sign * half[thinAxis];
+        const float t = (planeCoord - ro[thinAxis]) / rd[thinAxis];
+        if (t <= 1e-4f || t >= tHit) continue;
+
+        const glm::vec3 p = ro + rd * t;
+        if (std::abs(p[axisA]) > half[axisA] || std::abs(p[axisB]) > half[axisB]) continue;
+
+        hit = true;
+        tHit = t;
+        nLocal = glm::vec3(0.0f);
+        nLocal[thinAxis] = sign;
+    }
+    return hit;
+}
+
 HitInfo traceRoomEnvironment(const glm::vec3& direction, const std::vector<SceneBox>& scene) {
     const glm::vec3 rayOrigin(0.0f);
     const glm::vec3 rayDir = glm::normalize(direction);
@@ -359,27 +390,31 @@ HitInfo traceRoomEnvironment(const glm::vec3& direction, const std::vector<Scene
     for (const SceneBox& box : scene) {
         const glm::vec3 localRo = inverseRotateY(rayOrigin - box.center, box.rotY);
         const glm::vec3 localRd = inverseRotateY(rayDir, box.rotY);
-        float tNear = 0.0f;
-        float tFar = 0.0f;
-        glm::vec3 nNear(0.0f);
-        glm::vec3 nFar(0.0f);
-        if (!intersectAabbLocal(localRo, localRd, box.half, tNear, tFar, nNear, nFar)) continue;
-
         float tHit = std::numeric_limits<float>::max();
         glm::vec3 nLocal(0.0f, 1.0f, 0.0f);
-        if (box.interior) {
-            if (tFar <= 1e-4f) continue;
-            tHit = tFar;
-            nLocal = -nFar;
+        if (box.emissive) {
+            if (!intersectEmissivePanelLocal(localRo, localRd, box.half, tHit, nLocal)) continue;
         } else {
-            if (tNear > 1e-4f) {
-                tHit = tNear;
-                nLocal = nNear;
-            } else if (tFar > 1e-4f) {
+            float tNear = 0.0f;
+            float tFar = 0.0f;
+            glm::vec3 nNear(0.0f);
+            glm::vec3 nFar(0.0f);
+            if (!intersectAabbLocal(localRo, localRd, box.half, tNear, tFar, nNear, nFar)) continue;
+
+            if (box.interior) {
+                if (tFar <= 1e-4f) continue;
                 tHit = tFar;
-                nLocal = nFar;
+                nLocal = -nFar;
             } else {
-                continue;
+                if (tNear > 1e-4f) {
+                    tHit = tNear;
+                    nLocal = nNear;
+                } else if (tFar > 1e-4f) {
+                    tHit = tFar;
+                    nLocal = nFar;
+                } else {
+                    continue;
+                }
             }
         }
 
