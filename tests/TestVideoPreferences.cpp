@@ -51,6 +51,10 @@ bool test_video_preferences_parse_and_roundtrip(std::string& outFail) {
     prefs.requireDiscreteGpu = true;
     prefs.preferredGpuAdapter = "NVIDIA GeForce GTX 1050";
     prefs.restartOnExit = true;
+    prefs.fullscreen = true;
+    prefs.windowedWidth = 1720;
+    prefs.windowedHeight = 980;
+    prefs.windowedMaximized = true;
     prefs.bootMenuScreen = "video";
 
     std::string err;
@@ -79,6 +83,13 @@ bool test_video_preferences_parse_and_roundtrip(std::string& outFail) {
         outFail = "roundtrip restartOnExit mismatch";
         return false;
     }
+    if (!loaded.fullscreen ||
+        loaded.windowedWidth != 1720 ||
+        loaded.windowedHeight != 980 ||
+        !loaded.windowedMaximized) {
+        outFail = "roundtrip window video preference mismatch";
+        return false;
+    }
     if (loaded.bootMenuScreen != "video") {
         outFail = "roundtrip bootMenuScreen mismatch";
         return false;
@@ -87,6 +98,10 @@ bool test_video_preferences_parse_and_roundtrip(std::string& outFail) {
     prefs.rendererBackend = "opengl_shared"; // backward-compat alias should canonicalize to opengl
     prefs.requireDiscreteGpu = false;
     prefs.preferredGpuAdapter.clear();
+    prefs.fullscreen = false;
+    prefs.windowedWidth = 0;
+    prefs.windowedHeight = 0;
+    prefs.windowedMaximized = false;
     prefs.restartOnExit = false;
     prefs.bootMenuScreen = {};
     if (!game::video::savePreferences(prefs, path, &err)) {

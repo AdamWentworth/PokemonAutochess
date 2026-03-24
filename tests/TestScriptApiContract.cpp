@@ -207,6 +207,9 @@ bool test_script_api_contract(std::string& outFail) {
     if (!expect(api.setVideoMode(320, 200, true), "setVideoMode should invoke applyVideoMode callback.", outFail)) return false;
     if (!expect(videoW == 640 && videoH == 360 && videoFullscreen,
                 "setVideoMode should clamp to minimum resolution before callback.", outFail)) return false;
+    if (!expect(api.setVideoMode(0, 0, false), "setVideoMode should allow auto-sized windowed requests.", outFail)) return false;
+    if (!expect(videoW == 0 && videoH == 0 && !videoFullscreen,
+                "setVideoMode should preserve non-positive auto-size sentinels for the runtime window manager.", outFail)) return false;
     services.queryVideoMode = []() {
         GameServices::VideoMode vm;
         vm.width = 1920;

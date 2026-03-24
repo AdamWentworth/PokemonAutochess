@@ -11,6 +11,7 @@ namespace {
 
 struct FakeSdlState {
     int setWindowDisplayModeResult = 0;
+    int getDisplayUsableBoundsResult = 0;
     std::vector<int> setWindowFullscreenResults;
     std::string errorText = "fake sdl error";
 
@@ -19,6 +20,7 @@ struct FakeSdlState {
     std::vector<std::pair<int, int>> sizes;
     std::vector<std::pair<int, int>> positions;
     SDL_DisplayMode lastDisplayMode{};
+    SDL_Rect usableBounds{0, 0, 1920, 1080};
 };
 
 FakeSdlState* g_fakeSdlState = nullptr;
@@ -52,6 +54,14 @@ void fakeSetWindowPosition(SDL_Window*, int x, int y) {
     g_fakeSdlState->positions.emplace_back(x, y);
 }
 
+int fakeGetDisplayUsableBounds(int, SDL_Rect* outRect) {
+    if (g_fakeSdlState == nullptr) return -1;
+    if (outRect != nullptr) {
+        *outRect = g_fakeSdlState->usableBounds;
+    }
+    return g_fakeSdlState->getDisplayUsableBoundsResult;
+}
+
 const char* fakeGetError() {
     return g_fakeSdlState == nullptr ? "missing fake sdl state" : g_fakeSdlState->errorText.c_str();
 }
@@ -62,6 +72,7 @@ game::runtime::video_mode::SdlApi makeFakeSdlApi() {
     api.setWindowFullscreen = &fakeSetWindowFullscreen;
     api.setWindowSize = &fakeSetWindowSize;
     api.setWindowPosition = &fakeSetWindowPosition;
+    api.getDisplayUsableBounds = &fakeGetDisplayUsableBounds;
     api.getError = &fakeGetError;
     return api;
 }
@@ -71,6 +82,8 @@ game::runtime::video_mode::SdlApi makeFakeSdlApi() {
 bool test_runtime_sdl_video_mode_contract(std::string& outFail) {
     using game::runtime::video_mode::applyRequestedVideoMode;
     using game::runtime::video_mode::makeCurrentVideoMode;
+    using game::runtime::video_mode::queryPrimaryDisplayUsableBounds;
+    using game::runtime::video_mode::resolveStartupWindowPlacement;
     using game::runtime::video_mode::sanitizeRequestedVideoMode;
 
     {
@@ -85,6 +98,76 @@ bool test_runtime_sdl_video_mode_contract(std::string& outFail) {
         const auto mode = makeCurrentVideoMode(0, -2, true);
         if (mode.width != 1 || mode.height != 1 || !mode.fullscreen) {
             outFail = "makeCurrentVideoMode should clamp drawable dimensions to positive values.";
+            return false;
+        }
+    }
+
+    {
+        FakeSdlState state;
+        state.usableBounds = SDL_Rect{16, 24, 2540, 1392};
+        g_fakeSdlState = &state;
+
+        std::ostringstream errs;
+        const auto displayBounds = queryPrimaryDisplayUsableBounds(errs, makeFakeSdlApi());
+        g_fakeSdlState = nullptr;
+
+        if (!displayBounds.valid ||
+            displayBounds.x != 16 ||
+            displayBounds.y != 24 ||
+            displayBounds.width != 2540 ||
+            displayBounds.height != 1392 ||
+            !errs.str().empty()) {
+            outFail = "queryPrimaryDisplayUsableBounds should return the primary usable display area when SDL succeeds.";
+            return false;
+        }
+    }
+
+    {
+        FakeSdlState state;
+        state.getDisplayUsableBoundsResult = -1;
+        state.errorText = "no display";
+        g_fakeSdlState = &state;
+
+        std::ostringstream errs;
+        const auto displayBounds = queryPrimaryDisplayUsableBounds(errs, makeFakeSdlApi());
+        g_fakeSdlState = nullptr;
+
+        if (displayBounds.valid ||
+            displayBounds.width != 1280 ||
+            displayBounds.height != 720 ||
+            errs.str().find("SDL_GetDisplayUsableBounds failed") == std::string::npos) {
+            outFail = "queryPrimaryDisplayUsableBounds should fall back to a sane default when SDL display bounds are unavailable.";
+            return false;
+        }
+    }
+
+    {
+        game::video::Preferences prefs;
+        const game::runtime::video_mode::DisplayUsableBounds displayBounds{
+            8, 12, 1904, 1032, true};
+        const auto placement = resolveStartupWindowPlacement(prefs, displayBounds);
+        if (placement.x != 8 ||
+            placement.y != 12 ||
+            placement.width != 1904 ||
+            placement.height != 1032 ||
+            !placement.maximized) {
+            outFail = "resolveStartupWindowPlacement should default first-run windowed mode to the active monitor usable bounds.";
+            return false;
+        }
+    }
+
+    {
+        game::video::Preferences prefs;
+        prefs.windowedWidth = 2200;
+        prefs.windowedHeight = 1400;
+        prefs.windowedMaximized = false;
+        const game::runtime::video_mode::DisplayUsableBounds displayBounds{
+            0, 0, 1920, 1080, true};
+        const auto placement = resolveStartupWindowPlacement(prefs, displayBounds);
+        if (placement.width != 1920 ||
+            placement.height != 1080 ||
+            placement.maximized) {
+            outFail = "resolveStartupWindowPlacement should clamp saved window sizes back inside the current monitor usable bounds.";
             return false;
         }
     }

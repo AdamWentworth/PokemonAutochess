@@ -12,12 +12,7 @@ local COLOR_SELECTED = { 1.0, 0.92, 0.10 }
 local COLOR_NORMAL = { 1.0, 1.0, 1.0 }
 local COLOR_MUTED = { 0.72, 0.78, 0.86 }
 
-local resolutions = {
-    { id = "res_1280_720", label = "1280x720", w = 1280, h = 720 },
-    { id = "res_1600_900", label = "1600x900", w = 1600, h = 900 },
-    { id = "res_1920_1080", label = "1920x1080", w = 1920, h = 1080 }
-}
-local selected_res_index = 1
+local current_video_size_label = "Unknown"
 
 local video_cfg = {
     vsync = false,
@@ -67,10 +62,6 @@ local access_cfg = {
     reduce_motion = false,
     captions = true
 }
-
-local function selected_resolution()
-    return resolutions[selected_res_index]
-end
 
 local function bool_text(v)
     if v then return "On" end
@@ -198,12 +189,9 @@ local function sync_from_engine()
     local vm = get_video_mode()
     if vm then
         fullscreen = vm.fullscreen == true
-        for i, r in ipairs(resolutions) do
-            if r.w == vm.width and r.h == vm.height then
-                selected_res_index = i
-                break
-            end
-        end
+        current_video_size_label = string.format("%dx%d", vm.width or 0, vm.height or 0)
+    else
+        current_video_size_label = "Unknown"
     end
 
     local pref = get_renderer_backend_pref()
@@ -217,9 +205,10 @@ end
 local function apply_video_mode(width, height, want_fullscreen)
     local ok = set_video_mode(width, height, want_fullscreen)
     if ok then
-        fullscreen = want_fullscreen
-        emit("Menu", string.format("Video set: %s %dx%d",
-            fullscreen and "Fullscreen" or "Windowed", width, height))
+        sync_from_engine()
+        emit("Menu", string.format("Video set: %s %s",
+            fullscreen and "Fullscreen" or "Windowed",
+            current_video_size_label))
     else
         emit("Menu", "Failed to apply video mode")
     end
@@ -321,11 +310,13 @@ local function build_video_entries(entries)
 
     segmented(entries, "display_windowed", "Windowed", 0.42, 0.32, not fullscreen)
     segmented(entries, "display_fullscreen", "Fullscreen", 0.58, 0.32, fullscreen)
-
-    heading(entries, "Resolution", 0.40)
-    segmented(entries, "res_1280_720", "1280x720", 0.32, 0.46, selected_res_index == 1)
-    segmented(entries, "res_1600_900", "1600x900", 0.50, 0.46, selected_res_index == 2)
-    segmented(entries, "res_1920_1080", "1920x1080", 0.68, 0.46, selected_res_index == 3)
+    if fullscreen then
+        info(entries, "Current fullscreen size: " .. current_video_size_label, 0.40)
+        info(entries, "Windowed mode restores your saved local window size.", 0.44)
+    else
+        info(entries, "Current window size: " .. current_video_size_label, 0.40)
+        info(entries, "Drag the window edges to resize. Size saves automatically.", 0.44)
+    end
 
     local backend = video_cfg.renderer_backends[video_cfg.renderer_index]
     local active_backend = get_active_renderer_backend()
@@ -333,16 +324,16 @@ local function build_video_entries(entries)
     local gpu_class = is_active_gpu_discrete() and "Discrete" or "Integrated"
 
     action(entries, "video_renderer_backend",
-        "Render API Pref: " .. renderer_label(backend) .. " (next launch)", 0.52, false)
+        "Render API Pref: " .. renderer_label(backend) .. " (next launch)", 0.50, false)
     action(entries, "video_require_discrete",
-        "Require Discrete GPU: " .. bool_text(video_cfg.require_discrete_gpu) .. " (applies next launch)", 0.56, false)
+        "Require Discrete GPU: " .. bool_text(video_cfg.require_discrete_gpu) .. " (applies next launch)", 0.54, false)
     local adapter_pref = video_cfg.gpu_adapters[video_cfg.gpu_adapter_index]
     action(entries, "video_gpu_adapter",
-        "Preferred GPU: " .. gpu_adapter_label(adapter_pref) .. " (applies next launch)", 0.60, false)
-    info(entries, "Current API: " .. renderer_label(active_backend), 0.64)
-    info(entries, "Active GPU: " .. tostring(active_gpu) .. " (" .. gpu_class .. ")", 0.68)
+        "Preferred GPU: " .. gpu_adapter_label(adapter_pref) .. " (applies next launch)", 0.58, false)
+    info(entries, "Current API: " .. renderer_label(active_backend), 0.62)
+    info(entries, "Active GPU: " .. tostring(active_gpu) .. " (" .. gpu_class .. ")", 0.66)
     if not backend_pref_matches_active(backend, active_backend) then
-        info(entries, "Current API differs from preference (env override or fallback).", 0.70)
+        info(entries, "Current API differs from preference (env override or fallback).", 0.68)
     end
 
     local fps = video_cfg.fps_caps[video_cfg.fps_index]
@@ -527,22 +518,12 @@ end
 
 local function handle_video_click(entry_id)
     if entry_id == "display_windowed" then
-        local r = selected_resolution()
-        apply_video_mode(r.w, r.h, false)
+        apply_video_mode(0, 0, false)
         return true
     end
     if entry_id == "display_fullscreen" then
-        local r = selected_resolution()
-        apply_video_mode(r.w, r.h, true)
+        apply_video_mode(0, 0, true)
         return true
-    end
-
-    for i, r in ipairs(resolutions) do
-        if entry_id == r.id then
-            selected_res_index = i
-            apply_video_mode(r.w, r.h, fullscreen)
-            return true
-        end
     end
 
     if entry_id == "video_renderer_backend" then

@@ -4,12 +4,76 @@
 #include <ostream>
 
 namespace game::runtime::video_mode {
+namespace {
+
+constexpr int kDefaultWindowWidth = 1280;
+constexpr int kDefaultWindowHeight = 720;
+
+int clampWindowWidth(int width, int maxWidth) {
+    if (maxWidth > 0) {
+        return std::clamp(width, 640, maxWidth);
+    }
+    return std::max(640, width);
+}
+
+int clampWindowHeight(int height, int maxHeight) {
+    if (maxHeight > 0) {
+        return std::clamp(height, 360, maxHeight);
+    }
+    return std::max(360, height);
+}
+
+} // namespace
 
 RequestedVideoMode sanitizeRequestedVideoMode(int width, int height, bool fullscreen) {
     RequestedVideoMode out;
     out.width = std::max(640, width);
     out.height = std::max(360, height);
     out.fullscreen = fullscreen;
+    return out;
+}
+
+DisplayUsableBounds queryPrimaryDisplayUsableBounds(std::ostream& err, const SdlApi& api) {
+    DisplayUsableBounds out;
+    SDL_Rect usableBounds{};
+    if (api.getDisplayUsableBounds != nullptr &&
+        api.getDisplayUsableBounds(0, &usableBounds) == 0 &&
+        usableBounds.w > 0 &&
+        usableBounds.h > 0) {
+        out.x = usableBounds.x;
+        out.y = usableBounds.y;
+        out.width = std::max(640, usableBounds.w);
+        out.height = std::max(360, usableBounds.h);
+        out.valid = true;
+        return out;
+    }
+
+    err << "[Video] SDL_GetDisplayUsableBounds failed: " << api.getError() << "\n";
+    out.width = kDefaultWindowWidth;
+    out.height = kDefaultWindowHeight;
+    return out;
+}
+
+StartupWindowPlacement resolveStartupWindowPlacement(const game::video::Preferences& prefs,
+                                                     const DisplayUsableBounds& displayBounds) {
+    StartupWindowPlacement out;
+    const int maxWidth = displayBounds.valid ? displayBounds.width : 0;
+    const int maxHeight = displayBounds.valid ? displayBounds.height : 0;
+    const bool hasSavedWindowedSize = prefs.windowedWidth > 0 && prefs.windowedHeight > 0;
+    const int defaultWidth = displayBounds.valid ? displayBounds.width : kDefaultWindowWidth;
+    const int defaultHeight = displayBounds.valid ? displayBounds.height : kDefaultWindowHeight;
+
+    out.width = hasSavedWindowedSize
+                    ? clampWindowWidth(prefs.windowedWidth, maxWidth)
+                    : defaultWidth;
+    out.height = hasSavedWindowedSize
+                     ? clampWindowHeight(prefs.windowedHeight, maxHeight)
+                     : defaultHeight;
+    out.maximized = prefs.windowedMaximized || !hasSavedWindowedSize;
+    if (displayBounds.valid) {
+        out.x = displayBounds.x;
+        out.y = displayBounds.y;
+    }
     return out;
 }
 

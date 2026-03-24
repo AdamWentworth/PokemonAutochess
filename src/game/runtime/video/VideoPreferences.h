@@ -18,6 +18,10 @@ struct Preferences {
     bool requireDiscreteGpu = false;
     std::string preferredGpuAdapter;
     bool characterInking = false;
+    bool fullscreen = false;
+    int windowedWidth = 0;
+    int windowedHeight = 0;
+    bool windowedMaximized = false;
     bool restartOnExit = false;
     std::string bootMenuScreen;
 };

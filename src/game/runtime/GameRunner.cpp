@@ -87,6 +87,13 @@ namespace {
         void updateMouseScale();
         void updateCameraAspect();
         void syncVideoModeState();
+        void noteCurrentWindowModeChanged(bool saveImmediately);
+        void saveVideoModePreferences();
+        game::runtime::video_mode::RequestedVideoMode resolveRequestedVideoMode(
+            int width,
+            int height,
+            bool fullscreenWanted) const;
+        bool applyVideoModeInternal(int width, int height, bool fullscreenWanted, bool persistChange);
         bool applyVideoMode(int width, int height, bool fullscreenWanted);
         GameContext::VideoMode queryVideoMode() const;
 
@@ -106,6 +113,7 @@ namespace {
         ShaderCache shaderCache;
         EventBus eventBus;
         EngineServices services;
+        std::string prefsPath;
 
         bool initialized = false;
         game::video::RendererBackend requestedBackend = game::video::RendererBackend::Auto;
@@ -116,7 +124,13 @@ namespace {
 
         int windowW = (int)START_W;
         int windowH = (int)START_H;
+        int defaultWindowedW = (int)START_W;
+        int defaultWindowedH = (int)START_H;
+        int lastWindowedW = (int)START_W;
+        int lastWindowedH = (int)START_H;
         bool fullscreen = false;
+        bool lastWindowedMaximized = false;
+        bool videoModePreferencesDirty = false;
         bool windowHasOpenGLContext = false;
         bool glFunctionsReady = false;
 
@@ -125,12 +139,32 @@ namespace {
     };
 
     bool GameRunner::init() {
-        const std::string prefsPath = game::video::defaultPreferencesPath();
+        prefsPath = game::video::defaultPreferencesPath();
         const auto startupSession =
             game::runtime::startup_session::prepareFromEnvironment(prefsPath, std::cout, std::cerr);
         requestedBackend = startupSession.requestedBackend;
         activeBackend = startupSession.activeBackend;
         game::runtime::startup_session::applyToServices(startupSession, services);
+        const game::video::Preferences startupVideoPrefs = game::video::loadPreferences(prefsPath);
+
+        if (SDL_Init(SDL_INIT_VIDEO) != 0) {
+            std::cerr << "[GameRunner] SDL_Init failed: " << SDL_GetError() << "\n";
+            return false;
+        }
+
+        const auto startupDisplayBounds =
+            game::runtime::video_mode::queryPrimaryDisplayUsableBounds(std::cerr);
+        const auto startupPlacement =
+            game::runtime::video_mode::resolveStartupWindowPlacement(
+                startupVideoPrefs,
+                startupDisplayBounds);
+        const bool hasSavedWindowedSize =
+            startupVideoPrefs.windowedWidth > 0 && startupVideoPrefs.windowedHeight > 0;
+        defaultWindowedW = startupPlacement.width;
+        defaultWindowedH = startupPlacement.height;
+        lastWindowedW = startupPlacement.width;
+        lastWindowedH = startupPlacement.height;
+        lastWindowedMaximized = startupPlacement.maximized;
 
         const auto initialWindow = game::runtime::window_bootstrap::openWindow(
             game::runtime::window_bootstrap::OpenRequest{
@@ -139,8 +173,8 @@ namespace {
             [this](Window::GraphicsApi graphicsApi, bool vsyncEnabled) {
                 window = std::make_unique<Window>(
                     "Pokemon Autochess",
-                    static_cast<int>(START_W),
-                    static_cast<int>(START_H),
+                    defaultWindowedW,
+                    defaultWindowedH,
                     graphicsApi,
                     vsyncEnabled);
             },
@@ -154,16 +188,29 @@ namespace {
         windowHasOpenGLContext = initialWindow.hasOpenGlContext;
         glFunctionsReady = initialWindow.glFunctionsReady;
 
-        updateDrawableSizeAndViewport();
-        updateMouseScale();
-        const Uint32 flags = SDL_GetWindowFlags(window->getSDLWindow());
-        fullscreen = (flags & SDL_WINDOW_FULLSCREEN) != 0 || (flags & SDL_WINDOW_FULLSCREEN_DESKTOP) != 0;
+        if (window && window->getSDLWindow()) {
+            if (startupDisplayBounds.valid &&
+                (!hasSavedWindowedSize || startupPlacement.maximized)) {
+                SDL_SetWindowPosition(
+                    window->getSDLWindow(),
+                    startupPlacement.x,
+                    startupPlacement.y);
+            }
+            if (!startupVideoPrefs.fullscreen && startupPlacement.maximized) {
+                SDL_MaximizeWindow(window->getSDLWindow());
+            }
+        }
+        syncVideoModeState();
+        if (startupVideoPrefs.fullscreen &&
+            !applyVideoModeInternal(0, 0, true, false)) {
+            std::cerr << "[Video] Failed to apply saved startup fullscreen mode.\n";
+        }
 
         const auto startupOverrideResult = game::runtime::startup_video_override::apply(
             game::runtime::startup_config::readStartupVideoOverride(std::cerr),
             [this]() { return this->queryVideoMode(); },
             [this](int width, int height, bool isFullscreen) {
-                return this->applyVideoMode(width, height, isFullscreen);
+                return this->applyVideoModeInternal(width, height, isFullscreen, false);
             });
         if (startupOverrideResult.attempted) {
             (startupOverrideResult.applied ? std::cout : std::cerr) << startupOverrideResult.message << "\n";
@@ -335,6 +382,10 @@ namespace {
     void GameRunner::shutdown() {
         std::cout << "[Shutdown] Game runner...\n";
 
+        if (videoModePreferencesDirty) {
+            saveVideoModePreferences();
+        }
+
         if (renderer) {
             renderer->shutdown();
             renderer.reset();
@@ -396,15 +447,99 @@ namespace {
         updateDrawableSizeAndViewport();
         updateMouseScale();
         updateCameraAspect();
+        if (window && window->getSDLWindow()) {
+            const Uint32 flags = SDL_GetWindowFlags(window->getSDLWindow());
+            fullscreen = (flags & SDL_WINDOW_FULLSCREEN) != 0 ||
+                         (flags & SDL_WINDOW_FULLSCREEN_DESKTOP) != 0;
+            if (!fullscreen) {
+                lastWindowedW = std::max(640, windowW);
+                lastWindowedH = std::max(360, windowH);
+                lastWindowedMaximized = (flags & SDL_WINDOW_MAXIMIZED) != 0;
+            }
+        }
         if (renderer) {
             renderer->onResize(drawableW, drawableH);
         }
     }
 
-    bool GameRunner::applyVideoMode(int width, int height, bool fullscreenWanted) {
+    void GameRunner::noteCurrentWindowModeChanged(bool saveImmediately) {
+        videoModePreferencesDirty = true;
+        if (saveImmediately) {
+            saveVideoModePreferences();
+        }
+    }
+
+    void GameRunner::saveVideoModePreferences() {
+        if (prefsPath.empty()) return;
+
+        game::video::Preferences prefs = game::video::loadPreferences(prefsPath);
+        const int safeWindowedW = std::max(640, lastWindowedW);
+        const int safeWindowedH = std::max(360, lastWindowedH);
+        if (prefs.fullscreen == fullscreen &&
+            prefs.windowedWidth == safeWindowedW &&
+            prefs.windowedHeight == safeWindowedH &&
+            prefs.windowedMaximized == lastWindowedMaximized) {
+            videoModePreferencesDirty = false;
+            return;
+        }
+
+        prefs.fullscreen = fullscreen;
+        prefs.windowedWidth = safeWindowedW;
+        prefs.windowedHeight = safeWindowedH;
+        prefs.windowedMaximized = lastWindowedMaximized;
+
+        std::string saveErr;
+        if (!game::video::savePreferences(prefs, prefsPath, &saveErr)) {
+            std::cerr << "[Video] Failed to save video mode preferences: " << saveErr << "\n";
+            return;
+        }
+        videoModePreferencesDirty = false;
+    }
+
+    game::runtime::video_mode::RequestedVideoMode GameRunner::resolveRequestedVideoMode(
+        int width,
+        int height,
+        bool fullscreenWanted) const {
+        int targetWidth = width;
+        int targetHeight = height;
+
+        if (fullscreenWanted) {
+            if (targetWidth <= 0 || targetHeight <= 0) {
+                SDL_DisplayMode desktopMode{};
+                int displayIndex = 0;
+                if (window && window->getSDLWindow()) {
+                    const int queriedDisplayIndex = SDL_GetWindowDisplayIndex(window->getSDLWindow());
+                    if (queriedDisplayIndex >= 0) {
+                        displayIndex = queriedDisplayIndex;
+                    }
+                }
+                if (SDL_GetDesktopDisplayMode(displayIndex, &desktopMode) == 0 &&
+                    desktopMode.w > 0 &&
+                    desktopMode.h > 0) {
+                    targetWidth = desktopMode.w;
+                    targetHeight = desktopMode.h;
+                } else {
+                    targetWidth = std::max(640, drawableW);
+                    targetHeight = std::max(360, drawableH);
+                }
+            }
+        } else if (targetWidth <= 0 || targetHeight <= 0) {
+            targetWidth = std::max(640, lastWindowedW > 0 ? lastWindowedW : defaultWindowedW);
+            targetHeight = std::max(360, lastWindowedH > 0 ? lastWindowedH : defaultWindowedH);
+        }
+
+        return game::runtime::video_mode::sanitizeRequestedVideoMode(
+            targetWidth,
+            targetHeight,
+            fullscreenWanted);
+    }
+
+    bool GameRunner::applyVideoModeInternal(int width,
+                                            int height,
+                                            bool fullscreenWanted,
+                                            bool persistChange) {
         if (!window || !window->getSDLWindow()) return false;
-        const auto requested =
-            game::runtime::video_mode::sanitizeRequestedVideoMode(width, height, fullscreenWanted);
+        const auto requested = resolveRequestedVideoMode(width, height, fullscreenWanted);
         const auto result = game::runtime::video_mode::applyRequestedVideoMode(
             window->getSDLWindow(),
             requested,
@@ -412,13 +547,25 @@ namespace {
         if (!result.success) {
             return false;
         }
-        fullscreen = result.fullscreen;
         syncVideoModeState();
+        fullscreen = result.fullscreen;
+        if (persistChange) {
+            noteCurrentWindowModeChanged(true);
+        }
         return true;
     }
 
+    bool GameRunner::applyVideoMode(int width, int height, bool fullscreenWanted) {
+        return applyVideoModeInternal(width, height, fullscreenWanted, true);
+    }
+
     GameContext::VideoMode GameRunner::queryVideoMode() const {
-        return game::runtime::video_mode::makeCurrentVideoMode(drawableW, drawableH, fullscreen);
+        const int currentWidth = fullscreen ? drawableW : windowW;
+        const int currentHeight = fullscreen ? drawableH : windowH;
+        return game::runtime::video_mode::makeCurrentVideoMode(
+            currentWidth,
+            currentHeight,
+            fullscreen);
     }
 
     void GameRunner::setTitle(const std::string& title) {
@@ -436,6 +583,7 @@ namespace {
 
             if (game::runtime::sdl_input::isResizeWindowEvent(e)) {
                 syncVideoModeState();
+                noteCurrentWindowModeChanged(false);
             }
         }
         return true;
@@ -532,6 +680,7 @@ namespace {
                 game::runtime::sdl_event_dispatch::Callbacks eventCallbacks;
                 eventCallbacks.onResize = [this, &ctx]() {
                     syncVideoModeState();
+                    noteCurrentWindowModeChanged(false);
                     ctx.drawableW = drawableW;
                     ctx.drawableH = drawableH;
                 };

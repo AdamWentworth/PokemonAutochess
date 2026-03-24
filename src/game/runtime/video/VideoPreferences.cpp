@@ -121,6 +121,10 @@ Preferences loadPreferences(const std::string& path) {
     out.requireDiscreteGpu = j.value("require_discrete_gpu", out.requireDiscreteGpu);
     out.preferredGpuAdapter = j.value("preferred_gpu_adapter", out.preferredGpuAdapter);
     out.characterInking = j.value("character_inking", out.characterInking);
+    out.fullscreen = j.value("fullscreen", out.fullscreen);
+    out.windowedWidth = std::max(0, j.value("windowed_width", out.windowedWidth));
+    out.windowedHeight = std::max(0, j.value("windowed_height", out.windowedHeight));
+    out.windowedMaximized = j.value("windowed_maximized", out.windowedMaximized);
     out.restartOnExit = j.value("restart_on_exit", out.restartOnExit);
 
     const std::string menuScreen = j.value("boot_menu_screen", std::string());
@@ -135,6 +139,10 @@ bool savePreferences(const Preferences& prefs, const std::string& path, std::str
     j["require_discrete_gpu"] = prefs.requireDiscreteGpu;
     j["preferred_gpu_adapter"] = prefs.preferredGpuAdapter;
     j["character_inking"] = prefs.characterInking;
+    j["fullscreen"] = prefs.fullscreen;
+    j["windowed_width"] = std::max(0, prefs.windowedWidth);
+    j["windowed_height"] = std::max(0, prefs.windowedHeight);
+    j["windowed_maximized"] = prefs.windowedMaximized;
     j["restart_on_exit"] = prefs.restartOnExit;
     j["boot_menu_screen"] = normalizeMenuScreenToken(prefs.bootMenuScreen);
 

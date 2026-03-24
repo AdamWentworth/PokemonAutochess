@@ -100,6 +100,9 @@ void ScriptAPI::setHasStartedGame(bool started) {
 
 bool ScriptAPI::setVideoMode(int width, int height, bool fullscreen) {
     if (!services_.applyVideoMode) return false;
+    if (width <= 0 || height <= 0) {
+        return services_.applyVideoMode(width, height, fullscreen);
+    }
     const int safeW = std::max(640, width);
     const int safeH = std::max(360, height);
     return services_.applyVideoMode(safeW, safeH, fullscreen);
