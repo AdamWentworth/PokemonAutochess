@@ -149,6 +149,7 @@ namespace {
         requestedBackend = startupSession.requestedBackend;
         activeBackend = startupSession.activeBackend;
         game::runtime::startup_session::applyToServices(startupSession, services);
+        services.videoPreferencesPath = prefsPath;
         appliedVsyncEnabled = services.vsyncEnabled;
         const game::video::Preferences startupVideoPrefs = game::video::loadPreferences(prefsPath);
 

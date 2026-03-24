@@ -1,5 +1,6 @@
 // tests/TestScriptApiContract.cpp
 #include <cmath>
+#include <filesystem>
 #include <string>
 #include <unordered_map>
 
@@ -58,6 +59,7 @@ bool expect(bool condition, const std::string& message, std::string& outFail) {
 } // namespace
 
 bool test_script_api_contract(std::string& outFail) {
+    namespace fs = std::filesystem;
     GameConfigData cfg;
     GameDataDb db;
     LogBus::Logger log;
@@ -225,15 +227,26 @@ bool test_script_api_contract(std::string& outFail) {
 
     EngineServices engineServices;
     services.engineServices = &engineServices;
+    const fs::path prefsPath =
+        fs::temp_directory_path() / "pac_script_api_contract_video_settings.json";
+    std::error_code removeError;
+    fs::remove(prefsPath, removeError);
+    services.videoPreferencesPath = prefsPath.string();
+    services.engineServices->videoPreferencesPath = prefsPath.string();
     services.engineServices->vsyncEnabled = false;
     services.engineServices->fpsCap = 0;
     services.engineServices->graphicsQuality = static_cast<int>(game::video::GraphicsQuality::Ultra);
     services.engineServices->graphicsQualityGeneration = 1u;
+    services.availableGpuAdapters = {"NVIDIA GeForce GTX 1050"};
+    services.preferredGpuAdapter.clear();
     services.engineServices->audioMasterVolume = 100;
     services.engineServices->audioMusicVolume = 100;
     services.engineServices->audioSfxVolume = 100;
     services.engineServices->audioVoiceVolume = 100;
     services.engineServices->audioMute = false;
+    services.engineServices->requestedRendererBackend = services.requestedRendererBackend;
+    services.engineServices->requireDiscreteGpu = services.requireDiscreteGpu;
+    services.engineServices->characterInkingEnabled = services.characterInkingEnabled;
 
     if (!expect(api.setVSyncPreference(true), "setVSyncPreference should succeed.", outFail)) return false;
     if (!expect(api.getVSyncPreference(), "getVSyncPreference mismatch after set.", outFail)) return false;
@@ -256,6 +269,28 @@ bool test_script_api_contract(std::string& outFail) {
     if (!expect(api.setGraphicsQualityPreference(99), "setGraphicsQualityPreference should sanitize high input.", outFail)) return false;
     if (!expect(api.getGraphicsQualityPreference() == static_cast<int>(game::video::GraphicsQuality::Ultra),
                 "graphics quality should sanitize high input to Ultra.", outFail)) return false;
+    if (!expect(api.setRequireDiscreteGpuPreference(true),
+                "setRequireDiscreteGpuPreference should succeed.", outFail)) return false;
+    if (!expect(api.getRequireDiscreteGpuPreference(),
+                "getRequireDiscreteGpuPreference mismatch after set.", outFail)) return false;
+    if (!expect(api.setPreferredGpuAdapterPreference("NVIDIA GeForce GTX 1050"),
+                "setPreferredGpuAdapterPreference should succeed for a known adapter.", outFail)) return false;
+    if (!expect(api.getPreferredGpuAdapterPreference() == "NVIDIA GeForce GTX 1050",
+                "getPreferredGpuAdapterPreference mismatch after set.", outFail)) return false;
+    if (!expect(api.setCharacterInkingPreference(true),
+                "setCharacterInkingPreference should succeed.", outFail)) return false;
+    if (!expect(api.getCharacterInkingPreference(),
+                "getCharacterInkingPreference mismatch after set.", outFail)) return false;
+
+#if defined(_WIN32)
+    const std::string rendererBackendPref = "d3d12";
+#else
+    const std::string rendererBackendPref = "opengl";
+#endif
+    if (!expect(api.setRendererBackendPreference(rendererBackendPref),
+                "setRendererBackendPreference should succeed for an implemented backend.", outFail)) return false;
+    if (!expect(api.getRendererBackendPreference() == rendererBackendPref,
+                "getRendererBackendPreference mismatch after set.", outFail)) return false;
 
     if (!expect(api.setAudioMasterVolumePreference(65), "setAudioMasterVolumePreference should succeed.", outFail)) return false;
     if (!expect(api.setAudioMusicVolumePreference(55), "setAudioMusicVolumePreference should succeed.", outFail)) return false;
@@ -274,6 +309,52 @@ bool test_script_api_contract(std::string& outFail) {
                 services.engineServices->audioVoiceVolume == 35 &&
                 services.engineServices->audioMute,
                 "audio preference setters should mirror to EngineServices.", outFail)) return false;
+    if (!expect(services.engineServices->requestedRendererBackend == rendererBackendPref &&
+                services.engineServices->requireDiscreteGpu &&
+                services.engineServices->preferredGpuAdapter == "NVIDIA GeForce GTX 1050" &&
+                services.engineServices->characterInkingEnabled,
+                "video preference setters should mirror advanced display settings to EngineServices.", outFail)) return false;
+
+    const game::video::Preferences savedPrefs =
+        game::video::loadPreferences(prefsPath.string());
+    if (!expect(savedPrefs.rendererBackend == rendererBackendPref &&
+                savedPrefs.vsync &&
+                savedPrefs.fpsCap == 0 &&
+                savedPrefs.graphicsQuality == static_cast<int>(game::video::GraphicsQuality::Ultra) &&
+                savedPrefs.requireDiscreteGpu &&
+                savedPrefs.preferredGpuAdapter == "NVIDIA GeForce GTX 1050" &&
+                savedPrefs.characterInking &&
+                savedPrefs.audioMasterVolume == 65 &&
+                savedPrefs.audioMusicVolume == 55 &&
+                savedPrefs.audioSfxVolume == 45 &&
+                savedPrefs.audioVoiceVolume == 35 &&
+                savedPrefs.audioMute,
+                "menu-backed display and audio preferences should persist to the active prefs path.", outFail)) {
+        fs::remove(prefsPath, removeError);
+        return false;
+    }
+    quitRequested = false;
+    if (!expect(api.requestRestartToMenu("advanced"),
+                "requestRestartToMenu should persist restart-required advanced settings.", outFail)) {
+        fs::remove(prefsPath, removeError);
+        return false;
+    }
+    const game::video::Preferences restartPrefs =
+        game::video::loadPreferences(prefsPath.string());
+    if (!expect(quitRequested &&
+                restartPrefs.restartOnExit &&
+                restartPrefs.bootMenuScreen == "advanced" &&
+                restartPrefs.rendererBackend == rendererBackendPref &&
+                restartPrefs.vsync &&
+                restartPrefs.fpsCap == 0 &&
+                restartPrefs.requireDiscreteGpu &&
+                restartPrefs.preferredGpuAdapter == "NVIDIA GeForce GTX 1050" &&
+                restartPrefs.characterInking,
+                "restart requests should preserve saved display settings alongside restart metadata.", outFail)) {
+        fs::remove(prefsPath, removeError);
+        return false;
+    }
+    fs::remove(prefsPath, removeError);
 
     api.setClassicShopCards({
         {"pikachu", 0, -2},

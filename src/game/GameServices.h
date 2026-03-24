@@ -49,6 +49,7 @@ struct GameServices {
     std::function<VideoMode()> queryVideoMode;
     std::function<void()> requestQuit;
 
+    std::string videoPreferencesPath;
     std::string requestedRendererBackend = "auto";
     std::string activeRendererBackend = "opengl";
     bool rendererBackendFallback = false;

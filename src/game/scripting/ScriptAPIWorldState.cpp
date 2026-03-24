@@ -17,8 +17,19 @@
 
 namespace {
 
+std::string resolveVideoPreferencesPath(const GameServices& services) {
+    if (!services.videoPreferencesPath.empty()) {
+        return services.videoPreferencesPath;
+    }
+    if (services.engineServices && !services.engineServices->videoPreferencesPath.empty()) {
+        return services.engineServices->videoPreferencesPath;
+    }
+    return game::video::defaultPreferencesPath();
+}
+
 bool saveVideoPreferencesFromServices(const GameServices& services, std::string* outError) {
-    game::video::Preferences prefs = game::video::loadPreferences();
+    const std::string prefsPath = resolveVideoPreferencesPath(services);
+    game::video::Preferences prefs = game::video::loadPreferences(prefsPath);
     prefs.rendererBackend = services.requestedRendererBackend;
     prefs.vsync = services.vsyncEnabled;
     prefs.fpsCap = game::video::sanitizeFpsCap(services.fpsCap);
@@ -31,11 +42,12 @@ bool saveVideoPreferencesFromServices(const GameServices& services, std::string*
     prefs.audioSfxVolume = game::video::sanitizeVolumePercent(services.audioSfxVolume);
     prefs.audioVoiceVolume = game::video::sanitizeVolumePercent(services.audioVoiceVolume);
     prefs.audioMute = services.audioMute;
-    return game::video::savePreferences(prefs, game::video::defaultPreferencesPath(), outError);
+    return game::video::savePreferences(prefs, prefsPath, outError);
 }
 
 void mirrorRuntimePreferencesToEngineServices(const GameServices& services) {
     if (!services.engineServices) return;
+    services.engineServices->videoPreferencesPath = resolveVideoPreferencesPath(services);
     services.engineServices->requestedRendererBackend = services.requestedRendererBackend;
     services.engineServices->vsyncEnabled = services.vsyncEnabled;
     services.engineServices->fpsCap = services.fpsCap;
@@ -379,7 +391,8 @@ bool ScriptAPI::isActiveGpuDiscrete() const {
 }
 
 bool ScriptAPI::requestRestartToMenu(const std::string& menuScreen) {
-    game::video::Preferences prefs = game::video::loadPreferences();
+    const std::string prefsPath = resolveVideoPreferencesPath(services_);
+    game::video::Preferences prefs = game::video::loadPreferences(prefsPath);
     prefs.rendererBackend = services_.requestedRendererBackend;
     prefs.vsync = services_.vsyncEnabled;
     prefs.fpsCap = game::video::sanitizeFpsCap(services_.fpsCap);
@@ -396,7 +409,7 @@ bool ScriptAPI::requestRestartToMenu(const std::string& menuScreen) {
     prefs.bootMenuScreen = sanitizeMenuScreenToken(menuScreen);
 
     std::string err;
-    if (!game::video::savePreferences(prefs, game::video::defaultPreferencesPath(), &err)) {
+    if (!game::video::savePreferences(prefs, prefsPath, &err)) {
         game::log::warn(&services_.log, std::string("[Video] Failed to queue restart: ") + err);
         return false;
     }

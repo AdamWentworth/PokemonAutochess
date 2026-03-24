@@ -105,6 +105,7 @@ void run(const Args& args) {
     (*args.services)->applyVideoMode = args.ctx->applyVideoMode;
     (*args.services)->requestQuit = args.ctx->requestQuit;
     if (args.ctx->services) {
+        (*args.services)->videoPreferencesPath = args.ctx->services->videoPreferencesPath;
         (*args.services)->requestedRendererBackend = args.ctx->services->requestedRendererBackend;
         (*args.services)->activeRendererBackend = args.ctx->services->activeRendererBackend;
         (*args.services)->rendererBackendFallback = args.ctx->services->rendererBackendFallback;

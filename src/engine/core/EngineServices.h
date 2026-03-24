@@ -138,6 +138,7 @@ struct EngineServices {
     EngineRenderBuildBreakdown frameRenderBuildBreakdown{};
 
     // Render backend + GPU diagnostics.
+    std::string videoPreferencesPath;
     std::string requestedRendererBackend = "auto";
     std::string activeRendererBackend = "opengl";
     bool rendererBackendFallback = false;

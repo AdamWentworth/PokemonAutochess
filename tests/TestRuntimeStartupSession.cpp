@@ -18,10 +18,16 @@ bool test_runtime_startup_session_contract(std::string& outFail) {
         game::video::Preferences prefs;
         prefs.rendererBackend = "opengl";
         prefs.vsync = true;
+        prefs.fpsCap = 144;
         prefs.graphicsQuality = static_cast<int>(game::video::GraphicsQuality::High);
         prefs.requireDiscreteGpu = true;
         prefs.preferredGpuAdapter = "RTX";
         prefs.characterInking = true;
+        prefs.audioMasterVolume = 88;
+        prefs.audioMusicVolume = 77;
+        prefs.audioSfxVolume = 66;
+        prefs.audioVoiceVolume = 55;
+        prefs.audioMute = true;
         prefs.bootMenuScreen = "video";
         std::string saveErr;
         if (!game::video::savePreferences(prefs, prefsPath.string(), &saveErr)) {
@@ -42,10 +48,16 @@ bool test_runtime_startup_session_contract(std::string& outFail) {
             session.requestedBackend != game::video::RendererBackend::D3D12 ||
             session.activeBackend != game::video::RendererBackend::D3D12 ||
             !session.vsyncEnabled ||
+            session.fpsCap != 144 ||
             session.graphicsQuality != static_cast<int>(game::video::GraphicsQuality::High) ||
             !session.requireDiscreteGpu ||
             session.preferredGpuAdapter != "RTX" ||
             !session.characterInkingEnabled ||
+            session.audioMasterVolume != 88 ||
+            session.audioMusicVolume != 77 ||
+            session.audioSfxVolume != 66 ||
+            session.audioVoiceVolume != 55 ||
+            !session.audioMute ||
             logs.str().find("PAC_RENDER_BACKEND override") == std::string::npos ||
             !errs.str().empty()) {
             outFail = "prepare should consume one-shot prefs, preserve display settings, and honor an explicit backend override.";
@@ -59,10 +71,16 @@ bool test_runtime_startup_session_contract(std::string& outFail) {
             services.requestedRendererBackend != "d3d12" ||
             services.activeRendererBackend != "d3d12" ||
             !services.vsyncEnabled ||
+            services.fpsCap != 144 ||
             services.graphicsQuality != static_cast<int>(game::video::GraphicsQuality::High) ||
             !services.requireDiscreteGpu ||
             services.preferredGpuAdapter != "RTX" ||
             !services.characterInkingEnabled ||
+            services.audioMasterVolume != 88 ||
+            services.audioMusicVolume != 77 ||
+            services.audioSfxVolume != 66 ||
+            services.audioVoiceVolume != 55 ||
+            !services.audioMute ||
             services.availableGpuAdapters != session.availableGpuAdapters) {
             outFail = "applyToServices should copy prepared startup session state into EngineServices.";
             fs::remove(prefsPath, removeError);

@@ -62,10 +62,12 @@ bool test_video_preferences_parse_and_roundtrip(std::string& outFail) {
 
     game::video::Preferences prefs;
     prefs.rendererBackend = "vulkan";
+    prefs.vsync = true;
     prefs.fpsCap = 144;
     prefs.graphicsQuality = static_cast<int>(GraphicsQuality::Medium);
     prefs.requireDiscreteGpu = true;
     prefs.preferredGpuAdapter = "NVIDIA GeForce GTX 1050";
+    prefs.characterInking = true;
     prefs.audioMasterVolume = 95;
     prefs.audioMusicVolume = 65;
     prefs.audioSfxVolume = 70;
@@ -104,8 +106,16 @@ bool test_video_preferences_parse_and_roundtrip(std::string& outFail) {
         outFail = "roundtrip fpsCap mismatch";
         return false;
     }
+    if (!loaded.vsync) {
+        outFail = "roundtrip vsync mismatch";
+        return false;
+    }
     if (loaded.graphicsQuality != static_cast<int>(GraphicsQuality::Medium)) {
         outFail = "roundtrip graphicsQuality mismatch";
+        return false;
+    }
+    if (!loaded.characterInking) {
+        outFail = "roundtrip characterInking mismatch";
         return false;
     }
     if (loaded.audioMasterVolume != 95 ||
