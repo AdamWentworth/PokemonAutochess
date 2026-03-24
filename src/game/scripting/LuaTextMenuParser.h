@@ -23,6 +23,13 @@ struct TextMenuEntryData {
     float colorR = 1.0f;
     float colorG = 1.0f;
     float colorB = 1.0f;
+    bool hasSlider = false;
+    float sliderMin = 0.0f;
+    float sliderMax = 1.0f;
+    float sliderValue = 0.0f;
+    float sliderStep = 0.0f;
+    float sliderWidthFrac = 0.2f;
+    std::string sliderValueLabel;
 };
 
 bool parseTextMenuEntries(sol::protected_function fn,

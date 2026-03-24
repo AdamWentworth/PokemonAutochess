@@ -158,6 +158,12 @@ void registerLuaBindings_Core(sol::state& lua, ScriptAPI& api) {
     lua.set_function("set_vsync_pref", [&api](bool enabled) {
         return api.setVSyncPreference(enabled);
     });
+    lua.set_function("get_fps_cap_pref", [&api]() {
+        return api.getFpsCapPreference();
+    });
+    lua.set_function("set_fps_cap_pref", [&api](int fpsCap) {
+        return api.setFpsCapPreference(fpsCap);
+    });
     lua.set_function("get_require_discrete_gpu_pref", [&api]() {
         return api.getRequireDiscreteGpuPreference();
     });
@@ -191,6 +197,36 @@ void registerLuaBindings_Core(sol::state& lua, ScriptAPI& api) {
     });
     lua.set_function("set_character_inking_pref", [&api](bool enabled) {
         return api.setCharacterInkingPreference(enabled);
+    });
+    lua.set_function("get_audio_master_volume_pref", [&api]() {
+        return api.getAudioMasterVolumePreference();
+    });
+    lua.set_function("set_audio_master_volume_pref", [&api](int volumePercent) {
+        return api.setAudioMasterVolumePreference(volumePercent);
+    });
+    lua.set_function("get_audio_music_volume_pref", [&api]() {
+        return api.getAudioMusicVolumePreference();
+    });
+    lua.set_function("set_audio_music_volume_pref", [&api](int volumePercent) {
+        return api.setAudioMusicVolumePreference(volumePercent);
+    });
+    lua.set_function("get_audio_sfx_volume_pref", [&api]() {
+        return api.getAudioSfxVolumePreference();
+    });
+    lua.set_function("set_audio_sfx_volume_pref", [&api](int volumePercent) {
+        return api.setAudioSfxVolumePreference(volumePercent);
+    });
+    lua.set_function("get_audio_voice_volume_pref", [&api]() {
+        return api.getAudioVoiceVolumePreference();
+    });
+    lua.set_function("set_audio_voice_volume_pref", [&api](int volumePercent) {
+        return api.setAudioVoiceVolumePreference(volumePercent);
+    });
+    lua.set_function("get_audio_mute_pref", [&api]() {
+        return api.getAudioMutePreference();
+    });
+    lua.set_function("set_audio_mute_pref", [&api](bool enabled) {
+        return api.setAudioMutePreference(enabled);
     });
     lua.set_function("is_active_gpu_discrete", [&api]() {
         return api.isActiveGpuDiscrete();

@@ -82,6 +82,8 @@ private:
         float y = 0.0f;
         float w = 0.0f;
         float h = 0.0f;
+        float labelW = 0.0f;
+        float labelH = 0.0f;
         float scale = 1.0f;
         bool enabled = true;
         bool bold = false;
@@ -95,6 +97,17 @@ private:
         float colorR = 1.0f;
         float colorG = 1.0f;
         float colorB = 1.0f;
+        bool hasSlider = false;
+        float sliderMin = 0.0f;
+        float sliderMax = 1.0f;
+        float sliderValue = 0.0f;
+        float sliderStep = 0.0f;
+        float sliderWidthFrac = 0.2f;
+        std::string sliderValueLabel;
+        float sliderX = 0.0f;
+        float sliderY = 0.0f;
+        float sliderW = 0.0f;
+        float sliderH = 0.0f;
     };
     std::vector<TextMenuEntry> textMenuEntries;
     bool hasShopReadyButton = false;

@@ -1,6 +1,7 @@
 #include "game/scripting/LuaTextMenuParser.h"
 
 #include <algorithm>
+#include <cmath>
 
 namespace game::scripting {
 
@@ -75,6 +76,32 @@ bool parseTextMenuEntries(sol::protected_function fn,
                 entry.colorR = std::clamp(*r, 0.0f, 1.0f);
                 entry.colorG = std::clamp(*g, 0.0f, 1.0f);
                 entry.colorB = std::clamp(*b, 0.0f, 1.0f);
+            }
+        }
+
+        auto sliderOpt = row.get<sol::optional<sol::table>>("slider");
+        if (sliderOpt) {
+            const sol::table slider = *sliderOpt;
+            float sliderMin = slider.get_or("min", 0.0f);
+            float sliderMax = slider.get_or("max", 1.0f);
+            if (sliderMax < sliderMin) {
+                std::swap(sliderMin, sliderMax);
+            }
+
+            entry.hasSlider = true;
+            entry.sliderMin = sliderMin;
+            entry.sliderMax = sliderMax;
+            entry.sliderStep = std::fabs(slider.get_or("step", 0.0f));
+            entry.sliderWidthFrac = std::clamp(slider.get_or("width_frac", 0.2f), 0.08f, 0.45f);
+            entry.sliderValue = std::clamp(slider.get_or("value", sliderMin), sliderMin, sliderMax);
+            entry.sliderValueLabel = slider.get_or("value_label", std::string());
+
+            const float sliderRange = entry.sliderMax - entry.sliderMin;
+            if (entry.sliderStep > 0.0f && sliderRange > 0.0f) {
+                const float steps = std::round((entry.sliderValue - entry.sliderMin) / entry.sliderStep);
+                entry.sliderValue = std::clamp(entry.sliderMin + steps * entry.sliderStep,
+                                               entry.sliderMin,
+                                               entry.sliderMax);
             }
         }
 

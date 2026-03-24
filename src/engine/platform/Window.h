@@ -25,6 +25,8 @@ public:
     bool hasOpenGLContext() const { return context != nullptr; }
 
     void setTitle(const std::string& title);
+    bool setVSyncEnabled(bool enabled);
+    bool isVSyncEnabled() const { return vsyncEnabled; }
     void swapBuffers();
 
 private:

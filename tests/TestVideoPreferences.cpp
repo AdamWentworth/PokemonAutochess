@@ -48,8 +48,14 @@ bool test_video_preferences_parse_and_roundtrip(std::string& outFail) {
 
     game::video::Preferences prefs;
     prefs.rendererBackend = "vulkan";
+    prefs.fpsCap = 144;
     prefs.requireDiscreteGpu = true;
     prefs.preferredGpuAdapter = "NVIDIA GeForce GTX 1050";
+    prefs.audioMasterVolume = 95;
+    prefs.audioMusicVolume = 65;
+    prefs.audioSfxVolume = 70;
+    prefs.audioVoiceVolume = 55;
+    prefs.audioMute = true;
     prefs.restartOnExit = true;
     prefs.fullscreen = true;
     prefs.windowedWidth = 1720;
@@ -79,6 +85,18 @@ bool test_video_preferences_parse_and_roundtrip(std::string& outFail) {
         outFail = "roundtrip preferredGpuAdapter mismatch";
         return false;
     }
+    if (loaded.fpsCap != 144) {
+        outFail = "roundtrip fpsCap mismatch";
+        return false;
+    }
+    if (loaded.audioMasterVolume != 95 ||
+        loaded.audioMusicVolume != 65 ||
+        loaded.audioSfxVolume != 70 ||
+        loaded.audioVoiceVolume != 55 ||
+        !loaded.audioMute) {
+        outFail = "roundtrip audio preference mismatch";
+        return false;
+    }
     if (!loaded.restartOnExit) {
         outFail = "roundtrip restartOnExit mismatch";
         return false;
@@ -96,8 +114,14 @@ bool test_video_preferences_parse_and_roundtrip(std::string& outFail) {
     }
 
     prefs.rendererBackend = "opengl_shared"; // backward-compat alias should canonicalize to opengl
+    prefs.fpsCap = -12;
     prefs.requireDiscreteGpu = false;
     prefs.preferredGpuAdapter.clear();
+    prefs.audioMasterVolume = 101;
+    prefs.audioMusicVolume = -7;
+    prefs.audioSfxVolume = 44;
+    prefs.audioVoiceVolume = 150;
+    prefs.audioMute = false;
     prefs.fullscreen = false;
     prefs.windowedWidth = 0;
     prefs.windowedHeight = 0;
@@ -112,6 +136,18 @@ bool test_video_preferences_parse_and_roundtrip(std::string& outFail) {
     std::filesystem::remove(tempPath, ec);
     if (loadedShared.rendererBackend != "opengl") {
         outFail = "roundtrip renderer backend mismatch for opengl_shared alias";
+        return false;
+    }
+    if (loadedShared.fpsCap != 0) {
+        outFail = "fpsCap should sanitize negative values to uncapped";
+        return false;
+    }
+    if (loadedShared.audioMasterVolume != 100 ||
+        loadedShared.audioMusicVolume != 0 ||
+        loadedShared.audioSfxVolume != 44 ||
+        loadedShared.audioVoiceVolume != 100 ||
+        loadedShared.audioMute) {
+        outFail = "audio volume sanitization mismatch";
         return false;
     }
 

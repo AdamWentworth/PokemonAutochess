@@ -29,6 +29,19 @@ static std::string entryLabel(sol::table entries, const char* id) {
     return {};
 }
 
+static sol::object entryField(sol::table entries, const char* id, const char* fieldName) {
+    const std::string want = id ? id : "";
+    for (auto&& kv : entries) {
+        const sol::object value = kv.second;
+        if (!value.is<sol::table>()) continue;
+        const sol::table entry = value.as<sol::table>();
+        if (entry["id"].get_or(std::string()) == want) {
+            return entry[fieldName].get<sol::object>();
+        }
+    }
+    return sol::object();
+}
+
 bool test_mode_split_flow(std::string& outFail) {
     sol::state lua;
     lua.open_libraries(sol::lib::base, sol::lib::math, sol::lib::table, sol::lib::string);
@@ -236,7 +249,26 @@ bool test_mode_split_menu_entries(std::string& outFail) {
             outFail = "advanced_apply_restart should request restart to advanced screen when no run is active.";
             return false;
         }
-        onClick("open_settings");
+        onBack();
+        onClick("open_audio");
+        sol::protected_function_result audioRes = getEntries();
+        if (!audioRes.valid()) {
+            sol::error e = audioRes;
+            outFail = std::string("main_menu audio entries (not-started) failed: ") + e.what();
+            return false;
+        }
+        const sol::table audioEntries = audioRes.get<sol::table>();
+        const sol::object sliderObj = entryField(audioEntries, "audio_master", "slider");
+        if (!sliderObj.valid() || !sliderObj.is<sol::table>()) {
+            outFail = "audio menu should expose slider metadata for master volume.";
+            return false;
+        }
+        const sol::table slider = sliderObj.as<sol::table>();
+        if (slider["min"].get_or(-1) != 0 || slider["max"].get_or(-1) != 100 || slider["step"].get_or(-1) != 10) {
+            outFail = "audio master slider should expose 0-100 range with 10% steps.";
+            return false;
+        }
+        onBack();
         onClick("open_video");
         onBack();
         sol::protected_function_result backToSettingsRes = getEntries();

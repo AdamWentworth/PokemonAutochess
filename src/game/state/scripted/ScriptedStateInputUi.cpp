@@ -7,7 +7,9 @@
 
 #include <sol/sol.hpp>
 #include <algorithm>
+#include <cmath>
 #include <iostream>
+#include <optional>
 
 namespace {
 constexpr float kBackendTextScaleBaseForHit = 1.35f;
@@ -31,6 +33,39 @@ bool isPointInsideTextMenuEntryHitBox(float entryX,
     const float mx = static_cast<float>(mouseX);
     const float my = static_cast<float>(mouseY);
     return mx >= left && mx <= right && my >= top && my <= bottom;
+}
+
+bool isPointInsideRect(float x,
+                       float y,
+                       float w,
+                       float h,
+                       int mouseX,
+                       int mouseY) {
+    const float mx = static_cast<float>(mouseX);
+    const float my = static_cast<float>(mouseY);
+    return mx >= x && mx <= (x + w) && my >= y && my <= (y + h);
+}
+
+std::optional<float> sliderValueFromClick(float sliderMin,
+                                          float sliderMax,
+                                          float sliderStep,
+                                          float sliderX,
+                                          float sliderW,
+                                          int mouseX) {
+    if (sliderW <= 0.0f) return std::nullopt;
+
+    const float minValue = std::min(sliderMin, sliderMax);
+    const float maxValue = std::max(sliderMin, sliderMax);
+    const float sliderRange = maxValue - minValue;
+    if (sliderRange <= 0.0f) return minValue;
+
+    const float clickT = std::clamp((static_cast<float>(mouseX) - sliderX) / sliderW, 0.0f, 1.0f);
+    float value = minValue + clickT * sliderRange;
+    if (sliderStep > 0.0f) {
+        const float quantizedSteps = std::round((value - minValue) / sliderStep);
+        value = minValue + quantizedSteps * sliderStep;
+    }
+    return std::clamp(value, minValue, maxValue);
 }
 } // namespace
 
@@ -131,7 +166,28 @@ void ScriptedState::handleInput(const InputEvent& event) {
                 const double tLuaStart = game::logging::flow::nowMs();
                 sol::function onMenuClick = game::scripting::resolveFunction(S, {"on_text_menu_click", "on_menu_click"});
                 if (onMenuClick.valid()) {
-                    onMenuClick(selectedEntryId);
+                    const bool clickedSlider = entry.hasSlider &&
+                        isPointInsideRect(entry.sliderX,
+                                          entry.y,
+                                          entry.sliderW,
+                                          entry.h,
+                                          event.mouseX,
+                                          event.mouseY);
+                    if (clickedSlider) {
+                        const auto sliderValue = sliderValueFromClick(entry.sliderMin,
+                                                                      entry.sliderMax,
+                                                                      entry.sliderStep,
+                                                                      entry.sliderX,
+                                                                      entry.sliderW,
+                                                                      event.mouseX);
+                        if (sliderValue) {
+                            onMenuClick(selectedEntryId, *sliderValue);
+                        } else {
+                            onMenuClick(selectedEntryId);
+                        }
+                    } else {
+                        onMenuClick(selectedEntryId);
+                    }
                 }
                 const double tLuaEnd = game::logging::flow::nowMs();
                 script.flushCommands();

@@ -16,8 +16,8 @@ local current_video_size_label = "Unknown"
 
 local video_cfg = {
     vsync = false,
-    fps_caps = { 30, 60, 120, 0 },
-    fps_index = 2,
+    fps_caps = { 30, 60, 120, 144, 240, 0 },
+    fps_cap = 0,
     ui_scales = { 75, 100, 125, 150 },
     ui_scale_index = 2,
     quality = { "Low", "Medium", "High", "Ultra" },
@@ -96,6 +96,34 @@ local function cycle_index(tbl, idx, dir)
     return next_idx
 end
 
+local function cycle_value(tbl, current, dir)
+    for i, value in ipairs(tbl) do
+        if value == current then
+            return tbl[cycle_index(tbl, i, dir)]
+        end
+    end
+    if dir >= 0 then
+        return tbl[1]
+    end
+    return tbl[#tbl]
+end
+
+local function cycle_percent(value)
+    local next_value = (value or 0) + 10
+    if next_value > 100 then
+        next_value = 0
+    end
+    return next_value
+end
+
+local function clamp_percent(value)
+    local n = tonumber(value) or 0
+    n = math.floor(n + 0.5)
+    if n < 0 then n = 0 end
+    if n > 100 then n = 100 end
+    return n
+end
+
 local function get_bool_pref(fn_name, fallback)
     local fn = _G[fn_name]
     if type(fn) ~= "function" then
@@ -128,6 +156,30 @@ local function is_renderer_backend_implemented(backend)
     local ok, result = pcall(fn, backend)
     if not ok then
         return true
+    end
+    return result == true
+end
+
+local function get_int_pref(fn_name, fallback)
+    local fn = _G[fn_name]
+    if type(fn) ~= "function" then
+        return fallback
+    end
+    local ok, value = pcall(fn)
+    if not ok or type(value) ~= "number" then
+        return fallback
+    end
+    return math.floor(value)
+end
+
+local function set_int_pref(fn_name, value)
+    local fn = _G[fn_name]
+    if type(fn) ~= "function" then
+        return false
+    end
+    local ok, result = pcall(fn, math.floor(value or 0))
+    if not ok then
+        return false
     end
     return result == true
 end
@@ -197,8 +249,14 @@ local function sync_from_engine()
     local pref = get_renderer_backend_pref()
     sync_renderer_backend_options(pref)
     video_cfg.vsync = get_bool_pref("get_vsync_pref", video_cfg.vsync)
+    video_cfg.fps_cap = get_int_pref("get_fps_cap_pref", video_cfg.fps_cap)
     video_cfg.require_discrete_gpu = get_bool_pref("get_require_discrete_gpu_pref", video_cfg.require_discrete_gpu)
     video_cfg.character_inking = get_bool_pref("get_character_inking_pref", video_cfg.character_inking)
+    audio_cfg.master = get_int_pref("get_audio_master_volume_pref", audio_cfg.master)
+    audio_cfg.music = get_int_pref("get_audio_music_volume_pref", audio_cfg.music)
+    audio_cfg.sfx = get_int_pref("get_audio_sfx_volume_pref", audio_cfg.sfx)
+    audio_cfg.voice = get_int_pref("get_audio_voice_volume_pref", audio_cfg.voice)
+    audio_cfg.mute = get_bool_pref("get_audio_mute_pref", audio_cfg.mute)
     sync_gpu_adapter_options()
 end
 
@@ -253,6 +311,24 @@ local function action(entries, id, label, y_frac, bold)
         bold = bold == true,
         color = COLOR_NORMAL
     })
+end
+
+local function slider_action(entries, id, label, y_frac, slider_value, slider_opts)
+    local opts = {
+        x_frac = 0.5,
+        y_frac = y_frac,
+        anchor = "center",
+        color = COLOR_NORMAL,
+        slider = {
+            min = slider_opts and slider_opts.min or 0,
+            max = slider_opts and slider_opts.max or 100,
+            value = slider_value,
+            step = slider_opts and slider_opts.step or 10,
+            width_frac = slider_opts and slider_opts.width_frac or 0.22,
+            value_label = slider_opts and slider_opts.value_label or (tostring(clamp_percent(slider_value)) .. "%")
+        }
+    }
+    add_entry(entries, id, label, opts)
 end
 
 local function info(entries, label, y_frac)
@@ -317,12 +393,15 @@ local function build_video_entries(entries)
         info(entries, "Drag the window edges to resize. Size saves automatically.", 0.44)
     end
 
-    local fps = video_cfg.fps_caps[video_cfg.fps_index]
+    local fps = video_cfg.fps_cap
     local fps_label = "FPS Cap: "
-    if fps == 0 then fps_label = fps_label .. "Uncapped (placeholder)"
-    else fps_label = fps_label .. tostring(fps) .. " (placeholder)" end
+    if fps == 0 then
+        fps_label = fps_label .. "Uncapped"
+    else
+        fps_label = fps_label .. tostring(fps)
+    end
 
-    action(entries, "video_vsync", "VSync: " .. bool_text(video_cfg.vsync) .. " (applies next launch)", 0.58, false)
+    action(entries, "video_vsync", "VSync: " .. bool_text(video_cfg.vsync), 0.58, false)
     action(entries, "video_fps", fps_label, 0.66, false)
     info(entries, "Graphics quality and style options live in Graphics.", 0.76)
     info(entries, "Renderer and GPU selection live in Advanced.", 0.80)
@@ -376,11 +455,13 @@ end
 
 local function build_audio_entries(entries)
     heading(entries, "Audio", 0.22)
-    action(entries, "audio_master", "Master: " .. tostring(audio_cfg.master) .. "% (placeholder)", 0.36, false)
-    action(entries, "audio_music", "Music: " .. tostring(audio_cfg.music) .. "% (placeholder)", 0.44, false)
-    action(entries, "audio_sfx", "SFX: " .. tostring(audio_cfg.sfx) .. "% (placeholder)", 0.52, false)
-    action(entries, "audio_voice", "Voice: " .. tostring(audio_cfg.voice) .. "% (placeholder)", 0.60, false)
-    action(entries, "audio_mute", "Mute All: " .. bool_text(audio_cfg.mute) .. " (placeholder)", 0.68, false)
+    slider_action(entries, "audio_master", "Master", 0.36, audio_cfg.master, { step = 10, value_label = tostring(audio_cfg.master) .. "%" })
+    slider_action(entries, "audio_music", "Music", 0.44, audio_cfg.music, { step = 10, value_label = tostring(audio_cfg.music) .. "%" })
+    slider_action(entries, "audio_sfx", "SFX", 0.52, audio_cfg.sfx, { step = 10, value_label = tostring(audio_cfg.sfx) .. "%" })
+    slider_action(entries, "audio_voice", "Voice", 0.60, audio_cfg.voice, { step = 10, value_label = tostring(audio_cfg.voice) .. "%" })
+    action(entries, "audio_mute", "Mute All: " .. bool_text(audio_cfg.mute), 0.68, false)
+    info(entries, "Click the slider bar for exact values, or press the row key to step by 10%.", 0.76)
+    info(entries, "Audio preferences save now. Game audio content is still forthcoming.", 0.80)
     action(entries, "settings_back", "Back", 0.84, false)
 end
 
@@ -554,7 +635,7 @@ local function handle_video_click(entry_id)
         video_cfg.vsync = not video_cfg.vsync
         local ok = set_bool_pref("set_vsync_pref", video_cfg.vsync)
         if ok then
-            emit("Menu", "VSync: " .. bool_text(video_cfg.vsync) .. " (restart recommended)")
+            emit("Menu", "VSync: " .. bool_text(video_cfg.vsync))
         else
             emit("Menu", "Failed to save VSync preference")
             video_cfg.vsync = get_bool_pref("get_vsync_pref", video_cfg.vsync)
@@ -562,8 +643,19 @@ local function handle_video_click(entry_id)
         return true
     end
     if entry_id == "video_fps" then
-        video_cfg.fps_index = cycle_index(video_cfg.fps_caps, video_cfg.fps_index, 1)
-        emit("Menu", "FPS cap changed (placeholder)")
+        local next_cap = cycle_value(video_cfg.fps_caps, video_cfg.fps_cap, 1)
+        local ok = set_int_pref("set_fps_cap_pref", next_cap)
+        if ok then
+            video_cfg.fps_cap = next_cap
+            if next_cap == 0 then
+                emit("Menu", "FPS cap: Uncapped")
+            else
+                emit("Menu", "FPS cap: " .. tostring(next_cap))
+            end
+        else
+            emit("Menu", "Failed to save FPS cap preference")
+            video_cfg.fps_cap = get_int_pref("get_fps_cap_pref", video_cfg.fps_cap)
+        end
         return true
     end
     if entry_id == "settings_back" then
@@ -666,30 +758,67 @@ local function handle_advanced_restart_confirm_click(entry_id)
     return false
 end
 
-local function handle_audio_click(entry_id)
+local function resolve_audio_slider_value(current_value, slider_value)
+    if type(slider_value) == "number" then
+        return clamp_percent(slider_value)
+    end
+    return cycle_percent(current_value)
+end
+
+local function handle_audio_click(entry_id, slider_value)
     if entry_id == "audio_master" then
-        audio_cfg.master = (audio_cfg.master + 10) % 110
-        emit("Menu", "Master volume changed (placeholder)")
+        local next_value = resolve_audio_slider_value(audio_cfg.master, slider_value)
+        local ok = set_int_pref("set_audio_master_volume_pref", next_value)
+        if ok then
+            audio_cfg.master = next_value
+            emit("Menu", "Master volume: " .. tostring(audio_cfg.master) .. "%")
+        else
+            emit("Menu", "Failed to save master volume")
+        end
         return true
     end
     if entry_id == "audio_music" then
-        audio_cfg.music = (audio_cfg.music + 10) % 110
-        emit("Menu", "Music volume changed (placeholder)")
+        local next_value = resolve_audio_slider_value(audio_cfg.music, slider_value)
+        local ok = set_int_pref("set_audio_music_volume_pref", next_value)
+        if ok then
+            audio_cfg.music = next_value
+            emit("Menu", "Music volume: " .. tostring(audio_cfg.music) .. "%")
+        else
+            emit("Menu", "Failed to save music volume")
+        end
         return true
     end
     if entry_id == "audio_sfx" then
-        audio_cfg.sfx = (audio_cfg.sfx + 10) % 110
-        emit("Menu", "SFX volume changed (placeholder)")
+        local next_value = resolve_audio_slider_value(audio_cfg.sfx, slider_value)
+        local ok = set_int_pref("set_audio_sfx_volume_pref", next_value)
+        if ok then
+            audio_cfg.sfx = next_value
+            emit("Menu", "SFX volume: " .. tostring(audio_cfg.sfx) .. "%")
+        else
+            emit("Menu", "Failed to save SFX volume")
+        end
         return true
     end
     if entry_id == "audio_voice" then
-        audio_cfg.voice = (audio_cfg.voice + 10) % 110
-        emit("Menu", "Voice volume changed (placeholder)")
+        local next_value = resolve_audio_slider_value(audio_cfg.voice, slider_value)
+        local ok = set_int_pref("set_audio_voice_volume_pref", next_value)
+        if ok then
+            audio_cfg.voice = next_value
+            emit("Menu", "Voice volume: " .. tostring(audio_cfg.voice) .. "%")
+        else
+            emit("Menu", "Failed to save voice volume")
+        end
         return true
     end
     if entry_id == "audio_mute" then
-        audio_cfg.mute = not audio_cfg.mute
-        emit("Menu", "Mute toggled (placeholder)")
+        local next_value = not audio_cfg.mute
+        local ok = set_bool_pref("set_audio_mute_pref", next_value)
+        if ok then
+            audio_cfg.mute = next_value
+            emit("Menu", "Mute All: " .. bool_text(audio_cfg.mute))
+        else
+            emit("Menu", "Failed to save mute preference")
+        end
         return true
     end
     if entry_id == "settings_back" then
@@ -769,7 +898,7 @@ local function handle_access_click(entry_id)
     return false
 end
 
-function on_text_menu_click(entry_id)
+function on_text_menu_click(entry_id, slider_value)
     if screen == "main" then
         handle_main_click(entry_id)
         return
@@ -795,7 +924,7 @@ function on_text_menu_click(entry_id)
         return
     end
     if screen == "audio" then
-        handle_audio_click(entry_id)
+        handle_audio_click(entry_id, slider_value)
         return
     end
     if screen == "controls" then

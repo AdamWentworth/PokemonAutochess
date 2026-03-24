@@ -57,8 +57,14 @@ struct GameServices {
     std::string preferredGpuAdapter;
     bool gpuDiscrete = false;
     bool vsyncEnabled = false;
+    int fpsCap = 0;
     bool requireDiscreteGpu = false;
     bool characterInkingEnabled = false;
+    int audioMasterVolume = 100;
+    int audioMusicVolume = 100;
+    int audioSfxVolume = 100;
+    int audioVoiceVolume = 100;
+    bool audioMute = false;
     std::string bootMenuScreen;
 
     GameServices(const GameConfigData& cfg,

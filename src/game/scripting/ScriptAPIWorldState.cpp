@@ -4,6 +4,7 @@
 #include <utility>
 #include <vector>
 
+#include "engine/core/EngineServices.h"
 #include "game/GameWorld.h"
 
 #include "game/config/GameDataDb.h"
@@ -20,10 +21,31 @@ bool saveVideoPreferencesFromServices(const GameServices& services, std::string*
     game::video::Preferences prefs = game::video::loadPreferences();
     prefs.rendererBackend = services.requestedRendererBackend;
     prefs.vsync = services.vsyncEnabled;
+    prefs.fpsCap = game::video::sanitizeFpsCap(services.fpsCap);
     prefs.requireDiscreteGpu = services.requireDiscreteGpu;
     prefs.preferredGpuAdapter = services.preferredGpuAdapter;
     prefs.characterInking = services.characterInkingEnabled;
+    prefs.audioMasterVolume = game::video::sanitizeVolumePercent(services.audioMasterVolume);
+    prefs.audioMusicVolume = game::video::sanitizeVolumePercent(services.audioMusicVolume);
+    prefs.audioSfxVolume = game::video::sanitizeVolumePercent(services.audioSfxVolume);
+    prefs.audioVoiceVolume = game::video::sanitizeVolumePercent(services.audioVoiceVolume);
+    prefs.audioMute = services.audioMute;
     return game::video::savePreferences(prefs, game::video::defaultPreferencesPath(), outError);
+}
+
+void mirrorRuntimePreferencesToEngineServices(const GameServices& services) {
+    if (!services.engineServices) return;
+    services.engineServices->requestedRendererBackend = services.requestedRendererBackend;
+    services.engineServices->vsyncEnabled = services.vsyncEnabled;
+    services.engineServices->fpsCap = services.fpsCap;
+    services.engineServices->requireDiscreteGpu = services.requireDiscreteGpu;
+    services.engineServices->preferredGpuAdapter = services.preferredGpuAdapter;
+    services.engineServices->characterInkingEnabled = services.characterInkingEnabled;
+    services.engineServices->audioMasterVolume = services.audioMasterVolume;
+    services.engineServices->audioMusicVolume = services.audioMusicVolume;
+    services.engineServices->audioSfxVolume = services.audioSfxVolume;
+    services.engineServices->audioVoiceVolume = services.audioVoiceVolume;
+    services.engineServices->audioMute = services.audioMute;
 }
 
 std::string sanitizeMenuScreenToken(const std::string& token) {
@@ -131,6 +153,7 @@ bool ScriptAPI::setRendererBackendPreference(const std::string& backend) {
 
     services_.requestedRendererBackend =
         game::video::rendererBackendName(game::video::parseRendererBackend(backend));
+    mirrorRuntimePreferencesToEngineServices(services_);
 
     std::string err;
     if (!saveVideoPreferencesFromServices(services_, &err)) {
@@ -146,10 +169,27 @@ bool ScriptAPI::getVSyncPreference() const {
 
 bool ScriptAPI::setVSyncPreference(bool enabled) {
     services_.vsyncEnabled = enabled;
+    mirrorRuntimePreferencesToEngineServices(services_);
 
     std::string err;
     if (!saveVideoPreferencesFromServices(services_, &err)) {
         game::log::warn(&services_.log, std::string("[Video] Failed to save VSync preference: ") + err);
+        return false;
+    }
+    return true;
+}
+
+int ScriptAPI::getFpsCapPreference() const {
+    return game::video::sanitizeFpsCap(services_.fpsCap);
+}
+
+bool ScriptAPI::setFpsCapPreference(int fpsCap) {
+    services_.fpsCap = game::video::sanitizeFpsCap(fpsCap);
+    mirrorRuntimePreferencesToEngineServices(services_);
+
+    std::string err;
+    if (!saveVideoPreferencesFromServices(services_, &err)) {
+        game::log::warn(&services_.log, std::string("[Video] Failed to save FPS cap preference: ") + err);
         return false;
     }
     return true;
@@ -161,6 +201,7 @@ bool ScriptAPI::getRequireDiscreteGpuPreference() const {
 
 bool ScriptAPI::setRequireDiscreteGpuPreference(bool required) {
     services_.requireDiscreteGpu = required;
+    mirrorRuntimePreferencesToEngineServices(services_);
 
     std::string err;
     if (!saveVideoPreferencesFromServices(services_, &err)) {
@@ -197,6 +238,7 @@ bool ScriptAPI::setPreferredGpuAdapterPreference(const std::string& adapterName)
     }
 
     services_.preferredGpuAdapter = adapterName;
+    mirrorRuntimePreferencesToEngineServices(services_);
 
     std::string err;
     if (!saveVideoPreferencesFromServices(services_, &err)) {
@@ -212,10 +254,91 @@ bool ScriptAPI::getCharacterInkingPreference() const {
 
 bool ScriptAPI::setCharacterInkingPreference(bool enabled) {
     services_.characterInkingEnabled = enabled;
+    mirrorRuntimePreferencesToEngineServices(services_);
 
     std::string err;
     if (!saveVideoPreferencesFromServices(services_, &err)) {
         game::log::warn(&services_.log, std::string("[Video] Failed to save character inking preference: ") + err);
+        return false;
+    }
+    return true;
+}
+
+int ScriptAPI::getAudioMasterVolumePreference() const {
+    return game::video::sanitizeVolumePercent(services_.audioMasterVolume);
+}
+
+bool ScriptAPI::setAudioMasterVolumePreference(int volumePercent) {
+    services_.audioMasterVolume = game::video::sanitizeVolumePercent(volumePercent);
+    mirrorRuntimePreferencesToEngineServices(services_);
+
+    std::string err;
+    if (!saveVideoPreferencesFromServices(services_, &err)) {
+        game::log::warn(&services_.log, std::string("[Audio] Failed to save master volume preference: ") + err);
+        return false;
+    }
+    return true;
+}
+
+int ScriptAPI::getAudioMusicVolumePreference() const {
+    return game::video::sanitizeVolumePercent(services_.audioMusicVolume);
+}
+
+bool ScriptAPI::setAudioMusicVolumePreference(int volumePercent) {
+    services_.audioMusicVolume = game::video::sanitizeVolumePercent(volumePercent);
+    mirrorRuntimePreferencesToEngineServices(services_);
+
+    std::string err;
+    if (!saveVideoPreferencesFromServices(services_, &err)) {
+        game::log::warn(&services_.log, std::string("[Audio] Failed to save music volume preference: ") + err);
+        return false;
+    }
+    return true;
+}
+
+int ScriptAPI::getAudioSfxVolumePreference() const {
+    return game::video::sanitizeVolumePercent(services_.audioSfxVolume);
+}
+
+bool ScriptAPI::setAudioSfxVolumePreference(int volumePercent) {
+    services_.audioSfxVolume = game::video::sanitizeVolumePercent(volumePercent);
+    mirrorRuntimePreferencesToEngineServices(services_);
+
+    std::string err;
+    if (!saveVideoPreferencesFromServices(services_, &err)) {
+        game::log::warn(&services_.log, std::string("[Audio] Failed to save SFX volume preference: ") + err);
+        return false;
+    }
+    return true;
+}
+
+int ScriptAPI::getAudioVoiceVolumePreference() const {
+    return game::video::sanitizeVolumePercent(services_.audioVoiceVolume);
+}
+
+bool ScriptAPI::setAudioVoiceVolumePreference(int volumePercent) {
+    services_.audioVoiceVolume = game::video::sanitizeVolumePercent(volumePercent);
+    mirrorRuntimePreferencesToEngineServices(services_);
+
+    std::string err;
+    if (!saveVideoPreferencesFromServices(services_, &err)) {
+        game::log::warn(&services_.log, std::string("[Audio] Failed to save voice volume preference: ") + err);
+        return false;
+    }
+    return true;
+}
+
+bool ScriptAPI::getAudioMutePreference() const {
+    return services_.audioMute;
+}
+
+bool ScriptAPI::setAudioMutePreference(bool enabled) {
+    services_.audioMute = enabled;
+    mirrorRuntimePreferencesToEngineServices(services_);
+
+    std::string err;
+    if (!saveVideoPreferencesFromServices(services_, &err)) {
+        game::log::warn(&services_.log, std::string("[Audio] Failed to save mute preference: ") + err);
         return false;
     }
     return true;
@@ -229,9 +352,15 @@ bool ScriptAPI::requestRestartToMenu(const std::string& menuScreen) {
     game::video::Preferences prefs = game::video::loadPreferences();
     prefs.rendererBackend = services_.requestedRendererBackend;
     prefs.vsync = services_.vsyncEnabled;
+    prefs.fpsCap = game::video::sanitizeFpsCap(services_.fpsCap);
     prefs.requireDiscreteGpu = services_.requireDiscreteGpu;
     prefs.preferredGpuAdapter = services_.preferredGpuAdapter;
     prefs.characterInking = services_.characterInkingEnabled;
+    prefs.audioMasterVolume = game::video::sanitizeVolumePercent(services_.audioMasterVolume);
+    prefs.audioMusicVolume = game::video::sanitizeVolumePercent(services_.audioMusicVolume);
+    prefs.audioSfxVolume = game::video::sanitizeVolumePercent(services_.audioSfxVolume);
+    prefs.audioVoiceVolume = game::video::sanitizeVolumePercent(services_.audioVoiceVolume);
+    prefs.audioMute = services_.audioMute;
     prefs.restartOnExit = true;
     prefs.bootMenuScreen = sanitizeMenuScreenToken(menuScreen);
 

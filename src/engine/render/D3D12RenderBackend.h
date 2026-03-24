@@ -47,6 +47,7 @@ public:
     bool getLastFrameStats(BackendFrameStats& outStats) const override;
     std::string activeGpuName() const override { return adapterName_; }
     bool activeGpuIsDiscrete() const override { return discreteAdapter_; }
+    void setVSyncEnabled(bool enabled) override { vsyncEnabled_ = enabled; }
     bool supportsWorldTriangles3D() const override { return true; }
     bool supportsWorldIndexedMeshes() const override { return true; }
     bool supportsWorldIndexedMeshInstancing() const override { return true; }

@@ -66,6 +66,7 @@
 #include <iostream>
 #include <memory>
 #include <string>
+#include <thread>
 
 namespace {
     constexpr unsigned int START_W  = 1280;
@@ -96,6 +97,8 @@ namespace {
         bool applyVideoModeInternal(int width, int height, bool fullscreenWanted, bool persistChange);
         bool applyVideoMode(int width, int height, bool fullscreenWanted);
         GameContext::VideoMode queryVideoMode() const;
+        void syncLivePresentationSettings();
+        void enforceFrameCap(const std::chrono::high_resolution_clock::time_point& frameStart);
 
         void setTitle(const std::string& title);
         void swapBuffers();
@@ -133,6 +136,7 @@ namespace {
         bool videoModePreferencesDirty = false;
         bool windowHasOpenGLContext = false;
         bool glFunctionsReady = false;
+        bool appliedVsyncEnabled = false;
 
         float mouseScaleX = 1.0f;
         float mouseScaleY = 1.0f;
@@ -145,6 +149,7 @@ namespace {
         requestedBackend = startupSession.requestedBackend;
         activeBackend = startupSession.activeBackend;
         game::runtime::startup_session::applyToServices(startupSession, services);
+        appliedVsyncEnabled = services.vsyncEnabled;
         const game::video::Preferences startupVideoPrefs = game::video::loadPreferences(prefsPath);
 
         if (SDL_Init(SDL_INIT_VIDEO) != 0) {
@@ -568,6 +573,52 @@ namespace {
             fullscreen);
     }
 
+    void GameRunner::syncLivePresentationSettings() {
+        if (appliedVsyncEnabled == services.vsyncEnabled) {
+            return;
+        }
+
+        bool applied = false;
+        if (windowHasOpenGLContext && window) {
+            applied = window->setVSyncEnabled(services.vsyncEnabled);
+        } else if (renderer && renderer->handlesPresentation()) {
+            renderer->setVSyncEnabled(services.vsyncEnabled);
+            applied = true;
+        }
+
+        if (applied) {
+            appliedVsyncEnabled = services.vsyncEnabled;
+            std::cout << "[Video] VSync live set: "
+                      << (appliedVsyncEnabled ? "On" : "Off") << "\n";
+        } else {
+            std::cerr << "[Video] Failed to apply live VSync toggle.\n";
+        }
+    }
+
+    void GameRunner::enforceFrameCap(const std::chrono::high_resolution_clock::time_point& frameStart) {
+        const int fpsCap = game::video::sanitizeFpsCap(services.fpsCap);
+        if (fpsCap <= 0) return;
+
+        using clock = std::chrono::high_resolution_clock;
+        const auto frameBudget =
+            std::chrono::duration_cast<clock::duration>(
+                std::chrono::duration<double>(1.0 / static_cast<double>(fpsCap)));
+        const auto deadline = frameStart + frameBudget;
+
+        auto now = clock::now();
+        if (now >= deadline) return;
+
+        const auto coarseSleepThreshold = std::chrono::milliseconds(2);
+        const auto coarseSleepPadding = std::chrono::milliseconds(1);
+        if (deadline - now > coarseSleepThreshold) {
+            std::this_thread::sleep_until(deadline - coarseSleepPadding);
+        }
+
+        while ((now = clock::now()) < deadline) {
+            std::this_thread::yield();
+        }
+    }
+
     void GameRunner::setTitle(const std::string& title) {
         if (window) window->setTitle(title);
     }
@@ -674,6 +725,7 @@ namespace {
         }
 
         while (game::runtime::loop_control::isRunning(loopState)) {
+            syncLivePresentationSettings();
             SDL_Event sdlEvent;
 
             while (SDL_PollEvent(&sdlEvent)) {
@@ -704,6 +756,7 @@ namespace {
             double frameDt = std::chrono::duration<double>(now - previous).count();
             frameDt = game::runtime::loop_config::clampFrameDeltaSeconds(frameDt);
             previous = now;
+            const auto frameStart = now;
 
             accumulator += frameDt;
 
@@ -827,6 +880,10 @@ namespace {
 
             if (autoQuit.enabled()) {
                 game::runtime::loop_control::applyAutoQuit(autoQuit, loopState);
+            }
+
+            if (game::runtime::loop_control::isRunning(loopState)) {
+                enforceFrameCap(frameStart);
             }
         }
 

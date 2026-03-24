@@ -7,6 +7,7 @@
 
 #include "engine/core/Paths.h"
 #include "engine/core/Random.h"
+#include "engine/core/EngineServices.h"
 #include "engine/core/TimeSources.h"
 
 #include "game/GameConfig.h"
@@ -220,6 +221,44 @@ bool test_script_api_contract(std::string& outFail) {
     const GameServices::VideoMode vm = api.getVideoMode();
     if (!expect(vm.width == 1920 && vm.height == 1080 && vm.fullscreen,
                 "getVideoMode should return queryVideoMode callback value.", outFail)) return false;
+
+    EngineServices engineServices;
+    services.engineServices = &engineServices;
+    services.engineServices->vsyncEnabled = false;
+    services.engineServices->fpsCap = 0;
+    services.engineServices->audioMasterVolume = 100;
+    services.engineServices->audioMusicVolume = 100;
+    services.engineServices->audioSfxVolume = 100;
+    services.engineServices->audioVoiceVolume = 100;
+    services.engineServices->audioMute = false;
+
+    if (!expect(api.setVSyncPreference(true), "setVSyncPreference should succeed.", outFail)) return false;
+    if (!expect(api.getVSyncPreference(), "getVSyncPreference mismatch after set.", outFail)) return false;
+    if (!expect(services.engineServices->vsyncEnabled, "setVSyncPreference should mirror to EngineServices.", outFail)) return false;
+
+    if (!expect(api.setFpsCapPreference(144), "setFpsCapPreference should succeed.", outFail)) return false;
+    if (!expect(api.getFpsCapPreference() == 144, "getFpsCapPreference mismatch.", outFail)) return false;
+    if (!expect(services.engineServices->fpsCap == 144, "setFpsCapPreference should mirror to EngineServices.", outFail)) return false;
+    if (!expect(api.setFpsCapPreference(-30), "setFpsCapPreference should sanitize negative input.", outFail)) return false;
+    if (!expect(api.getFpsCapPreference() == 0, "negative FPS cap should sanitize to uncapped.", outFail)) return false;
+
+    if (!expect(api.setAudioMasterVolumePreference(65), "setAudioMasterVolumePreference should succeed.", outFail)) return false;
+    if (!expect(api.setAudioMusicVolumePreference(55), "setAudioMusicVolumePreference should succeed.", outFail)) return false;
+    if (!expect(api.setAudioSfxVolumePreference(45), "setAudioSfxVolumePreference should succeed.", outFail)) return false;
+    if (!expect(api.setAudioVoiceVolumePreference(35), "setAudioVoiceVolumePreference should succeed.", outFail)) return false;
+    if (!expect(api.setAudioMutePreference(true), "setAudioMutePreference should succeed.", outFail)) return false;
+    if (!expect(api.getAudioMasterVolumePreference() == 65 &&
+                api.getAudioMusicVolumePreference() == 55 &&
+                api.getAudioSfxVolumePreference() == 45 &&
+                api.getAudioVoiceVolumePreference() == 35 &&
+                api.getAudioMutePreference(),
+                "audio preference getters should reflect saved values.", outFail)) return false;
+    if (!expect(services.engineServices->audioMasterVolume == 65 &&
+                services.engineServices->audioMusicVolume == 55 &&
+                services.engineServices->audioSfxVolume == 45 &&
+                services.engineServices->audioVoiceVolume == 35 &&
+                services.engineServices->audioMute,
+                "audio preference setters should mirror to EngineServices.", outFail)) return false;
 
     api.setClassicShopCards({
         {"pikachu", 0, -2},
@@ -459,6 +498,10 @@ bool test_script_api_contract(std::string& outFail) {
     // Core mode/start/quit bindings.
     sol::function getStartedFn = lua["get_has_started_game"];
     sol::function setStartedFn = lua["set_has_started_game"];
+    sol::function getFpsCapPrefFn = lua["get_fps_cap_pref"];
+    sol::function setFpsCapPrefFn = lua["set_fps_cap_pref"];
+    sol::function getAudioMasterPrefFn = lua["get_audio_master_volume_pref"];
+    sol::function setAudioMutePrefFn = lua["set_audio_mute_pref"];
     sol::function requestQuitFn = lua["request_quit"];
     sol::function requestRestartFn = lua["request_restart_to_menu"];
     sol::function consumeBootFn = lua["consume_boot_menu_screen"];
@@ -466,6 +509,10 @@ bool test_script_api_contract(std::string& outFail) {
     sol::function classicIncomeFn = lua["classic_award_round_income"];
     if (!expect(getStartedFn.valid(), "get_has_started_game binding missing.", outFail)) return false;
     if (!expect(setStartedFn.valid(), "set_has_started_game binding missing.", outFail)) return false;
+    if (!expect(getFpsCapPrefFn.valid(), "get_fps_cap_pref binding missing.", outFail)) return false;
+    if (!expect(setFpsCapPrefFn.valid(), "set_fps_cap_pref binding missing.", outFail)) return false;
+    if (!expect(getAudioMasterPrefFn.valid(), "get_audio_master_volume_pref binding missing.", outFail)) return false;
+    if (!expect(setAudioMutePrefFn.valid(), "set_audio_mute_pref binding missing.", outFail)) return false;
     if (!expect(requestQuitFn.valid(), "request_quit binding missing.", outFail)) return false;
     if (!expect(requestRestartFn.valid(), "request_restart_to_menu binding missing.", outFail)) return false;
     if (!expect(consumeBootFn.valid(), "consume_boot_menu_screen binding missing.", outFail)) return false;
@@ -484,6 +531,19 @@ bool test_script_api_contract(std::string& outFail) {
         const bool startedNow = r.get<bool>();
         if (!expect(startedNow == true, "set_has_started_game did not persist value.", outFail)) return false;
     }
+    setFpsCapPrefFn(120);
+    {
+        sol::protected_function_result r = getFpsCapPrefFn();
+        if (!expect(r.valid(), "get_fps_cap_pref call failed.", outFail)) return false;
+        if (!expect(r.get<int>() == 120, "Lua FPS cap preference roundtrip mismatch.", outFail)) return false;
+    }
+    {
+        sol::protected_function_result r = getAudioMasterPrefFn();
+        if (!expect(r.valid(), "get_audio_master_volume_pref call failed.", outFail)) return false;
+        if (!expect(r.get<int>() == 65, "Lua audio master volume getter mismatch.", outFail)) return false;
+    }
+    setAudioMutePrefFn(false);
+    if (!expect(!api.getAudioMutePreference(), "Lua mute setter should update ScriptAPI state.", outFail)) return false;
     requestQuitFn();
     if (!expect(quitRequested, "request_quit callback did not run.", outFail)) return false;
 

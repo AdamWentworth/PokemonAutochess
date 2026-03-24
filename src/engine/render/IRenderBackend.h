@@ -504,6 +504,9 @@ public:
     }
     virtual std::string activeGpuName() const { return {}; }
     virtual bool activeGpuIsDiscrete() const { return false; }
+    virtual void setVSyncEnabled(bool enabled) {
+        (void)enabled;
+    }
     virtual bool supportsWorldTriangles3D() const { return false; }
     virtual bool supportsWorldIndexedMeshes() const { return false; }
     virtual bool supportsWorldIndexedMeshInstancing() const { return false; }

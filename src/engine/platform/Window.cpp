@@ -89,6 +89,20 @@ void Window::setTitle(const std::string& title) {
     if (window) SDL_SetWindowTitle(window, title.c_str());
 }
 
+bool Window::setVSyncEnabled(bool enabled) {
+    vsyncEnabled = enabled;
+    if (!window || !context) {
+        return false;
+    }
+
+    SDL_GL_MakeCurrent(window, context);
+    if (SDL_GL_SetSwapInterval(vsyncEnabled ? 1 : 0) != 0) {
+        std::cerr << "[Video] SDL_GL_SetSwapInterval failed: " << SDL_GetError() << "\n";
+        return false;
+    }
+    return true;
+}
+
 void Window::swapBuffers() {
     if (window && context) SDL_GL_SwapWindow(window);
 }

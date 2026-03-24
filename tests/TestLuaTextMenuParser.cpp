@@ -46,6 +46,18 @@ bool test_lua_text_menu_parser_contract(std::string& outFail) {
                     label = "LabelOnly"
                 },
                 {
+                    id = "audio_master",
+                    label = "Master",
+                    slider = {
+                        min = 0,
+                        max = 100,
+                        value = 77,
+                        step = 10,
+                        width_frac = 0.55,
+                        value_label = "77%"
+                    }
+                },
+                {
                     junk = 1
                 }
             }
@@ -62,7 +74,7 @@ bool test_lua_text_menu_parser_contract(std::string& outFail) {
     sol::protected_function goodFn = lua["good_menu"];
     if (!expect(game::scripting::parseTextMenuEntries(goodFn, entries, &parseError),
                 "good_menu parse failed.", outFail)) return false;
-    if (!expect(entries.size() == 3, "good_menu should yield 3 parsed entries.", outFail)) return false;
+    if (!expect(entries.size() == 4, "good_menu should yield 4 parsed entries.", outFail)) return false;
 
     const auto& a = entries[0];
     if (!expect(a.id == "start" && a.label == "Start", "entry 0 id/label mismatch.", outFail)) return false;
@@ -82,6 +94,14 @@ bool test_lua_text_menu_parser_contract(std::string& outFail) {
 
     const auto& c = entries[2];
     if (!expect(c.id == "LabelOnly" && c.label == "LabelOnly", "entry 2 label-only fallback mismatch.", outFail)) return false;
+
+    const auto& d = entries[3];
+    if (!expect(d.id == "audio_master" && d.hasSlider, "entry 3 slider metadata missing.", outFail)) return false;
+    if (!expect(d.sliderMin == 0.0f && d.sliderMax == 100.0f, "entry 3 slider range mismatch.", outFail)) return false;
+    if (!expect(d.sliderValue == 80.0f, "entry 3 slider value should quantize to nearest step.", outFail)) return false;
+    if (!expect(d.sliderStep == 10.0f, "entry 3 slider step mismatch.", outFail)) return false;
+    if (!expect(d.sliderWidthFrac == 0.45f, "entry 3 slider width should clamp.", outFail)) return false;
+    if (!expect(d.sliderValueLabel == "77%", "entry 3 slider value label mismatch.", outFail)) return false;
 
     sol::protected_function badFn = lua["bad_menu"];
     if (!expect(!game::scripting::parseTextMenuEntries(badFn, entries, &parseError),

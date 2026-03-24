@@ -37,9 +37,15 @@ PreparedSession prepare(const std::string& prefsPath,
     out.requestedBackend = resolvedRendererPref.requestedBackend;
     out.requestedBackendName = resolvedRendererPref.requestedBackendName;
     out.vsyncEnabled = mutablePrefs.vsync;
+    out.fpsCap = mutablePrefs.fpsCap;
     out.requireDiscreteGpu = mutablePrefs.requireDiscreteGpu;
     out.preferredGpuAdapter = mutablePrefs.preferredGpuAdapter;
     out.characterInkingEnabled = mutablePrefs.characterInking;
+    out.audioMasterVolume = mutablePrefs.audioMasterVolume;
+    out.audioMusicVolume = mutablePrefs.audioMusicVolume;
+    out.audioSfxVolume = mutablePrefs.audioSfxVolume;
+    out.audioVoiceVolume = mutablePrefs.audioVoiceVolume;
+    out.audioMute = mutablePrefs.audioMute;
 
     const auto adapters = game::video::enumerateSystemGpuAdapters();
     out.availableGpuAdapters = game::runtime::startup_diag::collectGpuAdapterNames(adapters);
@@ -74,9 +80,15 @@ void applyToServices(const PreparedSession& session, EngineServices& services) {
     services.rendererBackendFallback = session.rendererBackendFallback;
     services.rendererBackendFallbackReason = session.rendererBackendFallbackReason;
     services.vsyncEnabled = session.vsyncEnabled;
+    services.fpsCap = session.fpsCap;
     services.requireDiscreteGpu = session.requireDiscreteGpu;
     services.preferredGpuAdapter = session.preferredGpuAdapter;
     services.characterInkingEnabled = session.characterInkingEnabled;
+    services.audioMasterVolume = session.audioMasterVolume;
+    services.audioMusicVolume = session.audioMusicVolume;
+    services.audioSfxVolume = session.audioSfxVolume;
+    services.audioVoiceVolume = session.audioVoiceVolume;
+    services.audioMute = session.audioMute;
     services.availableGpuAdapters = session.availableGpuAdapters;
 }
 

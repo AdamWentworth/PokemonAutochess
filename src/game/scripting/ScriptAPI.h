@@ -46,6 +46,8 @@ public:
     bool setRendererBackendPreference(const std::string& backend);
     bool getVSyncPreference() const;
     bool setVSyncPreference(bool enabled);
+    int getFpsCapPreference() const;
+    bool setFpsCapPreference(int fpsCap);
     bool getRequireDiscreteGpuPreference() const;
     bool setRequireDiscreteGpuPreference(bool required);
     std::string getActiveRendererBackend() const;
@@ -55,6 +57,16 @@ public:
     bool setPreferredGpuAdapterPreference(const std::string& adapterName);
     bool getCharacterInkingPreference() const;
     bool setCharacterInkingPreference(bool enabled);
+    int getAudioMasterVolumePreference() const;
+    bool setAudioMasterVolumePreference(int volumePercent);
+    int getAudioMusicVolumePreference() const;
+    bool setAudioMusicVolumePreference(int volumePercent);
+    int getAudioSfxVolumePreference() const;
+    bool setAudioSfxVolumePreference(int volumePercent);
+    int getAudioVoiceVolumePreference() const;
+    bool setAudioVoiceVolumePreference(int volumePercent);
+    bool getAudioMutePreference() const;
+    bool setAudioMutePreference(bool enabled);
     bool isActiveGpuDiscrete() const;
     bool requestRestartToMenu(const std::string& menuScreen);
     std::string consumeBootMenuScreen();

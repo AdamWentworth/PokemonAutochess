@@ -83,6 +83,13 @@ void ScriptedState::rebuildTextMenu() {
         entry.colorR = src.colorR;
         entry.colorG = src.colorG;
         entry.colorB = src.colorB;
+        entry.hasSlider = src.hasSlider;
+        entry.sliderMin = src.sliderMin;
+        entry.sliderMax = src.sliderMax;
+        entry.sliderValue = src.sliderValue;
+        entry.sliderStep = src.sliderStep;
+        entry.sliderWidthFrac = src.sliderWidthFrac;
+        entry.sliderValueLabel = src.sliderValueLabel;
         textMenuEntries.push_back(std::move(entry));
     }
 
@@ -110,8 +117,28 @@ void ScriptedState::layoutBackendTextMenu(int uiW, int uiH) {
             }
 
             const float textScale = std::max(0.1f, entry.scale) * kBackendTextScaleBase * scaleMul;
-            entry.w = std::max(8.0f, game::runtime::ui_text::measureTextWidth(display, textScale));
-            entry.h = std::max(8.0f, game::runtime::ui_text::measureTextHeight(display, textScale));
+            entry.labelW = std::max(8.0f, game::runtime::ui_text::measureTextWidth(display, textScale));
+            entry.labelH = std::max(8.0f, game::runtime::ui_text::measureTextHeight(display, textScale));
+
+            float sliderW = 0.0f;
+            float sliderH = 0.0f;
+            float sliderGap = 0.0f;
+            float valueGap = 0.0f;
+            float valueW = 0.0f;
+            if (entry.hasSlider) {
+                sliderW = std::clamp(static_cast<float>(uiW) * entry.sliderWidthFrac * scaleMul,
+                                     120.0f * scaleMul,
+                                     360.0f * scaleMul);
+                sliderH = std::clamp(textScale * 0.90f, 12.0f * scaleMul, 24.0f * scaleMul);
+                sliderGap = std::max(16.0f, textScale * 6.0f);
+                valueGap = std::max(12.0f, textScale * 3.5f);
+                if (!entry.sliderValueLabel.empty()) {
+                    valueW = std::max(8.0f, game::runtime::ui_text::measureTextWidth(entry.sliderValueLabel, textScale));
+                }
+            }
+
+            entry.w = entry.labelW + sliderGap + sliderW + valueGap + valueW;
+            entry.h = std::max(entry.labelH, sliderH);
 
             if (entry.hasCustomX) {
                 const float anchorX = static_cast<float>(uiW) * entry.xFrac;
@@ -125,6 +152,18 @@ void ScriptedState::layoutBackendTextMenu(int uiW, int uiH) {
             } else {
                 entry.y = autoY;
                 autoY += entry.h + rowGap;
+            }
+
+            if (entry.hasSlider) {
+                entry.sliderW = sliderW;
+                entry.sliderH = sliderH;
+                entry.sliderX = entry.x + entry.labelW + sliderGap;
+                entry.sliderY = entry.y + (entry.h - entry.sliderH) * 0.5f;
+            } else {
+                entry.sliderX = 0.0f;
+                entry.sliderY = 0.0f;
+                entry.sliderW = 0.0f;
+                entry.sliderH = 0.0f;
             }
 
             maxBottom = std::max(maxBottom, entry.y + entry.h);
@@ -149,6 +188,9 @@ void ScriptedState::layoutBackendTextMenu(int uiW, int uiH) {
             const float shiftUp = maxBottom - maxAllowed;
             for (auto& entry : textMenuEntries) {
                 entry.y = std::max(8.0f, entry.y - shiftUp);
+                if (entry.hasSlider) {
+                    entry.sliderY = entry.y + (entry.h - entry.sliderH) * 0.5f;
+                }
             }
         }
     }
@@ -739,11 +781,13 @@ void ScriptedState::renderBackendTextMenu(int uiW, int uiH) {
             tb = entry.colorB;
         }
 
+        const float textY = entry.y + std::max(0.0f, (entry.h - entry.labelH) * 0.5f);
+
         if (entry.bold) {
             game::runtime::ui_text::appendTextLines(
                 textLines,
                 entry.x + 0.9f,
-                entry.y + 0.9f,
+                textY + 0.9f,
                 display,
                 textScale,
                 std::clamp(tr * 0.50f, 0.0f, 1.0f),
@@ -753,12 +797,12 @@ void ScriptedState::renderBackendTextMenu(int uiW, int uiH) {
                 0.82f);
         }
         game::runtime::ui_text::appendTextLines(
-            textLines, entry.x, entry.y, display, textScale, tr, tg, tb, 1.0f, 0.82f);
+            textLines, entry.x, textY, display, textScale, tr, tg, tb, 1.0f, 0.82f);
         if (entry.underline) {
             IRenderBackend::DebugLine ul;
             ul.x1 = entry.x;
-            ul.x2 = entry.x + entry.w;
-            ul.y1 = entry.y + entry.h * 0.78f;
+            ul.x2 = entry.x + entry.labelW;
+            ul.y1 = textY + entry.labelH * 0.78f;
             ul.y2 = ul.y1;
             ul.thickness = std::clamp(1.0f + textScale * 0.08f, 1.0f, 2.2f);
             ul.r = std::clamp(tr * 0.95f, 0.0f, 1.0f);
@@ -766,6 +810,88 @@ void ScriptedState::renderBackendTextMenu(int uiW, int uiH) {
             ul.b = std::clamp(tb * 0.95f, 0.0f, 1.0f);
             ul.a = entry.enabled ? 0.96f : 0.72f;
             textLines.push_back(ul);
+        }
+
+        if (entry.hasSlider && entry.sliderW > 0.0f && entry.sliderH > 0.0f) {
+            const float sliderRange = std::max(0.0f, entry.sliderMax - entry.sliderMin);
+            const float sliderRatio = (sliderRange > 0.0f)
+                ? std::clamp((entry.sliderValue - entry.sliderMin) / sliderRange, 0.0f, 1.0f)
+                : 0.0f;
+            const float trackH = std::clamp(entry.sliderH * 0.28f, 4.0f, 8.0f);
+            const float trackY = entry.sliderY + (entry.sliderH - trackH) * 0.5f;
+            const float knobW = std::clamp(entry.sliderH * 0.55f, 8.0f, 14.0f);
+            const float knobH = std::clamp(entry.sliderH * 0.92f, 12.0f, 22.0f);
+            const float knobX = entry.sliderX + sliderRatio * entry.sliderW - knobW * 0.5f;
+            const float knobY = entry.sliderY + (entry.sliderH - knobH) * 0.5f;
+            const float fillW = std::clamp(entry.sliderW * sliderRatio, 0.0f, entry.sliderW);
+
+            IRenderBackend::DebugQuad trackBg;
+            trackBg.x = entry.sliderX;
+            trackBg.y = trackY;
+            trackBg.w = entry.sliderW;
+            trackBg.h = trackH;
+            trackBg.r = entry.enabled ? 0.16f : 0.20f;
+            trackBg.g = entry.enabled ? 0.18f : 0.20f;
+            trackBg.b = entry.enabled ? 0.22f : 0.22f;
+            trackBg.a = 0.96f;
+            baseQuads.push_back(trackBg);
+
+            if (fillW > 0.0f) {
+                IRenderBackend::DebugQuad fill = trackBg;
+                fill.w = fillW;
+                fill.r = std::clamp(tr * 0.92f, 0.0f, 1.0f);
+                fill.g = std::clamp(tg * 0.92f, 0.0f, 1.0f);
+                fill.b = std::clamp(tb * 0.92f, 0.0f, 1.0f);
+                fill.a = entry.enabled ? 0.96f : 0.72f;
+                baseQuads.push_back(fill);
+            }
+
+            if (entry.sliderStep > 0.0f && sliderRange > 0.0f) {
+                const int notchCount = std::clamp(
+                    static_cast<int>(std::lround(sliderRange / entry.sliderStep)) + 1,
+                    2,
+                    32);
+                for (int i = 0; i < notchCount; ++i) {
+                    const float notchT = static_cast<float>(i) / static_cast<float>(notchCount - 1);
+                    IRenderBackend::DebugQuad notch;
+                    notch.w = 1.5f;
+                    notch.h = std::clamp(entry.sliderH * 0.46f, 6.0f, 12.0f);
+                    notch.x = entry.sliderX + notchT * entry.sliderW - notch.w * 0.5f;
+                    notch.y = entry.sliderY + (entry.sliderH - notch.h) * 0.5f;
+                    notch.r = 0.86f;
+                    notch.g = 0.88f;
+                    notch.b = 0.92f;
+                    notch.a = entry.enabled ? 0.44f : 0.22f;
+                    baseQuads.push_back(notch);
+                }
+            }
+
+            IRenderBackend::DebugQuad knob;
+            knob.x = knobX;
+            knob.y = knobY;
+            knob.w = knobW;
+            knob.h = knobH;
+            knob.r = entry.enabled ? 0.96f : 0.62f;
+            knob.g = entry.enabled ? 0.97f : 0.64f;
+            knob.b = entry.enabled ? 1.0f : 0.68f;
+            knob.a = entry.enabled ? 0.98f : 0.78f;
+            baseQuads.push_back(knob);
+            appendOutline(knob.x, knob.y, knob.w, knob.h, 1.2f, 0.12f, 0.14f, 0.18f, 0.92f);
+
+            if (!entry.sliderValueLabel.empty()) {
+                const float valueTextX = entry.sliderX + entry.sliderW + std::max(12.0f, textScale * 3.5f);
+                game::runtime::ui_text::appendTextLines(
+                    textLines,
+                    valueTextX,
+                    textY,
+                    entry.sliderValueLabel,
+                    textScale,
+                    tr,
+                    tg,
+                    tb,
+                    entry.enabled ? 1.0f : 0.72f,
+                    0.82f);
+            }
         }
 
         minX = std::min(minX, bg.x);
@@ -778,6 +904,13 @@ void ScriptedState::renderBackendTextMenu(int uiW, int uiH) {
     if (hasAnyEntry) {
         const auto msgOpt = game::scripting::callStringFunction(script.getScriptTable(), {"get_message"});
         std::string header = msgOpt ? *msgOpt : "Menu";
+        bool hasAnySlider = false;
+        for (const auto& entry : textMenuEntries) {
+            if (entry.hasSlider) {
+                hasAnySlider = true;
+                break;
+            }
+        }
         game::runtime::ui_text::appendTextLines(textLines,
                                 minX,
                                 std::max(24.0f, minY - 62.0f),
@@ -791,7 +924,7 @@ void ScriptedState::renderBackendTextMenu(int uiW, int uiH) {
         game::runtime::ui_text::appendTextLines(textLines,
                                 minX,
                                 std::max(52.0f, minY - 30.0f),
-                                "Click entries or press 1-9",
+                                hasAnySlider ? "Click slider bars or press 1-9 to step" : "Click entries or press 1-9",
                                 1.5f * backendTextMenuScale,
                                 0.72f,
                                 0.84f,

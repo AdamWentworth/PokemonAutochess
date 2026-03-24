@@ -114,8 +114,14 @@ void run(const Args& args) {
         (*args.services)->preferredGpuAdapter = args.ctx->services->preferredGpuAdapter;
         (*args.services)->gpuDiscrete = args.ctx->services->gpuDiscrete;
         (*args.services)->vsyncEnabled = args.ctx->services->vsyncEnabled;
+        (*args.services)->fpsCap = args.ctx->services->fpsCap;
         (*args.services)->requireDiscreteGpu = args.ctx->services->requireDiscreteGpu;
         (*args.services)->characterInkingEnabled = args.ctx->services->characterInkingEnabled;
+        (*args.services)->audioMasterVolume = args.ctx->services->audioMasterVolume;
+        (*args.services)->audioMusicVolume = args.ctx->services->audioMusicVolume;
+        (*args.services)->audioSfxVolume = args.ctx->services->audioSfxVolume;
+        (*args.services)->audioVoiceVolume = args.ctx->services->audioVoiceVolume;
+        (*args.services)->audioMute = args.ctx->services->audioMute;
         (*args.services)->bootMenuScreen = args.ctx->services->bootMenuScreen;
     }
     if (args.ctx->queryVideoMode) {

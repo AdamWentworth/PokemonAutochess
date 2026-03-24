@@ -100,6 +100,15 @@ bool isRendererBackendImplemented(RendererBackend backend) {
     return false;
 }
 
+int sanitizeFpsCap(int fpsCap) {
+    if (fpsCap <= 0) return 0;
+    return std::min(fpsCap, 1000);
+}
+
+int sanitizeVolumePercent(int volumePercent) {
+    return std::clamp(volumePercent, 0, 100);
+}
+
 Preferences loadPreferences(const std::string& path) {
     Preferences out;
 
@@ -120,9 +129,19 @@ Preferences loadPreferences(const std::string& path) {
         out.rendererBackend = rendererBackendName(parseRendererBackend(backend));
     }
     out.vsync = j.value("vsync", out.vsync);
+    out.fpsCap = sanitizeFpsCap(j.value("fps_cap", out.fpsCap));
     out.requireDiscreteGpu = j.value("require_discrete_gpu", out.requireDiscreteGpu);
     out.preferredGpuAdapter = j.value("preferred_gpu_adapter", out.preferredGpuAdapter);
     out.characterInking = j.value("character_inking", out.characterInking);
+    out.audioMasterVolume = sanitizeVolumePercent(
+        j.value("audio_master_volume", out.audioMasterVolume));
+    out.audioMusicVolume = sanitizeVolumePercent(
+        j.value("audio_music_volume", out.audioMusicVolume));
+    out.audioSfxVolume = sanitizeVolumePercent(
+        j.value("audio_sfx_volume", out.audioSfxVolume));
+    out.audioVoiceVolume = sanitizeVolumePercent(
+        j.value("audio_voice_volume", out.audioVoiceVolume));
+    out.audioMute = j.value("audio_mute", out.audioMute);
     out.fullscreen = j.value("fullscreen", out.fullscreen);
     out.windowedWidth = std::max(0, j.value("windowed_width", out.windowedWidth));
     out.windowedHeight = std::max(0, j.value("windowed_height", out.windowedHeight));
@@ -138,9 +157,15 @@ bool savePreferences(const Preferences& prefs, const std::string& path, std::str
     nlohmann::json j = nlohmann::json::object();
     j["renderer_backend"] = rendererBackendName(parseRendererBackend(prefs.rendererBackend));
     j["vsync"] = prefs.vsync;
+    j["fps_cap"] = sanitizeFpsCap(prefs.fpsCap);
     j["require_discrete_gpu"] = prefs.requireDiscreteGpu;
     j["preferred_gpu_adapter"] = prefs.preferredGpuAdapter;
     j["character_inking"] = prefs.characterInking;
+    j["audio_master_volume"] = sanitizeVolumePercent(prefs.audioMasterVolume);
+    j["audio_music_volume"] = sanitizeVolumePercent(prefs.audioMusicVolume);
+    j["audio_sfx_volume"] = sanitizeVolumePercent(prefs.audioSfxVolume);
+    j["audio_voice_volume"] = sanitizeVolumePercent(prefs.audioVoiceVolume);
+    j["audio_mute"] = prefs.audioMute;
     j["fullscreen"] = prefs.fullscreen;
     j["windowed_width"] = std::max(0, prefs.windowedWidth);
     j["windowed_height"] = std::max(0, prefs.windowedHeight);
