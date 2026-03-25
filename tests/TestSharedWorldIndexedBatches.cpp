@@ -89,6 +89,8 @@ struct RecordingBackend final : public IRenderBackend {
                                                      int surfaceWidth,
                                                      int surfaceHeight) override {
         (void)geometryKey;
+        (void)vertices;
+        (void)indices;
         (void)instances;
         (void)viewProjectionMatrix4x4;
         (void)surfaceWidth;
