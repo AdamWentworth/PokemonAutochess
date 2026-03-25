@@ -2,6 +2,7 @@
 
 local ROUTES = {
     route1 = {
+        arena_theme = "route1_open_road",
         message = "Route 1 - Wild Pokemon Appeared!",
         clear_message = "Route 1 cleared!",
         next_shop = "route1_shop",
@@ -17,6 +18,7 @@ local ROUTES = {
         }
     },
     route1_5 = {
+        arena_theme = "route1_open_road",
         message = "Route 1.5 - Another wave!",
         clear_message = "Route 1.5 cleared!",
         next_shop = "route22_shop",
@@ -33,6 +35,7 @@ local ROUTES = {
         }
     },
     route22 = {
+        arena_theme = "route22_foothills",
         message = "Route 22 - New challengers!",
         clear_message = "Route 22 cleared!",
         next_shop = "route2_shop",
@@ -50,6 +53,7 @@ local ROUTES = {
         }
     },
     route2 = {
+        arena_theme = "route2_forest_edge",
         message = "Route 2 - Edge of Viridian Forest!",
         clear_message = "Route 2 cleared!",
         next_shop = "viridian_forest_shop",
@@ -68,6 +72,7 @@ local ROUTES = {
         }
     },
     viridian_forest = {
+        arena_theme = "viridian_forest_shrine",
         message = "Viridian Forest - The bugs are swarming!",
         clear_message = "Viridian Forest cleared!",
         next_shop = "route3_shop",
@@ -86,6 +91,7 @@ local ROUTES = {
         }
     },
     route3 = {
+        arena_theme = "route3_mountain_pass",
         message = "Route 3 - Stronger wilds ahead!",
         clear_message = "Route 3 cleared!",
         next_shop = "route3_shop",

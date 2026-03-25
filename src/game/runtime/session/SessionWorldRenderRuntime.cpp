@@ -16,6 +16,7 @@
 #include "game/runtime/session/SessionRenderConfig.h"
 #include "game/runtime/session/SessionRenderLayout.h"
 #include "game/runtime/session/SessionRenderScratch.h"
+#include "game/runtime/session/SessionWorldBackdrop.h"
 #include "game/runtime/shared/scene/SharedWorldScene.h"
 #include "game/runtime/shared/ui/SharedBackendDebugViewOverlay.h"
 #include "game/runtime/shared/world/SharedWorldIndexedBatches.h"
@@ -92,6 +93,8 @@ std::size_t render(const Args& args) {
         args.allowBackendMenuBackdrop);
     const bool useProjectedWorldLayout =
         showWorldBackdrop && args.renderWorld && args.gameWorld && (args.camera != nullptr);
+    const auto backdropTheme =
+        game::runtime::session_world_backdrop::routeThemeFromScriptPath(args.stateScriptPath);
 
     if (args.services &&
         scratch.lastGraphicsQualityGeneration != args.services->graphicsQualityGeneration) {
@@ -130,6 +133,7 @@ std::size_t render(const Args& args) {
                             useLegacyParticleVfxSnapshotBridge,
                         .useExactTailFireCpuPath =
                             game::runtime::session_render_config::backendUseExactTailFireCpuPathEnabled(),
+                        .backdropTheme = backdropTheme,
                         .drawableW = args.drawableW,
                         .drawableH = args.drawableH,
                         .rows = layout.rows,

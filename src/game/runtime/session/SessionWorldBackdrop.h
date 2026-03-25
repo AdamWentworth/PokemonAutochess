@@ -3,7 +3,18 @@
 #include "game/runtime/session/SessionRenderScratch.h"
 #include "game/runtime/shared/projected/SharedProjectedDebugVfx.h"
 
+#include <string>
+
 namespace game::runtime::session_world_backdrop {
+
+enum class ArenaBackdropTheme {
+    Default = 0,
+    Route1OpenRoad,
+    Route22Foothills,
+    Route2ForestEdge,
+    ViridianForestShrine,
+    Route3MountainPass,
+};
 
 struct ProjectedBackdropArgs {
     bool supportsWorldTriangles3D = false;
@@ -22,7 +33,10 @@ struct ProjectedBackdropArgs {
     float cellW = 0.0f;
     float cellH = 0.0f;
     float line = 1.0f;
+    ArenaBackdropTheme theme = ArenaBackdropTheme::Default;
 };
+
+ArenaBackdropTheme routeThemeFromScriptPath(const std::string& stateScriptPath);
 
 float composeProjectedBackdrop(
     const ProjectedBackdropArgs& args,

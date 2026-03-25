@@ -79,6 +79,7 @@
 #include "game/assets/DevAssetStore.h"
 #include "game/assets/PackedAssetStore.h"
 #include "game/PhaseState.h"
+#include "game/state/CombatState.h"
 
 #include "game/systems/CameraSystem.h"
 #include "game/systems/UnitInteractionSystem.h"
@@ -611,6 +612,7 @@ struct GameSession::Impl {
                     .drawableW = drawableW,
                     .drawableH = drawableH,
                     .simNowSec = timeSource.nowSeconds(),
+                    .stateScriptPath = currentStateScriptPath(),
                     .ensureBackendMeshLoaded =
                         [&](const std::string& modelPath) {
                             return ensureBackendMeshLoaded(modelPath);
@@ -655,6 +657,7 @@ struct GameSession::Impl {
                 .drawableW = drawableW,
                 .drawableH = drawableH,
                 .simNowSec = timeSource.nowSeconds(),
+                .stateScriptPath = currentStateScriptPath(),
                 .ensureBackendMeshLoaded =
                     [&](const std::string& modelPath) {
                         return ensureBackendMeshLoaded(modelPath);
@@ -664,6 +667,19 @@ struct GameSession::Impl {
                         return ensureBackendTextureLoaded(texturePath, flipVertical);
                     },
             });
+    }
+
+    std::string currentStateScriptPath() const {
+        if (!stateManager) return {};
+        GameState* current = stateManager->getCurrentState();
+        if (!current) return {};
+        if (const auto* combat = dynamic_cast<const CombatState*>(current)) {
+            return combat->debugScriptPath();
+        }
+        if (const auto* scripted = dynamic_cast<const ScriptedState*>(current)) {
+            return scripted->debugScriptPath();
+        }
+        return {};
     }
 
     void renderStateLayer() {

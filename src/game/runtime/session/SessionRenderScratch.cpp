@@ -18,7 +18,8 @@ bool ProjectedBackdropCacheKey::operator==(const ProjectedBackdropCacheKey& othe
            boardH == other.boardH &&
            cellW == other.cellW &&
            cellH == other.cellH &&
-           line == other.line;
+           line == other.line &&
+           arenaBackdropTheme == other.arenaBackdropTheme;
 }
 
 RenderScratch& threadScratch() {

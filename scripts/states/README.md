@@ -24,6 +24,7 @@ Mode-specific behavior is selected at runtime via `get_game_mode()`:
 Shared implementation lives in `scripts/states/shared/`:
 
 - `route_catalog.lua`: route data (message, enemies, balance, next shop)
+  - also carries the intended arena theme progression for route backdrops
 - `shop_catalog.lua`: shop data (next route + classic pool tuning)
 - `combat_route_shared.lua`: combat state callbacks
 - `shop_state_shared.lua`: shop state callbacks

@@ -60,6 +60,7 @@ struct Args {
     int drawableW = 0;
     int drawableH = 0;
     double simNowSec = 0.0;
+    std::string stateScriptPath;
 
     std::function<render_model::MeshData*(const std::string&)> ensureBackendMeshLoaded;
     std::function<SharedBackendTextureCacheEntry*(const std::string&, bool)> ensureBackendTextureLoaded;

@@ -5,6 +5,7 @@
 #include "game/config/GameDataDb.h"
 #include "game/runtime/render_model_cache/RenderModelCache.h"
 #include "game/runtime/session/SessionRenderScratch.h"
+#include "game/runtime/session/SessionWorldBackdrop.h"
 #include "game/runtime/shared/backend/SharedBackendTextureCache.h"
 #include "game/runtime/shared/ui/SharedUnitHudBatches.h"
 
@@ -38,6 +39,8 @@ struct Args {
     bool useLegacyGrowlWaveVfx = false;
     bool useLegacyParticleVfxSnapshotBridge = false;
     bool useExactTailFireCpuPath = false;
+    session_world_backdrop::ArenaBackdropTheme backdropTheme =
+        session_world_backdrop::ArenaBackdropTheme::Default;
 
     int drawableW = 0;
     int drawableH = 0;

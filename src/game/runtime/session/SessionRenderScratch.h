@@ -37,6 +37,7 @@ struct ProjectedBackdropCacheKey {
     float cellW = 0.0f;
     float cellH = 0.0f;
     float line = 0.0f;
+    int arenaBackdropTheme = 0;
 
     bool operator==(const ProjectedBackdropCacheKey& other) const;
 };

@@ -43,6 +43,7 @@ bool test_session_world_backdrop_contract(std::string& outFail) {
         args.cellW = 100.0f;
         args.cellH = 100.0f;
         args.line = 2.0f;
+        args.theme = game::runtime::session_world_backdrop::ArenaBackdropTheme::Route1OpenRoad;
         return args;
     };
 
@@ -76,6 +77,24 @@ bool test_session_world_backdrop_contract(std::string& outFail) {
             scratch.lines.size() != cachedLineCount ||
             secondComposeMs < 0.0f) {
             outFail = "SessionWorldBackdrop should reuse cached projected backdrop sizes for unchanged keys.";
+            return false;
+        }
+    }
+
+    {
+        RenderScratch scratch;
+        auto projectedDebug = makeProjectedDebug(true, scratch);
+        ProjectedBackdropArgs args = makeArgs(true);
+        composeProjectedBackdrop(args, projectedDebug, scratch);
+        const std::size_t route1World3DCount = scratch.world3DTriangles.size();
+
+        args.theme = game::runtime::session_world_backdrop::ArenaBackdropTheme::ViridianForestShrine;
+        composeProjectedBackdrop(args, projectedDebug, scratch);
+        if (!scratch.projectedBackdropValid ||
+            scratch.projectedBackdropKey.arenaBackdropTheme !=
+                static_cast<int>(game::runtime::session_world_backdrop::ArenaBackdropTheme::ViridianForestShrine) ||
+            scratch.world3DTriangles.size() == route1World3DCount) {
+            outFail = "SessionWorldBackdrop should rebuild and retheme cached backdrop geometry when the route theme changes.";
             return false;
         }
     }

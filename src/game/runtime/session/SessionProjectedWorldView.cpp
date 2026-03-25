@@ -109,6 +109,7 @@ Result appendProjectedWorldView(const Args& args) {
                 .cellW = args.cellW,
                 .cellH = args.cellH,
                 .line = line,
+                .theme = args.backdropTheme,
             },
             projectedDebug,
             *args.scratch);
