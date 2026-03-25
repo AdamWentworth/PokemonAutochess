@@ -256,7 +256,10 @@ void D3D12RenderBackend::createDebugPipeline() {
         throw std::runtime_error("CreateGraphicsPipelineState failed for D3D12 debug pipeline.");
     }
 
-    constexpr std::size_t kBufferBytes = kMaxDebugVertices * sizeof(DebugVertex);
+    const std::size_t kDebugVertexBufferBytesPerFrame =
+        kMaxDebugVertices * sizeof(DebugVertex);
+    const std::size_t kBufferBytes =
+        kDebugVertexBufferBytesPerFrame * D3D12RenderBackend::kFrameCount;
     D3D12_HEAP_PROPERTIES heapProps{};
     heapProps.Type = D3D12_HEAP_TYPE_UPLOAD;
     heapProps.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
@@ -290,6 +293,8 @@ void D3D12RenderBackend::createDebugPipeline() {
     debugVertexBufferGpuAddress_ = debugVertexBuffer_->GetGPUVirtualAddress();
     debugVertexStride_ = sizeof(DebugVertex);
     debugVertexBufferSize_ = static_cast<UINT>(kBufferBytes);
+    debugVertexBufferBytesPerFrame_ =
+        static_cast<UINT>(kDebugVertexBufferBytesPerFrame);
     debugVertexMappedData_ = nullptr;
     void* debugMapped = nullptr;
     D3D12_RANGE debugReadRange{0, 0};
@@ -1797,7 +1802,10 @@ void D3D12RenderBackend::createSpritePipeline() {
         throw std::runtime_error("CreateGraphicsPipelineState failed for D3D12 sprite pipeline.");
     }
 
-    constexpr std::size_t kBufferBytes = kMaxSpriteQuads * sizeof(SpriteInstanceData);
+    const std::size_t kSpriteVertexBufferBytesPerFrame =
+        kMaxSpriteQuads * sizeof(SpriteInstanceData);
+    const std::size_t kBufferBytes =
+        kSpriteVertexBufferBytesPerFrame * D3D12RenderBackend::kFrameCount;
     D3D12_HEAP_PROPERTIES heapProps{};
     heapProps.Type = D3D12_HEAP_TYPE_UPLOAD;
     heapProps.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
@@ -1830,6 +1838,8 @@ void D3D12RenderBackend::createSpritePipeline() {
     spriteVertexBufferGpuAddress_ = spriteVertexBuffer_->GetGPUVirtualAddress();
     spriteVertexStride_ = sizeof(SpriteInstanceData);
     spriteVertexBufferSize_ = static_cast<UINT>(kBufferBytes);
+    spriteVertexBufferBytesPerFrame_ =
+        static_cast<UINT>(kSpriteVertexBufferBytesPerFrame);
     spriteVertexMappedData_ = nullptr;
     void* spriteMapped = nullptr;
     D3D12_RANGE spriteReadRange{0, 0};

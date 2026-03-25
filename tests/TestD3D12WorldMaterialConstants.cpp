@@ -29,6 +29,15 @@ bool test_d3d12_world_material_constants_contract(std::string& outFail) {
         return false;
     }
 
+    if (!expect(d3d12i::frameSliceBase(0u, 4096u) == 0u &&
+                    d3d12i::frameSliceBase(1u, 4096u) == 4096u &&
+                    d3d12i::frameSliceEnd(0u, 4096u) == 4096u &&
+                    d3d12i::frameSliceEnd(1u, 4096u) == 8192u,
+                "frame slice helpers should compute non-overlapping per-frame upload ranges.",
+                outFail)) {
+        return false;
+    }
+
     if (!expect(nearf(d3d12i::sanitizeWrapMode(33071), 33071.0f) &&
                     nearf(d3d12i::sanitizeWrapMode(33648), 33648.0f) &&
                     nearf(d3d12i::sanitizeWrapMode(10497), 10497.0f) &&

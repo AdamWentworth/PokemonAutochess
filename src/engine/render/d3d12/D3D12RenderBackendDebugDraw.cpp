@@ -29,8 +29,11 @@ void D3D12RenderBackend::drawDebugQuads(const DebugQuad* quads,
     const std::size_t safeCount = (quadCount > kMaxDebugQuads) ? kMaxDebugQuads : quadCount;
     const std::size_t vertexCount = safeCount * 6;
     const std::size_t neededBytes = vertexCount * sizeof(DebugVertex);
+    const std::size_t debugFrameEnd =
+        static_cast<std::size_t>(debugVertexFrameBaseOffset_) +
+        static_cast<std::size_t>(debugVertexBufferBytesPerFrame_);
     const std::size_t writeOffset = alignUp(static_cast<std::size_t>(debugVertexFrameOffset_), 256u);
-    if (neededBytes == 0 || writeOffset + neededBytes > debugVertexBufferSize_) return;
+    if (neededBytes == 0 || writeOffset + neededBytes > debugFrameEnd) return;
 
     static thread_local std::vector<DebugVertex> verts;
     verts.clear();
@@ -229,8 +232,11 @@ void D3D12RenderBackend::drawDebugLines(const DebugLine* lines,
     if (verts.empty()) return;
 
     const std::size_t neededBytes = verts.size() * sizeof(DebugVertex);
+    const std::size_t debugFrameEnd =
+        static_cast<std::size_t>(debugVertexFrameBaseOffset_) +
+        static_cast<std::size_t>(debugVertexBufferBytesPerFrame_);
     const std::size_t writeOffset = alignUp(static_cast<std::size_t>(debugVertexFrameOffset_), 256u);
-    if (neededBytes == 0 || writeOffset + neededBytes > debugVertexBufferSize_) return;
+    if (neededBytes == 0 || writeOffset + neededBytes > debugFrameEnd) return;
 
     DebugVertex* out = reinterpret_cast<DebugVertex*>(debugVertexMappedData_ + writeOffset);
     const float invW = 1.0f / static_cast<float>(surfaceWidth);
@@ -423,8 +429,11 @@ void D3D12RenderBackend::drawDebugTriangles(const DebugTriangle* triangles,
     if (verts.empty()) return;
 
     const std::size_t neededBytes = verts.size() * sizeof(DebugVertex);
+    const std::size_t debugFrameEnd =
+        static_cast<std::size_t>(debugVertexFrameBaseOffset_) +
+        static_cast<std::size_t>(debugVertexBufferBytesPerFrame_);
     const std::size_t writeOffset = alignUp(static_cast<std::size_t>(debugVertexFrameOffset_), 256u);
-    if (neededBytes == 0 || writeOffset + neededBytes > debugVertexBufferSize_) return;
+    if (neededBytes == 0 || writeOffset + neededBytes > debugFrameEnd) return;
 
     DebugVertex* out = reinterpret_cast<DebugVertex*>(debugVertexMappedData_ + writeOffset);
     const float invW = 1.0f / static_cast<float>(surfaceWidth);
@@ -514,8 +523,11 @@ void D3D12RenderBackend::drawDebugSprites(const DebugSprite* sprites,
     if (instances.empty() || runs.empty()) return;
 
     const std::size_t neededBytes = instances.size() * sizeof(SpriteInstanceData);
+    const std::size_t spriteFrameEnd =
+        static_cast<std::size_t>(spriteVertexFrameBaseOffset_) +
+        static_cast<std::size_t>(spriteVertexBufferBytesPerFrame_);
     const std::size_t writeOffset = alignUp(static_cast<std::size_t>(spriteVertexFrameOffset_), 256u);
-    if (neededBytes == 0 || writeOffset + neededBytes > spriteVertexBufferSize_) return;
+    if (neededBytes == 0 || writeOffset + neededBytes > spriteFrameEnd) return;
 
     std::memcpy(spriteVertexMappedData_ + writeOffset, instances.data(), neededBytes);
 

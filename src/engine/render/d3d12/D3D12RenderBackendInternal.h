@@ -116,6 +116,14 @@ inline std::size_t alignUp(std::size_t value, std::size_t alignment) {
     return (value + mask) & ~mask;
 }
 
+inline std::size_t frameSliceBase(std::uint32_t frameIndex, std::size_t bytesPerFrame) {
+    return static_cast<std::size_t>(frameIndex) * bytesPerFrame;
+}
+
+inline std::size_t frameSliceEnd(std::uint32_t frameIndex, std::size_t bytesPerFrame) {
+    return frameSliceBase(frameIndex, bytesPerFrame) + bytesPerFrame;
+}
+
 inline float sanitizeWrapMode(int wrapMode) {
     if (wrapMode == kGlClampToEdge || wrapMode == kGlMirroredRepeat || wrapMode == kGlRepeat) {
         return static_cast<float>(wrapMode);

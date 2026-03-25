@@ -375,7 +375,10 @@ void D3D12RenderBackend::drawWorldIndexedMeshCachedInternal(const CachedWorldMes
         0.0f, 0.0f, 0.0f, 1.0f};
     const std::size_t vsConstantsWriteOffset =
         alignUp(static_cast<std::size_t>(worldVsConstantFrameOffset_), 256u);
-    if (vsConstantsWriteOffset + 256u > worldVsConstantBufferSize_) return;
+    const std::size_t vsConstantsFrameEnd =
+        static_cast<std::size_t>(worldVsConstantFrameBaseOffset_) +
+        static_cast<std::size_t>(worldVsConstantBufferBytesPerFrame_);
+    if (vsConstantsWriteOffset + 256u > vsConstantsFrameEnd) return;
     float vsConstants[36] = {};
     std::memcpy(vsConstants, viewProjectionMatrix4x4, sizeof(float) * 16u);
     std::memcpy(vsConstants + 16u, kIdentity, sizeof(float) * 16u);
@@ -390,8 +393,14 @@ void D3D12RenderBackend::drawWorldIndexedMeshCachedInternal(const CachedWorldMes
     commandList_->SetGraphicsRootConstantBufferView(
         0,
         worldVsConstantBufferGpuAddress_ + static_cast<std::uint64_t>(vsConstantsWriteOffset));
-    commandList_->SetGraphicsRootShaderResourceView(2, worldSkinMatrixBufferGpuAddress_);
-    commandList_->SetGraphicsRootShaderResourceView(4, worldInstanceBufferGpuAddress_);
+    commandList_->SetGraphicsRootShaderResourceView(
+        2,
+        worldSkinMatrixBufferGpuAddress_ +
+            static_cast<std::uint64_t>(worldSkinMatrixFrameBaseOffset_));
+    commandList_->SetGraphicsRootShaderResourceView(
+        4,
+        worldInstanceBufferGpuAddress_ +
+            static_cast<std::uint64_t>(worldInstanceFrameBaseOffset_));
     const WorldPsConstants worldPs = makeWorldPsConstants(nullptr, useTexture);
     commandList_->SetGraphicsRoot32BitConstants(
         1,

@@ -394,6 +394,8 @@ private:
     std::uint64_t debugVertexBufferGpuAddress_ = 0;
     std::uint32_t debugVertexStride_ = 0;
     std::uint32_t debugVertexBufferSize_ = 0;
+    std::uint32_t debugVertexBufferBytesPerFrame_ = 0;
+    std::uint32_t debugVertexFrameBaseOffset_ = 0;
     std::uint32_t debugVertexFrameOffset_ = 0;
     std::uint8_t* debugVertexMappedData_ = nullptr;
     std::unordered_map<std::string, CachedDebugGeometry> cachedDebugQuads_;
@@ -469,6 +471,8 @@ private:
     std::uint64_t spriteVertexBufferGpuAddress_ = 0;
     std::uint32_t spriteVertexStride_ = 0;
     std::uint32_t spriteVertexBufferSize_ = 0;
+    std::uint32_t spriteVertexBufferBytesPerFrame_ = 0;
+    std::uint32_t spriteVertexFrameBaseOffset_ = 0;
     std::uint32_t spriteVertexFrameOffset_ = 0;
     std::uint8_t* spriteVertexMappedData_ = nullptr;
     std::unordered_map<std::string, SpriteTexture> spriteTextures_;

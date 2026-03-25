@@ -96,7 +96,9 @@ void D3D12RenderBackend::beginFrame(float r, float g, float b, float a) {
     if (FAILED(allocator->Reset())) return;
     if (FAILED(commandList_->Reset(allocator.Get(), nullptr))) return;
 
-    debugVertexFrameOffset_ = 0;
+    debugVertexFrameBaseOffset_ =
+        static_cast<std::uint32_t>(frameSliceBase(frameIndex_, debugVertexBufferBytesPerFrame_));
+    debugVertexFrameOffset_ = debugVertexFrameBaseOffset_;
     worldVertexFrameBaseOffset_ = frameIndex_ * worldVertexBufferBytesPerFrame_;
     worldVertexFrameOffset_ = worldVertexFrameBaseOffset_;
     worldIndexFrameBaseOffset_ = frameIndex_ * worldIndexBufferBytesPerFrame_;
@@ -114,7 +116,9 @@ void D3D12RenderBackend::beginFrame(float r, float g, float b, float a) {
     worldInstanceFrameBaseOffset_ = frameIndex_ * worldInstanceBufferBytesPerFrame_;
     worldInstanceFrameOffset_ =
         worldInstanceFrameBaseOffset_ + static_cast<UINT>(sizeof(WorldInstanceVertexData));
-    spriteVertexFrameOffset_ = 0;
+    spriteVertexFrameBaseOffset_ =
+        static_cast<std::uint32_t>(frameSliceBase(frameIndex_, spriteVertexBufferBytesPerFrame_));
+    spriteVertexFrameOffset_ = spriteVertexFrameBaseOffset_;
 
     if (timestampQueryHeap_) {
         const std::uint32_t queryBase = frameIndex_ * kTimestampQueriesPerFrame;
@@ -440,6 +444,8 @@ void D3D12RenderBackend::shutdown() {
     debugVertexBufferGpuAddress_ = 0;
     debugVertexStride_ = 0;
     debugVertexBufferSize_ = 0;
+    debugVertexBufferBytesPerFrame_ = 0;
+    debugVertexFrameBaseOffset_ = 0;
     debugVertexFrameOffset_ = 0;
     cachedDebugQuads_.clear();
     cachedDebugLines_.clear();
@@ -526,6 +532,8 @@ void D3D12RenderBackend::shutdown() {
     spriteVertexBufferGpuAddress_ = 0;
     spriteVertexStride_ = 0;
     spriteVertexBufferSize_ = 0;
+    spriteVertexBufferBytesPerFrame_ = 0;
+    spriteVertexFrameBaseOffset_ = 0;
     spriteVertexFrameOffset_ = 0;
     spritePipelineState_.Reset();
     spriteRootSignature_.Reset();
