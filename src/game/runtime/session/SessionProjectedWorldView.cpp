@@ -94,6 +94,8 @@ Result appendProjectedWorldView(const Args& args) {
         session_world_backdrop::composeProjectedBackdrop(
             {
                 .supportsWorldTriangles3D = args.supportsWorldTriangles3D,
+                .supportsWorldIndexedMeshes = args.supportsWorldIndexedMeshes,
+                .graphicsQuality = args.graphicsQuality,
                 .rows = args.rows,
                 .cols = args.cols,
                 .benchSlots = args.benchSlots,
@@ -102,6 +104,8 @@ Result appendProjectedWorldView(const Args& args) {
                 .boardMinZ = boardBounds.minZ,
                 .boardMaxX = boardBounds.maxX,
                 .boardMaxZ = boardBounds.maxZ,
+                .drawableW = args.drawableW,
+                .drawableH = args.drawableH,
                 .boardX = args.boardX,
                 .boardY = args.boardY,
                 .boardW = args.boardW,
@@ -110,6 +114,7 @@ Result appendProjectedWorldView(const Args& args) {
                 .cellH = args.cellH,
                 .line = line,
                 .theme = args.backdropTheme,
+                .ensureBackendMeshLoaded = args.ensureBackendMeshLoaded,
             },
             projectedDebug,
             *args.scratch);

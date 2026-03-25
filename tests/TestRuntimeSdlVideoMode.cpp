@@ -173,6 +173,40 @@ bool test_runtime_sdl_video_mode_contract(std::string& outFail) {
     }
 
     {
+        if (!game::runtime::video_mode::shouldPreferRestoredWindowForUncappedPresentation(
+                false,
+                true,
+                false,
+                0)) {
+            outFail = "shouldPreferRestoredWindowForUncappedPresentation should detect maximized uncapped windowed presentation.";
+            return false;
+        }
+        if (game::runtime::video_mode::shouldPreferRestoredWindowForUncappedPresentation(
+                true,
+                true,
+                false,
+                0) ||
+            game::runtime::video_mode::shouldPreferRestoredWindowForUncappedPresentation(
+                false,
+                false,
+                false,
+                0) ||
+            game::runtime::video_mode::shouldPreferRestoredWindowForUncappedPresentation(
+                false,
+                true,
+                true,
+                0) ||
+            game::runtime::video_mode::shouldPreferRestoredWindowForUncappedPresentation(
+                false,
+                true,
+                false,
+                120)) {
+            outFail = "shouldPreferRestoredWindowForUncappedPresentation should only trigger for maximized windowed mode with VSync off and FPS cap off.";
+            return false;
+        }
+    }
+
+    {
         FakeSdlState state;
         state.setWindowFullscreenResults = {0};
         g_fakeSdlState = &state;

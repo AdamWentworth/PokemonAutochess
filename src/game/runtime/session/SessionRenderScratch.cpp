@@ -4,14 +4,18 @@ namespace game::runtime::session_render_scratch {
 
 bool ProjectedBackdropCacheKey::operator==(const ProjectedBackdropCacheKey& other) const {
     return supportsWorldTriangles3D == other.supportsWorldTriangles3D &&
+           supportsWorldIndexedMeshes == other.supportsWorldIndexedMeshes &&
            rows == other.rows &&
            cols == other.cols &&
            benchSlots == other.benchSlots &&
+           graphicsQuality == other.graphicsQuality &&
            worldCellSize == other.worldCellSize &&
            boardMinX == other.boardMinX &&
            boardMinZ == other.boardMinZ &&
            boardMaxX == other.boardMaxX &&
            boardMaxZ == other.boardMaxZ &&
+           drawableW == other.drawableW &&
+           drawableH == other.drawableH &&
            boardX == other.boardX &&
            boardY == other.boardY &&
            boardW == other.boardW &&
@@ -71,6 +75,7 @@ void invalidateProjectedBackdrop(RenderScratch& scratch) {
     scratch.projectedBackdropWorldBackgroundQuadsCount = 0u;
     scratch.projectedBackdropWorldTrianglesCount = 0u;
     scratch.projectedBackdropWorld3DTrianglesCount = 0u;
+    scratch.projectedBackdropWorldIndexedBatchesCount = 0u;
     scratch.projectedBackdropLinesCount = 0u;
 }
 
@@ -84,11 +89,16 @@ void resetSceneCaches(RenderScratch& scratch) {
 void beginFrame(RenderScratch& scratch,
                 bool useProjectedWorldLayout,
                 IRenderBackend* renderer) {
+    const bool reuseProjectedBackdrop =
+        useProjectedWorldLayout && scratch.projectedBackdropValid;
+
     shared_projected_render_items::beginProjectedRenderItemsFrame(
         scratch.projectedRenderItems);
     shared_world_scene::beginWorldSceneFrame(scratch.worldSceneFrame);
     scratch.worldQuads.clear();
-    scratch.worldIndexedBatches.clear();
+    if (!reuseProjectedBackdrop) {
+        scratch.worldIndexedBatches.clear();
+    }
     scratch.overlayQuads.clear();
     scratch.textLines.clear();
     scratch.sprites.clear();
@@ -97,10 +107,11 @@ void beginFrame(RenderScratch& scratch,
     scratch.sharedCaptureAttemptCache.snaps.clear();
     scratch.sharedCaptureAttemptCache.byTargetId.clear();
 
-    if (useProjectedWorldLayout && scratch.projectedBackdropValid) {
+    if (reuseProjectedBackdrop) {
         scratch.worldBackgroundQuads.resize(scratch.projectedBackdropWorldBackgroundQuadsCount);
         scratch.worldTriangles.resize(scratch.projectedBackdropWorldTrianglesCount);
         scratch.world3DTriangles.resize(scratch.projectedBackdropWorld3DTrianglesCount);
+        scratch.worldIndexedBatches.resize(scratch.projectedBackdropWorldIndexedBatchesCount);
         scratch.lines.resize(scratch.projectedBackdropLinesCount);
         if (!renderer || !renderer->supportsWorldSceneFastPath()) {
             shared_world_scene::resetWorldSceneRegistry(scratch.worldSceneRegistry);

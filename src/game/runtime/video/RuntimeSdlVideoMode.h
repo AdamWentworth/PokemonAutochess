@@ -49,6 +49,10 @@ RequestedVideoMode sanitizeRequestedVideoMode(int width, int height, bool fullsc
 DisplayUsableBounds queryPrimaryDisplayUsableBounds(std::ostream& err, const SdlApi& api = {});
 StartupWindowPlacement resolveStartupWindowPlacement(const game::video::Preferences& prefs,
                                                      const DisplayUsableBounds& displayBounds);
+bool shouldPreferRestoredWindowForUncappedPresentation(bool fullscreen,
+                                                       bool maximized,
+                                                       bool vsyncEnabled,
+                                                       int fpsCap);
 
 ApplyVideoModeResult applyRequestedVideoMode(SDL_Window* window,
                                              const RequestedVideoMode& requested,

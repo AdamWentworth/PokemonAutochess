@@ -3,7 +3,13 @@
 #include "game/runtime/session/SessionRenderScratch.h"
 #include "game/runtime/shared/projected/SharedProjectedDebugVfx.h"
 
+#include <cstddef>
+#include <functional>
 #include <string>
+
+namespace game::runtime::render_model {
+struct MeshData;
+}
 
 namespace game::runtime::session_world_backdrop {
 
@@ -18,6 +24,8 @@ enum class ArenaBackdropTheme {
 
 struct ProjectedBackdropArgs {
     bool supportsWorldTriangles3D = false;
+    bool supportsWorldIndexedMeshes = false;
+    int graphicsQuality = 3;
     int rows = 0;
     int cols = 0;
     int benchSlots = 0;
@@ -26,6 +34,8 @@ struct ProjectedBackdropArgs {
     float boardMinZ = 0.0f;
     float boardMaxX = 0.0f;
     float boardMaxZ = 0.0f;
+    int drawableW = 0;
+    int drawableH = 0;
     float boardX = 0.0f;
     float boardY = 0.0f;
     float boardW = 0.0f;
@@ -34,9 +44,11 @@ struct ProjectedBackdropArgs {
     float cellH = 0.0f;
     float line = 1.0f;
     ArenaBackdropTheme theme = ArenaBackdropTheme::Default;
+    std::function<render_model::MeshData*(const std::string&)> ensureBackendMeshLoaded;
 };
 
 ArenaBackdropTheme routeThemeFromScriptPath(const std::string& stateScriptPath);
+std::size_t authoredTreeTriangleBudgetForGraphicsQuality(int graphicsQuality);
 
 float composeProjectedBackdrop(
     const ProjectedBackdropArgs& args,

@@ -1,4 +1,6 @@
 #include "game/runtime/session/SessionWorldBackdrop.h"
+#include "engine/core/Paths.h"
+#include "game/runtime/render_model_cache/RenderModelCache.h"
 
 #include <string>
 
@@ -55,11 +57,16 @@ bool test_session_world_backdrop_contract(std::string& outFail) {
         const std::size_t cachedBackgroundCount = scratch.worldBackgroundQuads.size();
         const std::size_t cachedTriangleCount = scratch.worldTriangles.size();
         const std::size_t cachedWorld3DCount = scratch.world3DTriangles.size();
+        const std::size_t cachedIndexedBatchCount = scratch.worldIndexedBatches.size();
         const std::size_t cachedLineCount = scratch.lines.size();
+        const std::string cachedIndexedGeometryKey =
+            cachedIndexedBatchCount > 0u ? scratch.worldIndexedBatches.front().geometryCacheKey
+                                         : std::string{};
         if (!scratch.projectedBackdropValid ||
             scratch.projectedBackdropWorldBackgroundQuadsCount != cachedBackgroundCount ||
             scratch.projectedBackdropWorldTrianglesCount != cachedTriangleCount ||
             scratch.projectedBackdropWorld3DTrianglesCount != cachedWorld3DCount ||
+            scratch.projectedBackdropWorldIndexedBatchesCount != cachedIndexedBatchCount ||
             scratch.projectedBackdropLinesCount != cachedLineCount ||
             firstComposeMs < 0.0f) {
             outFail = "SessionWorldBackdrop should populate and cache projected backdrop geometry.";
@@ -69,11 +76,15 @@ bool test_session_world_backdrop_contract(std::string& outFail) {
         scratch.worldBackgroundQuads.push_back({});
         scratch.worldTriangles.push_back({});
         scratch.world3DTriangles.push_back({});
+        scratch.worldIndexedBatches.push_back({});
         scratch.lines.push_back({});
         const float secondComposeMs = composeProjectedBackdrop(args, projectedDebug, scratch);
         if (scratch.worldBackgroundQuads.size() != cachedBackgroundCount ||
             scratch.worldTriangles.size() != cachedTriangleCount ||
             scratch.world3DTriangles.size() != cachedWorld3DCount ||
+            scratch.worldIndexedBatches.size() != cachedIndexedBatchCount ||
+            (cachedIndexedBatchCount > 0u &&
+             scratch.worldIndexedBatches.front().geometryCacheKey != cachedIndexedGeometryKey) ||
             scratch.lines.size() != cachedLineCount ||
             secondComposeMs < 0.0f) {
             outFail = "SessionWorldBackdrop should reuse cached projected backdrop sizes for unchanged keys.";
@@ -110,8 +121,76 @@ bool test_session_world_backdrop_contract(std::string& outFail) {
             scratch.projectedBackdropWorldBackgroundQuadsCount != 0u ||
             scratch.projectedBackdropWorldTrianglesCount != 0u ||
             scratch.projectedBackdropWorld3DTrianglesCount != 0u ||
+            scratch.projectedBackdropWorldIndexedBatchesCount != 0u ||
             scratch.projectedBackdropLinesCount != 0u) {
             outFail = "SessionWorldBackdrop should build noncached projected backdrop geometry when 3D world triangles are unavailable.";
+            return false;
+        }
+    }
+
+    {
+        RenderScratch scratch;
+        auto projectedDebug = makeProjectedDebug(true, scratch);
+        ProjectedBackdropArgs args = makeArgs(true);
+        args.supportsWorldIndexedMeshes = true;
+        args.graphicsQuality = 3;
+
+        game::runtime::render_model::MeshData treeMesh;
+        std::string treeError;
+        const std::string treeModelPath =
+            engine::paths::asset("models/environment/route_evergreen_tree.glb");
+        const bool treeLoaded =
+            game::runtime::render_model::loadMeshFromCache(treeModelPath, treeMesh, &treeError);
+        if (!treeLoaded) {
+            outFail = "Failed to load backdrop tree asset: " + treeError;
+            return false;
+        }
+
+        args.ensureBackendMeshLoaded =
+            [&](const std::string& modelPath)
+                -> game::runtime::render_model::MeshData* {
+                if (modelPath == "assets/models/environment/route_evergreen_tree.glb") {
+                    return &treeMesh;
+                }
+                return nullptr;
+            };
+        composeProjectedBackdrop(args, projectedDebug, scratch);
+        if (scratch.worldIndexedBatches.empty() ||
+            scratch.projectedBackdropWorldIndexedBatchesCount == 0u) {
+            outFail =
+                "SessionWorldBackdrop should append cached indexed batches for authored route props.";
+            return false;
+        }
+
+        const std::size_t treeTriangleCount = treeMesh.indices.size() / 3u;
+        const std::size_t authoredBackdropTriangles =
+            scratch.worldIndexedBatches.size() * treeTriangleCount;
+        if (authoredBackdropTriangles >
+            game::runtime::session_world_backdrop::
+                authoredTreeTriangleBudgetForGraphicsQuality(args.graphicsQuality)) {
+            outFail =
+                "SessionWorldBackdrop should keep authored tree triangles within the quality budget.";
+            return false;
+        }
+
+        RenderScratch lowScratch;
+        auto lowProjectedDebug = makeProjectedDebug(true, lowScratch);
+        args.graphicsQuality = 0;
+        composeProjectedBackdrop(args, lowProjectedDebug, lowScratch);
+        const std::size_t lowBudget =
+            game::runtime::session_world_backdrop::
+                authoredTreeTriangleBudgetForGraphicsQuality(args.graphicsQuality);
+        const std::size_t lowAuthoredBackdropTriangles =
+            lowScratch.worldIndexedBatches.size() * treeTriangleCount;
+        if (lowAuthoredBackdropTriangles > lowBudget) {
+            outFail =
+                "SessionWorldBackdrop low-quality authored tree triangles exceeded the quality budget.";
+            return false;
+        }
+        if (lowBudget >= treeTriangleCount &&
+            lowScratch.worldIndexedBatches.empty()) {
+            outFail =
+                "SessionWorldBackdrop should keep authored trees enabled at low quality when the active asset fits the budget.";
             return false;
         }
     }

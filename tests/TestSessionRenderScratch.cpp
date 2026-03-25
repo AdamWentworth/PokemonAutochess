@@ -39,10 +39,14 @@ bool test_session_render_scratch_contract(std::string& outFail) {
         scratch.projectedBackdropWorldBackgroundQuadsCount = 2u;
         scratch.projectedBackdropWorldTrianglesCount = 3u;
         scratch.projectedBackdropWorld3DTrianglesCount = 4u;
+        scratch.projectedBackdropWorldIndexedBatchesCount = 2u;
         scratch.projectedBackdropLinesCount = 5u;
         scratch.worldBackgroundQuads.resize(10u);
         scratch.worldTriangles.resize(10u);
         scratch.world3DTriangles.resize(10u);
+        scratch.worldIndexedBatches.resize(4u);
+        scratch.worldIndexedBatches[0].geometryCacheKey = "tree_a";
+        scratch.worldIndexedBatches[1].geometryCacheKey = "tree_b";
         scratch.lines.resize(10u);
         scratch.worldQuads.resize(3u);
         scratch.overlayQuads.resize(3u);
@@ -52,12 +56,15 @@ bool test_session_render_scratch_contract(std::string& outFail) {
         if (scratch.worldBackgroundQuads.size() != 2u ||
             scratch.worldTriangles.size() != 3u ||
             scratch.world3DTriangles.size() != 4u ||
+            scratch.worldIndexedBatches.size() != 2u ||
+            scratch.worldIndexedBatches[0].geometryCacheKey != "tree_a" ||
+            scratch.worldIndexedBatches[1].geometryCacheKey != "tree_b" ||
             scratch.lines.size() != 5u ||
             !scratch.projectedBackdropValid ||
             !scratch.worldQuads.empty() ||
             !scratch.overlayQuads.empty() ||
             !scratch.unitLabels.empty()) {
-            outFail = "SessionRenderScratch should retain cached projected backdrop buffers while clearing per-frame overlay data.";
+            outFail = "SessionRenderScratch should retain cached projected backdrop buffers and indexed batches while clearing per-frame overlay data.";
             return false;
         }
     }

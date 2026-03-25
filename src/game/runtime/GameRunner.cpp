@@ -98,6 +98,7 @@ namespace {
         bool applyVideoMode(int width, int height, bool fullscreenWanted);
         GameContext::VideoMode queryVideoMode() const;
         void syncLivePresentationSettings();
+        void normalizeWindowedPresentationMode();
         void enforceFrameCap(const std::chrono::high_resolution_clock::time_point& frameStart);
 
         void setTitle(const std::string& title);
@@ -137,6 +138,7 @@ namespace {
         bool windowHasOpenGLContext = false;
         bool glFunctionsReady = false;
         bool appliedVsyncEnabled = false;
+        bool uncappedWindowModeNormalized = false;
 
         float mouseScaleX = 1.0f;
         float mouseScaleY = 1.0f;
@@ -461,6 +463,11 @@ namespace {
                 lastWindowedW = std::max(640, windowW);
                 lastWindowedH = std::max(360, windowH);
                 lastWindowedMaximized = (flags & SDL_WINDOW_MAXIMIZED) != 0;
+                if (uncappedWindowModeNormalized &&
+                    !services.vsyncEnabled &&
+                    game::video::sanitizeFpsCap(services.fpsCap) == 0) {
+                    lastWindowedMaximized = false;
+                }
             }
         }
         if (renderer) {
@@ -596,6 +603,63 @@ namespace {
         }
     }
 
+    void GameRunner::normalizeWindowedPresentationMode() {
+        if (!window || !window->getSDLWindow()) {
+            uncappedWindowModeNormalized = false;
+            return;
+        }
+
+        const bool shouldNormalize =
+            game::runtime::video_mode::shouldPreferRestoredWindowForUncappedPresentation(
+                fullscreen,
+                lastWindowedMaximized,
+                services.vsyncEnabled,
+                services.fpsCap);
+        if (!shouldNormalize) {
+            uncappedWindowModeNormalized = false;
+            return;
+        }
+        if (uncappedWindowModeNormalized) {
+            return;
+        }
+
+        SDL_Window* sdlWindow = window->getSDLWindow();
+        const Uint32 flags = SDL_GetWindowFlags(sdlWindow);
+        if ((flags & SDL_WINDOW_MAXIMIZED) == 0u) {
+            uncappedWindowModeNormalized = true;
+            return;
+        }
+
+        const int restoreW = std::max(640, windowW > 0 ? windowW : lastWindowedW);
+        const int restoreH = std::max(360, windowH > 0 ? windowH : lastWindowedH);
+        SDL_RestoreWindow(sdlWindow);
+        SDL_SetWindowSize(sdlWindow, restoreW, restoreH);
+        SDL_SetWindowPosition(sdlWindow, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED);
+        syncVideoModeState();
+        lastWindowedW = restoreW;
+        lastWindowedH = restoreH;
+        lastWindowedMaximized = false;
+        if (!prefsPath.empty()) {
+            game::video::Preferences prefs = game::video::loadPreferences(prefsPath);
+            prefs.fullscreen = false;
+            prefs.windowedWidth = restoreW;
+            prefs.windowedHeight = restoreH;
+            prefs.windowedMaximized = false;
+            std::string saveErr;
+            if (!game::video::savePreferences(prefs, prefsPath, &saveErr)) {
+                videoModePreferencesDirty = true;
+                std::cerr << "[Video] Failed to save restored windowed mode: "
+                          << saveErr << "\n";
+            } else {
+                videoModePreferencesDirty = false;
+            }
+        } else {
+            noteCurrentWindowModeChanged(true);
+        }
+        uncappedWindowModeNormalized = true;
+        std::cout << "[Video] Restored windowed mode for uncapped presentation.\n";
+    }
+
     void GameRunner::enforceFrameCap(const std::chrono::high_resolution_clock::time_point& frameStart) {
         const int fpsCap = game::video::sanitizeFpsCap(services.fpsCap);
         if (fpsCap <= 0) return;
@@ -727,6 +791,7 @@ namespace {
 
         while (game::runtime::loop_control::isRunning(loopState)) {
             syncLivePresentationSettings();
+            normalizeWindowedPresentationMode();
             SDL_Event sdlEvent;
 
             while (SDL_PollEvent(&sdlEvent)) {

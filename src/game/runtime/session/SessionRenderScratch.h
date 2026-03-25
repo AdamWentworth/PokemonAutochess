@@ -22,14 +22,18 @@ struct BackendUnitLabel {
 
 struct ProjectedBackdropCacheKey {
     bool supportsWorldTriangles3D = false;
+    bool supportsWorldIndexedMeshes = false;
     int rows = 0;
     int cols = 0;
     int benchSlots = 0;
+    int graphicsQuality = 3;
     float worldCellSize = 0.0f;
     float boardMinX = 0.0f;
     float boardMinZ = 0.0f;
     float boardMaxX = 0.0f;
     float boardMaxZ = 0.0f;
+    int drawableW = 0;
+    int drawableH = 0;
     float boardX = 0.0f;
     float boardY = 0.0f;
     float boardW = 0.0f;
@@ -64,6 +68,7 @@ struct RenderScratch {
     std::size_t projectedBackdropWorldBackgroundQuadsCount = 0u;
     std::size_t projectedBackdropWorldTrianglesCount = 0u;
     std::size_t projectedBackdropWorld3DTrianglesCount = 0u;
+    std::size_t projectedBackdropWorldIndexedBatchesCount = 0u;
     std::size_t projectedBackdropLinesCount = 0u;
 };
 

@@ -46,5 +46,30 @@ bool test_gltf_asset_smoke(std::string& outFail) {
         return false;
     }
 
+    const std::string backdropTreeModelPath =
+        engine::paths::asset("models/environment/route_evergreen_tree.glb");
+    if (!std::filesystem::exists(backdropTreeModelPath)) {
+        outFail = "Missing backdrop tree model file: " + backdropTreeModelPath;
+        return false;
+    }
+
+    auto backdropTree = pac::fastgltf_loader::tryLoad(backdropTreeModelPath);
+    if (!backdropTree.has_value()) {
+        outFail = "Failed to parse backdrop tree asset: " + backdropTreeModelPath;
+        return false;
+    }
+    if (backdropTree->asset.meshes.empty()) {
+        outFail = "Backdrop tree asset has no meshes: " + backdropTreeModelPath;
+        return false;
+    }
+    if (backdropTree->asset.materials.empty()) {
+        outFail = "Backdrop tree asset has no materials: " + backdropTreeModelPath;
+        return false;
+    }
+    if (backdropTree->asset.textures.empty()) {
+        outFail = "Backdrop tree asset has no textures: " + backdropTreeModelPath;
+        return false;
+    }
+
     return true;
 }

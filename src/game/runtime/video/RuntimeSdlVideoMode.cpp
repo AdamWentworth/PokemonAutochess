@@ -77,6 +77,16 @@ StartupWindowPlacement resolveStartupWindowPlacement(const game::video::Preferen
     return out;
 }
 
+bool shouldPreferRestoredWindowForUncappedPresentation(bool fullscreen,
+                                                       bool maximized,
+                                                       bool vsyncEnabled,
+                                                       int fpsCap) {
+    return !fullscreen &&
+           maximized &&
+           !vsyncEnabled &&
+           game::video::sanitizeFpsCap(fpsCap) == 0;
+}
+
 ApplyVideoModeResult applyRequestedVideoMode(SDL_Window* window,
                                              const RequestedVideoMode& requested,
                                              std::ostream& err,
