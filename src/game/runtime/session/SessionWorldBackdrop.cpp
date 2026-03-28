@@ -259,6 +259,20 @@ shared_board_grid::VisualTheme makeBoardTheme(const Color& boardDark,
     return theme;
 }
 
+const shared_board_grid::VisualTheme& plainBlackBoardTheme() {
+    static const shared_board_grid::VisualTheme theme = makeBoardTheme(
+        {0.02f, 0.02f, 0.02f, 0.92f},
+        {0.05f, 0.05f, 0.05f, 0.92f},
+        {0.03f, 0.03f, 0.03f, 0.92f},
+        {0.06f, 0.06f, 0.06f, 0.92f},
+        {0.16f, 0.16f, 0.16f, 0.96f},
+        {0.0f, 0.0f, 0.0f, 1.0f},
+        {0.03f, 0.03f, 0.03f, 0.96f},
+        {0.06f, 0.06f, 0.06f, 0.96f},
+        {0.14f, 0.14f, 0.14f, 0.98f});
+    return theme;
+}
+
 const RouteShellStyle& routeShellStyle(ArenaBackdropTheme theme) {
     static const RouteShellStyle route1 = [] {
         RouteShellStyle style;
@@ -1799,6 +1813,7 @@ session_render_scratch::ProjectedBackdropCacheKey makeProjectedBackdropKey(
     session_render_scratch::ProjectedBackdropCacheKey key{};
     key.supportsWorldTriangles3D = args.supportsWorldTriangles3D;
     key.supportsWorldIndexedMeshes = args.supportsWorldIndexedMeshes;
+    key.enableBackdropTiles = args.enableBackdropTiles;
     key.rows = args.rows;
     key.cols = args.cols;
     key.benchSlots = args.benchSlots;
@@ -1839,7 +1854,9 @@ shared_board_grid::Config makeBoardGridConfig(const ProjectedBackdropArgs& args)
         args.cellW,
         args.cellH,
         args.line);
-    cfg.visualTheme = &routeShellStyle(args.theme).boardTheme;
+    cfg.visualTheme = args.enableBackdropTiles
+        ? &routeShellStyle(args.theme).boardTheme
+        : &plainBlackBoardTheme();
     return cfg;
 }
 
@@ -1856,8 +1873,10 @@ void appendBackdropGeometry(const ProjectedBackdropArgs& args,
         scratch.worldBackgroundQuads,
         scratch.lines,
         projectedDebug);
-    (void)appendTexturedBoardTiles(args, scratch);
-    (void)appendTexturedBenchTiles(args, scratch);
+    if (args.enableBackdropTiles) {
+        (void)appendTexturedBoardTiles(args, scratch);
+        (void)appendTexturedBenchTiles(args, scratch);
+    }
 }
 
 } // namespace

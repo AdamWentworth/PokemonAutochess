@@ -7,6 +7,36 @@
 
 namespace game::runtime::perf_logging {
 
+namespace {
+
+std::string escapeJsonString(const std::string& value) {
+    std::string out;
+    out.reserve(value.size() + 8u);
+    for (const char ch : value) {
+        switch (ch) {
+            case '\\': out += "\\\\"; break;
+            case '"': out += "\\\""; break;
+            case '\n': out += "\\n"; break;
+            case '\r': out += "\\r"; break;
+            case '\t': out += "\\t"; break;
+            default: out.push_back(ch); break;
+        }
+    }
+    return out;
+}
+
+} // namespace
+
+const char* terminalLogModeName(EngineTerminalLogMode mode) {
+    switch (mode) {
+        case EngineTerminalLogMode::GrowlVfx:
+            return "Growl VFX";
+        case EngineTerminalLogMode::Performance:
+        default:
+            return "Performance";
+    }
+}
+
 std::string formatTopFixedSystems(const EngineFixedPerfBreakdown& fixedBreakdown) {
     struct FixedSystemEntry {
         const char* name;
@@ -176,6 +206,62 @@ std::string formatPerfJson(const EngineFramePerfStats& framePerf) {
         << ",\"fixed_world_ms\":" << framePerf.fixedBreakdown.worldMs
         << ",\"fixed_ticks_dropped\":" << framePerf.fixedTicksDropped
         << "}";
+    return out.str();
+}
+
+std::string formatGrowlDebugLine(const EngineGrowlDebugStats& growlDebug) {
+    std::ostringstream out;
+    out << std::fixed << std::setprecision(2)
+        << "[Growl] rings=" << growlDebug.activeRingCount
+        << " configured=" << growlDebug.configuredPassCount
+        << " enabled=" << growlDebug.enabledPassCount
+        << " mesh=" << growlDebug.meshPassCount
+        << " line=" << growlDebug.linePassCount
+        << " quarter_ring=" << growlDebug.quarterRingPassCount
+        << " quarter_tex=" << growlDebug.quarterTextureBakePassCount;
+    if (!growlDebug.activePasses.empty()) {
+        out << " passes=";
+        for (std::size_t i = 0; i < growlDebug.activePasses.size(); ++i) {
+            const auto& pass = growlDebug.activePasses[i];
+            if (i > 0u) out << ",";
+            out << pass.eid << ":" << pass.mode;
+        }
+    }
+    return out.str();
+}
+
+std::string formatGrowlDebugJson(const EngineGrowlDebugStats& growlDebug) {
+    std::ostringstream out;
+    out << std::fixed << std::setprecision(3)
+        << "[GrowlJSON] {"
+        << "\"snapshot_available\":" << (growlDebug.snapshotAvailable ? 1 : 0)
+        << ",\"active_rings\":" << growlDebug.activeRingCount
+        << ",\"configured_passes\":" << growlDebug.configuredPassCount
+        << ",\"enabled_passes\":" << growlDebug.enabledPassCount
+        << ",\"mesh_passes\":" << growlDebug.meshPassCount
+        << ",\"line_passes\":" << growlDebug.linePassCount
+        << ",\"quarter_ring_passes\":" << growlDebug.quarterRingPassCount
+        << ",\"quarter_texture_bake_passes\":" << growlDebug.quarterTextureBakePassCount
+        << ",\"passes\":[";
+
+    for (std::size_t i = 0; i < growlDebug.activePasses.size(); ++i) {
+        const auto& pass = growlDebug.activePasses[i];
+        if (i > 0u) out << ",";
+        out << "{"
+            << "\"id\":\"" << escapeJsonString(pass.id) << "\""
+            << ",\"eid\":" << pass.eid
+            << ",\"mode\":\"" << escapeJsonString(pass.mode) << "\""
+            << ",\"mesh\":\"" << escapeJsonString(pass.meshPath) << "\""
+            << ",\"texture\":\"" << escapeJsonString(pass.texturePath) << "\""
+            << ",\"quarter_texture_bake\":" << (pass.quarterTextureBake ? 1 : 0)
+            << ",\"line_pass\":" << (pass.linePass ? 1 : 0)
+            << ",\"scale_mul\":" << pass.scaleMul
+            << ",\"alpha_mul\":" << pass.alphaMul
+            << ",\"forward_offset\":" << pass.forwardOffset
+            << "}";
+    }
+
+    out << "]}";
     return out.str();
 }
 

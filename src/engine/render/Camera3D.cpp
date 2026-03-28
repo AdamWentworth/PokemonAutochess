@@ -10,7 +10,7 @@ namespace {
 constexpr float kDefaultCameraY = 12.0f;
 constexpr float kDefaultCameraZ = 12.0f;
 constexpr float kDefaultTargetY = -1.0f;
-constexpr float kMinZoomDistance = 8.5f;
+constexpr float kMinZoomDistance = 5.5f;
 const float kMaxZoomDistance = std::sqrt(
     (kDefaultCameraY - kDefaultTargetY) * (kDefaultCameraY - kDefaultTargetY) +
     kDefaultCameraZ * kDefaultCameraZ);

@@ -3,6 +3,14 @@
 #include "game/runtime/loop/RuntimePerfLogging.h"
 
 bool test_runtime_perf_logging_contract(std::string& outFail) {
+    if (std::string(game::runtime::perf_logging::terminalLogModeName(
+            EngineTerminalLogMode::Performance)) != "Performance" ||
+        std::string(game::runtime::perf_logging::terminalLogModeName(
+            EngineTerminalLogMode::GrowlVfx)) != "Growl VFX") {
+        outFail = "terminalLogModeName should expose stable terminal mode labels.";
+        return false;
+    }
+
     EngineFramePerfStats perf;
     perf.fps = 60.0f;
     perf.frameMs = 16.7f;
@@ -79,6 +87,47 @@ bool test_runtime_perf_logging_contract(std::string& outFail) {
         json.find("\"fixed_phase_pre_ms\":0.200") == std::string::npos ||
         json.find("\"fixed_ticks_dropped\":1") == std::string::npos) {
         outFail = "formatPerfJson should emit stable JSON-style perf fields.";
+        return false;
+    }
+
+    EngineGrowlDebugStats growl;
+    growl.snapshotAvailable = true;
+    growl.activeRingCount = 3u;
+    growl.configuredPassCount = 9u;
+    growl.enabledPassCount = 2u;
+    growl.meshPassCount = 1u;
+    growl.linePassCount = 0u;
+    growl.quarterRingPassCount = 0u;
+    growl.quarterTextureBakePassCount = 1u;
+    growl.activePasses.push_back({
+        .id = "growl_eid_1255",
+        .eid = 1255,
+        .mode = "mesh_quarter_tex",
+        .meshPath = "assets/meshes/growl_1255_mesh.glb",
+        .texturePath = "assets/textures/moves/growl/Texture3924.png",
+        .quarterTextureBake = true,
+        .linePass = false,
+        .scaleMul = 0.25f,
+        .alphaMul = 1.0f,
+        .forwardOffset = 0.0f,
+    });
+
+    const std::string growlLine = game::runtime::perf_logging::formatGrowlDebugLine(growl);
+    if (growlLine.find("[Growl] rings=3") != 0 ||
+        growlLine.find("quarter_tex=1") == std::string::npos ||
+        growlLine.find("1255:mesh_quarter_tex") == std::string::npos) {
+        outFail = "formatGrowlDebugLine should emit the expected Growl summary fields.";
+        return false;
+    }
+
+    const std::string growlJson = game::runtime::perf_logging::formatGrowlDebugJson(growl);
+    if (growlJson.find("[GrowlJSON] {") != 0 ||
+        growlJson.find("\"snapshot_available\":1") == std::string::npos ||
+        growlJson.find("\"active_rings\":3") == std::string::npos ||
+        growlJson.find("\"id\":\"growl_eid_1255\"") == std::string::npos ||
+        growlJson.find("\"mesh\":\"assets/meshes/growl_1255_mesh.glb\"") == std::string::npos ||
+        growlJson.find("\"quarter_texture_bake\":1") == std::string::npos) {
+        outFail = "formatGrowlDebugJson should emit stable JSON-style Growl debug fields.";
         return false;
     }
 

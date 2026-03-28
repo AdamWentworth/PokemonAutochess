@@ -23,6 +23,7 @@ struct BackendUnitLabel {
 struct ProjectedBackdropCacheKey {
     bool supportsWorldTriangles3D = false;
     bool supportsWorldIndexedMeshes = false;
+    bool enableBackdropTiles = true;
     int rows = 0;
     int cols = 0;
     int benchSlots = 0;

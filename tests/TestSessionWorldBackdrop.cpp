@@ -32,6 +32,7 @@ bool test_session_world_backdrop_contract(std::string& outFail) {
     auto makeArgs = [](bool supportsWorldTriangles3D) {
         ProjectedBackdropArgs args;
         args.supportsWorldTriangles3D = supportsWorldTriangles3D;
+        args.enableBackdropTiles = true;
         args.rows = 4;
         args.cols = 8;
         args.benchSlots = 8;
@@ -99,6 +100,58 @@ bool test_session_world_backdrop_contract(std::string& outFail) {
             scratch.lines.size() != cachedLineCount ||
             secondComposeMs < 0.0f) {
             outFail = "SessionWorldBackdrop should reuse cached projected backdrop sizes for unchanged keys.";
+            return false;
+        }
+    }
+
+    {
+        RenderScratch scratch;
+        auto projectedDebug = makeProjectedDebug(true, scratch);
+        ProjectedBackdropArgs args = makeArgs(true);
+        args.supportsWorldIndexedMeshes = true;
+        args.enableBackdropTiles = false;
+
+        game::runtime::SharedBackendTextureCacheEntry boardTexture;
+        boardTexture.attemptedLoad = true;
+        boardTexture.valid = true;
+        boardTexture.width = 512;
+        boardTexture.height = 256;
+        boardTexture.rgba.resize(
+            static_cast<std::size_t>(boardTexture.width * boardTexture.height * 4),
+            255u);
+
+        game::runtime::SharedBackendTextureCacheEntry grassTexture;
+        grassTexture.attemptedLoad = true;
+        grassTexture.valid = true;
+        grassTexture.width = 2;
+        grassTexture.height = 2;
+        grassTexture.rgba = {
+            140, 200,  90, 255,
+            118, 182,  74, 255,
+            132, 194,  82, 255,
+            150, 210, 100, 255,
+        };
+
+        args.ensureBackendTextureLoaded =
+            [&](const std::string& texturePath, bool flipVertical)
+                -> game::runtime::SharedBackendTextureCacheEntry* {
+                if (!flipVertical &&
+                    texturePath ==
+                        "assets/textures/environment/board_dirt_grass_border_4x4.png") {
+                    return &boardTexture;
+                }
+                if (!flipVertical &&
+                    texturePath ==
+                        "assets/textures/environment/grass_fill_2x2.png") {
+                    return &grassTexture;
+                }
+                return nullptr;
+            };
+
+        composeProjectedBackdrop(args, projectedDebug, scratch);
+        if (!scratch.worldIndexedBatches.empty()) {
+            outFail =
+                "SessionWorldBackdrop should skip textured board and bench overlays when backdrop tiles are disabled for VFX inspection.";
             return false;
         }
     }

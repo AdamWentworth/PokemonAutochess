@@ -54,6 +54,36 @@ struct EngineRenderBuildBreakdown {
     float otherMs = 0.0f;
 };
 
+enum class EngineTerminalLogMode : std::uint8_t {
+    Performance = 0,
+    GrowlVfx = 1,
+};
+
+struct EngineGrowlPassDebugStats {
+    std::string id;
+    int eid = 0;
+    std::string mode;
+    std::string meshPath;
+    std::string texturePath;
+    bool quarterTextureBake = false;
+    bool linePass = false;
+    float scaleMul = 1.0f;
+    float alphaMul = 1.0f;
+    float forwardOffset = 0.0f;
+};
+
+struct EngineGrowlDebugStats {
+    bool snapshotAvailable = false;
+    std::uint32_t activeRingCount = 0u;
+    std::uint32_t configuredPassCount = 0u;
+    std::uint32_t enabledPassCount = 0u;
+    std::uint32_t meshPassCount = 0u;
+    std::uint32_t linePassCount = 0u;
+    std::uint32_t quarterRingPassCount = 0u;
+    std::uint32_t quarterTextureBakePassCount = 0u;
+    std::vector<EngineGrowlPassDebugStats> activePasses;
+};
+
 struct EngineFramePerfStats {
     float fps = 0.0f;
     float frameMs = 0.0f;
@@ -154,10 +184,13 @@ struct EngineServices {
     std::uint32_t graphicsQualityGeneration = 1u;
     bool requireDiscreteGpu = false;
     bool characterInkingEnabled = false;
+    bool sessionBackdropTilesEnabled = true;
+    EngineTerminalLogMode terminalLogMode = EngineTerminalLogMode::Performance;
     int audioMasterVolume = 100;
     int audioMusicVolume = 100;
     int audioSfxVolume = 100;
     int audioVoiceVolume = 100;
     bool audioMute = false;
     std::string bootMenuScreen;
+    EngineGrowlDebugStats frameGrowlDebug{};
 };

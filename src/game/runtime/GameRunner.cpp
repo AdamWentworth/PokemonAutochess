@@ -737,6 +737,9 @@ namespace {
         static const int maxFixedTicksPerFrame =
             game::runtime::loop_config::readMaxFixedTicksPerFrameFromEnvironment(std::cerr);
         std::cout << "[Run] Fixed tick budget: " << maxFixedTicksPerFrame << " ticks/frame\n";
+        using clock = std::chrono::high_resolution_clock;
+        std::uint32_t previousGrowlRingCount = 0u;
+        EngineTerminalLogMode previousTerminalLogMode = services.terminalLogMode;
 
         game::runtime::loop_control::State loopState;
         services.resources = &resourceManager;
@@ -772,7 +775,6 @@ namespace {
             return 0;
         }
 
-        using clock = std::chrono::high_resolution_clock;
         auto previous = clock::now();
         double accumulator = 0.0;
 
@@ -940,9 +942,30 @@ namespace {
             if (perfAccumulator.readyToEmit()) {
                 const auto perfSummary = perfAccumulator.makeSummaryAndReset();
                 services.framePerf = perfSummary.framePerf;
-                std::cout << game::runtime::perf_logging::formatPerfLine(services.framePerf) << "\n";
-                std::cout << game::runtime::perf_logging::formatPerfJson(services.framePerf) << "\n";
+                if (services.terminalLogMode == EngineTerminalLogMode::Performance) {
+                    std::cout << game::runtime::perf_logging::formatPerfLine(services.framePerf) << "\n";
+                    std::cout << game::runtime::perf_logging::formatPerfJson(services.framePerf) << "\n";
+                }
             }
+
+            if (services.terminalLogMode == EngineTerminalLogMode::GrowlVfx) {
+                const std::uint32_t currentGrowlRingCount =
+                    services.frameGrowlDebug.activeRingCount;
+                const bool modeJustSwitchedToGrowl =
+                    previousTerminalLogMode != EngineTerminalLogMode::GrowlVfx;
+                const bool growlStartedThisFrame =
+                    currentGrowlRingCount > previousGrowlRingCount;
+                if (currentGrowlRingCount > 0u &&
+                    (modeJustSwitchedToGrowl || growlStartedThisFrame)) {
+                    std::cout << game::runtime::perf_logging::formatGrowlDebugLine(
+                        services.frameGrowlDebug) << "\n";
+                    std::cout << game::runtime::perf_logging::formatGrowlDebugJson(
+                        services.frameGrowlDebug) << "\n";
+                }
+            }
+
+            previousGrowlRingCount = services.frameGrowlDebug.activeRingCount;
+            previousTerminalLogMode = services.terminalLogMode;
 
             if (autoQuit.enabled()) {
                 game::runtime::loop_control::applyAutoQuit(autoQuit, loopState);

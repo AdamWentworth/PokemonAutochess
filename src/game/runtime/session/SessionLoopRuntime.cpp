@@ -45,6 +45,14 @@ void handleEvent(const InputEvent& event,
             if (options.saveDebugSnapshot) options.saveDebugSnapshot();
             return;
         }
+        if (event.keyId == InputEvent::Key::F6) {
+            if (options.toggleBackdropTiles) options.toggleBackdropTiles();
+            return;
+        }
+        if (event.keyId == InputEvent::Key::F7) {
+            if (options.toggleTerminalLogMode) options.toggleTerminalLogMode();
+            return;
+        }
         if (event.keyId == InputEvent::Key::F9) {
             if (options.loadDebugSnapshot) options.loadDebugSnapshot();
             return;

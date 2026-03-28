@@ -95,6 +95,7 @@ Result appendProjectedWorldView(const Args& args) {
             {
                 .supportsWorldTriangles3D = args.supportsWorldTriangles3D,
                 .supportsWorldIndexedMeshes = args.supportsWorldIndexedMeshes,
+                .enableBackdropTiles = args.enableBackdropTiles,
                 .graphicsQuality = args.graphicsQuality,
                 .rows = args.rows,
                 .cols = args.cols,

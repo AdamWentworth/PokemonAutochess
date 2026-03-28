@@ -54,6 +54,7 @@ struct Args {
     render::RenderRoutes routes{};
     bool showPerfOverlay = false;
     bool renderWorld = false;
+    bool enableBackdropTiles = true;
     bool allowBackendMenuBackdrop = false;
     bool prewarmWorldIndexedOnly = false;
 

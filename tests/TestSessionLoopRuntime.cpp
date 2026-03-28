@@ -10,6 +10,8 @@ bool test_session_loop_runtime_contract(std::string& outFail) {
     {
         PauseState pauseState;
         int saveCount = 0;
+        int backdropToggleCount = 0;
+        int terminalLogToggleCount = 0;
         int loadCount = 0;
         int menuCount = 0;
         int stateInputCount = 0;
@@ -17,6 +19,8 @@ bool test_session_loop_runtime_contract(std::string& outFail) {
         InputOptions options;
         options.renderWorldForInput = true;
         options.saveDebugSnapshot = [&]() { ++saveCount; };
+        options.toggleBackdropTiles = [&]() { ++backdropToggleCount; };
+        options.toggleTerminalLogMode = [&]() { ++terminalLogToggleCount; };
         options.loadDebugSnapshot = [&]() { ++loadCount; };
         options.openMainMenu = [&]() { ++menuCount; };
         options.handleStateInput = [&](const InputEvent&) { ++stateInputCount; };
@@ -44,6 +48,14 @@ bool test_session_loop_runtime_contract(std::string& outFail) {
             pauseState,
             options);
         game::runtime::session_loop_runtime::handleEvent(
+            InputEvent::KeyDownEvent(InputEvent::Key::F6),
+            pauseState,
+            options);
+        game::runtime::session_loop_runtime::handleEvent(
+            InputEvent::KeyDownEvent(InputEvent::Key::F7),
+            pauseState,
+            options);
+        game::runtime::session_loop_runtime::handleEvent(
             InputEvent::KeyDownEvent(InputEvent::Key::F9),
             pauseState,
             options);
@@ -51,7 +63,8 @@ bool test_session_loop_runtime_contract(std::string& outFail) {
             InputEvent::KeyDownEvent(InputEvent::Key::Escape),
             pauseState,
             options);
-        if (saveCount != 1 || loadCount != 1 || menuCount != 1) {
+        if (saveCount != 1 || backdropToggleCount != 1 || terminalLogToggleCount != 1 ||
+            loadCount != 1 || menuCount != 1) {
             outFail = "SessionLoopRuntime should route snapshot and escape hotkeys through session callbacks.";
             return false;
         }

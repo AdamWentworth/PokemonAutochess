@@ -29,6 +29,7 @@ enum class ArenaBackdropTheme {
 struct ProjectedBackdropArgs {
     bool supportsWorldTriangles3D = false;
     bool supportsWorldIndexedMeshes = false;
+    bool enableBackdropTiles = true;
     int graphicsQuality = 3;
     int rows = 0;
     int cols = 0;

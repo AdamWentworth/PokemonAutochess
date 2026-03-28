@@ -5,6 +5,7 @@ namespace game::runtime::session_render_scratch {
 bool ProjectedBackdropCacheKey::operator==(const ProjectedBackdropCacheKey& other) const {
     return supportsWorldTriangles3D == other.supportsWorldTriangles3D &&
            supportsWorldIndexedMeshes == other.supportsWorldIndexedMeshes &&
+           enableBackdropTiles == other.enableBackdropTiles &&
            rows == other.rows &&
            cols == other.cols &&
            benchSlots == other.benchSlots &&

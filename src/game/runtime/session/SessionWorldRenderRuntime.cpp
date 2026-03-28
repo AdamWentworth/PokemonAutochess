@@ -18,6 +18,7 @@
 #include "game/runtime/session/SessionRenderScratch.h"
 #include "game/runtime/session/SessionWorldBackdrop.h"
 #include "game/runtime/shared/scene/SharedWorldScene.h"
+#include "game/runtime/shared/vfx/growl/SharedGrowlVfxHelpers.h"
 #include "game/runtime/shared/ui/SharedBackendDebugViewOverlay.h"
 #include "game/runtime/shared/world/SharedWorldIndexedBatches.h"
 #include "game/runtime/ui/InventoryPanel.h"
@@ -27,6 +28,59 @@
 #include <chrono>
 
 namespace game::runtime::session_world_render_runtime {
+
+namespace {
+
+void publishGrowlDebug(EngineServices* engineServices, GameWorld* gameWorld) {
+    if (!engineServices) return;
+
+    engineServices->frameGrowlDebug = {};
+    if (!gameWorld) return;
+
+    GrowlWaveVFX::RenderSnapshot snapshot;
+    (void)gameWorld->buildGrowlWaveSnapshot(snapshot);
+
+    auto& growl = engineServices->frameGrowlDebug;
+    growl.snapshotAvailable = !snapshot.drawPasses.empty();
+    growl.activeRingCount = gameWorld->countActiveGrowlWaveVfx();
+    growl.configuredPassCount = static_cast<std::uint32_t>(snapshot.config.drawPasses.size());
+    growl.enabledPassCount = static_cast<std::uint32_t>(snapshot.drawPasses.size());
+    growl.activePasses.reserve(snapshot.drawPasses.size());
+
+    for (const auto& pass : snapshot.drawPasses) {
+        EngineGrowlPassDebugStats passStats{};
+        passStats.id = pass.id;
+        passStats.eid = pass.eid;
+        passStats.meshPath = pass.meshPath;
+        passStats.texturePath = pass.texturePath;
+        passStats.linePass =
+            game::runtime::shared_growl::isLinePass(snapshot.config, pass);
+        passStats.quarterTextureBake =
+            game::runtime::shared_growl::isQuarterRingPass(snapshot.config, pass);
+        passStats.scaleMul = pass.scaleMul;
+        passStats.alphaMul = pass.alphaMul;
+        passStats.forwardOffset = pass.forwardOffset;
+
+        if (passStats.linePass) {
+            passStats.mode = "line";
+            ++growl.linePassCount;
+        } else if (pass.textureQuarterRing) {
+            passStats.mode = "texture_quarter_ring";
+            ++growl.quarterRingPassCount;
+        } else {
+            passStats.mode = passStats.quarterTextureBake ? "mesh_quarter_tex" : "mesh";
+            ++growl.meshPassCount;
+        }
+
+        if (passStats.quarterTextureBake) {
+            ++growl.quarterTextureBakePassCount;
+        }
+
+        growl.activePasses.push_back(std::move(passStats));
+    }
+}
+
+} // namespace
 
 std::size_t render(const Args& args) {
     if (!args.renderer || !args.config || !args.drawableW || !args.drawableH) return 0u;
@@ -120,6 +174,7 @@ std::size_t render(const Args& args) {
                         .sharedUnitHudCfg = layout.sharedUnitHudCfg,
                         .supportsWorldTriangles3D = supportsWorldTriangles3D,
                         .supportsWorldIndexedMeshes = supportsWorldIndexedMeshes,
+                        .enableBackdropTiles = args.enableBackdropTiles,
                         .characterInkingEnabled =
                             (args.services ? args.services->characterInkingEnabled : false),
                         .graphicsQuality =
@@ -226,6 +281,7 @@ std::size_t render(const Args& args) {
     }
 
     const auto worldComposeEnd = RenderBuildClock::now();
+    publishGrowlDebug(args.engineServices, args.gameWorld);
     game::runtime::session_frame_metrics::publish(
         args.engineServices,
         {

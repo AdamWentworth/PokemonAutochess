@@ -525,6 +525,32 @@ struct GameSession::Impl {
                         }
                     },
                 .saveDebugSnapshot = [&]() { saveDebugStateSnapshot(); },
+                .toggleBackdropTiles =
+                    [&]() {
+                        if (!engineServices) return;
+                        engineServices->sessionBackdropTilesEnabled =
+                            !engineServices->sessionBackdropTilesEnabled;
+                        game::runtime::session_render_scratch::invalidateProjectedBackdrop(
+                            game::runtime::session_render_scratch::threadScratch());
+                        game::log::info(
+                            &log,
+                            engineServices->sessionBackdropTilesEnabled
+                                ? "[Backdrop] SessionWorldBackdrop tiles: On"
+                                : "[Backdrop] SessionWorldBackdrop tiles: Off (plain black board/bench)");
+                    },
+                .toggleTerminalLogMode =
+                    [&]() {
+                        if (!engineServices) return;
+                        engineServices->terminalLogMode =
+                            (engineServices->terminalLogMode == EngineTerminalLogMode::Performance)
+                                ? EngineTerminalLogMode::GrowlVfx
+                                : EngineTerminalLogMode::Performance;
+                        game::log::info(
+                            &log,
+                            engineServices->terminalLogMode == EngineTerminalLogMode::GrowlVfx
+                                ? "[Debug] Terminal log mode: Growl VFX"
+                                : "[Debug] Terminal log mode: Performance");
+                    },
                 .loadDebugSnapshot = [&]() { loadDebugStateSnapshot(); },
                 .openMainMenu =
                     [&]() {
@@ -609,6 +635,8 @@ struct GameSession::Impl {
                     .routes = routes,
                     .showPerfOverlay = showPerfOverlay,
                     .renderWorld = renderWorld,
+                    .enableBackdropTiles =
+                        engineServices ? engineServices->sessionBackdropTilesEnabled : true,
                     .allowBackendMenuBackdrop = allowBackendMenuBackdrop,
                     .drawableW = drawableW,
                     .drawableH = drawableH,
@@ -653,6 +681,8 @@ struct GameSession::Impl {
                 .routes = routes,
                 .showPerfOverlay = showPerfOverlay,
                 .renderWorld = renderWorld,
+                .enableBackdropTiles =
+                    engineServices ? engineServices->sessionBackdropTilesEnabled : true,
                 .allowBackendMenuBackdrop = allowBackendMenuBackdrop,
                 .prewarmWorldIndexedOnly = true,
                 .drawableW = drawableW,

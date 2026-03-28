@@ -20,6 +20,8 @@ struct InputOptions {
     bool usesBackendGameUiPath = false;
     std::function<void(int, int)> onResize;
     std::function<void()> saveDebugSnapshot;
+    std::function<void()> toggleBackdropTiles;
+    std::function<void()> toggleTerminalLogMode;
     std::function<void()> loadDebugSnapshot;
     std::function<void()> openMainMenu;
     std::function<bool()> clearSelection;

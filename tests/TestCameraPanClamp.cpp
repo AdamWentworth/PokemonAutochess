@@ -78,5 +78,18 @@ bool test_camera_pan_clamp_contract(std::string& outFail) {
         }
     }
 
+    {
+        Camera3D camera(45.0f, 16.0f / 9.0f, 0.1f, 100.0f);
+        camera.zoom(999.0f);
+
+        const float zoomedInDistance =
+            glm::distance(camera.getPosition(), camera.getTarget());
+        if (!(zoomedInDistance < 6.0f)) {
+            outFail =
+                "camera zoom should allow a closer VFX inspection distance than the old board clamp.";
+            return false;
+        }
+    }
+
     return true;
 }
