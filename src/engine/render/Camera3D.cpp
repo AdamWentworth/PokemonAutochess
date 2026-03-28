@@ -5,9 +5,21 @@
 #include <algorithm>
 #include <cmath>
 
+namespace {
+
+constexpr float kDefaultCameraY = 12.0f;
+constexpr float kDefaultCameraZ = 12.0f;
+constexpr float kDefaultTargetY = -1.0f;
+constexpr float kMinZoomDistance = 8.5f;
+const float kMaxZoomDistance = std::sqrt(
+    (kDefaultCameraY - kDefaultTargetY) * (kDefaultCameraY - kDefaultTargetY) +
+    kDefaultCameraZ * kDefaultCameraZ);
+
+} // namespace
+
 Camera3D::Camera3D(float fovDeg, float aspect, float nearPlane, float farPlane)
-    : position(0.0f, 14.5f, 15.0f),    // Slightly lower default to lift board in frame
-      target(0.0f, -1.0f, 0.0f),
+    : position(0.0f, kDefaultCameraY, kDefaultCameraZ),
+      target(0.0f, kDefaultTargetY, 0.0f),
       upVector(0.0f, 1.0f, 0.0f),
       fov(glm::radians(fovDeg)),
       aspectRatio(aspect),
@@ -30,7 +42,14 @@ void Camera3D::move(const glm::vec3& delta) {
 }
 
 void Camera3D::zoom(float delta) {
-    position += glm::normalize(target - position) * delta;
+    glm::vec3 offset = position - target;
+    const float dist = glm::length(offset);
+    if (dist < 1e-5f) return;
+
+    const glm::vec3 dirToCamera = offset / dist;
+    const float newDist =
+        std::clamp(dist - delta, kMinZoomDistance, kMaxZoomDistance);
+    position = target + dirToCamera * newDist;
 }
 
 void Camera3D::orbit(float yawDeltaRad, float pitchDeltaRad) {

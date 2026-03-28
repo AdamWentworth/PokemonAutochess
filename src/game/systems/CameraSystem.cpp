@@ -1,6 +1,7 @@
 // CameraSystem.cpp
 
 #include "CameraSystem.h"
+#include "game/systems/CameraPanClamp.h"
 #include "engine/input/InputEvent.h"
 #include "engine/core/IAssetStore.h"
 #include "game/GameServices.h"
@@ -72,6 +73,11 @@ CameraSystem::CameraSystem(Camera3D* cam, GameServices& svc)
     // Expose camera controls to Lua
     lua.set_function("cam_move", [this](float dx, float dy, float dz) {
         camera->move({ dx, dy, dz });
+        const auto panBounds = game::camera_pan_clamp::buildBoardSafeBounds(
+            services.config.cols,
+            services.config.rows,
+            services.config.cellSize);
+        game::camera_pan_clamp::clampCameraPan(*camera, panBounds);
     });
     lua.set_function("cam_zoom", [this](float delta) {
         camera->zoom(delta);

@@ -566,6 +566,7 @@ if (BUILD_TESTING)
         tests/TestRuntimeSdlVideoMode.cpp
         tests/TestRuntimeStartupConfig.cpp
         tests/TestRuntimeStartupPresentation.cpp
+        tests/TestCameraPanClamp.cpp
         tests/TestRuntimeStartupSession.cpp
         tests/TestRuntimeStartupVideoOverride.cpp
         tests/TestRuntimeWorldLayerPrewarm.cpp

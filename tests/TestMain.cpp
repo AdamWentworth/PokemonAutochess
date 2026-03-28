@@ -81,6 +81,7 @@ bool test_runtime_sdl_input_contract(std::string& outFail);
 bool test_runtime_sdl_video_mode_contract(std::string& outFail);
 bool test_runtime_startup_config_contract(std::string& outFail);
 bool test_runtime_startup_presentation_contract(std::string& outFail);
+bool test_camera_pan_clamp_contract(std::string& outFail);
 bool test_runtime_startup_session_contract(std::string& outFail);
 bool test_runtime_startup_video_override_contract(std::string& outFail);
 bool test_runtime_world_layer_prewarm_contract(std::string& outFail);
@@ -302,6 +303,7 @@ int main(int argc, char** argv) {
         {"runtime_sdl_video_mode_contract", &test_runtime_sdl_video_mode_contract},
         {"runtime_startup_config_contract", &test_runtime_startup_config_contract},
         {"runtime_startup_presentation_contract", &test_runtime_startup_presentation_contract},
+        {"camera_pan_clamp_contract", &test_camera_pan_clamp_contract},
         {"runtime_startup_session_contract", &test_runtime_startup_session_contract},
         {"runtime_startup_video_override_contract", &test_runtime_startup_video_override_contract},
         {"runtime_world_layer_prewarm_contract", &test_runtime_world_layer_prewarm_contract},
