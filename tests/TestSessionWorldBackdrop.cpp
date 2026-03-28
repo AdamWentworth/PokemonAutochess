@@ -1,7 +1,9 @@
 #include "game/runtime/session/SessionWorldBackdrop.h"
 #include "engine/core/Paths.h"
 #include "game/runtime/render_model_cache/RenderModelCache.h"
+#include "game/runtime/shared/backend/SharedBackendTextureCache.h"
 
+#include <algorithm>
 #include <string>
 
 #include <glm/glm.hpp>
@@ -72,6 +74,15 @@ bool test_session_world_backdrop_contract(std::string& outFail) {
             outFail = "SessionWorldBackdrop should populate and cache projected backdrop geometry.";
             return false;
         }
+        if (scratch.worldBackgroundQuads.empty() ||
+            scratch.worldBackgroundQuads.front().r != 0.0f ||
+            scratch.worldBackgroundQuads.front().g != 0.0f ||
+            scratch.worldBackgroundQuads.front().b != 0.0f ||
+            scratch.worldBackgroundQuads.front().a != 1.0f) {
+            outFail =
+                "SessionWorldBackdrop should use a solid black backdrop fill behind the route environment.";
+            return false;
+        }
 
         scratch.worldBackgroundQuads.push_back({});
         scratch.worldTriangles.push_back({});
@@ -97,15 +108,12 @@ bool test_session_world_backdrop_contract(std::string& outFail) {
         auto projectedDebug = makeProjectedDebug(true, scratch);
         ProjectedBackdropArgs args = makeArgs(true);
         composeProjectedBackdrop(args, projectedDebug, scratch);
-        const std::size_t route1World3DCount = scratch.world3DTriangles.size();
-
         args.theme = game::runtime::session_world_backdrop::ArenaBackdropTheme::ViridianForestShrine;
         composeProjectedBackdrop(args, projectedDebug, scratch);
         if (!scratch.projectedBackdropValid ||
             scratch.projectedBackdropKey.arenaBackdropTheme !=
-                static_cast<int>(game::runtime::session_world_backdrop::ArenaBackdropTheme::ViridianForestShrine) ||
-            scratch.world3DTriangles.size() == route1World3DCount) {
-            outFail = "SessionWorldBackdrop should rebuild and retheme cached backdrop geometry when the route theme changes.";
+                static_cast<int>(game::runtime::session_world_backdrop::ArenaBackdropTheme::ViridianForestShrine)) {
+            outFail = "SessionWorldBackdrop should rebuild and retheme cached backdrop geometry when the route theme changes, even if the simplified scene keeps the same triangle counts.";
             return false;
         }
     }
@@ -133,7 +141,176 @@ bool test_session_world_backdrop_contract(std::string& outFail) {
         auto projectedDebug = makeProjectedDebug(true, scratch);
         ProjectedBackdropArgs args = makeArgs(true);
         args.supportsWorldIndexedMeshes = true;
+
+        game::runtime::SharedBackendTextureCacheEntry grassTexture;
+        grassTexture.attemptedLoad = true;
+        grassTexture.valid = true;
+        grassTexture.width = 2;
+        grassTexture.height = 2;
+        grassTexture.rgba = {
+            140, 200,  90, 255,
+            118, 182,  74, 255,
+            132, 194,  82, 255,
+            150, 210, 100, 255,
+        };
+
+        args.ensureBackendTextureLoaded =
+            [&](const std::string& texturePath, bool flipVertical)
+                -> game::runtime::SharedBackendTextureCacheEntry* {
+                if (!flipVertical &&
+                    texturePath ==
+                        "assets/textures/environment/grass_fill_2x2.png") {
+                    return &grassTexture;
+                }
+                return nullptr;
+            };
+
+        composeProjectedBackdrop(args, projectedDebug, scratch);
+        const bool foundGrassBatch = std::any_of(
+            scratch.worldIndexedBatches.begin(),
+            scratch.worldIndexedBatches.end(),
+            [](const auto& batch) {
+                return batch.textureCacheKey ==
+                           "assets/textures/environment/grass_fill_2x2.png" &&
+                       batch.geometryCacheKey.find(
+                           "session_world_backdrop_bench_tiles_") == std::string::npos;
+            });
+        if (foundGrassBatch) {
+            outFail =
+                "SessionWorldBackdrop should not append route grass geometry when the backdrop is simplified to just the board and bench.";
+            return false;
+        }
+    }
+
+    {
+        RenderScratch scratch;
+        auto projectedDebug = makeProjectedDebug(true, scratch);
+        ProjectedBackdropArgs args = makeArgs(true);
+        args.supportsWorldIndexedMeshes = true;
+
+        game::runtime::SharedBackendTextureCacheEntry boardTexture;
+        boardTexture.attemptedLoad = true;
+        boardTexture.valid = true;
+        boardTexture.width = 512;
+        boardTexture.height = 256;
+        boardTexture.rgba.resize(
+            static_cast<std::size_t>(boardTexture.width * boardTexture.height * 4),
+            255u);
+
+        game::runtime::SharedBackendTextureCacheEntry grassTexture;
+        grassTexture.attemptedLoad = true;
+        grassTexture.valid = true;
+        grassTexture.width = 2;
+        grassTexture.height = 2;
+        grassTexture.rgba = {
+            140, 200,  90, 255,
+            118, 182,  74, 255,
+            132, 194,  82, 255,
+            150, 210, 100, 255,
+        };
+
+        args.ensureBackendTextureLoaded =
+            [&](const std::string& texturePath, bool flipVertical)
+                -> game::runtime::SharedBackendTextureCacheEntry* {
+                if (!flipVertical &&
+                    texturePath ==
+                        "assets/textures/environment/board_dirt_grass_border_4x4.png") {
+                    return &boardTexture;
+                }
+                if (!flipVertical &&
+                    texturePath ==
+                        "assets/textures/environment/grass_fill_2x2.png") {
+                    return &grassTexture;
+                }
+                return nullptr;
+            };
+
+        composeProjectedBackdrop(args, projectedDebug, scratch);
+        const auto boardBatchIt = std::find_if(
+            scratch.worldIndexedBatches.begin(),
+            scratch.worldIndexedBatches.end(),
+            [](const auto& batch) {
+                return batch.textureCacheKey ==
+                           "assets/textures/environment/board_dirt_grass_border_4x4.png" &&
+                       batch.geometryCacheKey.find(
+                           "session_world_backdrop_board_tiles_") != std::string::npos;
+            });
+        if (boardBatchIt == scratch.worldIndexedBatches.end()) {
+            outFail =
+                "SessionWorldBackdrop should still append the board dirt overlay when the backdrop is simplified to just the board and bench.";
+            return false;
+        }
+        if (boardBatchIt->indices.size() !=
+            static_cast<std::size_t>(args.rows * args.cols * 6)) {
+            outFail =
+                "SessionWorldBackdrop dirt board batch should still cover every board cell in the simplified backdrop.";
+            return false;
+        }
+
+        const auto benchBatchIt = std::find_if(
+            scratch.worldIndexedBatches.begin(),
+            scratch.worldIndexedBatches.end(),
+            [](const auto& batch) {
+                return batch.textureCacheKey ==
+                           "assets/textures/environment/grass_fill_2x2.png" &&
+                       batch.geometryCacheKey.find(
+                           "session_world_backdrop_bench_tiles_") != std::string::npos;
+            });
+        if (benchBatchIt == scratch.worldIndexedBatches.end()) {
+            outFail =
+                "SessionWorldBackdrop should append a matching grass tile overlay for the bench in the simplified backdrop.";
+            return false;
+        }
+        if (benchBatchIt->indices.size() !=
+            static_cast<std::size_t>(args.benchSlots * 6)) {
+            outFail =
+                "SessionWorldBackdrop bench grass batch should cover every bench slot in the simplified backdrop.";
+            return false;
+        }
+    }
+
+    {
+        RenderScratch scratch;
+        auto projectedDebug = makeProjectedDebug(true, scratch);
+        ProjectedBackdropArgs args = makeArgs(true);
+        args.supportsWorldIndexedMeshes = true;
+
+        game::runtime::SharedBackendTextureCacheEntry ledgeTexture;
+        ledgeTexture.attemptedLoad = true;
+        ledgeTexture.valid = true;
+        ledgeTexture.width = 64;
+        ledgeTexture.height = 48;
+        ledgeTexture.rgba.resize(
+            static_cast<std::size_t>(ledgeTexture.width * ledgeTexture.height * 4),
+            255u);
+
+        args.ensureBackendTextureLoaded =
+            [&](const std::string& texturePath, bool flipVertical)
+                -> game::runtime::SharedBackendTextureCacheEntry* {
+                if (!flipVertical &&
+                    texturePath ==
+                        "assets/textures/environment/ledge_front_wall_4x3.png") {
+                    return &ledgeTexture;
+                }
+                return nullptr;
+            };
+
+        composeProjectedBackdrop(args, projectedDebug, scratch);
+        if (!scratch.worldIndexedBatches.empty()) {
+            outFail =
+                "SessionWorldBackdrop should ignore route ledge overlays when the backdrop is simplified to just the board and bench.";
+            return false;
+        }
+    }
+
+    {
+        RenderScratch scratch;
+        auto projectedDebug = makeProjectedDebug(true, scratch);
+        ProjectedBackdropArgs args = makeArgs(true);
+        args.supportsWorldIndexedMeshes = true;
         args.graphicsQuality = 3;
+        args.theme =
+            game::runtime::session_world_backdrop::ArenaBackdropTheme::Route22Foothills;
 
         game::runtime::render_model::MeshData treeMesh;
         std::string treeError;
@@ -155,42 +332,27 @@ bool test_session_world_backdrop_contract(std::string& outFail) {
                 return nullptr;
             };
         composeProjectedBackdrop(args, projectedDebug, scratch);
-        if (scratch.worldIndexedBatches.empty() ||
-            scratch.projectedBackdropWorldIndexedBatchesCount == 0u) {
+        if (!scratch.worldIndexedBatches.empty()) {
             outFail =
-                "SessionWorldBackdrop should append cached indexed batches for authored route props.";
+                "SessionWorldBackdrop should omit authored route props when the environment is simplified to grass and plateaus.";
             return false;
         }
+    }
 
-        const std::size_t treeTriangleCount = treeMesh.indices.size() / 3u;
-        const std::size_t authoredBackdropTriangles =
-            scratch.worldIndexedBatches.size() * treeTriangleCount;
-        if (authoredBackdropTriangles >
-            game::runtime::session_world_backdrop::
-                authoredTreeTriangleBudgetForGraphicsQuality(args.graphicsQuality)) {
-            outFail =
-                "SessionWorldBackdrop should keep authored tree triangles within the quality budget.";
-            return false;
-        }
+    {
+        using game::runtime::session_world_backdrop::ArenaBackdropTheme;
+        using game::runtime::session_world_backdrop::routeThemeFromScriptPath;
 
-        RenderScratch lowScratch;
-        auto lowProjectedDebug = makeProjectedDebug(true, lowScratch);
-        args.graphicsQuality = 0;
-        composeProjectedBackdrop(args, lowProjectedDebug, lowScratch);
-        const std::size_t lowBudget =
-            game::runtime::session_world_backdrop::
-                authoredTreeTriangleBudgetForGraphicsQuality(args.graphicsQuality);
-        const std::size_t lowAuthoredBackdropTriangles =
-            lowScratch.worldIndexedBatches.size() * treeTriangleCount;
-        if (lowAuthoredBackdropTriangles > lowBudget) {
+        if (routeThemeFromScriptPath("scripts/states/route22_shop.lua") !=
+                ArenaBackdropTheme::Route22Foothills ||
+            routeThemeFromScriptPath("scripts/states/route2_shop.lua") !=
+                ArenaBackdropTheme::Route2ForestEdge ||
+            routeThemeFromScriptPath("scripts/states/route1.lua") !=
+                ArenaBackdropTheme::Route1OpenRoad ||
+            routeThemeFromScriptPath("scripts/states/starter.lua") !=
+                ArenaBackdropTheme::Route1OpenRoad) {
             outFail =
-                "SessionWorldBackdrop low-quality authored tree triangles exceeded the quality budget.";
-            return false;
-        }
-        if (lowBudget >= treeTriangleCount &&
-            lowScratch.worldIndexedBatches.empty()) {
-            outFail =
-                "SessionWorldBackdrop should keep authored trees enabled at low quality when the active asset fits the budget.";
+                "SessionWorldBackdrop should resolve planning and combat route scripts to the correct route themes.";
             return false;
         }
     }

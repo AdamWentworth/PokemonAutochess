@@ -80,6 +80,7 @@
 #include "game/assets/PackedAssetStore.h"
 #include "game/PhaseState.h"
 #include "game/state/CombatState.h"
+#include "game/state/PlacementState.h"
 
 #include "game/systems/CameraSystem.h"
 #include "game/systems/UnitInteractionSystem.h"
@@ -675,6 +676,11 @@ struct GameSession::Impl {
         if (!current) return {};
         if (const auto* combat = dynamic_cast<const CombatState*>(current)) {
             return combat->debugScriptPath();
+        }
+        if (dynamic_cast<const PlacementState*>(current) != nullptr) {
+            // Placement is the first visible planning state and currently
+            // always previews Route 1 before the player enters combat.
+            return "scripts/states/route1.lua";
         }
         if (const auto* scripted = dynamic_cast<const ScriptedState*>(current)) {
             return scripted->debugScriptPath();

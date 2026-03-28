@@ -26,3 +26,6 @@ Makefile
 
 # Logs
 *.log
+
+# Disposable RMXP indexing output
+assets/textures/environment/generated_index/

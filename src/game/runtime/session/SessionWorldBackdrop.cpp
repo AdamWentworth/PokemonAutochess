@@ -1,5 +1,6 @@
 #include "game/runtime/session/SessionWorldBackdrop.h"
 
+#include "game/runtime/shared/backend/SharedBackendTextureCache.h"
 #include "game/runtime/shared/projected/SharedProjectedUnitBackendMeshSupport.h"
 #include "game/runtime/shared/projected/SharedProjectedWorldSceneHelpers.h"
 #include "game/runtime/video/VideoPreferences.h"
@@ -8,6 +9,7 @@
 #include <array>
 #include <chrono>
 #include <iterator>
+#include <sstream>
 
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
@@ -24,6 +26,31 @@ using Color = std::array<float, 4>;
 
 constexpr char kBackdropEvergreenTreeModelPath[] =
     "assets/models/environment/route_evergreen_tree.glb";
+constexpr char kBackdropGrassTexturePath[] =
+    "assets/textures/environment/grass_fill_2x2.png";
+constexpr char kBackdropBoardDirtTexturePath[] =
+    "assets/textures/environment/board_dirt_grass_border_4x4.png";
+constexpr char kBackdropBoardLedgeTexturePath[] =
+    "assets/textures/environment/ledge_front_wall_4x3.png";
+constexpr Color kBackdropBlackFill = {0.0f, 0.0f, 0.0f, 1.0f};
+
+// This is the extracted left-half of NatureRMXP band_00_group_01: a ready-to-
+// use 4x4 grass-backed dirt/path set for the board.
+constexpr int kBackdropBoardAtlasOriginXPx = 0;
+constexpr int kBackdropBoardAtlasOriginYPx = 0;
+constexpr int kBackdropBoardAtlasTileSizePx = 16;
+
+struct AtlasTileCoord {
+    int x = 0;
+    int y = 0;
+};
+
+struct UvRect {
+    float u0 = 0.0f;
+    float v0 = 0.0f;
+    float u1 = 1.0f;
+    float v1 = 1.0f;
+};
 
 struct RouteShellStyle {
     shared_board_grid::VisualTheme boardTheme{};
@@ -59,6 +86,15 @@ Color scaleColor(const Color& color, float scale) {
         std::clamp(color[2] * scale, 0.0f, 1.0f),
         color[3]
     };
+}
+
+void scaleOuterMargins(RouteShellStyle& style,
+                       float sideScale,
+                       float backScale,
+                       float frontScale) {
+    style.sideMargin *= sideScale;
+    style.backMargin *= backScale;
+    style.frontMargin *= frontScale;
 }
 
 std::array<float, 16> mat4ToArray(const glm::mat4& value) {
@@ -125,7 +161,7 @@ void copyWorldSceneMaterialToBatch(
     dst.characterInkingEnabled = src.characterInkingEnabled;
 }
 
-bool appendBackdropModelPlacement(
+[[maybe_unused]] bool appendBackdropModelPlacement(
     const ProjectedBackdropArgs& args,
     session_render_scratch::RenderScratch& scratch,
     const char* modelPath,
@@ -196,7 +232,7 @@ bool appendBackdropModelPlacement(
     return true;
 }
 
-std::size_t estimatedBackdropTriangleCount(
+[[maybe_unused]] std::size_t estimatedBackdropTriangleCount(
     const game::runtime::render_model::MeshData& mesh) {
     return mesh.indices.size() / 3u;
 }
@@ -252,6 +288,7 @@ const RouteShellStyle& routeShellStyle(ArenaBackdropTheme theme) {
         style.sideMargin = 4.5f;
         style.backMargin = 5.0f;
         style.frontMargin = 2.5f;
+        scaleOuterMargins(style, 5.0f, 2.0f, 2.0f);
         return style;
     }();
 
@@ -279,6 +316,7 @@ const RouteShellStyle& routeShellStyle(ArenaBackdropTheme theme) {
         style.leaves = {0.28f, 0.35f, 0.20f, 0.98f};
         style.sideMargin = 4.75f;
         style.backMargin = 4.75f;
+        scaleOuterMargins(style, 5.0f, 2.0f, 2.0f);
         return style;
     }();
 
@@ -305,6 +343,7 @@ const RouteShellStyle& routeShellStyle(ArenaBackdropTheme theme) {
         style.leaves = {0.16f, 0.38f, 0.19f, 0.98f};
         style.sideMargin = 4.25f;
         style.backMargin = 4.5f;
+        scaleOuterMargins(style, 5.0f, 2.0f, 2.0f);
         return style;
     }();
 
@@ -334,6 +373,7 @@ const RouteShellStyle& routeShellStyle(ArenaBackdropTheme theme) {
         style.shrineStone = {0.47f, 0.51f, 0.46f, 0.98f};
         style.sideMargin = 3.75f;
         style.backMargin = 4.0f;
+        scaleOuterMargins(style, 5.0f, 2.0f, 2.0f);
         return style;
     }();
 
@@ -361,6 +401,7 @@ const RouteShellStyle& routeShellStyle(ArenaBackdropTheme theme) {
         style.leaves = {0.23f, 0.31f, 0.18f, 0.98f};
         style.sideMargin = 4.5f;
         style.backMargin = 4.75f;
+        scaleOuterMargins(style, 5.0f, 2.0f, 2.0f);
         return style;
     }();
 
@@ -427,7 +468,7 @@ void appendBox(std::vector<IRenderBackend::WorldTriangle>& out,
     appendWorldQuadDoubleSided(out, p010, p000, p001, p011, sideColor);
 }
 
-void appendTree(std::vector<IRenderBackend::WorldTriangle>& out,
+[[maybe_unused]] void appendTree(std::vector<IRenderBackend::WorldTriangle>& out,
                 float x,
                 float z,
                 float trunkHeight,
@@ -470,7 +511,7 @@ void appendTree(std::vector<IRenderBackend::WorldTriangle>& out,
         scaleColor(leafColor, 0.84f));
 }
 
-void appendFenceLine(std::vector<IRenderBackend::WorldTriangle>& out,
+[[maybe_unused]] void appendFenceLine(std::vector<IRenderBackend::WorldTriangle>& out,
                      float minX,
                      float maxX,
                      float z,
@@ -514,7 +555,7 @@ void appendGrassPatch(std::vector<IRenderBackend::WorldTriangle>& out,
         scaleColor(color, 0.72f));
 }
 
-void appendStoneMarker(std::vector<IRenderBackend::WorldTriangle>& out,
+[[maybe_unused]] void appendStoneMarker(std::vector<IRenderBackend::WorldTriangle>& out,
                        float x,
                        float z,
                        float width,
@@ -532,7 +573,946 @@ void appendStoneMarker(std::vector<IRenderBackend::WorldTriangle>& out,
         scaleColor(color, 0.72f));
 }
 
-bool appendAuthoredBackdropTrees(const ProjectedBackdropArgs& args,
+bool themeUsesTexturedGrassGround(ArenaBackdropTheme theme) {
+    switch (theme) {
+        case ArenaBackdropTheme::Route1OpenRoad:
+        case ArenaBackdropTheme::Route22Foothills:
+        case ArenaBackdropTheme::Route2ForestEdge:
+        case ArenaBackdropTheme::ViridianForestShrine:
+        case ArenaBackdropTheme::Route3MountainPass:
+            return true;
+        case ArenaBackdropTheme::Default:
+        default:
+            return false;
+    }
+}
+
+bool themeUsesTexturedBoardDirt(ArenaBackdropTheme theme) {
+    switch (theme) {
+        case ArenaBackdropTheme::Route1OpenRoad:
+        case ArenaBackdropTheme::Route22Foothills:
+        case ArenaBackdropTheme::Route2ForestEdge:
+        case ArenaBackdropTheme::ViridianForestShrine:
+        case ArenaBackdropTheme::Route3MountainPass:
+            return true;
+        case ArenaBackdropTheme::Default:
+        default:
+            return false;
+    }
+}
+
+std::string makeGroundPatchGeometryKey(const char* label,
+                                       ArenaBackdropTheme theme,
+                                       float minX,
+                                       float maxX,
+                                       float minZ,
+                                       float maxZ) {
+    std::ostringstream out;
+    out << "session_world_backdrop_grass_" << (label ? label : "patch")
+        << "_theme_" << static_cast<int>(theme)
+        << "_" << minX << "_" << maxX
+        << "_" << minZ << "_" << maxZ;
+    return out.str();
+}
+
+std::string makeBoardTilesGeometryKey(const ProjectedBackdropArgs& args) {
+    std::ostringstream out;
+    out << "session_world_backdrop_board_tiles_theme_"
+        << static_cast<int>(args.theme)
+        << "_rows_" << args.rows
+        << "_cols_" << args.cols
+        << "_cell_" << args.worldCellSize
+        << "_minx_" << args.boardMinX
+        << "_minz_" << args.boardMinZ
+        << "_maxx_" << args.boardMaxX
+        << "_maxz_" << args.boardMaxZ;
+    return out.str();
+}
+
+std::string makeBenchTilesGeometryKey(const ProjectedBackdropArgs& args,
+                                      float benchMinX,
+                                      float benchMinZ,
+                                      float benchMaxX,
+                                      float benchMaxZ) {
+    std::ostringstream out;
+    out << "session_world_backdrop_bench_tiles_theme_"
+        << static_cast<int>(args.theme)
+        << "_benchslots_" << args.benchSlots
+        << "_cell_" << args.worldCellSize
+        << "_minx_" << benchMinX
+        << "_minz_" << benchMinZ
+        << "_maxx_" << benchMaxX
+        << "_maxz_" << benchMaxZ;
+    return out.str();
+}
+
+std::string makeBoardLedgeGeometryKey(const ProjectedBackdropArgs& args) {
+    std::ostringstream out;
+    out << "session_world_backdrop_board_ledge_theme_"
+        << static_cast<int>(args.theme)
+        << "_rows_" << args.rows
+        << "_cols_" << args.cols
+        << "_cell_" << args.worldCellSize
+        << "_minx_" << args.boardMinX
+        << "_minz_" << args.boardMinZ
+        << "_maxx_" << args.boardMaxX
+        << "_maxz_" << args.boardMaxZ;
+    return out.str();
+}
+
+std::string makeBenchLedgeGeometryKey(const ProjectedBackdropArgs& args,
+                                      float benchMinX,
+                                      float benchMaxX,
+                                      float benchMinZ,
+                                      float benchMaxZ) {
+    std::ostringstream out;
+    out << "session_world_backdrop_bench_ledge_theme_"
+        << static_cast<int>(args.theme)
+        << "_benchslots_" << args.benchSlots
+        << "_cell_" << args.worldCellSize
+        << "_minx_" << benchMinX
+        << "_minz_" << benchMinZ
+        << "_maxx_" << benchMaxX
+        << "_maxz_" << benchMaxZ;
+    return out.str();
+}
+
+UvRect atlasTileUvRect(int atlasTileX,
+                       int atlasTileY,
+                       int textureWidth,
+                       int textureHeight) {
+    const float insetPx = 0.5f;
+    const float x0 = static_cast<float>(
+        kBackdropBoardAtlasOriginXPx + atlasTileX * kBackdropBoardAtlasTileSizePx);
+    const float y0 = static_cast<float>(
+        kBackdropBoardAtlasOriginYPx + atlasTileY * kBackdropBoardAtlasTileSizePx);
+    const float x1 = x0 + static_cast<float>(kBackdropBoardAtlasTileSizePx);
+    const float y1 = y0 + static_cast<float>(kBackdropBoardAtlasTileSizePx);
+    const float texW = static_cast<float>(std::max(1, textureWidth));
+    const float texH = static_cast<float>(std::max(1, textureHeight));
+
+    return {
+        (x0 + insetPx) / texW,
+        (y0 + insetPx) / texH,
+        (x1 - insetPx) / texW,
+        (y1 - insetPx) / texH,
+    };
+}
+
+UvRect atlasTileRectUvRect(int atlasTileX,
+                           int atlasTileY,
+                           int atlasTileW,
+                           int atlasTileH,
+                           int textureWidth,
+                           int textureHeight) {
+    const float insetPx = 0.5f;
+    const float x0 = static_cast<float>(
+        kBackdropBoardAtlasOriginXPx + atlasTileX * kBackdropBoardAtlasTileSizePx);
+    const float y0 = static_cast<float>(
+        kBackdropBoardAtlasOriginYPx + atlasTileY * kBackdropBoardAtlasTileSizePx);
+    const float x1 =
+        x0 + static_cast<float>(atlasTileW * kBackdropBoardAtlasTileSizePx);
+    const float y1 =
+        y0 + static_cast<float>(atlasTileH * kBackdropBoardAtlasTileSizePx);
+    const float texW = static_cast<float>(std::max(1, textureWidth));
+    const float texH = static_cast<float>(std::max(1, textureHeight));
+
+    return {
+        (x0 + insetPx) / texW,
+        (y0 + insetPx) / texH,
+        (x1 - insetPx) / texW,
+        (y1 - insetPx) / texH,
+    };
+}
+
+[[maybe_unused]] UvRect opaqueTextureUvRect(const game::runtime::SharedBackendTextureCacheEntry& tex) {
+    if (tex.width <= 0 || tex.height <= 0 || tex.rgba.size() < 4u) {
+        return {};
+    }
+
+    int minX = tex.width;
+    int minY = tex.height;
+    int maxX = -1;
+    int maxY = -1;
+    for (int y = 0; y < tex.height; ++y) {
+        for (int x = 0; x < tex.width; ++x) {
+            const std::size_t pixelIndex =
+                static_cast<std::size_t>((y * tex.width + x) * 4 + 3);
+            if (pixelIndex >= tex.rgba.size()) {
+                continue;
+            }
+            if (tex.rgba[pixelIndex] <= 16u) {
+                continue;
+            }
+            minX = std::min(minX, x);
+            minY = std::min(minY, y);
+            maxX = std::max(maxX, x);
+            maxY = std::max(maxY, y);
+        }
+    }
+
+    if (maxX < minX || maxY < minY) {
+        return {};
+    }
+
+    const float insetPx = 0.5f;
+    const float texW = static_cast<float>(std::max(1, tex.width));
+    const float texH = static_cast<float>(std::max(1, tex.height));
+    return {
+        (static_cast<float>(minX) + insetPx) / texW,
+        (static_cast<float>(minY) + insetPx) / texH,
+        (static_cast<float>(maxX + 1) - insetPx) / texW,
+        (static_cast<float>(maxY + 1) - insetPx) / texH,
+    };
+}
+
+AtlasTileCoord boardAtlasTileForCell(int row, int col, int rows, int cols) {
+    const bool top = row == 0;
+    const bool bottom = row == rows - 1;
+    const bool left = col == 0;
+    const bool right = col == cols - 1;
+
+    if (top && left) return {0, 0};
+    if (top && right) return {3, 0};
+    if (bottom && left) return {0, 3};
+    if (bottom && right) return {3, 3};
+
+    if (top) return {1 + (col % 2), 0};
+    if (bottom) return {1 + (col % 2), 3};
+    if (left) return {0, 1 + (row % 2)};
+    if (right) return {3, 1 + (row % 2)};
+
+    return {1 + (col % 2), 1 + (row % 2)};
+}
+
+template <typename TileSelector>
+bool appendTexturedTileBatch(const ProjectedBackdropArgs& args,
+                             const char* geometryKey,
+                             int rows,
+                             int cols,
+                             float minX,
+                             float minZ,
+                             float tileY,
+                             TileSelector&& selectTile,
+                             session_render_scratch::RenderScratch& scratch) {
+    if (!args.supportsWorldIndexedMeshes || !args.ensureBackendTextureLoaded ||
+        rows <= 0 || cols <= 0 || args.worldCellSize <= 0.0f || !geometryKey ||
+        !themeUsesTexturedBoardDirt(args.theme)) {
+        return false;
+    }
+
+    game::runtime::SharedBackendTextureCacheEntry* tex =
+        args.ensureBackendTextureLoaded(kBackdropBoardDirtTexturePath, false);
+    if (!tex || !tex->valid || tex->width <= 0 || tex->height <= 0 ||
+        tex->rgba.empty()) {
+        return false;
+    }
+
+    shared_world_batches::WorldIndexedBatch batch{};
+    batch.geometryCacheKey = geometryKey;
+    batch.textureKey = kBackdropBoardDirtTexturePath;
+    batch.textureCacheKey = kBackdropBoardDirtTexturePath;
+    batch.textureRgba = tex->rgba.data();
+    batch.textureWidth = tex->width;
+    batch.textureHeight = tex->height;
+    batch.textureWrapS = 33071;
+    batch.textureWrapT = 33071;
+    // Keep board tiles on the plain textured path so route lighting and model
+    // shading do not push their colors around.
+    batch.alphaMode = 0u;
+    batch.blendMode = 0u;
+    batch.materialMode = 0u;
+    batch.characterInkingEnabled = 0u;
+    batch.metallicFactor = 0.0f;
+    batch.roughnessFactor = 1.0f;
+    batch.vertexColorMulR = 1.0f;
+    batch.vertexColorMulG = 1.0f;
+    batch.vertexColorMulB = 1.0f;
+    batch.vertexColorMulA = 1.0f;
+    batch.vertices.reserve(static_cast<std::size_t>(rows * cols * 4));
+    batch.indices.reserve(static_cast<std::size_t>(rows * cols * 6));
+
+    for (int row = 0; row < rows; ++row) {
+        for (int col = 0; col < cols; ++col) {
+            const float x0 =
+                minX + static_cast<float>(col) * args.worldCellSize;
+            const float z0 =
+                minZ + static_cast<float>(row) * args.worldCellSize;
+            const float x1 = x0 + args.worldCellSize;
+            const float z1 = z0 + args.worldCellSize;
+            const AtlasTileCoord atlasTile = selectTile(row, col, rows, cols);
+            const UvRect uv = atlasTileUvRect(
+                atlasTile.x, atlasTile.y, tex->width, tex->height);
+            const std::uint32_t baseIndex =
+                static_cast<std::uint32_t>(batch.vertices.size());
+
+            batch.vertices.push_back(IRenderBackend::WorldMeshVertex{
+                .x = x0, .y = tileY, .z = z0,
+                .u = uv.u0, .v = uv.v0,
+                .r = 1.0f, .g = 1.0f, .b = 1.0f, .a = 1.0f,
+                .nx = 0.0f, .ny = 1.0f, .nz = 0.0f,
+                .tx = 1.0f, .ty = 0.0f, .tz = 0.0f, .tw = 1.0f,
+            });
+            batch.vertices.push_back(IRenderBackend::WorldMeshVertex{
+                .x = x1, .y = tileY, .z = z0,
+                .u = uv.u1, .v = uv.v0,
+                .r = 1.0f, .g = 1.0f, .b = 1.0f, .a = 1.0f,
+                .nx = 0.0f, .ny = 1.0f, .nz = 0.0f,
+                .tx = 1.0f, .ty = 0.0f, .tz = 0.0f, .tw = 1.0f,
+            });
+            batch.vertices.push_back(IRenderBackend::WorldMeshVertex{
+                .x = x1, .y = tileY, .z = z1,
+                .u = uv.u1, .v = uv.v1,
+                .r = 1.0f, .g = 1.0f, .b = 1.0f, .a = 1.0f,
+                .nx = 0.0f, .ny = 1.0f, .nz = 0.0f,
+                .tx = 1.0f, .ty = 0.0f, .tz = 0.0f, .tw = 1.0f,
+            });
+            batch.vertices.push_back(IRenderBackend::WorldMeshVertex{
+                .x = x0, .y = tileY, .z = z1,
+                .u = uv.u0, .v = uv.v1,
+                .r = 1.0f, .g = 1.0f, .b = 1.0f, .a = 1.0f,
+                .nx = 0.0f, .ny = 1.0f, .nz = 0.0f,
+                .tx = 1.0f, .ty = 0.0f, .tz = 0.0f, .tw = 1.0f,
+            });
+
+            batch.indices.push_back(baseIndex + 0u);
+            batch.indices.push_back(baseIndex + 1u);
+            batch.indices.push_back(baseIndex + 2u);
+            batch.indices.push_back(baseIndex + 0u);
+            batch.indices.push_back(baseIndex + 2u);
+            batch.indices.push_back(baseIndex + 3u);
+        }
+    }
+
+    scratch.worldIndexedBatches.push_back(std::move(batch));
+    return true;
+}
+
+bool appendTexturedBoardTiles(const ProjectedBackdropArgs& args,
+                              session_render_scratch::RenderScratch& scratch) {
+    const shared_board_grid::VisualTheme& boardTheme =
+        routeShellStyle(args.theme).boardTheme;
+    const float tileY = std::min(
+        boardTheme.gridY - 0.0004f,
+        boardTheme.boardSurfaceY + 0.0009f);
+
+    const std::string geometryKey = makeBoardTilesGeometryKey(args);
+    return appendTexturedTileBatch(
+        args,
+        geometryKey.c_str(),
+        args.rows,
+        args.cols,
+        args.boardMinX,
+        args.boardMinZ,
+        tileY,
+        [](int row, int col, int rows, int cols) {
+            return boardAtlasTileForCell(row, col, rows, cols);
+        },
+        scratch);
+}
+
+bool appendTexturedBenchTiles(const ProjectedBackdropArgs& args,
+                              session_render_scratch::RenderScratch& scratch) {
+    if (args.benchSlots <= 0) {
+        return false;
+    }
+
+    if (!args.supportsWorldIndexedMeshes || !args.ensureBackendTextureLoaded ||
+        args.worldCellSize <= 0.0f || !themeUsesTexturedBoardDirt(args.theme)) {
+        return false;
+    }
+
+    game::runtime::SharedBackendTextureCacheEntry* tex =
+        args.ensureBackendTextureLoaded(kBackdropGrassTexturePath, false);
+    if (!tex || !tex->valid || tex->width <= 0 || tex->height <= 0 ||
+        tex->rgba.empty()) {
+        return false;
+    }
+
+    const shared_board_grid::VisualTheme& boardTheme =
+        routeShellStyle(args.theme).boardTheme;
+    const float tileY = std::min(
+        boardTheme.gridY - 0.0004f,
+        boardTheme.boardSurfaceY + 0.0009f);
+    const float benchGapWorld = std::max(
+        shared_board_grid::defaultVisualTheme().benchGapMin,
+        args.worldCellSize * shared_board_grid::defaultVisualTheme().benchGapScale);
+    const float benchMinX =
+        -0.5f * static_cast<float>(args.benchSlots) * args.worldCellSize;
+    const float benchMaxX =
+        benchMinX + static_cast<float>(args.benchSlots) * args.worldCellSize;
+    const float benchMinZ = args.boardMaxZ + benchGapWorld;
+    const float benchMaxZ = benchMinZ + args.worldCellSize;
+    const std::string geometryKey =
+        makeBenchTilesGeometryKey(args, benchMinX, benchMinZ, benchMaxX, benchMaxZ);
+    shared_world_batches::WorldIndexedBatch batch{};
+    batch.geometryCacheKey = geometryKey;
+    batch.textureKey = kBackdropGrassTexturePath;
+    batch.textureCacheKey = kBackdropGrassTexturePath;
+    batch.textureRgba = tex->rgba.data();
+    batch.textureWidth = tex->width;
+    batch.textureHeight = tex->height;
+    batch.textureWrapS = 33071;
+    batch.textureWrapT = 33071;
+    batch.alphaMode = 0u;
+    batch.blendMode = 0u;
+    batch.materialMode = 0u;
+    batch.characterInkingEnabled = 0u;
+    batch.metallicFactor = 0.0f;
+    batch.roughnessFactor = 1.0f;
+    batch.vertexColorMulR = 1.0f;
+    batch.vertexColorMulG = 1.0f;
+    batch.vertexColorMulB = 1.0f;
+    batch.vertexColorMulA = 1.0f;
+    batch.vertices.reserve(static_cast<std::size_t>(args.benchSlots * 4));
+    batch.indices.reserve(static_cast<std::size_t>(args.benchSlots * 6));
+
+    for (int slot = 0; slot < args.benchSlots; ++slot) {
+        const float x0 = benchMinX + static_cast<float>(slot) * args.worldCellSize;
+        const float z0 = benchMinZ;
+        const float x1 = x0 + args.worldCellSize;
+        const float z1 = benchMaxZ;
+        const std::uint32_t baseIndex =
+            static_cast<std::uint32_t>(batch.vertices.size());
+
+        batch.vertices.push_back(IRenderBackend::WorldMeshVertex{
+            .x = x0, .y = tileY, .z = z0,
+            .u = 0.0f, .v = 0.0f,
+            .r = 1.0f, .g = 1.0f, .b = 1.0f, .a = 1.0f,
+            .nx = 0.0f, .ny = 1.0f, .nz = 0.0f,
+            .tx = 1.0f, .ty = 0.0f, .tz = 0.0f, .tw = 1.0f,
+        });
+        batch.vertices.push_back(IRenderBackend::WorldMeshVertex{
+            .x = x1, .y = tileY, .z = z0,
+            .u = 1.0f, .v = 0.0f,
+            .r = 1.0f, .g = 1.0f, .b = 1.0f, .a = 1.0f,
+            .nx = 0.0f, .ny = 1.0f, .nz = 0.0f,
+            .tx = 1.0f, .ty = 0.0f, .tz = 0.0f, .tw = 1.0f,
+        });
+        batch.vertices.push_back(IRenderBackend::WorldMeshVertex{
+            .x = x1, .y = tileY, .z = z1,
+            .u = 1.0f, .v = 1.0f,
+            .r = 1.0f, .g = 1.0f, .b = 1.0f, .a = 1.0f,
+            .nx = 0.0f, .ny = 1.0f, .nz = 0.0f,
+            .tx = 1.0f, .ty = 0.0f, .tz = 0.0f, .tw = 1.0f,
+        });
+        batch.vertices.push_back(IRenderBackend::WorldMeshVertex{
+            .x = x0, .y = tileY, .z = z1,
+            .u = 0.0f, .v = 1.0f,
+            .r = 1.0f, .g = 1.0f, .b = 1.0f, .a = 1.0f,
+            .nx = 0.0f, .ny = 1.0f, .nz = 0.0f,
+            .tx = 1.0f, .ty = 0.0f, .tz = 0.0f, .tw = 1.0f,
+        });
+
+        batch.indices.push_back(baseIndex + 0u);
+        batch.indices.push_back(baseIndex + 1u);
+        batch.indices.push_back(baseIndex + 2u);
+        batch.indices.push_back(baseIndex + 0u);
+        batch.indices.push_back(baseIndex + 2u);
+        batch.indices.push_back(baseIndex + 3u);
+    }
+
+    scratch.worldIndexedBatches.push_back(std::move(batch));
+    return true;
+}
+
+bool appendTexturedBoardLedgeWalls(const ProjectedBackdropArgs& args,
+                                   session_render_scratch::RenderScratch& scratch) {
+    if (!args.supportsWorldIndexedMeshes || !args.ensureBackendTextureLoaded ||
+        args.boardMaxX <= args.boardMinX || args.boardMaxZ <= args.boardMinZ ||
+        !themeUsesTexturedBoardDirt(args.theme)) {
+        return false;
+    }
+
+    game::runtime::SharedBackendTextureCacheEntry* tex =
+        args.ensureBackendTextureLoaded(kBackdropBoardLedgeTexturePath, false);
+    if (!tex || !tex->valid || tex->width <= 0 || tex->height <= 0 ||
+        tex->rgba.empty()) {
+        return false;
+    }
+
+    const shared_board_grid::VisualTheme& boardTheme =
+        routeShellStyle(args.theme).boardTheme;
+    const float topY = boardTheme.boardSurfaceY + 0.0015f;
+    const UvRect leftUv = atlasTileRectUvRect(0, 0, 1, 3, tex->width, tex->height);
+    const UvRect midUvA = atlasTileRectUvRect(1, 0, 1, 3, tex->width, tex->height);
+    const UvRect midUvB = atlasTileRectUvRect(2, 0, 1, 3, tex->width, tex->height);
+    const UvRect rightUv = atlasTileRectUvRect(3, 0, 1, 3, tex->width, tex->height);
+
+    const auto appendLedgeRing =
+        [&](const std::string& geometryKey,
+            float minX,
+            float maxX,
+            float minZ,
+            float maxZ,
+            float bottomY,
+            float wallOffset,
+            int horizontalSegments,
+            int verticalSegments) {
+            if (bottomY >= topY) {
+                return;
+            }
+
+            shared_world_batches::WorldIndexedBatch batch{};
+            batch.geometryCacheKey = geometryKey;
+            batch.textureKey = kBackdropBoardLedgeTexturePath;
+            batch.textureCacheKey = kBackdropBoardLedgeTexturePath;
+            batch.textureRgba = tex->rgba.data();
+            batch.textureWidth = tex->width;
+            batch.textureHeight = tex->height;
+            batch.textureWrapS = 33071;
+            batch.textureWrapT = 33071;
+            batch.alphaMode = 1u;
+            batch.blendMode = 0u;
+            batch.materialMode = 0u;
+            batch.alphaCutoff = 0.04f;
+            batch.characterInkingEnabled = 0u;
+            batch.metallicFactor = 0.0f;
+            batch.roughnessFactor = 1.0f;
+            batch.vertexColorMulR = 1.0f;
+            batch.vertexColorMulG = 1.0f;
+            batch.vertexColorMulB = 1.0f;
+            batch.vertexColorMulA = 1.0f;
+            batch.vertices.reserve(192u);
+            batch.indices.reserve(288u);
+
+            const auto appendWallSegment = [&](float x0,
+                                               float z0,
+                                               float x1,
+                                               float z1,
+                                               const UvRect& uv) {
+                const std::uint32_t baseIndex =
+                    static_cast<std::uint32_t>(batch.vertices.size());
+                batch.vertices.push_back(IRenderBackend::WorldMeshVertex{
+                    .x = x0, .y = bottomY, .z = z0,
+                    .u = uv.u0, .v = uv.v1,
+                    .r = 1.0f, .g = 1.0f, .b = 1.0f, .a = 1.0f,
+                    .nx = 0.0f, .ny = 0.0f, .nz = 1.0f,
+                    .tx = 1.0f, .ty = 0.0f, .tz = 0.0f, .tw = 1.0f,
+                });
+                batch.vertices.push_back(IRenderBackend::WorldMeshVertex{
+                    .x = x1, .y = bottomY, .z = z1,
+                    .u = uv.u1, .v = uv.v1,
+                    .r = 1.0f, .g = 1.0f, .b = 1.0f, .a = 1.0f,
+                    .nx = 0.0f, .ny = 0.0f, .nz = 1.0f,
+                    .tx = 1.0f, .ty = 0.0f, .tz = 0.0f, .tw = 1.0f,
+                });
+                batch.vertices.push_back(IRenderBackend::WorldMeshVertex{
+                    .x = x1, .y = topY, .z = z1,
+                    .u = uv.u1, .v = uv.v0,
+                    .r = 1.0f, .g = 1.0f, .b = 1.0f, .a = 1.0f,
+                    .nx = 0.0f, .ny = 0.0f, .nz = 1.0f,
+                    .tx = 1.0f, .ty = 0.0f, .tz = 0.0f, .tw = 1.0f,
+                });
+                batch.vertices.push_back(IRenderBackend::WorldMeshVertex{
+                    .x = x0, .y = topY, .z = z0,
+                    .u = uv.u0, .v = uv.v0,
+                    .r = 1.0f, .g = 1.0f, .b = 1.0f, .a = 1.0f,
+                    .nx = 0.0f, .ny = 0.0f, .nz = 1.0f,
+                    .tx = 1.0f, .ty = 0.0f, .tz = 0.0f, .tw = 1.0f,
+                });
+
+                batch.indices.push_back(baseIndex + 0u);
+                batch.indices.push_back(baseIndex + 1u);
+                batch.indices.push_back(baseIndex + 2u);
+                batch.indices.push_back(baseIndex + 0u);
+                batch.indices.push_back(baseIndex + 2u);
+                batch.indices.push_back(baseIndex + 3u);
+            };
+
+            const auto uvForSegment =
+                [&](int segmentIndex, int segmentCount) -> const UvRect& {
+                    if (segmentCount <= 1) {
+                        return midUvA;
+                    }
+                    if (segmentIndex == 0) {
+                        return leftUv;
+                    }
+                    if (segmentIndex == segmentCount - 1) {
+                        return rightUv;
+                    }
+                    return ((segmentIndex % 2) == 0) ? midUvA : midUvB;
+                };
+
+            const auto appendHorizontalEdge =
+                [&](float x0, float x1, float z, bool reverse, int segmentCount) {
+                    const int segments = std::max(1, segmentCount);
+                    const float segmentWidth = (x1 - x0) / static_cast<float>(segments);
+                    for (int i = 0; i < segments; ++i) {
+                        const int logicalIndex = reverse ? (segments - 1 - i) : i;
+                        const float segX0 = x0 + static_cast<float>(i) * segmentWidth;
+                        const float segX1 = segX0 + segmentWidth;
+                        appendWallSegment(segX0, z, segX1, z, uvForSegment(logicalIndex, segments));
+                    }
+                };
+
+            const auto appendVerticalEdge =
+                [&](float x, float z0, float z1, bool reverse, int segmentCount) {
+                    const int segments = std::max(1, segmentCount);
+                    const float segmentDepth = (z1 - z0) / static_cast<float>(segments);
+                    for (int i = 0; i < segments; ++i) {
+                        const int logicalIndex = reverse ? (segments - 1 - i) : i;
+                        const float segZ0 = z0 + static_cast<float>(i) * segmentDepth;
+                        const float segZ1 = segZ0 + segmentDepth;
+                        appendWallSegment(x, segZ0, x, segZ1, uvForSegment(logicalIndex, segments));
+                    }
+                };
+
+            appendHorizontalEdge(minX, maxX, maxZ + wallOffset, false, horizontalSegments);
+            appendHorizontalEdge(minX, maxX, minZ - wallOffset, true, horizontalSegments);
+            appendVerticalEdge(minX - wallOffset, minZ, maxZ, false, verticalSegments);
+            appendVerticalEdge(maxX + wallOffset, minZ, maxZ, true, verticalSegments);
+
+            scratch.worldIndexedBatches.push_back(std::move(batch));
+        };
+
+    appendLedgeRing(
+        makeBoardLedgeGeometryKey(args),
+        args.boardMinX,
+        args.boardMaxX,
+        args.boardMinZ,
+        args.boardMaxZ,
+        topY - 0.22f,
+        0.015f,
+        args.cols,
+        args.rows);
+
+    const int benchSlots = std::max(1, args.benchSlots);
+    const float benchGapWorld = std::max(
+        shared_board_grid::defaultVisualTheme().benchGapMin,
+        args.worldCellSize * shared_board_grid::defaultVisualTheme().benchGapScale);
+    const float benchMinX = -0.5f * static_cast<float>(benchSlots) * args.worldCellSize;
+    const float benchMaxX = benchMinX + static_cast<float>(benchSlots) * args.worldCellSize;
+    const float benchMinZ = args.boardMaxZ + benchGapWorld;
+    const float benchMaxZ = benchMinZ + args.worldCellSize;
+
+    appendLedgeRing(
+        makeBenchLedgeGeometryKey(args, benchMinX, benchMaxX, benchMinZ, benchMaxZ),
+        benchMinX,
+        benchMaxX,
+        benchMinZ,
+        benchMaxZ,
+        topY - 0.18f,
+        0.015f,
+        benchSlots,
+        1);
+
+    return true;
+}
+
+void appendRaisedBoardPlatform(const ProjectedBackdropArgs& args,
+                               session_render_scratch::RenderScratch& scratch) {
+    if (!args.supportsWorldTriangles3D || !themeUsesTexturedBoardDirt(args.theme)) {
+        return;
+    }
+
+    auto& world3DTriangles = scratch.world3DTriangles;
+    const RouteShellStyle& style = routeShellStyle(args.theme);
+    const shared_board_grid::VisualTheme& boardTheme = style.boardTheme;
+    const float topY = boardTheme.boardSurfaceY - 0.0005f;
+    const float boardCliffStartY = topY - 0.22f;
+    const float benchCliffStartY = topY - 0.18f;
+    const float lowerGroundY = -0.315f;
+    const Color cliffColorA = scaleColor(style.plateauSide, 0.88f);
+    const Color cliffColorB = scaleColor(style.rock, 0.92f);
+    const Color cliffColorC = scaleColor(style.rock, 0.78f);
+
+    struct CliffProfile {
+        float minX = 0.0f;
+        float maxX = 0.0f;
+        float minZ = 0.0f;
+        float maxZ = 0.0f;
+        float y = 0.0f;
+    };
+
+    const auto appendCliffBand =
+        [&](const CliffProfile& upper,
+            const CliffProfile& lower,
+            const Color& frontColor,
+            const Color& sideColor) {
+            appendWorldQuadDoubleSided(
+                world3DTriangles,
+                glm::vec3(upper.minX, upper.y, upper.maxZ),
+                glm::vec3(upper.maxX, upper.y, upper.maxZ),
+                glm::vec3(lower.maxX, lower.y, lower.maxZ),
+                glm::vec3(lower.minX, lower.y, lower.maxZ),
+                frontColor);
+            appendWorldQuadDoubleSided(
+                world3DTriangles,
+                glm::vec3(upper.maxX, upper.y, upper.minZ),
+                glm::vec3(upper.minX, upper.y, upper.minZ),
+                glm::vec3(lower.minX, lower.y, lower.minZ),
+                glm::vec3(lower.maxX, lower.y, lower.minZ),
+                frontColor);
+            appendWorldQuadDoubleSided(
+                world3DTriangles,
+                glm::vec3(upper.minX, upper.y, upper.minZ),
+                glm::vec3(upper.minX, upper.y, upper.maxZ),
+                glm::vec3(lower.minX, lower.y, lower.maxZ),
+                glm::vec3(lower.minX, lower.y, lower.minZ),
+                sideColor);
+            appendWorldQuadDoubleSided(
+                world3DTriangles,
+                glm::vec3(upper.maxX, upper.y, upper.maxZ),
+                glm::vec3(upper.maxX, upper.y, upper.minZ),
+                glm::vec3(lower.maxX, lower.y, lower.minZ),
+                glm::vec3(lower.maxX, lower.y, lower.maxZ),
+                sideColor);
+        };
+
+    const auto appendCliffOutcrop =
+        [&](float minX,
+            float minY,
+            float minZ,
+            float maxX,
+            float maxY,
+            float maxZ,
+            float topScale,
+            float sideScale) {
+            appendBox(
+                world3DTriangles,
+                minX,
+                minY,
+                minZ,
+                maxX,
+                maxY,
+                maxZ,
+                scaleColor(style.rock, topScale),
+                scaleColor(style.rock, sideScale));
+        };
+
+    const auto appendRockCliffSkirt =
+        [&](float minX,
+            float maxX,
+            float minZ,
+            float maxZ,
+            float startY,
+            float leftExtent,
+            float rightExtent,
+            float backExtent,
+            float frontExtent,
+            bool addFrontOutcrops,
+            bool addSideOutcrops) {
+            const CliffProfile lip{
+                minX - 0.02f,
+                maxX + 0.02f,
+                minZ - 0.02f,
+                maxZ + 0.02f,
+                startY};
+            const CliffProfile shelfA{
+                minX - leftExtent * 0.28f,
+                maxX + rightExtent * 0.24f,
+                minZ - backExtent * 0.24f,
+                maxZ + frontExtent * 0.18f,
+                startY - 0.08f};
+            const CliffProfile shelfB{
+                minX - leftExtent * 0.58f,
+                maxX + rightExtent * 0.52f,
+                minZ - backExtent * 0.56f,
+                maxZ + frontExtent * 0.40f,
+                startY - 0.17f};
+            const CliffProfile base{
+                minX - leftExtent,
+                maxX + rightExtent,
+                minZ - backExtent,
+                maxZ + frontExtent,
+                lowerGroundY};
+
+            appendCliffBand(lip, shelfA, cliffColorA, scaleColor(cliffColorA, 0.92f));
+            appendCliffBand(shelfA, shelfB, cliffColorB, scaleColor(cliffColorB, 0.90f));
+            appendCliffBand(shelfB, base, cliffColorC, scaleColor(cliffColorC, 0.88f));
+
+            if (addFrontOutcrops) {
+                appendCliffOutcrop(
+                    minX - leftExtent * 0.18f,
+                    startY - 0.17f,
+                    maxZ + frontExtent * 0.12f,
+                    minX + 0.95f,
+                    startY - 0.06f,
+                    maxZ + frontExtent * 0.42f,
+                    1.04f,
+                    0.72f);
+                appendCliffOutcrop(
+                    maxX - 1.15f,
+                    startY - 0.23f,
+                    maxZ + frontExtent * 0.20f,
+                    maxX + rightExtent * 0.24f,
+                    startY - 0.10f,
+                    maxZ + frontExtent * 0.54f,
+                    1.02f,
+                    0.70f);
+            }
+            if (addSideOutcrops) {
+                appendCliffOutcrop(
+                    minX - leftExtent * 0.72f,
+                    startY - 0.21f,
+                    minZ + 0.35f,
+                    minX - leftExtent * 0.34f,
+                    startY - 0.09f,
+                    minZ + 1.45f,
+                    1.00f,
+                    0.72f);
+                appendCliffOutcrop(
+                    maxX + rightExtent * 0.32f,
+                    startY - 0.19f,
+                    maxZ - 1.45f,
+                    maxX + rightExtent * 0.74f,
+                    startY - 0.08f,
+                    maxZ - 0.30f,
+                    1.03f,
+                    0.71f);
+            }
+        };
+
+    appendRockCliffSkirt(
+        args.boardMinX,
+        args.boardMaxX,
+        args.boardMinZ,
+        args.boardMaxZ,
+        boardCliffStartY,
+        0.86f,
+        0.94f,
+        0.80f,
+        0.64f,
+        true,
+        true);
+
+    const int benchSlots = std::max(1, args.benchSlots);
+    const float benchGapWorld = std::max(
+        shared_board_grid::defaultVisualTheme().benchGapMin,
+        args.worldCellSize * shared_board_grid::defaultVisualTheme().benchGapScale);
+    const float benchMinX = -0.5f * static_cast<float>(benchSlots) * args.worldCellSize;
+    const float benchMaxX = benchMinX + static_cast<float>(benchSlots) * args.worldCellSize;
+    const float benchMinZ = args.boardMaxZ + benchGapWorld;
+    const float benchMaxZ = benchMinZ + args.worldCellSize;
+
+    appendRockCliffSkirt(
+        benchMinX,
+        benchMaxX,
+        benchMinZ,
+        benchMaxZ,
+        benchCliffStartY,
+        0.44f,
+        0.44f,
+        0.28f,
+        0.34f,
+        true,
+        false);
+}
+
+bool appendTexturedGroundPatch(const ProjectedBackdropArgs& args,
+                               session_render_scratch::RenderScratch& scratch,
+                               const char* label,
+                               float minX,
+                               float maxX,
+                               float minZ,
+                               float maxZ,
+                               float y = -0.039f) {
+    if (!args.supportsWorldIndexedMeshes || !args.ensureBackendTextureLoaded ||
+        !label || maxX <= minX || maxZ <= minZ) {
+        return false;
+    }
+
+    game::runtime::SharedBackendTextureCacheEntry* tex =
+        args.ensureBackendTextureLoaded(kBackdropGrassTexturePath, false);
+    if (!tex || !tex->valid || tex->width <= 0 || tex->height <= 0 ||
+        tex->rgba.empty()) {
+        return false;
+    }
+
+    shared_world_batches::WorldIndexedBatch batch{};
+    batch.geometryCacheKey = makeGroundPatchGeometryKey(
+        label, args.theme, minX, maxX, minZ, maxZ);
+    batch.textureKey = kBackdropGrassTexturePath;
+    batch.textureCacheKey = kBackdropGrassTexturePath;
+    batch.textureRgba = tex->rgba.data();
+    batch.textureWidth = tex->width;
+    batch.textureHeight = tex->height;
+    batch.textureWrapS = 10497;
+    batch.textureWrapT = 10497;
+    // Keep backdrop ground tiles on the plain textured path so world lighting
+    // and model shading do not alter the authored atlas colors.
+    batch.alphaMode = 0u;
+    batch.blendMode = 0u;
+    batch.materialMode = 0u;
+    batch.characterInkingEnabled = 0u;
+    batch.metallicFactor = 0.0f;
+    batch.roughnessFactor = 1.0f;
+    batch.vertexColorMulR = 1.0f;
+    batch.vertexColorMulG = 1.0f;
+    batch.vertexColorMulB = 1.0f;
+    batch.vertexColorMulA = 1.0f;
+    const float tileWorldSpan = std::max(0.001f, args.worldCellSize * 2.0f);
+    const float repeatU = std::max(1.0f, (maxX - minX) / tileWorldSpan);
+    const float repeatV = std::max(1.0f, (maxZ - minZ) / tileWorldSpan);
+
+    batch.vertices = {
+        IRenderBackend::WorldMeshVertex{
+            .x = minX, .y = y, .z = minZ,
+            .u = 0.0f, .v = 0.0f,
+            .r = 1.0f, .g = 1.0f, .b = 1.0f, .a = 1.0f,
+            .nx = 0.0f, .ny = 1.0f, .nz = 0.0f,
+            .tx = 1.0f, .ty = 0.0f, .tz = 0.0f, .tw = 1.0f,
+        },
+        IRenderBackend::WorldMeshVertex{
+            .x = maxX, .y = y, .z = minZ,
+            .u = repeatU, .v = 0.0f,
+            .r = 1.0f, .g = 1.0f, .b = 1.0f, .a = 1.0f,
+            .nx = 0.0f, .ny = 1.0f, .nz = 0.0f,
+            .tx = 1.0f, .ty = 0.0f, .tz = 0.0f, .tw = 1.0f,
+        },
+        IRenderBackend::WorldMeshVertex{
+            .x = maxX, .y = y, .z = maxZ,
+            .u = repeatU, .v = repeatV,
+            .r = 1.0f, .g = 1.0f, .b = 1.0f, .a = 1.0f,
+            .nx = 0.0f, .ny = 1.0f, .nz = 0.0f,
+            .tx = 1.0f, .ty = 0.0f, .tz = 0.0f, .tw = 1.0f,
+        },
+        IRenderBackend::WorldMeshVertex{
+            .x = minX, .y = y, .z = maxZ,
+            .u = 0.0f, .v = repeatV,
+            .r = 1.0f, .g = 1.0f, .b = 1.0f, .a = 1.0f,
+            .nx = 0.0f, .ny = 1.0f, .nz = 0.0f,
+            .tx = 1.0f, .ty = 0.0f, .tz = 0.0f, .tw = 1.0f,
+        },
+    };
+    batch.indices = {0u, 1u, 2u, 0u, 2u, 3u};
+
+    scratch.worldIndexedBatches.push_back(std::move(batch));
+    return true;
+}
+
+void appendRouteTexturedGrassGround(const ProjectedBackdropArgs& args,
+                                    session_render_scratch::RenderScratch& scratch,
+                                    float outerMinX,
+                                    float outerMaxX,
+                                    float outerMinZ,
+                                    float outerMaxZ) {
+    if (!themeUsesTexturedGrassGround(args.theme)) {
+        return;
+    }
+
+    (void)appendTexturedGroundPatch(
+        args,
+        scratch,
+        "session_world_backdrop_grass_outer_far",
+        outerMinX - 3.0f,
+        outerMaxX + 3.0f,
+        outerMinZ - 3.0f,
+        outerMaxZ + 3.0f,
+        -0.615f);
+    (void)appendTexturedGroundPatch(
+        args,
+        scratch,
+        "session_world_backdrop_grass_outer",
+        outerMinX,
+        outerMaxX,
+        outerMinZ,
+        outerMaxZ,
+        -0.315f);
+}
+
+[[maybe_unused]] bool appendAuthoredBackdropTrees(const ProjectedBackdropArgs& args,
                                  session_render_scratch::RenderScratch& scratch,
                                  ArenaBackdropTheme theme,
                                  float outerMinX,
@@ -642,7 +1622,7 @@ bool appendAuthoredBackdropTrees(const ProjectedBackdropArgs& args,
     return appendedAny;
 }
 
-void appendOpenRoadProps(std::vector<IRenderBackend::WorldTriangle>& out,
+[[maybe_unused]] void appendOpenRoadProps(std::vector<IRenderBackend::WorldTriangle>& out,
                          const RouteShellStyle& style,
                          float outerMinX,
                          float outerMaxX,
@@ -650,16 +1630,6 @@ void appendOpenRoadProps(std::vector<IRenderBackend::WorldTriangle>& out,
                          float playableMinZ,
                          float playableMaxZ,
                          bool useProceduralTrees) {
-    appendBox(
-        out,
-        outerMinX + 0.6f,
-        -0.039f,
-        playableMinZ - 2.6f,
-        outerMaxX - 0.6f,
-        -0.015f,
-        playableMinZ - 1.2f,
-        scaleColor(style.path, 1.05f),
-        scaleColor(style.path, 0.78f));
     appendFenceLine(out, outerMinX + 0.8f, outerMaxX - 0.8f, outerMinZ + 0.7f, 7, 0.75f, style.fence);
     if (useProceduralTrees) {
         appendTree(out, outerMinX + 0.9f, playableMinZ - 2.4f, 1.3f, 0.12f, 0.55f, 0.75f, style.trunk, style.leaves);
@@ -667,27 +1637,15 @@ void appendOpenRoadProps(std::vector<IRenderBackend::WorldTriangle>& out,
         appendTree(out, outerMinX + 0.8f, playableMaxZ + 1.4f, 1.15f, 0.11f, 0.48f, 0.65f, style.trunk, style.leaves);
         appendTree(out, outerMaxX - 0.8f, playableMaxZ + 1.2f, 1.12f, 0.11f, 0.48f, 0.65f, style.trunk, style.leaves);
     }
-    appendGrassPatch(out, outerMinX + 1.1f, outerMinX + 2.3f, playableMaxZ + 0.8f, playableMaxZ + 1.6f, style.grass);
-    appendGrassPatch(out, outerMaxX - 2.3f, outerMaxX - 1.1f, playableMaxZ + 0.7f, playableMaxZ + 1.5f, style.grass);
 }
 
-void appendFoothillProps(std::vector<IRenderBackend::WorldTriangle>& out,
+[[maybe_unused]] void appendFoothillProps(std::vector<IRenderBackend::WorldTriangle>& out,
                          const RouteShellStyle& style,
                          float outerMinX,
                          float outerMaxX,
                          float playableMinZ,
                          float playableMaxZ,
                          bool useProceduralTrees) {
-    appendBox(
-        out,
-        outerMinX + 0.5f,
-        -0.039f,
-        playableMinZ - 2.0f,
-        outerMaxX - 1.4f,
-        -0.016f,
-        playableMinZ - 0.9f,
-        scaleColor(style.path, 1.03f),
-        scaleColor(style.path, 0.76f));
     appendBox(out, outerMinX + 0.3f, -0.04f, playableMinZ - 3.2f, outerMinX + 1.7f, 0.55f, playableMinZ - 1.8f, scaleColor(style.rock, 1.06f), scaleColor(style.rock, 0.74f));
     appendBox(out, outerMaxX - 2.0f, -0.04f, playableMinZ - 3.6f, outerMaxX - 0.4f, 0.78f, playableMinZ - 2.1f, scaleColor(style.rock, 1.02f), scaleColor(style.rock, 0.70f));
     appendBox(out, outerMaxX - 1.8f, -0.04f, playableMaxZ + 0.6f, outerMaxX - 0.6f, 0.42f, playableMaxZ + 1.7f, scaleColor(style.rock, 1.04f), scaleColor(style.rock, 0.72f));
@@ -697,23 +1655,14 @@ void appendFoothillProps(std::vector<IRenderBackend::WorldTriangle>& out,
     }
 }
 
-void appendForestEdgeProps(std::vector<IRenderBackend::WorldTriangle>& out,
+[[maybe_unused]] void appendForestEdgeProps(std::vector<IRenderBackend::WorldTriangle>& out,
                            const RouteShellStyle& style,
                            float outerMinX,
                            float outerMaxX,
                            float playableMinZ,
                            float playableMaxZ,
                            bool useProceduralTrees) {
-    appendBox(
-        out,
-        outerMinX + 1.2f,
-        -0.039f,
-        playableMinZ - 1.9f,
-        outerMaxX - 1.2f,
-        -0.017f,
-        playableMinZ - 1.1f,
-        scaleColor(style.path, 1.02f),
-        scaleColor(style.path, 0.74f));
+    (void)playableMaxZ;
     if (useProceduralTrees) {
         appendTree(out, outerMinX + 0.7f, playableMinZ - 2.7f, 1.45f, 0.12f, 0.58f, 0.78f, style.trunk, style.leaves);
         appendTree(out, outerMinX + 2.0f, playableMinZ - 3.0f, 1.5f, 0.12f, 0.60f, 0.82f, style.trunk, style.leaves);
@@ -721,11 +1670,9 @@ void appendForestEdgeProps(std::vector<IRenderBackend::WorldTriangle>& out,
         appendTree(out, outerMaxX - 2.0f, playableMinZ - 2.95f, 1.48f, 0.12f, 0.60f, 0.80f, style.trunk, style.leaves);
         appendTree(out, outerMaxX - 0.7f, playableMinZ - 2.6f, 1.42f, 0.12f, 0.58f, 0.76f, style.trunk, style.leaves);
     }
-    appendGrassPatch(out, outerMinX + 0.8f, outerMinX + 2.4f, playableMaxZ + 0.5f, playableMaxZ + 1.5f, style.grass);
-    appendGrassPatch(out, outerMaxX - 2.4f, outerMaxX - 0.8f, playableMaxZ + 0.5f, playableMaxZ + 1.4f, style.grass);
 }
 
-void appendViridianProps(std::vector<IRenderBackend::WorldTriangle>& out,
+[[maybe_unused]] void appendViridianProps(std::vector<IRenderBackend::WorldTriangle>& out,
                          const RouteShellStyle& style,
                          float outerMinX,
                          float outerMaxX,
@@ -748,7 +1695,7 @@ void appendViridianProps(std::vector<IRenderBackend::WorldTriangle>& out,
     appendStoneMarker(out, 0.0f, playableMinZ - 2.35f, 0.72f, 0.28f, style.shrineStone);
 }
 
-void appendMountainPassProps(std::vector<IRenderBackend::WorldTriangle>& out,
+[[maybe_unused]] void appendMountainPassProps(std::vector<IRenderBackend::WorldTriangle>& out,
                              const RouteShellStyle& style,
                              float outerMinX,
                              float outerMaxX,
@@ -759,7 +1706,6 @@ void appendMountainPassProps(std::vector<IRenderBackend::WorldTriangle>& out,
     appendBox(out, outerMaxX - 2.0f, -0.04f, playableMinZ - 3.7f, outerMaxX - 0.2f, 1.05f, playableMinZ - 1.8f, scaleColor(style.rock, 1.06f), scaleColor(style.rock, 0.72f));
     appendBox(out, outerMinX + 2.5f, -0.04f, playableMinZ - 3.0f, outerMinX + 4.1f, 0.62f, playableMinZ - 2.0f, scaleColor(style.rock, 1.02f), scaleColor(style.rock, 0.72f));
     appendBox(out, outerMaxX - 4.1f, -0.04f, playableMinZ - 3.0f, outerMaxX - 2.5f, 0.62f, playableMinZ - 2.0f, scaleColor(style.rock, 1.02f), scaleColor(style.rock, 0.72f));
-    appendBox(out, outerMinX + 1.0f, -0.039f, playableMinZ - 1.8f, outerMaxX - 1.0f, -0.016f, playableMinZ - 0.9f, scaleColor(style.path, 1.02f), scaleColor(style.path, 0.76f));
     if (useProceduralTrees) {
         appendTree(out, outerMinX + 0.9f, playableMaxZ + 1.0f, 1.05f, 0.11f, 0.44f, 0.60f, style.trunk, style.leaves);
         appendTree(out, outerMaxX - 0.9f, playableMaxZ + 1.0f, 1.05f, 0.11f, 0.44f, 0.60f, style.trunk, style.leaves);
@@ -794,10 +1740,10 @@ void appendRouteArenaShell(const ProjectedBackdropArgs& args,
     appendBox(
         world3DTriangles,
         outerMinX - 3.0f,
-        -0.42f,
+        -0.86f,
         outerMinZ - 3.0f,
         outerMaxX + 3.0f,
-        -0.28f,
+        -0.62f,
         outerMaxZ + 3.0f,
         scaleColor(style.distantGround, 1.02f),
         scaleColor(style.distantGround, 0.72f));
@@ -805,91 +1751,35 @@ void appendRouteArenaShell(const ProjectedBackdropArgs& args,
     appendBox(
         world3DTriangles,
         outerMinX,
-        -0.24f,
+        -0.56f,
         outerMinZ,
         outerMaxX,
-        -0.04f,
+        -0.32f,
         outerMaxZ,
         scaleColor(style.plateauTop, 1.04f),
         scaleColor(style.plateauSide, 0.92f));
 
-    appendGrassPatch(
-        world3DTriangles,
-        outerMinX + 0.4f,
-        outerMaxX - 0.4f,
-        playableMaxZ + 0.2f,
-        outerMaxZ - 0.4f,
-        style.grass);
+    if (!themeUsesTexturedGrassGround(args.theme)) {
+        appendGrassPatch(
+            world3DTriangles,
+            outerMinX + 0.4f,
+            outerMaxX - 0.4f,
+            playableMaxZ + 0.2f,
+            outerMaxZ - 0.4f,
+            style.grass);
+    }
 
-    const bool hasAuthoredTrees = appendAuthoredBackdropTrees(
+    appendRouteTexturedGrassGround(
         args,
         scratch,
-        args.theme,
         outerMinX,
         outerMaxX,
-        playableMinZ,
-        playableMaxZ);
-
-    switch (args.theme) {
-        case ArenaBackdropTheme::Route22Foothills:
-            appendFoothillProps(
-                world3DTriangles,
-                style,
-                outerMinX,
-                outerMaxX,
-                playableMinZ,
-                playableMaxZ,
-                !hasAuthoredTrees);
-            break;
-        case ArenaBackdropTheme::Route2ForestEdge:
-            appendForestEdgeProps(
-                world3DTriangles,
-                style,
-                outerMinX,
-                outerMaxX,
-                playableMinZ,
-                playableMaxZ,
-                !hasAuthoredTrees);
-            break;
-        case ArenaBackdropTheme::ViridianForestShrine:
-            appendViridianProps(
-                world3DTriangles,
-                style,
-                outerMinX,
-                outerMaxX,
-                playableMinZ,
-                playableMaxZ,
-                !hasAuthoredTrees);
-            break;
-        case ArenaBackdropTheme::Route3MountainPass:
-            appendMountainPassProps(
-                world3DTriangles,
-                style,
-                outerMinX,
-                outerMaxX,
-                playableMinZ,
-                playableMaxZ,
-                !hasAuthoredTrees);
-            break;
-        case ArenaBackdropTheme::Route1OpenRoad:
-        case ArenaBackdropTheme::Default:
-        default:
-            appendOpenRoadProps(
-                world3DTriangles,
-                style,
-                outerMinX,
-                outerMaxX,
-                outerMinZ,
-                playableMinZ,
-                playableMaxZ,
-                !hasAuthoredTrees);
-            break;
-    }
+        outerMinZ,
+        outerMaxZ);
 }
 
 void appendRouteBackdropFill(const ProjectedBackdropArgs& args,
                              session_render_scratch::RenderScratch& scratch) {
-    const RouteShellStyle& style = routeShellStyle(args.theme);
     auto& quads = scratch.worldBackgroundQuads;
 
     IRenderBackend::DebugQuad full{};
@@ -897,29 +1787,11 @@ void appendRouteBackdropFill(const ProjectedBackdropArgs& args,
     full.y = 0.0f;
     full.w = static_cast<float>(args.drawableW > 0 ? args.drawableW : 1920);
     full.h = static_cast<float>(args.drawableH > 0 ? args.drawableH : 1080);
-    full.r = style.farFill[0];
-    full.g = style.farFill[1];
-    full.b = style.farFill[2];
-    full.a = style.farFill[3];
+    full.r = kBackdropBlackFill[0];
+    full.g = kBackdropBlackFill[1];
+    full.b = kBackdropBlackFill[2];
+    full.a = kBackdropBlackFill[3];
     quads.push_back(full);
-
-    IRenderBackend::DebugQuad lower = full;
-    lower.y = args.boardY + args.boardH * 0.18f;
-    lower.h = std::max(0.0f, full.h - lower.y);
-    lower.r = style.lowerFill[0];
-    lower.g = style.lowerFill[1];
-    lower.b = style.lowerFill[2];
-    lower.a = style.lowerFill[3];
-    quads.push_back(lower);
-
-    IRenderBackend::DebugQuad accent = full;
-    accent.y = 0.0f;
-    accent.h = std::max(0.0f, args.boardY + args.boardH * 0.30f);
-    accent.r = style.upperAccent[0];
-    accent.g = style.upperAccent[1];
-    accent.b = style.upperAccent[2];
-    accent.a = style.upperAccent[3];
-    quads.push_back(accent);
 }
 
 session_render_scratch::ProjectedBackdropCacheKey makeProjectedBackdropKey(
@@ -975,7 +1847,6 @@ void appendBackdropGeometry(const ProjectedBackdropArgs& args,
                             shared_projected_debug::ProjectedDebugVfxBuilder& projectedDebug,
                             session_render_scratch::RenderScratch& scratch) {
     appendRouteBackdropFill(args, scratch);
-    appendRouteArenaShell(args, scratch);
 
     const shared_board_grid::Config boardGridCfg = makeBoardGridConfig(args);
     shared_projected_scene::appendBoardAndBench(
@@ -985,6 +1856,8 @@ void appendBackdropGeometry(const ProjectedBackdropArgs& args,
         scratch.worldBackgroundQuads,
         scratch.lines,
         projectedDebug);
+    (void)appendTexturedBoardTiles(args, scratch);
+    (void)appendTexturedBenchTiles(args, scratch);
 }
 
 } // namespace
@@ -996,13 +1869,14 @@ ArenaBackdropTheme routeThemeFromScriptPath(const std::string& stateScriptPath) 
     if (stateScriptPath.find("route3") != std::string::npos) {
         return ArenaBackdropTheme::Route3MountainPass;
     }
-    if (stateScriptPath.find("route2") != std::string::npos) {
-        return ArenaBackdropTheme::Route2ForestEdge;
-    }
     if (stateScriptPath.find("route22") != std::string::npos) {
         return ArenaBackdropTheme::Route22Foothills;
     }
-    if (stateScriptPath.find("route1") != std::string::npos) {
+    if (stateScriptPath.find("route2") != std::string::npos) {
+        return ArenaBackdropTheme::Route2ForestEdge;
+    }
+    if (stateScriptPath.find("route1") != std::string::npos ||
+        stateScriptPath.find("starter") != std::string::npos) {
         return ArenaBackdropTheme::Route1OpenRoad;
     }
     return ArenaBackdropTheme::Default;

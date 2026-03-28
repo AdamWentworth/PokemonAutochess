@@ -115,6 +115,7 @@ Result appendProjectedWorldView(const Args& args) {
                 .line = line,
                 .theme = args.backdropTheme,
                 .ensureBackendMeshLoaded = args.ensureBackendMeshLoaded,
+                .ensureBackendTextureLoaded = args.ensureBackendTextureLoaded,
             },
             projectedDebug,
             *args.scratch);

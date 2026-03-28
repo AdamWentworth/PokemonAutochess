@@ -11,6 +11,10 @@ namespace game::runtime::render_model {
 struct MeshData;
 }
 
+namespace game::runtime {
+struct SharedBackendTextureCacheEntry;
+}
+
 namespace game::runtime::session_world_backdrop {
 
 enum class ArenaBackdropTheme {
@@ -45,6 +49,8 @@ struct ProjectedBackdropArgs {
     float line = 1.0f;
     ArenaBackdropTheme theme = ArenaBackdropTheme::Default;
     std::function<render_model::MeshData*(const std::string&)> ensureBackendMeshLoaded;
+    std::function<SharedBackendTextureCacheEntry*(const std::string&, bool)>
+        ensureBackendTextureLoaded;
 };
 
 ArenaBackdropTheme routeThemeFromScriptPath(const std::string& stateScriptPath);
