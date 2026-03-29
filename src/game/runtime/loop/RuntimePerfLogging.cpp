@@ -224,7 +224,10 @@ std::string formatGrowlDebugLine(const EngineGrowlDebugStats& growlDebug) {
         for (std::size_t i = 0; i < growlDebug.activePasses.size(); ++i) {
             const auto& pass = growlDebug.activePasses[i];
             if (i > 0u) out << ",";
-            out << pass.eid << ":" << pass.mode;
+            out << pass.eid << ":" << pass.mode
+                << "[b" << pass.submittedBatchCount
+                << "/v" << pass.submittedVertexCount
+                << "/i" << pass.submittedIndexCount << "]";
         }
     }
     return out.str();
@@ -258,6 +261,14 @@ std::string formatGrowlDebugJson(const EngineGrowlDebugStats& growlDebug) {
             << ",\"scale_mul\":" << pass.scaleMul
             << ",\"alpha_mul\":" << pass.alphaMul
             << ",\"forward_offset\":" << pass.forwardOffset
+            << ",\"submitted_batches\":" << pass.submittedBatchCount
+            << ",\"submitted_vertices\":" << pass.submittedVertexCount
+            << ",\"submitted_indices\":" << pass.submittedIndexCount
+            << ",\"submitted_texture_width\":" << pass.submittedTextureWidth
+            << ",\"submitted_texture_height\":" << pass.submittedTextureHeight
+            << ",\"submitted_translate_x\":" << pass.submittedTranslateX
+            << ",\"submitted_translate_y\":" << pass.submittedTranslateY
+            << ",\"submitted_translate_z\":" << pass.submittedTranslateZ
             << "}";
     }
 

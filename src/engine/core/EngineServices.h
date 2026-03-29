@@ -70,6 +70,14 @@ struct EngineGrowlPassDebugStats {
     float scaleMul = 1.0f;
     float alphaMul = 1.0f;
     float forwardOffset = 0.0f;
+    std::uint32_t submittedBatchCount = 0u;
+    std::uint32_t submittedVertexCount = 0u;
+    std::uint32_t submittedIndexCount = 0u;
+    int submittedTextureWidth = 0;
+    int submittedTextureHeight = 0;
+    float submittedTranslateX = 0.0f;
+    float submittedTranslateY = 0.0f;
+    float submittedTranslateZ = 0.0f;
 };
 
 struct EngineGrowlDebugStats {

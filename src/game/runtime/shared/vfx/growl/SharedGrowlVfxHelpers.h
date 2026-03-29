@@ -23,6 +23,11 @@ TevState resolveTevState(const GrowlWaveVFX::Config& config,
 bool isLinePass(const GrowlWaveVFX::Config& config,
                 const GrowlWaveVFX::Config::DrawPass& pass);
 
+bool usesQuarterTextureBake(const GrowlWaveVFX::Config& config,
+                            const GrowlWaveVFX::Config::DrawPass& pass);
+
+bool isSparkleMeshPass(const GrowlWaveVFX::Config::DrawPass& pass);
+
 bool isQuarterRingPass(const GrowlWaveVFX::Config& config,
                        const GrowlWaveVFX::Config::DrawPass& pass);
 

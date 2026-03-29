@@ -63,10 +63,19 @@ bool isLinePass(const GrowlWaveVFX::Config& config,
     return effectiveFragPath(config, pass).find("growl_line_shared") != std::string::npos;
 }
 
-bool isQuarterRingPass(const GrowlWaveVFX::Config& config,
-                       const GrowlWaveVFX::Config::DrawPass& pass) {
+bool usesQuarterTextureBake(const GrowlWaveVFX::Config& config,
+                            const GrowlWaveVFX::Config::DrawPass& pass) {
     if (pass.textureQuarterRing) return true;
     return effectiveFragPath(config, pass).find("growl_quarter_ring_shared") != std::string::npos;
+}
+
+bool isSparkleMeshPass(const GrowlWaveVFX::Config::DrawPass& pass) {
+    return toLowerCopyLocal(pass.renderMode) == "sparkle_mesh";
+}
+
+bool isQuarterRingPass(const GrowlWaveVFX::Config& config,
+                       const GrowlWaveVFX::Config::DrawPass& pass) {
+    return usesQuarterTextureBake(config, pass);
 }
 
 std::string makeBakedTextureKey(const GrowlWaveVFX::Config::DrawPass& pass, bool quarterPass) {
@@ -80,7 +89,7 @@ std::string makeTextureCacheKey(const GrowlWaveVFX::Config& config,
     if (isLinePass(config, pass) || pass.texturePath.empty()) {
         return "__growl_white__";
     }
-    return makeBakedTextureKey(pass, isQuarterRingPass(config, pass));
+    return makeBakedTextureKey(pass, usesQuarterTextureBake(config, pass));
 }
 
 bool bakePassTextureRgba(const GrowlWaveVFX::Config::DrawPass& pass,
@@ -96,6 +105,7 @@ bool bakePassTextureRgba(const GrowlWaveVFX::Config::DrawPass& pass,
     outRgba.resize(rawRgba.size(), 0u);
 
     const glm::vec3 tint = glm::clamp(pass.tintColor, glm::vec3(0.0f), glm::vec3(1.0f));
+    const bool sparkleMeshPass = quarterPass && isSparkleMeshPass(pass);
     for (std::size_t i = 0; i + 3u < rawRgba.size(); i += 4u) {
         const float tr = static_cast<float>(rawRgba[i + 0u]) / 255.0f;
         const float tg = static_cast<float>(rawRgba[i + 1u]) / 255.0f;
@@ -105,12 +115,23 @@ bool bakePassTextureRgba(const GrowlWaveVFX::Config::DrawPass& pass,
         glm::vec3 rgb(1.0f);
         float alpha = ta;
         if (quarterPass) {
-            rgb = glm::vec3(
-                tevMixU8Scalar(tev.c1.r, tev.c0.r, tr),
-                tevMixU8Scalar(tev.c1.g, tev.c0.g, tg),
-                tevMixU8Scalar(tev.c1.b, tev.c0.b, tb));
-            rgb *= tint;
-            alpha = alpha6bit(ta * tev.k1a);
+            if (sparkleMeshPass) {
+                rgb = glm::vec3(
+                    tevMixU8Scalar(tev.c1.r, tev.c0.r, tr),
+                    tevMixU8Scalar(tev.c1.g, tev.c0.g, tg),
+                    tevMixU8Scalar(tev.c1.b, tev.c0.b, tb));
+                rgb *= tint;
+                // Keep the sparkle texture's real shaped falloff, but boost it above the
+                // generic quarter-ring alpha so the cluster remains visible while tuning.
+                alpha = ta > 0.001f ? clamp01(std::pow(ta, 0.6f)) : 0.0f;
+            } else {
+                rgb = glm::vec3(
+                    tevMixU8Scalar(tev.c1.r, tev.c0.r, tr),
+                    tevMixU8Scalar(tev.c1.g, tev.c0.g, tg),
+                    tevMixU8Scalar(tev.c1.b, tev.c0.b, tb));
+                rgb *= tint;
+                alpha = alpha6bit(ta * tev.k1a);
+            }
         } else {
             const glm::vec3 tevInput = pass.useAlphaMaskForColor
                 ? glm::vec3(ta, ta, ta)

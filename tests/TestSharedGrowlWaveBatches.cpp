@@ -175,6 +175,112 @@ bool test_shared_growl_wave_batches_contract(std::string& outFail) {
         return false;
     }
 
+    GrowlWaveVFX::Config::DrawPass meshQuarterTexturePass = meshPass;
+    meshQuarterTexturePass.id = "growl_test_mesh_quarter_tex";
+    meshQuarterTexturePass.fragShaderPath =
+        "assets/shaders/vfx/moves/growl/growl_quarter_ring_shared.frag";
+
+    std::vector<game::runtime::shared_world_batches::WorldIndexedBatch> meshQuarterBatches;
+    const bool meshQuarterAppended =
+        appendPassBatch(meshQuarterBatches,
+                        snapshot,
+                        meshQuarterTexturePass,
+                        meshTev,
+                        &mesh,
+                        tex,
+                        glm::vec3(0.0f, 1.0f, 4.0f));
+
+    if (!expect(meshQuarterAppended && meshQuarterBatches.size() == 1u,
+                "Mesh growl passes using the quarter-ring shader should still append one mesh batch.",
+                outFail)) {
+        return false;
+    }
+
+    const auto& meshQuarterBatch = meshQuarterBatches.front();
+    if (!expect(meshQuarterBatch.sharedVertexCount == mesh.vertices.size() &&
+                    meshQuarterBatch.sharedIndexCount == mesh.indices.size() &&
+                    meshQuarterBatch.geometryCacheKey == "__growl_geom_mesh_v1__:assets/meshes/test.glb",
+                "Quarter-shaded growl mesh passes should keep mesh geometry rather than falling back to quarter-ring quad geometry.",
+                outFail)) {
+        return false;
+    }
+    if (!expect(meshQuarterBatch.textureCacheKey ==
+                    "__growl_baked:growl_test_mesh_quarter_tex:q:assets/textures/test.png",
+                "Quarter-shaded growl mesh passes should reuse the quarter-style baked texture cache key.",
+                outFail)) {
+        return false;
+    }
+
+    GrowlWaveVFX::Config::DrawPass sparklePass = meshQuarterTexturePass;
+    sparklePass.id = "growl_test_sparkle_mesh";
+    sparklePass.renderMode = "sparkle_mesh";
+    sparklePass.scaleMul = 0.5f;
+    sparklePass.alphaMul = 1.0f;
+    sparklePass.forwardOffset = 0.15f;
+    sparklePass.heightOffset = 0.5f;
+    sparklePass.radiusMul = 1.0f;
+    sparklePass.thicknessMul = 1.0f;
+    sparklePass.startRadiusMul = 0.5f;
+
+    game::runtime::render_model::MeshData sparkleMesh;
+    sparkleMesh.vertices.resize(4u);
+    sparkleMesh.vertices[0].position = glm::vec3(-1.0f, 0.0f, -1.0f);
+    sparkleMesh.vertices[0].uv = glm::vec2(0.0f, 0.0f);
+    sparkleMesh.vertices[0].color = glm::vec4(1.0f);
+    sparkleMesh.vertices[1].position = glm::vec3(1.0f, 0.0f, -1.0f);
+    sparkleMesh.vertices[1].uv = glm::vec2(1.0f, 0.0f);
+    sparkleMesh.vertices[1].color = glm::vec4(1.0f);
+    sparkleMesh.vertices[2].position = glm::vec3(-1.0f, 0.0f, 1.0f);
+    sparkleMesh.vertices[2].uv = glm::vec2(0.0f, 1.0f);
+    sparkleMesh.vertices[2].color = glm::vec4(1.0f);
+    sparkleMesh.vertices[3].position = glm::vec3(1.0f, 0.0f, 1.0f);
+    sparkleMesh.vertices[3].uv = glm::vec2(1.0f, 1.0f);
+    sparkleMesh.vertices[3].color = glm::vec4(1.0f);
+    sparkleMesh.indices = {0u, 1u, 2u, 2u, 1u, 3u};
+
+    std::vector<game::runtime::shared_world_batches::WorldIndexedBatch> sparkleBatches;
+    const bool sparkleAppended =
+        appendPassBatch(sparkleBatches,
+                        snapshot,
+                        sparklePass,
+                        meshTev,
+                        &sparkleMesh,
+                        tex,
+                        glm::vec3(0.0f, 1.0f, 4.0f));
+
+    if (!expect(sparkleAppended && sparkleBatches.size() == 1u,
+                "Sparkle growl mesh passes should append one batch.",
+                outFail)) {
+        return false;
+    }
+
+    const auto& sparkleBatch = sparkleBatches.front();
+    if (!expect(sparkleBatch.sharedVertexCount == 4u &&
+                    sparkleBatch.sharedIndexCount == 6u &&
+                    sparkleBatch.instances.size() == 1u,
+                "Sparkle growl mesh passes should convert authored quad markers into billboard instances.",
+                outFail)) {
+        return false;
+    }
+    if (!expect(sparkleBatch.geometryCacheKey ==
+                    "__growl_geom_quarter_v1__",
+                "Sparkle growl mesh passes should render with the shared quarter-quad geometry so the sparkle faces the camera.",
+                outFail)) {
+        return false;
+    }
+    if (!expect(std::abs(sparkleBatch.instances.front().modelMatrix[12]) > 0.0001f ||
+                    std::abs(sparkleBatch.instances.front().modelMatrix[13]) > 0.0001f ||
+                    std::abs(sparkleBatch.instances.front().modelMatrix[14]) > 0.0001f,
+                "Sparkle growl billboards should be positioned near the active ring rather than left at the origin.",
+                outFail)) {
+        return false;
+    }
+    if (!expect(sparkleBatch.instances.front().modelMatrix[14] > ring.pos.z,
+                "Sparkle growl billboards should stay in front of the emitter rather than behind the caster.",
+                outFail)) {
+        return false;
+    }
+
     GrowlWaveVFX::Config::DrawPass linePass;
     linePass.id = "growl_test_line";
     linePass.eid = 1128;

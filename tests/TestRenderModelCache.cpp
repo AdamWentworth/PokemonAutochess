@@ -2,6 +2,7 @@
 
 #include <filesystem>
 #include <fstream>
+#include <cmath>
 #include <string>
 
 namespace {
@@ -129,6 +130,35 @@ bool test_render_model_cache_contract(std::string& outFail) {
         }
         if (err.empty()) {
             outFail = "loadMeshFromCache should surface an error for corrupt cache files";
+            return false;
+        }
+    }
+
+    {
+        MeshData mesh;
+        std::string err;
+        const std::string growlMeshPath = "assets/meshes/growl_1255_mesh.glb";
+        if (!loadMeshFromCache(growlMeshPath, mesh, &err)) {
+            outFail = "loadMeshFromCache should load the Growl 1255 sparkle mesh: " + err;
+            return false;
+        }
+        if (mesh.vertices.size() < 4u) {
+            outFail = "Growl 1255 sparkle mesh should decode at least one textured quad";
+            return false;
+        }
+        auto approx = [](float a, float b) { return std::fabs(a - b) <= 0.001f; };
+        const auto& v0 = mesh.vertices[0].uv;
+        const auto& v1 = mesh.vertices[1].uv;
+        const auto& v2 = mesh.vertices[2].uv;
+        const auto& v3 = mesh.vertices[3].uv;
+        const bool hasExpectedQuadUvs =
+            approx(v0.x, 0.0f) && approx(v0.y, 0.0f) &&
+            approx(v1.x, 1.0f) && approx(v1.y, 0.0f) &&
+            approx(v2.x, 0.0f) && approx(v2.y, 1.0f) &&
+            approx(v3.x, 1.0f) && approx(v3.y, 1.0f);
+        if (!hasExpectedQuadUvs) {
+            outFail =
+                "Growl 1255 sparkle mesh should preserve RenderDoc rawtex0 UVs instead of falling back to generated planar UVs";
             return false;
         }
     }

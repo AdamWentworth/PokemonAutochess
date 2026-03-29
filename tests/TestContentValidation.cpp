@@ -1,4 +1,5 @@
 // tests/TestContentValidation.cpp
+#include <cmath>
 #include <filesystem>
 #include <fstream>
 #include <string>
@@ -68,6 +69,41 @@ bool test_content_invariants(std::string& outFail) {
         growlManifest["draw_passes"].empty()) {
         outFail = "Growl VFX manifest must define non-empty draw_passes.";
         return false;
+    }
+
+    auto findGrowlPassForwardOffset = [&](int eid, float& outForwardOffset) -> bool {
+        for (const auto& pass : growlManifest["draw_passes"]) {
+            if (!pass.is_object()) continue;
+            if (pass.value("eid", -1) != eid) continue;
+            outForwardOffset = pass.value("forward_offset", 0.0f);
+            return true;
+        }
+        return false;
+    };
+
+    struct GrowlPairedRingEids {
+        int a;
+        int b;
+    };
+    constexpr GrowlPairedRingEids kGrowlPairedRings[] = {
+        {1076, 1085},
+        {1092, 1101},
+        {1108, 1117},
+    };
+
+    for (const auto& pair : kGrowlPairedRings) {
+        float offsetA = 0.0f;
+        float offsetB = 0.0f;
+        if (!findGrowlPassForwardOffset(pair.a, offsetA) ||
+            !findGrowlPassForwardOffset(pair.b, offsetB)) {
+            outFail = "Growl VFX manifest is missing a paired ring pass entry.";
+            return false;
+        }
+        if (std::abs(offsetA - offsetB) > 0.0001f) {
+            outFail = "Growl paired ring passes must share the same forward_offset: eid " +
+                      std::to_string(pair.a) + " vs eid " + std::to_string(pair.b);
+            return false;
+        }
     }
 
     for (const auto& [name, stats] : pokemon.all()) {

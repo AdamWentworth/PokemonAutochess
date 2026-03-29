@@ -31,7 +31,28 @@ namespace game::runtime::session_world_render_runtime {
 
 namespace {
 
-void publishGrowlDebug(EngineServices* engineServices, GameWorld* gameWorld) {
+bool startsWithLocal(const std::string& value, const std::string& prefix) {
+    return value.size() >= prefix.size() &&
+           value.compare(0, prefix.size(), prefix) == 0;
+}
+
+std::uint32_t resolvedVertexCountLocal(const shared_world_batches::WorldIndexedBatch& batch) {
+    if (batch.sharedVertices && batch.sharedVertexCount > 0u) {
+        return static_cast<std::uint32_t>(batch.sharedVertexCount);
+    }
+    return static_cast<std::uint32_t>(batch.vertices.size());
+}
+
+std::uint32_t resolvedIndexCountLocal(const shared_world_batches::WorldIndexedBatch& batch) {
+    if (batch.sharedIndices && batch.sharedIndexCount > 0u) {
+        return static_cast<std::uint32_t>(batch.sharedIndexCount);
+    }
+    return static_cast<std::uint32_t>(batch.indices.size());
+}
+
+void publishGrowlDebug(EngineServices* engineServices,
+                       GameWorld* gameWorld,
+                       const std::vector<shared_world_batches::WorldIndexedBatch>& worldIndexedBatches) {
     if (!engineServices) return;
 
     engineServices->frameGrowlDebug = {};
@@ -61,6 +82,21 @@ void publishGrowlDebug(EngineServices* engineServices, GameWorld* gameWorld) {
         passStats.alphaMul = pass.alphaMul;
         passStats.forwardOffset = pass.forwardOffset;
 
+        const std::string texturePrefix = std::string("growl:") + pass.id + ":";
+        for (const auto& batch : worldIndexedBatches) {
+            if (!startsWithLocal(batch.textureKey, texturePrefix)) continue;
+            ++passStats.submittedBatchCount;
+            passStats.submittedVertexCount += resolvedVertexCountLocal(batch);
+            passStats.submittedIndexCount += resolvedIndexCountLocal(batch);
+            if (passStats.submittedBatchCount == 1u) {
+                passStats.submittedTextureWidth = batch.textureWidth;
+                passStats.submittedTextureHeight = batch.textureHeight;
+                passStats.submittedTranslateX = batch.modelMatrix[12];
+                passStats.submittedTranslateY = batch.modelMatrix[13];
+                passStats.submittedTranslateZ = batch.modelMatrix[14];
+            }
+        }
+
         if (passStats.linePass) {
             passStats.mode = "line";
             ++growl.linePassCount;
@@ -68,7 +104,12 @@ void publishGrowlDebug(EngineServices* engineServices, GameWorld* gameWorld) {
             passStats.mode = "texture_quarter_ring";
             ++growl.quarterRingPassCount;
         } else {
-            passStats.mode = passStats.quarterTextureBake ? "mesh_quarter_tex" : "mesh";
+            if (!pass.renderMode.empty() && pass.renderMode != "mesh") {
+                passStats.mode = pass.renderMode;
+            } else {
+                passStats.mode =
+                    passStats.quarterTextureBake ? "mesh_shared_quarter_shader" : "mesh";
+            }
             ++growl.meshPassCount;
         }
 
@@ -281,7 +322,7 @@ std::size_t render(const Args& args) {
     }
 
     const auto worldComposeEnd = RenderBuildClock::now();
-    publishGrowlDebug(args.engineServices, args.gameWorld);
+    publishGrowlDebug(args.engineServices, args.gameWorld, worldIndexedBatches);
     game::runtime::session_frame_metrics::publish(
         args.engineServices,
         {

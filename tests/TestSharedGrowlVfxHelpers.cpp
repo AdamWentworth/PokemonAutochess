@@ -84,6 +84,13 @@ bool test_shared_growl_vfx_helpers_contract(std::string& outFail) {
 
     config.fragShaderPath = "assets/shaders/vfx/moves/growl/growl_ring_shared.frag";
     pass.fragShaderPath = "assets/shaders/vfx/moves/growl/growl_quarter_ring_shared.frag";
+    pass.textureQuarterRing = false;
+    pass.renderMode.clear();
+    if (!expect(usesQuarterTextureBake(config, pass),
+                "usesQuarterTextureBake should detect quarter-style texture baking from pass frag shader path.",
+                outFail)) {
+        return false;
+    }
     if (!expect(isQuarterRingPass(config, pass),
                 "isQuarterRingPass should detect quarter-ring passes from pass frag shader path.",
                 outFail)) {
@@ -93,6 +100,18 @@ bool test_shared_growl_vfx_helpers_contract(std::string& outFail) {
     pass.textureQuarterRing = true;
     if (!expect(isQuarterRingPass(config, pass),
                 "isQuarterRingPass should respect explicit textureQuarterRing pass flag.",
+                outFail)) {
+        return false;
+    }
+    pass.renderMode = "sparkle_mesh";
+    if (!expect(isSparkleMeshPass(pass),
+                "isSparkleMeshPass should detect explicit sparkle mesh render mode.",
+                outFail)) {
+        return false;
+    }
+    pass.renderMode = "mesh";
+    if (!expect(!isSparkleMeshPass(pass),
+                "isSparkleMeshPass should ignore non-sparkle render modes.",
                 outFail)) {
         return false;
     }
@@ -122,9 +141,9 @@ bool test_shared_growl_vfx_helpers_contract(std::string& outFail) {
 
     pass.fragShaderPath = "assets/shaders/vfx/moves/growl/growl_quarter_ring_shared.frag";
     pass.texturePath = "assets/textures/moves/growl/Texture3918.png";
-    pass.textureQuarterRing = true;
+    pass.textureQuarterRing = false;
     if (!expect(makeTextureCacheKey(config, pass) == quarterKey,
-                "makeTextureCacheKey should reuse baked-texture cache keys for textured growl passes.",
+                "makeTextureCacheKey should reuse quarter-style baked-texture cache keys even for mesh passes using the quarter-ring shader.",
                 outFail)) {
         return false;
     }
@@ -169,6 +188,20 @@ bool test_shared_growl_vfx_helpers_contract(std::string& outFail) {
     }
     if (!expect(quarterOut[3] != rawRgba[3],
                 "Quarter-ring pass bake should quantize/adjust alpha relative to source alpha.",
+                outFail)) {
+        return false;
+    }
+
+    pass.renderMode = "sparkle_mesh";
+    std::vector<unsigned char> sparkleOut;
+    if (!expect(bakePassTextureRgba(pass, tev, true, rawRgba, sparkleOut) &&
+                    sparkleOut.size() == rawRgba.size(),
+                "Sparkle mesh bake should preserve source pixel count for shared quarter-shader passes.",
+                outFail)) {
+        return false;
+    }
+    if (!expect(sparkleOut[3] > quarterOut[3],
+                "Sparkle mesh bake should keep fuller alpha than the generic quarter-ring bake.",
                 outFail)) {
         return false;
     }

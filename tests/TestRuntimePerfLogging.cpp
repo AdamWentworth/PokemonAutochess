@@ -102,7 +102,7 @@ bool test_runtime_perf_logging_contract(std::string& outFail) {
     growl.activePasses.push_back({
         .id = "growl_eid_1255",
         .eid = 1255,
-        .mode = "mesh_quarter_tex",
+        .mode = "sparkle_mesh",
         .meshPath = "assets/meshes/growl_1255_mesh.glb",
         .texturePath = "assets/textures/moves/growl/Texture3924.png",
         .quarterTextureBake = true,
@@ -110,12 +110,20 @@ bool test_runtime_perf_logging_contract(std::string& outFail) {
         .scaleMul = 0.25f,
         .alphaMul = 1.0f,
         .forwardOffset = 0.0f,
+        .submittedBatchCount = 1u,
+        .submittedVertexCount = 40u,
+        .submittedIndexCount = 60u,
+        .submittedTextureWidth = 128,
+        .submittedTextureHeight = 128,
+        .submittedTranslateX = 1.25f,
+        .submittedTranslateY = 2.50f,
+        .submittedTranslateZ = 3.75f,
     });
 
     const std::string growlLine = game::runtime::perf_logging::formatGrowlDebugLine(growl);
     if (growlLine.find("[Growl] rings=3") != 0 ||
         growlLine.find("quarter_tex=1") == std::string::npos ||
-        growlLine.find("1255:mesh_quarter_tex") == std::string::npos) {
+        growlLine.find("1255:sparkle_mesh[b1/v40/i60]") == std::string::npos) {
         outFail = "formatGrowlDebugLine should emit the expected Growl summary fields.";
         return false;
     }
@@ -126,7 +134,12 @@ bool test_runtime_perf_logging_contract(std::string& outFail) {
         growlJson.find("\"active_rings\":3") == std::string::npos ||
         growlJson.find("\"id\":\"growl_eid_1255\"") == std::string::npos ||
         growlJson.find("\"mesh\":\"assets/meshes/growl_1255_mesh.glb\"") == std::string::npos ||
-        growlJson.find("\"quarter_texture_bake\":1") == std::string::npos) {
+        growlJson.find("\"quarter_texture_bake\":1") == std::string::npos ||
+        growlJson.find("\"submitted_batches\":1") == std::string::npos ||
+        growlJson.find("\"submitted_vertices\":40") == std::string::npos ||
+        growlJson.find("\"submitted_indices\":60") == std::string::npos ||
+        growlJson.find("\"submitted_texture_width\":128") == std::string::npos ||
+        growlJson.find("\"submitted_translate_y\":2.500") == std::string::npos) {
         outFail = "formatGrowlDebugJson should emit stable JSON-style Growl debug fields.";
         return false;
     }
