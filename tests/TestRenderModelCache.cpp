@@ -1,7 +1,9 @@
 #include "game/runtime/render_model_cache/RenderModelCache.h"
-
 #include <filesystem>
 #include <fstream>
+#include <algorithm>
+#include <array>
+#include <cctype>
 #include <cmath>
 #include <string>
 
@@ -9,6 +11,26 @@ namespace {
 
 bool contains(const std::string& haystack, const std::string& needle) {
     return haystack.find(needle) != std::string::npos;
+}
+
+bool hasGrowlAnchorCandidate(const game::runtime::render_model::MeshData& mesh) {
+    static constexpr std::array<const char*, 11> kGrowlAnchorTokens = {
+        "effmouth01", "mouth01.", "mouth01", "mouth", "jaw", "nose",
+        "snout", "muzzle", "head", "neck", "chin"};
+
+    for (const std::string& nodeName : mesh.nodeNames) {
+        std::string lower = nodeName;
+        std::transform(lower.begin(),
+                       lower.end(),
+                       lower.begin(),
+                       [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+        for (const char* token : kGrowlAnchorTokens) {
+            if (token && lower.find(token) != std::string::npos) {
+                return true;
+            }
+        }
+    }
+    return false;
 }
 
 } // namespace
@@ -131,6 +153,32 @@ bool test_render_model_cache_contract(std::string& outFail) {
         if (err.empty()) {
             outFail = "loadMeshFromCache should surface an error for corrupt cache files";
             return false;
+        }
+    }
+
+    {
+        namespace fs = std::filesystem;
+        const fs::path modelsDir = "assets/models";
+        for (const auto& entry : fs::directory_iterator(modelsDir)) {
+            if (!entry.is_regular_file()) continue;
+            if (entry.path().extension() != ".glb") continue;
+            if (entry.path().filename() == "pokeball.glb") continue;
+
+            MeshData mesh;
+            std::string err;
+            const std::string modelPath = entry.path().generic_string();
+            if (!loadMeshFromCache(modelPath, mesh, &err)) {
+                outFail =
+                    "loadMeshFromCache should load every Pokemon mesh for Growl anchor lookup: " +
+                    modelPath + " :: " + err;
+                return false;
+            }
+            if (!hasGrowlAnchorCandidate(mesh)) {
+                outFail =
+                    "Pokemon cached mesh should expose at least one Growl anchor candidate node: " +
+                    modelPath;
+                return false;
+            }
         }
     }
 

@@ -3,11 +3,17 @@
 #include <algorithm>
 #include <array>
 #include <cctype>
+#include <limits>
 #include <string>
+#include <unordered_map>
+#include <vector>
 
 #include <glm/gtc/matrix_transform.hpp>
 
 #include "engine/render/Model.h"
+#include "game/config/GameDataDb.h"
+#include "game/runtime/render_model_cache/RenderModelCache.h"
+#include "game/runtime/shared/backend/SharedBackendPoseEval.h"
 #include "game/world/MoveImpactMath.h"
 
 namespace {
@@ -25,8 +31,10 @@ glm::vec3 safeForwardXZ(const glm::vec3& v) {
     return f / len;
 }
 
-glm::mat4 buildModelInstanceTransform(const PokemonInstance& instance) {
-    const float scaleFactor = computeModelWorldScaleForMoveImpact(instance);
+glm::mat4 buildModelInstanceTransform(const PokemonInstance& instance,
+                                      float backendModelScaleFactor = 1.0f) {
+    const float scaleFactor =
+        computeModelWorldScaleForMoveImpact(instance, backendModelScaleFactor);
 
     const glm::mat4 scale = glm::scale(glm::mat4(1.0f), glm::vec3(scaleFactor));
     const glm::mat4 rotationX =
@@ -41,34 +49,199 @@ glm::mat4 buildModelInstanceTransform(const PokemonInstance& instance) {
     return translation * rotationY * rotationX * rotationZ * scale;
 }
 
+std::string resolveBackendModelPath(const PokemonInstance& unit, const GameDataDb* data) {
+    if (!unit.backendModelPath.empty()) return unit.backendModelPath;
+    if (!unit.animIndexCacheSourceModelPath.empty()) return unit.animIndexCacheSourceModelPath;
+    if (!unit.backendAnimDurationsSourceModelPath.empty()) {
+        return unit.backendAnimDurationsSourceModelPath;
+    }
+    if (!data) return {};
+
+    const PokemonStats* stats = data->pokemon.getStats(unit.name);
+    if (!stats || stats->model.empty()) return {};
+    return "assets/models/" + stats->model;
+}
+
+struct BackendGrowlMeshCacheEntry {
+    bool attemptedLoad = false;
+    game::runtime::render_model::MeshData mesh;
+    bool cachedGrowlNodeIndicesReady = false;
+    std::vector<int> cachedGrowlNodeIndices;
+};
+
+BackendGrowlMeshCacheEntry* tryLoadBackendGrowlMesh(const std::string& modelPath) {
+    if (modelPath.empty()) return nullptr;
+
+    static std::unordered_map<std::string, BackendGrowlMeshCacheEntry> cache;
+    auto& entry = cache[modelPath];
+    if (!entry.attemptedLoad) {
+        entry.attemptedLoad = true;
+        std::string err;
+        if (!game::runtime::render_model::loadMeshFromCache(modelPath, entry.mesh, &err)) {
+            entry.mesh = game::runtime::render_model::MeshData{};
+        }
+    }
+
+    if (entry.mesh.nodesDefault.empty()) return nullptr;
+    return &entry;
+}
+
+float scoreGrowlAnchorCandidate(const glm::vec3& worldPos,
+                                const glm::vec3& expectedWorld,
+                                std::size_t candidateRank,
+                                float animBias) {
+    const glm::vec2 planarDelta(worldPos.x - expectedWorld.x, worldPos.z - expectedWorld.z);
+    const float planar = glm::length(planarDelta);
+    const float vertical = std::abs(worldPos.y - expectedWorld.y);
+    return planar * 2.0f + vertical + static_cast<float>(candidateRank) * 0.0005f + animBias;
+}
+
+template <size_t N>
+std::vector<int> resolveBackendGrowlNodeIndices(const std::vector<std::string>& nodeNames,
+                                                const std::array<const char*, N>& candidates) {
+    std::vector<int> result;
+    if (nodeNames.empty()) return result;
+
+    std::array<std::string, N> loweredCandidates{};
+    for (std::size_t i = 0; i < N; ++i) {
+        loweredCandidates[i] = candidates[i] ? lowerCopy(candidates[i]) : std::string{};
+    }
+
+    auto appendIfMissing = [&](int nodeIndex) {
+        if (nodeIndex < 0) return;
+        if (std::find(result.begin(), result.end(), nodeIndex) == result.end()) {
+            result.push_back(nodeIndex);
+        }
+    };
+
+    for (const auto& candidate : loweredCandidates) {
+        if (candidate.empty()) continue;
+        for (std::size_t ni = 0; ni < nodeNames.size(); ++ni) {
+            const std::string nodeLower = lowerCopy(nodeNames[ni]);
+            if (nodeLower == candidate) {
+                appendIfMissing(static_cast<int>(ni));
+            }
+        }
+    }
+
+    for (const auto& candidate : loweredCandidates) {
+        if (candidate.empty()) continue;
+        for (std::size_t ni = 0; ni < nodeNames.size(); ++ni) {
+            const std::string nodeLower = lowerCopy(nodeNames[ni]);
+            if (nodeLower.find(candidate) != std::string::npos) {
+                appendIfMissing(static_cast<int>(ni));
+            }
+        }
+    }
+
+    return result;
+}
+
 template <size_t N>
 bool tryResolveAnimatedNodeWorld(const PokemonInstance& unit,
                                  const std::array<const char*, N>& nodeNames,
+                                 const glm::vec3& expectedWorldPos,
                                  glm::vec3& outWorldPos) {
     if (!unit.model) return false;
 
     const glm::mat4 instanceM = buildModelInstanceTransform(unit);
     const int activeAnim = (unit.activeAnimIndex >= 0) ? unit.activeAnimIndex : unit.animIdleIndex;
     const int idleAnim = unit.animIdleIndex;
+    float bestScore = std::numeric_limits<float>::max();
+    bool found = false;
 
-    auto tryAnim = [&](int animIndex) -> bool {
+    auto tryAnim = [&](int animIndex, float animBias) {
         if (animIndex < 0) return false;
-        for (const char* nodeName : nodeNames) {
+        for (std::size_t i = 0; i < N; ++i) {
+            const char* nodeName = nodeNames[i];
             if (!nodeName || !nodeName[0]) continue;
             glm::mat4 nodeGlobal(1.0f);
             if (!unit.model->getNodeGlobalTransformByName(unit.animTimeSec, animIndex, nodeName, nodeGlobal)) {
                 continue;
             }
             const glm::mat4 nodeWorld = instanceM * nodeGlobal;
-            outWorldPos = glm::vec3(nodeWorld[3]);
-            return true;
+            const glm::vec3 worldPos(nodeWorld[3]);
+            const float score =
+                scoreGrowlAnchorCandidate(worldPos, expectedWorldPos, i, animBias);
+            if (score < bestScore) {
+                bestScore = score;
+                outWorldPos = worldPos;
+                found = true;
+            }
         }
-        return false;
+        return found;
     };
 
-    if (tryAnim(activeAnim)) return true;
-    if (idleAnim != activeAnim && tryAnim(idleAnim)) return true;
-    return false;
+    (void)tryAnim(activeAnim, 0.0f);
+    if (idleAnim != activeAnim) {
+        (void)tryAnim(idleAnim, 0.01f);
+    }
+    return found;
+}
+
+template <size_t N>
+bool tryResolveBackendAnimatedNodeWorld(const PokemonInstance& unit,
+                                        const GameDataDb* data,
+                                        const std::array<const char*, N>& nodeNames,
+                                        const glm::vec3& expectedWorldPos,
+                                        glm::vec3& outWorldPos) {
+    const std::string modelPath = resolveBackendModelPath(unit, data);
+    BackendGrowlMeshCacheEntry* entry = tryLoadBackendGrowlMesh(modelPath);
+    if (!entry) return false;
+
+    if (!entry->cachedGrowlNodeIndicesReady) {
+        entry->cachedGrowlNodeIndices = resolveBackendGrowlNodeIndices(entry->mesh.nodeNames, nodeNames);
+        entry->cachedGrowlNodeIndicesReady = true;
+    }
+
+    if (entry->cachedGrowlNodeIndices.empty()) {
+        return false;
+    }
+
+    const glm::mat4 instanceM =
+        buildModelInstanceTransform(unit, std::max(0.01f, entry->mesh.modelScaleFactor));
+    const int activeAnim = (unit.activeAnimIndex >= 0) ? unit.activeAnimIndex : unit.animIdleIndex;
+    const int idleAnim = unit.animIdleIndex;
+    float bestScore = std::numeric_limits<float>::max();
+    bool found = false;
+
+    auto tryPose = [&](int animIndex, float animBias) {
+        if (animIndex < 0) return false;
+        const bool loopingClip =
+            game::runtime::shared_backend_pose::shouldTreatSceneClipAsLooping(unit, animIndex);
+        const auto pose = game::runtime::shared_backend_pose::evaluateScenePoseForResolvedClipTime(
+            entry->mesh,
+            animIndex,
+            unit.animTimeSec,
+            true,
+            loopingClip);
+        if (!pose.hasScenePose) return false;
+
+        for (std::size_t i = 0; i < entry->cachedGrowlNodeIndices.size(); ++i) {
+            const int nodeIndex = entry->cachedGrowlNodeIndices[i];
+            if (nodeIndex < 0 ||
+                static_cast<std::size_t>(nodeIndex) >= pose.nodeGlobals.size()) {
+                continue;
+            }
+            const glm::mat4 nodeWorld =
+                instanceM * pose.nodeGlobals[static_cast<std::size_t>(nodeIndex)];
+            const glm::vec3 worldPos(nodeWorld[3]);
+            const float score =
+                scoreGrowlAnchorCandidate(worldPos, expectedWorldPos, i, animBias);
+            if (score < bestScore) {
+                bestScore = score;
+                outWorldPos = worldPos;
+                found = true;
+            }
+        }
+        return found;
+    };
+
+    (void)tryPose(activeAnim, 0.0f);
+    if (idleAnim != activeAnim) {
+        (void)tryPose(idleAnim, 0.01f);
+    }
+    return found;
 }
 
 }  // namespace
@@ -94,17 +267,29 @@ void GameWorld::emitGrowlImpact(const PokemonInstance& target,
         const glm::vec3 renderPos = attacker->position + glm::vec3(0.0f, attacker->visualYOffset, 0.0f);
         const float worldScale = computeModelWorldScaleForMoveImpact(*attacker);
 
-        // Stable fallback near mouth/head area in world-space.
+        // Emergency fallback near mouth/head area in world-space.
+        // Current shipped rigs all expose viable anchor nodes, so this should
+        // rarely be used outside malformed content or pathological clips.
         glm::vec3 fallbackOrigin = renderPos + glm::vec3(0.0f, 0.14f, 0.0f);
         fallbackOrigin += fwdXZ * 0.10f;
 
-        static constexpr std::array<const char*, 12> kGrowlNodeCandidates = {
-            "EffMouth01", "effmouth01", "mouth", "Mouth", "head", "Head",
-            "jaw", "Jaw", "Nose", "nose", "neck", "Neck"};
+        static constexpr std::array<const char*, 22> kGrowlNodeCandidates = {
+            "jaw", "Jaw",
+            "EffMouth01", "effmouth01",
+            "mouth01.", "Mouth01.",
+            "mouth01", "Mouth01",
+            "mouth", "Mouth",
+            "Nose", "nose",
+            "snout", "Snout",
+            "muzzle", "Muzzle",
+            "head", "Head",
+            "neck", "Neck",
+            "chin", "Chin"};
 
         glm::vec3 mouthWorld(0.0f);
         bool resolvedFromNode = false;
-        if (tryResolveAnimatedNodeWorld(*attacker, kGrowlNodeCandidates, mouthWorld)) {
+        if (tryResolveAnimatedNodeWorld(*attacker, kGrowlNodeCandidates, fallbackOrigin, mouthWorld) ||
+            tryResolveBackendAnimatedNodeWorld(*attacker, data, kGrowlNodeCandidates, fallbackOrigin, mouthWorld)) {
             origin = mouthWorld;
             resolvedFromNode = true;
         } else {

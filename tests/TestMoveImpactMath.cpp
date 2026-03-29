@@ -32,6 +32,16 @@ bool test_move_impact_math(std::string& outFail) {
         return false;
     }
 
+    unit.modelScaleCorrection = 1.0f / 0.537488f;
+    unit.speciesScale = 0.85f;
+    unit.visualScale = 1.0f;
+    unit.captureScale = 1.0f;
+    if (!expect(nearf(computeModelWorldScaleForMoveImpact(unit, 0.537488f), 0.85f, 0.0005f),
+                "Backend move-impact scale should include cached mesh modelScaleFactor when no legacy model is loaded.",
+                outFail)) {
+        return false;
+    }
+
     unit.speciesScale = -1.0f;
     if (!expect(nearf(computeModelWorldScaleForMoveImpact(unit), 0.0f),
                 "Negative species scale should clamp to zero contribution.",
