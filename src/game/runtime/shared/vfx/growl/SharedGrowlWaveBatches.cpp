@@ -282,6 +282,51 @@ std::string makeQuarterGeometryCacheKeyLocal() {
     return "__growl_geom_quarter_v1__";
 }
 
+bool computeQuarterSequenceStateLocal(const GrowlWaveVFX::Config::DrawPass& pass,
+                                      float age01,
+                                      float fadeStart,
+                                      int sequenceIndex,
+                                      float& outLocalAge01,
+                                      float& outFade) {
+    const int sequenceCount =
+        (pass.textureQuarterRing && pass.sequenceCount > 1) ? std::max(1, pass.sequenceCount) : 1;
+    if (sequenceCount <= 1) {
+        outLocalAge01 = age01;
+    } else {
+        const float sequenceLife = std::clamp(pass.sequenceLife, 0.01f, 1.0f);
+        const float sequenceStep = std::max(0.0f, pass.sequenceStep);
+        const float sequenceStart = sequenceStep * static_cast<float>(sequenceIndex);
+        const float sequenceTimelineSpan =
+            sequenceStep * static_cast<float>(sequenceCount - 1) + sequenceLife;
+        const float sequenceAge = age01 * sequenceTimelineSpan;
+        outLocalAge01 = (sequenceAge - sequenceStart) / sequenceLife;
+        if (outLocalAge01 < 0.0f || outLocalAge01 > 1.0f) return false;
+    }
+
+    outFade = 1.0f;
+    if (outLocalAge01 > fadeStart) {
+        const float t = (outLocalAge01 - fadeStart) / std::max(0.0001f, (1.0f - fadeStart));
+        outFade = 1.0f - glm::clamp(t, 0.0f, 1.0f);
+    }
+    return outFade > 0.001f;
+}
+
+float computeQuarterAnimatedScaleLocal(const GrowlWaveVFX::Config::DrawPass& pass,
+                                       const GrowlWaveVFX::RenderRing& ring,
+                                       float age01,
+                                       float localAge01) {
+    const float passScale = std::max(0.0f, pass.scaleMul);
+    const int sequenceCount =
+        (pass.textureQuarterRing && pass.sequenceCount > 1) ? std::max(1, pass.sequenceCount) : 1;
+    if (sequenceCount <= 1) {
+        return glm::mix(ring.startScale, ring.endScale, age01) * passScale;
+    }
+
+    const float radiusGrowthMul = std::max(1.0f, pass.radiusGrowthMul);
+    return std::max(0.0f, ring.startScale) * passScale *
+           glm::mix(1.0f, radiusGrowthMul, glm::clamp(localAge01, 0.0f, 1.0f));
+}
+
 shared_world_batches::WorldIndexedBatch makeBaseBatchLocal(
     const GrowlWaveVFX::RenderSnapshot& snapshot,
     const GrowlWaveVFX::Config::DrawPass& pass,
@@ -626,17 +671,7 @@ bool appendSharedQuarterPassSingleRingLocal(
     const auto& ring = snapshot.rings.front();
     const float life = std::max(0.0001f, ring.lifeSec);
     const float age01 = glm::clamp(ring.ageSec / life, 0.0f, 1.0f);
-    const float scale =
-        glm::mix(ring.startScale, ring.endScale, age01) * std::max(0.0f, pass.scaleMul);
-    if (scale <= 0.0001f) return false;
-
     const float fadeStart = glm::clamp(snapshot.config.fadeStart, 0.0f, 1.0f);
-    float fade = 1.0f;
-    if (age01 > fadeStart) {
-        const float t = (age01 - fadeStart) / std::max(0.0001f, (1.0f - fadeStart));
-        fade = 1.0f - glm::clamp(t, 0.0f, 1.0f);
-    }
-    if (fade <= 0.001f) return false;
 
     const glm::vec3 ringForward = safeNormalize3Local(ring.forward, glm::vec3(0.0f, 0.0f, 1.0f));
     glm::vec3 right = glm::cross(glm::vec3(0.0f, 1.0f, 0.0f), ringForward);
@@ -654,9 +689,6 @@ bool appendSharedQuarterPassSingleRingLocal(
 
     const glm::vec3 localDirBasisRaw = (*localDirections)[0];
     if (glm::dot(localDirBasisRaw, localDirBasisRaw) <= 0.000001f) return false;
-
-    const float passAlpha = std::clamp(fade * std::max(0.0f, pass.alphaMul), 0.0f, 1.0f);
-    if (passAlpha <= 0.001f) return false;
 
     const glm::vec3 defaultMeshForward =
         (glm::dot(snapshot.config.meshForwardAxis, snapshot.config.meshForwardAxis) <= 0.0001f)
@@ -685,7 +717,6 @@ bool appendSharedQuarterPassSingleRingLocal(
     const float thicknessMul = std::max(0.0f, pass.thicknessMul);
     const glm::vec3 axisScale =
         glm::vec3(radiusMul) + (thicknessMul - radiusMul) * meshForwardAxisWeight;
-    const glm::vec3 finalScale = glm::vec3(scale) * axisScale;
 
     const auto& sharedVertices = quarterVerticesLocal();
     const auto& sharedIndices = quarterIndicesLocal();
@@ -696,20 +727,40 @@ bool appendSharedQuarterPassSingleRingLocal(
     batch.sharedIndices = sharedIndices.data();
     batch.sharedIndexCount = sharedIndices.size();
     batch.geometryCacheKey = makeQuarterGeometryCacheKeyLocal();
-    batch.instances.reserve(static_cast<std::size_t>(quarterCount));
+    const int sequenceCount =
+        (pass.textureQuarterRing && pass.sequenceCount > 1) ? std::max(1, pass.sequenceCount) : 1;
+    batch.instances.reserve(static_cast<std::size_t>(quarterCount * sequenceCount));
     bool appendedAny = false;
-    for (int i = 0; i < quarterCount; ++i) {
-        const float quarterDeg =
-            pass.quarterStartDeg + pass.quarterStepDeg * static_cast<float>(i);
-        const glm::quat quarterRot = glm::angleAxis(glm::radians(quarterDeg), meshForwardLocal);
-        IRenderBackend::WorldMeshInstance instance;
-        instance.modelMatrix = toModelMatrixArrayLocal(
-            glm::translate(glm::mat4(1.0f), passPos) *
-            glm::mat4_cast(passRot * quarterRot) *
-            glm::scale(glm::mat4(1.0f), finalScale));
-        instance.vertexColorMulA = passAlpha;
-        batch.instances.push_back(std::move(instance));
-        appendedAny = true;
+    for (int sequenceIndex = 0; sequenceIndex < sequenceCount; ++sequenceIndex) {
+        float localAge01 = age01;
+        float fade = 1.0f;
+        if (!computeQuarterSequenceStateLocal(
+                pass, age01, fadeStart, sequenceIndex, localAge01, fade)) {
+            continue;
+        }
+
+        const float passAlpha =
+            std::clamp(fade * std::max(0.0f, pass.alphaMul), 0.0f, 1.0f);
+        if (passAlpha <= 0.001f) continue;
+
+        const float animatedScale =
+            computeQuarterAnimatedScaleLocal(pass, ring, age01, localAge01);
+        if (animatedScale <= 0.0001f) continue;
+        const glm::vec3 finalScale = glm::vec3(animatedScale) * axisScale;
+
+        for (int i = 0; i < quarterCount; ++i) {
+            const float quarterDeg =
+                pass.quarterStartDeg + pass.quarterStepDeg * static_cast<float>(i);
+            const glm::quat quarterRot = glm::angleAxis(glm::radians(quarterDeg), meshForwardLocal);
+            IRenderBackend::WorldMeshInstance instance;
+            instance.modelMatrix = toModelMatrixArrayLocal(
+                glm::translate(glm::mat4(1.0f), passPos) *
+                glm::mat4_cast(passRot * quarterRot) *
+                glm::scale(glm::mat4(1.0f), finalScale));
+            instance.vertexColorMulA = passAlpha;
+            batch.instances.push_back(std::move(instance));
+            appendedAny = true;
+        }
     }
     if (!appendedAny || batch.instances.empty()) return false;
     batch.sortDepth = distSq;
@@ -890,9 +941,6 @@ bool appendDynamicPassBatchLocal(
     for (const auto& ring : snapshot.rings) {
         const float life = std::max(0.0001f, ring.lifeSec);
         const float age01 = glm::clamp(ring.ageSec / life, 0.0f, 1.0f);
-        const float scale =
-            glm::mix(ring.startScale, ring.endScale, age01) * std::max(0.0f, pass.scaleMul);
-        if (scale <= 0.0001f) continue;
 
         const glm::vec3 ringForward = safeNormalize3Local(ring.forward, glm::vec3(0.0f, 0.0f, 1.0f));
         glm::vec3 right = glm::cross(glm::vec3(0.0f, 1.0f, 0.0f), ringForward);
@@ -908,18 +956,12 @@ bool appendDynamicPassBatchLocal(
         }
         if (localDirections->empty()) continue;
 
-        float fade = 1.0f;
-        if (age01 > fadeStart) {
-            const float t = (age01 - fadeStart) / std::max(0.0001f, (1.0f - fadeStart));
-            fade = 1.0f - glm::clamp(t, 0.0f, 1.0f);
-        }
-        if (fade <= 0.001f) continue;
-
         const float radiusMul = std::max(0.0f, pass.radiusMul);
         const float thicknessMul = std::max(0.0f, pass.thicknessMul);
         const glm::vec3 axisScale =
             glm::vec3(radiusMul) + (thicknessMul - radiusMul) * meshForwardAxisWeight;
-        const glm::vec3 finalScale = glm::vec3(scale) * axisScale;
+        const int sequenceCount =
+            (drawQuarterRing && pass.sequenceCount > 1) ? std::max(1, pass.sequenceCount) : 1;
 
         for (std::size_t dirIndex = 0; dirIndex < localDirections->size(); ++dirIndex) {
             glm::vec3 localDirBasisRaw = (*localDirections)[dirIndex];
@@ -948,13 +990,6 @@ bool appendDynamicPassBatchLocal(
                 const float noise = hash01Local(ring.randomSeed ^ passSalt ^ dirSalt ^ 0x4f1bbcdcu);
                 lineAlphaMul *= glm::mix(pass.lineAlphaMin, pass.lineAlphaMax, noise);
             }
-            float passAlphaScale = std::clamp(fade * lineAlphaMul, 0.0f, 1.0f);
-            if (!quarterTextureBake && !drawLinePass) {
-                passAlphaScale *= passTev.k1a;
-            }
-            const float passAlpha = std::clamp(passAlphaScale, 0.0f, 1.0f);
-            if (passAlpha <= 0.001f) continue;
-
             const glm::vec3 localDir = glm::normalize(localDirBasisRaw);
             const glm::vec3 worldDir = right * localDir.x + up * localDir.y + ringForward * localDir.z;
             if (glm::dot(worldDir, worldDir) <= 0.000001f) continue;
@@ -968,27 +1003,58 @@ bool appendDynamicPassBatchLocal(
             const float distSq = glm::dot(passPos - cameraWorldPos, passPos - cameraWorldPos);
             sortDepth = std::max(sortDepth, distSq);
 
-            const glm::vec4 color(passTint, passAlpha);
-            if (drawQuarterRing) {
-                const int quarterCount = std::max(1, pass.quarterCount);
-                for (int i = 0; i < quarterCount; ++i) {
-                    const float quarterDeg =
-                        pass.quarterStartDeg + pass.quarterStepDeg * static_cast<float>(i);
-                    const glm::quat quarterRot = glm::angleAxis(glm::radians(quarterDeg), meshForwardLocal);
+            for (int sequenceIndex = 0; sequenceIndex < sequenceCount; ++sequenceIndex) {
+                float localAge01 = age01;
+                float fade = 1.0f;
+                if (drawQuarterRing &&
+                    !computeQuarterSequenceStateLocal(
+                        pass, age01, fadeStart, sequenceIndex, localAge01, fade)) {
+                    continue;
+                } else if (!drawQuarterRing) {
+                    if (age01 > fadeStart) {
+                        const float t = (age01 - fadeStart) / std::max(0.0001f, (1.0f - fadeStart));
+                        fade = 1.0f - glm::clamp(t, 0.0f, 1.0f);
+                    }
+                    if (fade <= 0.001f) continue;
+                }
+
+                float passAlphaScale = std::clamp(fade * lineAlphaMul, 0.0f, 1.0f);
+                if (!quarterTextureBake && !drawLinePass) {
+                    passAlphaScale *= passTev.k1a;
+                }
+                const float passAlpha = std::clamp(passAlphaScale, 0.0f, 1.0f);
+                if (passAlpha <= 0.001f) continue;
+
+                const float animatedScale = drawQuarterRing
+                    ? computeQuarterAnimatedScaleLocal(pass, ring, age01, localAge01)
+                    : (glm::mix(ring.startScale, ring.endScale, age01) * std::max(0.0f, pass.scaleMul));
+                if (animatedScale <= 0.0001f) continue;
+                const glm::vec3 finalScale = glm::vec3(animatedScale) * axisScale;
+
+                const glm::vec4 color(passTint, passAlpha);
+                if (drawQuarterRing) {
+                    const int quarterCount = std::max(1, pass.quarterCount);
+                    for (int i = 0; i < quarterCount; ++i) {
+                        const float quarterDeg =
+                            pass.quarterStartDeg + pass.quarterStepDeg * static_cast<float>(i);
+                        const glm::quat quarterRot =
+                            glm::angleAxis(glm::radians(quarterDeg), meshForwardLocal);
+                        const glm::mat4 world =
+                            glm::translate(glm::mat4(1.0f), passPos) *
+                            glm::mat4_cast(passRot * quarterRot) *
+                            glm::scale(glm::mat4(1.0f), finalScale);
+                        appendQuarterRingLocal(batch, world, color);
+                        hasGeometry = true;
+                    }
+                } else if (passMesh) {
                     const glm::mat4 world =
                         glm::translate(glm::mat4(1.0f), passPos) *
-                        glm::mat4_cast(passRot * quarterRot) *
+                        glm::mat4_cast(passRot) *
                         glm::scale(glm::mat4(1.0f), finalScale);
-                    appendQuarterRingLocal(batch, world, color);
+                    appendTransformedMeshLocal(
+                        batch, *passMesh, world, color, drawLinePass, passTev.k1a);
                     hasGeometry = true;
                 }
-            } else if (passMesh) {
-                const glm::mat4 world =
-                    glm::translate(glm::mat4(1.0f), passPos) *
-                    glm::mat4_cast(passRot) *
-                    glm::scale(glm::mat4(1.0f), finalScale);
-                appendTransformedMeshLocal(batch, *passMesh, world, color, drawLinePass, passTev.k1a);
-                hasGeometry = true;
             }
         }
     }

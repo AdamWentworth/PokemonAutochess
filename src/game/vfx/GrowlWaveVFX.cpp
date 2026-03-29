@@ -203,6 +203,10 @@ void GrowlWaveVFX::applyDrawManifestOverrides() {
                 p.forwardOffset = it.value("forward_offset", p.forwardOffset);
                 p.heightOffset = it.value("height_offset", p.heightOffset);
                 p.startRadiusMul = it.value("start_radius_mul", p.startRadiusMul);
+                p.sequenceCount = std::clamp(it.value("sequence_count", p.sequenceCount), 1, 16);
+                p.sequenceStep = std::max(0.0f, it.value("sequence_step", p.sequenceStep));
+                p.sequenceLife = std::clamp(it.value("sequence_life", p.sequenceLife), 0.01f, 1.0f);
+                p.radiusGrowthMul = std::max(0.0f, it.value("radius_growth_mul", p.radiusGrowthMul));
                 p.radiusMul = it.value("radius_mul", p.radiusMul);
                 p.thicknessMul = it.value("thickness_mul", p.thicknessMul);
                 p.overrideTev = it.value("override_tev", p.overrideTev);
@@ -531,7 +535,6 @@ void GrowlWaveVFX::render(const Camera3D& camera) {
         for (const auto& r : rings) {
             const float life = std::max(0.0001f, r.lifeSec);
             const float age01 = glm::clamp(r.ageSec / life, 0.0f, 1.0f);
-            const float scale = glm::mix(r.startScale, r.endScale, age01) * std::max(0.0f, pass.cfg.scaleMul);
             const glm::vec3 ringForward =
                 (glm::dot(r.forward, r.forward) > 0.0001f)
                 ? glm::normalize(r.forward)
@@ -553,20 +556,20 @@ void GrowlWaveVFX::render(const Camera3D& camera) {
                         : glm::vec3(0.0f, 0.0f, 1.0f));
                 localDirections = &localDirectionsFallback;
             }
-
+            const int sequenceCount =
+                (pass.cfg.textureQuarterRing && pass.cfg.sequenceCount > 1)
+                    ? std::max(1, pass.cfg.sequenceCount)
+                    : 1;
+            const float sequenceStep = std::max(0.0f, pass.cfg.sequenceStep);
+            const float sequenceLife = std::clamp(pass.cfg.sequenceLife, 0.01f, 1.0f);
+            const float sequenceTimelineSpan =
+                sequenceStep * static_cast<float>(sequenceCount - 1) + sequenceLife;
+            const float radiusGrowthMul = std::max(1.0f, pass.cfg.radiusGrowthMul);
+            const float fadeStart = glm::clamp(cfg.fadeStart, 0.0f, 1.0f);
             const float radiusMul = std::max(0.0f, pass.cfg.radiusMul);
             const float thicknessMul = std::max(0.0f, pass.cfg.thicknessMul);
             const glm::vec3 axisScale =
                 glm::vec3(radiusMul) + (thicknessMul - radiusMul) * meshForwardAxisWeight;
-            const glm::vec3 finalScale = glm::vec3(scale) * axisScale;
-
-            float fade = 1.0f;
-            const float fadeStart = glm::clamp(cfg.fadeStart, 0.0f, 1.0f);
-            if (age01 > fadeStart) {
-                const float t = (age01 - fadeStart) / std::max(0.0001f, (1.0f - fadeStart));
-                fade = 1.0f - glm::clamp(t, 0.0f, 1.0f);
-            }
-            if (pass.locFade >= 0) glUniform1f(pass.locFade, fade);
 
             for (size_t dirIndex = 0; dirIndex < localDirections->size(); ++dirIndex) {
                 glm::vec3 localDirBasisRaw = (*localDirections)[dirIndex];
@@ -622,25 +625,51 @@ void GrowlWaveVFX::render(const Camera3D& camera) {
                     r.pos +
                     passForward * pass.cfg.forwardOffset +
                     radialStartOffset;
-
-                const glm::mat4 world =
-                    glm::translate(glm::mat4(1.0f), passPos) *
-                    glm::mat4_cast(passRot) *
-                    glm::scale(glm::mat4(1.0f), finalScale);
-
-                if (drawQuarterRing) {
-                    const int quarterCount = std::max(1, pass.cfg.quarterCount);
-                    for (int i = 0; i < quarterCount; ++i) {
-                        const float quarterDeg = pass.cfg.quarterStartDeg + pass.cfg.quarterStepDeg * static_cast<float>(i);
-                        const glm::quat quarterRot = glm::angleAxis(glm::radians(quarterDeg), meshForwardLocal);
-                        const glm::mat4 quarterWorld =
-                            glm::translate(glm::mat4(1.0f), passPos) *
-                            glm::mat4_cast(passRot * quarterRot) *
-                            glm::scale(glm::mat4(1.0f), finalScale);
-                        drawQuarterQuad(camera, quarterWorld, pass.locMVP);
+                for (int sequenceIndex = 0; sequenceIndex < sequenceCount; ++sequenceIndex) {
+                    float localAge01 = age01;
+                    if (sequenceCount > 1) {
+                        const float sequenceStart = sequenceStep * static_cast<float>(sequenceIndex);
+                        const float sequenceAge = age01 * sequenceTimelineSpan;
+                        localAge01 = (sequenceAge - sequenceStart) / sequenceLife;
+                        if (localAge01 < 0.0f || localAge01 > 1.0f) continue;
                     }
-                } else {
-                    pass.meshModel->drawGeometryWithBoundShader(camera, world, pass.locMVP);
+
+                    float fade = 1.0f;
+                    if (localAge01 > fadeStart) {
+                        const float t = (localAge01 - fadeStart) / std::max(0.0001f, (1.0f - fadeStart));
+                        fade = 1.0f - glm::clamp(t, 0.0f, 1.0f);
+                    }
+                    if (fade <= 0.001f) continue;
+                    if (pass.locFade >= 0) glUniform1f(pass.locFade, fade);
+
+                    const float animatedScale = (sequenceCount > 1)
+                        ? (std::max(0.0f, r.startScale) *
+                           std::max(0.0f, pass.cfg.scaleMul) *
+                           glm::mix(1.0f, radiusGrowthMul, localAge01))
+                        : (glm::mix(r.startScale, r.endScale, age01) *
+                           std::max(0.0f, pass.cfg.scaleMul));
+                    if (animatedScale <= 0.0001f) continue;
+                    const glm::vec3 finalScale = glm::vec3(animatedScale) * axisScale;
+
+                    const glm::mat4 world =
+                        glm::translate(glm::mat4(1.0f), passPos) *
+                        glm::mat4_cast(passRot) *
+                        glm::scale(glm::mat4(1.0f), finalScale);
+
+                    if (drawQuarterRing) {
+                        const int quarterCount = std::max(1, pass.cfg.quarterCount);
+                        for (int i = 0; i < quarterCount; ++i) {
+                            const float quarterDeg = pass.cfg.quarterStartDeg + pass.cfg.quarterStepDeg * static_cast<float>(i);
+                            const glm::quat quarterRot = glm::angleAxis(glm::radians(quarterDeg), meshForwardLocal);
+                            const glm::mat4 quarterWorld =
+                                glm::translate(glm::mat4(1.0f), passPos) *
+                                glm::mat4_cast(passRot * quarterRot) *
+                                glm::scale(glm::mat4(1.0f), finalScale);
+                            drawQuarterQuad(camera, quarterWorld, pass.locMVP);
+                        }
+                    } else {
+                        pass.meshModel->drawGeometryWithBoundShader(camera, world, pass.locMVP);
+                    }
                 }
             }
         }

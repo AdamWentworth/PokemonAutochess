@@ -37,6 +37,10 @@ public:
             float forwardOffset = 0.0f;
             float heightOffset = 0.0f;
             float startRadiusMul = 1.0f;
+            int sequenceCount = 1;
+            float sequenceStep = 0.0f;
+            float sequenceLife = 1.0f;
+            float radiusGrowthMul = 1.0f;
             bool overrideMeshForwardAxis = false;
             glm::vec3 meshForwardAxis = glm::vec3(0.0f, 1.0f, 0.0f);
             bool overrideDirection = false;

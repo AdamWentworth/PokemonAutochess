@@ -1,5 +1,6 @@
 #include <string>
 #include <vector>
+#include <cmath>
 
 #include <glm/glm.hpp>
 
@@ -109,6 +110,53 @@ bool test_shared_growl_wave_batches_contract(std::string& outFail) {
                     outFail)) {
             return false;
         }
+    }
+
+    GrowlWaveVFX::Config::DrawPass quarterSequencePass = pass;
+    quarterSequencePass.id = "growl_test_quarter_sequence";
+    quarterSequencePass.sequenceCount = 3;
+    quarterSequencePass.sequenceStep = 0.10f;
+    quarterSequencePass.sequenceLife = 0.80f;
+    quarterSequencePass.radiusGrowthMul = 1.5f;
+
+    GrowlWaveVFX::RenderSnapshot sequenceSnapshot = snapshot;
+    sequenceSnapshot.rings.front().ageSec = 0.50f;
+    const auto sequenceTev =
+        game::runtime::shared_growl::resolveTevState(sequenceSnapshot.config, quarterSequencePass);
+    std::vector<game::runtime::shared_world_batches::WorldIndexedBatch> sequenceBatches;
+    const bool sequenceAppended =
+        appendPassBatch(sequenceBatches,
+                        sequenceSnapshot,
+                        quarterSequencePass,
+                        sequenceTev,
+                        nullptr,
+                        tex,
+                        glm::vec3(0.0f, 1.0f, 4.0f));
+
+    if (!expect(sequenceAppended && sequenceBatches.size() == 1u,
+                "Quarter-ring growl batching should support sequential expanding ring echoes.",
+                outFail)) {
+        return false;
+    }
+
+    const auto& quarterSequenceBatch = sequenceBatches.front();
+    if (!expect(quarterSequenceBatch.instances.size() == 6u,
+                "Quarter-ring growl sequencing should emit one quarter instance per visible ring echo.",
+                outFail)) {
+        return false;
+    }
+    const auto columnLength = [](const IRenderBackend::WorldMeshInstance& instance,
+                                 int columnOffset) {
+        const float x = instance.modelMatrix[static_cast<std::size_t>(columnOffset + 0)];
+        const float y = instance.modelMatrix[static_cast<std::size_t>(columnOffset + 1)];
+        const float z = instance.modelMatrix[static_cast<std::size_t>(columnOffset + 2)];
+        return std::sqrt(x * x + y * y + z * z);
+    };
+    if (!expect(columnLength(quarterSequenceBatch.instances[0], 0) >
+                    columnLength(quarterSequenceBatch.instances[4], 0),
+                "Older quarter-ring echoes should expand larger than the newest visible echo.",
+                outFail)) {
+        return false;
     }
 
     GrowlWaveVFX::Config::DrawPass meshPass;
