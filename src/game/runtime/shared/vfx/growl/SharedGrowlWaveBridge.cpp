@@ -16,8 +16,9 @@ bool appendBatches(const GrowlWaveVFX::RenderSnapshot& snapshot,
         const shared_growl::TevState passTev = shared_growl::resolveTevState(snapshot.config, pass);
 
         const bool drawQuarterRing = pass.textureQuarterRing;
+        const bool glowBillboardPass = shared_growl::isGlowBillboardPass(pass);
         render_model::MeshData* passMesh = nullptr;
-        if (!drawQuarterRing) {
+        if (!drawQuarterRing && !glowBillboardPass) {
             if (pass.meshPath.empty()) continue;
             if (!resolveMesh) continue;
             passMesh = resolveMesh(pass.meshPath);

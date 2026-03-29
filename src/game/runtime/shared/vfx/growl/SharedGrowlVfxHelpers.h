@@ -27,6 +27,7 @@ bool usesQuarterTextureBake(const GrowlWaveVFX::Config& config,
                             const GrowlWaveVFX::Config::DrawPass& pass);
 
 bool isSparkleMeshPass(const GrowlWaveVFX::Config::DrawPass& pass);
+bool isGlowBillboardPass(const GrowlWaveVFX::Config::DrawPass& pass);
 
 bool isQuarterRingPass(const GrowlWaveVFX::Config& config,
                        const GrowlWaveVFX::Config::DrawPass& pass);

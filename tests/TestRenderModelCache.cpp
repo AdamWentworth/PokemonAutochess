@@ -182,16 +182,18 @@ bool test_render_model_cache_contract(std::string& outFail) {
         }
     }
 
-    {
+    for (const std::string growlMeshPath : {
+             std::string("assets/meshes/growl_1255_mesh.glb"),
+             std::string("assets/meshes/growl_1275_mesh.glb"),
+         }) {
         MeshData mesh;
         std::string err;
-        const std::string growlMeshPath = "assets/meshes/growl_1255_mesh.glb";
         if (!loadMeshFromCache(growlMeshPath, mesh, &err)) {
-            outFail = "loadMeshFromCache should load the Growl 1255 sparkle mesh: " + err;
+            outFail = "loadMeshFromCache should load the Growl sparkle mesh '" + growlMeshPath + "': " + err;
             return false;
         }
         if (mesh.vertices.size() < 4u) {
-            outFail = "Growl 1255 sparkle mesh should decode at least one textured quad";
+            outFail = "Growl sparkle mesh should decode at least one textured quad: " + growlMeshPath;
             return false;
         }
         auto approx = [](float a, float b) { return std::fabs(a - b) <= 0.001f; };
@@ -206,7 +208,8 @@ bool test_render_model_cache_contract(std::string& outFail) {
             approx(v3.x, 1.0f) && approx(v3.y, 1.0f);
         if (!hasExpectedQuadUvs) {
             outFail =
-                "Growl 1255 sparkle mesh should preserve RenderDoc rawtex0 UVs instead of falling back to generated planar UVs";
+                "Growl sparkle mesh should preserve RenderDoc rawtex0 UVs instead of falling back to generated planar UVs: " +
+                growlMeshPath;
             return false;
         }
     }

@@ -132,6 +132,14 @@ bool test_runtime_growl_vfx_prewarm_contract(std::string& outFail) {
         outFail = "RuntimeGrowlVfxPrewarm should populate quarter-shaded growl mesh texture entries in the shared backend texture cache.";
         return false;
     }
+    if (cache.find("__growl_baked:growl_eid_1275:q:assets/textures/moves/growl/Texture3924.png") == cache.end()) {
+        outFail = "RuntimeGrowlVfxPrewarm should populate the second sparkle growl mesh texture entry in the shared backend texture cache.";
+        return false;
+    }
+    if (cache.find("__growl_baked:growl_eid_1284:q:assets/textures/moves/growl/Texture3930.png") == cache.end()) {
+        outFail = "RuntimeGrowlVfxPrewarm should populate the glow billboard growl texture entry in the shared backend texture cache.";
+        return false;
+    }
 
     return true;
 }

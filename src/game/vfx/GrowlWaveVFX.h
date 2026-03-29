@@ -38,6 +38,7 @@ public:
             float heightOffset = 0.0f;
             float startRadiusMul = 1.0f;
             int sequenceCount = 1;
+            int sequenceIndex = -1;
             float sequenceStep = 0.0f;
             float sequenceLife = 1.0f;
             float radiusGrowthMul = 1.0f;
@@ -69,10 +70,10 @@ public:
 
         // Lead ring + trailing rings.
         float ringForwardOffset = 0.03f;
-        float ringMinSpeed = 0.45f;
-        float ringMaxSpeed = 0.65f;
-        float ringMinLifeSec = 0.50f;
-        float ringMaxLifeSec = 0.82f;
+        float ringMinSpeed = 0.30f;
+        float ringMaxSpeed = 0.45f;
+        float ringMinLifeSec = 0.58f;
+        float ringMaxLifeSec = 0.92f;
         float ringMinSize = 0.14f;
         float ringMaxSize = 0.20f;
         int ringTrailCount = 0;
@@ -203,7 +204,9 @@ private:
     void releaseResources();
     void applyDrawManifestOverrides();
     void ensureQuarterQuadResources();
+    void ensureCenteredQuadResources();
     void drawQuarterQuad(const Camera3D& camera, const glm::mat4& world, int locMVP) const;
+    void drawCenteredQuad(const Camera3D& camera, const glm::mat4& world, int locMVP) const;
     float rand01();
     float randRange(float a, float b);
     glm::vec3 safeForwardXZ(const glm::vec3& v) const;
@@ -218,6 +221,8 @@ private:
     bool configFailed = false;
     unsigned int quarterQuadVAO = 0;
     unsigned int quarterQuadVBO = 0;
+    unsigned int centeredQuadVAO = 0;
+    unsigned int centeredQuadVBO = 0;
 
     engine::XorShift32 rng{0xA17F2Du};
 };

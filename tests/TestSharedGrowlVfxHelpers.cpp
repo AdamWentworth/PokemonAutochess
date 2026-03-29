@@ -109,9 +109,20 @@ bool test_shared_growl_vfx_helpers_contract(std::string& outFail) {
                 outFail)) {
         return false;
     }
+    pass.renderMode = "glow_billboard";
+    if (!expect(isGlowBillboardPass(pass),
+                "isGlowBillboardPass should detect explicit glow billboard render mode.",
+                outFail)) {
+        return false;
+    }
     pass.renderMode = "mesh";
     if (!expect(!isSparkleMeshPass(pass),
                 "isSparkleMeshPass should ignore non-sparkle render modes.",
+                outFail)) {
+        return false;
+    }
+    if (!expect(!isGlowBillboardPass(pass),
+                "isGlowBillboardPass should ignore non-glow render modes.",
                 outFail)) {
         return false;
     }
@@ -202,6 +213,20 @@ bool test_shared_growl_vfx_helpers_contract(std::string& outFail) {
     }
     if (!expect(sparkleOut[3] > quarterOut[3],
                 "Sparkle mesh bake should keep fuller alpha than the generic quarter-ring bake.",
+                outFail)) {
+        return false;
+    }
+
+    pass.renderMode = "glow_billboard";
+    std::vector<unsigned char> glowOut;
+    if (!expect(bakePassTextureRgba(pass, tev, true, rawRgba, glowOut) &&
+                    glowOut.size() == rawRgba.size(),
+                "Glow billboard bake should preserve source pixel count for no-mesh quarter-shader passes.",
+                outFail)) {
+        return false;
+    }
+    if (!expect(glowOut[3] > quarterOut[3] && glowOut[3] <= rawRgba[3],
+                "Glow billboard bake should preserve softer authored alpha than the generic quarter-ring bake without over-boosting beyond source alpha.",
                 outFail)) {
         return false;
     }

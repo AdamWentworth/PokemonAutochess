@@ -73,6 +73,10 @@ bool isSparkleMeshPass(const GrowlWaveVFX::Config::DrawPass& pass) {
     return toLowerCopyLocal(pass.renderMode) == "sparkle_mesh";
 }
 
+bool isGlowBillboardPass(const GrowlWaveVFX::Config::DrawPass& pass) {
+    return toLowerCopyLocal(pass.renderMode) == "glow_billboard";
+}
+
 bool isQuarterRingPass(const GrowlWaveVFX::Config& config,
                        const GrowlWaveVFX::Config::DrawPass& pass) {
     return usesQuarterTextureBake(config, pass);
@@ -106,6 +110,7 @@ bool bakePassTextureRgba(const GrowlWaveVFX::Config::DrawPass& pass,
 
     const glm::vec3 tint = glm::clamp(pass.tintColor, glm::vec3(0.0f), glm::vec3(1.0f));
     const bool sparkleMeshPass = quarterPass && isSparkleMeshPass(pass);
+    const bool glowBillboardPass = quarterPass && isGlowBillboardPass(pass);
     for (std::size_t i = 0; i + 3u < rawRgba.size(); i += 4u) {
         const float tr = static_cast<float>(rawRgba[i + 0u]) / 255.0f;
         const float tg = static_cast<float>(rawRgba[i + 1u]) / 255.0f;
@@ -115,15 +120,20 @@ bool bakePassTextureRgba(const GrowlWaveVFX::Config::DrawPass& pass,
         glm::vec3 rgb(1.0f);
         float alpha = ta;
         if (quarterPass) {
-            if (sparkleMeshPass) {
+            if (sparkleMeshPass || glowBillboardPass) {
                 rgb = glm::vec3(
                     tevMixU8Scalar(tev.c1.r, tev.c0.r, tr),
                     tevMixU8Scalar(tev.c1.g, tev.c0.g, tg),
                     tevMixU8Scalar(tev.c1.b, tev.c0.b, tb));
                 rgb *= tint;
-                // Keep the sparkle texture's real shaped falloff, but boost it above the
-                // generic quarter-ring alpha so the cluster remains visible while tuning.
-                alpha = ta > 0.001f ? clamp01(std::pow(ta, 0.6f)) : 0.0f;
+                if (sparkleMeshPass) {
+                    // Keep the sparkle texture's real shaped falloff, but boost it above the
+                    // generic quarter-ring alpha so the cluster remains visible while tuning.
+                    alpha = ta > 0.001f ? clamp01(std::pow(ta, 0.6f)) : 0.0f;
+                } else {
+                    // Preserve the authored radial falloff for billboard glow passes.
+                    alpha = ta;
+                }
             } else {
                 rgb = glm::vec3(
                     tevMixU8Scalar(tev.c1.r, tev.c0.r, tr),

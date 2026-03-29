@@ -2,6 +2,7 @@
 #include "GrowlWaveVFX.h"
 
 #include <algorithm>
+#include <cctype>
 #include <cmath>
 #include <fstream>
 #include <iostream>
@@ -94,6 +95,13 @@ bool parseVec3ArrayList(const nlohmann::json& j, std::vector<glm::vec3>& out) {
     return true;
 }
 
+std::string toLowerCopy(std::string s) {
+    std::transform(s.begin(), s.end(), s.begin(), [](unsigned char c) {
+        return static_cast<char>(std::tolower(c));
+    });
+    return s;
+}
+
 float hash01(std::uint32_t x) {
     x ^= x >> 16;
     x *= 0x7feb352du;
@@ -102,6 +110,73 @@ float hash01(std::uint32_t x) {
     x ^= x >> 16;
     const std::uint32_t v = x >> 8;
     return static_cast<float>(v) * (1.0f / 16777216.0f);
+}
+
+float fastLaunch01(float t) {
+    const float clamped = glm::clamp(t, 0.0f, 1.0f);
+    const float inv = 1.0f - clamped;
+    return 1.0f - inv * inv * inv;
+}
+
+bool computeDelayedPassLaunchState(float age01,
+                                   float sequenceStep,
+                                   float sequenceLife,
+                                   int sequenceCount,
+                                   int sequenceIndex,
+                                   float& outLaunchAge01) {
+    if (sequenceCount <= 1) {
+        outLaunchAge01 = age01;
+        return true;
+    }
+
+    const float sequenceStart = sequenceStep * static_cast<float>(sequenceIndex);
+    const float sequenceTimelineSpan =
+        sequenceStep * static_cast<float>(sequenceCount - 1) + sequenceLife;
+    const float sequenceAge = age01 * sequenceTimelineSpan;
+    if (sequenceAge < sequenceStart) return false;
+
+    outLaunchAge01 = glm::clamp((sequenceAge - sequenceStart) / sequenceLife, 0.0f, 1.0f);
+    return true;
+}
+
+float computeSharedDelayedFade(float age01, float fadeStart) {
+    const float delayedFadeStart = std::max(fadeStart, 0.92f);
+    if (age01 <= delayedFadeStart) return 1.0f;
+    const float t = (age01 - delayedFadeStart) / std::max(0.0001f, 1.0f - delayedFadeStart);
+    return 1.0f - glm::clamp(t, 0.0f, 1.0f);
+}
+
+glm::vec2 meshProjectionRange(const Model* model, const glm::vec3& axis) {
+    if (model == nullptr || !model->hasBounds()) return glm::vec2(0.0f);
+    glm::vec3 normalizedAxis = axis;
+    const float axisLenSq = glm::dot(normalizedAxis, normalizedAxis);
+    if (axisLenSq <= 1e-9f) {
+        normalizedAxis = glm::vec3(0.0f, 0.0f, 1.0f);
+    } else {
+        normalizedAxis /= std::sqrt(axisLenSq);
+    }
+
+    float minProj = std::numeric_limits<float>::max();
+    float maxProj = -std::numeric_limits<float>::max();
+    const glm::vec3 minP = model->getBoundsMin();
+    const glm::vec3 maxP = model->getBoundsMax();
+    const glm::vec3 corners[8] = {
+        {minP.x, minP.y, minP.z},
+        {maxP.x, minP.y, minP.z},
+        {minP.x, maxP.y, minP.z},
+        {maxP.x, maxP.y, minP.z},
+        {minP.x, minP.y, maxP.z},
+        {maxP.x, minP.y, maxP.z},
+        {minP.x, maxP.y, maxP.z},
+        {maxP.x, maxP.y, maxP.z},
+    };
+    for (const auto& corner : corners) {
+        const float proj = glm::dot(corner, normalizedAxis);
+        minProj = std::min(minProj, proj);
+        maxProj = std::max(maxProj, proj);
+    }
+    if (minProj > maxProj) return glm::vec2(0.0f);
+    return glm::vec2(minProj, maxProj);
 }
 } // namespace
 
@@ -204,6 +279,7 @@ void GrowlWaveVFX::applyDrawManifestOverrides() {
                 p.heightOffset = it.value("height_offset", p.heightOffset);
                 p.startRadiusMul = it.value("start_radius_mul", p.startRadiusMul);
                 p.sequenceCount = std::clamp(it.value("sequence_count", p.sequenceCount), 1, 16);
+                p.sequenceIndex = std::clamp(it.value("sequence_index", p.sequenceIndex), -1, 15);
                 p.sequenceStep = std::max(0.0f, it.value("sequence_step", p.sequenceStep));
                 p.sequenceLife = std::clamp(it.value("sequence_life", p.sequenceLife), 0.01f, 1.0f);
                 p.radiusGrowthMul = std::max(0.0f, it.value("radius_growth_mul", p.radiusGrowthMul));
@@ -256,8 +332,11 @@ void GrowlWaveVFX::applyDrawManifestOverrides() {
                     p.overrideTev = true;
                 }
 
+                const bool glowBillboardPass = toLowerCopy(p.renderMode) == "glow_billboard";
                 if (p.textureQuarterRing && !it.contains("mesh")) p.meshPath.clear();
-                if (!p.meshPath.empty() || p.textureQuarterRing) parsed.push_back(std::move(p));
+                if (!p.meshPath.empty() || p.textureQuarterRing || glowBillboardPass) {
+                    parsed.push_back(std::move(p));
+                }
             }
 
             if (!parsed.empty()) cfg.drawPasses = std::move(parsed);
@@ -284,6 +363,14 @@ void GrowlWaveVFX::releaseResources() {
     if (quarterQuadVAO != 0) {
         glDeleteVertexArrays(1, &quarterQuadVAO);
         quarterQuadVAO = 0;
+    }
+    if (centeredQuadVBO != 0) {
+        glDeleteBuffers(1, &centeredQuadVBO);
+        centeredQuadVBO = 0;
+    }
+    if (centeredQuadVAO != 0) {
+        glDeleteVertexArrays(1, &centeredQuadVAO);
+        centeredQuadVAO = 0;
     }
     drawPasses.clear();
     configured = false;
@@ -318,11 +405,47 @@ void GrowlWaveVFX::ensureQuarterQuadResources() {
     glBindVertexArray(0);
 }
 
+void GrowlWaveVFX::ensureCenteredQuadResources() {
+    if (centeredQuadVAO != 0 && centeredQuadVBO != 0) return;
+
+    static const float kVerts[] = {
+        // pos.xyz        uv
+        -0.5f, 0.0f, -0.5f, 0.0f, 0.0f,
+         0.5f, 0.0f, -0.5f, 1.0f, 0.0f,
+        -0.5f, 0.0f,  0.5f, 0.0f, 1.0f,
+         0.5f, 0.0f,  0.5f, 1.0f, 1.0f,
+    };
+
+    glGenVertexArrays(1, &centeredQuadVAO);
+    glGenBuffers(1, &centeredQuadVBO);
+
+    glBindVertexArray(centeredQuadVAO);
+    glBindBuffer(GL_ARRAY_BUFFER, centeredQuadVBO);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(kVerts), kVerts, GL_STATIC_DRAW);
+
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)0);
+
+    glEnableVertexAttribArray(1);
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(3 * sizeof(float)));
+
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+    glBindVertexArray(0);
+}
+
 void GrowlWaveVFX::drawQuarterQuad(const Camera3D& camera, const glm::mat4& world, int locMVP) const {
     if (quarterQuadVAO == 0 || locMVP < 0) return;
     const glm::mat4 mvp = camera.getProjectionMatrix() * camera.getViewMatrix() * world;
     glUniformMatrix4fv(locMVP, 1, GL_FALSE, glm::value_ptr(mvp));
     glBindVertexArray(quarterQuadVAO);
+    glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+}
+
+void GrowlWaveVFX::drawCenteredQuad(const Camera3D& camera, const glm::mat4& world, int locMVP) const {
+    if (centeredQuadVAO == 0 || locMVP < 0) return;
+    const glm::mat4 mvp = camera.getProjectionMatrix() * camera.getViewMatrix() * world;
+    glUniformMatrix4fv(locMVP, 1, GL_FALSE, glm::value_ptr(mvp));
+    glBindVertexArray(centeredQuadVAO);
     glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 }
 
@@ -340,8 +463,11 @@ void GrowlWaveVFX::ensureConfigured() {
 
             DrawPassRuntime runtime;
             runtime.cfg = passCfg;
+            const bool glowBillboardPass = toLowerCopy(passCfg.renderMode) == "glow_billboard";
             if (passCfg.textureQuarterRing) {
                 ensureQuarterQuadResources();
+            } else if (glowBillboardPass) {
+                ensureCenteredQuadResources();
             } else if (!passCfg.meshPath.empty()) {
                 runtime.meshModel = std::make_unique<Model>(passCfg.meshPath);
             } else {
@@ -501,7 +627,13 @@ void GrowlWaveVFX::render(const Camera3D& camera) {
     for (const auto& pass : drawPasses) {
         const bool drawMesh = (pass.meshModel != nullptr);
         const bool drawQuarterRing = pass.cfg.textureQuarterRing;
-        if ((!drawMesh && !drawQuarterRing) || !pass.shader || pass.textureID == 0 || !pass.cfg.enabled) continue;
+        const bool drawGlowBillboard = toLowerCopy(pass.cfg.renderMode) == "glow_billboard";
+        const bool drawLinePass =
+            (pass.cfg.fragShaderPath.find("growl_line_shared") != std::string::npos) ||
+            (pass.cfg.fragShaderPath.empty() &&
+             cfg.fragShaderPath.find("growl_line_shared") != std::string::npos);
+        if ((!drawMesh && !drawQuarterRing && !drawGlowBillboard) ||
+            !pass.shader || pass.textureID == 0 || !pass.cfg.enabled) continue;
 
         const glm::vec3 passMeshForwardAxis =
             pass.cfg.overrideMeshForwardAxis ? pass.cfg.meshForwardAxis : cfg.meshForwardAxis;
@@ -557,9 +689,13 @@ void GrowlWaveVFX::render(const Camera3D& camera) {
                 localDirections = &localDirectionsFallback;
             }
             const int sequenceCount =
-                (pass.cfg.textureQuarterRing && pass.cfg.sequenceCount > 1)
-                    ? std::max(1, pass.cfg.sequenceCount)
-                    : 1;
+                std::max(1, pass.cfg.sequenceCount);
+            const int delayedSequenceIndex =
+                (sequenceCount > 1) ? std::clamp(pass.cfg.sequenceIndex, -1, sequenceCount - 1) : -1;
+            const bool delayedSinglePass = delayedSequenceIndex >= 0;
+            const bool repeatedSequencePass =
+                ((drawQuarterRing || drawLinePass) && sequenceCount > 1 && !delayedSinglePass);
+            const int sequenceLoopCount = repeatedSequencePass ? sequenceCount : 1;
             const float sequenceStep = std::max(0.0f, pass.cfg.sequenceStep);
             const float sequenceLife = std::clamp(pass.cfg.sequenceLife, 0.01f, 1.0f);
             const float sequenceTimelineSpan =
@@ -570,6 +706,9 @@ void GrowlWaveVFX::render(const Camera3D& camera) {
             const float thicknessMul = std::max(0.0f, pass.cfg.thicknessMul);
             const glm::vec3 axisScale =
                 glm::vec3(radiusMul) + (thicknessMul - radiusMul) * meshForwardAxisWeight;
+            const glm::vec2 meshForwardRange =
+                drawMesh ? meshProjectionRange(pass.meshModel.get(), meshForwardLocal) : glm::vec2(0.0f);
+            const float meshForwardScale = glm::length(axisScale * glm::abs(meshForwardLocal));
 
             for (size_t dirIndex = 0; dirIndex < localDirections->size(); ++dirIndex) {
                 glm::vec3 localDirBasisRaw = (*localDirections)[dirIndex];
@@ -621,39 +760,84 @@ void GrowlWaveVFX::render(const Camera3D& camera) {
                 const float radialRadius = pass.cfg.heightOffset * std::max(0.0f, pass.cfg.startRadiusMul);
                 const glm::vec3 radialStartOffset =
                     (right * localDirBasisRaw.x + up * localDirBasisRaw.y) * radialRadius;
-                const glm::vec3 passPos =
+                const glm::vec3 passPosBase =
                     r.pos +
-                    passForward * pass.cfg.forwardOffset +
                     radialStartOffset;
-                for (int sequenceIndex = 0; sequenceIndex < sequenceCount; ++sequenceIndex) {
+                for (int sequenceOrdinal = 0; sequenceOrdinal < sequenceLoopCount; ++sequenceOrdinal) {
+                    const int sequenceIndex = delayedSinglePass ? delayedSequenceIndex : sequenceOrdinal;
                     float localAge01 = age01;
-                    if (sequenceCount > 1) {
+                    if (repeatedSequencePass) {
                         const float sequenceStart = sequenceStep * static_cast<float>(sequenceIndex);
                         const float sequenceAge = age01 * sequenceTimelineSpan;
                         localAge01 = (sequenceAge - sequenceStart) / sequenceLife;
                         if (localAge01 < 0.0f || localAge01 > 1.0f) continue;
+                    } else if (delayedSinglePass) {
+                        if (!computeDelayedPassLaunchState(
+                                age01,
+                                sequenceStep,
+                                sequenceLife,
+                                sequenceCount,
+                                sequenceIndex,
+                                localAge01)) {
+                            continue;
+                        }
                     }
 
                     float fade = 1.0f;
-                    if (localAge01 > fadeStart) {
+                    if (delayedSinglePass) {
+                        fade = computeSharedDelayedFade(age01, fadeStart);
+                    } else if (localAge01 > fadeStart) {
                         const float t = (localAge01 - fadeStart) / std::max(0.0001f, (1.0f - fadeStart));
                         fade = 1.0f - glm::clamp(t, 0.0f, 1.0f);
                     }
                     if (fade <= 0.001f) continue;
                     if (pass.locFade >= 0) glUniform1f(pass.locFade, fade);
 
-                    const float animatedScale = (sequenceCount > 1)
-                        ? (std::max(0.0f, r.startScale) *
-                           std::max(0.0f, pass.cfg.scaleMul) *
-                           glm::mix(1.0f, radiusGrowthMul, localAge01))
-                        : (glm::mix(r.startScale, r.endScale, age01) *
-                           std::max(0.0f, pass.cfg.scaleMul));
+                    float animatedScale = 0.0f;
+                    if (drawQuarterRing && repeatedSequencePass) {
+                        animatedScale =
+                            std::max(0.0f, r.startScale) *
+                            std::max(0.0f, pass.cfg.scaleMul) *
+                            glm::mix(1.0f, radiusGrowthMul, localAge01);
+                    } else if (drawLinePass && (repeatedSequencePass || delayedSinglePass)) {
+                        animatedScale =
+                            glm::mix(r.startScale, r.endScale, localAge01) *
+                            std::max(0.0f, pass.cfg.scaleMul);
+                    } else {
+                        animatedScale =
+                            glm::mix(r.startScale, r.endScale, delayedSinglePass ? localAge01 : age01) *
+                            std::max(0.0f, pass.cfg.scaleMul);
+                    }
                     if (animatedScale <= 0.0001f) continue;
                     const glm::vec3 finalScale = glm::vec3(animatedScale) * axisScale;
+                    const float tailAnchorOffset =
+                        (drawLinePass && (repeatedSequencePass || delayedSinglePass))
+                            ? (-meshForwardRange.x * animatedScale * meshForwardScale)
+                            : 0.0f;
+                    const float forwardTravel =
+                        (drawLinePass && (repeatedSequencePass || delayedSinglePass))
+                            ? (animatedScale * std::max(radiusMul, thicknessMul) * 1.5f *
+                               glm::clamp(localAge01, 0.0f, 1.0f))
+                            : ((delayedSinglePass && !drawQuarterRing)
+                                   ? (pass.cfg.forwardOffset * fastLaunch01(localAge01))
+                                   : pass.cfg.forwardOffset);
+                    const glm::vec3 passPos =
+                        passPosBase + passForward * (tailAnchorOffset + forwardTravel);
 
+                    glm::quat worldRot = passRot;
+                    if (drawGlowBillboard) {
+                        glm::vec3 toCamera = camera.getPosition() - passPos;
+                        const float toCameraLenSq = glm::dot(toCamera, toCamera);
+                        if (toCameraLenSq <= 0.0001f) {
+                            toCamera = ringForward;
+                        } else {
+                            toCamera /= std::sqrt(toCameraLenSq);
+                        }
+                        worldRot = rotationFromToSafe(meshForwardLocal, toCamera);
+                    }
                     const glm::mat4 world =
                         glm::translate(glm::mat4(1.0f), passPos) *
-                        glm::mat4_cast(passRot) *
+                        glm::mat4_cast(worldRot) *
                         glm::scale(glm::mat4(1.0f), finalScale);
 
                     if (drawQuarterRing) {
@@ -667,6 +851,8 @@ void GrowlWaveVFX::render(const Camera3D& camera) {
                                 glm::scale(glm::mat4(1.0f), finalScale);
                             drawQuarterQuad(camera, quarterWorld, pass.locMVP);
                         }
+                    } else if (drawGlowBillboard) {
+                        drawCenteredQuad(camera, world, pass.locMVP);
                     } else {
                         pass.meshModel->drawGeometryWithBoundShader(camera, world, pass.locMVP);
                     }

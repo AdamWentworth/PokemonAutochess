@@ -223,6 +223,106 @@ bool test_shared_growl_wave_batches_contract(std::string& outFail) {
         return false;
     }
 
+    GrowlWaveVFX::Config::DrawPass delayedMeshPass = meshPass;
+    delayedMeshPass.id = "growl_test_mesh_delayed";
+    delayedMeshPass.sequenceCount = 3;
+    delayedMeshPass.sequenceIndex = 1;
+    delayedMeshPass.sequenceStep = 0.30f;
+    delayedMeshPass.sequenceLife = 0.55f;
+
+    GrowlWaveVFX::RenderSnapshot delayedMeshEarlySnapshot = snapshot;
+    delayedMeshEarlySnapshot.rings.front().ageSec = 0.20f;
+    std::vector<game::runtime::shared_world_batches::WorldIndexedBatch> delayedMeshEarlyBatches;
+    const bool delayedMeshEarlyAppended =
+        appendPassBatch(delayedMeshEarlyBatches,
+                        delayedMeshEarlySnapshot,
+                        delayedMeshPass,
+                        meshTev,
+                        &mesh,
+                        tex,
+                        glm::vec3(0.0f, 1.0f, 4.0f));
+
+    if (!expect(!delayedMeshEarlyAppended && delayedMeshEarlyBatches.empty(),
+                "Delayed growl mesh passes should stay hidden until their assigned timing slot begins.",
+                outFail)) {
+        return false;
+    }
+
+    GrowlWaveVFX::RenderSnapshot delayedMeshLiveSnapshot = snapshot;
+    delayedMeshLiveSnapshot.rings.front().ageSec = 0.40f;
+    std::vector<game::runtime::shared_world_batches::WorldIndexedBatch> delayedMeshLiveBatches;
+    const bool delayedMeshLiveAppended =
+        appendPassBatch(delayedMeshLiveBatches,
+                        delayedMeshLiveSnapshot,
+                        delayedMeshPass,
+                        meshTev,
+                        &mesh,
+                        tex,
+                        glm::vec3(0.0f, 1.0f, 4.0f));
+
+    if (!expect(delayedMeshLiveAppended && delayedMeshLiveBatches.size() == 1u,
+                "Delayed growl mesh passes should become visible once their timing slot is active.",
+                outFail)) {
+        return false;
+    }
+    const auto& delayedMeshLiveBatch = delayedMeshLiveBatches.front();
+    const float delayedMeshLiveZ = delayedMeshLiveBatch.modelMatrix[14];
+    const float delayedMeshOriginZ = delayedMeshLiveSnapshot.rings.front().pos.z;
+    if (!expect(delayedMeshLiveZ > delayedMeshOriginZ &&
+                    delayedMeshLiveZ < delayedMeshOriginZ + delayedMeshPass.forwardOffset,
+                "Delayed growl mesh passes should start inside their paired ring before reaching their full forward travel.",
+                outFail)) {
+        return false;
+    }
+
+    GrowlWaveVFX::RenderSnapshot delayedMeshLateSnapshot = snapshot;
+    delayedMeshLateSnapshot.rings.front().ageSec = 0.65f;
+    std::vector<game::runtime::shared_world_batches::WorldIndexedBatch> delayedMeshLateBatches;
+    const bool delayedMeshLateAppended =
+        appendPassBatch(delayedMeshLateBatches,
+                        delayedMeshLateSnapshot,
+                        delayedMeshPass,
+                        meshTev,
+                        &mesh,
+                        tex,
+                        glm::vec3(0.0f, 1.0f, 4.0f));
+
+    if (!expect(delayedMeshLateAppended && delayedMeshLateBatches.size() == 1u,
+                "Delayed growl mesh passes should remain visible later in their local lifetime.",
+                outFail)) {
+        return false;
+    }
+    const auto& delayedMeshLateBatch = delayedMeshLateBatches.front();
+    if (!expect(delayedMeshLateBatch.modelMatrix[14] > delayedMeshLiveZ,
+                "Delayed growl mesh passes should advance farther forward as their local lifetime progresses.",
+                outFail)) {
+        return false;
+    }
+
+    GrowlWaveVFX::RenderSnapshot delayedMeshSharedFadeSnapshot = snapshot;
+    delayedMeshSharedFadeSnapshot.rings.front().ageSec = 0.90f;
+    std::vector<game::runtime::shared_world_batches::WorldIndexedBatch> delayedMeshSharedFadeBatches;
+    const bool delayedMeshSharedFadeAppended =
+        appendPassBatch(delayedMeshSharedFadeBatches,
+                        delayedMeshSharedFadeSnapshot,
+                        delayedMeshPass,
+                        meshTev,
+                        &mesh,
+                        tex,
+                        glm::vec3(0.0f, 1.0f, 4.0f));
+
+    if (!expect(delayedMeshSharedFadeAppended && delayedMeshSharedFadeBatches.size() == 1u,
+                "Delayed growl mesh passes should stay visible until the shared end-of-sequence fade instead of dying on their individual launch lifetime.",
+                outFail)) {
+        return false;
+    }
+    const auto& delayedMeshSharedFadeBatch = delayedMeshSharedFadeBatches.front();
+    if (!expect(delayedMeshSharedFadeBatch.modelMatrix[14] >= delayedMeshLateBatch.modelMatrix[14],
+                "Delayed growl mesh passes should hold their fully launched forward position while waiting for the shared fade-out.",
+                outFail)) {
+        return false;
+    }
+
     GrowlWaveVFX::Config::DrawPass meshQuarterTexturePass = meshPass;
     meshQuarterTexturePass.id = "growl_test_mesh_quarter_tex";
     meshQuarterTexturePass.fragShaderPath =
@@ -329,6 +429,55 @@ bool test_shared_growl_wave_batches_contract(std::string& outFail) {
         return false;
     }
 
+    GrowlWaveVFX::Config::DrawPass glowPass;
+    glowPass.id = "growl_test_glow_billboard";
+    glowPass.eid = 1284;
+    glowPass.renderMode = "glow_billboard";
+    glowPass.texturePath = "assets/textures/test_glow.png";
+    glowPass.fragShaderPath =
+        "assets/shaders/vfx/moves/growl/growl_quarter_ring_shared.frag";
+    glowPass.scaleMul = 1.4f;
+    glowPass.alphaMul = 0.9f;
+    glowPass.radiusMul = 1.0f;
+    glowPass.thicknessMul = 1.0f;
+
+    std::vector<game::runtime::shared_world_batches::WorldIndexedBatch> glowBatches;
+    const bool glowAppended =
+        appendPassBatch(glowBatches,
+                        snapshot,
+                        glowPass,
+                        meshTev,
+                        nullptr,
+                        tex,
+                        glm::vec3(0.0f, 1.0f, 4.0f));
+
+    if (!expect(glowAppended && glowBatches.size() == 1u,
+                "Glow billboard growl passes should append one no-mesh batch.",
+                outFail)) {
+        return false;
+    }
+
+    const auto& glowBatch = glowBatches.front();
+    if (!expect(glowBatch.sharedVertexCount == 4u &&
+                    glowBatch.sharedIndexCount == 6u &&
+                    glowBatch.instances.size() == 1u,
+                "Glow billboard growl passes should render with one shared centered quad instance.",
+                outFail)) {
+        return false;
+    }
+    if (!expect(glowBatch.geometryCacheKey == "__growl_geom_centered_quad_v1__",
+                "Glow billboard growl passes should use the centered shared quad geometry.",
+                outFail)) {
+        return false;
+    }
+    if (!expect(std::abs(glowBatch.instances.front().modelMatrix[12] - ring.pos.x) <= 0.0001f &&
+                    std::abs(glowBatch.instances.front().modelMatrix[13] - ring.pos.y) <= 0.0001f &&
+                    std::abs(glowBatch.instances.front().modelMatrix[14] - ring.pos.z) <= 0.0001f,
+                "Glow billboard growl passes should spawn at the active ring center by default.",
+                outFail)) {
+        return false;
+    }
+
     GrowlWaveVFX::Config::DrawPass linePass;
     linePass.id = "growl_test_line";
     linePass.eid = 1128;
@@ -410,6 +559,56 @@ bool test_shared_growl_wave_batches_contract(std::string& outFail) {
     }
     if (!expect(sawTintedInstance,
                 "Growl line batching should carry tint and fade in the per-instance color payload.",
+                outFail)) {
+        return false;
+    }
+
+    GrowlWaveVFX::Config::DrawPass sequencedLinePass = linePass;
+    sequencedLinePass.id = "growl_test_line_sequence";
+    sequencedLinePass.sequenceCount = 3;
+    sequencedLinePass.sequenceStep = 0.10f;
+    sequencedLinePass.sequenceLife = 0.80f;
+
+    GrowlWaveVFX::RenderSnapshot lineSequenceSnapshot = snapshot;
+    lineSequenceSnapshot.rings.front().ageSec = 0.50f;
+    std::vector<game::runtime::shared_world_batches::WorldIndexedBatch> sequencedLineBatches;
+    const bool sequencedLineAppended =
+        appendPassBatch(sequencedLineBatches,
+                        lineSequenceSnapshot,
+                        sequencedLinePass,
+                        lineTev,
+                        &mesh,
+                        tex,
+                        glm::vec3(0.0f, 1.0f, 4.0f));
+
+    if (!expect(sequencedLineAppended && sequencedLineBatches.size() == 1u,
+                "Growl line batching should support staggered cone echoes.",
+                outFail)) {
+        return false;
+    }
+
+    const auto& sequencedLineBatch = sequencedLineBatches.front();
+    if (!expect(sequencedLineBatch.instances.size() ==
+                    sequencedLinePass.directionsLocal.size() * 3u,
+                "Sequenced growl line batching should emit one instance per direction for each visible cone echo.",
+                outFail)) {
+        return false;
+    }
+    const glm::vec3 lineSequenceOrigin = lineSequenceSnapshot.rings.front().pos;
+    const auto seq0Pos = glm::vec3(sequencedLineBatch.instances[0].modelMatrix[12],
+                                   sequencedLineBatch.instances[0].modelMatrix[13],
+                                   sequencedLineBatch.instances[0].modelMatrix[14]);
+    const auto seq1Pos = glm::vec3(sequencedLineBatch.instances[1].modelMatrix[12],
+                                   sequencedLineBatch.instances[1].modelMatrix[13],
+                                   sequencedLineBatch.instances[1].modelMatrix[14]);
+    const auto seq2Pos = glm::vec3(sequencedLineBatch.instances[2].modelMatrix[12],
+                                   sequencedLineBatch.instances[2].modelMatrix[13],
+                                   sequencedLineBatch.instances[2].modelMatrix[14]);
+    if (!expect(glm::distance(seq0Pos, lineSequenceOrigin) >
+                    glm::distance(seq1Pos, lineSequenceOrigin) &&
+                    glm::distance(seq1Pos, lineSequenceOrigin) >
+                    glm::distance(seq2Pos, lineSequenceOrigin),
+                "Sequenced growl line batching should keep older cone echoes farther from the emitter than newer ones.",
                 outFail)) {
         return false;
     }
