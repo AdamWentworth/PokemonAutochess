@@ -79,6 +79,14 @@ CameraSystem::CameraSystem(Camera3D* cam, GameServices& svc)
             services.config.cellSize);
         game::camera_pan_clamp::clampCameraPan(*camera, panBounds);
     });
+    lua.set_function("cam_pan_screen", [this](float dx, float dy, float scale) {
+        camera->panPlanar(dx, dy, scale);
+        const auto panBounds = game::camera_pan_clamp::buildBoardSafeBounds(
+            services.config.cols,
+            services.config.rows,
+            services.config.cellSize);
+        game::camera_pan_clamp::clampCameraPan(*camera, panBounds);
+    });
     lua.set_function("cam_zoom", [this](float delta) {
         camera->zoom(delta);
     });

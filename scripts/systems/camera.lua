@@ -43,8 +43,9 @@ function camera_mouse_move(x, y)
   S.lastx, S.lasty = x, y
 
   if S.mode == "pan" then
-    -- same pan behavior as before
-    cam_move(-dx * S.pan_speed, 0.0, -dy * S.pan_speed)
+    -- Pan relative to the current board-facing camera basis so dragging stays
+    -- visually consistent after orbiting.
+    cam_pan_screen(dx, dy, S.pan_speed)
 
   elseif S.mode == "orbit" then
     -- orbit around target: horizontal drag = yaw, vertical drag = pitch

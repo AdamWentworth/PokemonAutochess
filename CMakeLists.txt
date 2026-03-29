@@ -4,7 +4,7 @@ cmake_minimum_required(VERSION 3.22)
 project(PokemonAutochess LANGUAGES CXX)
 
 option(PAC_VERBOSE_STARTUP "Enable verbose startup/model-load logging" OFF)
-option(PAC_BUILD_TOOLS "Build developer tools (data cooker)" ON)
+option(PAC_BUILD_TOOLS "Build developer tools (data cooker, VFX previewer)" ON)
 
 set(_pac_werror_default OFF)
 if (DEFINED ENV{CI} AND NOT "$ENV{CI}" STREQUAL "" AND NOT "$ENV{CI}" STREQUAL "0")
@@ -264,6 +264,26 @@ add_library(engine_runtime STATIC
 target_link_libraries(engine_runtime PRIVATE engine_core engine_platform engine_render)
 pac_apply_common_target_settings(engine_runtime)
 
+# ---------------- engine_tools_vfx_preview (reusable preview framework) ----------------
+add_library(engine_tools_vfx_preview STATIC
+    src/engine/tools/vfx_preview/VfxPreviewApp.cpp
+)
+target_sources(engine_tools_vfx_preview PRIVATE
+    src/engine/tools/vfx_preview/VfxPreviewApp.h
+    src/engine/tools/vfx_preview/VfxPreviewTypes.h
+    src/engine/tools/vfx_preview/PreviewDebugDraw.h
+    src/engine/tools/vfx_preview/IVfxPreviewEffect.h
+    src/engine/tools/vfx_preview/IVfxPreviewProject.h
+)
+target_link_libraries(engine_tools_vfx_preview
+    PUBLIC
+        engine_core
+        engine_platform
+        engine_render
+        glm::glm
+)
+pac_apply_common_target_settings(engine_tools_vfx_preview)
+
 # ---------------- Game objects (shared by exe + tests) ----------------
 add_library(PAC_GameObjects STATIC
     # Game Core
@@ -472,6 +492,24 @@ if (WIN32)
 endif()
 pac_apply_common_target_settings(PAC_GameObjects)
 
+# ---------------- Preview adapters (game-specific preview bindings) ----------------
+add_library(PAC_VfxPreviewSupport STATIC
+    src/game/preview/PokemonAutochessVfxPreviewProject.cpp
+    src/game/preview/effects/GrowlPreviewEffect.cpp
+    src/game/preview/effects/LeechSeedPreviewEffect.cpp
+)
+target_sources(PAC_VfxPreviewSupport PRIVATE
+    src/game/preview/PokemonAutochessVfxPreviewProject.h
+    src/game/preview/effects/GrowlPreviewEffect.h
+    src/game/preview/effects/LeechSeedPreviewEffect.h
+)
+target_link_libraries(PAC_VfxPreviewSupport
+    PUBLIC
+        PAC_GameObjects
+        engine_tools_vfx_preview
+)
+pac_apply_common_target_settings(PAC_VfxPreviewSupport)
+
 # ---------------- Executable ----------------
 add_executable(PokemonAutochess
     src/main.cpp
@@ -489,6 +527,18 @@ if (PAC_BUILD_TOOLS)
             nlohmann_json::nlohmann_json
     )
     pac_apply_common_target_settings(PAC_DataCooker)
+
+    add_executable(PAC_VfxPreviewer
+        tools/PAC_VfxPreviewer.cpp
+    )
+    target_link_libraries(PAC_VfxPreviewer
+        PRIVATE
+            PAC_VfxPreviewSupport
+    )
+    set_target_properties(PAC_VfxPreviewer PROPERTIES
+        VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
+    )
+    pac_apply_common_target_settings(PAC_VfxPreviewer)
 endif()
 
 # ---------------- Tests ----------------
@@ -757,7 +807,7 @@ if (BUILD_TESTING)
     list(APPEND PAC_ALL_TARGETS PAC_Tests)
 endif()
 if (PAC_BUILD_TOOLS)
-    list(APPEND PAC_ALL_TARGETS PAC_DataCooker)
+    list(APPEND PAC_ALL_TARGETS PAC_DataCooker PAC_VfxPreviewer)
 endif()
 add_custom_target(PAC_All
     DEPENDS

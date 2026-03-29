@@ -10,7 +10,7 @@ namespace {
 constexpr float kDefaultCameraY = 12.0f;
 constexpr float kDefaultCameraZ = 12.0f;
 constexpr float kDefaultTargetY = -1.0f;
-constexpr float kMinZoomDistance = 5.5f;
+constexpr float kMinZoomDistance = 1.75f;
 const float kMaxZoomDistance = std::sqrt(
     (kDefaultCameraY - kDefaultTargetY) * (kDefaultCameraY - kDefaultTargetY) +
     kDefaultCameraZ * kDefaultCameraZ);
@@ -50,6 +50,30 @@ void Camera3D::zoom(float delta) {
     const float newDist =
         std::clamp(dist - delta, kMinZoomDistance, kMaxZoomDistance);
     position = target + dirToCamera * newDist;
+}
+
+void Camera3D::panPlanar(float screenDx, float screenDy, float scale) {
+    glm::vec3 forward = target - position;
+    forward.y = 0.0f;
+    const float forwardLen = glm::length(forward);
+    if (forwardLen <= 1e-5f) {
+        forward = glm::vec3(0.0f, 0.0f, -1.0f);
+    } else {
+        forward /= forwardLen;
+    }
+
+    glm::vec3 right = glm::cross(forward, upVector);
+    right.y = 0.0f;
+    const float rightLen = glm::length(right);
+    if (rightLen <= 1e-5f) {
+        right = glm::vec3(1.0f, 0.0f, 0.0f);
+    } else {
+        right /= rightLen;
+    }
+
+    const glm::vec3 delta =
+        (-right * screenDx + forward * screenDy) * scale;
+    move(delta);
 }
 
 void Camera3D::orbit(float yawDeltaRad, float pitchDeltaRad) {
