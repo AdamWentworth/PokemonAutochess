@@ -48,7 +48,8 @@ public:
         float animTimeSec,
         int animIndex,
         const glm::vec3& tintColor = glm::vec3(1.0f),
-        float tintStrength = 0.0f) const;
+        float tintStrength = 0.0f,
+        const std::vector<std::uint8_t>* skipSubmeshMask = nullptr) const;
 
     // Draw mesh geometry using the currently bound GL shader.
     // The shader must have an MVP uniform at locMVP and use the same vertex layout.
@@ -95,6 +96,12 @@ public:
     // NEW: exact-match lookup of animation index by glTF animation name.
     // Returns -1 if not found.
     int findAnimationIndexByName(const std::string& name) const;
+    const std::string& getAnimationName(int animIndex) const;
+
+    // Build a submesh mask for any submesh whose owning mesh node name contains
+    // the given ASCII substring, case-insensitively.
+    std::vector<std::uint8_t> buildSubmeshMaskForNodeNameContainsInsensitive(
+        const std::string& needle) const;
 
 private:
     unsigned int VAO = 0, VBO = 0, EBO = 0;

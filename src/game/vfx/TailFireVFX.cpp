@@ -397,6 +397,12 @@ void TailFireVFX::emitForList(float dt, const std::vector<PokemonInstance>& list
             p.lifeSec = p.maxLifeSec;
 
             float scaleFactor = u.model ? u.model->getScaleFactor() : 1.0f;
+            if (cfg.useUnitScaleChain) {
+                scaleFactor *= std::max(0.0f, u.modelScaleCorrection);
+                scaleFactor *= std::max(0.0f, u.speciesScale);
+                scaleFactor *= std::max(0.0f, u.visualScale);
+                scaleFactor *= std::max(0.0f, u.captureScale);
+            }
             float sizeBase = (calmerSingleFlipbook ? 0.30f : 0.22f) * scaleFactor;
             float sizeJit  = (calmerSingleFlipbook ? 0.015f : 0.10f) * scaleFactor;
             p.sizePx = sizeBase + hash01(base + 8.0f) * sizeJit;

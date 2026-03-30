@@ -308,7 +308,8 @@ void Model::drawAnimated(const Camera3D& camera,
                          float animTimeSec,
                          int animIndex,
                          const glm::vec3& tintColor,
-                         float tintStrength) const
+                         float tintStrength,
+                         const std::vector<std::uint8_t>* skipSubmeshMask) const
 {
     if (!modelShader || VAO == 0) return;
 
@@ -391,7 +392,13 @@ void Model::drawAnimated(const Camera3D& camera,
                                        (node < (int)nodeSkin.size() ? nodeSkin[node] : -1),
                                        globals);
 
-                    for (const auto& sm : submeshes) {
+                    for (std::size_t submeshIndex = 0; submeshIndex < submeshes.size(); ++submeshIndex) {
+                        if (skipSubmeshMask &&
+                            submeshIndex < skipSubmeshMask->size() &&
+                            (*skipSubmeshMask)[submeshIndex] != 0u) {
+                            continue;
+                        }
+                        const auto& sm = submeshes[submeshIndex];
                         if (sm.meshIndex != meshIdx) continue;
 
                         const bool isBlend = (sm.alphaMode == 2);
@@ -431,7 +438,13 @@ void Model::drawAnimated(const Camera3D& camera,
         glUniform1i(locUseSkin, 0);
 
         for (int pass = 0; pass < 2; ++pass) {
-            for (const auto& sm : submeshes) {
+            for (std::size_t submeshIndex = 0; submeshIndex < submeshes.size(); ++submeshIndex) {
+                if (skipSubmeshMask &&
+                    submeshIndex < skipSubmeshMask->size() &&
+                    (*skipSubmeshMask)[submeshIndex] != 0u) {
+                    continue;
+                }
+                const auto& sm = submeshes[submeshIndex];
                 const bool isBlend = (sm.alphaMode == 2);
                 if ((pass == 0 && isBlend) || (pass == 1 && !isBlend)) continue;
 

@@ -6,6 +6,7 @@
 
 #include <iostream>
 #include <algorithm>
+#include <cctype>
 #include <utility>
 
 #include <glad/glad.h>
@@ -99,6 +100,62 @@ int Model::findAnimationIndexByName(const std::string& name) const
         if (animations[(size_t)i].name == name) return i;
     }
     return -1;
+}
+
+const std::string& Model::getAnimationName(int animIndex) const
+{
+    static const std::string kEmpty;
+    if (animIndex < 0 || animIndex >= static_cast<int>(animations.size())) return kEmpty;
+    return animations[static_cast<std::size_t>(animIndex)].name;
+}
+
+std::vector<std::uint8_t> Model::buildSubmeshMaskForNodeNameContainsInsensitive(
+    const std::string& needle) const
+{
+    std::vector<std::uint8_t> out(submeshes.size(), 0u);
+    if (needle.empty() || submeshes.empty() || nodeNames.empty() || nodeMesh.empty()) {
+        return out;
+    }
+
+    auto containsInsensitive = [](const std::string& haystack, const std::string& pattern) {
+        if (pattern.empty()) return true;
+        if (pattern.size() > haystack.size()) return false;
+        for (std::size_t offset = 0; offset + pattern.size() <= haystack.size(); ++offset) {
+            bool match = true;
+            for (std::size_t i = 0; i < pattern.size(); ++i) {
+                const char a = static_cast<char>(
+                    std::tolower(static_cast<unsigned char>(haystack[offset + i])));
+                const char b = static_cast<char>(
+                    std::tolower(static_cast<unsigned char>(pattern[i])));
+                if (a != b) {
+                    match = false;
+                    break;
+                }
+            }
+            if (match) return true;
+        }
+        return false;
+    };
+
+    std::unordered_set<int> matchedMeshIndices;
+    for (std::size_t nodeIndex = 0; nodeIndex < nodeNames.size() && nodeIndex < nodeMesh.size(); ++nodeIndex) {
+        if (!containsInsensitive(nodeNames[nodeIndex], needle)) continue;
+        const int meshIndex = nodeMesh[nodeIndex];
+        if (meshIndex >= 0) {
+            matchedMeshIndices.insert(meshIndex);
+        }
+    }
+
+    if (matchedMeshIndices.empty()) {
+        return out;
+    }
+
+    for (std::size_t submeshIndex = 0; submeshIndex < submeshes.size(); ++submeshIndex) {
+        if (matchedMeshIndices.find(submeshes[submeshIndex].meshIndex) != matchedMeshIndices.end()) {
+            out[submeshIndex] = 1u;
+        }
+    }
+    return out;
 }
 
 // IMPORTANT: the .inl is written to be included inside this function body.
