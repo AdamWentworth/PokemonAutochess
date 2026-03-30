@@ -1,8 +1,13 @@
 # Render Path File Map
 
-Date: 2026-03-12
+Status: Active
+Type: Reference
+Last updated: 2026-03-30
 
-Use this file to find ownership quickly when working on parity/performance tasks.
+Use this file to find render/runtime ownership quickly when working on parity,
+performance, or maintainability tasks. This is a reference doc: it should map
+where behavior lives today, not serve as the active renderer roadmap or debt
+register.
 
 ## Runtime Route Model
 - Gameplay rendering routes are shared-path based for active renderers.
@@ -17,7 +22,6 @@ Use this file to find ownership quickly when working on parity/performance tasks
   - Perf log line emission (`[Perf]`)
 - `src/game/runtime/session/GameSession.*`
   - owns the running gameplay session, render delegation, state stack, and session-local caches
-  - main remaining large cleanup target after startup extraction
 - `src/game/runtime/session/GameUpdateGraph.*`
   - fixed-step update ordering policy inside the gameplay session
   - phase transition side effects between gameplay systems
@@ -192,7 +196,7 @@ Use this file to find ownership quickly when working on parity/performance tasks
   - reusable projected mesh batching support extracted from the renderer body
   - fast-textured mesh template cache, GPU skin batch state, and fire-mesh override helpers
 - `src/game/runtime/shared/capture/SharedCapture*.*`
-- `src/game/runtime/shared/vfx/growl/SharedGrowl*.*`
+- `src/vfx/runtime/growl/SharedGrowl*.*`
 - `src/game/runtime/shared/vfx/particles/SharedParticle*.*`
 - `src/game/runtime/shared/vfx/tail_fire/SharedTailFireMeshPlayback*.*`
   - authored fire-mesh flipbook spec selection
@@ -221,21 +225,27 @@ D3D12:
 - `src/game/runtime/video/VideoPreferences.*`
 - `config/user/video_settings.json` (runtime preference file)
 
-## High-Impact Touch Points (Current Program)
-1. Instrumentation work:
-- `GameRunner.cpp`
-- backend timestamp support in render backends
+## Common Cross-Cut Touch Points
+1. Frame timing and perf logging:
+- `src/game/runtime/GameRunner.cpp`
+- `src/game/runtime/loop/RuntimeFramePerfCapture.*`
+- `src/game/runtime/loop/RuntimePerfLogging.*`
 
-2. D3D12 frame pacing work:
-- `src/engine/render/d3d12/D3D12RenderBackendLifecycle.cpp`
-
-3. Settings clarity work:
-- `scripts/states/main_menu.lua`
+2. Backend startup, activation, and fallback:
+- `src/game/runtime/renderer/`
+- `src/game/runtime/startup/`
 - `src/game/runtime/video/VideoPreferences.*`
 
-4. Parity/perf test wiring:
+3. Backend implementation surfaces:
+- `src/engine/render/OpenGLRenderBackend.*`
+- `src/engine/render/opengl/OpenGLRenderBackend*.cpp`
+- `src/engine/render/D3D12RenderBackend.*`
+- `src/engine/render/d3d12/D3D12RenderBackend*.cpp`
+
+4. Validation and smoke wiring:
 - `tests/TestMain.cpp`
-- `CMakeLists.txt` runtime smoke section
+- `tools/check_renderer_parity_contract.ps1`
+- `CMakeLists.txt`
 
 ## Rule of Thumb
 - Shared rendering behavior changes should start in shared runtime modules, not backend-specific branches.

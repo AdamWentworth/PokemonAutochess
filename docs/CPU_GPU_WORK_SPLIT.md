@@ -1,121 +1,234 @@
 # CPU vs GPU Work Split
 
-Date: 2026-03-08
+Status: Active
+Type: Architecture
+Last updated: 2026-03-30
 
-Goal: keep the CPU/GPU boundary explicit, then describe where the repo sits
-right now.
+Use this document as a current decision guide for render/perf work. It should
+describe what the code actually does today, not re-argue the older "make the
+GPU matter at all" phase the repo has already moved past.
 
 ## Core Rule
-- CPU owns gameplay truth and frame orchestration.
-- GPU owns parallel render math and pixel throughput.
+- CPU owns gameplay truth, frame orchestration, render-path selection, and
+  resource lifetime decisions.
+- GPU owns the high-throughput visual work after the CPU has prepared draw
+  inputs.
+- The projected model path is intentionally hybrid: the CPU still does
+  meaningful prep/orchestration work, while the GPU already owns real skinning,
+  shading, and raster work on eligible paths.
 
 Do not move authoritative gameplay state to GPU if determinism, replayability,
-or future networking correctness matters.
+or future networking correctness would suffer.
 
-## Recommended Split
+## What The Code Does Today
 
-### CPU
-- Gameplay simulation: combat, economy, buffs/debuffs, round flow.
-- AI and state machines.
-- Input, UI, and scene orchestration.
-- Asset IO, decode, cache management, and resource lifetime decisions.
-- Animation control flow:
-  - clip selection
-  - blend/state decisions
-  - gameplay-triggered animation events
-- Deterministic collision/physics when gameplay depends on it.
-
-### GPU
-- Vertex transforms, skinning, and material evaluation.
-- Lighting, shadows, depth, blending, and rasterization.
-- Post-processing and screen-space passes.
-- Large parallel particle or image-processing workloads.
-- Optional culling/LOD work when it is truly throughput-bound.
-
-## Current Repo State
-
-### CPU-owned now
-- Gameplay truth and fixed-step orchestration:
+### CPU-owned today
+- Gameplay truth and fixed-step orchestration remain CPU-owned:
+  - `src/game/runtime/GameRunner.cpp`
   - `src/game/runtime/session/GameSession.cpp`
-  - `src/game/runtime/GameRunner.cpp`
-- Shared projected render orchestration and draw-list assembly:
+  - `src/game/runtime/session/Session*.*`
+- Scene-pose evaluation is still a CPU job.
+  - `src/game/runtime/shared/backend/SharedBackendPoseEval.cpp`
   - `src/game/runtime/shared/projected/SharedProjectedUnitRenderer.cpp`
-- Projected mesh prep and batch-path selection:
+  - The repo now caches canonicalized scene-pose samples per mesh/clip/time, but
+    the pose is still evaluated on CPU before submission.
+- Projected model prep and path selection remain CPU-owned.
+  - `src/game/runtime/shared/projected/SharedProjectedUnitModelRenderer.cpp`
+  - `src/game/runtime/shared/projected/SharedProjectedUnitWorldSceneRenderer.cpp`
+  - `src/game/runtime/shared/projected/SharedProjectedUnitBackendMeshRenderer.cpp`
   - `src/game/runtime/shared/projected/SharedProjectedUnitBackendMeshPrep.cpp`
-- Fallback projected mesh transforms where GPU paths are not eligible:
+- CPU fallback transforms still exist for batches that do not qualify for the
+  GPU clip-skinning path.
   - `src/game/runtime/shared/projected/SharedProjectedUnitBackendMeshTransforms.cpp`
-- Perf aggregation and structured logging:
-  - `src/game/runtime/GameRunner.cpp`
+- CPU still owns env/config gating and chooses whether GPU clip skinning is
+  allowed for the active backend.
+  - `src/game/runtime/session/SessionRenderConfig.cpp`
 
-### GPU-owned now
-- World/model shading on both backends:
-  - `src/engine/render/opengl/OpenGLRenderBackendWorldPipeline.cpp`
-  - `src/engine/render/d3d12/D3D12RenderBackendPipelines.cpp`
-- World draw submission and material/texture binding:
-  - `src/engine/render/opengl/OpenGLRenderBackendWorldDraw.cpp`
-  - `src/engine/render/d3d12/D3D12RenderBackendWorldDraw.cpp`
-- Present, depth/stencil, blend, and raster execution in each backend.
-- Particle draw after CPU simulation/upload.
+### GPU-owned today
+- Both backends already own the final visual work:
+  - vertex shading
+  - material evaluation
+  - texturing
+  - depth/stencil/blend/raster
+  - present
+- GPU clip skinning is real and live, not aspirational.
+  - Shared projected prep populates `gpuSkinningMode`, skin payloads, and batch
+    state for eligible units/batches.
+  - Backend draw code consumes those payloads in:
+    - `src/engine/render/opengl/OpenGLRenderBackendWorldDraw.cpp`
+    - `src/engine/render/d3d12/D3D12RenderBackendWorldDraw.cpp`
+- D3D12 currently has the specialized world-scene fast path.
+  - `src/engine/render/D3D12RenderBackend.cpp`
+  - `src/engine/render/d3d12/D3D12RenderBackendWorldScene.cpp`
+  - It advertises fast-path capabilities such as skinned instancing and
+    execute-indirect support through `IRenderBackend::WorldSceneFastPathCaps`.
+- OpenGL still benefits from GPU clip skinning on the shared indexed path even
+  though the specialized world-scene fast path is currently D3D12-backed.
 
-### Hybrid / important nuance
-- Gameplay hot paths are now native CPU code, not Lua hot loops.
-- GPU clip skinning is available and default-on behind backend gates.
-- Shared projected render path still has meaningful CPU cost in:
+### Hybrid details that matter
+- `SharedProjectedUnitModelRenderer.cpp` first tries the world-scene path, then
+  falls back to the legacy/shared backend-mesh path if the fast path is not a
+  fit for that unit/material/batch.
+- Scene pose is still evaluated on CPU even when the final skin math is pushed
+  to GPU.
+- The current GPU skin payload is backend-aware:
+  - D3D12 can upload paired node-global + inverse-bind data so the vertex
+    shader composes the final skin transform on GPU.
+  - OpenGL also has a GPU node-global mode, but it travels through the shared
+    indexed draw path instead of the D3D12 world-scene specialization.
+- Some batches still remain rigid or CPU-rewritten by design.
+  - That is why the perf logs track:
+    - `projected_shared_rigid_batches`
+    - `projected_gpu_clip_skin_batches`
+    - `projected_gpu_clip_palette_batches`
+    - `projected_cpu_rewrite_batches`
+    - `projected_indexed_batches_queued`
+
+## Path Cheat Sheet
+
+### 1. World-scene fast path
+- File entry:
+  - `src/game/runtime/shared/projected/SharedProjectedUnitWorldSceneRenderer.cpp`
+- Best description:
+  - CPU prepares reusable geometry/material/object handles and per-instance
+    scene state; backend submits a more scene-oriented batch of rigid/skinned
+    instances.
+- Current status:
+  - D3D12-specialized path.
+- Good fit for:
+  - stable fast-textured model batches with valid materials and skinned
+    instance state.
+
+### 2. Shared indexed world-batch path
+- File entry:
+  - `src/game/runtime/shared/projected/SharedProjectedUnitBackendMeshRenderer.cpp`
+- Best description:
+  - CPU assembles shared indexed batches and GPU still performs final shading
+    and eligible skinning.
+- Current status:
+  - common shared path across active backends.
+- Good fit for:
+  - most projected model rendering when the world-scene path is unavailable or
+    not valid for a given batch.
+
+### 3. CPU rewrite fallback path
+- File entry:
+  - `src/game/runtime/shared/projected/SharedProjectedUnitBackendMeshTransforms.cpp`
+- Best description:
+  - CPU resolves/transforms vertex data directly when the batch cannot use the
+    eligible GPU clip-skinning route.
+- Current status:
+  - still necessary, but not the preferred steady-state path.
+- Warning sign:
+  - if this path grows, `projected_model_prep_ms`, `projected_model_geometry_ms`,
+    and `render_build_ms` usually get worse.
+
+## Current Guidance For New Work
+- If the work scales with triangle count, vertex count, skinning math, or other
+  repeated visual math, it is a GPU candidate.
+- If the work is gameplay truth, animation-state choice, path selection, cache
+  ownership, or resource lifetime policy, keep it on CPU.
+- If the work only moves cost from one CPU container to another without
+  reducing `render_build_ms`, it is not a meaningful split improvement.
+- If the work moves math to GPU but adds enough upload/setup/synchronization
+  overhead to cancel the win, keep the simpler version.
+- Prefer shared-path wins before backend-specific specialization unless the
+  backend capability boundary is the whole point of the change.
+- Use the world-scene fast path when it removes CPU structure cleanly; do not
+  force every batch into it if material or batch validation says no.
+
+## Current Hotspots
+- The repo is no longer mainly blocked by "CPU gameplay scripting vs GPU."
+- The main remaining steady-state render problem is still CPU-side projected
+  build work, especially:
+  - scene-pose evaluation
+  - projected model prep
+  - projected model geometry/batch setup
+  - indexed/world submission setup
+- Startup and first-use stalls are still worth fixing when they are visible, but
+  they are secondary to steady-state `render_build_ms`.
+
+## What To Measure Before Changing The Split
+- Core frame buckets:
+  - `frame_cpu_ms`
   - `render_build_ms`
+  - `render_submit_ms`
+  - `present_wait_ms`
+  - `gpu_frame_ms`
+- Projected-model buckets:
   - `projected_pose_eval_ms`
   - `projected_model_prep_ms`
   - `projected_model_geometry_ms`
-- Startup/first-use caches exist to remove user-visible stalls, but they are
-  not the main performance strategy anymore.
+  - `projected_units_ms`
+- Render submit buckets:
+  - `render_world_indexed_ms`
+  - `render_overlay_prep_ms`
+  - `render_ui_submit_ms`
+- Path-mix counters:
+  - `projected_shared_rigid_batches`
+  - `projected_gpu_clip_skin_batches`
+  - `projected_gpu_clip_palette_batches`
+  - `projected_cpu_rewrite_batches`
+  - `projected_indexed_batches_queued`
+  - `backend_fast_scene_instances`
+  - `backend_fast_scene_palette_upload_bytes`
+- Only treat startup/first-use timing as the main metric if the change is
+  explicitly about prewarm or hitch removal.
 
-## Current Performance Guidance
-- If work scales with triangle count or per-vertex visual math, prefer GPU.
-- If work scales with gameplay entities and must remain deterministic, prefer CPU.
-- Prefer workload-proven offloads over theory-only offloads; first verify that
-  the measured scene actually spends time in the path you are trying to move.
-- Prefer removing steady-state `render_build_ms` over shaving small startup-only costs.
-- Prefer shared-path improvements over backend-specific ones unless API behavior forces otherwise.
-- If a startup optimization risks reintroducing a runtime hitch, keep runtime smoothness.
+## Runtime Flags That Matter Most
+- GPU clip skinning on/off by backend:
+  - `PAC_BACKEND_GPU_CLIP_SKINNING`
+  - `PAC_BACKEND_GPU_CLIP_SKINNING_OPENGL`
+  - `PAC_BACKEND_GPU_CLIP_SKINNING_D3D12`
+- Clip-skinning eligibility/throttling:
+  - `PAC_BACKEND_CLIP_SKINNING`
+  - `PAC_BACKEND_CLIP_SKINNING_ADAPTIVE`
+  - `PAC_BACKEND_CLIP_SKINNING_MAX_UNITS`
+- Backend-specific GPU skin payload mode:
+  - `PAC_BACKEND_D3D12_GPU_SKIN_NODE_GLOBALS`
+  - `PAC_BACKEND_OPENGL_GPU_SKIN_NODE_GLOBALS`
+- CPU-side deform/procedural vertex behavior:
+  - `PAC_BACKEND_VERTEX_DEFORM`
+- Fast textured projected path:
+  - `PAC_BACKEND_MODEL_FAST_TEXTURED`
+- Scene-pose cache cadence:
+  - `PAC_BACKEND_SCENE_POSE_CACHE_HZ`
+  - `PAC_BACKEND_SCENE_POSE_CACHE_SPARSE_HZ`
+  - `PAC_BACKEND_SCENE_POSE_CACHE_DENSE_HZ`
+  - `PAC_BACKEND_SCENE_POSE_CACHE_MIN_UNITS`
+  - `PAC_BACKEND_SCENE_POSE_CACHE_DENSE_MIN_UNITS`
+  - `PAC_BACKEND_SCENE_POSE_CACHE_PREWARM`
 
-## Runtime Flags That Matter
-- `PAC_BACKEND_GPU_CLIP_SKINNING`
-- `PAC_BACKEND_GPU_CLIP_SKINNING_OPENGL`
-- `PAC_BACKEND_GPU_CLIP_SKINNING_D3D12`
-- `PAC_BACKEND_CLIP_SKINNING`
-- `PAC_BACKEND_CLIP_SKINNING_ADAPTIVE`
-- `PAC_BACKEND_CLIP_SKINNING_MAX_UNITS`
-- `PAC_BACKEND_VERTEX_DEFORM`
-- `PAC_BACKEND_MODEL_FAST_TEXTURED`
-- `PAC_GLTF_PARITY_STRICT`
-
-## What To Measure
-- CPU:
-  - `frame_cpu_ms`
-  - `fixed_ms`
-  - `render_build_ms`
-  - projected render buckets
-- GPU:
-  - `gpu_frame_ms`
-  - draw-call / triangle counts
-- Cold path:
-  - startup and first-use flow trace timing
+Do not start with flag-flipping alone. Start with a measured scene and use the
+flags to isolate the path you are studying.
 
 ## Current Conclusion
-- The repo is no longer mainly bottlenecked by gameplay scripting.
-- The best remaining returns are mostly in shared projected render/build CPU work.
-- Cold-path work is still worth doing when it removes an obvious hitch, but it
-  is now secondary to steady-state frame time.
+- The repo already has meaningful GPU ownership in the projected model path.
+- The main next wins are still about reducing CPU-side projected build
+  structure, not about assuming "more GPU" is automatically better.
+- GPU offload is worth doing when it measurably lowers steady-state
+  `render_build_ms` without causing a worse trade in `gpu_frame_ms`,
+  correctness, or maintainability.
+- Durable performance lessons belong in `docs/PERF_DECISIONS.md`.
+- Detailed experiment history belongs in
+  `docs/archive/PERF_EXPERIMENT_LOG_2026-03.md`, not in the main body of this
+  document.
 
-## Historical Appendix
+## Current Assessment
+- The current split is directionally right, but it is not ideal yet.
+- The architecture is in a healthier place than the earlier CPU-heavy phase:
+  gameplay truth stays on CPU, and both backends already own real GPU-side
+  skinning/shading/raster work.
+- The main incompleteness is still CPU-side projected render-build work,
+  especially scene-pose evaluation, model prep, batch setup, and fallback
+  transform paths.
+- D3D12 currently has the more specialized world-scene fast path, so the
+  backend split is not yet equally mature in the same way on both backends.
+- Treat this as "mostly correct architecture, still unfinished optimization"
+  rather than a solved area.
 
-Major completed shifts that matter for interpreting the current architecture:
-- gameplay hot paths moved out of Lua and into native code
-- projected render path added finer perf attribution and scene-pose caching
-- fast textured projected path gained more GPU-skinning coverage and shared
-  template/static-geometry reuse
-- particle/capture/growl/board bridges added more zero-work short-circuits
-- first-use hitch work introduced targeted prewarm and persistent caches for
-  card art and tail-fire assets
-
-Detailed optimization history belongs in git history and
-`docs/PERF_EXPERIMENT_NOTES.md`, not in the main body of this doc.
+## Related Docs
+- `docs/GOALS.md`
+- `docs/RENDERER_PARITY_ROADMAP.md`
+- `docs/PERF_DECISIONS.md`
+- `docs/RENDER_PATH_FILE_MAP.md`

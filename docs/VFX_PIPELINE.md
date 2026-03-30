@@ -1,42 +1,101 @@
-# VFX Pipeline (Current Runtime)
+# VFX Pipeline
 
-This document reflects the live VFX path used in game today.
+Status: Active
+Type: Architecture
+Last updated: 2026-03-30
 
-## Runtime Model
+This document describes the current ownership split for runtime VFX, reusable
+preview code, game-specific preview adapters, and asset placement.
 
-- Move VFX behavior is implemented in C++ classes under `src/game/vfx/`.
-- Move mesh draw passes are data-driven via:
-  - `config/vfx/moves/<move>_draw_passes.json`
-- For Growl:
-  - Runtime class: `src/game/vfx/GrowlWaveVFX.*`
-  - Manifest: `config/vfx/moves/growl_draw_passes.json`
+## Ownership Split
+- Reusable VFX code lives in `src/vfx/`.
+  - Effect implementation: `src/vfx/effects/`
+  - Runtime bridge/helpers: `src/vfx/runtime/`
+  - Reusable preview support: `src/vfx/preview/`
+- Game-specific VFX code lives in `src/game/vfx/`.
+  - Use this when the effect depends on Pokemon/runtime state or game-only
+    presentation rules.
+- Game-specific preview composition lives in `src/game/preview/`.
+  - Use this for board placement, Pokemon rig selection, attack animation
+    timing, and other game-only preview adapters.
 
-## Asset Conventions In Use
+This split is intentional. `src/vfx/` is the reusable top-level VFX surface and
+should stay isolated from game-only concerns.
 
-- Meshes keep source EID names for traceability:
-  - `assets/meshes/growl_1076_mesh.glb`
-  - `assets/meshes/growl_1085_mesh.glb`
-- Textures keep source extracted names:
-  - `assets/textures/moves/growl/Texture3918.png`
-  - `assets/textures/moves/growl/Texture3921.png`
-- Shared shaders for the move:
-  - `assets/shaders/vfx/moves/growl/growl_ring_shared.vert`
-  - `assets/shaders/vfx/moves/growl/growl_ring_shared.frag`
-  - Additional pass-specific shader pair(s) are supported when needed:
-    - `assets/shaders/vfx/moves/growl/growl_line_shared.vert`
-    - `assets/shaders/vfx/moves/growl/growl_line_shared.frag`
-    - `assets/shaders/vfx/moves/growl/growl_quarter_ring_shared.vert`
-    - `assets/shaders/vfx/moves/growl/growl_quarter_ring_shared.frag`
+## Current Runtime Examples
 
-## Adding Another Growl Draw Pass
+### Growl
+- Reusable effect:
+  - `src/vfx/effects/growl/GrowlWaveVFX.*`
+- Reusable runtime bridge:
+  - `src/vfx/runtime/growl/SharedGrowlWaveBridge.*`
+  - `src/vfx/runtime/growl/SharedGrowlWaveBatches.*`
+  - `src/vfx/runtime/growl/SharedGrowlVfxHelpers.*`
+- Reusable preview controller:
+  - `src/vfx/preview/growl/GrowlPreviewController.*`
+  - `src/vfx/preview/growl/GrowlSharedRenderer.*`
+- Game-facing preview adapter:
+  - `src/game/preview/effects/GrowlPreviewEffect.*`
+- Reusable lab adapter:
+  - `src/vfx/preview/effects/GrowlLabPreviewEffect.*`
+- Manifest:
+  - `config/vfx/moves/growl_draw_passes.json`
 
-1. Add mesh/texture assets.
-2. Append a new entry in `config/vfx/moves/growl_draw_passes.json`.
-3. Set `eid`, `mesh`, `texture`, and pass tuning fields (`tint_color`, `scale_mul`, `alpha_mul`).
-4. If a pass needs a different pipeline, add `vert_shader` and `frag_shader` on that pass.
-5. For line-cone passes, set `direction_local` or `directions_local` in caster-local basis
-   (`[right, up, forward]`) to fan directions out.
-6. For texture-only quarter ring passes, set `render_mode: "texture_quarter_ring"` and provide
-   `quarter_count/quarter_step_deg` (e.g. `4` and `90.0`).
+### Tail Fire
+- Game-specific runtime effect:
+  - `src/game/vfx/TailFireVFX.*`
+  - `src/game/vfx/TailFireVFXConfigDB.*`
+- Shared runtime support for projected/fallback/authored playback:
+  - `src/game/runtime/shared/vfx/tail_fire/*`
+- Preview bridge:
+  - `src/game/preview/PreviewTailFireBridge.*`
+- Shared authored-vs-fallback policy:
+  - `src/game/runtime/shared/vfx/tail_fire/SharedTailFirePlaybackPolicy.*`
 
-No code change is required when adding passes that follow existing mesh draw logic.
+### Leech Seed
+- Game-specific projectile/drain effect:
+  - `src/game/vfx/LeechSeedProjectileVFX.*`
+  - `src/game/vfx/LeechSeedDrainVFX.*`
+- Current preview scope:
+  - `src/game/preview/effects/LeechSeedPreviewEffect.*`
+  - preview currently shows projectile-only behavior
+
+## Preview Tools
+- `PAC_VfxPreviewer`
+  - entry point: `tools/PAC_VfxPreviewer.cpp`
+  - project adapter: `src/game/preview/PokemonAutochessVfxPreviewProject.*`
+  - use when the effect needs real board constraints, Pokemon models, or
+    attack-animation timing
+- `VfxLab`
+  - entry point: `tools/PAC_VfxLab.cpp`
+  - project adapter: `src/vfx/preview/VfxLibraryPreviewProject.*`
+  - use when the effect should stay reusable and game-agnostic
+
+## Asset And Config Ownership
+- Canonical runtime mesh assets belong under `assets/meshes/`.
+- Canonical runtime texture assets belong under `assets/textures/`.
+- Runtime model content belongs under `assets/models/`.
+- Runtime/config-driven VFX manifests belong under `config/vfx/`.
+- `assets/vfx/` is for reusable/reference/staging VFX content and folder
+  organization. It is not the default destination for runtime-resolved mesh or
+  texture paths when code/config already points at `assets/meshes/` or
+  `assets/textures/`.
+
+Current examples:
+- Growl runtime meshes: `assets/meshes/growl_*.glb`
+- Growl runtime textures: `assets/textures/moves/growl/*`
+- Charmander-line authored fire flipbooks:
+  - `assets/textures/charmander_fire_uv_flipbook.png`
+  - `assets/textures/CharmeleonFireUVFlipbook.png`
+  - `assets/textures/CharizardFireUVFlipbook.png`
+
+## Rules Of Thumb
+- Start in `src/vfx/` if the effect, runtime bridge, or preview controller can
+  be reused by another game.
+- Start in `src/game/vfx/` if the effect depends on Pokemon species rules,
+  game-world ownership, or game-only data/config behavior.
+- Keep reusable preview/render helpers in `src/vfx/preview/`; keep board and
+  Pokemon rig adapters in `src/game/preview/`.
+- When promoting an effect to runtime, move concrete runtime-referenced meshes
+  and textures into `assets/meshes/` and `assets/textures/` instead of leaving
+  the authoritative path under `assets/vfx/`.

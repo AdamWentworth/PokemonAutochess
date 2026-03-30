@@ -1,14 +1,21 @@
 # Renderer Parity + Performance Roadmap
 
-Date: 2026-03-08
+Status: Active
+Type: Roadmap
+Last updated: 2026-03-30
 
 This is the current renderer roadmap for the repo. It replaces the older
-"pre-merge D3D12 gate" framing and rolls active parity/performance priorities
-into one current document.
+"pre-merge D3D12 gate" and generic housework framing with one current parity
+and performance roadmap.
 
-It supersedes the old roles of:
-- `docs/PARITY_OUTSTANDING.md`
-- `docs/HOUSEWORK_ROADMAP.md`
+## Relationship To The Contract
+- `docs/RENDERER_PARITY_CONTRACT.md` is the hard baseline that both backends
+  must satisfy at all times.
+- This roadmap is the changing plan for how we improve parity, performance, and
+  renderer hygiene from here.
+- If a rule should be stable and testable, it belongs in the contract.
+- If an item is a current priority, experiment lane, or cleanup target, it
+  belongs here.
 
 ## Current State
 - Shared gameplay presentation is the default path for both `OpenGL` and `D3D12`.
@@ -119,7 +126,8 @@ It supersedes the old roles of:
 ## Related Docs
 - `docs/TEST_PLAN.md`
 - `docs/CPU_GPU_WORK_SPLIT.md`
-- `docs/PERF_EXPERIMENT_NOTES.md`
+- `docs/PERF_DECISIONS.md`
+- `docs/RENDER_RESTRUCTURING_OUTSTANDING.md`
 - `docs/RENDER_PATH_FILE_MAP.md`
 - `docs/TECH_DEBT.md`
 - `docs/DISPLAY_GRAPHICS_ROADMAP.md`

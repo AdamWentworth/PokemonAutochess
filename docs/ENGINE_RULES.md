@@ -1,5 +1,9 @@
 # Engine Rules (Non-Negotiables)
 
+Status: Active
+Type: Rule
+Last updated: 2026-03-30
+
 These rules protect engine reuse and keep the project maintainable.
 
 - Strict layering: `game` can depend on `engine_*`, never the other way around.

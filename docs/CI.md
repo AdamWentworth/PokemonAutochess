@@ -1,6 +1,8 @@
 # CI
 
-Date: 2026-03-08
+Status: Active
+Type: Runbook
+Last updated: 2026-03-30
 
 CI is correctness-first and Windows-first.
 
@@ -8,6 +10,7 @@ CI is correctness-first and Windows-first.
 - Configure with vcpkg toolchain.
 - Build Debug.
 - Run CTest.
+- Run `tools/check_docs_hygiene.ps1`.
 - Run `PAC_ValidateData`.
 - Run clang-format check on changed C++ files.
 

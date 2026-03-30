@@ -1,6 +1,8 @@
 # Display And Graphics Roadmap
 
-Date: 2026-03-12
+Status: Active
+Type: Roadmap
+Last updated: 2026-03-30
 
 ## Purpose
 - Define what the project should eventually ship for display and graphics settings.

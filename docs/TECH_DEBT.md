@@ -1,63 +1,31 @@
 # Tech Debt
 
-Date: 2026-03-12
+Status: Active
+Type: Tracker
+Last updated: 2026-03-30
 
-This file is intentionally short. It should track active debt that still has
-real engineering value, not old blocker language that has already been retired.
+This file stays intentionally short. It tracks strategic debt that still drives
+engineering priority; concrete file-by-file issues live in
+`OUTSTANDING_ISSUES.md`.
 
-## Highest Priority Debt
+## Strategic Debt
 1. No automated performance regression gate.
-- Local benchmark tooling exists.
-- CI still does not enforce perf baselines or fail on benchmark regressions.
+   - Local benchmark tooling exists, but CI still does not enforce a protected
+     baseline.
 
 2. Shared projected render/build CPU is still the main steady-state hotspot.
-- The current biggest remaining performance returns are in dense combat render-build work, not gameplay scripting and not generic startup work.
+   - The next biggest wins are still in shared runtime render preparation and
+     submission, not in generic startup work.
 
-3. Runtime/session composition is still too centralized.
-- `src/game/runtime/session/GameSession.cpp` and `src/game/runtime/GameRunner.cpp` still combine too many concerns.
-- Startup, prewarm, render-path routing, input, restart flow, debug snapshotting, and diagnostics need cleaner seams.
+3. Runtime composition is still too centralized.
+   - `src/game/runtime/session/GameSession.cpp` and
+     `src/game/runtime/GameRunner.cpp` still combine too many responsibilities.
 
-4. Display/settings honesty is still incomplete.
-- Placeholder controls and visible-but-unimplemented options should not remain user-facing ambiguity.
+4. Renderer interfaces and backend families are broader than ideal.
+   - `src/engine/render/IRenderBackend.h` and the D3D12/OpenGL mega-files still
+     concentrate too much change risk.
 
-5. Documentation drift risk is real.
-- Perf/parity docs were allowed to describe outdated blockers.
-- This should stay cleaned up going forward.
-
-## Important Secondary Debt
-1. Benchmark evidence discipline still needs harder validity rules.
-- Historical local artifacts with zero or unusable perf samples should not be treated as baselines.
-- Benchmark output quality matters almost as much as benchmark tooling existence.
-
-2. Startup/cold-path caches add complexity and should stay justified.
-- Tail-fire and card-art caches are worth keeping because they removed visible stalls.
-- Future startup complexity should be held to the same standard.
-
-3. Fire-tail rendering now deserves a targeted perf pass.
-- The current Charmander-line fire path mixes authored fire-mesh flipbooks with the legacy tail-fire fallback/emitter flow.
-- The visible first-use Charmander hitch is substantially improved now that startup prewarms the authored flipbook upload too.
-- The remaining debt has shifted to cold-start CPU work: legacy premultiplied atlas bake plus authored flipbook decode still add noticeable startup cost.
-
-4. Render submission still rebuilds too much unchanged work.
-- The next sensible structural step is retained/dirty submission for UI and overlay layers instead of rebuilding the full draw-prep path every frame.
-
-5. Projected-unit submission is still more per-unit than ideal.
-- The next bigger render-side rework is to lean harder on shared prepared geometry/material state and reduce per-unit submission churn.
-
-6. Large high-churn files remain risky.
-- `src/game/runtime/session/GameSession.cpp`
-- `src/game/runtime/GameRunner.cpp`
-- backend render implementation families
-- shared projected runtime render modules
-
-7. Duplicate startup/data-store wiring should be reduced.
-- Packed/dev asset-store fallback and related startup wiring are split between `GameBootstrap.cpp` and `GameSession.cpp`.
-- That increases drift risk in content-loading behavior.
-
-8. No dedicated benchmark hardware baseline policy yet.
-- Local numbers are useful, but long-term regression decisions still need a clearer baseline process.
-
-## Things That Are No Longer Good Debt Entries
-- Old claims that D3D12 blocks every frame with a normal-path `waitForGpu()`.
-- Old claims that OpenGL has no GPU frame timing path.
-- Old "pre-merge D3D12 blocker" wording when the repo is now operating beyond that phase.
+5. Tooling and documentation still lean on manual discipline in a few places.
+   - Preview visuals are mostly manual smoke-checked.
+   - Docs now have hygiene automation, but the workflow still depends on people
+     keeping ownership boundaries honest.

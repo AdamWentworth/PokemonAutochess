@@ -1,6 +1,12 @@
+Archived on: 2026-03-30
+Reason: Detailed experiment journal moved out of the active docs set; durable performance lessons now live in a shorter source-of-truth doc.
+Superseded by: `docs/PERF_DECISIONS.md`
+
 # Performance Experiment Notes
 
-Date: 2026-03-14
+Status: Active
+Type: Journal
+Last updated: 2026-03-30
 
 Purpose: keep a short record of performance hypotheses that were validated or
 rejected in live game captures so the repo does not repeat the same work

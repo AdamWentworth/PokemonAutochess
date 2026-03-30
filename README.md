@@ -15,7 +15,7 @@ This repo is engine-first. The engine is built to be reusable for future games; 
 - Gameplay runtime: `GameRuntime` -> `GameSession` (world/state/systems/UI wiring)
 - Game states: placement plus combat
 - Gameplay systems: round, shop, movement, combat, bench/cards, unit interaction
-- VFX: particle system plus TailFire VFX modules
+- VFX: reusable VFX code under `src/vfx/`, game-specific VFX under `src/game/vfx/`, and preview tooling via `PAC_VfxPreviewer` plus `VfxLab`
 - Tests: headless smoke tests, invariants, optional GL smoke draw, and optional runtime smoke for OpenGL/D3D12
 - Data pipeline: JSON configs plus cooker plus packaged content bundle
 
@@ -35,12 +35,13 @@ This repo is engine-first. The engine is built to be reusable for future games; 
 
 ## Repo Layout
 - `src/engine/` engine core, rendering, UI, utilities, VFX
-- `src/game/` game runtime, state machine, systems, scripting bindings
+- `src/game/` game runtime, state machine, systems, scripting bindings, game-specific VFX, and game-facing preview adapters
+- `src/vfx/` reusable VFX effects, runtime bridges, and reusable preview support
 - `scripts/` Lua gameplay logic
 - `assets/` runtime assets
 - `tests/` headless tests and invariants
 - `tools/` offline tools, build scripts, and installer
-- `docs/` internal plans and quality notes
+- `docs/` active engineering docs plus archived historical plans
 
 ---
 
@@ -82,8 +83,22 @@ Notes:
 | `engine_render` | Rendering plus UI plus resources | `cmake --build build --config Debug --target engine_render` |
 | `PAC_GameObjects` | Game runtime library (shared by exe plus tests) | `cmake --build build --config Debug --target PAC_GameObjects` |
 | `PokemonAutochess` | Game executable | `cmake --build build --config Debug --target PokemonAutochess` |
+| `PAC_VfxPreviewer` | Game-facing VFX preview tool | `cmake --build build --config Debug --target PAC_VfxPreviewer` |
+| `VfxLab` | Reusable VFX lab tool | `cmake --build build --config Debug --target VfxLab` |
 | `PAC_Tests` | Tests executable | `cmake --build build --config Debug --target PAC_Tests` |
 | `PAC_All` | Convenience aggregate (engine plus game plus tests) | `cmake --build build --config Debug --target PAC_All` |
+
+---
+
+## VFX Tools
+```powershell
+.\build\Debug\PAC_VfxPreviewer.exe
+.\build\Debug\VfxLab.exe
+```
+
+Use `PAC_VfxPreviewer` when the effect needs real board constraints, Pokemon
+models, or attack-animation timing. Use `VfxLab` for reusable VFX that should
+stay isolated from game-specific preview composition.
 
 ---
 
@@ -240,6 +255,11 @@ Tuning:
 
 ## Assets and Model Pipeline
 - Runtime assets live under `assets/`.
+- Canonical runtime mesh assets belong under `assets/meshes/`.
+- Canonical runtime texture assets belong under `assets/textures/`.
+- `assets/vfx/` is for reusable/reference VFX assets, not the default runtime
+  landing zone once a mesh or texture path is referenced directly by code or
+  config.
 - Models and animations are ingested via glTF (`fastgltf`).
 - Per-model animation sets are defined in `assets/models/*.animset.json`.
 

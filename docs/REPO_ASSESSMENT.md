@@ -1,100 +1,66 @@
 # Repo Assessment
 
-Date: 2026-03-12
+Status: Active
+Type: Assessment
+Last updated: 2026-03-31
 
-Overall rating: `7.6/10`
+This is a living repo-health assessment. Update it when the overall
+maintainability read changes in a meaningful way, not on every small edit.
 
-This repo is in better shape than most prototype-scale C++ game projects. The
-architecture has real guardrails, the headless test surface is unusually strong,
-and the renderer/perf docs are mostly honest about current priorities. The main
-cost is concentration: too much runtime and render coordination still lands in a
-small number of very large files.
-
-## Category Scores
-- Architecture and modularity: `7/10`
-- Testability: `8.5/10`
-- Performance discipline: `7/10`
-- Documentation and process hygiene: `8/10`
-- Product/runtime honesty: `7/10`
+## Current Overall Read
+- Strong prototype-scale C++ game/engine repo with unusually good layering,
+  testing, and renderer/perf discipline for a solo project.
+- The main maintainability cost is still concentration: too much runtime and
+  renderer coordination lands in a small number of large files.
+- Recent docs and VFX/tooling cleanup improved the repo's clarity, but the main
+  runtime/render seams are still the long pole.
 
 ## What Is Strong
-- Strict engine/game layering is stated and enforced by tests.
-- The headless core is real, not aspirational:
-  - `118` CTest entries were green on `2026-03-12`.
-- `GameWorld` is split into focused translation units instead of one monolith.
-- Render routing, parity policy, and perf logging have explicit contracts/docs.
-- Docs are dated, short, and mostly aligned with the current codebase.
+- Engine/game layering is real, not aspirational.
+- The top-level reusable `src/vfx/` split is intentional and now documented as
+  a reusable engine surface instead of game-only glue.
+- The headless and contract-test surface is strong relative to the size of the
+  project.
+- Shared gameplay presentation across `OpenGL` and `D3D12` is backed by docs,
+  contracts, and perf vocabulary rather than vague parity claims.
+- The docs set now has a live-vs-archive split plus doc-type metadata, which
+  makes the repo easier to navigate and maintain.
 
-## What Existing Docs Already Capture Well
-- No perf regression gate in CI yet.
-- Shared projected render/build CPU is still the main steady-state hotspot.
-- Display/settings honesty is incomplete because placeholder controls remain.
-- Backend implementation families and shared projected render modules are still
-  high-churn risk areas.
+## Main Risks
+- `src/game/runtime/session/GameSession.cpp` is still the largest runtime
+  concentration seam.
+- `src/game/runtime/GameRunner.cpp` still centralizes too much launch, loop,
+  and runtime policy.
+- `src/engine/render/IRenderBackend.h` and the backend mega-files still absorb
+  broad change risk.
+- Shared projected render/build CPU remains the main steady-state renderer cost
+  center.
+- Preview visual validation and some renderer/perf validation still rely on too
+  much manual discipline.
 
-## Gaps Not Fully Called Out Before
-- `src/game/runtime/session/GameSession.cpp` is still the repo's main god-object seam.
-  - It owns startup, asset prewarm, runtime wiring, input handling, snapshot IO,
-    backend debug rendering, overlay composition, and shutdown coordination.
-- `src/game/runtime/GameRunner.cpp` also centralizes too much:
-  - SDL event translation, backend selection/fallback, window/video policy,
-    restart loop behavior, and perf/log output all meet there.
-- Startup/data-store wiring is duplicated:
-  - `GameBootstrap.cpp` and `GameSession.cpp` both perform packed/dev asset
-    store selection and related startup decisions.
-- Benchmark tooling exists, but benchmark evidence still needs policing:
-  - historical files under `benchmark/` include zero-sample rows and should not
-    be treated as valid baselines.
-- Logging is split between `LogBus` and many direct `std::cout/std::cerr`
-  startup/runtime prints, which weakens observability consistency.
+## What Improved Recently
+- Live docs are now typed and indexed more clearly.
+- The old raw perf journal was split into a concise active decisions doc plus an
+  archived experiment log.
+- Reusable VFX ownership and preview-tool separation are more explicit.
+- Growl preview duplication was removed, and Tail Fire preview/runtime policy is
+  better aligned.
 
-## Modularity Read
-- Healthy:
-  - `src/game/world/`
-  - route/policy helpers under `src/game/runtime/routes/`
-  - many backend/shared helper modules with focused contract tests
-- Risky:
-  - `src/game/runtime/session/GameSession.cpp`
-  - `src/game/runtime/GameRunner.cpp`
-  - backend render pipeline/draw families
+## Current Repo-Level Red Flags
+- `tools/full_check.ps1` is currently red because
+  `PAC_Tests.render_model_cache_contract` fails on Growl sparkle UV
+  preservation.
+- There is still no automated perf baseline gate in CI.
+- The renderer restructuring story is only partially complete: Phase 1 ideas
+  have landed in code, but the larger submission/dataflow work is still ahead.
 
-## Testability Read
-- Strong:
-  - deterministic headless simulation paths
-  - layering guard test
-  - route policy and backend contract tests
-  - content/config loader coverage
-- Weak:
-  - runtime smoke remains optional, not default CI coverage
-  - no automated perf threshold enforcement
-  - startup/restart/first-use hitch behavior is still more measured manually than
-    asserted automatically
-
-## Performance Read
-- Strengths:
-  - good perf bucket vocabulary
-  - benchmark harness exists
-  - parity contract and runtime smoke hooks exist
-  - cold-path caches are targeted, not purely speculative
-- Risks:
-  - steady-state shared projected render CPU is still the main cost center
-  - render submission still rebuilds too much unchanged work
-  - benchmark validity and baseline policy are not enforced end-to-end
-
-## Documentation Comparison
-- Still accurate:
-  - `docs/GOALS.md`
-  - `docs/CI.md`
-  - `docs/RENDERER_PARITY_ROADMAP.md`
-  - `docs/DISPLAY_GRAPHICS_ROADMAP.md`
-- Updated as part of this assessment:
-  - `README.md` stale shop script reference fixed
-  - `docs/TECH_DEBT.md` expanded to reflect centralization and benchmark-validity debt
-  - `docs/TEST_PLAN.md` now states that zero-sample benchmark rows are invalid
-
-## Recommended Priority Order
-1. Break `GameSession.cpp` into boot/prewarm, debug snapshot, and render-composition ownership seams.
-2. Split `GameRunner.cpp` into backend/video bootstrap vs main-loop/runtime control.
-3. Add a real perf-baseline policy plus at least one reduced benchmark gate.
-4. Keep removing placeholder settings from player-facing menus unless wired and tested.
-5. Continue shared-path render CPU reductions before chasing new backend-specific feature work.
+## Current Priority Order
+1. Restore a clean all-green local quality path by fixing the current
+   `render_model_cache_contract` failure.
+2. Keep shrinking `GameSession.cpp` and `GameRunner.cpp` into clearer ownership
+   seams.
+3. Continue renderer restructuring work that reduces shared projected
+   render-build CPU cost.
+4. Reduce manual-only preview and perf validation where practical.
+5. Keep the docs honest as the repo changes, especially around renderer,
+   tooling, and VFX ownership boundaries.

@@ -1,3 +1,7 @@
+Archived on: 2026-03-31
+Reason: Historical detailed Phase 1 implementation spec; the persistent-render-item design now lives mostly in code and only the remaining restructuring work stays active.
+Superseded by: `docs/RENDER_RESTRUCTURING_OUTSTANDING.md`, `docs/RENDER_PATH_FILE_MAP.md`
+
 # Render Phase 1 Spec: Persistent Render Items
 
 Date: 2026-03-22

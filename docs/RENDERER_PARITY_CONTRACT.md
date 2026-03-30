@@ -1,6 +1,8 @@
 # Renderer Parity Contract
 
-Last updated: 2026-03-03
+Status: Active
+Type: Contract
+Last updated: 2026-03-30
 
 ## Goal
 Define the minimum non-negotiable rendering contract that both OpenGL and D3D12 must satisfy so gameplay visuals stay consistent without backend-specific game logic.
@@ -37,6 +39,16 @@ If contract values change intentionally, update:
 ## Enforcement Scope
 - This contract enforces render-state and color pipeline policy, not pixel-perfect identity.
 - Remaining visual differences should be treated as shader/material parity issues, not scene/gameplay logic issues.
+- This document is the non-negotiable baseline, not the full renderer strategy.
+- Broader parity, performance priorities, and current cleanup work live in
+  `docs/RENDERER_PARITY_ROADMAP.md`.
+
+## Relationship To The Roadmap
+- Keep this doc small and stable.
+- Use it for rules that should remain true unless there is an intentional
+  contract change.
+- Do not put active optimization priorities, perf experiments, or temporary
+  cleanup items here; those belong in the roadmap.
 
 ## Required Follow-up When Contract Changes
 1. Update `RendererParityContract.h` constants.

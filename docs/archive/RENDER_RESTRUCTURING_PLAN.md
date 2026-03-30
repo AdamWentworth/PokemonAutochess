@@ -1,3 +1,7 @@
+Archived on: 2026-03-31
+Reason: Historical broad restructuring plan; active remaining restructuring work now lives in a narrower current doc, while this file remains useful as design history.
+Superseded by: `docs/RENDER_RESTRUCTURING_OUTSTANDING.md`, `docs/RENDERER_PARITY_ROADMAP.md`
+
 # Render Restructuring Plan
 
 Date: 2026-03-22
