@@ -1,18 +1,13 @@
 #include "game/preview/PokemonAutochessVfxPreviewProject.h"
 
 #include <algorithm>
-#include <array>
-#include <cctype>
 #include <cmath>
-#include <exception>
-#include <fstream>
 #include <iostream>
 #include <memory>
 #include <stdexcept>
 #include <string>
 
 #include <glm/glm.hpp>
-#include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
 #include "engine/core/Paths.h"
@@ -21,17 +16,17 @@
 #include "engine/render/Model.h"
 #include "engine/render/OpenGLRenderBackend.h"
 #include "game/GameConfig.h"
-#include "game/PokemonInstance.h"
 #include "game/config/AttackAnimConfigLoader.h"
 #include "game/config/GameDataDb.h"
-#include "game/config/AnimSetLoader.h"
 #include "game/config/PokemonConfigLoader.h"
+#include "game/preview/PreviewPokemonVisual.h"
+#include "game/preview/PreviewSceneUtils.h"
+#include "game/preview/PreviewTailFireBridge.h"
 #include "game/preview/effects/GrowlPreviewEffect.h"
 #include "game/preview/effects/LeechSeedPreviewEffect.h"
 #include "game/runtime/render_prep/UnitVisuals.h"
 #include "game/runtime/render_prep/ProceduralPose.h"
 #include "game/runtime/render_model_cache/RenderModelCache.h"
-#include "game/runtime/session/SessionBackendRenderHelpers.h"
 #include "game/runtime/session/SessionRenderScratch.h"
 #include "game/runtime/session/SessionTextureCache.h"
 #include "game/runtime/session/SessionWorldBackdrop.h"
@@ -39,142 +34,13 @@
 #include "game/runtime/shared/projected/SharedProjectedUnitModelRenderer.h"
 #include "game/runtime/shared/projected/SharedProjectedWorldSceneHelpers.h"
 #include "game/runtime/shared/scene/SharedWorldScene.h"
-#include "game/runtime/shared/vfx/particles/SharedParticleSnapshotBillboards.h"
-#include "game/runtime/shared/vfx/tail_fire/SharedTailFireFallbackEmitter.h"
 #include "game/runtime/shared/vfx/tail_fire/SharedTailFireMeshPlayback.h"
 #include "game/runtime/shared/world/SharedWorldIndexedBatches.h"
 #include "game/vfx/TailFireVFXConfigDB.h"
-#include "game/world/MoveImpactMath.h"
 
 namespace game::preview {
 
 namespace {
-
-constexpr int kPreviewBoardCols = 8;
-constexpr int kPreviewBoardRows = 8;
-constexpr int kPreviewBenchSlots = 8;
-
-struct PreviewCombatTuning {
-    float chargedCdMult = 2.0f;
-    float minChargedRequestSec = 0.85f;
-    float attackSpeedScale = 1.0f;
-    float speedBaseline = 1.0f;
-    float speedMin = 0.35f;
-    float speedMax = 3.0f;
-};
-
-bool assignLuaFloatOverride(const std::string& text, const char* key, float& outValue) {
-    if (!key || !key[0]) return false;
-    const std::string needle = std::string(key) + " =";
-    const std::size_t pos = text.find(needle);
-    if (pos == std::string::npos) return false;
-    std::size_t cursor = pos + needle.size();
-    while (cursor < text.size() &&
-           std::isspace(static_cast<unsigned char>(text[cursor]))) {
-        ++cursor;
-    }
-    std::size_t end = cursor;
-    while (end < text.size()) {
-        const char c = text[end];
-        if (!(std::isdigit(static_cast<unsigned char>(c)) || c == '.' || c == '-' || c == '+')) {
-            break;
-        }
-        ++end;
-    }
-    if (end <= cursor) return false;
-    try {
-        outValue = std::stof(text.substr(cursor, end - cursor));
-        return true;
-    } catch (...) {
-        return false;
-    }
-}
-
-PreviewCombatTuning loadPreviewCombatTuningFromConfig() {
-    PreviewCombatTuning tuning;
-    const std::string path = engine::paths::data("scripts/config/combat_tuning.lua");
-    std::ifstream in(path);
-    if (!in.is_open()) return tuning;
-
-    std::string text((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
-    (void)assignLuaFloatOverride(text, "CHARGED_CD_MULT", tuning.chargedCdMult);
-    (void)assignLuaFloatOverride(text, "MIN_CHARGED_REQUEST_SEC", tuning.minChargedRequestSec);
-    (void)assignLuaFloatOverride(text, "ATTACK_SPEED_SCALE", tuning.attackSpeedScale);
-    (void)assignLuaFloatOverride(text, "SPEED_BASELINE", tuning.speedBaseline);
-    (void)assignLuaFloatOverride(text, "SPEED_MIN", tuning.speedMin);
-    (void)assignLuaFloatOverride(text, "SPEED_MAX", tuning.speedMax);
-    return tuning;
-}
-
-std::string lowerCopy(std::string value) {
-    std::transform(value.begin(),
-                   value.end(),
-                   value.begin(),
-                   [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
-    return value;
-}
-
-float resolvePreviewModelScaleCorrection(const std::shared_ptr<Model>& model,
-                                         const std::string& scaleModeRaw,
-                                         const std::string& axisModeRaw) {
-    if (!model) return 1.0f;
-
-    const std::string scaleMode = lowerCopy(scaleModeRaw);
-    if (scaleMode.empty() || scaleMode == "native" || scaleMode == "raw") {
-        const float importerScale = std::max(0.0f, model->getScaleFactor());
-        if (importerScale <= 1e-6f) return 1.0f;
-        return 1.0f / importerScale;
-    }
-
-    if (scaleMode != "normalized") {
-        const float importerScale = std::max(0.0f, model->getScaleFactor());
-        if (importerScale <= 1e-6f) return 1.0f;
-        return 1.0f / importerScale;
-    }
-
-    if (!model->hasBounds()) return 1.0f;
-
-    const std::string axisMode = lowerCopy(axisModeRaw);
-    if (axisMode.empty() || axisMode == "max") return 1.0f;
-
-    const glm::vec3 ext = model->getBoundsMax() - model->getBoundsMin();
-    const float ex = std::max(0.0f, ext.x);
-    const float ey = std::max(0.0f, ext.y);
-    const float ez = std::max(0.0f, ext.z);
-    const float maxExtent = std::max(ex, std::max(ey, ez));
-    if (maxExtent <= 1e-6f) return 1.0f;
-
-    float chosenExtent = maxExtent;
-    if (axisMode == "x") chosenExtent = ex;
-    else if (axisMode == "y") chosenExtent = ey;
-    else if (axisMode == "z") chosenExtent = ez;
-    else if (axisMode == "median") {
-        std::array<float, 3> arr{ex, ey, ez};
-        std::sort(arr.begin(), arr.end());
-        chosenExtent = arr[1];
-    }
-
-    if (chosenExtent <= 1e-6f) return 1.0f;
-    return maxExtent / chosenExtent;
-}
-
-float computeYawDegreesFromForward(const glm::vec3& forward) {
-    glm::vec3 safe(forward.x, 0.0f, forward.z);
-    const float lenSq = glm::dot(safe, safe);
-    if (lenSq <= 0.000001f) {
-        safe = glm::vec3(0.0f, 0.0f, 1.0f);
-    } else {
-        safe /= std::sqrt(lenSq);
-    }
-    return glm::degrees(std::atan2(safe.x, safe.z));
-}
-
-glm::mat4 makePreviewInstanceTransform(const glm::vec3& pos, float yawDeg, float scale) {
-    glm::mat4 translation = glm::translate(glm::mat4(1.0f), pos);
-    glm::mat4 rotationY = glm::rotate(glm::mat4(1.0f), glm::radians(yawDeg), glm::vec3(0, 1, 0));
-    glm::mat4 scaling = glm::scale(glm::mat4(1.0f), glm::vec3(scale));
-    return translation * rotationY * scaling;
-}
 
 float computeProjectedUnitSizePx(const game::runtime::shared_projected_debug::ProjectedDebugVfxBuilder& projectedDebug,
                                  const glm::vec3& worldPos,
@@ -196,282 +62,6 @@ float computeProjectedUnitSizePx(const game::runtime::shared_projected_debug::Pr
         }
     }
     return std::max(14.0f, minDim * 0.035f);
-}
-
-float previewBoardOriginX(float cellSize) {
-    return -((static_cast<float>(kPreviewBoardCols) * cellSize) / 2.0f) +
-           cellSize * 0.5f;
-}
-
-float previewBoardOriginZ(float cellSize) {
-    return -((static_cast<float>(kPreviewBoardRows) * cellSize) / 2.0f) +
-           cellSize * 0.5f;
-}
-
-glm::ivec2 clampBoardCell(const glm::ivec2& cell) {
-    return glm::ivec2(
-        std::clamp(cell.x, 0, kPreviewBoardCols - 1),
-        std::clamp(cell.y, 0, kPreviewBoardRows - 1));
-}
-
-glm::ivec2 previewWorldToBoardCell(const glm::vec3& pos, float cellSize) {
-    const int col = static_cast<int>(std::round((pos.x - previewBoardOriginX(cellSize)) / cellSize));
-    const int row = static_cast<int>(std::round((pos.z - previewBoardOriginZ(cellSize)) / cellSize));
-    return clampBoardCell(glm::ivec2(col, row));
-}
-
-glm::vec3 previewBoardCellToWorld(int col, int row, float y, float cellSize) {
-    const glm::ivec2 clamped = clampBoardCell(glm::ivec2(col, row));
-    return glm::vec3(
-        previewBoardOriginX(cellSize) + static_cast<float>(clamped.x) * cellSize,
-        y,
-        previewBoardOriginZ(cellSize) + static_cast<float>(clamped.y) * cellSize);
-}
-
-glm::ivec2 previewAdjacentCell(const glm::ivec2& origin, glm::ivec2 dir) {
-    if (dir == glm::ivec2(0)) dir = glm::ivec2(0, 1);
-    glm::ivec2 candidate = origin + dir;
-    if (candidate.x >= 0 && candidate.x < kPreviewBoardCols &&
-        candidate.y >= 0 && candidate.y < kPreviewBoardRows) {
-        return candidate;
-    }
-
-    candidate = origin - dir;
-    if (candidate.x >= 0 && candidate.x < kPreviewBoardCols &&
-        candidate.y >= 0 && candidate.y < kPreviewBoardRows) {
-        return candidate;
-    }
-
-    static constexpr glm::ivec2 kFallbackDirs[] = {
-        {0, 1}, {1, 0}, {0, -1}, {-1, 0}
-    };
-    for (const glm::ivec2 fallback : kFallbackDirs) {
-        candidate = origin + fallback;
-        if (candidate.x >= 0 && candidate.x < kPreviewBoardCols &&
-            candidate.y >= 0 && candidate.y < kPreviewBoardRows) {
-            return candidate;
-        }
-    }
-
-    return origin;
-}
-
-struct PreviewPokemonVisual;
-glm::vec3 makeProjectedAlignedPreviewPos(const PreviewPokemonVisual& visual,
-                                         glm::vec3 worldPos,
-                                         float boardSurfaceY = 0.006f);
-
-struct PreviewPokemonVisual {
-    std::string speciesName;
-    std::shared_ptr<Model> model;
-    std::string loadError;
-    std::string modelPath;
-    float finalScale = 1.0f;
-    float animTimeSec = 0.0f;
-    int idleAnimIndex = -1;
-    int previewAnimIndex = -1;
-    float previewAnimTimeSec = 0.0f;
-    float previewAnimPlaybackSpeed = 1.0f;
-    bool previewAnimLoop = false;
-    bool previewAnimFinished = false;
-    bool attemptedLoad = false;
-    bool valid = false;
-    PokemonInstance runtimeLikeUnit;
-    PokemonStats stats{};
-    std::vector<std::uint8_t> directDrawSkipSubmeshMask;
-    bool directDrawSkipSubmeshMaskReady = false;
-
-    void ensureLoaded(PokemonConfigLoader& pokemonConfig) {
-        if (attemptedLoad) return;
-        attemptedLoad = true;
-
-        const PokemonStats* speciesStats = pokemonConfig.getStats(speciesName);
-        if (!speciesStats) {
-            loadError = "No Pokemon config entry for '" + speciesName + "'";
-            return;
-        }
-        this->stats = *speciesStats;
-
-        modelPath = engine::paths::asset(std::string("models/") + speciesStats->model);
-
-        try {
-            model = std::make_shared<Model>(modelPath);
-        } catch (const std::exception& ex) {
-            loadError = ex.what();
-            model.reset();
-            return;
-        }
-
-        runtimeLikeUnit = PokemonInstance{};
-        runtimeLikeUnit.name = speciesName;
-        runtimeLikeUnit.id = PokemonInstance::getNextUnitID();
-        runtimeLikeUnit.model = model;
-        runtimeLikeUnit.backendModelPath = modelPath;
-        runtimeLikeUnit.animIndexCacheSourceModelPath = modelPath;
-        runtimeLikeUnit.backendAnimDurationsSourceModelPath = modelPath;
-        runtimeLikeUnit.modelScaleCorrection =
-            resolvePreviewModelScaleCorrection(model, speciesStats->modelScaleMode, speciesStats->modelScaleAxis);
-        runtimeLikeUnit.speciesScale = std::max(0.05f, speciesStats->visualScale);
-        runtimeLikeUnit.movementSpeed = std::max(0.01f, speciesStats->movementSpeed);
-        runtimeLikeUnit.visualScale = 1.0f;
-        runtimeLikeUnit.captureScale = 1.0f;
-        AnimSet::applyAnimSetOverrides(runtimeLikeUnit, modelPath, nullptr);
-
-        idleAnimIndex = runtimeLikeUnit.animIdleIndex;
-        if (idleAnimIndex < 0 && model->getAnimationCount() > 0) {
-            idleAnimIndex = 0;
-        }
-        finalScale = std::max(0.05f, computeModelWorldScaleForMoveImpact(runtimeLikeUnit));
-        valid = true;
-    }
-
-    int resolveClipAnimIndex(const std::string& clipName) const {
-        if (!model || clipName.empty()) return -1;
-        return AnimSet::resolveAnimIndex(model.get(), clipName);
-    }
-
-    float animationDurationSec(int animIndex) const {
-        if (!model || animIndex < 0) return 0.0f;
-        return model->getAnimationDurationSec(animIndex);
-    }
-
-    float animationFps() const {
-        return (runtimeLikeUnit.animFps > 0.0f) ? runtimeLikeUnit.animFps : 24.0f;
-    }
-
-    bool previewAnimationActive() const {
-        return previewAnimIndex >= 0;
-    }
-
-    int currentAnimIndex() const {
-        return previewAnimIndex >= 0 ? previewAnimIndex : idleAnimIndex;
-    }
-
-    float currentAnimTimeSec() const {
-        return previewAnimIndex >= 0 ? previewAnimTimeSec : animTimeSec;
-    }
-
-    std::string currentAnimName() const {
-        if (!model) return {};
-        return model->getAnimationName(currentAnimIndex());
-    }
-
-    void setPreviewAnimation(int animIndex,
-                             bool loop,
-                             bool restart,
-                             float startTimeSec = 0.0f,
-                             float playbackSpeed = 1.0f) {
-        if (animIndex < 0) {
-            clearPreviewAnimation();
-            return;
-        }
-        if (restart || previewAnimIndex != animIndex || previewAnimLoop != loop) {
-            previewAnimTimeSec = std::max(0.0f, startTimeSec);
-        }
-        previewAnimIndex = animIndex;
-        previewAnimPlaybackSpeed = std::max(0.0f, playbackSpeed);
-        previewAnimLoop = loop;
-        previewAnimFinished = false;
-    }
-
-    void clearPreviewAnimation() {
-        previewAnimIndex = -1;
-        previewAnimTimeSec = 0.0f;
-        previewAnimPlaybackSpeed = 1.0f;
-        previewAnimLoop = false;
-        previewAnimFinished = false;
-    }
-
-    void update(float dt) {
-        if (!valid || !model) return;
-
-        const int animIndex = previewAnimIndex >= 0 ? previewAnimIndex : idleAnimIndex;
-        if (animIndex < 0) return;
-        const float dur = model->getAnimationDurationSec(animIndex);
-        if (dur <= 0.0001f) return;
-
-        if (previewAnimIndex >= 0) {
-            previewAnimTimeSec = std::max(
-                0.0f,
-                previewAnimTimeSec + std::max(0.0f, dt) * std::max(0.0f, previewAnimPlaybackSpeed));
-            if (previewAnimLoop) {
-                previewAnimTimeSec = std::fmod(previewAnimTimeSec, dur);
-                if (previewAnimTimeSec < 0.0f) previewAnimTimeSec += dur;
-            } else {
-                const float endTime = std::max(0.0f, dur - 0.0001f);
-                previewAnimTimeSec = std::min(previewAnimTimeSec, endTime);
-                previewAnimFinished = previewAnimTimeSec >= endTime;
-            }
-            return;
-        }
-
-        animTimeSec = std::fmod(animTimeSec + std::max(0.0f, dt), dur);
-        if (animTimeSec < 0.0f) animTimeSec += dur;
-    }
-
-    void draw(const Camera3D& camera, const glm::vec3& worldPos, float yawDeg) const {
-        if (!valid || !model) return;
-        const int animIndex = currentAnimIndex();
-        const float sampleTime = currentAnimTimeSec();
-        if (animIndex < 0) return;
-        const glm::vec3 renderPos = makeProjectedAlignedPreviewPos(*this, worldPos);
-        model->drawAnimated(
-            camera,
-            makePreviewInstanceTransform(renderPos, yawDeg, finalScale),
-            sampleTime,
-            animIndex,
-            glm::vec3(1.0f),
-            0.0f,
-            directDrawSkipSubmeshMask.empty() ? nullptr : &directDrawSkipSubmeshMask);
-    }
-};
-
-glm::vec3 makeProjectedAlignedPreviewPos(const PreviewPokemonVisual& visual,
-                                         glm::vec3 worldPos,
-                                         float boardSurfaceY) {
-    if (!visual.valid || !visual.model || !visual.model->hasBounds()) {
-        return worldPos;
-    }
-
-    const float minAllowedModelY = boardSurfaceY + 0.0025f;
-    const float approxModelMinY =
-        worldPos.y + visual.model->getBoundsMin().y * visual.finalScale;
-    if (std::isfinite(approxModelMinY) && approxModelMinY < minAllowedModelY) {
-        worldPos.y += (minAllowedModelY - approxModelMinY);
-    }
-    return worldPos;
-}
-
-PokemonInstance makePreviewRuntimeUnit(const PreviewPokemonVisual& visual,
-                                       const glm::vec3& worldPos,
-                                       float yawDeg,
-                                       PokemonSide side) {
-    PokemonInstance unit = visual.runtimeLikeUnit;
-    unit.side = side;
-    unit.alive = true;
-    unit.fainting = false;
-    unit.captureInProgress = false;
-    unit.position = worldPos;
-    unit.rotation = glm::vec3(0.0f, yawDeg, 0.0f);
-    unit.visualYOffset = 0.0f;
-    int backendAnimIndex = visual.currentAnimIndex();
-    const std::string currentAnimName = visual.currentAnimName();
-    if (!currentAnimName.empty()) {
-        const int resolvedBackendAnimIndex =
-            game::runtime::session_backend_render_helpers::resolveBackendAnimIndexByName(
-                mesh->animations,
-                currentAnimName);
-        if (resolvedBackendAnimIndex >= 0) {
-            backendAnimIndex = resolvedBackendAnimIndex;
-        }
-    }
-    unit.activeAnimIndex = backendAnimIndex;
-    unit.currentAttackAnimIndex =
-        visual.previewAnimationActive() ? backendAnimIndex : -1;
-    unit.animTimeSec = visual.currentAnimTimeSec();
-    unit.visualScale = 1.0f;
-    unit.captureScale = 1.0f;
-    return unit;
 }
 
 } // namespace
@@ -553,88 +143,61 @@ struct PokemonAutochessVfxPreviewProject::Impl {
                                   float yawDeg,
                                   PokemonSide side) {
         if (!backendRenderer || !visual.valid) return;
-        // Populate the exact projected-model state the runtime uses, but do not
-        // submit the generated body geometry. For Charmander, the real game path
-        // carries tail fire on authored backend mesh submeshes instead of the
-        // synthetic fallback particle emitter.
-        (void)appendModelBatches(camera, surfaceWidth, surfaceHeight, visual, worldPos, yawDeg, side);
-
-        const auto isAuthoredTailFireBatch =
-            [](const game::runtime::shared_world_batches::WorldIndexedBatch& batch) {
-                const auto& resolved =
-                    game::runtime::shared_world_batches::resolvedMaterialBatch(batch);
-                const int fireFlags =
-                    static_cast<int>(std::lround(resolved.materialFlags));
-                return (fireFlags & 8) != 0;
-            };
-
-        if (std::any_of(modelScratch.worldIndexedBatches.begin(),
-                        modelScratch.worldIndexedBatches.end(),
-                        isAuthoredTailFireBatch)) {
-            auto& scratch = tailFireScratch;
-            game::runtime::session_render_scratch::ensureCapacity(scratch);
-            game::runtime::session_render_scratch::beginFrame(
-                scratch,
-                true,
-                backendRenderer.get());
-            scratch.worldIndexedBatches.reserve(modelScratch.worldIndexedBatches.size());
-            for (const auto& batch : modelScratch.worldIndexedBatches) {
-                if (!isAuthoredTailFireBatch(batch)) continue;
-                scratch.worldIndexedBatches.push_back(batch);
-            }
-            submitScratch(camera, surfaceWidth, surfaceHeight, scratch, false);
-            return;
-        }
-
-        if (game::runtime::shared_tail_fire_mesh_playback::isTailFireMeshPlaybackSpecies(
-                visual.speciesName)) {
-            return;
-        }
-
         ensureTailFireConfigLoaded();
-        if (!tailFireConfigLoaded) return;
-
-        auto& scratch = tailFireScratch;
-        game::runtime::session_render_scratch::ensureCapacity(scratch);
-        game::runtime::session_render_scratch::beginFrame(scratch, true, backendRenderer.get());
-
-        std::vector<PokemonInstance> boardUnits;
-        boardUnits.reserve(1u);
-        boardUnits.push_back(makePreviewRuntimeUnit(visual, worldPos, yawDeg, side));
-        static const std::vector<PokemonInstance> kNoBenchUnits;
-
-        const glm::mat4 viewProj = camera.getProjectionMatrix() * camera.getViewMatrix();
-        const glm::mat4 invViewProj = glm::inverse(viewProj);
-        (void)game::runtime::shared_tail_fire_fallback::appendSyntheticTailFire(
+        renderPreviewTailFire(
             {
+                .camera = &camera,
+                .renderer = backendRenderer.get(),
+                .surfaceWidth = surfaceWidth,
+                .surfaceHeight = surfaceHeight,
                 .worldCellSize = boardCellSize(),
                 .simNowSec = tailFireSimNowSec,
-                .cfg = &tailFireConfig,
-                .anchors = &modelScratch.sharedTailFireAnchors,
-                .pokemons = &boardUnits,
-                .benchPokemons = &kNoBenchUnits,
-                .appendSnapshot =
-                    [&](const char* label, const ParticleSystem::RenderSnapshot& snapshot) -> bool {
-                        return game::runtime::shared_particle_snapshot_billboards::appendSnapshotAsBillboards(
-                            label,
-                            snapshot,
-                            viewProj,
-                            invViewProj,
-                            camera.getPosition(),
-                            surfaceWidth,
-                            surfaceHeight,
-                            backendTextureByPath,
-                            [&](const std::string& texturePath, bool flipVertical)
-                                -> game::runtime::SharedBackendTextureCacheEntry* {
-                                return ensureBackendTextureLoaded(texturePath, flipVertical);
-                            },
-                            &modelScratch.sharedTailFireAnchors,
-                            false,
-                            scratch.worldIndexedBatches);
+                .fallbackConfig = tailFireConfigLoaded ? &tailFireConfig : nullptr,
+                .visual = &visual,
+                .worldPos = worldPos,
+                .yawDeg = yawDeg,
+                .side = side,
+                .backendTextureByPath = &backendTextureByPath,
+                .modelScratch = &modelScratch,
+                .tailFireScratch = &tailFireScratch,
+                .appendModelBatches =
+                    [&](const Camera3D& bridgeCamera,
+                        int bridgeSurfaceWidth,
+                        int bridgeSurfaceHeight,
+                        const PreviewPokemonVisual& bridgeVisual,
+                        const glm::vec3& bridgeWorldPos,
+                        float bridgeYawDeg,
+                        PokemonSide bridgeSide) {
+                        return appendModelBatches(
+                            bridgeCamera,
+                            bridgeSurfaceWidth,
+                            bridgeSurfaceHeight,
+                            bridgeVisual,
+                            bridgeWorldPos,
+                            bridgeYawDeg,
+                            bridgeSide);
+                    },
+                .ensureBackendTextureLoaded =
+                    [&](const std::string& texturePath, bool flipVertical)
+                        -> game::runtime::SharedBackendTextureCacheEntry* {
+                        return ensureBackendTextureLoaded(texturePath, flipVertical);
+                    },
+                .submitScratch =
+                    [&](const Camera3D& bridgeCamera,
+                        int bridgeSurfaceWidth,
+                        int bridgeSurfaceHeight,
+                        game::runtime::session_render_scratch::RenderScratch& scratch,
+                        bool renderProjectedLines,
+                        bool indexedOnlyWhenAvailable) {
+                        submitScratch(
+                            bridgeCamera,
+                            bridgeSurfaceWidth,
+                            bridgeSurfaceHeight,
+                            scratch,
+                            renderProjectedLines,
+                            indexedOnlyWhenAvailable);
                     },
             });
-
-        submitScratch(camera, surfaceWidth, surfaceHeight, scratch, false);
     }
 
     float computeAttackSpeedFactor(const PreviewPokemonVisual& visual) {
@@ -973,18 +536,7 @@ bool PokemonAutochessVfxPreviewProject::Impl::appendModelBatches(
         scratch.lines);
 
     PokemonInstance unit = visual.runtimeLikeUnit;
-    unit.side = side;
-    unit.alive = true;
-    unit.fainting = false;
-    unit.captureInProgress = false;
-    unit.position = worldPos;
-    unit.rotation = glm::vec3(0.0f, yawDeg, 0.0f);
-    unit.visualYOffset = 0.0f;
-    unit.activeAnimIndex = visual.currentAnimIndex();
-    unit.currentAttackAnimIndex = visual.previewAnimationActive() ? visual.currentAnimIndex() : -1;
-    unit.animTimeSec = visual.currentAnimTimeSec();
-    unit.visualScale = 1.0f;
-    unit.captureScale = 1.0f;
+    unit = makePreviewRuntimeUnit(visual, worldPos, yawDeg, side);
 
     game::runtime::shared_backend_pose::PoseEval scenePose =
         game::runtime::shared_backend_pose::evaluateScenePose(*mesh, unit);

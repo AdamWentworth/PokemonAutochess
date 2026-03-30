@@ -15,11 +15,26 @@ if (-not $toolchain -or -not (Test-Path $toolchain)) {
     exit 1
 }
 
+function Assert-LastExitCode {
+    param(
+        [string]$Step
+    )
+
+    if ($LASTEXITCODE -ne 0) {
+        throw "$Step failed with exit code $LASTEXITCODE."
+    }
+}
+
 $cache = Join-Path $BuildDir "CMakeCache.txt"
 if (-not (Test-Path $cache)) {
     cmake -S . -B $BuildDir -DCMAKE_TOOLCHAIN_FILE="$toolchain" -DPAC_BUILD_TOOLS=ON -DBUILD_TESTING=ON
+    Assert-LastExitCode "Configure"
 }
 
+& (Join-Path $PSScriptRoot "check_docs_hygiene.ps1")
 cmake --build $BuildDir --config $Config
+Assert-LastExitCode "Build"
 ctest --test-dir $BuildDir -C $Config --output-on-failure
+Assert-LastExitCode "CTest"
 cmake --build $BuildDir --config $Config --target PAC_ValidateData
+Assert-LastExitCode "PAC_ValidateData"

@@ -422,6 +422,7 @@ add_library(PAC_GameObjects STATIC
     src/game/runtime/shared/vfx/tail_fire/SharedTailFireFallbackEmitter.cpp
     src/game/runtime/shared/vfx/tail_fire/SharedTailFireAtlasHelpers.cpp
     src/game/runtime/shared/vfx/tail_fire/SharedTailFireMeshPlayback.cpp
+    src/game/runtime/shared/vfx/tail_fire/SharedTailFirePlaybackPolicy.cpp
     src/game/runtime/shared/vfx/tail_fire/SharedTailFireExactCpuSnapshotBatches.cpp
     src/game/runtime/shared/vfx/tail_fire/SharedTailFireExactCpuTileBake.cpp
     src/game/runtime/shared/vfx/tail_fire/SharedTailFireExactGpuBatches.cpp
@@ -523,14 +524,22 @@ pac_apply_common_target_settings(PAC_GameObjects)
 # ---------------- Preview adapters (game-specific preview bindings) ----------------
 add_library(PAC_VfxPreviewSupport STATIC
     src/game/preview/PokemonAutochessVfxPreviewProject.cpp
+    src/game/preview/PreviewPokemonVisual.cpp
+    src/game/preview/PreviewSceneUtils.cpp
+    src/game/preview/PreviewTailFireBridge.cpp
     src/game/preview/effects/GrowlPreviewEffect.cpp
     src/game/preview/effects/LeechSeedPreviewEffect.cpp
+    src/vfx/preview/growl/GrowlPreviewController.cpp
     src/vfx/preview/growl/GrowlSharedRenderer.cpp
 )
 target_sources(PAC_VfxPreviewSupport PRIVATE
     src/game/preview/PokemonAutochessVfxPreviewProject.h
+    src/game/preview/PreviewPokemonVisual.h
+    src/game/preview/PreviewSceneUtils.h
+    src/game/preview/PreviewTailFireBridge.h
     src/game/preview/effects/GrowlPreviewEffect.h
     src/game/preview/effects/LeechSeedPreviewEffect.h
+    src/vfx/preview/growl/GrowlPreviewController.h
     src/vfx/preview/growl/GrowlSharedRenderer.h
 )
 target_link_libraries(PAC_VfxPreviewSupport
@@ -544,11 +553,13 @@ pac_apply_common_target_settings(PAC_VfxPreviewSupport)
 add_library(PAC_VfxLabSupport STATIC
     src/vfx/preview/VfxLibraryPreviewProject.cpp
     src/vfx/preview/effects/GrowlLabPreviewEffect.cpp
+    src/vfx/preview/growl/GrowlPreviewController.cpp
     src/vfx/preview/growl/GrowlSharedRenderer.cpp
 )
 target_sources(PAC_VfxLabSupport PRIVATE
     src/vfx/preview/VfxLibraryPreviewProject.h
     src/vfx/preview/effects/GrowlLabPreviewEffect.h
+    src/vfx/preview/growl/GrowlPreviewController.h
     src/vfx/preview/growl/GrowlSharedRenderer.h
 )
 target_link_libraries(PAC_VfxLabSupport
@@ -748,6 +759,7 @@ if (BUILD_TESTING)
         tests/TestSharedTailFireAtlasHelpers.cpp
         tests/TestSharedTailFireExactGpuBatches.cpp
         tests/TestSharedTailFireMeshPlayback.cpp
+        tests/TestSharedTailFirePlaybackPolicy.cpp
         tests/TestSharedGrowlVfxHelpers.cpp
         tests/TestSharedGrowlWaveBridge.cpp
         tests/TestSharedGrowlWaveBatches.cpp

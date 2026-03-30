@@ -1,6 +1,7 @@
 #include "game/runtime/shared/projected/SharedProjectedUnitBackendMeshSupport.h"
 
 #include "game/runtime/shared/vfx/tail_fire/SharedTailFireMeshPlayback.h"
+#include "game/runtime/shared/vfx/tail_fire/SharedTailFirePlaybackPolicy.h"
 #include "game/runtime/video/VideoPreferences.h"
 
 #include "engine/core/Environment.h"
@@ -393,7 +394,8 @@ bool applyTailFireMeshFlipbookOverride(
         batch.materialMode = 1u;
         batch.characterInkingEnabled = 0u;
         batch.materialTimeSec = args.materialTimeSec;
-        batch.materialFlags = 8.0f; // authoredFireMesh
+        batch.materialFlags = static_cast<float>(
+            game::runtime::shared_tail_fire_playback_policy::kAuthoredFireMeshFlagBit);
         batch.materialAtlasWidth = profile.spec.atlasWidth;
         batch.materialAtlasHeight = profile.spec.atlasHeight;
         batch.materialRect0U = 0.0f;

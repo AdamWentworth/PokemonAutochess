@@ -6,22 +6,13 @@
 
 #include "engine/render/Camera3D.h"
 #include "game/PokemonInstance.h"
+#include "game/preview/PreviewSceneUtils.h"
 
 namespace game::preview {
 
 namespace {
 
 constexpr float kFixedDt = 1.0f / 60.0f;
-float computeYawDegreesFromForward(const glm::vec3& forward) {
-    glm::vec3 safe(forward.x, 0.0f, forward.z);
-    const float lenSq = glm::dot(safe, safe);
-    if (lenSq <= 0.000001f) {
-        safe = glm::vec3(0.0f, 0.0f, 1.0f);
-    } else {
-        safe /= std::sqrt(lenSq);
-    }
-    return glm::degrees(std::atan2(safe.x, safe.z));
-}
 
 } // namespace
 
