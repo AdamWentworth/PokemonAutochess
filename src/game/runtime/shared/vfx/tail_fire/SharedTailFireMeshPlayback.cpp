@@ -46,7 +46,7 @@ bool containsInsensitive(std::string_view haystack, std::string_view needle) {
 }
 
 bool nodeNameLooksLikeFireMesh(std::string_view nodeName) {
-    return containsInsensitive(nodeName, "fire_mesh");
+    return containsInsensitive(nodeName, authoredFireMeshNodeToken());
 }
 
 const std::array<FlipbookSpec, 3> kFlipbookSpecs{{
@@ -164,6 +164,10 @@ thread_local std::unordered_map<const render_model::MeshData*, CachedProfile> g_
 
 bool isTailFireMeshPlaybackSpecies(std::string_view species) {
     return equalsInsensitiveAscii(species, "charmander");
+}
+
+std::string_view authoredFireMeshNodeToken() {
+    return "fire_mesh";
 }
 
 const std::array<FlipbookSpec, 3>& authoredFlipbookSpecs() {

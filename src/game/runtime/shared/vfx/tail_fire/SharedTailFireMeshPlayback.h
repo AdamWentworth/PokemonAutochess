@@ -31,6 +31,7 @@ struct Profile {
 };
 
 bool isTailFireMeshPlaybackSpecies(std::string_view species);
+std::string_view authoredFireMeshNodeToken();
 const std::array<FlipbookSpec, 3>& authoredFlipbookSpecs();
 const Profile& resolveProfile(const render_model::MeshData& mesh);
 

@@ -94,7 +94,7 @@ struct PokemonAutochessVfxPreviewProject::Impl {
     bool previewDataDbReady = false;
     PreviewPokemonVisual attackerVisual{"charmander"};
     PreviewPokemonVisual targetVisual{"bulbasaur"};
-    TailFireVFX::Config tailFireConfig{};
+    TailFireVFXConfig tailFireConfig{};
     bool tailFireConfigLoaded = false;
     double tailFireSimNowSec = 0.0;
     std::size_t activeEffectIndex = 0u;
@@ -236,7 +236,7 @@ struct PokemonAutochessVfxPreviewProject::Impl {
 
     void ensureTailFireConfigLoaded() {
         if (!tailFireConfigLoaded) {
-            TailFireVFX::Config configData;
+            TailFireVFXConfig configData;
             TailFireVFXConfigDB::get().ensureLoaded();
             TailFireVFXConfigDB::get().applyIfAny("charmander", configData);
             configData.useUnitScaleChain = true;
@@ -326,7 +326,8 @@ struct PokemonAutochessVfxPreviewProject::Impl {
         }
 
         visual.directDrawSkipSubmeshMask =
-            visual.model->buildSubmeshMaskForNodeNameContainsInsensitive("fire_mesh");
+            visual.model->buildSubmeshMaskForNodeNameContainsInsensitive(
+                std::string(game::runtime::shared_tail_fire_mesh_playback::authoredFireMeshNodeToken()));
     }
 
     game::runtime::render_model::MeshData* ensureBackendMeshLoaded(const std::string& modelPath) {

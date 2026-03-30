@@ -4,6 +4,7 @@
 #include "game/runtime/shared/projected/SharedProjectedUnitBackendMeshSupport.h"
 #include "game/runtime/shared/projected/SharedProjectedUnitBackendMeshTriangleSubmit.h"
 #include "game/runtime/shared/projected/SharedProjectedUnitBackendMeshTransforms.h"
+#include "game/runtime/shared/vfx/tail_fire/SharedTailFireAnchorMath.h"
 #include "game/runtime/shared/vfx/tail_fire/SharedTailFireMeshPlayback.h"
 
 #include "engine/render/Model.h"
@@ -25,6 +26,7 @@
 
 namespace support = game::runtime::shared_projected_unit_backend_mesh_support;
 namespace persistent = game::runtime::shared_projected_render_items;
+namespace anchor_math = game::runtime::shared_tail_fire_anchor_math;
 
 namespace game::runtime::shared_projected_unit_backend_mesh {
 
@@ -775,7 +777,7 @@ Result renderProjectedUnitBackendMesh(const Args& args) {
             !unit.fainting &&
             game::runtime::shared_tail_fire_mesh_playback::isTailFireMeshPlaybackSpecies(
                 unit.name)) {
-            const TailFireVFX::Config& tailCfg =
+            const TailFireVFXConfig& tailCfg =
                 game::runtime::shared_projected_scene::getTailFireFallbackCfg();
             auto resolveNodeIndex = [&](const std::string& nodeName, int fallbackIndex) {
                 int idx = fallbackIndex;
@@ -803,36 +805,6 @@ Result renderProjectedUnitBackendMesh(const Args& args) {
                 }
                 return idx;
             };
-            auto safeNorm = [](glm::vec3 v, const glm::vec3& fallback) {
-                const float len2 = glm::dot(v, v);
-                if (len2 <= 1e-10f) return fallback;
-                return v * (1.0f / std::sqrt(len2));
-            };
-            auto buildFireAnchorBasis = [&](const glm::mat4& baseWorldM,
-                                            const glm::vec3& basePosWorld,
-                                            const glm::vec3& tipPosWorld) {
-                const glm::vec3 upAxis =
-                    safeNorm(tipPosWorld - basePosWorld,
-                             safeNorm(glm::vec3(baseWorldM[1]), glm::vec3(0.0f, 1.0f, 0.0f)));
-
-                glm::vec3 xHint = glm::vec3(baseWorldM[0]);
-                xHint -= upAxis * glm::dot(xHint, upAxis);
-                if (glm::dot(xHint, xHint) <= 1e-10f) {
-                    xHint = glm::vec3(baseWorldM[2]);
-                    xHint -= upAxis * glm::dot(xHint, upAxis);
-                }
-
-                glm::vec3 xFallback = (std::fabs(upAxis.y) < 0.95f)
-                    ? safeNorm(glm::cross(glm::vec3(0.0f, 1.0f, 0.0f), upAxis), glm::vec3(1.0f, 0.0f, 0.0f))
-                    : glm::vec3(1.0f, 0.0f, 0.0f);
-                glm::vec3 xAxis = safeNorm(xHint, xFallback);
-                glm::vec3 zAxis = safeNorm(glm::cross(xAxis, upAxis), glm::vec3(0.0f, 0.0f, 1.0f));
-                xAxis = safeNorm(glm::cross(upAxis, zAxis), xAxis);
-                if (glm::dot(glm::cross(xAxis, upAxis), zAxis) < 0.0f) {
-                    zAxis = -zAxis;
-                }
-                return glm::mat3(xAxis, upAxis, zAxis);
-            };
 
             const int tailNodeIndex = resolveNodeIndex(tailCfg.tailTipNodeName, tailCfg.tailTipNodeIndex);
             const int fireAnchorBaseNodeIndex = resolveNodeIndex(tailCfg.fireAnchorBaseNodeName, -1);
@@ -848,20 +820,17 @@ Result renderProjectedUnitBackendMesh(const Args& args) {
                 static_cast<std::size_t>(fireAnchorBaseNodeIndex) < nodeGlobals.size() &&
                 static_cast<std::size_t>(fireAnchorTipNodeIndex) < nodeGlobals.size();
             if (hasExactFireAnchorNodes) {
-                const glm::mat4& baseWorldM = transforms.worldMatrixForNode(fireAnchorBaseNodeIndex);
-                const glm::mat4& tipWorldM = transforms.worldMatrixForNode(fireAnchorTipNodeIndex);
-                const glm::vec3 basePosWorld = glm::vec3(baseWorldM[3]);
-                const glm::vec3 tipPosWorld = glm::vec3(tipWorldM[3]);
-                const glm::mat3 fireBasis = buildFireAnchorBasis(baseWorldM, basePosWorld, tipPosWorld);
-                glm::vec3 backDirWorld = fireBasis * tailCfg.backDir;
-                backDirWorld = safeNorm(backDirWorld, glm::vec3(0.0f, 1.0f, 0.0f));
+                const auto frame = anchor_math::buildExactFireAnchorFrame(
+                    transforms.worldMatrixForNode(fireAnchorBaseNodeIndex),
+                    transforms.worldMatrixForNode(fireAnchorTipNodeIndex),
+                    tailCfg.backDir);
 
                 anchor.valid = true;
                 anchor.exactFireAnchor = true;
-                anchor.pos = basePosWorld;
-                anchor.tipPos = tipPosWorld;
-                anchor.basis = fireBasis;
-                anchor.backDir = backDirWorld;
+                anchor.pos = frame.posWorld;
+                anchor.tipPos = frame.tipPosWorld;
+                anchor.basis = frame.basis;
+                anchor.backDir = frame.backDirWorld;
                 anchor.particleSizeScale =
                     std::max(0.01f, std::max(0.01f, mesh->modelScaleFactor) * resolvedScaleCorrection);
                 if (support::tailFireDebugShouldLogAnchor(unit.id)) {
@@ -871,34 +840,25 @@ Result renderProjectedUnitBackendMesh(const Args& args) {
                         << " tailNode=" << tailNodeIndex
                         << " baseNode=" << fireAnchorBaseNodeIndex
                         << " tipNode=" << fireAnchorTipNodeIndex
-                        << " basePos=(" << basePosWorld.x << "," << basePosWorld.y << "," << basePosWorld.z << ")"
-                        << " tipPos=(" << tipPosWorld.x << "," << tipPosWorld.y << "," << tipPosWorld.z << ")"
-                        << " up=(" << fireBasis[1].x << "," << fireBasis[1].y << "," << fireBasis[1].z << ")"
-                        << " back=(" << backDirWorld.x << "," << backDirWorld.y << "," << backDirWorld.z << ")"
+                        << " basePos=(" << frame.posWorld.x << "," << frame.posWorld.y << "," << frame.posWorld.z << ")"
+                        << " tipPos=(" << frame.tipPosWorld.x << "," << frame.tipPosWorld.y << "," << frame.tipPosWorld.z << ")"
+                        << " up=(" << frame.basis[1].x << "," << frame.basis[1].y << "," << frame.basis[1].z << ")"
+                        << " back=(" << frame.backDirWorld.x << "," << frame.backDirWorld.y << "," << frame.backDirWorld.z << ")"
                         << " scale=" << anchor.particleSizeScale
                         << "\n";
                 }
             } else if (tailNodeIndex >= 0 &&
                        static_cast<std::size_t>(tailNodeIndex) < nodeGlobals.size()) {
-                const glm::mat4& tailWorldM = transforms.worldMatrixForNode(tailNodeIndex);
-                glm::vec3 bx = safeNorm(glm::vec3(tailWorldM[0]), glm::vec3(1.0f, 0.0f, 0.0f));
-                glm::vec3 by = glm::vec3(tailWorldM[1]);
-                by = by - bx * glm::dot(by, bx);
-                by = safeNorm(by, glm::vec3(0.0f, 1.0f, 0.0f));
-                glm::vec3 bz = safeNorm(glm::cross(bx, by), glm::vec3(0.0f, 0.0f, 1.0f));
-                if (glm::dot(glm::cross(bx, by), bz) < 0.0f) {
-                    bz = -bz;
-                }
-                const glm::mat3 tailBasis(bx, by, bz);
-                glm::vec3 backDirWorld = tailBasis * tailCfg.backDir;
-                backDirWorld = safeNorm(backDirWorld, glm::vec3(0.0f, 1.0f, 0.0f));
+                const auto frame = anchor_math::buildTailTipAnchorFrame(
+                    transforms.worldMatrixForNode(tailNodeIndex),
+                    tailCfg.backDir);
 
                 anchor.valid = true;
                 anchor.exactFireAnchor = false;
-                anchor.pos = glm::vec3(tailWorldM[3]);
-                anchor.tipPos = anchor.pos;
-                anchor.basis = tailBasis;
-                anchor.backDir = backDirWorld;
+                anchor.pos = frame.posWorld;
+                anchor.tipPos = frame.tipPosWorld;
+                anchor.basis = frame.basis;
+                anchor.backDir = frame.backDirWorld;
                 anchor.particleSizeScale =
                     std::max(0.01f, std::max(0.01f, mesh->modelScaleFactor) * resolvedScaleCorrection);
                 if (support::tailFireDebugShouldLogAnchor(unit.id)) {
@@ -909,8 +869,8 @@ Result renderProjectedUnitBackendMesh(const Args& args) {
                         << " baseNode=" << fireAnchorBaseNodeIndex
                         << " tipNode=" << fireAnchorTipNodeIndex
                         << " tailPos=(" << anchor.pos.x << "," << anchor.pos.y << "," << anchor.pos.z << ")"
-                        << " up=(" << tailBasis[1].x << "," << tailBasis[1].y << "," << tailBasis[1].z << ")"
-                        << " back=(" << backDirWorld.x << "," << backDirWorld.y << "," << backDirWorld.z << ")"
+                        << " up=(" << frame.basis[1].x << "," << frame.basis[1].y << "," << frame.basis[1].z << ")"
+                        << " back=(" << frame.backDirWorld.x << "," << frame.backDirWorld.y << "," << frame.backDirWorld.z << ")"
                         << " scale=" << anchor.particleSizeScale
                         << "\n";
                 }

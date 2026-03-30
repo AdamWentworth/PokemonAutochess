@@ -10,7 +10,7 @@
 #include "game/runtime/shared/projected/SharedProjectedDebugVfx.h"
 #include "game/runtime/shared/vfx/tail_fire/SharedTailFireFallbackEmitter.h"
 #include "game/runtime/shared/world/SharedWorldIndexedBatches.h"
-#include "game/vfx/TailFireVFX.h"
+#include "game/vfx/TailFireVFXConfig.h"
 #include "game/world/GameWorld.h"
 
 #include <functional>
@@ -68,7 +68,7 @@ void appendBoardAndBench(const shared_board_grid::Config& cfg,
                          std::vector<IRenderBackend::DebugLine>& lines,
                          shared_projected_debug::ProjectedDebugVfxBuilder& projectedDebug);
 
-const TailFireVFX::Config& getTailFireFallbackCfg();
+const TailFireVFXConfig& getTailFireFallbackCfg();
 
 const runtime::render_model::MeshData* resolveModelMesh(
     const PokemonInstance& unit,

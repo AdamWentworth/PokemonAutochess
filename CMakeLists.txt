@@ -417,12 +417,14 @@ add_library(PAC_GameObjects STATIC
     src/game/runtime/shared/vfx/particles/SharedParticleSnapshotBillboards.cpp
     src/game/runtime/shared/vfx/particles/SharedParticleVfxBridgeDispatch.cpp
     src/game/runtime/shared/vfx/particles/SharedParticleVfxStyles.cpp
+    src/game/runtime/shared/vfx/tail_fire/SharedTailFireAnchorMath.cpp
     src/game/runtime/shared/vfx/tail_fire/SharedTailFireSnapshotBillboards.cpp
     src/game/runtime/shared/vfx/tail_fire/SharedTailFireSnapshotAtlasCache.cpp
     src/game/runtime/shared/vfx/tail_fire/SharedTailFireFallbackEmitter.cpp
     src/game/runtime/shared/vfx/tail_fire/SharedTailFireAtlasHelpers.cpp
     src/game/runtime/shared/vfx/tail_fire/SharedTailFireMeshPlayback.cpp
     src/game/runtime/shared/vfx/tail_fire/SharedTailFirePlaybackPolicy.cpp
+    src/game/runtime/shared/vfx/tail_fire/SharedTailFireSyntheticEmitter.cpp
     src/game/runtime/shared/vfx/tail_fire/SharedTailFireExactCpuSnapshotBatches.cpp
     src/game/runtime/shared/vfx/tail_fire/SharedTailFireExactCpuTileBake.cpp
     src/game/runtime/shared/vfx/tail_fire/SharedTailFireExactGpuBatches.cpp
@@ -541,6 +543,9 @@ target_sources(PAC_VfxPreviewSupport PRIVATE
     src/game/preview/effects/LeechSeedPreviewEffect.h
     src/vfx/preview/growl/GrowlPreviewController.h
     src/vfx/preview/growl/GrowlSharedRenderer.h
+    src/game/runtime/shared/vfx/tail_fire/SharedTailFireAnchorMath.h
+    src/game/runtime/shared/vfx/tail_fire/SharedTailFireSyntheticEmitter.h
+    src/game/vfx/TailFireVFXConfig.h
 )
 target_link_libraries(PAC_VfxPreviewSupport
     PUBLIC
@@ -756,6 +761,7 @@ if (BUILD_TESTING)
         tests/TestSharedProjectedUnitBackendMeshSupport.cpp
         tests/TestSharedProjectedUnitRenderer.cpp
         tests/TestSharedProjectedUnitWorldSceneRenderer.cpp
+        tests/TestSharedTailFireAnchorMath.cpp
         tests/TestSharedTailFireAtlasHelpers.cpp
         tests/TestSharedTailFireExactGpuBatches.cpp
         tests/TestSharedTailFireMeshPlayback.cpp

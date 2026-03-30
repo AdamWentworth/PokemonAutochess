@@ -13,7 +13,6 @@
 #include "game/runtime/shared/scene/SharedWorldScene.h"
 #include "game/runtime/shared/vfx/tail_fire/SharedTailFireFallbackEmitter.h"
 #include "game/runtime/shared/world/SharedWorldIndexedBatches.h"
-#include "game/vfx/TailFireVFX.h"
 
 #include <functional>
 #include <unordered_map>

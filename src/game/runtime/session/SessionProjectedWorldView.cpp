@@ -6,7 +6,7 @@
 #include "game/runtime/shared/projected/SharedProjectedDebugVfx.h"
 #include "game/runtime/shared/projected/SharedProjectedUnitRenderer.h"
 #include "game/runtime/shared/projected/SharedProjectedWorldSceneHelpers.h"
-#include "game/vfx/TailFireVFX.h"
+#include "game/vfx/TailFireVFXConfig.h"
 #include "game/world/GameWorld.h"
 
 #include <algorithm>
@@ -189,7 +189,7 @@ Result appendProjectedWorldView(const Args& args) {
     projectedUnitArgs.backendModelBackfaceCullingEnabled = []() {
         return session_render_config::backendModelBackfaceCullingEnabled();
     };
-    projectedUnitArgs.getTailFireFallbackCfg = []() -> const TailFireVFX::Config& {
+    projectedUnitArgs.getTailFireFallbackCfg = []() -> const TailFireVFXConfig& {
         return shared_projected_scene::getTailFireFallbackCfg();
     };
     projectedUnitArgs.perfStats = &projectedUnitPerf;

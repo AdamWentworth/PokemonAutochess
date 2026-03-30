@@ -2,12 +2,16 @@
 
 #include "engine/core/Environment.h"
 #include "game/runtime/render_prep/WorldProxyGeometry.h"
+#include "game/runtime/shared/vfx/tail_fire/SharedTailFireAnchorMath.h"
+#include "game/runtime/shared/vfx/tail_fire/SharedTailFireSyntheticEmitter.h"
 
 #include <algorithm>
 #include <cmath>
-#include <cstdint>
 #include <string>
 #include <unordered_map>
+
+namespace anchor_math = game::runtime::shared_tail_fire_anchor_math;
+namespace synth_emitter = game::runtime::shared_tail_fire_synth_emitter;
 
 namespace game::runtime::shared_tail_fire_fallback {
 namespace {
@@ -53,83 +57,16 @@ bool isCharmanderName(const std::string& s) {
 }
 
 struct EmitterState {
-    ParticleSystem particles;
+    synth_emitter::SyntheticEmitterState synth;
     ParticleSystem::RenderSnapshot snapshot;
-    bool configured = false;
     double lastSimTimeSec = -1.0;
-    std::unordered_map<int, float> emitAccumulator;
-    std::unordered_map<int, std::uint32_t> spawnSerial;
-    std::unordered_map<int, glm::vec3> prevTailWorld;
-    std::unordered_map<int, glm::vec3> smoothedTailWorld;
-    std::unordered_map<int, int> prevAnimIndex;
-    std::unordered_map<int, float> prevAnimTimeSec;
-    std::unordered_map<int, glm::vec3> filteredTailVel;
 };
 
 thread_local EmitterState gState;
 
 void resetState() {
-    gState.particles.shutdown();
-    gState.configured = false;
+    synth_emitter::resetState(gState.synth);
     gState.lastSimTimeSec = -1.0;
-    gState.emitAccumulator.clear();
-    gState.spawnSerial.clear();
-    gState.prevTailWorld.clear();
-    gState.smoothedTailWorld.clear();
-    gState.prevAnimIndex.clear();
-    gState.prevAnimTimeSec.clear();
-    gState.filteredTailVel.clear();
-}
-
-void ensureConfigured(const TailFireVFX::Config& cfg) {
-    if (gState.configured) return;
-    gState.particles.setShaderPaths(cfg.vertShaderPath, cfg.fragShaderPath);
-    gState.particles.setUseFlipbook(cfg.useFlipbook);
-    if (cfg.useFlipbook) {
-        gState.particles.setFlipbook(
-            cfg.flipbookPath, cfg.flipbookCols, cfg.flipbookRows, cfg.flipbookFrames, cfg.flipbookFps);
-        if (cfg.useFlipbook2) {
-            gState.particles.setSecondaryFlipbook(
-                cfg.flipbook2Path,
-                cfg.flipbook2Cols,
-                cfg.flipbook2Rows,
-                cfg.flipbook2Frames,
-                cfg.flipbook2Fps);
-        } else {
-            gState.particles.setSecondaryFlipbook("", 1, 1, 1, 0.0f);
-        }
-    } else {
-        gState.particles.setSecondaryFlipbook("", 1, 1, 1, 0.0f);
-    }
-
-    ParticleSystem::RenderSettings rs;
-    rs.blend = cfg.blend;
-    rs.depthTest = cfg.depthTest;
-    rs.depthWrite = cfg.depthWrite;
-    rs.programPointSize = true;
-    gState.particles.setRenderSettings(rs);
-
-    ParticleSystem::UpdateSettings us;
-    us.acceleration = cfg.acceleration;
-    us.dampingBase = cfg.dampingBase;
-    gState.particles.setUpdateSettings(us);
-    gState.particles.setPointScale(cfg.pointScale);
-    gState.configured = true;
-}
-
-float hash01(float x) {
-    const float s = std::sin(x * 12.9898f) * 43758.5453f;
-    return s - std::floor(s);
-}
-
-float hashSigned(float x) {
-    return hash01(x) * 2.0f - 1.0f;
-}
-
-glm::vec3 safeNormOr(glm::vec3 v, const glm::vec3& fallback) {
-    const float len2 = glm::dot(v, v);
-    if (len2 <= 1e-10f) return fallback;
-    return v * (1.0f / std::sqrt(len2));
 }
 
 bool hasLiveCharmander(const std::vector<PokemonInstance>& list) {
@@ -140,181 +77,100 @@ bool hasLiveCharmander(const std::vector<PokemonInstance>& list) {
     return false;
 }
 
-void emitForList(
-    float dt,
-    const std::vector<PokemonInstance>& list,
-    const TailFireVFX::Config& cfg,
-    float worldCellSize,
-    const std::unordered_map<int, Anchor>* anchors) {
-    dt = std::clamp(dt, 0.0f, 0.05f);
+void emitForList(float dt,
+                 const std::vector<PokemonInstance>& list,
+                 const TailFireVFXConfig& cfg,
+                 float worldCellSize,
+                 const std::unordered_map<int, Anchor>* anchors) {
+    dt = synth_emitter::clampStepDt(dt);
     if (dt <= 0.0f) return;
+
     const float emitScale = tailFireFallbackEmitScale();
     const float fallbackSizeScale = tailFireFallbackSizeScale();
-    const bool calmerSingleFlipbook = !cfg.useFlipbook2;
-    const float singleFlipbookEmitScale = calmerSingleFlipbook ? 0.45f : 1.0f;
-    const float emitRatePerSec =
-        std::max(0.0f, cfg.emitRatePerSec * emitScale * singleFlipbookEmitScale);
-    if (emitRatePerSec <= 0.0f) return;
+    const bool hasExactFireAnchorNodes =
+        !cfg.fireAnchorBaseNodeName.empty() &&
+        !cfg.fireAnchorTipNodeName.empty();
 
     for (const auto& unit : list) {
         if (!unit.alive) continue;
         if (!isCharmanderName(unit.name)) continue;
 
-        float& acc = gState.emitAccumulator[unit.id];
-        acc += dt * emitRatePerSec;
-        int emitCount = static_cast<int>(std::floor(acc));
-        if (emitCount <= 0) continue;
-        acc -= static_cast<float>(emitCount);
-
         int animIdx = unit.activeAnimIndex;
         if (animIdx < 0) animIdx = unit.animIdleIndex;
 
-        int& prevIdx = gState.prevAnimIndex[unit.id];
-        if (prevIdx != animIdx) {
-            prevIdx = animIdx;
-            gState.prevTailWorld.erase(unit.id);
-            gState.smoothedTailWorld.erase(unit.id);
-            gState.prevAnimTimeSec.erase(unit.id);
-            gState.filteredTailVel.erase(unit.id);
+        const int emitCount = synth_emitter::beginUnitEmission(
+            gState.synth,
+            cfg,
+            unit.id,
+            dt,
+            animIdx,
+            unit.animTimeSec,
+            emitScale);
+        if (emitCount <= 0) {
+            continue;
         }
 
-        bool timeWrapped = false;
-        auto itT = gState.prevAnimTimeSec.find(unit.id);
-        if (itT == gState.prevAnimTimeSec.end()) {
-            gState.prevAnimTimeSec[unit.id] = unit.animTimeSec;
-        } else {
-            const float prevT = itT->second;
-            if (unit.animTimeSec + 1e-4f < prevT) timeWrapped = true;
-            itT->second = unit.animTimeSec;
-        }
-        if (timeWrapped) {
-            gState.prevTailWorld.erase(unit.id);
-            gState.smoothedTailWorld.erase(unit.id);
-            gState.filteredTailVel.erase(unit.id);
-        }
-
-        const auto extents = game::runtime::render_prep_proxy::computeUnitProxyExtents(unit, worldCellSize);
+        const auto extents =
+            game::runtime::render_prep_proxy::computeUnitProxyExtents(unit, worldCellSize);
         if (extents.height <= 0.0001f) continue;
 
-        const auto anchorIt = anchors ? anchors->find(unit.id) : std::unordered_map<int, Anchor>::const_iterator{};
-        const bool hasTailAnchor = anchors && (anchorIt != anchors->end()) && anchorIt->second.valid;
+        const auto anchorIt =
+            anchors ? anchors->find(unit.id) : std::unordered_map<int, Anchor>::const_iterator{};
+        const bool hasTailAnchor =
+            anchors && (anchorIt != anchors->end()) && anchorIt->second.valid;
         const Anchor tailAnchorData = hasTailAnchor ? anchorIt->second : Anchor{};
         if (hasTailAnchor && tailAnchorData.meshCarrierActive) {
             continue;
         }
-        const bool hasExactFireAnchorNodes =
-            !cfg.fireAnchorBaseNodeName.empty() &&
-            !cfg.fireAnchorTipNodeName.empty();
 
         const glm::vec3 center = unit.position + glm::vec3(0.0f, unit.visualYOffset, 0.0f);
         const glm::vec3 up(0.0f, 1.0f, 0.0f);
-        const glm::vec3 fwd = game::runtime::render_prep_proxy::yawForward(unit.rotation.y);
+        const glm::vec3 forward = game::runtime::render_prep_proxy::yawForward(unit.rotation.y);
         const glm::vec3 right = game::runtime::render_prep_proxy::yawRight(unit.rotation.y);
-        const float scaleMul = std::clamp(extents.height / std::max(0.05f, worldCellSize * 0.72f), 0.80f, 2.40f);
-        const float spawnRadius = std::max(
-            0.004f,
-            cfg.spawnRadius * (hasTailAnchor ? tailAnchorData.particleSizeScale : scaleMul));
+        const float scaleMul =
+            std::clamp(extents.height / std::max(0.05f, worldCellSize * 0.72f), 0.80f, 2.40f);
+        const float spawnRadius =
+            std::max(0.004f,
+                     cfg.spawnRadius * (hasTailAnchor ? tailAnchorData.particleSizeScale : scaleMul));
         const float tailBackOffset =
             std::max(0.03f, extents.halfDepth * 0.82f + cfg.spawnRadius * 2.5f);
-        const glm::vec3 proxyTailDir = safeNormOr((-fwd * 0.85f) + (up * 0.52f), glm::vec3(0.0f, 1.0f, 0.0f));
-        const glm::vec3 tailPosWorld = hasTailAnchor
-            ? (tailAnchorData.pos +
-               (hasExactFireAnchorNodes ? glm::vec3(0.0f) : glm::vec3(0.0f, cfg.tailWorldYOffset, 0.0f)))
-            : (center - fwd * tailBackOffset +
-               up * std::max(0.02f, cfg.tailWorldYOffset) +
-               proxyTailDir * std::max(0.003f, spawnRadius * 0.8f));
-        const glm::mat3 tailBasis = hasTailAnchor ? tailAnchorData.basis : glm::mat3(right, up, fwd);
-        glm::vec3 backDirWorld = hasTailAnchor ? tailAnchorData.backDir : proxyTailDir;
-        backDirWorld = safeNormOr(backDirWorld, glm::vec3(0.0f, 1.0f, 0.0f));
+        const glm::vec3 proxyTailDir =
+            anchor_math::safeNormOr((-forward * 0.85f) + (up * 0.52f),
+                                    glm::vec3(0.0f, 1.0f, 0.0f));
+        const glm::vec3 tailPosWorld =
+            hasTailAnchor
+                ? (tailAnchorData.pos +
+                   (hasExactFireAnchorNodes ? glm::vec3(0.0f)
+                                            : glm::vec3(0.0f, cfg.tailWorldYOffset, 0.0f)))
+                : (center - forward * tailBackOffset +
+                   up * std::max(0.02f, cfg.tailWorldYOffset) +
+                   proxyTailDir * std::max(0.003f, spawnRadius * 0.8f));
+        const glm::mat3 tailBasis =
+            hasTailAnchor ? tailAnchorData.basis : glm::mat3(right, up, forward);
+        glm::vec3 backDirWorld =
+            hasTailAnchor ? tailAnchorData.backDir : proxyTailDir;
+        backDirWorld =
+            anchor_math::safeNormOr(backDirWorld, glm::vec3(0.0f, 1.0f, 0.0f));
 
-        glm::vec3 anchor = tailPosWorld;
-        if (cfg.followSmoothing > 0.0f) {
-            auto itS = gState.smoothedTailWorld.find(unit.id);
-            if (itS == gState.smoothedTailWorld.end()) {
-                gState.smoothedTailWorld[unit.id] = tailPosWorld;
-            }
-            glm::vec3& s = gState.smoothedTailWorld[unit.id];
-            const float a = 1.0f - std::exp(-cfg.followSmoothing * dt);
-            s = (1.0f - a) * s + a * tailPosWorld;
-            anchor = s;
-        }
+        const glm::vec3 anchorWorld =
+            synth_emitter::resolveSmoothedAnchor(gState.synth, cfg, unit.id, tailPosWorld, dt);
+        const glm::vec3 tailVelocity =
+            synth_emitter::resolveFilteredTailVelocity(gState.synth, unit.id, tailPosWorld, dt);
+        const float particleScale =
+            (hasTailAnchor ? tailAnchorData.particleSizeScale : scaleMul) * fallbackSizeScale;
 
-        glm::vec3 tailVel(0.0f);
-        auto itPrev = gState.prevTailWorld.find(unit.id);
-        if (itPrev != gState.prevTailWorld.end()) {
-            const glm::vec3 prev = itPrev->second;
-            const glm::vec3 delta = (tailPosWorld - prev);
-            const float maxDeltaPerFrame = 0.20f;
-            const bool discontinuity = (glm::dot(delta, delta) > maxDeltaPerFrame * maxDeltaPerFrame);
-            if (!discontinuity) {
-                const float invDt = (dt > 1e-6f) ? (1.0f / dt) : 0.0f;
-                glm::vec3 rawVel = delta * invDt;
-                const float maxTailVel = 4.0f;
-                const float sp2 = glm::dot(rawVel, rawVel);
-                if (sp2 > maxTailVel * maxTailVel) {
-                    rawVel *= (maxTailVel / std::sqrt(sp2));
-                }
-                auto itFilt = gState.filteredTailVel.find(unit.id);
-                if (itFilt == gState.filteredTailVel.end()) {
-                    gState.filteredTailVel[unit.id] = rawVel;
-                }
-                glm::vec3& vFilt = gState.filteredTailVel[unit.id];
-                const float k = 25.0f;
-                const float a = 1.0f - std::exp(-k * dt);
-                vFilt = (1.0f - a) * vFilt + a * rawVel;
-                tailVel = vFilt;
-            } else {
-                gState.filteredTailVel.erase(unit.id);
-            }
-        }
-        gState.prevTailWorld[unit.id] = tailPosWorld;
-
-        std::uint32_t& serial = gState.spawnSerial[unit.id];
-        const float unitSeed = hash01(static_cast<float>(unit.id) * 13.137f + 0.417f);
-        for (int k = 0; k < emitCount; ++k) {
-            const float base = static_cast<float>(serial++);
-            const float jitterScale = calmerSingleFlipbook ? 0.14f : 1.0f;
-            const glm::vec3 localJitter(
-                hashSigned(base + 1.0f) * spawnRadius * jitterScale,
-                hashSigned(base + 2.0f) * spawnRadius * jitterScale,
-                hashSigned(base + 3.0f) * spawnRadius * jitterScale);
-            const glm::vec3 worldJitter = tailBasis * localJitter;
-
-            ParticleSystem::Particle p;
-            p.pos = anchor + worldJitter;
-
-            const float upVel =
-                (calmerSingleFlipbook ? 0.006f : 0.055f) +
-                hash01(base + 5.0f) * (calmerSingleFlipbook ? 0.010f : 0.095f);
-            const float backVel =
-                (calmerSingleFlipbook ? 0.002f : 0.050f) +
-                hash01(base + 6.0f) * (calmerSingleFlipbook ? 0.006f : 0.050f);
-            p.vel = glm::vec3(0.0f, upVel, 0.0f) + backDirWorld * backVel;
-
-            const float inheritVelocity = calmerSingleFlipbook ? 0.0f : cfg.inheritVelocity;
-            if (inheritVelocity != 0.0f) {
-                glm::vec3 inh = tailVel * inheritVelocity;
-                const float maxInherit = 2.5f;
-                const float inh2 = glm::dot(inh, inh);
-                if (inh2 > maxInherit * maxInherit) {
-                    inh *= (maxInherit / std::sqrt(inh2));
-                }
-                p.vel += inh;
-            }
-
-            p.maxLifeSec =
-                (calmerSingleFlipbook ? 0.045f : 0.14f) +
-                hash01(base + 7.0f) * (calmerSingleFlipbook ? 0.020f : 0.10f);
-            p.lifeSec = p.maxLifeSec;
-            const float particleSizeScale =
-                hasTailAnchor ? tailAnchorData.particleSizeScale : scaleMul;
-            p.sizePx =
-                ((calmerSingleFlipbook ? 0.30f : 0.22f) +
-                 hash01(base + 8.0f) * (calmerSingleFlipbook ? 0.015f : 0.10f)) *
-                particleSizeScale * fallbackSizeScale;
-            p.seed = calmerSingleFlipbook ? unitSeed : hash01(base + 9.0f);
-            gState.particles.emit(p);
-        }
+        synth_emitter::emitParticles(
+            gState.synth,
+            cfg,
+            {
+                .unitId = unit.id,
+                .anchorWorld = anchorWorld,
+                .tailBasis = tailBasis,
+                .backDirWorld = backDirWorld,
+                .tailVelocity = tailVelocity,
+                .particleScale = particleScale,
+            },
+            emitCount);
     }
 }
 
@@ -323,13 +179,13 @@ void emitForList(
 bool appendSyntheticTailFire(const Args& args) {
     if (!args.cfg || !args.pokemons || !args.benchPokemons || !args.appendSnapshot) return false;
 
-    ensureConfigured(*args.cfg);
+    synth_emitter::ensureConfigured(gState.synth, *args.cfg);
 
     double simNowSec = args.simNowSec;
     if (!std::isfinite(simNowSec)) simNowSec = 0.0;
     const bool hasLiveSource =
         hasLiveCharmander(*args.pokemons) || hasLiveCharmander(*args.benchPokemons);
-    if (!hasLiveSource && gState.particles.particleCount() == 0u) {
+    if (!hasLiveSource && gState.synth.particles.particleCount() == 0u) {
         gState.lastSimTimeSec = simNowSec;
         return false;
     }
@@ -337,7 +193,7 @@ bool appendSyntheticTailFire(const Args& args) {
         simNowSec + 1e-6 < gState.lastSimTimeSec ||
         (simNowSec - gState.lastSimTimeSec) > 2.0) {
         resetState();
-        ensureConfigured(*args.cfg);
+        synth_emitter::ensureConfigured(gState.synth, *args.cfg);
         gState.lastSimTimeSec = simNowSec;
     }
     double simDeltaSec = simNowSec - gState.lastSimTimeSec;
@@ -347,19 +203,15 @@ bool appendSyntheticTailFire(const Args& args) {
 
     while (simDeltaSec > 1e-6) {
         const float step = static_cast<float>(std::min(simDeltaSec, 0.05));
-        gState.particles.update(step);
+        gState.synth.particles.update(step);
         emitForList(step, *args.pokemons, *args.cfg, args.worldCellSize, args.anchors);
         emitForList(step, *args.benchPokemons, *args.cfg, args.worldCellSize, args.anchors);
         simDeltaSec -= static_cast<double>(step);
     }
 
-    if (!gState.particles.buildRenderSnapshot(gState.snapshot)) return false;
+    if (!gState.synth.particles.buildRenderSnapshot(gState.snapshot)) return false;
     gState.snapshot.timeSec = static_cast<float>(simNowSec);
     return args.appendSnapshot("tail_fire_synth", gState.snapshot);
 }
 
 } // namespace game::runtime::shared_tail_fire_fallback
-
-
-
-

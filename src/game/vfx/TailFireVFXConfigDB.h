@@ -3,7 +3,8 @@
 
 #include <string>
 #include <unordered_map>
-#include "TailFireVFX.h"
+
+#include "TailFireVFXConfig.h"
 
 class TailFireVFXConfigDB {
 public:
@@ -13,14 +14,14 @@ public:
     bool ensureLoaded(const std::string& path = "config/tail_fire_config.cfg");
 
     // Applies overrides for a species key (use lowercase).
-    void applyIfAny(const std::string& speciesLower, TailFireVFX::Config& io) const;
+    void applyIfAny(const std::string& speciesLower, TailFireVFXConfig& io) const;
 
 private:
     TailFireVFXConfigDB() = default;
 
     struct Entry {
         bool has = false;
-        TailFireVFX::Config cfg;
+        TailFireVFXConfig cfg;
     };
 
     bool loaded = false;

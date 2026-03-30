@@ -11,7 +11,7 @@
 #include "game/preview/PreviewPokemonVisual.h"
 #include "game/runtime/session/SessionRenderScratch.h"
 #include "game/runtime/session/SessionTextureCache.h"
-#include "game/vfx/TailFireVFX.h"
+#include "game/vfx/TailFireVFXConfig.h"
 
 namespace game::preview {
 
@@ -22,7 +22,7 @@ struct PreviewTailFireBridgeArgs {
     int surfaceHeight = 0;
     float worldCellSize = 1.0f;
     double simNowSec = 0.0;
-    const TailFireVFX::Config* fallbackConfig = nullptr;
+    const TailFireVFXConfig* fallbackConfig = nullptr;
     const PreviewPokemonVisual* visual = nullptr;
     glm::vec3 worldPos{0.0f};
     float yawDeg = 0.0f;

@@ -90,7 +90,7 @@ bool TailFireVFXConfigDB::ensureLoaded(const std::string& path) {
         if (line.front() == '[' && line.back() == ']') {
             currentSection = lower(trim(line.substr(1, line.size() - 2)));
             entries[currentSection].has = true;
-            entries[currentSection].cfg = TailFireVFX::Config{}; // start from defaults
+            entries[currentSection].cfg = TailFireVFXConfig{}; // start from defaults
             continue;
         }
 
@@ -126,7 +126,7 @@ bool TailFireVFXConfigDB::ensureLoaded(const std::string& path) {
     return true;
 }
 
-void TailFireVFXConfigDB::applyIfAny(const std::string& speciesLower, TailFireVFX::Config& io) const {
+void TailFireVFXConfigDB::applyIfAny(const std::string& speciesLower, TailFireVFXConfig& io) const {
     auto it = entries.find(lower(speciesLower));
     if (it == entries.end() || !it->second.has) return;
     io = it->second.cfg;

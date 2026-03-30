@@ -16,7 +16,7 @@ startup_asset_prewarm::TailFireStats prewarm(const Args& args) {
         return {};
     }
 
-    const TailFireVFX::Config& cfg =
+    const TailFireVFXConfig& cfg =
         game::runtime::shared_projected_scene::getTailFireFallbackCfg();
     if (!cfg.useFlipbook || cfg.flipbookPath.empty()) return {};
 

@@ -5,6 +5,7 @@
 #include "game/runtime/shared/projected/SharedProjectedUnitBackendMeshSupport.h"
 #include "game/runtime/shared/projected/SharedProjectedUnitBackendMeshTransforms.h"
 #include "game/runtime/shared/scene/SharedWorldScene.h"
+#include "game/runtime/shared/vfx/tail_fire/SharedTailFireAnchorMath.h"
 #include "game/runtime/shared/vfx/tail_fire/SharedTailFireMeshPlayback.h"
 #include "engine/core/Environment.h"
 
@@ -26,6 +27,7 @@
 namespace support = game::runtime::shared_projected_unit_backend_mesh_support;
 namespace prep = game::runtime::shared_projected_unit_backend_mesh_prep;
 namespace persistent = game::runtime::shared_projected_render_items;
+namespace anchor_math = game::runtime::shared_tail_fire_anchor_math;
 
 namespace game::runtime::shared_projected_unit_world_scene {
 
@@ -50,6 +52,21 @@ bool batchNeedsSceneSkinning(const support::FastTexturedBatchTemplate& batchTemp
     return batchTemplate.skinnedBatch || !batchTemplate.gpuJointPalette.empty();
 }
 
+bool isTailFireMeshPlaybackUnit(const PokemonInstance& unit) {
+    return unit.alive &&
+           !unit.fainting &&
+           game::runtime::shared_tail_fire_mesh_playback::isTailFireMeshPlaybackSpecies(
+               unit.name);
+}
+
+bool batchUsesTailFireSubmesh(
+    const support::FastTexturedBatchTemplate& batchTemplate,
+    const game::runtime::shared_tail_fire_mesh_playback::Profile* profile) {
+    if (!profile) return false;
+    return batchTemplate.baseSubmeshIndex < profile->fireSubmeshMask.size() &&
+           profile->fireSubmeshMask[batchTemplate.baseSubmeshIndex] != 0u;
+}
+
 std::array<float, 16> buildRigidBatchModelMatrix(
     const prep::PreparedState& prepared,
     const game::runtime::shared_backend_pose::PoseEval* scenePose,
@@ -67,6 +84,189 @@ std::array<float, 16> buildRigidBatchModelMatrix(
     const float* batchModelData = glm::value_ptr(batchModel);
     std::copy(batchModelData, batchModelData + 16u, outModelMatrix.begin());
     return outModelMatrix;
+}
+
+int resolveTailFireNodeIndex(const game::runtime::render_model::MeshData& mesh,
+                             std::string_view nodeName,
+                             int fallbackIndex) {
+    if (nodeName.empty()) return fallbackIndex;
+    for (std::size_t nodeIndex = 0; nodeIndex < mesh.nodeNames.size(); ++nodeIndex) {
+        if (mesh.nodeNames[nodeIndex] == nodeName) {
+            return static_cast<int>(nodeIndex);
+        }
+    }
+    return fallbackIndex;
+}
+
+bool exportTailFireAnchorForWorldScene(
+    const shared_projected_unit_models::Args& args,
+    const prep::PreparedState& prepared,
+    shared_projected_unit_backend_mesh_transforms::Resolver& transforms) {
+    if (!args.unit || !args.sharedTailFireAnchors || !prepared.mesh || !prepared.scenePose) {
+        return false;
+    }
+
+    const TailFireVFXConfig& tailCfg =
+        game::runtime::shared_projected_scene::getTailFireFallbackCfg();
+    const auto& mesh = *prepared.mesh;
+    const auto& nodeGlobals =
+        prepared.scenePose->hasScenePose ? prepared.scenePose->nodeGlobals : mesh.bindNodeGlobals;
+
+    auto& anchor = (*args.sharedTailFireAnchors)[args.unit->id];
+    anchor = {};
+
+    const int tailNodeIndex =
+        resolveTailFireNodeIndex(mesh, tailCfg.tailTipNodeName, tailCfg.tailTipNodeIndex);
+    const int fireAnchorBaseNodeIndex =
+        resolveTailFireNodeIndex(mesh, tailCfg.fireAnchorBaseNodeName, -1);
+    const int fireAnchorTipNodeIndex =
+        resolveTailFireNodeIndex(mesh, tailCfg.fireAnchorTipNodeName, -1);
+
+    const float particleSizeScale =
+        std::max(0.01f, std::max(0.01f, mesh.modelScaleFactor) * prepared.resolvedScaleCorrection);
+
+    const bool hasExactFireAnchorNodes =
+        fireAnchorBaseNodeIndex >= 0 &&
+        fireAnchorTipNodeIndex >= 0 &&
+        static_cast<std::size_t>(fireAnchorBaseNodeIndex) < nodeGlobals.size() &&
+        static_cast<std::size_t>(fireAnchorTipNodeIndex) < nodeGlobals.size();
+    if (hasExactFireAnchorNodes) {
+        const auto frame = anchor_math::buildExactFireAnchorFrame(
+            transforms.worldMatrixForNode(fireAnchorBaseNodeIndex),
+            transforms.worldMatrixForNode(fireAnchorTipNodeIndex),
+            tailCfg.backDir);
+        anchor.valid = true;
+        anchor.exactFireAnchor = true;
+        anchor.pos = frame.posWorld;
+        anchor.tipPos = frame.tipPosWorld;
+        anchor.basis = frame.basis;
+        anchor.backDir = frame.backDirWorld;
+        anchor.particleSizeScale = particleSizeScale;
+        if (support::tailFireDebugShouldLogAnchor(args.unit->id)) {
+            std::cout
+                << "[TailFire][Debug][Anchor] unit=" << args.unit->id
+                << " exact=1"
+                << " tailNode=" << tailNodeIndex
+                << " baseNode=" << fireAnchorBaseNodeIndex
+                << " tipNode=" << fireAnchorTipNodeIndex
+                << " basePos=(" << frame.posWorld.x << "," << frame.posWorld.y << "," << frame.posWorld.z << ")"
+                << " tipPos=(" << frame.tipPosWorld.x << "," << frame.tipPosWorld.y << "," << frame.tipPosWorld.z << ")"
+                << " up=(" << frame.basis[1].x << "," << frame.basis[1].y << "," << frame.basis[1].z << ")"
+                << " back=(" << frame.backDirWorld.x << "," << frame.backDirWorld.y << "," << frame.backDirWorld.z << ")"
+                << " scale=" << anchor.particleSizeScale
+                << "\n";
+        }
+        return true;
+    }
+
+    if (tailNodeIndex < 0 ||
+        static_cast<std::size_t>(tailNodeIndex) >= nodeGlobals.size()) {
+        return false;
+    }
+
+    const auto frame = anchor_math::buildTailTipAnchorFrame(
+        transforms.worldMatrixForNode(tailNodeIndex),
+        tailCfg.backDir);
+    anchor.valid = true;
+    anchor.exactFireAnchor = false;
+    anchor.pos = frame.posWorld;
+    anchor.tipPos = frame.tipPosWorld;
+    anchor.basis = frame.basis;
+    anchor.backDir = frame.backDirWorld;
+    anchor.particleSizeScale = particleSizeScale;
+    if (support::tailFireDebugShouldLogAnchor(args.unit->id)) {
+        std::cout
+            << "[TailFire][Debug][Anchor] unit=" << args.unit->id
+            << " exact=0"
+            << " tailNode=" << tailNodeIndex
+            << " baseNode=" << fireAnchorBaseNodeIndex
+            << " tipNode=" << fireAnchorTipNodeIndex
+            << " tailPos=(" << anchor.pos.x << "," << anchor.pos.y << "," << anchor.pos.z << ")"
+            << " up=(" << frame.basis[1].x << "," << frame.basis[1].y << "," << frame.basis[1].z << ")"
+            << " back=(" << frame.backDirWorld.x << "," << frame.backDirWorld.y << "," << frame.backDirWorld.z << ")"
+            << " scale=" << anchor.particleSizeScale
+            << "\n";
+    }
+    return true;
+}
+
+bool buildTailFireSidecarBatchesForWorldScene(
+    const shared_projected_unit_models::Args& args,
+    const prep::PreparedState& prepared,
+    const support::FastTexturedMeshTemplateCache& fastCache,
+    const game::runtime::shared_tail_fire_mesh_playback::Profile& profile,
+    const std::vector<support::GpuSkinBatchState>& batchSkinStates,
+    const std::vector<std::uint8_t>& batchUsesSceneSkinning,
+    const std::vector<int>& resolvedTriNodeIndices,
+    std::vector<shared_world_batches::WorldIndexedBatch>& outBatches) {
+    outBatches.clear();
+    if (!args.unit || !prepared.mesh || !args.ensureBackendTextureLoaded || !args.sharedTailFireAnchors) {
+        return false;
+    }
+
+    outBatches.reserve(fastCache.batches.size());
+    for (std::size_t fastBatchIndex = 0; fastBatchIndex < fastCache.batches.size(); ++fastBatchIndex) {
+        const auto& batchTemplate = fastCache.batches[fastBatchIndex];
+        if (!batchUsesTailFireSubmesh(batchTemplate, &profile)) {
+            continue;
+        }
+        if (batchTemplate.gpuTemplateVertices.empty() || batchTemplate.indices.size() < 3u) {
+            return false;
+        }
+
+        outBatches.emplace_back();
+        auto& batch = outBatches.back();
+        batch.geometryCacheKey = batchTemplate.geometryCacheKey;
+        batch.vertexColorMulR = prepared.fastTexturedTint.r;
+        batch.vertexColorMulG = prepared.fastTexturedTint.g;
+        batch.vertexColorMulB = prepared.fastTexturedTint.b;
+        batch.vertexColorMulA = prepared.fastTexturedAlpha;
+        batch.sortDepth = prepared.indexedBatchSortDepth;
+        batch.sharedVertices = batchTemplate.gpuTemplateVertices.data();
+        batch.sharedVertexCount = batchTemplate.gpuTemplateVertices.size();
+        batch.sharedIndices = batchTemplate.indices.data();
+        batch.sharedIndexCount = batchTemplate.indices.size();
+
+        if (fastBatchIndex < batchUsesSceneSkinning.size() &&
+            batchUsesSceneSkinning[fastBatchIndex] != 0u) {
+            const auto& skinState = batchSkinStates[fastBatchIndex];
+            if (!skinState.valid ||
+                !skinState.sharedSkinMatrices ||
+                skinState.skinMatrixCount == 0u) {
+                return false;
+            }
+            batch.gpuSkinning = 1u;
+            batch.gpuSkinningMode = skinState.gpuSkinningMode;
+            batch.modelMatrix = skinState.modelMatrix;
+            batch.skinMatrixCount = skinState.skinMatrixCount;
+            batch.sharedSkinMatrices = skinState.sharedSkinMatrices;
+        } else {
+            batch.modelMatrix = buildRigidBatchModelMatrix(
+                prepared,
+                args.scenePose,
+                fastBatchIndex < resolvedTriNodeIndices.size()
+                    ? resolvedTriNodeIndices[fastBatchIndex]
+                    : -1);
+        }
+    }
+
+    if (outBatches.empty()) {
+        return !profile.hasFireSubmesh;
+    }
+
+    if (!support::applyTailFireMeshFlipbookOverride(args, *prepared.mesh, outBatches)) {
+        return false;
+    }
+
+    outBatches.erase(
+        std::remove_if(
+            outBatches.begin(),
+            outBatches.end(),
+            [](const shared_world_batches::WorldIndexedBatch& batch) {
+                return !batch.hasGeometry();
+            }),
+        outBatches.end());
+    return !profile.hasFireSubmesh || !outBatches.empty();
 }
 
 std::string toLowerCopy(std::string_view value) {
@@ -319,18 +519,13 @@ bool tryRenderProjectedUnitModelWorldScene(
         return false;
     }
 
-    // Charmander's authored tail-fire mesh still relies on the legacy projected-model
-    // path, which patches the fire submesh material/atlas and marks the mesh carrier
-    // anchor. Until the world-scene path learns that same override, keep this species
-    // on the proven fallback path.
-    const bool tailFireMeshPlaybackSpecies =
-        args.unit->alive &&
-        !args.unit->fainting &&
-        game::runtime::shared_tail_fire_mesh_playback::isTailFireMeshPlaybackSpecies(
-            args.unit->name);
-    if (tailFireMeshPlaybackSpecies) {
-        return false;
-    }
+    // Tail-fire playback species use a hybrid path here: the body stays on the
+    // world-scene fast path while authored fire-mesh batches are emitted through
+    // a dedicated indexed sidecar so the fire contract stays explicit.
+    const bool tailFireMeshPlaybackSpecies = isTailFireMeshPlaybackUnit(*args.unit);
+    const bool enableGpuClipSkinning =
+        args.enableGpuClipSkinning &&
+        support::backendUsesGpuClipSkinningForUnit(args.backendId, args.unit->name);
 
     using Clock = std::chrono::high_resolution_clock;
     const auto prepStart = Clock::now();
@@ -389,6 +584,19 @@ bool tryRenderProjectedUnitModelWorldScene(
         traceWorldSceneSkip(args, "material_cache_mismatch");
         return false;
     }
+    const auto* tailFireProfile =
+        tailFireMeshPlaybackSpecies
+            ? &game::runtime::shared_tail_fire_mesh_playback::resolveProfile(*prepared.mesh)
+            : nullptr;
+    if (tailFireMeshPlaybackSpecies &&
+        (!args.sharedTailFireAnchors || !args.worldIndexedBatches || !args.ensureBackendTextureLoaded)) {
+        if (args.perfBreakdown) {
+            args.perfBreakdown->prepMs +=
+                std::chrono::duration<double, std::milli>(Clock::now() - prepStart).count();
+        }
+        traceWorldSceneSkip(args, "tail_fire_sidecar_args_missing");
+        return false;
+    }
 
     IRenderBackend::WorldSceneFastPathCaps fastPathCaps{};
     (void)args.renderer->getWorldSceneFastPathCaps(fastPathCaps);
@@ -408,6 +616,9 @@ bool tryRenderProjectedUnitModelWorldScene(
 
         const auto& materialTemplate =
             materialCache->materials[batchTemplate.baseSubmeshIndex];
+        if (batchUsesTailFireSubmesh(batchTemplate, tailFireProfile)) {
+            continue;
+        }
         if (prepared.fastTexturedAlpha < 0.999f ||
             materialTemplate.blendMode != 0u ||
             materialTemplate.materialMode != 2u ||
@@ -445,7 +656,7 @@ bool tryRenderProjectedUnitModelWorldScene(
         [&](const support::FastTexturedBatchTemplate& batchTemplate,
             int resolvedTriNodeIndex,
             support::GpuSkinBatchState& outState) -> bool {
-            if (!fastPathCaps.supportsSkinnedInstancing || !args.enableGpuClipSkinning) {
+            if (!fastPathCaps.supportsSkinnedInstancing || !enableGpuClipSkinning) {
                 return false;
             }
 
@@ -560,6 +771,25 @@ bool tryRenderProjectedUnitModelWorldScene(
             std::chrono::duration<double, std::milli>(Clock::now() - prepStart).count();
     }
 
+    std::vector<shared_world_batches::WorldIndexedBatch> tailFireSidecarBatches;
+    if (tailFireMeshPlaybackSpecies) {
+        ensureTransformsInitialized();
+        (void)exportTailFireAnchorForWorldScene(args, prepared, transforms);
+        if (tailFireProfile && tailFireProfile->hasFireSubmesh &&
+            !buildTailFireSidecarBatchesForWorldScene(
+                args,
+                prepared,
+                *fastCache,
+                *tailFireProfile,
+                batchSkinStates,
+                batchUsesSceneSkinning,
+                resolvedTriNodeIndices,
+                tailFireSidecarBatches)) {
+            traceWorldSceneSkip(args, "tail_fire_sidecar_unavailable");
+            return false;
+        }
+    }
+
     const auto sceneColor = prepared.fastTexturedTint;
     const float sceneAlpha = prepared.fastTexturedAlpha;
     const std::uint64_t poseHash = traceThisUnit ? hashPoseEval(args.scenePose) : 0ull;
@@ -569,6 +799,9 @@ bool tryRenderProjectedUnitModelWorldScene(
 
     for (std::size_t fastBatchIndex = 0; fastBatchIndex < fastCache->batches.size(); ++fastBatchIndex) {
         const auto& batchTemplate = fastCache->batches[fastBatchIndex];
+        if (batchUsesTailFireSubmesh(batchTemplate, tailFireProfile)) {
+            continue;
+        }
         const auto& materialTemplate =
             materialCache->materials[batchTemplate.baseSubmeshIndex];
 
@@ -659,6 +892,20 @@ bool tryRenderProjectedUnitModelWorldScene(
                 sceneColor.b,
                 sceneAlpha,
                 prepared.indexedBatchSortDepth);
+        }
+    }
+
+    if (rigidBatchCount == 0u &&
+        skinnedBatchCount == 0u &&
+        tailFireSidecarBatches.empty()) {
+        traceWorldSceneSkip(args, "no_renderable_batches");
+        return false;
+    }
+    if (args.worldIndexedBatches && !tailFireSidecarBatches.empty()) {
+        args.worldIndexedBatches->reserve(
+            args.worldIndexedBatches->size() + tailFireSidecarBatches.size());
+        for (auto& batch : tailFireSidecarBatches) {
+            args.worldIndexedBatches->push_back(std::move(batch));
         }
     }
 

@@ -2,7 +2,7 @@
 
 #include "engine/vfx/ParticleSystem.h"
 #include "game/PokemonInstance.h"
-#include "game/vfx/TailFireVFX.h"
+#include "game/vfx/TailFireVFXConfig.h"
 
 #include <functional>
 #include <unordered_map>
@@ -26,7 +26,7 @@ struct Anchor {
 struct Args {
     float worldCellSize = 1.0f;
     double simNowSec = 0.0;
-    const TailFireVFX::Config* cfg = nullptr;
+    const TailFireVFXConfig* cfg = nullptr;
     const std::unordered_map<int, Anchor>* anchors = nullptr;
     const std::vector<PokemonInstance>* pokemons = nullptr;
     const std::vector<PokemonInstance>* benchPokemons = nullptr;

@@ -5,7 +5,7 @@
 #include "vfx/runtime/growl/SharedGrowlWaveBridge.h"
 #include "game/runtime/shared/vfx/particles/SharedParticleSnapshotBillboards.h"
 #include "game/runtime/shared/vfx/particles/SharedParticleVfxBridgeDispatch.h"
-#include "game/vfx/TailFireVFX.h"
+#include "game/vfx/TailFireVFXConfig.h"
 #include "game/vfx/TailFireVFXConfigDB.h"
 
 #include <algorithm>
@@ -325,12 +325,12 @@ void appendBoardAndBench(const shared_board_grid::Config& cfg,
             float thickness) { projectedDebug.appendProjectedLine(a, b, r, g, bl, alpha, thickness); });
 }
 
-const TailFireVFX::Config& getTailFireFallbackCfg() {
-    static TailFireVFX::Config sTailFireFallbackCfg{};
+const TailFireVFXConfig& getTailFireFallbackCfg() {
+    static TailFireVFXConfig sTailFireFallbackCfg{};
     static bool sTailFireFallbackCfgLoaded = false;
     if (!sTailFireFallbackCfgLoaded) {
         const auto start = std::chrono::steady_clock::now();
-        TailFireVFX::Config cfg;
+        TailFireVFXConfig cfg;
         TailFireVFXConfigDB::get().ensureLoaded();
         TailFireVFXConfigDB::get().applyIfAny("charmander", cfg);
         sTailFireFallbackCfg = cfg;
@@ -371,7 +371,7 @@ bool hasMeshCarrierTailFire(
 }
 
 bool appendAnchoredSingleFlipbookTailFire(const ParticleVfxArgs& args,
-                                          const TailFireVFX::Config& cfg) {
+                                          const TailFireVFXConfig& cfg) {
     if (!args.sharedTailFireAnchors || !args.backendTextureByPath ||
         !args.worldIndexedBatches || !args.ensureBackendTextureLoaded) {
         return false;
@@ -554,7 +554,7 @@ void appendSharedParticleVfx(const ParticleVfxArgs& args) {
 
     bool appendedTailFireBillboards = false;
     bool appendedLeechDrainBillboards = false;
-    const TailFireVFX::Config& tailFireFallbackCfg = getTailFireFallbackCfg();
+    const TailFireVFXConfig& tailFireFallbackCfg = getTailFireFallbackCfg();
     const bool wantsAnchoredSingleFlipbook =
         tailFireFallbackCfg.useFlipbook &&
         !tailFireFallbackCfg.flipbookPath.empty() &&
