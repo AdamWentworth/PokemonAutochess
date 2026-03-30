@@ -4,8 +4,8 @@
 
 #include <glm/glm.hpp>
 
-#include "game/runtime/shared/vfx/growl/SharedGrowlVfxHelpers.h"
-#include "game/runtime/shared/vfx/growl/SharedGrowlWaveBatches.h"
+#include "vfx/runtime/growl/SharedGrowlVfxHelpers.h"
+#include "vfx/runtime/growl/SharedGrowlWaveBatches.h"
 
 namespace {
 
@@ -18,7 +18,7 @@ bool expect(bool condition, const std::string& message, std::string& outFail) {
 } // namespace
 
 bool test_shared_growl_wave_batches_contract(std::string& outFail) {
-    using namespace game::runtime::shared_growl_batches;
+    using namespace vfx::runtime::growl_batches;
 
     GrowlWaveVFX::RenderSnapshot snapshot;
     snapshot.config.fadeStart = 0.65f;
@@ -46,7 +46,7 @@ bool test_shared_growl_wave_batches_contract(std::string& outFail) {
     pass.radiusMul = 1.0f;
     pass.thicknessMul = 1.0f;
 
-    const auto tev = game::runtime::shared_growl::resolveTevState(snapshot.config, pass);
+    const auto tev = vfx::runtime::growl::resolveTevState(snapshot.config, pass);
     static const unsigned char kTex[4] = {255u, 255u, 255u, 255u};
     TextureView tex;
     tex.rgba = kTex;
@@ -122,7 +122,7 @@ bool test_shared_growl_wave_batches_contract(std::string& outFail) {
     GrowlWaveVFX::RenderSnapshot sequenceSnapshot = snapshot;
     sequenceSnapshot.rings.front().ageSec = 0.50f;
     const auto sequenceTev =
-        game::runtime::shared_growl::resolveTevState(sequenceSnapshot.config, quarterSequencePass);
+        vfx::runtime::growl::resolveTevState(sequenceSnapshot.config, quarterSequencePass);
     std::vector<game::runtime::shared_world_batches::WorldIndexedBatch> sequenceBatches;
     const bool sequenceAppended =
         appendPassBatch(sequenceBatches,
@@ -184,7 +184,7 @@ bool test_shared_growl_wave_batches_contract(std::string& outFail) {
     mesh.vertices[2].color = glm::vec4(1.0f);
     mesh.indices = {0u, 1u, 2u};
 
-    const auto meshTev = game::runtime::shared_growl::resolveTevState(snapshot.config, meshPass);
+    const auto meshTev = vfx::runtime::growl::resolveTevState(snapshot.config, meshPass);
     std::vector<game::runtime::shared_world_batches::WorldIndexedBatch> meshBatches;
     const bool meshAppended =
         appendPassBatch(meshBatches,
@@ -504,7 +504,7 @@ bool test_shared_growl_wave_batches_contract(std::string& outFail) {
         glm::vec3(0.0f, -1.1f, 1.0f),
     };
 
-    const auto lineTev = game::runtime::shared_growl::resolveTevState(snapshot.config, linePass);
+    const auto lineTev = vfx::runtime::growl::resolveTevState(snapshot.config, linePass);
     std::vector<game::runtime::shared_world_batches::WorldIndexedBatch> lineBatches;
     const bool lineAppended =
         appendPassBatch(lineBatches,

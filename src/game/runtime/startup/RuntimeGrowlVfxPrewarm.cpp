@@ -1,11 +1,11 @@
 #include "game/runtime/startup/RuntimeGrowlVfxPrewarm.h"
 
 #include "engine/render/Model.h"
-#include "game/runtime/shared/vfx/growl/SharedGrowlVfxHelpers.h"
-#include "game/runtime/shared/vfx/growl/SharedGrowlWaveBridge.h"
-#include "game/runtime/shared/vfx/growl/SharedGrowlWaveBatches.h"
+#include "vfx/runtime/growl/SharedGrowlVfxHelpers.h"
+#include "vfx/runtime/growl/SharedGrowlWaveBridge.h"
+#include "vfx/runtime/growl/SharedGrowlWaveBatches.h"
 #include "game/runtime/shared/world/SharedWorldIndexedBatches.h"
-#include "game/vfx/GrowlWaveVFX.h"
+#include "vfx/effects/growl/GrowlWaveVFX.h"
 
 #include <vector>
 
@@ -26,7 +26,7 @@ GrowlWaveVFX::Config resolveGrowlConfig() {
 }
 
 bool fillTextureView(const SharedBackendTextureCacheEntry* texture,
-                     shared_growl_batches::TextureView& outView) {
+                     vfx::runtime::growl_batches::TextureView& outView) {
     if (!texture || !texture->valid || texture->rgba.empty() ||
         texture->width <= 0 || texture->height <= 0) {
         return false;
@@ -76,9 +76,9 @@ startup_asset_prewarm::GrowlStats prewarm(const Args& args) {
 
     const auto resolveTexture =
         [&](const GrowlWaveVFX::Config::DrawPass& pass,
-            const shared_growl::TevState& tev,
-            shared_growl_batches::TextureView& outView) -> bool {
-            if (shared_growl::isLinePass(snapshot.config, pass) || pass.texturePath.empty()) {
+            const vfx::runtime::growl::TevState& tev,
+            vfx::runtime::growl_batches::TextureView& outView) -> bool {
+            if (vfx::runtime::growl::isLinePass(snapshot.config, pass) || pass.texturePath.empty()) {
                 return fillTextureView(args.ensureBackendTextureLoaded("", false), outView);
             }
 
@@ -89,11 +89,11 @@ startup_asset_prewarm::GrowlStats prewarm(const Args& args) {
             }
 
             const bool quarterPass =
-                shared_growl::isQuarterRingPass(snapshot.config, pass);
+                vfx::runtime::growl::isQuarterRingPass(snapshot.config, pass);
             auto& backendTextureByPath = *args.backendTextureByPath;
             if (backendTextureByPath.empty()) backendTextureByPath.reserve(64u);
             const std::string bakedKey =
-                shared_growl::makeBakedTextureKey(pass, quarterPass);
+                vfx::runtime::growl::makeBakedTextureKey(pass, quarterPass);
             auto& baked = backendTextureByPath[bakedKey];
             if (!baked.attemptedLoad) {
                 baked.attemptedLoad = true;
@@ -101,7 +101,7 @@ startup_asset_prewarm::GrowlStats prewarm(const Args& args) {
                 baked.width = rawTexture->width;
                 baked.height = rawTexture->height;
                 baked.rgba.clear();
-                if (!shared_growl::bakePassTextureRgba(
+                if (!vfx::runtime::growl::bakePassTextureRgba(
                         pass,
                         tev,
                         quarterPass,
@@ -120,7 +120,7 @@ startup_asset_prewarm::GrowlStats prewarm(const Args& args) {
             return true;
         };
 
-    if (!shared_growl_bridge::appendBatches(
+    if (!vfx::runtime::growl_bridge::appendBatches(
             snapshot,
             batches,
             glm::vec3(0.0f, 0.8f, 2.5f),

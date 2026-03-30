@@ -3,7 +3,7 @@
 
 #include <glm/glm.hpp>
 
-#include "game/runtime/shared/vfx/growl/SharedGrowlWaveBridge.h"
+#include "vfx/runtime/growl/SharedGrowlWaveBridge.h"
 
 namespace {
 
@@ -31,7 +31,7 @@ game::runtime::render_model::MeshData makeTinyMesh() {
 } // namespace
 
 bool test_shared_growl_wave_bridge_contract(std::string& outFail) {
-    using namespace game::runtime::shared_growl_bridge;
+    using namespace vfx::runtime::growl_bridge;
 
     GrowlWaveVFX::RenderSnapshot snapshot;
     snapshot.config.meshForwardAxis = glm::vec3(0.0f, 1.0f, 0.0f);
@@ -83,8 +83,8 @@ bool test_shared_growl_wave_bridge_contract(std::string& outFail) {
             return nullptr;
         },
         [&](const GrowlWaveVFX::Config::DrawPass& pass,
-            const game::runtime::shared_growl::TevState&,
-            game::runtime::shared_growl_batches::TextureView& outTex) {
+            const vfx::runtime::growl::TevState&,
+            vfx::runtime::growl_batches::TextureView& outTex) {
             ++textureResolveCalls;
             if (!pass.enabled) return false;
             outTex.rgba = kWhite;
@@ -120,8 +120,8 @@ bool test_shared_growl_wave_bridge_contract(std::string& outFail) {
                                glm::vec3(0.0f),
                                [&](const std::string&) { return &tinyMesh; },
                                [&](const GrowlWaveVFX::Config::DrawPass&,
-                                   const game::runtime::shared_growl::TevState&,
-                                   game::runtime::shared_growl_batches::TextureView&) { return true; }),
+                                   const vfx::runtime::growl::TevState&,
+                                   vfx::runtime::growl_batches::TextureView&) { return true; }),
                 "appendBatches should no-op when no draw passes are present.",
                 outFail)) {
         return false;

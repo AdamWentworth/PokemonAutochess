@@ -284,6 +284,38 @@ target_link_libraries(engine_tools_vfx_preview
 )
 pac_apply_common_target_settings(engine_tools_vfx_preview)
 
+# ---------------- PAC_VfxCore (game-free reusable VFX) ----------------
+add_library(PAC_VfxCore STATIC
+    src/vfx/effects/growl/GrowlWaveVFX.cpp
+    src/vfx/runtime/growl/SharedGrowlVfxHelpers.cpp
+)
+target_sources(PAC_VfxCore PRIVATE
+    src/vfx/effects/growl/GrowlWaveVFX.h
+    src/vfx/runtime/growl/SharedGrowlVfxHelpers.h
+)
+target_link_libraries(PAC_VfxCore
+    PUBLIC
+        Engine
+        glm::glm
+        nlohmann_json::nlohmann_json
+)
+pac_apply_common_target_settings(PAC_VfxCore)
+
+# ---------------- PAC_GameVfxInterop (game-specific backend bridge) ----------------
+add_library(PAC_GameVfxInterop STATIC
+    src/vfx/runtime/growl/SharedGrowlWaveBridge.cpp
+    src/vfx/runtime/growl/SharedGrowlWaveBatches.cpp
+)
+target_sources(PAC_GameVfxInterop PRIVATE
+    src/vfx/runtime/growl/SharedGrowlWaveBridge.h
+    src/vfx/runtime/growl/SharedGrowlWaveBatches.h
+)
+target_link_libraries(PAC_GameVfxInterop
+    PUBLIC
+        PAC_VfxCore
+)
+pac_apply_common_target_settings(PAC_GameVfxInterop)
+
 # ---------------- Game objects (shared by exe + tests) ----------------
 add_library(PAC_GameObjects STATIC
     # Game Core
@@ -393,9 +425,6 @@ add_library(PAC_GameObjects STATIC
     src/game/runtime/shared/vfx/tail_fire/SharedTailFireExactCpuSnapshotBatches.cpp
     src/game/runtime/shared/vfx/tail_fire/SharedTailFireExactCpuTileBake.cpp
     src/game/runtime/shared/vfx/tail_fire/SharedTailFireExactGpuBatches.cpp
-    src/game/runtime/shared/vfx/growl/SharedGrowlVfxHelpers.cpp
-    src/game/runtime/shared/vfx/growl/SharedGrowlWaveBridge.cpp
-    src/game/runtime/shared/vfx/growl/SharedGrowlWaveBatches.cpp
     src/game/runtime/shared/ui/SharedUnitHudBatches.cpp
     src/game/runtime/shared/world/SharedWorldIndexedBatches.cpp
     src/game/runtime/session/GameUpdateGraph.cpp
@@ -440,7 +469,6 @@ add_library(PAC_GameObjects STATIC
     src/game/vfx/LeechSeedProjectileVFX.cpp
     src/game/vfx/HealPlusVFX.cpp
     src/game/vfx/LeechSeedDrainVFX.cpp
-    src/game/vfx/GrowlWaveVFX.cpp
     src/game/vfx/ClawSwipeVFX.cpp
     src/game/vfx/AquaSwooshVFX.cpp
 
@@ -486,7 +514,7 @@ add_library(PAC_GameObjects STATIC
     src/game/systems/CombatSystem.cpp
     src/game/systems/ShopSystem.cpp
 )
-target_link_libraries(PAC_GameObjects PUBLIC Engine glm::glm nlohmann_json::nlohmann_json)
+target_link_libraries(PAC_GameObjects PUBLIC Engine glm::glm nlohmann_json::nlohmann_json PAC_GameVfxInterop)
 if (WIN32)
     target_link_libraries(PAC_GameObjects PRIVATE dxgi d3d12)
 endif()
@@ -497,11 +525,13 @@ add_library(PAC_VfxPreviewSupport STATIC
     src/game/preview/PokemonAutochessVfxPreviewProject.cpp
     src/game/preview/effects/GrowlPreviewEffect.cpp
     src/game/preview/effects/LeechSeedPreviewEffect.cpp
+    src/vfx/preview/growl/GrowlSharedRenderer.cpp
 )
 target_sources(PAC_VfxPreviewSupport PRIVATE
     src/game/preview/PokemonAutochessVfxPreviewProject.h
     src/game/preview/effects/GrowlPreviewEffect.h
     src/game/preview/effects/LeechSeedPreviewEffect.h
+    src/vfx/preview/growl/GrowlSharedRenderer.h
 )
 target_link_libraries(PAC_VfxPreviewSupport
     PUBLIC
@@ -509,6 +539,24 @@ target_link_libraries(PAC_VfxPreviewSupport
         engine_tools_vfx_preview
 )
 pac_apply_common_target_settings(PAC_VfxPreviewSupport)
+
+# ---------------- Generic VFX lab adapters (no game preview dependency) ----------------
+add_library(PAC_VfxLabSupport STATIC
+    src/vfx/preview/VfxLibraryPreviewProject.cpp
+    src/vfx/preview/effects/GrowlLabPreviewEffect.cpp
+    src/vfx/preview/growl/GrowlSharedRenderer.cpp
+)
+target_sources(PAC_VfxLabSupport PRIVATE
+    src/vfx/preview/VfxLibraryPreviewProject.h
+    src/vfx/preview/effects/GrowlLabPreviewEffect.h
+    src/vfx/preview/growl/GrowlSharedRenderer.h
+)
+target_link_libraries(PAC_VfxLabSupport
+    PUBLIC
+        PAC_GameObjects
+        engine_tools_vfx_preview
+)
+pac_apply_common_target_settings(PAC_VfxLabSupport)
 
 # ---------------- Executable ----------------
 add_executable(PokemonAutochess
@@ -539,6 +587,18 @@ if (PAC_BUILD_TOOLS)
         VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
     )
     pac_apply_common_target_settings(PAC_VfxPreviewer)
+
+    add_executable(VfxLab
+        tools/PAC_VfxLab.cpp
+    )
+    target_link_libraries(VfxLab
+        PRIVATE
+            PAC_VfxLabSupport
+    )
+    set_target_properties(VfxLab PROPERTIES
+        VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
+    )
+    pac_apply_common_target_settings(VfxLab)
 endif()
 
 # ---------------- Tests ----------------
@@ -807,7 +867,7 @@ if (BUILD_TESTING)
     list(APPEND PAC_ALL_TARGETS PAC_Tests)
 endif()
 if (PAC_BUILD_TOOLS)
-    list(APPEND PAC_ALL_TARGETS PAC_DataCooker PAC_VfxPreviewer)
+    list(APPEND PAC_ALL_TARGETS PAC_DataCooker PAC_VfxPreviewer VfxLab)
 endif()
 add_custom_target(PAC_All
     DEPENDS

@@ -1,11 +1,11 @@
-#include "game/runtime/shared/vfx/growl/SharedGrowlVfxHelpers.h"
+#include "vfx/runtime/growl/SharedGrowlVfxHelpers.h"
 
 #include <algorithm>
 #include <cctype>
 #include <cmath>
 #include <string>
 
-namespace game::runtime::shared_growl {
+namespace vfx::runtime::growl {
 namespace {
 
 std::string toLowerCopyLocal(std::string s) {
@@ -168,4 +168,4 @@ float quantizeLineVertexAlpha(float srcAlpha, float lineTevK1A, float colorAlpha
     return std::clamp(clamp01(colorAlpha) * quantized, 0.0f, 1.0f);
 }
 
-} // namespace game::runtime::shared_growl
+} // namespace vfx::runtime::growl

@@ -70,6 +70,7 @@ public:
 
         float pointScale = 900.0f;
         bool useFlipbook = true;
+        bool useUnitScaleChain = false;
     };
 
 public:

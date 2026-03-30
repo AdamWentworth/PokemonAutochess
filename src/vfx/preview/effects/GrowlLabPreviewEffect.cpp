@@ -1,4 +1,4 @@
-#include "game/preview/effects/GrowlPreviewEffect.h"
+#include "vfx/preview/effects/GrowlLabPreviewEffect.h"
 
 #include <algorithm>
 #include <cmath>
@@ -6,8 +6,10 @@
 #include <iostream>
 
 #include "engine/core/Paths.h"
+#include "engine/render/Camera3D.h"
+#include "vfx/preview/growl/GrowlSharedRenderer.h"
 
-namespace game::preview {
+namespace vfx::preview {
 
 namespace {
 
@@ -23,64 +25,64 @@ glm::vec3 safeForwardXZ(const glm::vec3& value) {
 
 } // namespace
 
-GrowlPreviewEffect::GrowlPreviewEffect()
+GrowlLabPreviewEffect::GrowlLabPreviewEffect()
     : manifestPath_(engine::paths::data("config/vfx/moves/growl_draw_passes.json")) {
     config_.spawnForwardOffset = 0.0f;
     config_.spawnHeightOffset = 0.0f;
     config_.drawManifestPath = "config/vfx/moves/growl_draw_passes.json";
 }
 
-GrowlPreviewEffect::~GrowlPreviewEffect() = default;
+GrowlLabPreviewEffect::~GrowlLabPreviewEffect() = default;
 
-std::string_view GrowlPreviewEffect::name() const {
+std::string_view GrowlLabPreviewEffect::name() const {
     return "Growl";
 }
 
-void GrowlPreviewEffect::ensureConfigured() {
+void GrowlLabPreviewEffect::ensureConfigured() {
     effect_.setConfig(config_);
     if (!manifestWriteTime_.has_value()) {
         refreshManifestWriteTime();
     }
 }
 
-void GrowlPreviewEffect::onActivated(engine::tools::vfx_preview::PreviewSceneState& scene) {
+void GrowlLabPreviewEffect::onActivated(engine::tools::vfx_preview::PreviewSceneState& scene) {
     scene.emitter.y = 0.42f;
     scene.target.y = 0.35f;
     ensureConfigured();
 }
 
-void GrowlPreviewEffect::emit(const engine::tools::vfx_preview::PreviewSceneState& scene) {
+void GrowlLabPreviewEffect::emit(const engine::tools::vfx_preview::PreviewSceneState& scene) {
     ensureConfigured();
-    const glm::vec3 forward = safeForwardXZ(scene.target - scene.emitter);
-    effect_.emitFrom(scene.emitter, forward, nullptr);
+    effect_.emitFrom(scene.emitter, safeForwardXZ(scene.target - scene.emitter), nullptr);
 }
 
-void GrowlPreviewEffect::replay(const engine::tools::vfx_preview::PreviewSceneState& scene) {
+void GrowlLabPreviewEffect::replay(const engine::tools::vfx_preview::PreviewSceneState& scene) {
     accumulator_ = 0.0f;
     emit(scene);
 }
 
-void GrowlPreviewEffect::reload(const engine::tools::vfx_preview::PreviewSceneState& scene) {
+void GrowlLabPreviewEffect::reload(const engine::tools::vfx_preview::PreviewSceneState& scene) {
     refreshManifestWriteTime();
     effect_.setConfig(config_);
     accumulator_ = 0.0f;
     emit(scene);
-    std::cout << "[VfxPreviewer] Reloaded Growl preview\n";
+    std::cout << "[VfxLab] Reloaded Growl preview\n";
 }
 
-void GrowlPreviewEffect::update(float dt, const engine::tools::vfx_preview::PreviewSceneState& scene) {
+void GrowlLabPreviewEffect::update(float dt, const engine::tools::vfx_preview::PreviewSceneState& scene) {
     pollManifestHotReload(scene);
 
     dt = std::max(0.0f, dt);
     accumulator_ += dt;
-
     while (accumulator_ >= kFixedDt) {
         effect_.update(kFixedDt);
         accumulator_ -= kFixedDt;
     }
 }
 
-void GrowlPreviewEffect::stepFrames(int frames, const engine::tools::vfx_preview::PreviewSceneState& scene) {
+void GrowlLabPreviewEffect::stepFrames(
+    int frames,
+    const engine::tools::vfx_preview::PreviewSceneState& scene) {
     (void)scene;
     frames = std::max(0, frames);
     for (int i = 0; i < frames; ++i) {
@@ -88,38 +90,27 @@ void GrowlPreviewEffect::stepFrames(int frames, const engine::tools::vfx_preview
     }
 }
 
-void GrowlPreviewEffect::render(const engine::tools::vfx_preview::PreviewFrameContext& frame) {
-    if (!renderer_) renderer_ = std::make_unique<vfx::preview::growl::GrowlSharedRenderer>();
+void GrowlLabPreviewEffect::render(const engine::tools::vfx_preview::PreviewFrameContext& frame) {
+    if (!renderer_) renderer_ = std::make_unique<growl::GrowlSharedRenderer>();
     renderer_->render(effect_, frame.camera, frame.surfaceWidth, frame.surfaceHeight);
 }
 
-void GrowlPreviewEffect::onResize(int width, int height) {
-    if (!renderer_) renderer_ = std::make_unique<vfx::preview::growl::GrowlSharedRenderer>();
+void GrowlLabPreviewEffect::onResize(int width, int height) {
+    if (!renderer_) renderer_ = std::make_unique<growl::GrowlSharedRenderer>();
     renderer_->onResize(width, height);
 }
 
-std::uint32_t GrowlPreviewEffect::activeCount() const {
+std::uint32_t GrowlLabPreviewEffect::activeCount() const {
     return effect_.activeRingCount();
 }
 
-engine::tools::vfx_preview::PreviewCasterAnimationRequest
-GrowlPreviewEffect::casterAnimationRequest() const {
-    return {
-        .kind = "charged",
-        .move = "growl",
-        .phase = "one_shot",
-    };
-}
-
-std::vector<std::string> GrowlPreviewEffect::overlayLines(
+std::vector<std::string> GrowlLabPreviewEffect::overlayLines(
     const engine::tools::vfx_preview::PreviewSceneState& scene) const {
     (void)scene;
-    return {
-        "Growl uses the shared/backend batch path and hot reloads its draw-pass manifest."
-    };
+    return {};
 }
 
-void GrowlPreviewEffect::refreshManifestWriteTime() {
+void GrowlLabPreviewEffect::refreshManifestWriteTime() {
     std::error_code ec;
     if (!std::filesystem::exists(manifestPath_, ec) || ec) {
         manifestWriteTime_.reset();
@@ -129,7 +120,7 @@ void GrowlPreviewEffect::refreshManifestWriteTime() {
     if (ec) manifestWriteTime_.reset();
 }
 
-void GrowlPreviewEffect::pollManifestHotReload(
+void GrowlLabPreviewEffect::pollManifestHotReload(
     const engine::tools::vfx_preview::PreviewSceneState& scene) {
     std::error_code ec;
     if (!manifestWriteTime_.has_value()) {
@@ -144,7 +135,7 @@ void GrowlPreviewEffect::pollManifestHotReload(
     effect_.setConfig(config_);
     accumulator_ = 0.0f;
     emit(scene);
-    std::cout << "[VfxPreviewer] Detected Growl manifest change, hot reloaded preview\n";
+    std::cout << "[VfxLab] Detected Growl manifest change, hot reloaded preview\n";
 }
 
-} // namespace game::preview
+} // namespace vfx::preview

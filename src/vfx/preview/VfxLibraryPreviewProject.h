@@ -5,14 +5,12 @@
 
 #include "engine/tools/vfx_preview/IVfxPreviewProject.h"
 
-class BoardRenderer;
+namespace vfx::preview {
 
-namespace game::preview {
-
-class PokemonAutochessVfxPreviewProject final : public engine::tools::vfx_preview::IVfxPreviewProject {
+class VfxLibraryPreviewProject final : public engine::tools::vfx_preview::IVfxPreviewProject {
 public:
-    PokemonAutochessVfxPreviewProject();
-    ~PokemonAutochessVfxPreviewProject() override;
+    VfxLibraryPreviewProject();
+    ~VfxLibraryPreviewProject() override;
 
     std::string_view projectName() const override;
     std::size_t effectCount() const override;
@@ -23,21 +21,12 @@ public:
     std::string_view rigName(std::size_t index) const override;
     bool defaultPrimaryBackdropEnabled(std::size_t rigIndex) const override;
     bool defaultSecondaryBackdropEnabled(std::size_t rigIndex) const override;
-    void onEffectActivated(std::size_t effectIndex) override;
-    void requestReplay(std::size_t effectIndex,
-                       engine::tools::vfx_preview::PreviewSceneState& scene) override;
-    void requestReload(std::size_t effectIndex,
-                       engine::tools::vfx_preview::PreviewSceneState& scene) override;
-    bool isReplayPending(std::size_t effectIndex) const override;
-    bool allowAutoReplay(std::size_t effectIndex, std::size_t rigIndex) const override;
+    bool supportsPrimaryBackdropToggle(std::size_t rigIndex) const override;
+    bool supportsSecondaryBackdropToggle(std::size_t rigIndex) const override;
     void applyRigDefaults(std::size_t rigIndex,
                           engine::tools::vfx_preview::PreviewSceneState& scene) const override;
     void constrainScene(std::size_t rigIndex,
                         engine::tools::vfx_preview::PreviewSceneState& scene) const override;
-    void update(float dt,
-                std::size_t rigIndex,
-                const engine::tools::vfx_preview::PreviewSceneState& scene) override;
-
     void renderBackdrop(const engine::tools::vfx_preview::PreviewFrameContext& frame,
                         std::size_t rigIndex,
                         const engine::tools::vfx_preview::PreviewSceneState& scene,
@@ -50,15 +39,7 @@ public:
         std::size_t rigIndex) const override;
 
 private:
-    enum class RigKind : std::size_t {
-        BoardLines = 0,
-        PokemonModels = 1,
-    };
-
-    struct Impl;
-    std::unique_ptr<BoardRenderer> board_;
     std::vector<std::unique_ptr<engine::tools::vfx_preview::IVfxPreviewEffect>> effects_;
-    std::unique_ptr<Impl> impl_;
 };
 
-} // namespace game::preview
+} // namespace vfx::preview

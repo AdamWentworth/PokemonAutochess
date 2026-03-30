@@ -1,4 +1,4 @@
-// src/game/vfx/GrowlWaveVFX.cpp
+// src/vfx/effects/growl/GrowlWaveVFX.cpp
 #include "GrowlWaveVFX.h"
 
 #include <algorithm>

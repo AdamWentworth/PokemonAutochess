@@ -12,8 +12,6 @@ namespace game::preview {
 namespace {
 
 constexpr float kFixedDt = 1.0f / 60.0f;
-constexpr float kLoopCooldownSec = 0.18f;
-
 float computeYawDegreesFromForward(const glm::vec3& forward) {
     glm::vec3 safe(forward.x, 0.0f, forward.z);
     const float lenSq = glm::dot(safe, safe);
@@ -51,7 +49,6 @@ void LeechSeedPreviewEffect::emit(const engine::tools::vfx_preview::PreviewScene
     victim.visualYOffset = 0.0f;
 
     effect_.emit(attacker, victim, 0.46f);
-    elapsedSinceIdle_ = 0.0f;
 }
 
 void LeechSeedPreviewEffect::replay(const engine::tools::vfx_preview::PreviewSceneState& scene) {
@@ -59,15 +56,8 @@ void LeechSeedPreviewEffect::replay(const engine::tools::vfx_preview::PreviewSce
 }
 
 void LeechSeedPreviewEffect::update(float dt, const engine::tools::vfx_preview::PreviewSceneState& scene) {
+    (void)scene;
     effect_.update(dt);
-    if (effect_.getParticles().particleCount() == 0u) {
-        elapsedSinceIdle_ += dt;
-        if (scene.loopPlayback && elapsedSinceIdle_ >= kLoopCooldownSec) {
-            emit(scene);
-        }
-    } else {
-        elapsedSinceIdle_ = 0.0f;
-    }
 }
 
 void LeechSeedPreviewEffect::stepFrames(int frames,

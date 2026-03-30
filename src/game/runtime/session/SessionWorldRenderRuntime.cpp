@@ -18,7 +18,7 @@
 #include "game/runtime/session/SessionRenderScratch.h"
 #include "game/runtime/session/SessionWorldBackdrop.h"
 #include "game/runtime/shared/scene/SharedWorldScene.h"
-#include "game/runtime/shared/vfx/growl/SharedGrowlVfxHelpers.h"
+#include "vfx/runtime/growl/SharedGrowlVfxHelpers.h"
 #include "game/runtime/shared/ui/SharedBackendDebugViewOverlay.h"
 #include "game/runtime/shared/world/SharedWorldIndexedBatches.h"
 #include "game/runtime/ui/InventoryPanel.h"
@@ -75,9 +75,9 @@ void publishGrowlDebug(EngineServices* engineServices,
         passStats.meshPath = pass.meshPath;
         passStats.texturePath = pass.texturePath;
         passStats.linePass =
-            game::runtime::shared_growl::isLinePass(snapshot.config, pass);
+            vfx::runtime::growl::isLinePass(snapshot.config, pass);
         passStats.quarterTextureBake =
-            game::runtime::shared_growl::isQuarterRingPass(snapshot.config, pass);
+            vfx::runtime::growl::isQuarterRingPass(snapshot.config, pass);
         passStats.scaleMul = pass.scaleMul;
         passStats.alphaMul = pass.alphaMul;
         passStats.forwardOffset = pass.forwardOffset;

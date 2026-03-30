@@ -21,7 +21,6 @@ private:
     void emit(const engine::tools::vfx_preview::PreviewSceneState& scene);
 
     LeechSeedProjectileVFX effect_;
-    float elapsedSinceIdle_ = 0.0f;
 };
 
 } // namespace game::preview

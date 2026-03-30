@@ -1,4 +1,4 @@
-// src/game/vfx/GrowlWaveVFX.h
+// src/vfx/effects/growl/GrowlWaveVFX.h
 #pragma once
 
 #include <memory>

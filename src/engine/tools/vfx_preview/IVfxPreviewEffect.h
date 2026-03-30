@@ -32,6 +32,7 @@ public:
     virtual void render(const PreviewFrameContext& frame) = 0;
     virtual void onResize(int width, int height) { (void)width; (void)height; }
     virtual std::uint32_t activeCount() const = 0;
+    virtual float loopCooldownSec() const { return 0.18f; }
     virtual PreviewCasterAnimationRequest casterAnimationRequest() const {
         return {};
     }

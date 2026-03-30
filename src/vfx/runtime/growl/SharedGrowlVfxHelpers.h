@@ -6,9 +6,9 @@
 
 #include <glm/glm.hpp>
 
-#include "game/vfx/GrowlWaveVFX.h"
+#include "vfx/effects/growl/GrowlWaveVFX.h"
 
-namespace game::runtime::shared_growl {
+namespace vfx::runtime::growl {
 
 struct TevState {
     glm::vec3 c0{1.0f, 1.0f, 1.0f};
@@ -44,5 +44,5 @@ bool bakePassTextureRgba(const GrowlWaveVFX::Config::DrawPass& pass,
 
 float quantizeLineVertexAlpha(float srcAlpha, float lineTevK1A, float colorAlpha);
 
-} // namespace game::runtime::shared_growl
+} // namespace vfx::runtime::growl
 

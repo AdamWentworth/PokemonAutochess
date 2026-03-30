@@ -5,7 +5,7 @@
 
 #include <glm/glm.hpp>
 
-#include "game/runtime/shared/vfx/growl/SharedGrowlVfxHelpers.h"
+#include "vfx/runtime/growl/SharedGrowlVfxHelpers.h"
 
 namespace {
 
@@ -22,7 +22,7 @@ bool nearf(float a, float b, float eps = 0.0001f) {
 } // namespace
 
 bool test_shared_growl_vfx_helpers_contract(std::string& outFail) {
-    using namespace game::runtime::shared_growl;
+    using namespace vfx::runtime::growl;
 
     GrowlWaveVFX::Config config;
     GrowlWaveVFX::Config::DrawPass pass;

@@ -6,6 +6,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
+#include <fstream>
 #include <iostream>
 #include <limits>
 #include <memory>
@@ -28,6 +29,13 @@ namespace engine::tools::vfx_preview {
 
 namespace {
 
+void appendPreviewBootLog(const std::string& line) {
+    std::ofstream out("debug_vfx_previewer_boot.log", std::ios::app);
+    if (!out.is_open()) return;
+    out << line << "\n";
+    out.flush();
+}
+
 constexpr int kInitialWindowWidth = 1600;
 constexpr int kInitialWindowHeight = 900;
 constexpr int kPreviewWindowMarginPx = 80;
@@ -37,7 +45,6 @@ constexpr float kEmitterHeightSpeed = 1.25f;
 constexpr float kMouseOrbitScale = 0.005f;
 constexpr float kMousePanScale = 0.02f;
 constexpr float kMouseWheelZoomStep = 0.5f;
-constexpr float kKeyboardPanSpeed = 4.2f;
 
 glm::vec3 safeForwardXZ(const glm::vec3& value) {
     glm::vec3 forward(value.x, 0.0f, value.z);
@@ -118,25 +125,35 @@ GLuint linkProgram(GLuint vert, GLuint frag) {
     throw std::runtime_error("Preview shader link failed: " + log);
 }
 
-void printControls() {
+void printControls(const IVfxPreviewProject& project, std::size_t rigIndex) {
+    const bool multipleModes = project.rigCount() > 1u;
+    const bool allowPrimaryBackdrop = project.supportsPrimaryBackdropToggle(rigIndex);
+    const bool allowSecondaryBackdrop = project.supportsSecondaryBackdropToggle(rigIndex);
     std::cout
         << "[VfxPreviewer] Controls\n"
-        << "  Space: replay current effect\n"
+        << "  R: replay/reload current effect\n"
         << "  P: pause/resume\n"
         << "  . : single-step one frame while paused\n"
         << "  , : single-step five frames while paused\n"
-        << "  R or F5: reload current effect and replay\n"
         << "  L: toggle auto-loop\n"
-        << "  G: toggle primary backdrop\n"
-        << "  B: toggle secondary backdrop\n"
-        << "  Tab: switch preview effect\n"
-        << "  [ / ]: previous/next preview mode\n"
-        << "  /: cycle preview mode\n"
-        << "  1 / 2 / 3: set sim speed to 0.5x / 1.0x / 2.0x\n"
+        << "  1 / 2 / 3 / 4 / 5: set speed to 0.25x / 0.5x / 1.0x / 2.0x / 3.0x\n"
+        << "  - / =: step speed down/up through presets\n"
+        << "  Tab: switch preview effect\n";
+    if (multipleModes) {
+        std::cout
+            << "  [ and ]: previous/next preview mode\n";
+    }
+    if (allowPrimaryBackdrop) {
+        std::cout << "  G: toggle primary backdrop\n";
+    }
+    if (allowSecondaryBackdrop) {
+        std::cout << "  B: toggle secondary backdrop\n";
+    }
+    std::cout
+        << "  Z / X / C: toggle emitter / target / orientation guides\n"
         << "  WASD: move target marker\n"
-        << "  IJKL: move emitter marker\n"
+        << "  Arrow keys: move emitter marker\n"
         << "  U / O: move emitter down/up\n"
-        << "  Arrow keys: pan camera\n"
         << "  Left mouse drag: pan camera\n"
         << "  Right mouse drag: orbit camera\n"
         << "  Mouse wheel: zoom\n"
@@ -348,8 +365,11 @@ std::string makeWindowTitle(const IVfxPreviewProject& project,
     std::ostringstream out;
     out.setf(std::ios::fixed);
     out.precision(2);
-    out << "PAC_VfxPreviewer - " << project.projectName() << " - " << effect.name()
-        << " | mode " << project.rigName(rigIndex)
+    out << project.projectName() << " Preview - " << effect.name();
+    if (project.rigCount() > 1u) {
+        out << " | mode " << project.rigName(rigIndex);
+    }
+    out
         << " | " << (scene.paused ? "paused" : "running")
         << " | loop " << (scene.loopPlayback ? "on" : "off")
         << " | speed " << scene.timeScale << "x"
@@ -381,6 +401,10 @@ void renderOverlay(TextRenderer* text,
     const float lineH = std::max(15.0f, text->measureTextHeight(scale) + 3.0f);
     const float maxLineWidth = std::max(220.0f, static_cast<float>(vp[2]) - x * 2.0f - 12.0f);
     const float maxY = std::max(y + lineH, static_cast<float>(vp[3]) - 12.0f);
+    const bool multipleModes = project.rigCount() > 1u;
+    const bool allowPrimaryBackdrop = project.supportsPrimaryBackdropToggle(rigIndex);
+    const bool allowSecondaryBackdrop = project.supportsSecondaryBackdropToggle(rigIndex);
+    const bool showBackdropControls = allowPrimaryBackdrop || allowSecondaryBackdrop;
 
     const auto renderWrappedLine = [&](const std::string& line,
                                        const glm::vec3& color,
@@ -393,28 +417,53 @@ void renderOverlay(TextRenderer* text,
         return true;
     };
 
-    if (!renderWrappedLine(std::string("Project: ") + std::string(project.projectName()) +
-                               " | Effect: " + std::string(effect.name()),
+    std::string headline =
+        std::string("Project: ") + std::string(project.projectName()) +
+        " | Effect: " + std::string(effect.name());
+    if (multipleModes) {
+        headline += " | Mode: ";
+        headline += std::string(project.rigName(rigIndex));
+    }
+
+    if (!renderWrappedLine(headline,
                            glm::vec3(1.0f, 0.93f, 0.72f),
                            0.95f) ||
-        !renderWrappedLine(std::string("Mode: ") + std::string(project.rigName(rigIndex)) +
-                               " | Active: " + std::to_string(effect.activeCount()) +
+        !renderWrappedLine(std::string("Active: ") + std::to_string(effect.activeCount()) +
                                " | Loop: " + (scene.loopPlayback ? "on" : "off") +
                                " | Speed: " +
-                               (scene.timeScale == 0.5f ? "0.5x" : scene.timeScale == 2.0f ? "2.0x" : "1.0x"),
+                               (scene.timeScale == 0.25f ? "0.25x" :
+                                scene.timeScale == 0.5f ? "0.5x" :
+                                scene.timeScale == 2.0f ? "2.0x" :
+                                scene.timeScale == 3.0f ? "3.0x" : "1.0x"),
                            glm::vec3(0.82f, 0.90f, 1.0f),
                            0.92f) ||
-        !renderWrappedLine("Space replay | Tab switch effect | [ ] prev/next mode | / cycle mode | R/F5 reload | P pause | . / , step",
+        !renderWrappedLine(
+            multipleModes
+                ? "R replay/reload | Tab switch effect | [ ] prev/next mode | P pause | . / , step"
+                : "R replay/reload | Tab switch effect | P pause | . / , step",
                            glm::vec3(0.90f, 0.90f, 0.90f),
                            0.9f) ||
-        !renderWrappedLine("WASD target | IJKL emitter | U/O height | Arrow keys pan camera",
+        !renderWrappedLine("Speed 1-5 presets (0.25x..3.0x) | -/= nudge speed | L loop",
                            glm::vec3(0.90f, 0.90f, 0.90f),
                            0.9f) ||
-        !renderWrappedLine("Left drag pan | Right drag orbit | Wheel zoom | G/B backdrop | H hide help",
+        !renderWrappedLine("WASD target | Arrow keys emitter | U/O height",
                            glm::vec3(0.90f, 0.90f, 0.90f),
                            0.9f) ||
-        !renderWrappedLine(std::string("Backdrop A: ") + (primaryBackdropEnabled ? "on" : "off") +
-                               " | Backdrop B: " + (secondaryBackdropEnabled ? "on" : "off"),
+        !renderWrappedLine(
+            showBackdropControls
+                ? "Left drag pan | Right drag orbit | Wheel zoom | G/B backdrop | Z/X/C guides | H hide help"
+                : "Left drag pan | Right drag orbit | Wheel zoom | Z/X/C guides | H hide help",
+            glm::vec3(0.90f, 0.90f, 0.90f),
+            0.9f) ||
+        (showBackdropControls &&
+         !renderWrappedLine(std::string("Backdrop A: ") + (primaryBackdropEnabled ? "on" : "off") +
+                                " | Backdrop B: " + (secondaryBackdropEnabled ? "on" : "off"),
+                            glm::vec3(0.90f, 0.90f, 0.90f),
+                            0.9f)) ||
+        !renderWrappedLine(std::string("Guides Z/X/C: ") +
+                               (scene.showEmitterMarker ? "on" : "off") + " / " +
+                               (scene.showTargetMarker ? "on" : "off") + " / " +
+                               (scene.showOrientationGuide ? "on" : "off"),
                            glm::vec3(0.90f, 0.90f, 0.90f),
                            0.9f) ||
         !renderWrappedLine(std::string("Emitter ") + formatVec3(scene.emitter) +
@@ -455,17 +504,21 @@ int VfxPreviewApp::run() {
     bool ttfReady = false;
 
     try {
+        appendPreviewBootLog("[app] creating window");
+        const std::string windowTitle = std::string(project_->projectName()) + " Preview";
         window = std::make_unique<Window>(
-            "PAC_VfxPreviewer",
+            windowTitle.c_str(),
             kInitialWindowWidth,
             kInitialWindowHeight,
             Window::GraphicsApi::OpenGL,
             true);
         fitWindowToDisplay(window->getSDLWindow());
+        appendPreviewBootLog("[app] window created");
 
         if (!gladLoadGLLoader((GLADloadproc)SDL_GL_GetProcAddress)) {
             throw std::runtime_error("Failed to initialize OpenGL functions via glad.");
         }
+        appendPreviewBootLog("[app] glad initialized");
 
         SDL_GL_SetSwapInterval(1);
         glEnable(GL_DEPTH_TEST);
@@ -476,8 +529,10 @@ int VfxPreviewApp::run() {
         if (TTF_Init() == 0) {
             ttfReady = true;
             overlayText = std::make_unique<TextRenderer>(engine::paths::asset("fonts/GillSans.ttf"), 20);
+            appendPreviewBootLog("[app] text renderer initialized");
         } else {
             std::cerr << "[VfxPreviewer] Warning: TTF_Init failed: " << TTF_GetError() << "\n";
+            appendPreviewBootLog("[app] ttf init failed");
         }
 
         int drawableW = 0;
@@ -498,6 +553,7 @@ int VfxPreviewApp::run() {
         bool showSecondaryBackdrop = false;
         std::size_t activeEffectIndex = 0u;
         std::size_t activeRigIndex = 0u;
+        float loopReplayCooldownSec = 0.0f;
 
         auto activateCurrentEffect = [&](bool applyRigDefaults) {
             if (applyRigDefaults) {
@@ -508,21 +564,28 @@ int VfxPreviewApp::run() {
             project_->effectAt(activeEffectIndex).onActivated(scene);
             project_->onEffectActivated(activeEffectIndex);
             project_->constrainScene(activeRigIndex, scene);
-            project_->effectAt(activeEffectIndex).replay(scene);
+            project_->requestReplay(activeEffectIndex, scene);
+            loopReplayCooldownSec = 0.0f;
         };
 
         activateCurrentEffect(true);
         project_->effectAt(activeEffectIndex).onResize(drawableW, drawableH);
+        appendPreviewBootLog("[app] initial effect activated");
 
-        printControls();
+        printControls(*project_, activeRigIndex);
 
         bool running = true;
         bool orbiting = false;
         bool panning = false;
         std::uint64_t titleFrame = 0;
+        std::uint64_t debugFrameIndex = 0;
         std::uint64_t prevTicks = SDL_GetPerformanceCounter();
 
         while (running) {
+            const bool logThisFrame = debugFrameIndex < 4u;
+            if (logThisFrame) {
+                appendPreviewBootLog("[app] frame " + std::to_string(debugFrameIndex) + " begin");
+            }
             SDL_Event event{};
             while (SDL_PollEvent(&event)) {
                 switch (event.type) {
@@ -567,7 +630,6 @@ int VfxPreviewApp::run() {
                 case SDL_KEYDOWN:
                     switch (event.key.keysym.sym) {
                     case SDLK_ESCAPE: running = false; break;
-                    case SDLK_SPACE: project_->effectAt(activeEffectIndex).replay(scene); break;
                     case SDLK_p: scene.paused = !scene.paused; break;
                     case SDLK_PERIOD:
                         if (scene.paused) project_->effectAt(activeEffectIndex).stepFrames(1, scene);
@@ -577,11 +639,20 @@ int VfxPreviewApp::run() {
                         break;
                     case SDLK_r:
                     case SDLK_F5:
-                        project_->effectAt(activeEffectIndex).reload(scene);
+                        project_->requestReload(activeEffectIndex, scene);
+                        loopReplayCooldownSec = 0.0f;
                         break;
                     case SDLK_l: scene.loopPlayback = !scene.loopPlayback; break;
-                    case SDLK_g: showPrimaryBackdrop = !showPrimaryBackdrop; break;
-                    case SDLK_b: showSecondaryBackdrop = !showSecondaryBackdrop; break;
+                    case SDLK_g:
+                        if (project_->supportsPrimaryBackdropToggle(activeRigIndex)) {
+                            showPrimaryBackdrop = !showPrimaryBackdrop;
+                        }
+                        break;
+                    case SDLK_b:
+                        if (project_->supportsSecondaryBackdropToggle(activeRigIndex)) {
+                            showSecondaryBackdrop = !showSecondaryBackdrop;
+                        }
+                        break;
                     case SDLK_TAB:
                         activeEffectIndex = (activeEffectIndex + 1u) % project_->effectCount();
                         project_->effectAt(activeEffectIndex).onResize(drawableW, drawableH);
@@ -600,18 +671,32 @@ int VfxPreviewApp::run() {
                             activateCurrentEffect(true);
                         }
                         break;
-                    case SDLK_SLASH:
-                    case SDLK_KP_DIVIDE:
-                        if (project_->rigCount() > 0u) {
-                            activeRigIndex = (activeRigIndex + 1u) % project_->rigCount();
-                            activateCurrentEffect(true);
-                        }
+                    case SDLK_1: scene.timeScale = 0.25f; break;
+                    case SDLK_2: scene.timeScale = 0.5f; break;
+                    case SDLK_3: scene.timeScale = 1.0f; break;
+                    case SDLK_4: scene.timeScale = 2.0f; break;
+                    case SDLK_5: scene.timeScale = 3.0f; break;
+                    case SDLK_MINUS:
+                    case SDLK_KP_MINUS:
+                        if (scene.timeScale <= 0.25f) scene.timeScale = 0.25f;
+                        else if (scene.timeScale <= 0.5f) scene.timeScale = 0.25f;
+                        else if (scene.timeScale <= 1.0f) scene.timeScale = 0.5f;
+                        else if (scene.timeScale <= 2.0f) scene.timeScale = 1.0f;
+                        else scene.timeScale = 2.0f;
                         break;
-                    case SDLK_1: scene.timeScale = 0.5f; break;
-                    case SDLK_2: scene.timeScale = 1.0f; break;
-                    case SDLK_3: scene.timeScale = 2.0f; break;
+                    case SDLK_EQUALS:
+                    case SDLK_PLUS:
+                    case SDLK_KP_PLUS:
+                        if (scene.timeScale < 0.5f) scene.timeScale = 0.5f;
+                        else if (scene.timeScale < 1.0f) scene.timeScale = 1.0f;
+                        else if (scene.timeScale < 2.0f) scene.timeScale = 2.0f;
+                        else scene.timeScale = 3.0f;
+                        break;
+                    case SDLK_z: scene.showEmitterMarker = !scene.showEmitterMarker; break;
+                    case SDLK_x: scene.showTargetMarker = !scene.showTargetMarker; break;
+                    case SDLK_c: scene.showOrientationGuide = !scene.showOrientationGuide; break;
                     case SDLK_h: showHelpOverlay = !showHelpOverlay; break;
-                    case SDLK_F1: printControls(); break;
+                    case SDLK_F1: printControls(*project_, activeRigIndex); break;
                     default: break;
                     }
                     break;
@@ -631,25 +716,18 @@ int VfxPreviewApp::run() {
 
             glm::vec3 targetMove(0.0f);
             glm::vec3 emitterMove(0.0f);
-            glm::vec3 cameraPan(0.0f);
-
             const Uint8* keys = SDL_GetKeyboardState(nullptr);
             if (keys[SDL_SCANCODE_W]) targetMove.z -= 1.0f;
             if (keys[SDL_SCANCODE_S]) targetMove.z += 1.0f;
             if (keys[SDL_SCANCODE_A]) targetMove.x -= 1.0f;
             if (keys[SDL_SCANCODE_D]) targetMove.x += 1.0f;
 
-            if (keys[SDL_SCANCODE_I]) emitterMove.z -= 1.0f;
-            if (keys[SDL_SCANCODE_K]) emitterMove.z += 1.0f;
-            if (keys[SDL_SCANCODE_J]) emitterMove.x -= 1.0f;
-            if (keys[SDL_SCANCODE_L]) emitterMove.x += 1.0f;
+            if (keys[SDL_SCANCODE_UP]) emitterMove.z -= 1.0f;
+            if (keys[SDL_SCANCODE_DOWN]) emitterMove.z += 1.0f;
+            if (keys[SDL_SCANCODE_LEFT]) emitterMove.x -= 1.0f;
+            if (keys[SDL_SCANCODE_RIGHT]) emitterMove.x += 1.0f;
             if (keys[SDL_SCANCODE_U]) emitterMove.y -= 1.0f;
             if (keys[SDL_SCANCODE_O]) emitterMove.y += 1.0f;
-
-            if (keys[SDL_SCANCODE_UP]) cameraPan.z -= 1.0f;
-            if (keys[SDL_SCANCODE_DOWN]) cameraPan.z += 1.0f;
-            if (keys[SDL_SCANCODE_LEFT]) cameraPan.x -= 1.0f;
-            if (keys[SDL_SCANCODE_RIGHT]) cameraPan.x += 1.0f;
 
             auto normalizeSafe = [](glm::vec3 v) -> glm::vec3 {
                 const float lenSq = glm::dot(v, v);
@@ -674,20 +752,31 @@ int VfxPreviewApp::run() {
                 project_->constrainScene(activeRigIndex, scene);
             }
 
-            if (glm::dot(cameraPan, cameraPan) > 0.0f) {
-                camera.move(glm::vec3(
-                    cameraPan.x * kKeyboardPanSpeed * static_cast<float>(frameDt),
-                    0.0f,
-                    cameraPan.z * kKeyboardPanSpeed * static_cast<float>(frameDt)));
-            }
-
             if (!scene.paused) {
+                if (logThisFrame) appendPreviewBootLog("[app] frame " + std::to_string(debugFrameIndex) + " update project/effect");
                 project_->update(static_cast<float>(frameDt) * scene.timeScale, activeRigIndex, scene);
                 project_->effectAt(activeEffectIndex).update(
                     static_cast<float>(frameDt) * scene.timeScale,
                     scene);
+                if (scene.loopPlayback &&
+                    !project_->isReplayPending(activeEffectIndex) &&
+                    project_->allowAutoReplay(activeEffectIndex, activeRigIndex)) {
+                    if (project_->effectAt(activeEffectIndex).activeCount() == 0u) {
+                        loopReplayCooldownSec += static_cast<float>(frameDt) * scene.timeScale;
+                        if (loopReplayCooldownSec >=
+                            project_->effectAt(activeEffectIndex).loopCooldownSec()) {
+                            project_->requestReplay(activeEffectIndex, scene);
+                            loopReplayCooldownSec = 0.0f;
+                        }
+                    } else {
+                        loopReplayCooldownSec = 0.0f;
+                    }
+                } else {
+                    loopReplayCooldownSec = 0.0f;
+                }
             }
 
+            if (logThisFrame) appendPreviewBootLog("[app] frame " + std::to_string(debugFrameIndex) + " clear");
             glClearColor(0.05f, 0.06f, 0.09f, 1.0f);
             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
@@ -698,17 +787,21 @@ int VfxPreviewApp::run() {
                 overlayText.get(),
             };
 
+            if (logThisFrame) appendPreviewBootLog("[app] frame " + std::to_string(debugFrameIndex) + " render backdrop");
             project_->renderBackdrop(frameCtx,
                                      activeRigIndex,
                                      scene,
                                      showPrimaryBackdrop,
                                      showSecondaryBackdrop);
+            if (logThisFrame) appendPreviewBootLog("[app] frame " + std::to_string(debugFrameIndex) + " render effect");
             project_->effectAt(activeEffectIndex).render(frameCtx);
 
+            if (logThisFrame) appendPreviewBootLog("[app] frame " + std::to_string(debugFrameIndex) + " render debug lines");
             debugLines.clear();
             project_->appendDebugMarkers(debugLines, scene);
             debugLines.draw(camera);
 
+            if (logThisFrame) appendPreviewBootLog("[app] frame " + std::to_string(debugFrameIndex) + " render overlay");
             renderOverlay(overlayText.get(),
                           *project_,
                           project_->effectAt(activeEffectIndex),
@@ -718,7 +811,10 @@ int VfxPreviewApp::run() {
                           showPrimaryBackdrop,
                           showSecondaryBackdrop);
 
+            if (logThisFrame) appendPreviewBootLog("[app] frame " + std::to_string(debugFrameIndex) + " swap");
             window->swapBuffers();
+            if (logThisFrame) appendPreviewBootLog("[app] frame " + std::to_string(debugFrameIndex) + " end");
+            ++debugFrameIndex;
 
             if ((titleFrame++ % 8u) == 0u) {
                 window->setTitle(

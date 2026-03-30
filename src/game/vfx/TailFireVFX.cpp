@@ -123,6 +123,12 @@ void TailFireVFX::setNameFilterCaseInsensitive(const std::string& nameLowerOrAny
 glm::mat4 TailFireVFX::computeInstanceTransform(const PokemonInstance& instance) const {
     float scaleFactor = 1.0f;
     if (instance.model) scaleFactor = instance.model->getScaleFactor();
+    if (cfg.useUnitScaleChain) {
+        scaleFactor *= std::max(0.0f, instance.modelScaleCorrection);
+        scaleFactor *= std::max(0.0f, instance.speciesScale);
+        scaleFactor *= std::max(0.0f, instance.visualScale);
+        scaleFactor *= std::max(0.0f, instance.captureScale);
+    }
 
     glm::mat4 scale = glm::scale(glm::mat4(1.0f), glm::vec3(scaleFactor));
     glm::mat4 rotationX = glm::rotate(glm::mat4(1.0f), glm::radians(instance.rotation.x), glm::vec3(1, 0, 0));
