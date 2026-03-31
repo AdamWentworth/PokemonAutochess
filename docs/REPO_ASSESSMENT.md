@@ -2,7 +2,7 @@
 
 Status: Active
 Type: Assessment
-Last updated: 2026-03-30
+Last updated: 2026-03-31
 
 This is a living repo-health assessment. Update it when the overall
 maintainability read changes in a meaningful way, not on every small edit.
@@ -10,7 +10,7 @@ maintainability read changes in a meaningful way, not on every small edit.
 Execution plan: `REPO_CLEANUP_ROADMAP.md`
 
 ## Current Grade
-- Overall production-readiness grade: `8.0 / 10`
+- Overall production-readiness grade: `8.1 / 10`
 - Read this as: stronger than a typical solo C++ game repo in structure,
   testing, and docs discipline, but still carrying enough concentration and
   architectural drag that it would be high-friction to scale up without more
@@ -20,10 +20,10 @@ Execution plan: `REPO_CLEANUP_ROADMAP.md`
 | Category | Grade | Notes |
 | --- | --- | --- |
 | Code health | `7.8 / 10` | Most code is readable and intentional, but several renderer/runtime hotspots are still too dense. |
-| Maintainability | `7.2 / 10` | Recent cleanup helped, yet major change risk is still concentrated in a small number of large files. |
+| Maintainability | `7.5 / 10` | Recent cleanup helped materially; the main remaining concentration is now more in session/renderer surfaces than in the outer runtime runner. |
 | Modularity and boundaries | `7.8 / 10` | Engine/game split is real, and Growl now has a true reusable VFX boundary; the remaining drag is in broader runtime/renderer seams. |
 | Repo organization | `8.5 / 10` | Top-level structure, naming, and docs organization are strong. |
-| Testing and verification | `8.6 / 10` | Full check covers docs, build, and 185 tests; the main remaining downside is manual visual/perf verification. |
+| Testing and verification | `8.6 / 10` | Full check covers docs, build, and 189 tests; the main remaining downside is manual visual/perf verification. |
 | Production discipline | `7.5 / 10` | Build flags, parity contracts, and hygiene are good; perf and visual validation are not yet fully automated. |
 
 ## Current Overall Read
@@ -36,6 +36,33 @@ Execution plan: `REPO_CLEANUP_ROADMAP.md`
 - Growl's reusable boundary is now materially real: runtime batching/submission
   is reusable, game translation lives at the edge, and `VfxLab` no longer needs
   `game/runtime/*` headers to render Growl.
+- `GameRunner.cpp` is no longer carrying its full window/video presentation
+  state inline; that state now lives in
+  `src/game/runtime/video/RuntimeWindowPresentationController.*`, which is a
+  real maintainability improvement.
+- `GameRunner.cpp` also no longer owns its full renderer recovery / OpenGL
+  fallback bootstrap lambda forest inline; that logic now lives in
+  `src/game/runtime/renderer/RuntimeGameRunnerRendererBootstrap.*`.
+- `GameRunner.cpp` also shed its startup window policy and post-renderer
+  presentation finalization into
+  `RuntimeGameRunnerWindowBootstrap.*` and
+  `RuntimeGameRunnerStartupFinalize.*`, narrowing the remaining file to more
+  obviously runner-centric orchestration.
+- `GameRunner.cpp` now also delegates SDL event polling/translation through
+  `src/game/runtime/loop/RuntimeGameRunnerEventPump.*`, which trims more
+  loop-specific plumbing out of the runner and keeps input/window dispatch in a
+  named seam.
+- `GameRunner.cpp` now also delegates frame observation, perf-summary emission,
+  and Growl terminal logging through
+  `src/game/runtime/loop/RuntimeGameRunnerFrameDiagnostics.*`, which gives the
+  runner loop a clearer separation between execution and reporting.
+- `GameRunner.cpp` now also delegates steady-state fixed-step/render/present
+  execution through
+  `src/game/runtime/loop/RuntimeGameRunnerFrameExecution.*`, which leaves the
+  remaining loop more obviously about policy and orchestration.
+- The outer relaunch entry now lives in
+  `src/game/runtime/RuntimeGameRunnerEntry.cpp`, so `GameRunner.cpp` no longer
+  owns the relaunch wrapper around single-session startup/run/shutdown.
 
 ## What Is Strong
 - Engine/game layering is real, not aspirational.
@@ -60,10 +87,9 @@ Execution plan: `REPO_CLEANUP_ROADMAP.md`
      `OpenGLRenderBackendWorldDraw.cpp`, and `D3D12RenderBackendWorldDraw.cpp`.
 
 2. Runtime and renderer seams are still broader than ideal.
-   - `src/game/runtime/session/GameSession.cpp`,
-     `src/game/runtime/GameRunner.cpp`, and
+   - `src/game/runtime/session/GameSession.cpp` and
      `src/engine/render/IRenderBackend.h` still centralize too much policy and
-     coordination.
+     coordination, and backend mega-files remain broad.
 
 3. Visual and performance verification still lean on manual discipline.
    - Tooling is stronger than before, but preview correctness and perf baselines
@@ -77,8 +103,6 @@ Execution plan: `REPO_CLEANUP_ROADMAP.md`
 ## Main Risks
 - `src/game/runtime/session/GameSession.cpp` is still the largest runtime
   concentration seam.
-- `src/game/runtime/GameRunner.cpp` still centralizes too much launch, loop,
-  and runtime policy.
 - `src/engine/render/IRenderBackend.h` and the backend mega-files still absorb
   broad change risk.
 - Shared projected render/build CPU remains the main steady-state renderer cost
@@ -96,6 +120,25 @@ Execution plan: `REPO_CLEANUP_ROADMAP.md`
 - Growl's shared runtime/preview path now uses neutral mesh/batch types, a
   reusable indexed submit helper, and game-side adapters instead of direct
   `game::runtime` dependencies.
+- `GameRunner.cpp` shed its window/video presentation cluster into
+  `RuntimeWindowPresentationController.*`, which makes the runner more
+  orchestration-focused and gives the runtime video policy a dedicated home.
+- `GameRunner.cpp` also shed its renderer fallback/bootstrap cluster into
+  `RuntimeGameRunnerRendererBootstrap.*`, which narrows the remaining runner
+  work to startup orchestration, loop control, and restart policy.
+- `GameRunner.cpp` further shed startup window policy and post-renderer
+  presentation finalization into dedicated helpers, reducing its size from
+  roughly `900` lines to roughly `530`.
+- `GameRunner.cpp` also shed its SDL event pump into
+  `RuntimeGameRunnerEventPump.*`, leaving the remaining loop more focused on
+  fixed-step, render, perf capture, and restart orchestration.
+- `GameRunner.cpp` also shed its frame diagnostics/logging path into
+  `RuntimeGameRunnerFrameDiagnostics.*`, reducing its size from roughly `900`
+  lines to roughly `470`.
+- `GameRunner.cpp` also shed steady-state frame execution into
+  `RuntimeGameRunnerFrameExecution.*` and the relaunch entry into
+  `RuntimeGameRunnerEntry.cpp`, reducing its size further to roughly `400`
+  lines.
 
 ## Current Repo-Level Red Flags
 - There is still no automated perf baseline gate in CI.
@@ -103,10 +146,10 @@ Execution plan: `REPO_CLEANUP_ROADMAP.md`
   have landed in code, but the larger submission/dataflow work is still ahead.
 
 ## Current Priority Order
-1. Keep shrinking `GameSession.cpp` and `GameRunner.cpp` into clearer ownership
-   seams.
-2. Continue renderer restructuring work that reduces shared projected
+1. Do the first logging-unification pass across runtime/tooling startup paths.
+2. Keep shrinking `GameSession.cpp` into clearer ownership seams.
+3. Continue renderer restructuring work that reduces shared projected
    render-build CPU cost.
-3. Reduce manual-only preview and perf validation where practical.
-4. Keep the docs honest as the repo changes, especially around renderer,
+4. Reduce manual-only preview and perf validation where practical.
+5. Keep the docs honest as the repo changes, especially around renderer,
    tooling, and VFX ownership boundaries.

@@ -1,7 +1,5 @@
 // src/game/GameRunner.cpp
 
-#include "game/runtime/GameRunner.h"
-
 #include "game/runtime/GameApp.h"
 
 #include "engine/core/EngineServices.h"
@@ -9,7 +7,6 @@
 #include "engine/core/GameContext.h"
 #include "engine/core/GameLoop.h"
 #include "engine/events/EventBus.h"
-#include "engine/input/InputEvent.h"
 #include "engine/platform/Window.h"
 #include "engine/render/Camera3D.h"
 #include "engine/render/IRenderBackend.h"
@@ -17,29 +14,21 @@
 #include "engine/utils/ResourceManager.h"
 #include "engine/utils/ShaderCache.h"
 #include "game/runtime/AutoQuitPolicy.h"
-#include "game/runtime/renderer/RendererBackendBootstrap.h"
 #include "game/runtime/RuntimeBootLoading.h"
-#include "game/runtime/loop/RuntimeFixedStepPhase.h"
-#include "game/runtime/loop/RuntimeFrameObservation.h"
-#include "game/runtime/loop/RuntimeFramePerfCapture.h"
-#include "game/runtime/loop/RuntimeLoopConfig.h"
+#include "game/runtime/RuntimeGameRunnerSession.h"
+#include "game/runtime/loop/RuntimeGameRunnerEventPump.h"
+#include "game/runtime/loop/RuntimeGameRunnerFrameDiagnostics.h"
+#include "game/runtime/loop/RuntimeGameRunnerFrameExecution.h"
+#include "game/runtime/loop/RuntimeGameRunnerLoopPolicy.h"
 #include "game/runtime/loop/RuntimeLoopControl.h"
 #include "game/runtime/RuntimeOpenGlBootstrap.h"
-#include "game/runtime/loop/RuntimePerfAccumulator.h"
-#include "game/runtime/loop/RuntimePerfLogging.h"
-#include "game/runtime/RuntimeRelaunchLoop.h"
-#include "game/runtime/renderer/RuntimeRendererActivation.h"
+#include "game/runtime/renderer/RuntimeGameRunnerRendererBootstrap.h"
 #include "game/runtime/renderer/RuntimeRendererRecovery.h"
-#include "game/runtime/renderer/RuntimeRendererStartupState.h"
-#include "game/runtime/video/RuntimeSdlEventDispatch.h"
-#include "game/runtime/video/RuntimeSdlInput.h"
-#include "game/runtime/video/RuntimeSdlVideoMode.h"
-#include "game/runtime/startup/RuntimeStartupConfig.h"
-#include "game/runtime/startup/RuntimeStartupPresentation.h"
+#include "game/runtime/startup/RuntimeGameRunnerStartupFinalize.h"
 #include "game/runtime/startup/RuntimeStartupSession.h"
-#include "game/runtime/startup/RuntimeStartupVideoOverride.h"
-#include "game/runtime/video/RuntimeWindowBootstrap.h"
-#include "game/runtime/video/VideoInitGuards.h"
+#include "game/runtime/video/RuntimeGameRunnerWindowBootstrap.h"
+#include "game/runtime/video/RuntimeSdlInput.h"
+#include "game/runtime/video/RuntimeWindowPresentationController.h"
 #include "game/runtime/video/VideoPreferences.h"
 
 #define NOMINMAX
@@ -62,7 +51,6 @@
 #include <array>
 #include <chrono>
 #include <cmath>
-#include <exception>
 #include <iostream>
 #include <memory>
 #include <string>
@@ -72,33 +60,16 @@ namespace {
     constexpr unsigned int START_W  = 1280;
     constexpr unsigned int START_H  = 720;
 
-    const char* glStringOrUnknown(GLenum token) {
-        const GLubyte* s = glGetString(token);
-        return s ? reinterpret_cast<const char*>(s) : "<unknown>";
-    }
-
     class GameRunner {
     public:
+        GameRunner()
+            : presentation(services, std::cout, std::cerr) {}
+
         bool init();
         int run(GameLoop& game);
         void shutdown();
 
     private:
-        void updateDrawableSizeAndViewport();
-        void updateMouseScale();
-        void updateCameraAspect();
-        void syncVideoModeState();
-        void noteCurrentWindowModeChanged(bool saveImmediately);
-        void saveVideoModePreferences();
-        game::runtime::video_mode::RequestedVideoMode resolveRequestedVideoMode(
-            int width,
-            int height,
-            bool fullscreenWanted) const;
-        bool applyVideoModeInternal(int width, int height, bool fullscreenWanted, bool persistChange);
-        bool applyVideoMode(int width, int height, bool fullscreenWanted);
-        GameContext::VideoMode queryVideoMode() const;
-        void syncLivePresentationSettings();
-        void normalizeWindowedPresentationMode();
         void enforceFrameCap(const std::chrono::high_resolution_clock::time_point& frameStart);
 
         void setTitle(const std::string& title);
@@ -117,115 +88,44 @@ namespace {
         ShaderCache shaderCache;
         EventBus eventBus;
         EngineServices services;
-        std::string prefsPath;
+        game::runtime::window_presentation::WindowPresentationController presentation;
 
         bool initialized = false;
         game::video::RendererBackend requestedBackend = game::video::RendererBackend::Auto;
         game::video::RendererBackend activeBackend = game::video::RendererBackend::OpenGL;
-
-        int drawableW = (int)START_W;
-        int drawableH = (int)START_H;
-
-        int windowW = (int)START_W;
-        int windowH = (int)START_H;
-        int defaultWindowedW = (int)START_W;
-        int defaultWindowedH = (int)START_H;
-        int lastWindowedW = (int)START_W;
-        int lastWindowedH = (int)START_H;
-        bool fullscreen = false;
-        bool lastWindowedMaximized = false;
-        bool videoModePreferencesDirty = false;
-        bool windowHasOpenGLContext = false;
-        bool glFunctionsReady = false;
-        bool appliedVsyncEnabled = false;
-        bool uncappedWindowModeNormalized = false;
-
-        float mouseScaleX = 1.0f;
-        float mouseScaleY = 1.0f;
     };
 
     bool GameRunner::init() {
-        prefsPath = game::video::defaultPreferencesPath();
+        const std::string prefsPath = game::video::defaultPreferencesPath();
         const auto startupSession =
             game::runtime::startup_session::prepareFromEnvironment(prefsPath, std::cout, std::cerr);
         requestedBackend = startupSession.requestedBackend;
         activeBackend = startupSession.activeBackend;
         game::runtime::startup_session::applyToServices(startupSession, services);
+        presentation.setPreferencesPath(prefsPath);
         services.videoPreferencesPath = prefsPath;
-        appliedVsyncEnabled = services.vsyncEnabled;
-        const game::video::Preferences startupVideoPrefs = game::video::loadPreferences(prefsPath);
+        presentation.setAppliedVsyncEnabled(services.vsyncEnabled);
 
         if (SDL_Init(SDL_INIT_VIDEO) != 0) {
             std::cerr << "[GameRunner] SDL_Init failed: " << SDL_GetError() << "\n";
             return false;
         }
 
-        const auto startupDisplayBounds =
-            game::runtime::video_mode::queryPrimaryDisplayUsableBounds(std::cerr);
-        const auto startupPlacement =
-            game::runtime::video_mode::resolveStartupWindowPlacement(
-                startupVideoPrefs,
-                startupDisplayBounds);
-        const bool hasSavedWindowedSize =
-            startupVideoPrefs.windowedWidth > 0 && startupVideoPrefs.windowedHeight > 0;
-        defaultWindowedW = startupPlacement.width;
-        defaultWindowedH = startupPlacement.height;
-        lastWindowedW = startupPlacement.width;
-        lastWindowedH = startupPlacement.height;
-        lastWindowedMaximized = startupPlacement.maximized;
-
-        const auto initialWindow = game::runtime::window_bootstrap::openWindow(
-            game::runtime::window_bootstrap::OpenRequest{
-                game::runtime::backend_bootstrap::graphicsApiForBackend(activeBackend),
-                services.vsyncEnabled},
-            [this](Window::GraphicsApi graphicsApi, bool vsyncEnabled) {
-                window = std::make_unique<Window>(
-                    "Pokemon Autochess",
-                    defaultWindowedW,
-                    defaultWindowedH,
-                    graphicsApi,
-                    vsyncEnabled);
-            },
-            [this]() {
-                return window && window->hasOpenGLContext();
-            });
-        if (!initialWindow.success) {
-            std::cerr << "[GameRunner] Window init failed: " << initialWindow.error << "\n";
+        const auto startupWindow = game::runtime::runner_window_bootstrap::openAndApplyStartupWindow(
+            prefsPath,
+            activeBackend,
+            services.vsyncEnabled,
+            window,
+            presentation,
+            std::cout,
+            std::cerr);
+        if (!startupWindow.success) {
+            std::cerr << "[GameRunner] Window init failed: " << startupWindow.error << "\n";
             return false;
-        }
-        windowHasOpenGLContext = initialWindow.hasOpenGlContext;
-        glFunctionsReady = initialWindow.glFunctionsReady;
-
-        if (window && window->getSDLWindow()) {
-            if (startupDisplayBounds.valid &&
-                (!hasSavedWindowedSize || startupPlacement.maximized)) {
-                SDL_SetWindowPosition(
-                    window->getSDLWindow(),
-                    startupPlacement.x,
-                    startupPlacement.y);
-            }
-            if (!startupVideoPrefs.fullscreen && startupPlacement.maximized) {
-                SDL_MaximizeWindow(window->getSDLWindow());
-            }
-        }
-        syncVideoModeState();
-        if (startupVideoPrefs.fullscreen &&
-            !applyVideoModeInternal(0, 0, true, false)) {
-            std::cerr << "[Video] Failed to apply saved startup fullscreen mode.\n";
-        }
-
-        const auto startupOverrideResult = game::runtime::startup_video_override::apply(
-            game::runtime::startup_config::readStartupVideoOverride(std::cerr),
-            [this]() { return this->queryVideoMode(); },
-            [this](int width, int height, bool isFullscreen) {
-                return this->applyVideoModeInternal(width, height, isFullscreen, false);
-            });
-        if (startupOverrideResult.attempted) {
-            (startupOverrideResult.applied ? std::cout : std::cerr) << startupOverrideResult.message << "\n";
         }
 
         const auto preloadBootstrap = game::runtime::opengl_bootstrap::bootstrapLoadingPresentation(
-            windowHasOpenGLContext,
+            presentation.hasOpenGlContext(),
             game::runtime::opengl_bootstrap::PreloadCallbacks{
                 [this](std::string* outError) {
                     if (!gladLoadGLLoader((GLADloadproc)SDL_GL_GetProcAddress)) {
@@ -255,60 +155,23 @@ namespace {
             std::cerr << "\n";
             return false;
         }
-        glFunctionsReady = preloadBootstrap.glFunctionsReady;
+        presentation.setOpenGlState(presentation.hasOpenGlContext(), preloadBootstrap.glFunctionsReady);
 
-        auto rendererResult = game::runtime::renderer_recovery::createWithOpenGlFallback(
-            game::runtime::renderer_recovery::Inputs{activeBackend, services.activeRendererBackend},
-            [this](game::video::RendererBackend backend, std::string* outError) {
-                return game::runtime::backend_bootstrap::createRenderBackend(
-                    backend,
-                    window ? window->getSDLWindow() : nullptr,
-                    drawableW,
-                    drawableH,
-                    services.vsyncEnabled,
-                    services.preferredGpuAdapter,
-                    outError);
+        auto rendererResult = game::runtime::runner_renderer_bootstrap::createWithOpenGlFallback(
+            activeBackend,
+            services.activeRendererBackend,
+            services,
+            window,
+            presentation,
+            [this](std::string* loaderError) {
+                if (!gladLoadGLLoader((GLADloadproc)SDL_GL_GetProcAddress)) {
+                    if (loaderError) *loaderError = "gladLoadGLLoader failed";
+                    return false;
+                }
+                return true;
             },
-            [this]() {
-                window.reset();
-                const auto fallbackWindow = game::runtime::window_bootstrap::openWindow(
-                    game::runtime::window_bootstrap::OpenRequest{
-                        Window::GraphicsApi::OpenGL,
-                        services.vsyncEnabled},
-                    [this](Window::GraphicsApi graphicsApi, bool vsyncEnabled) {
-                        window = std::make_unique<Window>(
-                            "Pokemon Autochess",
-                            static_cast<int>(START_W),
-                            static_cast<int>(START_H),
-                            graphicsApi,
-                            vsyncEnabled);
-                    },
-                    [this]() {
-                        return window && window->hasOpenGLContext();
-                    });
-                windowHasOpenGLContext = fallbackWindow.hasOpenGlContext;
-                glFunctionsReady = fallbackWindow.glFunctionsReady;
-                return game::runtime::renderer_recovery::OpenGlWindowResult{
-                    fallbackWindow.success,
-                    fallbackWindow.error};
-            },
-            [this](std::string* outError) {
-                const bool ok = game::runtime::opengl_bootstrap::initializeOpenGlFunctions(
-                    [this](std::string* loaderError) {
-                        if (!gladLoadGLLoader((GLADloadproc)SDL_GL_GetProcAddress)) {
-                            if (loaderError) *loaderError = "gladLoadGLLoader failed";
-                            return false;
-                        }
-                        return true;
-                    },
-                    outError);
-                glFunctionsReady = ok;
-                return ok;
-            },
-            [this]() {
-                updateDrawableSizeAndViewport();
-                updateMouseScale();
-            });
+            static_cast<int>(START_W),
+            static_cast<int>(START_H));
         if (rendererResult.rendererBackendFallback) {
             services.rendererBackendFallback = true;
             services.rendererBackendFallbackReason = rendererResult.rendererBackendFallbackReason;
@@ -317,6 +180,7 @@ namespace {
         activeBackend = rendererResult.activeBackend;
         services.activeRendererBackend = rendererResult.activeBackendName;
         renderer = std::move(rendererResult.renderer);
+        presentation.bindRenderer(renderer.get());
         if (!renderer) {
             switch (rendererResult.failureStage) {
             case game::runtime::renderer_recovery::FailureStage::FallbackWindowOpen:
@@ -343,44 +207,23 @@ namespace {
             }
         }
 
-        game::runtime::renderer_startup_state::OpenGlStrings openGlStrings;
-        if (renderer->requiresOpenGLContext()) {
-            openGlStrings.vendor = glStringOrUnknown(GL_VENDOR);
-            openGlStrings.renderer = glStringOrUnknown(GL_RENDERER);
-            openGlStrings.version = glStringOrUnknown(GL_VERSION);
-            openGlStrings.glslVersion = glStringOrUnknown(GL_SHADING_LANGUAGE_VERSION);
-        }
-        const auto activationInputs =
-            game::runtime::renderer_startup_state::makeActivationInputs(
-                services,
+        const auto startupFinalize =
+            game::runtime::runner_startup_finalize::activateRendererAndInitializePresentation(
                 *renderer,
-                openGlStrings);
-        const auto activation =
-            game::runtime::renderer_startup_state::applyAndLog(services, activationInputs, std::cout);
-
-        if (!activation.discreteRequirementSatisfied) {
-            std::cerr << "[GPU] Discrete GPU required by settings, but integrated GPU is active.\n";
-            std::cerr << "[GPU] Change Graphics preference to high performance or choose a discrete adapter.\n";
+                services,
+                presentation,
+                camera,
+                [this](float progress01) {
+                    // Ensure native backends show the same dark loading frame immediately,
+                    // avoiding a temporary OS white window before preload UI starts updating.
+                    renderBootLoading(progress01);
+                },
+                std::cout,
+                std::cerr);
+        if (!startupFinalize.success) {
+            std::cerr << startupFinalize.error;
             return false;
         }
-
-        const auto fontInit = game::runtime::startup_presentation::initializeFonts(
-            []() { return TTF_Init(); },
-            []() { return std::string(TTF_GetError()); });
-        if (!fontInit.succeeded) {
-            std::cerr << "[GameRunner] TTF_Init error: " << fontInit.error << "\n";
-        }
-
-        camera = game::runtime::startup_presentation::createDefaultCamera(drawableW, drawableH);
-        game::runtime::startup_presentation::primeInitialLoadingFrame(
-            renderer.get(),
-            drawableW,
-            drawableH,
-            [this](float progress01) {
-                // Ensure native backends show the same dark loading frame immediately,
-                // avoiding a temporary OS white window before preload UI starts updating.
-                renderBootLoading(progress01);
-            });
 
         initialized = true;
         std::cout << "[Init] Game runner initialized.\n";
@@ -390,12 +233,11 @@ namespace {
     void GameRunner::shutdown() {
         std::cout << "[Shutdown] Game runner...\n";
 
-        if (videoModePreferencesDirty) {
-            saveVideoModePreferences();
-        }
+        presentation.saveVideoModePreferences();
 
         if (renderer) {
             renderer->shutdown();
+            presentation.bindRenderer(nullptr);
             renderer.reset();
         }
 
@@ -403,8 +245,10 @@ namespace {
 
         resourceManager.clear();
         bootLoadingView.reset();
+        presentation.bindCamera(nullptr);
         camera.reset();
 
+        presentation.bindWindow(nullptr);
         window.reset();
 
         if (SDL_WasInit(SDL_INIT_EVERYTHING) != 0) {
@@ -414,250 +258,6 @@ namespace {
 
         initialized = false;
         std::cout << "[Shutdown] Game runner done.\n";
-    }
-
-    void GameRunner::updateDrawableSizeAndViewport() {
-        if (!window || !window->getSDLWindow()) return;
-
-        SDL_GetWindowSize(window->getSDLWindow(), &windowW, &windowH);
-        if (windowHasOpenGLContext) {
-            SDL_GL_GetDrawableSize(window->getSDLWindow(), &drawableW, &drawableH);
-        } else {
-            drawableW = windowW;
-            drawableH = windowH;
-        }
-
-        if (drawableW <= 0) drawableW = windowW;
-        if (drawableH <= 0) drawableH = windowH;
-
-        if (game::runtime::video::shouldApplyOpenGLViewport(windowHasOpenGLContext, glFunctionsReady)) {
-            glViewport(0, 0, drawableW, drawableH);
-        }
-    }
-
-    void GameRunner::updateMouseScale() {
-        if (windowW > 0 && windowH > 0) {
-            mouseScaleX = (float)drawableW / (float)windowW;
-            mouseScaleY = (float)drawableH / (float)windowH;
-        } else {
-            mouseScaleX = 1.0f;
-            mouseScaleY = 1.0f;
-        }
-    }
-
-    void GameRunner::updateCameraAspect() {
-        if (camera && drawableW > 0 && drawableH > 0) {
-            camera->setAspectRatio(float(drawableW) / float(drawableH));
-        }
-    }
-
-    void GameRunner::syncVideoModeState() {
-        updateDrawableSizeAndViewport();
-        updateMouseScale();
-        updateCameraAspect();
-        if (window && window->getSDLWindow()) {
-            const Uint32 flags = SDL_GetWindowFlags(window->getSDLWindow());
-            fullscreen = (flags & SDL_WINDOW_FULLSCREEN) != 0 ||
-                         (flags & SDL_WINDOW_FULLSCREEN_DESKTOP) != 0;
-            if (!fullscreen) {
-                lastWindowedW = std::max(640, windowW);
-                lastWindowedH = std::max(360, windowH);
-                lastWindowedMaximized = (flags & SDL_WINDOW_MAXIMIZED) != 0;
-                if (uncappedWindowModeNormalized &&
-                    !services.vsyncEnabled &&
-                    game::video::sanitizeFpsCap(services.fpsCap) == 0) {
-                    lastWindowedMaximized = false;
-                }
-            }
-        }
-        if (renderer) {
-            renderer->onResize(drawableW, drawableH);
-        }
-    }
-
-    void GameRunner::noteCurrentWindowModeChanged(bool saveImmediately) {
-        videoModePreferencesDirty = true;
-        if (saveImmediately) {
-            saveVideoModePreferences();
-        }
-    }
-
-    void GameRunner::saveVideoModePreferences() {
-        if (prefsPath.empty()) return;
-
-        game::video::Preferences prefs = game::video::loadPreferences(prefsPath);
-        const int safeWindowedW = std::max(640, lastWindowedW);
-        const int safeWindowedH = std::max(360, lastWindowedH);
-        if (prefs.fullscreen == fullscreen &&
-            prefs.windowedWidth == safeWindowedW &&
-            prefs.windowedHeight == safeWindowedH &&
-            prefs.windowedMaximized == lastWindowedMaximized) {
-            videoModePreferencesDirty = false;
-            return;
-        }
-
-        prefs.fullscreen = fullscreen;
-        prefs.windowedWidth = safeWindowedW;
-        prefs.windowedHeight = safeWindowedH;
-        prefs.windowedMaximized = lastWindowedMaximized;
-
-        std::string saveErr;
-        if (!game::video::savePreferences(prefs, prefsPath, &saveErr)) {
-            std::cerr << "[Video] Failed to save video mode preferences: " << saveErr << "\n";
-            return;
-        }
-        videoModePreferencesDirty = false;
-    }
-
-    game::runtime::video_mode::RequestedVideoMode GameRunner::resolveRequestedVideoMode(
-        int width,
-        int height,
-        bool fullscreenWanted) const {
-        int targetWidth = width;
-        int targetHeight = height;
-
-        if (fullscreenWanted) {
-            if (targetWidth <= 0 || targetHeight <= 0) {
-                SDL_DisplayMode desktopMode{};
-                int displayIndex = 0;
-                if (window && window->getSDLWindow()) {
-                    const int queriedDisplayIndex = SDL_GetWindowDisplayIndex(window->getSDLWindow());
-                    if (queriedDisplayIndex >= 0) {
-                        displayIndex = queriedDisplayIndex;
-                    }
-                }
-                if (SDL_GetDesktopDisplayMode(displayIndex, &desktopMode) == 0 &&
-                    desktopMode.w > 0 &&
-                    desktopMode.h > 0) {
-                    targetWidth = desktopMode.w;
-                    targetHeight = desktopMode.h;
-                } else {
-                    targetWidth = std::max(640, drawableW);
-                    targetHeight = std::max(360, drawableH);
-                }
-            }
-        } else if (targetWidth <= 0 || targetHeight <= 0) {
-            targetWidth = std::max(640, lastWindowedW > 0 ? lastWindowedW : defaultWindowedW);
-            targetHeight = std::max(360, lastWindowedH > 0 ? lastWindowedH : defaultWindowedH);
-        }
-
-        return game::runtime::video_mode::sanitizeRequestedVideoMode(
-            targetWidth,
-            targetHeight,
-            fullscreenWanted);
-    }
-
-    bool GameRunner::applyVideoModeInternal(int width,
-                                            int height,
-                                            bool fullscreenWanted,
-                                            bool persistChange) {
-        if (!window || !window->getSDLWindow()) return false;
-        const auto requested = resolveRequestedVideoMode(width, height, fullscreenWanted);
-        const auto result = game::runtime::video_mode::applyRequestedVideoMode(
-            window->getSDLWindow(),
-            requested,
-            std::cerr);
-        if (!result.success) {
-            return false;
-        }
-        syncVideoModeState();
-        fullscreen = result.fullscreen;
-        if (persistChange) {
-            noteCurrentWindowModeChanged(true);
-        }
-        return true;
-    }
-
-    bool GameRunner::applyVideoMode(int width, int height, bool fullscreenWanted) {
-        return applyVideoModeInternal(width, height, fullscreenWanted, true);
-    }
-
-    GameContext::VideoMode GameRunner::queryVideoMode() const {
-        const int currentWidth = fullscreen ? drawableW : windowW;
-        const int currentHeight = fullscreen ? drawableH : windowH;
-        return game::runtime::video_mode::makeCurrentVideoMode(
-            currentWidth,
-            currentHeight,
-            fullscreen);
-    }
-
-    void GameRunner::syncLivePresentationSettings() {
-        if (appliedVsyncEnabled == services.vsyncEnabled) {
-            return;
-        }
-
-        bool applied = false;
-        if (windowHasOpenGLContext && window) {
-            applied = window->setVSyncEnabled(services.vsyncEnabled);
-        } else if (renderer && renderer->handlesPresentation()) {
-            renderer->setVSyncEnabled(services.vsyncEnabled);
-            applied = true;
-        }
-
-        if (applied) {
-            appliedVsyncEnabled = services.vsyncEnabled;
-            std::cout << "[Video] VSync live set: "
-                      << (appliedVsyncEnabled ? "On" : "Off") << "\n";
-        } else {
-            std::cerr << "[Video] Failed to apply live VSync toggle.\n";
-        }
-    }
-
-    void GameRunner::normalizeWindowedPresentationMode() {
-        if (!window || !window->getSDLWindow()) {
-            uncappedWindowModeNormalized = false;
-            return;
-        }
-
-        const bool shouldNormalize =
-            game::runtime::video_mode::shouldPreferRestoredWindowForUncappedPresentation(
-                fullscreen,
-                lastWindowedMaximized,
-                services.vsyncEnabled,
-                services.fpsCap);
-        if (!shouldNormalize) {
-            uncappedWindowModeNormalized = false;
-            return;
-        }
-        if (uncappedWindowModeNormalized) {
-            return;
-        }
-
-        SDL_Window* sdlWindow = window->getSDLWindow();
-        const Uint32 flags = SDL_GetWindowFlags(sdlWindow);
-        if ((flags & SDL_WINDOW_MAXIMIZED) == 0u) {
-            uncappedWindowModeNormalized = true;
-            return;
-        }
-
-        const int restoreW = std::max(640, windowW > 0 ? windowW : lastWindowedW);
-        const int restoreH = std::max(360, windowH > 0 ? windowH : lastWindowedH);
-        SDL_RestoreWindow(sdlWindow);
-        SDL_SetWindowSize(sdlWindow, restoreW, restoreH);
-        SDL_SetWindowPosition(sdlWindow, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED);
-        syncVideoModeState();
-        lastWindowedW = restoreW;
-        lastWindowedH = restoreH;
-        lastWindowedMaximized = false;
-        if (!prefsPath.empty()) {
-            game::video::Preferences prefs = game::video::loadPreferences(prefsPath);
-            prefs.fullscreen = false;
-            prefs.windowedWidth = restoreW;
-            prefs.windowedHeight = restoreH;
-            prefs.windowedMaximized = false;
-            std::string saveErr;
-            if (!game::video::savePreferences(prefs, prefsPath, &saveErr)) {
-                videoModePreferencesDirty = true;
-                std::cerr << "[Video] Failed to save restored windowed mode: "
-                          << saveErr << "\n";
-            } else {
-                videoModePreferencesDirty = false;
-            }
-        } else {
-            noteCurrentWindowModeChanged(true);
-        }
-        uncappedWindowModeNormalized = true;
-        std::cout << "[Video] Restored windowed mode for uncapped presentation.\n";
     }
 
     void GameRunner::enforceFrameCap(const std::chrono::high_resolution_clock::time_point& frameStart) {
@@ -698,31 +298,34 @@ namespace {
             if (game::runtime::boot_loading::shouldAbortPreloadEvent(e)) return false;
 
             if (game::runtime::sdl_input::isResizeWindowEvent(e)) {
-                syncVideoModeState();
-                noteCurrentWindowModeChanged(false);
+                presentation.syncVideoModeState();
+                presentation.noteCurrentWindowModeChanged(false);
             }
         }
         return true;
     }
 
     void GameRunner::renderBootLoading(float progress01) {
-        updateDrawableSizeAndViewport();
+        presentation.syncVideoModeState();
         if (bootLoadingView) {
-            bootLoadingView->render(progress01, drawableW, drawableH);
+            bootLoadingView->render(
+                progress01,
+                presentation.drawableWidth(),
+                presentation.drawableHeight());
             swapBuffers();
         } else if (renderer) {
             renderer->beginFrame(0.05f, 0.05f, 0.07f, 1.0f);
             std::array<IRenderBackend::DebugQuad, game::runtime::boot_loading::kFallbackLoadingQuadCount> quads{};
             if (game::runtime::boot_loading::buildFallbackLoadingQuads(
-                    drawableW,
-                    drawableH,
+                    presentation.drawableWidth(),
+                    presentation.drawableHeight(),
                     progress01,
                     quads)) {
                 renderer->drawDebugQuads(
                     quads.data(),
                     static_cast<int>(quads.size()),
-                    drawableW,
-                    drawableH);
+                    presentation.drawableWidth(),
+                    presentation.drawableHeight());
             }
             renderer->endFrame();
         }
@@ -734,12 +337,6 @@ namespace {
         std::cout << "[Run] Main loop @ "
                   << static_cast<int>(engine::runtime::fixed_step::kHz)
                   << " Hz...\n";
-        static const int maxFixedTicksPerFrame =
-            game::runtime::loop_config::readMaxFixedTicksPerFrameFromEnvironment(std::cerr);
-        std::cout << "[Run] Fixed tick budget: " << maxFixedTicksPerFrame << " ticks/frame\n";
-        using clock = std::chrono::high_resolution_clock;
-        std::uint32_t previousGrowlRingCount = 0u;
-        EngineTerminalLogMode previousTerminalLogMode = services.terminalLogMode;
 
         game::runtime::loop_control::State loopState;
         services.resources = &resourceManager;
@@ -750,8 +347,8 @@ namespace {
         ctx.renderer = renderer.get();
         ctx.camera   = camera.get();
         ctx.services = &services;
-        ctx.drawableW = drawableW;
-        ctx.drawableH = drawableH;
+        ctx.drawableW = presentation.drawableWidth();
+        ctx.drawableH = presentation.drawableHeight();
 
         ctx.setTitle = [this](const std::string& t) { this->setTitle(t); };
         ctx.swapBuffers = [this]() { this->swapBuffers(); };
@@ -761,12 +358,12 @@ namespace {
         ctx.pumpPreloadEvents = [this]() { return this->pumpPreloadEvents(); };
         ctx.renderBootLoading = [this](float p) { this->renderBootLoading(p); };
         ctx.applyVideoMode = [this, &ctx](int width, int height, bool isFullscreen) {
-            const bool ok = this->applyVideoMode(width, height, isFullscreen);
-            ctx.drawableW = drawableW;
-            ctx.drawableH = drawableH;
+            const bool ok = presentation.applyVideoMode(width, height, isFullscreen);
+            ctx.drawableW = presentation.drawableWidth();
+            ctx.drawableH = presentation.drawableHeight();
             return ok;
         };
-        ctx.queryVideoMode = [this]() { return this->queryVideoMode(); };
+        ctx.queryVideoMode = [this]() { return presentation.queryVideoMode(); };
 
         game.init(ctx);
 
@@ -775,237 +372,87 @@ namespace {
             return 0;
         }
 
-        auto previous = clock::now();
-        double accumulator = 0.0;
-
-        game::runtime::perf_accum::RollingAccumulator perfAccumulator;
-        const game::runtime::auto_quit::Policy autoQuit = game::runtime::auto_quit::fromEnvironment();
-        if (autoQuit.enabled()) {
-            std::cout << "[Run] Auto-quit policy enabled:";
-            if (autoQuit.maxSeconds > 0.0) {
-                std::cout << " seconds=" << autoQuit.maxSeconds;
-            }
-            if (autoQuit.maxFrames > 0) {
-                std::cout << " frames=" << autoQuit.maxFrames;
-            }
-            std::cout << "\n";
-        }
+        auto loopPolicy = game::runtime::runner_loop_policy::makeInitialState(
+            game::runtime::runner_loop_policy::readConfig(std::cout, std::cerr));
+        auto frameDiagnostics =
+            game::runtime::runner_frame_diagnostics::makeInitialState(services);
 
         while (game::runtime::loop_control::isRunning(loopState)) {
-            syncLivePresentationSettings();
-            normalizeWindowedPresentationMode();
-            SDL_Event sdlEvent;
+            presentation.syncLivePresentationSettings();
+            presentation.normalizeWindowedPresentationMode();
+            game::runtime::runner_event_pump::pumpWindowEvents(
+                presentation,
+                ctx,
+                game,
+                loopState);
 
-            while (SDL_PollEvent(&sdlEvent)) {
-                game::runtime::sdl_event_dispatch::Callbacks eventCallbacks;
-                eventCallbacks.onResize = [this, &ctx]() {
-                    syncVideoModeState();
-                    noteCurrentWindowModeChanged(false);
-                    ctx.drawableW = drawableW;
-                    ctx.drawableH = drawableH;
-                };
-                eventCallbacks.onInputEvent = [&game](const InputEvent& event) {
-                    game.handleEvent(event);
-                };
-                eventCallbacks.makeTranslationContext = [this]() {
-                    game::runtime::sdl_input::TranslationContext inputContext;
-                    inputContext.mouseScaleX = mouseScaleX;
-                    inputContext.mouseScaleY = mouseScaleY;
-                    inputContext.windowW = windowW;
-                    inputContext.windowH = windowH;
-                    inputContext.drawableW = drawableW;
-                    inputContext.drawableH = drawableH;
-                    return inputContext;
-                };
-                game::runtime::sdl_event_dispatch::dispatch(sdlEvent, loopState, eventCallbacks);
-            }
+            const auto frameStart =
+                game::runtime::runner_loop_policy::beginFrame(loopPolicy);
 
-            auto now = clock::now();
-            double frameDt = std::chrono::duration<double>(now - previous).count();
-            frameDt = game::runtime::loop_config::clampFrameDeltaSeconds(frameDt);
-            previous = now;
-            const auto frameStart = now;
+            const auto frameExecution =
+                game::runtime::runner_frame_execution::execute({
+                    .accumulator = game::runtime::runner_loop_policy::accumulator(loopPolicy),
+                    .frameDt = frameStart.frameDt,
+                    .maxFixedTicksPerFrame =
+                        game::runtime::runner_loop_policy::maxFixedTicksPerFrame(loopPolicy),
+                    .drawableW = presentation.drawableWidth(),
+                    .drawableH = presentation.drawableHeight(),
+                    .services = services,
+                    .game = game,
+                    .renderer = renderer.get(),
+                    .swapBuffers = [this]() { this->swapBuffers(); },
+                });
+            game::runtime::runner_loop_policy::setAccumulator(
+                loopPolicy,
+                frameExecution.accumulator);
 
-            accumulator += frameDt;
-
-            const auto frameCpuStart = clock::now();
-            const auto fixedPhase = game::runtime::fixed_step_phase::execute(
-                accumulator,
-                engine::runtime::fixed_step::kSeconds,
-                maxFixedTicksPerFrame,
+            game::runtime::runner_frame_diagnostics::Inputs frameDiagnosticInputs;
+            frameDiagnosticInputs.frameDt = frameStart.frameDt;
+            frameDiagnosticInputs.frameCpuMs = frameExecution.frameCpuMs;
+            frameDiagnosticInputs.beginFrameMs = frameExecution.beginFrameMs;
+            frameDiagnosticInputs.renderBuildMs = frameExecution.renderBuildMs;
+            frameDiagnosticInputs.submitRawMs = frameExecution.submitRawMs;
+            frameDiagnosticInputs.rendererHandlesPresentation =
+                frameExecution.rendererHandlesPresentation;
+            frameDiagnosticInputs.fixedPhase = frameExecution.fixedPhase;
+            frameDiagnosticInputs.serviceSnapshot = frameExecution.serviceSnapshot;
+            frameDiagnosticInputs.backendPerf = frameExecution.backendPerf;
+            game::runtime::runner_frame_diagnostics::observeAndEmit(
+                frameDiagnostics,
                 services,
-                [&game](float dt) { game.fixedUpdate(dt); });
-            accumulator = fixedPhase.accumulator;
-            const auto beginFrameStart = clock::now();
-            if (renderer) {
-                renderer->beginFrame(0.1f, 0.1f, 0.1f, 1.0f);
-            }
-            const auto renderBuildStart = clock::now();
+                frameDiagnosticInputs,
+                std::cout);
 
-            game.render(drawableW, drawableH);
-            const auto renderBuildEnd = clock::now();
-            const auto submitStart = renderBuildEnd;
-            const auto serviceSnapshot = game::runtime::frame_observation::captureServiceSnapshot(services);
-
-            game::runtime::frame_perf_capture::BackendFrameInputs backendPerfInputs;
-            if (renderer) {
-                renderer->endFrame();
-                IRenderBackend::BackendFrameTimings backendTimings;
-                backendPerfInputs.rendererHandlesPresentation = renderer->handlesPresentation();
-                backendPerfInputs.hasBackendTimings = renderer->getLastFrameTimings(backendTimings);
-                backendPerfInputs.backendTimings = backendTimings;
-                if (renderer->handlesPresentation()) {
-                } else {
-                    const auto presentStart = clock::now();
-                    swapBuffers();
-                    const auto presentEnd = clock::now();
-                    backendPerfInputs.measuredPresentWaitMs =
-                        std::chrono::duration<double, std::milli>(presentEnd - presentStart).count();
-                }
-                IRenderBackend::BackendFrameStats backendStats;
-                backendPerfInputs.hasBackendStats = renderer->getLastFrameStats(backendStats);
-                backendPerfInputs.backendStats = backendStats;
-            } else {
-                const auto presentStart = clock::now();
-                swapBuffers();
-                const auto presentEnd = clock::now();
-                backendPerfInputs.measuredPresentWaitMs =
-                    std::chrono::duration<double, std::milli>(presentEnd - presentStart).count();
-            }
-            const auto backendPerf =
-                game::runtime::frame_perf_capture::resolveBackendFrameOutputs(backendPerfInputs);
-            const auto frameCpuEnd = clock::now();
-
-            const double beginFrameMs =
-                std::chrono::duration<double, std::milli>(renderBuildStart - beginFrameStart).count();
-            const double renderBuildMs = std::chrono::duration<double, std::milli>(
-                                             renderBuildEnd - renderBuildStart)
-                                             .count();
-            const double submitRawMs =
-                std::chrono::duration<double, std::milli>(frameCpuEnd - submitStart).count();
-            const double submitMs =
-                game::runtime::frame_perf_capture::computeSubmitMs(
-                    submitRawMs,
-                    backendPerf.presentWaitMs);
-            const double totalPresentWaitMs =
-                game::runtime::frame_perf_capture::computeTotalPresentWaitMs(
-                    backendPerfInputs.rendererHandlesPresentation,
-                    beginFrameMs,
-                    backendPerf.presentWaitMs);
-            const double legacyRenderMs = beginFrameMs + renderBuildMs;
-            const double legacySwapMs = std::max(0.0, submitRawMs);
-            const double frameCpuMs = std::chrono::duration<double, std::milli>(frameCpuEnd - frameCpuStart).count();
-            game::runtime::loop_control::notePresentedFrame(loopState, frameDt);
-
-            game::runtime::frame_observation::SampleInputs sampleInputs;
-            sampleInputs.frameDt = frameDt;
-            sampleInputs.frameCpuMs = frameCpuMs;
-            sampleInputs.fixedMs = fixedPhase.fixedMs;
-            sampleInputs.fixedTickWorkMs = fixedPhase.fixedTickWorkMs;
-            sampleInputs.renderBuildMs = renderBuildMs;
-            sampleInputs.renderSubmitMs = submitMs;
-            sampleInputs.presentWaitMs = totalPresentWaitMs;
-            sampleInputs.legacyRenderMs = legacyRenderMs;
-            sampleInputs.legacySwapMs = legacySwapMs;
-            sampleInputs.gpuFrameMs = backendPerf.gpuFrameMs;
-            sampleInputs.gpuFrameValid = backendPerf.gpuFrameValid;
-            sampleInputs.drawCalls = backendPerf.drawCalls;
-            sampleInputs.triangles = backendPerf.triangles;
-            sampleInputs.indexedOpaqueDraws = backendPerf.indexedOpaqueDraws;
-            sampleInputs.indexedBlendDraws = backendPerf.indexedBlendDraws;
-            sampleInputs.indexedCachedDraws = backendPerf.indexedCachedDraws;
-            sampleInputs.indexedDynamicDraws = backendPerf.indexedDynamicDraws;
-            sampleInputs.indexedInstancedDraws = backendPerf.indexedInstancedDraws;
-            sampleInputs.indexedOutlineBatches = backendPerf.indexedOutlineBatches;
-            sampleInputs.indexedGeometrySwitches = backendPerf.indexedGeometrySwitches;
-            sampleInputs.indexedMaterialSwitches = backendPerf.indexedMaterialSwitches;
-            sampleInputs.indexedTextureSwitches = backendPerf.indexedTextureSwitches;
-            sampleInputs.indexedGlTextureBindCalls = backendPerf.indexedGlTextureBindCalls;
-            sampleInputs.indexedD3d12PsoSets = backendPerf.indexedD3d12PsoSets;
-            sampleInputs.indexedD3d12DescriptorTableSets =
-                backendPerf.indexedD3d12DescriptorTableSets;
-            sampleInputs.fastSceneInstances = backendPerf.fastSceneInstances;
-            sampleInputs.fastSceneDrawClasses = backendPerf.fastSceneDrawClasses;
-            sampleInputs.fastSceneVisibleSkeletons =
-                backendPerf.fastSceneVisibleSkeletons;
-            sampleInputs.fastScenePaletteUploadBytes =
-                backendPerf.fastScenePaletteUploadBytes;
-            sampleInputs.fastSceneMaterialTableBinds =
-                backendPerf.fastSceneMaterialTableBinds;
-            sampleInputs.fastSceneIndirectCommands =
-                backendPerf.fastSceneIndirectCommands;
-            sampleInputs.fixedBreakdown = fixedPhase.fixedBreakdown;
-            sampleInputs.fixedTicks = fixedPhase.fixedTicks;
-            sampleInputs.fixedTicksDropped = fixedPhase.fixedTicksDropped;
-            perfAccumulator.addFrame(
-                game::runtime::frame_observation::makePerfSample(sampleInputs, serviceSnapshot));
-            if (perfAccumulator.readyToEmit()) {
-                const auto perfSummary = perfAccumulator.makeSummaryAndReset();
-                services.framePerf = perfSummary.framePerf;
-                if (services.terminalLogMode == EngineTerminalLogMode::Performance) {
-                    std::cout << game::runtime::perf_logging::formatPerfLine(services.framePerf) << "\n";
-                    std::cout << game::runtime::perf_logging::formatPerfJson(services.framePerf) << "\n";
-                }
-            }
-
-            if (services.terminalLogMode == EngineTerminalLogMode::GrowlVfx) {
-                const std::uint32_t currentGrowlRingCount =
-                    services.frameGrowlDebug.activeRingCount;
-                const bool modeJustSwitchedToGrowl =
-                    previousTerminalLogMode != EngineTerminalLogMode::GrowlVfx;
-                const bool growlStartedThisFrame =
-                    currentGrowlRingCount > previousGrowlRingCount;
-                if (currentGrowlRingCount > 0u &&
-                    (modeJustSwitchedToGrowl || growlStartedThisFrame)) {
-                    std::cout << game::runtime::perf_logging::formatGrowlDebugLine(
-                        services.frameGrowlDebug) << "\n";
-                    std::cout << game::runtime::perf_logging::formatGrowlDebugJson(
-                        services.frameGrowlDebug) << "\n";
-                }
-            }
-
-            previousGrowlRingCount = services.frameGrowlDebug.activeRingCount;
-            previousTerminalLogMode = services.terminalLogMode;
-
-            if (autoQuit.enabled()) {
-                game::runtime::loop_control::applyAutoQuit(autoQuit, loopState);
-            }
-
-            if (game::runtime::loop_control::isRunning(loopState)) {
-                enforceFrameCap(frameStart);
-            }
+            game::runtime::runner_loop_policy::finishFrame(
+                loopPolicy,
+                loopState,
+                frameStart.frameDt,
+                frameStart.frameStart,
+                [this](const auto& startedAt) { this->enforceFrameCap(startedAt); });
         }
 
-        std::cout << "[Run] Exiting main loop: "
-                  << game::runtime::loop_control::effectiveStopReason(loopState) << "\n";
+        game::runtime::runner_loop_policy::logExit(loopState, std::cout);
         game.shutdown();
         return 0;
     }
 } // namespace
 
-namespace game {
+namespace game::runtime::runner_session {
 
-int runGame() {
-    const std::string prefsPath = game::video::defaultPreferencesPath();
-    return game::runtime::relaunch_loop::runWithRestartPolicy(
-        prefsPath,
-        []() {
-        GameRunner runner;
-        if (!runner.init()) {
-            runner.shutdown();
-            return 1;
-        }
-
-        GameApp app;
-            const int lastResult = runner.run(app);
-
+int runSingleSession() {
+    GameRunner runner;
+    if (!runner.init()) {
         runner.shutdown();
-            return lastResult;
-        },
-        std::cout,
-        std::cerr);
+        return 1;
+    }
+
+    GameApp app;
+    const int lastResult = runner.run(app);
+
+    runner.shutdown();
+    return lastResult;
 }
 
-} // namespace game
+} // namespace game::runtime::runner_session
 
 

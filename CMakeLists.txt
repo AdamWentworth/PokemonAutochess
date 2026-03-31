@@ -323,6 +323,7 @@ add_library(PAC_GameObjects STATIC
     # Game Core
     src/game/runtime/GameApp.cpp
     src/game/runtime/GameRunner.cpp
+    src/game/runtime/RuntimeGameRunnerEntry.cpp
     src/game/world/GameWorld.cpp
     src/game/world/GameWorldProgression.cpp
     src/game/world/GameWorldRoster.cpp
@@ -351,6 +352,10 @@ add_library(PAC_GameObjects STATIC
     src/game/runtime/startup/RuntimeStartupAssetPrewarm.cpp
     src/game/runtime/RuntimeBootLoading.cpp
     src/game/runtime/renderer/RendererBackendBootstrap.cpp
+    src/game/runtime/loop/RuntimeGameRunnerEventPump.cpp
+    src/game/runtime/loop/RuntimeGameRunnerFrameExecution.cpp
+    src/game/runtime/loop/RuntimeGameRunnerFrameDiagnostics.cpp
+    src/game/runtime/loop/RuntimeGameRunnerLoopPolicy.cpp
     src/game/runtime/loop/RuntimeFixedStepPhase.cpp
     src/game/runtime/loop/RuntimeFrameObservation.cpp
     src/game/runtime/renderer/RendererStartupDiagnostics.cpp
@@ -362,13 +367,17 @@ add_library(PAC_GameObjects STATIC
     src/game/runtime/loop/RuntimePerfLogging.cpp
     src/game/runtime/RuntimeRelaunchLoop.cpp
     src/game/runtime/renderer/RuntimeRendererActivation.cpp
+    src/game/runtime/renderer/RuntimeGameRunnerRendererBootstrap.cpp
     src/game/runtime/renderer/RuntimeRendererRecovery.cpp
     src/game/runtime/renderer/RuntimeRendererStartupState.cpp
     src/game/runtime/RuntimeRestartPolicy.cpp
     src/game/runtime/video/RuntimeSdlEventDispatch.cpp
     src/game/runtime/video/RuntimeSdlInput.cpp
+    src/game/runtime/video/RuntimeGameRunnerWindowBootstrap.cpp
     src/game/runtime/video/RuntimeSdlVideoMode.cpp
+    src/game/runtime/video/RuntimeWindowPresentationController.cpp
     src/game/runtime/startup/RuntimeStartupConfig.cpp
+    src/game/runtime/startup/RuntimeGameRunnerStartupFinalize.cpp
     src/game/runtime/startup/RuntimeStartupPresentation.cpp
     src/game/runtime/startup/RuntimeStartupSession.cpp
     src/game/runtime/startup/RuntimeStartupVideoOverride.cpp
@@ -685,6 +694,9 @@ if (BUILD_TESTING)
         tests/TestRuntimeFixedStepPhase.cpp
         tests/TestRuntimeFrameObservation.cpp
         tests/TestRuntimeFramePerfCapture.cpp
+        tests/TestRuntimeGameRunnerFrameExecution.cpp
+        tests/TestRuntimeGameRunnerFrameDiagnostics.cpp
+        tests/TestRuntimeGameRunnerLoopPolicy.cpp
         tests/TestRendererBackendBootstrap.cpp
         tests/TestRendererStartupDiagnostics.cpp
         tests/TestRuntimeLoopConfig.cpp
@@ -700,6 +712,7 @@ if (BUILD_TESTING)
         tests/TestRuntimeSdlEventDispatch.cpp
         tests/TestRuntimeSdlInput.cpp
         tests/TestRuntimeSdlVideoMode.cpp
+        tests/TestRuntimeWindowPresentationController.cpp
         tests/TestRuntimeStartupConfig.cpp
         tests/TestRuntimeStartupPresentation.cpp
         tests/TestCameraPanClamp.cpp

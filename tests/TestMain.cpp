@@ -64,6 +64,9 @@ bool test_runtime_startup_asset_prewarm_contract(std::string& outFail);
 bool test_runtime_fixed_step_phase_contract(std::string& outFail);
 bool test_runtime_frame_observation_contract(std::string& outFail);
 bool test_runtime_frame_perf_capture_contract(std::string& outFail);
+bool test_runtime_game_runner_frame_execution_contract(std::string& outFail);
+bool test_runtime_game_runner_frame_diagnostics_contract(std::string& outFail);
+bool test_runtime_game_runner_loop_policy_contract(std::string& outFail);
 bool test_renderer_backend_bootstrap_policy(std::string& outFail);
 bool test_renderer_startup_diagnostics_contract(std::string& outFail);
 bool test_runtime_loop_config_contract(std::string& outFail);
@@ -79,6 +82,7 @@ bool test_runtime_restart_policy_contract(std::string& outFail);
 bool test_runtime_sdl_event_dispatch_contract(std::string& outFail);
 bool test_runtime_sdl_input_contract(std::string& outFail);
 bool test_runtime_sdl_video_mode_contract(std::string& outFail);
+bool test_runtime_window_presentation_controller_contract(std::string& outFail);
 bool test_runtime_startup_config_contract(std::string& outFail);
 bool test_runtime_startup_presentation_contract(std::string& outFail);
 bool test_camera_pan_clamp_contract(std::string& outFail);
@@ -294,6 +298,9 @@ int main(int argc, char** argv) {
         {"runtime_fixed_step_phase_contract", &test_runtime_fixed_step_phase_contract},
         {"runtime_frame_observation_contract", &test_runtime_frame_observation_contract},
         {"runtime_frame_perf_capture_contract", &test_runtime_frame_perf_capture_contract},
+        {"runtime_game_runner_frame_execution_contract", &test_runtime_game_runner_frame_execution_contract},
+        {"runtime_game_runner_frame_diagnostics_contract", &test_runtime_game_runner_frame_diagnostics_contract},
+        {"runtime_game_runner_loop_policy_contract", &test_runtime_game_runner_loop_policy_contract},
         {"renderer_backend_bootstrap_policy", &test_renderer_backend_bootstrap_policy},
         {"renderer_startup_diagnostics_contract", &test_renderer_startup_diagnostics_contract},
         {"runtime_loop_config_contract", &test_runtime_loop_config_contract},
@@ -309,6 +316,7 @@ int main(int argc, char** argv) {
         {"runtime_sdl_event_dispatch_contract", &test_runtime_sdl_event_dispatch_contract},
         {"runtime_sdl_input_contract", &test_runtime_sdl_input_contract},
         {"runtime_sdl_video_mode_contract", &test_runtime_sdl_video_mode_contract},
+        {"runtime_window_presentation_controller_contract", &test_runtime_window_presentation_controller_contract},
         {"runtime_startup_config_contract", &test_runtime_startup_config_contract},
         {"runtime_startup_presentation_contract", &test_runtime_startup_presentation_contract},
         {"camera_pan_clamp_contract", &test_camera_pan_clamp_contract},

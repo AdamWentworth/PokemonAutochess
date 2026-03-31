@@ -2,7 +2,7 @@
 
 Status: Active
 Type: Roadmap
-Last updated: 2026-03-30
+Last updated: 2026-03-31
 
 This roadmap turns `REPO_ASSESSMENT.md` into a ranked execution plan. The
 ordering is based on maintainability payoff per engineering day, not just raw
@@ -58,15 +58,36 @@ importance.
 - Rank: `#3`
 - Payoff/day: `High`
 - Estimated effort: `3-5 days`
+- Current state: `Completed on 2026-03-31`
 - Why this is before `GameSession.cpp`:
   - `GameRunner.cpp` is broad but still easier to cut cleanly than the deeper
     session/runtime seam.
   - It is one of the most frequent coordination points for runtime changes.
-- Focus:
-  - Extract startup/video/config policy.
-  - Extract backend/window bootstrap.
-  - Extract relaunch-loop and restart handling.
-  - Leave `GameRunner.cpp` as orchestration instead of policy storage.
+- Progress so far:
+  - Window/video presentation state now lives in
+    `src/game/runtime/video/RuntimeWindowPresentationController.*`.
+  - Initial saved-window / startup-override bootstrap now lives in
+    `src/game/runtime/video/RuntimeGameRunnerWindowBootstrap.*`.
+  - Renderer recovery / OpenGL fallback bootstrap now lives in
+    `src/game/runtime/renderer/RuntimeGameRunnerRendererBootstrap.*`.
+  - Post-renderer activation, font init, default-camera creation, and initial
+    loading-frame priming now live in
+    `src/game/runtime/startup/RuntimeGameRunnerStartupFinalize.*`.
+  - The SDL event pump now lives in
+    `src/game/runtime/loop/RuntimeGameRunnerEventPump.*`.
+  - Frame observation, perf-summary emission, and Growl terminal logging now
+    live in `src/game/runtime/loop/RuntimeGameRunnerFrameDiagnostics.*`.
+  - Steady-state fixed-step/render/present execution now lives in
+    `src/game/runtime/loop/RuntimeGameRunnerFrameExecution.*`.
+  - The outer relaunch entry now lives in
+    `src/game/runtime/RuntimeGameRunnerEntry.cpp`, while
+    `GameRunner.cpp` only owns single-session startup/run/shutdown behavior.
+  - `src/game/runtime/GameRunner.cpp` dropped from about `900` lines to about
+    `400` lines and now delegates window metrics, live VSync, video-mode
+    persistence, uncapped-window normalization, startup window policy, renderer
+    fallback bootstrap, post-renderer presentation startup, SDL event
+    dispatch, frame execution, and frame diagnostics/logging instead of
+    storing those policies inline.
 - Exit criteria:
   - `src/game/runtime/GameRunner.cpp` becomes a thin coordinator.
   - The extracted helpers each own one obvious concern.
@@ -155,11 +176,11 @@ importance.
   - A few critical preview/runtime visuals are checked automatically.
 
 ## Best Next 30-Day Sequence
-1. Split `GameRunner.cpp`.
-2. Do the first logging-unification pass.
-3. Reassess before starting the larger `GameSession.cpp` split.
-4. Continue projected-render restructuring in the hottest shared build paths.
-5. Add at least one automated preview/perf guardrail.
+1. Do the first logging-unification pass.
+2. Reassess before starting the larger `GameSession.cpp` split.
+3. Continue projected-render restructuring in the hottest shared build paths.
+4. Add at least one automated preview/perf guardrail.
+5. Revisit `GameRunner` only if a new concrete ownership smell appears.
 
 ## What To Avoid Right Now
 - Do not do a big-bang renderer rewrite.
