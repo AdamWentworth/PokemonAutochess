@@ -68,7 +68,7 @@ void appendBoardAndBench(const shared_board_grid::Config& cfg,
                          std::vector<IRenderBackend::DebugLine>& lines,
                          shared_projected_debug::ProjectedDebugVfxBuilder& projectedDebug);
 
-const TailFireVFXConfig& getTailFireFallbackCfg();
+const TailFireVFXConfig& getPrimaryTailFireConfig();
 
 const runtime::render_model::MeshData* resolveModelMesh(
     const PokemonInstance& unit,

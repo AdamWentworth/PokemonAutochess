@@ -5,14 +5,12 @@
 #include "vfx/runtime/growl/SharedGrowlWaveBridge.h"
 #include "game/runtime/shared/vfx/particles/SharedParticleSnapshotBillboards.h"
 #include "game/runtime/shared/vfx/particles/SharedParticleVfxBridgeDispatch.h"
-#include "game/vfx/TailFireVFXConfig.h"
-#include "game/vfx/TailFireVFXConfigDB.h"
+#include "game/runtime/shared/vfx/tail_fire/SharedTailFireCoordinator.h"
+#include "game/runtime/shared/vfx/tail_fire/SharedTailFireRenderContext.h"
 
 #include <algorithm>
-#include <chrono>
 #include <cctype>
 #include <cstring>
-#include <iostream>
 #include <utility>
 
 namespace game::runtime::shared_projected_scene {
@@ -188,19 +186,8 @@ void appendCachedBoardAndBench3D(const shared_board_grid::Config& cfg,
     }
 }
 
-bool isCharmanderUnit(const PokemonInstance& unit) {
-    const std::string species = unit.name;
-    if (species.size() != 10u) return false;
-    return std::tolower(static_cast<unsigned char>(species[0])) == 'c' &&
-           std::tolower(static_cast<unsigned char>(species[1])) == 'h' &&
-           std::tolower(static_cast<unsigned char>(species[2])) == 'a' &&
-           std::tolower(static_cast<unsigned char>(species[3])) == 'r' &&
-           std::tolower(static_cast<unsigned char>(species[4])) == 'm' &&
-           std::tolower(static_cast<unsigned char>(species[5])) == 'a' &&
-           std::tolower(static_cast<unsigned char>(species[6])) == 'n' &&
-           std::tolower(static_cast<unsigned char>(species[7])) == 'd' &&
-           std::tolower(static_cast<unsigned char>(species[8])) == 'e' &&
-           std::tolower(static_cast<unsigned char>(species[9])) == 'r';
+bool usesTailFirePlaybackUnit(const PokemonInstance& unit) {
+    return game::runtime::shared_tail_fire_coordinator::unitUsesTailFireMeshPlayback(unit);
 }
 
 } // namespace
@@ -325,31 +312,8 @@ void appendBoardAndBench(const shared_board_grid::Config& cfg,
             float thickness) { projectedDebug.appendProjectedLine(a, b, r, g, bl, alpha, thickness); });
 }
 
-const TailFireVFXConfig& getTailFireFallbackCfg() {
-    static TailFireVFXConfig sTailFireFallbackCfg{};
-    static bool sTailFireFallbackCfgLoaded = false;
-    if (!sTailFireFallbackCfgLoaded) {
-        const auto start = std::chrono::steady_clock::now();
-        TailFireVFXConfig cfg;
-        TailFireVFXConfigDB::get().ensureLoaded();
-        TailFireVFXConfigDB::get().applyIfAny("charmander", cfg);
-        sTailFireFallbackCfg = cfg;
-        sTailFireFallbackCfgLoaded = true;
-
-        const auto end = std::chrono::steady_clock::now();
-        const double totalMs =
-            std::chrono::duration<double, std::milli>(end - start).count();
-        std::cout << "[TailFire][CPU] fallback_config species=charmander total="
-                  << totalMs
-                  << "ms flipbook0="
-                  << sTailFireFallbackCfg.flipbookPath
-                  << " flipbook1="
-                  << (sTailFireFallbackCfg.useFlipbook2
-                          ? sTailFireFallbackCfg.flipbook2Path
-                          : std::string("<disabled>"))
-                  << "\n";
-    }
-    return sTailFireFallbackCfg;
+const TailFireVFXConfig& getPrimaryTailFireConfig() {
+    return game::runtime::shared_tail_fire_coordinator::resolvePrimaryPlaybackConfig();
 }
 
 bool hasValidTailFireAnchor(
@@ -372,8 +336,14 @@ bool hasMeshCarrierTailFire(
 
 bool appendAnchoredSingleFlipbookTailFire(const ParticleVfxArgs& args,
                                           const TailFireVFXConfig& cfg) {
-    if (!args.sharedTailFireAnchors || !args.backendTextureByPath ||
-        !args.worldIndexedBatches || !args.ensureBackendTextureLoaded) {
+    game::runtime::shared_tail_fire_render::RenderContext tailFireRender{};
+    tailFireRender.anchors = args.sharedTailFireAnchors;
+    tailFireRender.backendTextureByPath = args.backendTextureByPath;
+    tailFireRender.worldIndexedBatches = args.worldIndexedBatches;
+    tailFireRender.ensureBackendTextureLoaded = args.ensureBackendTextureLoaded;
+    tailFireRender.useExactTailFireCpuPath = args.useExactTailFireCpuPath;
+    if (!tailFireRender.anchors || !tailFireRender.backendTextureByPath ||
+        !tailFireRender.worldIndexedBatches || !tailFireRender.ensureBackendTextureLoaded) {
         return false;
     }
     if (!cfg.useFlipbook || cfg.flipbookPath.empty() || cfg.useFlipbook2) {
@@ -406,7 +376,7 @@ bool appendAnchoredSingleFlipbookTailFire(const ParticleVfxArgs& args,
     marker.seed = 0.0f;
     snapshot.particles.push_back(marker);
 
-    return game::runtime::shared_particle_snapshot_billboards::appendSnapshotAsBillboards(
+    return game::runtime::shared_tail_fire_render::appendSnapshotBillboards(
         "tail_fire_single",
         snapshot,
         args.viewProj,
@@ -414,13 +384,7 @@ bool appendAnchoredSingleFlipbookTailFire(const ParticleVfxArgs& args,
         args.cameraWorldPos,
         args.drawableW,
         args.drawableH,
-        *args.backendTextureByPath,
-        [&](const std::string& texturePath, bool flipVertical) -> SharedBackendTextureCacheEntry* {
-            return args.ensureBackendTextureLoaded(texturePath, flipVertical);
-        },
-        args.sharedTailFireAnchors,
-        args.useExactTailFireCpuPath,
-        *args.worldIndexedBatches);
+        tailFireRender);
 }
 
 const runtime::render_model::MeshData* resolveModelMesh(
@@ -554,7 +518,13 @@ void appendSharedParticleVfx(const ParticleVfxArgs& args) {
 
     bool appendedTailFireBillboards = false;
     bool appendedLeechDrainBillboards = false;
-    const TailFireVFXConfig& tailFireFallbackCfg = getTailFireFallbackCfg();
+    const TailFireVFXConfig& tailFireFallbackCfg = getPrimaryTailFireConfig();
+    game::runtime::shared_tail_fire_render::RenderContext tailFireRender{};
+    tailFireRender.anchors = args.sharedTailFireAnchors;
+    tailFireRender.backendTextureByPath = args.backendTextureByPath;
+    tailFireRender.worldIndexedBatches = args.worldIndexedBatches;
+    tailFireRender.ensureBackendTextureLoaded = args.ensureBackendTextureLoaded;
+    tailFireRender.useExactTailFireCpuPath = args.useExactTailFireCpuPath;
     const bool wantsAnchoredSingleFlipbook =
         tailFireFallbackCfg.useFlipbook &&
         !tailFireFallbackCfg.flipbookPath.empty() &&
@@ -576,7 +546,7 @@ void appendSharedParticleVfx(const ParticleVfxArgs& args) {
                 std::strcmp(label, "tail_fire") == 0) {
                 return true;
             }
-            return game::runtime::shared_particle_snapshot_billboards::appendSnapshotAsBillboards(
+            return game::runtime::shared_tail_fire_render::appendSnapshotBillboards(
                 label,
                 snapshot,
                 args.viewProj,
@@ -584,13 +554,7 @@ void appendSharedParticleVfx(const ParticleVfxArgs& args) {
                 args.cameraWorldPos,
                 args.drawableW,
                 args.drawableH,
-                *args.backendTextureByPath,
-                [&](const std::string& texturePath, bool flipVertical) -> SharedBackendTextureCacheEntry* {
-                    return args.ensureBackendTextureLoaded(texturePath, flipVertical);
-                },
-                args.sharedTailFireAnchors,
-                args.useExactTailFireCpuPath,
-                *args.worldIndexedBatches);
+                tailFireRender);
         };
         const auto particleDispatchResult =
             game::runtime::shared_particle_bridge_dispatch::appendStandardSnapshots(
@@ -610,7 +574,7 @@ void appendSharedParticleVfx(const ParticleVfxArgs& args) {
         tailFireArgs.benchPokemons = &args.gameWorld->getBenchPokemons();
         tailFireArgs.appendSnapshot =
             [&](const char* label, const ParticleSystem::RenderSnapshot& snapshot) -> bool {
-                return game::runtime::shared_particle_snapshot_billboards::appendSnapshotAsBillboards(
+                return game::runtime::shared_tail_fire_render::appendSnapshotBillboards(
                     label,
                     snapshot,
                     args.viewProj,
@@ -618,13 +582,7 @@ void appendSharedParticleVfx(const ParticleVfxArgs& args) {
                     args.cameraWorldPos,
                     args.drawableW,
                     args.drawableH,
-                    *args.backendTextureByPath,
-                    [&](const std::string& texturePath, bool flipVertical) -> SharedBackendTextureCacheEntry* {
-                        return args.ensureBackendTextureLoaded(texturePath, flipVertical);
-                    },
-                    args.sharedTailFireAnchors,
-                    args.useExactTailFireCpuPath,
-                    *args.worldIndexedBatches);
+                    tailFireRender);
             };
         appendedTailFireBillboards =
             game::runtime::shared_tail_fire_fallback::appendSyntheticTailFire(tailFireArgs) ||
@@ -634,7 +592,7 @@ void appendSharedParticleVfx(const ParticleVfxArgs& args) {
     if (!appendedTailFireBillboards &&
         !(args.sharedTailFireAnchors && hasMeshCarrierTailFire(*args.sharedTailFireAnchors))) {
         for (const auto& unit : args.gameWorld->getPokemons()) {
-            if (!isCharmanderUnit(unit)) continue;
+            if (!usesTailFirePlaybackUnit(unit)) continue;
             const auto extents =
                 game::runtime::render_prep_proxy::computeUnitProxyExtents(unit, args.worldCellSize);
             const glm::vec3 proxyCenter =

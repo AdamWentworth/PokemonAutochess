@@ -62,8 +62,12 @@ bool test_shared_tail_fire_playback_policy_contract(std::string& outFail) {
 
     if (!expect(shouldRenderSyntheticTailFireFallback("bulbasaur", plainBatches) &&
                     shouldRenderSyntheticTailFireFallback("charmander", plainBatches) &&
-                    !shouldRenderSyntheticTailFireFallback("charmander", authoredBatches),
-                "shouldRenderSyntheticTailFireFallback should preserve fallback for non-mesh species and only suppress Charmander fallback when authored batches really exist.",
+                    shouldRenderSyntheticTailFireFallback("charmeleon", plainBatches) &&
+                    shouldRenderSyntheticTailFireFallback("charizard", plainBatches) &&
+                    !shouldRenderSyntheticTailFireFallback("charmander", authoredBatches) &&
+                    !shouldRenderSyntheticTailFireFallback("charmeleon", authoredBatches) &&
+                    !shouldRenderSyntheticTailFireFallback("charizard", authoredBatches),
+                "shouldRenderSyntheticTailFireFallback should preserve fallback for non-mesh species and only suppress Charmander-line fallback when authored batches really exist.",
                 outFail)) {
         return false;
     }

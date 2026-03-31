@@ -1,16 +1,18 @@
 #include "game/world/GameWorld.h"
+#include "game/runtime/shared/vfx/tail_fire/SharedTailFireCoordinator.h"
+
+#include <string>
 
 void GameWorld::updateRenderVfx(float dt) {
     // Tail fire VFX: init once, then update every frame.
     if (!tailFireVfxInitialized) {
-        // Currently only configured for Charmander (via filter + cfg section).
-        tailFireVfx.setNameFilterCaseInsensitive("charmander");
-
-        TailFireVFX::Config configData;  // defaults
-        TailFireVFXConfigDB::get().ensureLoaded();  // assets/config/tail_fire_vfx.cfg
-        TailFireVFXConfigDB::get().applyIfAny("charmander", configData);
-
-        tailFireVfx.setConfig(configData);
+        tailFireVfx.setFilter(
+            [](const PokemonInstance& unit) {
+                return game::runtime::shared_tail_fire_coordinator::unitUsesTailFireMeshPlayback(unit);
+            });
+        tailFireVfx.setConfig(
+            game::runtime::shared_tail_fire_coordinator::resolvePrimaryPlaybackConfig());
+        tailFireVfx.setUsePlaybackSpeciesConfigs(true);
         tailFireVfxInitialized = true;
     }
 

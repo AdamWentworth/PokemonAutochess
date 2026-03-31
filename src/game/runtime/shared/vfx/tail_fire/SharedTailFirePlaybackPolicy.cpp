@@ -2,7 +2,7 @@
 
 #include <cmath>
 
-#include "game/runtime/shared/vfx/tail_fire/SharedTailFireMeshPlayback.h"
+#include "game/runtime/shared/vfx/tail_fire/SharedTailFireCoordinator.h"
 
 namespace game::runtime::shared_tail_fire_playback_policy {
 
@@ -26,13 +26,22 @@ bool hasAuthoredFireMeshBatches(
     return false;
 }
 
+PlaybackMode resolvePlaybackMode(
+    std::string_view species,
+    const std::vector<shared_world_batches::WorldIndexedBatch>& batches) {
+    if (!shared_tail_fire_coordinator::speciesUsesTailFireMeshPlayback(species)) {
+        return PlaybackMode::None;
+    }
+    return hasAuthoredFireMeshBatches(batches)
+        ? PlaybackMode::AuthoredMesh
+        : PlaybackMode::SyntheticFallback;
+}
+
 bool shouldRenderSyntheticTailFireFallback(
     std::string_view species,
     const std::vector<shared_world_batches::WorldIndexedBatch>& batches) {
-    if (!shared_tail_fire_mesh_playback::isTailFireMeshPlaybackSpecies(species)) {
-        return true;
-    }
-    return !hasAuthoredFireMeshBatches(batches);
+    const PlaybackMode mode = resolvePlaybackMode(species, batches);
+    return mode == PlaybackMode::SyntheticFallback || mode == PlaybackMode::None;
 }
 
 } // namespace game::runtime::shared_tail_fire_playback_policy

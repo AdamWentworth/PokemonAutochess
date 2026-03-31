@@ -17,7 +17,12 @@ bool test_shared_particle_vfx_bridge_dispatch_contract(std::string& outFail) {
     using namespace game::runtime::shared_particle_bridge_dispatch;
 
     GameWorld::ParticleVfxSnapshots snapshots;
-    snapshots.tailFire.shaderFragPath = "tail";
+    ParticleSystem::RenderSnapshot tailFirePrimary;
+    tailFirePrimary.shaderFragPath = "tail_primary";
+    ParticleSystem::RenderSnapshot tailFireSecondary;
+    tailFireSecondary.shaderFragPath = "tail_secondary";
+    snapshots.tailFire.push_back(tailFirePrimary);
+    snapshots.tailFire.push_back(tailFireSecondary);
     snapshots.leechSeedDrain.shaderFragPath = "drain";
 
     std::vector<std::string> callOrder;
@@ -31,6 +36,7 @@ bool test_shared_particle_vfx_bridge_dispatch_contract(std::string& outFail) {
         });
 
     const std::vector<std::string> expected = {
+        "tail_fire",
         "tail_fire",
         "grass_impact",
         "tackle_burst",

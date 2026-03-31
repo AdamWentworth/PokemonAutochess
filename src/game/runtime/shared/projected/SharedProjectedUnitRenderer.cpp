@@ -386,8 +386,7 @@ void drawProjectedUnits(const Args& args, const std::vector<PokemonInstance>& un
         !args.worldTriangles || !args.world3DTriangles ||
         !args.sharedUnitHudCfg || !args.resolveModelMesh || !args.ensureBackendTextureLoaded ||
         !args.backendModelTriangleLimit || !args.backendModelFullMeshEnabled ||
-        !args.backendModelFastTexturedPathEnabled || !args.backendModelBackfaceCullingEnabled ||
-        !args.getTailFireFallbackCfg) {
+        !args.backendModelFastTexturedPathEnabled || !args.backendModelBackfaceCullingEnabled) {
         return;
     }
 

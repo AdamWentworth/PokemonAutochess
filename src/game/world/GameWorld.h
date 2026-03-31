@@ -12,7 +12,6 @@
 
 // Tail fire particle VFX (data-driven via cfg)
 #include "game/vfx/TailFireVFX.h"
-#include "game/vfx/TailFireVFXConfigDB.h"
 // Grass impact VFX (shared by grass-type moves)
 #include "game/vfx/GrassImpactVFX.h"
 // Tackle impact VFX
@@ -113,7 +112,7 @@ public:
     };
 
     struct ParticleVfxSnapshots {
-        ParticleSystem::RenderSnapshot tailFire;
+        std::vector<ParticleSystem::RenderSnapshot> tailFire;
         ParticleSystem::RenderSnapshot grassImpact;
         ParticleSystem::RenderSnapshot tackleBurst;
         ParticleSystem::RenderSnapshot tackleSpark;

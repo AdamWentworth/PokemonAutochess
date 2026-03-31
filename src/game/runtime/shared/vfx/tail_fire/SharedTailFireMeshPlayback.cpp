@@ -163,7 +163,9 @@ thread_local std::unordered_map<const render_model::MeshData*, CachedProfile> g_
 } // namespace
 
 bool isTailFireMeshPlaybackSpecies(std::string_view species) {
-    return equalsInsensitiveAscii(species, "charmander");
+    return equalsInsensitiveAscii(species, "charmander") ||
+           equalsInsensitiveAscii(species, "charmeleon") ||
+           equalsInsensitiveAscii(species, "charizard");
 }
 
 std::string_view authoredFireMeshNodeToken() {

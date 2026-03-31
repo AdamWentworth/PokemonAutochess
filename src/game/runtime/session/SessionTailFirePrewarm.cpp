@@ -1,13 +1,13 @@
 #include "game/runtime/session/SessionTailFirePrewarm.h"
 
 #include "game/runtime/session/SessionRenderConfig.h"
-#include "game/runtime/shared/vfx/tail_fire/SharedTailFireMeshPlayback.h"
+#include "game/runtime/shared/vfx/tail_fire/SharedTailFireCoordinator.h"
 #include "game/runtime/shared/vfx/tail_fire/SharedTailFireSnapshotAtlasCache.h"
-#include "game/runtime/shared/projected/SharedProjectedWorldSceneHelpers.h"
 
 #include <chrono>
 #include <iostream>
 #include <string>
+#include <unordered_set>
 
 namespace game::runtime::session_tail_fire_prewarm {
 
@@ -17,7 +17,7 @@ startup_asset_prewarm::TailFireStats prewarm(const Args& args) {
     }
 
     const TailFireVFXConfig& cfg =
-        game::runtime::shared_projected_scene::getTailFireFallbackCfg();
+        game::runtime::shared_tail_fire_coordinator::resolvePrimaryPlaybackConfig();
     if (!cfg.useFlipbook || cfg.flipbookPath.empty()) return {};
 
     ParticleSystem::RenderSnapshot snapshot{};
@@ -95,42 +95,48 @@ startup_asset_prewarm::TailFireStats prewarm(const Args& args) {
         }
     }
 
-    const auto& authoredSpecs =
-        game::runtime::shared_tail_fire_mesh_playback::authoredFlipbookSpecs();
-    if (!authoredSpecs.empty()) {
-        const auto& charmanderSpec = authoredSpecs.front();
-        if (charmanderSpec.path && charmanderSpec.path[0] != '\0') {
-            const auto cpuLoadStart = std::chrono::steady_clock::now();
-            SharedBackendTextureCacheEntry* authoredCpuTexture =
-                args.ensureBackendTextureLoaded(charmanderSpec.path, false);
-            const auto cpuLoadEnd = std::chrono::steady_clock::now();
-            std::cout << "[TailFire][CPU] authored_mesh_flipbook path="
-                      << charmanderSpec.path
-                      << " load_ms="
-                      << std::chrono::duration<double, std::milli>(cpuLoadEnd - cpuLoadStart).count()
-                      << " size="
-                      << ((authoredCpuTexture && authoredCpuTexture->valid) ? authoredCpuTexture->width : 0)
-                      << "x"
-                      << ((authoredCpuTexture && authoredCpuTexture->valid) ? authoredCpuTexture->height : 0)
-                      << " result="
-                      << ((authoredCpuTexture && authoredCpuTexture->valid) ? "ok" : "failed")
-                      << "\n";
-            if (authoredCpuTexture && authoredCpuTexture->valid) {
-                ++warmed.meshFlipbookCpu;
-                IRenderBackend::WorldTextureData tex{};
-                tex.key = charmanderSpec.path;
-                tex.cacheKey = charmanderSpec.path;
-                tex.rgba = authoredCpuTexture->rgba.data();
-                tex.width = authoredCpuTexture->width;
-                tex.height = authoredCpuTexture->height;
-                tex.wrapS = 33071; // GL_CLAMP_TO_EDGE
-                tex.wrapT = 33071; // GL_CLAMP_TO_EDGE
-                tex.alphaMode = 1u;
-                tex.blendMode = 0u;
-                args.renderer->prewarmWorldTextureData(&tex);
-                ++warmed.meshFlipbookGpu;
-            }
+    std::unordered_set<std::string> authoredFlipbookPaths;
+    for (const auto& authoredSpec :
+         game::runtime::shared_tail_fire_coordinator::authoredFlipbookSpecs()) {
+        if (!authoredSpec.path || authoredSpec.path[0] == '\0') {
+            continue;
         }
+        if (!authoredFlipbookPaths.emplace(authoredSpec.path).second) {
+            continue;
+        }
+
+        const auto cpuLoadStart = std::chrono::steady_clock::now();
+        SharedBackendTextureCacheEntry* authoredCpuTexture =
+            args.ensureBackendTextureLoaded(authoredSpec.path, false);
+        const auto cpuLoadEnd = std::chrono::steady_clock::now();
+        std::cout << "[TailFire][CPU] authored_mesh_flipbook path="
+                  << authoredSpec.path
+                  << " load_ms="
+                  << std::chrono::duration<double, std::milli>(cpuLoadEnd - cpuLoadStart).count()
+                  << " size="
+                  << ((authoredCpuTexture && authoredCpuTexture->valid) ? authoredCpuTexture->width : 0)
+                  << "x"
+                  << ((authoredCpuTexture && authoredCpuTexture->valid) ? authoredCpuTexture->height : 0)
+                  << " result="
+                  << ((authoredCpuTexture && authoredCpuTexture->valid) ? "ok" : "failed")
+                  << "\n";
+        if (!(authoredCpuTexture && authoredCpuTexture->valid)) {
+            continue;
+        }
+
+        ++warmed.meshFlipbookCpu;
+        IRenderBackend::WorldTextureData tex{};
+        tex.key = authoredSpec.path;
+        tex.cacheKey = authoredSpec.path;
+        tex.rgba = authoredCpuTexture->rgba.data();
+        tex.width = authoredCpuTexture->width;
+        tex.height = authoredCpuTexture->height;
+        tex.wrapS = 33071; // GL_CLAMP_TO_EDGE
+        tex.wrapT = 33071; // GL_CLAMP_TO_EDGE
+        tex.alphaMode = 1u;
+        tex.blendMode = 0u;
+        args.renderer->prewarmWorldTextureData(&tex);
+        ++warmed.meshFlipbookGpu;
     }
 
     return warmed;

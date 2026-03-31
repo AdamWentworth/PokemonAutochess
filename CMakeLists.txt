@@ -418,9 +418,11 @@ add_library(PAC_GameObjects STATIC
     src/game/runtime/shared/vfx/particles/SharedParticleVfxBridgeDispatch.cpp
     src/game/runtime/shared/vfx/particles/SharedParticleVfxStyles.cpp
     src/game/runtime/shared/vfx/tail_fire/SharedTailFireAnchorMath.cpp
+    src/game/runtime/shared/vfx/tail_fire/SharedTailFireCoordinator.cpp
     src/game/runtime/shared/vfx/tail_fire/SharedTailFireSnapshotBillboards.cpp
     src/game/runtime/shared/vfx/tail_fire/SharedTailFireSnapshotAtlasCache.cpp
     src/game/runtime/shared/vfx/tail_fire/SharedTailFireFallbackEmitter.cpp
+    src/game/runtime/shared/vfx/tail_fire/SharedTailFireRenderContext.cpp
     src/game/runtime/shared/vfx/tail_fire/SharedTailFireAtlasHelpers.cpp
     src/game/runtime/shared/vfx/tail_fire/SharedTailFireMeshPlayback.cpp
     src/game/runtime/shared/vfx/tail_fire/SharedTailFirePlaybackPolicy.cpp
@@ -762,6 +764,8 @@ if (BUILD_TESTING)
         tests/TestSharedProjectedUnitRenderer.cpp
         tests/TestSharedProjectedUnitWorldSceneRenderer.cpp
         tests/TestSharedTailFireAnchorMath.cpp
+        tests/TestSharedTailFireCoordinator.cpp
+        tests/TestSharedTailFirePreviewRuntimeParity.cpp
         tests/TestSharedTailFireAtlasHelpers.cpp
         tests/TestSharedTailFireExactGpuBatches.cpp
         tests/TestSharedTailFireMeshPlayback.cpp

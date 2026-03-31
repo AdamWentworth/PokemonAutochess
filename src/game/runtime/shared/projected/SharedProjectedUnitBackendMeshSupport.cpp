@@ -1,5 +1,6 @@
 #include "game/runtime/shared/projected/SharedProjectedUnitBackendMeshSupport.h"
 
+#include "game/runtime/shared/vfx/tail_fire/SharedTailFireCoordinator.h"
 #include "game/runtime/shared/vfx/tail_fire/SharedTailFireMeshPlayback.h"
 #include "game/runtime/shared/vfx/tail_fire/SharedTailFirePlaybackPolicy.h"
 #include "game/runtime/video/VideoPreferences.h"
@@ -114,17 +115,14 @@ bool tailFireDebugShouldLogAnchor(int unitId) {
 }
 
 bool backendUsesAuthoredTailFireMeshPlayback(const char* backendId) {
-    (void)backendId;
-    return true;
+    return game::runtime::shared_tail_fire_coordinator::backendUsesAuthoredMeshPlayback(
+        backendId);
 }
 
 bool backendUsesGpuClipSkinningForUnit(const char* backendId, std::string_view species) {
-    if (backendId &&
-        std::string_view(backendId) == "d3d12" &&
-        game::runtime::shared_tail_fire_mesh_playback::isTailFireMeshPlaybackSpecies(species)) {
-        return false;
-    }
-    return true;
+    return game::runtime::shared_tail_fire_coordinator::backendUsesGpuClipSkinning(
+        backendId,
+        species);
 }
 
 float textureDetailLodBiasForGraphicsQuality(int graphicsQuality) {
@@ -304,14 +302,11 @@ bool applyTailFireMeshFlipbookOverride(
     if (!args.unit || !args.sharedTailFireAnchors) {
         return false;
     }
-    if (!game::runtime::shared_tail_fire_mesh_playback::isTailFireMeshPlaybackSpecies(
-            args.unit->name)) {
-        return false;
-    }
-
-    const auto& profile =
-        game::runtime::shared_tail_fire_mesh_playback::resolveProfile(mesh);
-    if (!profile.hasFireSubmesh || profile.spec.path == nullptr) {
+    const auto* profile =
+        game::runtime::shared_tail_fire_coordinator::resolvePlaybackProfile(
+            args.unit->name,
+            &mesh);
+    if (!profile || !profile->hasFireSubmesh || profile->spec.path == nullptr) {
         return false;
     }
 
@@ -319,7 +314,7 @@ bool applyTailFireMeshFlipbookOverride(
         return false;
     }
     game::runtime::SharedBackendTextureCacheEntry* atlas =
-        args.ensureBackendTextureLoaded(profile.spec.path, false);
+        args.ensureBackendTextureLoaded(profile->spec.path, false);
     if (!atlas || !atlas->valid || atlas->width <= 0 || atlas->height <= 0 ||
         atlas->rgba.empty()) {
         return false;
@@ -328,12 +323,14 @@ bool applyTailFireMeshFlipbookOverride(
     bool applied = false;
     bool suppressedForFallback = false;
     const bool useAuthoredMeshPlayback =
-        backendUsesAuthoredTailFireMeshPlayback(args.backendId);
+        game::runtime::shared_tail_fire_coordinator::backendUsesAuthoredMeshPlayback(
+            args.backendId);
     for (std::size_t bi = 0; bi < batches.size(); ++bi) {
         auto& batch = batches[bi];
         const std::size_t baseSubmeshIndex = resolveBatchBaseSubmeshIndex(batch, bi);
-        if (baseSubmeshIndex >= profile.fireSubmeshMask.size() ||
-            profile.fireSubmeshMask[baseSubmeshIndex] == 0u) {
+        if (!game::runtime::shared_tail_fire_coordinator::baseSubmeshUsesAuthoredFire(
+                baseSubmeshIndex,
+                profile)) {
             continue;
         }
 
@@ -356,8 +353,8 @@ bool applyTailFireMeshFlipbookOverride(
         }
 
         batch.sharedTemplate = nullptr;
-        batch.textureKey = profile.spec.path;
-        batch.textureCacheKey = profile.spec.path;
+        batch.textureKey = profile->spec.path;
+        batch.textureCacheKey = profile->spec.path;
         batch.textureRgba = atlas->rgba.data();
         batch.textureWidth = atlas->width;
         batch.textureHeight = atlas->height;
@@ -396,8 +393,8 @@ bool applyTailFireMeshFlipbookOverride(
         batch.materialTimeSec = args.materialTimeSec;
         batch.materialFlags = static_cast<float>(
             game::runtime::shared_tail_fire_playback_policy::kAuthoredFireMeshFlagBit);
-        batch.materialAtlasWidth = profile.spec.atlasWidth;
-        batch.materialAtlasHeight = profile.spec.atlasHeight;
+        batch.materialAtlasWidth = profile->spec.atlasWidth;
+        batch.materialAtlasHeight = profile->spec.atlasHeight;
         batch.materialRect0U = 0.0f;
         batch.materialRect0V = 0.0f;
         batch.materialRect0W = 1.0f;
@@ -406,12 +403,12 @@ bool applyTailFireMeshFlipbookOverride(
         batch.materialRect1V = 0.0f;
         batch.materialRect1W = 1.0f;
         batch.materialRect1H = 1.0f;
-        batch.materialFlipbook0Cols = profile.spec.cols;
-        batch.materialFlipbook0Rows = profile.spec.rows;
-        batch.materialFlipbook0Frames = profile.spec.frames;
-        batch.materialFlipbook0Fps = profile.spec.fps;
-        batch.materialFlipbook1Cols = profile.uvShift.x;
-        batch.materialFlipbook1Rows = profile.uvShift.y;
+        batch.materialFlipbook0Cols = profile->spec.cols;
+        batch.materialFlipbook0Rows = profile->spec.rows;
+        batch.materialFlipbook0Frames = profile->spec.frames;
+        batch.materialFlipbook0Fps = profile->spec.fps;
+        batch.materialFlipbook1Cols = profile->uvShift.x;
+        batch.materialFlipbook1Rows = profile->uvShift.y;
         batch.materialFlipbook1Frames = 1.0f;
         batch.materialFlipbook1Fps = 0.0f;
         applied = true;

@@ -76,7 +76,7 @@ bool test_runtime_startup_asset_prewarm_contract(std::string& outFail) {
                 .prewarmTailFire =
                     [&]() {
                         ++tailFireCalls;
-                        return TailFireStats{2u, 1u, 1u};
+                        return TailFireStats{2u, 3u, 3u};
                     },
                 .prewarmGrowlVfx =
                     [&]() {
@@ -99,8 +99,8 @@ bool test_runtime_startup_asset_prewarm_contract(std::string& outFail) {
 
         if (summary.interrupted ||
             summary.tailFire.legacyAtlases != 2u ||
-            summary.tailFire.meshFlipbookCpu != 1u ||
-            summary.tailFire.meshFlipbookGpu != 1u ||
+            summary.tailFire.meshFlipbookCpu != 3u ||
+            summary.tailFire.meshFlipbookGpu != 3u ||
             summary.growl.drawPasses != 8u ||
             summary.growl.bakedTextures != 7u ||
             summary.growl.warmedBatches != 8u ||
@@ -158,7 +158,7 @@ bool test_runtime_startup_asset_prewarm_contract(std::string& outFail) {
 
         const std::string logText = logs.str();
         if (logText.find("Backend world shading prewarm complete") == std::string::npos ||
-            logText.find("Backend tail fire prewarm complete: atlases=2 mesh_flipbook_cpu=1 mesh_flipbook_gpu=1") == std::string::npos ||
+            logText.find("Backend tail fire prewarm complete: atlases=2 mesh_flipbook_cpu=3 mesh_flipbook_gpu=3") == std::string::npos ||
             logText.find("Backend growl VFX prewarm complete: passes=8 baked_textures=7 warmed_batches=8") == std::string::npos ||
             logText.find("Backend particle VFX prewarm complete: textures=8 warmed_batches=8") == std::string::npos ||
             logText.find("UI sprite prewarm complete: requested=2") == std::string::npos ||

@@ -7,8 +7,10 @@ DispatchResult appendStandardSnapshots(const GameWorld::ParticleVfxSnapshots& sn
     DispatchResult result;
     if (!appendSnapshot) return result;
 
-    result.appendedTailFireBillboards =
-        appendSnapshot("tail_fire", snapshots.tailFire);
+    for (const auto& snapshot : snapshots.tailFire) {
+        result.appendedTailFireBillboards =
+            appendSnapshot("tail_fire", snapshot) || result.appendedTailFireBillboards;
+    }
     appendSnapshot("grass_impact", snapshots.grassImpact);
     appendSnapshot("tackle_burst", snapshots.tackleBurst);
     appendSnapshot("tackle_spark", snapshots.tackleSpark);

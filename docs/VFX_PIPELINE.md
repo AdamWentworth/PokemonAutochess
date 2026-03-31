@@ -52,6 +52,30 @@ should stay isolated from game-only concerns.
 - Shared authored-vs-fallback policy:
   - `src/game/runtime/shared/vfx/tail_fire/SharedTailFirePlaybackPolicy.*`
 
+Tail Fire architecture today:
+- Runtime gameplay effect authoring still lives in `src/game/vfx/`.
+- Shared policy/config/anchor rules live under
+  `src/game/runtime/shared/vfx/tail_fire/`.
+- `SharedTailFireCoordinator.*` is the source of truth for species policy,
+  backend skinning policy, config lookup, playback profile lookup, and authored
+  anchor export.
+- `SharedTailFireRenderContext.*` is the shared render-time plumbing used by
+  both projected gameplay and preview-tail-fire billboard submission.
+- The preferred render split is:
+  - body through the normal projected/world-scene model path
+  - authored fire mesh through explicit indexed sidecar batches when available
+  - synthetic fallback only when authored playback is unavailable
+- Preview should confirm the same playback mode the game would use, rather than
+  re-implementing Tail Fire policy locally.
+- Manual validation snapshot:
+  - `config/debug/debug_state_snapshot_tail_fire_starter_line.json`
+  - `tools/launch_tail_fire_starter_line_snapshot.ps1`
+  - this places `charmander`, `charmeleon`, and `charizard` on the board for a
+    quick Tail Fire visual check without overwriting the default debug snapshot
+- Current expectation:
+  - the full Charmander line should resolve authored Tail Fire playback when
+    the authored fire mesh batches are available
+
 ### Leech Seed
 - Game-specific projectile/drain effect:
   - `src/game/vfx/LeechSeedProjectileVFX.*`

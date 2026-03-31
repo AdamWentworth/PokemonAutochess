@@ -14,7 +14,6 @@
 #include "game/runtime/shared/vfx/tail_fire/SharedTailFireFallbackEmitter.h"
 #include "game/runtime/shared/ui/SharedUnitHudBatches.h"
 #include "game/runtime/shared/world/SharedWorldIndexedBatches.h"
-#include "game/vfx/TailFireVFXConfig.h"
 #include "game/world/GameWorld.h"
 
 #include <functional>
@@ -109,7 +108,6 @@ struct Args {
     std::function<bool()> backendModelFullMeshEnabled;
     std::function<bool()> backendModelFastTexturedPathEnabled;
     std::function<bool()> backendModelBackfaceCullingEnabled;
-    std::function<const TailFireVFXConfig&()> getTailFireFallbackCfg;
     PerfStats* perfStats = nullptr;
 };
 

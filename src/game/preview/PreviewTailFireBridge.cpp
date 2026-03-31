@@ -2,9 +2,9 @@
 
 #include <glm/gtc/matrix_inverse.hpp>
 
-#include "game/runtime/shared/vfx/particles/SharedParticleSnapshotBillboards.h"
 #include "game/runtime/shared/vfx/tail_fire/SharedTailFireFallbackEmitter.h"
 #include "game/runtime/shared/vfx/tail_fire/SharedTailFirePlaybackPolicy.h"
+#include "game/runtime/shared/vfx/tail_fire/SharedTailFireRenderContext.h"
 
 namespace game::preview {
 
@@ -29,8 +29,12 @@ void renderPreviewTailFire(const PreviewTailFireBridgeArgs& args) {
         args.yawDeg,
         args.side);
 
-    if (game::runtime::shared_tail_fire_playback_policy::hasAuthoredFireMeshBatches(
-            args.modelScratch->worldIndexedBatches)) {
+    const auto playbackMode =
+        game::runtime::shared_tail_fire_playback_policy::resolvePlaybackMode(
+            args.visual->speciesName,
+            args.modelScratch->worldIndexedBatches);
+    if (playbackMode ==
+        game::runtime::shared_tail_fire_playback_policy::PlaybackMode::AuthoredMesh) {
         auto& scratch = *args.tailFireScratch;
         game::runtime::session_render_scratch::ensureCapacity(scratch);
         game::runtime::session_render_scratch::beginFrame(scratch, true, args.renderer);
@@ -52,9 +56,8 @@ void renderPreviewTailFire(const PreviewTailFireBridgeArgs& args) {
     }
 
     if (!args.fallbackConfig ||
-        !game::runtime::shared_tail_fire_playback_policy::shouldRenderSyntheticTailFireFallback(
-            args.visual->speciesName,
-            args.modelScratch->worldIndexedBatches)) {
+        playbackMode !=
+            game::runtime::shared_tail_fire_playback_policy::PlaybackMode::SyntheticFallback) {
         return;
     }
 
@@ -74,6 +77,11 @@ void renderPreviewTailFire(const PreviewTailFireBridgeArgs& args) {
     const glm::mat4 viewProj =
         args.camera->getProjectionMatrix() * args.camera->getViewMatrix();
     const glm::mat4 invViewProj = glm::inverse(viewProj);
+    game::runtime::shared_tail_fire_render::RenderContext tailFireRender{};
+    tailFireRender.anchors = &args.modelScratch->sharedTailFireAnchors;
+    tailFireRender.backendTextureByPath = args.backendTextureByPath;
+    tailFireRender.worldIndexedBatches = &scratch.worldIndexedBatches;
+    tailFireRender.ensureBackendTextureLoaded = args.ensureBackendTextureLoaded;
     (void)game::runtime::shared_tail_fire_fallback::appendSyntheticTailFire(
         {
             .worldCellSize = args.worldCellSize,
@@ -84,7 +92,7 @@ void renderPreviewTailFire(const PreviewTailFireBridgeArgs& args) {
             .benchPokemons = &kNoBenchUnits,
             .appendSnapshot =
                 [&](const char* label, const ParticleSystem::RenderSnapshot& snapshot) -> bool {
-                    return game::runtime::shared_particle_snapshot_billboards::appendSnapshotAsBillboards(
+                    return game::runtime::shared_tail_fire_render::appendSnapshotBillboards(
                         label,
                         snapshot,
                         viewProj,
@@ -92,17 +100,7 @@ void renderPreviewTailFire(const PreviewTailFireBridgeArgs& args) {
                         args.camera->getPosition(),
                         args.surfaceWidth,
                         args.surfaceHeight,
-                        *args.backendTextureByPath,
-                        [&](const std::string& texturePath, bool flipVertical)
-                            -> game::runtime::SharedBackendTextureCacheEntry* {
-                            if (!args.ensureBackendTextureLoaded) {
-                                return nullptr;
-                            }
-                            return args.ensureBackendTextureLoaded(texturePath, flipVertical);
-                        },
-                        &args.modelScratch->sharedTailFireAnchors,
-                        false,
-                        scratch.worldIndexedBatches);
+                        tailFireRender);
                 },
         });
 

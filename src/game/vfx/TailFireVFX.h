@@ -1,10 +1,12 @@
 // src/game/vfx/TailFireVFX.h
 #pragma once
 
-#include <vector>
-#include <unordered_map>
-#include <string>
 #include <functional>
+#include <string>
+#include <string_view>
+#include <unordered_map>
+#include <vector>
+
 #include <glm/glm.hpp>
 
 #include "game/PokemonInstance.h"
@@ -23,20 +25,13 @@ public:
 
     void setFilter(std::function<bool(const PokemonInstance&)> f) { filter = std::move(f); }
     void setNameFilterCaseInsensitive(const std::string& nameLowerOrAnyCase);
+    void setConfig(const Config& c);
+    const Config& getConfig() const { return defaultEmitter.cfg; }
 
-    void setConfig(const Config& c) {
-        cfg = c;
-        game::runtime::shared_tail_fire_synth_emitter::resetState(synthEmitter);
-
-        // important if node name changes
-        tailNodeIndexCache.clear();
-        fireAnchorBaseNodeIndexCache.clear();
-        fireAnchorTipNodeIndexCache.clear();
-    }
-    const Config& getConfig() const { return cfg; }
-
-    ParticleSystem& getParticles() { return synthEmitter.particles; }
-    const ParticleSystem& getParticles() const { return synthEmitter.particles; }
+    void setUsePlaybackSpeciesConfigs(bool enabled);
+    bool usesPlaybackSpeciesConfigs() const { return usePlaybackSpeciesConfigs; }
+    std::size_t particleCount() const;
+    bool buildRenderSnapshots(std::vector<ParticleSystem::RenderSnapshot>& out) const;
 
     void update(float dt,
                 const std::vector<PokemonInstance>& boardUnits,
@@ -45,23 +40,34 @@ public:
     void render(const Camera3D& camera);
 
 private:
-    void ensureConfigured();
+    struct EmitterBucket {
+        Config cfg{};
+        game::runtime::shared_tail_fire_synth_emitter::SyntheticEmitterState synthEmitter;
+        std::unordered_map<const Model*, int> tailNodeIndexCache;
+        std::unordered_map<const Model*, int> fireAnchorBaseNodeIndexCache;
+        std::unordered_map<const Model*, int> fireAnchorTipNodeIndexCache;
+    };
+
+    void resetBucket(EmitterBucket& bucket, const Config& c);
+    void clearPlaybackSpeciesEmitters();
+    static std::string normalizeSpeciesKey(std::string_view species);
+    EmitterBucket& resolveEmitterForUnit(const PokemonInstance& unit);
+    const EmitterBucket* findPlaybackEmitter(std::string_view species) const;
+    void ensureConfigured(EmitterBucket& bucket);
+    void updateEmitters(float dt);
     void emitForList(float dt, const std::vector<PokemonInstance>& list);
-    glm::mat4 computeInstanceTransform(const PokemonInstance& instance) const;
+    glm::mat4 computeInstanceTransform(const PokemonInstance& instance,
+                                       const Config& cfg) const;
 
     // Resolve name->index once per Model* (cached). Uses cfg.tailTipNodeIndex as fallback.
-    int resolveTailTipNodeIndex(const Model& model) const;
+    int resolveTailTipNodeIndex(EmitterBucket& bucket, const Model& model);
     int resolveOptionalNodeIndex(const Model& model,
                                  const std::string& nodeName,
-                                 std::unordered_map<const Model*, int>& cache) const;
+                                 std::unordered_map<const Model*, int>& cache);
 
 private:
     std::function<bool(const PokemonInstance&)> filter;
-    game::runtime::shared_tail_fire_synth_emitter::SyntheticEmitterState synthEmitter;
-
-    Config cfg{};
-
-    mutable std::unordered_map<const Model*, int> tailNodeIndexCache;
-    mutable std::unordered_map<const Model*, int> fireAnchorBaseNodeIndexCache;
-    mutable std::unordered_map<const Model*, int> fireAnchorTipNodeIndexCache;
+    bool usePlaybackSpeciesConfigs = false;
+    EmitterBucket defaultEmitter{};
+    std::unordered_map<std::string, EmitterBucket> playbackSpeciesEmitters;
 };

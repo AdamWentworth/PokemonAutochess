@@ -34,9 +34,9 @@
 #include "game/runtime/shared/projected/SharedProjectedUnitModelRenderer.h"
 #include "game/runtime/shared/projected/SharedProjectedWorldSceneHelpers.h"
 #include "game/runtime/shared/scene/SharedWorldScene.h"
+#include "game/runtime/shared/vfx/tail_fire/SharedTailFireCoordinator.h"
 #include "game/runtime/shared/vfx/tail_fire/SharedTailFireMeshPlayback.h"
 #include "game/runtime/shared/world/SharedWorldIndexedBatches.h"
-#include "game/vfx/TailFireVFXConfigDB.h"
 
 namespace game::preview {
 
@@ -236,11 +236,9 @@ struct PokemonAutochessVfxPreviewProject::Impl {
 
     void ensureTailFireConfigLoaded() {
         if (!tailFireConfigLoaded) {
-            TailFireVFXConfig configData;
-            TailFireVFXConfigDB::get().ensureLoaded();
-            TailFireVFXConfigDB::get().applyIfAny("charmander", configData);
-            configData.useUnitScaleChain = true;
-            tailFireConfig = configData;
+            tailFireConfig =
+                game::runtime::shared_tail_fire_coordinator::resolvePrimaryPlaybackConfig();
+            tailFireConfig.useUnitScaleChain = true;
             tailFireConfigLoaded = true;
         }
     }
@@ -320,7 +318,7 @@ struct PokemonAutochessVfxPreviewProject::Impl {
 
         if (!visual.valid ||
             !visual.model ||
-            !game::runtime::shared_tail_fire_mesh_playback::isTailFireMeshPlaybackSpecies(
+            !game::runtime::shared_tail_fire_coordinator::speciesUsesTailFireMeshPlayback(
                 visual.speciesName)) {
             return;
         }

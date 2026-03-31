@@ -169,10 +169,12 @@ bool test_shared_projected_unit_world_scene_tail_fire_hybrid_path(std::string& o
 bool test_shared_projected_unit_world_scene_rigid_under_skin_transform(std::string& outFail);
 bool test_shared_projected_unit_world_scene_rigid_node_transform(std::string& outFail);
 bool test_shared_tail_fire_anchor_math_contract(std::string& outFail);
+bool test_shared_tail_fire_coordinator_contract(std::string& outFail);
 bool test_shared_tail_fire_atlas_helpers_contract(std::string& outFail);
 bool test_shared_tail_fire_exact_gpu_batches_contract(std::string& outFail);
 bool test_shared_tail_fire_mesh_playback_contract(std::string& outFail);
 bool test_shared_tail_fire_playback_policy_contract(std::string& outFail);
+bool test_shared_tail_fire_preview_runtime_parity_contract(std::string& outFail);
 bool test_gameworld_capture_render_snapshot_timing_contract(std::string& outFail);
 bool test_shared_growl_vfx_helpers_contract(std::string& outFail);
 bool test_shared_growl_wave_bridge_contract(std::string& outFail);
@@ -394,10 +396,12 @@ int main(int argc, char** argv) {
         {"shared_projected_unit_world_scene_rigid_under_skin_transform", &test_shared_projected_unit_world_scene_rigid_under_skin_transform},
         {"shared_projected_unit_world_scene_rigid_node_transform", &test_shared_projected_unit_world_scene_rigid_node_transform},
         {"shared_tail_fire_anchor_math_contract", &test_shared_tail_fire_anchor_math_contract},
+        {"shared_tail_fire_coordinator_contract", &test_shared_tail_fire_coordinator_contract},
         {"shared_tail_fire_atlas_helpers_contract", &test_shared_tail_fire_atlas_helpers_contract},
         {"shared_tail_fire_exact_gpu_batches_contract", &test_shared_tail_fire_exact_gpu_batches_contract},
         {"shared_tail_fire_mesh_playback_contract", &test_shared_tail_fire_mesh_playback_contract},
         {"shared_tail_fire_playback_policy_contract", &test_shared_tail_fire_playback_policy_contract},
+        {"shared_tail_fire_preview_runtime_parity_contract", &test_shared_tail_fire_preview_runtime_parity_contract},
         {"gameworld_capture_render_snapshot_timing_contract", &test_gameworld_capture_render_snapshot_timing_contract},
         {"shared_growl_vfx_helpers_contract", &test_shared_growl_vfx_helpers_contract},
         {"shared_growl_wave_bridge_contract", &test_shared_growl_wave_bridge_contract},

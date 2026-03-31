@@ -2,6 +2,7 @@
 
 #include "engine/render/Model.h"
 #include "game/runtime/shared/vfx/tail_fire/SharedTailFireAnchorMath.h"
+#include "game/runtime/shared/vfx/tail_fire/SharedTailFireCoordinator.h"
 
 #include <algorithm>
 #include <cctype>
@@ -21,9 +22,69 @@ std::string toLowerAscii(std::string s) {
 
 } // namespace
 
+void TailFireVFX::setConfig(const Config& c) {
+    resetBucket(defaultEmitter, c);
+}
+
+void TailFireVFX::setUsePlaybackSpeciesConfigs(bool enabled) {
+    if (usePlaybackSpeciesConfigs == enabled) {
+        return;
+    }
+    usePlaybackSpeciesConfigs = enabled;
+    clearPlaybackSpeciesEmitters();
+}
+
+void TailFireVFX::resetBucket(EmitterBucket& bucket, const Config& c) {
+    bucket.cfg = c;
+    synth_emitter::resetState(bucket.synthEmitter);
+    bucket.tailNodeIndexCache.clear();
+    bucket.fireAnchorBaseNodeIndexCache.clear();
+    bucket.fireAnchorTipNodeIndexCache.clear();
+}
+
+void TailFireVFX::clearPlaybackSpeciesEmitters() {
+    for (auto& [species, bucket] : playbackSpeciesEmitters) {
+        (void)species;
+        synth_emitter::resetState(bucket.synthEmitter);
+    }
+    playbackSpeciesEmitters.clear();
+}
+
+std::string TailFireVFX::normalizeSpeciesKey(std::string_view species) {
+    std::string key = toLowerAscii(std::string(species));
+    if (key.empty() ||
+        !game::runtime::shared_tail_fire_coordinator::speciesUsesTailFireMeshPlayback(key)) {
+        key = std::string(game::runtime::shared_tail_fire_coordinator::primaryPlaybackSpecies());
+    }
+    return key;
+}
+
+TailFireVFX::EmitterBucket& TailFireVFX::resolveEmitterForUnit(const PokemonInstance& unit) {
+    if (!usePlaybackSpeciesConfigs) {
+        return defaultEmitter;
+    }
+
+    const std::string speciesKey = normalizeSpeciesKey(unit.name);
+    auto [it, inserted] = playbackSpeciesEmitters.try_emplace(speciesKey);
+    if (inserted) {
+        resetBucket(
+            it->second,
+            game::runtime::shared_tail_fire_coordinator::resolvePlaybackConfig(speciesKey));
+    }
+    return it->second;
+}
+
+const TailFireVFX::EmitterBucket* TailFireVFX::findPlaybackEmitter(std::string_view species) const {
+    const auto found = playbackSpeciesEmitters.find(normalizeSpeciesKey(species));
+    if (found == playbackSpeciesEmitters.end()) {
+        return nullptr;
+    }
+    return &found->second;
+}
+
 int TailFireVFX::resolveOptionalNodeIndex(const Model& model,
                                           const std::string& nodeName,
-                                          std::unordered_map<const Model*, int>& cache) const {
+                                          std::unordered_map<const Model*, int>& cache) {
     auto it = cache.find(&model);
     if (it != cache.end()) return it->second;
 
@@ -35,18 +96,19 @@ int TailFireVFX::resolveOptionalNodeIndex(const Model& model,
     return idx;
 }
 
-int TailFireVFX::resolveTailTipNodeIndex(const Model& model) const {
-    auto it = tailNodeIndexCache.find(&model);
-    if (it != tailNodeIndexCache.end()) return it->second;
+int TailFireVFX::resolveTailTipNodeIndex(EmitterBucket& bucket, const Model& model) {
+    auto it = bucket.tailNodeIndexCache.find(&model);
+    if (it != bucket.tailNodeIndexCache.end()) return it->second;
 
-    const int idxByName = resolveOptionalNodeIndex(model, cfg.tailTipNodeName, tailNodeIndexCache);
+    const int idxByName =
+        resolveOptionalNodeIndex(model, bucket.cfg.tailTipNodeName, bucket.tailNodeIndexCache);
     if (idxByName >= 0) {
-        tailNodeIndexCache[&model] = idxByName;
+        bucket.tailNodeIndexCache[&model] = idxByName;
         return idxByName;
     }
 
-    const int idx = cfg.tailTipNodeIndex;
-    tailNodeIndexCache[&model] = idx;
+    const int idx = bucket.cfg.tailTipNodeIndex;
+    bucket.tailNodeIndexCache[&model] = idx;
     return idx;
 }
 
@@ -57,7 +119,8 @@ void TailFireVFX::setNameFilterCaseInsensitive(const std::string& nameLowerOrAny
     });
 }
 
-glm::mat4 TailFireVFX::computeInstanceTransform(const PokemonInstance& instance) const {
+glm::mat4 TailFireVFX::computeInstanceTransform(const PokemonInstance& instance,
+                                                const Config& cfg) const {
     float scaleFactor = 1.0f;
     if (instance.model) scaleFactor = instance.model->getScaleFactor();
     if (cfg.useUnitScaleChain) {
@@ -79,16 +142,70 @@ glm::mat4 TailFireVFX::computeInstanceTransform(const PokemonInstance& instance)
     return translation * rotationY * rotationX * rotationZ * scale;
 }
 
-void TailFireVFX::ensureConfigured() {
-    synth_emitter::ensureConfigured(synthEmitter, cfg);
+void TailFireVFX::ensureConfigured(EmitterBucket& bucket) {
+    synth_emitter::ensureConfigured(bucket.synthEmitter, bucket.cfg);
+}
+
+void TailFireVFX::updateEmitters(float dt) {
+    if (usePlaybackSpeciesConfigs) {
+        for (auto& [species, bucket] : playbackSpeciesEmitters) {
+            (void)species;
+            ensureConfigured(bucket);
+            bucket.synthEmitter.particles.update(dt);
+        }
+        return;
+    }
+
+    ensureConfigured(defaultEmitter);
+    defaultEmitter.synthEmitter.particles.update(dt);
+}
+
+std::size_t TailFireVFX::particleCount() const {
+    if (!usePlaybackSpeciesConfigs) {
+        return defaultEmitter.synthEmitter.particles.particleCount();
+    }
+
+    std::size_t total = 0u;
+    for (const auto& [species, bucket] : playbackSpeciesEmitters) {
+        (void)species;
+        total += bucket.synthEmitter.particles.particleCount();
+    }
+    return total;
+}
+
+bool TailFireVFX::buildRenderSnapshots(std::vector<ParticleSystem::RenderSnapshot>& out) const {
+    out.clear();
+
+    if (!usePlaybackSpeciesConfigs) {
+        ParticleSystem::RenderSnapshot snapshot{};
+        if (!defaultEmitter.synthEmitter.particles.buildRenderSnapshot(snapshot)) {
+            return false;
+        }
+        out.push_back(std::move(snapshot));
+        return true;
+    }
+
+    for (const std::string_view species :
+         game::runtime::shared_tail_fire_coordinator::playbackSpeciesOrder()) {
+        const EmitterBucket* bucket = findPlaybackEmitter(species);
+        if (!bucket || bucket->synthEmitter.particles.particleCount() == 0u) {
+            continue;
+        }
+
+        ParticleSystem::RenderSnapshot snapshot{};
+        if (!bucket->synthEmitter.particles.buildRenderSnapshot(snapshot)) {
+            continue;
+        }
+        out.push_back(std::move(snapshot));
+    }
+
+    return !out.empty();
 }
 
 void TailFireVFX::update(float dt,
                          const std::vector<PokemonInstance>& boardUnits,
                          const std::vector<PokemonInstance>& benchUnits) {
-    ensureConfigured();
-
-    synthEmitter.particles.update(dt);
+    updateEmitters(dt);
     emitForList(dt, boardUnits);
     emitForList(dt, benchUnits);
 }
@@ -101,11 +218,15 @@ void TailFireVFX::emitForList(float dt, const std::vector<PokemonInstance>& list
         if (!unit.alive || !unit.model) continue;
         if (filter && !filter(unit)) continue;
 
+        EmitterBucket& bucket = resolveEmitterForUnit(unit);
+        ensureConfigured(bucket);
+        const Config& cfg = bucket.cfg;
+
         int animIdx = unit.activeAnimIndex;
         if (animIdx < 0) animIdx = unit.animIdleIndex;
 
         const int emitCount = synth_emitter::beginUnitEmission(
-            synthEmitter,
+            bucket.synthEmitter,
             cfg,
             unit.id,
             dt,
@@ -132,13 +253,19 @@ void TailFireVFX::emitForList(float dt, const std::vector<PokemonInstance>& list
                 outNodeGlobal);
         };
 
-        const int tailNodeIndex = resolveTailTipNodeIndex(*unit.model);
+        const int tailNodeIndex = resolveTailTipNodeIndex(bucket, *unit.model);
         const int fireAnchorBaseNodeIndex =
-            resolveOptionalNodeIndex(*unit.model, cfg.fireAnchorBaseNodeName, fireAnchorBaseNodeIndexCache);
+            resolveOptionalNodeIndex(
+                *unit.model,
+                cfg.fireAnchorBaseNodeName,
+                bucket.fireAnchorBaseNodeIndexCache);
         const int fireAnchorTipNodeIndex =
-            resolveOptionalNodeIndex(*unit.model, cfg.fireAnchorTipNodeName, fireAnchorTipNodeIndexCache);
+            resolveOptionalNodeIndex(
+                *unit.model,
+                cfg.fireAnchorTipNodeName,
+                bucket.fireAnchorTipNodeIndexCache);
 
-        const glm::mat4 instanceTransform = computeInstanceTransform(unit);
+        const glm::mat4 instanceTransform = computeInstanceTransform(unit, cfg);
         glm::vec3 tailPosWorld(0.0f);
         glm::mat3 tailBasis(1.0f);
         glm::vec3 backDirWorld(0.0f, 1.0f, 0.0f);
@@ -175,9 +302,9 @@ void TailFireVFX::emitForList(float dt, const std::vector<PokemonInstance>& list
         }
 
         const glm::vec3 anchorWorld =
-            synth_emitter::resolveSmoothedAnchor(synthEmitter, cfg, unit.id, tailPosWorld, dt);
+            synth_emitter::resolveSmoothedAnchor(bucket.synthEmitter, cfg, unit.id, tailPosWorld, dt);
         const glm::vec3 tailVelocity =
-            synth_emitter::resolveFilteredTailVelocity(synthEmitter, unit.id, tailPosWorld, dt);
+            synth_emitter::resolveFilteredTailVelocity(bucket.synthEmitter, unit.id, tailPosWorld, dt);
 
         float particleScale = unit.model ? unit.model->getScaleFactor() : 1.0f;
         if (cfg.useUnitScaleChain) {
@@ -188,7 +315,7 @@ void TailFireVFX::emitForList(float dt, const std::vector<PokemonInstance>& list
         }
 
         synth_emitter::emitParticles(
-            synthEmitter,
+            bucket.synthEmitter,
             cfg,
             {
                 .unitId = unit.id,
@@ -203,5 +330,17 @@ void TailFireVFX::emitForList(float dt, const std::vector<PokemonInstance>& list
 }
 
 void TailFireVFX::render(const Camera3D& camera) {
-    synthEmitter.particles.render(camera);
+    if (!usePlaybackSpeciesConfigs) {
+        defaultEmitter.synthEmitter.particles.render(camera);
+        return;
+    }
+
+    for (const std::string_view species :
+         game::runtime::shared_tail_fire_coordinator::playbackSpeciesOrder()) {
+        const auto found = playbackSpeciesEmitters.find(normalizeSpeciesKey(species));
+        if (found == playbackSpeciesEmitters.end()) {
+            continue;
+        }
+        found->second.synthEmitter.particles.render(camera);
+    }
 }

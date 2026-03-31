@@ -4,8 +4,7 @@
 #include "game/runtime/shared/projected/SharedProjectedUnitBackendMeshSupport.h"
 #include "game/runtime/shared/projected/SharedProjectedUnitBackendMeshTriangleSubmit.h"
 #include "game/runtime/shared/projected/SharedProjectedUnitBackendMeshTransforms.h"
-#include "game/runtime/shared/vfx/tail_fire/SharedTailFireAnchorMath.h"
-#include "game/runtime/shared/vfx/tail_fire/SharedTailFireMeshPlayback.h"
+#include "game/runtime/shared/vfx/tail_fire/SharedTailFireCoordinator.h"
 
 #include "engine/render/Model.h"
 #include "game/runtime/render_prep/UnitVisuals.h"
@@ -26,7 +25,7 @@
 
 namespace support = game::runtime::shared_projected_unit_backend_mesh_support;
 namespace persistent = game::runtime::shared_projected_render_items;
-namespace anchor_math = game::runtime::shared_tail_fire_anchor_math;
+namespace tail_fire = game::runtime::shared_tail_fire_coordinator;
 
 namespace game::runtime::shared_projected_unit_backend_mesh {
 
@@ -124,7 +123,7 @@ Result renderProjectedUnitBackendMesh(const Args& args) {
     const bool strictGltfParity = support::strictGltfParityEnabled();
     const bool enableGpuClipSkinning =
         args.enableGpuClipSkinning &&
-        support::backendUsesGpuClipSkinningForUnit(args.backendId, unit.name);
+        tail_fire::backendUsesGpuClipSkinning(args.backendId, unit.name);
 
     using SharedTailFireAnchor = game::runtime::shared_tail_fire_fallback::Anchor;
 
@@ -243,11 +242,7 @@ Result renderProjectedUnitBackendMesh(const Args& args) {
                 modelIndexedBatchesPerSubmesh.size(),
                 preferFullGpuSkinning);
         }
-        const bool tailFireMeshPlaybackSpecies =
-            unit.alive &&
-            !unit.fainting &&
-            game::runtime::shared_tail_fire_mesh_playback::isTailFireMeshPlaybackSpecies(
-                unit.name);
+        const bool tailFireMeshPlaybackSpecies = tail_fire::unitUsesTailFireMeshPlayback(unit);
         if (fastCachePtr && !tailFireMeshPlaybackSpecies) {
             const auto& fastCache = *fastCachePtr;
             bool directFastPathHasGeometry = false;
@@ -773,107 +768,37 @@ Result renderProjectedUnitBackendMesh(const Args& args) {
             }
         }
 
-        if (unit.alive &&
-            !unit.fainting &&
-            game::runtime::shared_tail_fire_mesh_playback::isTailFireMeshPlaybackSpecies(
-                unit.name)) {
+        if (tailFireMeshPlaybackSpecies) {
             const TailFireVFXConfig& tailCfg =
-                game::runtime::shared_projected_scene::getTailFireFallbackCfg();
-            auto resolveNodeIndex = [&](const std::string& nodeName, int fallbackIndex) {
-                int idx = fallbackIndex;
-                if (!nodeName.empty()) {
-                    bool resolvedByName = false;
-                    if (!mesh->nodeNames.empty()) {
-                        for (std::size_t ni = 0; ni < mesh->nodeNames.size(); ++ni) {
-                            if (mesh->nodeNames[ni] == nodeName) {
-                                idx = static_cast<int>(ni);
-                                resolvedByName = true;
-                                break;
-                            }
-                        }
-                    } else if (unit.model) {
-                        int namedNodeIndex = -1;
-                        if (unit.model->getNodeIndexByName(nodeName, namedNodeIndex)) {
-                            idx = namedNodeIndex;
-                            resolvedByName = true;
-                        }
-                    }
-
-                    if (!resolvedByName && fallbackIndex < 0) {
-                        idx = -1;
-                    }
-                }
-                return idx;
-            };
-
-            const int tailNodeIndex = resolveNodeIndex(tailCfg.tailTipNodeName, tailCfg.tailTipNodeIndex);
-            const int fireAnchorBaseNodeIndex = resolveNodeIndex(tailCfg.fireAnchorBaseNodeName, -1);
-            const int fireAnchorTipNodeIndex = resolveNodeIndex(tailCfg.fireAnchorTipNodeName, -1);
-
+                game::runtime::shared_projected_scene::getPrimaryTailFireConfig();
             SharedTailFireAnchor& anchor = sharedTailFireAnchors[unit.id];
-            anchor.valid = false;
-            anchor.meshCarrierActive = false;
-
-            const bool hasExactFireAnchorNodes =
-                fireAnchorBaseNodeIndex >= 0 &&
-                fireAnchorTipNodeIndex >= 0 &&
-                static_cast<std::size_t>(fireAnchorBaseNodeIndex) < nodeGlobals.size() &&
-                static_cast<std::size_t>(fireAnchorTipNodeIndex) < nodeGlobals.size();
-            if (hasExactFireAnchorNodes) {
-                const auto frame = anchor_math::buildExactFireAnchorFrame(
-                    transforms.worldMatrixForNode(fireAnchorBaseNodeIndex),
-                    transforms.worldMatrixForNode(fireAnchorTipNodeIndex),
-                    tailCfg.backDir);
-
-                anchor.valid = true;
-                anchor.exactFireAnchor = true;
-                anchor.pos = frame.posWorld;
-                anchor.tipPos = frame.tipPosWorld;
-                anchor.basis = frame.basis;
-                anchor.backDir = frame.backDirWorld;
-                anchor.particleSizeScale =
-                    std::max(0.01f, std::max(0.01f, mesh->modelScaleFactor) * resolvedScaleCorrection);
-                if (support::tailFireDebugShouldLogAnchor(unit.id)) {
-                    std::cout
-                        << "[TailFire][Debug][Anchor] unit=" << unit.id
-                        << " exact=1"
-                        << " tailNode=" << tailNodeIndex
-                        << " baseNode=" << fireAnchorBaseNodeIndex
-                        << " tipNode=" << fireAnchorTipNodeIndex
-                        << " basePos=(" << frame.posWorld.x << "," << frame.posWorld.y << "," << frame.posWorld.z << ")"
-                        << " tipPos=(" << frame.tipPosWorld.x << "," << frame.tipPosWorld.y << "," << frame.tipPosWorld.z << ")"
-                        << " up=(" << frame.basis[1].x << "," << frame.basis[1].y << "," << frame.basis[1].z << ")"
-                        << " back=(" << frame.backDirWorld.x << "," << frame.backDirWorld.y << "," << frame.backDirWorld.z << ")"
-                        << " scale=" << anchor.particleSizeScale
-                        << "\n";
-                }
-            } else if (tailNodeIndex >= 0 &&
-                       static_cast<std::size_t>(tailNodeIndex) < nodeGlobals.size()) {
-                const auto frame = anchor_math::buildTailTipAnchorFrame(
-                    transforms.worldMatrixForNode(tailNodeIndex),
-                    tailCfg.backDir);
-
-                anchor.valid = true;
-                anchor.exactFireAnchor = false;
-                anchor.pos = frame.posWorld;
-                anchor.tipPos = frame.tipPosWorld;
-                anchor.basis = frame.basis;
-                anchor.backDir = frame.backDirWorld;
-                anchor.particleSizeScale =
-                    std::max(0.01f, std::max(0.01f, mesh->modelScaleFactor) * resolvedScaleCorrection);
-                if (support::tailFireDebugShouldLogAnchor(unit.id)) {
-                    std::cout
-                        << "[TailFire][Debug][Anchor] unit=" << unit.id
-                        << " exact=0"
-                        << " tailNode=" << tailNodeIndex
-                        << " baseNode=" << fireAnchorBaseNodeIndex
-                        << " tipNode=" << fireAnchorTipNodeIndex
-                        << " tailPos=(" << anchor.pos.x << "," << anchor.pos.y << "," << anchor.pos.z << ")"
-                        << " up=(" << frame.basis[1].x << "," << frame.basis[1].y << "," << frame.basis[1].z << ")"
-                        << " back=(" << frame.backDirWorld.x << "," << frame.backDirWorld.y << "," << frame.backDirWorld.z << ")"
-                        << " scale=" << anchor.particleSizeScale
-                        << "\n";
-                }
+            if (!tail_fire::exportPlaybackAnchor(
+                    {
+                        .unitId = unit.id,
+                        .mesh = mesh,
+                        .scenePose = prep.scenePose,
+                        .resolvedScaleCorrection = resolvedScaleCorrection,
+                        .config = &tailCfg,
+                        .worldMatrixForNode =
+                            [&](int nodeIndex) {
+                                return transforms.worldMatrixForNode(nodeIndex);
+                            },
+                        .resolveNamedNodeIndex =
+                            [&](std::string_view nodeName) {
+                                if (!unit.model) {
+                                    return -1;
+                                }
+                                int namedNodeIndex = -1;
+                                return unit.model->getNodeIndexByName(
+                                           std::string(nodeName),
+                                           namedNodeIndex)
+                                    ? namedNodeIndex
+                                    : -1;
+                            },
+                        .logDebug = support::tailFireDebugShouldLogAnchor(unit.id),
+                    },
+                    anchor)) {
+                anchor = {};
             }
         }
 

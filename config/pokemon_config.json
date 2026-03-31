@@ -568,6 +568,69 @@
       }
     ]
   },
+  "charizard": {
+    "types": [
+      "fire",
+      "flying"
+    ],
+    "attack": 15,
+    "hp": 165,
+    "catchRate": 0.15,
+    "shopBaseCost": 5,
+    "loadoutByLevel": {
+      "1": {
+        "fast": "scratch"
+      },
+      "7": {
+        "charged": "ember",
+        "fast": "scratch"
+      },
+      "13": {
+        "charged": "flame_burst",
+        "fast": "metal_claw"
+      },
+      "18": {
+        "charged": "flamethrower",
+        "fast": "wing_attack"
+      }
+    },
+    "model": "0006_Charizard.glb",
+    "movementSpeed": 1.3,
+    "visualScale": 1.0,
+    "unlockTable": [
+      {
+        "charged": [],
+        "fast": [
+          "scratch"
+        ],
+        "level": 1
+      },
+      {
+        "charged": [
+          "ember"
+        ],
+        "level": 7
+      },
+      {
+        "charged": [
+          "flame_burst"
+        ],
+        "fast": [
+          "metal_claw"
+        ],
+        "level": 13
+      },
+      {
+        "charged": [
+          "flamethrower"
+        ],
+        "fast": [
+          "wing_attack"
+        ],
+        "level": 18
+      }
+    ]
+  },
   "wartortle": {
     "types": [
       "water"

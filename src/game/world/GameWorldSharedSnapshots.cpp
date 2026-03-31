@@ -25,7 +25,7 @@ bool GameWorld::buildParticleVfxSnapshots(ParticleVfxSnapshots& out) const {
     };
 
     bool any = false;
-    any = buildIfActive(tailFireVfx.getParticles(), out.tailFire) || any;
+    any = tailFireVfx.buildRenderSnapshots(out.tailFire) || any;
     any = buildIfActive(grassImpactVfx.getParticles(), out.grassImpact) || any;
     any = buildIfActive(tackleImpactVfx.getBurstParticles(), out.tackleBurst) || any;
     any = buildIfActive(tackleImpactVfx.getSparkParticles(), out.tackleSpark) || any;
@@ -39,7 +39,7 @@ bool GameWorld::buildParticleVfxSnapshots(ParticleVfxSnapshots& out) const {
 
 std::uint32_t GameWorld::countActiveParticleVfx() const {
     const std::size_t total =
-        tailFireVfx.getParticles().particleCount() +
+        tailFireVfx.particleCount() +
         grassImpactVfx.getParticles().particleCount() +
         tackleImpactVfx.getBurstParticles().particleCount() +
         tackleImpactVfx.getSparkParticles().particleCount() +

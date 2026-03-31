@@ -38,6 +38,8 @@ bool test_shared_tail_fire_mesh_playback_contract(std::string& outFail) {
         return false;
     }
     if (!expect(isTailFireMeshPlaybackSpecies("Charmander") &&
+                    isTailFireMeshPlaybackSpecies("charmeleon") &&
+                    isTailFireMeshPlaybackSpecies("CHARIZARD") &&
                     !isTailFireMeshPlaybackSpecies("squirtle"),
                 "isTailFireMeshPlaybackSpecies should match the current starter-line playback policy case-insensitively.",
                 outFail)) {

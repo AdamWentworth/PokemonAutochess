@@ -3,6 +3,7 @@
 #include "engine/core/Environment.h"
 #include "game/runtime/render_prep/WorldProxyGeometry.h"
 #include "game/runtime/shared/vfx/tail_fire/SharedTailFireAnchorMath.h"
+#include "game/runtime/shared/vfx/tail_fire/SharedTailFireCoordinator.h"
 #include "game/runtime/shared/vfx/tail_fire/SharedTailFireSyntheticEmitter.h"
 
 #include <algorithm>
@@ -42,20 +43,6 @@ float tailFireFallbackSizeScale() {
     return kValue;
 }
 
-bool isCharmanderName(const std::string& s) {
-    if (s.size() != 10u) return false;
-    return (s[0] == 'c' || s[0] == 'C') &&
-           (s[1] == 'h' || s[1] == 'H') &&
-           (s[2] == 'a' || s[2] == 'A') &&
-           (s[3] == 'r' || s[3] == 'R') &&
-           (s[4] == 'm' || s[4] == 'M') &&
-           (s[5] == 'a' || s[5] == 'A') &&
-           (s[6] == 'n' || s[6] == 'N') &&
-           (s[7] == 'd' || s[7] == 'D') &&
-           (s[8] == 'e' || s[8] == 'E') &&
-           (s[9] == 'r' || s[9] == 'R');
-}
-
 struct EmitterState {
     synth_emitter::SyntheticEmitterState synth;
     ParticleSystem::RenderSnapshot snapshot;
@@ -69,10 +56,11 @@ void resetState() {
     gState.lastSimTimeSec = -1.0;
 }
 
-bool hasLiveCharmander(const std::vector<PokemonInstance>& list) {
+bool hasLiveTailFireUnit(const std::vector<PokemonInstance>& list) {
     for (const auto& unit : list) {
-        if (!unit.alive) continue;
-        if (isCharmanderName(unit.name)) return true;
+        if (game::runtime::shared_tail_fire_coordinator::unitUsesTailFireMeshPlayback(unit)) {
+            return true;
+        }
     }
     return false;
 }
@@ -92,8 +80,9 @@ void emitForList(float dt,
         !cfg.fireAnchorTipNodeName.empty();
 
     for (const auto& unit : list) {
-        if (!unit.alive) continue;
-        if (!isCharmanderName(unit.name)) continue;
+        if (!game::runtime::shared_tail_fire_coordinator::unitUsesTailFireMeshPlayback(unit)) {
+            continue;
+        }
 
         int animIdx = unit.activeAnimIndex;
         if (animIdx < 0) animIdx = unit.animIdleIndex;
@@ -184,7 +173,7 @@ bool appendSyntheticTailFire(const Args& args) {
     double simNowSec = args.simNowSec;
     if (!std::isfinite(simNowSec)) simNowSec = 0.0;
     const bool hasLiveSource =
-        hasLiveCharmander(*args.pokemons) || hasLiveCharmander(*args.benchPokemons);
+        hasLiveTailFireUnit(*args.pokemons) || hasLiveTailFireUnit(*args.benchPokemons);
     if (!hasLiveSource && gState.synth.particles.particleCount() == 0u) {
         gState.lastSimTimeSec = simNowSec;
         return false;
