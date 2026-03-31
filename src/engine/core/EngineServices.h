@@ -57,6 +57,7 @@ struct EngineRenderBuildBreakdown {
 enum class EngineTerminalLogMode : std::uint8_t {
     Performance = 0,
     GrowlVfx = 1,
+    TailFireDebug = 2,
 };
 
 struct EngineGrowlPassDebugStats {

@@ -32,6 +32,7 @@ bool appendSnapshotBillboards(
         context.ensureBackendTextureLoaded,
         context.anchors,
         context.useExactTailFireCpuPath,
+        context.tailFireDebugEnabled,
         *context.worldIndexedBatches);
 }
 

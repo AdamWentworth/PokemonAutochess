@@ -134,6 +134,7 @@ Result appendProjectedWorldView(const Args& args) {
     projectedUnitArgs.characterInkingEnabled = args.characterInkingEnabled;
     projectedUnitArgs.graphicsQuality = args.graphicsQuality;
     projectedUnitArgs.enableGpuClipSkinning = args.enableGpuClipSkinning;
+    projectedUnitArgs.tailFireDebugEnabled = args.tailFireDebugEnabled;
     projectedUnitArgs.rendererBackendId = args.renderer ? args.renderer->backendId() : nullptr;
     projectedUnitArgs.hasWorldViewProj = out.hasWorldViewProj;
     projectedUnitArgs.allowPortraitFallback = args.allowPortraitFallback;
@@ -239,6 +240,7 @@ Result appendProjectedWorldView(const Args& args) {
         args.supportsWorldIndexedMeshes,
         out.hasWorldViewProj,
         args.useExactTailFireCpuPath,
+        args.tailFireDebugEnabled,
         args.gameWorld,
         viewProj,
         invViewProj,

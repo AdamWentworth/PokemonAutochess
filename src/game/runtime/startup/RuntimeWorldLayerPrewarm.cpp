@@ -3,7 +3,6 @@
 #include <algorithm>
 #include <chrono>
 #include <iomanip>
-#include <ostream>
 #include <sstream>
 
 namespace game::runtime::world_layer_prewarm {
@@ -47,23 +46,23 @@ void runFrame(int& framesRemaining,
               int drawableW,
               int drawableH,
               const Callbacks& callbacks,
-              std::ostream& out) {
+              const engine::log::Sink& log) {
     if (framesRemaining <= 0 || totalFrames <= 0 || !callbacks.renderWorldLayer) {
         return;
     }
     const int frameIndex = totalFrames - framesRemaining + 1;
     maybeSetFrameTitle(callbacks, frameIndex, totalFrames);
-    out << "[Init] World/board prewarm frame "
-        << frameIndex << "/" << totalFrames << " begin\n";
+    log.info("[Init] World/board prewarm frame " +
+             std::to_string(frameIndex) + "/" + std::to_string(totalFrames) + " begin");
     const auto t0 = std::chrono::high_resolution_clock::now();
     callbacks.renderWorldLayer(drawableW, drawableH);
     const auto t1 = std::chrono::high_resolution_clock::now();
     const double ms = std::chrono::duration<double, std::milli>(t1 - t0).count();
     std::ostringstream timing;
     timing << std::fixed << std::setprecision(1) << ms;
-    out << "[Init] World/board prewarm frame "
-        << frameIndex << "/" << totalFrames
-        << " complete: time=" << timing.str() << "ms\n";
+    log.info("[Init] World/board prewarm frame " +
+             std::to_string(frameIndex) + "/" + std::to_string(totalFrames) +
+             " complete: time=" + timing.str() + "ms");
     --framesRemaining;
 }
 
@@ -72,7 +71,7 @@ void runFrame(int& framesRemaining,
 void schedule(int& framesRemaining,
               int totalFrames,
               const Callbacks& callbacks,
-              std::ostream& out) {
+              const engine::log::Sink& log) {
     if (totalFrames <= 0) {
         framesRemaining = 0;
         return;
@@ -84,8 +83,9 @@ void schedule(int& framesRemaining,
     if (callbacks.renderBootLoading) {
         callbacks.renderBootLoading(0.98f);
     }
-    out << "[Init] World/board prewarm scheduled: frames=" << framesRemaining
-        << " (board grid + world render path)\n";
+    log.info("[Init] World/board prewarm scheduled: frames=" +
+             std::to_string(framesRemaining) +
+             " (board grid + world render path)");
 }
 
 void drainStartupFrames(int& framesRemaining,
@@ -93,14 +93,14 @@ void drainStartupFrames(int& framesRemaining,
                         int drawableW,
                         int drawableH,
                         const Callbacks& callbacks,
-                        std::ostream& out) {
+                        const engine::log::Sink& log) {
     if (framesRemaining <= 0 || drawableW <= 0 || drawableH <= 0 || !callbacks.renderWorldLayer) {
         return;
     }
     while (framesRemaining > 0) {
         const int frameIndex = totalFrames - framesRemaining + 1;
         maybeRenderBootProgress(callbacks, frameIndex, totalFrames);
-        runFrame(framesRemaining, totalFrames, drawableW, drawableH, callbacks, out);
+        runFrame(framesRemaining, totalFrames, drawableW, drawableH, callbacks, log);
         if (!pumpPreloadEventsOrQuit(callbacks)) {
             break;
         }
@@ -113,11 +113,11 @@ void maybeRunDeferredFrame(int& framesRemaining,
                            int drawableW,
                            int drawableH,
                            const Callbacks& callbacks,
-                           std::ostream& out) {
+                           const engine::log::Sink& log) {
     if (framesRemaining <= 0 || flowRendersWorldLayer || drawableW <= 0 || drawableH <= 0) {
         return;
     }
-    runFrame(framesRemaining, totalFrames, drawableW, drawableH, callbacks, out);
+    runFrame(framesRemaining, totalFrames, drawableW, drawableH, callbacks, log);
     if (framesRemaining <= 0 && callbacks.setTitle) {
         callbacks.setTitle("Pokemon Autochess");
     }

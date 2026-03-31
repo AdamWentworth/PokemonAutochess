@@ -63,6 +63,7 @@ bool appendSnapshotAsBillboards(
     const std::function<SharedBackendTextureCacheEntry*(const std::string&, bool)>& ensureTextureFn,
     const std::unordered_map<int, shared_tail_fire_fallback::Anchor>* tailFireAnchors,
     bool tailFireExactCpuEnabled,
+    bool tailFireDebugEnabled,
     std::vector<shared_world_batches::WorldIndexedBatch>& worldIndexedBatches) {
     using BackendTextureCacheEntry = SharedBackendTextureCacheEntry;
     using WorldIndexedBatch = shared_world_batches::WorldIndexedBatch;
@@ -90,7 +91,8 @@ bool appendSnapshotAsBillboards(
             backendTextureByPath,
             ensureTextureFn,
             tailFireAnchors,
-            tailFireExactCpuEnabled};
+            tailFireExactCpuEnabled,
+            tailFireDebugEnabled};
         return game::runtime::shared_tail_fire_snapshot_billboards::appendTailFireSnapshotBillboards(
             label, snapshot, blendMode, tailCtx, worldIndexedBatches);
     }

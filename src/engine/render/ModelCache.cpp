@@ -4,6 +4,7 @@
 #include "ModelStartupLog.h"
 #include "engine/core/Environment.h"
 #include "engine/utils/Log.h"
+#include "engine/utils/LogSink.h"
 
 #include <filesystem>
 #include <fstream>
@@ -33,6 +34,11 @@ using pac_model_types::ChannelPath;
 namespace pac_model_cache_detail {
 
 namespace fs = std::filesystem;
+
+static engine::log::Sink& modelCacheDebugLog() {
+    static engine::log::Sink log("ModelCache", &std::cout, &std::cerr);
+    return log;
+}
 
 template<typename T>
 static bool readPod(std::istream& in, T& v) {
@@ -405,23 +411,35 @@ bool Model::tryLoadCache(const std::string& filepath)
                                       (filepath.find("Rattata") != std::string::npos);
 
             if (dbgThisModel) {
-                std::cerr << "[gltf][CACHE][DEBUG] Cache read complete for: " << filepath << "\n";
-                std::cerr << "[gltf][CACHE][DEBUG] submeshes=" << hdr.submeshCount
-                          << " vertices=" << hdr.vertexCount << " indices=" << hdr.indexCount << "\n";
+                modelCacheDebugLog().warn("[gltf][CACHE][DEBUG] Cache read complete for: " + filepath);
+                modelCacheDebugLog().warn(
+                    "[gltf][CACHE][DEBUG] submeshes=" + std::to_string(hdr.submeshCount) +
+                    " vertices=" + std::to_string(hdr.vertexCount) +
+                    " indices=" + std::to_string(hdr.indexCount));
                 for (uint32_t i = 0; i < hdr.submeshCount; ++i) {
                     const auto& b = baseColorCPU[i];
                     const auto& e = emissiveCPU[i];
-                    std::cerr << "[gltf][CACHE][TEX] submesh[" << i << "] base "
-                              << b.width << "x" << b.height << " bytes=" << b.rgba.size()
-                              << " wrapS=" << b.wrapS << " wrapT=" << b.wrapT
-                              << " minF=" << b.minF << " magF=" << b.magF << "\n";
+                    modelCacheDebugLog().warn(
+                        "[gltf][CACHE][TEX] submesh[" + std::to_string(i) + "] base " +
+                        std::to_string(b.width) + "x" + std::to_string(b.height) +
+                        " bytes=" + std::to_string(b.rgba.size()) +
+                        " wrapS=" + std::to_string(b.wrapS) +
+                        " wrapT=" + std::to_string(b.wrapT) +
+                        " minF=" + std::to_string(b.minF) +
+                        " magF=" + std::to_string(b.magF));
                     if (b.rgba.empty()) {
-                        std::cerr << "[gltf][CACHE][WARN] submesh[" << i << "] baseColor RGBA blob is EMPTY. Expect undefined texture contents.\n";
+                        modelCacheDebugLog().warn(
+                            "[gltf][CACHE][WARN] submesh[" + std::to_string(i) +
+                            "] baseColor RGBA blob is EMPTY. Expect undefined texture contents.");
                     }
-                    std::cerr << "[gltf][CACHE][TEX] submesh[" << i << "] emissive "
-                              << e.width << "x" << e.height << " bytes=" << e.rgba.size() << "\n";
+                    modelCacheDebugLog().warn(
+                        "[gltf][CACHE][TEX] submesh[" + std::to_string(i) + "] emissive " +
+                        std::to_string(e.width) + "x" + std::to_string(e.height) +
+                        " bytes=" + std::to_string(e.rgba.size()));
                     if (e.rgba.empty()) {
-                        std::cerr << "[gltf][CACHE][WARN] submesh[" << i << "] emissive RGBA blob is EMPTY.\n";
+                        modelCacheDebugLog().warn(
+                            "[gltf][CACHE][WARN] submesh[" + std::to_string(i) +
+                            "] emissive RGBA blob is EMPTY.");
                     }
                 }
                 LOG_ERROR("[gltf][CACHE][DEBUG] If you suspect stale/corrupt cache, run with PAC_DISABLE_MODELCACHE=1 once.\n");

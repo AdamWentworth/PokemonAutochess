@@ -3,11 +3,13 @@
 #include "game/runtime/shared/backend/SharedBackendPoseEval.h"
 #include "game/runtime/shared/vfx/tail_fire/SharedTailFireAnchorMath.h"
 #include "game/vfx/TailFireVFXConfigDB.h"
+#include "engine/utils/LogSink.h"
 
 #include <algorithm>
 #include <cctype>
 #include <chrono>
 #include <iostream>
+#include <sstream>
 #include <string>
 #include <unordered_map>
 
@@ -55,6 +57,11 @@ int resolvePlaybackNodeIndex(
     return fallbackIndex >= 0 ? fallbackIndex : -1;
 }
 
+engine::log::Sink& tailFireCoordinatorLog() {
+    static engine::log::Sink log("TailFire", &std::cout, &std::cerr);
+    return log;
+}
+
 void logAnchorFrame(
     const AnchorExportArgs& args,
     const shared_tail_fire_fallback::Anchor& anchor,
@@ -65,25 +72,22 @@ void logAnchorFrame(
         return;
     }
 
-    std::cout
-        << "[TailFire][Debug][Anchor] unit=" << args.unitId
+    std::ostringstream msg;
+    msg << "[TailFire][Debug][Anchor] unit=" << args.unitId
         << " exact=" << (anchor.exactFireAnchor ? 1 : 0)
         << " tailNode=" << tailNodeIndex
         << " baseNode=" << fireAnchorBaseNodeIndex
         << " tipNode=" << fireAnchorTipNodeIndex;
     if (anchor.exactFireAnchor) {
-        std::cout
-            << " basePos=(" << anchor.pos.x << "," << anchor.pos.y << "," << anchor.pos.z << ")"
+        msg << " basePos=(" << anchor.pos.x << "," << anchor.pos.y << "," << anchor.pos.z << ")"
             << " tipPos=(" << anchor.tipPos.x << "," << anchor.tipPos.y << "," << anchor.tipPos.z << ")";
     } else {
-        std::cout
-            << " tailPos=(" << anchor.pos.x << "," << anchor.pos.y << "," << anchor.pos.z << ")";
+        msg << " tailPos=(" << anchor.pos.x << "," << anchor.pos.y << "," << anchor.pos.z << ")";
     }
-    std::cout
-        << " up=(" << anchor.basis[1].x << "," << anchor.basis[1].y << "," << anchor.basis[1].z << ")"
+    msg << " up=(" << anchor.basis[1].x << "," << anchor.basis[1].y << "," << anchor.basis[1].z << ")"
         << " back=(" << anchor.backDir.x << "," << anchor.backDir.y << "," << anchor.backDir.z << ")"
-        << " scale=" << anchor.particleSizeScale
-        << "\n";
+        << " scale=" << anchor.particleSizeScale;
+    tailFireCoordinatorLog().info(msg.str());
 }
 
 } // namespace
@@ -129,17 +133,18 @@ const TailFireVFXConfig& resolvePlaybackConfig(std::string_view species) {
     if (inserted) {
         const double totalMs =
             std::chrono::duration<double, std::milli>(end - start).count();
-        std::cout << "[TailFire][CPU] fallback_config species="
-                  << key
-                  << " total="
-                  << totalMs
-                  << "ms flipbook0="
-                  << it->second.flipbookPath
-                  << " flipbook1="
-                  << (it->second.useFlipbook2
-                          ? it->second.flipbook2Path
-                          : std::string("<disabled>"))
-                  << "\n";
+        std::ostringstream msg;
+        msg << "[TailFire][CPU] fallback_config species="
+            << key
+            << " total="
+            << totalMs
+            << "ms flipbook0="
+            << it->second.flipbookPath
+            << " flipbook1="
+            << (it->second.useFlipbook2
+                    ? it->second.flipbook2Path
+                    : std::string("<disabled>"));
+        tailFireCoordinatorLog().info(msg.str());
     }
     return it->second;
 }

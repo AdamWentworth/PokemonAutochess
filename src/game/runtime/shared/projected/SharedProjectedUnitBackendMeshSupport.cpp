@@ -26,7 +26,7 @@ std::string makeIndexedBatchKeyPrefix(
                reinterpret_cast<std::uintptr_t>(&mesh)));
 }
 
-bool tailFireDebugEnabled() {
+bool tailFireDebugEnvEnabled() {
     static const bool enabled = engine::env::flagEnabled("PAC_TAIL_FIRE_DEBUG");
     return enabled;
 }
@@ -101,8 +101,8 @@ bool strictGltfParityEnabled() {
     return enabled;
 }
 
-bool tailFireDebugShouldLogAnchor(int unitId) {
-    if (!tailFireDebugEnabled()) return false;
+bool tailFireDebugShouldLogAnchor(bool runtimeModeEnabled, int unitId) {
+    if (!(runtimeModeEnabled || tailFireDebugEnvEnabled())) return false;
     static std::unordered_map<int, std::chrono::steady_clock::time_point> sLastLogByUnit;
     const auto now = std::chrono::steady_clock::now();
     auto it = sLastLogByUnit.find(unitId);

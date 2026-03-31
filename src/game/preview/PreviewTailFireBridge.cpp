@@ -82,6 +82,7 @@ void renderPreviewTailFire(const PreviewTailFireBridgeArgs& args) {
     tailFireRender.backendTextureByPath = args.backendTextureByPath;
     tailFireRender.worldIndexedBatches = &scratch.worldIndexedBatches;
     tailFireRender.ensureBackendTextureLoaded = args.ensureBackendTextureLoaded;
+    tailFireRender.tailFireDebugEnabled = false;
     (void)game::runtime::shared_tail_fire_fallback::appendSyntheticTailFire(
         {
             .worldCellSize = args.worldCellSize,

@@ -1,8 +1,9 @@
 #pragma once
 
+#include "engine/utils/LogSink.h"
+
 #include <cstddef>
 #include <functional>
-#include <iosfwd>
 #include <string>
 #include <vector>
 
@@ -62,6 +63,6 @@ std::vector<std::string> collectUiSpritePrewarmPaths(const GameDataDb& dataDb);
 Summary run(const Options& options,
             const std::vector<std::string>& uiSpritePrewarmPaths,
             const Callbacks& callbacks,
-            std::ostream& out);
+            const engine::log::Sink& log);
 
 } // namespace game::runtime::startup_asset_prewarm

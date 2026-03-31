@@ -2,6 +2,7 @@
 #include <string>
 #include <vector>
 
+#include "engine/utils/LogSink.h"
 #include "game/runtime/startup/RuntimeRenderModelPrewarm.h"
 
 bool test_runtime_render_model_prewarm_contract(std::string& outFail) {
@@ -21,6 +22,7 @@ bool test_runtime_render_model_prewarm_contract(std::string& outFail) {
         int requestQuitCalls = 0;
         int loadCalls = 0;
         std::ostringstream logs;
+        engine::log::Sink log("TestRenderModelPrewarm", &logs, &logs);
 
         const auto summary = game::runtime::render_model_prewarm::run(
             {"assets/models/a.glb", "assets/models/b.glb", "assets/models/c.glb"},
@@ -60,7 +62,7 @@ bool test_runtime_render_model_prewarm_contract(std::string& outFail) {
                         return std::size_t{4u};
                     },
             },
-            logs);
+            log);
 
         if (summary.loaded != 1u ||
             summary.failed != 1u ||
@@ -109,6 +111,7 @@ bool test_runtime_render_model_prewarm_contract(std::string& outFail) {
         int requestQuitCalls = 0;
         int loadCalls = 0;
         std::ostringstream logs;
+        engine::log::Sink log("TestRenderModelPrewarm", &logs, &logs);
         const auto summary = game::runtime::render_model_prewarm::run(
             {"assets/models/a.glb", "assets/models/b.glb"},
             Options{},
@@ -125,7 +128,7 @@ bool test_runtime_render_model_prewarm_contract(std::string& outFail) {
                         return ModelLoadResult{};
                     },
             },
-            logs);
+            log);
 
         if (!summary.preloadInterrupted ||
             requestQuitCalls != 1 ||

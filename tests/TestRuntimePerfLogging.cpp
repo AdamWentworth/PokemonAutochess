@@ -6,8 +6,20 @@ bool test_runtime_perf_logging_contract(std::string& outFail) {
     if (std::string(game::runtime::perf_logging::terminalLogModeName(
             EngineTerminalLogMode::Performance)) != "Performance" ||
         std::string(game::runtime::perf_logging::terminalLogModeName(
-            EngineTerminalLogMode::GrowlVfx)) != "Growl VFX") {
+            EngineTerminalLogMode::GrowlVfx)) != "Growl VFX" ||
+        std::string(game::runtime::perf_logging::terminalLogModeName(
+            EngineTerminalLogMode::TailFireDebug)) != "Tail Fire Debug") {
         outFail = "terminalLogModeName should expose stable terminal mode labels.";
+        return false;
+    }
+
+    if (game::runtime::perf_logging::nextTerminalLogMode(
+            EngineTerminalLogMode::Performance) != EngineTerminalLogMode::GrowlVfx ||
+        game::runtime::perf_logging::nextTerminalLogMode(
+            EngineTerminalLogMode::GrowlVfx) != EngineTerminalLogMode::TailFireDebug ||
+        game::runtime::perf_logging::nextTerminalLogMode(
+            EngineTerminalLogMode::TailFireDebug) != EngineTerminalLogMode::Performance) {
+        outFail = "nextTerminalLogMode should cycle Performance -> Growl VFX -> Tail Fire Debug -> Performance.";
         return false;
     }
 

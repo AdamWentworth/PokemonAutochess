@@ -3,6 +3,7 @@
 #include "engine/core/EngineServices.h"
 #include "engine/render/Camera3D.h"
 #include "engine/render/IRenderBackend.h"
+#include "engine/utils/LogSink.h"
 #include "game/runtime/renderer/RuntimeRendererStartupState.h"
 #include "game/runtime/startup/RuntimeStartupPresentation.h"
 #include "game/runtime/video/RuntimeWindowPresentationController.h"
@@ -31,6 +32,7 @@ Result activateRendererAndInitializePresentation(
     const std::function<void(float)>& renderBootLoading,
     std::ostream& logOut,
     std::ostream& errOut) {
+    engine::log::Sink log("RuntimeStartupFinalize", &logOut, &errOut);
     Result out;
 
     game::runtime::renderer_startup_state::OpenGlStrings openGlStrings;
@@ -58,7 +60,7 @@ Result activateRendererAndInitializePresentation(
         []() { return TTF_Init(); },
         []() { return std::string(TTF_GetError()); });
     if (!fontInit.succeeded) {
-        errOut << "[GameRunner] TTF_Init error: " << fontInit.error << "\n";
+        log.error("[GameRunner] TTF_Init error: " + fontInit.error);
     }
 
     camera = game::runtime::startup_presentation::createDefaultCamera(

@@ -105,6 +105,7 @@ struct ParticleVfxArgs {
     bool supportsWorldIndexedMeshes = false;
     bool hasWorldViewProj = false;
     bool useExactTailFireCpuPath = false;
+    bool tailFireDebugEnabled = false;
     GameWorld* gameWorld = nullptr;
     glm::mat4 viewProj{1.0f};
     glm::mat4 invViewProj{1.0f};
@@ -128,6 +129,7 @@ void appendSharedParticleVfxSession(
     bool supportsWorldIndexedMeshes,
     bool hasWorldViewProj,
     bool useExactTailFireCpuPath,
+    bool tailFireDebugEnabled,
     GameWorld* gameWorld,
     const glm::mat4& viewProj,
     const glm::mat4& invViewProj,
@@ -149,6 +151,7 @@ void appendSharedProjectedVfxBridgesSession(
     bool supportsWorldIndexedMeshes,
     bool hasWorldViewProj,
     bool useExactTailFireCpuPath,
+    bool tailFireDebugEnabled,
     GameWorld* gameWorld,
     const glm::mat4& viewProj,
     const glm::mat4& invViewProj,

@@ -56,6 +56,7 @@ bool test_shared_particle_snapshot_billboards_contract(std::string& outFail) {
         },
         nullptr,
         false,
+        false,
         batches);
 
     if (!ok || batches.size() != 1u) {

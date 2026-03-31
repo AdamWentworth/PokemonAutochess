@@ -19,7 +19,7 @@ namespace game::runtime::window_presentation {
 WindowPresentationController::WindowPresentationController(EngineServices& servicesIn,
                                                            std::ostream& outIn,
                                                            std::ostream& errIn)
-    : services(servicesIn), out(outIn), err(errIn) {}
+    : services(servicesIn), out(outIn), err(errIn), log("Video", &outIn, &errIn) {}
 
 void WindowPresentationController::setPreferencesPath(std::string prefsPathIn) {
     prefsPath = std::move(prefsPathIn);
@@ -142,7 +142,7 @@ void WindowPresentationController::saveVideoModePreferences() {
 
     std::string saveErr;
     if (!game::video::savePreferences(prefs, prefsPath, &saveErr)) {
-        err << "[Video] Failed to save video mode preferences: " << saveErr << "\n";
+        log.error("[Video] Failed to save video mode preferences: " + saveErr);
         return;
     }
     videoModePreferencesDirty = false;
@@ -237,10 +237,10 @@ void WindowPresentationController::syncLivePresentationSettings() {
 
     if (applied) {
         appliedVsyncEnabled = services.vsyncEnabled;
-        out << "[Video] VSync live set: "
-            << (appliedVsyncEnabled ? "On" : "Off") << "\n";
+        log.info(std::string("[Video] VSync live set: ") +
+                 (appliedVsyncEnabled ? "On" : "Off"));
     } else {
-        err << "[Video] Failed to apply live VSync toggle.\n";
+        log.error("[Video] Failed to apply live VSync toggle.");
     }
 }
 
@@ -289,8 +289,7 @@ void WindowPresentationController::normalizeWindowedPresentationMode() {
         std::string saveErr;
         if (!game::video::savePreferences(prefs, prefsPath, &saveErr)) {
             videoModePreferencesDirty = true;
-            err << "[Video] Failed to save restored windowed mode: "
-                << saveErr << "\n";
+            log.error("[Video] Failed to save restored windowed mode: " + saveErr);
         } else {
             videoModePreferencesDirty = false;
         }
@@ -298,7 +297,7 @@ void WindowPresentationController::normalizeWindowedPresentationMode() {
         noteCurrentWindowModeChanged(true);
     }
     uncappedWindowModeNormalized = true;
-    out << "[Video] Restored windowed mode for uncapped presentation.\n";
+    log.info("[Video] Restored windowed mode for uncapped presentation.");
 }
 
 } // namespace game::runtime::window_presentation

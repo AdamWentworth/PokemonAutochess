@@ -2,6 +2,7 @@
 #include <string>
 #include <vector>
 
+#include "engine/utils/LogSink.h"
 #include "game/runtime/startup/RuntimeWorldLayerPrewarm.h"
 
 bool test_runtime_world_layer_prewarm_contract(std::string& outFail) {
@@ -14,6 +15,7 @@ bool test_runtime_world_layer_prewarm_contract(std::string& outFail) {
         std::vector<std::pair<int, int>> renderCalls;
         int requestQuitCalls = 0;
         std::ostringstream logs;
+        engine::log::Sink log("TestWorldLayerPrewarm", &logs, &logs);
 
         const Callbacks callbacks{
             .setTitle = [&](const std::string& title) { titles.push_back(title); },
@@ -26,14 +28,14 @@ bool test_runtime_world_layer_prewarm_contract(std::string& outFail) {
                 },
         };
 
-        game::runtime::world_layer_prewarm::schedule(framesRemaining, 2, callbacks, logs);
+        game::runtime::world_layer_prewarm::schedule(framesRemaining, 2, callbacks, log);
         game::runtime::world_layer_prewarm::drainStartupFrames(
             framesRemaining,
             2,
             1600,
             900,
             callbacks,
-            logs);
+            log);
         game::runtime::world_layer_prewarm::restoreTitleAfterInit(framesRemaining, callbacks);
 
         if (framesRemaining != 0 ||
@@ -76,6 +78,7 @@ bool test_runtime_world_layer_prewarm_contract(std::string& outFail) {
         std::vector<std::string> titles;
         std::vector<std::pair<int, int>> renderCalls;
         std::ostringstream logs;
+        engine::log::Sink log("TestWorldLayerPrewarm", &logs, &logs);
 
         const Callbacks callbacks{
             .setTitle = [&](const std::string& title) { titles.push_back(title); },
@@ -92,7 +95,7 @@ bool test_runtime_world_layer_prewarm_contract(std::string& outFail) {
             1280,
             720,
             callbacks,
-            logs);
+            log);
 
         if (framesRemaining != 0 ||
             renderCalls.size() != 1u ||
@@ -109,6 +112,7 @@ bool test_runtime_world_layer_prewarm_contract(std::string& outFail) {
         int requestQuitCalls = 0;
         int renderCalls = 0;
         std::ostringstream logs;
+        engine::log::Sink log("TestWorldLayerPrewarm", &logs, &logs);
 
         const Callbacks callbacks{
             .pumpPreloadEvents =
@@ -129,7 +133,7 @@ bool test_runtime_world_layer_prewarm_contract(std::string& outFail) {
             1920,
             1080,
             callbacks,
-            logs);
+            log);
 
         if (framesRemaining != 1 || requestQuitCalls != 1 || renderCalls != 1) {
             outFail = "drainStartupFrames should stop after the current frame when preload event pumping requests quit.";

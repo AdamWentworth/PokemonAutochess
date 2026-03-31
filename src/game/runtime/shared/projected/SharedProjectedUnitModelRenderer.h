@@ -70,6 +70,7 @@ struct Args {
     bool supportsWorldIndexedMeshes = false;
     bool characterInkingEnabled = false;
     int graphicsQuality = 3;
+    bool tailFireDebugEnabled = false;
 
     shared_projected_debug::ProjectedDebugVfxBuilder* projectedDebug = nullptr;
     shared_projected_render_items::ProjectedRenderItemRegistry* projectedRenderItems = nullptr;

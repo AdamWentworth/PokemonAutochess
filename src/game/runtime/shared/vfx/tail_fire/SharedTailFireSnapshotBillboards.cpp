@@ -5,11 +5,13 @@
 #include <cmath>
 #include <cstdint>
 #include <iostream>
+#include <sstream>
 #include <string>
 #include <unordered_map>
 
 #include "engine/core/Environment.h"
 #include "engine/render/IRenderBackend.h"
+#include "engine/utils/LogSink.h"
 #include "game/runtime/shared/vfx/tail_fire/SharedTailFireExactCpuSnapshotBatches.h"
 #include "game/runtime/shared/vfx/tail_fire/SharedTailFireSnapshotAtlasCache.h"
 
@@ -18,6 +20,11 @@ namespace {
 
 using BackendTextureCacheEntry = SharedBackendTextureCacheEntry;
 using WorldIndexedBatch = shared_world_batches::WorldIndexedBatch;
+
+engine::log::Sink& tailFireBillboardLog() {
+    static engine::log::Sink log("TailFire", &std::cout, &std::cerr);
+    return log;
+}
 
 bool safeUnprojectClip(const glm::mat4& invViewProj,
                        const glm::vec4& clipPos,
@@ -110,13 +117,13 @@ bool hasValidTailFireAnchor(const AppendContext& ctx) {
     return false;
 }
 
-bool tailFireDebugEnabled() {
+bool tailFireDebugEnvEnabled() {
     static const bool enabled = engine::env::flagEnabled("PAC_TAIL_FIRE_DEBUG");
     return enabled;
 }
 
-bool tailFireDebugShouldLogBillboard(int unitId) {
-    if (!tailFireDebugEnabled()) return false;
+bool tailFireDebugShouldLogBillboard(const AppendContext& ctx, int unitId) {
+    if (!(ctx.tailFireDebugEnabled || tailFireDebugEnvEnabled())) return false;
     static std::unordered_map<int, std::chrono::steady_clock::time_point> sLastLogByUnit;
     const auto now = std::chrono::steady_clock::now();
     auto it = sLastLogByUnit.find(unitId);
@@ -505,9 +512,9 @@ bool appendTailFireSnapshotBillboards(
                         }
                     }
                 }
-                if (tailFireDebugShouldLogBillboard(unitId)) {
-                    std::cout
-                        << "[TailFire][Debug][Billboard] unit=" << unitId
+                if (tailFireDebugShouldLogBillboard(ctx, unitId)) {
+                    std::ostringstream msg;
+                    msg << "[TailFire][Debug][Billboard] unit=" << unitId
                         << " exact=" << (anchor.exactFireAnchor ? 1 : 0)
                         << " anchorBase=(" << anchor.pos.x << "," << anchor.pos.y << "," << anchor.pos.z << ")"
                         << " anchorTip=(" << anchor.tipPos.x << "," << anchor.tipPos.y << "," << anchor.tipPos.z << ")"
@@ -519,8 +526,8 @@ bool appendTailFireSnapshotBillboards(
                         << " pxSize=" << pxSize
                         << " scale=" << scale
                         << " cameraPull=" << cameraPull
-                        << " engulfLift=" << engulfLift
-                        << "\n";
+                        << " engulfLift=" << engulfLift;
+                    tailFireBillboardLog().info(msg.str());
                 }
                 const float alpha = 0.98f;
                 const glm::vec3 premulColor(alpha, alpha, alpha);

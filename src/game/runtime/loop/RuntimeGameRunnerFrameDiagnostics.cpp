@@ -1,5 +1,6 @@
 #include "game/runtime/loop/RuntimeGameRunnerFrameDiagnostics.h"
 
+#include "engine/utils/LogSink.h"
 #include "game/runtime/loop/RuntimePerfLogging.h"
 
 #include <algorithm>
@@ -17,6 +18,7 @@ void observeAndEmit(State& state,
                     EngineServices& services,
                     const Inputs& inputs,
                     std::ostream& out) {
+    engine::log::Sink log("RunDiag", &out, nullptr);
     const double submitMs =
         game::runtime::frame_perf_capture::computeSubmitMs(
             inputs.submitRawMs,
@@ -74,8 +76,8 @@ void observeAndEmit(State& state,
         const auto perfSummary = state.perfAccumulator.makeSummaryAndReset();
         services.framePerf = perfSummary.framePerf;
         if (services.terminalLogMode == EngineTerminalLogMode::Performance) {
-            out << game::runtime::perf_logging::formatPerfLine(services.framePerf) << "\n";
-            out << game::runtime::perf_logging::formatPerfJson(services.framePerf) << "\n";
+            log.info(game::runtime::perf_logging::formatPerfLine(services.framePerf));
+            log.info(game::runtime::perf_logging::formatPerfJson(services.framePerf));
         }
     }
 
@@ -88,11 +90,16 @@ void observeAndEmit(State& state,
             currentGrowlRingCount > state.previousGrowlRingCount;
         if (currentGrowlRingCount > 0u &&
             (modeJustSwitchedToGrowl || growlStartedThisFrame)) {
-            out << game::runtime::perf_logging::formatGrowlDebugLine(
-                services.frameGrowlDebug) << "\n";
-            out << game::runtime::perf_logging::formatGrowlDebugJson(
-                services.frameGrowlDebug) << "\n";
+            log.info(game::runtime::perf_logging::formatGrowlDebugLine(
+                services.frameGrowlDebug));
+            log.info(game::runtime::perf_logging::formatGrowlDebugJson(
+                services.frameGrowlDebug));
         }
+    }
+    if (services.terminalLogMode == EngineTerminalLogMode::TailFireDebug &&
+        state.previousTerminalLogMode != EngineTerminalLogMode::TailFireDebug) {
+        log.info(
+            "[TailFire] Debug mode active; Tail Fire anchor and billboard logs will emit on active paths.");
     }
 
     state.previousGrowlRingCount = services.frameGrowlDebug.activeRingCount;

@@ -2,12 +2,14 @@
 #include "engine/render/DxgiAdapterSelection.h"
 #include "engine/render/DebugGeometry.h"
 #include "engine/render/d3d12/D3D12RenderBackendInternal.h"
+#include "engine/utils/LogSink.h"
 
 #include <algorithm>
 #include <chrono>
 #include <cstring>
 #include <filesystem>
 #include <iostream>
+#include <sstream>
 #include <stdexcept>
 #include <string>
 #include <type_traits>
@@ -29,6 +31,16 @@
 #if defined(_WIN32)
 using namespace engine::render::d3d12_internal;
 #endif
+
+namespace {
+
+engine::log::Sink& d3d12LifecycleLog() {
+    static engine::log::Sink log("D3D12Lifecycle", &std::cout, &std::cerr);
+    return log;
+}
+
+}
+
 void D3D12RenderBackend::beginFrame(float r, float g, float b, float a) {
     ++frameCounter_;
     clearColor_[0] = r;
@@ -357,13 +369,16 @@ void D3D12RenderBackend::endFrame() {
                                 4,
                                 flipped.data(),
                                 screenshotWidth * 4);
-                            std::cout << "[Screenshot][D3D12] "
-                                      << (wrote != 0 ? "WROTE " : "FAILED ")
-                                      << outPath.string()
-                                      << " size=" << screenshotWidth << "x" << screenshotHeight
-                                      << " frame=" << frameCounter_ << "\n";
+                            std::ostringstream msg;
+                            msg << "[Screenshot][D3D12] "
+                                << (wrote != 0 ? "WROTE " : "FAILED ")
+                                << outPath.string()
+                                << " size=" << screenshotWidth << "x" << screenshotHeight
+                                << " frame=" << frameCounter_;
+                            d3d12LifecycleLog().info(msg.str());
                         } catch (const std::exception& ex) {
-                            std::cout << "[Screenshot][D3D12] FAILED exception=" << ex.what() << "\n";
+                            d3d12LifecycleLog().error(
+                                std::string("[Screenshot][D3D12] FAILED exception=") + ex.what());
                         }
 
                         screenshotCaptured_ = true;
@@ -743,43 +758,50 @@ void D3D12RenderBackend::initDeviceAndSwapchain(const std::string& preferredAdap
     auto stageStart = std::chrono::steady_clock::now();
     createDebugPipeline();
     auto stageEnd = std::chrono::steady_clock::now();
-    std::cout << "[Renderer][D3D12][Startup] createDebugPipeline="
-              << std::chrono::duration<double, std::milli>(stageEnd - stageStart).count()
-              << "ms\n";
+    d3d12LifecycleLog().info(
+        "[Renderer][D3D12][Startup] createDebugPipeline=" +
+        std::to_string(std::chrono::duration<double, std::milli>(stageEnd - stageStart).count()) +
+        "ms");
 
     stageStart = std::chrono::steady_clock::now();
     createWorldPipeline();
     stageEnd = std::chrono::steady_clock::now();
-    std::cout << "[Renderer][D3D12][Startup] createWorldPipeline="
-              << std::chrono::duration<double, std::milli>(stageEnd - stageStart).count()
-              << "ms\n";
+    d3d12LifecycleLog().info(
+        "[Renderer][D3D12][Startup] createWorldPipeline=" +
+        std::to_string(std::chrono::duration<double, std::milli>(stageEnd - stageStart).count()) +
+        "ms");
 
     stageStart = std::chrono::steady_clock::now();
     createSpritePipeline();
     stageEnd = std::chrono::steady_clock::now();
-    std::cout << "[Renderer][D3D12][Startup] createSpritePipeline="
-              << std::chrono::duration<double, std::milli>(stageEnd - stageStart).count()
-              << "ms\n";
+    d3d12LifecycleLog().info(
+        "[Renderer][D3D12][Startup] createSpritePipeline=" +
+        std::to_string(std::chrono::duration<double, std::milli>(stageEnd - stageStart).count()) +
+        "ms");
 
     stageStart = std::chrono::steady_clock::now();
     createRenderTargets();
     stageEnd = std::chrono::steady_clock::now();
-    std::cout << "[Renderer][D3D12][Startup] createRenderTargets="
-              << std::chrono::duration<double, std::milli>(stageEnd - stageStart).count()
-              << "ms\n";
+    d3d12LifecycleLog().info(
+        "[Renderer][D3D12][Startup] createRenderTargets=" +
+        std::to_string(std::chrono::duration<double, std::milli>(stageEnd - stageStart).count()) +
+        "ms");
 
     stageStart = std::chrono::steady_clock::now();
     createDepthResources();
     stageEnd = std::chrono::steady_clock::now();
-    std::cout << "[Renderer][D3D12][Startup] createDepthResources="
-              << std::chrono::duration<double, std::milli>(stageEnd - stageStart).count()
-              << "ms\n";
+    d3d12LifecycleLog().info(
+        "[Renderer][D3D12][Startup] createDepthResources=" +
+        std::to_string(std::chrono::duration<double, std::milli>(stageEnd - stageStart).count()) +
+        "ms");
 
-    std::cout << "[Renderer][D3D12][Startup] totalInit="
-              << std::chrono::duration<double, std::milli>(stageEnd - startupInitStart).count()
-              << "ms\n";
-    std::cout << "[Renderer][D3D12][Startup] allowTearing="
-              << (allowTearingSupported_ ? "1" : "0") << "\n";
+    d3d12LifecycleLog().info(
+        "[Renderer][D3D12][Startup] totalInit=" +
+        std::to_string(std::chrono::duration<double, std::milli>(stageEnd - startupInitStart).count()) +
+        "ms");
+    d3d12LifecycleLog().info(
+        std::string("[Renderer][D3D12][Startup] allowTearing=") +
+        (allowTearingSupported_ ? "1" : "0"));
     initialized_ = true;
 #endif
 }

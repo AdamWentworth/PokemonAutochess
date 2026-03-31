@@ -1,6 +1,7 @@
 #include "engine/render/OpenGLRenderBackend.h"
 #include "engine/render/SpriteTextureCardArt.h"
 #include "engine/core/Environment.h"
+#include "engine/utils/LogSink.h"
 
 #include <algorithm>
 #include <chrono>
@@ -9,6 +10,7 @@
 #include <iostream>
 #include <memory>
 #include <mutex>
+#include <sstream>
 #include <string>
 #include <vector>
 
@@ -17,6 +19,11 @@
 #include <stb_image_write.h>
 
 namespace {
+
+engine::log::Sink& tailFireTextureUploadLog() {
+    static engine::log::Sink log("TailFireOpenGL", &std::cout, &std::cerr);
+    return log;
+}
 
 bool isTailFireWorldTextureKey(const char* key) {
     if (!key || key[0] == '\0') return false;
@@ -436,19 +443,21 @@ unsigned int OpenGLRenderBackend::ensureWorldTextureRaw(const char* keyCStr,
     worldTextures_.emplace(cacheKey, entry);
     if (tailFireTexture) {
         const auto uploadEnd = std::chrono::steady_clock::now();
-        std::cout << "[TailFire][OpenGL][Upload] key="
-                  << keyCStr
-                  << " size="
-                  << width
-                  << "x"
-                  << height
-                  << " srgb="
-                  << (srgb ? 1 : 0)
-                  << " mips="
-                  << (generateMipChain ? 1 : 0)
-                  << " wall_ms="
-                  << std::chrono::duration<double, std::milli>(uploadEnd - uploadStart).count()
-                  << " result=ok\n";
+        std::ostringstream msg;
+        msg << "[TailFire][OpenGL][Upload] key="
+            << keyCStr
+            << " size="
+            << width
+            << "x"
+            << height
+            << " srgb="
+            << (srgb ? 1 : 0)
+            << " mips="
+            << (generateMipChain ? 1 : 0)
+            << " wall_ms="
+            << std::chrono::duration<double, std::milli>(uploadEnd - uploadStart).count()
+            << " result=ok";
+        tailFireTextureUploadLog().info(msg.str());
     }
     return textureId;
 }

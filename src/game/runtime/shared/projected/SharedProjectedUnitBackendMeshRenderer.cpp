@@ -795,7 +795,8 @@ Result renderProjectedUnitBackendMesh(const Args& args) {
                                     ? namedNodeIndex
                                     : -1;
                             },
-                        .logDebug = support::tailFireDebugShouldLogAnchor(unit.id),
+                        .logDebug =
+                            support::tailFireDebugShouldLogAnchor(args.tailFireDebugEnabled, unit.id),
                     },
                     anchor)) {
                 anchor = {};

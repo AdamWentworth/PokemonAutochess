@@ -3,6 +3,7 @@
 #include "engine/render/d3d12/D3D12RenderBackendInternal.h"
 #include "engine/render/d3d12/D3D12TextureUpload.h"
 #include "engine/core/Environment.h"
+#include "engine/utils/LogSink.h"
 
 #include <array>
 #include <algorithm>
@@ -12,6 +13,7 @@
 #include <iostream>
 #include <memory>
 #include <mutex>
+#include <sstream>
 #include <unordered_set>
 #include <string>
 
@@ -29,6 +31,11 @@ using namespace engine::render::d3d12_internal;
 #endif
 
 namespace {
+
+engine::log::Sink& tailFireTextureUploadLog() {
+    static engine::log::Sink log("TailFireD3D12", &std::cout, &std::cerr);
+    return log;
+}
 
 bool isTailFireWorldTextureKey(const char* key) {
     if (!key || key[0] == '\0') return false;
@@ -752,21 +759,23 @@ D3D12RenderBackend::SpriteTexture* D3D12RenderBackend::ensureWorldTextureRaw(con
                                                                           texture.resource);
     if (tailFireTexture) {
         const auto uploadEnd = std::chrono::steady_clock::now();
-        std::cout << "[TailFire][D3D12][Upload] key="
-                  << key
-                  << " size="
-                  << width
-                  << "x"
-                  << height
-                  << " srgb="
-                  << (srgb ? 1 : 0)
-                  << " mips="
-                  << (generateMipChain ? 1 : 0)
-                  << " wall_ms="
-                  << std::chrono::duration<double, std::milli>(uploadEnd - uploadStart).count()
-                  << " result="
-                  << (ok ? "ok" : "failed")
-                  << " note=includes_upload_and_fence_wait\n";
+        std::ostringstream msg;
+        msg << "[TailFire][D3D12][Upload] key="
+            << key
+            << " size="
+            << width
+            << "x"
+            << height
+            << " srgb="
+            << (srgb ? 1 : 0)
+            << " mips="
+            << (generateMipChain ? 1 : 0)
+            << " wall_ms="
+            << std::chrono::duration<double, std::milli>(uploadEnd - uploadStart).count()
+            << " result="
+            << (ok ? "ok" : "failed")
+            << " note=includes_upload_and_fence_wait";
+        tailFireTextureUploadLog().info(msg.str());
     }
     if (!ok) return nullptr;
 

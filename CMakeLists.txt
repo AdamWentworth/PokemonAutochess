@@ -229,6 +229,7 @@ add_library(engine_render STATIC
     src/engine/utils/ShaderCache.cpp
     src/engine/utils/ResourceManager.cpp
     src/engine/utils/Log.cpp
+    src/engine/utils/LogSink.cpp
     src/engine/utils/stb_image_impl.cpp
     src/engine/utils/stb_image_write_impl.cpp
 
@@ -680,6 +681,7 @@ if (BUILD_TESTING)
         tests/TestShopCardConversion.cpp
         tests/TestUiInputSlots.cpp
         tests/TestSellOverlayUiPolicy.cpp
+        tests/TestLogSink.cpp
         tests/TestLogBus.cpp
         tests/TestRenderFlowDecisions.cpp
         tests/TestBackendRenderPolicy.cpp

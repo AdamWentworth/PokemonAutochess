@@ -36,6 +36,7 @@
 
 #include "engine/core/ecs/Scheduler.h"
 #include "engine/core/ecs/World.h"
+#include "engine/utils/LogSink.h"
 #include "engine/utils/ResourceManager.h"
 
 #include "game/GameWorld.h"
@@ -71,6 +72,7 @@
 #include "game/runtime/session/SessionTailFirePrewarm.h"
 #include "game/runtime/session/SessionTextureCache.h"
 #include "game/runtime/session/SessionWorldRenderRuntime.h"
+#include "game/runtime/loop/RuntimePerfLogging.h"
 #include "game/ui/UIViewport.h"
 #include "game/ui/ShopLayout.h"
 
@@ -117,6 +119,7 @@ struct GameSession::Impl {
 
     // Game-owned logger instance (no file-scope globals).
     LogBus::Logger log;
+    engine::log::Sink consoleLog{"GameSession", &std::cout, &std::cerr};
     ScriptEventBus scriptEvents;
     std::unique_ptr<engine::IAssetStore> assetStore;
     engine::XorShift32 rng;
@@ -216,8 +219,9 @@ struct GameSession::Impl {
 
         if (!cacheEntry.error.empty()) {
             if (!cacheEntry.reportedFailure) {
-                std::cout << "[Render][ModelCache] Unable to render model '" << modelPath
-                          << "' (" << cacheEntry.error << ")\n";
+                consoleLog.info(
+                    "[Render][ModelCache] Unable to render model '" + modelPath +
+                    "' (" + cacheEntry.error + ")");
                 cacheEntry.reportedFailure = true;
             }
             return nullptr;
@@ -542,14 +546,13 @@ struct GameSession::Impl {
                     [&]() {
                         if (!engineServices) return;
                         engineServices->terminalLogMode =
-                            (engineServices->terminalLogMode == EngineTerminalLogMode::Performance)
-                                ? EngineTerminalLogMode::GrowlVfx
-                                : EngineTerminalLogMode::Performance;
+                            game::runtime::perf_logging::nextTerminalLogMode(
+                                engineServices->terminalLogMode);
                         game::log::info(
                             &log,
-                            engineServices->terminalLogMode == EngineTerminalLogMode::GrowlVfx
-                                ? "[Debug] Terminal log mode: Growl VFX"
-                                : "[Debug] Terminal log mode: Performance");
+                            std::string("[Debug] Terminal log mode: ") +
+                                game::runtime::perf_logging::terminalLogModeName(
+                                    engineServices->terminalLogMode));
                     },
                 .loadDebugSnapshot = [&]() { loadDebugStateSnapshot(); },
                 .openMainMenu =
@@ -765,12 +768,12 @@ struct GameSession::Impl {
                         renderWorldLayer(prewarmW, prewarmH, /*renderWorld=*/true);
                     },
             },
-            std::cout);
+            consoleLog);
         renderFrameFromFlow(flow, drawableW, drawableH, renderWorld);
     }
 
     void shutdown() {
-        std::cout << "[Shutdown] Game.\n";
+        consoleLog.info("[Shutdown] Game.");
 
         log.attach(nullptr);
         log.attachCatchFeed(nullptr);
@@ -785,7 +788,7 @@ struct GameSession::Impl {
 
         scheduler.clear();
 
-        std::cout << "[Shutdown] Game done.\n";
+        consoleLog.info("[Shutdown] Game done.");
     }
 };
 

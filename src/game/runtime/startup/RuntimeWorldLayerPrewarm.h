@@ -1,7 +1,8 @@
 #pragma once
 
+#include "engine/utils/LogSink.h"
+
 #include <functional>
-#include <iosfwd>
 #include <string>
 
 namespace game::runtime::world_layer_prewarm {
@@ -17,14 +18,14 @@ struct Callbacks {
 void schedule(int& framesRemaining,
               int totalFrames,
               const Callbacks& callbacks,
-              std::ostream& out);
+              const engine::log::Sink& log);
 
 void drainStartupFrames(int& framesRemaining,
                         int totalFrames,
                         int drawableW,
                         int drawableH,
                         const Callbacks& callbacks,
-                        std::ostream& out);
+                        const engine::log::Sink& log);
 
 void maybeRunDeferredFrame(int& framesRemaining,
                            int totalFrames,
@@ -32,7 +33,7 @@ void maybeRunDeferredFrame(int& framesRemaining,
                            int drawableW,
                            int drawableH,
                            const Callbacks& callbacks,
-                           std::ostream& out);
+                           const engine::log::Sink& log);
 
 void restoreTitleAfterInit(int framesRemaining, const Callbacks& callbacks);
 

@@ -1,5 +1,7 @@
 #include "vfx/preview/growl/GrowlPreviewController.h"
 
+#include "engine/utils/LogSink.h"
+
 #include <algorithm>
 #include <cmath>
 #include <filesystem>
@@ -133,11 +135,12 @@ void GrowlPreviewController::pollManifestHotReload(
 
 void GrowlPreviewController::log(const char* message) const {
     if (!message || !message[0]) return;
+    engine::log::Sink log("GrowlPreview", &std::cout, &std::cerr);
     if (logPrefix_.empty()) {
-        std::cout << message << "\n";
+        log.info(message);
         return;
     }
-    std::cout << logPrefix_ << " " << message << "\n";
+    log.info(logPrefix_ + std::string(" ") + message);
 }
 
 } // namespace vfx::preview::growl

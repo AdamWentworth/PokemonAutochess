@@ -1,6 +1,8 @@
 // src/game/GamePreload.cpp
 #include "game/runtime/GamePreload.h"
 
+#include "engine/utils/LogSink.h"
+
 #include <cctype>
 #include <fstream>
 #include <iostream>
@@ -22,12 +24,13 @@ namespace game::preload {
 bool loadModelPathsFromConfig(const std::string& configPath,
                              const PokemonConfigLoader& pokemonCfg,
                              std::vector<std::string>& outPaths) {
+    engine::log::Sink log("Preload", &std::cout, &std::cerr);
     outPaths.clear();
 
     std::ifstream in(configPath);
     if (!in.is_open()) {
         // Missing file should not be fatal (we fall back to hardcoded list).
-        std::cerr << "[Preload] Could not open preload config: " << configPath << "\n";
+        log.warn("[Preload] Could not open preload config: " + configPath);
         return false;
     }
 
@@ -35,12 +38,13 @@ bool loadModelPathsFromConfig(const std::string& configPath,
     try {
         in >> j;
     } catch (const std::exception& e) {
-        std::cerr << "[Preload] Failed to parse JSON (" << configPath << "): " << e.what() << "\n";
+        log.error(std::string("[Preload] Failed to parse JSON (") + configPath +
+                  "): " + e.what());
         return false;
     }
 
     if (!j.is_object()) {
-        std::cerr << "[Preload] Preload config is not a JSON object: " << configPath << "\n";
+        log.error("[Preload] Preload config is not a JSON object: " + configPath);
         return false;
     }
 
@@ -70,7 +74,7 @@ bool loadModelPathsFromConfig(const std::string& configPath,
     for (const std::string& name : pokemonNames) {
         const PokemonStats* stats = pokemonCfg.getStats(name);
         if (!stats) {
-            std::cerr << "[Preload] Unknown pokemon in preload config: " << name << "\n";
+            log.warn("[Preload] Unknown pokemon in preload config: " + name);
             continue;
         }
         pushUnique(modelRoot + stats->model);
@@ -98,6 +102,7 @@ bool loadModelPathsFromConfig(const std::string& configPath,
 void preloadModels(GameContext& ctx,
                    const std::vector<std::string>& modelsToPreload,
                    const std::string& appName) {
+    engine::log::Sink log("Preload", &std::cout, &std::cerr);
     if (modelsToPreload.empty()) return;
 
     if (ctx.setTitle) ctx.setTitle(appName + " - Loading.");
@@ -129,7 +134,8 @@ void preloadModels(GameContext& ctx,
         if (ctx.services && ctx.services->resources) {
             ctx.services->resources->getModel(path);
         } else {
-            std::cerr << "[Preload] No resource service available; skipping model preload for: " << path << "\n";
+            log.error("[Preload] No resource service available; skipping model preload for: " +
+                      path);
         }
 
         const float progress = float(i + 1) / float(total);

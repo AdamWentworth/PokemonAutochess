@@ -18,7 +18,7 @@ std::size_t selectUniformTriangleIndex(std::size_t sampleIndex,
                                        std::size_t sampleCount,
                                        std::size_t triangleCount);
 bool strictGltfParityEnabled();
-bool tailFireDebugShouldLogAnchor(int unitId);
+bool tailFireDebugShouldLogAnchor(bool runtimeModeEnabled, int unitId);
 bool backendUsesAuthoredTailFireMeshPlayback(const char* backendId);
 bool backendUsesGpuClipSkinningForUnit(const char* backendId, std::string_view species);
 float textureDetailLodBiasForGraphicsQuality(int graphicsQuality);

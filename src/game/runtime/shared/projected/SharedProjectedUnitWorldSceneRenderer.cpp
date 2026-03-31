@@ -670,7 +670,8 @@ bool tryRenderProjectedUnitModelWorldScene(
                         [&](int nodeIndex) {
                             return transforms.worldMatrixForNode(nodeIndex);
                         },
-                    .logDebug = support::tailFireDebugShouldLogAnchor(args.unit->id),
+                    .logDebug =
+                        support::tailFireDebugShouldLogAnchor(args.tailFireDebugEnabled, args.unit->id),
                 },
                 anchor)) {
             anchor = {};

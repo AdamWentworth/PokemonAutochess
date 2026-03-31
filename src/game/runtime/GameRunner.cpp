@@ -11,6 +11,7 @@
 #include "engine/render/Camera3D.h"
 #include "engine/render/IRenderBackend.h"
 #include "engine/ui/BootLoadingView.h"
+#include "engine/utils/LogSink.h"
 #include "engine/utils/ResourceManager.h"
 #include "engine/utils/ShaderCache.h"
 #include "game/runtime/AutoQuitPolicy.h"
@@ -53,6 +54,7 @@
 #include <cmath>
 #include <iostream>
 #include <memory>
+#include <sstream>
 #include <string>
 #include <thread>
 
@@ -63,7 +65,8 @@ namespace {
     class GameRunner {
     public:
         GameRunner()
-            : presentation(services, std::cout, std::cerr) {}
+            : log_("GameRunner", &std::cout, &std::cerr)
+            , presentation(services, std::cout, std::cerr) {}
 
         bool init();
         int run(GameLoop& game);
@@ -88,6 +91,7 @@ namespace {
         ShaderCache shaderCache;
         EventBus eventBus;
         EngineServices services;
+        engine::log::Sink log_;
         game::runtime::window_presentation::WindowPresentationController presentation;
 
         bool initialized = false;
@@ -107,7 +111,7 @@ namespace {
         presentation.setAppliedVsyncEnabled(services.vsyncEnabled);
 
         if (SDL_Init(SDL_INIT_VIDEO) != 0) {
-            std::cerr << "[GameRunner] SDL_Init failed: " << SDL_GetError() << "\n";
+            log_.error(std::string("[GameRunner] SDL_Init failed: ") + SDL_GetError());
             return false;
         }
 
@@ -120,7 +124,7 @@ namespace {
             std::cout,
             std::cerr);
         if (!startupWindow.success) {
-            std::cerr << "[GameRunner] Window init failed: " << startupWindow.error << "\n";
+            log_.error("[GameRunner] Window init failed: " + startupWindow.error);
             return false;
         }
 
@@ -148,11 +152,11 @@ namespace {
                 },
                 [this]() { return this->pumpPreloadEvents(); }});
         if (!preloadBootstrap.success) {
-            std::cerr << "[GameRunner] Failed to initialize GLAD";
+            std::string message = "[GameRunner] Failed to initialize GLAD";
             if (!preloadBootstrap.error.empty()) {
-                std::cerr << ": " << preloadBootstrap.error;
+                message += ": " + preloadBootstrap.error;
             }
-            std::cerr << "\n";
+            log_.error(message);
             return false;
         }
         presentation.setOpenGlState(presentation.hasOpenGlContext(), preloadBootstrap.glFunctionsReady);
@@ -175,7 +179,7 @@ namespace {
         if (rendererResult.rendererBackendFallback) {
             services.rendererBackendFallback = true;
             services.rendererBackendFallbackReason = rendererResult.rendererBackendFallbackReason;
-            std::cout << "[Renderer] " << services.rendererBackendFallbackReason << "\n";
+            log_.info("[Renderer] " + services.rendererBackendFallbackReason);
         }
         activeBackend = rendererResult.activeBackend;
         services.activeRendererBackend = rendererResult.activeBackendName;
@@ -184,25 +188,29 @@ namespace {
         if (!renderer) {
             switch (rendererResult.failureStage) {
             case game::runtime::renderer_recovery::FailureStage::FallbackWindowOpen:
-                std::cerr << "[Renderer] OpenGL fallback window init failed: "
-                          << rendererResult.error << "\n";
+                log_.error("[Renderer] OpenGL fallback window init failed: " +
+                           rendererResult.error);
                 return false;
             case game::runtime::renderer_recovery::FailureStage::FallbackOpenGlInit:
-                std::cerr << "[GameRunner] Failed to initialize GLAD after fallback";
-                if (!rendererResult.error.empty()) {
-                    std::cerr << ": " << rendererResult.error;
+                {
+                    std::string message =
+                        "[GameRunner] Failed to initialize GLAD after fallback";
+                    if (!rendererResult.error.empty()) {
+                        message += ": " + rendererResult.error;
+                    }
+                    log_.error(message);
                 }
-                std::cerr << "\n";
                 return false;
             case game::runtime::renderer_recovery::FailureStage::InitialBackendCreate:
             case game::runtime::renderer_recovery::FailureStage::FallbackBackendCreate:
-                std::cerr << "[Renderer] Failed to create backend '" << services.activeRendererBackend
-                          << "' (" << rendererResult.error << ").\n";
+                log_.error("[Renderer] Failed to create backend '" +
+                           services.activeRendererBackend + "' (" +
+                           rendererResult.error + ").");
                 return false;
             case game::runtime::renderer_recovery::FailureStage::None:
             default:
-                std::cerr << "[Renderer] Failed to create backend '" << services.activeRendererBackend
-                          << "'.\n";
+                log_.error("[Renderer] Failed to create backend '" +
+                           services.activeRendererBackend + "'.");
                 return false;
             }
         }
@@ -221,17 +229,17 @@ namespace {
                 std::cout,
                 std::cerr);
         if (!startupFinalize.success) {
-            std::cerr << startupFinalize.error;
+            log_.error(startupFinalize.error);
             return false;
         }
 
         initialized = true;
-        std::cout << "[Init] Game runner initialized.\n";
+        log_.info("[Init] Game runner initialized.");
         return true;
     }
 
     void GameRunner::shutdown() {
-        std::cout << "[Shutdown] Game runner...\n";
+        log_.info("[Shutdown] Game runner...");
 
         presentation.saveVideoModePreferences();
 
@@ -257,7 +265,7 @@ namespace {
         }
 
         initialized = false;
-        std::cout << "[Shutdown] Game runner done.\n";
+        log_.info("[Shutdown] Game runner done.");
     }
 
     void GameRunner::enforceFrameCap(const std::chrono::high_resolution_clock::time_point& frameStart) {
@@ -334,9 +342,11 @@ namespace {
     int GameRunner::run(GameLoop& game) {
         if (!initialized) return 1;
 
-        std::cout << "[Run] Main loop @ "
-                  << static_cast<int>(engine::runtime::fixed_step::kHz)
-                  << " Hz...\n";
+        std::ostringstream line;
+        line << "[Run] Main loop @ "
+             << static_cast<int>(engine::runtime::fixed_step::kHz)
+             << " Hz...";
+        log_.info(line.str());
 
         game::runtime::loop_control::State loopState;
         services.resources = &resourceManager;

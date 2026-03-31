@@ -1,6 +1,7 @@
 #include "game/runtime/video/RuntimeGameRunnerWindowBootstrap.h"
 
 #include "engine/platform/Window.h"
+#include "engine/utils/LogSink.h"
 #include "game/runtime/renderer/RendererBackendBootstrap.h"
 #include "game/runtime/startup/RuntimeStartupConfig.h"
 #include "game/runtime/startup/RuntimeStartupVideoOverride.h"
@@ -22,6 +23,7 @@ Result openAndApplyStartupWindow(
     game::runtime::window_presentation::WindowPresentationController& presentation,
     std::ostream& logOut,
     std::ostream& errOut) {
+    engine::log::Sink log("RuntimeWindowBootstrap", &logOut, &errOut);
     Result out;
     const game::video::Preferences startupVideoPrefs = game::video::loadPreferences(prefsPath);
 
@@ -74,7 +76,7 @@ Result openAndApplyStartupWindow(
     presentation.syncVideoModeState();
     if (startupVideoPrefs.fullscreen &&
         !presentation.applyVideoModeInternal(0, 0, true, false)) {
-        errOut << "[Video] Failed to apply saved startup fullscreen mode.\n";
+        log.error("[Video] Failed to apply saved startup fullscreen mode.");
     }
 
     const auto startupOverrideResult = game::runtime::startup_video_override::apply(
@@ -84,7 +86,11 @@ Result openAndApplyStartupWindow(
             return presentation.applyVideoModeInternal(width, height, isFullscreen, false);
         });
     if (startupOverrideResult.attempted) {
-        (startupOverrideResult.applied ? logOut : errOut) << startupOverrideResult.message << "\n";
+        if (startupOverrideResult.applied) {
+            log.info(startupOverrideResult.message);
+        } else {
+            log.error(startupOverrideResult.message);
+        }
     }
 
     out.success = true;

@@ -3,13 +3,24 @@
 #include "game/runtime/session/SessionRenderConfig.h"
 #include "game/runtime/shared/vfx/tail_fire/SharedTailFireCoordinator.h"
 #include "game/runtime/shared/vfx/tail_fire/SharedTailFireSnapshotAtlasCache.h"
+#include "engine/utils/LogSink.h"
 
 #include <chrono>
 #include <iostream>
+#include <sstream>
 #include <string>
 #include <unordered_set>
 
 namespace game::runtime::session_tail_fire_prewarm {
+
+namespace {
+
+engine::log::Sink& tailFirePrewarmLog() {
+    static engine::log::Sink log("TailFire", &std::cout, &std::cerr);
+    return log;
+}
+
+} // namespace
 
 startup_asset_prewarm::TailFireStats prewarm(const Args& args) {
     if (!args.renderer || !args.backendTextureByPath || !args.ensureBackendTextureLoaded) {
@@ -109,17 +120,18 @@ startup_asset_prewarm::TailFireStats prewarm(const Args& args) {
         SharedBackendTextureCacheEntry* authoredCpuTexture =
             args.ensureBackendTextureLoaded(authoredSpec.path, false);
         const auto cpuLoadEnd = std::chrono::steady_clock::now();
-        std::cout << "[TailFire][CPU] authored_mesh_flipbook path="
-                  << authoredSpec.path
-                  << " load_ms="
-                  << std::chrono::duration<double, std::milli>(cpuLoadEnd - cpuLoadStart).count()
-                  << " size="
-                  << ((authoredCpuTexture && authoredCpuTexture->valid) ? authoredCpuTexture->width : 0)
-                  << "x"
-                  << ((authoredCpuTexture && authoredCpuTexture->valid) ? authoredCpuTexture->height : 0)
-                  << " result="
-                  << ((authoredCpuTexture && authoredCpuTexture->valid) ? "ok" : "failed")
-                  << "\n";
+        std::ostringstream msg;
+        msg << "[TailFire][CPU] authored_mesh_flipbook path="
+            << authoredSpec.path
+            << " load_ms="
+            << std::chrono::duration<double, std::milli>(cpuLoadEnd - cpuLoadStart).count()
+            << " size="
+            << ((authoredCpuTexture && authoredCpuTexture->valid) ? authoredCpuTexture->width : 0)
+            << "x"
+            << ((authoredCpuTexture && authoredCpuTexture->valid) ? authoredCpuTexture->height : 0)
+            << " result="
+            << ((authoredCpuTexture && authoredCpuTexture->valid) ? "ok" : "failed");
+        tailFirePrewarmLog().info(msg.str());
         if (!(authoredCpuTexture && authoredCpuTexture->valid)) {
             continue;
         }

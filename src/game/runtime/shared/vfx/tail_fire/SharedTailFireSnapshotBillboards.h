@@ -25,6 +25,7 @@ struct AppendContext {
     const std::function<SharedBackendTextureCacheEntry*(const std::string&, bool)>& ensureTextureFn;
     const std::unordered_map<int, shared_tail_fire_fallback::Anchor>* tailFireAnchors = nullptr;
     bool tailFireExactCpuEnabled = false;
+    bool tailFireDebugEnabled = false;
 };
 
 bool appendTailFireSnapshotBillboards(

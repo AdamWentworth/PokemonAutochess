@@ -1,11 +1,22 @@
 // src/game/vfx/TailFireVFXConfigDB.cpp
 #include "TailFireVFXConfigDB.h"
 
+#include "engine/utils/LogSink.h"
+
 #include <fstream>
 #include <sstream>
 #include <algorithm>
 #include <cctype>
 #include <iostream>
+
+namespace {
+
+engine::log::Sink& tailFireConfigLog() {
+    static engine::log::Sink log("TailFireConfig", &std::cout, &std::cerr);
+    return log;
+}
+
+}
 
 static std::string trim(std::string s) {
     auto notSpace = [](unsigned char c){ return !std::isspace(c); };
@@ -74,7 +85,7 @@ bool TailFireVFXConfigDB::ensureLoaded(const std::string& path) {
 
     std::ifstream f(path);
     if (!f.is_open()) {
-        std::cerr << "[TailFireVFXConfigDB] No config file: " << path << "\n";
+        tailFireConfigLog().warn("[TailFireVFXConfigDB] No config file: " + path);
         return false;
     }
 

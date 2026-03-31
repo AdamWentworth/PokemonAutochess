@@ -29,11 +29,25 @@ std::string escapeJsonString(const std::string& value) {
 
 const char* terminalLogModeName(EngineTerminalLogMode mode) {
     switch (mode) {
+        case EngineTerminalLogMode::TailFireDebug:
+            return "Tail Fire Debug";
         case EngineTerminalLogMode::GrowlVfx:
             return "Growl VFX";
         case EngineTerminalLogMode::Performance:
         default:
             return "Performance";
+    }
+}
+
+EngineTerminalLogMode nextTerminalLogMode(EngineTerminalLogMode mode) {
+    switch (mode) {
+        case EngineTerminalLogMode::Performance:
+            return EngineTerminalLogMode::GrowlVfx;
+        case EngineTerminalLogMode::GrowlVfx:
+            return EngineTerminalLogMode::TailFireDebug;
+        case EngineTerminalLogMode::TailFireDebug:
+        default:
+            return EngineTerminalLogMode::Performance;
     }
 }
 

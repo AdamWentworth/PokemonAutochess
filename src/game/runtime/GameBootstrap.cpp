@@ -1,5 +1,7 @@
 #include "game/runtime/GameBootstrap.h"
 
+#include "engine/utils/LogSink.h"
+
 #include <iostream>
 #include <filesystem>
 #include <utility>
@@ -19,6 +21,7 @@ namespace game {
 std::unique_ptr<GameSession> GameBootstrap::create(GameContext& ctx) {
     // Load configs (game-specific) from data root (PAC_DATA_ROOT), not CWD-sensitive literals.
     LogBus::Logger bootstrapLog;
+    engine::log::Sink consoleLog("GameBootstrap", &std::cout, &std::cerr);
     std::unique_ptr<engine::IAssetStore> dataStore;
     const std::string packPath = engine::paths::dataPack();
     if (!packPath.empty()) {
@@ -90,11 +93,13 @@ std::unique_ptr<GameSession> GameBootstrap::create(GameContext& ctx) {
         game::log::warn(&bootstrapLog, "[Init] No evolution rules loaded (evolution_config.json)");
     }
 
-    std::cout << "[Init] CWD: " << std::filesystem::current_path() << "\n";
-    std::cout << "[Init] PAC_DATA_ROOT: " << engine::paths::dataRoot() << "\n";
-    std::cout << "[Init] PAC_ASSET_ROOT: " << engine::paths::assetRoot() << "\n";
-    std::cout << "[Init] pokemon_config path: "
-              << std::filesystem::absolute(engine::paths::data("config/pokemon_config.json")) << "\n";
+    consoleLog.info(std::string("[Init] CWD: ") +
+                    std::filesystem::current_path().string());
+    consoleLog.info("[Init] PAC_DATA_ROOT: " + engine::paths::dataRoot());
+    consoleLog.info("[Init] PAC_ASSET_ROOT: " + engine::paths::assetRoot());
+    consoleLog.info(std::string("[Init] pokemon_config path: ") +
+                    std::filesystem::absolute(
+                        engine::paths::data("config/pokemon_config.json")).string());
 
     return std::make_unique<GameSession>(ctx, std::move(db));
 }

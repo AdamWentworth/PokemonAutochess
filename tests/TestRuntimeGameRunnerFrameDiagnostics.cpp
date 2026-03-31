@@ -124,5 +124,20 @@ bool test_runtime_game_runner_frame_diagnostics_contract(std::string& outFail) {
         return false;
     }
 
+    services.terminalLogMode = EngineTerminalLogMode::TailFireDebug;
+    out.str("");
+    out.clear();
+    observeAndEmit(
+        state,
+        services,
+        makeInputs(0.1, 16.0, 1.0, 5.0, 3.0, 1.0, 120u, 8u, 1, 0),
+        out);
+
+    const std::string tailFireOutput = out.str();
+    if (tailFireOutput.find("[TailFire] Debug mode active") == std::string::npos) {
+        outFail = "Frame diagnostics should announce when Tail Fire Debug mode becomes active.";
+        return false;
+    }
+
     return true;
 }

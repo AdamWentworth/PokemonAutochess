@@ -15,6 +15,7 @@
 #include "engine/render/OpenGLRenderBackend.h"
 #include "engine/ui/BootLoadingView.h"
 
+#include "engine/utils/LogSink.h"
 #include "engine/utils/ResourceManager.h"
 
 #define NOMINMAX
@@ -32,10 +33,16 @@
 #include <chrono>
 #include <algorithm>
 #include <cmath>
+#include <sstream>
 
 namespace {
     constexpr unsigned int START_W  = 1280;
     constexpr unsigned int START_H  = 720;
+
+    engine::log::Sink& applicationLog() {
+        static engine::log::Sink log("Application", &std::cout, &std::cerr);
+        return log;
+    }
 
     static int scaledMouseX(int x, float s) { return (int)std::lround((float)x * s); }
     static int scaledMouseY(int y, float s) { return (int)std::lround((float)y * s); }
@@ -124,19 +131,19 @@ bool Application::initApplication() {
     try {
         window = std::make_unique<Window>("Pokemon Autochess", (int)START_W, (int)START_H);
     } catch (const std::exception& ex) {
-        std::cerr << "[Application] Window init failed: " << ex.what() << "\n";
+        applicationLog().error(std::string("[Application] Window init failed: ") + ex.what());
         return false;
     }
 
     if (!gladLoadGLLoader((GLADloadproc)SDL_GL_GetProcAddress)) {
-        std::cerr << "[Application] Failed to initialize GLAD\n";
+        applicationLog().error("[Application] Failed to initialize GLAD");
         return false;
     }
 
     // Wire engine-owned shader cache BEFORE anything calls shaderCache.get()
     // TTF depends on SDL being initialized (now true because Window ctor did SDL_Init).
     if (TTF_Init() == -1) {
-        std::cerr << "[Application] TTF_Init error: " << TTF_GetError() << "\n";
+        applicationLog().warn(std::string("[Application] TTF_Init error: ") + TTF_GetError());
     }
 
     updateDrawableSizeAndViewport();
@@ -156,12 +163,12 @@ bool Application::initApplication() {
     renderer->onResize(drawableW, drawableH);
     camera   = std::make_unique<Camera3D>(45.0f, float(drawableW) / float(drawableH), 0.1f, 100.0f);
 
-    std::cout << "[Init] Application initialized.\n";
+    applicationLog().info("[Init] Application initialized.");
     return true;
 }
 
 void Application::shutdownApplication() {
-    std::cout << "[Shutdown] Application...\n";
+    applicationLog().info("[Shutdown] Application...");
 
     // 1) Destroy anything that might issue GL calls while the context is still alive.
     if (renderer) {
@@ -185,7 +192,7 @@ void Application::shutdownApplication() {
         SDL_Quit();
     }
 
-    std::cout << "[Shutdown] Application done.\n";
+    applicationLog().info("[Shutdown] Application done.");
 }
 
 void Application::updateDrawableSizeAndViewport() {
@@ -250,9 +257,10 @@ void Application::renderBootLoading(float progress01) {
 }
 
 void Application::run(GameLoop& game) {
-    std::cout << "[Run] Main loop @ "
-              << static_cast<int>(engine::runtime::fixed_step::kHz)
-              << " Hz...\n";
+    applicationLog().info(
+        "[Run] Main loop @ " +
+        std::to_string(static_cast<int>(engine::runtime::fixed_step::kHz)) +
+        " Hz...");
 
     bool running = true;
     // Wire engine-owned services bundle (lifetime: Application)
@@ -356,7 +364,7 @@ void Application::run(GameLoop& game) {
         frameCount++;
         fpsTimer += frameDt;
         if (fpsTimer >= 1.0) {
-            std::cout << "[FPS] " << frameCount << "\n";
+            applicationLog().info("[FPS] " + std::to_string(frameCount));
             frameCount = 0;
             fpsTimer = 0.0;
         }

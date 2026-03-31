@@ -71,6 +71,7 @@ struct Args {
     bool characterInkingEnabled = false;
     int graphicsQuality = 3;
     bool enableGpuClipSkinning = false;
+    bool tailFireDebugEnabled = false;
     const char* rendererBackendId = nullptr;
     bool hasWorldViewProj = false;
     bool allowPortraitFallback = false;

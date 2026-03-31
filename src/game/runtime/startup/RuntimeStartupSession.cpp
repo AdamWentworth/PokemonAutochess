@@ -1,6 +1,7 @@
 #include "game/runtime/startup/RuntimeStartupSession.h"
 
 #include "engine/core/Environment.h"
+#include "engine/utils/LogSink.h"
 #include "game/runtime/video/GpuAdapters.h"
 #include "game/runtime/renderer/RendererBackendBootstrap.h"
 #include "game/runtime/renderer/RendererStartupDiagnostics.h"
@@ -14,6 +15,7 @@ PreparedSession prepare(const std::string& prefsPath,
                         const std::optional<std::string>& envBackend,
                         std::ostream& logOut,
                         std::ostream& errOut) {
+    engine::log::Sink log("RuntimeStartup", &logOut, &errOut);
     game::video::Preferences mutablePrefs = game::video::loadPreferences(prefsPath);
 
     PreparedSession out;
@@ -21,7 +23,7 @@ PreparedSession prepare(const std::string& prefsPath,
     if (!out.bootMenuScreen.empty()) {
         std::string consumeErr;
         if (!game::video::savePreferences(mutablePrefs, prefsPath, &consumeErr)) {
-            errOut << "[Video] Failed to clear one-shot boot menu screen: " << consumeErr << "\n";
+            log.error("[Video] Failed to clear one-shot boot menu screen: " + consumeErr);
         }
     }
 
@@ -29,9 +31,9 @@ PreparedSession prepare(const std::string& prefsPath,
         mutablePrefs,
         envBackend);
     if (resolvedRendererPref.overriddenByEnv) {
-        logOut << "[Renderer] PAC_RENDER_BACKEND override: " << resolvedRendererPref.backendToken << "\n";
-        logOut << "[Renderer] Note: env override is active; saved Display settings "
-                  "(Render API) are ignored until PAC_RENDER_BACKEND is unset.\n";
+        log.info("[Renderer] PAC_RENDER_BACKEND override: " + resolvedRendererPref.backendToken);
+        log.info("[Renderer] Note: env override is active; saved Display settings "
+                 "(Render API) are ignored until PAC_RENDER_BACKEND is unset.");
     }
 
     out.requestedBackend = resolvedRendererPref.requestedBackend;
@@ -62,7 +64,7 @@ PreparedSession prepare(const std::string& prefsPath,
     out.rendererBackendFallback = backendSelection.fallback;
     out.rendererBackendFallbackReason = backendSelection.fallbackReason;
     if (out.rendererBackendFallback) {
-        logOut << "[Renderer] " << out.rendererBackendFallbackReason << "\n";
+        log.info("[Renderer] " + out.rendererBackendFallbackReason);
     }
 
     return out;

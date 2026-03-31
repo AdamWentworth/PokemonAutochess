@@ -24,7 +24,7 @@ importance.
 - Current state: `Completed on 2026-03-30`
 - Why this is first:
   - A red baseline makes every later refactor less trustworthy.
-  - The repo is already close: `184 / 185` tests are green.
+  - The repo is now back to a stable green baseline: `191 / 191` tests pass.
 - Focus:
   - Fix `PAC_Tests.render_model_cache_contract` for
     `assets/meshes/growl_1275_mesh.glb` UV preservation.
@@ -96,13 +96,57 @@ importance.
 - Rank: `#4`
 - Payoff/day: `High`
 - Estimated effort: `2-4 days`
+- Current state: `In progress on 2026-03-31`
 - Why this is worth doing early:
   - This is a small-to-medium cleanup that improves debuggability everywhere.
   - It reduces the chance that future regressions hide in ad hoc console prints.
+- Progress so far:
+  - Added `src/engine/utils/LogSink.*` as the first shared logging helper for
+    runtime/tooling diagnostics.
+  - Converted runtime startup/session/window/bootstrap surfaces to use the sink
+    while preserving stream-captured contract tests.
+  - Converted runner loop-policy, relaunch, and frame-diagnostics emission to
+    the sink so new runner reporting is no longer hand-writing raw stream
+    output.
+  - Converted `GameBootstrap.cpp`, `GamePreload.cpp`, and
+    `session/SessionStartupRuntime.cpp` so broader startup-path diagnostics now
+    follow the same helper instead of ad hoc console writes.
+  - Converted startup helper seams
+    `RuntimeWorldLayerPrewarm.*`,
+    `RuntimeRenderModelPrewarm.*`, and
+    `RuntimeStartupAssetPrewarm.*` to the same sink path, keeping their
+    existing stream-captured tests green while removing more raw startup
+    console logging contracts.
+  - Converted `GameSession.cpp` model-cache failure and shutdown diagnostics,
+    Tail Fire coordinator/atlas/billboard debug logging, and shared capture
+    model warnings so those secondary runtime surfaces now share the same
+    helper too.
+  - Converted Tail Fire config-load warnings, authored-flipbook prewarm logs,
+    and OpenGL/D3D12 Tail Fire texture-upload diagnostics to the same helper,
+    which keeps the Tail Fire path consistent from config load through backend
+    upload.
+  - Converted `engine/runtime/Application.cpp`, D3D12 renderer startup /
+    screenshot lifecycle logs, and model-cache debug traces so step 4 is now
+    crossing from game/runtime code into the engine-side startup and renderer
+    seams too.
+  - Added `TailFireDebug` as a first-class terminal log mode alongside
+    `Performance` and `Growl VFX`, and threaded Tail Fire anchor/billboard
+    debug emission through the runtime mode path while keeping
+    `PAC_TAIL_FIRE_DEBUG` as a force-on override.
+  - Converted Growl preview/tool mesh-failure and hot-reload logs plus
+    `VfxPreviewApp` screenshot / warning diagnostics to the same helper.
+  - Added `tests/TestLogSink.cpp`, and `tools/full_check.ps1` is green with
+    `191 / 191` tests after the latest pass.
+  - The repo's remaining direct `std::cout` / `std::cerr` references across
+    `src/` and `tools/` are down to about `181`.
 - Focus:
   - Stop adding new direct `std::cout` / `std::cerr` usage in runtime/tooling.
   - Introduce one small logging helper or policy layer for startup, preview,
     and runtime diagnostics.
+  - Keep new logging surfaces tag-shaped so feature-scoped terminal modes can
+    grow later without another large cleanup pass.
+  - Prefer adding new feature-specific debug output as explicit terminal modes
+    when the code path is specialized enough to deserve its own signal.
   - Convert the noisiest runtime/tooling call sites first rather than trying to
     boil the ocean in one pass.
 - Exit criteria:
@@ -176,7 +220,8 @@ importance.
   - A few critical preview/runtime visuals are checked automatically.
 
 ## Best Next 30-Day Sequence
-1. Do the first logging-unification pass.
+1. Finish the remaining logging-unification pass on deeper session/renderer
+   diagnostics and the still-specialized capture/debug surfaces.
 2. Reassess before starting the larger `GameSession.cpp` split.
 3. Continue projected-render restructuring in the hottest shared build paths.
 4. Add at least one automated preview/perf guardrail.

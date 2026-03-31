@@ -19,6 +19,7 @@ struct RenderContext {
     std::vector<shared_world_batches::WorldIndexedBatch>* worldIndexedBatches = nullptr;
     std::function<SharedBackendTextureCacheEntry*(const std::string&, bool)> ensureBackendTextureLoaded;
     bool useExactTailFireCpuPath = false;
+    bool tailFireDebugEnabled = false;
 };
 
 bool appendSnapshotBillboards(

@@ -1,28 +1,33 @@
 #include "game/runtime/loop/RuntimeGameRunnerLoopPolicy.h"
 
+#include "engine/utils/LogSink.h"
 #include "game/runtime/loop/RuntimeLoopConfig.h"
 
 #include <algorithm>
 #include <ostream>
+#include <sstream>
 
 namespace game::runtime::runner_loop_policy {
 
 Config readConfig(std::ostream& out, std::ostream& err) {
+    engine::log::Sink log("Run", &out, &err);
     Config config;
     config.maxFixedTicksPerFrame =
         game::runtime::loop_config::readMaxFixedTicksPerFrameFromEnvironment(err);
-    out << "[Run] Fixed tick budget: " << config.maxFixedTicksPerFrame << " ticks/frame\n";
+    log.info("[Run] Fixed tick budget: " + std::to_string(config.maxFixedTicksPerFrame) +
+             " ticks/frame");
 
     config.autoQuit = game::runtime::auto_quit::fromEnvironment();
     if (config.autoQuit.enabled()) {
-        out << "[Run] Auto-quit policy enabled:";
+        std::ostringstream line;
+        line << "[Run] Auto-quit policy enabled:";
         if (config.autoQuit.maxSeconds > 0.0) {
-            out << " seconds=" << config.autoQuit.maxSeconds;
+            line << " seconds=" << config.autoQuit.maxSeconds;
         }
         if (config.autoQuit.maxFrames > 0) {
-            out << " frames=" << config.autoQuit.maxFrames;
+            line << " frames=" << config.autoQuit.maxFrames;
         }
-        out << "\n";
+        log.info(line.str());
     }
 
     return config;
@@ -76,8 +81,9 @@ void finishFrame(State& state,
 
 void logExit(const game::runtime::loop_control::State& loopState,
              std::ostream& out) {
-    out << "[Run] Exiting main loop: "
-        << game::runtime::loop_control::effectiveStopReason(loopState) << "\n";
+    engine::log::Sink log("Run", &out, nullptr);
+    log.info("[Run] Exiting main loop: " +
+             game::runtime::loop_control::effectiveStopReason(loopState));
 }
 
 } // namespace game::runtime::runner_loop_policy

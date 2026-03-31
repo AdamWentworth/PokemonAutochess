@@ -6,6 +6,7 @@
 #include <utility>
 #include <vector>
 
+#include "engine/utils/LogSink.h"
 #include "engine/render/SpriteTextureCardArt.h"
 #include "game/runtime/startup/RuntimeStartupAssetPrewarm.h"
 
@@ -53,6 +54,7 @@ bool test_runtime_startup_asset_prewarm_contract(std::string& outFail) {
         int growlCalls = 0;
         int particleVfxCalls = 0;
         std::ostringstream logs;
+        engine::log::Sink log("TestStartupAssetPrewarm", &logs, &logs);
 
         const auto summary = game::runtime::startup_asset_prewarm::run(
             Options{
@@ -95,7 +97,7 @@ bool test_runtime_startup_asset_prewarm_contract(std::string& outFail) {
                         cardUiPaths = paths;
                     },
             },
-            logs);
+            log);
 
         if (summary.interrupted ||
             summary.tailFire.legacyAtlases != 2u ||
@@ -177,6 +179,7 @@ bool test_runtime_startup_asset_prewarm_contract(std::string& outFail) {
         int particleVfxCalls = 0;
         int spritePrewarmCalls = 0;
         std::ostringstream logs;
+        engine::log::Sink log("TestStartupAssetPrewarm", &logs, &logs);
         const auto summary = game::runtime::startup_asset_prewarm::run(
             Options{
                 .usesBackendRenderPath = true,
@@ -211,7 +214,7 @@ bool test_runtime_startup_asset_prewarm_contract(std::string& outFail) {
                 .prewarmSpriteTextures =
                     [&](const std::vector<std::string>&) { ++spritePrewarmCalls; },
             },
-            logs);
+            log);
 
         if (!summary.interrupted ||
             requestQuitCalls != 1 ||

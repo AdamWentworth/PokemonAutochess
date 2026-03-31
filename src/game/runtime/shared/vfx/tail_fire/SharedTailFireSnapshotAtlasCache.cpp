@@ -13,6 +13,7 @@
 #include "engine/core/Environment.h"
 #include "engine/core/Paths.h"
 #include "engine/render/SpriteTextureCardArt.h"
+#include "engine/utils/LogSink.h"
 #include "game/runtime/shared/vfx/tail_fire/SharedTailFireAtlasHelpers.h"
 #include "game/runtime/shared/vfx/tail_fire/SharedTailFireExactGpuBatches.h"
 #include "game/runtime/shared/vfx/tail_fire/SharedTailFireSnapshotBillboards.h"
@@ -26,6 +27,11 @@ namespace {
 using BackendTextureCacheEntry = SharedBackendTextureCacheEntry;
 using WorldIndexedBatch = shared_world_batches::WorldIndexedBatch;
 namespace fs = std::filesystem;
+
+engine::log::Sink& tailFireAtlasLog() {
+    static engine::log::Sink log("TailFire", &std::cout, &std::cerr);
+    return log;
+}
 
 struct TailFireCombinedAtlasDiskMeta {
     static constexpr std::uint32_t kMagic = 0x5446414Du;
@@ -232,11 +238,13 @@ BackendTextureCacheEntry* resolveTailFirePremulAtlas(
     BackendTextureCacheEntry* src = ensureTextureFn(atlasPath, true);
     const auto rawLoadEnd = std::chrono::steady_clock::now();
     if (!src || !src->valid || src->rgba.empty() || src->width <= 0 || src->height <= 0) {
-        std::cout << "[TailFire][CPU] premul_atlas path="
-                  << atlasPath
-                  << " raw_load_ms="
-                  << std::chrono::duration<double, std::milli>(rawLoadEnd - rawLoadStart).count()
-                  << " result=raw_load_failed\n";
+        std::ostringstream msg;
+        msg << "[TailFire][CPU] premul_atlas path="
+            << atlasPath
+            << " raw_load_ms="
+            << std::chrono::duration<double, std::milli>(rawLoadEnd - rawLoadStart).count()
+            << " result=raw_load_failed";
+        tailFireAtlasLog().info(msg.str());
         return nullptr;
     }
 
@@ -248,13 +256,15 @@ BackendTextureCacheEntry* resolveTailFirePremulAtlas(
         src->rgba.data(), src->width, src->height};
     if (!game::runtime::shared_tail_fire_atlas::buildPremultipliedAtlas(srcView, premul)) {
         const auto bakeEnd = std::chrono::steady_clock::now();
-        std::cout << "[TailFire][CPU] premul_atlas path="
-                  << atlasPath
-                  << " raw_load_ms="
-                  << std::chrono::duration<double, std::milli>(rawLoadEnd - rawLoadStart).count()
-                  << " bake_ms="
-                  << std::chrono::duration<double, std::milli>(bakeEnd - bakeStart).count()
-                  << " result=bake_failed\n";
+        std::ostringstream msg;
+        msg << "[TailFire][CPU] premul_atlas path="
+            << atlasPath
+            << " raw_load_ms="
+            << std::chrono::duration<double, std::milli>(rawLoadEnd - rawLoadStart).count()
+            << " bake_ms="
+            << std::chrono::duration<double, std::milli>(bakeEnd - bakeStart).count()
+            << " result=bake_failed";
+        tailFireAtlasLog().info(msg.str());
         return nullptr;
     }
     const auto bakeEnd = std::chrono::steady_clock::now();
@@ -263,19 +273,22 @@ BackendTextureCacheEntry* resolveTailFirePremulAtlas(
     baked.height = premul.height;
     baked.rgba = std::move(premul.rgba);
     baked.valid = (baked.width > 0 && baked.height > 0 && !baked.rgba.empty());
-    std::cout << "[TailFire][CPU] premul_atlas path="
-              << atlasPath
-              << " raw_load_ms="
-              << std::chrono::duration<double, std::milli>(rawLoadEnd - rawLoadStart).count()
-              << " bake_ms="
-              << std::chrono::duration<double, std::milli>(bakeEnd - bakeStart).count()
-              << " size="
-              << baked.width
-              << "x"
-              << baked.height
-              << " result="
-              << (baked.valid ? "ok" : "invalid")
-              << "\n";
+    {
+        std::ostringstream msg;
+        msg << "[TailFire][CPU] premul_atlas path="
+            << atlasPath
+            << " raw_load_ms="
+            << std::chrono::duration<double, std::milli>(rawLoadEnd - rawLoadStart).count()
+            << " bake_ms="
+            << std::chrono::duration<double, std::milli>(bakeEnd - bakeStart).count()
+            << " size="
+            << baked.width
+            << "x"
+            << baked.height
+            << " result="
+            << (baked.valid ? "ok" : "invalid");
+        tailFireAtlasLog().info(msg.str());
+    }
     return &baked;
 }
 
@@ -348,13 +361,15 @@ TailFireCombinedAtlasInfo resolveTailFireCombinedAtlas(
                 std::chrono::duration<double, std::milli>(primaryLoadEnd - primaryLoadStart).count();
             if (!primaryRaw || !primaryRaw->valid || primaryRaw->rgba.empty() ||
                 primaryRaw->width <= 0 || primaryRaw->height <= 0) {
-                std::cout << "[TailFire][CPU] combined_atlas primary="
-                          << snapshot.flipbookPath
-                          << " secondary="
-                          << (wantsSecondary ? snapshot.flipbookPath2 : std::string("<disabled>"))
-                          << " raw_primary_ms="
-                          << rawPrimaryLoadMs
-                          << " raw_secondary_ms=0 cache=miss result=primary_raw_load_failed\n";
+                std::ostringstream msg;
+                msg << "[TailFire][CPU] combined_atlas primary="
+                    << snapshot.flipbookPath
+                    << " secondary="
+                    << (wantsSecondary ? snapshot.flipbookPath2 : std::string("<disabled>"))
+                    << " raw_primary_ms="
+                    << rawPrimaryLoadMs
+                    << " raw_secondary_ms=0 cache=miss result=primary_raw_load_failed";
+                tailFireAtlasLog().info(msg.str());
                 return out;
             }
 
@@ -510,41 +525,44 @@ TailFireCombinedAtlasInfo resolveTailFireCombinedAtlas(
                 std::max(primaryHeight, out.hasSecondary ? secondaryHeight : 0);
         }
 
-        std::cout << "[TailFire][CPU] combined_atlas primary="
-                  << snapshot.flipbookPath
-                  << " secondary="
-                  << (wantsSecondary ? snapshot.flipbookPath2 : std::string("<disabled>"))
-                  << " raw_primary_ms="
-                  << rawPrimaryLoadMs
-                  << " raw_secondary_ms="
-                  << rawSecondaryLoadMs
-                  << " cache="
-                  << (cacheHit ? "hit" : "miss")
-                  << " cache_meta_ms="
-                  << cacheMetaLoadMs
-                  << " cache_load_ms="
-                  << cacheImageLoadMs
-                  << " cache_write_ms="
-                  << cacheWriteMs
-                  << " resize_ms="
-                  << resizeMs
-                  << " bake_ms="
-                  << bakeMs
-                  << " total_ms="
-                  << std::chrono::duration<double, std::milli>(combinedResolveEnd - combinedResolveStart).count()
-                  << " src_size="
-                  << sourceCombinedWidth
-                  << "x"
-                  << sourceCombinedHeight
-                  << " size="
-                  << combined.width
-                  << "x"
-                  << combined.height
-                  << " cap="
-                  << (maxCombinedDim > 0 ? std::to_string(maxCombinedDim) : std::string("full"))
-                  << " result="
-                  << (combined.valid ? "ok" : "invalid")
-                  << "\n";
+        {
+            std::ostringstream msg;
+            msg << "[TailFire][CPU] combined_atlas primary="
+                << snapshot.flipbookPath
+                << " secondary="
+                << (wantsSecondary ? snapshot.flipbookPath2 : std::string("<disabled>"))
+                << " raw_primary_ms="
+                << rawPrimaryLoadMs
+                << " raw_secondary_ms="
+                << rawSecondaryLoadMs
+                << " cache="
+                << (cacheHit ? "hit" : "miss")
+                << " cache_meta_ms="
+                << cacheMetaLoadMs
+                << " cache_load_ms="
+                << cacheImageLoadMs
+                << " cache_write_ms="
+                << cacheWriteMs
+                << " resize_ms="
+                << resizeMs
+                << " bake_ms="
+                << bakeMs
+                << " total_ms="
+                << std::chrono::duration<double, std::milli>(combinedResolveEnd - combinedResolveStart).count()
+                << " src_size="
+                << sourceCombinedWidth
+                << "x"
+                << sourceCombinedHeight
+                << " size="
+                << combined.width
+                << "x"
+                << combined.height
+                << " cap="
+                << (maxCombinedDim > 0 ? std::to_string(maxCombinedDim) : std::string("full"))
+                << " result="
+                << (combined.valid ? "ok" : "invalid");
+            tailFireAtlasLog().info(msg.str());
+        }
     }
 
     if (!combined.valid || combined.rgba.empty() || combined.width <= 0 || combined.height <= 0) {

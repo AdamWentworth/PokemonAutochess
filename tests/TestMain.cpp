@@ -21,6 +21,7 @@ bool test_render_route_ownership_contract(std::string& outFail);
 bool test_state_ui_route_policy_contract(std::string& outFail);
 bool test_render_routes_contract(std::string& outFail);
 bool test_render_policy_api_contract(std::string& outFail);
+bool test_log_sink_contract(std::string& outFail);
 bool test_logbus_recent_lines_contract(std::string& outFail);
 bool test_render_flow_decisions_contract(std::string& outFail);
 bool test_backend_render_policy_contract(std::string& outFail);
@@ -255,6 +256,7 @@ int main(int argc, char** argv) {
         {"state_ui_route_policy_contract", &test_state_ui_route_policy_contract},
         {"render_routes_contract", &test_render_routes_contract},
         {"render_policy_api_contract", &test_render_policy_api_contract},
+        {"log_sink_contract", &test_log_sink_contract},
         {"logbus_recent_lines_contract", &test_logbus_recent_lines_contract},
         {"render_flow_decisions_contract", &test_render_flow_decisions_contract},
         {"backend_render_policy_contract", &test_backend_render_policy_contract},

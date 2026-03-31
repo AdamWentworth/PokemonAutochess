@@ -7,6 +7,7 @@
 namespace game::runtime::perf_logging {
 
 const char* terminalLogModeName(EngineTerminalLogMode mode);
+EngineTerminalLogMode nextTerminalLogMode(EngineTerminalLogMode mode);
 
 std::string formatTopFixedSystems(const EngineFixedPerfBreakdown& fixedBreakdown);
 

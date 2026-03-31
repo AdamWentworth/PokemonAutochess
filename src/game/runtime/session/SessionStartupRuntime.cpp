@@ -5,6 +5,7 @@
 #include "engine/core/GameContext.h"
 #include "engine/core/Paths.h"
 #include "engine/render/IRenderBackend.h"
+#include "engine/utils/LogSink.h"
 #include "engine/utils/ResourceManager.h"
 #include "game/GameConfig.h"
 #include "game/GameServices.h"
@@ -32,9 +33,11 @@ void run(const Args& args) {
         return;
     }
 
-    std::cout << "[Init] Shared gameplay render path: using render model cache loader.\n";
+    engine::log::Sink log("SessionStartup", &std::cout, &std::cerr);
+
+    log.info("[Init] Shared gameplay render path: using render model cache loader.");
     if (game::runtime::session_render_config::backendPreloadModelCacheEnabled()) {
-        std::cout << "[Init] Shared gameplay render path: preloading render model cache...\n";
+        log.info("[Init] Shared gameplay render path: preloading render model cache...");
         const bool prewarmModelTextures =
             args.usesBackendGameRenderPath() &&
             args.renderer &&
@@ -85,9 +88,9 @@ void run(const Args& args) {
                 .prewarmTextures = args.prewarmTextures,
                 .prewarmGeometry = args.prewarmGeometry,
             },
-            std::cout);
+            log);
     } else {
-        std::cout << "[Init] Shared gameplay render path: render model cache preload disabled.\n";
+        log.info("[Init] Shared gameplay render path: render model cache preload disabled.");
     }
 
     if (args.usesBackendGameRenderPath() &&
@@ -156,7 +159,7 @@ void run(const Args& args) {
                         texturePaths);
                 },
         },
-        std::cout);
+        log);
 
     if (args.usesBackendGameRenderPath() &&
         args.renderer &&
@@ -174,7 +177,7 @@ void run(const Args& args) {
                         args.renderWorldLayer(drawableW, drawableH);
                     },
             },
-            std::cout);
+            log);
     }
 
     args.stateManager->pushState(std::make_unique<ScriptedState>(
@@ -204,7 +207,7 @@ void run(const Args& args) {
                         args.renderWorldLayer(drawableW, drawableH);
                     },
             },
-            std::cout);
+            log);
     }
 
     game::runtime::world_layer_prewarm::restoreTitleAfterInit(
@@ -214,14 +217,14 @@ void run(const Args& args) {
         });
     if (!args.snapshotPath.empty() && std::filesystem::exists(args.snapshotPath)) {
         if (args.autoLoadSnapshotOnStartup) {
-            std::cout << "[StateSnapshot] Snapshot present and will auto-load on startup: "
-                      << args.snapshotPath << "\n";
+            log.info("[StateSnapshot] Snapshot present and will auto-load on startup: " +
+                     args.snapshotPath);
         } else {
-            std::cout << "[StateSnapshot] Snapshot present but not auto-loaded: "
-                      << args.snapshotPath << " (press F9 to restore)\n";
+            log.info("[StateSnapshot] Snapshot present but not auto-loaded: " +
+                     args.snapshotPath + " (press F9 to restore)");
         }
     }
-    std::cout << "[Init] Game initialized.\n";
+    log.info("[Init] Game initialized.");
 
     if (engine::env::get("PAC_LOG_ECHO_STDOUT").has_value()) {
         args.log->setEchoToStdout(engine::env::flagEnabled("PAC_LOG_ECHO_STDOUT"));

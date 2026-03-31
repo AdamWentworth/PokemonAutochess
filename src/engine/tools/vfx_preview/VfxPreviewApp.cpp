@@ -29,10 +29,16 @@
 #include "engine/tools/vfx_preview/IVfxPreviewEffect.h"
 #include "engine/tools/vfx_preview/IVfxPreviewProject.h"
 #include "engine/ui/TextRenderer.h"
+#include "engine/utils/LogSink.h"
 
 namespace engine::tools::vfx_preview {
 
 namespace {
+
+engine::log::Sink& previewConsoleLog() {
+    static engine::log::Sink sink("VfxPreviewer", &std::cout, &std::cerr);
+    return sink;
+}
 
 void appendPreviewBootLog(const std::string& line) {
     std::ofstream out("debug_vfx_previewer_boot.log", std::ios::app);
@@ -145,13 +151,15 @@ void maybeCapturePreviewScreenshot(const PreviewScreenshotCaptureConfig& cfg,
             4,
             flipped.data(),
             drawableW * 4);
-        std::cout << "[PreviewScreenshot] "
-                  << (wrote != 0 ? "WROTE " : "FAILED ")
-                  << outPath.string()
-                  << " size=" << drawableW << "x" << drawableH
-                  << " frame=" << frameIndex << "\n";
+        previewConsoleLog().info(
+            std::string("[PreviewScreenshot] ") +
+            (wrote != 0 ? "WROTE " : "FAILED ") +
+            outPath.string() +
+            " size=" + std::to_string(drawableW) + "x" + std::to_string(drawableH) +
+            " frame=" + std::to_string(frameIndex));
     } catch (const std::exception& ex) {
-        std::cout << "[PreviewScreenshot] FAILED exception=" << ex.what() << "\n";
+        previewConsoleLog().error(
+            std::string("[PreviewScreenshot] FAILED exception=") + ex.what());
     }
 }
 
@@ -640,7 +648,8 @@ int VfxPreviewApp::run() {
             overlayText = std::make_unique<TextRenderer>(engine::paths::asset("fonts/GillSans.ttf"), 20);
             appendPreviewBootLog("[app] text renderer initialized");
         } else {
-            std::cerr << "[VfxPreviewer] Warning: TTF_Init failed: " << TTF_GetError() << "\n";
+            previewConsoleLog().warn(
+                std::string("[VfxPreviewer] Warning: TTF_Init failed: ") + TTF_GetError());
             appendPreviewBootLog("[app] ttf init failed");
         }
 

@@ -9,7 +9,6 @@
 #include <chrono>
 #include <filesystem>
 #include <iomanip>
-#include <ostream>
 #include <sstream>
 #include <unordered_set>
 
@@ -129,7 +128,7 @@ std::vector<std::string> collectUiSpritePrewarmPaths(const GameDataDb& dataDb) {
 Summary run(const Options& options,
             const std::vector<std::string>& uiSpritePrewarmPaths,
             const Callbacks& callbacks,
-            std::ostream& out) {
+            const engine::log::Sink& log) {
     Summary summary;
     if (!options.usesBackendRenderPath) {
         return summary;
@@ -142,8 +141,8 @@ Summary run(const Options& options,
         callbacks.prewarmWorldShading();
         const auto t1 = std::chrono::high_resolution_clock::now();
         const double ms = std::chrono::duration<double, std::milli>(t1 - t0).count();
-        out << "[Init] Backend world shading prewarm complete: time="
-            << formatMs(ms) << "ms\n";
+        log.info("[Init] Backend world shading prewarm complete: time=" +
+                 formatMs(ms) + "ms");
         if (!pumpPreloadEventsOrQuit(callbacks)) {
             summary.interrupted = true;
             return summary;
@@ -157,11 +156,11 @@ Summary run(const Options& options,
         summary.tailFire = callbacks.prewarmTailFire();
         const auto t1 = std::chrono::high_resolution_clock::now();
         const double ms = std::chrono::duration<double, std::milli>(t1 - t0).count();
-        out << "[Init] Backend tail fire prewarm complete: atlases="
-            << summary.tailFire.legacyAtlases
-            << " mesh_flipbook_cpu=" << summary.tailFire.meshFlipbookCpu
-            << " mesh_flipbook_gpu=" << summary.tailFire.meshFlipbookGpu
-            << " time=" << formatMs(ms) << "ms\n";
+        log.info("[Init] Backend tail fire prewarm complete: atlases=" +
+                 std::to_string(summary.tailFire.legacyAtlases) +
+                 " mesh_flipbook_cpu=" + std::to_string(summary.tailFire.meshFlipbookCpu) +
+                 " mesh_flipbook_gpu=" + std::to_string(summary.tailFire.meshFlipbookGpu) +
+                 " time=" + formatMs(ms) + "ms");
         if (!pumpPreloadEventsOrQuit(callbacks)) {
             summary.interrupted = true;
             return summary;
@@ -175,11 +174,11 @@ Summary run(const Options& options,
         summary.growl = callbacks.prewarmGrowlVfx();
         const auto t1 = std::chrono::high_resolution_clock::now();
         const double ms = std::chrono::duration<double, std::milli>(t1 - t0).count();
-        out << "[Init] Backend growl VFX prewarm complete: passes="
-            << summary.growl.drawPasses
-            << " baked_textures=" << summary.growl.bakedTextures
-            << " warmed_batches=" << summary.growl.warmedBatches
-            << " time=" << formatMs(ms) << "ms\n";
+        log.info("[Init] Backend growl VFX prewarm complete: passes=" +
+                 std::to_string(summary.growl.drawPasses) +
+                 " baked_textures=" + std::to_string(summary.growl.bakedTextures) +
+                 " warmed_batches=" + std::to_string(summary.growl.warmedBatches) +
+                 " time=" + formatMs(ms) + "ms");
         if (!pumpPreloadEventsOrQuit(callbacks)) {
             summary.interrupted = true;
             return summary;
@@ -193,10 +192,10 @@ Summary run(const Options& options,
         summary.particleVfx = callbacks.prewarmParticleVfx();
         const auto t1 = std::chrono::high_resolution_clock::now();
         const double ms = std::chrono::duration<double, std::milli>(t1 - t0).count();
-        out << "[Init] Backend particle VFX prewarm complete: textures="
-            << summary.particleVfx.textures
-            << " warmed_batches=" << summary.particleVfx.warmedBatches
-            << " time=" << formatMs(ms) << "ms\n";
+        log.info("[Init] Backend particle VFX prewarm complete: textures=" +
+                 std::to_string(summary.particleVfx.textures) +
+                 " warmed_batches=" + std::to_string(summary.particleVfx.warmedBatches) +
+                 " time=" + formatMs(ms) + "ms");
         if (!pumpPreloadEventsOrQuit(callbacks)) {
             summary.interrupted = true;
             return summary;
@@ -241,8 +240,9 @@ Summary run(const Options& options,
     }
     const auto t1 = std::chrono::high_resolution_clock::now();
     const double uiSpriteMs = std::chrono::duration<double, std::milli>(t1 - t0).count();
-    out << "[Init] UI sprite prewarm complete: requested=" << summary.uiSpritesRequested
-        << " time=" << formatMs(uiSpriteMs) << "ms\n";
+    log.info("[Init] UI sprite prewarm complete: requested=" +
+             std::to_string(summary.uiSpritesRequested) +
+             " time=" + formatMs(uiSpriteMs) + "ms");
 
     if (backendCardUiWillPrewarm) {
         if (callbacks.setTitle) callbacks.setTitle("PokemonAutochess - Loading card art...");
@@ -261,22 +261,22 @@ Summary run(const Options& options,
         const auto tArt1 = std::chrono::high_resolution_clock::now();
         const double cardArtMs =
             std::chrono::duration<double, std::milli>(tArt1 - tArt0).count();
-        out << "[Init] UI card art prewarm complete: requested="
-            << summary.cardArtRequested
-            << " time=" << formatMs(cardArtMs) << "ms\n";
+        log.info("[Init] UI card art prewarm complete: requested=" +
+                 std::to_string(summary.cardArtRequested) +
+                 " time=" + formatMs(cardArtMs) + "ms");
     }
 
     if (!uiSpritePrewarmPaths.empty() && backendCardUiWillPrewarm) {
         if (callbacks.setTitle) callbacks.setTitle("PokemonAutochess - Loading UI cards...");
         if (callbacks.renderBootLoading) callbacks.renderBootLoading(0.985f);
-        out << "[Init] UI card prewarm begin\n";
+        log.info("[Init] UI card prewarm begin");
         const auto tCardUi0 = std::chrono::high_resolution_clock::now();
         callbacks.prewarmBackendCardUi(options.drawableW, options.drawableH, uiSpritePrewarmPaths);
         const auto tCardUi1 = std::chrono::high_resolution_clock::now();
         const double cardUiMs =
             std::chrono::duration<double, std::milli>(tCardUi1 - tCardUi0).count();
-        out << "[Init] UI card prewarm complete: time="
-            << formatMs(cardUiMs) << "ms\n";
+        log.info("[Init] UI card prewarm complete: time=" +
+                 formatMs(cardUiMs) + "ms");
         if (callbacks.renderBootLoading) callbacks.renderBootLoading(0.985f);
         if (!pumpPreloadEventsOrQuit(callbacks)) {
             summary.interrupted = true;

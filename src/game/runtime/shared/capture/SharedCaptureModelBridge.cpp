@@ -3,6 +3,7 @@
 #include "game/GameWorld.h"
 #include "game/runtime/shared/capture/SharedCaptureD3d12FastPath.h"
 #include "game/runtime/shared/capture/SharedCapturePreparedMeshCache.h"
+#include "engine/utils/LogSink.h"
 
 #include <algorithm>
 #include <cctype>
@@ -21,6 +22,11 @@ std::string toLowerCopy(std::string s) {
         return static_cast<char>(std::tolower(c));
     });
     return s;
+}
+
+engine::log::Sink& sharedCaptureLog() {
+    static engine::log::Sink log("CaptureShared", &std::cout, &std::cerr);
+    return log;
 }
 
 } // namespace
@@ -64,9 +70,9 @@ bool appendSharedCaptureAttemptModels(const Args& args) {
     if (!mesh || mesh->vertices.empty() || mesh->indices.empty()) {
         static bool sLoggedSharedPokeballModelFailure = false;
         if (!sLoggedSharedPokeballModelFailure) {
-            std::cout
-                << "[Render][CaptureShared] pokeball.glb unavailable for shared capture model path; "
-                   "2D fallback is suppressed by policy.\n";
+            sharedCaptureLog().info(
+                "[Render][CaptureShared] pokeball.glb unavailable for shared capture model path; "
+                "2D fallback is suppressed by policy.");
             sLoggedSharedPokeballModelFailure = true;
         }
         return false;
@@ -74,8 +80,9 @@ bool appendSharedCaptureAttemptModels(const Args& args) {
     if (mesh->animations.empty()) {
         static bool sLoggedSharedPokeballAnimMissing = false;
         if (!sLoggedSharedPokeballAnimMissing) {
-            std::cout << "[Render][CaptureShared] pokeball cache has no animations; "
-                         "shared clip playback is disabled (clear/rebuild cache if pokeball.glb was updated).\n";
+            sharedCaptureLog().info(
+                "[Render][CaptureShared] pokeball cache has no animations; "
+                "shared clip playback is disabled (clear/rebuild cache if pokeball.glb was updated).");
             sLoggedSharedPokeballAnimMissing = true;
         }
     }

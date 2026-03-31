@@ -344,6 +344,7 @@ bool appendAnchoredSingleFlipbookTailFire(const ParticleVfxArgs& args,
     tailFireRender.worldIndexedBatches = args.worldIndexedBatches;
     tailFireRender.ensureBackendTextureLoaded = args.ensureBackendTextureLoaded;
     tailFireRender.useExactTailFireCpuPath = args.useExactTailFireCpuPath;
+    tailFireRender.tailFireDebugEnabled = args.tailFireDebugEnabled;
     if (!tailFireRender.anchors || !tailFireRender.backendTextureByPath ||
         !tailFireRender.worldIndexedBatches || !tailFireRender.ensureBackendTextureLoaded) {
         return false;
@@ -550,6 +551,7 @@ void appendSharedParticleVfx(const ParticleVfxArgs& args) {
     tailFireRender.worldIndexedBatches = args.worldIndexedBatches;
     tailFireRender.ensureBackendTextureLoaded = args.ensureBackendTextureLoaded;
     tailFireRender.useExactTailFireCpuPath = args.useExactTailFireCpuPath;
+    tailFireRender.tailFireDebugEnabled = args.tailFireDebugEnabled;
     const bool wantsAnchoredSingleFlipbook =
         tailFireFallbackCfg.useFlipbook &&
         !tailFireFallbackCfg.flipbookPath.empty() &&
@@ -638,6 +640,7 @@ void appendSharedParticleVfxSession(
     bool supportsWorldIndexedMeshes,
     bool hasWorldViewProj,
     bool useExactTailFireCpuPath,
+    bool tailFireDebugEnabled,
     GameWorld* gameWorld,
     const glm::mat4& viewProj,
     const glm::mat4& invViewProj,
@@ -657,6 +660,7 @@ void appendSharedParticleVfxSession(
     args.supportsWorldIndexedMeshes = supportsWorldIndexedMeshes;
     args.hasWorldViewProj = hasWorldViewProj;
     args.useExactTailFireCpuPath = useExactTailFireCpuPath;
+    args.tailFireDebugEnabled = tailFireDebugEnabled;
     args.gameWorld = gameWorld;
     args.viewProj = viewProj;
     args.invViewProj = invViewProj;
@@ -680,6 +684,7 @@ void appendSharedProjectedVfxBridgesSession(
     bool supportsWorldIndexedMeshes,
     bool hasWorldViewProj,
     bool useExactTailFireCpuPath,
+    bool tailFireDebugEnabled,
     GameWorld* gameWorld,
     const glm::mat4& viewProj,
     const glm::mat4& invViewProj,
@@ -700,6 +705,7 @@ void appendSharedProjectedVfxBridgesSession(
         supportsWorldIndexedMeshes,
         hasWorldViewProj,
         useExactTailFireCpuPath,
+        tailFireDebugEnabled,
         gameWorld,
         viewProj,
         invViewProj,

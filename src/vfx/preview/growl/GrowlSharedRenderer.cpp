@@ -16,6 +16,7 @@
 #include "engine/render/Camera3D.h"
 #include "engine/render/gltf/FastGLTFLoader.h"
 #include "engine/render/gltf/ModelFastGltfLoaderHelpers.h"
+#include "engine/utils/LogSink.h"
 #include "vfx/runtime/growl/SharedGrowlBatchSubmission.h"
 #include "vfx/runtime/growl/SharedGrowlWaveBridge.h"
 
@@ -384,8 +385,9 @@ vfx::runtime::growl_batches::MeshData* GrowlSharedRenderer::ensureBackendMeshLoa
 
     if (!cacheEntry.error.empty()) {
         if (!cacheEntry.reportedFailure) {
-            std::cout << "[VfxLab] Unable to load mesh '" << modelPath
-                      << "' (" << cacheEntry.error << ")\n";
+            static engine::log::Sink log("VfxLab", &std::cout, &std::cerr);
+            log.warn("[VfxLab] Unable to load mesh '" + modelPath
+                     + "' (" + cacheEntry.error + ")");
             cacheEntry.reportedFailure = true;
         }
         return nullptr;

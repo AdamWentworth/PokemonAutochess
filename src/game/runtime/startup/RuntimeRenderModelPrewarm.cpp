@@ -1,7 +1,6 @@
 #include "game/runtime/startup/RuntimeRenderModelPrewarm.h"
 
 #include <algorithm>
-#include <ostream>
 
 namespace game::runtime::render_model_prewarm {
 
@@ -42,7 +41,7 @@ void maybeRenderBootProgress(const Callbacks& callbacks, float progress) {
 Summary run(const std::vector<std::string>& modelPathsToPreload,
             const Options& options,
             const Callbacks& callbacks,
-            std::ostream& out) {
+            const engine::log::Sink& log) {
     Summary summary;
     summary.failedSamples.reserve(options.maxFailureSamples);
 
@@ -79,8 +78,8 @@ Summary run(const std::vector<std::string>& modelPathsToPreload,
                     summary.failedSamples.push_back(modelPath + " (" + load.error + ")");
                 }
                 if (options.verboseModelCacheLog) {
-                    out << "[Init][ModelCache][MISS] " << modelPath
-                        << " reason=" << load.error << "\n";
+                    log.info("[Init][ModelCache][MISS] " + modelPath +
+                             " reason=" + load.error);
                 }
             }
             maybeRenderBootProgress(callbacks, progressForIndex(i, totalModels));
@@ -104,40 +103,40 @@ Summary run(const std::vector<std::string>& modelPathsToPreload,
                 summary.modelGeometryBatchesWarmed += callbacks.prewarmGeometry(*load.mesh);
             }
             if (load.loadedFresh && options.verboseModelCacheLog) {
-                out << "[Init][ModelCache][OK] " << modelPath
-                    << " vtx=" << load.mesh->vertices.size()
-                    << " idx=" << load.mesh->indices.size()
-                    << " submesh=" << load.mesh->submeshBaseTextures.size()
-                    << "\n";
+                log.info("[Init][ModelCache][OK] " + modelPath +
+                         " vtx=" + std::to_string(load.mesh->vertices.size()) +
+                         " idx=" + std::to_string(load.mesh->indices.size()) +
+                         " submesh=" + std::to_string(load.mesh->submeshBaseTextures.size()));
             }
         }
 
         maybeRenderBootProgress(callbacks, progressForIndex(i, totalModels));
     }
 
-    out << "[Init] Render model cache preload complete: loaded=" << summary.loaded
-        << " failed=" << summary.failed << "\n";
+    log.info("[Init] Render model cache preload complete: loaded=" +
+             std::to_string(summary.loaded) +
+             " failed=" + std::to_string(summary.failed));
     if (options.prewarmAnimRoles) {
-        out << "[Init] Backend anim role prewarm complete: warmed="
-            << summary.animRolesWarmed << "\n";
+        log.info("[Init] Backend anim role prewarm complete: warmed=" +
+                 std::to_string(summary.animRolesWarmed));
     }
     if (options.prewarmModelTextures) {
-        out << "[Init] Backend model texture prewarm complete: materials="
-            << summary.modelTextureMaterialsWarmed << "\n";
+        log.info("[Init] Backend model texture prewarm complete: materials=" +
+                 std::to_string(summary.modelTextureMaterialsWarmed));
     }
     if (options.prewarmModelGeometry) {
-        out << "[Init] Backend model geometry prewarm complete: cached_batches="
-            << summary.modelGeometryBatchesWarmed << "\n";
+        log.info("[Init] Backend model geometry prewarm complete: cached_batches=" +
+                 std::to_string(summary.modelGeometryBatchesWarmed));
     }
     if (summary.failed > 0u && !summary.failedSamples.empty() && !options.verboseModelCacheLog) {
-        out << "[Init][ModelCache] Sample failures:\n";
+        log.info("[Init][ModelCache] Sample failures:");
         for (const std::string& item : summary.failedSamples) {
-            out << "  - " << item << "\n";
+            log.info("  - " + item);
         }
-        out << "[Init][ModelCache] Set PAC_BACKEND_MODEL_VERBOSE=1 for full per-model cache logs.\n";
+        log.info("[Init][ModelCache] Set PAC_BACKEND_MODEL_VERBOSE=1 for full per-model cache logs.");
     }
     if (summary.preloadInterrupted) {
-        out << "[Init][ModelCache] Preload interrupted by window close or quit request.\n";
+        log.info("[Init][ModelCache] Preload interrupted by window close or quit request.");
     }
 
     if (callbacks.setTitle) {

@@ -29,6 +29,7 @@ bool appendSnapshotAsBillboards(
     const std::function<SharedBackendTextureCacheEntry*(const std::string&, bool)>& ensureBackendTextureLoaded,
     const std::unordered_map<int, shared_tail_fire_fallback::Anchor>* tailFireAnchors,
     bool tailFireExactCpuEnabled,
+    bool tailFireDebugEnabled,
     std::vector<shared_world_batches::WorldIndexedBatch>& worldIndexedBatches);
 
 } // namespace game::runtime::shared_particle_snapshot_billboards

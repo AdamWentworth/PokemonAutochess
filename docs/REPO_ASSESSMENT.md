@@ -10,7 +10,7 @@ maintainability read changes in a meaningful way, not on every small edit.
 Execution plan: `REPO_CLEANUP_ROADMAP.md`
 
 ## Current Grade
-- Overall production-readiness grade: `8.1 / 10`
+- Overall production-readiness grade: `8.4 / 10`
 - Read this as: stronger than a typical solo C++ game repo in structure,
   testing, and docs discipline, but still carrying enough concentration and
   architectural drag that it would be high-friction to scale up without more
@@ -20,11 +20,11 @@ Execution plan: `REPO_CLEANUP_ROADMAP.md`
 | Category | Grade | Notes |
 | --- | --- | --- |
 | Code health | `7.8 / 10` | Most code is readable and intentional, but several renderer/runtime hotspots are still too dense. |
-| Maintainability | `7.5 / 10` | Recent cleanup helped materially; the main remaining concentration is now more in session/renderer surfaces than in the outer runtime runner. |
+| Maintainability | `7.6 / 10` | Recent cleanup helped materially; the main remaining concentration is now more in session/renderer surfaces than in the outer runtime runner. |
 | Modularity and boundaries | `7.8 / 10` | Engine/game split is real, and Growl now has a true reusable VFX boundary; the remaining drag is in broader runtime/renderer seams. |
 | Repo organization | `8.5 / 10` | Top-level structure, naming, and docs organization are strong. |
-| Testing and verification | `8.6 / 10` | Full check covers docs, build, and 189 tests; the main remaining downside is manual visual/perf verification. |
-| Production discipline | `7.5 / 10` | Build flags, parity contracts, and hygiene are good; perf and visual validation are not yet fully automated. |
+| Testing and verification | `8.7 / 10` | Full check covers docs, build, and 191 tests; the main remaining downside is manual visual/perf verification. |
+| Production discipline | `8.0 / 10` | Build flags, parity contracts, hygiene, and runtime/tooling logging discipline are improving materially; perf and visual validation are not yet fully automated. |
 
 ## Current Overall Read
 - Strong prototype-to-production-minded C++ game/engine repo with unusually
@@ -63,6 +63,31 @@ Execution plan: `REPO_CLEANUP_ROADMAP.md`
 - The outer relaunch entry now lives in
   `src/game/runtime/RuntimeGameRunnerEntry.cpp`, so `GameRunner.cpp` no longer
   owns the relaunch wrapper around single-session startup/run/shutdown.
+- Runtime/tooling observability is improving: startup/session bootstrap,
+  runner loop policy/diagnostics, relaunch handling, Growl preview logging, and
+  `VfxPreviewApp` screenshot / warning diagnostics now share
+  `src/engine/utils/LogSink.*` instead of each hand-writing raw stream output.
+- The startup/runtime logging first pass now also covers
+  `GameBootstrap.cpp`, `GamePreload.cpp`, and
+  `session/SessionStartupRuntime.cpp`, so the outer startup path is materially
+  less fragmented than it was before this step.
+- That logging cleanup now also covers startup prewarm helpers
+  (`RuntimeWorldLayerPrewarm.*`, `RuntimeRenderModelPrewarm.*`,
+  `RuntimeStartupAssetPrewarm.*`), `GameSession.cpp` model-cache/shutdown
+  diagnostics, Tail Fire coordinator/atlas/billboard debug output, and shared
+  capture model warnings, so the remaining mixed logging surface is more
+  specialized than it was before.
+- Tail Fire logging is now more internally consistent end to end: config-load
+  warnings, authored-flipbook prewarm reporting, CPU atlas/debug diagnostics,
+  and backend upload logs all use the same helper path and consistent tags,
+  which also leaves room for feature-scoped terminal log modes later.
+- That terminal-mode story is now more concrete too: `Performance`,
+  `Growl VFX`, and `Tail Fire Debug` are all first-class runtime modes, while
+  `PAC_TAIL_FIRE_DEBUG` still works as a force-on override for targeted local
+  investigation.
+- Engine-side observability is starting to follow the same rules too:
+  `Application.cpp`, D3D12 startup/screenshot lifecycle logs, and model-cache
+  debug traces now use the shared sink instead of writing raw streams directly.
 
 ## What Is Strong
 - Engine/game layering is real, not aspirational.
@@ -96,7 +121,7 @@ Execution plan: `REPO_CLEANUP_ROADMAP.md`
      are not yet protected by the same level of automation as contracts/builds.
 
 4. Observability is still inconsistent.
-   - The repo still contains over `240` direct `std::cout` / `std::cerr` calls
+   - The repo still contains about `181` direct `std::cout` / `std::cerr` calls
      across `src/` and `tools/`, so logging style and diagnostics flow are not
      yet unified.
 
@@ -139,6 +164,20 @@ Execution plan: `REPO_CLEANUP_ROADMAP.md`
   `RuntimeGameRunnerFrameExecution.*` and the relaunch entry into
   `RuntimeGameRunnerEntry.cpp`, reducing its size further to roughly `400`
   lines.
+- Runtime/tooling diagnostics now have a first shared logging helper in
+  `src/engine/utils/LogSink.*`, and the noisiest startup/runner/Growl preview
+  surfaces now use it while preserving the existing stream-captured contracts.
+- The broader startup path also now routes `GameBootstrap.cpp`,
+  `GamePreload.cpp`, and `session/SessionStartupRuntime.cpp` through that
+  helper, which means the most common runtime startup logs are no longer all
+  special-case console writes.
+- Startup prewarm helpers, `GameSession.cpp` model-cache/shutdown logs, Tail
+  Fire coordinator/atlas/billboard diagnostics, and shared capture model
+  warnings now also route through `LogSink`, which makes the remaining logging
+  inconsistency narrower and more intentional than before.
+- Engine-side `Application.cpp`, D3D12 lifecycle startup/screenshot logs, and
+  model-cache debug traces now also route through `LogSink`, which means step 4
+  is no longer confined to only game/runtime call sites.
 
 ## Current Repo-Level Red Flags
 - There is still no automated perf baseline gate in CI.
@@ -146,7 +185,8 @@ Execution plan: `REPO_CLEANUP_ROADMAP.md`
   have landed in code, but the larger submission/dataflow work is still ahead.
 
 ## Current Priority Order
-1. Do the first logging-unification pass across runtime/tooling startup paths.
+1. Finish the remaining logging-unification pass on secondary runtime/tooling
+   surfaces.
 2. Keep shrinking `GameSession.cpp` into clearer ownership seams.
 3. Continue renderer restructuring work that reduces shared projected
    render-build CPU cost.

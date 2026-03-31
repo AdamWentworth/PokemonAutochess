@@ -1,5 +1,7 @@
 #pragma once
 
+#include "engine/utils/LogSink.h"
+
 #include <iosfwd>
 #include <string>
 
@@ -62,6 +64,7 @@ private:
     EngineServices& services;
     std::ostream& out;
     std::ostream& err;
+    engine::log::Sink log;
     Window* window = nullptr;
     IRenderBackend* renderer = nullptr;
     Camera3D* camera = nullptr;

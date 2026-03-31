@@ -727,6 +727,7 @@ for (const auto& unit : units) {
                 .supportsWorldIndexedMeshes = supportsWorldIndexedMeshes,
                 .characterInkingEnabled = characterInkingEnabled,
                 .graphicsQuality = args.graphicsQuality,
+                .tailFireDebugEnabled = args.tailFireDebugEnabled,
                 .projectedDebug = &projectedDebug,
                 .projectedRenderItems = args.projectedRenderItems,
                 .worldSceneRegistry = args.worldSceneRegistry,

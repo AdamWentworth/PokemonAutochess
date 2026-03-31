@@ -1,10 +1,11 @@
 #pragma once
 
+#include "engine/utils/LogSink.h"
+
 #include "game/runtime/render_model_cache/RenderModelCache.h"
 
 #include <cstddef>
 #include <functional>
-#include <iosfwd>
 #include <string>
 #include <vector>
 
@@ -48,6 +49,6 @@ struct Callbacks {
 Summary run(const std::vector<std::string>& modelPathsToPreload,
             const Options& options,
             const Callbacks& callbacks,
-            std::ostream& out);
+            const engine::log::Sink& log);
 
 } // namespace game::runtime::render_model_prewarm
