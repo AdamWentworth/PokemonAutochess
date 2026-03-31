@@ -11,6 +11,7 @@
 #include <glm/gtc/type_ptr.hpp>
 
 #include "engine/core/Paths.h"
+#include "engine/core/Environment.h"
 #include "engine/render/BoardRenderer.h"
 #include "engine/render/Camera3D.h"
 #include "engine/render/OpenGLRenderBackend.h"
@@ -68,6 +69,46 @@ float computeProjectedUnitSizePx(const game::runtime::shared_projected_debug::Pr
     return std::max(14.0f, minDim * 0.035f);
 }
 
+std::string previewBodyPathLabel(
+    game::runtime::shared_preview_body_presentation_path::PreviewBodyPathDecision decision) {
+    namespace preview_body = game::runtime::shared_preview_body_presentation_path;
+    switch (decision) {
+    case preview_body::PreviewBodyPathDecision::ProjectedWorldScene:
+        return "projected_world_scene";
+    case preview_body::PreviewBodyPathDecision::ProjectedIndexedScratch:
+        return "projected_indexed_scratch";
+    case preview_body::PreviewBodyPathDecision::DirectAnimatedFallback:
+    default:
+        return "direct_fallback";
+    }
+}
+
+bool previewBodyPathTraceEnabled() {
+    static const bool enabled = []() -> bool {
+        const auto env = engine::env::get("PAC_TRACE_PREVIEW_BODY_PATH");
+        if (!env.has_value()) return false;
+        const std::string raw = *env;
+        if (raw == "0" || raw == "false" || raw == "FALSE" || raw == "off" || raw == "OFF") {
+            return false;
+        }
+        return true;
+    }();
+    return enabled;
+}
+
+bool previewCharacterInkingEnabled() {
+    static const bool enabled = []() -> bool {
+        const auto env = engine::env::get("PAC_PREVIEW_CHARACTER_INKING");
+        if (!env.has_value()) return false;
+        const std::string raw = *env;
+        if (raw == "0" || raw == "false" || raw == "FALSE" || raw == "off" || raw == "OFF") {
+            return false;
+        }
+        return true;
+    }();
+    return enabled;
+}
+
 } // namespace
 
 struct PokemonAutochessVfxPreviewProject::Impl {
@@ -82,6 +123,13 @@ struct PokemonAutochessVfxPreviewProject::Impl {
         bool reportedFailure = false;
         game::runtime::render_model::MeshData mesh;
         std::string error;
+    };
+
+    struct PreviewBodyDebugState {
+        std::string speciesName;
+        bool builtProjectedScratch = false;
+        bool haveDirectBodySample = false;
+        game::runtime::shared_preview_body_presentation_path::PreviewBodyPathSummary pathSummary{};
     };
 
     GameConfigData gameConfig;
@@ -115,6 +163,10 @@ struct PokemonAutochessVfxPreviewProject::Impl {
     game::runtime::session_render_scratch::RenderScratch tailFireScratch;
     std::vector<game::runtime::shared_projected_scene::DepthTri> modelDepthTris;
     std::vector<game::runtime::shared_projected_scene::DepthWorldTri> modelDepthWorldTris;
+    PreviewBodyDebugState lastAttackerBodyDebug{};
+    PreviewBodyDebugState lastTargetBodyDebug{};
+    std::string lastAttackerBodyTraceLine;
+    std::string lastTargetBodyTraceLine;
 
     void submitScratch(const Camera3D& camera,
                        int surfaceWidth,
@@ -202,6 +254,23 @@ struct PokemonAutochessVfxPreviewProject::Impl {
                             indexedOnlyWhenAvailable);
                     },
             });
+    }
+    void maybeTracePreviewBodyPath(const PreviewBodyDebugState& state,
+                                   std::string& lastTraceLine) const {
+        if (!previewBodyPathTraceEnabled()) return;
+        std::string line =
+            "[PreviewBodyPath] species=" + state.speciesName +
+            " decision=" + previewBodyPathLabel(state.pathSummary.decision) +
+            " builtScratch=" + std::to_string(state.builtProjectedScratch ? 1 : 0) +
+            " directSample=" + std::to_string(state.haveDirectBodySample ? 1 : 0) +
+            " ws=" + std::to_string(state.pathSummary.worldSceneDrawClassCount) +
+            " idx=" + std::to_string(state.pathSummary.worldIndexedBatchCount) +
+            " litBody=" + std::to_string(state.pathSummary.litTexturedIndexedBodyBatchCount) +
+            " fire=" + std::to_string(state.pathSummary.authoredFireBatchCount) +
+            " allowIndexed=" + std::to_string(state.pathSummary.allowIndexedScratchPath ? 1 : 0);
+        if (line == lastTraceLine) return;
+        lastTraceLine = line;
+        std::cout << line << "\n" << std::flush;
     }
 
     float computeAttackSpeedFactor(const PreviewPokemonVisual& visual) {
@@ -574,7 +643,7 @@ bool PokemonAutochessVfxPreviewProject::Impl::buildProjectedModelScratch(
                 backendRenderer && backendRenderer->supportsWorldTriangles3D(),
             .supportsWorldIndexedMeshes =
                 backendRenderer && backendRenderer->supportsWorldIndexedMeshes(),
-            .characterInkingEnabled = true,
+            .characterInkingEnabled = previewCharacterInkingEnabled(),
             .graphicsQuality = 3,
             .projectedDebug = &projectedDebug,
             .projectedRenderItems = &scratch.projectedRenderItems,
@@ -646,17 +715,32 @@ void PokemonAutochessVfxPreviewProject::Impl::renderPreviewUnit(
         visual.speciesName,
         modelScratch.worldIndexedBatches);
 
-    const auto previewBodyDecision =
+    const auto previewBodySummary =
         builtProjectedScratch
-            ? game::runtime::shared_preview_body_presentation_path::classifyPreviewBodyPath(
+            ? game::runtime::shared_preview_body_presentation_path::inspectPreviewBodyPath(
                   modelScratch,
                   backendRenderer && backendRenderer->supportsWorldSceneFastPath())
-            : game::runtime::shared_preview_body_presentation_path::PreviewBodyPathDecision::
-                  DirectAnimatedFallback;
+            : game::runtime::shared_preview_body_presentation_path::PreviewBodyPathSummary{};
+    PreviewBodyDebugState* debugState =
+        (side == PokemonSide::Player) ? &lastAttackerBodyDebug : &lastTargetBodyDebug;
+    if (debugState) {
+        debugState->speciesName = visual.speciesName;
+        debugState->builtProjectedScratch = builtProjectedScratch;
+        debugState->haveDirectBodySample = haveDirectBodySample;
+        debugState->pathSummary = previewBodySummary;
+        if (side == PokemonSide::Player) {
+            maybeTracePreviewBodyPath(*debugState, lastAttackerBodyTraceLine);
+        } else {
+            maybeTracePreviewBodyPath(*debugState, lastTargetBodyTraceLine);
+        }
+    }
     const bool canUseProjectedBody =
-        previewBodyDecision ==
-        game::runtime::shared_preview_body_presentation_path::PreviewBodyPathDecision::
-            ProjectedWorldScene;
+        previewBodySummary.decision ==
+            game::runtime::shared_preview_body_presentation_path::PreviewBodyPathDecision::
+                ProjectedWorldScene ||
+        previewBodySummary.decision ==
+            game::runtime::shared_preview_body_presentation_path::PreviewBodyPathDecision::
+                ProjectedIndexedScratch;
     if (canUseProjectedBody) {
         submitScratch(
             camera,
@@ -1082,7 +1166,35 @@ std::vector<std::string> PokemonAutochessVfxPreviewProject::overlayLines(
     case RigKind::PokemonModels:
         return {
             "3D Models mode uses the same board spacing, gameplay clip timing, and shared Tail Fire playback policy as the game.",
-            "The preview uses the projected gameplay body path only when the backend can submit the same material-faithful world-scene body output; otherwise it falls back to the direct model draw and keeps Tail Fire on the shared gameplay path."
+            "The preview uses projected body presentation when the backend can submit the same material-faithful body output; otherwise it falls back to the direct model draw and keeps Tail Fire on the shared gameplay path.",
+            "Body path attacker=" + impl_->lastAttackerBodyDebug.speciesName + ":" +
+                previewBodyPathLabel(impl_->lastAttackerBodyDebug.pathSummary.decision) +
+                " target=" + impl_->lastTargetBodyDebug.speciesName + ":" +
+                previewBodyPathLabel(impl_->lastTargetBodyDebug.pathSummary.decision),
+            "Scratch attacker(ws=" +
+                std::to_string(impl_->lastAttackerBodyDebug.pathSummary.worldSceneDrawClassCount) +
+                ", idx=" +
+                std::to_string(impl_->lastAttackerBodyDebug.pathSummary.worldIndexedBatchCount) +
+                ", litBody=" +
+                std::to_string(impl_->lastAttackerBodyDebug.pathSummary.litTexturedIndexedBodyBatchCount) +
+                ", fire=" +
+                std::to_string(impl_->lastAttackerBodyDebug.pathSummary.authoredFireBatchCount) +
+                ")" +
+                " target(ws=" +
+                std::to_string(impl_->lastTargetBodyDebug.pathSummary.worldSceneDrawClassCount) +
+                ", idx=" +
+                std::to_string(impl_->lastTargetBodyDebug.pathSummary.worldIndexedBatchCount) +
+                ", litBody=" +
+                std::to_string(impl_->lastTargetBodyDebug.pathSummary.litTexturedIndexedBodyBatchCount) +
+                ", fire=" +
+                std::to_string(impl_->lastTargetBodyDebug.pathSummary.authoredFireBatchCount) +
+                ")",
+            "Indexed-body path=" +
+                std::string(
+                    game::runtime::shared_preview_body_presentation_path::
+                            indexedScratchPathAllowedForPreview()
+                        ? "enabled"
+                        : "disabled")
         };
     }
     return {};

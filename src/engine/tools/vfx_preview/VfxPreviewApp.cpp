@@ -5,7 +5,10 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cctype>
+#include <cstring>
 #include <cstdint>
+#include <filesystem>
 #include <fstream>
 #include <iostream>
 #include <limits>
@@ -17,8 +20,10 @@
 #include <vector>
 
 #include <glm/gtc/type_ptr.hpp>
+#include <stb_image_write.h>
 
 #include "engine/core/Paths.h"
+#include "engine/core/Environment.h"
 #include "engine/platform/Window.h"
 #include "engine/render/Camera3D.h"
 #include "engine/tools/vfx_preview/IVfxPreviewEffect.h"
@@ -45,6 +50,110 @@ constexpr float kEmitterHeightSpeed = 1.25f;
 constexpr float kMouseOrbitScale = 0.005f;
 constexpr float kMousePanScale = 0.02f;
 constexpr float kMouseWheelZoomStep = 0.5f;
+
+struct PreviewScreenshotCaptureConfig {
+    bool enabled = false;
+    bool captured = false;
+    std::uint64_t targetFrame = 0u;
+    std::string path;
+};
+
+std::string normalizedPreviewSelection(std::string_view raw) {
+    std::string out;
+    out.reserve(raw.size());
+    for (const char ch : raw) {
+        if (ch == ' ' || ch == '_' || ch == '-') continue;
+        out.push_back(static_cast<char>(std::tolower(static_cast<unsigned char>(ch))));
+    }
+    return out;
+}
+
+template <typename NameFn>
+std::size_t resolvePreviewSelectionFromEnv(const char* envName,
+                                           std::size_t count,
+                                           NameFn&& nameAt) {
+    if (count == 0u) return 0u;
+    const auto envValue = engine::env::get(envName);
+    if (!envValue.has_value() || envValue->empty()) return 0u;
+
+    try {
+        const std::size_t parsed = static_cast<std::size_t>(std::stoull(*envValue));
+        if (parsed < count) return parsed;
+    } catch (...) {
+    }
+
+    const std::string target = normalizedPreviewSelection(*envValue);
+    if (target.empty()) return 0u;
+    for (std::size_t i = 0; i < count; ++i) {
+        if (normalizedPreviewSelection(nameAt(i)) == target) {
+            return i;
+        }
+    }
+    return 0u;
+}
+
+PreviewScreenshotCaptureConfig makeScreenshotCaptureConfig() {
+    PreviewScreenshotCaptureConfig cfg{};
+    const auto path = engine::env::get("PAC_VFX_PREVIEW_SCREENSHOT_PATH");
+    if (!path.has_value() || path->empty()) {
+        return cfg;
+    }
+    cfg.enabled = true;
+    cfg.path = *path;
+    if (const auto frame = engine::env::get("PAC_VFX_PREVIEW_SCREENSHOT_FRAME")) {
+        try {
+            cfg.targetFrame = static_cast<std::uint64_t>(std::stoull(*frame));
+        } catch (...) {
+            cfg.targetFrame = 0u;
+        }
+    }
+    return cfg;
+}
+
+void maybeCapturePreviewScreenshot(const PreviewScreenshotCaptureConfig& cfg,
+                                   std::uint64_t frameIndex,
+                                   int drawableW,
+                                   int drawableH) {
+    if (!cfg.enabled || cfg.captured) return;
+    if (frameIndex < cfg.targetFrame) return;
+    if (drawableW <= 0 || drawableH <= 0 || cfg.path.empty()) return;
+
+    const std::size_t rowBytes = static_cast<std::size_t>(drawableW) * 4u;
+    std::vector<unsigned char> rgba(
+        static_cast<std::size_t>(drawableW) * static_cast<std::size_t>(drawableH) * 4u,
+        0u);
+    std::vector<unsigned char> flipped(rgba.size(), 0u);
+    glPixelStorei(GL_PACK_ALIGNMENT, 1);
+    glReadBuffer(GL_BACK);
+    glReadPixels(0, 0, drawableW, drawableH, GL_RGBA, GL_UNSIGNED_BYTE, rgba.data());
+    for (int y = 0; y < drawableH; ++y) {
+        const std::size_t srcOffset = static_cast<std::size_t>(y) * rowBytes;
+        const std::size_t dstOffset =
+            static_cast<std::size_t>(drawableH - 1 - y) * rowBytes;
+        std::memcpy(flipped.data() + dstOffset, rgba.data() + srcOffset, rowBytes);
+    }
+
+    try {
+        const std::filesystem::path outPath(cfg.path);
+        if (!outPath.parent_path().empty()) {
+            std::filesystem::create_directories(outPath.parent_path());
+        }
+        const int wrote = stbi_write_png(
+            outPath.string().c_str(),
+            drawableW,
+            drawableH,
+            4,
+            flipped.data(),
+            drawableW * 4);
+        std::cout << "[PreviewScreenshot] "
+                  << (wrote != 0 ? "WROTE " : "FAILED ")
+                  << outPath.string()
+                  << " size=" << drawableW << "x" << drawableH
+                  << " frame=" << frameIndex << "\n";
+    } catch (const std::exception& ex) {
+        std::cout << "[PreviewScreenshot] FAILED exception=" << ex.what() << "\n";
+    }
+}
 
 glm::vec3 safeForwardXZ(const glm::vec3& value) {
     glm::vec3 forward(value.x, 0.0f, value.z);
@@ -551,8 +660,14 @@ int VfxPreviewApp::run() {
         bool showHelpOverlay = true;
         bool showPrimaryBackdrop = true;
         bool showSecondaryBackdrop = false;
-        std::size_t activeEffectIndex = 0u;
-        std::size_t activeRigIndex = 0u;
+        std::size_t activeEffectIndex = resolvePreviewSelectionFromEnv(
+            "PAC_VFX_PREVIEW_INITIAL_EFFECT",
+            project_->effectCount(),
+            [&](std::size_t index) { return project_->effectAt(index).name(); });
+        std::size_t activeRigIndex = resolvePreviewSelectionFromEnv(
+            "PAC_VFX_PREVIEW_INITIAL_RIG",
+            project_->rigCount(),
+            [&](std::size_t index) { return project_->rigName(index); });
         float loopReplayCooldownSec = 0.0f;
 
         auto activateCurrentEffect = [&](bool applyRigDefaults) {
@@ -580,6 +695,7 @@ int VfxPreviewApp::run() {
         std::uint64_t titleFrame = 0;
         std::uint64_t debugFrameIndex = 0;
         std::uint64_t prevTicks = SDL_GetPerformanceCounter();
+        PreviewScreenshotCaptureConfig screenshotCapture = makeScreenshotCaptureConfig();
 
         while (running) {
             const bool logThisFrame = debugFrameIndex < 4u;
@@ -810,6 +926,15 @@ int VfxPreviewApp::run() {
                           showHelpOverlay,
                           showPrimaryBackdrop,
                           showSecondaryBackdrop);
+            maybeCapturePreviewScreenshot(
+                screenshotCapture,
+                debugFrameIndex,
+                drawableW,
+                drawableH);
+            if (screenshotCapture.enabled && !screenshotCapture.captured &&
+                debugFrameIndex >= screenshotCapture.targetFrame) {
+                screenshotCapture.captured = true;
+            }
 
             if (logThisFrame) appendPreviewBootLog("[app] frame " + std::to_string(debugFrameIndex) + " swap");
             window->swapBuffers();
