@@ -158,9 +158,38 @@ importance.
 - Rank: `#5`
 - Payoff/day: `Medium-high`
 - Estimated effort: `5-8 days`
+- Current state: `Completed first pass on 2026-03-31`
 - Why this comes after `GameRunner.cpp`:
   - It is valuable, but riskier and more coupled.
   - It is easier once the outer runtime seam is cleaner.
+- Progress so far:
+  - Debug snapshot save/load/auto-load control now lives in
+    `src/game/runtime/session/SessionSnapshotController.*` instead of being
+    assembled inline inside `GameSession.cpp`.
+  - World-layer submission and state-script routing now live in
+    `src/game/runtime/session/SessionWorldLayerBridge.*`, so the session no
+    longer hand-builds `SessionWorldRenderRuntime` args in two separate places.
+  - Backend mesh/texture cache ownership, backend hydration glue, and startup
+    backend-asset prewarm callback wiring now live in
+    `src/game/runtime/session/SessionBackendAssetBridge.*`.
+  - Startup runtime argument assembly now lives in
+    `src/game/runtime/session/SessionStartupBridge.*`, so session startup/setup
+    no longer hand-builds the full prewarm callback surface inline.
+  - Input/fixed-update callback assembly now lives in
+    `src/game/runtime/session/SessionLoopBridge.*`, and frame/render flow
+    orchestration now lives in `src/game/runtime/session/SessionRenderBridge.*`.
+  - Backend inventory dependency assembly and refresh handling now live in
+    `src/game/runtime/session/SessionInventoryBridge.*`, and shutdown lifecycle
+    teardown now lives in `src/game/runtime/session/SessionLifecycleBridge.*`.
+  - Startup/init assembly now also lives in
+    `src/game/runtime/session/SessionInitBridge.*`, so the session no longer
+    hand-builds its startup bootstrap context inline.
+  - Final session-level context assembly now lives in
+    `src/game/runtime/session/SessionCoordinatorBridge.*`, which delegates
+    snapshot, loop, render, world-layer, and lifecycle work through the
+    smaller bridges.
+  - `src/game/runtime/session/GameSession.cpp` is down from about `740` lines
+    to about `340` lines locally after the current step-5 slices.
 - Focus:
   - Extract session bootstrap/setup helpers.
   - Extract debug snapshot and restore helpers.

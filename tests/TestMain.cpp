@@ -107,7 +107,10 @@ bool test_combat_anim_index_cache_contract(std::string& outFail);
 bool test_script_api_contract(std::string& outFail);
 bool test_session_backend_render_helpers_contract(std::string& outFail);
 bool test_session_backend_inventory_ui_contract(std::string& outFail);
+bool test_session_backend_asset_bridge_contract(std::string& outFail);
 bool test_session_backend_unit_hydration_contract(std::string& outFail);
+bool test_session_lifecycle_bridge_contract(std::string& outFail);
+bool test_session_render_bridge_contract(std::string& outFail);
 bool test_session_debug_snapshot_contract(std::string& outFail);
 bool test_session_frame_metrics_contract(std::string& outFail);
 bool test_session_legacy_world_view_contract(std::string& outFail);
@@ -342,7 +345,10 @@ int main(int argc, char** argv) {
         {"script_api_contract", &test_script_api_contract},
         {"session_backend_render_helpers_contract", &test_session_backend_render_helpers_contract},
         {"session_backend_inventory_ui_contract", &test_session_backend_inventory_ui_contract},
+        {"session_backend_asset_bridge_contract", &test_session_backend_asset_bridge_contract},
         {"session_backend_unit_hydration_contract", &test_session_backend_unit_hydration_contract},
+        {"session_lifecycle_bridge_contract", &test_session_lifecycle_bridge_contract},
+        {"session_render_bridge_contract", &test_session_render_bridge_contract},
         {"session_debug_snapshot_contract", &test_session_debug_snapshot_contract},
         {"session_frame_metrics_contract", &test_session_frame_metrics_contract},
         {"session_legacy_world_view_contract", &test_session_legacy_world_view_contract},

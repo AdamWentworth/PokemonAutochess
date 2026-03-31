@@ -13,7 +13,7 @@ most urgent repo-level issues first.
 
 | Issue | Category | Impact | Current behavior | Recommended owner |
 | --- | --- | --- | --- | --- |
-| `src/game/runtime/session/GameSession.cpp` is still oversized | Runtime architecture | High | Session bootstrap, routing, debug snapshot, render wiring, and lifecycle concerns still meet in one file. | Runtime/session owner |
+| `src/game/runtime/session/GameSession.cpp` is still a coordination point | Runtime architecture | Medium | Debug snapshot control, world-layer bridge wiring, backend asset/cache ownership, startup runtime argument assembly, inventory coordination, loop callback assembly, frame/render orchestration, shutdown lifecycle teardown, and the final coordinator seam now have dedicated homes. The file is much smaller, but it still owns single-session composition. | Runtime/session owner |
 | Backend mega-files remain high-churn risk | Renderer architecture | High | D3D12/OpenGL renderer families and shared projected runtime modules still absorb many unrelated edits. | Renderer owner |
 | No protected perf baseline in CI | Process | High | Benchmarks exist locally, but merge-time perf regressions can still slip through without an automated gate. | Perf/CI owner |
 | `src/engine/render/IRenderBackend.h` is too broad | Renderer architecture | Medium | World, debug, sprite, timing, and capability responsibilities still share one large interface surface. | Renderer owner |

@@ -20,7 +20,7 @@ Execution plan: `REPO_CLEANUP_ROADMAP.md`
 | Category | Grade | Notes |
 | --- | --- | --- |
 | Code health | `7.8 / 10` | Most code is readable and intentional, but several renderer/runtime hotspots are still too dense. |
-| Maintainability | `7.6 / 10` | Recent cleanup helped materially; the main remaining concentration is now more in session/renderer surfaces than in the outer runtime runner. |
+| Maintainability | `7.8 / 10` | Recent cleanup helped materially; the main remaining concentration is now more in renderer surfaces and broad interfaces than in the outer runtime/session owners. |
 | Modularity and boundaries | `7.8 / 10` | Engine/game split is real, and Growl now has a true reusable VFX boundary; the remaining drag is in broader runtime/renderer seams. |
 | Repo organization | `8.5 / 10` | Top-level structure, naming, and docs organization are strong. |
 | Testing and verification | `8.7 / 10` | Full check covers docs, build, and 191 tests; the main remaining downside is manual visual/perf verification. |
@@ -29,8 +29,9 @@ Execution plan: `REPO_CLEANUP_ROADMAP.md`
 ## Current Overall Read
 - Strong prototype-to-production-minded C++ game/engine repo with unusually
   good layering, testing, and renderer/perf discipline for a solo project.
-- The biggest score drag is still concentration: too much runtime and renderer
-  coordination lands in a small number of large files and broad interfaces.
+- The biggest score drag is still concentration: renderer coordination and a
+  few broad engine/runtime interfaces still land in a small number of large
+  files.
 - The docs/tooling/VFX cleanup materially improved clarity, but the main
   runtime/render seams are still the long pole.
 - Growl's reusable boundary is now materially real: runtime batching/submission
@@ -164,6 +165,31 @@ Execution plan: `REPO_CLEANUP_ROADMAP.md`
   `RuntimeGameRunnerFrameExecution.*` and the relaunch entry into
   `RuntimeGameRunnerEntry.cpp`, reducing its size further to roughly `400`
   lines.
+- `GameSession.cpp` has now started the same treatment: debug snapshot
+  save/load/auto-load control moved into
+  `src/game/runtime/session/SessionSnapshotController.*`, and world-layer
+  render submission plus state-script routing moved into
+  `src/game/runtime/session/SessionWorldLayerBridge.*`.
+- `GameSession.cpp` also shed backend mesh/texture cache ownership, backend
+  hydration glue, and startup backend-asset prewarm callback wiring into
+  `src/game/runtime/session/SessionBackendAssetBridge.*`.
+- `GameSession.cpp` startup runtime argument assembly now also lives in
+  `src/game/runtime/session/SessionStartupBridge.*`, trimming the session file
+  further from roughly `740` lines to roughly `550`.
+- `GameSession.cpp` now also delegates input/fixed-update callback assembly to
+  `src/game/runtime/session/SessionLoopBridge.*` and frame/render orchestration
+  to `src/game/runtime/session/SessionRenderBridge.*`, trimming the session
+  file further to roughly `480` lines.
+- `GameSession.cpp` backend inventory dependency assembly and refresh handling
+  now also live in `src/game/runtime/session/SessionInventoryBridge.*`, and
+  shutdown lifecycle teardown now lives in
+  `src/game/runtime/session/SessionLifecycleBridge.*`, trimming the session
+  file further to roughly `450` lines.
+- `GameSession.cpp` also shed startup/init assembly into
+  `src/game/runtime/session/SessionInitBridge.*` and final coordination glue
+  into `src/game/runtime/session/SessionCoordinatorBridge.*`, bringing the
+  session file down to roughly `340` lines and leaving it much closer to a thin
+  owner/orchestrator than a catch-all runtime bag.
 - Runtime/tooling diagnostics now have a first shared logging helper in
   `src/engine/utils/LogSink.*`, and the noisiest startup/runner/Growl preview
   surfaces now use it while preserving the existing stream-captured contracts.
@@ -185,11 +211,10 @@ Execution plan: `REPO_CLEANUP_ROADMAP.md`
   have landed in code, but the larger submission/dataflow work is still ahead.
 
 ## Current Priority Order
-1. Finish the remaining logging-unification pass on secondary runtime/tooling
-   surfaces.
-2. Keep shrinking `GameSession.cpp` into clearer ownership seams.
-3. Continue renderer restructuring work that reduces shared projected
+1. Start the first `IRenderBackend` narrowing / backend mega-file reduction
+   pass.
+2. Continue renderer restructuring work that reduces shared projected
    render-build CPU cost.
-4. Reduce manual-only preview and perf validation where practical.
-5. Keep the docs honest as the repo changes, especially around renderer,
+3. Reduce manual-only preview and perf validation where practical.
+4. Keep the docs honest as the repo changes, especially around renderer,
    tooling, and VFX ownership boundaries.

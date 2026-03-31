@@ -385,22 +385,32 @@ add_library(PAC_GameObjects STATIC
     src/game/runtime/startup/RuntimeWorldLayerPrewarm.cpp
     src/game/runtime/video/RuntimeWindowBootstrap.cpp
     src/game/runtime/session/GameSession.cpp
+    src/game/runtime/session/SessionBackendAssetBridge.cpp
     src/game/runtime/session/SessionBackendInventoryUi.cpp
+    src/game/runtime/session/SessionCoordinatorBridge.cpp
     src/game/runtime/session/SessionBackendUnitHydration.cpp
     src/game/runtime/session/SessionBackendRenderHelpers.cpp
     src/game/runtime/session/SessionCoreBootstrapRuntime.cpp
     src/game/runtime/session/SessionDebugSnapshot.cpp
+    src/game/runtime/session/SessionInitBridge.cpp
+    src/game/runtime/session/SessionInventoryBridge.cpp
     src/game/runtime/session/SessionLegacyWorldView.cpp
+    src/game/runtime/session/SessionLifecycleBridge.cpp
     src/game/runtime/session/SessionFrameMetrics.cpp
+    src/game/runtime/session/SessionLoopBridge.cpp
     src/game/runtime/session/SessionLoopRuntime.cpp
     src/game/runtime/session/SessionProjectedWorldView.cpp
     src/game/runtime/session/SessionRenderLayout.cpp
+    src/game/runtime/session/SessionRenderBridge.cpp
     src/game/runtime/session/SessionRenderScratch.cpp
     src/game/runtime/session/SessionRenderConfig.cpp
+    src/game/runtime/session/SessionSnapshotController.cpp
     src/game/runtime/session/SessionSnapshotRuntime.cpp
+    src/game/runtime/session/SessionStartupBridge.cpp
     src/game/runtime/session/SessionStartupRuntime.cpp
     src/game/runtime/session/SessionTailFirePrewarm.cpp
     src/game/runtime/session/SessionTextureCache.cpp
+    src/game/runtime/session/SessionWorldLayerBridge.cpp
     src/game/runtime/session/SessionWorldRenderRuntime.cpp
     src/game/runtime/session/SessionWorldBackdrop.cpp
     src/game/runtime/shared/backend/SharedBackendPoseEval.cpp
@@ -736,7 +746,10 @@ if (BUILD_TESTING)
         tests/TestScriptApiContract.cpp
         tests/TestSessionBackendRenderHelpers.cpp
         tests/TestSessionBackendInventoryUi.cpp
+        tests/TestSessionBackendAssetBridge.cpp
         tests/TestSessionBackendUnitHydration.cpp
+        tests/TestSessionLifecycleBridge.cpp
+        tests/TestSessionRenderBridge.cpp
         tests/TestSessionDebugSnapshot.cpp
         tests/TestRuntimeGrowlVfxPrewarm.cpp
         tests/TestSharedGrowlPreviewMeshLoader.cpp

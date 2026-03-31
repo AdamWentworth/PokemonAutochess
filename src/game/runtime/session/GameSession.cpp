@@ -32,12 +32,10 @@
 
 #include "engine/render/Camera3D.h"
 #include "engine/render/IRenderBackend.h"
-#include "engine/render/Model.h"
 
 #include "engine/core/ecs/Scheduler.h"
 #include "engine/core/ecs/World.h"
 #include "engine/utils/LogSink.h"
-#include "engine/utils/ResourceManager.h"
 
 #include "game/GameWorld.h"
 #include "game/GameStateManager.h"
@@ -47,32 +45,26 @@
 #include "game/runtime/routes/GameServiceRenderRoutes.h"
 #include "game/runtime/ui/InventoryPanel.h"
 #include "game/runtime/ui/InputSlots.h"
-#include "game/runtime/render_model_cache/RenderModelCache.h"
-#include "game/runtime/startup/RuntimeRenderModelPrewarm.h"
-#include "game/runtime/startup/RuntimeGrowlVfxPrewarm.h"
-#include "game/runtime/startup/RuntimeParticleVfxPrewarm.h"
-#include "game/runtime/startup/RuntimeUiCardPrewarm.h"
-#include "game/runtime/startup/RuntimeStartupAssetPrewarm.h"
 #include "game/runtime/startup/RuntimeWorldLayerPrewarm.h"
-#include "game/runtime/session/SessionBackendUnitHydration.h"
 #include "game/runtime/shared/backend/SharedBackendTextureCache.h"
-#include "game/runtime/shared/projected/SharedProjectedUnitBackendMeshRenderer.h"
 #include "game/GameServices.h"
 #include "game/GameConfig.h"
 #include "game/runtime/session/GameUpdateGraph.h"
+#include "game/runtime/session/SessionBackendAssetBridge.h"
 #include "game/runtime/session/SessionCoreBootstrapRuntime.h"
 #include "game/runtime/session/SessionBackendInventoryUi.h"
-#include "game/runtime/session/SessionBackendRenderHelpers.h"
+#include "game/runtime/session/SessionCoordinatorBridge.h"
 #include "game/runtime/session/SessionDebugSnapshot.h"
-#include "game/runtime/session/SessionLoopRuntime.h"
+#include "game/runtime/session/SessionInventoryBridge.h"
+#include "game/runtime/session/SessionInitBridge.h"
+#include "game/runtime/session/SessionLifecycleBridge.h"
+#include "game/runtime/session/SessionLoopBridge.h"
 #include "game/runtime/session/SessionRenderScratch.h"
 #include "game/runtime/session/SessionRenderConfig.h"
-#include "game/runtime/session/SessionSnapshotRuntime.h"
-#include "game/runtime/session/SessionStartupRuntime.h"
-#include "game/runtime/session/SessionTailFirePrewarm.h"
-#include "game/runtime/session/SessionTextureCache.h"
-#include "game/runtime/session/SessionWorldRenderRuntime.h"
-#include "game/runtime/loop/RuntimePerfLogging.h"
+#include "game/runtime/session/SessionRenderBridge.h"
+#include "game/runtime/session/SessionSnapshotController.h"
+#include "game/runtime/session/SessionStartupBridge.h"
+#include "game/runtime/session/SessionWorldLayerBridge.h"
 #include "game/ui/UIViewport.h"
 #include "game/ui/ShopLayout.h"
 
@@ -81,8 +73,6 @@
 #include "game/assets/DevAssetStore.h"
 #include "game/assets/PackedAssetStore.h"
 #include "game/PhaseState.h"
-#include "game/state/CombatState.h"
-#include "game/state/PlacementState.h"
 
 #include "game/systems/CameraSystem.h"
 #include "game/systems/UnitInteractionSystem.h"
@@ -92,7 +82,6 @@
 #include "game/systems/ShopSystem.h"
 #include "game/systems/LegacySystemAdapters.h"
 
-#include "game/state/scripted/ScriptedState.h"
 #include "game/logging/LogBus.h"
 #include "game/logging/LoggerUtil.h"
 #include "game/scripting/ScriptEventBus.h"
@@ -152,18 +141,7 @@ struct GameSession::Impl {
 
     static constexpr std::size_t kBackendInventoryVisibleCount = 6;
     runtime::ui_inventory_panel::PanelState backendInventoryPanel;
-    struct BackendMeshCacheEntry {
-        bool attemptedLoad = false;
-        bool reportedFailure = false;
-        runtime::render_model::MeshData mesh;
-        std::string error;
-    };
-    std::unordered_map<std::string, BackendMeshCacheEntry> backendMeshByModelPath;
-    using BackendAnimRoleEntry = game::runtime::session_backend_unit_hydration::BackendAnimRoleEntry;
-    using BackendAnimRoleCache = game::runtime::session_backend_unit_hydration::BackendAnimRoleCache;
-    BackendAnimRoleCache backendAnimByModelPath;
-    using BackendTextureCacheEntry = game::runtime::SharedBackendTextureCacheEntry;
-    std::unordered_map<std::string, BackendTextureCacheEntry> backendTextureByPath;
+    runtime::session_backend_asset_bridge::State backendAssets;
 
     std::shared_ptr<CameraSystem>           cameraSystem;
     std::shared_ptr<UnitInteractionSystem>  unitSystem;
@@ -175,11 +153,6 @@ struct GameSession::Impl {
         : dataDb(std::move(db))
         , ecsWorld(&coreServices) {
         init(ctx);
-    }
-
-    bool hasActiveRenderBackend() const {
-        if (services) return services->renderEnabled;
-        return startupRoutes.hasRenderer;
     }
 
     bool usesBackendGameRenderPath() const {
@@ -207,82 +180,51 @@ struct GameSession::Impl {
     }
 
     runtime::render_model::MeshData* ensureBackendMeshLoaded(const std::string& modelPath) {
-        auto& cacheEntry = backendMeshByModelPath[modelPath];
-        if (!cacheEntry.attemptedLoad) {
-            cacheEntry.attemptedLoad = true;
-            std::string err;
-            if (!runtime::render_model::loadMeshFromCache(modelPath, cacheEntry.mesh, &err)) {
-                cacheEntry.error = std::move(err);
-                cacheEntry.mesh = {};
-            }
-        }
-
-        if (!cacheEntry.error.empty()) {
-            if (!cacheEntry.reportedFailure) {
-                consoleLog.info(
-                    "[Render][ModelCache] Unable to render model '" + modelPath +
-                    "' (" + cacheEntry.error + ")");
-                cacheEntry.reportedFailure = true;
-            }
-            return nullptr;
-        }
-        if (cacheEntry.mesh.vertices.empty() || cacheEntry.mesh.indices.empty()) {
-            return nullptr;
-        }
-        return &cacheEntry.mesh;
+        return game::runtime::session_backend_asset_bridge::ensureBackendMeshLoaded(
+            backendAssets,
+            modelPath,
+            consoleLog);
     }
 
-    BackendTextureCacheEntry* ensureBackendTextureLoaded(const std::string& texturePath,
-                                                         bool flipVertical = false) {
-        return game::runtime::session_texture_cache::ensureTextureLoaded(
-            backendTextureByPath,
+    game::runtime::SharedBackendTextureCacheEntry* ensureBackendTextureLoaded(
+        const std::string& texturePath,
+        bool flipVertical = false) {
+        return game::runtime::session_backend_asset_bridge::ensureBackendTextureLoaded(
+            backendAssets,
             texturePath,
             flipVertical);
     }
 
     void hydrateBackendUnitAnimationAndScale() {
-        if (!usesBackendGameRenderPath() || !gameWorld) return;
-        game::runtime::session_backend_unit_hydration::hydrateBackendUnits(
-            gameWorld->getPokemons(),
-            gameWorld->getBenchPokemons(),
+        game::runtime::session_backend_asset_bridge::hydrateBackendUnitAnimationAndScale(
+            backendAssets,
+            gameWorld.get(),
             dataDb,
-            backendAnimByModelPath,
-            [&](const std::string& modelPath) {
-                return ensureBackendMeshLoaded(modelPath);
-            });
+            usesBackendGameRenderPath(),
+            consoleLog);
     }
 
     void init(GameContext& ctx) {
-        camera = ctx.camera;
-        renderer = ctx.renderer;
-        engineServices = ctx.services;
-        setTitleCallback = ctx.setTitle;
-        const bool hasBackend = (ctx.renderer != nullptr) && (ctx.camera != nullptr);
-        startupRoutes = runtime::render::selectStartupRenderRoutes(hasBackend);
-        if (engine::env::get("PAC_BACKEND_MENU_BACKDROP").has_value()) {
-            allowBackendMenuBackdrop = engine::env::flagEnabled("PAC_BACKEND_MENU_BACKDROP");
-        }
-        if (engine::env::get("PAC_SHOW_PERF_OVERLAY").has_value()) {
-            showPerfOverlay = engine::env::flagEnabled("PAC_SHOW_PERF_OVERLAY");
-        }
-        viewport.set(ctx.drawableW, ctx.drawableH);
-
-        game::runtime::session_core_bootstrap_runtime::run(
+        game::runtime::session_init_bridge::run(
             {
                 .ctx = &ctx,
-                .camera = camera,
-                .renderer = renderer,
-                .engineServices = engineServices,
+                .camera = &camera,
+                .renderer = &renderer,
+                .engineServices = &engineServices,
+                .setTitleCallback = &setTitleCallback,
                 .startupRoutes = &startupRoutes,
+                .allowBackendMenuBackdrop = &allowBackendMenuBackdrop,
+                .showPerfOverlay = &showPerfOverlay,
+                .viewport = &viewport,
                 .dataDb = &dataDb,
                 .log = &log,
+                .consoleLog = &consoleLog,
                 .scriptEvents = &scriptEvents,
                 .assetStore = &assetStore,
                 .rng = &rng,
                 .timeSource = &timeSource,
                 .config = &config,
                 .services = &services,
-                .viewport = &viewport,
                 .coreServices = &coreServices,
                 .ecsWorld = &ecsWorld,
                 .roundPhaseEntity = &roundPhaseEntity,
@@ -294,501 +236,136 @@ struct GameSession::Impl {
                 .unitSystem = &unitSystem,
                 .shopSystem = &shopSystem,
                 .roundSystem = &roundSystem,
-            });
-
-        game::runtime::session_startup_runtime::run(
-            {
-                .ctx = &ctx,
-                .renderer = renderer,
-                .engineServices = engineServices,
-                .dataDb = &dataDb,
-                .config = &config,
-                .services = services.get(),
-                .gameWorld = gameWorld.get(),
-                .stateManager = stateManager.get(),
-                .log = &log,
+                .backendAssets = &backendAssets,
                 .worldLayerPrewarmFramesRemaining = &worldLayerPrewarmFramesRemaining,
                 .worldLayerPrewarmFrameCount = kWorldLayerPrewarmFrames,
+                .usesBackendGameRenderPath = [&]() { return usesBackendGameRenderPath(); },
+                .renderWorldLayer =
+                    [&](int drawableW, int drawableH, bool renderWorld) {
+                        game::runtime::session_coordinator_bridge::renderWorldLayer(
+                            coordinatorContext(),
+                            drawableW,
+                            drawableH,
+                            renderWorld);
+                    },
+                .maybeAutoLoadSnapshot =
+                    [&]() {
+                        game::runtime::session_coordinator_bridge::maybeAutoLoadDebugStateSnapshot(
+                            coordinatorContext());
+                    },
                 .snapshotPath = debugStateSnapshotPath(),
                 .autoLoadSnapshotOnStartup =
                     game::runtime::session_debug_snapshot::autoLoadSnapshotEnabled(),
-                .usesBackendGameRenderPath = [&]() { return usesBackendGameRenderPath(); },
-                .loadModel =
-                    [&](const std::string& modelPath) {
-                        auto& cacheEntry = backendMeshByModelPath[modelPath];
-                        if (cacheEntry.attemptedLoad) {
-                            return game::runtime::render_model_prewarm::ModelLoadResult{
-                                false,
-                                cacheEntry.error.empty() ? &cacheEntry.mesh : nullptr,
-                                cacheEntry.error,
-                            };
-                        }
-
-                        cacheEntry.attemptedLoad = true;
-                        std::string err;
-                        if (!runtime::render_model::loadMeshFromCache(
-                                modelPath, cacheEntry.mesh, &err)) {
-                            cacheEntry.error = std::move(err);
-                            cacheEntry.mesh = {};
-                            return game::runtime::render_model_prewarm::ModelLoadResult{
-                                true,
-                                nullptr,
-                                cacheEntry.error,
-                            };
-                        }
-
-                        return game::runtime::render_model_prewarm::ModelLoadResult{
-                            true,
-                            &cacheEntry.mesh,
-                            {},
-                        };
-                    },
-                .prewarmAnimRoles =
-                    [&](const std::string& modelPath,
-                        const runtime::render_model::MeshData& mesh) {
-                        auto it = backendAnimByModelPath.find(modelPath);
-                        const bool alreadyResolved =
-                            (it != backendAnimByModelPath.end()) && it->second.attemptedResolve;
-                        BackendAnimRoleEntry& roles =
-                            game::runtime::session_backend_unit_hydration::ensureBackendAnimRoles(
-                                modelPath,
-                                &mesh,
-                                backendAnimByModelPath);
-                        return !alreadyResolved && roles.attemptedResolve;
-                    },
-                .prewarmTextures =
-                    [&](const std::string&, const runtime::render_model::MeshData& mesh) {
-                        return game::runtime::session_backend_render_helpers::prewarmBackendWorldTexturesForMesh(renderer, &mesh);
-                    },
-                .prewarmGeometry =
-                    [&](const runtime::render_model::MeshData& mesh) {
-                        return game::runtime::shared_projected_unit_backend_mesh::
-                            prewarmProjectedUnitBackendMeshGeometryCache(*renderer, mesh);
-                    },
-                .prewarmTailFire =
-                    [&]() {
-                        return game::runtime::session_tail_fire_prewarm::prewarm(
-                            {
-                                .renderer = renderer,
-                                .backendTextureByPath = &backendTextureByPath,
-                                .ensureBackendTextureLoaded =
-                                    [&](const std::string& texturePath, bool flipVertical) {
-                                        return ensureBackendTextureLoaded(texturePath, flipVertical);
-                                    },
-                            });
-                    },
-                .prewarmGrowlVfx =
-                    [&]() {
-                        return game::runtime::growl_vfx_prewarm::prewarm(
-                            {
-                                .renderer = renderer,
-                                .backendTextureByPath = &backendTextureByPath,
-                                .ensureBackendMeshLoaded =
-                                    [&](const std::string& modelPath) {
-                                        return ensureBackendMeshLoaded(modelPath);
-                                    },
-                                .ensureBackendTextureLoaded =
-                                    [&](const std::string& texturePath, bool flipVertical) {
-                                        return ensureBackendTextureLoaded(texturePath, flipVertical);
-                                    },
-                            });
-                    },
-                .prewarmParticleVfx =
-                    [&]() {
-                        return game::runtime::particle_vfx_prewarm::prewarm(
-                            {
-                                .renderer = renderer,
-                                .ensureBackendTextureLoaded =
-                                    [&](const std::string& texturePath, bool flipVertical) {
-                                        return ensureBackendTextureLoaded(texturePath, flipVertical);
-                                    },
-                            });
-                    },
-                .renderWorldLayer =
-                    [&](int drawableW, int drawableH) {
-                        renderWorldLayer(drawableW, drawableH, /*renderWorld=*/true);
-                    },
             });
-
-        maybeAutoLoadDebugStateSnapshot();
     }
 
-    game::runtime::session_backend_inventory_ui::Dependencies backendInventoryUiDependencies() {
-        return game::runtime::session_backend_inventory_ui::Dependencies{
-            .getSelectedItem =
-                [&]() -> std::string {
-                    return gameWorld ? gameWorld->getSelectedItem() : std::string{};
+    game::runtime::session_coordinator_bridge::Context coordinatorContext() {
+        return game::runtime::session_coordinator_bridge::Context{
+            .snapshotPath = debugStateSnapshotPath(),
+            .autoLoadSnapshotOnStartup =
+                game::runtime::session_debug_snapshot::autoLoadSnapshotEnabled(),
+            .log = &log,
+            .consoleLog = &consoleLog,
+            .pauseState = &pauseState,
+            .engineServices = engineServices,
+            .viewport = &viewport,
+            .unitSystem = unitSystem.get(),
+            .cameraSystem = cameraSystem.get(),
+            .stateManager = stateManager.get(),
+            .gameWorld = gameWorld.get(),
+            .services = services.get(),
+            .roundSystem = roundSystem,
+            .roundSystemRef = &roundSystem,
+            .backendInventoryPanel = &backendInventoryPanel,
+            .backendInventoryVisibleCount = kBackendInventoryVisibleCount,
+            .renderWorldForInput =
+                game::runtime::session_loop_runtime::renderWorldForInput(stateManager.get()),
+            .usesBackendGameUiPath = usesBackendGameUiPath(),
+            .usesBackendGameRenderPath = usesBackendGameRenderPath(),
+            .advanceTime = [&](float deltaTime) { timeSource.advance(deltaTime); },
+            .hydrateBackend = [&]() { hydrateBackendUnitAnimationAndScale(); },
+            .tickUpdateGraph = [&](float deltaTime) { updateGraph.tick(deltaTime); },
+            .renderer = renderer,
+            .camera = camera,
+            .ecsWorld = &ecsWorld,
+            .roundPhaseEntity = roundPhaseEntity,
+            .config = &config,
+            .dataDb = &dataDb,
+            .backendTextureByPath =
+                &game::runtime::session_backend_asset_bridge::textureCache(backendAssets),
+            .routes = activeRenderRoutes(),
+            .showPerfOverlay = showPerfOverlay,
+            .enableBackdropTiles =
+                engineServices ? engineServices->sessionBackdropTilesEnabled : true,
+            .allowBackendMenuBackdrop = allowBackendMenuBackdrop,
+            .simNowSec = timeSource.nowSeconds(),
+            .ensureBackendMeshLoaded =
+                [&](const std::string& modelPath) {
+                    return ensureBackendMeshLoaded(modelPath);
                 },
-            .setSelectedItem =
-                [&](const std::string& itemId) {
-                    if (gameWorld) {
-                        gameWorld->setSelectedItem(itemId);
+            .ensureBackendTextureLoaded =
+                [&](const std::string& texturePath, bool flipVertical) {
+                    return ensureBackendTextureLoaded(texturePath, flipVertical);
+                },
+            .worldLayerPrewarmFramesRemaining = &worldLayerPrewarmFramesRemaining,
+            .worldLayerPrewarmFrameCount = kWorldLayerPrewarmFrames,
+            .setUnitScreenSize =
+                [&](unsigned int drawableW, unsigned int drawableH) {
+                    if (unitSystem) {
+                        unitSystem->setScreenSize(drawableW, drawableH);
                     }
                 },
-            .listItems =
-                [&]() -> std::vector<std::pair<std::string, int>> {
-                    return gameWorld ? gameWorld->listItems()
-                                     : std::vector<std::pair<std::string, int>>{};
+            .resolveRenderWorld =
+                [&]() {
+                    if (stateManager) {
+                        if (auto* state = stateManager->getCurrentState()) {
+                            return state->shouldRenderWorld();
+                        }
+                    }
+                    return true;
                 },
-            .getInventoryRevision =
-                [&]() -> std::uint64_t {
-                    return gameWorld ? gameWorld->getInventoryUiRevision() : 0u;
+            .currentFrameFlow =
+                [&](bool renderWorld) {
+                    return currentFrameFlow(renderWorld);
                 },
-            .logInfo = [&](const std::string& message) { log.catchInfo(message); },
+            .setTitle = setTitleCallback,
+            .renderStateLayer =
+                [&]() {
+                    if (stateManager) {
+                        stateManager->render();
+                    }
+                },
+            .resetRenderCaches =
+                [&]() {
+                    game::runtime::session_render_scratch::resetSceneCaches(
+                        game::runtime::session_render_scratch::threadScratch());
+                },
+            .shopSystem = &shopSystem,
+            .unitSystemRef = &unitSystem,
+            .cameraSystemRef = &cameraSystem,
+            .stateManagerRef = &stateManager,
+            .gameWorldRef = &gameWorld,
+            .scheduler = &scheduler,
         };
     }
 
-    void saveDebugStateSnapshot() {
-        game::runtime::session_snapshot_runtime::saveSnapshot(
-            debugStateSnapshotPath(),
-            {
-                .stateManager = stateManager.get(),
-                .gameWorld = gameWorld.get(),
-                .services = services.get(),
-                .log = &log,
-            });
-    }
-
-    void loadDebugStateSnapshot() {
-        game::runtime::session_snapshot_runtime::loadSnapshot(
-            debugStateSnapshotPath(),
-            {
-                .stateManager = stateManager.get(),
-                .gameWorld = gameWorld.get(),
-                .services = services.get(),
-                .roundSystem = roundSystem,
-                .log = &log,
-                .refreshInventoryPanel =
-                    [&]() {
-                        game::runtime::session_backend_inventory_ui::refreshPanel(
-                            backendInventoryPanel,
-                            kBackendInventoryVisibleCount,
-                            backendInventoryUiDependencies());
-                    },
-                .resetRenderCaches =
-                    [&]() {
-                        game::runtime::session_render_scratch::resetSceneCaches(
-                            game::runtime::session_render_scratch::threadScratch());
-                    },
-                .shouldPrewarmIndexedLayer =
-                    [&]() {
-                        return game::runtime::session_render_config::snapshotPrewarmRestoreRenderEnabled() &&
-                            renderer &&
-                            usesBackendGameRenderPath() &&
-                            renderer->supportsWorldIndexedMeshes() &&
-                            viewport.width > 0 &&
-                            viewport.height > 0;
-                    },
-                .prewarmIndexedLayer =
-                    [&]() -> std::size_t {
-                        bool renderWorld = true;
-                        if (stateManager) {
-                            if (auto* state = stateManager->getCurrentState()) {
-                                renderWorld = state->shouldRenderWorld();
-                            }
-                        }
-                        return prewarmWorldIndexedLayer(viewport.width, viewport.height, renderWorld);
-                    },
-            });
-    }
-
-    void maybeAutoLoadDebugStateSnapshot() {
-        if (!game::runtime::session_debug_snapshot::autoLoadSnapshotEnabled()) {
-            return;
-        }
-
-        const std::string path = debugStateSnapshotPath();
-        if (!std::filesystem::exists(path)) {
-            const std::string message =
-                std::string("[StateSnapshot] Auto-load requested but snapshot file was not found: ")
-                + path;
-            game::log::warn(&log, message);
-            game::log::infoTerminalOnly(&log, message);
-            return;
-        }
-
-        loadDebugStateSnapshot();
-    }
-
     void handleEvent(const InputEvent& event) {
-        game::runtime::session_loop_runtime::handleEvent(
-            event,
-            pauseState,
-            {
-                .log = &log,
-                .renderWorldForInput =
-                    game::runtime::session_loop_runtime::renderWorldForInput(stateManager.get()),
-                .usesBackendGameUiPath = usesBackendGameUiPath(),
-                .onResize =
-                    [&](int drawableW, int drawableH) {
-                        viewport.set(drawableW, drawableH);
-                        if (unitSystem) {
-                            unitSystem->setScreenSize(
-                                static_cast<unsigned int>(std::max(1, drawableW)),
-                                static_cast<unsigned int>(std::max(1, drawableH)));
-                        }
-                    },
-                .saveDebugSnapshot = [&]() { saveDebugStateSnapshot(); },
-                .toggleBackdropTiles =
-                    [&]() {
-                        if (!engineServices) return;
-                        engineServices->sessionBackdropTilesEnabled =
-                            !engineServices->sessionBackdropTilesEnabled;
-                        game::runtime::session_render_scratch::invalidateProjectedBackdrop(
-                            game::runtime::session_render_scratch::threadScratch());
-                        game::log::info(
-                            &log,
-                            engineServices->sessionBackdropTilesEnabled
-                                ? "[Backdrop] SessionWorldBackdrop tiles: On"
-                                : "[Backdrop] SessionWorldBackdrop tiles: Off (plain black board/bench)");
-                    },
-                .toggleTerminalLogMode =
-                    [&]() {
-                        if (!engineServices) return;
-                        engineServices->terminalLogMode =
-                            game::runtime::perf_logging::nextTerminalLogMode(
-                                engineServices->terminalLogMode);
-                        game::log::info(
-                            &log,
-                            std::string("[Debug] Terminal log mode: ") +
-                                game::runtime::perf_logging::terminalLogModeName(
-                                    engineServices->terminalLogMode));
-                    },
-                .loadDebugSnapshot = [&]() { loadDebugStateSnapshot(); },
-                .openMainMenu =
-                    [&]() {
-                        if (!stateManager) return;
-                        stateManager->pushState(std::make_unique<ScriptedState>(
-                            stateManager.get(),
-                            gameWorld.get(),
-                            *services,
-                            engine::paths::data("scripts/states/main_menu.lua")
-                        ));
-                    },
-                .clearSelection =
-                    [&]() {
-                        return game::runtime::session_backend_inventory_ui::clearSelection(
-                            backendInventoryUiDependencies());
-                    },
-                .handleInventoryInput =
-                    [&](const InputEvent& inputEvent) {
-                        return game::runtime::session_backend_inventory_ui::handleInput(
-                            backendInventoryPanel,
-                            inputEvent,
-                            kBackendInventoryVisibleCount,
-                            backendInventoryUiDependencies());
-                    },
-                .handleCameraInput =
-                    [&](const InputEvent& inputEvent) {
-                        if (cameraSystem) cameraSystem->handleInput(inputEvent);
-                    },
-                .handleUnitInput =
-                    [&](const InputEvent& inputEvent) {
-                        if (unitSystem) unitSystem->handleInput(inputEvent);
-                    },
-                .handleStateInput =
-                    [&](const InputEvent& inputEvent) {
-                        if (stateManager) stateManager->handleInput(inputEvent);
-                    },
-            });
+        game::runtime::session_coordinator_bridge::handleEvent(event, coordinatorContext());
     }
 
     void fixedUpdate(float dt) {
-        game::runtime::session_loop_runtime::fixedUpdate(
-            dt,
-            pauseState,
-            {
-                .usesBackendGameRenderPath = usesBackendGameRenderPath(),
-                .advanceTime = [&](float deltaTime) { timeSource.advance(deltaTime); },
-                .hydrateBackend = [&]() { hydrateBackendUnitAnimationAndScale(); },
-                .addBackendHydrateMs =
-                    [&](float ms) {
-                        if (engineServices) {
-                            engineServices->frameFixedBreakdown.backendHydrateMs += ms;
-                        }
-                    },
-                .tickUpdateGraph = [&](float deltaTime) { updateGraph.tick(deltaTime); },
-            });
-    }
-
-    void renderWorldLayer(int drawableW, int drawableH, bool renderWorld) {
-        const runtime::render::RenderRoutes routes = activeRenderRoutes();
-        if (routes.usesBackendRenderPath()) {
-            (void)game::runtime::session_world_render_runtime::render(
-                {
-                    .renderer = renderer,
-                    .engineServices = engineServices,
-                    .services = services.get(),
-                    .gameWorld = gameWorld.get(),
-                    .camera = camera,
-                    .ecsWorld = &ecsWorld,
-                    .roundPhaseEntity = roundPhaseEntity,
-                    .log = &log,
-                    .backendInventoryPanel = &backendInventoryPanel,
-                    .refreshBackendInventoryFromWorld =
-                        [&]() {
-                            game::runtime::session_backend_inventory_ui::refreshPanel(
-                                backendInventoryPanel,
-                                kBackendInventoryVisibleCount,
-                                backendInventoryUiDependencies());
-                        },
-                    .config = &config,
-                    .dataDb = &dataDb,
-                    .backendTextureByPath = &backendTextureByPath,
-                    .routes = routes,
-                    .showPerfOverlay = showPerfOverlay,
-                    .renderWorld = renderWorld,
-                    .enableBackdropTiles =
-                        engineServices ? engineServices->sessionBackdropTilesEnabled : true,
-                    .allowBackendMenuBackdrop = allowBackendMenuBackdrop,
-                    .drawableW = drawableW,
-                    .drawableH = drawableH,
-                    .simNowSec = timeSource.nowSeconds(),
-                    .stateScriptPath = currentStateScriptPath(),
-                    .ensureBackendMeshLoaded =
-                        [&](const std::string& modelPath) {
-                            return ensureBackendMeshLoaded(modelPath);
-                        },
-                    .ensureBackendTextureLoaded =
-                        [&](const std::string& texturePath, bool flipVertical) {
-                            return ensureBackendTextureLoaded(texturePath, flipVertical);
-                        },
-                });
-        }
-    }
-
-    std::size_t prewarmWorldIndexedLayer(int drawableW, int drawableH, bool renderWorld) {
-        const runtime::render::RenderRoutes routes = activeRenderRoutes();
-        if (!routes.usesBackendRenderPath()) return 0u;
-        return game::runtime::session_world_render_runtime::render(
-            {
-                .renderer = renderer,
-                .engineServices = engineServices,
-                .services = services.get(),
-                .gameWorld = gameWorld.get(),
-                .camera = camera,
-                .ecsWorld = &ecsWorld,
-                .roundPhaseEntity = roundPhaseEntity,
-                .log = &log,
-                .backendInventoryPanel = &backendInventoryPanel,
-                .refreshBackendInventoryFromWorld =
-                    [&]() {
-                        game::runtime::session_backend_inventory_ui::refreshPanel(
-                            backendInventoryPanel,
-                            kBackendInventoryVisibleCount,
-                            backendInventoryUiDependencies());
-                    },
-                .config = &config,
-                .dataDb = &dataDb,
-                .backendTextureByPath = &backendTextureByPath,
-                .routes = routes,
-                .showPerfOverlay = showPerfOverlay,
-                .renderWorld = renderWorld,
-                .enableBackdropTiles =
-                    engineServices ? engineServices->sessionBackdropTilesEnabled : true,
-                .allowBackendMenuBackdrop = allowBackendMenuBackdrop,
-                .prewarmWorldIndexedOnly = true,
-                .drawableW = drawableW,
-                .drawableH = drawableH,
-                .simNowSec = timeSource.nowSeconds(),
-                .stateScriptPath = currentStateScriptPath(),
-                .ensureBackendMeshLoaded =
-                    [&](const std::string& modelPath) {
-                        return ensureBackendMeshLoaded(modelPath);
-                    },
-                .ensureBackendTextureLoaded =
-                    [&](const std::string& texturePath, bool flipVertical) {
-                        return ensureBackendTextureLoaded(texturePath, flipVertical);
-                    },
-            });
-    }
-
-    std::string currentStateScriptPath() const {
-        if (!stateManager) return {};
-        GameState* current = stateManager->getCurrentState();
-        if (!current) return {};
-        if (const auto* combat = dynamic_cast<const CombatState*>(current)) {
-            return combat->debugScriptPath();
-        }
-        if (dynamic_cast<const PlacementState*>(current) != nullptr) {
-            // Placement is the first visible planning state and currently
-            // always previews Route 1 before the player enters combat.
-            return "scripts/states/route1.lua";
-        }
-        if (const auto* scripted = dynamic_cast<const ScriptedState*>(current)) {
-            return scripted->debugScriptPath();
-        }
-        return {};
-    }
-
-    void renderStateLayer() {
-        if (stateManager) {
-            stateManager->render();
-        }
-    }
-
-    void renderFrameFromFlow(const runtime::render::FrameRenderFlow& flow,
-                             int drawableW,
-                             int drawableH,
-                             bool renderWorld) {
-        if (flow.renderWorldLayer) {
-            renderWorldLayer(drawableW, drawableH, renderWorld);
-        }
-        if (flow.renderStateLayer) {
-            renderStateLayer();
-        }
+        game::runtime::session_coordinator_bridge::fixedUpdate(dt, coordinatorContext());
     }
 
     void render(int drawableW, int drawableH) {
-        viewport.set(drawableW, drawableH);
-        if (unitSystem) {
-            unitSystem->setScreenSize(
-                static_cast<unsigned int>(std::max(1, drawableW)),
-                static_cast<unsigned int>(std::max(1, drawableH)));
-        }
-
-        bool renderWorld = true;
-        if (stateManager) {
-            if (auto* state = stateManager->getCurrentState()) {
-                renderWorld = state->shouldRenderWorld();
-            }
-        }
-
-        const auto flow = currentFrameFlow(renderWorld);
-        game::runtime::world_layer_prewarm::maybeRunDeferredFrame(
-            worldLayerPrewarmFramesRemaining,
-            kWorldLayerPrewarmFrames,
-            flow.renderWorldLayer,
+        game::runtime::session_coordinator_bridge::render(
             drawableW,
             drawableH,
-            game::runtime::world_layer_prewarm::Callbacks{
-                .setTitle = setTitleCallback,
-                .renderWorldLayer =
-                    [&](int prewarmW, int prewarmH) {
-                        renderWorldLayer(prewarmW, prewarmH, /*renderWorld=*/true);
-                    },
-            },
-            consoleLog);
-        renderFrameFromFlow(flow, drawableW, drawableH, renderWorld);
+            coordinatorContext());
     }
 
     void shutdown() {
-        consoleLog.info("[Shutdown] Game.");
-
-        log.attach(nullptr);
-        log.attachCatchFeed(nullptr);
-        log.attachEconomyFeed(nullptr);
-        shopSystem = nullptr;
-        roundSystem = nullptr;
-        unitSystem.reset();
-        cameraSystem.reset();
-
-        stateManager.reset();
-        gameWorld.reset();
-
-        scheduler.clear();
-
-        consoleLog.info("[Shutdown] Game done.");
+        game::runtime::session_coordinator_bridge::shutdown(coordinatorContext());
     }
 };
 
