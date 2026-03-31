@@ -13,9 +13,9 @@ bool expect(bool condition, const std::string& message, std::string& outFail) {
     return false;
 }
 
-game::runtime::render_model::MeshData makeTinyMesh() {
-    game::runtime::render_model::MeshData mesh;
-    game::runtime::render_model::MeshVertex a, b, c;
+vfx::runtime::growl_batches::MeshData makeTinyMesh() {
+    vfx::runtime::growl_batches::MeshData mesh;
+    vfx::runtime::growl_batches::MeshVertex a, b, c;
     a.position = glm::vec3(0.0f, 0.0f, 0.0f);
     b.position = glm::vec3(1.0f, 0.0f, 0.0f);
     c.position = glm::vec3(0.0f, 0.0f, 1.0f);
@@ -67,17 +67,17 @@ bool test_shared_growl_wave_bridge_contract(std::string& outFail) {
     meshPass.scaleMul = 1.0f;
     snapshot.drawPasses.push_back(meshPass);
 
-    game::runtime::render_model::MeshData tinyMesh = makeTinyMesh();
+    vfx::runtime::growl_batches::MeshData tinyMesh = makeTinyMesh();
     static const unsigned char kWhite[4] = {255u, 255u, 255u, 255u};
     int meshResolveCalls = 0;
     int textureResolveCalls = 0;
 
-    std::vector<game::runtime::shared_world_batches::WorldIndexedBatch> outBatches;
+    std::vector<vfx::runtime::growl_batches::WorldIndexedBatch> outBatches;
     const bool appended = appendBatches(
         snapshot,
         outBatches,
         glm::vec3(0.0f, 1.0f, 3.0f),
-        [&](const std::string& meshPath) -> game::runtime::render_model::MeshData* {
+        [&](const std::string& meshPath) -> vfx::runtime::growl_batches::MeshData* {
             ++meshResolveCalls;
             if (meshPath == "mesh.glb") return &tinyMesh;
             return nullptr;

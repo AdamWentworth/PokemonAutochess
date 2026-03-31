@@ -15,8 +15,8 @@
 
 namespace vfx::runtime::growl_batches {
 
-namespace render_model = game::runtime::render_model;
-namespace shared_world_batches = game::runtime::shared_world_batches;
+namespace render_model = vfx::runtime::growl_batches;
+namespace shared_world_batches = vfx::runtime::growl_batches;
 
 namespace {
 

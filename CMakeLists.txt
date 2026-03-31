@@ -303,10 +303,12 @@ pac_apply_common_target_settings(PAC_VfxCore)
 
 # ---------------- PAC_GameVfxInterop (game-specific backend bridge) ----------------
 add_library(PAC_GameVfxInterop STATIC
+    src/vfx/runtime/growl/SharedGrowlBatchSubmission.cpp
     src/vfx/runtime/growl/SharedGrowlWaveBridge.cpp
     src/vfx/runtime/growl/SharedGrowlWaveBatches.cpp
 )
 target_sources(PAC_GameVfxInterop PRIVATE
+    src/vfx/runtime/growl/SharedGrowlBatchSubmission.h
     src/vfx/runtime/growl/SharedGrowlWaveBridge.h
     src/vfx/runtime/growl/SharedGrowlWaveBatches.h
 )
@@ -420,6 +422,7 @@ add_library(PAC_GameObjects STATIC
     src/game/runtime/shared/vfx/particles/SharedParticleSnapshotBillboards.cpp
     src/game/runtime/shared/vfx/particles/SharedParticleVfxBridgeDispatch.cpp
     src/game/runtime/shared/vfx/particles/SharedParticleVfxStyles.cpp
+    src/game/runtime/shared/vfx/growl/SharedGrowlInterop.cpp
     src/game/runtime/shared/vfx/tail_fire/SharedTailFireAnchorMath.cpp
     src/game/runtime/shared/vfx/tail_fire/SharedTailFireCoordinator.cpp
     src/game/runtime/shared/vfx/tail_fire/SharedTailFireSnapshotBillboards.cpp
@@ -576,7 +579,7 @@ target_sources(PAC_VfxLabSupport PRIVATE
 )
 target_link_libraries(PAC_VfxLabSupport
     PUBLIC
-        PAC_GameObjects
+        PAC_GameVfxInterop
         engine_tools_vfx_preview
 )
 pac_apply_common_target_settings(PAC_VfxLabSupport)
@@ -721,6 +724,7 @@ if (BUILD_TESTING)
         tests/TestSessionBackendUnitHydration.cpp
         tests/TestSessionDebugSnapshot.cpp
         tests/TestRuntimeGrowlVfxPrewarm.cpp
+        tests/TestSharedGrowlPreviewMeshLoader.cpp
         tests/TestSessionLegacyWorldView.cpp
         tests/TestSessionFrameMetrics.cpp
         tests/TestSessionLoopRuntime.cpp
@@ -790,6 +794,7 @@ if (BUILD_TESTING)
     target_link_libraries(PAC_Tests
         PRIVATE
             PAC_GameObjects
+            PAC_VfxLabSupport
             engine_core
             glad::glad
             OpenGL::GL

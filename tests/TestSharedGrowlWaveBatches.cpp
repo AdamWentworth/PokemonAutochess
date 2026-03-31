@@ -19,6 +19,8 @@ bool expect(bool condition, const std::string& message, std::string& outFail) {
 
 bool test_shared_growl_wave_batches_contract(std::string& outFail) {
     using namespace vfx::runtime::growl_batches;
+    using Batch = WorldIndexedBatch;
+    using MeshData = vfx::runtime::growl_batches::MeshData;
 
     GrowlWaveVFX::RenderSnapshot snapshot;
     snapshot.config.fadeStart = 0.65f;
@@ -53,7 +55,7 @@ bool test_shared_growl_wave_batches_contract(std::string& outFail) {
     tex.width = 1;
     tex.height = 1;
 
-    std::vector<game::runtime::shared_world_batches::WorldIndexedBatch> batches;
+    std::vector<Batch> batches;
     const bool appended =
         appendPassBatch(batches, snapshot, pass, tev, nullptr, tex, glm::vec3(0.0f, 1.0f, 4.0f));
 
@@ -123,7 +125,7 @@ bool test_shared_growl_wave_batches_contract(std::string& outFail) {
     sequenceSnapshot.rings.front().ageSec = 0.50f;
     const auto sequenceTev =
         vfx::runtime::growl::resolveTevState(sequenceSnapshot.config, quarterSequencePass);
-    std::vector<game::runtime::shared_world_batches::WorldIndexedBatch> sequenceBatches;
+    std::vector<Batch> sequenceBatches;
     const bool sequenceAppended =
         appendPassBatch(sequenceBatches,
                         sequenceSnapshot,
@@ -171,7 +173,7 @@ bool test_shared_growl_wave_batches_contract(std::string& outFail) {
     meshPass.radiusMul = 0.6f;
     meshPass.thicknessMul = 0.3f;
 
-    game::runtime::render_model::MeshData mesh;
+    MeshData mesh;
     mesh.vertices.resize(3u);
     mesh.vertices[0].position = glm::vec3(0.0f, 0.0f, 0.0f);
     mesh.vertices[0].uv = glm::vec2(0.0f, 0.0f);
@@ -185,7 +187,7 @@ bool test_shared_growl_wave_batches_contract(std::string& outFail) {
     mesh.indices = {0u, 1u, 2u};
 
     const auto meshTev = vfx::runtime::growl::resolveTevState(snapshot.config, meshPass);
-    std::vector<game::runtime::shared_world_batches::WorldIndexedBatch> meshBatches;
+    std::vector<Batch> meshBatches;
     const bool meshAppended =
         appendPassBatch(meshBatches,
                         snapshot,
@@ -232,7 +234,7 @@ bool test_shared_growl_wave_batches_contract(std::string& outFail) {
 
     GrowlWaveVFX::RenderSnapshot delayedMeshEarlySnapshot = snapshot;
     delayedMeshEarlySnapshot.rings.front().ageSec = 0.20f;
-    std::vector<game::runtime::shared_world_batches::WorldIndexedBatch> delayedMeshEarlyBatches;
+    std::vector<Batch> delayedMeshEarlyBatches;
     const bool delayedMeshEarlyAppended =
         appendPassBatch(delayedMeshEarlyBatches,
                         delayedMeshEarlySnapshot,
@@ -250,7 +252,7 @@ bool test_shared_growl_wave_batches_contract(std::string& outFail) {
 
     GrowlWaveVFX::RenderSnapshot delayedMeshLiveSnapshot = snapshot;
     delayedMeshLiveSnapshot.rings.front().ageSec = 0.40f;
-    std::vector<game::runtime::shared_world_batches::WorldIndexedBatch> delayedMeshLiveBatches;
+    std::vector<Batch> delayedMeshLiveBatches;
     const bool delayedMeshLiveAppended =
         appendPassBatch(delayedMeshLiveBatches,
                         delayedMeshLiveSnapshot,
@@ -277,7 +279,7 @@ bool test_shared_growl_wave_batches_contract(std::string& outFail) {
 
     GrowlWaveVFX::RenderSnapshot delayedMeshLateSnapshot = snapshot;
     delayedMeshLateSnapshot.rings.front().ageSec = 0.65f;
-    std::vector<game::runtime::shared_world_batches::WorldIndexedBatch> delayedMeshLateBatches;
+    std::vector<Batch> delayedMeshLateBatches;
     const bool delayedMeshLateAppended =
         appendPassBatch(delayedMeshLateBatches,
                         delayedMeshLateSnapshot,
@@ -301,7 +303,7 @@ bool test_shared_growl_wave_batches_contract(std::string& outFail) {
 
     GrowlWaveVFX::RenderSnapshot delayedMeshSharedFadeSnapshot = snapshot;
     delayedMeshSharedFadeSnapshot.rings.front().ageSec = 0.90f;
-    std::vector<game::runtime::shared_world_batches::WorldIndexedBatch> delayedMeshSharedFadeBatches;
+    std::vector<Batch> delayedMeshSharedFadeBatches;
     const bool delayedMeshSharedFadeAppended =
         appendPassBatch(delayedMeshSharedFadeBatches,
                         delayedMeshSharedFadeSnapshot,
@@ -328,7 +330,7 @@ bool test_shared_growl_wave_batches_contract(std::string& outFail) {
     meshQuarterTexturePass.fragShaderPath =
         "assets/shaders/vfx/moves/growl/growl_quarter_ring_shared.frag";
 
-    std::vector<game::runtime::shared_world_batches::WorldIndexedBatch> meshQuarterBatches;
+    std::vector<Batch> meshQuarterBatches;
     const bool meshQuarterAppended =
         appendPassBatch(meshQuarterBatches,
                         snapshot,
@@ -370,7 +372,7 @@ bool test_shared_growl_wave_batches_contract(std::string& outFail) {
     sparklePass.thicknessMul = 1.0f;
     sparklePass.startRadiusMul = 0.5f;
 
-    game::runtime::render_model::MeshData sparkleMesh;
+    MeshData sparkleMesh;
     sparkleMesh.vertices.resize(4u);
     sparkleMesh.vertices[0].position = glm::vec3(-1.0f, 0.0f, -1.0f);
     sparkleMesh.vertices[0].uv = glm::vec2(0.0f, 0.0f);
@@ -386,7 +388,7 @@ bool test_shared_growl_wave_batches_contract(std::string& outFail) {
     sparkleMesh.vertices[3].color = glm::vec4(1.0f);
     sparkleMesh.indices = {0u, 1u, 2u, 2u, 1u, 3u};
 
-    std::vector<game::runtime::shared_world_batches::WorldIndexedBatch> sparkleBatches;
+    std::vector<Batch> sparkleBatches;
     const bool sparkleAppended =
         appendPassBatch(sparkleBatches,
                         snapshot,
@@ -441,7 +443,7 @@ bool test_shared_growl_wave_batches_contract(std::string& outFail) {
     glowPass.radiusMul = 1.0f;
     glowPass.thicknessMul = 1.0f;
 
-    std::vector<game::runtime::shared_world_batches::WorldIndexedBatch> glowBatches;
+    std::vector<Batch> glowBatches;
     const bool glowAppended =
         appendPassBatch(glowBatches,
                         snapshot,
@@ -505,7 +507,7 @@ bool test_shared_growl_wave_batches_contract(std::string& outFail) {
     };
 
     const auto lineTev = vfx::runtime::growl::resolveTevState(snapshot.config, linePass);
-    std::vector<game::runtime::shared_world_batches::WorldIndexedBatch> lineBatches;
+    std::vector<Batch> lineBatches;
     const bool lineAppended =
         appendPassBatch(lineBatches,
                         snapshot,
@@ -571,7 +573,7 @@ bool test_shared_growl_wave_batches_contract(std::string& outFail) {
 
     GrowlWaveVFX::RenderSnapshot lineSequenceSnapshot = snapshot;
     lineSequenceSnapshot.rings.front().ageSec = 0.50f;
-    std::vector<game::runtime::shared_world_batches::WorldIndexedBatch> sequencedLineBatches;
+    std::vector<Batch> sequencedLineBatches;
     const bool sequencedLineAppended =
         appendPassBatch(sequencedLineBatches,
                         lineSequenceSnapshot,

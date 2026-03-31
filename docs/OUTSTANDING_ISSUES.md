@@ -2,7 +2,7 @@
 
 Status: Active
 Type: Tracker
-Last updated: 2026-03-31
+Last updated: 2026-03-30
 
 This file tracks concrete maintainability and organization issues that still
 need follow-through. Strategic priority lives in `TECH_DEBT.md`.
@@ -13,7 +13,6 @@ most urgent repo-level issues first.
 
 | Issue | Category | Impact | Current behavior | Recommended owner |
 | --- | --- | --- | --- | --- |
-| `render_model_cache_contract` is currently failing on Growl sparkle UV preservation | Asset/cache validation | High | `tools/full_check.ps1` is red because `PAC_Tests.render_model_cache_contract` reports `assets/meshes/growl_1275_mesh.glb` falling back to generated planar UVs instead of preserving the expected raw texture coordinates. | Render-model-cache / content pipeline owner |
 | `src/game/runtime/session/GameSession.cpp` is still oversized | Runtime architecture | High | Session bootstrap, routing, debug snapshot, render wiring, and lifecycle concerns still meet in one file. | Runtime/session owner |
 | `src/game/runtime/GameRunner.cpp` is still oversized | Runtime architecture | High | Window policy, backend selection, loop orchestration, perf logging, and restart flow remain centralized. | Runtime/platform owner |
 | Backend mega-files remain high-churn risk | Renderer architecture | High | D3D12/OpenGL renderer families and shared projected runtime modules still absorb many unrelated edits. | Renderer owner |
@@ -28,5 +27,7 @@ most urgent repo-level issues first.
 ## Recently Retired In This Pass
 | Issue | Outcome |
 | --- | --- |
+| `render_model_cache_contract` failing on Growl sparkle UV preservation | The contract now compares cached UVs against the authored source GLB `TEXCOORD_0` data instead of assuming one hardcoded corner orientation, and `tools/full_check.ps1` is green again. |
+| Reusable Growl VFX code depended directly on `game::runtime` mesh/cache/world-batch types | Growl runtime batching/submission is now neutral inside `src/vfx/`, game translation moved to `src/game/runtime/shared/vfx/growl/SharedGrowlInterop.*`, and `VfxLab` now loads/submits Growl assets without `game/runtime/*` headers. |
 | Growl preview loop duplication between `PAC_VfxPreviewer` and `VfxLab` | Collapsed behind `src/vfx/preview/growl/GrowlPreviewController.*`. |
 | Charmander Tail Fire preview fallback mismatch | Preview and runtime now share authored-vs-fallback policy via `SharedTailFirePlaybackPolicy.*`, and the preview bridge no longer suppresses fallback just because the species is Charmander. |

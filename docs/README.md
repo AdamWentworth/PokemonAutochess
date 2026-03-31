@@ -2,7 +2,7 @@
 
 Status: Active
 Type: Index
-Last updated: 2026-03-31
+Last updated: 2026-03-30
 
 This folder holds the live engineering docs for the repo. Historical or
 superseded plans belong in `docs/archive/`. Live docs stay in `docs/`; their
@@ -13,6 +13,7 @@ role is expressed through metadata rather than deep folder nesting.
 | --- | --- | --- |
 | `GOALS.md` | `Goal` | Stable project goals and success criteria. |
 | `REPO_ASSESSMENT.md` | `Assessment` | Living high-level maintainability and repo-health read. |
+| `REPO_CLEANUP_ROADMAP.md` | `Roadmap` | Ranked cleanup plan based on current repo-health findings. |
 | `ENGINE_RULES.md` | `Rule` | Non-negotiable architecture guardrails. |
 | `ARENA_BACKDROP_PLAN.md` | `Roadmap` | Active route-shell backdrop direction and follow-on work. |
 | `CPU_GPU_WORK_SPLIT.md` | `Architecture` | Current CPU/GPU ownership and projected-path decision guide. |

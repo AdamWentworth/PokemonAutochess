@@ -22,12 +22,27 @@ preview code, game-specific preview adapters, and asset placement.
 This split is intentional. `src/vfx/` is the reusable top-level VFX surface and
 should stay isolated from game-only concerns.
 
+## Current Portability State
+- The ownership direction is now materially real for Growl.
+- Growl's reusable runtime and preview helpers no longer include
+  `game/runtime/*` headers directly.
+- Neutral Growl mesh/batch types and the reusable indexed submit/prewarm helper
+  now live in `src/vfx/runtime/growl/`.
+- Game-specific translation now lives at the edge in
+  `src/game/runtime/shared/vfx/growl/SharedGrowlInterop.*`.
+- `VfxLab` now loads Growl meshes/textures through its own reusable preview
+  path instead of relying on game runtime cache/world-batch types.
+- Long-term success still means extending this pattern beyond Growl so the
+  reusable `src/vfx/` layer can survive deleting or replacing `src/game/` with
+  only thin adapter changes at the edge.
+
 ## Current Runtime Examples
 
 ### Growl
 - Reusable effect:
   - `src/vfx/effects/growl/GrowlWaveVFX.*`
 - Reusable runtime bridge:
+  - `src/vfx/runtime/growl/SharedGrowlBatchSubmission.*`
   - `src/vfx/runtime/growl/SharedGrowlWaveBridge.*`
   - `src/vfx/runtime/growl/SharedGrowlWaveBatches.*`
   - `src/vfx/runtime/growl/SharedGrowlVfxHelpers.*`
@@ -36,6 +51,8 @@ should stay isolated from game-only concerns.
   - `src/vfx/preview/growl/GrowlSharedRenderer.*`
 - Game-facing preview adapter:
   - `src/game/preview/effects/GrowlPreviewEffect.*`
+- Game-specific runtime adapter seam:
+  - `src/game/runtime/shared/vfx/growl/SharedGrowlInterop.*`
 - Reusable lab adapter:
   - `src/vfx/preview/effects/GrowlLabPreviewEffect.*`
 - Manifest:

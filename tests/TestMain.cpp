@@ -181,6 +181,7 @@ bool test_gameworld_capture_render_snapshot_timing_contract(std::string& outFail
 bool test_shared_growl_vfx_helpers_contract(std::string& outFail);
 bool test_shared_growl_wave_bridge_contract(std::string& outFail);
 bool test_shared_growl_wave_batches_contract(std::string& outFail);
+bool test_shared_growl_preview_mesh_loader_contract(std::string& outFail);
 bool test_shared_world_scene_contract(std::string& outFail);
 bool test_shared_world_indexed_batches_contract(std::string& outFail);
 bool test_projected_triangle_submit_clears_geometry_cache_key(std::string& outFail);
@@ -410,6 +411,7 @@ int main(int argc, char** argv) {
         {"shared_growl_vfx_helpers_contract", &test_shared_growl_vfx_helpers_contract},
         {"shared_growl_wave_bridge_contract", &test_shared_growl_wave_bridge_contract},
         {"shared_growl_wave_batches_contract", &test_shared_growl_wave_batches_contract},
+        {"shared_growl_preview_mesh_loader_contract", &test_shared_growl_preview_mesh_loader_contract},
         {"shared_world_scene_contract", &test_shared_world_scene_contract},
         {"shared_world_indexed_batches_contract", &test_shared_world_indexed_batches_contract},
         {"projected_triangle_submit_clears_geometry_cache_key", &test_projected_triangle_submit_clears_geometry_cache_key},

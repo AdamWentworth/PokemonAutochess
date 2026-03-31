@@ -1,13 +1,15 @@
 #include "game/runtime/startup/RuntimeGrowlVfxPrewarm.h"
 
 #include "engine/render/Model.h"
+#include "game/runtime/shared/vfx/growl/SharedGrowlInterop.h"
 #include "vfx/runtime/growl/SharedGrowlVfxHelpers.h"
+#include "vfx/runtime/growl/SharedGrowlBatchSubmission.h"
 #include "vfx/runtime/growl/SharedGrowlWaveBridge.h"
 #include "vfx/runtime/growl/SharedGrowlWaveBatches.h"
-#include "game/runtime/shared/world/SharedWorldIndexedBatches.h"
 #include "vfx/effects/growl/GrowlWaveVFX.h"
 
 #include <vector>
+#include <unordered_map>
 
 #include <glm/glm.hpp>
 
@@ -66,12 +68,27 @@ startup_asset_prewarm::GrowlStats prewarm(const Args& args) {
     ring.randomSeed = 0x47A11u;
     snapshot.rings.push_back(ring);
 
-    std::vector<shared_world_batches::WorldIndexedBatch> batches;
+    std::vector<vfx::runtime::growl_batches::WorldIndexedBatch> batches;
     batches.reserve(snapshot.drawPasses.size());
+    std::unordered_map<std::string, vfx::runtime::growl_batches::MeshData> growlMeshesByPath;
+    growlMeshesByPath.reserve(snapshot.drawPasses.size());
 
     const auto resolveMesh =
-        [&](const std::string& modelPath) -> render_model::MeshData* {
-            return args.ensureBackendMeshLoaded(modelPath);
+        [&](const std::string& modelPath) -> vfx::runtime::growl_batches::MeshData* {
+            auto found = growlMeshesByPath.find(modelPath);
+            if (found != growlMeshesByPath.end()) {
+                return &found->second;
+            }
+
+            render_model::MeshData* mesh = args.ensureBackendMeshLoaded(modelPath);
+            if (!mesh || mesh->vertices.empty() || mesh->indices.empty()) {
+                return nullptr;
+            }
+
+            auto inserted = growlMeshesByPath.emplace(
+                modelPath,
+                game::runtime::shared_growl_interop::toReusableMeshData(*mesh));
+            return &inserted.first->second;
         };
 
     const auto resolveTexture =
@@ -131,7 +148,7 @@ startup_asset_prewarm::GrowlStats prewarm(const Args& args) {
 
     stats.drawPasses = batches.size();
     stats.warmedBatches =
-        shared_world_batches::prewarmWorldIndexedBatches(*args.renderer, batches);
+        vfx::runtime::growl_submit::prewarmBatches(*args.renderer, batches);
     return stats;
 }
 

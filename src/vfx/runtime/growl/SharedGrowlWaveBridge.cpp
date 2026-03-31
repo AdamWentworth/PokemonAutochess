@@ -2,11 +2,8 @@
 
 namespace vfx::runtime::growl_bridge {
 
-namespace render_model = game::runtime::render_model;
-namespace shared_world_batches = game::runtime::shared_world_batches;
-
 bool appendBatches(const GrowlWaveVFX::RenderSnapshot& snapshot,
-                   std::vector<shared_world_batches::WorldIndexedBatch>& outBatches,
+                   std::vector<growl_batches::WorldIndexedBatch>& outBatches,
                    const glm::vec3& cameraWorldPos,
                    const MeshResolver& resolveMesh,
                    const TextureResolver& resolveTexture) {
@@ -20,7 +17,7 @@ bool appendBatches(const GrowlWaveVFX::RenderSnapshot& snapshot,
 
         const bool drawQuarterRing = pass.textureQuarterRing;
         const bool glowBillboardPass = growl::isGlowBillboardPass(pass);
-        render_model::MeshData* passMesh = nullptr;
+        growl_batches::MeshData* passMesh = nullptr;
         if (!drawQuarterRing && !glowBillboardPass) {
             if (pass.meshPath.empty()) continue;
             if (!resolveMesh) continue;

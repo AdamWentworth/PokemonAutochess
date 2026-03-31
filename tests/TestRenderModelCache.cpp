@@ -5,7 +5,13 @@
 #include <array>
 #include <cctype>
 #include <cmath>
+#include <cstdint>
+#include <cstring>
 #include <string>
+#include <vector>
+
+#include <glm/glm.hpp>
+#include <nlohmann/json.hpp>
 
 namespace {
 
@@ -31,6 +37,136 @@ bool hasGrowlAnchorCandidate(const game::runtime::render_model::MeshData& mesh) 
         }
     }
     return false;
+}
+
+bool readSourceTexcoord0Uvs(const std::string& glbPath,
+                            std::vector<glm::vec2>& outUvs,
+                            std::string& outError) {
+    outUvs.clear();
+
+    std::ifstream in(glbPath, std::ios::binary);
+    if (!in.is_open()) {
+        outError = "failed to open source GLB";
+        return false;
+    }
+
+    std::vector<std::uint8_t> bytes((std::istreambuf_iterator<char>(in)),
+                                    std::istreambuf_iterator<char>());
+    if (bytes.size() < 12u) {
+        outError = "GLB too small";
+        return false;
+    }
+
+    auto readU32 = [&](std::size_t offset) -> std::uint32_t {
+        std::uint32_t value = 0u;
+        std::memcpy(&value, bytes.data() + offset, sizeof(value));
+        return value;
+    };
+
+    constexpr std::uint32_t kGlbMagic = 0x46546C67u;
+    constexpr std::uint32_t kJsonChunkType = 0x4E4F534Au;
+    constexpr std::uint32_t kBinChunkType = 0x004E4942u;
+
+    const std::uint32_t magic = readU32(0u);
+    if (magic != kGlbMagic) {
+        outError = "invalid GLB magic";
+        return false;
+    }
+
+    std::vector<std::uint8_t> jsonChunk;
+    std::vector<std::uint8_t> binChunk;
+    std::size_t offset = 12u;
+    while (offset + 8u <= bytes.size()) {
+        const std::uint32_t chunkLength = readU32(offset + 0u);
+        const std::uint32_t chunkType = readU32(offset + 4u);
+        offset += 8u;
+        if (offset + static_cast<std::size_t>(chunkLength) > bytes.size()) {
+            outError = "GLB chunk exceeds file length";
+            return false;
+        }
+        const auto begin = bytes.begin() + static_cast<std::ptrdiff_t>(offset);
+        const auto end = begin + static_cast<std::ptrdiff_t>(chunkLength);
+        if (chunkType == kJsonChunkType) {
+            jsonChunk.assign(begin, end);
+        } else if (chunkType == kBinChunkType) {
+            binChunk.assign(begin, end);
+        }
+        offset += static_cast<std::size_t>(chunkLength);
+    }
+
+    if (jsonChunk.empty() || binChunk.empty()) {
+        outError = "GLB missing JSON or BIN chunk";
+        return false;
+    }
+
+    nlohmann::json asset;
+    try {
+        asset = nlohmann::json::parse(jsonChunk.begin(), jsonChunk.end());
+    } catch (const std::exception& ex) {
+        outError = std::string("failed to parse GLB JSON: ") + ex.what();
+        return false;
+    }
+
+    if (!asset.contains("meshes") || !asset["meshes"].is_array() || asset["meshes"].empty()) {
+        outError = "GLB missing mesh array";
+        return false;
+    }
+    const auto& mesh = asset["meshes"][0];
+    if (!mesh.contains("primitives") || !mesh["primitives"].is_array() || mesh["primitives"].empty()) {
+        outError = "GLB missing primitive array";
+        return false;
+    }
+    const auto& primitive = mesh["primitives"][0];
+    if (!primitive.contains("attributes") ||
+        !primitive["attributes"].contains("TEXCOORD_0")) {
+        outError = "GLB primitive missing TEXCOORD_0";
+        return false;
+    }
+
+    const std::size_t accessorIndex = primitive["attributes"]["TEXCOORD_0"].get<std::size_t>();
+    if (!asset.contains("accessors") || accessorIndex >= asset["accessors"].size()) {
+        outError = "UV accessor missing";
+        return false;
+    }
+    const auto& accessor = asset["accessors"][accessorIndex];
+    if (!accessor.contains("bufferView")) {
+        outError = "UV accessor missing bufferView";
+        return false;
+    }
+    if (accessor.value("componentType", 0) != 5126 ||
+        accessor.value("type", std::string{}) != "VEC2") {
+        outError = "UV accessor is not FLOAT VEC2";
+        return false;
+    }
+
+    const std::size_t bufferViewIndex = accessor["bufferView"].get<std::size_t>();
+    if (!asset.contains("bufferViews") || bufferViewIndex >= asset["bufferViews"].size()) {
+        outError = "UV bufferView missing";
+        return false;
+    }
+    const auto& bufferView = asset["bufferViews"][bufferViewIndex];
+
+    const std::size_t count = accessor.value("count", 0u);
+    const std::size_t accessorByteOffset = accessor.value("byteOffset", 0u);
+    const std::size_t bufferViewByteOffset = bufferView.value("byteOffset", 0u);
+    const std::size_t stride = bufferView.value("byteStride", static_cast<std::size_t>(sizeof(float) * 2u));
+    const std::size_t start = bufferViewByteOffset + accessorByteOffset;
+    const std::size_t requiredBytes = start + stride * count;
+    if (requiredBytes > binChunk.size()) {
+        outError = "UV accessor exceeds BIN chunk";
+        return false;
+    }
+
+    outUvs.reserve(count);
+    for (std::size_t i = 0; i < count; ++i) {
+        const std::size_t base = start + stride * i;
+        float u = 0.0f;
+        float v = 0.0f;
+        std::memcpy(&u, binChunk.data() + base + 0u, sizeof(float));
+        std::memcpy(&v, binChunk.data() + base + sizeof(float), sizeof(float));
+        outUvs.emplace_back(u, v);
+    }
+    return true;
 }
 
 } // namespace
@@ -196,21 +332,29 @@ bool test_render_model_cache_contract(std::string& outFail) {
             outFail = "Growl sparkle mesh should decode at least one textured quad: " + growlMeshPath;
             return false;
         }
-        auto approx = [](float a, float b) { return std::fabs(a - b) <= 0.001f; };
-        const auto& v0 = mesh.vertices[0].uv;
-        const auto& v1 = mesh.vertices[1].uv;
-        const auto& v2 = mesh.vertices[2].uv;
-        const auto& v3 = mesh.vertices[3].uv;
-        const bool hasExpectedQuadUvs =
-            approx(v0.x, 0.0f) && approx(v0.y, 0.0f) &&
-            approx(v1.x, 1.0f) && approx(v1.y, 0.0f) &&
-            approx(v2.x, 0.0f) && approx(v2.y, 1.0f) &&
-            approx(v3.x, 1.0f) && approx(v3.y, 1.0f);
-        if (!hasExpectedQuadUvs) {
+        std::vector<glm::vec2> sourceUvs;
+        if (!readSourceTexcoord0Uvs(growlMeshPath, sourceUvs, err)) {
             outFail =
-                "Growl sparkle mesh should preserve RenderDoc rawtex0 UVs instead of falling back to generated planar UVs: " +
+                "render_model_cache_contract failed to read source TEXCOORD_0 UVs for '" +
+                growlMeshPath + "': " + err;
+            return false;
+        }
+        if (sourceUvs.size() != mesh.vertices.size()) {
+            outFail =
+                "Growl sparkle mesh cached vertex count should match source TEXCOORD_0 count: " +
                 growlMeshPath;
             return false;
+        }
+        auto approx = [](float a, float b) { return std::fabs(a - b) <= 0.001f; };
+        for (std::size_t i = 0; i < sourceUvs.size(); ++i) {
+            const glm::vec2& expected = sourceUvs[i];
+            const glm::vec2& actual = mesh.vertices[i].uv;
+            if (!approx(actual.x, expected.x) || !approx(actual.y, expected.y)) {
+                outFail =
+                    "Growl sparkle mesh should preserve authored TEXCOORD_0 UVs in cache instead of drifting to generated planar UVs: " +
+                    growlMeshPath;
+                return false;
+            }
         }
     }
 

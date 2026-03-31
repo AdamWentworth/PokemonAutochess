@@ -1,6 +1,7 @@
 #include "game/runtime/shared/projected/SharedProjectedWorldSceneHelpers.h"
 
 #include "game/runtime/shared/backend/SharedBackendPoseEval.h"
+#include "game/runtime/shared/vfx/growl/SharedGrowlInterop.h"
 #include "vfx/runtime/growl/SharedGrowlVfxHelpers.h"
 #include "vfx/runtime/growl/SharedGrowlWaveBridge.h"
 #include "game/runtime/shared/vfx/particles/SharedParticleSnapshotBillboards.h"
@@ -11,6 +12,7 @@
 #include <algorithm>
 #include <cctype>
 #include <cstring>
+#include <unordered_map>
 #include <utility>
 
 namespace game::runtime::shared_projected_scene {
@@ -475,13 +477,36 @@ void appendSharedGrowlWaveVfx(const GrowlWaveVfxArgs& args) {
             outView.height = tex->height;
             return true;
         };
+    std::unordered_map<std::string, vfx::runtime::growl_batches::MeshData> growlMeshesByPath;
+    growlMeshesByPath.reserve(growlSnapshot.drawPasses.size());
+    const auto resolveGrowlMesh =
+        [&](const std::string& modelPath) -> vfx::runtime::growl_batches::MeshData* {
+            auto found = growlMeshesByPath.find(modelPath);
+            if (found != growlMeshesByPath.end()) {
+                return &found->second;
+            }
 
+            runtime::render_model::MeshData* mesh = args.ensureBackendMeshLoaded(modelPath);
+            if (!mesh || mesh->vertices.empty() || mesh->indices.empty()) {
+                return nullptr;
+            }
+
+            auto inserted = growlMeshesByPath.emplace(
+                modelPath,
+                game::runtime::shared_growl_interop::toReusableMeshData(*mesh));
+            return &inserted.first->second;
+        };
+    std::vector<vfx::runtime::growl_batches::WorldIndexedBatch> growlBatches;
+    growlBatches.reserve(growlSnapshot.drawPasses.size() * 4u);
     vfx::runtime::growl_bridge::appendBatches(
         growlSnapshot,
-        *args.worldIndexedBatches,
+        growlBatches,
         args.cameraWorldPos,
-        args.ensureBackendMeshLoaded,
+        resolveGrowlMesh,
         resolveGrowlTextureView);
+    game::runtime::shared_growl_interop::appendWorldIndexedBatches(
+        growlBatches,
+        *args.worldIndexedBatches);
 }
 
 void appendSharedGrowlWaveVfxSession(
