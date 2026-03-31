@@ -59,9 +59,9 @@ if (PAC_OPTIMIZE_RENDER_HOTPATHS_IN_DEBUG)
         "${CMAKE_SOURCE_DIR}/src/game/runtime/session/GameSession.cpp"
         "${CMAKE_SOURCE_DIR}/src/engine/render/D3D12RenderBackend.cpp"
         "${CMAKE_SOURCE_DIR}/src/engine/render/d3d12/D3D12RenderBackendCachedWorldMeshes.cpp"
-        "${CMAKE_SOURCE_DIR}/src/engine/render/d3d12/D3D12RenderBackendPipelines.cpp"
         "${CMAKE_SOURCE_DIR}/src/engine/render/d3d12/D3D12RenderBackendTextures.cpp"
         "${CMAKE_SOURCE_DIR}/src/engine/render/d3d12/D3D12RenderBackendWorldDraw.cpp"
+        "${CMAKE_SOURCE_DIR}/src/engine/render/d3d12/D3D12RenderBackendWorldDrawEntryPoints.cpp"
         "${CMAKE_SOURCE_DIR}/src/engine/render/d3d12/D3D12RenderBackendWorldScene.cpp"
         "${CMAKE_SOURCE_DIR}/src/engine/render/d3d12/D3D12TextureUpload.cpp"
         "${CMAKE_SOURCE_DIR}/src/game/runtime/session/SessionProjectedWorldView.cpp"
@@ -188,12 +188,16 @@ pac_apply_common_target_settings(engine_platform)
 # ---------------- engine_render (OpenGL + renderer + resources) ----------------
 add_library(engine_render STATIC
     src/engine/render/D3D12RenderBackend.cpp
-    src/engine/render/d3d12/D3D12RenderBackendPipelines.cpp
+    src/engine/render/d3d12/D3D12RenderBackendPipelineCompile.cpp
+    src/engine/render/d3d12/D3D12RenderBackendDebugPipeline.cpp
+    src/engine/render/d3d12/D3D12RenderBackendSpritePipeline.cpp
+    src/engine/render/d3d12/D3D12RenderBackendWorldPipeline.cpp
     src/engine/render/d3d12/D3D12RenderBackendDebugDraw.cpp
     src/engine/render/d3d12/D3D12RenderBackendTextures.cpp
     src/engine/render/d3d12/D3D12RenderBackendCachedWorldMeshes.cpp
     src/engine/render/d3d12/D3D12RenderBackendWorldScene.cpp
     src/engine/render/d3d12/D3D12RenderBackendWorldDraw.cpp
+    src/engine/render/d3d12/D3D12RenderBackendWorldDrawEntryPoints.cpp
     src/engine/render/d3d12/D3D12RenderBackendLifecycle.cpp
     src/engine/render/d3d12/D3D12TextureUpload.cpp
     src/engine/render/OpenGLRenderBackend.cpp
@@ -203,6 +207,9 @@ add_library(engine_render STATIC
     src/engine/render/opengl/OpenGLRenderBackendTextures.cpp
     src/engine/render/opengl/OpenGLRenderBackendWorldPipeline.cpp
     src/engine/render/opengl/OpenGLRenderBackendWorldDraw.cpp
+    src/engine/render/opengl/OpenGLRenderBackendWorldBatchSubmission.cpp
+    src/engine/render/opengl/OpenGLRenderBackendWorldCachedMesh.cpp
+    src/engine/render/opengl/OpenGLRenderBackendWorldPrewarm.cpp
     src/engine/render/Renderer.cpp
     src/engine/render/Camera3D.cpp
     src/engine/render/BoardRenderer.cpp
@@ -665,6 +672,7 @@ if (BUILD_TESTING)
         tests/TestStateUiRoutePolicy.cpp
         tests/TestRenderRoutes.cpp
         tests/TestRenderPolicyApi.cpp
+        tests/TestRenderBackendInterfaceSplit.cpp
         tests/TestUiHudFormatting.cpp
         tests/TestUiDebugText.cpp
         tests/TestUiImagePath.cpp

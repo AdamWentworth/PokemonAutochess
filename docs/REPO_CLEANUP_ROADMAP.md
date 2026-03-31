@@ -203,10 +203,43 @@ importance.
 - Rank: `#6`
 - Payoff/day: `Medium`
 - Estimated effort: `1-2 weeks`
+- Current state: `Completed first pass on 2026-03-31`
 - Why this is not first:
   - It matters, but it is easier to do badly than it looks.
   - It should be informed by the current runtime and projected-render cleanup,
     not done in isolation.
+- Progress so far:
+  - Shared backend payload types now live in
+    `src/engine/render/RenderBackendTypes.h` instead of being declared inline
+    inside `IRenderBackend.h`.
+  - `IRenderBackend` now composes role-oriented seams through
+    `src/engine/render/IRenderBackendFrame.h`,
+    `src/engine/render/IRenderBackendWorld.h`, and
+    `src/engine/render/IRenderBackendDebug.h`, which makes the top-level
+    backend surface materially smaller and easier to reason about.
+  - A compile-time contract now guards that split through
+    `tests/TestRenderBackendInterfaceSplit.cpp`.
+  - D3D12 pipeline creation now lives in focused private translation units
+    `src/engine/render/d3d12/D3D12RenderBackendWorldPipeline.cpp`,
+    `src/engine/render/d3d12/D3D12RenderBackendSpritePipeline.cpp`, and
+    `src/engine/render/d3d12/D3D12RenderBackendDebugPipeline.cpp`, with shared
+    shader compile/cache logic in
+    `src/engine/render/d3d12/D3D12RenderBackendPipelineCompile.cpp`.
+  - OpenGL world cached-mesh ownership, cached draw wrappers, batch-submission
+    state restoration, and world-prewarm helpers now live in
+    `src/engine/render/opengl/OpenGLRenderBackendWorldCachedMesh.cpp`,
+    `src/engine/render/opengl/OpenGLRenderBackendWorldBatchSubmission.cpp`,
+    and `src/engine/render/opengl/OpenGLRenderBackendWorldPrewarm.cpp`,
+    bringing `OpenGLRenderBackendWorldDraw.cpp` below the four-digit line range
+    and making cache/prewarm edits less likely to collide with the core draw
+    path.
+  - D3D12 non-instanced world-draw entrypoints and the cached front door now
+    live in `src/engine/render/d3d12/D3D12RenderBackendWorldDrawEntryPoints.cpp`,
+    which separates the public world-draw surface from the heavier internal
+    cached/instanced implementation.
+  - The renderer split now lands in conventional private `*.cpp` units instead
+    of long-term `.inl` seams, which is the better steady-state shape for this
+    codebase.
 - Focus:
   - Split capability/debug/world/sprite/timing concerns into clearer role-based
     interfaces or supporting helper surfaces.
@@ -216,6 +249,8 @@ importance.
   - `src/engine/render/IRenderBackend.h` is materially smaller and clearer.
   - Common backend edits no longer require touching giant unrelated files as
     often.
+  - New backend ownership seams land as ordinary private translation units
+    unless there is a specific reason to prefer template-style include code.
 
 ### 7. Continue projected-render restructuring for CPU cost and clarity
 - Rank: `#7`

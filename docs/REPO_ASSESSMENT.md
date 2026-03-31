@@ -21,9 +21,9 @@ Execution plan: `REPO_CLEANUP_ROADMAP.md`
 | --- | --- | --- |
 | Code health | `7.8 / 10` | Most code is readable and intentional, but several renderer/runtime hotspots are still too dense. |
 | Maintainability | `7.8 / 10` | Recent cleanup helped materially; the main remaining concentration is now more in renderer surfaces and broad interfaces than in the outer runtime/session owners. |
-| Modularity and boundaries | `7.8 / 10` | Engine/game split is real, and Growl now has a true reusable VFX boundary; the remaining drag is in broader runtime/renderer seams. |
+| Modularity and boundaries | `7.9 / 10` | Engine/game split is real, Growl now has a true reusable VFX boundary, and the renderer interface now has a first role split; the remaining drag is in backend mega-files and broader renderer seams. |
 | Repo organization | `8.5 / 10` | Top-level structure, naming, and docs organization are strong. |
-| Testing and verification | `8.7 / 10` | Full check covers docs, build, and 191 tests; the main remaining downside is manual visual/perf verification. |
+| Testing and verification | `8.8 / 10` | Full check covers docs, build, and 195 tests; the main remaining downside is manual visual/perf verification. |
 | Production discipline | `8.0 / 10` | Build flags, parity contracts, hygiene, and runtime/tooling logging discipline are improving materially; perf and visual validation are not yet fully automated. |
 
 ## Current Overall Read
@@ -108,14 +108,14 @@ Execution plan: `REPO_CLEANUP_ROADMAP.md`
    - The top 10 C++ files account for about `13.5%` of the repo's C++ surface;
      the top 20 account for about `22.2%`.
    - The biggest hotspots are renderer/runtime files such as
-     `D3D12RenderBackendPipelines.cpp`, `SessionWorldBackdrop.cpp`,
+     `D3D12RenderBackendWorldPipeline.cpp`, `SessionWorldBackdrop.cpp`,
      `SharedProjectedUnitBackendMeshRenderer.cpp`,
      `OpenGLRenderBackendWorldDraw.cpp`, and `D3D12RenderBackendWorldDraw.cpp`.
 
-2. Runtime and renderer seams are still broader than ideal.
-   - `src/game/runtime/session/GameSession.cpp` and
-     `src/engine/render/IRenderBackend.h` still centralize too much policy and
-     coordination, and backend mega-files remain broad.
+2. Renderer seams are still broader than ideal.
+   - `src/engine/render/IRenderBackend.h` has a meaningful first split now, but
+     backend mega-files and the remaining top-level backend surface are still
+     broader than they should be.
 
 3. Visual and performance verification still lean on manual discipline.
    - Tooling is stronger than before, but preview correctness and perf baselines
@@ -127,8 +127,6 @@ Execution plan: `REPO_CLEANUP_ROADMAP.md`
      yet unified.
 
 ## Main Risks
-- `src/game/runtime/session/GameSession.cpp` is still the largest runtime
-  concentration seam.
 - `src/engine/render/IRenderBackend.h` and the backend mega-files still absorb
   broad change risk.
 - Shared projected render/build CPU remains the main steady-state renderer cost
@@ -190,6 +188,35 @@ Execution plan: `REPO_CLEANUP_ROADMAP.md`
   into `src/game/runtime/session/SessionCoordinatorBridge.*`, bringing the
   session file down to roughly `340` lines and leaving it much closer to a thin
   owner/orchestrator than a catch-all runtime bag.
+- `IRenderBackend.h` has now started a first real narrowing pass: shared
+  backend payload types moved into `RenderBackendTypes.h`, and frame/world/debug
+  concerns now have dedicated role interfaces under the same top-level backend
+  type. That does not solve backend blast radius yet, but it is a meaningful
+  foundation for step 6.
+- D3D12 backend ownership is also narrowing at the source-file level: pipeline
+  creation now lives in focused private translation units
+  `src/engine/render/d3d12/D3D12RenderBackendWorldPipeline.cpp`,
+  `src/engine/render/d3d12/D3D12RenderBackendSpritePipeline.cpp`, and
+  `src/engine/render/d3d12/D3D12RenderBackendDebugPipeline.cpp`, with shared
+  shader compile/cache logic in
+  `src/engine/render/d3d12/D3D12RenderBackendPipelineCompile.cpp`. That is a
+  cleaner long-term shape than the earlier include-driven split and removes the
+  old `D3D12RenderBackendPipelines.cpp` choke point entirely.
+- OpenGL backend ownership is also starting to narrow in a similar style:
+  cached world-mesh management, cached draw wrappers, batch-submission state,
+  and world-prewarm helpers now live in dedicated private translation units
+  under `src/engine/render/opengl/`, which brings
+  `OpenGLRenderBackendWorldDraw.cpp` below the four-digit line range and makes
+  future cache/prewarm edits less likely to collide with material/shader-path
+  changes.
+- D3D12 world draw has also started the same transition: non-instanced
+  world-draw entrypoints and the cached front door now live in
+  `src/engine/render/d3d12/D3D12RenderBackendWorldDrawEntryPoints.cpp`, which
+  separates the public renderer surface from the heavier internal cached and
+  instanced implementation block.
+- The renderer cleanup now lands in conventional private `*.cpp` files instead
+  of long-term `.inl` seams, which is a better steady-state outcome for
+  maintainability and code navigation.
 - Runtime/tooling diagnostics now have a first shared logging helper in
   `src/engine/utils/LogSink.*`, and the noisiest startup/runner/Growl preview
   surfaces now use it while preserving the existing stream-captured contracts.
@@ -211,8 +238,8 @@ Execution plan: `REPO_CLEANUP_ROADMAP.md`
   have landed in code, but the larger submission/dataflow work is still ahead.
 
 ## Current Priority Order
-1. Start the first `IRenderBackend` narrowing / backend mega-file reduction
-   pass.
+1. Continue narrowing `IRenderBackend` and reducing backend mega-file blast
+   radius.
 2. Continue renderer restructuring work that reduces shared projected
    render-build CPU cost.
 3. Reduce manual-only preview and perf validation where practical.
