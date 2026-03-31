@@ -37,7 +37,7 @@ struct PreviewTailFireBridgeArgs {
                        const glm::vec3&,
                        float,
                        PokemonSide)>
-        appendModelBatches;
+        buildProjectedModelScratch;
     std::function<game::runtime::SharedBackendTextureCacheEntry*(const std::string&, bool)>
         ensureBackendTextureLoaded;
     std::function<void(const Camera3D&,

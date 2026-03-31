@@ -6,7 +6,6 @@
 #include <string>
 
 #include "engine/core/Paths.h"
-#include "engine/render/Camera3D.h"
 #include "engine/render/Model.h"
 #include "game/config/AnimSetLoader.h"
 #include "game/preview/PreviewSceneUtils.h"
@@ -141,24 +140,6 @@ void PreviewPokemonVisual::update(float dt) {
 
     animTimeSec = std::fmod(animTimeSec + std::max(0.0f, dt), dur);
     if (animTimeSec < 0.0f) animTimeSec += dur;
-}
-
-void PreviewPokemonVisual::draw(const Camera3D& camera,
-                                const glm::vec3& worldPos,
-                                float yawDeg) const {
-    if (!valid || !model) return;
-    const int animIndex = currentAnimIndex();
-    const float sampleTime = currentAnimTimeSec();
-    if (animIndex < 0) return;
-    const glm::vec3 renderPos = makeProjectedAlignedPreviewPos(*this, worldPos);
-    model->drawAnimated(
-        camera,
-        makePreviewInstanceTransform(renderPos, yawDeg, finalScale),
-        sampleTime,
-        animIndex,
-        glm::vec3(1.0f),
-        0.0f,
-        directDrawSkipSubmeshMask.empty() ? nullptr : &directDrawSkipSubmeshMask);
 }
 
 glm::vec3 makeProjectedAlignedPreviewPos(const PreviewPokemonVisual& visual,

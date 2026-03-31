@@ -4,7 +4,7 @@
 #include "game/runtime/render_prep/MaterialShading.h"
 #include "game/runtime/render_prep/UnitVisuals.h"
 #include "game/runtime/render_prep/WorldProxyGeometry.h"
-#include "game/runtime/shared/projected/SharedProjectedUnitModelRenderer.h"
+#include "game/runtime/shared/projected/SharedProjectedBodyPresentation.h"
 #include "game/runtime/shared/projected/SharedProjectedUnitOverlays.h"
 #include "game/world/MoveImpactRouting.h"
 #include "engine/core/Environment.h"
@@ -694,8 +694,9 @@ for (const auto& unit : units) {
     if (meshForUnit) {
         const auto modelStart = Clock::now();
         runtime::shared_projected_unit_models::PerfBreakdown modelPerf{};
-        const auto modelResult = runtime::shared_projected_unit_models::renderProjectedUnitModel(
-            runtime::shared_projected_unit_models::Args{
+        const auto modelResult =
+            runtime::shared_projected_body_presentation::buildProjectedBodyPresentation(
+                runtime::shared_projected_unit_models::Args{
                 .renderer = args.renderer,
                 .dataDb = &dataDb,
                 .unit = &unit,
@@ -751,8 +752,8 @@ for (const auto& unit : units) {
         gpuClipPaletteBatches += modelPerf.gpuClipPaletteBatches;
         cpuRewriteBatches += modelPerf.cpuRewriteBatches;
         indexedBatchesQueued += modelPerf.indexedBatchesQueued;
-        if (modelResult.skipUnit) continue;
-        drewModelMesh = modelResult.drewModelMesh;
+        if (modelResult.renderResult.skipUnit) continue;
+        drewModelMesh = modelResult.renderResult.drewModelMesh;
         if (drewModelMesh) ++modelUnits;
     }
 

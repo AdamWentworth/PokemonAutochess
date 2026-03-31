@@ -398,7 +398,10 @@ add_library(PAC_GameObjects STATIC
     src/game/runtime/shared/capture/SharedCaptureD3d12FastPath.cpp
     src/game/runtime/shared/capture/SharedCapturePreparedMeshCache.cpp
     src/game/runtime/shared/world/SharedBoardGridBatches.cpp
+    src/game/runtime/shared/world/SharedWorldContentSubmit.cpp
+    src/game/runtime/shared/projected/SharedProjectedBodyPresentation.cpp
     src/game/runtime/shared/projected/SharedProjectedDebugVfx.cpp
+    src/game/runtime/shared/projected/SharedPreviewBodyPresentationPath.cpp
     src/game/runtime/shared/projected/SharedProjectedRenderItems.cpp
     src/game/runtime/shared/projected/SharedProjectedUnitBackendMeshRenderer.cpp
     src/game/runtime/shared/projected/SharedProjectedUnitBackendMeshSupport.cpp
@@ -528,6 +531,7 @@ pac_apply_common_target_settings(PAC_GameObjects)
 # ---------------- Preview adapters (game-specific preview bindings) ----------------
 add_library(PAC_VfxPreviewSupport STATIC
     src/game/preview/PokemonAutochessVfxPreviewProject.cpp
+    src/game/preview/PreviewAnimatedModelPresentation.cpp
     src/game/preview/PreviewPokemonVisual.cpp
     src/game/preview/PreviewSceneUtils.cpp
     src/game/preview/PreviewTailFireBridge.cpp
@@ -538,6 +542,7 @@ add_library(PAC_VfxPreviewSupport STATIC
 )
 target_sources(PAC_VfxPreviewSupport PRIVATE
     src/game/preview/PokemonAutochessVfxPreviewProject.h
+    src/game/preview/PreviewAnimatedModelPresentation.h
     src/game/preview/PreviewPokemonVisual.h
     src/game/preview/PreviewSceneUtils.h
     src/game/preview/PreviewTailFireBridge.h
@@ -763,6 +768,8 @@ if (BUILD_TESTING)
         tests/TestSharedProjectedUnitBackendMeshSupport.cpp
         tests/TestSharedProjectedUnitRenderer.cpp
         tests/TestSharedProjectedUnitWorldSceneRenderer.cpp
+        tests/TestSharedProjectedBodyPresentation.cpp
+        tests/TestSharedPreviewBodyPresentationPath.cpp
         tests/TestSharedTailFireAnchorMath.cpp
         tests/TestSharedTailFireCoordinator.cpp
         tests/TestSharedTailFirePreviewRuntimeParity.cpp

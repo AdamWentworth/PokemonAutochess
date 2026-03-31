@@ -15,12 +15,12 @@ void renderPreviewTailFire(const PreviewTailFireBridgeArgs& args) {
         !args.backendTextureByPath ||
         !args.modelScratch ||
         !args.tailFireScratch ||
-        !args.appendModelBatches ||
+        !args.buildProjectedModelScratch ||
         !args.submitScratch) {
         return;
     }
 
-    (void)args.appendModelBatches(
+    (void)args.buildProjectedModelScratch(
         *args.camera,
         args.surfaceWidth,
         args.surfaceHeight,

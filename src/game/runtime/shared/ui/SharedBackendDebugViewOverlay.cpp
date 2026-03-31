@@ -13,6 +13,7 @@
 #include "game/runtime/ui/InventoryOverlay.h"
 #include "game/runtime/ui/StatusText.h"
 #include "game/runtime/shared/capture/SharedCapturePresentation.h"
+#include "game/runtime/shared/world/SharedWorldContentSubmit.h"
 
 #include <algorithm>
 #include <chrono>
@@ -889,60 +890,23 @@ void composeAndSubmit(const ComposeAndSubmitArgs& args) {
         const auto submitStart = clock::now();
         renderBuildBreakdown->overlayPrepMs = toMs(composeStart, submitStart);
 
-        if (!worldBackgroundQuads.empty()) {
-            const auto stageStart = clock::now();
-            renderer->drawDebugQuads(worldBackgroundQuads.data(), worldBackgroundQuads.size(), drawableW, drawableH);
-            renderBuildBreakdown->worldBackgroundMs += toMs(stageStart, clock::now());
-        }
-        if (!world3DTriangles.empty() && hasWorldViewProj && supportsWorldTriangles3D) {
-            const auto stageStart = clock::now();
-            renderer->drawWorldTriangles(
-                world3DTriangles.data(),
-                world3DTriangles.size(),
-                worldViewProj,
-                drawableW,
-                drawableH);
-            renderBuildBreakdown->worldTriangles3dMs += toMs(stageStart, clock::now());
-        }
-        if (worldSceneView &&
-            worldSceneFrame &&
-            !worldSceneFrame->drawClasses.empty() &&
-            hasWorldViewProj &&
-            renderer->supportsWorldSceneFastPath()) {
-            const auto stageStart = clock::now();
-            renderer->submitWorldScene(*worldSceneFrame, *worldSceneView);
-            renderBuildBreakdown->worldIndexedMs += toMs(stageStart, clock::now());
-        }
-        if (!worldIndexedBatches.empty() && hasWorldViewProj && supportsWorldIndexedMeshes) {
-            float cameraWorldPos3[3] = {0.0f, 7.0f, 9.0f};
-            float cameraForward3[3] = {0.0f, -0.6139406f, -0.7893522f};
-            float cameraTarget3[3] = {0.0f, -1.0f, 0.0f};
-            if (camera) {
-                const glm::vec3 camPos = camera->getPosition();
-                const glm::vec3 camForward = camera->getDirection();
-                const glm::vec3 camTarget = camera->getTarget();
-                cameraWorldPos3[0] = camPos.x;
-                cameraWorldPos3[1] = camPos.y;
-                cameraWorldPos3[2] = camPos.z;
-                cameraForward3[0] = camForward.x;
-                cameraForward3[1] = camForward.y;
-                cameraForward3[2] = camForward.z;
-                cameraTarget3[0] = camTarget.x;
-                cameraTarget3[1] = camTarget.y;
-                cameraTarget3[2] = camTarget.z;
-            }
-            const auto stageStart = clock::now();
-            runtime::shared_world_batches::submitWorldIndexedBatches(
-                *renderer,
-                worldIndexedBatches,
-                worldViewProj,
-                drawableW,
-                drawableH,
-                cameraWorldPos3,
-                cameraForward3,
-                cameraTarget3);
-            renderBuildBreakdown->worldIndexedMs += toMs(stageStart, clock::now());
-        }
+        runtime::shared_world_content_submit::submitOpaqueAndIndexedWorldContent(
+            {
+                .renderer = renderer,
+                .camera = camera,
+                .drawableW = drawableW,
+                .drawableH = drawableH,
+                .hasWorldViewProj = hasWorldViewProj,
+                .supportsWorldTriangles3D = supportsWorldTriangles3D,
+                .supportsWorldIndexedMeshes = supportsWorldIndexedMeshes,
+                .worldViewProj = worldViewProj,
+                .worldBackgroundQuads = &worldBackgroundQuads,
+                .world3DTriangles = &world3DTriangles,
+                .worldSceneView = worldSceneView,
+                .worldSceneFrame = worldSceneFrame,
+                .worldIndexedBatches = &worldIndexedBatches,
+                .renderBuildBreakdown = renderBuildBreakdown,
+            });
         if (renderWorld && hasWorldViewProj && supportsWorldIndexedMeshes &&
             renderer && renderer->backendId() &&
             support::toLowerCopy(renderer->backendId()) == "opengl" &&

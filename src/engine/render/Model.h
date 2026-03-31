@@ -37,11 +37,18 @@ struct Submesh {
 
 class Model {
 public:
+    struct AnimatedPose {
+        std::vector<pac_model_types::NodeTRS> locals;
+        std::vector<glm::mat4> globals;
+    };
+
     explicit Model(const std::string& filepath, ShaderCache* shaderCache = nullptr);
     ~Model();
 
     int   getAnimationCount() const;
     float getAnimationDurationSec(int animIndex) const;
+
+    void sampleAnimatedPose(float animTimeSec, int animIndex, AnimatedPose& outPose) const;
 
     void drawAnimated(const Camera3D& camera,
         const glm::mat4& instanceTransform,
@@ -50,6 +57,13 @@ public:
         const glm::vec3& tintColor = glm::vec3(1.0f),
         float tintStrength = 0.0f,
         const std::vector<std::uint8_t>* skipSubmeshMask = nullptr) const;
+
+    void drawAnimatedSampled(const Camera3D& camera,
+                             const glm::mat4& instanceTransform,
+                             const AnimatedPose& pose,
+                             const glm::vec3& tintColor = glm::vec3(1.0f),
+                             float tintStrength = 0.0f,
+                             const std::vector<std::uint8_t>* skipSubmeshMask = nullptr) const;
 
     // Draw mesh geometry using the currently bound GL shader.
     // The shader must have an MVP uniform at locMVP and use the same vertex layout.

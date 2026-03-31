@@ -10,7 +10,6 @@
 #include "game/PokemonInstance.h"
 #include "game/config/PokemonConfigLoader.h"
 
-class Camera3D;
 class Model;
 
 namespace game::preview {
@@ -50,7 +49,6 @@ struct PreviewPokemonVisual {
                              float playbackSpeed = 1.0f);
     void clearPreviewAnimation();
     void update(float dt);
-    void draw(const Camera3D& camera, const glm::vec3& worldPos, float yawDeg) const;
 };
 
 glm::vec3 makeProjectedAlignedPreviewPos(const PreviewPokemonVisual& visual,

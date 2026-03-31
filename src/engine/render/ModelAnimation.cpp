@@ -303,20 +303,40 @@ void Model::buildPoseMatrices(float timeSec,
     }
 }
 
+void Model::sampleAnimatedPose(float animTimeSec,
+                               int animIndex,
+                               AnimatedPose& outPose) const {
+    buildPoseMatrices(animTimeSec, animIndex, outPose.locals, outPose.globals);
+}
+
 void Model::drawAnimated(const Camera3D& camera,
                          const glm::mat4& instanceTransform,
                          float animTimeSec,
                          int animIndex,
                          const glm::vec3& tintColor,
                          float tintStrength,
-                         const std::vector<std::uint8_t>* skipSubmeshMask) const
-{
+                         const std::vector<std::uint8_t>* skipSubmeshMask) const {
+    AnimatedPose pose;
+    sampleAnimatedPose(animTimeSec, animIndex, pose);
+    drawAnimatedSampled(
+        camera,
+        instanceTransform,
+        pose,
+        tintColor,
+        tintStrength,
+        skipSubmeshMask);
+}
+
+void Model::drawAnimatedSampled(const Camera3D& camera,
+                                const glm::mat4& instanceTransform,
+                                const AnimatedPose& pose,
+                                const glm::vec3& tintColor,
+                                float tintStrength,
+                                const std::vector<std::uint8_t>* skipSubmeshMask) const {
     if (!modelShader || VAO == 0) return;
 
-    std::vector<NodeTRS> locals;
-    std::vector<glm::mat4> globals;
-    buildPoseMatrices(animTimeSec, animIndex, locals, globals);
-
+    const auto& locals = pose.locals;
+    const auto& globals = pose.globals;
     modelShader->use();
     glBindVertexArray(VAO);
 
@@ -552,12 +572,11 @@ bool Model::getNodeGlobalTransformByIndex(float animTimeSec,
 {
     if (nodeIndex < 0 || nodeIndex >= (int)nodesDefault.size()) return false;
 
-    std::vector<NodeTRS> locals;
-    std::vector<glm::mat4> globals;
-    buildPoseMatrices(animTimeSec, animIndex, locals, globals);
+    AnimatedPose pose;
+    sampleAnimatedPose(animTimeSec, animIndex, pose);
 
-    if (nodeIndex < 0 || nodeIndex >= (int)globals.size()) return false;
+    if (nodeIndex < 0 || nodeIndex >= (int)pose.globals.size()) return false;
 
-    outNodeGlobal = globals[nodeIndex];
+    outNodeGlobal = pose.globals[nodeIndex];
     return true;
 }

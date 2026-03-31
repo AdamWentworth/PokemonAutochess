@@ -13,11 +13,11 @@
 #include "engine/core/Paths.h"
 #include "engine/render/BoardRenderer.h"
 #include "engine/render/Camera3D.h"
-#include "engine/render/Model.h"
 #include "engine/render/OpenGLRenderBackend.h"
 #include "game/GameConfig.h"
 #include "game/config/AttackAnimConfigLoader.h"
 #include "game/config/GameDataDb.h"
+#include "game/preview/PreviewAnimatedModelPresentation.h"
 #include "game/config/PokemonConfigLoader.h"
 #include "game/preview/PreviewPokemonVisual.h"
 #include "game/preview/PreviewSceneUtils.h"
@@ -27,15 +27,19 @@
 #include "game/runtime/render_prep/UnitVisuals.h"
 #include "game/runtime/render_prep/ProceduralPose.h"
 #include "game/runtime/render_model_cache/RenderModelCache.h"
+#include "game/runtime/session/SessionRenderConfig.h"
 #include "game/runtime/session/SessionRenderScratch.h"
 #include "game/runtime/session/SessionTextureCache.h"
 #include "game/runtime/session/SessionWorldBackdrop.h"
 #include "game/runtime/shared/backend/SharedBackendPoseEval.h"
+#include "game/runtime/shared/projected/SharedProjectedBodyPresentation.h"
+#include "game/runtime/shared/projected/SharedPreviewBodyPresentationPath.h"
 #include "game/runtime/shared/projected/SharedProjectedUnitModelRenderer.h"
 #include "game/runtime/shared/projected/SharedProjectedWorldSceneHelpers.h"
 #include "game/runtime/shared/scene/SharedWorldScene.h"
 #include "game/runtime/shared/vfx/tail_fire/SharedTailFireCoordinator.h"
-#include "game/runtime/shared/vfx/tail_fire/SharedTailFireMeshPlayback.h"
+#include "game/runtime/shared/vfx/tail_fire/SharedTailFirePlaybackPolicy.h"
+#include "game/runtime/shared/world/SharedWorldContentSubmit.h"
 #include "game/runtime/shared/world/SharedWorldIndexedBatches.h"
 
 namespace game::preview {
@@ -121,20 +125,20 @@ struct PokemonAutochessVfxPreviewProject::Impl {
     void appendBackdropTiles(const Camera3D& camera,
                              int surfaceWidth,
                              int surfaceHeight);
-    bool appendModelBatches(const Camera3D& camera,
-                            int surfaceWidth,
-                            int surfaceHeight,
-                            const PreviewPokemonVisual& visual,
-                            const glm::vec3& worldPos,
-                            float yawDeg,
-                            PokemonSide side);
-    bool renderProjectedGameplayUnit(const Camera3D& camera,
-                                     int surfaceWidth,
-                                     int surfaceHeight,
-                                     const PreviewPokemonVisual& visual,
-                                     const glm::vec3& worldPos,
-                                     float yawDeg,
-                                     PokemonSide side);
+    bool buildProjectedModelScratch(const Camera3D& camera,
+                                    int surfaceWidth,
+                                    int surfaceHeight,
+                                    const PreviewPokemonVisual& visual,
+                                    const glm::vec3& worldPos,
+                                    float yawDeg,
+                                    PokemonSide side);
+    void renderPreviewUnit(const Camera3D& camera,
+                           int surfaceWidth,
+                           int surfaceHeight,
+                           PreviewPokemonVisual& visual,
+                           const glm::vec3& worldPos,
+                           float yawDeg,
+                           PokemonSide side);
     void renderTailFireBillboards(const Camera3D& camera,
                                   int surfaceWidth,
                                   int surfaceHeight,
@@ -160,7 +164,7 @@ struct PokemonAutochessVfxPreviewProject::Impl {
                 .backendTextureByPath = &backendTextureByPath,
                 .modelScratch = &modelScratch,
                 .tailFireScratch = &tailFireScratch,
-                .appendModelBatches =
+                .buildProjectedModelScratch =
                     [&](const Camera3D& bridgeCamera,
                         int bridgeSurfaceWidth,
                         int bridgeSurfaceHeight,
@@ -168,7 +172,7 @@ struct PokemonAutochessVfxPreviewProject::Impl {
                         const glm::vec3& bridgeWorldPos,
                         float bridgeYawDeg,
                         PokemonSide bridgeSide) {
-                        return appendModelBatches(
+                        return buildProjectedModelScratch(
                             bridgeCamera,
                             bridgeSurfaceWidth,
                             bridgeSurfaceHeight,
@@ -311,23 +315,6 @@ struct PokemonAutochessVfxPreviewProject::Impl {
             flipVertical);
     }
 
-    void ensureDirectTailFireSuppressionMask(PreviewPokemonVisual& visual) {
-        if (visual.directDrawSkipSubmeshMaskReady) return;
-        visual.directDrawSkipSubmeshMaskReady = true;
-        visual.directDrawSkipSubmeshMask.clear();
-
-        if (!visual.valid ||
-            !visual.model ||
-            !game::runtime::shared_tail_fire_coordinator::speciesUsesTailFireMeshPlayback(
-                visual.speciesName)) {
-            return;
-        }
-
-        visual.directDrawSkipSubmeshMask =
-            visual.model->buildSubmeshMaskForNodeNameContainsInsensitive(
-                std::string(game::runtime::shared_tail_fire_mesh_playback::authoredFireMeshNodeToken()));
-    }
-
     game::runtime::render_model::MeshData* ensureBackendMeshLoaded(const std::string& modelPath) {
         auto& cacheEntry = backendMeshByModelPath[modelPath];
         if (!cacheEntry.attemptedLoad) {
@@ -362,19 +349,36 @@ void PokemonAutochessVfxPreviewProject::Impl::submitScratch(
     bool renderProjectedLines,
     bool indexedOnlyWhenAvailable) {
     const glm::mat4 viewProj = camera.getProjectionMatrix() * camera.getViewMatrix();
-    const glm::vec3 cameraPos = camera.getPosition();
-    const glm::vec3 cameraForward = camera.getDirection();
-    const glm::vec3 cameraTarget = camera.getTarget();
     const bool preferIndexedOnly =
         indexedOnlyWhenAvailable && !scratch.worldIndexedBatches.empty();
 
-    if (!scratch.worldBackgroundQuads.empty()) {
-        backendRenderer->drawDebugQuads(
-            scratch.worldBackgroundQuads.data(),
-            scratch.worldBackgroundQuads.size(),
-            surfaceWidth,
-            surfaceHeight);
-    }
+    const auto worldSceneView = game::runtime::shared_world_scene::buildWorldSceneView(
+        scratch.worldSceneRegistry,
+        glm::value_ptr(viewProj),
+        surfaceWidth,
+        surfaceHeight,
+        glm::value_ptr(camera.getPosition()),
+        glm::value_ptr(camera.getDirection()),
+        glm::value_ptr(camera.getTarget()));
+    std::vector<IRenderBackend::WorldTriangle> noWorld3DTriangles;
+    game::runtime::shared_world_content_submit::submitOpaqueAndIndexedWorldContent(
+        {
+            .renderer = backendRenderer.get(),
+            .camera = &camera,
+            .drawableW = surfaceWidth,
+            .drawableH = surfaceHeight,
+            .hasWorldViewProj = true,
+            .supportsWorldTriangles3D =
+                !preferIndexedOnly && backendRenderer->supportsWorldTriangles3D(),
+            .supportsWorldIndexedMeshes = backendRenderer->supportsWorldIndexedMeshes(),
+            .worldViewProj = glm::value_ptr(viewProj),
+            .worldBackgroundQuads = &scratch.worldBackgroundQuads,
+            .world3DTriangles =
+                preferIndexedOnly ? &noWorld3DTriangles : &scratch.world3DTriangles,
+            .worldSceneView = &worldSceneView,
+            .worldSceneFrame = &scratch.worldSceneFrame,
+            .worldIndexedBatches = &scratch.worldIndexedBatches,
+        });
     if (!preferIndexedOnly && !scratch.worldTriangles.empty()) {
         backendRenderer->drawDebugTriangles(
             scratch.worldTriangles.data(),
@@ -382,36 +386,12 @@ void PokemonAutochessVfxPreviewProject::Impl::submitScratch(
             surfaceWidth,
             surfaceHeight);
     }
-    if (!preferIndexedOnly && !scratch.world3DTriangles.empty()) {
-        backendRenderer->drawWorldTriangles(
-            scratch.world3DTriangles.data(),
-            scratch.world3DTriangles.size(),
-            glm::value_ptr(viewProj),
+    if (!preferIndexedOnly && !scratch.worldQuads.empty()) {
+        backendRenderer->drawDebugQuads(
+            scratch.worldQuads.data(),
+            scratch.worldQuads.size(),
             surfaceWidth,
             surfaceHeight);
-    }
-    if (!scratch.worldSceneFrame.drawClasses.empty() &&
-        backendRenderer->supportsWorldSceneFastPath()) {
-        const auto worldSceneView = game::runtime::shared_world_scene::buildWorldSceneView(
-            scratch.worldSceneRegistry,
-            glm::value_ptr(viewProj),
-            surfaceWidth,
-            surfaceHeight,
-            glm::value_ptr(cameraPos),
-            glm::value_ptr(cameraForward),
-            glm::value_ptr(cameraTarget));
-        backendRenderer->submitWorldScene(scratch.worldSceneFrame, worldSceneView);
-    }
-    if (!scratch.worldIndexedBatches.empty()) {
-        game::runtime::shared_world_batches::submitWorldIndexedBatches(
-            *backendRenderer,
-            scratch.worldIndexedBatches,
-            glm::value_ptr(viewProj),
-            surfaceWidth,
-            surfaceHeight,
-            glm::value_ptr(cameraPos),
-            glm::value_ptr(cameraForward),
-            glm::value_ptr(cameraTarget));
     }
     if (renderProjectedLines && !scratch.lines.empty()) {
         backendRenderer->drawDebugLines(
@@ -493,7 +473,7 @@ void PokemonAutochessVfxPreviewProject::Impl::appendBackdropTiles(
         scratch);
 }
 
-bool PokemonAutochessVfxPreviewProject::Impl::appendModelBatches(
+bool PokemonAutochessVfxPreviewProject::Impl::buildProjectedModelScratch(
     const Camera3D& camera,
     int surfaceWidth,
     int surfaceHeight,
@@ -537,8 +517,13 @@ bool PokemonAutochessVfxPreviewProject::Impl::appendModelBatches(
     PokemonInstance unit = visual.runtimeLikeUnit;
     unit = makePreviewRuntimeUnit(visual, worldPos, yawDeg, side);
 
-    game::runtime::shared_backend_pose::PoseEval scenePose =
-        game::runtime::shared_backend_pose::evaluateScenePose(*mesh, unit);
+    game::runtime::shared_backend_pose::PoseEval scenePose{};
+    if (!preview_animated_model_presentation::buildScenePose(visual, *mesh, scenePose)) {
+        scenePose = game::runtime::shared_backend_pose::evaluateScenePose(*mesh, unit);
+    }
+    const bool enableGpuClipSkinning =
+        game::runtime::session_render_config::backendGpuClipSkinningEnabled(
+            backendRenderer.get());
 
     IRenderBackend::DebugQuad tint{};
     game::runtime::render_prep_units::applyWorldUnitTint(tint, unit);
@@ -553,9 +538,10 @@ bool PokemonAutochessVfxPreviewProject::Impl::appendModelBatches(
     std::size_t remainingModelTrianglesBudget = 60000u;
 
     game::runtime::shared_projected_unit_models::PerfBreakdown perf{};
-    const auto result = game::runtime::shared_projected_unit_models::renderProjectedUnitModel(
-        game::runtime::shared_projected_unit_models::Args{
-            .renderer = nullptr,
+    const auto result =
+        game::runtime::shared_projected_body_presentation::buildProjectedBodyPresentation(
+            game::runtime::shared_projected_unit_models::Args{
+            .renderer = backendRenderer.get(),
             .dataDb = &previewDataDb,
             .unit = &unit,
             .pose = []() -> const game::runtime::render_prep_pose::ProceduralPose* {
@@ -567,7 +553,7 @@ bool PokemonAutochessVfxPreviewProject::Impl::appendModelBatches(
             .backendId = backendRenderer ? backendRenderer->backendId() : nullptr,
             .scenePoseReady = true,
             .enableClipSkinning = true,
-            .enableGpuClipSkinning = false,
+            .enableGpuClipSkinning = enableGpuClipSkinning,
             .tint = &tint,
             .worldCellSize = cellSize,
             .boardSurfaceY = 0.006f,
@@ -584,8 +570,10 @@ bool PokemonAutochessVfxPreviewProject::Impl::appendModelBatches(
             .captureTintColor = glm::vec3(1.0f),
             .proxyCenter = proxyCenter,
             .cameraWorldPos = camera.getPosition(),
-            .supportsWorldTriangles3D = true,
-            .supportsWorldIndexedMeshes = true,
+            .supportsWorldTriangles3D =
+                backendRenderer && backendRenderer->supportsWorldTriangles3D(),
+            .supportsWorldIndexedMeshes =
+                backendRenderer && backendRenderer->supportsWorldIndexedMeshes(),
             .characterInkingEnabled = true,
             .graphicsQuality = 3,
             .projectedDebug = &projectedDebug,
@@ -604,10 +592,18 @@ bool PokemonAutochessVfxPreviewProject::Impl::appendModelBatches(
                     -> game::runtime::SharedBackendTextureCacheEntry* {
                     return ensureBackendTextureLoaded(texturePath, flipVertical);
                 },
-            .backendModelTriangleLimit = []() { return static_cast<std::size_t>(90000u); },
-            .backendModelFullMeshEnabled = []() { return true; },
-            .backendModelFastTexturedPathEnabled = []() { return true; },
-            .backendModelBackfaceCullingEnabled = []() { return true; },
+            .backendModelTriangleLimit = []() {
+                return game::runtime::session_render_config::backendModelTriangleLimit();
+            },
+            .backendModelFullMeshEnabled = []() {
+                return game::runtime::session_render_config::backendModelFullMeshEnabled();
+            },
+            .backendModelFastTexturedPathEnabled = []() {
+                return game::runtime::session_render_config::backendModelFastTexturedPathEnabled();
+            },
+            .backendModelBackfaceCullingEnabled = []() {
+                return game::runtime::session_render_config::backendModelBackfaceCullingEnabled();
+            },
             .perfBreakdown = &perf,
         });
 
@@ -617,44 +613,81 @@ bool PokemonAutochessVfxPreviewProject::Impl::appendModelBatches(
         scratch.worldTriangles,
         scratch.world3DTriangles);
 
-    return result.drewModelMesh ||
-           !scratch.worldIndexedBatches.empty() ||
-           !scratch.world3DTriangles.empty() ||
-           !scratch.worldTriangles.empty() ||
-           !scratch.worldBackgroundQuads.empty();
+    return result.producedScratch;
 }
 
-bool PokemonAutochessVfxPreviewProject::Impl::renderProjectedGameplayUnit(
+void PokemonAutochessVfxPreviewProject::Impl::renderPreviewUnit(
     const Camera3D& camera,
     int surfaceWidth,
     int surfaceHeight,
-    const PreviewPokemonVisual& visual,
+    PreviewPokemonVisual& visual,
     const glm::vec3& worldPos,
     float yawDeg,
     PokemonSide side) {
-    if (!backendRenderer) return false;
-    if (!appendModelBatches(camera, surfaceWidth, surfaceHeight, visual, worldPos, yawDeg, side)) {
-        return false;
+    preview_animated_model_presentation::DirectBodySample bodySample;
+    const bool haveDirectBodySample =
+        preview_animated_model_presentation::buildDirectBodySample(
+            visual,
+            worldPos,
+            yawDeg,
+            bodySample);
+
+    const bool builtProjectedScratch =
+        backendRenderer &&
+        buildProjectedModelScratch(
+            camera,
+            surfaceWidth,
+            surfaceHeight,
+            visual,
+            worldPos,
+            yawDeg,
+            side);
+    const auto playbackMode = game::runtime::shared_tail_fire_playback_policy::resolvePlaybackMode(
+        visual.speciesName,
+        modelScratch.worldIndexedBatches);
+
+    const auto previewBodyDecision =
+        builtProjectedScratch
+            ? game::runtime::shared_preview_body_presentation_path::classifyPreviewBodyPath(
+                  modelScratch,
+                  backendRenderer && backendRenderer->supportsWorldSceneFastPath())
+            : game::runtime::shared_preview_body_presentation_path::PreviewBodyPathDecision::
+                  DirectAnimatedFallback;
+    const bool canUseProjectedBody =
+        previewBodyDecision ==
+        game::runtime::shared_preview_body_presentation_path::PreviewBodyPathDecision::
+            ProjectedWorldScene;
+    if (canUseProjectedBody) {
+        submitScratch(
+            camera,
+            surfaceWidth,
+            surfaceHeight,
+            modelScratch,
+            false,
+            true);
+    } else if (haveDirectBodySample) {
+        // Keep the direct model path as a safe fallback until every backend can
+        // guarantee materially faithful projected body output in preview.
+        preview_animated_model_presentation::drawDirectBody(camera, visual, bodySample);
     }
 
-    const bool hasProjectedOutput =
-        !modelScratch.worldIndexedBatches.empty() ||
-        !modelScratch.world3DTriangles.empty() ||
-        !modelScratch.worldTriangles.empty() ||
-        !modelScratch.worldBackgroundQuads.empty() ||
-        !modelScratch.worldSceneFrame.drawClasses.empty();
-    if (!hasProjectedOutput) {
-        return false;
+    if (game::runtime::shared_tail_fire_coordinator::speciesUsesTailFireMeshPlayback(
+            visual.speciesName)) {
+        const bool authoredFireAlreadySubmitted =
+            canUseProjectedBody &&
+            playbackMode ==
+                game::runtime::shared_tail_fire_playback_policy::PlaybackMode::AuthoredMesh;
+        if (!authoredFireAlreadySubmitted) {
+            renderTailFireBillboards(
+                camera,
+                surfaceWidth,
+                surfaceHeight,
+                visual,
+                worldPos,
+                yawDeg,
+                side);
+        }
     }
-
-    submitScratch(
-        camera,
-        surfaceWidth,
-        surfaceHeight,
-        modelScratch,
-        false,
-        true);
-    return true;
 }
 
 PokemonAutochessVfxPreviewProject::PokemonAutochessVfxPreviewProject()
@@ -987,17 +1020,14 @@ void PokemonAutochessVfxPreviewProject::renderBackdrop(
     impl_->ensurePokemonConfigLoaded();
     impl_->attackerVisual.ensureLoaded(impl_->pokemonConfig);
     impl_->targetVisual.ensureLoaded(impl_->pokemonConfig);
-    impl_->ensureDirectTailFireSuppressionMask(impl_->targetVisual);
 
     const glm::vec3 casterPos(scene.emitter.x, 0.0f, scene.emitter.z);
     const glm::vec3 targetPos(scene.target.x, 0.0f, scene.target.z);
 
     const float attackerYaw = computeYawDegreesFromForward(targetPos - casterPos);
     const float targetYaw = computeYawDegreesFromForward(casterPos - targetPos);
-    impl_->ensureDirectTailFireSuppressionMask(impl_->attackerVisual);
-    impl_->attackerVisual.draw(frame.camera, casterPos, attackerYaw);
-    impl_->targetVisual.draw(frame.camera, targetPos, targetYaw);
-    impl_->renderTailFireBillboards(
+
+    impl_->renderPreviewUnit(
         frame.camera,
         frame.surfaceWidth,
         frame.surfaceHeight,
@@ -1005,6 +1035,14 @@ void PokemonAutochessVfxPreviewProject::renderBackdrop(
         casterPos,
         attackerYaw,
         PokemonSide::Player);
+    impl_->renderPreviewUnit(
+        frame.camera,
+        frame.surfaceWidth,
+        frame.surfaceHeight,
+        impl_->targetVisual,
+        targetPos,
+        targetYaw,
+        PokemonSide::Enemy);
 }
 
 void PokemonAutochessVfxPreviewProject::appendDebugMarkers(
@@ -1043,8 +1081,8 @@ std::vector<std::string> PokemonAutochessVfxPreviewProject::overlayLines(
         };
     case RigKind::PokemonModels:
         return {
-            "3D Models mode uses the same board spacing and model scaling rules as gameplay.",
-            "Charmander plays the Growl attack clip at gameplay speed, and the VFX fires on the same clip-time hit frame the game uses."
+            "3D Models mode uses the same board spacing, gameplay clip timing, and shared Tail Fire playback policy as the game.",
+            "The preview uses the projected gameplay body path only when the backend can submit the same material-faithful world-scene body output; otherwise it falls back to the direct model draw and keeps Tail Fire on the shared gameplay path."
         };
     }
     return {};
