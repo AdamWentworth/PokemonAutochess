@@ -85,12 +85,15 @@ experiments.
   - `tools/full_check.ps1 -IncludePerfSmoke` prebuilds Release early and later
     invokes `tools/perf_smoke_guard.ps1 -NoBuild`, so the scored run is not
     skewed by immediate post-build thermal noise.
-- The starter-line smoke now chooses the largest protected windowed baseline
-  resolution that fits the current primary-display working area.
-  - The current protected ladder is `960x540`, `1280x720`, `1600x900`.
-  - If none of those fit, the harness fails clearly instead of trying to score
-    a stretched or overflowing window.
-- The starter-line smoke remains a smoke-level guardrail, not the final word.
+- The local perf smoke now behaves as a small baseline suite rather than one
+  scene.
+  - It currently covers the Tail Fire starter-line snapshot and a denser
+    planning-state gameplay roster snapshot.
+  - Each baseline chooses the largest protected windowed resolution that fits
+    the current primary-display working area.
+  - If none of a baseline's protected resolutions fit, the harness fails
+    clearly instead of trying to score a stretched or overflowing window.
+- The local perf smoke remains a smoke-level guardrail, not the final word.
   - Use the full `benchmark_render_matrix.ps1` protocol for larger renderer or
     runtime perf decisions.
 

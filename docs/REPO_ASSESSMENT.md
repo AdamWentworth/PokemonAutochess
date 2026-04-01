@@ -23,8 +23,8 @@ Execution plan: `REPO_CLEANUP_ROADMAP.md`
 | Maintainability | `8.3 / 10` | Recent cleanup helped materially; the main remaining concentration is now more in backend mega-files and broad renderer interfaces than in the outer runtime/session or projected-runtime owners. |
 | Modularity and boundaries | `8.3 / 10` | Engine/game split is real, Growl now has a true reusable VFX boundary, the renderer interface has a first role split, and the projected runtime now has clearer local seams. |
 | Repo organization | `8.6 / 10` | Top-level structure, naming, docs organization, and projected-runtime folder layout are strong. |
-| Testing and verification | `9.1 / 10` | Full check covers docs, build, and 196 tests, and the repo now has first-pass automated preview and stable local perf smoke coverage through an early-Release-prebuild `full_check` path; the main remaining downside is broader runtime visual verification and the lack of a CI perf gate. |
-| Production discipline | `8.3 / 10` | Build flags, parity contracts, hygiene, runtime/tooling logging discipline, preview smoke automation, and a stable local Release perf smoke guard are improving materially; CI perf and broader visual validation are not yet fully automated. |
+| Testing and verification | `9.1 / 10` | Full check covers docs, build, and 196 tests, and the repo now has first-pass automated preview, runtime visual, and stable local perf smoke coverage through `full_check`; the main remaining downside is broader scenario coverage and the lack of a CI perf gate. |
+| Production discipline | `8.3 / 10` | Build flags, parity contracts, hygiene, runtime/tooling logging discipline, preview/runtime smoke automation, and a stable local Release perf smoke suite are improving materially; CI perf and broader visual validation are not yet fully automated. |
 
 ## Current Overall Read
 - Strong prototype-to-production-minded C++ game/engine repo with unusually
@@ -129,12 +129,17 @@ Execution plan: `REPO_CLEANUP_ROADMAP.md`
   `tools/vfx_preview_visual_smoke.ps1` captures deterministic screenshots from
   `VfxLab` and `PAC_VfxPreviewer`, and `tools/full_check.ps1` can opt into that
   smoke through `-IncludePreviewSmoke` or `PAC_ENABLE_PREVIEW_SMOKE_TESTS=1`.
-- The repo now also has a first local protected perf baseline:
-  `tools/perf_smoke_guard.ps1` runs a lightweight Release benchmark against the
-  Tail Fire starter-line snapshot, pins the scripted snapshot state during
-  scoring, auto-selects the largest protected resolution that fits the current
-  display, and compares it against
-  `config/perf/release_perf_smoke_starter_line.json`.
+- The repo now also has its first automated gameplay visual smoke guardrail:
+  `tools/runtime_visual_smoke.ps1` captures deterministic starter-line gameplay
+  screenshots on `OpenGL` and `D3D12`, checks coarse HUD and gameplay regions
+  for plausible content, and auto-selects a supported smoke resolution that
+  fits the current display.
+- The repo now also has a first local protected perf smoke suite:
+  `tools/perf_smoke_guard.ps1` runs lightweight Release benchmarks against the
+  Tail Fire starter-line snapshot and a denser planning-state gameplay roster
+  snapshot, pins those scripted snapshot states during scoring, auto-selects
+  the largest protected resolution that fits the current display, and compares
+  the results against the baseline suite under `config/perf/`.
 
 ## What Is Strong
 - Engine/game layering is real, not aspirational.
@@ -173,9 +178,9 @@ Execution plan: `REPO_CLEANUP_ROADMAP.md`
      in one giant projected kitchen-sink file.
 
 3. Visual and performance verification still lean on manual discipline.
-   - Tooling is stronger than before, and there is now a first preview visual
-     smoke harness plus a first local perf smoke guard, but broader preview
-     correctness and CI-level perf baselines are not yet protected by the same
+   - Tooling is stronger than before, and there are now first preview visual,
+     runtime visual, and local perf smoke guardrails, but broader scenario
+     coverage and CI-level perf baselines are not yet protected by the same
      level of automation as contracts/builds.
 
 4. Observability is still inconsistent.
@@ -339,7 +344,8 @@ Execution plan: `REPO_CLEANUP_ROADMAP.md`
   have landed in code, but the larger submission/dataflow work is still ahead.
 
 ## Current Priority Order
-1. Reduce manual-only preview and perf validation where practical.
+1. Turn the new local preview/runtime/perf smoke checks into stronger CI-grade
+   validation where practical.
 2. Revisit the remaining renderer/model ownership seams, including the
    lingering `Model.cpp` internal `.inl`, once the projected hot path is less
    dense.

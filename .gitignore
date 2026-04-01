@@ -3,6 +3,8 @@ build/
 build-ninja
 dist/
 debug/
+!config/debug/
+!config/debug/*.json
 dist/installer/
 content_pak/
 cache

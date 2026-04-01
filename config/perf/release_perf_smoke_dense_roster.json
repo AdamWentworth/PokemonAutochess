@@ -1,0 +1,57 @@
+{
+  "name": "dense_roster_release_perf_smoke",
+  "description": "Lightweight Release perf smoke baseline for a dense planning-state gameplay roster snapshot, with the scripted snapshot state pinned during scoring and the smoke wrapper selecting the largest configured resolution that fits the current display.",
+  "captured_at_utc": "2026-04-01T05:25:10Z",
+  "benchmark": {
+    "config": "Release",
+    "backends": [
+      "opengl",
+      "d3d12"
+    ],
+    "resolutions": [
+      "960x540",
+      "1280x720"
+    ],
+    "duration_seconds": 12,
+    "warmup_samples": 3,
+    "min_scored_samples": 6,
+    "snapshot_path": "config/debug/debug_state_snapshot_perf_dense_roster.json",
+    "auto_load_snapshot": true,
+    "pin_snapshot_state": true
+  },
+  "thresholds": {
+    "min_avg_fps_ratio": 0.75,
+    "max_avg_frame_cpu_ms_ratio": 1.35,
+    "max_avg_render_build_ms_ratio": 1.4
+  },
+  "rows": [
+    {
+      "backend": "opengl",
+      "resolution": "960x540",
+      "avg_fps": 331.625,
+      "avg_frame_cpu_ms": 3.038,
+      "avg_render_build_ms": 2.296
+    },
+    {
+      "backend": "d3d12",
+      "resolution": "960x540",
+      "avg_fps": 422.641,
+      "avg_frame_cpu_ms": 2.493,
+      "avg_render_build_ms": 1.793
+    },
+    {
+      "backend": "opengl",
+      "resolution": "1280x720",
+      "avg_fps": 319.782,
+      "avg_frame_cpu_ms": 3.155,
+      "avg_render_build_ms": 2.397
+    },
+    {
+      "backend": "d3d12",
+      "resolution": "1280x720",
+      "avg_fps": 369.013,
+      "avg_frame_cpu_ms": 2.713,
+      "avg_render_build_ms": 1.894
+    }
+  ]
+}

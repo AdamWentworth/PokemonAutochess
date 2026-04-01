@@ -60,13 +60,17 @@ without paying for the full benchmark matrix.
 ```
 
 This guard currently uses:
-- baseline file: `config/perf/release_perf_smoke_starter_line.json`
-- scene: `config/debug/debug_state_snapshot_tail_fire_starter_line.json`
+- baseline suite:
+  - `config/perf/release_perf_smoke_starter_line.json`
+  - `config/perf/release_perf_smoke_dense_roster.json`
+- scenes:
+  - `config/debug/debug_state_snapshot_tail_fire_starter_line.json`
+  - `config/debug/debug_state_snapshot_perf_dense_roster.json`
 - backends: `OpenGL`, `D3D12`
-- display-aware protected resolutions: `960x540`, `1280x720`, `1600x900`
-- automatically selects the largest protected resolution that fits the current
-  primary-display working area
-- pinned scripted snapshot state during scoring to avoid shop/menu timer drift
+- each baseline auto-selects the largest protected resolution that fits the
+  current primary-display working area
+- scripted snapshot state is pinned during scoring to avoid shop/menu timer
+  drift
 - `full_check.ps1 -IncludePerfSmoke` prebuilds the Release target before the
   long Debug gate and then runs the smoke with `-NoBuild`, so the scored run is
   not measuring a just-built hot binary
@@ -128,6 +132,37 @@ cmake --build build --config Debug --target PAC_VfxPreviewer VfxLab PAC_Tests
 - Switch backend preference and restart from the Display menu
 - Confirm no missing material/model regressions and no backend-only crashes
 
+## Optional Runtime Visual Smoke
+Use this when work touches gameplay presentation, HUD/layout, unit rendering, or
+backend-specific runtime visuals and you want an automated screenshot sanity
+check instead of only manual launches.
+
+```powershell
+.\tools\runtime_visual_smoke.ps1 -BuildDir build -Config Debug
+```
+
+This harness currently:
+- loads the Tail Fire starter-line snapshot
+- pins the scripted snapshot state during capture
+- auto-selects the largest supported smoke resolution that fits the current
+  display from `960x540`, `1280x720`
+- captures deterministic runtime screenshots on `OpenGL` and `D3D12`
+- checks coarse HUD and gameplay board regions for plausible brightness/color
+  content instead of relying on pixel-perfect parity
+
+Optional one-command local check:
+
+```powershell
+.\tools\full_check.ps1 -IncludeRuntimeVisualSmoke
+```
+
+Or enable it through the environment:
+
+```powershell
+$env:PAC_ENABLE_RUNTIME_VISUAL_SMOKE_TESTS = "1"
+.\tools\full_check.ps1
+```
+
 ## Optional Screenshot Parity Harness
 ```powershell
 .\tools\render_parity_screenshot_diff.ps1 -BuildDir build -Config Debug -ScreenshotFrame 120 -AutoQuitSeconds 3
@@ -162,7 +197,7 @@ $env:PAC_ENABLE_PREVIEW_SMOKE_TESTS = "1"
 Optional combined local check:
 
 ```powershell
-.\tools\full_check.ps1 -IncludePreviewSmoke -IncludePerfSmoke
+.\tools\full_check.ps1 -IncludePreviewSmoke -IncludeRuntimeVisualSmoke -IncludePerfSmoke
 ```
 
 ## One-Command Local Check

@@ -365,7 +365,7 @@ importance.
 - Rank: `#8`
 - Payoff/day: `Medium`
 - Estimated effort: `1-2 weeks`
-- Current state: `In progress on 2026-03-31`
+- Current state: `Completed first pass on 2026-03-31`
 - Why this is later:
   - It is valuable, but it pays off more after the structural seams above are
     cleaner.
@@ -377,17 +377,23 @@ importance.
     from `VfxLab` and `PAC_VfxPreviewer` and checks small image regions for
     non-background/color content, giving the repo its first automated preview
     visual guardrail.
+  - `tools/runtime_visual_smoke.ps1` now captures deterministic gameplay
+    screenshots from the pinned Tail Fire starter-line snapshot on `OpenGL` and
+    `D3D12`, checks coarse HUD and board regions for plausible content, and
+    auto-selects a supported smoke resolution that fits the current display.
   - `tools/full_check.ps1` now supports opt-in preview smoke through
     `-IncludePreviewSmoke` or `PAC_ENABLE_PREVIEW_SMOKE_TESTS=1`.
+  - `tools/full_check.ps1` now also supports opt-in runtime visual smoke through
+    `-IncludeRuntimeVisualSmoke` or `PAC_ENABLE_RUNTIME_VISUAL_SMOKE_TESTS=1`.
   - `tools/perf_smoke_guard.ps1` now provides a lightweight Release perf smoke
-    check against `config/perf/release_perf_smoke_starter_line.json`, using the
-    Tail Fire starter-line snapshot as a deterministic first baseline across
-    `OpenGL` and `D3D12`.
-  - The perf harness now also pins that scripted starter-line snapshot state
-    during scoring so route/shop timers do not drift the benchmark into menu or
-    other transient states mid-run.
-  - That local perf smoke is now display-aware too: it selects the largest
-    protected baseline resolution that fits the current primary-display working
+    check against a small local baseline suite under `config/perf/`, covering
+    both the Tail Fire starter-line snapshot and a denser planning-state
+    gameplay roster snapshot across `OpenGL` and `D3D12`.
+  - The perf harness now also pins those scripted snapshot states during
+    scoring so route/shop timers do not drift the benchmark into menu or other
+    transient states mid-run.
+  - That local perf smoke is now display-aware too: each baseline selects the
+    largest protected resolution that fits the current primary-display working
     area instead of assuming one monitor size.
   - `tools/full_check.ps1` now also supports opt-in perf smoke through
     `-IncludePerfSmoke`.
@@ -395,8 +401,10 @@ importance.
     long Debug gate and runs the perf smoke `-NoBuild`, which keeps the local
     protected perf path stable instead of measuring a just-built hot binary.
 - Focus:
-  - Promote the new local perf smoke into a more representative baseline and,
-    eventually, a protected CI gate.
+  - Promote the new local preview/runtime/perf smoke suite toward CI where
+    practical.
+  - Keep the protected local resolution ladder stable across different display
+    sizes so the smoke path stays usable on contributor machines.
   - Add screenshot or image-diff smoke for key preview/runtime visual cases
     where practical.
   - Keep manual smoke as a supplement, not the primary truth source.
@@ -405,8 +413,9 @@ importance.
   - A few critical preview/runtime visuals are checked automatically.
 
 ## Best Next 30-Day Sequence
-1. Replace or extend the now-stable starter-line perf smoke with a denser
-   representative gameplay baseline before promoting it toward CI.
+1. Promote the now-stable local perf smoke suite toward CI, keeping both the
+   starter-line and denser gameplay scenes honest while we decide whether a
+   third broader gameplay baseline is needed.
 2. Revisit the remaining `Model.cpp` internal `.inl` seam once the projected
    hot path is in a calmer state.
 3. Revisit projected-render CPU hotspots only if fresh measurement or parity

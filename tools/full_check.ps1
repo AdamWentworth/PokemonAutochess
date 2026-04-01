@@ -2,6 +2,7 @@ param(
     [string]$BuildDir = "build",
     [string]$Config = "Debug",
     [switch]$IncludePreviewSmoke,
+    [switch]$IncludeRuntimeVisualSmoke,
     [switch]$IncludePerfSmoke,
     [string]$PerfConfig = "Release"
 )
@@ -41,6 +42,11 @@ if (-not $runPreviewSmoke) {
     $runPreviewSmoke = $env:PAC_ENABLE_PREVIEW_SMOKE_TESTS -eq "1"
 }
 
+$runRuntimeVisualSmoke = $IncludeRuntimeVisualSmoke.IsPresent
+if (-not $runRuntimeVisualSmoke) {
+    $runRuntimeVisualSmoke = $env:PAC_ENABLE_RUNTIME_VISUAL_SMOKE_TESTS -eq "1"
+}
+
 $runPerfSmoke = $IncludePerfSmoke.IsPresent
 if (-not $runPerfSmoke) {
     $runPerfSmoke = $env:PAC_ENABLE_PERF_SMOKE_TESTS -eq "1"
@@ -63,6 +69,11 @@ Assert-LastExitCode "PAC_ValidateData"
 if ($runPreviewSmoke) {
     & (Join-Path $PSScriptRoot "vfx_preview_visual_smoke.ps1") -BuildDir $BuildDir -Config $Config
     Assert-LastExitCode "Preview visual smoke"
+}
+
+if ($runRuntimeVisualSmoke) {
+    & (Join-Path $PSScriptRoot "runtime_visual_smoke.ps1") -BuildDir $BuildDir -Config $Config
+    Assert-LastExitCode "Runtime visual smoke"
 }
 
 if ($runPerfSmoke) {

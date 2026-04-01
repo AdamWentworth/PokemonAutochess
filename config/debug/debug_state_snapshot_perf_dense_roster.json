@@ -1,0 +1,210 @@
+{
+  "session": {
+    "combat_active": false,
+    "round_phase": "Planning",
+    "state_kind": "scripted",
+    "state_script_path": "scripts/states/route3_shop.lua"
+  },
+  "world": {
+    "bench_units": [
+      {
+        "bench_slot": 0,
+        "energy": 12,
+        "hp": 999,
+        "level": 7,
+        "name": "charmander"
+      },
+      {
+        "bench_slot": 1,
+        "energy": 12,
+        "hp": 999,
+        "level": 7,
+        "name": "bulbasaur"
+      },
+      {
+        "bench_slot": 2,
+        "energy": 12,
+        "hp": 999,
+        "level": 7,
+        "name": "squirtle"
+      },
+      {
+        "bench_slot": 3,
+        "energy": 12,
+        "hp": 999,
+        "level": 7,
+        "name": "rattata"
+      }
+    ],
+    "board_units": [
+      {
+        "col": 0,
+        "energy": 40,
+        "hp": 999,
+        "level": 18,
+        "name": "charizard",
+        "row": 5,
+        "side": "player"
+      },
+      {
+        "col": 2,
+        "energy": 30,
+        "hp": 999,
+        "level": 13,
+        "name": "wartortle",
+        "row": 5,
+        "side": "player"
+      },
+      {
+        "col": 4,
+        "energy": 32,
+        "hp": 999,
+        "level": 13,
+        "name": "ivysaur",
+        "row": 5,
+        "side": "player"
+      },
+      {
+        "col": 6,
+        "energy": 28,
+        "hp": 999,
+        "level": 18,
+        "name": "pidgeotto",
+        "row": 5,
+        "side": "player"
+      },
+      {
+        "col": 1,
+        "energy": 24,
+        "hp": 999,
+        "level": 8,
+        "name": "pikachu",
+        "row": 4,
+        "side": "player"
+      },
+      {
+        "col": 3,
+        "energy": 30,
+        "hp": 999,
+        "level": 13,
+        "name": "charmeleon",
+        "row": 4,
+        "side": "player"
+      },
+      {
+        "col": 5,
+        "energy": 22,
+        "hp": 999,
+        "level": 10,
+        "name": "butterfree",
+        "row": 4,
+        "side": "player"
+      },
+      {
+        "col": 7,
+        "energy": 22,
+        "hp": 999,
+        "level": 10,
+        "name": "beedrill",
+        "row": 4,
+        "side": "player"
+      },
+      {
+        "col": 0,
+        "energy": 18,
+        "hp": 999,
+        "level": 10,
+        "name": "bulbasaur",
+        "row": 2,
+        "side": "enemy"
+      },
+      {
+        "col": 2,
+        "energy": 18,
+        "hp": 999,
+        "level": 10,
+        "name": "squirtle",
+        "row": 2,
+        "side": "enemy"
+      },
+      {
+        "col": 4,
+        "energy": 20,
+        "hp": 999,
+        "level": 13,
+        "name": "charmander",
+        "row": 2,
+        "side": "enemy"
+      },
+      {
+        "col": 6,
+        "energy": 20,
+        "hp": 999,
+        "level": 13,
+        "name": "pidgey",
+        "row": 2,
+        "side": "enemy"
+      },
+      {
+        "col": 1,
+        "energy": 20,
+        "hp": 999,
+        "level": 8,
+        "name": "nidoran-f",
+        "row": 3,
+        "side": "enemy"
+      },
+      {
+        "col": 3,
+        "energy": 20,
+        "hp": 999,
+        "level": 8,
+        "name": "nidoran-m",
+        "row": 3,
+        "side": "enemy"
+      },
+      {
+        "col": 5,
+        "energy": 20,
+        "hp": 999,
+        "level": 8,
+        "name": "spearow",
+        "row": 3,
+        "side": "enemy"
+      },
+      {
+        "col": 7,
+        "energy": 20,
+        "hp": 999,
+        "level": 8,
+        "name": "mankey",
+        "row": 3,
+        "side": "enemy"
+      }
+    ],
+    "classic_loss_streak": 1,
+    "classic_rounds_completed": 18,
+    "classic_shop_cards": [
+      {
+        "cost": 4,
+        "level": 11,
+        "name": "charmeleon"
+      },
+      {
+        "cost": 4,
+        "level": 11,
+        "name": "wartortle"
+      },
+      {
+        "cost": 5,
+        "level": 13,
+        "name": "charizard"
+      }
+    ],
+    "classic_win_streak": 2,
+    "items": {},
+    "money": 36,
+    "unit_sell_rewards_enabled": true,
+    "version": 1
+  }
+}

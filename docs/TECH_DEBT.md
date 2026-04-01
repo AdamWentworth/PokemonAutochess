@@ -9,11 +9,11 @@ engineering priority; concrete file-by-file issues live in
 `OUTSTANDING_ISSUES.md`.
 
 ## Strategic Debt
-1. No automated performance regression gate.
-   - A first local Release perf smoke guard now exists and `full_check` now
+1. No CI-enforced performance regression gate.
+   - A first local Release perf smoke suite now exists and `full_check` now
      runs it through a stable prebuilt-Release path with display-aware
      protected resolution selection, but CI still does not enforce a protected
-     baseline.
+     baseline suite.
 
 2. Shared projected render/build CPU is still the main steady-state hotspot.
    - The projected-runtime first pass is complete, but the next biggest wins
@@ -33,7 +33,9 @@ engineering priority; concrete file-by-file issues live in
 5. Tooling and documentation still lean on manual discipline in a few places.
    - Preview visuals now have a first automated smoke harness, and local perf
      smoke now uses a stable pinned snapshot path plus a prebuilt-Release
-     wrapper path, but broader runtime visuals and CI-level performance still
-     remain only partly automated.
+     wrapper path.
+   - Runtime visuals now also have a first automated gameplay smoke harness,
+     but broader runtime visual coverage and CI-level performance still remain
+     only partly automated.
    - Docs now have hygiene automation, but the workflow still depends on people
      keeping ownership boundaries honest.
