@@ -70,6 +70,28 @@ if (PAC_OPTIMIZE_RENDER_HOTPATHS_IN_DEBUG)
         "${CMAKE_SOURCE_DIR}/src/game/runtime/session/SessionWorldRenderRuntime.cpp"
         "${CMAKE_SOURCE_DIR}/src/game/runtime/shared/projected/SharedProjectedUnitBackendMeshPrep.cpp"
         "${CMAKE_SOURCE_DIR}/src/game/runtime/shared/projected/SharedProjectedRenderItems.cpp"
+        "${CMAKE_SOURCE_DIR}/src/game/runtime/shared/projected/SharedProjectedUnitBackendMeshCpuRewrite.cpp"
+        "${CMAKE_SOURCE_DIR}/src/game/runtime/shared/projected/SharedProjectedUnitBackendMeshCachedIndexedBatches.cpp"
+        "${CMAKE_SOURCE_DIR}/src/game/runtime/shared/projected/SharedProjectedUnitBackendMeshPersistentItems.cpp"
+        "${CMAKE_SOURCE_DIR}/src/game/runtime/shared/projected/SharedProjectedUnitBackendMeshGpuSkinBatchState.cpp"
+        "${CMAKE_SOURCE_DIR}/src/game/runtime/shared/projected/SharedProjectedUnitBackendMeshMaterialTemplateCache.cpp"
+        "${CMAKE_SOURCE_DIR}/src/game/runtime/shared/projected/SharedProjectedUnitBackendMeshGeometryTemplateCache.cpp"
+        "${CMAKE_SOURCE_DIR}/src/game/runtime/shared/projected/SharedProjectedUnitBackendMeshIndexedFinalize.cpp"
+        "${CMAKE_SOURCE_DIR}/src/game/runtime/shared/projected/SharedProjectedUnitBackendMeshTrianglePrep.cpp"
+        "${CMAKE_SOURCE_DIR}/src/game/runtime/shared/projected/SharedProjectedUnitBackendMeshTriangleLoop.cpp"
+        "${CMAKE_SOURCE_DIR}/src/game/runtime/shared/projected/SharedProjectedUnitBackendMeshFastTriangleAppend.cpp"
+        "${CMAKE_SOURCE_DIR}/src/game/runtime/shared/projected/SharedProjectedUnitBackendMeshFastPath.cpp"
+        "${CMAKE_SOURCE_DIR}/src/game/runtime/shared/projected/SharedProjectedUnitBackendMeshGraphicsQuality.cpp"
+        "${CMAKE_SOURCE_DIR}/src/game/runtime/shared/projected/SharedProjectedUnitBackendMeshTailFireOverride.cpp"
+        "${CMAKE_SOURCE_DIR}/src/game/runtime/shared/projected/SharedProjectedBoardBenchGeometryCache.cpp"
+        "${CMAKE_SOURCE_DIR}/src/game/runtime/shared/projected/SharedProjectedWorldGrowlBridge.cpp"
+        "${CMAKE_SOURCE_DIR}/src/game/runtime/shared/projected/SharedProjectedWorldParticleVfxBridge.cpp"
+        "${CMAKE_SOURCE_DIR}/src/game/runtime/shared/projected/SharedProjectedWorldTailFireVfxBridge.cpp"
+        "${CMAKE_SOURCE_DIR}/src/game/runtime/shared/projected/SharedProjectedWorldVfxBridges.cpp"
+        "${CMAKE_SOURCE_DIR}/src/game/runtime/shared/projected/SharedProjectedWorldCaptureBridge.cpp"
+        "${CMAKE_SOURCE_DIR}/src/game/runtime/shared/projected/SharedProjectedUnitWorldSceneBatchState.cpp"
+        "${CMAKE_SOURCE_DIR}/src/game/runtime/shared/projected/SharedProjectedUnitWorldSceneSubmission.cpp"
+        "${CMAKE_SOURCE_DIR}/src/game/runtime/shared/projected/SharedProjectedUnitWorldSceneTailFireSidecar.cpp"
         "${CMAKE_SOURCE_DIR}/src/game/runtime/shared/projected/SharedProjectedUnitBackendMeshRenderer.cpp"
         "${CMAKE_SOURCE_DIR}/src/game/runtime/shared/projected/SharedProjectedUnitBackendMeshSupport.cpp"
         "${CMAKE_SOURCE_DIR}/src/game/runtime/shared/projected/SharedProjectedUnitBackendMeshTriangleSubmit.cpp"
@@ -77,6 +99,7 @@ if (PAC_OPTIMIZE_RENDER_HOTPATHS_IN_DEBUG)
         "${CMAKE_SOURCE_DIR}/src/game/runtime/shared/projected/SharedProjectedUnitModelRenderer.cpp"
         "${CMAKE_SOURCE_DIR}/src/game/runtime/shared/projected/SharedProjectedUnitOverlays.cpp"
         "${CMAKE_SOURCE_DIR}/src/game/runtime/shared/projected/SharedProjectedWorldSceneHelpers.cpp"
+        "${CMAKE_SOURCE_DIR}/src/game/runtime/shared/projected/SharedProjectedUnitWorldSceneTrace.cpp"
         "${CMAKE_SOURCE_DIR}/src/game/runtime/shared/projected/SharedProjectedUnitWorldSceneRenderer.cpp"
         "${CMAKE_SOURCE_DIR}/src/game/runtime/shared/projected/SharedProjectedUnitRenderer.cpp"
         "${CMAKE_SOURCE_DIR}/src/game/runtime/shared/scene/SharedWorldScene.cpp"
@@ -432,6 +455,28 @@ add_library(PAC_GameObjects STATIC
     src/game/runtime/shared/projected/SharedProjectedDebugVfx.cpp
     src/game/runtime/shared/projected/SharedPreviewBodyPresentationPath.cpp
     src/game/runtime/shared/projected/SharedProjectedRenderItems.cpp
+    src/game/runtime/shared/projected/SharedProjectedUnitBackendMeshCpuRewrite.cpp
+    src/game/runtime/shared/projected/SharedProjectedUnitBackendMeshCachedIndexedBatches.cpp
+    src/game/runtime/shared/projected/SharedProjectedUnitBackendMeshPersistentItems.cpp
+    src/game/runtime/shared/projected/SharedProjectedUnitBackendMeshGpuSkinBatchState.cpp
+    src/game/runtime/shared/projected/SharedProjectedUnitBackendMeshMaterialTemplateCache.cpp
+    src/game/runtime/shared/projected/SharedProjectedUnitBackendMeshGeometryTemplateCache.cpp
+    src/game/runtime/shared/projected/SharedProjectedUnitBackendMeshIndexedFinalize.cpp
+    src/game/runtime/shared/projected/SharedProjectedUnitBackendMeshTrianglePrep.cpp
+    src/game/runtime/shared/projected/SharedProjectedUnitBackendMeshTriangleLoop.cpp
+    src/game/runtime/shared/projected/SharedProjectedUnitBackendMeshFastTriangleAppend.cpp
+    src/game/runtime/shared/projected/SharedProjectedUnitBackendMeshFastPath.cpp
+    src/game/runtime/shared/projected/SharedProjectedUnitBackendMeshGraphicsQuality.cpp
+    src/game/runtime/shared/projected/SharedProjectedUnitBackendMeshTailFireOverride.cpp
+    src/game/runtime/shared/projected/SharedProjectedBoardBenchGeometryCache.cpp
+    src/game/runtime/shared/projected/SharedProjectedWorldGrowlBridge.cpp
+    src/game/runtime/shared/projected/SharedProjectedWorldParticleVfxBridge.cpp
+    src/game/runtime/shared/projected/SharedProjectedWorldTailFireVfxBridge.cpp
+    src/game/runtime/shared/projected/SharedProjectedWorldVfxBridges.cpp
+    src/game/runtime/shared/projected/SharedProjectedWorldCaptureBridge.cpp
+    src/game/runtime/shared/projected/SharedProjectedUnitWorldSceneBatchState.cpp
+    src/game/runtime/shared/projected/SharedProjectedUnitWorldSceneSubmission.cpp
+    src/game/runtime/shared/projected/SharedProjectedUnitWorldSceneTailFireSidecar.cpp
     src/game/runtime/shared/projected/SharedProjectedUnitBackendMeshRenderer.cpp
     src/game/runtime/shared/projected/SharedProjectedUnitBackendMeshSupport.cpp
     src/game/runtime/shared/projected/SharedProjectedUnitBackendMeshPrep.cpp
@@ -439,6 +484,7 @@ add_library(PAC_GameObjects STATIC
     src/game/runtime/shared/projected/SharedProjectedUnitBackendMeshTransforms.cpp
     src/game/runtime/shared/projected/SharedProjectedUnitModelRenderer.cpp
     src/game/runtime/shared/projected/SharedProjectedUnitWorldSceneRenderer.cpp
+    src/game/runtime/shared/projected/SharedProjectedUnitWorldSceneTrace.cpp
     src/game/runtime/shared/projected/SharedProjectedUnitRenderer.cpp
     src/game/runtime/shared/projected/SharedProjectedUnitOverlays.cpp
     src/game/runtime/shared/ui/SharedBackendDebugViewOverlay.cpp
@@ -749,6 +795,7 @@ if (BUILD_TESTING)
         tests/TestModelParse.cpp
         tests/TestModelLoaderStructure.cpp
         tests/TestProjectedMeshRendererHotPath.cpp
+        tests/TestProjectedWorldSceneSeams.cpp
         tests/TestGltfAsset.cpp
         tests/TestCombatAnimIndexCache.cpp
         tests/TestScriptApiContract.cpp

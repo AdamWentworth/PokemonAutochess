@@ -24,7 +24,7 @@ importance.
 - Current state: `Completed on 2026-03-30`
 - Why this is first:
   - A red baseline makes every later refactor less trustworthy.
-  - The repo is now back to a stable green baseline: `191 / 191` tests pass.
+  - The repo is now back to a stable green baseline: `196 / 196` tests pass.
 - Focus:
   - Fix `PAC_Tests.render_model_cache_contract` for
     `assets/meshes/growl_1275_mesh.glb` UV preservation.
@@ -96,7 +96,7 @@ importance.
 - Rank: `#4`
 - Payoff/day: `High`
 - Estimated effort: `2-4 days`
-- Current state: `In progress on 2026-03-31`
+- Current state: `Completed first pass on 2026-03-31`
 - Why this is worth doing early:
   - This is a small-to-medium cleanup that improves debuggability everywhere.
   - It reduces the chance that future regressions hide in ad hoc console prints.
@@ -136,7 +136,7 @@ importance.
   - Converted Growl preview/tool mesh-failure and hot-reload logs plus
     `VfxPreviewApp` screenshot / warning diagnostics to the same helper.
   - Added `tests/TestLogSink.cpp`, and `tools/full_check.ps1` is green with
-    `191 / 191` tests after the latest pass.
+    `196 / 196` tests after the latest pass.
   - The repo's remaining direct `std::cout` / `std::cerr` references across
     `src/` and `tools/` are down to about `181`.
 - Focus:
@@ -256,15 +256,100 @@ importance.
 - Rank: `#7`
 - Payoff/day: `Medium`
 - Estimated effort: `ongoing`
+- Current state: `Completed first pass on 2026-03-31`
 - Why this remains important:
   - It is still the biggest steady-state rendering cost center.
   - It affects both maintainability and performance.
+- Progress so far:
+  - The first step-7 seam is now out of
+    `src/game/runtime/shared/projected/SharedProjectedUnitBackendMeshRenderer.cpp`:
+    the direct fast-textured world-batch path now lives in
+    `src/game/runtime/shared/projected/SharedProjectedUnitBackendMeshFastPath.*`.
+  - Projected render-item sync and scene-pose hash helpers are now centralized
+    in
+    `src/game/runtime/shared/projected/SharedProjectedUnitBackendMeshPersistentItems.*`,
+    which removes more low-level cache/plumbing code from the backend-mesh
+    renderer and gives the new fast-path helper the same shared utility seam.
+  - The indexed fast-textured CPU rewrite/cache block now lives in
+    `src/game/runtime/shared/projected/SharedProjectedUnitBackendMeshCpuRewrite.*`,
+    which takes another hot branch out of the backend-mesh renderer without
+    changing the remaining indexed fallback structure yet.
+  - Indexed batch finalization and world-queue handoff now live in
+    `src/game/runtime/shared/projected/SharedProjectedUnitBackendMeshIndexedFinalize.*`,
+    which removes another self-contained responsibility from the backend-mesh
+    renderer while keeping the indexed fallback path behavior unchanged.
+  - Triangle-to-node lookup and rigid-node GPU palette preparation now live in
+    `src/game/runtime/shared/projected/SharedProjectedUnitBackendMeshTrianglePrep.*`,
+    which makes the remaining per-triangle loop narrower and easier to read.
+  - The fallback triangle submission loop now also lives in
+    `src/game/runtime/shared/projected/SharedProjectedUnitBackendMeshTriangleLoop.*`,
+    which leaves the main backend-mesh renderer more focused on prep,
+    fast-path selection, Tail Fire anchor export, and indexed finalization.
+  - Cached indexed-batch construction and shared GPU skin-batch-state matching
+    now also live in
+    `src/game/runtime/shared/projected/SharedProjectedUnitBackendMeshCachedIndexedBatches.*`
+    and
+    `src/game/runtime/shared/projected/SharedProjectedUnitBackendMeshGpuSkinBatchState.*`,
+    which takes another dense middle block out of the backend-mesh renderer and
+    avoids copying the same GPU clip-skin batch-state logic across projected
+    helper seams.
+  - `SharedProjectedUnitBackendMeshSupport.cpp` is also starting to shed its
+    heavier template-factory responsibilities: fast-textured material template
+    caching now lives in
+    `src/game/runtime/shared/projected/SharedProjectedUnitBackendMeshMaterialTemplateCache.cpp`,
+    and fast-textured geometry template caching now lives in
+    `src/game/runtime/shared/projected/SharedProjectedUnitBackendMeshGeometryTemplateCache.cpp`.
+  - That extraction keeps the heaviest indexed fallback logic in place for
+    now, but removes one cohesive responsibility from the backend-mesh
+    renderer without disturbing the higher-risk debug/perf-sensitive branch.
+  - The neighboring projected-world seams are starting to narrow too:
+    world-scene trace/env/file logging now lives in
+    `src/game/runtime/shared/projected/SharedProjectedUnitWorldSceneTrace.*`,
+    and cached board/bench 3D geometry ownership now lives in
+    `src/game/runtime/shared/projected/SharedProjectedBoardBenchGeometryCache.*`.
+  - `SharedProjectedWorldSceneHelpers.cpp` is also starting to lose its
+    mixed bridge responsibilities: Growl/Tail Fire/particle bridge logic now
+    lives in
+    `src/game/runtime/shared/projected/SharedProjectedWorldVfxBridges.cpp`,
+    and capture-attempt bridge routing now lives in
+    `src/game/runtime/shared/projected/SharedProjectedWorldCaptureBridge.cpp`.
+  - That projected VFX bridge layer has now taken its next cut too:
+    Growl bridge ownership now lives in
+    `src/game/runtime/shared/projected/SharedProjectedWorldGrowlBridge.cpp`,
+    particle/Tail Fire bridge ownership now lives in
+    `src/game/runtime/shared/projected/SharedProjectedWorldParticleVfxBridge.cpp`,
+    and `SharedProjectedWorldVfxBridges.cpp` is now just the thin coordinator
+    that composes those two calls.
+  - `SharedProjectedUnitWorldSceneRenderer.cpp` has now also shed its
+    scratch-vector and GPU skin-batch-state resolution block into
+    `src/game/runtime/shared/projected/SharedProjectedUnitWorldSceneBatchState.*`,
+    which keeps the world-scene renderer focused more on eligibility,
+    sidecar policy, and render-object submission.
+  - The world-scene renderer has now taken another strong cut too: authored
+    Tail Fire sidecar assembly now lives in
+    `src/game/runtime/shared/projected/SharedProjectedUnitWorldSceneTailFireSidecar.*`,
+    and render-object submission / item-handle / batch-hash wiring now lives in
+    `src/game/runtime/shared/projected/SharedProjectedUnitWorldSceneSubmission.*`.
+    That brings `SharedProjectedUnitWorldSceneRenderer.cpp` down to roughly
+    `237` lines and leaves it much closer to a true orchestration seam.
+  - The last clear projected-runtime support/VFX hotspots have now narrowed too:
+    `SharedProjectedUnitBackendMeshSupport.cpp` is down under `100` lines after
+    shedding graphics-quality handling into
+    `src/game/runtime/shared/projected/SharedProjectedUnitBackendMeshGraphicsQuality.cpp`
+    and Tail Fire override/policy ownership into
+    `src/game/runtime/shared/projected/SharedProjectedUnitBackendMeshTailFireOverride.cpp`.
+    The particle/Tail Fire bridge also shed its Tail Fire-specific path into
+    `src/game/runtime/shared/projected/SharedProjectedWorldTailFireVfxBridge.*`,
+    leaving `SharedProjectedWorldParticleVfxBridge.cpp` closer to a pure
+    particle snapshot bridge.
 - Focus:
-  - Keep shrinking the shared projected build/submission hot path.
-  - Continue moving from broad kitchen-sink projected helpers toward smaller
-    composition seams.
+  - Preserve the new smaller projected seams instead of re-accumulating broad
+    responsibilities into the old kitchen-sink files.
+  - Prefer targeted follow-up fixes inside the newer helper files over another
+    broad projected-runtime rewrite unless a fresh hotspot reappears.
 - Exit criteria:
-  - Shared projected runtime files keep getting smaller and more specialized.
+  - Shared projected runtime files are meaningfully smaller and more
+    specialized than the old concentrated baseline.
   - `render_build_ms` trends down in representative scenes.
 
 ### 8. Automate more of preview and performance verification
@@ -284,12 +369,13 @@ importance.
   - A few critical preview/runtime visuals are checked automatically.
 
 ## Best Next 30-Day Sequence
-1. Finish the remaining logging-unification pass on deeper session/renderer
-   diagnostics and the still-specialized capture/debug surfaces.
-2. Reassess before starting the larger `GameSession.cpp` split.
-3. Continue projected-render restructuring in the hottest shared build paths.
-4. Add at least one automated preview/perf guardrail.
-5. Revisit `GameRunner` only if a new concrete ownership smell appears.
+1. Add at least one automated preview/perf guardrail.
+2. Revisit the remaining `Model.cpp` internal `.inl` seam once the projected
+   hot path is in a calmer state.
+3. Revisit projected-render CPU hotspots only if fresh measurement or parity
+   work points to a concrete remaining concentration point.
+4. Revisit backend mega-files only if a new concrete renderer ownership smell
+   appears outside the seams already extracted.
 
 ## What To Avoid Right Now
 - Do not do a big-bang renderer rewrite.

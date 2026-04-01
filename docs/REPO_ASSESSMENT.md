@@ -10,7 +10,7 @@ maintainability read changes in a meaningful way, not on every small edit.
 Execution plan: `REPO_CLEANUP_ROADMAP.md`
 
 ## Current Grade
-- Overall production-readiness grade: `8.4 / 10`
+- Overall production-readiness grade: `8.6 / 10`
 - Read this as: stronger than a typical solo C++ game repo in structure,
   testing, and docs discipline, but still carrying enough concentration and
   architectural drag that it would be high-friction to scale up without more
@@ -19,11 +19,11 @@ Execution plan: `REPO_CLEANUP_ROADMAP.md`
 ## Category Breakdown
 | Category | Grade | Notes |
 | --- | --- | --- |
-| Code health | `7.8 / 10` | Most code is readable and intentional, but several renderer/runtime hotspots are still too dense. |
-| Maintainability | `7.8 / 10` | Recent cleanup helped materially; the main remaining concentration is now more in renderer surfaces and broad interfaces than in the outer runtime/session owners. |
-| Modularity and boundaries | `7.9 / 10` | Engine/game split is real, Growl now has a true reusable VFX boundary, and the renderer interface now has a first role split; the remaining drag is in backend mega-files and broader renderer seams. |
+| Code health | `8.2 / 10` | Most code is readable and intentional, and the worst projected-runtime kitchen-sink files have now been broken into smaller seams. |
+| Maintainability | `8.3 / 10` | Recent cleanup helped materially; the main remaining concentration is now more in backend mega-files and broad renderer interfaces than in the outer runtime/session or projected-runtime owners. |
+| Modularity and boundaries | `8.3 / 10` | Engine/game split is real, Growl now has a true reusable VFX boundary, the renderer interface has a first role split, and the projected runtime now has clearer local seams. |
 | Repo organization | `8.5 / 10` | Top-level structure, naming, and docs organization are strong. |
-| Testing and verification | `8.8 / 10` | Full check covers docs, build, and 195 tests; the main remaining downside is manual visual/perf verification. |
+| Testing and verification | `8.8 / 10` | Full check covers docs, build, and 196 tests; the main remaining downside is manual visual/perf verification. |
 | Production discipline | `8.0 / 10` | Build flags, parity contracts, hygiene, and runtime/tooling logging discipline are improving materially; perf and visual validation are not yet fully automated. |
 
 ## Current Overall Read
@@ -34,6 +34,40 @@ Execution plan: `REPO_CLEANUP_ROADMAP.md`
   files.
 - The docs/tooling/VFX cleanup materially improved clarity, but the main
   runtime/render seams are still the long pole.
+- The projected runtime cleanup is now through a meaningful first pass: the
+  old concentrated backend-mesh, world-scene, and projected VFX hotspots now
+  have dedicated helper seams instead of one or two giant kitchen-sink files.
+  renderer shape.
+- That projected-render split is now broader than a single fast path: the
+  backend-mesh renderer also delegates persistent-item sync, indexed CPU
+  rewrite/finalization, triangle prep, and the fallback triangle submission
+  loop to dedicated helpers, which makes the remaining file read more like
+  orchestration than implementation soup.
+- The projected runtime now also has a dedicated cached indexed-batch builder
+  and a shared GPU skin-batch-state helper, which is the right long-term
+  direction: the main backend-mesh renderer is getting smaller without
+  reintroducing the same clip-skin state-matching logic in multiple places.
+- The neighboring support surface is now following the same direction:
+  `SharedProjectedUnitBackendMeshSupport.cpp` no longer owns the fast-textured
+  material and geometry template cache builders inline, which lowers the risk
+  that projected-runtime cache work and general support-policy work keep
+  colliding in the same file.
+- The projected-world seams are also getting more honest: world-scene
+  trace/env/file logging now lives in
+  `src/game/runtime/shared/projected/SharedProjectedUnitWorldSceneTrace.*`,
+  and cached board/bench 3D geometry ownership now lives in
+  `src/game/runtime/shared/projected/SharedProjectedBoardBenchGeometryCache.*`
+  instead of hiding inside the larger renderer/helper files.
+- The shared projected world bridge layer is also much more honest now:
+  `SharedProjectedWorldVfxBridges.cpp` is just a coordinator, while Growl,
+  particle, Tail Fire, and capture routing each have their own dedicated homes
+  under `src/game/runtime/shared/projected/` instead of being mixed into the
+  same file as board/depth/model utilities.
+- The world-scene fast-path renderer itself is also getting narrower:
+  scratch-vector ownership, transform initialization, and GPU skin-batch-state
+  resolution now live in
+  `src/game/runtime/shared/projected/SharedProjectedUnitWorldSceneBatchState.*`
+  instead of being embedded inline in the renderer body.
 - Growl's reusable boundary is now materially real: runtime batching/submission
   is reusable, game translation lives at the edge, and `VfxLab` no longer needs
   `game/runtime/*` headers to render Growl.
@@ -108,14 +142,23 @@ Execution plan: `REPO_CLEANUP_ROADMAP.md`
    - The top 10 C++ files account for about `13.5%` of the repo's C++ surface;
      the top 20 account for about `22.2%`.
    - The biggest hotspots are renderer/runtime files such as
-     `D3D12RenderBackendWorldPipeline.cpp`, `SessionWorldBackdrop.cpp`,
-     `SharedProjectedUnitBackendMeshRenderer.cpp`,
-     `OpenGLRenderBackendWorldDraw.cpp`, and `D3D12RenderBackendWorldDraw.cpp`.
+      `D3D12RenderBackendWorldPipeline.cpp`, `SessionWorldBackdrop.cpp`,
+      `SharedProjectedUnitRenderer.cpp`,
+      `OpenGLRenderBackendWorldDraw.cpp`, and `D3D12RenderBackendWorldDraw.cpp`.
 
 2. Renderer seams are still broader than ideal.
    - `src/engine/render/IRenderBackend.h` has a meaningful first split now, but
      backend mega-files and the remaining top-level backend surface are still
      broader than they should be.
+   - The shared projected runtime is now much more decomposed: the backend-mesh
+     renderer, world-scene renderer, trace, cached board/bench geometry,
+     sidecar Tail Fire assembly, world-scene submission, Growl bridge, and
+     particle/Tail Fire bridge now have dedicated homes. The remaining
+     concentration points are now more in neighboring files such as
+     `SharedProjectedUnitRenderer.cpp`,
+     `SharedProjectedUnitBackendMeshTransforms.cpp`,
+     `SharedProjectedUnitBackendMeshPrep.cpp`, and the backend mega-files than
+     in one giant projected kitchen-sink file.
 
 3. Visual and performance verification still lean on manual discipline.
    - Tooling is stronger than before, but preview correctness and perf baselines
@@ -217,6 +260,47 @@ Execution plan: `REPO_CLEANUP_ROADMAP.md`
 - The renderer cleanup now lands in conventional private `*.cpp` files instead
   of long-term `.inl` seams, which is a better steady-state outcome for
   maintainability and code navigation.
+- Shared projected runtime cleanup has now started landing in the same style:
+  the direct fast-textured world-batch branch was pulled out of
+  `SharedProjectedUnitBackendMeshRenderer.cpp` into
+  `SharedProjectedUnitBackendMeshFastPath.*`, which makes the projected
+  backend-mesh file less monolithic without reopening the higher-risk indexed
+  fallback branch yet.
+- Projected render-item sync and scene-pose hashing are now also centralized
+  in `SharedProjectedUnitBackendMeshPersistentItems.*`, which is a quieter
+  improvement than the fast-path extraction but still reduces duplication and
+  makes the projected backend-mesh file more about orchestration than cache
+  plumbing.
+- The projected backend-mesh renderer now also delegates its fallback
+  per-triangle submission loop to
+  `SharedProjectedUnitBackendMeshTriangleLoop.*`, which trims another dense
+  chunk of batch/material/triangle plumbing out of the main file.
+- The same file also no longer carries its cached indexed-batch build block
+  inline: that work now lives in
+  `SharedProjectedUnitBackendMeshCachedIndexedBatches.*`, while shared GPU
+  clip-skin batch-state resolution lives in
+  `SharedProjectedUnitBackendMeshGpuSkinBatchState.*`.
+- `SharedProjectedUnitBackendMeshSupport.cpp` has also started to narrow:
+  fast-textured material template caching now lives in
+  `SharedProjectedUnitBackendMeshMaterialTemplateCache.cpp`, and fast-textured
+  geometry template caching now lives in
+  `SharedProjectedUnitBackendMeshGeometryTemplateCache.cpp`.
+- The indexed fast-textured CPU rewrite/cache branch now also lives in
+  `SharedProjectedUnitBackendMeshCpuRewrite.*`, which is another meaningful
+  step toward smaller projected hot-path responsibilities even though the
+  overall indexed fallback branch is still too broad.
+- Indexed batch finalization/world handoff now also lives in
+  `SharedProjectedUnitBackendMeshIndexedFinalize.*`, and triangle-to-node /
+  rigid-node GPU palette setup now lives in
+  `SharedProjectedUnitBackendMeshTrianglePrep.*`. Together those cuts bring
+  `SharedProjectedUnitBackendMeshRenderer.cpp` below the four-digit line range
+  and leave it noticeably closer to orchestration than to a kitchen-sink
+  implementation file.
+- The projected world/VFX side is now at the same level of honesty: the
+  world-scene renderer delegates trace, batch-state resolution, authored Tail
+  Fire sidecar assembly, and render-object submission to dedicated helpers, and
+  the old projected VFX bridge blob has become a thin coordinator over
+  dedicated Growl, particle, Tail Fire, and capture bridge files.
 - Runtime/tooling diagnostics now have a first shared logging helper in
   `src/engine/utils/LogSink.*`, and the noisiest startup/runner/Growl preview
   surfaces now use it while preserving the existing stream-captured contracts.
@@ -238,10 +322,11 @@ Execution plan: `REPO_CLEANUP_ROADMAP.md`
   have landed in code, but the larger submission/dataflow work is still ahead.
 
 ## Current Priority Order
-1. Continue narrowing `IRenderBackend` and reducing backend mega-file blast
-   radius.
-2. Continue renderer restructuring work that reduces shared projected
-   render-build CPU cost.
-3. Reduce manual-only preview and perf validation where practical.
+1. Reduce manual-only preview and perf validation where practical.
+2. Revisit the remaining renderer/model ownership seams, including the
+   lingering `Model.cpp` internal `.inl`, once the projected hot path is less
+   dense.
+3. Revisit projected-render CPU hotspots only if fresh measurement or parity
+   work points to a concrete remaining concentration point.
 4. Keep the docs honest as the repo changes, especially around renderer,
    tooling, and VFX ownership boundaries.

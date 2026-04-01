@@ -21,15 +21,46 @@ bool fileContainsToken(const std::filesystem::path& path, const std::string& tok
 bool test_projected_mesh_renderer_hot_path_contract(std::string& outFail) {
     const std::filesystem::path rendererPath =
         "src/game/runtime/shared/projected/SharedProjectedUnitBackendMeshRenderer.cpp";
+    const std::filesystem::path indexedFinalizePath =
+        "src/game/runtime/shared/projected/SharedProjectedUnitBackendMeshIndexedFinalize.cpp";
+    const std::filesystem::path cpuRewritePath =
+        "src/game/runtime/shared/projected/SharedProjectedUnitBackendMeshCpuRewrite.cpp";
+    const std::filesystem::path cachedIndexedPath =
+        "src/game/runtime/shared/projected/SharedProjectedUnitBackendMeshCachedIndexedBatches.cpp";
+    const std::filesystem::path fastPathPath =
+        "src/game/runtime/shared/projected/SharedProjectedUnitBackendMeshFastPath.cpp";
+    const std::filesystem::path gpuSkinBatchStatePath =
+        "src/game/runtime/shared/projected/SharedProjectedUnitBackendMeshGpuSkinBatchState.cpp";
+    const std::filesystem::path supportPath =
+        "src/game/runtime/shared/projected/SharedProjectedUnitBackendMeshSupport.cpp";
+    const std::filesystem::path graphicsQualityPath =
+        "src/game/runtime/shared/projected/SharedProjectedUnitBackendMeshGraphicsQuality.cpp";
+    const std::filesystem::path tailFireOverridePath =
+        "src/game/runtime/shared/projected/SharedProjectedUnitBackendMeshTailFireOverride.cpp";
+    const std::filesystem::path triangleLoopPath =
+        "src/game/runtime/shared/projected/SharedProjectedUnitBackendMeshTriangleLoop.cpp";
+    const std::filesystem::path persistentItemsPath =
+        "src/game/runtime/shared/projected/SharedProjectedUnitBackendMeshPersistentItems.cpp";
     const std::vector<std::filesystem::path> forbiddenPaths = {
         "src/game/runtime/shared/projected/SharedProjectedUnitBackendMeshIndexedPath.cpp",
         "src/game/runtime/shared/projected/SharedProjectedUnitBackendMeshIndexedPath.h",
     };
-    const std::vector<std::string> requiredTokens = {
-        "support::gpuSkinBatchStateEntries()",
-        "handledFastTexturedPath = true;",
-        "bool fastPathHasGeometry = false;",
-        "worldIndexedBatches.push_back(std::move(batch));",
+    const std::vector<std::pair<std::filesystem::path, std::string>> requiredTokens = {
+        {rendererPath, "cached_indexed_batches::buildCachedIndexedBatches("},
+        {rendererPath, "handledFastTexturedPath = cachedIndexedResult.handled;"},
+        {indexedFinalizePath, "worldIndexedBatches.push_back(std::move(batch));"},
+        {cpuRewritePath, "resolveModelVertexSurface("},
+        {cachedIndexedPath, "support::gpuSkinBatchStateEntries()"},
+        {cachedIndexedPath, "buildOrReuseCpuRewriteVertices("},
+        {cachedIndexedPath, "anyIndexedBatchHasGeometry("},
+        {fastPathPath, "worldIndexedBatches.emplace_back();"},
+        {gpuSkinBatchStatePath, "configureGpuClipSkinningBatch("},
+        {graphicsQualityPath, "material.materialFlipbook1Frames = textureDetailLodBiasForGraphicsQuality("},
+        {tailFireOverridePath, "applyTailFireMeshFlipbookOverride("},
+        {triangleLoopPath, "triangleSubmitter.pushTriangle("},
+        {triangleLoopPath, "appendFastTexturedTriangle("},
+        {persistentItemsPath, "syncProjectedRenderItemDynamicState("},
+        {supportPath, "preparedMeshState()"},
     };
 
     if (!std::filesystem::exists(rendererPath)) {
@@ -45,10 +76,26 @@ bool test_projected_mesh_renderer_hot_path_contract(std::string& outFail) {
         }
     }
 
-    for (const auto& token : requiredTokens) {
-        if (fileContainsToken(rendererPath, token)) continue;
+    for (const auto& [path, token] : requiredTokens) {
+        if (!std::filesystem::exists(path)) {
+            outFail = "projected mesh hot-path contract failed: missing source " + path.string();
+            return false;
+        }
+        if (fileContainsToken(path, token)) continue;
         outFail = "projected mesh hot-path contract failed: missing token '" + token +
-                  "' in " + rendererPath.string();
+                  "' in " + path.string();
+        return false;
+    }
+
+    const std::vector<std::string> forbiddenSupportTokens = {
+        "applyTailFireMeshFlipbookOverride(",
+        "applyGraphicsQualityToBatchTemplate(",
+        "applyGraphicsQualityToWorldSceneMaterial(",
+    };
+    for (const auto& token : forbiddenSupportTokens) {
+        if (!fileContainsToken(supportPath, token)) continue;
+        outFail = "projected mesh hot-path contract failed: unexpected token '" + token +
+                  "' in " + supportPath.string();
         return false;
     }
 

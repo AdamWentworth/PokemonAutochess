@@ -101,6 +101,7 @@ bool test_movement_invariants(std::string& outFail);
 bool test_model_parse_smoke(std::string& outFail);
 bool test_model_loader_source_modularity(std::string& outFail);
 bool test_projected_mesh_renderer_hot_path_contract(std::string& outFail);
+bool test_projected_world_scene_seams_contract(std::string& outFail);
 bool test_shared_projected_body_presentation_contract(std::string& outFail);
 bool test_shared_preview_body_presentation_path_contract(std::string& outFail);
 bool test_gltf_asset_smoke(std::string& outFail);
@@ -340,6 +341,7 @@ int main(int argc, char** argv) {
         {"model_parse_smoke", &test_model_parse_smoke},
         {"model_loader_source_modularity", &test_model_loader_source_modularity},
         {"projected_mesh_renderer_hot_path_contract", &test_projected_mesh_renderer_hot_path_contract},
+        {"projected_world_scene_seams_contract", &test_projected_world_scene_seams_contract},
         {"shared_projected_body_presentation_contract", &test_shared_projected_body_presentation_contract},
         {"shared_preview_body_presentation_path_contract", &test_shared_preview_body_presentation_path_contract},
         {"gltf_asset_smoke", &test_gltf_asset_smoke},
