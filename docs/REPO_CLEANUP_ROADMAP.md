@@ -262,84 +262,84 @@ importance.
   - It affects both maintainability and performance.
 - Progress so far:
   - The first step-7 seam is now out of
-    `src/game/runtime/shared/projected/SharedProjectedUnitBackendMeshRenderer.cpp`:
+    `src/game/runtime/shared/projected/backend_mesh/SharedProjectedUnitBackendMeshRenderer.cpp`:
     the direct fast-textured world-batch path now lives in
-    `src/game/runtime/shared/projected/SharedProjectedUnitBackendMeshFastPath.*`.
+    `src/game/runtime/shared/projected/backend_mesh/SharedProjectedUnitBackendMeshFastPath.*`.
   - Projected render-item sync and scene-pose hash helpers are now centralized
     in
-    `src/game/runtime/shared/projected/SharedProjectedUnitBackendMeshPersistentItems.*`,
+    `src/game/runtime/shared/projected/backend_mesh/SharedProjectedUnitBackendMeshPersistentItems.*`,
     which removes more low-level cache/plumbing code from the backend-mesh
     renderer and gives the new fast-path helper the same shared utility seam.
   - The indexed fast-textured CPU rewrite/cache block now lives in
-    `src/game/runtime/shared/projected/SharedProjectedUnitBackendMeshCpuRewrite.*`,
+    `src/game/runtime/shared/projected/backend_mesh/SharedProjectedUnitBackendMeshCpuRewrite.*`,
     which takes another hot branch out of the backend-mesh renderer without
     changing the remaining indexed fallback structure yet.
   - Indexed batch finalization and world-queue handoff now live in
-    `src/game/runtime/shared/projected/SharedProjectedUnitBackendMeshIndexedFinalize.*`,
+    `src/game/runtime/shared/projected/backend_mesh/SharedProjectedUnitBackendMeshIndexedFinalize.*`,
     which removes another self-contained responsibility from the backend-mesh
     renderer while keeping the indexed fallback path behavior unchanged.
   - Triangle-to-node lookup and rigid-node GPU palette preparation now live in
-    `src/game/runtime/shared/projected/SharedProjectedUnitBackendMeshTrianglePrep.*`,
+    `src/game/runtime/shared/projected/backend_mesh/SharedProjectedUnitBackendMeshTrianglePrep.*`,
     which makes the remaining per-triangle loop narrower and easier to read.
   - The fallback triangle submission loop now also lives in
-    `src/game/runtime/shared/projected/SharedProjectedUnitBackendMeshTriangleLoop.*`,
+    `src/game/runtime/shared/projected/backend_mesh/SharedProjectedUnitBackendMeshTriangleLoop.*`,
     which leaves the main backend-mesh renderer more focused on prep,
     fast-path selection, Tail Fire anchor export, and indexed finalization.
   - Cached indexed-batch construction and shared GPU skin-batch-state matching
     now also live in
-    `src/game/runtime/shared/projected/SharedProjectedUnitBackendMeshCachedIndexedBatches.*`
+    `src/game/runtime/shared/projected/backend_mesh/SharedProjectedUnitBackendMeshCachedIndexedBatches.*`
     and
-    `src/game/runtime/shared/projected/SharedProjectedUnitBackendMeshGpuSkinBatchState.*`,
+    `src/game/runtime/shared/projected/backend_mesh/SharedProjectedUnitBackendMeshGpuSkinBatchState.*`,
     which takes another dense middle block out of the backend-mesh renderer and
     avoids copying the same GPU clip-skin batch-state logic across projected
     helper seams.
   - `SharedProjectedUnitBackendMeshSupport.cpp` is also starting to shed its
     heavier template-factory responsibilities: fast-textured material template
     caching now lives in
-    `src/game/runtime/shared/projected/SharedProjectedUnitBackendMeshMaterialTemplateCache.cpp`,
+    `src/game/runtime/shared/projected/backend_mesh/SharedProjectedUnitBackendMeshMaterialTemplateCache.cpp`,
     and fast-textured geometry template caching now lives in
-    `src/game/runtime/shared/projected/SharedProjectedUnitBackendMeshGeometryTemplateCache.cpp`.
+    `src/game/runtime/shared/projected/backend_mesh/SharedProjectedUnitBackendMeshGeometryTemplateCache.cpp`.
   - That extraction keeps the heaviest indexed fallback logic in place for
     now, but removes one cohesive responsibility from the backend-mesh
     renderer without disturbing the higher-risk debug/perf-sensitive branch.
   - The neighboring projected-world seams are starting to narrow too:
     world-scene trace/env/file logging now lives in
-    `src/game/runtime/shared/projected/SharedProjectedUnitWorldSceneTrace.*`,
+    `src/game/runtime/shared/projected/world_scene/SharedProjectedUnitWorldSceneTrace.*`,
     and cached board/bench 3D geometry ownership now lives in
-    `src/game/runtime/shared/projected/SharedProjectedBoardBenchGeometryCache.*`.
+    `src/game/runtime/shared/projected/world_scene/SharedProjectedBoardBenchGeometryCache.*`.
   - `SharedProjectedWorldSceneHelpers.cpp` is also starting to lose its
     mixed bridge responsibilities: Growl/Tail Fire/particle bridge logic now
     lives in
-    `src/game/runtime/shared/projected/SharedProjectedWorldVfxBridges.cpp`,
+    `src/game/runtime/shared/projected/world_vfx/SharedProjectedWorldVfxBridges.cpp`,
     and capture-attempt bridge routing now lives in
-    `src/game/runtime/shared/projected/SharedProjectedWorldCaptureBridge.cpp`.
+    `src/game/runtime/shared/projected/world_vfx/SharedProjectedWorldCaptureBridge.cpp`.
   - That projected VFX bridge layer has now taken its next cut too:
     Growl bridge ownership now lives in
-    `src/game/runtime/shared/projected/SharedProjectedWorldGrowlBridge.cpp`,
+    `src/game/runtime/shared/projected/world_vfx/SharedProjectedWorldGrowlBridge.cpp`,
     particle/Tail Fire bridge ownership now lives in
-    `src/game/runtime/shared/projected/SharedProjectedWorldParticleVfxBridge.cpp`,
+    `src/game/runtime/shared/projected/world_vfx/SharedProjectedWorldParticleVfxBridge.cpp`,
     and `SharedProjectedWorldVfxBridges.cpp` is now just the thin coordinator
     that composes those two calls.
   - `SharedProjectedUnitWorldSceneRenderer.cpp` has now also shed its
     scratch-vector and GPU skin-batch-state resolution block into
-    `src/game/runtime/shared/projected/SharedProjectedUnitWorldSceneBatchState.*`,
+    `src/game/runtime/shared/projected/world_scene/SharedProjectedUnitWorldSceneBatchState.*`,
     which keeps the world-scene renderer focused more on eligibility,
     sidecar policy, and render-object submission.
   - The world-scene renderer has now taken another strong cut too: authored
     Tail Fire sidecar assembly now lives in
-    `src/game/runtime/shared/projected/SharedProjectedUnitWorldSceneTailFireSidecar.*`,
+    `src/game/runtime/shared/projected/world_scene/SharedProjectedUnitWorldSceneTailFireSidecar.*`,
     and render-object submission / item-handle / batch-hash wiring now lives in
-    `src/game/runtime/shared/projected/SharedProjectedUnitWorldSceneSubmission.*`.
+    `src/game/runtime/shared/projected/world_scene/SharedProjectedUnitWorldSceneSubmission.*`.
     That brings `SharedProjectedUnitWorldSceneRenderer.cpp` down to roughly
     `237` lines and leaves it much closer to a true orchestration seam.
   - The last clear projected-runtime support/VFX hotspots have now narrowed too:
     `SharedProjectedUnitBackendMeshSupport.cpp` is down under `100` lines after
     shedding graphics-quality handling into
-    `src/game/runtime/shared/projected/SharedProjectedUnitBackendMeshGraphicsQuality.cpp`
+    `src/game/runtime/shared/projected/backend_mesh/SharedProjectedUnitBackendMeshGraphicsQuality.cpp`
     and Tail Fire override/policy ownership into
-    `src/game/runtime/shared/projected/SharedProjectedUnitBackendMeshTailFireOverride.cpp`.
+    `src/game/runtime/shared/projected/backend_mesh/SharedProjectedUnitBackendMeshTailFireOverride.cpp`.
     The particle/Tail Fire bridge also shed its Tail Fire-specific path into
-    `src/game/runtime/shared/projected/SharedProjectedWorldTailFireVfxBridge.*`,
+    `src/game/runtime/shared/projected/world_vfx/SharedProjectedWorldTailFireVfxBridge.*`,
     leaving `SharedProjectedWorldParticleVfxBridge.cpp` closer to a pure
     particle snapshot bridge.
 - Focus:
@@ -391,3 +391,4 @@ importance.
   also improve materially, the repo can credibly move into the mid `8`s.
 - Pushing beyond that likely requires stronger automated perf/visual validation
   and continued renderer simplification.
+

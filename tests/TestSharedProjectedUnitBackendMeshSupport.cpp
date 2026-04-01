@@ -1,4 +1,4 @@
-#include "game/runtime/shared/projected/SharedProjectedUnitBackendMeshSupport.h"
+#include "game/runtime/shared/projected/backend_mesh/SharedProjectedUnitBackendMeshSupport.h"
 
 #include "game/runtime/render_model_cache/RenderModelCache.h"
 #include "game/runtime/video/VideoPreferences.h"
@@ -180,3 +180,4 @@ bool test_shared_projected_unit_backend_mesh_support_contract(std::string& outFa
 
     return true;
 }
+

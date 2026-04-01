@@ -50,9 +50,9 @@ not this phase.
 Today the heavy-scene render path still rebuilds a large amount of unit-local
 state every frame across:
 
-- `src/game/runtime/shared/projected/SharedProjectedUnitRenderer.cpp`
-- `src/game/runtime/shared/projected/SharedProjectedUnitBackendMeshPrep.cpp`
-- `src/game/runtime/shared/projected/SharedProjectedUnitBackendMeshRenderer.cpp`
+- `src/game/runtime/shared/projected/unit/SharedProjectedUnitRenderer.cpp`
+- `src/game/runtime/shared/projected/backend_mesh/SharedProjectedUnitBackendMeshPrep.cpp`
+- `src/game/runtime/shared/projected/backend_mesh/SharedProjectedUnitBackendMeshRenderer.cpp`
 
 What is already good:
 
@@ -219,8 +219,8 @@ Add a dedicated shared runtime module for persistent projected render items.
 
 Recommended files:
 
-- `src/game/runtime/shared/projected/SharedProjectedRenderItems.h`
-- `src/game/runtime/shared/projected/SharedProjectedRenderItems.cpp`
+- `src/game/runtime/shared/projected/core/SharedProjectedRenderItems.h`
+- `src/game/runtime/shared/projected/core/SharedProjectedRenderItems.cpp`
 
 Owned responsibilities:
 
@@ -232,21 +232,21 @@ Owned responsibilities:
 
 ### Existing file ownership after the change
 
-`src/game/runtime/shared/projected/SharedProjectedUnitRenderer.cpp`
+`src/game/runtime/shared/projected/unit/SharedProjectedUnitRenderer.cpp`
 
 - owns frame orchestration
 - resolves visibility and unit-level context
 - asks the render-item registry for the current item set for the unit
 - no longer owns full batch reconstruction logic
 
-`src/game/runtime/shared/projected/SharedProjectedUnitBackendMeshPrep.cpp`
+`src/game/runtime/shared/projected/backend_mesh/SharedProjectedUnitBackendMeshPrep.cpp`
 
 - becomes the main static template builder
 - computes mesh/submesh-derived static item data
 - should no longer rebuild fully-populated frame batches for ordinary steady
   state
 
-`src/game/runtime/shared/projected/SharedProjectedUnitBackendMeshRenderer.cpp`
+`src/game/runtime/shared/projected/backend_mesh/SharedProjectedUnitBackendMeshRenderer.cpp`
 
 - becomes the dynamic updater and queue emitter
 - applies current transform/tint/skin payload state onto persistent entries
@@ -588,3 +588,4 @@ That next spec should define:
 - shared skin payload residency
 - batch compatibility rules for animated instances
 - expected impact on draw count and indexed submit cost
+

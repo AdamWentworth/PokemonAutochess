@@ -14,7 +14,7 @@ and Phase 1 design detail stay in `docs/archive/`.
   - GPU node-global composition
   - rigid-node GPU transform reuse
   - persistent projected render-item ownership in
-    `src/game/runtime/shared/projected/SharedProjectedRenderItems.*`
+    `src/game/runtime/shared/projected/core/SharedProjectedRenderItems.*`
 - That means the renderer is no longer at the "make the GPU do anything"
   stage.
 - The main remaining problem is structural CPU work around per-unit prep,
@@ -88,3 +88,4 @@ design is now represented in code rather than active planning.
   - `docs/archive/RENDER_RESTRUCTURING_PLAN.md`
 - Detailed Phase 1 design spec:
   - `docs/archive/RENDER_PHASE1_PERSISTENT_RENDER_ITEMS_SPEC.md`
+

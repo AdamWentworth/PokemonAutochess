@@ -2,7 +2,7 @@
 #include <unordered_map>
 #include <vector>
 
-#include "game/runtime/shared/projected/SharedProjectedBodyPresentation.h"
+#include "game/runtime/shared/projected/core/SharedProjectedBodyPresentation.h"
 
 bool test_shared_projected_body_presentation_contract(std::string& outFail) {
     namespace body_presentation = game::runtime::shared_projected_body_presentation;
@@ -74,3 +74,4 @@ bool test_shared_projected_body_presentation_contract(std::string& outFail) {
 
     return true;
 }
+

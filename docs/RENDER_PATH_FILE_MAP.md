@@ -188,11 +188,15 @@ register.
 
 ### 3) Shared Gameplay Presentation Path
 - `src/game/runtime/session/GameSession.cpp`
-- `src/game/runtime/shared/projected/SharedProjected*.*`
-- `src/game/runtime/shared/projected/SharedProjectedUnitBackendMeshRenderer.cpp`
+- `src/game/runtime/shared/projected/core`
+- `src/game/runtime/shared/projected/unit`
+- `src/game/runtime/shared/projected/backend_mesh`
+- `src/game/runtime/shared/projected/world_scene`
+- `src/game/runtime/shared/projected/world_vfx`
+- `src/game/runtime/shared/projected/backend_mesh/SharedProjectedUnitBackendMeshRenderer.cpp`
   - authored fire-mesh UV flipbook override for the Charmander line
   - per-unit fire mesh batch texture/material rewrites
-- `src/game/runtime/shared/projected/SharedProjectedUnitBackendMeshSupport.*`
+- `src/game/runtime/shared/projected/backend_mesh/SharedProjectedUnitBackendMeshSupport.*`
   - reusable projected mesh batching support extracted from the renderer body
   - fast-textured mesh template cache, GPU skin batch state, and fire-mesh override helpers
 - `src/game/runtime/shared/capture/SharedCapture*.*`
@@ -250,5 +254,6 @@ D3D12:
 ## Rule of Thumb
 - Shared rendering behavior changes should start in shared runtime modules, not backend-specific branches.
 - Backend files should only own API-specific resource/pipeline/submission mechanics.
+
 
 

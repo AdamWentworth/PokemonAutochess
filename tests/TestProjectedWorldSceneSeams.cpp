@@ -20,29 +20,29 @@ bool fileContainsToken(const std::filesystem::path& path, const std::string& tok
 
 bool test_projected_world_scene_seams_contract(std::string& outFail) {
     const std::filesystem::path rendererPath =
-        "src/game/runtime/shared/projected/SharedProjectedUnitWorldSceneRenderer.cpp";
+        "src/game/runtime/shared/projected/world_scene/SharedProjectedUnitWorldSceneRenderer.cpp";
     const std::filesystem::path tracePath =
-        "src/game/runtime/shared/projected/SharedProjectedUnitWorldSceneTrace.cpp";
+        "src/game/runtime/shared/projected/world_scene/SharedProjectedUnitWorldSceneTrace.cpp";
     const std::filesystem::path helpersPath =
-        "src/game/runtime/shared/projected/SharedProjectedWorldSceneHelpers.cpp";
+        "src/game/runtime/shared/projected/world_scene/SharedProjectedWorldSceneHelpers.cpp";
     const std::filesystem::path boardBenchCachePath =
-        "src/game/runtime/shared/projected/SharedProjectedBoardBenchGeometryCache.cpp";
+        "src/game/runtime/shared/projected/world_scene/SharedProjectedBoardBenchGeometryCache.cpp";
     const std::filesystem::path vfxBridgePath =
-        "src/game/runtime/shared/projected/SharedProjectedWorldVfxBridges.cpp";
+        "src/game/runtime/shared/projected/world_vfx/SharedProjectedWorldVfxBridges.cpp";
     const std::filesystem::path growlBridgePath =
-        "src/game/runtime/shared/projected/SharedProjectedWorldGrowlBridge.cpp";
+        "src/game/runtime/shared/projected/world_vfx/SharedProjectedWorldGrowlBridge.cpp";
     const std::filesystem::path particleBridgePath =
-        "src/game/runtime/shared/projected/SharedProjectedWorldParticleVfxBridge.cpp";
+        "src/game/runtime/shared/projected/world_vfx/SharedProjectedWorldParticleVfxBridge.cpp";
     const std::filesystem::path tailFireVfxBridgePath =
-        "src/game/runtime/shared/projected/SharedProjectedWorldTailFireVfxBridge.cpp";
+        "src/game/runtime/shared/projected/world_vfx/SharedProjectedWorldTailFireVfxBridge.cpp";
     const std::filesystem::path captureBridgePath =
-        "src/game/runtime/shared/projected/SharedProjectedWorldCaptureBridge.cpp";
+        "src/game/runtime/shared/projected/world_vfx/SharedProjectedWorldCaptureBridge.cpp";
     const std::filesystem::path batchStatePath =
-        "src/game/runtime/shared/projected/SharedProjectedUnitWorldSceneBatchState.cpp";
+        "src/game/runtime/shared/projected/world_scene/SharedProjectedUnitWorldSceneBatchState.cpp";
     const std::filesystem::path submissionPath =
-        "src/game/runtime/shared/projected/SharedProjectedUnitWorldSceneSubmission.cpp";
+        "src/game/runtime/shared/projected/world_scene/SharedProjectedUnitWorldSceneSubmission.cpp";
     const std::filesystem::path tailFireSidecarPath =
-        "src/game/runtime/shared/projected/SharedProjectedUnitWorldSceneTailFireSidecar.cpp";
+        "src/game/runtime/shared/projected/world_scene/SharedProjectedUnitWorldSceneTailFireSidecar.cpp";
     const std::vector<std::pair<std::filesystem::path, std::string>> requiredTokens = {
         {rendererPath, "world_scene_trace::traceEnter(args);"},
         {rendererPath, "world_scene_trace::shouldDisableUnit(*args.unit)"},
@@ -104,3 +104,4 @@ bool test_projected_world_scene_seams_contract(std::string& outFail) {
 
     return true;
 }
+

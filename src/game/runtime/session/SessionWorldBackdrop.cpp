@@ -1,8 +1,8 @@
 #include "game/runtime/session/SessionWorldBackdrop.h"
 
 #include "game/runtime/shared/backend/SharedBackendTextureCache.h"
-#include "game/runtime/shared/projected/SharedProjectedUnitBackendMeshSupport.h"
-#include "game/runtime/shared/projected/SharedProjectedWorldSceneHelpers.h"
+#include "game/runtime/shared/projected/backend_mesh/SharedProjectedUnitBackendMeshSupport.h"
+#include "game/runtime/shared/projected/world_scene/SharedProjectedWorldSceneHelpers.h"
 #include "game/runtime/video/VideoPreferences.h"
 
 #include <algorithm>
@@ -1967,3 +1967,4 @@ float composeProjectedBackdrop(const ProjectedBackdropArgs& args,
 }
 
 } // namespace game::runtime::session_world_backdrop
+

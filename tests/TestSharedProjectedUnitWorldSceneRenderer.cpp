@@ -12,11 +12,11 @@
 #include "game/config/GameDataDb.h"
 #include "game/runtime/render_model_cache/RenderModelCache.h"
 #include "game/runtime/shared/backend/SharedBackendPoseEval.h"
-#include "game/runtime/shared/projected/SharedProjectedDebugVfx.h"
-#include "game/runtime/shared/projected/SharedProjectedRenderItems.h"
-#include "game/runtime/shared/projected/SharedProjectedUnitModelRenderer.h"
-#include "game/runtime/shared/projected/SharedProjectedUnitBackendMeshSupport.h"
-#include "game/runtime/shared/projected/SharedProjectedUnitWorldSceneRenderer.h"
+#include "game/runtime/shared/projected/core/SharedProjectedDebugVfx.h"
+#include "game/runtime/shared/projected/core/SharedProjectedRenderItems.h"
+#include "game/runtime/shared/projected/unit/SharedProjectedUnitModelRenderer.h"
+#include "game/runtime/shared/projected/backend_mesh/SharedProjectedUnitBackendMeshSupport.h"
+#include "game/runtime/shared/projected/world_scene/SharedProjectedUnitWorldSceneRenderer.h"
 #include "game/runtime/shared/scene/SharedWorldScene.h"
 #include "game/runtime/shared/vfx/tail_fire/SharedTailFirePlaybackPolicy.h"
 
@@ -651,3 +651,4 @@ bool test_shared_projected_unit_world_scene_rigid_under_skin_transform(std::stri
 
     return true;
 }
+

@@ -1,7 +1,7 @@
 #pragma once
 
 #include "game/runtime/session/SessionRenderScratch.h"
-#include "game/runtime/shared/projected/SharedProjectedDebugVfx.h"
+#include "game/runtime/shared/projected/core/SharedProjectedDebugVfx.h"
 
 #include <cstddef>
 #include <functional>
@@ -63,3 +63,4 @@ float composeProjectedBackdrop(
     session_render_scratch::RenderScratch& scratch);
 
 } // namespace game::runtime::session_world_backdrop
+

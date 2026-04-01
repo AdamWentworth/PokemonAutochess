@@ -1,7 +1,7 @@
 #include <string>
 
 #include "game/runtime/session/SessionRenderScratch.h"
-#include "game/runtime/shared/projected/SharedPreviewBodyPresentationPath.h"
+#include "game/runtime/shared/projected/core/SharedPreviewBodyPresentationPath.h"
 #include "game/runtime/shared/vfx/tail_fire/SharedTailFirePlaybackPolicy.h"
 
 bool test_shared_preview_body_presentation_path_contract(std::string& outFail) {
@@ -83,3 +83,4 @@ bool test_shared_preview_body_presentation_path_contract(std::string& outFail) {
 
     return true;
 }
+

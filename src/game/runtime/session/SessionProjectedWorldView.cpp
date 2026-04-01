@@ -3,9 +3,9 @@
 #include "game/runtime/render_prep/WorldProjection.h"
 #include "game/runtime/session/SessionRenderConfig.h"
 #include "game/runtime/session/SessionWorldBackdrop.h"
-#include "game/runtime/shared/projected/SharedProjectedDebugVfx.h"
-#include "game/runtime/shared/projected/SharedProjectedUnitRenderer.h"
-#include "game/runtime/shared/projected/SharedProjectedWorldSceneHelpers.h"
+#include "game/runtime/shared/projected/core/SharedProjectedDebugVfx.h"
+#include "game/runtime/shared/projected/unit/SharedProjectedUnitRenderer.h"
+#include "game/runtime/shared/projected/world_scene/SharedProjectedWorldSceneHelpers.h"
 #include "game/world/GameWorld.h"
 
 #include <algorithm>
@@ -290,3 +290,4 @@ Result appendProjectedWorldView(const Args& args) {
 }
 
 } // namespace game::runtime::session_projected_world_view
+

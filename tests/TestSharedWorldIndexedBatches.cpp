@@ -3,8 +3,8 @@
 #include <vector>
 
 #include "engine/render/IRenderBackend.h"
-#include "game/runtime/shared/projected/SharedProjectedDebugVfx.h"
-#include "game/runtime/shared/projected/SharedProjectedUnitBackendMeshTriangleSubmit.h"
+#include "game/runtime/shared/projected/core/SharedProjectedDebugVfx.h"
+#include "game/runtime/shared/projected/backend_mesh/SharedProjectedUnitBackendMeshTriangleSubmit.h"
 #include "game/runtime/shared/world/SharedWorldIndexedBatches.h"
 
 namespace {
@@ -426,3 +426,4 @@ bool test_projected_triangle_submit_clears_geometry_cache_key(std::string& outFa
 
     return true;
 }
+

@@ -1,4 +1,4 @@
-#include "game/runtime/shared/projected/SharedProjectedUnitRenderer.h"
+#include "game/runtime/shared/projected/unit/SharedProjectedUnitRenderer.h"
 
 #include "engine/core/Paths.h"
 #include "game/config/AnimSetLoader.h"
@@ -416,3 +416,4 @@ bool test_shared_projected_unit_renderer_idle_fixed_step_wrap_contract(std::stri
 
     return true;
 }
+

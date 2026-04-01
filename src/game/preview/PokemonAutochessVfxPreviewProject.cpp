@@ -33,10 +33,10 @@
 #include "game/runtime/session/SessionTextureCache.h"
 #include "game/runtime/session/SessionWorldBackdrop.h"
 #include "game/runtime/shared/backend/SharedBackendPoseEval.h"
-#include "game/runtime/shared/projected/SharedProjectedBodyPresentation.h"
-#include "game/runtime/shared/projected/SharedPreviewBodyPresentationPath.h"
-#include "game/runtime/shared/projected/SharedProjectedUnitModelRenderer.h"
-#include "game/runtime/shared/projected/SharedProjectedWorldSceneHelpers.h"
+#include "game/runtime/shared/projected/core/SharedProjectedBodyPresentation.h"
+#include "game/runtime/shared/projected/core/SharedPreviewBodyPresentationPath.h"
+#include "game/runtime/shared/projected/unit/SharedProjectedUnitModelRenderer.h"
+#include "game/runtime/shared/projected/world_scene/SharedProjectedWorldSceneHelpers.h"
 #include "game/runtime/shared/scene/SharedWorldScene.h"
 #include "game/runtime/shared/vfx/tail_fire/SharedTailFireCoordinator.h"
 #include "game/runtime/shared/vfx/tail_fire/SharedTailFirePlaybackPolicy.h"
@@ -1201,3 +1201,4 @@ std::vector<std::string> PokemonAutochessVfxPreviewProject::overlayLines(
 }
 
 } // namespace game::preview
+

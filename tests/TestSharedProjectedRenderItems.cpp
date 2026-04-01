@@ -1,4 +1,4 @@
-#include "game/runtime/shared/projected/SharedProjectedRenderItems.h"
+#include "game/runtime/shared/projected/core/SharedProjectedRenderItems.h"
 
 #include <string>
 
@@ -36,3 +36,4 @@ bool test_shared_projected_render_items_cpu_rewrite_cache_contract(std::string& 
 
     return true;
 }
+

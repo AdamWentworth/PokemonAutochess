@@ -49,9 +49,9 @@ The retained path already includes several meaningful GPU offloads:
 
 Relevant code areas:
 
-- `src/game/runtime/shared/projected/SharedProjectedUnitRenderer.cpp`
-- `src/game/runtime/shared/projected/SharedProjectedUnitBackendMeshPrep.cpp`
-- `src/game/runtime/shared/projected/SharedProjectedUnitBackendMeshRenderer.cpp`
+- `src/game/runtime/shared/projected/unit/SharedProjectedUnitRenderer.cpp`
+- `src/game/runtime/shared/projected/backend_mesh/SharedProjectedUnitBackendMeshPrep.cpp`
+- `src/game/runtime/shared/projected/backend_mesh/SharedProjectedUnitBackendMeshRenderer.cpp`
 - `src/game/runtime/shared/backend/SharedBackendPoseEval.cpp`
 - `src/game/runtime/shared/world/SharedWorldIndexedBatches.cpp`
 - `src/engine/render/d3d12/D3D12RenderBackendWorldDraw.cpp`
@@ -381,3 +381,4 @@ Phase 1 and Phase 2:
 - define invalidation/update rules
 - define the per-instance skeleton addressing scheme for skinned instancing
 - define what metrics must improve before the design is considered successful
+

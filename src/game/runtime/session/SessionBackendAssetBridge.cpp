@@ -6,7 +6,7 @@
 #include "game/config/GameDataDb.h"
 #include "game/runtime/session/SessionBackendRenderHelpers.h"
 #include "game/runtime/session/SessionTailFirePrewarm.h"
-#include "game/runtime/shared/projected/SharedProjectedUnitBackendMeshRenderer.h"
+#include "game/runtime/shared/projected/backend_mesh/SharedProjectedUnitBackendMeshRenderer.h"
 #include "game/runtime/startup/RuntimeGrowlVfxPrewarm.h"
 #include "game/runtime/startup/RuntimeParticleVfxPrewarm.h"
 
@@ -169,3 +169,4 @@ startup_asset_prewarm::ParticleVfxStats prewarmParticleVfx(State& state,
 }
 
 } // namespace game::runtime::session_backend_asset_bridge
+

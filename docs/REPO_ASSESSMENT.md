@@ -54,9 +54,9 @@ Execution plan: `REPO_CLEANUP_ROADMAP.md`
   colliding in the same file.
 - The projected-world seams are also getting more honest: world-scene
   trace/env/file logging now lives in
-  `src/game/runtime/shared/projected/SharedProjectedUnitWorldSceneTrace.*`,
+  `src/game/runtime/shared/projected/world_scene/SharedProjectedUnitWorldSceneTrace.*`,
   and cached board/bench 3D geometry ownership now lives in
-  `src/game/runtime/shared/projected/SharedProjectedBoardBenchGeometryCache.*`
+  `src/game/runtime/shared/projected/world_scene/SharedProjectedBoardBenchGeometryCache.*`
   instead of hiding inside the larger renderer/helper files.
 - The shared projected world bridge layer is also much more honest now:
   `SharedProjectedWorldVfxBridges.cpp` is just a coordinator, while Growl,
@@ -66,7 +66,7 @@ Execution plan: `REPO_CLEANUP_ROADMAP.md`
 - The world-scene fast-path renderer itself is also getting narrower:
   scratch-vector ownership, transform initialization, and GPU skin-batch-state
   resolution now live in
-  `src/game/runtime/shared/projected/SharedProjectedUnitWorldSceneBatchState.*`
+  `src/game/runtime/shared/projected/world_scene/SharedProjectedUnitWorldSceneBatchState.*`
   instead of being embedded inline in the renderer body.
 - Growl's reusable boundary is now materially real: runtime batching/submission
   is reusable, game translation lives at the edge, and `VfxLab` no longer needs
@@ -330,3 +330,4 @@ Execution plan: `REPO_CLEANUP_ROADMAP.md`
    work points to a concrete remaining concentration point.
 4. Keep the docs honest as the repo changes, especially around renderer,
    tooling, and VFX ownership boundaries.
+

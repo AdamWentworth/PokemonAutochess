@@ -29,17 +29,17 @@ or future networking correctness would suffer.
   - `src/game/runtime/session/Session*.*`
 - Scene-pose evaluation is still a CPU job.
   - `src/game/runtime/shared/backend/SharedBackendPoseEval.cpp`
-  - `src/game/runtime/shared/projected/SharedProjectedUnitRenderer.cpp`
+  - `src/game/runtime/shared/projected/unit/SharedProjectedUnitRenderer.cpp`
   - The repo now caches canonicalized scene-pose samples per mesh/clip/time, but
     the pose is still evaluated on CPU before submission.
 - Projected model prep and path selection remain CPU-owned.
-  - `src/game/runtime/shared/projected/SharedProjectedUnitModelRenderer.cpp`
-  - `src/game/runtime/shared/projected/SharedProjectedUnitWorldSceneRenderer.cpp`
-  - `src/game/runtime/shared/projected/SharedProjectedUnitBackendMeshRenderer.cpp`
-  - `src/game/runtime/shared/projected/SharedProjectedUnitBackendMeshPrep.cpp`
+  - `src/game/runtime/shared/projected/unit/SharedProjectedUnitModelRenderer.cpp`
+  - `src/game/runtime/shared/projected/world_scene/SharedProjectedUnitWorldSceneRenderer.cpp`
+  - `src/game/runtime/shared/projected/backend_mesh/SharedProjectedUnitBackendMeshRenderer.cpp`
+  - `src/game/runtime/shared/projected/backend_mesh/SharedProjectedUnitBackendMeshPrep.cpp`
 - CPU fallback transforms still exist for batches that do not qualify for the
   GPU clip-skinning path.
-  - `src/game/runtime/shared/projected/SharedProjectedUnitBackendMeshTransforms.cpp`
+  - `src/game/runtime/shared/projected/backend_mesh/SharedProjectedUnitBackendMeshTransforms.cpp`
 - CPU still owns env/config gating and chooses whether GPU clip skinning is
   allowed for the active backend.
   - `src/game/runtime/session/SessionRenderConfig.cpp`
@@ -88,7 +88,7 @@ or future networking correctness would suffer.
 
 ### 1. World-scene fast path
 - File entry:
-  - `src/game/runtime/shared/projected/SharedProjectedUnitWorldSceneRenderer.cpp`
+  - `src/game/runtime/shared/projected/world_scene/SharedProjectedUnitWorldSceneRenderer.cpp`
 - Best description:
   - CPU prepares reusable geometry/material/object handles and per-instance
     scene state; backend submits a more scene-oriented batch of rigid/skinned
@@ -101,7 +101,7 @@ or future networking correctness would suffer.
 
 ### 2. Shared indexed world-batch path
 - File entry:
-  - `src/game/runtime/shared/projected/SharedProjectedUnitBackendMeshRenderer.cpp`
+  - `src/game/runtime/shared/projected/backend_mesh/SharedProjectedUnitBackendMeshRenderer.cpp`
 - Best description:
   - CPU assembles shared indexed batches and GPU still performs final shading
     and eligible skinning.
@@ -113,7 +113,7 @@ or future networking correctness would suffer.
 
 ### 3. CPU rewrite fallback path
 - File entry:
-  - `src/game/runtime/shared/projected/SharedProjectedUnitBackendMeshTransforms.cpp`
+  - `src/game/runtime/shared/projected/backend_mesh/SharedProjectedUnitBackendMeshTransforms.cpp`
 - Best description:
   - CPU resolves/transforms vertex data directly when the batch cannot use the
     eligible GPU clip-skinning route.
@@ -232,3 +232,4 @@ flags to isolate the path you are studying.
 - `docs/RENDERER_PARITY_ROADMAP.md`
 - `docs/PERF_DECISIONS.md`
 - `docs/RENDER_PATH_FILE_MAP.md`
+

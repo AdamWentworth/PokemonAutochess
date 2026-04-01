@@ -2,7 +2,7 @@
 
 #include "engine/render/IRenderBackend.h"
 #include "game/runtime/shared/capture/SharedCapturePresentation.h"
-#include "game/runtime/shared/projected/SharedProjectedRenderItems.h"
+#include "game/runtime/shared/projected/core/SharedProjectedRenderItems.h"
 #include "game/runtime/shared/scene/SharedWorldScene.h"
 #include "game/runtime/shared/vfx/tail_fire/SharedTailFireFallbackEmitter.h"
 #include "game/runtime/shared/world/SharedWorldIndexedBatches.h"
@@ -82,3 +82,4 @@ void beginFrame(RenderScratch& scratch,
                 IRenderBackend* renderer = nullptr);
 
 } // namespace game::runtime::session_render_scratch
+

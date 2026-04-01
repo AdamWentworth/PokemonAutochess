@@ -20,30 +20,30 @@ bool fileContainsToken(const std::filesystem::path& path, const std::string& tok
 
 bool test_projected_mesh_renderer_hot_path_contract(std::string& outFail) {
     const std::filesystem::path rendererPath =
-        "src/game/runtime/shared/projected/SharedProjectedUnitBackendMeshRenderer.cpp";
+        "src/game/runtime/shared/projected/backend_mesh/SharedProjectedUnitBackendMeshRenderer.cpp";
     const std::filesystem::path indexedFinalizePath =
-        "src/game/runtime/shared/projected/SharedProjectedUnitBackendMeshIndexedFinalize.cpp";
+        "src/game/runtime/shared/projected/backend_mesh/SharedProjectedUnitBackendMeshIndexedFinalize.cpp";
     const std::filesystem::path cpuRewritePath =
-        "src/game/runtime/shared/projected/SharedProjectedUnitBackendMeshCpuRewrite.cpp";
+        "src/game/runtime/shared/projected/backend_mesh/SharedProjectedUnitBackendMeshCpuRewrite.cpp";
     const std::filesystem::path cachedIndexedPath =
-        "src/game/runtime/shared/projected/SharedProjectedUnitBackendMeshCachedIndexedBatches.cpp";
+        "src/game/runtime/shared/projected/backend_mesh/SharedProjectedUnitBackendMeshCachedIndexedBatches.cpp";
     const std::filesystem::path fastPathPath =
-        "src/game/runtime/shared/projected/SharedProjectedUnitBackendMeshFastPath.cpp";
+        "src/game/runtime/shared/projected/backend_mesh/SharedProjectedUnitBackendMeshFastPath.cpp";
     const std::filesystem::path gpuSkinBatchStatePath =
-        "src/game/runtime/shared/projected/SharedProjectedUnitBackendMeshGpuSkinBatchState.cpp";
+        "src/game/runtime/shared/projected/backend_mesh/SharedProjectedUnitBackendMeshGpuSkinBatchState.cpp";
     const std::filesystem::path supportPath =
-        "src/game/runtime/shared/projected/SharedProjectedUnitBackendMeshSupport.cpp";
+        "src/game/runtime/shared/projected/backend_mesh/SharedProjectedUnitBackendMeshSupport.cpp";
     const std::filesystem::path graphicsQualityPath =
-        "src/game/runtime/shared/projected/SharedProjectedUnitBackendMeshGraphicsQuality.cpp";
+        "src/game/runtime/shared/projected/backend_mesh/SharedProjectedUnitBackendMeshGraphicsQuality.cpp";
     const std::filesystem::path tailFireOverridePath =
-        "src/game/runtime/shared/projected/SharedProjectedUnitBackendMeshTailFireOverride.cpp";
+        "src/game/runtime/shared/projected/backend_mesh/SharedProjectedUnitBackendMeshTailFireOverride.cpp";
     const std::filesystem::path triangleLoopPath =
-        "src/game/runtime/shared/projected/SharedProjectedUnitBackendMeshTriangleLoop.cpp";
+        "src/game/runtime/shared/projected/backend_mesh/SharedProjectedUnitBackendMeshTriangleLoop.cpp";
     const std::filesystem::path persistentItemsPath =
-        "src/game/runtime/shared/projected/SharedProjectedUnitBackendMeshPersistentItems.cpp";
+        "src/game/runtime/shared/projected/backend_mesh/SharedProjectedUnitBackendMeshPersistentItems.cpp";
     const std::vector<std::filesystem::path> forbiddenPaths = {
-        "src/game/runtime/shared/projected/SharedProjectedUnitBackendMeshIndexedPath.cpp",
-        "src/game/runtime/shared/projected/SharedProjectedUnitBackendMeshIndexedPath.h",
+        "src/game/runtime/shared/projected/backend_mesh/SharedProjectedUnitBackendMeshIndexedPath.cpp",
+        "src/game/runtime/shared/projected/backend_mesh/SharedProjectedUnitBackendMeshIndexedPath.h",
     };
     const std::vector<std::pair<std::filesystem::path, std::string>> requiredTokens = {
         {rendererPath, "cached_indexed_batches::buildCachedIndexedBatches("},
@@ -101,3 +101,4 @@ bool test_projected_mesh_renderer_hot_path_contract(std::string& outFail) {
 
     return true;
 }
+

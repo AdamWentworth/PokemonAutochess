@@ -24,7 +24,7 @@ without the same context.
 - Status:
   - uncommitted experiment; reverted after live capture regression
 - File:
-  - `src/game/runtime/shared/projected/SharedProjectedUnitBackendMeshRenderer.cpp`
+  - `src/game/runtime/shared/projected/backend_mesh/SharedProjectedUnitBackendMeshRenderer.cpp`
 - Hypothesis:
   - replace the per-batch linear scan of `gpuSkinBatchStateEntries()` with
     direct `gpuSkinBatchStateMap()` lookups in the GPU-skinned fast path
@@ -72,9 +72,9 @@ without the same context.
 - Status:
   - uncommitted experiment; reverted after live capture regression
 - Files:
-  - `src/game/runtime/shared/projected/SharedProjectedUnitBackendMeshSupport.h`
-  - `src/game/runtime/shared/projected/SharedProjectedUnitBackendMeshSupport.cpp`
-  - `src/game/runtime/shared/projected/SharedProjectedUnitBackendMeshRenderer.cpp`
+  - `src/game/runtime/shared/projected/backend_mesh/SharedProjectedUnitBackendMeshSupport.h`
+  - `src/game/runtime/shared/projected/backend_mesh/SharedProjectedUnitBackendMeshSupport.cpp`
+  - `src/game/runtime/shared/projected/backend_mesh/SharedProjectedUnitBackendMeshRenderer.cpp`
   - `src/game/runtime/session/SessionRenderScratch.cpp`
 - Hypothesis:
   - replace thread-local `unitSkinMatrices()` hash-map ownership with a small
@@ -133,7 +133,7 @@ without the same context.
 - Status:
   - uncommitted experiment; reverted after live capture regression
 - File:
-  - `src/game/runtime/shared/projected/SharedProjectedUnitBackendMeshTransforms.cpp`
+  - `src/game/runtime/shared/projected/backend_mesh/SharedProjectedUnitBackendMeshTransforms.cpp`
 - Hypothesis:
   - per-frame clears of projected transform-ready arrays were wasting CPU on the
     GPU-skinned fast path, so switching those caches to stamp-based invalidation
@@ -176,8 +176,8 @@ without the same context.
 - Status:
   - uncommitted experiment; reverted after live capture regression
 - Files:
-  - `src/game/runtime/shared/projected/SharedProjectedUnitBackendMeshPrep.cpp`
-  - `src/game/runtime/shared/projected/SharedProjectedUnitBackendMeshRenderer.cpp`
+  - `src/game/runtime/shared/projected/backend_mesh/SharedProjectedUnitBackendMeshPrep.cpp`
+  - `src/game/runtime/shared/projected/backend_mesh/SharedProjectedUnitBackendMeshRenderer.cpp`
 - Hypothesis:
   - keep template-backed projected indexed batches "warm" across frames by
     skipping repeated shallow template application when metadata already
@@ -233,9 +233,9 @@ without the same context.
   - `src/engine/render/d3d12/D3D12RenderBackendLifecycle.cpp`
   - `src/engine/render/d3d12/D3D12RenderBackendPipelines.cpp`
   - `src/engine/render/d3d12/D3D12RenderBackendWorldDraw.cpp`
-  - `src/game/runtime/shared/projected/SharedProjectedUnitBackendMeshRenderer.cpp`
-  - `src/game/runtime/shared/projected/SharedProjectedUnitBackendMeshSupport.cpp`
-  - `src/game/runtime/shared/projected/SharedProjectedUnitBackendMeshSupport.h`
+  - `src/game/runtime/shared/projected/backend_mesh/SharedProjectedUnitBackendMeshRenderer.cpp`
+  - `src/game/runtime/shared/projected/backend_mesh/SharedProjectedUnitBackendMeshSupport.cpp`
+  - `src/game/runtime/shared/projected/backend_mesh/SharedProjectedUnitBackendMeshSupport.h`
   - `src/game/runtime/shared/world/SharedWorldIndexedBatches.cpp`
 - Hypothesis:
   - collapse repeated D3D12 clip-skinned draws by batching compatible units
@@ -276,13 +276,13 @@ without the same context.
   - `src/engine/render/d3d12/D3D12RenderBackendPipelines.cpp`
   - `src/engine/render/d3d12/D3D12RenderBackendWorldDraw.cpp`
   - `src/game/runtime/session/SessionProjectedWorldView.cpp`
-  - `src/game/runtime/shared/projected/SharedProjectedUnitBackendMeshRenderer.cpp`
-  - `src/game/runtime/shared/projected/SharedProjectedUnitBackendMeshSupport.h`
-  - `src/game/runtime/shared/projected/SharedProjectedUnitBackendMeshTransforms.cpp`
-  - `src/game/runtime/shared/projected/SharedProjectedUnitBackendMeshTransforms.h`
-  - `src/game/runtime/shared/projected/SharedProjectedUnitModelRenderer.h`
-  - `src/game/runtime/shared/projected/SharedProjectedUnitRenderer.cpp`
-  - `src/game/runtime/shared/projected/SharedProjectedUnitRenderer.h`
+  - `src/game/runtime/shared/projected/backend_mesh/SharedProjectedUnitBackendMeshRenderer.cpp`
+  - `src/game/runtime/shared/projected/backend_mesh/SharedProjectedUnitBackendMeshSupport.h`
+  - `src/game/runtime/shared/projected/backend_mesh/SharedProjectedUnitBackendMeshTransforms.cpp`
+  - `src/game/runtime/shared/projected/backend_mesh/SharedProjectedUnitBackendMeshTransforms.h`
+  - `src/game/runtime/shared/projected/unit/SharedProjectedUnitModelRenderer.h`
+  - `src/game/runtime/shared/projected/unit/SharedProjectedUnitRenderer.cpp`
+  - `src/game/runtime/shared/projected/unit/SharedProjectedUnitRenderer.h`
   - `src/game/runtime/shared/world/SharedWorldIndexedBatches.cpp`
   - `src/game/runtime/shared/world/SharedWorldIndexedBatches.h`
 - Hypothesis:
@@ -330,13 +330,13 @@ without the same context.
   - `src/engine/render/opengl/OpenGLRenderBackendWorldDraw.cpp`
   - `src/engine/render/opengl/OpenGLRenderBackendWorldPipeline.cpp`
   - `src/game/runtime/session/SessionProjectedWorldView.cpp`
-  - `src/game/runtime/shared/projected/SharedProjectedUnitBackendMeshRenderer.cpp`
-  - `src/game/runtime/shared/projected/SharedProjectedUnitBackendMeshSupport.h`
-  - `src/game/runtime/shared/projected/SharedProjectedUnitBackendMeshTransforms.cpp`
-  - `src/game/runtime/shared/projected/SharedProjectedUnitBackendMeshTransforms.h`
-  - `src/game/runtime/shared/projected/SharedProjectedUnitModelRenderer.h`
-  - `src/game/runtime/shared/projected/SharedProjectedUnitRenderer.cpp`
-  - `src/game/runtime/shared/projected/SharedProjectedUnitRenderer.h`
+  - `src/game/runtime/shared/projected/backend_mesh/SharedProjectedUnitBackendMeshRenderer.cpp`
+  - `src/game/runtime/shared/projected/backend_mesh/SharedProjectedUnitBackendMeshSupport.h`
+  - `src/game/runtime/shared/projected/backend_mesh/SharedProjectedUnitBackendMeshTransforms.cpp`
+  - `src/game/runtime/shared/projected/backend_mesh/SharedProjectedUnitBackendMeshTransforms.h`
+  - `src/game/runtime/shared/projected/unit/SharedProjectedUnitModelRenderer.h`
+  - `src/game/runtime/shared/projected/unit/SharedProjectedUnitRenderer.cpp`
+  - `src/game/runtime/shared/projected/unit/SharedProjectedUnitRenderer.h`
   - `src/game/runtime/shared/world/SharedWorldIndexedBatches.cpp`
   - `src/game/runtime/shared/world/SharedWorldIndexedBatches.h`
 - Hypothesis:
@@ -415,10 +415,10 @@ without the same context.
 - Status:
   - local experiment; retained
 - Files:
-  - `src/game/runtime/shared/projected/SharedProjectedUnitBackendMeshSupport.h`
-  - `src/game/runtime/shared/projected/SharedProjectedUnitBackendMeshSupport.cpp`
-  - `src/game/runtime/shared/projected/SharedProjectedUnitBackendMeshRenderer.cpp`
-  - `src/game/runtime/shared/projected/SharedProjectedUnitBackendMeshTransforms.cpp`
+  - `src/game/runtime/shared/projected/backend_mesh/SharedProjectedUnitBackendMeshSupport.h`
+  - `src/game/runtime/shared/projected/backend_mesh/SharedProjectedUnitBackendMeshSupport.cpp`
+  - `src/game/runtime/shared/projected/backend_mesh/SharedProjectedUnitBackendMeshRenderer.cpp`
+  - `src/game/runtime/shared/projected/backend_mesh/SharedProjectedUnitBackendMeshTransforms.cpp`
   - `src/engine/render/d3d12/D3D12RenderBackendPipelines.cpp`
   - `src/engine/render/d3d12/D3D12RenderBackendWorldDraw.cpp`
   - `src/engine/render/opengl/OpenGLRenderBackendWorldPipeline.cpp`
@@ -643,7 +643,7 @@ without the same context.
 - Status:
   - local experiment; not retained
 - Files:
-  - `src/game/runtime/shared/projected/SharedProjectedUnitBackendMeshSupport.cpp`
+  - `src/game/runtime/shared/projected/backend_mesh/SharedProjectedUnitBackendMeshSupport.cpp`
 - Hypothesis:
   - now that the OpenGL path has the retained skin-UBO and texture-handle
     caching wins, retry the earlier "prefer full shared GPU skin payloads"
@@ -722,7 +722,7 @@ without the same context.
 - Status:
   - local experiment; retained for now
 - Files:
-  - `src/game/runtime/shared/projected/SharedProjectedUnitBackendMeshRenderer.cpp`
+  - `src/game/runtime/shared/projected/backend_mesh/SharedProjectedUnitBackendMeshRenderer.cpp`
 - Hypothesis:
   - the fast indexed textured path was still paying CPU cost to rewrite
     rigidly attached submesh vertices into transformed space even though both
@@ -789,9 +789,9 @@ without the same context.
 - Status:
   - local experiment; reverted
 - Files:
-  - `src/game/runtime/shared/projected/SharedProjectedUnitBackendMeshSupport.h`
-  - `src/game/runtime/shared/projected/SharedProjectedUnitBackendMeshSupport.cpp`
-  - `src/game/runtime/shared/projected/SharedProjectedUnitBackendMeshRenderer.cpp`
+  - `src/game/runtime/shared/projected/backend_mesh/SharedProjectedUnitBackendMeshSupport.h`
+  - `src/game/runtime/shared/projected/backend_mesh/SharedProjectedUnitBackendMeshSupport.cpp`
+  - `src/game/runtime/shared/projected/backend_mesh/SharedProjectedUnitBackendMeshRenderer.cpp`
 - Hypothesis:
   - after moving rigid-node transforms onto the GPU, the remaining CPU work on
     that path might be the per-frame rebuild of rigid-node vertex buffers
@@ -829,7 +829,7 @@ without the same context.
 - Status:
   - local experiment; reverted
 - Files:
-  - `src/game/runtime/shared/projected/SharedProjectedUnitBackendMeshSupport.cpp`
+  - `src/game/runtime/shared/projected/backend_mesh/SharedProjectedUnitBackendMeshSupport.cpp`
 - Hypothesis:
   - now that OpenGL is on the retained skin-UBO path, it might finally benefit
     from the same "full skin on GPU" policy D3D12 keeps instead of rebuilding
@@ -904,8 +904,8 @@ without the same context.
   - `src/engine/render/d3d12/D3D12RenderBackendCachedWorldMeshes.cpp`
   - `src/engine/render/d3d12/D3D12RenderBackendPipelines.cpp`
   - `src/engine/render/d3d12/D3D12RenderBackendWorldDraw.cpp`
-  - `src/game/runtime/shared/projected/SharedProjectedUnitBackendMeshSupport.cpp`
-  - `src/game/runtime/shared/projected/SharedProjectedUnitBackendMeshSupport.h`
+  - `src/game/runtime/shared/projected/backend_mesh/SharedProjectedUnitBackendMeshSupport.cpp`
+  - `src/game/runtime/shared/projected/backend_mesh/SharedProjectedUnitBackendMeshSupport.h`
 - Hypothesis:
   - keep inverse-bind data resident in a static GPU buffer and upload only
     dynamic joint globals each frame for D3D12 clip-skinned batches
@@ -940,9 +940,9 @@ without the same context.
 - Status:
   - local experiment; reverted
 - Files:
-  - `src/game/runtime/shared/projected/SharedProjectedRenderItems.cpp`
-  - `src/game/runtime/shared/projected/SharedProjectedRenderItems.h`
-  - `src/game/runtime/shared/projected/SharedProjectedUnitBackendMeshRenderer.cpp`
+  - `src/game/runtime/shared/projected/core/SharedProjectedRenderItems.cpp`
+  - `src/game/runtime/shared/projected/core/SharedProjectedRenderItems.h`
+  - `src/game/runtime/shared/projected/backend_mesh/SharedProjectedUnitBackendMeshRenderer.cpp`
   - `src/game/runtime/shared/world/SharedWorldIndexedBatches.cpp`
   - `src/game/runtime/shared/world/SharedWorldIndexedBatches.h`
 - Hypothesis:
@@ -1305,3 +1305,4 @@ without the same context.
 5. Keep the change only if the target buckets improve in practice.
 6. If the measured scene does not hit the target path, instrument first and
    retry later with better evidence.
+

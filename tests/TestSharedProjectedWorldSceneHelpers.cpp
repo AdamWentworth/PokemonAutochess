@@ -1,4 +1,4 @@
-#include "game/runtime/shared/projected/SharedProjectedWorldSceneHelpers.h"
+#include "game/runtime/shared/projected/world_scene/SharedProjectedWorldSceneHelpers.h"
 
 #include <string>
 
@@ -76,3 +76,4 @@ bool test_shared_projected_world_scene_helpers_contract(std::string& outFail) {
 
     return true;
 }
+
