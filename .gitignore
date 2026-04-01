@@ -2,6 +2,7 @@
 build/
 build-ninja
 dist/
+debug/
 dist/installer/
 content_pak/
 cache

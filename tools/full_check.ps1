@@ -1,6 +1,7 @@
 param(
     [string]$BuildDir = "build",
-    [string]$Config = "Debug"
+    [string]$Config = "Debug",
+    [switch]$IncludePreviewSmoke
 )
 
 $ErrorActionPreference = "Stop"
@@ -38,3 +39,13 @@ ctest --test-dir $BuildDir -C $Config --output-on-failure
 Assert-LastExitCode "CTest"
 cmake --build $BuildDir --config $Config --target PAC_ValidateData
 Assert-LastExitCode "PAC_ValidateData"
+
+$runPreviewSmoke = $IncludePreviewSmoke.IsPresent
+if (-not $runPreviewSmoke) {
+    $runPreviewSmoke = $env:PAC_ENABLE_PREVIEW_SMOKE_TESTS -eq "1"
+}
+
+if ($runPreviewSmoke) {
+    & (Join-Path $PSScriptRoot "vfx_preview_visual_smoke.ps1") -BuildDir $BuildDir -Config $Config
+    Assert-LastExitCode "Preview visual smoke"
+}

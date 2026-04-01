@@ -365,9 +365,20 @@ importance.
 - Rank: `#8`
 - Payoff/day: `Medium`
 - Estimated effort: `1-2 weeks`
+- Current state: `In progress on 2026-03-31`
 - Why this is later:
   - It is valuable, but it pays off more after the structural seams above are
     cleaner.
+- Progress so far:
+  - `src/engine/tools/vfx_preview/VfxPreviewApp.cpp` now supports screenshot-driven
+    auto-exit plus clean capture flags, which makes the shared preview app
+    practical for scripted smoke runs instead of only manual sessions.
+  - `tools/vfx_preview_visual_smoke.ps1` now captures deterministic screenshots
+    from `VfxLab` and `PAC_VfxPreviewer` and checks small image regions for
+    non-background/color content, giving the repo its first automated preview
+    visual guardrail.
+  - `tools/full_check.ps1` now supports opt-in preview smoke through
+    `-IncludePreviewSmoke` or `PAC_ENABLE_PREVIEW_SMOKE_TESTS=1`.
 - Focus:
   - Add a protected perf baseline in CI.
   - Add screenshot or image-diff smoke for key preview/runtime visual cases
@@ -378,7 +389,8 @@ importance.
   - A few critical preview/runtime visuals are checked automatically.
 
 ## Best Next 30-Day Sequence
-1. Start step `8` with at least one automated preview/perf guardrail.
+1. Extend step `8` from preview smoke into a lightweight protected perf
+   baseline.
 2. Revisit the remaining `Model.cpp` internal `.inl` seam once the projected
    hot path is in a calmer state.
 3. Revisit projected-render CPU hotspots only if fresh measurement or parity

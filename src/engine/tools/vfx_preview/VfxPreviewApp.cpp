@@ -64,6 +64,12 @@ struct PreviewScreenshotCaptureConfig {
     std::string path;
 };
 
+struct PreviewAutoQuitConfig {
+    bool enabled = false;
+    double seconds = 0.0;
+    bool exitAfterScreenshot = false;
+};
+
 std::string normalizedPreviewSelection(std::string_view raw) {
     std::string out;
     out.reserve(raw.size());
@@ -116,13 +122,44 @@ PreviewScreenshotCaptureConfig makeScreenshotCaptureConfig() {
     return cfg;
 }
 
-void maybeCapturePreviewScreenshot(const PreviewScreenshotCaptureConfig& cfg,
+bool parsePreviewBoolEnv(const char* name, bool defaultValue) {
+    const auto value = engine::env::get(name);
+    if (!value.has_value()) return defaultValue;
+    const std::string_view raw(*value);
+    if (raw == "1" || engine::env::iequals(raw, "true") ||
+        engine::env::iequals(raw, "yes") || engine::env::iequals(raw, "on")) {
+        return true;
+    }
+    if (raw == "0" || engine::env::iequals(raw, "false") ||
+        engine::env::iequals(raw, "no") || engine::env::iequals(raw, "off")) {
+        return false;
+    }
+    return defaultValue;
+}
+
+PreviewAutoQuitConfig makeAutoQuitConfig() {
+    PreviewAutoQuitConfig cfg{};
+    cfg.exitAfterScreenshot =
+        parsePreviewBoolEnv("PAC_VFX_PREVIEW_EXIT_AFTER_SCREENSHOT", false);
+    if (const auto seconds = engine::env::get("PAC_VFX_PREVIEW_AUTO_QUIT_SECONDS")) {
+        try {
+            cfg.seconds = std::max(0.0, std::stod(*seconds));
+            cfg.enabled = cfg.seconds > 0.0;
+        } catch (...) {
+            cfg.seconds = 0.0;
+            cfg.enabled = false;
+        }
+    }
+    return cfg;
+}
+
+bool maybeCapturePreviewScreenshot(PreviewScreenshotCaptureConfig& cfg,
                                    std::uint64_t frameIndex,
                                    int drawableW,
                                    int drawableH) {
-    if (!cfg.enabled || cfg.captured) return;
-    if (frameIndex < cfg.targetFrame) return;
-    if (drawableW <= 0 || drawableH <= 0 || cfg.path.empty()) return;
+    if (!cfg.enabled || cfg.captured) return false;
+    if (frameIndex < cfg.targetFrame) return false;
+    if (drawableW <= 0 || drawableH <= 0 || cfg.path.empty()) return false;
 
     const std::size_t rowBytes = static_cast<std::size_t>(drawableW) * 4u;
     std::vector<unsigned char> rgba(
@@ -151,15 +188,18 @@ void maybeCapturePreviewScreenshot(const PreviewScreenshotCaptureConfig& cfg,
             4,
             flipped.data(),
             drawableW * 4);
+        cfg.captured = wrote != 0;
         previewConsoleLog().info(
             std::string("[PreviewScreenshot] ") +
-            (wrote != 0 ? "WROTE " : "FAILED ") +
+            (cfg.captured ? "WROTE " : "FAILED ") +
             outPath.string() +
             " size=" + std::to_string(drawableW) + "x" + std::to_string(drawableH) +
             " frame=" + std::to_string(frameIndex));
+        return cfg.captured;
     } catch (const std::exception& ex) {
         previewConsoleLog().error(
             std::string("[PreviewScreenshot] FAILED exception=") + ex.what());
+        return false;
     }
 }
 
@@ -666,7 +706,12 @@ int VfxPreviewApp::run() {
 
         DebugLineRenderer debugLines;
         PreviewSceneState scene{};
-        bool showHelpOverlay = true;
+        if (parsePreviewBoolEnv("PAC_VFX_PREVIEW_HIDE_GUIDES", false)) {
+            scene.showEmitterMarker = false;
+            scene.showTargetMarker = false;
+            scene.showOrientationGuide = false;
+        }
+        bool showHelpOverlay = !parsePreviewBoolEnv("PAC_VFX_PREVIEW_HIDE_HELP", false);
         bool showPrimaryBackdrop = true;
         bool showSecondaryBackdrop = false;
         std::size_t activeEffectIndex = resolvePreviewSelectionFromEnv(
@@ -703,8 +748,22 @@ int VfxPreviewApp::run() {
         bool panning = false;
         std::uint64_t titleFrame = 0;
         std::uint64_t debugFrameIndex = 0;
+        const std::uint64_t startTicks = SDL_GetPerformanceCounter();
         std::uint64_t prevTicks = SDL_GetPerformanceCounter();
         PreviewScreenshotCaptureConfig screenshotCapture = makeScreenshotCaptureConfig();
+        PreviewAutoQuitConfig autoQuit = makeAutoQuitConfig();
+        if (screenshotCapture.enabled) {
+            previewConsoleLog().info(
+                "[PreviewScreenshot] ARMED path=" + screenshotCapture.path +
+                " frame=" + std::to_string(screenshotCapture.targetFrame));
+        }
+        if (autoQuit.enabled) {
+            previewConsoleLog().info(
+                "[VfxPreviewer] AutoQuit armed seconds=" + std::to_string(autoQuit.seconds));
+        }
+        if (autoQuit.exitAfterScreenshot) {
+            previewConsoleLog().info("[VfxPreviewer] AutoQuit armed exit_after_screenshot=1");
+        }
 
         while (running) {
             const bool logThisFrame = debugFrameIndex < 4u;
@@ -935,20 +994,30 @@ int VfxPreviewApp::run() {
                           showHelpOverlay,
                           showPrimaryBackdrop,
                           showSecondaryBackdrop);
-            maybeCapturePreviewScreenshot(
+            const bool capturedThisFrame = maybeCapturePreviewScreenshot(
                 screenshotCapture,
                 debugFrameIndex,
                 drawableW,
                 drawableH);
-            if (screenshotCapture.enabled && !screenshotCapture.captured &&
-                debugFrameIndex >= screenshotCapture.targetFrame) {
-                screenshotCapture.captured = true;
+            if (capturedThisFrame && autoQuit.exitAfterScreenshot) {
+                running = false;
             }
 
             if (logThisFrame) appendPreviewBootLog("[app] frame " + std::to_string(debugFrameIndex) + " swap");
             window->swapBuffers();
             if (logThisFrame) appendPreviewBootLog("[app] frame " + std::to_string(debugFrameIndex) + " end");
             ++debugFrameIndex;
+
+            if (autoQuit.enabled) {
+                const double elapsedSec =
+                    static_cast<double>(SDL_GetPerformanceCounter() - startTicks) /
+                    static_cast<double>(SDL_GetPerformanceFrequency());
+                if (elapsedSec >= autoQuit.seconds) {
+                    previewConsoleLog().info(
+                        "[VfxPreviewer] AutoQuit elapsed seconds=" + std::to_string(elapsedSec));
+                    running = false;
+                }
+            }
 
             if ((titleFrame++ % 8u) == 0u) {
                 window->setTitle(

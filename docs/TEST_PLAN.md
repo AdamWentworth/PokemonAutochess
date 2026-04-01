@@ -95,6 +95,32 @@ cmake --build build --config Debug --target PAC_VfxPreviewer VfxLab PAC_Tests
 .\tools\render_parity_screenshot_diff.ps1 -BuildDir build -Config Debug -ScreenshotFrame 120 -AutoQuitSeconds 3
 ```
 
+## Optional Preview Visual Smoke
+Use this when work touches preview-tool visuals, Growl preview parity, or the
+Pokemon-model presentation path inside `PAC_VfxPreviewer`.
+
+```powershell
+.\tools\vfx_preview_visual_smoke.ps1 -BuildDir build -Config Debug
+```
+
+This harness currently checks:
+- `VfxLab` Growl color/content output in a deterministic center crop.
+- `PAC_VfxPreviewer` 3D-model Growl/model presentation output in a deterministic
+  model crop.
+
+Optional one-command local check:
+
+```powershell
+.\tools\full_check.ps1 -IncludePreviewSmoke
+```
+
+Or enable it through the environment:
+
+```powershell
+$env:PAC_ENABLE_PREVIEW_SMOKE_TESTS = "1"
+.\tools\full_check.ps1
+```
+
 ## One-Command Local Check
 ```powershell
 .\tools\full_check.ps1

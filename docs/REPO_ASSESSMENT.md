@@ -23,8 +23,8 @@ Execution plan: `REPO_CLEANUP_ROADMAP.md`
 | Maintainability | `8.3 / 10` | Recent cleanup helped materially; the main remaining concentration is now more in backend mega-files and broad renderer interfaces than in the outer runtime/session or projected-runtime owners. |
 | Modularity and boundaries | `8.3 / 10` | Engine/game split is real, Growl now has a true reusable VFX boundary, the renderer interface has a first role split, and the projected runtime now has clearer local seams. |
 | Repo organization | `8.6 / 10` | Top-level structure, naming, docs organization, and projected-runtime folder layout are strong. |
-| Testing and verification | `8.8 / 10` | Full check covers docs, build, and 196 tests; the main remaining downside is manual visual/perf verification. |
-| Production discipline | `8.0 / 10` | Build flags, parity contracts, hygiene, and runtime/tooling logging discipline are improving materially; perf and visual validation are not yet fully automated. |
+| Testing and verification | `8.9 / 10` | Full check covers docs, build, and 196 tests, and the repo now has a first automated preview visual smoke; the main remaining downside is perf and broader runtime visual verification. |
+| Production discipline | `8.1 / 10` | Build flags, parity contracts, hygiene, runtime/tooling logging discipline, and preview smoke automation are improving materially; perf and broader visual validation are not yet fully automated. |
 
 ## Current Overall Read
 - Strong prototype-to-production-minded C++ game/engine repo with unusually
@@ -125,6 +125,10 @@ Execution plan: `REPO_CLEANUP_ROADMAP.md`
 - Engine-side observability is starting to follow the same rules too:
   `Application.cpp`, D3D12 startup/screenshot lifecycle logs, and model-cache
   debug traces now use the shared sink instead of writing raw streams directly.
+- The repo now has its first automated preview visual guardrail too:
+  `tools/vfx_preview_visual_smoke.ps1` captures deterministic screenshots from
+  `VfxLab` and `PAC_VfxPreviewer`, and `tools/full_check.ps1` can opt into that
+  smoke through `-IncludePreviewSmoke` or `PAC_ENABLE_PREVIEW_SMOKE_TESTS=1`.
 
 ## What Is Strong
 - Engine/game layering is real, not aspirational.
@@ -163,8 +167,9 @@ Execution plan: `REPO_CLEANUP_ROADMAP.md`
      in one giant projected kitchen-sink file.
 
 3. Visual and performance verification still lean on manual discipline.
-   - Tooling is stronger than before, but preview correctness and perf baselines
-     are not yet protected by the same level of automation as contracts/builds.
+   - Tooling is stronger than before, and there is now a first preview visual
+     smoke harness, but broader preview correctness and perf baselines are not
+     yet protected by the same level of automation as contracts/builds.
 
 4. Observability is still inconsistent.
    - The repo still contains about `181` direct `std::cout` / `std::cerr` calls

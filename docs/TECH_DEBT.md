@@ -29,6 +29,7 @@ engineering priority; concrete file-by-file issues live in
      concentrate too much change risk.
 
 5. Tooling and documentation still lean on manual discipline in a few places.
-   - Preview visuals and performance remain mostly manual smoke-checked.
+   - Preview visuals now have a first automated smoke harness, but broader
+     runtime visuals and performance still remain mostly manual smoke-checked.
    - Docs now have hygiene automation, but the workflow still depends on people
      keeping ownership boundaries honest.
