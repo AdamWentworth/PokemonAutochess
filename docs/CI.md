@@ -17,9 +17,7 @@ CI is correctness-first and Windows-first.
 - Dedicated Windows smoke lanes on `workflow_dispatch` and nightly `schedule`:
   - Hosted-runner runtime visual smoke: `tools/runtime_visual_smoke.ps1`
     using the `D3D12` path
-  - Hosted-runner conservative Release perf smoke slice from
-    `tools/perf_smoke_guard.ps1` using the dense-roster baseline and `D3D12`
-  - Upload screenshot / benchmark artifacts even on failure
+  - Upload runtime smoke screenshots even on failure
 
 Optional runtime smoke tests (`PAC_ENABLE_RUNTIME_SMOKE_TESTS`):
 - `PAC_RuntimeSmoke.opengl`
@@ -28,17 +26,23 @@ Optional runtime smoke tests (`PAC_ENABLE_RUNTIME_SMOKE_TESTS`):
 
 ## What CI Does Not Yet Run
 - Release benchmark matrix for renderer performance.
+- Hosted-runner perf smoke gate on GitHub Actions. The current hosted Windows
+  runners are too non-representative for meaningful perf thresholds.
 - Screenshot/image-diff parity harness (`tools/render_parity_screenshot_diff.ps1`).
 - Installer end-to-end smoke.
 - Merge-blocking PR perf gate.
 - Merge-blocking PR visual smoke gate.
 - Preview visual smoke on GitHub-hosted Windows runners; keep using it locally
   or move it to a self-hosted GPU runner later if we want CI coverage there.
+- Merge-blocking PR runtime visual smoke gate.
 
 ## Required Local Supplement For Perf-Sensitive Renderer Changes
 1. Run full Debug CTest locally.
 2. Run the Release benchmark protocol from `docs/TEST_PLAN.md` when the change can affect frame time or startup cost.
 3. Record benchmark outputs in commit notes, PR notes, or local engineering notes.
+
+If we want automated perf gating later, the next honest step is a self-hosted
+GPU runner or a benchmark environment we actually control.
 
 ## Local Equivalent
 ```powershell

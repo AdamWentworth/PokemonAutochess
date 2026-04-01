@@ -13,9 +13,10 @@ engineering priority; concrete file-by-file issues live in
    - A first local Release perf smoke suite now exists and `full_check` now
      runs it through a stable prebuilt-Release path with display-aware
      protected resolution selection.
-   - GitHub Actions now runs the smoke suite in dedicated manual/nightly
-     Windows jobs for hosted-runner-safe slices, but PRs are not yet blocked on
-     it.
+   - GitHub-hosted Windows turned out not to be a trustworthy perf threshold
+     environment for this repo, so PRs are not yet blocked on an automated perf
+     gate and perf smoke remains local-first until we have a self-hosted GPU or
+     similarly controlled benchmark runner.
 
 2. Shared projected render/build CPU is still the main steady-state hotspot.
    - The projected-runtime first pass is complete, but the next biggest wins
@@ -37,11 +38,14 @@ engineering priority; concrete file-by-file issues live in
      smoke now uses a stable pinned snapshot path plus a prebuilt-Release
      wrapper path.
    - Runtime visuals now also have a first automated gameplay smoke harness,
-    and CI now has dedicated manual/nightly smoke lanes, but broader runtime
-     visual coverage and merge-blocking CI enforcement still remain only partly
-     automated.
+     and CI now has a dedicated manual/nightly hosted runtime-smoke lane, but
+     broader runtime visual coverage and merge-blocking CI enforcement still
+     remain only partly automated.
    - Preview smoke still depends on local runs or a future self-hosted GPU CI
      lane because GitHub-hosted Windows runners are not a stable fit for the
      current OpenGL preview tools.
+   - Perf smoke still depends on local runs or a future self-hosted GPU CI lane
+     because GitHub-hosted Windows runners are not a stable fit for trustworthy
+     perf thresholds.
    - Docs now have hygiene automation, but the workflow still depends on people
      keeping ownership boundaries honest.

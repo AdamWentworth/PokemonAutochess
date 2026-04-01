@@ -400,16 +400,20 @@ importance.
   - `tools/full_check.ps1 -IncludePerfSmoke` now prebuilds Release before the
     long Debug gate and runs the perf smoke `-NoBuild`, which keeps the local
     protected perf path stable instead of measuring a just-built hot binary.
-  - GitHub Actions now has dedicated Windows smoke lanes on
-    `workflow_dispatch` and nightly `schedule` for hosted-runner runtime visual
-    smoke (`D3D12`) and a conservative hosted-runner Release perf smoke slice,
-    with screenshot and benchmark artifacts uploaded even on failure.
+  - GitHub Actions now has a dedicated Windows runtime visual smoke lane on
+    `workflow_dispatch` and nightly `schedule` for a hosted-runner-safe
+    `D3D12` slice, with screenshot artifacts uploaded even on failure.
+  - Hosted GitHub Windows runners turned out not to be representative enough
+    for stable perf thresholds, so perf smoke remains local-first until we
+    have a self-hosted GPU runner or another controlled benchmark environment.
 - Focus:
   - Decide which parts of the new smoke suite are stable enough to graduate
     from nightly/manual CI lanes into merge-blocking PR gates.
   - Keep the protected local resolution ladder stable across different display
     sizes so the smoke path stays usable on contributor machines.
   - Decide whether preview smoke should stay local-only or move to a self-hosted
+    GPU runner instead of GitHub-hosted Windows.
+  - Decide whether perf smoke should stay local-only or move to a self-hosted
     GPU runner instead of GitHub-hosted Windows.
   - Add screenshot or image-diff smoke for key preview/runtime visual cases
     where practical.
@@ -420,7 +424,8 @@ importance.
 
 ## Best Next 30-Day Sequence
 1. Watch the new nightly/manual CI smoke lanes for flake rate, then decide
-   whether any subset should become merge-blocking on PRs.
+   whether the hosted runtime-visual lane is stable enough to become
+   merge-blocking on PRs, and whether perf smoke needs a self-hosted GPU lane.
 2. Revisit the remaining `Model.cpp` internal `.inl` seam once the projected
    hot path is in a calmer state.
 3. Revisit projected-render CPU hotspots only if fresh measurement or parity

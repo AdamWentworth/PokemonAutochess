@@ -79,37 +79,3 @@ jobs:
           path: |
             debug/runtime_visual_smoke
           if-no-files-found: warn
-
-  windows-perf-smoke:
-    if: github.event_name == 'workflow_dispatch' || github.event_name == 'schedule'
-    runs-on: windows-latest
-    timeout-minutes: 40
-    env:
-      VCPKG_ROOT: ${{ github.workspace }}\vcpkg
-      VCPKG_BINARY_SOURCES: clear;files,${{ github.workspace }}\vcpkg_cache,readwrite
-      VCPKG_DISABLE_METRICS: 1
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-      - name: Cache vcpkg binaries
-        uses: actions/cache@v4
-        with:
-          path: ${{ github.workspace }}\vcpkg_cache
-          key: vcpkg-${{ runner.os }}-${{ hashFiles('vcpkg.json') }}
-      - name: Install vcpkg
-        run: |
-          git clone https://github.com/microsoft/vcpkg "${{ env.VCPKG_ROOT }}"
-          & "${{ env.VCPKG_ROOT }}\\bootstrap-vcpkg.bat"
-      - name: Configure
-        run: cmake -S . -B build -DCMAKE_TOOLCHAIN_FILE="${{ env.VCPKG_ROOT }}/scripts/buildsystems/vcpkg.cmake" -DPAC_BUILD_TOOLS=ON -DBUILD_TESTING=ON
-      - name: Build perf smoke target
-        run: cmake --build build --config Release --target PokemonAutochess
-      - name: Perf smoke suite
-        run: powershell -ExecutionPolicy Bypass -File tools/perf_smoke_guard.ps1 -BuildDir build -Config Release -BaselinePath config/perf/release_perf_smoke_dense_roster.json -BackendsOverride d3d12 -NoBuild -DurationSecondsOverride 24 -WarmupSamplesOverride 2 -MinScoredSamplesOverride 4
-      - name: Upload perf smoke artifacts
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: windows-perf-smoke-artifacts
-          path: benchmark_smoke
-          if-no-files-found: warn
