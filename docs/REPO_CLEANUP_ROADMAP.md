@@ -401,14 +401,16 @@ importance.
     long Debug gate and runs the perf smoke `-NoBuild`, which keeps the local
     protected perf path stable instead of measuring a just-built hot binary.
   - GitHub Actions now has dedicated Windows smoke lanes on
-    `workflow_dispatch` and nightly `schedule` for preview visual smoke,
-    runtime visual smoke, and the Release perf smoke suite, with screenshot and
-    benchmark artifacts uploaded even on failure.
+    `workflow_dispatch` and nightly `schedule` for hosted-runner runtime visual
+    smoke (`D3D12`) and a conservative hosted-runner Release perf smoke slice,
+    with screenshot and benchmark artifacts uploaded even on failure.
 - Focus:
   - Decide which parts of the new smoke suite are stable enough to graduate
     from nightly/manual CI lanes into merge-blocking PR gates.
   - Keep the protected local resolution ladder stable across different display
     sizes so the smoke path stays usable on contributor machines.
+  - Decide whether preview smoke should stay local-only or move to a self-hosted
+    GPU runner instead of GitHub-hosted Windows.
   - Add screenshot or image-diff smoke for key preview/runtime visual cases
     where practical.
   - Keep manual smoke as a supplement, not the primary truth source.

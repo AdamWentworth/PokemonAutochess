@@ -15,9 +15,10 @@ CI is correctness-first and Windows-first.
   - Run `PAC_ValidateData`.
   - Run clang-format check on changed C++ files.
 - Dedicated Windows smoke lanes on `workflow_dispatch` and nightly `schedule`:
-  - Preview visual smoke: CI-safe preview subset from `tools/vfx_preview_visual_smoke.ps1`
-  - Runtime visual smoke: `tools/runtime_visual_smoke.ps1`
-  - Conservative Release perf smoke slice from `tools/perf_smoke_guard.ps1`
+  - Hosted-runner runtime visual smoke: `tools/runtime_visual_smoke.ps1`
+    using the `D3D12` path
+  - Hosted-runner conservative Release perf smoke slice from
+    `tools/perf_smoke_guard.ps1` using the dense-roster baseline and `D3D12`
   - Upload screenshot / benchmark artifacts even on failure
 
 Optional runtime smoke tests (`PAC_ENABLE_RUNTIME_SMOKE_TESTS`):
@@ -31,6 +32,8 @@ Optional runtime smoke tests (`PAC_ENABLE_RUNTIME_SMOKE_TESTS`):
 - Installer end-to-end smoke.
 - Merge-blocking PR perf gate.
 - Merge-blocking PR visual smoke gate.
+- Preview visual smoke on GitHub-hosted Windows runners; keep using it locally
+  or move it to a self-hosted GPU runner later if we want CI coverage there.
 
 ## Required Local Supplement For Perf-Sensitive Renderer Changes
 1. Run full Debug CTest locally.

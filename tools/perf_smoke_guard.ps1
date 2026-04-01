@@ -2,6 +2,7 @@ param(
     [string]$BuildDir = "build",
     [string]$Config = "Release",
     [string[]]$BaselinePath = @("config/perf/release_perf_smoke_*.json"),
+    [string[]]$BackendsOverride = @(),
     [string]$OutDir = "benchmark_smoke",
     [int]$DurationSecondsOverride = 0,
     [int]$WarmupSamplesOverride = 0,
@@ -112,6 +113,7 @@ function Invoke-PerfBaselineCheck {
         [string]$BaselineAbs,
         [string]$BuildDir,
         [string]$Config,
+        [string[]]$BackendsOverride,
         [string]$OutDir,
         [int]$DurationSecondsOverride,
         [int]$WarmupSamplesOverride,
@@ -148,7 +150,11 @@ function Invoke-PerfBaselineCheck {
     $benchParams = @{
         BuildDir = $BuildDir
         Config = $Config
-        Backends = @($baseline.benchmark.backends | ForEach-Object { [string]$_ })
+        Backends = if ($BackendsOverride.Count -gt 0) {
+            @($BackendsOverride | ForEach-Object { [string]$_ })
+        } else {
+            @($baseline.benchmark.backends | ForEach-Object { [string]$_ })
+        }
         Resolutions = $selectedResolutionLabels
         DurationSeconds = if ($DurationSecondsOverride -gt 0) { $DurationSecondsOverride } else { [int]$baseline.benchmark.duration_seconds }
         WarmupSamples = if ($WarmupSamplesOverride -gt 0) { $WarmupSamplesOverride } else { [int]$baseline.benchmark.warmup_samples }
@@ -198,7 +204,8 @@ function Invoke-PerfBaselineCheck {
 
     $failures = @()
     foreach ($baselineRow in @($baseline.rows | Where-Object {
-        $selectedResolutionLabels -contains $_.resolution.ToString()
+        $selectedResolutionLabels -contains $_.resolution.ToString() -and
+        $benchParams.Backends -contains $_.backend.ToString()
     })) {
         $key = Get-PerfRowKey $baselineRow
         if (-not $actualRows.ContainsKey($key)) {
@@ -246,6 +253,7 @@ foreach ($baselineAbs in $baselineAbsList) {
         -BaselineAbs $baselineAbs `
         -BuildDir $BuildDir `
         -Config $Config `
+        -BackendsOverride $BackendsOverride `
         -OutDir $OutDir `
         -DurationSecondsOverride $DurationSecondsOverride `
         -WarmupSamplesOverride $WarmupSamplesOverride `

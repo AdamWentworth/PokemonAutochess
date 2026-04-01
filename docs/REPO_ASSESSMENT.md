@@ -23,8 +23,8 @@ Execution plan: `REPO_CLEANUP_ROADMAP.md`
 | Maintainability | `8.3 / 10` | Recent cleanup helped materially; the main remaining concentration is now more in backend mega-files and broad renderer interfaces than in the outer runtime/session or projected-runtime owners. |
 | Modularity and boundaries | `8.3 / 10` | Engine/game split is real, Growl now has a true reusable VFX boundary, the renderer interface has a first role split, and the projected runtime now has clearer local seams. |
 | Repo organization | `8.6 / 10` | Top-level structure, naming, docs organization, and projected-runtime folder layout are strong. |
-| Testing and verification | `9.2 / 10` | Full check covers docs, build, and 196 tests, the repo now has first-pass automated preview/runtime/perf smoke coverage locally, and dedicated Windows CI smoke lanes now exercise those paths on manual/nightly runs with artifact upload; the main remaining downside is broader scenario coverage and the lack of merge-blocking PR smoke gates. |
-| Production discipline | `8.4 / 10` | Build flags, parity contracts, hygiene, runtime/tooling logging discipline, preview/runtime smoke automation, and a stable local Release perf smoke suite are improving materially, and CI now runs dedicated smoke lanes for those paths on manual/nightly triggers; merge-blocking PR perf and broader visual validation are not yet fully automated. |
+| Testing and verification | `9.1 / 10` | Full check covers docs, build, and 196 tests, the repo now has first-pass automated preview/runtime/perf smoke coverage locally, and dedicated Windows CI smoke lanes now exercise hosted-runner-safe runtime/perf slices on manual/nightly runs with artifact upload; the main remaining downside is broader scenario coverage, preview smoke still being local-only on hosted CI, and the lack of merge-blocking PR smoke gates. |
+| Production discipline | `8.4 / 10` | Build flags, parity contracts, hygiene, runtime/tooling logging discipline, preview/runtime smoke automation, and a stable local Release perf smoke suite are improving materially, and CI now runs dedicated smoke lanes for hosted-runner-safe slices on manual/nightly triggers; merge-blocking PR perf and broader visual validation are not yet fully automated. |
 
 ## Current Overall Read
 - Strong prototype-to-production-minded C++ game/engine repo with unusually
@@ -140,10 +140,11 @@ Execution plan: `REPO_CLEANUP_ROADMAP.md`
   snapshot, pins those scripted snapshot states during scoring, auto-selects
   the largest protected resolution that fits the current display, and compares
   the results against the baseline suite under `config/perf/`.
-- That smoke automation is no longer local-only either: GitHub Actions now has
-  dedicated Windows smoke lanes on manual/nightly triggers for preview visual
-  smoke, runtime visual smoke, and the Release perf smoke suite, with
-  screenshots and benchmark outputs uploaded as artifacts for diagnosis.
+- That smoke automation is no longer fully local-only either: GitHub Actions
+  now has dedicated Windows smoke lanes on manual/nightly triggers for
+  hosted-runner-safe runtime visual smoke and a conservative Release perf smoke
+  slice, with screenshots and benchmark outputs uploaded as artifacts for
+  diagnosis.
 
 ## What Is Strong
 - Engine/game layering is real, not aspirational.
