@@ -342,9 +342,18 @@ importance.
     `src/game/runtime/shared/projected/world_vfx/SharedProjectedWorldTailFireVfxBridge.*`,
     leaving `SharedProjectedWorldParticleVfxBridge.cpp` closer to a pure
     particle snapshot bridge.
+  - The projected-runtime family is now also organized by concern under
+    `src/game/runtime/shared/projected/core`,
+    `src/game/runtime/shared/projected/unit`,
+    `src/game/runtime/shared/projected/backend_mesh`,
+    `src/game/runtime/shared/projected/world_scene`, and
+    `src/game/runtime/shared/projected/world_vfx`, which makes the new seam
+    boundaries more obvious in daily navigation.
 - Focus:
   - Preserve the new smaller projected seams instead of re-accumulating broad
     responsibilities into the old kitchen-sink files.
+  - Preserve the new folder-level ownership split too; avoid sliding unrelated
+    projected helpers back into one flat directory without a clear reason.
   - Prefer targeted follow-up fixes inside the newer helper files over another
     broad projected-runtime rewrite unless a fresh hotspot reappears.
 - Exit criteria:
@@ -369,7 +378,7 @@ importance.
   - A few critical preview/runtime visuals are checked automatically.
 
 ## Best Next 30-Day Sequence
-1. Add at least one automated preview/perf guardrail.
+1. Start step `8` with at least one automated preview/perf guardrail.
 2. Revisit the remaining `Model.cpp` internal `.inl` seam once the projected
    hot path is in a calmer state.
 3. Revisit projected-render CPU hotspots only if fresh measurement or parity

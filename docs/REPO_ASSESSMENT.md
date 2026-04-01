@@ -22,7 +22,7 @@ Execution plan: `REPO_CLEANUP_ROADMAP.md`
 | Code health | `8.2 / 10` | Most code is readable and intentional, and the worst projected-runtime kitchen-sink files have now been broken into smaller seams. |
 | Maintainability | `8.3 / 10` | Recent cleanup helped materially; the main remaining concentration is now more in backend mega-files and broad renderer interfaces than in the outer runtime/session or projected-runtime owners. |
 | Modularity and boundaries | `8.3 / 10` | Engine/game split is real, Growl now has a true reusable VFX boundary, the renderer interface has a first role split, and the projected runtime now has clearer local seams. |
-| Repo organization | `8.5 / 10` | Top-level structure, naming, and docs organization are strong. |
+| Repo organization | `8.6 / 10` | Top-level structure, naming, docs organization, and projected-runtime folder layout are strong. |
 | Testing and verification | `8.8 / 10` | Full check covers docs, build, and 196 tests; the main remaining downside is manual visual/perf verification. |
 | Production discipline | `8.0 / 10` | Build flags, parity contracts, hygiene, and runtime/tooling logging discipline are improving materially; perf and visual validation are not yet fully automated. |
 
@@ -37,7 +37,9 @@ Execution plan: `REPO_CLEANUP_ROADMAP.md`
 - The projected runtime cleanup is now through a meaningful first pass: the
   old concentrated backend-mesh, world-scene, and projected VFX hotspots now
   have dedicated helper seams instead of one or two giant kitchen-sink files.
-  renderer shape.
+- The projected family is also easier to navigate now: `core`, `unit`,
+  `backend_mesh`, `world_scene`, and `world_vfx` make the ownership split more
+  visible at the filesystem level instead of relying only on file prefixes.
 - That projected-render split is now broader than a single fast path: the
   backend-mesh renderer also delegates persistent-item sync, indexed CPU
   rewrite/finalization, triangle prep, and the fallback triangle submission
@@ -143,7 +145,7 @@ Execution plan: `REPO_CLEANUP_ROADMAP.md`
      the top 20 account for about `22.2%`.
    - The biggest hotspots are renderer/runtime files such as
       `D3D12RenderBackendWorldPipeline.cpp`, `SessionWorldBackdrop.cpp`,
-      `SharedProjectedUnitRenderer.cpp`,
+      `src/game/runtime/shared/projected/unit/SharedProjectedUnitRenderer.cpp`,
       `OpenGLRenderBackendWorldDraw.cpp`, and `D3D12RenderBackendWorldDraw.cpp`.
 
 2. Renderer seams are still broader than ideal.
@@ -301,6 +303,9 @@ Execution plan: `REPO_CLEANUP_ROADMAP.md`
   Fire sidecar assembly, and render-object submission to dedicated helpers, and
   the old projected VFX bridge blob has become a thin coordinator over
   dedicated Growl, particle, Tail Fire, and capture bridge files.
+- The projected-runtime family is now also organized into coarse concern
+  folders under `src/game/runtime/shared/projected/`, which makes the new seam
+  structure easier to maintain and harder to accidentally flatten again.
 - Runtime/tooling diagnostics now have a first shared logging helper in
   `src/engine/utils/LogSink.*`, and the noisiest startup/runner/Growl preview
   surfaces now use it while preserving the existing stream-captured contracts.
