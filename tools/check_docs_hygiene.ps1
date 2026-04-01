@@ -72,6 +72,10 @@ $pathPrefixes = @(
     "README.md",
     "vcpkg.json"
 )
+$runtimeGeneratedRepoPaths = @(
+    "config/user/video_settings.json",
+    "config/user/debug_state_snapshot.json"
+)
 
 foreach ($doc in $activeDocs) {
     $content = Get-Content $doc.FullName -Raw
@@ -94,7 +98,7 @@ foreach ($doc in $activeDocs) {
         }
 
         $candidate = Join-Path $repoRoot $token
-        if (-not (Test-Path $candidate)) {
+        if (-not (Test-Path $candidate) -and $runtimeGeneratedRepoPaths -notcontains $token) {
             $errors.Add("Broken repo path in docs/$($doc.Name): $token")
         }
     }
