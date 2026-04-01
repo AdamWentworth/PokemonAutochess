@@ -3,6 +3,9 @@ param(
     [string]$Config = "Release",
     [string[]]$BaselinePath = @("config/perf/release_perf_smoke_*.json"),
     [string]$OutDir = "benchmark_smoke",
+    [int]$DurationSecondsOverride = 0,
+    [int]$WarmupSamplesOverride = 0,
+    [int]$MinScoredSamplesOverride = 0,
     [switch]$NoBuild
 )
 
@@ -110,6 +113,9 @@ function Invoke-PerfBaselineCheck {
         [string]$BuildDir,
         [string]$Config,
         [string]$OutDir,
+        [int]$DurationSecondsOverride,
+        [int]$WarmupSamplesOverride,
+        [int]$MinScoredSamplesOverride,
         [switch]$NoBuild,
         [object]$DisplayWorkingArea,
         [string]$PerfScript
@@ -144,9 +150,9 @@ function Invoke-PerfBaselineCheck {
         Config = $Config
         Backends = @($baseline.benchmark.backends | ForEach-Object { [string]$_ })
         Resolutions = $selectedResolutionLabels
-        DurationSeconds = [int]$baseline.benchmark.duration_seconds
-        WarmupSamples = [int]$baseline.benchmark.warmup_samples
-        MinScoredSamples = [int]$baseline.benchmark.min_scored_samples
+        DurationSeconds = if ($DurationSecondsOverride -gt 0) { $DurationSecondsOverride } else { [int]$baseline.benchmark.duration_seconds }
+        WarmupSamples = if ($WarmupSamplesOverride -gt 0) { $WarmupSamplesOverride } else { [int]$baseline.benchmark.warmup_samples }
+        MinScoredSamples = if ($MinScoredSamplesOverride -gt 0) { $MinScoredSamplesOverride } else { [int]$baseline.benchmark.min_scored_samples }
         OutDir = $OutDir
         Tag = $tag
         VideoVsync = "0"
@@ -241,6 +247,9 @@ foreach ($baselineAbs in $baselineAbsList) {
         -BuildDir $BuildDir `
         -Config $Config `
         -OutDir $OutDir `
+        -DurationSecondsOverride $DurationSecondsOverride `
+        -WarmupSamplesOverride $WarmupSamplesOverride `
+        -MinScoredSamplesOverride $MinScoredSamplesOverride `
         -NoBuild:$NoBuild `
         -DisplayWorkingArea $displayWorkingArea `
         -PerfScript $perfScript

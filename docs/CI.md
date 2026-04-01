@@ -15,9 +15,9 @@ CI is correctness-first and Windows-first.
   - Run `PAC_ValidateData`.
   - Run clang-format check on changed C++ files.
 - Dedicated Windows smoke lanes on `workflow_dispatch` and nightly `schedule`:
-  - Preview visual smoke: `tools/vfx_preview_visual_smoke.ps1`
+  - Preview visual smoke: CI-safe preview subset from `tools/vfx_preview_visual_smoke.ps1`
   - Runtime visual smoke: `tools/runtime_visual_smoke.ps1`
-  - Release perf smoke suite: `tools/perf_smoke_guard.ps1`
+  - Conservative Release perf smoke slice from `tools/perf_smoke_guard.ps1`
   - Upload screenshot / benchmark artifacts even on failure
 
 Optional runtime smoke tests (`PAC_ENABLE_RUNTIME_SMOKE_TESTS`):

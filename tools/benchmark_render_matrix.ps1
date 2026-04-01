@@ -290,9 +290,29 @@ try {
 
             $samples = Extract-PerfSamples -Lines $runLines
             if ($samples.Count -eq 0) {
+                $stdoutTail = @()
+                $stderrTail = @()
+                if (Test-Path $rawPath) {
+                    $tail = @(Get-Content -Path $rawPath -ErrorAction SilentlyContinue | Select-Object -Last 40)
+                    foreach ($line in $tail) {
+                        if ($line -match '^\s*\[?(Error|Fatal|Warn|Warning|Renderer|Screenshot|VfxLab|VfxPreviewer)') {
+                            $stderrTail += $line
+                        } else {
+                            $stdoutTail += $line
+                        }
+                    }
+                }
+                $detail = @()
+                if ($stdoutTail.Count -gt 0) {
+                    $detail += "stdout_tail:`n" + ($stdoutTail -join "`n")
+                }
+                if ($stderrTail.Count -gt 0) {
+                    $detail += "stderr_tail:`n" + ($stderrTail -join "`n")
+                }
+                $detailText = if ($detail.Count -gt 0) { "`n" + ($detail -join "`n") } else { "" }
                 $message = "No [PerfJSON] samples found for backend=$backend resolution=$($res.Label). " +
                            "This usually means the wrong/stale executable is being run or instrumentation is missing. " +
-                           "Raw log: $rawPath"
+                           "Raw log: $rawPath$detailText"
                 if ($AllowEmptySamples) {
                     Write-Warning $message
                 } else {

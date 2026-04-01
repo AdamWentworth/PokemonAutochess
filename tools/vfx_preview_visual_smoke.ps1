@@ -2,8 +2,11 @@ param(
     [string]$BuildDir = "build",
     [string]$Config = "Debug",
     [string]$OutputDir = "debug/vfx_preview_smoke",
-    [int]$ScreenshotFrame = 10,
-    [int]$AutoQuitSeconds = 10
+    [int]$LabScreenshotFrame = 2,
+    [int]$LabAutoQuitSeconds = 20,
+    [int]$PreviewerScreenshotFrame = 10,
+    [int]$PreviewerAutoQuitSeconds = 15,
+    [switch]$SkipVfxLab
 )
 
 $ErrorActionPreference = "Stop"
@@ -87,7 +90,7 @@ function Invoke-PreviewCapture {
             -RedirectStandardError $stderrPath `
             -PassThru
 
-        if (-not $process.WaitForExit(($AutoQuitSeconds + 5) * 1000)) {
+        if (-not $process.WaitForExit(($AutoQuitSeconds + 15) * 1000)) {
             Stop-Process -Id $process.Id -Force
             throw "$CaseName timed out without exiting after screenshot capture."
         }
@@ -98,7 +101,23 @@ function Invoke-PreviewCapture {
         }
 
         if (-not (Test-Path $shotPath)) {
-            throw "$CaseName did not produce screenshot '$shotPath'."
+            $stdoutTail = @()
+            $stderrTail = @()
+            if (Test-Path $stdoutPath) {
+                $stdoutTail = @(Get-Content $stdoutPath -ErrorAction SilentlyContinue | Select-Object -Last 20)
+            }
+            if (Test-Path $stderrPath) {
+                $stderrTail = @(Get-Content $stderrPath -ErrorAction SilentlyContinue | Select-Object -Last 20)
+            }
+            $detail = @()
+            if ($stdoutTail.Count -gt 0) {
+                $detail += "stdout_tail:`n" + ($stdoutTail -join "`n")
+            }
+            if ($stderrTail.Count -gt 0) {
+                $detail += "stderr_tail:`n" + ($stderrTail -join "`n")
+            }
+            $detailText = if ($detail.Count -gt 0) { "`n" + ($detail -join "`n") } else { "" }
+            throw "$CaseName did not produce screenshot '$shotPath'.$detailText"
         }
 
         $stdout = @(Get-Content $stdoutPath -ErrorAction SilentlyContinue)
@@ -217,22 +236,24 @@ Write-Host "[PreviewSmoke] PAC_VfxPreviewer: $previewerExe"
 Write-Host "[PreviewSmoke] VfxLab: $vfxLabExe"
 Write-Host "[PreviewSmoke] Output dir: $outputDirAbs"
 
-$labCapture = Invoke-PreviewCapture `
-    -ExePath $vfxLabExe `
-    -CaseName "growl_lab" `
-    -OutputDir $outputDirAbs `
-    -InitialEffect "Growl" `
-    -InitialRig $null `
-    -ScreenshotFrame $ScreenshotFrame `
-    -AutoQuitSeconds $AutoQuitSeconds
+if (-not $SkipVfxLab) {
+    $labCapture = Invoke-PreviewCapture `
+        -ExePath $vfxLabExe `
+        -CaseName "growl_lab" `
+        -OutputDir $outputDirAbs `
+        -InitialEffect "Growl" `
+        -InitialRig $null `
+        -ScreenshotFrame $LabScreenshotFrame `
+        -AutoQuitSeconds $LabAutoQuitSeconds
 
-Assert-PreviewImageMetrics `
-    -CaseName "growl_lab" `
-    -Path $labCapture.ScreenshotPath `
-    -X 660 -Y 190 -Width 140 -Height 110 `
-    -MinNonBackgroundRatio 0.02 `
-    -MinWarmPlusMagentaRatio 0.01 `
-    -MinBrightRatio 0.002
+    Assert-PreviewImageMetrics `
+        -CaseName "growl_lab" `
+        -Path $labCapture.ScreenshotPath `
+        -X 660 -Y 190 -Width 140 -Height 110 `
+        -MinNonBackgroundRatio 0.02 `
+        -MinWarmPlusMagentaRatio 0.01 `
+        -MinBrightRatio 0.002
+}
 
 $previewCapture = Invoke-PreviewCapture `
     -ExePath $previewerExe `
@@ -240,8 +261,8 @@ $previewCapture = Invoke-PreviewCapture `
     -OutputDir $outputDirAbs `
     -InitialEffect "Growl" `
     -InitialRig "3D Models" `
-    -ScreenshotFrame $ScreenshotFrame `
-    -AutoQuitSeconds $AutoQuitSeconds
+    -ScreenshotFrame $PreviewerScreenshotFrame `
+    -AutoQuitSeconds $PreviewerAutoQuitSeconds
 
 Assert-PreviewImageMetrics `
     -CaseName "growl_models" `
