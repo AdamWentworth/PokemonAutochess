@@ -2,17 +2,23 @@
 
 Status: Active
 Type: Runbook
-Last updated: 2026-03-31
+Last updated: 2026-04-01
 
 CI is correctness-first and Windows-first.
 
 ## What CI Runs
-- Configure with vcpkg toolchain.
-- Build Debug.
-- Run CTest.
-- Run `tools/check_docs_hygiene.ps1`.
-- Run `PAC_ValidateData`.
-- Run clang-format check on changed C++ files.
+- Core Windows PR/push gate:
+  - Configure with vcpkg toolchain.
+  - Build Debug.
+  - Run CTest.
+  - Run `tools/check_docs_hygiene.ps1`.
+  - Run `PAC_ValidateData`.
+  - Run clang-format check on changed C++ files.
+- Dedicated Windows smoke lanes on `workflow_dispatch` and nightly `schedule`:
+  - Preview visual smoke: `tools/vfx_preview_visual_smoke.ps1`
+  - Runtime visual smoke: `tools/runtime_visual_smoke.ps1`
+  - Release perf smoke suite: `tools/perf_smoke_guard.ps1`
+  - Upload screenshot / benchmark artifacts even on failure
 
 Optional runtime smoke tests (`PAC_ENABLE_RUNTIME_SMOKE_TESTS`):
 - `PAC_RuntimeSmoke.opengl`
@@ -21,13 +27,10 @@ Optional runtime smoke tests (`PAC_ENABLE_RUNTIME_SMOKE_TESTS`):
 
 ## What CI Does Not Yet Run
 - Release benchmark matrix for renderer performance.
-- Release perf smoke guard (`tools/perf_smoke_guard.ps1`) with its pinned local
-  baseline suite, display-aware protected resolution selection, and local-only
-  protected thresholds.
 - Screenshot/image-diff parity harness (`tools/render_parity_screenshot_diff.ps1`).
-- Runtime visual smoke harness (`tools/runtime_visual_smoke.ps1`).
-- Preview visual smoke harness (`tools/vfx_preview_visual_smoke.ps1`).
 - Installer end-to-end smoke.
+- Merge-blocking PR perf gate.
+- Merge-blocking PR visual smoke gate.
 
 ## Required Local Supplement For Perf-Sensitive Renderer Changes
 1. Run full Debug CTest locally.

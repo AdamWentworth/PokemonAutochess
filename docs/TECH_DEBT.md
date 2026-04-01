@@ -2,18 +2,19 @@
 
 Status: Active
 Type: Tracker
-Last updated: 2026-03-31
+Last updated: 2026-04-01
 
 This file stays intentionally short. It tracks strategic debt that still drives
 engineering priority; concrete file-by-file issues live in
 `OUTSTANDING_ISSUES.md`.
 
 ## Strategic Debt
-1. No CI-enforced performance regression gate.
+1. No merge-blocking performance regression gate in CI.
    - A first local Release perf smoke suite now exists and `full_check` now
      runs it through a stable prebuilt-Release path with display-aware
-     protected resolution selection, but CI still does not enforce a protected
-     baseline suite.
+     protected resolution selection.
+   - GitHub Actions now runs the smoke suite in dedicated manual/nightly
+     Windows jobs, but PRs are not yet blocked on it.
 
 2. Shared projected render/build CPU is still the main steady-state hotspot.
    - The projected-runtime first pass is complete, but the next biggest wins
@@ -35,7 +36,8 @@ engineering priority; concrete file-by-file issues live in
      smoke now uses a stable pinned snapshot path plus a prebuilt-Release
      wrapper path.
    - Runtime visuals now also have a first automated gameplay smoke harness,
-     but broader runtime visual coverage and CI-level performance still remain
-     only partly automated.
+     and CI now has dedicated manual/nightly smoke lanes, but broader runtime
+     visual coverage and merge-blocking CI enforcement still remain only partly
+     automated.
    - Docs now have hygiene automation, but the workflow still depends on people
      keeping ownership boundaries honest.

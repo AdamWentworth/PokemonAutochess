@@ -3,6 +3,9 @@ name: CI
 on:
   push:
   pull_request:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 13 * * *'
 
 jobs:
   windows:
@@ -37,5 +40,79 @@ jobs:
         run: cmake --build build --config Debug
       - name: Test
         run: ctest --test-dir build -C Debug --output-on-failure
+      - name: Docs hygiene
+        run: powershell -ExecutionPolicy Bypass -File tools/check_docs_hygiene.ps1
       - name: Validate data
         run: cmake --build build --config Debug --target PAC_ValidateData
+
+  windows-visual-smoke:
+    if: github.event_name == 'workflow_dispatch' || github.event_name == 'schedule'
+    runs-on: windows-latest
+    timeout-minutes: 30
+    env:
+      VCPKG_ROOT: ${{ github.workspace }}\vcpkg
+      VCPKG_BINARY_SOURCES: clear;files,${{ github.workspace }}\vcpkg_cache,readwrite
+      VCPKG_DISABLE_METRICS: 1
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Cache vcpkg binaries
+        uses: actions/cache@v4
+        with:
+          path: ${{ github.workspace }}\vcpkg_cache
+          key: vcpkg-${{ runner.os }}-${{ hashFiles('vcpkg.json') }}
+      - name: Install vcpkg
+        run: |
+          git clone https://github.com/microsoft/vcpkg "${{ env.VCPKG_ROOT }}"
+          & "${{ env.VCPKG_ROOT }}\\bootstrap-vcpkg.bat"
+      - name: Configure
+        run: cmake -S . -B build -DCMAKE_TOOLCHAIN_FILE="${{ env.VCPKG_ROOT }}/scripts/buildsystems/vcpkg.cmake" -DPAC_BUILD_TOOLS=ON -DBUILD_TESTING=ON
+      - name: Build visual smoke targets
+        run: cmake --build build --config Debug --target PokemonAutochess PAC_VfxPreviewer VfxLab
+      - name: Preview visual smoke
+        run: powershell -ExecutionPolicy Bypass -File tools/vfx_preview_visual_smoke.ps1 -BuildDir build -Config Debug
+      - name: Runtime visual smoke
+        run: powershell -ExecutionPolicy Bypass -File tools/runtime_visual_smoke.ps1 -BuildDir build -Config Debug
+      - name: Upload visual smoke artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-visual-smoke-artifacts
+          path: |
+            debug/vfx_preview_smoke
+            debug/runtime_visual_smoke
+          if-no-files-found: warn
+
+  windows-perf-smoke:
+    if: github.event_name == 'workflow_dispatch' || github.event_name == 'schedule'
+    runs-on: windows-latest
+    timeout-minutes: 40
+    env:
+      VCPKG_ROOT: ${{ github.workspace }}\vcpkg
+      VCPKG_BINARY_SOURCES: clear;files,${{ github.workspace }}\vcpkg_cache,readwrite
+      VCPKG_DISABLE_METRICS: 1
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Cache vcpkg binaries
+        uses: actions/cache@v4
+        with:
+          path: ${{ github.workspace }}\vcpkg_cache
+          key: vcpkg-${{ runner.os }}-${{ hashFiles('vcpkg.json') }}
+      - name: Install vcpkg
+        run: |
+          git clone https://github.com/microsoft/vcpkg "${{ env.VCPKG_ROOT }}"
+          & "${{ env.VCPKG_ROOT }}\\bootstrap-vcpkg.bat"
+      - name: Configure
+        run: cmake -S . -B build -DCMAKE_TOOLCHAIN_FILE="${{ env.VCPKG_ROOT }}/scripts/buildsystems/vcpkg.cmake" -DPAC_BUILD_TOOLS=ON -DBUILD_TESTING=ON
+      - name: Build perf smoke target
+        run: cmake --build build --config Release --target PokemonAutochess
+      - name: Perf smoke suite
+        run: powershell -ExecutionPolicy Bypass -File tools/perf_smoke_guard.ps1 -BuildDir build -Config Release -NoBuild
+      - name: Upload perf smoke artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-perf-smoke-artifacts
+          path: benchmark_smoke
+          if-no-files-found: warn

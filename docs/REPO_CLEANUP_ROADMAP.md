@@ -2,7 +2,7 @@
 
 Status: Active
 Type: Roadmap
-Last updated: 2026-03-31
+Last updated: 2026-04-01
 
 This roadmap turns `REPO_ASSESSMENT.md` into a ranked execution plan. The
 ordering is based on maintainability payoff per engineering day, not just raw
@@ -400,9 +400,13 @@ importance.
   - `tools/full_check.ps1 -IncludePerfSmoke` now prebuilds Release before the
     long Debug gate and runs the perf smoke `-NoBuild`, which keeps the local
     protected perf path stable instead of measuring a just-built hot binary.
+  - GitHub Actions now has dedicated Windows smoke lanes on
+    `workflow_dispatch` and nightly `schedule` for preview visual smoke,
+    runtime visual smoke, and the Release perf smoke suite, with screenshot and
+    benchmark artifacts uploaded even on failure.
 - Focus:
-  - Promote the new local preview/runtime/perf smoke suite toward CI where
-    practical.
+  - Decide which parts of the new smoke suite are stable enough to graduate
+    from nightly/manual CI lanes into merge-blocking PR gates.
   - Keep the protected local resolution ladder stable across different display
     sizes so the smoke path stays usable on contributor machines.
   - Add screenshot or image-diff smoke for key preview/runtime visual cases
@@ -413,9 +417,8 @@ importance.
   - A few critical preview/runtime visuals are checked automatically.
 
 ## Best Next 30-Day Sequence
-1. Promote the now-stable local perf smoke suite toward CI, keeping both the
-   starter-line and denser gameplay scenes honest while we decide whether a
-   third broader gameplay baseline is needed.
+1. Watch the new nightly/manual CI smoke lanes for flake rate, then decide
+   whether any subset should become merge-blocking on PRs.
 2. Revisit the remaining `Model.cpp` internal `.inl` seam once the projected
    hot path is in a calmer state.
 3. Revisit projected-render CPU hotspots only if fresh measurement or parity
