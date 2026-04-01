@@ -10,7 +10,7 @@ maintainability read changes in a meaningful way, not on every small edit.
 Execution plan: `REPO_CLEANUP_ROADMAP.md`
 
 ## Current Grade
-- Overall production-readiness grade: `8.6 / 10`
+- Overall production-readiness grade: `8.7 / 10`
 - Read this as: stronger than a typical solo C++ game repo in structure,
   testing, and docs discipline, but still carrying enough concentration and
   architectural drag that it would be high-friction to scale up without more
@@ -23,8 +23,8 @@ Execution plan: `REPO_CLEANUP_ROADMAP.md`
 | Maintainability | `8.3 / 10` | Recent cleanup helped materially; the main remaining concentration is now more in backend mega-files and broad renderer interfaces than in the outer runtime/session or projected-runtime owners. |
 | Modularity and boundaries | `8.3 / 10` | Engine/game split is real, Growl now has a true reusable VFX boundary, the renderer interface has a first role split, and the projected runtime now has clearer local seams. |
 | Repo organization | `8.6 / 10` | Top-level structure, naming, docs organization, and projected-runtime folder layout are strong. |
-| Testing and verification | `8.9 / 10` | Full check covers docs, build, and 196 tests, and the repo now has a first automated preview visual smoke; the main remaining downside is perf and broader runtime visual verification. |
-| Production discipline | `8.1 / 10` | Build flags, parity contracts, hygiene, runtime/tooling logging discipline, and preview smoke automation are improving materially; perf and broader visual validation are not yet fully automated. |
+| Testing and verification | `9.1 / 10` | Full check covers docs, build, and 196 tests, and the repo now has first-pass automated preview and stable local perf smoke coverage through an early-Release-prebuild `full_check` path; the main remaining downside is broader runtime visual verification and the lack of a CI perf gate. |
+| Production discipline | `8.3 / 10` | Build flags, parity contracts, hygiene, runtime/tooling logging discipline, preview smoke automation, and a stable local Release perf smoke guard are improving materially; CI perf and broader visual validation are not yet fully automated. |
 
 ## Current Overall Read
 - Strong prototype-to-production-minded C++ game/engine repo with unusually
@@ -129,6 +129,12 @@ Execution plan: `REPO_CLEANUP_ROADMAP.md`
   `tools/vfx_preview_visual_smoke.ps1` captures deterministic screenshots from
   `VfxLab` and `PAC_VfxPreviewer`, and `tools/full_check.ps1` can opt into that
   smoke through `-IncludePreviewSmoke` or `PAC_ENABLE_PREVIEW_SMOKE_TESTS=1`.
+- The repo now also has a first local protected perf baseline:
+  `tools/perf_smoke_guard.ps1` runs a lightweight Release benchmark against the
+  Tail Fire starter-line snapshot, pins the scripted snapshot state during
+  scoring, auto-selects the largest protected resolution that fits the current
+  display, and compares it against
+  `config/perf/release_perf_smoke_starter_line.json`.
 
 ## What Is Strong
 - Engine/game layering is real, not aspirational.
@@ -168,8 +174,9 @@ Execution plan: `REPO_CLEANUP_ROADMAP.md`
 
 3. Visual and performance verification still lean on manual discipline.
    - Tooling is stronger than before, and there is now a first preview visual
-     smoke harness, but broader preview correctness and perf baselines are not
-     yet protected by the same level of automation as contracts/builds.
+     smoke harness plus a first local perf smoke guard, but broader preview
+     correctness and CI-level perf baselines are not yet protected by the same
+     level of automation as contracts/builds.
 
 4. Observability is still inconsistent.
    - The repo still contains about `181` direct `std::cout` / `std::cerr` calls

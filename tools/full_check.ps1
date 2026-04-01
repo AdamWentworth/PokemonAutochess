@@ -1,7 +1,9 @@
 param(
     [string]$BuildDir = "build",
     [string]$Config = "Debug",
-    [switch]$IncludePreviewSmoke
+    [switch]$IncludePreviewSmoke,
+    [switch]$IncludePerfSmoke,
+    [string]$PerfConfig = "Release"
 )
 
 $ErrorActionPreference = "Stop"
@@ -33,6 +35,24 @@ if (-not (Test-Path $cache)) {
 }
 
 & (Join-Path $PSScriptRoot "check_docs_hygiene.ps1")
+
+$runPreviewSmoke = $IncludePreviewSmoke.IsPresent
+if (-not $runPreviewSmoke) {
+    $runPreviewSmoke = $env:PAC_ENABLE_PREVIEW_SMOKE_TESTS -eq "1"
+}
+
+$runPerfSmoke = $IncludePerfSmoke.IsPresent
+if (-not $runPerfSmoke) {
+    $runPerfSmoke = $env:PAC_ENABLE_PERF_SMOKE_TESTS -eq "1"
+}
+
+if ($runPerfSmoke) {
+    # Build the Release perf target before the long Debug test pass so the later
+    # perf smoke measures a settled binary instead of a just-built hot run.
+    cmake --build $BuildDir --config $PerfConfig --target PokemonAutochess
+    Assert-LastExitCode "Perf smoke prebuild"
+}
+
 cmake --build $BuildDir --config $Config
 Assert-LastExitCode "Build"
 ctest --test-dir $BuildDir -C $Config --output-on-failure
@@ -40,12 +60,12 @@ Assert-LastExitCode "CTest"
 cmake --build $BuildDir --config $Config --target PAC_ValidateData
 Assert-LastExitCode "PAC_ValidateData"
 
-$runPreviewSmoke = $IncludePreviewSmoke.IsPresent
-if (-not $runPreviewSmoke) {
-    $runPreviewSmoke = $env:PAC_ENABLE_PREVIEW_SMOKE_TESTS -eq "1"
-}
-
 if ($runPreviewSmoke) {
     & (Join-Path $PSScriptRoot "vfx_preview_visual_smoke.ps1") -BuildDir $BuildDir -Config $Config
     Assert-LastExitCode "Preview visual smoke"
+}
+
+if ($runPerfSmoke) {
+    & (Join-Path $PSScriptRoot "perf_smoke_guard.ps1") -BuildDir $BuildDir -Config $PerfConfig -NoBuild
+    Assert-LastExitCode "Perf smoke"
 }

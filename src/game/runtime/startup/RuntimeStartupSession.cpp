@@ -40,6 +40,17 @@ PreparedSession prepare(const std::string& prefsPath,
     out.requestedBackendName = resolvedRendererPref.requestedBackendName;
     out.vsyncEnabled = mutablePrefs.vsync;
     out.fpsCap = mutablePrefs.fpsCap;
+    const auto presentationOverride =
+        game::runtime::startup_config::readStartupPresentationOverride(errOut);
+    if (presentationOverride.hasVsync) {
+        out.vsyncEnabled = presentationOverride.vsyncEnabled;
+        log.info(std::string("[Video] PAC_VIDEO_VSYNC override: ") +
+                 (out.vsyncEnabled ? "On" : "Off"));
+    }
+    if (presentationOverride.hasFpsCap) {
+        out.fpsCap = presentationOverride.fpsCap;
+        log.info("[Video] PAC_VIDEO_FPS_CAP override: " + std::to_string(out.fpsCap));
+    }
     out.graphicsQuality = game::video::sanitizeGraphicsQuality(mutablePrefs.graphicsQuality);
     out.requireDiscreteGpu = mutablePrefs.requireDiscreteGpu;
     out.preferredGpuAdapter = mutablePrefs.preferredGpuAdapter;

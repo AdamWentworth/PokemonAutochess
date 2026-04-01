@@ -1,0 +1,72 @@
+{
+  "name": "starter_line_release_perf_smoke",
+  "description": "Lightweight Release perf smoke baseline for the Tail Fire starter-line snapshot on a stable Windows runner, with the scripted snapshot state pinned during scoring and the smoke wrapper selecting the largest configured resolution that fits the current display.",
+  "captured_at_utc": "2026-04-01T04:38:05.1491626Z",
+  "benchmark": {
+    "config": "Release",
+    "backends": [
+      "opengl",
+      "d3d12"
+    ],
+    "resolutions": [
+      "960x540",
+      "1280x720",
+      "1600x900"
+    ],
+    "duration_seconds": 12,
+    "warmup_samples": 3,
+    "min_scored_samples": 6,
+    "snapshot_path": "config/debug/debug_state_snapshot_tail_fire_starter_line.json",
+    "auto_load_snapshot": true,
+    "pin_snapshot_state": true
+  },
+  "thresholds": {
+    "min_avg_fps_ratio": 0.75,
+    "max_avg_frame_cpu_ms_ratio": 1.35,
+    "max_avg_render_build_ms_ratio": 1.4
+  },
+  "rows": [
+    {
+      "backend": "opengl",
+      "resolution": "960x540",
+      "avg_fps": 702.068,
+      "avg_frame_cpu_ms": 1.407,
+      "avg_render_build_ms": 1.139
+    },
+    {
+      "backend": "d3d12",
+      "resolution": "960x540",
+      "avg_fps": 625.561,
+      "avg_frame_cpu_ms": 1.572,
+      "avg_render_build_ms": 0.987
+    },
+    {
+      "backend": "opengl",
+      "resolution": "1280x720",
+      "avg_fps": 405.583,
+      "avg_frame_cpu_ms": 2.429,
+      "avg_render_build_ms": 1.458
+    },
+    {
+      "backend": "d3d12",
+      "resolution": "1280x720",
+      "avg_fps": 592.728,
+      "avg_frame_cpu_ms": 1.694,
+      "avg_render_build_ms": 1.026
+    },
+    {
+      "backend": "opengl",
+      "resolution": "1600x900",
+      "avg_fps": 461.741,
+      "avg_frame_cpu_ms": 2.149,
+      "avg_render_build_ms": 1.206
+    },
+    {
+      "backend": "d3d12",
+      "resolution": "1600x900",
+      "avg_fps": 382.668,
+      "avg_frame_cpu_ms": 2.615,
+      "avg_render_build_ms": 1.617
+    }
+  ]
+}

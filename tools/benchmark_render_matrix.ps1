@@ -11,8 +11,11 @@ param(
     [string]$Tag = "",
     [string]$SnapshotPath = "",
     [switch]$AutoLoadSnapshot,
+    [switch]$PinSnapshotState,
     [switch]$NoBuild,
     [switch]$AllowEmptySamples,
+    [string]$VideoVsync = "",
+    [string]$VideoFpsCap = "",
     [string]$BackendVertexDeform = "",
     [string]$BackendClipSkinning = "",
     [string]$BackendClipSkinningAdaptive = "",
@@ -57,6 +60,21 @@ function Parse-ResolutionToken {
         Height = $h
         Label = "${w}x${h}"
     }
+}
+
+function Get-PrimaryDisplayWorkingArea {
+    try {
+        Add-Type -AssemblyName System.Windows.Forms -ErrorAction Stop | Out-Null
+        $area = [System.Windows.Forms.Screen]::PrimaryScreen.WorkingArea
+        if ($null -ne $area -and $area.Width -gt 0 -and $area.Height -gt 0) {
+            return @{
+                Width = [int]$area.Width
+                Height = [int]$area.Height
+            }
+        }
+    } catch {
+    }
+    return $null
 }
 
 function Extract-PerfSamples {
@@ -158,6 +176,9 @@ $envKeys = @(
     "PAC_VIDEO_FULLSCREEN",
     "PAC_DEBUG_STATE_PATH",
     "PAC_AUTO_LOAD_DEBUG_SNAPSHOT",
+    "PAC_PIN_DEBUG_SNAPSHOT_STATE",
+    "PAC_VIDEO_VSYNC",
+    "PAC_VIDEO_FPS_CAP",
     "PAC_BACKEND_VERTEX_DEFORM",
     "PAC_BACKEND_CLIP_SKINNING",
     "PAC_BACKEND_CLIP_SKINNING_ADAPTIVE",
@@ -169,6 +190,7 @@ foreach ($key in $envKeys) {
 }
 
 $rows = @()
+$displayWorkingArea = Get-PrimaryDisplayWorkingArea
 
 try {
     foreach ($backendRaw in $Backends) {
@@ -179,6 +201,11 @@ try {
 
         foreach ($resolutionToken in $Resolutions) {
             $res = Parse-ResolutionToken -Token $resolutionToken
+            if ($null -ne $displayWorkingArea -and
+                ($res.Width -gt $displayWorkingArea.Width -or
+                 $res.Height -gt $displayWorkingArea.Height)) {
+                throw "Requested windowed benchmark resolution $($res.Label) exceeds the current primary-display working area $($displayWorkingArea.Width)x$($displayWorkingArea.Height). Use a smaller resolution for this direct benchmark run, or use tools/perf_smoke_guard.ps1 to auto-select the largest supported perf-smoke baseline that fits."
+            }
             Write-Host "Running benchmark row: backend=$backend resolution=$($res.Label) duration=${DurationSeconds}s"
 
             $env:PAC_RENDER_BACKEND = $backend
@@ -196,6 +223,21 @@ try {
                 $env:PAC_AUTO_LOAD_DEBUG_SNAPSHOT = "1"
             } else {
                 Remove-Item "Env:PAC_AUTO_LOAD_DEBUG_SNAPSHOT" -ErrorAction SilentlyContinue
+            }
+            if ($PinSnapshotState) {
+                $env:PAC_PIN_DEBUG_SNAPSHOT_STATE = "1"
+            } else {
+                Remove-Item "Env:PAC_PIN_DEBUG_SNAPSHOT_STATE" -ErrorAction SilentlyContinue
+            }
+            if ([string]::IsNullOrWhiteSpace($VideoVsync)) {
+                Remove-Item "Env:PAC_VIDEO_VSYNC" -ErrorAction SilentlyContinue
+            } else {
+                $env:PAC_VIDEO_VSYNC = $VideoVsync
+            }
+            if ([string]::IsNullOrWhiteSpace($VideoFpsCap)) {
+                Remove-Item "Env:PAC_VIDEO_FPS_CAP" -ErrorAction SilentlyContinue
+            } else {
+                $env:PAC_VIDEO_FPS_CAP = $VideoFpsCap
             }
             if ([string]::IsNullOrWhiteSpace($BackendVertexDeform)) {
                 Remove-Item "Env:PAC_BACKEND_VERTEX_DEFORM" -ErrorAction SilentlyContinue
@@ -325,8 +367,11 @@ try {
                 backend_clip_skinning = if ([string]::IsNullOrWhiteSpace($BackendClipSkinning)) { "default" } else { $BackendClipSkinning }
                 backend_clip_skinning_adaptive = if ([string]::IsNullOrWhiteSpace($BackendClipSkinningAdaptive)) { "default" } else { $BackendClipSkinningAdaptive }
                 backend_clip_skinning_max_units = if ([string]::IsNullOrWhiteSpace($BackendClipSkinningMaxUnits)) { "default" } else { $BackendClipSkinningMaxUnits }
+                video_vsync = if ([string]::IsNullOrWhiteSpace($VideoVsync)) { "default" } else { $VideoVsync }
+                video_fps_cap = if ([string]::IsNullOrWhiteSpace($VideoFpsCap)) { "default" } else { $VideoFpsCap }
                 snapshot_path = if ([string]::IsNullOrWhiteSpace($SnapshotPath)) { "" } else { $SnapshotPath }
                 auto_load_snapshot = [bool]$AutoLoadSnapshot
+                pin_snapshot_state = [bool]$PinSnapshotState
                 seed = $Seed
                 duration_seconds = $DurationSeconds
                 raw_log_path = $rawPath
@@ -360,6 +405,7 @@ $payload = [ordered]@{
     resolutions = $Resolutions
     snapshot_path = if ([string]::IsNullOrWhiteSpace($SnapshotPath)) { "" } else { $SnapshotPath }
     auto_load_snapshot = [bool]$AutoLoadSnapshot
+    pin_snapshot_state = [bool]$PinSnapshotState
     rows = $rows
 }
 $payload | ConvertTo-Json -Depth 6 | Set-Content -Path $jsonPath -Encoding UTF8

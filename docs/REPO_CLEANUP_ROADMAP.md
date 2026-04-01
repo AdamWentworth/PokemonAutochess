@@ -379,8 +379,24 @@ importance.
     visual guardrail.
   - `tools/full_check.ps1` now supports opt-in preview smoke through
     `-IncludePreviewSmoke` or `PAC_ENABLE_PREVIEW_SMOKE_TESTS=1`.
+  - `tools/perf_smoke_guard.ps1` now provides a lightweight Release perf smoke
+    check against `config/perf/release_perf_smoke_starter_line.json`, using the
+    Tail Fire starter-line snapshot as a deterministic first baseline across
+    `OpenGL` and `D3D12`.
+  - The perf harness now also pins that scripted starter-line snapshot state
+    during scoring so route/shop timers do not drift the benchmark into menu or
+    other transient states mid-run.
+  - That local perf smoke is now display-aware too: it selects the largest
+    protected baseline resolution that fits the current primary-display working
+    area instead of assuming one monitor size.
+  - `tools/full_check.ps1` now also supports opt-in perf smoke through
+    `-IncludePerfSmoke`.
+  - `tools/full_check.ps1 -IncludePerfSmoke` now prebuilds Release before the
+    long Debug gate and runs the perf smoke `-NoBuild`, which keeps the local
+    protected perf path stable instead of measuring a just-built hot binary.
 - Focus:
-  - Add a protected perf baseline in CI.
+  - Promote the new local perf smoke into a more representative baseline and,
+    eventually, a protected CI gate.
   - Add screenshot or image-diff smoke for key preview/runtime visual cases
     where practical.
   - Keep manual smoke as a supplement, not the primary truth source.
@@ -389,8 +405,8 @@ importance.
   - A few critical preview/runtime visuals are checked automatically.
 
 ## Best Next 30-Day Sequence
-1. Extend step `8` from preview smoke into a lightweight protected perf
-   baseline.
+1. Replace or extend the now-stable starter-line perf smoke with a denser
+   representative gameplay baseline before promoting it toward CI.
 2. Revisit the remaining `Model.cpp` internal `.inl` seam once the projected
    hot path is in a calmer state.
 3. Revisit projected-render CPU hotspots only if fresh measurement or parity

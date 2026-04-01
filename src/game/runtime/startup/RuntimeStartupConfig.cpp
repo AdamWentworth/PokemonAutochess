@@ -86,6 +86,14 @@ StartupVideoOverride readStartupVideoOverride(std::ostream& err) {
     return out;
 }
 
+StartupPresentationOverride readStartupPresentationOverride(std::ostream& err) {
+    StartupPresentationOverride out;
+    out.hasVsync = parseEnvBoolValue("PAC_VIDEO_VSYNC", out.vsyncEnabled, err);
+    out.hasFpsCap = parseEnvIntValue("PAC_VIDEO_FPS_CAP", out.fpsCap, err);
+    out.fpsCap = game::video::sanitizeFpsCap(out.fpsCap);
+    return out;
+}
+
 StartupVideoMode resolveStartupVideoMode(const StartupVideoOverride& overrideValues,
                                          int currentWidth,
                                          int currentHeight,

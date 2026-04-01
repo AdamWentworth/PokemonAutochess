@@ -2,6 +2,7 @@
 
 #include "game/GameStateManager.h"
 #include "game/logging/LoggerUtil.h"
+#include "game/runtime/session/SessionDebugSnapshot.h"
 #include "game/runtime/ui/InputSlots.h"
 
 #include <chrono>
@@ -23,6 +24,10 @@ void handleEvent(const InputEvent& event,
         if (options.onResize) {
             options.onResize(event.drawableW, event.drawableH);
         }
+    }
+
+    if (game::runtime::session_debug_snapshot::pinSnapshotStateEnabled()) {
+        return;
     }
 
     if (event.type == InputEvent::Type::KeyDown && !event.repeat) {

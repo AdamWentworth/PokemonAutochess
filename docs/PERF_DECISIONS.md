@@ -2,7 +2,7 @@
 
 Status: Active
 Type: Reference
-Last updated: 2026-03-30
+Last updated: 2026-03-31
 
 Purpose: keep the durable performance lessons and current decision rules short,
 so future work starts from measured evidence instead of repeating old
@@ -79,6 +79,21 @@ experiments.
 - Keep changes only when the before/after capture improves the target buckets in
   practice.
 
+## Current Guardrails
+- The local starter-line Release perf smoke is expected to run against a
+  prebuilt Release binary when used through `full_check`.
+  - `tools/full_check.ps1 -IncludePerfSmoke` prebuilds Release early and later
+    invokes `tools/perf_smoke_guard.ps1 -NoBuild`, so the scored run is not
+    skewed by immediate post-build thermal noise.
+- The starter-line smoke now chooses the largest protected windowed baseline
+  resolution that fits the current primary-display working area.
+  - The current protected ladder is `960x540`, `1280x720`, `1600x900`.
+  - If none of those fit, the harness fails clearly instead of trying to score
+    a stretched or overflowing window.
+- The starter-line smoke remains a smoke-level guardrail, not the final word.
+  - Use the full `benchmark_render_matrix.ps1` protocol for larger renderer or
+    runtime perf decisions.
+
 ## Current Checklist
 1. Name the exact hot bucket that should move.
 2. Prove the target path is materially present in the measured scene.
@@ -92,6 +107,15 @@ experiments.
 5. Keep the change only if the target buckets improve in practice.
 6. If the measured scene does not hit the target path, instrument first and
    retry later with better evidence.
+
+## Current Guardrails
+- `tools/perf_smoke_guard.ps1` is the first lightweight protected baseline.
+  - It currently uses the Tail Fire starter-line snapshot as a deterministic
+    Release smoke scene.
+  - The benchmark harness pins the scripted snapshot state during scoring so
+    shop/menu timers do not transition the scene mid-run.
+  - Treat it as a gross-regression guard, not as the final representative
+    performance authority for the renderer.
 
 ## Full History
 - The detailed raw experiment log for this cleanup cycle lives in

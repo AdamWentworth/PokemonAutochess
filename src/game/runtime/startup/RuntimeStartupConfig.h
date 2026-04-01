@@ -27,6 +27,17 @@ struct StartupVideoMode {
     bool fullscreen = false;
 };
 
+struct StartupPresentationOverride {
+    bool hasVsync = false;
+    bool hasFpsCap = false;
+    bool vsyncEnabled = false;
+    int fpsCap = 0;
+
+    bool enabled() const {
+        return hasVsync || hasFpsCap;
+    }
+};
+
 struct ResolvedRendererPreference {
     std::string backendToken;
     game::video::RendererBackend requestedBackend = game::video::RendererBackend::Auto;
@@ -41,6 +52,7 @@ ResolvedRendererPreference resolveRendererPreference(
     const std::optional<std::string>& envBackend);
 
 StartupVideoOverride readStartupVideoOverride(std::ostream& err);
+StartupPresentationOverride readStartupPresentationOverride(std::ostream& err);
 
 StartupVideoMode resolveStartupVideoMode(const StartupVideoOverride& overrideValues,
                                          int currentWidth,

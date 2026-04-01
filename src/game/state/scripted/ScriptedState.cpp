@@ -2,6 +2,7 @@
 
 #include "game/GameServices.h"
 #include "game/logging/FlowTrace.h"
+#include "game/runtime/session/SessionDebugSnapshot.h"
 #include <iostream>
 
 
@@ -49,5 +50,10 @@ void ScriptedState::onExit() {
 }
 
 void ScriptedState::update(float deltaTime) {
+    // Perf/benchmark smoke can pin an auto-loaded snapshot so timed shop/menu scripts
+    // do not transition away from the captured scene mid-run.
+    if (game::runtime::session_debug_snapshot::pinSnapshotStateEnabled()) {
+        return;
+    }
     script.onUpdate(deltaTime);
 }

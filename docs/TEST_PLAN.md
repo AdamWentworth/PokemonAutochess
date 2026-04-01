@@ -51,6 +51,44 @@ Discard any benchmark artifact with `sample_count == 0` or
 `sample_count_scored < min_scored_samples`; those are invalid evidence, not a
 baseline.
 
+## Optional Release Perf Smoke
+Use this when you want a fast protected baseline check on a stable local runner
+without paying for the full benchmark matrix.
+
+```powershell
+.\tools\perf_smoke_guard.ps1 -BuildDir build -Config Release
+```
+
+This guard currently uses:
+- baseline file: `config/perf/release_perf_smoke_starter_line.json`
+- scene: `config/debug/debug_state_snapshot_tail_fire_starter_line.json`
+- backends: `OpenGL`, `D3D12`
+- display-aware protected resolutions: `960x540`, `1280x720`, `1600x900`
+- automatically selects the largest protected resolution that fits the current
+  primary-display working area
+- pinned scripted snapshot state during scoring to avoid shop/menu timer drift
+- `full_check.ps1 -IncludePerfSmoke` prebuilds the Release target before the
+  long Debug gate and then runs the smoke with `-NoBuild`, so the scored run is
+  not measuring a just-built hot binary
+- if no protected perf-smoke resolution fits the current display, the harness
+  fails clearly instead of launching a stretched or overflowing run
+
+If the Release binary is already current, prefer:
+
+```powershell
+.\tools\perf_smoke_guard.ps1 -BuildDir build -Config Release -NoBuild
+```
+
+If you want to inspect the same scene manually at a specific local window size
+instead of using the protected dynamic baseline, run a non-baselined probe:
+
+```powershell
+.\tools\benchmark_render_matrix.ps1 -BuildDir build -Config Release -NoBuild -Backends opengl,d3d12 -Resolutions 1280x720 -DurationSeconds 12 -WarmupSamples 3 -MinScoredSamples 6 -SnapshotPath config/debug/debug_state_snapshot_tail_fire_starter_line.json -AutoLoadSnapshot -PinSnapshotState -VideoVsync 0 -VideoFpsCap 0 -Tag local_probe
+```
+
+It is intentionally lighter than the full benchmark matrix and should be read
+as a smoke-level regression guard, not the final word on renderer performance.
+
 ## VFX And Preview Validation
 Run these checks when work touches shared VFX, preview adapters, authored
 Tail Fire playback, or preview tooling.
@@ -119,6 +157,12 @@ Or enable it through the environment:
 ```powershell
 $env:PAC_ENABLE_PREVIEW_SMOKE_TESTS = "1"
 .\tools\full_check.ps1
+```
+
+Optional combined local check:
+
+```powershell
+.\tools\full_check.ps1 -IncludePreviewSmoke -IncludePerfSmoke
 ```
 
 ## One-Command Local Check

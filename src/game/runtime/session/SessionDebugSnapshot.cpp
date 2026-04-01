@@ -359,6 +359,13 @@ bool autoLoadSnapshotEnabled() {
     return engine::env::flagEnabled("PAC_AUTO_LOAD_DEBUG_SNAPSHOT");
 }
 
+bool pinSnapshotStateEnabled() {
+    if (!engine::env::get("PAC_PIN_DEBUG_SNAPSHOT_STATE").has_value()) {
+        return false;
+    }
+    return engine::env::flagEnabled("PAC_PIN_DEBUG_SNAPSHOT_STATE");
+}
+
 bool hasActiveEnemyUnits(const GameWorld::DebugStateSnapshot& snapshot) {
     for (const auto& unit : snapshot.boardUnits) {
         if (unit.side != PokemonSide::Enemy) continue;

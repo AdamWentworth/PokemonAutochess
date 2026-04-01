@@ -18,6 +18,7 @@ struct SessionSnapshotMetadata {
 
 std::string snapshotPath();
 bool autoLoadSnapshotEnabled();
+bool pinSnapshotStateEnabled();
 bool hasActiveEnemyUnits(const GameWorld::DebugStateSnapshot& snapshot);
 std::string summarizeWorldSnapshot(const GameWorld::DebugStateSnapshot& snapshot);
 std::string summarizeSessionSnapshot(const SessionSnapshotMetadata& session);

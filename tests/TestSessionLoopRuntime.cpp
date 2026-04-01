@@ -1,6 +1,56 @@
 #include "game/runtime/session/SessionLoopRuntime.h"
 
+#include <cstdlib>
+#include <memory>
+#include <optional>
 #include <string>
+
+namespace {
+
+std::optional<std::string> readRawEnv(const char* name) {
+    if (name == nullptr || *name == '\0') return std::nullopt;
+
+#if defined(_MSC_VER)
+    char* raw = nullptr;
+    std::size_t len = 0;
+    if (_dupenv_s(&raw, &len, name) != 0 || raw == nullptr) return std::nullopt;
+    std::unique_ptr<char, decltype(&std::free)> holder(raw, &std::free);
+    return std::string(holder.get());
+#else
+    const char* raw = std::getenv(name);
+    if (raw == nullptr) return std::nullopt;
+    return std::string(raw);
+#endif
+}
+
+bool setEnvVar(const char* name, const char* value) {
+    if (name == nullptr || *name == '\0') return false;
+#if defined(_MSC_VER)
+    return _putenv_s(name, value == nullptr ? "" : value) == 0;
+#else
+    if (value == nullptr) return unsetenv(name) == 0;
+    return setenv(name, value, 1) == 0;
+#endif
+}
+
+struct ScopedEnvVar {
+    explicit ScopedEnvVar(std::string key)
+        : name(std::move(key))
+        , previous(readRawEnv(name.c_str())) {}
+
+    ~ScopedEnvVar() {
+        if (previous.has_value()) {
+            setEnvVar(name.c_str(), previous->c_str());
+        } else {
+            setEnvVar(name.c_str(), nullptr);
+        }
+    }
+
+    std::string name;
+    std::optional<std::string> previous;
+};
+
+} // namespace
 
 bool test_session_loop_runtime_contract(std::string& outFail) {
     using game::runtime::session_loop_runtime::FixedUpdateOptions;
@@ -141,6 +191,49 @@ bool test_session_loop_runtime_contract(std::string& outFail) {
             options);
         if (cameraCount != 1 || unitCount != 1 || stateCount != 1) {
             outFail = "SessionLoopRuntime should forward non-consumed input to camera, unit, and state handlers.";
+            return false;
+        }
+    }
+
+    {
+        ScopedEnvVar guard("PAC_PIN_DEBUG_SNAPSHOT_STATE");
+        setEnvVar("PAC_PIN_DEBUG_SNAPSHOT_STATE", "1");
+
+        PauseState pauseState;
+        int resizeWidth = 0;
+        int resizeHeight = 0;
+        int menuCount = 0;
+        int cameraCount = 0;
+        int unitCount = 0;
+        int stateCount = 0;
+
+        InputOptions options;
+        options.renderWorldForInput = true;
+        options.onResize = [&](int w, int h) {
+            resizeWidth = w;
+            resizeHeight = h;
+        };
+        options.openMainMenu = [&]() { ++menuCount; };
+        options.handleCameraInput = [&](const InputEvent&) { ++cameraCount; };
+        options.handleUnitInput = [&](const InputEvent&) { ++unitCount; };
+        options.handleStateInput = [&](const InputEvent&) { ++stateCount; };
+
+        game::runtime::session_loop_runtime::handleEvent(
+            InputEvent::ResizeEvent(1280, 720, 1920, 1080),
+            pauseState,
+            options);
+        game::runtime::session_loop_runtime::handleEvent(
+            InputEvent::KeyDownEvent(InputEvent::Key::Escape),
+            pauseState,
+            options);
+        game::runtime::session_loop_runtime::handleEvent(
+            InputEvent::MouseMoveEvent(100, 100),
+            pauseState,
+            options);
+
+        if (resizeWidth != 1920 || resizeHeight != 1080 ||
+            menuCount != 0 || cameraCount != 0 || unitCount != 0 || stateCount != 0) {
+            outFail = "SessionLoopRuntime should ignore gameplay/menu input while PAC_PIN_DEBUG_SNAPSHOT_STATE is active, but still honor resize.";
             return false;
         }
     }

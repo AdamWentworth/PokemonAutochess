@@ -21,6 +21,9 @@ Optional runtime smoke tests (`PAC_ENABLE_RUNTIME_SMOKE_TESTS`):
 
 ## What CI Does Not Yet Run
 - Release benchmark matrix for renderer performance.
+- Release perf smoke guard (`tools/perf_smoke_guard.ps1`) with its pinned
+  starter-line snapshot baseline and display-aware protected resolution
+  selection.
 - Screenshot/image-diff parity harness (`tools/render_parity_screenshot_diff.ps1`).
 - Preview visual smoke harness (`tools/vfx_preview_visual_smoke.ps1`).
 - Installer end-to-end smoke.

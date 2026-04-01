@@ -122,6 +122,9 @@ ApplyVideoModeResult applyRequestedVideoMode(SDL_Window* window,
         err << "[Video] Exiting fullscreen failed: " << api.getError() << "\n";
         return out;
     }
+    if (api.restoreWindow != nullptr) {
+        api.restoreWindow(window);
+    }
     api.setWindowSize(window, requested.width, requested.height);
     api.setWindowPosition(window, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED);
     out.success = true;

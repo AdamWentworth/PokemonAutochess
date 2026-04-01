@@ -10,7 +10,9 @@ engineering priority; concrete file-by-file issues live in
 
 ## Strategic Debt
 1. No automated performance regression gate.
-   - Local benchmark tooling exists, but CI still does not enforce a protected
+   - A first local Release perf smoke guard now exists and `full_check` now
+     runs it through a stable prebuilt-Release path with display-aware
+     protected resolution selection, but CI still does not enforce a protected
      baseline.
 
 2. Shared projected render/build CPU is still the main steady-state hotspot.
@@ -29,7 +31,9 @@ engineering priority; concrete file-by-file issues live in
      concentrate too much change risk.
 
 5. Tooling and documentation still lean on manual discipline in a few places.
-   - Preview visuals now have a first automated smoke harness, but broader
-     runtime visuals and performance still remain mostly manual smoke-checked.
+   - Preview visuals now have a first automated smoke harness, and local perf
+     smoke now uses a stable pinned snapshot path plus a prebuilt-Release
+     wrapper path, but broader runtime visuals and CI-level performance still
+     remain only partly automated.
    - Docs now have hygiene automation, but the workflow still depends on people
      keeping ownership boundaries honest.

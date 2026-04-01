@@ -1,4 +1,7 @@
 #include <filesystem>
+#include <cstdlib>
+#include <memory>
+#include <optional>
 #include <sstream>
 #include <string>
 
@@ -6,11 +9,59 @@
 #include "game/runtime/startup/RuntimeStartupSession.h"
 #include "game/runtime/video/VideoPreferences.h"
 
+namespace {
+
+std::optional<std::string> readRawEnv(const char* name) {
+    if (name == nullptr || *name == '\0') return std::nullopt;
+#if defined(_MSC_VER)
+    char* raw = nullptr;
+    std::size_t len = 0;
+    if (_dupenv_s(&raw, &len, name) != 0 || raw == nullptr) return std::nullopt;
+    std::unique_ptr<char, decltype(&std::free)> holder(raw, &std::free);
+    return std::string(holder.get());
+#else
+    const char* raw = std::getenv(name);
+    if (raw == nullptr) return std::nullopt;
+    return std::string(raw);
+#endif
+}
+
+bool setEnvVar(const char* name, const char* value) {
+    if (name == nullptr || *name == '\0') return false;
+#if defined(_MSC_VER)
+    return _putenv_s(name, value == nullptr ? "" : value) == 0;
+#else
+    if (value == nullptr) return unsetenv(name) == 0;
+    return setenv(name, value, 1) == 0;
+#endif
+}
+
+struct ScopedEnvVar {
+    explicit ScopedEnvVar(std::string key)
+        : name(std::move(key))
+        , previous(readRawEnv(name.c_str())) {}
+
+    ~ScopedEnvVar() {
+        if (previous.has_value()) {
+            setEnvVar(name.c_str(), previous->c_str());
+        } else {
+            setEnvVar(name.c_str(), nullptr);
+        }
+    }
+
+    std::string name;
+    std::optional<std::string> previous;
+};
+
+} // namespace
+
 bool test_runtime_startup_session_contract(std::string& outFail) {
     namespace fs = std::filesystem;
 
     const fs::path prefsPath =
         fs::temp_directory_path() / "pac_runtime_startup_session_contract_video_settings.json";
+    ScopedEnvVar vsyncGuard("PAC_VIDEO_VSYNC");
+    ScopedEnvVar fpsCapGuard("PAC_VIDEO_FPS_CAP");
     std::error_code removeError;
     fs::remove(prefsPath, removeError);
 
@@ -37,6 +88,8 @@ bool test_runtime_startup_session_contract(std::string& outFail) {
     }
 
     {
+        setEnvVar("PAC_VIDEO_VSYNC", "false");
+        setEnvVar("PAC_VIDEO_FPS_CAP", "0");
         std::ostringstream logs;
         std::ostringstream errs;
         const auto session = game::runtime::startup_session::prepare(
@@ -47,8 +100,8 @@ bool test_runtime_startup_session_contract(std::string& outFail) {
         if (session.bootMenuScreen != "video" ||
             session.requestedBackend != game::video::RendererBackend::D3D12 ||
             session.activeBackend != game::video::RendererBackend::D3D12 ||
-            !session.vsyncEnabled ||
-            session.fpsCap != 144 ||
+            session.vsyncEnabled ||
+            session.fpsCap != 0 ||
             session.graphicsQuality != static_cast<int>(game::video::GraphicsQuality::High) ||
             !session.requireDiscreteGpu ||
             session.preferredGpuAdapter != "RTX" ||
@@ -59,8 +112,10 @@ bool test_runtime_startup_session_contract(std::string& outFail) {
             session.audioVoiceVolume != 55 ||
             !session.audioMute ||
             logs.str().find("PAC_RENDER_BACKEND override") == std::string::npos ||
+            logs.str().find("PAC_VIDEO_VSYNC override: Off") == std::string::npos ||
+            logs.str().find("PAC_VIDEO_FPS_CAP override: 0") == std::string::npos ||
             !errs.str().empty()) {
-            outFail = "prepare should consume one-shot prefs, preserve display settings, and honor an explicit backend override.";
+            outFail = "prepare should consume one-shot prefs, preserve display settings, and honor explicit backend/presentation overrides.";
             fs::remove(prefsPath, removeError);
             return false;
         }
@@ -70,8 +125,8 @@ bool test_runtime_startup_session_contract(std::string& outFail) {
         if (services.bootMenuScreen != "video" ||
             services.requestedRendererBackend != "d3d12" ||
             services.activeRendererBackend != "d3d12" ||
-            !services.vsyncEnabled ||
-            services.fpsCap != 144 ||
+            services.vsyncEnabled ||
+            services.fpsCap != 0 ||
             services.graphicsQuality != static_cast<int>(game::video::GraphicsQuality::High) ||
             !services.requireDiscreteGpu ||
             services.preferredGpuAdapter != "RTX" ||

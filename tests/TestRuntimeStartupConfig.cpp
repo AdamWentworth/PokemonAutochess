@@ -55,6 +55,7 @@ struct ScopedEnvVar {
 
 bool test_runtime_startup_config_contract(std::string& outFail) {
     using game::runtime::startup_config::consumeBootMenuScreen;
+    using game::runtime::startup_config::readStartupPresentationOverride;
     using game::runtime::startup_config::resolveRendererPreference;
     using game::runtime::startup_config::readStartupVideoOverride;
     using game::runtime::startup_config::resolveStartupVideoMode;
@@ -100,6 +101,8 @@ bool test_runtime_startup_config_contract(std::string& outFail) {
     ScopedEnvVar widthGuard("PAC_VIDEO_WIDTH");
     ScopedEnvVar heightGuard("PAC_VIDEO_HEIGHT");
     ScopedEnvVar fullscreenGuard("PAC_VIDEO_FULLSCREEN");
+    ScopedEnvVar vsyncGuard("PAC_VIDEO_VSYNC");
+    ScopedEnvVar fpsCapGuard("PAC_VIDEO_FPS_CAP");
 
     {
         setEnvVar("PAC_VIDEO_WIDTH", "1600");
@@ -122,23 +125,44 @@ bool test_runtime_startup_config_contract(std::string& outFail) {
             outFail = "resolveStartupVideoMode should apply explicit override values.";
             return false;
         }
+
+        setEnvVar("PAC_VIDEO_VSYNC", "false");
+        setEnvVar("PAC_VIDEO_FPS_CAP", "0");
+        const auto presentationOverride = readStartupPresentationOverride(errs);
+        if (!presentationOverride.hasVsync ||
+            presentationOverride.vsyncEnabled ||
+            !presentationOverride.hasFpsCap ||
+            presentationOverride.fpsCap != 0 ||
+            !presentationOverride.enabled()) {
+            outFail = "readStartupPresentationOverride should parse valid VSync/FPS overrides.";
+            return false;
+        }
     }
 
     {
         setEnvVar("PAC_VIDEO_WIDTH", "abc");
         setEnvVar("PAC_VIDEO_HEIGHT", nullptr);
         setEnvVar("PAC_VIDEO_FULLSCREEN", "maybe");
+        setEnvVar("PAC_VIDEO_VSYNC", "maybe");
+        setEnvVar("PAC_VIDEO_FPS_CAP", "bogus");
 
         std::ostringstream errs;
         const auto overrideValues = readStartupVideoOverride(errs);
+        const auto presentationOverride = readStartupPresentationOverride(errs);
         if (overrideValues.hasWidth || overrideValues.hasHeight || overrideValues.hasFullscreen || overrideValues.enabled()) {
             outFail = "readStartupVideoOverride should ignore invalid or missing env overrides.";
             return false;
         }
+        if (presentationOverride.hasVsync || presentationOverride.hasFpsCap || presentationOverride.enabled()) {
+            outFail = "readStartupPresentationOverride should ignore invalid env overrides.";
+            return false;
+        }
         const std::string errText = errs.str();
         if (errText.find("PAC_VIDEO_WIDTH") == std::string::npos ||
-            errText.find("PAC_VIDEO_FULLSCREEN") == std::string::npos) {
-            outFail = "readStartupVideoOverride should report invalid env names in diagnostics.";
+            errText.find("PAC_VIDEO_FULLSCREEN") == std::string::npos ||
+            errText.find("PAC_VIDEO_VSYNC") == std::string::npos ||
+            errText.find("PAC_VIDEO_FPS_CAP") == std::string::npos) {
+            outFail = "startup env override readers should report invalid env names in diagnostics.";
             return false;
         }
 

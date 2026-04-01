@@ -16,6 +16,7 @@ struct FakeSdlState {
     std::string errorText = "fake sdl error";
 
     int setWindowDisplayModeCalls = 0;
+    int restoreWindowCalls = 0;
     std::vector<Uint32> fullscreenFlags;
     std::vector<std::pair<int, int>> sizes;
     std::vector<std::pair<int, int>> positions;
@@ -49,6 +50,11 @@ void fakeSetWindowSize(SDL_Window*, int width, int height) {
     g_fakeSdlState->sizes.emplace_back(width, height);
 }
 
+void fakeRestoreWindow(SDL_Window*) {
+    if (g_fakeSdlState == nullptr) return;
+    ++g_fakeSdlState->restoreWindowCalls;
+}
+
 void fakeSetWindowPosition(SDL_Window*, int x, int y) {
     if (g_fakeSdlState == nullptr) return;
     g_fakeSdlState->positions.emplace_back(x, y);
@@ -70,6 +76,7 @@ game::runtime::video_mode::SdlApi makeFakeSdlApi() {
     game::runtime::video_mode::SdlApi api;
     api.setWindowDisplayMode = &fakeSetWindowDisplayMode;
     api.setWindowFullscreen = &fakeSetWindowFullscreen;
+    api.restoreWindow = &fakeRestoreWindow;
     api.setWindowSize = &fakeSetWindowSize;
     api.setWindowPosition = &fakeSetWindowPosition;
     api.getDisplayUsableBounds = &fakeGetDisplayUsableBounds;
@@ -314,12 +321,13 @@ bool test_runtime_sdl_video_mode_contract(std::string& outFail) {
         if (!result.success || result.fullscreen ||
             state.fullscreenFlags.size() != 1 ||
             state.fullscreenFlags[0] != 0 ||
+            state.restoreWindowCalls != 1 ||
             state.sizes.size() != 1 ||
             state.sizes[0] != std::make_pair(1024, 576) ||
             state.positions.size() != 1 ||
             state.positions[0] != std::make_pair(SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED) ||
             !errs.str().empty()) {
-            outFail = "applyRequestedVideoMode should resize and center the windowed mode.";
+            outFail = "applyRequestedVideoMode should restore, resize, and center the windowed mode.";
             return false;
         }
     }
@@ -339,6 +347,7 @@ bool test_runtime_sdl_video_mode_contract(std::string& outFail) {
         g_fakeSdlState = nullptr;
 
         if (result.success || result.fullscreen ||
+            state.restoreWindowCalls != 0 ||
             !state.sizes.empty() ||
             !state.positions.empty() ||
             errs.str().find("Exiting fullscreen failed") == std::string::npos) {

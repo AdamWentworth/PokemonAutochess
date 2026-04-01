@@ -39,6 +39,7 @@ struct StartupWindowPlacement {
 struct SdlApi {
     int (*setWindowDisplayMode)(SDL_Window*, const SDL_DisplayMode*) = SDL_SetWindowDisplayMode;
     int (*setWindowFullscreen)(SDL_Window*, Uint32) = SDL_SetWindowFullscreen;
+    void (*restoreWindow)(SDL_Window*) = SDL_RestoreWindow;
     void (*setWindowSize)(SDL_Window*, int, int) = SDL_SetWindowSize;
     void (*setWindowPosition)(SDL_Window*, int, int) = SDL_SetWindowPosition;
     int (*getDisplayUsableBounds)(int, SDL_Rect*) = SDL_GetDisplayUsableBounds;
