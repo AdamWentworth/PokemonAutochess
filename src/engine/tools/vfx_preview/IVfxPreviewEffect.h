@@ -19,6 +19,11 @@ struct PreviewCasterAnimationRequest {
     }
 };
 
+struct PreviewPokemonSpeciesSelection {
+    std::string_view attackerSpecies{"charmander"};
+    std::string_view targetSpecies{"bulbasaur"};
+};
+
 class IVfxPreviewEffect {
 public:
     virtual ~IVfxPreviewEffect() = default;
@@ -35,6 +40,15 @@ public:
     virtual float loopCooldownSec() const { return 0.18f; }
     virtual PreviewCasterAnimationRequest casterAnimationRequest() const {
         return {};
+    }
+    virtual PreviewPokemonSpeciesSelection previewPokemonSpecies() const {
+        return {};
+    }
+    virtual bool wantsExactClipMotionPreview() const {
+        return false;
+    }
+    virtual bool wantsTargetSurfaceImpactPoint() const {
+        return false;
     }
     virtual std::vector<std::string> overlayLines(const PreviewSceneState& scene) const {
         (void)scene;

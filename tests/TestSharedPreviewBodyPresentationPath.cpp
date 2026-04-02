@@ -73,11 +73,15 @@ bool test_shared_preview_body_presentation_path_contract(std::string& outFail) {
     const auto indexedBodySummary = body_path::inspectPreviewBodyPath(scratch);
     if (indexedBodySummary.decision !=
         body_path::PreviewBodyPathDecision::ProjectedIndexedScratch) {
-        outFail = "Lit textured indexed body batches should now be accepted as the preview body path when world-scene is unavailable.";
+        outFail = "Lit textured indexed body batches should use the projected indexed scratch preview path by default.";
         return false;
     }
     if (indexedBodySummary.litTexturedIndexedBodyBatchCount != 1u) {
         outFail = "Indexed body summary should count lit textured body batches.";
+        return false;
+    }
+    if (!indexedBodySummary.allowIndexedScratchPath) {
+        outFail = "Indexed scratch preview body path should default to enabled.";
         return false;
     }
 

@@ -247,6 +247,23 @@ void fitWindowToDisplay(SDL_Window* window) {
                           usable.y + std::max(0, (usable.h - targetH) / 2));
 }
 
+void resetPreviewFrameRenderState(int drawableW, int drawableH) {
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    glViewport(0, 0, std::max(1, drawableW), std::max(1, drawableH));
+    glUseProgram(0);
+    glBindVertexArray(0);
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, 0);
+    glDisable(GL_BLEND);
+    glDisable(GL_CULL_FACE);
+    glDisable(GL_SCISSOR_TEST);
+    glEnable(GL_DEPTH_TEST);
+    glDepthMask(GL_TRUE);
+    glDepthFunc(GL_LEQUAL);
+}
+
 GLuint compileShader(GLenum type, const char* source) {
     const GLuint shader = glCreateShader(type);
     glShaderSource(shader, 1, &source, nullptr);
@@ -971,6 +988,7 @@ int VfxPreviewApp::run() {
                 overlayText.get(),
             };
 
+            resetPreviewFrameRenderState(drawableW, drawableH);
             if (logThisFrame) appendPreviewBootLog("[app] frame " + std::to_string(debugFrameIndex) + " render backdrop");
             project_->renderBackdrop(frameCtx,
                                      activeRigIndex,

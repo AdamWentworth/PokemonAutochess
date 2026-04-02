@@ -24,3 +24,10 @@ AquaImpactStyle classifyAquaImpactStyle(std::string_view moveLower) noexcept {
     if (moveLower == "water_gun") return AquaImpactStyle::WaterGun;
     return AquaImpactStyle::TailWhip;
 }
+
+bool shouldApplyProceduralAttackLunge(std::string_view moveLower) noexcept {
+    // Keep this intentionally narrow. The preview/runtime renderer should not
+    // inject generic forward motion into every attack clip; only explicitly
+    // authored contact-style moves should get the procedural shove fallback.
+    return moveLower == "tackle";
+}

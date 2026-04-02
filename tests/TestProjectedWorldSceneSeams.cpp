@@ -31,6 +31,8 @@ bool test_projected_world_scene_seams_contract(std::string& outFail) {
         "src/game/runtime/shared/projected/world_vfx/SharedProjectedWorldVfxBridges.cpp";
     const std::filesystem::path growlBridgePath =
         "src/game/runtime/shared/projected/world_vfx/SharedProjectedWorldGrowlBridge.cpp";
+    const std::filesystem::path tackleBridgePath =
+        "src/game/runtime/shared/projected/world_vfx/SharedProjectedWorldTackleBridge.cpp";
     const std::filesystem::path particleBridgePath =
         "src/game/runtime/shared/projected/world_vfx/SharedProjectedWorldParticleVfxBridge.cpp";
     const std::filesystem::path tailFireVfxBridgePath =
@@ -56,6 +58,8 @@ bool test_projected_world_scene_seams_contract(std::string& outFail) {
         {boardBenchCachePath, "struct BoardBenchGeometryCacheKey"},
         {vfxBridgePath, "appendSharedProjectedVfxBridgesSession("},
         {growlBridgePath, "appendSharedGrowlWaveVfxSession("},
+        {vfxBridgePath, "appendSharedTackleSmokeVfxSession("},
+        {tackleBridgePath, "buildTackleSmokeSnapshot("},
         {particleBridgePath, "appendSharedParticleVfxSession("},
         {tailFireVfxBridgePath, "appendSyntheticTailFireBillboards("},
         {captureBridgePath, "appendSharedCaptureAttemptModelsIfNeededForProjectedWorld("},

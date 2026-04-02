@@ -70,6 +70,14 @@ std::uint32_t LeechSeedPreviewEffect::activeCount() const {
         static_cast<std::size_t>(std::numeric_limits<std::uint32_t>::max())));
 }
 
+engine::tools::vfx_preview::PreviewPokemonSpeciesSelection
+LeechSeedPreviewEffect::previewPokemonSpecies() const {
+    return {
+        .attackerSpecies = "bulbasaur",
+        .targetSpecies = "charmander",
+    };
+}
+
 std::vector<std::string> LeechSeedPreviewEffect::overlayLines(
     const engine::tools::vfx_preview::PreviewSceneState& scene) const {
     (void)scene;

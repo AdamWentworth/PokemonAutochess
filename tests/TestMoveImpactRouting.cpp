@@ -96,5 +96,18 @@ bool test_move_impact_routing(std::string& outFail) {
         return false;
     }
 
+    if (!expect(shouldApplyProceduralAttackLunge("tackle"),
+                "Procedural attack lunge should stay enabled for tackle.",
+                outFail)) {
+        return false;
+    }
+    if (!expect(!shouldApplyProceduralAttackLunge("growl") &&
+                    !shouldApplyProceduralAttackLunge("leech_seed") &&
+                    !shouldApplyProceduralAttackLunge("scratch"),
+                "Procedural attack lunge should not be injected for non-contact or unapproved moves.",
+                outFail)) {
+        return false;
+    }
+
     return true;
 }

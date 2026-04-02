@@ -37,7 +37,8 @@ bool buildDirectBodySample(const PreviewPokemonVisual& visual,
                            const glm::vec3& worldPos,
                            float yawDeg,
                            DirectBodySample& outSample,
-                           float boardSurfaceY) {
+                           float boardSurfaceY,
+                           float scaleMultiplier) {
     outSample = {};
     if (!visual.valid || !visual.model) return false;
 
@@ -47,11 +48,15 @@ bool buildDirectBodySample(const PreviewPokemonVisual& visual,
 
     outSample.renderPos = makeProjectedAlignedPreviewPos(visual, worldPos, boardSurfaceY);
     outSample.instanceTransform =
-        makePreviewInstanceTransform(outSample.renderPos, yawDeg, visual.finalScale);
+        makePreviewInstanceTransform(
+            outSample.renderPos,
+            yawDeg,
+            std::max(0.05f, visual.finalScale * std::max(0.0f, scaleMultiplier)));
     visual.model->sampleAnimatedPose(
         outSample.animTimeSec,
         outSample.animIndex,
-        outSample.pose);
+        outSample.pose,
+        !visual.previewUseExactClipMotion);
     return true;
 }
 
@@ -106,7 +111,13 @@ bool buildScenePose(const PreviewPokemonVisual& visual,
                     const game::runtime::render_model::MeshData& mesh,
                     game::runtime::shared_backend_pose::PoseEval& outPose) {
     DirectBodySample sample;
-    if (!buildDirectBodySample(visual, glm::vec3(0.0f), 0.0f, sample)) {
+    if (!buildDirectBodySample(
+            visual,
+            glm::vec3(0.0f),
+            0.0f,
+            sample,
+            0.006f,
+            1.0f)) {
         outPose = {};
         return false;
     }

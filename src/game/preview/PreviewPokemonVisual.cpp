@@ -113,6 +113,7 @@ void PreviewPokemonVisual::clearPreviewAnimation() {
     previewAnimPlaybackSpeed = 1.0f;
     previewAnimLoop = false;
     previewAnimFinished = false;
+    previewAttackMoveName.clear();
 }
 
 void PreviewPokemonVisual::update(float dt) {
@@ -174,6 +175,25 @@ PokemonInstance makePreviewRuntimeUnit(const PreviewPokemonVisual& visual,
     unit.currentAttackAnimIndex =
         visual.previewAnimationActive() ? visual.currentAnimIndex() : -1;
     unit.animTimeSec = visual.currentAnimTimeSec();
+    if (visual.previewAnimationActive()) {
+        const float playbackSpeed = std::max(0.0001f, visual.previewAnimPlaybackSpeed);
+        float attackWindowSec = visual.runtimeLikeUnit.attackDurationSec;
+        const float clipDurationSec = visual.animationDurationSec(unit.currentAttackAnimIndex);
+        if (clipDurationSec > 0.0f) {
+            attackWindowSec = clipDurationSec / playbackSpeed;
+        }
+        attackWindowSec = std::max(0.05f, attackWindowSec);
+        const float elapsedAttackSec = std::max(0.0f, unit.animTimeSec / playbackSpeed);
+        unit.attackDurationSec = attackWindowSec;
+        unit.attackTimerSec =
+            std::clamp(attackWindowSec - elapsedAttackSec, 0.0f, attackWindowSec);
+        unit.attackAnimSpeed = playbackSpeed;
+        unit.activeAttackMoveName = visual.previewAttackMoveName;
+    } else {
+        unit.attackTimerSec = 0.0f;
+        unit.attackAnimSpeed = 1.0f;
+        unit.activeAttackMoveName.clear();
+    }
     unit.visualScale = 1.0f;
     unit.captureScale = 1.0f;
     return unit;

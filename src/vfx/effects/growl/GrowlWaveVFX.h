@@ -26,6 +26,8 @@ public:
             std::string texturePath = "assets/textures/moves/growl/Texture3918.png";
             std::string vertShaderPath;
             std::string fragShaderPath;
+            bool overrideBlendMode = false;
+            std::uint8_t blendMode = 1u;
             bool textureQuarterRing = false;
             int quarterCount = 4;
             float quarterStepDeg = 90.0f;
@@ -97,6 +99,7 @@ public:
         glm::vec3 tevC1 = glm::vec3(0.0f, 0.0f, 0.0f);
         glm::vec3 tevK0 = glm::vec3(1.0f, 1.0f, 1.0f);
         float tevK1A = 1.0f;
+        std::uint8_t blendMode = 1u;
 
         // Optional manifest for pass routing by EID.
         // Keep move-first naming so Growl config is discoverable under the move name.

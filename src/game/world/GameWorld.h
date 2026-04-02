@@ -24,6 +24,8 @@
 #include "game/vfx/LeechSeedDrainVFX.h"
 // Growl wave VFX
 #include "vfx/effects/growl/GrowlWaveVFX.h"
+// Tackle smoke authored VFX
+#include "vfx/effects/tackle/TackleSmokeVFX.h"
 // Claw swipe VFX (scratch/metal claw)
 #include "game/vfx/ClawSwipeVFX.h"
 // Aqua swoosh/bubble/water-gun impact VFX
@@ -182,6 +184,8 @@ public:
     std::uint64_t getOverlayRosterRevision() const { return overlayRosterRevision_; }
     bool buildGrowlWaveSnapshot(GrowlWaveVFX::RenderSnapshot& out) const;
     std::uint32_t countActiveGrowlWaveVfx() const;
+    bool buildTackleSmokeSnapshot(TackleSmokeVFX::RenderSnapshot& out) const;
+    std::uint32_t countActiveTackleSmokeVfx() const;
     bool buildParticleVfxSnapshots(ParticleVfxSnapshots& out) const;
     std::uint32_t countActiveParticleVfx() const;
     std::uint32_t countActiveCaptureAttempts() const;
@@ -376,6 +380,9 @@ private:
 
     GrowlWaveVFX growlWaveVfx;
     bool growlWaveVfxInitialized = false;
+
+    TackleSmokeVFX tackleSmokeVfx;
+    bool tackleSmokeVfxInitialized = false;
 
     ClawSwipeVFX clawSwipeVfx;
     bool clawSwipeVfxInitialized = false;

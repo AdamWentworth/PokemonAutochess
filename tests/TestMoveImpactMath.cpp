@@ -2,6 +2,7 @@
 #include <string>
 
 #include "game/PokemonInstance.h"
+#include "game/runtime/render_model_cache/RenderModelCache.h"
 #include "game/world/MoveImpactMath.h"
 
 namespace {
@@ -57,6 +58,54 @@ bool test_move_impact_math(std::string& outFail) {
                 "All negative correction factors should produce zero world scale.",
                 outFail)) {
         return false;
+    }
+
+    {
+        game::runtime::render_model::MeshData attackerMesh;
+        attackerMesh.modelScaleFactor = 1.0f;
+        attackerMesh.boundsMin = glm::vec3(-0.5f, 0.0f, -0.5f);
+        attackerMesh.boundsMax = glm::vec3(0.5f, 2.0f, 0.5f);
+
+        game::runtime::render_model::MeshData targetMesh;
+        targetMesh.modelScaleFactor = 1.0f;
+        targetMesh.boundsMin = glm::vec3(-0.5f, 0.0f, -0.5f);
+        targetMesh.boundsMax = glm::vec3(0.5f, 1.0f, 0.5f);
+        targetMesh.vertices.resize(4u);
+        targetMesh.vertices[0].position = glm::vec3(-0.5f, 0.0f, -0.5f);
+        targetMesh.vertices[1].position = glm::vec3(0.5f, 0.0f, -0.5f);
+        targetMesh.vertices[2].position = glm::vec3(-0.5f, 1.0f, -0.5f);
+        targetMesh.vertices[3].position = glm::vec3(0.5f, 1.0f, -0.5f);
+        targetMesh.indices = {0u, 1u, 2u, 2u, 1u, 3u};
+
+        PokemonInstance attacker;
+        attacker.position = glm::vec3(0.0f, 0.0f, -2.0f);
+
+        PokemonInstance target;
+        target.position = glm::vec3(0.0f, 0.0f, 0.0f);
+
+        const MoveImpactSurfacePoint impact =
+            computeTargetSurfaceImpactPoint(target, &attacker, &targetMesh, &attackerMesh);
+
+        if (!expect(impact.usedMeshSurface,
+                    "Move-impact math should use authored mesh triangles when CPU mesh data is available.",
+                    outFail)) {
+            return false;
+        }
+        if (!expect(nearf(impact.position.z, -0.5f, 0.0005f),
+                    "Move-impact surface point should land on the target surface nearest the attacker.",
+                    outFail)) {
+            return false;
+        }
+        if (!expect(nearf(impact.position.y, 0.5f, 0.0005f),
+                    "Move-impact surface point should preserve the nearest surface boundary but retarget height toward the target's visual middle.",
+                    outFail)) {
+            return false;
+        }
+        if (!expect(std::fabs(impact.normal.z) > 0.9f,
+                    "Move-impact surface point should return a sensible surface normal for the chosen triangle.",
+                    outFail)) {
+            return false;
+        }
     }
 
     return true;

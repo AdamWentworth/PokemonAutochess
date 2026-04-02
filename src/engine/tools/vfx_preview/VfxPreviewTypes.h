@@ -10,6 +10,8 @@ namespace engine::tools::vfx_preview {
 struct PreviewSceneState {
     glm::vec3 emitter{0.0f, 0.42f, 0.0f};
     glm::vec3 target{0.0f, 0.35f, 4.2f};
+    glm::vec3 impactPoint{0.0f, 0.35f, 4.2f};
+    bool useCustomImpactPoint = false;
     bool showEmitterMarker = true;
     bool showTargetMarker = true;
     bool showOrientationGuide = true;

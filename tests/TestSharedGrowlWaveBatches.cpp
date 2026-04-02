@@ -225,6 +225,33 @@ bool test_shared_growl_wave_batches_contract(std::string& outFail) {
         return false;
     }
 
+    GrowlWaveVFX::RenderSnapshot alphaBlendSnapshot = snapshot;
+    alphaBlendSnapshot.config.blendMode = 0u;
+    GrowlWaveVFX::Config::DrawPass alphaBlendPass = meshPass;
+    alphaBlendPass.id = "growl_test_mesh_alpha";
+    alphaBlendPass.overrideBlendMode = true;
+    alphaBlendPass.blendMode = 0u;
+    std::vector<Batch> alphaBlendBatches;
+    const bool alphaBlendAppended =
+        appendPassBatch(alphaBlendBatches,
+                        alphaBlendSnapshot,
+                        alphaBlendPass,
+                        meshTev,
+                        &mesh,
+                        tex,
+                        glm::vec3(0.0f, 1.0f, 4.0f));
+
+    if (!expect(alphaBlendAppended && alphaBlendBatches.size() == 1u,
+                "Authored mesh batches should still append when using alpha blending overrides.",
+                outFail)) {
+        return false;
+    }
+    if (!expect(alphaBlendBatches.front().blendMode == 0u,
+                "Shared growl-derived batches should propagate non-additive blend modes for authored effects like Tackle smoke.",
+                outFail)) {
+        return false;
+    }
+
     GrowlWaveVFX::Config::DrawPass delayedMeshPass = meshPass;
     delayedMeshPass.id = "growl_test_mesh_delayed";
     delayedMeshPass.sequenceCount = 3;
@@ -476,6 +503,51 @@ bool test_shared_growl_wave_batches_contract(std::string& outFail) {
                     std::abs(glowBatch.instances.front().modelMatrix[13] - ring.pos.y) <= 0.0001f &&
                     std::abs(glowBatch.instances.front().modelMatrix[14] - ring.pos.z) <= 0.0001f,
                 "Glow billboard growl passes should spawn at the active ring center by default.",
+                outFail)) {
+        return false;
+    }
+
+    GrowlWaveVFX::Config::DrawPass glowClusterPass = glowPass;
+    glowClusterPass.id = "growl_test_glow_billboard_cluster";
+    glowClusterPass.heightOffset = 0.35f;
+    glowClusterPass.startRadiusMul = 1.0f;
+    glowClusterPass.directionsLocal = {
+        glm::vec3(-1.0f, 0.15f, 1.0f),
+        glm::vec3(0.65f, 0.45f, 1.0f),
+        glm::vec3(0.2f, -0.8f, 1.0f),
+    };
+
+    std::vector<Batch> glowClusterBatches;
+    const bool glowClusterAppended =
+        appendPassBatch(glowClusterBatches,
+                        snapshot,
+                        glowClusterPass,
+                        meshTev,
+                        nullptr,
+                        tex,
+                        glm::vec3(0.0f, 1.0f, 4.0f));
+
+    if (!expect(glowClusterAppended && glowClusterBatches.size() == 1u,
+                "Clustered glow billboard growl passes should append one combined centered-quad batch.",
+                outFail)) {
+        return false;
+    }
+
+    const auto& glowClusterBatch = glowClusterBatches.front();
+    if (!expect(glowClusterBatch.instances.size() == glowClusterPass.directionsLocal.size(),
+                "Clustered glow billboard growl passes should emit one instance per authored direction.",
+                outFail)) {
+        return false;
+    }
+    bool sawOffCenterGlowInstance = false;
+    for (const auto& instance : glowClusterBatch.instances) {
+        sawOffCenterGlowInstance = sawOffCenterGlowInstance ||
+            (std::abs(instance.modelMatrix[12] - ring.pos.x) > 0.0001f ||
+             std::abs(instance.modelMatrix[13] - ring.pos.y) > 0.0001f ||
+             std::abs(instance.modelMatrix[14] - ring.pos.z) > 0.0001f);
+    }
+    if (!expect(sawOffCenterGlowInstance,
+                "Clustered glow billboard growl passes should preserve authored clump offsets instead of collapsing to the ring center.",
                 outFail)) {
         return false;
     }

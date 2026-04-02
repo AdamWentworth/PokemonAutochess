@@ -28,7 +28,8 @@ bool buildDirectBodySample(const PreviewPokemonVisual& visual,
                            const glm::vec3& worldPos,
                            float yawDeg,
                            DirectBodySample& outSample,
-                           float boardSurfaceY = 0.006f);
+                           float boardSurfaceY = 0.006f,
+                           float scaleMultiplier = 1.0f);
 
 void drawDirectBody(const Camera3D& camera,
                     PreviewPokemonVisual& visual,

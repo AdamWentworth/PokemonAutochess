@@ -9,6 +9,7 @@
 
 #include <fastgltf/glm_element_traits.hpp>
 #include <fastgltf/tools.hpp>
+#include <glad/glad.h>
 #include <glm/gtc/type_ptr.hpp>
 #include <stb_image.h>
 
@@ -26,6 +27,123 @@ namespace {
 using MeshData = vfx::runtime::growl_batches::MeshData;
 using MeshVertex = vfx::runtime::growl_batches::MeshVertex;
 using TextureCacheEntry = GrowlSharedRenderer::TextureCacheEntry;
+
+struct ScopedGlPreviewRenderState final {
+    static constexpr int kTrackedTextureUnits = 8;
+
+    GLint framebuffer = 0;
+    GLint viewport[4]{0, 0, 0, 0};
+    GLint scissorBox[4]{0, 0, 0, 0};
+    GLint currentProgram = 0;
+    GLint vertexArray = 0;
+    GLint arrayBuffer = 0;
+    GLint elementArrayBuffer = 0;
+    GLint activeTexture = 0;
+    GLint currentTexture2D = 0;
+    GLint texture2DPerUnit[kTrackedTextureUnits]{0};
+    GLint frontFace = GL_CCW;
+    GLint cullFaceMode = GL_BACK;
+    GLint depthFunc = GL_LESS;
+    GLint blendSrcRgb = GL_ONE;
+    GLint blendDstRgb = GL_ZERO;
+    GLint blendSrcAlpha = GL_ONE;
+    GLint blendDstAlpha = GL_ZERO;
+    GLint blendEqRgb = GL_FUNC_ADD;
+    GLint blendEqAlpha = GL_FUNC_ADD;
+    GLboolean depthMask = GL_TRUE;
+    bool depthTestEnabled = false;
+    bool blendEnabled = false;
+    bool cullEnabled = false;
+    bool scissorEnabled = false;
+    bool framebufferSrgbEnabled = false;
+
+    ScopedGlPreviewRenderState() {
+        glGetIntegerv(GL_FRAMEBUFFER_BINDING, &framebuffer);
+        glGetIntegerv(GL_VIEWPORT, viewport);
+        glGetIntegerv(GL_SCISSOR_BOX, scissorBox);
+        glGetIntegerv(GL_CURRENT_PROGRAM, &currentProgram);
+        glGetIntegerv(GL_VERTEX_ARRAY_BINDING, &vertexArray);
+        glGetIntegerv(GL_ARRAY_BUFFER_BINDING, &arrayBuffer);
+        glGetIntegerv(GL_ELEMENT_ARRAY_BUFFER_BINDING, &elementArrayBuffer);
+        glGetIntegerv(GL_ACTIVE_TEXTURE, &activeTexture);
+        glGetIntegerv(GL_TEXTURE_BINDING_2D, &currentTexture2D);
+        for (int unit = 0; unit < kTrackedTextureUnits; ++unit) {
+            glActiveTexture(GL_TEXTURE0 + unit);
+            glGetIntegerv(GL_TEXTURE_BINDING_2D, &texture2DPerUnit[unit]);
+        }
+        glActiveTexture(static_cast<GLenum>(activeTexture));
+
+        glGetIntegerv(GL_FRONT_FACE, &frontFace);
+        glGetIntegerv(GL_CULL_FACE_MODE, &cullFaceMode);
+        glGetIntegerv(GL_DEPTH_FUNC, &depthFunc);
+        glGetIntegerv(GL_BLEND_SRC_RGB, &blendSrcRgb);
+        glGetIntegerv(GL_BLEND_DST_RGB, &blendDstRgb);
+        glGetIntegerv(GL_BLEND_SRC_ALPHA, &blendSrcAlpha);
+        glGetIntegerv(GL_BLEND_DST_ALPHA, &blendDstAlpha);
+        glGetIntegerv(GL_BLEND_EQUATION_RGB, &blendEqRgb);
+        glGetIntegerv(GL_BLEND_EQUATION_ALPHA, &blendEqAlpha);
+        glGetBooleanv(GL_DEPTH_WRITEMASK, &depthMask);
+
+        depthTestEnabled = (glIsEnabled(GL_DEPTH_TEST) == GL_TRUE);
+        blendEnabled = (glIsEnabled(GL_BLEND) == GL_TRUE);
+        cullEnabled = (glIsEnabled(GL_CULL_FACE) == GL_TRUE);
+        scissorEnabled = (glIsEnabled(GL_SCISSOR_TEST) == GL_TRUE);
+        framebufferSrgbEnabled = (glIsEnabled(GL_FRAMEBUFFER_SRGB) == GL_TRUE);
+    }
+
+    ~ScopedGlPreviewRenderState() {
+        glBindFramebuffer(GL_FRAMEBUFFER, static_cast<GLuint>(framebuffer));
+        glViewport(viewport[0], viewport[1], viewport[2], viewport[3]);
+        glScissor(scissorBox[0], scissorBox[1], scissorBox[2], scissorBox[3]);
+        if (scissorEnabled) {
+            glEnable(GL_SCISSOR_TEST);
+        } else {
+            glDisable(GL_SCISSOR_TEST);
+        }
+
+        glBindVertexArray(static_cast<GLuint>(vertexArray));
+        glBindBuffer(GL_ARRAY_BUFFER, static_cast<GLuint>(arrayBuffer));
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, static_cast<GLuint>(elementArrayBuffer));
+        glUseProgram(static_cast<GLuint>(currentProgram));
+
+        for (int unit = 0; unit < kTrackedTextureUnits; ++unit) {
+            glActiveTexture(GL_TEXTURE0 + unit);
+            glBindTexture(GL_TEXTURE_2D, static_cast<GLuint>(texture2DPerUnit[unit]));
+        }
+        glActiveTexture(static_cast<GLenum>(activeTexture));
+        glBindTexture(GL_TEXTURE_2D, static_cast<GLuint>(currentTexture2D));
+
+        glFrontFace(static_cast<GLenum>(frontFace));
+        glCullFace(static_cast<GLenum>(cullFaceMode));
+        glDepthFunc(static_cast<GLenum>(depthFunc));
+        glDepthMask(depthMask);
+        glBlendEquationSeparate(static_cast<GLenum>(blendEqRgb), static_cast<GLenum>(blendEqAlpha));
+        glBlendFuncSeparate(static_cast<GLenum>(blendSrcRgb),
+                            static_cast<GLenum>(blendDstRgb),
+                            static_cast<GLenum>(blendSrcAlpha),
+                            static_cast<GLenum>(blendDstAlpha));
+        if (depthTestEnabled) {
+            glEnable(GL_DEPTH_TEST);
+        } else {
+            glDisable(GL_DEPTH_TEST);
+        }
+        if (blendEnabled) {
+            glEnable(GL_BLEND);
+        } else {
+            glDisable(GL_BLEND);
+        }
+        if (cullEnabled) {
+            glEnable(GL_CULL_FACE);
+        } else {
+            glDisable(GL_CULL_FACE);
+        }
+        if (framebufferSrgbEnabled) {
+            glEnable(GL_FRAMEBUFFER_SRGB);
+        } else {
+            glDisable(GL_FRAMEBUFFER_SRGB);
+        }
+    }
+};
 
 std::vector<glm::vec2> buildFallbackUvs(const std::vector<glm::vec3>& positions) {
     std::vector<glm::vec2> uvs;
@@ -329,6 +447,7 @@ void GrowlSharedRenderer::render(const GrowlWaveVFX& effect,
                                  const Camera3D& camera,
                                  int surfaceWidth,
                                  int surfaceHeight) {
+    const ScopedGlPreviewRenderState savedGlState;
     GrowlWaveVFX::RenderSnapshot snapshot;
     if (!effect.buildRenderSnapshot(snapshot)) return;
 

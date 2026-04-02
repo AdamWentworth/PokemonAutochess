@@ -21,3 +21,4 @@ MoveImpactRoute classifyMoveImpactRoute(std::string_view moveLower) noexcept;
 bool isMetalClawImpactMove(std::string_view moveLower) noexcept;
 bool isTailWhipImpactMove(std::string_view moveLower) noexcept;
 AquaImpactStyle classifyAquaImpactStyle(std::string_view moveLower) noexcept;
+bool shouldApplyProceduralAttackLunge(std::string_view moveLower) noexcept;

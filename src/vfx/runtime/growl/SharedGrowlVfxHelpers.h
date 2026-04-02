@@ -19,6 +19,8 @@ struct TevState {
 
 TevState resolveTevState(const GrowlWaveVFX::Config& config,
                          const GrowlWaveVFX::Config::DrawPass& pass);
+std::uint8_t resolveBlendMode(const GrowlWaveVFX::Config& config,
+                              const GrowlWaveVFX::Config::DrawPass& pass);
 
 bool isLinePass(const GrowlWaveVFX::Config& config,
                 const GrowlWaveVFX::Config::DrawPass& pass);

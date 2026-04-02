@@ -27,6 +27,8 @@ struct PreviewPokemonVisual {
     float previewAnimPlaybackSpeed = 1.0f;
     bool previewAnimLoop = false;
     bool previewAnimFinished = false;
+    bool previewUseExactClipMotion = false;
+    std::string previewAttackMoveName;
     bool attemptedLoad = false;
     bool valid = false;
     PokemonInstance runtimeLikeUnit;

@@ -3,8 +3,11 @@
 #include <algorithm>
 #include <cctype>
 #include <string>
+#include <unordered_map>
 
 #include "engine/render/Model.h"
+#include "game/config/GameDataDb.h"
+#include "game/runtime/render_model_cache/RenderModelCache.h"
 #include "game/world/MoveImpactMath.h"
 #include "game/world/MoveImpactRouting.h"
 
@@ -14,6 +17,45 @@ std::string lowerCopy(std::string s) {
     std::transform(s.begin(), s.end(), s.begin(),
                    [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
     return s;
+}
+
+std::string resolveBackendModelPathLocal(const PokemonInstance& unit, const GameDataDb* data) {
+    if (!unit.backendModelPath.empty()) return unit.backendModelPath;
+    if (!unit.animIndexCacheSourceModelPath.empty()) return unit.animIndexCacheSourceModelPath;
+    if (!unit.backendAnimDurationsSourceModelPath.empty()) {
+        return unit.backendAnimDurationsSourceModelPath;
+    }
+    if (!data) return {};
+
+    const PokemonStats* stats = data->pokemon.getStats(unit.name);
+    if (!stats || stats->model.empty()) return {};
+    return "assets/models/" + stats->model;
+}
+
+const game::runtime::render_model::MeshData* tryResolveImpactMeshLocal(const PokemonInstance& unit,
+                                                                       const GameDataDb* data) {
+    const std::string modelPath = resolveBackendModelPathLocal(unit, data);
+    if (modelPath.empty()) return nullptr;
+
+    struct CacheEntry {
+        bool attemptedLoad = false;
+        game::runtime::render_model::MeshData mesh;
+    };
+
+    static std::unordered_map<std::string, CacheEntry> cache;
+    auto& entry = cache[modelPath];
+    if (!entry.attemptedLoad) {
+        entry.attemptedLoad = true;
+        std::string err;
+        if (!game::runtime::render_model::loadMeshFromCache(modelPath, entry.mesh, &err)) {
+            entry.mesh = game::runtime::render_model::MeshData{};
+        }
+    }
+
+    if (entry.mesh.vertices.empty() || entry.mesh.indices.size() < 3u) {
+        return nullptr;
+    }
+    return &entry.mesh;
 }
 
 constexpr AquaSwooshVFX::Style toAquaSwooshStyle(AquaImpactStyle style) {
@@ -36,29 +78,18 @@ void GameWorld::emitGrassImpactAt(const PokemonInstance& target) {
 }
 
 void GameWorld::emitTackleImpactAt(const PokemonInstance& target, const PokemonInstance* attacker) {
-    if (!tackleImpactVfxInitialized) {
-        TackleImpactVFX::Config c;  // defaults
-        tackleImpactVfx.setConfig(c);
-        tackleImpactVfxInitialized = true;
+    if (!tackleSmokeVfxInitialized) {
+        TackleSmokeVFX::Config configData = TackleSmokeVFX::makeDefaultConfig();
+        tackleSmokeVfx.setConfig(configData);
+        tackleSmokeVfxInitialized = true;
     }
 
-    glm::vec3 base = target.position + glm::vec3(0.0f, target.visualYOffset, 0.0f);
-
-    if (attacker && target.model && target.model->hasBounds()) {
-        glm::vec3 from = attacker->position + glm::vec3(0.0f, attacker->visualYOffset, 0.0f);
-        glm::vec3 dir = from - base;
-        dir.y = 0.0f;
-        const float len = glm::length(dir);
-        if (len > 0.0001f) {
-            dir /= len;
-            const float scale = computeModelWorldScaleForMoveImpact(target);
-            const float radius = target.model->getBoundsRadiusHorizontal();
-            const float edge = radius * scale * tackleImpactVfx.getConfig().impactEdgeOffset;
-            base += dir * edge;
-        }
-    }
-
-    tackleImpactVfx.emitAt(base);
+    const auto* targetMesh = tryResolveImpactMeshLocal(target, data);
+    const auto* attackerMesh =
+        attacker ? tryResolveImpactMeshLocal(*attacker, data) : nullptr;
+    const MoveImpactSurfacePoint impact =
+        computeTargetSurfaceImpactPoint(target, attacker, targetMesh, attackerMesh);
+    tackleSmokeVfx.emitAt(impact.position, impact.forward);
 }
 
 void GameWorld::emitMoveImpactByName(const std::string& moveName,

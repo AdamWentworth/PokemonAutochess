@@ -100,6 +100,29 @@ void appendSharedGrowlWaveVfxSession(
     const std::function<runtime::render_model::MeshData*(const std::string&)>& ensureBackendMeshLoaded,
     const std::function<SharedBackendTextureCacheEntry*(const std::string&, bool)>& ensureBackendTextureLoaded);
 
+struct TackleSmokeVfxArgs {
+    bool supportsWorldIndexedMeshes = false;
+    bool hasWorldViewProj = false;
+    GameWorld* gameWorld = nullptr;
+    glm::vec3 cameraWorldPos{0.0f};
+    std::unordered_map<std::string, SharedBackendTextureCacheEntry>* backendTextureByPath = nullptr;
+    std::vector<shared_world_batches::WorldIndexedBatch>* worldIndexedBatches = nullptr;
+    std::function<runtime::render_model::MeshData*(const std::string&)> ensureBackendMeshLoaded;
+    std::function<SharedBackendTextureCacheEntry*(const std::string&, bool)> ensureBackendTextureLoaded;
+};
+
+void appendSharedTackleSmokeVfx(const TackleSmokeVfxArgs& args);
+
+void appendSharedTackleSmokeVfxSession(
+    bool supportsWorldIndexedMeshes,
+    bool hasWorldViewProj,
+    GameWorld* gameWorld,
+    const glm::vec3& cameraWorldPos,
+    std::unordered_map<std::string, SharedBackendTextureCacheEntry>& backendTextureByPath,
+    std::vector<shared_world_batches::WorldIndexedBatch>& worldIndexedBatches,
+    const std::function<runtime::render_model::MeshData*(const std::string&)>& ensureBackendMeshLoaded,
+    const std::function<SharedBackendTextureCacheEntry*(const std::string&, bool)>& ensureBackendTextureLoaded);
+
 struct ParticleVfxArgs {
     bool useLegacyParticleVfxSnapshotBridge = false;
     bool supportsWorldIndexedMeshes = false;

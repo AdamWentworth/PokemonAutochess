@@ -48,7 +48,10 @@ public:
     int   getAnimationCount() const;
     float getAnimationDurationSec(int animIndex) const;
 
-    void sampleAnimatedPose(float animTimeSec, int animIndex, AnimatedPose& outPose) const;
+    void sampleAnimatedPose(float animTimeSec,
+                           int animIndex,
+                           AnimatedPose& outPose,
+                           bool suppressHorizontalRootMotion = true) const;
 
     void drawAnimated(const Camera3D& camera,
         const glm::mat4& instanceTransform,
@@ -175,7 +178,8 @@ private:
     void buildPoseMatrices(float timeSec,
                            int animIndex,
                            std::vector<NodeTRS>& outLocal,
-                           std::vector<glm::mat4>& outGlobal) const;
+                           std::vector<glm::mat4>& outGlobal,
+                           bool suppressHorizontalRootMotion = true) const;
 
     void uploadSkinUniforms(const glm::mat4& meshGlobal,
                             int skinIndex,

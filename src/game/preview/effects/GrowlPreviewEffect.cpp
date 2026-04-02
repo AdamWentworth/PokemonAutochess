@@ -56,6 +56,14 @@ GrowlPreviewEffect::casterAnimationRequest() const {
     };
 }
 
+engine::tools::vfx_preview::PreviewPokemonSpeciesSelection
+GrowlPreviewEffect::previewPokemonSpecies() const {
+    return {
+        .attackerSpecies = "charmander",
+        .targetSpecies = "bulbasaur",
+    };
+}
+
 std::vector<std::string> GrowlPreviewEffect::overlayLines(
     const engine::tools::vfx_preview::PreviewSceneState& scene) const {
     (void)scene;

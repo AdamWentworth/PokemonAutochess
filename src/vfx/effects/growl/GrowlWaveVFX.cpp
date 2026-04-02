@@ -23,6 +23,7 @@
 #include "engine/render/Camera3D.h"
 #include "engine/render/Model.h"
 #include "engine/utils/Shader.h"
+#include "vfx/runtime/growl/SharedGrowlVfxHelpers.h"
 
 namespace {
 unsigned int create1x1WhiteTextureRGBA() {
@@ -116,6 +117,33 @@ float fastLaunch01(float t) {
     const float clamped = glm::clamp(t, 0.0f, 1.0f);
     const float inv = 1.0f - clamped;
     return 1.0f - inv * inv * inv;
+}
+
+std::uint8_t clampBlendMode(int value) {
+    return static_cast<std::uint8_t>(std::clamp(value, 0, 2));
+}
+
+bool parseBlendModeJson(const nlohmann::json& value, std::uint8_t& out) {
+    if (value.is_number_integer()) {
+        out = clampBlendMode(value.get<int>());
+        return true;
+    }
+    if (!value.is_string()) return false;
+
+    const std::string mode = toLowerCopy(value.get<std::string>());
+    if (mode == "alpha" || mode == "normal") {
+        out = 0u;
+        return true;
+    }
+    if (mode == "add" || mode == "additive") {
+        out = 1u;
+        return true;
+    }
+    if (mode == "premul" || mode == "premultiplied" || mode == "premultiplied_alpha") {
+        out = 2u;
+        return true;
+    }
+    return false;
 }
 
 bool computeDelayedPassLaunchState(float age01,
@@ -245,6 +273,12 @@ void GrowlWaveVFX::applyDrawManifestOverrides() {
             cfg.depthTest = s.value("depth_test", cfg.depthTest);
             cfg.depthWrite = s.value("depth_write", cfg.depthWrite);
             cfg.tevK1A = s.value("tev_k1a", cfg.tevK1A);
+            if (s.contains("blend_mode")) {
+                std::uint8_t blendMode = cfg.blendMode;
+                if (parseBlendModeJson(s["blend_mode"], blendMode)) {
+                    cfg.blendMode = blendMode;
+                }
+            }
 
             glm::vec3 v3;
             if (s.contains("mesh_forward_axis") && parseVec3Array(s["mesh_forward_axis"], v3)) cfg.meshForwardAxis = v3;
@@ -267,6 +301,13 @@ void GrowlWaveVFX::applyDrawManifestOverrides() {
                 p.texturePath = it.value("texture", p.texturePath);
                 p.vertShaderPath = it.value("vert_shader", p.vertShaderPath);
                 p.fragShaderPath = it.value("frag_shader", p.fragShaderPath);
+                if (it.contains("blend_mode")) {
+                    std::uint8_t blendMode = p.blendMode;
+                    if (parseBlendModeJson(it["blend_mode"], blendMode)) {
+                        p.blendMode = blendMode;
+                        p.overrideBlendMode = true;
+                    }
+                }
                 if (p.renderMode == "texture_quarter_ring") p.textureQuarterRing = true;
                 p.textureQuarterRing = it.value("texture_quarter_ring", p.textureQuarterRing);
                 p.quarterCount = std::clamp(it.value("quarter_count", p.quarterCount), 1, 64);
@@ -621,7 +662,6 @@ void GrowlWaveVFX::render(const Camera3D& camera) {
     glDepthMask(cfg.depthWrite ? GL_TRUE : GL_FALSE);
 
     glEnable(GL_BLEND);
-    glBlendFunc(GL_SRC_ALPHA, GL_ONE);
     glBlendEquation(GL_FUNC_ADD);
 
     for (const auto& pass : drawPasses) {
@@ -647,6 +687,19 @@ void GrowlWaveVFX::render(const Camera3D& camera) {
         const glm::vec3 passTevC1 = pass.cfg.overrideTev ? pass.cfg.tevC1 : cfg.tevC1;
         const glm::vec3 passTevK0 = pass.cfg.overrideTev ? pass.cfg.tevK0 : cfg.tevK0;
         const float passTevK1A = pass.cfg.overrideTev ? pass.cfg.tevK1A : cfg.tevK1A;
+        const std::uint8_t passBlendMode = vfx::runtime::growl::resolveBlendMode(cfg, pass.cfg);
+        switch (passBlendMode) {
+        case 2u:
+            glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
+            break;
+        case 1u:
+            glBlendFunc(GL_SRC_ALPHA, GL_ONE);
+            break;
+        case 0u:
+        default:
+            glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+            break;
+        }
 
         pass.shader->use();
         if (pass.locTexture >= 0) glUniform1i(pass.locTexture, 0);

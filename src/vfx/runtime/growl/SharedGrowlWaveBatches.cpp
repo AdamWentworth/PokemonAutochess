@@ -428,7 +428,7 @@ shared_world_batches::WorldIndexedBatch makeBaseBatchLocal(
     batch.textureWrapS = 10497;
     batch.textureWrapT = 10497;
     batch.alphaMode = 2u;
-    batch.blendMode = 1u; // Legacy growl passes use additive blending.
+    batch.blendMode = growl::resolveBlendMode(snapshot.config, pass);
     batch.alphaCutoff = 0.0f;
     return batch;
 }
@@ -801,11 +801,14 @@ bool appendSharedGlowBillboardPassSingleRingLocal(
             ? glm::vec3(0.0f, 1.0f, 0.0f)
             : glm::normalize(passMeshForwardAxis);
 
-    const glm::vec3 glowPos =
-        ring.pos + ringForward * pass.forwardOffset + up * pass.heightOffset;
-    const glm::vec3 toCamera =
-        safeNormalize3Local(cameraWorldPos - glowPos, ringForward);
-    const glm::quat billboardRot = rotationFromToSafeLocal(meshForwardLocal, toCamera);
+    std::vector<glm::vec3> fallbackDirections;
+    const std::vector<glm::vec3>* localDirections = &pass.directionsLocal;
+    if (localDirections->empty()) {
+        fallbackDirections = makeFallbackDirectionsLocal(pass);
+        localDirections = &fallbackDirections;
+    }
+    if (localDirections->empty()) return false;
+
     const glm::vec3 finalScale(
         std::max(0.0001f, animatedScale * std::max(0.0f, pass.radiusMul)),
         1.0f,
@@ -820,14 +823,62 @@ bool appendSharedGlowBillboardPassSingleRingLocal(
     batch.sharedIndexCount = sharedIndices.size();
     batch.geometryCacheKey = makeCenteredQuadGeometryCacheKeyLocal();
 
-    IRenderBackend::WorldMeshInstance instance;
-    instance.modelMatrix = toModelMatrixArrayLocal(
-        glm::translate(glm::mat4(1.0f), glowPos) *
-        glm::mat4_cast(billboardRot) *
-        glm::scale(glm::mat4(1.0f), finalScale));
-    instance.vertexColorMulA = passAlpha;
-    batch.instances.push_back(std::move(instance));
-    batch.sortDepth = glm::dot(glowPos - cameraWorldPos, glowPos - cameraWorldPos);
+    float sortDepth = 0.0f;
+    bool appendedAny = false;
+    for (std::size_t dirIndex = 0; dirIndex < localDirections->size(); ++dirIndex) {
+        glm::vec3 localDirBasisRaw = (*localDirections)[dirIndex];
+        if (glm::dot(localDirBasisRaw, localDirBasisRaw) <= 0.000001f) continue;
+
+        if (pass.directionSpacingJitterDeg > 0.0001f && localDirections->size() > 1u) {
+            const glm::vec2 baseXY(localDirBasisRaw.x, localDirBasisRaw.y);
+            const float xyLen = glm::length(baseXY);
+            if (xyLen > 0.0001f) {
+                const float baseAngle = std::atan2(baseXY.y, baseXY.x);
+                const std::uint32_t passSalt = static_cast<std::uint32_t>(pass.eid) * 0x9e3779b9u;
+                const std::uint32_t dirSalt = static_cast<std::uint32_t>(dirIndex) * 0x85ebca6bu;
+                const float noise = hash01Local(ring.randomSeed ^ passSalt ^ dirSalt ^ 0x68e31da4u);
+                const float delta =
+                    glm::radians(pass.directionSpacingJitterDeg) * (noise * 2.0f - 1.0f);
+                const float angle = baseAngle + delta;
+                localDirBasisRaw.x = std::cos(angle) * xyLen;
+                localDirBasisRaw.y = std::sin(angle) * xyLen;
+            }
+        }
+
+        float instanceAlpha = passAlpha;
+        if (pass.lineAlphaMax > pass.lineAlphaMin + 0.0001f) {
+            const std::uint32_t passSalt = static_cast<std::uint32_t>(pass.eid) * 0x9e3779b9u;
+            const std::uint32_t dirSalt = static_cast<std::uint32_t>(dirIndex) * 0x85ebca6bu;
+            const float noise = hash01Local(ring.randomSeed ^ passSalt ^ dirSalt ^ 0x4f1bbcdcu);
+            instanceAlpha *= glm::mix(pass.lineAlphaMin, pass.lineAlphaMax, noise);
+        }
+        instanceAlpha = std::clamp(instanceAlpha, 0.0f, 1.0f);
+        if (instanceAlpha <= 0.001f) continue;
+
+        const glm::vec3 localDir = glm::normalize(localDirBasisRaw);
+        const glm::vec3 worldDir = right * localDir.x + up * localDir.y + ringForward * localDir.z;
+        const glm::vec3 passForward = safeNormalize3Local(worldDir, ringForward);
+        const float radialRadius = pass.heightOffset * std::max(0.0f, pass.startRadiusMul);
+        const glm::vec3 radialStartOffset =
+            (right * localDirBasisRaw.x + up * localDirBasisRaw.y) * radialRadius;
+        const glm::vec3 glowPos = ring.pos + radialStartOffset + passForward * pass.forwardOffset;
+        const glm::vec3 toCamera =
+            safeNormalize3Local(cameraWorldPos - glowPos, ringForward);
+        const glm::quat billboardRot = rotationFromToSafeLocal(meshForwardLocal, toCamera);
+
+        IRenderBackend::WorldMeshInstance instance;
+        instance.modelMatrix = toModelMatrixArrayLocal(
+            glm::translate(glm::mat4(1.0f), glowPos) *
+            glm::mat4_cast(billboardRot) *
+            glm::scale(glm::mat4(1.0f), finalScale));
+        instance.vertexColorMulA = instanceAlpha;
+        batch.instances.push_back(std::move(instance));
+        sortDepth = std::max(sortDepth, glm::dot(glowPos - cameraWorldPos, glowPos - cameraWorldPos));
+        appendedAny = true;
+    }
+
+    if (!appendedAny || batch.instances.empty()) return false;
+    batch.sortDepth = sortDepth;
     outBatches.push_back(std::move(batch));
     return true;
 }

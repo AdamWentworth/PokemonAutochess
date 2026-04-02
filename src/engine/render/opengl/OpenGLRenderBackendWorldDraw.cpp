@@ -17,6 +17,8 @@
 
 namespace {
 
+constexpr GLuint kWorldSkinBlockBinding = 0u;
+
 float resolveVertexChannel(float channel, float fallback) {
     return (channel >= 0.0f) ? channel : fallback;
 }
@@ -547,6 +549,8 @@ void OpenGLRenderBackend::drawWorldIndexedMeshTexturedInternal(unsigned int vao,
     GLint prevActiveTexture = 0;
     GLint prevTexture2DOnActive = 0;
     GLint prevTexture2DOnUnit[6] = {0, 0, 0, 0, 0, 0};
+    GLint prevUniformBuffer = 0;
+    GLint prevWorldSkinBufferBinding = 0;
     GLboolean depthEnabled = GL_FALSE;
     GLboolean blendEnabled = GL_FALSE;
     GLboolean cullEnabled = GL_FALSE;
@@ -571,6 +575,11 @@ void OpenGLRenderBackend::drawWorldIndexedMeshTexturedInternal(unsigned int vao,
             glGetIntegerv(GL_TEXTURE_BINDING_2D, &prevTexture2DOnUnit[unit]);
         }
         glActiveTexture(static_cast<GLenum>(prevActiveTexture));
+        glGetIntegerv(GL_UNIFORM_BUFFER_BINDING, &prevUniformBuffer);
+        glGetIntegeri_v(
+            GL_UNIFORM_BUFFER_BINDING,
+            static_cast<GLuint>(kWorldSkinBlockBinding),
+            &prevWorldSkinBufferBinding);
 
         depthEnabled = glIsEnabled(GL_DEPTH_TEST);
         blendEnabled = glIsEnabled(GL_BLEND);
@@ -616,6 +625,7 @@ void OpenGLRenderBackend::drawWorldIndexedMeshTexturedInternal(unsigned int vao,
     setDepthMask(!blendAlpha);
 
     bindProgram(worldProgram_);
+    glBindBufferBase(GL_UNIFORM_BUFFER, kWorldSkinBlockBinding, worldSkinUbo_);
     glUniformMatrix4fv(worldViewProjLoc_, 1, GL_FALSE, viewProjectionMatrix4x4);
     static constexpr float kIdentityModel[16] = {
         1.0f, 0.0f, 0.0f, 0.0f,
@@ -927,6 +937,11 @@ void OpenGLRenderBackend::drawWorldIndexedMeshTexturedInternal(unsigned int vao,
         glBindVertexArray(static_cast<GLuint>(prevVao));
         glBindBuffer(GL_ARRAY_BUFFER, static_cast<GLuint>(prevArrayBuffer));
         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, static_cast<GLuint>(prevElementArrayBuffer));
+        glBindBuffer(GL_UNIFORM_BUFFER, static_cast<GLuint>(prevUniformBuffer));
+        glBindBufferBase(
+            GL_UNIFORM_BUFFER,
+            kWorldSkinBlockBinding,
+            static_cast<GLuint>(prevWorldSkinBufferBinding));
         glUseProgram(static_cast<GLuint>(prevProgram));
 
         for (int unit = 0; unit < 6; ++unit) {

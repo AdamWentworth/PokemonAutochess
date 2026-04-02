@@ -64,9 +64,9 @@ PreviewBodyPathSummary inspectPreviewBodyPath(
         return summary;
     }
 
-    // Preview prefers the shared projected body path whenever the backend
-    // can already produce lit textured body batches. An env switch still
-    // exists so we can force the direct fallback during investigation.
+    // Exact-clip preview units can still opt out at the call site, but the
+    // default preview policy should follow the same indexed projected body
+    // route that gameplay already uses when world-scene fast path is absent.
     summary.decision = PreviewBodyPathDecision::DirectAnimatedFallback;
     return summary;
 }

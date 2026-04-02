@@ -25,6 +25,7 @@ public:
     void onResize(int width, int height) override;
     std::uint32_t activeCount() const override;
     engine::tools::vfx_preview::PreviewCasterAnimationRequest casterAnimationRequest() const override;
+    engine::tools::vfx_preview::PreviewPokemonSpeciesSelection previewPokemonSpecies() const override;
     std::vector<std::string> overlayLines(
         const engine::tools::vfx_preview::PreviewSceneState& scene) const override;
 

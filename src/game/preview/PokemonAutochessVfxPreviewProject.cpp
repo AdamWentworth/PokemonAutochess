@@ -25,8 +25,10 @@
 #include "game/preview/PreviewTailFireBridge.h"
 #include "game/preview/effects/GrowlPreviewEffect.h"
 #include "game/preview/effects/LeechSeedPreviewEffect.h"
+#include "game/preview/effects/TacklePreviewEffect.h"
 #include "game/runtime/render_prep/UnitVisuals.h"
 #include "game/runtime/render_prep/ProceduralPose.h"
+#include "game/runtime/render_prep/WorldProxyGeometry.h"
 #include "game/runtime/render_model_cache/RenderModelCache.h"
 #include "game/runtime/session/SessionRenderConfig.h"
 #include "game/runtime/session/SessionRenderScratch.h"
@@ -42,6 +44,8 @@
 #include "game/runtime/shared/vfx/tail_fire/SharedTailFirePlaybackPolicy.h"
 #include "game/runtime/shared/world/SharedWorldContentSubmit.h"
 #include "game/runtime/shared/world/SharedWorldIndexedBatches.h"
+#include "game/world/MoveImpactMath.h"
+#include "game/world/MoveImpactRouting.h"
 
 namespace game::preview {
 
@@ -109,6 +113,12 @@ bool previewCharacterInkingEnabled() {
     return enabled;
 }
 
+void setPreviewVisualSpeciesLocal(game::preview::PreviewPokemonVisual& visual,
+                                  std::string_view speciesName) {
+    if (speciesName.empty() || visual.speciesName == speciesName) return;
+    visual = game::preview::PreviewPokemonVisual{std::string(speciesName)};
+}
+
 } // namespace
 
 struct PokemonAutochessVfxPreviewProject::Impl {
@@ -167,6 +177,41 @@ struct PokemonAutochessVfxPreviewProject::Impl {
     PreviewBodyDebugState lastTargetBodyDebug{};
     std::string lastAttackerBodyTraceLine;
     std::string lastTargetBodyTraceLine;
+
+    void applyEffectPreviewSpecies(const engine::tools::vfx_preview::IVfxPreviewEffect& effect) {
+        const auto species = effect.previewPokemonSpecies();
+        setPreviewVisualSpeciesLocal(attackerVisual, species.attackerSpecies);
+        setPreviewVisualSpeciesLocal(targetVisual, species.targetSpecies);
+    }
+
+    void updateEffectImpactPoint(const engine::tools::vfx_preview::IVfxPreviewEffect* effect,
+                                 engine::tools::vfx_preview::PreviewSceneState& scene) {
+        scene.useCustomImpactPoint = false;
+        scene.impactPoint = scene.target;
+        if (!effect || !effect->wantsTargetSurfaceImpactPoint()) return;
+
+        ensurePokemonConfigLoaded();
+        attackerVisual.ensureLoaded(pokemonConfig);
+        targetVisual.ensureLoaded(pokemonConfig);
+        if (!attackerVisual.valid || !targetVisual.valid) return;
+
+        const glm::vec3 casterPos(scene.emitter.x, 0.0f, scene.emitter.z);
+        const glm::vec3 targetPos(scene.target.x, 0.0f, scene.target.z);
+        const float attackerYaw = computeYawDegreesFromForward(targetPos - casterPos);
+        const float targetYaw = computeYawDegreesFromForward(casterPos - targetPos);
+
+        const PokemonInstance attackerUnit =
+            makePreviewRuntimeUnit(attackerVisual, casterPos, attackerYaw, PokemonSide::Player);
+        const PokemonInstance targetUnit =
+            makePreviewRuntimeUnit(targetVisual, targetPos, targetYaw, PokemonSide::Enemy);
+
+        const auto* attackerMesh = ensureBackendMeshLoaded(attackerVisual.modelPath);
+        const auto* targetMesh = ensureBackendMeshLoaded(targetVisual.modelPath);
+        const MoveImpactSurfacePoint impact =
+            computeTargetSurfaceImpactPoint(targetUnit, &attackerUnit, targetMesh, attackerMesh);
+        scene.impactPoint = impact.position;
+        scene.useCustomImpactPoint = true;
+    }
 
     void submitScratch(const Camera3D& camera,
                        int surfaceWidth,
@@ -599,7 +644,19 @@ bool PokemonAutochessVfxPreviewProject::Impl::buildProjectedModelScratch(
 
     const float minDim = static_cast<float>(std::min(surfaceWidth, surfaceHeight));
     const float cellSize = boardCellSize();
-    const glm::vec3 proxyCenter = glm::vec3(worldPos.x, worldPos.y, worldPos.z);
+    const bool exactClipMotionPreview = visual.previewUseExactClipMotion;
+    const auto previewPose =
+        game::runtime::render_prep_pose::computeProceduralPose(unit, cellSize);
+    const bool applyProceduralAttackMotion =
+        !exactClipMotionPreview &&
+        previewPose.activeAttackWindow &&
+        shouldApplyProceduralAttackLunge(unit.activeAttackMoveName);
+    const glm::vec3 attackOffset = applyProceduralAttackMotion
+        ? (game::runtime::render_prep_proxy::yawForward(unit.rotation.y) *
+           previewPose.attackLunge)
+        : glm::vec3(0.0f);
+    const float attackPulse = applyProceduralAttackMotion ? previewPose.attackPulse : 1.0f;
+    const glm::vec3 proxyCenter = worldPos + attackOffset;
     const glm::vec3 coarseWorldPos =
         proxyCenter + glm::vec3(0.0f, std::max(0.2f, cellSize * 0.22f), 0.0f);
     const float unitSizePx =
@@ -613,10 +670,7 @@ bool PokemonAutochessVfxPreviewProject::Impl::buildProjectedModelScratch(
             .renderer = backendRenderer.get(),
             .dataDb = &previewDataDb,
             .unit = &unit,
-            .pose = []() -> const game::runtime::render_prep_pose::ProceduralPose* {
-                static const game::runtime::render_prep_pose::ProceduralPose kIdentityPose{};
-                return &kIdentityPose;
-            }(),
+            .pose = &previewPose,
             .meshForUnit = mesh,
             .scenePose = &scenePose,
             .backendId = backendRenderer ? backendRenderer->backendId() : nullptr,
@@ -630,7 +684,7 @@ bool PokemonAutochessVfxPreviewProject::Impl::buildProjectedModelScratch(
             .animPitch = 0.0f,
             .animYaw = yawDeg,
             .animRoll = 0.0f,
-            .attackPulse = 1.0f,
+            .attackPulse = attackPulse,
             .materialTimeSec = unit.animTimeSec,
             .renderVisualScale = 1.0f,
             .renderCaptureScale = 1.0f,
@@ -693,16 +747,35 @@ void PokemonAutochessVfxPreviewProject::Impl::renderPreviewUnit(
     const glm::vec3& worldPos,
     float yawDeg,
     PokemonSide side) {
+    const PokemonInstance previewUnit =
+        makePreviewRuntimeUnit(visual, worldPos, yawDeg, side);
+    const bool exactClipMotionPreview = visual.previewUseExactClipMotion;
+    const bool forceDirectBodyPreview = exactClipMotionPreview;
+    const auto previewPose =
+        game::runtime::render_prep_pose::computeProceduralPose(previewUnit, boardCellSize());
+    const bool applyProceduralAttackMotion =
+        !exactClipMotionPreview &&
+        previewPose.activeAttackWindow &&
+        shouldApplyProceduralAttackLunge(previewUnit.activeAttackMoveName);
+    const glm::vec3 attackOffset = applyProceduralAttackMotion
+        ? (game::runtime::render_prep_proxy::yawForward(previewUnit.rotation.y) *
+           previewPose.attackLunge)
+        : glm::vec3(0.0f);
+    const float attackPulse = applyProceduralAttackMotion ? previewPose.attackPulse : 1.0f;
+
     preview_animated_model_presentation::DirectBodySample bodySample;
     const bool haveDirectBodySample =
         preview_animated_model_presentation::buildDirectBodySample(
             visual,
-            worldPos,
+            worldPos + attackOffset,
             yawDeg,
-            bodySample);
+            bodySample,
+            0.006f,
+            attackPulse);
 
     const bool builtProjectedScratch =
         backendRenderer &&
+        !forceDirectBodyPreview &&
         buildProjectedModelScratch(
             camera,
             surfaceWidth,
@@ -711,10 +784,6 @@ void PokemonAutochessVfxPreviewProject::Impl::renderPreviewUnit(
             worldPos,
             yawDeg,
             side);
-    const auto playbackMode = game::runtime::shared_tail_fire_playback_policy::resolvePlaybackMode(
-        visual.speciesName,
-        modelScratch.worldIndexedBatches);
-
     const auto previewBodySummary =
         builtProjectedScratch
             ? game::runtime::shared_preview_body_presentation_path::inspectPreviewBodyPath(
@@ -741,6 +810,12 @@ void PokemonAutochessVfxPreviewProject::Impl::renderPreviewUnit(
         previewBodySummary.decision ==
             game::runtime::shared_preview_body_presentation_path::PreviewBodyPathDecision::
                 ProjectedIndexedScratch;
+    const bool hasAuthoredFireBatches =
+        builtProjectedScratch &&
+        previewBodySummary.authoredFireBatchCount > 0u;
+    const bool authoredFireAlreadySubmitted =
+        hasAuthoredFireBatches &&
+        canUseProjectedBody;
     if (canUseProjectedBody) {
         submitScratch(
             camera,
@@ -757,11 +832,25 @@ void PokemonAutochessVfxPreviewProject::Impl::renderPreviewUnit(
 
     if (game::runtime::shared_tail_fire_coordinator::speciesUsesTailFireMeshPlayback(
             visual.speciesName)) {
-        const bool authoredFireAlreadySubmitted =
-            canUseProjectedBody &&
-            playbackMode ==
-                game::runtime::shared_tail_fire_playback_policy::PlaybackMode::AuthoredMesh;
-        if (!authoredFireAlreadySubmitted) {
+        if (hasAuthoredFireBatches && !authoredFireAlreadySubmitted) {
+            auto& scratch = tailFireScratch;
+            game::runtime::session_render_scratch::ensureCapacity(scratch);
+            game::runtime::session_render_scratch::beginFrame(scratch, true, backendRenderer.get());
+            scratch.worldIndexedBatches.reserve(modelScratch.worldIndexedBatches.size());
+            for (const auto& batch : modelScratch.worldIndexedBatches) {
+                if (!game::runtime::shared_tail_fire_playback_policy::batchUsesAuthoredFireMesh(batch)) {
+                    continue;
+                }
+                scratch.worldIndexedBatches.push_back(batch);
+            }
+            submitScratch(
+                camera,
+                surfaceWidth,
+                surfaceHeight,
+                scratch,
+                false,
+                false);
+        } else if (!authoredFireAlreadySubmitted) {
             renderTailFireBillboards(
                 camera,
                 surfaceWidth,
@@ -778,6 +867,7 @@ PokemonAutochessVfxPreviewProject::PokemonAutochessVfxPreviewProject()
     : board_(nullptr)
     , impl_(std::make_unique<Impl>()) {
     effects_.push_back(std::make_unique<GrowlPreviewEffect>());
+    effects_.push_back(std::make_unique<TacklePreviewEffect>());
     effects_.push_back(std::make_unique<LeechSeedPreviewEffect>());
 }
 
@@ -829,6 +919,10 @@ void PokemonAutochessVfxPreviewProject::onEffectActivated(std::size_t effectInde
     impl_->activeEffectIndex = effectIndex;
     impl_->pendingReplayAction = Impl::PendingReplayAction::None;
     impl_->pendingReplayTriggerAnimTimeSec = 0.0f;
+    impl_->applyEffectPreviewSpecies(effectAt(effectIndex));
+    impl_->attackerVisual.previewUseExactClipMotion =
+        effectAt(effectIndex).wantsExactClipMotionPreview();
+    impl_->targetVisual.previewUseExactClipMotion = false;
     impl_->attackerVisual.clearPreviewAnimation();
     impl_->targetVisual.clearPreviewAnimation();
     impl_->resetTailFirePreview();
@@ -840,6 +934,7 @@ void PokemonAutochessVfxPreviewProject::requestReplay(
     impl_->activeEffectIndex = effectIndex;
     impl_->pendingReplayAction = Impl::PendingReplayAction::Replay;
     impl_->pendingReplayTriggerAnimTimeSec = 0.0f;
+    impl_->applyEffectPreviewSpecies(effectAt(effectIndex));
     impl_->attackerVisual.clearPreviewAnimation();
     impl_->targetVisual.clearPreviewAnimation();
 
@@ -851,6 +946,13 @@ void PokemonAutochessVfxPreviewProject::requestReplay(
 
     engine::tools::vfx_preview::IVfxPreviewEffect* activeEffect =
         effectIndex < effects_.size() ? effects_[effectIndex].get() : nullptr;
+    impl_->attackerVisual.previewUseExactClipMotion =
+        activeEffect && activeEffect->wantsExactClipMotionPreview();
+    impl_->targetVisual.previewUseExactClipMotion = false;
+    impl_->updateEffectImpactPoint(activeEffect, scene);
+    if (impl_->attackerVisual.previewUseExactClipMotion) {
+        scene.showOrientationGuide = false;
+    }
     const auto casterAnimRequest =
         activeEffect ? activeEffect->casterAnimationRequest()
                      : engine::tools::vfx_preview::PreviewCasterAnimationRequest{};
@@ -880,8 +982,12 @@ void PokemonAutochessVfxPreviewProject::requestReplay(
     const float clipDur = impl_->attackerVisual.animationDurationSec(clipIndex);
     const float windowSec =
         impl_->computeReplayWindowSec(impl_->attackerVisual, casterAnimRequest);
+    const bool exactClipMotionPreview =
+        activeEffect && activeEffect->wantsExactClipMotionPreview();
     const float attackAnimSpeed =
-        (windowSec > 0.0f && clipDur > 0.0f) ? (clipDur / windowSec) : 1.0f;
+        exactClipMotionPreview
+            ? 1.0f
+            : ((windowSec > 0.0f && clipDur > 0.0f) ? (clipDur / windowSec) : 1.0f);
     const int hitFrame = impl_->attackAnimConfig.getHitFrame(
         impl_->attackerVisual.speciesName,
         std::string(casterAnimRequest.kind),
@@ -896,6 +1002,7 @@ void PokemonAutochessVfxPreviewProject::requestReplay(
     }
 
     impl_->attackerVisual.setPreviewAnimation(clipIndex, false, true, 0.0f, attackAnimSpeed);
+    impl_->attackerVisual.previewAttackMoveName = std::string(casterAnimRequest.move);
     impl_->pendingReplayTriggerAnimTimeSec = triggerAnimTimeSec;
     if (!(impl_->pendingReplayTriggerAnimTimeSec > 0.0001f)) {
         effectAt(effectIndex).replay(scene);
@@ -909,6 +1016,7 @@ void PokemonAutochessVfxPreviewProject::requestReload(
     impl_->activeEffectIndex = effectIndex;
     impl_->pendingReplayAction = Impl::PendingReplayAction::Reload;
     impl_->pendingReplayTriggerAnimTimeSec = 0.0f;
+    impl_->applyEffectPreviewSpecies(effectAt(effectIndex));
     impl_->attackerVisual.clearPreviewAnimation();
     impl_->targetVisual.clearPreviewAnimation();
 
@@ -920,6 +1028,13 @@ void PokemonAutochessVfxPreviewProject::requestReload(
 
     engine::tools::vfx_preview::IVfxPreviewEffect* activeEffect =
         effectIndex < effects_.size() ? effects_[effectIndex].get() : nullptr;
+    impl_->attackerVisual.previewUseExactClipMotion =
+        activeEffect && activeEffect->wantsExactClipMotionPreview();
+    impl_->targetVisual.previewUseExactClipMotion = false;
+    impl_->updateEffectImpactPoint(activeEffect, scene);
+    if (impl_->attackerVisual.previewUseExactClipMotion) {
+        scene.showOrientationGuide = false;
+    }
     const auto casterAnimRequest =
         activeEffect ? activeEffect->casterAnimationRequest()
                      : engine::tools::vfx_preview::PreviewCasterAnimationRequest{};
@@ -949,8 +1064,12 @@ void PokemonAutochessVfxPreviewProject::requestReload(
     const float clipDur = impl_->attackerVisual.animationDurationSec(clipIndex);
     const float windowSec =
         impl_->computeReplayWindowSec(impl_->attackerVisual, casterAnimRequest);
+    const bool exactClipMotionPreview =
+        activeEffect && activeEffect->wantsExactClipMotionPreview();
     const float attackAnimSpeed =
-        (windowSec > 0.0f && clipDur > 0.0f) ? (clipDur / windowSec) : 1.0f;
+        exactClipMotionPreview
+            ? 1.0f
+            : ((windowSec > 0.0f && clipDur > 0.0f) ? (clipDur / windowSec) : 1.0f);
     const int hitFrame = impl_->attackAnimConfig.getHitFrame(
         impl_->attackerVisual.speciesName,
         std::string(casterAnimRequest.kind),
@@ -965,6 +1084,7 @@ void PokemonAutochessVfxPreviewProject::requestReload(
     }
 
     impl_->attackerVisual.setPreviewAnimation(clipIndex, false, true, 0.0f, attackAnimSpeed);
+    impl_->attackerVisual.previewAttackMoveName = std::string(casterAnimRequest.move);
     impl_->pendingReplayTriggerAnimTimeSec = triggerAnimTimeSec;
     if (!(impl_->pendingReplayTriggerAnimTimeSec > 0.0001f)) {
         effectAt(effectIndex).reload(scene);
@@ -1135,6 +1255,8 @@ void PokemonAutochessVfxPreviewProject::appendDebugMarkers(
     const glm::vec3 emitterColor(1.0f, 0.52f, 0.16f);
     const glm::vec3 targetColor(0.28f, 0.95f, 0.55f);
     const glm::vec3 guideColor(0.95f, 0.90f, 0.35f);
+    const glm::vec3 debugTarget =
+        scene.useCustomImpactPoint ? scene.impactPoint : scene.target;
 
     if (scene.showEmitterMarker) {
         draw.addCross(scene.emitter, 0.16f, emitterColor);
@@ -1142,13 +1264,13 @@ void PokemonAutochessVfxPreviewProject::appendDebugMarkers(
     }
 
     if (scene.showTargetMarker) {
-        draw.addCross(scene.target, 0.18f, targetColor);
-        draw.addCircleXZ(glm::vec3(scene.target.x, 0.015f, scene.target.z), 0.24f, targetColor, 28);
+        draw.addCross(debugTarget, 0.18f, targetColor);
+        draw.addCircleXZ(glm::vec3(debugTarget.x, 0.015f, debugTarget.z), 0.24f, targetColor, 28);
     }
 
     if (scene.showOrientationGuide) {
         const glm::vec3 guideStart = scene.emitter + glm::vec3(0.0f, 0.02f, 0.0f);
-        const glm::vec3 guideEnd = glm::vec3(scene.target.x, guideStart.y, scene.target.z);
+        const glm::vec3 guideEnd = glm::vec3(debugTarget.x, guideStart.y, debugTarget.z);
         draw.addArrow(guideStart, guideEnd, guideColor);
     }
 }

@@ -58,6 +58,12 @@ TevState resolveTevState(const GrowlWaveVFX::Config& config,
     return tev;
 }
 
+std::uint8_t resolveBlendMode(const GrowlWaveVFX::Config& config,
+                              const GrowlWaveVFX::Config::DrawPass& pass) {
+    const std::uint8_t resolved = pass.overrideBlendMode ? pass.blendMode : config.blendMode;
+    return std::min<std::uint8_t>(2u, resolved);
+}
+
 bool isLinePass(const GrowlWaveVFX::Config& config,
                 const GrowlWaveVFX::Config::DrawPass& pass) {
     return effectiveFragPath(config, pass).find("growl_line_shared") != std::string::npos;
@@ -66,7 +72,9 @@ bool isLinePass(const GrowlWaveVFX::Config& config,
 bool usesQuarterTextureBake(const GrowlWaveVFX::Config& config,
                             const GrowlWaveVFX::Config::DrawPass& pass) {
     if (pass.textureQuarterRing) return true;
-    return effectiveFragPath(config, pass).find("growl_quarter_ring_shared") != std::string::npos;
+    const std::string fragPath = effectiveFragPath(config, pass);
+    return fragPath.find("growl_quarter_ring_shared") != std::string::npos ||
+           fragPath.find("tackle_smoke_shared") != std::string::npos;
 }
 
 bool isSparkleMeshPass(const GrowlWaveVFX::Config::DrawPass& pass) {
@@ -111,6 +119,8 @@ bool bakePassTextureRgba(const GrowlWaveVFX::Config::DrawPass& pass,
     const glm::vec3 tint = glm::clamp(pass.tintColor, glm::vec3(0.0f), glm::vec3(1.0f));
     const bool sparkleMeshPass = quarterPass && isSparkleMeshPass(pass);
     const bool glowBillboardPass = quarterPass && isGlowBillboardPass(pass);
+    const bool tackleSmokePass =
+        toLowerCopyLocal(pass.fragShaderPath).find("tackle_smoke_shared") != std::string::npos;
     for (std::size_t i = 0; i + 3u < rawRgba.size(); i += 4u) {
         const float tr = static_cast<float>(rawRgba[i + 0u]) / 255.0f;
         const float tg = static_cast<float>(rawRgba[i + 1u]) / 255.0f;
@@ -120,7 +130,7 @@ bool bakePassTextureRgba(const GrowlWaveVFX::Config::DrawPass& pass,
         glm::vec3 rgb(1.0f);
         float alpha = ta;
         if (quarterPass) {
-            if (sparkleMeshPass || glowBillboardPass) {
+            if (sparkleMeshPass || (glowBillboardPass && !tackleSmokePass)) {
                 rgb = glm::vec3(
                     tevMixU8Scalar(tev.c1.r, tev.c0.r, tr),
                     tevMixU8Scalar(tev.c1.g, tev.c0.g, tg),

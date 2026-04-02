@@ -88,7 +88,8 @@ static size_t findKeyframe(const std::vector<float>& times, float t)
 void Model::buildPoseMatrices(float timeSec,
                               int animIndex,
                               std::vector<NodeTRS>& outLocal,
-                              std::vector<glm::mat4>& outGlobal) const
+                              std::vector<glm::mat4>& outGlobal,
+                              bool suppressHorizontalRootMotion) const
 {
     outLocal = nodesDefault;
     outGlobal.assign(nodesDefault.size(), glm::mat4(1.0f));
@@ -244,7 +245,8 @@ void Model::buildPoseMatrices(float timeSec,
                 glm::vec4 v = sampleVec4(s, t, clip.durationSec);
                 glm::vec3 animT(v.x, v.y, v.z);
 
-                if (rmNodes.find(ch.targetNode) != rmNodes.end()) {
+                if (suppressHorizontalRootMotion &&
+                    rmNodes.find(ch.targetNode) != rmNodes.end()) {
                     // Freeze horizontal displacement (X/Z) to bind pose, but keep animated Y.
                     const NodeTRS& bind = nodesDefault[ch.targetNode];
 
@@ -305,8 +307,14 @@ void Model::buildPoseMatrices(float timeSec,
 
 void Model::sampleAnimatedPose(float animTimeSec,
                                int animIndex,
-                               AnimatedPose& outPose) const {
-    buildPoseMatrices(animTimeSec, animIndex, outPose.locals, outPose.globals);
+                               AnimatedPose& outPose,
+                               bool suppressHorizontalRootMotion) const {
+    buildPoseMatrices(
+        animTimeSec,
+        animIndex,
+        outPose.locals,
+        outPose.globals,
+        suppressHorizontalRootMotion);
 }
 
 void Model::drawAnimated(const Camera3D& camera,

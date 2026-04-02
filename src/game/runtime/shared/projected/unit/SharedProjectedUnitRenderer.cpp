@@ -32,6 +32,16 @@ std::string toLowerCopy(std::string s) {
     return s;
 }
 
+std::string resolveAttackMoveLowerForPresentation(const PokemonInstance& unit) {
+    if (!unit.activeAttackMoveName.empty()) {
+        return toLowerCopy(unit.activeAttackMoveName);
+    }
+    if (!unit.pendingDamageMoveName.empty()) {
+        return toLowerCopy(unit.pendingDamageMoveName);
+    }
+    return {};
+}
+
 std::size_t selectUniformTriangleIndex(std::size_t sampleIndex,
                                        std::size_t sampleCount,
                                        std::size_t triangleCount) {
@@ -575,10 +585,8 @@ for (const auto& unit : units) {
         }
     }
     const bool hasClipPoseDrivenModel = scenePoseReady && scenePose && scenePose->hasClipPose;
-    runtime::render_prep_pose::ProceduralPose pose{};
-    if (!hasClipPoseDrivenModel) {
-        pose = runtime::render_prep_pose::computeProceduralPose(unit, worldCellSize);
-    }
+    const runtime::render_prep_pose::ProceduralPose pose =
+        runtime::render_prep_pose::computeProceduralPose(unit, worldCellSize);
     poseEvalMsAcc += std::chrono::duration<double, std::milli>(Clock::now() - poseEvalStart).count();
     const bool unitClipSkinningEnabled =
         !clipSkinningAdaptiveEnabled ||
@@ -586,18 +594,22 @@ for (const auto& unit : units) {
     if (unitClipSkinningEnabled && hasClipPoseDrivenModel) {
         ++clipSkinnedUnits;
     }
-    const bool applyProceduralModelMotion = !hasClipPoseDrivenModel;
-    const glm::vec3 attackOffset = applyProceduralModelMotion
+    const bool applyProceduralLocomotionMotion = !hasClipPoseDrivenModel;
+    const std::string attackMoveLower = resolveAttackMoveLowerForPresentation(unit);
+    const bool applyProceduralAttackMotion =
+        pose.activeAttackWindow &&
+        shouldApplyProceduralAttackLunge(attackMoveLower);
+    const glm::vec3 attackOffset = applyProceduralAttackMotion
         ? (game::runtime::render_prep_proxy::yawForward(unit.rotation.y) * pose.attackLunge)
         : glm::vec3(0.0f);
-    const float animYaw = applyProceduralModelMotion ? pose.yawDeg : unit.rotation.y;
-    const float animPitch = applyProceduralModelMotion ? pose.pitchDeg : unit.rotation.x;
-    const float animRoll = applyProceduralModelMotion
+    const float animYaw = applyProceduralLocomotionMotion ? pose.yawDeg : unit.rotation.y;
+    const float animPitch = applyProceduralLocomotionMotion ? pose.pitchDeg : unit.rotation.x;
+    const float animRoll = applyProceduralLocomotionMotion
         ? (pose.rollDeg + (unit.side == PokemonSide::Player ? -pose.faintRoll : pose.faintRoll))
         : unit.rotation.z;
-    const float attackPulse = applyProceduralModelMotion ? pose.attackPulse : 1.0f;
-    const float proceduralBobY = applyProceduralModelMotion ? pose.bobY : 0.0f;
-    const float proceduralFaintDrop = applyProceduralModelMotion ? pose.faintDrop : 0.0f;
+    const float attackPulse = applyProceduralAttackMotion ? pose.attackPulse : 1.0f;
+    const float proceduralBobY = applyProceduralLocomotionMotion ? pose.bobY : 0.0f;
+    const float proceduralFaintDrop = applyProceduralLocomotionMotion ? pose.faintDrop : 0.0f;
     const glm::vec3 animatedCenter =
         unit.position + attackOffset +
         glm::vec3(0.0f, unit.visualYOffset + proceduralBobY - proceduralFaintDrop, 0.0f);

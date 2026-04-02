@@ -54,6 +54,15 @@ void appendSharedProjectedVfxBridgesSession(
         worldIndexedBatches,
         ensureBackendMeshLoaded,
         ensureBackendTextureLoaded);
+    appendSharedTackleSmokeVfxSession(
+        supportsWorldIndexedMeshes,
+        hasWorldViewProj,
+        gameWorld,
+        cameraWorldPos,
+        backendTextureByPath,
+        worldIndexedBatches,
+        ensureBackendMeshLoaded,
+        ensureBackendTextureLoaded);
 }
 
 } // namespace game::runtime::shared_projected_scene

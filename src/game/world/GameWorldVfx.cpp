@@ -30,8 +30,15 @@ void GameWorld::updateRenderVfx(float dt) {
         tackleImpactVfxInitialized = true;
     }
 
+    if (!tackleSmokeVfxInitialized) {
+        TackleSmokeVFX::Config configData = TackleSmokeVFX::makeDefaultConfig();
+        tackleSmokeVfx.setConfig(configData);
+        tackleSmokeVfxInitialized = true;
+    }
+
     grassImpactVfx.update(dt);
     tackleImpactVfx.update(dt);
+    tackleSmokeVfx.update(dt);
 
     if (!leechSeedVfxInitialized) {
         LeechSeedProjectileVFX::Config configData;  // defaults
