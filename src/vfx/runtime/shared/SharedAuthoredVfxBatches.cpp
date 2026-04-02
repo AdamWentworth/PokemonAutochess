@@ -1,4 +1,4 @@
-#include "vfx/runtime/growl/SharedGrowlWaveBatches.h"
+#include "vfx/runtime/shared/SharedAuthoredVfxBatches.h"
 
 #include <algorithm>
 #include <array>
@@ -13,10 +13,10 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/quaternion.hpp>
 
-namespace vfx::runtime::growl_batches {
+namespace vfx::runtime::authored_batches {
 
-namespace render_model = vfx::runtime::growl_batches;
-namespace shared_world_batches = vfx::runtime::growl_batches;
+namespace render_model = vfx::runtime::authored_batches;
+namespace shared_world_batches = vfx::runtime::authored_batches;
 
 namespace {
 
@@ -104,7 +104,7 @@ std::array<float, 16> toModelMatrixArrayLocal(const glm::mat4& matrix) {
     return out;
 }
 
-std::vector<glm::vec3> makeFallbackDirectionsLocal(const GrowlWaveVFX::Config::DrawPass& pass) {
+std::vector<glm::vec3> makeFallbackDirectionsLocal(const SharedAuthoredBatchVFX::Config::DrawPass& pass) {
     std::vector<glm::vec3> directions;
     directions.push_back(
         pass.overrideDirection ? pass.directionLocal : glm::vec3(0.0f, 0.0f, 1.0f));
@@ -174,7 +174,7 @@ const SharedMeshGeometry& getSharedLineMeshGeometryLocal(const render_model::Mes
         vtx.r = 1.0f;
         vtx.g = 1.0f;
         vtx.b = 1.0f;
-        vtx.a = growl::quantizeLineVertexAlpha(
+        vtx.a = authored::quantizeLineVertexAlpha(
             std::clamp(src.color.a, 0.0f, 1.0f),
             lineTevK1A,
             1.0f);
@@ -319,29 +319,29 @@ const std::array<std::uint32_t, 6>& quarterIndicesLocal() {
     return kIndices;
 }
 
-std::string makeMeshGeometryCacheKeyLocal(const GrowlWaveVFX::Config::DrawPass& pass) {
-    return std::string("__growl_geom_mesh_v1__:") + pass.meshPath;
+std::string makeMeshGeometryCacheKeyLocal(const SharedAuthoredBatchVFX::Config::DrawPass& pass) {
+    return std::string("__authored_vfx_geom_mesh_v1__:") + pass.meshPath;
 }
 
-std::string makeSparkleSpriteDescriptorCacheKeyLocal(const GrowlWaveVFX::Config::DrawPass& pass) {
-    return std::string("__growl_sparkle_desc_v1__:") + pass.meshPath;
+std::string makeSparkleSpriteDescriptorCacheKeyLocal(const SharedAuthoredBatchVFX::Config::DrawPass& pass) {
+    return std::string("__authored_vfx_sparkle_desc_v1__:") + pass.meshPath;
 }
 
-std::string makeLineGeometryCacheKeyLocal(const GrowlWaveVFX::Config::DrawPass& pass,
+std::string makeLineGeometryCacheKeyLocal(const SharedAuthoredBatchVFX::Config::DrawPass& pass,
                                           float lineTevK1A) {
     const int k1aMilli = static_cast<int>(std::lround(std::clamp(lineTevK1A, 0.0f, 1.0f) * 1000.0f));
-    return std::string("__growl_geom_line_v1__:") + pass.id + ":" + pass.meshPath + ":" + std::to_string(k1aMilli);
+    return std::string("__authored_vfx_geom_line_v1__:") + pass.id + ":" + pass.meshPath + ":" + std::to_string(k1aMilli);
 }
 
 std::string makeQuarterGeometryCacheKeyLocal() {
-    return "__growl_geom_quarter_v1__";
+    return "__authored_vfx_geom_quarter_v1__";
 }
 
 std::string makeCenteredQuadGeometryCacheKeyLocal() {
-    return "__growl_geom_centered_quad_v1__";
+    return "__authored_vfx_geom_centered_quad_v1__";
 }
 
-bool computePassSequenceStateLocal(const GrowlWaveVFX::Config::DrawPass& pass,
+bool computePassSequenceStateLocal(const SharedAuthoredBatchVFX::Config::DrawPass& pass,
                                    int sequenceCount,
                                    float age01,
                                    float fadeStart,
@@ -369,7 +369,7 @@ bool computePassSequenceStateLocal(const GrowlWaveVFX::Config::DrawPass& pass,
     return outFade > 0.001f;
 }
 
-bool computeDelayedPassLaunchStateLocal(const GrowlWaveVFX::Config::DrawPass& pass,
+bool computeDelayedPassLaunchStateLocal(const SharedAuthoredBatchVFX::Config::DrawPass& pass,
                                         int sequenceCount,
                                         float age01,
                                         int sequenceIndex,
@@ -398,8 +398,8 @@ float computeSharedDelayedFadeLocal(float age01, float fadeStart) {
     return 1.0f - glm::clamp(t, 0.0f, 1.0f);
 }
 
-float computeQuarterAnimatedScaleLocal(const GrowlWaveVFX::Config::DrawPass& pass,
-                                       const GrowlWaveVFX::RenderRing& ring,
+float computeQuarterAnimatedScaleLocal(const SharedAuthoredBatchVFX::Config::DrawPass& pass,
+                                       const SharedAuthoredBatchVFX::RenderRing& ring,
                                        int sequenceCount,
                                        float age01,
                                        float localAge01) {
@@ -414,21 +414,21 @@ float computeQuarterAnimatedScaleLocal(const GrowlWaveVFX::Config::DrawPass& pas
 }
 
 shared_world_batches::WorldIndexedBatch makeBaseBatchLocal(
-    const GrowlWaveVFX::RenderSnapshot& snapshot,
-    const GrowlWaveVFX::Config::DrawPass& pass,
+    const SharedAuthoredBatchVFX::RenderSnapshot& snapshot,
+    const SharedAuthoredBatchVFX::Config::DrawPass& pass,
     const TextureView& texture) {
     shared_world_batches::WorldIndexedBatch batch;
     batch.textureKey =
-        std::string("growl:") + pass.id + ":" +
+        std::string("authored_vfx:") + pass.id + ":" +
         (pass.texturePath.empty() ? std::string("__white__") : pass.texturePath);
-    batch.textureCacheKey = growl::makeTextureCacheKey(snapshot.config, pass);
+    batch.textureCacheKey = authored::makeTextureCacheKey(snapshot.config, pass);
     batch.textureRgba = texture.rgba;
     batch.textureWidth = texture.width;
     batch.textureHeight = texture.height;
-    batch.textureWrapS = 10497;
-    batch.textureWrapT = 10497;
+    batch.textureWrapS = pass.textureQuarterRing ? 33071 : 10497;
+    batch.textureWrapT = pass.textureQuarterRing ? 33071 : 10497;
     batch.alphaMode = 2u;
-    batch.blendMode = growl::resolveBlendMode(snapshot.config, pass);
+    batch.blendMode = authored::resolveBlendMode(snapshot.config, pass);
     batch.alphaCutoff = 0.0f;
     return batch;
 }
@@ -455,7 +455,7 @@ void appendTransformedMeshLocal(shared_world_batches::WorldIndexedBatch& batch,
         vtx.b = color.b;
         const float srcAlpha = std::clamp(src.color.a, 0.0f, 1.0f);
         if (quantizeLineAlpha) {
-            vtx.a = growl::quantizeLineVertexAlpha(srcAlpha, lineTevK1A, color.a);
+            vtx.a = authored::quantizeLineVertexAlpha(srcAlpha, lineTevK1A, color.a);
         } else {
             vtx.a = std::clamp(color.a * srcAlpha, 0.0f, 1.0f);
         }
@@ -523,9 +523,9 @@ void appendSharedGeometryLocal(shared_world_batches::WorldIndexedBatch& batch,
 
 bool appendSharedMeshPassSingleRingLocal(
     std::vector<shared_world_batches::WorldIndexedBatch>& outBatches,
-    const GrowlWaveVFX::RenderSnapshot& snapshot,
-    const GrowlWaveVFX::Config::DrawPass& pass,
-    const growl::TevState& passTev,
+    const SharedAuthoredBatchVFX::RenderSnapshot& snapshot,
+    const SharedAuthoredBatchVFX::Config::DrawPass& pass,
+    const authored::TevState& passTev,
     const render_model::MeshData& passMesh,
     const TextureView& texture,
     const glm::vec3& cameraWorldPos) {
@@ -534,7 +534,7 @@ bool appendSharedMeshPassSingleRingLocal(
     if (pass.directionSpacingJitterDeg > 0.0001f) return false;
 
     const bool quarterTextureBake =
-        growl::usesQuarterTextureBake(snapshot.config, pass);
+        authored::usesQuarterTextureBake(snapshot.config, pass);
 
     const auto& ring = snapshot.rings.front();
     const float life = std::max(0.0001f, ring.lifeSec);
@@ -640,8 +640,8 @@ bool appendSharedMeshPassSingleRingLocal(
 
 bool appendSharedSparkleBillboardPassSingleRingLocal(
     std::vector<shared_world_batches::WorldIndexedBatch>& outBatches,
-    const GrowlWaveVFX::RenderSnapshot& snapshot,
-    const GrowlWaveVFX::Config::DrawPass& pass,
+    const SharedAuthoredBatchVFX::RenderSnapshot& snapshot,
+    const SharedAuthoredBatchVFX::Config::DrawPass& pass,
     const render_model::MeshData& passMesh,
     const TextureView& texture,
     const glm::vec3& cameraWorldPos) {
@@ -759,8 +759,8 @@ bool appendSharedSparkleBillboardPassSingleRingLocal(
 
 bool appendSharedGlowBillboardPassSingleRingLocal(
     std::vector<shared_world_batches::WorldIndexedBatch>& outBatches,
-    const GrowlWaveVFX::RenderSnapshot& snapshot,
-    const GrowlWaveVFX::Config::DrawPass& pass,
+    const SharedAuthoredBatchVFX::RenderSnapshot& snapshot,
+    const SharedAuthoredBatchVFX::Config::DrawPass& pass,
     const TextureView& texture,
     const glm::vec3& cameraWorldPos) {
     if (snapshot.rings.size() != 1u) return false;
@@ -885,8 +885,8 @@ bool appendSharedGlowBillboardPassSingleRingLocal(
 
 bool appendSharedQuarterPassSingleRingLocal(
     std::vector<shared_world_batches::WorldIndexedBatch>& outBatches,
-    const GrowlWaveVFX::RenderSnapshot& snapshot,
-    const GrowlWaveVFX::Config::DrawPass& pass,
+    const SharedAuthoredBatchVFX::RenderSnapshot& snapshot,
+    const SharedAuthoredBatchVFX::Config::DrawPass& pass,
     const TextureView& texture,
     const glm::vec3& cameraWorldPos) {
     if (snapshot.rings.size() != 1u) return false;
@@ -931,11 +931,14 @@ bool appendSharedQuarterPassSingleRingLocal(
     if (glm::dot(worldDir, worldDir) <= 0.000001f) return false;
 
     const glm::vec3 passForward = glm::normalize(worldDir);
-    const glm::quat passRot = rotationFromToSafeLocal(meshForwardLocal, passForward);
     const float radialRadius = pass.heightOffset * std::max(0.0f, pass.startRadiusMul);
     const glm::vec3 radialStartOffset =
         (right * localDirBasisRaw.x + up * localDirBasisRaw.y) * radialRadius;
     const glm::vec3 passPos = ring.pos + passForward * pass.forwardOffset + radialStartOffset;
+    const glm::vec3 facingDir = pass.cameraFacing
+        ? safeNormalize3Local(cameraWorldPos - passPos, ringForward)
+        : passForward;
+    const glm::quat passRot = rotationFromToSafeLocal(meshForwardLocal, facingDir);
     const float distSq = glm::dot(passPos - cameraWorldPos, passPos - cameraWorldPos);
 
     const float radiusMul = std::max(0.0f, pass.radiusMul);
@@ -995,9 +998,9 @@ bool appendSharedQuarterPassSingleRingLocal(
 
 bool appendSharedLinePassSingleRingLocal(
     std::vector<shared_world_batches::WorldIndexedBatch>& outBatches,
-    const GrowlWaveVFX::RenderSnapshot& snapshot,
-    const GrowlWaveVFX::Config::DrawPass& pass,
-    const growl::TevState& passTev,
+    const SharedAuthoredBatchVFX::RenderSnapshot& snapshot,
+    const SharedAuthoredBatchVFX::Config::DrawPass& pass,
+    const authored::TevState& passTev,
     const render_model::MeshData& passMesh,
     const TextureView& texture,
     const glm::vec3& cameraWorldPos) {
@@ -1156,16 +1159,16 @@ bool appendSharedLinePassSingleRingLocal(
 
 bool appendDynamicPassBatchLocal(
     std::vector<shared_world_batches::WorldIndexedBatch>& outBatches,
-    const GrowlWaveVFX::RenderSnapshot& snapshot,
-    const GrowlWaveVFX::Config::DrawPass& pass,
-    const growl::TevState& passTev,
+    const SharedAuthoredBatchVFX::RenderSnapshot& snapshot,
+    const SharedAuthoredBatchVFX::Config::DrawPass& pass,
+    const authored::TevState& passTev,
     const render_model::MeshData* passMesh,
     const TextureView& texture,
     const glm::vec3& cameraWorldPos) {
     const bool drawQuarterRing = pass.textureQuarterRing;
     const bool quarterTextureBake =
-        growl::usesQuarterTextureBake(snapshot.config, pass);
-    const bool drawLinePass = growl::isLinePass(snapshot.config, pass);
+        authored::usesQuarterTextureBake(snapshot.config, pass);
+    const bool drawLinePass = authored::isLinePass(snapshot.config, pass);
     const glm::vec3 defaultMeshForward =
         (glm::dot(snapshot.config.meshForwardAxis, snapshot.config.meshForwardAxis) <= 0.0001f)
             ? glm::vec3(0.0f, 1.0f, 0.0f)
@@ -1306,6 +1309,11 @@ bool appendDynamicPassBatchLocal(
                                ? (pass.forwardOffset * fastLaunch01Local(localAge01))
                                : pass.forwardOffset);
                 const glm::vec3 passPos = passPosBase + passForward * forwardTravel;
+                const glm::vec3 facingDir = (drawQuarterRing && pass.cameraFacing)
+                    ? safeNormalize3Local(cameraWorldPos - passPos, ringForward)
+                    : passForward;
+                const glm::quat orientedPassRot =
+                    rotationFromToSafeLocal(meshForwardLocal, facingDir);
                 const float distSq = glm::dot(passPos - cameraWorldPos, passPos - cameraWorldPos);
                 sortDepth = std::max(sortDepth, distSq);
 
@@ -1319,7 +1327,7 @@ bool appendDynamicPassBatchLocal(
                             glm::angleAxis(glm::radians(quarterDeg), meshForwardLocal);
                         const glm::mat4 world =
                             glm::translate(glm::mat4(1.0f), passPos) *
-                            glm::mat4_cast(passRot * quarterRot) *
+                            glm::mat4_cast(orientedPassRot * quarterRot) *
                             glm::scale(glm::mat4(1.0f), finalScale);
                         appendQuarterRingLocal(batch, world, color);
                         hasGeometry = true;
@@ -1327,7 +1335,7 @@ bool appendDynamicPassBatchLocal(
                 } else if (passMesh) {
                     const glm::mat4 world =
                         glm::translate(glm::mat4(1.0f), passPos) *
-                        glm::mat4_cast(passRot) *
+                        glm::mat4_cast(orientedPassRot) *
                         glm::scale(glm::mat4(1.0f), finalScale);
                     appendTransformedMeshLocal(
                         batch, *passMesh, world, color, drawLinePass, passTev.k1a);
@@ -1346,9 +1354,9 @@ bool appendDynamicPassBatchLocal(
 } // namespace
 
 bool appendPassBatch(std::vector<shared_world_batches::WorldIndexedBatch>& outBatches,
-                     const GrowlWaveVFX::RenderSnapshot& snapshot,
-                     const GrowlWaveVFX::Config::DrawPass& pass,
-                     const growl::TevState& passTev,
+                     const SharedAuthoredBatchVFX::RenderSnapshot& snapshot,
+                     const SharedAuthoredBatchVFX::Config::DrawPass& pass,
+                     const authored::TevState& passTev,
                      const render_model::MeshData* passMesh,
                      const TextureView& texture,
                      const glm::vec3& cameraWorldPos) {
@@ -1357,11 +1365,11 @@ bool appendPassBatch(std::vector<shared_world_batches::WorldIndexedBatch>& outBa
     if (texture.rgba == nullptr || texture.width <= 0 || texture.height <= 0) return false;
 
     const bool drawQuarterRing = pass.textureQuarterRing;
-    const bool glowBillboardPass = growl::isGlowBillboardPass(pass);
+    const bool glowBillboardPass = authored::isGlowBillboardPass(pass);
     if (!drawQuarterRing && !glowBillboardPass && passMesh == nullptr) return false;
 
-    const bool drawLinePass = growl::isLinePass(snapshot.config, pass);
-    const bool sparkleMeshPass = growl::isSparkleMeshPass(pass);
+    const bool drawLinePass = authored::isLinePass(snapshot.config, pass);
+    const bool sparkleMeshPass = authored::isSparkleMeshPass(pass);
     if (drawLinePass && passMesh &&
         appendSharedLinePassSingleRingLocal(
             outBatches, snapshot, pass, passTev, *passMesh, texture, cameraWorldPos)) {
@@ -1396,4 +1404,4 @@ bool appendPassBatch(std::vector<shared_world_batches::WorldIndexedBatch>& outBa
         outBatches, snapshot, pass, passTev, passMesh, texture, cameraWorldPos);
 }
 
-} // namespace vfx::runtime::growl_batches
+} // namespace vfx::runtime::authored_batches

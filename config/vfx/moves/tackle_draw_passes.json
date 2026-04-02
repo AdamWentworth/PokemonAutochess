@@ -160,6 +160,62 @@
         [1.0, 0.415, 1.0]
       ],
       "enabled": true
+    },
+    {
+      "id": "tackle_eid_1196_texture4156_impact",
+      "eid": 1196,
+      "render_mode": "texture_quarter_ring",
+      "texture": "assets/textures/moves/tackle/Texture4156.png",
+      "vert_shader": "assets/shaders/vfx/moves/tackle/tackle_smoke_shared.vert",
+      "frag_shader": "assets/shaders/vfx/moves/tackle/tackle_smoke_shared.frag",
+      "tint_color": [1.0, 1.0, 1.0],
+      "scale_mul": 0.43,
+      "alpha_mul": 1.0,
+      "forward_offset": 0.0,
+      "height_offset": -0.03,
+      "start_radius_mul": 1.0,
+      "radius_mul": 0.96,
+      "thickness_mul": 1.0,
+      "quarter_count": 4,
+      "quarter_step_deg": 90.0,
+      "quarter_start_deg": 180.0,
+      "camera_facing": true,
+      "tev_c0": [0.984314, 0.937255, 0.858824],
+      "tev_c1": [0.380392, 0.180392, 0.121569],
+      "tev_k0": [1.0, 1.0, 1.0],
+      "tev_k1a": 0.501961,
+      "directions_local": [
+        [0.0, 0.0, 1.0]
+      ],
+      "enabled": true
+    },
+    {
+      "id": "tackle_eid_1210_texture4157_impact",
+      "eid": 1210,
+      "render_mode": "texture_quarter_ring",
+      "texture": "assets/textures/moves/tackle/Texture4157.png",
+      "vert_shader": "assets/shaders/vfx/moves/tackle/tackle_smoke_shared.vert",
+      "frag_shader": "assets/shaders/vfx/moves/tackle/tackle_smoke_shared.frag",
+      "tint_color": [1.0, 1.0, 1.0],
+      "scale_mul": 0.43,
+      "alpha_mul": 1.0,
+      "forward_offset": 0.0,
+      "height_offset": -0.03,
+      "start_radius_mul": 1.0,
+      "radius_mul": 0.96,
+      "thickness_mul": 1.0,
+      "quarter_count": 4,
+      "quarter_step_deg": 90.0,
+      "quarter_start_deg": 180.0,
+      "camera_facing": true,
+      "tev_c0": [0.901961, 0.34902, 0.141176],
+      "tev_c1": [0.584314, 0.301961, 0.34902],
+      "tev_k0": [1.0, 1.0, 1.0],
+      "tev_k1a": 0.501961,
+      "directions_local": [
+        [0.0, 0.0, 1.0]
+      ],
+      "enabled": true
     }
   ]
 }

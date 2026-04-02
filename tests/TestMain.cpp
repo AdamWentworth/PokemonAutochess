@@ -188,10 +188,10 @@ bool test_shared_tail_fire_mesh_playback_contract(std::string& outFail);
 bool test_shared_tail_fire_playback_policy_contract(std::string& outFail);
 bool test_shared_tail_fire_preview_runtime_parity_contract(std::string& outFail);
 bool test_gameworld_capture_render_snapshot_timing_contract(std::string& outFail);
-bool test_shared_growl_vfx_helpers_contract(std::string& outFail);
-bool test_shared_growl_wave_bridge_contract(std::string& outFail);
-bool test_shared_growl_wave_batches_contract(std::string& outFail);
-bool test_shared_growl_preview_mesh_loader_contract(std::string& outFail);
+bool test_shared_authored_vfx_helpers_contract(std::string& outFail);
+bool test_shared_authored_vfx_bridge_contract(std::string& outFail);
+bool test_shared_authored_vfx_batches_contract(std::string& outFail);
+bool test_shared_authored_vfx_preview_mesh_loader_contract(std::string& outFail);
 bool test_preview_effect_pokemon_species_contract(std::string& outFail);
 bool test_preview_runtime_unit_contract(std::string& outFail);
 bool test_tackle_smoke_vfx_contract(std::string& outFail);
@@ -431,10 +431,10 @@ int main(int argc, char** argv) {
         {"shared_tail_fire_playback_policy_contract", &test_shared_tail_fire_playback_policy_contract},
         {"shared_tail_fire_preview_runtime_parity_contract", &test_shared_tail_fire_preview_runtime_parity_contract},
         {"gameworld_capture_render_snapshot_timing_contract", &test_gameworld_capture_render_snapshot_timing_contract},
-        {"shared_growl_vfx_helpers_contract", &test_shared_growl_vfx_helpers_contract},
-        {"shared_growl_wave_bridge_contract", &test_shared_growl_wave_bridge_contract},
-        {"shared_growl_wave_batches_contract", &test_shared_growl_wave_batches_contract},
-        {"shared_growl_preview_mesh_loader_contract", &test_shared_growl_preview_mesh_loader_contract},
+        {"shared_authored_vfx_helpers_contract", &test_shared_authored_vfx_helpers_contract},
+        {"shared_authored_vfx_bridge_contract", &test_shared_authored_vfx_bridge_contract},
+        {"shared_authored_vfx_batches_contract", &test_shared_authored_vfx_batches_contract},
+        {"shared_authored_vfx_preview_mesh_loader_contract", &test_shared_authored_vfx_preview_mesh_loader_contract},
         {"preview_effect_pokemon_species_contract", &test_preview_effect_pokemon_species_contract},
         {"preview_runtime_unit_contract", &test_preview_runtime_unit_contract},
         {"tackle_smoke_vfx_contract", &test_tackle_smoke_vfx_contract},

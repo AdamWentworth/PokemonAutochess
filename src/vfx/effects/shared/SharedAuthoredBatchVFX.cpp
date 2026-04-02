@@ -1,5 +1,5 @@
-// src/vfx/effects/growl/GrowlWaveVFX.cpp
-#include "GrowlWaveVFX.h"
+// src/vfx/effects/shared/SharedAuthoredBatchVFX.cpp
+#include "vfx/effects/shared/SharedAuthoredBatchVFX.h"
 
 #include <algorithm>
 #include <cctype>
@@ -23,7 +23,7 @@
 #include "engine/render/Camera3D.h"
 #include "engine/render/Model.h"
 #include "engine/utils/Shader.h"
-#include "vfx/runtime/growl/SharedGrowlVfxHelpers.h"
+#include "vfx/runtime/shared/SharedAuthoredVfxHelpers.h"
 
 namespace {
 unsigned int create1x1WhiteTextureRGBA() {
@@ -208,11 +208,11 @@ glm::vec2 meshProjectionRange(const Model* model, const glm::vec3& axis) {
 }
 } // namespace
 
-GrowlWaveVFX::~GrowlWaveVFX() {
+SharedAuthoredBatchVFX::~SharedAuthoredBatchVFX() {
     releaseResources();
 }
 
-void GrowlWaveVFX::setConfig(const Config& c) {
+void SharedAuthoredBatchVFX::setConfig(const Config& c) {
     cfg = c;
     applyDrawManifestOverrides();
     rings.clear();
@@ -220,7 +220,7 @@ void GrowlWaveVFX::setConfig(const Config& c) {
     releaseResources();
 }
 
-void GrowlWaveVFX::applyDrawManifestOverrides() {
+void SharedAuthoredBatchVFX::applyDrawManifestOverrides() {
     if (cfg.drawManifestPath.empty()) return;
 
     constexpr const char* kGrowlManifestRel =
@@ -310,6 +310,7 @@ void GrowlWaveVFX::applyDrawManifestOverrides() {
                 }
                 if (p.renderMode == "texture_quarter_ring") p.textureQuarterRing = true;
                 p.textureQuarterRing = it.value("texture_quarter_ring", p.textureQuarterRing);
+                p.cameraFacing = it.value("camera_facing", p.cameraFacing);
                 p.quarterCount = std::clamp(it.value("quarter_count", p.quarterCount), 1, 64);
                 p.quarterStepDeg = it.value("quarter_step_deg", p.quarterStepDeg);
                 p.quarterStartDeg = it.value("quarter_start_deg", p.quarterStartDeg);
@@ -383,12 +384,12 @@ void GrowlWaveVFX::applyDrawManifestOverrides() {
             if (!parsed.empty()) cfg.drawPasses = std::move(parsed);
         }
     } catch (const std::exception& e) {
-        std::cerr << "[GrowlWaveVFX] Failed to parse draw manifest '" << cfg.drawManifestPath
+        std::cerr << "[SharedAuthoredBatchVFX] Failed to parse draw manifest '" << cfg.drawManifestPath
                   << "': " << e.what() << "\n";
     }
 }
 
-void GrowlWaveVFX::releaseResources() {
+void SharedAuthoredBatchVFX::releaseResources() {
     for (auto& p : drawPasses) {
         if (p.textureID != 0) {
             glDeleteTextures(1, &p.textureID);
@@ -417,7 +418,7 @@ void GrowlWaveVFX::releaseResources() {
     configured = false;
 }
 
-void GrowlWaveVFX::ensureQuarterQuadResources() {
+void SharedAuthoredBatchVFX::ensureQuarterQuadResources() {
     if (quarterQuadVAO != 0 && quarterQuadVBO != 0) return;
 
     static const float kVerts[] = {
@@ -446,7 +447,7 @@ void GrowlWaveVFX::ensureQuarterQuadResources() {
     glBindVertexArray(0);
 }
 
-void GrowlWaveVFX::ensureCenteredQuadResources() {
+void SharedAuthoredBatchVFX::ensureCenteredQuadResources() {
     if (centeredQuadVAO != 0 && centeredQuadVBO != 0) return;
 
     static const float kVerts[] = {
@@ -474,7 +475,7 @@ void GrowlWaveVFX::ensureCenteredQuadResources() {
     glBindVertexArray(0);
 }
 
-void GrowlWaveVFX::drawQuarterQuad(const Camera3D& camera, const glm::mat4& world, int locMVP) const {
+void SharedAuthoredBatchVFX::drawQuarterQuad(const Camera3D& camera, const glm::mat4& world, int locMVP) const {
     if (quarterQuadVAO == 0 || locMVP < 0) return;
     const glm::mat4 mvp = camera.getProjectionMatrix() * camera.getViewMatrix() * world;
     glUniformMatrix4fv(locMVP, 1, GL_FALSE, glm::value_ptr(mvp));
@@ -482,7 +483,7 @@ void GrowlWaveVFX::drawQuarterQuad(const Camera3D& camera, const glm::mat4& worl
     glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 }
 
-void GrowlWaveVFX::drawCenteredQuad(const Camera3D& camera, const glm::mat4& world, int locMVP) const {
+void SharedAuthoredBatchVFX::drawCenteredQuad(const Camera3D& camera, const glm::mat4& world, int locMVP) const {
     if (centeredQuadVAO == 0 || locMVP < 0) return;
     const glm::mat4 mvp = camera.getProjectionMatrix() * camera.getViewMatrix() * world;
     glUniformMatrix4fv(locMVP, 1, GL_FALSE, glm::value_ptr(mvp));
@@ -490,7 +491,7 @@ void GrowlWaveVFX::drawCenteredQuad(const Camera3D& camera, const glm::mat4& wor
     glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 }
 
-void GrowlWaveVFX::ensureConfigured() {
+void SharedAuthoredBatchVFX::ensureConfigured() {
     if (configured || configFailed) return;
     applyDrawManifestOverrides();
 
@@ -557,29 +558,29 @@ void GrowlWaveVFX::ensureConfigured() {
 
         configured = true;
     } catch (const std::exception& e) {
-        std::cerr << "[GrowlWaveVFX] Failed to configure growl pipeline: " << e.what() << "\n";
+        std::cerr << "[SharedAuthoredBatchVFX] Failed to configure authored batch pipeline: " << e.what() << "\n";
         releaseResources();
         configFailed = true;
     }
 }
 
-float GrowlWaveVFX::rand01() {
+float SharedAuthoredBatchVFX::rand01() {
     return engine::random::nextFloat01(rng);
 }
 
-float GrowlWaveVFX::randRange(float a, float b) {
+float SharedAuthoredBatchVFX::randRange(float a, float b) {
     if (b < a) std::swap(a, b);
     return a + (b - a) * rand01();
 }
 
-glm::vec3 GrowlWaveVFX::safeForwardXZ(const glm::vec3& v) const {
+glm::vec3 SharedAuthoredBatchVFX::safeForwardXZ(const glm::vec3& v) const {
     glm::vec3 f(v.x, 0.0f, v.z);
     const float len = glm::length(f);
     if (len <= 0.0001f) return glm::vec3(0.0f, 0.0f, 1.0f);
     return f / len;
 }
 
-glm::quat GrowlWaveVFX::rotationFromToSafe(const glm::vec3& from, const glm::vec3& to) const {
+glm::quat SharedAuthoredBatchVFX::rotationFromToSafe(const glm::vec3& from, const glm::vec3& to) const {
     glm::vec3 a = from;
     glm::vec3 b = to;
     const float la = glm::length(a);
@@ -603,7 +604,7 @@ glm::quat GrowlWaveVFX::rotationFromToSafe(const glm::vec3& from, const glm::vec
     return glm::angleAxis(angle, axis);
 }
 
-void GrowlWaveVFX::update(float dt) {
+void SharedAuthoredBatchVFX::update(float dt) {
     dt = std::clamp(dt, 0.0f, 0.05f);
     if (dt <= 0.0f) return;
 
@@ -618,7 +619,7 @@ void GrowlWaveVFX::update(float dt) {
         rings.end());
 }
 
-void GrowlWaveVFX::render(const Camera3D& camera) {
+void SharedAuthoredBatchVFX::render(const Camera3D& camera) {
     ensureConfigured();
     if (!configured || rings.empty() || drawPasses.empty()) return;
 
@@ -687,7 +688,7 @@ void GrowlWaveVFX::render(const Camera3D& camera) {
         const glm::vec3 passTevC1 = pass.cfg.overrideTev ? pass.cfg.tevC1 : cfg.tevC1;
         const glm::vec3 passTevK0 = pass.cfg.overrideTev ? pass.cfg.tevK0 : cfg.tevK0;
         const float passTevK1A = pass.cfg.overrideTev ? pass.cfg.tevK1A : cfg.tevK1A;
-        const std::uint8_t passBlendMode = vfx::runtime::growl::resolveBlendMode(cfg, pass.cfg);
+        const std::uint8_t passBlendMode = vfx::runtime::authored::resolveBlendMode(cfg, pass.cfg);
         switch (passBlendMode) {
         case 2u:
             glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
@@ -934,7 +935,7 @@ void GrowlWaveVFX::render(const Camera3D& camera) {
     else glDisable(GL_CULL_FACE);
 }
 
-bool GrowlWaveVFX::buildRenderSnapshot(RenderSnapshot& out) const {
+bool SharedAuthoredBatchVFX::buildRenderSnapshot(RenderSnapshot& out) const {
     out = {};
     out.config = cfg;
 
@@ -960,15 +961,15 @@ bool GrowlWaveVFX::buildRenderSnapshot(RenderSnapshot& out) const {
     return !out.drawPasses.empty() && !out.rings.empty();
 }
 
-std::uint32_t GrowlWaveVFX::activeRingCount() const {
+std::uint32_t SharedAuthoredBatchVFX::activeRingCount() const {
     return static_cast<std::uint32_t>(std::min<std::size_t>(
         rings.size(),
         static_cast<std::size_t>(std::numeric_limits<std::uint32_t>::max())));
 }
 
-void GrowlWaveVFX::emitFrom(const glm::vec3& mouthWorldPos,
-                            const glm::vec3& forwardDir,
-                            const glm::mat4* viewMatrix) {
+void SharedAuthoredBatchVFX::emitFrom(const glm::vec3& mouthWorldPos,
+                                      const glm::vec3& forwardDir,
+                                      const glm::mat4* viewMatrix) {
     (void)viewMatrix;
 
     const glm::vec3 fwd = safeForwardXZ(forwardDir);

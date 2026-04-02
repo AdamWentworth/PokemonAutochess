@@ -3,18 +3,18 @@
 #include <vector>
 
 #include "engine/render/IRenderBackend.h"
-#include "vfx/runtime/growl/SharedGrowlWaveBatches.h"
+#include "vfx/runtime/shared/SharedAuthoredVfxBatches.h"
 
-namespace vfx::runtime::growl_submit {
+namespace vfx::runtime::authored_submit {
 
 std::size_t prewarmBatches(IRenderBackend& renderer,
-                           const std::vector<growl_batches::WorldIndexedBatch>& batches,
+                           const std::vector<authored_batches::WorldIndexedBatch>& batches,
                            const float* cameraWorldPos3 = nullptr,
                            const float* cameraForward3 = nullptr,
                            const float* cameraTarget3 = nullptr);
 
 void submitBatches(IRenderBackend& renderer,
-                   const std::vector<growl_batches::WorldIndexedBatch>& batches,
+                   const std::vector<authored_batches::WorldIndexedBatch>& batches,
                    const float* viewProjectionMatrix4x4,
                    int surfaceWidth,
                    int surfaceHeight,
@@ -22,4 +22,4 @@ void submitBatches(IRenderBackend& renderer,
                    const float* cameraForward3 = nullptr,
                    const float* cameraTarget3 = nullptr);
 
-} // namespace vfx::runtime::growl_submit
+} // namespace vfx::runtime::authored_submit

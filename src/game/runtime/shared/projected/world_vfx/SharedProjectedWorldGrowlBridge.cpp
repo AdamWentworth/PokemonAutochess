@@ -1,8 +1,8 @@
 #include "game/runtime/shared/projected/world_scene/SharedProjectedWorldSceneHelpers.h"
 
-#include "game/runtime/shared/vfx/growl/SharedGrowlInterop.h"
-#include "vfx/runtime/growl/SharedGrowlVfxHelpers.h"
-#include "vfx/runtime/growl/SharedGrowlWaveBridge.h"
+#include "game/runtime/shared/vfx/authored/SharedAuthoredVfxInterop.h"
+#include "vfx/runtime/shared/SharedAuthoredVfxBridge.h"
+#include "vfx/runtime/shared/SharedAuthoredVfxHelpers.h"
 
 #include <unordered_map>
 
@@ -19,12 +19,12 @@ void appendSharedGrowlWaveVfx(const GrowlWaveVfxArgs& args) {
     if (!args.gameWorld->buildGrowlWaveSnapshot(growlSnapshot)) return;
     if (growlSnapshot.drawPasses.empty() || growlSnapshot.rings.empty()) return;
 
-    using GrowlTevState = vfx::runtime::growl::TevState;
+    using AuthoredTevState = vfx::runtime::authored::TevState;
 
     const auto resolveGrowlSharedTexture =
         [&](const GrowlWaveVFX::Config::DrawPass& pass,
-            const GrowlTevState& tev) -> SharedBackendTextureCacheEntry* {
-            if (vfx::runtime::growl::isLinePass(growlSnapshot.config, pass) ||
+            const AuthoredTevState& tev) -> SharedBackendTextureCacheEntry* {
+            if (vfx::runtime::authored::isLinePass(growlSnapshot.config, pass) ||
                 pass.texturePath.empty()) {
                 return args.ensureBackendTextureLoaded("", false);
             }
@@ -37,11 +37,11 @@ void appendSharedGrowlWaveVfx(const GrowlWaveVfxArgs& args) {
             }
 
             const bool quarterPass =
-                vfx::runtime::growl::isQuarterRingPass(growlSnapshot.config, pass);
+                vfx::runtime::authored::isQuarterRingPass(growlSnapshot.config, pass);
             auto& backendTextureByPath = *args.backendTextureByPath;
             if (backendTextureByPath.empty()) backendTextureByPath.reserve(64u);
             const std::string bakedKey =
-                vfx::runtime::growl::makeBakedTextureKey(pass, quarterPass);
+                vfx::runtime::authored::makeBakedTextureKey(pass, quarterPass);
             auto& baked = backendTextureByPath[bakedKey];
             if (baked.attemptedLoad) {
                 return baked.valid ? &baked : nullptr;
@@ -52,7 +52,7 @@ void appendSharedGrowlWaveVfx(const GrowlWaveVfxArgs& args) {
             baked.width = rawTex->width;
             baked.height = rawTex->height;
             baked.rgba.clear();
-            if (!vfx::runtime::growl::bakePassTextureRgba(
+            if (!vfx::runtime::authored::bakePassTextureRgba(
                     pass, tev, quarterPass, rawTex->rgba, baked.rgba)) {
                 return nullptr;
             }
@@ -62,8 +62,8 @@ void appendSharedGrowlWaveVfx(const GrowlWaveVfxArgs& args) {
         };
     const auto resolveGrowlTextureView =
         [&](const GrowlWaveVFX::Config::DrawPass& pass,
-            const GrowlTevState& tev,
-            vfx::runtime::growl_batches::TextureView& outView) {
+            const AuthoredTevState& tev,
+            vfx::runtime::authored_batches::TextureView& outView) {
             SharedBackendTextureCacheEntry* tex = resolveGrowlSharedTexture(pass, tev);
             if (!tex) tex = args.ensureBackendTextureLoaded("", false);
             if (!tex || !tex->valid || tex->rgba.empty()) return false;
@@ -72,10 +72,10 @@ void appendSharedGrowlWaveVfx(const GrowlWaveVfxArgs& args) {
             outView.height = tex->height;
             return true;
         };
-    std::unordered_map<std::string, vfx::runtime::growl_batches::MeshData> growlMeshesByPath;
+    std::unordered_map<std::string, vfx::runtime::authored_batches::MeshData> growlMeshesByPath;
     growlMeshesByPath.reserve(growlSnapshot.drawPasses.size());
     const auto resolveGrowlMesh =
-        [&](const std::string& modelPath) -> vfx::runtime::growl_batches::MeshData* {
+        [&](const std::string& modelPath) -> vfx::runtime::authored_batches::MeshData* {
             auto found = growlMeshesByPath.find(modelPath);
             if (found != growlMeshesByPath.end()) {
                 return &found->second;
@@ -88,18 +88,18 @@ void appendSharedGrowlWaveVfx(const GrowlWaveVfxArgs& args) {
 
             auto inserted = growlMeshesByPath.emplace(
                 modelPath,
-                game::runtime::shared_growl_interop::toReusableMeshData(*mesh));
+                game::runtime::shared_authored_vfx_interop::toReusableMeshData(*mesh));
             return &inserted.first->second;
         };
-    std::vector<vfx::runtime::growl_batches::WorldIndexedBatch> growlBatches;
+    std::vector<vfx::runtime::authored_batches::WorldIndexedBatch> growlBatches;
     growlBatches.reserve(growlSnapshot.drawPasses.size() * 4u);
-    vfx::runtime::growl_bridge::appendBatches(
+    vfx::runtime::authored_bridge::appendBatches(
         growlSnapshot,
         growlBatches,
         args.cameraWorldPos,
         resolveGrowlMesh,
         resolveGrowlTextureView);
-    game::runtime::shared_growl_interop::appendWorldIndexedBatches(
+    game::runtime::shared_authored_vfx_interop::appendWorldIndexedBatches(
         growlBatches,
         *args.worldIndexedBatches);
 }

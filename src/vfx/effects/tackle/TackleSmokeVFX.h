@@ -4,14 +4,14 @@
 
 #include <glm/glm.hpp>
 
-#include "vfx/effects/growl/GrowlWaveVFX.h"
+#include "vfx/effects/shared/SharedAuthoredBatchVFX.h"
 
 class Camera3D;
 
 class TackleSmokeVFX {
 public:
-    using Config = GrowlWaveVFX::Config;
-    using RenderSnapshot = GrowlWaveVFX::RenderSnapshot;
+    using Config = SharedAuthoredBatchVFX::Config;
+    using RenderSnapshot = SharedAuthoredBatchVFX::RenderSnapshot;
 
     TackleSmokeVFX();
     ~TackleSmokeVFX();
@@ -28,8 +28,8 @@ public:
 
     void emitAt(const glm::vec3& worldPos, const glm::vec3& forwardDir);
 
-    const GrowlWaveVFX& sharedWave() const { return effect_; }
+    const SharedAuthoredBatchVFX& sharedWave() const { return effect_; }
 
 private:
-    GrowlWaveVFX effect_;
+    SharedAuthoredBatchVFX effect_;
 };

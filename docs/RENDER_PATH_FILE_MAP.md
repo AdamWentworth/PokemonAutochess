@@ -200,7 +200,7 @@ register.
   - reusable projected mesh batching support extracted from the renderer body
   - fast-textured mesh template cache, GPU skin batch state, and fire-mesh override helpers
 - `src/game/runtime/shared/capture/SharedCapture*.*`
-- `src/vfx/runtime/growl/SharedGrowl*.*`
+- `src/vfx/runtime/shared/SharedAuthoredVfx*.*`
 - `src/game/runtime/shared/vfx/particles/SharedParticle*.*`
 - `src/game/runtime/shared/vfx/tail_fire/SharedTailFireMeshPlayback*.*`
   - authored fire-mesh flipbook spec selection

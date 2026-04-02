@@ -49,21 +49,22 @@ bool test_tackle_smoke_vfx_contract(std::string& outFail) {
                 outFail)) {
         return false;
     }
-    if (!expect(snapshot.drawPasses.size() == 6u,
-                "Tackle smoke should currently author six clustered billboard passes for the first captured-shape shortcut.",
+    if (!expect(snapshot.drawPasses.size() == 8u,
+                "Tackle smoke should currently author six clustered smoke passes plus the captured eid 1196 and eid 1210 impact bursts.",
                 outFail)) {
         return false;
     }
 
     bool saw4154 = false;
     bool saw4155 = false;
+    bool saw4156 = false;
+    bool saw4157 = false;
+    bool saw4156QuarterRing = false;
+    bool saw4157QuarterRing = false;
     std::size_t totalBillboardDirections = 0u;
     for (const auto& pass : snapshot.drawPasses) {
-        if (!expect(pass.renderMode == "glow_billboard",
-                    "Tackle smoke authored passes should render as glow_billboard quads.",
-                    outFail)) {
-            return false;
-        }
+        const bool is4156 = pass.texturePath.find("Texture4156.png") != std::string::npos;
+        const bool is4157 = pass.texturePath.find("Texture4157.png") != std::string::npos;
         if (!expect(!pass.overrideBlendMode,
                     "Tackle smoke should inherit blend mode from the shared config rather than per-pass overrides for now.",
                     outFail)) {
@@ -76,11 +77,27 @@ bool test_tackle_smoke_vfx_contract(std::string& outFail) {
         }
         saw4154 = saw4154 || pass.texturePath.find("Texture4154.png") != std::string::npos;
         saw4155 = saw4155 || pass.texturePath.find("Texture4155.png") != std::string::npos;
+        saw4156 = saw4156 || pass.texturePath.find("Texture4156.png") != std::string::npos;
+        saw4157 = saw4157 || pass.texturePath.find("Texture4157.png") != std::string::npos;
+        saw4156QuarterRing =
+            saw4156QuarterRing || (is4156 && pass.renderMode == "texture_quarter_ring" && pass.quarterCount == 4);
+        saw4157QuarterRing =
+            saw4157QuarterRing || (is4157 && pass.renderMode == "texture_quarter_ring" && pass.quarterCount == 4);
         totalBillboardDirections += std::max<std::size_t>(1u, pass.directionsLocal.size());
     }
 
-    if (!expect(saw4154 && saw4155,
-                "Tackle smoke should currently alternate between Texture4154 and Texture4155 in the authored pass set.",
+    if (!expect(saw4154 && saw4155 && saw4156 && saw4157,
+                "Tackle smoke should currently include Texture4154, Texture4155, Texture4156, and Texture4157 in the authored pass set.",
+                outFail)) {
+        return false;
+    }
+    if (!expect(saw4156QuarterRing,
+                "Tackle eid 1196 should currently render as a 4-piece quarter ring rather than a single billboard card.",
+                outFail)) {
+        return false;
+    }
+    if (!expect(saw4157QuarterRing,
+                "Tackle eid 1210 should currently render as a 4-piece quarter ring rather than a single billboard card.",
                 outFail)) {
         return false;
     }

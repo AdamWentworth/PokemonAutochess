@@ -9,10 +9,7 @@
 
 #include "engine/tools/vfx_preview/VfxPreviewTypes.h"
 #include "vfx/effects/tackle/TackleSmokeVFX.h"
-
-namespace vfx::preview::growl {
-class GrowlSharedRenderer;
-}
+#include "vfx/preview/shared/SharedAuthoredVfxRenderer.h"
 
 namespace vfx::preview::tackle {
 
@@ -41,7 +38,7 @@ private:
     TackleSmokeVFX::Config config_{};
     std::string manifestPath_;
     std::optional<std::filesystem::file_time_type> manifestWriteTime_;
-    std::unique_ptr<vfx::preview::growl::GrowlSharedRenderer> renderer_;
+    std::unique_ptr<vfx::preview::authored::SharedAuthoredVfxRenderer> renderer_;
     std::string logPrefix_;
     float accumulator_ = 0.0f;
 };

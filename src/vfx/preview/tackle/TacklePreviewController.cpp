@@ -9,7 +9,6 @@
 #include <memory>
 
 #include "engine/core/Paths.h"
-#include "vfx/preview/growl/GrowlSharedRenderer.h"
 
 namespace vfx::preview::tackle {
 
@@ -76,12 +75,12 @@ void TacklePreviewController::stepFrames(int frames) {
 
 void TacklePreviewController::render(
     const engine::tools::vfx_preview::PreviewFrameContext& frame) {
-    if (!renderer_) renderer_ = std::make_unique<vfx::preview::growl::GrowlSharedRenderer>();
+    if (!renderer_) renderer_ = std::make_unique<vfx::preview::authored::SharedAuthoredVfxRenderer>();
     renderer_->render(effect_.sharedWave(), frame.camera, frame.surfaceWidth, frame.surfaceHeight);
 }
 
 void TacklePreviewController::onResize(int width, int height) {
-    if (!renderer_) renderer_ = std::make_unique<vfx::preview::growl::GrowlSharedRenderer>();
+    if (!renderer_) renderer_ = std::make_unique<vfx::preview::authored::SharedAuthoredVfxRenderer>();
     renderer_->onResize(width, height);
 }
 

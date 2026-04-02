@@ -1,8 +1,8 @@
 #include "game/runtime/shared/projected/world_scene/SharedProjectedWorldSceneHelpers.h"
 
-#include "game/runtime/shared/vfx/growl/SharedGrowlInterop.h"
-#include "vfx/runtime/growl/SharedGrowlVfxHelpers.h"
-#include "vfx/runtime/growl/SharedGrowlWaveBridge.h"
+#include "game/runtime/shared/vfx/authored/SharedAuthoredVfxInterop.h"
+#include "vfx/runtime/shared/SharedAuthoredVfxBridge.h"
+#include "vfx/runtime/shared/SharedAuthoredVfxHelpers.h"
 
 #include <unordered_map>
 
@@ -18,12 +18,12 @@ void appendSharedTackleSmokeVfx(const TackleSmokeVfxArgs& args) {
     if (!args.gameWorld->buildTackleSmokeSnapshot(tackleSnapshot)) return;
     if (tackleSnapshot.drawPasses.empty() || tackleSnapshot.rings.empty()) return;
 
-    using GrowlTevState = vfx::runtime::growl::TevState;
+    using AuthoredTevState = vfx::runtime::authored::TevState;
 
     const auto resolveTackleSharedTexture =
-        [&](const GrowlWaveVFX::Config::DrawPass& pass,
-            const GrowlTevState& tev) -> SharedBackendTextureCacheEntry* {
-            if (vfx::runtime::growl::isLinePass(tackleSnapshot.config, pass) ||
+        [&](const SharedAuthoredBatchVFX::Config::DrawPass& pass,
+            const AuthoredTevState& tev) -> SharedBackendTextureCacheEntry* {
+            if (vfx::runtime::authored::isLinePass(tackleSnapshot.config, pass) ||
                 pass.texturePath.empty()) {
                 return args.ensureBackendTextureLoaded("", false);
             }
@@ -36,11 +36,11 @@ void appendSharedTackleSmokeVfx(const TackleSmokeVfxArgs& args) {
             }
 
             const bool quarterPass =
-                vfx::runtime::growl::isQuarterRingPass(tackleSnapshot.config, pass);
+                vfx::runtime::authored::isQuarterRingPass(tackleSnapshot.config, pass);
             auto& backendTextureByPath = *args.backendTextureByPath;
             if (backendTextureByPath.empty()) backendTextureByPath.reserve(64u);
             const std::string bakedKey =
-                vfx::runtime::growl::makeBakedTextureKey(pass, quarterPass);
+                vfx::runtime::authored::makeBakedTextureKey(pass, quarterPass);
             auto& baked = backendTextureByPath[bakedKey];
             if (baked.attemptedLoad) {
                 return baked.valid ? &baked : nullptr;
@@ -51,7 +51,7 @@ void appendSharedTackleSmokeVfx(const TackleSmokeVfxArgs& args) {
             baked.width = rawTex->width;
             baked.height = rawTex->height;
             baked.rgba.clear();
-            if (!vfx::runtime::growl::bakePassTextureRgba(
+            if (!vfx::runtime::authored::bakePassTextureRgba(
                     pass, tev, quarterPass, rawTex->rgba, baked.rgba)) {
                 return nullptr;
             }
@@ -60,9 +60,9 @@ void appendSharedTackleSmokeVfx(const TackleSmokeVfxArgs& args) {
             return &baked;
         };
     const auto resolveTackleTextureView =
-        [&](const GrowlWaveVFX::Config::DrawPass& pass,
-            const GrowlTevState& tev,
-            vfx::runtime::growl_batches::TextureView& outView) {
+        [&](const SharedAuthoredBatchVFX::Config::DrawPass& pass,
+            const AuthoredTevState& tev,
+            vfx::runtime::authored_batches::TextureView& outView) {
             SharedBackendTextureCacheEntry* tex = resolveTackleSharedTexture(pass, tev);
             if (!tex) tex = args.ensureBackendTextureLoaded("", false);
             if (!tex || !tex->valid || tex->rgba.empty()) return false;
@@ -71,10 +71,10 @@ void appendSharedTackleSmokeVfx(const TackleSmokeVfxArgs& args) {
             outView.height = tex->height;
             return true;
         };
-    std::unordered_map<std::string, vfx::runtime::growl_batches::MeshData> tackleMeshesByPath;
+    std::unordered_map<std::string, vfx::runtime::authored_batches::MeshData> tackleMeshesByPath;
     tackleMeshesByPath.reserve(tackleSnapshot.drawPasses.size());
     const auto resolveTackleMesh =
-        [&](const std::string& modelPath) -> vfx::runtime::growl_batches::MeshData* {
+        [&](const std::string& modelPath) -> vfx::runtime::authored_batches::MeshData* {
             auto found = tackleMeshesByPath.find(modelPath);
             if (found != tackleMeshesByPath.end()) {
                 return &found->second;
@@ -87,19 +87,19 @@ void appendSharedTackleSmokeVfx(const TackleSmokeVfxArgs& args) {
 
             auto inserted = tackleMeshesByPath.emplace(
                 modelPath,
-                game::runtime::shared_growl_interop::toReusableMeshData(*mesh));
+                game::runtime::shared_authored_vfx_interop::toReusableMeshData(*mesh));
             return &inserted.first->second;
         };
 
-    std::vector<vfx::runtime::growl_batches::WorldIndexedBatch> tackleBatches;
+    std::vector<vfx::runtime::authored_batches::WorldIndexedBatch> tackleBatches;
     tackleBatches.reserve(tackleSnapshot.drawPasses.size() * 4u);
-    vfx::runtime::growl_bridge::appendBatches(
+    vfx::runtime::authored_bridge::appendBatches(
         tackleSnapshot,
         tackleBatches,
         args.cameraWorldPos,
         resolveTackleMesh,
         resolveTackleTextureView);
-    game::runtime::shared_growl_interop::appendWorldIndexedBatches(
+    game::runtime::shared_authored_vfx_interop::appendWorldIndexedBatches(
         tackleBatches,
         *args.worldIndexedBatches);
 }

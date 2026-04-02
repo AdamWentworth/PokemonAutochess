@@ -1,14 +1,14 @@
-#include "game/runtime/shared/vfx/growl/SharedGrowlInterop.h"
+#include "game/runtime/shared/vfx/authored/SharedAuthoredVfxInterop.h"
 
-namespace game::runtime::shared_growl_interop {
+namespace game::runtime::shared_authored_vfx_interop {
 
-vfx::runtime::growl_batches::MeshData toReusableMeshData(
+vfx::runtime::authored_batches::MeshData toReusableMeshData(
     const render_model::MeshData& mesh) {
-    vfx::runtime::growl_batches::MeshData out;
+    vfx::runtime::authored_batches::MeshData out;
     out.vertices.reserve(mesh.vertices.size());
     out.indices = mesh.indices;
     for (const auto& src : mesh.vertices) {
-        vfx::runtime::growl_batches::MeshVertex dst;
+        vfx::runtime::authored_batches::MeshVertex dst;
         dst.position = src.position;
         dst.normal = src.normal;
         dst.tangent = src.tangent;
@@ -28,7 +28,7 @@ vfx::runtime::growl_batches::MeshData toReusableMeshData(
 }
 
 shared_world_batches::WorldIndexedBatch toWorldIndexedBatch(
-    const vfx::runtime::growl_batches::WorldIndexedBatch& src) {
+    const vfx::runtime::authored_batches::WorldIndexedBatch& src) {
     shared_world_batches::WorldIndexedBatch dst;
     dst.vertices = src.vertices;
     dst.indices = src.indices;
@@ -59,7 +59,7 @@ shared_world_batches::WorldIndexedBatch toWorldIndexedBatch(
 }
 
 void appendWorldIndexedBatches(
-    const std::vector<vfx::runtime::growl_batches::WorldIndexedBatch>& src,
+    const std::vector<vfx::runtime::authored_batches::WorldIndexedBatch>& src,
     std::vector<shared_world_batches::WorldIndexedBatch>& dst) {
     if (src.empty()) return;
     dst.reserve(dst.size() + src.size());
@@ -68,4 +68,4 @@ void appendWorldIndexedBatches(
     }
 }
 
-} // namespace game::runtime::shared_growl_interop
+} // namespace game::runtime::shared_authored_vfx_interop

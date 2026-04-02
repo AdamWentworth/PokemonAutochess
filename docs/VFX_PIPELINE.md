@@ -29,7 +29,7 @@ should stay isolated from game-only concerns.
 - Neutral Growl mesh/batch types and the reusable indexed submit/prewarm helper
   now live in `src/vfx/runtime/growl/`.
 - Game-specific translation now lives at the edge in
-  `src/game/runtime/shared/vfx/growl/SharedGrowlInterop.*`.
+  `src/game/runtime/shared/vfx/authored/SharedAuthoredVfxInterop.*`.
 - `VfxLab` now loads Growl meshes/textures through its own reusable preview
   path instead of relying on game runtime cache/world-batch types.
 - Long-term success still means extending this pattern beyond Growl so the
@@ -42,17 +42,17 @@ should stay isolated from game-only concerns.
 - Reusable effect:
   - `src/vfx/effects/growl/GrowlWaveVFX.*`
 - Reusable runtime bridge:
-  - `src/vfx/runtime/growl/SharedGrowlBatchSubmission.*`
-  - `src/vfx/runtime/growl/SharedGrowlWaveBridge.*`
-  - `src/vfx/runtime/growl/SharedGrowlWaveBatches.*`
-  - `src/vfx/runtime/growl/SharedGrowlVfxHelpers.*`
+  - `src/vfx/runtime/shared/SharedAuthoredVfxSubmission.*`
+  - `src/vfx/runtime/shared/SharedAuthoredVfxBridge.*`
+  - `src/vfx/runtime/shared/SharedAuthoredVfxBatches.*`
+  - `src/vfx/runtime/shared/SharedAuthoredVfxHelpers.*`
 - Reusable preview controller:
   - `src/vfx/preview/growl/GrowlPreviewController.*`
-  - `src/vfx/preview/growl/GrowlSharedRenderer.*`
+  - `src/vfx/preview/shared/SharedAuthoredVfxRenderer.*`
 - Game-facing preview adapter:
   - `src/game/preview/effects/GrowlPreviewEffect.*`
 - Game-specific runtime adapter seam:
-  - `src/game/runtime/shared/vfx/growl/SharedGrowlInterop.*`
+  - `src/game/runtime/shared/vfx/authored/SharedAuthoredVfxInterop.*`
 - Reusable lab adapter:
   - `src/vfx/preview/effects/GrowlLabPreviewEffect.*`
 - Manifest:

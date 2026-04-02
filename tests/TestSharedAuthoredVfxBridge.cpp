@@ -3,7 +3,7 @@
 
 #include <glm/glm.hpp>
 
-#include "vfx/runtime/growl/SharedGrowlWaveBridge.h"
+#include "vfx/runtime/shared/SharedAuthoredVfxBridge.h"
 
 namespace {
 
@@ -13,9 +13,9 @@ bool expect(bool condition, const std::string& message, std::string& outFail) {
     return false;
 }
 
-vfx::runtime::growl_batches::MeshData makeTinyMesh() {
-    vfx::runtime::growl_batches::MeshData mesh;
-    vfx::runtime::growl_batches::MeshVertex a, b, c;
+vfx::runtime::authored_batches::MeshData makeTinyMesh() {
+    vfx::runtime::authored_batches::MeshData mesh;
+    vfx::runtime::authored_batches::MeshVertex a, b, c;
     a.position = glm::vec3(0.0f, 0.0f, 0.0f);
     b.position = glm::vec3(1.0f, 0.0f, 0.0f);
     c.position = glm::vec3(0.0f, 0.0f, 1.0f);
@@ -30,14 +30,14 @@ vfx::runtime::growl_batches::MeshData makeTinyMesh() {
 
 } // namespace
 
-bool test_shared_growl_wave_bridge_contract(std::string& outFail) {
-    using namespace vfx::runtime::growl_bridge;
+bool test_shared_authored_vfx_bridge_contract(std::string& outFail) {
+    using namespace vfx::runtime::authored_bridge;
 
-    GrowlWaveVFX::RenderSnapshot snapshot;
+    SharedAuthoredBatchVFX::RenderSnapshot snapshot;
     snapshot.config.meshForwardAxis = glm::vec3(0.0f, 1.0f, 0.0f);
     snapshot.config.fadeStart = 0.65f;
 
-    GrowlWaveVFX::RenderRing ring;
+    SharedAuthoredBatchVFX::RenderRing ring;
     ring.pos = glm::vec3(0.0f, 0.5f, 0.0f);
     ring.forward = glm::vec3(0.0f, 0.0f, 1.0f);
     ring.lifeSec = 1.0f;
@@ -47,7 +47,7 @@ bool test_shared_growl_wave_bridge_contract(std::string& outFail) {
     ring.randomSeed = 7u;
     snapshot.rings.push_back(ring);
 
-    GrowlWaveVFX::Config::DrawPass quarterPass;
+    SharedAuthoredBatchVFX::Config::DrawPass quarterPass;
     quarterPass.id = "quarter";
     quarterPass.enabled = true;
     quarterPass.textureQuarterRing = true;
@@ -57,7 +57,7 @@ bool test_shared_growl_wave_bridge_contract(std::string& outFail) {
     quarterPass.scaleMul = 1.0f;
     snapshot.drawPasses.push_back(quarterPass);
 
-    GrowlWaveVFX::Config::DrawPass meshPass;
+    SharedAuthoredBatchVFX::Config::DrawPass meshPass;
     meshPass.id = "mesh";
     meshPass.enabled = true;
     meshPass.textureQuarterRing = false;
@@ -67,24 +67,24 @@ bool test_shared_growl_wave_bridge_contract(std::string& outFail) {
     meshPass.scaleMul = 1.0f;
     snapshot.drawPasses.push_back(meshPass);
 
-    vfx::runtime::growl_batches::MeshData tinyMesh = makeTinyMesh();
+    vfx::runtime::authored_batches::MeshData tinyMesh = makeTinyMesh();
     static const unsigned char kWhite[4] = {255u, 255u, 255u, 255u};
     int meshResolveCalls = 0;
     int textureResolveCalls = 0;
 
-    std::vector<vfx::runtime::growl_batches::WorldIndexedBatch> outBatches;
+    std::vector<vfx::runtime::authored_batches::WorldIndexedBatch> outBatches;
     const bool appended = appendBatches(
         snapshot,
         outBatches,
         glm::vec3(0.0f, 1.0f, 3.0f),
-        [&](const std::string& meshPath) -> vfx::runtime::growl_batches::MeshData* {
+        [&](const std::string& meshPath) -> vfx::runtime::authored_batches::MeshData* {
             ++meshResolveCalls;
             if (meshPath == "mesh.glb") return &tinyMesh;
             return nullptr;
         },
-        [&](const GrowlWaveVFX::Config::DrawPass& pass,
-            const vfx::runtime::growl::TevState&,
-            vfx::runtime::growl_batches::TextureView& outTex) {
+        [&](const SharedAuthoredBatchVFX::Config::DrawPass& pass,
+            const vfx::runtime::authored::TevState&,
+            vfx::runtime::authored_batches::TextureView& outTex) {
             ++textureResolveCalls;
             if (!pass.enabled) return false;
             outTex.rgba = kWhite;
@@ -119,9 +119,9 @@ bool test_shared_growl_wave_bridge_contract(std::string& outFail) {
                                outBatches,
                                glm::vec3(0.0f),
                                [&](const std::string&) { return &tinyMesh; },
-                               [&](const GrowlWaveVFX::Config::DrawPass&,
-                                   const vfx::runtime::growl::TevState&,
-                                   vfx::runtime::growl_batches::TextureView&) { return true; }),
+                               [&](const SharedAuthoredBatchVFX::Config::DrawPass&,
+                                   const vfx::runtime::authored::TevState&,
+                                   vfx::runtime::authored_batches::TextureView&) { return true; }),
                 "appendBatches should no-op when no draw passes are present.",
                 outFail)) {
         return false;

@@ -9,10 +9,9 @@
 
 #include "engine/tools/vfx_preview/VfxPreviewTypes.h"
 #include "vfx/effects/growl/GrowlWaveVFX.h"
+#include "vfx/preview/shared/SharedAuthoredVfxRenderer.h"
 
 namespace vfx::preview::growl {
-
-class GrowlSharedRenderer;
 
 class GrowlPreviewController {
 public:
@@ -39,7 +38,7 @@ private:
     GrowlWaveVFX::Config config_{};
     std::string manifestPath_;
     std::optional<std::filesystem::file_time_type> manifestWriteTime_;
-    std::unique_ptr<GrowlSharedRenderer> renderer_;
+    std::unique_ptr<vfx::preview::authored::SharedAuthoredVfxRenderer> renderer_;
     std::string logPrefix_;
     float accumulator_ = 0.0f;
 };

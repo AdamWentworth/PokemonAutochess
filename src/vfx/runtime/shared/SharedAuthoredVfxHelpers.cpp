@@ -1,11 +1,11 @@
-#include "vfx/runtime/growl/SharedGrowlVfxHelpers.h"
+#include "vfx/runtime/shared/SharedAuthoredVfxHelpers.h"
 
 #include <algorithm>
 #include <cctype>
 #include <cmath>
 #include <string>
 
-namespace vfx::runtime::growl {
+namespace vfx::runtime::authored {
 namespace {
 
 std::string toLowerCopyLocal(std::string s) {
@@ -37,15 +37,15 @@ float alpha6bit(float a) {
     return clamp01(std::floor(clamp01(a) * 63.0f + 0.5f) / 63.0f);
 }
 
-std::string effectiveFragPath(const GrowlWaveVFX::Config& config,
-                              const GrowlWaveVFX::Config::DrawPass& pass) {
+std::string effectiveFragPath(const SharedAuthoredBatchVFX::Config& config,
+                              const SharedAuthoredBatchVFX::Config::DrawPass& pass) {
     return toLowerCopyLocal(pass.fragShaderPath.empty() ? config.fragShaderPath : pass.fragShaderPath);
 }
 
 } // namespace
 
-TevState resolveTevState(const GrowlWaveVFX::Config& config,
-                         const GrowlWaveVFX::Config::DrawPass& pass) {
+TevState resolveTevState(const SharedAuthoredBatchVFX::Config& config,
+                         const SharedAuthoredBatchVFX::Config::DrawPass& pass) {
     TevState tev;
     tev.c0 = pass.overrideTev ? pass.tevC0 : config.tevC0;
     tev.c1 = pass.overrideTev ? pass.tevC1 : config.tevC1;
@@ -58,57 +58,57 @@ TevState resolveTevState(const GrowlWaveVFX::Config& config,
     return tev;
 }
 
-std::uint8_t resolveBlendMode(const GrowlWaveVFX::Config& config,
-                              const GrowlWaveVFX::Config::DrawPass& pass) {
+std::uint8_t resolveBlendMode(const SharedAuthoredBatchVFX::Config& config,
+                              const SharedAuthoredBatchVFX::Config::DrawPass& pass) {
     const std::uint8_t resolved = pass.overrideBlendMode ? pass.blendMode : config.blendMode;
     return std::min<std::uint8_t>(2u, resolved);
 }
 
-bool isLinePass(const GrowlWaveVFX::Config& config,
-                const GrowlWaveVFX::Config::DrawPass& pass) {
+bool isLinePass(const SharedAuthoredBatchVFX::Config& config,
+                const SharedAuthoredBatchVFX::Config::DrawPass& pass) {
     return effectiveFragPath(config, pass).find("growl_line_shared") != std::string::npos;
 }
 
-bool usesQuarterTextureBake(const GrowlWaveVFX::Config& config,
-                            const GrowlWaveVFX::Config::DrawPass& pass) {
+bool usesQuarterTextureBake(const SharedAuthoredBatchVFX::Config& config,
+                            const SharedAuthoredBatchVFX::Config::DrawPass& pass) {
     if (pass.textureQuarterRing) return true;
     const std::string fragPath = effectiveFragPath(config, pass);
     return fragPath.find("growl_quarter_ring_shared") != std::string::npos ||
            fragPath.find("tackle_smoke_shared") != std::string::npos;
 }
 
-bool isSparkleMeshPass(const GrowlWaveVFX::Config::DrawPass& pass) {
+bool isSparkleMeshPass(const SharedAuthoredBatchVFX::Config::DrawPass& pass) {
     return toLowerCopyLocal(pass.renderMode) == "sparkle_mesh";
 }
 
-bool isGlowBillboardPass(const GrowlWaveVFX::Config::DrawPass& pass) {
+bool isGlowBillboardPass(const SharedAuthoredBatchVFX::Config::DrawPass& pass) {
     return toLowerCopyLocal(pass.renderMode) == "glow_billboard";
 }
 
-bool isQuarterRingPass(const GrowlWaveVFX::Config& config,
-                       const GrowlWaveVFX::Config::DrawPass& pass) {
+bool isQuarterRingPass(const SharedAuthoredBatchVFX::Config& config,
+                       const SharedAuthoredBatchVFX::Config::DrawPass& pass) {
     return usesQuarterTextureBake(config, pass);
 }
 
-std::string makeBakedTextureKey(const GrowlWaveVFX::Config::DrawPass& pass, bool quarterPass) {
-    return std::string("__growl_baked:") + pass.id + ":" +
+std::string makeBakedTextureKey(const SharedAuthoredBatchVFX::Config::DrawPass& pass, bool quarterPass) {
+    return std::string("__authored_vfx_baked:") + pass.id + ":" +
            (quarterPass ? "q:" : "m:") +
            (pass.texturePath.empty() ? std::string("__white__") : pass.texturePath);
 }
 
-std::string makeTextureCacheKey(const GrowlWaveVFX::Config& config,
-                                const GrowlWaveVFX::Config::DrawPass& pass) {
+std::string makeTextureCacheKey(const SharedAuthoredBatchVFX::Config& config,
+                                const SharedAuthoredBatchVFX::Config::DrawPass& pass) {
     if (isLinePass(config, pass) || pass.texturePath.empty()) {
-        return "__growl_white__";
+        return "__authored_vfx_white__";
     }
     return makeBakedTextureKey(pass, usesQuarterTextureBake(config, pass));
 }
 
-bool bakePassTextureRgba(const GrowlWaveVFX::Config::DrawPass& pass,
-                        const TevState& tev,
-                        bool quarterPass,
-                        const std::vector<unsigned char>& rawRgba,
-                        std::vector<unsigned char>& outRgba) {
+bool bakePassTextureRgba(const SharedAuthoredBatchVFX::Config::DrawPass& pass,
+                         const TevState& tev,
+                         bool quarterPass,
+                         const std::vector<unsigned char>& rawRgba,
+                         std::vector<unsigned char>& outRgba) {
     if (rawRgba.empty() || (rawRgba.size() % 4u) != 0u) {
         outRgba.clear();
         return false;
@@ -178,4 +178,4 @@ float quantizeLineVertexAlpha(float srcAlpha, float lineTevK1A, float colorAlpha
     return std::clamp(clamp01(colorAlpha) * quantized, 0.0f, 1.0f);
 }
 
-} // namespace vfx::runtime::growl
+} // namespace vfx::runtime::authored

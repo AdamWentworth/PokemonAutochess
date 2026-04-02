@@ -8,10 +8,10 @@
 #include <glm/glm.hpp>
 
 #include "engine/render/IRenderBackend.h"
-#include "vfx/runtime/growl/SharedGrowlVfxHelpers.h"
-#include "vfx/effects/growl/GrowlWaveVFX.h"
+#include "vfx/effects/shared/SharedAuthoredBatchVFX.h"
+#include "vfx/runtime/shared/SharedAuthoredVfxHelpers.h"
 
-namespace vfx::runtime::growl_batches {
+namespace vfx::runtime::authored_batches {
 
 struct MeshVertex {
     glm::vec3 position{0.0f};
@@ -81,12 +81,12 @@ struct WorldIndexedBatch {
 };
 
 bool appendPassBatch(std::vector<WorldIndexedBatch>& outBatches,
-                     const GrowlWaveVFX::RenderSnapshot& snapshot,
-                     const GrowlWaveVFX::Config::DrawPass& pass,
-                     const growl::TevState& passTev,
+                     const SharedAuthoredBatchVFX::RenderSnapshot& snapshot,
+                     const SharedAuthoredBatchVFX::Config::DrawPass& pass,
+                     const authored::TevState& passTev,
                      const MeshData* passMesh,
                      const TextureView& texture,
                      const glm::vec3& cameraWorldPos);
 
-} // namespace vfx::runtime::growl_batches
+} // namespace vfx::runtime::authored_batches
 

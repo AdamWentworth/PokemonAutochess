@@ -5,27 +5,27 @@
 #include <vector>
 
 #include "engine/render/OpenGLRenderBackend.h"
-#include "vfx/effects/growl/GrowlWaveVFX.h"
-#include "vfx/runtime/growl/SharedGrowlVfxHelpers.h"
-#include "vfx/runtime/growl/SharedGrowlWaveBatches.h"
+#include "vfx/effects/shared/SharedAuthoredBatchVFX.h"
+#include "vfx/runtime/shared/SharedAuthoredVfxBatches.h"
+#include "vfx/runtime/shared/SharedAuthoredVfxHelpers.h"
 
 class Camera3D;
 
-namespace vfx::preview::growl {
+namespace vfx::preview::authored {
 
 namespace detail {
 
 bool loadMeshForPreview(const std::string& modelPath,
-                        vfx::runtime::growl_batches::MeshData& out,
+                        vfx::runtime::authored_batches::MeshData& out,
                         std::string* outError = nullptr);
 
 } // namespace detail
 
-class GrowlSharedRenderer {
+class SharedAuthoredVfxRenderer {
 public:
     void onResize(int width, int height);
 
-    void render(const GrowlWaveVFX& effect,
+    void render(const SharedAuthoredBatchVFX& effect,
                 const Camera3D& camera,
                 int surfaceWidth,
                 int surfaceHeight);
@@ -33,7 +33,7 @@ public:
     struct BackendMeshCacheEntry {
         bool attemptedLoad = false;
         bool reportedFailure = false;
-        vfx::runtime::growl_batches::MeshData mesh;
+        vfx::runtime::authored_batches::MeshData mesh;
         std::string error;
     };
 
@@ -46,19 +46,19 @@ public:
     };
 
 private:
-    vfx::runtime::growl_batches::MeshData* ensureBackendMeshLoaded(const std::string& modelPath);
+    vfx::runtime::authored_batches::MeshData* ensureBackendMeshLoaded(const std::string& modelPath);
     TextureCacheEntry* ensureBackendTextureLoaded(const std::string& texturePath,
                                                   bool flipVertical = false);
     static bool fillTextureViewFromEntry(const TextureCacheEntry* texture,
-                                         vfx::runtime::growl_batches::TextureView& outView);
-    bool fillTextureView(const GrowlWaveVFX::Config::DrawPass& pass,
-                         const GrowlWaveVFX::Config& config,
-                         const vfx::runtime::growl::TevState& tev,
-                         vfx::runtime::growl_batches::TextureView& outView);
+                                         vfx::runtime::authored_batches::TextureView& outView);
+    bool fillTextureView(const SharedAuthoredBatchVFX::Config::DrawPass& pass,
+                         const SharedAuthoredBatchVFX::Config& config,
+                         const vfx::runtime::authored::TevState& tev,
+                         vfx::runtime::authored_batches::TextureView& outView);
 
     OpenGLRenderBackend backend_;
     std::unordered_map<std::string, BackendMeshCacheEntry> backendMeshByModelPath_;
     std::unordered_map<std::string, TextureCacheEntry> backendTextureByPath_;
 };
 
-} // namespace vfx::preview::growl
+} // namespace vfx::preview::authored

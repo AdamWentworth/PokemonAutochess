@@ -30,7 +30,7 @@ most urgent repo-level issues first.
 | Issue | Outcome |
 | --- | --- |
 | `render_model_cache_contract` failing on Growl sparkle UV preservation | The contract now compares cached UVs against the authored source GLB `TEXCOORD_0` data instead of assuming one hardcoded corner orientation, and `tools/full_check.ps1` is green again. |
-| Reusable Growl VFX code depended directly on `game::runtime` mesh/cache/world-batch types | Growl runtime batching/submission is now neutral inside `src/vfx/`, game translation moved to `src/game/runtime/shared/vfx/growl/SharedGrowlInterop.*`, and `VfxLab` now loads/submits Growl assets without `game/runtime/*` headers. |
+| Reusable Growl VFX code depended directly on `game::runtime` mesh/cache/world-batch types | The shared authored-batch runtime now stays neutral inside `src/vfx/`, game translation moved to `src/game/runtime/shared/vfx/authored/SharedAuthoredVfxInterop.*`, and `VfxLab` now loads/submits authored VFX assets without `game/runtime/*` headers. |
 | Growl preview loop duplication between `PAC_VfxPreviewer` and `VfxLab` | Collapsed behind `src/vfx/preview/growl/GrowlPreviewController.*`. |
 | Charmander Tail Fire preview fallback mismatch | Preview and runtime now share authored-vs-fallback policy via `SharedTailFirePlaybackPolicy.*`, and the preview bridge no longer suppresses fallback just because the species is Charmander. |
 | `GameRunner.cpp` stored startup/window/bootstrap/loop policy inline | The runner now delegates presentation state, startup bootstrap, event pumping, frame execution, diagnostics, and relaunch entry to dedicated runtime helpers, reducing the file from about `900` lines to about `400`. |

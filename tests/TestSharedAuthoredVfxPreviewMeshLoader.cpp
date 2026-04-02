@@ -3,8 +3,8 @@
 #include <vector>
 
 #include "game/runtime/render_model_cache/RenderModelCache.h"
-#include "game/runtime/shared/vfx/growl/SharedGrowlInterop.h"
-#include "vfx/preview/growl/GrowlSharedRenderer.h"
+#include "game/runtime/shared/vfx/authored/SharedAuthoredVfxInterop.h"
+#include "vfx/preview/shared/SharedAuthoredVfxRenderer.h"
 
 namespace {
 
@@ -19,10 +19,10 @@ bool nearlyEqual(float a, float b, float eps = 1e-5f) {
 }
 
 bool compareMeshUvs(const std::string& modelPath, std::string& outFail) {
-    vfx::runtime::growl_batches::MeshData previewMesh;
+    vfx::runtime::authored_batches::MeshData previewMesh;
     std::string previewError;
-    if (!vfx::preview::growl::detail::loadMeshForPreview(modelPath, previewMesh, &previewError)) {
-        outFail = "Preview Growl mesh loader failed for " + modelPath + ": " + previewError;
+    if (!vfx::preview::authored::detail::loadMeshForPreview(modelPath, previewMesh, &previewError)) {
+        outFail = "Preview authored VFX mesh loader failed for " + modelPath + ": " + previewError;
         return false;
     }
 
@@ -34,7 +34,7 @@ bool compareMeshUvs(const std::string& modelPath, std::string& outFail) {
     }
 
     const auto expectedMesh =
-        game::runtime::shared_growl_interop::toReusableMeshData(cachedMesh);
+        game::runtime::shared_authored_vfx_interop::toReusableMeshData(cachedMesh);
 
     if (!expect(previewMesh.vertices.size() == expectedMesh.vertices.size(),
                 "Preview Growl mesh loader should produce the same vertex count as the cached game path for " + modelPath,
@@ -63,7 +63,7 @@ bool compareMeshUvs(const std::string& modelPath, std::string& outFail) {
 
 } // namespace
 
-bool test_shared_growl_preview_mesh_loader_contract(std::string& outFail) {
+bool test_shared_authored_vfx_preview_mesh_loader_contract(std::string& outFail) {
     const std::vector<std::string> modelPaths = {
         "assets/meshes/growl_1076_mesh.glb",
         "assets/meshes/growl_1085_mesh.glb",

@@ -10,7 +10,6 @@
 
 #include "engine/core/Paths.h"
 #include "engine/render/Model.h"
-#include "vfx/preview/growl/GrowlSharedRenderer.h"
 
 namespace vfx::preview::growl {
 
@@ -79,12 +78,12 @@ void GrowlPreviewController::stepFrames(int frames) {
 
 void GrowlPreviewController::render(
     const engine::tools::vfx_preview::PreviewFrameContext& frame) {
-    if (!renderer_) renderer_ = std::make_unique<GrowlSharedRenderer>();
+    if (!renderer_) renderer_ = std::make_unique<vfx::preview::authored::SharedAuthoredVfxRenderer>();
     renderer_->render(effect_, frame.camera, frame.surfaceWidth, frame.surfaceHeight);
 }
 
 void GrowlPreviewController::onResize(int width, int height) {
-    if (!renderer_) renderer_ = std::make_unique<GrowlSharedRenderer>();
+    if (!renderer_) renderer_ = std::make_unique<vfx::preview::authored::SharedAuthoredVfxRenderer>();
     renderer_->onResize(width, height);
 }
 

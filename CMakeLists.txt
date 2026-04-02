@@ -318,14 +318,15 @@ pac_apply_common_target_settings(engine_tools_vfx_preview)
 
 # ---------------- PAC_VfxCore (game-free reusable VFX) ----------------
 add_library(PAC_VfxCore STATIC
-    src/vfx/effects/growl/GrowlWaveVFX.cpp
+    src/vfx/effects/shared/SharedAuthoredBatchVFX.cpp
     src/vfx/effects/tackle/TackleSmokeVFX.cpp
-    src/vfx/runtime/growl/SharedGrowlVfxHelpers.cpp
+    src/vfx/runtime/shared/SharedAuthoredVfxHelpers.cpp
 )
 target_sources(PAC_VfxCore PRIVATE
     src/vfx/effects/growl/GrowlWaveVFX.h
+    src/vfx/effects/shared/SharedAuthoredBatchVFX.h
     src/vfx/effects/tackle/TackleSmokeVFX.h
-    src/vfx/runtime/growl/SharedGrowlVfxHelpers.h
+    src/vfx/runtime/shared/SharedAuthoredVfxHelpers.h
 )
 target_link_libraries(PAC_VfxCore
     PUBLIC
@@ -337,14 +338,14 @@ pac_apply_common_target_settings(PAC_VfxCore)
 
 # ---------------- PAC_GameVfxInterop (game-specific backend bridge) ----------------
 add_library(PAC_GameVfxInterop STATIC
-    src/vfx/runtime/growl/SharedGrowlBatchSubmission.cpp
-    src/vfx/runtime/growl/SharedGrowlWaveBridge.cpp
-    src/vfx/runtime/growl/SharedGrowlWaveBatches.cpp
+    src/vfx/runtime/shared/SharedAuthoredVfxSubmission.cpp
+    src/vfx/runtime/shared/SharedAuthoredVfxBridge.cpp
+    src/vfx/runtime/shared/SharedAuthoredVfxBatches.cpp
 )
 target_sources(PAC_GameVfxInterop PRIVATE
-    src/vfx/runtime/growl/SharedGrowlBatchSubmission.h
-    src/vfx/runtime/growl/SharedGrowlWaveBridge.h
-    src/vfx/runtime/growl/SharedGrowlWaveBatches.h
+    src/vfx/runtime/shared/SharedAuthoredVfxSubmission.h
+    src/vfx/runtime/shared/SharedAuthoredVfxBridge.h
+    src/vfx/runtime/shared/SharedAuthoredVfxBatches.h
 )
 target_link_libraries(PAC_GameVfxInterop
     PUBLIC
@@ -500,7 +501,7 @@ add_library(PAC_GameObjects STATIC
     src/game/runtime/shared/vfx/particles/SharedParticleSnapshotBillboards.cpp
     src/game/runtime/shared/vfx/particles/SharedParticleVfxBridgeDispatch.cpp
     src/game/runtime/shared/vfx/particles/SharedParticleVfxStyles.cpp
-    src/game/runtime/shared/vfx/growl/SharedGrowlInterop.cpp
+    src/game/runtime/shared/vfx/authored/SharedAuthoredVfxInterop.cpp
     src/game/runtime/shared/vfx/tail_fire/SharedTailFireAnchorMath.cpp
     src/game/runtime/shared/vfx/tail_fire/SharedTailFireCoordinator.cpp
     src/game/runtime/shared/vfx/tail_fire/SharedTailFireSnapshotBillboards.cpp
@@ -620,7 +621,7 @@ add_library(PAC_VfxPreviewSupport STATIC
     src/game/preview/effects/TacklePreviewEffect.cpp
     src/game/preview/effects/LeechSeedPreviewEffect.cpp
     src/vfx/preview/growl/GrowlPreviewController.cpp
-    src/vfx/preview/growl/GrowlSharedRenderer.cpp
+    src/vfx/preview/shared/SharedAuthoredVfxRenderer.cpp
     src/vfx/preview/tackle/TacklePreviewController.cpp
 )
 target_sources(PAC_VfxPreviewSupport PRIVATE
@@ -633,7 +634,7 @@ target_sources(PAC_VfxPreviewSupport PRIVATE
     src/game/preview/effects/TacklePreviewEffect.h
     src/game/preview/effects/LeechSeedPreviewEffect.h
     src/vfx/preview/growl/GrowlPreviewController.h
-    src/vfx/preview/growl/GrowlSharedRenderer.h
+    src/vfx/preview/shared/SharedAuthoredVfxRenderer.h
     src/vfx/preview/tackle/TacklePreviewController.h
     src/game/runtime/shared/vfx/tail_fire/SharedTailFireAnchorMath.h
     src/game/runtime/shared/vfx/tail_fire/SharedTailFireSyntheticEmitter.h
@@ -652,7 +653,7 @@ add_library(PAC_VfxLabSupport STATIC
     src/vfx/preview/effects/GrowlLabPreviewEffect.cpp
     src/vfx/preview/effects/TackleLabPreviewEffect.cpp
     src/vfx/preview/growl/GrowlPreviewController.cpp
-    src/vfx/preview/growl/GrowlSharedRenderer.cpp
+    src/vfx/preview/shared/SharedAuthoredVfxRenderer.cpp
     src/vfx/preview/tackle/TacklePreviewController.cpp
 )
 target_sources(PAC_VfxLabSupport PRIVATE
@@ -660,7 +661,7 @@ target_sources(PAC_VfxLabSupport PRIVATE
     src/vfx/preview/effects/GrowlLabPreviewEffect.h
     src/vfx/preview/effects/TackleLabPreviewEffect.h
     src/vfx/preview/growl/GrowlPreviewController.h
-    src/vfx/preview/growl/GrowlSharedRenderer.h
+    src/vfx/preview/shared/SharedAuthoredVfxRenderer.h
     src/vfx/preview/tackle/TacklePreviewController.h
 )
 target_link_libraries(PAC_VfxLabSupport
@@ -820,7 +821,7 @@ if (BUILD_TESTING)
         tests/TestSessionRenderBridge.cpp
         tests/TestSessionDebugSnapshot.cpp
         tests/TestRuntimeGrowlVfxPrewarm.cpp
-        tests/TestSharedGrowlPreviewMeshLoader.cpp
+        tests/TestSharedAuthoredVfxPreviewMeshLoader.cpp
         tests/TestPreviewEffectPokemonSpecies.cpp
         tests/TestPreviewPokemonVisual.cpp
         tests/TestSessionLegacyWorldView.cpp
@@ -879,9 +880,9 @@ if (BUILD_TESTING)
         tests/TestSharedTailFireExactGpuBatches.cpp
         tests/TestSharedTailFireMeshPlayback.cpp
         tests/TestSharedTailFirePlaybackPolicy.cpp
-        tests/TestSharedGrowlVfxHelpers.cpp
-        tests/TestSharedGrowlWaveBridge.cpp
-        tests/TestSharedGrowlWaveBatches.cpp
+        tests/TestSharedAuthoredVfxHelpers.cpp
+        tests/TestSharedAuthoredVfxBridge.cpp
+        tests/TestSharedAuthoredVfxBatches.cpp
         tests/TestTackleSmokeVfx.cpp
         tests/TestSharedWorldScene.cpp
         tests/TestSharedWorldIndexedBatches.cpp

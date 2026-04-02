@@ -5,7 +5,7 @@
 
 #include <glm/glm.hpp>
 
-#include "vfx/runtime/growl/SharedGrowlVfxHelpers.h"
+#include "vfx/runtime/shared/SharedAuthoredVfxHelpers.h"
 
 namespace {
 
@@ -21,11 +21,11 @@ bool nearf(float a, float b, float eps = 0.0001f) {
 
 } // namespace
 
-bool test_shared_growl_vfx_helpers_contract(std::string& outFail) {
-    using namespace vfx::runtime::growl;
+bool test_shared_authored_vfx_helpers_contract(std::string& outFail) {
+    using namespace vfx::runtime::authored;
 
-    GrowlWaveVFX::Config config;
-    GrowlWaveVFX::Config::DrawPass pass;
+    SharedAuthoredBatchVFX::Config config;
+    SharedAuthoredBatchVFX::Config::DrawPass pass;
 
     config.tevC0 = glm::vec3(1.3f, -0.2f, 0.5f);
     config.tevC1 = glm::vec3(-0.1f, 0.7f, 2.1f);
@@ -131,12 +131,12 @@ bool test_shared_growl_vfx_helpers_contract(std::string& outFail) {
     pass.texturePath = "assets/textures/moves/growl/Texture3918.png";
     const std::string meshKey = makeBakedTextureKey(pass, false);
     const std::string quarterKey = makeBakedTextureKey(pass, true);
-    if (!expect(meshKey == "__growl_baked:growl_eid_1076:m:assets/textures/moves/growl/Texture3918.png",
+    if (!expect(meshKey == "__authored_vfx_baked:growl_eid_1076:m:assets/textures/moves/growl/Texture3918.png",
                 "makeBakedTextureKey should produce stable mesh-pass cache keys.",
                 outFail)) {
         return false;
     }
-    if (!expect(quarterKey == "__growl_baked:growl_eid_1076:q:assets/textures/moves/growl/Texture3918.png",
+    if (!expect(quarterKey == "__authored_vfx_baked:growl_eid_1076:q:assets/textures/moves/growl/Texture3918.png",
                 "makeBakedTextureKey should produce stable quarter-pass cache keys.",
                 outFail)) {
         return false;
@@ -144,7 +144,7 @@ bool test_shared_growl_vfx_helpers_contract(std::string& outFail) {
 
     pass.fragShaderPath = "assets/shaders/vfx/moves/growl/growl_line_shared.frag";
     pass.texturePath.clear();
-    if (!expect(makeTextureCacheKey(config, pass) == "__growl_white__",
+    if (!expect(makeTextureCacheKey(config, pass) == "__authored_vfx_white__",
                 "makeTextureCacheKey should share a single white cache entry for line/white growl passes.",
                 outFail)) {
         return false;

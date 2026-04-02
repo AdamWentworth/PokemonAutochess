@@ -1,4 +1,4 @@
-#include "vfx/preview/growl/GrowlSharedRenderer.h"
+#include "vfx/preview/shared/SharedAuthoredVfxRenderer.h"
 
 #include <algorithm>
 #include <filesystem>
@@ -18,15 +18,15 @@
 #include "engine/render/gltf/FastGLTFLoader.h"
 #include "engine/render/gltf/ModelFastGltfLoaderHelpers.h"
 #include "engine/utils/LogSink.h"
-#include "vfx/runtime/growl/SharedGrowlBatchSubmission.h"
-#include "vfx/runtime/growl/SharedGrowlWaveBridge.h"
+#include "vfx/runtime/shared/SharedAuthoredVfxBridge.h"
+#include "vfx/runtime/shared/SharedAuthoredVfxSubmission.h"
 
-namespace vfx::preview::growl {
+namespace vfx::preview::authored {
 namespace {
 
-using MeshData = vfx::runtime::growl_batches::MeshData;
-using MeshVertex = vfx::runtime::growl_batches::MeshVertex;
-using TextureCacheEntry = GrowlSharedRenderer::TextureCacheEntry;
+using MeshData = vfx::runtime::authored_batches::MeshData;
+using MeshVertex = vfx::runtime::authored_batches::MeshVertex;
+using TextureCacheEntry = SharedAuthoredVfxRenderer::TextureCacheEntry;
 
 struct ScopedGlPreviewRenderState final {
     static constexpr int kTrackedTextureUnits = 8;
@@ -439,34 +439,34 @@ bool loadTextureRgba(const std::string& texturePath,
 
 } // namespace
 
-void GrowlSharedRenderer::onResize(int width, int height) {
+void SharedAuthoredVfxRenderer::onResize(int width, int height) {
     backend_.onResize(width, height);
 }
 
-void GrowlSharedRenderer::render(const GrowlWaveVFX& effect,
-                                 const Camera3D& camera,
-                                 int surfaceWidth,
-                                 int surfaceHeight) {
+void SharedAuthoredVfxRenderer::render(const SharedAuthoredBatchVFX& effect,
+                                       const Camera3D& camera,
+                                       int surfaceWidth,
+                                       int surfaceHeight) {
     const ScopedGlPreviewRenderState savedGlState;
-    GrowlWaveVFX::RenderSnapshot snapshot;
+    SharedAuthoredBatchVFX::RenderSnapshot snapshot;
     if (!effect.buildRenderSnapshot(snapshot)) return;
 
-    std::vector<vfx::runtime::growl_batches::WorldIndexedBatch> batches;
+    std::vector<vfx::runtime::authored_batches::WorldIndexedBatch> batches;
     batches.reserve(snapshot.drawPasses.size() * 4u);
 
     const auto resolveMesh =
-        [&](const std::string& modelPath) -> vfx::runtime::growl_batches::MeshData* {
+        [&](const std::string& modelPath) -> vfx::runtime::authored_batches::MeshData* {
             return ensureBackendMeshLoaded(modelPath);
         };
 
     const auto resolveTexture =
-        [&](const GrowlWaveVFX::Config::DrawPass& pass,
-            const vfx::runtime::growl::TevState& tev,
-            vfx::runtime::growl_batches::TextureView& outView) -> bool {
+        [&](const SharedAuthoredBatchVFX::Config::DrawPass& pass,
+            const vfx::runtime::authored::TevState& tev,
+            vfx::runtime::authored_batches::TextureView& outView) -> bool {
             return fillTextureView(pass, snapshot.config, tev, outView);
         };
 
-    if (!vfx::runtime::growl_bridge::appendBatches(
+    if (!vfx::runtime::authored_bridge::appendBatches(
             snapshot,
             batches,
             camera.getPosition(),
@@ -479,7 +479,7 @@ void GrowlSharedRenderer::render(const GrowlWaveVFX& effect,
     const glm::vec3 cameraPos = camera.getPosition();
     const glm::vec3 cameraForward = camera.getDirection();
     const glm::vec3 cameraTarget = camera.getTarget();
-    vfx::runtime::growl_submit::submitBatches(
+    vfx::runtime::authored_submit::submitBatches(
         backend_,
         batches,
         glm::value_ptr(viewProj),
@@ -490,7 +490,7 @@ void GrowlSharedRenderer::render(const GrowlWaveVFX& effect,
         glm::value_ptr(cameraTarget));
 }
 
-vfx::runtime::growl_batches::MeshData* GrowlSharedRenderer::ensureBackendMeshLoaded(
+vfx::runtime::authored_batches::MeshData* SharedAuthoredVfxRenderer::ensureBackendMeshLoaded(
     const std::string& modelPath) {
     auto& cacheEntry = backendMeshByModelPath_[modelPath];
     if (!cacheEntry.attemptedLoad) {
@@ -515,7 +515,7 @@ vfx::runtime::growl_batches::MeshData* GrowlSharedRenderer::ensureBackendMeshLoa
     return &cacheEntry.mesh;
 }
 
-GrowlSharedRenderer::TextureCacheEntry* GrowlSharedRenderer::ensureBackendTextureLoaded(
+SharedAuthoredVfxRenderer::TextureCacheEntry* SharedAuthoredVfxRenderer::ensureBackendTextureLoaded(
     const std::string& texturePath,
     bool flipVertical) {
     const std::string cacheKey = flipVertical ? texturePath + "#flip" : texturePath;
@@ -532,9 +532,9 @@ GrowlSharedRenderer::TextureCacheEntry* GrowlSharedRenderer::ensureBackendTextur
     return &cacheEntry;
 }
 
-bool GrowlSharedRenderer::fillTextureViewFromEntry(
+bool SharedAuthoredVfxRenderer::fillTextureViewFromEntry(
     const TextureCacheEntry* texture,
-    vfx::runtime::growl_batches::TextureView& outView) {
+    vfx::runtime::authored_batches::TextureView& outView) {
     if (!texture || !texture->valid || texture->rgba.empty() ||
         texture->width <= 0 || texture->height <= 0) {
         return false;
@@ -545,19 +545,19 @@ bool GrowlSharedRenderer::fillTextureViewFromEntry(
     return true;
 }
 
-bool GrowlSharedRenderer::fillTextureView(const GrowlWaveVFX::Config::DrawPass& pass,
-                                          const GrowlWaveVFX::Config& config,
-                                          const vfx::runtime::growl::TevState& tev,
-                                          vfx::runtime::growl_batches::TextureView& outView) {
-    if (vfx::runtime::growl::isLinePass(config, pass) || pass.texturePath.empty()) {
+bool SharedAuthoredVfxRenderer::fillTextureView(const SharedAuthoredBatchVFX::Config::DrawPass& pass,
+                                                const SharedAuthoredBatchVFX::Config& config,
+                                                const vfx::runtime::authored::TevState& tev,
+                                                vfx::runtime::authored_batches::TextureView& outView) {
+    if (vfx::runtime::authored::isLinePass(config, pass) || pass.texturePath.empty()) {
         return fillTextureViewFromEntry(ensureBackendTextureLoaded("", false), outView);
     }
 
     TextureCacheEntry* rawTexture = ensureBackendTextureLoaded(pass.texturePath, false);
     if (!rawTexture || !rawTexture->valid || rawTexture->rgba.empty()) return false;
 
-    const bool quarterPass = vfx::runtime::growl::isQuarterRingPass(config, pass);
-    const std::string bakedKey = vfx::runtime::growl::makeBakedTextureKey(pass, quarterPass);
+    const bool quarterPass = vfx::runtime::authored::isQuarterRingPass(config, pass);
+    const std::string bakedKey = vfx::runtime::authored::makeBakedTextureKey(pass, quarterPass);
     auto& baked = backendTextureByPath_[bakedKey];
     if (!baked.attemptedLoad) {
         baked.attemptedLoad = true;
@@ -565,7 +565,7 @@ bool GrowlSharedRenderer::fillTextureView(const GrowlWaveVFX::Config::DrawPass& 
         baked.width = rawTexture->width;
         baked.height = rawTexture->height;
         baked.rgba.clear();
-        if (!vfx::runtime::growl::bakePassTextureRgba(
+        if (!vfx::runtime::authored::bakePassTextureRgba(
                 pass,
                 tev,
                 quarterPass,
@@ -579,4 +579,4 @@ bool GrowlSharedRenderer::fillTextureView(const GrowlWaveVFX::Config::DrawPass& 
     return fillTextureViewFromEntry(&baked, outView);
 }
 
-} // namespace vfx::preview::growl
+} // namespace vfx::preview::authored

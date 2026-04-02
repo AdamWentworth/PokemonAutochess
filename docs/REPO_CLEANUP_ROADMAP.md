@@ -43,9 +43,9 @@ importance.
     the whole renderer.
 - Focus:
   - Remove `game::runtime` dependencies from:
-    - `src/vfx/runtime/growl/SharedGrowlWaveBatches.*`
-    - `src/vfx/runtime/growl/SharedGrowlWaveBridge.*`
-    - `src/vfx/preview/growl/GrowlSharedRenderer.*`
+    - `src/vfx/runtime/shared/SharedAuthoredVfxBatches.*`
+    - `src/vfx/runtime/shared/SharedAuthoredVfxBridge.*`
+    - `src/vfx/preview/shared/SharedAuthoredVfxRenderer.*`
   - Introduce thin adapter seams for mesh loading, texture lookup, and indexed
     batch submission so game-specific bindings live outside `src/vfx/`.
 - Exit criteria:

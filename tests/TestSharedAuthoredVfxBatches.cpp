@@ -4,8 +4,8 @@
 
 #include <glm/glm.hpp>
 
-#include "vfx/runtime/growl/SharedGrowlVfxHelpers.h"
-#include "vfx/runtime/growl/SharedGrowlWaveBatches.h"
+#include "vfx/runtime/shared/SharedAuthoredVfxBatches.h"
+#include "vfx/runtime/shared/SharedAuthoredVfxHelpers.h"
 
 namespace {
 
@@ -17,16 +17,16 @@ bool expect(bool condition, const std::string& message, std::string& outFail) {
 
 } // namespace
 
-bool test_shared_growl_wave_batches_contract(std::string& outFail) {
-    using namespace vfx::runtime::growl_batches;
+bool test_shared_authored_vfx_batches_contract(std::string& outFail) {
+    using namespace vfx::runtime::authored_batches;
     using Batch = WorldIndexedBatch;
-    using MeshData = vfx::runtime::growl_batches::MeshData;
+    using MeshData = vfx::runtime::authored_batches::MeshData;
 
-    GrowlWaveVFX::RenderSnapshot snapshot;
+    SharedAuthoredBatchVFX::RenderSnapshot snapshot;
     snapshot.config.fadeStart = 0.65f;
     snapshot.config.meshForwardAxis = glm::vec3(0.0f, 1.0f, 0.0f);
 
-    GrowlWaveVFX::RenderRing ring;
+    SharedAuthoredBatchVFX::RenderRing ring;
     ring.pos = glm::vec3(1.0f, 0.5f, -2.0f);
     ring.forward = glm::vec3(0.0f, 0.0f, 1.0f);
     ring.lifeSec = 1.0f;
@@ -36,7 +36,7 @@ bool test_shared_growl_wave_batches_contract(std::string& outFail) {
     ring.randomSeed = 12345u;
     snapshot.rings.push_back(ring);
 
-    GrowlWaveVFX::Config::DrawPass pass;
+    SharedAuthoredBatchVFX::Config::DrawPass pass;
     pass.id = "growl_test_quarter";
     pass.enabled = true;
     pass.texturePath = "assets/textures/test.png";
@@ -48,7 +48,7 @@ bool test_shared_growl_wave_batches_contract(std::string& outFail) {
     pass.radiusMul = 1.0f;
     pass.thicknessMul = 1.0f;
 
-    const auto tev = vfx::runtime::growl::resolveTevState(snapshot.config, pass);
+    const auto tev = vfx::runtime::authored::resolveTevState(snapshot.config, pass);
     static const unsigned char kTex[4] = {255u, 255u, 255u, 255u};
     TextureView tex;
     tex.rgba = kTex;
@@ -86,18 +86,18 @@ bool test_shared_growl_wave_batches_contract(std::string& outFail) {
                 outFail)) {
         return false;
     }
-    if (!expect(quarterBatch.textureKey.find("growl:growl_test_quarter:") == 0,
-                "Growl batch texture key should be prefixed with growl pass id.",
+    if (!expect(quarterBatch.textureKey.find("authored_vfx:growl_test_quarter:") == 0,
+                "Shared authored batch texture key should be prefixed with the shared authored pass id namespace.",
                 outFail)) {
         return false;
     }
-    if (!expect(quarterBatch.textureCacheKey == "__growl_baked:growl_test_quarter:q:assets/textures/test.png",
+    if (!expect(quarterBatch.textureCacheKey == "__authored_vfx_baked:growl_test_quarter:q:assets/textures/test.png",
                 "Growl batch should carry a stable texture cache key so startup prewarm and runtime rendering reuse the same backend texture.",
                 outFail)) {
         return false;
     }
-    if (!expect(quarterBatch.geometryCacheKey == "__growl_geom_quarter_v1__",
-                "Quarter-ring growl batching should use a stable shared geometry cache key.",
+    if (!expect(quarterBatch.geometryCacheKey == "__authored_vfx_geom_quarter_v1__",
+                "Quarter-ring authored batching should use a stable shared geometry cache key.",
                 outFail)) {
         return false;
     }
@@ -114,17 +114,52 @@ bool test_shared_growl_wave_batches_contract(std::string& outFail) {
         }
     }
 
-    GrowlWaveVFX::Config::DrawPass quarterSequencePass = pass;
+    SharedAuthoredBatchVFX::Config::DrawPass cameraFacingQuarterPass = pass;
+    cameraFacingQuarterPass.id = "growl_test_quarter_camera";
+    cameraFacingQuarterPass.cameraFacing = true;
+    std::vector<Batch> cameraFacingQuarterBatches;
+    const bool cameraFacingQuarterAppended =
+        appendPassBatch(cameraFacingQuarterBatches,
+                        snapshot,
+                        cameraFacingQuarterPass,
+                        tev,
+                        nullptr,
+                        tex,
+                        glm::vec3(4.0f, 1.0f, -2.0f));
+
+    if (!expect(cameraFacingQuarterAppended && cameraFacingQuarterBatches.size() == 1u,
+                "Camera-facing quarter-ring passes should still append one shared quarter batch.",
+                outFail)) {
+        return false;
+    }
+
+    const auto& cameraFacingQuarterBatch = cameraFacingQuarterBatches.front();
+    if (!expect(!cameraFacingQuarterBatch.instances.empty(),
+                "Camera-facing quarter-ring passes should emit GPU instances.",
+                outFail)) {
+        return false;
+    }
+    const auto& cameraFacingMatrix = cameraFacingQuarterBatch.instances.front().modelMatrix;
+    const glm::vec3 cameraFacingUp(cameraFacingMatrix[4], cameraFacingMatrix[5], cameraFacingMatrix[6]);
+    const glm::vec3 toCamera =
+        glm::normalize(glm::vec3(4.0f, 1.0f, -2.0f) - glm::vec3(ring.pos.x, ring.pos.y, ring.pos.z));
+    if (!expect(std::abs(glm::dot(glm::normalize(cameraFacingUp), toCamera)) >= 0.95f,
+                "Camera-facing quarter-ring passes should orient their quad normal toward the camera instead of leaving it locked to the move direction.",
+                outFail)) {
+        return false;
+    }
+
+    SharedAuthoredBatchVFX::Config::DrawPass quarterSequencePass = pass;
     quarterSequencePass.id = "growl_test_quarter_sequence";
     quarterSequencePass.sequenceCount = 3;
     quarterSequencePass.sequenceStep = 0.10f;
     quarterSequencePass.sequenceLife = 0.80f;
     quarterSequencePass.radiusGrowthMul = 1.5f;
 
-    GrowlWaveVFX::RenderSnapshot sequenceSnapshot = snapshot;
+    SharedAuthoredBatchVFX::RenderSnapshot sequenceSnapshot = snapshot;
     sequenceSnapshot.rings.front().ageSec = 0.50f;
     const auto sequenceTev =
-        vfx::runtime::growl::resolveTevState(sequenceSnapshot.config, quarterSequencePass);
+        vfx::runtime::authored::resolveTevState(sequenceSnapshot.config, quarterSequencePass);
     std::vector<Batch> sequenceBatches;
     const bool sequenceAppended =
         appendPassBatch(sequenceBatches,
@@ -161,7 +196,7 @@ bool test_shared_growl_wave_batches_contract(std::string& outFail) {
         return false;
     }
 
-    GrowlWaveVFX::Config::DrawPass meshPass;
+    SharedAuthoredBatchVFX::Config::DrawPass meshPass;
     meshPass.id = "growl_test_mesh";
     meshPass.eid = 77;
     meshPass.enabled = true;
@@ -186,7 +221,7 @@ bool test_shared_growl_wave_batches_contract(std::string& outFail) {
     mesh.vertices[2].color = glm::vec4(1.0f);
     mesh.indices = {0u, 1u, 2u};
 
-    const auto meshTev = vfx::runtime::growl::resolveTevState(snapshot.config, meshPass);
+    const auto meshTev = vfx::runtime::authored::resolveTevState(snapshot.config, meshPass);
     std::vector<Batch> meshBatches;
     const bool meshAppended =
         appendPassBatch(meshBatches,
@@ -214,7 +249,7 @@ bool test_shared_growl_wave_batches_contract(std::string& outFail) {
                 outFail)) {
         return false;
     }
-    if (!expect(meshBatch.geometryCacheKey == "__growl_geom_mesh_v1__:assets/meshes/test.glb",
+    if (!expect(meshBatch.geometryCacheKey == "__authored_vfx_geom_mesh_v1__:assets/meshes/test.glb",
                 "Cached growl mesh batches should use a stable geometry cache key based on the source mesh path.",
                 outFail)) {
         return false;
@@ -225,9 +260,9 @@ bool test_shared_growl_wave_batches_contract(std::string& outFail) {
         return false;
     }
 
-    GrowlWaveVFX::RenderSnapshot alphaBlendSnapshot = snapshot;
+    SharedAuthoredBatchVFX::RenderSnapshot alphaBlendSnapshot = snapshot;
     alphaBlendSnapshot.config.blendMode = 0u;
-    GrowlWaveVFX::Config::DrawPass alphaBlendPass = meshPass;
+    SharedAuthoredBatchVFX::Config::DrawPass alphaBlendPass = meshPass;
     alphaBlendPass.id = "growl_test_mesh_alpha";
     alphaBlendPass.overrideBlendMode = true;
     alphaBlendPass.blendMode = 0u;
@@ -252,14 +287,14 @@ bool test_shared_growl_wave_batches_contract(std::string& outFail) {
         return false;
     }
 
-    GrowlWaveVFX::Config::DrawPass delayedMeshPass = meshPass;
+    SharedAuthoredBatchVFX::Config::DrawPass delayedMeshPass = meshPass;
     delayedMeshPass.id = "growl_test_mesh_delayed";
     delayedMeshPass.sequenceCount = 3;
     delayedMeshPass.sequenceIndex = 1;
     delayedMeshPass.sequenceStep = 0.30f;
     delayedMeshPass.sequenceLife = 0.55f;
 
-    GrowlWaveVFX::RenderSnapshot delayedMeshEarlySnapshot = snapshot;
+    SharedAuthoredBatchVFX::RenderSnapshot delayedMeshEarlySnapshot = snapshot;
     delayedMeshEarlySnapshot.rings.front().ageSec = 0.20f;
     std::vector<Batch> delayedMeshEarlyBatches;
     const bool delayedMeshEarlyAppended =
@@ -277,7 +312,7 @@ bool test_shared_growl_wave_batches_contract(std::string& outFail) {
         return false;
     }
 
-    GrowlWaveVFX::RenderSnapshot delayedMeshLiveSnapshot = snapshot;
+    SharedAuthoredBatchVFX::RenderSnapshot delayedMeshLiveSnapshot = snapshot;
     delayedMeshLiveSnapshot.rings.front().ageSec = 0.40f;
     std::vector<Batch> delayedMeshLiveBatches;
     const bool delayedMeshLiveAppended =
@@ -304,7 +339,7 @@ bool test_shared_growl_wave_batches_contract(std::string& outFail) {
         return false;
     }
 
-    GrowlWaveVFX::RenderSnapshot delayedMeshLateSnapshot = snapshot;
+    SharedAuthoredBatchVFX::RenderSnapshot delayedMeshLateSnapshot = snapshot;
     delayedMeshLateSnapshot.rings.front().ageSec = 0.65f;
     std::vector<Batch> delayedMeshLateBatches;
     const bool delayedMeshLateAppended =
@@ -328,7 +363,7 @@ bool test_shared_growl_wave_batches_contract(std::string& outFail) {
         return false;
     }
 
-    GrowlWaveVFX::RenderSnapshot delayedMeshSharedFadeSnapshot = snapshot;
+    SharedAuthoredBatchVFX::RenderSnapshot delayedMeshSharedFadeSnapshot = snapshot;
     delayedMeshSharedFadeSnapshot.rings.front().ageSec = 0.90f;
     std::vector<Batch> delayedMeshSharedFadeBatches;
     const bool delayedMeshSharedFadeAppended =
@@ -352,7 +387,7 @@ bool test_shared_growl_wave_batches_contract(std::string& outFail) {
         return false;
     }
 
-    GrowlWaveVFX::Config::DrawPass meshQuarterTexturePass = meshPass;
+    SharedAuthoredBatchVFX::Config::DrawPass meshQuarterTexturePass = meshPass;
     meshQuarterTexturePass.id = "growl_test_mesh_quarter_tex";
     meshQuarterTexturePass.fragShaderPath =
         "assets/shaders/vfx/moves/growl/growl_quarter_ring_shared.frag";
@@ -376,19 +411,19 @@ bool test_shared_growl_wave_batches_contract(std::string& outFail) {
     const auto& meshQuarterBatch = meshQuarterBatches.front();
     if (!expect(meshQuarterBatch.sharedVertexCount == mesh.vertices.size() &&
                     meshQuarterBatch.sharedIndexCount == mesh.indices.size() &&
-                    meshQuarterBatch.geometryCacheKey == "__growl_geom_mesh_v1__:assets/meshes/test.glb",
+                    meshQuarterBatch.geometryCacheKey == "__authored_vfx_geom_mesh_v1__:assets/meshes/test.glb",
                 "Quarter-shaded growl mesh passes should keep mesh geometry rather than falling back to quarter-ring quad geometry.",
                 outFail)) {
         return false;
     }
     if (!expect(meshQuarterBatch.textureCacheKey ==
-                    "__growl_baked:growl_test_mesh_quarter_tex:q:assets/textures/test.png",
+                    "__authored_vfx_baked:growl_test_mesh_quarter_tex:q:assets/textures/test.png",
                 "Quarter-shaded growl mesh passes should reuse the quarter-style baked texture cache key.",
                 outFail)) {
         return false;
     }
 
-    GrowlWaveVFX::Config::DrawPass sparklePass = meshQuarterTexturePass;
+    SharedAuthoredBatchVFX::Config::DrawPass sparklePass = meshQuarterTexturePass;
     sparklePass.id = "growl_test_sparkle_mesh";
     sparklePass.renderMode = "sparkle_mesh";
     sparklePass.scaleMul = 0.5f;
@@ -440,7 +475,7 @@ bool test_shared_growl_wave_batches_contract(std::string& outFail) {
         return false;
     }
     if (!expect(sparkleBatch.geometryCacheKey ==
-                    "__growl_geom_quarter_v1__",
+                    "__authored_vfx_geom_quarter_v1__",
                 "Sparkle growl mesh passes should render with the shared quarter-quad geometry so the sparkle faces the camera.",
                 outFail)) {
         return false;
@@ -458,7 +493,7 @@ bool test_shared_growl_wave_batches_contract(std::string& outFail) {
         return false;
     }
 
-    GrowlWaveVFX::Config::DrawPass glowPass;
+    SharedAuthoredBatchVFX::Config::DrawPass glowPass;
     glowPass.id = "growl_test_glow_billboard";
     glowPass.eid = 1284;
     glowPass.renderMode = "glow_billboard";
@@ -494,7 +529,7 @@ bool test_shared_growl_wave_batches_contract(std::string& outFail) {
                 outFail)) {
         return false;
     }
-    if (!expect(glowBatch.geometryCacheKey == "__growl_geom_centered_quad_v1__",
+    if (!expect(glowBatch.geometryCacheKey == "__authored_vfx_geom_centered_quad_v1__",
                 "Glow billboard growl passes should use the centered shared quad geometry.",
                 outFail)) {
         return false;
@@ -507,7 +542,7 @@ bool test_shared_growl_wave_batches_contract(std::string& outFail) {
         return false;
     }
 
-    GrowlWaveVFX::Config::DrawPass glowClusterPass = glowPass;
+    SharedAuthoredBatchVFX::Config::DrawPass glowClusterPass = glowPass;
     glowClusterPass.id = "growl_test_glow_billboard_cluster";
     glowClusterPass.heightOffset = 0.35f;
     glowClusterPass.startRadiusMul = 1.0f;
@@ -552,7 +587,7 @@ bool test_shared_growl_wave_batches_contract(std::string& outFail) {
         return false;
     }
 
-    GrowlWaveVFX::Config::DrawPass linePass;
+    SharedAuthoredBatchVFX::Config::DrawPass linePass;
     linePass.id = "growl_test_line";
     linePass.eid = 1128;
     linePass.enabled = true;
@@ -578,7 +613,7 @@ bool test_shared_growl_wave_batches_contract(std::string& outFail) {
         glm::vec3(0.0f, -1.1f, 1.0f),
     };
 
-    const auto lineTev = vfx::runtime::growl::resolveTevState(snapshot.config, linePass);
+    const auto lineTev = vfx::runtime::authored::resolveTevState(snapshot.config, linePass);
     std::vector<Batch> lineBatches;
     const bool lineAppended =
         appendPassBatch(lineBatches,
@@ -613,12 +648,12 @@ bool test_shared_growl_wave_batches_contract(std::string& outFail) {
         return false;
     }
     if (!expect(lineBatch.geometryCacheKey ==
-                    "__growl_geom_line_v1__:growl_test_line:assets/meshes/test_line.glb:1000",
+                    "__authored_vfx_geom_line_v1__:growl_test_line:assets/meshes/test_line.glb:1000",
                 "Growl line batching should use a stable geometry cache key that includes quantized line alpha state.",
                 outFail)) {
         return false;
     }
-    if (!expect(lineBatch.textureCacheKey == "__growl_white__",
+    if (!expect(lineBatch.textureCacheKey == "__authored_vfx_white__",
                 "Combined growl line batches should share the white texture cache entry.",
                 outFail)) {
         return false;
@@ -637,13 +672,13 @@ bool test_shared_growl_wave_batches_contract(std::string& outFail) {
         return false;
     }
 
-    GrowlWaveVFX::Config::DrawPass sequencedLinePass = linePass;
+    SharedAuthoredBatchVFX::Config::DrawPass sequencedLinePass = linePass;
     sequencedLinePass.id = "growl_test_line_sequence";
     sequencedLinePass.sequenceCount = 3;
     sequencedLinePass.sequenceStep = 0.10f;
     sequencedLinePass.sequenceLife = 0.80f;
 
-    GrowlWaveVFX::RenderSnapshot lineSequenceSnapshot = snapshot;
+    SharedAuthoredBatchVFX::RenderSnapshot lineSequenceSnapshot = snapshot;
     lineSequenceSnapshot.rings.front().ageSec = 0.50f;
     std::vector<Batch> sequencedLineBatches;
     const bool sequencedLineAppended =

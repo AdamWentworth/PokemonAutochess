@@ -1,11 +1,11 @@
-#include "vfx/runtime/growl/SharedGrowlBatchSubmission.h"
+#include "vfx/runtime/shared/SharedAuthoredVfxSubmission.h"
 
 #include <algorithm>
 
-namespace vfx::runtime::growl_submit {
+namespace vfx::runtime::authored_submit {
 namespace {
 
-using Batch = growl_batches::WorldIndexedBatch;
+using Batch = authored_batches::WorldIndexedBatch;
 
 IRenderBackend::WorldTextureData toWorldTextureData(const Batch& batch,
                                                     const float* cameraWorldPos3,
@@ -113,7 +113,7 @@ void drawOneBatch(IRenderBackend& renderer,
 } // namespace
 
 std::size_t prewarmBatches(IRenderBackend& renderer,
-                           const std::vector<growl_batches::WorldIndexedBatch>& batches,
+                           const std::vector<authored_batches::WorldIndexedBatch>& batches,
                            const float* cameraWorldPos3,
                            const float* cameraForward3,
                            const float* cameraTarget3) {
@@ -154,7 +154,7 @@ std::size_t prewarmBatches(IRenderBackend& renderer,
 }
 
 void submitBatches(IRenderBackend& renderer,
-                   const std::vector<growl_batches::WorldIndexedBatch>& batches,
+                   const std::vector<authored_batches::WorldIndexedBatch>& batches,
                    const float* viewProjectionMatrix4x4,
                    int surfaceWidth,
                    int surfaceHeight,
@@ -232,4 +232,4 @@ void submitBatches(IRenderBackend& renderer,
     renderer.endWorldIndexedBatchSubmission();
 }
 
-} // namespace vfx::runtime::growl_submit
+} // namespace vfx::runtime::authored_submit

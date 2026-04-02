@@ -18,7 +18,7 @@
 #include "game/runtime/session/SessionRenderScratch.h"
 #include "game/runtime/session/SessionWorldBackdrop.h"
 #include "game/runtime/shared/scene/SharedWorldScene.h"
-#include "vfx/runtime/growl/SharedGrowlVfxHelpers.h"
+#include "vfx/runtime/shared/SharedAuthoredVfxHelpers.h"
 #include "game/runtime/shared/ui/SharedBackendDebugViewOverlay.h"
 #include "game/runtime/shared/world/SharedWorldIndexedBatches.h"
 #include "game/runtime/ui/InventoryPanel.h"
@@ -75,14 +75,14 @@ void publishGrowlDebug(EngineServices* engineServices,
         passStats.meshPath = pass.meshPath;
         passStats.texturePath = pass.texturePath;
         passStats.linePass =
-            vfx::runtime::growl::isLinePass(snapshot.config, pass);
+            vfx::runtime::authored::isLinePass(snapshot.config, pass);
         passStats.quarterTextureBake =
-            vfx::runtime::growl::isQuarterRingPass(snapshot.config, pass);
+            vfx::runtime::authored::isQuarterRingPass(snapshot.config, pass);
         passStats.scaleMul = pass.scaleMul;
         passStats.alphaMul = pass.alphaMul;
         passStats.forwardOffset = pass.forwardOffset;
 
-        const std::string texturePrefix = std::string("growl:") + pass.id + ":";
+        const std::string texturePrefix = std::string("authored_vfx:") + pass.id + ":";
         for (const auto& batch : worldIndexedBatches) {
             if (!startsWithLocal(batch.textureKey, texturePrefix)) continue;
             ++passStats.submittedBatchCount;
