@@ -35,6 +35,7 @@ For Growl passes you can set optional per-pass overrides:
 - `render_mode`: optional rendering path selector (default `mesh`)
   - `mesh`: draw glTF mesh as-is
   - `texture_quarter_ring`: no mesh; draws one textured quarter quad multiple times around forward
+  - `streak_quad`: no mesh asset; draws a shared tapered streak quad oriented along each generated/authored direction
 - `quarter_count`: number of rotated quarter draws (default `4`)
 - `quarter_step_deg`: rotation step between quarter draws (default `90.0`)
 - `quarter_start_deg`: starting rotation offset (default `0.0`)
@@ -50,9 +51,18 @@ For Growl passes you can set optional per-pass overrides:
 - `directions_local`: optional array of local aim vectors for multi-line fan/cone from a single pass
   - Example: `[[0.24, -0.14, 1.0], [-0.24, -0.14, 1.0], [0.0, -0.28, 1.0]]`
   - For cone behavior, keep `forward` positive (usually `1.0`). If `forward` is `0.0`, you get a flat side/up/down fan plane.
+- `generated_direction_count`: optional generated circular direction set when `directions_local` is omitted
+- `generated_direction_mode`: optional generated direction layout
+  - `circle` (default): evenly spaced ring in the local right/up plane
+  - `sphere`: spherical burst with directions above and below the plane as well
+- `generated_direction_start_deg`: starting angle for generated circular directions
+- `generated_direction_arc_deg`: total arc covered by generated circular directions (default full `360`)
+- `generated_direction_forward`: forward component for generated directions
 - `direction_spacing_jitter_deg`: optional per-emission angular jitter for `directions_local` (degrees)
   - `0.0` keeps authored spacing exactly.
   - Higher values keep the circular pattern but randomize gaps between lines each cast.
+- `radial_distance_min_mul` / `radial_distance_max_mul`: optional random multiplier range for radial spawn distance
+  - Use this to keep generated bursts away from the exact center while still jittering how far from impact each streak/card begins.
 - `line_alpha_min` / `line_alpha_max`: optional per-line alpha factor range (multiplies `alpha_mul`)
   - Use this to make some lines brighter and others more subtle in the same burst.
   - Example: `0.55` to `1.45`.

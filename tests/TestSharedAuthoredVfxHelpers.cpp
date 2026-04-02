@@ -81,6 +81,49 @@ bool test_shared_authored_vfx_helpers_contract(std::string& outFail) {
                 outFail)) {
         return false;
     }
+    pass.renderMode = "streak_quad";
+    pass.fragShaderPath = "assets/shaders/vfx/shared/authored_line_shared.frag";
+    if (!expect(isLinePass(config, pass) && isStreakQuadPass(pass),
+                "Shared authored helpers should treat streak_quad passes as shared line-style passes.",
+                outFail)) {
+        return false;
+    }
+    pass.generatedDirectionCount = 4;
+    pass.generatedDirectionStartDeg = 0.0f;
+    pass.generatedDirectionArcDeg = 360.0f;
+    pass.generatedDirectionForward = 0.0f;
+    const auto generatedDirections = resolveGeneratedDirections(pass);
+    if (!expect(generatedDirections.size() == 4u,
+                "resolveGeneratedDirections should synthesize one circular direction per generated streak burst count.",
+                outFail)) {
+        return false;
+    }
+    pass.generatedDirectionMode = "sphere";
+    pass.generatedDirectionCount = 6;
+    pass.generatedDirectionStartDeg = 0.0f;
+    pass.generatedDirectionArcDeg = 360.0f;
+    pass.generatedDirectionForward = 0.0f;
+    const auto sphereDirections = resolveGeneratedDirections(pass);
+    if (!expect(sphereDirections.size() == 6u,
+                "resolveGeneratedDirections should synthesize one spherical direction per generated streak burst count.",
+                outFail)) {
+        return false;
+    }
+    bool foundPositiveY = false;
+    bool foundNegativeY = false;
+    for (const glm::vec3& dir : sphereDirections) {
+        foundPositiveY = foundPositiveY || dir.y > 0.15f;
+        foundNegativeY = foundNegativeY || dir.y < -0.15f;
+    }
+    if (!expect(foundPositiveY && foundNegativeY,
+                "Spherical generated directions should fan streaks above and below the impact plane instead of staying flat.",
+                outFail)) {
+        return false;
+    }
+    pass.renderMode.clear();
+    pass.fragShaderPath.clear();
+    pass.generatedDirectionMode = "circle";
+    pass.generatedDirectionCount = 0;
 
     config.fragShaderPath = "assets/shaders/vfx/moves/growl/growl_ring_shared.frag";
     pass.fragShaderPath = "assets/shaders/vfx/moves/growl/growl_quarter_ring_shared.frag";

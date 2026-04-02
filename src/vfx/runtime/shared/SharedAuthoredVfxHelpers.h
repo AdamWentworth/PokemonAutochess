@@ -24,6 +24,7 @@ std::uint8_t resolveBlendMode(const SharedAuthoredBatchVFX::Config& config,
 
 bool isLinePass(const SharedAuthoredBatchVFX::Config& config,
                 const SharedAuthoredBatchVFX::Config::DrawPass& pass);
+bool isStreakQuadPass(const SharedAuthoredBatchVFX::Config::DrawPass& pass);
 
 bool usesQuarterTextureBake(const SharedAuthoredBatchVFX::Config& config,
                             const SharedAuthoredBatchVFX::Config::DrawPass& pass);
@@ -43,6 +44,9 @@ bool bakePassTextureRgba(const SharedAuthoredBatchVFX::Config::DrawPass& pass,
                          bool quarterPass,
                          const std::vector<unsigned char>& rawRgba,
                          std::vector<unsigned char>& outRgba);
+
+std::vector<glm::vec3> resolveGeneratedDirections(
+    const SharedAuthoredBatchVFX::Config::DrawPass& pass);
 
 float quantizeLineVertexAlpha(float srcAlpha, float lineTevK1A, float colorAlpha);
 

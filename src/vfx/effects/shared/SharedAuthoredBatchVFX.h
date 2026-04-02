@@ -52,9 +52,18 @@ public:
             glm::vec3 directionLocal = glm::vec3(0.0f, 0.0f, 1.0f);
             // Optional multi-line fan for line passes.
             std::vector<glm::vec3> directionsLocal;
+            // Optional generated circular direction set when directions_local is omitted.
+            int generatedDirectionCount = 0;
+            std::string generatedDirectionMode = "circle";
+            float generatedDirectionStartDeg = 0.0f;
+            float generatedDirectionArcDeg = 360.0f;
+            float generatedDirectionForward = 0.0f;
             // Per-emission angular jitter for directions_local (degrees).
             // 0 = disabled (uses authored even spacing as-is).
             float directionSpacingJitterDeg = 0.0f;
+            // Random radial spawn distance multiplier for per-direction clumps / streaks.
+            float radialDistanceMinMul = 1.0f;
+            float radialDistanceMaxMul = 1.0f;
             // Per-line alpha variation range (multiplies alpha_mul), for dynamic line brightness.
             float lineAlphaMin = 1.0f;
             float lineAlphaMax = 1.0f;
@@ -209,8 +218,10 @@ private:
     void applyDrawManifestOverrides();
     void ensureQuarterQuadResources();
     void ensureCenteredQuadResources();
+    void ensureStreakQuadResources();
     void drawQuarterQuad(const Camera3D& camera, const glm::mat4& world, int locMVP) const;
     void drawCenteredQuad(const Camera3D& camera, const glm::mat4& world, int locMVP) const;
+    void drawStreakQuad(const Camera3D& camera, const glm::mat4& world, int locMVP) const;
     float rand01();
     float randRange(float a, float b);
     glm::vec3 safeForwardXZ(const glm::vec3& v) const;
@@ -227,6 +238,8 @@ private:
     unsigned int quarterQuadVBO = 0;
     unsigned int centeredQuadVAO = 0;
     unsigned int centeredQuadVBO = 0;
+    unsigned int streakQuadVAO = 0;
+    unsigned int streakQuadVBO = 0;
 
     engine::XorShift32 rng{0xA17F2Du};
 };

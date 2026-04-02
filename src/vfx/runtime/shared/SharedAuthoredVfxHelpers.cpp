@@ -66,7 +66,14 @@ std::uint8_t resolveBlendMode(const SharedAuthoredBatchVFX::Config& config,
 
 bool isLinePass(const SharedAuthoredBatchVFX::Config& config,
                 const SharedAuthoredBatchVFX::Config::DrawPass& pass) {
-    return effectiveFragPath(config, pass).find("growl_line_shared") != std::string::npos;
+    if (toLowerCopyLocal(pass.renderMode) == "streak_quad") return true;
+    const std::string fragPath = effectiveFragPath(config, pass);
+    return fragPath.find("growl_line_shared") != std::string::npos ||
+           fragPath.find("authored_line_shared") != std::string::npos;
+}
+
+bool isStreakQuadPass(const SharedAuthoredBatchVFX::Config::DrawPass& pass) {
+    return toLowerCopyLocal(pass.renderMode) == "streak_quad";
 }
 
 bool usesQuarterTextureBake(const SharedAuthoredBatchVFX::Config& config,
@@ -169,6 +176,58 @@ bool bakePassTextureRgba(const SharedAuthoredBatchVFX::Config::DrawPass& pass,
     }
 
     return true;
+}
+
+std::vector<glm::vec3> resolveGeneratedDirections(
+    const SharedAuthoredBatchVFX::Config::DrawPass& pass) {
+    if (!pass.directionsLocal.empty()) return pass.directionsLocal;
+
+    std::vector<glm::vec3> directions;
+    if (pass.generatedDirectionCount > 0) {
+        directions.reserve(static_cast<std::size_t>(pass.generatedDirectionCount));
+        const int count = std::max(1, pass.generatedDirectionCount);
+        const std::string mode = toLowerCopyLocal(pass.generatedDirectionMode);
+        if (mode == "sphere" || mode == "spherical") {
+            const float startRad = glm::radians(pass.generatedDirectionStartDeg);
+            const float arcRad = glm::radians(pass.generatedDirectionArcDeg);
+            const float goldenAngle = glm::pi<float>() * (3.0f - std::sqrt(5.0f));
+            for (int i = 0; i < count; ++i) {
+                const float t = (static_cast<float>(i) + 0.5f) / static_cast<float>(count);
+                const float y = 1.0f - 2.0f * t;
+                const float radial = std::sqrt(std::max(0.0f, 1.0f - y * y));
+                const float theta = (pass.generatedDirectionArcDeg >= 359.9f)
+                    ? (startRad + goldenAngle * static_cast<float>(i))
+                    : (startRad + arcRad * t);
+                glm::vec3 dir(
+                    std::cos(theta) * radial,
+                    y,
+                    std::sin(theta) * radial);
+                if (std::abs(pass.generatedDirectionForward) > 0.0001f) {
+                    dir.z += pass.generatedDirectionForward;
+                    if (glm::dot(dir, dir) > 0.000001f) {
+                        dir = glm::normalize(dir);
+                    }
+                }
+                directions.push_back(dir);
+            }
+        } else {
+            const float arcDeg = pass.generatedDirectionArcDeg;
+            const float stepDeg = (count <= 1) ? 0.0f : (arcDeg / static_cast<float>(count));
+            for (int i = 0; i < count; ++i) {
+                const float angleDeg = pass.generatedDirectionStartDeg + stepDeg * static_cast<float>(i);
+                const float angleRad = glm::radians(angleDeg);
+                directions.emplace_back(
+                    std::cos(angleRad),
+                    std::sin(angleRad),
+                    pass.generatedDirectionForward);
+            }
+        }
+        return directions;
+    }
+
+    directions.push_back(
+        pass.overrideDirection ? pass.directionLocal : glm::vec3(0.0f, 0.0f, 1.0f));
+    return directions;
 }
 
 float quantizeLineVertexAlpha(float srcAlpha, float lineTevK1A, float colorAlpha) {

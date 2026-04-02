@@ -672,6 +672,56 @@ bool test_shared_authored_vfx_batches_contract(std::string& outFail) {
         return false;
     }
 
+    SharedAuthoredBatchVFX::Config::DrawPass streakPass = linePass;
+    streakPass.id = "shared_test_streak_quad";
+    streakPass.renderMode = "streak_quad";
+    streakPass.meshPath.clear();
+    streakPass.vertShaderPath = "assets/shaders/vfx/shared/authored_line_shared.vert";
+    streakPass.fragShaderPath = "assets/shaders/vfx/shared/authored_line_shared.frag";
+    streakPass.generatedDirectionCount = 4;
+    streakPass.generatedDirectionStartDeg = 0.0f;
+    streakPass.generatedDirectionArcDeg = 360.0f;
+    streakPass.generatedDirectionForward = 0.0f;
+    streakPass.directionSpacingJitterDeg = 6.0f;
+    streakPass.radialDistanceMinMul = 0.4f;
+    streakPass.radialDistanceMaxMul = 1.1f;
+
+    const auto streakTev = vfx::runtime::authored::resolveTevState(snapshot.config, streakPass);
+    std::vector<Batch> streakBatches;
+    const bool streakAppended =
+        appendPassBatch(streakBatches,
+                        snapshot,
+                        streakPass,
+                        streakTev,
+                        nullptr,
+                        tex,
+                        glm::vec3(0.0f, 1.0f, 4.0f));
+
+    if (!expect(streakAppended && streakBatches.size() == 1u,
+                "Shared streak-quad passes should append one combined batch without requiring an authored mesh asset.",
+                outFail)) {
+        return false;
+    }
+
+    const auto& streakBatch = streakBatches.front();
+    if (!expect(streakBatch.sharedVertexCount == 4u &&
+                    streakBatch.sharedIndexCount == 6u &&
+                    streakBatch.instances.size() == 4u,
+                "Shared streak-quad batching should use one shared quad and one instance per generated direction.",
+                outFail)) {
+        return false;
+    }
+    if (!expect(streakBatch.geometryCacheKey == "__authored_vfx_geom_streak_quad_v1__:1000",
+                "Shared streak-quad batching should use a stable geometry cache key with quantized alpha state.",
+                outFail)) {
+        return false;
+    }
+    if (!expect(streakBatch.textureCacheKey == "__authored_vfx_white__",
+                "Shared streak-quad batching should use the white texture cache entry like other untextured line-style passes.",
+                outFail)) {
+        return false;
+    }
+
     SharedAuthoredBatchVFX::Config::DrawPass sequencedLinePass = linePass;
     sequencedLinePass.id = "growl_test_line_sequence";
     sequencedLinePass.sequenceCount = 3;

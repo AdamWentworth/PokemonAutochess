@@ -119,6 +119,22 @@ float fastLaunch01(float t) {
     return 1.0f - inv * inv * inv;
 }
 
+float resolveRadialDistanceMul(const SharedAuthoredBatchVFX::Config::DrawPass& pass,
+                               std::uint32_t randomSeed,
+                               std::size_t dirIndex,
+                               int sequenceIndex) {
+    float minMul = std::max(0.0f, pass.radialDistanceMinMul);
+    float maxMul = std::max(0.0f, pass.radialDistanceMaxMul);
+    if (maxMul < minMul) std::swap(minMul, maxMul);
+    if (std::abs(maxMul - minMul) <= 0.0001f) return minMul;
+
+    const std::uint32_t passSalt = static_cast<std::uint32_t>(pass.eid) * 0x9e3779b9u;
+    const std::uint32_t dirSalt = static_cast<std::uint32_t>(dirIndex) * 0x85ebca6bu;
+    const std::uint32_t seqSalt = static_cast<std::uint32_t>(sequenceIndex + 17) * 0xc2b2ae35u;
+    const float noise = hash01(randomSeed ^ passSalt ^ dirSalt ^ seqSalt ^ 0x6d2b79f5u);
+    return glm::mix(minMul, maxMul, noise);
+}
+
 std::uint8_t clampBlendMode(int value) {
     return static_cast<std::uint8_t>(std::clamp(value, 0, 2));
 }
@@ -351,8 +367,25 @@ void SharedAuthoredBatchVFX::applyDrawManifestOverrides() {
                     p.directionsLocal = std::move(directionsLocal);
                     p.overrideDirection = true;
                 }
+                p.generatedDirectionCount =
+                    std::max(0, it.value("generated_direction_count", p.generatedDirectionCount));
+                p.generatedDirectionMode =
+                    it.value("generated_direction_mode", p.generatedDirectionMode);
+                p.generatedDirectionStartDeg =
+                    it.value("generated_direction_start_deg", p.generatedDirectionStartDeg);
+                p.generatedDirectionArcDeg =
+                    it.value("generated_direction_arc_deg", p.generatedDirectionArcDeg);
+                p.generatedDirectionForward =
+                    it.value("generated_direction_forward", p.generatedDirectionForward);
                 p.directionSpacingJitterDeg =
                     std::max(0.0f, it.value("direction_spacing_jitter_deg", p.directionSpacingJitterDeg));
+                p.radialDistanceMinMul =
+                    std::max(0.0f, it.value("radial_distance_min_mul", p.radialDistanceMinMul));
+                p.radialDistanceMaxMul =
+                    std::max(0.0f, it.value("radial_distance_max_mul", p.radialDistanceMaxMul));
+                if (p.radialDistanceMaxMul < p.radialDistanceMinMul) {
+                    std::swap(p.radialDistanceMinMul, p.radialDistanceMaxMul);
+                }
                 p.lineAlphaMin = std::max(0.0f, it.value("line_alpha_min", p.lineAlphaMin));
                 p.lineAlphaMax = std::max(0.0f, it.value("line_alpha_max", p.lineAlphaMax));
                 if (p.lineAlphaMax < p.lineAlphaMin) std::swap(p.lineAlphaMin, p.lineAlphaMax);
@@ -375,8 +408,9 @@ void SharedAuthoredBatchVFX::applyDrawManifestOverrides() {
                 }
 
                 const bool glowBillboardPass = toLowerCopy(p.renderMode) == "glow_billboard";
+                const bool streakQuadPass = vfx::runtime::authored::isStreakQuadPass(p);
                 if (p.textureQuarterRing && !it.contains("mesh")) p.meshPath.clear();
-                if (!p.meshPath.empty() || p.textureQuarterRing || glowBillboardPass) {
+                if (!p.meshPath.empty() || p.textureQuarterRing || glowBillboardPass || streakQuadPass) {
                     parsed.push_back(std::move(p));
                 }
             }
@@ -413,6 +447,14 @@ void SharedAuthoredBatchVFX::releaseResources() {
     if (centeredQuadVAO != 0) {
         glDeleteVertexArrays(1, &centeredQuadVAO);
         centeredQuadVAO = 0;
+    }
+    if (streakQuadVBO != 0) {
+        glDeleteBuffers(1, &streakQuadVBO);
+        streakQuadVBO = 0;
+    }
+    if (streakQuadVAO != 0) {
+        glDeleteVertexArrays(1, &streakQuadVAO);
+        streakQuadVAO = 0;
     }
     drawPasses.clear();
     configured = false;
@@ -475,6 +517,34 @@ void SharedAuthoredBatchVFX::ensureCenteredQuadResources() {
     glBindVertexArray(0);
 }
 
+void SharedAuthoredBatchVFX::ensureStreakQuadResources() {
+    if (streakQuadVAO != 0 && streakQuadVBO != 0) return;
+
+    static const float kVerts[] = {
+        // pos.xyz         color.rgba
+        -0.18f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f, 0.0f,
+         0.18f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f, 0.0f,
+        -0.02f, 0.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+         0.02f, 0.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+    };
+
+    glGenVertexArrays(1, &streakQuadVAO);
+    glGenBuffers(1, &streakQuadVBO);
+
+    glBindVertexArray(streakQuadVAO);
+    glBindBuffer(GL_ARRAY_BUFFER, streakQuadVBO);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(kVerts), kVerts, GL_STATIC_DRAW);
+
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 7 * sizeof(float), (void*)0);
+
+    glEnableVertexAttribArray(4);
+    glVertexAttribPointer(4, 4, GL_FLOAT, GL_FALSE, 7 * sizeof(float), (void*)(3 * sizeof(float)));
+
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+    glBindVertexArray(0);
+}
+
 void SharedAuthoredBatchVFX::drawQuarterQuad(const Camera3D& camera, const glm::mat4& world, int locMVP) const {
     if (quarterQuadVAO == 0 || locMVP < 0) return;
     const glm::mat4 mvp = camera.getProjectionMatrix() * camera.getViewMatrix() * world;
@@ -488,6 +558,14 @@ void SharedAuthoredBatchVFX::drawCenteredQuad(const Camera3D& camera, const glm:
     const glm::mat4 mvp = camera.getProjectionMatrix() * camera.getViewMatrix() * world;
     glUniformMatrix4fv(locMVP, 1, GL_FALSE, glm::value_ptr(mvp));
     glBindVertexArray(centeredQuadVAO);
+    glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+}
+
+void SharedAuthoredBatchVFX::drawStreakQuad(const Camera3D& camera, const glm::mat4& world, int locMVP) const {
+    if (streakQuadVAO == 0 || locMVP < 0) return;
+    const glm::mat4 mvp = camera.getProjectionMatrix() * camera.getViewMatrix() * world;
+    glUniformMatrix4fv(locMVP, 1, GL_FALSE, glm::value_ptr(mvp));
+    glBindVertexArray(streakQuadVAO);
     glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 }
 
@@ -506,10 +584,13 @@ void SharedAuthoredBatchVFX::ensureConfigured() {
             DrawPassRuntime runtime;
             runtime.cfg = passCfg;
             const bool glowBillboardPass = toLowerCopy(passCfg.renderMode) == "glow_billboard";
+            const bool streakQuadPass = vfx::runtime::authored::isStreakQuadPass(passCfg);
             if (passCfg.textureQuarterRing) {
                 ensureQuarterQuadResources();
             } else if (glowBillboardPass) {
                 ensureCenteredQuadResources();
+            } else if (streakQuadPass) {
+                ensureStreakQuadResources();
             } else if (!passCfg.meshPath.empty()) {
                 runtime.meshModel = std::make_unique<Model>(passCfg.meshPath);
             } else {
@@ -669,11 +750,14 @@ void SharedAuthoredBatchVFX::render(const Camera3D& camera) {
         const bool drawMesh = (pass.meshModel != nullptr);
         const bool drawQuarterRing = pass.cfg.textureQuarterRing;
         const bool drawGlowBillboard = toLowerCopy(pass.cfg.renderMode) == "glow_billboard";
+        const bool streakQuadPass = vfx::runtime::authored::isStreakQuadPass(pass.cfg);
         const bool drawLinePass =
             (pass.cfg.fragShaderPath.find("growl_line_shared") != std::string::npos) ||
+            (pass.cfg.fragShaderPath.find("authored_line_shared") != std::string::npos) ||
             (pass.cfg.fragShaderPath.empty() &&
-             cfg.fragShaderPath.find("growl_line_shared") != std::string::npos);
-        if ((!drawMesh && !drawQuarterRing && !drawGlowBillboard) ||
+             (cfg.fragShaderPath.find("growl_line_shared") != std::string::npos ||
+              cfg.fragShaderPath.find("authored_line_shared") != std::string::npos));
+        if ((!drawMesh && !drawQuarterRing && !drawGlowBillboard && !streakQuadPass) ||
             !pass.shader || pass.textureID == 0 || !pass.cfg.enabled) continue;
 
         const glm::vec3 passMeshForwardAxis =
@@ -733,15 +817,9 @@ void SharedAuthoredBatchVFX::render(const Camera3D& camera) {
             if (glm::dot(up, up) <= 0.0001f) up = glm::vec3(0.0f, 1.0f, 0.0f);
             else up = glm::normalize(up);
 
-            std::vector<glm::vec3> localDirectionsFallback;
-            const std::vector<glm::vec3>* localDirections = &pass.cfg.directionsLocal;
-            if (localDirections->empty()) {
-                localDirectionsFallback.push_back(
-                    pass.cfg.overrideDirection
-                        ? pass.cfg.directionLocal
-                        : glm::vec3(0.0f, 0.0f, 1.0f));
-                localDirections = &localDirectionsFallback;
-            }
+            std::vector<glm::vec3> localDirectionsFallback =
+                vfx::runtime::authored::resolveGeneratedDirections(pass.cfg);
+            const std::vector<glm::vec3>* localDirections = &localDirectionsFallback;
             const int sequenceCount =
                 std::max(1, pass.cfg.sequenceCount);
             const int delayedSequenceIndex =
@@ -811,7 +889,10 @@ void SharedAuthoredBatchVFX::render(const Camera3D& camera) {
                 const glm::quat passRot = rotationFromToSafe(meshForwardLocal, passForward);
                 // heightOffset controls base radial spawn spread. startRadiusMul scales that spread
                 // without changing direction angles.
-                const float radialRadius = pass.cfg.heightOffset * std::max(0.0f, pass.cfg.startRadiusMul);
+                const float radialDistanceMul =
+                    resolveRadialDistanceMul(pass.cfg, r.randomSeed, dirIndex, delayedSinglePass ? delayedSequenceIndex : 0);
+                const float radialRadius =
+                    pass.cfg.heightOffset * std::max(0.0f, pass.cfg.startRadiusMul) * radialDistanceMul;
                 const glm::vec3 radialStartOffset =
                     (right * localDirBasisRaw.x + up * localDirBasisRaw.y) * radialRadius;
                 const glm::vec3 passPosBase =
@@ -907,6 +988,8 @@ void SharedAuthoredBatchVFX::render(const Camera3D& camera) {
                         }
                     } else if (drawGlowBillboard) {
                         drawCenteredQuad(camera, world, pass.locMVP);
+                    } else if (streakQuadPass) {
+                        drawStreakQuad(camera, world, pass.locMVP);
                     } else {
                         pass.meshModel->drawGeometryWithBoundShader(camera, world, pass.locMVP);
                     }
