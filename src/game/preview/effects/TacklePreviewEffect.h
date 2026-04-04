@@ -28,6 +28,8 @@ public:
     engine::tools::vfx_preview::PreviewPokemonSpeciesSelection previewPokemonSpecies() const override;
     bool wantsExactClipMotionPreview() const override;
     bool wantsTargetSurfaceImpactPoint() const override;
+    engine::tools::vfx_preview::PreviewEffectFocusFrame previewFocusFrame(
+        const engine::tools::vfx_preview::PreviewSceneState& scene) const override;
     std::vector<std::string> overlayLines(
         const engine::tools::vfx_preview::PreviewSceneState& scene) const override;
 

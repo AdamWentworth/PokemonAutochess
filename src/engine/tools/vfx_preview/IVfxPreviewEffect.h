@@ -50,6 +50,10 @@ public:
     virtual bool wantsTargetSurfaceImpactPoint() const {
         return false;
     }
+    virtual PreviewEffectFocusFrame previewFocusFrame(const PreviewSceneState& scene) const {
+        (void)scene;
+        return {};
+    }
     virtual std::vector<std::string> overlayLines(const PreviewSceneState& scene) const {
         (void)scene;
         return {};

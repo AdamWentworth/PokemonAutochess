@@ -41,24 +41,30 @@ GrowlPreviewController::~GrowlPreviewController() = default;
 void GrowlPreviewController::onActivated(engine::tools::vfx_preview::PreviewSceneState& scene) {
     scene.emitter.y = 0.42f;
     scene.target.y = 0.35f;
+    captureScene(scene);
     ensureConfigured();
 }
 
 void GrowlPreviewController::replay(const engine::tools::vfx_preview::PreviewSceneState& scene) {
+    captureScene(scene);
     accumulator_ = 0.0f;
+    frameCursor_ = 0;
     emit(scene);
 }
 
 void GrowlPreviewController::reload(const engine::tools::vfx_preview::PreviewSceneState& scene) {
+    captureScene(scene);
     refreshManifestWriteTime();
     effect_.setConfig(config_);
     accumulator_ = 0.0f;
+    frameCursor_ = 0;
     emit(scene);
     log("Reloaded Growl preview");
 }
 
 void GrowlPreviewController::update(float dt,
                                     const engine::tools::vfx_preview::PreviewSceneState& scene) {
+    captureScene(scene);
     pollManifestHotReload(scene);
 
     dt = std::max(0.0f, dt);
@@ -66,13 +72,26 @@ void GrowlPreviewController::update(float dt,
     while (accumulator_ >= kFixedDt) {
         effect_.update(kFixedDt);
         accumulator_ -= kFixedDt;
+        ++frameCursor_;
     }
 }
 
 void GrowlPreviewController::stepFrames(int frames) {
-    frames = std::max(0, frames);
-    for (int i = 0; i < frames; ++i) {
+    if (frames == 0 || !hasCapturedScene_) return;
+    accumulator_ = 0.0f;
+    if (frames > 0) {
+        for (int i = 0; i < frames; ++i) {
+            effect_.update(kFixedDt);
+            ++frameCursor_;
+        }
+        return;
+    }
+
+    const int targetFrame = std::max(0, frameCursor_ + frames);
+    resetToCapturedScene();
+    for (int i = 0; i < targetFrame; ++i) {
         effect_.update(kFixedDt);
+        ++frameCursor_;
     }
 }
 
@@ -104,6 +123,19 @@ void GrowlPreviewController::emit(
     effect_.emitFrom(scene.emitter, safeForwardXZ(scene.target - scene.emitter), nullptr);
 }
 
+void GrowlPreviewController::captureScene(const engine::tools::vfx_preview::PreviewSceneState& scene) {
+    capturedScene_ = scene;
+    hasCapturedScene_ = true;
+}
+
+void GrowlPreviewController::resetToCapturedScene() {
+    if (!hasCapturedScene_) return;
+    effect_.setConfig(config_);
+    accumulator_ = 0.0f;
+    frameCursor_ = 0;
+    emit(capturedScene_);
+}
+
 void GrowlPreviewController::refreshManifestWriteTime() {
     std::error_code ec;
     if (!std::filesystem::exists(manifestPath_, ec) || ec) {
@@ -128,6 +160,7 @@ void GrowlPreviewController::pollManifestHotReload(
     manifestWriteTime_ = latest;
     effect_.setConfig(config_);
     accumulator_ = 0.0f;
+    frameCursor_ = 0;
     emit(scene);
     log("Detected Growl manifest change, hot reloaded preview");
 }

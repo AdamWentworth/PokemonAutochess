@@ -20,6 +20,15 @@ struct PreviewSceneState {
     float timeScale = 1.0f;
 };
 
+struct PreviewEffectFocusFrame {
+    bool enabled = false;
+    glm::vec3 center{0.0f};
+    float radius = 1.0f;
+    float yawDeg = 20.0f;
+    float pitchDeg = 18.0f;
+    float distanceMul = 1.15f;
+};
+
 struct PreviewFrameContext {
     const Camera3D& camera;
     int surfaceWidth = 0;

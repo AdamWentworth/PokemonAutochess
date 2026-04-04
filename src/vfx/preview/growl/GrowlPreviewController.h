@@ -30,6 +30,8 @@ public:
 private:
     void ensureConfigured();
     void emit(const engine::tools::vfx_preview::PreviewSceneState& scene);
+    void captureScene(const engine::tools::vfx_preview::PreviewSceneState& scene);
+    void resetToCapturedScene();
     void refreshManifestWriteTime();
     void pollManifestHotReload(const engine::tools::vfx_preview::PreviewSceneState& scene);
     void log(const char* message) const;
@@ -41,6 +43,9 @@ private:
     std::unique_ptr<vfx::preview::authored::SharedAuthoredVfxRenderer> renderer_;
     std::string logPrefix_;
     float accumulator_ = 0.0f;
+    int frameCursor_ = 0;
+    bool hasCapturedScene_ = false;
+    engine::tools::vfx_preview::PreviewSceneState capturedScene_{};
 };
 
 } // namespace vfx::preview::growl

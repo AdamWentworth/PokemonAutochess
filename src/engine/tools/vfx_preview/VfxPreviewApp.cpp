@@ -56,6 +56,7 @@ constexpr float kEmitterHeightSpeed = 1.25f;
 constexpr float kMouseOrbitScale = 0.005f;
 constexpr float kMousePanScale = 0.02f;
 constexpr float kMouseWheelZoomStep = 0.5f;
+constexpr float kPreviewCameraFovDeg = 55.0f;
 
 struct PreviewScreenshotCaptureConfig {
     bool enabled = false;
@@ -135,6 +136,49 @@ bool parsePreviewBoolEnv(const char* name, bool defaultValue) {
         return false;
     }
     return defaultValue;
+}
+
+float parsePreviewFloatEnv(const char* name, float defaultValue) {
+    const auto value = engine::env::get(name);
+    if (!value.has_value()) return defaultValue;
+    try {
+        return std::stof(*value);
+    } catch (...) {
+        return defaultValue;
+    }
+}
+
+void applyEffectFocusFrame(Camera3D& camera,
+                           const IVfxPreviewEffect& effect,
+                           const PreviewSceneState& scene,
+                           float aspect,
+                           float tightnessMul) {
+    PreviewEffectFocusFrame focus = effect.previewFocusFrame(scene);
+    if (!focus.enabled) return;
+
+    focus.yawDeg = parsePreviewFloatEnv("PAC_VFX_PREVIEW_FOCUS_YAW_DEG", focus.yawDeg);
+    focus.pitchDeg = parsePreviewFloatEnv("PAC_VFX_PREVIEW_FOCUS_PITCH_DEG", focus.pitchDeg);
+    focus.distanceMul =
+        parsePreviewFloatEnv("PAC_VFX_PREVIEW_FOCUS_DISTANCE_MUL", focus.distanceMul);
+
+    const float safeAspect = std::max(0.1f, aspect);
+    const float radius = std::max(0.05f, focus.radius);
+    const float halfFovRad = glm::radians(kPreviewCameraFovDeg * 0.5f);
+    const float verticalDistance = radius / std::tan(std::max(0.05f, halfFovRad));
+    const float horizontalHalfFov = std::atan(std::tan(halfFovRad) * safeAspect);
+    const float horizontalDistance = radius / std::tan(std::max(0.05f, horizontalHalfFov));
+    const float baseDistance = std::max(verticalDistance, horizontalDistance);
+    const float distance =
+        std::max(0.45f, baseDistance * std::max(0.25f, focus.distanceMul) * std::max(0.25f, tightnessMul));
+    const float yawRad = glm::radians(focus.yawDeg);
+    const float pitchRad = glm::radians(focus.pitchDeg);
+    const float cp = std::cos(pitchRad);
+    const glm::vec3 offset(
+        std::sin(yawRad) * cp,
+        std::sin(pitchRad),
+        std::cos(yawRad) * cp);
+    camera.setPosition(focus.center + offset * distance);
+    camera.lookAt(focus.center);
 }
 
 PreviewAutoQuitConfig makeAutoQuitConfig() {
@@ -307,8 +351,8 @@ void printControls(const IVfxPreviewProject& project, std::size_t rigIndex) {
         << "[VfxPreviewer] Controls\n"
         << "  R: replay/reload current effect\n"
         << "  P: pause/resume\n"
-        << "  . : single-step one frame while paused\n"
-        << "  , : single-step five frames while paused\n"
+        << "  , : step back one frame while paused\n"
+        << "  . : step forward one frame while paused\n"
         << "  L: toggle auto-loop\n"
         << "  1 / 2 / 3 / 4 / 5: set speed to 0.25x / 0.5x / 1.0x / 2.0x / 3.0x\n"
         << "  - / =: step speed down/up through presets\n"
@@ -324,6 +368,7 @@ void printControls(const IVfxPreviewProject& project, std::size_t rigIndex) {
         std::cout << "  B: toggle secondary backdrop\n";
     }
     std::cout
+        << "  F: focus camera on active effect\n"
         << "  Z / X / C: toggle emitter / target / orientation guides\n"
         << "  WASD: move target marker\n"
         << "  Arrow keys: move emitter marker\n"
@@ -613,8 +658,8 @@ void renderOverlay(TextRenderer* text,
                            0.92f) ||
         !renderWrappedLine(
             multipleModes
-                ? "R replay/reload | Tab switch effect | [ ] prev/next mode | P pause | . / , step"
-                : "R replay/reload | Tab switch effect | P pause | . / , step",
+                ? "R replay/reload | Tab switch effect | [ ] prev/next mode | P pause | , back | . forward | F focus"
+                : "R replay/reload | Tab switch effect | P pause | , back | . forward | F focus",
                            glm::vec3(0.90f, 0.90f, 0.90f),
                            0.9f) ||
         !renderWrappedLine("Speed 1-5 presets (0.25x..3.0x) | -/= nudge speed | L loop",
@@ -717,7 +762,7 @@ int VfxPreviewApp::run() {
         drawableH = std::max(1, drawableH);
         glViewport(0, 0, drawableW, drawableH);
 
-        Camera3D camera(55.0f, static_cast<float>(drawableW) / static_cast<float>(drawableH), 0.05f, 100.0f);
+        Camera3D camera(kPreviewCameraFovDeg, static_cast<float>(drawableW) / static_cast<float>(drawableH), 0.05f, 100.0f);
         camera.setPosition(glm::vec3(0.0f, 4.9f, 7.1f));
         camera.lookAt(glm::vec3(0.0f, 0.45f, 2.0f));
 
@@ -740,6 +785,16 @@ int VfxPreviewApp::run() {
             project_->rigCount(),
             [&](std::size_t index) { return project_->rigName(index); });
         float loopReplayCooldownSec = 0.0f;
+        PreviewScreenshotCaptureConfig screenshotCapture = makeScreenshotCaptureConfig();
+        PreviewAutoQuitConfig autoQuit = makeAutoQuitConfig();
+        const bool autoFocusActiveEffect =
+            parsePreviewBoolEnv("PAC_VFX_PREVIEW_AUTO_FOCUS_EFFECT", screenshotCapture.enabled);
+        const float focusTightnessMul =
+            parsePreviewFloatEnv("PAC_VFX_PREVIEW_FOCUS_TIGHTNESS", 1.0f);
+        const float forcedFixedDtSec =
+            parsePreviewFloatEnv(
+                "PAC_VFX_PREVIEW_FIXED_DT_SECONDS",
+                screenshotCapture.enabled ? (1.0f / 60.0f) : -1.0f);
 
         auto activateCurrentEffect = [&](bool applyRigDefaults) {
             if (applyRigDefaults) {
@@ -748,6 +803,14 @@ int VfxPreviewApp::run() {
                 showSecondaryBackdrop = project_->defaultSecondaryBackdropEnabled(activeRigIndex);
             }
             project_->effectAt(activeEffectIndex).onActivated(scene);
+            if (autoFocusActiveEffect) {
+                applyEffectFocusFrame(
+                    camera,
+                    project_->effectAt(activeEffectIndex),
+                    scene,
+                    static_cast<float>(drawableW) / static_cast<float>(drawableH),
+                    focusTightnessMul);
+            }
             project_->onEffectActivated(activeEffectIndex);
             project_->constrainScene(activeRigIndex, scene);
             project_->requestReplay(activeEffectIndex, scene);
@@ -767,8 +830,6 @@ int VfxPreviewApp::run() {
         std::uint64_t debugFrameIndex = 0;
         const std::uint64_t startTicks = SDL_GetPerformanceCounter();
         std::uint64_t prevTicks = SDL_GetPerformanceCounter();
-        PreviewScreenshotCaptureConfig screenshotCapture = makeScreenshotCaptureConfig();
-        PreviewAutoQuitConfig autoQuit = makeAutoQuitConfig();
         if (screenshotCapture.enabled) {
             previewConsoleLog().info(
                 "[PreviewScreenshot] ARMED path=" + screenshotCapture.path +
@@ -836,12 +897,28 @@ int VfxPreviewApp::run() {
                         if (scene.paused) project_->effectAt(activeEffectIndex).stepFrames(1, scene);
                         break;
                     case SDLK_COMMA:
-                        if (scene.paused) project_->effectAt(activeEffectIndex).stepFrames(5, scene);
+                        if (scene.paused) project_->effectAt(activeEffectIndex).stepFrames(-1, scene);
                         break;
                     case SDLK_r:
                     case SDLK_F5:
                         project_->requestReload(activeEffectIndex, scene);
+                        if (autoFocusActiveEffect) {
+                            applyEffectFocusFrame(
+                                camera,
+                                project_->effectAt(activeEffectIndex),
+                                scene,
+                                static_cast<float>(drawableW) / static_cast<float>(drawableH),
+                                focusTightnessMul);
+                        }
                         loopReplayCooldownSec = 0.0f;
+                        break;
+                    case SDLK_f:
+                        applyEffectFocusFrame(
+                            camera,
+                            project_->effectAt(activeEffectIndex),
+                            scene,
+                            static_cast<float>(drawableW) / static_cast<float>(drawableH),
+                            focusTightnessMul);
                         break;
                     case SDLK_l: scene.loopPlayback = !scene.loopPlayback; break;
                     case SDLK_g:
@@ -914,6 +991,9 @@ int VfxPreviewApp::run() {
             }
             prevTicks = nowTicks;
             frameDt = std::clamp(frameDt, 0.0, 0.1);
+            if (forcedFixedDtSec > 0.0f) {
+                frameDt = forcedFixedDtSec;
+            }
 
             glm::vec3 targetMove(0.0f);
             glm::vec3 emitterMove(0.0f);

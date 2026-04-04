@@ -48,6 +48,19 @@ std::uint32_t TackleLabPreviewEffect::activeCount() const {
     return controller_->activeCount();
 }
 
+engine::tools::vfx_preview::PreviewEffectFocusFrame
+TackleLabPreviewEffect::previewFocusFrame(
+    const engine::tools::vfx_preview::PreviewSceneState& scene) const {
+    engine::tools::vfx_preview::PreviewEffectFocusFrame focus;
+    focus.enabled = true;
+    focus.center = scene.useCustomImpactPoint ? scene.impactPoint : scene.target;
+    focus.radius = 0.62f;
+    focus.yawDeg = -12.0f;
+    focus.pitchDeg = 16.0f;
+    focus.distanceMul = 1.05f;
+    return focus;
+}
+
 std::vector<std::string> TackleLabPreviewEffect::overlayLines(
     const engine::tools::vfx_preview::PreviewSceneState& scene) const {
     (void)scene;
