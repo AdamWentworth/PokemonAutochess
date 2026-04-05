@@ -343,6 +343,9 @@ void SharedAuthoredBatchVFX::applyDrawManifestOverrides() {
                 p.forwardOffset = it.value("forward_offset", p.forwardOffset);
                 p.heightOffset = it.value("height_offset", p.heightOffset);
                 p.startRadiusMul = it.value("start_radius_mul", p.startRadiusMul);
+                p.timeStartSec = std::max(0.0f, it.value("time_start_sec", p.timeStartSec));
+                p.timeEndSec = it.value("time_end_sec", p.timeEndSec);
+                p.timeFadeLocal = it.value("time_fade_local", p.timeFadeLocal);
                 p.sequenceCount = std::clamp(it.value("sequence_count", p.sequenceCount), 1, 16);
                 p.sequenceIndex = std::clamp(it.value("sequence_index", p.sequenceIndex), -1, 15);
                 p.sequenceStep = std::max(0.0f, it.value("sequence_step", p.sequenceStep));
@@ -828,18 +831,8 @@ void SharedAuthoredBatchVFX::render(const Camera3D& camera) {
             std::vector<glm::vec3> localDirectionsFallback =
                 vfx::runtime::authored::resolveGeneratedDirections(pass.cfg);
             const std::vector<glm::vec3>* localDirections = &localDirectionsFallback;
-            const int sequenceCount =
-                std::max(1, pass.cfg.sequenceCount);
-            const int delayedSequenceIndex =
-                (sequenceCount > 1) ? std::clamp(pass.cfg.sequenceIndex, -1, sequenceCount - 1) : -1;
-            const bool delayedSinglePass = delayedSequenceIndex >= 0;
-            const bool repeatedSequencePass =
-                ((drawQuarterRing || drawLinePass) && sequenceCount > 1 && !delayedSinglePass);
-            const int sequenceLoopCount = repeatedSequencePass ? sequenceCount : 1;
-            const float sequenceStep = std::max(0.0f, pass.cfg.sequenceStep);
-            const float sequenceLife = std::clamp(pass.cfg.sequenceLife, 0.01f, 1.0f);
-            const float sequenceTimelineSpan =
-                sequenceStep * static_cast<float>(sequenceCount - 1) + sequenceLife;
+            const auto timingPlan =
+                vfx::runtime::authored::planPassTiming(pass.cfg, drawQuarterRing || drawLinePass);
             const float radiusGrowthMul = std::max(1.0f, pass.cfg.radiusGrowthMul);
             const float fadeStart = glm::clamp(cfg.fadeStart, 0.0f, 1.0f);
             const float radiusMul = std::max(0.0f, pass.cfg.radiusMul);
@@ -898,7 +891,7 @@ void SharedAuthoredBatchVFX::render(const Camera3D& camera) {
                 // heightOffset controls base radial spawn spread. startRadiusMul scales that spread
                 // without changing direction angles.
                 const float radialDistanceMul =
-                    resolveRadialDistanceMul(pass.cfg, r.randomSeed, dirIndex, delayedSinglePass ? delayedSequenceIndex : 0);
+                    resolveRadialDistanceMul(pass.cfg, r.randomSeed, dirIndex, timingPlan.delayedSinglePass ? timingPlan.delayedSequenceIndex : 0);
                 const float radialRadius =
                     pass.cfg.heightOffset * std::max(0.0f, pass.cfg.startRadiusMul) * radialDistanceMul;
                 const glm::vec3 radialStartOffset =
@@ -906,72 +899,53 @@ void SharedAuthoredBatchVFX::render(const Camera3D& camera) {
                 const glm::vec3 passPosBase =
                     r.pos +
                     radialStartOffset;
-                for (int sequenceOrdinal = 0; sequenceOrdinal < sequenceLoopCount; ++sequenceOrdinal) {
-                    const int sequenceIndex = delayedSinglePass ? delayedSequenceIndex : sequenceOrdinal;
-                    float localAge01 = age01;
-                    if (repeatedSequencePass) {
-                        const float sequenceStart = sequenceStep * static_cast<float>(sequenceIndex);
-                        const float sequenceAge = age01 * sequenceTimelineSpan;
-                        localAge01 = (sequenceAge - sequenceStart) / sequenceLife;
-                        if (localAge01 < 0.0f || localAge01 > 1.0f) continue;
-                    } else if (delayedSinglePass) {
-                        if (!computeDelayedPassLaunchState(
-                                age01,
-                                sequenceStep,
-                                sequenceLife,
-                                sequenceCount,
-                                sequenceIndex,
-                                localAge01)) {
-                            continue;
-                        }
+                for (int sequenceOrdinal = 0; sequenceOrdinal < timingPlan.sequenceLoopCount; ++sequenceOrdinal) {
+                    vfx::runtime::authored::PassTimingState timingState;
+                    if (!vfx::runtime::authored::evaluatePassTiming(
+                            pass.cfg,
+                            r.ageSec,
+                            r.lifeSec,
+                            fadeStart,
+                            timingPlan,
+                            sequenceOrdinal,
+                            timingState)) {
+                        continue;
                     }
-
-                    float fade = 1.0f;
-                    if (delayedSinglePass) {
-                        if (pass.cfg.sequenceFadeLocal) {
-                            if (localAge01 >= 0.999f) {
-                                fade = 0.0f;
-                            } else if (localAge01 > fadeStart) {
-                                const float t =
-                                    (localAge01 - fadeStart) / std::max(0.0001f, (1.0f - fadeStart));
-                                fade = 1.0f - glm::clamp(t, 0.0f, 1.0f);
-                            }
-                        } else {
-                            fade = computeSharedDelayedFade(age01, fadeStart);
-                        }
-                    } else if (localAge01 > fadeStart) {
-                        const float t = (localAge01 - fadeStart) / std::max(0.0001f, (1.0f - fadeStart));
-                        fade = 1.0f - glm::clamp(t, 0.0f, 1.0f);
-                    }
+                    const float localAge01 = timingState.localAge01;
+                    const float fade = timingState.fade;
                     if (fade <= 0.001f) continue;
                     if (pass.locFade >= 0) glUniform1f(pass.locFade, fade);
 
                     float animatedScale = 0.0f;
-                    if (drawQuarterRing && repeatedSequencePass) {
+                    const bool localTimedPass =
+                        timingPlan.explicitTimeWindow ||
+                        timingPlan.delayedSinglePass ||
+                        timingPlan.repeatedSequencePass;
+                    if (drawQuarterRing && timingPlan.repeatedSequencePass) {
                         animatedScale =
                             std::max(0.0f, r.startScale) *
                             std::max(0.0f, pass.cfg.scaleMul) *
                             glm::mix(1.0f, radiusGrowthMul, localAge01);
-                    } else if (drawLinePass && (repeatedSequencePass || delayedSinglePass)) {
+                    } else if (drawLinePass && localTimedPass) {
                         animatedScale =
                             glm::mix(r.startScale, r.endScale, localAge01) *
                             std::max(0.0f, pass.cfg.scaleMul);
                     } else {
                         animatedScale =
-                            glm::mix(r.startScale, r.endScale, delayedSinglePass ? localAge01 : age01) *
+                            glm::mix(r.startScale, r.endScale, localTimedPass ? localAge01 : age01) *
                             std::max(0.0f, pass.cfg.scaleMul);
                     }
                     if (animatedScale <= 0.0001f) continue;
                     const glm::vec3 finalScale = glm::vec3(animatedScale) * axisScale;
                     const float tailAnchorOffset =
-                        (drawLinePass && (repeatedSequencePass || delayedSinglePass))
+                        (drawLinePass && localTimedPass)
                             ? (-meshForwardRange.x * animatedScale * meshForwardScale)
                             : 0.0f;
                     const float forwardTravel =
-                        (drawLinePass && (repeatedSequencePass || delayedSinglePass))
+                        (drawLinePass && localTimedPass)
                             ? (animatedScale * std::max(radiusMul, thicknessMul) * 1.5f *
                                glm::clamp(localAge01, 0.0f, 1.0f))
-                            : ((delayedSinglePass && !drawQuarterRing)
+                            : (((timingPlan.delayedSinglePass || timingPlan.explicitTimeWindow) && !drawQuarterRing)
                                    ? (pass.cfg.forwardOffset * fastLaunch01(localAge01))
                                    : pass.cfg.forwardOffset);
                     const glm::vec3 passPos =
@@ -988,7 +962,7 @@ void SharedAuthoredBatchVFX::render(const Camera3D& camera) {
                         }
                         worldRot = rotationFromToSafe(meshForwardLocal, toCamera);
                         const float spinRad =
-                            computeBillboardSpinRad(pass.cfg, delayedSinglePass ? localAge01 : age01);
+                            computeBillboardSpinRad(pass.cfg, localTimedPass ? localAge01 : age01);
                         if (std::abs(spinRad) > 0.0001f) {
                             worldRot *= glm::angleAxis(spinRad, meshForwardLocal);
                         }

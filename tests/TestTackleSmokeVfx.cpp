@@ -68,6 +68,11 @@ bool test_tackle_smoke_vfx_contract(std::string& outFail) {
     bool saw4159CenteredBurst = false;
     bool saw4160CenteredBurst = false;
     bool saw1253StreakBurst = false;
+    bool sawSmokeFrame5Window = false;
+    bool sawSmokeFrame6Window = false;
+    bool sawQuarterCoreWindow = false;
+    bool sawSpiralWindow = false;
+    bool sawSparkWindow = false;
     std::size_t totalBillboardDirections = 0u;
     for (const auto& pass : snapshot.drawPasses) {
         const bool is4156 = pass.texturePath.find("Texture4156.png") != std::string::npos;
@@ -108,6 +113,32 @@ bool test_tackle_smoke_vfx_contract(std::string& outFail) {
             (pass.eid == 1253 &&
              pass.renderMode == "streak_quad" &&
              pass.generatedDirectionCount == 42);
+        sawSmokeFrame5Window =
+            sawSmokeFrame5Window ||
+            ((pass.eid == 921 || pass.eid == 926) &&
+             std::abs(pass.timeStartSec - 0.167f) <= 0.0005f);
+        sawSmokeFrame6Window =
+            sawSmokeFrame6Window ||
+            ((pass.eid == 965 || pass.eid == 1004 || pass.eid == 1107 || pass.eid == 1176) &&
+             std::abs(pass.timeStartSec - 0.200f) <= 0.0005f);
+        sawQuarterCoreWindow =
+            sawQuarterCoreWindow ||
+            ((pass.eid == 1196 || pass.eid == 1210) &&
+             std::abs(pass.timeStartSec - 0.0f) <= 0.0005f &&
+             std::abs(pass.timeEndSec - 0.60f) <= 0.0005f &&
+             pass.timeFadeLocal);
+        sawSpiralWindow =
+            sawSpiralWindow ||
+            ((pass.eid == 1225 || pass.eid == 1234 || pass.eid == 1243) &&
+             std::abs(pass.timeStartSec - 0.0f) <= 0.0005f &&
+             std::abs(pass.timeEndSec - 0.533f) <= 0.0005f &&
+             pass.timeFadeLocal);
+        sawSparkWindow =
+            sawSparkWindow ||
+            (pass.eid == 1253 &&
+             std::abs(pass.timeStartSec - 0.0f) <= 0.0005f &&
+             std::abs(pass.timeEndSec - 0.40f) <= 0.0005f &&
+             pass.timeFadeLocal);
         totalBillboardDirections += std::max<std::size_t>(1u, pass.directionsLocal.size());
     }
 
@@ -143,6 +174,26 @@ bool test_tackle_smoke_vfx_contract(std::string& outFail) {
     }
     if (!expect(saw1253StreakBurst,
                 "Tackle should currently collapse the 1253-1540 captured line draws into one shared streak burst pass with 42 generated directions.",
+                outFail)) {
+        return false;
+    }
+    if (!expect(sawSmokeFrame5Window && sawSmokeFrame6Window,
+                "Tackle smoke should currently begin in two explicit 30 fps windows around frames 5 and 6.",
+                outFail)) {
+        return false;
+    }
+    if (!expect(sawQuarterCoreWindow,
+                "Tackle quarter-core passes should currently use an explicit local timing window through frame 18.",
+                outFail)) {
+        return false;
+    }
+    if (!expect(sawSpiralWindow,
+                "Tackle spiral impact cards should currently use an explicit local timing window through frame 16.",
+                outFail)) {
+        return false;
+    }
+    if (!expect(sawSparkWindow,
+                "Tackle sparks should currently use an explicit local timing window through frame 12.",
                 outFail)) {
         return false;
     }

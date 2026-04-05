@@ -17,6 +17,21 @@ struct TevState {
     float k1a = 1.0f;
 };
 
+struct PassTimingPlan {
+    bool explicitTimeWindow = false;
+    int rawSequenceCount = 1;
+    int delayedSequenceIndex = -1;
+    bool delayedSinglePass = false;
+    bool repeatedSequencePass = false;
+    int sequenceLoopCount = 1;
+};
+
+struct PassTimingState {
+    float globalAge01 = 0.0f;
+    float localAge01 = 0.0f;
+    float fade = 1.0f;
+};
+
 TevState resolveTevState(const SharedAuthoredBatchVFX::Config& config,
                          const SharedAuthoredBatchVFX::Config::DrawPass& pass);
 std::uint8_t resolveBlendMode(const SharedAuthoredBatchVFX::Config& config,
@@ -49,6 +64,16 @@ std::vector<glm::vec3> resolveGeneratedDirections(
     const SharedAuthoredBatchVFX::Config::DrawPass& pass);
 
 float quantizeLineVertexAlpha(float srcAlpha, float lineTevK1A, float colorAlpha);
+
+PassTimingPlan planPassTiming(const SharedAuthoredBatchVFX::Config::DrawPass& pass,
+                              bool allowRepeatedSequence);
+bool evaluatePassTiming(const SharedAuthoredBatchVFX::Config::DrawPass& pass,
+                        float ageSec,
+                        float lifeSec,
+                        float fadeStart,
+                        const PassTimingPlan& plan,
+                        int sequenceOrdinal,
+                        PassTimingState& outState);
 
 } // namespace vfx::runtime::authored
 

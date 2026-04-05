@@ -601,6 +601,63 @@ bool test_shared_authored_vfx_batches_contract(std::string& outFail) {
         return false;
     }
 
+    SharedAuthoredBatchVFX::Config::DrawPass timedGlowPass = glowPass;
+    timedGlowPass.id = "growl_test_glow_billboard_timed";
+    timedGlowPass.timeStartSec = 0.20f;
+    timedGlowPass.timeEndSec = 0.60f;
+    timedGlowPass.timeFadeLocal = true;
+
+    SharedAuthoredBatchVFX::RenderSnapshot timedGlowEarlySnapshot = snapshot;
+    timedGlowEarlySnapshot.rings.front().ageSec = 0.10f;
+    std::vector<Batch> timedGlowEarlyBatches;
+    const bool timedGlowEarlyAppended =
+        appendPassBatch(timedGlowEarlyBatches,
+                        timedGlowEarlySnapshot,
+                        timedGlowPass,
+                        meshTev,
+                        nullptr,
+                        tex,
+                        glm::vec3(0.0f, 1.0f, 4.0f));
+    if (!expect(!timedGlowEarlyAppended && timedGlowEarlyBatches.empty(),
+                "Timed glow billboard passes should stay hidden before their explicit start time.",
+                outFail)) {
+        return false;
+    }
+
+    SharedAuthoredBatchVFX::RenderSnapshot timedGlowLiveSnapshot = snapshot;
+    timedGlowLiveSnapshot.rings.front().ageSec = 0.35f;
+    std::vector<Batch> timedGlowLiveBatches;
+    const bool timedGlowLiveAppended =
+        appendPassBatch(timedGlowLiveBatches,
+                        timedGlowLiveSnapshot,
+                        timedGlowPass,
+                        meshTev,
+                        nullptr,
+                        tex,
+                        glm::vec3(0.0f, 1.0f, 4.0f));
+    if (!expect(timedGlowLiveAppended && timedGlowLiveBatches.size() == 1u,
+                "Timed glow billboard passes should appear during their explicit lifetime window.",
+                outFail)) {
+        return false;
+    }
+
+    SharedAuthoredBatchVFX::RenderSnapshot timedGlowLateSnapshot = snapshot;
+    timedGlowLateSnapshot.rings.front().ageSec = 0.80f;
+    std::vector<Batch> timedGlowLateBatches;
+    const bool timedGlowLateAppended =
+        appendPassBatch(timedGlowLateBatches,
+                        timedGlowLateSnapshot,
+                        timedGlowPass,
+                        meshTev,
+                        nullptr,
+                        tex,
+                        glm::vec3(0.0f, 1.0f, 4.0f));
+    if (!expect(!timedGlowLateAppended && timedGlowLateBatches.empty(),
+                "Timed glow billboard passes should disappear after their explicit end time.",
+                outFail)) {
+        return false;
+    }
+
     SharedAuthoredBatchVFX::Config::DrawPass glowClusterPass = glowPass;
     glowClusterPass.id = "growl_test_glow_billboard_cluster";
     glowClusterPass.heightOffset = 0.35f;
@@ -819,6 +876,63 @@ bool test_shared_authored_vfx_batches_contract(std::string& outFail) {
                         glm::vec3(0.0f, 1.0f, 4.0f));
     if (!expect(!delayedStreakLateAppended && delayedStreakLateBatches.empty(),
                 "Delayed streak-quad passes with local fade should disappear instead of lingering until the shared fade.",
+                outFail)) {
+        return false;
+    }
+
+    SharedAuthoredBatchVFX::Config::DrawPass timedStreakPass = streakPass;
+    timedStreakPass.id = "shared_test_streak_quad_timed";
+    timedStreakPass.timeStartSec = 0.05f;
+    timedStreakPass.timeEndSec = 0.40f;
+    timedStreakPass.timeFadeLocal = true;
+
+    SharedAuthoredBatchVFX::RenderSnapshot timedStreakEarlySnapshot = snapshot;
+    timedStreakEarlySnapshot.rings.front().ageSec = 0.02f;
+    std::vector<Batch> timedStreakEarlyBatches;
+    const bool timedStreakEarlyAppended =
+        appendPassBatch(timedStreakEarlyBatches,
+                        timedStreakEarlySnapshot,
+                        timedStreakPass,
+                        streakTev,
+                        nullptr,
+                        tex,
+                        glm::vec3(0.0f, 1.0f, 4.0f));
+    if (!expect(!timedStreakEarlyAppended && timedStreakEarlyBatches.empty(),
+                "Timed streak-quad passes should stay hidden before their explicit start time.",
+                outFail)) {
+        return false;
+    }
+
+    SharedAuthoredBatchVFX::RenderSnapshot timedStreakLiveSnapshot = snapshot;
+    timedStreakLiveSnapshot.rings.front().ageSec = 0.18f;
+    std::vector<Batch> timedStreakLiveBatches;
+    const bool timedStreakLiveAppended =
+        appendPassBatch(timedStreakLiveBatches,
+                        timedStreakLiveSnapshot,
+                        timedStreakPass,
+                        streakTev,
+                        nullptr,
+                        tex,
+                        glm::vec3(0.0f, 1.0f, 4.0f));
+    if (!expect(timedStreakLiveAppended && timedStreakLiveBatches.size() == 1u,
+                "Timed streak-quad passes should appear during their explicit lifetime window.",
+                outFail)) {
+        return false;
+    }
+
+    SharedAuthoredBatchVFX::RenderSnapshot timedStreakLateSnapshot = snapshot;
+    timedStreakLateSnapshot.rings.front().ageSec = 0.70f;
+    std::vector<Batch> timedStreakLateBatches;
+    const bool timedStreakLateAppended =
+        appendPassBatch(timedStreakLateBatches,
+                        timedStreakLateSnapshot,
+                        timedStreakPass,
+                        streakTev,
+                        nullptr,
+                        tex,
+                        glm::vec3(0.0f, 1.0f, 4.0f));
+    if (!expect(!timedStreakLateAppended && timedStreakLateBatches.empty(),
+                "Timed streak-quad passes should disappear after their explicit end time.",
                 outFail)) {
         return false;
     }

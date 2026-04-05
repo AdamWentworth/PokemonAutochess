@@ -42,6 +42,9 @@ public:
             float forwardOffset = 0.0f;
             float heightOffset = 0.0f;
             float startRadiusMul = 1.0f;
+            float timeStartSec = 0.0f;
+            float timeEndSec = -1.0f;
+            bool timeFadeLocal = false;
             int sequenceCount = 1;
             int sequenceIndex = -1;
             float sequenceStep = 0.0f;

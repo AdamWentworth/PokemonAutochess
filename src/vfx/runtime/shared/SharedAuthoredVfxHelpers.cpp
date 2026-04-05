@@ -37,6 +37,65 @@ float alpha6bit(float a) {
     return clamp01(std::floor(clamp01(a) * 63.0f + 0.5f) / 63.0f);
 }
 
+float computeLocalFade01(float localAge01, float fadeStart) {
+    if (localAge01 <= fadeStart) return 1.0f;
+    const float t = (localAge01 - fadeStart) / std::max(0.0001f, 1.0f - fadeStart);
+    return 1.0f - glm::clamp(t, 0.0f, 1.0f);
+}
+
+bool computePassSequenceState(const SharedAuthoredBatchVFX::Config::DrawPass& pass,
+                              int sequenceCount,
+                              float age01,
+                              float fadeStart,
+                              int sequenceIndex,
+                              float& outLocalAge01,
+                              float& outFade) {
+    if (sequenceCount <= 1) {
+        outLocalAge01 = age01;
+    } else {
+        const float sequenceLife = std::clamp(pass.sequenceLife, 0.01f, 1.0f);
+        const float sequenceStep = std::max(0.0f, pass.sequenceStep);
+        const float sequenceStart = sequenceStep * static_cast<float>(sequenceIndex);
+        const float sequenceTimelineSpan =
+            sequenceStep * static_cast<float>(sequenceCount - 1) + sequenceLife;
+        const float sequenceAge = age01 * sequenceTimelineSpan;
+        outLocalAge01 = (sequenceAge - sequenceStart) / sequenceLife;
+        if (outLocalAge01 < 0.0f || outLocalAge01 > 1.0f) return false;
+    }
+
+    outFade = computeLocalFade01(outLocalAge01, fadeStart);
+    return outFade > 0.001f;
+}
+
+bool computeDelayedPassLaunchState(const SharedAuthoredBatchVFX::Config::DrawPass& pass,
+                                   int sequenceCount,
+                                   float age01,
+                                   int sequenceIndex,
+                                   float& outLaunchAge01) {
+    if (sequenceCount <= 1) {
+        outLaunchAge01 = age01;
+        return true;
+    }
+
+    const float sequenceLife = std::clamp(pass.sequenceLife, 0.01f, 1.0f);
+    const float sequenceStep = std::max(0.0f, pass.sequenceStep);
+    const float sequenceStart = sequenceStep * static_cast<float>(sequenceIndex);
+    const float sequenceTimelineSpan =
+        sequenceStep * static_cast<float>(sequenceCount - 1) + sequenceLife;
+    const float sequenceAge = age01 * sequenceTimelineSpan;
+    if (sequenceAge < sequenceStart) return false;
+
+    outLaunchAge01 = glm::clamp((sequenceAge - sequenceStart) / sequenceLife, 0.0f, 1.0f);
+    return true;
+}
+
+float computeSharedDelayedFade(float age01, float fadeStart) {
+    const float delayedFadeStart = std::max(fadeStart, 0.92f);
+    if (age01 <= delayedFadeStart) return 1.0f;
+    const float t = (age01 - delayedFadeStart) / std::max(0.0001f, 1.0f - delayedFadeStart);
+    return 1.0f - glm::clamp(t, 0.0f, 1.0f);
+}
+
 std::string effectiveFragPath(const SharedAuthoredBatchVFX::Config& config,
                               const SharedAuthoredBatchVFX::Config::DrawPass& pass) {
     return toLowerCopyLocal(pass.fragShaderPath.empty() ? config.fragShaderPath : pass.fragShaderPath);
@@ -235,6 +294,81 @@ float quantizeLineVertexAlpha(float srcAlpha, float lineTevK1A, float colorAlpha
         std::clamp(clamp01(srcAlpha) * clamp01(lineTevK1A) * 255.0f, 0.0f, 255.0f);
     const float quantized = std::floor(alpha255 * 0.25f) / 63.0f;
     return std::clamp(clamp01(colorAlpha) * quantized, 0.0f, 1.0f);
+}
+
+PassTimingPlan planPassTiming(const SharedAuthoredBatchVFX::Config::DrawPass& pass,
+                              bool allowRepeatedSequence) {
+    PassTimingPlan plan;
+    plan.explicitTimeWindow =
+        (pass.timeStartSec > 0.0001f) || (pass.timeEndSec > pass.timeStartSec + 0.0001f);
+    if (plan.explicitTimeWindow) {
+        return plan;
+    }
+
+    plan.rawSequenceCount = std::max(1, pass.sequenceCount);
+    plan.delayedSequenceIndex =
+        (plan.rawSequenceCount > 1)
+            ? std::clamp(pass.sequenceIndex, -1, plan.rawSequenceCount - 1)
+            : -1;
+    plan.delayedSinglePass = plan.delayedSequenceIndex >= 0;
+    plan.repeatedSequencePass =
+        allowRepeatedSequence && plan.rawSequenceCount > 1 && !plan.delayedSinglePass;
+    plan.sequenceLoopCount = plan.repeatedSequencePass ? plan.rawSequenceCount : 1;
+    return plan;
+}
+
+bool evaluatePassTiming(const SharedAuthoredBatchVFX::Config::DrawPass& pass,
+                        float ageSec,
+                        float lifeSec,
+                        float fadeStart,
+                        const PassTimingPlan& plan,
+                        int sequenceOrdinal,
+                        PassTimingState& outState) {
+    const float safeLifeSec = std::max(0.0001f, lifeSec);
+    const float age01 = glm::clamp(ageSec / safeLifeSec, 0.0f, 1.0f);
+    outState.globalAge01 = age01;
+    outState.localAge01 = age01;
+    outState.fade = 1.0f;
+
+    if (plan.explicitTimeWindow) {
+        const float startSec = std::max(0.0f, pass.timeStartSec);
+        const float endSec =
+            (pass.timeEndSec > startSec + 0.0001f) ? pass.timeEndSec : safeLifeSec;
+        if (ageSec < startSec || ageSec > endSec) return false;
+        const float durationSec = std::max(0.0001f, endSec - startSec);
+        outState.localAge01 = glm::clamp((ageSec - startSec) / durationSec, 0.0f, 1.0f);
+        outState.fade = pass.timeFadeLocal ? computeLocalFade01(outState.localAge01, fadeStart) : 1.0f;
+        return outState.fade > 0.001f;
+    }
+
+    if (plan.repeatedSequencePass) {
+        return computePassSequenceState(
+            pass,
+            plan.rawSequenceCount,
+            age01,
+            fadeStart,
+            sequenceOrdinal,
+            outState.localAge01,
+            outState.fade);
+    }
+
+    if (plan.delayedSinglePass) {
+        if (!computeDelayedPassLaunchState(
+                pass,
+                plan.rawSequenceCount,
+                age01,
+                plan.delayedSequenceIndex,
+                outState.localAge01)) {
+            return false;
+        }
+        outState.fade = pass.sequenceFadeLocal
+            ? computeLocalFade01(outState.localAge01, fadeStart)
+            : computeSharedDelayedFade(age01, fadeStart);
+        return outState.fade > 0.001f;
+    }
+
+    outState.fade = computeLocalFade01(age01, fadeStart);
+    return outState.fade > 0.001f;
 }
 
 } // namespace vfx::runtime::authored
