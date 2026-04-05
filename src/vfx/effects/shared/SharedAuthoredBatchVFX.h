@@ -33,6 +33,8 @@ public:
             int quarterCount = 4;
             float quarterStepDeg = 90.0f;
             float quarterStartDeg = 0.0f;
+            float billboardSpinTurns = 0.0f;
+            float billboardSpinStartDeg = 0.0f;
             glm::vec3 tintColor = glm::vec3(0.93f, 0.28f, 0.14f);
             bool useAlphaMaskForColor = true;
             float scaleMul = 1.0f;
@@ -44,6 +46,7 @@ public:
             int sequenceIndex = -1;
             float sequenceStep = 0.0f;
             float sequenceLife = 1.0f;
+            bool sequenceFadeLocal = false;
             float radiusGrowthMul = 1.0f;
             bool overrideMeshForwardAxis = false;
             glm::vec3 meshForwardAxis = glm::vec3(0.0f, 1.0f, 0.0f);

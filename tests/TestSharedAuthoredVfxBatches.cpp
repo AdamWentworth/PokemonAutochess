@@ -196,6 +196,65 @@ bool test_shared_authored_vfx_batches_contract(std::string& outFail) {
         return false;
     }
 
+    SharedAuthoredBatchVFX::Config::DrawPass delayedQuarterLocalPass = pass;
+    delayedQuarterLocalPass.id = "growl_test_quarter_delayed_local";
+    delayedQuarterLocalPass.sequenceCount = 2;
+    delayedQuarterLocalPass.sequenceIndex = 1;
+    delayedQuarterLocalPass.sequenceStep = 0.30f;
+    delayedQuarterLocalPass.sequenceLife = 0.70f;
+    delayedQuarterLocalPass.sequenceFadeLocal = true;
+
+    SharedAuthoredBatchVFX::RenderSnapshot delayedQuarterEarlySnapshot = snapshot;
+    delayedQuarterEarlySnapshot.rings.front().ageSec = 0.20f;
+    std::vector<Batch> delayedQuarterEarlyBatches;
+    const bool delayedQuarterEarlyAppended =
+        appendPassBatch(delayedQuarterEarlyBatches,
+                        delayedQuarterEarlySnapshot,
+                        delayedQuarterLocalPass,
+                        tev,
+                        nullptr,
+                        tex,
+                        glm::vec3(0.0f, 1.0f, 4.0f));
+    if (!expect(!delayedQuarterEarlyAppended && delayedQuarterEarlyBatches.empty(),
+                "Quarter-ring passes with delayed local fade should stay hidden before their launch slot.",
+                outFail)) {
+        return false;
+    }
+
+    SharedAuthoredBatchVFX::RenderSnapshot delayedQuarterLiveSnapshot = snapshot;
+    delayedQuarterLiveSnapshot.rings.front().ageSec = 0.45f;
+    std::vector<Batch> delayedQuarterLiveBatches;
+    const bool delayedQuarterLiveAppended =
+        appendPassBatch(delayedQuarterLiveBatches,
+                        delayedQuarterLiveSnapshot,
+                        delayedQuarterLocalPass,
+                        tev,
+                        nullptr,
+                        tex,
+                        glm::vec3(0.0f, 1.0f, 4.0f));
+    if (!expect(delayedQuarterLiveAppended && delayedQuarterLiveBatches.size() == 1u,
+                "Quarter-ring passes with delayed local fade should appear during their local lifetime.",
+                outFail)) {
+        return false;
+    }
+
+    SharedAuthoredBatchVFX::RenderSnapshot delayedQuarterLateSnapshot = snapshot;
+    delayedQuarterLateSnapshot.rings.front().ageSec = delayedQuarterLateSnapshot.rings.front().lifeSec;
+    std::vector<Batch> delayedQuarterLateBatches;
+    const bool delayedQuarterLateAppended =
+        appendPassBatch(delayedQuarterLateBatches,
+                        delayedQuarterLateSnapshot,
+                        delayedQuarterLocalPass,
+                        tev,
+                        nullptr,
+                        tex,
+                        glm::vec3(0.0f, 1.0f, 4.0f));
+    if (!expect(!delayedQuarterLateAppended && delayedQuarterLateBatches.empty(),
+                "Quarter-ring passes with delayed local fade should disappear once their local timing window ends.",
+                outFail)) {
+        return false;
+    }
+
     SharedAuthoredBatchVFX::Config::DrawPass meshPass;
     meshPass.id = "growl_test_mesh";
     meshPass.eid = 77;
@@ -718,6 +777,48 @@ bool test_shared_authored_vfx_batches_contract(std::string& outFail) {
     }
     if (!expect(streakBatch.textureCacheKey == "__authored_vfx_white__",
                 "Shared streak-quad batching should use the white texture cache entry like other untextured line-style passes.",
+                outFail)) {
+        return false;
+    }
+
+    SharedAuthoredBatchVFX::Config::DrawPass delayedStreakPass = streakPass;
+    delayedStreakPass.id = "shared_test_streak_quad_delayed_local";
+    delayedStreakPass.sequenceCount = 2;
+    delayedStreakPass.sequenceIndex = 0;
+    delayedStreakPass.sequenceStep = 0.60f;
+    delayedStreakPass.sequenceLife = 0.40f;
+    delayedStreakPass.sequenceFadeLocal = true;
+
+    SharedAuthoredBatchVFX::RenderSnapshot delayedStreakLiveSnapshot = snapshot;
+    delayedStreakLiveSnapshot.rings.front().ageSec = 0.22f;
+    std::vector<Batch> delayedStreakLiveBatches;
+    const bool delayedStreakLiveAppended =
+        appendPassBatch(delayedStreakLiveBatches,
+                        delayedStreakLiveSnapshot,
+                        delayedStreakPass,
+                        streakTev,
+                        nullptr,
+                        tex,
+                        glm::vec3(0.0f, 1.0f, 4.0f));
+    if (!expect(delayedStreakLiveAppended && delayedStreakLiveBatches.size() == 1u,
+                "Delayed streak-quad passes with local fade should appear during their local timing window.",
+                outFail)) {
+        return false;
+    }
+
+    SharedAuthoredBatchVFX::RenderSnapshot delayedStreakLateSnapshot = snapshot;
+    delayedStreakLateSnapshot.rings.front().ageSec = 0.92f;
+    std::vector<Batch> delayedStreakLateBatches;
+    const bool delayedStreakLateAppended =
+        appendPassBatch(delayedStreakLateBatches,
+                        delayedStreakLateSnapshot,
+                        delayedStreakPass,
+                        streakTev,
+                        nullptr,
+                        tex,
+                        glm::vec3(0.0f, 1.0f, 4.0f));
+    if (!expect(!delayedStreakLateAppended && delayedStreakLateBatches.empty(),
+                "Delayed streak-quad passes with local fade should disappear instead of lingering until the shared fade.",
                 outFail)) {
         return false;
     }

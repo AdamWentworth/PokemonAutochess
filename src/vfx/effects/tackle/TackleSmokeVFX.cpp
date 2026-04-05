@@ -18,8 +18,8 @@ TackleSmokeVFX::Config TackleSmokeVFX::makeDefaultConfig() {
     config.ringForwardOffset = 0.0f;
     config.ringMinSpeed = 0.01f;
     config.ringMaxSpeed = 0.04f;
-    config.ringMinLifeSec = 0.66f;
-    config.ringMaxLifeSec = 0.96f;
+    config.ringMinLifeSec = 1.00f;
+    config.ringMaxLifeSec = 1.00f;
     config.ringMinSize = 0.88f;
     config.ringMaxSize = 1.08f;
     config.ringTrailCount = 0;

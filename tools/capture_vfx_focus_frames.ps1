@@ -9,6 +9,7 @@ param(
     [int]$EndFrame = 18,
     [string]$OutputDir = "debug/vfx_focus_frames",
     [double]$FocusTightness = 0.85,
+    [double]$FixedDtSeconds = (1.0 / 30.0),
     [int]$AutoQuitSeconds = 20
 )
 
@@ -64,6 +65,7 @@ function Invoke-FocusedFrameCapture {
         [int]$Frame,
         [string]$ShotPath,
         [double]$FocusTightness,
+        [double]$FixedDtSeconds,
         [int]$AutoQuitSeconds
     )
 
@@ -83,6 +85,7 @@ function Invoke-FocusedFrameCapture {
         Set-PreviewEnvVar -Name "PAC_VFX_PREVIEW_HIDE_HELP" -Value "1" -Backup $backup
         Set-PreviewEnvVar -Name "PAC_VFX_PREVIEW_HIDE_GUIDES" -Value "1" -Backup $backup
         Set-PreviewEnvVar -Name "PAC_PREVIEW_CHARACTER_INKING" -Value "0" -Backup $backup
+        Set-PreviewEnvVar -Name "PAC_VFX_PREVIEW_FIXED_DT_SECONDS" -Value "$FixedDtSeconds" -Backup $backup
 
         if (Test-Path $ShotPath) { Remove-Item $ShotPath -Force }
         if (Test-Path $stdoutPath) { Remove-Item $stdoutPath -Force }
@@ -160,6 +163,7 @@ for ($frame = $StartFrame; $frame -le $EndFrame; ++$frame) {
         -Frame $frame `
         -ShotPath $shotPath `
         -FocusTightness $FocusTightness `
+        -FixedDtSeconds $FixedDtSeconds `
         -AutoQuitSeconds $AutoQuitSeconds
 }
 

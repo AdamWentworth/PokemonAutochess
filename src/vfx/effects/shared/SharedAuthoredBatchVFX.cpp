@@ -190,6 +190,11 @@ float computeSharedDelayedFade(float age01, float fadeStart) {
     return 1.0f - glm::clamp(t, 0.0f, 1.0f);
 }
 
+float computeBillboardSpinRad(const SharedAuthoredBatchVFX::Config::DrawPass& pass, float age01) {
+    const float clampedAge01 = glm::clamp(age01, 0.0f, 1.0f);
+    return glm::radians(pass.billboardSpinStartDeg + 360.0f * pass.billboardSpinTurns * clampedAge01);
+}
+
 glm::vec2 meshProjectionRange(const Model* model, const glm::vec3& axis) {
     if (model == nullptr || !model->hasBounds()) return glm::vec2(0.0f);
     glm::vec3 normalizedAxis = axis;
@@ -330,6 +335,8 @@ void SharedAuthoredBatchVFX::applyDrawManifestOverrides() {
                 p.quarterCount = std::clamp(it.value("quarter_count", p.quarterCount), 1, 64);
                 p.quarterStepDeg = it.value("quarter_step_deg", p.quarterStepDeg);
                 p.quarterStartDeg = it.value("quarter_start_deg", p.quarterStartDeg);
+                p.billboardSpinTurns = it.value("billboard_spin_turns", p.billboardSpinTurns);
+                p.billboardSpinStartDeg = it.value("billboard_spin_start_deg", p.billboardSpinStartDeg);
                 p.useAlphaMaskForColor = it.value("use_alpha_mask_for_color", p.useAlphaMaskForColor);
                 p.scaleMul = it.value("scale_mul", p.scaleMul);
                 p.alphaMul = it.value("alpha_mul", p.alphaMul);
@@ -340,6 +347,7 @@ void SharedAuthoredBatchVFX::applyDrawManifestOverrides() {
                 p.sequenceIndex = std::clamp(it.value("sequence_index", p.sequenceIndex), -1, 15);
                 p.sequenceStep = std::max(0.0f, it.value("sequence_step", p.sequenceStep));
                 p.sequenceLife = std::clamp(it.value("sequence_life", p.sequenceLife), 0.01f, 1.0f);
+                p.sequenceFadeLocal = it.value("sequence_fade_local", p.sequenceFadeLocal);
                 p.radiusGrowthMul = std::max(0.0f, it.value("radius_growth_mul", p.radiusGrowthMul));
                 p.radiusMul = it.value("radius_mul", p.radiusMul);
                 p.thicknessMul = it.value("thickness_mul", p.thicknessMul);
@@ -920,7 +928,17 @@ void SharedAuthoredBatchVFX::render(const Camera3D& camera) {
 
                     float fade = 1.0f;
                     if (delayedSinglePass) {
-                        fade = computeSharedDelayedFade(age01, fadeStart);
+                        if (pass.cfg.sequenceFadeLocal) {
+                            if (localAge01 >= 0.999f) {
+                                fade = 0.0f;
+                            } else if (localAge01 > fadeStart) {
+                                const float t =
+                                    (localAge01 - fadeStart) / std::max(0.0001f, (1.0f - fadeStart));
+                                fade = 1.0f - glm::clamp(t, 0.0f, 1.0f);
+                            }
+                        } else {
+                            fade = computeSharedDelayedFade(age01, fadeStart);
+                        }
                     } else if (localAge01 > fadeStart) {
                         const float t = (localAge01 - fadeStart) / std::max(0.0001f, (1.0f - fadeStart));
                         fade = 1.0f - glm::clamp(t, 0.0f, 1.0f);
@@ -969,6 +987,11 @@ void SharedAuthoredBatchVFX::render(const Camera3D& camera) {
                             toCamera /= std::sqrt(toCameraLenSq);
                         }
                         worldRot = rotationFromToSafe(meshForwardLocal, toCamera);
+                        const float spinRad =
+                            computeBillboardSpinRad(pass.cfg, delayedSinglePass ? localAge01 : age01);
+                        if (std::abs(spinRad) > 0.0001f) {
+                            worldRot *= glm::angleAxis(spinRad, meshForwardLocal);
+                        }
                     }
                     const glm::mat4 world =
                         glm::translate(glm::mat4(1.0f), passPos) *
