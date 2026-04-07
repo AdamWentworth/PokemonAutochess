@@ -96,6 +96,68 @@ bool parseVec3ArrayList(const nlohmann::json& j, std::vector<glm::vec3>& out) {
     return true;
 }
 
+bool parseAuthoredStreakSegmentsArray(
+    const nlohmann::json& j,
+    std::vector<SharedAuthoredBatchVFX::Config::AuthoredStreakSegment>& out) {
+    if (!j.is_array()) return false;
+
+    std::vector<SharedAuthoredBatchVFX::Config::AuthoredStreakSegment> parsed;
+    parsed.reserve(j.size());
+    for (const auto& it : j) {
+        if (!it.is_object()) continue;
+
+        glm::vec3 startLocal(0.0f);
+        glm::vec3 endLocal(0.0f, 0.0f, 1.0f);
+        const bool hasStart =
+            (it.contains("start_local") && parseVec3Array(it["start_local"], startLocal)) ||
+            (it.contains("start") && parseVec3Array(it["start"], startLocal));
+        const bool hasEnd =
+            (it.contains("end_local") && parseVec3Array(it["end_local"], endLocal)) ||
+            (it.contains("end") && parseVec3Array(it["end"], endLocal));
+        if (!hasStart || !hasEnd) continue;
+        if (glm::dot(endLocal - startLocal, endLocal - startLocal) <= 0.000001f) continue;
+
+        SharedAuthoredBatchVFX::Config::AuthoredStreakSegment segment;
+        segment.startLocal = startLocal;
+        segment.endLocal = endLocal;
+        segment.alphaMul = std::max(0.0f, it.value("alpha_mul", segment.alphaMul));
+        parsed.push_back(segment);
+    }
+
+    if (parsed.empty()) return false;
+    out = std::move(parsed);
+    return true;
+}
+
+bool loadAuthoredStreakSegmentsFromPath(
+    const std::string& path,
+    std::vector<SharedAuthoredBatchVFX::Config::AuthoredStreakSegment>& out) {
+    if (path.empty()) return false;
+
+    std::vector<std::string> candidates;
+    candidates.push_back(path);
+    const std::string dataPath = engine::paths::data(path);
+    if (dataPath != path) candidates.push_back(dataPath);
+
+    for (const auto& candidate : candidates) {
+        std::ifstream in(candidate);
+        if (!in.is_open()) continue;
+
+        try {
+            nlohmann::json j;
+            in >> j;
+            if (j.is_object() && j.contains("segments") &&
+                parseAuthoredStreakSegmentsArray(j["segments"], out)) {
+                return true;
+            }
+            if (parseAuthoredStreakSegmentsArray(j, out)) return true;
+        } catch (const std::exception&) {
+        }
+    }
+
+    return false;
+}
+
 std::string toLowerCopy(std::string s) {
     std::transform(s.begin(), s.end(), s.begin(), [](unsigned char c) {
         return static_cast<char>(std::tolower(c));
@@ -346,6 +408,9 @@ void SharedAuthoredBatchVFX::applyDrawManifestOverrides() {
                 p.timeStartSec = std::max(0.0f, it.value("time_start_sec", p.timeStartSec));
                 p.timeEndSec = it.value("time_end_sec", p.timeEndSec);
                 p.timeFadeLocal = it.value("time_fade_local", p.timeFadeLocal);
+                p.timeFadeStart = it.value("time_fade_start", p.timeFadeStart);
+                p.localScaleStartMul = std::max(0.0f, it.value("local_scale_start_mul", p.localScaleStartMul));
+                p.localScaleEndMul = std::max(0.0f, it.value("local_scale_end_mul", p.localScaleEndMul));
                 p.sequenceCount = std::clamp(it.value("sequence_count", p.sequenceCount), 1, 16);
                 p.sequenceIndex = std::clamp(it.value("sequence_index", p.sequenceIndex), -1, 15);
                 p.sequenceStep = std::max(0.0f, it.value("sequence_step", p.sequenceStep));
@@ -378,6 +443,22 @@ void SharedAuthoredBatchVFX::applyDrawManifestOverrides() {
                     p.directionsLocal = std::move(directionsLocal);
                     p.overrideDirection = true;
                 }
+                p.authoredSegmentsPath =
+                    it.value("authored_segments_path", p.authoredSegmentsPath);
+                if (it.contains("authored_segments") &&
+                    parseAuthoredStreakSegmentsArray(it["authored_segments"], p.authoredSegmentsLocal)) {
+                    // parsed inline
+                } else if (!p.authoredSegmentsPath.empty()) {
+                    loadAuthoredStreakSegmentsFromPath(p.authoredSegmentsPath, p.authoredSegmentsLocal);
+                }
+                p.authoredSegmentCenterOrigin =
+                    it.value("authored_segment_center_origin", p.authoredSegmentCenterOrigin);
+                p.authoredSegmentPositionScale =
+                    std::max(0.0f, it.value("authored_segment_position_scale", p.authoredSegmentPositionScale));
+                p.authoredSegmentLengthScale =
+                    std::max(0.0f, it.value("authored_segment_length_scale", p.authoredSegmentLengthScale));
+                p.authoredSegmentTravelMul =
+                    std::max(0.0f, it.value("authored_segment_travel_mul", p.authoredSegmentTravelMul));
                 p.generatedDirectionCount =
                     std::max(0, it.value("generated_direction_count", p.generatedDirectionCount));
                 p.generatedDirectionMode =
@@ -828,6 +909,101 @@ void SharedAuthoredBatchVFX::render(const Camera3D& camera) {
             if (glm::dot(up, up) <= 0.0001f) up = glm::vec3(0.0f, 1.0f, 0.0f);
             else up = glm::normalize(up);
 
+            const auto& authoredSegments =
+                vfx::runtime::authored::resolveAuthoredStreakSegments(pass.cfg);
+            if (streakQuadPass && !authoredSegments.empty()) {
+                const auto timingPlan =
+                    vfx::runtime::authored::planPassTiming(pass.cfg, true);
+                const float fadeStart = glm::clamp(cfg.fadeStart, 0.0f, 1.0f);
+                const float radiusMul = std::max(0.0f, pass.cfg.radiusMul);
+                const float thicknessMul = std::max(0.0f, pass.cfg.thicknessMul);
+                const float visualScaleMul = std::max(0.0f, pass.cfg.scaleMul);
+                const bool centerOrigin = pass.cfg.authoredSegmentCenterOrigin;
+                const float positionScale = std::max(0.0f, pass.cfg.authoredSegmentPositionScale);
+                const float lengthScale = std::max(0.0f, pass.cfg.authoredSegmentLengthScale);
+                const float travelMul = std::max(0.0f, pass.cfg.authoredSegmentTravelMul);
+
+                for (std::size_t segmentIndex = 0; segmentIndex < authoredSegments.size(); ++segmentIndex) {
+                    const auto& segment = authoredSegments[segmentIndex];
+                    for (int sequenceOrdinal = 0; sequenceOrdinal < timingPlan.sequenceLoopCount; ++sequenceOrdinal) {
+                        vfx::runtime::authored::PassTimingState timingState;
+                        if (!vfx::runtime::authored::evaluatePassTiming(
+                                pass.cfg,
+                                r.ageSec,
+                                r.lifeSec,
+                                fadeStart,
+                                timingPlan,
+                                sequenceOrdinal,
+                                timingState)) {
+                            continue;
+                        }
+
+                        const float localScaleMul =
+                            vfx::runtime::authored::resolveLocalScaleMul(pass.cfg, timingState.localAge01);
+                        const float spreadScale =
+                            glm::mix(r.startScale, r.endScale, timingState.localAge01) * localScaleMul;
+                        if (spreadScale <= 0.0001f || visualScaleMul <= 0.0001f) continue;
+
+                        const glm::vec3 segmentDirection =
+                            vfx::runtime::authored::resolveAuthoredStreakDirection(segment);
+                        const float segmentLengthBase =
+                            vfx::runtime::authored::resolveAuthoredStreakLength(segment);
+                        if (segmentLengthBase <= 0.0001f) continue;
+
+                        glm::vec3 localStart(0.0f);
+                        glm::vec3 localVector(0.0f);
+                        if (centerOrigin) {
+                            const float launch01 = fastLaunch01(timingState.localAge01);
+                            const float travelDistance = spreadScale * travelMul * launch01;
+                            localStart = segmentDirection * travelDistance;
+                            localVector = segmentDirection * (segmentLengthBase * spreadScale * lengthScale);
+                        } else {
+                            localStart = segment.startLocal * (spreadScale * positionScale);
+                            localVector =
+                                (segment.endLocal - segment.startLocal) * (spreadScale * lengthScale);
+                        }
+                        const glm::vec3 localEnd = localStart + localVector;
+                        const float segmentLength = glm::length(localVector);
+                        if (segmentLength <= 0.0001f) continue;
+
+                        const glm::vec3 worldStart =
+                            r.pos +
+                            right * localStart.x +
+                            up * localStart.y +
+                            ringForward * (localStart.z + pass.cfg.forwardOffset);
+                        const glm::vec3 worldEnd =
+                            r.pos +
+                            right * localEnd.x +
+                            up * localEnd.y +
+                            ringForward * (localEnd.z + pass.cfg.forwardOffset);
+                        const glm::vec3 worldVector = worldEnd - worldStart;
+                        if (glm::dot(worldVector, worldVector) <= 0.0001f) continue;
+
+                        const glm::vec3 passForward = glm::normalize(worldVector);
+                        const glm::quat passRot = rotationFromToSafe(meshForwardLocal, passForward);
+                        const glm::vec3 finalScale(
+                            visualScaleMul * radiusMul,
+                            visualScaleMul * radiusMul,
+                            visualScaleMul * thicknessMul * segmentLength);
+                        const float lineAlphaMul =
+                            std::max(0.0f, pass.cfg.alphaMul) * std::max(0.0f, segment.alphaMul);
+                        if (pass.locPassAlphaMul >= 0) {
+                            glUniform1f(pass.locPassAlphaMul, lineAlphaMul);
+                        }
+                        if (pass.locFade >= 0) {
+                            glUniform1f(pass.locFade, timingState.fade);
+                        }
+
+                        const glm::mat4 world =
+                            glm::translate(glm::mat4(1.0f), worldStart) *
+                            glm::mat4_cast(passRot) *
+                            glm::scale(glm::mat4(1.0f), finalScale);
+                        drawStreakQuad(camera, world, pass.locMVP);
+                    }
+                }
+                continue;
+            }
+
             std::vector<glm::vec3> localDirectionsFallback =
                 vfx::runtime::authored::resolveGeneratedDirections(pass.cfg);
             const std::vector<glm::vec3>* localDirections = &localDirectionsFallback;
@@ -915,6 +1091,8 @@ void SharedAuthoredBatchVFX::render(const Camera3D& camera) {
                     const float fade = timingState.fade;
                     if (fade <= 0.001f) continue;
                     if (pass.locFade >= 0) glUniform1f(pass.locFade, fade);
+                    const float localScaleMul =
+                        vfx::runtime::authored::resolveLocalScaleMul(pass.cfg, localAge01);
 
                     float animatedScale = 0.0f;
                     const bool localTimedPass =
@@ -925,15 +1103,18 @@ void SharedAuthoredBatchVFX::render(const Camera3D& camera) {
                         animatedScale =
                             std::max(0.0f, r.startScale) *
                             std::max(0.0f, pass.cfg.scaleMul) *
-                            glm::mix(1.0f, radiusGrowthMul, localAge01);
+                            glm::mix(1.0f, radiusGrowthMul, localAge01) *
+                            localScaleMul;
                     } else if (drawLinePass && localTimedPass) {
                         animatedScale =
                             glm::mix(r.startScale, r.endScale, localAge01) *
-                            std::max(0.0f, pass.cfg.scaleMul);
+                            std::max(0.0f, pass.cfg.scaleMul) *
+                            localScaleMul;
                     } else {
                         animatedScale =
                             glm::mix(r.startScale, r.endScale, localTimedPass ? localAge01 : age01) *
-                            std::max(0.0f, pass.cfg.scaleMul);
+                            std::max(0.0f, pass.cfg.scaleMul) *
+                            (localTimedPass ? localScaleMul : 1.0f);
                     }
                     if (animatedScale <= 0.0001f) continue;
                     const glm::vec3 finalScale = glm::vec3(animatedScale) * axisScale;

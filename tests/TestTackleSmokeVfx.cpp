@@ -70,6 +70,7 @@ bool test_tackle_smoke_vfx_contract(std::string& outFail) {
     bool saw1253StreakBurst = false;
     bool sawSmokeFrame5Window = false;
     bool sawSmokeFrame6Window = false;
+    bool sawSmokeLongTail = false;
     bool sawQuarterCoreWindow = false;
     bool sawSpiralWindow = false;
     bool sawSparkWindow = false;
@@ -112,7 +113,10 @@ bool test_tackle_smoke_vfx_contract(std::string& outFail) {
             saw1253StreakBurst ||
             (pass.eid == 1253 &&
              pass.renderMode == "streak_quad" &&
-             pass.generatedDirectionCount == 42);
+             pass.authoredSegmentsPath.find("tackle_streak_segments.json") != std::string::npos &&
+             pass.authoredSegmentsLocal.size() == 48u &&
+             pass.authoredSegmentCenterOrigin &&
+             std::abs(pass.authoredSegmentTravelMul - 10.0f) <= 0.0005f);
         sawSmokeFrame5Window =
             sawSmokeFrame5Window ||
             ((pass.eid == 921 || pass.eid == 926) &&
@@ -121,24 +125,38 @@ bool test_tackle_smoke_vfx_contract(std::string& outFail) {
             sawSmokeFrame6Window ||
             ((pass.eid == 965 || pass.eid == 1004 || pass.eid == 1107 || pass.eid == 1176) &&
              std::abs(pass.timeStartSec - 0.200f) <= 0.0005f);
+        sawSmokeLongTail =
+            sawSmokeLongTail ||
+            ((pass.eid == 921 || pass.eid == 926 || pass.eid == 965 || pass.eid == 1004 ||
+              pass.eid == 1107 || pass.eid == 1176) &&
+             std::abs(pass.timeEndSec - (50.0f / 30.0f)) <= 0.0005f &&
+             pass.timeFadeLocal &&
+             std::abs(pass.timeFadeStart - 0.30f) <= 0.0005f);
         sawQuarterCoreWindow =
             sawQuarterCoreWindow ||
             ((pass.eid == 1196 || pass.eid == 1210) &&
              std::abs(pass.timeStartSec - 0.0f) <= 0.0005f &&
              std::abs(pass.timeEndSec - 0.60f) <= 0.0005f &&
-             pass.timeFadeLocal);
+             pass.timeFadeLocal &&
+             std::abs(pass.timeFadeStart - 0.62f) <= 0.0005f &&
+             std::abs(pass.localScaleStartMul - 0.87f) <= 0.0005f &&
+             std::abs(pass.localScaleEndMul - 1.0f) <= 0.0005f);
         sawSpiralWindow =
             sawSpiralWindow ||
             ((pass.eid == 1225 || pass.eid == 1234 || pass.eid == 1243) &&
              std::abs(pass.timeStartSec - 0.0f) <= 0.0005f &&
              std::abs(pass.timeEndSec - 0.533f) <= 0.0005f &&
-             pass.timeFadeLocal);
+             pass.timeFadeLocal &&
+             std::abs(pass.timeFadeStart - 0.50f) <= 0.0005f &&
+             std::abs(pass.localScaleStartMul - 0.87f) <= 0.0005f &&
+             std::abs(pass.localScaleEndMul - 1.0f) <= 0.0005f);
         sawSparkWindow =
             sawSparkWindow ||
             (pass.eid == 1253 &&
              std::abs(pass.timeStartSec - 0.0f) <= 0.0005f &&
              std::abs(pass.timeEndSec - 0.40f) <= 0.0005f &&
-             pass.timeFadeLocal);
+             pass.timeFadeLocal &&
+             std::abs(pass.timeFadeStart - 0.55f) <= 0.0005f);
         totalBillboardDirections += std::max<std::size_t>(1u, pass.directionsLocal.size());
     }
 
@@ -173,12 +191,17 @@ bool test_tackle_smoke_vfx_contract(std::string& outFail) {
         return false;
     }
     if (!expect(saw1253StreakBurst,
-                "Tackle should currently collapse the 1253-1540 captured line draws into one shared streak burst pass with 42 generated directions.",
+                "Tackle should currently use the 1253-1540 captured line draws as one center-origin authored streak burst pass with 48 capture-derived local segments and fast outward travel.",
                 outFail)) {
         return false;
     }
     if (!expect(sawSmokeFrame5Window && sawSmokeFrame6Window,
                 "Tackle smoke should currently begin in two explicit 30 fps windows around frames 5 and 6.",
+                outFail)) {
+        return false;
+    }
+    if (!expect(sawSmokeLongTail,
+                "Tackle smoke should currently use a full ~50-frame lifetime tail with a local fade instead of cutting off abruptly.",
                 outFail)) {
         return false;
     }

@@ -18,6 +18,12 @@ class Shader;
 class SharedAuthoredBatchVFX {
 public:
     struct Config {
+        struct AuthoredStreakSegment {
+            glm::vec3 startLocal{0.0f};
+            glm::vec3 endLocal{0.0f, 0.0f, 1.0f};
+            float alphaMul = 1.0f;
+        };
+
         struct DrawPass {
             std::string id = "growl_eid_1076";
             int eid = 1076;
@@ -45,6 +51,9 @@ public:
             float timeStartSec = 0.0f;
             float timeEndSec = -1.0f;
             bool timeFadeLocal = false;
+            float timeFadeStart = -1.0f;
+            float localScaleStartMul = 1.0f;
+            float localScaleEndMul = 1.0f;
             int sequenceCount = 1;
             int sequenceIndex = -1;
             float sequenceStep = 0.0f;
@@ -58,6 +67,12 @@ public:
             glm::vec3 directionLocal = glm::vec3(0.0f, 0.0f, 1.0f);
             // Optional multi-line fan for line passes.
             std::vector<glm::vec3> directionsLocal;
+            std::string authoredSegmentsPath;
+            std::vector<AuthoredStreakSegment> authoredSegmentsLocal;
+            bool authoredSegmentCenterOrigin = false;
+            float authoredSegmentPositionScale = 1.0f;
+            float authoredSegmentLengthScale = 1.0f;
+            float authoredSegmentTravelMul = 0.0f;
             // Optional generated circular direction set when directions_local is omitted.
             int generatedDirectionCount = 0;
             std::string generatedDirectionMode = "circle";

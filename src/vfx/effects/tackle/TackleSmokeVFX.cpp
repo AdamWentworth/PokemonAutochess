@@ -18,13 +18,13 @@ TackleSmokeVFX::Config TackleSmokeVFX::makeDefaultConfig() {
     config.ringForwardOffset = 0.0f;
     config.ringMinSpeed = 0.01f;
     config.ringMaxSpeed = 0.04f;
-    config.ringMinLifeSec = 1.00f;
-    config.ringMaxLifeSec = 1.00f;
+    config.ringMinLifeSec = 50.0f / 30.0f;
+    config.ringMaxLifeSec = 50.0f / 30.0f;
     config.ringMinSize = 0.88f;
     config.ringMaxSize = 1.08f;
     config.ringTrailCount = 0;
     config.ringScaleGrowth = 1.60f;
-    config.fadeStart = 0.42f;
+    config.fadeStart = 0.65f;
     config.vertShaderPath = "assets/shaders/vfx/moves/tackle/tackle_smoke_shared.vert";
     config.fragShaderPath = "assets/shaders/vfx/moves/tackle/tackle_smoke_shared.frag";
     config.tevC0 = glm::vec3(118.0f / 255.0f, 100.0f / 255.0f, 80.0f / 255.0f);

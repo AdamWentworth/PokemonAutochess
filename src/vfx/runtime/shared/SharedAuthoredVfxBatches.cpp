@@ -831,10 +831,12 @@ bool appendSharedGlowBillboardPassSingleRingLocal(
             pass, ring.ageSec, ring.lifeSec, fadeStart, timingPlan, 0, timingState)) {
         return false;
     }
+    const float localScaleMul = authored::resolveLocalScaleMul(pass, timingState.localAge01);
 
     const float animatedScale =
         glm::mix(ring.startScale, ring.endScale, timingState.localAge01) *
-        std::max(0.0f, pass.scaleMul);
+        std::max(0.0f, pass.scaleMul) *
+        localScaleMul;
     if (animatedScale <= 0.0001f) return false;
 
     const float passAlpha =
@@ -1023,6 +1025,8 @@ bool appendSharedQuarterPassSingleRingLocal(
         const float passAlpha =
             std::clamp(timingState.fade * std::max(0.0f, pass.alphaMul), 0.0f, 1.0f);
         if (passAlpha <= 0.001f) continue;
+        const float localScaleMul =
+            authored::resolveLocalScaleMul(pass, timingState.localAge01);
 
         const float animatedScale =
             timingPlan.repeatedSequencePass
@@ -1033,7 +1037,8 @@ bool appendSharedQuarterPassSingleRingLocal(
                       timingState.globalAge01,
                       timingState.localAge01)
                 : (glm::mix(ring.startScale, ring.endScale, timingState.localAge01) *
-                   std::max(0.0f, pass.scaleMul));
+                   std::max(0.0f, pass.scaleMul) *
+                   localScaleMul);
         if (animatedScale <= 0.0001f) continue;
         const glm::vec3 finalScale = glm::vec3(animatedScale) * axisScale;
 
@@ -1278,6 +1283,110 @@ bool appendSharedStreakQuadPassSingleRingLocal(
     glm::vec3 up = glm::cross(ringForward, right);
     up = safeNormalize3Local(up, glm::vec3(0.0f, 1.0f, 0.0f));
 
+    const auto& authoredSegments = authored::resolveAuthoredStreakSegments(pass);
+    if (!authoredSegments.empty()) {
+        const float radiusMul = std::max(0.0f, pass.radiusMul);
+        const float thicknessMul = std::max(0.0f, pass.thicknessMul);
+        const float visualScaleMul = std::max(0.0f, pass.scaleMul);
+        const bool centerOrigin = pass.authoredSegmentCenterOrigin;
+        const float positionScale = std::max(0.0f, pass.authoredSegmentPositionScale);
+        const float lengthScale = std::max(0.0f, pass.authoredSegmentLengthScale);
+        const float travelMul = std::max(0.0f, pass.authoredSegmentTravelMul);
+
+        shared_world_batches::WorldIndexedBatch batch = makeBaseBatchLocal(snapshot, pass, texture);
+        const auto& sharedVertices = streakQuadVerticesLocal();
+        const auto& sharedIndices = quarterIndicesLocal();
+        batch.sharedVertices = sharedVertices.data();
+        batch.sharedVertexCount = sharedVertices.size();
+        batch.sharedIndices = sharedIndices.data();
+        batch.sharedIndexCount = sharedIndices.size();
+        batch.geometryCacheKey = makeStreakQuadGeometryCacheKeyLocal(passTev.k1a);
+
+        batch.instances.reserve(authoredSegments.size() * static_cast<std::size_t>(timingPlan.sequenceLoopCount));
+        float sortDepth = 0.0f;
+        bool appendedAny = false;
+        for (const auto& segment : authoredSegments) {
+            for (int sequenceOrdinal = 0; sequenceOrdinal < timingPlan.sequenceLoopCount; ++sequenceOrdinal) {
+                authored::PassTimingState timingState;
+                if (!authored::evaluatePassTiming(
+                        pass, ring.ageSec, ring.lifeSec, fadeStart, timingPlan, sequenceOrdinal, timingState)) {
+                    continue;
+                }
+
+                const float localScaleMul =
+                    authored::resolveLocalScaleMul(pass, timingState.localAge01);
+                const float spreadScale =
+                    glm::mix(ring.startScale, ring.endScale, timingState.localAge01) * localScaleMul;
+                if (spreadScale <= 0.0001f || visualScaleMul <= 0.0001f) continue;
+
+                const glm::vec3 segmentDirection = authored::resolveAuthoredStreakDirection(segment);
+                const float segmentLengthBase = authored::resolveAuthoredStreakLength(segment);
+                if (segmentLengthBase <= 0.0001f) continue;
+
+                glm::vec3 localStart(0.0f);
+                glm::vec3 localVector(0.0f);
+                if (centerOrigin) {
+                    const float launch01 = fastLaunch01Local(timingState.localAge01);
+                    const float travelDistance = spreadScale * travelMul * launch01;
+                    localStart = segmentDirection * travelDistance;
+                    localVector = segmentDirection * (segmentLengthBase * spreadScale * lengthScale);
+                } else {
+                    localStart = segment.startLocal * (spreadScale * positionScale);
+                    localVector =
+                        (segment.endLocal - segment.startLocal) * (spreadScale * lengthScale);
+                }
+                const glm::vec3 localEnd = localStart + localVector;
+                const float segmentLength = glm::length(localVector);
+                if (segmentLength <= 0.0001f) continue;
+
+                const glm::vec3 worldStart =
+                    ring.pos +
+                    right * localStart.x +
+                    up * localStart.y +
+                    ringForward * (localStart.z + pass.forwardOffset);
+                const glm::vec3 worldEnd =
+                    ring.pos +
+                    right * localEnd.x +
+                    up * localEnd.y +
+                    ringForward * (localEnd.z + pass.forwardOffset);
+                const glm::vec3 worldVector = worldEnd - worldStart;
+                if (glm::dot(worldVector, worldVector) <= 0.000001f) continue;
+
+                const glm::vec3 passForward = glm::normalize(worldVector);
+                const glm::quat passRot = rotationFromToSafeLocal(meshForwardLocal, passForward);
+
+                IRenderBackend::WorldMeshInstance instance;
+                instance.modelMatrix = toModelMatrixArrayLocal(
+                    glm::translate(glm::mat4(1.0f), worldStart) *
+                    glm::mat4_cast(passRot) *
+                    glm::scale(
+                        glm::mat4(1.0f),
+                        glm::vec3(
+                            visualScaleMul * radiusMul,
+                            visualScaleMul * radiusMul,
+                            visualScaleMul * thicknessMul * segmentLength)));
+                instance.vertexColorMulR = passTint.r;
+                instance.vertexColorMulG = passTint.g;
+                instance.vertexColorMulB = passTint.b;
+                instance.vertexColorMulA =
+                    std::clamp(timingState.fade * std::max(0.0f, pass.alphaMul) *
+                                   std::max(0.0f, segment.alphaMul),
+                               0.0f,
+                               1.0f);
+                batch.instances.push_back(std::move(instance));
+                const glm::vec3 worldMid = 0.5f * (worldStart + worldEnd);
+                sortDepth =
+                    std::max(sortDepth, glm::dot(worldMid - cameraWorldPos, worldMid - cameraWorldPos));
+                appendedAny = true;
+            }
+        }
+
+        if (!appendedAny || batch.instances.empty()) return false;
+        batch.sortDepth = sortDepth;
+        outBatches.push_back(std::move(batch));
+        return true;
+    }
+
     std::vector<glm::vec3> fallbackDirections = makeFallbackDirectionsLocal(pass);
     const std::vector<glm::vec3>* localDirections = &fallbackDirections;
     if (localDirections->empty()) return false;
@@ -1338,10 +1447,13 @@ bool appendSharedStreakQuadPassSingleRingLocal(
                     pass, ring.ageSec, ring.lifeSec, fadeStart, timingPlan, sequenceOrdinal, timingState)) {
                 continue;
             }
+            const float localScaleMul =
+                authored::resolveLocalScaleMul(pass, timingState.localAge01);
 
             const float animatedScale =
                 glm::mix(ring.startScale, ring.endScale, timingState.localAge01) *
-                std::max(0.0f, pass.scaleMul);
+                std::max(0.0f, pass.scaleMul) *
+                localScaleMul;
             if (animatedScale <= 0.0001f) continue;
             const glm::vec3 finalScale = glm::vec3(animatedScale) * axisScale;
             const float radialDistanceMul =

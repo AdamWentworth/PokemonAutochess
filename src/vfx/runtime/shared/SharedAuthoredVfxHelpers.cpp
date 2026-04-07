@@ -289,11 +289,51 @@ std::vector<glm::vec3> resolveGeneratedDirections(
     return directions;
 }
 
+const std::vector<SharedAuthoredBatchVFX::Config::AuthoredStreakSegment>&
+resolveAuthoredStreakSegments(const SharedAuthoredBatchVFX::Config::DrawPass& pass) {
+    return pass.authoredSegmentsLocal;
+}
+
+glm::vec3 resolveAuthoredStreakDirection(
+    const SharedAuthoredBatchVFX::Config::AuthoredStreakSegment& segment) {
+    const glm::vec3 midpoint = 0.5f * (segment.startLocal + segment.endLocal);
+    if (glm::dot(midpoint, midpoint) > 0.000001f) {
+        return glm::normalize(midpoint);
+    }
+    const glm::vec3 captureVector = segment.endLocal - segment.startLocal;
+    if (glm::dot(captureVector, captureVector) > 0.000001f) {
+        return glm::normalize(captureVector);
+    }
+    return glm::vec3(0.0f, 0.0f, 1.0f);
+}
+
+float resolveAuthoredStreakLength(
+    const SharedAuthoredBatchVFX::Config::AuthoredStreakSegment& segment) {
+    return glm::length(segment.endLocal - segment.startLocal);
+}
+
 float quantizeLineVertexAlpha(float srcAlpha, float lineTevK1A, float colorAlpha) {
     const float alpha255 =
         std::clamp(clamp01(srcAlpha) * clamp01(lineTevK1A) * 255.0f, 0.0f, 255.0f);
     const float quantized = std::floor(alpha255 * 0.25f) / 63.0f;
     return std::clamp(clamp01(colorAlpha) * quantized, 0.0f, 1.0f);
+}
+
+float resolveTimeFadeStart(const SharedAuthoredBatchVFX::Config::DrawPass& pass,
+                           float defaultFadeStart) {
+    if (pass.timeFadeStart >= 0.0f) {
+        return glm::clamp(pass.timeFadeStart, 0.0f, 1.0f);
+    }
+    return glm::clamp(defaultFadeStart, 0.0f, 1.0f);
+}
+
+float resolveLocalScaleMul(const SharedAuthoredBatchVFX::Config::DrawPass& pass,
+                           float localAge01) {
+    const float t = glm::clamp(localAge01, 0.0f, 1.0f);
+    return glm::mix(
+        std::max(0.0f, pass.localScaleStartMul),
+        std::max(0.0f, pass.localScaleEndMul),
+        t);
 }
 
 PassTimingPlan planPassTiming(const SharedAuthoredBatchVFX::Config::DrawPass& pass,
@@ -326,6 +366,7 @@ bool evaluatePassTiming(const SharedAuthoredBatchVFX::Config::DrawPass& pass,
                         PassTimingState& outState) {
     const float safeLifeSec = std::max(0.0001f, lifeSec);
     const float age01 = glm::clamp(ageSec / safeLifeSec, 0.0f, 1.0f);
+    const float localFadeStart = resolveTimeFadeStart(pass, fadeStart);
     outState.globalAge01 = age01;
     outState.localAge01 = age01;
     outState.fade = 1.0f;
@@ -337,7 +378,7 @@ bool evaluatePassTiming(const SharedAuthoredBatchVFX::Config::DrawPass& pass,
         if (ageSec < startSec || ageSec > endSec) return false;
         const float durationSec = std::max(0.0001f, endSec - startSec);
         outState.localAge01 = glm::clamp((ageSec - startSec) / durationSec, 0.0f, 1.0f);
-        outState.fade = pass.timeFadeLocal ? computeLocalFade01(outState.localAge01, fadeStart) : 1.0f;
+        outState.fade = pass.timeFadeLocal ? computeLocalFade01(outState.localAge01, localFadeStart) : 1.0f;
         return outState.fade > 0.001f;
     }
 
@@ -346,7 +387,7 @@ bool evaluatePassTiming(const SharedAuthoredBatchVFX::Config::DrawPass& pass,
             pass,
             plan.rawSequenceCount,
             age01,
-            fadeStart,
+            localFadeStart,
             sequenceOrdinal,
             outState.localAge01,
             outState.fade);
@@ -362,12 +403,12 @@ bool evaluatePassTiming(const SharedAuthoredBatchVFX::Config::DrawPass& pass,
             return false;
         }
         outState.fade = pass.sequenceFadeLocal
-            ? computeLocalFade01(outState.localAge01, fadeStart)
-            : computeSharedDelayedFade(age01, fadeStart);
+            ? computeLocalFade01(outState.localAge01, localFadeStart)
+            : computeSharedDelayedFade(age01, localFadeStart);
         return outState.fade > 0.001f;
     }
 
-    outState.fade = computeLocalFade01(age01, fadeStart);
+    outState.fade = computeLocalFade01(age01, localFadeStart);
     return outState.fade > 0.001f;
 }
 

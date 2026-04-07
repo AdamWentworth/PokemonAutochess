@@ -62,8 +62,18 @@ bool bakePassTextureRgba(const SharedAuthoredBatchVFX::Config::DrawPass& pass,
 
 std::vector<glm::vec3> resolveGeneratedDirections(
     const SharedAuthoredBatchVFX::Config::DrawPass& pass);
+const std::vector<SharedAuthoredBatchVFX::Config::AuthoredStreakSegment>&
+resolveAuthoredStreakSegments(const SharedAuthoredBatchVFX::Config::DrawPass& pass);
+glm::vec3 resolveAuthoredStreakDirection(
+    const SharedAuthoredBatchVFX::Config::AuthoredStreakSegment& segment);
+float resolveAuthoredStreakLength(
+    const SharedAuthoredBatchVFX::Config::AuthoredStreakSegment& segment);
 
 float quantizeLineVertexAlpha(float srcAlpha, float lineTevK1A, float colorAlpha);
+float resolveTimeFadeStart(const SharedAuthoredBatchVFX::Config::DrawPass& pass,
+                           float defaultFadeStart);
+float resolveLocalScaleMul(const SharedAuthoredBatchVFX::Config::DrawPass& pass,
+                           float localAge01);
 
 PassTimingPlan planPassTiming(const SharedAuthoredBatchVFX::Config::DrawPass& pass,
                               bool allowRepeatedSequence);
