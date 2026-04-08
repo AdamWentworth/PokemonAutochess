@@ -49,8 +49,8 @@ bool test_tackle_smoke_vfx_contract(std::string& outFail) {
                 outFail)) {
         return false;
     }
-    if (!expect(snapshot.drawPasses.size() == 12u,
-                "Tackle smoke should currently author six clustered smoke passes, five captured impact bursts, and the aggregated 1253-1540 streak burst.",
+    if (!expect(snapshot.drawPasses.size() == 23u,
+                "Tackle smoke should currently author seventeen capture-derived smoke passes, five captured impact bursts, and the aggregated 1253-1540 streak burst.",
                 outFail)) {
         return false;
     }
@@ -71,9 +71,13 @@ bool test_tackle_smoke_vfx_contract(std::string& outFail) {
     bool sawQuarterAlphaBlend = false;
     bool sawLateDualSourceBlend = false;
     bool saw1253StreakBurst = false;
+    bool sawSmokeFrame2Window = false;
+    bool sawSmokeFrame3Window = false;
+    bool sawSmokeFrame4Window = false;
     bool sawSmokeFrame5Window = false;
     bool sawSmokeFrame6Window = false;
     bool sawSmokeLongTail = false;
+    std::size_t smokePassCount = 0u;
     bool sawQuarterCoreWindow = false;
     bool sawSpiralWindow = false;
     bool sawSparkWindow = false;
@@ -97,6 +101,12 @@ bool test_tackle_smoke_vfx_contract(std::string& outFail) {
         saw4158 = saw4158 || is4158;
         saw4159 = saw4159 || is4159;
         saw4160 = saw4160 || is4160;
+        if ((pass.eid >= 921 && pass.eid <= 1176) &&
+            pass.renderMode == "glow_billboard" &&
+            (pass.texturePath.find("Texture4154.png") != std::string::npos ||
+             pass.texturePath.find("Texture4155.png") != std::string::npos)) {
+            ++smokePassCount;
+        }
         saw4156QuarterRing =
             saw4156QuarterRing || (is4156 && pass.renderMode == "texture_quarter_ring" && pass.quarterCount == 4);
         saw4157QuarterRing =
@@ -133,18 +143,34 @@ bool test_tackle_smoke_vfx_contract(std::string& outFail) {
              std::abs(pass.authoredSegmentLengthDecayPerFrame - 0.7792f) <= 0.0005f &&
              std::abs(pass.authoredSegmentAlphaDecayPerFrame - 0.975f) <= 0.0005f &&
              std::abs(pass.authoredSegmentMaxVisibleDistance - 1.032f) <= 0.0005f);
+        sawSmokeFrame2Window =
+            sawSmokeFrame2Window ||
+            ((pass.eid == 921 || pass.eid == 926) &&
+             std::abs(pass.timeStartSec - 0.067f) <= 0.0005f);
+        sawSmokeFrame3Window =
+            sawSmokeFrame3Window ||
+            ((pass.eid == 941 || pass.eid == 965 || pass.eid == 980 || pass.eid == 999 ||
+              pass.eid == 1004) &&
+             std::abs(pass.timeStartSec - 0.100f) <= 0.0005f);
+        sawSmokeFrame4Window =
+            sawSmokeFrame4Window ||
+            ((pass.eid == 1009 || pass.eid == 1043 || pass.eid == 1070 || pass.eid == 1075) &&
+             std::abs(pass.timeStartSec - 0.133f) <= 0.0005f);
         sawSmokeFrame5Window =
             sawSmokeFrame5Window ||
-            ((pass.eid == 921 || pass.eid == 926) &&
+            ((pass.eid == 1080 || pass.eid == 1085 || pass.eid == 1107 || pass.eid == 1129) &&
              std::abs(pass.timeStartSec - 0.167f) <= 0.0005f);
         sawSmokeFrame6Window =
             sawSmokeFrame6Window ||
-            ((pass.eid == 965 || pass.eid == 1004 || pass.eid == 1107 || pass.eid == 1176) &&
+            ((pass.eid == 1166 || pass.eid == 1176) &&
              std::abs(pass.timeStartSec - 0.200f) <= 0.0005f);
         sawSmokeLongTail =
             sawSmokeLongTail ||
-            ((pass.eid == 921 || pass.eid == 926 || pass.eid == 965 || pass.eid == 1004 ||
-              pass.eid == 1107 || pass.eid == 1176) &&
+            ((pass.eid == 921 || pass.eid == 926 || pass.eid == 941 || pass.eid == 965 ||
+              pass.eid == 980 || pass.eid == 999 || pass.eid == 1004 || pass.eid == 1009 ||
+              pass.eid == 1043 || pass.eid == 1070 || pass.eid == 1075 || pass.eid == 1080 ||
+              pass.eid == 1085 || pass.eid == 1107 || pass.eid == 1129 || pass.eid == 1166 ||
+              pass.eid == 1176) &&
              std::abs(pass.timeEndSec - (50.0f / 30.0f)) <= 0.0005f &&
              pass.timeFadeLocal &&
              std::abs(pass.timeFadeStart - 0.30f) <= 0.0005f);
@@ -226,8 +252,9 @@ bool test_tackle_smoke_vfx_contract(std::string& outFail) {
                 outFail)) {
         return false;
     }
-    if (!expect(sawSmokeFrame5Window && sawSmokeFrame6Window,
-                "Tackle smoke should currently begin in two explicit 30 fps windows around frames 5 and 6.",
+    if (!expect(sawSmokeFrame2Window && sawSmokeFrame3Window && sawSmokeFrame4Window &&
+                    sawSmokeFrame5Window && sawSmokeFrame6Window,
+                "Tackle smoke should currently build in across explicit 30 fps windows from frames 2 through 6 using the denser capture-derived smoke family.",
                 outFail)) {
         return false;
     }
@@ -251,8 +278,13 @@ bool test_tackle_smoke_vfx_contract(std::string& outFail) {
                 outFail)) {
         return false;
     }
-    if (!expect(totalBillboardDirections >= 20u,
-                "Tackle smoke should author a dense clustered billboard set rather than only one or two puffs.",
+    if (!expect(smokePassCount == 17u,
+                "Tackle smoke should currently use the full seventeen exported capture-derived smoke clusters rather than the earlier six-pass approximation.",
+                outFail)) {
+        return false;
+    }
+    if (!expect(totalBillboardDirections >= 48u,
+                "Tackle smoke should author a dense clustered billboard set that reflects the exported capture smoke quads, not just a sparse handful of puffs.",
                 outFail)) {
         return false;
     }

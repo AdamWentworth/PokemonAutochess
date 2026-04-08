@@ -14,34 +14,32 @@
   },
   "draw_passes": [
     {
-      "id": "tackle_eid_921_texture4155",
+      "id": "tackle_eid_921_texture4155_cluster",
       "eid": 921,
       "render_mode": "glow_billboard",
       "texture": "assets/textures/moves/tackle/Texture4155.png",
       "vert_shader": "assets/shaders/vfx/moves/tackle/tackle_smoke_shared.vert",
       "frag_shader": "assets/shaders/vfx/moves/tackle/tackle_smoke_shared.frag",
       "tint_color": [1.0, 1.0, 1.0],
-      "scale_mul": 0.80,
-      "alpha_mul": 1.0,
+      "scale_mul": 0.82,
+      "alpha_mul": 1.00,
       "authored_billboard_position_scale": 0.10,
       "authored_billboards": [
         {
-          "position_local": [-2.015816, -0.914105, -0.022265],
-          "scale_mul": 1.0
+          "position_local": [-2.015820, -0.914105, -0.022265],
+          "scale_mul": 1.000000
         }
       ],
       "forward_offset": 0.0,
       "height_offset": 0.0,
       "start_radius_mul": 1.0,
-      "time_start_sec": 0.167,
+      "time_start_sec": 0.067,
       "time_end_sec": 1.667,
       "time_fade_local": true,
       "time_fade_start": 0.30,
-      "radius_mul": 1.05,
+      "radius_mul": 1.0,
       "thickness_mul": 1.0,
-      "directions_local": [
-        [0.0, 0.0, 1.0]
-      ],
+      "directions_local": [[0.0, 0.0, 1.0]],
       "enabled": true
     },
     {
@@ -52,32 +50,62 @@
       "vert_shader": "assets/shaders/vfx/moves/tackle/tackle_smoke_shared.vert",
       "frag_shader": "assets/shaders/vfx/moves/tackle/tackle_smoke_shared.frag",
       "tint_color": [1.0, 1.0, 1.0],
-      "scale_mul": 0.74,
-      "alpha_mul": 0.94,
+      "scale_mul": 0.80,
+      "alpha_mul": 0.98,
       "authored_billboard_position_scale": 0.10,
       "authored_billboards": [
         {
-          "position_local": [-2.441218, 0.368437, 1.92647],
-          "scale_mul": 1.019839
+          "position_local": [-2.441223, 0.368437, 1.926470],
+          "scale_mul": 1.009823
         },
         {
-          "position_local": [1.143954, -0.254132, -0.786735],
-          "scale_mul": 1.0
+          "position_local": [1.143950, -0.254132, -0.786735],
+          "scale_mul": 0.990177
         }
       ],
-      "forward_offset": -0.01,
-      "height_offset": 0.18,
+      "forward_offset": 0.0,
+      "height_offset": 0.0,
       "start_radius_mul": 1.0,
-      "time_start_sec": 0.167,
+      "time_start_sec": 0.067,
       "time_end_sec": 1.667,
       "time_fade_local": true,
       "time_fade_start": 0.30,
-      "radius_mul": 1.05,
+      "radius_mul": 1.0,
       "thickness_mul": 1.0,
-      "directions_local": [
-        [-1.0, 0.174, 1.0],
-        [1.0, -0.174, 1.0]
+      "directions_local": [[0.0, 0.0, 1.0]],
+      "enabled": true
+    },
+    {
+      "id": "tackle_eid_941_texture4155_cluster",
+      "eid": 941,
+      "render_mode": "glow_billboard",
+      "texture": "assets/textures/moves/tackle/Texture4155.png",
+      "vert_shader": "assets/shaders/vfx/moves/tackle/tackle_smoke_shared.vert",
+      "frag_shader": "assets/shaders/vfx/moves/tackle/tackle_smoke_shared.frag",
+      "tint_color": [1.0, 1.0, 1.0],
+      "scale_mul": 0.78,
+      "alpha_mul": 0.96,
+      "authored_billboard_position_scale": 0.10,
+      "authored_billboards": [
+        {
+          "position_local": [0.800750, 0.509190, -0.042975],
+          "scale_mul": 0.974743
+        },
+        {
+          "position_local": [-3.403310, 0.177948, 0.300155],
+          "scale_mul": 1.025257
+        }
       ],
+      "forward_offset": 0.0,
+      "height_offset": 0.0,
+      "start_radius_mul": 1.0,
+      "time_start_sec": 0.100,
+      "time_end_sec": 1.667,
+      "time_fade_local": true,
+      "time_fade_start": 0.30,
+      "radius_mul": 1.0,
+      "thickness_mul": 1.0,
+      "directions_local": [[0.0, 0.0, 1.0]],
       "enabled": true
     },
     {
@@ -88,45 +116,103 @@
       "vert_shader": "assets/shaders/vfx/moves/tackle/tackle_smoke_shared.vert",
       "frag_shader": "assets/shaders/vfx/moves/tackle/tackle_smoke_shared.frag",
       "tint_color": [1.0, 1.0, 1.0],
-      "scale_mul": 0.68,
-      "alpha_mul": 0.90,
+      "scale_mul": 0.76,
+      "alpha_mul": 0.94,
       "authored_billboard_position_scale": 0.10,
       "authored_billboards": [
         {
-          "position_local": [1.197124, -0.069465, 0.212335],
-          "scale_mul": 1.024803
+          "position_local": [1.197120, -0.069465, 0.212335],
+          "scale_mul": 0.984714
         },
         {
-          "position_local": [0.541637, 0.496585, 2.64216],
-          "scale_mul": 1.042036
+          "position_local": [0.541632, 0.496585, 2.642160],
+          "scale_mul": 1.001274
         },
         {
-          "position_local": [-1.697231, 0.219515, -0.90451],
-          "scale_mul": 1.096006
+          "position_local": [-1.697235, 0.219515, -0.904510],
+          "scale_mul": 1.053131
         },
         {
-          "position_local": [-1.410166, -1.62588, -1.80527],
-          "scale_mul": 1.0
+          "position_local": [-1.410170, -1.625880, -1.805270],
+          "scale_mul": 0.960880
         }
       ],
-      "forward_offset": -0.01,
-      "height_offset": 0.22,
+      "forward_offset": 0.0,
+      "height_offset": 0.0,
       "start_radius_mul": 1.0,
-      "time_start_sec": 0.200,
+      "time_start_sec": 0.100,
       "time_end_sec": 1.667,
       "time_fade_local": true,
       "time_fade_start": 0.30,
       "radius_mul": 1.0,
-      "thickness_mul": 0.96,
-      "direction_spacing_jitter_deg": 3.0,
-      "line_alpha_min": 0.9,
-      "line_alpha_max": 1.08,
-      "directions_local": [
-        [1.0, 0.114, 1.0],
-        [0.574, 0.482, 1.0],
-        [-0.88, 0.302, 1.0],
-        [-0.694, -0.897, 1.0]
+      "thickness_mul": 1.0,
+      "directions_local": [[0.0, 0.0, 1.0]],
+      "enabled": true
+    },
+    {
+      "id": "tackle_eid_980_texture4154_cluster",
+      "eid": 980,
+      "render_mode": "glow_billboard",
+      "texture": "assets/textures/moves/tackle/Texture4154.png",
+      "vert_shader": "assets/shaders/vfx/moves/tackle/tackle_smoke_shared.vert",
+      "frag_shader": "assets/shaders/vfx/moves/tackle/tackle_smoke_shared.frag",
+      "tint_color": [1.0, 1.0, 1.0],
+      "scale_mul": 0.74,
+      "alpha_mul": 0.92,
+      "authored_billboard_position_scale": 0.10,
+      "authored_billboards": [
+        {
+          "position_local": [1.171155, -0.400487, 0.783795],
+          "scale_mul": 1.002900
+        },
+        {
+          "position_local": [-0.771258, -0.730680, -0.899393],
+          "scale_mul": 0.997100
+        }
       ],
+      "forward_offset": 0.0,
+      "height_offset": 0.0,
+      "start_radius_mul": 1.0,
+      "time_start_sec": 0.100,
+      "time_end_sec": 1.667,
+      "time_fade_local": true,
+      "time_fade_start": 0.30,
+      "radius_mul": 1.0,
+      "thickness_mul": 1.0,
+      "directions_local": [[0.0, 0.0, 1.0]],
+      "enabled": true
+    },
+    {
+      "id": "tackle_eid_999_texture4155_cluster",
+      "eid": 999,
+      "render_mode": "glow_billboard",
+      "texture": "assets/textures/moves/tackle/Texture4155.png",
+      "vert_shader": "assets/shaders/vfx/moves/tackle/tackle_smoke_shared.vert",
+      "frag_shader": "assets/shaders/vfx/moves/tackle/tackle_smoke_shared.frag",
+      "tint_color": [1.0, 1.0, 1.0],
+      "scale_mul": 0.72,
+      "alpha_mul": 0.90,
+      "authored_billboard_position_scale": 0.10,
+      "authored_billboards": [
+        {
+          "position_local": [-0.583230, 0.554315, -0.656200],
+          "scale_mul": 0.996232
+        },
+        {
+          "position_local": [4.534380, -0.206980, 0.800942],
+          "scale_mul": 1.003768
+        }
+      ],
+      "forward_offset": 0.0,
+      "height_offset": 0.0,
+      "start_radius_mul": 1.0,
+      "time_start_sec": 0.100,
+      "time_end_sec": 1.667,
+      "time_fade_local": true,
+      "time_fade_start": 0.30,
+      "radius_mul": 1.0,
+      "thickness_mul": 1.0,
+      "directions_local": [[0.0, 0.0, 1.0]],
       "enabled": true
     },
     {
@@ -137,50 +223,247 @@
       "vert_shader": "assets/shaders/vfx/moves/tackle/tackle_smoke_shared.vert",
       "frag_shader": "assets/shaders/vfx/moves/tackle/tackle_smoke_shared.frag",
       "tint_color": [1.0, 1.0, 1.0],
-      "scale_mul": 0.64,
-      "alpha_mul": 0.86,
+      "scale_mul": 0.70,
+      "alpha_mul": 0.88,
       "authored_billboard_position_scale": 0.10,
       "authored_billboards": [
         {
-          "position_local": [-0.202113, 0.086673, -1.765093],
-          "scale_mul": 1.0
+          "position_local": [-0.202117, 0.086673, -1.765093],
+          "scale_mul": 0.955290
         },
         {
-          "position_local": [1.139967, 0.215408, -4.600205],
-          "scale_mul": 1.029247
+          "position_local": [1.139962, 0.215408, -4.600205],
+          "scale_mul": 0.983229
         },
         {
-          "position_local": [-0.966191, 0.309308, -1.691245],
-          "scale_mul": 1.085609
+          "position_local": [-0.966195, 0.309308, -1.691245],
+          "scale_mul": 1.037071
         },
         {
-          "position_local": [0.799364, -0.588205, -1.831553],
-          "scale_mul": 1.106239
+          "position_local": [0.799360, -0.588205, -1.831553],
+          "scale_mul": 1.056779
         },
         {
-          "position_local": [-0.123748, -0.19045, -0.04305],
-          "scale_mul": 1.01292
+          "position_local": [-0.123753, -0.190450, -0.043050],
+          "scale_mul": 0.967631
         }
       ],
-      "forward_offset": -0.015,
-      "height_offset": 0.25,
+      "forward_offset": 0.0,
+      "height_offset": 0.0,
       "start_radius_mul": 1.0,
-      "time_start_sec": 0.200,
+      "time_start_sec": 0.100,
       "time_end_sec": 1.667,
       "time_fade_local": true,
       "time_fade_start": 0.30,
       "radius_mul": 1.0,
-      "thickness_mul": 0.94,
-      "direction_spacing_jitter_deg": 4.0,
-      "line_alpha_min": 0.88,
-      "line_alpha_max": 1.12,
-      "directions_local": [
-        [-0.303, 0.11, 1.0],
-        [0.922, 0.227, 1.0],
-        [-1.0, 0.313, 1.0],
-        [0.611, -0.506, 1.0],
-        [-0.231, -0.143, 1.0]
+      "thickness_mul": 1.0,
+      "directions_local": [[0.0, 0.0, 1.0]],
+      "enabled": true
+    },
+    {
+      "id": "tackle_eid_1009_texture4155_cluster",
+      "eid": 1009,
+      "render_mode": "glow_billboard",
+      "texture": "assets/textures/moves/tackle/Texture4155.png",
+      "vert_shader": "assets/shaders/vfx/moves/tackle/tackle_smoke_shared.vert",
+      "frag_shader": "assets/shaders/vfx/moves/tackle/tackle_smoke_shared.frag",
+      "tint_color": [1.0, 1.0, 1.0],
+      "scale_mul": 0.68,
+      "alpha_mul": 0.86,
+      "authored_billboard_position_scale": 0.10,
+      "authored_billboards": [
+        {
+          "position_local": [1.315852, -1.648697, -1.618220],
+          "scale_mul": 0.998887
+        },
+        {
+          "position_local": [1.699460, -0.591297, 0.796895],
+          "scale_mul": 1.001113
+        }
       ],
+      "forward_offset": 0.0,
+      "height_offset": 0.0,
+      "start_radius_mul": 1.0,
+      "time_start_sec": 0.133,
+      "time_end_sec": 1.667,
+      "time_fade_local": true,
+      "time_fade_start": 0.30,
+      "radius_mul": 1.0,
+      "thickness_mul": 1.0,
+      "directions_local": [[0.0, 0.0, 1.0]],
+      "enabled": true
+    },
+    {
+      "id": "tackle_eid_1043_texture4155_cluster",
+      "eid": 1043,
+      "render_mode": "glow_billboard",
+      "texture": "assets/textures/moves/tackle/Texture4155.png",
+      "vert_shader": "assets/shaders/vfx/moves/tackle/tackle_smoke_shared.vert",
+      "frag_shader": "assets/shaders/vfx/moves/tackle/tackle_smoke_shared.frag",
+      "tint_color": [1.0, 1.0, 1.0],
+      "scale_mul": 0.66,
+      "alpha_mul": 0.84,
+      "authored_billboard_position_scale": 0.10,
+      "authored_billboards": [
+        {
+          "position_local": [0.634337, -1.397740, 2.664630],
+          "scale_mul": 0.999593
+        },
+        {
+          "position_local": [2.902895, -0.864920, -0.513298],
+          "scale_mul": 1.000407
+        }
+      ],
+      "forward_offset": 0.0,
+      "height_offset": 0.0,
+      "start_radius_mul": 1.0,
+      "time_start_sec": 0.133,
+      "time_end_sec": 1.667,
+      "time_fade_local": true,
+      "time_fade_start": 0.30,
+      "radius_mul": 1.0,
+      "thickness_mul": 1.0,
+      "directions_local": [[0.0, 0.0, 1.0]],
+      "enabled": true
+    },
+    {
+      "id": "tackle_eid_1070_texture4155_cluster",
+      "eid": 1070,
+      "render_mode": "glow_billboard",
+      "texture": "assets/textures/moves/tackle/Texture4155.png",
+      "vert_shader": "assets/shaders/vfx/moves/tackle/tackle_smoke_shared.vert",
+      "frag_shader": "assets/shaders/vfx/moves/tackle/tackle_smoke_shared.frag",
+      "tint_color": [1.0, 1.0, 1.0],
+      "scale_mul": 0.64,
+      "alpha_mul": 0.82,
+      "authored_billboard_position_scale": 0.10,
+      "authored_billboards": [
+        {
+          "position_local": [2.447730, 0.287435, 2.075220],
+          "scale_mul": 1.001020
+        },
+        {
+          "position_local": [0.342930, -0.530960, 2.864825],
+          "scale_mul": 0.998980
+        }
+      ],
+      "forward_offset": 0.0,
+      "height_offset": 0.0,
+      "start_radius_mul": 1.0,
+      "time_start_sec": 0.133,
+      "time_end_sec": 1.667,
+      "time_fade_local": true,
+      "time_fade_start": 0.30,
+      "radius_mul": 1.0,
+      "thickness_mul": 1.0,
+      "directions_local": [[0.0, 0.0, 1.0]],
+      "enabled": true
+    },
+    {
+      "id": "tackle_eid_1075_texture4154_cluster",
+      "eid": 1075,
+      "render_mode": "glow_billboard",
+      "texture": "assets/textures/moves/tackle/Texture4154.png",
+      "vert_shader": "assets/shaders/vfx/moves/tackle/tackle_smoke_shared.vert",
+      "frag_shader": "assets/shaders/vfx/moves/tackle/tackle_smoke_shared.frag",
+      "tint_color": [1.0, 1.0, 1.0],
+      "scale_mul": 0.62,
+      "alpha_mul": 0.80,
+      "authored_billboard_position_scale": 0.10,
+      "authored_billboards": [
+        {
+          "position_local": [-1.587620, -1.918685, 3.019000],
+          "scale_mul": 1.034733
+        },
+        {
+          "position_local": [-1.078350, -0.088515, -0.777695],
+          "scale_mul": 0.933144
+        },
+        {
+          "position_local": [1.774820, 0.310663, -0.658265],
+          "scale_mul": 1.032123
+        }
+      ],
+      "forward_offset": 0.0,
+      "height_offset": 0.0,
+      "start_radius_mul": 1.0,
+      "time_start_sec": 0.133,
+      "time_end_sec": 1.667,
+      "time_fade_local": true,
+      "time_fade_start": 0.30,
+      "radius_mul": 1.0,
+      "thickness_mul": 1.0,
+      "directions_local": [[0.0, 0.0, 1.0]],
+      "enabled": true
+    },
+    {
+      "id": "tackle_eid_1080_texture4155_cluster",
+      "eid": 1080,
+      "render_mode": "glow_billboard",
+      "texture": "assets/textures/moves/tackle/Texture4155.png",
+      "vert_shader": "assets/shaders/vfx/moves/tackle/tackle_smoke_shared.vert",
+      "frag_shader": "assets/shaders/vfx/moves/tackle/tackle_smoke_shared.frag",
+      "tint_color": [1.0, 1.0, 1.0],
+      "scale_mul": 0.60,
+      "alpha_mul": 0.78,
+      "authored_billboard_position_scale": 0.10,
+      "authored_billboards": [
+        {
+          "position_local": [1.315407, 0.489612, 0.463642],
+          "scale_mul": 0.949226
+        },
+        {
+          "position_local": [-3.036035, 0.334738, -0.890465],
+          "scale_mul": 1.050774
+        }
+      ],
+      "forward_offset": 0.0,
+      "height_offset": 0.0,
+      "start_radius_mul": 1.0,
+      "time_start_sec": 0.167,
+      "time_end_sec": 1.667,
+      "time_fade_local": true,
+      "time_fade_start": 0.30,
+      "radius_mul": 1.0,
+      "thickness_mul": 1.0,
+      "directions_local": [[0.0, 0.0, 1.0]],
+      "enabled": true
+    },
+    {
+      "id": "tackle_eid_1085_texture4154_cluster",
+      "eid": 1085,
+      "render_mode": "glow_billboard",
+      "texture": "assets/textures/moves/tackle/Texture4154.png",
+      "vert_shader": "assets/shaders/vfx/moves/tackle/tackle_smoke_shared.vert",
+      "frag_shader": "assets/shaders/vfx/moves/tackle/tackle_smoke_shared.frag",
+      "tint_color": [1.0, 1.0, 1.0],
+      "scale_mul": 0.58,
+      "alpha_mul": 0.76,
+      "authored_billboard_position_scale": 0.10,
+      "authored_billboards": [
+        {
+          "position_local": [-0.475510, 1.567430, -0.003393],
+          "scale_mul": 0.931538
+        },
+        {
+          "position_local": [-1.780330, -1.159990, 0.659325],
+          "scale_mul": 1.039735
+        },
+        {
+          "position_local": [0.857135, -0.658965, -0.305820],
+          "scale_mul": 1.028727
+        }
+      ],
+      "forward_offset": 0.0,
+      "height_offset": 0.0,
+      "start_radius_mul": 1.0,
+      "time_start_sec": 0.167,
+      "time_end_sec": 1.667,
+      "time_fade_local": true,
+      "time_fade_start": 0.30,
+      "radius_mul": 1.0,
+      "thickness_mul": 1.0,
+      "directions_local": [[0.0, 0.0, 1.0]],
       "enabled": true
     },
     {
@@ -191,55 +474,111 @@
       "vert_shader": "assets/shaders/vfx/moves/tackle/tackle_smoke_shared.vert",
       "frag_shader": "assets/shaders/vfx/moves/tackle/tackle_smoke_shared.frag",
       "tint_color": [1.0, 1.0, 1.0],
-      "scale_mul": 0.60,
-      "alpha_mul": 0.82,
+      "scale_mul": 0.56,
+      "alpha_mul": 0.74,
       "authored_billboard_position_scale": 0.10,
       "authored_billboards": [
         {
-          "position_local": [-2.016431, -0.821172, -0.13051],
-          "scale_mul": 1.091683
+          "position_local": [-2.016435, -0.821172, -0.130510],
+          "scale_mul": 1.022361
         },
         {
-          "position_local": [1.834074, -1.16155, 1.594172],
-          "scale_mul": 1.000672
+          "position_local": [1.834070, -1.161550, 1.594172],
+          "scale_mul": 0.937128
         },
         {
-          "position_local": [0.902949, 0.470555, -2.162],
-          "scale_mul": 1.0
+          "position_local": [0.902945, 0.470555, -2.162000],
+          "scale_mul": 0.936497
         },
         {
-          "position_local": [0.843299, 0.0627, 2.098973],
-          "scale_mul": 1.177234
+          "position_local": [0.843295, 0.062700, 2.098973],
+          "scale_mul": 1.102478
         },
         {
-          "position_local": [-2.125926, -1.371722, -0.545435],
-          "scale_mul": 1.010951
+          "position_local": [-2.125930, -1.371722, -0.545435],
+          "scale_mul": 0.946754
         },
         {
-          "position_local": [-2.191488, -0.093097, 0.784925],
-          "scale_mul": 1.126303
+          "position_local": [-2.191493, -0.093097, 0.784925],
+          "scale_mul": 1.054782
         }
       ],
-      "forward_offset": -0.02,
-      "height_offset": 0.29,
+      "forward_offset": 0.0,
+      "height_offset": 0.0,
+      "start_radius_mul": 1.0,
+      "time_start_sec": 0.167,
+      "time_end_sec": 1.667,
+      "time_fade_local": true,
+      "time_fade_start": 0.30,
+      "radius_mul": 1.0,
+      "thickness_mul": 1.0,
+      "directions_local": [[0.0, 0.0, 1.0]],
+      "enabled": true
+    },
+    {
+      "id": "tackle_eid_1129_texture4154_cluster",
+      "eid": 1129,
+      "render_mode": "glow_billboard",
+      "texture": "assets/textures/moves/tackle/Texture4154.png",
+      "vert_shader": "assets/shaders/vfx/moves/tackle/tackle_smoke_shared.vert",
+      "frag_shader": "assets/shaders/vfx/moves/tackle/tackle_smoke_shared.frag",
+      "tint_color": [1.0, 1.0, 1.0],
+      "scale_mul": 0.54,
+      "alpha_mul": 0.72,
+      "authored_billboard_position_scale": 0.10,
+      "authored_billboards": [
+        {
+          "position_local": [-0.710415, 0.144503, 1.885472],
+          "scale_mul": 1.061652
+        },
+        {
+          "position_local": [1.407960, 0.013570, -1.546267],
+          "scale_mul": 0.938348
+        }
+      ],
+      "forward_offset": 0.0,
+      "height_offset": 0.0,
+      "start_radius_mul": 1.0,
+      "time_start_sec": 0.167,
+      "time_end_sec": 1.667,
+      "time_fade_local": true,
+      "time_fade_start": 0.30,
+      "radius_mul": 1.0,
+      "thickness_mul": 1.0,
+      "directions_local": [[0.0, 0.0, 1.0]],
+      "enabled": true
+    },
+    {
+      "id": "tackle_eid_1166_texture4154_cluster",
+      "eid": 1166,
+      "render_mode": "glow_billboard",
+      "texture": "assets/textures/moves/tackle/Texture4154.png",
+      "vert_shader": "assets/shaders/vfx/moves/tackle/tackle_smoke_shared.vert",
+      "frag_shader": "assets/shaders/vfx/moves/tackle/tackle_smoke_shared.frag",
+      "tint_color": [1.0, 1.0, 1.0],
+      "scale_mul": 0.52,
+      "alpha_mul": 0.70,
+      "authored_billboard_position_scale": 0.10,
+      "authored_billboards": [
+        {
+          "position_local": [1.863430, -1.002847, 2.032050],
+          "scale_mul": 0.976478
+        },
+        {
+          "position_local": [-2.890158, -2.139255, 1.797870],
+          "scale_mul": 1.023522
+        }
+      ],
+      "forward_offset": 0.0,
+      "height_offset": 0.0,
       "start_radius_mul": 1.0,
       "time_start_sec": 0.200,
       "time_end_sec": 1.667,
       "time_fade_local": true,
       "time_fade_start": 0.30,
-      "radius_mul": 0.98,
-      "thickness_mul": 0.92,
-      "direction_spacing_jitter_deg": 5.0,
-      "line_alpha_min": 0.86,
-      "line_alpha_max": 1.15,
-      "directions_local": [
-        [-0.679, -0.146, 1.0],
-        [1.0, -0.295, 1.0],
-        [0.594, 0.417, 1.0],
-        [0.568, 0.239, 1.0],
-        [-0.727, -0.386, 1.0],
-        [-0.756, 0.171, 1.0]
-      ],
+      "radius_mul": 1.0,
+      "thickness_mul": 1.0,
+      "directions_local": [[0.0, 0.0, 1.0]],
       "enabled": true
     },
     {
@@ -250,55 +589,45 @@
       "vert_shader": "assets/shaders/vfx/moves/tackle/tackle_smoke_shared.vert",
       "frag_shader": "assets/shaders/vfx/moves/tackle/tackle_smoke_shared.frag",
       "tint_color": [1.0, 1.0, 1.0],
-      "scale_mul": 0.56,
-      "alpha_mul": 0.78,
+      "scale_mul": 0.50,
+      "alpha_mul": 0.68,
       "authored_billboard_position_scale": 0.10,
       "authored_billboards": [
         {
-          "position_local": [0.467627, -1.055705, -1.861078],
-          "scale_mul": 1.138011
+          "position_local": [0.467622, -1.055705, -1.861078],
+          "scale_mul": 1.074787
         },
         {
-          "position_local": [-2.791371, -0.9283, -0.472397],
-          "scale_mul": 1.052196
+          "position_local": [-2.791375, -0.928300, -0.472397],
+          "scale_mul": 0.993739
         },
         {
-          "position_local": [-0.523028, -0.720755, 1.021425],
-          "scale_mul": 1.0
+          "position_local": [-0.523032, -0.720755, 1.021425],
+          "scale_mul": 0.944443
         },
         {
-          "position_local": [1.225979, -1.08289, -0.44006],
-          "scale_mul": 1.047445
+          "position_local": [1.225975, -1.082890, -0.440060],
+          "scale_mul": 0.989251
         },
         {
-          "position_local": [-2.378948, 0.880305, 1.235153],
-          "scale_mul": 1.068111
+          "position_local": [-2.378953, 0.880305, 1.235153],
+          "scale_mul": 1.008771
         },
         {
-          "position_local": [2.285191, 0.69971, 2.371178],
-          "scale_mul": 1.047186
+          "position_local": [2.285187, 0.699710, 2.371178],
+          "scale_mul": 0.989008
         }
       ],
-      "forward_offset": -0.025,
-      "height_offset": 0.32,
+      "forward_offset": 0.0,
+      "height_offset": 0.0,
       "start_radius_mul": 1.0,
       "time_start_sec": 0.200,
       "time_end_sec": 1.667,
       "time_fade_local": true,
       "time_fade_start": 0.30,
-      "radius_mul": 0.98,
-      "thickness_mul": 0.9,
-      "direction_spacing_jitter_deg": 5.0,
-      "line_alpha_min": 0.84,
-      "line_alpha_max": 1.15,
-      "directions_local": [
-        [0.293, -0.268, 1.0],
-        [-0.975, -0.218, 1.0],
-        [-0.092, -0.137, 1.0],
-        [0.588, -0.278, 1.0],
-        [-0.814, 0.486, 1.0],
-        [1.0, 0.415, 1.0]
-      ],
+      "radius_mul": 1.0,
+      "thickness_mul": 1.0,
+      "directions_local": [[0.0, 0.0, 1.0]],
       "enabled": true
     },
     {
