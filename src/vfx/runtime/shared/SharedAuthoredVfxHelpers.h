@@ -72,6 +72,14 @@ float resolveAuthoredStreakTravelDistance(
     const SharedAuthoredBatchVFX::Config::DrawPass& pass,
     float localAge01,
     float fallbackLifeSec);
+float resolveAuthoredDecayFactor(
+    const SharedAuthoredBatchVFX::Config::DrawPass& pass,
+    float localAge01,
+    float fallbackLifeSec,
+    float decayPerFrame);
+float resolveAuthoredStreakVisibilityFade(
+    const SharedAuthoredBatchVFX::Config::DrawPass& pass,
+    const glm::vec3& localStart);
 
 float quantizeLineVertexAlpha(float srcAlpha, float lineTevK1A, float colorAlpha);
 float resolveTimeFadeStart(const SharedAuthoredBatchVFX::Config::DrawPass& pass,

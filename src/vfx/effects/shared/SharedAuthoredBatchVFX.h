@@ -75,6 +75,9 @@ public:
             float authoredSegmentTravelMul = 0.0f;
             float authoredSegmentTravelDecayPerFrame = 1.0f;
             float authoredSegmentTravelFrameRate = 30.0f;
+            float authoredSegmentLengthDecayPerFrame = 1.0f;
+            float authoredSegmentAlphaDecayPerFrame = 1.0f;
+            float authoredSegmentMaxVisibleDistance = -1.0f;
             // Optional generated circular direction set when directions_local is omitted.
             int generatedDirectionCount = 0;
             std::string generatedDirectionMode = "circle";

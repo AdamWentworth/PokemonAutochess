@@ -465,6 +465,16 @@ void SharedAuthoredBatchVFX::applyDrawManifestOverrides() {
                     1.0f);
                 p.authoredSegmentTravelFrameRate =
                     std::max(1.0f, it.value("authored_segment_travel_fps", p.authoredSegmentTravelFrameRate));
+                p.authoredSegmentLengthDecayPerFrame = std::clamp(
+                    it.value("authored_segment_length_decay_per_frame", p.authoredSegmentLengthDecayPerFrame),
+                    0.0f,
+                    1.0f);
+                p.authoredSegmentAlphaDecayPerFrame = std::clamp(
+                    it.value("authored_segment_alpha_decay_per_frame", p.authoredSegmentAlphaDecayPerFrame),
+                    0.0f,
+                    1.0f);
+                p.authoredSegmentMaxVisibleDistance =
+                    it.value("authored_segment_max_visible_distance", p.authoredSegmentMaxVisibleDistance);
                 p.generatedDirectionCount =
                     std::max(0, it.value("generated_direction_count", p.generatedDirectionCount));
                 p.generatedDirectionMode =
@@ -620,10 +630,10 @@ void SharedAuthoredBatchVFX::ensureStreakQuadResources() {
 
     static const float kVerts[] = {
         // pos.xyz         color.rgba
-        -0.18f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f, 0.0f,
-         0.18f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f, 0.0f,
-        -0.02f, 0.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
-         0.02f, 0.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+        -0.05f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f, 0.0f,
+         0.05f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f, 0.0f,
+        -0.05f, 0.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+         0.05f, 0.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
     };
 
     glGenVertexArrays(1, &streakQuadVAO);
@@ -954,26 +964,46 @@ void SharedAuthoredBatchVFX::render(const Camera3D& camera) {
                         const float segmentLengthBase =
                             vfx::runtime::authored::resolveAuthoredStreakLength(segment);
                         if (segmentLengthBase <= 0.0001f) continue;
+                        const float lengthDecay =
+                            vfx::runtime::authored::resolveAuthoredDecayFactor(
+                                pass.cfg,
+                                timingState.localAge01,
+                                r.lifeSec,
+                                pass.cfg.authoredSegmentLengthDecayPerFrame);
+                        const float alphaDecay =
+                            vfx::runtime::authored::resolveAuthoredDecayFactor(
+                                pass.cfg,
+                                timingState.localAge01,
+                                r.lifeSec,
+                                pass.cfg.authoredSegmentAlphaDecayPerFrame);
+                        const float widthDecay = lengthDecay;
 
                         glm::vec3 localStart(0.0f);
                         glm::vec3 localVector(0.0f);
                         if (centerOrigin) {
                             const float travelDistance =
-                                spreadScale *
                                 vfx::runtime::authored::resolveAuthoredStreakTravelDistance(
                                     pass.cfg,
                                     timingState.localAge01,
                                     r.lifeSec);
                             localStart = segmentDirection * travelDistance;
-                            localVector = segmentDirection * (segmentLengthBase * spreadScale * lengthScale);
+                            localVector =
+                                segmentDirection *
+                                (segmentLengthBase * lengthScale * lengthDecay);
                         } else {
                             localStart = segment.startLocal * (spreadScale * positionScale);
                             localVector =
-                                (segment.endLocal - segment.startLocal) * (spreadScale * lengthScale);
+                                (segment.endLocal - segment.startLocal) *
+                                (spreadScale * lengthScale * lengthDecay);
                         }
                         const glm::vec3 localEnd = localStart + localVector;
                         const float segmentLength = glm::length(localVector);
                         if (segmentLength <= 0.0001f) continue;
+                        const float visibilityFade =
+                            vfx::runtime::authored::resolveAuthoredStreakVisibilityFade(
+                                pass.cfg,
+                                localStart);
+                        if (visibilityFade <= 0.001f) continue;
 
                         const glm::vec3 worldStart =
                             r.pos +
@@ -991,11 +1021,12 @@ void SharedAuthoredBatchVFX::render(const Camera3D& camera) {
                         const glm::vec3 passForward = glm::normalize(worldVector);
                         const glm::quat passRot = rotationFromToSafe(meshForwardLocal, passForward);
                         const glm::vec3 finalScale(
-                            visualScaleMul * radiusMul,
-                            visualScaleMul * radiusMul,
+                            visualScaleMul * radiusMul * widthDecay,
+                            visualScaleMul * radiusMul * widthDecay,
                             visualScaleMul * thicknessMul * segmentLength);
                         const float lineAlphaMul =
-                            std::max(0.0f, pass.cfg.alphaMul) * std::max(0.0f, segment.alphaMul);
+                            std::max(0.0f, pass.cfg.alphaMul) * std::max(0.0f, segment.alphaMul) *
+                            alphaDecay * lengthDecay * visibilityFade;
                         if (pass.locPassAlphaMul >= 0) {
                             glUniform1f(pass.locPassAlphaMul, lineAlphaMul);
                         }

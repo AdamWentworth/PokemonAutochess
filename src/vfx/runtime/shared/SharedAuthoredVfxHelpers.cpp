@@ -344,6 +344,49 @@ float resolveAuthoredStreakTravelDistance(
     return (travelMul / frameRate) * decayedFrameSum;
 }
 
+float resolveAuthoredDecayFactor(
+    const SharedAuthoredBatchVFX::Config::DrawPass& pass,
+    float localAge01,
+    float fallbackLifeSec,
+    float decayPerFrame) {
+    const float clampedDecay = std::clamp(decayPerFrame, 0.0f, 1.0f);
+    if (clampedDecay <= 0.0001f) return 0.0f;
+    if (std::abs(clampedDecay - 1.0f) <= 0.0001f) return 1.0f;
+
+    float durationSec = fallbackLifeSec;
+    const float explicitStartSec = std::max(0.0f, pass.timeStartSec);
+    if (pass.timeEndSec > explicitStartSec + 0.0001f) {
+        durationSec = pass.timeEndSec - explicitStartSec;
+    }
+    durationSec = std::max(durationSec, 0.0001f);
+
+    const float frameRate = std::max(1.0f, pass.authoredSegmentTravelFrameRate);
+    const float elapsedFrames = clamp01(localAge01) * durationSec * frameRate;
+    return std::pow(clampedDecay, elapsedFrames);
+}
+
+float resolveAuthoredStreakVisibilityFade(
+    const SharedAuthoredBatchVFX::Config::DrawPass& pass,
+    const glm::vec3& localStart) {
+    const float maxVisibleDistance = pass.authoredSegmentMaxVisibleDistance;
+    if (maxVisibleDistance <= 0.0001f) return 1.0f;
+
+    const float startDistance = glm::length(localStart);
+    // Clamp spark visibility by the spark's travel anchor, not the furthest tip of the
+    // streak. Using the tip makes long early-frame streaks disappear too soon and flattens
+    // the perceived displacement curve.
+    const float anchorDistance = startDistance;
+    if (anchorDistance >= maxVisibleDistance) return 0.0f;
+
+    const float fadeStartDistance = maxVisibleDistance * 0.85f;
+    if (anchorDistance <= fadeStartDistance) return 1.0f;
+
+    const float t =
+        (anchorDistance - fadeStartDistance) /
+        std::max(0.0001f, maxVisibleDistance - fadeStartDistance);
+    return 1.0f - clamp01(t);
+}
+
 float quantizeLineVertexAlpha(float srcAlpha, float lineTevK1A, float colorAlpha) {
     const float alpha255 =
         std::clamp(clamp01(srcAlpha) * clamp01(lineTevK1A) * 255.0f, 0.0f, 255.0f);

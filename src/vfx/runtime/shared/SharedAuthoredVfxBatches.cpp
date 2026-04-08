@@ -336,10 +336,10 @@ const std::array<IRenderBackend::WorldMeshVertex, 4>& streakQuadVerticesLocal() 
     static const std::array<IRenderBackend::WorldMeshVertex, 4> kVertices = [] {
         std::array<IRenderBackend::WorldMeshVertex, 4> verts{};
         constexpr std::array<glm::vec3, 4> kPositions = {
-            glm::vec3(-0.18f, 0.0f, 0.0f),
-            glm::vec3(0.18f, 0.0f, 0.0f),
-            glm::vec3(-0.02f, 0.0f, 1.0f),
-            glm::vec3(0.02f, 0.0f, 1.0f),
+            glm::vec3(-0.05f, 0.0f, 0.0f),
+            glm::vec3(0.05f, 0.0f, 0.0f),
+            glm::vec3(-0.05f, 0.0f, 1.0f),
+            glm::vec3(0.05f, 0.0f, 1.0f),
         };
         constexpr std::array<float, 4> kAlpha = {0.0f, 0.0f, 1.0f, 1.0f};
         for (std::size_t i = 0; i < verts.size(); ++i) {
@@ -387,7 +387,7 @@ std::string makeCenteredQuadGeometryCacheKeyLocal() {
 
 std::string makeStreakQuadGeometryCacheKeyLocal(float lineTevK1A) {
     const int k1aMilli = static_cast<int>(std::lround(std::clamp(lineTevK1A, 0.0f, 1.0f) * 1000.0f));
-    return std::string("__authored_vfx_geom_streak_quad_v1__:") + std::to_string(k1aMilli);
+    return std::string("__authored_vfx_geom_streak_quad_v2__:") + std::to_string(k1aMilli);
 }
 
 bool computePassSequenceStateLocal(const SharedAuthoredBatchVFX::Config::DrawPass& pass,
@@ -1321,26 +1321,46 @@ bool appendSharedStreakQuadPassSingleRingLocal(
                 const glm::vec3 segmentDirection = authored::resolveAuthoredStreakDirection(segment);
                 const float segmentLengthBase = authored::resolveAuthoredStreakLength(segment);
                 if (segmentLengthBase <= 0.0001f) continue;
+                const float lengthDecay =
+                    authored::resolveAuthoredDecayFactor(
+                        pass,
+                        timingState.localAge01,
+                        ring.lifeSec,
+                        pass.authoredSegmentLengthDecayPerFrame);
+                const float alphaDecay =
+                    authored::resolveAuthoredDecayFactor(
+                        pass,
+                        timingState.localAge01,
+                        ring.lifeSec,
+                        pass.authoredSegmentAlphaDecayPerFrame);
+                const float widthDecay = lengthDecay;
 
                 glm::vec3 localStart(0.0f);
                 glm::vec3 localVector(0.0f);
                 if (centerOrigin) {
                     const float travelDistance =
-                        spreadScale *
                         authored::resolveAuthoredStreakTravelDistance(
                             pass,
                             timingState.localAge01,
                             ring.lifeSec);
                     localStart = segmentDirection * travelDistance;
-                    localVector = segmentDirection * (segmentLengthBase * spreadScale * lengthScale);
+                    localVector =
+                        segmentDirection *
+                        (segmentLengthBase * lengthScale * lengthDecay);
                 } else {
                     localStart = segment.startLocal * (spreadScale * positionScale);
                     localVector =
-                        (segment.endLocal - segment.startLocal) * (spreadScale * lengthScale);
+                        (segment.endLocal - segment.startLocal) *
+                        (spreadScale * lengthScale * lengthDecay);
                 }
                 const glm::vec3 localEnd = localStart + localVector;
                 const float segmentLength = glm::length(localVector);
                 if (segmentLength <= 0.0001f) continue;
+                const float visibilityFade =
+                    authored::resolveAuthoredStreakVisibilityFade(
+                        pass,
+                        localStart);
+                if (visibilityFade <= 0.001f) continue;
 
                 const glm::vec3 worldStart =
                     ring.pos +
@@ -1365,15 +1385,15 @@ bool appendSharedStreakQuadPassSingleRingLocal(
                     glm::scale(
                         glm::mat4(1.0f),
                         glm::vec3(
-                            visualScaleMul * radiusMul,
-                            visualScaleMul * radiusMul,
+                            visualScaleMul * radiusMul * widthDecay,
+                            visualScaleMul * radiusMul * widthDecay,
                             visualScaleMul * thicknessMul * segmentLength)));
                 instance.vertexColorMulR = passTint.r;
                 instance.vertexColorMulG = passTint.g;
                 instance.vertexColorMulB = passTint.b;
                 instance.vertexColorMulA =
                     std::clamp(timingState.fade * std::max(0.0f, pass.alphaMul) *
-                                   std::max(0.0f, segment.alphaMul),
+                                   std::max(0.0f, segment.alphaMul) * alphaDecay * lengthDecay * visibilityFade,
                                0.0f,
                                1.0f);
                 batch.instances.push_back(std::move(instance));

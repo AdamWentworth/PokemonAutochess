@@ -827,7 +827,7 @@ bool test_shared_authored_vfx_batches_contract(std::string& outFail) {
                 outFail)) {
         return false;
     }
-    if (!expect(streakBatch.geometryCacheKey == "__authored_vfx_geom_streak_quad_v1__:1000",
+    if (!expect(streakBatch.geometryCacheKey == "__authored_vfx_geom_streak_quad_v2__:1000",
                 "Shared streak-quad batching should use a stable geometry cache key with quantized alpha state.",
                 outFail)) {
         return false;

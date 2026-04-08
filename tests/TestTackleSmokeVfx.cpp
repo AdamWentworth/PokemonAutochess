@@ -116,9 +116,13 @@ bool test_tackle_smoke_vfx_contract(std::string& outFail) {
              pass.authoredSegmentsPath.find("tackle_streak_segments.json") != std::string::npos &&
              pass.authoredSegmentsLocal.size() == 48u &&
              pass.authoredSegmentCenterOrigin &&
-             std::abs(pass.authoredSegmentTravelMul - 10.0f) <= 0.0005f &&
-             std::abs(pass.authoredSegmentTravelDecayPerFrame - 0.87f) <= 0.0005f &&
-             std::abs(pass.authoredSegmentTravelFrameRate - 30.0f) <= 0.0005f);
+             std::abs(pass.authoredSegmentLengthScale - 0.36f) <= 0.0005f &&
+             std::abs(pass.authoredSegmentTravelMul - 6.39f) <= 0.0005f &&
+             std::abs(pass.authoredSegmentTravelDecayPerFrame - 0.793701f) <= 0.0005f &&
+             std::abs(pass.authoredSegmentTravelFrameRate - 30.0f) <= 0.0005f &&
+             std::abs(pass.authoredSegmentLengthDecayPerFrame - 0.7792f) <= 0.0005f &&
+             std::abs(pass.authoredSegmentAlphaDecayPerFrame - 0.975f) <= 0.0005f &&
+             std::abs(pass.authoredSegmentMaxVisibleDistance - 1.032f) <= 0.0005f);
         sawSmokeFrame5Window =
             sawSmokeFrame5Window ||
             ((pass.eid == 921 || pass.eid == 926) &&
