@@ -1,8 +1,6 @@
 #include "game/runtime/shared/projected/world_scene/SharedProjectedWorldSceneHelpers.h"
 
-#include "game/runtime/shared/vfx/authored/SharedAuthoredVfxInterop.h"
-#include "vfx/runtime/shared/SharedAuthoredVfxBridge.h"
-#include "vfx/runtime/shared/SharedAuthoredVfxHelpers.h"
+#include "game/runtime/shared/projected/world_vfx/SharedProjectedWorldAuthoredVfxBridge.h"
 
 namespace game::runtime::shared_projected_scene {
 
@@ -17,79 +15,16 @@ void appendSharedGrowlWaveVfx(const GrowlWaveVfxArgs& args) {
     if (!args.gameWorld->buildGrowlWaveSnapshot(growlSnapshot)) return;
     if (growlSnapshot.drawPasses.empty() || growlSnapshot.rings.empty()) return;
 
-    using AuthoredTevState = vfx::runtime::authored::TevState;
-
-    const auto resolveGrowlSharedTexture =
-        [&](const GrowlWaveVFX::Config::DrawPass& pass,
-            const AuthoredTevState& tev) -> SharedBackendTextureCacheEntry* {
-            if (vfx::runtime::authored::isLinePass(growlSnapshot.config, pass) ||
-                pass.texturePath.empty()) {
-                return args.ensureBackendTextureLoaded("", false);
-            }
-
-            SharedBackendTextureCacheEntry* rawTex =
-                args.ensureBackendTextureLoaded(pass.texturePath, false);
-            if (!rawTex || !rawTex->valid || rawTex->rgba.empty() ||
-                rawTex->width <= 0 || rawTex->height <= 0) {
-                return nullptr;
-            }
-
-            const bool quarterPass =
-                vfx::runtime::authored::isQuarterRingPass(growlSnapshot.config, pass);
-            auto& backendTextureByPath = *args.backendTextureByPath;
-            if (backendTextureByPath.empty()) backendTextureByPath.reserve(64u);
-            const std::string bakedKey =
-                vfx::runtime::authored::makeBakedTextureKey(pass, quarterPass);
-            auto& baked = backendTextureByPath[bakedKey];
-            if (baked.attemptedLoad) {
-                return baked.valid ? &baked : nullptr;
-            }
-
-            baked.attemptedLoad = true;
-            baked.valid = false;
-            baked.width = rawTex->width;
-            baked.height = rawTex->height;
-            baked.rgba.clear();
-            if (!vfx::runtime::authored::bakePassTextureRgba(
-                    pass, tev, quarterPass, rawTex->rgba, baked.rgba)) {
-                return nullptr;
-            }
-
-            baked.valid = true;
-            return &baked;
-        };
-    const auto resolveGrowlTextureView =
-        [&](const GrowlWaveVFX::Config::DrawPass& pass,
-            const AuthoredTevState& tev,
-            vfx::runtime::authored_batches::TextureView& outView) {
-            SharedBackendTextureCacheEntry* tex = resolveGrowlSharedTexture(pass, tev);
-            if (!tex) tex = args.ensureBackendTextureLoaded("", false);
-            if (!tex || !tex->valid || tex->rgba.empty()) return false;
-            outView.rgba = tex->rgba.data();
-            outView.width = tex->width;
-            outView.height = tex->height;
-            return true;
-        };
-    const auto resolveGrowlMesh =
-        [&](const std::string& modelPath) -> vfx::runtime::authored_batches::MeshData* {
-            runtime::render_model::MeshData* mesh = args.ensureBackendMeshLoaded(modelPath);
-            if (!mesh || mesh->vertices.empty() || mesh->indices.empty()) {
-                return nullptr;
-            }
-            return const_cast<vfx::runtime::authored_batches::MeshData*>(
-                &game::runtime::shared_authored_vfx_interop::cachedReusableMeshData(*mesh));
-        };
-    std::vector<vfx::runtime::authored_batches::WorldIndexedBatch> growlBatches;
-    growlBatches.reserve(growlSnapshot.drawPasses.size() * 4u);
-    vfx::runtime::authored_bridge::appendBatches(
-        growlSnapshot,
-        growlBatches,
-        args.cameraWorldPos,
-        resolveGrowlMesh,
-        resolveGrowlTextureView);
-    game::runtime::shared_authored_vfx_interop::appendWorldIndexedBatches(
-        growlBatches,
-        *args.worldIndexedBatches);
+    game::runtime::shared_projected_authored_vfx_bridge::appendSnapshot(
+        {
+            .snapshot = &growlSnapshot,
+            .cameraWorldPos = args.cameraWorldPos,
+            .backendTextureByPath = args.backendTextureByPath,
+            .worldIndexedBatches = args.worldIndexedBatches,
+            .ensureBackendMeshLoaded = args.ensureBackendMeshLoaded,
+            .ensureBackendTextureLoaded = args.ensureBackendTextureLoaded,
+            .reserveMultiplier = 4u,
+        });
 }
 
 void appendSharedGrowlWaveVfxSession(

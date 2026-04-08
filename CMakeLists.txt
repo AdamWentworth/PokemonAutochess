@@ -476,6 +476,7 @@ add_library(PAC_GameObjects STATIC
     src/game/runtime/shared/projected/backend_mesh/SharedProjectedUnitBackendMeshTailFireOverride.cpp
     src/game/runtime/shared/projected/world_scene/SharedProjectedBoardBenchGeometryCache.cpp
     src/game/runtime/shared/projected/world_vfx/SharedProjectedWorldGrowlBridge.cpp
+    src/game/runtime/shared/projected/world_vfx/SharedProjectedWorldAuthoredVfxBridge.cpp
     src/game/runtime/shared/projected/world_vfx/SharedProjectedWorldTackleBridge.cpp
     src/game/runtime/shared/projected/world_vfx/SharedProjectedWorldParticleVfxBridge.cpp
     src/game/runtime/shared/projected/world_vfx/SharedProjectedWorldTailFireVfxBridge.cpp
