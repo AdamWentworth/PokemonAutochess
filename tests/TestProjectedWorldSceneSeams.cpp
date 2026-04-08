@@ -39,6 +39,12 @@ bool test_projected_world_scene_seams_contract(std::string& outFail) {
         "src/game/runtime/shared/projected/world_vfx/SharedProjectedWorldTailFireVfxBridge.cpp";
     const std::filesystem::path captureBridgePath =
         "src/game/runtime/shared/projected/world_vfx/SharedProjectedWorldCaptureBridge.cpp";
+    const std::filesystem::path gameWorldVfxPath =
+        "src/game/world/GameWorldVfx.cpp";
+    const std::filesystem::path gameWorldSnapshotsPath =
+        "src/game/world/GameWorldSharedSnapshots.cpp";
+    const std::filesystem::path gameWorldMoveImpactPath =
+        "src/game/world/GameWorldMoveImpact.cpp";
     const std::filesystem::path batchStatePath =
         "src/game/runtime/shared/projected/world_scene/SharedProjectedUnitWorldSceneBatchState.cpp";
     const std::filesystem::path submissionPath =
@@ -60,6 +66,7 @@ bool test_projected_world_scene_seams_contract(std::string& outFail) {
         {growlBridgePath, "appendSharedGrowlWaveVfxSession("},
         {vfxBridgePath, "appendSharedTackleSmokeVfxSession("},
         {tackleBridgePath, "buildTackleSmokeSnapshot("},
+        {gameWorldMoveImpactPath, "tackleSmokeVfx.emitAt(impact.position, impact.forward);"},
         {particleBridgePath, "appendSharedParticleVfxSession("},
         {tailFireVfxBridgePath, "appendSyntheticTailFireBillboards("},
         {captureBridgePath, "appendSharedCaptureAttemptModelsIfNeededForProjectedWorld("},
@@ -82,6 +89,10 @@ bool test_projected_world_scene_seams_contract(std::string& outFail) {
         {particleBridgePath, "shared_tail_fire_fallback::appendSyntheticTailFire("},
         {particleBridgePath, "tailFireArgs.appendSnapshot ="},
         {vfxBridgePath, "buildGrowlWaveSnapshot("},
+        {gameWorldVfxPath, "tackleImpactVfx.update(dt);"},
+        {gameWorldSnapshotsPath, "tackleImpactVfx.getBurstParticles()"},
+        {gameWorldSnapshotsPath, "tackleImpactVfx.getSparkParticles()"},
+        {gameWorldMoveImpactPath, "tackleImpactVfx.emitAt("},
     };
 
     for (const auto& [path, token] : requiredTokens) {

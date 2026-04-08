@@ -24,12 +24,6 @@ void GameWorld::updateRenderVfx(float dt) {
         grassImpactVfxInitialized = true;
     }
 
-    if (!tackleImpactVfxInitialized) {
-        TackleImpactVFX::Config configData;  // defaults
-        tackleImpactVfx.setConfig(configData);
-        tackleImpactVfxInitialized = true;
-    }
-
     if (!tackleSmokeVfxInitialized) {
         TackleSmokeVFX::Config configData = TackleSmokeVFX::makeDefaultConfig();
         tackleSmokeVfx.setConfig(configData);
@@ -37,7 +31,6 @@ void GameWorld::updateRenderVfx(float dt) {
     }
 
     grassImpactVfx.update(dt);
-    tackleImpactVfx.update(dt);
     tackleSmokeVfx.update(dt);
 
     if (!leechSeedVfxInitialized) {
