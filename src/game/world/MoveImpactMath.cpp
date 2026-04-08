@@ -2,8 +2,10 @@
 
 #include <algorithm>
 #include <array>
+#include <cctype>
 #include <cmath>
 #include <limits>
+#include <string_view>
 #include <vector>
 
 #include <glm/gtc/matrix_transform.hpp>
@@ -11,6 +13,31 @@
 #include "game/runtime/shared/backend/SharedBackendPoseEval.h"
 
 namespace {
+
+struct LocalBounds {
+    glm::vec3 min{0.0f};
+    glm::vec3 max{0.0f};
+    bool valid = false;
+};
+
+std::string lowerCopyLocal(std::string_view value) {
+    std::string out;
+    out.reserve(value.size());
+    for (char ch : value) {
+        out.push_back(static_cast<char>(std::tolower(static_cast<unsigned char>(ch))));
+    }
+    return out;
+}
+
+bool speciesIgnoresMoveImpactNodeLocal(const PokemonInstance& instance,
+                                       std::string_view nodeName) {
+    const std::string species = lowerCopyLocal(instance.name);
+    if (species == "bulbasaur") {
+        const std::string node = lowerCopyLocal(nodeName);
+        if (node.find("_tuta_mesh") != std::string::npos) return true;
+    }
+    return false;
+}
 
 glm::vec3 safeForwardXZLocal(const glm::vec3& value) {
     glm::vec3 forward(value.x, 0.0f, value.z);
@@ -111,6 +138,68 @@ int triangleNodeFallbackLocal(const game::runtime::render_model::MeshData& mesh,
     return mesh.meshIndexToNode[static_cast<std::size_t>(meshIndex)];
 }
 
+bool triangleShouldBeIgnoredForMoveImpactLocal(const PokemonInstance& instance,
+                                               const game::runtime::render_model::MeshData& mesh,
+                                               int triNodeIndex) {
+    if (triNodeIndex < 0) return false;
+    const std::size_t nodeIndex = static_cast<std::size_t>(triNodeIndex);
+    if (nodeIndex >= mesh.nodeNames.size()) return false;
+    return speciesIgnoresMoveImpactNodeLocal(instance, mesh.nodeNames[nodeIndex]);
+}
+
+void expandBoundsWithVertexLocal(LocalBounds& bounds, const glm::vec3& vertex) {
+    if (!bounds.valid) {
+        bounds.min = vertex;
+        bounds.max = vertex;
+        bounds.valid = true;
+        return;
+    }
+    bounds.min = glm::min(bounds.min, vertex);
+    bounds.max = glm::max(bounds.max, vertex);
+}
+
+LocalBounds computeFilteredMoveImpactLocalBounds(const PokemonInstance& instance,
+                                                 const game::runtime::render_model::MeshData& mesh) {
+    LocalBounds bounds{};
+    const std::size_t triangleCount = mesh.indices.size() / 3u;
+    for (std::size_t triangleIndex = 0; triangleIndex < triangleCount; ++triangleIndex) {
+        int triNodeIndex =
+            (triangleIndex < mesh.triangleNodeIndex.size())
+                ? mesh.triangleNodeIndex[triangleIndex]
+                : -1;
+        if (triNodeIndex < 0) {
+            triNodeIndex = triangleNodeFallbackLocal(mesh, triangleIndex);
+        }
+        if (triangleShouldBeIgnoredForMoveImpactLocal(instance, mesh, triNodeIndex)) {
+            continue;
+        }
+
+        const std::size_t indexBase = triangleIndex * 3u;
+        const std::uint32_t i0 = mesh.indices[indexBase + 0u];
+        const std::uint32_t i1 = mesh.indices[indexBase + 1u];
+        const std::uint32_t i2 = mesh.indices[indexBase + 2u];
+        if (i0 >= mesh.vertices.size() || i1 >= mesh.vertices.size() || i2 >= mesh.vertices.size()) {
+            continue;
+        }
+
+        expandBoundsWithVertexLocal(bounds, mesh.vertices[i0].position);
+        expandBoundsWithVertexLocal(bounds, mesh.vertices[i1].position);
+        expandBoundsWithVertexLocal(bounds, mesh.vertices[i2].position);
+    }
+    return bounds;
+}
+
+LocalBounds resolveMoveImpactLocalBounds(const PokemonInstance& instance,
+                                         const game::runtime::render_model::MeshData& mesh) {
+    LocalBounds bounds = computeFilteredMoveImpactLocalBounds(instance, mesh);
+    if (bounds.valid) return bounds;
+
+    bounds.min = mesh.boundsMin;
+    bounds.max = mesh.boundsMax;
+    bounds.valid = true;
+    return bounds;
+}
+
 glm::vec3 resolveWorldVertexLocal(
     const game::runtime::render_model::MeshData& mesh,
     const game::runtime::shared_backend_pose::PoseEval* pose,
@@ -200,8 +289,9 @@ MoveImpactSurfacePoint computeFallbackSurfacePointLocal(
     float horizontalRadius = 0.0f;
     float verticalHalf = 0.0f;
     if (targetMesh) {
+        const LocalBounds bounds = resolveMoveImpactLocalBounds(target, *targetMesh);
         const float scale = computeModelWorldScaleForMoveImpact(target, targetMesh->modelScaleFactor);
-        const glm::vec3 extents = (targetMesh->boundsMax - targetMesh->boundsMin) * 0.5f;
+        const glm::vec3 extents = (bounds.max - bounds.min) * 0.5f;
         horizontalRadius = std::max(std::abs(extents.x), std::abs(extents.z)) * scale;
         verticalHalf = std::abs(extents.y) * scale;
     } else if (target.model && target.model->hasBounds()) {
@@ -230,7 +320,8 @@ glm::vec3 computeMoveImpactWorldCenter(
     const game::runtime::render_model::MeshData* mesh,
     float backendModelScaleFactor) {
     if (mesh) {
-        const glm::vec3 localCenter = (mesh->boundsMin + mesh->boundsMax) * 0.5f;
+        const LocalBounds bounds = resolveMoveImpactLocalBounds(instance, *mesh);
+        const glm::vec3 localCenter = (bounds.min + bounds.max) * 0.5f;
         const glm::mat4 modelMatrix =
             buildModelInstanceTransformLocal(instance, std::max(0.01f, mesh->modelScaleFactor));
         return glm::vec3(modelMatrix * glm::vec4(localCenter, 1.0f));
@@ -298,6 +389,9 @@ MoveImpactSurfacePoint computeTargetSurfaceImpactPoint(
         if (triNodeIndex < 0) {
             triNodeIndex = triangleNodeFallbackLocal(*targetMesh, triangleIndex);
         }
+        if (triangleShouldBeIgnoredForMoveImpactLocal(target, *targetMesh, triNodeIndex)) {
+            continue;
+        }
         const int triSkinIndex =
             (triangleIndex < targetMesh->triangleSkinIndex.size())
                 ? targetMesh->triangleSkinIndex[triangleIndex]
@@ -338,8 +432,9 @@ MoveImpactSurfacePoint computeTargetSurfaceImpactPoint(
 
     float verticalHalf = 0.0f;
     if (targetMesh) {
+        const LocalBounds bounds = resolveMoveImpactLocalBounds(target, *targetMesh);
         const float scale = computeModelWorldScaleForMoveImpact(target, targetMesh->modelScaleFactor);
-        const glm::vec3 extents = (targetMesh->boundsMax - targetMesh->boundsMin) * 0.5f;
+        const glm::vec3 extents = (bounds.max - bounds.min) * 0.5f;
         verticalHalf = std::abs(extents.y) * scale;
     } else if (target.model && target.model->hasBounds()) {
         const float scale = computeModelWorldScaleForMoveImpact(target);
