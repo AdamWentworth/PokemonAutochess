@@ -54,6 +54,7 @@ public:
             float timeFadeStart = -1.0f;
             float localScaleStartMul = 1.0f;
             float localScaleEndMul = 1.0f;
+            float localScaleRampSec = 0.0f;
             int sequenceCount = 1;
             int sequenceIndex = -1;
             float sequenceStep = 0.0f;

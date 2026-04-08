@@ -411,6 +411,7 @@ void SharedAuthoredBatchVFX::applyDrawManifestOverrides() {
                 p.timeFadeStart = it.value("time_fade_start", p.timeFadeStart);
                 p.localScaleStartMul = std::max(0.0f, it.value("local_scale_start_mul", p.localScaleStartMul));
                 p.localScaleEndMul = std::max(0.0f, it.value("local_scale_end_mul", p.localScaleEndMul));
+                p.localScaleRampSec = std::max(0.0f, it.value("local_scale_ramp_sec", p.localScaleRampSec));
                 p.sequenceCount = std::clamp(it.value("sequence_count", p.sequenceCount), 1, 16);
                 p.sequenceIndex = std::clamp(it.value("sequence_index", p.sequenceIndex), -1, 15);
                 p.sequenceStep = std::max(0.0f, it.value("sequence_step", p.sequenceStep));
@@ -954,7 +955,10 @@ void SharedAuthoredBatchVFX::render(const Camera3D& camera) {
                         }
 
                         const float localScaleMul =
-                            vfx::runtime::authored::resolveLocalScaleMul(pass.cfg, timingState.localAge01);
+                            vfx::runtime::authored::resolveLocalScaleMul(
+                                pass.cfg,
+                                timingState.localAge01,
+                                r.lifeSec);
                         const float spreadScale =
                             glm::mix(r.startScale, r.endScale, timingState.localAge01) * localScaleMul;
                         if (spreadScale <= 0.0001f || visualScaleMul <= 0.0001f) continue;
@@ -1132,7 +1136,7 @@ void SharedAuthoredBatchVFX::render(const Camera3D& camera) {
                     if (fade <= 0.001f) continue;
                     if (pass.locFade >= 0) glUniform1f(pass.locFade, fade);
                     const float localScaleMul =
-                        vfx::runtime::authored::resolveLocalScaleMul(pass.cfg, localAge01);
+                        vfx::runtime::authored::resolveLocalScaleMul(pass.cfg, localAge01, r.lifeSec);
 
                     float animatedScale = 0.0f;
                     const bool localTimedPass =

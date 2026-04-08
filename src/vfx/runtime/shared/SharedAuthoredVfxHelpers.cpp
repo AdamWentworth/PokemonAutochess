@@ -403,8 +403,19 @@ float resolveTimeFadeStart(const SharedAuthoredBatchVFX::Config::DrawPass& pass,
 }
 
 float resolveLocalScaleMul(const SharedAuthoredBatchVFX::Config::DrawPass& pass,
-                           float localAge01) {
-    const float t = glm::clamp(localAge01, 0.0f, 1.0f);
+                           float localAge01,
+                           float lifeSec) {
+    float t = glm::clamp(localAge01, 0.0f, 1.0f);
+    const float rampSec = std::max(0.0f, pass.localScaleRampSec);
+    if (rampSec > 0.0001f) {
+        float durationSec = std::max(0.0001f, lifeSec);
+        const float explicitStartSec = std::max(0.0f, pass.timeStartSec);
+        if (pass.timeEndSec > explicitStartSec + 0.0001f) {
+            durationSec = pass.timeEndSec - explicitStartSec;
+        }
+        const float rampAge01 = glm::clamp(rampSec / durationSec, 0.0001f, 1.0f);
+        t = glm::clamp(t / rampAge01, 0.0f, 1.0f);
+    }
     return glm::mix(
         std::max(0.0f, pass.localScaleStartMul),
         std::max(0.0f, pass.localScaleEndMul),

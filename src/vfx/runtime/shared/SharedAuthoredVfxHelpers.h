@@ -85,7 +85,8 @@ float quantizeLineVertexAlpha(float srcAlpha, float lineTevK1A, float colorAlpha
 float resolveTimeFadeStart(const SharedAuthoredBatchVFX::Config::DrawPass& pass,
                            float defaultFadeStart);
 float resolveLocalScaleMul(const SharedAuthoredBatchVFX::Config::DrawPass& pass,
-                           float localAge01);
+                           float localAge01,
+                           float lifeSec);
 
 PassTimingPlan planPassTiming(const SharedAuthoredBatchVFX::Config::DrawPass& pass,
                               bool allowRepeatedSequence);

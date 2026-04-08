@@ -831,7 +831,7 @@ bool appendSharedGlowBillboardPassSingleRingLocal(
             pass, ring.ageSec, ring.lifeSec, fadeStart, timingPlan, 0, timingState)) {
         return false;
     }
-    const float localScaleMul = authored::resolveLocalScaleMul(pass, timingState.localAge01);
+    const float localScaleMul = authored::resolveLocalScaleMul(pass, timingState.localAge01, ring.lifeSec);
 
     const float animatedScale =
         glm::mix(ring.startScale, ring.endScale, timingState.localAge01) *
@@ -1026,7 +1026,7 @@ bool appendSharedQuarterPassSingleRingLocal(
             std::clamp(timingState.fade * std::max(0.0f, pass.alphaMul), 0.0f, 1.0f);
         if (passAlpha <= 0.001f) continue;
         const float localScaleMul =
-            authored::resolveLocalScaleMul(pass, timingState.localAge01);
+            authored::resolveLocalScaleMul(pass, timingState.localAge01, ring.lifeSec);
 
         const float animatedScale =
             timingPlan.repeatedSequencePass
@@ -1313,7 +1313,7 @@ bool appendSharedStreakQuadPassSingleRingLocal(
                 }
 
                 const float localScaleMul =
-                    authored::resolveLocalScaleMul(pass, timingState.localAge01);
+                    authored::resolveLocalScaleMul(pass, timingState.localAge01, ring.lifeSec);
                 const float spreadScale =
                     glm::mix(ring.startScale, ring.endScale, timingState.localAge01) * localScaleMul;
                 if (spreadScale <= 0.0001f || visualScaleMul <= 0.0001f) continue;
@@ -1471,7 +1471,7 @@ bool appendSharedStreakQuadPassSingleRingLocal(
                 continue;
             }
             const float localScaleMul =
-                authored::resolveLocalScaleMul(pass, timingState.localAge01);
+                authored::resolveLocalScaleMul(pass, timingState.localAge01, ring.lifeSec);
 
             const float animatedScale =
                 glm::mix(ring.startScale, ring.endScale, timingState.localAge01) *

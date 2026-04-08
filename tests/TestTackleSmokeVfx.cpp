@@ -145,8 +145,9 @@ bool test_tackle_smoke_vfx_contract(std::string& outFail) {
              std::abs(pass.timeEndSec - 0.60f) <= 0.0005f &&
              pass.timeFadeLocal &&
              std::abs(pass.timeFadeStart - 0.62f) <= 0.0005f &&
-             std::abs(pass.localScaleStartMul - 0.87f) <= 0.0005f &&
-             std::abs(pass.localScaleEndMul - 1.0f) <= 0.0005f);
+             std::abs(pass.localScaleStartMul - 0.55f) <= 0.0005f &&
+             std::abs(pass.localScaleEndMul - 1.0f) <= 0.0005f &&
+             std::abs(pass.localScaleRampSec - 0.10f) <= 0.0005f);
         sawSpiralWindow =
             sawSpiralWindow ||
             ((pass.eid == 1225 || pass.eid == 1234 || pass.eid == 1243) &&
@@ -154,8 +155,9 @@ bool test_tackle_smoke_vfx_contract(std::string& outFail) {
              std::abs(pass.timeEndSec - 0.533f) <= 0.0005f &&
              pass.timeFadeLocal &&
              std::abs(pass.timeFadeStart - 0.50f) <= 0.0005f &&
-             std::abs(pass.localScaleStartMul - 0.87f) <= 0.0005f &&
-             std::abs(pass.localScaleEndMul - 1.0f) <= 0.0005f);
+             std::abs(pass.localScaleStartMul - 0.55f) <= 0.0005f &&
+             std::abs(pass.localScaleEndMul - 1.0f) <= 0.0005f &&
+             std::abs(pass.localScaleRampSec - 0.10f) <= 0.0005f);
         sawSparkWindow =
             sawSparkWindow ||
             (pass.eid == 1253 &&
