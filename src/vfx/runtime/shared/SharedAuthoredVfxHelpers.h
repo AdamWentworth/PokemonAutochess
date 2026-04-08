@@ -68,6 +68,10 @@ glm::vec3 resolveAuthoredStreakDirection(
     const SharedAuthoredBatchVFX::Config::AuthoredStreakSegment& segment);
 float resolveAuthoredStreakLength(
     const SharedAuthoredBatchVFX::Config::AuthoredStreakSegment& segment);
+float resolveAuthoredStreakTravelDistance(
+    const SharedAuthoredBatchVFX::Config::DrawPass& pass,
+    float localAge01,
+    float fallbackLifeSec);
 
 float quantizeLineVertexAlpha(float srcAlpha, float lineTevK1A, float colorAlpha);
 float resolveTimeFadeStart(const SharedAuthoredBatchVFX::Config::DrawPass& pass,

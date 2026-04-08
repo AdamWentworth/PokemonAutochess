@@ -1291,7 +1291,6 @@ bool appendSharedStreakQuadPassSingleRingLocal(
         const bool centerOrigin = pass.authoredSegmentCenterOrigin;
         const float positionScale = std::max(0.0f, pass.authoredSegmentPositionScale);
         const float lengthScale = std::max(0.0f, pass.authoredSegmentLengthScale);
-        const float travelMul = std::max(0.0f, pass.authoredSegmentTravelMul);
 
         shared_world_batches::WorldIndexedBatch batch = makeBaseBatchLocal(snapshot, pass, texture);
         const auto& sharedVertices = streakQuadVerticesLocal();
@@ -1326,8 +1325,12 @@ bool appendSharedStreakQuadPassSingleRingLocal(
                 glm::vec3 localStart(0.0f);
                 glm::vec3 localVector(0.0f);
                 if (centerOrigin) {
-                    const float launch01 = fastLaunch01Local(timingState.localAge01);
-                    const float travelDistance = spreadScale * travelMul * launch01;
+                    const float travelDistance =
+                        spreadScale *
+                        authored::resolveAuthoredStreakTravelDistance(
+                            pass,
+                            timingState.localAge01,
+                            ring.lifeSec);
                     localStart = segmentDirection * travelDistance;
                     localVector = segmentDirection * (segmentLengthBase * spreadScale * lengthScale);
                 } else {

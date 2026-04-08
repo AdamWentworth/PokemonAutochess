@@ -367,6 +367,8 @@
       "authored_segment_position_scale": 0.0,
       "authored_segment_length_scale": 1.0,
       "authored_segment_travel_mul": 10.0,
+      "authored_segment_travel_decay_per_frame": 0.87,
+      "authored_segment_travel_fps": 30.0,
       "time_start_sec": 0.0,
       "time_end_sec": 0.40,
       "time_fade_local": true,

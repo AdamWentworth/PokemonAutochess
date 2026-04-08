@@ -312,6 +312,38 @@ float resolveAuthoredStreakLength(
     return glm::length(segment.endLocal - segment.startLocal);
 }
 
+float resolveAuthoredStreakTravelDistance(
+    const SharedAuthoredBatchVFX::Config::DrawPass& pass,
+    float localAge01,
+    float fallbackLifeSec) {
+    const float travelMul = std::max(0.0f, pass.authoredSegmentTravelMul);
+    if (travelMul <= 0.0001f) return 0.0f;
+
+    float durationSec = fallbackLifeSec;
+    const float explicitStartSec = std::max(0.0f, pass.timeStartSec);
+    if (pass.timeEndSec > explicitStartSec + 0.0001f) {
+        durationSec = pass.timeEndSec - explicitStartSec;
+    }
+    durationSec = std::max(durationSec, 0.0001f);
+
+    const float frameRate = std::max(1.0f, pass.authoredSegmentTravelFrameRate);
+    const float decayPerFrame = std::clamp(pass.authoredSegmentTravelDecayPerFrame, 0.0f, 1.0f);
+    const float elapsedFrames = clamp01(localAge01) * durationSec * frameRate;
+    const int wholeFrames = std::max(0, static_cast<int>(std::floor(elapsedFrames)));
+    const float fractionalFrame = elapsedFrames - static_cast<float>(wholeFrames);
+
+    float decayedFrameSum = 0.0f;
+    if (std::abs(decayPerFrame - 1.0f) <= 0.0001f) {
+        decayedFrameSum = elapsedFrames;
+    } else {
+        decayedFrameSum = (1.0f - std::pow(decayPerFrame, static_cast<float>(wholeFrames))) /
+                          std::max(0.0001f, 1.0f - decayPerFrame);
+        decayedFrameSum += fractionalFrame * std::pow(decayPerFrame, static_cast<float>(wholeFrames));
+    }
+
+    return (travelMul / frameRate) * decayedFrameSum;
+}
+
 float quantizeLineVertexAlpha(float srcAlpha, float lineTevK1A, float colorAlpha) {
     const float alpha255 =
         std::clamp(clamp01(srcAlpha) * clamp01(lineTevK1A) * 255.0f, 0.0f, 255.0f);

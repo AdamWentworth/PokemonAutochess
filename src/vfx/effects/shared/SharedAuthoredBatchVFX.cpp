@@ -459,6 +459,12 @@ void SharedAuthoredBatchVFX::applyDrawManifestOverrides() {
                     std::max(0.0f, it.value("authored_segment_length_scale", p.authoredSegmentLengthScale));
                 p.authoredSegmentTravelMul =
                     std::max(0.0f, it.value("authored_segment_travel_mul", p.authoredSegmentTravelMul));
+                p.authoredSegmentTravelDecayPerFrame = std::clamp(
+                    it.value("authored_segment_travel_decay_per_frame", p.authoredSegmentTravelDecayPerFrame),
+                    0.0f,
+                    1.0f);
+                p.authoredSegmentTravelFrameRate =
+                    std::max(1.0f, it.value("authored_segment_travel_fps", p.authoredSegmentTravelFrameRate));
                 p.generatedDirectionCount =
                     std::max(0, it.value("generated_direction_count", p.generatedDirectionCount));
                 p.generatedDirectionMode =
@@ -921,7 +927,6 @@ void SharedAuthoredBatchVFX::render(const Camera3D& camera) {
                 const bool centerOrigin = pass.cfg.authoredSegmentCenterOrigin;
                 const float positionScale = std::max(0.0f, pass.cfg.authoredSegmentPositionScale);
                 const float lengthScale = std::max(0.0f, pass.cfg.authoredSegmentLengthScale);
-                const float travelMul = std::max(0.0f, pass.cfg.authoredSegmentTravelMul);
 
                 for (std::size_t segmentIndex = 0; segmentIndex < authoredSegments.size(); ++segmentIndex) {
                     const auto& segment = authoredSegments[segmentIndex];
@@ -953,8 +958,12 @@ void SharedAuthoredBatchVFX::render(const Camera3D& camera) {
                         glm::vec3 localStart(0.0f);
                         glm::vec3 localVector(0.0f);
                         if (centerOrigin) {
-                            const float launch01 = fastLaunch01(timingState.localAge01);
-                            const float travelDistance = spreadScale * travelMul * launch01;
+                            const float travelDistance =
+                                spreadScale *
+                                vfx::runtime::authored::resolveAuthoredStreakTravelDistance(
+                                    pass.cfg,
+                                    timingState.localAge01,
+                                    r.lifeSec);
                             localStart = segmentDirection * travelDistance;
                             localVector = segmentDirection * (segmentLengthBase * spreadScale * lengthScale);
                         } else {
