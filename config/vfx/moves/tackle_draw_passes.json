@@ -8,6 +8,8 @@
     "tev_c0": [0.462745, 0.392157, 0.313726],
     "tev_c1": [0.270588, 0.258824, 0.211765],
     "tev_k0": [1.0, 1.0, 1.0],
+    "tev_c0_a": 0.098039,
+    "tev_c1_a": 0.0,
     "tev_k1a": 0.098039
   },
   "draw_passes": [
@@ -21,6 +23,13 @@
       "tint_color": [1.0, 1.0, 1.0],
       "scale_mul": 0.80,
       "alpha_mul": 1.0,
+      "authored_billboard_position_scale": 0.10,
+      "authored_billboards": [
+        {
+          "position_local": [-2.015816, -0.914105, -0.022265],
+          "scale_mul": 1.0
+        }
+      ],
       "forward_offset": 0.0,
       "height_offset": 0.0,
       "start_radius_mul": 1.0,
@@ -45,6 +54,17 @@
       "tint_color": [1.0, 1.0, 1.0],
       "scale_mul": 0.74,
       "alpha_mul": 0.94,
+      "authored_billboard_position_scale": 0.10,
+      "authored_billboards": [
+        {
+          "position_local": [-2.441218, 0.368437, 1.92647],
+          "scale_mul": 1.019839
+        },
+        {
+          "position_local": [1.143954, -0.254132, -0.786735],
+          "scale_mul": 1.0
+        }
+      ],
       "forward_offset": -0.01,
       "height_offset": 0.18,
       "start_radius_mul": 1.0,
@@ -70,6 +90,25 @@
       "tint_color": [1.0, 1.0, 1.0],
       "scale_mul": 0.68,
       "alpha_mul": 0.90,
+      "authored_billboard_position_scale": 0.10,
+      "authored_billboards": [
+        {
+          "position_local": [1.197124, -0.069465, 0.212335],
+          "scale_mul": 1.024803
+        },
+        {
+          "position_local": [0.541637, 0.496585, 2.64216],
+          "scale_mul": 1.042036
+        },
+        {
+          "position_local": [-1.697231, 0.219515, -0.90451],
+          "scale_mul": 1.096006
+        },
+        {
+          "position_local": [-1.410166, -1.62588, -1.80527],
+          "scale_mul": 1.0
+        }
+      ],
       "forward_offset": -0.01,
       "height_offset": 0.22,
       "start_radius_mul": 1.0,
@@ -100,6 +139,29 @@
       "tint_color": [1.0, 1.0, 1.0],
       "scale_mul": 0.64,
       "alpha_mul": 0.86,
+      "authored_billboard_position_scale": 0.10,
+      "authored_billboards": [
+        {
+          "position_local": [-0.202113, 0.086673, -1.765093],
+          "scale_mul": 1.0
+        },
+        {
+          "position_local": [1.139967, 0.215408, -4.600205],
+          "scale_mul": 1.029247
+        },
+        {
+          "position_local": [-0.966191, 0.309308, -1.691245],
+          "scale_mul": 1.085609
+        },
+        {
+          "position_local": [0.799364, -0.588205, -1.831553],
+          "scale_mul": 1.106239
+        },
+        {
+          "position_local": [-0.123748, -0.19045, -0.04305],
+          "scale_mul": 1.01292
+        }
+      ],
       "forward_offset": -0.015,
       "height_offset": 0.25,
       "start_radius_mul": 1.0,
@@ -131,6 +193,33 @@
       "tint_color": [1.0, 1.0, 1.0],
       "scale_mul": 0.60,
       "alpha_mul": 0.82,
+      "authored_billboard_position_scale": 0.10,
+      "authored_billboards": [
+        {
+          "position_local": [-2.016431, -0.821172, -0.13051],
+          "scale_mul": 1.091683
+        },
+        {
+          "position_local": [1.834074, -1.16155, 1.594172],
+          "scale_mul": 1.000672
+        },
+        {
+          "position_local": [0.902949, 0.470555, -2.162],
+          "scale_mul": 1.0
+        },
+        {
+          "position_local": [0.843299, 0.0627, 2.098973],
+          "scale_mul": 1.177234
+        },
+        {
+          "position_local": [-2.125926, -1.371722, -0.545435],
+          "scale_mul": 1.010951
+        },
+        {
+          "position_local": [-2.191488, -0.093097, 0.784925],
+          "scale_mul": 1.126303
+        }
+      ],
       "forward_offset": -0.02,
       "height_offset": 0.29,
       "start_radius_mul": 1.0,
@@ -163,6 +252,33 @@
       "tint_color": [1.0, 1.0, 1.0],
       "scale_mul": 0.56,
       "alpha_mul": 0.78,
+      "authored_billboard_position_scale": 0.10,
+      "authored_billboards": [
+        {
+          "position_local": [0.467627, -1.055705, -1.861078],
+          "scale_mul": 1.138011
+        },
+        {
+          "position_local": [-2.791371, -0.9283, -0.472397],
+          "scale_mul": 1.052196
+        },
+        {
+          "position_local": [-0.523028, -0.720755, 1.021425],
+          "scale_mul": 1.0
+        },
+        {
+          "position_local": [1.225979, -1.08289, -0.44006],
+          "scale_mul": 1.047445
+        },
+        {
+          "position_local": [-2.378948, 0.880305, 1.235153],
+          "scale_mul": 1.068111
+        },
+        {
+          "position_local": [2.285191, 0.69971, 2.371178],
+          "scale_mul": 1.047186
+        }
+      ],
       "forward_offset": -0.025,
       "height_offset": 0.32,
       "start_radius_mul": 1.0,
@@ -189,6 +305,7 @@
       "id": "tackle_eid_1196_texture4156_impact",
       "eid": 1196,
       "render_mode": "texture_quarter_ring",
+      "blend_mode": "add",
       "texture": "assets/textures/moves/tackle/Texture4156.png",
       "vert_shader": "assets/shaders/vfx/moves/tackle/tackle_smoke_shared.vert",
       "frag_shader": "assets/shaders/vfx/moves/tackle/tackle_smoke_shared.frag",
@@ -214,6 +331,8 @@
       "tev_c0": [0.984314, 0.937255, 0.858824],
       "tev_c1": [0.380392, 0.180392, 0.121569],
       "tev_k0": [1.0, 1.0, 1.0],
+      "tev_c0_a": 0.580392,
+      "tev_c1_a": 0.0,
       "tev_k1a": 0.501961,
       "directions_local": [
         [0.0, 0.0, 1.0]
@@ -224,6 +343,7 @@
       "id": "tackle_eid_1210_texture4157_impact",
       "eid": 1210,
       "render_mode": "texture_quarter_ring",
+      "blend_mode": "alpha",
       "texture": "assets/textures/moves/tackle/Texture4157.png",
       "vert_shader": "assets/shaders/vfx/moves/tackle/tackle_smoke_shared.vert",
       "frag_shader": "assets/shaders/vfx/moves/tackle/tackle_smoke_shared.frag",
@@ -249,6 +369,8 @@
       "tev_c0": [0.901961, 0.34902, 0.141176],
       "tev_c1": [0.584314, 0.301961, 0.34902],
       "tev_k0": [1.0, 1.0, 1.0],
+      "tev_c0_a": 1.0,
+      "tev_c1_a": 0.0,
       "tev_k1a": 0.501961,
       "directions_local": [
         [0.0, 0.0, 1.0]
@@ -259,12 +381,13 @@
       "id": "tackle_eid_1225_texture4158_impact",
       "eid": 1225,
       "render_mode": "glow_billboard",
+      "blend_mode": "add",
       "texture": "assets/textures/moves/tackle/Texture4158.png",
       "vert_shader": "assets/shaders/vfx/moves/tackle/tackle_smoke_shared.vert",
       "frag_shader": "assets/shaders/vfx/moves/tackle/tackle_smoke_shared.frag",
       "tint_color": [1.0, 1.0, 1.0],
-      "scale_mul": 0.43,
-      "alpha_mul": 0.94,
+      "scale_mul": 0.455,
+      "alpha_mul": 0.82,
       "forward_offset": 0.0,
       "height_offset": -0.03,
       "start_radius_mul": 1.0,
@@ -282,6 +405,8 @@
       "tev_c0": [0.909804, 0.643137, 0.584314],
       "tev_c1": [0.482353, 0.419608, 0.309804],
       "tev_k0": [1.0, 1.0, 1.0],
+      "tev_c0_a": 0.686275,
+      "tev_c1_a": 0.0,
       "tev_k1a": 0.501961,
       "directions_local": [
         [0.0, 0.0, 1.0]
@@ -292,12 +417,13 @@
       "id": "tackle_eid_1234_texture4159_impact",
       "eid": 1234,
       "render_mode": "glow_billboard",
+      "blend_mode": "add",
       "texture": "assets/textures/moves/tackle/Texture4159.png",
       "vert_shader": "assets/shaders/vfx/moves/tackle/tackle_smoke_shared.vert",
       "frag_shader": "assets/shaders/vfx/moves/tackle/tackle_smoke_shared.frag",
       "tint_color": [1.0, 1.0, 1.0],
       "scale_mul": 0.270,
-      "alpha_mul": 1.0,
+      "alpha_mul": 0.97,
       "forward_offset": 0.0,
       "height_offset": -0.03,
       "start_radius_mul": 1.0,
@@ -311,10 +437,12 @@
       "local_scale_end_mul": 1.0,
       "local_scale_ramp_sec": 0.10,
       "billboard_spin_turns": 0.90,
-      "billboard_spin_start_deg": 28.0,
+      "billboard_spin_start_deg": -102.712,
       "tev_c0": [0.984314, 0.937255, 0.858824],
       "tev_c1": [0.32549, 0.282353, 0.207843],
       "tev_k0": [1.0, 1.0, 1.0],
+      "tev_c0_a": 0.819608,
+      "tev_c1_a": 0.0,
       "tev_k1a": 0.501961,
       "directions_local": [
         [0.0, 0.0, 1.0]
@@ -325,6 +453,7 @@
       "id": "tackle_eid_1243_texture4160_impact",
       "eid": 1243,
       "render_mode": "glow_billboard",
+      "blend_mode": "add",
       "texture": "assets/textures/moves/tackle/Texture4160.png",
       "vert_shader": "assets/shaders/vfx/moves/tackle/tackle_smoke_shared.vert",
       "frag_shader": "assets/shaders/vfx/moves/tackle/tackle_smoke_shared.frag",
@@ -344,10 +473,12 @@
       "local_scale_end_mul": 1.0,
       "local_scale_ramp_sec": 0.10,
       "billboard_spin_turns": 0.72,
-      "billboard_spin_start_deg": 54.0,
+      "billboard_spin_start_deg": 135.225,
       "tev_c0": [0.984314, 0.937255, 0.858824],
       "tev_c1": [0.607843, 0.533333, 0.392157],
       "tev_k0": [1.0, 1.0, 1.0],
+      "tev_c0_a": 0.843137,
+      "tev_c1_a": 0.0,
       "tev_k1a": 0.501961,
       "directions_local": [
         [0.0, 0.0, 1.0]

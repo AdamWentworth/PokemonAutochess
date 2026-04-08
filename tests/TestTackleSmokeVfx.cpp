@@ -67,6 +67,8 @@ bool test_tackle_smoke_vfx_contract(std::string& outFail) {
     bool saw4158CenteredBurst = false;
     bool saw4159CenteredBurst = false;
     bool saw4160CenteredBurst = false;
+    bool sawLateAdditiveBlend = false;
+    bool sawQuarterAlphaBlend = false;
     bool saw1253StreakBurst = false;
     bool sawSmokeFrame5Window = false;
     bool sawSmokeFrame6Window = false;
@@ -81,11 +83,6 @@ bool test_tackle_smoke_vfx_contract(std::string& outFail) {
         const bool is4158 = pass.texturePath.find("Texture4158.png") != std::string::npos;
         const bool is4159 = pass.texturePath.find("Texture4159.png") != std::string::npos;
         const bool is4160 = pass.texturePath.find("Texture4160.png") != std::string::npos;
-        if (!expect(!pass.overrideBlendMode,
-                    "Tackle smoke should inherit blend mode from the shared config rather than per-pass overrides for now.",
-                    outFail)) {
-            return false;
-        }
         if (!expect(pass.fragShaderPath.find("tackle_smoke_shared.frag") != std::string::npos ||
                         pass.fragShaderPath.find("authored_line_shared.frag") != std::string::npos,
                     "Tackle authored passes should currently use either the shared tackle smoke shader or the shared authored line shader.",
@@ -109,6 +106,13 @@ bool test_tackle_smoke_vfx_contract(std::string& outFail) {
             saw4159CenteredBurst || (is4159 && pass.renderMode == "glow_billboard");
         saw4160CenteredBurst =
             saw4160CenteredBurst || (is4160 && pass.renderMode == "glow_billboard");
+        sawLateAdditiveBlend =
+            sawLateAdditiveBlend ||
+            ((pass.eid == 1196 || pass.eid == 1225 || pass.eid == 1234 || pass.eid == 1243) &&
+             pass.overrideBlendMode && pass.blendMode == 1u);
+        sawQuarterAlphaBlend =
+            sawQuarterAlphaBlend ||
+            (pass.eid == 1210 && pass.overrideBlendMode && pass.blendMode == 0u);
         saw1253StreakBurst =
             saw1253StreakBurst ||
             (pass.eid == 1253 &&
@@ -165,7 +169,10 @@ bool test_tackle_smoke_vfx_contract(std::string& outFail) {
              std::abs(pass.timeEndSec - 0.40f) <= 0.0005f &&
              pass.timeFadeLocal &&
              std::abs(pass.timeFadeStart - 0.55f) <= 0.0005f);
-        totalBillboardDirections += std::max<std::size_t>(1u, pass.directionsLocal.size());
+        totalBillboardDirections +=
+            !pass.authoredBillboardsLocal.empty()
+                ? pass.authoredBillboardsLocal.size()
+                : std::max<std::size_t>(1u, pass.directionsLocal.size());
     }
 
     if (!expect(saw4154 && saw4155 && saw4156 && saw4157 && saw4158 && saw4159 && saw4160,
@@ -200,6 +207,11 @@ bool test_tackle_smoke_vfx_contract(std::string& outFail) {
     }
     if (!expect(saw1253StreakBurst,
                 "Tackle should currently use the 1253-1540 captured line draws as one center-origin authored streak burst pass with 48 capture-derived local segments and fast outward travel.",
+                outFail)) {
+        return false;
+    }
+    if (!expect(sawLateAdditiveBlend && sawQuarterAlphaBlend,
+                "Tackle late textured impact passes should currently match the capture's mixed additive/alpha blend stack instead of sharing one uniform blend mode.",
                 outFail)) {
         return false;
     }

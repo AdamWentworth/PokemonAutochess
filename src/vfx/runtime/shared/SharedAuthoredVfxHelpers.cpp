@@ -109,10 +109,14 @@ TevState resolveTevState(const SharedAuthoredBatchVFX::Config& config,
     tev.c0 = pass.overrideTev ? pass.tevC0 : config.tevC0;
     tev.c1 = pass.overrideTev ? pass.tevC1 : config.tevC1;
     tev.k0 = pass.overrideTev ? pass.tevK0 : config.tevK0;
+    tev.c0a = pass.overrideTev ? pass.tevC0A : config.tevC0A;
+    tev.c1a = pass.overrideTev ? pass.tevC1A : config.tevC1A;
     tev.k1a = pass.overrideTev ? pass.tevK1A : config.tevK1A;
     tev.c0 = glm::clamp(tev.c0, glm::vec3(0.0f), glm::vec3(1.0f));
     tev.c1 = glm::clamp(tev.c1, glm::vec3(0.0f), glm::vec3(1.0f));
     tev.k0 = glm::clamp(tev.k0, glm::vec3(0.0f), glm::vec3(1.0f));
+    tev.c0a = clamp01(tev.c0a);
+    tev.c1a = clamp01(tev.c1a);
     tev.k1a = clamp01(tev.k1a);
     return tev;
 }
@@ -216,7 +220,7 @@ bool bakePassTextureRgba(const SharedAuthoredBatchVFX::Config::DrawPass& pass,
                     tevMixU8Scalar(tev.c1.g, tev.c0.g, tg),
                     tevMixU8Scalar(tev.c1.b, tev.c0.b, tb));
                 rgb *= tint;
-                alpha = alpha6bit(ta * tev.k1a);
+                alpha = tevMixU8Scalar(tev.c1a, tev.c0a, ta);
             }
         } else {
             const glm::vec3 tevInput = pass.useAlphaMaskForColor

@@ -912,7 +912,7 @@ bool PokemonAutochessVfxPreviewProject::defaultPrimaryBackdropEnabled(std::size_
 
 bool PokemonAutochessVfxPreviewProject::defaultSecondaryBackdropEnabled(std::size_t rigIndex) const {
     (void)rigIndex;
-    return false;
+    return true;
 }
 
 void PokemonAutochessVfxPreviewProject::onEffectActivated(std::size_t effectIndex) {

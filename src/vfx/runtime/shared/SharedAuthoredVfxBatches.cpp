@@ -390,6 +390,24 @@ std::string makeStreakQuadGeometryCacheKeyLocal(float lineTevK1A) {
     return std::string("__authored_vfx_geom_streak_quad_v2__:") + std::to_string(k1aMilli);
 }
 
+bool hasCustomUvTransformLocal(const SharedAuthoredBatchVFX::Config::DrawPass& pass) {
+    return std::abs(pass.uvScale.x - 1.0f) > 0.0001f ||
+           std::abs(pass.uvScale.y - 1.0f) > 0.0001f ||
+           std::abs(pass.uvOffset.x) > 0.0001f ||
+           std::abs(pass.uvOffset.y) > 0.0001f;
+}
+
+std::vector<IRenderBackend::WorldMeshVertex> makeUvTransformedQuadVerticesLocal(
+    const std::array<IRenderBackend::WorldMeshVertex, 4>& base,
+    const SharedAuthoredBatchVFX::Config::DrawPass& pass) {
+    std::vector<IRenderBackend::WorldMeshVertex> verts(base.begin(), base.end());
+    for (auto& vtx : verts) {
+        vtx.u = vtx.u * pass.uvScale.x + pass.uvOffset.x;
+        vtx.v = vtx.v * pass.uvScale.y + pass.uvOffset.y;
+    }
+    return verts;
+}
+
 bool computePassSequenceStateLocal(const SharedAuthoredBatchVFX::Config::DrawPass& pass,
                                    int sequenceCount,
                                    float age01,
@@ -868,18 +886,55 @@ bool appendSharedGlowBillboardPassSingleRingLocal(
         std::max(0.0001f, animatedScale * std::max(0.0f, pass.radiusMul)),
         1.0f,
         std::max(0.0001f, animatedScale * std::max(0.0f, pass.thicknessMul)));
+    const bool hasAuthoredBillboards = !pass.authoredBillboardsLocal.empty();
 
-    const auto& sharedVertices = centeredQuadVerticesLocal();
     const auto& sharedIndices = quarterIndicesLocal();
     shared_world_batches::WorldIndexedBatch batch = makeBaseBatchLocal(snapshot, pass, texture);
-    batch.sharedVertices = sharedVertices.data();
-    batch.sharedVertexCount = sharedVertices.size();
     batch.sharedIndices = sharedIndices.data();
     batch.sharedIndexCount = sharedIndices.size();
-    batch.geometryCacheKey = makeCenteredQuadGeometryCacheKeyLocal();
+    if (hasCustomUvTransformLocal(pass)) {
+        batch.vertices = makeUvTransformedQuadVerticesLocal(centeredQuadVerticesLocal(), pass);
+    } else {
+        const auto& sharedVertices = centeredQuadVerticesLocal();
+        batch.sharedVertices = sharedVertices.data();
+        batch.sharedVertexCount = sharedVertices.size();
+        batch.geometryCacheKey = makeCenteredQuadGeometryCacheKeyLocal();
+    }
 
     float sortDepth = 0.0f;
     bool appendedAny = false;
+    if (hasAuthoredBillboards) {
+        batch.instances.reserve(pass.authoredBillboardsLocal.size());
+        const float passAlpha = std::clamp(timingState.fade * std::max(0.0f, pass.alphaMul), 0.0f, 1.0f);
+        if (passAlpha <= 0.001f) return false;
+        const float spinRad = computeBillboardSpinRadLocal(pass, timingState.localAge01);
+        for (const auto& authored : pass.authoredBillboardsLocal) {
+            const glm::vec3 localPos = authored.positionLocal * pass.authoredBillboardPositionScale;
+            const glm::vec3 glowPos =
+                ring.pos + right * localPos.x + up * localPos.y + ringForward * localPos.z;
+            const glm::vec3 toCamera = safeNormalize3Local(cameraWorldPos - glowPos, ringForward);
+            glm::quat billboardRot = rotationFromToSafeLocal(meshForwardLocal, toCamera);
+            if (std::abs(spinRad) > 0.0001f) {
+                billboardRot *= glm::angleAxis(spinRad, meshForwardLocal);
+            }
+
+            IRenderBackend::WorldMeshInstance instance;
+            instance.modelMatrix = toModelMatrixArrayLocal(
+                glm::translate(glm::mat4(1.0f), glowPos) *
+                glm::mat4_cast(billboardRot) *
+                glm::scale(glm::mat4(1.0f), finalScale * std::max(0.0f, authored.scaleMul)));
+            instance.vertexColorMulA = passAlpha * std::max(0.0f, authored.alphaMul);
+            batch.instances.push_back(std::move(instance));
+            sortDepth = std::max(sortDepth, glm::dot(glowPos - cameraWorldPos, glowPos - cameraWorldPos));
+            appendedAny = true;
+        }
+
+        if (!appendedAny || batch.instances.empty()) return false;
+        batch.sortDepth = sortDepth;
+        outBatches.push_back(std::move(batch));
+        return true;
+    }
+
     for (std::size_t dirIndex = 0; dirIndex < localDirections->size(); ++dirIndex) {
         glm::vec3 localDirBasisRaw = (*localDirections)[dirIndex];
         if (glm::dot(localDirBasisRaw, localDirBasisRaw) <= 0.000001f) continue;

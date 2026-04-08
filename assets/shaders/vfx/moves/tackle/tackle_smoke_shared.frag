@@ -6,6 +6,8 @@ uniform sampler2D uTexture;
 uniform float uFade;
 uniform vec3 uTevC0;
 uniform vec3 uTevC1;
+uniform float uTevC0A;
+uniform float uTevC1A;
 uniform float uTevK1A;
 uniform vec3 uTintColor;
 uniform float uPassAlphaMul;
@@ -35,8 +37,7 @@ void main()
 {
     vec4 tex = texture(uTexture, vUV);
     vec3 rgb = tevMixU8(uTevC1, uTevC0, tex.rgb) * uTintColor;
-    float alpha = tex.a * uTevK1A;
-    alpha = floor(alpha * 63.0 + 0.5) / 63.0;
+    float alpha = tevMixU8(uTevC1A, uTevC0A, tex.a);
     alpha *= uFade * uPassAlphaMul;
 
     if (alpha <= 0.0) discard;

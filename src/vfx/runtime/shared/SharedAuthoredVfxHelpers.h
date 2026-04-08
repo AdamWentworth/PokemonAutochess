@@ -14,6 +14,8 @@ struct TevState {
     glm::vec3 c0{1.0f, 1.0f, 1.0f};
     glm::vec3 c1{0.0f, 0.0f, 0.0f};
     glm::vec3 k0{1.0f, 1.0f, 1.0f};
+    float c0a = 1.0f;
+    float c1a = 0.0f;
     float k1a = 1.0f;
 };
 

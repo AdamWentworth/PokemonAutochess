@@ -4,6 +4,7 @@
 #include <SDL2/SDL.h>
 
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <cctype>
 #include <cstring>
@@ -57,6 +58,18 @@ constexpr float kMouseOrbitScale = 0.005f;
 constexpr float kMousePanScale = 0.02f;
 constexpr float kMouseWheelZoomStep = 0.5f;
 constexpr float kPreviewCameraFovDeg = 55.0f;
+
+struct ClearBackdropOption {
+    const char* name = "Night";
+    glm::vec4 color{0.05f, 0.06f, 0.09f, 1.0f};
+};
+
+constexpr std::array<ClearBackdropOption, 4> kClearBackdropOptions{{
+    {"Night", glm::vec4(0.05f, 0.06f, 0.09f, 1.0f)},
+    {"Black", glm::vec4(0.0f, 0.0f, 0.0f, 1.0f)},
+    {"Slate", glm::vec4(0.12f, 0.13f, 0.16f, 1.0f)},
+    {"Paper", glm::vec4(0.80f, 0.79f, 0.75f, 1.0f)},
+}};
 
 struct PreviewScreenshotCaptureConfig {
     bool enabled = false;
@@ -366,8 +379,10 @@ void printControls(const IVfxPreviewProject& project, std::size_t rigIndex) {
     }
     if (allowSecondaryBackdrop) {
         std::cout << "  B: toggle secondary backdrop\n";
+        std::cout << "  F6: toggle board tiles / secondary backdrop\n";
     }
     std::cout
+        << "  V: cycle clear backdrop color\n"
         << "  F: focus camera on active effect\n"
         << "  Z / X / C: toggle emitter / target / orientation guides\n"
         << "  WASD: move target marker\n"
@@ -605,7 +620,8 @@ void renderOverlay(TextRenderer* text,
                    const PreviewSceneState& scene,
                    bool showHelp,
                    bool primaryBackdropEnabled,
-                   bool secondaryBackdropEnabled) {
+                   bool secondaryBackdropEnabled,
+                   std::string_view clearBackdropName) {
     if (text == nullptr || !showHelp) return;
 
     const GLboolean depthWasEnabled = glIsEnabled(GL_DEPTH_TEST);
@@ -670,10 +686,13 @@ void renderOverlay(TextRenderer* text,
                            0.9f) ||
         !renderWrappedLine(
             showBackdropControls
-                ? "Left drag pan | Right drag orbit | Wheel zoom | G/B backdrop | Z/X/C guides | H hide help"
-                : "Left drag pan | Right drag orbit | Wheel zoom | Z/X/C guides | H hide help",
+                ? "Left drag pan | Right drag orbit | Wheel zoom | G/B backdrop | F6 tiles | V clear color | Z/X/C guides | H hide help"
+                : "Left drag pan | Right drag orbit | Wheel zoom | V clear color | Z/X/C guides | H hide help",
             glm::vec3(0.90f, 0.90f, 0.90f),
             0.9f) ||
+        !renderWrappedLine(std::string("Clear bg: ") + std::string(clearBackdropName),
+                           glm::vec3(0.90f, 0.90f, 0.90f),
+                           0.9f) ||
         (showBackdropControls &&
          !renderWrappedLine(std::string("Backdrop A: ") + (primaryBackdropEnabled ? "on" : "off") +
                                 " | Backdrop B: " + (secondaryBackdropEnabled ? "on" : "off"),
@@ -776,6 +795,7 @@ int VfxPreviewApp::run() {
         bool showHelpOverlay = !parsePreviewBoolEnv("PAC_VFX_PREVIEW_HIDE_HELP", false);
         bool showPrimaryBackdrop = true;
         bool showSecondaryBackdrop = false;
+        std::size_t clearBackdropIndex = 0u;
         std::size_t activeEffectIndex = resolvePreviewSelectionFromEnv(
             "PAC_VFX_PREVIEW_INITIAL_EFFECT",
             project_->effectCount(),
@@ -815,6 +835,15 @@ int VfxPreviewApp::run() {
             project_->constrainScene(activeRigIndex, scene);
             project_->requestReplay(activeEffectIndex, scene);
             loopReplayCooldownSec = 0.0f;
+        };
+
+        const auto applyClearBackdrop = [&]() {
+            const ClearBackdropOption& clearBackdrop =
+                kClearBackdropOptions[clearBackdropIndex % kClearBackdropOptions.size()];
+            glClearColor(clearBackdrop.color.r,
+                         clearBackdrop.color.g,
+                         clearBackdrop.color.b,
+                         clearBackdrop.color.a);
         };
 
         activateCurrentEffect(true);
@@ -930,6 +959,15 @@ int VfxPreviewApp::run() {
                         if (project_->supportsSecondaryBackdropToggle(activeRigIndex)) {
                             showSecondaryBackdrop = !showSecondaryBackdrop;
                         }
+                        break;
+                    case SDLK_F6:
+                        if (project_->supportsSecondaryBackdropToggle(activeRigIndex)) {
+                            showSecondaryBackdrop = !showSecondaryBackdrop;
+                        }
+                        break;
+                    case SDLK_v:
+                        clearBackdropIndex =
+                            (clearBackdropIndex + 1u) % kClearBackdropOptions.size();
                         break;
                     case SDLK_TAB:
                         activeEffectIndex = (activeEffectIndex + 1u) % project_->effectCount();
@@ -1058,7 +1096,7 @@ int VfxPreviewApp::run() {
             }
 
             if (logThisFrame) appendPreviewBootLog("[app] frame " + std::to_string(debugFrameIndex) + " clear");
-            glClearColor(0.05f, 0.06f, 0.09f, 1.0f);
+            applyClearBackdrop();
             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
             const PreviewFrameContext frameCtx{
@@ -1091,7 +1129,8 @@ int VfxPreviewApp::run() {
                           scene,
                           showHelpOverlay,
                           showPrimaryBackdrop,
-                          showSecondaryBackdrop);
+                          showSecondaryBackdrop,
+                          kClearBackdropOptions[clearBackdropIndex % kClearBackdropOptions.size()].name);
             const bool capturedThisFrame = maybeCapturePreviewScreenshot(
                 screenshotCapture,
                 debugFrameIndex,

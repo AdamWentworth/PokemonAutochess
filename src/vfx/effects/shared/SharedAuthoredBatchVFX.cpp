@@ -96,6 +96,13 @@ bool parseVec3ArrayList(const nlohmann::json& j, std::vector<glm::vec3>& out) {
     return true;
 }
 
+bool parseVec2Array(const nlohmann::json& j, glm::vec2& out) {
+    if (!j.is_array() || j.size() != 2) return false;
+    if (!j[0].is_number() || !j[1].is_number()) return false;
+    out = glm::vec2(j[0].get<float>(), j[1].get<float>());
+    return true;
+}
+
 bool parseAuthoredStreakSegmentsArray(
     const nlohmann::json& j,
     std::vector<SharedAuthoredBatchVFX::Config::AuthoredStreakSegment>& out) {
@@ -122,6 +129,34 @@ bool parseAuthoredStreakSegmentsArray(
         segment.endLocal = endLocal;
         segment.alphaMul = std::max(0.0f, it.value("alpha_mul", segment.alphaMul));
         parsed.push_back(segment);
+    }
+
+    if (parsed.empty()) return false;
+    out = std::move(parsed);
+    return true;
+}
+
+bool parseAuthoredBillboardsArray(
+    const nlohmann::json& j,
+    std::vector<SharedAuthoredBatchVFX::Config::AuthoredBillboardInstance>& out) {
+    if (!j.is_array()) return false;
+
+    std::vector<SharedAuthoredBatchVFX::Config::AuthoredBillboardInstance> parsed;
+    parsed.reserve(j.size());
+    for (const auto& it : j) {
+        if (!it.is_object()) continue;
+
+        glm::vec3 positionLocal(0.0f);
+        const bool hasPosition =
+            (it.contains("position_local") && parseVec3Array(it["position_local"], positionLocal)) ||
+            (it.contains("position") && parseVec3Array(it["position"], positionLocal));
+        if (!hasPosition) continue;
+
+        SharedAuthoredBatchVFX::Config::AuthoredBillboardInstance instance;
+        instance.positionLocal = positionLocal;
+        instance.scaleMul = std::max(0.0f, it.value("scale_mul", instance.scaleMul));
+        instance.alphaMul = std::max(0.0f, it.value("alpha_mul", instance.alphaMul));
+        parsed.push_back(instance);
     }
 
     if (parsed.empty()) return false;
@@ -356,6 +391,8 @@ void SharedAuthoredBatchVFX::applyDrawManifestOverrides() {
             cfg.depthTest = s.value("depth_test", cfg.depthTest);
             cfg.depthWrite = s.value("depth_write", cfg.depthWrite);
             cfg.tevK1A = s.value("tev_k1a", cfg.tevK1A);
+            cfg.tevC0A = s.value("tev_c0_a", cfg.tevC0A);
+            cfg.tevC1A = s.value("tev_c1_a", cfg.tevC1A);
             if (s.contains("blend_mode")) {
                 std::uint8_t blendMode = cfg.blendMode;
                 if (parseBlendModeJson(s["blend_mode"], blendMode)) {
@@ -402,6 +439,9 @@ void SharedAuthoredBatchVFX::applyDrawManifestOverrides() {
                 p.useAlphaMaskForColor = it.value("use_alpha_mask_for_color", p.useAlphaMaskForColor);
                 p.scaleMul = it.value("scale_mul", p.scaleMul);
                 p.alphaMul = it.value("alpha_mul", p.alphaMul);
+                glm::vec2 uv2;
+                if (it.contains("uv_scale") && parseVec2Array(it["uv_scale"], uv2)) p.uvScale = uv2;
+                if (it.contains("uv_offset") && parseVec2Array(it["uv_offset"], uv2)) p.uvOffset = uv2;
                 p.forwardOffset = it.value("forward_offset", p.forwardOffset);
                 p.heightOffset = it.value("height_offset", p.heightOffset);
                 p.startRadiusMul = it.value("start_radius_mul", p.startRadiusMul);
@@ -444,6 +484,13 @@ void SharedAuthoredBatchVFX::applyDrawManifestOverrides() {
                     p.directionsLocal = std::move(directionsLocal);
                     p.overrideDirection = true;
                 }
+                std::vector<Config::AuthoredBillboardInstance> authoredBillboardsLocal;
+                if (it.contains("authored_billboards") &&
+                    parseAuthoredBillboardsArray(it["authored_billboards"], authoredBillboardsLocal)) {
+                    p.authoredBillboardsLocal = std::move(authoredBillboardsLocal);
+                }
+                p.authoredBillboardPositionScale =
+                    std::max(0.0f, it.value("authored_billboard_position_scale", p.authoredBillboardPositionScale));
                 p.authoredSegmentsPath =
                     it.value("authored_segments_path", p.authoredSegmentsPath);
                 if (it.contains("authored_segments") &&
@@ -513,6 +560,14 @@ void SharedAuthoredBatchVFX::applyDrawManifestOverrides() {
                 }
                 if (it.contains("tev_k1a") && it["tev_k1a"].is_number()) {
                     p.tevK1A = it["tev_k1a"].get<float>();
+                    p.overrideTev = true;
+                }
+                if (it.contains("tev_c0_a") && it["tev_c0_a"].is_number()) {
+                    p.tevC0A = it["tev_c0_a"].get<float>();
+                    p.overrideTev = true;
+                }
+                if (it.contains("tev_c1_a") && it["tev_c1_a"].is_number()) {
+                    p.tevC1A = it["tev_c1_a"].get<float>();
                     p.overrideTev = true;
                 }
 
@@ -654,18 +709,56 @@ void SharedAuthoredBatchVFX::ensureStreakQuadResources() {
     glBindVertexArray(0);
 }
 
-void SharedAuthoredBatchVFX::drawQuarterQuad(const Camera3D& camera, const glm::mat4& world, int locMVP) const {
+namespace {
+void writeQuadUvBuffer(GLuint vbo,
+                       bool centered,
+                       const SharedAuthoredBatchVFX::Config::DrawPass& pass) {
+    if (vbo == 0) return;
+    const glm::vec2 uvScale = pass.uvScale;
+    const glm::vec2 uvOffset = pass.uvOffset;
+    const glm::vec2 kBaseUvs[4] = {
+        centered ? glm::vec2(0.0f, 0.0f) : glm::vec2(1.0f, 1.0f),
+        centered ? glm::vec2(1.0f, 0.0f) : glm::vec2(0.0f, 1.0f),
+        centered ? glm::vec2(0.0f, 1.0f) : glm::vec2(1.0f, 0.0f),
+        centered ? glm::vec2(1.0f, 1.0f) : glm::vec2(0.0f, 0.0f),
+    };
+    float verts[20] = {
+        centered ? -0.5f : 0.0f, 0.0f, centered ? -0.5f : 0.0f, 0.0f, 0.0f,
+        centered ?  0.5f : 1.0f, 0.0f, centered ? -0.5f : 0.0f, 0.0f, 0.0f,
+        centered ? -0.5f : 0.0f, 0.0f, centered ?  0.5f : 1.0f, 0.0f, 0.0f,
+        centered ?  0.5f : 1.0f, 0.0f, centered ?  0.5f : 1.0f, 0.0f, 0.0f,
+    };
+    for (int i = 0; i < 4; ++i) {
+        const glm::vec2 uv = kBaseUvs[i] * uvScale + uvOffset;
+        verts[i * 5 + 3] = uv.x;
+        verts[i * 5 + 4] = uv.y;
+    }
+    glBindBuffer(GL_ARRAY_BUFFER, vbo);
+    glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(verts), verts);
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+}
+} // namespace
+
+void SharedAuthoredBatchVFX::drawQuarterQuad(const Camera3D& camera,
+                                             const glm::mat4& world,
+                                             int locMVP,
+                                             const Config::DrawPass& pass) const {
     if (quarterQuadVAO == 0 || locMVP < 0) return;
     const glm::mat4 mvp = camera.getProjectionMatrix() * camera.getViewMatrix() * world;
     glUniformMatrix4fv(locMVP, 1, GL_FALSE, glm::value_ptr(mvp));
+    writeQuadUvBuffer(quarterQuadVBO, false, pass);
     glBindVertexArray(quarterQuadVAO);
     glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 }
 
-void SharedAuthoredBatchVFX::drawCenteredQuad(const Camera3D& camera, const glm::mat4& world, int locMVP) const {
+void SharedAuthoredBatchVFX::drawCenteredQuad(const Camera3D& camera,
+                                              const glm::mat4& world,
+                                              int locMVP,
+                                              const Config::DrawPass& pass) const {
     if (centeredQuadVAO == 0 || locMVP < 0) return;
     const glm::mat4 mvp = camera.getProjectionMatrix() * camera.getViewMatrix() * world;
     glUniformMatrix4fv(locMVP, 1, GL_FALSE, glm::value_ptr(mvp));
+    writeQuadUvBuffer(centeredQuadVBO, true, pass);
     glBindVertexArray(centeredQuadVAO);
     glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 }
@@ -731,6 +824,8 @@ void SharedAuthoredBatchVFX::ensureConfigured() {
             runtime.locTevC0 = glGetUniformLocation(pid, "uTevC0");
             runtime.locTevC1 = glGetUniformLocation(pid, "uTevC1");
             runtime.locTevK0 = glGetUniformLocation(pid, "uTevK0");
+            runtime.locTevC0A = glGetUniformLocation(pid, "uTevC0A");
+            runtime.locTevC1A = glGetUniformLocation(pid, "uTevC1A");
             runtime.locTevK1A = glGetUniformLocation(pid, "uTevK1A");
             runtime.locTintColor = glGetUniformLocation(pid, "uTintColor");
             runtime.locUseAlphaMaskForColor = glGetUniformLocation(pid, "uUseAlphaMaskForColor");
@@ -880,6 +975,8 @@ void SharedAuthoredBatchVFX::render(const Camera3D& camera) {
         const glm::vec3 passTevC0 = pass.cfg.overrideTev ? pass.cfg.tevC0 : cfg.tevC0;
         const glm::vec3 passTevC1 = pass.cfg.overrideTev ? pass.cfg.tevC1 : cfg.tevC1;
         const glm::vec3 passTevK0 = pass.cfg.overrideTev ? pass.cfg.tevK0 : cfg.tevK0;
+        const float passTevC0A = pass.cfg.overrideTev ? pass.cfg.tevC0A : cfg.tevC0A;
+        const float passTevC1A = pass.cfg.overrideTev ? pass.cfg.tevC1A : cfg.tevC1A;
         const float passTevK1A = pass.cfg.overrideTev ? pass.cfg.tevK1A : cfg.tevK1A;
         const std::uint8_t passBlendMode = vfx::runtime::authored::resolveBlendMode(cfg, pass.cfg);
         switch (passBlendMode) {
@@ -900,6 +997,8 @@ void SharedAuthoredBatchVFX::render(const Camera3D& camera) {
         if (pass.locTevC0 >= 0) glUniform3f(pass.locTevC0, passTevC0.x, passTevC0.y, passTevC0.z);
         if (pass.locTevC1 >= 0) glUniform3f(pass.locTevC1, passTevC1.x, passTevC1.y, passTevC1.z);
         if (pass.locTevK0 >= 0) glUniform3f(pass.locTevK0, passTevK0.x, passTevK0.y, passTevK0.z);
+        if (pass.locTevC0A >= 0) glUniform1f(pass.locTevC0A, passTevC0A);
+        if (pass.locTevC1A >= 0) glUniform1f(pass.locTevC1A, passTevC1A);
         if (pass.locTevK1A >= 0) glUniform1f(pass.locTevK1A, passTevK1A);
 
         glActiveTexture(GL_TEXTURE0);
@@ -1062,6 +1161,80 @@ void SharedAuthoredBatchVFX::render(const Camera3D& camera) {
             const glm::vec2 meshForwardRange =
                 drawMesh ? meshProjectionRange(pass.meshModel.get(), meshForwardLocal) : glm::vec2(0.0f);
             const float meshForwardScale = glm::length(axisScale * glm::abs(meshForwardLocal));
+            const bool hasAuthoredBillboards =
+                drawGlowBillboard && !pass.cfg.authoredBillboardsLocal.empty();
+
+            if (hasAuthoredBillboards) {
+                for (int sequenceOrdinal = 0; sequenceOrdinal < timingPlan.sequenceLoopCount; ++sequenceOrdinal) {
+                    vfx::runtime::authored::PassTimingState timingState;
+                    if (!vfx::runtime::authored::evaluatePassTiming(
+                            pass.cfg,
+                            r.ageSec,
+                            r.lifeSec,
+                            fadeStart,
+                            timingPlan,
+                            sequenceOrdinal,
+                            timingState)) {
+                        continue;
+                    }
+                    const float localAge01 = timingState.localAge01;
+                    const float fade = timingState.fade;
+                    if (fade <= 0.001f) continue;
+                    if (pass.locFade >= 0) glUniform1f(pass.locFade, fade);
+
+                    const float localScaleMul =
+                        vfx::runtime::authored::resolveLocalScaleMul(pass.cfg, localAge01, r.lifeSec);
+                    const bool localTimedPass =
+                        timingPlan.explicitTimeWindow ||
+                        timingPlan.delayedSinglePass ||
+                        timingPlan.repeatedSequencePass;
+                    const float animatedScale =
+                        glm::mix(r.startScale, r.endScale, localTimedPass ? localAge01 : age01) *
+                        std::max(0.0f, pass.cfg.scaleMul) *
+                        (localTimedPass ? localScaleMul : 1.0f);
+                    if (animatedScale <= 0.0001f) continue;
+
+                    const float spinRad =
+                        computeBillboardSpinRad(pass.cfg, localTimedPass ? localAge01 : age01);
+                    for (const auto& instance : pass.cfg.authoredBillboardsLocal) {
+                        const glm::vec3 localPos =
+                            instance.positionLocal * pass.cfg.authoredBillboardPositionScale;
+                        const glm::vec3 passPos =
+                            r.pos +
+                            right * localPos.x +
+                            up * localPos.y +
+                            ringForward * localPos.z;
+                        glm::vec3 toCamera = camera.getPosition() - passPos;
+                        const float toCameraLenSq = glm::dot(toCamera, toCamera);
+                        if (toCameraLenSq <= 0.0001f) {
+                            toCamera = ringForward;
+                        } else {
+                            toCamera /= std::sqrt(toCameraLenSq);
+                        }
+                        glm::quat worldRot = rotationFromToSafe(meshForwardLocal, toCamera);
+                        if (std::abs(spinRad) > 0.0001f) {
+                            worldRot *= glm::angleAxis(spinRad, meshForwardLocal);
+                        }
+                        const glm::vec3 finalScale =
+                            glm::vec3(animatedScale * std::max(0.0f, instance.scaleMul)) * axisScale;
+                        if (pass.locPassAlphaMul >= 0) {
+                            glUniform1f(
+                                pass.locPassAlphaMul,
+                                std::clamp(
+                                    std::max(0.0f, pass.cfg.alphaMul) *
+                                        std::max(0.0f, instance.alphaMul),
+                                    0.0f,
+                                    1.0f));
+                        }
+                        const glm::mat4 world =
+                            glm::translate(glm::mat4(1.0f), passPos) *
+                            glm::mat4_cast(worldRot) *
+                            glm::scale(glm::mat4(1.0f), finalScale);
+                        drawCenteredQuad(camera, world, pass.locMVP, pass.cfg);
+                    }
+                }
+                continue;
+            }
 
             for (size_t dirIndex = 0; dirIndex < localDirections->size(); ++dirIndex) {
                 glm::vec3 localDirBasisRaw = (*localDirections)[dirIndex];
@@ -1206,10 +1379,10 @@ void SharedAuthoredBatchVFX::render(const Camera3D& camera) {
                                 glm::translate(glm::mat4(1.0f), passPos) *
                                 glm::mat4_cast(passRot * quarterRot) *
                                 glm::scale(glm::mat4(1.0f), finalScale);
-                            drawQuarterQuad(camera, quarterWorld, pass.locMVP);
+                            drawQuarterQuad(camera, quarterWorld, pass.locMVP, pass.cfg);
                         }
                     } else if (drawGlowBillboard) {
-                        drawCenteredQuad(camera, world, pass.locMVP);
+                        drawCenteredQuad(camera, world, pass.locMVP, pass.cfg);
                     } else if (streakQuadPass) {
                         drawStreakQuad(camera, world, pass.locMVP);
                     } else {

@@ -24,6 +24,12 @@ public:
             float alphaMul = 1.0f;
         };
 
+        struct AuthoredBillboardInstance {
+            glm::vec3 positionLocal{0.0f};
+            float scaleMul = 1.0f;
+            float alphaMul = 1.0f;
+        };
+
         struct DrawPass {
             std::string id = "growl_eid_1076";
             int eid = 1076;
@@ -45,6 +51,8 @@ public:
             bool useAlphaMaskForColor = true;
             float scaleMul = 1.0f;
             float alphaMul = 1.0f;
+            glm::vec2 uvScale = glm::vec2(1.0f, 1.0f);
+            glm::vec2 uvOffset = glm::vec2(0.0f, 0.0f);
             float forwardOffset = 0.0f;
             float heightOffset = 0.0f;
             float startRadiusMul = 1.0f;
@@ -70,6 +78,8 @@ public:
             std::vector<glm::vec3> directionsLocal;
             std::string authoredSegmentsPath;
             std::vector<AuthoredStreakSegment> authoredSegmentsLocal;
+            std::vector<AuthoredBillboardInstance> authoredBillboardsLocal;
+            float authoredBillboardPositionScale = 1.0f;
             bool authoredSegmentCenterOrigin = false;
             float authoredSegmentPositionScale = 1.0f;
             float authoredSegmentLengthScale = 1.0f;
@@ -100,6 +110,8 @@ public:
             glm::vec3 tevC0 = glm::vec3(1.0f, 1.0f, 1.0f);
             glm::vec3 tevC1 = glm::vec3(0.0f, 0.0f, 0.0f);
             glm::vec3 tevK0 = glm::vec3(1.0f, 1.0f, 1.0f);
+            float tevC0A = 1.0f;
+            float tevC1A = 0.0f;
             float tevK1A = 1.0f;
             bool enabled = true;
         };
@@ -135,6 +147,8 @@ public:
         glm::vec3 tevC0 = glm::vec3(1.0f, 1.0f, 1.0f);
         glm::vec3 tevC1 = glm::vec3(0.0f, 0.0f, 0.0f);
         glm::vec3 tevK0 = glm::vec3(1.0f, 1.0f, 1.0f);
+        float tevC0A = 1.0f;
+        float tevC1A = 0.0f;
         float tevK1A = 1.0f;
         std::uint8_t blendMode = 1u;
 
@@ -222,6 +236,8 @@ private:
         int locTevC0 = -1;
         int locTevC1 = -1;
         int locTevK0 = -1;
+        int locTevC0A = -1;
+        int locTevC1A = -1;
         int locTevK1A = -1;
         int locTintColor = -1;
         int locUseAlphaMaskForColor = -1;
@@ -246,8 +262,14 @@ private:
     void ensureQuarterQuadResources();
     void ensureCenteredQuadResources();
     void ensureStreakQuadResources();
-    void drawQuarterQuad(const Camera3D& camera, const glm::mat4& world, int locMVP) const;
-    void drawCenteredQuad(const Camera3D& camera, const glm::mat4& world, int locMVP) const;
+    void drawQuarterQuad(const Camera3D& camera,
+                         const glm::mat4& world,
+                         int locMVP,
+                         const Config::DrawPass& pass) const;
+    void drawCenteredQuad(const Camera3D& camera,
+                          const glm::mat4& world,
+                          int locMVP,
+                          const Config::DrawPass& pass) const;
     void drawStreakQuad(const Camera3D& camera, const glm::mat4& world, int locMVP) const;
     float rand01();
     float randRange(float a, float b);
