@@ -8,6 +8,7 @@
 #include "game/runtime/session/SessionTailFirePrewarm.h"
 #include "game/runtime/shared/projected/backend_mesh/SharedProjectedUnitBackendMeshRenderer.h"
 #include "game/runtime/startup/RuntimeGrowlVfxPrewarm.h"
+#include "game/runtime/startup/RuntimeTackleVfxPrewarm.h"
 #include "game/runtime/startup/RuntimeParticleVfxPrewarm.h"
 
 namespace game::runtime::session_backend_asset_bridge {
@@ -142,6 +143,24 @@ startup_asset_prewarm::GrowlStats prewarmGrowlVfx(State& state,
                                                   IRenderBackend* renderer,
                                                   const engine::log::Sink& consoleLog) {
     return growl_vfx_prewarm::prewarm(
+        {
+            .renderer = renderer,
+            .backendTextureByPath = &state.textureByPath,
+            .ensureBackendMeshLoaded =
+                [&](const std::string& modelPath) {
+                    return ensureBackendMeshLoaded(state, modelPath, consoleLog);
+                },
+            .ensureBackendTextureLoaded =
+                [&](const std::string& texturePath, bool flipVertical) {
+                    return ensureBackendTextureLoaded(state, texturePath, flipVertical);
+                },
+        });
+}
+
+startup_asset_prewarm::TackleStats prewarmTackleVfx(State& state,
+                                                    IRenderBackend* renderer,
+                                                    const engine::log::Sink& consoleLog) {
+    return tackle_vfx_prewarm::prewarm(
         {
             .renderer = renderer,
             .backendTextureByPath = &state.textureByPath,

@@ -44,6 +44,7 @@ struct Args {
     std::function<std::size_t(const render_model::MeshData&)> prewarmGeometry;
     std::function<startup_asset_prewarm::TailFireStats()> prewarmTailFire;
     std::function<startup_asset_prewarm::GrowlStats()> prewarmGrowlVfx;
+    std::function<startup_asset_prewarm::TackleStats()> prewarmTackleVfx;
     std::function<startup_asset_prewarm::ParticleVfxStats()> prewarmParticleVfx;
     std::function<void(int, int)> renderWorldLayer;
 };

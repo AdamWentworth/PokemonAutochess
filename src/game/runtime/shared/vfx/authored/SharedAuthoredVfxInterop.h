@@ -11,6 +11,9 @@ namespace game::runtime::shared_authored_vfx_interop {
 vfx::runtime::authored_batches::MeshData toReusableMeshData(
     const render_model::MeshData& mesh);
 
+const vfx::runtime::authored_batches::MeshData& cachedReusableMeshData(
+    const render_model::MeshData& mesh);
+
 shared_world_batches::WorldIndexedBatch toWorldIndexedBatch(
     const vfx::runtime::authored_batches::WorldIndexedBatch& src);
 

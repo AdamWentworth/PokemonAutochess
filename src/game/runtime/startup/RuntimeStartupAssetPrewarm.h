@@ -23,6 +23,12 @@ struct GrowlStats {
     std::size_t warmedBatches = 0u;
 };
 
+struct TackleStats {
+    std::size_t drawPasses = 0u;
+    std::size_t bakedTextures = 0u;
+    std::size_t warmedBatches = 0u;
+};
+
 struct ParticleVfxStats {
     std::size_t textures = 0u;
     std::size_t warmedBatches = 0u;
@@ -38,6 +44,7 @@ struct Options {
 struct Summary {
     TailFireStats tailFire;
     GrowlStats growl;
+    TackleStats tackle;
     ParticleVfxStats particleVfx;
     std::size_t uiSpritesRequested = 0u;
     std::size_t cardArtRequested = 0u;
@@ -53,6 +60,7 @@ struct Callbacks {
     std::function<void()> prewarmWorldShading;
     std::function<TailFireStats()> prewarmTailFire;
     std::function<GrowlStats()> prewarmGrowlVfx;
+    std::function<TackleStats()> prewarmTackleVfx;
     std::function<ParticleVfxStats()> prewarmParticleVfx;
     std::function<void(const std::vector<std::string>&)> prewarmSpriteTextures;
     std::function<void(int, int, const std::vector<std::string>&)> prewarmBackendCardUi;

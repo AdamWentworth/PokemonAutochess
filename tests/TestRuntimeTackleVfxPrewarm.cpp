@@ -4,8 +4,8 @@
 
 #include "engine/render/IRenderBackend.h"
 #include "game/runtime/render_model_cache/RenderModelCache.h"
-#include "game/runtime/startup/RuntimeGrowlVfxPrewarm.h"
 #include "game/runtime/shared/backend/SharedBackendTextureCache.h"
+#include "game/runtime/startup/RuntimeTackleVfxPrewarm.h"
 
 namespace {
 
@@ -59,7 +59,16 @@ game::runtime::SharedBackendTextureCacheEntry makeTexture(int width, int height)
     return out;
 }
 
-bool hasGrowlTextureCacheKeyPrefix(const std::vector<std::string>& keys) {
+bool hasTackleTextureKeyPrefix(const std::vector<std::string>& keys) {
+    for (const std::string& key : keys) {
+        if (key.find("authored_vfx:tackle_eid_") == 0) {
+            return true;
+        }
+    }
+    return false;
+}
+
+bool hasTackleTextureCacheKeyPrefix(const std::vector<std::string>& keys) {
     for (const std::string& key : keys) {
         if (key.find("__authored_vfx_") == 0) {
             return true;
@@ -68,14 +77,25 @@ bool hasGrowlTextureCacheKeyPrefix(const std::vector<std::string>& keys) {
     return false;
 }
 
+bool cacheContainsPrefix(const std::unordered_map<std::string, game::runtime::SharedBackendTextureCacheEntry>& cache,
+                         const std::string& prefix) {
+    for (const auto& [key, value] : cache) {
+        (void)value;
+        if (key.find(prefix) == 0) {
+            return true;
+        }
+    }
+    return false;
+}
+
 } // namespace
 
-bool test_runtime_growl_vfx_prewarm_contract(std::string& outFail) {
+bool test_runtime_tackle_vfx_prewarm_contract(std::string& outFail) {
     RecordingBackend backend;
     std::unordered_map<std::string, game::runtime::SharedBackendTextureCacheEntry> cache;
     game::runtime::render_model::MeshData mesh = makeTriangleMesh();
 
-    const auto stats = game::runtime::growl_vfx_prewarm::prewarm(
+    const auto stats = game::runtime::tackle_vfx_prewarm::prewarm(
         {
             .renderer = &backend,
             .backendTextureByPath = &cache,
@@ -95,40 +115,28 @@ bool test_runtime_growl_vfx_prewarm_contract(std::string& outFail) {
         });
 
     if (stats.drawPasses == 0u || stats.bakedTextures == 0u || stats.warmedBatches == 0u) {
-        outFail = "RuntimeGrowlVfxPrewarm should build growl batches, bake pass textures, and prewarm renderer batches.";
+        outFail = "RuntimeTackleVfxPrewarm should build tackle batches, bake pass textures, and prewarm renderer batches.";
         return false;
     }
 
     if (stats.warmedBatches != backend.prewarmedTextureKeys.size()) {
-        outFail = "RuntimeGrowlVfxPrewarm should prewarm one backend texture payload per generated growl batch.";
+        outFail = "RuntimeTackleVfxPrewarm should prewarm one backend texture payload per generated tackle batch.";
         return false;
     }
 
-    if (backend.prewarmedTextureKeys.empty()) {
-        outFail = "RuntimeGrowlVfxPrewarm should prewarm at least one growl texture payload key.";
+    if (!hasTackleTextureKeyPrefix(backend.prewarmedTextureKeys)) {
+        outFail = "RuntimeTackleVfxPrewarm should prewarm tackle batch texture keys rather than only raw source textures.";
         return false;
     }
 
     if (backend.prewarmedTextureCacheKeys.size() != stats.warmedBatches ||
-        !hasGrowlTextureCacheKeyPrefix(backend.prewarmedTextureCacheKeys)) {
-        outFail = "RuntimeGrowlVfxPrewarm should prewarm stable growl texture cache keys for backend reuse.";
+        !hasTackleTextureCacheKeyPrefix(backend.prewarmedTextureCacheKeys)) {
+        outFail = "RuntimeTackleVfxPrewarm should prewarm stable tackle texture cache keys for backend reuse.";
         return false;
     }
 
-    if (cache.find("__authored_vfx_baked:growl_eid_1076:m:assets/textures/moves/growl/Texture3918.png") == cache.end()) {
-        outFail = "RuntimeGrowlVfxPrewarm should populate baked growl texture entries in the shared backend texture cache.";
-        return false;
-    }
-    if (cache.find("__authored_vfx_baked:growl_eid_1255:q:assets/textures/moves/growl/Texture3924.png") == cache.end()) {
-        outFail = "RuntimeGrowlVfxPrewarm should populate quarter-shaded growl mesh texture entries in the shared backend texture cache.";
-        return false;
-    }
-    if (cache.find("__authored_vfx_baked:growl_eid_1275:q:assets/textures/moves/growl/Texture3924.png") == cache.end()) {
-        outFail = "RuntimeGrowlVfxPrewarm should populate the second sparkle growl mesh texture entry in the shared backend texture cache.";
-        return false;
-    }
-    if (cache.find("__authored_vfx_baked:growl_eid_1284:q:assets/textures/moves/growl/Texture3930.png") == cache.end()) {
-        outFail = "RuntimeGrowlVfxPrewarm should populate the glow billboard growl texture entry in the shared backend texture cache.";
+    if (!cacheContainsPrefix(cache, "__authored_vfx_baked:tackle_eid_")) {
+        outFail = "RuntimeTackleVfxPrewarm should populate baked tackle texture entries in the shared backend texture cache.";
         return false;
     }
 

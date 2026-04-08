@@ -23,6 +23,7 @@ bool backendModelFastTexturedPathEnabled();
 bool backendUiSpritePrewarmEnabled();
 bool backendWorldLayerPrewarmEnabled();
 bool backendPrewarmGrowlVfxEnabled();
+bool backendPrewarmTackleVfxEnabled();
 bool backendPrewarmParticleVfxEnabled();
 bool backendGpuClipSkinningEnabled(const IRenderBackend* renderer);
 bool backendUseLegacyGrowlWaveVfxEnabled();

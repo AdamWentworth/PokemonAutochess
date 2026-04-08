@@ -26,6 +26,19 @@ bool expect(bool condition, const std::string& message, std::string& outFail) {
 } // namespace
 
 bool test_shared_authored_vfx_interop_contract(std::string& outFail) {
+    game::runtime::render_model::MeshData mesh;
+    mesh.vertices.resize(1u);
+    mesh.indices = {0u, 0u, 0u};
+    const auto& cachedA = game::runtime::shared_authored_vfx_interop::cachedReusableMeshData(mesh);
+    const auto& cachedB = game::runtime::shared_authored_vfx_interop::cachedReusableMeshData(mesh);
+    if (!expect(&cachedA == &cachedB &&
+                    cachedA.vertices.size() == 1u &&
+                    cachedA.indices.size() == 3u,
+                "cachedReusableMeshData should reuse the converted authored mesh payload for repeated requests on the same backend mesh.",
+                outFail)) {
+        return false;
+    }
+
     vfx::runtime::authored_batches::WorldIndexedBatch src;
     src.textureKey = "tackle_late_stack";
     src.alphaMode = 2u;

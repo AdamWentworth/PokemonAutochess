@@ -185,6 +185,24 @@ Summary run(const Options& options,
         }
     }
 
+    if (callbacks.prewarmTackleVfx) {
+        if (callbacks.setTitle) callbacks.setTitle("PokemonAutochess - Loading tackle VFX...");
+        if (callbacks.renderBootLoading) callbacks.renderBootLoading(0.936f);
+        const auto t0 = std::chrono::high_resolution_clock::now();
+        summary.tackle = callbacks.prewarmTackleVfx();
+        const auto t1 = std::chrono::high_resolution_clock::now();
+        const double ms = std::chrono::duration<double, std::milli>(t1 - t0).count();
+        log.info("[Init] Backend tackle VFX prewarm complete: passes=" +
+                 std::to_string(summary.tackle.drawPasses) +
+                 " baked_textures=" + std::to_string(summary.tackle.bakedTextures) +
+                 " warmed_batches=" + std::to_string(summary.tackle.warmedBatches) +
+                 " time=" + formatMs(ms) + "ms");
+        if (!pumpPreloadEventsOrQuit(callbacks)) {
+            summary.interrupted = true;
+            return summary;
+        }
+    }
+
     if (callbacks.prewarmParticleVfx) {
         if (callbacks.setTitle) callbacks.setTitle("PokemonAutochess - Loading particle VFX...");
         if (callbacks.renderBootLoading) callbacks.renderBootLoading(0.937f);

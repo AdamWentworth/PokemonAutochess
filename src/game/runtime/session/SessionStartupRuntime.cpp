@@ -134,6 +134,10 @@ void run(const Args& args) {
                 game::runtime::session_render_config::backendPrewarmGrowlVfxEnabled()
                 ? args.prewarmGrowlVfx
                 : std::function<startup_asset_prewarm::GrowlStats()>{},
+            .prewarmTackleVfx =
+                game::runtime::session_render_config::backendPrewarmTackleVfxEnabled()
+                ? args.prewarmTackleVfx
+                : std::function<startup_asset_prewarm::TackleStats()>{},
             .prewarmParticleVfx =
                 game::runtime::session_render_config::backendPrewarmParticleVfxEnabled()
                 ? args.prewarmParticleVfx

@@ -70,6 +70,10 @@ startup_asset_prewarm::GrowlStats prewarmGrowlVfx(State& state,
                                                   IRenderBackend* renderer,
                                                   const engine::log::Sink& consoleLog);
 
+startup_asset_prewarm::TackleStats prewarmTackleVfx(State& state,
+                                                    IRenderBackend* renderer,
+                                                    const engine::log::Sink& consoleLog);
+
 startup_asset_prewarm::ParticleVfxStats prewarmParticleVfx(State& state,
                                                            IRenderBackend* renderer);
 

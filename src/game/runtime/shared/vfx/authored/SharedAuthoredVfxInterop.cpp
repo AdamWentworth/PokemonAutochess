@@ -1,6 +1,18 @@
 #include "game/runtime/shared/vfx/authored/SharedAuthoredVfxInterop.h"
 
+#include <unordered_map>
+
 namespace game::runtime::shared_authored_vfx_interop {
+
+namespace {
+
+struct ReusableMeshCacheEntry {
+    std::size_t vertexCount = 0u;
+    std::size_t indexCount = 0u;
+    vfx::runtime::authored_batches::MeshData mesh;
+};
+
+} // namespace
 
 vfx::runtime::authored_batches::MeshData toReusableMeshData(
     const render_model::MeshData& mesh) {
@@ -25,6 +37,21 @@ vfx::runtime::authored_batches::MeshData toReusableMeshData(
         out.vertices.push_back(dst);
     }
     return out;
+}
+
+const vfx::runtime::authored_batches::MeshData& cachedReusableMeshData(
+    const render_model::MeshData& mesh) {
+    static thread_local std::unordered_map<const render_model::MeshData*, ReusableMeshCacheEntry> cache;
+
+    auto& entry = cache[&mesh];
+    if (entry.mesh.vertices.empty() ||
+        entry.vertexCount != mesh.vertices.size() ||
+        entry.indexCount != mesh.indices.size()) {
+        entry.vertexCount = mesh.vertices.size();
+        entry.indexCount = mesh.indices.size();
+        entry.mesh = toReusableMeshData(mesh);
+    }
+    return entry.mesh;
 }
 
 shared_world_batches::WorldIndexedBatch toWorldIndexedBatch(

@@ -4,8 +4,6 @@
 #include "vfx/runtime/shared/SharedAuthoredVfxBridge.h"
 #include "vfx/runtime/shared/SharedAuthoredVfxHelpers.h"
 
-#include <unordered_map>
-
 namespace game::runtime::shared_projected_scene {
 
 void appendSharedGrowlWaveVfx(const GrowlWaveVfxArgs& args) {
@@ -72,24 +70,14 @@ void appendSharedGrowlWaveVfx(const GrowlWaveVfxArgs& args) {
             outView.height = tex->height;
             return true;
         };
-    std::unordered_map<std::string, vfx::runtime::authored_batches::MeshData> growlMeshesByPath;
-    growlMeshesByPath.reserve(growlSnapshot.drawPasses.size());
     const auto resolveGrowlMesh =
         [&](const std::string& modelPath) -> vfx::runtime::authored_batches::MeshData* {
-            auto found = growlMeshesByPath.find(modelPath);
-            if (found != growlMeshesByPath.end()) {
-                return &found->second;
-            }
-
             runtime::render_model::MeshData* mesh = args.ensureBackendMeshLoaded(modelPath);
             if (!mesh || mesh->vertices.empty() || mesh->indices.empty()) {
                 return nullptr;
             }
-
-            auto inserted = growlMeshesByPath.emplace(
-                modelPath,
-                game::runtime::shared_authored_vfx_interop::toReusableMeshData(*mesh));
-            return &inserted.first->second;
+            return const_cast<vfx::runtime::authored_batches::MeshData*>(
+                &game::runtime::shared_authored_vfx_interop::cachedReusableMeshData(*mesh));
         };
     std::vector<vfx::runtime::authored_batches::WorldIndexedBatch> growlBatches;
     growlBatches.reserve(growlSnapshot.drawPasses.size() * 4u);

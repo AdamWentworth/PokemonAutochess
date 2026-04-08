@@ -63,6 +63,13 @@ void run(const Context& context) {
                         context.renderer,
                         *context.consoleLog);
                 },
+            .prewarmTackleVfx =
+                [&]() {
+                    return session_backend_asset_bridge::prewarmTackleVfx(
+                        *context.backendAssets,
+                        context.renderer,
+                        *context.consoleLog);
+                },
             .prewarmParticleVfx =
                 [&]() {
                     return session_backend_asset_bridge::prewarmParticleVfx(

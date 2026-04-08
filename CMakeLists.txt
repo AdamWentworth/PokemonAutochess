@@ -383,6 +383,7 @@ add_library(PAC_GameObjects STATIC
     src/game/runtime/GameBootstrap.cpp
     src/game/runtime/startup/RuntimeRenderModelPrewarm.cpp
     src/game/runtime/startup/RuntimeGrowlVfxPrewarm.cpp
+    src/game/runtime/startup/RuntimeTackleVfxPrewarm.cpp
     src/game/runtime/startup/RuntimeParticleVfxPrewarm.cpp
     src/game/runtime/startup/RuntimeUiCardPrewarm.cpp
     src/game/runtime/startup/RuntimeStartupAssetPrewarm.cpp
@@ -821,6 +822,7 @@ if (BUILD_TESTING)
         tests/TestSessionRenderBridge.cpp
         tests/TestSessionDebugSnapshot.cpp
         tests/TestRuntimeGrowlVfxPrewarm.cpp
+        tests/TestRuntimeTackleVfxPrewarm.cpp
         tests/TestSharedAuthoredVfxPreviewMeshLoader.cpp
         tests/TestPreviewEffectPokemonSpecies.cpp
         tests/TestPreviewPokemonVisual.cpp

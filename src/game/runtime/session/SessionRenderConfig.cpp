@@ -27,6 +27,7 @@ struct CacheState {
     std::optional<bool> uiSpritePrewarm;
     std::optional<bool> worldLayerPrewarm;
     std::optional<bool> growlVfxPrewarm;
+    std::optional<bool> tackleVfxPrewarm;
     std::optional<bool> particleVfxPrewarm;
     std::optional<bool> gpuClipSkinningGlobal;
     std::optional<bool> gpuClipSkinningOpenGl;
@@ -165,6 +166,10 @@ bool backendWorldLayerPrewarmEnabled() {
 
 bool backendPrewarmGrowlVfxEnabled() {
     return cachedFlag(gCache.growlVfxPrewarm, "PAC_BACKEND_PREWARM_GROWL_VFX", true);
+}
+
+bool backendPrewarmTackleVfxEnabled() {
+    return cachedFlag(gCache.tackleVfxPrewarm, "PAC_BACKEND_PREWARM_TACKLE_VFX", true);
 }
 
 bool backendPrewarmParticleVfxEnabled() {
