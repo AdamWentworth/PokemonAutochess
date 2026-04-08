@@ -110,6 +110,24 @@ void run(const Args& args) {
             game::runtime::startup_asset_prewarm::collectUiSpritePrewarmPaths(*args.dataDb);
     }
 
+    std::vector<game::runtime::startup_asset_prewarm::AuthoredVfxPrewarmEntry> enabledAuthoredVfx;
+    enabledAuthoredVfx.reserve(args.prewarmAuthoredVfx.size());
+    for (const auto& entry : args.prewarmAuthoredVfx) {
+        if (!entry.prewarm) continue;
+        bool enabled = false;
+        switch (entry.kind) {
+        case game::runtime::startup_asset_prewarm::AuthoredVfxKind::Growl:
+            enabled = game::runtime::session_render_config::backendPrewarmGrowlVfxEnabled();
+            break;
+        case game::runtime::startup_asset_prewarm::AuthoredVfxKind::Tackle:
+            enabled = game::runtime::session_render_config::backendPrewarmTackleVfxEnabled();
+            break;
+        }
+        if (enabled) {
+            enabledAuthoredVfx.push_back(entry);
+        }
+    }
+
     (void)game::runtime::startup_asset_prewarm::run(
         game::runtime::startup_asset_prewarm::Options{
             .usesBackendRenderPath = usesBackendPathForStartupPrewarm,
@@ -130,14 +148,7 @@ void run(const Args& args) {
                     }
                 },
             .prewarmTailFire = args.prewarmTailFire,
-            .prewarmGrowlVfx =
-                game::runtime::session_render_config::backendPrewarmGrowlVfxEnabled()
-                ? args.prewarmGrowlVfx
-                : std::function<startup_asset_prewarm::GrowlStats()>{},
-            .prewarmTackleVfx =
-                game::runtime::session_render_config::backendPrewarmTackleVfxEnabled()
-                ? args.prewarmTackleVfx
-                : std::function<startup_asset_prewarm::TackleStats()>{},
+            .prewarmAuthoredVfx = enabledAuthoredVfx,
             .prewarmParticleVfx =
                 game::runtime::session_render_config::backendPrewarmParticleVfxEnabled()
                 ? args.prewarmParticleVfx

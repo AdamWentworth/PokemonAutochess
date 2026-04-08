@@ -56,19 +56,34 @@ void run(const Context& context) {
                         *context.backendAssets,
                         context.renderer);
                 },
-            .prewarmGrowlVfx =
-                [&]() {
-                    return session_backend_asset_bridge::prewarmGrowlVfx(
-                        *context.backendAssets,
-                        context.renderer,
-                        *context.consoleLog);
-                },
-            .prewarmTackleVfx =
-                [&]() {
-                    return session_backend_asset_bridge::prewarmTackleVfx(
-                        *context.backendAssets,
-                        context.renderer,
-                        *context.consoleLog);
+            .prewarmAuthoredVfx =
+                {
+                    {
+                        .kind = startup_asset_prewarm::AuthoredVfxKind::Growl,
+                        .title = "PokemonAutochess - Loading growl VFX...",
+                        .progress = 0.935f,
+                        .prewarm =
+                            [&]() {
+                                return startup_asset_prewarm::toAuthoredVfxStats(
+                                    session_backend_asset_bridge::prewarmGrowlVfx(
+                                        *context.backendAssets,
+                                        context.renderer,
+                                        *context.consoleLog));
+                            },
+                    },
+                    {
+                        .kind = startup_asset_prewarm::AuthoredVfxKind::Tackle,
+                        .title = "PokemonAutochess - Loading tackle VFX...",
+                        .progress = 0.936f,
+                        .prewarm =
+                            [&]() {
+                                return startup_asset_prewarm::toAuthoredVfxStats(
+                                    session_backend_asset_bridge::prewarmTackleVfx(
+                                        *context.backendAssets,
+                                        context.renderer,
+                                        *context.consoleLog));
+                            },
+                    },
                 },
             .prewarmParticleVfx =
                 [&]() {

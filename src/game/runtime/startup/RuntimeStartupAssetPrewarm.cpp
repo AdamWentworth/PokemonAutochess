@@ -94,7 +94,44 @@ std::string formatMs(double ms) {
     return timing.str();
 }
 
+void assignAuthoredVfxSummary(Summary& summary,
+                              AuthoredVfxKind kind,
+                              const AuthoredVfxStats& stats) {
+    switch (kind) {
+    case AuthoredVfxKind::Growl:
+        summary.growl = GrowlStats{
+            .drawPasses = stats.drawPasses,
+            .bakedTextures = stats.bakedTextures,
+            .warmedBatches = stats.warmedBatches,
+        };
+        break;
+    case AuthoredVfxKind::Tackle:
+        summary.tackle = TackleStats{
+            .drawPasses = stats.drawPasses,
+            .bakedTextures = stats.bakedTextures,
+            .warmedBatches = stats.warmedBatches,
+        };
+        break;
+    }
+}
+
 } // namespace
+
+AuthoredVfxStats toAuthoredVfxStats(const GrowlStats& stats) {
+    return AuthoredVfxStats{
+        .drawPasses = stats.drawPasses,
+        .bakedTextures = stats.bakedTextures,
+        .warmedBatches = stats.warmedBatches,
+    };
+}
+
+AuthoredVfxStats toAuthoredVfxStats(const TackleStats& stats) {
+    return AuthoredVfxStats{
+        .drawPasses = stats.drawPasses,
+        .bakedTextures = stats.bakedTextures,
+        .warmedBatches = stats.warmedBatches,
+    };
+}
 
 std::vector<std::string> collectUiSpritePrewarmPaths(const GameDataDb& dataDb) {
     std::vector<std::string> paths;
@@ -167,35 +204,21 @@ Summary run(const Options& options,
         }
     }
 
-    if (callbacks.prewarmGrowlVfx) {
-        if (callbacks.setTitle) callbacks.setTitle("PokemonAutochess - Loading growl VFX...");
-        if (callbacks.renderBootLoading) callbacks.renderBootLoading(0.935f);
+    for (const auto& entry : callbacks.prewarmAuthoredVfx) {
+        if (!entry.prewarm) continue;
+        if (callbacks.setTitle) callbacks.setTitle(entry.title);
+        if (callbacks.renderBootLoading) callbacks.renderBootLoading(entry.progress);
         const auto t0 = std::chrono::high_resolution_clock::now();
-        summary.growl = callbacks.prewarmGrowlVfx();
+        const AuthoredVfxStats authoredStats = entry.prewarm();
+        assignAuthoredVfxSummary(summary, entry.kind, authoredStats);
         const auto t1 = std::chrono::high_resolution_clock::now();
         const double ms = std::chrono::duration<double, std::milli>(t1 - t0).count();
-        log.info("[Init] Backend growl VFX prewarm complete: passes=" +
-                 std::to_string(summary.growl.drawPasses) +
-                 " baked_textures=" + std::to_string(summary.growl.bakedTextures) +
-                 " warmed_batches=" + std::to_string(summary.growl.warmedBatches) +
-                 " time=" + formatMs(ms) + "ms");
-        if (!pumpPreloadEventsOrQuit(callbacks)) {
-            summary.interrupted = true;
-            return summary;
-        }
-    }
-
-    if (callbacks.prewarmTackleVfx) {
-        if (callbacks.setTitle) callbacks.setTitle("PokemonAutochess - Loading tackle VFX...");
-        if (callbacks.renderBootLoading) callbacks.renderBootLoading(0.936f);
-        const auto t0 = std::chrono::high_resolution_clock::now();
-        summary.tackle = callbacks.prewarmTackleVfx();
-        const auto t1 = std::chrono::high_resolution_clock::now();
-        const double ms = std::chrono::duration<double, std::milli>(t1 - t0).count();
-        log.info("[Init] Backend tackle VFX prewarm complete: passes=" +
-                 std::to_string(summary.tackle.drawPasses) +
-                 " baked_textures=" + std::to_string(summary.tackle.bakedTextures) +
-                 " warmed_batches=" + std::to_string(summary.tackle.warmedBatches) +
+        log.info("[Init] Backend " +
+                 std::string(entry.kind == AuthoredVfxKind::Growl ? "growl" : "tackle") +
+                 " VFX prewarm complete: passes=" +
+                 std::to_string(authoredStats.drawPasses) +
+                 " baked_textures=" + std::to_string(authoredStats.bakedTextures) +
+                 " warmed_batches=" + std::to_string(authoredStats.warmedBatches) +
                  " time=" + formatMs(ms) + "ms");
         if (!pumpPreloadEventsOrQuit(callbacks)) {
             summary.interrupted = true;

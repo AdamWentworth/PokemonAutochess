@@ -34,6 +34,24 @@ struct ParticleVfxStats {
     std::size_t warmedBatches = 0u;
 };
 
+struct AuthoredVfxStats {
+    std::size_t drawPasses = 0u;
+    std::size_t bakedTextures = 0u;
+    std::size_t warmedBatches = 0u;
+};
+
+enum class AuthoredVfxKind {
+    Growl,
+    Tackle,
+};
+
+struct AuthoredVfxPrewarmEntry {
+    AuthoredVfxKind kind = AuthoredVfxKind::Growl;
+    std::string title;
+    float progress = 0.0f;
+    std::function<AuthoredVfxStats()> prewarm;
+};
+
 struct Options {
     bool usesBackendRenderPath = false;
     bool uiSpritePrewarmEnabled = false;
@@ -59,12 +77,14 @@ struct Callbacks {
     std::function<void()> requestQuit;
     std::function<void()> prewarmWorldShading;
     std::function<TailFireStats()> prewarmTailFire;
-    std::function<GrowlStats()> prewarmGrowlVfx;
-    std::function<TackleStats()> prewarmTackleVfx;
+    std::vector<AuthoredVfxPrewarmEntry> prewarmAuthoredVfx;
     std::function<ParticleVfxStats()> prewarmParticleVfx;
     std::function<void(const std::vector<std::string>&)> prewarmSpriteTextures;
     std::function<void(int, int, const std::vector<std::string>&)> prewarmBackendCardUi;
 };
+
+AuthoredVfxStats toAuthoredVfxStats(const GrowlStats& stats);
+AuthoredVfxStats toAuthoredVfxStats(const TackleStats& stats);
 
 std::vector<std::string> collectUiSpritePrewarmPaths(const GameDataDb& dataDb);
 

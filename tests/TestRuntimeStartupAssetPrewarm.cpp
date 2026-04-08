@@ -29,6 +29,9 @@ std::filesystem::path makeTempFile(const std::filesystem::path& path, std::size_
 
 bool test_runtime_startup_asset_prewarm_contract(std::string& outFail) {
     using game::runtime::startup_asset_prewarm::Callbacks;
+    using game::runtime::startup_asset_prewarm::AuthoredVfxKind;
+    using game::runtime::startup_asset_prewarm::AuthoredVfxPrewarmEntry;
+    using game::runtime::startup_asset_prewarm::AuthoredVfxStats;
     using game::runtime::startup_asset_prewarm::GrowlStats;
     using game::runtime::startup_asset_prewarm::Options;
     using game::runtime::startup_asset_prewarm::ParticleVfxStats;
@@ -82,15 +85,28 @@ bool test_runtime_startup_asset_prewarm_contract(std::string& outFail) {
                         ++tailFireCalls;
                         return TailFireStats{2u, 3u, 3u};
                     },
-                .prewarmGrowlVfx =
-                    [&]() {
-                        ++growlCalls;
-                        return GrowlStats{8u, 7u, 8u};
-                    },
-                .prewarmTackleVfx =
-                    [&]() {
-                        ++tackleCalls;
-                        return TackleStats{17u, 12u, 29u};
+                .prewarmAuthoredVfx =
+                    {
+                        AuthoredVfxPrewarmEntry{
+                            .kind = AuthoredVfxKind::Growl,
+                            .title = "PokemonAutochess - Loading growl VFX...",
+                            .progress = 0.935f,
+                            .prewarm =
+                                [&]() {
+                                    ++growlCalls;
+                                    return AuthoredVfxStats{8u, 7u, 8u};
+                                },
+                        },
+                        AuthoredVfxPrewarmEntry{
+                            .kind = AuthoredVfxKind::Tackle,
+                            .title = "PokemonAutochess - Loading tackle VFX...",
+                            .progress = 0.936f,
+                            .prewarm =
+                                [&]() {
+                                    ++tackleCalls;
+                                    return AuthoredVfxStats{17u, 12u, 29u};
+                                },
+                        },
                     },
                 .prewarmParticleVfx =
                     [&]() {
@@ -215,15 +231,28 @@ bool test_runtime_startup_asset_prewarm_contract(std::string& outFail) {
                         ++tailFireCalls;
                         return TailFireStats{};
                     },
-                .prewarmGrowlVfx =
-                    [&]() {
-                        ++growlCalls;
-                        return GrowlStats{};
-                    },
-                .prewarmTackleVfx =
-                    [&]() {
-                        ++tackleCalls;
-                        return TackleStats{};
+                .prewarmAuthoredVfx =
+                    {
+                        AuthoredVfxPrewarmEntry{
+                            .kind = AuthoredVfxKind::Growl,
+                            .title = "PokemonAutochess - Loading growl VFX...",
+                            .progress = 0.935f,
+                            .prewarm =
+                                [&]() {
+                                    ++growlCalls;
+                                    return AuthoredVfxStats{};
+                                },
+                        },
+                        AuthoredVfxPrewarmEntry{
+                            .kind = AuthoredVfxKind::Tackle,
+                            .title = "PokemonAutochess - Loading tackle VFX...",
+                            .progress = 0.936f,
+                            .prewarm =
+                                [&]() {
+                                    ++tackleCalls;
+                                    return AuthoredVfxStats{};
+                                },
+                        },
                     },
                 .prewarmParticleVfx =
                     [&]() {
