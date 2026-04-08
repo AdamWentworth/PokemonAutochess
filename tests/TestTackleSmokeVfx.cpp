@@ -69,6 +69,7 @@ bool test_tackle_smoke_vfx_contract(std::string& outFail) {
     bool saw4160CenteredBurst = false;
     bool sawLateAdditiveBlend = false;
     bool sawQuarterAlphaBlend = false;
+    bool sawLateDualSourceBlend = false;
     bool saw1253StreakBurst = false;
     bool sawSmokeFrame5Window = false;
     bool sawSmokeFrame6Window = false;
@@ -113,6 +114,11 @@ bool test_tackle_smoke_vfx_contract(std::string& outFail) {
         sawQuarterAlphaBlend =
             sawQuarterAlphaBlend ||
             (pass.eid == 1210 && pass.overrideBlendMode && pass.blendMode == 0u);
+        sawLateDualSourceBlend =
+            sawLateDualSourceBlend ||
+            ((pass.eid == 1196 || pass.eid == 1210 || pass.eid == 1225 || pass.eid == 1234 ||
+              pass.eid == 1243) &&
+             pass.dualSourceBlend);
         saw1253StreakBurst =
             saw1253StreakBurst ||
             (pass.eid == 1253 &&
@@ -212,6 +218,11 @@ bool test_tackle_smoke_vfx_contract(std::string& outFail) {
     }
     if (!expect(sawLateAdditiveBlend && sawQuarterAlphaBlend,
                 "Tackle late textured impact passes should currently match the capture's mixed additive/alpha blend stack instead of sharing one uniform blend mode.",
+                outFail)) {
+        return false;
+    }
+    if (!expect(sawLateDualSourceBlend,
+                "Tackle late textured impact passes should currently opt into source-style dual-source blending for the quarter/swirl stack.",
                 outFail)) {
         return false;
     }

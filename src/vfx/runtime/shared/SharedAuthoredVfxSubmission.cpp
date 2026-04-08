@@ -21,6 +21,7 @@ IRenderBackend::WorldTextureData toWorldTextureData(const Batch& batch,
     tex.wrapT = batch.textureWrapT;
     tex.alphaMode = batch.alphaMode;
     tex.blendMode = batch.blendMode;
+    tex.dualSourceBlendEnabled = batch.dualSourceBlendEnabled;
     tex.alphaCutoff = batch.alphaCutoff;
     tex.vertexColorMulR = batch.vertexColorMulR;
     tex.vertexColorMulG = batch.vertexColorMulG;

@@ -496,6 +496,7 @@ shared_world_batches::WorldIndexedBatch makeBaseBatchLocal(
     batch.textureWrapT = pass.textureQuarterRing ? 33071 : 10497;
     batch.alphaMode = 2u;
     batch.blendMode = authored::resolveBlendMode(snapshot.config, pass);
+    batch.dualSourceBlendEnabled = pass.dualSourceBlend ? 1u : 0u;
     batch.alphaCutoff = 0.0f;
     return batch;
 }

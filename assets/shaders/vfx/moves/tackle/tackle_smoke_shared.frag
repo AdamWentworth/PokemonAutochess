@@ -11,8 +11,10 @@ uniform float uTevC1A;
 uniform float uTevK1A;
 uniform vec3 uTintColor;
 uniform float uPassAlphaMul;
+uniform float uDualSourceBlendEnabled;
 
 out vec4 FragColor;
+out vec4 FragBlendAlpha;
 
 float tevMixU8(float a, float b, float t)
 {
@@ -41,5 +43,12 @@ void main()
     alpha *= uFade * uPassAlphaMul;
 
     if (alpha <= 0.0) discard;
-    FragColor = vec4(rgb, alpha);
+    float mainAlpha = alpha;
+    if (uDualSourceBlendEnabled > 0.5) {
+        mainAlpha = floor(clamp(alpha, 0.0, 1.0) * 63.0 + 0.5) / 63.0;
+    }
+    FragColor = vec4(rgb, mainAlpha);
+    FragBlendAlpha = (uDualSourceBlendEnabled > 0.5)
+        ? vec4(0.0, 0.0, 0.0, clamp(alpha, 0.0, 1.0))
+        : vec4(0.0);
 }

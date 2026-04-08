@@ -58,6 +58,7 @@ struct WorldIndexedBatch {
     int textureWrapT = 10497;
     std::uint8_t alphaMode = 0u;
     std::uint8_t blendMode = 0u;
+    std::uint8_t dualSourceBlendEnabled = 0u;
     float alphaCutoff = 0.5f;
     float vertexColorMulR = 1.0f;
     float vertexColorMulG = 1.0f;

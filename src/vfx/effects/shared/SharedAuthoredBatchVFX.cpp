@@ -7,6 +7,7 @@
 #include <fstream>
 #include <iostream>
 #include <limits>
+#include <string_view>
 #include <stdexcept>
 #include <unordered_map>
 
@@ -236,6 +237,21 @@ std::uint8_t clampBlendMode(int value) {
     return static_cast<std::uint8_t>(std::clamp(value, 0, 2));
 }
 
+bool supportsDualSourceBlendOpenGL() {
+    if (GLAD_GL_VERSION_4_0) return true;
+    if (glad_glGetStringi == nullptr) return false;
+    GLint extensionCount = 0;
+    glGetIntegerv(GL_NUM_EXTENSIONS, &extensionCount);
+    for (GLint i = 0; i < extensionCount; ++i) {
+        const GLubyte* ext = glGetStringi(GL_EXTENSIONS, static_cast<GLuint>(i));
+        if (!ext) continue;
+        if (std::string_view(reinterpret_cast<const char*>(ext)) == "GL_ARB_blend_func_extended") {
+            return true;
+        }
+    }
+    return false;
+}
+
 bool parseBlendModeJson(const nlohmann::json& value, std::uint8_t& out) {
     if (value.is_number_integer()) {
         out = clampBlendMode(value.get<int>());
@@ -428,6 +444,7 @@ void SharedAuthoredBatchVFX::applyDrawManifestOverrides() {
                         p.overrideBlendMode = true;
                     }
                 }
+                p.dualSourceBlend = it.value("dual_source_blend", p.dualSourceBlend);
                 if (p.renderMode == "texture_quarter_ring") p.textureQuarterRing = true;
                 p.textureQuarterRing = it.value("texture_quarter_ring", p.textureQuarterRing);
                 p.cameraFacing = it.value("camera_facing", p.cameraFacing);
@@ -830,6 +847,7 @@ void SharedAuthoredBatchVFX::ensureConfigured() {
             runtime.locTintColor = glGetUniformLocation(pid, "uTintColor");
             runtime.locUseAlphaMaskForColor = glGetUniformLocation(pid, "uUseAlphaMaskForColor");
             runtime.locPassAlphaMul = glGetUniformLocation(pid, "uPassAlphaMul");
+            runtime.locDualSourceBlendEnabled = glGetUniformLocation(pid, "uDualSourceBlendEnabled");
 
             runtime.shader->use();
             if (runtime.locTexture >= 0) glUniform1i(runtime.locTexture, 0);
@@ -979,17 +997,31 @@ void SharedAuthoredBatchVFX::render(const Camera3D& camera) {
         const float passTevC1A = pass.cfg.overrideTev ? pass.cfg.tevC1A : cfg.tevC1A;
         const float passTevK1A = pass.cfg.overrideTev ? pass.cfg.tevK1A : cfg.tevK1A;
         const std::uint8_t passBlendMode = vfx::runtime::authored::resolveBlendMode(cfg, pass.cfg);
-        switch (passBlendMode) {
-        case 2u:
-            glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
-            break;
-        case 1u:
-            glBlendFunc(GL_SRC_ALPHA, GL_ONE);
-            break;
-        case 0u:
-        default:
-            glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-            break;
+        const bool dualSourceBlendEnabled =
+            pass.cfg.dualSourceBlend && supportsDualSourceBlendOpenGL();
+        if (dualSourceBlendEnabled) {
+            switch (passBlendMode) {
+            case 1u:
+                glBlendFuncSeparate(GL_SRC1_ALPHA, GL_ONE, GL_ZERO, GL_ONE);
+                break;
+            case 0u:
+            default:
+                glBlendFuncSeparate(GL_SRC1_ALPHA, GL_ONE_MINUS_SRC1_ALPHA, GL_ZERO, GL_ONE);
+                break;
+            }
+        } else {
+            switch (passBlendMode) {
+            case 2u:
+                glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
+                break;
+            case 1u:
+                glBlendFunc(GL_SRC_ALPHA, GL_ONE);
+                break;
+            case 0u:
+            default:
+                glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+                break;
+            }
         }
 
         pass.shader->use();
@@ -1008,6 +1040,9 @@ void SharedAuthoredBatchVFX::render(const Camera3D& camera) {
         }
         if (pass.locUseAlphaMaskForColor >= 0) {
             glUniform1i(pass.locUseAlphaMaskForColor, pass.cfg.useAlphaMaskForColor ? 1 : 0);
+        }
+        if (pass.locDualSourceBlendEnabled >= 0) {
+            glUniform1f(pass.locDualSourceBlendEnabled, dualSourceBlendEnabled ? 1.0f : 0.0f);
         }
 
         for (const auto& r : rings) {

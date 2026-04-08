@@ -190,6 +190,11 @@ unsigned int linkWorldProgramWithCache(unsigned int vs,
     }
     glAttachShader(program, vs);
     glAttachShader(program, fs);
+    if (glad_glBindFragDataLocationIndexed != nullptr &&
+        fsSource.find("FragBlendAlpha") != std::string_view::npos) {
+        glBindFragDataLocationIndexed(program, 0u, 0u, "FragColor");
+        glBindFragDataLocationIndexed(program, 0u, 1u, "FragBlendAlpha");
+    }
     glLinkProgram(program);
 
     GLint ok = 0;
@@ -211,6 +216,7 @@ void OpenGLRenderBackend::ensureWorldPipeline() {
         worldViewProjLoc_ >= 0 && worldModelLoc_ >= 0 &&
         worldUseTextureLoc_ >= 0 && worldTextureSamplerLoc_ >= 0 &&
         worldWrapSLoc_ >= 0 && worldWrapTLoc_ >= 0 && worldVertexColorMulLoc_ >= 0 &&
+        worldDualSourceBlendEnabledLoc_ >= 0 &&
         worldAlphaModeLoc_ >= 0 && worldAlphaCutoffLoc_ >= 0 &&
         worldCameraPosLoc_ >= 0 && worldCameraForwardLoc_ >= 0 &&
         worldMaterialModeLoc_ >= 0 && worldMaterialTimeLoc_ >= 0 && worldMaterialFlagsLoc_ >= 0 &&
@@ -435,6 +441,7 @@ void OpenGLRenderBackend::ensureWorldPipeline() {
         uniform sampler2D uEmissiveTexture;
         uniform sampler2D uEnvTexture;
         uniform vec4 uVertexColorMul;
+        uniform float uDualSourceBlendEnabled;
         uniform vec2 uEnvTexelSize;
         uniform float uEnvMaxMip;
         uniform float uEnvRgbmRange;
@@ -449,6 +456,7 @@ void OpenGLRenderBackend::ensureWorldPipeline() {
         uniform vec3 uEmissiveFactor;
         uniform float uCharacterInkingEnabled;
         out vec4 FragColor;
+        out vec4 FragBlendAlpha;
 
         float applyWrap(float coord, float mode) {
             if (abs(mode - 33071.0) < 0.5) return clamp(coord, 0.0, 1.0);
@@ -1023,6 +1031,7 @@ __PAC_SHARED_WORLD_PBR_SECTION__
     )GLSL"
     R"GLSL(
         void main() {
+            FragBlendAlpha = vec4(0.0);
             if (uMaterialMode > 2.5 && uMaterialMode < 3.5) {
                 if (gl_FrontFacing) discard;
                 FragColor = vec4(0.0, 0.0, 0.0, 1.0);
@@ -1091,7 +1100,14 @@ __PAC_SHARED_WORLD_PBR_SECTION__
             const float toneMappingMode = 1.0;
             vec3 mapped = applyViewerToneMapping(max(outLinear, vec3(0.0)), toneMappingMode, toneMappingExposure);
             vec3 outSrgb = linearToSrgb(mapped);
-            FragColor = vec4(outSrgb, outA);
+            float mainOutA = outA;
+            if (uDualSourceBlendEnabled > 0.5) {
+                mainOutA = floor(clamp(outA, 0.0, 1.0) * 63.0 + 0.5) / 63.0;
+            }
+            FragColor = vec4(outSrgb, mainOutA);
+            FragBlendAlpha = (uDualSourceBlendEnabled > 0.5)
+                ? vec4(0.0, 0.0, 0.0, clamp(outA, 0.0, 1.0))
+                : vec4(0.0);
         }
     )GLSL";
 
@@ -1136,6 +1152,7 @@ __PAC_SHARED_WORLD_PBR_SECTION__
     worldWrapSLoc_ = glGetUniformLocation(worldProgram_, "uWrapS");
     worldWrapTLoc_ = glGetUniformLocation(worldProgram_, "uWrapT");
     worldVertexColorMulLoc_ = glGetUniformLocation(worldProgram_, "uVertexColorMul");
+    worldDualSourceBlendEnabledLoc_ = glGetUniformLocation(worldProgram_, "uDualSourceBlendEnabled");
     worldAlphaModeLoc_ = glGetUniformLocation(worldProgram_, "uAlphaMode");
     worldAlphaCutoffLoc_ = glGetUniformLocation(worldProgram_, "uAlphaCutoff");
     worldCameraPosLoc_ = glGetUniformLocation(worldProgram_, "uCameraPos");
@@ -1162,6 +1179,7 @@ __PAC_SHARED_WORLD_PBR_SECTION__
     if (worldViewProjLoc_ < 0 || worldModelLoc_ < 0 ||
         worldUseTextureLoc_ < 0 || worldTextureSamplerLoc_ < 0 ||
         worldWrapSLoc_ < 0 || worldWrapTLoc_ < 0 || worldVertexColorMulLoc_ < 0 ||
+        worldDualSourceBlendEnabledLoc_ < 0 ||
         worldAlphaModeLoc_ < 0 || worldAlphaCutoffLoc_ < 0 ||
         worldCameraPosLoc_ < 0 || worldCameraForwardLoc_ < 0 ||
         worldMaterialModeLoc_ < 0 || worldMaterialTimeLoc_ < 0 || worldMaterialFlagsLoc_ < 0 ||
@@ -1295,6 +1313,7 @@ void OpenGLRenderBackend::destroyWorldPipeline() {
     worldWrapSLoc_ = -1;
     worldWrapTLoc_ = -1;
     worldVertexColorMulLoc_ = -1;
+    worldDualSourceBlendEnabledLoc_ = -1;
     worldAlphaModeLoc_ = -1;
     worldAlphaCutoffLoc_ = -1;
     worldCameraPosLoc_ = -1;

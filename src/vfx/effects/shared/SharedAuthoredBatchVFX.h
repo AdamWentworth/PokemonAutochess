@@ -40,6 +40,7 @@ public:
             std::string fragShaderPath;
             bool overrideBlendMode = false;
             std::uint8_t blendMode = 1u;
+            bool dualSourceBlend = false;
             bool textureQuarterRing = false;
             bool cameraFacing = false;
             int quarterCount = 4;
@@ -242,6 +243,7 @@ private:
         int locTintColor = -1;
         int locUseAlphaMaskForColor = -1;
         int locPassAlphaMul = -1;
+        int locDualSourceBlendEnabled = -1;
     };
 
     struct RingInstance {

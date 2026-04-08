@@ -10,6 +10,7 @@
 #include <cstdlib>
 #include <iostream>
 #include <limits>
+#include <string_view>
 #include <string>
 #include <vector>
 
@@ -34,6 +35,21 @@ bool pbrBindingLogEnabled() {
         return true;
     }();
     return enabled;
+}
+
+bool supportsDualSourceBlendOpenGL() {
+    if (GLAD_GL_VERSION_4_0) return true;
+    if (glad_glGetStringi == nullptr) return false;
+    GLint extensionCount = 0;
+    glGetIntegerv(GL_NUM_EXTENSIONS, &extensionCount);
+    for (GLint i = 0; i < extensionCount; ++i) {
+        const GLubyte* ext = glGetStringi(GL_EXTENSIONS, static_cast<GLuint>(i));
+        if (!ext) continue;
+        if (std::string_view(reinterpret_cast<const char*>(ext)) == "GL_ARB_blend_func_extended") {
+            return true;
+        }
+    }
+    return false;
 }
 
 int pbrDebugViewMode() {
@@ -244,6 +260,7 @@ void OpenGLRenderBackend::drawWorldIndexedMeshTexturedInternal(unsigned int vao,
         worldViewProjLoc_ < 0 || worldModelLoc_ < 0 ||
         worldUseTextureLoc_ < 0 || worldTextureSamplerLoc_ < 0 ||
         worldWrapSLoc_ < 0 || worldWrapTLoc_ < 0 || worldVertexColorMulLoc_ < 0 ||
+        worldDualSourceBlendEnabledLoc_ < 0 ||
         worldAlphaModeLoc_ < 0 || worldAlphaCutoffLoc_ < 0 ||
         worldCameraPosLoc_ < 0 || worldCameraForwardLoc_ < 0 ||
         worldMaterialModeLoc_ < 0 || worldMaterialTimeLoc_ < 0 || worldMaterialFlagsLoc_ < 0 ||
@@ -265,6 +282,8 @@ void OpenGLRenderBackend::drawWorldIndexedMeshTexturedInternal(unsigned int vao,
 
     const std::uint8_t alphaMode = texture ? std::min<std::uint8_t>(2u, texture->alphaMode) : 0u;
     const std::uint8_t blendMode = texture ? std::min<std::uint8_t>(2u, texture->blendMode) : 0u;
+    const bool dualSourceBlendEnabled =
+        texture && texture->dualSourceBlendEnabled != 0u && supportsDualSourceBlendOpenGL();
     const float alphaCutoff = texture ? std::clamp(texture->alphaCutoff, 0.0f, 1.0f) : 0.5f;
     const std::uint8_t materialMode = texture ? texture->materialMode : 0u;
     const float vertexColorMulR = texture ? texture->vertexColorMulR : 1.0f;
@@ -603,21 +622,33 @@ void OpenGLRenderBackend::drawWorldIndexedMeshTexturedInternal(unsigned int vao,
     if (blendAlpha) {
         setBlendEnabled(true);
         setBlendEquationSeparate(GL_FUNC_ADD, GL_FUNC_ADD);
-        switch (blendMode) {
-        case 1u:
-            setBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE, GL_ONE, GL_ONE);
-            break;
-        case 2u:
-            setBlendFuncSeparate(GL_ONE, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
-            break;
-        case 0u:
-        default:
-            setBlendFuncSeparate(
-                GL_SRC_ALPHA,
-                GL_ONE_MINUS_SRC_ALPHA,
-                GL_SRC_ALPHA,
-                GL_ONE_MINUS_SRC_ALPHA);
-            break;
+        if (dualSourceBlendEnabled) {
+            switch (blendMode) {
+            case 1u:
+                setBlendFuncSeparate(GL_SRC1_ALPHA, GL_ONE, GL_ZERO, GL_ONE);
+                break;
+            case 0u:
+            default:
+                setBlendFuncSeparate(GL_SRC1_ALPHA, GL_ONE_MINUS_SRC1_ALPHA, GL_ZERO, GL_ONE);
+                break;
+            }
+        } else {
+            switch (blendMode) {
+            case 1u:
+                setBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE, GL_ONE, GL_ONE);
+                break;
+            case 2u:
+                setBlendFuncSeparate(GL_ONE, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
+                break;
+            case 0u:
+            default:
+                setBlendFuncSeparate(
+                    GL_SRC_ALPHA,
+                    GL_ONE_MINUS_SRC_ALPHA,
+                    GL_SRC_ALPHA,
+                    GL_ONE_MINUS_SRC_ALPHA);
+                break;
+            }
         }
     } else {
         setBlendEnabled(false);
@@ -655,6 +686,9 @@ void OpenGLRenderBackend::drawWorldIndexedMeshTexturedInternal(unsigned int vao,
         vertexColorMulG,
         vertexColorMulB,
         vertexColorMulA);
+    if (worldDualSourceBlendEnabledLoc_ >= 0) {
+        glUniform1f(worldDualSourceBlendEnabledLoc_, dualSourceBlendEnabled ? 1.0f : 0.0f);
+    }
     if (worldUseNormalTextureLoc_ >= 0) {
         glUniform1f(worldUseNormalTextureLoc_, hasNormalTexture ? 1.0f : 0.0f);
     }

@@ -220,6 +220,7 @@ private:
     int worldWrapSLoc_ = -1;
     int worldWrapTLoc_ = -1;
     int worldVertexColorMulLoc_ = -1;
+    int worldDualSourceBlendEnabledLoc_ = -1;
     int worldAlphaModeLoc_ = -1;
     int worldAlphaCutoffLoc_ = -1;
     int worldCameraPosLoc_ = -1;

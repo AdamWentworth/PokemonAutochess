@@ -7,6 +7,7 @@
 #include <sstream>
 #include <stdexcept>
 #include <string>
+#include <string_view>
 #include <unordered_set>
 
 #include <glm/gtc/type_ptr.hpp>
@@ -95,6 +96,21 @@ static std::string expandIncludesRecursive(
     return output.str();
 }
 
+static bool supportsDualSourceBlendOpenGL() {
+    if (GLAD_GL_VERSION_4_0) return true;
+    if (glad_glGetStringi == nullptr) return false;
+    GLint extensionCount = 0;
+    glGetIntegerv(GL_NUM_EXTENSIONS, &extensionCount);
+    for (GLint i = 0; i < extensionCount; ++i) {
+        const GLubyte* ext = glGetStringi(GL_EXTENSIONS, static_cast<GLuint>(i));
+        if (!ext) continue;
+        if (std::string_view(reinterpret_cast<const char*>(ext)) == "GL_ARB_blend_func_extended") {
+            return true;
+        }
+    }
+    return false;
+}
+
 // --------------------
 // Shader implementation
 // --------------------
@@ -127,6 +143,12 @@ Shader::Shader(const char* vertexPath, const char* fragmentPath)
     ID = glCreateProgram();
     glAttachShader(ID, vertex);
     glAttachShader(ID, fragment);
+    if (supportsDualSourceBlendOpenGL() &&
+        fragmentCode.find("FragBlendAlpha") != std::string::npos &&
+        glad_glBindFragDataLocationIndexed != nullptr) {
+        glBindFragDataLocationIndexed(ID, 0u, 0u, "FragColor");
+        glBindFragDataLocationIndexed(ID, 0u, 1u, "FragBlendAlpha");
+    }
     glLinkProgram(ID);
 
     GLint success = 0;
