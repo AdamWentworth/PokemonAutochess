@@ -42,6 +42,7 @@ struct AutoInstanceKey {
     std::string_view emissiveTextureKey{};
     std::uint8_t alphaMode = 0u;
     std::uint8_t blendMode = 0u;
+    std::uint8_t dualSourceBlendEnabled = 0u;
     std::uint8_t materialMode = 0u;
     std::uint8_t characterInkingEnabled = 0u;
     float alphaCutoff = 0.0f;
@@ -92,6 +93,7 @@ struct AutoInstanceKey {
                emissiveTextureKey == other.emissiveTextureKey &&
                alphaMode == other.alphaMode &&
                blendMode == other.blendMode &&
+               dualSourceBlendEnabled == other.dualSourceBlendEnabled &&
                materialMode == other.materialMode &&
                characterInkingEnabled == other.characterInkingEnabled &&
                alphaCutoff == other.alphaCutoff &&
@@ -157,6 +159,7 @@ struct AutoInstanceKeyHash {
         hashCombine(h, std::hash<std::string_view>{}(key.emissiveTextureKey));
         hashCombine(h, std::hash<std::uint8_t>{}(key.alphaMode));
         hashCombine(h, std::hash<std::uint8_t>{}(key.blendMode));
+        hashCombine(h, std::hash<std::uint8_t>{}(key.dualSourceBlendEnabled));
         hashCombine(h, std::hash<std::uint8_t>{}(key.materialMode));
         hashCombine(h, std::hash<std::uint8_t>{}(key.characterInkingEnabled));
         hashCombine(h, hashFloat(key.alphaCutoff));
@@ -260,6 +263,12 @@ std::uint8_t effectiveBlendMode(const WorldIndexedBatch& batch) {
     return batch.materialAlphaOverride ? batch.blendMode : materialBatch.blendMode;
 }
 
+std::uint8_t effectiveDualSourceBlendEnabled(const WorldIndexedBatch& batch) {
+    const WorldIndexedBatch& materialBatch = materialTemplateOrSelf(batch);
+    return batch.materialAlphaOverride ? batch.dualSourceBlendEnabled
+                                       : materialBatch.dualSourceBlendEnabled;
+}
+
 float effectiveAlphaCutoff(const WorldIndexedBatch& batch) {
     const WorldIndexedBatch& materialBatch = materialTemplateOrSelf(batch);
     return batch.materialAlphaOverride ? batch.alphaCutoff : materialBatch.alphaCutoff;
@@ -330,6 +339,7 @@ AutoInstanceKey makeAutoInstanceKey(const WorldIndexedBatch& batch) {
     key.emissiveTextureKey = resolvedStringMember(batch, &WorldIndexedBatch::emissiveTextureKey);
     key.alphaMode = effectiveAlphaMode(batch);
     key.blendMode = effectiveBlendMode(batch);
+    key.dualSourceBlendEnabled = effectiveDualSourceBlendEnabled(batch);
     key.materialMode = materialBatch.materialMode;
     key.characterInkingEnabled = materialBatch.characterInkingEnabled;
     key.alphaCutoff = effectiveAlphaCutoff(batch);
@@ -412,6 +422,7 @@ bool canAutoInstanceWithResolvedPayload(const IRenderBackend& renderer, const Wo
 struct SubmissionMaterialStateKey {
     std::uint8_t alphaMode = 0u;
     std::uint8_t blendMode = 0u;
+    std::uint8_t dualSourceBlendEnabled = 0u;
     std::uint8_t materialMode = 0u;
     std::uint8_t characterInkingEnabled = 0u;
     bool instanced = false;
@@ -470,6 +481,7 @@ SubmissionSortKey makeSubmissionSortKey(const WorldIndexedBatch& batch) {
     SubmissionSortKey key{};
     key.material.alphaMode = effectiveAlphaMode(batch);
     key.material.blendMode = effectiveBlendMode(batch);
+    key.material.dualSourceBlendEnabled = effectiveDualSourceBlendEnabled(batch);
     key.material.materialMode = materialBatch.materialMode;
     key.material.characterInkingEnabled = materialBatch.characterInkingEnabled;
     key.material.instanced = !batch.instances.empty();
@@ -548,6 +560,10 @@ bool submissionSortKeyLess(const SubmissionSortKey& lhs, const SubmissionSortKey
     int cmp = compareOrdered(lhs.material.alphaMode, rhs.material.alphaMode);
     if (cmp != 0) return cmp < 0;
     cmp = compareOrdered(lhs.material.blendMode, rhs.material.blendMode);
+    if (cmp != 0) return cmp < 0;
+    cmp = compareOrdered(
+        lhs.material.dualSourceBlendEnabled,
+        rhs.material.dualSourceBlendEnabled);
     if (cmp != 0) return cmp < 0;
     cmp = compareOrdered(lhs.material.materialMode, rhs.material.materialMode);
     if (cmp != 0) return cmp < 0;
@@ -635,6 +651,7 @@ bool submissionSortKeyLess(const SubmissionSortKey& lhs, const SubmissionSortKey
 bool sameMaterialState(const SubmissionSortKey& lhs, const SubmissionSortKey& rhs) {
     return lhs.material.alphaMode == rhs.material.alphaMode &&
            lhs.material.blendMode == rhs.material.blendMode &&
+           lhs.material.dualSourceBlendEnabled == rhs.material.dualSourceBlendEnabled &&
            lhs.material.materialMode == rhs.material.materialMode &&
            lhs.material.characterInkingEnabled == rhs.material.characterInkingEnabled &&
            lhs.material.instanced == rhs.material.instanced &&
@@ -831,6 +848,9 @@ IRenderBackend::WorldTextureData toWorldTextureData(const WorldIndexedBatch& bat
         : (templateBatch ? templateBatch->emissiveTextureWrapT : batch.emissiveTextureWrapT);
     tex.alphaMode = batch.materialAlphaOverride ? batch.alphaMode : materialBatch.alphaMode;
     tex.blendMode = batch.materialAlphaOverride ? batch.blendMode : materialBatch.blendMode;
+    tex.dualSourceBlendEnabled = batch.materialAlphaOverride
+        ? batch.dualSourceBlendEnabled
+        : materialBatch.dualSourceBlendEnabled;
     tex.materialMode = materialBatch.materialMode;
     tex.alphaCutoff = batch.materialAlphaOverride ? batch.alphaCutoff : materialBatch.alphaCutoff;
     tex.normalScale = materialBatch.normalScale;

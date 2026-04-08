@@ -66,6 +66,7 @@ bool test_projected_world_scene_seams_contract(std::string& outFail) {
         {growlBridgePath, "appendSharedGrowlWaveVfxSession("},
         {vfxBridgePath, "appendSharedTackleSmokeVfxSession("},
         {tackleBridgePath, "buildTackleSmokeSnapshot("},
+        {tackleBridgePath, "singleRingSnapshot.rings.push_back(ring);"},
         {gameWorldMoveImpactPath, "tackleSmokeVfx.emitAt(impact.position, impact.forward);"},
         {particleBridgePath, "appendSharedParticleVfxSession("},
         {tailFireVfxBridgePath, "appendSyntheticTailFireBillboards("},

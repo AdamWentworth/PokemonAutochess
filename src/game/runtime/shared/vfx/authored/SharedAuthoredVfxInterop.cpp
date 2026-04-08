@@ -47,6 +47,7 @@ shared_world_batches::WorldIndexedBatch toWorldIndexedBatch(
     dst.textureWrapT = src.textureWrapT;
     dst.alphaMode = src.alphaMode;
     dst.blendMode = src.blendMode;
+    dst.dualSourceBlendEnabled = src.dualSourceBlendEnabled;
     dst.alphaCutoff = src.alphaCutoff;
     dst.vertexColorMulR = src.vertexColorMulR;
     dst.vertexColorMulG = src.vertexColorMulG;

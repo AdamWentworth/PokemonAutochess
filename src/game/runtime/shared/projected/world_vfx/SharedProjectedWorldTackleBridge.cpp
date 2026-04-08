@@ -92,13 +92,26 @@ void appendSharedTackleSmokeVfx(const TackleSmokeVfxArgs& args) {
         };
 
     std::vector<vfx::runtime::authored_batches::WorldIndexedBatch> tackleBatches;
-    tackleBatches.reserve(tackleSnapshot.drawPasses.size() * 4u);
-    vfx::runtime::authored_bridge::appendBatches(
-        tackleSnapshot,
-        tackleBatches,
-        args.cameraWorldPos,
-        resolveTackleMesh,
-        resolveTackleTextureView);
+    tackleBatches.reserve(tackleSnapshot.drawPasses.size() *
+                          std::max<std::size_t>(tackleSnapshot.rings.size(), 1u) *
+                          4u);
+
+    // Gameplay can have multiple active Tackle hits overlapping. Splitting the snapshot
+    // by active ring keeps each hit on the same single-ring authored path used by VfxLab,
+    // rather than collapsing several hits into one pass batch with shared sort/blend state.
+    SharedAuthoredBatchVFX::RenderSnapshot singleRingSnapshot = tackleSnapshot;
+    singleRingSnapshot.rings.clear();
+    singleRingSnapshot.rings.reserve(1u);
+    for (const auto& ring : tackleSnapshot.rings) {
+        singleRingSnapshot.rings.clear();
+        singleRingSnapshot.rings.push_back(ring);
+        vfx::runtime::authored_bridge::appendBatches(
+            singleRingSnapshot,
+            tackleBatches,
+            args.cameraWorldPos,
+            resolveTackleMesh,
+            resolveTackleTextureView);
+    }
     game::runtime::shared_authored_vfx_interop::appendWorldIndexedBatches(
         tackleBatches,
         *args.worldIndexedBatches);

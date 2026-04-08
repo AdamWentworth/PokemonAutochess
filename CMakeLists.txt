@@ -882,6 +882,7 @@ if (BUILD_TESTING)
         tests/TestSharedTailFirePlaybackPolicy.cpp
         tests/TestSharedAuthoredVfxHelpers.cpp
         tests/TestSharedAuthoredVfxBridge.cpp
+        tests/TestSharedAuthoredVfxInterop.cpp
         tests/TestSharedAuthoredVfxBatches.cpp
         tests/TestTackleSmokeVfx.cpp
         tests/TestSharedWorldScene.cpp
