@@ -503,6 +503,7 @@ add_library(PAC_GameObjects STATIC
     src/game/runtime/shared/vfx/particles/SharedParticleVfxBridgeDispatch.cpp
     src/game/runtime/shared/vfx/particles/SharedParticleVfxStyles.cpp
     src/game/runtime/shared/vfx/authored/SharedAuthoredVfxInterop.cpp
+    src/game/runtime/shared/vfx/authored/SharedAuthoredVfxPrewarm.cpp
     src/game/runtime/shared/vfx/tail_fire/SharedTailFireAnchorMath.cpp
     src/game/runtime/shared/vfx/tail_fire/SharedTailFireCoordinator.cpp
     src/game/runtime/shared/vfx/tail_fire/SharedTailFireSnapshotBillboards.cpp
