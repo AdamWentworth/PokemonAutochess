@@ -8,6 +8,9 @@
 
 namespace {
 
+constexpr float kFsysTotalFrames = 45.500656f;
+constexpr float kFsysTotalSec = kFsysTotalFrames / 30.0f;
+
 bool expect(bool condition, const std::string& message, std::string& outFail) {
     if (condition) return true;
     outFail = message;
@@ -146,24 +149,24 @@ bool test_tackle_smoke_vfx_contract(std::string& outFail) {
         sawSmokeFrame2Window =
             sawSmokeFrame2Window ||
             ((pass.eid == 921 || pass.eid == 926) &&
-             std::abs(pass.timeStartSec - 0.067f) <= 0.0005f);
+             std::abs(pass.timeStartSec - 0.061f) <= 0.0005f);
         sawSmokeFrame3Window =
             sawSmokeFrame3Window ||
             ((pass.eid == 941 || pass.eid == 965 || pass.eid == 980 || pass.eid == 999 ||
               pass.eid == 1004) &&
-             std::abs(pass.timeStartSec - 0.100f) <= 0.0005f);
+             std::abs(pass.timeStartSec - 0.091f) <= 0.0005f);
         sawSmokeFrame4Window =
             sawSmokeFrame4Window ||
             ((pass.eid == 1009 || pass.eid == 1043 || pass.eid == 1070 || pass.eid == 1075) &&
-             std::abs(pass.timeStartSec - 0.133f) <= 0.0005f);
+             std::abs(pass.timeStartSec - 0.121f) <= 0.0005f);
         sawSmokeFrame5Window =
             sawSmokeFrame5Window ||
             ((pass.eid == 1080 || pass.eid == 1085 || pass.eid == 1107 || pass.eid == 1129) &&
-             std::abs(pass.timeStartSec - 0.167f) <= 0.0005f);
+             std::abs(pass.timeStartSec - 0.152f) <= 0.0005f);
         sawSmokeFrame6Window =
             sawSmokeFrame6Window ||
             ((pass.eid == 1166 || pass.eid == 1176) &&
-             std::abs(pass.timeStartSec - 0.200f) <= 0.0005f);
+             std::abs(pass.timeStartSec - 0.182f) <= 0.0005f);
         sawSmokeLongTail =
             sawSmokeLongTail ||
             ((pass.eid == 921 || pass.eid == 926 || pass.eid == 941 || pass.eid == 965 ||
@@ -171,34 +174,34 @@ bool test_tackle_smoke_vfx_contract(std::string& outFail) {
               pass.eid == 1043 || pass.eid == 1070 || pass.eid == 1075 || pass.eid == 1080 ||
               pass.eid == 1085 || pass.eid == 1107 || pass.eid == 1129 || pass.eid == 1166 ||
               pass.eid == 1176) &&
-             std::abs(pass.timeEndSec - (50.0f / 30.0f)) <= 0.0005f &&
+             std::abs(pass.timeEndSec - kFsysTotalSec) <= 0.0005f &&
              pass.timeFadeLocal &&
              std::abs(pass.timeFadeStart - 0.30f) <= 0.0005f);
         sawQuarterCoreWindow =
             sawQuarterCoreWindow ||
             ((pass.eid == 1196 || pass.eid == 1210) &&
              std::abs(pass.timeStartSec - 0.0f) <= 0.0005f &&
-             std::abs(pass.timeEndSec - 0.60f) <= 0.0005f &&
+             std::abs(pass.timeEndSec - 0.546f) <= 0.0005f &&
              pass.timeFadeLocal &&
              std::abs(pass.timeFadeStart - 0.62f) <= 0.0005f &&
              std::abs(pass.localScaleStartMul - 0.55f) <= 0.0005f &&
              std::abs(pass.localScaleEndMul - 1.0f) <= 0.0005f &&
-             std::abs(pass.localScaleRampSec - 0.10f) <= 0.0005f);
+             std::abs(pass.localScaleRampSec - 0.091f) <= 0.0005f);
         sawSpiralWindow =
             sawSpiralWindow ||
             ((pass.eid == 1225 || pass.eid == 1234 || pass.eid == 1243) &&
              std::abs(pass.timeStartSec - 0.0f) <= 0.0005f &&
-             std::abs(pass.timeEndSec - 0.533f) <= 0.0005f &&
+             std::abs(pass.timeEndSec - 0.485f) <= 0.0005f &&
              pass.timeFadeLocal &&
              std::abs(pass.timeFadeStart - 0.50f) <= 0.0005f &&
              std::abs(pass.localScaleStartMul - 0.55f) <= 0.0005f &&
              std::abs(pass.localScaleEndMul - 1.0f) <= 0.0005f &&
-             std::abs(pass.localScaleRampSec - 0.10f) <= 0.0005f);
+             std::abs(pass.localScaleRampSec - 0.091f) <= 0.0005f);
         sawSparkWindow =
             sawSparkWindow ||
             (pass.eid == 1253 &&
              std::abs(pass.timeStartSec - 0.0f) <= 0.0005f &&
-             std::abs(pass.timeEndSec - 0.40f) <= 0.0005f &&
+             std::abs(pass.timeEndSec - 0.364f) <= 0.0005f &&
              pass.timeFadeLocal &&
              std::abs(pass.timeFadeStart - 0.55f) <= 0.0005f);
         totalBillboardDirections +=
@@ -254,27 +257,27 @@ bool test_tackle_smoke_vfx_contract(std::string& outFail) {
     }
     if (!expect(sawSmokeFrame2Window && sawSmokeFrame3Window && sawSmokeFrame4Window &&
                     sawSmokeFrame5Window && sawSmokeFrame6Window,
-                "Tackle smoke should currently build in across explicit 30 fps windows from frames 2 through 6 using the denser capture-derived smoke family.",
+                "Tackle smoke should currently build in across shortened FSYS-paced windows using the denser capture-derived smoke family.",
                 outFail)) {
         return false;
     }
     if (!expect(sawSmokeLongTail,
-                "Tackle smoke should currently use a full ~50-frame lifetime tail with a local fade instead of cutting off abruptly.",
+                "Tackle smoke should currently use the shorter FSYS-backed lifetime tail with a local fade instead of the older slower 50-frame timing.",
                 outFail)) {
         return false;
     }
     if (!expect(sawQuarterCoreWindow,
-                "Tackle quarter-core passes should currently use an explicit local timing window through frame 18.",
+                "Tackle quarter-core passes should currently use the shortened FSYS-paced local timing window.",
                 outFail)) {
         return false;
     }
     if (!expect(sawSpiralWindow,
-                "Tackle spiral impact cards should currently use an explicit local timing window through frame 16.",
+                "Tackle spiral impact cards should currently use the shortened FSYS-paced local timing window.",
                 outFail)) {
         return false;
     }
     if (!expect(sawSparkWindow,
-                "Tackle sparks should currently use an explicit local timing window through frame 12.",
+                "Tackle sparks should currently use the shortened FSYS-paced local timing window.",
                 outFail)) {
         return false;
     }

@@ -12,14 +12,16 @@ TackleSmokeVFX::TackleSmokeVFX() {
 TackleSmokeVFX::~TackleSmokeVFX() = default;
 
 TackleSmokeVFX::Config TackleSmokeVFX::makeDefaultConfig() {
+    constexpr float kFsysTotalFrames = 45.500656f;
+    constexpr float kFsysTotalSec = kFsysTotalFrames / 30.0f;
     Config config{};
     config.spawnForwardOffset = 0.0f;
     config.spawnHeightOffset = 0.06f;
     config.ringForwardOffset = 0.0f;
     config.ringMinSpeed = 0.01f;
     config.ringMaxSpeed = 0.04f;
-    config.ringMinLifeSec = 50.0f / 30.0f;
-    config.ringMaxLifeSec = 50.0f / 30.0f;
+    config.ringMinLifeSec = kFsysTotalSec;
+    config.ringMaxLifeSec = kFsysTotalSec;
     config.ringMinSize = 0.88f;
     config.ringMaxSize = 1.08f;
     config.ringTrailCount = 0;
