@@ -328,8 +328,50 @@
       "tev_k1a": 0.588235,
       "tint_color": [1.0, 1.0, 1.0],
       "use_alpha_mask_for_color": true,
-      "scale_mul": 1.4,
-      "alpha_mul": 0.9,
+      "scale_mul": 1.55,
+      "alpha_mul": 0.74,
+      "authored_billboards": [
+        {
+          "position_local": [0.0, 0.0, 0.0],
+          "scale_mul": 1.0,
+          "alpha_mul": 1.0
+        },
+        {
+          "position_local": [0.0, 0.0, 0.0],
+          "scale_mul": 1.0,
+          "alpha_mul": 0.78
+        }
+      ],
+      "forward_offset": 0.0,
+      "height_offset": 0.0,
+      "radius_mul": 1.0,
+      "thickness_mul": 1.0,
+      "enabled": true
+    },
+    {
+      "id": "growl_late_3924_secondary",
+      "eid": 1288,
+      "render_mode": "glow_billboard",
+      "texture": "assets/textures/moves/growl/Texture3924.png",
+      "vert_shader": "assets/shaders/vfx/moves/growl/growl_quarter_ring_shared.vert",
+      "frag_shader": "assets/shaders/vfx/moves/growl/growl_quarter_ring_shared.frag",
+      "override_tev": true,
+      "tev_c0": [1.0, 1.0, 1.0],
+      "tev_c1": [0.0, 0.156863, 0.215686],
+      "tev_k0": [1.0, 0.698039, 0.698039],
+      "tev_k1a": 0.588235,
+      "tint_color": [1.0, 1.0, 1.0],
+      "use_alpha_mask_for_color": true,
+      "scale_mul": 0.42,
+      "alpha_mul": 0.58,
+      "authored_billboard_position_scale": 0.05,
+      "authored_billboards": [
+        {
+          "position_local": [-1.779, -1.381, 6.117],
+          "scale_mul": 1.0,
+          "alpha_mul": 1.0
+        }
+      ],
       "forward_offset": 0.0,
       "height_offset": 0.0,
       "radius_mul": 1.0,
