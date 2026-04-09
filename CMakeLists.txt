@@ -637,6 +637,8 @@ target_sources(PAC_VfxPreviewSupport PRIVATE
     src/game/preview/effects/TacklePreviewEffect.h
     src/game/preview/effects/LeechSeedPreviewEffect.h
     src/vfx/preview/growl/GrowlPreviewController.h
+    src/vfx/preview/shared/ControllerBackedPreviewEffect.h
+    src/vfx/preview/shared/SharedPreviewControllerBase.h
     src/vfx/preview/shared/SharedAuthoredVfxRenderer.h
     src/vfx/preview/tackle/TacklePreviewController.h
     src/game/runtime/shared/vfx/tail_fire/SharedTailFireAnchorMath.h
@@ -664,6 +666,8 @@ target_sources(PAC_VfxLabSupport PRIVATE
     src/vfx/preview/effects/GrowlLabPreviewEffect.h
     src/vfx/preview/effects/TackleLabPreviewEffect.h
     src/vfx/preview/growl/GrowlPreviewController.h
+    src/vfx/preview/shared/ControllerBackedPreviewEffect.h
+    src/vfx/preview/shared/SharedPreviewControllerBase.h
     src/vfx/preview/shared/SharedAuthoredVfxRenderer.h
     src/vfx/preview/tackle/TacklePreviewController.h
 )

@@ -1,40 +1,16 @@
 #pragma once
 
-#include <memory>
-
-#include "engine/tools/vfx_preview/IVfxPreviewEffect.h"
-
-namespace vfx::preview::tackle {
-class TacklePreviewController;
-}
+#include "vfx/preview/shared/ControllerBackedPreviewEffect.h"
+#include "vfx/preview/tackle/TacklePreviewController.h"
 
 namespace game::preview {
 
-class TacklePreviewEffect final : public engine::tools::vfx_preview::IVfxPreviewEffect {
+using TacklePreviewEffectBase = vfx::preview::shared::ControllerBackedPreviewEffect<
+    vfx::preview::tackle::TacklePreviewController>;
+
+class TacklePreviewEffect final : public TacklePreviewEffectBase {
 public:
     TacklePreviewEffect();
-    ~TacklePreviewEffect() override;
-
-    std::string_view name() const override;
-    void onActivated(engine::tools::vfx_preview::PreviewSceneState& scene) override;
-    void replay(const engine::tools::vfx_preview::PreviewSceneState& scene) override;
-    void reload(const engine::tools::vfx_preview::PreviewSceneState& scene) override;
-    void update(float dt, const engine::tools::vfx_preview::PreviewSceneState& scene) override;
-    void stepFrames(int frames, const engine::tools::vfx_preview::PreviewSceneState& scene) override;
-    void render(const engine::tools::vfx_preview::PreviewFrameContext& frame) override;
-    void onResize(int width, int height) override;
-    std::uint32_t activeCount() const override;
-    engine::tools::vfx_preview::PreviewCasterAnimationRequest casterAnimationRequest() const override;
-    engine::tools::vfx_preview::PreviewPokemonSpeciesSelection previewPokemonSpecies() const override;
-    bool wantsExactClipMotionPreview() const override;
-    bool wantsTargetSurfaceImpactPoint() const override;
-    engine::tools::vfx_preview::PreviewEffectFocusFrame previewFocusFrame(
-        const engine::tools::vfx_preview::PreviewSceneState& scene) const override;
-    std::vector<std::string> overlayLines(
-        const engine::tools::vfx_preview::PreviewSceneState& scene) const override;
-
-private:
-    std::unique_ptr<vfx::preview::tackle::TacklePreviewController> controller_;
 };
 
 } // namespace game::preview
