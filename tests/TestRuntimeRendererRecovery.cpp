@@ -1,27 +1,12 @@
 #include <memory>
 #include <string>
 
-#include "engine/render/IRenderBackend.h"
 #include "game/runtime/renderer/RuntimeRendererRecovery.h"
+#include "TestRenderBackendDoubles.h"
 
 namespace {
-
-class FakeRenderBackend final : public IRenderBackend {
-public:
-    explicit FakeRenderBackend(std::string backendId)
-        : backendId_(std::move(backendId)) {}
-
-    const char* backendId() const override { return backendId_.c_str(); }
-    void beginFrame(float, float, float, float) override {}
-    void endFrame() override {}
-    void onResize(int, int) override {}
-    bool requiresOpenGLContext() const override { return backendId_ == "opengl"; }
-    bool handlesPresentation() const override { return false; }
-    void shutdown() override {}
-
-private:
-    std::string backendId_;
-};
+using test::render_doubles::ConfigurableFakeRenderBackend;
+using test::render_doubles::FakeRenderBackendConfig;
 
 } // namespace
 
@@ -37,7 +22,11 @@ bool test_runtime_renderer_recovery_contract(std::string& outFail) {
         const auto result = game::runtime::renderer_recovery::createWithOpenGlFallback(
             Inputs{game::video::RendererBackend::D3D12, "d3d12"},
             [](game::video::RendererBackend backend, std::string*) -> std::unique_ptr<IRenderBackend> {
-                return std::make_unique<FakeRenderBackend>(game::video::rendererBackendName(backend));
+                const std::string backendName = game::video::rendererBackendName(backend);
+                return std::make_unique<ConfigurableFakeRenderBackend>(FakeRenderBackendConfig{
+                    .backendId = backendName,
+                    .requiresOpenGlContext = backendName == "opengl",
+                });
             },
             [&]() {
                 ++fallbackWindowCalls;
@@ -73,7 +62,11 @@ bool test_runtime_renderer_recovery_contract(std::string& outFail) {
                     if (outError) *outError = "mock create error";
                     return std::unique_ptr<IRenderBackend>{};
                 }
-                return std::make_unique<FakeRenderBackend>(game::video::rendererBackendName(backend));
+                const std::string backendName = game::video::rendererBackendName(backend);
+                return std::make_unique<ConfigurableFakeRenderBackend>(FakeRenderBackendConfig{
+                    .backendId = backendName,
+                    .requiresOpenGlContext = backendName == "opengl",
+                });
             },
             [&]() {
                 ++fallbackWindowCalls;

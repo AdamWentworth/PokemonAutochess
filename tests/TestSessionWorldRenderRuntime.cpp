@@ -1,32 +1,24 @@
 #include "game/runtime/session/SessionWorldRenderRuntime.h"
 
-#include "engine/render/IRenderBackend.h"
 #include "game/GameConfig.h"
 #include "game/config/GameDataDb.h"
 #include "game/runtime/ui/InventoryPanel.h"
+#include "TestRenderBackendDoubles.h"
 
 #include <string>
 #include <unordered_map>
 
 namespace {
-
-class FakeRenderBackend final : public IRenderBackend {
-public:
-    const char* backendId() const override { return "test"; }
-    void beginFrame(float, float, float, float) override {}
-    void endFrame() override {}
-    void onResize(int, int) override {}
-    bool requiresOpenGLContext() const override { return false; }
-    bool handlesPresentation() const override { return false; }
-    bool supportsWorldTriangles3D() const override { return true; }
-    bool supportsWorldIndexedMeshes() const override { return false; }
-    void shutdown() override {}
-};
+using test::render_doubles::ConfigurableFakeRenderBackend;
+using test::render_doubles::FakeRenderBackendConfig;
 
 } // namespace
 
 bool test_session_world_render_runtime_contract(std::string& outFail) {
-    FakeRenderBackend renderer;
+    ConfigurableFakeRenderBackend renderer(FakeRenderBackendConfig{
+        .backendId = "test",
+        .supportsWorldTriangles3D = true,
+    });
     GameConfigData config;
     config.rows = 4;
     config.cols = 8;

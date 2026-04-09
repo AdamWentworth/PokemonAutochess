@@ -1,32 +1,14 @@
-#include <cstdlib>
-#include <memory>
-#include <optional>
 #include <string>
 
-#include "engine/render/IRenderBackend.h"
 #include "game/runtime/session/SessionRenderConfig.h"
 #include "TestEnvVarUtils.h"
+#include "TestRenderBackendDoubles.h"
 
 namespace {
 using test::env_utils::ScopedEnvVar;
 using test::env_utils::setEnvVar;
-
-class FakeRenderBackend final : public IRenderBackend {
-public:
-    explicit FakeRenderBackend(std::string backendId)
-        : backendId_(std::move(backendId)) {}
-
-    const char* backendId() const override { return backendId_.c_str(); }
-    void beginFrame(float, float, float, float) override {}
-    void endFrame() override {}
-    void onResize(int, int) override {}
-    bool requiresOpenGLContext() const override { return false; }
-    bool handlesPresentation() const override { return false; }
-    void shutdown() override {}
-
-private:
-    std::string backendId_;
-};
+using test::render_doubles::ConfigurableFakeRenderBackend;
+using test::render_doubles::FakeRenderBackendConfig;
 
 } // namespace
 
@@ -109,9 +91,9 @@ bool test_session_render_config_contract(std::string& outFail) {
             game::runtime::session_render_config::resetForTests();
         });
 
-        FakeRenderBackend opengl("opengl");
-        FakeRenderBackend d3d12("d3d12");
-        FakeRenderBackend test("test");
+        ConfigurableFakeRenderBackend opengl(FakeRenderBackendConfig{.backendId = "opengl"});
+        ConfigurableFakeRenderBackend d3d12(FakeRenderBackendConfig{.backendId = "d3d12"});
+        ConfigurableFakeRenderBackend test(FakeRenderBackendConfig{.backendId = "test"});
 
         setEnvVar("PAC_BACKEND_GPU_CLIP_SKINNING", "1");
         setEnvVar("PAC_BACKEND_GPU_CLIP_SKINNING_OPENGL", "0");

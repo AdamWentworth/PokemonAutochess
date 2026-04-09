@@ -335,6 +335,11 @@ Why third:
 - lower payoff than runtime/preview cleanup
 - good follow-up once runtime seams are stable
 
+Completed slices:
+
+- shared env-var scaffolding for startup/session tests
+- shared configurable fake render backend for small runtime/session tests
+
 ### Phase D: Broader Startup Registry Revisit
 
 Focus:

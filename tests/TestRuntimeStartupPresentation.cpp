@@ -1,30 +1,12 @@
 #include <cmath>
 #include <stdexcept>
-#include <string>
 
-#include "engine/render/IRenderBackend.h"
 #include "game/runtime/startup/RuntimeStartupPresentation.h"
+#include "TestRenderBackendDoubles.h"
 
 namespace {
-
-class FakeRenderBackend final : public IRenderBackend {
-public:
-    const char* backendId() const override { return "opengl"; }
-    void beginFrame(float, float, float, float) override {}
-    void endFrame() override {}
-    void onResize(int width, int height) override {
-        resizeCalls++;
-        lastWidth = width;
-        lastHeight = height;
-    }
-    bool requiresOpenGLContext() const override { return true; }
-    bool handlesPresentation() const override { return false; }
-    void shutdown() override {}
-
-    int resizeCalls = 0;
-    int lastWidth = 0;
-    int lastHeight = 0;
-};
+using test::render_doubles::ConfigurableFakeRenderBackend;
+using test::render_doubles::FakeRenderBackendConfig;
 
 } // namespace
 
@@ -74,7 +56,10 @@ bool test_runtime_startup_presentation_contract(std::string& outFail) {
     }
 
     {
-        FakeRenderBackend renderer;
+        ConfigurableFakeRenderBackend renderer(FakeRenderBackendConfig{
+            .backendId = "opengl",
+            .requiresOpenGlContext = true,
+        });
         int renderBootLoadingCalls = 0;
         const bool primed = game::runtime::startup_presentation::primeInitialLoadingFrame(
             &renderer,

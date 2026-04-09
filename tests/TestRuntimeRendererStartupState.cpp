@@ -2,35 +2,12 @@
 #include <string>
 
 #include "engine/core/EngineServices.h"
-#include "engine/render/IRenderBackend.h"
 #include "game/runtime/renderer/RuntimeRendererStartupState.h"
+#include "TestRenderBackendDoubles.h"
 
 namespace {
-
-class FakeRenderBackend final : public IRenderBackend {
-public:
-    FakeRenderBackend(std::string backendId, bool requiresOpenGlContext, std::string activeGpuName, bool discrete)
-        : backendId_(std::move(backendId))
-        , requiresOpenGlContext_(requiresOpenGlContext)
-        , activeGpuName_(std::move(activeGpuName))
-        , discrete_(discrete) {}
-
-    const char* backendId() const override { return backendId_.c_str(); }
-    void beginFrame(float, float, float, float) override {}
-    void endFrame() override {}
-    void onResize(int, int) override {}
-    bool requiresOpenGLContext() const override { return requiresOpenGlContext_; }
-    bool handlesPresentation() const override { return false; }
-    std::string activeGpuName() const override { return activeGpuName_; }
-    bool activeGpuIsDiscrete() const override { return discrete_; }
-    void shutdown() override {}
-
-private:
-    std::string backendId_;
-    bool requiresOpenGlContext_ = false;
-    std::string activeGpuName_;
-    bool discrete_ = false;
-};
+using test::render_doubles::ConfigurableFakeRenderBackend;
+using test::render_doubles::FakeRenderBackendConfig;
 
 } // namespace
 
@@ -42,7 +19,10 @@ bool test_runtime_renderer_startup_state_contract(std::string& outFail) {
         services.vsyncEnabled = true;
         services.requireDiscreteGpu = true;
 
-        FakeRenderBackend renderer("opengl", true, "", false);
+        ConfigurableFakeRenderBackend renderer(FakeRenderBackendConfig{
+            .backendId = "opengl",
+            .requiresOpenGlContext = true,
+        });
         game::runtime::renderer_startup_state::OpenGlStrings glStrings;
         glStrings.vendor = "Intel";
         glStrings.renderer = "Intel Iris Xe";
@@ -76,7 +56,11 @@ bool test_runtime_renderer_startup_state_contract(std::string& outFail) {
     {
         EngineServices services;
         services.requestedRendererBackend = "d3d12";
-        FakeRenderBackend renderer("d3d12", false, "RTX 4080", true);
+        ConfigurableFakeRenderBackend renderer(FakeRenderBackendConfig{
+            .backendId = "d3d12",
+            .activeGpuName = "RTX 4080",
+            .activeGpuIsDiscrete = true,
+        });
         const auto inputs = game::runtime::renderer_startup_state::makeActivationInputs(
             services,
             renderer,
