@@ -32,3 +32,5 @@ Makefile
 
 # Disposable RMXP indexing output
 assets/textures/environment/generated_index/
+
+__pycache__
