@@ -3,6 +3,7 @@
 #include "engine/render/Model.h"
 #include "game/runtime/shared/vfx/authored/SharedAuthoredVfxPrewarm.h"
 #include "vfx/effects/growl/GrowlWaveVFX.h"
+#include "vfx/effects/growl/GrowlWaveVfxConfig.h"
 
 #include <glm/glm.hpp>
 
@@ -12,10 +13,7 @@ namespace {
 
 GrowlWaveVFX::Config resolveGrowlConfig() {
     GrowlWaveVFX parser;
-    GrowlWaveVFX::Config config;
-    config.spawnForwardOffset = 0.0f;
-    config.spawnHeightOffset = 0.0f;
-    config.drawManifestPath = "config/vfx/moves/growl_draw_passes.json";
+    GrowlWaveVFX::Config config = vfx::growl_wave_config::makeSourceAlignedConfig();
     parser.setConfig(config);
     return parser.getConfig();
 }
@@ -35,7 +33,7 @@ startup_asset_prewarm::GrowlStats prewarm(const Args& args) {
     GrowlWaveVFX::RenderRing ring;
     ring.pos = glm::vec3(0.0f, 0.18f, 0.0f);
     ring.forward = glm::vec3(0.0f, 0.0f, 1.0f);
-    ring.lifeSec = 0.8f;
+    ring.lifeSec = snapshot.config.ringMaxLifeSec;
     ring.ageSec = 0.0f;
     ring.startScale = 1.0f;
     ring.endScale = 1.35f;

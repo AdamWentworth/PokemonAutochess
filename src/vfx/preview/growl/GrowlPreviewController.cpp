@@ -2,6 +2,7 @@
 
 #include "engine/core/Paths.h"
 #include "engine/render/Model.h"
+#include "vfx/effects/growl/GrowlWaveVfxConfig.h"
 
 namespace vfx::preview::growl {
 
@@ -10,9 +11,7 @@ GrowlPreviewController::GrowlPreviewController(std::string_view logPrefix)
                                   "GrowlPreview",
                                   "Growl",
                                   logPrefix) {
-    config_.spawnForwardOffset = 0.0f;
-    config_.spawnHeightOffset = 0.0f;
-    config_.drawManifestPath = "config/vfx/moves/growl_draw_passes.json";
+    config_ = vfx::growl_wave_config::makeSourceAlignedConfig();
 }
 
 GrowlPreviewController::~GrowlPreviewController() = default;

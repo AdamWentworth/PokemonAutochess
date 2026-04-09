@@ -15,6 +15,7 @@
 #include "game/runtime/render_model_cache/RenderModelCache.h"
 #include "game/runtime/shared/backend/SharedBackendPoseEval.h"
 #include "game/world/MoveImpactMath.h"
+#include "vfx/effects/growl/GrowlWaveVfxConfig.h"
 
 namespace {
 
@@ -250,10 +251,7 @@ void GameWorld::emitGrowlImpact(const PokemonInstance& target,
                                 const PokemonInstance* attacker,
                                 const glm::vec3& forward) {
     if (!growlWaveVfxInitialized) {
-        GrowlWaveVFX::Config c;
-        c.spawnForwardOffset = 0.0f;
-        c.spawnHeightOffset = 0.0f;
-        c.drawManifestPath = "config/vfx/moves/growl_draw_passes.json";
+        GrowlWaveVFX::Config c = vfx::growl_wave_config::makeSourceAlignedConfig();
         growlWaveVfx.setConfig(c);
         growlWaveVfxInitialized = true;
     }

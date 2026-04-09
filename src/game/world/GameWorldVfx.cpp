@@ -1,5 +1,6 @@
 #include "game/world/GameWorld.h"
 #include "game/runtime/shared/vfx/tail_fire/SharedTailFireCoordinator.h"
+#include "vfx/effects/growl/GrowlWaveVfxConfig.h"
 
 #include <string>
 
@@ -54,11 +55,7 @@ void GameWorld::updateRenderVfx(float dt) {
     }
 
     if (!growlWaveVfxInitialized) {
-        GrowlWaveVFX::Config configData;  // defaults
-        // We now resolve the origin from head/jaw nodes, so keep built-in offsets minimal.
-        configData.spawnForwardOffset = 0.0f;
-        configData.spawnHeightOffset = 0.0f;
-        configData.drawManifestPath = "config/vfx/moves/growl_draw_passes.json";
+        GrowlWaveVFX::Config configData = vfx::growl_wave_config::makeSourceAlignedConfig();
         growlWaveVfx.setConfig(configData);
         growlWaveVfxInitialized = true;
     }

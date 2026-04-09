@@ -324,6 +324,7 @@ add_library(PAC_VfxCore STATIC
 )
 target_sources(PAC_VfxCore PRIVATE
     src/vfx/effects/growl/GrowlWaveVFX.h
+    src/vfx/effects/growl/GrowlWaveVfxConfig.h
     src/vfx/effects/shared/SharedAuthoredBatchVFX.h
     src/vfx/effects/tackle/TackleSmokeVFX.h
     src/vfx/runtime/shared/SharedAuthoredVfxHelpers.h
