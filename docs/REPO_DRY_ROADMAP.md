@@ -342,6 +342,8 @@ Completed slices:
 
 ### Phase D: Broader Startup Registry Revisit
 
+Status: In progress on 2026-04-08
+
 Focus:
 
 - only if new startup prewarm families continue to accumulate
@@ -350,6 +352,12 @@ Why last:
 
 - easy to over-abstract too early
 - better informed once the repo has more real repeated cases
+
+Current bounded progress:
+
+- shared authored-VFX startup enable gating in session render config
+- shared authored-VFX startup entry construction in session startup bridge
+- shared authored-VFX prewarm arg construction in backend asset bridge
 
 ## Test Guardrails For DRY Work
 

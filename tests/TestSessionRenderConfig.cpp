@@ -1,6 +1,7 @@
 #include <string>
 
 #include "game/runtime/session/SessionRenderConfig.h"
+#include "game/runtime/startup/RuntimeStartupAssetPrewarm.h"
 #include "TestEnvVarUtils.h"
 #include "TestRenderBackendDoubles.h"
 
@@ -67,6 +68,10 @@ bool test_session_render_config_contract(std::string& outFail) {
 
         if (game::runtime::session_render_config::backendPreloadModelCacheEnabled() ||
             game::runtime::session_render_config::backendUiSpritePrewarmEnabled() ||
+            game::runtime::session_render_config::backendPrewarmAuthoredVfxEnabled(
+                game::runtime::startup_asset_prewarm::AuthoredVfxKind::Growl) ||
+            game::runtime::session_render_config::backendPrewarmAuthoredVfxEnabled(
+                game::runtime::startup_asset_prewarm::AuthoredVfxKind::Tackle) ||
             game::runtime::session_render_config::backendPrewarmGrowlVfxEnabled() ||
             game::runtime::session_render_config::backendPrewarmTackleVfxEnabled() ||
             game::runtime::session_render_config::backendPrewarmParticleVfxEnabled() ||

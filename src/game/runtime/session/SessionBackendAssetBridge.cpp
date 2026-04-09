@@ -13,6 +13,28 @@
 
 namespace game::runtime::session_backend_asset_bridge {
 
+namespace {
+
+shared_authored_vfx_prewarm::Args makeAuthoredVfxPrewarmArgs(
+    State& state,
+    IRenderBackend* renderer,
+    const engine::log::Sink& consoleLog) {
+    return shared_authored_vfx_prewarm::Args{
+        .renderer = renderer,
+        .backendTextureByPath = &state.textureByPath,
+        .ensureBackendMeshLoaded =
+            [&](const std::string& modelPath) {
+                return ensureBackendMeshLoaded(state, modelPath, consoleLog);
+            },
+        .ensureBackendTextureLoaded =
+            [&](const std::string& texturePath, bool flipVertical) {
+                return ensureBackendTextureLoaded(state, texturePath, flipVertical);
+            },
+    };
+}
+
+} // namespace
+
 session_texture_cache::TextureCache& textureCache(State& state) {
     return state.textureByPath;
 }
@@ -142,37 +164,13 @@ startup_asset_prewarm::TailFireStats prewarmTailFire(State& state, IRenderBacken
 startup_asset_prewarm::GrowlStats prewarmGrowlVfx(State& state,
                                                   IRenderBackend* renderer,
                                                   const engine::log::Sink& consoleLog) {
-    return growl_vfx_prewarm::prewarm(
-        {
-            .renderer = renderer,
-            .backendTextureByPath = &state.textureByPath,
-            .ensureBackendMeshLoaded =
-                [&](const std::string& modelPath) {
-                    return ensureBackendMeshLoaded(state, modelPath, consoleLog);
-                },
-            .ensureBackendTextureLoaded =
-                [&](const std::string& texturePath, bool flipVertical) {
-                    return ensureBackendTextureLoaded(state, texturePath, flipVertical);
-                },
-        });
+    return growl_vfx_prewarm::prewarm(makeAuthoredVfxPrewarmArgs(state, renderer, consoleLog));
 }
 
 startup_asset_prewarm::TackleStats prewarmTackleVfx(State& state,
                                                     IRenderBackend* renderer,
                                                     const engine::log::Sink& consoleLog) {
-    return tackle_vfx_prewarm::prewarm(
-        {
-            .renderer = renderer,
-            .backendTextureByPath = &state.textureByPath,
-            .ensureBackendMeshLoaded =
-                [&](const std::string& modelPath) {
-                    return ensureBackendMeshLoaded(state, modelPath, consoleLog);
-                },
-            .ensureBackendTextureLoaded =
-                [&](const std::string& texturePath, bool flipVertical) {
-                    return ensureBackendTextureLoaded(state, texturePath, flipVertical);
-                },
-        });
+    return tackle_vfx_prewarm::prewarm(makeAuthoredVfxPrewarmArgs(state, renderer, consoleLog));
 }
 
 startup_asset_prewarm::ParticleVfxStats prewarmParticleVfx(State& state,

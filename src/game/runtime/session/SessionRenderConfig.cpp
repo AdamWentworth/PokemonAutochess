@@ -7,6 +7,7 @@
 
 #include "engine/core/Environment.h"
 #include "engine/render/IRenderBackend.h"
+#include "game/runtime/startup/RuntimeStartupAssetPrewarm.h"
 
 namespace {
 
@@ -162,6 +163,16 @@ bool backendUiSpritePrewarmEnabled() {
 
 bool backendWorldLayerPrewarmEnabled() {
     return cachedFlag(gCache.worldLayerPrewarm, "PAC_BACKEND_PREWARM_WORLD_LAYER", true);
+}
+
+bool backendPrewarmAuthoredVfxEnabled(startup_asset_prewarm::AuthoredVfxKind kind) {
+    switch (kind) {
+    case startup_asset_prewarm::AuthoredVfxKind::Growl:
+        return backendPrewarmGrowlVfxEnabled();
+    case startup_asset_prewarm::AuthoredVfxKind::Tackle:
+        return backendPrewarmTackleVfxEnabled();
+    }
+    return false;
 }
 
 bool backendPrewarmGrowlVfxEnabled() {

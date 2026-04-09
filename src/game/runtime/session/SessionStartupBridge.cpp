@@ -5,6 +5,23 @@
 
 namespace game::runtime::session_startup_bridge {
 
+namespace {
+
+startup_asset_prewarm::AuthoredVfxPrewarmEntry makeAuthoredVfxPrewarmEntry(
+    startup_asset_prewarm::AuthoredVfxKind kind,
+    std::string title,
+    float progress,
+    std::function<startup_asset_prewarm::AuthoredVfxStats()> prewarm) {
+    return startup_asset_prewarm::AuthoredVfxPrewarmEntry{
+        .kind = kind,
+        .title = std::move(title),
+        .progress = progress,
+        .prewarm = std::move(prewarm),
+    };
+}
+
+} // namespace
+
 void run(const Context& context) {
     if (!context.backendAssets || !context.consoleLog) return;
 
@@ -58,32 +75,28 @@ void run(const Context& context) {
                 },
             .prewarmAuthoredVfx =
                 {
-                    {
-                        .kind = startup_asset_prewarm::AuthoredVfxKind::Growl,
-                        .title = "PokemonAutochess - Loading growl VFX...",
-                        .progress = 0.935f,
-                        .prewarm =
-                            [&]() {
-                                return startup_asset_prewarm::toAuthoredVfxStats(
-                                    session_backend_asset_bridge::prewarmGrowlVfx(
-                                        *context.backendAssets,
-                                        context.renderer,
-                                        *context.consoleLog));
-                            },
-                    },
-                    {
-                        .kind = startup_asset_prewarm::AuthoredVfxKind::Tackle,
-                        .title = "PokemonAutochess - Loading tackle VFX...",
-                        .progress = 0.936f,
-                        .prewarm =
-                            [&]() {
-                                return startup_asset_prewarm::toAuthoredVfxStats(
-                                    session_backend_asset_bridge::prewarmTackleVfx(
-                                        *context.backendAssets,
-                                        context.renderer,
-                                        *context.consoleLog));
-                            },
-                    },
+                    makeAuthoredVfxPrewarmEntry(
+                        startup_asset_prewarm::AuthoredVfxKind::Growl,
+                        "PokemonAutochess - Loading growl VFX...",
+                        0.935f,
+                        [&]() {
+                            return startup_asset_prewarm::toAuthoredVfxStats(
+                                session_backend_asset_bridge::prewarmGrowlVfx(
+                                    *context.backendAssets,
+                                    context.renderer,
+                                    *context.consoleLog));
+                        }),
+                    makeAuthoredVfxPrewarmEntry(
+                        startup_asset_prewarm::AuthoredVfxKind::Tackle,
+                        "PokemonAutochess - Loading tackle VFX...",
+                        0.936f,
+                        [&]() {
+                            return startup_asset_prewarm::toAuthoredVfxStats(
+                                session_backend_asset_bridge::prewarmTackleVfx(
+                                    *context.backendAssets,
+                                    context.renderer,
+                                    *context.consoleLog));
+                        }),
                 },
             .prewarmParticleVfx =
                 [&]() {

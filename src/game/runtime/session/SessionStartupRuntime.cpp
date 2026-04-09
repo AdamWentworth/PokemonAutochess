@@ -114,16 +114,7 @@ void run(const Args& args) {
     enabledAuthoredVfx.reserve(args.prewarmAuthoredVfx.size());
     for (const auto& entry : args.prewarmAuthoredVfx) {
         if (!entry.prewarm) continue;
-        bool enabled = false;
-        switch (entry.kind) {
-        case game::runtime::startup_asset_prewarm::AuthoredVfxKind::Growl:
-            enabled = game::runtime::session_render_config::backendPrewarmGrowlVfxEnabled();
-            break;
-        case game::runtime::startup_asset_prewarm::AuthoredVfxKind::Tackle:
-            enabled = game::runtime::session_render_config::backendPrewarmTackleVfxEnabled();
-            break;
-        }
-        if (enabled) {
+        if (game::runtime::session_render_config::backendPrewarmAuthoredVfxEnabled(entry.kind)) {
             enabledAuthoredVfx.push_back(entry);
         }
     }

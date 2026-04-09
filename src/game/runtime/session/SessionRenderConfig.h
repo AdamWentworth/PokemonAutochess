@@ -4,6 +4,10 @@
 
 class IRenderBackend;
 
+namespace game::runtime::startup_asset_prewarm {
+enum class AuthoredVfxKind : int;
+}
+
 namespace game::runtime::session_render_config {
 
 std::size_t backendModelTriangleLimit();
@@ -22,6 +26,7 @@ bool backendModelVerboseLoggingEnabled();
 bool backendModelFastTexturedPathEnabled();
 bool backendUiSpritePrewarmEnabled();
 bool backendWorldLayerPrewarmEnabled();
+bool backendPrewarmAuthoredVfxEnabled(startup_asset_prewarm::AuthoredVfxKind kind);
 bool backendPrewarmGrowlVfxEnabled();
 bool backendPrewarmTackleVfxEnabled();
 bool backendPrewarmParticleVfxEnabled();
